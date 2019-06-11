@@ -9,11 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-namespace Data {
-class WallPaper;
+namespace Data
+{
+	class WallPaper;
 } // namespace Data
 
-class BackgroundBox : public BoxContent {
+class BackgroundBox : public BoxContent
+{
 public:
 	BackgroundBox(QWidget*);
 
@@ -23,8 +25,7 @@ protected:
 private:
 	class Inner;
 
-	void removePaper(const Data::WallPaper &paper);
+	void removePaper(const Data::WallPaper& paper);
 
 	QPointer<Inner> _inner;
-
 };

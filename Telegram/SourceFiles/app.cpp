@@ -51,18 +51,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <libexif/exif-data.h>
 #endif // OS_MAC_OLD
 
-namespace {
+namespace
+{
 	App::LaunchState _launchState = App::Launched;
 
 	HistoryView::Element *hoveredItem = nullptr,
-		*pressedItem = nullptr,
-		*hoveredLinkItem = nullptr,
-		*pressedLinkItem = nullptr,
-		*mousedItem = nullptr;
+	                     *pressedItem = nullptr,
+	                     *hoveredLinkItem = nullptr,
+	                     *pressedLinkItem = nullptr,
+	                     *mousedItem = nullptr;
 
 	style::font monofont;
 
-	struct CornersPixmaps {
+	struct CornersPixmaps
+	{
 		QPixmap p[4];
 	};
 	QVector<CornersPixmaps> corners;
@@ -71,18 +73,20 @@ namespace {
 	QImage cornersMaskLarge[4], cornersMaskSmall[4];
 
 	int32 serviceImageCacheSize = 0;
-
 } // namespace
 
-namespace App {
-
-	QString formatPhone(QString phone) {
+namespace App
+{
+	QString formatPhone(QString phone)
+	{
 		if (phone.isEmpty()) return QString();
 		if (phone.at(0) == '0') return phone;
 
 		QString number = phone;
-		for (const QChar *ch = phone.constData(), *e = ch + phone.size(); ch != e; ++ch) {
-			if (ch->unicode() < '0' || ch->unicode() > '9') {
+		for (const QChar *ch = phone.constData(), *e = ch + phone.size(); ch != e; ++ch)
+		{
+			if (ch->unicode() < '0' || ch->unicode() > '9')
+			{
 				number = phone.replace(QRegularExpression(qsl("[^\\d]")), QString());
 			}
 		}
@@ -93,7 +97,8 @@ namespace App {
 		result.reserve(number.size() + groups.size() + 1);
 		result.append('+');
 		int32 sum = 0;
-		for (int32 i = 0, l = groups.size(); i < l; ++i) {
+		for (int32 i = 0, l = groups.size(); i < l; ++i)
+		{
 			result.append(number.midRef(sum, groups.at(i)));
 			sum += groups.at(i);
 			if (sum < number.size()) result.append(' ');
@@ -102,23 +107,28 @@ namespace App {
 		return result;
 	}
 
-	MainWindow *wnd() {
+	MainWindow* wnd()
+	{
 		return (Core::IsAppLaunched() && Core::App().activeWindow())
-			? Core::App().activeWindow()->widget().get()
-			: nullptr;
+			       ? Core::App().activeWindow()->widget().get()
+			       : nullptr;
 	}
 
-	MainWidget *main() {
-		if (auto window = wnd()) {
+	MainWidget* main()
+	{
+		if (auto window = wnd())
+		{
 			return window->mainWidget();
 		}
 		return nullptr;
 	}
 
-	void addSavedGif(DocumentData *doc) {
-		auto &saved = Auth().data().savedGifsRef();
+	void addSavedGif(DocumentData* doc)
+	{
+		auto& saved = Auth().data().savedGifsRef();
 		int32 index = saved.indexOf(doc);
-		if (index) {
+		if (index)
+		{
 			if (index > 0) saved.remove(index);
 			saved.push_front(doc);
 			if (saved.size() > Global::SavedGifsLimit()) saved.pop_back();
@@ -130,11 +140,16 @@ namespace App {
 		}
 	}
 
-	void checkSavedGif(HistoryItem *item) {
-		if (!item->Has<HistoryMessageForwarded>() && (item->out() || item->history()->peer == Auth().user())) {
-			if (const auto media = item->media()) {
-				if (const auto document = media->document()) {
-					if (document->isGifv()) {
+	void checkSavedGif(HistoryItem* item)
+	{
+		if (!item->Has<HistoryMessageForwarded>() && (item->out() || item->history()->peer == Auth().user()))
+		{
+			if (const auto media = item->media())
+			{
+				if (const auto document = media->document())
+				{
+					if (document->isGifv())
+					{
 						addSavedGif(document);
 					}
 				}
@@ -142,21 +157,25 @@ namespace App {
 		}
 	}
 
-	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink) {
-		if (const auto user = Auth().data().userLoaded(userId.v)) {
+	void feedUserLink(MTPint userId, const MTPContactLink& myLink, const MTPContactLink& foreignLink)
+	{
+		if (const auto user = Auth().data().userLoaded(userId.v))
+		{
 			const auto wasShowPhone = (user->contactStatus() == UserData::ContactStatus::CanAdd);
-			switch (myLink.type()) {
+			switch (myLink.type())
+			{
 			case mtpc_contactLinkContact:
 				user->setContactStatus(UserData::ContactStatus::Contact);
-			break;
+				break;
 			case mtpc_contactLinkNone:
 			case mtpc_contactLinkUnknown:
 				user->setContactStatus(UserData::ContactStatus::PhoneUnknown);
-			break;
+				break;
 			}
 			if (user->contactStatus() == UserData::ContactStatus::PhoneUnknown
 				&& !user->phone().isEmpty()
-				&& user->id != Auth().userPeerId()) {
+				&& user->id != Auth().userPeerId())
+			{
 				user->setContactStatus(UserData::ContactStatus::CanAdd);
 			}
 
@@ -166,7 +185,8 @@ namespace App {
 			const auto showPhoneChanged = !user->isServiceUser()
 				&& !user->isSelf()
 				&& (showPhone != wasShowPhone);
-			if (showPhoneChanged) {
+			if (showPhoneChanged)
+			{
 				user->setName(
 					TextUtilities::SingleLine(user->firstName),
 					TextUtilities::SingleLine(user->lastName),
@@ -178,11 +198,13 @@ namespace App {
 		}
 	}
 
-	QString peerName(const PeerData *peer, bool forDialogs) {
+	QString peerName(const PeerData* peer, bool forDialogs)
+	{
 		return peer ? ((forDialogs && peer->isUser() && !peer->asUser()->nameOrPhone.isEmpty()) ? peer->asUser()->nameOrPhone : peer->name) : lang(lng_deleted);
 	}
 
-	void prepareCorners(RoundCorners index, int32 radius, const QBrush &brush, const style::color *shadow = nullptr, QImage *cors = nullptr) {
+	void prepareCorners(RoundCorners index, int32 radius, const QBrush& brush, const style::color* shadow = nullptr, QImage* cors = nullptr)
+	{
 		Expects(::corners.size() > index);
 		int32 r = radius * cIntRetinaFactor(), s = st::msgShadow * cIntRetinaFactor();
 		QImage rect(r * 3, r * 3 + (shadow ? s : 0), QImage::Format_ARGB32_Premultiplied), localCors[4];
@@ -194,7 +216,8 @@ namespace App {
 			p.fillRect(QRect(0, 0, rect.width(), rect.height()), Qt::transparent);
 			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 			p.setPen(Qt::NoPen);
-			if (shadow) {
+			if (shadow)
+			{
 				p.setBrush((*shadow)->b);
 				p.drawRoundedRect(0, s, r * 3, r * 3, r, r);
 			}
@@ -206,37 +229,46 @@ namespace App {
 		cors[1] = rect.copy(r * 2, 0, r, r);
 		cors[2] = rect.copy(0, r * 2, r, r + (shadow ? s : 0));
 		cors[3] = rect.copy(r * 2, r * 2, r, r + (shadow ? s : 0));
-		if (index != SmallMaskCorners && index != LargeMaskCorners) {
-			for (int i = 0; i < 4; ++i) {
+		if (index != SmallMaskCorners && index != LargeMaskCorners)
+		{
+			for (int i = 0; i < 4; ++i)
+			{
 				::corners[index].p[i] = pixmapFromImageInPlace(std::move(cors[i]));
 				::corners[index].p[i].setDevicePixelRatio(cRetinaFactor());
 			}
 		}
 	}
 
-	void tryFontFamily(QString &family, const QString &tryFamily) {
-		if (family.isEmpty()) {
-			if (!QFontInfo(QFont(tryFamily)).family().trimmed().compare(tryFamily, Qt::CaseInsensitive)) {
+	void tryFontFamily(QString& family, const QString& tryFamily)
+	{
+		if (family.isEmpty())
+		{
+			if (!QFontInfo(QFont(tryFamily)).family().trimmed().compare(tryFamily, Qt::CaseInsensitive))
+			{
 				family = tryFamily;
 			}
 		}
 	}
 
-	void createMaskCorners() {
+	void createMaskCorners()
+	{
 		QImage mask[4];
 		prepareCorners(SmallMaskCorners, st::buttonRadius, QColor(255, 255, 255), nullptr, mask);
-		for (int i = 0; i < 4; ++i) {
+		for (int i = 0; i < 4; ++i)
+		{
 			::cornersMaskSmall[i] = mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied);
 			::cornersMaskSmall[i].setDevicePixelRatio(cRetinaFactor());
 		}
 		prepareCorners(LargeMaskCorners, st::historyMessageRadius, QColor(255, 255, 255), nullptr, mask);
-		for (int i = 0; i < 4; ++i) {
+		for (int i = 0; i < 4; ++i)
+		{
 			::cornersMaskLarge[i] = mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied);
 			::cornersMaskLarge[i].setDevicePixelRatio(cRetinaFactor());
 		}
 	}
 
-	void createPaletteCorners() {
+	void createPaletteCorners()
+	{
 		prepareCorners(MenuCorners, st::buttonRadius, st::menuBg);
 		prepareCorners(BoxCorners, st::boxRadius, st::boxBg);
 		prepareCorners(BotKbOverCorners, st::dateRadius, st::msgBotKbOverBgAdd);
@@ -268,19 +300,23 @@ namespace App {
 		prepareCorners(MessageOutSelectedCorners, st::historyMessageRadius, st::msgOutBgSelected, &st::msgOutShadowSelected);
 	}
 
-	void createCorners() {
+	void createCorners()
+	{
 		::corners.resize(RoundCornersCount);
 		createMaskCorners();
 		createPaletteCorners();
 	}
 
-	void clearCorners() {
+	void clearCorners()
+	{
 		::corners.clear();
 		::cornersMap.clear();
 	}
 
-	void initMedia() {
-		if (!::monofont) {
+	void initMedia()
+	{
+		if (!::monofont)
+		{
 			QString family;
 			tryFontFamily(family, qsl("Consolas"));
 			tryFontFamily(family, qsl("Liberation Mono"));
@@ -293,19 +329,25 @@ namespace App {
 		createCorners();
 
 		using Update = Window::Theme::BackgroundUpdate;
-		static auto subscription = Window::Theme::Background()->add_subscription([](const Update &update) {
-			if (update.paletteChanged()) {
+		static auto subscription = Window::Theme::Background()->add_subscription([](const Update& update)
+		{
+			if (update.paletteChanged())
+			{
 				createPaletteCorners();
 
-				if (App::main()) {
+				if (App::main())
+				{
 					App::main()->updateScrollColors();
 				}
 				HistoryView::serviceColorsUpdated();
-			} else if (update.type == Update::Type::New) {
+			}
+			else if (update.type == Update::Type::New)
+			{
 				prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
 				prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceBgSelected);
 
-				if (App::main()) {
+				if (App::main())
+				{
 					App::main()->updateScrollColors();
 				}
 				HistoryView::serviceColorsUpdated();
@@ -313,7 +355,8 @@ namespace App {
 		});
 	}
 
-	void deinitMedia() {
+	void deinitMedia()
+	{
 		clearCorners();
 
 		Data::clearGlobalStructures();
@@ -321,47 +364,58 @@ namespace App {
 		Images::ClearAll();
 	}
 
-	void hoveredItem(HistoryView::Element *item) {
+	void hoveredItem(HistoryView::Element* item)
+	{
 		::hoveredItem = item;
 	}
 
-	HistoryView::Element *hoveredItem() {
+	HistoryView::Element* hoveredItem()
+	{
 		return ::hoveredItem;
 	}
 
-	void pressedItem(HistoryView::Element *item) {
+	void pressedItem(HistoryView::Element* item)
+	{
 		::pressedItem = item;
 	}
 
-	HistoryView::Element *pressedItem() {
+	HistoryView::Element* pressedItem()
+	{
 		return ::pressedItem;
 	}
 
-	void hoveredLinkItem(HistoryView::Element *item) {
+	void hoveredLinkItem(HistoryView::Element* item)
+	{
 		::hoveredLinkItem = item;
 	}
 
-	HistoryView::Element *hoveredLinkItem() {
+	HistoryView::Element* hoveredLinkItem()
+	{
 		return ::hoveredLinkItem;
 	}
 
-	void pressedLinkItem(HistoryView::Element *item) {
+	void pressedLinkItem(HistoryView::Element* item)
+	{
 		::pressedLinkItem = item;
 	}
 
-	HistoryView::Element *pressedLinkItem() {
+	HistoryView::Element* pressedLinkItem()
+	{
 		return ::pressedLinkItem;
 	}
 
-	void mousedItem(HistoryView::Element *item) {
+	void mousedItem(HistoryView::Element* item)
+	{
 		::mousedItem = item;
 	}
 
-	HistoryView::Element *mousedItem() {
+	HistoryView::Element* mousedItem()
+	{
 		return ::mousedItem;
 	}
 
-	void clearMousedItems() {
+	void clearMousedItems()
+	{
 		hoveredItem(nullptr);
 		pressedItem(nullptr);
 		hoveredLinkItem(nullptr);
@@ -369,60 +423,79 @@ namespace App {
 		mousedItem(nullptr);
 	}
 
-	const style::font &monofont() {
+	const style::font& monofont()
+	{
 		return ::monofont;
 	}
 
-	void quit() {
-		if (quitting()) {
+	void quit()
+	{
+		if (quitting())
+		{
 			return;
-		} else if (AuthSession::Exists()
-			&& Auth().data().exportInProgress()) {
-			Auth().data().stopExportWithConfirmation([] { App::quit(); });
+		}
+		else if (AuthSession::Exists()
+			&& Auth().data().exportInProgress())
+		{
+			Auth().data().stopExportWithConfirmation([]
+			{
+				App::quit();
+			});
 			return;
 		}
 		setLaunchState(QuitRequested);
 
-		if (auto window = App::wnd()) {
-			if (!Core::Sandbox::Instance().isSavingSession()) {
+		if (auto window = App::wnd())
+		{
+			if (!Core::Sandbox::Instance().isSavingSession())
+			{
 				window->hide();
 			}
 		}
 		Core::Application::QuitAttempt();
 	}
 
-	bool quitting() {
+	bool quitting()
+	{
 		return _launchState != Launched;
 	}
 
-	LaunchState launchState() {
+	LaunchState launchState()
+	{
 		return _launchState;
 	}
 
-	void setLaunchState(LaunchState state) {
+	void setLaunchState(LaunchState state)
+	{
 		_launchState = state;
 	}
 
-	void restart() {
+	void restart()
+	{
 		using namespace Core;
 		const auto updateReady = !UpdaterDisabled()
 			&& (UpdateChecker().state() == UpdateChecker::State::Ready);
-		if (updateReady) {
+		if (updateReady)
+		{
 			cSetRestartingUpdate(true);
-		} else {
+		}
+		else
+		{
 			cSetRestarting(true);
 			cSetRestartingToSettings(true);
 		}
 		App::quit();
 	}
 
-	QImage readImage(QByteArray data, QByteArray *format, bool opaque, bool *animated) {
-        QByteArray tmpFormat;
+	QImage readImage(QByteArray data, QByteArray* format, bool opaque, bool* animated)
+	{
+		QByteArray tmpFormat;
 		QImage result;
 		QBuffer buffer(&data);
-        if (!format) {
-            format = &tmpFormat;
-        }
+		if (!format)
+		{
+			format = &tmpFormat;
+		}
 		{
 			QImageReader reader(&buffer, *format);
 #ifndef OS_MAC_OLD
@@ -431,7 +504,8 @@ namespace App {
 			if (animated) *animated = reader.supportsAnimation() && reader.imageCount() > 1;
 			QByteArray fmt = reader.format();
 			if (!fmt.isEmpty()) *format = fmt;
-			if (!reader.read(&result)) {
+			if (!reader.read(&result))
+			{
 				return QImage();
 			}
 			fmt = reader.format();
@@ -439,7 +513,8 @@ namespace App {
 		}
 		buffer.seek(0);
 		auto fmt = QString::fromUtf8(*format).toLower();
-		if (fmt == "jpg" || fmt == "jpeg") {
+		if (fmt == "jpg" || fmt == "jpeg")
+		{
 #ifdef OS_MAC_OLD
 			if (auto exifData = exif_data_new_from_data((const uchar*)(data.constData()), data.size())) {
 				auto byteOrder = exif_data_get_byte_order(exifData);
@@ -462,159 +537,211 @@ namespace App {
 				exif_data_free(exifData);
 			}
 #endif // OS_MAC_OLD
-		} else if (opaque) {
+		}
+		else if (opaque)
+		{
 			result = Images::prepareOpaque(std::move(result));
 		}
 		return result;
 	}
 
-	QImage readImage(const QString &file, QByteArray *format, bool opaque, bool *animated, QByteArray *content) {
+	QImage readImage(const QString& file, QByteArray* format, bool opaque, bool* animated, QByteArray* content)
+	{
 		QFile f(file);
-		if (f.size() > kImageSizeLimit || !f.open(QIODevice::ReadOnly)) {
+		if (f.size() > kImageSizeLimit || !f.open(QIODevice::ReadOnly))
+		{
 			if (animated) *animated = false;
 			return QImage();
 		}
 		auto imageBytes = f.readAll();
 		auto result = readImage(imageBytes, format, opaque, animated);
-		if (content && !result.isNull()) {
+		if (content && !result.isNull())
+		{
 			*content = imageBytes;
 		}
 		return result;
 	}
 
-	QPixmap pixmapFromImageInPlace(QImage &&image) {
+	QPixmap pixmapFromImageInPlace(QImage&& image)
+	{
 		return QPixmap::fromImage(std::move(image), Qt::ColorOnly);
 	}
 
-	void rectWithCorners(Painter &p, QRect rect, const style::color &bg, RoundCorners index, RectParts corners) {
+	void rectWithCorners(Painter& p, QRect rect, const style::color& bg, RoundCorners index, RectParts corners)
+	{
 		auto parts = RectPart::Top
 			| RectPart::NoTopBottom
 			| RectPart::Bottom
 			| corners;
 		roundRect(p, rect, bg, index, nullptr, parts);
-		if ((corners & RectPart::AllCorners) != RectPart::AllCorners) {
+		if ((corners & RectPart::AllCorners) != RectPart::AllCorners)
+		{
 			const auto size = ::corners[index].p[0].width() / cIntRetinaFactor();
-			if (!(corners & RectPart::TopLeft)) {
+			if (!(corners & RectPart::TopLeft))
+			{
 				p.fillRect(rect.x(), rect.y(), size, size, bg);
 			}
-			if (!(corners & RectPart::TopRight)) {
+			if (!(corners & RectPart::TopRight))
+			{
 				p.fillRect(rect.x() + rect.width() - size, rect.y(), size, size, bg);
 			}
-			if (!(corners & RectPart::BottomLeft)) {
+			if (!(corners & RectPart::BottomLeft))
+			{
 				p.fillRect(rect.x(), rect.y() + rect.height() - size, size, size, bg);
 			}
-			if (!(corners & RectPart::BottomRight)) {
+			if (!(corners & RectPart::BottomRight))
+			{
 				p.fillRect(rect.x() + rect.width() - size, rect.y() + rect.height() - size, size, size, bg);
 			}
 		}
 	}
 
-	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners) {
-		if (radius == ImageRoundRadius::Ellipse) {
+	void complexOverlayRect(Painter& p, QRect rect, ImageRoundRadius radius, RectParts corners)
+	{
+		if (radius == ImageRoundRadius::Ellipse)
+		{
 			PainterHighQualityEnabler hq(p);
 			p.setPen(Qt::NoPen);
 			p.setBrush(p.textPalette().selectOverlay);
 			p.drawEllipse(rect);
-		} else {
+		}
+		else
+		{
 			auto overlayCorners = (radius == ImageRoundRadius::Small)
-				? SelectedOverlaySmallCorners
-				: SelectedOverlayLargeCorners;
+				                      ? SelectedOverlaySmallCorners
+				                      : SelectedOverlayLargeCorners;
 			const auto bg = p.textPalette().selectOverlay;
 			rectWithCorners(p, rect, bg, overlayCorners, corners);
 		}
 	}
 
-	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners) {
+	void complexLocationRect(Painter& p, QRect rect, ImageRoundRadius radius, RectParts corners)
+	{
 		rectWithCorners(p, rect, st::msgInBg, MessageInCorners, corners);
 	}
 
-	QImage *cornersMask(ImageRoundRadius radius) {
-		switch (radius) {
-		case ImageRoundRadius::Large: return ::cornersMaskLarge;
+	QImage* cornersMask(ImageRoundRadius radius)
+	{
+		switch (radius)
+		{
+		case ImageRoundRadius::Large:
+			return ::cornersMaskLarge;
 		case ImageRoundRadius::Small:
-		default: break;
+		default:
+			break;
 		}
 		return ::cornersMaskSmall;
 	}
 
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corner, const style::color *shadow, RectParts parts) {
+	void roundRect(Painter& p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps& corner, const style::color* shadow, RectParts parts)
+	{
 		auto cornerWidth = corner.p[0].width() / cIntRetinaFactor();
 		auto cornerHeight = corner.p[0].height() / cIntRetinaFactor();
 		if (w < 2 * cornerWidth || h < 2 * cornerHeight) return;
-		if (w > 2 * cornerWidth) {
-			if (parts & RectPart::Top) {
+		if (w > 2 * cornerWidth)
+		{
+			if (parts & RectPart::Top)
+			{
 				p.fillRect(x + cornerWidth, y, w - 2 * cornerWidth, cornerHeight, bg);
 			}
-			if (parts & RectPart::Bottom) {
+			if (parts & RectPart::Bottom)
+			{
 				p.fillRect(x + cornerWidth, y + h - cornerHeight, w - 2 * cornerWidth, cornerHeight, bg);
-				if (shadow) {
+				if (shadow)
+				{
 					p.fillRect(x + cornerWidth, y + h, w - 2 * cornerWidth, st::msgShadow, *shadow);
 				}
 			}
 		}
-		if (h > 2 * cornerHeight) {
-			if ((parts & RectPart::NoTopBottom) == RectPart::NoTopBottom) {
+		if (h > 2 * cornerHeight)
+		{
+			if ((parts & RectPart::NoTopBottom) == RectPart::NoTopBottom)
+			{
 				p.fillRect(x, y + cornerHeight, w, h - 2 * cornerHeight, bg);
-			} else {
-				if (parts & RectPart::Left) {
+			}
+			else
+			{
+				if (parts & RectPart::Left)
+				{
 					p.fillRect(x, y + cornerHeight, cornerWidth, h - 2 * cornerHeight, bg);
 				}
-				if ((parts & RectPart::Center) && w > 2 * cornerWidth) {
+				if ((parts & RectPart::Center) && w > 2 * cornerWidth)
+				{
 					p.fillRect(x + cornerWidth, y + cornerHeight, w - 2 * cornerWidth, h - 2 * cornerHeight, bg);
 				}
-				if (parts & RectPart::Right) {
+				if (parts & RectPart::Right)
+				{
 					p.fillRect(x + w - cornerWidth, y + cornerHeight, cornerWidth, h - 2 * cornerHeight, bg);
 				}
 			}
 		}
-		if (parts & RectPart::TopLeft) {
+		if (parts & RectPart::TopLeft)
+		{
 			p.drawPixmap(x, y, corner.p[0]);
 		}
-		if (parts & RectPart::TopRight) {
+		if (parts & RectPart::TopRight)
+		{
 			p.drawPixmap(x + w - cornerWidth, y, corner.p[1]);
 		}
-		if (parts & RectPart::BottomLeft) {
+		if (parts & RectPart::BottomLeft)
+		{
 			p.drawPixmap(x, y + h - cornerHeight, corner.p[2]);
 		}
-		if (parts & RectPart::BottomRight) {
+		if (parts & RectPart::BottomRight)
+		{
 			p.drawPixmap(x + w - cornerWidth, y + h - cornerHeight, corner.p[3]);
 		}
 	}
 
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, RoundCorners index, const style::color *shadow, RectParts parts) {
+	void roundRect(Painter& p, int32 x, int32 y, int32 w, int32 h, style::color bg, RoundCorners index, const style::color* shadow, RectParts parts)
+	{
 		roundRect(p, x, y, w, h, bg, ::corners[index], shadow, parts);
 	}
 
-	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, RoundCorners index, RectParts parts) {
-		auto &corner = ::corners[index];
+	void roundShadow(Painter& p, int32 x, int32 y, int32 w, int32 h, style::color shadow, RoundCorners index, RectParts parts)
+	{
+		auto& corner = ::corners[index];
 		auto cornerWidth = corner.p[0].width() / cIntRetinaFactor();
 		auto cornerHeight = corner.p[0].height() / cIntRetinaFactor();
-		if (parts & RectPart::Bottom) {
+		if (parts & RectPart::Bottom)
+		{
 			p.fillRect(x + cornerWidth, y + h, w - 2 * cornerWidth, st::msgShadow, shadow);
 		}
-		if (parts & RectPart::BottomLeft) {
+		if (parts & RectPart::BottomLeft)
+		{
 			p.fillRect(x, y + h - cornerHeight, cornerWidth, st::msgShadow, shadow);
 			p.drawPixmap(x, y + h - cornerHeight + st::msgShadow, corner.p[2]);
 		}
-		if (parts & RectPart::BottomRight) {
+		if (parts & RectPart::BottomRight)
+		{
 			p.fillRect(x + w - cornerWidth, y + h - cornerHeight, cornerWidth, st::msgShadow, shadow);
 			p.drawPixmap(x + w - cornerWidth, y + h - cornerHeight + st::msgShadow, corner.p[3]);
 		}
 	}
 
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, ImageRoundRadius radius, RectParts parts) {
+	void roundRect(Painter& p, int32 x, int32 y, int32 w, int32 h, style::color bg, ImageRoundRadius radius, RectParts parts)
+	{
 		auto colorKey = ((uint32(bg->c.alpha()) & 0xFF) << 24) | ((uint32(bg->c.red()) & 0xFF) << 16) | ((uint32(bg->c.green()) & 0xFF) << 8) | ((uint32(bg->c.blue()) & 0xFF) << 24);
 		auto i = cornersMap.find(colorKey);
-		if (i == cornersMap.cend()) {
+		if (i == cornersMap.cend())
+		{
 			QImage images[4];
-			switch (radius) {
-			case ImageRoundRadius::Small: prepareCorners(SmallMaskCorners, st::buttonRadius, bg, nullptr, images); break;
-			case ImageRoundRadius::Large: prepareCorners(LargeMaskCorners, st::historyMessageRadius, bg, nullptr, images); break;
-			default: p.fillRect(x, y, w, h, bg); return;
+			switch (radius)
+			{
+			case ImageRoundRadius::Small:
+				prepareCorners(SmallMaskCorners, st::buttonRadius, bg, nullptr, images);
+				break;
+			case ImageRoundRadius::Large:
+				prepareCorners(LargeMaskCorners, st::historyMessageRadius, bg, nullptr, images);
+				break;
+			default:
+				p.fillRect(x, y, w, h, bg);
+				return;
 			}
 
 			CornersPixmaps pixmaps;
-			for (int j = 0; j < 4; ++j) {
+			for (int j = 0; j < 4; ++j)
+			{
 				pixmaps.p[j] = pixmapFromImageInPlace(std::move(images[j]));
 				pixmaps.p[j].setDevicePixelRatio(cRetinaFactor());
 			}
@@ -622,5 +749,4 @@ namespace App {
 		}
 		roundRect(p, x, y, w, h, bg, i.value(), nullptr, parts);
 	}
-
 }

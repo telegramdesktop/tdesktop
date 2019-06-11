@@ -14,31 +14,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "styles/style_history.h"
 
-namespace {
-
-using PointState = HistoryView::PointState;
-using TextState = HistoryView::TextState;
-
+namespace
+{
+	using PointState = HistoryView::PointState;
+	using TextState = HistoryView::TextState;
 } // namespace
 
-Storage::SharedMediaTypesMask HistoryMedia::sharedMediaTypes() const {
+Storage::SharedMediaTypesMask HistoryMedia::sharedMediaTypes() const
+{
 	return {};
 }
 
-not_null<History*> HistoryMedia::history() const {
+not_null<History*> HistoryMedia::history() const
+{
 	return _parent->history();
 }
 
-bool HistoryMedia::isDisplayed() const {
+bool HistoryMedia::isDisplayed() const
+{
 	return true;
 }
 
-QSize HistoryMedia::countCurrentSize(int newWidth) {
+QSize HistoryMedia::countCurrentSize(int newWidth)
+{
 	return QSize(qMin(newWidth, maxWidth()), minHeight());
 }
 
-Text HistoryMedia::createCaption(not_null<HistoryItem*> item) const {
-	if (item->emptyText()) {
+Text HistoryMedia::createCaption(not_null<HistoryItem*> item) const
+{
+	if (item->emptyText())
+	{
 		return Text();
 	}
 	const auto minResizeWidth = st::minPhotoSize
@@ -49,33 +54,38 @@ Text HistoryMedia::createCaption(not_null<HistoryItem*> item) const {
 		st::messageTextStyle,
 		item->originalText(),
 		Ui::ItemTextOptions(item));
-	if (const auto width = _parent->skipBlockWidth()) {
+	if (const auto width = _parent->skipBlockWidth())
+	{
 		result.updateSkipBlock(width, _parent->skipBlockHeight());
 	}
 	return result;
 }
 
-TextSelection HistoryMedia::skipSelection(TextSelection selection) const {
+TextSelection HistoryMedia::skipSelection(TextSelection selection) const
+{
 	return HistoryView::UnshiftItemSelection(
 		selection,
 		fullSelectionLength());
 }
 
-TextSelection HistoryMedia::unskipSelection(TextSelection selection) const {
+TextSelection HistoryMedia::unskipSelection(TextSelection selection) const
+{
 	return HistoryView::ShiftItemSelection(
 		selection,
 		fullSelectionLength());
 }
 
-PointState HistoryMedia::pointState(QPoint point) const {
+PointState HistoryMedia::pointState(QPoint point) const
+{
 	return QRect(0, 0, width(), height()).contains(point)
-		? PointState::Inside
-		: PointState::Outside;
+		       ? PointState::Inside
+		       : PointState::Outside;
 }
 
 TextState HistoryMedia::getStateGrouped(
-		const QRect &geometry,
-		QPoint point,
-		StateRequest request) const {
+	const QRect& geometry,
+	QPoint point,
+	StateRequest request) const
+{
 	Unexpected("Grouping method call.");
 }

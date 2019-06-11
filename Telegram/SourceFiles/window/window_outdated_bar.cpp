@@ -15,155 +15,177 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "styles/style_window.h"
 
-namespace Window {
-namespace {
+namespace Window
+{
+	namespace
+	{
+		constexpr auto kMinimalSkip = 7;
+		constexpr auto kSoonSkip = 30;
+		constexpr auto kNowSkip = 90;
 
-constexpr auto kMinimalSkip = 7;
-constexpr auto kSoonSkip = 30;
-constexpr auto kNowSkip = 90;
+		class Bar : public Ui::RpWidget
+		{
+		public:
+			Bar(not_null<QWidget*> parent, QDate date);
 
-class Bar : public Ui::RpWidget {
-public:
-	Bar(not_null<QWidget*> parent, QDate date);
+			int resizeGetHeight(int newWidth) override;
 
-	int resizeGetHeight(int newWidth) override;
+			rpl::producer<> hideClicks() const;
 
-	rpl::producer<> hideClicks() const;
+		protected:
+			void paintEvent(QPaintEvent* e) override;
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
+		private:
+			QDate _date;
+			object_ptr<Ui::FlatLabel> _title;
+			object_ptr<Ui::FlatLabel> _details;
+			object_ptr<Ui::IconButton> _close;
+			bool _soon = false;
+		};
 
-private:
-	QDate _date;
-	object_ptr<Ui::FlatLabel> _title;
-	object_ptr<Ui::FlatLabel> _details;
-	object_ptr<Ui::IconButton> _close;
-	bool _soon = false;
+		Bar::Bar(not_null<QWidget*> parent, QDate date):
+			_date(date)
+			, _title(
+				this,
+				Lang::Viewer(lng_outdated_title) | Info::Profile::ToUpperValue(),
+				st::windowOutdatedTitle)
+			, _details(this,
+			           QString(),
+			           Ui::FlatLabel::InitType::Simple,
+			           st::windowOutdatedDetails)
+			, _close(this, st::windowOutdatedClose)
+			, _soon(_date >= QDate::currentDate())
+		{
+			_title->setTryMakeSimilarLines(true);
+			_details->setTryMakeSimilarLines(true);
+			_details->setText(_soon
+				                  ? lng_outdated_soon(lt_date, langDayOfMonthFull(date))
+				                  : lang(lng_outdated_now));
+		}
 
-};
+		rpl::producer<> Bar::hideClicks() const
+		{
+			return _close->clicks() | rpl::map([]
+			{
+				return rpl::empty_value();
+			});
+		}
 
-Bar::Bar(not_null<QWidget*> parent, QDate date)
-: _date(date)
-, _title(
-	this,
-	Lang::Viewer(lng_outdated_title) | Info::Profile::ToUpperValue(),
-	st::windowOutdatedTitle)
-, _details(this,
-	QString(),
-	Ui::FlatLabel::InitType::Simple,
-	st::windowOutdatedDetails)
-, _close(this, st::windowOutdatedClose)
-, _soon(_date >= QDate::currentDate()) {
-	_title->setTryMakeSimilarLines(true);
-	_details->setTryMakeSimilarLines(true);
-	_details->setText(_soon
-		? lng_outdated_soon(lt_date, langDayOfMonthFull(date))
-		: lang(lng_outdated_now));
-}
+		int Bar::resizeGetHeight(int newWidth)
+		{
+			const auto padding = st::windowOutdatedPadding;
+			const auto skip = _close->width();
+			const auto available = newWidth - 2 * skip;
 
-rpl::producer<> Bar::hideClicks() const {
-	return _close->clicks() | rpl::map([] {
-		return rpl::empty_value();
-	});
-}
+			_title->resizeToWidth(available);
+			_title->moveToLeft(skip, padding.top(), newWidth);
 
-int Bar::resizeGetHeight(int newWidth) {
-	const auto padding = st::windowOutdatedPadding;
-	const auto skip = _close->width();
-	const auto available = newWidth - 2 * skip;
+			_details->resizeToWidth(available);
+			_details->moveToLeft(
+				skip,
+				_title->y() + _title->height() + st::windowOutdatedSkip,
+				newWidth);
 
-	_title->resizeToWidth(available);
-	_title->moveToLeft(skip, padding.top(), newWidth);
+			_close->moveToRight(0, 0, newWidth);
 
-	_details->resizeToWidth(available);
-	_details->moveToLeft(
-		skip,
-		_title->y() + _title->height() + st::windowOutdatedSkip,
-		newWidth);
+			return _details->y() + _details->height() + padding.bottom();
+		}
 
-	_close->moveToRight(0, 0, newWidth);
+		void Bar::paintEvent(QPaintEvent* e)
+		{
+			QPainter(this).fillRect(
+				e->rect(),
+				_soon ? st::outdateSoonBg : st::outdatedBg);
+		}
 
-	return _details->y() + _details->height() + padding.bottom();
-}
+		QString LastHiddenPath()
+		{
+			return cWorkingDir() + qsl("tdata/outdated_hidden");
+		}
 
-void Bar::paintEvent(QPaintEvent *e) {
-	QPainter(this).fillRect(
-		e->rect(),
-		_soon ? st::outdateSoonBg : st::outdatedBg);
-}
+		[[nodiscard]] bool Skip(const QDate& date)
+		{
+			auto file = QFile(LastHiddenPath());
+			if (!file.open(QIODevice::ReadOnly) || file.size() != sizeof(qint32))
+			{
+				return false;
+			}
+			const auto content = file.readAll();
+			if (content.size() != sizeof(qint32))
+			{
+				return false;
+			}
+			const auto value = *reinterpret_cast<const qint32*>(content.constData());
+			const auto year = (value / 10000);
+			const auto month = (value % 10000) / 100;
+			const auto day = (value % 100);
+			const auto last = QDate(year, month, day);
+			if (!last.isValid())
+			{
+				return false;
+			}
+			const auto today = QDate::currentDate();
+			if (last > today)
+			{
+				return false;
+			}
+			const auto skipped = last.daysTo(today);
+			if (today > date && last <= date)
+			{
+				return (skipped < kMinimalSkip);
+			}
+			else if (today <= date)
+			{
+				return (skipped < kSoonSkip);
+			}
+			else
+			{
+				return (skipped < kNowSkip);
+			}
+		}
 
-QString LastHiddenPath() {
-	return cWorkingDir() + qsl("tdata/outdated_hidden");
-}
+		void Closed()
+		{
+			auto file = QFile(LastHiddenPath());
+			if (!file.open(QIODevice::WriteOnly))
+			{
+				return;
+			}
+			const auto today = QDate::currentDate();
+			const auto value = qint32(0
+				+ today.year() * 10000
+				+ today.month() * 100
+				+ today.day());
+			file.write(QByteArray::fromRawData(
+				reinterpret_cast<const char*>(&value),
+				sizeof(qint32)));
+		}
+	} // namespace
 
-[[nodiscard]] bool Skip(const QDate &date) {
-	auto file = QFile(LastHiddenPath());
-	if (!file.open(QIODevice::ReadOnly) || file.size() != sizeof(qint32)) {
-		return false;
+	object_ptr<Ui::RpWidget> CreateOutdatedBar(not_null<QWidget*> parent)
+	{
+		const auto date = Platform::WhenSystemBecomesOutdated();
+		if (date.isNull())
+		{
+			return {nullptr};
+		}
+		else if (Skip(date))
+		{
+			return {nullptr};
+		}
+
+		auto result = object_ptr<Ui::SlideWrap<Bar>>(
+			parent.get(),
+			object_ptr<Bar>(parent.get(), date));
+		const auto wrap = result.data();
+
+		wrap->entity()->hideClicks(
+		) | rpl::start_with_next([=]
+		{
+			wrap->toggle(false, anim::type::normal);
+			Closed();
+		}, wrap->lifetime());
+
+		return std::move(result);
 	}
-	const auto content = file.readAll();
-	if (content.size() != sizeof(qint32)) {
-		return false;
-	}
-	const auto value = *reinterpret_cast<const qint32*>(content.constData());
-	const auto year = (value / 10000);
-	const auto month = (value % 10000) / 100;
-	const auto day = (value % 100);
-	const auto last = QDate(year, month, day);
-	if (!last.isValid()) {
-		return false;
-	}
-	const auto today = QDate::currentDate();
-	if (last > today) {
-		return false;
-	}
-	const auto skipped = last.daysTo(today);
-	if (today > date && last <= date) {
-		return (skipped < kMinimalSkip);
-	} else if (today <= date) {
-		return (skipped < kSoonSkip);
-	} else {
-		return (skipped < kNowSkip);
-	}
-}
-
-void Closed() {
-	auto file = QFile(LastHiddenPath());
-	if (!file.open(QIODevice::WriteOnly)) {
-		return;
-	}
-	const auto today = QDate::currentDate();
-	const auto value = qint32(0
-		+ today.year() * 10000
-		+ today.month() * 100
-		+ today.day());
-	file.write(QByteArray::fromRawData(
-		reinterpret_cast<const char*>(&value),
-		sizeof(qint32)));
-}
-
-} // namespace
-
-object_ptr<Ui::RpWidget> CreateOutdatedBar(not_null<QWidget*> parent) {
-	const auto date = Platform::WhenSystemBecomesOutdated();
-	if (date.isNull()) {
-		return { nullptr };
-	} else if (Skip(date)) {
-		return { nullptr };
-	}
-
-	auto result = object_ptr<Ui::SlideWrap<Bar>>(
-		parent.get(),
-		object_ptr<Bar>(parent.get(), date));
-	const auto wrap = result.data();
-
-	wrap->entity()->hideClicks(
-	) | rpl::start_with_next([=] {
-		wrap->toggle(false, anim::type::normal);
-		Closed();
-	}, wrap->lifetime());
-
-	return std::move(result);
-}
-
 } // namespace Window

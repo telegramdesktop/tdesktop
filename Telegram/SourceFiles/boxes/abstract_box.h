@@ -11,23 +11,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "ui/rp_widget.h"
 
-namespace style {
-struct RoundButton;
-struct IconButton;
-struct ScrollArea;
+namespace style
+{
+	struct RoundButton;
+	struct IconButton;
+	struct ScrollArea;
 } // namespace style
 
-namespace Ui {
-class RoundButton;
-class IconButton;
-class ScrollArea;
-class FlatLabel;
-class FadeShadow;
+namespace Ui
+{
+	class RoundButton;
+	class IconButton;
+	class ScrollArea;
+	class FlatLabel;
+	class FadeShadow;
 } // namespace Ui
 
 class BoxContent;
 
-class BoxContentDelegate {
+class BoxContentDelegate
+{
 public:
 	virtual void setLayerType(bool layerType) = 0;
 	virtual void setTitle(Fn<TextWithEntities()> titleFactory) = 0;
@@ -35,9 +38,9 @@ public:
 	virtual void setCloseByOutsideClick(bool close) = 0;
 
 	virtual void clearButtons() = 0;
-	virtual QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) = 0;
-	virtual QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) = 0;
-	virtual QPointer<Ui::IconButton> addTopButton(const style::IconButton &st, Fn<void()> clickCallback) = 0;
+	virtual QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton& st) = 0;
+	virtual QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton& st) = 0;
+	virtual QPointer<Ui::IconButton> addTopButton(const style::IconButton& st, Fn<void()> clickCallback) = 0;
 	virtual void updateButtonsPositions() = 0;
 
 	virtual void showBox(
@@ -54,91 +57,128 @@ public:
 
 	template <typename BoxType>
 	QPointer<BoxType> show(
-			object_ptr<BoxType> content,
-			LayerOptions options = LayerOption::KeepOther,
-			anim::type animated = anim::type::normal) {
+		object_ptr<BoxType> content,
+		LayerOptions options = LayerOption::KeepOther,
+		anim::type animated = anim::type::normal)
+	{
 		auto result = QPointer<BoxType>(content.data());
 		showBox(std::move(content), options, animated);
 		return result;
 	}
 
 	virtual QPointer<QWidget> outerContainer() = 0;
-
 };
 
-class BoxContent : public Ui::RpWidget, protected base::Subscriber {
-	Q_OBJECT
+class BoxContent : public Ui::RpWidget, protected base::Subscriber
+{
+Q_OBJECT
 
 public:
-	BoxContent() {
+	BoxContent()
+	{
 		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
 
-	bool isBoxShown() const {
+	bool isBoxShown() const
+	{
 		return getDelegate()->isBoxShown();
 	}
-	void closeBox() {
+
+	void closeBox()
+	{
 		getDelegate()->closeBox();
 	}
 
-	void setTitle(Fn<QString()> titleFactory) {
-		if (titleFactory) {
-			getDelegate()->setTitle([titleFactory] { return TextWithEntities { titleFactory(), EntitiesInText() }; });
-		} else {
+	void setTitle(Fn<QString()> titleFactory)
+	{
+		if (titleFactory)
+		{
+			getDelegate()->setTitle([titleFactory]
+			{
+				return TextWithEntities{titleFactory(), EntitiesInText()};
+			});
+		}
+		else
+		{
 			getDelegate()->setTitle(Fn<TextWithEntities()>());
 		}
 	}
-	void setTitle(Fn<TextWithEntities()> titleFactory) {
+
+	void setTitle(Fn<TextWithEntities()> titleFactory)
+	{
 		getDelegate()->setTitle(std::move(titleFactory));
 	}
-	void setAdditionalTitle(Fn<QString()> additional) {
+
+	void setAdditionalTitle(Fn<QString()> additional)
+	{
 		getDelegate()->setAdditionalTitle(std::move(additional));
 	}
-	void setCloseByEscape(bool close) {
+
+	void setCloseByEscape(bool close)
+	{
 		_closeByEscape = close;
 	}
-	void setCloseByOutsideClick(bool close) {
+
+	void setCloseByOutsideClick(bool close)
+	{
 		getDelegate()->setCloseByOutsideClick(close);
 	}
 
 	void scrollToWidget(not_null<QWidget*> widget);
 
-	void clearButtons() {
+	void clearButtons()
+	{
 		getDelegate()->clearButtons();
 	}
+
 	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback = nullptr);
 	QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback = nullptr);
-	QPointer<Ui::IconButton> addTopButton(const style::IconButton &st, Fn<void()> clickCallback = nullptr) {
+
+	QPointer<Ui::IconButton> addTopButton(const style::IconButton& st, Fn<void()> clickCallback = nullptr)
+	{
 		return getDelegate()->addTopButton(st, std::move(clickCallback));
 	}
-	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, const style::RoundButton &st) {
+
+	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, const style::RoundButton& st)
+	{
 		return getDelegate()->addButton(std::move(textFactory), nullptr, st);
 	}
-	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
+
+	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton& st)
+	{
 		return getDelegate()->addButton(std::move(textFactory), std::move(clickCallback), st);
 	}
-	void updateButtonsGeometry() {
+
+	void updateButtonsGeometry()
+	{
 		getDelegate()->updateButtonsPositions();
 	}
 
-	virtual void setInnerFocus() {
+	virtual void setInnerFocus()
+	{
 		setFocus();
 	}
 
-	rpl::producer<> boxClosing() const {
+	rpl::producer<> boxClosing() const
+	{
 		return _boxClosingStream.events();
 	}
-	void notifyBoxClosing() {
+
+	void notifyBoxClosing()
+	{
 		_boxClosingStream.fire({});
 	}
 
-	void setDelegate(not_null<BoxContentDelegate*> newDelegate) {
+	void setDelegate(not_null<BoxContentDelegate*> newDelegate)
+	{
 		_delegate = newDelegate;
 		_preparing = true;
 		prepare();
 		finishPrepare();
 	}
-	not_null<BoxContentDelegate*> getDelegate() const {
+
+	not_null<BoxContentDelegate*> getDelegate() const
+	{
 		return _delegate;
 	}
 
@@ -150,23 +190,29 @@ public slots:
 protected:
 	virtual void prepare() = 0;
 
-	void setLayerType(bool layerType) {
+	void setLayerType(bool layerType)
+	{
 		getDelegate()->setLayerType(layerType);
 	}
 
-	void setNoContentMargin(bool noContentMargin) {
-		if (_noContentMargin != noContentMargin) {
+	void setNoContentMargin(bool noContentMargin)
+	{
+		if (_noContentMargin != noContentMargin)
+		{
 			_noContentMargin = noContentMargin;
 			setAttribute(Qt::WA_OpaquePaintEvent, !_noContentMargin);
 		}
 		getDelegate()->setNoContentMargin(noContentMargin);
 	}
+
 	void setDimensions(
 		int newWidth,
 		int maxHeight,
-		bool forceCenterPosition = false) {
+		bool forceCenterPosition = false)
+	{
 		getDelegate()->setDimensions(newWidth, maxHeight, forceCenterPosition);
 	}
+
 	void setDimensionsToContent(
 		int newWidth,
 		not_null<Ui::RpWidget*> content);
@@ -175,10 +221,11 @@ protected:
 
 	template <typename Widget>
 	QPointer<Widget> setInnerWidget(
-			object_ptr<Widget> inner,
-			const style::ScrollArea &st,
-			int topSkip = 0,
-			int bottomSkip = 0) {
+		object_ptr<Widget> inner,
+		const style::ScrollArea& st,
+		int topSkip = 0,
+		int bottomSkip = 0)
+	{
 		auto result = QPointer<Widget>(inner.data());
 		setInnerTopSkip(topSkip);
 		setInnerBottomSkip(bottomSkip);
@@ -188,9 +235,10 @@ protected:
 
 	template <typename Widget>
 	QPointer<Widget> setInnerWidget(
-			object_ptr<Widget> inner,
-			int topSkip = 0,
-			int bottomSkip = 0) {
+		object_ptr<Widget> inner,
+		int topSkip = 0,
+		int bottomSkip = 0)
+	{
 		auto result = QPointer<Widget>(inner.data());
 		setInnerTopSkip(topSkip);
 		setInnerBottomSkip(bottomSkip);
@@ -199,16 +247,17 @@ protected:
 	}
 
 	template <typename Widget>
-	object_ptr<Widget> takeInnerWidget() {
+	object_ptr<Widget> takeInnerWidget()
+	{
 		return static_object_cast<Widget>(doTakeInnerWidget());
 	}
 
 	void setInnerVisible(bool scrollAreaVisible);
 	QPixmap grabInnerCache();
 
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
+	void resizeEvent(QResizeEvent* e) override;
+	void paintEvent(QPaintEvent* e) override;
+	void keyPressEvent(QKeyEvent* e) override;
 
 private slots:
 	void onScroll();
@@ -220,34 +269,34 @@ private:
 	void finishPrepare();
 	void finishScrollCreate();
 	void setInner(object_ptr<TWidget> inner);
-	void setInner(object_ptr<TWidget> inner, const style::ScrollArea &st);
+	void setInner(object_ptr<TWidget> inner, const style::ScrollArea& st);
 	void updateScrollAreaGeometry();
 	void updateInnerVisibleTopBottom();
 	void updateShadowsVisibility();
 	object_ptr<TWidget> doTakeInnerWidget();
 
-	BoxContentDelegate *_delegate = nullptr;
+	BoxContentDelegate* _delegate = nullptr;
 
 	bool _preparing = false;
 	bool _noContentMargin = false;
 	bool _closeByEscape = true;
 	int _innerTopSkip = 0;
 	int _innerBottomSkip = 0;
-	object_ptr<Ui::ScrollArea> _scroll = { nullptr };
-	object_ptr<Ui::FadeShadow> _topShadow = { nullptr };
-	object_ptr<Ui::FadeShadow> _bottomShadow = { nullptr };
+	object_ptr<Ui::ScrollArea> _scroll = {nullptr};
+	object_ptr<Ui::FadeShadow> _topShadow = {nullptr};
+	object_ptr<Ui::FadeShadow> _bottomShadow = {nullptr};
 
-	object_ptr<QTimer> _draggingScrollTimer = { nullptr };
+	object_ptr<QTimer> _draggingScrollTimer = {nullptr};
 	int _draggingScrollDelta = 0;
 
 	rpl::event_stream<> _boxClosingStream;
-
 };
 
 class AbstractBox
 	: public Window::LayerWidget
-	, public BoxContentDelegate
-	, protected base::Subscriber {
+	  , public BoxContentDelegate
+	  , protected base::Subscriber
+{
 public:
 	AbstractBox(
 		not_null<Window::LayerStackWidget*> layer,
@@ -264,9 +313,9 @@ public:
 		anim::type animated) override;
 
 	void clearButtons() override;
-	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) override;
-	QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) override;
-	QPointer<Ui::IconButton> addTopButton(const style::IconButton &st, Fn<void()> clickCallback) override;
+	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton& st) override;
+	QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton& st) override;
+	QPointer<Ui::IconButton> addTopButton(const style::IconButton& st, Fn<void()> clickCallback) override;
 	void updateButtonsPositions() override;
 	QPointer<QWidget> outerContainer() override;
 
@@ -275,17 +324,22 @@ public:
 		int maxHeight,
 		bool forceCenterPosition = false) override;
 
-	void setNoContentMargin(bool noContentMargin) override {
-		if (_noContentMargin != noContentMargin) {
+	void setNoContentMargin(bool noContentMargin) override
+	{
+		if (_noContentMargin != noContentMargin)
+		{
 			_noContentMargin = noContentMargin;
 			updateSize();
 		}
 	}
 
-	bool isBoxShown() const override {
+	bool isBoxShown() const override
+	{
 		return !isHidden();
 	}
-	void closeBox() override {
+
+	void closeBox() override
+	{
 		closeLayer();
 	}
 
@@ -293,19 +347,22 @@ public:
 	bool closeByOutsideClick() const override;
 
 protected:
-	void keyPressEvent(QKeyEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
+	void keyPressEvent(QKeyEvent* e) override;
+	void resizeEvent(QResizeEvent* e) override;
+	void paintEvent(QPaintEvent* e) override;
 
-	void doSetInnerFocus() override {
+	void doSetInnerFocus() override
+	{
 		_content->setInnerFocus();
 	}
-	void closeHook() override {
+
+	void closeHook() override
+	{
 		_content->notifyBoxClosing();
 	}
 
 private:
-	void paintAdditionalTitle(Painter &p);
+	void paintAdditionalTitle(Painter& p);
 	void updateTitlePosition();
 	void refreshTitle();
 	void refreshAdditionalTitle();
@@ -327,7 +384,7 @@ private:
 	int _maxContentHeight = 0;
 	object_ptr<BoxContent> _content;
 
-	object_ptr<Ui::FlatLabel> _title = { nullptr };
+	object_ptr<Ui::FlatLabel> _title = {nullptr};
 	Fn<TextWithEntities()> _titleFactory;
 	QString _additionalTitle;
 	Fn<QString()> _additionalTitleFactory;
@@ -337,59 +394,74 @@ private:
 	bool _closeByOutsideClick = true;
 
 	std::vector<object_ptr<Ui::RoundButton>> _buttons;
-	object_ptr<Ui::RoundButton> _leftButton = { nullptr };
-	base::unique_qptr<Ui::IconButton> _topButton = { nullptr };
-
+	object_ptr<Ui::RoundButton> _leftButton = {nullptr};
+	base::unique_qptr<Ui::IconButton> _topButton = {nullptr};
 };
 
-class BoxContentDivider : public Ui::RpWidget {
+class BoxContentDivider : public Ui::RpWidget
+{
 public:
-	BoxContentDivider(QWidget *parent);
-	BoxContentDivider(QWidget *parent, int height);
+	BoxContentDivider(QWidget* parent);
+	BoxContentDivider(QWidget* parent, int height);
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
-
+	void paintEvent(QPaintEvent* e) override;
 };
 
-class BoxPointer {
+class BoxPointer
+{
 public:
 	BoxPointer() = default;
-	BoxPointer(const BoxPointer &other) = default;
-	BoxPointer(BoxPointer &&other) : _value(base::take(other._value)) {
+	BoxPointer(const BoxPointer& other) = default;
+
+	BoxPointer(BoxPointer&& other) :
+		_value(base::take(other._value))
+	{
 	}
-	BoxPointer &operator=(const BoxPointer &other) {
-		if (_value != other._value) {
+
+	BoxPointer& operator=(const BoxPointer& other)
+	{
+		if (_value != other._value)
+		{
 			destroy();
 			_value = other._value;
 		}
 		return *this;
 	}
-	BoxPointer &operator=(BoxPointer &&other) {
-		if (_value != other._value) {
+
+	BoxPointer& operator=(BoxPointer&& other)
+	{
+		if (_value != other._value)
+		{
 			destroy();
 			_value = base::take(other._value);
 		}
 		return *this;
 	}
-	BoxPointer &operator=(BoxContent *other) {
-		if (_value != other) {
+
+	BoxPointer& operator=(BoxContent* other)
+	{
+		if (_value != other)
+		{
 			destroy();
 			_value = other;
 		}
 		return *this;
 	}
-	~BoxPointer() {
+
+	~BoxPointer()
+	{
 		destroy();
 	}
 
 private:
-	void destroy() {
-		if (const auto value = base::take(_value)) {
+	void destroy()
+	{
+		if (const auto value = base::take(_value))
+		{
 			value->closeBox();
 		}
 	}
 
 	QPointer<BoxContent> _value;
-
 };

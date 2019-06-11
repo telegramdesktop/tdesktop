@@ -7,65 +7,64 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Ui {
+namespace Ui
+{
+	class EmptyUserpic
+	{
+	public:
+		EmptyUserpic(const style::color& color, const QString& name);
 
-class EmptyUserpic {
-public:
-	EmptyUserpic(const style::color &color, const QString &name);
+		void paint(
+			Painter& p,
+			int x,
+			int y,
+			int outerWidth,
+			int size) const;
+		void paintRounded(
+			Painter& p,
+			int x,
+			int y,
+			int outerWidth,
+			int size) const;
+		void paintSquare(
+			Painter& p,
+			int x,
+			int y,
+			int outerWidth,
+			int size) const;
+		QPixmap generate(int size);
+		InMemoryKey uniqueKey() const;
 
-	void paint(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size) const;
-	void paintRounded(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size) const;
-	void paintSquare(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size) const;
-	QPixmap generate(int size);
-	InMemoryKey uniqueKey() const;
+		static void PaintSavedMessages(
+			Painter& p,
+			int x,
+			int y,
+			int outerWidth,
+			int size);
+		static void PaintSavedMessages(
+			Painter& p,
+			int x,
+			int y,
+			int outerWidth,
+			int size,
+			const style::color& bg,
+			const style::color& fg);
 
-	static void PaintSavedMessages(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size);
-	static void PaintSavedMessages(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size,
-		const style::color &bg,
-		const style::color &fg);
+		~EmptyUserpic();
 
-	~EmptyUserpic();
+	private:
+		template <typename Callback>
+		void paint(
+			Painter& p,
+			int x,
+			int y,
+			int outerWidth,
+			int size,
+			Callback paintBackground) const;
 
-private:
-	template <typename Callback>
-	void paint(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size,
-		Callback paintBackground) const;
+		void fillString(const QString& name);
 
-	void fillString(const QString &name);
-
-	style::color _color;
-	QString _string;
-
-};
-
+		style::color _color;
+		QString _string;
+	};
 } // namespace Ui

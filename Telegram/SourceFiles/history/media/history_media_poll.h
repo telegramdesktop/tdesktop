@@ -11,31 +11,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct PollAnswer;
 
-class HistoryPoll : public HistoryMedia {
+class HistoryPoll : public HistoryMedia
+{
 public:
 	HistoryPoll(
 		not_null<Element*> parent,
 		not_null<PollData*> poll);
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
+	void draw(Painter& p, const QRect& r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
-	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
-		return true;
-	}
-	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
+	bool toggleSelectionByHandlerClick(const ClickHandlerPtr& p) const override
+	{
 		return true;
 	}
 
-	bool needsBubble() const override {
+	bool dragItemByHandler(const ClickHandlerPtr& p) const override
+	{
 		return true;
 	}
-	bool customInfoLayout() const override {
+
+	bool needsBubble() const override
+	{
+		return true;
+	}
+
+	bool customInfoLayout() const override
+	{
 		return false;
 	}
 
 	void clickHandlerPressedChanged(
-		const ClickHandlerPtr &handler,
+		const ClickHandlerPtr& handler,
 		bool pressed) override;
 
 	~HistoryPoll();
@@ -52,50 +59,50 @@ private:
 	bool canVote() const;
 
 	[[nodiscard]] int countAnswerTop(
-		const Answer &answer,
+		const Answer& answer,
 		int innerWidth) const;
 	[[nodiscard]] int countAnswerHeight(
-		const Answer &answer,
+		const Answer& answer,
 		int innerWidth) const;
 	[[nodiscard]] ClickHandlerPtr createAnswerClickHandler(
-		const Answer &answer) const;
+		const Answer& answer) const;
 	void updateTexts();
 	void updateAnswers();
 	void updateVotes();
 	void updateTotalVotes();
 	void updateAnswerVotes();
 	void updateAnswerVotesFromOriginal(
-		Answer &answer,
-		const PollAnswer &original,
+		Answer& answer,
+		const PollAnswer& original,
 		int percent,
 		int maxVotes);
 	void checkSendingAnimation() const;
 
 	int paintAnswer(
-		Painter &p,
-		const Answer &answer,
-		const AnswerAnimation *animation,
+		Painter& p,
+		const Answer& answer,
+		const AnswerAnimation* animation,
 		int left,
 		int top,
 		int width,
 		int outerWidth,
 		TextSelection selection) const;
 	void paintRadio(
-		Painter &p,
-		const Answer &answer,
+		Painter& p,
+		const Answer& answer,
 		int left,
 		int top,
 		TextSelection selection) const;
 	void paintPercent(
-		Painter &p,
-		const QString &percent,
+		Painter& p,
+		const QString& percent,
 		int percentWidth,
 		int left,
 		int top,
 		int outerWidth,
 		TextSelection selection) const;
 	void paintFilling(
-		Painter &p,
+		Painter& p,
 		float64 filling,
 		int left,
 		int top,
@@ -110,7 +117,7 @@ private:
 	void resetAnswersAnimation() const;
 	void radialAnimationCallback() const;
 
-	void toggleRipple(Answer &answer, bool pressed);
+	void toggleRipple(Answer& answer, bool pressed);
 
 	not_null<PollData*> _poll;
 	int _pollVersion = 0;
@@ -126,5 +133,4 @@ private:
 	mutable std::unique_ptr<AnswersAnimation> _answersAnimation;
 	mutable std::unique_ptr<SendingAnimation> _sendingAnimation;
 	mutable QPoint _lastLinkPoint;
-
 };

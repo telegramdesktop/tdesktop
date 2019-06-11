@@ -9,71 +9,71 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ApiWrap;
 
-namespace ChatHelpers {
-namespace details {
+namespace ChatHelpers
+{
+	namespace details
+	{
+		class EmojiKeywordsLangPackDelegate
+		{
+		public:
+			virtual ApiWrap* api() = 0;
+			virtual void langPackRefreshed() = 0;
 
-class EmojiKeywordsLangPackDelegate {
-public:
-	virtual ApiWrap *api() = 0;
-	virtual void langPackRefreshed() = 0;
+		protected:
+			~EmojiKeywordsLangPackDelegate() = default;
+		};
+	} // namespace details
 
-protected:
-	~EmojiKeywordsLangPackDelegate() = default;
+	class EmojiKeywords final : private details::EmojiKeywordsLangPackDelegate
+	{
+	public:
+		EmojiKeywords();
+		EmojiKeywords(const EmojiKeywords& other) = delete;
+		EmojiKeywords& operator=(const EmojiKeywords& other) = delete;
+		~EmojiKeywords();
 
-};
+		void refresh();
 
-} // namespace details
+		[[nodiscard]] rpl::producer<> refreshed() const;
 
-class EmojiKeywords final : private details::EmojiKeywordsLangPackDelegate {
-public:
-	EmojiKeywords();
-	EmojiKeywords(const EmojiKeywords &other) = delete;
-	EmojiKeywords &operator=(const EmojiKeywords &other) = delete;
-	~EmojiKeywords();
+		struct Result
+		{
+			EmojiPtr emoji = nullptr;
+			QString label;
+			QString replacement;
+		};
+		[[nodiscard]] std::vector<Result> query(
+			const QString& query,
+			bool exact = false) const;
+		[[nodiscard]] int maxQueryLength() const;
 
-	void refresh();
+	private:
+		class LangPack;
 
-	[[nodiscard]] rpl::producer<> refreshed() const;
+		not_null<details::EmojiKeywordsLangPackDelegate*> delegate();
+		ApiWrap* api() override;
+		void langPackRefreshed() override;
 
-	struct Result {
-		EmojiPtr emoji = nullptr;
-		QString label;
-		QString replacement;
+		void handleAuthSessionChanges();
+		void apiChanged(ApiWrap* api);
+		void refreshInputLanguages();
+		[[nodiscard]] std::vector<QString> languages();
+		void refreshRemoteList();
+		void setRemoteList(std::vector<QString>&& list);
+		void refreshFromRemoteList();
+
+		ApiWrap* _api = nullptr;
+		std::vector<QString> _localList;
+		std::vector<QString> _remoteList;
+		mtpRequestId _langsRequestId = 0;
+		base::flat_map<QString, std::unique_ptr<LangPack>> _data;
+		std::deque<std::unique_ptr<LangPack>> _notUsedData;
+		std::deque<QStringList> _inputLanguages;
+		rpl::event_stream<> _refreshed;
+
+		rpl::lifetime _suggestedChangeLifetime;
+
+		rpl::lifetime _lifetime;
+		base::has_weak_ptr _guard;
 	};
-	[[nodiscard]] std::vector<Result> query(
-		const QString &query,
-		bool exact = false) const;
-	[[nodiscard]] int maxQueryLength() const;
-
-private:
-	class LangPack;
-
-	not_null<details::EmojiKeywordsLangPackDelegate*> delegate();
-	ApiWrap *api() override;
-	void langPackRefreshed() override;
-
-	void handleAuthSessionChanges();
-	void apiChanged(ApiWrap *api);
-	void refreshInputLanguages();
-	[[nodiscard]] std::vector<QString> languages();
-	void refreshRemoteList();
-	void setRemoteList(std::vector<QString> &&list);
-	void refreshFromRemoteList();
-
-	ApiWrap *_api = nullptr;
-	std::vector<QString> _localList;
-	std::vector<QString> _remoteList;
-	mtpRequestId _langsRequestId = 0;
-	base::flat_map<QString, std::unique_ptr<LangPack>> _data;
-	std::deque<std::unique_ptr<LangPack>> _notUsedData;
-	std::deque<QStringList> _inputLanguages;
-	rpl::event_stream<> _refreshed;
-
-	rpl::lifetime _suggestedChangeLifetime;
-
-	rpl::lifetime _lifetime;
-	base::has_weak_ptr _guard;
-
-};
-
 } // namespace ChatHelpers

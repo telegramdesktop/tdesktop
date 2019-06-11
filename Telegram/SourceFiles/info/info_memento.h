@@ -12,106 +12,113 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "window/section_memento.h"
 
-namespace Storage {
-enum class SharedMediaType : signed char;
+namespace Storage
+{
+	enum class SharedMediaType : signed char;
 } // namespace Storage
 
-namespace Ui {
-class ScrollArea;
-struct ScrollToRequest;
+namespace Ui
+{
+	class ScrollArea;
+	struct ScrollToRequest;
 } // namespace Ui
 
-namespace Info {
-namespace Settings {
-struct Tag;
-} // namespace Settings
+namespace Info
+{
+	namespace Settings
+	{
+		struct Tag;
+	} // namespace Settings
 
-class ContentMemento;
-class WrapWidget;
+	class ContentMemento;
+	class WrapWidget;
 
-class Memento final : public Window::SectionMemento {
-public:
-	explicit Memento(PeerId peerId);
-	Memento(PeerId peerId, Section section);
-	//Memento(not_null<Data::Feed*> feed, Section section); // #feed
-	Memento(Settings::Tag settings, Section section);
-	explicit Memento(std::vector<std::unique_ptr<ContentMemento>> stack);
+	class Memento final : public Window::SectionMemento
+	{
+	public:
+		explicit Memento(PeerId peerId);
+		Memento(PeerId peerId, Section section);
+		//Memento(not_null<Data::Feed*> feed, Section section); // #feed
+		Memento(Settings::Tag settings, Section section);
+		explicit Memento(std::vector<std::unique_ptr<ContentMemento>> stack);
 
-	object_ptr<Window::SectionWidget> createWidget(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		Window::Column column,
-		const QRect &geometry) override;
+		object_ptr<Window::SectionWidget> createWidget(
+			QWidget* parent,
+			not_null<Window::SessionController*> controller,
+			Window::Column column,
+			const QRect& geometry) override;
 
-	object_ptr<Window::LayerWidget> createLayer(
-		not_null<Window::SessionController*> controller,
-		const QRect &geometry) override;
+		object_ptr<Window::LayerWidget> createLayer(
+			not_null<Window::SessionController*> controller,
+			const QRect& geometry) override;
 
-	int stackSize() const {
-		return int(_stack.size());
-	}
-	std::vector<std::unique_ptr<ContentMemento>> takeStack();
+		int stackSize() const
+		{
+			return int(_stack.size());
+		}
 
-	not_null<ContentMemento*> content() {
-		Expects(!_stack.empty());
+		std::vector<std::unique_ptr<ContentMemento>> takeStack();
 
-		return _stack.back().get();
-	}
+		not_null<ContentMemento*> content()
+		{
+			Expects(!_stack.empty());
 
-	static Section DefaultSection(not_null<PeerData*> peer);
-	//static Section DefaultSection(Dialogs::Key key); // #feed
-	static Memento Default(not_null<PeerData*> peer);
-	//static Memento Default(Dialogs::Key key); // #feed
+			return _stack.back().get();
+		}
 
-	~Memento();
+		static Section DefaultSection(not_null<PeerData*> peer);
+		//static Section DefaultSection(Dialogs::Key key); // #feed
+		static Memento Default(not_null<PeerData*> peer);
+		//static Memento Default(Dialogs::Key key); // #feed
 
-private:
-	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
-		PeerId peerId,
-		Section section);
-	//static std::vector<std::unique_ptr<ContentMemento>> DefaultStack( // #feed
-	//	not_null<Data::Feed*> feed,
-	//	Section section);
-	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
-		Settings::Tag settings,
-		Section section);
-	//static std::unique_ptr<ContentMemento> DefaultContent( // #feed
-	//	not_null<Data::Feed*> feed,
-	//	Section section);
+		~Memento();
 
-	static std::unique_ptr<ContentMemento> DefaultContent(
-		PeerId peerId,
-		Section section);
+	private:
+		static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
+			PeerId peerId,
+			Section section);
+		//static std::vector<std::unique_ptr<ContentMemento>> DefaultStack( // #feed
+		//	not_null<Data::Feed*> feed,
+		//	Section section);
+		static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
+			Settings::Tag settings,
+			Section section);
+		//static std::unique_ptr<ContentMemento> DefaultContent( // #feed
+		//	not_null<Data::Feed*> feed,
+		//	Section section);
 
-	std::vector<std::unique_ptr<ContentMemento>> _stack;
+		static std::unique_ptr<ContentMemento> DefaultContent(
+			PeerId peerId,
+			Section section);
 
-};
+		std::vector<std::unique_ptr<ContentMemento>> _stack;
+	};
 
-class MoveMemento final : public Window::SectionMemento {
-public:
-	MoveMemento(object_ptr<WrapWidget> content);
+	class MoveMemento final : public Window::SectionMemento
+	{
+	public:
+		MoveMemento(object_ptr<WrapWidget> content);
 
-	object_ptr<Window::SectionWidget> createWidget(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		Window::Column column,
-		const QRect &geometry) override;
+		object_ptr<Window::SectionWidget> createWidget(
+			QWidget* parent,
+			not_null<Window::SessionController*> controller,
+			Window::Column column,
+			const QRect& geometry) override;
 
-	object_ptr<Window::LayerWidget> createLayer(
-		not_null<Window::SessionController*> controller,
-		const QRect &geometry) override;
+		object_ptr<Window::LayerWidget> createLayer(
+			not_null<Window::SessionController*> controller,
+			const QRect& geometry) override;
 
-	bool instant() const override {
-		return true;
-	}
+		bool instant() const override
+		{
+			return true;
+		}
 
-	object_ptr<WrapWidget> takeContent(
-		QWidget *parent,
-		Wrap wrap);
+		object_ptr<WrapWidget> takeContent(
+			QWidget* parent,
+			Wrap wrap);
 
-private:
-	object_ptr<WrapWidget> _content;
-
-};
-
+	private:
+		object_ptr<WrapWidget> _content;
+	};
 } // namespace Info

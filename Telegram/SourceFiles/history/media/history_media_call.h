@@ -9,31 +9,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/media/history_media.h"
 
-namespace Data {
-enum class CallFinishReason : char;
-struct Call;
+namespace Data
+{
+	enum class CallFinishReason : char;
+	struct Call;
 } // namespace Data
 
-class HistoryCall : public HistoryMedia {
+class HistoryCall : public HistoryMedia
+{
 public:
 	HistoryCall(
 		not_null<Element*> parent,
 		not_null<Data::Call*> call);
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
+	void draw(Painter& p, const QRect& r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
-	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
+	bool toggleSelectionByHandlerClick(const ClickHandlerPtr& p) const override
+	{
 		return true;
 	}
-	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
+
+	bool dragItemByHandler(const ClickHandlerPtr& p) const override
+	{
 		return false;
 	}
 
-	bool needsBubble() const override {
+	bool needsBubble() const override
+	{
 		return true;
 	}
-	bool customInfoLayout() const override {
+
+	bool customInfoLayout() const override
+	{
 		return true;
 	}
 
@@ -51,5 +59,4 @@ private:
 	QString _status;
 
 	ClickHandlerPtr _link;
-
 };

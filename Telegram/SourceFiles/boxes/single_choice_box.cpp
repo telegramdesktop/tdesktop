@@ -18,19 +18,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 SingleChoiceBox::SingleChoiceBox(
 	QWidget*,
 	LangKey title,
-	const std::vector<QString> &optionTexts,
+	const std::vector<QString>& optionTexts,
 	int initialSelection,
-	Fn<void(int)> callback)
-: _title(title)
-, _optionTexts(optionTexts)
-, _initialSelection(initialSelection)
-, _callback(callback) {
+	Fn<void(int)> callback):
+	_title(title)
+	, _optionTexts(optionTexts)
+	, _initialSelection(initialSelection)
+	, _callback(callback)
+{
 }
 
-void SingleChoiceBox::prepare() {
+void SingleChoiceBox::prepare()
+{
 	setTitle(langFactory(_title));
 
-	addButton(langFactory(lng_box_ok), [=] { closeBox(); });
+	addButton(langFactory(lng_box_ok), [=]
+	{
+		closeBox();
+	});
 
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>(_initialSelection);
 
@@ -38,8 +43,9 @@ void SingleChoiceBox::prepare() {
 	content->add(object_ptr<Ui::FixedHeightWidget>(
 		content,
 		st::boxOptionListPadding.top() + st::autolockButton.margin.top()));
-	auto &&ints = ranges::view::ints(0);
-	for (const auto &[i, text] : ranges::view::zip(ints, _optionTexts)) {
+	auto&& ints = ranges::view::ints(0);
+	for (const auto& [i, text] : ranges::view::zip(ints, _optionTexts))
+	{
 		content->add(
 			object_ptr<Ui::Radiobutton>(
 				content,
@@ -53,13 +59,14 @@ void SingleChoiceBox::prepare() {
 				st::boxPadding.right(),
 				st::boxOptionListSkip));
 	}
-	group->setChangedCallback([=](int value) {
+	group->setChangedCallback([=](int value)
+	{
 		const auto weak = make_weak(this);
 		_callback(value);
-		if (weak) {
+		if (weak)
+		{
 			closeBox();
 		}
 	});
 	setDimensionsToContent(st::boxWidth, content);
 }
-

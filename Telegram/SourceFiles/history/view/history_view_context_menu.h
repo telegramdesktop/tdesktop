@@ -9,33 +9,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unique_qptr.h"
 
-namespace Ui {
-class PopupMenu;
+namespace Ui
+{
+	class PopupMenu;
 } // namespace Ui
 
-namespace HistoryView {
+namespace HistoryView
+{
+	enum class PointState : char;
+	class ListWidget;
+	class Element;
+	struct SelectedItem;
+	using SelectedItems = std::vector<SelectedItem>;
 
-enum class PointState : char;
-class ListWidget;
-class Element;
-struct SelectedItem;
-using SelectedItems = std::vector<SelectedItem>;
+	struct ContextMenuRequest
+	{
+		ClickHandlerPtr link;
+		Element* view = nullptr;
+		HistoryItem* item = nullptr;
+		SelectedItems selectedItems;
+		TextForMimeData selectedText;
+		bool overSelection = false;
+		PointState pointState = PointState();
+	};
 
-struct ContextMenuRequest {
-	ClickHandlerPtr link;
-	Element *view = nullptr;
-	HistoryItem *item = nullptr;
-	SelectedItems selectedItems;
-	TextForMimeData selectedText;
-	bool overSelection = false;
-	PointState pointState = PointState();
-};
+	base::unique_qptr<Ui::PopupMenu> FillContextMenu(
+		not_null<ListWidget*> list,
+		const ContextMenuRequest& request);
 
-base::unique_qptr<Ui::PopupMenu> FillContextMenu(
-	not_null<ListWidget*> list,
-	const ContextMenuRequest &request);
-
-void CopyPostLink(FullMsgId itemId);
-void StopPoll(FullMsgId itemId);
-
+	void CopyPostLink(FullMsgId itemId);
+	void StopPoll(FullMsgId itemId);
 } // namespace

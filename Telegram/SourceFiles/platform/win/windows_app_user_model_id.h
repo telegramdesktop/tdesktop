@@ -9,16 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/win/wrapper_windows_h.h"
 
-namespace Platform {
-namespace AppUserModelId {
+namespace Platform
+{
+	namespace AppUserModelId
+	{
+		void cleanupShortcut();
+		void checkPinned();
 
-void cleanupShortcut();
-void checkPinned();
+		const WCHAR* getId();
+		bool validateShortcut();
 
-const WCHAR *getId();
-bool validateShortcut();
-
-const PROPERTYKEY &getKey();
-
-} // namespace AppUserModelId
+		const PROPERTYKEY& getKey();
+	} // namespace AppUserModelId
 } // namespace Platform

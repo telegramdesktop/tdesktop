@@ -11,102 +11,108 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "base/timer.h"
 
-namespace Window {
-class SessionController;
+namespace Window
+{
+	class SessionController;
 } // namespace Window
 
-namespace Ui {
-class PanelAnimation;
+namespace Ui
+{
+	class PanelAnimation;
 } // namespace Ui
 
-namespace ChatHelpers {
+namespace ChatHelpers
+{
+	class TabbedSelector;
 
-class TabbedSelector;
+	class TabbedPanel : public Ui::RpWidget
+	{
+	public:
+		TabbedPanel(QWidget* parent, not_null<Window::SessionController*> controller);
+		TabbedPanel(
+			QWidget* parent,
+			not_null<Window::SessionController*> controller,
+			object_ptr<TabbedSelector> selector);
 
-class TabbedPanel : public Ui::RpWidget {
-public:
-	TabbedPanel(QWidget *parent, not_null<Window::SessionController*> controller);
-	TabbedPanel(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		object_ptr<TabbedSelector> selector);
+		object_ptr<TabbedSelector> takeSelector();
+		QPointer<TabbedSelector> getSelector() const;
+		void moveBottomRight(int bottom, int right);
+		void setDesiredHeightValues(
+			float64 ratio,
+			int minHeight,
+			int maxHeight);
 
-	object_ptr<TabbedSelector> takeSelector();
-	QPointer<TabbedSelector> getSelector() const;
-	void moveBottomRight(int bottom, int right);
-	void setDesiredHeightValues(
-		float64 ratio,
-		int minHeight,
-		int maxHeight);
+		void hideFast();
 
-	void hideFast();
-	bool hiding() const {
-		return _hiding || _hideTimer.isActive();
-	}
+		bool hiding() const
+		{
+			return _hiding || _hideTimer.isActive();
+		}
 
-	bool overlaps(const QRect &globalRect) const;
+		bool overlaps(const QRect& globalRect) const;
 
-	void showAnimated();
-	void hideAnimated();
-	void toggleAnimated();
+		void showAnimated();
+		void hideAnimated();
+		void toggleAnimated();
 
-	~TabbedPanel();
+		~TabbedPanel();
 
-protected:
-	void enterEventHook(QEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
-	void otherEnter();
-	void otherLeave();
+	protected:
+		void enterEventHook(QEvent* e) override;
+		void leaveEventHook(QEvent* e) override;
+		void otherEnter();
+		void otherLeave();
 
-	void paintEvent(QPaintEvent *e) override;
-	bool eventFilter(QObject *obj, QEvent *e) override;
+		void paintEvent(QPaintEvent* e) override;
+		bool eventFilter(QObject* obj, QEvent* e) override;
 
-private:
-	void hideByTimerOrLeave();
-	void moveByBottom();
-	bool isDestroying() const {
-		return !_selector;
-	}
-	void showFromSelector();
+	private:
+		void hideByTimerOrLeave();
+		void moveByBottom();
 
-	style::margins innerPadding() const;
+		bool isDestroying() const
+		{
+			return !_selector;
+		}
 
-	// Rounded rect which has shadow around it.
-	QRect innerRect() const;
+		void showFromSelector();
 
-	QImage grabForAnimation();
-	void startShowAnimation();
-	void startOpacityAnimation(bool hiding);
-	void prepareCacheFor(bool hiding);
+		style::margins innerPadding() const;
 
-	void opacityAnimationCallback();
+		// Rounded rect which has shadow around it.
+		QRect innerRect() const;
 
-	void hideFinished();
-	void showStarted();
+		QImage grabForAnimation();
+		void startShowAnimation();
+		void startOpacityAnimation(bool hiding);
+		void prepareCacheFor(bool hiding);
 
-	bool preventAutoHide() const;
-	void updateContentHeight();
+		void opacityAnimationCallback();
 
-	not_null<Window::SessionController*> _controller;
-	object_ptr<TabbedSelector> _selector;
+		void hideFinished();
+		void showStarted();
 
-	int _contentMaxHeight = 0;
-	int _contentHeight = 0;
-	int _bottom = 0;
-	int _right = 0;
-	float64 _heightRatio = 1.;
-	int _minContentHeight = 0;
-	int _maxContentHeight = 0;
+		bool preventAutoHide() const;
+		void updateContentHeight();
 
-	std::unique_ptr<Ui::PanelAnimation> _showAnimation;
-	Ui::Animations::Simple _a_show;
+		not_null<Window::SessionController*> _controller;
+		object_ptr<TabbedSelector> _selector;
 
-	bool _hiding = false;
-	bool _hideAfterSlide = false;
-	QPixmap _cache;
-	Ui::Animations::Simple _a_opacity;
-	base::Timer _hideTimer;
+		int _contentMaxHeight = 0;
+		int _contentHeight = 0;
+		int _bottom = 0;
+		int _right = 0;
+		float64 _heightRatio = 1.;
+		int _minContentHeight = 0;
+		int _maxContentHeight = 0;
 
-};
+		std::unique_ptr<Ui::PanelAnimation> _showAnimation;
+		Ui::Animations::Simple _a_show;
 
+		bool _hiding = false;
+		bool _hideAfterSlide = false;
+		QPixmap _cache;
+		Ui::Animations::Simple _a_opacity;
+		base::Timer _hideTimer;
+	};
 } // namespace ChatHelpers

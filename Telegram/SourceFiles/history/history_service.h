@@ -9,36 +9,43 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_item.h"
 
-namespace HistoryView {
-class Service;
+namespace HistoryView
+{
+	class Service;
 } // namespace HistoryView
 
-struct HistoryServiceDependentData {
+struct HistoryServiceDependentData
+{
 	MsgId msgId = 0;
-	HistoryItem *msg = nullptr;
+	HistoryItem* msg = nullptr;
 	ClickHandlerPtr lnk;
 };
 
 struct HistoryServicePinned
 	: public RuntimeComponent<HistoryServicePinned, HistoryItem>
-	, public HistoryServiceDependentData {
+	  , public HistoryServiceDependentData
+{
 };
 
 struct HistoryServiceGameScore
 	: public RuntimeComponent<HistoryServiceGameScore, HistoryItem>
-	, public HistoryServiceDependentData {
+	  , public HistoryServiceDependentData
+{
 	int score = 0;
 };
 
 struct HistoryServicePayment
 	: public RuntimeComponent<HistoryServicePayment, HistoryItem>
-	, public HistoryServiceDependentData {
+	  , public HistoryServiceDependentData
+{
 	QString amount;
 };
 
 struct HistoryServiceSelfDestruct
-	: public RuntimeComponent<HistoryServiceSelfDestruct, HistoryItem> {
-	enum class Type {
+	: public RuntimeComponent<HistoryServiceSelfDestruct, HistoryItem>
+{
+	enum class Type
+	{
 		Photo,
 		Video,
 	};
@@ -47,55 +54,68 @@ struct HistoryServiceSelfDestruct
 	crl::time destructAt = 0;
 };
 
-namespace HistoryView {
-class ServiceMessagePainter;
+namespace HistoryView
+{
+	class ServiceMessagePainter;
 } // namespace HistoryView
 
-class HistoryService : public HistoryItem {
+class HistoryService : public HistoryItem
+{
 public:
-	struct PreparedText {
+	struct PreparedText
+	{
 		QString text;
 		QList<ClickHandlerPtr> links;
 	};
 
-	HistoryService(not_null<History*> history, const MTPDmessage &data);
+	HistoryService(not_null<History*> history, const MTPDmessage& data);
 	HistoryService(
 		not_null<History*> history,
-		const MTPDmessageService &data);
+		const MTPDmessageService& data);
 	HistoryService(
 		not_null<History*> history,
 		MsgId id,
 		TimeId date,
-		const PreparedText &message,
+		const PreparedText& message,
 		MTPDmessage::Flags flags = 0,
 		UserId from = 0,
-		PhotoData *photo = nullptr);
+		PhotoData* photo = nullptr);
 
 	bool updateDependencyItem() override;
-	MsgId dependencyMsgId() const override {
-		if (auto dependent = GetDependentData()) {
+
+	MsgId dependencyMsgId() const override
+	{
+		if (auto dependent = GetDependentData())
+		{
 			return dependent->msgId;
 		}
 		return 0;
 	}
-	bool notificationReady() const override {
-		if (auto dependent = GetDependentData()) {
+
+	bool notificationReady() const override
+	{
+		if (auto dependent = GetDependentData())
+		{
 			return (dependent->msg || !dependent->msgId);
 		}
 		return true;
 	}
 
-	void applyEdition(const MTPDmessageService &message) override;
+	void applyEdition(const MTPDmessageService& message) override;
 	crl::time getSelfDestructIn(crl::time now) override;
 
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
-	bool needCheck() const override {
+	bool needCheck() const override
+	{
 		return false;
 	}
-	bool serviceMsg() const override {
+
+	bool serviceMsg() const override
+	{
 		return true;
 	}
+
 	QString inDialogsText(DrawInDialog way) const override;
 	QString inReplyText() const override;
 
@@ -109,7 +129,7 @@ protected:
 
 	void markMediaAsReadHook() override;
 
-	void setServiceText(const PreparedText &prepared);
+	void setServiceText(const PreparedText& prepared);
 
 	QString fromLinkText() const;
 	ClickHandlerPtr fromLink() const;
@@ -117,40 +137,48 @@ protected:
 	void removeMedia();
 
 private:
-	HistoryServiceDependentData *GetDependentData() {
-		if (auto pinned = Get<HistoryServicePinned>()) {
+	HistoryServiceDependentData* GetDependentData()
+	{
+		if (auto pinned = Get<HistoryServicePinned>())
+		{
 			return pinned;
-		} else if (auto gamescore = Get<HistoryServiceGameScore>()) {
+		}
+		else if (auto gamescore = Get<HistoryServiceGameScore>())
+		{
 			return gamescore;
-		} else if (auto payment = Get<HistoryServicePayment>()) {
+		}
+		else if (auto payment = Get<HistoryServicePayment>())
+		{
 			return payment;
 		}
 		return nullptr;
 	}
-	const HistoryServiceDependentData *GetDependentData() const {
+
+	const HistoryServiceDependentData* GetDependentData() const
+	{
 		return const_cast<HistoryService*>(this)->GetDependentData();
 	}
+
 	bool updateDependent(bool force = false);
 	void updateDependentText();
 	void clearDependency();
 
-	void createFromMtp(const MTPDmessage &message);
-	void createFromMtp(const MTPDmessageService &message);
-	void setMessageByAction(const MTPmessageAction &action);
+	void createFromMtp(const MTPDmessage& message);
+	void createFromMtp(const MTPDmessageService& message);
+	void setMessageByAction(const MTPmessageAction& action);
 	void setSelfDestruct(
 		HistoryServiceSelfDestruct::Type type,
 		int ttlSeconds);
-	void applyAction(const MTPMessageAction &action);
+	void applyAction(const MTPMessageAction& action);
 
 	PreparedText preparePinnedText();
 	PreparedText prepareGameScoreText();
 	PreparedText preparePaymentSentText();
 
 	friend class HistoryView::Service;
-
 };
 
-HistoryService *GenerateJoinedMessage(
+HistoryService* GenerateJoinedMessage(
 	not_null<History*> history,
 	TimeId inviteDate,
 	not_null<UserData*> inviter,

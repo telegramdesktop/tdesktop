@@ -10,22 +10,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "storage/cache/storage_cache_database.h"
 
-namespace Storage {
-namespace Cache {
-class Database;
-} // namespace Cache
+namespace Storage
+{
+	namespace Cache
+	{
+		class Database;
+	} // namespace Cache
 } // namespace Storage
 
-namespace Ui {
-class VerticalLayout;
-template <typename Widget>
-class SlideWrap;
-class LabelSimple;
-class MediaSlider;
+namespace Ui
+{
+	class VerticalLayout;
+	template <typename Widget>
+	class SlideWrap;
+	class LabelSimple;
+	class MediaSlider;
 } // namespace Ui
 
-class LocalStorageBox : public BoxContent {
-	struct CreateTag {
+class LocalStorageBox : public BoxContent
+{
+	struct CreateTag
+	{
 	};
 
 public:
@@ -42,16 +47,16 @@ public:
 protected:
 	void prepare() override;
 
-	void paintEvent(QPaintEvent *e) override;
+	void paintEvent(QPaintEvent* e) override;
 
 private:
 	class Row;
 
 	void clearByTag(uint16 tag);
-	void update(Database::Stats &&stats, Database::Stats &&statsBig);
+	void update(Database::Stats&& stats, Database::Stats&& statsBig);
 	void updateRow(
 		not_null<Ui::SlideWrap<Row>*> row,
-		const Database::TaggedSummary *data);
+		const Database::TaggedSummary* data);
 	void setupControls();
 	void setupLimits(not_null<Ui::VerticalLayout*> container);
 	void updateMediaLimit();
@@ -76,9 +81,9 @@ private:
 	not_null<Ui::MediaSlider*> createLimitsSlider(
 		not_null<Ui::VerticalLayout*> container,
 		int valuesCount,
-		Convert &&convert,
+		Convert&& convert,
 		Value currentValue,
-		Callback &&callback);
+		Callback&& callback);
 
 	not_null<Storage::Cache::Database*> _db;
 	not_null<Storage::Cache::Database*> _dbBig;
@@ -86,14 +91,13 @@ private:
 	Database::Stats _statsBig;
 
 	base::flat_map<uint16, not_null<Ui::SlideWrap<Row>*>> _rows;
-	Ui::MediaSlider *_totalSlider = nullptr;
-	Ui::LabelSimple *_totalLabel = nullptr;
-	Ui::MediaSlider *_mediaSlider = nullptr;
-	Ui::LabelSimple *_mediaLabel = nullptr;
+	Ui::MediaSlider* _totalSlider = nullptr;
+	Ui::LabelSimple* _totalLabel = nullptr;
+	Ui::MediaSlider* _mediaSlider = nullptr;
+	Ui::LabelSimple* _mediaLabel = nullptr;
 
 	int64 _totalSizeLimit = 0;
 	int64 _mediaSizeLimit = 0;
 	size_type _timeLimit = 0;
 	bool _limitsChanged = false;
-
 };

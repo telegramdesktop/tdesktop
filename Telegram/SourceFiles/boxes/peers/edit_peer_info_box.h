@@ -10,25 +10,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/event_stream.h>
 #include "boxes/abstract_box.h"
 
-namespace style {
-struct InfoProfileCountButton;
+namespace style
+{
+	struct InfoProfileCountButton;
 } // namespace style
 
-namespace Ui {
-class VerticalLayout;
+namespace Ui
+{
+	class VerticalLayout;
 } // namespace Ui
 
-namespace Info {
-namespace Profile {
-class Button;
-} // namespace Profile
+namespace Info
+{
+	namespace Profile
+	{
+		class Button;
+	} // namespace Profile
 } // namespace Info
 
-class EditPeerInfoBox : public BoxContent {
+class EditPeerInfoBox : public BoxContent
+{
 public:
 	EditPeerInfoBox(QWidget*, not_null<PeerData*> peer);
 
-	void setInnerFocus() override {
+	void setInnerFocus() override
+	{
 		_focusRequests.fire({});
 	}
 
@@ -36,11 +42,11 @@ public:
 
 	[[nodiscard]] static object_ptr<Info::Profile::Button> CreateButton(
 		not_null<QWidget*> parent,
-		rpl::producer<QString> &&text,
-		rpl::producer<QString> &&count,
+		rpl::producer<QString>&& text,
+		rpl::producer<QString>&& count,
 		Fn<void()> callback,
-		const style::InfoProfileCountButton &st,
-		const style::icon *icon = nullptr);
+		const style::InfoProfileCountButton& st,
+		const style::icon* icon = nullptr);
 
 protected:
 	void prepare() override;
@@ -48,5 +54,4 @@ protected:
 private:
 	rpl::event_stream<> _focusRequests;
 	not_null<PeerData*> _peer;
-
 };

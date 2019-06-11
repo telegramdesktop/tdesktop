@@ -11,80 +11,82 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "ui/effects/animations.h"
 
-namespace Ui {
-class RpWidget;
+namespace Ui
+{
+	class RpWidget;
 } // namespace Ui
 
-namespace Window {
+namespace Window
+{
+	class ConnectionState : private base::Subscriber
+	{
+	public:
+		ConnectionState(
+			not_null<Ui::RpWidget*> parent,
+			rpl::producer<bool> shown);
 
-class ConnectionState : private base::Subscriber {
-public:
-	ConnectionState(
-		not_null<Ui::RpWidget*> parent,
-		rpl::producer<bool> shown);
+		void raise();
+		void setForceHidden(bool hidden);
 
-	void raise();
-	void setForceHidden(bool hidden);
+		rpl::lifetime& lifetime()
+		{
+			return _lifetime;
+		}
 
-	rpl::lifetime &lifetime() {
-		return _lifetime;
-	}
+	private:
+		class Widget;
+		struct State
+		{
+			enum class Type
+			{
+				Connected,
+				Connecting,
+				Waiting,
+			};
+			Type type = Type::Connected;
+			bool useProxy = false;
+			bool underCursor = false;
+			int waitTillRetry = 0;
 
-private:
-	class Widget;
-	struct State {
-		enum class Type {
-			Connected,
-			Connecting,
-			Waiting,
+			bool operator==(const State& other) const;
 		};
-		Type type = Type::Connected;
-		bool useProxy = false;
-		bool underCursor = false;
-		int waitTillRetry = 0;
+		struct Layout
+		{
+			bool visible = false;
+			bool hasRetry = false;
+			bool proxyEnabled = false;
+			bool progressShown = false;
+			int contentWidth = 0;
+			QString text;
+			int textWidth = 0;
+		};
 
-		bool operator==(const State &other) const;
+		void createWidget();
+		void finishAnimating();
+		void refreshState();
+		void applyState(const State& state);
+		void changeVisibilityWithLayout(const Layout& layout);
+		Layout computeLayout(const State& state) const;
+		void setLayout(const Layout& layout);
+		float64 currentVisibility() const;
+		rpl::producer<float64> visibility() const;
+		void updateWidth();
+		void updateVisibility();
+		void refreshProgressVisibility();
 
+		not_null<Ui::RpWidget*> _parent;
+		base::unique_qptr<Widget> _widget;
+		bool _forceHidden = false;
+		base::Timer _refreshTimer;
+		State _state;
+		Layout _currentLayout;
+		crl::time _connectingStartedAt = 0;
+		Ui::Animations::Simple _contentWidth;
+		Ui::Animations::Simple _visibility;
+
+		rpl::event_stream<float64> _visibilityValues;
+		rpl::lifetime _lifetime;
 	};
-	struct Layout {
-		bool visible = false;
-		bool hasRetry = false;
-		bool proxyEnabled = false;
-		bool progressShown = false;
-		int contentWidth = 0;
-		QString text;
-		int textWidth = 0;
 
-	};
-
-	void createWidget();
-	void finishAnimating();
-	void refreshState();
-	void applyState(const State &state);
-	void changeVisibilityWithLayout(const Layout &layout);
-	Layout computeLayout(const State &state) const;
-	void setLayout(const Layout &layout);
-	float64 currentVisibility() const;
-	rpl::producer<float64> visibility() const;
-	void updateWidth();
-	void updateVisibility();
-	void refreshProgressVisibility();
-
-	not_null<Ui::RpWidget*> _parent;
-	base::unique_qptr<Widget> _widget;
-	bool _forceHidden = false;
-	base::Timer _refreshTimer;
-	State _state;
-	Layout _currentLayout;
-	crl::time _connectingStartedAt = 0;
-	Ui::Animations::Simple _contentWidth;
-	Ui::Animations::Simple _visibility;
-
-	rpl::event_stream<float64> _visibilityValues;
-	rpl::lifetime _lifetime;
-
-};
-
-rpl::producer<bool> AdaptiveIsOneColumn();
-
+	rpl::producer<bool> AdaptiveIsOneColumn();
 } // namespace Window

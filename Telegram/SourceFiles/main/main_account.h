@@ -9,30 +9,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class AuthSession;
 
-namespace Main {
+namespace Main
+{
+	class Account final
+	{
+	public:
+		explicit Account(const QString& dataName);
+		~Account();
 
-class Account final {
-public:
-	explicit Account(const QString &dataName);
-	~Account();
+		Account(const Account& other) = delete;
+		Account& operator=(const Account& other) = delete;
 
-	Account(const Account &other) = delete;
-	Account &operator=(const Account &other) = delete;
+		void createSession(const MTPUser& user);
+		void destroySession();
 
-	void createSession(const MTPUser &user);
-	void destroySession();
+		[[nodiscard]] bool sessionExists() const;
+		[[nodiscard]] AuthSession& session();
+		[[nodiscard]] rpl::producer<AuthSession*> sessionValue() const;
+		[[nodiscard]] rpl::producer<AuthSession*> sessionChanges() const;
 
-	[[nodiscard]] bool sessionExists() const;
-	[[nodiscard]] AuthSession &session();
-	[[nodiscard]] rpl::producer<AuthSession*> sessionValue() const;
-	[[nodiscard]] rpl::producer<AuthSession*> sessionChanges() const;
+		[[nodiscard]] MTP::Instance* mtp();
 
-	[[nodiscard]] MTP::Instance *mtp();
-
-private:
-	std::unique_ptr<AuthSession> _session;
-	rpl::variable<AuthSession*> _sessionValue;
-
-};
-
+	private:
+		std::unique_ptr<AuthSession> _session;
+		rpl::variable<AuthSession*> _sessionValue;
+	};
 } // namespace Main

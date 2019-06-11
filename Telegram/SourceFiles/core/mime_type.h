@@ -11,31 +11,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStringList>
 #include <QtCore/QMimeType>
 
-namespace Core {
+namespace Core
+{
+	class MimeType
+	{
+	public:
+		enum class Known
+		{
+			Unknown,
+			TDesktopTheme,
+			TDesktopPalette,
+			WebP,
+		};
 
-class MimeType {
-public:
-	enum class Known {
-		Unknown,
-		TDesktopTheme,
-		TDesktopPalette,
-		WebP,
+		explicit MimeType(const QMimeType& type);
+		explicit MimeType(Known type);
+		QStringList globPatterns() const;
+		QString filterString() const;
+		QString name() const;
+
+	private:
+		QMimeType _typeStruct;
+		Known _type = Known::Unknown;
 	};
 
-	explicit MimeType(const QMimeType &type);
-	explicit MimeType(Known type);
-	QStringList globPatterns() const;
-	QString filterString() const;
-	QString name() const;
-
-private:
-	QMimeType _typeStruct;
-	Known _type = Known::Unknown;
-
-};
-
-MimeType MimeTypeForName(const QString &mime);
-MimeType MimeTypeForFile(const QFileInfo &file);
-MimeType MimeTypeForData(const QByteArray &data);
-
+	MimeType MimeTypeForName(const QString& mime);
+	MimeType MimeTypeForFile(const QFileInfo& file);
+	MimeType MimeTypeForData(const QByteArray& data);
 } // namespace Core

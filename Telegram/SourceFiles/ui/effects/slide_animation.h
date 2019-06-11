@@ -9,47 +9,50 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 
-namespace Ui {
+namespace Ui
+{
+	class SlideAnimation
+	{
+	public:
+		void setSnapshots(QPixmap leftSnapshot, QPixmap rightSnapshot);
 
-class SlideAnimation {
-public:
-	void setSnapshots(QPixmap leftSnapshot, QPixmap rightSnapshot);
+		void setOverflowHidden(bool hidden)
+		{
+			_overflowHidden = hidden;
+		}
 
-	void setOverflowHidden(bool hidden) {
-		_overflowHidden = hidden;
-	}
+		template <typename Lambda>
+		void start(bool slideLeft, Lambda&& updateCallback, float64 duration);
+
+		void paintFrame(Painter& p, int x, int y, int outerWidth);
+
+		bool animating() const
+		{
+			return _animation.animating();
+		}
+
+	private:
+		Ui::Animations::Simple _animation;
+		QPixmap _leftSnapshot;
+		QPixmap _rightSnapshot;
+		bool _slideLeft = false;
+		bool _overflowHidden = true;
+		int _leftSnapshotWidth = 0;
+		int _leftSnapshotHeight = 0;
+		int _rightSnapshotWidth = 0;
+	};
 
 	template <typename Lambda>
-	void start(bool slideLeft, Lambda &&updateCallback, float64 duration);
-
-	void paintFrame(Painter &p, int x, int y, int outerWidth);
-
-	bool animating() const {
-		return _animation.animating();
+	void SlideAnimation::start(bool slideLeft, Lambda&& updateCallback, float64 duration)
+	{
+		_slideLeft = slideLeft;
+		if (_slideLeft)
+		{
+			std::swap(_leftSnapshot, _rightSnapshot);
+		}
+		_leftSnapshotWidth = _leftSnapshot.width() / cIntRetinaFactor();
+		_leftSnapshotHeight = _leftSnapshot.height() / cIntRetinaFactor();
+		_rightSnapshotWidth = _rightSnapshot.width() / cIntRetinaFactor();
+		_animation.start(std::forward<Lambda>(updateCallback), 0., 1., duration);
 	}
-
-private:
-	Ui::Animations::Simple _animation;
-	QPixmap _leftSnapshot;
-	QPixmap _rightSnapshot;
-	bool _slideLeft = false;
-	bool _overflowHidden = true;
-	int _leftSnapshotWidth = 0;
-	int _leftSnapshotHeight = 0;
-	int _rightSnapshotWidth = 0;
-
-};
-
-template <typename Lambda>
-void SlideAnimation::start(bool slideLeft, Lambda &&updateCallback, float64 duration) {
-	_slideLeft = slideLeft;
-	if (_slideLeft) {
-		std::swap(_leftSnapshot, _rightSnapshot);
-	}
-	_leftSnapshotWidth = _leftSnapshot.width() / cIntRetinaFactor();
-	_leftSnapshotHeight = _leftSnapshot.height() / cIntRetinaFactor();
-	_rightSnapshotWidth = _rightSnapshot.width() / cIntRetinaFactor();
-	_animation.start(std::forward<Lambda>(updateCallback), 0., 1., duration);
-}
-
 } // namespace Ui

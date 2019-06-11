@@ -9,11 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/media/history_media.h"
 
-namespace Data {
-struct Invoice;
+namespace Data
+{
+	struct Invoice;
 } // namespace Data
 
-class HistoryInvoice : public HistoryMedia {
+class HistoryInvoice : public HistoryMedia
+{
 public:
 	HistoryInvoice(
 		not_null<Element*> parent,
@@ -21,50 +23,65 @@ public:
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
-	MsgId getReceiptMsgId() const {
+	MsgId getReceiptMsgId() const
+	{
 		return _receiptMsgId;
 	}
-	QString getTitle() const {
+
+	QString getTitle() const
+	{
 		return _title.toString();
 	}
 
-	bool hideMessageText() const override {
+	bool hideMessageText() const override
+	{
 		return false;
 	}
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
+	void draw(Painter& p, const QRect& r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;
-	uint16 fullSelectionLength() const override {
+
+	uint16 fullSelectionLength() const override
+	{
 		return _title.length() + _description.length();
 	}
-	bool hasTextForCopy() const override {
+
+	bool hasTextForCopy() const override
+	{
 		return false; // we do not add _title and _description in FullSelection text copy.
 	}
 
-	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
+	bool toggleSelectionByHandlerClick(const ClickHandlerPtr& p) const override
+	{
 		return _attach && _attach->toggleSelectionByHandlerClick(p);
 	}
-	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
+
+	bool dragItemByHandler(const ClickHandlerPtr& p) const override
+	{
 		return _attach && _attach->dragItemByHandler(p);
 	}
 
 	TextForMimeData selectedText(TextSelection selection) const override;
 
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
+	void clickHandlerActiveChanged(const ClickHandlerPtr& p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr& p, bool pressed) override;
 
-	bool needsBubble() const override {
+	bool needsBubble() const override
+	{
 		return true;
 	}
-	bool customInfoLayout() const override {
+
+	bool customInfoLayout() const override
+	{
 		return false;
 	}
 
-	HistoryMedia *attach() const {
+	HistoryMedia* attach() const
+	{
 		return _attach.get();
 	}
 
@@ -88,7 +105,6 @@ private:
 	Text _status;
 
 	MsgId _receiptMsgId = 0;
-
 };
 
-QString FillAmountAndCurrency(uint64 amount, const QString &currency);
+QString FillAmountAndCurrency(uint64 amount, const QString& currency);

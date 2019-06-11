@@ -10,70 +10,76 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "styles/style_widgets.h"
 
-namespace Ui {
+namespace Ui
+{
+	class RoundCheckbox
+	{
+	public:
+		RoundCheckbox(const style::RoundCheckbox& st, Fn<void()> updateCallback);
 
-class RoundCheckbox {
-public:
-	RoundCheckbox(const style::RoundCheckbox &st, Fn<void()> updateCallback);
+		void paint(Painter& p, int x, int y, int outerWidth, float64 masterScale = 1.);
 
-	void paint(Painter &p, int x, int y, int outerWidth, float64 masterScale = 1.);
+		void setDisplayInactive(bool displayInactive);
 
-	void setDisplayInactive(bool displayInactive);
-	bool checked() const {
-		return _checked;
-	}
-	enum class SetStyle {
-		Animated,
-		Fast,
+		bool checked() const
+		{
+			return _checked;
+		}
+
+		enum class SetStyle
+		{
+			Animated,
+			Fast,
+		};
+		void setChecked(bool newChecked, SetStyle speed = SetStyle::Animated);
+
+		void invalidateCache();
+
+	private:
+		void prepareInactiveCache();
+
+		const style::RoundCheckbox& _st;
+		Fn<void()> _updateCallback;
+
+		bool _checked = false;
+		Ui::Animations::Simple _checkedProgress;
+
+		bool _displayInactive = false;
+		QPixmap _inactiveCacheBg, _inactiveCacheFg;
 	};
-	void setChecked(bool newChecked, SetStyle speed = SetStyle::Animated);
 
-	void invalidateCache();
+	class RoundImageCheckbox
+	{
+	public:
+		using PaintRoundImage = Fn<void(Painter& p, int x, int y, int outerWidth, int size)>;
+		RoundImageCheckbox(const style::RoundImageCheckbox& st, Fn<void()> updateCallback, PaintRoundImage&& paintRoundImage);
 
-private:
-	void prepareInactiveCache();
+		void paint(Painter& p, int x, int y, int outerWidth);
+		float64 checkedAnimationRatio() const;
 
-	const style::RoundCheckbox &_st;
-	Fn<void()> _updateCallback;
+		bool checked() const
+		{
+			return _check.checked();
+		}
 
-	bool _checked = false;
-	Ui::Animations::Simple _checkedProgress;
+		using SetStyle = RoundCheckbox::SetStyle;
+		void setChecked(bool newChecked, SetStyle speed = SetStyle::Animated);
 
-	bool _displayInactive = false;
-	QPixmap _inactiveCacheBg, _inactiveCacheFg;
+		void invalidateCache()
+		{
+			_check.invalidateCache();
+		}
 
-};
+	private:
+		void prepareWideCache();
 
-class RoundImageCheckbox {
-public:
-	using PaintRoundImage = Fn<void(Painter &p, int x, int y, int outerWidth, int size)>;
-	RoundImageCheckbox(const style::RoundImageCheckbox &st, Fn<void()> updateCallback, PaintRoundImage &&paintRoundImage);
+		const style::RoundImageCheckbox& _st;
+		Fn<void()> _updateCallback;
+		PaintRoundImage _paintRoundImage;
 
-	void paint(Painter &p, int x, int y, int outerWidth);
-	float64 checkedAnimationRatio() const;
+		QPixmap _wideCache;
+		Ui::Animations::Simple _selection;
 
-	bool checked() const {
-		return _check.checked();
-	}
-	using SetStyle = RoundCheckbox::SetStyle;
-	void setChecked(bool newChecked, SetStyle speed = SetStyle::Animated);
-
-	void invalidateCache() {
-		_check.invalidateCache();
-	}
-
-private:
-	void prepareWideCache();
-
-	const style::RoundImageCheckbox &_st;
-	Fn<void()> _updateCallback;
-	PaintRoundImage _paintRoundImage;
-
-	QPixmap _wideCache;
-	Ui::Animations::Simple _selection;
-
-	RoundCheckbox _check;
-
-};
-
+		RoundCheckbox _check;
+	};
 } // namespace Ui

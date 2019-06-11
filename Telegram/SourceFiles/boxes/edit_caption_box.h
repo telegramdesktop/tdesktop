@@ -12,30 +12,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include <rpl/event_stream.h>
 
-namespace ChatHelpers {
-class TabbedPanel;
+namespace ChatHelpers
+{
+	class TabbedPanel;
 } // namespace ChatHelpers
 
-namespace Window {
-class SessionController;
+namespace Window
+{
+	class SessionController;
 } // namespace Window
 
-namespace Data {
-class Media;
+namespace Data
+{
+	class Media;
 } // namespace Data
 
-namespace Ui {
-class InputField;
-class EmojiButton;
-class IconButton;
-class Checkbox;
+namespace Ui
+{
+	class InputField;
+	class EmojiButton;
+	class IconButton;
+	class Checkbox;
 } // namespace Ui
 
-namespace Window {
-class SessionController;
+namespace Window
+{
+	class SessionController;
 } // namespace Window
 
-class EditCaptionBox : public BoxContent, public RPCSender {
+class EditCaptionBox : public BoxContent, public RPCSender
+{
 public:
 	EditCaptionBox(
 		QWidget*,
@@ -46,9 +52,9 @@ protected:
 	void prepare() override;
 	void setInnerFocus() override;
 
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent* e) override;
+	void resizeEvent(QResizeEvent* e) override;
+	void keyPressEvent(QKeyEvent* e) override;
 
 private:
 	void updateBoxSize();
@@ -62,8 +68,8 @@ private:
 	void save();
 	void captionResized();
 
-	void saveDone(const MTPUpdates &updates);
-	bool saveFail(const RPCError &error);
+	void saveDone(const MTPUpdates& updates);
+	bool saveFail(const RPCError& error);
 
 	void setName(QString nameString, qint64 size);
 	bool fileFromClipboard(not_null<const QMimeData*> data);
@@ -74,15 +80,16 @@ private:
 
 	void createEditMediaButton();
 
-	inline QString getNewMediaPath() {
+	inline QString getNewMediaPath()
+	{
 		return _preparedList.files.empty()
-			? QString()
-			: _preparedList.files.front().path;
+			       ? QString()
+			       : _preparedList.files.front().path;
 	}
 
 	not_null<Window::SessionController*> _controller;
 	FullMsgId _msgId;
-	Image *_thumbnailImage = nullptr;
+	Image* _thumbnailImage = nullptr;
 	bool _thumbnailImageLoaded = false;
 	Fn<void()> _refreshThumbnail;
 	bool _animated = false;
@@ -92,8 +99,8 @@ private:
 	QPixmap _thumb;
 	Media::Clip::ReaderPointer _gifPreview;
 
-	object_ptr<Ui::InputField> _field = { nullptr };
-	object_ptr<Ui::EmojiButton> _emojiToggle = { nullptr };
+	object_ptr<Ui::InputField> _field = {nullptr};
+	object_ptr<Ui::EmojiButton> _emojiToggle = {nullptr};
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;
 
@@ -115,7 +122,7 @@ private:
 	mtpRequestId _saveRequestId = 0;
 
 	object_ptr<Ui::IconButton> _editMedia = nullptr;
-	Ui::SlideWrap<Ui::RpWidget> *_wayWrap = nullptr;
+	Ui::SlideWrap<Ui::RpWidget>* _wayWrap = nullptr;
 	QString _newMediaPath;
 	bool _isAllowedEditMedia = false;
 	bool _isAlbum = false;
@@ -123,5 +130,4 @@ private:
 	rpl::event_stream<> _editMediaClicks;
 
 	QString _error;
-
 };

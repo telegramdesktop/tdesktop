@@ -11,14 +11,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/binary_guard.h"
 
-namespace Ui {
-class MultiSelect;
-struct ScrollToRequest;
+namespace Ui
+{
+	class MultiSelect;
+	struct ScrollToRequest;
 } // namespace Ui
 
-class LanguageBox : public BoxContent {
+class LanguageBox : public BoxContent
+{
 public:
-	LanguageBox(QWidget*) {
+	LanguageBox(QWidget*)
+	{
 	}
 
 	void setInnerFocus() override;
@@ -28,7 +31,7 @@ public:
 protected:
 	void prepare() override;
 
-	void keyPressEvent(QKeyEvent *e) override;
+	void keyPressEvent(QKeyEvent* e) override;
 
 private:
 	using Languages = Lang::CloudManager::Languages;
@@ -38,5 +41,4 @@ private:
 
 	Fn<void()> _setInnerFocus;
 	Fn<Ui::ScrollToRequest(int rows)> _jump;
-
 };

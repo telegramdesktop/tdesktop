@@ -9,10 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/main_window.h"
 
-namespace Platform {
-
-class MainWindow;
-
+namespace Platform
+{
+	class MainWindow;
 } // namespace Platform
 
 // Platform dependent implementations.

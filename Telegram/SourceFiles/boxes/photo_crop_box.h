@@ -9,9 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-class PhotoCropBox : public BoxContent {
+class PhotoCropBox : public BoxContent
+{
 public:
-	PhotoCropBox(QWidget*, const QImage &img, const QString &title);
+	PhotoCropBox(QWidget*, const QImage& img, const QString& title);
 
 	int32 mouseState(QPoint p);
 
@@ -20,11 +21,11 @@ public:
 protected:
 	void prepare() override;
 
-	void keyPressEvent(QKeyEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
+	void keyPressEvent(QKeyEvent* e) override;
+	void paintEvent(QPaintEvent* e) override;
+	void mousePressEvent(QMouseEvent* e) override;
+	void mouseReleaseEvent(QMouseEvent* e) override;
+	void mouseMoveEvent(QMouseEvent* e) override;
 
 private:
 	void sendPhoto();
@@ -38,5 +39,4 @@ private:
 	QPixmap _thumb;
 	QImage _mask, _fade;
 	rpl::event_stream<QImage> _readyImages;
-
 };

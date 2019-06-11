@@ -10,133 +10,160 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/wrap/padding_wrap.h"
 
-namespace Ui {
+namespace Ui
+{
+	template <typename Widget = RpWidget>
+	class SlideWrap;
 
-template <typename Widget = RpWidget>
-class SlideWrap;
+	template <>
+	class SlideWrap<RpWidget> : public Wrap<PaddingWrap<RpWidget>>
+	{
+		using Parent = Wrap<PaddingWrap<RpWidget>>;
 
-template <>
-class SlideWrap<RpWidget> : public Wrap<PaddingWrap<RpWidget>> {
-	using Parent = Wrap<PaddingWrap<RpWidget>>;
+	public:
+		SlideWrap(
+			QWidget* parent,
+			object_ptr<RpWidget>&& child);
+		SlideWrap(
+			QWidget* parent,
+			const style::margins& padding);
+		SlideWrap(
+			QWidget* parent,
+			object_ptr<RpWidget>&& child,
+			const style::margins& padding);
 
-public:
-	SlideWrap(
-		QWidget *parent,
-		object_ptr<RpWidget> &&child);
-	SlideWrap(
-		QWidget *parent,
-		const style::margins &padding);
-	SlideWrap(
-		QWidget *parent,
-		object_ptr<RpWidget> &&child,
-		const style::margins &padding);
+		SlideWrap* setDuration(int duration);
+		SlideWrap* toggle(bool shown, anim::type animated);
 
-	SlideWrap *setDuration(int duration);
-	SlideWrap *toggle(bool shown, anim::type animated);
-	SlideWrap *show(anim::type animated) {
-		return toggle(true, animated);
-	}
-	SlideWrap *hide(anim::type animated) {
-		return toggle(false, animated);
-	}
-	SlideWrap *finishAnimating();
-	SlideWrap *toggleOn(rpl::producer<bool> &&shown);
+		SlideWrap* show(anim::type animated)
+		{
+			return toggle(true, animated);
+		}
 
-	bool animating() const {
-		return _animation.animating();
-	}
-	bool toggled() const {
-		return _toggled;
-	}
-	auto toggledValue() const {
-		return _toggledChanged.events_starting_with_copy(_toggled);
-	}
+		SlideWrap* hide(anim::type animated)
+		{
+			return toggle(false, animated);
+		}
 
-	QMargins getMargins() const override;
+		SlideWrap* finishAnimating();
+		SlideWrap* toggleOn(rpl::producer<bool>&& shown);
 
-protected:
-	int resizeGetHeight(int newWidth) override;
-	void wrappedSizeUpdated(QSize size) override;
+		bool animating() const
+		{
+			return _animation.animating();
+		}
 
-private:
-	void animationStep();
+		bool toggled() const
+		{
+			return _toggled;
+		}
 
-	bool _toggled = true;
-	rpl::event_stream<bool> _toggledChanged;
-	Ui::Animations::Simple _animation;
-	int _duration = 0;
+		auto toggledValue() const
+		{
+			return _toggledChanged.events_starting_with_copy(_toggled);
+		}
 
-};
+		QMargins getMargins() const override;
 
-template <typename Widget>
-class SlideWrap : public Wrap<PaddingWrap<Widget>, SlideWrap<RpWidget>> {
-	using Parent = Wrap<PaddingWrap<Widget>, SlideWrap<RpWidget>>;
+	protected:
+		int resizeGetHeight(int newWidth) override;
+		void wrappedSizeUpdated(QSize size) override;
 
-public:
-	SlideWrap(
-		QWidget *parent,
-		object_ptr<Widget> &&child)
-	: Parent(parent, std::move(child)) {
-	}
-	SlideWrap(
-		QWidget *parent,
-		const style::margins &padding)
-	: Parent(parent, padding) {
-	}
-	SlideWrap(
-		QWidget *parent,
-		object_ptr<Widget> &&child,
-		const style::margins &padding)
-	: Parent(parent, std::move(child), padding) {
-	}
+	private:
+		void animationStep();
 
-	SlideWrap *setDuration(int duration) {
-		return chain(Parent::setDuration(duration));
-	}
-	SlideWrap *toggle(bool shown, anim::type animated) {
-		return chain(Parent::toggle(shown, animated));
-	}
-	SlideWrap *show(anim::type animated) {
-		return chain(Parent::show(animated));
-	}
-	SlideWrap *hide(anim::type animated) {
-		return chain(Parent::hide(animated));
-	}
-	SlideWrap *finishAnimating() {
-		return chain(Parent::finishAnimating());
-	}
-	SlideWrap *toggleOn(rpl::producer<bool> &&shown) {
-		return chain(Parent::toggleOn(std::move(shown)));
-	}
+		bool _toggled = true;
+		rpl::event_stream<bool> _toggledChanged;
+		Ui::Animations::Simple _animation;
+		int _duration = 0;
+	};
 
-private:
-	SlideWrap *chain(SlideWrap<RpWidget> *result) {
-		return static_cast<SlideWrap*>(result);
-	}
-
-};
-
-inline object_ptr<SlideWrap<>> CreateSlideSkipWidget(
-		QWidget *parent,
-		int skip) {
-	return object_ptr<SlideWrap<>>(
-		parent,
-		QMargins(0, 0, 0, skip));
-}
-
-class MultiSlideTracker {
-public:
 	template <typename Widget>
-	void track(const Ui::SlideWrap<Widget> *wrap) {
-		_widgets.push_back(wrap);
+	class SlideWrap : public Wrap<PaddingWrap<Widget>, SlideWrap<RpWidget>>
+	{
+		using Parent = Wrap<PaddingWrap<Widget>, SlideWrap<RpWidget>>;
+
+	public:
+		SlideWrap(
+			QWidget* parent,
+			object_ptr<Widget>&& child) :
+			Parent(parent, std::move(child))
+		{
+		}
+
+		SlideWrap(
+			QWidget* parent,
+			const style::margins& padding) :
+			Parent(parent, padding)
+		{
+		}
+
+		SlideWrap(
+			QWidget* parent,
+			object_ptr<Widget>&& child,
+			const style::margins& padding) :
+			Parent(parent, std::move(child), padding)
+		{
+		}
+
+		SlideWrap* setDuration(int duration)
+		{
+			return chain(Parent::setDuration(duration));
+		}
+
+		SlideWrap* toggle(bool shown, anim::type animated)
+		{
+			return chain(Parent::toggle(shown, animated));
+		}
+
+		SlideWrap* show(anim::type animated)
+		{
+			return chain(Parent::show(animated));
+		}
+
+		SlideWrap* hide(anim::type animated)
+		{
+			return chain(Parent::hide(animated));
+		}
+
+		SlideWrap* finishAnimating()
+		{
+			return chain(Parent::finishAnimating());
+		}
+
+		SlideWrap* toggleOn(rpl::producer<bool>&& shown)
+		{
+			return chain(Parent::toggleOn(std::move(shown)));
+		}
+
+	private:
+		SlideWrap* chain(SlideWrap<RpWidget>* result)
+		{
+			return static_cast<SlideWrap*>(result);
+		}
+	};
+
+	inline object_ptr<SlideWrap<>> CreateSlideSkipWidget(
+		QWidget* parent,
+		int skip)
+	{
+		return object_ptr<SlideWrap<>>(
+			parent,
+			QMargins(0, 0, 0, skip));
 	}
 
-	rpl::producer<bool> atLeastOneShownValue() const;
+	class MultiSlideTracker
+	{
+	public:
+		template <typename Widget>
+		void track(const Ui::SlideWrap<Widget>* wrap)
+		{
+			_widgets.push_back(wrap);
+		}
 
-private:
-	std::vector<const Ui::SlideWrap<Ui::RpWidget>*> _widgets;
+		rpl::producer<bool> atLeastOneShownValue() const;
 
-};
-
+	private:
+		std::vector<const Ui::SlideWrap<Ui::RpWidget>*> _widgets;
+	};
 } // namespace Ui
-

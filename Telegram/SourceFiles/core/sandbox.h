@@ -7,121 +7,127 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Core {
+namespace Core
+{
+	class Launcher;
+	class UpdateChecker;
+	class Application;
 
-class Launcher;
-class UpdateChecker;
-class Application;
+	class Sandbox final
+		: public QApplication
+		  , private QAbstractNativeEventFilter
+	{
+	private:
+		auto createEventNestingLevel()
+		{
+			incrementEventNestingLevel();
+			return gsl::finally([=]
+			{
+				decrementEventNestingLevel();
+			});
+		}
 
-class Sandbox final
-	: public QApplication
-	, private QAbstractNativeEventFilter {
-private:
-	auto createEventNestingLevel() {
-		incrementEventNestingLevel();
-		return gsl::finally([=] { decrementEventNestingLevel(); });
-	}
+	public:
+		Sandbox(not_null<Launcher*> launcher, int& argc, char** argv);
 
-public:
-	Sandbox(not_null<Launcher*> launcher, int &argc, char **argv);
+		Sandbox(const Sandbox& other) = delete;
+		Sandbox& operator=(const Sandbox& other) = delete;
 
-	Sandbox(const Sandbox &other) = delete;
-	Sandbox &operator=(const Sandbox &other) = delete;
+		int start();
 
-	int start();
+		void refreshGlobalProxy();
+		uint64 installationTag() const;
 
-	void refreshGlobalProxy();
-	uint64 installationTag() const;
+		void postponeCall(FnMut<void()>&& callable);
+		bool notify(QObject* receiver, QEvent* e) override;
 
-	void postponeCall(FnMut<void()> &&callable);
-	bool notify(QObject *receiver, QEvent *e) override;
+		template <typename Callable>
+		auto customEnterFromEventLoop(Callable&& callable)
+		{
+			registerEnterFromEventLoop();
+			const auto wrap = createEventNestingLevel();
+			return callable();
+		}
 
-	template <typename Callable>
-	auto customEnterFromEventLoop(Callable &&callable) {
-		registerEnterFromEventLoop();
-		const auto wrap = createEventNestingLevel();
-		return callable();
-	}
+		void activateWindowDelayed(not_null<QWidget*> widget);
+		void pauseDelayedWindowActivations();
+		void resumeDelayedWindowActivations();
 
-	void activateWindowDelayed(not_null<QWidget*> widget);
-	void pauseDelayedWindowActivations();
-	void resumeDelayedWindowActivations();
+		rpl::producer<> widgetUpdateRequests() const;
 
-	rpl::producer<> widgetUpdateRequests() const;
+		ProxyData sandboxProxy() const;
 
-	ProxyData sandboxProxy() const;
+		static Sandbox& Instance()
+		{
+			Expects(QApplication::instance() != nullptr);
 
-	static Sandbox &Instance() {
-		Expects(QApplication::instance() != nullptr);
+			return *static_cast<Sandbox*>(QApplication::instance());
+		}
 
-		return *static_cast<Sandbox*>(QApplication::instance());
-	}
+		~Sandbox();
 
-	~Sandbox();
+	protected:
+		bool event(QEvent* e) override;
 
-protected:
-	bool event(QEvent *e) override;
+	private:
+		typedef QPair<QLocalSocket*, QByteArray> LocalClient;
+		typedef QList<LocalClient> LocalClients;
 
-private:
-	typedef QPair<QLocalSocket*, QByteArray> LocalClient;
-	typedef QList<LocalClient> LocalClients;
+		struct PostponedCall
+		{
+			int loopNestingLevel = 0;
+			FnMut<void()> callable;
+		};
 
-	struct PostponedCall {
-		int loopNestingLevel = 0;
-		FnMut<void()> callable;
+		void closeApplication(); // will be done in aboutToQuit()
+		void checkForQuit(); // will be done in exec()
+		void registerEnterFromEventLoop();
+		void incrementEventNestingLevel();
+		void decrementEventNestingLevel();
+		bool nativeEventFilter(
+			const QByteArray& eventType,
+			void* message,
+			long* result) override;
+		void processPostponedCalls(int level);
+		void singleInstanceChecked();
+		void launchApplication();
+		void setupScreenScale();
+		void execExternal(const QString& cmd);
+
+		// Single instance application
+		void socketConnected();
+		void socketError(QLocalSocket::LocalSocketError e);
+		void socketDisconnected();
+		void socketWritten(qint64 bytes);
+		void socketReading();
+		void newInstanceConnected();
+
+		void readClients();
+		void removeClients();
+
+		const Qt::HANDLE _mainThreadId = nullptr;
+		int _eventNestingLevel = 0;
+		int _loopNestingLevel = 0;
+		std::vector<int> _previousLoopNestingLevels;
+		std::vector<PostponedCall> _postponedCalls;
+
+		QPointer<QWidget> _windowForDelayedActivation;
+		bool _delayedActivationsPaused = false;
+
+		not_null<Launcher*> _launcher;
+		std::unique_ptr<Application> _application;
+
+		QString _localServerName, _localSocketReadData;
+		QLocalServer _localServer;
+		QLocalSocket _localSocket;
+		LocalClients _localClients;
+		bool _secondInstance = false;
+
+		std::unique_ptr<UpdateChecker> _updateChecker;
+
+		QByteArray _lastCrashDump;
+		ProxyData _sandboxProxy;
+
+		rpl::event_stream<> _widgetUpdateRequests;
 	};
-
-	void closeApplication(); // will be done in aboutToQuit()
-	void checkForQuit(); // will be done in exec()
-	void registerEnterFromEventLoop();
-	void incrementEventNestingLevel();
-	void decrementEventNestingLevel();
-	bool nativeEventFilter(
-		const QByteArray &eventType,
-		void *message,
-		long *result) override;
-	void processPostponedCalls(int level);
-	void singleInstanceChecked();
-	void launchApplication();
-	void setupScreenScale();
-	void execExternal(const QString &cmd);
-
-	// Single instance application
-	void socketConnected();
-	void socketError(QLocalSocket::LocalSocketError e);
-	void socketDisconnected();
-	void socketWritten(qint64 bytes);
-	void socketReading();
-	void newInstanceConnected();
-
-	void readClients();
-	void removeClients();
-
-	const Qt::HANDLE _mainThreadId = nullptr;
-	int _eventNestingLevel = 0;
-	int _loopNestingLevel = 0;
-	std::vector<int> _previousLoopNestingLevels;
-	std::vector<PostponedCall> _postponedCalls;
-
-	QPointer<QWidget> _windowForDelayedActivation;
-	bool _delayedActivationsPaused = false;
-
-	not_null<Launcher*> _launcher;
-	std::unique_ptr<Application> _application;
-
-	QString _localServerName, _localSocketReadData;
-	QLocalServer _localServer;
-	QLocalSocket _localSocket;
-	LocalClients _localClients;
-	bool _secondInstance = false;
-
-	std::unique_ptr<UpdateChecker> _updateChecker;
-
-	QByteArray _lastCrashDump;
-	ProxyData _sandboxProxy;
-
-	rpl::event_stream<> _widgetUpdateRequests;
-
-};
-
 } // namespace Core

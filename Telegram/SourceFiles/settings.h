@@ -24,7 +24,9 @@ inline Type &cRef##Name() { \
 
 DeclareSetting(bool, Rtl);
 DeclareSetting(Qt::LayoutDirection, LangDir);
-inline bool rtl() {
+
+inline bool rtl()
+{
 	return cRtl();
 }
 
@@ -40,7 +42,8 @@ DeclareSetting(bool, StartMinimized);
 DeclareSetting(bool, StartInTray);
 DeclareSetting(bool, SendToMenu);
 DeclareSetting(bool, UseExternalVideoPlayer);
-enum LaunchMode {
+enum LaunchMode
+{
 	LaunchModeNormal = 0,
 	LaunchModeAutoStart,
 	LaunchModeFixPrevious,
@@ -48,26 +51,32 @@ enum LaunchMode {
 };
 DeclareReadSetting(LaunchMode, LaunchMode);
 DeclareSetting(QString, WorkingDir);
-inline void cForceWorkingDir(const QString &newDir) {
+
+inline void cForceWorkingDir(const QString& newDir)
+{
 	cSetWorkingDir(newDir);
-	if (!gWorkingDir.isEmpty()) {
+	if (!gWorkingDir.isEmpty())
+	{
 		QDir().mkpath(gWorkingDir);
 		QFile::setPermissions(gWorkingDir,
-			QFileDevice::ReadUser | QFileDevice::WriteUser | QFileDevice::ExeUser);
+		                      QFileDevice::ReadUser | QFileDevice::WriteUser | QFileDevice::ExeUser);
 	}
-
 }
+
 DeclareReadSetting(QString, ExeName);
 DeclareReadSetting(QString, ExeDir);
 DeclareSetting(QString, DialogLastPath);
 DeclareSetting(QString, DialogHelperPath);
-inline const QString &cDialogHelperPathFinal() {
+
+inline const QString& cDialogHelperPathFinal()
+{
 	return cDialogHelperPath().isEmpty() ? cExeDir() : cDialogHelperPath();
 }
 
 DeclareSetting(bool, AutoUpdate);
 
-struct TWindowPos {
+struct TWindowPos
+{
 	TWindowPos() = default;
 
 	int32 moncrc = 0;
@@ -94,14 +103,17 @@ DeclareSetting(int, ScreenScale);
 DeclareSetting(int, ConfigScale);
 DeclareSetting(QString, TimeFormat);
 
-inline void cChangeTimeFormat(const QString &newFormat) {
+inline void cChangeTimeFormat(const QString& newFormat)
+{
 	if (!newFormat.isEmpty()) cSetTimeFormat(newFormat);
 }
 
-namespace Ui {
-namespace Emoji {
-class One;
-} // namespace Emoji
+namespace Ui
+{
+	namespace Emoji
+	{
+		class One;
+	} // namespace Emoji
 } // namespace Ui
 
 using EmojiPtr = const Ui::Emoji::One*;
@@ -138,15 +150,22 @@ DeclareSetting(bool, PasswordRecovered);
 DeclareSetting(int32, PasscodeBadTries);
 DeclareSetting(crl::time, PasscodeLastTry);
 
-inline bool passcodeCanTry() {
+inline bool passcodeCanTry()
+{
 	if (cPasscodeBadTries() < 3) return true;
 	auto dt = crl::now() - cPasscodeLastTry();
-	switch (cPasscodeBadTries()) {
-	case 3: return dt >= 5000;
-	case 4: return dt >= 10000;
-	case 5: return dt >= 15000;
-	case 6: return dt >= 20000;
-	case 7: return dt >= 25000;
+	switch (cPasscodeBadTries())
+	{
+	case 3:
+		return dt >= 5000;
+	case 4:
+		return dt >= 10000;
+	case 5:
+		return dt >= 15000;
+	case 6:
+		return dt >= 20000;
+	case 7:
+		return dt >= 25000;
 	}
 	return dt >= 30000;
 }
@@ -169,33 +188,39 @@ constexpr auto kInterfaceScaleMin = 100;
 constexpr auto kInterfaceScaleDefault = 100;
 constexpr auto kInterfaceScaleMax = 300;
 
-inline int cEvalScale(int scale) {
+inline int cEvalScale(int scale)
+{
 	return (scale == kInterfaceScaleAuto) ? cScreenScale() : scale;
 }
 
-inline int cScale() {
+inline int cScale()
+{
 	return cEvalScale(cConfigScale());
 }
 
 template <typename T>
-inline T ConvertScale(T value, int scale) {
+inline T ConvertScale(T value, int scale)
+{
 	return (value < 0.)
-		? (-ConvertScale(-value, scale))
-		: T(std::round((float64(value) * scale / 100.) - 0.01));
+		       ? (-ConvertScale(-value, scale))
+		       : T(std::round((float64(value) * scale / 100.) - 0.01));
 }
 
 template <typename T>
-inline T ConvertScale(T value) {
+inline T ConvertScale(T value)
+{
 	return ConvertScale(value, cScale());
 }
 
-inline QSize ConvertScale(QSize size) {
+inline QSize ConvertScale(QSize size)
+{
 	return QSize(ConvertScale(size.width()), ConvertScale(size.height()));
 }
 
-inline void SetScaleChecked(int scale) {
+inline void SetScaleChecked(int scale)
+{
 	const auto checked = (scale == kInterfaceScaleAuto)
-		? kInterfaceScaleAuto
-		: snap(scale, kInterfaceScaleMin, kInterfaceScaleMax / cIntRetinaFactor());
+		                     ? kInterfaceScaleAuto
+		                     : snap(scale, kInterfaceScaleMin, kInterfaceScaleMax / cIntRetinaFactor());
 	cSetConfigScale(checked);
 }

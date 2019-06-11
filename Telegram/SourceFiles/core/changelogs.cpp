@@ -13,161 +13,179 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "apiwrap.h"
 
-namespace Core {
-namespace {
-
-std::map<int, const char*> BetaLogs() {
-	return {
+namespace Core
+{
+	namespace
 	{
-		1005005,
-		"- Support for auto-download of files and music.\n"
+		std::map<int, const char*> BetaLogs()
+		{
+			return {
+				{
+					1005005,
+					"- Support for auto-download of files and music.\n"
 
-		"- Improved auto-download settings.\n"
+					"- Improved auto-download settings.\n"
 
-		"- Bug fixes and other minor improvements."
-	},
-	{
-		1005007,
-		"- Choose the emoji set you would like to use "
-		"in Settings > Chat Settings.\n"
+					"- Bug fixes and other minor improvements."
+				},
+				{
+					1005007,
+					"- Choose the emoji set you would like to use "
+					"in Settings > Chat Settings.\n"
 
-		"- Choose input and output devices for Telegram Calls "
-		"in Settings > Adavanced > Call Settings."
-	},
-	{
-		1005016,
-		"- Play video files and listen to received music "
-		"without waiting for them to download.\n"
+					"- Choose input and output devices for Telegram Calls "
+					"in Settings > Adavanced > Call Settings."
+				},
+				{
+					1005016,
+					"- Play video files and listen to received music "
+					"without waiting for them to download.\n"
 
-		"- Press CTRL+0 (CMD+0 on macOS) to jump to your Saved Messages."
-	},
-	{
-		1006004,
-		"- Replace media when editing messages with media content.\n"
+					"- Press CTRL+0 (CMD+0 on macOS) to jump to your Saved Messages."
+				},
+				{
+					1006004,
+					"- Replace media when editing messages with media content.\n"
 
-		"- Jump quickly to the top of your chats list.\n"
+					"- Jump quickly to the top of your chats list.\n"
 
-		"- Get emoji suggestions for the first word you type in a message.\n"
+					"- Get emoji suggestions for the first word you type in a message.\n"
 
-		"- Help Telegram improve emoji suggestions in your language "
-		"using this interface https://translations.telegram.org/en/emoji"
-	},
-	{
-		1007001,
-		"- Disable pinned messages notifications in Settings."
-	},
-	{
-		1007004,
-		"- Download video files while watching them using streaming."
-	}
-	};
-}
-
-QString FormatVersionDisplay(int version) {
-	return QString::number(version / 1000000)
-		+ '.' + QString::number((version % 1000000) / 1000)
-		+ ((version % 1000)
-			? ('.' + QString::number(version % 1000))
-			: QString());
-}
-
-QString FormatVersionPrecise(int version) {
-	return QString::number(version / 1000000)
-		+ '.' + QString::number((version % 1000000) / 1000)
-		+ '.' + QString::number(version % 1000);
-}
-
-} // namespace
-
-Changelogs::Changelogs(not_null<AuthSession*> session, int oldVersion)
-: _session(session)
-, _oldVersion(oldVersion) {
-	_session->data().chatsListChanges(
-	) | rpl::filter([](Data::Folder *folder) {
-		return !folder;
-	}) | rpl::start_with_next([=] {
-		requestCloudLogs();
-	}, _chatsSubscription);
-}
-
-std::unique_ptr<Changelogs> Changelogs::Create(
-		not_null<AuthSession*> session) {
-	const auto oldVersion = Local::oldMapVersion();
-	return (oldVersion > 0 && oldVersion < AppVersion)
-		? std::make_unique<Changelogs>(session, oldVersion)
-		: nullptr;
-}
-
-void Changelogs::requestCloudLogs() {
-	_chatsSubscription.destroy();
-
-	const auto callback = [this](const MTPUpdates &result) {
-		_session->api().applyUpdates(result);
-
-		auto resultEmpty = true;
-		switch (result.type()) {
-		case mtpc_updateShortMessage:
-		case mtpc_updateShortChatMessage:
-		case mtpc_updateShort:
-			resultEmpty = false;
-			break;
-		case mtpc_updatesCombined:
-			resultEmpty = result.c_updatesCombined().vupdates.v.isEmpty();
-			break;
-		case mtpc_updates:
-			resultEmpty = result.c_updates().vupdates.v.isEmpty();
-			break;
-		case mtpc_updatesTooLong:
-		case mtpc_updateShortSentMessage:
-			LOG(("API Error: Bad updates type in app changelog."));
-			break;
+					"- Help Telegram improve emoji suggestions in your language "
+					"using this interface https://translations.telegram.org/en/emoji"
+				},
+				{
+					1007001,
+					"- Disable pinned messages notifications in Settings."
+				},
+				{
+					1007004,
+					"- Download video files while watching them using streaming."
+				}
+			};
 		}
-		if (resultEmpty) {
-			addLocalLogs();
+
+		QString FormatVersionDisplay(int version)
+		{
+			return QString::number(version / 1000000)
+				+ '.' + QString::number((version % 1000000) / 1000)
+				+ ((version % 1000)
+					   ? ('.' + QString::number(version % 1000))
+					   : QString());
 		}
+
+		QString FormatVersionPrecise(int version)
+		{
+			return QString::number(version / 1000000)
+				+ '.' + QString::number((version % 1000000) / 1000)
+				+ '.' + QString::number(version % 1000);
+		}
+	} // namespace
+
+	Changelogs::Changelogs(not_null<AuthSession*> session, int oldVersion):
+		_session(session)
+		, _oldVersion(oldVersion)
+	{
+		_session->data().chatsListChanges(
+		) | rpl::filter([](Data::Folder* folder)
+		{
+			return !folder;
+		}) | rpl::start_with_next([=]
+		{
+			requestCloudLogs();
+		}, _chatsSubscription);
+	}
+
+	std::unique_ptr<Changelogs> Changelogs::Create(
+		not_null<AuthSession*> session)
+	{
+		const auto oldVersion = Local::oldMapVersion();
+		return (oldVersion > 0 && oldVersion < AppVersion)
+			       ? std::make_unique<Changelogs>(session, oldVersion)
+			       : nullptr;
+	}
+
+	void Changelogs::requestCloudLogs()
+	{
+		_chatsSubscription.destroy();
+
+		const auto callback = [this](const MTPUpdates& result)
+		{
+			_session->api().applyUpdates(result);
+
+			auto resultEmpty = true;
+			switch (result.type())
+			{
+			case mtpc_updateShortMessage:
+			case mtpc_updateShortChatMessage:
+			case mtpc_updateShort:
+				resultEmpty = false;
+				break;
+			case mtpc_updatesCombined:
+				resultEmpty = result.c_updatesCombined().vupdates.v.isEmpty();
+				break;
+			case mtpc_updates:
+				resultEmpty = result.c_updates().vupdates.v.isEmpty();
+				break;
+			case mtpc_updatesTooLong:
+			case mtpc_updateShortSentMessage:
+				LOG(("API Error: Bad updates type in app changelog."));
+				break;
+			}
+			if (resultEmpty)
+			{
+				addLocalLogs();
+			}
+		};
+		_session->api().requestChangelog(
+			FormatVersionPrecise(_oldVersion),
+			crl::guard(this, callback));
+	}
+
+	void Changelogs::addLocalLogs()
+	{
+		if (AppBetaVersion || cAlphaVersion())
+		{
+			addBetaLogs();
+		}
+		if (!_addedSomeLocal)
+		{
+			const auto text = lng_new_version_wrap(
+				lt_version,
+				QString::fromLatin1(AppVersionStr),
+				lt_changes,
+				lang(lng_new_version_minor),
+				lt_link,
+				qsl("https://desktop.telegram.org/changelog"));
+			addLocalLog(text.trimmed());
+		}
+	}
+
+	void Changelogs::addLocalLog(const QString& text)
+	{
+		auto textWithEntities = TextWithEntities{text};
+		TextUtilities::ParseEntities(textWithEntities, TextParseLinks);
+		_session->data().serviceNotification(textWithEntities);
+		_addedSomeLocal = true;
 	};
-	_session->api().requestChangelog(
-		FormatVersionPrecise(_oldVersion),
-		crl::guard(this, callback));
-}
 
-void Changelogs::addLocalLogs() {
-	if (AppBetaVersion || cAlphaVersion()) {
-		addBetaLogs();
+	void Changelogs::addBetaLogs()
+	{
+		for (const auto [version, changes] : BetaLogs())
+		{
+			addBetaLog(version, changes);
+		}
 	}
-	if (!_addedSomeLocal) {
-		const auto text = lng_new_version_wrap(
-			lt_version,
-			QString::fromLatin1(AppVersionStr),
-			lt_changes,
-			lang(lng_new_version_minor),
-			lt_link,
-			qsl("https://desktop.telegram.org/changelog"));
-		addLocalLog(text.trimmed());
+
+	void Changelogs::addBetaLog(int changeVersion, const char* changes)
+	{
+		if (_oldVersion >= changeVersion)
+		{
+			return;
+		}
+		const auto version = FormatVersionDisplay(changeVersion);
+		const auto text = qsl("New in version %1:\n\n").arg(version)
+			+ QString::fromUtf8(changes).trimmed();
+		addLocalLog(text);
 	}
-}
-
-void Changelogs::addLocalLog(const QString &text) {
-	auto textWithEntities = TextWithEntities{ text };
-	TextUtilities::ParseEntities(textWithEntities, TextParseLinks);
-	_session->data().serviceNotification(textWithEntities);
-	_addedSomeLocal = true;
-};
-
-void Changelogs::addBetaLogs() {
-	for (const auto [version, changes] : BetaLogs()) {
-		addBetaLog(version, changes);
-	}
-}
-
-void Changelogs::addBetaLog(int changeVersion, const char *changes) {
-	if (_oldVersion >= changeVersion) {
-		return;
-	}
-	const auto version = FormatVersionDisplay(changeVersion);
-	const auto text = qsl("New in version %1:\n\n").arg(version)
-		+ QString::fromUtf8(changes).trimmed();
-	addLocalLog(text);
-}
-
 } // namespace Core

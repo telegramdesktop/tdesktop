@@ -15,15 +15,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "base/zlib_help.h"
 
-namespace {
-
-constexpr auto kDefaultProxyPort = 80;
-
+namespace
+{
+	constexpr auto kDefaultProxyPort = 80;
 } // namespace
 
-PreLaunchWindow *PreLaunchWindowInstance = nullptr;
+PreLaunchWindow* PreLaunchWindowInstance = nullptr;
 
-PreLaunchWindow::PreLaunchWindow(QString title) {
+PreLaunchWindow::PreLaunchWindow(QString title)
+{
 	Fonts::Start();
 
 	setWindowIcon(Window::CreateIcon());
@@ -43,29 +43,36 @@ PreLaunchWindow::PreLaunchWindow(QString title) {
 	int paddingHorizontal = _size;
 	int borderRadius = (_size / 5);
 	setStyleSheet(qsl("QPushButton { padding: %1px %2px; background-color: #ffffff; border-radius: %3px; }\nQPushButton#confirm:hover, QPushButton#cancel:hover { background-color: #e3f1fa; color: #2f9fea; }\nQPushButton#confirm { color: #2f9fea; }\nQPushButton#cancel { color: #aeaeae; }\nQLineEdit { border: 1px solid #e0e0e0; padding: 5px; }\nQLineEdit:focus { border: 2px solid #37a1de; padding: 4px; }").arg(paddingVertical).arg(paddingHorizontal).arg(borderRadius));
-	if (!PreLaunchWindowInstance) {
+	if (!PreLaunchWindowInstance)
+	{
 		PreLaunchWindowInstance = this;
 	}
 }
 
-void PreLaunchWindow::activate() {
+void PreLaunchWindow::activate()
+{
 	setWindowState(windowState() & ~Qt::WindowMinimized);
 	setVisible(true);
 	psActivateProcess();
 	activateWindow();
 }
 
-PreLaunchWindow *PreLaunchWindow::instance() {
+PreLaunchWindow* PreLaunchWindow::instance()
+{
 	return PreLaunchWindowInstance;
 }
 
-PreLaunchWindow::~PreLaunchWindow() {
-	if (PreLaunchWindowInstance == this) {
+PreLaunchWindow::~PreLaunchWindow()
+{
+	if (PreLaunchWindowInstance == this)
+	{
 		PreLaunchWindowInstance = nullptr;
 	}
 }
 
-PreLaunchLabel::PreLaunchLabel(QWidget *parent) : QLabel(parent) {
+PreLaunchLabel::PreLaunchLabel(QWidget* parent) :
+	QLabel(parent)
+{
 	QFont labelFont(font());
 	labelFont.setFamily(Fonts::GetOverride(qsl("Open Sans Semibold")));
 	labelFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
@@ -77,13 +84,16 @@ PreLaunchLabel::PreLaunchLabel(QWidget *parent) : QLabel(parent) {
 	show();
 };
 
-void PreLaunchLabel::setText(const QString &text) {
+void PreLaunchLabel::setText(const QString& text)
+{
 	QLabel::setText(text);
 	updateGeometry();
 	resize(sizeHint());
 }
 
-PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(parent) {
+PreLaunchInput::PreLaunchInput(QWidget* parent, bool password) :
+	QLineEdit(parent)
+{
 	QFont logFont(font());
 	logFont.setFamily(Fonts::GetOverride(qsl("Open Sans")));
 	logFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
@@ -95,13 +105,16 @@ PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(paren
 
 	QLineEdit::setTextMargins(0, 0, 0, 0);
 	setContentsMargins(0, 0, 0, 0);
-	if (password) {
+	if (password)
+	{
 		setEchoMode(QLineEdit::Password);
 	}
 	show();
 };
 
-PreLaunchLog::PreLaunchLog(QWidget *parent) : QTextEdit(parent) {
+PreLaunchLog::PreLaunchLog(QWidget* parent) :
+	QTextEdit(parent)
+{
 	QFont logFont(font());
 	logFont.setFamily(Fonts::GetOverride(qsl("Open Sans")));
 	logFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
@@ -119,7 +132,9 @@ PreLaunchLog::PreLaunchLog(QWidget *parent) : QTextEdit(parent) {
 	show();
 };
 
-PreLaunchButton::PreLaunchButton(QWidget *parent, bool confirm) : QPushButton(parent) {
+PreLaunchButton::PreLaunchButton(QWidget* parent, bool confirm) :
+	QPushButton(parent)
+{
 	setFlat(true);
 
 	setObjectName(confirm ? "confirm" : "cancel");
@@ -133,13 +148,16 @@ PreLaunchButton::PreLaunchButton(QWidget *parent, bool confirm) : QPushButton(pa
 	show();
 };
 
-void PreLaunchButton::setText(const QString &text) {
+void PreLaunchButton::setText(const QString& text)
+{
 	QPushButton::setText(text);
 	updateGeometry();
 	resize(sizeHint());
 }
 
-PreLaunchCheckbox::PreLaunchCheckbox(QWidget *parent) : QCheckBox(parent) {
+PreLaunchCheckbox::PreLaunchCheckbox(QWidget* parent) :
+	QCheckBox(parent)
+{
 	setTristate(false);
 	setCheckState(Qt::Checked);
 
@@ -152,16 +170,18 @@ PreLaunchCheckbox::PreLaunchCheckbox(QWidget *parent) : QCheckBox(parent) {
 	show();
 };
 
-void PreLaunchCheckbox::setText(const QString &text) {
+void PreLaunchCheckbox::setText(const QString& text)
+{
 	QCheckBox::setText(text);
 	updateGeometry();
 	resize(sizeHint());
 }
 
-NotStartedWindow::NotStartedWindow()
-: _label(this)
-, _log(this)
-, _close(this) {
+NotStartedWindow::NotStartedWindow():
+	_label(this)
+	, _log(this)
+	, _close(this)
+{
 	_label.setText(qsl("Could not start Telegram Desktop!\nYou can see complete log below:"));
 
 	_log.setPlainText(Logs::full());
@@ -175,121 +195,148 @@ NotStartedWindow::NotStartedWindow()
 	show();
 }
 
-void NotStartedWindow::updateControls() {
+void NotStartedWindow::updateControls()
+{
 	_label.show();
 	_log.show();
 	_close.show();
 
 	QRect scr(QApplication::primaryScreen()->availableGeometry());
 	QSize s(scr.width() / 2, scr.height() / 2);
-	if (s == size()) {
+	if (s == size())
+	{
 		resizeEvent(0);
-	} else {
+	}
+	else
+	{
 		resize(s);
 	}
 }
 
-void NotStartedWindow::closeEvent(QCloseEvent *e) {
+void NotStartedWindow::closeEvent(QCloseEvent* e)
+{
 	deleteLater();
 }
 
-void NotStartedWindow::resizeEvent(QResizeEvent *e) {
+void NotStartedWindow::resizeEvent(QResizeEvent* e)
+{
 	int padding = _size;
 	_label.setGeometry(padding, padding, width() - 2 * padding, _label.sizeHint().height());
 	_log.setGeometry(padding, padding * 2 + _label.sizeHint().height(), width() - 2 * padding, height() - 4 * padding - _label.height() - _close.height());
 	_close.setGeometry(width() - padding - _close.width(), height() - padding - _close.height(), _close.width(), _close.height());
 }
 
-LastCrashedWindow::UpdaterData::UpdaterData(QWidget *buttonParent)
-: check(buttonParent)
-, skip(buttonParent, false) {
+LastCrashedWindow::UpdaterData::UpdaterData(QWidget* buttonParent):
+	check(buttonParent)
+	, skip(buttonParent, false)
+{
 }
 
 LastCrashedWindow::LastCrashedWindow(
 	not_null<Core::Launcher*> launcher,
-	const QByteArray &crashdump,
-	Fn<void()> launch)
-: _dumpraw(crashdump)
-, _port(kDefaultProxyPort)
-, _label(this)
-, _pleaseSendReport(this)
-, _yourReportName(this)
-, _minidump(this)
-, _report(this)
-, _send(this)
-, _sendSkip(this, false)
-, _networkSettings(this)
-, _continue(this)
-, _showReport(this)
-, _saveReport(this)
-, _getApp(this)
-, _includeUsername(this)
-, _reportText(QString::fromUtf8(crashdump))
-, _reportShown(false)
-, _reportSaved(false)
-, _sendingState(crashdump.isEmpty() ? SendingNoReport : SendingUpdateCheck)
-, _updating(this)
-, _updaterData(Core::UpdaterDisabled()
-	? nullptr
-	: std::make_unique<UpdaterData>(this))
-, _launch(std::move(launch)) {
+	const QByteArray& crashdump,
+	Fn<void()> launch):
+	_dumpraw(crashdump)
+	, _port(kDefaultProxyPort)
+	, _label(this)
+	, _pleaseSendReport(this)
+	, _yourReportName(this)
+	, _minidump(this)
+	, _report(this)
+	, _send(this)
+	, _sendSkip(this, false)
+	, _networkSettings(this)
+	, _continue(this)
+	, _showReport(this)
+	, _saveReport(this)
+	, _getApp(this)
+	, _includeUsername(this)
+	, _reportText(QString::fromUtf8(crashdump))
+	, _reportShown(false)
+	, _reportSaved(false)
+	, _sendingState(crashdump.isEmpty() ? SendingNoReport : SendingUpdateCheck)
+	, _updating(this)
+	, _updaterData(Core::UpdaterDisabled()
+		               ? nullptr
+		               : std::make_unique<UpdaterData>(this))
+	, _launch(std::move(launch))
+{
 	excludeReportUsername();
 
-	if (!cInstallBetaVersion() && !cAlphaVersion()) { // currently accept crash reports only from testers
+	if (!cInstallBetaVersion() && !cAlphaVersion())
+	{
+		// currently accept crash reports only from testers
 		_sendingState = SendingNoReport;
 	}
-	if (_sendingState != SendingNoReport) {
+	if (_sendingState != SendingNoReport)
+	{
 		qint64 dumpsize = 0;
 		QString dumpspath = cWorkingDir() + qsl("tdata/dumps");
 #if defined Q_OS_MAC && !defined MAC_USE_BREAKPAD
 		dumpspath += qsl("/completed");
 #endif
 		QString possibleDump = getReportField(qstr("minidump"), qstr("Minidump:"));
-		if (!possibleDump.isEmpty()) {
-			if (!possibleDump.startsWith('/')) {
+		if (!possibleDump.isEmpty())
+		{
+			if (!possibleDump.startsWith('/'))
+			{
 				possibleDump = dumpspath + '/' + possibleDump;
 			}
-			if (!possibleDump.endsWith(qstr(".dmp"))) {
+			if (!possibleDump.endsWith(qstr(".dmp")))
+			{
 				possibleDump += qsl(".dmp");
 			}
 			QFileInfo possibleInfo(possibleDump);
-			if (possibleInfo.exists()) {
+			if (possibleInfo.exists())
+			{
 				_minidumpName = possibleInfo.fileName();
 				_minidumpFull = possibleInfo.absoluteFilePath();
 				dumpsize = possibleInfo.size();
 			}
 		}
-		if (_minidumpFull.isEmpty()) {
+		if (_minidumpFull.isEmpty())
+		{
 			QString maxDump, maxDumpFull;
-            QDateTime maxDumpModified, workingModified = QFileInfo(cWorkingDir() + qsl("tdata/working")).lastModified();
+			QDateTime maxDumpModified, workingModified = QFileInfo(cWorkingDir() + qsl("tdata/working")).lastModified();
 			QFileInfoList list = QDir(dumpspath).entryInfoList();
-            for (int32 i = 0, l = list.size(); i < l; ++i) {
-                QString name = list.at(i).fileName();
-                if (name.endsWith(qstr(".dmp"))) {
-                    QDateTime modified = list.at(i).lastModified();
-                    if (maxDump.isEmpty() || qAbs(workingModified.secsTo(modified)) < qAbs(workingModified.secsTo(maxDumpModified))) {
-                        maxDump = name;
-                        maxDumpModified = modified;
-                        maxDumpFull = list.at(i).absoluteFilePath();
-                        dumpsize = list.at(i).size();
-                    }
-                }
-            }
-            if (!maxDump.isEmpty() && qAbs(workingModified.secsTo(maxDumpModified)) < 10) {
-                _minidumpName = maxDump;
-                _minidumpFull = maxDumpFull;
-            }
-        }
-		if (_minidumpName.isEmpty()) { // currently don't accept crash reports without dumps from google libraries
+			for (int32 i = 0, l = list.size(); i < l; ++i)
+			{
+				QString name = list.at(i).fileName();
+				if (name.endsWith(qstr(".dmp")))
+				{
+					QDateTime modified = list.at(i).lastModified();
+					if (maxDump.isEmpty() || qAbs(workingModified.secsTo(modified)) < qAbs(workingModified.secsTo(maxDumpModified)))
+					{
+						maxDump = name;
+						maxDumpModified = modified;
+						maxDumpFull = list.at(i).absoluteFilePath();
+						dumpsize = list.at(i).size();
+					}
+				}
+			}
+			if (!maxDump.isEmpty() && qAbs(workingModified.secsTo(maxDumpModified)) < 10)
+			{
+				_minidumpName = maxDump;
+				_minidumpFull = maxDumpFull;
+			}
+		}
+		if (_minidumpName.isEmpty())
+		{
+			// currently don't accept crash reports without dumps from google libraries
 			_sendingState = SendingNoReport;
-		} else {
+		}
+		else
+		{
 			_minidump.setText(qsl("+ %1 (%2 KB)").arg(_minidumpName).arg(dumpsize / 1024));
 		}
 	}
-	if (_sendingState != SendingNoReport) {
+	if (_sendingState != SendingNoReport)
+	{
 		QString version = getReportField(qstr("version"), qstr("Version:"));
 		QString current = cAlphaVersion() ? qsl("-%1").arg(cAlphaVersion()) : QString::number(AppVersion);
-		if (version != current) { // currently don't accept crash reports from not current app version
+		if (version != current)
+		{
+			// currently don't accept crash reports from not current app version
 			_sendingState = SendingNoReport;
 		}
 	}
@@ -297,13 +344,17 @@ LastCrashedWindow::LastCrashedWindow(
 	_networkSettings.setText(qsl("NETWORK SETTINGS"));
 	connect(&_networkSettings, SIGNAL(clicked()), this, SLOT(onNetworkSettings()));
 
-	if (_sendingState == SendingNoReport) {
+	if (_sendingState == SendingNoReport)
+	{
 		_label.setText(qsl("Last time Telegram Desktop was not closed properly."));
-	} else {
+	}
+	else
+	{
 		_label.setText(qsl("Last time Telegram Desktop crashed :("));
 	}
 
-	if (_updaterData) {
+	if (_updaterData)
+	{
 		_updaterData->check.setText(qsl("TRY AGAIN"));
 		connect(&_updaterData->check, SIGNAL(clicked()), this, SLOT(onUpdateRetry()));
 		_updaterData->skip.setText(qsl("SKIP"));
@@ -312,19 +363,33 @@ LastCrashedWindow::LastCrashedWindow(
 		Core::UpdateChecker checker;
 		using Progress = Core::UpdateChecker::Progress;
 		checker.checking(
-		) | rpl::start_with_next([=] { onUpdateChecking(); }, _lifetime);
+		) | rpl::start_with_next([=]
+		{
+			onUpdateChecking();
+		}, _lifetime);
 		checker.isLatest(
-		) | rpl::start_with_next([=] { onUpdateLatest(); }, _lifetime);
+		) | rpl::start_with_next([=]
+		{
+			onUpdateLatest();
+		}, _lifetime);
 		checker.progress(
-		) | rpl::start_with_next([=](const Progress &result) {
+		) | rpl::start_with_next([=](const Progress& result)
+		{
 			onUpdateDownloading(result.already, result.size);
 		}, _lifetime);
 		checker.failed(
-		) | rpl::start_with_next([=] { onUpdateFailed(); }, _lifetime);
+		) | rpl::start_with_next([=]
+		{
+			onUpdateFailed();
+		}, _lifetime);
 		checker.ready(
-		) | rpl::start_with_next([=] { onUpdateReady(); }, _lifetime);
+		) | rpl::start_with_next([=]
+		{
+			onUpdateReady();
+		}, _lifetime);
 
-		switch (checker.state()) {
+		switch (checker.state())
+		{
 		case Core::UpdateChecker::State::Download:
 			setUpdatingState(UpdatingDownload, true);
 			setDownloadProgress(checker.already(), checker.size());
@@ -339,9 +404,12 @@ LastCrashedWindow::LastCrashedWindow(
 
 		cSetLastUpdateCheck(0);
 		checker.start();
-	} else {
+	}
+	else
+	{
 		_updating.setText(qsl("Please check if there is a new version available."));
-		if (_sendingState != SendingNoReport) {
+		if (_sendingState != SendingNoReport)
+		{
 			_sendingState = SendingNone;
 		}
 	}
@@ -376,16 +444,20 @@ LastCrashedWindow::LastCrashedWindow(
 	show();
 }
 
-void LastCrashedWindow::onViewReport() {
+void LastCrashedWindow::onViewReport()
+{
 	_reportShown = !_reportShown;
 	updateControls();
 }
 
-void LastCrashedWindow::onSaveReport() {
+void LastCrashedWindow::onSaveReport()
+{
 	QString to = QFileDialog::getSaveFileName(0, qsl("Telegram Crash Report"), QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + qsl("/report.telegramcrash"), qsl("Telegram crash report (*.telegramcrash)"));
-	if (!to.isEmpty()) {
+	if (!to.isEmpty())
+	{
 		QFile file(to);
-		if (file.open(QIODevice::WriteOnly)) {
+		if (file.open(QIODevice::WriteOnly))
+		{
 			file.write(getCrashReportRaw());
 			_reportSaved = true;
 			updateControls();
@@ -393,9 +465,11 @@ void LastCrashedWindow::onSaveReport() {
 	}
 }
 
-QByteArray LastCrashedWindow::getCrashReportRaw() const {
+QByteArray LastCrashedWindow::getCrashReportRaw() const
+{
 	auto result = _dumpraw;
-	if (!_reportUsername.isEmpty() && _includeUsername.checkState() != Qt::Checked) {
+	if (!_reportUsername.isEmpty() && _includeUsername.checkState() != Qt::Checked)
+	{
 		result.replace(
 			(qsl("Username: ") + _reportUsername).toUtf8(),
 			"Username: _not_included_");
@@ -403,15 +477,19 @@ QByteArray LastCrashedWindow::getCrashReportRaw() const {
 	return result;
 }
 
-void LastCrashedWindow::onGetApp() {
+void LastCrashedWindow::onGetApp()
+{
 	QDesktopServices::openUrl(qsl("https://desktop.telegram.org"));
 }
 
-void LastCrashedWindow::excludeReportUsername() {
+void LastCrashedWindow::excludeReportUsername()
+{
 	QString prefix = qstr("Username:");
 	QStringList lines = _reportText.split('\n');
-	for (int32 i = 0, l = lines.size(); i < l; ++i) {
-		if (lines.at(i).trimmed().startsWith(prefix)) {
+	for (int32 i = 0, l = lines.size(); i < l; ++i)
+	{
+		if (lines.at(i).trimmed().startsWith(prefix))
+		{
 			_reportUsername = lines.at(i).trimmed().mid(prefix.size()).trimmed();
 			lines.removeAt(i);
 			break;
@@ -420,16 +498,23 @@ void LastCrashedWindow::excludeReportUsername() {
 	_reportTextNoUsername = _reportUsername.isEmpty() ? _reportText : lines.join('\n');
 }
 
-QString LastCrashedWindow::getReportField(const QLatin1String &name, const QLatin1String &prefix) {
+QString LastCrashedWindow::getReportField(const QLatin1String& name, const QLatin1String& prefix)
+{
 	QStringList lines = _reportText.split('\n');
-	for (int32 i = 0, l = lines.size(); i < l; ++i) {
-		if (lines.at(i).trimmed().startsWith(prefix)) {
+	for (int32 i = 0, l = lines.size(); i < l; ++i)
+	{
+		if (lines.at(i).trimmed().startsWith(prefix))
+		{
 			QString data = lines.at(i).trimmed().mid(prefix.size()).trimmed();
 
-			if (name == qstr("version")) {
-				if (data.endsWith(qstr(" alpha"))) {
+			if (name == qstr("version"))
+			{
+				if (data.endsWith(qstr(" alpha")))
+				{
 					data = QString::number(-data.replace(QRegularExpression(qsl("[^\\d]")), "").toLongLong());
-				} else {
+				}
+				else
+				{
 					data = QString::number(data.replace(QRegularExpression(qsl("[^\\d]")), "").toLongLong());
 				}
 			}
@@ -440,9 +525,11 @@ QString LastCrashedWindow::getReportField(const QLatin1String &name, const QLati
 	return QString();
 }
 
-void LastCrashedWindow::addReportFieldPart(const QLatin1String &name, const QLatin1String &prefix, QHttpMultiPart *multipart) {
+void LastCrashedWindow::addReportFieldPart(const QLatin1String& name, const QLatin1String& prefix, QHttpMultiPart* multipart)
+{
 	QString data = getReportField(name, prefix);
-	if (!data.isEmpty()) {
+	if (!data.isEmpty())
+	{
 		QHttpPart reportPart;
 		reportPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(qsl("form-data; name=\"%1\"").arg(name)));
 		reportPart.setBody(data.toUtf8());
@@ -450,12 +537,15 @@ void LastCrashedWindow::addReportFieldPart(const QLatin1String &name, const QLat
 	}
 }
 
-void LastCrashedWindow::onSendReport() {
-	if (_checkReply) {
+void LastCrashedWindow::onSendReport()
+{
+	if (_checkReply)
+	{
 		_checkReply->deleteLater();
 		_checkReply = nullptr;
 	}
-	if (_sendReply) {
+	if (_sendReply)
+	{
 		_sendReply->deleteLater();
 		_sendReply = nullptr;
 	}
@@ -472,16 +562,19 @@ void LastCrashedWindow::onSendReport() {
 	updateControls();
 }
 
-QString LastCrashedWindow::minidumpFileName() {
+QString LastCrashedWindow::minidumpFileName()
+{
 	QFileInfo dmpFile(_minidumpFull);
 	if (dmpFile.exists() && dmpFile.size() > 0 && dmpFile.size() < 20 * 1024 * 1024 &&
-		QRegularExpression(qsl("^[a-zA-Z0-9\\-]{1,64}\\.dmp$")).match(dmpFile.fileName()).hasMatch()) {
+		QRegularExpression(qsl("^[a-zA-Z0-9\\-]{1,64}\\.dmp$")).match(dmpFile.fileName()).hasMatch())
+	{
 		return dmpFile.fileName();
 	}
 	return QString();
 }
 
-void LastCrashedWindow::onCheckingFinished() {
+void LastCrashedWindow::onCheckingFinished()
+{
 	if (!_checkReply || _sendReply) return;
 
 	QByteArray result = _checkReply->readAll().trimmed();
@@ -490,17 +583,22 @@ void LastCrashedWindow::onCheckingFinished() {
 
 	LOG(("Crash report check for sending done, result: %1").arg(QString::fromUtf8(result)));
 
-	if (result == "Old") {
+	if (result == "Old")
+	{
 		_pleaseSendReport.setText(qsl("This report is about some old version of Telegram Desktop."));
 		_sendingState = SendingTooOld;
 		updateControls();
 		return;
-	} else if (result == "Unofficial") {
+	}
+	else if (result == "Unofficial")
+	{
 		_pleaseSendReport.setText(qsl("You use some custom version of Telegram Desktop."));
 		_sendingState = SendingUnofficial;
 		updateControls();
 		return;
-	} else if (result != "Report") {
+	}
+	else if (result != "Report")
+	{
 		_pleaseSendReport.setText(qsl("Thank you for your report!"));
 		_sendingState = SendingDone;
 		updateControls();
@@ -521,9 +619,11 @@ void LastCrashedWindow::onCheckingFinished() {
 	multipart->append(reportPart);
 
 	QString dmpName = minidumpFileName();
-	if (!dmpName.isEmpty()) {
+	if (!dmpName.isEmpty())
+	{
 		QFile file(_minidumpFull);
-		if (file.open(QIODevice::ReadOnly)) {
+		if (file.open(QIODevice::ReadOnly))
+		{
 			QByteArray minidump = file.readAll();
 			file.close();
 
@@ -531,14 +631,15 @@ void LastCrashedWindow::onCheckingFinished() {
 
 			zlib::FileToWrite minidumpZip;
 
-			zip_fileinfo zfi = { { 0, 0, 0, 0, 0, 0 }, 0, 0, 0 };
+			zip_fileinfo zfi = {{0, 0, 0, 0, 0, 0}, 0, 0, 0};
 			QByteArray dmpNameUtf = dmpName.toUtf8();
 			minidumpZip.openNewFile(dmpNameUtf.constData(), &zfi, nullptr, 0, nullptr, 0, nullptr, Z_DEFLATED, Z_DEFAULT_COMPRESSION);
 			minidumpZip.writeInFile(minidump.constData(), minidump.size());
 			minidumpZip.closeFile();
 			minidumpZip.close();
 
-			if (minidumpZip.error() == ZIP_OK) {
+			if (minidumpZip.error() == ZIP_OK)
+			{
 				QHttpPart dumpPart;
 				dumpPart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("application/octet-stream"));
 				dumpPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(qsl("form-data; name=\"dump\"; filename=\"%1\"").arg(zipName)));
@@ -560,13 +661,16 @@ void LastCrashedWindow::onCheckingFinished() {
 	updateControls();
 }
 
-void LastCrashedWindow::updateControls() {
+void LastCrashedWindow::updateControls()
+{
 	int padding = _size, h = padding + _networkSettings.height() + padding;
 
 	_label.show();
-	if (_updaterData) {
+	if (_updaterData)
+	{
 		h += _networkSettings.height() + padding;
-		if (_updaterData->state == UpdatingFail && (_sendingState == SendingNoReport || _sendingState == SendingUpdateCheck)) {
+		if (_updaterData->state == UpdatingFail && (_sendingState == SendingNoReport || _sendingState == SendingUpdateCheck))
+		{
 			_networkSettings.show();
 			_updaterData->check.show();
 			_updaterData->skip.show();
@@ -582,19 +686,26 @@ void LastCrashedWindow::updateControls() {
 			_minidump.hide();
 			_saveReport.hide();
 			h += padding + _updaterData->check.height() + padding;
-		} else {
+		}
+		else
+		{
 			if (_updaterData->state == UpdatingCheck
 				|| _sendingState == SendingFail
-				|| _sendingState == SendingProgress) {
+				|| _sendingState == SendingProgress)
+			{
 				_networkSettings.show();
-			} else {
+			}
+			else
+			{
 				_networkSettings.hide();
 			}
 			if (_updaterData->state == UpdatingNone
 				|| _updaterData->state == UpdatingLatest
-				|| _updaterData->state == UpdatingFail) {
+				|| _updaterData->state == UpdatingFail)
+			{
 				h += padding + _updaterData->check.height() + padding;
-				if (_sendingState == SendingNoReport) {
+				if (_sendingState == SendingNoReport)
+				{
 					_pleaseSendReport.hide();
 					_yourReportName.hide();
 					_includeUsername.hide();
@@ -606,29 +717,39 @@ void LastCrashedWindow::updateControls() {
 					_send.hide();
 					_sendSkip.hide();
 					_continue.show();
-				} else {
+				}
+				else
+				{
 					h += _showReport.height() + padding + _yourReportName.height() + padding;
 					_pleaseSendReport.show();
 					_yourReportName.show();
-					if (_reportUsername.isEmpty()) {
+					if (_reportUsername.isEmpty())
+					{
 						_includeUsername.hide();
-					} else {
+					}
+					else
+					{
 						h += _includeUsername.height() + padding;
 						_includeUsername.show();
 					}
-					if (_sendingState == SendingTooOld || _sendingState == SendingUnofficial) {
+					if (_sendingState == SendingTooOld || _sendingState == SendingUnofficial)
+					{
 						QString verStr = getReportField(qstr("version"), qstr("Version:"));
 						qint64 ver = verStr.isEmpty() ? 0 : verStr.toLongLong();
-						if (!ver || (ver == AppVersion) || (ver < 0 && (-ver / 1000) == AppVersion)) {
+						if (!ver || (ver == AppVersion) || (ver < 0 && (-ver / 1000) == AppVersion))
+						{
 							h += _getApp.height() + padding;
 							_getApp.show();
 							h -= _yourReportName.height() + padding; // hide report name
 							_yourReportName.hide();
-							if (!_reportUsername.isEmpty()) {
+							if (!_reportUsername.isEmpty())
+							{
 								h -= _includeUsername.height() + padding;
 								_includeUsername.hide();
 							}
-						} else {
+						}
+						else
+						{
 							_getApp.hide();
 						}
 						_showReport.hide();
@@ -638,40 +759,60 @@ void LastCrashedWindow::updateControls() {
 						_send.hide();
 						_sendSkip.hide();
 						_continue.show();
-					} else {
+					}
+					else
+					{
 						_getApp.hide();
-						if (_reportShown) {
+						if (_reportShown)
+						{
 							h += (_pleaseSendReport.height() * 12.5) + padding + (_minidumpName.isEmpty() ? 0 : (_minidump.height() + padding));
 							_report.show();
-							if (_minidumpName.isEmpty()) {
+							if (_minidumpName.isEmpty())
+							{
 								_minidump.hide();
-							} else {
+							}
+							else
+							{
 								_minidump.show();
 							}
-							if (_reportSaved || _sendingState == SendingFail || _sendingState == SendingProgress || _sendingState == SendingUploading) {
+							if (_reportSaved || _sendingState == SendingFail || _sendingState == SendingProgress || _sendingState == SendingUploading)
+							{
 								_saveReport.hide();
-							} else {
+							}
+							else
+							{
 								_saveReport.show();
 							}
 							_showReport.hide();
-						} else {
+						}
+						else
+						{
 							_report.hide();
 							_minidump.hide();
 							_saveReport.hide();
-							if (_sendingState == SendingFail || _sendingState == SendingProgress || _sendingState == SendingUploading) {
+							if (_sendingState == SendingFail || _sendingState == SendingProgress || _sendingState == SendingUploading)
+							{
 								_showReport.hide();
-							} else {
+							}
+							else
+							{
 								_showReport.show();
 							}
 						}
-						if (_sendingState == SendingTooMany || _sendingState == SendingDone) {
+						if (_sendingState == SendingTooMany || _sendingState == SendingDone)
+						{
 							_send.hide();
 							_sendSkip.hide();
 							_continue.show();
-						} else {
-							if (_sendingState == SendingProgress || _sendingState == SendingUploading) {
+						}
+						else
+						{
+							if (_sendingState == SendingProgress || _sendingState == SendingUploading)
+							{
 								_send.hide();
-							} else {
+							}
+							else
+							{
 								_send.show();
 							}
 							_sendSkip.show();
@@ -679,7 +820,9 @@ void LastCrashedWindow::updateControls() {
 						}
 					}
 				}
-			} else {
+			}
+			else
+			{
 				_getApp.hide();
 				_pleaseSendReport.hide();
 				_yourReportName.hide();
@@ -694,17 +837,23 @@ void LastCrashedWindow::updateControls() {
 			}
 			_updaterData->check.hide();
 			if (_updaterData->state == UpdatingCheck
-				|| _updaterData->state == UpdatingDownload) {
+				|| _updaterData->state == UpdatingDownload)
+			{
 				h += padding + _updaterData->skip.height() + padding;
 				_updaterData->skip.show();
-			} else {
+			}
+			else
+			{
 				_updaterData->skip.hide();
 			}
 		}
-	} else {
+	}
+	else
+	{
 		h += _networkSettings.height() + padding;
 		h += padding + _send.height() + padding;
-		if (_sendingState == SendingNoReport) {
+		if (_sendingState == SendingNoReport)
+		{
 			_pleaseSendReport.hide();
 			_yourReportName.hide();
 			_includeUsername.hide();
@@ -716,55 +865,81 @@ void LastCrashedWindow::updateControls() {
 			_sendSkip.hide();
 			_continue.show();
 			_networkSettings.hide();
-		} else {
+		}
+		else
+		{
 			h += _showReport.height() + padding + _yourReportName.height() + padding;
 			_pleaseSendReport.show();
 			_yourReportName.show();
-			if (_reportUsername.isEmpty()) {
+			if (_reportUsername.isEmpty())
+			{
 				_includeUsername.hide();
-			} else {
+			}
+			else
+			{
 				h += _includeUsername.height() + padding;
 				_includeUsername.show();
 			}
-			if (_reportShown) {
+			if (_reportShown)
+			{
 				h += (_pleaseSendReport.height() * 12.5) + padding + (_minidumpName.isEmpty() ? 0 : (_minidump.height() + padding));
 				_report.show();
-				if (_minidumpName.isEmpty()) {
+				if (_minidumpName.isEmpty())
+				{
 					_minidump.hide();
-				} else {
+				}
+				else
+				{
 					_minidump.show();
 				}
 				_showReport.hide();
-				if (_reportSaved || _sendingState == SendingFail || _sendingState == SendingProgress || _sendingState == SendingUploading) {
+				if (_reportSaved || _sendingState == SendingFail || _sendingState == SendingProgress || _sendingState == SendingUploading)
+				{
 					_saveReport.hide();
-				} else {
+				}
+				else
+				{
 					_saveReport.show();
 				}
-			} else {
+			}
+			else
+			{
 				_report.hide();
 				_minidump.hide();
 				_saveReport.hide();
-				if (_sendingState == SendingFail || _sendingState == SendingProgress || _sendingState == SendingUploading) {
+				if (_sendingState == SendingFail || _sendingState == SendingProgress || _sendingState == SendingUploading)
+				{
 					_showReport.hide();
-				} else {
+				}
+				else
+				{
 					_showReport.show();
 				}
 			}
-			if (_sendingState == SendingDone) {
+			if (_sendingState == SendingDone)
+			{
 				_send.hide();
 				_sendSkip.hide();
 				_continue.show();
 				_networkSettings.hide();
-			} else {
-				if (_sendingState == SendingProgress || _sendingState == SendingUploading) {
+			}
+			else
+			{
+				if (_sendingState == SendingProgress || _sendingState == SendingUploading)
+				{
 					_send.hide();
-				} else {
+				}
+				else
+				{
 					_send.show();
 				}
 				_sendSkip.show();
-				if (_sendingState == SendingFail) {
+				if (_sendingState == SendingFail)
+				{
 					_networkSettings.show();
-				} else {
+				}
+				else
+				{
 					_networkSettings.hide();
 				}
 				_continue.hide();
@@ -777,15 +952,19 @@ void LastCrashedWindow::updateControls() {
 
 	QRect scr(QApplication::primaryScreen()->availableGeometry());
 	QSize s(2 * padding + QFontMetrics(_label.font()).width(qsl("Last time Telegram Desktop was not closed properly.")) + padding + _networkSettings.width(), h);
-	if (s == size()) {
+	if (s == size())
+	{
 		resizeEvent(0);
-	} else {
+	}
+	else
+	{
 		resize(s);
 	}
 }
 
-void LastCrashedWindow::onNetworkSettings() {
-	const auto &proxy = Core::Sandbox::Instance().sandboxProxy();
+void LastCrashedWindow::onNetworkSettings()
+{
+	const auto& proxy = Core::Sandbox::Instance().sandboxProxy();
 	const auto box = new NetworkSettingsWindow(
 		this,
 		proxy.host,
@@ -801,16 +980,17 @@ void LastCrashedWindow::onNetworkSettings() {
 }
 
 void LastCrashedWindow::onNetworkSettingsSaved(
-		QString host,
-		quint32 port,
-		QString username,
-		QString password) {
+	QString host,
+	quint32 port,
+	QString username,
+	QString password)
+{
 	Expects(host.isEmpty() || port != 0);
 
 	auto proxy = ProxyData();
 	proxy.type = host.isEmpty()
-		? ProxyData::Type::None
-		: ProxyData::Type::Http;
+		             ? ProxyData::Type::None
+		             : ProxyData::Type::Http;
 	proxy.host = host;
 	proxy.port = port;
 	proxy.user = username;
@@ -819,77 +999,94 @@ void LastCrashedWindow::onNetworkSettingsSaved(
 	proxyUpdated();
 }
 
-void LastCrashedWindow::proxyUpdated() {
+void LastCrashedWindow::proxyUpdated()
+{
 	if (_updaterData
 		&& ((_updaterData->state == UpdatingCheck)
 			|| (_updaterData->state == UpdatingFail
 				&& (_sendingState == SendingNoReport
-					|| _sendingState == SendingUpdateCheck)))) {
+					|| _sendingState == SendingUpdateCheck))))
+	{
 		Core::UpdateChecker checker;
 		checker.stop();
 		cSetLastUpdateCheck(0);
 		checker.start();
-	} else if (_sendingState == SendingFail
-		|| _sendingState == SendingProgress) {
+	}
+	else if (_sendingState == SendingFail
+		|| _sendingState == SendingProgress)
+	{
 		onSendReport();
 	}
 	activate();
 }
 
-rpl::producer<ProxyData> LastCrashedWindow::proxyChanges() const {
+rpl::producer<ProxyData> LastCrashedWindow::proxyChanges() const
+{
 	return _proxyChanges.events();
 }
 
-void LastCrashedWindow::setUpdatingState(UpdatingState state, bool force) {
+void LastCrashedWindow::setUpdatingState(UpdatingState state, bool force)
+{
 	Expects(_updaterData != nullptr);
 
-	if (_updaterData->state != state || force) {
+	if (_updaterData->state != state || force)
+	{
 		_updaterData->state = state;
-		switch (state) {
+		switch (state)
+		{
 		case UpdatingLatest:
 			_updating.setText(qsl("Latest version is installed."));
-			if (_sendingState == SendingNoReport) {
+			if (_sendingState == SendingNoReport)
+			{
 				QTimer::singleShot(0, this, SLOT(onContinue()));
-			} else {
+			}
+			else
+			{
 				_sendingState = SendingNone;
 			}
-		break;
+			break;
 		case UpdatingReady:
-			if (Core::checkReadyUpdate()) {
+			if (Core::checkReadyUpdate())
+			{
 				cSetRestartingUpdate(true);
 				App::quit();
 				return;
-			} else {
+			}
+			else
+			{
 				setUpdatingState(UpdatingFail);
 				return;
 			}
-		break;
+			break;
 		case UpdatingCheck:
 			_updating.setText(qsl("Checking for updates..."));
-		break;
+			break;
 		case UpdatingFail:
 			_updating.setText(qsl("Update check failed :("));
-		break;
+			break;
 		}
 		updateControls();
 	}
 }
 
-void LastCrashedWindow::setDownloadProgress(qint64 ready, qint64 total) {
+void LastCrashedWindow::setDownloadProgress(qint64 ready, qint64 total)
+{
 	Expects(_updaterData != nullptr);
 
 	qint64 readyTenthMb = (ready * 10 / (1024 * 1024)), totalTenthMb = (total * 10 / (1024 * 1024));
 	QString readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
 	QString totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
 	QString res = qsl("Downloading update {ready} / {total} MB..").replace(qstr("{ready}"), readyStr).replace(qstr("{total}"), totalStr);
-	if (_updaterData->newVersionDownload != res) {
+	if (_updaterData->newVersionDownload != res)
+	{
 		_updaterData->newVersionDownload = res;
 		_updating.setText(_updaterData->newVersionDownload);
 		updateControls();
 	}
 }
 
-void LastCrashedWindow::onUpdateRetry() {
+void LastCrashedWindow::onUpdateRetry()
+{
 	Expects(_updaterData != nullptr);
 
 	cSetLastUpdateCheck(0);
@@ -897,14 +1094,19 @@ void LastCrashedWindow::onUpdateRetry() {
 	checker.start();
 }
 
-void LastCrashedWindow::onUpdateSkip() {
+void LastCrashedWindow::onUpdateSkip()
+{
 	Expects(_updaterData != nullptr);
 
-	if (_sendingState == SendingNoReport) {
+	if (_sendingState == SendingNoReport)
+	{
 		onContinue();
-	} else {
+	}
+	else
+	{
 		if (_updaterData->state == UpdatingCheck
-			|| _updaterData->state == UpdatingDownload) {
+			|| _updaterData->state == UpdatingDownload)
+		{
 			Core::UpdateChecker checker;
 			checker.stop();
 			setUpdatingState(UpdatingFail);
@@ -914,64 +1116,78 @@ void LastCrashedWindow::onUpdateSkip() {
 	}
 }
 
-void LastCrashedWindow::onUpdateChecking() {
+void LastCrashedWindow::onUpdateChecking()
+{
 	Expects(_updaterData != nullptr);
 
 	setUpdatingState(UpdatingCheck);
 }
 
-void LastCrashedWindow::onUpdateLatest() {
+void LastCrashedWindow::onUpdateLatest()
+{
 	Expects(_updaterData != nullptr);
 
 	setUpdatingState(UpdatingLatest);
 }
 
-void LastCrashedWindow::onUpdateDownloading(qint64 ready, qint64 total) {
+void LastCrashedWindow::onUpdateDownloading(qint64 ready, qint64 total)
+{
 	Expects(_updaterData != nullptr);
 
 	setUpdatingState(UpdatingDownload);
 	setDownloadProgress(ready, total);
 }
 
-void LastCrashedWindow::onUpdateReady() {
+void LastCrashedWindow::onUpdateReady()
+{
 	Expects(_updaterData != nullptr);
 
 	setUpdatingState(UpdatingReady);
 }
 
-void LastCrashedWindow::onUpdateFailed() {
+void LastCrashedWindow::onUpdateFailed()
+{
 	Expects(_updaterData != nullptr);
 
 	setUpdatingState(UpdatingFail);
 }
 
-void LastCrashedWindow::onContinue() {
-	if (CrashReports::Restart() == CrashReports::CantOpen) {
+void LastCrashedWindow::onContinue()
+{
+	if (CrashReports::Restart() == CrashReports::CantOpen)
+	{
 		new NotStartedWindow();
-	} else {
+	}
+	else
+	{
 		_launch();
 	}
 	close();
 }
 
-void LastCrashedWindow::onSendingError(QNetworkReply::NetworkError e) {
+void LastCrashedWindow::onSendingError(QNetworkReply::NetworkError e)
+{
 	LOG(("Crash report sending error: %1").arg(e));
 
 	_pleaseSendReport.setText(qsl("Sending crash report failed :("));
 	_sendingState = SendingFail;
-	if (_checkReply) {
+	if (_checkReply)
+	{
 		_checkReply->deleteLater();
 		_checkReply = nullptr;
 	}
-	if (_sendReply) {
+	if (_sendReply)
+	{
 		_sendReply->deleteLater();
 		_sendReply = nullptr;
 	}
 	updateControls();
 }
 
-void LastCrashedWindow::onSendingFinished() {
-	if (_sendReply) {
+void LastCrashedWindow::onSendingFinished()
+{
+	if (_sendReply)
+	{
 		QByteArray result = _sendReply->readAll();
 		LOG(("Crash report sending done, result: %1").arg(QString::fromUtf8(result)));
 
@@ -985,57 +1201,75 @@ void LastCrashedWindow::onSendingFinished() {
 	}
 }
 
-void LastCrashedWindow::onSendingProgress(qint64 uploaded, qint64 total) {
+void LastCrashedWindow::onSendingProgress(qint64 uploaded, qint64 total)
+{
 	if (_sendingState != SendingProgress && _sendingState != SendingUploading) return;
 	_sendingState = SendingUploading;
 
-	if (total < 0) {
+	if (total < 0)
+	{
 		_pleaseSendReport.setText(qsl("Sending crash report %1 KB...").arg(uploaded / 1024));
-	} else {
+	}
+	else
+	{
 		_pleaseSendReport.setText(qsl("Sending crash report %1 / %2 KB...").arg(uploaded / 1024).arg(total / 1024));
 	}
 	updateControls();
 }
 
-void LastCrashedWindow::closeEvent(QCloseEvent *e) {
+void LastCrashedWindow::closeEvent(QCloseEvent* e)
+{
 	deleteLater();
 }
 
-void LastCrashedWindow::resizeEvent(QResizeEvent *e) {
+void LastCrashedWindow::resizeEvent(QResizeEvent* e)
+{
 	int padding = _size;
 	_label.move(padding, padding + (_networkSettings.height() - _label.height()) / 2);
 
 	_send.move(width() - padding - _send.width(), height() - padding - _send.height());
-	if (_sendingState == SendingProgress || _sendingState == SendingUploading) {
+	if (_sendingState == SendingProgress || _sendingState == SendingUploading)
+	{
 		_sendSkip.move(width() - padding - _sendSkip.width(), height() - padding - _sendSkip.height());
-	} else {
+	}
+	else
+	{
 		_sendSkip.move(width() - padding - _send.width() - padding - _sendSkip.width(), height() - padding - _sendSkip.height());
 	}
 
 	_updating.move(padding, padding * 2 + _networkSettings.height() + (_networkSettings.height() - _updating.height()) / 2);
 
-	if (_updaterData) {
+	if (_updaterData)
+	{
 		_pleaseSendReport.move(padding, padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + (_showReport.height() - _pleaseSendReport.height()) / 2);
 		_showReport.move(padding * 2 + _pleaseSendReport.width(), padding * 2 + _networkSettings.height() + _networkSettings.height() + padding);
 		_yourReportName.move(padding, _showReport.y() + _showReport.height() + padding);
 		_includeUsername.move(padding, _yourReportName.y() + _yourReportName.height() + padding);
 		_getApp.move((width() - _getApp.width()) / 2, _showReport.y() + _showReport.height() + padding);
 
-		if (_sendingState == SendingFail || _sendingState == SendingProgress) {
+		if (_sendingState == SendingFail || _sendingState == SendingProgress)
+		{
 			_networkSettings.move(padding * 2 + _pleaseSendReport.width(), padding * 2 + _networkSettings.height() + _networkSettings.height() + padding);
-		} else {
+		}
+		else
+		{
 			_networkSettings.move(padding * 2 + _updating.width(), padding * 2 + _networkSettings.height());
 		}
 
 		if (_updaterData->state == UpdatingCheck
-			|| _updaterData->state == UpdatingDownload) {
+			|| _updaterData->state == UpdatingDownload)
+		{
 			_updaterData->check.move(width() - padding - _updaterData->check.width(), height() - padding - _updaterData->check.height());
 			_updaterData->skip.move(width() - padding - _updaterData->skip.width(), height() - padding - _updaterData->skip.height());
-		} else {
+		}
+		else
+		{
 			_updaterData->check.move(width() - padding - _updaterData->check.width(), height() - padding - _updaterData->check.height());
 			_updaterData->skip.move(width() - padding - _updaterData->check.width() - padding - _updaterData->skip.width(), height() - padding - _updaterData->skip.height());
 		}
-	} else {
+	}
+	else
+	{
 		_getApp.move((width() - _getApp.width()) / 2, _updating.y() + _updating.height() + padding);
 
 		_pleaseSendReport.move(padding, padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + _getApp.height() + padding + (_showReport.height() - _pleaseSendReport.height()) / 2);
@@ -1045,9 +1279,12 @@ void LastCrashedWindow::resizeEvent(QResizeEvent *e) {
 
 		_networkSettings.move(padding * 2 + _pleaseSendReport.width(), padding * 2 + _networkSettings.height() + _networkSettings.height() + padding + _getApp.height() + padding);
 	}
-	if (_reportUsername.isEmpty()) {
+	if (_reportUsername.isEmpty())
+	{
 		_report.setGeometry(padding, _yourReportName.y() + _yourReportName.height() + padding, width() - 2 * padding, _pleaseSendReport.height() * 12.5);
-	} else {
+	}
+	else
+	{
 		_report.setGeometry(padding, _includeUsername.y() + _includeUsername.height() + padding, width() - 2 * padding, _pleaseSendReport.height() * 12.5);
 	}
 	_minidump.move(padding, _report.y() + _report.height() + padding);
@@ -1056,19 +1293,20 @@ void LastCrashedWindow::resizeEvent(QResizeEvent *e) {
 	_continue.move(width() - padding - _continue.width(), height() - padding - _continue.height());
 }
 
-NetworkSettingsWindow::NetworkSettingsWindow(QWidget *parent, QString host, quint32 port, QString username, QString password)
-: PreLaunchWindow(qsl("HTTP Proxy Settings"))
-, _hostLabel(this)
-, _portLabel(this)
-, _usernameLabel(this)
-, _passwordLabel(this)
-, _hostInput(this)
-, _portInput(this)
-, _usernameInput(this)
-, _passwordInput(this, true)
-, _save(this)
-, _cancel(this, false)
-, _parent(parent) {
+NetworkSettingsWindow::NetworkSettingsWindow(QWidget* parent, QString host, quint32 port, QString username, QString password):
+	PreLaunchWindow(qsl("HTTP Proxy Settings"))
+	, _hostLabel(this)
+	, _portLabel(this)
+	, _usernameLabel(this)
+	, _passwordLabel(this)
+	, _hostInput(this)
+	, _portInput(this)
+	, _usernameInput(this)
+	, _passwordInput(this, true)
+	, _save(this)
+	, _cancel(this, false)
+	, _parent(parent)
+{
 	setWindowModality(Qt::ApplicationModal);
 
 	_hostLabel.setText(qsl("Hostname"));
@@ -1095,7 +1333,8 @@ NetworkSettingsWindow::NetworkSettingsWindow(QWidget *parent, QString host, quin
 	_hostInput.setCursorPosition(_hostInput.text().size());
 }
 
-void NetworkSettingsWindow::resizeEvent(QResizeEvent *e) {
+void NetworkSettingsWindow::resizeEvent(QResizeEvent* e)
+{
 	int padding = _size;
 	_hostLabel.move(padding, padding);
 	_hostInput.setGeometry(_hostLabel.x(), _hostLabel.y() + _hostLabel.height(), 2 * _hostLabel.width(), _hostInput.height());
@@ -1110,12 +1349,16 @@ void NetworkSettingsWindow::resizeEvent(QResizeEvent *e) {
 	_cancel.move(_save.x() - padding - _cancel.width(), _save.y());
 }
 
-void NetworkSettingsWindow::onSave() {
+void NetworkSettingsWindow::onSave()
+{
 	QString host = _hostInput.text().trimmed(), port = _portInput.text().trimmed(), username = _usernameInput.text().trimmed(), password = _passwordInput.text().trimmed();
-	if (!port.isEmpty() && !port.toUInt()) {
+	if (!port.isEmpty() && !port.toUInt())
+	{
 		_portInput.setFocus();
 		return;
-	} else if (!host.isEmpty() && port.isEmpty()) {
+	}
+	else if (!host.isEmpty() && port.isEmpty())
+	{
 		_portInput.setFocus();
 		return;
 	}
@@ -1123,10 +1366,12 @@ void NetworkSettingsWindow::onSave() {
 	close();
 }
 
-void NetworkSettingsWindow::closeEvent(QCloseEvent *e) {
+void NetworkSettingsWindow::closeEvent(QCloseEvent* e)
+{
 }
 
-void NetworkSettingsWindow::updateControls() {
+void NetworkSettingsWindow::updateControls()
+{
 	_hostInput.updateGeometry();
 	_hostInput.resize(_hostInput.sizeHint());
 	_portInput.updateGeometry();
@@ -1139,9 +1384,12 @@ void NetworkSettingsWindow::updateControls() {
 	int padding = _size;
 	int w = 2 * padding + _hostLabel.width() * 2 + padding + _portLabel.width() * 2 + padding;
 	int h = padding + _hostLabel.height() + _hostInput.height() + padding + _usernameLabel.height() + _usernameInput.height() + padding + _save.height() + padding;
-	if (w == width() && h == height()) {
+	if (w == width() && h == height())
+	{
 		resizeEvent(0);
-	} else {
+	}
+	else
+	{
 		setGeometry(_parent->x() + (_parent->width() - w) / 2, _parent->y() + (_parent->height() - h) / 2, w, h);
 	}
 }

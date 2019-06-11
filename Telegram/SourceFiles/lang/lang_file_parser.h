@@ -9,45 +9,49 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 
-namespace Lang {
+namespace Lang
+{
+	class FileParser
+	{
+	public:
+		using Result = QMap<LangKey, QString>;
 
-class FileParser {
-public:
-	using Result = QMap<LangKey, QString>;
+		FileParser(const QString& file, const std::set<LangKey>& request);
+		FileParser(const QByteArray& content, Fn<void(QLatin1String key, const QByteArray& value)> callback);
 
-	FileParser(const QString &file, const std::set<LangKey> &request);
-	FileParser(const QByteArray &content, Fn<void(QLatin1String key, const QByteArray &value)> callback);
+		static QByteArray ReadFile(const QString& absolutePath, const QString& relativePath);
 
-	static QByteArray ReadFile(const QString &absolutePath, const QString &relativePath);
+		const QString& errors() const;
+		const QString& warnings() const;
 
-	const QString &errors() const;
-	const QString &warnings() const;
+		Result found() const
+		{
+			return _result;
+		}
 
-	Result found() const {
-		return _result;
-	}
+	private:
+		void parse();
 
-private:
-	void parse();
+		bool error(const QString& text)
+		{
+			_errorsList.push_back(text);
+			return false;
+		}
 
-	bool error(const QString &text) {
-		_errorsList.push_back(text);
-		return false;
-	}
-	void warning(const QString &text) {
-		_warningsList.push_back(text);
-	}
-	bool readKeyValue(const char *&from, const char *end);
+		void warning(const QString& text)
+		{
+			_warningsList.push_back(text);
+		}
 
-	mutable QStringList _errorsList, _warningsList;
-	mutable QString _errors, _warnings;
+		bool readKeyValue(const char*& from, const char* end);
 
-	const QByteArray _content;
-	const std::set<LangKey> _request;
-	const Fn<void(QLatin1String key, const QByteArray &value)> _callback;
+		mutable QStringList _errorsList, _warningsList;
+		mutable QString _errors, _warnings;
 
-	Result _result;
+		const QByteArray _content;
+		const std::set<LangKey> _request;
+		const Fn<void(QLatin1String key, const QByteArray& value)> _callback;
 
-};
-
+		Result _result;
+	};
 } // namespace Lang

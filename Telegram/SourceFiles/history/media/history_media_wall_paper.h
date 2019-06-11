@@ -9,33 +9,41 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/media/history_media_file.h"
 
-class HistoryWallPaper : public HistoryFileMedia {
+class HistoryWallPaper : public HistoryFileMedia
+{
 public:
 	HistoryWallPaper(
 		not_null<Element*> parent,
 		not_null<DocumentData*> document,
-		const QString &url = QString());
+		const QString& url = QString());
 
 	void draw(
-		Painter &p,
-		const QRect &clip,
+		Painter& p,
+		const QRect& clip,
 		TextSelection selection,
 		crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
-	DocumentData *getDocument() const override {
+	DocumentData* getDocument() const override
+	{
 		return _data;
 	}
 
-	bool needsBubble() const override {
+	bool needsBubble() const override
+	{
 		return false;
 	}
-	bool customInfoLayout() const override {
+
+	bool customInfoLayout() const override
+	{
 		return false;
 	}
-	bool skipBubbleTail() const override {
+
+	bool skipBubbleTail() const override
+	{
 		return true;
 	}
+
 	bool isReadyForOpen() const override;
 	QString additionalInfoString() const override;
 
@@ -48,7 +56,7 @@ private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
-	void fillPatternFieldsFrom(const QString &url);
+	void fillPatternFieldsFrom(const QString& url);
 	void validateThumbnail() const;
 	void prepareThumbnailFrom(not_null<Image*> image, int good) const;
 
@@ -59,5 +67,4 @@ private:
 	mutable int _thumbnailGood = -1; // -1 inline, 0 thumbnail, 1 good
 	QColor _background;
 	int _intensity = 0;
-
 };

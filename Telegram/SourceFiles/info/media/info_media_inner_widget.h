@@ -13,90 +13,92 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_widget.h"
 #include "info/media/info_media_list_widget.h"
 
-namespace Ui {
-class SettingsSlider;
-class VerticalLayout;
-class SearchFieldController;
+namespace Ui
+{
+	class SettingsSlider;
+	class VerticalLayout;
+	class SearchFieldController;
 } // namespace Ui
 
-namespace Info {
+namespace Info
+{
+	class Controller;
 
-class Controller;
+	namespace Media
+	{
+		class Memento;
+		class ListWidget;
+		class EmptyWidget;
 
-namespace Media {
+		class InnerWidget final : public Ui::RpWidget
+		{
+		public:
+			InnerWidget(
+				QWidget* parent,
+				not_null<Controller*> controller);
 
-class Memento;
-class ListWidget;
-class EmptyWidget;
+			bool showInternal(not_null<Memento*> memento);
 
-class InnerWidget final : public Ui::RpWidget {
-public:
-	InnerWidget(
-		QWidget *parent,
-		not_null<Controller*> controller);
+			void setIsStackBottom(bool isStackBottom)
+			{
+				_isStackBottom = isStackBottom;
+				setupOtherTypes();
+			}
 
-	bool showInternal(not_null<Memento*> memento);
-	void setIsStackBottom(bool isStackBottom) {
-		_isStackBottom = isStackBottom;
-		setupOtherTypes();
-	}
+			void saveState(not_null<Memento*> memento);
+			void restoreState(not_null<Memento*> memento);
 
-	void saveState(not_null<Memento*> memento);
-	void restoreState(not_null<Memento*> memento);
+			void setScrollHeightValue(rpl::producer<int> value);
 
-	void setScrollHeightValue(rpl::producer<int> value);
+			rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
+			rpl::producer<SelectedItems> selectedListValue() const;
+			void cancelSelection();
 
-	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
-	rpl::producer<SelectedItems> selectedListValue() const;
-	void cancelSelection();
+			~InnerWidget();
 
-	~InnerWidget();
+		protected:
+			int resizeGetHeight(int newWidth) override;
+			void visibleTopBottomUpdated(
+				int visibleTop,
+				int visibleBottom) override;
 
-protected:
-	int resizeGetHeight(int newWidth) override;
-	void visibleTopBottomUpdated(
-		int visibleTop,
-		int visibleBottom) override;
+		private:
+			int recountHeight();
+			void refreshHeight();
+			// Allows showing additional shared media links and tabs.
+			// Was done for top level tabs support.
+			// Now used for shared media in Saved Messages.
+			void setupOtherTypes();
+			void createOtherTypes();
+			void createTypeButtons();
+			// Allows showing additional shared media links and tabs.
+			// Was done for top level tabs support.
+			//
+			//void createTabs();
+			//void switchToTab(Memento &&memento);
+			//void refreshSearchField();
+			//void scrollToSearchField();
 
-private:
-	int recountHeight();
-	void refreshHeight();
-	// Allows showing additional shared media links and tabs.
-	// Was done for top level tabs support.
-	// Now used for shared media in Saved Messages.
-	void setupOtherTypes();
-	void createOtherTypes();
-	void createTypeButtons();
-	// Allows showing additional shared media links and tabs.
-	// Was done for top level tabs support.
-	//
-	//void createTabs();
-	//void switchToTab(Memento &&memento);
-	//void refreshSearchField();
-	//void scrollToSearchField();
+			Type type() const;
 
-	Type type() const;
+			object_ptr<ListWidget> setupList();
 
-	object_ptr<ListWidget> setupList();
+			const not_null<Controller*> _controller;
 
-	const not_null<Controller*> _controller;
+			//Ui::SettingsSlider *_otherTabs = nullptr;
+			object_ptr<Ui::VerticalLayout> _otherTypes = {nullptr};
+			//object_ptr<Ui::PlainShadow> _otherTabsShadow = { nullptr };
+			//base::unique_qptr<Ui::RpWidget> _searchField = nullptr;
+			object_ptr<ListWidget> _list = {nullptr};
+			object_ptr<EmptyWidget> _empty;
+			//bool _searchEnabled = false;
 
-	//Ui::SettingsSlider *_otherTabs = nullptr;
-	object_ptr<Ui::VerticalLayout> _otherTypes = { nullptr };
-	//object_ptr<Ui::PlainShadow> _otherTabsShadow = { nullptr };
-	//base::unique_qptr<Ui::RpWidget> _searchField = nullptr;
-	object_ptr<ListWidget> _list = { nullptr };
-	object_ptr<EmptyWidget> _empty;
-	//bool _searchEnabled = false;
+			bool _inResize = false;
+			bool _isStackBottom = false;
 
-	bool _inResize = false;
-	bool _isStackBottom = false;
-
-	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
-	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
-	rpl::event_stream<rpl::producer<int>> _listTops;
-
-};
-
-} // namespace Media
+			rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
+			rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
+			rpl::event_stream<rpl::producer<int>> _listTops;
+		};
+	} // namespace Media
 } // namespace Info

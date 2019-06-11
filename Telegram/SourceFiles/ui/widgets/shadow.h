@@ -9,57 +9,59 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
-namespace style {
-struct Shadow;
+namespace style
+{
+	struct Shadow;
 } // namespace style
 
-namespace Ui {
+namespace Ui
+{
+	class PlainShadow : public RpWidget
+	{
+	public:
+		PlainShadow(QWidget* parent);
+		PlainShadow(QWidget* parent, style::color color);
 
-class PlainShadow : public RpWidget {
-public:
-	PlainShadow(QWidget *parent);
-	PlainShadow(QWidget *parent, style::color color);
+	protected:
+		void paintEvent(QPaintEvent* e) override
+		{
+			Painter(this).fillRect(e->rect(), _color);
+		}
 
-protected:
-	void paintEvent(QPaintEvent *e) override {
-		Painter(this).fillRect(e->rect(), _color);
-	}
+	private:
+		style::color _color;
+	};
 
-private:
-	style::color _color;
+	class Shadow : public TWidget
+	{
+	public:
+		Shadow(
+			QWidget* parent,
+			const style::Shadow& st,
+			RectParts sides = RectPart::AllSides) :
+			TWidget(parent)
+			, _st(st)
+			, _sides(sides)
+		{
+		}
 
-};
+		static void paint(
+			Painter& p,
+			const QRect& box,
+			int outerWidth,
+			const style::Shadow& st,
+			RectParts sides = RectPart::AllSides);
 
-class Shadow : public TWidget {
-public:
-	Shadow(
-		QWidget *parent,
-		const style::Shadow &st,
-		RectParts sides = RectPart::AllSides)
-	: TWidget(parent)
-	, _st(st)
-	, _sides(sides) {
-	}
+		static QPixmap grab(
+			not_null<TWidget*> target,
+			const style::Shadow& shadow,
+			RectParts sides = RectPart::AllSides);
 
-	static void paint(
-		Painter &p,
-		const QRect &box,
-		int outerWidth,
-		const style::Shadow &st,
-		RectParts sides = RectPart::AllSides);
+	protected:
+		void paintEvent(QPaintEvent* e) override;
 
-	static QPixmap grab(
-		not_null<TWidget*> target,
-		const style::Shadow &shadow,
-		RectParts sides = RectPart::AllSides);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	const style::Shadow &_st;
-	RectParts _sides;
-
-};
-
+	private:
+		const style::Shadow& _st;
+		RectParts _sides;
+	};
 } // namespace Ui

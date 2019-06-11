@@ -9,38 +9,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_types.h"
 
-namespace Data {
+namespace Data
+{
+	class Session;
 
-class Session;
+	struct Group
+	{
+		HistoryItemsList items;
+	};
 
-struct Group {
-	HistoryItemsList items;
+	class Groups
+	{
+	public:
+		Groups(not_null<Session*> data);
 
-};
+		bool isGrouped(not_null<HistoryItem*> item) const;
+		void registerMessage(not_null<HistoryItem*> item);
+		void unregisterMessage(not_null<const HistoryItem*> item);
+		void refreshMessage(
+			not_null<HistoryItem*> item,
+			bool justRefreshViews = false);
 
-class Groups {
-public:
-	Groups(not_null<Session*> data);
+		const Group* find(not_null<HistoryItem*> item) const;
 
-	bool isGrouped(not_null<HistoryItem*> item) const;
-	void registerMessage(not_null<HistoryItem*> item);
-	void unregisterMessage(not_null<const HistoryItem*> item);
-	void refreshMessage(
-		not_null<HistoryItem*> item,
-		bool justRefreshViews = false);
+	private:
+		HistoryItemsList::const_iterator findPositionForItem(
+			const HistoryItemsList& group,
+			not_null<HistoryItem*> item);
+		void refreshViews(const HistoryItemsList& items);
 
-	const Group *find(not_null<HistoryItem*> item) const;
-
-private:
-	HistoryItemsList::const_iterator findPositionForItem(
-		const HistoryItemsList &group,
-		not_null<HistoryItem*> item);
-	void refreshViews(const HistoryItemsList &items);
-
-	not_null<Session*> _data;
-	std::map<MessageGroupId, Group> _groups;
-	std::map<MessageGroupId, MessageGroupId> _alias;
-
-};
-
+		not_null<Session*> _data;
+		std::map<MessageGroupId, Group> _groups;
+		std::map<MessageGroupId, MessageGroupId> _alias;
+	};
 } // namespace Data

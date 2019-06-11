@@ -7,35 +7,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Ui {
-class RpWidget;
+namespace Ui
+{
+	class RpWidget;
 } // namespace Ui
 
-namespace Info {
+namespace Info
+{
+	class Controller;
 
-class Controller;
+	namespace Profile
+	{
+		object_ptr<Ui::RpWidget> SetupDetails(
+			not_null<Controller*> controller,
+			not_null<Ui::RpWidget*> parent,
+			not_null<PeerData*> peer);
 
-namespace Profile {
+		object_ptr<Ui::RpWidget> SetupActions(
+			not_null<Controller*> controller,
+			not_null<Ui::RpWidget*> parent,
+			not_null<PeerData*> peer);
 
-object_ptr<Ui::RpWidget> SetupDetails(
-	not_null<Controller*> controller,
-	not_null<Ui::RpWidget*> parent,
-	not_null<PeerData*> peer);
-
-object_ptr<Ui::RpWidget> SetupActions(
-	not_null<Controller*> controller,
-	not_null<Ui::RpWidget*> parent,
-	not_null<PeerData*> peer);
-
-object_ptr<Ui::RpWidget> SetupChannelMembers(
-	not_null<Controller*> controller,
-	not_null<Ui::RpWidget*> parent,
-	not_null<PeerData*> peer);
-// // #feed
-//object_ptr<Ui::RpWidget> SetupFeedDetails(
-//	not_null<Controller*> controller,
-//	not_null<Ui::RpWidget*> parent,
-//	not_null<Data::Feed*> feed);
-
-} // namespace Profile
+		object_ptr<Ui::RpWidget> SetupChannelMembers(
+			not_null<Controller*> controller,
+			not_null<Ui::RpWidget*> parent,
+			not_null<PeerData*> peer);
+		// // #feed
+		//object_ptr<Ui::RpWidget> SetupFeedDetails(
+		//	not_null<Controller*> controller,
+		//	not_null<Ui::RpWidget*> parent,
+		//	not_null<Data::Feed*> feed);
+	} // namespace Profile
 } // namespace Info

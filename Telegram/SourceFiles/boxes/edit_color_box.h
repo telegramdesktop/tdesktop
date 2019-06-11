@@ -9,29 +9,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-class EditColorBox : public BoxContent {
+class EditColorBox : public BoxContent
+{
 public:
-	EditColorBox(QWidget*, const QString &title, QColor current = QColor(255, 255, 255));
+	EditColorBox(QWidget*, const QString& title, QColor current = QColor(255, 255, 255));
 
-	void setSaveCallback(Fn<void(QColor)> callback) {
+	void setSaveCallback(Fn<void(QColor)> callback)
+	{
 		_saveCallback = std::move(callback);
 	}
 
-	void setCancelCallback(Fn<void()> callback) {
+	void setCancelCallback(Fn<void()> callback)
+	{
 		_cancelCallback = std::move(callback);
 	}
 
-	void showColor(QColor color) {
+	void showColor(QColor color)
+	{
 		updateFromColor(color);
 	}
 
 protected:
 	void prepare() override;
 
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent* e) override;
+	void resizeEvent(QResizeEvent* e) override;
 
-	void mousePressEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent* e) override;
 
 	void setInnerFocus() override;
 
@@ -52,10 +56,13 @@ private:
 	void setHSV(int hue, int saturation, int brightness, int alpha);
 	void setRGB(int red, int green, int blue, int alpha);
 
-	int percentFromByte(int byte) {
+	int percentFromByte(int byte)
+	{
 		return snap(qRound(byte * 100 / 255.), 0, 100);
 	}
-	int percentToByte(int percent) {
+
+	int percentToByte(int percent)
+	{
 		return snap(qRound(percent * 255 / 100.), 0, 255);
 	}
 
@@ -87,5 +94,4 @@ private:
 
 	Fn<void(QColor)> _saveCallback;
 	Fn<void()> _cancelCallback;
-
 };

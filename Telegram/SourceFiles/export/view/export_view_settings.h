@@ -12,107 +12,111 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 enum LangKey : int;
 
-namespace Ui {
-class VerticalLayout;
-class Checkbox;
-class ScrollArea;
+namespace Ui
+{
+	class VerticalLayout;
+	class Checkbox;
+	class ScrollArea;
 } // namespace Ui
 
-namespace Export {
-namespace View {
+namespace Export
+{
+	namespace View
+	{
+		constexpr auto kSizeValueCount = 80;
+		int SizeLimitByIndex(int index);
 
-constexpr auto kSizeValueCount = 80;
-int SizeLimitByIndex(int index);
+		class SettingsWidget : public Ui::RpWidget
+		{
+		public:
+			SettingsWidget(QWidget* parent, Settings data);
 
-class SettingsWidget : public Ui::RpWidget {
-public:
-	SettingsWidget(QWidget *parent, Settings data);
+			rpl::producer<Settings> value() const;
+			rpl::producer<Settings> changes() const;
+			rpl::producer<> startClicks() const;
+			rpl::producer<> cancelClicks() const;
 
-	rpl::producer<Settings> value() const;
-	rpl::producer<Settings> changes() const;
-	rpl::producer<> startClicks() const;
-	rpl::producer<> cancelClicks() const;
+			void setShowBoxCallback(Fn<void(object_ptr<BoxContent>)> callback)
+			{
+				_showBoxCallback = std::move(callback);
+			}
 
-	void setShowBoxCallback(Fn<void(object_ptr<BoxContent>)> callback) {
-		_showBoxCallback = std::move(callback);
-	}
+		private:
+			using Type = Settings::Type;
+			using Types = Settings::Types;
+			using MediaType = MediaSettings::Type;
+			using MediaTypes = MediaSettings::Types;
+			using Format = Output::Format;
 
-private:
-	using Type = Settings::Type;
-	using Types = Settings::Types;
-	using MediaType = MediaSettings::Type;
-	using MediaTypes = MediaSettings::Types;
-	using Format = Output::Format;
+			void setupContent();
+			not_null<Ui::RpWidget*> setupButtons(
+				not_null<Ui::ScrollArea*> scroll,
+				not_null<Ui::RpWidget*> wrap);
+			void setupOptions(not_null<Ui::VerticalLayout*> container);
+			void setupFullExportOptions(not_null<Ui::VerticalLayout*> container);
+			void setupMediaOptions(not_null<Ui::VerticalLayout*> container);
+			void setupOtherOptions(not_null<Ui::VerticalLayout*> container);
+			void setupPathAndFormat(not_null<Ui::VerticalLayout*> container);
+			void addHeader(
+				not_null<Ui::VerticalLayout*> container,
+				LangKey key);
+			not_null<Ui::Checkbox*> addOption(
+				not_null<Ui::VerticalLayout*> container,
+				LangKey key,
+				Types types);
+			not_null<Ui::Checkbox*> addOptionWithAbout(
+				not_null<Ui::VerticalLayout*> container,
+				LangKey key,
+				Types types,
+				LangKey about);
+			void addChatOption(
+				not_null<Ui::VerticalLayout*> container,
+				LangKey key,
+				Types types);
+			void addMediaOptions(not_null<Ui::VerticalLayout*> container);
+			void addMediaOption(
+				not_null<Ui::VerticalLayout*> container,
+				LangKey key,
+				MediaType type);
+			void addSizeSlider(not_null<Ui::VerticalLayout*> container);
+			void addLocationLabel(
+				not_null<Ui::VerticalLayout*> container);
+			void addLimitsLabel(
+				not_null<Ui::VerticalLayout*> container);
+			void chooseFolder();
+			void refreshButtons(
+				not_null<Ui::RpWidget*> container,
+				bool canStart);
 
-	void setupContent();
-	not_null<Ui::RpWidget*> setupButtons(
-		not_null<Ui::ScrollArea*> scroll,
-		not_null<Ui::RpWidget*> wrap);
-	void setupOptions(not_null<Ui::VerticalLayout*> container);
-	void setupFullExportOptions(not_null<Ui::VerticalLayout*> container);
-	void setupMediaOptions(not_null<Ui::VerticalLayout*> container);
-	void setupOtherOptions(not_null<Ui::VerticalLayout*> container);
-	void setupPathAndFormat(not_null<Ui::VerticalLayout*> container);
-	void addHeader(
-		not_null<Ui::VerticalLayout*> container,
-		LangKey key);
-	not_null<Ui::Checkbox*> addOption(
-		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
-		Types types);
-	not_null<Ui::Checkbox*> addOptionWithAbout(
-		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
-		Types types,
-		LangKey about);
- 	void addChatOption(
-		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
-		Types types);
-	void addMediaOptions(not_null<Ui::VerticalLayout*> container);
-	void addMediaOption(
-		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
-		MediaType type);
-	void addSizeSlider(not_null<Ui::VerticalLayout*> container);
-	void addLocationLabel(
-		not_null<Ui::VerticalLayout*> container);
-	void addLimitsLabel(
-		not_null<Ui::VerticalLayout*> container);
-	void chooseFolder();
-	void refreshButtons(
-		not_null<Ui::RpWidget*> container,
-		bool canStart);
+			void editDateLimit(
+				TimeId current,
+				TimeId min,
+				TimeId max,
+				LangKey resetLabel,
+				Fn<void(TimeId)> done);
 
-	void editDateLimit(
-		TimeId current,
-		TimeId min,
-		TimeId max,
-		LangKey resetLabel,
-		Fn<void(TimeId)> done);
+			const Settings& readData() const;
+			template <typename Callback>
+			void changeData(Callback&& callback);
 
-	const Settings &readData() const;
-	template <typename Callback>
-	void changeData(Callback &&callback);
+			PeerId _singlePeerId = 0;
+			Fn<void(object_ptr<BoxContent>)> _showBoxCallback;
 
-	PeerId _singlePeerId = 0;
-	Fn<void(object_ptr<BoxContent>)> _showBoxCallback;
+			// Use through readData / changeData wrappers.
+			Settings _internal_data;
 
-	// Use through readData / changeData wrappers.
-	Settings _internal_data;
+			struct Wrap
+			{
+				Wrap(rpl::producer<> value = rpl::never<>()) :
+					value(std::move(value))
+				{
+				}
 
-	struct Wrap {
-		Wrap(rpl::producer<> value = rpl::never<>())
-		: value(std::move(value)) {
-		}
-
-		rpl::producer<> value;
-	};
-	rpl::event_stream<Settings> _changes;
-	rpl::variable<Wrap> _startClicks;
-	rpl::variable<Wrap> _cancelClicks;
-
-};
-
-} // namespace View
+				rpl::producer<> value;
+			};
+			rpl::event_stream<Settings> _changes;
+			rpl::variable<Wrap> _startClicks;
+			rpl::variable<Wrap> _cancelClicks;
+		};
+	} // namespace View
 } // namespace Export

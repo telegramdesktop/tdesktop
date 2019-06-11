@@ -9,32 +9,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_window_title.h"
 
-namespace Ui {
-class PlainShadow;
+namespace Ui
+{
+	class PlainShadow;
 } // namespace Ui
 
-namespace Platform {
+namespace Platform
+{
+	class MainWindow;
 
-class MainWindow;
+	class TitleWidget : public Window::TitleWidget, private base::Subscriber
+	{
+	public:
+		TitleWidget(MainWindow* parent, int height);
 
-class TitleWidget : public Window::TitleWidget, private base::Subscriber {
-public:
-	TitleWidget(MainWindow *parent, int height);
+	protected:
+		void paintEvent(QPaintEvent* e) override;
+		void resizeEvent(QResizeEvent* e) override;
+		void mouseDoubleClickEvent(QMouseEvent* e) override;
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void mouseDoubleClickEvent(QMouseEvent *e) override;
+	private:
+		object_ptr<Ui::PlainShadow> _shadow;
+		QFont _font;
+	};
 
-private:
-	object_ptr<Ui::PlainShadow> _shadow;
-	QFont _font;
+	object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget* parent);
 
-};
-
-object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent);
-
-int PreviewTitleHeight();
-void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth);
-
+	int PreviewTitleHeight();
+	void PreviewWindowFramePaint(QImage& preview, const style::palette& palette, QRect body, int outerWidth);
 } // namespace Platform

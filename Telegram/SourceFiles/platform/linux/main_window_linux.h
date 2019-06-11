@@ -9,58 +9,58 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_main_window.h"
 
-namespace Platform {
-
-class MainWindow : public Window::MainWindow {
+namespace Platform
+{
+	class MainWindow : public Window::MainWindow
+	{
 	Q_OBJECT
 
-public:
-	explicit MainWindow(not_null<Window::Controller*> controller);
+	public:
+		explicit MainWindow(not_null<Window::Controller*> controller);
 
-	void psFirstShow();
-	void psInitSysMenu();
-	void psUpdateMargins();
+		void psFirstShow();
+		void psInitSysMenu();
+		void psUpdateMargins();
 
-	void psRefreshTaskbarIcon() {
-	}
+		void psRefreshTaskbarIcon()
+		{
+		}
 
-	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
+		virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 
-	static void LibsLoaded();
+		static void LibsLoaded();
 
-	~MainWindow();
+		~MainWindow();
 
-public slots:
-	void psShowTrayMenu();
+	public slots:
+		void psShowTrayMenu();
 
-	void psStatusIconCheck();
-	void psUpdateIndicator();
+		void psStatusIconCheck();
+		void psUpdateIndicator();
 
-protected:
-	void unreadCounterChangedHook() override;
+	protected:
+		void unreadCounterChangedHook() override;
 
-	bool hasTrayIcon() const override;
+		bool hasTrayIcon() const override;
 
-	void workmodeUpdated(DBIWorkMode mode) override;
+		void workmodeUpdated(DBIWorkMode mode) override;
 
-	QSystemTrayIcon *trayIcon = nullptr;
-	QMenu *trayIconMenu = nullptr;
+		QSystemTrayIcon* trayIcon = nullptr;
+		QMenu* trayIconMenu = nullptr;
 
-	void psTrayMenuUpdated();
-	void psSetupTrayIcon();
+		void psTrayMenuUpdated();
+		void psSetupTrayIcon();
 
-	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
+		virtual void placeSmallCounter(QImage& img, int size, int count, style::color bg, const QPoint& shift, style::color color) = 0;
 
-private:
-	void updateIconCounters();
-	void psCreateTrayIcon();
+	private:
+		void updateIconCounters();
+		void psCreateTrayIcon();
 
-	QTimer _psCheckStatusIconTimer;
-	int _psCheckStatusIconLeft = 100;
+		QTimer _psCheckStatusIconTimer;
+		int _psCheckStatusIconLeft = 100;
 
-	QTimer _psUpdateIndicatorTimer;
-	crl::time _psLastIndicatorUpdate = 0;
-
-};
-
+		QTimer _psUpdateIndicatorTimer;
+		crl::time _psLastIndicatorUpdate = 0;
+	};
 } // namespace Platform

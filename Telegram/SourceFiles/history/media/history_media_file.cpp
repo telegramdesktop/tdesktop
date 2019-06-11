@@ -15,91 +15,128 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "styles/style_history.h"
 
-void HistoryFileMedia::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
-	if (p == _savel || p == _cancell) {
-		if (active && !dataLoaded()) {
+void HistoryFileMedia::clickHandlerActiveChanged(const ClickHandlerPtr& p, bool active)
+{
+	if (p == _savel || p == _cancell)
+	{
+		if (active && !dataLoaded())
+		{
 			ensureAnimation();
-			_animation->a_thumbOver.start([this] { thumbAnimationCallback(); }, 0., 1., st::msgFileOverDuration);
-		} else if (!active && _animation && !dataLoaded()) {
-			_animation->a_thumbOver.start([this] { thumbAnimationCallback(); }, 1., 0., st::msgFileOverDuration);
+			_animation->a_thumbOver.start([this]
+			{
+				thumbAnimationCallback();
+			}, 0., 1., st::msgFileOverDuration);
+		}
+		else if (!active && _animation && !dataLoaded())
+		{
+			_animation->a_thumbOver.start([this]
+			{
+				thumbAnimationCallback();
+			}, 1., 0., st::msgFileOverDuration);
 		}
 	}
 }
 
-void HistoryFileMedia::thumbAnimationCallback() {
+void HistoryFileMedia::thumbAnimationCallback()
+{
 	history()->owner().requestViewRepaint(_parent);
 }
 
 void HistoryFileMedia::clickHandlerPressedChanged(
-		const ClickHandlerPtr &handler,
-		bool pressed) {
+	const ClickHandlerPtr& handler,
+	bool pressed)
+{
 	history()->owner().requestViewRepaint(_parent);
 }
 
 void HistoryFileMedia::setLinks(
-		FileClickHandlerPtr &&openl,
-		FileClickHandlerPtr &&savel,
-		FileClickHandlerPtr &&cancell) {
+	FileClickHandlerPtr&& openl,
+	FileClickHandlerPtr&& savel,
+	FileClickHandlerPtr&& cancell)
+{
 	_openl = std::move(openl);
 	_savel = std::move(savel);
 	_cancell = std::move(cancell);
 }
 
-void HistoryFileMedia::refreshParentId(not_null<HistoryItem*> realParent) {
+void HistoryFileMedia::refreshParentId(not_null<HistoryItem*> realParent)
+{
 	const auto contextId = realParent->fullId();
 	_openl->setMessageId(contextId);
 	_savel->setMessageId(contextId);
 	_cancell->setMessageId(contextId);
 }
 
-void HistoryFileMedia::setStatusSize(int newSize, int fullSize, int duration, qint64 realDuration) const {
+void HistoryFileMedia::setStatusSize(int newSize, int fullSize, int duration, qint64 realDuration) const
+{
 	_statusSize = newSize;
-	if (_statusSize == FileStatusSizeReady) {
+	if (_statusSize == FileStatusSizeReady)
+	{
 		_statusText = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : (duration < -1 ? formatGifAndSizeText(fullSize) : formatSizeText(fullSize));
-	} else if (_statusSize == FileStatusSizeLoaded) {
+	}
+	else if (_statusSize == FileStatusSizeLoaded)
+	{
 		_statusText = (duration >= 0) ? formatDurationText(duration) : (duration < -1 ? qsl("GIF") : formatSizeText(fullSize));
-	} else if (_statusSize == FileStatusSizeFailed) {
+	}
+	else if (_statusSize == FileStatusSizeFailed)
+	{
 		_statusText = lang(lng_attach_failed);
-	} else if (_statusSize >= 0) {
+	}
+	else if (_statusSize >= 0)
+	{
 		_statusText = formatDownloadText(_statusSize, fullSize);
-	} else {
+	}
+	else
+	{
 		_statusText = formatPlayedText(-_statusSize - 1, realDuration);
 	}
 }
 
-void HistoryFileMedia::radialAnimationCallback(crl::time now) const {
-	const auto updated = [&] {
+void HistoryFileMedia::radialAnimationCallback(crl::time now) const
+{
+	const auto updated = [&]
+	{
 		return _animation->radial.update(
 			dataProgress(),
 			dataFinished(),
 			now);
 	}();
-	if (!anim::Disabled() || updated) {
+	if (!anim::Disabled() || updated)
+	{
 		history()->owner().requestViewRepaint(_parent);
 	}
-	if (!_animation->radial.animating()) {
+	if (!_animation->radial.animating())
+	{
 		checkAnimationFinished();
 	}
 }
 
-void HistoryFileMedia::ensureAnimation() const {
-	if (!_animation) {
-		_animation = std::make_unique<AnimationData>([=](crl::time now) {
+void HistoryFileMedia::ensureAnimation() const
+{
+	if (!_animation)
+	{
+		_animation = std::make_unique<AnimationData>([=](crl::time now)
+		{
 			radialAnimationCallback(now);
 		});
 	}
 }
 
-void HistoryFileMedia::checkAnimationFinished() const {
-	if (_animation && !_animation->a_thumbOver.animating() && !_animation->radial.animating()) {
-		if (dataLoaded()) {
+void HistoryFileMedia::checkAnimationFinished() const
+{
+	if (_animation && !_animation->a_thumbOver.animating() && !_animation->radial.animating())
+	{
+		if (dataLoaded())
+		{
 			_animation.reset();
 		}
 	}
 }
+
 void HistoryFileMedia::setDocumentLinks(
-		not_null<DocumentData*> document,
-		not_null<HistoryItem*> realParent) {
+	not_null<DocumentData*> document,
+	not_null<HistoryItem*> realParent)
+{
 	const auto context = realParent->fullId();
 	setLinks(
 		std::make_shared<DocumentOpenClickHandler>(document, context),

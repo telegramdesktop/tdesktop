@@ -13,43 +13,47 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/round_checkbox.h"
 
-namespace Dialogs {
-class Row;
-class IndexedList;
+namespace Dialogs
+{
+	class Row;
+	class IndexedList;
 } // namespace Dialogs
 
-namespace Notify {
-struct PeerUpdate;
+namespace Notify
+{
+	struct PeerUpdate;
 } // namespace Notify
 
-namespace Ui {
-class MultiSelect;
-class InputField;
-struct ScrollToRequest;
-template <typename Widget>
-class SlideWrap;
+namespace Ui
+{
+	class MultiSelect;
+	class InputField;
+	struct ScrollToRequest;
+	template <typename Widget>
+	class SlideWrap;
 } // namespace Ui
 
-QString AppendShareGameScoreUrl(const QString &url, const FullMsgId &fullId);
-void ShareGameScoreByHash(const QString &hash);
+QString AppendShareGameScoreUrl(const QString& url, const FullMsgId& fullId);
+void ShareGameScoreByHash(const QString& hash);
 
-class ShareBox : public BoxContent, public RPCSender {
+class ShareBox : public BoxContent, public RPCSender
+{
 public:
 	using CopyCallback = Fn<void()>;
 	using SubmitCallback = Fn<void(QVector<PeerData*>&&, TextWithTags&&)>;
 	using FilterCallback = Fn<bool(PeerData*)>;
 	ShareBox(
 		QWidget*,
-		CopyCallback &&copyCallback,
-		SubmitCallback &&submitCallback,
-		FilterCallback &&filterCallback);
+		CopyCallback&& copyCallback,
+		SubmitCallback&& submitCallback,
+		FilterCallback&& filterCallback);
 
 protected:
 	void prepare() override;
 	void setInnerFocus() override;
 
-	void resizeEvent(QResizeEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
+	void resizeEvent(QResizeEvent* e) override;
+	void keyPressEvent(QKeyEvent* e) override;
 
 private:
 	void prepareCommentField();
@@ -61,7 +65,7 @@ private:
 
 	void scrollTo(Ui::ScrollToRequest request);
 	void needSearchByUsername();
-	void applyFilterUpdate(const QString &query);
+	void applyFilterUpdate(const QString& query);
 	void selectedChanged();
 	void createButtons();
 	int getTopScrollSkip() const;
@@ -69,13 +73,13 @@ private:
 	int contentHeight() const;
 	void updateScrollSkips();
 
-	void addPeerToMultiSelect(PeerData *peer, bool skipAnimation = false);
-	void innerSelectedChanged(PeerData *peer, bool checked);
+	void addPeerToMultiSelect(PeerData* peer, bool skipAnimation = false);
+	void innerSelectedChanged(PeerData* peer, bool checked);
 
 	void peopleReceived(
-		const MTPcontacts_Found &result,
+		const MTPcontacts_Found& result,
 		mtpRequestId requestId);
-	bool peopleFailed(const RPCError &error, mtpRequestId requestId);
+	bool peopleFailed(const RPCError& error, mtpRequestId requestId);
 
 	CopyCallback _copyCallback;
 	SubmitCallback _submitCallback;
@@ -101,5 +105,4 @@ private:
 	PeopleQueries _peopleQueries;
 
 	Ui::Animations::Simple _scrollAnimation;
-
 };

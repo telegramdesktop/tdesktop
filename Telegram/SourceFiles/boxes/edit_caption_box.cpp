@@ -41,9 +41,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
-	not_null<HistoryItem*> item)
-: _controller(controller)
-, _msgId(item->fullId()) {
+	not_null<HistoryItem*> item):
+	_controller(controller)
+	, _msgId(item->fullId())
+{
 	Expects(item->media() != nullptr);
 	Expects(item->media()->allowsEditCaption());
 
@@ -52,43 +53,59 @@ EditCaptionBox::EditCaptionBox(
 
 	QSize dimensions;
 	auto image = (Image*)nullptr;
-	DocumentData *doc = nullptr;
+	DocumentData* doc = nullptr;
 
 	const auto media = item->media();
-	if (const auto photo = media->photo()) {
+	if (const auto photo = media->photo())
+	{
 		_photo = true;
 		dimensions = QSize(photo->width(), photo->height());
 		image = photo->large();
-	} else if (const auto document = media->document()) {
+	}
+	else if (const auto document = media->document())
+	{
 		image = document->thumbnail();
 		dimensions = image
-			? image->size()
-			: document->dimensions;
-		if (document->isAnimation()) {
+			             ? image->size()
+			             : document->dimensions;
+		if (document->isAnimation())
+		{
 			_gifw = document->dimensions.width();
 			_gifh = document->dimensions.height();
 			_animated = true;
-		} else if (document->isVideoFile()) {
+		}
+		else if (document->isVideoFile())
+		{
 			_animated = true;
-		} else {
+		}
+		else
+		{
 			_doc = true;
 		}
 		doc = document;
 	}
 	const auto editData = PrepareEditText(item);
 
-	if (!_animated && (dimensions.isEmpty() || doc || !image)) {
-		if (!image) {
+	if (!_animated && (dimensions.isEmpty() || doc || !image))
+	{
+		if (!image)
+		{
 			_thumbw = 0;
-		} else {
+		}
+		else
+		{
 			const auto tw = image->width(), th = image->height();
-			if (tw > th) {
+			if (tw > th)
+			{
 				_thumbw = (tw * st::msgFileThumbSize) / th;
-			} else {
+			}
+			else
+			{
 				_thumbw = st::msgFileThumbSize;
 			}
 			_thumbnailImage = image;
-			_refreshThumbnail = [=] {
+			_refreshThumbnail = [=]
+			{
 				const auto options = Images::Option::Smooth
 					| Images::Option::RoundedSmall
 					| Images::Option::RoundedTopLeft
@@ -105,40 +122,52 @@ EditCaptionBox::EditCaptionBox(
 			};
 		}
 
-		if (doc) {
+		if (doc)
+		{
 			const auto nameString = doc->isVoiceMessage()
-				? lang(lng_media_audio)
-				: doc->composeNameString();
+				                        ? lang(lng_media_audio)
+				                        : doc->composeNameString();
 			setName(nameString, doc->size);
 			_isImage = doc->isImage();
 			_isAudio = (doc->isVoiceMessage() || doc->isAudioFile());
 		}
-		if (_refreshThumbnail) {
+		if (_refreshThumbnail)
+		{
 			_refreshThumbnail();
 		}
-	} else {
-		if (!image) {
+	}
+	else
+	{
+		if (!image)
+		{
 			image = Image::BlankMedia();
 		}
 		auto maxW = 0, maxH = 0;
 		const auto limitW = st::sendMediaPreviewSize;
 		auto limitH = std::min(st::confirmMaxHeight, _gifh ? _gifh : INT_MAX);
-		if (_animated) {
+		if (_animated)
+		{
 			maxW = std::max(dimensions.width(), 1);
 			maxH = std::max(dimensions.height(), 1);
-			if (maxW * limitH > maxH * limitW) {
-				if (maxW < limitW) {
+			if (maxW * limitH > maxH * limitW)
+			{
+				if (maxW < limitW)
+				{
 					maxH = maxH * limitW / maxW;
 					maxW = limitW;
 				}
-			} else {
-				if (maxH < limitH) {
+			}
+			else
+			{
+				if (maxH < limitH)
+				{
 					maxW = maxW * limitH / maxH;
 					maxH = limitH;
 				}
 			}
 			_thumbnailImage = image;
-			_refreshThumbnail = [=] {
+			_refreshThumbnail = [=]
+			{
 				const auto options = Images::Option::Smooth
 					| Images::Option::Blurred;
 				_thumb = image->pixNoCache(
@@ -150,11 +179,14 @@ EditCaptionBox::EditCaptionBox(
 					maxH);
 			};
 			prepareGifPreview(doc);
-		} else {
+		}
+		else
+		{
 			maxW = dimensions.width();
 			maxH = dimensions.height();
 			_thumbnailImage = image;
-			_refreshThumbnail = [=] {
+			_refreshThumbnail = [=]
+			{
 				_thumb = image->pixNoCache(
 					_msgId,
 					maxW * cIntRetinaFactor(),
@@ -166,9 +198,11 @@ EditCaptionBox::EditCaptionBox(
 		}
 		_refreshThumbnail();
 
-		const auto resizeDimensions = [&](int &thumbWidth, int &thumbHeight, int &thumbX) {
+		const auto resizeDimensions = [&](int& thumbWidth, int& thumbHeight, int& thumbX)
+		{
 			auto tw = thumbWidth, th = thumbHeight;
-			if (!tw || !th) {
+			if (!tw || !th)
+			{
 				tw = th = 1;
 			}
 
@@ -178,26 +212,32 @@ EditCaptionBox::EditCaptionBox(
 				+ st::editMediaButtonSkip * 2;
 			const auto minThumbWidth = minThumbHeight * tw / th;
 
-			if (thumbWidth < st::sendMediaPreviewSize) {
+			if (thumbWidth < st::sendMediaPreviewSize)
+			{
 				thumbWidth = (thumbWidth > minThumbWidth)
-					? thumbWidth
-					: minThumbWidth;
-			} else {
+					             ? thumbWidth
+					             : minThumbWidth;
+			}
+			else
+			{
 				thumbWidth = st::sendMediaPreviewSize;
 			}
 			const auto maxThumbHeight = std::min(int(std::round(1.5 * thumbWidth)), limitH);
 			thumbHeight = int(std::round(th * float64(thumbWidth) / tw));
-			if (thumbHeight > maxThumbHeight) {
+			if (thumbHeight > maxThumbHeight)
+			{
 				thumbWidth = int(std::round(thumbWidth * float64(maxThumbHeight) / thumbHeight));
 				thumbHeight = maxThumbHeight;
-				if (thumbWidth < 10) {
+				if (thumbWidth < 10)
+				{
 					thumbWidth = 10;
 				}
 			}
 			thumbX = (st::boxWideWidth - thumbWidth) / 2;
 		};
 
-		if (doc && doc->isAnimation()) {
+		if (doc && doc->isAnimation())
+		{
 			resizeDimensions(_gifw, _gifh, _gifx);
 		}
 		limitH = std::min(st::confirmMaxHeight, _gifh ? _gifh : INT_MAX);
@@ -206,14 +246,18 @@ EditCaptionBox::EditCaptionBox(
 		_thumbh = _thumb.height();
 		// If thumb's and resized gif's sizes are equal,
 		// Then just take made values.
-		if (_thumbw == _gifw && _thumbh == _gifh) {
+		if (_thumbw == _gifw && _thumbh == _gifh)
+		{
 			_thumbx = (st::boxWideWidth - _thumbw) / 2;
-		} else {
+		}
+		else
+		{
 			resizeDimensions(_thumbw, _thumbh, _thumbx);
 		}
 
 		const auto prepareBasicThumb = _refreshThumbnail;
-		const auto scaleThumbDown = [=] {
+		const auto scaleThumbDown = [=]
+		{
 			_thumb = App::pixmapFromImageInPlace(_thumb.toImage().scaled(
 				_thumbw * cIntRetinaFactor(),
 				_thumbh * cIntRetinaFactor(),
@@ -221,7 +265,8 @@ EditCaptionBox::EditCaptionBox(
 				Qt::SmoothTransformation));
 			_thumb.setDevicePixelRatio(cRetinaFactor());
 		};
-		_refreshThumbnail = [=] {
+		_refreshThumbnail = [=]
+		{
 			prepareBasicThumb();
 			scaleThumbDown();
 		};
@@ -230,17 +275,20 @@ EditCaptionBox::EditCaptionBox(
 	Assert(_animated || _photo || _doc);
 
 	_thumbnailImageLoaded = _thumbnailImage
-		? _thumbnailImage->loaded()
-		: true;
-	subscribe(Auth().downloaderTaskFinished(), [=] {
+		                        ? _thumbnailImage->loaded()
+		                        : true;
+	subscribe(Auth().downloaderTaskFinished(), [=]
+	{
 		if (!_thumbnailImageLoaded
 			&& _thumbnailImage
-			&& _thumbnailImage->loaded()) {
+			&& _thumbnailImage->loaded())
+		{
 			_thumbnailImageLoaded = true;
 			_refreshThumbnail();
 			update();
 		}
-		if (doc && doc->isAnimation() && doc->loaded() && !_gifPreview) {
+		if (doc && doc->isAnimation() && doc->loaded() && !_gifPreview)
+		{
 			prepareGifPreview(doc);
 		}
 	});
@@ -270,52 +318,70 @@ EditCaptionBox::EditCaptionBox(
 	_wayWrap->toggle(false, anim::type::instant);
 
 	r->entity()->checkedChanges(
-	) | rpl::start_with_next([&](bool checked) {
+	) | rpl::start_with_next([&](bool checked)
+	{
 		_asFile = checked;
 	}, _wayWrap->lifetime());
 }
 
-bool EditCaptionBox::emojiFilter(not_null<QEvent*> event) {
+bool EditCaptionBox::emojiFilter(not_null<QEvent*> event)
+{
 	const auto type = event->type();
-	if (type == QEvent::Move || type == QEvent::Resize) {
+	if (type == QEvent::Move || type == QEvent::Resize)
+	{
 		// updateEmojiPanelGeometry uses not only container geometry, but
 		// also container children geometries that will be updated later.
-		crl::on_main(this, [=] { updateEmojiPanelGeometry(); });
+		crl::on_main(this, [=]
+		{
+			updateEmojiPanelGeometry();
+		});
 	}
 	return false;
 }
 
-void EditCaptionBox::updateEmojiPanelGeometry() {
+void EditCaptionBox::updateEmojiPanelGeometry()
+{
 	const auto parent = _emojiPanel->parentWidget();
-	const auto global = _emojiToggle->mapToGlobal({ 0, 0 });
+	const auto global = _emojiToggle->mapToGlobal({0, 0});
 	const auto local = parent->mapFromGlobal(global);
 	_emojiPanel->moveBottomRight(
 		local.y(),
 		local.x() + _emojiToggle->width() * 3);
 }
 
-void EditCaptionBox::prepareGifPreview(DocumentData* document) {
+void EditCaptionBox::prepareGifPreview(DocumentData* document)
+{
 	const auto isListEmpty = _preparedList.files.empty();
-	if (_gifPreview) {
-		return;
-	} else if (!document && isListEmpty) {
+	if (_gifPreview)
+	{
 		return;
 	}
-	const auto callback = [=](Media::Clip::Notification notification) {
+	else if (!document && isListEmpty)
+	{
+		return;
+	}
+	const auto callback = [=](Media::Clip::Notification notification)
+	{
 		clipCallback(notification);
 	};
-	if (document && document->isAnimation() && document->loaded()) {
+	if (document && document->isAnimation() && document->loaded())
+	{
 		_gifPreview = Media::Clip::MakeReader(
 			document,
 			_msgId,
 			callback);
-	} else if (!isListEmpty) {
+	}
+	else if (!isListEmpty)
+	{
 		const auto file = &_preparedList.files.front();
-		if (file->path.isEmpty()) {
+		if (file->path.isEmpty())
+		{
 			_gifPreview = Media::Clip::MakeReader(
 				file->content,
 				callback);
-		} else {
+		}
+		else
+		{
 			_gifPreview = Media::Clip::MakeReader(
 				file->path,
 				callback);
@@ -324,48 +390,60 @@ void EditCaptionBox::prepareGifPreview(DocumentData* document) {
 	if (_gifPreview) _gifPreview->setAutoplay();
 }
 
-void EditCaptionBox::clipCallback(Media::Clip::Notification notification) {
+void EditCaptionBox::clipCallback(Media::Clip::Notification notification)
+{
 	using namespace Media::Clip;
-	switch (notification) {
-	case NotificationReinit: {
-		if (_gifPreview && _gifPreview->state() == State::Error) {
-			_gifPreview.setBad();
-		}
+	switch (notification)
+	{
+	case NotificationReinit:
+		{
+			if (_gifPreview && _gifPreview->state() == State::Error)
+			{
+				_gifPreview.setBad();
+			}
 
-		if (_gifPreview && _gifPreview->ready() && !_gifPreview->started()) {
-			const auto calculateGifDimensions = [&]() {
-				const auto scaled = QSize(
-					_gifPreview->width(),
-					_gifPreview->height()).scaled(
+			if (_gifPreview && _gifPreview->ready() && !_gifPreview->started())
+			{
+				const auto calculateGifDimensions = [&]()
+				{
+					const auto scaled = QSize(
+						_gifPreview->width(),
+						_gifPreview->height()).scaled(
 						st::sendMediaPreviewSize * cIntRetinaFactor(),
 						st::confirmMaxHeight * cIntRetinaFactor(),
 						Qt::KeepAspectRatio);
-				_thumbw = _gifw = scaled.width();
-				_thumbh = _gifh = scaled.height();
-				_thumbx = _gifx = (st::boxWideWidth - _gifw) / 2;
-				updateBoxSize();
-			};
-			// If gif file is not mp4,
-			// Its dimension values will be known only after reading.
-			if (_gifw <= 0 || _gifh <= 0) {
-				calculateGifDimensions();
+					_thumbw = _gifw = scaled.width();
+					_thumbh = _gifh = scaled.height();
+					_thumbx = _gifx = (st::boxWideWidth - _gifw) / 2;
+					updateBoxSize();
+				};
+				// If gif file is not mp4,
+				// Its dimension values will be known only after reading.
+				if (_gifw <= 0 || _gifh <= 0)
+				{
+					calculateGifDimensions();
+				}
+				const auto s = QSize(_gifw, _gifh);
+				_gifPreview->start(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None);
 			}
-			const auto s = QSize(_gifw, _gifh);
-			_gifPreview->start(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None);
-		}
 
-		update();
-	} break;
-
-	case NotificationRepaint: {
-		if (_gifPreview && !_gifPreview->currentDisplayed()) {
 			update();
 		}
-	} break;
+		break;
+
+	case NotificationRepaint:
+		{
+			if (_gifPreview && !_gifPreview->currentDisplayed())
+			{
+				update();
+			}
+		}
+		break;
 	}
 }
 
-void EditCaptionBox::updateEditPreview() {
+void EditCaptionBox::updateEditPreview()
+{
 	using Info = FileMediaInformation;
 
 	const auto file = &_preparedList.files.front();
@@ -386,11 +464,13 @@ void EditCaptionBox::updateEditPreview() {
 	auto isGif = false;
 	auto shouldAsDoc = true;
 	auto docPhotoSize = QSize();
-	if (const auto image = base::get_if<Info::Image>(fileMedia)) {
+	if (const auto image = base::get_if<Info::Image>(fileMedia))
+	{
 		shouldAsDoc = !Storage::ValidateThumbDimensions(
 			image->data.width(),
 			image->data.height());
-		if (shouldAsDoc) {
+		if (shouldAsDoc)
+		{
 			docPhotoSize.setWidth(image->data.width());
 			docPhotoSize.setHeight(image->data.height());
 		}
@@ -398,14 +478,18 @@ void EditCaptionBox::updateEditPreview() {
 		_animated = isGif;
 		_photo = !isGif && !shouldAsDoc;
 		_isImage = true;
-	} else if (const auto video = base::get_if<Info::Video>(fileMedia)) {
+	}
+	else if (const auto video = base::get_if<Info::Video>(fileMedia))
+	{
 		isGif = video->isGifv;
 		_animated = true;
 		shouldAsDoc = false;
 	}
-	if (shouldAsDoc) {
+	if (shouldAsDoc)
+	{
 		auto nameString = filename;
-		if (const auto song = base::get_if<Info::Song>(fileMedia)) {
+		if (const auto song = base::get_if<Info::Song>(fileMedia))
+		{
 			nameString = DocumentData::ComposeNameString(
 				filename,
 				song->title,
@@ -413,9 +497,11 @@ void EditCaptionBox::updateEditPreview() {
 			_isAudio = true;
 		}
 
-		const auto getExt = [&] {
+		const auto getExt = [&]
+		{
 			auto patterns = Core::MimeTypeForName(file->mime).globPatterns();
-			if (!patterns.isEmpty()) {
+			if (!patterns.isEmpty())
+			{
 				return patterns.front().replace('*', QString());
 			}
 			return QString();
@@ -432,17 +518,19 @@ void EditCaptionBox::updateEditPreview() {
 				? fileinfo.size()
 				: _preparedList.files.front().content.size());
 		// Show image dimensions if it should be sent as doc.
-		if (_isImage && docPhotoSize.isValid()) {
+		if (_isImage && docPhotoSize.isValid())
+		{
 			_status = qsl("%1x%2")
-				.arg(docPhotoSize.width())
-				.arg(docPhotoSize.height());
+			          .arg(docPhotoSize.width())
+			          .arg(docPhotoSize.height());
 		}
 		_doc = true;
 	}
 
 	_wayWrap->toggle(_photo && !_isAlbum, anim::type::instant);
 
-	if (!_doc) {
+	if (!_doc)
+	{
 		_thumb = App::pixmapFromImageInPlace(
 			file->preview.scaled(
 				st::sendMediaPreviewSize * cIntRetinaFactor(),
@@ -451,7 +539,8 @@ void EditCaptionBox::updateEditPreview() {
 		_thumbw = _thumb.width() / cIntRetinaFactor();
 		_thumbh = _thumb.height() / cIntRetinaFactor();
 		_thumbx = (st::boxWideWidth - _thumbw) / 2;
-		if (isGif) {
+		if (isGif)
+		{
 			_gifw = _thumbw;
 			_gifh = _thumbh;
 			_gifx = _thumbx;
@@ -462,24 +551,30 @@ void EditCaptionBox::updateEditPreview() {
 	captionResized();
 }
 
-void EditCaptionBox::updateEditMediaButton() {
+void EditCaptionBox::updateEditMediaButton()
+{
 	const auto icon = _doc
-		? &st::editMediaButtonIconFile
-		: &st::editMediaButtonIconPhoto;
+		                  ? &st::editMediaButtonIconFile
+		                  : &st::editMediaButtonIconPhoto;
 	const auto color = _doc ? &st::windowBgRipple : &st::callFingerprintBg;
 	_editMedia->setIconOverride(icon);
 	_editMedia->setRippleColorOverride(color);
 	_editMedia->setForceRippled(!_doc, anim::type::instant);
 }
 
-void EditCaptionBox::createEditMediaButton() {
-	const auto callback = [=](FileDialog::OpenResult &&result) {
-		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+void EditCaptionBox::createEditMediaButton()
+{
+	const auto callback = [=](FileDialog::OpenResult&& result)
+	{
+		if (result.paths.isEmpty() && result.remoteContent.isEmpty())
+		{
 			return;
 		}
 
-		const auto isValidFile = [](QString mimeType) {
-			if (mimeType == qstr("image/webp")) {
+		const auto isValidFile = [](QString mimeType)
+		{
+			if (mimeType == qstr("image/webp"))
+			{
 				Ui::show(
 					Box<InformBox>(lang(lng_edit_media_invalid_file)),
 					LayerOption::KeepOther);
@@ -488,18 +583,20 @@ void EditCaptionBox::createEditMediaButton() {
 			return true;
 		};
 
-		if (!result.remoteContent.isEmpty()) {
-
+		if (!result.remoteContent.isEmpty())
+		{
 			auto list = Storage::PrepareMediaFromImage(
 				QImage(),
 				std::move(result.remoteContent),
 				st::sendMediaPreviewSize);
 
-			if (!isValidFile(list.files.front().mime)) {
+			if (!isValidFile(list.files.front().mime))
+			{
 				return;
 			}
 
-			if (_isAlbum) {
+			if (_isAlbum)
+			{
 				const auto albumMimes = {
 					"image/jpeg",
 					"image/png",
@@ -507,7 +604,8 @@ void EditCaptionBox::createEditMediaButton() {
 				};
 				const auto file = &list.files.front();
 				if (ranges::find(albumMimes, file->mime) == end(albumMimes)
-					|| file->type == Storage::PreparedFile::AlbumType::None) {
+					|| file->type == Storage::PreparedFile::AlbumType::None)
+				{
 					Ui::show(
 						Box<InformBox>(lang(lng_edit_media_album_error)),
 						LayerOption::KeepOther);
@@ -516,28 +614,35 @@ void EditCaptionBox::createEditMediaButton() {
 			}
 
 			_preparedList = std::move(list);
-		} else if (!result.paths.isEmpty()) {
+		}
+		else if (!result.paths.isEmpty())
+		{
 			auto list = Storage::PrepareMediaList(
 				QStringList(result.paths.front()),
 				st::sendMediaPreviewSize);
 
 			// Don't rewrite _preparedList if new list is not valid for album.
-			if (_isAlbum) {
+			if (_isAlbum)
+			{
 				using Info = FileMediaInformation;
 
 				const auto media = &list.files.front().information->media;
-				const auto valid = media->match([&](const Info::Image &data) {
-					return Storage::ValidateThumbDimensions(
-						data.data.width(),
-						data.data.height())
-						&& !data.animated;
-				}, [&](Info::Video &data) {
-					data.isGifv = false;
-					return true;
-				}, [](auto &&other) {
-					return false;
-				});
-				if (!valid) {
+				const auto valid = media->match([&](const Info::Image& data)
+				                                {
+					                                return Storage::ValidateThumbDimensions(
+							                                data.data.width(),
+							                                data.data.height())
+						                                && !data.animated;
+				                                }, [&](Info::Video& data)
+				                                {
+					                                data.isGifv = false;
+					                                return true;
+				                                }, [](auto&& other)
+				                                {
+					                                return false;
+				                                });
+				if (!valid)
+				{
 					Ui::show(
 						Box<InformBox>(lang(lng_edit_media_album_error)),
 						LayerOption::KeepOther);
@@ -545,22 +650,26 @@ void EditCaptionBox::createEditMediaButton() {
 				}
 			}
 			const auto info = QFileInfo(result.paths.front());
-			if (!isValidFile(Core::MimeTypeForFile(info).name())) {
+			if (!isValidFile(Core::MimeTypeForFile(info).name()))
+			{
 				return;
 			}
 
 			_preparedList = std::move(list);
-		} else {
+		}
+		else
+		{
 			return;
 		}
 
 		updateEditPreview();
 	};
 
-	const auto buttonCallback = [=] {
+	const auto buttonCallback = [=]
+	{
 		const auto filters = _isAlbum
-			? QStringList(qsl("Image and Video Files (*.png *.jpg *.mp4)"))
-			: QStringList(FileDialog::AllFilesFilter());
+			                     ? QStringList(qsl("Image and Video Files (*.png *.jpg *.mp4)"))
+			                     : QStringList(FileDialog::AllFilesFilter());
 		FileDialog::GetOpenPath(
 			this,
 			lang(lng_choose_file),
@@ -577,51 +686,83 @@ void EditCaptionBox::createEditMediaButton() {
 	_editMedia.create(this, st::editMediaButton);
 	updateEditMediaButton();
 	_editMedia->setClickedCallback(
-		App::LambdaDelayed(st::historyAttach.ripple.hideDuration, this, [=] {
-		buttonCallback();
-	}));
+		App::LambdaDelayed(st::historyAttach.ripple.hideDuration, this, [=]
+		{
+			buttonCallback();
+		}));
 }
 
-void EditCaptionBox::prepare() {
-	addButton(langFactory(lng_settings_save), [this] { save(); });
-	if (_isAllowedEditMedia) {
+void EditCaptionBox::prepare()
+{
+	addButton(langFactory(lng_settings_save), [this]
+	{
+		save();
+	});
+	if (_isAllowedEditMedia)
+	{
 		createEditMediaButton();
-	} else {
+	}
+	else
+	{
 		_preparedList.files.clear();
 	}
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_cancel), [this]
+	{
+		closeBox();
+	});
 
 	updateBoxSize();
-	connect(_field, &Ui::InputField::submitted, [=] { save(); });
-	connect(_field, &Ui::InputField::cancelled, [=] { closeBox(); });
-	connect(_field, &Ui::InputField::resized, [=] { captionResized(); });
-	_field->setMimeDataHook([=](
-			not_null<const QMimeData*> data,
-			Ui::InputField::MimeAction action) {
-		if (action == Ui::InputField::MimeAction::Check) {
-			if (!data->hasText() && !_isAllowedEditMedia) {
-				return false;
-			}
-			if (data->hasImage()) {
-				const auto image = qvariant_cast<QImage>(data->imageData());
-				if (!image.isNull()) {
-					return true;
-				}
-			}
-			if (const auto urls = data->urls(); !urls.empty()) {
-				if (ranges::find_if(
-					urls,
-					[](const QUrl &url) { return !url.isLocalFile(); }
-				) == urls.end()) {
-					return true;
-				}
-			}
-			return data->hasText();
-		} else if (action == Ui::InputField::MimeAction::Insert) {
-			return fileFromClipboard(data);
-		}
-		Unexpected("action in MimeData hook.");
+	connect(_field, &Ui::InputField::submitted, [=]
+	{
+		save();
 	});
+	connect(_field, &Ui::InputField::cancelled, [=]
+	{
+		closeBox();
+	});
+	connect(_field, &Ui::InputField::resized, [=]
+	{
+		captionResized();
+	});
+	_field->setMimeDataHook([=](
+		not_null<const QMimeData*> data,
+		Ui::InputField::MimeAction action)
+		{
+			if (action == Ui::InputField::MimeAction::Check)
+			{
+				if (!data->hasText() && !_isAllowedEditMedia)
+				{
+					return false;
+				}
+				if (data->hasImage())
+				{
+					const auto image = qvariant_cast<QImage>(data->imageData());
+					if (!image.isNull())
+					{
+						return true;
+					}
+				}
+				if (const auto urls = data->urls(); !urls.empty())
+				{
+					if (ranges::find_if(
+						urls,
+						[](const QUrl& url)
+						{
+							return !url.isLocalFile();
+						}
+					) == urls.end())
+					{
+						return true;
+					}
+				}
+				return data->hasText();
+			}
+			else if (action == Ui::InputField::MimeAction::Insert)
+			{
+				return fileFromClipboard(data);
+			}
+			Unexpected("action in MimeData hook.");
+		});
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_field);
@@ -633,31 +774,39 @@ void EditCaptionBox::prepare() {
 	_field->setTextCursor(cursor);
 }
 
-bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
-	if (!_isAllowedEditMedia) {
+bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data)
+{
+	if (!_isAllowedEditMedia)
+	{
 		return false;
 	}
 	using Error = Storage::PreparedList::Error;
 
-	auto list = [&] {
+	auto list = [&]
+	{
 		auto url = QList<QUrl>();
 		auto canAddUrl = false;
 		// When we edit media, we need only 1 file.
-		if (data->hasUrls()) {
+		if (data->hasUrls())
+		{
 			const auto first = data->urls().front();
 			url.push_front(first);
 			canAddUrl = first.isLocalFile();
 		}
 		auto result = canAddUrl
-			? Storage::PrepareMediaList(url, st::sendMediaPreviewSize)
-			: Storage::PreparedList(
-				Error::EmptyFile,
-				QString());
-		if (result.error == Error::None) {
+			              ? Storage::PrepareMediaList(url, st::sendMediaPreviewSize)
+			              : Storage::PreparedList(
+				              Error::EmptyFile,
+				              QString());
+		if (result.error == Error::None)
+		{
 			return result;
-		} else if (data->hasImage()) {
+		}
+		else if (data->hasImage())
+		{
 			auto image = qvariant_cast<QImage>(data->imageData());
-			if (!image.isNull()) {
+			if (!image.isNull())
+			{
 				_isImage = true;
 				_photo = true;
 				return Storage::PrepareMediaFromImage(
@@ -668,11 +817,13 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 		}
 		return result;
 	}();
-	if (list.error != Error::None || list.files.empty()) {
+	if (list.error != Error::None || list.files.empty())
+	{
 		return false;
 	}
 	if (list.files.front().type == Storage::PreparedFile::AlbumType::None
-		&& _isAlbum) {
+		&& _isAlbum)
+	{
 		Ui::show(
 			Box<InformBox>(lang(lng_edit_media_album_error)),
 			LayerOption::KeepOther);
@@ -684,14 +835,16 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 	return true;
 }
 
-void EditCaptionBox::captionResized() {
+void EditCaptionBox::captionResized()
+{
 	updateBoxSize();
 	resizeEvent(0);
 	updateEmojiPanelGeometry();
 	update();
 }
 
-void EditCaptionBox::setupEmojiPanel() {
+void EditCaptionBox::setupEmojiPanel()
+{
 	const auto container = getDelegate()->outerContainer();
 	_emojiPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
 		container,
@@ -706,65 +859,88 @@ void EditCaptionBox::setupEmojiPanel() {
 		st::emojiPanMinHeight);
 	_emojiPanel->hide();
 	_emojiPanel->getSelector()->emojiChosen(
-	) | rpl::start_with_next([=](EmojiPtr emoji) {
+	) | rpl::start_with_next([=](EmojiPtr emoji)
+	{
 		Ui::InsertEmojiAtCursor(_field->textCursor(), emoji);
 	}, lifetime());
 
 	_emojiFilter.reset(Core::InstallEventFilter(
 		container,
-		[=](not_null<QEvent*> event) { return emojiFilter(event); }));
+		[=](not_null<QEvent*> event)
+		{
+			return emojiFilter(event);
+		}));
 
 	_emojiToggle.create(this, st::boxAttachEmoji);
 	_emojiToggle->installEventFilter(_emojiPanel);
-	_emojiToggle->addClickHandler([=] {
+	_emojiToggle->addClickHandler([=]
+	{
 		_emojiPanel->toggleAnimated();
 	});
 }
 
-void EditCaptionBox::updateBoxSize() {
+void EditCaptionBox::updateBoxSize()
+{
 	auto newHeight = st::boxPhotoPadding.top() + st::boxPhotoCaptionSkip + _field->height() + errorTopSkip() + st::normalFont->height;
-	if (_photo) {
+	if (_photo)
+	{
 		newHeight += _wayWrap->height() / 2;
 	}
-	if (_photo || _animated) {
+	if (_photo || _animated)
+	{
 		newHeight += std::max(_thumbh, _gifh);
-	} else if (_thumbw) {
+	}
+	else if (_thumbw)
+	{
 		newHeight += 0 + st::msgFileThumbSize + 0;
-	} else if (_doc) {
+	}
+	else if (_doc)
+	{
 		newHeight += 0 + st::msgFileSize + 0;
-	} else {
+	}
+	else
+	{
 		newHeight += st::boxTitleFont->height;
 	}
 	setDimensions(st::boxWideWidth, newHeight, true);
 }
 
-int EditCaptionBox::errorTopSkip() const {
+int EditCaptionBox::errorTopSkip() const
+{
 	return (st::boxButtonPadding.top() / 2);
 }
 
-void EditCaptionBox::paintEvent(QPaintEvent *e) {
+void EditCaptionBox::paintEvent(QPaintEvent* e)
+{
 	BoxContent::paintEvent(e);
 
 	Painter p(this);
 
-	if (_photo || _animated) {
+	if (_photo || _animated)
+	{
 		const auto th = std::max(_gifh, _thumbh);
-		if (_thumbx > st::boxPhotoPadding.left()) {
+		if (_thumbx > st::boxPhotoPadding.left())
+		{
 			p.fillRect(st::boxPhotoPadding.left(), st::boxPhotoPadding.top(), _thumbx - st::boxPhotoPadding.left(), th, st::confirmBg);
 		}
-		if (_thumbx + _thumbw < width() - st::boxPhotoPadding.right()) {
+		if (_thumbx + _thumbw < width() - st::boxPhotoPadding.right())
+		{
 			p.fillRect(_thumbx + _thumbw, st::boxPhotoPadding.top(), width() - st::boxPhotoPadding.right() - _thumbx - _thumbw, th, st::confirmBg);
 		}
-		if (_gifPreview && _gifPreview->started()) {
+		if (_gifPreview && _gifPreview->started())
+		{
 			const auto s = QSize(_gifw, _gifh);
 			const auto paused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
 			const auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : crl::now());
 			p.drawPixmap(_gifx, st::boxPhotoPadding.top(), frame);
-		} else {
+		}
+		else
+		{
 			const auto offset = _gifh ? ((_gifh - _thumbh) / 2) : 0;
 			p.drawPixmap(_thumbx, st::boxPhotoPadding.top() + offset, _thumb);
 		}
-		if (_animated && !_gifPreview) {
+		if (_animated && !_gifPreview)
+		{
 			QRect inner(_thumbx + (_thumbw - st::msgFileSize) / 2, st::boxPhotoPadding.top() + (th - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 			p.setPen(Qt::NoPen);
 			p.setBrush(st::msgDateImgBg);
@@ -777,33 +953,41 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 			const auto icon = &st::historyFileInPlay;
 			icon->paintInCenter(p, inner);
 		}
-	} else if (_doc) {
+	}
+	else if (_doc)
+	{
 		const auto w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
 		const auto h = _thumbw ? (0 + st::msgFileThumbSize + 0) : (0 + st::msgFileSize + 0);
 		auto nameleft = 0, nametop = 0, nameright = 0, statustop = 0;
-		if (_thumbw) {
+		if (_thumbw)
+		{
 			nameleft = 0 + st::msgFileThumbSize + st::msgFileThumbPadding.right();
 			nametop = st::msgFileThumbNameTop - st::msgFileThumbPadding.top();
 			nameright = 0;
 			statustop = st::msgFileThumbStatusTop - st::msgFileThumbPadding.top();
-		} else {
+		}
+		else
+		{
 			nameleft = 0 + st::msgFileSize + st::msgFilePadding.right();
 			nametop = st::msgFileNameTop - st::msgFilePadding.top();
 			nameright = 0;
 			statustop = st::msgFileStatusTop - st::msgFilePadding.top();
 		}
 		const auto editButton = _isAllowedEditMedia
-			? _editMedia->width() + st::editMediaButtonSkip
-			: 0;
+			                        ? _editMedia->width() + st::editMediaButtonSkip
+			                        : 0;
 		const auto namewidth = w - nameleft - editButton;
 		const auto x = (width() - w) / 2, y = st::boxPhotoPadding.top();
 
-//		App::roundRect(p, x, y, w, h, st::msgInBg, MessageInCorners, &st::msgInShadow);
+		//		App::roundRect(p, x, y, w, h, st::msgInBg, MessageInCorners, &st::msgInShadow);
 
-		if (_thumbw) {
+		if (_thumbw)
+		{
 			QRect rthumb(rtlrect(x + 0, y + 0, st::msgFileThumbSize, st::msgFileThumbSize, width()));
 			p.drawPixmap(rthumb.topLeft(), _thumb);
-		} else {
+		}
+		else
+		{
 			const QRect inner(rtlrect(x + 0, y + 0, st::msgFileSize, st::msgFileSize, width()));
 			p.setPen(Qt::NoPen);
 			p.setBrush(st::msgFileInBg);
@@ -820,37 +1004,43 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 		p.setPen(st::historyFileNameInFg);
 		_name.drawLeftElided(p, x + nameleft, y + nametop, namewidth, width());
 
-		const auto &status = st::mediaInFg;
+		const auto& status = st::mediaInFg;
 		p.setFont(st::normalFont);
 		p.setPen(status);
 		p.drawTextLeft(x + nameleft, y + statustop, width(), _status);
-	} else {
+	}
+	else
+	{
 		p.setFont(st::boxTitleFont);
 		p.setPen(st::boxTextFg);
 		p.drawTextLeft(_field->x(), st::boxPhotoPadding.top(), width(), lang(lng_edit_message));
 	}
 
-	if (!_error.isEmpty()) {
+	if (!_error.isEmpty())
+	{
 		p.setFont(st::normalFont);
 		p.setPen(st::boxTextFgError);
 		p.drawTextLeft(_field->x(), _field->y() + _field->height() + errorTopSkip(), width(), _error);
 	}
 
-	if (_isAllowedEditMedia) {
+	if (_isAllowedEditMedia)
+	{
 		_editMedia->moveToRight(
 			st::boxPhotoPadding.right() + (_doc
-				? st::editMediaButtonFileSkipRight
-				: st::editMediaButtonSkip),
+				                               ? st::editMediaButtonFileSkipRight
+				                               : st::editMediaButtonSkip),
 			st::boxPhotoPadding.top() + (_doc
-				? st::editMediaButtonFileSkipTop
-				: st::editMediaButtonSkip));
+				                             ? st::editMediaButtonFileSkipTop
+				                             : st::editMediaButtonSkip));
 	}
 }
 
-void EditCaptionBox::resizeEvent(QResizeEvent *e) {
+void EditCaptionBox::resizeEvent(QResizeEvent* e)
+{
 	BoxContent::resizeEvent(e);
 
-	if (_photo) {
+	if (_photo)
+	{
 		_wayWrap->resize(st::sendMediaPreviewSize, _wayWrap->height());
 		_wayWrap->moveToLeft(
 			st::boxPhotoPadding.left(),
@@ -866,22 +1056,26 @@ void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 		_field->y() + st::boxAttachEmojiTop);
 }
 
-void EditCaptionBox::setInnerFocus() {
+void EditCaptionBox::setInnerFocus()
+{
 	_field->setFocusFast();
 }
 
-void EditCaptionBox::save() {
+void EditCaptionBox::save()
+{
 	if (_saveRequestId) return;
 
 	const auto item = Auth().data().message(_msgId);
-	if (!item) {
+	if (!item)
+	{
 		_error = lang(lng_edit_deleted);
 		update();
 		return;
 	}
 
 	auto flags = MTPmessages_EditMessage::Flag::f_message | 0;
-	if (_previewCancelled) {
+	if (_previewCancelled)
+	{
 		flags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
 	const auto textWithTags = _field->getTextWithAppliedMarkdown();
@@ -898,11 +1092,13 @@ void EditCaptionBox::save() {
 	const auto sentEntities = TextUtilities::EntitiesToMTP(
 		sending.entities,
 		TextUtilities::ConvertOption::SkipLocal);
-	if (!sentEntities.v.isEmpty()) {
+	if (!sentEntities.v.isEmpty())
+	{
 		flags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
 
-	if (!_preparedList.files.empty()) {
+	if (!_preparedList.files.empty())
+	{
 		const auto textWithTags = _field->getTextWithAppliedMarkdown();
 		auto sending = TextWithEntities{
 			textWithTags.text,
@@ -933,33 +1129,43 @@ void EditCaptionBox::save() {
 		rpcFail(&EditCaptionBox::saveFail));
 }
 
-void EditCaptionBox::saveDone(const MTPUpdates &updates) {
+void EditCaptionBox::saveDone(const MTPUpdates& updates)
+{
 	_saveRequestId = 0;
 	closeBox();
 	Auth().api().applyUpdates(updates);
 }
 
-bool EditCaptionBox::saveFail(const RPCError &error) {
+bool EditCaptionBox::saveFail(const RPCError& error)
+{
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	_saveRequestId = 0;
 	QString err = error.type();
-	if (err == qstr("MESSAGE_ID_INVALID") || err == qstr("CHAT_ADMIN_REQUIRED") || err == qstr("MESSAGE_EDIT_TIME_EXPIRED")) {
+	if (err == qstr("MESSAGE_ID_INVALID") || err == qstr("CHAT_ADMIN_REQUIRED") || err == qstr("MESSAGE_EDIT_TIME_EXPIRED"))
+	{
 		_error = lang(lng_edit_error);
-	} else if (err == qstr("MESSAGE_NOT_MODIFIED")) {
+	}
+	else if (err == qstr("MESSAGE_NOT_MODIFIED"))
+	{
 		closeBox();
 		return true;
-	} else if (err == qstr("MESSAGE_EMPTY")) {
+	}
+	else if (err == qstr("MESSAGE_EMPTY"))
+	{
 		_field->setFocus();
 		_field->showError();
-	} else {
+	}
+	else
+	{
 		_error = lang(lng_edit_error);
 	}
 	update();
 	return true;
 }
 
-void EditCaptionBox::setName(QString nameString, qint64 size) {
+void EditCaptionBox::setName(QString nameString, qint64 size)
+{
 	_name.setText(
 		st::semiboldTextStyle,
 		nameString,
@@ -967,11 +1173,15 @@ void EditCaptionBox::setName(QString nameString, qint64 size) {
 	_status = formatSizeText(size);
 }
 
-void EditCaptionBox::keyPressEvent(QKeyEvent *e) {
+void EditCaptionBox::keyPressEvent(QKeyEvent* e)
+{
 	if ((e->key() == Qt::Key_E || e->key() == Qt::Key_O)
-		 && e->modifiers() == Qt::ControlModifier) {
+		&& e->modifiers() == Qt::ControlModifier)
+	{
 		_editMediaClicks.fire({});
-	} else {
+	}
+	else
+	{
 		e->ignore();
 	}
 }

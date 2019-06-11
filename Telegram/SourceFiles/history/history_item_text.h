@@ -9,8 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryItem;
 
-namespace Data {
-struct Group;
+namespace Data
+{
+	struct Group;
 } // namespace Data
 
 TextForMimeData HistoryItemText(not_null<HistoryItem*> item);

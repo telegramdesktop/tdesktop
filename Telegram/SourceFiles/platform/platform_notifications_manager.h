@@ -9,17 +9,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/notifications_manager.h"
 
-namespace Platform {
-namespace Notifications {
+namespace Platform
+{
+	namespace Notifications
+	{
+		bool SkipAudio();
+		bool SkipToast();
 
-bool SkipAudio();
-bool SkipToast();
-
-bool Supported();
-std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system);
-void FlashBounce();
-
-} // namespace Notifications
+		bool Supported();
+		std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System* system);
+		void FlashBounce();
+	} // namespace Notifications
 } // namespace Platform
 
 // Platform dependent implementations.

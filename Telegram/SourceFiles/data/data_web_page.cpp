@@ -17,156 +17,195 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_source.h"
 #include "ui/text/text_entity.h"
 
-namespace {
-
-QString SiteNameFromUrl(const QString &url) {
-	QUrl u(url);
-	QString pretty = u.isValid() ? u.toDisplayString() : url;
-	QRegularExpressionMatch m = QRegularExpression(qsl("^[a-zA-Z0-9]+://")).match(pretty);
-	if (m.hasMatch()) pretty = pretty.mid(m.capturedLength());
-	int32 slash = pretty.indexOf('/');
-	if (slash > 0) pretty = pretty.mid(0, slash);
-	QStringList components = pretty.split('.', QString::SkipEmptyParts);
-	if (components.size() >= 2) {
-		components = components.mid(components.size() - 2);
-		return components.at(0).at(0).toUpper() + components.at(0).mid(1) + '.' + components.at(1);
-	}
-	return QString();
-}
-
-WebPageCollage ExtractCollage(
-		const QVector<MTPPageBlock> &items,
-		const QVector<MTPPhoto> &photos,
-		const QVector<MTPDocument> &documents) {
-	const auto count = items.size();
-	if (count < 2) {
-		return {};
-	}
-	const auto bad = ranges::find_if(items, [](mtpTypeId type) {
-		return (type != mtpc_pageBlockPhoto && type != mtpc_pageBlockVideo);
-	}, [](const MTPPageBlock &item) {
-		return item.type();
-	});
-	if (bad != items.end()) {
-		return {};
+namespace
+{
+	QString SiteNameFromUrl(const QString& url)
+	{
+		QUrl u(url);
+		QString pretty = u.isValid() ? u.toDisplayString() : url;
+		QRegularExpressionMatch m = QRegularExpression(qsl("^[a-zA-Z0-9]+://")).match(pretty);
+		if (m.hasMatch()) pretty = pretty.mid(m.capturedLength());
+		int32 slash = pretty.indexOf('/');
+		if (slash > 0) pretty = pretty.mid(0, slash);
+		QStringList components = pretty.split('.', QString::SkipEmptyParts);
+		if (components.size() >= 2)
+		{
+			components = components.mid(components.size() - 2);
+			return components.at(0).at(0).toUpper() + components.at(0).mid(1) + '.' + components.at(1);
+		}
+		return QString();
 	}
 
-	auto &storage = Auth().data();
-	for (const auto &photo : photos) {
-		storage.processPhoto(photo);
-	}
-	for (const auto &document : documents) {
-		storage.processDocument(document);
-	}
-	auto result = WebPageCollage();
-	result.items.reserve(count);
-	for (const auto &item : items) {
-		const auto good = item.match([&](const MTPDpageBlockPhoto &data) {
-			const auto photo = storage.photo(data.vphoto_id.v);
-			if (photo->isNull()) {
-				return false;
-			}
-			result.items.push_back(photo);
-			return true;
-		}, [&](const MTPDpageBlockVideo &data) {
-			const auto document = storage.document(data.vvideo_id.v);
-			if (!document->isVideoFile()) {
-				return false;
-			}
-			result.items.push_back(document);
-			return true;
-		}, [](const auto &) -> bool {
-			Unexpected("Type of block in Collage.");
-		});
-		if (!good) {
+	WebPageCollage ExtractCollage(
+		const QVector<MTPPageBlock>& items,
+		const QVector<MTPPhoto>& photos,
+		const QVector<MTPDocument>& documents)
+	{
+		const auto count = items.size();
+		if (count < 2)
+		{
 			return {};
 		}
-	}
-	return result;
-}
+		const auto bad = ranges::find_if(items, [](mtpTypeId type)
+		                                 {
+			                                 return (type != mtpc_pageBlockPhoto && type != mtpc_pageBlockVideo);
+		                                 }, [](const MTPPageBlock& item)
+		                                 {
+			                                 return item.type();
+		                                 });
+		if (bad != items.end())
+		{
+			return {};
+		}
 
-WebPageCollage ExtractCollage(const MTPDwebPage &data) {
-	if (!data.has_cached_page()) {
-		return {};
-	}
-	const auto processMedia = [&] {
-		if (data.has_photo()) {
-			Auth().data().processPhoto(data.vphoto);
+		auto& storage = Auth().data();
+		for (const auto& photo : photos)
+		{
+			storage.processPhoto(photo);
 		}
-		if (data.has_document()) {
-			Auth().data().processDocument(data.vdocument);
+		for (const auto& document : documents)
+		{
+			storage.processDocument(document);
 		}
-	};
-	return data.vcached_page.match([&](const auto &page) {
-		for (const auto &block : page.vblocks.v) {
-			switch (block.type()) {
-			case mtpc_pageBlockPhoto:
-			case mtpc_pageBlockVideo:
-			case mtpc_pageBlockCover:
-			case mtpc_pageBlockEmbed:
-			case mtpc_pageBlockEmbedPost:
-			case mtpc_pageBlockAudio:
-				return WebPageCollage();
-			case mtpc_pageBlockSlideshow:
-				processMedia();
-				return ExtractCollage(
-					block.c_pageBlockSlideshow().vitems.v,
-					page.vphotos.v,
-					page.vdocuments.v);
-			case mtpc_pageBlockCollage:
-				processMedia();
-				return ExtractCollage(
-					block.c_pageBlockCollage().vitems.v,
-					page.vphotos.v,
-					page.vdocuments.v);
-			default: break;
+		auto result = WebPageCollage();
+		result.items.reserve(count);
+		for (const auto& item : items)
+		{
+			const auto good = item.match([&](const MTPDpageBlockPhoto& data)
+			                             {
+				                             const auto photo = storage.photo(data.vphoto_id.v);
+				                             if (photo->isNull())
+				                             {
+					                             return false;
+				                             }
+				                             result.items.push_back(photo);
+				                             return true;
+			                             }, [&](const MTPDpageBlockVideo& data)
+			                             {
+				                             const auto document = storage.document(data.vvideo_id.v);
+				                             if (!document->isVideoFile())
+				                             {
+					                             return false;
+				                             }
+				                             result.items.push_back(document);
+				                             return true;
+			                             }, [](const auto&) -> bool
+			                             {
+				                             Unexpected("Type of block in Collage.");
+			                             });
+			if (!good)
+			{
+				return {};
 			}
 		}
-		return WebPageCollage();
-	});
-}
+		return result;
+	}
 
+	WebPageCollage ExtractCollage(const MTPDwebPage& data)
+	{
+		if (!data.has_cached_page())
+		{
+			return {};
+		}
+		const auto processMedia = [&]
+		{
+			if (data.has_photo())
+			{
+				Auth().data().processPhoto(data.vphoto);
+			}
+			if (data.has_document())
+			{
+				Auth().data().processDocument(data.vdocument);
+			}
+		};
+		return data.vcached_page.match([&](const auto& page)
+		{
+			for (const auto& block : page.vblocks.v)
+			{
+				switch (block.type())
+				{
+				case mtpc_pageBlockPhoto:
+				case mtpc_pageBlockVideo:
+				case mtpc_pageBlockCover:
+				case mtpc_pageBlockEmbed:
+				case mtpc_pageBlockEmbedPost:
+				case mtpc_pageBlockAudio:
+					return WebPageCollage();
+				case mtpc_pageBlockSlideshow:
+					processMedia();
+					return ExtractCollage(
+						block.c_pageBlockSlideshow().vitems.v,
+						page.vphotos.v,
+						page.vdocuments.v);
+				case mtpc_pageBlockCollage:
+					processMedia();
+					return ExtractCollage(
+						block.c_pageBlockCollage().vitems.v,
+						page.vphotos.v,
+						page.vdocuments.v);
+				default:
+					break;
+				}
+			}
+			return WebPageCollage();
+		});
+	}
 } // namespace
 
-WebPageType ParseWebPageType(const MTPDwebPage &page) {
+WebPageType ParseWebPageType(const MTPDwebPage& page)
+{
 	const auto type = page.has_type() ? qs(page.vtype) : QString();
-	if (type == qstr("video") || page.has_embed_url()) {
+	if (type == qstr("video") || page.has_embed_url())
+	{
 		return WebPageType::Video;
-	} else if (type == qstr("photo")) {
+	}
+	else if (type == qstr("photo"))
+	{
 		return WebPageType::Photo;
-	} else if (type == qstr("profile")) {
+	}
+	else if (type == qstr("profile"))
+	{
 		return WebPageType::Profile;
-	} else if (type == qstr("telegram_background")) {
+	}
+	else if (type == qstr("telegram_background"))
+	{
 		return WebPageType::WallPaper;
-	} else if (page.has_cached_page()) {
+	}
+	else if (page.has_cached_page())
+	{
 		return WebPageType::ArticleWithIV;
-	} else {
+	}
+	else
+	{
 		return WebPageType::Article;
 	}
 }
 
-WebPageCollage::WebPageCollage(const MTPDwebPage &data)
-: WebPageCollage(ExtractCollage(data)) {
+WebPageCollage::WebPageCollage(const MTPDwebPage& data):
+	WebPageCollage(ExtractCollage(data))
+{
 }
 
 bool WebPageData::applyChanges(
-		WebPageType newType,
-		const QString &newUrl,
-		const QString &newDisplayUrl,
-		const QString &newSiteName,
-		const QString &newTitle,
-		const TextWithEntities &newDescription,
-		PhotoData *newPhoto,
-		DocumentData *newDocument,
-		WebPageCollage &&newCollage,
-		int newDuration,
-		const QString &newAuthor,
-		int newPendingTill) {
+	WebPageType newType,
+	const QString& newUrl,
+	const QString& newDisplayUrl,
+	const QString& newSiteName,
+	const QString& newTitle,
+	const TextWithEntities& newDescription,
+	PhotoData* newPhoto,
+	DocumentData* newDocument,
+	WebPageCollage&& newCollage,
+	int newDuration,
+	const QString& newAuthor,
+	int newPendingTill)
+{
 	if (newPendingTill != 0
 		&& (!url.isEmpty() || pendingTill < 0)
 		&& (!pendingTill
 			|| pendingTill == newPendingTill
-			|| newPendingTill < -1)) {
+			|| newPendingTill < -1))
+	{
 		return false;
 	}
 
@@ -180,14 +219,18 @@ bool WebPageData::applyChanges(
 	const auto resultAuthor = TextUtilities::Clean(newAuthor);
 
 	const auto viewTitleText = resultTitle.isEmpty()
-		? TextUtilities::SingleLine(resultAuthor)
-		: resultTitle;
-	const auto resultSiteName = [&] {
-		if (!possibleSiteName.isEmpty()) {
+		                           ? TextUtilities::SingleLine(resultAuthor)
+		                           : resultTitle;
+	const auto resultSiteName = [&]
+	{
+		if (!possibleSiteName.isEmpty())
+		{
 			return possibleSiteName;
-		} else if (!newDescription.text.isEmpty()
+		}
+		else if (!newDescription.text.isEmpty()
 			&& viewTitleText.isEmpty()
-			&& !resultUrl.isEmpty()) {
+			&& !resultUrl.isEmpty())
+		{
 			return SiteNameFromUrl(resultUrl);
 		}
 		return QString();
@@ -204,10 +247,12 @@ bool WebPageData::applyChanges(
 		&& collage.items == newCollage.items
 		&& duration == newDuration
 		&& author == resultAuthor
-		&& pendingTill == newPendingTill) {
+		&& pendingTill == newPendingTill)
+	{
 		return false;
 	}
-	if (pendingTill > 0 && newPendingTill <= 0) {
+	if (pendingTill > 0 && newPendingTill <= 0)
+	{
 		Auth().api().clearWebPageRequest(this);
 	}
 	type = newType;
@@ -224,7 +269,8 @@ bool WebPageData::applyChanges(
 	pendingTill = newPendingTill;
 	++version;
 
-	if (type == WebPageType::WallPaper && document) {
+	if (type == WebPageType::WallPaper && document)
+	{
 		document->checkWallPaperProperties();
 	}
 
@@ -233,16 +279,18 @@ bool WebPageData::applyChanges(
 	return true;
 }
 
-void WebPageData::replaceDocumentGoodThumbnail() {
-	if (!document || !photo || !document->goodThumbnail()) {
+void WebPageData::replaceDocumentGoodThumbnail()
+{
+	if (!document || !photo || !document->goodThumbnail())
+	{
 		return;
 	}
-	const auto &location = photo->large()->location();
-	if (location.valid()) {
+	const auto& location = photo->large()->location();
+	if (location.valid())
+	{
 		document->replaceGoodThumbnail(
 			std::make_unique<Images::StorageSource>(
 				location,
 				photo->large()->bytesSize()));
 	}
-
 }

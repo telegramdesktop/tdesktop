@@ -18,239 +18,302 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/empty_userpic.h"
 
-namespace InlineBots {
-namespace Layout {
-namespace {
+namespace InlineBots
+{
+	namespace Layout
+	{
+		namespace
+		{
+			NeverFreedPointer<DocumentItems> documentItemsMap;
+		} // namespace
 
-NeverFreedPointer<DocumentItems> documentItemsMap;
+		void ItemBase::setPosition(int32 position)
+		{
+			_position = position;
+		}
 
-} // namespace
+		int32 ItemBase::position() const
+		{
+			return _position;
+		}
 
-void ItemBase::setPosition(int32 position) {
-	_position = position;
-}
+		Result* ItemBase::getResult() const
+		{
+			return _result;
+		}
 
-int32 ItemBase::position() const {
-	return _position;
-}
-
-Result *ItemBase::getResult() const {
-	return _result;
-}
-
-DocumentData *ItemBase::getDocument() const {
-	return _doc;
-}
-
-PhotoData *ItemBase::getPhoto() const {
-	return _photo;
-}
-
-DocumentData *ItemBase::getPreviewDocument() const {
-	auto previewDocument = [this]() -> DocumentData* {
-		if (_doc) {
+		DocumentData* ItemBase::getDocument() const
+		{
 			return _doc;
 		}
-		if (_result) {
-			return _result->_document;
+
+		PhotoData* ItemBase::getPhoto() const
+		{
+			return _photo;
 		}
-		return nullptr;
-	};
-	if (DocumentData *result = previewDocument()) {
-		if (result->sticker() || result->loaded()) {
-			return result;
+
+		DocumentData* ItemBase::getPreviewDocument() const
+		{
+			auto previewDocument = [this]() -> DocumentData*
+			{
+				if (_doc)
+				{
+					return _doc;
+				}
+				if (_result)
+				{
+					return _result->_document;
+				}
+				return nullptr;
+			};
+			if (DocumentData* result = previewDocument())
+			{
+				if (result->sticker() || result->loaded())
+				{
+					return result;
+				}
+			}
+			return nullptr;
 		}
-	}
-	return nullptr;
-}
 
-PhotoData *ItemBase::getPreviewPhoto() const {
-	if (_photo) {
-		return _photo;
-	}
-	if (_result) {
-		return _result->_photo;
-	}
-	return nullptr;
-}
-
-void ItemBase::preload() const {
-	const auto origin = fileOrigin();
-	if (_result) {
-		if (_result->_photo) {
-			_result->_photo->loadThumbnail(origin);
-		} else if (_result->_document) {
-			_result->_document->loadThumbnail(origin);
-		} else if (!_result->_thumb->isNull()) {
-			_result->_thumb->load(origin);
+		PhotoData* ItemBase::getPreviewPhoto() const
+		{
+			if (_photo)
+			{
+				return _photo;
+			}
+			if (_result)
+			{
+				return _result->_photo;
+			}
+			return nullptr;
 		}
-	} else if (_doc) {
-		_doc->loadThumbnail(origin);
-	} else if (_photo) {
-		_photo->loadThumbnail(origin);
-	}
-}
 
-void ItemBase::update() const {
-	if (_position >= 0) {
-		context()->inlineItemRepaint(this);
-	}
-}
-
-void ItemBase::layoutChanged() {
-	if (_position >= 0) {
-		context()->inlineItemLayoutChanged(this);
-	}
-}
-
-std::unique_ptr<ItemBase> ItemBase::createLayout(not_null<Context*> context, Result *result, bool forceThumb) {
-	using Type = Result::Type;
-
-	switch (result->_type) {
-	case Type::Photo:
-		return std::make_unique<internal::Photo>(context, result);
-	case Type::Audio:
-	case Type::File:
-		return std::make_unique<internal::File>(context, result);
-	case Type::Video:
-		return std::make_unique<internal::Video>(context, result);
-	case Type::Sticker:
-		return std::make_unique<internal::Sticker>(context, result);
-	case Type::Gif:
-		return std::make_unique<internal::Gif>(context, result);
-	case Type::Article:
-	case Type::Geo:
-	case Type::Venue:
-		return std::make_unique<internal::Article>(
-			context,
-			result,
-			forceThumb);
-	case Type::Game:
-		return std::make_unique<internal::Game>(context, result);
-	case Type::Contact:
-		return std::make_unique<internal::Contact>(context, result);
-	}
-	return nullptr;
-}
-
-std::unique_ptr<ItemBase> ItemBase::createLayoutGif(not_null<Context*> context, DocumentData *document) {
-	return std::make_unique<internal::Gif>(context, document, true);
-}
-
-DocumentData *ItemBase::getResultDocument() const {
-	return _result ? _result->_document : nullptr;
-}
-
-PhotoData *ItemBase::getResultPhoto() const {
-	return _result ? _result->_photo : nullptr;
-}
-
-Image *ItemBase::getResultThumb() const {
-	if (_result) {
-		if (_result->_photo) {
-			return _result->_photo->thumbnail();
-		} else if (!_result->_thumb->isNull()) {
-			return _result->_thumb.get();
-		} else if (!_result->_locationThumb->isNull()) {
-			return _result->_locationThumb.get();
+		void ItemBase::preload() const
+		{
+			const auto origin = fileOrigin();
+			if (_result)
+			{
+				if (_result->_photo)
+				{
+					_result->_photo->loadThumbnail(origin);
+				}
+				else if (_result->_document)
+				{
+					_result->_document->loadThumbnail(origin);
+				}
+				else if (!_result->_thumb->isNull())
+				{
+					_result->_thumb->load(origin);
+				}
+			}
+			else if (_doc)
+			{
+				_doc->loadThumbnail(origin);
+			}
+			else if (_photo)
+			{
+				_photo->loadThumbnail(origin);
+			}
 		}
-	}
-	return nullptr;
-}
 
-QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
-	if (_result->_type == Result::Type::Contact) {
-		auto result = Ui::EmptyUserpic(
-			Data::PeerUserpicColor(qHash(_result->_id)),
-			_result->getLayoutTitle()
-		).generate(width);
-		if (result.height() != height * cIntRetinaFactor()) {
-			result = result.scaled(QSize(width, height) * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+		void ItemBase::update() const
+		{
+			if (_position >= 0)
+			{
+				context()->inlineItemRepaint(this);
+			}
 		}
-		return result;
-	}
-	return QPixmap();
-}
 
-int ItemBase::getResultDuration() const {
-	return 0;
-}
+		void ItemBase::layoutChanged()
+		{
+			if (_position >= 0)
+			{
+				context()->inlineItemLayoutChanged(this);
+			}
+		}
 
-QString ItemBase::getResultUrl() const {
-	return _result->_url;
-}
+		std::unique_ptr<ItemBase> ItemBase::createLayout(not_null<Context*> context, Result* result, bool forceThumb)
+		{
+			using Type = Result::Type;
 
-ClickHandlerPtr ItemBase::getResultUrlHandler() const {
-	if (!_result->_url.isEmpty()) {
-		return std::make_shared<UrlClickHandler>(_result->_url);
-	}
-	return ClickHandlerPtr();
-}
+			switch (result->_type)
+			{
+			case Type::Photo:
+				return std::make_unique<internal::Photo>(context, result);
+			case Type::Audio:
+			case Type::File:
+				return std::make_unique<internal::File>(context, result);
+			case Type::Video:
+				return std::make_unique<internal::Video>(context, result);
+			case Type::Sticker:
+				return std::make_unique<internal::Sticker>(context, result);
+			case Type::Gif:
+				return std::make_unique<internal::Gif>(context, result);
+			case Type::Article:
+			case Type::Geo:
+			case Type::Venue:
+				return std::make_unique<internal::Article>(
+					context,
+					result,
+					forceThumb);
+			case Type::Game:
+				return std::make_unique<internal::Game>(context, result);
+			case Type::Contact:
+				return std::make_unique<internal::Contact>(context, result);
+			}
+			return nullptr;
+		}
 
-ClickHandlerPtr ItemBase::getResultContentUrlHandler() const {
-	if (!_result->_content_url.isEmpty()) {
-		return std::make_shared<UrlClickHandler>(_result->_content_url);
-	}
-	return ClickHandlerPtr();
-}
+		std::unique_ptr<ItemBase> ItemBase::createLayoutGif(not_null<Context*> context, DocumentData* document)
+		{
+			return std::make_unique<internal::Gif>(context, document, true);
+		}
 
-QString ItemBase::getResultThumbLetter() const {
+		DocumentData* ItemBase::getResultDocument() const
+		{
+			return _result ? _result->_document : nullptr;
+		}
+
+		PhotoData* ItemBase::getResultPhoto() const
+		{
+			return _result ? _result->_photo : nullptr;
+		}
+
+		Image* ItemBase::getResultThumb() const
+		{
+			if (_result)
+			{
+				if (_result->_photo)
+				{
+					return _result->_photo->thumbnail();
+				}
+				else if (!_result->_thumb->isNull())
+				{
+					return _result->_thumb.get();
+				}
+				else if (!_result->_locationThumb->isNull())
+				{
+					return _result->_locationThumb.get();
+				}
+			}
+			return nullptr;
+		}
+
+		QPixmap ItemBase::getResultContactAvatar(int width, int height) const
+		{
+			if (_result->_type == Result::Type::Contact)
+			{
+				auto result = Ui::EmptyUserpic(
+					Data::PeerUserpicColor(qHash(_result->_id)),
+					_result->getLayoutTitle()
+				).generate(width);
+				if (result.height() != height * cIntRetinaFactor())
+				{
+					result = result.scaled(QSize(width, height) * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+				}
+				return result;
+			}
+			return QPixmap();
+		}
+
+		int ItemBase::getResultDuration() const
+		{
+			return 0;
+		}
+
+		QString ItemBase::getResultUrl() const
+		{
+			return _result->_url;
+		}
+
+		ClickHandlerPtr ItemBase::getResultUrlHandler() const
+		{
+			if (!_result->_url.isEmpty())
+			{
+				return std::make_shared<UrlClickHandler>(_result->_url);
+			}
+			return ClickHandlerPtr();
+		}
+
+		ClickHandlerPtr ItemBase::getResultContentUrlHandler() const
+		{
+			if (!_result->_content_url.isEmpty())
+			{
+				return std::make_shared<UrlClickHandler>(_result->_content_url);
+			}
+			return ClickHandlerPtr();
+		}
+
+		QString ItemBase::getResultThumbLetter() const
+		{
 #ifndef OS_MAC_OLD
-	auto parts = _result->_url.splitRef('/');
+			auto parts = _result->_url.splitRef('/');
 #else // OS_MAC_OLD
 	auto parts = _result->_url.split('/');
 #endif // OS_MAC_OLD
-	if (!parts.isEmpty()) {
-		auto domain = parts.at(0);
-		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others
-			domain = parts.at(2);
-		}
+			if (!parts.isEmpty())
+			{
+				auto domain = parts.at(0);
+				if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty())
+				{
+					// http:// and others
+					domain = parts.at(2);
+				}
 
-		parts = domain.split('@').back().split('.');
-		if (parts.size() > 1) {
-			return parts.at(parts.size() - 2).at(0).toUpper();
-		}
-	}
-	if (!_result->_title.isEmpty()) {
-		return _result->_title.at(0).toUpper();
-	}
-	return QString();
-}
-
-Data::FileOrigin ItemBase::fileOrigin() const {
-	return _context->inlineItemFileOrigin();
-}
-
-const DocumentItems *documentItems() {
-	return documentItemsMap.data();
-}
-
-namespace internal {
-
-void regDocumentItem(
-		not_null<const DocumentData*> document,
-		not_null<ItemBase*> item) {
-	documentItemsMap.createIfNull();
-	(*documentItemsMap)[document].insert(item);
-}
-
-void unregDocumentItem(
-		not_null<const DocumentData*> document,
-		not_null<ItemBase*> item) {
-	if (documentItemsMap) {
-		auto i = documentItemsMap->find(document);
-		if (i != documentItemsMap->cend()) {
-			if (i->second.remove(item) && i->second.empty()) {
-				documentItemsMap->erase(i);
+				parts = domain.split('@').back().split('.');
+				if (parts.size() > 1)
+				{
+					return parts.at(parts.size() - 2).at(0).toUpper();
+				}
 			}
+			if (!_result->_title.isEmpty())
+			{
+				return _result->_title.at(0).toUpper();
+			}
+			return QString();
 		}
-		if (documentItemsMap->empty()) {
-			documentItemsMap.clear();
+
+		Data::FileOrigin ItemBase::fileOrigin() const
+		{
+			return _context->inlineItemFileOrigin();
 		}
-	}
-}
 
-} // namespace internal
+		const DocumentItems* documentItems()
+		{
+			return documentItemsMap.data();
+		}
 
-} // namespace Layout
+		namespace internal
+		{
+			void regDocumentItem(
+				not_null<const DocumentData*> document,
+				not_null<ItemBase*> item)
+			{
+				documentItemsMap.createIfNull();
+				(*documentItemsMap)[document].insert(item);
+			}
+
+			void unregDocumentItem(
+				not_null<const DocumentData*> document,
+				not_null<ItemBase*> item)
+			{
+				if (documentItemsMap)
+				{
+					auto i = documentItemsMap->find(document);
+					if (i != documentItemsMap->cend())
+					{
+						if (i->second.remove(item) && i->second.empty())
+						{
+							documentItemsMap->erase(i);
+						}
+					}
+					if (documentItemsMap->empty())
+					{
+						documentItemsMap.clear();
+					}
+				}
+			}
+		} // namespace internal
+	} // namespace Layout
 } // namespace InlineBots

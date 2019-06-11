@@ -12,110 +12,113 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/bytes.h"
 
-namespace Ui {
-class PasswordInput;
-class LinkButton;
-class RoundButton;
-class CheckView;
+namespace Ui
+{
+	class PasswordInput;
+	class LinkButton;
+	class RoundButton;
+	class CheckView;
 } // namespace Ui
 
-namespace Window {
+namespace Window
+{
+	class LockWidget : public Ui::RpWidget
+	{
+	public:
+		LockWidget(QWidget* parent);
 
-class LockWidget : public Ui::RpWidget {
-public:
-	LockWidget(QWidget *parent);
+		virtual void setInnerFocus();
 
-	virtual void setInnerFocus();
+		void showAnimated(const QPixmap& bgAnimCache, bool back = false);
 
-	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
+	protected:
+		void paintEvent(QPaintEvent* e) override;
+		virtual void paintContent(Painter& p);
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	virtual void paintContent(Painter &p);
+	private:
+		void animationCallback();
 
-private:
-	void animationCallback();
+		Ui::Animations::Simple _a_show;
+		bool _showBack = false;
+		QPixmap _cacheUnder, _cacheOver;
+	};
 
-	Ui::Animations::Simple _a_show;
-	bool _showBack = false;
-	QPixmap _cacheUnder, _cacheOver;
+	class PasscodeLockWidget : public LockWidget
+	{
+	public:
+		PasscodeLockWidget(QWidget* parent);
 
-};
+		void setInnerFocus() override;
 
-class PasscodeLockWidget : public LockWidget {
-public:
-	PasscodeLockWidget(QWidget *parent);
+	protected:
+		void resizeEvent(QResizeEvent* e) override;
 
-	void setInnerFocus() override;
+	private:
+		void paintContent(Painter& p) override;
+		void changed();
+		void submit();
+		void error();
 
-protected:
-	void resizeEvent(QResizeEvent *e) override;
+		object_ptr<Ui::PasswordInput> _passcode;
+		object_ptr<Ui::RoundButton> _submit;
+		object_ptr<Ui::LinkButton> _logout;
+		QString _error;
+	};
 
-private:
-	void paintContent(Painter &p) override;
-	void changed();
-	void submit();
-	void error();
+	struct TermsLock
+	{
+		bytes::vector id;
+		TextWithEntities text;
+		std::optional<int> minAge;
+		bool popup = false;
 
-	object_ptr<Ui::PasswordInput> _passcode;
-	object_ptr<Ui::RoundButton> _submit;
-	object_ptr<Ui::LinkButton> _logout;
-	QString _error;
+		inline bool operator==(const TermsLock& other) const
+		{
+			return (id == other.id);
+		}
 
-};
+		inline bool operator!=(const TermsLock& other) const
+		{
+			return !(*this == other);
+		}
 
-struct TermsLock {
-	bytes::vector id;
-	TextWithEntities text;
-	std::optional<int> minAge;
-	bool popup = false;
+		static TermsLock FromMTP(const MTPDhelp_termsOfService& data);
+	};
 
-	inline bool operator==(const TermsLock &other) const {
-		return (id == other.id);
-	}
-	inline bool operator!=(const TermsLock &other) const {
-		return !(*this == other);
-	}
+	class TermsBox : public BoxContent
+	{
+	public:
+		TermsBox(
+			QWidget*,
+			const TermsLock& data,
+			Fn<QString()> agree,
+			Fn<QString()> cancel);
+		TermsBox(
+			QWidget*,
+			const TextWithEntities& text,
+			Fn<QString()> agree,
+			Fn<QString()> cancel,
+			bool attentionAgree = false);
 
-	static TermsLock FromMTP(const MTPDhelp_termsOfService &data);
+		rpl::producer<> agreeClicks() const;
+		rpl::producer<> cancelClicks() const;
+		QString lastClickedMention() const;
 
-};
+	protected:
+		void prepare() override;
 
-class TermsBox : public BoxContent {
-public:
-	TermsBox(
-		QWidget*,
-		const TermsLock &data,
-		Fn<QString()> agree,
-		Fn<QString()> cancel);
-	TermsBox(
-		QWidget*,
-		const TextWithEntities &text,
-		Fn<QString()> agree,
-		Fn<QString()> cancel,
-		bool attentionAgree = false);
+		void keyPressEvent(QKeyEvent* e) override;
 
-	rpl::producer<> agreeClicks() const;
-	rpl::producer<> cancelClicks() const;
-	QString lastClickedMention() const;
+	private:
+		TermsLock _data;
+		Fn<QString()> _agree;
+		Fn<QString()> _cancel;
+		rpl::event_stream<> _agreeClicks;
+		rpl::event_stream<> _cancelClicks;
+		QString _lastClickedMention;
+		bool _attentionAgree = false;
 
-protected:
-	void prepare() override;
-
-	void keyPressEvent(QKeyEvent *e) override;
-
-private:
-	TermsLock _data;
-	Fn<QString()> _agree;
-	Fn<QString()> _cancel;
-	rpl::event_stream<> _agreeClicks;
-	rpl::event_stream<> _cancelClicks;
-	QString _lastClickedMention;
-	bool _attentionAgree = false;
-
-	bool _ageErrorShown = false;
-	Ui::Animations::Simple _ageErrorAnimation;
-
-};
-
+		bool _ageErrorShown = false;
+		Ui::Animations::Simple _ageErrorAnimation;
+	};
 } // namespace Window

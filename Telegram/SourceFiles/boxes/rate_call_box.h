@@ -10,13 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "mtproto/sender.h"
 
-namespace Ui {
-class InputField;
-class FlatLabel;
-class IconButton;
+namespace Ui
+{
+	class InputField;
+	class FlatLabel;
+	class IconButton;
 } // namespace Ui
 
-class RateCallBox : public BoxContent, private MTP::Sender {
+class RateCallBox : public BoxContent, private MTP::Sender
+{
 public:
 	RateCallBox(QWidget*, uint64 callId, uint64 callAccessHash);
 
@@ -24,7 +26,7 @@ protected:
 	void prepare() override;
 	void setInnerFocus() override;
 
-	void resizeEvent(QResizeEvent *e) override;
+	void resizeEvent(QResizeEvent* e) override;
 
 private:
 	void updateMaxHeight();
@@ -37,8 +39,7 @@ private:
 	int _rating = 0;
 
 	std::vector<object_ptr<Ui::IconButton>> _stars;
-	object_ptr<Ui::InputField> _comment = { nullptr };
+	object_ptr<Ui::InputField> _comment = {nullptr};
 
 	mtpRequestId _requestId = 0;
-
 };

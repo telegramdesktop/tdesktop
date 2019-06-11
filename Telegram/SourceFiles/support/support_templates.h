@@ -11,85 +11,92 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class AuthSession;
 
-namespace Support {
-namespace details {
+namespace Support
+{
+	namespace details
+	{
+		struct TemplatesQuestion
+		{
+			QString question;
+			QStringList originalKeys;
+			QStringList normalizedKeys;
+			QString value;
+		};
 
-struct TemplatesQuestion {
-	QString question;
-	QStringList originalKeys;
-	QStringList normalizedKeys;
-	QString value;
-};
+		struct TemplatesFile
+		{
+			QString url;
+			std::map<QString, TemplatesQuestion> questions;
+		};
 
-struct TemplatesFile {
-	QString url;
-	std::map<QString, TemplatesQuestion> questions;
-};
+		struct TemplatesData
+		{
+			std::map<QString, TemplatesFile> files;
+		};
 
-struct TemplatesData {
-	std::map<QString, TemplatesFile> files;
-};
+		struct TemplatesIndex
+		{
+			using Id = std::pair<QString, QString>; // filename, normalized question
+			using Term = std::pair<QString, int>; // search term, weight
 
-struct TemplatesIndex {
-	using Id = std::pair<QString, QString>; // filename, normalized question
-	using Term = std::pair<QString, int>; // search term, weight
+			std::map<QChar, std::vector<Id>> first;
+			std::map<Id, std::vector<Term>> full;
+		};
+	} // namespace details
 
-	std::map<QChar, std::vector<Id>> first;
-	std::map<Id, std::vector<Term>> full;
-};
+	class Templates : public base::has_weak_ptr
+	{
+	public:
+		explicit Templates(not_null<AuthSession*> session);
 
-} // namespace details
+		void reload();
 
-class Templates : public base::has_weak_ptr {
-public:
-	explicit Templates(not_null<AuthSession*> session);
+		using Question = details::TemplatesQuestion;
+		std::vector<Question> query(const QString& text) const;
 
-	void reload();
+		auto errors() const
+		{
+			return _errors.events();
+		}
 
-	using Question = details::TemplatesQuestion;
-	std::vector<Question> query(const QString &text) const;
+		struct QuestionByKey
+		{
+			Question question;
+			QString key;
+		};
+		std::optional<QuestionByKey> matchExact(QString text) const;
+		std::optional<QuestionByKey> matchFromEnd(QString text) const;
 
-	auto errors() const {
-		return _errors.events();
-	}
+		int maxKeyLength() const
+		{
+			return _maxKeyLength;
+		}
 
-	struct QuestionByKey {
-		Question question;
-		QString key;
+		~Templates();
+
+	private:
+		struct Updates;
+
+		void load();
+		void update();
+		void ensureUpdatesCreated();
+		void updateRequestFinished(QNetworkReply* reply);
+		void checkUpdateFinished();
+		void setData(details::TemplatesData&& data);
+
+		not_null<AuthSession*> _session;
+
+		details::TemplatesData _data;
+		details::TemplatesIndex _index;
+		rpl::event_stream<QStringList> _errors;
+		base::binary_guard _reading;
+		bool _reloadAfterRead = false;
+		rpl::lifetime _reloadToastSubscription;
+
+		int _maxKeyLength = 0;
+
+		std::unique_ptr<Updates> _updates;
+
+		rpl::lifetime _lifetime;
 	};
-	std::optional<QuestionByKey> matchExact(QString text) const;
-	std::optional<QuestionByKey> matchFromEnd(QString text) const;
-	int maxKeyLength() const {
-		return _maxKeyLength;
-	}
-
-	~Templates();
-
-private:
-	struct Updates;
-
-	void load();
-	void update();
-	void ensureUpdatesCreated();
-	void updateRequestFinished(QNetworkReply *reply);
-	void checkUpdateFinished();
-	void setData(details::TemplatesData &&data);
-
-	not_null<AuthSession*> _session;
-
-	details::TemplatesData _data;
-	details::TemplatesIndex _index;
-	rpl::event_stream<QStringList> _errors;
-	base::binary_guard _reading;
-	bool _reloadAfterRead = false;
-	rpl::lifetime _reloadToastSubscription;
-
-	int _maxKeyLength = 0;
-
-	std::unique_ptr<Updates> _updates;
-
-	rpl::lifetime _lifetime;
-
-};
-
 } // namespace Support

@@ -12,32 +12,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 enum LangKey : int;
 
-namespace style {
-struct InfoProfileCountButton;
+namespace style
+{
+	struct InfoProfileCountButton;
 } // namespace style
 
-namespace Ui {
-class VerticalLayout;
+namespace Ui
+{
+	class VerticalLayout;
 } // namespace Ui
 
-namespace Info {
-namespace Profile {
-class Button;
-} // namespace Profile
+namespace Info
+{
+	namespace Profile
+	{
+		class Button;
+	} // namespace Profile
 } // namespace Info
 
-enum class Privacy {
+enum class Privacy
+{
 	Public,
 	Private,
 };
 
-enum class UsernameState {
+enum class UsernameState
+{
 	Normal,
 	TooMany,
 	NotAvailable,
 };
 
-class EditPeerTypeBox : public BoxContent {
+class EditPeerTypeBox : public BoxContent
+{
 public:
 	EditPeerTypeBox(
 		QWidget*,
@@ -60,5 +67,4 @@ private:
 	std::optional<LangKey> _usernameError;
 
 	rpl::event_stream<> _focusRequests;
-
 };

@@ -10,71 +10,72 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
-namespace Ui {
-class IconButton;
-class MediaSlider;
+namespace Ui
+{
+	class IconButton;
+	class MediaSlider;
 } // namespace Ui
 
-namespace Media {
-namespace Player {
+namespace Media
+{
+	namespace Player
+	{
+		class VolumeController : public TWidget, private base::Subscriber
+		{
+		public:
+			VolumeController(QWidget* parent);
 
-class VolumeController : public TWidget, private base::Subscriber {
-public:
-	VolumeController(QWidget *parent);
+			void setIsVertical(bool vertical);
 
-	void setIsVertical(bool vertical);
+		protected:
+			void resizeEvent(QResizeEvent* e) override;
 
-protected:
-	void resizeEvent(QResizeEvent *e) override;
+		private:
+			void setVolume(float64 volume);
+			void applyVolumeChange(float64 volume);
 
-private:
-	void setVolume(float64 volume);
-	void applyVolumeChange(float64 volume);
+			object_ptr<Ui::MediaSlider> _slider;
+		};
 
-	object_ptr<Ui::MediaSlider> _slider;
+		class VolumeWidget : public Ui::RpWidget
+		{
+		Q_OBJECT
 
-};
+		public:
+			VolumeWidget(QWidget* parent);
 
-class VolumeWidget : public Ui::RpWidget {
-	Q_OBJECT
+			bool overlaps(const QRect& globalRect);
 
-public:
-	VolumeWidget(QWidget *parent);
+			QMargins getMargin() const;
 
-	bool overlaps(const QRect &globalRect);
+		protected:
+			void resizeEvent(QResizeEvent* e) override;
+			void paintEvent(QPaintEvent* e) override;
+			void enterEventHook(QEvent* e) override;
+			void leaveEventHook(QEvent* e) override;
 
-	QMargins getMargin() const;
+			bool eventFilter(QObject* obj, QEvent* e) override;
 
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void enterEventHook(QEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
+		private slots:
+			void onShowStart();
+			void onHideStart();
 
-	bool eventFilter(QObject *obj, QEvent *e) override;
+		private:
+			void otherEnter();
+			void otherLeave();
 
-private slots:
-	void onShowStart();
-	void onHideStart();
+			void appearanceCallback();
+			void hidingFinished();
+			void startAnimation();
 
-private:
-	void otherEnter();
-	void otherLeave();
+			bool _hiding = false;
 
-	void appearanceCallback();
-	void hidingFinished();
-	void startAnimation();
+			QPixmap _cache;
+			Ui::Animations::Simple _a_appearance;
 
-	bool _hiding = false;
+			QTimer _hideTimer, _showTimer;
 
-	QPixmap _cache;
-	Ui::Animations::Simple _a_appearance;
-
-	QTimer _hideTimer, _showTimer;
-
-	object_ptr<VolumeController> _controller;
-
-};
-
-} // namespace Player
+			object_ptr<VolumeController> _controller;
+		};
+	} // namespace Player
 } // namespace Media

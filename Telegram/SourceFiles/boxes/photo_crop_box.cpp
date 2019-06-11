@@ -13,15 +13,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 PhotoCropBox::PhotoCropBox(
 	QWidget*,
-	const QImage &img,
-	const QString &title)
-: _title(title)
-, _img(img) {
+	const QImage& img,
+	const QString& title):
+	_title(title)
+	, _img(img)
+{
 }
 
-void PhotoCropBox::prepare() {
-	addButton(langFactory(lng_settings_save), [this] { sendPhoto(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+void PhotoCropBox::prepare()
+{
+	addButton(langFactory(lng_settings_save), [this]
+	{
+		sendPhoto();
+	});
+	addButton(langFactory(lng_cancel), [this]
+	{
+		closeBox();
+	});
 
 	int32 s = st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
 	_thumb = App::pixmapFromImageInPlace(_img.scaled(s * cIntRetinaFactor(), s * cIntRetinaFactor(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
@@ -32,9 +40,12 @@ void PhotoCropBox::prepare() {
 	_fade.setDevicePixelRatio(cRetinaFactor());
 	_thumbw = _thumb.width() / cIntRetinaFactor();
 	_thumbh = _thumb.height() / cIntRetinaFactor();
-	if (_thumbw > _thumbh) {
+	if (_thumbw > _thumbh)
+	{
 		_cropw = _thumbh - 20;
-	} else {
+	}
+	else
+	{
 		_cropw = _thumbw - 20;
 	}
 	_cropx = (_thumbw - _cropw) / 2;
@@ -47,8 +58,10 @@ void PhotoCropBox::prepare() {
 	setDimensions(st::boxWideWidth, st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxTextFont->height + st::cropSkip);
 }
 
-void PhotoCropBox::mousePressEvent(QMouseEvent *e) {
-	if (e->button() == Qt::LeftButton) {
+void PhotoCropBox::mousePressEvent(QMouseEvent* e)
+{
+	if (e->button() == Qt::LeftButton)
+	{
 		_downState = mouseState(e->pos());
 		_fromposx = e->pos().x();
 		_fromposy = e->pos().y();
@@ -59,116 +72,164 @@ void PhotoCropBox::mousePressEvent(QMouseEvent *e) {
 	return BoxContent::mousePressEvent(e);
 }
 
-int PhotoCropBox::mouseState(QPoint p) {
+int PhotoCropBox::mouseState(QPoint p)
+{
 	p -= QPoint(_thumbx, _thumby);
 	int32 delta = st::cropPointSize, mdelta(-delta / 2);
-	if (QRect(_cropx + mdelta, _cropy + mdelta, delta, delta).contains(p)) {
+	if (QRect(_cropx + mdelta, _cropy + mdelta, delta, delta).contains(p))
+	{
 		return 1;
-	} else if (QRect(_cropx + _cropw + mdelta, _cropy + mdelta, delta, delta).contains(p)) {
+	}
+	else if (QRect(_cropx + _cropw + mdelta, _cropy + mdelta, delta, delta).contains(p))
+	{
 		return 2;
-	} else if (QRect(_cropx + _cropw + mdelta, _cropy + _cropw + mdelta, delta, delta).contains(p)) {
+	}
+	else if (QRect(_cropx + _cropw + mdelta, _cropy + _cropw + mdelta, delta, delta).contains(p))
+	{
 		return 3;
-	} else if (QRect(_cropx + mdelta, _cropy + _cropw + mdelta, delta, delta).contains(p)) {
+	}
+	else if (QRect(_cropx + mdelta, _cropy + _cropw + mdelta, delta, delta).contains(p))
+	{
 		return 4;
-	} else if (QRect(_cropx, _cropy, _cropw, _cropw).contains(p)) {
+	}
+	else if (QRect(_cropx, _cropy, _cropw, _cropw).contains(p))
+	{
 		return 5;
 	}
 	return 0;
 }
 
-rpl::producer<QImage> PhotoCropBox::ready() const {
+rpl::producer<QImage> PhotoCropBox::ready() const
+{
 	return _readyImages.events();
 }
 
-void PhotoCropBox::mouseReleaseEvent(QMouseEvent *e) {
-	if (_downState) {
+void PhotoCropBox::mouseReleaseEvent(QMouseEvent* e)
+{
+	if (_downState)
+	{
 		_downState = 0;
 		mouseMoveEvent(e);
 	}
 }
 
-void PhotoCropBox::mouseMoveEvent(QMouseEvent *e) {
-	if (_downState && !(e->buttons() & Qt::LeftButton)) {
+void PhotoCropBox::mouseMoveEvent(QMouseEvent* e)
+{
+	if (_downState && !(e->buttons() & Qt::LeftButton))
+	{
 		mouseReleaseEvent(e);
 	}
-	if (_downState) {
-		if (_downState == 1) {
+	if (_downState)
+	{
+		if (_downState == 1)
+		{
 			int32 dx = e->pos().x() - _fromposx, dy = e->pos().y() - _fromposy, d = (dx < dy) ? dx : dy;
-			if (_fromcropx + d < 0) {
+			if (_fromcropx + d < 0)
+			{
 				d = -_fromcropx;
 			}
-			if (_fromcropy + d < 0) {
+			if (_fromcropy + d < 0)
+			{
 				d = -_fromcropy;
 			}
-			if (_fromcropw - d < st::cropMinSize) {
+			if (_fromcropw - d < st::cropMinSize)
+			{
 				d = _fromcropw - st::cropMinSize;
 			}
-			if (_cropx != _fromcropx + d || _cropy != _fromcropy + d || _cropw != _fromcropw - d) {
+			if (_cropx != _fromcropx + d || _cropy != _fromcropy + d || _cropw != _fromcropw - d)
+			{
 				_cropx = _fromcropx + d;
 				_cropy = _fromcropy + d;
 				_cropw = _fromcropw - d;
 				update();
 			}
-		} else if (_downState == 2) {
+		}
+		else if (_downState == 2)
+		{
 			int32 dx = _fromposx - e->pos().x(), dy = e->pos().y() - _fromposy, d = (dx < dy) ? dx : dy;
-			if (_fromcropx + _fromcropw - d > _thumbw) {
+			if (_fromcropx + _fromcropw - d > _thumbw)
+			{
 				d = _fromcropx + _fromcropw - _thumbw;
 			}
-			if (_fromcropy + d < 0) {
+			if (_fromcropy + d < 0)
+			{
 				d = -_fromcropy;
 			}
-			if (_fromcropw - d < st::cropMinSize) {
+			if (_fromcropw - d < st::cropMinSize)
+			{
 				d = _fromcropw - st::cropMinSize;
 			}
-			if (_cropy != _fromcropy + d || _cropw != _fromcropw - d) {
+			if (_cropy != _fromcropy + d || _cropw != _fromcropw - d)
+			{
 				_cropy = _fromcropy + d;
 				_cropw = _fromcropw - d;
 				update();
 			}
-		} else if (_downState == 3) {
+		}
+		else if (_downState == 3)
+		{
 			int32 dx = _fromposx - e->pos().x(), dy = _fromposy - e->pos().y(), d = (dx < dy) ? dx : dy;
-			if (_fromcropx + _fromcropw - d > _thumbw) {
+			if (_fromcropx + _fromcropw - d > _thumbw)
+			{
 				d = _fromcropx + _fromcropw - _thumbw;
 			}
-			if (_fromcropy + _fromcropw - d > _thumbh) {
+			if (_fromcropy + _fromcropw - d > _thumbh)
+			{
 				d = _fromcropy + _fromcropw - _thumbh;
 			}
-			if (_fromcropw - d < st::cropMinSize) {
+			if (_fromcropw - d < st::cropMinSize)
+			{
 				d = _fromcropw - st::cropMinSize;
 			}
-			if (_cropw != _fromcropw - d) {
+			if (_cropw != _fromcropw - d)
+			{
 				_cropw = _fromcropw - d;
 				update();
 			}
-		} else if (_downState == 4) {
+		}
+		else if (_downState == 4)
+		{
 			int32 dx = e->pos().x() - _fromposx, dy = _fromposy - e->pos().y(), d = (dx < dy) ? dx : dy;
-			if (_fromcropx + d < 0) {
+			if (_fromcropx + d < 0)
+			{
 				d = -_fromcropx;
 			}
-			if (_fromcropy + _fromcropw - d > _thumbh) {
+			if (_fromcropy + _fromcropw - d > _thumbh)
+			{
 				d = _fromcropy + _fromcropw - _thumbh;
 			}
-			if (_fromcropw - d < st::cropMinSize) {
+			if (_fromcropw - d < st::cropMinSize)
+			{
 				d = _fromcropw - st::cropMinSize;
 			}
-			if (_cropx != _fromcropx + d || _cropw != _fromcropw - d) {
+			if (_cropx != _fromcropx + d || _cropw != _fromcropw - d)
+			{
 				_cropx = _fromcropx + d;
 				_cropw = _fromcropw - d;
 				update();
 			}
-		} else if (_downState == 5) {
+		}
+		else if (_downState == 5)
+		{
 			int32 dx = e->pos().x() - _fromposx, dy = e->pos().y() - _fromposy;
-			if (_fromcropx + dx < 0) {
+			if (_fromcropx + dx < 0)
+			{
 				dx = -_fromcropx;
-			} else if (_fromcropx + _fromcropw + dx > _thumbw) {
+			}
+			else if (_fromcropx + _fromcropw + dx > _thumbw)
+			{
 				dx = _thumbw - _fromcropx - _fromcropw;
 			}
-			if (_fromcropy + dy < 0) {
+			if (_fromcropy + dy < 0)
+			{
 				dy = -_fromcropy;
-			} else if (_fromcropy + _fromcropw + dy > _thumbh) {
+			}
+			else if (_fromcropy + _fromcropw + dy > _thumbh)
+			{
 				dy = _thumbh - _fromcropy - _fromcropw;
 			}
-			if (_cropx != _fromcropx + dx || _cropy != _fromcropy + dy) {
+			if (_cropx != _fromcropx + dx || _cropy != _fromcropy + dy)
+			{
 				_cropx = _fromcropx + dx;
 				_cropy = _fromcropy + dy;
 				update();
@@ -177,25 +238,35 @@ void PhotoCropBox::mouseMoveEvent(QMouseEvent *e) {
 	}
 	int32 cursorState = _downState ? _downState : mouseState(e->pos());
 	QCursor cur(style::cur_default);
-	if (cursorState == 1 || cursorState == 3) {
+	if (cursorState == 1 || cursorState == 3)
+	{
 		cur = style::cur_sizefdiag;
-	} else if (cursorState == 2 || cursorState == 4) {
+	}
+	else if (cursorState == 2 || cursorState == 4)
+	{
 		cur = style::cur_sizebdiag;
-	} else if (cursorState == 5) {
+	}
+	else if (cursorState == 5)
+	{
 		cur = style::cur_sizeall;
 	}
 	setCursor(cur);
 }
 
-void PhotoCropBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
+void PhotoCropBox::keyPressEvent(QKeyEvent* e)
+{
+	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return)
+	{
 		sendPhoto();
-	} else {
+	}
+	else
+	{
 		BoxContent::keyPressEvent(e);
 	}
 }
 
-void PhotoCropBox::paintEvent(QPaintEvent *e) {
+void PhotoCropBox::paintEvent(QPaintEvent* e)
+{
 	BoxContent::paintEvent(e);
 
 	Painter p(this);
@@ -226,42 +297,55 @@ void PhotoCropBox::paintEvent(QPaintEvent *e) {
 	p.fillRect(QRect(_cropx + mdelta, _cropy + _cropw + mdelta, delta, delta), st::photoCropPointFg);
 }
 
-void PhotoCropBox::sendPhoto() {
+void PhotoCropBox::sendPhoto()
+{
 	auto from = _img;
-	if (_img.width() < _thumb.width()) {
+	if (_img.width() < _thumb.width())
+	{
 		from = _thumb.toImage();
 	}
 	float64 x = float64(_cropx) / _thumbw, y = float64(_cropy) / _thumbh, w = float64(_cropw) / _thumbw;
 	int32 ix = int32(x * from.width()), iy = int32(y * from.height()), iw = int32(w * from.width());
-	if (ix < 0) {
+	if (ix < 0)
+	{
 		ix = 0;
 	}
-	if (ix + iw > from.width()) {
+	if (ix + iw > from.width())
+	{
 		iw = from.width() - ix;
 	}
-	if (iy < 0) {
+	if (iy < 0)
+	{
 		iy = 0;
 	}
-	if (iy + iw > from.height()) {
+	if (iy + iw > from.height())
+	{
 		iw = from.height() - iy;
 	}
 	int32 offset = ix * from.depth() / 8 + iy * from.bytesPerLine();
 	QImage cropped(from.constBits() + offset, iw, iw, from.bytesPerLine(), from.format()), tosend;
-	if (from.format() == QImage::Format_Indexed8) {
+	if (from.format() == QImage::Format_Indexed8)
+	{
 		cropped.setColorCount(from.colorCount());
 		cropped.setColorTable(from.colorTable());
 	}
-	if (cropped.width() > 1280) {
+	if (cropped.width() > 1280)
+	{
 		tosend = cropped.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-	} else if (cropped.width() < 320) {
+	}
+	else if (cropped.width() < 320)
+	{
 		tosend = cropped.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-	} else {
+	}
+	else
+	{
 		tosend = cropped.copy();
 	}
 
 	auto weak = make_weak(this);
 	_readyImages.fire(std::move(tosend));
-	if (weak) {
+	if (weak)
+	{
 		closeBox();
 	}
 }

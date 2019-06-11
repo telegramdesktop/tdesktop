@@ -10,158 +10,180 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader.h"
 #include "media/streaming/media_streaming_reader.h"
 
-namespace Storage {
-namespace {
+namespace Storage
+{
+	namespace
+	{
+		using namespace Media::Streaming;
 
-using namespace Media::Streaming;
+		constexpr auto kPartSize = Loader::kPartSize;
+	} // namespace
 
-constexpr auto kPartSize = Loader::kPartSize;
+	StreamedFileDownloader::StreamedFileDownloader(
+		uint64 objectId,
+		MTP::DcId dcId,
+		Data::FileOrigin origin,
+		Cache::Key cacheKey,
+		MediaKey fileLocationKey,
+		std::shared_ptr<Reader> reader,
 
-} // namespace
+		// For FileLoader
+		const QString& toFile,
+		int32 size,
+		LocationType locationType,
+		LoadToCacheSetting toCache,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading,
+		uint8 cacheTag):
+		FileLoader(
+			toFile,
+			size,
+			locationType,
+			toCache,
+			fromCloud,
+			autoLoading,
+			cacheTag)
+		, _objectId(objectId)
+		, _origin(origin)
+		, _cacheKey(cacheKey)
+		, _fileLocationKey(fileLocationKey)
+		, _reader(std::move(reader))
+		, _partsCount((size + kPartSize - 1) / kPartSize)
+	{
+		_partIsSaved.resize(_partsCount, false);
 
-StreamedFileDownloader::StreamedFileDownloader(
-	uint64 objectId,
-	MTP::DcId dcId,
-	Data::FileOrigin origin,
-	Cache::Key cacheKey,
-	MediaKey fileLocationKey,
-	std::shared_ptr<Reader> reader,
+		_reader->partsForDownloader(
+		) | rpl::start_with_next([=](const LoadedPart& part)
+		{
+			if (part.offset == LoadedPart::kFailedOffset)
+			{
+				cancel(true);
+			}
+			else
+			{
+				savePart(std::move(part));
+			}
+		}, _lifetime);
 
-	// For FileLoader
-	const QString &toFile,
-	int32 size,
-	LocationType locationType,
-	LoadToCacheSetting toCache,
-	LoadFromCloudSetting fromCloud,
-	bool autoLoading,
-	uint8 cacheTag)
-: FileLoader(
-	toFile,
-	size,
-	locationType,
-	toCache,
-	fromCloud,
-	autoLoading,
-	cacheTag)
-, _objectId(objectId)
-, _origin(origin)
-, _cacheKey(cacheKey)
-, _fileLocationKey(fileLocationKey)
-, _reader(std::move(reader))
-, _partsCount((size + kPartSize - 1) / kPartSize) {
-	_partIsSaved.resize(_partsCount, false);
+		_queue = _downloader->queueForDc(dcId);
+	}
 
-	_reader->partsForDownloader(
-	) | rpl::start_with_next([=](const LoadedPart &part) {
-		if (part.offset == LoadedPart::kFailedOffset) {
-			cancel(true);
-		} else {
-			savePart(std::move(part));
+	StreamedFileDownloader::~StreamedFileDownloader()
+	{
+		stop();
+	}
+
+	uint64 StreamedFileDownloader::objId() const
+	{
+		return _objectId;
+	}
+
+	Data::FileOrigin StreamedFileDownloader::fileOrigin() const
+	{
+		return _origin;
+	}
+
+	void StreamedFileDownloader::stop()
+	{
+		cancelRequests();
+	}
+
+	QByteArray StreamedFileDownloader::readLoadedPart(int offset)
+	{
+		Expects(offset >= 0 && offset < _size);
+		Expects(!(offset % kPartSize));
+
+		const auto index = (offset / kPartSize);
+		return _partIsSaved[index]
+			       ? readLoadedPartBack(offset, kPartSize)
+			       : QByteArray();
+	}
+
+	Storage::Cache::Key StreamedFileDownloader::cacheKey() const
+	{
+		return _cacheKey;
+	}
+
+	std::optional<MediaKey> StreamedFileDownloader::fileLocationKey() const
+	{
+		return _fileLocationKey;
+	}
+
+	void StreamedFileDownloader::cancelRequests()
+	{
+		//_partsRequested == std::count(
+		//	begin(_partIsSaved),
+		//	begin(_partIsSaved) + _nextPartIndex,
+		//	false);
+		_queue->queriesCount -= _partsRequested;
+		_partsRequested = 0;
+		_nextPartIndex = 0;
+
+		_reader->cancelForDownloader(this);
+	}
+
+	bool StreamedFileDownloader::loadPart()
+	{
+		if (_finished || _nextPartIndex >= _partsCount)
+		{
+			return false;
 		}
-	}, _lifetime);
+		const auto index = std::find(
+			begin(_partIsSaved) + _nextPartIndex,
+			end(_partIsSaved),
+			false
+		) - begin(_partIsSaved);
+		if (index == _partsCount)
+		{
+			_nextPartIndex = _partsCount;
+			return false;
+		}
+		_nextPartIndex = index + 1;
+		_reader->loadForDownloader(this, index * kPartSize);
 
-	_queue = _downloader->queueForDc(dcId);
-}
+		++_partsRequested;
+		++_queue->queriesCount;
 
-StreamedFileDownloader::~StreamedFileDownloader() {
-	stop();
-}
-
-uint64 StreamedFileDownloader::objId() const {
-	return _objectId;
-}
-
-Data::FileOrigin StreamedFileDownloader::fileOrigin() const {
-	return _origin;
-}
-
-void StreamedFileDownloader::stop() {
-	cancelRequests();
-}
-
-QByteArray StreamedFileDownloader::readLoadedPart(int offset) {
-	Expects(offset >= 0 && offset < _size);
-	Expects(!(offset % kPartSize));
-
-	const auto index = (offset / kPartSize);
-	return _partIsSaved[index]
-		? readLoadedPartBack(offset, kPartSize)
-		: QByteArray();
-}
-
-Storage::Cache::Key StreamedFileDownloader::cacheKey() const {
-	return _cacheKey;
-}
-
-std::optional<MediaKey> StreamedFileDownloader::fileLocationKey() const {
-	return _fileLocationKey;
-}
-
-void StreamedFileDownloader::cancelRequests() {
-	//_partsRequested == std::count(
-	//	begin(_partIsSaved),
-	//	begin(_partIsSaved) + _nextPartIndex,
-	//	false);
-	_queue->queriesCount -= _partsRequested;
-	_partsRequested = 0;
-	_nextPartIndex = 0;
-
-	_reader->cancelForDownloader(this);
-}
-
-bool StreamedFileDownloader::loadPart() {
-	if (_finished || _nextPartIndex >= _partsCount) {
-		return false;
-	}
-	const auto index = std::find(
-		begin(_partIsSaved) + _nextPartIndex,
-		end(_partIsSaved),
-		false
-	) - begin(_partIsSaved);
-	if (index == _partsCount) {
-		_nextPartIndex = _partsCount;
-		return false;
-	}
-	_nextPartIndex = index + 1;
-	_reader->loadForDownloader(this, index * kPartSize);
-
-	++_partsRequested;
-	++_queue->queriesCount;
-
-	return true;
-}
-
-void StreamedFileDownloader::savePart(const LoadedPart &part) {
-	Expects(part.offset >= 0 && part.offset < _reader->size());
-	Expects(part.offset % kPartSize == 0);
-
-	if (_finished || _cancelled) {
-		return;
+		return true;
 	}
 
-	const auto offset = part.offset;
-	const auto index = offset / kPartSize;
-	Assert(index >= 0 && index < _partsCount);
-	if (_partIsSaved[index]) {
-		return;
-	}
-	_partIsSaved[index] = true;
-	++_partsSaved;
+	void StreamedFileDownloader::savePart(const LoadedPart& part)
+	{
+		Expects(part.offset >= 0 && part.offset < _reader->size());
+		Expects(part.offset % kPartSize == 0);
 
-	if (index < _nextPartIndex) {
-		--_partsRequested;
-		--_queue->queriesCount;
-	}
-	if (!writeResultPart(offset, bytes::make_span(part.bytes))) {
-		return;
-	}
-	if (_partsSaved == _partsCount) {
-		if (!finalizeResult()) {
+		if (_finished || _cancelled)
+		{
 			return;
 		}
-	}
-	_reader->doneForDownloader(offset);
-	notifyAboutProgress();
-}
 
+		const auto offset = part.offset;
+		const auto index = offset / kPartSize;
+		Assert(index >= 0 && index < _partsCount);
+		if (_partIsSaved[index])
+		{
+			return;
+		}
+		_partIsSaved[index] = true;
+		++_partsSaved;
+
+		if (index < _nextPartIndex)
+		{
+			--_partsRequested;
+			--_queue->queriesCount;
+		}
+		if (!writeResultPart(offset, bytes::make_span(part.bytes)))
+		{
+			return;
+		}
+		if (_partsSaved == _partsCount)
+		{
+			if (!finalizeResult())
+			{
+				return;
+			}
+		}
+		_reader->doneForDownloader(offset);
+		notifyAboutProgress();
+	}
 } // namespace Storage

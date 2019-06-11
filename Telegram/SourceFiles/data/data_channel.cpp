@@ -18,32 +18,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "apiwrap.h"
 
-namespace {
-
-using UpdateFlag = Notify::PeerUpdate::Flag;
-
+namespace
+{
+	using UpdateFlag = Notify::PeerUpdate::Flag;
 } // namespace
 
-ChatData *MegagroupInfo::getMigrateFromChat() const {
+ChatData* MegagroupInfo::getMigrateFromChat() const
+{
 	return _migratedFrom;
 }
 
-void MegagroupInfo::setMigrateFromChat(ChatData *chat) {
+void MegagroupInfo::setMigrateFromChat(ChatData* chat)
+{
 	_migratedFrom = chat;
 }
 
-ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
-: PeerData(owner, id)
-, inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))) {
+ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id):
+	PeerData(owner, id)
+	, inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0)))
+{
 	Data::PeerFlagValue(
 		this,
 		MTPDchannel::Flag::f_megagroup
-	) | rpl::start_with_next([=](bool megagroup) {
-		if (megagroup) {
-			if (!mgInfo) {
+	) | rpl::start_with_next([=](bool megagroup)
+	{
+		if (megagroup)
+		{
+			if (!mgInfo)
+			{
 				mgInfo = std::make_unique<MegagroupInfo>();
 			}
-		} else if (mgInfo) {
+		}
+		else if (mgInfo)
+		{
 			mgInfo = nullptr;
 		}
 	}, _lifetime);
@@ -52,60 +59,77 @@ ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 		this,
 		MTPDchannel::Flag::f_left | MTPDchannel_ClientFlag::f_forbidden
 	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=] {
-		if (const auto chat = getMigrateFromChat()) {
+	) | rpl::start_with_next([=]
+	{
+		if (const auto chat = getMigrateFromChat())
+		{
 			Notify::peerUpdatedDelayed(chat, UpdateFlag::MigrationChanged);
 			Notify::peerUpdatedDelayed(this, UpdateFlag::MigrationChanged);
 		}
 	}, _lifetime);
 }
 
-void ChannelData::setPhoto(const MTPChatPhoto &photo) {
+void ChannelData::setPhoto(const MTPChatPhoto& photo)
+{
 	setPhoto(userpicPhotoId(), photo);
 }
 
-void ChannelData::setPhoto(PhotoId photoId, const MTPChatPhoto &photo) {
-	photo.match([&](const MTPDchatPhoto & data) {
-		updateUserpic(photoId, data.vdc_id.v, data.vphoto_small);
-	}, [&](const MTPDchatPhotoEmpty &) {
-		clearUserpic();
-	});
+void ChannelData::setPhoto(PhotoId photoId, const MTPChatPhoto& photo)
+{
+	photo.match([&](const MTPDchatPhoto& data)
+	            {
+		            updateUserpic(photoId, data.vdc_id.v, data.vphoto_small);
+	            }, [&](const MTPDchatPhotoEmpty&)
+	            {
+		            clearUserpic();
+	            });
 }
 
-void ChannelData::setName(const QString &newName, const QString &newUsername) {
+void ChannelData::setName(const QString& newName, const QString& newUsername)
+{
 	updateNameDelayed(newName.isEmpty() ? name : newName, QString(), newUsername);
 }
 
-void ChannelData::setInviteLink(const QString &newInviteLink) {
-	if (newInviteLink != _inviteLink) {
+void ChannelData::setInviteLink(const QString& newInviteLink)
+{
+	if (newInviteLink != _inviteLink)
+	{
 		_inviteLink = newInviteLink;
 		Notify::peerUpdatedDelayed(this, UpdateFlag::InviteLinkChanged);
 	}
 }
 
-QString ChannelData::inviteLink() const {
+QString ChannelData::inviteLink() const
+{
 	return _inviteLink;
 }
 
-bool ChannelData::canHaveInviteLink() const {
+bool ChannelData::canHaveInviteLink() const
+{
 	return (adminRights() & AdminRight::f_invite_users)
 		|| amCreator();
 }
 
-void ChannelData::setLinkedChat(ChannelData *linked) {
-	if (_linkedChat != linked) {
+void ChannelData::setLinkedChat(ChannelData* linked)
+{
+	if (_linkedChat != linked)
+	{
 		_linkedChat = linked;
 		Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelLinkedChat);
 	}
 }
 
-ChannelData *ChannelData::linkedChat() const {
+ChannelData* ChannelData::linkedChat() const
+{
 	return _linkedChat;
 }
 
-void ChannelData::setMembersCount(int newMembersCount) {
-	if (_membersCount != newMembersCount) {
-		if (isMegagroup() && !mgInfo->lastParticipants.empty()) {
+void ChannelData::setMembersCount(int newMembersCount)
+{
+	if (_membersCount != newMembersCount)
+	{
+		if (isMegagroup() && !mgInfo->lastParticipants.empty())
+		{
 			mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
 			mgInfo->lastParticipantsCount = membersCount();
 		}
@@ -114,28 +138,35 @@ void ChannelData::setMembersCount(int newMembersCount) {
 	}
 }
 
-void ChannelData::setAdminsCount(int newAdminsCount) {
-	if (_adminsCount != newAdminsCount) {
+void ChannelData::setAdminsCount(int newAdminsCount)
+{
+	if (_adminsCount != newAdminsCount)
+	{
 		_adminsCount = newAdminsCount;
 		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::AdminsChanged);
 	}
 }
 
-void ChannelData::setRestrictedCount(int newRestrictedCount) {
-	if (_restrictedCount != newRestrictedCount) {
+void ChannelData::setRestrictedCount(int newRestrictedCount)
+{
+	if (_restrictedCount != newRestrictedCount)
+	{
 		_restrictedCount = newRestrictedCount;
 		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::BannedUsersChanged);
 	}
 }
 
-void ChannelData::setKickedCount(int newKickedCount) {
-	if (_kickedCount != newKickedCount) {
+void ChannelData::setKickedCount(int newKickedCount)
+{
+	if (_kickedCount != newKickedCount)
+	{
 		_kickedCount = newKickedCount;
 		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::BannedUsersChanged);
 	}
 }
 
-MTPChatBannedRights ChannelData::KickedRestrictedRights() {
+MTPChatBannedRights ChannelData::KickedRestrictedRights()
+{
 	using Flag = MTPDchatBannedRights::Flag;
 	const auto flags = Flag::f_view_messages
 		| Flag::f_send_messages
@@ -151,61 +182,81 @@ MTPChatBannedRights ChannelData::KickedRestrictedRights() {
 }
 
 void ChannelData::applyEditAdmin(
-		not_null<UserData*> user,
-		const MTPChatAdminRights &oldRights,
-		const MTPChatAdminRights &newRights) {
-	if (mgInfo) {
+	not_null<UserData*> user,
+	const MTPChatAdminRights& oldRights,
+	const MTPChatAdminRights& newRights)
+{
+	if (mgInfo)
+	{
 		// If rights are empty - still add participant? TODO check
-		if (!base::contains(mgInfo->lastParticipants, user)) {
+		if (!base::contains(mgInfo->lastParticipants, user))
+		{
 			mgInfo->lastParticipants.push_front(user);
 			setMembersCount(membersCount() + 1);
-			if (user->botInfo && !mgInfo->bots.contains(user)) {
+			if (user->botInfo && !mgInfo->bots.contains(user))
+			{
 				mgInfo->bots.insert(user);
-				if (mgInfo->botStatus != 0 && mgInfo->botStatus < 2) {
+				if (mgInfo->botStatus != 0 && mgInfo->botStatus < 2)
+				{
 					mgInfo->botStatus = 2;
 				}
 			}
 		}
 		// If rights are empty - still remove restrictions? TODO check
-		if (mgInfo->lastRestricted.contains(user)) {
+		if (mgInfo->lastRestricted.contains(user))
+		{
 			mgInfo->lastRestricted.remove(user);
-			if (restrictedCount() > 0) {
+			if (restrictedCount() > 0)
+			{
 				setRestrictedCount(restrictedCount() - 1);
 			}
 		}
 
 		auto userId = peerToUser(user->id);
 		auto it = mgInfo->lastAdmins.find(user);
-		if (newRights.c_chatAdminRights().vflags.v != 0) {
-			auto lastAdmin = MegagroupInfo::Admin { newRights };
+		if (newRights.c_chatAdminRights().vflags.v != 0)
+		{
+			auto lastAdmin = MegagroupInfo::Admin{newRights};
 			lastAdmin.canEdit = true;
-			if (it == mgInfo->lastAdmins.cend()) {
+			if (it == mgInfo->lastAdmins.cend())
+			{
 				mgInfo->lastAdmins.emplace(user, lastAdmin);
 				setAdminsCount(adminsCount() + 1);
-			} else {
+			}
+			else
+			{
 				it->second = lastAdmin;
 			}
 			Data::ChannelAdminChanges(this).feed(userId, true);
-		} else {
-			if (it != mgInfo->lastAdmins.cend()) {
+		}
+		else
+		{
+			if (it != mgInfo->lastAdmins.cend())
+			{
 				mgInfo->lastAdmins.erase(it);
-				if (adminsCount() > 0) {
+				if (adminsCount() > 0)
+				{
 					setAdminsCount(adminsCount() - 1);
 				}
 			}
 			Data::ChannelAdminChanges(this).feed(userId, false);
 		}
 	}
-	if (oldRights.c_chatAdminRights().vflags.v && !newRights.c_chatAdminRights().vflags.v) {
+	if (oldRights.c_chatAdminRights().vflags.v && !newRights.c_chatAdminRights().vflags.v)
+	{
 		// We removed an admin.
-		if (adminsCount() > 1) {
+		if (adminsCount() > 1)
+		{
 			setAdminsCount(adminsCount() - 1);
 		}
-		if (!isMegagroup() && user->botInfo && membersCount() > 1) {
+		if (!isMegagroup() && user->botInfo && membersCount() > 1)
+		{
 			// Removing bot admin removes it from channel.
 			setMembersCount(membersCount() - 1);
 		}
-	} else if (!oldRights.c_chatAdminRights().vflags.v && newRights.c_chatAdminRights().vflags.v) {
+	}
+	else if (!oldRights.c_chatAdminRights().vflags.v && newRights.c_chatAdminRights().vflags.v)
+	{
 		// We added an admin.
 		setAdminsCount(adminsCount() + 1);
 		updateFullForced();
@@ -215,50 +266,71 @@ void ChannelData::applyEditAdmin(
 		Notify::PeerUpdate::Flag::AdminsChanged);
 }
 
-void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights) {
+void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChatBannedRights& oldRights, const MTPChatBannedRights& newRights)
+{
 	auto flags = Notify::PeerUpdate::Flag::BannedUsersChanged | Notify::PeerUpdate::Flag::None;
 	auto isKicked = (newRights.c_chatBannedRights().vflags.v & MTPDchatBannedRights::Flag::f_view_messages);
 	auto isRestricted = !isKicked && (newRights.c_chatBannedRights().vflags.v != 0);
-	if (mgInfo) {
+	if (mgInfo)
+	{
 		// If rights are empty - still remove admin? TODO check
-		if (mgInfo->lastAdmins.contains(user)) {
+		if (mgInfo->lastAdmins.contains(user))
+		{
 			mgInfo->lastAdmins.remove(user);
-			if (adminsCount() > 1) {
+			if (adminsCount() > 1)
+			{
 				setAdminsCount(adminsCount() - 1);
-			} else {
+			}
+			else
+			{
 				flags |= Notify::PeerUpdate::Flag::AdminsChanged;
 			}
 		}
 		auto it = mgInfo->lastRestricted.find(user);
-		if (isRestricted) {
-			if (it == mgInfo->lastRestricted.cend()) {
-				mgInfo->lastRestricted.emplace(user, MegagroupInfo::Restricted { newRights });
+		if (isRestricted)
+		{
+			if (it == mgInfo->lastRestricted.cend())
+			{
+				mgInfo->lastRestricted.emplace(user, MegagroupInfo::Restricted{newRights});
 				setRestrictedCount(restrictedCount() + 1);
-			} else {
+			}
+			else
+			{
 				it->second.rights = newRights;
 			}
-		} else {
-			if (it != mgInfo->lastRestricted.cend()) {
+		}
+		else
+		{
+			if (it != mgInfo->lastRestricted.cend())
+			{
 				mgInfo->lastRestricted.erase(it);
-				if (restrictedCount() > 0) {
+				if (restrictedCount() > 0)
+				{
 					setRestrictedCount(restrictedCount() - 1);
 				}
 			}
-			if (isKicked) {
+			if (isKicked)
+			{
 				auto i = ranges::find(mgInfo->lastParticipants, user);
-				if (i != mgInfo->lastParticipants.end()) {
+				if (i != mgInfo->lastParticipants.end())
+				{
 					mgInfo->lastParticipants.erase(i);
 				}
-				if (membersCount() > 1) {
+				if (membersCount() > 1)
+				{
 					setMembersCount(membersCount() - 1);
-				} else {
+				}
+				else
+				{
 					mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
 					mgInfo->lastParticipantsCount = 0;
 				}
 				setKickedCount(kickedCount() + 1);
-				if (mgInfo->bots.contains(user)) {
+				if (mgInfo->bots.contains(user))
+				{
 					mgInfo->bots.remove(user);
-					if (mgInfo->bots.empty() && mgInfo->botStatus > 0) {
+					if (mgInfo->bots.empty() && mgInfo->botStatus > 0)
+					{
 						mgInfo->botStatus = -1;
 					}
 				}
@@ -267,9 +339,13 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChatBannedR
 			}
 		}
 		Data::ChannelAdminChanges(this).feed(peerToUser(user->id), false);
-	} else {
-		if (isKicked) {
-			if (membersCount() > 1) {
+	}
+	else
+	{
+		if (isKicked)
+		{
+			if (membersCount() > 1)
+			{
 				setMembersCount(membersCount() - 1);
 				flags |= Notify::PeerUpdate::Flag::MembersChanged;
 			}
@@ -279,30 +355,36 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChatBannedR
 	Notify::peerUpdatedDelayed(this, flags);
 }
 
-void ChannelData::markForbidden() {
+void ChannelData::markForbidden()
+{
 	owner().processChat(MTP_channelForbidden(
 		MTP_flags(isMegagroup()
-			? MTPDchannelForbidden::Flag::f_megagroup
-			: MTPDchannelForbidden::Flag::f_broadcast),
+			          ? MTPDchannelForbidden::Flag::f_megagroup
+			          : MTPDchannelForbidden::Flag::f_broadcast),
 		MTP_int(bareId()),
 		MTP_long(access),
 		MTP_string(name),
 		MTPint()));
 }
 
-bool ChannelData::isGroupAdmin(not_null<UserData*> user) const {
-	if (auto info = mgInfo.get()) {
+bool ChannelData::isGroupAdmin(not_null<UserData*> user) const
+{
+	if (auto info = mgInfo.get())
+	{
 		return info->admins.contains(peerToUser(user->id));
 	}
 	return false;
 }
 
-QString ChannelData::unavailableReason() const {
+QString ChannelData::unavailableReason() const
+{
 	return _unavailableReason;
 }
 
-void ChannelData::setUnavailableReason(const QString &text) {
-	if (_unavailableReason != text) {
+void ChannelData::setUnavailableReason(const QString& text)
+{
+	if (_unavailableReason != text)
+	{
 		_unavailableReason = text;
 		Notify::peerUpdatedDelayed(
 			this,
@@ -310,59 +392,72 @@ void ChannelData::setUnavailableReason(const QString &text) {
 	}
 }
 
-void ChannelData::setAvailableMinId(MsgId availableMinId) {
-	if (_availableMinId != availableMinId) {
+void ChannelData::setAvailableMinId(MsgId availableMinId)
+{
+	if (_availableMinId != availableMinId)
+	{
 		_availableMinId = availableMinId;
-		if (pinnedMessageId() <= _availableMinId) {
+		if (pinnedMessageId() <= _availableMinId)
+		{
 			clearPinnedMessage();
 		}
 	}
 }
 
-bool ChannelData::canBanMembers() const {
+bool ChannelData::canBanMembers() const
+{
 	return amCreator()
 		|| (adminRights() & AdminRight::f_ban_users);
 }
 
-bool ChannelData::canEditMessages() const {
+bool ChannelData::canEditMessages() const
+{
 	return amCreator()
 		|| (adminRights() & AdminRight::f_edit_messages);
 }
 
-bool ChannelData::canDeleteMessages() const {
+bool ChannelData::canDeleteMessages() const
+{
 	return amCreator()
 		|| (adminRights() & AdminRight::f_delete_messages);
 }
 
-bool ChannelData::anyoneCanAddMembers() const {
+bool ChannelData::anyoneCanAddMembers() const
+{
 	return !(defaultRestrictions() & Restriction::f_invite_users);
 }
 
-bool ChannelData::hiddenPreHistory() const {
+bool ChannelData::hiddenPreHistory() const
+{
 	return (fullFlags() & MTPDchannelFull::Flag::f_hidden_prehistory);
 }
 
-bool ChannelData::canAddMembers() const {
+bool ChannelData::canAddMembers() const
+{
 	return isMegagroup()
-		? !amRestricted(ChatRestriction::f_invite_users)
-		: ((adminRights() & AdminRight::f_invite_users) || amCreator());
+		       ? !amRestricted(ChatRestriction::f_invite_users)
+		       : ((adminRights() & AdminRight::f_invite_users) || amCreator());
 }
 
-bool ChannelData::canSendPolls() const {
+bool ChannelData::canSendPolls() const
+{
 	return canWrite() && !amRestricted(ChatRestriction::f_send_polls);
 }
 
-bool ChannelData::canAddAdmins() const {
+bool ChannelData::canAddAdmins() const
+{
 	return amCreator()
 		|| (adminRights() & AdminRight::f_add_admins);
 }
 
-bool ChannelData::canPublish() const {
+bool ChannelData::canPublish() const
+{
 	return amCreator()
 		|| (adminRights() & AdminRight::f_post_messages);
 }
 
-bool ChannelData::canWrite() const {
+bool ChannelData::canWrite() const
+{
 	// Duplicated in Data::CanWriteValue().
 	return amIn()
 		&& (canPublish()
@@ -370,60 +465,73 @@ bool ChannelData::canWrite() const {
 				&& !amRestricted(Restriction::f_send_messages)));
 }
 
-bool ChannelData::canViewMembers() const {
+bool ChannelData::canViewMembers() const
+{
 	return fullFlags()
 		& MTPDchannelFull::Flag::f_can_view_participants;
 }
 
-bool ChannelData::canViewAdmins() const {
+bool ChannelData::canViewAdmins() const
+{
 	return (isMegagroup() || hasAdminRights() || amCreator());
 }
 
-bool ChannelData::canViewBanned() const {
+bool ChannelData::canViewBanned() const
+{
 	return (hasAdminRights() || amCreator());
 }
 
-bool ChannelData::canEditInformation() const {
+bool ChannelData::canEditInformation() const
+{
 	return isMegagroup()
-		? !amRestricted(Restriction::f_change_info)
-		: ((adminRights() & AdminRight::f_change_info) || amCreator());
+		       ? !amRestricted(Restriction::f_change_info)
+		       : ((adminRights() & AdminRight::f_change_info) || amCreator());
 }
 
-bool ChannelData::canEditPermissions() const {
+bool ChannelData::canEditPermissions() const
+{
 	return isMegagroup()
 		&& ((adminRights() & AdminRight::f_ban_users) || amCreator());
 }
 
-bool ChannelData::canEditSignatures() const {
+bool ChannelData::canEditSignatures() const
+{
 	return isChannel() && canEditInformation();
 }
 
-bool ChannelData::canEditPreHistoryHidden() const {
+bool ChannelData::canEditPreHistoryHidden() const
+{
 	return isMegagroup()
 		&& ((adminRights() & AdminRight::f_ban_users) || amCreator())
 		&& (!isPublic() || canEditUsername());
 }
 
-bool ChannelData::canEditUsername() const {
+bool ChannelData::canEditUsername() const
+{
 	return amCreator()
 		&& (fullFlags() & MTPDchannelFull::Flag::f_can_set_username);
 }
 
-bool ChannelData::canEditStickers() const {
+bool ChannelData::canEditStickers() const
+{
 	return (fullFlags() & MTPDchannelFull::Flag::f_can_set_stickers);
 }
 
-bool ChannelData::canDelete() const {
+bool ChannelData::canDelete() const
+{
 	constexpr auto kDeleteChannelMembersLimit = 1000;
 	return amCreator()
 		&& (membersCount() <= kDeleteChannelMembersLimit);
 }
 
-bool ChannelData::canEditLastAdmin(not_null<UserData*> user) const {
+bool ChannelData::canEditLastAdmin(not_null<UserData*> user) const
+{
 	// Duplicated in ParticipantsBoxController::canEditAdmin :(
-	if (mgInfo) {
+	if (mgInfo)
+	{
 		auto i = mgInfo->lastAdmins.find(user);
-		if (i != mgInfo->lastAdmins.cend()) {
+		if (i != mgInfo->lastAdmins.cend())
+		{
 			return i->second.canEdit;
 		}
 		return (user != mgInfo->creator);
@@ -431,45 +539,64 @@ bool ChannelData::canEditLastAdmin(not_null<UserData*> user) const {
 	return false;
 }
 
-bool ChannelData::canEditAdmin(not_null<UserData*> user) const {
+bool ChannelData::canEditAdmin(not_null<UserData*> user) const
+{
 	// Duplicated in ParticipantsBoxController::canEditAdmin :(
-	if (user->isSelf()) {
+	if (user->isSelf())
+	{
 		return false;
-	} else if (amCreator()) {
+	}
+	else if (amCreator())
+	{
 		return true;
-	} else if (!canEditLastAdmin(user)) {
+	}
+	else if (!canEditLastAdmin(user))
+	{
 		return false;
 	}
 	return adminRights() & AdminRight::f_add_admins;
 }
 
-bool ChannelData::canRestrictUser(not_null<UserData*> user) const {
+bool ChannelData::canRestrictUser(not_null<UserData*> user) const
+{
 	// Duplicated in ParticipantsBoxController::canRestrictUser :(
-	if (user->isSelf()) {
+	if (user->isSelf())
+	{
 		return false;
-	} else if (amCreator()) {
+	}
+	else if (amCreator())
+	{
 		return true;
-	} else if (!canEditLastAdmin(user)) {
+	}
+	else if (!canEditLastAdmin(user))
+	{
 		return false;
 	}
 	return adminRights() & AdminRight::f_ban_users;
 }
 
-void ChannelData::setAdminRights(const MTPChatAdminRights &rights) {
-	if (rights.c_chatAdminRights().vflags.v == adminRights()) {
+void ChannelData::setAdminRights(const MTPChatAdminRights& rights)
+{
+	if (rights.c_chatAdminRights().vflags.v == adminRights())
+	{
 		return;
 	}
 	_adminRights.set(rights.c_chatAdminRights().vflags.v);
-	if (isMegagroup()) {
+	if (isMegagroup())
+	{
 		const auto self = session().user();
-		if (hasAdminRights()) {
-			if (!amCreator()) {
-				auto me = MegagroupInfo::Admin { rights };
+		if (hasAdminRights())
+		{
+			if (!amCreator())
+			{
+				auto me = MegagroupInfo::Admin{rights};
 				me.canEdit = false;
 				mgInfo->lastAdmins.emplace(self, me);
 			}
 			mgInfo->lastRestricted.remove(self);
-		} else {
+		}
+		else
+		{
 			mgInfo->lastAdmins.remove(self);
 		}
 
@@ -479,41 +606,54 @@ void ChannelData::setAdminRights(const MTPChatAdminRights &rights) {
 	Notify::peerUpdatedDelayed(this, UpdateFlag::RightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BannedUsersChanged);
 }
 
-void ChannelData::setRestrictions(const MTPChatBannedRights &rights) {
+void ChannelData::setRestrictions(const MTPChatBannedRights& rights)
+{
 	if (rights.c_chatBannedRights().vflags.v == restrictions()
-		&& rights.c_chatBannedRights().vuntil_date.v == _restrictedUntil) {
+		&& rights.c_chatBannedRights().vuntil_date.v == _restrictedUntil)
+	{
 		return;
 	}
 	_restrictedUntil = rights.c_chatBannedRights().vuntil_date.v;
 	_restrictions.set(rights.c_chatBannedRights().vflags.v);
-	if (isMegagroup()) {
+	if (isMegagroup())
+	{
 		const auto self = session().user();
-		if (hasRestrictions()) {
-			if (!amCreator()) {
-				auto me = MegagroupInfo::Restricted { rights };
+		if (hasRestrictions())
+		{
+			if (!amCreator())
+			{
+				auto me = MegagroupInfo::Restricted{rights};
 				mgInfo->lastRestricted.emplace(self, me);
 			}
 			mgInfo->lastAdmins.remove(self);
 			Data::ChannelAdminChanges(this).feed(session().userId(), false);
-		} else {
+		}
+		else
+		{
 			mgInfo->lastRestricted.remove(self);
 		}
 	}
 	Notify::peerUpdatedDelayed(this, UpdateFlag::RightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BannedUsersChanged);
 }
 
-void ChannelData::setDefaultRestrictions(const MTPChatBannedRights &rights) {
-	if (rights.c_chatBannedRights().vflags.v == defaultRestrictions()) {
+void ChannelData::setDefaultRestrictions(const MTPChatBannedRights& rights)
+{
+	if (rights.c_chatBannedRights().vflags.v == defaultRestrictions())
+	{
 		return;
 	}
 	_defaultRestrictions.set(rights.c_chatBannedRights().vflags.v);
 	Notify::peerUpdatedDelayed(this, UpdateFlag::RightsChanged);
 }
 
-auto ChannelData::applyUpdateVersion(int version) -> UpdateStatus {
-	if (_version > version) {
+auto ChannelData::applyUpdateVersion(int version) -> UpdateStatus
+{
+	if (_version > version)
+	{
 		return UpdateStatus::TooOld;
-	} else if (_version + 1 < version) {
+	}
+	else if (_version + 1 < version)
+	{
 		session().api().requestPeer(this);
 		return UpdateStatus::Skipped;
 	}
@@ -521,155 +661,182 @@ auto ChannelData::applyUpdateVersion(int version) -> UpdateStatus {
 	return UpdateStatus::Good;
 }
 
-ChatData *ChannelData::getMigrateFromChat() const {
-	if (const auto info = mgInfo.get()) {
+ChatData* ChannelData::getMigrateFromChat() const
+{
+	if (const auto info = mgInfo.get())
+	{
 		return info->getMigrateFromChat();
 	}
 	return nullptr;
 }
 
-void ChannelData::setMigrateFromChat(ChatData *chat) {
+void ChannelData::setMigrateFromChat(ChatData* chat)
+{
 	Expects(mgInfo != nullptr);
 
 	const auto info = mgInfo.get();
-	if (chat != info->getMigrateFromChat()) {
+	if (chat != info->getMigrateFromChat())
+	{
 		info->setMigrateFromChat(chat);
-		if (amIn()) {
+		if (amIn())
+		{
 			Notify::peerUpdatedDelayed(this, UpdateFlag::MigrationChanged);
 		}
 	}
 }
 
-namespace Data {
-
-void ApplyMigration(
+namespace Data
+{
+	void ApplyMigration(
 		not_null<ChatData*> chat,
-		not_null<ChannelData*> channel) {
-	Expects(channel->isMegagroup());
+		not_null<ChannelData*> channel)
+	{
+		Expects(channel->isMegagroup());
 
-	chat->setMigrateToChannel(channel);
-	channel->setMigrateFromChat(chat);
-}
-
-void ApplyChannelUpdate(
-		not_null<ChannelData*> channel,
-		const MTPDupdateChatDefaultBannedRights &update) {
-	if (channel->applyUpdateVersion(update.vversion.v)
-		!= ChannelData::UpdateStatus::Good) {
-		return;
+		chat->setMigrateToChannel(channel);
+		channel->setMigrateFromChat(chat);
 	}
-	channel->setDefaultRestrictions(update.vdefault_banned_rights);
-}
 
-void ApplyChannelUpdate(
+	void ApplyChannelUpdate(
 		not_null<ChannelData*> channel,
-		const MTPDchannelFull &update) {
-	channel->setAvailableMinId(update.vavailable_min_id.v);
-	auto canViewAdmins = channel->canViewAdmins();
-	auto canViewMembers = channel->canViewMembers();
-	auto canEditStickers = channel->canEditStickers();
-
-	channel->setFullFlags(update.vflags.v);
-	channel->setUserpicPhoto(update.vchat_photo);
-	if (update.has_migrated_from_chat_id()) {
-		channel->addFlags(MTPDchannel::Flag::f_megagroup);
-		const auto chat = channel->owner().chat(
-			update.vmigrated_from_chat_id.v);
-		Data::ApplyMigration(chat, channel);
+		const MTPDupdateChatDefaultBannedRights& update)
+	{
+		if (channel->applyUpdateVersion(update.vversion.v)
+			!= ChannelData::UpdateStatus::Good)
+		{
+			return;
+		}
+		channel->setDefaultRestrictions(update.vdefault_banned_rights);
 	}
-	for (const auto &item : update.vbot_info.v) {
-		auto &owner = channel->owner();
-		item.match([&](const MTPDbotInfo &info) {
-			if (const auto user = owner.userLoaded(info.vuser_id.v)) {
-				user->setBotInfo(item);
-				channel->session().api().fullPeerUpdated().notify(user);
+
+	void ApplyChannelUpdate(
+		not_null<ChannelData*> channel,
+		const MTPDchannelFull& update)
+	{
+		channel->setAvailableMinId(update.vavailable_min_id.v);
+		auto canViewAdmins = channel->canViewAdmins();
+		auto canViewMembers = channel->canViewMembers();
+		auto canEditStickers = channel->canEditStickers();
+
+		channel->setFullFlags(update.vflags.v);
+		channel->setUserpicPhoto(update.vchat_photo);
+		if (update.has_migrated_from_chat_id())
+		{
+			channel->addFlags(MTPDchannel::Flag::f_megagroup);
+			const auto chat = channel->owner().chat(
+				update.vmigrated_from_chat_id.v);
+			Data::ApplyMigration(chat, channel);
+		}
+		for (const auto& item : update.vbot_info.v)
+		{
+			auto& owner = channel->owner();
+			item.match([&](const MTPDbotInfo& info)
+			{
+				if (const auto user = owner.userLoaded(info.vuser_id.v))
+				{
+					user->setBotInfo(item);
+					channel->session().api().fullPeerUpdated().notify(user);
+				}
+			});
+		}
+		channel->setAbout(qs(update.vabout));
+		channel->setMembersCount(update.has_participants_count()
+			                         ? update.vparticipants_count.v
+			                         : 0);
+		channel->setAdminsCount(update.has_admins_count()
+			                        ? update.vadmins_count.v
+			                        : 0);
+		channel->setRestrictedCount(update.has_banned_count()
+			                            ? update.vbanned_count.v
+			                            : 0);
+		channel->setKickedCount(update.has_kicked_count()
+			                        ? update.vkicked_count.v
+			                        : 0);
+		channel->setInviteLink(update.vexported_invite.match([&](
+		                                                     const MTPDchatInviteExported& data)
+		                                                     {
+			                                                     return qs(data.vlink);
+		                                                     }, [&](const MTPDchatInviteEmpty&)
+		                                                     {
+			                                                     return QString();
+		                                                     }));
+		channel->setLinkedChat(update.has_linked_chat_id()
+			                       ? channel->owner().channelLoaded(update.vlinked_chat_id.v)
+			                       : nullptr);
+		if (const auto history = channel->owner().historyLoaded(channel))
+		{
+			history->clearUpTill(update.vavailable_min_id.v);
+
+			const auto folderId = update.has_folder_id()
+				                      ? update.vfolder_id.v
+				                      : 0;
+			const auto folder = folderId
+				                    ? channel->owner().folderLoaded(folderId)
+				                    : nullptr;
+			if (folder && history->folder() != folder)
+			{
+				// If history folder is unknown or not synced, request both.
+				channel->session().api().requestDialogEntry(history);
+				channel->session().api().requestDialogEntry(folder);
 			}
-		});
-	}
-	channel->setAbout(qs(update.vabout));
-	channel->setMembersCount(update.has_participants_count()
-		? update.vparticipants_count.v
-		: 0);
-	channel->setAdminsCount(update.has_admins_count()
-		? update.vadmins_count.v
-		: 0);
-	channel->setRestrictedCount(update.has_banned_count()
-		? update.vbanned_count.v
-		: 0);
-	channel->setKickedCount(update.has_kicked_count()
-		? update.vkicked_count.v
-		: 0);
-	channel->setInviteLink(update.vexported_invite.match([&](
-		const MTPDchatInviteExported & data) {
-		return qs(data.vlink);
-	}, [&](const MTPDchatInviteEmpty &) {
-		return QString();
-	}));
-	channel->setLinkedChat(update.has_linked_chat_id()
-		? channel->owner().channelLoaded(update.vlinked_chat_id.v)
-		: nullptr);
-	if (const auto history = channel->owner().historyLoaded(channel)) {
-		history->clearUpTill(update.vavailable_min_id.v);
+			else if (!history->folderKnown()
+				|| channel->pts() != update.vpts.v)
+			{
+				channel->session().api().requestDialogEntry(history);
+			}
+			else
+			{
+				history->applyDialogFields(
+					history->folder(),
+					update.vunread_count.v,
+					update.vread_inbox_max_id.v,
+					update.vread_outbox_max_id.v);
+			}
+		}
+		if (update.has_pinned_msg_id())
+		{
+			channel->setPinnedMessageId(update.vpinned_msg_id.v);
+		}
+		else
+		{
+			channel->clearPinnedMessage();
+		}
+		if (channel->isMegagroup())
+		{
+			const auto stickerSet = update.has_stickerset()
+				                        ? &update.vstickerset.c_stickerSet()
+				                        : nullptr;
+			const auto newSetId = (stickerSet ? stickerSet->vid.v : 0);
+			const auto oldSetId = (channel->mgInfo->stickerSet.type() == mtpc_inputStickerSetID)
+				                      ? channel->mgInfo->stickerSet.c_inputStickerSetID().vid.v
+				                      : 0;
+			const auto stickersChanged = (canEditStickers != channel->canEditStickers())
+				|| (oldSetId != newSetId);
+			if (oldSetId != newSetId)
+			{
+				channel->mgInfo->stickerSet = stickerSet
+					                              ? MTP_inputStickerSetID(stickerSet->vid, stickerSet->vaccess_hash)
+					                              : MTP_inputStickerSetEmpty();
+			}
+			if (stickersChanged)
+			{
+				Notify::peerUpdatedDelayed(
+					channel,
+					Notify::PeerUpdate::Flag::ChannelStickersChanged);
+			}
+		}
+		channel->fullUpdated();
 
-		const auto folderId = update.has_folder_id()
-			? update.vfolder_id.v
-			: 0;
-		const auto folder = folderId
-			? channel->owner().folderLoaded(folderId)
-			: nullptr;
-		if (folder && history->folder() != folder) {
-			// If history folder is unknown or not synced, request both.
-			channel->session().api().requestDialogEntry(history);
-			channel->session().api().requestDialogEntry(folder);
-		} else if (!history->folderKnown()
-			|| channel->pts() != update.vpts.v) {
-			channel->session().api().requestDialogEntry(history);
-		} else {
-			history->applyDialogFields(
-				history->folder(),
-				update.vunread_count.v,
-				update.vread_inbox_max_id.v,
-				update.vread_outbox_max_id.v);
-		}
-	}
-	if (update.has_pinned_msg_id()) {
-		channel->setPinnedMessageId(update.vpinned_msg_id.v);
-	} else {
-		channel->clearPinnedMessage();
-	}
-	if (channel->isMegagroup()) {
-		const auto stickerSet = update.has_stickerset()
-			? &update.vstickerset.c_stickerSet()
-			: nullptr;
-		const auto newSetId = (stickerSet ? stickerSet->vid.v : 0);
-		const auto oldSetId = (channel->mgInfo->stickerSet.type() == mtpc_inputStickerSetID)
-			? channel->mgInfo->stickerSet.c_inputStickerSetID().vid.v
-			: 0;
-		const auto stickersChanged = (canEditStickers != channel->canEditStickers())
-			|| (oldSetId != newSetId);
-		if (oldSetId != newSetId) {
-			channel->mgInfo->stickerSet = stickerSet
-				? MTP_inputStickerSetID(stickerSet->vid, stickerSet->vaccess_hash)
-				: MTP_inputStickerSetEmpty();
-		}
-		if (stickersChanged) {
+		if (canViewAdmins != channel->canViewAdmins()
+			|| canViewMembers != channel->canViewMembers())
+		{
 			Notify::peerUpdatedDelayed(
 				channel,
-				Notify::PeerUpdate::Flag::ChannelStickersChanged);
+				Notify::PeerUpdate::Flag::RightsChanged);
 		}
+
+		channel->session().api().applyNotifySettings(
+			MTP_inputNotifyPeer(channel->input),
+			update.vnotify_settings);
 	}
-	channel->fullUpdated();
-
-	if (canViewAdmins != channel->canViewAdmins()
-		|| canViewMembers != channel->canViewMembers()) {
-		Notify::peerUpdatedDelayed(
-			channel,
-			Notify::PeerUpdate::Flag::RightsChanged);
-	}
-
-	channel->session().api().applyNotifySettings(
-		MTP_inputNotifyPeer(channel->input),
-		update.vnotify_settings);
-}
-
 } // namespace Data

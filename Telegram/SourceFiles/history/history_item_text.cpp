@@ -17,8 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 
 TextForMimeData WrapAsReply(
-		TextForMimeData &&text,
-		not_null<HistoryItem*> to) {
+	TextForMimeData&& text,
+	not_null<HistoryItem*> to)
+{
 	const auto name = to->author()->name;
 	auto result = TextForMimeData();
 	result.reserve(
@@ -35,8 +36,9 @@ TextForMimeData WrapAsReply(
 }
 
 TextForMimeData WrapAsForwarded(
-		TextForMimeData &&text,
-		not_null<HistoryMessageForwarded*> forwarded) {
+	TextForMimeData&& text,
+	not_null<HistoryMessageForwarded*> forwarded)
+{
 	auto info = forwarded->text.toTextForMimeData();
 	auto result = TextForMimeData();
 	result.reserve(
@@ -49,80 +51,100 @@ TextForMimeData WrapAsForwarded(
 }
 
 TextForMimeData WrapAsItem(
-		not_null<HistoryItem*> item,
-		TextForMimeData &&result) {
-	if (const auto reply = item->Get<HistoryMessageReply>()) {
-		if (const auto message = reply->replyToMsg) {
+	not_null<HistoryItem*> item,
+	TextForMimeData&& result)
+{
+	if (const auto reply = item->Get<HistoryMessageReply>())
+	{
+		if (const auto message = reply->replyToMsg)
+		{
 			result = WrapAsReply(std::move(result), message);
 		}
 	}
-	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+	if (const auto forwarded = item->Get<HistoryMessageForwarded>())
+	{
 		result = WrapAsForwarded(std::move(result), forwarded);
 	}
 	return std::move(result);
 }
 
-TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
+TextForMimeData HistoryItemText(not_null<HistoryItem*> item)
+{
 	const auto media = item->media();
 
 	auto mediaResult = media ? media->clipboardText() : TextForMimeData();
 	auto textResult = mediaResult.empty()
-		? item->clipboardText()
-		: TextForMimeData();
-	auto logEntryOriginalResult = [&] {
+		                  ? item->clipboardText()
+		                  : TextForMimeData();
+	auto logEntryOriginalResult = [&]
+	{
 		const auto entry = item->Get<HistoryMessageLogEntryOriginal>();
-		if (!entry) {
+		if (!entry)
+		{
 			return TextForMimeData();
 		}
 		const auto title = TextUtilities::SingleLine(entry->page->title.isEmpty()
-			? entry->page->author
-			: entry->page->title);
+			                                             ? entry->page->author
+			                                             : entry->page->title);
 		auto titleResult = TextForMimeData::Rich(
 			TextUtilities::ParseEntities(
 				title,
 				Ui::WebpageTextTitleOptions().flags));
 		auto descriptionResult = TextForMimeData::Rich(
 			base::duplicate(entry->page->description));
-		if (titleResult.empty()) {
+		if (titleResult.empty())
+		{
 			return descriptionResult;
-		} else if (descriptionResult.empty()) {
+		}
+		else if (descriptionResult.empty())
+		{
 			return titleResult;
 		}
 		titleResult.append('\n').append(std::move(descriptionResult));
 		return titleResult;
 	}();
 	auto result = textResult;
-	if (result.empty()) {
+	if (result.empty())
+	{
 		result = std::move(mediaResult);
-	} else if (!mediaResult.empty()) {
+	}
+	else if (!mediaResult.empty())
+	{
 		result.append(qstr("\n\n")).append(std::move(mediaResult));
 	}
-	if (result.empty()) {
+	if (result.empty())
+	{
 		result = std::move(logEntryOriginalResult);
-	} else if (!logEntryOriginalResult.empty()) {
+	}
+	else if (!logEntryOriginalResult.empty())
+	{
 		result.append(qstr("\n\n")).append(std::move(logEntryOriginalResult));
 	}
 	return WrapAsItem(item, std::move(result));
 }
 
-TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
+TextForMimeData HistoryGroupText(not_null<const Data::Group*> group)
+{
 	Expects(!group->items.empty());
 
-	auto caption = [&] {
-		auto &&nonempty = ranges::view::all(
+	auto caption = [&]
+	{
+		auto&& nonempty = ranges::view::all(
 			group->items
-		) | ranges::view::filter([](not_null<HistoryItem*> item) {
+		) | ranges::view::filter([](not_null<HistoryItem*> item)
+		{
 			return !item->clipboardText().empty();
 		}) | ranges::view::take(2);
 		auto first = nonempty.begin();
 		auto end = nonempty.end();
-		if (first == end) {
+		if (first == end)
+		{
 			return TextForMimeData();
 		}
 		auto result = (*first)->clipboardText();
 		return (++first == end) ? result : TextForMimeData();
 	}();
 	return WrapAsItem(group->items.back(), Data::WithCaptionClipboardText(
-		lang(lng_in_dlg_album),
-		std::move(caption)));
+		                  lang(lng_in_dlg_album),
+		                  std::move(caption)));
 }

@@ -14,111 +14,155 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_history.h"
 
-namespace Window {
+namespace Window
+{
+	HistoryHider::HistoryHider(
+		QWidget* parent,
+		const QString& text,
+		Fn<bool(PeerId)> confirm):
+		RpWidget(parent)
+		, _text(text)
+		, _confirm(std::move(confirm))
+	{
+		subscribe(Lang::Current().updated(), [=]
+		{
+			refreshLang();
+		});
+		subscribe(Global::RefPeerChooseCancel(), [=]
+		{
+			startHide();
+		});
 
-HistoryHider::HistoryHider(
-	QWidget *parent,
-	const QString &text,
-	Fn<bool(PeerId)> confirm)
-: RpWidget(parent)
-, _text(text)
-, _confirm(std::move(confirm)) {
-	subscribe(Lang::Current().updated(), [=] { refreshLang(); });
-	subscribe(Global::RefPeerChooseCancel(), [=] { startHide(); });
+		_chooseWidth = st::historyForwardChooseFont->width(_text);
 
-	_chooseWidth = st::historyForwardChooseFont->width(_text);
+		resizeEvent(0);
+		_a_opacity.start([this]
+		{
+			update();
+		}, 0., 1., st::boxDuration);
+	}
 
-	resizeEvent(0);
-	_a_opacity.start([this] { update(); }, 0., 1., st::boxDuration);
-}
+	void HistoryHider::refreshLang()
+	{
+		InvokeQueued(this, [this]
+		{
+			updateControlsGeometry();
+		});
+	}
 
-void HistoryHider::refreshLang() {
-	InvokeQueued(this, [this] { updateControlsGeometry(); });
-}
-
-void HistoryHider::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	auto opacity = _a_opacity.value(_hiding ? 0. : 1.);
-	if (opacity == 0.) {
-		if (_hiding) {
-			_hidden.fire({});
+	void HistoryHider::paintEvent(QPaintEvent* e)
+	{
+		Painter p(this);
+		auto opacity = _a_opacity.value(_hiding ? 0. : 1.);
+		if (opacity == 0.)
+		{
+			if (_hiding)
+			{
+				_hidden.fire({});
+			}
+			return;
 		}
-		return;
+
+		p.setOpacity(opacity);
+		p.fillRect(rect(), st::layerBg);
+		p.setFont(st::historyForwardChooseFont);
+		auto w = st::historyForwardChooseMargins.left() + _chooseWidth + st::historyForwardChooseMargins.right();
+		auto h = st::historyForwardChooseMargins.top() + st::historyForwardChooseFont->height + st::historyForwardChooseMargins.bottom();
+		App::roundRect(p, (width() - w) / 2, (height() - h) / 2, w, h, st::historyForwardChooseBg, ForwardCorners);
+
+		p.setPen(st::historyForwardChooseFg);
+		p.drawText(_box, _text, QTextOption(style::al_center));
 	}
 
-	p.setOpacity(opacity);
-	p.fillRect(rect(), st::layerBg);
-	p.setFont(st::historyForwardChooseFont);
-	auto w = st::historyForwardChooseMargins.left() + _chooseWidth + st::historyForwardChooseMargins.right();
-	auto h = st::historyForwardChooseMargins.top() + st::historyForwardChooseFont->height + st::historyForwardChooseMargins.bottom();
-	App::roundRect(p, (width() - w) / 2, (height() - h) / 2, w, h, st::historyForwardChooseBg, ForwardCorners);
-
-	p.setPen(st::historyForwardChooseFg);
-	p.drawText(_box, _text, QTextOption(style::al_center));
-}
-
-void HistoryHider::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Escape) {
-		startHide();
-	}
-}
-
-void HistoryHider::mousePressEvent(QMouseEvent *e) {
-	if (e->button() == Qt::LeftButton) {
-		if (!_box.contains(e->pos())) {
+	void HistoryHider::keyPressEvent(QKeyEvent* e)
+	{
+		if (e->key() == Qt::Key_Escape)
+		{
 			startHide();
 		}
 	}
-}
 
-void HistoryHider::startHide() {
-	if (_hiding) return;
-
-	_hiding = true;
-	if (Adaptive::OneColumn()) {
-		crl::on_main(this, [=] { _hidden.fire({}); });
-	} else {
-		_a_opacity.start([=] { animationCallback(); }, 1., 0., st::boxDuration);
+	void HistoryHider::mousePressEvent(QMouseEvent* e)
+	{
+		if (e->button() == Qt::LeftButton)
+		{
+			if (!_box.contains(e->pos()))
+			{
+				startHide();
+			}
+		}
 	}
-}
 
-void HistoryHider::animationCallback() {
-	update();
-	if (!_a_opacity.animating() && _hiding) {
-		crl::on_main(this, [=] { _hidden.fire({}); });
+	void HistoryHider::startHide()
+	{
+		if (_hiding) return;
+
+		_hiding = true;
+		if (Adaptive::OneColumn())
+		{
+			crl::on_main(this, [=]
+			{
+				_hidden.fire({});
+			});
+		}
+		else
+		{
+			_a_opacity.start([=]
+			{
+				animationCallback();
+			}, 1., 0., st::boxDuration);
+		}
 	}
-}
 
-void HistoryHider::confirm() {
-	_confirmed.fire({});
-}
-
-rpl::producer<> HistoryHider::confirmed() const {
-	return _confirmed.events();
-}
-
-rpl::producer<> HistoryHider::hidden() const {
-	return _hidden.events();
-}
-
-void HistoryHider::resizeEvent(QResizeEvent *e) {
-	updateControlsGeometry();
-}
-
-void HistoryHider::updateControlsGeometry() {
-	auto w = st::boxWidth;
-	auto h = st::boxPadding.top() + st::boxPadding.bottom();
-	h += st::historyForwardChooseFont->height;
-	_box = QRect((width() - w) / 2, (height() - h) / 2, w, h);
-}
-
-void HistoryHider::offerPeer(PeerId peer) {
-	if (_confirm(peer)) {
-		startHide();
+	void HistoryHider::animationCallback()
+	{
+		update();
+		if (!_a_opacity.animating() && _hiding)
+		{
+			crl::on_main(this, [=]
+			{
+				_hidden.fire({});
+			});
+		}
 	}
-}
 
-HistoryHider::~HistoryHider() {
-}
+	void HistoryHider::confirm()
+	{
+		_confirmed.fire({});
+	}
 
+	rpl::producer<> HistoryHider::confirmed() const
+	{
+		return _confirmed.events();
+	}
+
+	rpl::producer<> HistoryHider::hidden() const
+	{
+		return _hidden.events();
+	}
+
+	void HistoryHider::resizeEvent(QResizeEvent* e)
+	{
+		updateControlsGeometry();
+	}
+
+	void HistoryHider::updateControlsGeometry()
+	{
+		auto w = st::boxWidth;
+		auto h = st::boxPadding.top() + st::boxPadding.bottom();
+		h += st::historyForwardChooseFont->height;
+		_box = QRect((width() - w) / 2, (height() - h) / 2, w, h);
+	}
+
+	void HistoryHider::offerPeer(PeerId peer)
+	{
+		if (_confirm(peer))
+		{
+			startHide();
+		}
+	}
+
+	HistoryHider::~HistoryHider()
+	{
+	}
 } // namespace Window

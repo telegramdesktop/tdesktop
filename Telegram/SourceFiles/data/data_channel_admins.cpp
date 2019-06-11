@@ -11,29 +11,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_session.h"
 
-namespace Data {
-
-ChannelAdminChanges::ChannelAdminChanges(not_null<ChannelData*> channel)
-: _channel(channel)
-, _admins(_channel->mgInfo->admins) {
-}
-
-void ChannelAdminChanges::feed(UserId userId, bool isAdmin) {
-	if (isAdmin && !_admins.contains(userId)) {
-		_admins.insert(userId);
-		_changes.emplace(userId, true);
-	} else if (!isAdmin && _admins.contains(userId)) {
-		_admins.remove(userId);
-		_changes.emplace(userId, false);
+namespace Data
+{
+	ChannelAdminChanges::ChannelAdminChanges(not_null<ChannelData*> channel):
+		_channel(channel)
+		, _admins(_channel->mgInfo->admins)
+	{
 	}
-}
 
-ChannelAdminChanges::~ChannelAdminChanges() {
-	if (!_changes.empty()) {
-		if (const auto history = _channel->owner().historyLoaded(_channel)) {
-			history->applyGroupAdminChanges(_changes);
+	void ChannelAdminChanges::feed(UserId userId, bool isAdmin)
+	{
+		if (isAdmin && !_admins.contains(userId))
+		{
+			_admins.insert(userId);
+			_changes.emplace(userId, true);
+		}
+		else if (!isAdmin && _admins.contains(userId))
+		{
+			_admins.remove(userId);
+			_changes.emplace(userId, false);
 		}
 	}
-}
 
+	ChannelAdminChanges::~ChannelAdminChanges()
+	{
+		if (!_changes.empty())
+		{
+			if (const auto history = _channel->owner().historyLoaded(_channel))
+			{
+				history->applyGroupAdminChanges(_changes);
+			}
+		}
+	}
 } // namespace Data

@@ -16,44 +16,63 @@ constexpr str_const AppName = "Telegram Desktop";
 constexpr str_const AppId = "{53F49750-6209-4FBF-9CA8-7A333C87D1ED}"; // used in updater.cpp and Setup.iss for Windows
 constexpr str_const AppFile = "Telegram";
 
-enum {
+enum
+{
 	MaxSelectedItems = 100,
 
-	MaxPhoneCodeLength = 4, // max length of country phone code
-	MaxPhoneTailLength = 32, // rest of the phone number, without country code (seen 12 at least), need more for service numbers
+	MaxPhoneCodeLength = 4,
+	// max length of country phone code
+	MaxPhoneTailLength = 32,
+	// rest of the phone number, without country code (seen 12 at least), need more for service numbers
 
-	MaxScrollSpeed = 37, // 37px per 15ms while select-by-drag
-	FingerAccuracyThreshold = 3, // touch flick ignore 3px
-	MaxScrollAccelerated = 4000, // 4000px per second
-	MaxScrollFlick = 2500, // 2500px per second
+	MaxScrollSpeed = 37,
+	// 37px per 15ms while select-by-drag
+	FingerAccuracyThreshold = 3,
+	// touch flick ignore 3px
+	MaxScrollAccelerated = 4000,
+	// 4000px per second
+	MaxScrollFlick = 2500,
+	// 2500px per second
 
-	LocalEncryptIterCount = 4000, // key derivation iteration count
-	LocalEncryptNoPwdIterCount = 4, // key derivation iteration count without pwd (not secure anyway)
-	LocalEncryptSaltSize = 32, // 256 bit
+	LocalEncryptIterCount = 4000,
+	// key derivation iteration count
+	LocalEncryptNoPwdIterCount = 4,
+	// key derivation iteration count without pwd (not secure anyway)
+	LocalEncryptSaltSize = 32,
+	// 256 bit
 
 	AnimationTimerDelta = 7,
 	ClipThreadsCount = 8,
 	AverageGifSize = 320 * 240,
-	WaitBeforeGifPause = 200, // wait 200ms for gif draw before pausing it
+	WaitBeforeGifPause = 200,
+	// wait 200ms for gif draw before pausing it
 	RecentInlineBotsLimit = 10,
 
-	AVBlockSize = 4096, // 4Kb for ffmpeg blocksize
+	AVBlockSize = 4096,
+	// 4Kb for ffmpeg blocksize
 
-	AutoSearchTimeout = 900, // 0.9 secs
+	AutoSearchTimeout = 900,
+	// 0.9 secs
 	SearchPerPage = 50,
 	SearchManyPerPage = 100,
 	LinksOverviewPerPage = 12,
 	MediaOverviewStartPerPage = 5,
 
-	AudioVoiceMsgMaxLength = 100 * 60, // 100 minutes
-	AudioVoiceMsgChannels = 2, // stereo
+	AudioVoiceMsgMaxLength = 100 * 60,
+	// 100 minutes
+	AudioVoiceMsgChannels = 2,
+	// stereo
 
-	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker
+	StickerMaxSize = 2048,
+	// 2048x2048 is a max image size for sticker
 
-	MaxZoomLevel = 7, // x8
-	ZoomToScreenLevel = 1024, // just constant
+	MaxZoomLevel = 7,
+	// x8
+	ZoomToScreenLevel = 1024,
+	// just constant
 
-	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
+	PreloadHeightsCount = 3,
+	// when 3 screens to scroll left make a preload request
 
 	SearchPeopleLimit = 5,
 	UsernameCheckTimeout = 200,
@@ -62,18 +81,22 @@ enum {
 
 	WebPageUserId = 701000,
 
-	UpdateDelayConstPart = 8 * 3600, // 8 hour min time between update check requests
-	UpdateDelayRandPart = 8 * 3600, // 8 hour max - min time between update check requests
+	UpdateDelayConstPart = 8 * 3600,
+	// 8 hour min time between update check requests
+	UpdateDelayRandPart = 8 * 3600,
+	// 8 hour max - min time between update check requests
 
 	WrongPasscodeTimeout = 1500,
 
-	ChoosePeerByDragTimeout = 1000, // 1 second mouse not moved to choose dialog when dragging a file
+	ChoosePeerByDragTimeout = 1000,
+	// 1 second mouse not moved to choose dialog when dragging a file
 };
 
 #ifdef Q_OS_WIN
-inline const GUID &cGUID() {
+inline const GUID& cGUID()
+{
 #ifndef OS_MAC_STORE
-	static const GUID gGuid = { 0x87a94ab0, 0xe370, 0x4cde, { 0x98, 0xd3, 0xac, 0xc1, 0x10, 0xc5, 0x96, 0x7d } };
+	static const GUID gGuid = {0x87a94ab0, 0xe370, 0x4cde, {0x98, 0xd3, 0xac, 0xc1, 0x10, 0xc5, 0x96, 0x7d}};
 #else // OS_MAC_STORE
 	static const GUID gGuid = { 0xe51fb841, 0x8c0b, 0x4ef9, { 0x9e, 0x9e, 0x5a, 0x0, 0x78, 0x56, 0x76, 0x27 } };
 #endif // OS_MAC_STORE
@@ -82,9 +105,10 @@ inline const GUID &cGUID() {
 }
 #endif
 
-inline const char *cGUIDStr() {
+inline const char* cGUIDStr()
+{
 #ifndef OS_MAC_STORE
-	static const char *gGuidStr = "{87A94AB0-E370-4cde-98D3-ACC110C5967D}";
+	static const char* gGuidStr = "{87A94AB0-E370-4cde-98D3-ACC110C5967D}";
 #else // OS_MAC_STORE
 	static const char *gGuidStr = "{E51FB841-8C0B-4EF9-9E9E-5A0078567627}";
 #endif // OS_MAC_STORE
@@ -92,57 +116,62 @@ inline const char *cGUIDStr() {
 	return gGuidStr;
 }
 
-struct BuiltInDc {
+struct BuiltInDc
+{
 	int id;
-	const char *ip;
+	const char* ip;
 	int port;
 };
 
 static const BuiltInDc _builtInDcs[] = {
-	{ 1, "149.154.175.50", 443 },
-	{ 2, "149.154.167.51", 443 },
-	{ 3, "149.154.175.100", 443 },
-	{ 4, "149.154.167.91", 443 },
-	{ 5, "149.154.171.5", 443 }
+	{1, "149.154.175.50", 443},
+	{2, "149.154.167.51", 443},
+	{3, "149.154.175.100", 443},
+	{4, "149.154.167.91", 443},
+	{5, "149.154.171.5", 443}
 };
 
 static const BuiltInDc _builtInDcsIPv6[] = {
-	{ 1, "2001:0b28:f23d:f001:0000:0000:0000:000a", 443 },
-	{ 2, "2001:067c:04e8:f002:0000:0000:0000:000a", 443 },
-	{ 3, "2001:0b28:f23d:f003:0000:0000:0000:000a", 443 },
-	{ 4, "2001:067c:04e8:f004:0000:0000:0000:000a", 443 },
-	{ 5, "2001:0b28:f23f:f005:0000:0000:0000:000a", 443 }
+	{1, "2001:0b28:f23d:f001:0000:0000:0000:000a", 443},
+	{2, "2001:067c:04e8:f002:0000:0000:0000:000a", 443},
+	{3, "2001:0b28:f23d:f003:0000:0000:0000:000a", 443},
+	{4, "2001:067c:04e8:f004:0000:0000:0000:000a", 443},
+	{5, "2001:0b28:f23f:f005:0000:0000:0000:000a", 443}
 };
 
 static const BuiltInDc _builtInTestDcs[] = {
-	{ 1, "149.154.175.10", 443 },
-	{ 2, "149.154.167.40", 443 },
-	{ 3, "149.154.175.117", 443 }
+	{1, "149.154.175.10", 443},
+	{2, "149.154.167.40", 443},
+	{3, "149.154.175.117", 443}
 };
 
 static const BuiltInDc _builtInTestDcsIPv6[] = {
-	{ 1, "2001:0b28:f23d:f001:0000:0000:0000:000e", 443 },
-	{ 2, "2001:067c:04e8:f002:0000:0000:0000:000e", 443 },
-	{ 3, "2001:0b28:f23d:f003:0000:0000:0000:000e", 443 }
+	{1, "2001:0b28:f23d:f001:0000:0000:0000:000e", 443},
+	{2, "2001:067c:04e8:f002:0000:0000:0000:000e", 443},
+	{3, "2001:0b28:f23d:f003:0000:0000:0000:000e", 443}
 };
 
-inline const BuiltInDc *builtInDcs() {
+inline const BuiltInDc* builtInDcs()
+{
 	return cTestMode() ? _builtInTestDcs : _builtInDcs;
 }
 
-inline int builtInDcsCount() {
+inline int builtInDcsCount()
+{
 	return (cTestMode() ? sizeof(_builtInTestDcs) : sizeof(_builtInDcs)) / sizeof(BuiltInDc);
 }
 
-inline const BuiltInDc *builtInDcsIPv6() {
+inline const BuiltInDc* builtInDcsIPv6()
+{
 	return cTestMode() ? _builtInTestDcsIPv6 : _builtInDcsIPv6;
 }
 
-inline int builtInDcsCountIPv6() {
+inline int builtInDcsCountIPv6()
+{
 	return (cTestMode() ? sizeof(_builtInTestDcsIPv6) : sizeof(_builtInDcsIPv6)) / sizeof(BuiltInDc);
 }
 
-static const char *UpdatesPublicKey = "\
+static const char* UpdatesPublicKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIGJAoGBAMA4ViQrjkPZ9xj0lrer3r23JvxOnrtE8nI69XLGSr+sRERz9YnUptnU\n\
 BZpkIfKaRcl6XzNJiN28cVwO1Ui5JSa814UAiDHzWUqCaXUiUEQ6NmNTneiGx2sQ\n\
@@ -150,7 +179,7 @@ BZpkIfKaRcl6XzNJiN28cVwO1Ui5JSa814UAiDHzWUqCaXUiUEQ6NmNTneiGx2sQ\n\
 -----END RSA PUBLIC KEY-----\
 ";
 
-static const char *UpdatesPublicBetaKey = "\
+static const char* UpdatesPublicBetaKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIGJAoGBALWu9GGs0HED7KG7BM73CFZ6o0xufKBRQsdnq3lwA8nFQEvmdu+g/I1j\n\
 0LQ+0IQO7GW4jAgzF/4+soPDb6uHQeNFrlVx1JS9DZGhhjZ5rf65yg11nTCIHZCG\n\
@@ -203,29 +232,35 @@ constexpr auto ApiHash = "344583e45741c457fe1862106095a5eb";
 #include "../../../TelegramPrivate/alpha_private.h"
 
 #else
-static const char *AlphaPrivateKey = "";
+static const char* AlphaPrivateKey = "";
 #endif
 
 extern QString gKeyFile;
-inline const QString &cDataFile() {
+
+inline const QString& cDataFile()
+{
 	if (!gKeyFile.isEmpty()) return gKeyFile;
 	static const QString res(qsl("data"));
 	return res;
 }
 
-inline const QString &cTempDir() {
+inline const QString& cTempDir()
+{
 	static const QString res = cWorkingDir() + qsl("tdata/tdld/");
 	return res;
 }
 
-inline const QRegularExpression &cRussianLetters() {
+inline const QRegularExpression& cRussianLetters()
+{
 	static QRegularExpression regexp(QString::fromUtf8("[а-яА-ЯёЁ]"));
 	return regexp;
 }
 
-inline const QStringList &cImgExtensions() {
+inline const QStringList& cImgExtensions()
+{
 	static QStringList result;
-	if (result.isEmpty()) {
+	if (result.isEmpty())
+	{
 		result.reserve(4);
 		result.push_back(qsl(".jpg"));
 		result.push_back(qsl(".jpeg"));
@@ -235,9 +270,11 @@ inline const QStringList &cImgExtensions() {
 	return result;
 }
 
-inline const QStringList &cExtensionsForCompress() {
+inline const QStringList& cExtensionsForCompress()
+{
 	static QStringList result;
-	if (result.isEmpty()) {
+	if (result.isEmpty())
+	{
 		result.push_back(qsl(".jpg"));
 		result.push_back(qsl(".jpeg"));
 		result.push_back(qsl(".png"));

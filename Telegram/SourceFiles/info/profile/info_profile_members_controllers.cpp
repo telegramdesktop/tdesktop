@@ -24,83 +24,93 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "data/data_peer_values.h"
 
-namespace Info {
-namespace Profile {
+namespace Info
+{
+	namespace Profile
+	{
+		MemberListRow::MemberListRow(
+			not_null<UserData*> user,
+			Type type):
+			PeerListRow(user)
+			, _type(type)
+		{
+		}
 
-MemberListRow::MemberListRow(
-	not_null<UserData*> user,
-	Type type)
-: PeerListRow(user)
-, _type(type) {
-}
+		void MemberListRow::setType(Type type)
+		{
+			_type = type;
+		}
 
-void MemberListRow::setType(Type type) {
-	_type = type;
-}
+		QSize MemberListRow::actionSize() const
+		{
+			return canRemove()
+				       ? QRect(
+					       QPoint(),
+					       st::infoMembersRemoveIcon.size()).marginsAdded(
+					       st::infoMembersRemoveIconMargins).size()
+				       : QSize();
+		}
 
-QSize MemberListRow::actionSize() const {
-	return canRemove()
-		? QRect(
-			QPoint(),
-			st::infoMembersRemoveIcon.size()).marginsAdded(
-				st::infoMembersRemoveIconMargins).size()
-		: QSize();
-}
+		void MemberListRow::paintAction(
+			Painter& p,
+			int x,
+			int y,
+			int outerWidth,
+			bool selected,
+			bool actionSelected)
+		{
+			if (_type.canRemove && selected)
+			{
+				x += st::infoMembersRemoveIconMargins.left();
+				y += st::infoMembersRemoveIconMargins.top();
+				(actionSelected
+					 ? st::infoMembersRemoveIconOver
+					 : st::infoMembersRemoveIcon).paint(p, x, y, outerWidth);
+			}
+		}
 
-void MemberListRow::paintAction(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		bool selected,
-		bool actionSelected) {
-	if (_type.canRemove && selected) {
-		x += st::infoMembersRemoveIconMargins.left();
-		y += st::infoMembersRemoveIconMargins.top();
-		(actionSelected
-			? st::infoMembersRemoveIconOver
-			: st::infoMembersRemoveIcon).paint(p, x, y, outerWidth);
-	}
-}
+		int MemberListRow::nameIconWidth() const
+		{
+			return (_type.rights == Rights::Admin)
+				       ? st::infoMembersAdminIcon.width()
+				       : (_type.rights == Rights::Creator)
+				       ? st::infoMembersCreatorIcon.width()
+				       : 0;
+		}
 
-int MemberListRow::nameIconWidth() const {
-	return (_type.rights == Rights::Admin)
-		? st::infoMembersAdminIcon.width()
-		: (_type.rights == Rights::Creator)
-		? st::infoMembersCreatorIcon.width()
-		: 0;
-}
+		not_null<UserData*> MemberListRow::user() const
+		{
+			return peer()->asUser();
+		}
 
-not_null<UserData*> MemberListRow::user() const {
-	return peer()->asUser();
-}
+		void MemberListRow::paintNameIcon(
+			Painter& p,
+			int x,
+			int y,
+			int outerWidth,
+			bool selected)
+		{
+			auto icon = [&]
+			{
+				return (_type.rights == Rights::Admin)
+					       ? (selected
+						          ? &st::infoMembersAdminIconOver
+						          : &st::infoMembersAdminIcon)
+					       : (selected
+						          ? &st::infoMembersCreatorIconOver
+						          : &st::infoMembersCreatorIcon);
+			}();
+			icon->paint(p, x, y, outerWidth);
+		}
 
-void MemberListRow::paintNameIcon(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		bool selected) {
-	auto icon = [&] {
-		return (_type.rights == Rights::Admin)
-			? (selected
-				? &st::infoMembersAdminIconOver
-				: &st::infoMembersAdminIcon)
-			: (selected
-				? &st::infoMembersCreatorIconOver
-				: &st::infoMembersCreatorIcon);
-	}();
-	icon->paint(p, x, y, outerWidth);
-}
-
-std::unique_ptr<PeerListController> CreateMembersController(
-		not_null<Window::SessionNavigation*> navigation,
-		not_null<PeerData*> peer) {
-	return std::make_unique<ParticipantsBoxController>(
-		navigation,
-		peer,
-		ParticipantsBoxController::Role::Profile);
-}
-
-} // namespace Profile
+		std::unique_ptr<PeerListController> CreateMembersController(
+			not_null<Window::SessionNavigation*> navigation,
+			not_null<PeerData*> peer)
+		{
+			return std::make_unique<ParticipantsBoxController>(
+				navigation,
+				peer,
+				ParticipantsBoxController::Role::Profile);
+		}
+	} // namespace Profile
 } // namespace Info

@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Platform {
-namespace Audio {
+namespace Platform
+{
+	namespace Audio
+	{
+		void Init();
 
-void Init();
-
-void DeInit();
-
-} // namespace Audio
+		void DeInit();
+	} // namespace Audio
 } // namespace Platform
 
 // Platform dependent implementations.

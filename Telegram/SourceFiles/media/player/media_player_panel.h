@@ -12,98 +12,106 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "info/info_controller.h"
 
-namespace Window {
-class SessionController;
+namespace Window
+{
+	class SessionController;
 } // namespace Window
 
-namespace Ui {
-class ScrollArea;
-class Shadow;
+namespace Ui
+{
+	class ScrollArea;
+	class Shadow;
 } // namespace Ui
 
-namespace Media {
-namespace Player {
+namespace Media
+{
+	namespace Player
+	{
+		class CoverWidget;
 
-class CoverWidget;
+		class Panel : public Ui::RpWidget, private Info::AbstractController
+		{
+		public:
+			Panel(
+				QWidget* parent,
+				not_null<Window::SessionController*> controller);
 
-class Panel : public Ui::RpWidget, private Info::AbstractController {
-public:
-	Panel(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller);
+			bool overlaps(const QRect& globalRect);
 
-	bool overlaps(const QRect &globalRect);
+			void hideIgnoringEnterEvents();
 
-	void hideIgnoringEnterEvents();
+			void showFromOther();
+			void hideFromOther();
 
-	void showFromOther();
-	void hideFromOther();
+			int bestPositionFor(int left) const;
 
-	int bestPositionFor(int left) const;
+		protected:
+			void resizeEvent(QResizeEvent* e) override;
+			void paintEvent(QPaintEvent* e) override;
+			void enterEventHook(QEvent* e) override;
+			void leaveEventHook(QEvent* e) override;
 
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void enterEventHook(QEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
+		private:
+			// Info::AbstractController implementation.
+			Info::Key key() const override;
+			PeerData* migrated() const override;
+			Info::Section section() const override;
 
-private:
-	// Info::AbstractController implementation.
-	Info::Key key() const override;
-	PeerData *migrated() const override;
-	Info::Section section() const override;
+			void startShow();
+			void startHide();
+			void startHideChecked();
+			bool preventAutoHide() const;
+			void listHeightUpdated(int newHeight);
+			int emptyInnerHeight() const;
+			bool contentTooSmall() const;
 
-	void startShow();
-	void startHide();
-	void startHideChecked();
-	bool preventAutoHide() const;
-	void listHeightUpdated(int newHeight);
-	int emptyInnerHeight() const;
-	bool contentTooSmall() const;
+			void ensureCreated();
+			void performDestroy();
 
-	void ensureCreated();
-	void performDestroy();
+			void updateControlsGeometry();
+			void refreshList();
+			void updateSize();
+			void appearanceCallback();
+			void hideFinished();
+			int contentLeft() const;
+			int contentTop() const;
+			int contentRight() const;
+			int contentBottom() const;
+			int scrollMarginBottom() const;
 
-	void updateControlsGeometry();
-	void refreshList();
-	void updateSize();
-	void appearanceCallback();
-	void hideFinished();
-	int contentLeft() const;
-	int contentTop() const;
-	int contentRight() const;
-	int contentBottom() const;
-	int scrollMarginBottom() const;
-	int contentWidth() const {
-		return width() - contentLeft() - contentRight();
-	}
-	int contentHeight() const {
-		return height() - contentTop() - contentBottom();;
-	}
+			int contentWidth() const
+			{
+				return width() - contentLeft() - contentRight();
+			}
 
-	void startAnimation();
-	void scrollPlaylistToCurrentTrack();
-	not_null<Info::AbstractController*> infoController() {
-		return static_cast<Info::AbstractController*>(this);
-	}
+			int contentHeight() const
+			{
+				return height() - contentTop() - contentBottom();;
+			}
 
-	bool _hiding = false;
+			void startAnimation();
+			void scrollPlaylistToCurrentTrack();
 
-	QPixmap _cache;
-	Ui::Animations::Simple _a_appearance;
+			not_null<Info::AbstractController*> infoController()
+			{
+				return static_cast<Info::AbstractController*>(this);
+			}
 
-	bool _ignoringEnterEvents = false;
+			bool _hiding = false;
 
-	base::Timer _showTimer;
-	base::Timer _hideTimer;
+			QPixmap _cache;
+			Ui::Animations::Simple _a_appearance;
 
-	object_ptr<Ui::ScrollArea> _scroll;
+			bool _ignoringEnterEvents = false;
 
-	rpl::lifetime _refreshListLifetime;
-	PeerData *_listPeer = nullptr;
-	PeerData *_listMigratedPeer = nullptr;
+			base::Timer _showTimer;
+			base::Timer _hideTimer;
 
-};
+			object_ptr<Ui::ScrollArea> _scroll;
 
-} // namespace Player
+			rpl::lifetime _refreshListLifetime;
+			PeerData* _listPeer = nullptr;
+			PeerData* _listMigratedPeer = nullptr;
+		};
+	} // namespace Player
 } // namespace Media

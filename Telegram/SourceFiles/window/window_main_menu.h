@@ -10,50 +10,51 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "ui/rp_widget.h"
 
-namespace Ui {
-class IconButton;
-class FlatLabel;
-class Menu;
-class UserpicButton;
+namespace Ui
+{
+	class IconButton;
+	class FlatLabel;
+	class Menu;
+	class UserpicButton;
 } // namespace Ui
 
-namespace Window {
+namespace Window
+{
+	class SessionController;
 
-class SessionController;
+	class MainMenu : public Ui::RpWidget, private base::Subscriber
+	{
+	public:
+		MainMenu(QWidget* parent, not_null<SessionController*> controller);
 
-class MainMenu : public Ui::RpWidget, private base::Subscriber {
-public:
-	MainMenu(QWidget *parent, not_null<SessionController*> controller);
+		void setInnerFocus()
+		{
+			setFocus();
+		}
 
-	void setInnerFocus() {
-		setFocus();
-	}
+	protected:
+		void paintEvent(QPaintEvent* e) override;
+		void resizeEvent(QResizeEvent* e) override;
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	private:
+		void updateControlsGeometry();
+		void updatePhone();
+		void initResetScaleButton();
+		void refreshMenu();
+		void refreshBackground();
 
-private:
-	void updateControlsGeometry();
-	void updatePhone();
-	void initResetScaleButton();
-	void refreshMenu();
-	void refreshBackground();
+		class ResetScaleButton;
+		not_null<SessionController*> _controller;
+		object_ptr<Ui::UserpicButton> _userpicButton = {nullptr};
+		object_ptr<Ui::IconButton> _cloudButton = {nullptr};
+		object_ptr<ResetScaleButton> _resetScaleButton = {nullptr};
+		object_ptr<Ui::Menu> _menu;
+		object_ptr<Ui::FlatLabel> _telegram;
+		object_ptr<Ui::FlatLabel> _version;
+		std::shared_ptr<QPointer<QAction>> _nightThemeAction;
+		base::Timer _nightThemeSwitch;
 
-	class ResetScaleButton;
-	not_null<SessionController*> _controller;
-	object_ptr<Ui::UserpicButton> _userpicButton = { nullptr };
-	object_ptr<Ui::IconButton> _cloudButton = { nullptr };
-	object_ptr<ResetScaleButton> _resetScaleButton = { nullptr };
-	object_ptr<Ui::Menu> _menu;
-	object_ptr<Ui::FlatLabel> _telegram;
-	object_ptr<Ui::FlatLabel> _version;
-	std::shared_ptr<QPointer<QAction>> _nightThemeAction;
-	base::Timer _nightThemeSwitch;
-
-	QString _phoneText;
-	QImage _background;
-
-};
-
+		QString _phoneText;
+		QImage _background;
+	};
 } // namespace Window

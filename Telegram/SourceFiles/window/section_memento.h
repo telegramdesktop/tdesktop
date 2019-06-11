@@ -7,32 +7,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Window {
+namespace Window
+{
+	class SessionController;
+	class SectionWidget;
+	class LayerWidget;
+	enum class Column;
 
-class SessionController;
-class SectionWidget;
-class LayerWidget;
-enum class Column;
-
-class SectionMemento {
-public:
-	virtual object_ptr<SectionWidget> createWidget(
-		QWidget *parent,
-		not_null<SessionController*> controller,
-		Column column,
-		const QRect &geometry) = 0;
-
-	virtual object_ptr<LayerWidget> createLayer(
+	class SectionMemento
+	{
+	public:
+		virtual object_ptr<SectionWidget> createWidget(
+			QWidget* parent,
 			not_null<SessionController*> controller,
-			const QRect &geometry) {
-		return nullptr;
-	}
-	virtual bool instant() const {
-		return false;
-	}
+			Column column,
+			const QRect& geometry) = 0;
 
-	virtual ~SectionMemento() = default;
+		virtual object_ptr<LayerWidget> createLayer(
+			not_null<SessionController*> controller,
+			const QRect& geometry)
+		{
+			return nullptr;
+		}
 
-};
+		virtual bool instant() const
+		{
+			return false;
+		}
 
+		virtual ~SectionMemento() = default;
+	};
 } // namespace Window

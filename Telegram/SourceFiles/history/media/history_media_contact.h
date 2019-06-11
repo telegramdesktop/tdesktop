@@ -9,44 +9,57 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/media/history_media.h"
 
-namespace Ui {
-class EmptyUserpic;
+namespace Ui
+{
+	class EmptyUserpic;
 } // namespace Ui
 
-class HistoryContact : public HistoryMedia {
+class HistoryContact : public HistoryMedia
+{
 public:
 	HistoryContact(
 		not_null<Element*> parent,
 		UserId userId,
-		const QString &first,
-		const QString &last,
-		const QString &phone);
+		const QString& first,
+		const QString& last,
+		const QString& phone);
 	~HistoryContact();
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
+	void draw(Painter& p, const QRect& r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
-	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
-		return true;
-	}
-	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
+	bool toggleSelectionByHandlerClick(const ClickHandlerPtr& p) const override
+	{
 		return true;
 	}
 
-	bool needsBubble() const override {
+	bool dragItemByHandler(const ClickHandlerPtr& p) const override
+	{
 		return true;
 	}
-	bool customInfoLayout() const override {
+
+	bool needsBubble() const override
+	{
+		return true;
+	}
+
+	bool customInfoLayout() const override
+	{
 		return false;
 	}
 
-	const QString &fname() const {
+	const QString& fname() const
+	{
 		return _fname;
 	}
-	const QString &lname() const {
+
+	const QString& lname() const
+	{
 		return _lname;
 	}
-	const QString &phone() const {
+
+	const QString& phone() const
+	{
 		return _phone;
 	}
 
@@ -57,7 +70,7 @@ private:
 	QSize countOptimalSize() override;
 
 	UserId _userId = 0;
-	UserData *_contact = nullptr;
+	UserData* _contact = nullptr;
 
 	int _phonew = 0;
 	QString _fname, _lname, _phone;
@@ -67,5 +80,4 @@ private:
 	ClickHandlerPtr _linkl;
 	int _linkw = 0;
 	QString _link;
-
 };

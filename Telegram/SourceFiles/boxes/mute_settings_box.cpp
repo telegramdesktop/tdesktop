@@ -15,17 +15,18 @@ Copyright (C) 2017, Nicholas Guriev <guriev-ns@ya.ru>
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 
-namespace {
-
-constexpr auto kForeverHours = 24 * 365;
-
+namespace
+{
+	constexpr auto kForeverHours = 24 * 365;
 } // namespace
 
-MuteSettingsBox::MuteSettingsBox(QWidget *parent, not_null<PeerData*> peer)
-: _peer(peer) {
+MuteSettingsBox::MuteSettingsBox(QWidget* parent, not_null<PeerData*> peer):
+	_peer(peer)
+{
 }
 
-void MuteSettingsBox::prepare() {
+void MuteSettingsBox::prepare()
+{
 	setTitle(langFactory(lng_disable_notifications_from_tray));
 	auto y = 0;
 
@@ -53,13 +54,20 @@ void MuteSettingsBox::prepare() {
 	// in fact, this is mute only for 1 year
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>(kForeverHours);
 	y += st::boxOptionListPadding.top();
-	for (const auto hours : { 1, 4, 18, 72, kForeverHours }) {
-		const auto text = [&] {
-			if (hours < 24) {
+	for (const auto hours : {1, 4, 18, 72, kForeverHours})
+	{
+		const auto text = [&]
+		{
+			if (hours < 24)
+			{
 				return lng_mute_duration_hours(lt_count, hours);
-			} else if (hours < kForeverHours) {
+			}
+			else if (hours < kForeverHours)
+			{
 				return lng_mute_duration_days(lt_count, hours / 24);
-			} else {
+			}
+			else
+			{
 				return lang(lng_mute_duration_forever);
 			}
 		}();
@@ -71,7 +79,8 @@ void MuteSettingsBox::prepare() {
 		- st::boxOptionListSkip
 		+ st::defaultCheckbox.margin.bottom();
 
-	_save = [=] {
+	_save = [=]
+	{
 		const auto muteForSeconds = group->value() * 3600;
 		Auth().data().updateNotifySettings(
 			_peer,
@@ -79,14 +88,20 @@ void MuteSettingsBox::prepare() {
 		closeBox();
 	};
 	addButton(langFactory(lng_box_ok), _save);
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_cancel), [this]
+	{
+		closeBox();
+	});
 
 	setDimensions(st::boxWidth, y);
 }
 
-void MuteSettingsBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		if (_save) {
+void MuteSettingsBox::keyPressEvent(QKeyEvent* e)
+{
+	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return)
+	{
+		if (_save)
+		{
 			_save();
 		}
 	}

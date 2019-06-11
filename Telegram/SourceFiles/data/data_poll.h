@@ -7,31 +7,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-struct PollAnswer {
+struct PollAnswer
+{
 	QString text;
 	QByteArray option;
 	int votes = 0;
 	bool chosen = false;
 };
 
-inline bool operator==(const PollAnswer &a, const PollAnswer &b) {
+inline bool operator==(const PollAnswer& a, const PollAnswer& b)
+{
 	return (a.text == b.text)
 		&& (a.option == b.option);
 }
 
-inline bool operator!=(const PollAnswer &a, const PollAnswer &b) {
+inline bool operator!=(const PollAnswer& a, const PollAnswer& b)
+{
 	return !(a == b);
 }
 
-struct PollData {
+struct PollData
+{
 	explicit PollData(PollId id);
 
-	bool applyChanges(const MTPDpoll &poll);
-	bool applyResults(const MTPPollResults &results);
+	bool applyChanges(const MTPDpoll& poll);
+	bool applyResults(const MTPPollResults& results);
 	void checkResultsReload(not_null<HistoryItem*> item, crl::time now);
 
-	PollAnswer *answerByOption(const QByteArray &option);
-	const PollAnswer *answerByOption(const QByteArray &option) const;
+	PollAnswer* answerByOption(const QByteArray& option);
+	const PollAnswer* answerByOption(const QByteArray& option) const;
 
 	bool voted() const;
 
@@ -49,9 +53,8 @@ struct PollData {
 
 private:
 	bool applyResultToAnswers(
-		const MTPPollAnswerVoters &result,
+		const MTPPollAnswerVoters& result,
 		bool isMinResults);
-
 };
 
 MTPPoll PollDataToMTP(not_null<const PollData*> poll);

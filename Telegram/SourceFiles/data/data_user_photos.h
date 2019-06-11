@@ -10,29 +10,50 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_user_photos.h"
 #include "base/weak_ptr.h"
 
-class UserPhotosSlice {
+class UserPhotosSlice
+{
 public:
 	using Key = Storage::UserPhotosKey;
 
 	UserPhotosSlice(Key key);
 	UserPhotosSlice(
 		Key key,
-		std::deque<PhotoId> &&ids,
+		std::deque<PhotoId>&& ids,
 		std::optional<int> fullCount,
 		std::optional<int> skippedBefore,
 		std::optional<int> skippedAfter);
 
 	void reverse();
 
-	const Key &key() const { return _key; }
+	const Key& key() const
+	{
+		return _key;
+	}
 
-	std::optional<int> fullCount() const { return _fullCount; }
-	std::optional<int> skippedBefore() const { return _skippedBefore; }
-	std::optional<int> skippedAfter() const { return _skippedAfter; }
+	std::optional<int> fullCount() const
+	{
+		return _fullCount;
+	}
+
+	std::optional<int> skippedBefore() const
+	{
+		return _skippedBefore;
+	}
+
+	std::optional<int> skippedAfter() const
+	{
+		return _skippedAfter;
+	}
+
 	std::optional<int> indexOf(PhotoId msgId) const;
-	int size() const { return _ids.size(); }
+
+	int size() const
+	{
+		return _ids.size();
+	}
+
 	PhotoId operator[](int index) const;
-	std::optional<int> distance(const Key &a, const Key &b) const;
+	std::optional<int> distance(const Key& a, const Key& b) const;
 
 private:
 	Key _key;
@@ -42,7 +63,6 @@ private:
 	std::optional<int> _skippedAfter;
 
 	friend class UserPhotosSliceBuilder;
-
 };
 
 rpl::producer<UserPhotosSlice> UserPhotosViewer(

@@ -11,46 +11,46 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class BoxContentDivider;
 
-namespace Ui {
-class ScrollArea;
-class FadeShadow;
-class RoundButton;
-class FlatLabel;
-class UserpicButton;
+namespace Ui
+{
+	class ScrollArea;
+	class FadeShadow;
+	class RoundButton;
+	class FlatLabel;
+	class UserpicButton;
 } // namespace Ui
 
-namespace Passport {
+namespace Passport
+{
+	class PanelController;
 
-class PanelController;
+	class PanelForm : public Ui::RpWidget
+	{
+	public:
+		PanelForm(
+			QWidget* parent,
+			not_null<PanelController*> controller);
 
-class PanelForm : public Ui::RpWidget {
-public:
-	PanelForm(
-		QWidget *parent,
-		not_null<PanelController*> controller);
+	protected:
+		void resizeEvent(QResizeEvent* e) override;
 
-protected:
-	void resizeEvent(QResizeEvent *e) override;
+	private:
+		class Row;
 
-private:
-	class Row;
+		void setupControls();
+		not_null<Ui::RpWidget*> setupContent();
+		void updateControlsGeometry();
 
-	void setupControls();
-	not_null<Ui::RpWidget*> setupContent();
-	void updateControlsGeometry();
+		not_null<PanelController*> _controller;
 
-	not_null<PanelController*> _controller;
+		object_ptr<Ui::ScrollArea> _scroll;
+		object_ptr<Ui::FadeShadow> _topShadow;
+		object_ptr<Ui::FadeShadow> _bottomShadow;
+		object_ptr<Ui::RoundButton> _submit;
 
-	object_ptr<Ui::ScrollArea> _scroll;
-	object_ptr<Ui::FadeShadow> _topShadow;
-	object_ptr<Ui::FadeShadow> _bottomShadow;
-	object_ptr<Ui::RoundButton> _submit;
-
-	QPointer<Ui::UserpicButton> _userpic;
-	QPointer<Ui::FlatLabel> _about1;
-	QPointer<Ui::FlatLabel> _about2;
-	std::vector<QPointer<Row>> _rows;
-
-};
-
+		QPointer<Ui::UserpicButton> _userpic;
+		QPointer<Ui::FlatLabel> _about1;
+		QPointer<Ui::FlatLabel> _about2;
+		std::vector<QPointer<Row>> _rows;
+	};
 } // namespace Passport

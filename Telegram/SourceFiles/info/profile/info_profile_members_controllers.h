@@ -9,57 +9,62 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/peer_list_box.h"
 
-namespace Window {
-class SessionNavigation;
+namespace Window
+{
+	class SessionNavigation;
 } // namespace Window
 
-namespace Info {
-namespace Profile {
+namespace Info
+{
+	namespace Profile
+	{
+		class MemberListRow final : public PeerListRow
+		{
+		public:
+			enum class Rights
+			{
+				Normal,
+				Admin,
+				Creator,
+			};
+			struct Type
+			{
+				Rights rights;
+				bool canRemove = false;
+			};
 
-class MemberListRow final : public PeerListRow {
-public:
-	enum class Rights {
-		Normal,
-		Admin,
-		Creator,
-	};
-	struct Type {
-		Rights rights;
-		bool canRemove = false;
-	};
+			MemberListRow(not_null<UserData*> user, Type type);
 
-	MemberListRow(not_null<UserData*> user, Type type);
+			void setType(Type type);
+			QSize actionSize() const override;
+			void paintAction(
+				Painter& p,
+				int x,
+				int y,
+				int outerWidth,
+				bool selected,
+				bool actionSelected) override;
+			int nameIconWidth() const override;
+			void paintNameIcon(
+				Painter& p,
+				int x,
+				int y,
+				int outerWidth,
+				bool selected) override;
 
-	void setType(Type type);
-	QSize actionSize() const override;
-	void paintAction(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		bool selected,
-		bool actionSelected) override;
-	int nameIconWidth() const override;
-	void paintNameIcon(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		bool selected) override;
+			not_null<UserData*> user() const;
 
-	not_null<UserData*> user() const;
-	bool canRemove() const {
-		return _type.canRemove;
-	}
+			bool canRemove() const
+			{
+				return _type.canRemove;
+			}
 
-private:
-	Type _type;
+		private:
+			Type _type;
+		};
 
-};
-
-std::unique_ptr<PeerListController> CreateMembersController(
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<PeerData*> peer);
-
-} // namespace Profile
+		std::unique_ptr<PeerListController> CreateMembersController(
+			not_null<Window::SessionNavigation*> navigation,
+			not_null<PeerData*> peer);
+	} // namespace Profile
 } // namespace Info

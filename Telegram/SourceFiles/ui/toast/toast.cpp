@@ -11,53 +11,70 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast_widget.h"
 #include "mainwindow.h"
 
-namespace Ui {
-namespace Toast {
-
-Instance::Instance(const Config &config, QWidget *widgetParent, const Private &)
-: _hideAtMs(crl::now() + config.durationMs) {
-	_widget = std::make_unique<internal::Widget>(widgetParent, config);
-	_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::toastFadeInDuration);
-}
-
-void Show(QWidget *parent, const Config &config) {
-	if (auto manager = internal::Manager::instance(parent)) {
-		auto toast = std::make_unique<Instance>(config, parent, Instance::Private());
-		manager->addToast(std::move(toast));
-	}
-}
-
-void Show(const Config &config) {
-	if (auto window = App::wnd()) {
-		Show(window->bodyWidget(), config);
-	}
-}
-
-void Show(const QString &text) {
-	Config toast;
-	toast.text = text;
-	Show(toast);
-}
-
-void Instance::opacityAnimationCallback() {
-	_widget->setShownLevel(_a_opacity.value(_hiding ? 0. : 1.));
-	_widget->update();
-	if (!_a_opacity.animating()) {
-		if (_hiding) {
-			hide();
+namespace Ui
+{
+	namespace Toast
+	{
+		Instance::Instance(const Config& config, QWidget* widgetParent, const Private&):
+			_hideAtMs(crl::now() + config.durationMs)
+		{
+			_widget = std::make_unique<internal::Widget>(widgetParent, config);
+			_a_opacity.start([this]
+			{
+				opacityAnimationCallback();
+			}, 0., 1., st::toastFadeInDuration);
 		}
-	}
-}
 
-void Instance::hideAnimated() {
-	_hiding = true;
-	_a_opacity.start([this] { opacityAnimationCallback(); }, 1., 0., st::toastFadeOutDuration);
-}
+		void Show(QWidget* parent, const Config& config)
+		{
+			if (auto manager = internal::Manager::instance(parent))
+			{
+				auto toast = std::make_unique<Instance>(config, parent, Instance::Private());
+				manager->addToast(std::move(toast));
+			}
+		}
 
-void Instance::hide() {
-	_widget->hide();
-	_widget->deleteLater();
-}
+		void Show(const Config& config)
+		{
+			if (auto window = App::wnd())
+			{
+				Show(window->bodyWidget(), config);
+			}
+		}
 
-} // namespace Toast
+		void Show(const QString& text)
+		{
+			Config toast;
+			toast.text = text;
+			Show(toast);
+		}
+
+		void Instance::opacityAnimationCallback()
+		{
+			_widget->setShownLevel(_a_opacity.value(_hiding ? 0. : 1.));
+			_widget->update();
+			if (!_a_opacity.animating())
+			{
+				if (_hiding)
+				{
+					hide();
+				}
+			}
+		}
+
+		void Instance::hideAnimated()
+		{
+			_hiding = true;
+			_a_opacity.start([this]
+			{
+				opacityAnimationCallback();
+			}, 1., 0., st::toastFadeOutDuration);
+		}
+
+		void Instance::hide()
+		{
+			_widget->hide();
+			_widget->deleteLater();
+		}
+	} // namespace Toast
 } // namespace Ui

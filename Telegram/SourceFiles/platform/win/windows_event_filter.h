@@ -9,32 +9,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/win/wrapper_windows_h.h"
 
-namespace Platform {
+namespace Platform
+{
+	class MainWindow;
 
-class MainWindow;
+	class EventFilter : public QAbstractNativeEventFilter
+	{
+	public:
+		bool nativeEventFilter(const QByteArray& eventType, void* message, long* result);
+		bool mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT* result);
 
-class EventFilter : public QAbstractNativeEventFilter {
-public:
-	bool nativeEventFilter(const QByteArray &eventType, void *message, long *result);
-	bool mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT *result);
+		bool sessionLoggedOff() const
+		{
+			return _sessionLoggedOff;
+		}
 
-	bool sessionLoggedOff() const {
-		return _sessionLoggedOff;
-	}
-	void setSessionLoggedOff(bool loggedOff) {
-		_sessionLoggedOff = loggedOff;
-	}
+		void setSessionLoggedOff(bool loggedOff)
+		{
+			_sessionLoggedOff = loggedOff;
+		}
 
-	static EventFilter *CreateInstance(not_null<MainWindow*> window);
-	static EventFilter *GetInstance();
-	static void Destroy();
+		static EventFilter* CreateInstance(not_null<MainWindow*> window);
+		static EventFilter* GetInstance();
+		static void Destroy();
 
-private:
-	explicit EventFilter(not_null<MainWindow*> window);
+	private:
+		explicit EventFilter(not_null<MainWindow*> window);
 
-	not_null<MainWindow*> _window;
-	bool _sessionLoggedOff = false;
-
-};
-
+		not_null<MainWindow*> _window;
+		bool _sessionLoggedOff = false;
+	};
 } // namespace Platform

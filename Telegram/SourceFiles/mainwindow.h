@@ -14,34 +14,41 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class MainWidget;
 class BoxContent;
 
-namespace Intro {
-class Widget;
+namespace Intro
+{
+	class Widget;
 } // namespace Intro
 
-namespace Local {
-class ClearManager;
+namespace Local
+{
+	class ClearManager;
 } // namespace Local
 
-namespace Window {
-class LayerWidget;
-class LayerStackWidget;
-class SectionMemento;
-struct SectionShow;
-class PasscodeLockWidget;
-namespace Theme {
-struct BackgroundUpdate;
-class WarningWidget;
-} // namespace Theme
+namespace Window
+{
+	class LayerWidget;
+	class LayerStackWidget;
+	class SectionMemento;
+	struct SectionShow;
+	class PasscodeLockWidget;
+
+	namespace Theme
+	{
+		struct BackgroundUpdate;
+		class WarningWidget;
+	} // namespace Theme
 } // namespace Window
 
-namespace Ui {
-class LinkButton;
+namespace Ui
+{
+	class LinkButton;
 } // namespace Ui
 
 class MediaPreviewWidget;
 
-class MainWindow : public Platform::MainWindow {
-	Q_OBJECT
+class MainWindow : public Platform::MainWindow
+{
+Q_OBJECT
 
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
@@ -54,25 +61,27 @@ public:
 	void setupIntro();
 	void setupMain();
 
-	MainWidget *chatsWidget() {
+	MainWidget* chatsWidget()
+	{
 		return mainWidget();
 	}
 
-	MainWidget *mainWidget();
+	MainWidget* mainWidget();
 
 	bool doWeReadServerHistory();
 	bool doWeReadMentions();
 
 	void activate();
 
-	void noIntro(Intro::Widget *was);
+	void noIntro(Intro::Widget* was);
 	bool takeThirdSectionFromLayer();
 
 	void checkHistoryActivation();
 
 	void fixOrder();
 
-	enum TempDirState {
+	enum TempDirState
+	{
 		TempDirRemoving,
 		TempDirExists,
 		TempDirEmpty,
@@ -85,11 +94,15 @@ public:
 
 	QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) override;
 
-	bool contentOverlapped(const QRect &globalRect);
-	bool contentOverlapped(QWidget *w, QPaintEvent *e) {
+	bool contentOverlapped(const QRect& globalRect);
+
+	bool contentOverlapped(QWidget* w, QPaintEvent* e)
+	{
 		return contentOverlapped(QRect(w->mapToGlobal(e->rect().topLeft()), e->rect().size()));
 	}
-	bool contentOverlapped(QWidget *w, const QRegion &r) {
+
+	bool contentOverlapped(QWidget* w, const QRegion& r)
+	{
 		return contentOverlapped(QRect(w->mapToGlobal(r.boundingRect().topLeft()), r.boundingRect().size()));
 	}
 
@@ -101,7 +114,7 @@ public:
 		anim::type animated);
 	bool showSectionInExistingLayer(
 		not_null<Window::SectionMemento*> memento,
-		const Window::SectionShow &params);
+		const Window::SectionShow& params);
 	void ui_showBox(
 		object_ptr<BoxContent> box,
 		LayerOptions options,
@@ -117,8 +130,8 @@ public:
 		not_null<PhotoData*> photo);
 
 protected:
-	bool eventFilter(QObject *o, QEvent *e) override;
-	void closeEvent(QCloseEvent *e) override;
+	bool eventFilter(QObject* o, QEvent* e) override;
+	void closeEvent(QCloseEvent* e) override;
 
 	void initHook() override;
 	void updateIsActiveHook() override;
@@ -134,8 +147,8 @@ public slots:
 	void showFromTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
 	void toggleDisplayNotifyFromTray();
 
-	void onClearFinished(int task, void *manager);
-	void onClearFailed(int task, void *manager);
+	void onClearFinished(int task, void* manager);
+	void onClearFailed(int task, void* manager);
 
 	void onShowAddContact();
 	void onShowNewGroup();
@@ -156,23 +169,22 @@ private:
 	void ensureLayerCreated();
 	void destroyLayer();
 
-	void themeUpdated(const Window::Theme::BackgroundUpdate &data);
+	void themeUpdated(const Window::Theme::BackgroundUpdate& data);
 
 	QPixmap grabInner();
 
-	void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) override;
+	void placeSmallCounter(QImage& img, int size, int count, style::color bg, const QPoint& shift, style::color color) override;
 	QImage icon16, icon32, icon64, iconbig16, iconbig32, iconbig64;
 
 	crl::time _lastTrayClickTime = 0;
 
-	object_ptr<Window::PasscodeLockWidget> _passcodeLock = { nullptr };
-	object_ptr<Intro::Widget> _intro = { nullptr };
-	object_ptr<MainWidget> _main = { nullptr };
+	object_ptr<Window::PasscodeLockWidget> _passcodeLock = {nullptr};
+	object_ptr<Intro::Widget> _intro = {nullptr};
+	object_ptr<MainWidget> _main = {nullptr};
 	base::unique_qptr<Window::LayerStackWidget> _layer;
-	object_ptr<MediaPreviewWidget> _mediaPreview = { nullptr };
+	object_ptr<MediaPreviewWidget> _mediaPreview = {nullptr};
 
-	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
+	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = {nullptr};
 
-	Local::ClearManager *_clearManager = nullptr;
-
+	Local::ClearManager* _clearManager = nullptr;
 };

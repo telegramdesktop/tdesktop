@@ -11,111 +11,114 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/specific_mac_p.h"
 #include "base/timer.h"
 
-namespace Platform {
-
-class MainWindow : public Window::MainWindow {
-	// The Q_OBJECT meta info is used for qobject_cast!
+namespace Platform
+{
+	class MainWindow : public Window::MainWindow
+	{
+		// The Q_OBJECT meta info is used for qobject_cast!
 	Q_OBJECT
 
-public:
-	explicit MainWindow(not_null<Window::Controller*> controller);
+	public:
+		explicit MainWindow(not_null<Window::Controller*> controller);
 
-	void psFirstShow();
-	void psInitSysMenu();
-	void psUpdateMargins();
+		void psFirstShow();
+		void psInitSysMenu();
+		void psUpdateMargins();
 
-	void psRefreshTaskbarIcon() {
-	}
+		void psRefreshTaskbarIcon()
+		{
+		}
 
-	bool psFilterNativeEvent(void *event);
+		bool psFilterNativeEvent(void* event);
 
-	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
+		virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 
-	int getCustomTitleHeight() const {
-		return _customTitleHeight;
-	}
+		int getCustomTitleHeight() const
+		{
+			return _customTitleHeight;
+		}
 
-	~MainWindow();
+		~MainWindow();
 
-	void updateWindowIcon() override;
+		void updateWindowIcon() override;
 
-	class Private;
+		class Private;
 
-public slots:
-	void psShowTrayMenu();
+	public slots:
+		void psShowTrayMenu();
 
-	void psMacUndo();
-	void psMacRedo();
-	void psMacCut();
-	void psMacCopy();
-	void psMacPaste();
-	void psMacDelete();
-	void psMacSelectAll();
+		void psMacUndo();
+		void psMacRedo();
+		void psMacCut();
+		void psMacCopy();
+		void psMacPaste();
+		void psMacDelete();
+		void psMacSelectAll();
 
-protected:
-	bool eventFilter(QObject *obj, QEvent *evt) override;
+	protected:
+		bool eventFilter(QObject* obj, QEvent* evt) override;
 
-	void handleActiveChangedHook() override;
-	void stateChangedHook(Qt::WindowState state) override;
-	void initHook() override;
-	void titleVisibilityChangedHook() override;
-	void unreadCounterChangedHook() override;
+		void handleActiveChangedHook() override;
+		void stateChangedHook(Qt::WindowState state) override;
+		void initHook() override;
+		void titleVisibilityChangedHook() override;
+		void unreadCounterChangedHook() override;
 
-	QImage psTrayIcon(bool selected = false) const;
-	bool hasTrayIcon() const override {
-		return trayIcon;
-	}
+		QImage psTrayIcon(bool selected = false) const;
 
-	void updateGlobalMenuHook() override;
+		bool hasTrayIcon() const override
+		{
+			return trayIcon;
+		}
 
-	void workmodeUpdated(DBIWorkMode mode) override;
+		void updateGlobalMenuHook() override;
 
-	QSystemTrayIcon *trayIcon = nullptr;
-	QMenu *trayIconMenu = nullptr;
+		void workmodeUpdated(DBIWorkMode mode) override;
 
-	QImage trayImg, trayImgSel;
+		QSystemTrayIcon* trayIcon = nullptr;
+		QMenu* trayIconMenu = nullptr;
 
-	void psTrayMenuUpdated();
-	void psSetupTrayIcon();
-	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
+		QImage trayImg, trayImgSel;
 
-	QTimer psUpdatedPositionTimer;
+		void psTrayMenuUpdated();
+		void psSetupTrayIcon();
+		virtual void placeSmallCounter(QImage& img, int size, int count, style::color bg, const QPoint& shift, style::color color) = 0;
 
-	void closeWithoutDestroy() override;
+		QTimer psUpdatedPositionTimer;
 
-private:
-	friend class Private;
+		void closeWithoutDestroy() override;
 
-	void initTouchBar();
-	void hideAndDeactivate();
-	void createGlobalMenu();
-	void updateTitleCounter();
-	void updateIconCounters();
+	private:
+		friend class Private;
 
-	std::unique_ptr<Private> _private;
+		void initTouchBar();
+		void hideAndDeactivate();
+		void createGlobalMenu();
+		void updateTitleCounter();
+		void updateIconCounters();
 
-	mutable bool psIdle;
-	mutable QTimer psIdleTimer;
+		std::unique_ptr<Private> _private;
 
-	base::Timer _hideAfterFullScreenTimer;
+		mutable bool psIdle;
+		mutable QTimer psIdleTimer;
 
-	QMenuBar psMainMenu;
-	QAction *psLogout = nullptr;
-	QAction *psUndo = nullptr;
-	QAction *psRedo = nullptr;
-	QAction *psCut = nullptr;
-	QAction *psCopy = nullptr;
-	QAction *psPaste = nullptr;
-	QAction *psDelete = nullptr;
-	QAction *psSelectAll = nullptr;
-	QAction *psContacts = nullptr;
-	QAction *psAddContact = nullptr;
-	QAction *psNewGroup = nullptr;
-	QAction *psNewChannel = nullptr;
-	QAction *psShowTelegram = nullptr;
+		base::Timer _hideAfterFullScreenTimer;
 
-	int _customTitleHeight = 0;
+		QMenuBar psMainMenu;
+		QAction* psLogout = nullptr;
+		QAction* psUndo = nullptr;
+		QAction* psRedo = nullptr;
+		QAction* psCut = nullptr;
+		QAction* psCopy = nullptr;
+		QAction* psPaste = nullptr;
+		QAction* psDelete = nullptr;
+		QAction* psSelectAll = nullptr;
+		QAction* psContacts = nullptr;
+		QAction* psAddContact = nullptr;
+		QAction* psNewGroup = nullptr;
+		QAction* psNewChannel = nullptr;
+		QAction* psShowTelegram = nullptr;
 
-};
-
+		int _customTitleHeight = 0;
+	};
 } // namespace Platform

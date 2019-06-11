@@ -7,56 +7,68 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace HistoryView {
+namespace HistoryView
+{
+	class Object
+	{
+	public:
+		Object() = default;
+		Object(const Object& other) = delete;
+		Object& operator=(const Object& other) = delete;
 
-class Object {
-public:
-	Object() = default;
-	Object(const Object &other) = delete;
-	Object &operator=(const Object &other) = delete;
+		void initDimensions()
+		{
+			setOptimalSize(countOptimalSize());
+		}
 
-	void initDimensions() {
-		setOptimalSize(countOptimalSize());
-	}
-	int resizeGetHeight(int newWidth) {
-		setCurrentSize(countCurrentSize(newWidth));
-		return _height;
-	}
+		int resizeGetHeight(int newWidth)
+		{
+			setCurrentSize(countCurrentSize(newWidth));
+			return _height;
+		}
 
-	int maxWidth() const {
-		return _maxWidth;
-	}
-	int minHeight() const {
-		return _minHeight;
-	}
-	int width() const {
-		return _width;
-	}
-	int height() const {
-		return _height;
-	}
+		int maxWidth() const
+		{
+			return _maxWidth;
+		}
 
-	virtual ~Object() = default;
+		int minHeight() const
+		{
+			return _minHeight;
+		}
 
-protected:
-	void setOptimalSize(QSize size) {
-		_maxWidth = size.width();
-		_minHeight = size.height();
-	}
-	void setCurrentSize(QSize size) {
-		_width = size.width();
-		_height = size.height();
-	}
+		int width() const
+		{
+			return _width;
+		}
 
-private:
-	virtual QSize countOptimalSize() = 0;
-	virtual QSize countCurrentSize(int newWidth) = 0;
+		int height() const
+		{
+			return _height;
+		}
 
-	int _maxWidth = 0;
-	int _minHeight = 0;
-	int _width = 0;
-	int _height = 0;
+		virtual ~Object() = default;
 
-};
+	protected:
+		void setOptimalSize(QSize size)
+		{
+			_maxWidth = size.width();
+			_minHeight = size.height();
+		}
 
+		void setCurrentSize(QSize size)
+		{
+			_width = size.width();
+			_height = size.height();
+		}
+
+	private:
+		virtual QSize countOptimalSize() = 0;
+		virtual QSize countCurrentSize(int newWidth) = 0;
+
+		int _maxWidth = 0;
+		int _minHeight = 0;
+		int _width = 0;
+		int _height = 0;
+	};
 } // namespace HistoryView

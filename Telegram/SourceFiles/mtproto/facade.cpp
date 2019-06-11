@@ -10,35 +10,40 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "core/application.h"
 
-namespace MTP {
-namespace internal {
-namespace {
+namespace MTP
+{
+	namespace internal
+	{
+		namespace
+		{
+			int PauseLevel = 0;
+		} // namespace
 
-int PauseLevel = 0;
-
-} // namespace
-
-bool paused() {
-	return PauseLevel > 0;
-}
-
-void pause() {
-	++PauseLevel;
-}
-
-void unpause() {
-	--PauseLevel;
-	if (!PauseLevel) {
-		if (auto instance = MainInstance()) {
-			instance->unpaused();
+		bool paused()
+		{
+			return PauseLevel > 0;
 		}
+
+		void pause()
+		{
+			++PauseLevel;
+		}
+
+		void unpause()
+		{
+			--PauseLevel;
+			if (!PauseLevel)
+			{
+				if (auto instance = MainInstance())
+				{
+					instance->unpaused();
+				}
+			}
+		}
+	} // namespace internal
+
+	Instance* MainInstance()
+	{
+		return Core::IsAppLaunched() ? Core::App().mtp() : nullptr;
 	}
-}
-
-} // namespace internal
-
-Instance *MainInstance() {
-	return Core::IsAppLaunched() ? Core::App().mtp() : nullptr;
-}
-
 } // namespace MTP

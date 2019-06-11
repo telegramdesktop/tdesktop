@@ -13,120 +13,134 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
 
-namespace Ui {
+namespace Ui
+{
+	class PopupMenu : public Ui::RpWidget, private base::Subscriber
+	{
+	public:
+		PopupMenu(QWidget* parent, const style::PopupMenu& st = st::defaultPopupMenu);
+		PopupMenu(QWidget* parent, QMenu* menu, const style::PopupMenu& st = st::defaultPopupMenu);
 
-class PopupMenu : public Ui::RpWidget, private base::Subscriber {
-public:
-	PopupMenu(QWidget *parent, const style::PopupMenu &st = st::defaultPopupMenu);
-	PopupMenu(QWidget *parent, QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);
+		not_null<QAction*> addAction(const QString& text, const QObject* receiver, const char* member, const style::icon* icon = nullptr, const style::icon* iconOver = nullptr);
+		not_null<QAction*> addAction(const QString& text, Fn<void()> callback, const style::icon* icon = nullptr, const style::icon* iconOver = nullptr);
+		not_null<QAction*> addSeparator();
+		void clearActions();
 
-	not_null<QAction*> addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	not_null<QAction*> addAction(const QString &text, Fn<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	not_null<QAction*> addSeparator();
-	void clearActions();
+		const std::vector<not_null<QAction*>>& actions() const;
 
-	const std::vector<not_null<QAction*>> &actions() const;
+		void deleteOnHide(bool del);
+		void popup(const QPoint& p);
+		void hideMenu(bool fast = false);
 
-	void deleteOnHide(bool del);
-	void popup(const QPoint &p);
-	void hideMenu(bool fast = false);
+		void setDestroyedCallback(Fn<void()> callback)
+		{
+			_destroyedCallback = std::move(callback);
+		}
 
-	void setDestroyedCallback(Fn<void()> callback) {
-		_destroyedCallback = std::move(callback);
-	}
+		~PopupMenu();
 
-	~PopupMenu();
+	protected:
+		void paintEvent(QPaintEvent* e) override;
+		void focusOutEvent(QFocusEvent* e) override;
+		void hideEvent(QHideEvent* e) override;
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void focusOutEvent(QFocusEvent *e) override;
-	void hideEvent(QHideEvent *e) override;
+		void keyPressEvent(QKeyEvent* e) override
+		{
+			forwardKeyPress(e->key());
+		}
 
-	void keyPressEvent(QKeyEvent *e) override {
-		forwardKeyPress(e->key());
-	}
-	void mouseMoveEvent(QMouseEvent *e) override {
-		forwardMouseMove(e->globalPos());
-	}
-	void mousePressEvent(QMouseEvent *e) override {
-		forwardMousePress(e->globalPos());
-	}
+		void mouseMoveEvent(QMouseEvent* e) override
+		{
+			forwardMouseMove(e->globalPos());
+		}
 
-private:
-	void paintBg(Painter &p);
-	void hideFast();
-	void setOrigin(PanelAnimation::Origin origin);
-	void showAnimated(PanelAnimation::Origin origin);
-	void hideAnimated();
+		void mousePressEvent(QMouseEvent* e) override
+		{
+			forwardMousePress(e->globalPos());
+		}
 
-	QImage grabForPanelAnimation();
-	void startShowAnimation();
-	void startOpacityAnimation(bool hiding);
-	void prepareCache();
-	void childHiding(PopupMenu *child);
+	private:
+		void paintBg(Painter& p);
+		void hideFast();
+		void setOrigin(PanelAnimation::Origin origin);
+		void showAnimated(PanelAnimation::Origin origin);
+		void hideAnimated();
 
-	void showAnimationCallback();
-	void opacityAnimationCallback();
+		QImage grabForPanelAnimation();
+		void startShowAnimation();
+		void startOpacityAnimation(bool hiding);
+		void prepareCache();
+		void childHiding(PopupMenu* child);
 
-	void init();
+		void showAnimationCallback();
+		void opacityAnimationCallback();
 
-	void hideFinished();
-	void showStarted();
+		void init();
 
-	using TriggeredSource = Ui::Menu::TriggeredSource;
-	void handleCompositingUpdate();
-	void handleMenuResize();
-	void handleActivated(QAction *action, int actionTop, TriggeredSource source);
-	void handleTriggered(QAction *action, int actionTop, TriggeredSource source);
-	void forwardKeyPress(int key);
-	bool handleKeyPress(int key);
-	void forwardMouseMove(QPoint globalPosition) {
-		_menu->handleMouseMove(globalPosition);
-	}
-	void handleMouseMove(QPoint globalPosition);
-	void forwardMousePress(QPoint globalPosition) {
-		_menu->handleMousePress(globalPosition);
-	}
-	void handleMousePress(QPoint globalPosition);
-	void forwardMouseRelease(QPoint globalPosition) {
-		_menu->handleMouseRelease(globalPosition);
-	}
-	void handleMouseRelease(QPoint globalPosition);
+		void hideFinished();
+		void showStarted();
 
-	using SubmenuPointer = QPointer<PopupMenu>;
-	bool popupSubmenuFromAction(QAction *action, int actionTop, TriggeredSource source);
-	void popupSubmenu(SubmenuPointer submenu, int actionTop, TriggeredSource source);
-	void showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource source);
+		using TriggeredSource = Ui::Menu::TriggeredSource;
+		void handleCompositingUpdate();
+		void handleMenuResize();
+		void handleActivated(QAction* action, int actionTop, TriggeredSource source);
+		void handleTriggered(QAction* action, int actionTop, TriggeredSource source);
+		void forwardKeyPress(int key);
+		bool handleKeyPress(int key);
 
-	const style::PopupMenu &_st;
+		void forwardMouseMove(QPoint globalPosition)
+		{
+			_menu->handleMouseMove(globalPosition);
+		}
 
-	object_ptr<Ui::Menu> _menu;
+		void handleMouseMove(QPoint globalPosition);
 
-	using Submenus = QMap<QAction*, SubmenuPointer>;
-	Submenus _submenus;
+		void forwardMousePress(QPoint globalPosition)
+		{
+			_menu->handleMousePress(globalPosition);
+		}
 
-	PopupMenu *_parent = nullptr;
+		void handleMousePress(QPoint globalPosition);
 
-	QRect _inner;
-	style::margins _padding;
+		void forwardMouseRelease(QPoint globalPosition)
+		{
+			_menu->handleMouseRelease(globalPosition);
+		}
 
-	SubmenuPointer _activeSubmenu;
+		void handleMouseRelease(QPoint globalPosition);
 
-	PanelAnimation::Origin _origin = PanelAnimation::Origin::TopLeft;
-	std::unique_ptr<PanelAnimation> _showAnimation;
-	Ui::Animations::Simple _a_show;
+		using SubmenuPointer = QPointer<PopupMenu>;
+		bool popupSubmenuFromAction(QAction* action, int actionTop, TriggeredSource source);
+		void popupSubmenu(SubmenuPointer submenu, int actionTop, TriggeredSource source);
+		void showMenu(const QPoint& p, PopupMenu* parent, TriggeredSource source);
 
-	bool _useTransparency = true;
-	bool _hiding = false;
-	QPixmap _cache;
-	Ui::Animations::Simple _a_opacity;
+		const style::PopupMenu& _st;
 
-	bool _deleteOnHide = true;
-	bool _triggering = false;
-	bool _deleteLater = false;
+		object_ptr<Ui::Menu> _menu;
 
-	Fn<void()> _destroyedCallback;
+		using Submenus = QMap<QAction*, SubmenuPointer>;
+		Submenus _submenus;
 
-};
+		PopupMenu* _parent = nullptr;
 
+		QRect _inner;
+		style::margins _padding;
+
+		SubmenuPointer _activeSubmenu;
+
+		PanelAnimation::Origin _origin = PanelAnimation::Origin::TopLeft;
+		std::unique_ptr<PanelAnimation> _showAnimation;
+		Ui::Animations::Simple _a_show;
+
+		bool _useTransparency = true;
+		bool _hiding = false;
+		QPixmap _cache;
+		Ui::Animations::Simple _a_opacity;
+
+		bool _deleteOnHide = true;
+		bool _triggering = false;
+		bool _deleteLater = false;
+
+		Fn<void()> _destroyedCallback;
+	};
 } // namespace Ui

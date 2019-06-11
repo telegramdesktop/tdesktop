@@ -16,94 +16,130 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ApiWrap;
 enum class SendFilesWay;
 
-namespace Main {
-class Account;
+namespace Main
+{
+	class Account;
 } // namespace Main
 
-namespace Ui {
-enum class InputSubmitSettings;
+namespace Ui
+{
+	enum class InputSubmitSettings;
 } // namespace Ui
 
-namespace Support {
-enum class SwitchSettings;
-class Helper;
-class Templates;
+namespace Support
+{
+	enum class SwitchSettings;
+	class Helper;
+	class Templates;
 } // namespace Support
 
-namespace Data {
-class Session;
+namespace Data
+{
+	class Session;
 } // namespace Data
 
-namespace Storage {
-class Downloader;
-class Uploader;
-class Facade;
+namespace Storage
+{
+	class Downloader;
+	class Uploader;
+	class Facade;
 } // namespace Storage
 
-namespace Window {
-namespace Notifications {
-class System;
-} // namespace Notifications
-enum class Column;
+namespace Window
+{
+	namespace Notifications
+	{
+		class System;
+	} // namespace Notifications
+	enum class Column;
 } // namespace Window
 
-namespace Calls {
-class Instance;
+namespace Calls
+{
+	class Instance;
 } // namespace Calls
 
-namespace ChatHelpers {
-enum class SelectorTab;
+namespace ChatHelpers
+{
+	enum class SelectorTab;
 } // namespace ChatHelpers
 
-namespace Core {
-class Changelogs;
+namespace Core
+{
+	class Changelogs;
 } // namespace Core
 
-class AuthSessionSettings final {
+class AuthSessionSettings final
+{
 public:
-	void moveFrom(AuthSessionSettings &&other) {
+	void moveFrom(AuthSessionSettings&& other)
+	{
 		_variables = std::move(other._variables);
 	}
-	QByteArray serialize() const;
-	void constructFromSerialized(const QByteArray &serialized);
 
-	void setLastSeenWarningSeen(bool lastSeenWarningSeen) {
+	QByteArray serialize() const;
+	void constructFromSerialized(const QByteArray& serialized);
+
+	void setLastSeenWarningSeen(bool lastSeenWarningSeen)
+	{
 		_variables.lastSeenWarningSeen = lastSeenWarningSeen;
 	}
-	bool lastSeenWarningSeen() const {
+
+	bool lastSeenWarningSeen() const
+	{
 		return _variables.lastSeenWarningSeen;
 	}
-	void setSendFilesWay(SendFilesWay way) {
+
+	void setSendFilesWay(SendFilesWay way)
+	{
 		_variables.sendFilesWay = way;
 	}
-	SendFilesWay sendFilesWay() const {
+
+	SendFilesWay sendFilesWay() const
+	{
 		return _variables.sendFilesWay;
 	}
-	void setSendSubmitWay(Ui::InputSubmitSettings value) {
+
+	void setSendSubmitWay(Ui::InputSubmitSettings value)
+	{
 		_variables.sendSubmitWay = value;
 	}
-	Ui::InputSubmitSettings sendSubmitWay() const {
+
+	Ui::InputSubmitSettings sendSubmitWay() const
+	{
 		return _variables.sendSubmitWay;
 	}
 
-	void setSupportSwitch(Support::SwitchSettings value) {
+	void setSupportSwitch(Support::SwitchSettings value)
+	{
 		_variables.supportSwitch = value;
 	}
-	Support::SwitchSettings supportSwitch() const {
+
+	Support::SwitchSettings supportSwitch() const
+	{
 		return _variables.supportSwitch;
 	}
-	void setSupportFixChatsOrder(bool fix) {
+
+	void setSupportFixChatsOrder(bool fix)
+	{
 		_variables.supportFixChatsOrder = fix;
 	}
-	bool supportFixChatsOrder() const {
+
+	bool supportFixChatsOrder() const
+	{
 		return _variables.supportFixChatsOrder;
 	}
-	void setSupportTemplatesAutocomplete(bool enabled) {
+
+	void setSupportTemplatesAutocomplete(bool enabled)
+	{
 		_variables.supportTemplatesAutocomplete = enabled;
 	}
-	bool supportTemplatesAutocomplete() const {
+
+	bool supportTemplatesAutocomplete() const
+	{
 		return _variables.supportTemplatesAutocomplete;
 	}
+
 	void setSupportChatsTimeSlice(int slice);
 	int supportChatsTimeSlice() const;
 	rpl::producer<int> supportChatsTimeSliceValue() const;
@@ -111,63 +147,101 @@ public:
 	bool supportAllSearchResults() const;
 	rpl::producer<bool> supportAllSearchResultsValue() const;
 
-	ChatHelpers::SelectorTab selectorTab() const {
+	ChatHelpers::SelectorTab selectorTab() const
+	{
 		return _variables.selectorTab;
 	}
-	void setSelectorTab(ChatHelpers::SelectorTab tab) {
+
+	void setSelectorTab(ChatHelpers::SelectorTab tab)
+	{
 		_variables.selectorTab = tab;
 	}
-	bool tabbedSelectorSectionEnabled() const {
+
+	bool tabbedSelectorSectionEnabled() const
+	{
 		return _variables.tabbedSelectorSectionEnabled;
 	}
+
 	void setTabbedSelectorSectionEnabled(bool enabled);
-	bool thirdSectionInfoEnabled() const {
+
+	bool thirdSectionInfoEnabled() const
+	{
 		return _variables.thirdSectionInfoEnabled;
 	}
+
 	void setThirdSectionInfoEnabled(bool enabled);
 	rpl::producer<bool> thirdSectionInfoEnabledValue() const;
-	int thirdSectionExtendedBy() const {
+
+	int thirdSectionExtendedBy() const
+	{
 		return _variables.thirdSectionExtendedBy;
 	}
-	void setThirdSectionExtendedBy(int savedValue) {
+
+	void setThirdSectionExtendedBy(int savedValue)
+	{
 		_variables.thirdSectionExtendedBy = savedValue;
 	}
-	bool tabbedReplacedWithInfo() const {
+
+	bool tabbedReplacedWithInfo() const
+	{
 		return _tabbedReplacedWithInfo;
 	}
+
 	void setTabbedReplacedWithInfo(bool enabled);
 	rpl::producer<bool> tabbedReplacedWithInfoValue() const;
-	void setSmallDialogsList(bool enabled) {
+
+	void setSmallDialogsList(bool enabled)
+	{
 		_variables.smallDialogsList = enabled;
 	}
-	bool smallDialogsList() const {
+
+	bool smallDialogsList() const
+	{
 		return _variables.smallDialogsList;
 	}
-	void setSoundOverride(const QString &key, const QString &path) {
+
+	void setSoundOverride(const QString& key, const QString& path)
+	{
 		_variables.soundOverrides.insert(key, path);
 	}
-	void clearSoundOverrides() {
+
+	void clearSoundOverrides()
+	{
 		_variables.soundOverrides.clear();
 	}
-	QString getSoundPath(const QString &key) const;
-	void setTabbedSelectorSectionTooltipShown(int shown) {
+
+	QString getSoundPath(const QString& key) const;
+
+	void setTabbedSelectorSectionTooltipShown(int shown)
+	{
 		_variables.tabbedSelectorSectionTooltipShown = shown;
 	}
-	int tabbedSelectorSectionTooltipShown() const {
+
+	int tabbedSelectorSectionTooltipShown() const
+	{
 		return _variables.tabbedSelectorSectionTooltipShown;
 	}
-	void setFloatPlayerColumn(Window::Column column) {
+
+	void setFloatPlayerColumn(Window::Column column)
+	{
 		_variables.floatPlayerColumn = column;
 	}
-	Window::Column floatPlayerColumn() const {
+
+	Window::Column floatPlayerColumn() const
+	{
 		return _variables.floatPlayerColumn;
 	}
-	void setFloatPlayerCorner(RectPart corner) {
+
+	void setFloatPlayerCorner(RectPart corner)
+	{
 		_variables.floatPlayerCorner = corner;
 	}
-	RectPart floatPlayerCorner() const {
+
+	RectPart floatPlayerCorner() const
+	{
 		return _variables.floatPlayerCorner;
 	}
+
 	void setDialogsWidthRatio(float64 ratio);
 	float64 dialogsWidthRatio() const;
 	rpl::producer<float64> dialogsWidthRatioChanges() const;
@@ -175,20 +249,28 @@ public:
 	int thirdColumnWidth() const;
 	rpl::producer<int> thirdColumnWidthChanges() const;
 
-	void setGroupStickersSectionHidden(PeerId peerId) {
+	void setGroupStickersSectionHidden(PeerId peerId)
+	{
 		_variables.groupStickersSectionHidden.insert(peerId);
 	}
-	bool isGroupStickersSectionHidden(PeerId peerId) const {
+
+	bool isGroupStickersSectionHidden(PeerId peerId) const
+	{
 		return _variables.groupStickersSectionHidden.contains(peerId);
 	}
-	void removeGroupStickersSectionHidden(PeerId peerId) {
+
+	void removeGroupStickersSectionHidden(PeerId peerId)
+	{
 		_variables.groupStickersSectionHidden.remove(peerId);
 	}
 
-	Data::AutoDownload::Full &autoDownload() {
+	Data::AutoDownload::Full& autoDownload()
+	{
 		return _variables.autoDownload;
 	}
-	const Data::AutoDownload::Full &autoDownload() const {
+
+	const Data::AutoDownload::Full& autoDownload() const
+	{
 		return _variables.autoDownload;
 	}
 
@@ -200,31 +282,44 @@ public:
 	bool notifyAboutPinned() const;
 	rpl::producer<bool> notifyAboutPinnedChanges() const;
 
-	bool hadLegacyCallsPeerToPeerNobody() const {
+	bool hadLegacyCallsPeerToPeerNobody() const
+	{
 		return _variables.hadLegacyCallsPeerToPeerNobody;
 	}
 
-	bool includeMutedCounter() const {
+	bool includeMutedCounter() const
+	{
 		return _variables.includeMutedCounter;
 	}
-	void setIncludeMutedCounter(bool value) {
+
+	void setIncludeMutedCounter(bool value)
+	{
 		_variables.includeMutedCounter = value;
 	}
-	bool countUnreadMessages() const {
+
+	bool countUnreadMessages() const
+	{
 		return _variables.countUnreadMessages;
 	}
-	void setCountUnreadMessages(bool value) {
+
+	void setCountUnreadMessages(bool value)
+	{
 		_variables.countUnreadMessages = value;
 	}
-	bool exeLaunchWarning() const {
+
+	bool exeLaunchWarning() const
+	{
 		return _variables.exeLaunchWarning;
 	}
-	void setExeLaunchWarning(bool warning) {
+
+	void setExeLaunchWarning(bool warning)
+	{
 		_variables.exeLaunchWarning = warning;
 	}
 
 private:
-	struct Variables {
+	struct Variables
+	{
 		Variables();
 
 		static constexpr auto kDefaultDialogsWidthRatio = 5. / 14;
@@ -271,63 +366,78 @@ private:
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue;
 
 	Variables _variables;
-
 };
 
 class AuthSession;
-AuthSession &Auth();
+AuthSession& Auth();
 
 class AuthSession final
 	: public base::has_weak_ptr
-	, private base::Subscriber {
+	  , private base::Subscriber
+{
 public:
-	AuthSession(not_null<Main::Account*> account, const MTPUser &user);
+	AuthSession(not_null<Main::Account*> account, const MTPUser& user);
 	~AuthSession();
 
-	AuthSession(const AuthSession &other) = delete;
-	AuthSession &operator=(const AuthSession &other) = delete;
+	AuthSession(const AuthSession& other) = delete;
+	AuthSession& operator=(const AuthSession& other) = delete;
 
 	static bool Exists();
 
-	Main::Account &account() const;
+	Main::Account& account() const;
 
 	UserId userId() const;
 	PeerId userPeerId() const;
-	not_null<UserData*> user() const {
+
+	not_null<UserData*> user() const
+	{
 		return _user;
 	}
-	bool validateSelf(const MTPUser &user);
 
-	Storage::Downloader &downloader() {
+	bool validateSelf(const MTPUser& user);
+
+	Storage::Downloader& downloader()
+	{
 		return *_downloader;
 	}
-	Storage::Uploader &uploader() {
+
+	Storage::Uploader& uploader()
+	{
 		return *_uploader;
 	}
-	Storage::Facade &storage() {
+
+	Storage::Facade& storage()
+	{
 		return *_storage;
 	}
 
-	base::Observable<void> &downloaderTaskFinished();
+	base::Observable<void>& downloaderTaskFinished();
 
-	Window::Notifications::System &notifications() {
+	Window::Notifications::System& notifications()
+	{
 		return *_notifications;
 	}
 
-	Data::Session &data() {
+	Data::Session& data()
+	{
 		return *_data;
 	}
-	AuthSessionSettings &settings() {
+
+	AuthSessionSettings& settings()
+	{
 		return _settings;
 	}
-	void moveSettingsFrom(AuthSessionSettings &&other);
+
+	void moveSettingsFrom(AuthSessionSettings&& other);
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 
-	ApiWrap &api() {
+	ApiWrap& api()
+	{
 		return *_api;
 	}
 
-	Calls::Instance &calls() {
+	Calls::Instance& calls()
+	{
 		return *_calls;
 	}
 
@@ -336,7 +446,8 @@ public:
 	void localPasscodeChanged();
 	void termsDeleteNow();
 
-	rpl::lifetime &lifetime() {
+	rpl::lifetime& lifetime()
+	{
 		return _lifetime;
 	}
 
@@ -344,8 +455,8 @@ public:
 	base::Observable<std::pair<not_null<HistoryItem*>, MsgId>> messageIdChanging;
 
 	bool supportMode() const;
-	Support::Helper &supportHelper() const;
-	Support::Templates &supportTemplates() const;
+	Support::Helper& supportHelper() const;
+	Support::Templates& supportTemplates() const;
 
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
@@ -375,5 +486,4 @@ private:
 	const std::unique_ptr<Support::Helper> _supportHelper;
 
 	rpl::lifetime _lifetime;
-
 };

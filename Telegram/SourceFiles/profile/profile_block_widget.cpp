@@ -10,39 +10,44 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_profile.h"
 #include "styles/style_widgets.h"
 
-namespace Profile {
+namespace Profile
+{
+	BlockWidget::BlockWidget(
+		QWidget* parent,
+		PeerData* peer,
+		const QString& title) :
+		RpWidget(parent)
+		, _peer(peer)
+		, _title(title)
+	{
+	}
 
-BlockWidget::BlockWidget(
-	QWidget *parent,
-	PeerData *peer,
-	const QString &title) : RpWidget(parent)
-, _peer(peer)
-, _title(title) {
-}
+	int BlockWidget::contentTop() const
+	{
+		return emptyTitle() ? 0 : (st::profileBlockMarginTop + st::profileBlockTitleHeight);
+	}
 
-int BlockWidget::contentTop() const {
-	return emptyTitle() ? 0 : (st::profileBlockMarginTop + st::profileBlockTitleHeight);
-}
+	void BlockWidget::paintEvent(QPaintEvent* e)
+	{
+		Painter p(this);
 
-void BlockWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+		paintTitle(p);
+		paintContents(p);
+	}
 
-	paintTitle(p);
-	paintContents(p);
-}
+	void BlockWidget::paintTitle(Painter& p)
+	{
+		if (emptyTitle()) return;
 
-void BlockWidget::paintTitle(Painter &p) {
-	if (emptyTitle()) return;
+		p.setFont(st::profileBlockTitleFont);
+		p.setPen(st::profileBlockTitleFg);
+		int titleLeft = st::profileBlockTitlePosition.x();
+		int titleTop = st::profileBlockMarginTop + st::profileBlockTitlePosition.y();
+		p.drawTextLeft(titleLeft, titleTop, width(), _title);
+	}
 
-	p.setFont(st::profileBlockTitleFont);
-	p.setPen(st::profileBlockTitleFg);
-	int titleLeft = st::profileBlockTitlePosition.x();
-	int titleTop = st::profileBlockMarginTop + st::profileBlockTitlePosition.y();
-	p.drawTextLeft(titleLeft, titleTop, width(), _title);
-}
-
-int defaultOutlineButtonLeft() {
-	return st::profileBlockTitlePosition.x() - st::defaultLeftOutlineButton.padding.left();
-}
-
+	int defaultOutlineButtonLeft()
+	{
+		return st::profileBlockTitlePosition.x() - st::defaultLeftOutlineButton.padding.left();
+	}
 } // namespace Profile

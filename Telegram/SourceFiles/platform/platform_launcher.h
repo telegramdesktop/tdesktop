@@ -7,16 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Platform {
-
-//class Launcher : public Core::Launcher {
-//public:
-//	Launcher(int argc, char *argv[]);
-//
-//	...
-//
-//};
-
+namespace Platform
+{
+	//class Launcher : public Core::Launcher {
+	//public:
+	//	Launcher(int argc, char *argv[]);
+	//
+	//	...
+	//
+	//};
 } // namespace Platform
 
 // Platform dependent implementations.

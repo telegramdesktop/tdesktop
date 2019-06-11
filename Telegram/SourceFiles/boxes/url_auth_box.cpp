@@ -22,12 +22,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 
 void UrlAuthBox::Activate(
-		not_null<const HistoryItem*> message,
-		int row,
-		int column) {
+	not_null<const HistoryItem*> message,
+	int row,
+	int column)
+{
 	const auto itemId = message->fullId();
 	const auto button = HistoryMessageMarkupButton::Get(itemId, row, column);
-	if (button->requestId || !IsServerMsgId(itemId.msg)) {
+	if (button->requestId || !IsServerMsgId(itemId.msg))
+	{
 		return;
 	}
 	const auto session = &message->history()->session();
@@ -39,7 +41,8 @@ void UrlAuthBox::Activate(
 		inputPeer,
 		MTP_int(itemId.msg),
 		MTP_int(buttonId)
-	)).done([=](const MTPUrlAuthResult &result) {
+	)).done([=](const MTPUrlAuthResult& result)
+	{
 		const auto button = HistoryMessageMarkupButton::Get(
 			itemId,
 			row,
@@ -47,14 +50,18 @@ void UrlAuthBox::Activate(
 		if (!button) return;
 
 		button->requestId = 0;
-		result.match([&](const MTPDurlAuthResultAccepted &data) {
-			UrlClickHandler::Open(qs(data.vurl));
-		}, [&](const MTPDurlAuthResultDefault &data) {
-			HiddenUrlClickHandler::Open(url);
-		}, [&](const MTPDurlAuthResultRequest &data) {
-			Request(data, session->data().message(itemId), row, column);
-		});
-	}).fail([=](const RPCError &error) {
+		result.match([&](const MTPDurlAuthResultAccepted& data)
+		             {
+			             UrlClickHandler::Open(qs(data.vurl));
+		             }, [&](const MTPDurlAuthResultDefault& data)
+		             {
+			             HiddenUrlClickHandler::Open(url);
+		             }, [&](const MTPDurlAuthResultRequest& data)
+		             {
+			             Request(data, session->data().message(itemId), row, column);
+		             });
+	}).fail([=](const RPCError& error)
+	{
 		const auto button = HistoryMessageMarkupButton::Get(
 			itemId,
 			row,
@@ -67,13 +74,15 @@ void UrlAuthBox::Activate(
 }
 
 void UrlAuthBox::Request(
-		const MTPDurlAuthResultRequest &request,
-		not_null<const HistoryItem*> message,
-		int row,
-		int column) {
+	const MTPDurlAuthResultRequest& request,
+	not_null<const HistoryItem*> message,
+	int row,
+	int column)
+{
 	const auto itemId = message->fullId();
 	const auto button = HistoryMessageMarkupButton::Get(itemId, row, column);
-	if (button->requestId || !IsServerMsgId(itemId.msg)) {
+	if (button->requestId || !IsServerMsgId(itemId.msg))
+	{
 		return;
 	}
 	const auto session = &message->history()->session();
@@ -82,19 +91,25 @@ void UrlAuthBox::Request(
 	const auto url = QString::fromUtf8(button->data);
 
 	const auto bot = request.is_request_write_access()
-		? session->data().processUser(request.vbot).get()
-		: nullptr;
+		                 ? session->data().processUser(request.vbot).get()
+		                 : nullptr;
 	const auto box = std::make_shared<QPointer<BoxContent>>();
-	const auto finishWithUrl = [=](const QString &url) {
-		if (*box) {
+	const auto finishWithUrl = [=](const QString& url)
+	{
+		if (*box)
+		{
 			(*box)->closeBox();
 		}
 		UrlClickHandler::Open(url);
 	};
-	const auto callback = [=](Result result) {
-		if (result == Result::None) {
+	const auto callback = [=](Result result)
+	{
+		if (result == Result::None)
+		{
 			finishWithUrl(url);
-		} else if (const auto msg = session->data().message(itemId)) {
+		}
+		else if (const auto msg = session->data().message(itemId))
+		{
 			const auto allowWrite = (result == Result::AuthAndAllowWrite);
 			using Flag = MTPmessages_AcceptUrlAuth::Flag;
 			session->api().request(MTPmessages_AcceptUrlAuth(
@@ -102,19 +117,24 @@ void UrlAuthBox::Request(
 				inputPeer,
 				MTP_int(itemId.msg),
 				MTP_int(buttonId)
-			)).done([=](const MTPUrlAuthResult &result) {
+			)).done([=](const MTPUrlAuthResult& result)
+			{
 				const auto to = result.match(
-				[&](const MTPDurlAuthResultAccepted &data) {
-					return qs(data.vurl);
-				}, [&](const MTPDurlAuthResultDefault &data) {
-					return url;
-				}, [&](const MTPDurlAuthResultRequest &data) {
-					LOG(("API Error: "
-						"got urlAuthResultRequest after acceptUrlAuth."));
-					return url;
-				});
+					[&](const MTPDurlAuthResultAccepted& data)
+					{
+						return qs(data.vurl);
+					}, [&](const MTPDurlAuthResultDefault& data)
+					{
+						return url;
+					}, [&](const MTPDurlAuthResultRequest& data)
+					{
+						LOG(("API Error: "
+							"got urlAuthResultRequest after acceptUrlAuth."));
+						return url;
+					});
 				finishWithUrl(to);
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const RPCError& error)
+			{
 				finishWithUrl(url);
 			}).send();
 		}
@@ -126,24 +146,33 @@ void UrlAuthBox::Request(
 
 UrlAuthBox::UrlAuthBox(
 	QWidget*,
-	const QString &url,
-	const QString &domain,
-	UserData *bot,
-	Fn<void(Result)> callback)
-: _content(setupContent(url, domain, bot, std::move(callback))) {
+	const QString& url,
+	const QString& domain,
+	UserData* bot,
+	Fn<void(Result)> callback):
+	_content(setupContent(url, domain, bot, std::move(callback)))
+{
 }
 
-void UrlAuthBox::prepare() {
+void UrlAuthBox::prepare()
+{
 	setDimensionsToContent(st::boxWidth, _content);
-	addButton(langFactory(lng_open_link), [=] { _callback(); });
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(langFactory(lng_open_link), [=]
+	{
+		_callback();
+	});
+	addButton(langFactory(lng_cancel), [=]
+	{
+		closeBox();
+	});
 }
 
 not_null<Ui::RpWidget*> UrlAuthBox::setupContent(
-		const QString &url,
-		const QString &domain,
-		UserData *bot,
-		Fn<void(Result)> callback) {
+	const QString& url,
+	const QString& domain,
+	UserData* bot,
+	Fn<void(Result)> callback)
+{
 	const auto result = Ui::CreateChild<Ui::VerticalLayout>(this);
 	result->add(
 		object_ptr<Ui::FlatLabel>(
@@ -152,7 +181,8 @@ not_null<Ui::RpWidget*> UrlAuthBox::setupContent(
 			Ui::FlatLabel::InitType::Simple,
 			st::boxLabel),
 		st::boxPadding);
-	const auto addCheckbox = [&](const QString &text) {
+	const auto addCheckbox = [&](const QString& text)
+	{
 		const auto checkbox = result->add(
 			object_ptr<Ui::Checkbox>(
 				result,
@@ -177,31 +207,35 @@ not_null<Ui::RpWidget*> UrlAuthBox::setupContent(
 				+ App::peerName(Auth().user())
 				+ textcmdStopSemibold())));
 	const auto allow = bot
-		? addCheckbox(lng_url_auth_allow_messages(
-			lt_bot,
-			textcmdStartSemibold() + bot->firstName + textcmdStopSemibold()))
-		: nullptr;
-	if (allow) {
+		                   ? addCheckbox(lng_url_auth_allow_messages(
+			                   lt_bot,
+			                   textcmdStartSemibold() + bot->firstName + textcmdStopSemibold()))
+		                   : nullptr;
+	if (allow)
+	{
 		rpl::single(
 			auth->checked()
 		) | rpl::then(
 			auth->checkedChanges()
-		) | rpl::start_with_next([=](bool checked) {
-			if (!checked) {
+		) | rpl::start_with_next([=](bool checked)
+		{
+			if (!checked)
+			{
 				allow->setChecked(false);
 			}
 			allow->setDisabled(!checked);
 		}, auth->lifetime());
 	}
-	_callback = [=, callback = std::move(callback)]() {
+	_callback = [=, callback = std::move(callback)]()
+	{
 		const auto authed = auth->checked();
 		const auto allowed = (authed && allow && allow->checked());
 		const auto onstack = callback;
 		onstack(allowed
-			? Result::AuthAndAllowWrite
-			: authed
-			? Result::Auth
-			: Result::None);
+			        ? Result::AuthAndAllowWrite
+			        : authed
+			        ? Result::Auth
+			        : Result::None);
 	};
 	return result;
 }

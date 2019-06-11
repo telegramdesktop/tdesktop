@@ -14,29 +14,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class HistoryDocument;
 struct WebPageData;
 
-namespace HistoryView {
-class Element;
+namespace HistoryView
+{
+	class Element;
 } // namespace HistoryView
 
-struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryItem> {
+struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryItem>
+{
 	void create(UserId userId);
 	void resize(int32 availw) const;
 
-	UserData *bot = nullptr;
+	UserData* bot = nullptr;
 	mutable QString text;
 	mutable int width = 0;
 	mutable int maxWidth = 0;
 	ClickHandlerPtr link;
 };
 
-struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, HistoryItem> {
+struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, HistoryItem>
+{
 	QString _viewsText;
 	int _views = 0;
 	int _viewsWidth = 0;
 };
 
-struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem> {
-	void refresh(const QString &date);
+struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem>
+{
+	void refresh(const QString& date);
 	int maxWidth() const;
 
 	bool isElided = false;
@@ -44,16 +48,18 @@ struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, Hist
 	Text signature;
 };
 
-struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, HistoryItem> {
-	void refresh(const QString &date, bool displayed);
+struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, HistoryItem>
+{
+	void refresh(const QString& date, bool displayed);
 	int maxWidth() const;
 
 	TimeId date = 0;
 	Text text;
 };
 
-struct HiddenSenderInfo {
-	explicit HiddenSenderInfo(const QString &name);
+struct HiddenSenderInfo
+{
+	explicit HiddenSenderInfo(const QString& name);
 
 	QString name;
 	QString firstName;
@@ -62,34 +68,41 @@ struct HiddenSenderInfo {
 	Ui::EmptyUserpic userpic;
 	Text nameText;
 
-	inline bool operator==(const HiddenSenderInfo &other) const {
+	inline bool operator==(const HiddenSenderInfo& other) const
+	{
 		return name == other.name;
 	}
-	inline bool operator!=(const HiddenSenderInfo &other) const {
+
+	inline bool operator!=(const HiddenSenderInfo& other) const
+	{
 		return !(*this == other);
 	}
 };
 
-struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded, HistoryItem> {
-	void create(const HistoryMessageVia *via) const;
+struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded, HistoryItem>
+{
+	void create(const HistoryMessageVia* via) const;
 
 	TimeId originalDate = 0;
-	PeerData *originalSender = nullptr;
+	PeerData* originalSender = nullptr;
 	std::unique_ptr<HiddenSenderInfo> hiddenSenderInfo;
 	QString originalAuthor;
 	MsgId originalId = 0;
-	mutable Text text = { 1 };
+	mutable Text text = {1};
 
-	PeerData *savedFromPeer = nullptr;
+	PeerData* savedFromPeer = nullptr;
 	MsgId savedFromMsgId = 0;
 };
 
-struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, HistoryItem> {
+struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, HistoryItem>
+{
 	HistoryMessageReply() = default;
-	HistoryMessageReply(const HistoryMessageReply &other) = delete;
-	HistoryMessageReply(HistoryMessageReply &&other) = delete;
-	HistoryMessageReply &operator=(const HistoryMessageReply &other) = delete;
-	HistoryMessageReply &operator=(HistoryMessageReply &&other) {
+	HistoryMessageReply(const HistoryMessageReply& other) = delete;
+	HistoryMessageReply(HistoryMessageReply&& other) = delete;
+	HistoryMessageReply& operator=(const HistoryMessageReply& other) = delete;
+
+	HistoryMessageReply& operator=(HistoryMessageReply&& other)
+	{
 		replyToMsgId = other.replyToMsgId;
 		std::swap(replyToMsg, other.replyToMsg);
 		replyToLnk = std::move(other.replyToLnk);
@@ -100,7 +113,9 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 		replyToVia = std::move(other.replyToVia);
 		return *this;
 	}
-	~HistoryMessageReply() {
+
+	~HistoryMessageReply()
+	{
 		// clearData() should be called by holder.
 		Expects(replyToMsg == nullptr);
 		Expects(replyToVia == nullptr);
@@ -114,47 +129,59 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	bool isNameUpdated() const;
 	void updateName() const;
 	void resize(int width) const;
-	void itemRemoved(HistoryMessage *holder, HistoryItem *removed);
+	void itemRemoved(HistoryMessage* holder, HistoryItem* removed);
 
-	enum class PaintFlag {
+	enum class PaintFlag
+	{
 		InBubble = (1 << 0),
 		Selected = (1 << 1),
 	};
 	using PaintFlags = base::flags<PaintFlag>;
-	friend inline constexpr auto is_flag_type(PaintFlag) { return true; };
+
+	friend inline constexpr auto is_flag_type(PaintFlag)
+	{
+		return true;
+	};
 	void paint(
-		Painter &p,
+		Painter& p,
 		not_null<const HistoryView::Element*> holder,
 		int x,
 		int y,
 		int w,
 		PaintFlags flags) const;
 
-	MsgId replyToId() const {
+	MsgId replyToId() const
+	{
 		return replyToMsgId;
 	}
-	int replyToWidth() const {
+
+	int replyToWidth() const
+	{
 		return maxReplyWidth;
 	}
-	ClickHandlerPtr replyToLink() const {
+
+	ClickHandlerPtr replyToLink() const
+	{
 		return replyToLnk;
 	}
+
 	void setReplyToLinkFrom(
 		not_null<HistoryMessage*> holder);
 
 	MsgId replyToMsgId = 0;
-	HistoryItem *replyToMsg = nullptr;
+	HistoryItem* replyToMsg = nullptr;
 	ClickHandlerPtr replyToLnk;
 	mutable Text replyToName, replyToText;
 	mutable int replyToVersion = 0;
 	mutable int maxReplyWidth = 0;
 	std::unique_ptr<HistoryMessageVia> replyToVia;
 	int toWidth = 0;
-
 };
 
-struct HistoryMessageMarkupButton {
-	enum class Type {
+struct HistoryMessageMarkupButton
+{
+	enum class Type
+	{
 		Default,
 		Url,
 		Callback,
@@ -169,12 +196,12 @@ struct HistoryMessageMarkupButton {
 
 	HistoryMessageMarkupButton(
 		Type type,
-		const QString &text,
-		const QByteArray &data = QByteArray(),
-		const QString &forwardText = QString(),
+		const QString& text,
+		const QByteArray& data = QByteArray(),
+		const QString& forwardText = QString(),
 		int32 buttonId = 0);
 
-	static HistoryMessageMarkupButton *Get(
+	static HistoryMessageMarkupButton* Get(
 		FullMsgId itemId,
 		int row,
 		int column);
@@ -184,18 +211,21 @@ struct HistoryMessageMarkupButton {
 	QByteArray data;
 	int32 buttonId = 0;
 	mutable mtpRequestId requestId = 0;
-
 };
 
-struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMarkup, HistoryItem> {
+struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMarkup, HistoryItem>
+{
 	using Button = HistoryMessageMarkupButton;
 
 	HistoryMessageReplyMarkup() = default;
-	HistoryMessageReplyMarkup(MTPDreplyKeyboardMarkup::Flags f) : flags(f) {
+
+	HistoryMessageReplyMarkup(MTPDreplyKeyboardMarkup::Flags f) :
+		flags(f)
+	{
 	}
 
-	void create(const MTPReplyMarkup &markup);
-	void create(const HistoryMessageReplyMarkup &markup);
+	void create(const MTPReplyMarkup& markup);
+	void create(const HistoryMessageReplyMarkup& markup);
 
 	std::vector<std::vector<Button>> rows;
 	MTPDreplyKeyboardMarkup::Flags flags = 0;
@@ -206,19 +236,21 @@ struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMa
 	int oldTop = -1;
 
 private:
-	void createFromButtonRows(const QVector<MTPKeyboardButtonRow> &v);
-
+	void createFromButtonRows(const QVector<MTPKeyboardButtonRow>& v);
 };
 
-class ReplyMarkupClickHandler : public LeftButtonClickHandler {
+class ReplyMarkupClickHandler : public LeftButtonClickHandler
+{
 public:
 	ReplyMarkupClickHandler(int row, int column, FullMsgId context);
 
-	QString tooltip() const override {
+	QString tooltip() const override
+	{
 		return _fullDisplayed ? QString() : buttonText();
 	}
 
-	void setFullDisplayed(bool full) {
+	void setFullDisplayed(bool full)
+	{
 		_fullDisplayed = full;
 	}
 
@@ -230,11 +262,12 @@ public:
 	// If the button is not found it returns nullptr.
 	// Note: it is possible that we will point to the different button
 	// than the one was used when constructing the handler, but not a big deal.
-	const HistoryMessageMarkupButton *getButton() const;
+	const HistoryMessageMarkupButton* getButton() const;
 
 	// We hold only FullMsgId, not HistoryItem*, because all click handlers
 	// are activated async and the item may be already destroyed.
-	void setMessageId(const FullMsgId &msgId) {
+	void setMessageId(const FullMsgId& msgId)
+	{
 		_itemId = msgId;
 	}
 
@@ -249,21 +282,24 @@ private:
 
 	// Returns the full text of the corresponding button.
 	QString buttonText() const;
-
 };
 
-class ReplyKeyboard {
+class ReplyKeyboard
+{
 private:
 	struct Button;
 
 public:
-	class Style {
+	class Style
+	{
 	public:
-		Style(const style::BotKeyboardButton &st) : _st(&st) {
+		Style(const style::BotKeyboardButton& st) :
+			_st(&st)
+		{
 		}
 
-		virtual void startPaint(Painter &p) const = 0;
-		virtual const style::TextStyle &textStyle() const = 0;
+		virtual void startPaint(Painter& p) const = 0;
+		virtual const style::TextStyle& textStyle() const = 0;
 
 		int buttonSkip() const;
 		int buttonPadding() const;
@@ -271,65 +307,67 @@ public:
 		virtual int buttonRadius() const = 0;
 
 		virtual void repaint(not_null<const HistoryItem*> item) const = 0;
-		virtual ~Style() {
+
+		virtual ~Style()
+		{
 		}
 
 	protected:
 		virtual void paintButtonBg(
-			Painter &p,
-			const QRect &rect,
+			Painter& p,
+			const QRect& rect,
 			float64 howMuchOver) const = 0;
 		virtual void paintButtonIcon(
-			Painter &p,
-			const QRect &rect,
+			Painter& p,
+			const QRect& rect,
 			int outerWidth,
 			HistoryMessageMarkupButton::Type type) const = 0;
 		virtual void paintButtonLoading(
-			Painter &p,
-			const QRect &rect) const = 0;
+			Painter& p,
+			const QRect& rect) const = 0;
 		virtual int minButtonWidth(
 			HistoryMessageMarkupButton::Type type) const = 0;
 
 	private:
-		const style::BotKeyboardButton *_st;
+		const style::BotKeyboardButton* _st;
 
-		void paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button) const;
+		void paintButton(Painter& p, int outerWidth, const ReplyKeyboard::Button& button) const;
 		friend class ReplyKeyboard;
-
 	};
 
 	ReplyKeyboard(
 		not_null<const HistoryItem*> item,
-		std::unique_ptr<Style> &&s);
-	ReplyKeyboard(const ReplyKeyboard &other) = delete;
-	ReplyKeyboard &operator=(const ReplyKeyboard &other) = delete;
+		std::unique_ptr<Style>&& s);
+	ReplyKeyboard(const ReplyKeyboard& other) = delete;
+	ReplyKeyboard& operator=(const ReplyKeyboard& other) = delete;
 
-	bool isEnoughSpace(int width, const style::BotKeyboardButton &st) const;
-	void setStyle(std::unique_ptr<Style> &&s);
+	bool isEnoughSpace(int width, const style::BotKeyboardButton& st) const;
+	void setStyle(std::unique_ptr<Style>&& s);
 	void resize(int width, int height);
 
 	// what width and height will best fit this keyboard
 	int naturalWidth() const;
 	int naturalHeight() const;
 
-	void paint(Painter &p, int outerWidth, const QRect &clip) const;
+	void paint(Painter& p, int outerWidth, const QRect& clip) const;
 	ClickHandlerPtr getLink(QPoint point) const;
 
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
+	void clickHandlerActiveChanged(const ClickHandlerPtr& p, bool active);
+	void clickHandlerPressedChanged(const ClickHandlerPtr& p, bool pressed);
 
 	void clearSelection();
 	void updateMessageId();
 
 private:
 	friend class Style;
-	struct Button {
+	struct Button
+	{
 		Button();
-		Button(Button &&other);
-		Button &operator=(Button &&other);
+		Button(Button&& other);
+		Button& operator=(Button&& other);
 		~Button();
 
-		Text text = { 1 };
+		Text text = {1};
 		QRect rect;
 		int characters = 0;
 		float64 howMuchOver = 0.;
@@ -337,13 +375,14 @@ private:
 		std::shared_ptr<ReplyMarkupClickHandler> link;
 		mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 	};
-	struct ButtonCoords {
+	struct ButtonCoords
+	{
 		int i, j;
 	};
 
 	void startAnimation(int i, int j, int direction);
 
-	ButtonCoords findButtonCoordsByClickHandler(const ClickHandlerPtr &p);
+	ButtonCoords findButtonCoordsByClickHandler(const ClickHandlerPtr& p);
 
 	bool selectedAnimationCallback(crl::time now);
 
@@ -359,23 +398,23 @@ private:
 	ClickHandlerPtr _savedPressed;
 	ClickHandlerPtr _savedActive;
 	mutable QPoint _savedCoords;
-
 };
 
 // Special type of Component for the channel actions log.
 struct HistoryMessageLogEntryOriginal
-	: public RuntimeComponent<HistoryMessageLogEntryOriginal, HistoryItem> {
+	: public RuntimeComponent<HistoryMessageLogEntryOriginal, HistoryItem>
+{
 	HistoryMessageLogEntryOriginal();
-	HistoryMessageLogEntryOriginal(HistoryMessageLogEntryOriginal &&other);
-	HistoryMessageLogEntryOriginal &operator=(HistoryMessageLogEntryOriginal &&other);
+	HistoryMessageLogEntryOriginal(HistoryMessageLogEntryOriginal&& other);
+	HistoryMessageLogEntryOriginal& operator=(HistoryMessageLogEntryOriginal&& other);
 	~HistoryMessageLogEntryOriginal();
 
-	WebPageData *page = nullptr;
-
+	WebPageData* page = nullptr;
 };
 
 class FileClickHandler;
-struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed, HistoryDocument> {
+struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed, HistoryDocument>
+{
 	std::shared_ptr<FileClickHandler> _linksavel;
 	std::shared_ptr<FileClickHandler> _linkopenwithl;
 	std::shared_ptr<FileClickHandler> _linkcancell;
@@ -385,52 +424,66 @@ struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed, 
 	mutable QString _link;
 };
 
-struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned, HistoryDocument> {
+struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned, HistoryDocument>
+{
 	HistoryDocumentCaptioned();
 
 	Text _caption;
 };
 
-struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed, HistoryDocument> {
+struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed, HistoryDocument>
+{
 	QString _name;
 	int _namew = 0;
 };
 
-struct HistoryDocumentVoicePlayback {
-	HistoryDocumentVoicePlayback(const HistoryDocument *that);
+struct HistoryDocumentVoicePlayback
+{
+	HistoryDocumentVoicePlayback(const HistoryDocument* that);
 
 	int32 position = 0;
 	anim::value progress;
 	Ui::Animations::Basic progressAnimation;
 };
 
-class HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice, HistoryDocument> {
+class HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice, HistoryDocument>
+{
 	// We don't use float64 because components should align to pointer even on 32bit systems.
 	static constexpr float64 kFloatToIntMultiplier = 65536.;
 
 public:
-	void ensurePlayback(const HistoryDocument *interfaces) const;
+	void ensurePlayback(const HistoryDocument* interfaces) const;
 	void checkPlaybackFinished() const;
 
 	mutable std::unique_ptr<HistoryDocumentVoicePlayback> _playback;
 	std::shared_ptr<VoiceSeekClickHandler> _seekl;
 	mutable int _lastDurationMs = 0;
 
-	bool seeking() const {
+	bool seeking() const
+	{
 		return _seeking;
 	}
+
 	void startSeeking();
 	void stopSeeking();
-	float64 seekingStart() const {
+
+	float64 seekingStart() const
+	{
 		return _seekingStart / kFloatToIntMultiplier;
 	}
-	void setSeekingStart(float64 seekingStart) const {
+
+	void setSeekingStart(float64 seekingStart) const
+	{
 		_seekingStart = qRound(seekingStart * kFloatToIntMultiplier);
 	}
-	float64 seekingCurrent() const {
+
+	float64 seekingCurrent() const
+	{
 		return _seekingCurrent / kFloatToIntMultiplier;
 	}
-	void setSeekingCurrent(float64 seekingCurrent) {
+
+	void setSeekingCurrent(float64 seekingCurrent)
+	{
 		_seekingCurrent = qRound(seekingCurrent * kFloatToIntMultiplier);
 	}
 
@@ -439,5 +492,4 @@ private:
 
 	mutable int _seekingStart = 0;
 	mutable int _seekingCurrent = 0;
-
 };

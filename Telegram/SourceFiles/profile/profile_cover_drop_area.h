@@ -9,35 +9,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 
-namespace Profile {
+namespace Profile
+{
+	class CoverDropArea : public TWidget
+	{
+	public:
+		CoverDropArea(QWidget* parent, const QString& title, const QString& subtitle);
 
-class CoverDropArea : public TWidget {
-public:
-	CoverDropArea(QWidget *parent, const QString &title, const QString &subtitle);
+		void showAnimated();
 
-	void showAnimated();
+		using HideFinishCallback = Fn<void(CoverDropArea*)>;
+		void hideAnimated(HideFinishCallback&& callback);
 
-	using HideFinishCallback = Fn<void(CoverDropArea*)>;
-	void hideAnimated(HideFinishCallback &&callback);
+		bool hiding() const
+		{
+			return _hiding;
+		}
 
-	bool hiding() const {
-		return _hiding;
-	}
+	protected:
+		void paintEvent(QPaintEvent* e) override;
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
+	private:
+		void setupAnimation();
 
-private:
-	void setupAnimation();
+		QString _title, _subtitle;
+		int _titleWidth, _subtitleWidth;
 
-	QString _title, _subtitle;
-	int _titleWidth, _subtitleWidth;
-
-	QPixmap _cache;
-	Ui::Animations::Simple _a_appearance;
-	bool _hiding = false;
-	HideFinishCallback _hideFinishCallback;
-
-};
-
+		QPixmap _cache;
+		Ui::Animations::Simple _a_appearance;
+		bool _hiding = false;
+		HideFinishCallback _hideFinishCallback;
+	};
 } // namespace Profile

@@ -9,246 +9,299 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/qthelp_url.h"
 
-namespace MTP {
-namespace internal {
-namespace {
+namespace MTP
+{
+	namespace internal
+	{
+		namespace
+		{
+			constexpr auto kForceHttpPort = 80;
+			constexpr auto kFullConnectionTimeout = crl::time(8000);
+		} // namespace
 
-constexpr auto kForceHttpPort = 80;
-constexpr auto kFullConnectionTimeout = crl::time(8000);
+		HttpConnection::HttpConnection(QThread* thread, const ProxyData& proxy):
+			AbstractConnection(thread, proxy)
+			, _checkNonce(rand_value<MTPint128>())
+		{
+			_manager.moveToThread(thread);
+			_manager.setProxy(ToNetworkProxy(proxy));
+		}
 
-} // namespace
+		ConnectionPointer HttpConnection::clone(const ProxyData& proxy)
+		{
+			return ConnectionPointer::New<HttpConnection>(thread(), proxy);
+		}
 
-HttpConnection::HttpConnection(QThread *thread, const ProxyData &proxy)
-: AbstractConnection(thread, proxy)
-, _checkNonce(rand_value<MTPint128>()) {
-	_manager.moveToThread(thread);
-	_manager.setProxy(ToNetworkProxy(proxy));
-}
+		void HttpConnection::sendData(mtpBuffer&& buffer)
+		{
+			Expects(buffer.size() > 2);
 
-ConnectionPointer HttpConnection::clone(const ProxyData &proxy) {
-	return ConnectionPointer::New<HttpConnection>(thread(), proxy);
-}
+			if (_status == Status::Finished)
+			{
+				return;
+			}
 
-void HttpConnection::sendData(mtpBuffer &&buffer) {
-	Expects(buffer.size() > 2);
+			int32 requestSize = (buffer.size() - 2) * sizeof(mtpPrime);
 
-	if (_status == Status::Finished) {
-		return;
-	}
+			QNetworkRequest request(url());
+			request.setHeader(QNetworkRequest::ContentLengthHeader, QVariant(requestSize));
+			request.setHeader(QNetworkRequest::ContentTypeHeader, QVariant(qsl("application/x-www-form-urlencoded")));
 
-	int32 requestSize = (buffer.size() - 2) * sizeof(mtpPrime);
+			TCP_LOG(("HTTP Info: sending %1 len request").arg(requestSize));
+			_requests.insert(_manager.post(request, QByteArray((const char*)(&buffer[2]), requestSize)));
+		}
 
-	QNetworkRequest request(url());
-	request.setHeader(QNetworkRequest::ContentLengthHeader, QVariant(requestSize));
-	request.setHeader(QNetworkRequest::ContentTypeHeader, QVariant(qsl("application/x-www-form-urlencoded")));
+		void HttpConnection::disconnectFromServer()
+		{
+			if (_status == Status::Finished) return;
+			_status = Status::Finished;
 
-	TCP_LOG(("HTTP Info: sending %1 len request").arg(requestSize));
-	_requests.insert(_manager.post(request, QByteArray((const char*)(&buffer[2]), requestSize)));
-}
+			for (const auto request : base::take(_requests))
+			{
+				request->abort();
+				request->deleteLater();
+			}
 
-void HttpConnection::disconnectFromServer() {
-	if (_status == Status::Finished) return;
-	_status = Status::Finished;
+			disconnect(
+				&_manager,
+				&QNetworkAccessManager::finished,
+				this,
+				&HttpConnection::requestFinished);
+		}
 
-	for (const auto request : base::take(_requests)) {
-		request->abort();
-		request->deleteLater();
-	}
+		void HttpConnection::connectToServer(
+			const QString& address,
+			int port,
+			const bytes::vector& protocolSecret,
+			int16 protocolDcId)
+		{
+			_address = address;
+			connect(
+				&_manager,
+				&QNetworkAccessManager::finished,
+				this,
+				&HttpConnection::requestFinished);
 
-	disconnect(
-		&_manager,
-		&QNetworkAccessManager::finished,
-		this,
-		&HttpConnection::requestFinished);
-}
+			auto buffer = preparePQFake(_checkNonce);
 
-void HttpConnection::connectToServer(
-		const QString &address,
-		int port,
-		const bytes::vector &protocolSecret,
-		int16 protocolDcId) {
-	_address = address;
-	connect(
-		&_manager,
-		&QNetworkAccessManager::finished,
-		this,
-		&HttpConnection::requestFinished);
+			DEBUG_LOG(("HTTP Info: "
+				"dc:%1 - Sending fake req_pq to '%2'"
+			).arg(protocolDcId
+			).arg(url().toDisplayString()));
 
-	auto buffer = preparePQFake(_checkNonce);
+			_pingTime = crl::now();
+			sendData(std::move(buffer));
+		}
 
-	DEBUG_LOG(("HTTP Info: "
-		"dc:%1 - Sending fake req_pq to '%2'"
-		).arg(protocolDcId
-		).arg(url().toDisplayString()));
+		mtpBuffer HttpConnection::handleResponse(QNetworkReply* reply)
+		{
+			QByteArray response = reply->readAll();
+			TCP_LOG(("HTTP Info: read %1 bytes").arg(response.size()));
 
-	_pingTime = crl::now();
-	sendData(std::move(buffer));
-}
+			if (response.isEmpty()) return mtpBuffer();
 
-mtpBuffer HttpConnection::handleResponse(QNetworkReply *reply) {
-	QByteArray response = reply->readAll();
-	TCP_LOG(("HTTP Info: read %1 bytes").arg(response.size()));
+			if (response.size() & 0x03 || response.size() < 8)
+			{
+				LOG(("HTTP Error: bad response size %1").arg(response.size()));
+				return mtpBuffer(1, -500);
+			}
 
-	if (response.isEmpty()) return mtpBuffer();
+			mtpBuffer data(response.size() >> 2);
+			memcpy(data.data(), response.constData(), response.size());
 
-	if (response.size() & 0x03 || response.size() < 8) {
-		LOG(("HTTP Error: bad response size %1").arg(response.size()));
-		return mtpBuffer(1, -500);
-	}
+			return data;
+		}
 
-	mtpBuffer data(response.size() >> 2);
-	memcpy(data.data(), response.constData(), response.size());
+		qint32 HttpConnection::handleError(QNetworkReply* reply)
+		{
+			// returnes "maybe bad key"
+			auto result = qint32(kErrorCodeOther);
 
-	return data;
-}
+			QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+			if (statusCode.isValid())
+			{
+				int status = statusCode.toInt();
+				result = -status;
+			}
 
-qint32 HttpConnection::handleError(QNetworkReply *reply) { // returnes "maybe bad key"
-	auto result = qint32(kErrorCodeOther);
+			switch (reply->error())
+			{
+			case QNetworkReply::ConnectionRefusedError: LOG(("HTTP Error: connection refused - %1").arg(reply->errorString()));
+				break;
+			case QNetworkReply::RemoteHostClosedError: LOG(("HTTP Error: remote host closed - %1").arg(reply->errorString()));
+				break;
+			case QNetworkReply::HostNotFoundError: LOG(("HTTP Error: host not found - %1").arg(reply->errorString()));
+				break;
+			case QNetworkReply::TimeoutError: LOG(("HTTP Error: timeout - %1").arg(reply->errorString()));
+				break;
+			case QNetworkReply::OperationCanceledError: LOG(("HTTP Error: cancelled - %1").arg(reply->errorString()));
+				break;
+			case QNetworkReply::SslHandshakeFailedError:
+			case QNetworkReply::TemporaryNetworkFailureError:
+			case QNetworkReply::NetworkSessionFailedError:
+			case QNetworkReply::BackgroundRequestNotAllowedError:
+			case QNetworkReply::UnknownNetworkError: LOG(("HTTP Error: network error %1 - %2").arg(reply->error()).arg(reply->errorString()));
+				break;
 
-	QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
-	if (statusCode.isValid()) {
-		int status = statusCode.toInt();
-		result = -status;
-	}
+				// proxy errors (101-199):
+			case QNetworkReply::ProxyConnectionRefusedError:
+			case QNetworkReply::ProxyConnectionClosedError:
+			case QNetworkReply::ProxyNotFoundError:
+			case QNetworkReply::ProxyTimeoutError:
+			case QNetworkReply::ProxyAuthenticationRequiredError:
+			case QNetworkReply::UnknownProxyError: LOG(("HTTP Error: proxy error %1 - %2").arg(reply->error()).arg(reply->errorString()));
+				break;
 
-	switch (reply->error()) {
-	case QNetworkReply::ConnectionRefusedError: LOG(("HTTP Error: connection refused - %1").arg(reply->errorString())); break;
-	case QNetworkReply::RemoteHostClosedError: LOG(("HTTP Error: remote host closed - %1").arg(reply->errorString())); break;
-	case QNetworkReply::HostNotFoundError: LOG(("HTTP Error: host not found - %1").arg(reply->errorString())); break;
-	case QNetworkReply::TimeoutError: LOG(("HTTP Error: timeout - %1").arg(reply->errorString())); break;
-	case QNetworkReply::OperationCanceledError: LOG(("HTTP Error: cancelled - %1").arg(reply->errorString())); break;
-	case QNetworkReply::SslHandshakeFailedError:
-	case QNetworkReply::TemporaryNetworkFailureError:
-	case QNetworkReply::NetworkSessionFailedError:
-	case QNetworkReply::BackgroundRequestNotAllowedError:
-	case QNetworkReply::UnknownNetworkError: LOG(("HTTP Error: network error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
+				// content errors (201-299):
+			case QNetworkReply::ContentAccessDenied:
+			case QNetworkReply::ContentOperationNotPermittedError:
+			case QNetworkReply::ContentNotFoundError:
+			case QNetworkReply::AuthenticationRequiredError:
+			case QNetworkReply::ContentReSendError:
+			case QNetworkReply::UnknownContentError: LOG(("HTTP Error: content error %1 - %2").arg(reply->error()).arg(reply->errorString()));
+				break;
 
-	// proxy errors (101-199):
-	case QNetworkReply::ProxyConnectionRefusedError:
-	case QNetworkReply::ProxyConnectionClosedError:
-	case QNetworkReply::ProxyNotFoundError:
-	case QNetworkReply::ProxyTimeoutError:
-	case QNetworkReply::ProxyAuthenticationRequiredError:
-	case QNetworkReply::UnknownProxyError: LOG(("HTTP Error: proxy error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
+				// protocol errors
+			case QNetworkReply::ProtocolUnknownError:
+			case QNetworkReply::ProtocolInvalidOperationError:
+			case QNetworkReply::ProtocolFailure: LOG(("HTTP Error: protocol error %1 - %2").arg(reply->error()).arg(reply->errorString()));
+				break;
+			};
+			TCP_LOG(("HTTP Error %1, restarting! - %2").arg(reply->error()).arg(reply->errorString()));
 
-	// content errors (201-299):
-	case QNetworkReply::ContentAccessDenied:
-	case QNetworkReply::ContentOperationNotPermittedError:
-	case QNetworkReply::ContentNotFoundError:
-	case QNetworkReply::AuthenticationRequiredError:
-	case QNetworkReply::ContentReSendError:
-	case QNetworkReply::UnknownContentError: LOG(("HTTP Error: content error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
+			return result;
+		}
 
-	// protocol errors
-	case QNetworkReply::ProtocolUnknownError:
-	case QNetworkReply::ProtocolInvalidOperationError:
-	case QNetworkReply::ProtocolFailure: LOG(("HTTP Error: protocol error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
-	};
-	TCP_LOG(("HTTP Error %1, restarting! - %2").arg(reply->error()).arg(reply->errorString()));
+		bool HttpConnection::isConnected() const
+		{
+			return (_status == Status::Ready);
+		}
 
-	return result;
-}
+		void HttpConnection::requestFinished(QNetworkReply* reply)
+		{
+			if (_status == Status::Finished) return;
 
-bool HttpConnection::isConnected() const {
-	return (_status == Status::Ready);
-}
+			reply->deleteLater();
+			if (reply->error() == QNetworkReply::NoError)
+			{
+				_requests.remove(reply);
 
-void HttpConnection::requestFinished(QNetworkReply *reply) {
-	if (_status == Status::Finished) return;
-
-	reply->deleteLater();
-	if (reply->error() == QNetworkReply::NoError) {
-		_requests.remove(reply);
-
-		mtpBuffer data = handleResponse(reply);
-		if (data.size() == 1) {
-			emit error(data[0]);
-		} else if (!data.isEmpty()) {
-			if (_status == Status::Ready) {
-				_receivedQueue.push_back(data);
-				emit receivedData();
-			} else {
-				try {
-					const auto res_pq = readPQFakeReply(data);
-					const auto &data = res_pq.c_resPQ();
-					if (data.vnonce == _checkNonce) {
-						DEBUG_LOG(("Connection Info: "
-							"HTTP-transport to %1 connected by pq-response"
-							).arg(_address));
-						_status = Status::Ready;
-						_pingTime = crl::now() - _pingTime;
-						emit connected();
-					} else {
-						DEBUG_LOG(("Connection Error: "
-							"Wrong nonce received in HTTP fake pq-responce"));
-						emit error(kErrorCodeOther);
+				mtpBuffer data = handleResponse(reply);
+				if (data.size() == 1)
+				{
+					emit error(data[0]);
+				}
+				else if (!data.isEmpty())
+				{
+					if (_status == Status::Ready)
+					{
+						_receivedQueue.push_back(data);
+						emit receivedData();
 					}
-				} catch (Exception &e) {
-					DEBUG_LOG(("Connection Error: "
-						"Exception in parsing HTTP fake pq-responce, %1"
-						).arg(e.what()));
-					emit error(kErrorCodeOther);
+					else
+					{
+						try
+						{
+							const auto res_pq = readPQFakeReply(data);
+							const auto& data = res_pq.c_resPQ();
+							if (data.vnonce == _checkNonce)
+							{
+								DEBUG_LOG(("Connection Info: "
+									"HTTP-transport to %1 connected by pq-response"
+								).arg(_address));
+								_status = Status::Ready;
+								_pingTime = crl::now() - _pingTime;
+								emit connected();
+							}
+							else
+							{
+								DEBUG_LOG(("Connection Error: "
+									"Wrong nonce received in HTTP fake pq-responce"));
+								emit error(kErrorCodeOther);
+							}
+						}
+						catch (Exception& e)
+						{
+							DEBUG_LOG(("Connection Error: "
+								"Exception in parsing HTTP fake pq-responce, %1"
+							).arg(e.what()));
+							emit error(kErrorCodeOther);
+						}
+					}
 				}
 			}
+			else
+			{
+				if (!_requests.remove(reply))
+				{
+					return;
+				}
+
+				emit error(handleError(reply));
+			}
 		}
-	} else {
-		if (!_requests.remove(reply)) {
-			return;
+
+		crl::time HttpConnection::pingTime() const
+		{
+			return isConnected() ? _pingTime : crl::time(0);
 		}
 
-		emit error(handleError(reply));
-	}
-}
+		crl::time HttpConnection::fullConnectTimeout() const
+		{
+			return kFullConnectionTimeout;
+		}
 
-crl::time HttpConnection::pingTime() const {
-	return isConnected() ? _pingTime : crl::time(0);
-}
+		bool HttpConnection::usingHttpWait()
+		{
+			return true;
+		}
 
-crl::time HttpConnection::fullConnectTimeout() const {
-	return kFullConnectionTimeout;
-}
+		bool HttpConnection::needHttpWait()
+		{
+			return _requests.isEmpty();
+		}
 
-bool HttpConnection::usingHttpWait() {
-	return true;
-}
+		int32 HttpConnection::debugState() const
+		{
+			return -1;
+		}
 
-bool HttpConnection::needHttpWait() {
-	return _requests.isEmpty();
-}
+		QString HttpConnection::transport() const
+		{
+			if (!isConnected())
+			{
+				return QString();
+			}
+			auto result = qsl("HTTP");
+			if (qthelp::is_ipv6(_address))
+			{
+				result += qsl("/IPv6");
+			}
+			return result;
+		}
 
-int32 HttpConnection::debugState() const {
-	return -1;
-}
+		QString HttpConnection::tag() const
+		{
+			auto result = qsl("HTTP");
+			if (qthelp::is_ipv6(_address))
+			{
+				result += qsl("/IPv6");
+			}
+			else
+			{
+				result += qsl("/IPv4");
+			}
+			return result;
+		}
 
-QString HttpConnection::transport() const {
-	if (!isConnected()) {
-		return QString();
-	}
-	auto result = qsl("HTTP");
-	if (qthelp::is_ipv6(_address)) {
-		result += qsl("/IPv6");
-	}
-	return result;
-}
+		QUrl HttpConnection::url() const
+		{
+			const auto pattern = qthelp::is_ipv6(_address)
+				                     ? qsl("http://[%1]:%2/api")
+				                     : qsl("http://%1:%2/api");
 
-QString HttpConnection::tag() const {
-	auto result = qsl("HTTP");
-	if (qthelp::is_ipv6(_address)) {
-		result += qsl("/IPv6");
-	} else {
-		result += qsl("/IPv4");
-	}
-	return result;
-}
-
-QUrl HttpConnection::url() const {
-	const auto pattern = qthelp::is_ipv6(_address)
-		? qsl("http://[%1]:%2/api")
-		: qsl("http://%1:%2/api");
-
-	// Not endpoint.port - always 80 port for http transport.
-	return QUrl(pattern.arg(_address).arg(kForceHttpPort));
-}
-
-} // namespace internal
+			// Not endpoint.port - always 80 port for http transport.
+			return QUrl(pattern.arg(_address).arg(kForceHttpPort));
+		}
+	} // namespace internal
 } // namespace MTP

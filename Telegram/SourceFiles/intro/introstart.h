@@ -9,21 +9,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "intro/introwidget.h"
 
-namespace Ui {
-class FlatLabel;
-class LinkButton;
-class RoundButton;
+namespace Ui
+{
+	class FlatLabel;
+	class LinkButton;
+	class RoundButton;
 } // namespace Ui
 
-namespace Intro {
+namespace Intro
+{
+	class StartWidget : public Widget::Step
+	{
+	public:
+		StartWidget(QWidget* parent, Widget::Data* data);
 
-class StartWidget : public Widget::Step {
-public:
-	StartWidget(QWidget *parent, Widget::Data *data);
-
-	void submit() override;
-	QString nextButtonText() const override;
-
-};
-
+		void submit() override;
+		QString nextButtonText() const override;
+	};
 } // namespace Intro

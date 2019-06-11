@@ -7,5 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/style/style_core_types.h"
 
-namespace style {
+namespace style
+{
 } // namespace style

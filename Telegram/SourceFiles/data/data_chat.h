@@ -9,7 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_peer.h"
 
-class ChatData : public PeerData {
+class ChatData : public PeerData
+{
 public:
 	static constexpr auto kEssentialFlags = 0
 		| MTPDchat::Flag::f_creator
@@ -38,89 +39,132 @@ public:
 
 	ChatData(not_null<Data::Session*> owner, PeerId id);
 
-	void setPhoto(const MTPChatPhoto &photo);
-	void setPhoto(PhotoId photoId, const MTPChatPhoto &photo);
+	void setPhoto(const MTPChatPhoto& photo);
+	void setPhoto(PhotoId photoId, const MTPChatPhoto& photo);
 
-	void setName(const QString &newName);
+	void setName(const QString& newName);
 
 	void invalidateParticipants();
-	bool noParticipantInfo() const {
+
+	bool noParticipantInfo() const
+	{
 		return (count > 0 || amIn()) && participants.empty();
 	}
 
-	void setFlags(MTPDchat::Flags which) {
+	void setFlags(MTPDchat::Flags which)
+	{
 		_flags.set(which);
 	}
-	void addFlags(MTPDchat::Flags which) {
+
+	void addFlags(MTPDchat::Flags which)
+	{
 		_flags.add(which);
 	}
-	void removeFlags(MTPDchat::Flags which) {
+
+	void removeFlags(MTPDchat::Flags which)
+	{
 		_flags.remove(which);
 	}
-	auto flags() const {
+
+	auto flags() const
+	{
 		return _flags.current();
 	}
-	auto flagsValue() const {
+
+	auto flagsValue() const
+	{
 		return _flags.value();
 	}
 
-	void setFullFlags(MTPDchatFull::Flags which) {
+	void setFullFlags(MTPDchatFull::Flags which)
+	{
 		_fullFlags.set(which);
 	}
-	void addFullFlags(MTPDchatFull::Flags which) {
+
+	void addFullFlags(MTPDchatFull::Flags which)
+	{
 		_fullFlags.add(which);
 	}
-	void removeFullFlags(MTPDchatFull::Flags which) {
+
+	void removeFullFlags(MTPDchatFull::Flags which)
+	{
 		_fullFlags.remove(which);
 	}
-	auto fullFlags() const {
+
+	auto fullFlags() const
+	{
 		return _fullFlags.current();
 	}
-	auto fullFlagsValue() const {
+
+	auto fullFlagsValue() const
+	{
 		return _fullFlags.value();
 	}
 
-	auto adminRights() const {
+	auto adminRights() const
+	{
 		return _adminRights.current();
 	}
-	auto adminRightsValue() const {
+
+	auto adminRightsValue() const
+	{
 		return _adminRights.value();
 	}
-	void setAdminRights(const MTPChatAdminRights &rights);
-	bool hasAdminRights() const {
+
+	void setAdminRights(const MTPChatAdminRights& rights);
+
+	bool hasAdminRights() const
+	{
 		return (adminRights() != 0);
 	}
 
-	auto defaultRestrictions() const {
+	auto defaultRestrictions() const
+	{
 		return _defaultRestrictions.current();
 	}
-	auto defaultRestrictionsValue() const {
+
+	auto defaultRestrictionsValue() const
+	{
 		return _defaultRestrictions.value();
 	}
-	void setDefaultRestrictions(const MTPChatBannedRights &rights);
 
-	bool isForbidden() const {
+	void setDefaultRestrictions(const MTPChatBannedRights& rights);
+
+	bool isForbidden() const
+	{
 		return flags() & MTPDchat_ClientFlag::f_forbidden;
 	}
-	bool amIn() const {
+
+	bool amIn() const
+	{
 		return !isForbidden()
 			&& !isDeactivated()
 			&& !haveLeft()
 			&& !wasKicked();
 	}
-	bool haveLeft() const {
+
+	bool haveLeft() const
+	{
 		return flags() & MTPDchat::Flag::f_left;
 	}
-	bool wasKicked() const {
+
+	bool wasKicked() const
+	{
 		return flags() & MTPDchat::Flag::f_kicked;
 	}
-	bool amCreator() const {
+
+	bool amCreator() const
+	{
 		return flags() & MTPDchat::Flag::f_creator;
 	}
-	bool isDeactivated() const {
+
+	bool isDeactivated() const
+	{
 		return flags() & MTPDchat::Flag::f_deactivated;
 	}
-	bool isMigrated() const {
+
+	bool isMigrated() const
+	{
 		return flags() & MTPDchat::Flag::f_migrated_to;
 	}
 
@@ -140,27 +184,36 @@ public:
 
 	void applyEditAdmin(not_null<UserData*> user, bool isAdmin);
 
-	void setInviteLink(const QString &newInviteLink);
-	QString inviteLink() const {
+	void setInviteLink(const QString& newInviteLink);
+
+	QString inviteLink() const
+	{
 		return _inviteLink;
 	}
+
 	void refreshBotStatus();
 
-	enum class UpdateStatus {
+	enum class UpdateStatus
+	{
 		Good,
 		TooOld,
 		Skipped,
 	};
-	int version() const {
+
+	int version() const
+	{
 		return _version;
 	}
-	void setVersion(int version) {
+
+	void setVersion(int version)
+	{
 		_version = version;
 	}
+
 	UpdateStatus applyUpdateVersion(int version);
 
-	ChannelData *getMigrateToChannel() const;
-	void setMigrateToChannel(ChannelData *channel);
+	ChannelData* getMigrateToChannel() const;
+	void setMigrateToChannel(ChannelData* channel);
 
 	// Still public data members.
 	MTPint inputChat;
@@ -175,7 +228,7 @@ public:
 	std::deque<not_null<UserData*>> lastAuthors;
 	base::flat_set<not_null<PeerData*>> markupSenders;
 	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
-//	ImagePtr photoFull;
+	//	ImagePtr photoFull;
 
 private:
 	Flags _flags;
@@ -186,32 +239,30 @@ private:
 	AdminRightFlags _adminRights;
 	int _version = 0;
 
-	ChannelData *_migratedTo = nullptr;
-
+	ChannelData* _migratedTo = nullptr;
 };
 
-namespace Data {
-
-void ApplyChatUpdate(
-	not_null<ChatData*> chat,
-	const MTPDupdateChatParticipants &update);
-void ApplyChatUpdate(
-	not_null<ChatData*> chat,
-	const MTPDupdateChatParticipantAdd &update);
-void ApplyChatUpdate(
-	not_null<ChatData*> chat,
-	const MTPDupdateChatParticipantDelete &update);
-void ApplyChatUpdate(
-	not_null<ChatData*> chat,
-	const MTPDupdateChatParticipantAdmin &update);
-void ApplyChatUpdate(
-	not_null<ChatData*> chat,
-	const MTPDupdateChatDefaultBannedRights &update);
-void ApplyChatUpdate(
-	not_null<ChatData*> chat,
-	const MTPDchatFull &update);
-void ApplyChatUpdate(
-	not_null<ChatData*> chat,
-	const MTPChatParticipants &update);
-
+namespace Data
+{
+	void ApplyChatUpdate(
+		not_null<ChatData*> chat,
+		const MTPDupdateChatParticipants& update);
+	void ApplyChatUpdate(
+		not_null<ChatData*> chat,
+		const MTPDupdateChatParticipantAdd& update);
+	void ApplyChatUpdate(
+		not_null<ChatData*> chat,
+		const MTPDupdateChatParticipantDelete& update);
+	void ApplyChatUpdate(
+		not_null<ChatData*> chat,
+		const MTPDupdateChatParticipantAdmin& update);
+	void ApplyChatUpdate(
+		not_null<ChatData*> chat,
+		const MTPDupdateChatDefaultBannedRights& update);
+	void ApplyChatUpdate(
+		not_null<ChatData*> chat,
+		const MTPDchatFull& update);
+	void ApplyChatUpdate(
+		not_null<ChatData*> chat,
+		const MTPChatParticipants& update);
 } // namespace Data

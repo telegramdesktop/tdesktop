@@ -10,190 +10,192 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_form_view_controller.h"
 #include "passport/passport_form_controller.h"
 
-namespace Passport {
+namespace Passport
+{
+	class FormController;
+	class Panel;
 
-class FormController;
-class Panel;
+	struct EditDocumentScheme;
+	struct EditContactScheme;
 
-struct EditDocumentScheme;
-struct EditContactScheme;
+	enum class ReadScanError;
 
-enum class ReadScanError;
+	EditDocumentScheme GetDocumentScheme(
+		Scope::Type type,
+		std::optional<Value::Type> scansType,
+		bool nativeNames);
+	EditContactScheme GetContactScheme(Scope::Type type);
 
-EditDocumentScheme GetDocumentScheme(
-	Scope::Type type,
-	std::optional<Value::Type> scansType,
-	bool nativeNames);
-EditContactScheme GetContactScheme(Scope::Type type);
+	const std::map<QString, QString>& LatinToNativeMap();
+	const std::map<QString, QString>& NativeToLatinMap();
+	QString AdjustKeyName(not_null<const Value*> value, const QString& key);
+	bool SkipFieldCheck(not_null<const Value*> value, const QString& key);
 
-const std::map<QString, QString> &LatinToNativeMap();
-const std::map<QString, QString> &NativeToLatinMap();
-QString AdjustKeyName(not_null<const Value*> value, const QString &key);
-bool SkipFieldCheck(not_null<const Value*> value, const QString &key);
+	struct ScanInfo
+	{
+		explicit ScanInfo(FileType type);
+		ScanInfo(
+			FileType type,
+			const FileKey& key,
+			const QString& status,
+			const QImage& thumb,
+			bool deleted,
+			const QString& error);
 
-struct ScanInfo {
-	explicit ScanInfo(FileType type);
-	ScanInfo(
-		FileType type,
-		const FileKey &key,
-		const QString &status,
-		const QImage &thumb,
-		bool deleted,
-		const QString &error);
-
-	FileType type;
-	FileKey key;
-	QString status;
-	QImage thumb;
-	bool deleted = false;
-	QString error;
-};
-
-struct ScopeError {
-	enum class General {
-		WholeValue,
-		ScanMissing,
-		TranslationMissing,
+		FileType type;
+		FileKey key;
+		QString status;
+		QImage thumb;
+		bool deleted = false;
+		QString error;
 	};
 
-	// FileKey - file_hash error (bad scan / selfie / translation)
-	// General - general value error (or scan / translation missing)
-	// QString - data_hash with such key error (bad value)
-	base::variant<FileKey, General, QString> key;
-	QString text;
-};
+	struct ScopeError
+	{
+		enum class General
+		{
+			WholeValue,
+			ScanMissing,
+			TranslationMissing,
+		};
 
-class BoxPointer {
-public:
-	BoxPointer(QPointer<BoxContent> value = nullptr);
-	BoxPointer(BoxPointer &&other);
-	BoxPointer &operator=(BoxPointer &&other);
-	~BoxPointer();
+		// FileKey - file_hash error (bad scan / selfie / translation)
+		// General - general value error (or scan / translation missing)
+		// QString - data_hash with such key error (bad value)
+		base::variant<FileKey, General, QString> key;
+		QString text;
+	};
 
-	BoxContent *get() const;
-	operator BoxContent*() const;
-	explicit operator bool() const;
-	BoxContent *operator->() const;
+	class BoxPointer
+	{
+	public:
+		BoxPointer(QPointer<BoxContent> value = nullptr);
+		BoxPointer(BoxPointer&& other);
+		BoxPointer& operator=(BoxPointer&& other);
+		~BoxPointer();
 
-private:
-	QPointer<BoxContent> _value;
+		BoxContent* get() const;
+		operator BoxContent*() const;
+		explicit operator bool() const;
+		BoxContent* operator->() const;
 
-};
+	private:
+		QPointer<BoxContent> _value;
+	};
 
-class PanelController : public ViewController {
-public:
-	PanelController(not_null<FormController*> form);
+	class PanelController : public ViewController
+	{
+	public:
+		PanelController(not_null<FormController*> form);
 
-	not_null<UserData*> bot() const;
-	QString privacyPolicyUrl() const;
-	void submitForm();
-	void submitPassword(const QByteArray &password);
-	void recoverPassword();
-	rpl::producer<QString> passwordError() const;
-	QString passwordHint() const;
-	QString unconfirmedEmailPattern() const;
+		not_null<UserData*> bot() const;
+		QString privacyPolicyUrl() const;
+		void submitForm();
+		void submitPassword(const QByteArray& password);
+		void recoverPassword();
+		rpl::producer<QString> passwordError() const;
+		QString passwordHint() const;
+		QString unconfirmedEmailPattern() const;
 
-	void setupPassword();
-	void cancelPasswordSubmit();
-	void validateRecoveryEmail();
+		void setupPassword();
+		void cancelPasswordSubmit();
+		void validateRecoveryEmail();
 
-	bool canAddScan(FileType type) const;
-	void uploadScan(FileType type, QByteArray &&content);
-	void deleteScan(FileType type, std::optional<int> fileIndex);
-	void restoreScan(FileType type, std::optional<int> fileIndex);
-	rpl::producer<ScanInfo> scanUpdated() const;
-	rpl::producer<ScopeError> saveErrors() const;
-	void readScanError(ReadScanError error);
+		bool canAddScan(FileType type) const;
+		void uploadScan(FileType type, QByteArray&& content);
+		void deleteScan(FileType type, std::optional<int> fileIndex);
+		void restoreScan(FileType type, std::optional<int> fileIndex);
+		rpl::producer<ScanInfo> scanUpdated() const;
+		rpl::producer<ScopeError> saveErrors() const;
+		void readScanError(ReadScanError error);
 
-	std::optional<rpl::producer<QString>> deleteValueLabel() const;
-	void deleteValue();
+		std::optional<rpl::producer<QString>> deleteValueLabel() const;
+		void deleteValue();
 
-	QString defaultEmail() const;
-	QString defaultPhoneNumber() const;
+		QString defaultEmail() const;
+		QString defaultPhoneNumber() const;
 
-	void showAskPassword() override;
-	void showNoPassword() override;
-	void showCriticalError(const QString &error) override;
-	void showUpdateAppBox() override;
+		void showAskPassword() override;
+		void showNoPassword() override;
+		void showCriticalError(const QString& error) override;
+		void showUpdateAppBox() override;
 
-	void fillRows(
-		Fn<void(
-			QString title,
-			QString description,
-			bool ready,
-			bool error)> callback);
-	rpl::producer<> refillRows() const;
+		void fillRows(
+			Fn<void(
+				QString title,
+				QString description,
+				bool ready,
+				bool error)> callback);
+		rpl::producer<> refillRows() const;
 
-	void editScope(int index) override;
-	void saveScope(ValueMap &&data, ValueMap &&filesData);
-	bool editScopeChanged(
-		const ValueMap &data,
-		const ValueMap &filesData) const;
-	void cancelEditScope();
+		void editScope(int index) override;
+		void saveScope(ValueMap&& data, ValueMap&& filesData);
+		bool editScopeChanged(
+			const ValueMap& data,
+			const ValueMap& filesData) const;
+		void cancelEditScope();
 
-	void showBox(
-		object_ptr<BoxContent> box,
-		LayerOptions options,
-		anim::type animated) override;
-	void showToast(const QString &text) override;
-	void suggestReset(Fn<void()> callback) override;
+		void showBox(
+			object_ptr<BoxContent> box,
+			LayerOptions options,
+			anim::type animated) override;
+		void showToast(const QString& text) override;
+		void suggestReset(Fn<void()> callback) override;
 
-	int closeGetDuration() override;
+		int closeGetDuration() override;
 
-	void cancelAuth();
-	void cancelAuthSure();
+		void cancelAuth();
+		void cancelAuthSure();
 
-	rpl::lifetime &lifetime();
+		rpl::lifetime& lifetime();
 
-	~PanelController();
+		~PanelController();
 
-private:
-	void ensurePanelCreated();
+	private:
+		void ensurePanelCreated();
 
-	void editScope(int index, std::optional<int> documentIndex);
-	void editWithUpload(int index, int documentIndex);
-	bool editRequiresScanUpload(
-		int index,
-		std::optional<int> documentIndex) const;
-	void startScopeEdit(int index, std::optional<int> documentIndex);
-	std::optional<int> findBestDocumentIndex(const Scope &scope) const;
-	void requestScopeFilesType(int index);
-	void cancelValueEdit();
-	void processValueSaveFinished(not_null<const Value*> value);
-	void processVerificationNeeded(not_null<const Value*> value);
+		void editScope(int index, std::optional<int> documentIndex);
+		void editWithUpload(int index, int documentIndex);
+		bool editRequiresScanUpload(
+			int index,
+			std::optional<int> documentIndex) const;
+		void startScopeEdit(int index, std::optional<int> documentIndex);
+		std::optional<int> findBestDocumentIndex(const Scope& scope) const;
+		void requestScopeFilesType(int index);
+		void cancelValueEdit();
+		void processValueSaveFinished(not_null<const Value*> value);
+		void processVerificationNeeded(not_null<const Value*> value);
 
-	bool savingScope() const;
-	bool uploadingScopeScan() const;
-	bool hasValueDocument() const;
-	bool hasValueFields() const;
-	std::vector<ScopeError> collectSaveErrors(
-		not_null<const Value*> value) const;
-	QString getDefaultContactValue(Scope::Type type) const;
-	void deleteValueSure(bool withDetails);
+		bool savingScope() const;
+		bool uploadingScopeScan() const;
+		bool hasValueDocument() const;
+		bool hasValueFields() const;
+		std::vector<ScopeError> collectSaveErrors(
+			not_null<const Value*> value) const;
+		QString getDefaultContactValue(Scope::Type type) const;
+		void deleteValueSure(bool withDetails);
 
-	void resetPassport(Fn<void()> callback);
-	void cancelReset();
+		void resetPassport(Fn<void()> callback);
+		void cancelReset();
 
-	not_null<FormController*> _form;
-	std::vector<Scope> _scopes;
-	rpl::event_stream<> _submitFailed;
-	std::vector<not_null<const Value*>> _submitErrors;
-	rpl::event_stream<ScopeError> _saveErrors;
+		not_null<FormController*> _form;
+		std::vector<Scope> _scopes;
+		rpl::event_stream<> _submitFailed;
+		std::vector<not_null<const Value*>> _submitErrors;
+		rpl::event_stream<ScopeError> _saveErrors;
 
-	std::unique_ptr<Panel> _panel;
-	Fn<bool()> _panelHasUnsavedChanges;
-	QPointer<BoxContent> _confirmForgetChangesBox;
-	std::vector<BoxPointer> _editScopeBoxes;
-	Scope *_editScope = nullptr;
-	const Value *_editValue = nullptr;
-	const Value *_editDocument = nullptr;
-	BoxPointer _scopeDocumentTypeBox;
-	std::map<not_null<const Value*>, BoxPointer> _verificationBoxes;
+		std::unique_ptr<Panel> _panel;
+		Fn<bool()> _panelHasUnsavedChanges;
+		QPointer<BoxContent> _confirmForgetChangesBox;
+		std::vector<BoxPointer> _editScopeBoxes;
+		Scope* _editScope = nullptr;
+		const Value* _editValue = nullptr;
+		const Value* _editDocument = nullptr;
+		BoxPointer _scopeDocumentTypeBox;
+		std::map<not_null<const Value*>, BoxPointer> _verificationBoxes;
 
-	BoxPointer _resetBox;
+		BoxPointer _resetBox;
 
-	rpl::lifetime _lifetime;
-
-};
-
+		rpl::lifetime _lifetime;
+	};
 } // namespace Passport

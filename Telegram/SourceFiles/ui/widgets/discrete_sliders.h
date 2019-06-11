@@ -11,113 +11,119 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "styles/style_widgets.h"
 
-namespace Ui {
+namespace Ui
+{
+	class RippleAnimation;
 
-class RippleAnimation;
+	class DiscreteSlider : public RpWidget
+	{
+	public:
+		DiscreteSlider(QWidget* parent);
 
-class DiscreteSlider : public RpWidget {
-public:
-	DiscreteSlider(QWidget *parent);
+		void addSection(const QString& label);
+		void setSections(const QStringList& labels);
 
-	void addSection(const QString &label);
-	void setSections(const QStringList &labels);
-	int activeSection() const {
-		return _activeIndex;
-	}
-	void setActiveSection(int index);
-	void setActiveSectionFast(int index);
-	void finishAnimating();
+		int activeSection() const
+		{
+			return _activeIndex;
+		}
 
-	auto sectionActivated() const {
-		return _sectionActivated.events();
-	}
+		void setActiveSection(int index);
+		void setActiveSectionFast(int index);
+		void finishAnimating();
 
-protected:
-	void timerEvent(QTimerEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
+		auto sectionActivated() const
+		{
+			return _sectionActivated.events();
+		}
 
-	int resizeGetHeight(int newWidth) override = 0;
+	protected:
+		void timerEvent(QTimerEvent* e) override;
+		void mousePressEvent(QMouseEvent* e) override;
+		void mouseMoveEvent(QMouseEvent* e) override;
+		void mouseReleaseEvent(QMouseEvent* e) override;
 
-	struct Section {
-		Section(const QString &label, const style::font &font);
+		int resizeGetHeight(int newWidth) override = 0;
 
-		int left, width;
-		QString label;
-		int labelWidth;
-		std::unique_ptr<RippleAnimation> ripple;
+		struct Section
+		{
+			Section(const QString& label, const style::font& font);
+
+			int left, width;
+			QString label;
+			int labelWidth;
+			std::unique_ptr<RippleAnimation> ripple;
+		};
+
+		int getCurrentActiveLeft();
+
+		int getSectionsCount() const
+		{
+			return _sections.size();
+		}
+
+		template <typename Lambda>
+		void enumerateSections(Lambda callback);
+
+		template <typename Lambda>
+		void enumerateSections(Lambda callback) const;
+
+		virtual void startRipple(int sectionIndex)
+		{
+		}
+
+		void stopAnimation()
+		{
+			_a_left.stop();
+		}
+
+		void setSelectOnPress(bool selectOnPress);
+
+	private:
+		void activateCallback();
+		virtual const style::font& getLabelFont() const = 0;
+		virtual int getAnimationDuration() const = 0;
+
+		int getIndexFromPosition(QPoint pos);
+		void setSelectedSection(int index);
+
+		std::vector<Section> _sections;
+		int _activeIndex = 0;
+		bool _selectOnPress = true;
+
+		rpl::event_stream<int> _sectionActivated;
+
+		int _pressed = -1;
+		int _selected = 0;
+		Ui::Animations::Simple _a_left;
+
+		int _timerId = -1;
+		crl::time _callbackAfterMs = 0;
 	};
 
-	int getCurrentActiveLeft();
+	class SettingsSlider : public DiscreteSlider
+	{
+	public:
+		SettingsSlider(QWidget* parent, const style::SettingsSlider& st = st::defaultSettingsSlider);
 
-	int getSectionsCount() const {
-		return _sections.size();
-	}
+		void setRippleTopRoundRadius(int radius);
 
-	template <typename Lambda>
-	void enumerateSections(Lambda callback);
+	protected:
+		void paintEvent(QPaintEvent* e) override;
 
-	template <typename Lambda>
-	void enumerateSections(Lambda callback) const;
+		int resizeGetHeight(int newWidth) override;
 
-	virtual void startRipple(int sectionIndex) {
-	}
+		void startRipple(int sectionIndex) override;
 
-	void stopAnimation() {
-		_a_left.stop();
-	}
+	private:
+		const style::font& getLabelFont() const override;
+		int getAnimationDuration() const override;
+		QImage prepareRippleMask(int sectionIndex, const Section& section);
 
-	void setSelectOnPress(bool selectOnPress);
+		void resizeSections(int newWidth);
+		std::vector<float64> countSectionsWidths(int newWidth) const;
 
-private:
-	void activateCallback();
-	virtual const style::font &getLabelFont() const = 0;
-	virtual int getAnimationDuration() const = 0;
-
-	int getIndexFromPosition(QPoint pos);
-	void setSelectedSection(int index);
-
-	std::vector<Section> _sections;
-	int _activeIndex = 0;
-	bool _selectOnPress = true;
-
-	rpl::event_stream<int> _sectionActivated;
-
-	int _pressed = -1;
-	int _selected = 0;
-	Ui::Animations::Simple _a_left;
-
-	int _timerId = -1;
-	crl::time _callbackAfterMs = 0;
-
-};
-
-class SettingsSlider : public DiscreteSlider {
-public:
-	SettingsSlider(QWidget *parent, const style::SettingsSlider &st = st::defaultSettingsSlider);
-
-	void setRippleTopRoundRadius(int radius);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	int resizeGetHeight(int newWidth) override;
-
-	void startRipple(int sectionIndex) override;
-
-private:
-	const style::font &getLabelFont() const override;
-	int getAnimationDuration() const override;
-	QImage prepareRippleMask(int sectionIndex, const Section &section);
-
-	void resizeSections(int newWidth);
-	std::vector<float64> countSectionsWidths(int newWidth) const;
-
-	const style::SettingsSlider &_st;
-	int _rippleTopRoundRadius = 0;
-
-
-};
-
+		const style::SettingsSlider& _st;
+		int _rippleTopRoundRadius = 0;
+	};
 } // namespace Ui

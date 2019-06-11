@@ -9,17 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/launcher.h"
 
-namespace Platform {
+namespace Platform
+{
+	class Launcher : public Core::Launcher
+	{
+	public:
+		Launcher(int argc, char* argv[]);
 
-class Launcher : public Core::Launcher {
-public:
-	Launcher(int argc, char *argv[]);
+	private:
+		void initHook() override;
 
-private:
-	void initHook() override;
-
-	bool launchUpdater(UpdaterLaunch action) override;
-
-};
-
+		bool launchUpdater(UpdaterLaunch action) override;
+	};
 } // namespace Platform

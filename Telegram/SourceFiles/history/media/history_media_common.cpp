@@ -19,29 +19,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/media/history_media_wall_paper.h"
 #include "styles/style_history.h"
 
-int documentMaxStatusWidth(DocumentData *document) {
+int documentMaxStatusWidth(DocumentData* document)
+{
 	auto result = st::normalFont->width(formatDownloadText(document->size, document->size));
 	const auto duration = document->getDuration();
-	if (const auto song = document->song()) {
+	if (const auto song = document->song())
+	{
 		accumulate_max(result, st::normalFont->width(formatPlayedText(duration, duration)));
 		accumulate_max(result, st::normalFont->width(formatDurationAndSizeText(duration, document->size)));
-	} else if (const auto voice = document->voice()) {
+	}
+	else if (const auto voice = document->voice())
+	{
 		accumulate_max(result, st::normalFont->width(formatPlayedText(duration, duration)));
 		accumulate_max(result, st::normalFont->width(formatDurationAndSizeText(duration, document->size)));
-	} else if (document->isVideoFile()) {
+	}
+	else if (document->isVideoFile())
+	{
 		accumulate_max(result, st::normalFont->width(formatDurationAndSizeText(duration, document->size)));
-	} else {
+	}
+	else
+	{
 		accumulate_max(result, st::normalFont->width(formatSizeText(document->size)));
 	}
 	return result;
 }
 
 void PaintInterpolatedIcon(
-		Painter &p,
-		const style::icon &a,
-		const style::icon &b,
-		float64 b_ratio,
-		QRect rect) {
+	Painter& p,
+	const style::icon& a,
+	const style::icon& b,
+	float64 b_ratio,
+	QRect rect)
+{
 	PainterHighQualityEnabler hq(p);
 	p.save();
 	p.translate(rect.center());
@@ -59,31 +68,44 @@ void PaintInterpolatedIcon(
 }
 
 std::unique_ptr<HistoryMedia> CreateAttach(
-		not_null<HistoryView::Element*> parent,
-		DocumentData *document,
-		PhotoData *photo,
-		const std::vector<std::unique_ptr<Data::Media>> &collage,
-		const QString &webpageUrl) {
-	if (!collage.empty()) {
+	not_null<HistoryView::Element*> parent,
+	DocumentData* document,
+	PhotoData* photo,
+	const std::vector<std::unique_ptr<Data::Media>>& collage,
+	const QString& webpageUrl)
+{
+	if (!collage.empty())
+	{
 		return std::make_unique<HistoryGroupedMedia>(parent, collage);
-	} else if (document) {
-		if (document->sticker()) {
+	}
+	else if (document)
+	{
+		if (document->sticker())
+		{
 			return std::make_unique<HistorySticker>(parent, document);
-		} else if (document->isAnimation()) {
+		}
+		else if (document->isAnimation())
+		{
 			return std::make_unique<HistoryGif>(parent, document);
-		} else if (document->isVideoFile()) {
+		}
+		else if (document->isVideoFile())
+		{
 			return std::make_unique<HistoryVideo>(
 				parent,
 				parent->data(),
 				document);
-		} else if (document->isWallPaper()) {
+		}
+		else if (document->isWallPaper())
+		{
 			return std::make_unique<HistoryWallPaper>(
 				parent,
 				document,
 				webpageUrl);
 		}
 		return std::make_unique<HistoryDocument>(parent, document);
-	} else if (photo) {
+	}
+	else if (photo)
+	{
 		return std::make_unique<HistoryPhoto>(
 			parent,
 			parent->data(),
@@ -92,6 +114,7 @@ std::unique_ptr<HistoryMedia> CreateAttach(
 	return nullptr;
 }
 
-int unitedLineHeight() {
+int unitedLineHeight()
+{
 	return qMax(st::webPageTitleFont->height, st::webPageDescriptionFont->height);
 }

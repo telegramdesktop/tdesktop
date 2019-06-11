@@ -9,13 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-namespace Ui {
-class Radiobutton;
+namespace Ui
+{
+	class Radiobutton;
 } // namespace Ui
 
-class AutoLockBox : public BoxContent {
+class AutoLockBox : public BoxContent
+{
 public:
-	AutoLockBox(QWidget*) {
+	AutoLockBox(QWidget*)
+	{
 	}
 
 protected:
@@ -25,5 +28,4 @@ private:
 	void durationChanged(int seconds);
 
 	std::vector<object_ptr<Ui::Radiobutton>> _options;
-
 };

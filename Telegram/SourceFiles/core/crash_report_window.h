@@ -7,67 +7,72 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Core {
-class Launcher;
+namespace Core
+{
+	class Launcher;
 } // namespace Core
 
-class PreLaunchWindow : public QWidget {
+class PreLaunchWindow : public QWidget
+{
 public:
 	PreLaunchWindow(QString title = QString());
 	void activate();
-	int basicSize() const {
+
+	int basicSize() const
+	{
 		return _size;
 	}
+
 	~PreLaunchWindow();
 
-	static PreLaunchWindow *instance();
+	static PreLaunchWindow* instance();
 
 protected:
 
 	int _size;
-
 };
 
-class PreLaunchLabel : public QLabel {
+class PreLaunchLabel : public QLabel
+{
 public:
-	PreLaunchLabel(QWidget *parent);
-	void setText(const QString &text);
-
+	PreLaunchLabel(QWidget* parent);
+	void setText(const QString& text);
 };
 
-class PreLaunchInput : public QLineEdit {
+class PreLaunchInput : public QLineEdit
+{
 public:
-	PreLaunchInput(QWidget *parent, bool password = false);
-
+	PreLaunchInput(QWidget* parent, bool password = false);
 };
 
-class PreLaunchLog : public QTextEdit {
+class PreLaunchLog : public QTextEdit
+{
 public:
-	PreLaunchLog(QWidget *parent);
-
+	PreLaunchLog(QWidget* parent);
 };
 
-class PreLaunchButton : public QPushButton {
+class PreLaunchButton : public QPushButton
+{
 public:
-	PreLaunchButton(QWidget *parent, bool confirm = true);
-	void setText(const QString &text);
-
+	PreLaunchButton(QWidget* parent, bool confirm = true);
+	void setText(const QString& text);
 };
 
-class PreLaunchCheckbox : public QCheckBox {
+class PreLaunchCheckbox : public QCheckBox
+{
 public:
-	PreLaunchCheckbox(QWidget *parent);
-	void setText(const QString &text);
-
+	PreLaunchCheckbox(QWidget* parent);
+	void setText(const QString& text);
 };
 
-class NotStartedWindow : public PreLaunchWindow {
+class NotStartedWindow : public PreLaunchWindow
+{
 public:
 	NotStartedWindow();
 
 protected:
-	void closeEvent(QCloseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	void closeEvent(QCloseEvent* e) override;
+	void resizeEvent(QResizeEvent* e) override;
 
 private:
 	void updateControls();
@@ -75,21 +80,22 @@ private:
 	PreLaunchLabel _label;
 	PreLaunchLog _log;
 	PreLaunchButton _close;
-
 };
 
-class LastCrashedWindow : public PreLaunchWindow {
-	 Q_OBJECT
+class LastCrashedWindow : public PreLaunchWindow
+{
+Q_OBJECT
 
 public:
 	LastCrashedWindow(
 		not_null<Core::Launcher*> launcher,
-		const QByteArray &crashdump,
+		const QByteArray& crashdump,
 		Fn<void()> launch);
 
 	rpl::producer<ProxyData> proxyChanges() const;
 
-	rpl::lifetime &lifetime() {
+	rpl::lifetime& lifetime()
+	{
 		return _lifetime;
 	}
 
@@ -118,8 +124,8 @@ public slots:
 	void onUpdateFailed();
 
 protected:
-	void closeEvent(QCloseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	void closeEvent(QCloseEvent* e) override;
+	void resizeEvent(QResizeEvent* e) override;
 
 private:
 	void proxyUpdated();
@@ -128,8 +134,8 @@ private:
 
 	void excludeReportUsername();
 
-	QString getReportField(const QLatin1String &name, const QLatin1String &prefix);
-	void addReportFieldPart(const QLatin1String &name, const QLatin1String &prefix, QHttpMultiPart *multipart);
+	QString getReportField(const QLatin1String& name, const QLatin1String& prefix);
+	void addReportFieldPart(const QLatin1String& name, const QLatin1String& prefix, QHttpMultiPart* multipart);
 
 	QByteArray _dumpraw;
 
@@ -147,7 +153,8 @@ private:
 
 	bool _reportShown, _reportSaved;
 
-	enum SendingState {
+	enum SendingState
+	{
 		SendingNoReport,
 		SendingUpdateCheck,
 		SendingNone,
@@ -166,10 +173,11 @@ private:
 	qint64 _sendingTotal = 0;
 
 	QNetworkAccessManager _sendManager;
-	QNetworkReply *_checkReply = nullptr;
-	QNetworkReply *_sendReply = nullptr;
+	QNetworkReply* _checkReply = nullptr;
+	QNetworkReply* _sendReply = nullptr;
 
-	enum UpdatingState {
+	enum UpdatingState
+	{
 		UpdatingNone,
 		UpdatingCheck,
 		UpdatingLatest,
@@ -177,8 +185,9 @@ private:
 		UpdatingFail,
 		UpdatingReady
 	};
-	struct UpdaterData {
-		UpdaterData(QWidget *buttonParent);
+	struct UpdaterData
+	{
+		UpdaterData(QWidget* buttonParent);
 
 		PreLaunchButton check, skip;
 		UpdatingState state;
@@ -192,14 +201,14 @@ private:
 	Fn<void()> _launch;
 	rpl::event_stream<ProxyData> _proxyChanges;
 	rpl::lifetime _lifetime;
-
 };
 
-class NetworkSettingsWindow : public PreLaunchWindow {
-	Q_OBJECT
+class NetworkSettingsWindow : public PreLaunchWindow
+{
+Q_OBJECT
 
 public:
-	NetworkSettingsWindow(QWidget *parent, QString host, quint32 port, QString username, QString password);
+	NetworkSettingsWindow(QWidget* parent, QString host, quint32 port, QString username, QString password);
 
 signals:
 	void saved(QString host, quint32 port, QString username, QString password);
@@ -208,8 +217,8 @@ public slots:
 	void onSave();
 
 protected:
-	void closeEvent(QCloseEvent *e);
-	void resizeEvent(QResizeEvent *e);
+	void closeEvent(QCloseEvent* e);
+	void resizeEvent(QResizeEvent* e);
 
 private:
 	void updateControls();
@@ -218,19 +227,18 @@ private:
 	PreLaunchInput _hostInput, _portInput, _usernameInput, _passwordInput;
 	PreLaunchButton _save, _cancel;
 
-	QWidget *_parent;
-
+	QWidget* _parent;
 };
 
-class ShowCrashReportWindow : public PreLaunchWindow {
+class ShowCrashReportWindow : public PreLaunchWindow
+{
 public:
-	ShowCrashReportWindow(const QString &text);
+	ShowCrashReportWindow(const QString& text);
 
 protected:
-	void resizeEvent(QResizeEvent *e);
-    void closeEvent(QCloseEvent *e);
+	void resizeEvent(QResizeEvent* e);
+	void closeEvent(QCloseEvent* e);
 
 private:
 	PreLaunchLog _log;
-
 };

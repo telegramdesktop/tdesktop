@@ -7,30 +7,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_abstract_structure.h"
 
-namespace Data {
-namespace {
+namespace Data
+{
+	namespace
+	{
+		using DataStructures = OrderedSet<AbstractStructure**>;
+		NeverFreedPointer<DataStructures> structures;
+	} // namespace
 
-using DataStructures = OrderedSet<AbstractStructure**>;
-NeverFreedPointer<DataStructures> structures;
+	namespace internal
+	{
+		void registerAbstractStructure(AbstractStructure** p)
+		{
+			structures.createIfNull();
+			structures->insert(p);
+		}
+	} // namespace internal
 
-} // namespace
-
-namespace internal {
-
-void registerAbstractStructure(AbstractStructure **p) {
-	structures.createIfNull();
-	structures->insert(p);
-}
-
-} // namespace internal
-
-void clearGlobalStructures() {
-	if (!structures) return;
-	for (auto &p : *structures) {
-		delete (*p);
-		*p = nullptr;
+	void clearGlobalStructures()
+	{
+		if (!structures) return;
+		for (auto& p : *structures)
+		{
+			delete (*p);
+			*p = nullptr;
+		}
+		structures.clear();
 	}
-	structures.clear();
-}
-
 } // namespace Data

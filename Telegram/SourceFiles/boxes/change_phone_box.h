@@ -9,19 +9,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-class ChangePhoneBox : public BoxContent {
+class ChangePhoneBox : public BoxContent
+{
 public:
-	ChangePhoneBox(QWidget*) {
+	ChangePhoneBox(QWidget*)
+	{
 	}
 
 protected:
 	void prepare() override;
 
-	void paintEvent(QPaintEvent *e) override;
+	void paintEvent(QPaintEvent* e) override;
 
 private:
 	class EnterPhone;
 	class EnterCode;
-
 };
-

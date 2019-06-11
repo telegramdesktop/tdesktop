@@ -10,24 +10,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 
-struct GameData {
-	GameData(const GameId &id) : id(id) {
+struct GameData
+{
+	GameData(const GameId& id) :
+		id(id)
+	{
 	}
+
 	GameData(
-		const GameId &id,
-		const uint64 &accessHash,
-		const QString &shortName,
-		const QString &title,
-		const QString &description,
-		PhotoData *photo,
-		DocumentData *document)
-	: id(id)
-	, accessHash(accessHash)
-	, shortName(shortName)
-	, title(title)
-	, description(description)
-	, photo(photo)
-	, document(document) {
+		const GameId& id,
+		const uint64& accessHash,
+		const QString& shortName,
+		const QString& title,
+		const QString& description,
+		PhotoData* photo,
+		DocumentData* document) :
+		id(id)
+		, accessHash(accessHash)
+		, shortName(shortName)
+		, title(title)
+		, description(description)
+		, photo(photo)
+		, document(document)
+	{
 	}
 
 	GameId id = 0;
@@ -35,7 +40,6 @@ struct GameData {
 	QString shortName;
 	QString title;
 	QString description;
-	PhotoData *photo = nullptr;
-	DocumentData *document = nullptr;
-
+	PhotoData* photo = nullptr;
+	DocumentData* document = nullptr;
 };

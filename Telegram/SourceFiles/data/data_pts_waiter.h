@@ -7,82 +7,99 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-enum PtsSkippedQueue {
+enum PtsSkippedQueue
+{
 	SkippedUpdate,
 	SkippedUpdates,
 };
 
-class PtsWaiter {
+class PtsWaiter
+{
 public:
 	PtsWaiter() = default;
 
 	// 1s wait for skipped seq or pts in updates.
 	static constexpr auto kWaitForSkippedTimeout = 1000;
 
-	void init(int32 pts) {
+	void init(int32 pts)
+	{
 		_good = _last = _count = pts;
 		clearSkippedUpdates();
 	}
-	bool inited() const {
+
+	bool inited() const
+	{
 		return _good > 0;
 	}
-	void setRequesting(bool isRequesting) {
+
+	void setRequesting(bool isRequesting)
+	{
 		_requesting = isRequesting;
-		if (_requesting) {
+		if (_requesting)
+		{
 			clearSkippedUpdates();
 		}
 	}
-	bool requesting() const {
+
+	bool requesting() const
+	{
 		return _requesting;
 	}
-	bool waitingForSkipped() const {
+
+	bool waitingForSkipped() const
+	{
 		return _waitingForSkipped;
 	}
-	bool waitingForShortPoll() const {
+
+	bool waitingForShortPoll() const
+	{
 		return _waitingForShortPoll;
 	}
-	void setWaitingForSkipped(ChannelData *channel, int32 ms); // < 0 - not waiting
-	void setWaitingForShortPoll(ChannelData *channel, int32 ms); // < 0 - not waiting
-	int32 current() const{
+
+	void setWaitingForSkipped(ChannelData* channel, int32 ms); // < 0 - not waiting
+	void setWaitingForShortPoll(ChannelData* channel, int32 ms); // < 0 - not waiting
+	int32 current() const
+	{
 		return _good;
 	}
+
 	bool updated(
-		ChannelData *channel,
+		ChannelData* channel,
 		int32 pts,
 		int32 count,
-		const MTPUpdates &updates);
+		const MTPUpdates& updates);
 	bool updated(
-		ChannelData *channel,
+		ChannelData* channel,
 		int32 pts,
 		int32 count,
-		const MTPUpdate &update);
+		const MTPUpdate& update);
 	bool updated(
-		ChannelData *channel,
+		ChannelData* channel,
 		int32 pts,
 		int32 count);
 	bool updateAndApply(
-		ChannelData *channel,
+		ChannelData* channel,
 		int32 pts,
 		int32 count,
-		const MTPUpdates &updates);
+		const MTPUpdates& updates);
 	bool updateAndApply(
-		ChannelData *channel,
+		ChannelData* channel,
 		int32 pts,
 		int32 count,
-		const MTPUpdate &update);
+		const MTPUpdate& update);
 	bool updateAndApply(
-		ChannelData *channel,
+		ChannelData* channel,
 		int32 pts,
 		int32 count);
-	void applySkippedUpdates(ChannelData *channel);
+	void applySkippedUpdates(ChannelData* channel);
 	void clearSkippedUpdates();
 
 private:
 	// Return false if need to save that update and apply later.
-	bool check(ChannelData *channel, int32 pts, int32 count);
+	bool check(ChannelData* channel, int32 pts, int32 count);
 
 	uint64 ptsKey(PtsSkippedQueue queue, int32 pts);
-	void checkForWaiting(ChannelData *channel);
+	void checkForWaiting(ChannelData* channel);
 
 	QMap<uint64, PtsSkippedQueue> _queue;
 	QMap<uint64, MTPUpdate> _updateQueue;
@@ -95,5 +112,4 @@ private:
 	bool _waitingForSkipped = false;
 	bool _waitingForShortPoll = false;
 	uint32 _skippedKey = 0;
-
 };

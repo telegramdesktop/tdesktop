@@ -23,198 +23,221 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "auth_session.h"
 
-namespace Info {
+namespace Info
+{
+	Memento::Memento(PeerId peerId):
+		Memento(peerId, Section::Type::Profile)
+	{
+	}
 
-Memento::Memento(PeerId peerId)
-: Memento(peerId, Section::Type::Profile) {
-}
+	Memento::Memento(PeerId peerId, Section section):
+		Memento(DefaultStack(peerId, section))
+	{
+	}
 
-Memento::Memento(PeerId peerId, Section section)
-: Memento(DefaultStack(peerId, section)) {
-}
+	//Memento::Memento(not_null<Data::Feed*> feed, Section section) // #feed
+	//: Memento(DefaultStack(feed, section)) {
+	//}
+	//
+	Memento::Memento(Settings::Tag settings, Section section):
+		Memento(DefaultStack(settings, section))
+	{
+	}
 
-//Memento::Memento(not_null<Data::Feed*> feed, Section section) // #feed
-//: Memento(DefaultStack(feed, section)) {
-//}
-//
-Memento::Memento(Settings::Tag settings, Section section)
-: Memento(DefaultStack(settings, section)) {
-}
+	Memento::Memento(std::vector<std::unique_ptr<ContentMemento>> stack):
+		_stack(std::move(stack))
+	{
+	}
 
-Memento::Memento(std::vector<std::unique_ptr<ContentMemento>> stack)
-: _stack(std::move(stack)) {
-}
-
-std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
+	std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
 		PeerId peerId,
-		Section section) {
-	auto result = std::vector<std::unique_ptr<ContentMemento>>();
-	result.push_back(DefaultContent(peerId, section));
-	return result;
-}
+		Section section)
+	{
+		auto result = std::vector<std::unique_ptr<ContentMemento>>();
+		result.push_back(DefaultContent(peerId, section));
+		return result;
+	}
 
-//std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack( // #feed
-//		not_null<Data::Feed*> feed,
-//		Section section) {
-//	auto result = std::vector<std::unique_ptr<ContentMemento>>();
-//	result.push_back(DefaultContent(feed, section));
-//	return result;
-//}
-//
-std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
+	//std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack( // #feed
+	//		not_null<Data::Feed*> feed,
+	//		Section section) {
+	//	auto result = std::vector<std::unique_ptr<ContentMemento>>();
+	//	result.push_back(DefaultContent(feed, section));
+	//	return result;
+	//}
+	//
+	std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
 		Settings::Tag settings,
-		Section section) {
-	auto result = std::vector<std::unique_ptr<ContentMemento>>();
-	result.push_back(std::make_unique<Settings::Memento>(
-		settings.self,
-		section.settingsType()));
-	return result;
-}
-
-Section Memento::DefaultSection(not_null<PeerData*> peer) {
-	if (peer->isSelf()) {
-		return Section(Section::MediaType::Photo);
+		Section section)
+	{
+		auto result = std::vector<std::unique_ptr<ContentMemento>>();
+		result.push_back(std::make_unique<Settings::Memento>(
+			settings.self,
+			section.settingsType()));
+		return result;
 	}
-	return Section(Section::Type::Profile);
-}
-// // #feed
-//Section Memento::DefaultSection(Dialogs::Key key) {
-//	if (const auto peer = key.peer()) {
-//		if (peer->isSelf()) {
-//			return Section(Section::MediaType::Photo);
-//		}
-//	}
-//	return Section(Section::Type::Profile);
-//}
 
-Memento Memento::Default(not_null<PeerData*> peer) {
-	return Memento(peer->id, DefaultSection(peer));
-}
-// // #feed
-//Memento Memento::Default(Dialogs::Key key) {
-//	if (const auto peer = key.peer()) {
-//		return Memento(peer->id, DefaultSection(key));
-//	}
-//	return Memento(key.feed(), DefaultSection(key));
-//}
+	Section Memento::DefaultSection(not_null<PeerData*> peer)
+	{
+		if (peer->isSelf())
+		{
+			return Section(Section::MediaType::Photo);
+		}
+		return Section(Section::Type::Profile);
+	}
 
-std::unique_ptr<ContentMemento> Memento::DefaultContent(
+	// // #feed
+	//Section Memento::DefaultSection(Dialogs::Key key) {
+	//	if (const auto peer = key.peer()) {
+	//		if (peer->isSelf()) {
+	//			return Section(Section::MediaType::Photo);
+	//		}
+	//	}
+	//	return Section(Section::Type::Profile);
+	//}
+
+	Memento Memento::Default(not_null<PeerData*> peer)
+	{
+		return Memento(peer->id, DefaultSection(peer));
+	}
+
+	// // #feed
+	//Memento Memento::Default(Dialogs::Key key) {
+	//	if (const auto peer = key.peer()) {
+	//		return Memento(peer->id, DefaultSection(key));
+	//	}
+	//	return Memento(key.feed(), DefaultSection(key));
+	//}
+
+	std::unique_ptr<ContentMemento> Memento::DefaultContent(
 		PeerId peerId,
-		Section section) {
-	Expects(peerId != 0);
+		Section section)
+	{
+		Expects(peerId != 0);
 
-	auto peer = Auth().data().peer(peerId);
-	if (auto to = peer->migrateTo()) {
-		peer = to;
+		auto peer = Auth().data().peer(peerId);
+		if (auto to = peer->migrateTo())
+		{
+			peer = to;
+		}
+		auto migrated = peer->migrateFrom();
+		peerId = peer->id;
+		auto migratedPeerId = migrated ? migrated->id : PeerId(0);
+
+		switch (section.type())
+		{
+		case Section::Type::Profile:
+			return std::make_unique<Profile::Memento>(
+				peerId,
+				migratedPeerId);
+		case Section::Type::Media:
+			return std::make_unique<Media::Memento>(
+				peerId,
+				migratedPeerId,
+				section.mediaType());
+		case Section::Type::CommonGroups:
+			Assert(peerIsUser(peerId));
+			return std::make_unique<CommonGroups::Memento>(
+				peerToUser(peerId));
+		case Section::Type::Members:
+			return std::make_unique<Members::Memento>(
+				peerId,
+				migratedPeerId);
+		}
+		Unexpected("Wrong section type in Info::Memento::DefaultContent()");
 	}
-	auto migrated = peer->migrateFrom();
-	peerId = peer->id;
-	auto migratedPeerId = migrated ? migrated->id : PeerId(0);
 
-	switch (section.type()) {
-	case Section::Type::Profile:
-		return std::make_unique<Profile::Memento>(
-			peerId,
-			migratedPeerId);
-	case Section::Type::Media:
-		return std::make_unique<Media::Memento>(
-			peerId,
-			migratedPeerId,
-			section.mediaType());
-	case Section::Type::CommonGroups:
-		Assert(peerIsUser(peerId));
-		return std::make_unique<CommonGroups::Memento>(
-			peerToUser(peerId));
-	case Section::Type::Members:
-		return std::make_unique<Members::Memento>(
-			peerId,
-			migratedPeerId);
-	}
-	Unexpected("Wrong section type in Info::Memento::DefaultContent()");
-}
-//
-//std::unique_ptr<ContentMemento> Memento::DefaultContent( // #feed
-//		not_null<Data::Feed*> feed,
-//		Section section) {
-//	switch (section.type()) {
-//	case Section::Type::Profile:
-//		return std::make_unique<FeedProfile::Memento>(feed);
-//	case Section::Type::Channels:
-//		return std::make_unique<Channels::Memento>(feed);
-//	}
-//	Unexpected("Wrong feed section in Info::Memento::DefaultContent()");
-//}
+	//
+	//std::unique_ptr<ContentMemento> Memento::DefaultContent( // #feed
+	//		not_null<Data::Feed*> feed,
+	//		Section section) {
+	//	switch (section.type()) {
+	//	case Section::Type::Profile:
+	//		return std::make_unique<FeedProfile::Memento>(feed);
+	//	case Section::Type::Channels:
+	//		return std::make_unique<Channels::Memento>(feed);
+	//	}
+	//	Unexpected("Wrong feed section in Info::Memento::DefaultContent()");
+	//}
 
-object_ptr<Window::SectionWidget> Memento::createWidget(
-		QWidget *parent,
+	object_ptr<Window::SectionWidget> Memento::createWidget(
+		QWidget* parent,
 		not_null<Window::SessionController*> controller,
 		Window::Column column,
-		const QRect &geometry) {
-	auto wrap = (column == Window::Column::Third)
-		? Wrap::Side
-		: Wrap::Narrow;
-	auto result = object_ptr<SectionWidget>(
-		parent,
-		controller,
-		wrap,
-		this);
-	result->setGeometry(geometry);
-	return std::move(result);
-}
-
-object_ptr<Window::LayerWidget> Memento::createLayer(
-		not_null<Window::SessionController*> controller,
-		const QRect &geometry) {
-	if (geometry.width() >= LayerWidget::MinimalSupportedWidth()) {
-		return object_ptr<LayerWidget>(controller, this);
+		const QRect& geometry)
+	{
+		auto wrap = (column == Window::Column::Third)
+			            ? Wrap::Side
+			            : Wrap::Narrow;
+		auto result = object_ptr<SectionWidget>(
+			parent,
+			controller,
+			wrap,
+			this);
+		result->setGeometry(geometry);
+		return std::move(result);
 	}
-	return nullptr;
-}
 
-std::vector<std::unique_ptr<ContentMemento>> Memento::takeStack() {
-	return std::move(_stack);
-}
-
-Memento::~Memento() = default;
-
-MoveMemento::MoveMemento(object_ptr<WrapWidget> content)
-: _content(std::move(content)) {
-	_content->hide();
-	_content->setParent(nullptr);
-}
-
-object_ptr<Window::SectionWidget> MoveMemento::createWidget(
-		QWidget *parent,
+	object_ptr<Window::LayerWidget> Memento::createLayer(
 		not_null<Window::SessionController*> controller,
-		Window::Column column,
-		const QRect &geometry) {
-	auto wrap = (column == Window::Column::Third)
-		? Wrap::Side
-		: Wrap::Narrow;
-	auto result = object_ptr<SectionWidget>(
-		parent,
-		controller,
-		wrap,
-		this);
-	result->setGeometry(geometry);
-	return std::move(result);
-}
-
-object_ptr<Window::LayerWidget> MoveMemento::createLayer(
-		not_null<Window::SessionController*> controller,
-		const QRect &geometry) {
-	if (geometry.width() < LayerWidget::MinimalSupportedWidth()) {
+		const QRect& geometry)
+	{
+		if (geometry.width() >= LayerWidget::MinimalSupportedWidth())
+		{
+			return object_ptr<LayerWidget>(controller, this);
+		}
 		return nullptr;
 	}
-	return object_ptr<LayerWidget>(controller, this);
-}
 
-object_ptr<WrapWidget> MoveMemento::takeContent(
-		QWidget *parent,
-		Wrap wrap) {
-	Ui::AttachParentChild(parent, _content);
-	_content->setWrap(wrap);
-	return std::move(_content);
-}
+	std::vector<std::unique_ptr<ContentMemento>> Memento::takeStack()
+	{
+		return std::move(_stack);
+	}
 
+	Memento::~Memento() = default;
+
+	MoveMemento::MoveMemento(object_ptr<WrapWidget> content):
+		_content(std::move(content))
+	{
+		_content->hide();
+		_content->setParent(nullptr);
+	}
+
+	object_ptr<Window::SectionWidget> MoveMemento::createWidget(
+		QWidget* parent,
+		not_null<Window::SessionController*> controller,
+		Window::Column column,
+		const QRect& geometry)
+	{
+		auto wrap = (column == Window::Column::Third)
+			            ? Wrap::Side
+			            : Wrap::Narrow;
+		auto result = object_ptr<SectionWidget>(
+			parent,
+			controller,
+			wrap,
+			this);
+		result->setGeometry(geometry);
+		return std::move(result);
+	}
+
+	object_ptr<Window::LayerWidget> MoveMemento::createLayer(
+		not_null<Window::SessionController*> controller,
+		const QRect& geometry)
+	{
+		if (geometry.width() < LayerWidget::MinimalSupportedWidth())
+		{
+			return nullptr;
+		}
+		return object_ptr<LayerWidget>(controller, this);
+	}
+
+	object_ptr<WrapWidget> MoveMemento::takeContent(
+		QWidget* parent,
+		Wrap wrap)
+	{
+		Ui::AttachParentChild(parent, _content);
+		_content->setWrap(wrap);
+		return std::move(_content);
+	}
 } // namespace Info

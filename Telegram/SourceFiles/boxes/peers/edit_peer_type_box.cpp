@@ -39,659 +39,769 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include <rpl/flatten_latest.h>
 
-namespace {
+namespace
+{
+	constexpr auto kUsernameCheckTimeout = crl::time(200);
+	constexpr auto kMinUsernameLength = 5;
 
-constexpr auto kUsernameCheckTimeout = crl::time(200);
-constexpr auto kMinUsernameLength = 5;
+	class Controller
+		: public base::has_weak_ptr
+		  , private MTP::Sender
+	{
+	public:
+		Controller(
+			not_null<Ui::VerticalLayout*> container,
+			not_null<PeerData*> peer,
+			std::optional<Privacy> privacySavedValue,
+			std::optional<QString> usernameSavedValue);
 
-class Controller
-	: public base::has_weak_ptr
-	, private MTP::Sender {
-public:
-	Controller(
+		void createContent();
+		QString getUsernameInput();
+		void setFocusUsername();
+
+		LangKey getTitle()
+		{
+			return _isInviteLink
+				       ? lng_profile_invite_link_section
+				       : _isGroup
+				       ? lng_manage_peer_group_type
+				       : lng_manage_peer_channel_type;
+		}
+
+		bool isInviteLink()
+		{
+			return _isInviteLink;
+		}
+
+		bool isAllowSave()
+		{
+			return _isAllowSave;
+		}
+
+		Privacy getPrivacy()
+		{
+			return _controls.privacy->value();
+		}
+
+		void showError(LangKey key)
+		{
+			_controls.usernameInput->showError();
+			showUsernameError(Lang::Viewer(key));
+		}
+
+	private:
+		struct Controls
+		{
+			std::shared_ptr<Ui::RadioenumGroup<Privacy>> privacy;
+			Ui::SlideWrap<Ui::RpWidget>* usernameWrap = nullptr;
+			Ui::UsernameInput* usernameInput = nullptr;
+			base::unique_qptr<Ui::FlatLabel> usernameResult;
+			const style::FlatLabel* usernameResultStyle = nullptr;
+
+			Ui::SlideWrap<Ui::RpWidget>* createInviteLinkWrap = nullptr;
+			Ui::SlideWrap<Ui::RpWidget>* editInviteLinkWrap = nullptr;
+			Ui::FlatLabel* inviteLink = nullptr;
+		};
+
+		Controls _controls;
+
+		object_ptr<Ui::RpWidget> createPrivaciesEdit();
+		object_ptr<Ui::RpWidget> createUsernameEdit();
+		object_ptr<Ui::RpWidget> createInviteLinkCreate();
+		object_ptr<Ui::RpWidget> createInviteLinkEdit();
+
+		void observeInviteLink();
+
+		void privacyChanged(Privacy value);
+
+		void checkUsernameAvailability();
+		void askUsernameRevoke();
+		void usernameChanged();
+		void showUsernameError(rpl::producer<QString>&& error);
+		void showUsernameGood();
+		void showUsernameResult(
+			rpl::producer<QString>&& text,
+			not_null<const style::FlatLabel*> st);
+
+		bool canEditInviteLink() const;
+		void refreshEditInviteLink();
+		void refreshCreateInviteLink();
+		void createInviteLink();
+		void revokeInviteLink();
+		void exportInviteLink(const QString& confirmation);
+
+		void fillPrivaciesButtons(
+			not_null<Ui::VerticalLayout*> parent,
+			std::optional<Privacy> savedValue = std::nullopt);
+		void addRoundButton(
+			not_null<Ui::VerticalLayout*> container,
+			Privacy value,
+			LangKey groupTextKey,
+			LangKey channelTextKey,
+			LangKey groupAboutKey,
+			LangKey channelAboutKey);
+
+		bool inviteLinkShown();
+		QString inviteLinkText();
+
+		not_null<PeerData*> _peer;
+		std::optional<Privacy> _privacySavedValue;
+		std::optional<QString> _usernameSavedValue;
+
+		bool _isGroup = false;
+		bool _isInviteLink = false;
+		bool _isAllowSave = false;
+
+		base::unique_qptr<Ui::VerticalLayout> _wrap;
+		base::Timer _checkUsernameTimer;
+		mtpRequestId _checkUsernameRequestId = 0;
+		UsernameState _usernameState = UsernameState::Normal;
+		rpl::event_stream<rpl::producer<QString>> _usernameResultTexts;
+
+		rpl::lifetime _lifetime;
+	};
+
+	Controller::Controller(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
 		std::optional<Privacy> privacySavedValue,
-		std::optional<QString> usernameSavedValue);
-
-	void createContent();
-	QString getUsernameInput();
-	void setFocusUsername();
-
-	LangKey getTitle() {
-		return _isInviteLink
-			? lng_profile_invite_link_section
-			: _isGroup
-			? lng_manage_peer_group_type
-			: lng_manage_peer_channel_type;
+		std::optional<QString> usernameSavedValue):
+		_peer(peer)
+		, _privacySavedValue(privacySavedValue)
+		, _usernameSavedValue(usernameSavedValue)
+		, _isGroup(_peer->isChat() || _peer->isMegagroup())
+		, _isInviteLink(!_privacySavedValue.has_value()
+			&& !_usernameSavedValue.has_value())
+		, _isAllowSave(!_usernameSavedValue.value_or(QString()).isEmpty())
+		, _wrap(container)
+		, _checkUsernameTimer([=]
+		{
+			checkUsernameAvailability();
+		})
+	{
+		_peer->updateFull();
 	}
 
-	bool isInviteLink() {
-		return _isInviteLink;
-	}
+	void Controller::createContent()
+	{
+		_controls = Controls();
 
-	bool isAllowSave() {
-		return _isAllowSave;
-	}
+		if (_isInviteLink)
+		{
+			_wrap->add(createInviteLinkCreate());
+			_wrap->add(createInviteLinkEdit());
+			return;
+		}
 
-	Privacy getPrivacy() {
-		return _controls.privacy->value();
-	}
-
-	void showError(LangKey key) {
-		_controls.usernameInput->showError();
-		showUsernameError(Lang::Viewer(key));
-	}
-
-private:
-	struct Controls {
-		std::shared_ptr<Ui::RadioenumGroup<Privacy>> privacy;
-		Ui::SlideWrap<Ui::RpWidget> *usernameWrap = nullptr;
-		Ui::UsernameInput *usernameInput = nullptr;
-		base::unique_qptr<Ui::FlatLabel> usernameResult;
-		const style::FlatLabel *usernameResultStyle = nullptr;
-
-		Ui::SlideWrap<Ui::RpWidget> *createInviteLinkWrap = nullptr;
-		Ui::SlideWrap<Ui::RpWidget> *editInviteLinkWrap = nullptr;
-		Ui::FlatLabel *inviteLink = nullptr;
-	};
-
-	Controls _controls;
-
-	object_ptr<Ui::RpWidget> createPrivaciesEdit();
-	object_ptr<Ui::RpWidget> createUsernameEdit();
-	object_ptr<Ui::RpWidget> createInviteLinkCreate();
-	object_ptr<Ui::RpWidget> createInviteLinkEdit();
-
-	void observeInviteLink();
-
-	void privacyChanged(Privacy value);
-
-	void checkUsernameAvailability();
-	void askUsernameRevoke();
-	void usernameChanged();
-	void showUsernameError(rpl::producer<QString> &&error);
-	void showUsernameGood();
-	void showUsernameResult(
-		rpl::producer<QString> &&text,
-		not_null<const style::FlatLabel*> st);
-
-	bool canEditInviteLink() const;
-	void refreshEditInviteLink();
-	void refreshCreateInviteLink();
-	void createInviteLink();
-	void revokeInviteLink();
-	void exportInviteLink(const QString &confirmation);
-
-	void fillPrivaciesButtons(
-		not_null<Ui::VerticalLayout*> parent,
-		std::optional<Privacy> savedValue = std::nullopt);
-	void addRoundButton(
-		not_null<Ui::VerticalLayout*> container,
-		Privacy value,
-		LangKey groupTextKey,
-		LangKey channelTextKey,
-		LangKey groupAboutKey,
-		LangKey channelAboutKey);
-
-	bool inviteLinkShown();
-	QString inviteLinkText();
-
-	not_null<PeerData*> _peer;
-	std::optional<Privacy> _privacySavedValue;
-	std::optional<QString> _usernameSavedValue;
-
-	bool _isGroup = false;
-	bool _isInviteLink = false;
-	bool _isAllowSave = false;
-
-	base::unique_qptr<Ui::VerticalLayout> _wrap;
-	base::Timer _checkUsernameTimer;
-	mtpRequestId _checkUsernameRequestId = 0;
-	UsernameState _usernameState = UsernameState::Normal;
-	rpl::event_stream<rpl::producer<QString>> _usernameResultTexts;
-
-	rpl::lifetime _lifetime;
-
-};
-
-Controller::Controller(
-	not_null<Ui::VerticalLayout*> container,
-	not_null<PeerData*> peer,
-	std::optional<Privacy> privacySavedValue,
-	std::optional<QString> usernameSavedValue)
-: _peer(peer)
-, _privacySavedValue(privacySavedValue)
-, _usernameSavedValue(usernameSavedValue)
-, _isGroup(_peer->isChat() || _peer->isMegagroup())
-, _isInviteLink(!_privacySavedValue.has_value()
-	&& !_usernameSavedValue.has_value())
-, _isAllowSave(!_usernameSavedValue.value_or(QString()).isEmpty())
-, _wrap(container)
-, _checkUsernameTimer([=] { checkUsernameAvailability(); }) {
-	_peer->updateFull();
-}
-
-void Controller::createContent() {
-	_controls = Controls();
-
-	if (_isInviteLink) {
+		fillPrivaciesButtons(_wrap, _privacySavedValue);
+		// Skip.
+		_wrap->add(object_ptr<BoxContentDivider>(_wrap));
+		//
 		_wrap->add(createInviteLinkCreate());
 		_wrap->add(createInviteLinkEdit());
-		return;
+		_wrap->add(createUsernameEdit());
+
+		if (_controls.privacy->value() == Privacy::Private)
+		{
+			checkUsernameAvailability();
+		}
 	}
 
-	fillPrivaciesButtons(_wrap, _privacySavedValue);
-	// Skip.
-	_wrap->add(object_ptr<BoxContentDivider>(_wrap));
-	//
-	_wrap->add(createInviteLinkCreate());
-	_wrap->add(createInviteLinkEdit());
-	_wrap->add(createUsernameEdit());
-
-	if (_controls.privacy->value() == Privacy::Private) {
-		checkUsernameAvailability();
-	}
-}
-
-void Controller::addRoundButton(
+	void Controller::addRoundButton(
 		not_null<Ui::VerticalLayout*> container,
 		Privacy value,
 		LangKey groupTextKey,
 		LangKey channelTextKey,
 		LangKey groupAboutKey,
-		LangKey channelAboutKey) {
-	container->add(object_ptr<Ui::Radioenum<Privacy>>(
-		container,
-		_controls.privacy,
-		value,
-		lang(_isGroup ? groupTextKey : channelTextKey),
-		st::editPeerPrivacyBoxCheckbox));
-	container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
-		container,
-		object_ptr<Ui::FlatLabel>(
+		LangKey channelAboutKey)
+	{
+		container->add(object_ptr<Ui::Radioenum<Privacy>>(
 			container,
-			Lang::Viewer(_isGroup ? groupAboutKey : channelAboutKey),
-			st::editPeerPrivacyLabel),
-		st::editPeerPrivacyLabelMargins));
-	container->add(object_ptr<Ui::FixedHeightWidget>(
+			_controls.privacy,
+			value,
+			lang(_isGroup ? groupTextKey : channelTextKey),
+			st::editPeerPrivacyBoxCheckbox));
+		container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				Lang::Viewer(_isGroup ? groupAboutKey : channelAboutKey),
+				st::editPeerPrivacyLabel),
+			st::editPeerPrivacyLabelMargins));
+		container->add(object_ptr<Ui::FixedHeightWidget>(
 			container,
 			st::editPeerPrivacyBottomSkip));
-};
+	};
 
-void Controller::fillPrivaciesButtons(
+	void Controller::fillPrivaciesButtons(
 		not_null<Ui::VerticalLayout*> parent,
-		std::optional<Privacy> savedValue) {
-	const auto canEditUsername = [&] {
-		if (const auto chat = _peer->asChat()) {
-			return chat->canEditUsername();
-		} else if (const auto channel = _peer->asChannel()) {
-			return channel->canEditUsername();
+		std::optional<Privacy> savedValue)
+	{
+		const auto canEditUsername = [&]
+		{
+			if (const auto chat = _peer->asChat())
+			{
+				return chat->canEditUsername();
+			}
+			else if (const auto channel = _peer->asChannel())
+			{
+				return channel->canEditUsername();
+			}
+			Unexpected("Peer type in Controller::createPrivaciesEdit.");
+		}();
+		if (!canEditUsername)
+		{
+			return;
 		}
-		Unexpected("Peer type in Controller::createPrivaciesEdit.");
-	}();
-	if (!canEditUsername) {
-		return;
-	}
 
-	const auto result = parent->add(
+		const auto result = parent->add(
 			object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
 				parent,
 				object_ptr<Ui::VerticalLayout>(parent),
 				st::editPeerPrivaciesMargins));
-	const auto container = result->entity();
+		const auto container = result->entity();
 
-	const auto isPublic = _peer->isChannel()
-		&& _peer->asChannel()->isPublic();
-	_controls.privacy = std::make_shared<Ui::RadioenumGroup<Privacy>>(
-		savedValue.value_or(isPublic ? Privacy::Public : Privacy::Private));
+		const auto isPublic = _peer->isChannel()
+			&& _peer->asChannel()->isPublic();
+		_controls.privacy = std::make_shared<Ui::RadioenumGroup<Privacy>>(
+			savedValue.value_or(isPublic ? Privacy::Public : Privacy::Private));
 
-	addRoundButton(
-		container,
-		Privacy::Public,
-		lng_create_public_group_title,
-		lng_create_public_channel_title,
-		lng_create_public_group_about,
-		lng_create_public_channel_about);
-	addRoundButton(
-		container,
-		Privacy::Private,
-		lng_create_private_group_title,
-		lng_create_private_channel_title,
-		lng_create_private_group_about,
-		lng_create_private_channel_about);
-
-	_controls.privacy->setChangedCallback([=](Privacy value) {
-		privacyChanged(value);
-	});
-}
-
-void Controller::setFocusUsername() {
-	if (_controls.usernameInput) {
-		_controls.usernameInput->setFocus();
-	}
-}
-
-QString Controller::getUsernameInput() {
-	return _controls.usernameInput->getLastText().trimmed();
-}
-
-QString Controller::inviteLinkText() {
-	if (const auto channel = _peer->asChannel()) {
-		return channel->inviteLink();
-	} else if (const auto chat = _peer->asChat()) {
-		return chat->inviteLink();
-	}
-	return QString();
-}
-
-object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
-	Expects(_wrap != nullptr);
-
-	const auto channel = _peer->asChannel();
-	const auto username =
-		_usernameSavedValue.value_or(channel ? channel->username : QString());
-
-	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-		_wrap,
-		object_ptr<Ui::VerticalLayout>(_wrap),
-		st::editPeerUsernameMargins);
-	_controls.usernameWrap = result.data();
-
-	const auto container = result->entity();
-	container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
-		container,
-		object_ptr<Ui::FlatLabel>(
+		addRoundButton(
 			container,
-			Lang::Viewer(lng_create_group_link),
-			st::editPeerSectionLabel),
-		st::editPeerUsernameTitleLabelMargins));
-
-	const auto placeholder = container->add(object_ptr<Ui::RpWidget>(
-		container));
-	placeholder->setAttribute(Qt::WA_TransparentForMouseEvents);
-	_controls.usernameInput = Ui::AttachParentChild(
-		container,
-		object_ptr<Ui::UsernameInput>(
+			Privacy::Public,
+			lng_create_public_group_title,
+			lng_create_public_channel_title,
+			lng_create_public_group_about,
+			lng_create_public_channel_about);
+		addRoundButton(
 			container,
-			st::setupChannelLink,
-			Fn<QString()>(),
-			username,
-			true));
-	_controls.usernameInput->heightValue(
-	) | rpl::start_with_next([placeholder](int height) {
-		placeholder->resize(placeholder->width(), height);
-	}, placeholder->lifetime());
-	placeholder->widthValue(
-	) | rpl::start_with_next([this](int width) {
-		_controls.usernameInput->resize(
-			width,
-			_controls.usernameInput->height());
-	}, placeholder->lifetime());
-	_controls.usernameInput->move(placeholder->pos());
+			Privacy::Private,
+			lng_create_private_group_title,
+			lng_create_private_channel_title,
+			lng_create_private_group_about,
+			lng_create_private_channel_about);
 
-	container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
-		container,
-		object_ptr<Ui::FlatLabel>(
+		_controls.privacy->setChangedCallback([=](Privacy value)
+		{
+			privacyChanged(value);
+		});
+	}
+
+	void Controller::setFocusUsername()
+	{
+		if (_controls.usernameInput)
+		{
+			_controls.usernameInput->setFocus();
+		}
+	}
+
+	QString Controller::getUsernameInput()
+	{
+		return _controls.usernameInput->getLastText().trimmed();
+	}
+
+	QString Controller::inviteLinkText()
+	{
+		if (const auto channel = _peer->asChannel())
+		{
+			return channel->inviteLink();
+		}
+		else if (const auto chat = _peer->asChat())
+		{
+			return chat->inviteLink();
+		}
+		return QString();
+	}
+
+	object_ptr<Ui::RpWidget> Controller::createUsernameEdit()
+	{
+		Expects(_wrap != nullptr);
+
+		const auto channel = _peer->asChannel();
+		const auto username =
+			_usernameSavedValue.value_or(channel ? channel->username : QString());
+
+		auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			_wrap,
+			object_ptr<Ui::VerticalLayout>(_wrap),
+			st::editPeerUsernameMargins);
+		_controls.usernameWrap = result.data();
+
+		const auto container = result->entity();
+		container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 			container,
-			Lang::Viewer(lng_create_channel_link_about),
-			st::editPeerPrivacyLabel),
-		st::editPeerUsernameAboutLabelMargins));
+			object_ptr<Ui::FlatLabel>(
+				container,
+				Lang::Viewer(lng_create_group_link),
+				st::editPeerSectionLabel),
+			st::editPeerUsernameTitleLabelMargins));
 
-	QObject::connect(
-		_controls.usernameInput,
-		&Ui::UsernameInput::changed,
-		[this] { usernameChanged(); });
+		const auto placeholder = container->add(object_ptr<Ui::RpWidget>(
+			container));
+		placeholder->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_controls.usernameInput = Ui::AttachParentChild(
+			container,
+			object_ptr<Ui::UsernameInput>(
+				container,
+				st::setupChannelLink,
+				Fn<QString()>(),
+				username,
+				true));
+		_controls.usernameInput->heightValue(
+		) | rpl::start_with_next([placeholder](int height)
+		{
+			placeholder->resize(placeholder->width(), height);
+		}, placeholder->lifetime());
+		placeholder->widthValue(
+		) | rpl::start_with_next([this](int width)
+		{
+			_controls.usernameInput->resize(
+				width,
+				_controls.usernameInput->height());
+		}, placeholder->lifetime());
+		_controls.usernameInput->move(placeholder->pos());
 
-	const auto shown = (_controls.privacy->value() == Privacy::Public);
-	result->toggle(shown, anim::type::instant);
+		container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				Lang::Viewer(lng_create_channel_link_about),
+				st::editPeerPrivacyLabel),
+			st::editPeerUsernameAboutLabelMargins));
 
-	return std::move(result);
-}
+		QObject::connect(
+			_controls.usernameInput,
+			&Ui::UsernameInput::changed,
+			[this]
+			{
+				usernameChanged();
+			});
 
-void Controller::privacyChanged(Privacy value) {
-	const auto toggleEditUsername = [&] {
-		_controls.usernameWrap->toggle(
-			(value == Privacy::Public),
-			anim::type::instant);
-	};
-	const auto refreshVisibilities = [&] {
-		// Now first we need to hide that was shown.
-		// Otherwise box will change own Y position.
+		const auto shown = (_controls.privacy->value() == Privacy::Public);
+		result->toggle(shown, anim::type::instant);
 
-		if (value == Privacy::Public) {
-			refreshCreateInviteLink();
-			refreshEditInviteLink();
-			toggleEditUsername();
-
-			_controls.usernameResult = nullptr;
-			checkUsernameAvailability();
-		} else {
-			toggleEditUsername();
-			refreshCreateInviteLink();
-			refreshEditInviteLink();
-		}
-	};
-	if (value == Privacy::Public) {
-		if (_usernameState == UsernameState::TooMany) {
-			askUsernameRevoke();
-			return;
-		} else if (_usernameState == UsernameState::NotAvailable) {
-			_controls.privacy->setValue(Privacy::Private);
-			return;
-		}
-		refreshVisibilities();
-		_controls.usernameInput->setDisplayFocused(true);
-	} else {
-		request(base::take(_checkUsernameRequestId)).cancel();
-		_checkUsernameTimer.cancel();
-		refreshVisibilities();
+		return std::move(result);
 	}
-	setFocusUsername();
-}
 
-void Controller::checkUsernameAvailability() {
-	if (!_controls.usernameInput) {
-		return;
-	}
-	const auto initial = (_controls.privacy->value() != Privacy::Public);
-	const auto checking = initial
-		? qsl(".bad.")
-		: getUsernameInput();
-	if (checking.size() < kMinUsernameLength) {
-		return;
-	}
-	if (_checkUsernameRequestId) {
-		request(_checkUsernameRequestId).cancel();
-	}
-	const auto channel = _peer->migrateToOrMe()->asChannel();
-	const auto username = channel ? channel->username : QString();
-	_checkUsernameRequestId = request(MTPchannels_CheckUsername(
-		channel ? channel->inputChannel : MTP_inputChannelEmpty(),
-		MTP_string(checking)
-	)).done([=](const MTPBool &result) {
-		_checkUsernameRequestId = 0;
-		if (initial) {
-			return;
-		}
-		if (!mtpIsTrue(result) && checking != username) {
-			showUsernameError(
-				Lang::Viewer(lng_create_channel_link_occupied));
-		} else {
-			showUsernameGood();
-		}
-	}).fail([=](const RPCError &error) {
-		_checkUsernameRequestId = 0;
-		const auto &type = error.type();
-		_usernameState = UsernameState::Normal;
-		if (type == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
-			_usernameState = UsernameState::NotAvailable;
-			_controls.privacy->setValue(Privacy::Private);
-		} else if (type == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
-			_usernameState = UsernameState::TooMany;
-			if (_controls.privacy->value() == Privacy::Public) {
-				askUsernameRevoke();
-			}
-		} else if (initial) {
-			if (_controls.privacy->value() == Privacy::Public) {
+	void Controller::privacyChanged(Privacy value)
+	{
+		const auto toggleEditUsername = [&]
+		{
+			_controls.usernameWrap->toggle(
+				(value == Privacy::Public),
+				anim::type::instant);
+		};
+		const auto refreshVisibilities = [&]
+		{
+			// Now first we need to hide that was shown.
+			// Otherwise box will change own Y position.
+
+			if (value == Privacy::Public)
+			{
+				refreshCreateInviteLink();
+				refreshEditInviteLink();
+				toggleEditUsername();
+
 				_controls.usernameResult = nullptr;
-				setFocusUsername();
+				checkUsernameAvailability();
 			}
-		} else if (type == qstr("USERNAME_INVALID")) {
-			showUsernameError(
-				Lang::Viewer(lng_create_channel_link_invalid));
-		} else if (type == qstr("USERNAME_OCCUPIED")
-			&& checking != username) {
-			showUsernameError(
-				Lang::Viewer(lng_create_channel_link_occupied));
+			else
+			{
+				toggleEditUsername();
+				refreshCreateInviteLink();
+				refreshEditInviteLink();
+			}
+		};
+		if (value == Privacy::Public)
+		{
+			if (_usernameState == UsernameState::TooMany)
+			{
+				askUsernameRevoke();
+				return;
+			}
+			else if (_usernameState == UsernameState::NotAvailable)
+			{
+				_controls.privacy->setValue(Privacy::Private);
+				return;
+			}
+			refreshVisibilities();
+			_controls.usernameInput->setDisplayFocused(true);
 		}
-	}).send();
-}
-
-void Controller::askUsernameRevoke() {
-	_controls.privacy->setValue(Privacy::Private);
-	const auto revokeCallback = crl::guard(this, [this] {
-		_usernameState = UsernameState::Normal;
-		_controls.privacy->setValue(Privacy::Public);
-		checkUsernameAvailability();
-	});
-	Ui::show(
-		Box<RevokePublicLinkBox>(std::move(revokeCallback)),
-		LayerOption::KeepOther);
-}
-
-void Controller::usernameChanged() {
-	_isAllowSave = false;
-	const auto username = getUsernameInput();
-	if (username.isEmpty()) {
-		_controls.usernameResult = nullptr;
-		_checkUsernameTimer.cancel();
-		return;
-	}
-	const auto bad = ranges::find_if(username, [](QChar ch) {
-		return (ch < 'A' || ch > 'Z')
-			&& (ch < 'a' || ch > 'z')
-			&& (ch < '0' || ch > '9')
-			&& (ch != '_');
-	}) != username.end();
-	if (bad) {
-		showUsernameError(
-			Lang::Viewer(lng_create_channel_link_bad_symbols));
-	} else if (username.size() < kMinUsernameLength) {
-		showUsernameError(
-			Lang::Viewer(lng_create_channel_link_too_short));
-	} else {
-		_controls.usernameResult = nullptr;
-		_checkUsernameTimer.callOnce(kUsernameCheckTimeout);
-	}
-}
-
-void Controller::showUsernameError(rpl::producer<QString> &&error) {
-	_isAllowSave = false;
-	showUsernameResult(std::move(error), &st::editPeerUsernameError);
-}
-
-void Controller::showUsernameGood() {
-	_isAllowSave = true;
-	showUsernameResult(
-		Lang::Viewer(lng_create_channel_link_available),
-		&st::editPeerUsernameGood);
-}
-
-void Controller::showUsernameResult(
-		rpl::producer<QString> &&text,
-		not_null<const style::FlatLabel*> st) {
-	if (!_controls.usernameResult
-		|| _controls.usernameResultStyle != st) {
-		_controls.usernameResultStyle = st;
-		_controls.usernameResult = base::make_unique_q<Ui::FlatLabel>(
-			_controls.usernameWrap,
-			_usernameResultTexts.events() | rpl::flatten_latest(),
-			*st);
-		const auto label = _controls.usernameResult.get();
-		label->show();
-		label->widthValue(
-		) | rpl::start_with_next([label] {
-			label->moveToRight(
-				st::editPeerUsernamePosition.x(),
-				st::editPeerUsernamePosition.y());
-		}, label->lifetime());
-	}
-	_usernameResultTexts.fire(std::move(text));
-}
-
-void Controller::createInviteLink() {
-	exportInviteLink(lang(_isGroup
-		? lng_group_invite_about
-		: lng_group_invite_about_channel));
-}
-
-void Controller::revokeInviteLink() {
-	exportInviteLink(lang(lng_group_invite_about_new));
-}
-
-void Controller::exportInviteLink(const QString &confirmation) {
-	const auto boxPointer = std::make_shared<QPointer<ConfirmBox>>();
-	const auto callback = crl::guard(this, [=] {
-		if (const auto strong = *boxPointer) {
-			strong->closeBox();
+		else
+		{
+			request(base::take(_checkUsernameRequestId)).cancel();
+			_checkUsernameTimer.cancel();
+			refreshVisibilities();
 		}
-		_peer->session().api().exportInviteLink(_peer->migrateToOrMe());
-	});
-	auto box = Box<ConfirmBox>(
-		confirmation,
-		std::move(callback));
-	*boxPointer = Ui::show(std::move(box), LayerOption::KeepOther);
-}
-
-bool Controller::canEditInviteLink() const {
-	if (const auto channel = _peer->asChannel()) {
-		return channel->amCreator()
-			|| (channel->adminRights() & ChatAdminRight::f_invite_users);
-	} else if (const auto chat = _peer->asChat()) {
-		return chat->amCreator()
-			|| (chat->adminRights() & ChatAdminRight::f_invite_users);
-	}
-	return false;
-}
-
-void Controller::observeInviteLink() {
-	if (!_controls.editInviteLinkWrap) {
-		return;
-	}
-	Notify::PeerUpdateValue(
-		_peer,
-		Notify::PeerUpdate::Flag::InviteLinkChanged
-	) | rpl::start_with_next([=] {
-		refreshCreateInviteLink();
-		refreshEditInviteLink();
-	}, _controls.editInviteLinkWrap->lifetime());
-}
-
-object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
-	Expects(_wrap != nullptr);
-
-	if (!canEditInviteLink()) {
-		return nullptr;
+		setFocusUsername();
 	}
 
-	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-		_wrap,
-		object_ptr<Ui::VerticalLayout>(_wrap),
-		st::editPeerInvitesMargins);
-	_controls.editInviteLinkWrap = result.data();
-
-	const auto container = result->entity();
-	if (!_isInviteLink) {
-		container->add(object_ptr<Ui::FlatLabel>(
-			container,
-			Lang::Viewer(lng_profile_invite_link_section),
-			st::editPeerSectionLabel));
-		container->add(object_ptr<Ui::FixedHeightWidget>(
-			container,
-			st::editPeerInviteLinkBoxBottomSkip));
+	void Controller::checkUsernameAvailability()
+	{
+		if (!_controls.usernameInput)
+		{
+			return;
+		}
+		const auto initial = (_controls.privacy->value() != Privacy::Public);
+		const auto checking = initial
+			                      ? qsl(".bad.")
+			                      : getUsernameInput();
+		if (checking.size() < kMinUsernameLength)
+		{
+			return;
+		}
+		if (_checkUsernameRequestId)
+		{
+			request(_checkUsernameRequestId).cancel();
+		}
+		const auto channel = _peer->migrateToOrMe()->asChannel();
+		const auto username = channel ? channel->username : QString();
+		_checkUsernameRequestId = request(MTPchannels_CheckUsername(
+			channel ? channel->inputChannel : MTP_inputChannelEmpty(),
+			MTP_string(checking)
+		)).done([=](const MTPBool& result)
+		{
+			_checkUsernameRequestId = 0;
+			if (initial)
+			{
+				return;
+			}
+			if (!mtpIsTrue(result) && checking != username)
+			{
+				showUsernameError(
+					Lang::Viewer(lng_create_channel_link_occupied));
+			}
+			else
+			{
+				showUsernameGood();
+			}
+		}).fail([=](const RPCError& error)
+		{
+			_checkUsernameRequestId = 0;
+			const auto& type = error.type();
+			_usernameState = UsernameState::Normal;
+			if (type == qstr("CHANNEL_PUBLIC_GROUP_NA"))
+			{
+				_usernameState = UsernameState::NotAvailable;
+				_controls.privacy->setValue(Privacy::Private);
+			}
+			else if (type == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH"))
+			{
+				_usernameState = UsernameState::TooMany;
+				if (_controls.privacy->value() == Privacy::Public)
+				{
+					askUsernameRevoke();
+				}
+			}
+			else if (initial)
+			{
+				if (_controls.privacy->value() == Privacy::Public)
+				{
+					_controls.usernameResult = nullptr;
+					setFocusUsername();
+				}
+			}
+			else if (type == qstr("USERNAME_INVALID"))
+			{
+				showUsernameError(
+					Lang::Viewer(lng_create_channel_link_invalid));
+			}
+			else if (type == qstr("USERNAME_OCCUPIED")
+				&& checking != username)
+			{
+				showUsernameError(
+					Lang::Viewer(lng_create_channel_link_occupied));
+			}
+		}).send();
 	}
 
-	_controls.inviteLink = container->add(object_ptr<Ui::FlatLabel>(
-		container,
-		st::editPeerInviteLink));
-	_controls.inviteLink->setSelectable(true);
-	_controls.inviteLink->setContextCopyText(QString());
-	_controls.inviteLink->setBreakEverywhere(true);
-	_controls.inviteLink->setClickHandlerFilter([=](auto&&...) {
-		QApplication::clipboard()->setText(inviteLinkText());
-		Ui::Toast::Show(lang(lng_group_invite_copied));
+	void Controller::askUsernameRevoke()
+	{
+		_controls.privacy->setValue(Privacy::Private);
+		const auto revokeCallback = crl::guard(this, [this]
+		{
+			_usernameState = UsernameState::Normal;
+			_controls.privacy->setValue(Privacy::Public);
+			checkUsernameAvailability();
+		});
+		Ui::show(
+			Box<RevokePublicLinkBox>(std::move(revokeCallback)),
+			LayerOption::KeepOther);
+	}
+
+	void Controller::usernameChanged()
+	{
+		_isAllowSave = false;
+		const auto username = getUsernameInput();
+		if (username.isEmpty())
+		{
+			_controls.usernameResult = nullptr;
+			_checkUsernameTimer.cancel();
+			return;
+		}
+		const auto bad = ranges::find_if(username, [](QChar ch)
+		{
+			return (ch < 'A' || ch > 'Z')
+				&& (ch < 'a' || ch > 'z')
+				&& (ch < '0' || ch > '9')
+				&& (ch != '_');
+		}) != username.end();
+		if (bad)
+		{
+			showUsernameError(
+				Lang::Viewer(lng_create_channel_link_bad_symbols));
+		}
+		else if (username.size() < kMinUsernameLength)
+		{
+			showUsernameError(
+				Lang::Viewer(lng_create_channel_link_too_short));
+		}
+		else
+		{
+			_controls.usernameResult = nullptr;
+			_checkUsernameTimer.callOnce(kUsernameCheckTimeout);
+		}
+	}
+
+	void Controller::showUsernameError(rpl::producer<QString>&& error)
+	{
+		_isAllowSave = false;
+		showUsernameResult(std::move(error), &st::editPeerUsernameError);
+	}
+
+	void Controller::showUsernameGood()
+	{
+		_isAllowSave = true;
+		showUsernameResult(
+			Lang::Viewer(lng_create_channel_link_available),
+			&st::editPeerUsernameGood);
+	}
+
+	void Controller::showUsernameResult(
+		rpl::producer<QString>&& text,
+		not_null<const style::FlatLabel*> st)
+	{
+		if (!_controls.usernameResult
+			|| _controls.usernameResultStyle != st)
+		{
+			_controls.usernameResultStyle = st;
+			_controls.usernameResult = base::make_unique_q<Ui::FlatLabel>(
+				_controls.usernameWrap,
+				_usernameResultTexts.events() | rpl::flatten_latest(),
+				*st);
+			const auto label = _controls.usernameResult.get();
+			label->show();
+			label->widthValue(
+			) | rpl::start_with_next([label]
+			{
+				label->moveToRight(
+					st::editPeerUsernamePosition.x(),
+					st::editPeerUsernamePosition.y());
+			}, label->lifetime());
+		}
+		_usernameResultTexts.fire(std::move(text));
+	}
+
+	void Controller::createInviteLink()
+	{
+		exportInviteLink(lang(_isGroup
+			                      ? lng_group_invite_about
+			                      : lng_group_invite_about_channel));
+	}
+
+	void Controller::revokeInviteLink()
+	{
+		exportInviteLink(lang(lng_group_invite_about_new));
+	}
+
+	void Controller::exportInviteLink(const QString& confirmation)
+	{
+		const auto boxPointer = std::make_shared<QPointer<ConfirmBox>>();
+		const auto callback = crl::guard(this, [=]
+		{
+			if (const auto strong = *boxPointer)
+			{
+				strong->closeBox();
+			}
+			_peer->session().api().exportInviteLink(_peer->migrateToOrMe());
+		});
+		auto box = Box<ConfirmBox>(
+			confirmation,
+			std::move(callback));
+		*boxPointer = Ui::show(std::move(box), LayerOption::KeepOther);
+	}
+
+	bool Controller::canEditInviteLink() const
+	{
+		if (const auto channel = _peer->asChannel())
+		{
+			return channel->amCreator()
+				|| (channel->adminRights() & ChatAdminRight::f_invite_users);
+		}
+		else if (const auto chat = _peer->asChat())
+		{
+			return chat->amCreator()
+				|| (chat->adminRights() & ChatAdminRight::f_invite_users);
+		}
 		return false;
-	});
+	}
 
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::editPeerInviteLinkSkip));
-	container->add(object_ptr<Ui::LinkButton>(
-		container,
-		lang(lng_group_invite_create_new),
-		st::editPeerInviteLinkButton)
-	)->addClickHandler([=] { revokeInviteLink(); });
-
-	observeInviteLink();
-
-	return std::move(result);
-}
-
-void Controller::refreshEditInviteLink() {
-	const auto link = inviteLinkText();
-	auto text = TextWithEntities();
-	if (!link.isEmpty()) {
-		text.text = link;
-		const auto remove = qstr("https://");
-		if (text.text.startsWith(remove)) {
-			text.text.remove(0, remove.size());
+	void Controller::observeInviteLink()
+	{
+		if (!_controls.editInviteLinkWrap)
+		{
+			return;
 		}
-		text.entities.push_back({
-			EntityType::CustomUrl,
-			0,
-			text.text.size(),
-			link });
-	}
-	_controls.inviteLink->setMarkedText(text);
-
-	// Hack to expand FlatLabel width to naturalWidth again.
-	_controls.editInviteLinkWrap->resizeToWidth(st::boxWideWidth);
-
-	_controls.editInviteLinkWrap->toggle(
-		inviteLinkShown() && !link.isEmpty(),
-		anim::type::instant);
-}
-
-object_ptr<Ui::RpWidget> Controller::createInviteLinkCreate() {
-	Expects(_wrap != nullptr);
-
-	if (!canEditInviteLink()) {
-		return nullptr;
+		Notify::PeerUpdateValue(
+			_peer,
+			Notify::PeerUpdate::Flag::InviteLinkChanged
+		) | rpl::start_with_next([=]
+		{
+			refreshCreateInviteLink();
+			refreshEditInviteLink();
+		}, _controls.editInviteLinkWrap->lifetime());
 	}
 
-	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-		_wrap,
-		object_ptr<Ui::VerticalLayout>(_wrap),
-		st::editPeerInvitesMargins);
-	const auto container = result->entity();
+	object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit()
+	{
+		Expects(_wrap != nullptr);
 
-	if (!_isInviteLink) {
-		container->add(object_ptr<Ui::FlatLabel>(
+		if (!canEditInviteLink())
+		{
+			return nullptr;
+		}
+
+		auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			_wrap,
+			object_ptr<Ui::VerticalLayout>(_wrap),
+			st::editPeerInvitesMargins);
+		_controls.editInviteLinkWrap = result.data();
+
+		const auto container = result->entity();
+		if (!_isInviteLink)
+		{
+			container->add(object_ptr<Ui::FlatLabel>(
+				container,
+				Lang::Viewer(lng_profile_invite_link_section),
+				st::editPeerSectionLabel));
+			container->add(object_ptr<Ui::FixedHeightWidget>(
+				container,
+				st::editPeerInviteLinkBoxBottomSkip));
+		}
+
+		_controls.inviteLink = container->add(object_ptr<Ui::FlatLabel>(
 			container,
-			Lang::Viewer(lng_profile_invite_link_section),
-			st::editPeerSectionLabel));
+			st::editPeerInviteLink));
+		_controls.inviteLink->setSelectable(true);
+		_controls.inviteLink->setContextCopyText(QString());
+		_controls.inviteLink->setBreakEverywhere(true);
+		_controls.inviteLink->setClickHandlerFilter([=](auto&&...)
+		{
+			QApplication::clipboard()->setText(inviteLinkText());
+			Ui::Toast::Show(lang(lng_group_invite_copied));
+			return false;
+		});
+
 		container->add(object_ptr<Ui::FixedHeightWidget>(
 			container,
 			st::editPeerInviteLinkSkip));
+		container->add(object_ptr<Ui::LinkButton>(
+				container,
+				lang(lng_group_invite_create_new),
+				st::editPeerInviteLinkButton)
+		)->addClickHandler([=]
+		{
+			revokeInviteLink();
+		});
+
+		observeInviteLink();
+
+		return std::move(result);
 	}
 
-	container->add(object_ptr<Ui::LinkButton>(
-		_wrap,
-		lang(lng_group_invite_create),
-		st::editPeerInviteLinkButton)
-	)->addClickHandler([this] {
-		createInviteLink();
-	});
-	_controls.createInviteLinkWrap = result.data();
+	void Controller::refreshEditInviteLink()
+	{
+		const auto link = inviteLinkText();
+		auto text = TextWithEntities();
+		if (!link.isEmpty())
+		{
+			text.text = link;
+			const auto remove = qstr("https://");
+			if (text.text.startsWith(remove))
+			{
+				text.text.remove(0, remove.size());
+			}
+			text.entities.push_back({
+				EntityType::CustomUrl,
+				0,
+				text.text.size(),
+				link
+			});
+		}
+		_controls.inviteLink->setMarkedText(text);
 
-	observeInviteLink();
+		// Hack to expand FlatLabel width to naturalWidth again.
+		_controls.editInviteLinkWrap->resizeToWidth(st::boxWideWidth);
 
-	return std::move(result);
-}
+		_controls.editInviteLinkWrap->toggle(
+			inviteLinkShown() && !link.isEmpty(),
+			anim::type::instant);
+	}
 
-void Controller::refreshCreateInviteLink() {
-	_controls.createInviteLinkWrap->toggle(
-		inviteLinkShown() && inviteLinkText().isEmpty(),
-		anim::type::instant);
-}
+	object_ptr<Ui::RpWidget> Controller::createInviteLinkCreate()
+	{
+		Expects(_wrap != nullptr);
 
-bool Controller::inviteLinkShown() {
-	return !_controls.privacy
-		|| (_controls.privacy->value() == Privacy::Private)
-		|| _isInviteLink;
-}
+		if (!canEditInviteLink())
+		{
+			return nullptr;
+		}
 
+		auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			_wrap,
+			object_ptr<Ui::VerticalLayout>(_wrap),
+			st::editPeerInvitesMargins);
+		const auto container = result->entity();
+
+		if (!_isInviteLink)
+		{
+			container->add(object_ptr<Ui::FlatLabel>(
+				container,
+				Lang::Viewer(lng_profile_invite_link_section),
+				st::editPeerSectionLabel));
+			container->add(object_ptr<Ui::FixedHeightWidget>(
+				container,
+				st::editPeerInviteLinkSkip));
+		}
+
+		container->add(object_ptr<Ui::LinkButton>(
+				_wrap,
+				lang(lng_group_invite_create),
+				st::editPeerInviteLinkButton)
+		)->addClickHandler([this]
+		{
+			createInviteLink();
+		});
+		_controls.createInviteLinkWrap = result.data();
+
+		observeInviteLink();
+
+		return std::move(result);
+	}
+
+	void Controller::refreshCreateInviteLink()
+	{
+		_controls.createInviteLinkWrap->toggle(
+			inviteLinkShown() && inviteLinkText().isEmpty(),
+			anim::type::instant);
+	}
+
+	bool Controller::inviteLinkShown()
+	{
+		return !_controls.privacy
+			|| (_controls.privacy->value() == Privacy::Private)
+			|| _isInviteLink;
+	}
 } // namespace
 
 EditPeerTypeBox::EditPeerTypeBox(
@@ -700,19 +810,22 @@ EditPeerTypeBox::EditPeerTypeBox(
 	std::optional<FnMut<void(Privacy, QString)>> savedCallback,
 	std::optional<Privacy> privacySaved,
 	std::optional<QString> usernameSaved,
-	std::optional<LangKey> usernameError)
-: _peer(peer)
-, _savedCallback(std::move(savedCallback))
-, _privacySavedValue(privacySaved)
-, _usernameSavedValue(usernameSaved)
-, _usernameError(usernameError) {
+	std::optional<LangKey> usernameError):
+	_peer(peer)
+	, _savedCallback(std::move(savedCallback))
+	, _privacySavedValue(privacySaved)
+	, _usernameSavedValue(usernameSaved)
+	, _usernameError(usernameError)
+{
 }
 
-void EditPeerTypeBox::setInnerFocus() {
+void EditPeerTypeBox::setInnerFocus()
+{
 	_focusRequests.fire({});
 }
 
-void EditPeerTypeBox::prepare() {
+void EditPeerTypeBox::prepare()
+{
 	_peer->updateFull();
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
@@ -725,9 +838,11 @@ void EditPeerTypeBox::prepare() {
 		_usernameSavedValue);
 	_focusRequests.events(
 	) | rpl::start_with_next(
-		[=] {
+		[=]
+		{
 			controller->setFocusUsername();
-			if (_usernameError.has_value()) {
+			if (_usernameError.has_value())
+			{
 				controller->showError(*_usernameError);
 				_usernameError = std::nullopt;
 			}
@@ -737,25 +852,31 @@ void EditPeerTypeBox::prepare() {
 
 	setTitle(langFactory(controller->getTitle()));
 
-	if (!controller->isInviteLink() && _savedCallback.has_value()) {
-		addButton(langFactory(lng_settings_save), [=] {
+	if (!controller->isInviteLink() && _savedCallback.has_value())
+	{
+		addButton(langFactory(lng_settings_save), [=]
+		{
 			const auto v = controller->getPrivacy();
-			if (!controller->isAllowSave() && (v == Privacy::Public)) {
+			if (!controller->isAllowSave() && (v == Privacy::Public))
+			{
 				controller->setFocusUsername();
 				return;
 			}
 
 			auto local = std::move(*_savedCallback);
 			local(v,
-				(v == Privacy::Public)
-					? controller->getUsernameInput()
-					: QString()); // We dont need username with private type.
+			      (v == Privacy::Public)
+				      ? controller->getUsernameInput()
+				      : QString()); // We dont need username with private type.
 			closeBox();
 		});
 	}
 	addButton(
 		langFactory(controller->isInviteLink() ? lng_close : lng_cancel),
-		[=] { closeBox(); });
+		[=]
+		{
+			closeBox();
+		});
 
 	setDimensionsToContent(st::boxWideWidth, content);
 }

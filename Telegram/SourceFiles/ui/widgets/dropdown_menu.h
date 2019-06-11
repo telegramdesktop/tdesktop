@@ -11,98 +11,113 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/inner_dropdown.h"
 #include "ui/widgets/menu.h"
 
-namespace Ui {
-
-class DropdownMenu : public InnerDropdown {
+namespace Ui
+{
+	class DropdownMenu : public InnerDropdown
+	{
 	Q_OBJECT
 
-public:
-	DropdownMenu(QWidget *parent, const style::DropdownMenu &st = st::defaultDropdownMenu);
+	public:
+		DropdownMenu(QWidget* parent, const style::DropdownMenu& st = st::defaultDropdownMenu);
 
-	not_null<QAction*> addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	not_null<QAction*> addAction(const QString &text, Fn<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	not_null<QAction*> addSeparator();
-	void clearActions();
+		not_null<QAction*> addAction(const QString& text, const QObject* receiver, const char* member, const style::icon* icon = nullptr, const style::icon* iconOver = nullptr);
+		not_null<QAction*> addAction(const QString& text, Fn<void()> callback, const style::icon* icon = nullptr, const style::icon* iconOver = nullptr);
+		not_null<QAction*> addSeparator();
+		void clearActions();
 
-	void setHiddenCallback(Fn<void()> callback) {
-		_hiddenCallback = std::move(callback);
-	}
+		void setHiddenCallback(Fn<void()> callback)
+		{
+			_hiddenCallback = std::move(callback);
+		}
 
-	const std::vector<not_null<QAction*>> &actions() const;
+		const std::vector<not_null<QAction*>>& actions() const;
 
-	~DropdownMenu();
+		~DropdownMenu();
 
-protected:
-	void focusOutEvent(QFocusEvent *e) override;
-	void hideEvent(QHideEvent *e) override;
+	protected:
+		void focusOutEvent(QFocusEvent* e) override;
+		void hideEvent(QHideEvent* e) override;
 
-	void keyPressEvent(QKeyEvent *e) override {
-		forwardKeyPress(e->key());
-	}
-	void mouseMoveEvent(QMouseEvent *e) override {
-		forwardMouseMove(e->globalPos());
-	}
-	void mousePressEvent(QMouseEvent *e) override {
-		forwardMousePress(e->globalPos());
-	}
+		void keyPressEvent(QKeyEvent* e) override
+		{
+			forwardKeyPress(e->key());
+		}
 
-private slots:
-	void onHidden() {
-		hideFinish();
-	}
+		void mouseMoveEvent(QMouseEvent* e) override
+		{
+			forwardMouseMove(e->globalPos());
+		}
 
-private:
-	// Not ready with submenus yet.
-	DropdownMenu(QWidget *parent, QMenu *menu, const style::DropdownMenu &st = st::defaultDropdownMenu);
-	void deleteOnHide(bool del);
-	void popup(const QPoint &p);
-	void hideMenu(bool fast = false);
+		void mousePressEvent(QMouseEvent* e) override
+		{
+			forwardMousePress(e->globalPos());
+		}
 
-	void childHiding(DropdownMenu *child);
+	private slots:
+		void onHidden()
+		{
+			hideFinish();
+		}
 
-	void init();
-	void hideFinish();
+	private:
+		// Not ready with submenus yet.
+		DropdownMenu(QWidget* parent, QMenu* menu, const style::DropdownMenu& st = st::defaultDropdownMenu);
+		void deleteOnHide(bool del);
+		void popup(const QPoint& p);
+		void hideMenu(bool fast = false);
 
-	using TriggeredSource = Ui::Menu::TriggeredSource;
-	void handleActivated(QAction *action, int actionTop, TriggeredSource source);
-	void handleTriggered(QAction *action, int actionTop, TriggeredSource source);
-	void forwardKeyPress(int key);
-	bool handleKeyPress(int key);
-	void forwardMouseMove(QPoint globalPosition) {
-		_menu->handleMouseMove(globalPosition);
-	}
-	void handleMouseMove(QPoint globalPosition);
-	void forwardMousePress(QPoint globalPosition) {
-		_menu->handleMousePress(globalPosition);
-	}
-	void handleMousePress(QPoint globalPosition);
-	void forwardMouseRelease(QPoint globalPosition) {
-		_menu->handleMouseRelease(globalPosition);
-	}
-	void handleMouseRelease(QPoint globalPosition);
+		void childHiding(DropdownMenu* child);
 
-	using SubmenuPointer = QPointer<DropdownMenu>;
-	bool popupSubmenuFromAction(QAction *action, int actionTop, TriggeredSource source);
-	void popupSubmenu(SubmenuPointer submenu, int actionTop, TriggeredSource source);
-	void showMenu(const QPoint &p, DropdownMenu *parent, TriggeredSource source);
+		void init();
+		void hideFinish();
 
-	const style::DropdownMenu &_st;
-	Fn<void()> _hiddenCallback;
+		using TriggeredSource = Ui::Menu::TriggeredSource;
+		void handleActivated(QAction* action, int actionTop, TriggeredSource source);
+		void handleTriggered(QAction* action, int actionTop, TriggeredSource source);
+		void forwardKeyPress(int key);
+		bool handleKeyPress(int key);
 
-	QPointer<Ui::Menu> _menu;
+		void forwardMouseMove(QPoint globalPosition)
+		{
+			_menu->handleMouseMove(globalPosition);
+		}
 
-	// Not ready with submenus yet.
-	//using Submenus = QMap<QAction*, SubmenuPointer>;
-	//Submenus _submenus;
+		void handleMouseMove(QPoint globalPosition);
 
-	DropdownMenu *_parent = nullptr;
+		void forwardMousePress(QPoint globalPosition)
+		{
+			_menu->handleMousePress(globalPosition);
+		}
 
-	SubmenuPointer _activeSubmenu;
+		void handleMousePress(QPoint globalPosition);
 
-	bool _deleteOnHide = false;
-	bool _triggering = false;
-	bool _deleteLater = false;
+		void forwardMouseRelease(QPoint globalPosition)
+		{
+			_menu->handleMouseRelease(globalPosition);
+		}
 
-};
+		void handleMouseRelease(QPoint globalPosition);
 
+		using SubmenuPointer = QPointer<DropdownMenu>;
+		bool popupSubmenuFromAction(QAction* action, int actionTop, TriggeredSource source);
+		void popupSubmenu(SubmenuPointer submenu, int actionTop, TriggeredSource source);
+		void showMenu(const QPoint& p, DropdownMenu* parent, TriggeredSource source);
+
+		const style::DropdownMenu& _st;
+		Fn<void()> _hiddenCallback;
+
+		QPointer<Ui::Menu> _menu;
+
+		// Not ready with submenus yet.
+		//using Submenus = QMap<QAction*, SubmenuPointer>;
+		//Submenus _submenus;
+
+		DropdownMenu* _parent = nullptr;
+
+		SubmenuPointer _activeSubmenu;
+
+		bool _deleteOnHide = false;
+		bool _triggering = false;
+		bool _deleteLater = false;
+	};
 } // namespace Ui

@@ -17,5 +17,5 @@ object_ptr<BoxContent> EditLinkedChatBox(
 
 object_ptr<BoxContent> EditLinkedChatBox(
 	not_null<ChannelData*> channel,
-	std::vector<not_null<PeerData*>> &&chats,
+	std::vector<not_null<PeerData*>>&& chats,
 	Fn<void(ChannelData*)> callback);

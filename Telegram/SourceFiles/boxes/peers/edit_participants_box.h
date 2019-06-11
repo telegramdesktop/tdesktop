@@ -14,32 +14,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "info/profile/info_profile_members_controllers.h"
 
-namespace Window {
-class SessionNavigation;
+namespace Window
+{
+	class SessionNavigation;
 } // namespace Window
 
 Fn<void(
-	const MTPChatAdminRights &oldRights,
-	const MTPChatAdminRights &newRights)> SaveAdminCallback(
-		not_null<PeerData*> peer,
-		not_null<UserData*> user,
-		Fn<void(const MTPChatAdminRights &newRights)> onDone,
-		Fn<void()> onFail);
+	const MTPChatAdminRights & oldRights,
+	const MTPChatAdminRights & newRights)> SaveAdminCallback(
+	not_null<PeerData*> peer,
+	not_null<UserData*> user,
+	Fn<void(const MTPChatAdminRights & newRights)> onDone,
+	Fn<void()> onFail);
 
 Fn<void(
-	const MTPChatBannedRights &oldRights,
-	const MTPChatBannedRights &newRights)> SaveRestrictedCallback(
-		not_null<PeerData*> peer,
-		not_null<UserData*> user,
-		Fn<void(const MTPChatBannedRights &newRights)> onDone,
-		Fn<void()> onFail);
+	const MTPChatBannedRights & oldRights,
+	const MTPChatBannedRights & newRights)> SaveRestrictedCallback(
+	not_null<PeerData*> peer,
+	not_null<UserData*> user,
+	Fn<void(const MTPChatBannedRights & newRights)> onDone,
+	Fn<void()> onFail);
 
 void SubscribeToMigration(
 	not_null<PeerData*> peer,
-	rpl::lifetime &lifetime,
+	rpl::lifetime& lifetime,
 	Fn<void(not_null<ChannelData*>)> migrate);
 
-enum class ParticipantsRole {
+enum class ParticipantsRole
+{
 	Profile,
 	Members,
 	Admins,
@@ -47,7 +49,8 @@ enum class ParticipantsRole {
 	Kicked,
 };
 
-class ParticipantsOnlineSorter : private base::Subscriber {
+class ParticipantsOnlineSorter : private base::Subscriber
+{
 public:
 	ParticipantsOnlineSorter(
 		not_null<PeerData*> peer,
@@ -64,18 +67,18 @@ private:
 	not_null<PeerListDelegate*> _delegate;
 	base::Timer _sortByOnlineTimer;
 	rpl::variable<int> _onlineCount = 0;
-
 };
 
-class ParticipantsAdditionalData {
+class ParticipantsAdditionalData
+{
 public:
 	using Role = ParticipantsRole;
 
 	ParticipantsAdditionalData(not_null<PeerData*> peer, Role role);
 
-	UserData *applyParticipant(const MTPChannelParticipant &data);
-	UserData *applyParticipant(
-		const MTPChannelParticipant &data,
+	UserData* applyParticipant(const MTPChannelParticipant& data);
+	UserData* applyParticipant(
+		const MTPChannelParticipant& data,
 		Role overrideRole);
 	void setExternal(not_null<UserData*> user);
 	void checkForLoaded(not_null<UserData*> user);
@@ -92,22 +95,22 @@ public:
 	[[nodiscard]] bool isCreator(not_null<UserData*> user) const;
 	[[nodiscard]] bool isExternal(not_null<UserData*> user) const;
 	[[nodiscard]] bool isKicked(not_null<UserData*> user) const;
-	[[nodiscard]] UserData *adminPromotedBy(not_null<UserData*> user) const;
-	[[nodiscard]] UserData *restrictedBy(not_null<UserData*> user) const;
+	[[nodiscard]] UserData* adminPromotedBy(not_null<UserData*> user) const;
+	[[nodiscard]] UserData* restrictedBy(not_null<UserData*> user) const;
 
 	void migrate(not_null<ChannelData*> channel);
 
 private:
-	UserData *applyCreator(const MTPDchannelParticipantCreator &data);
-	UserData *applyAdmin(const MTPDchannelParticipantAdmin &data);
-	UserData *applyRegular(MTPint userId);
-	UserData *applyBanned(const MTPDchannelParticipantBanned &data);
+	UserData* applyCreator(const MTPDchannelParticipantCreator& data);
+	UserData* applyAdmin(const MTPDchannelParticipantAdmin& data);
+	UserData* applyRegular(MTPint userId);
+	UserData* applyBanned(const MTPDchannelParticipantBanned& data);
 	void fillFromChat(not_null<ChatData*> chat);
 	void fillFromChannel(not_null<ChannelData*> channel);
 
 	not_null<PeerData*> _peer;
 	Role _role = Role::Members;
-	UserData *_creator = nullptr;
+	UserData* _creator = nullptr;
 
 	// Data for chats.
 	base::flat_set<not_null<UserData*>> _members;
@@ -122,15 +125,15 @@ private:
 	std::map<not_null<UserData*>, not_null<UserData*>> _restrictedBy;
 	std::set<not_null<UserData*>> _external;
 	std::set<not_null<UserData*>> _infoNotLoaded;
-
 };
 
 // Viewing admins, banned or restricted users list with search.
 class ParticipantsBoxController
 	: public PeerListController
-	, private base::Subscriber
-	, private MTP::Sender
-	, public base::has_weak_ptr {
+	  , private base::Subscriber
+	  , private MTP::Sender
+	  , public base::has_weak_ptr
+{
 public:
 	using Role = ParticipantsRole;
 
@@ -148,7 +151,7 @@ public:
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void rowActionClicked(not_null<PeerListRow*> row) override;
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
-		QWidget *parent,
+		QWidget* parent,
 		not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
 
@@ -171,8 +174,9 @@ private:
 	using Row = Info::Profile::MemberListRow;
 	using Type = Row::Type;
 	using Rights = Row::Rights;
-	struct SavedState : SavedStateBase {
-		explicit SavedState(const ParticipantsAdditionalData &additional);
+	struct SavedState : SavedStateBase
+	{
+		explicit SavedState(const ParticipantsAdditionalData& additional);
 
 		using SearchStateBase = PeerListSearchController::SavedStateBase;
 		std::unique_ptr<SearchStateBase> searchState;
@@ -203,11 +207,11 @@ private:
 	void showAdmin(not_null<UserData*> user);
 	void editAdminDone(
 		not_null<UserData*> user,
-		const MTPChatAdminRights &rights);
+		const MTPChatAdminRights& rights);
 	void showRestricted(not_null<UserData*> user);
 	void editRestrictedDone(
 		not_null<UserData*> user,
-		const MTPChatBannedRights &rights);
+		const MTPChatBannedRights& rights);
 	void removeKicked(not_null<PeerListRow*> row, not_null<UserData*> user);
 	void removeKickedWithRow(not_null<UserData*> user);
 	void removeKicked(not_null<UserData*> user);
@@ -237,13 +241,13 @@ private:
 	std::unique_ptr<ParticipantsOnlineSorter> _onlineSorter;
 	BoxPointer _editBox;
 	BoxPointer _addBox;
-
 };
 
 // Members, banned and restricted users server side search.
 class ParticipantsBoxSearchController
 	: public PeerListSearchController
-	, private MTP::Sender {
+	  , private MTP::Sender
+{
 public:
 	using Role = ParticipantsBoxController::Role;
 
@@ -252,7 +256,7 @@ public:
 		Role role,
 		not_null<ParticipantsAdditionalData*> additional);
 
-	void searchQuery(const QString &query) override;
+	void searchQuery(const QString& query) override;
 	bool isLoading() override;
 	bool loadMoreRows() override;
 
@@ -260,17 +264,20 @@ public:
 	void restoreState(std::unique_ptr<SavedStateBase> state) override;
 
 private:
-	struct SavedState : SavedStateBase {
+	struct SavedState : SavedStateBase
+	{
 		QString query;
 		int offset = 0;
 		bool allLoaded = false;
 		bool wasLoading = false;
 	};
-	struct CacheEntry {
+	struct CacheEntry
+	{
 		MTPchannels_ChannelParticipants result;
 		int requestedCount = 0;
 	};
-	struct Query {
+	struct Query
+	{
 		QString text;
 		int offset = 0;
 	};
@@ -279,7 +286,7 @@ private:
 	bool searchInCache();
 	void searchDone(
 		mtpRequestId requestId,
-		const MTPchannels_ChannelParticipants &result,
+		const MTPchannels_ChannelParticipants& result,
 		int requestedCount);
 
 	not_null<ChannelData*> _channel;
@@ -293,5 +300,4 @@ private:
 	bool _allLoaded = false;
 	std::map<QString, CacheEntry> _cache;
 	std::map<mtpRequestId, Query> _queries;
-
 };

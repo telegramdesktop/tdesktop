@@ -9,93 +9,96 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
-namespace Ui {
-class LabelSimple;
-class FadeAnimation;
-class IconButton;
-class MediaSlider;
+namespace Ui
+{
+	class LabelSimple;
+	class FadeAnimation;
+	class IconButton;
+	class MediaSlider;
 } // namespace Ui
 
-namespace Media {
-namespace Player {
-struct TrackState;
-} // namespace Player
+namespace Media
+{
+	namespace Player
+	{
+		struct TrackState;
+	} // namespace Player
 
-namespace View {
+	namespace View
+	{
+		class PlaybackProgress;
 
-class PlaybackProgress;
+		class PlaybackControls : public Ui::RpWidget
+		{
+		public:
+			class Delegate
+			{
+			public:
+				virtual void playbackControlsPlay() = 0;
+				virtual void playbackControlsPause() = 0;
+				virtual void playbackControlsSeekProgress(crl::time position) = 0;
+				virtual void playbackControlsSeekFinished(crl::time position) = 0;
+				virtual void playbackControlsVolumeChanged(float64 volume) = 0;
+				[[nodiscard]] virtual float64 playbackControlsCurrentVolume() = 0;
+				virtual void playbackControlsToFullScreen() = 0;
+				virtual void playbackControlsFromFullScreen() = 0;
+			};
 
-class PlaybackControls : public Ui::RpWidget {
-public:
-	class Delegate {
-	public:
-		virtual void playbackControlsPlay() = 0;
-		virtual void playbackControlsPause() = 0;
-		virtual void playbackControlsSeekProgress(crl::time position) = 0;
-		virtual void playbackControlsSeekFinished(crl::time position) = 0;
-		virtual void playbackControlsVolumeChanged(float64 volume) = 0;
-		[[nodiscard]] virtual float64 playbackControlsCurrentVolume() = 0;
-		virtual void playbackControlsToFullScreen() = 0;
-		virtual void playbackControlsFromFullScreen() = 0;
-	};
+			PlaybackControls(QWidget* parent, not_null<Delegate*> delegate);
 
-	PlaybackControls(QWidget *parent, not_null<Delegate*> delegate);
+			void showAnimated();
+			void hideAnimated();
 
-	void showAnimated();
-	void hideAnimated();
+			void updatePlayback(const Player::TrackState& state);
+			void setLoadingProgress(int ready, int total);
+			void setInFullScreen(bool inFullScreen);
 
-	void updatePlayback(const Player::TrackState &state);
-	void setLoadingProgress(int ready, int total);
-	void setInFullScreen(bool inFullScreen);
+			~PlaybackControls();
 
-	~PlaybackControls();
+		protected:
+			void resizeEvent(QResizeEvent* e) override;
+			void paintEvent(QPaintEvent* e) override;
+			void mousePressEvent(QMouseEvent* e) override;
 
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
+		private:
+			void handleSeekProgress(float64 progress);
+			void handleSeekFinished(float64 progress);
 
-private:
-	void handleSeekProgress(float64 progress);
-	void handleSeekFinished(float64 progress);
+			template <typename Callback>
+			void startFading(Callback start);
+			void fadeFinished();
+			void fadeUpdated(float64 opacity);
+			void refreshFadeCache();
+			[[nodiscard]] float64 countDownloadedTillPercent(
+				const Player::TrackState& state) const;
 
-	template <typename Callback>
-	void startFading(Callback start);
-	void fadeFinished();
-	void fadeUpdated(float64 opacity);
-	void refreshFadeCache();
-	[[nodiscard]] float64 countDownloadedTillPercent(
-		const Player::TrackState &state) const;
+			void updatePlayPauseResumeState(const Player::TrackState& state);
+			void updateTimeTexts(const Player::TrackState& state);
+			void refreshTimeTexts();
 
-	void updatePlayPauseResumeState(const Player::TrackState &state);
-	void updateTimeTexts(const Player::TrackState &state);
-	void refreshTimeTexts();
+			not_null<Delegate*> _delegate;
 
-	not_null<Delegate*> _delegate;
+			bool _inFullScreen = false;
+			bool _showPause = false;
+			bool _childrenHidden = false;
+			QString _timeAlready, _timeLeft;
+			crl::time _seekPositionMs = -1;
+			crl::time _lastDurationMs = 0;
+			int _loadingReady = 0;
+			int _loadingTotal = 0;
+			int _loadingPercent = 0;
 
-	bool _inFullScreen = false;
-	bool _showPause = false;
-	bool _childrenHidden = false;
-	QString _timeAlready, _timeLeft;
-	crl::time _seekPositionMs = -1;
-	crl::time _lastDurationMs = 0;
-	int _loadingReady = 0;
-	int _loadingTotal = 0;
-	int _loadingPercent = 0;
+			object_ptr<Ui::IconButton> _playPauseResume;
+			object_ptr<Ui::MediaSlider> _playbackSlider;
+			std::unique_ptr<PlaybackProgress> _playbackProgress;
+			std::unique_ptr<PlaybackProgress> _receivedTillProgress;
+			object_ptr<Ui::MediaSlider> _volumeController;
+			object_ptr<Ui::IconButton> _fullScreenToggle;
+			object_ptr<Ui::LabelSimple> _playedAlready;
+			object_ptr<Ui::LabelSimple> _toPlayLeft;
+			object_ptr<Ui::LabelSimple> _downloadProgress = {nullptr};
 
-	object_ptr<Ui::IconButton> _playPauseResume;
-	object_ptr<Ui::MediaSlider> _playbackSlider;
-	std::unique_ptr<PlaybackProgress> _playbackProgress;
-	std::unique_ptr<PlaybackProgress> _receivedTillProgress;
-	object_ptr<Ui::MediaSlider> _volumeController;
-	object_ptr<Ui::IconButton> _fullScreenToggle;
-	object_ptr<Ui::LabelSimple> _playedAlready;
-	object_ptr<Ui::LabelSimple> _toPlayLeft;
-	object_ptr<Ui::LabelSimple> _downloadProgress = { nullptr };
-
-	std::unique_ptr<Ui::FadeAnimation> _fadeAnimation;
-
-};
-
-} // namespace View
+			std::unique_ptr<Ui::FadeAnimation> _fadeAnimation;
+		};
+	} // namespace View
 } // namespace Media

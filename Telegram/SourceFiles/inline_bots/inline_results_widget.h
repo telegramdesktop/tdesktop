@@ -15,254 +15,260 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "inline_bots/inline_bot_layout_item.h"
 
-namespace Ui {
-class ScrollArea;
-class IconButton;
-class LinkButton;
-class RoundButton;
-class FlatLabel;
-class RippleAnimation;
+namespace Ui
+{
+	class ScrollArea;
+	class IconButton;
+	class LinkButton;
+	class RoundButton;
+	class FlatLabel;
+	class RippleAnimation;
 } // namesapce Ui
 
-namespace Window {
-class SessionController;
+namespace Window
+{
+	class SessionController;
 } // namespace Window
 
-namespace InlineBots {
+namespace InlineBots
+{
+	class Result;
 
-class Result;
+	namespace Layout
+	{
+		class ItemBase;
 
-namespace Layout {
+		namespace internal
+		{
+			constexpr int kInlineItemsMaxPerRow = 5;
 
-class ItemBase;
+			using Results = std::vector<std::unique_ptr<Result>>;
 
-namespace internal {
+			struct CacheEntry
+			{
+				QString nextOffset;
+				QString switchPmText, switchPmStartToken;
+				Results results;
+			};
 
-constexpr int kInlineItemsMaxPerRow = 5;
+			class Inner : public TWidget, public Context, private base::Subscriber
+			{
+			Q_OBJECT
 
-using Results = std::vector<std::unique_ptr<Result>>;
+			public:
+				Inner(QWidget* parent, not_null<Window::SessionController*> controller);
 
-struct CacheEntry {
-	QString nextOffset;
-	QString switchPmText, switchPmStartToken;
-	Results results;
-};
+				void hideFinish(bool completely);
 
-class Inner : public TWidget, public Context, private base::Subscriber {
-	Q_OBJECT
+				void clearSelection();
 
-public:
-	Inner(QWidget *parent, not_null<Window::SessionController*> controller);
+				int refreshInlineRows(PeerData* queryPeer, UserData* bot, const CacheEntry* results, bool resultsDeleted);
+				void inlineBotChanged();
+				void hideInlineRowsPanel();
+				void clearInlineRowsPanel();
 
-	void hideFinish(bool completely);
+				void preloadImages();
 
-	void clearSelection();
+				void inlineItemLayoutChanged(const ItemBase* layout) override;
+				void inlineItemRepaint(const ItemBase* layout) override;
+				bool inlineItemVisible(const ItemBase* layout) override;
+				Data::FileOrigin inlineItemFileOrigin() override;
 
-	int refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntry *results, bool resultsDeleted);
-	void inlineBotChanged();
-	void hideInlineRowsPanel();
-	void clearInlineRowsPanel();
+				int countHeight();
 
-	void preloadImages();
+				void setResultSelectedCallback(Fn<void(Result* result, UserData* bot)> callback)
+				{
+					_resultSelectedCallback = std::move(callback);
+				}
 
-	void inlineItemLayoutChanged(const ItemBase *layout) override;
-	void inlineItemRepaint(const ItemBase *layout) override;
-	bool inlineItemVisible(const ItemBase *layout) override;
-	Data::FileOrigin inlineItemFileOrigin() override;
+				~Inner();
 
-	int countHeight();
+			protected:
+				void visibleTopBottomUpdated(
+					int visibleTop,
+					int visibleBottom) override;
 
-	void setResultSelectedCallback(Fn<void(Result *result, UserData *bot)> callback) {
-		_resultSelectedCallback = std::move(callback);
-	}
+				void mousePressEvent(QMouseEvent* e) override;
+				void mouseReleaseEvent(QMouseEvent* e) override;
+				void mouseMoveEvent(QMouseEvent* e) override;
+				void paintEvent(QPaintEvent* e) override;
+				void leaveEventHook(QEvent* e) override;
+				void leaveToChildEvent(QEvent* e, QWidget* child) override;
+				void enterFromChildEvent(QEvent* e, QWidget* child) override;
 
-	~Inner();
+			private slots:
+				void onSwitchPm();
 
-protected:
-	void visibleTopBottomUpdated(
-		int visibleTop,
-		int visibleBottom) override;
+			signals:
+				void emptyInlineRows();
 
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
-	void leaveToChildEvent(QEvent *e, QWidget *child) override;
-	void enterFromChildEvent(QEvent *e, QWidget *child) override;
+			private:
+				static constexpr bool kRefreshIconsScrollAnimation = true;
+				static constexpr bool kRefreshIconsNoAnimation = false;
 
-private slots:
-	void onSwitchPm();
+				struct Row
+				{
+					int height = 0;
+					QVector<ItemBase*> items;
+				};
 
-signals:
-	void emptyInlineRows();
+				void updateSelected();
+				void checkRestrictedPeer();
+				bool isRestrictedView();
 
-private:
-	static constexpr bool kRefreshIconsScrollAnimation = true;
-	static constexpr bool kRefreshIconsNoAnimation = false;
+				void paintInlineItems(Painter& p, const QRect& r);
 
-	struct Row {
-		int height = 0;
-		QVector<ItemBase*> items;
-	};
+				void refreshSwitchPmButton(const CacheEntry* entry);
 
-	void updateSelected();
-	void checkRestrictedPeer();
-	bool isRestrictedView();
+				void showPreview();
+				void updateInlineItems();
+				void clearInlineRows(bool resultsDeleted);
+				ItemBase* layoutPrepareInlineResult(Result* result, int32 position);
 
-	void paintInlineItems(Painter &p, const QRect &r);
+				bool inlineRowsAddItem(Result* result, Row& row, int32& sumWidth);
+				bool inlineRowFinalize(Row& row, int32& sumWidth, bool force = false);
 
-	void refreshSwitchPmButton(const CacheEntry *entry);
+				Row& layoutInlineRow(Row& row, int32 sumWidth = 0);
+				void deleteUnusedInlineLayouts();
 
-	void showPreview();
-	void updateInlineItems();
-	void clearInlineRows(bool resultsDeleted);
-	ItemBase *layoutPrepareInlineResult(Result *result, int32 position);
+				int validateExistingInlineRows(const Results& results);
+				void selectInlineResult(int row, int column);
 
-	bool inlineRowsAddItem(Result *result, Row &row, int32 &sumWidth);
-	bool inlineRowFinalize(Row &row, int32 &sumWidth, bool force = false);
+				not_null<Window::SessionController*> _controller;
 
-	Row &layoutInlineRow(Row &row, int32 sumWidth = 0);
-	void deleteUnusedInlineLayouts();
+				int _visibleTop = 0;
+				int _visibleBottom = 0;
 
-	int validateExistingInlineRows(const Results &results);
-	void selectInlineResult(int row, int column);
+				UserData* _inlineBot = nullptr;
+				PeerData* _inlineQueryPeer = nullptr;
+				crl::time _lastScrolled = 0;
+				base::Timer _updateInlineItems;
+				bool _inlineWithThumb = false;
 
-	not_null<Window::SessionController*> _controller;
+				object_ptr<Ui::RoundButton> _switchPmButton = {nullptr};
+				QString _switchPmStartToken;
 
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
+				object_ptr<Ui::FlatLabel> _restrictedLabel = {nullptr};
 
-	UserData *_inlineBot = nullptr;
-	PeerData *_inlineQueryPeer = nullptr;
-	crl::time _lastScrolled = 0;
-	base::Timer _updateInlineItems;
-	bool _inlineWithThumb = false;
+				QVector<Row> _rows;
 
-	object_ptr<Ui::RoundButton> _switchPmButton = { nullptr };
-	QString _switchPmStartToken;
+				std::map<Result*, std::unique_ptr<ItemBase>> _inlineLayouts;
 
-	object_ptr<Ui::FlatLabel> _restrictedLabel = { nullptr };
+				int _selected = -1;
+				int _pressed = -1;
+				QPoint _lastMousePos;
 
-	QVector<Row> _rows;
+				base::Timer _previewTimer;
+				bool _previewShown = false;
 
-	std::map<Result*, std::unique_ptr<ItemBase>> _inlineLayouts;
+				Fn<void(Result* result, UserData* bot)> _resultSelectedCallback;
+			};
+		} // namespace internal
 
-	int _selected = -1;
-	int _pressed = -1;
-	QPoint _lastMousePos;
+		class Widget : public Ui::RpWidget, private MTP::Sender
+		{
+		Q_OBJECT
 
-	base::Timer _previewTimer;
-	bool _previewShown = false;
+		public:
+			Widget(QWidget* parent, not_null<Window::SessionController*> controller);
 
-	Fn<void(Result *result, UserData *bot)> _resultSelectedCallback;
+			void moveBottom(int bottom);
 
-};
+			void hideFast();
 
-} // namespace internal
+			bool hiding() const
+			{
+				return _hiding;
+			}
 
-class Widget : public Ui::RpWidget, private MTP::Sender {
-	Q_OBJECT
+			void queryInlineBot(UserData* bot, PeerData* peer, QString query);
+			void clearInlineBot();
 
-public:
-	Widget(QWidget *parent, not_null<Window::SessionController*> controller);
+			bool overlaps(const QRect& globalRect) const;
 
-	void moveBottom(int bottom);
+			void showAnimated();
+			void hideAnimated();
 
-	void hideFast();
-	bool hiding() const {
-		return _hiding;
-	}
+			void setResultSelectedCallback(Fn<void(Result* result, UserData* bot)> callback)
+			{
+				_inner->setResultSelectedCallback(std::move(callback));
+			}
 
-	void queryInlineBot(UserData *bot, PeerData *peer, QString query);
-	void clearInlineBot();
+			~Widget();
 
-	bool overlaps(const QRect &globalRect) const;
+		protected:
+			void paintEvent(QPaintEvent* e) override;
 
-	void showAnimated();
-	void hideAnimated();
+		private slots:
+			void onScroll();
 
-	void setResultSelectedCallback(Fn<void(Result *result, UserData *bot)> callback) {
-		_inner->setResultSelectedCallback(std::move(callback));
-	}
+			void onInlineRequest();
+			void onEmptyInlineRows();
 
-	~Widget();
+		private:
+			void moveByBottom();
+			void paintContent(Painter& p);
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
+			style::margins innerPadding() const;
 
-private slots:
-	void onScroll();
+			// Rounded rect which has shadow around it.
+			QRect innerRect() const;
 
-	void onInlineRequest();
-	void onEmptyInlineRows();
+			// Inner rect with removed st::buttonRadius from top and bottom.
+			// This one is allowed to be not rounded.
+			QRect horizontalRect() const;
 
-private:
-	void moveByBottom();
-	void paintContent(Painter &p);
+			// Inner rect with removed st::buttonRadius from left and right.
+			// This one is allowed to be not rounded.
+			QRect verticalRect() const;
 
-	style::margins innerPadding() const;
+			QImage grabForPanelAnimation();
+			void startShowAnimation();
+			void startOpacityAnimation(bool hiding);
+			void prepareCache();
 
-	// Rounded rect which has shadow around it.
-	QRect innerRect() const;
+			class Container;
+			void opacityAnimationCallback();
 
-	// Inner rect with removed st::buttonRadius from top and bottom.
-	// This one is allowed to be not rounded.
-	QRect horizontalRect() const;
+			void hideFinished();
+			void showStarted();
 
-	// Inner rect with removed st::buttonRadius from left and right.
-	// This one is allowed to be not rounded.
-	QRect verticalRect() const;
+			void updateContentHeight();
 
-	QImage grabForPanelAnimation();
-	void startShowAnimation();
-	void startOpacityAnimation(bool hiding);
-	void prepareCache();
+			void inlineBotChanged();
+			int showInlineRows(bool newResults);
+			void recountContentMaxHeight();
+			bool refreshInlineRows(int* added = nullptr);
+			void inlineResultsDone(const MTPmessages_BotResults& result);
 
-	class Container;
-	void opacityAnimationCallback();
+			not_null<Window::SessionController*> _controller;
 
-	void hideFinished();
-	void showStarted();
+			int _contentMaxHeight = 0;
+			int _contentHeight = 0;
+			bool _horizontal = false;
 
-	void updateContentHeight();
+			int _width = 0;
+			int _height = 0;
+			int _bottom = 0;
 
-	void inlineBotChanged();
-	int showInlineRows(bool newResults);
-	void recountContentMaxHeight();
-	bool refreshInlineRows(int *added = nullptr);
-	void inlineResultsDone(const MTPmessages_BotResults &result);
+			std::unique_ptr<Ui::PanelAnimation> _showAnimation;
+			Ui::Animations::Simple _a_show;
 
-	not_null<Window::SessionController*> _controller;
+			bool _hiding = false;
+			QPixmap _cache;
+			Ui::Animations::Simple _a_opacity;
+			bool _inPanelGrab = false;
 
-	int _contentMaxHeight = 0;
-	int _contentHeight = 0;
-	bool _horizontal = false;
+			object_ptr<Ui::ScrollArea> _scroll;
+			QPointer<internal::Inner> _inner;
 
-	int _width = 0;
-	int _height = 0;
-	int _bottom = 0;
+			std::map<QString, std::unique_ptr<internal::CacheEntry>> _inlineCache;
+			QTimer _inlineRequestTimer;
 
-	std::unique_ptr<Ui::PanelAnimation> _showAnimation;
-	Ui::Animations::Simple _a_show;
-
-	bool _hiding = false;
-	QPixmap _cache;
-	Ui::Animations::Simple _a_opacity;
-	bool _inPanelGrab = false;
-
-	object_ptr<Ui::ScrollArea> _scroll;
-	QPointer<internal::Inner> _inner;
-
-	std::map<QString, std::unique_ptr<internal::CacheEntry>> _inlineCache;
-	QTimer _inlineRequestTimer;
-
-	UserData *_inlineBot = nullptr;
-	PeerData *_inlineQueryPeer = nullptr;
-	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
-	mtpRequestId _inlineRequestId = 0;
-
-};
-
-} // namespace Layout
+			UserData* _inlineBot = nullptr;
+			PeerData* _inlineQueryPeer = nullptr;
+			QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
+			mtpRequestId _inlineRequestId = 0;
+		};
+	} // namespace Layout
 } // namespace InlineBots

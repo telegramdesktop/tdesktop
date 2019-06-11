@@ -14,99 +14,98 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ChannelData;
 class AuthSession;
 
-namespace Data {
+namespace Data
+{
+	class Session;
+	class Folder;
 
-class Session;
-class Folder;
+	//MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position); // #feed
 
-//MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position); // #feed
+	class Folder final : public Dialogs::Entry
+	{
+	public:
+		static constexpr auto kId = 1;
 
-class Folder final : public Dialogs::Entry {
-public:
-	static constexpr auto kId = 1;
+		Folder(not_null<Data::Session*> owner, FolderId id);
+		Folder(const Folder&) = delete;
+		Folder& operator=(const Folder&) = delete;
 
-	Folder(not_null<Data::Session*> owner, FolderId id);
-	Folder(const Folder &) = delete;
-	Folder &operator=(const Folder &) = delete;
+		FolderId id() const;
+		void registerOne(not_null<History*> history);
+		void unregisterOne(not_null<History*> history);
+		void oneListMessageChanged(HistoryItem* from, HistoryItem* to);
 
-	FolderId id() const;
-	void registerOne(not_null<History*> history);
-	void unregisterOne(not_null<History*> history);
-	void oneListMessageChanged(HistoryItem *from, HistoryItem *to);
+		not_null<Dialogs::MainList*> chatsList();
 
-	not_null<Dialogs::MainList*> chatsList();
+		void applyDialog(const MTPDdialogFolder& data);
+		void applyPinnedUpdate(const MTPDupdateDialogPinned& data);
 
-	void applyDialog(const MTPDdialogFolder &data);
-	void applyPinnedUpdate(const MTPDupdateDialogPinned &data);
+		//MessagePosition unreadPosition() const; // #feed
+		//rpl::producer<MessagePosition> unreadPositionChanges() const; // #feed
 
-	//MessagePosition unreadPosition() const; // #feed
-	//rpl::producer<MessagePosition> unreadPositionChanges() const; // #feed
+		void updateCloudUnread(const MTPDdialogFolder& data);
+		void unreadStateChanged(
+			const Dialogs::Key& key,
+			const Dialogs::UnreadState& wasState,
+			const Dialogs::UnreadState& nowState);
+		void unreadEntryChanged(
+			const Dialogs::Key& key,
+			const Dialogs::UnreadState& state,
+			bool added);
 
-	void updateCloudUnread(const MTPDdialogFolder &data);
-	void unreadStateChanged(
-		const Dialogs::Key &key,
-		const Dialogs::UnreadState &wasState,
-		const Dialogs::UnreadState &nowState);
-	void unreadEntryChanged(
-		const Dialogs::Key &key,
-		const Dialogs::UnreadState &state,
-		bool added);
+		TimeId adjustedChatListTimeId() const override;
 
-	TimeId adjustedChatListTimeId() const override;
+		int fixedOnTopIndex() const override;
+		bool toImportant() const override;
+		bool shouldBeInChatList() const override;
+		int chatListUnreadCount() const override;
+		bool chatListUnreadMark() const override;
+		bool chatListMutedBadge() const override;
+		Dialogs::UnreadState chatListUnreadState() const override;
+		HistoryItem* chatListMessage() const override;
+		bool chatListMessageKnown() const override;
+		void requestChatListMessage() override;
+		const QString& chatListName() const override;
+		const base::flat_set<QString>& chatListNameWords() const override;
+		const base::flat_set<QChar>& chatListFirstLetters() const override;
 
-	int fixedOnTopIndex() const override;
-	bool toImportant() const override;
-	bool shouldBeInChatList() const override;
-	int chatListUnreadCount() const override;
-	bool chatListUnreadMark() const override;
-	bool chatListMutedBadge() const override;
-	Dialogs::UnreadState chatListUnreadState() const override;
-	HistoryItem *chatListMessage() const override;
-	bool chatListMessageKnown() const override;
-	void requestChatListMessage() override;
-	const QString &chatListName() const override;
-	const base::flat_set<QString> &chatListNameWords() const override;
-	const base::flat_set<QChar> &chatListFirstLetters() const override;
+		void loadUserpic() override;
+		void paintUserpic(
+			Painter& p,
+			int x,
+			int y,
+			int size) const override;
 
-	void loadUserpic() override;
-	void paintUserpic(
-		Painter &p,
-		int x,
-		int y,
-		int size) const override;
+		bool chatsListLoaded() const;
+		void setChatsListLoaded(bool loaded = true);
+		void setCloudChatsListSize(int size);
 
-	bool chatsListLoaded() const;
-	void setChatsListLoaded(bool loaded = true);
-	void setCloudChatsListSize(int size);
+		int chatsListSize() const;
+		const std::vector<not_null<History*>>& lastHistories() const;
+		uint32 chatListViewVersion() const;
 
-	int chatsListSize() const;
-	const std::vector<not_null<History*>> &lastHistories() const;
-	uint32 chatListViewVersion() const;
+	private:
+		void indexNameParts();
+		bool applyChatListMessage(HistoryItem* item);
+		void computeChatListMessage();
 
-private:
-	void indexNameParts();
-	bool applyChatListMessage(HistoryItem *item);
-	void computeChatListMessage();
+		void reorderLastHistories();
+		void finalizeCloudUnread();
 
-	void reorderLastHistories();
-	void finalizeCloudUnread();
+		FolderId _id = 0;
+		Dialogs::MainList _chatsList;
 
-	FolderId _id = 0;
-	Dialogs::MainList _chatsList;
+		QString _name;
+		base::flat_set<QString> _nameWords;
+		base::flat_set<QChar> _nameFirstLetters;
 
-	QString _name;
-	base::flat_set<QString> _nameWords;
-	base::flat_set<QChar> _nameFirstLetters;
+		Dialogs::UnreadState _cloudUnread;
+		int _cloudChatsListSize = 0;
+		std::vector<not_null<History*>> _lastHistories;
+		HistoryItem* _chatListMessage = nullptr;
+		uint32 _chatListViewVersion = 0;
+		//rpl::variable<MessagePosition> _unreadPosition;
 
-	Dialogs::UnreadState _cloudUnread;
-	int _cloudChatsListSize = 0;
-	std::vector<not_null<History*>> _lastHistories;
-	HistoryItem *_chatListMessage = nullptr;
-	uint32 _chatListViewVersion = 0;
-	//rpl::variable<MessagePosition> _unreadPosition;
-
-	rpl::lifetime _lifetime;
-
-};
-
+		rpl::lifetime _lifetime;
+	};
 } // namespace Data

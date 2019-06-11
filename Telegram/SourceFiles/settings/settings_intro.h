@@ -9,43 +9,43 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/layer_widget.h"
 
-namespace Ui {
-class VerticalLayout;
-class FadeShadow;
-class FlatLabel;
-template <typename Widget>
-class FadeWrap;
+namespace Ui
+{
+	class VerticalLayout;
+	class FadeShadow;
+	class FlatLabel;
+	template <typename Widget>
+	class FadeWrap;
 } // namespace Ui
 
-namespace Settings {
+namespace Settings
+{
+	class IntroWidget;
 
-class IntroWidget;
+	class LayerWidget : public Window::LayerWidget
+	{
+	public:
+		LayerWidget(QWidget*);
 
-class LayerWidget : public Window::LayerWidget {
-public:
-	LayerWidget(QWidget*);
+		void showFinished() override;
+		void parentResized() override;
 
-	void showFinished() override;
-	void parentResized() override;
+		static int MinimalSupportedWidth();
 
-	static int MinimalSupportedWidth();
+	protected:
+		int resizeGetHeight(int newWidth) override;
+		void doSetInnerFocus() override;
 
-protected:
-	int resizeGetHeight(int newWidth) override;
-	void doSetInnerFocus() override;
+		void paintEvent(QPaintEvent* e) override;
 
-	void paintEvent(QPaintEvent *e) override;
+	private:
+		void setupHeightConsumers();
 
-private:
-	void setupHeightConsumers();
+		object_ptr<IntroWidget> _content;
 
-	object_ptr<IntroWidget> _content;
-
-	int _desiredHeight = 0;
-	bool _inResize = false;
-	bool _tillTop = false;
-	bool _tillBottom = false;
-
-};
-
+		int _desiredHeight = 0;
+		bool _inResize = false;
+		bool _tillTop = false;
+		bool _tillBottom = false;
+	};
 } // namespace Info

@@ -11,256 +11,272 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "base/timer.h"
 
-namespace Ui {
-class IconButton;
-class RoundButton;
-class InputField;
+namespace Ui
+{
+	class IconButton;
+	class RoundButton;
+	class InputField;
 } // namespace Ui
 
-namespace Window {
-namespace Notifications {
-namespace Default {
-namespace internal {
-class Widget;
-class Notification;
-class HideAllButton;
-} // namespace internal
+namespace Window
+{
+	namespace Notifications
+	{
+		namespace Default
+		{
+			namespace internal
+			{
+				class Widget;
+				class Notification;
+				class HideAllButton;
+			} // namespace internal
 
-class Manager;
-std::unique_ptr<Manager> Create(System *system);
+			class Manager;
+			std::unique_ptr<Manager> Create(System* system);
 
-class Manager : public Notifications::Manager, private base::Subscriber {
-public:
-	Manager(System *system);
+			class Manager : public Notifications::Manager, private base::Subscriber
+			{
+			public:
+				Manager(System* system);
 
-	template <typename Method>
-	void enumerateNotifications(Method method) {
-		for_const (auto &notification, _notifications) {
-			method(notification);
-		}
-	}
+				template <typename Method>
+				void enumerateNotifications(Method method)
+				{
+					for_const(auto &notification, _notifications)
+					{
+						method(notification);
+					}
+				}
 
-	~Manager();
+				~Manager();
 
-private:
-	friend class internal::Notification;
-	friend class internal::HideAllButton;
-	friend class internal::Widget;
-	using Notification = internal::Notification;
-	using HideAllButton = internal::HideAllButton;
+			private:
+				friend class internal::Notification;
+				friend class internal::HideAllButton;
+				friend class internal::Widget;
+				using Notification = internal::Notification;
+				using HideAllButton = internal::HideAllButton;
 
-	QPixmap hiddenUserpicPlaceholder() const;
+				QPixmap hiddenUserpicPlaceholder() const;
 
-	void doUpdateAll() override;
-	void doShowNotification(HistoryItem *item, int forwardedCount) override;
-	void doClearAll() override;
-	void doClearAllFast() override;
-	void doClearFromHistory(History *history) override;
-	void doClearFromItem(HistoryItem *item) override;
+				void doUpdateAll() override;
+				void doShowNotification(HistoryItem* item, int forwardedCount) override;
+				void doClearAll() override;
+				void doClearAllFast() override;
+				void doClearFromHistory(History* history) override;
+				void doClearFromItem(HistoryItem* item) override;
 
-	void showNextFromQueue();
-	void unlinkFromShown(Notification *remove);
-	void startAllHiding();
-	void stopAllHiding();
-	void checkLastInput();
+				void showNextFromQueue();
+				void unlinkFromShown(Notification* remove);
+				void startAllHiding();
+				void stopAllHiding();
+				void checkLastInput();
 
-	void removeWidget(internal::Widget *remove);
+				void removeWidget(internal::Widget* remove);
 
-	float64 demoMasterOpacity() const;
-	void demoMasterOpacityCallback();
+				float64 demoMasterOpacity() const;
+				void demoMasterOpacityCallback();
 
-	void moveWidgets();
-	void changeNotificationHeight(Notification *widget, int newHeight);
-	void settingsChanged(ChangeType change);
+				void moveWidgets();
+				void changeNotificationHeight(Notification* widget, int newHeight);
+				void settingsChanged(ChangeType change);
 
-	bool hasReplyingNotification() const;
+				bool hasReplyingNotification() const;
 
-	std::vector<std::unique_ptr<Notification>> _notifications;
+				std::vector<std::unique_ptr<Notification>> _notifications;
 
-	std::unique_ptr<HideAllButton> _hideAll;
+				std::unique_ptr<HideAllButton> _hideAll;
 
-	bool _positionsOutdated = false;
-	base::Timer _inputCheckTimer;
+				bool _positionsOutdated = false;
+				base::Timer _inputCheckTimer;
 
-	struct QueuedNotification {
-		QueuedNotification(not_null<HistoryItem*> item, int forwardedCount);
+				struct QueuedNotification
+				{
+					QueuedNotification(not_null<HistoryItem*> item, int forwardedCount);
 
-		not_null<History*> history;
-		not_null<PeerData*> peer;
-		PeerData *author;
-		HistoryItem *item;
-		int forwardedCount;
-	};
-	std::deque<QueuedNotification> _queuedNotifications;
+					not_null<History*> history;
+					not_null<PeerData*> peer;
+					PeerData* author;
+					HistoryItem* item;
+					int forwardedCount;
+				};
+				std::deque<QueuedNotification> _queuedNotifications;
 
-	Ui::Animations::Simple _demoMasterOpacity;
+				Ui::Animations::Simple _demoMasterOpacity;
 
-	mutable QPixmap _hiddenUserpicPlaceholder;
+				mutable QPixmap _hiddenUserpicPlaceholder;
+			};
 
-};
+			namespace internal
+			{
+				class Widget : public TWidget, protected base::Subscriber
+				{
+				public:
+					enum class Direction
+					{
+						Up,
+						Down,
+					};
+					Widget(Manager* manager, QPoint startPosition, int shift, Direction shiftDirection);
 
-namespace internal {
+					bool isShowing() const
+					{
+						return _a_opacity.animating() && !_hiding;
+					}
 
-class Widget : public TWidget, protected base::Subscriber {
-public:
-	enum class Direction {
-		Up,
-		Down,
-	};
-	Widget(Manager *manager, QPoint startPosition, int shift, Direction shiftDirection);
+					void updateOpacity();
+					void changeShift(int top);
 
-	bool isShowing() const {
-		return _a_opacity.animating() && !_hiding;
-	}
+					int currentShift() const
+					{
+						return _shift.current();
+					}
 
-	void updateOpacity();
-	void changeShift(int top);
-	int currentShift() const {
-		return _shift.current();
-	}
-	void updatePosition(QPoint startPosition, Direction shiftDirection);
-	void addToHeight(int add);
-	void addToShift(int add);
+					void updatePosition(QPoint startPosition, Direction shiftDirection);
+					void addToHeight(int add);
+					void addToShift(int add);
 
-protected:
-	void hideSlow();
-	void hideFast();
-	void hideStop();
-	QPoint computePosition(int height) const;
+				protected:
+					void hideSlow();
+					void hideFast();
+					void hideStop();
+					QPoint computePosition(int height) const;
 
-	virtual void updateGeometry(int x, int y, int width, int height);
+					virtual void updateGeometry(int x, int y, int width, int height);
 
-protected:
-	Manager *manager() const {
-		return _manager;
-	}
+				protected:
+					Manager* manager() const
+					{
+						return _manager;
+					}
 
-private:
-	void opacityAnimationCallback();
-	void destroyDelayed();
-	void moveByShift();
-	void hideAnimated(float64 duration, const anim::transition &func);
-	bool shiftAnimationCallback(crl::time now);
+				private:
+					void opacityAnimationCallback();
+					void destroyDelayed();
+					void moveByShift();
+					void hideAnimated(float64 duration, const anim::transition& func);
+					bool shiftAnimationCallback(crl::time now);
 
-	Manager *_manager = nullptr;
+					Manager* _manager = nullptr;
 
-	bool _hiding = false;
-	bool _deleted = false;
-	base::binary_guard _hidingDelayed;
-	Ui::Animations::Simple _a_opacity;
+					bool _hiding = false;
+					bool _deleted = false;
+					base::binary_guard _hidingDelayed;
+					Ui::Animations::Simple _a_opacity;
 
-	QPoint _startPosition;
-	Direction _direction;
-	anim::value _shift;
-	Ui::Animations::Basic _shiftAnimation;
+					QPoint _startPosition;
+					Direction _direction;
+					anim::value _shift;
+					Ui::Animations::Basic _shiftAnimation;
+				};
 
-};
+				class Background : public TWidget
+				{
+				public:
+					Background(QWidget* parent);
 
-class Background : public TWidget {
-public:
-	Background(QWidget *parent);
+				protected:
+					void paintEvent(QPaintEvent* e) override;
+				};
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
+				class Notification : public Widget
+				{
+				public:
+					Notification(Manager* manager, History* history, PeerData* peer, PeerData* author, HistoryItem* item, int forwardedCount, QPoint startPosition, int shift, Direction shiftDirection);
 
-};
+					void startHiding();
+					void stopHiding();
 
-class Notification : public Widget {
-public:
-	Notification(Manager *manager, History *history, PeerData *peer, PeerData *author, HistoryItem *item, int forwardedCount, QPoint startPosition, int shift, Direction shiftDirection);
+					void updateNotifyDisplay();
+					void updatePeerPhoto();
 
-	void startHiding();
-	void stopHiding();
+					bool isUnlinked() const
+					{
+						return !_history;
+					}
 
-	void updateNotifyDisplay();
-	void updatePeerPhoto();
+					bool isReplying() const
+					{
+						return _replyArea && !isUnlinked();
+					}
 
-	bool isUnlinked() const {
-		return !_history;
-	}
-	bool isReplying() const {
-		return _replyArea && !isUnlinked();
-	}
+					// Called only by Manager.
+					bool unlinkItem(HistoryItem* del);
+					bool unlinkHistory(History* history = nullptr);
+					bool checkLastInput(bool hasReplyingNotifications);
 
-	// Called only by Manager.
-	bool unlinkItem(HistoryItem *del);
-	bool unlinkHistory(History *history = nullptr);
-	bool checkLastInput(bool hasReplyingNotifications);
+				protected:
+					void enterEventHook(QEvent* e) override;
+					void leaveEventHook(QEvent* e) override;
+					void paintEvent(QPaintEvent* e) override;
+					void mousePressEvent(QMouseEvent* e) override;
+					bool eventFilter(QObject* o, QEvent* e) override;
 
-protected:
-	void enterEventHook(QEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	bool eventFilter(QObject *o, QEvent *e) override;
+				private:
+					void refreshLang();
+					void updateReplyGeometry();
+					bool canReply() const;
+					void replyResized();
+					void replyCancel();
 
-private:
-	void refreshLang();
-	void updateReplyGeometry();
-	bool canReply() const;
-	void replyResized();
-	void replyCancel();
+					void unlinkHistoryInManager();
+					void toggleActionButtons(bool visible);
+					void prepareActionsCache();
+					void showReplyField();
+					void sendReply();
+					void changeHeight(int newHeight);
+					void updateGeometry(int x, int y, int width, int height) override;
+					void actionsOpacityCallback();
 
-	void unlinkHistoryInManager();
-	void toggleActionButtons(bool visible);
-	void prepareActionsCache();
-	void showReplyField();
-	void sendReply();
-	void changeHeight(int newHeight);
-	void updateGeometry(int x, int y, int width, int height) override;
-	void actionsOpacityCallback();
+					QPixmap _cache;
 
-	QPixmap _cache;
+					bool _hideReplyButton = false;
+					bool _actionsVisible = false;
+					Ui::Animations::Simple a_actionsOpacity;
+					QPixmap _buttonsCache;
 
-	bool _hideReplyButton = false;
-	bool _actionsVisible = false;
-	Ui::Animations::Simple a_actionsOpacity;
-	QPixmap _buttonsCache;
+					crl::time _started;
 
-	crl::time _started;
+					History* _history;
+					PeerData* _peer;
+					PeerData* _author;
+					HistoryItem* _item;
+					int _forwardedCount;
+					object_ptr<Ui::IconButton> _close;
+					object_ptr<Ui::RoundButton> _reply;
+					object_ptr<Background> _background = {nullptr};
+					object_ptr<Ui::InputField> _replyArea = {nullptr};
+					object_ptr<Ui::IconButton> _replySend = {nullptr};
+					bool _waitingForInput = true;
 
-	History *_history;
-	PeerData *_peer;
-	PeerData *_author;
-	HistoryItem *_item;
-	int _forwardedCount;
-	object_ptr<Ui::IconButton> _close;
-	object_ptr<Ui::RoundButton> _reply;
-	object_ptr<Background> _background = { nullptr };
-	object_ptr<Ui::InputField> _replyArea = { nullptr };
-	object_ptr<Ui::IconButton> _replySend = { nullptr };
-	bool _waitingForInput = true;
+					QTimer _hideTimer;
 
-	QTimer _hideTimer;
+					int _replyPadding = 0;
 
-	int _replyPadding = 0;
+					bool _userpicLoaded = false;
+				};
 
-	bool _userpicLoaded = false;
+				class HideAllButton : public Widget
+				{
+				public:
+					HideAllButton(Manager* manager, QPoint startPosition, int shift, Direction shiftDirection);
 
-};
+					void startHiding();
+					void startHidingFast();
+					void stopHiding();
 
-class HideAllButton : public Widget {
-public:
-	HideAllButton(Manager *manager, QPoint startPosition, int shift, Direction shiftDirection);
+				protected:
+					void enterEventHook(QEvent* e) override;
+					void leaveEventHook(QEvent* e) override;
+					void mousePressEvent(QMouseEvent* e) override;
+					void mouseReleaseEvent(QMouseEvent* e) override;
+					void paintEvent(QPaintEvent* e) override;
 
-	void startHiding();
-	void startHidingFast();
-	void stopHiding();
-
-protected:
-	void enterEventHook(QEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	bool _mouseOver = false;
-	bool _mouseDown = false;
-
-};
-
-} // namespace internal
-} // namespace Default
-} // namespace Notifications
+				private:
+					bool _mouseOver = false;
+					bool _mouseDown = false;
+				};
+			} // namespace internal
+		} // namespace Default
+	} // namespace Notifications
 } // namespace Window

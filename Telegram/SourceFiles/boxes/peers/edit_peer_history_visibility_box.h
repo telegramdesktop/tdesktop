@@ -10,12 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "ui/widgets/checkbox.h"
 
-enum class HistoryVisibility {
+enum class HistoryVisibility
+{
 	Visible,
 	Hidden,
 };
 
-class EditPeerHistoryVisibilityBox : public BoxContent {
+class EditPeerHistoryVisibilityBox : public BoxContent
+{
 public:
 	EditPeerHistoryVisibilityBox(
 		QWidget*,
@@ -34,5 +36,4 @@ private:
 
 	HistoryVisibility _historyVisibilitySavedValue;
 	std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> _historyVisibility;
-
 };

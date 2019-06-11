@@ -9,20 +9,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-namespace Ui {
-class LinkButton;
-class FlatLabel;
+namespace Ui
+{
+	class LinkButton;
+	class FlatLabel;
 } // namespace Ui
 
-class AboutBox : public BoxContent {
+class AboutBox : public BoxContent
+{
 public:
 	AboutBox(QWidget*);
 
 protected:
 	void prepare() override;
 
-	void resizeEvent(QResizeEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
+	void resizeEvent(QResizeEvent* e) override;
+	void keyPressEvent(QKeyEvent* e) override;
 
 private:
 	void showVersionHistory();
@@ -31,7 +33,6 @@ private:
 	object_ptr<Ui::FlatLabel> _text1;
 	object_ptr<Ui::FlatLabel> _text2;
 	object_ptr<Ui::FlatLabel> _text3;
-
 };
 
 QString telegramFaqLink();

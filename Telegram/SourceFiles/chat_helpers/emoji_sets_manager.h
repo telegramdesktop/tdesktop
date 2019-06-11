@@ -9,17 +9,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-namespace Ui {
-namespace Emoji {
+namespace Ui
+{
+	namespace Emoji
+	{
+		class ManageSetsBox : public BoxContent
+		{
+		public:
+			explicit ManageSetsBox(QWidget*);
 
-class ManageSetsBox : public BoxContent {
-public:
-	explicit ManageSetsBox(QWidget*);
-
-protected:
-	void prepare() override;
-
-};
-
-} // namespace Emoji
+		protected:
+			void prepare() override;
+		};
+	} // namespace Emoji
 } // namespace Ui

@@ -13,276 +13,324 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "auth_session.h"
 
-namespace InlineBots {
-class Result;
+namespace InlineBots
+{
+	class Result;
 } // namespace InlineBots
 
-namespace Ui {
-class PlainShadow;
-class ScrollArea;
-class SettingsSlider;
-class FlatLabel;
+namespace Ui
+{
+	class PlainShadow;
+	class ScrollArea;
+	class SettingsSlider;
+	class FlatLabel;
 } // namesapce Ui
 
-namespace Window {
-class SessionController;
+namespace Window
+{
+	class SessionController;
 } // namespace Window
 
-namespace ChatHelpers {
-
-enum class SelectorTab {
-	Emoji,
-	Stickers,
-	Gifs,
-};
-
-class EmojiListWidget;
-class StickersListWidget;
-class GifsListWidget;
-
-class TabbedSelector : public Ui::RpWidget, private base::Subscriber {
-public:
-	struct InlineChosen {
-		not_null<InlineBots::Result*> result;
-		not_null<UserData*> bot;
-	};
-	enum class Mode {
-		Full,
-		EmojiOnly
+namespace ChatHelpers
+{
+	enum class SelectorTab
+	{
+		Emoji,
+		Stickers,
+		Gifs,
 	};
 
-	TabbedSelector(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		Mode mode = Mode::Full);
+	class EmojiListWidget;
+	class StickersListWidget;
+	class GifsListWidget;
 
-	rpl::producer<EmojiPtr> emojiChosen() const;
-	rpl::producer<not_null<DocumentData*>> fileChosen() const;
-	rpl::producer<not_null<PhotoData*>> photoChosen() const;
-	rpl::producer<InlineChosen> inlineResultChosen() const;
-
-	rpl::producer<> cancelled() const;
-	rpl::producer<> checkForHide() const;
-	rpl::producer<> slideFinished() const;
-
-	void setRoundRadius(int radius);
-	void refreshStickers();
-	void showMegagroupSet(ChannelData *megagroup);
-	void setCurrentPeer(PeerData *peer);
-
-	void hideFinished();
-	void showStarted();
-	void beforeHiding();
-	void afterShown();
-
-	int marginTop() const;
-	int marginBottom() const;
-	int scrollTop() const;
-
-	bool preventAutoHide() const;
-	bool isSliding() const {
-		return _a_slide.animating();
-	}
-
-	void setAfterShownCallback(Fn<void(SelectorTab)> callback) {
-		_afterShownCallback = std::move(callback);
-	}
-	void setBeforeHidingCallback(Fn<void(SelectorTab)> callback) {
-		_beforeHidingCallback = std::move(callback);
-	}
-
-	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e);
-	QRect rectForFloatPlayer() const;
-
-	auto showRequests() const {
-		return _showRequests.events();
-	}
-
-	~TabbedSelector();
-
-	class Inner;
-	class InnerFooter;
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-private:
-	class Tab {
+	class TabbedSelector : public Ui::RpWidget, private base::Subscriber
+	{
 	public:
-		static constexpr auto kCount = 3;
+		struct InlineChosen
+		{
+			not_null<InlineBots::Result*> result;
+			not_null<UserData*> bot;
+		};
+		enum class Mode
+		{
+			Full,
+			EmojiOnly
+		};
 
-		Tab(SelectorTab type, object_ptr<Inner> widget);
+		TabbedSelector(
+			QWidget* parent,
+			not_null<Window::SessionController*> controller,
+			Mode mode = Mode::Full);
 
-		object_ptr<Inner> takeWidget();
-		void returnWidget(object_ptr<Inner> widget);
+		rpl::producer<EmojiPtr> emojiChosen() const;
+		rpl::producer<not_null<DocumentData*>> fileChosen() const;
+		rpl::producer<not_null<PhotoData*>> photoChosen() const;
+		rpl::producer<InlineChosen> inlineResultChosen() const;
 
-		SelectorTab type() const {
-			return _type;
-		}
-		Inner *widget() const {
-			return _weak;
-		}
-		not_null<InnerFooter*> footer() const {
-			return _footer;
+		rpl::producer<> cancelled() const;
+		rpl::producer<> checkForHide() const;
+		rpl::producer<> slideFinished() const;
+
+		void setRoundRadius(int radius);
+		void refreshStickers();
+		void showMegagroupSet(ChannelData* megagroup);
+		void setCurrentPeer(PeerData* peer);
+
+		void hideFinished();
+		void showStarted();
+		void beforeHiding();
+		void afterShown();
+
+		int marginTop() const;
+		int marginBottom() const;
+		int scrollTop() const;
+
+		bool preventAutoHide() const;
+
+		bool isSliding() const
+		{
+			return _a_slide.animating();
 		}
 
-		void saveScrollTop();
-		void saveScrollTop(int scrollTop) {
-			_scrollTop = scrollTop;
+		void setAfterShownCallback(Fn<void(SelectorTab)> callback)
+		{
+			_afterShownCallback = std::move(callback);
 		}
-		int getScrollTop() const {
-			return _scrollTop;
+
+		void setBeforeHidingCallback(Fn<void(SelectorTab)> callback)
+		{
+			_beforeHidingCallback = std::move(callback);
 		}
+
+		// Float player interface.
+		bool wheelEventFromFloatPlayer(QEvent* e);
+		QRect rectForFloatPlayer() const;
+
+		auto showRequests() const
+		{
+			return _showRequests.events();
+		}
+
+		~TabbedSelector();
+
+		class Inner;
+		class InnerFooter;
+
+	protected:
+		void paintEvent(QPaintEvent* e) override;
+		void resizeEvent(QResizeEvent* e) override;
 
 	private:
-		SelectorTab _type = SelectorTab::Emoji;
-		object_ptr<Inner> _widget = { nullptr };
-		QPointer<Inner> _weak;
-		object_ptr<InnerFooter> _footer;
-		int _scrollTop = 0;
+		class Tab
+		{
+		public:
+			static constexpr auto kCount = 3;
 
+			Tab(SelectorTab type, object_ptr<Inner> widget);
+
+			object_ptr<Inner> takeWidget();
+			void returnWidget(object_ptr<Inner> widget);
+
+			SelectorTab type() const
+			{
+				return _type;
+			}
+
+			Inner* widget() const
+			{
+				return _weak;
+			}
+
+			not_null<InnerFooter*> footer() const
+			{
+				return _footer;
+			}
+
+			void saveScrollTop();
+
+			void saveScrollTop(int scrollTop)
+			{
+				_scrollTop = scrollTop;
+			}
+
+			int getScrollTop() const
+			{
+				return _scrollTop;
+			}
+
+		private:
+			SelectorTab _type = SelectorTab::Emoji;
+			object_ptr<Inner> _widget = {nullptr};
+			QPointer<Inner> _weak;
+			object_ptr<InnerFooter> _footer;
+			int _scrollTop = 0;
+		};
+
+		bool full() const;
+		Tab createTab(
+			SelectorTab type,
+			not_null<Window::SessionController*> controller);
+
+		void paintSlideFrame(Painter& p);
+		void paintContent(Painter& p);
+
+		void checkRestrictedPeer();
+		bool isRestrictedView();
+		void updateRestrictedLabelGeometry();
+		void handleScroll();
+
+		QImage grabForAnimation();
+
+		void scrollToY(int y);
+
+		void showAll();
+		void hideForSliding();
+
+		bool hasSectionIcons() const;
+		void setWidgetToScrollArea();
+		void createTabsSlider();
+		void switchTab();
+
+		not_null<Tab*> getTab(SelectorTab type)
+		{
+			return &_tabs[static_cast<int>(type)];
+		}
+
+		not_null<const Tab*> getTab(SelectorTab type) const
+		{
+			return &_tabs[static_cast<int>(type)];
+		}
+
+		not_null<Tab*> currentTab()
+		{
+			return getTab(_currentTabType);
+		}
+
+		not_null<const Tab*> currentTab() const
+		{
+			return getTab(_currentTabType);
+		}
+
+		not_null<EmojiListWidget*> emoji() const;
+		not_null<StickersListWidget*> stickers() const;
+		not_null<GifsListWidget*> gifs() const;
+
+		Mode _mode = Mode::Full;
+		int _roundRadius = 0;
+		int _footerTop = 0;
+		PeerData* _currentPeer = nullptr;
+
+		class SlideAnimation;
+		std::unique_ptr<SlideAnimation> _slideAnimation;
+		Ui::Animations::Simple _a_slide;
+
+		object_ptr<Ui::SettingsSlider> _tabsSlider = {nullptr};
+		object_ptr<Ui::PlainShadow> _topShadow;
+		object_ptr<Ui::PlainShadow> _bottomShadow;
+		object_ptr<Ui::ScrollArea> _scroll;
+		object_ptr<Ui::FlatLabel> _restrictedLabel = {nullptr};
+		std::array<Tab, Tab::kCount> _tabs;
+		SelectorTab _currentTabType = SelectorTab::Emoji;
+
+		Fn<void(SelectorTab)> _afterShownCallback;
+		Fn<void(SelectorTab)> _beforeHidingCallback;
+
+		rpl::event_stream<> _showRequests;
+		rpl::event_stream<> _slideFinished;
 	};
 
-	bool full() const;
-	Tab createTab(
-		SelectorTab type,
-		not_null<Window::SessionController*> controller);
+	class TabbedSelector::Inner : public Ui::RpWidget
+	{
+	public:
+		Inner(QWidget* parent, not_null<Window::SessionController*> controller);
 
-	void paintSlideFrame(Painter &p);
-	void paintContent(Painter &p);
+		int getVisibleTop() const
+		{
+			return _visibleTop;
+		}
 
-	void checkRestrictedPeer();
-	bool isRestrictedView();
-	void updateRestrictedLabelGeometry();
-	void handleScroll();
+		int getVisibleBottom() const
+		{
+			return _visibleBottom;
+		}
 
-	QImage grabForAnimation();
+		void setMinimalHeight(int newWidth, int newMinimalHeight);
 
-	void scrollToY(int y);
+		virtual void refreshRecent() = 0;
 
-	void showAll();
-	void hideForSliding();
+		virtual void preloadImages()
+		{
+		}
 
-	bool hasSectionIcons() const;
-	void setWidgetToScrollArea();
-	void createTabsSlider();
-	void switchTab();
-	not_null<Tab*> getTab(SelectorTab type) {
-		return &_tabs[static_cast<int>(type)];
-	}
-	not_null<const Tab*> getTab(SelectorTab type) const {
-		return &_tabs[static_cast<int>(type)];
-	}
-	not_null<Tab*> currentTab() {
-		return getTab(_currentTabType);
-	}
-	not_null<const Tab*> currentTab() const {
-		return getTab(_currentTabType);
-	}
-	not_null<EmojiListWidget*> emoji() const;
-	not_null<StickersListWidget*> stickers() const;
-	not_null<GifsListWidget*> gifs() const;
+		void hideFinished();
+		void panelHideFinished();
+		virtual void clearSelection() = 0;
 
-	Mode _mode = Mode::Full;
-	int _roundRadius = 0;
-	int _footerTop = 0;
-	PeerData *_currentPeer = nullptr;
+		virtual void afterShown()
+		{
+		}
 
-	class SlideAnimation;
-	std::unique_ptr<SlideAnimation> _slideAnimation;
-	Ui::Animations::Simple _a_slide;
+		virtual void beforeHiding()
+		{
+		}
 
-	object_ptr<Ui::SettingsSlider> _tabsSlider = { nullptr };
-	object_ptr<Ui::PlainShadow> _topShadow;
-	object_ptr<Ui::PlainShadow> _bottomShadow;
-	object_ptr<Ui::ScrollArea> _scroll;
-	object_ptr<Ui::FlatLabel> _restrictedLabel = { nullptr };
-	std::array<Tab, Tab::kCount> _tabs;
-	SelectorTab _currentTabType = SelectorTab::Emoji;
+		rpl::producer<int> scrollToRequests() const;
+		rpl::producer<bool> disableScrollRequests() const;
 
-	Fn<void(SelectorTab)> _afterShownCallback;
-	Fn<void(SelectorTab)> _beforeHidingCallback;
+		virtual object_ptr<InnerFooter> createFooter() = 0;
 
-	rpl::event_stream<> _showRequests;
-	rpl::event_stream<> _slideFinished;
+	protected:
+		void visibleTopBottomUpdated(
+			int visibleTop,
+			int visibleBottom) override;
+		int minimalHeight() const;
+		int resizeGetHeight(int newWidth) override final;
 
-};
+		not_null<Window::SessionController*> controller() const
+		{
+			return _controller;
+		}
 
-class TabbedSelector::Inner : public Ui::RpWidget {
-public:
-	Inner(QWidget *parent, not_null<Window::SessionController*> controller);
+		virtual int countDesiredHeight(int newWidth) = 0;
+		virtual InnerFooter* getFooter() const = 0;
 
-	int getVisibleTop() const {
-		return _visibleTop;
-	}
-	int getVisibleBottom() const {
-		return _visibleBottom;
-	}
-	void setMinimalHeight(int newWidth, int newMinimalHeight);
+		virtual void processHideFinished()
+		{
+		}
 
-	virtual void refreshRecent() = 0;
-	virtual void preloadImages() {
-	}
-	void hideFinished();
-	void panelHideFinished();
-	virtual void clearSelection() = 0;
+		virtual void processPanelHideFinished()
+		{
+		}
 
-	virtual void afterShown() {
-	}
-	virtual void beforeHiding() {
-	}
+		void scrollTo(int y);
+		void disableScroll(bool disabled);
 
-	rpl::producer<int> scrollToRequests() const;
-	rpl::producer<bool> disableScrollRequests() const;
+	private:
+		not_null<Window::SessionController*> _controller;
 
-	virtual object_ptr<InnerFooter> createFooter() = 0;
+		int _visibleTop = 0;
+		int _visibleBottom = 0;
+		int _minimalHeight = 0;
 
-protected:
-	void visibleTopBottomUpdated(
-		int visibleTop,
-		int visibleBottom) override;
-	int minimalHeight() const;
-	int resizeGetHeight(int newWidth) override final;
+		rpl::event_stream<int> _scrollToRequests;
+		rpl::event_stream<bool> _disableScrollRequests;
+	};
 
-	not_null<Window::SessionController*> controller() const {
-		return _controller;
-	}
+	class TabbedSelector::InnerFooter : public TWidget
+	{
+	public:
+		InnerFooter(QWidget* parent);
 
-	virtual int countDesiredHeight(int newWidth) = 0;
-	virtual InnerFooter *getFooter() const = 0;
-	virtual void processHideFinished() {
-	}
-	virtual void processPanelHideFinished() {
-	}
+	protected:
+		virtual void processHideFinished()
+		{
+		}
 
-	void scrollTo(int y);
-	void disableScroll(bool disabled);
+		virtual void processPanelHideFinished()
+		{
+		}
 
-private:
-	not_null<Window::SessionController*> _controller;
-
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
-	int _minimalHeight = 0;
-
-	rpl::event_stream<int> _scrollToRequests;
-	rpl::event_stream<bool> _disableScrollRequests;
-
-};
-
-class TabbedSelector::InnerFooter : public TWidget {
-public:
-	InnerFooter(QWidget *parent);
-
-protected:
-	virtual void processHideFinished() {
-	}
-	virtual void processPanelHideFinished() {
-	}
-	friend class Inner;
-
-};
-
+		friend class Inner;
+	};
 } // namespace ChatHelpers

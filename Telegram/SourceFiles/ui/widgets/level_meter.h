@@ -10,21 +10,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "ui/rp_widget.h"
 
-namespace Ui {
+namespace Ui
+{
+	class LevelMeter : public RpWidget
+	{
+	public:
+		LevelMeter(QWidget* parent, const style::LevelMeter& st);
 
-class LevelMeter : public RpWidget {
-public:
-	LevelMeter(QWidget *parent, const style::LevelMeter& st);
+		void setValue(float value);
 
-	void setValue(float value);
+	protected:
+		void paintEvent(QPaintEvent* e) override;
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	const style::LevelMeter &_st;
-	float _value = 0.0f;
-
-};
-
+	private:
+		const style::LevelMeter& _st;
+		float _value = 0.0f;
+	};
 } // namespace Ui

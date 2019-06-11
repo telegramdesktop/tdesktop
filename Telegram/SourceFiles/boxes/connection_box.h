@@ -11,18 +11,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "mtproto/connection_abstract.h"
 
-namespace Ui {
-class InputField;
-class PortInput;
-class PasswordInput;
-class Checkbox;
-template <typename Enum>
-class RadioenumGroup;
-template <typename Enum>
-class Radioenum;
+namespace Ui
+{
+	class InputField;
+	class PortInput;
+	class PasswordInput;
+	class Checkbox;
+	template <typename Enum>
+	class RadioenumGroup;
+	template <typename Enum>
+	class Radioenum;
 } // namespace Ui
 
-class ProxiesBoxController : public base::Subscriber {
+class ProxiesBoxController : public base::Subscriber
+{
 public:
 	using Type = ProxyData::Type;
 
@@ -30,19 +32,21 @@ public:
 
 	static void ShowApplyConfirmation(
 		Type type,
-		const QMap<QString, QString> &fields);
+		const QMap<QString, QString>& fields);
 
 	static object_ptr<BoxContent> CreateOwningBox();
 	object_ptr<BoxContent> create();
 
-	enum class ItemState {
+	enum class ItemState
+	{
 		Connecting,
 		Online,
 		Checking,
 		Available,
 		Unavailable
 	};
-	struct ItemView {
+	struct ItemView
+	{
 		int id = 0;
 		QString type;
 		QString host;
@@ -53,7 +57,6 @@ public:
 		bool supportsShare = false;
 		bool supportsCalls = false;
 		ItemState state = ItemState::Checking;
-
 	};
 
 	void deleteItem(int id);
@@ -73,7 +76,8 @@ public:
 
 private:
 	using Checker = MTP::internal::ConnectionPointer;
-	struct Item {
+	struct Item
+	{
 		int id = 0;
 		ProxyData data;
 		bool deleted = false;
@@ -81,25 +85,24 @@ private:
 		Checker checkerv6;
 		ItemState state = ItemState::Checking;
 		int ping = 0;
-
 	};
 
 	std::vector<Item>::iterator findById(int id);
-	std::vector<Item>::iterator findByProxy(const ProxyData &proxy);
+	std::vector<Item>::iterator findByProxy(const ProxyData& proxy);
 	void setDeleted(int id, bool deleted);
-	void updateView(const Item &item);
-	void share(const ProxyData &proxy);
+	void updateView(const Item& item);
+	void share(const ProxyData& proxy);
 	void saveDelayed();
-	void refreshChecker(Item &item);
-	void setupChecker(int id, const Checker &checker);
+	void refreshChecker(Item& item);
+	void setupChecker(int id, const Checker& checker);
 
 	void replaceItemWith(
 		std::vector<Item>::iterator which,
 		std::vector<Item>::iterator with);
 	void replaceItemValue(
 		std::vector<Item>::iterator which,
-		const ProxyData &proxy);
-	void addNewItem(const ProxyData &proxy);
+		const ProxyData& proxy);
+	void addNewItem(const ProxyData& proxy);
 
 	int _idCounter = 0;
 	std::vector<Item> _list;
@@ -109,5 +112,4 @@ private:
 
 	ProxyData _lastSelectedProxy;
 	bool _lastSelectedProxyUsed = false;
-
 };

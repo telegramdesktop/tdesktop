@@ -7,12 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Lang {
-
-class Translator : public QTranslator {
-public:
-	QString translate(const char *context, const char *sourceText, const char *disambiguation = 0, int n = -1) const override;
-
-};
-
+namespace Lang
+{
+	class Translator : public QTranslator
+	{
+	public:
+		QString translate(const char* context, const char* sourceText, const char* disambiguation = 0, int n = -1) const override;
+	};
 } // namespace Lang

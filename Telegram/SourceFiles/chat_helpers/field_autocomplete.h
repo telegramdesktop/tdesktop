@@ -12,26 +12,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "chat_helpers/stickers.h"
 
-namespace Ui {
-class ScrollArea;
+namespace Ui
+{
+	class ScrollArea;
 } // namespace Ui
 
-namespace internal {
+namespace internal
+{
+	using MentionRows = QList<UserData*>;
+	using HashtagRows = QList<QString>;
+	using BotCommandRows = QList<QPair<UserData*, const BotCommand*>>;
+	using StickerRows = std::vector<not_null<DocumentData*>>;
 
-using MentionRows = QList<UserData*>;
-using HashtagRows = QList<QString>;
-using BotCommandRows = QList<QPair<UserData*, const BotCommand*>>;
-using StickerRows = std::vector<not_null<DocumentData*>>;
-
-class FieldAutocompleteInner;
-
+	class FieldAutocompleteInner;
 } // namespace internal
 
-class FieldAutocomplete final : public TWidget {
-	Q_OBJECT
+class FieldAutocomplete final : public TWidget
+{
+Q_OBJECT
 
 public:
-	FieldAutocomplete(QWidget *parent);
+	FieldAutocomplete(QWidget* parent);
 
 	bool clearFilteredBotCommands();
 	void showFiltered(
@@ -41,28 +42,31 @@ public:
 	void showStickers(EmojiPtr emoji);
 	void setBoundings(QRect boundings);
 
-	const QString &filter() const;
-	ChatData *chat() const;
-	ChannelData *channel() const;
-	UserData *user() const;
+	const QString& filter() const;
+	ChatData* chat() const;
+	ChannelData* channel() const;
+	UserData* user() const;
 
 	int32 innerTop();
 	int32 innerBottom();
 
-	bool eventFilter(QObject *obj, QEvent *e) override;
+	bool eventFilter(QObject* obj, QEvent* e) override;
 
-	enum class ChooseMethod {
+	enum class ChooseMethod
+	{
 		ByEnter,
 		ByTab,
 		ByClick,
 	};
 	bool chooseSelected(ChooseMethod method) const;
 
-	bool stickersShown() const {
+	bool stickersShown() const
+	{
 		return !_srows.empty();
 	}
 
-	bool overlaps(const QRect &globalRect) {
+	bool overlaps(const QRect& globalRect)
+	{
 		if (isHidden() || !testAttribute(Qt::WA_OpaquePaintEvent)) return false;
 
 		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
@@ -73,19 +77,19 @@ public:
 	~FieldAutocomplete();
 
 signals:
-	void mentionChosen(UserData *user, FieldAutocomplete::ChooseMethod method) const;
+	void mentionChosen(UserData* user, FieldAutocomplete::ChooseMethod method) const;
 	void hashtagChosen(QString hashtag, FieldAutocomplete::ChooseMethod method) const;
 	void botCommandChosen(QString command, FieldAutocomplete::ChooseMethod method) const;
 	void stickerChosen(not_null<DocumentData*> sticker, FieldAutocomplete::ChooseMethod method) const;
 
-	void moderateKeyActivate(int key, bool *outHandled) const;
+	void moderateKeyActivate(int key, bool* outHandled) const;
 
 public slots:
 	void showAnimated();
 	void hideAnimated();
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
+	void paintEvent(QPaintEvent* e) override;
 
 private:
 	void animationCallback();
@@ -100,17 +104,18 @@ private:
 	internal::BotCommandRows _brows;
 	internal::StickerRows _srows;
 
-	void rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const internal::StickerRows &srows, bool resetScroll);
+	void rowsUpdated(const internal::MentionRows& mrows, const internal::HashtagRows& hrows, const internal::BotCommandRows& brows, const internal::StickerRows& srows, bool resetScroll);
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<internal::FieldAutocompleteInner> _inner;
 
-	ChatData *_chat = nullptr;
-	UserData *_user = nullptr;
-	ChannelData *_channel = nullptr;
+	ChatData* _chat = nullptr;
+	UserData* _user = nullptr;
+	ChannelData* _channel = nullptr;
 	EmojiPtr _emoji;
 	uint64 _stickersSeed = 0;
-	enum class Type {
+	enum class Type
+	{
 		Mentions,
 		Hashtags,
 		BotCommands,
@@ -127,67 +132,65 @@ private:
 	Ui::Animations::Simple _a_opacity;
 
 	friend class internal::FieldAutocompleteInner;
-
 };
 
-namespace internal {
-
-class FieldAutocompleteInner final : public TWidget, private base::Subscriber {
+namespace internal
+{
+	class FieldAutocompleteInner final : public TWidget, private base::Subscriber
+	{
 	Q_OBJECT
 
-public:
-	FieldAutocompleteInner(FieldAutocomplete *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, StickerRows *srows);
+	public:
+		FieldAutocompleteInner(FieldAutocomplete* parent, MentionRows* mrows, HashtagRows* hrows, BotCommandRows* brows, StickerRows* srows);
 
-	void clearSel(bool hidden = false);
-	bool moveSel(int key);
-	bool chooseSelected(FieldAutocomplete::ChooseMethod method) const;
+		void clearSel(bool hidden = false);
+		bool moveSel(int key);
+		bool chooseSelected(FieldAutocomplete::ChooseMethod method) const;
 
-	void setRecentInlineBotsInRows(int32 bots);
+		void setRecentInlineBotsInRows(int32 bots);
 
-signals:
-	void mentionChosen(UserData *user, FieldAutocomplete::ChooseMethod method) const;
-	void hashtagChosen(QString hashtag, FieldAutocomplete::ChooseMethod method) const;
-	void botCommandChosen(QString command, FieldAutocomplete::ChooseMethod method) const;
-	void stickerChosen(not_null<DocumentData*> sticker, FieldAutocomplete::ChooseMethod method) const;
-	void mustScrollTo(int scrollToTop, int scrollToBottom);
+	signals:
+		void mentionChosen(UserData* user, FieldAutocomplete::ChooseMethod method) const;
+		void hashtagChosen(QString hashtag, FieldAutocomplete::ChooseMethod method) const;
+		void botCommandChosen(QString command, FieldAutocomplete::ChooseMethod method) const;
+		void stickerChosen(not_null<DocumentData*> sticker, FieldAutocomplete::ChooseMethod method) const;
+		void mustScrollTo(int scrollToTop, int scrollToBottom);
 
-public slots:
-	void onParentGeometryChanged();
+	public slots:
+		void onParentGeometryChanged();
 
-private:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	private:
+		void paintEvent(QPaintEvent* e) override;
+		void resizeEvent(QResizeEvent* e) override;
 
-	void enterEventHook(QEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
+		void enterEventHook(QEvent* e) override;
+		void leaveEventHook(QEvent* e) override;
 
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
+		void mousePressEvent(QMouseEvent* e) override;
+		void mouseMoveEvent(QMouseEvent* e) override;
+		void mouseReleaseEvent(QMouseEvent* e) override;
 
-	void updateSelectedRow();
-	void setSel(int sel, bool scroll = false);
-	void showPreview();
-	void selectByMouse(QPoint global);
+		void updateSelectedRow();
+		void setSel(int sel, bool scroll = false);
+		void showPreview();
+		void selectByMouse(QPoint global);
 
-	FieldAutocomplete *_parent = nullptr;
-	MentionRows *_mrows = nullptr;
-	HashtagRows *_hrows = nullptr;
-	BotCommandRows *_brows = nullptr;
-	StickerRows *_srows = nullptr;
-	int _stickersPerRow = 1;
-	int _recentInlineBotsInRows = 0;
-	int _sel = -1;
-	int _down = -1;
-	std::optional<QPoint> _lastMousePosition;
-	bool _mouseSelection = false;
+		FieldAutocomplete* _parent = nullptr;
+		MentionRows* _mrows = nullptr;
+		HashtagRows* _hrows = nullptr;
+		BotCommandRows* _brows = nullptr;
+		StickerRows* _srows = nullptr;
+		int _stickersPerRow = 1;
+		int _recentInlineBotsInRows = 0;
+		int _sel = -1;
+		int _down = -1;
+		std::optional<QPoint> _lastMousePosition;
+		bool _mouseSelection = false;
 
-	bool _overDelete = false;
+		bool _overDelete = false;
 
-	bool _previewShown = false;
+		bool _previewShown = false;
 
-	base::Timer _previewTimer;
-
-};
-
+		base::Timer _previewTimer;
+	};
 } // namespace internal

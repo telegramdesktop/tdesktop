@@ -11,193 +11,223 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "data/data_file_origin.h"
 
-namespace Window {
+namespace Window
+{
+	class MainMenu;
+	class SessionController;
+	class SectionMemento;
+	struct SectionShow;
 
-class MainMenu;
-class SessionController;
-class SectionMemento;
-struct SectionShow;
+	class LayerWidget : public Ui::RpWidget
+	{
+	public:
+		using RpWidget::RpWidget;
 
-class LayerWidget : public Ui::RpWidget {
-public:
-	using RpWidget::RpWidget;
+		virtual void parentResized() = 0;
 
-	virtual void parentResized() = 0;
-	virtual void showFinished() {
-	}
-	void setInnerFocus();
-	bool setClosing() {
-		if (!_closing) {
-			_closing = true;
-			closeHook();
+		virtual void showFinished()
+		{
+		}
+
+		void setInnerFocus();
+
+		bool setClosing()
+		{
+			if (!_closing)
+			{
+				_closing = true;
+				closeHook();
+				return true;
+			}
+			return false;
+		}
+
+		bool overlaps(const QRect& globalRect);
+
+		void setClosedCallback(Fn<void()> callback)
+		{
+			_closedCallback = std::move(callback);
+		}
+
+		void setResizedCallback(Fn<void()> callback)
+		{
+			_resizedCallback = std::move(callback);
+		}
+
+		virtual bool takeToThirdSection()
+		{
+			return false;
+		}
+
+		virtual bool showSectionInternal(
+			not_null<SectionMemento*> memento,
+			const SectionShow& params)
+		{
+			return false;
+		}
+
+		virtual bool closeByOutsideClick() const
+		{
 			return true;
 		}
-		return false;
-	}
 
-	bool overlaps(const QRect &globalRect);
-
-	void setClosedCallback(Fn<void()> callback) {
-		_closedCallback = std::move(callback);
-	}
-	void setResizedCallback(Fn<void()> callback) {
-		_resizedCallback = std::move(callback);
-	}
-	virtual bool takeToThirdSection() {
-		return false;
-	}
-	virtual bool showSectionInternal(
-			not_null<SectionMemento*> memento,
-			const SectionShow &params) {
-		return false;
-	}
-	virtual bool closeByOutsideClick() const {
-		return true;
-	}
-
-protected:
-	void closeLayer() {
-		if (const auto callback = base::take(_closedCallback)) {
-			callback();
+	protected:
+		void closeLayer()
+		{
+			if (const auto callback = base::take(_closedCallback))
+			{
+				callback();
+			}
 		}
-	}
-	void mousePressEvent(QMouseEvent *e) override {
-		e->accept();
-	}
-	void resizeEvent(QResizeEvent *e) override {
-		if (_resizedCallback) {
-			_resizedCallback();
+
+		void mousePressEvent(QMouseEvent* e) override
+		{
+			e->accept();
 		}
-	}
-	virtual void doSetInnerFocus() {
-		setFocus();
-	}
-	virtual void closeHook() {
-	}
 
-private:
-	bool _closing = false;
-	Fn<void()> _closedCallback;
-	Fn<void()> _resizedCallback;
+		void resizeEvent(QResizeEvent* e) override
+		{
+			if (_resizedCallback)
+			{
+				_resizedCallback();
+			}
+		}
 
-};
+		virtual void doSetInnerFocus()
+		{
+			setFocus();
+		}
 
-class LayerStackWidget : public Ui::RpWidget {
-public:
-	LayerStackWidget(QWidget *parent);
+		virtual void closeHook()
+		{
+		}
 
-	void finishAnimating();
-	rpl::producer<> hideFinishEvents() const;
-
-	void showBox(
-		object_ptr<BoxContent> box,
-		LayerOptions options,
-		anim::type animated);
-	void showSpecialLayer(
-		object_ptr<LayerWidget> layer,
-		anim::type animated);
-	void showMainMenu(
-		not_null<Window::SessionController*> controller,
-		anim::type animated);
-	bool takeToThirdSection();
-
-	bool canSetFocus() const;
-	void setInnerFocus();
-
-	bool contentOverlapped(const QRect &globalRect);
-
-	void hideSpecialLayer(anim::type animated);
-	void hideLayers(anim::type animated);
-	void hideAll(anim::type animated);
-	void hideTopLayer(anim::type animated);
-	void setHideByBackgroundClick(bool hide);
-	void removeBodyCache();
-
-	bool showSectionInternal(
-		not_null<SectionMemento*> memento,
-		const SectionShow &params);
-
-	bool layerShown() const;
-
-	~LayerStackWidget();
-
-protected:
-	void keyPressEvent(QKeyEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-private:
-	void appendBox(
-		object_ptr<BoxContent> box,
-		anim::type animated);
-	void prependBox(
-		object_ptr<BoxContent> box,
-		anim::type animated);
-	void replaceBox(
-		object_ptr<BoxContent> box,
-		anim::type animated);
-	void backgroundClicked();
-
-	LayerWidget *pushBox(
-		object_ptr<BoxContent> box,
-		anim::type animated);
-	void showFinished();
-	void hideCurrent(anim::type animated);
-	void closeLayer(not_null<LayerWidget*> layer);
-
-	enum class Action {
-		ShowMainMenu,
-		ShowSpecialLayer,
-		ShowLayer,
-		HideSpecialLayer,
-		HideLayer,
-		HideAll,
+	private:
+		bool _closing = false;
+		Fn<void()> _closedCallback;
+		Fn<void()> _resizedCallback;
 	};
-	template <typename SetupNew, typename ClearOld>
-	void startAnimation(
-		SetupNew setupNewWidgets,
-		ClearOld clearOldWidgets,
-		Action action,
-		anim::type animated);
 
-	void prepareForAnimation();
-	void animationDone();
+	class LayerStackWidget : public Ui::RpWidget
+	{
+	public:
+		LayerStackWidget(QWidget* parent);
 
-	void setCacheImages();
-	void clearLayers();
-	void clearSpecialLayer();
-	void initChildLayer(LayerWidget *layer);
-	void updateLayerBoxes();
-	void fixOrder();
-	void sendFakeMouseEvent();
-	void clearClosingLayers();
+		void finishAnimating();
+		rpl::producer<> hideFinishEvents() const;
 
-	LayerWidget *currentLayer() {
-		return _layers.empty() ? nullptr : _layers.back().get();
-	}
-	const LayerWidget *currentLayer() const {
-		return const_cast<LayerStackWidget*>(this)->currentLayer();
-	}
+		void showBox(
+			object_ptr<BoxContent> box,
+			LayerOptions options,
+			anim::type animated);
+		void showSpecialLayer(
+			object_ptr<LayerWidget> layer,
+			anim::type animated);
+		void showMainMenu(
+			not_null<Window::SessionController*> controller,
+			anim::type animated);
+		bool takeToThirdSection();
 
-	std::vector<std::unique_ptr<LayerWidget>> _layers;
-	std::vector<std::unique_ptr<LayerWidget>> _closingLayers;
+		bool canSetFocus() const;
+		void setInnerFocus();
 
-	object_ptr<LayerWidget> _specialLayer = { nullptr };
-	object_ptr<MainMenu> _mainMenu = { nullptr };
+		bool contentOverlapped(const QRect& globalRect);
 
-	class BackgroundWidget;
-	object_ptr<BackgroundWidget> _background;
-	bool _hideByBackgroundClick = true;
+		void hideSpecialLayer(anim::type animated);
+		void hideLayers(anim::type animated);
+		void hideAll(anim::type animated);
+		void hideTopLayer(anim::type animated);
+		void setHideByBackgroundClick(bool hide);
+		void removeBodyCache();
 
-	rpl::event_stream<> _hideFinishStream;
+		bool showSectionInternal(
+			not_null<SectionMemento*> memento,
+			const SectionShow& params);
 
-};
+		bool layerShown() const;
 
+		~LayerStackWidget();
+
+	protected:
+		void keyPressEvent(QKeyEvent* e) override;
+		void mousePressEvent(QMouseEvent* e) override;
+		void resizeEvent(QResizeEvent* e) override;
+
+	private:
+		void appendBox(
+			object_ptr<BoxContent> box,
+			anim::type animated);
+		void prependBox(
+			object_ptr<BoxContent> box,
+			anim::type animated);
+		void replaceBox(
+			object_ptr<BoxContent> box,
+			anim::type animated);
+		void backgroundClicked();
+
+		LayerWidget* pushBox(
+			object_ptr<BoxContent> box,
+			anim::type animated);
+		void showFinished();
+		void hideCurrent(anim::type animated);
+		void closeLayer(not_null<LayerWidget*> layer);
+
+		enum class Action
+		{
+			ShowMainMenu,
+			ShowSpecialLayer,
+			ShowLayer,
+			HideSpecialLayer,
+			HideLayer,
+			HideAll,
+		};
+		template <typename SetupNew, typename ClearOld>
+		void startAnimation(
+			SetupNew setupNewWidgets,
+			ClearOld clearOldWidgets,
+			Action action,
+			anim::type animated);
+
+		void prepareForAnimation();
+		void animationDone();
+
+		void setCacheImages();
+		void clearLayers();
+		void clearSpecialLayer();
+		void initChildLayer(LayerWidget* layer);
+		void updateLayerBoxes();
+		void fixOrder();
+		void sendFakeMouseEvent();
+		void clearClosingLayers();
+
+		LayerWidget* currentLayer()
+		{
+			return _layers.empty() ? nullptr : _layers.back().get();
+		}
+
+		const LayerWidget* currentLayer() const
+		{
+			return const_cast<LayerStackWidget*>(this)->currentLayer();
+		}
+
+		std::vector<std::unique_ptr<LayerWidget>> _layers;
+		std::vector<std::unique_ptr<LayerWidget>> _closingLayers;
+
+		object_ptr<LayerWidget> _specialLayer = {nullptr};
+		object_ptr<MainMenu> _mainMenu = {nullptr};
+
+		class BackgroundWidget;
+		object_ptr<BackgroundWidget> _background;
+		bool _hideByBackgroundClick = true;
+
+		rpl::event_stream<> _hideFinishStream;
+	};
 } // namespace Window
 
-class MediaPreviewWidget : public TWidget, private base::Subscriber {
+class MediaPreviewWidget : public TWidget, private base::Subscriber
+{
 public:
-	MediaPreviewWidget(QWidget *parent, not_null<Window::SessionController*> controller);
+	MediaPreviewWidget(QWidget* parent, not_null<Window::SessionController*> controller);
 
 	void showPreview(
 		Data::FileOrigin origin,
@@ -210,8 +240,8 @@ public:
 	~MediaPreviewWidget();
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent* e) override;
+	void resizeEvent(QResizeEvent* e) override;
 
 private:
 	QSize currentDimensions() const;
@@ -225,8 +255,8 @@ private:
 	Ui::Animations::Simple _a_shown;
 	bool _hiding = false;
 	Data::FileOrigin _origin;
-	DocumentData *_document = nullptr;
-	PhotoData *_photo = nullptr;
+	DocumentData* _document = nullptr;
+	PhotoData* _photo = nullptr;
 	Media::Clip::ReaderPointer _gif;
 
 	int _emojiSize;
@@ -234,7 +264,8 @@ private:
 
 	void clipCallback(Media::Clip::Notification notification);
 
-	enum CacheStatus {
+	enum CacheStatus
+	{
 		CacheNotLoaded,
 		CacheThumbLoaded,
 		CacheLoaded,
@@ -242,11 +273,11 @@ private:
 	mutable CacheStatus _cacheStatus = CacheNotLoaded;
 	mutable QPixmap _cache;
 	mutable QSize _cachedSize;
-
 };
 
 template <typename BoxType, typename ...Args>
-inline object_ptr<BoxType> Box(Args&&... args) {
+inline object_ptr<BoxType> Box(Args&&... args)
+{
 	auto parent = static_cast<QWidget*>(nullptr);
 	return object_ptr<BoxType>(parent, std::forward<Args>(args)...);
 }

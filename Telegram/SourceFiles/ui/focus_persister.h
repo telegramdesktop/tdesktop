@@ -7,36 +7,44 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Ui {
-
-class FocusPersister {
-public:
-	FocusPersister(QWidget *parent, QWidget *steal = nullptr)
-	: _weak(GrabFocused(parent)) {
-		if (steal) {
-			steal->setFocus();
+namespace Ui
+{
+	class FocusPersister
+	{
+	public:
+		FocusPersister(QWidget* parent, QWidget* steal = nullptr) :
+			_weak(GrabFocused(parent))
+		{
+			if (steal)
+			{
+				steal->setFocus();
+			}
 		}
-	}
 
-	~FocusPersister() {
-		if (auto strong = _weak.data()) {
-			if (auto window = strong->window()) {
-				if (window->focusWidget() != strong) {
-					strong->setFocus();
+		~FocusPersister()
+		{
+			if (auto strong = _weak.data())
+			{
+				if (auto window = strong->window())
+				{
+					if (window->focusWidget() != strong)
+					{
+						strong->setFocus();
+					}
 				}
 			}
 		}
-	}
 
-private:
-	static QWidget *GrabFocused(QWidget *parent) {
-		if (auto window = parent ? parent->window() : nullptr) {
-			return window->focusWidget();
+	private:
+		static QWidget* GrabFocused(QWidget* parent)
+		{
+			if (auto window = parent ? parent->window() : nullptr)
+			{
+				return window->focusWidget();
+			}
+			return nullptr;
 		}
-		return nullptr;
-	}
-	QPointer<QWidget> _weak;
 
-};
-
+		QPointer<QWidget> _weak;
+	};
 } // namespace Ui

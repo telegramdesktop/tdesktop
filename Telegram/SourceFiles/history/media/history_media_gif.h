@@ -13,36 +13,46 @@ struct HistoryMessageVia;
 struct HistoryMessageReply;
 struct HistoryMessageForwarded;
 
-namespace Media {
-namespace View {
-class PlaybackProgress;
-} // namespace View
+namespace Media
+{
+	namespace View
+	{
+		class PlaybackProgress;
+	} // namespace View
 } // namespace Media
 
-namespace Media {
-namespace Streaming {
-class Player;
-} // namespace Streaming
+namespace Media
+{
+	namespace Streaming
+	{
+		class Player;
+	} // namespace Streaming
 } // namespace Media
 
-class HistoryGif : public HistoryFileMedia {
+class HistoryGif : public HistoryFileMedia
+{
 public:
 	HistoryGif(
 		not_null<Element*> parent,
 		not_null<DocumentData*> document);
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
+	void draw(Painter& p, const QRect& r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
-			TextSelection selection,
-			TextSelectType type) const override {
+		TextSelection selection,
+		TextSelectType type) const override
+	{
 		return _caption.adjustSelection(selection, type);
 	}
-	uint16 fullSelectionLength() const override {
+
+	uint16 fullSelectionLength() const override
+	{
 		return _caption.length();
 	}
-	bool hasTextForCopy() const override {
+
+	bool hasTextForCopy() const override
+	{
 		return !_caption.isEmpty();
 	}
 
@@ -50,24 +60,32 @@ public:
 
 	bool uploading() const override;
 
-	DocumentData *getDocument() const override {
+	DocumentData* getDocument() const override
+	{
 		return _data;
 	}
 
 	void stopAnimation() override;
 
-	TextWithEntities getCaption() const override {
+	TextWithEntities getCaption() const override
+	{
 		return _caption.toTextWithEntities();
 	}
+
 	bool needsBubble() const override;
-	bool customInfoLayout() const override {
+
+	bool customInfoLayout() const override
+	{
 		return _caption.isEmpty();
 	}
+
 	QString additionalInfoString() const override;
 
-	bool skipBubbleTail() const override {
+	bool skipBubbleTail() const override
+	{
 		return isBubbleBottom() && _caption.isEmpty();
 	}
+
 	bool isReadyForOpen() const override;
 
 	void parentTextUpdated() override;
@@ -80,7 +98,9 @@ protected:
 	bool dataLoaded() const override;
 
 	void setClipReader(Media::Clip::ReaderPointer gif);
-	void clearClipReader() {
+
+	void clearClipReader()
+	{
 		setClipReader(Media::Clip::ReaderPointer());
 	}
 
@@ -89,16 +109,16 @@ private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 	QSize videoSize() const;
-	Media::Streaming::Player *activeRoundPlayer() const;
-	Media::Clip::Reader *currentReader() const;
-	Media::View::PlaybackProgress *videoPlayback() const;
+	Media::Streaming::Player* activeRoundPlayer() const;
+	Media::Clip::Reader* currentReader() const;
+	Media::View::PlaybackProgress* videoPlayback() const;
 	void clipCallback(Media::Clip::Notification notification);
 
 	bool needInfoDisplay() const;
 	int additionalWidth(
-		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply,
-		const HistoryMessageForwarded *forwarded) const;
+		const HistoryMessageVia* via,
+		const HistoryMessageReply* reply,
+		const HistoryMessageForwarded* forwarded) const;
 	int additionalWidth() const;
 	QString mediaTypeString() const;
 	bool isSeparateRoundVideo() const;
@@ -111,5 +131,4 @@ private:
 
 	void setStatusSize(int newSize) const;
 	void updateStatusText() const;
-
 };

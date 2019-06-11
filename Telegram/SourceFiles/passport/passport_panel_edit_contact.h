@@ -9,82 +9,83 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
-namespace Ui {
-class MaskedInputField;
-class PlainShadow;
-class RoundButton;
-class VerticalLayout;
+namespace Ui
+{
+	class MaskedInputField;
+	class PlainShadow;
+	class RoundButton;
+	class VerticalLayout;
 } // namespace Ui
 
-namespace Passport {
+namespace Passport
+{
+	class PanelController;
 
-class PanelController;
+	struct EditContactScheme
+	{
+		enum class ValueType
+		{
+			Phone,
+			Text,
+		};
+		explicit EditContactScheme(ValueType type);
 
-struct EditContactScheme {
-	enum class ValueType {
-		Phone,
-		Text,
+		ValueType type;
+
+		QString aboutExisting;
+		QString newHeader;
+		Fn<QString()> newPlaceholder;
+		QString aboutNew;
+		Fn<bool(const QString& value)> validate;
+		Fn<QString(const QString& value)> format;
+		Fn<QString(const QString& value)> postprocess;
 	};
-	explicit EditContactScheme(ValueType type);
 
-	ValueType type;
+	class PanelEditContact : public Ui::RpWidget
+	{
+	public:
+		using Scheme = EditContactScheme;
 
-	QString aboutExisting;
-	QString newHeader;
-	Fn<QString()> newPlaceholder;
-	QString aboutNew;
-	Fn<bool(const QString &value)> validate;
-	Fn<QString(const QString &value)> format;
-	Fn<QString(const QString &value)> postprocess;
+		PanelEditContact(
+			QWidget* parent,
+			not_null<PanelController*> controller,
+			Scheme scheme,
+			const QString& data,
+			const QString& existing);
 
-};
+	protected:
+		void focusInEvent(QFocusEvent* e) override;
+		void resizeEvent(QResizeEvent* e) override;
 
-class PanelEditContact : public Ui::RpWidget {
-public:
-	using Scheme = EditContactScheme;
+	private:
+		void setupControls(
+			const QString& data,
+			const QString& existing);
+		void updateControlsGeometry();
 
-	PanelEditContact(
-		QWidget *parent,
-		not_null<PanelController*> controller,
-		Scheme scheme,
-		const QString &data,
-		const QString &existing);
+		void save();
+		void save(const QString& value);
 
-protected:
-	void focusInEvent(QFocusEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+		not_null<PanelController*> _controller;
+		Scheme _scheme;
 
-private:
-	void setupControls(
-		const QString &data,
-		const QString &existing);
-	void updateControlsGeometry();
+		object_ptr<Ui::VerticalLayout> _content;
+		QPointer<Ui::MaskedInputField> _field;
+		object_ptr<Ui::PlainShadow> _bottomShadow;
+		object_ptr<Ui::RoundButton> _done;
+	};
 
-	void save();
-	void save(const QString &value);
-
-	not_null<PanelController*> _controller;
-	Scheme _scheme;
-
-	object_ptr<Ui::VerticalLayout> _content;
-	QPointer<Ui::MaskedInputField> _field;
-	object_ptr<Ui::PlainShadow> _bottomShadow;
-	object_ptr<Ui::RoundButton> _done;
-
-};
-
-object_ptr<BoxContent> VerifyPhoneBox(
-	const QString &phone,
-	int codeLength,
-	Fn<void(QString code)> submit,
-	rpl::producer<QString> call,
-	rpl::producer<QString> error);
-object_ptr<BoxContent> VerifyEmailBox(
-	const QString &email,
-	int codeLength,
-	Fn<void(QString code)> submit,
-	Fn<void()> resend,
-	rpl::producer<QString> error,
-	rpl::producer<QString> resent);
-
+	object_ptr<BoxContent> VerifyPhoneBox(
+		const QString& phone,
+		int codeLength,
+		Fn<void(QString code)> submit,
+		rpl::producer<QString> call,
+		rpl::producer<QString> error);
+	object_ptr<BoxContent> VerifyEmailBox(
+		const QString& email,
+		int codeLength,
+		Fn<void(QString code)> submit,
+		Fn<void()> resend,
+		rpl::producer<QString> error,
+		rpl::producer<QString> resent);
 } // namespace Passport

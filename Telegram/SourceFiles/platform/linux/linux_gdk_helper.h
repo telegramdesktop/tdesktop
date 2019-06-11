@@ -17,13 +17,13 @@ extern "C" {
 #define signals public
 } // extern "C"
 
-namespace Platform {
-namespace internal {
-
-void GdkHelperLoad(QLibrary &lib);
-bool GdkHelperLoaded();
-void XSetTransientForHint(GdkWindow *window, quintptr winId);
-
-} // namespace internal
+namespace Platform
+{
+	namespace internal
+	{
+		void GdkHelperLoad(QLibrary& lib);
+		bool GdkHelperLoaded();
+		void XSetTransientForHint(GdkWindow* window, quintptr winId);
+	} // namespace internal
 } // namespace Platform
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION

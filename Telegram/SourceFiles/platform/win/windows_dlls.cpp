@@ -10,103 +10,108 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <VersionHelpers.h>
 #include <QtCore/QSysInfo>
 
-namespace Platform {
-namespace Dlls {
+namespace Platform
+{
+	namespace Dlls
+	{
+		f_SetDllDirectory SetDllDirectory;
 
-f_SetDllDirectory SetDllDirectory;
+		HINSTANCE LibKernel32;
 
-HINSTANCE LibKernel32;
+		void init()
+		{
+			static bool inited = false;
+			if (inited) return;
+			inited = true;
 
-void init() {
-	static bool inited = false;
-	if (inited) return;
-	inited = true;
-
-	LibKernel32 = LoadLibrary(L"KERNEL32.DLL");
-	load(LibKernel32, "SetDllDirectoryW", SetDllDirectory);
-	if (SetDllDirectory) {
-		// Remove the current directory from the DLL search order.
-		SetDllDirectory(L"");
-	}
-}
-
-f_SetWindowTheme SetWindowTheme;
-f_OpenAs_RunDLL OpenAs_RunDLL;
-f_SHOpenWithDialog SHOpenWithDialog;
-f_SHAssocEnumHandlers SHAssocEnumHandlers;
-f_SHCreateItemFromParsingName SHCreateItemFromParsingName;
-f_WTSRegisterSessionNotification WTSRegisterSessionNotification;
-f_WTSUnRegisterSessionNotification WTSUnRegisterSessionNotification;
-f_SHQueryUserNotificationState SHQueryUserNotificationState;
-f_SHChangeNotify SHChangeNotify;
-f_SetCurrentProcessExplicitAppUserModelID SetCurrentProcessExplicitAppUserModelID;
-f_RoGetActivationFactory RoGetActivationFactory;
-f_WindowsCreateStringReference WindowsCreateStringReference;
-f_WindowsDeleteString WindowsDeleteString;
-f_PropVariantToString PropVariantToString;
-f_PSStringFromPropertyKey PSStringFromPropertyKey;
-f_DwmIsCompositionEnabled DwmIsCompositionEnabled;
-f_RmStartSession RmStartSession;
-f_RmRegisterResources RmRegisterResources;
-f_RmGetList RmGetList;
-f_RmShutdown RmShutdown;
-f_RmEndSession RmEndSession;
-f_GetProcessMemoryInfo GetProcessMemoryInfo;
-
-HINSTANCE LibUxTheme;
-HINSTANCE LibShell32;
-HINSTANCE LibWtsApi32;
-HINSTANCE LibPropSys;
-HINSTANCE LibComBase;
-HINSTANCE LibDwmApi;
-HINSTANCE LibRstrtMgr;
-HINSTANCE LibPsApi;
-
-void start() {
-	init();
-
-	LibShell32 = LoadLibrary(L"SHELL32.DLL");
-	load(LibShell32, "SHAssocEnumHandlers", SHAssocEnumHandlers);
-	load(LibShell32, "SHCreateItemFromParsingName", SHCreateItemFromParsingName);
-	load(LibShell32, "SHOpenWithDialog", SHOpenWithDialog);
-	load(LibShell32, "OpenAs_RunDLLW", OpenAs_RunDLL);
-	load(LibShell32, "SHQueryUserNotificationState", SHQueryUserNotificationState);
-	load(LibShell32, "SHChangeNotify", SHChangeNotify);
-	load(LibShell32, "SetCurrentProcessExplicitAppUserModelID", SetCurrentProcessExplicitAppUserModelID);
-
-	LibUxTheme = LoadLibrary(L"UXTHEME.DLL");
-	load(LibUxTheme, "SetWindowTheme", SetWindowTheme);
-
-	if (IsWindowsVistaOrGreater()) {
-		LibWtsApi32 = LoadLibrary(L"WTSAPI32.DLL");
-		load(LibWtsApi32, "WTSRegisterSessionNotification", WTSRegisterSessionNotification);
-		load(LibWtsApi32, "WTSUnRegisterSessionNotification", WTSUnRegisterSessionNotification);
-
-		LibPropSys = LoadLibrary(L"PROPSYS.DLL");
-		load(LibPropSys, "PropVariantToString", PropVariantToString);
-		load(LibPropSys, "PSStringFromPropertyKey", PSStringFromPropertyKey);
-
-		if (IsWindows8OrGreater()) {
-			LibComBase = LoadLibrary(L"COMBASE.DLL");
-			load(LibComBase, "RoGetActivationFactory", RoGetActivationFactory);
-			load(LibComBase, "WindowsCreateStringReference", WindowsCreateStringReference);
-			load(LibComBase, "WindowsDeleteString", WindowsDeleteString);
+			LibKernel32 = LoadLibrary(L"KERNEL32.DLL");
+			load(LibKernel32, "SetDllDirectoryW", SetDllDirectory);
+			if (SetDllDirectory)
+			{
+				// Remove the current directory from the DLL search order.
+				SetDllDirectory(L"");
+			}
 		}
 
-		LibDwmApi = LoadLibrary(L"DWMAPI.DLL");
-		load(LibDwmApi, "DwmIsCompositionEnabled", DwmIsCompositionEnabled);
+		f_SetWindowTheme SetWindowTheme;
+		f_OpenAs_RunDLL OpenAs_RunDLL;
+		f_SHOpenWithDialog SHOpenWithDialog;
+		f_SHAssocEnumHandlers SHAssocEnumHandlers;
+		f_SHCreateItemFromParsingName SHCreateItemFromParsingName;
+		f_WTSRegisterSessionNotification WTSRegisterSessionNotification;
+		f_WTSUnRegisterSessionNotification WTSUnRegisterSessionNotification;
+		f_SHQueryUserNotificationState SHQueryUserNotificationState;
+		f_SHChangeNotify SHChangeNotify;
+		f_SetCurrentProcessExplicitAppUserModelID SetCurrentProcessExplicitAppUserModelID;
+		f_RoGetActivationFactory RoGetActivationFactory;
+		f_WindowsCreateStringReference WindowsCreateStringReference;
+		f_WindowsDeleteString WindowsDeleteString;
+		f_PropVariantToString PropVariantToString;
+		f_PSStringFromPropertyKey PSStringFromPropertyKey;
+		f_DwmIsCompositionEnabled DwmIsCompositionEnabled;
+		f_RmStartSession RmStartSession;
+		f_RmRegisterResources RmRegisterResources;
+		f_RmGetList RmGetList;
+		f_RmShutdown RmShutdown;
+		f_RmEndSession RmEndSession;
+		f_GetProcessMemoryInfo GetProcessMemoryInfo;
 
-		LibRstrtMgr = LoadLibrary(L"RSTRTMGR.DLL");
-		load(LibRstrtMgr, "RmStartSession", RmStartSession);
-		load(LibRstrtMgr, "RmRegisterResources", RmRegisterResources);
-		load(LibRstrtMgr, "RmGetList", RmGetList);
-		load(LibRstrtMgr, "RmShutdown", RmShutdown);
-		load(LibRstrtMgr, "RmEndSession", RmEndSession);
-	}
+		HINSTANCE LibUxTheme;
+		HINSTANCE LibShell32;
+		HINSTANCE LibWtsApi32;
+		HINSTANCE LibPropSys;
+		HINSTANCE LibComBase;
+		HINSTANCE LibDwmApi;
+		HINSTANCE LibRstrtMgr;
+		HINSTANCE LibPsApi;
 
-	LibPsApi = LoadLibrary(L"PSAPI.DLL");
-	load(LibPsApi, "GetProcessMemoryInfo", GetProcessMemoryInfo);
-}
+		void start()
+		{
+			init();
 
-} // namespace Dlls
+			LibShell32 = LoadLibrary(L"SHELL32.DLL");
+			load(LibShell32, "SHAssocEnumHandlers", SHAssocEnumHandlers);
+			load(LibShell32, "SHCreateItemFromParsingName", SHCreateItemFromParsingName);
+			load(LibShell32, "SHOpenWithDialog", SHOpenWithDialog);
+			load(LibShell32, "OpenAs_RunDLLW", OpenAs_RunDLL);
+			load(LibShell32, "SHQueryUserNotificationState", SHQueryUserNotificationState);
+			load(LibShell32, "SHChangeNotify", SHChangeNotify);
+			load(LibShell32, "SetCurrentProcessExplicitAppUserModelID", SetCurrentProcessExplicitAppUserModelID);
+
+			LibUxTheme = LoadLibrary(L"UXTHEME.DLL");
+			load(LibUxTheme, "SetWindowTheme", SetWindowTheme);
+
+			if (IsWindowsVistaOrGreater())
+			{
+				LibWtsApi32 = LoadLibrary(L"WTSAPI32.DLL");
+				load(LibWtsApi32, "WTSRegisterSessionNotification", WTSRegisterSessionNotification);
+				load(LibWtsApi32, "WTSUnRegisterSessionNotification", WTSUnRegisterSessionNotification);
+
+				LibPropSys = LoadLibrary(L"PROPSYS.DLL");
+				load(LibPropSys, "PropVariantToString", PropVariantToString);
+				load(LibPropSys, "PSStringFromPropertyKey", PSStringFromPropertyKey);
+
+				if (IsWindows8OrGreater())
+				{
+					LibComBase = LoadLibrary(L"COMBASE.DLL");
+					load(LibComBase, "RoGetActivationFactory", RoGetActivationFactory);
+					load(LibComBase, "WindowsCreateStringReference", WindowsCreateStringReference);
+					load(LibComBase, "WindowsDeleteString", WindowsDeleteString);
+				}
+
+				LibDwmApi = LoadLibrary(L"DWMAPI.DLL");
+				load(LibDwmApi, "DwmIsCompositionEnabled", DwmIsCompositionEnabled);
+
+				LibRstrtMgr = LoadLibrary(L"RSTRTMGR.DLL");
+				load(LibRstrtMgr, "RmStartSession", RmStartSession);
+				load(LibRstrtMgr, "RmRegisterResources", RmRegisterResources);
+				load(LibRstrtMgr, "RmGetList", RmGetList);
+				load(LibRstrtMgr, "RmShutdown", RmShutdown);
+				load(LibRstrtMgr, "RmEndSession", RmEndSession);
+			}
+
+			LibPsApi = LoadLibrary(L"PSAPI.DLL");
+			load(LibPsApi, "GetProcessMemoryInfo", GetProcessMemoryInfo);
+		}
+	} // namespace Dlls
 } // namespace Platform

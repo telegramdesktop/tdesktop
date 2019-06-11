@@ -19,14 +19,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #undef iconv_close
 #endif // iconv_close
 
-iconv_t iconv_open(const char* tocode, const char* fromcode) {
+iconv_t iconv_open(const char* tocode, const char* fromcode)
+{
 	return libiconv_open(tocode, fromcode);
 }
 
-size_t iconv(iconv_t cd, char** inbuf, size_t *inbytesleft, char** outbuf, size_t *outbytesleft) {
+size_t iconv(iconv_t cd, char** inbuf, size_t* inbytesleft, char** outbuf, size_t* outbytesleft)
+{
 	return libiconv(cd, inbuf, inbytesleft, outbuf, outbytesleft);
 }
 
-int iconv_close(iconv_t cd) {
+int iconv_close(iconv_t cd)
+{
 	return libiconv_close(cd);
 }

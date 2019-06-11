@@ -14,140 +14,140 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
-namespace Ui {
-class IconButton;
-class FlatLabel;
-template <typename Widget>
-class FadeWrap;
+namespace Ui
+{
+	class IconButton;
+	class FlatLabel;
+	template <typename Widget>
+	class FadeWrap;
 } // namespace Ui
 
-namespace style {
-struct CallSignalBars;
+namespace style
+{
+	struct CallSignalBars;
 } // namespace style
 
-namespace Calls {
+namespace Calls
+{
+	class SignalBars : public Ui::RpWidget, private base::Subscriber
+	{
+	public:
+		SignalBars(
+			QWidget* parent,
+			not_null<Call*> call,
+			const style::CallSignalBars& st,
+			Fn<void()> displayedChangedCallback = nullptr);
 
-class SignalBars : public Ui::RpWidget, private base::Subscriber {
-public:
-	SignalBars(
-		QWidget *parent,
-		not_null<Call*> call,
-		const style::CallSignalBars &st,
-		Fn<void()> displayedChangedCallback = nullptr);
+		bool isDisplayed() const;
 
-	bool isDisplayed() const;
+	protected:
+		void paintEvent(QPaintEvent* e) override;
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
+	private:
+		void changed(int count);
 
-private:
-	void changed(int count);
+		const style::CallSignalBars& _st;
+		int _count = Call::kSignalBarStarting;
+		Fn<void()> _displayedChangedCallback;
+	};
 
-	const style::CallSignalBars &_st;
-	int _count = Call::kSignalBarStarting;
-	Fn<void()> _displayedChangedCallback;
+	class Panel
+		: public Ui::RpWidget
+		  , private base::Subscriber
+		  , private Ui::AbstractTooltipShower
+	{
+	public:
+		Panel(not_null<Call*> call);
 
-};
+		void showAndActivate();
+		void replaceCall(not_null<Call*> call);
+		void hideAndDestroy();
 
-class Panel
-	: public Ui::RpWidget
-	, private base::Subscriber
-	, private Ui::AbstractTooltipShower {
+	protected:
+		void paintEvent(QPaintEvent* e) override;
+		void closeEvent(QCloseEvent* e) override;
+		void resizeEvent(QResizeEvent* e) override;
+		void mousePressEvent(QMouseEvent* e) override;
+		void mouseReleaseEvent(QMouseEvent* e) override;
+		void mouseMoveEvent(QMouseEvent* e) override;
+		void leaveEventHook(QEvent* e) override;
+		void leaveToChildEvent(QEvent* e, QWidget* child) override;
+		bool eventHook(QEvent* e) override;
 
-public:
-	Panel(not_null<Call*> call);
+	private:
+		using State = Call::State;
+		using Type = Call::Type;
 
-	void showAndActivate();
-	void replaceCall(not_null<Call*> call);
-	void hideAndDestroy();
+		// AbstractTooltipShower interface
+		QString tooltipText() const override;
+		QPoint tooltipPos() const override;
+		bool tooltipWindowActive() const override;
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void closeEvent(QCloseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
-	void leaveToChildEvent(QEvent *e, QWidget *child) override;
-	bool eventHook(QEvent *e) override;
+		void initControls();
+		void reinitControls();
+		void initLayout();
+		void initGeometry();
+		void hideDeactivated();
+		void createBottomImage();
+		void createDefaultCacheImage();
+		void refreshCacheImageUserPhoto();
 
-private:
-	using State = Call::State;
-	using Type = Call::Type;
+		void processUserPhoto();
+		void refreshUserPhoto();
+		bool isGoodUserPhoto(PhotoData* photo);
+		void createUserpicCache(Image* image, Data::FileOrigin origin);
+		QRect signalBarsRect() const;
+		void paintSignalBarsBg(Painter& p);
 
-	// AbstractTooltipShower interface
-	QString tooltipText() const override;
-	QPoint tooltipPos() const override;
-	bool tooltipWindowActive() const override;
+		void updateControlsGeometry();
+		void updateHangupGeometry();
+		void updateStatusGeometry();
+		void stateChanged(State state);
+		void showControls();
+		void updateStatusText(State state);
+		void startDurationUpdateTimer(crl::time currentDuration);
+		void fillFingerprint();
+		void toggleOpacityAnimation(bool visible);
+		void finishAnimating();
+		void destroyDelayed();
 
-	void initControls();
-	void reinitControls();
-	void initLayout();
-	void initGeometry();
-	void hideDeactivated();
-	void createBottomImage();
-	void createDefaultCacheImage();
-	void refreshCacheImageUserPhoto();
+		Call* _call = nullptr;
+		not_null<UserData*> _user;
 
-	void processUserPhoto();
-	void refreshUserPhoto();
-	bool isGoodUserPhoto(PhotoData *photo);
-	void createUserpicCache(Image *image, Data::FileOrigin origin);
-	QRect signalBarsRect() const;
-	void paintSignalBarsBg(Painter &p);
+		bool _useTransparency = true;
+		style::margins _padding;
+		int _contentTop = 0;
 
-	void updateControlsGeometry();
-	void updateHangupGeometry();
-	void updateStatusGeometry();
-	void stateChanged(State state);
-	void showControls();
-	void updateStatusText(State state);
-	void startDurationUpdateTimer(crl::time currentDuration);
-	void fillFingerprint();
-	void toggleOpacityAnimation(bool visible);
-	void finishAnimating();
-	void destroyDelayed();
+		bool _dragging = false;
+		QPoint _dragStartMousePosition;
+		QPoint _dragStartMyPosition;
 
-	Call *_call = nullptr;
-	not_null<UserData*> _user;
+		int _stateChangedSubscription = 0;
 
-	bool _useTransparency = true;
-	style::margins _padding;
-	int _contentTop = 0;
+		class Button;
+		object_ptr<Button> _answerHangupRedial;
+		object_ptr<Ui::FadeWrap<Button>> _decline;
+		object_ptr<Ui::FadeWrap<Button>> _cancel;
+		bool _hangupShown = false;
+		Ui::Animations::Simple _hangupShownProgress;
+		object_ptr<Ui::IconButton> _mute;
+		object_ptr<Ui::FlatLabel> _name;
+		object_ptr<Ui::FlatLabel> _status;
+		object_ptr<SignalBars> _signalBars;
+		std::vector<EmojiPtr> _fingerprint;
+		QRect _fingerprintArea;
 
-	bool _dragging = false;
-	QPoint _dragStartMousePosition;
-	QPoint _dragStartMyPosition;
+		base::Timer _updateDurationTimer;
+		base::Timer _updateOuterRippleTimer;
 
-	int _stateChangedSubscription = 0;
+		bool _visible = false;
+		QPixmap _userPhoto;
+		PhotoId _userPhotoId = 0;
+		bool _userPhotoFull = false;
 
-	class Button;
-	object_ptr<Button> _answerHangupRedial;
-	object_ptr<Ui::FadeWrap<Button>> _decline;
-	object_ptr<Ui::FadeWrap<Button>> _cancel;
-	bool _hangupShown = false;
-	Ui::Animations::Simple _hangupShownProgress;
-	object_ptr<Ui::IconButton> _mute;
-	object_ptr<Ui::FlatLabel> _name;
-	object_ptr<Ui::FlatLabel> _status;
-	object_ptr<SignalBars> _signalBars;
-	std::vector<EmojiPtr> _fingerprint;
-	QRect _fingerprintArea;
-
-	base::Timer _updateDurationTimer;
-	base::Timer _updateOuterRippleTimer;
-
-	bool _visible = false;
-	QPixmap _userPhoto;
-	PhotoId _userPhotoId = 0;
-	bool _userPhotoFull = false;
-
-	Ui::Animations::Simple _opacityAnimation;
-	QPixmap _animationCache;
-	QPixmap _bottomCache;
-	QPixmap _cache;
-
-};
-
+		Ui::Animations::Simple _opacityAnimation;
+		QPixmap _animationCache;
+		QPixmap _bottomCache;
+		QPixmap _cache;
+	};
 } // namespace Calls

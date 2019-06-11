@@ -13,20 +13,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ConfirmBox;
 
-namespace Ui {
-class PlainShadow;
+namespace Ui
+{
+	class PlainShadow;
 } // namespace Ui
 
-class StickerSetBox : public BoxContent, public RPCSender {
+class StickerSetBox : public BoxContent, public RPCSender
+{
 public:
-	StickerSetBox(QWidget*, const MTPInputStickerSet &set);
+	StickerSetBox(QWidget*, const MTPInputStickerSet& set);
 
-	static void Show(DocumentData *document);
+	static void Show(DocumentData* document);
 
 protected:
 	void prepare() override;
 
-	void resizeEvent(QResizeEvent *e) override;
+	void resizeEvent(QResizeEvent* e) override;
 
 private:
 	void updateTitleAndButtons();
@@ -38,5 +40,4 @@ private:
 
 	class Inner;
 	QPointer<Inner> _inner;
-
 };

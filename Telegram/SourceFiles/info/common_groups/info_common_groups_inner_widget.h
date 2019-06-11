@@ -11,69 +11,68 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "boxes/peer_list_box.h"
 
-namespace Info {
+namespace Info
+{
+	class Controller;
 
-class Controller;
+	namespace CommonGroups
+	{
+		class Memento;
 
-namespace CommonGroups {
+		class InnerWidget final
+			: public Ui::RpWidget
+			  , private PeerListContentDelegate
+		{
+		public:
+			InnerWidget(
+				QWidget* parent,
+				not_null<Controller*> controller,
+				not_null<UserData*> user);
 
-class Memento;
+			not_null<UserData*> user() const
+			{
+				return _user;
+			}
 
-class InnerWidget final
-	: public Ui::RpWidget
-	, private PeerListContentDelegate {
-public:
-	InnerWidget(
-		QWidget *parent,
-		not_null<Controller*> controller,
-		not_null<UserData*> user);
+			rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
 
-	not_null<UserData*> user() const {
-		return _user;
-	}
+			int desiredHeight() const;
 
-	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
+			void saveState(not_null<Memento*> memento);
+			void restoreState(not_null<Memento*> memento);
 
-	int desiredHeight() const;
+		protected:
+			void visibleTopBottomUpdated(
+				int visibleTop,
+				int visibleBottom) override;
 
-	void saveState(not_null<Memento*> memento);
-	void restoreState(not_null<Memento*> memento);
+		private:
+			using ListWidget = PeerListContent;
 
-protected:
-	void visibleTopBottomUpdated(
-		int visibleTop,
-		int visibleBottom) override;
+			// PeerListContentDelegate interface.
+			void peerListSetTitle(Fn<QString()> title) override;
+			void peerListSetAdditionalTitle(
+				Fn<QString()> title) override;
+			bool peerListIsRowSelected(not_null<PeerData*> peer) override;
+			int peerListSelectedRowsCount() override;
+			std::vector<not_null<PeerData*>> peerListCollectSelectedRows() override;
+			void peerListScrollToTop() override;
+			void peerListAddSelectedRowInBunch(
+				not_null<PeerData*> peer) override;
+			void peerListFinishSelectedRowsBunch() override;
+			void peerListSetDescription(
+				object_ptr<Ui::FlatLabel> description) override;
 
-private:
-	using ListWidget = PeerListContent;
+			object_ptr<ListWidget> setupList(
+				RpWidget* parent,
+				not_null<PeerListController*> controller) const;
 
-	// PeerListContentDelegate interface.
-	void peerListSetTitle(Fn<QString()> title) override;
-	void peerListSetAdditionalTitle(
-		Fn<QString()> title) override;
-	bool peerListIsRowSelected(not_null<PeerData*> peer) override;
-	int peerListSelectedRowsCount() override;
-	std::vector<not_null<PeerData*>> peerListCollectSelectedRows() override;
-	void peerListScrollToTop() override;
-	void peerListAddSelectedRowInBunch(
-		not_null<PeerData*> peer) override;
-	void peerListFinishSelectedRowsBunch() override;
-	void peerListSetDescription(
-		object_ptr<Ui::FlatLabel> description) override;
+			not_null<Controller*> _controller;
+			not_null<UserData*> _user;
+			std::unique_ptr<PeerListController> _listController;
+			object_ptr<ListWidget> _list;
 
-	object_ptr<ListWidget> setupList(
-		RpWidget *parent,
-		not_null<PeerListController*> controller) const;
-
-	not_null<Controller*> _controller;
-	not_null<UserData*> _user;
-	std::unique_ptr<PeerListController> _listController;
-	object_ptr<ListWidget> _list;
-
-	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
-
-};
-
-} // namespace CommonGroups
+			rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
+		};
+	} // namespace CommonGroups
 } // namespace Info
-

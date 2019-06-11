@@ -10,13 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_title.h"
 #include "window/themes/window_theme_preview.h"
 
-namespace Platform {
+namespace Platform
+{
+	object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget* parent);
 
-object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent);
-
-int PreviewTitleHeight();
-void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth);
-
+	int PreviewTitleHeight();
+	void PreviewWindowFramePaint(QImage& preview, const style::palette& palette, QRect body, int outerWidth);
 } // namespace Platform
 
 // Platform dependent implementations.

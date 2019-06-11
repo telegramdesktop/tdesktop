@@ -9,47 +9,48 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 
-namespace Window {
+namespace Window
+{
+	enum class SlideDirection
+	{
+		FromRight,
+		FromLeft,
+	};
 
-enum class SlideDirection {
-	FromRight,
-	FromLeft,
-};
+	class SlideAnimation
+	{
+	public:
+		void paintContents(Painter& p, const QRect& update) const;
 
-class SlideAnimation {
-public:
-	void paintContents(Painter &p, const QRect &update) const;
+		void setDirection(SlideDirection direction);
+		void setPixmaps(const QPixmap& oldContentCache, const QPixmap& newContentCache);
+		void setTopBarShadow(bool enabled);
+		void setWithFade(bool withFade);
 
-	void setDirection(SlideDirection direction);
-	void setPixmaps(const QPixmap &oldContentCache, const QPixmap &newContentCache);
-	void setTopBarShadow(bool enabled);
-	void setWithFade(bool withFade);
+		using RepaintCallback = Fn<void()>;
+		void setRepaintCallback(RepaintCallback&& callback);
 
-	using RepaintCallback = Fn<void()>;
-	void setRepaintCallback(RepaintCallback &&callback);
+		using FinishedCallback = Fn<void()>;
+		void setFinishedCallback(FinishedCallback&& callback);
 
-	using FinishedCallback = Fn<void()>;
-	void setFinishedCallback(FinishedCallback &&callback);
+		void start();
 
-	void start();
+		static const anim::transition& transition()
+		{
+			return anim::easeOutCirc;
+		}
 
-	static const anim::transition &transition() {
-		return anim::easeOutCirc;
-	}
+	private:
+		void animationCallback();
 
-private:
-	void animationCallback();
+		SlideDirection _direction = SlideDirection::FromRight;
+		bool _topBarShadowEnabled = false;
+		bool _withFade = false;
 
-	SlideDirection _direction = SlideDirection::FromRight;
-	bool _topBarShadowEnabled = false;
-	bool _withFade = false;
+		mutable Ui::Animations::Simple _animation;
+		QPixmap _cacheUnder, _cacheOver;
 
-	mutable Ui::Animations::Simple _animation;
-	QPixmap _cacheUnder, _cacheOver;
-
-	RepaintCallback _repaintCallback;
-	FinishedCallback _finishedCallback;
-
-};
-
+		RepaintCallback _repaintCallback;
+		FinishedCallback _finishedCallback;
+	};
 } // namespace Window

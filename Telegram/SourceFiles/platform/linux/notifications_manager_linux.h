@@ -9,42 +9,45 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_notifications_manager.h"
 
-namespace Platform {
-namespace Notifications {
+namespace Platform
+{
+	namespace Notifications
+	{
+		inline bool SkipAudio()
+		{
+			return false;
+		}
 
-inline bool SkipAudio() {
-	return false;
-}
+		inline bool SkipToast()
+		{
+			return false;
+		}
 
-inline bool SkipToast() {
-	return false;
-}
+		inline void FlashBounce()
+		{
+		}
 
-inline void FlashBounce() {
-}
+		void Finish();
 
-void Finish();
+		class Manager : public Window::Notifications::NativeManager
+		{
+		public:
+			Manager(Window::Notifications::System* system);
 
-class Manager : public Window::Notifications::NativeManager {
-public:
-	Manager(Window::Notifications::System *system);
+			void clearNotification(PeerId peerId, MsgId msgId);
+			bool hasPoorSupport() const;
+			bool hasActionsSupport() const;
 
-	void clearNotification(PeerId peerId, MsgId msgId);
-	bool hasPoorSupport() const;
-	bool hasActionsSupport() const;
+			~Manager();
 
-	~Manager();
+		protected:
+			void doShowNativeNotification(PeerData* peer, MsgId msgId, const QString& title, const QString& subtitle, const QString& msg, bool hideNameAndPhoto, bool hideReplyButton) override;
+			void doClearAllFast() override;
+			void doClearFromHistory(History* history) override;
 
-protected:
-	void doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) override;
-	void doClearAllFast() override;
-	void doClearFromHistory(History *history) override;
-
-private:
-	class Private;
-	const std::unique_ptr<Private> _private;
-
-};
-
-} // namespace Notifications
+		private:
+			class Private;
+			const std::unique_ptr<Private> _private;
+		};
+	} // namespace Notifications
 } // namespace Platform

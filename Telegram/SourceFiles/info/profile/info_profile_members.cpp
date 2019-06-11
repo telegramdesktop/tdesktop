@@ -34,415 +34,464 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
-namespace Info {
-namespace Profile {
-namespace {
+namespace Info
+{
+	namespace Profile
+	{
+		namespace
+		{
+			constexpr auto kEnableSearchMembersAfterCount = 20;
+		} // namespace
 
-constexpr auto kEnableSearchMembersAfterCount = 20;
+		Members::Members(
+			QWidget* parent,
+			not_null<Controller*> controller):
+			RpWidget(parent)
+			, _controller(controller)
+			, _peer(_controller->key().peer())
+			, _listController(CreateMembersController(controller, _peer))
+		{
+			setupHeader();
+			setupList();
+			setContent(_list.data());
+			_listController->setDelegate(static_cast<PeerListDelegate*>(this));
 
-} // namespace
-
-Members::Members(
-	QWidget *parent,
-	not_null<Controller*> controller)
-: RpWidget(parent)
-, _controller(controller)
-, _peer(_controller->key().peer())
-, _listController(CreateMembersController(controller, _peer)) {
-	setupHeader();
-	setupList();
-	setContent(_list.data());
-	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
-
-	_controller->searchFieldController()->queryValue(
-	) | rpl::start_with_next([this](QString &&query) {
-		peerListScrollToTop();
-		content()->searchQueryChanged(std::move(query));
-	}, lifetime());
-	MembersCountValue(
-		_peer
-	) | rpl::start_with_next([this](int count) {
-		const auto enabled = (count >= kEnableSearchMembersAfterCount);
-		_controller->setSearchEnabledByContent(enabled);
-	}, lifetime());
-}
-
-int Members::desiredHeight() const {
-	auto desired = _header ? _header->height() : 0;
-	auto count = [this] {
-		if (auto chat = _peer->asChat()) {
-			return chat->count;
-		} else if (auto channel = _peer->asChannel()) {
-			return channel->membersCount();
+			_controller->searchFieldController()->queryValue(
+			) | rpl::start_with_next([this](QString&& query)
+			{
+				peerListScrollToTop();
+				content()->searchQueryChanged(std::move(query));
+			}, lifetime());
+			MembersCountValue(
+				_peer
+			) | rpl::start_with_next([this](int count)
+			{
+				const auto enabled = (count >= kEnableSearchMembersAfterCount);
+				_controller->setSearchEnabledByContent(enabled);
+			}, lifetime());
 		}
-		return 0;
-	}();
-	desired += qMax(count, _list->fullRowsCount())
-		* st::infoMembersList.item.height;
-	return qMax(height(), desired);
-}
 
-rpl::producer<int> Members::onlineCountValue() const {
-	return _listController->onlineCountValue();
-}
+		int Members::desiredHeight() const
+		{
+			auto desired = _header ? _header->height() : 0;
+			auto count = [this]
+			{
+				if (auto chat = _peer->asChat())
+				{
+					return chat->count;
+				}
+				else if (auto channel = _peer->asChannel())
+				{
+					return channel->membersCount();
+				}
+				return 0;
+			}();
+			desired += qMax(count, _list->fullRowsCount())
+				* st::infoMembersList.item.height;
+			return qMax(height(), desired);
+		}
 
-rpl::producer<Ui::ScrollToRequest> Members::scrollToRequests() const {
-	return _scrollToRequests.events();
-}
+		rpl::producer<int> Members::onlineCountValue() const
+		{
+			return _listController->onlineCountValue();
+		}
 
-std::unique_ptr<MembersState> Members::saveState() {
-	auto result = std::make_unique<MembersState>();
-	result->list = _listController->saveState();
-	//if (_searchShown) {
-	//	result->search = _searchField->getLastText();
-	//}
-	return result;
-}
+		rpl::producer<Ui::ScrollToRequest> Members::scrollToRequests() const
+		{
+			return _scrollToRequests.events();
+		}
 
-void Members::restoreState(std::unique_ptr<MembersState> state) {
-	if (!state) {
-		return;
-	}
-	_listController->restoreState(std::move(state->list));
-	//updateSearchEnabledByContent();
-	//if (!_controller->searchFieldController()->query().isEmpty()) {
-	//	if (!_searchShown) {
-	//		toggleSearch(anim::type::instant);
-	//	}
-	//} else if (_searchShown) {
-	//	toggleSearch(anim::type::instant);
-	//}
-}
+		std::unique_ptr<MembersState> Members::saveState()
+		{
+			auto result = std::make_unique<MembersState>();
+			result->list = _listController->saveState();
+			//if (_searchShown) {
+			//	result->search = _searchField->getLastText();
+			//}
+			return result;
+		}
 
-void Members::setupHeader() {
-	if (_controller->section().type() == Section::Type::Members) {
-		return;
-	}
-	_header = object_ptr<Ui::FixedHeightWidget>(
-		this,
-		st::infoMembersHeader);
-	auto parent = _header.data();
+		void Members::restoreState(std::unique_ptr<MembersState> state)
+		{
+			if (!state)
+			{
+				return;
+			}
+			_listController->restoreState(std::move(state->list));
+			//updateSearchEnabledByContent();
+			//if (!_controller->searchFieldController()->query().isEmpty()) {
+			//	if (!_searchShown) {
+			//		toggleSearch(anim::type::instant);
+			//	}
+			//} else if (_searchShown) {
+			//	toggleSearch(anim::type::instant);
+			//}
+		}
 
-	_openMembers = Ui::CreateChild<Button>(
-		parent,
-		rpl::single(QString()));
+		void Members::setupHeader()
+		{
+			if (_controller->section().type() == Section::Type::Members)
+			{
+				return;
+			}
+			_header = object_ptr<Ui::FixedHeightWidget>(
+				this,
+				st::infoMembersHeader);
+			auto parent = _header.data();
 
-	object_ptr<FloatingIcon>(
-		parent,
-		st::infoIconMembers,
-		st::infoIconPosition);
+			_openMembers = Ui::CreateChild<Button>(
+				parent,
+				rpl::single(QString()));
 
-	_titleWrap = Ui::CreateChild<Ui::RpWidget>(parent);
-	_title = setupTitle();
-	_addMember = Ui::CreateChild<Ui::IconButton>(
-		_openMembers,
-		st::infoMembersAddMember);
-	//_searchField = _controller->searchFieldController()->createField(
-	//	parent,
-	//	st::infoMembersSearchField);
-	_search = Ui::CreateChild<Ui::IconButton>(
-		_openMembers,
-		st::infoMembersSearch);
-	//_cancelSearch = Ui::CreateChild<Ui::CrossButton>(
-	//	parent,
-	//	st::infoMembersCancelSearch);
+			object_ptr<FloatingIcon>(
+				parent,
+				st::infoIconMembers,
+				st::infoIconPosition);
 
-	setupButtons();
+			_titleWrap = Ui::CreateChild<Ui::RpWidget>(parent);
+			_title = setupTitle();
+			_addMember = Ui::CreateChild<Ui::IconButton>(
+				_openMembers,
+				st::infoMembersAddMember);
+			//_searchField = _controller->searchFieldController()->createField(
+			//	parent,
+			//	st::infoMembersSearchField);
+			_search = Ui::CreateChild<Ui::IconButton>(
+				_openMembers,
+				st::infoMembersSearch);
+			//_cancelSearch = Ui::CreateChild<Ui::CrossButton>(
+			//	parent,
+			//	st::infoMembersCancelSearch);
 
-	//_controller->wrapValue(
-	//) | rpl::start_with_next([this](Wrap wrap) {
-	//	_wrap = wrap;
-	//	updateSearchOverrides();
-	//}, lifetime());
-	widthValue(
-	) | rpl::start_with_next([this](int width) {
-		_header->resizeToWidth(width);
-	}, _header->lifetime());
-}
+			setupButtons();
 
-object_ptr<Ui::FlatLabel> Members::setupTitle() {
-	auto result = object_ptr<Ui::FlatLabel>(
-		_titleWrap,
-		MembersCountValue(
-			_peer
-		) | rpl::map([](int count) {
-			return lng_chat_status_members(lt_count_decimal, count);
-		}) | ToUpperValue(),
-		st::infoBlockHeaderLabel);
-	result->setAttribute(Qt::WA_TransparentForMouseEvents);
-	return result;
-}
+			//_controller->wrapValue(
+			//) | rpl::start_with_next([this](Wrap wrap) {
+			//	_wrap = wrap;
+			//	updateSearchOverrides();
+			//}, lifetime());
+			widthValue(
+			) | rpl::start_with_next([this](int width)
+			{
+				_header->resizeToWidth(width);
+			}, _header->lifetime());
+		}
 
-void Members::setupButtons() {
-	using namespace rpl::mappers;
+		object_ptr<Ui::FlatLabel> Members::setupTitle()
+		{
+			auto result = object_ptr<Ui::FlatLabel>(
+				_titleWrap,
+				MembersCountValue(
+					_peer
+				) | rpl::map([](int count)
+				{
+					return lng_chat_status_members(lt_count_decimal, count);
+				}) | ToUpperValue(),
+				st::infoBlockHeaderLabel);
+			result->setAttribute(Qt::WA_TransparentForMouseEvents);
+			return result;
+		}
 
-	_openMembers->addClickHandler([this] {
-		showMembersWithSearch(false);
-	});
+		void Members::setupButtons()
+		{
+			using namespace rpl::mappers;
 
-	//_searchField->hide();
-	//_cancelSearch->setVisible(false);
+			_openMembers->addClickHandler([this]
+			{
+				showMembersWithSearch(false);
+			});
 
-	auto addMemberShown = CanAddMemberValue(_peer)
-		| rpl::start_spawning(lifetime());
-	_addMember->showOn(rpl::duplicate(addMemberShown));
-	_addMember->addClickHandler([this] { // TODO throttle(ripple duration)
-		this->addMember();
-	});
+			//_searchField->hide();
+			//_cancelSearch->setVisible(false);
 
-	auto searchShown = MembersCountValue(_peer)
-		| rpl::map(_1 >= kEnableSearchMembersAfterCount)
-		| rpl::distinct_until_changed()
-		| rpl::start_spawning(lifetime());
-	_search->showOn(rpl::duplicate(searchShown));
-	_search->addClickHandler([this] { // TODO throttle(ripple duration)
-		this->showMembersWithSearch(true);
-	});
-	//_cancelSearch->addClickHandler([this] {
-	//	this->cancelSearch();
-	//});
+			auto addMemberShown = CanAddMemberValue(_peer)
+				| rpl::start_spawning(lifetime());
+			_addMember->showOn(rpl::duplicate(addMemberShown));
+			_addMember->addClickHandler([this]
+			{
+				// TODO throttle(ripple duration)
+				this->addMember();
+			});
 
-	rpl::combine(
-		std::move(addMemberShown),
-		std::move(searchShown)
-	) | rpl::start_with_next([this] {
-		updateHeaderControlsGeometry(width());
-	}, lifetime());
-}
+			auto searchShown = MembersCountValue(_peer)
+				| rpl::map(_1 >= kEnableSearchMembersAfterCount)
+				| rpl::distinct_until_changed()
+				| rpl::start_spawning(lifetime());
+			_search->showOn(rpl::duplicate(searchShown));
+			_search->addClickHandler([this]
+			{
+				// TODO throttle(ripple duration)
+				this->showMembersWithSearch(true);
+			});
+			//_cancelSearch->addClickHandler([this] {
+			//	this->cancelSearch();
+			//});
 
-void Members::setupList() {
-	auto topSkip = _header ? _header->height() : 0;
-	_list = object_ptr<ListWidget>(
-		this,
-		_listController.get(),
-		st::infoMembersList);
-	_list->scrollToRequests(
-	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
-		auto addmin = (request.ymin < 0 || !_header)
-			? 0
-			: _header->height();
-		auto addmax = (request.ymax < 0 || !_header)
-			? 0
-			: _header->height();
-		_scrollToRequests.fire({
-			request.ymin + addmin,
-			request.ymax + addmax });
-	}, _list->lifetime());
-	widthValue(
-	) | rpl::start_with_next([this](int newWidth) {
-		_list->resizeToWidth(newWidth);
-	}, _list->lifetime());
-	_list->heightValue(
-	) | rpl::start_with_next([=](int listHeight) {
-		auto newHeight = (listHeight > st::membersMarginBottom)
-			? (topSkip
-				+ listHeight
-				+ st::membersMarginBottom)
-			: 0;
-		resize(width(), newHeight);
-	}, _list->lifetime());
-	_list->moveToLeft(0, topSkip);
-}
+			rpl::combine(
+				std::move(addMemberShown),
+				std::move(searchShown)
+			) | rpl::start_with_next([this]
+			{
+				updateHeaderControlsGeometry(width());
+			}, lifetime());
+		}
 
-int Members::resizeGetHeight(int newWidth) {
-	if (_header) {
-		updateHeaderControlsGeometry(newWidth);
-	}
-	return heightNoMargins();
-}
+		void Members::setupList()
+		{
+			auto topSkip = _header ? _header->height() : 0;
+			_list = object_ptr<ListWidget>(
+				this,
+				_listController.get(),
+				st::infoMembersList);
+			_list->scrollToRequests(
+			) | rpl::start_with_next([this](Ui::ScrollToRequest request)
+			{
+				auto addmin = (request.ymin < 0 || !_header)
+					              ? 0
+					              : _header->height();
+				auto addmax = (request.ymax < 0 || !_header)
+					              ? 0
+					              : _header->height();
+				_scrollToRequests.fire({
+					request.ymin + addmin,
+					request.ymax + addmax
+				});
+			}, _list->lifetime());
+			widthValue(
+			) | rpl::start_with_next([this](int newWidth)
+			{
+				_list->resizeToWidth(newWidth);
+			}, _list->lifetime());
+			_list->heightValue(
+			) | rpl::start_with_next([=](int listHeight)
+			{
+				auto newHeight = (listHeight > st::membersMarginBottom)
+					                 ? (topSkip
+						                 + listHeight
+						                 + st::membersMarginBottom)
+					                 : 0;
+				resize(width(), newHeight);
+			}, _list->lifetime());
+			_list->moveToLeft(0, topSkip);
+		}
 
-//void Members::updateSearchEnabledByContent() {
-//	_controller->setSearchEnabledByContent(
-//		peerListFullRowsCount() >= kEnableSearchMembersAfterCount);
-//}
+		int Members::resizeGetHeight(int newWidth)
+		{
+			if (_header)
+			{
+				updateHeaderControlsGeometry(newWidth);
+			}
+			return heightNoMargins();
+		}
 
-void Members::updateHeaderControlsGeometry(int newWidth) {
-	_openMembers->setGeometry(0, st::infoProfileSkip, newWidth, st::infoMembersHeader - st::infoProfileSkip - st::infoMembersHeaderPaddingBottom);
+		//void Members::updateSearchEnabledByContent() {
+		//	_controller->setSearchEnabledByContent(
+		//		peerListFullRowsCount() >= kEnableSearchMembersAfterCount);
+		//}
 
-	auto availableWidth = newWidth
-		- st::infoMembersButtonPosition.x();
+		void Members::updateHeaderControlsGeometry(int newWidth)
+		{
+			_openMembers->setGeometry(0, st::infoProfileSkip, newWidth, st::infoMembersHeader - st::infoProfileSkip - st::infoMembersHeaderPaddingBottom);
 
-	//auto cancelLeft = availableWidth - _cancelSearch->width();
-	//_cancelSearch->moveToLeft(
-	//	cancelLeft,
-	//	st::infoMembersButtonPosition.y());
+			auto availableWidth = newWidth
+				- st::infoMembersButtonPosition.x();
 
-	//auto searchShownLeft = st::infoIconPosition.x()
-	//	- st::infoMembersSearch.iconPosition.x();
-	//auto searchHiddenLeft = availableWidth - _search->width();
-	//auto searchShown = _searchShownAnimation.value(_searchShown ? 1. : 0.);
-	//auto searchCurrentLeft = anim::interpolate(
-	//	searchHiddenLeft,
-	//	searchShownLeft,
-	//	searchShown);
-	//_search->moveToLeft(
-	//	searchCurrentLeft,
-	//	st::infoMembersButtonPosition.y());
+			//auto cancelLeft = availableWidth - _cancelSearch->width();
+			//_cancelSearch->moveToLeft(
+			//	cancelLeft,
+			//	st::infoMembersButtonPosition.y());
 
-	//if (!_search->isHidden()) {
-	//	availableWidth -= st::infoMembersSearch.width;
-	//}
-	_addMember->moveToLeft(
-		availableWidth - _addMember->width(),
-		st::infoMembersButtonPosition.y(),
-		newWidth);
-	if (!_addMember->isHidden()) {
-		availableWidth -= st::infoMembersSearch.width;
-	}
-	_search->moveToLeft(
-		availableWidth - _search->width(),
-		st::infoMembersButtonPosition.y(),
-		newWidth);
+			//auto searchShownLeft = st::infoIconPosition.x()
+			//	- st::infoMembersSearch.iconPosition.x();
+			//auto searchHiddenLeft = availableWidth - _search->width();
+			//auto searchShown = _searchShownAnimation.value(_searchShown ? 1. : 0.);
+			//auto searchCurrentLeft = anim::interpolate(
+			//	searchHiddenLeft,
+			//	searchShownLeft,
+			//	searchShown);
+			//_search->moveToLeft(
+			//	searchCurrentLeft,
+			//	st::infoMembersButtonPosition.y());
 
-	//auto fieldLeft = anim::interpolate(
-	//	cancelLeft,
-	//	st::infoBlockHeaderPosition.x(),
-	//	searchShown);
-	//_searchField->setGeometryToLeft(
-	//	fieldLeft,
-	//	st::infoMembersSearchTop,
-	//	cancelLeft - fieldLeft,
-	//	_searchField->height());
+			//if (!_search->isHidden()) {
+			//	availableWidth -= st::infoMembersSearch.width;
+			//}
+			_addMember->moveToLeft(
+				availableWidth - _addMember->width(),
+				st::infoMembersButtonPosition.y(),
+				newWidth);
+			if (!_addMember->isHidden())
+			{
+				availableWidth -= st::infoMembersSearch.width;
+			}
+			_search->moveToLeft(
+				availableWidth - _search->width(),
+				st::infoMembersButtonPosition.y(),
+				newWidth);
 
-	//_titleWrap->resize(
-	//	searchCurrentLeft - st::infoBlockHeaderPosition.x(),
-	//	_title->height());
-	_titleWrap->resize(
-		availableWidth - _addMember->width() - st::infoBlockHeaderPosition.x(),
-		_title->height());
-	_titleWrap->moveToLeft(
-		st::infoBlockHeaderPosition.x(),
-		st::infoBlockHeaderPosition.y(),
-		newWidth);
-	_titleWrap->setAttribute(Qt::WA_TransparentForMouseEvents);
+			//auto fieldLeft = anim::interpolate(
+			//	cancelLeft,
+			//	st::infoBlockHeaderPosition.x(),
+			//	searchShown);
+			//_searchField->setGeometryToLeft(
+			//	fieldLeft,
+			//	st::infoMembersSearchTop,
+			//	cancelLeft - fieldLeft,
+			//	_searchField->height());
 
-	//_title->resizeToWidth(searchHiddenLeft);
-	_title->resizeToWidth(_titleWrap->width());
-	_title->moveToLeft(0, 0);
-}
+			//_titleWrap->resize(
+			//	searchCurrentLeft - st::infoBlockHeaderPosition.x(),
+			//	_title->height());
+			_titleWrap->resize(
+				availableWidth - _addMember->width() - st::infoBlockHeaderPosition.x(),
+				_title->height());
+			_titleWrap->moveToLeft(
+				st::infoBlockHeaderPosition.x(),
+				st::infoBlockHeaderPosition.y(),
+				newWidth);
+			_titleWrap->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-void Members::addMember() {
-	if (const auto chat = _peer->asChat()) {
-		AddParticipantsBoxController::Start(chat);
-	} else if (const auto channel = _peer->asChannel()) {
-		const auto state = _listController->saveState();
-		const auto users = ranges::view::all(
-			state->list
-		) | ranges::view::transform([](not_null<PeerData*> peer) {
-			return peer->asUser();
-		}) | ranges::to_vector;
-		AddParticipantsBoxController::Start(
-			channel,
-			{ users.begin(), users.end() });
-	}
-}
+			//_title->resizeToWidth(searchHiddenLeft);
+			_title->resizeToWidth(_titleWrap->width());
+			_title->moveToLeft(0, 0);
+		}
 
-void Members::showMembersWithSearch(bool withSearch) {
-	//if (!_searchShown) {
-	//	toggleSearch();
-	//}
-	auto contentMemento = std::make_unique<Info::Members::Memento>(
-		_controller);
-	contentMemento->setState(saveState());
-	contentMemento->setSearchStartsFocused(withSearch);
-	auto mementoStack = std::vector<std::unique_ptr<ContentMemento>>();
-	mementoStack.push_back(std::move(contentMemento));
-	_controller->showSection(
-		Info::Memento(std::move(mementoStack)));
-}
+		void Members::addMember()
+		{
+			if (const auto chat = _peer->asChat())
+			{
+				AddParticipantsBoxController::Start(chat);
+			}
+			else if (const auto channel = _peer->asChannel())
+			{
+				const auto state = _listController->saveState();
+				const auto users = ranges::view::all(
+					state->list
+				) | ranges::view::transform([](not_null<PeerData*> peer)
+				{
+					return peer->asUser();
+				}) | ranges::to_vector;
+				AddParticipantsBoxController::Start(
+					channel,
+					{users.begin(), users.end()});
+			}
+		}
 
-//void Members::toggleSearch(anim::type animated) {
-//	_searchShown = !_searchShown;
-//	_cancelSearch->toggle(_searchShown, animated);
-//	if (animated == anim::type::normal) {
-//		_searchShownAnimation.start(
-//			[this] { searchAnimationCallback(); },
-//			_searchShown ? 0. : 1.,
-//			_searchShown ? 1. : 0.,
-//			st::slideWrapDuration);
-//	} else {
-//		_searchShownAnimation.finish();
-//		searchAnimationCallback();
-//	}
-//	_search->setDisabled(_searchShown);
-//	if (_searchShown) {
-//		_searchField->show();
-//		_searchField->setFocus();
-//	} else {
-//		setFocus();
-//	}
-//}
-//
-//void Members::searchAnimationCallback() {
-//	if (!_searchShownAnimation.animating()) {
-//		_searchField->setVisible(_searchShown);
-//		updateSearchOverrides();
-//		_search->setPointerCursor(!_searchShown);
-//	}
-//	updateHeaderControlsGeometry(width());
-//}
-//
-//void Members::updateSearchOverrides() {
-//	auto iconOverride = !_searchShown
-//		? nullptr
-//		: (_wrap == Wrap::Layer)
-//		? &st::infoMembersSearchActiveLayer
-//		: &st::infoMembersSearchActive;
-//	_search->setIconOverride(iconOverride, iconOverride);
-//}
-//
-//void Members::cancelSearch() {
-//	if (_searchShown) {
-//		if (!_searchField->getLastText().isEmpty()) {
-//			_searchField->setText(QString());
-//			_searchField->setFocus();
-//		} else {
-//			toggleSearch();
-//		}
-//	}
-//}
+		void Members::showMembersWithSearch(bool withSearch)
+		{
+			//if (!_searchShown) {
+			//	toggleSearch();
+			//}
+			auto contentMemento = std::make_unique<Info::Members::Memento>(
+				_controller);
+			contentMemento->setState(saveState());
+			contentMemento->setSearchStartsFocused(withSearch);
+			auto mementoStack = std::vector<std::unique_ptr<ContentMemento>>();
+			mementoStack.push_back(std::move(contentMemento));
+			_controller->showSection(
+				Info::Memento(std::move(mementoStack)));
+		}
 
-void Members::visibleTopBottomUpdated(
-		int visibleTop,
-		int visibleBottom) {
-	setChildVisibleTopBottom(_list, visibleTop, visibleBottom);
-}
+		//void Members::toggleSearch(anim::type animated) {
+		//	_searchShown = !_searchShown;
+		//	_cancelSearch->toggle(_searchShown, animated);
+		//	if (animated == anim::type::normal) {
+		//		_searchShownAnimation.start(
+		//			[this] { searchAnimationCallback(); },
+		//			_searchShown ? 0. : 1.,
+		//			_searchShown ? 1. : 0.,
+		//			st::slideWrapDuration);
+		//	} else {
+		//		_searchShownAnimation.finish();
+		//		searchAnimationCallback();
+		//	}
+		//	_search->setDisabled(_searchShown);
+		//	if (_searchShown) {
+		//		_searchField->show();
+		//		_searchField->setFocus();
+		//	} else {
+		//		setFocus();
+		//	}
+		//}
+		//
+		//void Members::searchAnimationCallback() {
+		//	if (!_searchShownAnimation.animating()) {
+		//		_searchField->setVisible(_searchShown);
+		//		updateSearchOverrides();
+		//		_search->setPointerCursor(!_searchShown);
+		//	}
+		//	updateHeaderControlsGeometry(width());
+		//}
+		//
+		//void Members::updateSearchOverrides() {
+		//	auto iconOverride = !_searchShown
+		//		? nullptr
+		//		: (_wrap == Wrap::Layer)
+		//		? &st::infoMembersSearchActiveLayer
+		//		: &st::infoMembersSearchActive;
+		//	_search->setIconOverride(iconOverride, iconOverride);
+		//}
+		//
+		//void Members::cancelSearch() {
+		//	if (_searchShown) {
+		//		if (!_searchField->getLastText().isEmpty()) {
+		//			_searchField->setText(QString());
+		//			_searchField->setFocus();
+		//		} else {
+		//			toggleSearch();
+		//		}
+		//	}
+		//}
 
-void Members::peerListSetTitle(Fn<QString()> title) {
-}
+		void Members::visibleTopBottomUpdated(
+			int visibleTop,
+			int visibleBottom)
+		{
+			setChildVisibleTopBottom(_list, visibleTop, visibleBottom);
+		}
 
-void Members::peerListSetAdditionalTitle(
-		Fn<QString()> title) {
-}
+		void Members::peerListSetTitle(Fn<QString()> title)
+		{
+		}
 
-bool Members::peerListIsRowSelected(not_null<PeerData*> peer) {
-	return false;
-}
+		void Members::peerListSetAdditionalTitle(
+			Fn<QString()> title)
+		{
+		}
 
-int Members::peerListSelectedRowsCount() {
-	return 0;
-}
+		bool Members::peerListIsRowSelected(not_null<PeerData*> peer)
+		{
+			return false;
+		}
 
-std::vector<not_null<PeerData*>> Members::peerListCollectSelectedRows() {
-	return {};
-}
+		int Members::peerListSelectedRowsCount()
+		{
+			return 0;
+		}
 
-void Members::peerListScrollToTop() {
-	_scrollToRequests.fire({ -1, -1 });
-}
+		std::vector<not_null<PeerData*>> Members::peerListCollectSelectedRows()
+		{
+			return {};
+		}
 
-void Members::peerListAddSelectedRowInBunch(not_null<PeerData*> peer) {
-	Unexpected("Item selection in Info::Profile::Members.");
-}
+		void Members::peerListScrollToTop()
+		{
+			_scrollToRequests.fire({-1, -1});
+		}
 
-void Members::peerListFinishSelectedRowsBunch() {
-}
+		void Members::peerListAddSelectedRowInBunch(not_null<PeerData*> peer)
+		{
+			Unexpected("Item selection in Info::Profile::Members.");
+		}
 
-void Members::peerListSetDescription(
-		object_ptr<Ui::FlatLabel> description) {
-	description.destroy();
-}
+		void Members::peerListFinishSelectedRowsBunch()
+		{
+		}
 
-} // namespace Profile
+		void Members::peerListSetDescription(
+			object_ptr<Ui::FlatLabel> description)
+		{
+			description.destroy();
+		}
+	} // namespace Profile
 } // namespace Info
-

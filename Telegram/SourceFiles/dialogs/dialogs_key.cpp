@@ -10,41 +10,50 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "history/history.h"
 
-namespace Dialogs {
-namespace {
+namespace Dialogs
+{
+	namespace
+	{
+		using Folder = Data::Folder;
+	} // namespace
 
-using Folder = Data::Folder;
-
-} // namespace
-
-not_null<Entry*> Key::entry() const {
-	if (const auto p = base::get_if<not_null<History*>>(&_value)) {
-		return *p;
-	} else if (const auto p = base::get_if<not_null<Folder*>>(&_value)) {
-		return *p;
+	not_null<Entry*> Key::entry() const
+	{
+		if (const auto p = base::get_if<not_null<History*>>(&_value))
+		{
+			return *p;
+		}
+		else if (const auto p = base::get_if<not_null<Folder*>>(&_value))
+		{
+			return *p;
+		}
+		Unexpected("Empty Dialogs::Key in Key::entry().");
 	}
-	Unexpected("Empty Dialogs::Key in Key::entry().");
-}
 
-History *Key::history() const {
-	if (const auto p = base::get_if<not_null<History*>>(&_value)) {
-		return *p;
+	History* Key::history() const
+	{
+		if (const auto p = base::get_if<not_null<History*>>(&_value))
+		{
+			return *p;
+		}
+		return nullptr;
 	}
-	return nullptr;
-}
 
-Folder *Key::folder() const {
-	if (const auto p = base::get_if<not_null<Folder*>>(&_value)) {
-		return *p;
+	Folder* Key::folder() const
+	{
+		if (const auto p = base::get_if<not_null<Folder*>>(&_value))
+		{
+			return *p;
+		}
+		return nullptr;
 	}
-	return nullptr;
-}
 
-PeerData *Key::peer() const {
-	if (const auto p = base::get_if<not_null<History*>>(&_value)) {
-		return (*p)->peer;
+	PeerData* Key::peer() const
+	{
+		if (const auto p = base::get_if<not_null<History*>>(&_value))
+		{
+			return (*p)->peer;
+		}
+		return nullptr;
 	}
-	return nullptr;
-}
-
 } // namespace Dialogs

@@ -11,61 +11,61 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct PeerListState;
 
-namespace Info {
-namespace Profile {
-class Members;
-struct MembersState;
-} // namespace Profile
+namespace Info
+{
+	namespace Profile
+	{
+		class Members;
+		struct MembersState;
+	} // namespace Profile
 
-namespace Members {
+	namespace Members
+	{
+		using SavedState = Profile::MembersState;
 
-using SavedState = Profile::MembersState;
+		class Memento final : public ContentMemento
+		{
+		public:
+			Memento(not_null<Controller*> controller);
+			Memento(PeerId peerId, PeerId migratedPeerId);
 
-class Memento final : public ContentMemento {
-public:
-	Memento(not_null<Controller*> controller);
-	Memento(PeerId peerId, PeerId migratedPeerId);
+			object_ptr<ContentWidget> createWidget(
+				QWidget* parent,
+				not_null<Controller*> controller,
+				const QRect& geometry) override;
 
-	object_ptr<ContentWidget> createWidget(
-		QWidget *parent,
-		not_null<Controller*> controller,
-		const QRect &geometry) override;
+			Section section() const override;
 
-	Section section() const override;
+			void setState(std::unique_ptr<SavedState> state);
+			std::unique_ptr<SavedState> state();
 
-	void setState(std::unique_ptr<SavedState> state);
-	std::unique_ptr<SavedState> state();
+			~Memento();
 
-	~Memento();
+		private:
+			std::unique_ptr<SavedState> _state;
+		};
 
-private:
-	std::unique_ptr<SavedState> _state;
+		class Widget final : public ContentWidget
+		{
+		public:
+			Widget(
+				QWidget* parent,
+				not_null<Controller*> controller);
 
-};
+			bool showInternal(
+				not_null<ContentMemento*> memento) override;
 
-class Widget final : public ContentWidget {
-public:
-	Widget(
-		QWidget *parent,
-		not_null<Controller*> controller);
+			void setInternalState(
+				const QRect& geometry,
+				not_null<Memento*> memento);
 
-	bool showInternal(
-		not_null<ContentMemento*> memento) override;
+		private:
+			void saveState(not_null<Memento*> memento);
+			void restoreState(not_null<Memento*> memento);
 
-	void setInternalState(
-		const QRect &geometry,
-		not_null<Memento*> memento);
+			std::unique_ptr<ContentMemento> doCreateMemento() override;
 
-private:
-	void saveState(not_null<Memento*> memento);
-	void restoreState(not_null<Memento*> memento);
-
-	std::unique_ptr<ContentMemento> doCreateMemento() override;
-
-	Profile::Members *_inner = nullptr;
-
-};
-
-} // namespace Members
+			Profile::Members* _inner = nullptr;
+		};
+	} // namespace Members
 } // namespace Info
-

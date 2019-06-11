@@ -10,14 +10,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "data/data_peer.h"
 
-namespace Ui {
-class RoundButton;
-class VerticalLayout;
+namespace Ui
+{
+	class RoundButton;
+	class VerticalLayout;
 } // namespace Ui
 
 enum LangKey : int;
 
-class EditPeerPermissionsBox : public BoxContent {
+class EditPeerPermissionsBox : public BoxContent
+{
 public:
 	EditPeerPermissionsBox(QWidget*, not_null<PeerData*> peer);
 
@@ -30,26 +32,26 @@ private:
 	void addBannedButtons(not_null<Ui::VerticalLayout*> container);
 
 	not_null<PeerData*> _peer;
-	Ui::RoundButton *_save = nullptr;
+	Ui::RoundButton* _save = nullptr;
 	Fn<MTPDchatBannedRights::Flags()> _value;
-
 };
 
 template <typename Flags>
-struct EditFlagsControl {
+struct EditFlagsControl
+{
 	object_ptr<Ui::RpWidget> widget;
 	Fn<Flags()> value;
 	rpl::producer<Flags> changes;
 };
 
 EditFlagsControl<MTPDchatBannedRights::Flags> CreateEditRestrictions(
-	QWidget *parent,
+	QWidget* parent,
 	LangKey header,
 	MTPDchatBannedRights::Flags restrictions,
 	std::map<MTPDchatBannedRights::Flags, QString> disabledMessages);
 
 EditFlagsControl<MTPDchatAdminRights::Flags> CreateEditAdminRights(
-	QWidget *parent,
+	QWidget* parent,
 	LangKey header,
 	MTPDchatAdminRights::Flags rights,
 	std::map<MTPDchatAdminRights::Flags, QString> disabledMessages,

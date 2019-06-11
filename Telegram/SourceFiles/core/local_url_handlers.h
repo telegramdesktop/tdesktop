@@ -7,23 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace qthelp {
-class RegularExpressionMatch;
+namespace qthelp
+{
+	class RegularExpressionMatch;
 } // namespace qthelp
 
-namespace Core {
+namespace Core
+{
+	struct LocalUrlHandler
+	{
+		QString expression;
+		Fn<bool(
+			const qthelp::RegularExpressionMatch& match,
+			const QVariant& context)> handler;
+	};
 
-struct LocalUrlHandler {
-	QString expression;
-	Fn<bool(
-		const qthelp::RegularExpressionMatch &match,
-		const QVariant &context)> handler;
-};
+	const std::vector<LocalUrlHandler>& LocalUrlHandlers();
 
-const std::vector<LocalUrlHandler> &LocalUrlHandlers();
+	bool InternalPassportLink(const QString& url);
 
-bool InternalPassportLink(const QString &url);
-
-bool StartUrlRequiresActivate(const QString &url);
-
+	bool StartUrlRequiresActivate(const QString& url);
 } // namespace Core

@@ -10,244 +10,294 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
-namespace Window {
-class SessionController;
-class AbstractSectionWidget;
-enum class Column;
+namespace Window
+{
+	class SessionController;
+	class AbstractSectionWidget;
+	enum class Column;
 } // namespace Window
 
-namespace Media {
-namespace View {
-class PlaybackProgress;
-} // namespace View
+namespace Media
+{
+	namespace View
+	{
+		class PlaybackProgress;
+	} // namespace View
 } // namespace Media
 
-namespace Media {
-namespace Streaming {
-class Player;
-} // namespace Streaming
+namespace Media
+{
+	namespace Streaming
+	{
+		class Player;
+	} // namespace Streaming
 } // namespace Media
 
-namespace Media {
-namespace Player {
+namespace Media
+{
+	namespace Player
+	{
+		class Float : public Ui::RpWidget, private base::Subscriber
+		{
+		public:
+			Float(
+				QWidget* parent,
+				not_null<Window::SessionController*> controller,
+				not_null<HistoryItem*> item,
+				Fn<void(bool visible)> toggleCallback,
+				Fn<void(bool closed)> draggedCallback);
 
-class Float : public Ui::RpWidget, private base::Subscriber {
-public:
-	Float(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		not_null<HistoryItem*> item,
-		Fn<void(bool visible)> toggleCallback,
-		Fn<void(bool closed)> draggedCallback);
+			HistoryItem* item() const
+			{
+				return _item;
+			}
 
-	HistoryItem *item() const {
-		return _item;
-	}
-	void setOpacity(float64 opacity) {
-		if (_opacity != opacity) {
-			_opacity = opacity;
-			update();
-		}
-	}
-	float64 countOpacityByParent() const {
-		return outRatio();
-	}
-	bool isReady() const {
-		return (getPlayer() != nullptr);
-	}
-	void detach();
-	bool detached() const {
-		return !_item;
-	}
-	bool dragged() const {
-		return _drag;
-	}
-	void resetMouseState() {
-		_down = false;
-		if (_drag) {
-			finishDrag(false);
-		}
-	}
+			void setOpacity(float64 opacity)
+			{
+				if (_opacity != opacity)
+				{
+					_opacity = opacity;
+					update();
+				}
+			}
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void mouseDoubleClickEvent(QMouseEvent *e) override;
+			float64 countOpacityByParent() const
+			{
+				return outRatio();
+			}
 
-private:
-	float64 outRatio() const;
-	Streaming::Player *getPlayer() const;
-	View::PlaybackProgress *getPlayback() const;
-	void repaintItem();
-	void prepareShadow();
-	bool hasFrame() const;
-	bool fillFrame();
-	QRect getInnerRect() const;
-	void finishDrag(bool closed);
-	void pauseResume();
+			bool isReady() const
+			{
+				return (getPlayer() != nullptr);
+			}
 
-	not_null<Window::SessionController*> _controller;
-	HistoryItem *_item = nullptr;
-	Fn<void(bool visible)> _toggleCallback;
+			void detach();
 
-	float64 _opacity = 1.;
+			bool detached() const
+			{
+				return !_item;
+			}
 
-	QPixmap _shadow;
-	QImage _frame;
-	bool _down = false;
-	QPoint _downPoint;
+			bool dragged() const
+			{
+				return _drag;
+			}
 
-	bool _drag = false;
-	QPoint _dragLocalPoint;
-	Fn<void(bool closed)> _draggedCallback;
+			void resetMouseState()
+			{
+				_down = false;
+				if (_drag)
+				{
+					finishDrag(false);
+				}
+			}
 
-};
+		protected:
+			void paintEvent(QPaintEvent* e) override;
+			void mouseMoveEvent(QMouseEvent* e) override;
+			void mousePressEvent(QMouseEvent* e) override;
+			void mouseReleaseEvent(QMouseEvent* e) override;
+			void mouseDoubleClickEvent(QMouseEvent* e) override;
 
-class FloatDelegate {
-public:
-	virtual not_null<Ui::RpWidget*> floatPlayerWidget() = 0;
-	virtual not_null<Window::SessionController*> floatPlayerController() = 0;
-	virtual not_null<Window::AbstractSectionWidget*> floatPlayerGetSection(
-		Window::Column column) = 0;
-	virtual void floatPlayerEnumerateSections(Fn<void(
-		not_null<Window::AbstractSectionWidget*> widget,
-		Window::Column widgetColumn)> callback) = 0;
-	virtual bool floatPlayerIsVisible(not_null<HistoryItem*> item) = 0;
+		private:
+			float64 outRatio() const;
+			Streaming::Player* getPlayer() const;
+			View::PlaybackProgress* getPlayback() const;
+			void repaintItem();
+			void prepareShadow();
+			bool hasFrame() const;
+			bool fillFrame();
+			QRect getInnerRect() const;
+			void finishDrag(bool closed);
+			void pauseResume();
 
-	virtual rpl::producer<> floatPlayerCheckVisibilityRequests() {
-		return _checkVisibility.events();
-	}
-	virtual rpl::producer<> floatPlayerHideAllRequests() {
-		return _hideAll.events();
-	}
-	virtual rpl::producer<> floatPlayerShowVisibleRequests() {
-		return _showVisible.events();
-	}
-	virtual rpl::producer<> floatPlayerRaiseAllRequests() {
-		return _raiseAll.events();
-	}
-	virtual rpl::producer<> floatPlayerUpdatePositionsRequests() {
-		return _updatePositions.events();;
-	}
+			not_null<Window::SessionController*> _controller;
+			HistoryItem* _item = nullptr;
+			Fn<void(bool visible)> _toggleCallback;
 
-	struct FloatPlayerFilterWheelEventRequest {
-		not_null<QObject*> object;
-		not_null<QEvent*> event;
-		not_null<std::optional<bool>*> result;
-	};
-	virtual auto floatPlayerFilterWheelEventRequests()
-	-> rpl::producer<FloatPlayerFilterWheelEventRequest> {
-		return _filterWheelEvent.events();
-	}
+			float64 _opacity = 1.;
 
-	virtual ~FloatDelegate() = default;
+			QPixmap _shadow;
+			QImage _frame;
+			bool _down = false;
+			QPoint _downPoint;
 
-protected:
-	void floatPlayerCheckVisibility() {
-		_checkVisibility.fire({});
-	}
-	void floatPlayerHideAll() {
-		_hideAll.fire({});
-	}
-	void floatPlayerShowVisible() {
-		_showVisible.fire({});
-	}
-	void floatPlayerRaiseAll() {
-		_raiseAll.fire({});
-	}
-	void floatPlayerUpdatePositions() {
-		_updatePositions.fire({});
-	}
-	std::optional<bool> floatPlayerFilterWheelEvent(
-			not_null<QObject*> object,
-			not_null<QEvent*> event) {
-		auto result = std::optional<bool>();
-		_filterWheelEvent.fire({ object, event, &result });
-		return result;
-	}
+			bool _drag = false;
+			QPoint _dragLocalPoint;
+			Fn<void(bool closed)> _draggedCallback;
+		};
 
-private:
-	rpl::event_stream<> _checkVisibility;
-	rpl::event_stream<> _hideAll;
-	rpl::event_stream<> _showVisible;
-	rpl::event_stream<> _raiseAll;
-	rpl::event_stream<> _updatePositions;
-	rpl::event_stream<FloatPlayerFilterWheelEventRequest> _filterWheelEvent;
+		class FloatDelegate
+		{
+		public:
+			virtual not_null<Ui::RpWidget*> floatPlayerWidget() = 0;
+			virtual not_null<Window::SessionController*> floatPlayerController() = 0;
+			virtual not_null<Window::AbstractSectionWidget*> floatPlayerGetSection(
+				Window::Column column) = 0;
+			virtual void floatPlayerEnumerateSections(Fn<void(
+				not_null<Window::AbstractSectionWidget*> widget,
+				Window::Column widgetColumn)> callback) = 0;
+			virtual bool floatPlayerIsVisible(not_null<HistoryItem*> item) = 0;
 
-};
+			virtual rpl::producer<> floatPlayerCheckVisibilityRequests()
+			{
+				return _checkVisibility.events();
+			}
 
-class FloatController : private base::Subscriber {
-public:
-	explicit FloatController(not_null<FloatDelegate*> delegate);
+			virtual rpl::producer<> floatPlayerHideAllRequests()
+			{
+				return _hideAll.events();
+			}
 
-	void replaceDelegate(not_null<FloatDelegate*> delegate);
-	rpl::producer<FullMsgId> closeEvents() const {
-		return _closeEvents.events();
-	}
+			virtual rpl::producer<> floatPlayerShowVisibleRequests()
+			{
+				return _showVisible.events();
+			}
 
-private:
-	struct Item {
-		template <typename ToggleCallback, typename DraggedCallback>
-		Item(
-			not_null<QWidget*> parent,
-			not_null<Window::SessionController*> controller,
-			not_null<HistoryItem*> item,
-			ToggleCallback toggle,
-			DraggedCallback dragged);
+			virtual rpl::producer<> floatPlayerRaiseAllRequests()
+			{
+				return _raiseAll.events();
+			}
 
-		bool hiddenByWidget = false;
-		bool hiddenByHistory = false;
-		bool visible = false;
-		RectPart animationSide;
-		Ui::Animations::Simple visibleAnimation;
-		Window::Column column;
-		RectPart corner;
-		QPoint dragFrom;
-		Ui::Animations::Simple draggedAnimation;
-		bool hiddenByDrag = false;
-		object_ptr<Float> widget;
-	};
+			virtual rpl::producer<> floatPlayerUpdatePositionsRequests()
+			{
+				return _updatePositions.events();;
+			}
 
-	void checkCurrent();
-	void create(not_null<HistoryItem*> item);
-	void toggle(not_null<Item*> instance);
-	void updatePosition(not_null<Item*> instance);
-	void remove(not_null<Item*> instance);
-	Item *current() const {
-		return _items.empty() ? nullptr : _items.back().get();
-	}
-	void finishDrag(
-		not_null<Item*> instance,
-		bool closed);
-	void updateColumnCorner(QPoint center);
-	QPoint getPosition(not_null<Item*> instance) const;
-	QPoint getHiddenPosition(
-		QPoint position,
-		QSize size,
-		RectPart side) const;
-	RectPart getSide(QPoint center) const;
+			struct FloatPlayerFilterWheelEventRequest
+			{
+				not_null<QObject*> object;
+				not_null<QEvent*> event;
+				not_null<std::optional<bool>*> result;
+			};
 
-	void startDelegateHandling();
-	void checkVisibility();
-	void hideAll();
-	void showVisible();
-	void raiseAll();
-	void updatePositions();
-	std::optional<bool> filterWheelEvent(
-		not_null<QObject*> object,
-		not_null<QEvent*> event);
+			virtual auto floatPlayerFilterWheelEventRequests()
+			-> rpl::producer<FloatPlayerFilterWheelEventRequest>
+			{
+				return _filterWheelEvent.events();
+			}
 
-	not_null<FloatDelegate*> _delegate;
-	not_null<Ui::RpWidget*> _parent;
-	not_null<Window::SessionController*> _controller;
-	std::vector<std::unique_ptr<Item>> _items;
+			virtual ~FloatDelegate() = default;
 
-	rpl::event_stream<FullMsgId> _closeEvents;
-	rpl::lifetime _delegateLifetime;
+		protected:
+			void floatPlayerCheckVisibility()
+			{
+				_checkVisibility.fire({});
+			}
 
-};
+			void floatPlayerHideAll()
+			{
+				_hideAll.fire({});
+			}
 
-} // namespace Player
+			void floatPlayerShowVisible()
+			{
+				_showVisible.fire({});
+			}
+
+			void floatPlayerRaiseAll()
+			{
+				_raiseAll.fire({});
+			}
+
+			void floatPlayerUpdatePositions()
+			{
+				_updatePositions.fire({});
+			}
+
+			std::optional<bool> floatPlayerFilterWheelEvent(
+				not_null<QObject*> object,
+				not_null<QEvent*> event)
+			{
+				auto result = std::optional<bool>();
+				_filterWheelEvent.fire({object, event, &result});
+				return result;
+			}
+
+		private:
+			rpl::event_stream<> _checkVisibility;
+			rpl::event_stream<> _hideAll;
+			rpl::event_stream<> _showVisible;
+			rpl::event_stream<> _raiseAll;
+			rpl::event_stream<> _updatePositions;
+			rpl::event_stream<FloatPlayerFilterWheelEventRequest> _filterWheelEvent;
+		};
+
+		class FloatController : private base::Subscriber
+		{
+		public:
+			explicit FloatController(not_null<FloatDelegate*> delegate);
+
+			void replaceDelegate(not_null<FloatDelegate*> delegate);
+
+			rpl::producer<FullMsgId> closeEvents() const
+			{
+				return _closeEvents.events();
+			}
+
+		private:
+			struct Item
+			{
+				template <typename ToggleCallback, typename DraggedCallback>
+				Item(
+					not_null<QWidget*> parent,
+					not_null<Window::SessionController*> controller,
+					not_null<HistoryItem*> item,
+					ToggleCallback toggle,
+					DraggedCallback dragged);
+
+				bool hiddenByWidget = false;
+				bool hiddenByHistory = false;
+				bool visible = false;
+				RectPart animationSide;
+				Ui::Animations::Simple visibleAnimation;
+				Window::Column column;
+				RectPart corner;
+				QPoint dragFrom;
+				Ui::Animations::Simple draggedAnimation;
+				bool hiddenByDrag = false;
+				object_ptr<Float> widget;
+			};
+
+			void checkCurrent();
+			void create(not_null<HistoryItem*> item);
+			void toggle(not_null<Item*> instance);
+			void updatePosition(not_null<Item*> instance);
+			void remove(not_null<Item*> instance);
+
+			Item* current() const
+			{
+				return _items.empty() ? nullptr : _items.back().get();
+			}
+
+			void finishDrag(
+				not_null<Item*> instance,
+				bool closed);
+			void updateColumnCorner(QPoint center);
+			QPoint getPosition(not_null<Item*> instance) const;
+			QPoint getHiddenPosition(
+				QPoint position,
+				QSize size,
+				RectPart side) const;
+			RectPart getSide(QPoint center) const;
+
+			void startDelegateHandling();
+			void checkVisibility();
+			void hideAll();
+			void showVisible();
+			void raiseAll();
+			void updatePositions();
+			std::optional<bool> filterWheelEvent(
+				not_null<QObject*> object,
+				not_null<QEvent*> event);
+
+			not_null<FloatDelegate*> _delegate;
+			not_null<Ui::RpWidget*> _parent;
+			not_null<Window::SessionController*> _controller;
+			std::vector<std::unique_ptr<Item>> _items;
+
+			rpl::event_stream<FullMsgId> _closeEvents;
+			rpl::lifetime _delegateLifetime;
+		};
+	} // namespace Player
 } // namespace Media

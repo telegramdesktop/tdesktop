@@ -9,12 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-namespace Ui {
-class UsernameInput;
-class LinkButton;
+namespace Ui
+{
+	class UsernameInput;
+	class LinkButton;
 } // namespace Ui
 
-class UsernameBox : public BoxContent, public RPCSender {
+class UsernameBox : public BoxContent, public RPCSender
+{
 public:
 	UsernameBox(QWidget*);
 
@@ -22,15 +24,15 @@ protected:
 	void prepare() override;
 	void setInnerFocus() override;
 
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent* e) override;
+	void resizeEvent(QResizeEvent* e) override;
 
 private:
-	void onUpdateDone(const MTPUser &result);
-	bool onUpdateFail(const RPCError &error);
+	void onUpdateDone(const MTPUser& result);
+	bool onUpdateFail(const RPCError& error);
 
-	void onCheckDone(const MTPBool &result);
-	bool onCheckFail(const RPCError &error);
+	void onCheckDone(const MTPBool& result);
+	bool onCheckFail(const RPCError& error);
 
 	void save();
 
@@ -51,5 +53,4 @@ private:
 
 	Text _about;
 	object_ptr<QTimer> _checkTimer;
-
 };

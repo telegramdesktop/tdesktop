@@ -23,24 +23,26 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 	int limitBefore,
 	int limitAfter);
 
-struct SharedMediaMergedKey {
+struct SharedMediaMergedKey
+{
 	using Type = Storage::SharedMediaType;
 
 	SharedMediaMergedKey(
 		SparseIdsMergedSlice::Key mergedKey,
-		Type type)
-	: mergedKey(mergedKey)
-	, type(type) {
+		Type type) :
+		mergedKey(mergedKey)
+		, type(type)
+	{
 	}
 
-	bool operator==(const SharedMediaMergedKey &other) const {
+	bool operator==(const SharedMediaMergedKey& other) const
+	{
 		return (mergedKey == other.mergedKey)
 			&& (type == other.type);
 	}
 
 	SparseIdsMergedSlice::Key mergedKey;
 	Type type = Type::kCount;
-
 };
 
 rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
@@ -48,7 +50,8 @@ rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
 	int limitBefore,
 	int limitAfter);
 
-class SharedMediaWithLastSlice {
+class SharedMediaWithLastSlice
+{
 public:
 	using Type = Storage::SharedMediaType;
 
@@ -58,27 +61,32 @@ public:
 		MessageId,
 		not_null<PhotoData*>>;
 
-	struct Key {
+	struct Key
+	{
 		Key(
 			PeerId peerId,
 			PeerId migratedPeerId,
 			Type type,
-			UniversalMsgId universalId)
-		: peerId(peerId)
-		, migratedPeerId(migratedPeerId)
-		, type(type)
-		, universalId(universalId) {
+			UniversalMsgId universalId) :
+			peerId(peerId)
+			, migratedPeerId(migratedPeerId)
+			, type(type)
+			, universalId(universalId)
+		{
 			Expects(base::get_if<MessageId>(&universalId) != nullptr
 				|| type == Type::ChatPhoto);
 		}
 
-		bool operator==(const Key &other) const {
+		bool operator==(const Key& other) const
+		{
 			return (peerId == other.peerId)
 				&& (migratedPeerId == other.migratedPeerId)
 				&& (type == other.type)
 				&& (universalId == other.universalId);
 		}
-		bool operator!=(const Key &other) const {
+
+		bool operator!=(const Key& other) const
+		{
 			return !(*this == other);
 		}
 
@@ -86,7 +94,6 @@ public:
 		PeerId migratedPeerId = 0;
 		Type type = Type::kCount;
 		UniversalMsgId universalId;
-
 	};
 
 	SharedMediaWithLastSlice(Key key);
@@ -101,11 +108,12 @@ public:
 	std::optional<int> indexOf(Value fullId) const;
 	int size() const;
 	Value operator[](int index) const;
-	std::optional<int> distance(const Key &a, const Key &b) const;
+	std::optional<int> distance(const Key& a, const Key& b) const;
 
 	void reverse();
 
-	static SparseIdsMergedSlice::Key ViewerKey(const Key &key) {
+	static SparseIdsMergedSlice::Key ViewerKey(const Key& key)
+	{
 		return {
 			key.peerId,
 			key.migratedPeerId,
@@ -114,7 +122,9 @@ public:
 				: ServerMaxMsgId - 1
 		};
 	}
-	static SparseIdsMergedSlice::Key EndingKey(const Key &key) {
+
+	static SparseIdsMergedSlice::Key EndingKey(const Key& key)
+	{
 		return {
 			key.peerId,
 			key.migratedPeerId,
@@ -123,44 +133,58 @@ public:
 	}
 
 private:
-	static std::optional<SparseIdsMergedSlice> EndingSlice(const Key &key) {
+	static std::optional<SparseIdsMergedSlice> EndingSlice(const Key& key)
+	{
 		return base::get_if<MessageId>(&key.universalId)
-			? base::make_optional(SparseIdsMergedSlice(EndingKey(key)))
-			: std::nullopt;
+			       ? base::make_optional(SparseIdsMergedSlice(EndingKey(key)))
+			       : std::nullopt;
 	}
 
 	static std::optional<PhotoId> LastPeerPhotoId(PeerId peerId);
 	static std::optional<bool> IsLastIsolated(
-		const SparseIdsMergedSlice &slice,
-		const std::optional<SparseIdsMergedSlice> &ending,
+		const SparseIdsMergedSlice& slice,
+		const std::optional<SparseIdsMergedSlice>& ending,
 		std::optional<PhotoId> lastPeerPhotoId);
 	static std::optional<FullMsgId> LastFullMsgId(
-		const SparseIdsMergedSlice &slice);
+		const SparseIdsMergedSlice& slice);
+
 	static std::optional<int> Add(
-			const std::optional<int> &a,
-			const std::optional<int> &b) {
+		const std::optional<int>& a,
+		const std::optional<int>& b)
+	{
 		return (a && b) ? base::make_optional(*a + *b) : std::nullopt;
 	}
-	static Value ComputeId(PeerId peerId, MsgId msgId) {
+
+	static Value ComputeId(PeerId peerId, MsgId msgId)
+	{
 		return FullMsgId(
 			peerIsChannel(peerId) ? peerToBareInt(peerId) : 0,
 			msgId);
 	}
-	static Value ComputeId(const Key &key) {
-		if (auto messageId = base::get_if<MessageId>(&key.universalId)) {
+
+	static Value ComputeId(const Key& key)
+	{
+		if (auto messageId = base::get_if<MessageId>(&key.universalId))
+		{
 			return (*messageId >= 0)
-				? ComputeId(key.peerId, *messageId)
-				: ComputeId(key.migratedPeerId, ServerMaxMsgId + *messageId);
+				       ? ComputeId(key.peerId, *messageId)
+				       : ComputeId(key.migratedPeerId, ServerMaxMsgId + *messageId);
 		}
 		return *base::get_if<not_null<PhotoData*>>(&key.universalId);
 	}
 
-	bool isolatedInSlice() const {
+	bool isolatedInSlice() const
+	{
 		return (_slice.skippedAfter() != 0);
 	}
-	std::optional<int> lastPhotoSkip() const {
+
+	std::optional<int> lastPhotoSkip() const
+	{
 		return _isolatedLastPhoto
-			| [](bool isolated) { return isolated ? 1 : 0; };
+			| [](bool isolated)
+			{
+				return isolated ? 1 : 0;
+			};
 	}
 
 	std::optional<int> skippedBeforeImpl() const;
@@ -173,7 +197,6 @@ private:
 	std::optional<PhotoId> _lastPhotoId;
 	std::optional<bool> _isolatedLastPhoto;
 	bool _reversed = false;
-
 };
 
 rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(

@@ -9,31 +9,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_notifications_manager.h"
 
-namespace Platform {
-namespace Notifications {
+namespace Platform
+{
+	namespace Notifications
+	{
+		class Manager : public Window::Notifications::NativeManager
+		{
+		public:
+			Manager(Window::Notifications::System* system);
 
-class Manager : public Window::Notifications::NativeManager {
-public:
-	Manager(Window::Notifications::System *system);
+			bool init();
 
-	bool init();
+			void clearNotification(PeerId peerId, MsgId msgId);
 
-	void clearNotification(PeerId peerId, MsgId msgId);
+			~Manager();
 
-	~Manager();
+		protected:
+			void doShowNativeNotification(PeerData* peer, MsgId msgId, const QString& title, const QString& subtitle, const QString& msg, bool hideNameAndPhoto, bool hideReplyButton) override;
+			void doClearAllFast() override;
+			void doClearFromHistory(History* history) override;
+			void onBeforeNotificationActivated(PeerId peerId, MsgId msgId) override;
+			void onAfterNotificationActivated(PeerId peerId, MsgId msgId) override;
 
-protected:
-	void doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) override;
-	void doClearAllFast() override;
-	void doClearFromHistory(History *history) override;
-	void onBeforeNotificationActivated(PeerId peerId, MsgId msgId) override;
-	void onAfterNotificationActivated(PeerId peerId, MsgId msgId) override;
-
-private:
-	class Private;
-	const std::unique_ptr<Private> _private;
-
-};
-
-} // namespace Notifications
+		private:
+			class Private;
+			const std::unique_ptr<Private> _private;
+		};
+	} // namespace Notifications
 } // namespace Platform

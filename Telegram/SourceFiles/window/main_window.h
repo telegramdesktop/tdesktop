@@ -13,182 +13,212 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class BoxContent;
 
-namespace Main {
-class Account;
+namespace Main
+{
+	class Account;
 } // namespace Main
 
-namespace Window {
+namespace Window
+{
+	class Controller;
+	class SessionController;
+	class TitleWidget;
+	struct TermsLock;
 
-class Controller;
-class SessionController;
-class TitleWidget;
-struct TermsLock;
+	QImage LoadLogo();
+	QImage LoadLogoNoMargin();
+	QIcon CreateIcon(Main::Account* account = nullptr);
+	void ConvertIconToBlack(QImage& image);
 
-QImage LoadLogo();
-QImage LoadLogoNoMargin();
-QIcon CreateIcon(Main::Account *account = nullptr);
-void ConvertIconToBlack(QImage &image);
-
-class MainWindow : public Ui::RpWidget, protected base::Subscriber {
+	class MainWindow : public Ui::RpWidget, protected base::Subscriber
+	{
 	Q_OBJECT
 
-public:
-	explicit MainWindow(not_null<Controller*> controller);
+	public:
+		explicit MainWindow(not_null<Controller*> controller);
 
-	Window::Controller &controller() const {
-		return *_controller;
-	}
-	Main::Account &account() const;
-	Window::SessionController *sessionController() const;
-	void setInactivePress(bool inactive);
-	bool wasInactivePress() const {
-		return _wasInactivePress;
-	}
+		Window::Controller& controller() const
+		{
+			return *_controller;
+		}
 
-	bool hideNoQuit();
+		Main::Account& account() const;
+		Window::SessionController* sessionController() const;
+		void setInactivePress(bool inactive);
 
-	void init();
-	HitTestResult hitTest(const QPoint &p) const;
-	void updateIsActive(int timeout);
-	bool isActive() const {
-		return _isActive;
-	}
+		bool wasInactivePress() const
+		{
+			return _wasInactivePress;
+		}
 
-	bool positionInited() const {
-		return _positionInited;
-	}
-	void positionUpdated();
+		bool hideNoQuit();
 
-	bool titleVisible() const;
-	void setTitleVisible(bool visible);
-	QString titleText() const {
-		return _titleText;
-	}
+		void init();
+		HitTestResult hitTest(const QPoint& p) const;
+		void updateIsActive(int timeout);
 
-	void reActivateWindow();
+		bool isActive() const
+		{
+			return _isActive;
+		}
 
-	void showRightColumn(object_ptr<TWidget> widget);
-	int maximalExtendBy() const;
-	bool canExtendNoMove(int extendBy) const;
+		bool positionInited() const
+		{
+			return _positionInited;
+		}
 
-	// Returns how much could the window get extended.
-	int tryToExtendWidthBy(int addToWidth);
+		void positionUpdated();
 
-	virtual void updateTrayMenu(bool force = false) {
-	}
+		bool titleVisible() const;
+		void setTitleVisible(bool visible);
 
-	virtual ~MainWindow();
+		QString titleText() const
+		{
+			return _titleText;
+		}
 
-	TWidget *bodyWidget() {
-		return _body.data();
-	}
+		void reActivateWindow();
 
-	void launchDrag(std::unique_ptr<QMimeData> data);
-	base::Observable<void> &dragFinished() {
-		return _dragFinished;
-	}
+		void showRightColumn(object_ptr<TWidget> widget);
+		int maximalExtendBy() const;
+		bool canExtendNoMove(int extendBy) const;
 
-	rpl::producer<> leaveEvents() const;
+		// Returns how much could the window get extended.
+		int tryToExtendWidthBy(int addToWidth);
 
-	virtual void updateWindowIcon();
+		virtual void updateTrayMenu(bool force = false)
+		{
+		}
 
-public slots:
-	bool minimizeToTray();
-	void updateGlobalMenu() {
-		updateGlobalMenuHook();
-	}
+		virtual ~MainWindow();
 
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
+		TWidget* bodyWidget()
+		{
+			return _body.data();
+		}
 
-	void savePosition(Qt::WindowState state = Qt::WindowActive);
-	void handleStateChanged(Qt::WindowState state);
-	void handleActiveChanged();
+		void launchDrag(std::unique_ptr<QMimeData> data);
 
-	virtual void initHook() {
-	}
+		base::Observable<void>& dragFinished()
+		{
+			return _dragFinished;
+		}
 
-	virtual void updateIsActiveHook() {
-	}
+		rpl::producer<> leaveEvents() const;
 
-	virtual void handleActiveChangedHook() {
-	}
+		virtual void updateWindowIcon();
 
-	void clearWidgets();
-	virtual void clearWidgetsHook() {
-	}
+	public slots:
+		bool minimizeToTray();
 
-	virtual void stateChangedHook(Qt::WindowState state) {
-	}
+		void updateGlobalMenu()
+		{
+			updateGlobalMenuHook();
+		}
 
-	virtual void titleVisibilityChangedHook() {
-	}
+	protected:
+		void resizeEvent(QResizeEvent* e) override;
+		void leaveEventHook(QEvent* e) override;
 
-	virtual void unreadCounterChangedHook() {
-	}
+		void savePosition(Qt::WindowState state = Qt::WindowActive);
+		void handleStateChanged(Qt::WindowState state);
+		void handleActiveChanged();
 
-	virtual void closeWithoutDestroy() {
-		hide();
-	}
+		virtual void initHook()
+		{
+		}
 
-	virtual void updateGlobalMenuHook() {
-	}
+		virtual void updateIsActiveHook()
+		{
+		}
 
-	virtual bool hasTrayIcon() const {
-		return false;
-	}
-	virtual void showTrayTooltip() {
-	}
+		virtual void handleActiveChangedHook()
+		{
+		}
 
-	virtual void workmodeUpdated(DBIWorkMode mode) {
-	}
+		void clearWidgets();
 
-	virtual void updateControlsGeometry();
+		virtual void clearWidgetsHook()
+		{
+		}
 
-	// This one is overriden in Windows for historical reasons.
-	virtual int32 screenNameChecksum(const QString &name) const;
+		virtual void stateChangedHook(Qt::WindowState state)
+		{
+		}
 
-	void setPositionInited();
-	void attachToTrayIcon(not_null<QSystemTrayIcon*> icon);
-	virtual void handleTrayIconActication(
-		QSystemTrayIcon::ActivationReason reason) = 0;
+		virtual void titleVisibilityChangedHook()
+		{
+		}
 
-private:
-	void updatePalette();
-	void updateUnreadCounter();
-	void initSize();
+		virtual void unreadCounterChangedHook()
+		{
+		}
 
-	bool computeIsActive() const;
-	void checkLockByTerms();
-	void showTermsDecline();
-	void showTermsDelete();
+		virtual void closeWithoutDestroy()
+		{
+			hide();
+		}
 
-	int computeMinHeight() const;
+		virtual void updateGlobalMenuHook()
+		{
+		}
 
-	not_null<Window::Controller*> _controller;
+		virtual bool hasTrayIcon() const
+		{
+			return false;
+		}
 
-	base::Timer _positionUpdatedTimer;
-	bool _positionInited = false;
+		virtual void showTrayTooltip()
+		{
+		}
 
-	object_ptr<TitleWidget> _title = { nullptr };
-	object_ptr<Ui::RpWidget> _outdated;
-	object_ptr<TWidget> _body;
-	object_ptr<TWidget> _rightColumn = { nullptr };
-	QPointer<BoxContent> _termsBox;
+		virtual void workmodeUpdated(DBIWorkMode mode)
+		{
+		}
 
-	QIcon _icon;
-	bool _usingSupportIcon = false;
-	QString _titleText;
+		virtual void updateControlsGeometry();
 
-	bool _isActive = false;
-	base::Timer _isActiveTimer;
-	bool _wasInactivePress = false;
-	base::Timer _inactivePressTimer;
+		// This one is overriden in Windows for historical reasons.
+		virtual int32 screenNameChecksum(const QString& name) const;
 
-	base::Observable<void> _dragFinished;
-	rpl::event_stream<> _leaveEvents;
+		void setPositionInited();
+		void attachToTrayIcon(not_null<QSystemTrayIcon*> icon);
+		virtual void handleTrayIconActication(
+			QSystemTrayIcon::ActivationReason reason) = 0;
 
-};
+	private:
+		void updatePalette();
+		void updateUnreadCounter();
+		void initSize();
 
+		bool computeIsActive() const;
+		void checkLockByTerms();
+		void showTermsDecline();
+		void showTermsDelete();
+
+		int computeMinHeight() const;
+
+		not_null<Window::Controller*> _controller;
+
+		base::Timer _positionUpdatedTimer;
+		bool _positionInited = false;
+
+		object_ptr<TitleWidget> _title = {nullptr};
+		object_ptr<Ui::RpWidget> _outdated;
+		object_ptr<TWidget> _body;
+		object_ptr<TWidget> _rightColumn = {nullptr};
+		QPointer<BoxContent> _termsBox;
+
+		QIcon _icon;
+		bool _usingSupportIcon = false;
+		QString _titleText;
+
+		bool _isActive = false;
+		base::Timer _isActiveTimer;
+		bool _wasInactivePress = false;
+		base::Timer _inactivePressTimer;
+
+		base::Observable<void> _dragFinished;
+		rpl::event_stream<> _leaveEvents;
+	};
 } // namespace Window

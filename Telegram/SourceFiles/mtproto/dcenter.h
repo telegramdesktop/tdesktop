@@ -7,50 +7,52 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace MTP {
+namespace MTP
+{
+	class Instance;
+	class AuthKey;
+	using AuthKeyPtr = std::shared_ptr<AuthKey>;
 
-class Instance;
-class AuthKey;
-using AuthKeyPtr = std::shared_ptr<AuthKey>;
+	namespace internal
+	{
+		class Dcenter : public QObject
+		{
+		Q_OBJECT
 
-namespace internal {
+		public:
+			Dcenter(not_null<Instance*> instance, DcId dcId, AuthKeyPtr&& key);
 
-class Dcenter : public QObject {
-	Q_OBJECT
+			QReadWriteLock* keyMutex() const;
+			const AuthKeyPtr& getKey() const;
+			void setKey(AuthKeyPtr&& key);
+			void destroyKey();
 
-public:
-	Dcenter(not_null<Instance*> instance, DcId dcId, AuthKeyPtr &&key);
+			bool connectionInited() const
+			{
+				QMutexLocker lock(&initLock);
+				return _connectionInited;
+			}
 
-	QReadWriteLock *keyMutex() const;
-	const AuthKeyPtr &getKey() const;
-	void setKey(AuthKeyPtr &&key);
-	void destroyKey();
+			void setConnectionInited(bool connectionInited = true)
+			{
+				QMutexLocker lock(&initLock);
+				_connectionInited = connectionInited;
+			}
 
-	bool connectionInited() const {
-		QMutexLocker lock(&initLock);
-		return _connectionInited;
-	}
-	void setConnectionInited(bool connectionInited = true) {
-		QMutexLocker lock(&initLock);
-		_connectionInited = connectionInited;
-	}
+		signals:
+			void authKeyCreated();
+			void connectionWasInited();
 
-signals:
-	void authKeyCreated();
-	void connectionWasInited();
+		private slots:
+			void authKeyWrite();
 
-private slots:
-	void authKeyWrite();
-
-private:
-	mutable QReadWriteLock keyLock;
-	mutable QMutex initLock;
-	not_null<Instance*> _instance;
-	DcId _id = 0;
-	AuthKeyPtr _key;
-	bool _connectionInited = false;
-
-};
-
-} // namespace internal
+		private:
+			mutable QReadWriteLock keyLock;
+			mutable QMutex initLock;
+			not_null<Instance*> _instance;
+			DcId _id = 0;
+			AuthKeyPtr _key;
+			bool _connectionInited = false;
+		};
+	} // namespace internal
 } // namespace MTP

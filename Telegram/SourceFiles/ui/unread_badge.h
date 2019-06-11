@@ -9,22 +9,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
-namespace Ui {
+namespace Ui
+{
+	class UnreadBadge : public RpWidget
+	{
+	public:
+		using RpWidget::RpWidget;
 
-class UnreadBadge : public RpWidget {
-public:
-	using RpWidget::RpWidget;
+		void setText(const QString& text, bool active);
+		int textBaseline() const;
 
-	void setText(const QString &text, bool active);
-	int textBaseline() const;
+	protected:
+		void paintEvent(QPaintEvent* e) override;
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	QString _text;
-	bool _active = false;
-
-};
-
+	private:
+		QString _text;
+		bool _active = false;
+	};
 } // namespace Ui

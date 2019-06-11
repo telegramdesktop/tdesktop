@@ -28,20 +28,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //
 //};
 
-class PeerListRowWithLink : public PeerListRow {
+class PeerListRowWithLink : public PeerListRow
+{
 public:
 	using PeerListRow::PeerListRow;
 
-	void setActionLink(const QString &action);
+	void setActionLink(const QString& action);
 
-	void lazyInitialize(const style::PeerListItem &st) override;
+	void lazyInitialize(const style::PeerListItem& st) override;
 
 private:
 	void refreshActionLink();
 	QSize actionSize() const override;
 	QMargins actionMargins() const override;
 	void paintAction(
-		Painter &p,
+		Painter& p,
 		int x,
 		int y,
 		int outerWidth,
@@ -50,33 +51,35 @@ private:
 
 	QString _action;
 	int _actionWidth = 0;
-
 };
 
-class PeerListGlobalSearchController : public PeerListSearchController, private MTP::Sender {
+class PeerListGlobalSearchController : public PeerListSearchController, private MTP::Sender
+{
 public:
 	PeerListGlobalSearchController();
 
-	void searchQuery(const QString &query) override;
+	void searchQuery(const QString& query) override;
 	bool isLoading() override;
-	bool loadMoreRows() override {
+
+	bool loadMoreRows() override
+	{
 		return false;
 	}
 
 private:
 	bool searchInCache();
 	void searchOnServer();
-	void searchDone(const MTPcontacts_Found &result, mtpRequestId requestId);
+	void searchDone(const MTPcontacts_Found& result, mtpRequestId requestId);
 
 	base::Timer _timer;
 	QString _query;
 	mtpRequestId _requestId = 0;
 	std::map<QString, MTPcontacts_Found> _cache;
 	std::map<mtpRequestId, QString> _queries;
-
 };
 
-class ChatsListBoxController : public PeerListController {
+class ChatsListBoxController : public PeerListController
+{
 public:
 	ChatsListBoxController(
 		std::unique_ptr<PeerListSearchController> searchController
@@ -86,36 +89,40 @@ public:
 	std::unique_ptr<PeerListRow> createSearchRow(not_null<PeerData*> peer) override final;
 
 protected:
-	class Row : public PeerListRow {
+	class Row : public PeerListRow
+	{
 	public:
 		Row(not_null<History*> history);
 
-		not_null<History*> history() const {
+		not_null<History*> history() const
+		{
 			return _history;
 		}
 
 	private:
 		not_null<History*> _history;
-
 	};
 	virtual std::unique_ptr<Row> createRow(not_null<History*> history) = 0;
 	virtual void prepareViewHook() = 0;
-	virtual void updateRowHook(not_null<Row*> row) {
+
+	virtual void updateRowHook(not_null<Row*> row)
+	{
 	}
+
 	virtual QString emptyBoxText() const;
 
 private:
 	void rebuildRows();
 	void checkForEmptyRows();
 	bool appendRow(not_null<History*> history);
-
 };
 
-class ContactsBoxController : public PeerListController {
+class ContactsBoxController : public PeerListController
+{
 public:
 	ContactsBoxController(
 		std::unique_ptr<PeerListSearchController> searchController
-		= std::make_unique<PeerListGlobalSearchController>());
+			= std::make_unique<PeerListGlobalSearchController>());
 
 	void prepare() override final;
 	std::unique_ptr<PeerListRow> createSearchRow(not_null<PeerData*> peer) override final;
@@ -123,21 +130,25 @@ public:
 
 protected:
 	virtual std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user);
-	virtual void prepareViewHook() {
+
+	virtual void prepareViewHook()
+	{
 	}
-	virtual void updateRowHook(not_null<PeerListRow*> row) {
+
+	virtual void updateRowHook(not_null<PeerListRow*> row)
+	{
 	}
 
 private:
 	void rebuildRows();
 	void checkForEmptyRows();
 	bool appendRow(not_null<UserData*> user);
-
 };
 
 class AddBotToGroupBoxController
 	: public ChatsListBoxController
-	, public base::has_weak_ptr {
+	  , public base::has_weak_ptr
+{
 public:
 	static void Start(not_null<UserData*> bot);
 
@@ -163,19 +174,20 @@ private:
 	void addBotToGroup(not_null<PeerData*> chat);
 
 	not_null<UserData*> _bot;
-
 };
 
 class ChooseRecipientBoxController
 	: public ChatsListBoxController
-	, public base::has_weak_ptr {
+	  , public base::has_weak_ptr
+{
 public:
 	ChooseRecipientBoxController(
 		FnMut<void(not_null<PeerData*>)> callback);
 
 	void rowClicked(not_null<PeerListRow*> row) override;
 
-	bool respectSavedMessagesChat() const override {
+	bool respectSavedMessagesChat() const override
+	{
 		return true;
 	}
 
@@ -186,5 +198,4 @@ protected:
 
 private:
 	FnMut<void(not_null<PeerData*>)> _callback;
-
 };

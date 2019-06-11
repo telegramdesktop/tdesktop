@@ -10,30 +10,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "boxes/peers/edit_participants_box.h"
 
-namespace Dialogs {
-
-void ShowSearchFromBox(
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<PeerData*> peer,
-	Fn<void(not_null<UserData*>)> callback,
-	Fn<void()> closedCallback);
-
-class SearchFromController : public ParticipantsBoxController {
-public:
-	SearchFromController(
+namespace Dialogs
+{
+	void ShowSearchFromBox(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
-		Fn<void(not_null<UserData*>)> callback);
+		Fn<void(not_null<UserData*>)> callback,
+		Fn<void()> closedCallback);
 
-	void prepare() override;
-	void rowClicked(not_null<PeerListRow*> row) override;
+	class SearchFromController : public ParticipantsBoxController
+	{
+	public:
+		SearchFromController(
+			not_null<Window::SessionNavigation*> navigation,
+			not_null<PeerData*> peer,
+			Fn<void(not_null<UserData*>)> callback);
 
-protected:
-	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const override;
+		void prepare() override;
+		void rowClicked(not_null<PeerListRow*> row) override;
 
-private:
-	Fn<void(not_null<UserData*>)> _callback;
+	protected:
+		std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const override;
 
-};
-
+	private:
+		Fn<void(not_null<UserData*>)> _callback;
+	};
 } // namespace Dialogs

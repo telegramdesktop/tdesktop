@@ -10,7 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 
-enum class WebPageType {
+enum class WebPageType
+{
 	Photo,
 	Video,
 	Profile,
@@ -19,34 +20,37 @@ enum class WebPageType {
 	ArticleWithIV,
 };
 
-WebPageType ParseWebPageType(const MTPDwebPage &type);
+WebPageType ParseWebPageType(const MTPDwebPage& type);
 
-struct WebPageCollage {
+struct WebPageCollage
+{
 	using Item = base::variant<PhotoData*, DocumentData*>;
 
 	WebPageCollage() = default;
-	explicit WebPageCollage(const MTPDwebPage &data);
+	explicit WebPageCollage(const MTPDwebPage& data);
 
 	std::vector<Item> items;
-
 };
 
-struct WebPageData {
-	WebPageData(const WebPageId &id) : id(id) {
+struct WebPageData
+{
+	WebPageData(const WebPageId& id) :
+		id(id)
+	{
 	}
 
 	bool applyChanges(
 		WebPageType newType,
-		const QString &newUrl,
-		const QString &newDisplayUrl,
-		const QString &newSiteName,
-		const QString &newTitle,
-		const TextWithEntities &newDescription,
-		PhotoData *newPhoto,
-		DocumentData *newDocument,
-		WebPageCollage &&newCollage,
+		const QString& newUrl,
+		const QString& newDisplayUrl,
+		const QString& newSiteName,
+		const QString& newTitle,
+		const TextWithEntities& newDescription,
+		PhotoData* newPhoto,
+		DocumentData* newDocument,
+		WebPageCollage&& newCollage,
 		int newDuration,
-		const QString &newAuthor,
+		const QString& newAuthor,
 		int newPendingTill);
 
 	WebPageId id = 0;
@@ -58,13 +62,12 @@ struct WebPageData {
 	TextWithEntities description;
 	int duration = 0;
 	QString author;
-	PhotoData *photo = nullptr;
-	DocumentData *document = nullptr;
+	PhotoData* photo = nullptr;
+	DocumentData* document = nullptr;
 	WebPageCollage collage;
 	int pendingTill = 0;
 	int version = 0;
 
 private:
 	void replaceDocumentGoodThumbnail();
-
 };

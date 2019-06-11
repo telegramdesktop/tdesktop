@@ -14,220 +14,237 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "data/data_channel.h"
 
-namespace InlineBots {
-namespace internal {
+namespace InlineBots
+{
+	namespace internal
+	{
+		QString SendData::getLayoutTitle(const Result* owner) const
+		{
+			return owner->_title;
+		}
 
-QString SendData::getLayoutTitle(const Result *owner) const {
-	return owner->_title;
-}
+		QString SendData::getLayoutDescription(const Result* owner) const
+		{
+			return owner->_description;
+		}
 
-QString SendData::getLayoutDescription(const Result *owner) const {
-	return owner->_description;
-}
+		void SendDataCommon::addToHistory(
+			const Result* owner,
+			not_null<History*> history,
+			MTPDmessage::Flags flags,
+			MsgId msgId,
+			UserId fromId,
+			MTPint mtpDate,
+			UserId viaBotId,
+			MsgId replyToId,
+			const QString& postAuthor,
+			const MTPReplyMarkup& markup) const
+		{
+			auto fields = getSentMessageFields();
+			if (!fields.entities.v.isEmpty())
+			{
+				flags |= MTPDmessage::Flag::f_entities;
+			}
+			history->addNewMessage(
+				MTP_message(
+					MTP_flags(flags),
+					MTP_int(msgId),
+					MTP_int(fromId),
+					peerToMTP(history->peer->id),
+					MTPMessageFwdHeader(),
+					MTP_int(viaBotId),
+					MTP_int(replyToId),
+					mtpDate,
+					fields.text,
+					fields.media,
+					markup,
+					fields.entities,
+					MTP_int(1),
+					MTPint(),
+					MTP_string(postAuthor),
+					MTPlong()),
+				NewMessageType::Unread);
+		}
 
-void SendDataCommon::addToHistory(
-		const Result *owner,
-		not_null<History*> history,
-		MTPDmessage::Flags flags,
-		MsgId msgId,
-		UserId fromId,
-		MTPint mtpDate,
-		UserId viaBotId,
-		MsgId replyToId,
-		const QString &postAuthor,
-		const MTPReplyMarkup &markup) const {
-	auto fields = getSentMessageFields();
-	if (!fields.entities.v.isEmpty()) {
-		flags |= MTPDmessage::Flag::f_entities;
-	}
-	history->addNewMessage(
-		MTP_message(
-			MTP_flags(flags),
-			MTP_int(msgId),
-			MTP_int(fromId),
-			peerToMTP(history->peer->id),
-			MTPMessageFwdHeader(),
-			MTP_int(viaBotId),
-			MTP_int(replyToId),
-			mtpDate,
-			fields.text,
-			fields.media,
-			markup,
-			fields.entities,
-			MTP_int(1),
-			MTPint(),
-			MTP_string(postAuthor),
-			MTPlong()),
-		NewMessageType::Unread);
-}
+		QString SendDataCommon::getErrorOnSend(
+			const Result* owner,
+			not_null<History*> history) const
+		{
+			const auto errorKey = Data::RestrictionErrorKey(
+				history->peer,
+				ChatRestriction::f_send_messages);
+			return errorKey ? lang(*errorKey) : QString();
+		}
 
-QString SendDataCommon::getErrorOnSend(
-		const Result *owner,
-		not_null<History*> history) const {
-	const auto errorKey = Data::RestrictionErrorKey(
-		history->peer,
-		ChatRestriction::f_send_messages);
-	return errorKey ? lang(*errorKey) : QString();
-}
+		SendDataCommon::SentMTPMessageFields SendText::getSentMessageFields() const
+		{
+			SentMTPMessageFields result;
+			result.text = MTP_string(_message);
+			result.entities = TextUtilities::EntitiesToMTP(_entities);
+			return result;
+		}
 
-SendDataCommon::SentMTPMessageFields SendText::getSentMessageFields() const {
-	SentMTPMessageFields result;
-	result.text = MTP_string(_message);
-	result.entities = TextUtilities::EntitiesToMTP(_entities);
-	return result;
-}
+		SendDataCommon::SentMTPMessageFields SendGeo::getSentMessageFields() const
+		{
+			SentMTPMessageFields result;
+			result.media = MTP_messageMediaGeo(_location.toMTP());
+			return result;
+		}
 
-SendDataCommon::SentMTPMessageFields SendGeo::getSentMessageFields() const {
-	SentMTPMessageFields result;
-	result.media = MTP_messageMediaGeo(_location.toMTP());
-	return result;
-}
+		SendDataCommon::SentMTPMessageFields SendVenue::getSentMessageFields() const
+		{
+			SentMTPMessageFields result;
+			auto venueType = QString();
+			result.media = MTP_messageMediaVenue(
+				_location.toMTP(),
+				MTP_string(_title),
+				MTP_string(_address),
+				MTP_string(_provider),
+				MTP_string(_venueId),
+				MTP_string(venueType));
+			return result;
+		}
 
-SendDataCommon::SentMTPMessageFields SendVenue::getSentMessageFields() const {
-	SentMTPMessageFields result;
-	auto venueType = QString();
-	result.media = MTP_messageMediaVenue(
-		_location.toMTP(),
-		MTP_string(_title),
-		MTP_string(_address),
-		MTP_string(_provider),
-		MTP_string(_venueId),
-		MTP_string(venueType));
-	return result;
-}
+		SendDataCommon::SentMTPMessageFields SendContact::getSentMessageFields() const
+		{
+			SentMTPMessageFields result;
+			const auto userId = 0;
+			const auto vcard = QString();
+			result.media = MTP_messageMediaContact(
+				MTP_string(_phoneNumber),
+				MTP_string(_firstName),
+				MTP_string(_lastName),
+				MTP_string(vcard),
+				MTP_int(userId));
+			return result;
+		}
 
-SendDataCommon::SentMTPMessageFields SendContact::getSentMessageFields() const {
-	SentMTPMessageFields result;
-	const auto userId = 0;
-	const auto vcard = QString();
-	result.media = MTP_messageMediaContact(
-		MTP_string(_phoneNumber),
-		MTP_string(_firstName),
-		MTP_string(_lastName),
-		MTP_string(vcard),
-		MTP_int(userId));
-	return result;
-}
+		QString SendContact::getLayoutDescription(const Result* owner) const
+		{
+			auto result = SendData::getLayoutDescription(owner);
+			if (result.isEmpty())
+			{
+				return App::formatPhone(_phoneNumber);
+			}
+			return result;
+		}
 
-QString SendContact::getLayoutDescription(const Result *owner) const {
-	auto result = SendData::getLayoutDescription(owner);
-	if (result.isEmpty()) {
-		return App::formatPhone(_phoneNumber);
-	}
-	return result;
-}
+		void SendPhoto::addToHistory(
+			const Result* owner,
+			not_null<History*> history,
+			MTPDmessage::Flags flags,
+			MsgId msgId,
+			UserId fromId,
+			MTPint mtpDate,
+			UserId viaBotId,
+			MsgId replyToId,
+			const QString& postAuthor,
+			const MTPReplyMarkup& markup) const
+		{
+			history->addNewPhoto(
+				msgId,
+				flags,
+				viaBotId,
+				replyToId,
+				mtpDate.v,
+				fromId,
+				postAuthor,
+				_photo,
+				{_message, _entities},
+				markup);
+		}
 
-void SendPhoto::addToHistory(
-		const Result *owner,
-		not_null<History*> history,
-		MTPDmessage::Flags flags,
-		MsgId msgId,
-		UserId fromId,
-		MTPint mtpDate,
-		UserId viaBotId,
-		MsgId replyToId,
-		const QString &postAuthor,
-		const MTPReplyMarkup &markup) const {
-	history->addNewPhoto(
-		msgId,
-		flags,
-		viaBotId,
-		replyToId,
-		mtpDate.v,
-		fromId,
-		postAuthor,
-		_photo,
-		{ _message, _entities },
-		markup);
-}
+		QString SendPhoto::getErrorOnSend(
+			const Result* owner,
+			not_null<History*> history) const
+		{
+			const auto errorKey = Data::RestrictionErrorKey(
+				history->peer,
+				ChatRestriction::f_send_media);
+			return errorKey ? lang(*errorKey) : QString();
+		}
 
-QString SendPhoto::getErrorOnSend(
-		const Result *owner,
-		not_null<History*> history) const {
-	const auto errorKey = Data::RestrictionErrorKey(
-		history->peer,
-		ChatRestriction::f_send_media);
-	return errorKey ? lang(*errorKey) : QString();
-}
+		void SendFile::addToHistory(
+			const Result* owner,
+			not_null<History*> history,
+			MTPDmessage::Flags flags,
+			MsgId msgId,
+			UserId fromId,
+			MTPint mtpDate,
+			UserId viaBotId,
+			MsgId replyToId,
+			const QString& postAuthor,
+			const MTPReplyMarkup& markup) const
+		{
+			history->addNewDocument(
+				msgId,
+				flags,
+				viaBotId,
+				replyToId,
+				mtpDate.v,
+				fromId,
+				postAuthor,
+				_document,
+				{_message, _entities},
+				markup);
+		}
 
-void SendFile::addToHistory(
-		const Result *owner,
-		not_null<History*> history,
-		MTPDmessage::Flags flags,
-		MsgId msgId,
-		UserId fromId,
-		MTPint mtpDate,
-		UserId viaBotId,
-		MsgId replyToId,
-		const QString &postAuthor,
-		const MTPReplyMarkup &markup) const {
-	history->addNewDocument(
-		msgId,
-		flags,
-		viaBotId,
-		replyToId,
-		mtpDate.v,
-		fromId,
-		postAuthor,
-		_document,
-		{ _message, _entities },
-		markup);
-}
+		QString SendFile::getErrorOnSend(
+			const Result* owner,
+			not_null<History*> history) const
+		{
+			const auto errorMedia = Data::RestrictionErrorKey(
+				history->peer,
+				ChatRestriction::f_send_media);
+			const auto errorStickers = Data::RestrictionErrorKey(
+				history->peer,
+				ChatRestriction::f_send_stickers);
+			const auto errorGifs = Data::RestrictionErrorKey(
+				history->peer,
+				ChatRestriction::f_send_gifs);
+			return errorMedia
+				       ? lang(*errorMedia)
+				       : (errorStickers && (_document->sticker() != nullptr))
+				       ? lang(*errorStickers)
+				       : (errorGifs
+					       && _document->isAnimation()
+					       && !_document->isVideoMessage())
+				       ? lang(*errorGifs)
+				       : QString();
+		}
 
-QString SendFile::getErrorOnSend(
-		const Result *owner,
-		not_null<History*> history) const {
-	const auto errorMedia = Data::RestrictionErrorKey(
-		history->peer,
-		ChatRestriction::f_send_media);
-	const auto errorStickers = Data::RestrictionErrorKey(
-		history->peer,
-		ChatRestriction::f_send_stickers);
-	const auto errorGifs = Data::RestrictionErrorKey(
-		history->peer,
-		ChatRestriction::f_send_gifs);
-	return errorMedia
-		? lang(*errorMedia)
-		: (errorStickers && (_document->sticker() != nullptr))
-		? lang(*errorStickers)
-		: (errorGifs
-			&& _document->isAnimation()
-			&& !_document->isVideoMessage())
-		? lang(*errorGifs)
-		: QString();
-}
+		void SendGame::addToHistory(
+			const Result* owner,
+			not_null<History*> history,
+			MTPDmessage::Flags flags,
+			MsgId msgId,
+			UserId fromId,
+			MTPint mtpDate,
+			UserId viaBotId,
+			MsgId replyToId,
+			const QString& postAuthor,
+			const MTPReplyMarkup& markup) const
+		{
+			history->addNewGame(
+				msgId,
+				flags,
+				viaBotId,
+				replyToId,
+				mtpDate.v,
+				fromId,
+				postAuthor,
+				_game,
+				markup);
+		}
 
-void SendGame::addToHistory(
-		const Result *owner,
-		not_null<History*> history,
-		MTPDmessage::Flags flags,
-		MsgId msgId,
-		UserId fromId,
-		MTPint mtpDate,
-		UserId viaBotId,
-		MsgId replyToId,
-		const QString &postAuthor,
-		const MTPReplyMarkup &markup) const {
-	history->addNewGame(
-		msgId,
-		flags,
-		viaBotId,
-		replyToId,
-		mtpDate.v,
-		fromId,
-		postAuthor,
-		_game,
-		markup);
-}
-
-QString SendGame::getErrorOnSend(
-		const Result *owner,
-		not_null<History*> history) const {
-	const auto errorKey = Data::RestrictionErrorKey(
-		history->peer,
-		ChatRestriction::f_send_games);
-	return errorKey ? lang(*errorKey) : QString();
-}
-
-} // namespace internal
+		QString SendGame::getErrorOnSend(
+			const Result* owner,
+			not_null<History*> history) const
+		{
+			const auto errorKey = Data::RestrictionErrorKey(
+				history->peer,
+				ChatRestriction::f_send_games);
+			return errorKey ? lang(*errorKey) : QString();
+		}
+	} // namespace internal
 } // namespace InlineBots

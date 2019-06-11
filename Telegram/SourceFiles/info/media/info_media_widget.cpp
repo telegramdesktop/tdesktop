@@ -13,119 +13,147 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/search_field_controller.h"
 #include "styles/style_info.h"
 
-namespace Info {
-namespace Media {
-
-std::optional<int> TypeToTabIndex(Type type) {
-	switch (type) {
-	case Type::Photo: return 0;
-	case Type::Video: return 1;
-	case Type::File: return 2;
-	}
-	return std::nullopt;
-}
-
-Type TabIndexToType(int index) {
-	switch (index) {
-	case 0: return Type::Photo;
-	case 1: return Type::Video;
-	case 2: return Type::File;
-	}
-	Unexpected("Index in Info::Media::TabIndexToType()");
-}
-
-Memento::Memento(not_null<Controller*> controller)
-: Memento(
-	controller->peerId(),
-	controller->migratedPeerId(),
-	controller->section().mediaType()) {
-}
-
-Memento::Memento(PeerId peerId, PeerId migratedPeerId, Type type)
-: ContentMemento(peerId, migratedPeerId)
-, _type(type) {
-	_searchState.query.type = type;
-	_searchState.query.peerId = peerId;
-	_searchState.query.migratedPeerId = migratedPeerId;
-	if (migratedPeerId) {
-		_searchState.migratedList = Storage::SparseIdsList();
-	}
-}
-
-Section Memento::section() const {
-	return Section(_type);
-}
-
-object_ptr<ContentWidget> Memento::createWidget(
-		QWidget *parent,
-		not_null<Controller*> controller,
-		const QRect &geometry) {
-	auto result = object_ptr<Widget>(
-		parent,
-		controller);
-	result->setInternalState(geometry, this);
-	return std::move(result);
-}
-
-Widget::Widget(
-	QWidget *parent,
-	not_null<Controller*> controller)
-: ContentWidget(parent, controller) {
-	_inner = setInnerWidget(object_ptr<InnerWidget>(
-		this,
-		controller));
-	_inner->setScrollHeightValue(scrollHeightValue());
-	_inner->scrollToRequests(
-	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
-		scrollTo(request);
-	}, _inner->lifetime());
-}
-
-rpl::producer<SelectedItems> Widget::selectedListValue() const {
-	return _inner->selectedListValue();
-}
-
-void Widget::cancelSelection() {
-	_inner->cancelSelection();
-}
-
-void Widget::setIsStackBottom(bool isStackBottom) {
-	_inner->setIsStackBottom(isStackBottom);
-}
-
-bool Widget::showInternal(not_null<ContentMemento*> memento) {
-	if (!controller()->validateMementoPeer(memento)) {
-		return false;
-	}
-	if (const auto mediaMemento = dynamic_cast<Memento*>(memento.get())) {
-		if (_inner->showInternal(mediaMemento)) {
-			return true;
+namespace Info
+{
+	namespace Media
+	{
+		std::optional<int> TypeToTabIndex(Type type)
+		{
+			switch (type)
+			{
+			case Type::Photo:
+				return 0;
+			case Type::Video:
+				return 1;
+			case Type::File:
+				return 2;
+			}
+			return std::nullopt;
 		}
-	}
-	return false;
-}
 
-void Widget::setInternalState(
-		const QRect &geometry,
-		not_null<Memento*> memento) {
-	setGeometry(geometry);
-	Ui::SendPendingMoveResizeEvents(this);
-	restoreState(memento);
-}
+		Type TabIndexToType(int index)
+		{
+			switch (index)
+			{
+			case 0:
+				return Type::Photo;
+			case 1:
+				return Type::Video;
+			case 2:
+				return Type::File;
+			}
+			Unexpected("Index in Info::Media::TabIndexToType()");
+		}
 
-std::unique_ptr<ContentMemento> Widget::doCreateMemento() {
-	auto result = std::make_unique<Memento>(controller());
-	saveState(result.get());
-	return std::move(result);
-}
+		Memento::Memento(not_null<Controller*> controller):
+			Memento(
+				controller->peerId(),
+				controller->migratedPeerId(),
+				controller->section().mediaType())
+		{
+		}
 
-void Widget::saveState(not_null<Memento*> memento) {
-	_inner->saveState(memento);
-}
+		Memento::Memento(PeerId peerId, PeerId migratedPeerId, Type type):
+			ContentMemento(peerId, migratedPeerId)
+			, _type(type)
+		{
+			_searchState.query.type = type;
+			_searchState.query.peerId = peerId;
+			_searchState.query.migratedPeerId = migratedPeerId;
+			if (migratedPeerId)
+			{
+				_searchState.migratedList = Storage::SparseIdsList();
+			}
+		}
 
-void Widget::restoreState(not_null<Memento*> memento) {
-	_inner->restoreState(memento);
-}
+		Section Memento::section() const
+		{
+			return Section(_type);
+		}
 
-} // namespace Media
+		object_ptr<ContentWidget> Memento::createWidget(
+			QWidget* parent,
+			not_null<Controller*> controller,
+			const QRect& geometry)
+		{
+			auto result = object_ptr<Widget>(
+				parent,
+				controller);
+			result->setInternalState(geometry, this);
+			return std::move(result);
+		}
+
+		Widget::Widget(
+			QWidget* parent,
+			not_null<Controller*> controller):
+			ContentWidget(parent, controller)
+		{
+			_inner = setInnerWidget(object_ptr<InnerWidget>(
+				this,
+				controller));
+			_inner->setScrollHeightValue(scrollHeightValue());
+			_inner->scrollToRequests(
+			) | rpl::start_with_next([this](Ui::ScrollToRequest request)
+			{
+				scrollTo(request);
+			}, _inner->lifetime());
+		}
+
+		rpl::producer<SelectedItems> Widget::selectedListValue() const
+		{
+			return _inner->selectedListValue();
+		}
+
+		void Widget::cancelSelection()
+		{
+			_inner->cancelSelection();
+		}
+
+		void Widget::setIsStackBottom(bool isStackBottom)
+		{
+			_inner->setIsStackBottom(isStackBottom);
+		}
+
+		bool Widget::showInternal(not_null<ContentMemento*> memento)
+		{
+			if (!controller()->validateMementoPeer(memento))
+			{
+				return false;
+			}
+			if (const auto mediaMemento = dynamic_cast<Memento*>(memento.get()))
+			{
+				if (_inner->showInternal(mediaMemento))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		void Widget::setInternalState(
+			const QRect& geometry,
+			not_null<Memento*> memento)
+		{
+			setGeometry(geometry);
+			Ui::SendPendingMoveResizeEvents(this);
+			restoreState(memento);
+		}
+
+		std::unique_ptr<ContentMemento> Widget::doCreateMemento()
+		{
+			auto result = std::make_unique<Memento>(controller());
+			saveState(result.get());
+			return std::move(result);
+		}
+
+		void Widget::saveState(not_null<Memento*> memento)
+		{
+			_inner->saveState(memento);
+		}
+
+		void Widget::restoreState(not_null<Memento*> memento)
+		{
+			_inner->restoreState(memento);
+		}
+	} // namespace Media
 } // namespace Info

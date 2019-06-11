@@ -17,18 +17,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "styles/style_history.h"
 
-namespace {
-
-using TextState = HistoryView::TextState;
-
+namespace
+{
+	using TextState = HistoryView::TextState;
 } // namespace
 
 HistoryWallPaper::HistoryWallPaper(
 	not_null<Element*> parent,
 	not_null<DocumentData*> document,
-	const QString &url)
-: HistoryFileMedia(parent, parent->data())
-, _data(document) {
+	const QString& url):
+	HistoryFileMedia(parent, parent->data())
+	, _data(document)
+{
 	Expects(_data->hasThumbnail());
 
 	fillPatternFieldsFrom(url);
@@ -38,9 +38,11 @@ HistoryWallPaper::HistoryWallPaper(
 	setStatusSize(FileStatusSizeReady, _data->size, -1, 0);
 }
 
-void HistoryWallPaper::fillPatternFieldsFrom(const QString &url) {
+void HistoryWallPaper::fillPatternFieldsFrom(const QString& url)
+{
 	const auto paramsPosition = url.indexOf('?');
-	if (paramsPosition < 0) {
+	if (paramsPosition < 0)
+	{
 		return;
 	}
 	const auto paramsString = url.mid(paramsPosition + 1);
@@ -53,10 +55,12 @@ void HistoryWallPaper::fillPatternFieldsFrom(const QString &url) {
 	_background = paper.backgroundColor().value_or(kDefaultBackground);
 }
 
-QSize HistoryWallPaper::countOptimalSize() {
+QSize HistoryWallPaper::countOptimalSize()
+{
 	auto tw = ConvertScale(_data->thumbnail()->width());
 	auto th = ConvertScale(_data->thumbnail()->height());
-	if (!tw || !th) {
+	if (!tw || !th)
+	{
 		tw = th = 1;
 	}
 	th = (st::maxWallPaperWidth * th) / tw;
@@ -67,30 +71,33 @@ QSize HistoryWallPaper::countOptimalSize() {
 		th,
 		st::minPhotoSize,
 		st::maxWallPaperHeight);
-	return { maxWidth, minHeight };
+	return {maxWidth, minHeight};
 }
 
-QSize HistoryWallPaper::countCurrentSize(int newWidth) {
+QSize HistoryWallPaper::countCurrentSize(int newWidth)
+{
 	auto tw = ConvertScale(_data->thumbnail()->width());
 	auto th = ConvertScale(_data->thumbnail()->height());
-	if (!tw || !th) {
+	if (!tw || !th)
+	{
 		tw = th = 1;
 	}
 
 	// We use pix() for image copies, because we rely that backgrounds
 	// are always displayed with the same dimensions (not pixSingle()).
-	_pixw = maxWidth();// std::min(newWidth, maxWidth());
-	_pixh = minHeight();// (_pixw * th / tw);
+	_pixw = maxWidth(); // std::min(newWidth, maxWidth());
+	_pixh = minHeight(); // (_pixw * th / tw);
 
 	newWidth = _pixw;
 	const auto newHeight = _pixh; /*std::clamp(
 		_pixh,
 		st::minPhotoSize,
 		st::maxWallPaperHeight);*/
-	return { newWidth, newHeight };
+	return {newWidth, newHeight};
 }
 
-void HistoryWallPaper::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
+void HistoryWallPaper::draw(Painter& p, const QRect& r, TextSelection selection, crl::time ms) const
+{
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	_data->automaticLoad(_realParent->fullId(), _parent->data());
@@ -103,9 +110,11 @@ void HistoryWallPaper::draw(Painter &p, const QRect &r, TextSelection selection,
 
 	auto captionw = paintw - st::msgPadding.left() - st::msgPadding.right();
 
-	if (displayLoading) {
+	if (displayLoading)
+	{
 		ensureAnimation();
-		if (!_animation->radial.animating()) {
+		if (!_animation->radial.animating())
+		{
 			_animation->radial.start(_data->progress());
 		}
 	}
@@ -116,7 +125,8 @@ void HistoryWallPaper::draw(Painter &p, const QRect &r, TextSelection selection,
 	auto roundCorners = RectPart::AllCorners;
 	validateThumbnail();
 	p.drawPixmap(rthumb.topLeft(), _thumbnail);
-	if (selected) {
+	if (selected)
+	{
 		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
 
@@ -129,18 +139,24 @@ void HistoryWallPaper::draw(Painter &p, const QRect &r, TextSelection selection,
 	p.setPen(st::msgDateImgFg);
 	p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
 
-	if (radial || (!loaded && !_data->loading())) {
+	if (radial || (!loaded && !_data->loading()))
+	{
 		const auto radialOpacity = (radial && loaded && !_data->uploading())
-			? _animation->radial.opacity() :
-			1.;
+			                           ? _animation->radial.opacity()
+			                           : 1.;
 		QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		p.setPen(Qt::NoPen);
-		if (selected) {
+		if (selected)
+		{
 			p.setBrush(st::msgDateImgBgSelected);
-		} else if (isThumbAnimation()) {
+		}
+		else if (isThumbAnimation())
+		{
 			auto over = _animation->a_thumbOver.value(1.);
 			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
-		} else {
+		}
+		else
+		{
 			auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _openl);
 			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 		}
@@ -153,63 +169,80 @@ void HistoryWallPaper::draw(Painter &p, const QRect &r, TextSelection selection,
 		}
 
 		p.setOpacity(radialOpacity);
-		auto icon = ([radial, this, selected]() -> const style::icon* {
-			if (radial || _data->loading()) {
+		auto icon = ([radial, this, selected]() -> const style::icon*
+		{
+			if (radial || _data->loading())
+			{
 				return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 			}
 			return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 		})();
-		if (icon) {
+		if (icon)
+		{
 			icon->paintInCenter(p, inner);
 		}
 		p.setOpacity(1);
-		if (radial) {
+		if (radial)
+		{
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 			_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
 		}
 	}
 }
 
-void HistoryWallPaper::validateThumbnail() const {
-	if (_thumbnailGood > 0) {
+void HistoryWallPaper::validateThumbnail() const
+{
+	if (_thumbnailGood > 0)
+	{
 		return;
 	}
 	const auto good = _data->goodThumbnail();
-	if (good) {
-		if (good->loaded()) {
+	if (good)
+	{
+		if (good->loaded())
+		{
 			prepareThumbnailFrom(good, 1);
 			return;
-		} else {
+		}
+		else
+		{
 			good->load({});
 		}
 	}
-	if (_thumbnailGood >= 0) {
+	if (_thumbnailGood >= 0)
+	{
 		return;
 	}
-	if (_data->thumbnail()->loaded()) {
+	if (_data->thumbnail()->loaded())
+	{
 		prepareThumbnailFrom(_data->thumbnail(), 0);
-	} else if (const auto blurred = _data->thumbnailInline()) {
-		if (_thumbnail.isNull()) {
+	}
+	else if (const auto blurred = _data->thumbnailInline())
+	{
+		if (_thumbnail.isNull())
+		{
 			prepareThumbnailFrom(blurred, -1);
 		}
 	}
 }
 
 void HistoryWallPaper::prepareThumbnailFrom(
-		not_null<Image*> image,
-		int good) const {
+	not_null<Image*> image,
+	int good) const
+{
 	Expects(_thumbnailGood <= good);
 
 	const auto isPattern = _data->isPatternWallPaper();
 	auto options = Images::Option::Smooth
 		| (good >= 0 ? Images::Option(0) : Images::Option::Blurred)
 		| (isPattern
-			? Images::Option::TransparentBackground
-			: Images::Option(0));
+			   ? Images::Option::TransparentBackground
+			   : Images::Option(0));
 	auto original = image->original();
 	auto tw = ConvertScale(_data->thumbnail()->width());
 	auto th = ConvertScale(_data->thumbnail()->height());
-	if (!tw || !th) {
+	if (!tw || !th)
+	{
 		tw = th = 1;
 	}
 	original = Images::prepare(
@@ -219,7 +252,8 @@ void HistoryWallPaper::prepareThumbnailFrom(
 		options,
 		_pixw,
 		_pixh);
-	if (isPattern) {
+	if (isPattern)
+	{
 		original = Data::PreparePatternImage(
 			std::move(original),
 			_background,
@@ -230,46 +264,61 @@ void HistoryWallPaper::prepareThumbnailFrom(
 	_thumbnailGood = good;
 }
 
-TextState HistoryWallPaper::textState(QPoint point, StateRequest request) const {
+TextState HistoryWallPaper::textState(QPoint point, StateRequest request) const
+{
 	auto result = TextState(_parent);
 
-	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
+	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1)
+	{
 		return result;
 	}
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	auto bubble = _parent->hasBubble();
-	if (QRect(paintx, painty, paintw, painth).contains(point)) {
-		if (_data->uploading()) {
+	if (QRect(paintx, painty, paintw, painth).contains(point))
+	{
+		if (_data->uploading())
+		{
 			result.link = _cancell;
-		} else if (_data->loaded()) {
+		}
+		else if (_data->loaded())
+		{
 			result.link = _openl;
-		} else if (_data->loading()) {
+		}
+		else if (_data->loading())
+		{
 			result.link = _cancell;
-		} else {
+		}
+		else
+		{
 			result.link = _openl;
 		}
 	}
 	return result;
 }
 
-float64 HistoryWallPaper::dataProgress() const {
+float64 HistoryWallPaper::dataProgress() const
+{
 	return _data->progress();
 }
 
-bool HistoryWallPaper::dataFinished() const {
+bool HistoryWallPaper::dataFinished() const
+{
 	return !_data->loading()
 		&& (!_data->uploading() || _data->waitingForAlbum());
 }
 
-bool HistoryWallPaper::dataLoaded() const {
+bool HistoryWallPaper::dataLoaded() const
+{
 	return _data->loaded();
 }
 
-bool HistoryWallPaper::isReadyForOpen() const {
+bool HistoryWallPaper::isReadyForOpen() const
+{
 	return _data->loaded();
 }
 
-QString HistoryWallPaper::additionalInfoString() const {
+QString HistoryWallPaper::additionalInfoString() const
+{
 	// This will force message info (time) to be displayed below
 	// this attachment in HistoryWebPage media.
 	static auto result = QString(" ");

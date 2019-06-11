@@ -11,44 +11,50 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class LocationCoords;
 
-namespace Platform {
+namespace Platform
+{
+	inline bool TranslucentWindowsSupported(QPoint globalPosition)
+	{
+		return true;
+	}
 
-inline bool TranslucentWindowsSupported(QPoint globalPosition) {
-	return true;
-}
+	QString CurrentExecutablePath(int argc, char* argv[]);
 
-QString CurrentExecutablePath(int argc, char *argv[]);
+	void RemoveQuarantine(const QString& path);
 
-void RemoveQuarantine(const QString &path);
+	namespace ThirdParty
+	{
+		inline void start()
+		{
+		}
 
-namespace ThirdParty {
-
-inline void start() {
-}
-
-inline void finish() {
-}
-
-} // namespace ThirdParty
+		inline void finish()
+		{
+		}
+	} // namespace ThirdParty
 } // namespace Platform
 
-inline QString psServerPrefix() {
+inline QString psServerPrefix()
+{
 #ifndef OS_MAC_STORE
-    return qsl("/tmp/");
+	return qsl("/tmp/");
 #else // OS_MAC_STORE
 	return objc_documentsPath();
 #endif // OS_MAC_STORE
 }
-inline void psCheckLocalSocket(const QString &serverName) {
-    QFile address(serverName);
-	if (address.exists()) {
+
+inline void psCheckLocalSocket(const QString& serverName)
+{
+	QFile address(serverName);
+	if (address.exists())
+	{
 		address.remove();
 	}
 }
 
 void psWriteDump();
 
-void psDeleteDir(const QString &dir);
+void psDeleteDir(const QString& dir);
 
 QStringList psInitLogs();
 void psClearInitLogs();
@@ -60,45 +66,57 @@ void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
 
 QRect psDesktopRect();
-void psShowOverAll(QWidget *w, bool canFocus = true);
-void psBringToBack(QWidget *w);
+void psShowOverAll(QWidget* w, bool canFocus = true);
+void psBringToBack(QWidget* w);
 
 int psCleanup();
 int psFixPrevious();
 
-bool psShowOpenWithMenu(int x, int y, const QString &file);
+bool psShowOpenWithMenu(int x, int y, const QString& file);
 
 void psNewVersion();
 
-void psUpdateOverlayed(QWidget *widget);
+void psUpdateOverlayed(QWidget* widget);
 
 void psDownloadPathEnableAccess();
-QByteArray psDownloadPathBookmark(const QString &path);
-QByteArray psPathBookmark(const QString &path);
+QByteArray psDownloadPathBookmark(const QString& path);
+QByteArray psPathBookmark(const QString& path);
 
-class PsFileBookmark {
+class PsFileBookmark
+{
 public:
-	PsFileBookmark(const QByteArray &bookmark) : _inner(bookmark) {
+	PsFileBookmark(const QByteArray& bookmark) :
+		_inner(bookmark)
+	{
 	}
-	bool check() const {
+
+	bool check() const
+	{
 		return _inner.valid();
 	}
-	bool enable() const {
+
+	bool enable() const
+	{
 		return _inner.enable();
 	}
-	void disable() const {
+
+	void disable() const
+	{
 		return _inner.disable();
 	}
-	const QString &name(const QString &original) const {
+
+	const QString& name(const QString& original) const
+	{
 		return _inner.name(original);
 	}
-	QByteArray bookmark() const {
+
+	QByteArray bookmark() const
+	{
 		return _inner.bookmark();
 	}
 
 private:
 	objc_FileBookmark _inner;
-
 };
 
 QString strNotificationAboutThemeChange();
@@ -108,4 +126,4 @@ QString strStyleOfInterface();
 QString strTitleWrapClass();
 QString strTitleClass();
 
-bool psLaunchMaps(const LocationCoords &coords);
+bool psLaunchMaps(const LocationCoords& coords);

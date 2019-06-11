@@ -7,10 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Calls {
+namespace Calls
+{
+	class Call;
 
-class Call;
-
-std::vector<EmojiPtr> ComputeEmojiFingerprint(not_null<Call*> call);
-
+	std::vector<EmojiPtr> ComputeEmojiFingerprint(not_null<Call*> call);
 } // namespace Calls

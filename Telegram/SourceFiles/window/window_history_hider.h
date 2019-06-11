@@ -10,63 +10,63 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
-namespace Ui {
-class RoundButton;
+namespace Ui
+{
+	class RoundButton;
 } // namespace Ui
 
-namespace Window {
+namespace Window
+{
+	class HistoryHider : public Ui::RpWidget, private base::Subscriber
+	{
+	public:
+		// Forward messages (via drag-n-drop)
+		HistoryHider(QWidget* parent, MessageIdsList&& items);
 
-class HistoryHider : public Ui::RpWidget, private base::Subscriber {
-public:
-	// Forward messages (via drag-n-drop)
-	HistoryHider(QWidget *parent, MessageIdsList &&items);
+		// Send path from command line argument.
+		HistoryHider(QWidget* parent);
 
-	// Send path from command line argument.
-	HistoryHider(QWidget *parent);
+		// Share url.
+		HistoryHider(QWidget* parent, const QString& url, const QString& text);
 
-	// Share url.
-	HistoryHider(QWidget *parent, const QString &url, const QString &text);
+		// Inline switch button handler.
+		HistoryHider(QWidget* parent, const QString& botAndQuery);
 
-	// Inline switch button handler.
-	HistoryHider(QWidget *parent, const QString &botAndQuery);
+		HistoryHider(
+			QWidget* parent,
+			const QString& text,
+			Fn<bool(PeerId)> confirm);
 
-	HistoryHider(
-		QWidget *parent,
-		const QString &text,
-		Fn<bool(PeerId)> confirm);
+		void offerPeer(PeerId peer);
 
-	void offerPeer(PeerId peer);
+		void startHide();
+		void confirm();
+		rpl::producer<> confirmed() const;
+		rpl::producer<> hidden() const;
 
-	void startHide();
-	void confirm();
-	rpl::producer<> confirmed() const;
-	rpl::producer<> hidden() const;
+		~HistoryHider();
 
-	~HistoryHider();
+	protected:
+		void paintEvent(QPaintEvent* e) override;
+		void keyPressEvent(QKeyEvent* e) override;
+		void mousePressEvent(QMouseEvent* e) override;
+		void resizeEvent(QResizeEvent* e) override;
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	private:
+		void refreshLang();
+		void updateControlsGeometry();
+		void animationCallback();
 
-private:
-	void refreshLang();
-	void updateControlsGeometry();
-	void animationCallback();
+		QString _text;
+		Fn<bool(PeerId)> _confirm;
+		Ui::Animations::Simple _a_opacity;
 
-	QString _text;
-	Fn<bool(PeerId)> _confirm;
-	Ui::Animations::Simple _a_opacity;
+		QRect _box;
+		bool _hiding = false;
 
-	QRect _box;
-	bool _hiding = false;
+		int _chooseWidth = 0;
 
-	int _chooseWidth = 0;
-
-	rpl::event_stream<> _confirmed;
-	rpl::event_stream<> _hidden;
-
-};
-
+		rpl::event_stream<> _confirmed;
+		rpl::event_stream<> _hidden;
+	};
 } // namespace Window

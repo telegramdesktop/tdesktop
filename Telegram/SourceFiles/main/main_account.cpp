@@ -10,47 +10,55 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "core/application.h"
 
-namespace Main {
+namespace Main
+{
+	Account::Account(const QString& dataName)
+	{
+	}
 
-Account::Account(const QString &dataName) {
-}
+	Account::~Account()
+	{
+	}
 
-Account::~Account() {
-}
+	void Account::createSession(const MTPUser& user)
+	{
+		Expects(_session == nullptr);
+		Expects(_sessionValue.current() == nullptr);
 
-void Account::createSession(const MTPUser &user) {
-	Expects(_session == nullptr);
-	Expects(_sessionValue.current() == nullptr);
+		_session = std::make_unique<AuthSession>(this, user);
+		_sessionValue = _session.get();
+	}
 
-	_session = std::make_unique<AuthSession>(this, user);
-	_sessionValue = _session.get();
-}
+	void Account::destroySession()
+	{
+		_sessionValue = nullptr;
+		_session = nullptr;
+	}
 
-void Account::destroySession() {
-	_sessionValue = nullptr;
-	_session = nullptr;
-}
+	bool Account::sessionExists() const
+	{
+		return (_sessionValue.current() != nullptr);
+	}
 
-bool Account::sessionExists() const {
-	return (_sessionValue.current() != nullptr);
-}
+	AuthSession& Account::session()
+	{
+		Expects(sessionExists());
 
-AuthSession &Account::session() {
-	Expects(sessionExists());
+		return *_sessionValue.current();
+	}
 
-	return *_sessionValue.current();
-}
+	rpl::producer<AuthSession*> Account::sessionValue() const
+	{
+		return _sessionValue.value();
+	}
 
-rpl::producer<AuthSession*> Account::sessionValue() const {
-	return _sessionValue.value();
-}
+	rpl::producer<AuthSession*> Account::sessionChanges() const
+	{
+		return _sessionValue.changes();
+	}
 
-rpl::producer<AuthSession*> Account::sessionChanges() const {
-	return _sessionValue.changes();
-}
-
-MTP::Instance *Account::mtp() {
-	return MTP::MainInstance();
-}
-
+	MTP::Instance* Account::mtp()
+	{
+		return MTP::MainInstance();
+	}
 } // namespace Main

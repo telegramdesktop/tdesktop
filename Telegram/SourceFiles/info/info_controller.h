@@ -12,209 +12,241 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "settings/settings_common.h"
 
-namespace Ui {
-class SearchFieldController;
+namespace Ui
+{
+	class SearchFieldController;
 } // namespace Ui
 
-namespace Info {
-namespace Settings {
+namespace Info
+{
+	namespace Settings
+	{
+		struct Tag
+		{
+			explicit Tag(not_null<UserData*> self) :
+				self(self)
+			{
+			}
 
-struct Tag {
-	explicit Tag(not_null<UserData*> self) : self(self) {
-	}
+			not_null<UserData*> self;
+		};
+	} // namespace Settings
 
-	not_null<UserData*> self;
-};
+	class Key
+	{
+	public:
+		Key(not_null<PeerData*> peer);
+		//Key(not_null<Data::Feed*> feed); // #feed
+		Key(Settings::Tag settings);
 
-} // namespace Settings
+		PeerData* peer() const;
+		//Data::Feed *feed() const; // #feed
+		UserData* settingsSelf() const;
 
-class Key {
-public:
-	Key(not_null<PeerData*> peer);
-	//Key(not_null<Data::Feed*> feed); // #feed
-	Key(Settings::Tag settings);
-
-	PeerData *peer() const;
-	//Data::Feed *feed() const; // #feed
-	UserData *settingsSelf() const;
-
-private:
-	base::variant<
-		not_null<PeerData*>,
-		//not_null<Data::Feed*>, // #feed
-		Settings::Tag> _value;
-
-};
-
-enum class Wrap;
-class WrapWidget;
-class Memento;
-class ContentMemento;
-
-class Section final {
-public:
-	enum class Type {
-		Profile,
-		Media,
-		CommonGroups,
-		Members,
-		//Channels, // #feed
-		Settings,
+	private:
+		base::variant<
+			not_null<PeerData*>,
+			//not_null<Data::Feed*>, // #feed
+			Settings::Tag> _value;
 	};
-	using SettingsType = ::Settings::Type;
-	using MediaType = Storage::SharedMediaType;
 
-	Section(Type type) : _type(type) {
-		Expects(type != Type::Media && type != Type::Settings);
-	}
-	Section(MediaType mediaType)
-	: _type(Type::Media)
-	, _mediaType(mediaType) {
-	}
-	Section(SettingsType settingsType)
-	: _type(Type::Settings)
-	, _settingsType(settingsType) {
-	}
+	enum class Wrap;
+	class WrapWidget;
+	class Memento;
+	class ContentMemento;
 
-	Type type() const {
-		return _type;
-	}
-	MediaType mediaType() const {
-		Expects(_type == Type::Media);
+	class Section final
+	{
+	public:
+		enum class Type
+		{
+			Profile,
+			Media,
+			CommonGroups,
+			Members,
+			//Channels, // #feed
+			Settings,
+		};
+		using SettingsType = ::Settings::Type;
+		using MediaType = Storage::SharedMediaType;
 
-		return _mediaType;
-	}
-	SettingsType settingsType() const {
-		Expects(_type == Type::Settings);
+		Section(Type type) :
+			_type(type)
+		{
+			Expects(type != Type::Media && type != Type::Settings);
+		}
 
-		return _settingsType;
-	}
+		Section(MediaType mediaType) :
+			_type(Type::Media)
+			, _mediaType(mediaType)
+		{
+		}
 
-private:
-	Type _type;
-	MediaType _mediaType = MediaType();
-	SettingsType _settingsType = SettingsType();
+		Section(SettingsType settingsType) :
+			_type(Type::Settings)
+			, _settingsType(settingsType)
+		{
+		}
 
-};
+		Type type() const
+		{
+			return _type;
+		}
 
-class AbstractController : public Window::SessionNavigation {
-public:
-	AbstractController(not_null<Window::SessionController*> parent);
+		MediaType mediaType() const
+		{
+			Expects(_type == Type::Media);
 
-	virtual Key key() const = 0;
-	virtual PeerData *migrated() const = 0;
-	virtual Section section() const = 0;
+			return _mediaType;
+		}
 
-	PeerId peerId() const;
-	PeerId migratedPeerId() const;
-	//Data::Feed *feed() const { // #feed
-	//	return key().feed();
-	//}
-	UserData *settingsSelf() const {
-		return key().settingsSelf();
-	}
+		SettingsType settingsType() const
+		{
+			Expects(_type == Type::Settings);
 
-	virtual void setSearchEnabledByContent(bool enabled) {
-	}
-	virtual rpl::producer<SparseIdsMergedSlice> mediaSource(
-		SparseIdsMergedSlice::UniversalMsgId aroundId,
-		int limitBefore,
-		int limitAfter) const;
-	virtual rpl::producer<QString> mediaSourceQueryValue() const;
+			return _settingsType;
+		}
 
-	void showSection(
-		Window::SectionMemento &&memento,
-		const Window::SectionShow &params = Window::SectionShow()) override;
-	void showBackFromStack(
-		const Window::SectionShow &params = Window::SectionShow()) override;
-	not_null<Window::SessionController*> parentController() override {
-		return _parent;
-	}
+	private:
+		Type _type;
+		MediaType _mediaType = MediaType();
+		SettingsType _settingsType = SettingsType();
+	};
 
-private:
-	not_null<Window::SessionController*> _parent;
+	class AbstractController : public Window::SessionNavigation
+	{
+	public:
+		AbstractController(not_null<Window::SessionController*> parent);
 
-};
+		virtual Key key() const = 0;
+		virtual PeerData* migrated() const = 0;
+		virtual Section section() const = 0;
 
-class Controller : public AbstractController {
-public:
-	Controller(
-		not_null<WrapWidget*> widget,
-		not_null<Window::SessionController*> window,
-		not_null<ContentMemento*> memento);
+		PeerId peerId() const;
+		PeerId migratedPeerId() const;
+		//Data::Feed *feed() const { // #feed
+		//	return key().feed();
+		//}
+		UserData* settingsSelf() const
+		{
+			return key().settingsSelf();
+		}
 
-	Key key() const override {
-		return _key;
-	}
-	PeerData *migrated() const override {
-		return _migrated;
-	}
-	Section section() const override {
-		return _section;
-	}
+		virtual void setSearchEnabledByContent(bool enabled)
+		{
+		}
 
-	bool validateMementoPeer(
-		not_null<ContentMemento*> memento) const;
+		virtual rpl::producer<SparseIdsMergedSlice> mediaSource(
+			SparseIdsMergedSlice::UniversalMsgId aroundId,
+			int limitBefore,
+			int limitAfter) const;
+		virtual rpl::producer<QString> mediaSourceQueryValue() const;
 
-	Wrap wrap() const;
-	rpl::producer<Wrap> wrapValue() const;
-	void setSection(not_null<ContentMemento*> memento);
+		void showSection(
+			Window::SectionMemento&& memento,
+			const Window::SectionShow& params = Window::SectionShow()) override;
+		void showBackFromStack(
+			const Window::SectionShow& params = Window::SectionShow()) override;
 
-	Ui::SearchFieldController *searchFieldController() const {
-		return _searchFieldController.get();
-	}
-	void setSearchEnabledByContent(bool enabled) override {
-		_seachEnabledByContent = enabled;
-	}
-	rpl::producer<bool> searchEnabledByContent() const;
-	rpl::producer<SparseIdsMergedSlice> mediaSource(
-		SparseIdsMergedSlice::UniversalMsgId aroundId,
-		int limitBefore,
-		int limitAfter) const override;
-	rpl::producer<QString> mediaSourceQueryValue() const override;
-	bool takeSearchStartsFocused() {
-		return base::take(_searchStartsFocused);
-	}
+		not_null<Window::SessionController*> parentController() override
+		{
+			return _parent;
+		}
 
-	void setCanSaveChanges(rpl::producer<bool> can);
-	rpl::producer<bool> canSaveChanges() const;
-	bool canSaveChangesNow() const;
+	private:
+		not_null<Window::SessionController*> _parent;
+	};
 
-	void saveSearchState(not_null<ContentMemento*> memento);
+	class Controller : public AbstractController
+	{
+	public:
+		Controller(
+			not_null<WrapWidget*> widget,
+			not_null<Window::SessionController*> window,
+			not_null<ContentMemento*> memento);
 
-	void showSection(
-		Window::SectionMemento &&memento,
-		const Window::SectionShow &params = Window::SectionShow()) override;
-	void showBackFromStack(
-		const Window::SectionShow &params = Window::SectionShow()) override;
+		Key key() const override
+		{
+			return _key;
+		}
 
-	rpl::lifetime &lifetime() {
-		return _lifetime;
-	}
+		PeerData* migrated() const override
+		{
+			return _migrated;
+		}
 
-	~Controller();
+		Section section() const override
+		{
+			return _section;
+		}
 
-private:
-	using SearchQuery = Api::DelayedSearchController::Query;
+		bool validateMementoPeer(
+			not_null<ContentMemento*> memento) const;
 
-	void updateSearchControllers(not_null<ContentMemento*> memento);
-	SearchQuery produceSearchQuery(const QString &query) const;
-	void setupMigrationViewer();
+		Wrap wrap() const;
+		rpl::producer<Wrap> wrapValue() const;
+		void setSection(not_null<ContentMemento*> memento);
 
-	not_null<WrapWidget*> _widget;
-	Key _key;
-	PeerData *_migrated = nullptr;
-	rpl::variable<Wrap> _wrap;
-	Section _section;
+		Ui::SearchFieldController* searchFieldController() const
+		{
+			return _searchFieldController.get();
+		}
 
-	std::unique_ptr<Ui::SearchFieldController> _searchFieldController;
-	std::unique_ptr<Api::DelayedSearchController> _searchController;
-	rpl::variable<bool> _seachEnabledByContent = false;
-	rpl::variable<bool> _canSaveChanges = false;
-	bool _searchStartsFocused = false;
+		void setSearchEnabledByContent(bool enabled) override
+		{
+			_seachEnabledByContent = enabled;
+		}
 
-	rpl::lifetime _lifetime;
+		rpl::producer<bool> searchEnabledByContent() const;
+		rpl::producer<SparseIdsMergedSlice> mediaSource(
+			SparseIdsMergedSlice::UniversalMsgId aroundId,
+			int limitBefore,
+			int limitAfter) const override;
+		rpl::producer<QString> mediaSourceQueryValue() const override;
 
-};
+		bool takeSearchStartsFocused()
+		{
+			return base::take(_searchStartsFocused);
+		}
 
+		void setCanSaveChanges(rpl::producer<bool> can);
+		rpl::producer<bool> canSaveChanges() const;
+		bool canSaveChangesNow() const;
+
+		void saveSearchState(not_null<ContentMemento*> memento);
+
+		void showSection(
+			Window::SectionMemento&& memento,
+			const Window::SectionShow& params = Window::SectionShow()) override;
+		void showBackFromStack(
+			const Window::SectionShow& params = Window::SectionShow()) override;
+
+		rpl::lifetime& lifetime()
+		{
+			return _lifetime;
+		}
+
+		~Controller();
+
+	private:
+		using SearchQuery = Api::DelayedSearchController::Query;
+
+		void updateSearchControllers(not_null<ContentMemento*> memento);
+		SearchQuery produceSearchQuery(const QString& query) const;
+		void setupMigrationViewer();
+
+		not_null<WrapWidget*> _widget;
+		Key _key;
+		PeerData* _migrated = nullptr;
+		rpl::variable<Wrap> _wrap;
+		Section _section;
+
+		std::unique_ptr<Ui::SearchFieldController> _searchFieldController;
+		std::unique_ptr<Api::DelayedSearchController> _searchController;
+		rpl::variable<bool> _seachEnabledByContent = false;
+		rpl::variable<bool> _canSaveChanges = false;
+		bool _searchStartsFocused = false;
+
+		rpl::lifetime _lifetime;
+	};
 } // namespace Info

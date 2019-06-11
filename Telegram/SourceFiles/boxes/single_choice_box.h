@@ -12,16 +12,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 enum LangKey : int;
 
-namespace Ui {
-class Radiobutton;
+namespace Ui
+{
+	class Radiobutton;
 } // namespace Ui
 
-class SingleChoiceBox : public BoxContent {
+class SingleChoiceBox : public BoxContent
+{
 public:
 	SingleChoiceBox(
 		QWidget*,
 		LangKey title,
-		const std::vector<QString> &optionTexts,
+		const std::vector<QString>& optionTexts,
 		int initialSelection,
 		Fn<void(int)> callback);
 
@@ -33,6 +35,4 @@ private:
 	std::vector<QString> _optionTexts;
 	int _initialSelection = 0;
 	Fn<void(int)> _callback;
-
 };
-

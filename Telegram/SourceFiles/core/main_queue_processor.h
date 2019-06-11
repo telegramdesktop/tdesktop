@@ -7,20 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Core {
+namespace Core
+{
+	class MainQueueProcessor : public QObject
+	{
+	public:
+		MainQueueProcessor();
+		~MainQueueProcessor();
 
-class MainQueueProcessor : public QObject {
-public:
-	MainQueueProcessor();
-	~MainQueueProcessor();
+	protected:
+		bool event(QEvent* event) override;
 
-protected:
-	bool event(QEvent *event) override;
-
-private:
-	void acquire();
-	void release();
-
-};
-
+	private:
+		void acquire();
+		void release();
+	};
 } // namespace Core

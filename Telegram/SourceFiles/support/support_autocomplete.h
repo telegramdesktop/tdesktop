@@ -15,71 +15,72 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class AuthSession;
 
-namespace Ui {
-class ScrollArea;
-class InputField;
+namespace Ui
+{
+	class ScrollArea;
+	class InputField;
 } // namespace Ui
 
-namespace Support {
+namespace Support
+{
+	struct Contact
+	{
+		QString comment;
+		QString phone;
+		QString firstName;
+		QString lastName;
+	};
 
-struct Contact {
-	QString comment;
-	QString phone;
-	QString firstName;
-	QString lastName;
-};
+	class Autocomplete : public Ui::RpWidget
+	{
+	public:
+		Autocomplete(QWidget* parent, not_null<AuthSession*> session);
 
-class Autocomplete : public Ui::RpWidget {
-public:
-	Autocomplete(QWidget *parent, not_null<AuthSession*> session);
+		void activate(not_null<Ui::InputField*> field);
+		void deactivate();
+		void setBoundings(QRect rect);
 
-	void activate(not_null<Ui::InputField*> field);
-	void deactivate();
-	void setBoundings(QRect rect);
+		rpl::producer<QString> insertRequests() const;
+		rpl::producer<Contact> shareContactRequests() const;
 
-	rpl::producer<QString> insertRequests() const;
-	rpl::producer<Contact> shareContactRequests() const;
+	protected:
+		void keyPressEvent(QKeyEvent* e) override;
 
-protected:
-	void keyPressEvent(QKeyEvent *e) override;
+	private:
+		void setupContent();
+		void submitValue(const QString& value);
 
-private:
-	void setupContent();
-	void submitValue(const QString &value);
+		not_null<AuthSession*> _session;
+		Fn<void()> _activate;
+		Fn<void()> _deactivate;
+		Fn<void(int delta)> _moveSelection;
 
-	not_null<AuthSession*> _session;
-	Fn<void()> _activate;
-	Fn<void()> _deactivate;
-	Fn<void(int delta)> _moveSelection;
+		rpl::event_stream<QString> _insertRequests;
+		rpl::event_stream<Contact> _shareContactRequests;
+	};
 
-	rpl::event_stream<QString> _insertRequests;
-	rpl::event_stream<Contact> _shareContactRequests;
+	class ConfirmContactBox
+		: public BoxContent
+		  , public HistoryView::SimpleElementDelegate
+	{
+	public:
+		ConfirmContactBox(
+			QWidget*,
+			not_null<History*> history,
+			const Contact& data,
+			Fn<void(Qt::KeyboardModifiers)> submit);
 
-};
+		using Element = HistoryView::Element;
+		HistoryView::Context elementContext() override;
 
-class ConfirmContactBox
-	: public BoxContent
-	, public HistoryView::SimpleElementDelegate {
-public:
-	ConfirmContactBox(
-		QWidget*,
-		not_null<History*> history,
-		const Contact &data,
-		Fn<void(Qt::KeyboardModifiers)> submit);
+	protected:
+		void prepare() override;
+		void paintEvent(QPaintEvent* e) override;
+		void keyPressEvent(QKeyEvent* e) override;
 
-	using Element = HistoryView::Element;
-	HistoryView::Context elementContext() override;
-
-protected:
-	void prepare() override;
-	void paintEvent(QPaintEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-
-private:
-	AdminLog::OwnedItem _comment;
-	AdminLog::OwnedItem _contact;
-	Fn<void(Qt::KeyboardModifiers)> _submit;
-
-};
-
+	private:
+		AdminLog::OwnedItem _comment;
+		AdminLog::OwnedItem _contact;
+		Fn<void(Qt::KeyboardModifiers)> _submit;
+	};
 } //namespace Support

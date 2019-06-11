@@ -11,97 +11,98 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
-namespace style {
-struct Tooltip;
-struct ImportantTooltip;
+namespace style
+{
+	struct Tooltip;
+	struct ImportantTooltip;
 } // namespace style
 
-namespace Ui {
+namespace Ui
+{
+	class AbstractTooltipShower
+	{
+	public:
+		virtual QString tooltipText() const = 0;
+		virtual QPoint tooltipPos() const = 0;
+		virtual bool tooltipWindowActive() const;
+		virtual const style::Tooltip* tooltipSt() const;
+		virtual ~AbstractTooltipShower();
+	};
 
-class AbstractTooltipShower {
-public:
-	virtual QString tooltipText() const = 0;
-	virtual QPoint tooltipPos() const = 0;
-	virtual bool tooltipWindowActive() const;
-	virtual const style::Tooltip *tooltipSt() const;
-	virtual ~AbstractTooltipShower();
+	class Tooltip : public Ui::RpWidget
+	{
+	public:
+		static void Show(int32 delay, const AbstractTooltipShower* shower);
+		static void Hide();
 
-};
+	protected:
+		void paintEvent(QPaintEvent* e) override;
+		void hideEvent(QHideEvent* e) override;
 
-class Tooltip : public Ui::RpWidget {
-public:
-	static void Show(int32 delay, const AbstractTooltipShower *shower);
-	static void Hide();
+		bool eventFilter(QObject* o, QEvent* e) override;
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void hideEvent(QHideEvent *e) override;
+	private:
+		void performShow();
 
-	bool eventFilter(QObject *o, QEvent *e) override;
+		Tooltip();
+		~Tooltip();
 
-private:
-	void performShow();
+		void popup(const QPoint& p, const QString& text, const style::Tooltip* st);
 
-	Tooltip();
-	~Tooltip();
+		friend class AbstractTooltipShower;
+		const AbstractTooltipShower* _shower = nullptr;
+		base::Timer _showTimer;
 
-	void popup(const QPoint &p, const QString &text, const style::Tooltip *st);
+		Text _text;
+		QPoint _point;
 
-	friend class AbstractTooltipShower;
-	const AbstractTooltipShower *_shower = nullptr;
-	base::Timer _showTimer;
+		const style::Tooltip* _st = nullptr;
 
-	Text _text;
-	QPoint _point;
+		base::Timer _hideByLeaveTimer;
+		bool _isEventFilter = false;
+		bool _useTransparency = true;
+	};
 
-	const style::Tooltip *_st = nullptr;
+	class ImportantTooltip : public TWidget
+	{
+	public:
+		ImportantTooltip(QWidget* parent, object_ptr<TWidget> content, const style::ImportantTooltip& st);
 
-	base::Timer _hideByLeaveTimer;
-	bool _isEventFilter = false;
-	bool _useTransparency = true;
+		void pointAt(QRect area, RectParts preferSide = RectPart::Top | RectPart::Left);
 
-};
+		void toggleAnimated(bool visible);
+		void toggleFast(bool visible);
+		void hideAfter(crl::time timeout);
 
-class ImportantTooltip : public TWidget {
-public:
-	ImportantTooltip(QWidget *parent, object_ptr<TWidget> content, const style::ImportantTooltip &st);
+		void setHiddenCallback(Fn<void()> callback)
+		{
+			_hiddenCallback = std::move(callback);
+		}
 
-	void pointAt(QRect area, RectParts preferSide = RectPart::Top | RectPart::Left);
+	protected:
+		void resizeEvent(QResizeEvent* e) override;
+		void paintEvent(QPaintEvent* e) override;
 
-	void toggleAnimated(bool visible);
-	void toggleFast(bool visible);
-	void hideAfter(crl::time timeout);
+	private:
+		void animationCallback();
+		QRect countInner() const;
+		void setArea(QRect area);
+		void countApproachSide(RectParts preferSide);
+		void updateGeometry();
+		void checkAnimationFinish();
+		void refreshAnimationCache();
 
-	void setHiddenCallback(Fn<void()> callback) {
-		_hiddenCallback = std::move(callback);
-	}
+		base::Timer _hideTimer;
+		const style::ImportantTooltip& _st;
+		object_ptr<TWidget> _content;
+		QRect _area;
+		RectParts _side = RectPart::Top | RectPart::Left;
+		QPixmap _arrow;
 
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	void animationCallback();
-	QRect countInner() const;
-	void setArea(QRect area);
-	void countApproachSide(RectParts preferSide);
-	void updateGeometry();
-	void checkAnimationFinish();
-	void refreshAnimationCache();
-
-	base::Timer _hideTimer;
-	const style::ImportantTooltip &_st;
-	object_ptr<TWidget> _content;
-	QRect _area;
-	RectParts _side = RectPart::Top | RectPart::Left;
-	QPixmap _arrow;
-
-	Ui::Animations::Simple _visibleAnimation;
-	bool _visible = false;
-	Fn<void()> _hiddenCallback;
-	bool _useTransparency = true;
-	QPixmap _cache;
-
-};
-
+		Ui::Animations::Simple _visibleAnimation;
+		bool _visible = false;
+		Fn<void()> _hiddenCallback;
+		bool _useTransparency = true;
+		QPixmap _cache;
+	};
 } // namespace Ui

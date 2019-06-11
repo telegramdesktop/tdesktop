@@ -10,41 +10,43 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "base/timer.h"
 
-namespace Window {
-namespace Notifications {
+namespace Window
+{
+	namespace Notifications
+	{
+		class CachedUserpics : public QObject
+		{
+		Q_OBJECT
 
-class CachedUserpics : public QObject {
-	Q_OBJECT
+		public:
+			enum class Type
+			{
+				Rounded,
+				Circled,
+			};
+			CachedUserpics(Type type);
 
-public:
-	enum class Type {
-		Rounded,
-		Circled,
-	};
-	CachedUserpics(Type type);
+			QString get(const InMemoryKey& key, PeerData* peer);
 
-	QString get(const InMemoryKey &key, PeerData *peer);
+			~CachedUserpics();
 
-	~CachedUserpics();
+		private slots:
+			void onClear();
 
-private slots:
-	void onClear();
+		private:
+			void clearInMs(int ms);
+			crl::time clear(crl::time ms);
 
-private:
-	void clearInMs(int ms);
-	crl::time clear(crl::time ms);
-
-	Type _type = Type::Rounded;
-	struct Image {
-		crl::time until;
-		QString path;
-	};
-	using Images = QMap<InMemoryKey, Image>;
-	Images _images;
-	bool _someSavedFlag = false;
-	base::Timer _clearTimer;
-
-};
-
-} // namesapce Notifications
+			Type _type = Type::Rounded;
+			struct Image
+			{
+				crl::time until;
+				QString path;
+			};
+			using Images = QMap<InMemoryKey, Image>;
+			Images _images;
+			bool _someSavedFlag = false;
+			base::Timer _clearTimer;
+		};
+	} // namesapce Notifications
 } // namespace Window

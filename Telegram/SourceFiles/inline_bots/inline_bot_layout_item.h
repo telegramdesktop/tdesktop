@@ -10,131 +10,148 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout.h"
 #include "ui/text/text.h"
 
-namespace InlineBots {
-class Result;
+namespace InlineBots
+{
+	class Result;
 
-namespace Layout {
+	namespace Layout
+	{
+		class PaintContext : public PaintContextBase
+		{
+		public:
+			PaintContext(crl::time ms, bool selecting, bool paused, bool lastRow) :
+				PaintContextBase(ms, selecting)
+				, paused(paused)
+				, lastRow(lastRow)
+			{
+			}
 
-class PaintContext : public PaintContextBase {
-public:
-	PaintContext(crl::time ms, bool selecting, bool paused, bool lastRow)
-		: PaintContextBase(ms, selecting)
-		, paused(paused)
-		, lastRow(lastRow) {
-	}
-	bool paused, lastRow;
+			bool paused, lastRow;
+		};
 
-};
+		// this type used as a flag, we dynamic_cast<> to it
+		class SendClickHandler : public ClickHandler
+		{
+		public:
+			void onClick(ClickContext context) const override
+			{
+			}
+		};
 
-// this type used as a flag, we dynamic_cast<> to it
-class SendClickHandler : public ClickHandler {
-public:
-	void onClick(ClickContext context) const override {
-	}
-};
+		class Context
+		{
+		public:
+			virtual void inlineItemLayoutChanged(const ItemBase* layout) = 0;
+			virtual bool inlineItemVisible(const ItemBase* item) = 0;
+			virtual void inlineItemRepaint(const ItemBase* item) = 0;
+			virtual Data::FileOrigin inlineItemFileOrigin() = 0;
+		};
 
-class Context {
-public:
-	virtual void inlineItemLayoutChanged(const ItemBase *layout) = 0;
-	virtual bool inlineItemVisible(const ItemBase *item) = 0;
-	virtual void inlineItemRepaint(const ItemBase *item) = 0;
-	virtual Data::FileOrigin inlineItemFileOrigin() = 0;
-};
+		class ItemBase : public LayoutItemBase
+		{
+		public:
+			ItemBase(not_null<Context*> context, not_null<Result*> result) :
+				_result(result)
+				, _context(context)
+			{
+			}
 
-class ItemBase : public LayoutItemBase {
-public:
-	ItemBase(not_null<Context*> context, not_null<Result*> result)
-	: _result(result)
-	, _context(context) {
-	}
-	ItemBase(not_null<Context*> context, DocumentData *doc)
-	: _doc(doc)
-	, _context(context) {
-	}
-	// Not used anywhere currently.
-	//ItemBase(not_null<Context*> context, PhotoData *photo) : _photo(photo), _context(context) {
-	//}
+			ItemBase(not_null<Context*> context, DocumentData* doc) :
+				_doc(doc)
+				, _context(context)
+			{
+			}
 
-	virtual void paint(Painter &p, const QRect &clip, const PaintContext *context) const = 0;
+			// Not used anywhere currently.
+			//ItemBase(not_null<Context*> context, PhotoData *photo) : _photo(photo), _context(context) {
+			//}
 
-	virtual void setPosition(int32 position);
-	int32 position() const;
+			virtual void paint(Painter& p, const QRect& clip, const PaintContext* context) const = 0;
 
-	virtual bool isFullLine() const {
-		return true;
-	}
-	virtual bool hasRightSkip() const {
-		return false;
-	}
+			virtual void setPosition(int32 position);
+			int32 position() const;
 
-	Result *getResult() const;
-	DocumentData *getDocument() const;
-	PhotoData *getPhoto() const;
+			virtual bool isFullLine() const
+			{
+				return true;
+			}
 
-	// Get document or photo (possibly from InlineBots::Result) for
-	// showing sticker / GIF / photo preview by long mouse press.
-	DocumentData *getPreviewDocument() const;
-	PhotoData *getPreviewPhoto() const;
+			virtual bool hasRightSkip() const
+			{
+				return false;
+			}
 
-	virtual void preload() const;
+			Result* getResult() const;
+			DocumentData* getDocument() const;
+			PhotoData* getPhoto() const;
 
-	void update() const;
-	void layoutChanged();
+			// Get document or photo (possibly from InlineBots::Result) for
+			// showing sticker / GIF / photo preview by long mouse press.
+			DocumentData* getPreviewDocument() const;
+			PhotoData* getPreviewPhoto() const;
 
-	// ClickHandlerHost interface
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override {
-		update();
-	}
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override {
-		update();
-	}
+			virtual void preload() const;
 
-	static std::unique_ptr<ItemBase> createLayout(not_null<Context*> context, Result *result, bool forceThumb);
-	static std::unique_ptr<ItemBase> createLayoutGif(not_null<Context*> context, DocumentData *document);
+			void update() const;
+			void layoutChanged();
 
-protected:
-	DocumentData *getResultDocument() const;
-	PhotoData *getResultPhoto() const;
-	Image *getResultThumb() const;
-	QPixmap getResultContactAvatar(int width, int height) const;
-	int getResultDuration() const;
-	QString getResultUrl() const;
-	ClickHandlerPtr getResultUrlHandler() const;
-	ClickHandlerPtr getResultContentUrlHandler() const;
-	QString getResultThumbLetter() const;
+			// ClickHandlerHost interface
+			void clickHandlerActiveChanged(const ClickHandlerPtr& p, bool active) override
+			{
+				update();
+			}
 
-	not_null<Context*> context() const {
-		return _context;
-	}
-	Data::FileOrigin fileOrigin() const;
+			void clickHandlerPressedChanged(const ClickHandlerPtr& p, bool pressed) override
+			{
+				update();
+			}
 
-	Result *_result = nullptr;
-	DocumentData *_doc = nullptr;
-	PhotoData *_photo = nullptr;
+			static std::unique_ptr<ItemBase> createLayout(not_null<Context*> context, Result* result, bool forceThumb);
+			static std::unique_ptr<ItemBase> createLayoutGif(not_null<Context*> context, DocumentData* document);
 
-	ClickHandlerPtr _send = ClickHandlerPtr{ new SendClickHandler() };
+		protected:
+			DocumentData* getResultDocument() const;
+			PhotoData* getResultPhoto() const;
+			Image* getResultThumb() const;
+			QPixmap getResultContactAvatar(int width, int height) const;
+			int getResultDuration() const;
+			QString getResultUrl() const;
+			ClickHandlerPtr getResultUrlHandler() const;
+			ClickHandlerPtr getResultContentUrlHandler() const;
+			QString getResultThumbLetter() const;
 
-	int _position = 0; // < 0 means removed from layout
+			not_null<Context*> context() const
+			{
+				return _context;
+			}
 
-private:
-	not_null<Context*> _context;
+			Data::FileOrigin fileOrigin() const;
 
-};
+			Result* _result = nullptr;
+			DocumentData* _doc = nullptr;
+			PhotoData* _photo = nullptr;
 
-using DocumentItems = std::map<
-	not_null<const DocumentData*>,
-	base::flat_set<not_null<ItemBase*>>>;
-const DocumentItems *documentItems();
+			ClickHandlerPtr _send = ClickHandlerPtr{new SendClickHandler()};
 
-namespace internal {
+			int _position = 0; // < 0 means removed from layout
 
-void regDocumentItem(
-	not_null<const DocumentData*> document,
-	not_null<ItemBase*> item);
-void unregDocumentItem(
-	not_null<const DocumentData*> document,
-	not_null<ItemBase*> item);
+		private:
+			not_null<Context*> _context;
+		};
 
-} // namespace internal
-} // namespace Layout
+		using DocumentItems = std::map<
+			not_null<const DocumentData*>,
+			base::flat_set<not_null<ItemBase*>>>;
+		const DocumentItems* documentItems();
+
+		namespace internal
+		{
+			void regDocumentItem(
+				not_null<const DocumentData*> document,
+				not_null<ItemBase*> item);
+			void unregDocumentItem(
+				not_null<const DocumentData*> document,
+				not_null<ItemBase*> item);
+		} // namespace internal
+	} // namespace Layout
 } // namespace InlineBots

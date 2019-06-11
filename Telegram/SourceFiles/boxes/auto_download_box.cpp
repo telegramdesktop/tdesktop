@@ -20,24 +20,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 
-namespace {
-
-constexpr auto kMegabyte = 1024 * 1024;
-constexpr auto kDefaultLimit = 10 * kMegabyte;
-
+namespace
+{
+	constexpr auto kMegabyte = 1024 * 1024;
+	constexpr auto kDefaultLimit = 10 * kMegabyte;
 } // namespace
 
 AutoDownloadBox::AutoDownloadBox(
 	QWidget*,
-	Data::AutoDownload::Source source)
-: _source(source) {
+	Data::AutoDownload::Source source):
+	_source(source)
+{
 }
 
-void AutoDownloadBox::prepare() {
+void AutoDownloadBox::prepare()
+{
 	setupContent();
 }
 
-void AutoDownloadBox::setupContent() {
+void AutoDownloadBox::setupContent()
+{
 	using namespace Settings;
 	using namespace Data::AutoDownload;
 	using namespace rpl::mappers;
@@ -46,7 +48,8 @@ void AutoDownloadBox::setupContent() {
 	setTitle(langFactory(lng_media_auto_title));
 
 	const auto settings = &Auth().settings().autoDownload();
-	const auto checked = [=](Source source, Type type) {
+	const auto checked = [=](Source source, Type type)
+	{
 		return (settings->bytesLimit(source, type) > 0);
 	};
 
@@ -63,8 +66,10 @@ void AutoDownloadBox::setupContent() {
 	};
 
 	const auto values = Ui::CreateChild<base::flat_map<Type, int>>(content);
-	const auto add = [&](Type type, LangKey label) {
-		if (ranges::find(kHidden, type) != end(kHidden)) {
+	const auto add = [&](Type type, LangKey label)
+	{
+		if (ranges::find(kHidden, type) != end(kHidden))
+		{
 			return;
 		}
 		const auto value = settings->bytesLimit(_source, type);
@@ -75,7 +80,8 @@ void AutoDownloadBox::setupContent() {
 		)->toggleOn(
 			rpl::single(value > 0)
 		)->toggledChanges(
-		) | rpl::start_with_next([=](bool enabled) {
+		) | rpl::start_with_next([=](bool enabled)
+		{
 			(*values)[type] = enabled ? 1 : 0;
 		}, content->lifetime());
 		values->emplace(type, value);
@@ -93,7 +99,10 @@ void AutoDownloadBox::setupContent() {
 	const auto settingsLimit = ranges::max_element(
 		*values,
 		std::less<>(),
-		[](Pair pair) { return pair.second; })->second;
+		[](Pair pair)
+		{
+			return pair.second;
+		})->second;
 	const auto initialLimit = settingsLimit ? settingsLimit : kDefaultLimit;
 	const auto limit = Ui::CreateChild<int>(content, initialLimit);
 	AddButtonWithLabel(
@@ -101,7 +110,8 @@ void AutoDownloadBox::setupContent() {
 		lng_media_size_limit,
 		limits->events_starting_with_copy(
 			initialLimit
-		) | rpl::map([](int value) {
+		) | rpl::map([](int value)
+		{
 			return lng_media_size_up_to(
 				lt_size,
 				QString::number(value / kMegabyte) + " MB");
@@ -116,64 +126,81 @@ void AutoDownloadBox::setupContent() {
 		Export::View::kSizeValueCount,
 		Export::View::SizeLimitByIndex,
 		*limit,
-		[=](int value) {
+		[=](int value)
+		{
 			*limit = value;
 			limits->fire_copy(value);
 		});
 
-	addButton(langFactory(lng_connection_save), [=] {
+	addButton(langFactory(lng_connection_save), [=]
+	{
 		auto allowMore = ranges::view::all(
 			*values
-		) | ranges::view::filter([&](Pair pair) {
+		) | ranges::view::filter([&](Pair pair)
+		{
 			const auto [type, enabled] = pair;
 			const auto value = enabled ? *limit : 0;
 			const auto old = settings->bytesLimit(_source, type);
 			return (old < value);
-		}) | ranges::view::transform([](Pair pair) {
+		}) | ranges::view::transform([](Pair pair)
+		{
 			return pair.first;
 		});
 		const auto allowMoreTypes = base::flat_set<Type>(
 			allowMore.begin(),
 			allowMore.end());
 
-		const auto changed = ranges::find_if(*values, [&](Pair pair) {
+		const auto changed = ranges::find_if(*values, [&](Pair pair)
+		{
 			const auto [type, enabled] = pair;
 			const auto value = enabled ? *limit : 0;
 			return settings->bytesLimit(_source, type) != value;
 		}) != end(*values);
 
-		const auto hiddenChanged = ranges::find_if(kHidden, [&](Type type) {
+		const auto hiddenChanged = ranges::find_if(kHidden, [&](Type type)
+		{
 			const auto now = settings->bytesLimit(_source, type);
 			return (now > 0) && (now != *limit);
 		}) != end(kHidden);
 
-		if (changed) {
-			for (const auto [type, enabled] : *values) {
+		if (changed)
+		{
+			for (const auto [type, enabled] : *values)
+			{
 				const auto value = enabled ? *limit : 0;
 				settings->setBytesLimit(_source, type, value);
 			}
 		}
-		if (hiddenChanged) {
-			for (const auto type : kHidden) {
+		if (hiddenChanged)
+		{
+			for (const auto type : kHidden)
+			{
 				const auto now = settings->bytesLimit(_source, type);
-				if (now > 0) {
+				if (now > 0)
+				{
 					settings->setBytesLimit(_source, type, *limit);
 				}
 			}
 		}
-		if (changed || hiddenChanged) {
+		if (changed || hiddenChanged)
+		{
 			Local::writeUserSettings();
 		}
-		if (allowMoreTypes.contains(Type::Photo)) {
+		if (allowMoreTypes.contains(Type::Photo))
+		{
 			Auth().data().photoLoadSettingsChanged();
 		}
 		if (ranges::find_if(allowMoreTypes, _1 != Type::Photo)
-			!= allowMoreTypes.end()) {
+			!= allowMoreTypes.end())
+		{
 			Auth().data().documentLoadSettingsChanged();
 		}
 		closeBox();
 	});
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(langFactory(lng_cancel), [=]
+	{
+		closeBox();
+	});
 
 	setDimensionsToContent(st::boxWidth, content);
 }

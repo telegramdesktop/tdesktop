@@ -11,109 +11,147 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
-namespace Data {
-class Folder;
+namespace Data
+{
+	class Folder;
 } // namespace Data
 
-namespace Dialogs {
+namespace Dialogs
+{
+	class Entry;
 
-class Entry;
+	class Key
+	{
+	public:
+		Key() = default;
 
-class Key {
-public:
-	Key() = default;
-	Key(History *history) : _value(history) {
+		Key(History* history) :
+			_value(history)
+		{
+		}
+
+		Key(not_null<History*> history) :
+			_value(history)
+		{
+		}
+
+		Key(Data::Folder* folder) :
+			_value(folder)
+		{
+		}
+
+		Key(not_null<Data::Folder*> folder) :
+			_value(folder)
+		{
+		}
+
+		explicit operator bool() const
+		{
+			return !!_value;
+		}
+
+		not_null<Entry*> entry() const;
+		History* history() const;
+		Data::Folder* folder() const;
+		PeerData* peer() const;
+
+		inline bool operator<(const Key& other) const
+		{
+			return _value < other._value;
+		}
+
+		inline bool operator>(const Key& other) const
+		{
+			return (other < *this);
+		}
+
+		inline bool operator<=(const Key& other) const
+		{
+			return !(other < *this);
+		}
+
+		inline bool operator>=(const Key& other) const
+		{
+			return !(*this < other);
+		}
+
+		inline bool operator==(const Key& other) const
+		{
+			return _value == other._value;
+		}
+
+		inline bool operator!=(const Key& other) const
+		{
+			return !(*this == other);
+		}
+
+		base::optional_variant<
+			not_null<History*>,
+			not_null<Data::Folder*>> raw() const
+		{
+			return _value;
+		}
+
+		// Not working :(
+		//friend inline auto value_ordering_helper(const Key &key) {
+		//	return key.value;
+		//}
+
+	private:
+		base::optional_variant<
+			not_null<History*>,
+			not_null<Data::Folder*>> _value;
+	};
+
+	struct RowDescriptor
+	{
+		RowDescriptor() = default;
+
+		RowDescriptor(Key key, FullMsgId fullId) :
+			key(key), fullId(fullId)
+		{
+		}
+
+		Key key;
+		FullMsgId fullId;
+	};
+
+	inline bool operator==(const RowDescriptor& a, const RowDescriptor& b)
+	{
+		return (a.key == b.key)
+			&& ((a.fullId == b.fullId) || (!a.fullId.msg && !b.fullId.msg));
 	}
-	Key(not_null<History*> history) : _value(history) {
-	}
-	Key(Data::Folder *folder) : _value(folder) {
-	}
-	Key(not_null<Data::Folder*> folder) : _value(folder) {
-	}
 
-	explicit operator bool() const {
-		return !!_value;
-	}
-	not_null<Entry*> entry() const;
-	History *history() const;
-	Data::Folder *folder() const;
-	PeerData *peer() const;
-
-	inline bool operator<(const Key &other) const {
-		return _value < other._value;
-	}
-	inline bool operator>(const Key &other) const {
-		return (other < *this);
-	}
-	inline bool operator<=(const Key &other) const {
-		return !(other < *this);
-	}
-	inline bool operator>=(const Key &other) const {
-		return !(*this < other);
-	}
-	inline bool operator==(const Key &other) const {
-		return _value == other._value;
-	}
-	inline bool operator!=(const Key &other) const {
-		return !(*this == other);
+	inline bool operator!=(const RowDescriptor& a, const RowDescriptor& b)
+	{
+		return !(a == b);
 	}
 
-	base::optional_variant<
-		not_null<History*>,
-		not_null<Data::Folder*>> raw() const {
-		return _value;
+	inline bool operator<(const RowDescriptor& a, const RowDescriptor& b)
+	{
+		if (a.key < b.key)
+		{
+			return true;
+		}
+		else if (a.key > b.key)
+		{
+			return false;
+		}
+		return a.fullId < b.fullId;
 	}
 
-	// Not working :(
-	//friend inline auto value_ordering_helper(const Key &key) {
-	//	return key.value;
-	//}
-
-private:
-	base::optional_variant<
-		not_null<History*>,
-		not_null<Data::Folder*>> _value;
-
-};
-
-struct RowDescriptor {
-	RowDescriptor() = default;
-	RowDescriptor(Key key, FullMsgId fullId) : key(key), fullId(fullId) {
+	inline bool operator>(const RowDescriptor& a, const RowDescriptor& b)
+	{
+		return (b < a);
 	}
 
-	Key key;
-	FullMsgId fullId;
-
-};
-
-inline bool operator==(const RowDescriptor &a, const RowDescriptor &b) {
-	return (a.key == b.key)
-		&& ((a.fullId == b.fullId) || (!a.fullId.msg && !b.fullId.msg));
-}
-
-inline bool operator!=(const RowDescriptor &a, const RowDescriptor &b) {
-	return !(a == b);
-}
-
-inline bool operator<(const RowDescriptor &a, const RowDescriptor &b) {
-	if (a.key < b.key) {
-		return true;
-	} else if (a.key > b.key) {
-		return false;
+	inline bool operator<=(const RowDescriptor& a, const RowDescriptor& b)
+	{
+		return !(b < a);
 	}
-	return a.fullId < b.fullId;
-}
 
-inline bool operator>(const RowDescriptor &a, const RowDescriptor &b) {
-	return (b < a);
-}
-
-inline bool operator<=(const RowDescriptor &a, const RowDescriptor &b) {
-	return !(b < a);
-}
-
-inline bool operator>=(const RowDescriptor &a, const RowDescriptor &b) {
-	return !(a < b);
-}
-
+	inline bool operator>=(const RowDescriptor& a, const RowDescriptor& b)
+	{
+		return !(a < b);
+	}
 } // namespace Dialogs

@@ -11,21 +11,47 @@
 #include "media/player/media_player_instance.h"
 #import <Cocoa/Cocoa.h>
 
-namespace Platform {
-enum class TouchBarType {
-	None,
-	Main,
-	AudioPlayer,
-	AudioPlayerForce,
-};
+namespace Platform
+{
+	enum class TouchBarType
+	{
+		None,
+		Main,
+		AudioPlayer,
+		AudioPlayerForce,
+	};
 } // namespace
 
-@interface TouchBar : NSTouchBar
+@
+interface TouchBar : NSTouchBar
 
-@property(retain) NSDictionary * _Nullable touchBarItems;
+                     @property(retain) NSDictionary* _Nullable touchBarItems;
 
-- (id _Nonnull) init:(NSView * _Nonnull)view;
-- (void) handleTrackStateChange:(Media::Player::TrackState)state;
-- (void) setTouchBar:(Platform::TouchBarType)type;
+-
+(id
+_Nonnull
+)
+init
+:
+(NSView
+*
+_Nonnull
+)
+view;
+-
+(
+void
+)
+handleTrackStateChange
+:
+(Media::Player::TrackState)state;
+-
+(
+void
+)
+setTouchBar
+:
+(Platform::TouchBarType)type;
 
-@end
+@
+end

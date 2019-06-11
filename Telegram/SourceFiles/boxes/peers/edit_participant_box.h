@@ -10,17 +10,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/unique_qptr.h"
 
-namespace Ui {
-class FlatLabel;
-class LinkButton;
-class Checkbox;
-class Radiobutton;
-class RadiobuttonGroup;
+namespace Ui
+{
+	class FlatLabel;
+	class LinkButton;
+	class Checkbox;
+	class Radiobutton;
+	class RadiobuttonGroup;
 } // namespace Ui
 
 class CalendarBox;
 
-class EditParticipantBox : public BoxContent {
+class EditParticipantBox : public BoxContent
+{
 public:
 	EditParticipantBox(
 		QWidget*,
@@ -31,17 +33,21 @@ public:
 protected:
 	void prepare() override;
 
-	not_null<UserData*> user() const {
+	not_null<UserData*> user() const
+	{
 		return _user;
 	}
-	not_null<PeerData*> peer() const {
+
+	not_null<PeerData*> peer() const
+	{
 		return _peer;
 	}
 
 	template <typename Widget>
-	Widget *addControl(object_ptr<Widget> widget, QMargins margin = {});
+	Widget* addControl(object_ptr<Widget> widget, QMargins margin = {});
 
-	bool hasAdminRights() const {
+	bool hasAdminRights() const
+	{
 		return _hasAdminRights;
 	}
 
@@ -52,19 +58,20 @@ private:
 
 	class Inner;
 	QPointer<Inner> _inner;
-
 };
 
-class EditAdminBox : public EditParticipantBox {
+class EditAdminBox : public EditParticipantBox
+{
 public:
 	EditAdminBox(
 		QWidget*,
 		not_null<PeerData*> peer,
 		not_null<UserData*> user,
-		const MTPChatAdminRights &rights);
+		const MTPChatAdminRights& rights);
 
 	void setSaveCallback(
-			Fn<void(MTPChatAdminRights, MTPChatAdminRights)> callback) {
+		Fn<void(MTPChatAdminRights, MTPChatAdminRights)> callback)
+	{
 		_saveCallback = std::move(callback);
 	}
 
@@ -77,32 +84,35 @@ private:
 
 	static MTPChatAdminRights Defaults(not_null<PeerData*> peer);
 
-	bool canSave() const {
+	bool canSave() const
+	{
 		return !!_saveCallback;
 	}
+
 	void refreshAboutAddAdminsText(bool canAddAdmins);
 
 	const MTPChatAdminRights _oldRights;
 	Fn<void(MTPChatAdminRights, MTPChatAdminRights)> _saveCallback;
 
 	QPointer<Ui::FlatLabel> _aboutAddAdmins;
-
 };
 
 // Restricted box works with flags in the opposite way.
 // If some flag is set in the rights then the checkbox is unchecked.
 
-class EditRestrictedBox : public EditParticipantBox {
+class EditRestrictedBox : public EditParticipantBox
+{
 public:
 	EditRestrictedBox(
 		QWidget*,
 		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		bool hasAdminRights,
-		const MTPChatBannedRights &rights);
+		const MTPChatBannedRights& rights);
 
 	void setSaveCallback(
-			Fn<void(MTPChatBannedRights, MTPChatBannedRights)> callback) {
+		Fn<void(MTPChatBannedRights, MTPChatBannedRights)> callback)
+	{
 		_saveCallback = std::move(callback);
 	}
 
@@ -115,9 +125,11 @@ private:
 
 	static MTPChatBannedRights Defaults(not_null<PeerData*> peer);
 
-	bool canSave() const {
+	bool canSave() const
+	{
 		return !!_saveCallback;
 	}
+
 	void showRestrictUntil();
 	void setRestrictUntil(TimeId until);
 	bool isUntilForever() const;
@@ -136,5 +148,4 @@ private:
 	static constexpr auto kUntilOneDay = -1;
 	static constexpr auto kUntilOneWeek = -2;
 	static constexpr auto kUntilCustom = -3;
-
 };

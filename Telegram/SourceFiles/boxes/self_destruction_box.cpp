@@ -16,41 +16,48 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 SelfDestructionBox::SelfDestructionBox(
 	QWidget*,
-	rpl::producer<int> preloaded)
-: _ttlValues{ 30, 90, 180, 365 }
-, _loading(
+	rpl::producer<int> preloaded):
+	_ttlValues{30, 90, 180, 365}
+	, _loading(
 		this,
 		lang(lng_contacts_loading),
 		Ui::FlatLabel::InitType::Simple,
-		st::membersAbout) {
+		st::membersAbout)
+{
 	std::move(
 		preloaded
 	) | rpl::take(
 		1
-	) | rpl::start_with_next([=](int days) {
+	) | rpl::start_with_next([=](int days)
+	{
 		gotCurrent(days);
 	}, lifetime());
 }
 
-void SelfDestructionBox::gotCurrent(int days) {
+void SelfDestructionBox::gotCurrent(int days)
+{
 	Expects(!_ttlValues.empty());
 
 	_loading.destroy();
 
 	auto daysAdjusted = _ttlValues[0];
-	for (const auto value : _ttlValues) {
-		if (qAbs(days - value) < qAbs(days - daysAdjusted)) {
+	for (const auto value : _ttlValues)
+	{
+		if (qAbs(days - value) < qAbs(days - daysAdjusted))
+		{
 			daysAdjusted = value;
 		}
 	}
 	_ttlGroup = std::make_shared<Ui::RadiobuttonGroup>(daysAdjusted);
 
-	if (_prepared) {
+	if (_prepared)
+	{
 		showContent();
 	}
 }
 
-void SelfDestructionBox::showContent() {
+void SelfDestructionBox::showContent()
+{
 	auto y = st::boxOptionListPadding.top();
 	_description.create(
 		this,
@@ -61,7 +68,8 @@ void SelfDestructionBox::showContent() {
 	y += _description->height() + st::boxMediumSkip;
 
 	const auto count = int(_ttlValues.size());
-	for (const auto value : _ttlValues) {
+	for (const auto value : _ttlValues)
+	{
 		const auto button = Ui::CreateChild<Ui::Radiobutton>(
 			this,
 			_ttlGroup,
@@ -74,20 +82,26 @@ void SelfDestructionBox::showContent() {
 	showChildren();
 
 	clearButtons();
-	addButton(langFactory(lng_settings_save), [=] {
+	addButton(langFactory(lng_settings_save), [=]
+	{
 		Auth().api().saveSelfDestruct(_ttlGroup->value());
 		closeBox();
 	});
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(langFactory(lng_cancel), [=]
+	{
+		closeBox();
+	});
 }
 
-QString SelfDestructionBox::DaysLabel(int days) {
+QString SelfDestructionBox::DaysLabel(int days)
+{
 	return (days > 364)
-		? lng_self_destruct_years(lt_count, days / 365)
-		: lng_self_destruct_months(lt_count, qMax(days / 30, 1));
+		       ? lng_self_destruct_years(lt_count, days / 365)
+		       : lng_self_destruct_months(lt_count, qMax(days / 30, 1));
 }
 
-void SelfDestructionBox::prepare() {
+void SelfDestructionBox::prepare()
+{
 	setTitle(langFactory(lng_self_destruct_title));
 
 	auto fake = object_ptr<Ui::FlatLabel>(
@@ -105,14 +119,20 @@ void SelfDestructionBox::prepare() {
 
 	setDimensions(st::boxWidth, boxHeight);
 
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_cancel), [this]
+	{
+		closeBox();
+	});
 
-	if (_loading) {
+	if (_loading)
+	{
 		_loading->moveToLeft(
 			(st::boxWidth - _loading->width()) / 2,
 			boxHeight / 3);
 		_prepared = true;
-	} else {
+	}
+	else
+	{
 		showContent();
 	}
 }

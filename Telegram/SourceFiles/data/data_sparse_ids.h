@@ -9,28 +9,47 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_messages.h"
 
-namespace Storage {
-struct SparseIdsListResult;
-struct SparseIdsSliceUpdate;
+namespace Storage
+{
+	struct SparseIdsListResult;
+	struct SparseIdsSliceUpdate;
 } // namespace Storage
 
-class SparseIdsSlice {
+class SparseIdsSlice
+{
 public:
 	using Key = MsgId;
 
 	SparseIdsSlice() = default;
 	SparseIdsSlice(
-		const base::flat_set<MsgId> &ids,
+		const base::flat_set<MsgId>& ids,
 		MsgRange range,
 		std::optional<int> fullCount,
 		std::optional<int> skippedBefore,
 		std::optional<int> skippedAfter);
 
-	std::optional<int> fullCount() const { return _fullCount; }
-	std::optional<int> skippedBefore() const { return _skippedBefore; }
-	std::optional<int> skippedAfter() const { return _skippedAfter; }
+	std::optional<int> fullCount() const
+	{
+		return _fullCount;
+	}
+
+	std::optional<int> skippedBefore() const
+	{
+		return _skippedBefore;
+	}
+
+	std::optional<int> skippedAfter() const
+	{
+		return _skippedAfter;
+	}
+
 	std::optional<int> indexOf(MsgId msgId) const;
-	int size() const { return _ids.size(); }
+
+	int size() const
+	{
+		return _ids.size();
+	}
+
 	MsgId operator[](int index) const;
 	std::optional<int> distance(MsgId a, MsgId b) const;
 	std::optional<MsgId> nearest(MsgId msgId) const;
@@ -41,35 +60,39 @@ private:
 	std::optional<int> _fullCount;
 	std::optional<int> _skippedBefore;
 	std::optional<int> _skippedAfter;
-
 };
 
-class SparseIdsMergedSlice {
+class SparseIdsMergedSlice
+{
 public:
 	using UniversalMsgId = MsgId;
-	struct Key {
+	struct Key
+	{
 		Key(
 			PeerId peerId,
 			PeerId migratedPeerId,
-			UniversalMsgId universalId)
-		: peerId(peerId)
-		, migratedPeerId(migratedPeerId)
-		, universalId(universalId) {
+			UniversalMsgId universalId) :
+			peerId(peerId)
+			, migratedPeerId(migratedPeerId)
+			, universalId(universalId)
+		{
 		}
 
-		bool operator==(const Key &other) const {
+		bool operator==(const Key& other) const
+		{
 			return (peerId == other.peerId)
 				&& (migratedPeerId == other.migratedPeerId)
 				&& (universalId == other.universalId);
 		}
-		bool operator!=(const Key &other) const {
+
+		bool operator!=(const Key& other) const
+		{
 			return !(*this == other);
 		}
 
 		PeerId peerId = 0;
 		PeerId migratedPeerId = 0;
 		UniversalMsgId universalId = 0;
-
 	};
 
 	SparseIdsMergedSlice(Key key);
@@ -84,7 +107,7 @@ public:
 	std::optional<int> indexOf(FullMsgId fullId) const;
 	int size() const;
 	FullMsgId operator[](int index) const;
-	std::optional<int> distance(const Key &a, const Key &b) const;
+	std::optional<int> distance(const Key& a, const Key& b) const;
 	std::optional<FullMsgId> nearest(UniversalMsgId id) const;
 
 	using SimpleViewerFunction = rpl::producer<SparseIdsSlice>(
@@ -99,57 +122,80 @@ public:
 		Fn<SimpleViewerFunction> simpleViewer);
 
 private:
-	static SparseIdsSlice::Key PartKey(const Key &key) {
+	static SparseIdsSlice::Key PartKey(const Key& key)
+	{
 		return (key.universalId < 0) ? 1 : key.universalId;
 	}
-	static SparseIdsSlice::Key MigratedKey(const Key &key) {
+
+	static SparseIdsSlice::Key MigratedKey(const Key& key)
+	{
 		return (key.universalId < 0)
-			? (ServerMaxMsgId + key.universalId)
-			: (key.universalId > 0) ? (ServerMaxMsgId - 1) : 0;
-	}
-	static std::optional<SparseIdsSlice> MigratedSlice(const Key &key) {
-		return key.migratedPeerId
-			? base::make_optional(SparseIdsSlice())
-			: std::nullopt;
+			       ? (ServerMaxMsgId + key.universalId)
+			       : (key.universalId > 0)
+			       ? (ServerMaxMsgId - 1)
+			       : 0;
 	}
 
-	static bool IsFromSlice(PeerId peerId, FullMsgId fullId) {
-		return peerIsChannel(peerId)
-			? (peerId == peerFromChannel(fullId.channel))
-			: !fullId.channel;
+	static std::optional<SparseIdsSlice> MigratedSlice(const Key& key)
+	{
+		return key.migratedPeerId
+			       ? base::make_optional(SparseIdsSlice())
+			       : std::nullopt;
 	}
-	static FullMsgId ComputeId(PeerId peerId, MsgId msgId) {
+
+	static bool IsFromSlice(PeerId peerId, FullMsgId fullId)
+	{
+		return peerIsChannel(peerId)
+			       ? (peerId == peerFromChannel(fullId.channel))
+			       : !fullId.channel;
+	}
+
+	static FullMsgId ComputeId(PeerId peerId, MsgId msgId)
+	{
 		return FullMsgId(
 			peerIsChannel(peerId) ? peerToBareInt(peerId) : 0,
 			msgId);
 	}
-	static FullMsgId ComputeId(const Key &key) {
+
+	static FullMsgId ComputeId(const Key& key)
+	{
 		return (key.universalId >= 0)
-			? ComputeId(key.peerId, key.universalId)
-			: ComputeId(key.migratedPeerId, ServerMaxMsgId + key.universalId);
+			       ? ComputeId(key.peerId, key.universalId)
+			       : ComputeId(key.migratedPeerId, ServerMaxMsgId + key.universalId);
 	}
+
 	static std::optional<int> Add(
-			const std::optional<int> &a,
-			const std::optional<int> &b) {
+		const std::optional<int>& a,
+		const std::optional<int>& b)
+	{
 		return (a && b) ? base::make_optional(*a + *b) : std::nullopt;
 	}
 
-	bool isFromPart(FullMsgId fullId) const {
+	bool isFromPart(FullMsgId fullId) const
+	{
 		return IsFromSlice(_key.peerId, fullId);
 	}
-	bool isFromMigrated(FullMsgId fullId) const {
+
+	bool isFromMigrated(FullMsgId fullId) const
+	{
 		return _migrated
-			? IsFromSlice(_key.migratedPeerId, fullId)
-			: false;
+			       ? IsFromSlice(_key.migratedPeerId, fullId)
+			       : false;
 	}
-	int migratedSize() const {
+
+	int migratedSize() const
+	{
 		return isolatedInPart() ? 0 : _migrated->size();
 	}
-	bool isolatedInPart() const {
+
+	bool isolatedInPart() const
+	{
 		return IsServerMsgId(_key.universalId)
 			&& (!_migrated || _part.skippedBefore() != 0);
 	}
-	bool isolatedInMigrated() const {
+
+	bool isolatedInMigrated() const
+	{
 		return IsServerMsgId(ServerMaxMsgId + _key.universalId)
 			&& (_migrated->skippedAfter() != 0);
 	}
@@ -157,40 +203,45 @@ private:
 	Key _key;
 	SparseIdsSlice _part;
 	std::optional<SparseIdsSlice> _migrated;
-
 };
 
-class SparseIdsSliceBuilder {
+class SparseIdsSliceBuilder
+{
 public:
 	using Key = SparseIdsSlice::Key;
 
 	SparseIdsSliceBuilder(Key key, int limitBefore, int limitAfter);
 
-	bool applyInitial(const Storage::SparseIdsListResult &result);
-	bool applyUpdate(const Storage::SparseIdsSliceUpdate &update);
+	bool applyInitial(const Storage::SparseIdsListResult& result);
+	bool applyUpdate(const Storage::SparseIdsSliceUpdate& update);
 	bool removeOne(MsgId messageId);
 	bool removeAll();
 	bool invalidateBottom();
 
 	void checkInsufficient();
-	struct AroundData {
+	struct AroundData
+	{
 		MsgId aroundId = 0;
 		Data::LoadDirection direction = Data::LoadDirection::Around;
 
-		inline bool operator<(const AroundData &other) const {
+		inline bool operator<(const AroundData& other) const
+		{
 			return (aroundId < other.aroundId)
 				|| ((aroundId == other.aroundId)
 					&& (direction < other.direction));
 		}
 	};
-	auto insufficientAround() const {
+
+	auto insufficientAround() const
+	{
 		return _insufficientAround.events();
 	}
 
 	SparseIdsSlice snapshot() const;
 
 private:
-	enum class RequestDirection {
+	enum class RequestDirection
+	{
 		Before,
 		After,
 	};
@@ -201,7 +252,7 @@ private:
 
 	void mergeSliceData(
 		std::optional<int> count,
-		const base::flat_set<MsgId> &messageIds,
+		const base::flat_set<MsgId>& messageIds,
 		std::optional<int> skippedBefore = std::nullopt,
 		std::optional<int> skippedAfter = std::nullopt);
 
@@ -215,5 +266,4 @@ private:
 	int _limitAfter = 0;
 
 	rpl::event_stream<AroundData> _insufficientAround;
-
 };

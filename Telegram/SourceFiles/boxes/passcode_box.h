@@ -11,23 +11,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "core/core_cloud_password.h"
 
-namespace Ui {
-class InputField;
-class PasswordInput;
-class LinkButton;
+namespace Ui
+{
+	class InputField;
+	class PasswordInput;
+	class LinkButton;
 } // namespace Ui
 
-class PasscodeBox : public BoxContent, private MTP::Sender {
+class PasscodeBox : public BoxContent, private MTP::Sender
+{
 public:
 	PasscodeBox(QWidget*, bool turningOff);
 	PasscodeBox(
 		QWidget*,
-		const Core::CloudPasswordCheckRequest &curRequest,
-		const Core::CloudPasswordAlgo &newAlgo,
+		const Core::CloudPasswordCheckRequest& curRequest,
+		const Core::CloudPasswordAlgo& newAlgo,
 		bool hasRecovery,
 		bool notEmptyPassport,
-		const QString &hint,
-		const Core::SecureSecretAlgo &newSecureSecretAlgo,
+		const QString& hint,
+		const Core::SecureSecretAlgo& newSecureSecretAlgo,
 		bool turningOff = false);
 
 	rpl::producer<QByteArray> newPasswordSet() const;
@@ -38,12 +40,12 @@ protected:
 	void prepare() override;
 	void setInnerFocus() override;
 
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent* e) override;
+	void resizeEvent(QResizeEvent* e) override;
 
 private:
 	using CheckPasswordCallback = Fn<void(
-		const Core::CloudPasswordResult &check)>;
+		const Core::CloudPasswordResult& check)>;
 
 	void submit();
 	void closeReplacedBy();
@@ -56,49 +58,49 @@ private:
 	void recoverExpired();
 	bool currentlyHave() const;
 
-	void setPasswordDone(const QByteArray &newPasswordBytes);
-	void setPasswordFail(const RPCError &error);
+	void setPasswordDone(const QByteArray& newPasswordBytes);
+	void setPasswordFail(const RPCError& error);
 	void setPasswordFail(
-		const QByteArray &newPasswordBytes,
-		const QString &email,
-		const RPCError &error);
+		const QByteArray& newPasswordBytes,
+		const QString& email,
+		const RPCError& error);
 	void validateEmail(
-		const QString &email,
+		const QString& email,
 		int codeLength,
-		const QByteArray &newPasswordBytes);
+		const QByteArray& newPasswordBytes);
 
-	void recoverStarted(const MTPauth_PasswordRecovery &result);
-	void recoverStartFail(const RPCError &error);
+	void recoverStarted(const MTPauth_PasswordRecovery& result);
+	void recoverStartFail(const RPCError& error);
 
 	void recover();
-	void clearCloudPassword(const QString &oldPassword);
-	void setNewCloudPassword(const QString &newPassword);
+	void clearCloudPassword(const QString& oldPassword);
+	void setNewCloudPassword(const QString& newPassword);
 
 	void checkPassword(
-		const QString &oldPassword,
+		const QString& oldPassword,
 		CheckPasswordCallback callback);
 	void checkPasswordHash(CheckPasswordCallback callback);
 
 	void changeCloudPassword(
-		const QString &oldPassword,
-		const QString &newPassword);
+		const QString& oldPassword,
+		const QString& newPassword);
 	void changeCloudPassword(
-		const QString &oldPassword,
-		const Core::CloudPasswordResult &check,
-		const QString &newPassword);
+		const QString& oldPassword,
+		const Core::CloudPasswordResult& check,
+		const QString& newPassword);
 
 	void sendChangeCloudPassword(
-		const Core::CloudPasswordResult &check,
-		const QString &newPassword,
-		const QByteArray &secureSecret);
-	void suggestSecretReset(const QString &newPassword);
+		const Core::CloudPasswordResult& check,
+		const QString& newPassword,
+		const QByteArray& secureSecret);
+	void suggestSecretReset(const QString& newPassword);
 	void resetSecret(
-		const Core::CloudPasswordResult &check,
-		const QString &newPassword,
+		const Core::CloudPasswordResult& check,
+		const QString& newPassword,
 		Fn<void()> callback);
 
-	void sendClearCloudPassword(const QString &oldPassword);
-	void sendClearCloudPassword(const Core::CloudPasswordResult &check);
+	void sendClearCloudPassword(const QString& oldPassword);
+	void sendClearCloudPassword(const Core::CloudPasswordResult& check);
 
 	void handleSrpIdInvalid();
 	void requestPasswordData();
@@ -138,12 +140,12 @@ private:
 	rpl::event_stream<QByteArray> _newPasswordSet;
 	rpl::event_stream<> _passwordReloadNeeded;
 	rpl::event_stream<> _clearUnconfirmedPassword;
-
 };
 
-class RecoverBox : public BoxContent, public RPCSender {
+class RecoverBox : public BoxContent, public RPCSender
+{
 public:
-	RecoverBox(QWidget*, const QString &pattern, bool notEmptyPassport);
+	RecoverBox(QWidget*, const QString& pattern, bool notEmptyPassport);
 
 	rpl::producer<> passwordCleared() const;
 	rpl::producer<> recoveryExpired() const;
@@ -155,14 +157,14 @@ protected:
 	void prepare() override;
 	void setInnerFocus() override;
 
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent* e) override;
+	void resizeEvent(QResizeEvent* e) override;
 
 private:
 	void submit();
 	void codeChanged();
-	void codeSubmitDone(bool recover, const MTPauth_Authorization &result);
-	bool codeSubmitFail(const RPCError &error);
+	void codeSubmitDone(bool recover, const MTPauth_Authorization& result);
+	bool codeSubmitFail(const RPCError& error);
 
 	mtpRequestId _submitRequest = 0;
 
@@ -175,12 +177,12 @@ private:
 
 	rpl::event_stream<> _passwordCleared;
 	rpl::event_stream<> _recoveryExpired;
-
 };
 
-struct RecoveryEmailValidation {
+struct RecoveryEmailValidation
+{
 	object_ptr<BoxContent> box;
 	rpl::producer<> reloadRequests;
 	rpl::producer<> cancelRequests;
 };
-RecoveryEmailValidation ConfirmRecoveryEmail(const QString &pattern);
+RecoveryEmailValidation ConfirmRecoveryEmail(const QString& pattern);

@@ -14,70 +14,72 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class BoxContent;
 
-namespace Ui {
-class SeparatePanel;
+namespace Ui
+{
+	class SeparatePanel;
 } // namespace Ui
 
-namespace Export {
+namespace Export
+{
+	struct Environment;
 
-struct Environment;
+	namespace View
+	{
+		Environment PrepareEnvironment();
+		QPointer<BoxContent> SuggestStart();
+		void ClearSuggestStart();
+		bool IsDefaultPath(const QString& path);
+		void ResolveSettings(Settings& settings);
 
-namespace View {
+		class Panel;
 
-Environment PrepareEnvironment();
-QPointer<BoxContent> SuggestStart();
-void ClearSuggestStart();
-bool IsDefaultPath(const QString &path);
-void ResolveSettings(Settings &settings);
+		class PanelController
+		{
+		public:
+			PanelController(not_null<Controller*> process);
 
-class Panel;
+			void activatePanel();
+			void stopWithConfirmation(FnMut<void()> callback = nullptr);
 
-class PanelController {
-public:
-	PanelController(not_null<Controller*> process);
+			rpl::producer<> stopRequests() const;
 
-	void activatePanel();
-	void stopWithConfirmation(FnMut<void()> callback = nullptr);
+			rpl::lifetime& lifetime()
+			{
+				return _lifetime;
+			}
 
-	rpl::producer<> stopRequests() const;
+			auto progressState() const
+			{
+				return ContentFromState(_process->state());
+			}
 
-	rpl::lifetime &lifetime() {
-		return _lifetime;
-	}
+			~PanelController();
 
-	auto progressState() const {
-		return ContentFromState(_process->state());
-	}
+		private:
+			void fillParams(const PasswordCheckState& state);
+			void stopExport();
+			void createPanel();
+			void updateState(State&& state);
+			void showSettings();
+			void showProgress();
+			void showError(const ApiErrorState& error);
+			void showError(const OutputErrorState& error);
+			void showError(const QString& text);
+			void showCriticalError(const QString& text);
 
-	~PanelController();
+			void saveSettings() const;
 
-private:
-	void fillParams(const PasswordCheckState &state);
-	void stopExport();
-	void createPanel();
-	void updateState(State &&state);
-	void showSettings();
-	void showProgress();
-	void showError(const ApiErrorState &error);
-	void showError(const OutputErrorState &error);
-	void showError(const QString &text);
-	void showCriticalError(const QString &text);
+			not_null<Controller*> _process;
+			std::unique_ptr<Settings> _settings;
+			base::Timer _saveSettingsTimer;
 
-	void saveSettings() const;
+			base::unique_qptr<Ui::SeparatePanel> _panel;
 
-	not_null<Controller*> _process;
-	std::unique_ptr<Settings> _settings;
-	base::Timer _saveSettingsTimer;
-
-	base::unique_qptr<Ui::SeparatePanel> _panel;
-
-	State _state;
-	QPointer<BoxContent> _confirmStopBox;
-	rpl::event_stream<rpl::producer<>> _panelCloseEvents;
-	bool _stopRequested = false;
-	rpl::lifetime _lifetime;
-
-};
-
-} // namespace View
+			State _state;
+			QPointer<BoxContent> _confirmStopBox;
+			rpl::event_stream<rpl::producer<>> _panelCloseEvents;
+			bool _stopRequested = false;
+			rpl::lifetime _lifetime;
+		};
+	} // namespace View
 } // namespace Export

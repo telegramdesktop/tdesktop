@@ -11,45 +11,54 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_types.h"
 #include "ui/image/image.h"
 
-namespace Images {
-class Source;
+namespace Images
+{
+	class Source;
 } // namespace Images
 
-namespace Storage {
-namespace Cache {
-struct Key;
-} // namespace Cache
+namespace Storage
+{
+	namespace Cache
+	{
+		struct Key;
+	} // namespace Cache
 } // namespace Storage
 
-namespace Media {
-namespace Streaming {
-class Loader;
-} // namespace Streaming
+namespace Media
+{
+	namespace Streaming
+	{
+		class Loader;
+	} // namespace Streaming
 } // namespace Media
 
-namespace Data {
-class Session;
+namespace Data
+{
+	class Session;
 } // namespace Data
 
 class AuthSession;
 class mtpFileLoader;
 
-inline uint64 mediaMix32To64(int32 a, int32 b) {
+inline uint64 mediaMix32To64(int32 a, int32 b)
+{
 	return (uint64(*reinterpret_cast<uint32*>(&a)) << 32)
 		| uint64(*reinterpret_cast<uint32*>(&b));
 }
 
 // version field removed from document.
-inline MediaKey mediaKey(LocationType type, int32 dc, const uint64 &id) {
+inline MediaKey mediaKey(LocationType type, int32 dc, const uint64& id)
+{
 	return MediaKey(mediaMix32To64(type, dc), id);
 }
 
-struct DocumentAdditionalData {
+struct DocumentAdditionalData
+{
 	virtual ~DocumentAdditionalData() = default;
-
 };
 
-struct StickerData : public DocumentAdditionalData {
+struct StickerData : public DocumentAdditionalData
+{
 	Data::FileOrigin setOrigin() const;
 
 	std::unique_ptr<Image> image;
@@ -59,13 +68,14 @@ struct StickerData : public DocumentAdditionalData {
 	StorageImageLocation loc; // doc thumb location
 };
 
-struct SongData : public DocumentAdditionalData {
+struct SongData : public DocumentAdditionalData
+{
 	int32 duration = 0;
 	QString title, performer;
-
 };
 
-struct VoiceData : public DocumentAdditionalData {
+struct VoiceData : public DocumentAdditionalData
+{
 	~VoiceData();
 
 	int duration = 0;
@@ -73,28 +83,31 @@ struct VoiceData : public DocumentAdditionalData {
 	char wavemax = 0;
 };
 
-bool fileIsImage(const QString &name, const QString &mime);
+bool fileIsImage(const QString& name, const QString& mime);
 
-namespace Serialize {
-class Document;
+namespace Serialize
+{
+	class Document;
 } // namespace Serialize;
 
-class DocumentData {
+class DocumentData
+{
 public:
 	DocumentData(not_null<Data::Session*> owner, DocumentId id);
 
-	[[nodiscard]] Data::Session &owner() const;
-	[[nodiscard]] AuthSession &session() const;
+	[[nodiscard]] Data::Session& owner() const;
+	[[nodiscard]] AuthSession& session() const;
 
 	void setattributes(
-		const QVector<MTPDocumentAttribute> &attributes);
+		const QVector<MTPDocumentAttribute>& attributes);
 
 	void automaticLoad(
 		Data::FileOrigin origin,
-		const HistoryItem *item);
+		const HistoryItem* item);
 	void automaticLoadSettingsChanged();
 
-	enum class FilePathResolve {
+	enum class FilePathResolve
+	{
 		Cached,
 		Checked,
 		SaveFromData,
@@ -107,7 +120,7 @@ public:
 	[[nodiscard]] bool displayLoading() const;
 	void save(
 		Data::FileOrigin origin,
-		const QString &toFile,
+		const QString& toFile,
 		LoadFromCloudSetting fromCloud = LoadFromCloudOrLocal,
 		bool autoLoading = false);
 	void cancel();
@@ -122,8 +135,8 @@ public:
 	[[nodiscard]] bool waitingForAlbum() const;
 
 	[[nodiscard]] QByteArray data() const;
-	[[nodiscard]] const FileLocation &location(bool check = false) const;
-	void setLocation(const FileLocation &loc);
+	[[nodiscard]] const FileLocation& location(bool check = false) const;
+	void setLocation(const FileLocation& loc);
 
 	[[nodiscard]] QString filepath(
 		FilePathResolve resolve = FilePathResolve::Cached) const;
@@ -131,20 +144,20 @@ public:
 	[[nodiscard]] bool saveToCache() const;
 
 	void unload();
-	[[nodiscard]] Image *getReplyPreview(Data::FileOrigin origin);
+	[[nodiscard]] Image* getReplyPreview(Data::FileOrigin origin);
 
-	[[nodiscard]] StickerData *sticker() const;
+	[[nodiscard]] StickerData* sticker() const;
 	void checkStickerLarge();
 	void checkStickerSmall();
-	[[nodiscard]] Image *getStickerSmall();
-	[[nodiscard]] Image *getStickerLarge();
+	[[nodiscard]] Image* getStickerSmall();
+	[[nodiscard]] Image* getStickerLarge();
 	[[nodiscard]] Data::FileOrigin stickerSetOrigin() const;
 	[[nodiscard]] Data::FileOrigin stickerOrGifOrigin() const;
 	[[nodiscard]] bool isStickerSetInstalled() const;
-	[[nodiscard]] SongData *song();
-	[[nodiscard]] const SongData *song() const;
-	[[nodiscard]] VoiceData *voice();
-	[[nodiscard]] const VoiceData *voice() const;
+	[[nodiscard]] SongData* song();
+	[[nodiscard]] const SongData* song() const;
+	[[nodiscard]] VoiceData* voice();
+	[[nodiscard]] const VoiceData* voice() const;
 
 	[[nodiscard]] bool isVoiceMessage() const;
 	[[nodiscard]] bool isVideoMessage() const;
@@ -160,39 +173,42 @@ public:
 	void recountIsImage();
 	[[nodiscard]] bool supportsStreaming() const;
 	void setNotSupportsStreaming();
-	void setData(const QByteArray &data) {
+
+	void setData(const QByteArray& data)
+	{
 		_data = data;
 	}
+
 	bool checkWallPaperProperties();
 	[[nodiscard]] bool isWallPaper() const;
 	[[nodiscard]] bool isPatternWallPaper() const;
 
 	[[nodiscard]] bool hasThumbnail() const;
 	void loadThumbnail(Data::FileOrigin origin);
-	[[nodiscard]] Image *thumbnailInline() const;
-	[[nodiscard]] Image *thumbnail() const;
+	[[nodiscard]] Image* thumbnailInline() const;
+	[[nodiscard]] Image* thumbnail() const;
 	void updateThumbnails(
 		ImagePtr thumbnailInline,
 		ImagePtr thumbnail);
 
-	[[nodiscard]] Image *goodThumbnail() const;
+	[[nodiscard]] Image* goodThumbnail() const;
 	[[nodiscard]] Storage::Cache::Key goodThumbnailCacheKey() const;
-	void setGoodThumbnailOnUpload(QImage &&image, QByteArray &&bytes);
+	void setGoodThumbnailOnUpload(QImage&& image, QByteArray&& bytes);
 	void refreshGoodThumbnail();
-	void replaceGoodThumbnail(std::unique_ptr<Images::Source> &&source);
+	void replaceGoodThumbnail(std::unique_ptr<Images::Source>&& source);
 
 	void setRemoteLocation(
 		int32 dc,
 		uint64 access,
-		const QByteArray &fileReference);
-	void setContentUrl(const QString &url);
-	void setWebLocation(const WebFileLocation &location);
+		const QByteArray& fileReference);
+	void setContentUrl(const QString& url);
+	void setWebLocation(const WebFileLocation& location);
 	[[nodiscard]] bool hasRemoteLocation() const;
 	[[nodiscard]] bool hasWebLocation() const;
 	[[nodiscard]] bool isNull() const;
 	[[nodiscard]] MTPInputDocument mtpInput() const;
 	[[nodiscard]] QByteArray fileReference() const;
-	void refreshFileReference(const QByteArray &value);
+	void refreshFileReference(const QByteArray& value);
 	void refreshStickerThumbFileReference();
 
 	// When we have some client-side generated document
@@ -204,16 +220,16 @@ public:
 	[[nodiscard]] QString filename() const;
 	[[nodiscard]] QString mimeString() const;
 	[[nodiscard]] bool hasMimeType(QLatin1String mime) const;
-	void setMimeString(const QString &mime);
+	void setMimeString(const QString& mime);
 
 	[[nodiscard]] MediaKey mediaKey() const;
 	[[nodiscard]] Storage::Cache::Key cacheKey() const;
 	[[nodiscard]] uint8 cacheTag() const;
 
 	[[nodiscard]] static QString ComposeNameString(
-		const QString &filename,
-		const QString &songTitle,
-		const QString &songPerformer);
+		const QString& filename,
+		const QString& songTitle,
+		const QString& songPerformer);
 	[[nodiscard]] QString composeNameString() const;
 
 	[[nodiscard]] bool canBePlayed() const;
@@ -239,7 +255,8 @@ public:
 	std::unique_ptr<Data::UploadState> uploadingData;
 
 private:
-	enum class Flag : uchar {
+	enum class Flag : uchar
+	{
 		StreamingMaybeYes = 0x01,
 		StreamingMaybeNo = 0x02,
 		StreamingPlaybackFailed = 0x04,
@@ -248,7 +265,11 @@ private:
 		LoadedInMediaCache = 0x20,
 	};
 	using Flags = base::flags<Flag>;
-	friend constexpr bool is_flag_type(Flag) { return true; };
+
+	friend constexpr bool is_flag_type(Flag)
+	{
+		return true;
+	};
 
 	static constexpr Flags kStreamingSupportedMask = Flags()
 		| Flag::StreamingMaybeYes
@@ -297,32 +318,36 @@ private:
 	int32 _duration = -1;
 	mutable Flags _flags = kStreamingSupportedUnknown;
 	mutable std::unique_ptr<FileLoader> _loader;
-
 };
 
-VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit);
-QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform);
+VoiceWaveform documentWaveformDecode(const QByteArray& encoded5bit);
+QByteArray documentWaveformEncode5bit(const VoiceWaveform& waveform);
 
-class DocumentClickHandler : public FileClickHandler {
+class DocumentClickHandler : public FileClickHandler
+{
 public:
 	DocumentClickHandler(
 		not_null<DocumentData*> document,
-		FullMsgId context = FullMsgId())
-	: FileClickHandler(context)
-	, _document(document) {
+		FullMsgId context = FullMsgId()) :
+		FileClickHandler(context)
+		, _document(document)
+	{
 	}
-	not_null<DocumentData*> document() const {
+
+	not_null<DocumentData*> document() const
+	{
 		return _document;
 	}
 
 private:
 	not_null<DocumentData*> _document;
-
 };
 
-class DocumentSaveClickHandler : public DocumentClickHandler {
+class DocumentSaveClickHandler : public DocumentClickHandler
+{
 public:
-	enum class Mode {
+	enum class Mode
+	{
 		ToCacheOrFile,
 		ToFile,
 		ToNewFile,
@@ -335,32 +360,32 @@ public:
 
 protected:
 	void onClickImpl() const override;
-
 };
 
-class DocumentOpenClickHandler : public DocumentClickHandler {
+class DocumentOpenClickHandler : public DocumentClickHandler
+{
 public:
 	using DocumentClickHandler::DocumentClickHandler;
 	static void Open(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> document,
-		HistoryItem *context);
+		HistoryItem* context);
 
 protected:
 	void onClickImpl() const override;
-
 };
 
-class DocumentCancelClickHandler : public DocumentClickHandler {
+class DocumentCancelClickHandler : public DocumentClickHandler
+{
 public:
 	using DocumentClickHandler::DocumentClickHandler;
 
 protected:
 	void onClickImpl() const override;
-
 };
 
-class DocumentOpenWithClickHandler : public DocumentClickHandler {
+class DocumentOpenWithClickHandler : public DocumentClickHandler
+{
 public:
 	using DocumentClickHandler::DocumentClickHandler;
 	static void Open(
@@ -369,55 +394,56 @@ public:
 
 protected:
 	void onClickImpl() const override;
-
 };
 
-class VoiceSeekClickHandler : public DocumentOpenClickHandler {
+class VoiceSeekClickHandler : public DocumentOpenClickHandler
+{
 public:
 	using DocumentOpenClickHandler::DocumentOpenClickHandler;
 
 protected:
-	void onClickImpl() const override {
+	void onClickImpl() const override
+	{
 	}
-
 };
 
-class DocumentWrappedClickHandler : public DocumentClickHandler {
+class DocumentWrappedClickHandler : public DocumentClickHandler
+{
 public:
 	DocumentWrappedClickHandler(
 		ClickHandlerPtr wrapped,
 		not_null<DocumentData*> document,
-		FullMsgId context = FullMsgId())
-	: DocumentClickHandler(document, context)
-	, _wrapped(wrapped) {
+		FullMsgId context = FullMsgId()) :
+		DocumentClickHandler(document, context)
+		, _wrapped(wrapped)
+	{
 	}
 
 protected:
-	void onClickImpl() const override {
-		_wrapped->onClick({ Qt::LeftButton });
+	void onClickImpl() const override
+	{
+		_wrapped->onClick({Qt::LeftButton});
 	}
 
 private:
 	ClickHandlerPtr _wrapped;
-
 };
 
 QString FileNameForSave(
-	const QString &title,
-	const QString &filter,
-	const QString &prefix,
+	const QString& title,
+	const QString& filter,
+	const QString& prefix,
 	QString name,
 	bool savingAs,
-	const QDir &dir = QDir());
+	const QDir& dir = QDir());
 
-namespace Data {
-
-QString FileExtension(const QString &filepath);
-bool IsValidMediaFile(const QString &filepath);
-bool IsExecutableName(const QString &filepath);
-base::binary_guard ReadImageAsync(
-	not_null<DocumentData*> document,
-	FnMut<QImage(QImage)> postprocess,
-	FnMut<void(QImage&&)> done);
-
+namespace Data
+{
+	QString FileExtension(const QString& filepath);
+	bool IsValidMediaFile(const QString& filepath);
+	bool IsExecutableName(const QString& filepath);
+	base::binary_guard ReadImageAsync(
+		not_null<DocumentData*> document,
+		FnMut<QImage(QImage)> postprocess,
+		FnMut<void(QImage&&)> done);
 } // namespace Data

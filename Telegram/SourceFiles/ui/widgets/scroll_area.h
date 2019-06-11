@@ -11,221 +11,231 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "styles/style_widgets.h"
 
-namespace Ui {
+namespace Ui
+{
+	enum class TouchScrollState
+	{
+		Manual,
+		// Scrolling manually with the finger on the screen
+		Auto,
+		// Scrolling automatically
+		Acceleration // Scrolling automatically but a finger is on the screen
+	};
 
-enum class TouchScrollState {
-	Manual, // Scrolling manually with the finger on the screen
-	Auto, // Scrolling automatically
-	Acceleration // Scrolling automatically but a finger is on the screen
-};
+	class ScrollArea;
 
-class ScrollArea;
+	struct ScrollToRequest
+	{
+		ScrollToRequest(int ymin, int ymax) :
+			ymin(ymin)
+			, ymax(ymax)
+		{
+		}
 
-struct ScrollToRequest {
-	ScrollToRequest(int ymin, int ymax)
-	: ymin(ymin)
-	, ymax(ymax) {
-	}
+		int ymin = 0;
+		int ymax = 0;
+	};
 
-	int ymin = 0;
-	int ymax = 0;
-
-};
-
-class ScrollShadow : public QWidget {
+	class ScrollShadow : public QWidget
+	{
 	Q_OBJECT
 
-public:
-	ScrollShadow(ScrollArea *parent, const style::ScrollArea *st);
+	public:
+		ScrollShadow(ScrollArea* parent, const style::ScrollArea* st);
 
-	void paintEvent(QPaintEvent *e);
+		void paintEvent(QPaintEvent* e);
 
-public slots:
-	void changeVisibility(bool shown);
+	public slots:
+		void changeVisibility(bool shown);
 
-private:
-	const style::ScrollArea *_st;
+	private:
+		const style::ScrollArea* _st;
+	};
 
-};
-
-class ScrollBar : public TWidget {
+	class ScrollBar : public TWidget
+	{
 	Q_OBJECT
 
-public:
-	ScrollBar(ScrollArea *parent, bool vertical, const style::ScrollArea *st);
+	public:
+		ScrollBar(ScrollArea* parent, bool vertical, const style::ScrollArea* st);
 
-	void recountSize();
-	void updateBar(bool force = false);
+		void recountSize();
+		void updateBar(bool force = false);
 
-	void hideTimeout(crl::time dt);
+		void hideTimeout(crl::time dt);
 
-private slots:
-	void onValueChanged();
-	void onRangeChanged();
-	void onHideTimer();
+	private slots:
+		void onValueChanged();
+		void onRangeChanged();
+		void onHideTimer();
 
-signals:
-	void topShadowVisibility(bool);
-	void bottomShadowVisibility(bool);
+	signals:
+		void topShadowVisibility(bool);
+		void bottomShadowVisibility(bool);
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void enterEventHook(QEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	protected:
+		void paintEvent(QPaintEvent* e) override;
+		void enterEventHook(QEvent* e) override;
+		void leaveEventHook(QEvent* e) override;
+		void mouseMoveEvent(QMouseEvent* e) override;
+		void mousePressEvent(QMouseEvent* e) override;
+		void mouseReleaseEvent(QMouseEvent* e) override;
+		void resizeEvent(QResizeEvent* e) override;
 
-private:
-	ScrollArea *area();
+	private:
+		ScrollArea* area();
 
-	void setOver(bool over);
-	void setOverBar(bool overbar);
-	void setMoving(bool moving);
+		void setOver(bool over);
+		void setOverBar(bool overbar);
+		void setMoving(bool moving);
 
-	const style::ScrollArea *_st;
+		const style::ScrollArea* _st;
 
-	bool _vertical = true;
-	bool _hiding = false;
-	bool _over = false;
-	bool _overbar = false;
-	bool _moving = false;
-	bool _topSh = false;
-	bool _bottomSh = false;
+		bool _vertical = true;
+		bool _hiding = false;
+		bool _over = false;
+		bool _overbar = false;
+		bool _moving = false;
+		bool _topSh = false;
+		bool _bottomSh = false;
 
-	QPoint _dragStart;
-	QScrollBar *_connected;
+		QPoint _dragStart;
+		QScrollBar* _connected;
 
-	int32 _startFrom, _scrollMax;
+		int32 _startFrom, _scrollMax;
 
-	crl::time _hideIn = 0;
-	QTimer _hideTimer;
+		crl::time _hideIn = 0;
+		QTimer _hideTimer;
 
-	Ui::Animations::Simple _a_over;
-	Ui::Animations::Simple _a_barOver;
-	Ui::Animations::Simple _a_opacity;
+		Ui::Animations::Simple _a_over;
+		Ui::Animations::Simple _a_barOver;
+		Ui::Animations::Simple _a_opacity;
 
-	QRect _bar;
-};
+		QRect _bar;
+	};
 
-class ScrollArea : public Ui::RpWidgetWrap<QScrollArea> {
+	class ScrollArea : public Ui::RpWidgetWrap<QScrollArea>
+	{
 	Q_OBJECT
 
-public:
-	ScrollArea(QWidget *parent, const style::ScrollArea &st = st::defaultScrollArea, bool handleTouch = true);
+	public:
+		ScrollArea(QWidget* parent, const style::ScrollArea& st = st::defaultScrollArea, bool handleTouch = true);
 
-	int scrollWidth() const;
-	int scrollHeight() const;
-	int scrollLeftMax() const;
-	int scrollTopMax() const;
-	int scrollLeft() const;
-	int scrollTop() const;
+		int scrollWidth() const;
+		int scrollHeight() const;
+		int scrollLeftMax() const;
+		int scrollTopMax() const;
+		int scrollLeft() const;
+		int scrollTop() const;
 
-	template <typename Widget>
-	QPointer<Widget> setOwnedWidget(object_ptr<Widget> widget) {
-		auto result = QPointer<Widget>(widget);
-		doSetOwnedWidget(std::move(widget));
-		return result;
-	}
-	template <typename Widget>
-	object_ptr<Widget> takeWidget() {
-		return static_object_cast<Widget>(doTakeWidget());
-	}
+		template <typename Widget>
+		QPointer<Widget> setOwnedWidget(object_ptr<Widget> widget)
+		{
+			auto result = QPointer<Widget>(widget);
+			doSetOwnedWidget(std::move(widget));
+			return result;
+		}
 
-	void rangeChanged(int oldMax, int newMax, bool vertical);
+		template <typename Widget>
+		object_ptr<Widget> takeWidget()
+		{
+			return static_object_cast<Widget>(doTakeWidget());
+		}
 
-	void updateBars();
+		void rangeChanged(int oldMax, int newMax, bool vertical);
 
-	bool focusNextPrevChild(bool next) override;
-	void setMovingByScrollBar(bool movingByScrollBar);
+		void updateBars();
 
-	bool viewportEvent(QEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
+		bool focusNextPrevChild(bool next) override;
+		void setMovingByScrollBar(bool movingByScrollBar);
 
-	auto scrollTopValue() const {
-		return _scrollTopUpdated.events_starting_with(scrollTop());
-	}
-	auto scrollTopChanges() const {
-		return _scrollTopUpdated.events();
-	}
+		bool viewportEvent(QEvent* e) override;
+		void keyPressEvent(QKeyEvent* e) override;
 
-	void scrollTo(ScrollToRequest request);
-	void scrollToWidget(not_null<QWidget*> widget);
+		auto scrollTopValue() const
+		{
+			return _scrollTopUpdated.events_starting_with(scrollTop());
+		}
 
-protected:
-	bool eventFilter(QObject *obj, QEvent *e) override;
+		auto scrollTopChanges() const
+		{
+			return _scrollTopUpdated.events();
+		}
 
-	void resizeEvent(QResizeEvent *e) override;
-	void moveEvent(QMoveEvent *e) override;
-	void touchEvent(QTouchEvent *e);
+		void scrollTo(ScrollToRequest request);
+		void scrollToWidget(not_null<QWidget*> widget);
 
-	void enterEventHook(QEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
+	protected:
+		bool eventFilter(QObject* obj, QEvent* e) override;
 
-public slots:
-	void scrollToY(int toTop, int toBottom = -1);
-	void disableScroll(bool dis);
-	void onScrolled();
-	void onInnerResized();
+		void resizeEvent(QResizeEvent* e) override;
+		void moveEvent(QMoveEvent* e) override;
+		void touchEvent(QTouchEvent* e);
 
-	void onTouchTimer();
-	void onTouchScrollTimer();
+		void enterEventHook(QEvent* e) override;
+		void leaveEventHook(QEvent* e) override;
 
-signals:
-	void scrolled();
-	void innerResized();
-	void scrollStarted();
-	void scrollFinished();
-	void geometryChanged();
+	public slots:
+		void scrollToY(int toTop, int toBottom = -1);
+		void disableScroll(bool dis);
+		void onScrolled();
+		void onInnerResized();
 
-protected:
-	void scrollContentsBy(int dx, int dy) override;
+		void onTouchTimer();
+		void onTouchScrollTimer();
 
-private:
-	void doSetOwnedWidget(object_ptr<TWidget> widget);
-	object_ptr<TWidget> doTakeWidget();
+	signals:
+		void scrolled();
+		void innerResized();
+		void scrollStarted();
+		void scrollFinished();
+		void geometryChanged();
 
-	void setWidget(QWidget *widget);
+	protected:
+		void scrollContentsBy(int dx, int dy) override;
 
-	bool touchScroll(const QPoint &delta);
+	private:
+		void doSetOwnedWidget(object_ptr<TWidget> widget);
+		object_ptr<TWidget> doTakeWidget();
 
-	void touchScrollUpdated(const QPoint &screenPos);
+		void setWidget(QWidget* widget);
 
-	void touchResetSpeed();
-	void touchUpdateSpeed();
-	void touchDeaccelerate(int32 elapsed);
+		bool touchScroll(const QPoint& delta);
 
-	bool _disabled = false;
-	bool _movingByScrollBar = false;
+		void touchScrollUpdated(const QPoint& screenPos);
 
-	const style::ScrollArea &_st;
-	object_ptr<ScrollBar> _horizontalBar, _verticalBar;
-	object_ptr<ScrollShadow> _topShadow, _bottomShadow;
-	int _horizontalValue, _verticalValue;
+		void touchResetSpeed();
+		void touchUpdateSpeed();
+		void touchDeaccelerate(int32 elapsed);
 
-	bool _touchEnabled;
-	QTimer _touchTimer;
-	bool _touchScroll = false;
-	bool _touchPress = false;
-	bool _touchRightButton = false;
-	QPoint _touchStart, _touchPrevPos, _touchPos;
+		bool _disabled = false;
+		bool _movingByScrollBar = false;
 
-	TouchScrollState _touchScrollState = TouchScrollState::Manual;
-	bool _touchPrevPosValid = false;
-	bool _touchWaitingAcceleration = false;
-	QPoint _touchSpeed;
-	crl::time _touchSpeedTime = 0;
-	crl::time _touchAccelerationTime = 0;
-	crl::time _touchTime = 0;
-	QTimer _touchScrollTimer;
+		const style::ScrollArea& _st;
+		object_ptr<ScrollBar> _horizontalBar, _verticalBar;
+		object_ptr<ScrollShadow> _topShadow, _bottomShadow;
+		int _horizontalValue, _verticalValue;
 
-	bool _widgetAcceptsTouch = false;
+		bool _touchEnabled;
+		QTimer _touchTimer;
+		bool _touchScroll = false;
+		bool _touchPress = false;
+		bool _touchRightButton = false;
+		QPoint _touchStart, _touchPrevPos, _touchPos;
 
-	object_ptr<TWidget> _widget = { nullptr };
+		TouchScrollState _touchScrollState = TouchScrollState::Manual;
+		bool _touchPrevPosValid = false;
+		bool _touchWaitingAcceleration = false;
+		QPoint _touchSpeed;
+		crl::time _touchSpeedTime = 0;
+		crl::time _touchAccelerationTime = 0;
+		crl::time _touchTime = 0;
+		QTimer _touchScrollTimer;
 
-	rpl::event_stream<int> _scrollTopUpdated;
+		bool _widgetAcceptsTouch = false;
 
-};
+		object_ptr<TWidget> _widget = {nullptr};
 
+		rpl::event_stream<int> _scrollTopUpdated;
+	};
 } // namespace Ui

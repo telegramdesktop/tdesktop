@@ -21,108 +21,121 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 
-namespace {
-
-void AddRadioButton(
+namespace
+{
+	void AddRadioButton(
 		not_null<Ui::VerticalLayout*> container,
 		HistoryVisibility value,
 		LangKey groupTextKey,
 		LangKey groupAboutKey,
-		std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> historyVisibility) {
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::editPeerHistoryVisibilityTopSkip));
-	container->add(object_ptr<Ui::Radioenum<HistoryVisibility>>(
-		container,
-		historyVisibility,
-		value,
-		lang(groupTextKey),
-		st::defaultBoxCheckbox));
-	container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
-		container,
-		object_ptr<Ui::FlatLabel>(
+		std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> historyVisibility)
+	{
+		container->add(object_ptr<Ui::FixedHeightWidget>(
 			container,
-			Lang::Viewer(groupAboutKey),
-			st::editPeerPrivacyLabel),
-		st::editPeerPreHistoryLabelMargins));
-}
+			st::editPeerHistoryVisibilityTopSkip));
+		container->add(object_ptr<Ui::Radioenum<HistoryVisibility>>(
+			container,
+			historyVisibility,
+			value,
+			lang(groupTextKey),
+			st::defaultBoxCheckbox));
+		container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				Lang::Viewer(groupAboutKey),
+				st::editPeerPrivacyLabel),
+			st::editPeerPreHistoryLabelMargins));
+	}
 
-void FillContent(
+	void FillContent(
 		not_null<Ui::VerticalLayout*> parent,
 		not_null<PeerData*> peer,
 		std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> historyVisibility,
-		HistoryVisibility savedValue) {
-	const auto canEdit = [&] {
-		if (const auto chat = peer->asChat()) {
-			return chat->canEditPreHistoryHidden();
-		} else if (const auto channel = peer->asChannel()) {
-			return channel->canEditPreHistoryHidden();
+		HistoryVisibility savedValue)
+	{
+		const auto canEdit = [&]
+		{
+			if (const auto chat = peer->asChat())
+			{
+				return chat->canEditPreHistoryHidden();
+			}
+			else if (const auto channel = peer->asChannel())
+			{
+				return channel->canEditPreHistoryHidden();
+			}
+			Unexpected("User in HistoryVisibilityEdit.");
+		}();
+		if (!canEdit)
+		{
+			return;
 		}
-		Unexpected("User in HistoryVisibilityEdit.");
-	}();
-	if (!canEdit) {
-		return;
+
+		const auto channel = peer->asChannel();
+
+		historyVisibility->setValue(savedValue);
+
+		const auto result = parent->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				parent,
+				object_ptr<Ui::VerticalLayout>(parent),
+				st::editPeerHistoryVisibilityMargins));
+		const auto container = result->entity();
+
+		Assert(historyVisibility != nullptr);
+
+		AddRadioButton(
+			container,
+			HistoryVisibility::Visible,
+			lng_manage_history_visibility_shown,
+			lng_manage_history_visibility_shown_about,
+			historyVisibility);
+		AddRadioButton(
+			container,
+			HistoryVisibility::Hidden,
+			lng_manage_history_visibility_hidden,
+			(peer->isChat()
+				 ? lng_manage_history_visibility_hidden_legacy
+				 : lng_manage_history_visibility_hidden_about),
+			historyVisibility);
 	}
-
-	const auto channel = peer->asChannel();
-
-	historyVisibility->setValue(savedValue);
-
-	const auto result = parent->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			parent,
-			object_ptr<Ui::VerticalLayout>(parent),
-			st::editPeerHistoryVisibilityMargins));
-	const auto container = result->entity();
-
-	Assert(historyVisibility != nullptr);
-
-	AddRadioButton(
-		container,
-		HistoryVisibility::Visible,
-		lng_manage_history_visibility_shown,
-		lng_manage_history_visibility_shown_about,
-		historyVisibility);
-	AddRadioButton(
-		container,
-		HistoryVisibility::Hidden,
-		lng_manage_history_visibility_hidden,
-		(peer->isChat()
-			? lng_manage_history_visibility_hidden_legacy
-			: lng_manage_history_visibility_hidden_about),
-		historyVisibility);
-}
-
 } // namespace
 
 EditPeerHistoryVisibilityBox::EditPeerHistoryVisibilityBox(
 	QWidget*,
 	not_null<PeerData*> peer,
 	FnMut<void(HistoryVisibility)> savedCallback,
-	HistoryVisibility historyVisibilitySavedValue)
-: _peer(peer)
-, _savedCallback(std::move(savedCallback))
-, _historyVisibilitySavedValue(historyVisibilitySavedValue)
-, _historyVisibility(
-	std::make_shared<Ui::RadioenumGroup<HistoryVisibility>>(
-		_historyVisibilitySavedValue)) {
+	HistoryVisibility historyVisibilitySavedValue):
+	_peer(peer)
+	, _savedCallback(std::move(savedCallback))
+	, _historyVisibilitySavedValue(historyVisibilitySavedValue)
+	, _historyVisibility(
+		std::make_shared<Ui::RadioenumGroup<HistoryVisibility>>(
+			_historyVisibilitySavedValue))
+{
 }
 
-void EditPeerHistoryVisibilityBox::prepare() {
+void EditPeerHistoryVisibilityBox::prepare()
+{
 	_peer->updateFull();
 
 	setTitle(langFactory(lng_manage_history_visibility_title));
-	addButton(langFactory(lng_settings_save), [=] {
+	addButton(langFactory(lng_settings_save), [=]
+	{
 		auto local = std::move(_savedCallback);
 		local(_historyVisibility->value());
 		closeBox();
 	});
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(langFactory(lng_cancel), [=]
+	{
+		closeBox();
+	});
 
 	setupContent();
 }
 
-void EditPeerHistoryVisibilityBox::setupContent() {
+void EditPeerHistoryVisibilityBox::setupContent()
+{
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	FillContent(
 		content,

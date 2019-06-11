@@ -7,67 +7,78 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Platform {
-namespace DesktopEnvironment {
+namespace Platform
+{
+	namespace DesktopEnvironment
+	{
+		enum class Type
+		{
+			Other,
+			Gnome,
+			KDE3,
+			KDE4,
+			KDE5,
+			Ubuntu,
+			Unity,
+			XFCE,
+			Pantheon,
+			Awesome,
+		};
 
-enum class Type {
-	Other,
-	Gnome,
-	KDE3,
-	KDE4,
-	KDE5,
-	Ubuntu,
-	Unity,
-	XFCE,
-	Pantheon,
-	Awesome,
-};
+		Type Get();
 
-Type Get();
+		inline bool IsGnome()
+		{
+			return Get() == Type::Gnome;
+		}
 
-inline bool IsGnome() {
-	return Get() == Type::Gnome;
-}
+		inline bool IsKDE3()
+		{
+			return Get() == Type::KDE3;
+		}
 
-inline bool IsKDE3() {
-	return Get() == Type::KDE3;
-}
+		inline bool IsKDE4()
+		{
+			return Get() == Type::KDE4;
+		}
 
-inline bool IsKDE4() {
-	return Get() == Type::KDE4;
-}
+		inline bool IsKDE5()
+		{
+			return Get() == Type::KDE5;
+		}
 
-inline bool IsKDE5() {
-	return Get() == Type::KDE5;
-}
+		inline bool IsKDE()
+		{
+			return IsKDE3() || IsKDE4() || IsKDE5();
+		}
 
-inline bool IsKDE() {
-	return IsKDE3() || IsKDE4() || IsKDE5();
-}
+		inline bool IsUbuntu()
+		{
+			return Get() == Type::Ubuntu;
+		}
 
-inline bool IsUbuntu() {
-	return Get() == Type::Ubuntu;
-}
+		inline bool IsUnity()
+		{
+			return Get() == Type::Unity;
+		}
 
-inline bool IsUnity() {
-	return Get() == Type::Unity;
-}
+		inline bool IsXFCE()
+		{
+			return Get() == Type::XFCE;
+		}
 
-inline bool IsXFCE() {
-	return Get() == Type::XFCE;
-}
+		inline bool IsPantheon()
+		{
+			return Get() == Type::Pantheon;
+		}
 
-inline bool IsPantheon() {
-	return Get() == Type::Pantheon;
-}
+		inline bool IsAwesome()
+		{
+			return Get() == Type::Awesome;
+		}
 
-inline bool IsAwesome() {
-	return Get() == Type::Awesome;
-}
-
-bool TryQtTrayIcon();
-bool PreferAppIndicatorTrayIcon();
-bool TryUnityCounter();
-
-} // namespace DesktopEnvironment
+		bool TryQtTrayIcon();
+		bool PreferAppIndicatorTrayIcon();
+		bool TryUnityCounter();
+	} // namespace DesktopEnvironment
 } // namespace Platform

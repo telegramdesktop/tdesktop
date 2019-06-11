@@ -18,98 +18,116 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <dirent.h>
 #include <pwd.h>
 
-namespace Platform {
-namespace {
+namespace Platform
+{
+	namespace
+	{
+		class Arguments
+		{
+		public:
+			void push(QByteArray argument)
+			{
+				argument.append(char(0));
+				_argumentValues.push_back(argument);
+				_arguments.push_back(_argumentValues.back().data());
+			}
 
-class Arguments {
-public:
-	void push(QByteArray argument) {
-		argument.append(char(0));
-		_argumentValues.push_back(argument);
-		_arguments.push_back(_argumentValues.back().data());
+			char** result()
+			{
+				_arguments.push_back(nullptr);
+				return _arguments.data();
+			}
+
+		private:
+			std::vector<QByteArray> _argumentValues;
+			std::vector<char*> _arguments;
+		};
+	} // namespace
+
+	Launcher::Launcher(int argc, char* argv[]):
+		Core::Launcher(argc, argv, DeviceModelPretty(), SystemVersionPretty())
+	{
 	}
 
-	char **result() {
-		_arguments.push_back(nullptr);
-		return _arguments.data();
-	}
+	bool Launcher::launchUpdater(UpdaterLaunch action)
+	{
+		if (cExeName().isEmpty())
+		{
+			return false;
+		}
 
-private:
-	std::vector<QByteArray> _argumentValues;
-	std::vector<char*> _arguments;
+		const auto binaryName = (action == UpdaterLaunch::JustRelaunch)
+			                        ? cExeName()
+			                        : QStringLiteral("Updater");
 
-};
+		auto argumentsList = Arguments();
+		argumentsList.push(QFile::encodeName(cExeDir() + binaryName));
 
-} // namespace
-
-Launcher::Launcher(int argc, char *argv[])
-: Core::Launcher(argc, argv, DeviceModelPretty(), SystemVersionPretty()) {
-}
-
-bool Launcher::launchUpdater(UpdaterLaunch action) {
-	if (cExeName().isEmpty()) {
-		return false;
-	}
-
-	const auto binaryName = (action == UpdaterLaunch::JustRelaunch)
-		? cExeName()
-		: QStringLiteral("Updater");
-
-	auto argumentsList = Arguments();
-	argumentsList.push(QFile::encodeName(cExeDir() + binaryName));
-
-	if (cLaunchMode() == LaunchModeAutoStart) {
-		argumentsList.push("-autostart");
-	}
-	if (Logs::DebugEnabled()) {
-		argumentsList.push("-debug");
-	}
-	if (cStartInTray()) {
-		argumentsList.push("-startintray");
-	}
-	if (cTestMode()) {
-		argumentsList.push("-testmode");
-	}
+		if (cLaunchMode() == LaunchModeAutoStart)
+		{
+			argumentsList.push("-autostart");
+		}
+		if (Logs::DebugEnabled())
+		{
+			argumentsList.push("-debug");
+		}
+		if (cStartInTray())
+		{
+			argumentsList.push("-startintray");
+		}
+		if (cTestMode())
+		{
+			argumentsList.push("-testmode");
+		}
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (Core::UpdaterDisabled()) {
 		argumentsList.push("-externalupdater");
 	}
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
-	if (cDataFile() != qsl("data")) {
-		argumentsList.push("-key");
-		argumentsList.push(QFile::encodeName(cDataFile()));
-	}
+		if (cDataFile() != qsl("data"))
+		{
+			argumentsList.push("-key");
+			argumentsList.push(QFile::encodeName(cDataFile()));
+		}
 
-	if (action == UpdaterLaunch::JustRelaunch) {
-		argumentsList.push("-noupdate");
-		argumentsList.push("-tosettings");
-		if (customWorkingDir()) {
-			argumentsList.push("-workdir");
+		if (action == UpdaterLaunch::JustRelaunch)
+		{
+			argumentsList.push("-noupdate");
+			argumentsList.push("-tosettings");
+			if (customWorkingDir())
+			{
+				argumentsList.push("-workdir");
+				argumentsList.push(QFile::encodeName(cWorkingDir()));
+			}
+		}
+		else
+		{
+			argumentsList.push("-workpath");
 			argumentsList.push(QFile::encodeName(cWorkingDir()));
+			argumentsList.push("-exename");
+			argumentsList.push(QFile::encodeName(cExeName()));
+			argumentsList.push("-exepath");
+			argumentsList.push(QFile::encodeName(cExeDir()));
+			if (customWorkingDir())
+			{
+				argumentsList.push("-workdir_custom");
+			}
 		}
-	} else {
-		argumentsList.push("-workpath");
-		argumentsList.push(QFile::encodeName(cWorkingDir()));
-		argumentsList.push("-exename");
-		argumentsList.push(QFile::encodeName(cExeName()));
-		argumentsList.push("-exepath");
-		argumentsList.push(QFile::encodeName(cExeDir()));
-		if (customWorkingDir()) {
-			argumentsList.push("-workdir_custom");
+
+		Logs::closeMain();
+		CrashReports::Finish();
+
+		const auto args = argumentsList.result();
+
+		pid_t pid = fork();
+		switch (pid)
+		{
+		case -1:
+			return false;
+		case 0:
+			execv(args[0], args);
+			return false;
 		}
+		return true;
 	}
-
-	Logs::closeMain();
-	CrashReports::Finish();
-
-	const auto args = argumentsList.result();
-
-	pid_t pid = fork();
-	switch (pid) {
-	case -1: return false;
-	case 0: execv(args[0], args); return false;
-	}
-	return true;
-}
-
 } // namespace

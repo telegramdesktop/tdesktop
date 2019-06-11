@@ -12,42 +12,53 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class LocationCoords;
 struct LocationData;
 
-class HistoryLocation : public HistoryMedia {
+class HistoryLocation : public HistoryMedia
+{
 public:
 	HistoryLocation(
 		not_null<Element*> parent,
 		not_null<LocationData*> location,
-		const QString &title = QString(),
-		const QString &description = QString());
+		const QString& title = QString(),
+		const QString& description = QString());
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
+	void draw(Painter& p, const QRect& r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;
-	uint16 fullSelectionLength() const override {
+
+	uint16 fullSelectionLength() const override
+	{
 		return _title.length() + _description.length();
 	}
-	bool hasTextForCopy() const override {
+
+	bool hasTextForCopy() const override
+	{
 		return !_title.isEmpty() || !_description.isEmpty();
 	}
 
-	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
+	bool toggleSelectionByHandlerClick(const ClickHandlerPtr& p) const override
+	{
 		return p == _link;
 	}
-	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
+
+	bool dragItemByHandler(const ClickHandlerPtr& p) const override
+	{
 		return p == _link;
 	}
 
 	TextForMimeData selectedText(TextSelection selection) const override;
 
 	bool needsBubble() const override;
-	bool customInfoLayout() const override {
+
+	bool customInfoLayout() const override
+	{
 		return true;
 	}
 
-	bool skipBubbleTail() const override {
+	bool skipBubbleTail() const override
+	{
 		return isBubbleBottom();
 	}
 
@@ -58,11 +69,10 @@ private:
 	TextSelection toDescriptionSelection(TextSelection selection) const;
 	TextSelection fromDescriptionSelection(TextSelection selection) const;
 
-	LocationData *_data;
+	LocationData* _data;
 	Text _title, _description;
 	ClickHandlerPtr _link;
 
 	int fullWidth() const;
 	int fullHeight() const;
-
 };

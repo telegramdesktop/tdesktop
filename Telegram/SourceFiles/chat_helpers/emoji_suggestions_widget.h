@@ -12,147 +12,150 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "base/timer.h"
 
-namespace Ui {
+namespace Ui
+{
+	class InnerDropdown;
+	class InputField;
 
-class InnerDropdown;
-class InputField;
+	namespace Emoji
+	{
+		class SuggestionsWidget final : public Ui::RpWidget
+		{
+		public:
+			SuggestionsWidget(QWidget* parent);
 
-namespace Emoji {
+			void showWithQuery(const QString& query, bool force = false);
+			void selectFirstResult();
+			bool handleKeyEvent(int key);
 
-class SuggestionsWidget final : public Ui::RpWidget {
-public:
-	SuggestionsWidget(QWidget *parent);
+			rpl::producer<bool> toggleAnimated() const;
+			rpl::producer<QString> triggered() const;
 
-	void showWithQuery(const QString &query, bool force = false);
-	void selectFirstResult();
-	bool handleKeyEvent(int key);
+		private:
+			struct Row
+			{
+				Row(not_null<EmojiPtr> emoji, const QString& replacement);
 
-	rpl::producer<bool> toggleAnimated() const;
-	rpl::producer<QString> triggered() const;
+				not_null<EmojiPtr> emoji;
+				QString replacement;
+			};
 
-private:
-	struct Row {
-		Row(not_null<EmojiPtr> emoji, const QString &replacement);
+			bool eventHook(QEvent* e) override;
+			void paintEvent(QPaintEvent* e) override;
+			void keyPressEvent(QKeyEvent* e) override;
+			void mouseMoveEvent(QMouseEvent* e) override;
+			void mousePressEvent(QMouseEvent* e) override;
+			void mouseReleaseEvent(QMouseEvent* e) override;
+			void enterEventHook(QEvent* e) override;
+			void leaveEventHook(QEvent* e) override;
 
-		not_null<EmojiPtr> emoji;
-		QString replacement;
-	};
+			void scrollByWheelEvent(not_null<QWheelEvent*> e);
+			void paintFadings(Painter& p) const;
 
-	bool eventHook(QEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void enterEventHook(QEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
+			std::vector<Row> getRowsByQuery() const;
+			void resizeToRows();
+			void setSelected(
+				int selected,
+				anim::type animated = anim::type::instant);
+			void setPressed(int pressed);
+			void clearMouseSelection();
+			void clearSelection();
+			void updateSelectedItem();
+			void updateItem(int index);
+			[[nodiscard]] QRect inner() const;
+			[[nodiscard]] QPoint innerShift() const;
+			[[nodiscard]] QPoint mapToInner(QPoint globalPosition) const;
+			void selectByMouse(QPoint globalPosition);
+			bool triggerSelectedRow() const;
+			void triggerRow(const Row& row) const;
 
-	void scrollByWheelEvent(not_null<QWheelEvent*> e);
-	void paintFadings(Painter &p) const;
+			[[nodiscard]] int scrollCurrent() const;
+			void scrollTo(int value, anim::type animated = anim::type::instant);
+			void stopAnimations();
 
-	std::vector<Row> getRowsByQuery() const;
-	void resizeToRows();
-	void setSelected(
-		int selected,
-		anim::type animated = anim::type::instant);
-	void setPressed(int pressed);
-	void clearMouseSelection();
-	void clearSelection();
-	void updateSelectedItem();
-	void updateItem(int index);
-	[[nodiscard]] QRect inner() const;
-	[[nodiscard]] QPoint innerShift() const;
-	[[nodiscard]] QPoint mapToInner(QPoint globalPosition) const;
-	void selectByMouse(QPoint globalPosition);
-	bool triggerSelectedRow() const;
-	void triggerRow(const Row &row) const;
+			QString _query;
+			std::vector<Row> _rows;
 
-	[[nodiscard]] int scrollCurrent() const;
-	void scrollTo(int value, anim::type animated = anim::type::instant);
-	void stopAnimations();
+			std::optional<QPoint> _lastMousePosition;
+			bool _mouseSelection = false;
+			int _selected = -1;
+			int _pressed = -1;
 
-	QString _query;
-	std::vector<Row> _rows;
+			int _scrollValue = 0;
+			Ui::Animations::Simple _scrollAnimation;
+			Ui::Animations::Simple _selectedAnimation;
+			int _scrollMax = 0;
+			int _oneWidth = 0;
+			QMargins _padding;
 
-	std::optional<QPoint> _lastMousePosition;
-	bool _mouseSelection = false;
-	int _selected = -1;
-	int _pressed = -1;
+			QPoint _mousePressPosition;
+			int _dragScrollStart = -1;
 
-	int _scrollValue = 0;
-	Ui::Animations::Simple _scrollAnimation;
-	Ui::Animations::Simple _selectedAnimation;
-	int _scrollMax = 0;
-	int _oneWidth = 0;
-	QMargins _padding;
+			rpl::event_stream<bool> _toggleAnimated;
+			rpl::event_stream<QString> _triggered;
+		};
 
-	QPoint _mousePressPosition;
-	int _dragScrollStart = -1;
+		class SuggestionsController
+		{
+		public:
+			struct Options
+			{
+				Options() :
+					suggestExactFirstWord(true)
+				{
+				}
 
-	rpl::event_stream<bool> _toggleAnimated;
-	rpl::event_stream<QString> _triggered;
+				bool suggestExactFirstWord;
+			};
 
-};
+			SuggestionsController(
+				not_null<QWidget*> outer,
+				not_null<QTextEdit*> field,
+				const Options& options);
 
-class SuggestionsController {
-public:
-	struct Options {
-		Options() : suggestExactFirstWord(true) {
-		}
+			void raise();
+			void setReplaceCallback(Fn<void(
+				int from,
+				int till,
+				const QString& replacement)> callback);
 
-		bool suggestExactFirstWord;
-	};
+			static SuggestionsController* Init(
+				not_null<QWidget*> outer,
+				not_null<Ui::InputField*> field,
+				const Options& options = Options());
 
-	SuggestionsController(
-		not_null<QWidget*> outer,
-		not_null<QTextEdit*> field,
-		const Options &options);
+		private:
+			void handleCursorPositionChange();
+			void handleTextChange();
+			void showWithQuery(const QString& query);
+			[[nodiscard]] QString getEmojiQuery();
+			void suggestionsUpdated(bool visible);
+			void updateGeometry();
+			void updateForceHidden();
+			void replaceCurrent(const QString& replacement);
+			bool fieldFilter(not_null<QEvent*> event);
+			bool outerFilter(not_null<QEvent*> event);
 
-	void raise();
-	void setReplaceCallback(Fn<void(
-		int from,
-		int till,
-		const QString &replacement)> callback);
+			bool _shown = false;
+			bool _forceHidden = false;
+			int _queryStartPosition = 0;
+			bool _ignoreCursorPositionChange = false;
+			bool _textChangeAfterKeyPress = false;
+			QPointer<QTextEdit> _field;
+			Fn<void(
+				int from,
+				int till,
+				const QString& replacement)> _replaceCallback;
+			base::unique_qptr<InnerDropdown> _container;
+			QPointer<SuggestionsWidget> _suggestions;
+			base::unique_qptr<QObject> _fieldFilter;
+			base::unique_qptr<QObject> _outerFilter;
+			base::Timer _showExactTimer;
+			bool _keywordsRefreshed = false;
+			QString _lastShownQuery;
+			Options _options;
 
-	static SuggestionsController *Init(
-		not_null<QWidget*> outer,
-		not_null<Ui::InputField*> field,
-		const Options &options = Options());
-
-private:
-	void handleCursorPositionChange();
-	void handleTextChange();
-	void showWithQuery(const QString &query);
-	[[nodiscard]] QString getEmojiQuery();
-	void suggestionsUpdated(bool visible);
-	void updateGeometry();
-	void updateForceHidden();
-	void replaceCurrent(const QString &replacement);
-	bool fieldFilter(not_null<QEvent*> event);
-	bool outerFilter(not_null<QEvent*> event);
-
-	bool _shown = false;
-	bool _forceHidden = false;
-	int _queryStartPosition = 0;
-	bool _ignoreCursorPositionChange = false;
-	bool _textChangeAfterKeyPress = false;
-	QPointer<QTextEdit> _field;
-	Fn<void(
-		int from,
-		int till,
-		const QString &replacement)> _replaceCallback;
-	base::unique_qptr<InnerDropdown> _container;
-	QPointer<SuggestionsWidget> _suggestions;
-	base::unique_qptr<QObject> _fieldFilter;
-	base::unique_qptr<QObject> _outerFilter;
-	base::Timer _showExactTimer;
-	bool _keywordsRefreshed = false;
-	QString _lastShownQuery;
-	Options _options;
-
-	rpl::lifetime _lifetime;
-
-};
-
-} // namespace Emoji
+			rpl::lifetime _lifetime;
+		};
+	} // namespace Emoji
 } // namespace Ui

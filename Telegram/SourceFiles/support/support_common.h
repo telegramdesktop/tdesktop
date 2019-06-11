@@ -7,16 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Support {
+namespace Support
+{
+	enum class SwitchSettings
+	{
+		None,
+		Next,
+		Previous,
+	};
 
-enum class SwitchSettings {
-	None,
-	Next,
-	Previous,
-};
-
-Qt::KeyboardModifiers SkipSwitchModifiers();
-bool HandleSwitch(Qt::KeyboardModifiers modifiers);
-FnMut<bool()> GetSwitchMethod(SwitchSettings value);
-
+	Qt::KeyboardModifiers SkipSwitchModifiers();
+	bool HandleSwitch(Qt::KeyboardModifiers modifiers);
+	FnMut<bool()> GetSwitchMethod(SwitchSettings value);
 } // namespace Support

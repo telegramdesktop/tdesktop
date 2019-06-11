@@ -9,35 +9,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_peer.h"
 
-class BotCommand {
+class BotCommand
+{
 public:
-	BotCommand(const QString &command, const QString &description);
+	BotCommand(const QString& command, const QString& description);
 
-	bool setDescription(const QString &description);
-	const Text &descriptionText() const;
+	bool setDescription(const QString& description);
+	const Text& descriptionText() const;
 
 	QString command;
 
 private:
 	QString _description;
 	mutable Text _descriptionText;
-
 };
 
-struct BotInfo {
+struct BotInfo
+{
 	bool inited = false;
 	bool readsAllHistory = false;
 	bool cantJoinGroups = false;
 	int version = 0;
 	QString description, inlinePlaceholder;
 	QList<BotCommand> commands;
-	Text text = Text{ int(st::msgMinWidth) }; // description
+	Text text = Text{int(st::msgMinWidth)}; // description
 
 	QString startToken, startGroupToken, shareGameShortName;
 	PeerId inlineReturnPeerId = 0;
 };
 
-class UserData : public PeerData {
+class UserData : public PeerData
+{
 public:
 	static constexpr auto kEssentialFlags = 0
 		| MTPDuser::Flag::f_self
@@ -63,94 +65,130 @@ public:
 		kEssentialFullFlags.value()>;
 
 	UserData(not_null<Data::Session*> owner, PeerId id);
-	void setPhoto(const MTPUserProfilePhoto &photo);
+	void setPhoto(const MTPUserProfilePhoto& photo);
 
 	void setName(
-		const QString &newFirstName,
-		const QString &newLastName,
-		const QString &newPhoneName,
-		const QString &newUsername);
+		const QString& newFirstName,
+		const QString& newLastName,
+		const QString& newPhoneName,
+		const QString& newUsername);
 
-	void setPhone(const QString &newPhone);
+	void setPhone(const QString& newPhone);
 	void setBotInfoVersion(int version);
-	void setBotInfo(const MTPBotInfo &info);
+	void setBotInfo(const MTPBotInfo& info);
 
-	void setNameOrPhone(const QString &newNameOrPhone);
+	void setNameOrPhone(const QString& newNameOrPhone);
 
 	void madeAction(TimeId when); // pseudo-online
 
-	uint64 accessHash() const {
+	uint64 accessHash() const
+	{
 		return _accessHash;
 	}
+
 	void setAccessHash(uint64 accessHash);
 
-	void setFlags(MTPDuser::Flags which) {
+	void setFlags(MTPDuser::Flags which)
+	{
 		_flags.set(which);
 	}
-	void addFlags(MTPDuser::Flags which) {
+
+	void addFlags(MTPDuser::Flags which)
+	{
 		_flags.add(which);
 	}
-	void removeFlags(MTPDuser::Flags which) {
+
+	void removeFlags(MTPDuser::Flags which)
+	{
 		_flags.remove(which);
 	}
-	auto flags() const {
+
+	auto flags() const
+	{
 		return _flags.current();
 	}
-	auto flagsValue() const {
+
+	auto flagsValue() const
+	{
 		return _flags.value();
 	}
 
-	void setFullFlags(MTPDuserFull::Flags which) {
+	void setFullFlags(MTPDuserFull::Flags which)
+	{
 		_fullFlags.set(which);
 	}
-	void addFullFlags(MTPDuserFull::Flags which) {
+
+	void addFullFlags(MTPDuserFull::Flags which)
+	{
 		_fullFlags.add(which);
 	}
-	void removeFullFlags(MTPDuserFull::Flags which) {
+
+	void removeFullFlags(MTPDuserFull::Flags which)
+	{
 		_fullFlags.remove(which);
 	}
-	auto fullFlags() const {
+
+	auto fullFlags() const
+	{
 		return _fullFlags.current();
 	}
-	auto fullFlagsValue() const {
+
+	auto fullFlagsValue() const
+	{
 		return _fullFlags.value();
 	}
 
-	bool isVerified() const {
+	bool isVerified() const
+	{
 		return flags() & MTPDuser::Flag::f_verified;
 	}
-	bool isBotInlineGeo() const {
+
+	bool isBotInlineGeo() const
+	{
 		return flags() & MTPDuser::Flag::f_bot_inline_geo;
 	}
-	bool isBot() const {
+
+	bool isBot() const
+	{
 		return botInfo != nullptr;
 	}
-	bool isSupport() const {
+
+	bool isSupport() const
+	{
 		return flags() & MTPDuser::Flag::f_support;
 	}
-	bool isInaccessible() const {
+
+	bool isInaccessible() const
+	{
 		constexpr auto inaccessible = 0
 			| MTPDuser::Flag::f_deleted;
-//			| MTPDuser_ClientFlag::f_inaccessible;
+		//			| MTPDuser_ClientFlag::f_inaccessible;
 		return flags() & inaccessible;
 	}
-	bool canWrite() const {
+
+	bool canWrite() const
+	{
 		// Duplicated in Data::CanWriteValue().
 		return !isInaccessible();
 	}
-	bool isContact() const {
+
+	bool isContact() const
+	{
 		return (_contactStatus == ContactStatus::Contact);
 	}
 
 	bool canShareThisContact() const;
-	bool canAddContact() const {
+
+	bool canAddContact() const
+	{
 		return canShareThisContact() && !isContact();
 	}
 
 	// In Data::Session::processUsers() we check only that.
 	// When actually trying to share contact we perform
 	// a full check by canShareThisContact() call.
-	bool canShareThisContactFast() const {
+	bool canShareThisContactFast() const
+	{
 		return !_phone.isEmpty();
 	}
 
@@ -159,56 +197,75 @@ public:
 	QString firstName;
 	QString lastName;
 	QString username;
-	const QString &phone() const {
+
+	const QString& phone() const
+	{
 		return _phone;
 	}
+
 	QString nameOrPhone;
 	Text phoneText;
 	TimeId onlineTill = 0;
 
-	enum class ContactStatus : char {
+	enum class ContactStatus : char
+	{
 		PhoneUnknown,
 		CanAdd,
 		Contact,
 	};
-	ContactStatus contactStatus() const {
+
+	ContactStatus contactStatus() const
+	{
 		return _contactStatus;
 	}
+
 	void setContactStatus(ContactStatus status);
 
-	enum class BlockStatus : char {
+	enum class BlockStatus : char
+	{
 		Unknown,
 		Blocked,
 		NotBlocked,
 	};
-	BlockStatus blockStatus() const {
+
+	BlockStatus blockStatus() const
+	{
 		return _blockStatus;
 	}
-	bool isBlocked() const {
+
+	bool isBlocked() const
+	{
 		return (blockStatus() == BlockStatus::Blocked);
 	}
+
 	void setBlockStatus(BlockStatus blockStatus);
 
-	enum class CallsStatus : char {
+	enum class CallsStatus : char
+	{
 		Unknown,
 		Enabled,
 		Disabled,
 		Private,
 	};
-	CallsStatus callsStatus() const {
+
+	CallsStatus callsStatus() const
+	{
 		return _callsStatus;
 	}
+
 	bool hasCalls() const;
 	void setCallsStatus(CallsStatus callsStatus);
 
 	std::unique_ptr<BotInfo> botInfo;
 
 	QString unavailableReason() const override;
-	void setUnavailableReason(const QString &reason);
+	void setUnavailableReason(const QString& reason);
 
-	int commonChatsCount() const {
+	int commonChatsCount() const
+	{
 		return _commonChatsCount;
 	}
+
 	void setCommonChatsCount(int count);
 
 private:
@@ -225,11 +282,9 @@ private:
 	uint64 _accessHash = 0;
 	static constexpr auto kInaccessibleAccessHashOld
 		= 0xFFFFFFFFFFFFFFFFULL;
-
 };
 
-namespace Data {
-
-void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update);
-
+namespace Data
+{
+	void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull& update);
 } // namespace Data

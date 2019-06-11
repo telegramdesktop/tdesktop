@@ -34,7 +34,7 @@ extern "C" {
 #undef small
 #endif // small
 
-uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
+uint64 _SharedMemoryLocation[4] = {0x00, 0x01, 0x02, 0x03};
 
 // Base types compile-time check
 static_assert(sizeof(char) == 1, "Basic types size check failed");
@@ -58,16 +58,17 @@ static_assert(sizeof(int) >= 4, "Basic types size check failed");
 
 // Unixtime functions
 
-namespace {
-
-std::atomic<int> GlobalAtomicRequestId = 0;
+namespace
+{
+	std::atomic<int> GlobalAtomicRequestId = 0;
 
 	QReadWriteLock unixtimeLock;
 	volatile int32 unixtimeDelta = 0;
 	volatile bool unixtimeWasSet = false;
-    volatile uint64 _msgIdStart, _msgIdLocal = 0, _msgIdMsStart;
+	volatile uint64 _msgIdStart, _msgIdLocal = 0, _msgIdMsStart;
 
-	void _initMsgIdConstants() {
+	void _initMsgIdConstants()
+	{
 #ifdef Q_OS_WIN
 		LARGE_INTEGER li;
 		QueryPerformanceCounter(&li);
@@ -86,11 +87,13 @@ std::atomic<int> GlobalAtomicRequestId = 0;
 	}
 }
 
-TimeId LocalUnixtime() {
+TimeId LocalUnixtime()
+{
 	return (TimeId)time(nullptr);
 }
 
-void unixtimeInit() {
+void unixtimeInit()
+{
 	{
 		QWriteLocker locker(&unixtimeLock);
 		unixtimeWasSet = false;
@@ -99,12 +102,16 @@ void unixtimeInit() {
 	_initMsgIdConstants();
 }
 
-void unixtimeSet(int32 serverTime, bool force) {
+void unixtimeSet(int32 serverTime, bool force)
+{
 	{
 		QWriteLocker locker(&unixtimeLock);
-		if (force) {
+		if (force)
+		{
 			DEBUG_LOG(("MTP Info: forced setting client unixtime to %1").arg(serverTime));
-		} else {
+		}
+		else
+		{
 			if (unixtimeWasSet) return;
 			DEBUG_LOG(("MTP Info: setting client unixtime to %1").arg(serverTime));
 		}
@@ -115,23 +122,28 @@ void unixtimeSet(int32 serverTime, bool force) {
 	_initMsgIdConstants();
 }
 
-TimeId unixtime() {
+TimeId unixtime()
+{
 	auto result = LocalUnixtime();
 
 	QReadLocker locker(&unixtimeLock);
 	return result + unixtimeDelta;
 }
 
-QDateTime ParseDateTime(TimeId serverTime) {
-	if (serverTime <= 0) {
+QDateTime ParseDateTime(TimeId serverTime)
+{
+	if (serverTime <= 0)
+	{
 		return QDateTime();
 	}
 	QReadLocker locker(&unixtimeLock);
 	return QDateTime::fromTime_t(serverTime - unixtimeDelta);
 }
 
-TimeId ServerTimeFromParsed(const QDateTime &date) {
-	if (date.isNull()) {
+TimeId ServerTimeFromParsed(const QDateTime& date)
+{
+	if (date.isNull())
+	{
 		return TimeId(0);
 	}
 	QReadLocker locker(&unixtimeLock);
@@ -140,69 +152,99 @@ TimeId ServerTimeFromParsed(const QDateTime &date) {
 
 // Precise timing functions / rand init
 
-struct CRYPTO_dynlock_value {
+struct CRYPTO_dynlock_value
+{
 	QMutex mutex;
 };
 
-namespace {
+namespace
+{
 	bool _sslInited = false;
-	QMutex *_sslLocks = nullptr;
-	void _sslLockingCallback(int mode, int type, const char *file, int line) {
+	QMutex* _sslLocks = nullptr;
+
+	void _sslLockingCallback(int mode, int type, const char* file, int line)
+	{
 		if (!_sslLocks) return; // not inited
 
-		if (mode & CRYPTO_LOCK) {
+		if (mode & CRYPTO_LOCK)
+		{
 			_sslLocks[type].lock();
-		} else {
+		}
+		else
+		{
 			_sslLocks[type].unlock();
 		}
 	}
-	void _sslThreadId(CRYPTO_THREADID *id) {
+
+	void _sslThreadId(CRYPTO_THREADID* id)
+	{
 		CRYPTO_THREADID_set_pointer(id, QThread::currentThreadId());
 	}
-	CRYPTO_dynlock_value *_sslCreateFunction(const char *file, int line) {
+
+	CRYPTO_dynlock_value* _sslCreateFunction(const char* file, int line)
+	{
 		return new CRYPTO_dynlock_value();
 	}
-	void _sslLockFunction(int mode, CRYPTO_dynlock_value *l, const char *file, int line) {
-		if (mode & CRYPTO_LOCK) {
+
+	void _sslLockFunction(int mode, CRYPTO_dynlock_value* l, const char* file, int line)
+	{
+		if (mode & CRYPTO_LOCK)
+		{
 			l->mutex.lock();
-		} else {
+		}
+		else
+		{
 			l->mutex.unlock();
 		}
 	}
-	void _sslDestroyFunction(CRYPTO_dynlock_value *l, const char *file, int line) {
+
+	void _sslDestroyFunction(CRYPTO_dynlock_value* l, const char* file, int line)
+	{
 		delete l;
 	}
 
-	int _ffmpegLockManager(void **mutex, AVLockOp op) {
-		switch (op) {
-		case AV_LOCK_CREATE: {
-			Assert(*mutex == nullptr);
-			*mutex = reinterpret_cast<void*>(new QMutex());
-		} break;
+	int _ffmpegLockManager(void** mutex, AVLockOp op)
+	{
+		switch (op)
+		{
+		case AV_LOCK_CREATE:
+			{
+				Assert(*mutex == nullptr);
+				*mutex = reinterpret_cast<void*>(new QMutex());
+			}
+			break;
 
-		case AV_LOCK_OBTAIN: {
-			Assert(*mutex != nullptr);
-			reinterpret_cast<QMutex*>(*mutex)->lock();
-		} break;
+		case AV_LOCK_OBTAIN:
+			{
+				Assert(*mutex != nullptr);
+				reinterpret_cast<QMutex*>(*mutex)->lock();
+			}
+			break;
 
-		case AV_LOCK_RELEASE: {
-			Assert(*mutex != nullptr);
-			reinterpret_cast<QMutex*>(*mutex)->unlock();
-		}; break;
+		case AV_LOCK_RELEASE:
+			{
+				Assert(*mutex != nullptr);
+				reinterpret_cast<QMutex*>(*mutex)->unlock();
+			};
+			break;
 
-		case AV_LOCK_DESTROY: {
-			Assert(*mutex != nullptr);
-			delete reinterpret_cast<QMutex*>(*mutex);
-			*mutex = nullptr;
-		} break;
+		case AV_LOCK_DESTROY:
+			{
+				Assert(*mutex != nullptr);
+				delete reinterpret_cast<QMutex*>(*mutex);
+				*mutex = nullptr;
+			}
+			break;
 		}
 		return 0;
 	}
 
 	float64 _msgIdCoef;
-	class _MsStarter {
+	class _MsStarter
+	{
 	public:
-		_MsStarter() {
+		_MsStarter()
+		{
 #ifdef Q_OS_WIN
 			LARGE_INTEGER li;
 			QueryPerformanceFrequency(&li);
@@ -232,24 +274,31 @@ namespace {
 	_MsStarter _msStarter;
 }
 
-bool ProxyData::valid() const {
-	if (type == Type::None || host.isEmpty() || !port) {
+bool ProxyData::valid() const
+{
+	if (type == Type::None || host.isEmpty() || !port)
+	{
 		return false;
-	} else if (type == Type::Mtproto && !ValidMtprotoPassword(password)) {
+	}
+	else if (type == Type::Mtproto && !ValidMtprotoPassword(password))
+	{
 		return false;
 	}
 	return true;
 }
 
-int ProxyData::MaxMtprotoPasswordLength() {
+int ProxyData::MaxMtprotoPasswordLength()
+{
 	return 34;
 }
 
-bool ProxyData::supportsCalls() const {
+bool ProxyData::supportsCalls() const
+{
 	return (type == Type::Socks5);
 }
 
-bool ProxyData::tryCustomResolve() const {
+bool ProxyData::tryCustomResolve() const
+{
 	return (type == Type::Socks5 || type == Type::Mtproto)
 		&& !qthelp::is_ipv6(host)
 		&& !QRegularExpression(
@@ -257,27 +306,36 @@ bool ProxyData::tryCustomResolve() const {
 		).match(host).hasMatch();
 }
 
-bytes::vector ProxyData::secretFromMtprotoPassword() const {
+bytes::vector ProxyData::secretFromMtprotoPassword() const
+{
 	Expects(type == Type::Mtproto);
 	Expects(password.size() % 2 == 0);
 
 	const auto length = password.size() / 2;
-	const auto fromHex = [](QChar ch) -> int {
+	const auto fromHex = [](QChar ch) -> int
+	{
 		const auto code = int(ch.unicode());
-		if (code >= '0' && code <= '9') {
+		if (code >= '0' && code <= '9')
+		{
 			return (code - '0');
-		} else if (code >= 'A' && code <= 'F') {
+		}
+		else if (code >= 'A' && code <= 'F')
+		{
 			return 10 + (code - 'A');
-		} else if (ch >= 'a' && ch <= 'f') {
+		}
+		else if (ch >= 'a' && ch <= 'f')
+		{
 			return 10 + (code - 'a');
 		}
 		return -1;
 	};
 	auto result = bytes::vector(length);
-	for (auto i = 0; i != length; ++i) {
+	for (auto i = 0; i != length; ++i)
+	{
 		const auto high = fromHex(password[2 * i]);
 		const auto low = fromHex(password[2 * i + 1]);
-		if (high < 0 || low < 0) {
+		if (high < 0 || low < 0)
+		{
 			return {};
 		}
 		result[i] = static_cast<gsl::byte>(high * 16 + low);
@@ -285,12 +343,15 @@ bytes::vector ProxyData::secretFromMtprotoPassword() const {
 	return result;
 }
 
-ProxyData::operator bool() const {
+ProxyData::operator bool() const
+{
 	return valid();
 }
 
-bool ProxyData::operator==(const ProxyData &other) const {
-	if (!valid()) {
+bool ProxyData::operator==(const ProxyData& other) const
+{
+	if (!valid())
+	{
 		return !other.valid();
 	}
 	return (type == other.type)
@@ -300,25 +361,32 @@ bool ProxyData::operator==(const ProxyData &other) const {
 		&& (password == other.password);
 }
 
-bool ProxyData::operator!=(const ProxyData &other) const {
+bool ProxyData::operator!=(const ProxyData& other) const
+{
 	return !(*this == other);
 }
 
-bool ProxyData::ValidMtprotoPassword(const QString &secret) {
-	if (secret.size() == 32) {
+bool ProxyData::ValidMtprotoPassword(const QString& secret)
+{
+	if (secret.size() == 32)
+	{
 		static const auto check = QRegularExpression("^[a-fA-F0-9]{32}$");
 		return check.match(secret).hasMatch();
-	} else if (secret.size() == 34) {
+	}
+	else if (secret.size() == 34)
+	{
 		static const auto check = QRegularExpression("^dd[a-fA-F0-9]{32}$");
 		return check.match(secret).hasMatch();
 	}
 	return false;
 }
 
-ProxyData ToDirectIpProxy(const ProxyData &proxy, int ipIndex) {
+ProxyData ToDirectIpProxy(const ProxyData& proxy, int ipIndex)
+{
 	if (!proxy.tryCustomResolve()
 		|| ipIndex < 0
-		|| ipIndex >= proxy.resolvedIPs.size()) {
+		|| ipIndex >= proxy.resolvedIPs.size())
+	{
 		return proxy;
 	}
 	return {
@@ -330,29 +398,37 @@ ProxyData ToDirectIpProxy(const ProxyData &proxy, int ipIndex) {
 	};
 }
 
-QNetworkProxy ToNetworkProxy(const ProxyData &proxy) {
-	if (proxy.type == ProxyData::Type::None) {
+QNetworkProxy ToNetworkProxy(const ProxyData& proxy)
+{
+	if (proxy.type == ProxyData::Type::None)
+	{
 		return QNetworkProxy::DefaultProxy;
-	} else if (proxy.type == ProxyData::Type::Mtproto) {
+	}
+	else if (proxy.type == ProxyData::Type::Mtproto)
+	{
 		return QNetworkProxy::NoProxy;
 	}
 	return QNetworkProxy(
 		(proxy.type == ProxyData::Type::Socks5
-			? QNetworkProxy::Socks5Proxy
-			: QNetworkProxy::HttpProxy),
+			 ? QNetworkProxy::Socks5Proxy
+			 : QNetworkProxy::HttpProxy),
 		proxy.host,
 		proxy.port,
 		proxy.user,
 		proxy.password);
 }
 
-namespace ThirdParty {
-
-	void start() {
+namespace ThirdParty
+{
+	void start()
+	{
 		Platform::ThirdParty::start();
 
-		if (!RAND_status()) { // should be always inited in all modern OS
-			const auto FeedSeed = [](auto value) {
+		if (!RAND_status())
+		{
+			// should be always inited in all modern OS
+			const auto FeedSeed = [](auto value)
+			{
 				RAND_seed(&value, sizeof(value));
 			};
 #ifdef Q_OS_WIN
@@ -371,7 +447,8 @@ namespace ThirdParty {
 			clock_gettime(CLOCK_MONOTONIC, &ts);
 			FeedSeed(ts);
 #endif
-			if (!RAND_status()) {
+			if (!RAND_status())
+			{
 				LOG(("MTP Error: Could not init OpenSSL rand, RAND_status() is 0..."));
 			}
 		}
@@ -379,25 +456,33 @@ namespace ThirdParty {
 		// Force OpenSSL loading if it is linked in Qt,
 		// so that we won't mess with our OpenSSL locking with Qt OpenSSL locking.
 		auto sslSupported = QSslSocket::supportsSsl();
-		if (!sslSupported) {
+		if (!sslSupported)
+		{
 			LOG(("Error: current Qt build doesn't support SSL requests."));
 		}
-		if (!CRYPTO_get_locking_callback()) {
+		if (!CRYPTO_get_locking_callback())
+		{
 			// Qt didn't initialize OpenSSL, so we will.
 			auto numLocks = CRYPTO_num_locks();
-			if (numLocks) {
+			if (numLocks)
+			{
 				_sslLocks = new QMutex[numLocks];
 				CRYPTO_set_locking_callback(_sslLockingCallback);
-			} else {
+			}
+			else
+			{
 				LOG(("MTP Error: Could not init OpenSSL threads, CRYPTO_num_locks() returned zero!"));
 			}
 			CRYPTO_THREADID_set_callback(_sslThreadId);
 		}
-		if (!CRYPTO_get_dynlock_create_callback()) {
+		if (!CRYPTO_get_dynlock_create_callback())
+		{
 			CRYPTO_set_dynlock_create_callback(_sslCreateFunction);
 			CRYPTO_set_dynlock_lock_callback(_sslLockFunction);
 			CRYPTO_set_dynlock_destroy_callback(_sslDestroyFunction);
-		} else if (!CRYPTO_get_dynlock_lock_callback()) {
+		}
+		else if (!CRYPTO_get_dynlock_lock_callback())
+		{
 			LOG(("MTP Error: dynlock_create callback is set without dynlock_lock callback!"));
 		}
 
@@ -409,7 +494,8 @@ namespace ThirdParty {
 		_sslInited = true;
 	}
 
-	void finish() {
+	void finish()
+	{
 		av_lockmgr_register(nullptr);
 
 		CRYPTO_cleanup_all_ex_data();
@@ -429,11 +515,12 @@ namespace ThirdParty {
 	}
 }
 
-uint64 msgid() {
+uint64 msgid()
+{
 #ifdef Q_OS_WIN
-    LARGE_INTEGER li;
-    QueryPerformanceCounter(&li);
-    uint64 result = _msgIdStart + (uint64)floor((li.QuadPart - _msgIdMsStart) * _msgIdCoef);
+	LARGE_INTEGER li;
+	QueryPerformanceCounter(&li);
+	uint64 result = _msgIdStart + (uint64)floor((li.QuadPart - _msgIdMsStart) * _msgIdCoef);
 #elif defined Q_OS_MAC
     uint64 msCount = mach_absolute_time();
     uint64 result = _msgIdStart + (uint64)floor((msCount - _msgIdMsStart) * _msgIdCoef);
@@ -449,9 +536,11 @@ uint64 msgid() {
 	return result + (_msgIdLocal += 4);
 }
 
-int GetNextRequestId() {
+int GetNextRequestId()
+{
 	const auto result = ++GlobalAtomicRequestId;
-	if (result == std::numeric_limits<int>::max() / 2) {
+	if (result == std::numeric_limits<int>::max() / 2)
+	{
 		GlobalAtomicRequestId = 0;
 	}
 	return result;
@@ -459,15 +548,20 @@ int GetNextRequestId() {
 
 // crc32 hash, taken somewhere from the internet
 
-namespace {
+namespace
+{
 	uint32 _crc32Table[256];
-	class _Crc32Initializer {
+	class _Crc32Initializer
+	{
 	public:
-		_Crc32Initializer() {
+		_Crc32Initializer()
+		{
 			uint32 poly = 0x04c11db7;
-			for (uint32 i = 0; i < 256; ++i) {
+			for (uint32 i = 0; i < 256; ++i)
+			{
 				_crc32Table[i] = reflect(i, 8) << 24;
-				for (uint32 j = 0; j < 8; ++j) {
+				for (uint32 j = 0; j < 8; ++j)
+				{
 					_crc32Table[i] = (_crc32Table[i] << 1) ^ (_crc32Table[i] & (1 << 31) ? poly : 0);
 				}
 				_crc32Table[i] = reflect(_crc32Table[i], 32);
@@ -475,10 +569,13 @@ namespace {
 		}
 
 	private:
-		uint32 reflect(uint32 val, char ch) {
+		uint32 reflect(uint32 val, char ch)
+		{
 			uint32 result = 0;
-			for (int i = 1; i < (ch + 1); ++i) {
-				if (val & 1) {
+			for (int i = 1; i < (ch + 1); ++i)
+			{
+				if (val & 1)
+				{
 					result |= 1 << (ch - i);
 				}
 				val >>= 1;
@@ -488,39 +585,47 @@ namespace {
 	};
 }
 
-int32 hashCrc32(const void *data, uint32 len) {
+int32 hashCrc32(const void* data, uint32 len)
+{
 	static _Crc32Initializer _crc32Initializer;
 
-	const uchar *buf = (const uchar *)data;
+	const uchar* buf = (const uchar *)data;
 
 	uint32 crc(0xffffffff);
-    for (uint32 i = 0; i < len; ++i) {
+	for (uint32 i = 0; i < len; ++i)
+	{
 		crc = (crc >> 8) ^ _crc32Table[(crc & 0xFF) ^ buf[i]];
 	}
 
-    return crc ^ 0xffffffff;
+	return crc ^ 0xffffffff;
 }
 
-int32 *hashSha1(const void *data, uint32 len, void *dest) {
+int32* hashSha1(const void* data, uint32 len, void* dest)
+{
 	return (int32*)SHA1((const uchar*)data, (size_t)len, (uchar*)dest);
 }
 
-int32 *hashSha256(const void *data, uint32 len, void *dest) {
+int32* hashSha256(const void* data, uint32 len, void* dest)
+{
 	return (int32*)SHA256((const uchar*)data, (size_t)len, (uchar*)dest);
 }
 
 // md5 hash, taken somewhere from the internet
 
-namespace {
-
-	inline void _md5_decode(uint32 *output, const uchar *input, uint32 len) {
-		for (uint32 i = 0, j = 0; j < len; i++, j += 4) {
+namespace
+{
+	inline void _md5_decode(uint32* output, const uchar* input, uint32 len)
+	{
+		for (uint32 i = 0, j = 0; j < len; i++, j += 4)
+		{
 			output[i] = ((uint32)input[j]) | (((uint32)input[j + 1]) << 8) | (((uint32)input[j + 2]) << 16) | (((uint32)input[j + 3]) << 24);
 		}
 	}
 
-	inline void _md5_encode(uchar *output, const uint32 *input, uint32 len) {
-		for (uint32 i = 0, j = 0; j < len; i++, j += 4) {
+	inline void _md5_encode(uchar* output, const uint32* input, uint32 len)
+	{
+		for (uint32 i = 0, j = 0; j < len; i++, j += 4)
+		{
 			output[j + 0] = (input[i]) & 0xFF;
 			output[j + 1] = (input[i] >> 8) & 0xFF;
 			output[j + 2] = (input[i] >> 16) & 0xFF;
@@ -528,39 +633,48 @@ namespace {
 		}
 	}
 
-	inline uint32 _md5_rotate_left(uint32 x, int n) {
+	inline uint32 _md5_rotate_left(uint32 x, int n)
+	{
 		return (x << n) | (x >> (32 - n));
 	}
 
-	inline uint32 _md5_F(uint32 x, uint32 y, uint32 z) {
+	inline uint32 _md5_F(uint32 x, uint32 y, uint32 z)
+	{
 		return (x & y) | (~x & z);
 	}
 
-	inline uint32 _md5_G(uint32 x, uint32 y, uint32 z) {
+	inline uint32 _md5_G(uint32 x, uint32 y, uint32 z)
+	{
 		return (x & z) | (y & ~z);
 	}
 
-	inline uint32 _md5_H(uint32 x, uint32 y, uint32 z) {
+	inline uint32 _md5_H(uint32 x, uint32 y, uint32 z)
+	{
 		return x ^ y ^ z;
 	}
 
-	inline uint32 _md5_I(uint32 x, uint32 y, uint32 z) {
+	inline uint32 _md5_I(uint32 x, uint32 y, uint32 z)
+	{
 		return y ^ (x | ~z);
 	}
 
-	inline void _md5_FF(uint32 &a, uint32 b, uint32 c, uint32 d, uint32 x, uint32 s, uint32 ac) {
+	inline void _md5_FF(uint32& a, uint32 b, uint32 c, uint32 d, uint32 x, uint32 s, uint32 ac)
+	{
 		a = _md5_rotate_left(a + _md5_F(b, c, d) + x + ac, s) + b;
 	}
 
-	inline void _md5_GG(uint32 &a, uint32 b, uint32 c, uint32 d, uint32 x, uint32 s, uint32 ac) {
+	inline void _md5_GG(uint32& a, uint32 b, uint32 c, uint32 d, uint32 x, uint32 s, uint32 ac)
+	{
 		a = _md5_rotate_left(a + _md5_G(b, c, d) + x + ac, s) + b;
 	}
 
-	inline void _md5_HH(uint32 &a, uint32 b, uint32 c, uint32 d, uint32 x, uint32 s, uint32 ac) {
+	inline void _md5_HH(uint32& a, uint32 b, uint32 c, uint32 d, uint32 x, uint32 s, uint32 ac)
+	{
 		a = _md5_rotate_left(a + _md5_H(b, c, d) + x + ac, s) + b;
 	}
 
-	inline void _md5_II(uint32 &a, uint32 b, uint32 c, uint32 d, uint32 x, uint32 s, uint32 ac) {
+	inline void _md5_II(uint32& a, uint32 b, uint32 c, uint32 d, uint32 x, uint32 s, uint32 ac)
+	{
 		a = _md5_rotate_left(a + _md5_I(b, c, d) + x + ac, s) + b;
 	}
 
@@ -571,17 +685,21 @@ namespace {
 	};
 }
 
-HashMd5::HashMd5(const void *input, uint32 length) : _finalized(false) {
+HashMd5::HashMd5(const void* input, uint32 length) :
+	_finalized(false)
+{
 	init();
 	if (input && length > 0) feed(input, length);
 }
 
-void HashMd5::feed(const void *input, uint32 length) {
+void HashMd5::feed(const void* input, uint32 length)
+{
 	uint32 index = _count[0] / 8 % _md5_block_size;
 
-	const uchar *buf = (const uchar *)input;
+	const uchar* buf = (const uchar *)input;
 
-	if ((_count[0] += (length << 3)) < (length << 3)) {
+	if ((_count[0] += (length << 3)) < (length << 3))
+	{
 		_count[1]++;
 	}
 	_count[1] += (length >> 29);
@@ -590,28 +708,34 @@ void HashMd5::feed(const void *input, uint32 length) {
 
 	uint32 i;
 
-	if (length >= firstpart) {
+	if (length >= firstpart)
+	{
 		memcpy(&_buffer[index], buf, firstpart);
 		transform(_buffer);
 
-		for (i = firstpart; i + _md5_block_size <= length; i += _md5_block_size) {
+		for (i = firstpart; i + _md5_block_size <= length; i += _md5_block_size)
+		{
 			transform(&buf[i]);
 		}
 
 		index = 0;
-	} else {
+	}
+	else
+	{
 		i = 0;
 	}
 
 	memcpy(&_buffer[index], &buf[i], length - i);
 }
 
-int32 *HashMd5::result() {
+int32* HashMd5::result()
+{
 	if (!_finalized) finalize();
 	return (int32*)_digest;
 }
 
-void HashMd5::init() {
+void HashMd5::init()
+{
 	_count[0] = 0;
 	_count[1] = 0;
 
@@ -621,8 +745,10 @@ void HashMd5::init() {
 	_state[3] = 0x10325476;
 }
 
-void HashMd5::finalize() {
-	if (!_finalized) {
+void HashMd5::finalize()
+{
+	if (!_finalized)
+	{
 		uchar bits[8];
 		_md5_encode(bits, _count, 8);
 
@@ -636,77 +762,78 @@ void HashMd5::finalize() {
 	}
 }
 
-void HashMd5::transform(const uchar *block) {
+void HashMd5::transform(const uchar* block)
+{
 	uint32 a = _state[0], b = _state[1], c = _state[2], d = _state[3], x[16];
 	_md5_decode(x, block, _md5_block_size);
 
-	_md5_FF(a, b, c, d, x[0] , 7 , 0xd76aa478);
-	_md5_FF(d, a, b, c, x[1] , 12, 0xe8c7b756);
-	_md5_FF(c, d, a, b, x[2] , 17, 0x242070db);
-	_md5_FF(b, c, d, a, x[3] , 22, 0xc1bdceee);
-	_md5_FF(a, b, c, d, x[4] , 7 , 0xf57c0faf);
-	_md5_FF(d, a, b, c, x[5] , 12, 0x4787c62a);
-	_md5_FF(c, d, a, b, x[6] , 17, 0xa8304613);
-	_md5_FF(b, c, d, a, x[7] , 22, 0xfd469501);
-	_md5_FF(a, b, c, d, x[8] , 7 , 0x698098d8);
-	_md5_FF(d, a, b, c, x[9] , 12, 0x8b44f7af);
+	_md5_FF(a, b, c, d, x[0], 7, 0xd76aa478);
+	_md5_FF(d, a, b, c, x[1], 12, 0xe8c7b756);
+	_md5_FF(c, d, a, b, x[2], 17, 0x242070db);
+	_md5_FF(b, c, d, a, x[3], 22, 0xc1bdceee);
+	_md5_FF(a, b, c, d, x[4], 7, 0xf57c0faf);
+	_md5_FF(d, a, b, c, x[5], 12, 0x4787c62a);
+	_md5_FF(c, d, a, b, x[6], 17, 0xa8304613);
+	_md5_FF(b, c, d, a, x[7], 22, 0xfd469501);
+	_md5_FF(a, b, c, d, x[8], 7, 0x698098d8);
+	_md5_FF(d, a, b, c, x[9], 12, 0x8b44f7af);
 	_md5_FF(c, d, a, b, x[10], 17, 0xffff5bb1);
 	_md5_FF(b, c, d, a, x[11], 22, 0x895cd7be);
-	_md5_FF(a, b, c, d, x[12], 7 , 0x6b901122);
+	_md5_FF(a, b, c, d, x[12], 7, 0x6b901122);
 	_md5_FF(d, a, b, c, x[13], 12, 0xfd987193);
 	_md5_FF(c, d, a, b, x[14], 17, 0xa679438e);
 	_md5_FF(b, c, d, a, x[15], 22, 0x49b40821);
 
-	_md5_GG(a, b, c, d, x[1] , 5 , 0xf61e2562);
-	_md5_GG(d, a, b, c, x[6] , 9 , 0xc040b340);
+	_md5_GG(a, b, c, d, x[1], 5, 0xf61e2562);
+	_md5_GG(d, a, b, c, x[6], 9, 0xc040b340);
 	_md5_GG(c, d, a, b, x[11], 14, 0x265e5a51);
-	_md5_GG(b, c, d, a, x[0] , 20, 0xe9b6c7aa);
-	_md5_GG(a, b, c, d, x[5] , 5 , 0xd62f105d);
-	_md5_GG(d, a, b, c, x[10], 9 , 0x2441453);
+	_md5_GG(b, c, d, a, x[0], 20, 0xe9b6c7aa);
+	_md5_GG(a, b, c, d, x[5], 5, 0xd62f105d);
+	_md5_GG(d, a, b, c, x[10], 9, 0x2441453);
 	_md5_GG(c, d, a, b, x[15], 14, 0xd8a1e681);
-	_md5_GG(b, c, d, a, x[4] , 20, 0xe7d3fbc8);
-	_md5_GG(a, b, c, d, x[9] , 5 , 0x21e1cde6);
-	_md5_GG(d, a, b, c, x[14], 9 , 0xc33707d6);
-	_md5_GG(c, d, a, b, x[3] , 14, 0xf4d50d87);
-	_md5_GG(b, c, d, a, x[8] , 20, 0x455a14ed);
-	_md5_GG(a, b, c, d, x[13], 5 , 0xa9e3e905);
-	_md5_GG(d, a, b, c, x[2] , 9 , 0xfcefa3f8);
-	_md5_GG(c, d, a, b, x[7] , 14, 0x676f02d9);
+	_md5_GG(b, c, d, a, x[4], 20, 0xe7d3fbc8);
+	_md5_GG(a, b, c, d, x[9], 5, 0x21e1cde6);
+	_md5_GG(d, a, b, c, x[14], 9, 0xc33707d6);
+	_md5_GG(c, d, a, b, x[3], 14, 0xf4d50d87);
+	_md5_GG(b, c, d, a, x[8], 20, 0x455a14ed);
+	_md5_GG(a, b, c, d, x[13], 5, 0xa9e3e905);
+	_md5_GG(d, a, b, c, x[2], 9, 0xfcefa3f8);
+	_md5_GG(c, d, a, b, x[7], 14, 0x676f02d9);
 	_md5_GG(b, c, d, a, x[12], 20, 0x8d2a4c8a);
 
-	_md5_HH(a, b, c, d, x[5] , 4 , 0xfffa3942);
-	_md5_HH(d, a, b, c, x[8] , 11, 0x8771f681);
+	_md5_HH(a, b, c, d, x[5], 4, 0xfffa3942);
+	_md5_HH(d, a, b, c, x[8], 11, 0x8771f681);
 	_md5_HH(c, d, a, b, x[11], 16, 0x6d9d6122);
 	_md5_HH(b, c, d, a, x[14], 23, 0xfde5380c);
-	_md5_HH(a, b, c, d, x[1] , 4 , 0xa4beea44);
-	_md5_HH(d, a, b, c, x[4] , 11, 0x4bdecfa9);
-	_md5_HH(c, d, a, b, x[7] , 16, 0xf6bb4b60);
+	_md5_HH(a, b, c, d, x[1], 4, 0xa4beea44);
+	_md5_HH(d, a, b, c, x[4], 11, 0x4bdecfa9);
+	_md5_HH(c, d, a, b, x[7], 16, 0xf6bb4b60);
 	_md5_HH(b, c, d, a, x[10], 23, 0xbebfbc70);
-	_md5_HH(a, b, c, d, x[13], 4 , 0x289b7ec6);
-	_md5_HH(d, a, b, c, x[0] , 11, 0xeaa127fa);
-	_md5_HH(c, d, a, b, x[3] , 16, 0xd4ef3085);
-	_md5_HH(b, c, d, a, x[6] , 23, 0x4881d05);
-	_md5_HH(a, b, c, d, x[9] , 4 , 0xd9d4d039);
+	_md5_HH(a, b, c, d, x[13], 4, 0x289b7ec6);
+	_md5_HH(d, a, b, c, x[0], 11, 0xeaa127fa);
+	_md5_HH(c, d, a, b, x[3], 16, 0xd4ef3085);
+	_md5_HH(b, c, d, a, x[6], 23, 0x4881d05);
+	_md5_HH(a, b, c, d, x[9], 4, 0xd9d4d039);
 	_md5_HH(d, a, b, c, x[12], 11, 0xe6db99e5);
 	_md5_HH(c, d, a, b, x[15], 16, 0x1fa27cf8);
-	_md5_HH(b, c, d, a, x[2] , 23, 0xc4ac5665);
+	_md5_HH(b, c, d, a, x[2], 23, 0xc4ac5665);
 
-	_md5_II(a, b, c, d, x[0] , 6 , 0xf4292244);
-	_md5_II(d, a, b, c, x[7] , 10, 0x432aff97);
+	_md5_II(a, b, c, d, x[0], 6, 0xf4292244);
+	_md5_II(d, a, b, c, x[7], 10, 0x432aff97);
 	_md5_II(c, d, a, b, x[14], 15, 0xab9423a7);
-	_md5_II(b, c, d, a, x[5] , 21, 0xfc93a039);
-	_md5_II(a, b, c, d, x[12], 6 , 0x655b59c3);
-	_md5_II(d, a, b, c, x[3] , 10, 0x8f0ccc92);
+	_md5_II(b, c, d, a, x[5], 21, 0xfc93a039);
+	_md5_II(a, b, c, d, x[12], 6, 0x655b59c3);
+	_md5_II(d, a, b, c, x[3], 10, 0x8f0ccc92);
 	_md5_II(c, d, a, b, x[10], 15, 0xffeff47d);
-	_md5_II(b, c, d, a, x[1] , 21, 0x85845dd1);
-	_md5_II(a, b, c, d, x[8] , 6 , 0x6fa87e4f);
+	_md5_II(b, c, d, a, x[1], 21, 0x85845dd1);
+	_md5_II(a, b, c, d, x[8], 6, 0x6fa87e4f);
 	_md5_II(d, a, b, c, x[15], 10, 0xfe2ce6e0);
-	_md5_II(c, d, a, b, x[6] , 15, 0xa3014314);
+	_md5_II(c, d, a, b, x[6], 15, 0xa3014314);
 	_md5_II(b, c, d, a, x[13], 21, 0x4e0811a1);
-	_md5_II(a, b, c, d, x[4] , 6 , 0xf7537e82);
+	_md5_II(a, b, c, d, x[4], 6, 0xf7537e82);
 	_md5_II(d, a, b, c, x[11], 10, 0xbd3af235);
-	_md5_II(c, d, a, b, x[2] , 15, 0x2ad7d2bb);
-	_md5_II(b, c, d, a, x[9] , 21, 0xeb86d391);
+	_md5_II(c, d, a, b, x[2], 15, 0x2ad7d2bb);
+	_md5_II(b, c, d, a, x[9], 21, 0xeb86d391);
 
 	_state[0] += a;
 	_state[1] += b;
@@ -714,18 +841,21 @@ void HashMd5::transform(const uchar *block) {
 	_state[3] += d;
 }
 
-int32 *hashMd5(const void *data, uint32 len, void *dest) {
+int32* hashMd5(const void* data, uint32 len, void* dest)
+{
 	HashMd5 md5(data, len);
 	memcpy(dest, md5.result(), 16);
 
 	return (int32*)dest;
 }
 
-char *hashMd5Hex(const int32 *hashmd5, void *dest) {
-	char *md5To = (char*)dest;
-	const uchar *res = (const uchar*)hashmd5;
+char* hashMd5Hex(const int32* hashmd5, void* dest)
+{
+	char* md5To = (char*)dest;
+	const uchar* res = (const uchar*)hashmd5;
 
-	for (int i = 0; i < 16; ++i) {
+	for (int i = 0; i < 16; ++i)
+	{
 		uchar ch(res[i]), high = (ch >> 4) & 0x0F, low = ch & 0x0F;
 		md5To[i * 2 + 0] = high + ((high > 0x09) ? ('a' - 0x0A) : '0');
 		md5To[i * 2 + 1] = low + ((low > 0x09) ? ('a' - 0x0A) : '0');
@@ -734,20 +864,24 @@ char *hashMd5Hex(const int32 *hashmd5, void *dest) {
 	return md5To;
 }
 
-void memset_rand(void *data, uint32 len) {
+void memset_rand(void* data, uint32 len)
+{
 	Assert(_sslInited);
 	RAND_bytes((uchar*)data, len);
 }
 
-namespace {
+namespace
+{
 	QMap<QString, QString> fastRusEng;
 	QHash<QChar, QString> fastLetterRusEng;
 	QMap<uint32, QString> fastDoubleLetterRusEng;
 	QHash<QChar, QChar> fastRusKeyboardSwitch;
 }
 
-QString translitLetterRusEng(QChar letter, QChar next, int32 &toSkip) {
-	if (fastDoubleLetterRusEng.isEmpty()) {
+QString translitLetterRusEng(QChar letter, QChar next, int32& toSkip)
+{
+	if (fastDoubleLetterRusEng.isEmpty())
+	{
 		fastDoubleLetterRusEng.insert((QString::fromUtf8("Ы").at(0).unicode() << 16) | QString::fromUtf8("й").at(0).unicode(), qsl("Y"));
 		fastDoubleLetterRusEng.insert((QString::fromUtf8("и").at(0).unicode() << 16) | QString::fromUtf8("я").at(0).unicode(), qsl("ia"));
 		fastDoubleLetterRusEng.insert((QString::fromUtf8("и").at(0).unicode() << 16) | QString::fromUtf8("й").at(0).unicode(), qsl("y"));
@@ -756,13 +890,15 @@ QString translitLetterRusEng(QChar letter, QChar next, int32 &toSkip) {
 		fastDoubleLetterRusEng.insert((QString::fromUtf8("ь").at(0).unicode() << 16) | QString::fromUtf8("е").at(0).unicode(), qsl("ye"));
 	}
 	QMap<uint32, QString>::const_iterator i = fastDoubleLetterRusEng.constFind((letter.unicode() << 16) | next.unicode());
-	if (i != fastDoubleLetterRusEng.cend()) {
+	if (i != fastDoubleLetterRusEng.cend())
+	{
 		toSkip = 2;
 		return i.value();
 	}
 
 	toSkip = 1;
-	if (fastLetterRusEng.isEmpty()) {
+	if (fastLetterRusEng.isEmpty())
+	{
 		fastLetterRusEng.insert(QString::fromUtf8("А").at(0), qsl("A"));
 		fastLetterRusEng.insert(QString::fromUtf8("Б").at(0), qsl("B"));
 		fastLetterRusEng.insert(QString::fromUtf8("В").at(0), qsl("V"));
@@ -841,14 +977,17 @@ QString translitLetterRusEng(QChar letter, QChar next, int32 &toSkip) {
 		fastLetterRusEng.insert(QString::fromUtf8("ь").at(0), qsl(""));
 	}
 	QHash<QChar, QString>::const_iterator j = fastLetterRusEng.constFind(letter);
-	if (j != fastLetterRusEng.cend()) {
+	if (j != fastLetterRusEng.cend())
+	{
 		return j.value();
 	}
 	return QString(1, letter);
 }
 
-QString translitRusEng(const QString &rus) {
-	if (fastRusEng.isEmpty()) {
+QString translitRusEng(const QString& rus)
+{
+	if (fastRusEng.isEmpty())
+	{
 		fastRusEng.insert(QString::fromUtf8("Александр"), qsl("Alexander"));
 		fastRusEng.insert(QString::fromUtf8("александр"), qsl("alexander"));
 		fastRusEng.insert(QString::fromUtf8("Филипп"), qsl("Philip"));
@@ -861,7 +1000,8 @@ QString translitRusEng(const QString &rus) {
 		fastRusEng.insert(QString::fromUtf8("ильин"), qsl("ilyin"));
 	}
 	QMap<QString, QString>::const_iterator i = fastRusEng.constFind(rus);
-	if (i != fastRusEng.cend()) {
+	if (i != fastRusEng.cend())
+	{
 		return i.value();
 	}
 
@@ -869,14 +1009,17 @@ QString translitRusEng(const QString &rus) {
 	result.reserve(rus.size() * 2);
 
 	int32 toSkip = 0;
-	for (QString::const_iterator i = rus.cbegin(), e = rus.cend(); i != e; i += toSkip) {
+	for (QString::const_iterator i = rus.cbegin(), e = rus.cend(); i != e; i += toSkip)
+	{
 		result += translitLetterRusEng(*i, (i + 1 == e) ? ' ' : *(i + 1), toSkip);
 	}
 	return result;
 }
 
-QString rusKeyboardLayoutSwitch(const QString &from) {
-	if (fastRusKeyboardSwitch.isEmpty()) {
+QString rusKeyboardLayoutSwitch(const QString& from)
+{
+	if (fastRusKeyboardSwitch.isEmpty())
+	{
 		fastRusKeyboardSwitch.insert('Q', QString::fromUtf8("Й").at(0));
 		fastRusKeyboardSwitch.insert('W', QString::fromUtf8("Ц").at(0));
 		fastRusKeyboardSwitch.insert('E', QString::fromUtf8("У").at(0));
@@ -1009,11 +1152,15 @@ QString rusKeyboardLayoutSwitch(const QString &from) {
 
 	QString result;
 	result.reserve(from.size());
-	for (QString::const_iterator i = from.cbegin(), e = from.cend(); i != e; ++i) {
+	for (QString::const_iterator i = from.cbegin(), e = from.cend(); i != e; ++i)
+	{
 		QHash<QChar, QChar>::const_iterator j = fastRusKeyboardSwitch.constFind(*i);
-		if (j == fastRusKeyboardSwitch.cend()) {
+		if (j == fastRusKeyboardSwitch.cend())
+		{
 			result += *i;
-		} else {
+		}
+		else
+		{
 			result += j.value();
 		}
 	}

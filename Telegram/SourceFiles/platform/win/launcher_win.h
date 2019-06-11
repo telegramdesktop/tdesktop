@@ -9,24 +9,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/launcher.h"
 
-namespace Platform {
+namespace Platform
+{
+	class Launcher : public Core::Launcher
+	{
+	public:
+		Launcher(int argc, char* argv[]);
 
-class Launcher : public Core::Launcher {
-public:
-	Launcher(int argc, char *argv[]);
+	private:
+		std::optional<QStringList> readArgumentsHook(
+			int argc,
+			char* argv[]) const override;
 
-private:
-	std::optional<QStringList> readArgumentsHook(
-		int argc,
-		char *argv[]) const override;
+		bool launchUpdater(UpdaterLaunch action) override;
 
-	bool launchUpdater(UpdaterLaunch action) override;
-
-	bool launch(
-		const QString &operation,
-		const QString &binaryPath,
-		const QStringList &argumentsList);
-
-};
-
+		bool launch(
+			const QString& operation,
+			const QString& binaryPath,
+			const QStringList& argumentsList);
+	};
 } // namespace Platform

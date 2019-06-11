@@ -10,42 +10,51 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "auth_session.h"
 
-namespace {
+namespace
+{
+	constexpr auto kShortPollTimeout = 30 * crl::time(1000);
 
-constexpr auto kShortPollTimeout = 30 * crl::time(1000);
+	const PollAnswer* AnswerByOption(
+		const std::vector<PollAnswer>& list,
+		const QByteArray& option)
+	{
+		const auto i = ranges::find(
+			list,
+			option,
+			[](const PollAnswer& a)
+			{
+				return a.option;
+			});
+		return (i != end(list)) ? &*i : nullptr;
+	}
 
-const PollAnswer *AnswerByOption(
-		const std::vector<PollAnswer> &list,
-		const QByteArray &option) {
-	const auto i = ranges::find(
-		list,
-		option,
-		[](const PollAnswer &a) { return a.option; });
-	return (i != end(list)) ? &*i : nullptr;
-}
-
-PollAnswer *AnswerByOption(
-		std::vector<PollAnswer> &list,
-		const QByteArray &option) {
-	return const_cast<PollAnswer*>(AnswerByOption(
-		std::as_const(list),
-		option));
-}
-
+	PollAnswer* AnswerByOption(
+		std::vector<PollAnswer>& list,
+		const QByteArray& option)
+	{
+		return const_cast<PollAnswer*>(AnswerByOption(
+			std::as_const(list),
+			option));
+	}
 } // namespace
 
-PollData::PollData(PollId id) : id(id) {
+PollData::PollData(PollId id) :
+	id(id)
+{
 }
 
-bool PollData::applyChanges(const MTPDpoll &poll) {
+bool PollData::applyChanges(const MTPDpoll& poll)
+{
 	Expects(poll.vid.v == id);
 
 	const auto newQuestion = qs(poll.vquestion);
 	const auto newClosed = poll.is_closed();
 	auto newAnswers = ranges::view::all(
 		poll.vanswers.v
-	) | ranges::view::transform([](const MTPPollAnswer &data) {
-		return data.match([](const MTPDpollAnswer &answer) {
+	) | ranges::view::transform([](const MTPPollAnswer& data)
+	{
+		return data.match([](const MTPDpollAnswer& answer)
+		{
 			auto result = PollAnswer();
 			result.option = answer.voption.v;
 			result.text = qs(answer.vtext);
@@ -58,17 +67,22 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 	const auto changed1 = (question != newQuestion)
 		|| (closed != newClosed);
 	const auto changed2 = (answers != newAnswers);
-	if (!changed1 && !changed2) {
+	if (!changed1 && !changed2)
+	{
 		return false;
 	}
-	if (changed1) {
+	if (changed1)
+	{
 		question = newQuestion;
 		closed = newClosed;
 	}
-	if (changed2) {
+	if (changed2)
+	{
 		std::swap(answers, newAnswers);
-		for (const auto &old : newAnswers) {
-			if (const auto current = answerByOption(old.option)) {
+		for (const auto& old : newAnswers)
+		{
+			if (const auto current = answerByOption(old.option))
+			{
 				current->votes = old.votes;
 				current->chosen = old.chosen;
 			}
@@ -78,22 +92,28 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 	return true;
 }
 
-bool PollData::applyResults(const MTPPollResults &results) {
-	return results.match([&](const MTPDpollResults &results) {
+bool PollData::applyResults(const MTPPollResults& results)
+{
+	return results.match([&](const MTPDpollResults& results)
+	{
 		lastResultsUpdate = crl::now();
 
 		const auto newTotalVoters = results.has_total_voters()
-			? results.vtotal_voters.v
-			: totalVoters;
+			                            ? results.vtotal_voters.v
+			                            : totalVoters;
 		auto changed = (newTotalVoters != totalVoters);
-		if (results.has_results()) {
-			for (const auto &result : results.vresults.v) {
-				if (applyResultToAnswers(result, results.is_min())) {
+		if (results.has_results())
+		{
+			for (const auto& result : results.vresults.v)
+			{
+				if (applyResultToAnswers(result, results.is_min()))
+				{
 					changed = true;
 				}
 			}
 		}
-		if (!changed) {
+		if (!changed)
+		{
 			return false;
 		}
 		totalVoters = newTotalVoters;
@@ -102,55 +122,72 @@ bool PollData::applyResults(const MTPPollResults &results) {
 	});
 }
 
-void PollData::checkResultsReload(not_null<HistoryItem*> item, crl::time now) {
-	if (lastResultsUpdate && lastResultsUpdate + kShortPollTimeout > now) {
+void PollData::checkResultsReload(not_null<HistoryItem*> item, crl::time now)
+{
+	if (lastResultsUpdate && lastResultsUpdate + kShortPollTimeout > now)
+	{
 		return;
-	} else if (closed) {
+	}
+	else if (closed)
+	{
 		return;
 	}
 	lastResultsUpdate = now;
 	Auth().api().reloadPollResults(item);
 }
 
-PollAnswer *PollData::answerByOption(const QByteArray &option) {
+PollAnswer* PollData::answerByOption(const QByteArray& option)
+{
 	return AnswerByOption(answers, option);
 }
 
-const PollAnswer *PollData::answerByOption(const QByteArray &option) const {
+const PollAnswer* PollData::answerByOption(const QByteArray& option) const
+{
 	return AnswerByOption(answers, option);
 }
 
 bool PollData::applyResultToAnswers(
-		const MTPPollAnswerVoters &result,
-		bool isMinResults) {
-	return result.match([&](const MTPDpollAnswerVoters &voters) {
-		const auto &option = voters.voption.v;
+	const MTPPollAnswerVoters& result,
+	bool isMinResults)
+{
+	return result.match([&](const MTPDpollAnswerVoters& voters)
+	{
+		const auto& option = voters.voption.v;
 		const auto answer = answerByOption(option);
-		if (!answer) {
+		if (!answer)
+		{
 			return false;
 		}
 		auto changed = (answer->votes != voters.vvoters.v);
-		if (changed) {
+		if (changed)
+		{
 			answer->votes = voters.vvoters.v;
 		}
-		if (!isMinResults) {
-			if (answer->chosen != voters.is_chosen()) {
+		if (!isMinResults)
+		{
+			if (answer->chosen != voters.is_chosen())
+			{
 				answer->chosen = voters.is_chosen();
 				changed = true;
 			}
-		} else if (const auto existing = answerByOption(option)) {
+		}
+		else if (const auto existing = answerByOption(option))
+		{
 			answer->chosen = existing->chosen;
 		}
 		return changed;
 	});
 }
 
-bool PollData::voted() const {
+bool PollData::voted() const
+{
 	return ranges::find(answers, true, &PollAnswer::chosen) != end(answers);
 }
 
-MTPPoll PollDataToMTP(not_null<const PollData*> poll) {
-	const auto convert = [](const PollAnswer &answer) {
+MTPPoll PollDataToMTP(not_null<const PollData*> poll)
+{
+	const auto convert = [](const PollAnswer& answer)
+	{
 		return MTP_pollAnswer(
 			MTP_string(answer.text),
 			MTP_bytes(answer.option));

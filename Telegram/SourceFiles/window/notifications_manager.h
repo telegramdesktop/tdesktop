@@ -11,191 +11,226 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class AuthSession;
 
-namespace Platform {
-namespace Notifications {
-class Manager;
-} // namespace Notifications
+namespace Platform
+{
+	namespace Notifications
+	{
+		class Manager;
+	} // namespace Notifications
 } // namespace Platform
 
-namespace Media {
-namespace Audio {
-class Track;
-} // namespace Audio
+namespace Media
+{
+	namespace Audio
+	{
+		class Track;
+	} // namespace Audio
 } // namespace Media
 
-namespace Window {
-namespace Notifications {
-
-enum class ChangeType {
-	SoundEnabled,
-	IncludeMuted,
-	CountMessages,
-	DesktopEnabled,
-	ViewParams,
-	MaxCount,
-	Corner,
-	DemoIsShown,
-};
-
-} // namespace Notifications
+namespace Window
+{
+	namespace Notifications
+	{
+		enum class ChangeType
+		{
+			SoundEnabled,
+			IncludeMuted,
+			CountMessages,
+			DesktopEnabled,
+			ViewParams,
+			MaxCount,
+			Corner,
+			DemoIsShown,
+		};
+	} // namespace Notifications
 } // namespace Window
 
-namespace base {
-
-template <>
-struct custom_is_fast_copy_type<Window::Notifications::ChangeType> : public std::true_type {
-};
-
+namespace base
+{
+	template <>
+	struct custom_is_fast_copy_type<Window::Notifications::ChangeType> : public std::true_type
+	{
+	};
 } // namespace base
 
-namespace Window {
-namespace Notifications {
+namespace Window
+{
+	namespace Notifications
+	{
+		class Manager;
 
-class Manager;
+		class System final : private base::Subscriber
+		{
+		public:
+			explicit System(not_null<AuthSession*> session);
 
-class System final : private base::Subscriber {
-public:
-	explicit System(not_null<AuthSession*> session);
+			void createManager();
 
-	void createManager();
+			void checkDelayed();
+			void schedule(History* history, HistoryItem* item);
+			void clearFromHistory(History* history);
+			void clearFromItem(HistoryItem* item);
+			void clearAll();
+			void clearAllFast();
+			void updateAll();
 
-	void checkDelayed();
-	void schedule(History *history, HistoryItem *item);
-	void clearFromHistory(History *history);
-	void clearFromItem(HistoryItem *item);
-	void clearAll();
-	void clearAllFast();
-	void updateAll();
+			base::Observable<ChangeType>& settingsChanged()
+			{
+				return _settingsChanged;
+			}
 
-	base::Observable<ChangeType> &settingsChanged() {
-		return _settingsChanged;
-	}
+			AuthSession& session() const
+			{
+				return *_session;
+			}
 
-	AuthSession &session() const {
-		return *_session;
-	}
+			~System();
 
-	~System();
+		private:
+			void showNext();
+			void showGrouped();
+			void ensureSoundCreated();
 
-private:
-	void showNext();
-	void showGrouped();
-	void ensureSoundCreated();
+			not_null<AuthSession*> _session;
 
-	not_null<AuthSession*> _session;
+			QMap<History*, QMap<MsgId, crl::time>> _whenMaps;
 
-	QMap<History*, QMap<MsgId, crl::time>> _whenMaps;
+			struct Waiter
+			{
+				Waiter(MsgId msg, crl::time when, PeerData* notifyBy) :
+					msg(msg)
+					, when(when)
+					, notifyBy(notifyBy)
+				{
+				}
 
-	struct Waiter {
-		Waiter(MsgId msg, crl::time when, PeerData *notifyBy)
-		: msg(msg)
-		, when(when)
-		, notifyBy(notifyBy) {
-		}
-		MsgId msg;
-		crl::time when;
-		PeerData *notifyBy;
-	};
-	using Waiters = QMap<History*, Waiter>;
-	Waiters _waiters;
-	Waiters _settingWaiters;
-	base::Timer _waitTimer;
-	base::Timer _waitForAllGroupedTimer;
+				MsgId msg;
+				crl::time when;
+				PeerData* notifyBy;
+			};
+			using Waiters = QMap<History*, Waiter>;
+			Waiters _waiters;
+			Waiters _settingWaiters;
+			base::Timer _waitTimer;
+			base::Timer _waitForAllGroupedTimer;
 
-	QMap<History*, QMap<crl::time, PeerData*>> _whenAlerts;
+			QMap<History*, QMap<crl::time, PeerData*>> _whenAlerts;
 
-	std::unique_ptr<Manager> _manager;
+			std::unique_ptr<Manager> _manager;
 
-	base::Observable<ChangeType> _settingsChanged;
+			base::Observable<ChangeType> _settingsChanged;
 
-	std::unique_ptr<Media::Audio::Track> _soundTrack;
+			std::unique_ptr<Media::Audio::Track> _soundTrack;
 
-	int _lastForwardedCount = 0;
-	FullMsgId _lastHistoryItemId;
+			int _lastForwardedCount = 0;
+			FullMsgId _lastHistoryItemId;
+		};
 
-};
+		class Manager
+		{
+		public:
+			Manager(System* system) :
+				_system(system)
+			{
+			}
 
-class Manager {
-public:
-	Manager(System *system) : _system(system) {
-	}
+			void showNotification(HistoryItem* item, int forwardedCount)
+			{
+				doShowNotification(item, forwardedCount);
+			}
 
-	void showNotification(HistoryItem *item, int forwardedCount) {
-		doShowNotification(item, forwardedCount);
-	}
-	void updateAll() {
-		doUpdateAll();
-	}
-	void clearAll() {
-		doClearAll();
-	}
-	void clearAllFast() {
-		doClearAllFast();
-	}
-	void clearFromItem(HistoryItem *item) {
-		doClearFromItem(item);
-	}
-	void clearFromHistory(History *history) {
-		doClearFromHistory(history);
-	}
+			void updateAll()
+			{
+				doUpdateAll();
+			}
 
-	void notificationActivated(PeerId peerId, MsgId msgId);
-	void notificationReplied(
-		PeerId peerId,
-		MsgId msgId,
-		const TextWithTags &reply);
+			void clearAll()
+			{
+				doClearAll();
+			}
 
-	struct DisplayOptions {
-		bool hideNameAndPhoto;
-		bool hideMessageText;
-		bool hideReplyButton;
-	};
-	static DisplayOptions getNotificationOptions(HistoryItem *item);
+			void clearAllFast()
+			{
+				doClearAllFast();
+			}
 
-	virtual ~Manager() = default;
+			void clearFromItem(HistoryItem* item)
+			{
+				doClearFromItem(item);
+			}
 
-protected:
-	System *system() const {
-		return _system;
-	}
+			void clearFromHistory(History* history)
+			{
+				doClearFromHistory(history);
+			}
 
-	virtual void doUpdateAll() = 0;
-	virtual void doShowNotification(HistoryItem *item, int forwardedCount) = 0;
-	virtual void doClearAll() = 0;
-	virtual void doClearAllFast() = 0;
-	virtual void doClearFromItem(HistoryItem *item) = 0;
-	virtual void doClearFromHistory(History *history) = 0;
-	virtual void onBeforeNotificationActivated(PeerId peerId, MsgId msgId) {
-	}
-	virtual void onAfterNotificationActivated(PeerId peerId, MsgId msgId) {
-	}
+			void notificationActivated(PeerId peerId, MsgId msgId);
+			void notificationReplied(
+				PeerId peerId,
+				MsgId msgId,
+				const TextWithTags& reply);
 
-private:
-	void openNotificationMessage(
-		not_null<History*> history,
-		MsgId messageId);
+			struct DisplayOptions
+			{
+				bool hideNameAndPhoto;
+				bool hideMessageText;
+				bool hideReplyButton;
+			};
+			static DisplayOptions getNotificationOptions(HistoryItem* item);
 
-	System *_system = nullptr;
+			virtual ~Manager() = default;
 
-};
+		protected:
+			System* system() const
+			{
+				return _system;
+			}
 
-class NativeManager : public Manager {
-protected:
-	using Manager::Manager;
+			virtual void doUpdateAll() = 0;
+			virtual void doShowNotification(HistoryItem* item, int forwardedCount) = 0;
+			virtual void doClearAll() = 0;
+			virtual void doClearAllFast() = 0;
+			virtual void doClearFromItem(HistoryItem* item) = 0;
+			virtual void doClearFromHistory(History* history) = 0;
 
-	void doUpdateAll() override {
-		doClearAllFast();
-	}
-	void doClearAll() override {
-		doClearAllFast();
-	}
-	void doClearFromItem(HistoryItem *item) override {
-	}
-	void doShowNotification(HistoryItem *item, int forwardedCount) override;
+			virtual void onBeforeNotificationActivated(PeerId peerId, MsgId msgId)
+			{
+			}
 
-	virtual void doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) = 0;
+			virtual void onAfterNotificationActivated(PeerId peerId, MsgId msgId)
+			{
+			}
 
-};
+		private:
+			void openNotificationMessage(
+				not_null<History*> history,
+				MsgId messageId);
 
-} // namespace Notifications
+			System* _system = nullptr;
+		};
+
+		class NativeManager : public Manager
+		{
+		protected:
+			using Manager::Manager;
+
+			void doUpdateAll() override
+			{
+				doClearAllFast();
+			}
+
+			void doClearAll() override
+			{
+				doClearAllFast();
+			}
+
+			void doClearFromItem(HistoryItem* item) override
+			{
+			}
+
+			void doShowNotification(HistoryItem* item, int forwardedCount) override;
+
+			virtual void doShowNativeNotification(PeerData* peer, MsgId msgId, const QString& title, const QString& subtitle, const QString& msg, bool hideNameAndPhoto, bool hideReplyButton) = 0;
+		};
+	} // namespace Notifications
 } // namespace Window

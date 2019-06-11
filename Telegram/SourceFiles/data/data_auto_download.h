@@ -9,102 +9,105 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <array>
 
-namespace Images {
-class Source;
+namespace Images
+{
+	class Source;
 } // namespace Images
 
-namespace Data {
-namespace AutoDownload {
+namespace Data
+{
+	namespace AutoDownload
+	{
+		constexpr auto kMaxBytesLimit = 3000 * 512 * 1024;
 
-constexpr auto kMaxBytesLimit = 3000 * 512 * 1024;
+		enum class Source
+		{
+			User = 0x00,
+			Group = 0x01,
+			Channel = 0x02,
+		};
 
-enum class Source {
-	User    = 0x00,
-	Group   = 0x01,
-	Channel = 0x02,
-};
+		constexpr auto kSourcesCount = 3;
 
-constexpr auto kSourcesCount = 3;
+		enum class Type
+		{
+			Photo = 0x00,
+			Video = 0x01,
+			VoiceMessage = 0x02,
+			VideoMessage = 0x03,
+			Music = 0x04,
+			GIF = 0x05,
+			File = 0x06,
+		};
 
-enum class Type {
-	Photo        = 0x00,
-	Video        = 0x01,
-	VoiceMessage = 0x02,
-	VideoMessage = 0x03,
-	Music        = 0x04,
-	GIF          = 0x05,
-	File         = 0x06,
-};
+		constexpr auto kTypesCount = 7;
 
-constexpr auto kTypesCount = 7;
+		class Single
+		{
+		public:
+			void setBytesLimit(int bytesLimit);
 
-class Single {
-public:
-	void setBytesLimit(int bytesLimit);
+			bool hasValue() const;
+			bool shouldDownload(int fileSize) const;
+			int bytesLimit() const;
 
-	bool hasValue() const;
-	bool shouldDownload(int fileSize) const;
-	int bytesLimit() const;
+			qint32 serialize() const;
+			bool setFromSerialized(qint32 serialized);
 
-	qint32 serialize() const;
-	bool setFromSerialized(qint32 serialized);
+		private:
+			int _limit = -1;
+		};
 
-private:
-	int _limit = -1;
+		class Set
+		{
+		public:
+			void setBytesLimit(Type type, int bytesLimit);
 
-};
+			bool hasValue(Type type) const;
+			bool shouldDownload(Type type, int fileSize) const;
+			int bytesLimit(Type type) const;
 
-class Set {
-public:
-	void setBytesLimit(Type type, int bytesLimit);
+			qint32 serialize(Type type) const;
+			bool setFromSerialized(Type type, qint32 serialized);
 
-	bool hasValue(Type type) const;
-	bool shouldDownload(Type type, int fileSize) const;
-	int bytesLimit(Type type) const;
+		private:
+			const Single& single(Type type) const;
+			Single& single(Type type);
 
-	qint32 serialize(Type type) const;
-	bool setFromSerialized(Type type, qint32 serialized);
+			std::array<Single, kTypesCount> _data;
+		};
 
-private:
-	const Single &single(Type type) const;
-	Single &single(Type type);
+		class Full
+		{
+		public:
+			void setBytesLimit(Source source, Type type, int bytesLimit);
 
-	std::array<Single, kTypesCount> _data;
+			bool shouldDownload(Source source, Type type, int fileSize) const;
+			int bytesLimit(Source source, Type type) const;
 
-};
+			QByteArray serialize() const;
+			bool setFromSerialized(const QByteArray& serialized);
 
-class Full {
-public:
-	void setBytesLimit(Source source, Type type, int bytesLimit);
+			static Full FullDisabled();
 
-	bool shouldDownload(Source source, Type type, int fileSize) const;
-	int bytesLimit(Source source, Type type) const;
+		private:
+			const Set& set(Source source) const;
+			Set& set(Source source);
+			const Set& setOrDefault(Source source, Type type) const;
 
-	QByteArray serialize() const;
-	bool setFromSerialized(const QByteArray &serialized);
+			std::array<Set, kSourcesCount> _data;
+		};
 
-	static Full FullDisabled();
-
-private:
-	const Set &set(Source source) const;
-	Set &set(Source source);
-	const Set &setOrDefault(Source source, Type type) const;
-
-	std::array<Set, kSourcesCount> _data;
-
-};
-
-bool Should(
-	const Full &data,
-	not_null<PeerData*> peer,
-	not_null<DocumentData*> document);
-bool Should(
-	const Full &data,
-	not_null<DocumentData*> document);
-bool Should(
-	const Full &data,
-	not_null<PeerData*> peer,
-	not_null<Images::Source*> image);
-
-} // namespace AutoDownload
+		bool Should(
+			const Full& data,
+			not_null<PeerData*> peer,
+			not_null<DocumentData*> document);
+		bool Should(
+			const Full& data,
+			not_null<DocumentData*> document);
+		bool Should(
+			const Full& data,
+			not_null<PeerData*> peer,
+			not_null<Images::Source*> image);
+	} // namespace AutoDownload
 } // namespace Data

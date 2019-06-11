@@ -9,7 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/media/history_media_file.h"
 
-class HistoryPhoto : public HistoryFileMedia {
+class HistoryPhoto : public HistoryFileMedia
+{
 public:
 	HistoryPhoto(
 		not_null<Element*> parent,
@@ -21,52 +22,65 @@ public:
 		not_null<PhotoData*> photo,
 		int width);
 
-	void draw(Painter &p, const QRect &clip, TextSelection selection, crl::time ms) const override;
+	void draw(Painter& p, const QRect& clip, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
-			TextSelection selection,
-			TextSelectType type) const override {
+		TextSelection selection,
+		TextSelectType type) const override
+	{
 		return _caption.adjustSelection(selection, type);
 	}
-	uint16 fullSelectionLength() const override {
+
+	uint16 fullSelectionLength() const override
+	{
 		return _caption.length();
 	}
-	bool hasTextForCopy() const override {
+
+	bool hasTextForCopy() const override
+	{
 		return !_caption.isEmpty();
 	}
 
 	TextForMimeData selectedText(TextSelection selection) const override;
 
-	PhotoData *getPhoto() const override {
+	PhotoData* getPhoto() const override
+	{
 		return _data;
 	}
 
 	QSize sizeForGrouping() const override;
 	void drawGrouped(
-		Painter &p,
-		const QRect &clip,
+		Painter& p,
+		const QRect& clip,
 		TextSelection selection,
 		crl::time ms,
-		const QRect &geometry,
+		const QRect& geometry,
 		RectParts corners,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const override;
 	TextState getStateGrouped(
-		const QRect &geometry,
+		const QRect& geometry,
 		QPoint point,
 		StateRequest request) const override;
 
-	TextWithEntities getCaption() const override {
+	TextWithEntities getCaption() const override
+	{
 		return _caption.toTextWithEntities();
 	}
+
 	bool needsBubble() const override;
-	bool customInfoLayout() const override {
+
+	bool customInfoLayout() const override
+	{
 		return _caption.isEmpty();
 	}
-	bool skipBubbleTail() const override {
+
+	bool skipBubbleTail() const override
+	{
 		return isBubbleBottom() && _caption.isEmpty();
 	}
+
 	bool isReadyForOpen() const override;
 
 	void parentTextUpdated() override;
@@ -77,14 +91,14 @@ protected:
 	bool dataLoaded() const override;
 
 private:
-	void create(FullMsgId contextId, PeerData *chat = nullptr);
+	void create(FullMsgId contextId, PeerData* chat = nullptr);
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
 	bool needInfoDisplay() const;
 	void validateGroupedCache(
-		const QRect &geometry,
+		const QRect& geometry,
 		RectParts corners,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const;
@@ -94,5 +108,4 @@ private:
 	int _pixw = 1;
 	int _pixh = 1;
 	Text _caption;
-
 };

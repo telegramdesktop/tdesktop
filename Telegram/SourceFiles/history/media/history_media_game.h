@@ -11,65 +11,85 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ReplyMarkupClickHandler;
 
-class HistoryGame : public HistoryMedia {
+class HistoryGame : public HistoryMedia
+{
 public:
 	HistoryGame(
 		not_null<Element*> parent,
 		not_null<GameData*> data,
-		const TextWithEntities &consumed);
+		const TextWithEntities& consumed);
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
+	void draw(Painter& p, const QRect& r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;
-	uint16 fullSelectionLength() const override {
+
+	uint16 fullSelectionLength() const override
+	{
 		return _title.length() + _description.length();
 	}
-	bool hasTextForCopy() const override {
+
+	bool hasTextForCopy() const override
+	{
 		return false; // we do not add _title and _description in FullSelection text copy.
 	}
 
-	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
+	bool toggleSelectionByHandlerClick(const ClickHandlerPtr& p) const override
+	{
 		return _attach && _attach->toggleSelectionByHandlerClick(p);
 	}
-	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
+
+	bool dragItemByHandler(const ClickHandlerPtr& p) const override
+	{
 		return _attach && _attach->dragItemByHandler(p);
 	}
 
 	TextForMimeData selectedText(TextSelection selection) const override;
 
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
+	void clickHandlerActiveChanged(const ClickHandlerPtr& p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr& p, bool pressed) override;
 
-	PhotoData *getPhoto() const override {
+	PhotoData* getPhoto() const override
+	{
 		return _attach ? _attach->getPhoto() : nullptr;
 	}
-	DocumentData *getDocument() const override {
+
+	DocumentData* getDocument() const override
+	{
 		return _attach ? _attach->getDocument() : nullptr;
 	}
-	void stopAnimation() override {
+
+	void stopAnimation() override
+	{
 		if (_attach) _attach->stopAnimation();
 	}
 
-	not_null<GameData*> game() {
+	not_null<GameData*> game()
+	{
 		return _data;
 	}
 
-	bool needsBubble() const override {
-		return true;
-	}
-	bool customInfoLayout() const override {
-		return false;
-	}
-	bool allowsFastShare() const override {
+	bool needsBubble() const override
+	{
 		return true;
 	}
 
-	HistoryMedia *attach() const {
+	bool customInfoLayout() const override
+	{
+		return false;
+	}
+
+	bool allowsFastShare() const override
+	{
+		return true;
+	}
+
+	HistoryMedia* attach() const
+	{
 		return _attach.get();
 	}
 
@@ -96,5 +116,4 @@ private:
 	Text _title, _description;
 
 	int _gameTagWidth = 0;
-
 };

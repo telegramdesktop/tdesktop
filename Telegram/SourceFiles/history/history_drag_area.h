@@ -10,32 +10,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/twidget.h"
 #include "ui/effects/animations.h"
 
-class DragArea : public TWidget {
-	Q_OBJECT
+class DragArea : public TWidget
+{
+Q_OBJECT
 
 public:
-	DragArea(QWidget *parent);
+	DragArea(QWidget* parent);
 
-	void setText(const QString &text, const QString &subtext);
+	void setText(const QString& text, const QString& subtext);
 
 	void otherEnter();
 	void otherLeave();
 
-	bool overlaps(const QRect &globalRect);
+	bool overlaps(const QRect& globalRect);
 
 	void hideFast();
 
-	void setDroppedCallback(Fn<void(const QMimeData *data)> callback) {
+	void setDroppedCallback(Fn<void(const QMimeData* data)> callback)
+	{
 		_droppedCallback = std::move(callback);
 	}
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void dragEnterEvent(QDragEnterEvent *e) override;
-	void dragLeaveEvent(QDragLeaveEvent *e) override;
-	void dropEvent(QDropEvent *e) override;
-	void dragMoveEvent(QDragMoveEvent *e) override;
+	void paintEvent(QPaintEvent* e) override;
+	void mouseMoveEvent(QMouseEvent* e) override;
+	void dragEnterEvent(QDragEnterEvent* e) override;
+	void dragLeaveEvent(QDragLeaveEvent* e) override;
+	void dropEvent(QDropEvent* e) override;
+	void dragMoveEvent(QDragMoveEvent* e) override;
 
 public slots:
 	void hideStart();
@@ -46,7 +48,9 @@ public slots:
 private:
 	void setIn(bool in);
 	void opacityAnimationCallback();
-	QRect innerRect() const {
+
+	QRect innerRect() const
+	{
 		return QRect(
 			st::dragPadding.left(),
 			st::dragPadding.top(),
@@ -58,11 +62,10 @@ private:
 	bool _hiding = false;
 	bool _in = false;
 	QPixmap _cache;
-	Fn<void(const QMimeData *data)> _droppedCallback;
+	Fn<void(const QMimeData* data)> _droppedCallback;
 
 	Ui::Animations::Simple _a_opacity;
 	Ui::Animations::Simple _a_in;
 
 	QString _text, _subtext;
-
 };

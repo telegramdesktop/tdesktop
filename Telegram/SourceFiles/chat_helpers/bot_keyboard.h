@@ -9,29 +9,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/tooltip.h"
 
-namespace style {
-struct BotKeyboardButton;
+namespace style
+{
+	struct BotKeyboardButton;
 } // namespace style
 
 class ReplyKeyboard;
 
 class BotKeyboard
 	: public TWidget
-	, public Ui::AbstractTooltipShower
-	, public ClickHandlerHost {
+	  , public Ui::AbstractTooltipShower
+	  , public ClickHandlerHost
+{
 public:
-	BotKeyboard(QWidget *parent);
+	BotKeyboard(QWidget* parent);
 
 	bool moderateKeyActivate(int index);
 
 	// With force=true the markup is updated even if it is
 	// already shown for the passed history item.
-	bool updateMarkup(HistoryItem *last, bool force = false);
+	bool updateMarkup(HistoryItem* last, bool force = false);
 	bool hasMarkup() const;
 	bool forceReply() const;
 
 	void step_selected(crl::time ms, bool timer);
-	void resizeToWidth(int newWidth, int maxOuterHeight) {
+
+	void resizeToWidth(int newWidth, int maxOuterHeight)
+	{
 		_maxOuterHeight = maxOuterHeight;
 		return TWidget::resizeToWidth(newWidth);
 	}
@@ -39,7 +43,8 @@ public:
 	bool maximizeSize() const;
 	bool singleUse() const;
 
-	FullMsgId forMsgId() const {
+	FullMsgId forMsgId() const
+	{
 		return _wasForMsgId;
 	}
 
@@ -48,20 +53,20 @@ public:
 	QPoint tooltipPos() const override;
 
 	// ClickHandlerHost interface
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
+	void clickHandlerActiveChanged(const ClickHandlerPtr& p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr& p, bool pressed) override;
 
 	~BotKeyboard();
 
 protected:
 	int resizeGetHeight(int newWidth) override;
 
-	void paintEvent(QPaintEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void enterEventHook(QEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
+	void paintEvent(QPaintEvent* e) override;
+	void mousePressEvent(QMouseEvent* e) override;
+	void mouseMoveEvent(QMouseEvent* e) override;
+	void mouseReleaseEvent(QMouseEvent* e) override;
+	void enterEventHook(QEvent* e) override;
+	void leaveEventHook(QEvent* e) override;
 
 private:
 	void updateSelected();
@@ -79,6 +84,5 @@ private:
 	QPoint _lastMousePos;
 	std::unique_ptr<ReplyKeyboard> _impl;
 
-	const style::BotKeyboardButton *_st = nullptr;
-
+	const style::BotKeyboardButton* _st = nullptr;
 };

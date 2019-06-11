@@ -11,62 +11,61 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class DocumentData;
 
-namespace Data {
+namespace Data
+{
+	class GoodThumbSource : public Images::Source
+	{
+	public:
+		explicit GoodThumbSource(not_null<DocumentData*> document);
 
-class GoodThumbSource : public Images::Source {
-public:
-	explicit GoodThumbSource(not_null<DocumentData*> document);
+		void load(Data::FileOrigin origin) override;
+		void loadEvenCancelled(Data::FileOrigin origin) override;
+		QImage takeLoaded() override;
+		void unload() override;
 
-	void load(Data::FileOrigin origin) override;
-	void loadEvenCancelled(Data::FileOrigin origin) override;
-	QImage takeLoaded() override;
-	void unload() override;
+		void automaticLoad(
+			Data::FileOrigin origin,
+			const HistoryItem* item) override;
+		void automaticLoadSettingsChanged() override;
 
-	void automaticLoad(
-		Data::FileOrigin origin,
-		const HistoryItem *item) override;
-	void automaticLoadSettingsChanged() override;
+		bool loading() override;
+		bool displayLoading() override;
+		void cancel() override;
+		float64 progress() override;
+		int loadOffset() override;
 
-	bool loading() override;
-	bool displayLoading() override;
-	void cancel() override;
-	float64 progress() override;
-	int loadOffset() override;
+		const StorageImageLocation& location() override;
+		void refreshFileReference(const QByteArray& data) override;
+		std::optional<Storage::Cache::Key> cacheKey() override;
+		void setDelayedStorageLocation(
+			const StorageImageLocation& location) override;
+		void performDelayedLoad(Data::FileOrigin origin) override;
+		bool isDelayedStorageImage() const override;
+		void setImageBytes(const QByteArray& bytes) override;
 
-	const StorageImageLocation &location() override;
-	void refreshFileReference(const QByteArray &data) override;
-	std::optional<Storage::Cache::Key> cacheKey() override;
-	void setDelayedStorageLocation(
-		const StorageImageLocation &location) override;
-	void performDelayedLoad(Data::FileOrigin origin) override;
-	bool isDelayedStorageImage() const override;
-	void setImageBytes(const QByteArray &bytes) override;
+		int width() override;
+		int height() override;
+		int bytesSize() override;
+		void setInformation(int size, int width, int height) override;
 
-	int width() override;
-	int height() override;
-	int bytesSize() override;
-	void setInformation(int size, int width, int height) override;
+		QByteArray bytesForCache() override;
 
-	QByteArray bytesForCache() override;
+	private:
+		void generate(base::binary_guard&& guard);
 
-private:
-	void generate(base::binary_guard &&guard);
+		// NB: This method is called from crl::async(), 'this' is unreliable.
+		void ready(
+			base::binary_guard&& guard,
+			QImage&& image,
+			int bytesSize,
+			QByteArray&& bytesForCache = {});
 
-	// NB: This method is called from crl::async(), 'this' is unreliable.
-	void ready(
-		base::binary_guard &&guard,
-		QImage &&image,
-		int bytesSize,
-		QByteArray &&bytesForCache = {});
-
-	not_null<DocumentData*> _document;
-	QImage _loaded;
-	base::binary_guard _loading;
-	int _width = 0;
-	int _height = 0;
-	int _bytesSize = 0;
-	bool _empty = false;
-
-};
-
+		not_null<DocumentData*> _document;
+		QImage _loaded;
+		base::binary_guard _loading;
+		int _width = 0;
+		int _height = 0;
+		int _bytesSize = 0;
+		bool _empty = false;
+	};
 } // namespace Data

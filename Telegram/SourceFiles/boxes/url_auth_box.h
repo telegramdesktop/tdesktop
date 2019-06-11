@@ -12,7 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class HistoryItem;
 struct HistoryMessageMarkupButton;
 
-class UrlAuthBox : public BoxContent {
+class UrlAuthBox : public BoxContent
+{
 public:
 	static void Activate(
 		not_null<const HistoryItem*> message,
@@ -24,12 +25,13 @@ protected:
 
 private:
 	static void Request(
-		const MTPDurlAuthResultRequest &request,
+		const MTPDurlAuthResultRequest& request,
 		not_null<const HistoryItem*> message,
 		int row,
 		int column);
 
-	enum class Result {
+	enum class Result
+	{
 		None,
 		Auth,
 		AuthAndAllowWrite,
@@ -38,19 +40,18 @@ private:
 public:
 	UrlAuthBox(
 		QWidget*,
-		const QString &url,
-		const QString &domain,
-		UserData *bot,
+		const QString& url,
+		const QString& domain,
+		UserData* bot,
 		Fn<void(Result)> callback);
 
 private:
 	not_null<Ui::RpWidget*> setupContent(
-		const QString &url,
-		const QString &domain,
-		UserData *bot,
+		const QString& url,
+		const QString& domain,
+		UserData* bot,
 		Fn<void(Result)> callback);
 
 	Fn<void()> _callback;
 	not_null<Ui::RpWidget*> _content;
-
 };

@@ -10,19 +10,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h"
 
-class AddParticipantsBoxController : public ContactsBoxController {
+class AddParticipantsBoxController : public ContactsBoxController
+{
 public:
 	static void Start(not_null<ChatData*> chat);
 	static void Start(not_null<ChannelData*> channel);
 	static void Start(
 		not_null<ChannelData*> channel,
-		base::flat_set<not_null<UserData*>> &&alreadyIn);
+		base::flat_set<not_null<UserData*>>&& alreadyIn);
 
 	AddParticipantsBoxController();
 	AddParticipantsBoxController(not_null<PeerData*> peer);
 	AddParticipantsBoxController(
 		not_null<PeerData*> peer,
-		base::flat_set<not_null<UserData*>> &&alreadyIn);
+		base::flat_set<not_null<UserData*>>&& alreadyIn);
 
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void itemDeselectedHook(not_null<PeerData*> peer) override;
@@ -35,7 +36,7 @@ protected:
 private:
 	static void Start(
 		not_null<ChannelData*> channel,
-		base::flat_set<not_null<UserData*>> &&alreadyIn,
+		base::flat_set<not_null<UserData*>>&& alreadyIn,
 		bool justCreated);
 
 	bool inviteSelectedUsers(not_null<PeerListBox*> box) const;
@@ -45,27 +46,27 @@ private:
 	int fullCount() const;
 	void updateTitle();
 
-	PeerData *_peer = nullptr;
+	PeerData* _peer = nullptr;
 	base::flat_set<not_null<UserData*>> _alreadyIn;
-
 };
 
 // Adding an admin, banned or restricted user from channel members
 // with search + contacts search + global search.
 class AddSpecialBoxController
 	: public PeerListController
-	, private base::Subscriber
-	, private MTP::Sender
-	, public base::has_weak_ptr {
+	  , private base::Subscriber
+	  , private MTP::Sender
+	  , public base::has_weak_ptr
+{
 public:
 	using Role = ParticipantsBoxController::Role;
 
 	using AdminDoneCallback = Fn<void(
-		not_null<UserData*> user,
-		const MTPChatAdminRights &adminRights)>;
+		not_null<UserData * > user,
+		const MTPChatAdminRights & adminRights)>;
 	using BannedDoneCallback = Fn<void(
-		not_null<UserData*> user,
-		const MTPChatBannedRights &bannedRights)>;
+		not_null<UserData * > user,
+		const MTPChatBannedRights & bannedRights)>;
 	AddSpecialBoxController(
 		not_null<PeerData*> peer,
 		Role role,
@@ -89,11 +90,11 @@ private:
 	void showAdmin(not_null<UserData*> user, bool sure = false);
 	void editAdminDone(
 		not_null<UserData*> user,
-		const MTPChatAdminRights &rights);
+		const MTPChatAdminRights& rights);
 	void showRestricted(not_null<UserData*> user, bool sure = false);
 	void editRestrictedDone(
 		not_null<UserData*> user,
-		const MTPChatBannedRights &rights);
+		const MTPChatBannedRights& rights);
 	void kickUser(not_null<UserData*> user, bool sure = false);
 	bool appendRow(not_null<UserData*> user);
 	bool prependRow(not_null<UserData*> user);
@@ -112,14 +113,14 @@ private:
 	BoxPointer _editBox;
 	AdminDoneCallback _adminDoneCallback;
 	BannedDoneCallback _bannedDoneCallback;
-
 };
 
 // Finds chat/channel members, then contacts, then global search results.
 class AddSpecialBoxSearchController
 	: public PeerListSearchController
-	, private MTP::Sender
-	, private base::Subscriber {
+	  , private MTP::Sender
+	  , private base::Subscriber
+{
 public:
 	using Role = ParticipantsBoxController::Role;
 
@@ -127,16 +128,18 @@ public:
 		not_null<PeerData*> peer,
 		not_null<ParticipantsAdditionalData*> additional);
 
-	void searchQuery(const QString &query) override;
+	void searchQuery(const QString& query) override;
 	bool isLoading() override;
 	bool loadMoreRows() override;
 
 private:
-	struct CacheEntry {
+	struct CacheEntry
+	{
 		MTPchannels_ChannelParticipants result;
 		int requestedCount = 0;
 	};
-	struct Query {
+	struct Query
+	{
 		QString text;
 		int offset = 0;
 	};
@@ -145,12 +148,12 @@ private:
 	bool searchParticipantsInCache();
 	void searchParticipantsDone(
 		mtpRequestId requestId,
-		const MTPchannels_ChannelParticipants &result,
+		const MTPchannels_ChannelParticipants& result,
 		int requestedCount);
 	bool searchGlobalInCache();
 	void searchGlobalDone(
 		mtpRequestId requestId,
-		const MTPcontacts_Found &result);
+		const MTPcontacts_Found& result);
 	void requestParticipants();
 	void addChatMembers(not_null<ChatData*> chat);
 	void addChatsContacts();
@@ -173,5 +176,4 @@ private:
 	std::map<mtpRequestId, Query> _participantsQueries;
 	std::map<QString, MTPcontacts_Found> _globalCache;
 	std::map<mtpRequestId, QString> _globalQueries;
-
 };

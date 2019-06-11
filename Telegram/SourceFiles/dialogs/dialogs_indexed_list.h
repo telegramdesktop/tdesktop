@@ -12,80 +12,150 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
-namespace Dialogs {
+namespace Dialogs
+{
+	class IndexedList
+	{
+	public:
+		IndexedList(SortMode sortMode);
 
-class IndexedList {
-public:
-	IndexedList(SortMode sortMode);
+		RowsByLetter addToEnd(Key key);
+		Row* addByName(Key key);
+		void adjustByDate(const RowsByLetter& links);
+		void moveToTop(Key key);
 
-	RowsByLetter addToEnd(Key key);
-	Row *addByName(Key key);
-	void adjustByDate(const RowsByLetter &links);
-	void moveToTop(Key key);
+		// row must belong to this indexed list all().
+		void movePinned(Row* row, int deltaSign);
 
-	// row must belong to this indexed list all().
-	void movePinned(Row *row, int deltaSign);
+		// For sortMode != SortMode::Date
+		void peerNameChanged(
+			not_null<PeerData*> peer,
+			const base::flat_set<QChar>& oldChars);
 
-	// For sortMode != SortMode::Date
-	void peerNameChanged(
-		not_null<PeerData*> peer,
-		const base::flat_set<QChar> &oldChars);
+		//For sortMode == SortMode::Date
+		void peerNameChanged(
+			Mode list,
+			not_null<PeerData*> peer,
+			const base::flat_set<QChar>& oldChars);
 
-	//For sortMode == SortMode::Date
-	void peerNameChanged(
-		Mode list,
-		not_null<PeerData*> peer,
-		const base::flat_set<QChar> &oldChars);
+		void del(Key key, Row* replacedBy = nullptr);
+		void clear();
 
-	void del(Key key, Row *replacedBy = nullptr);
-	void clear();
+		const List& all() const
+		{
+			return _list;
+		}
 
-	const List &all() const {
-		return _list;
-	}
-	const List *filtered(QChar ch) const {
-		const auto i = _index.find(ch);
-		return (i != _index.end()) ? &i->second : nullptr;
-	}
-	std::vector<not_null<Row*>> filtered(const QStringList &words) const;
+		const List* filtered(QChar ch) const
+		{
+			const auto i = _index.find(ch);
+			return (i != _index.end()) ? &i->second : nullptr;
+		}
 
-	~IndexedList();
+		std::vector<not_null<Row*>> filtered(const QStringList& words) const;
 
-	// Part of List interface is duplicated here for all() list.
-	int size() const { return all().size(); }
-	bool empty() const { return all().empty(); }
-	bool contains(Key key) const { return all().contains(key); }
-	Row *getRow(Key key) const { return all().getRow(key); }
-	Row *rowAtY(int32 y, int32 h) const { return all().rowAtY(y, h); }
+		~IndexedList();
 
-	using iterator = List::iterator;
-	using const_iterator = List::const_iterator;
-	const_iterator cbegin() const { return all().cbegin(); }
-	const_iterator cend() const { return all().cend(); }
-	const_iterator begin() const { return all().cbegin(); }
-	const_iterator end() const { return all().cend(); }
-	iterator begin() { return all().begin(); }
-	iterator end() { return all().end(); }
-	const_iterator cfind(Row *value) const { return all().cfind(value); }
-	const_iterator find(Row *value) const { return all().cfind(value); }
-	iterator find(Row *value) { return all().find(value); }
-	const_iterator cfind(int y, int h) const { return all().cfind(y, h); }
-	const_iterator find(int y, int h) const { return all().cfind(y, h); }
-	iterator find(int y, int h) { return all().find(y, h); }
+		// Part of List interface is duplicated here for all() list.
+		int size() const
+		{
+			return all().size();
+		}
 
-private:
-	void adjustByName(
-		Key key,
-		const base::flat_set<QChar> &oldChars);
-	void adjustNames(
-		Mode list,
-		not_null<History*> history,
-		const base::flat_set<QChar> &oldChars);
+		bool empty() const
+		{
+			return all().empty();
+		}
 
-	SortMode _sortMode = SortMode();
-	List _list, _empty;
-	base::flat_map<QChar, List> _index;
+		bool contains(Key key) const
+		{
+			return all().contains(key);
+		}
 
-};
+		Row* getRow(Key key) const
+		{
+			return all().getRow(key);
+		}
 
+		Row* rowAtY(int32 y, int32 h) const
+		{
+			return all().rowAtY(y, h);
+		}
+
+		using iterator = List::iterator;
+		using const_iterator = List::const_iterator;
+
+		const_iterator cbegin() const
+		{
+			return all().cbegin();
+		}
+
+		const_iterator cend() const
+		{
+			return all().cend();
+		}
+
+		const_iterator begin() const
+		{
+			return all().cbegin();
+		}
+
+		const_iterator end() const
+		{
+			return all().cend();
+		}
+
+		iterator begin()
+		{
+			return all().begin();
+		}
+
+		iterator end()
+		{
+			return all().end();
+		}
+
+		const_iterator cfind(Row* value) const
+		{
+			return all().cfind(value);
+		}
+
+		const_iterator find(Row* value) const
+		{
+			return all().cfind(value);
+		}
+
+		iterator find(Row* value)
+		{
+			return all().find(value);
+		}
+
+		const_iterator cfind(int y, int h) const
+		{
+			return all().cfind(y, h);
+		}
+
+		const_iterator find(int y, int h) const
+		{
+			return all().cfind(y, h);
+		}
+
+		iterator find(int y, int h)
+		{
+			return all().find(y, h);
+		}
+
+	private:
+		void adjustByName(
+			Key key,
+			const base::flat_set<QChar>& oldChars);
+		void adjustNames(
+			Mode list,
+			not_null<History*> history,
+			const base::flat_set<QChar>& oldChars);
+
+		SortMode _sortMode = SortMode();
+		List _list, _empty;
+		base::flat_map<QChar, List> _index;
+	};
 } // namespace Dialogs

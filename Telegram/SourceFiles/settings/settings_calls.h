@@ -10,40 +10,42 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "base/timer.h"
 
-namespace Calls {
+namespace Calls
+{
 	class Call;
 } // namespace Calls
 
-namespace Ui {
+namespace Ui
+{
 	class LevelMeter;
 }
 
-namespace tgvoip {
+namespace tgvoip
+{
 	class AudioInputTester;
 }
 
-namespace Settings {
+namespace Settings
+{
+	class Calls : public Section
+	{
+	public:
+		explicit Calls(QWidget* parent, UserData* self = nullptr);
+		virtual ~Calls();
+		virtual void sectionSaveChanges(FnMut<void()> done) override;
 
-class Calls : public Section {
-public:
-	explicit Calls(QWidget *parent, UserData *self = nullptr);
-	virtual ~Calls();
-	virtual void sectionSaveChanges(FnMut<void()> done) override;
+	private:
+		void setupContent();
+		void requestPermissionAndStartTestingMicrophone();
+		void startTestingMicrophone();
+		void stopTestingMicrophone();
 
-private:
-	void setupContent();
-	void requestPermissionAndStartTestingMicrophone();
-	void startTestingMicrophone();
-	void stopTestingMicrophone();
-
-	rpl::event_stream<QString> _outputNameStream;
-	rpl::event_stream<QString> _inputNameStream;
-	rpl::event_stream<QString> _micTestTextStream;
-	bool _needWriteSettings = false;
-	std::unique_ptr<tgvoip::AudioInputTester> _micTester;
-	Ui::LevelMeter *_micTestLevel = nullptr;
-	base::Timer _levelUpdateTimer;
-};
-
+		rpl::event_stream<QString> _outputNameStream;
+		rpl::event_stream<QString> _inputNameStream;
+		rpl::event_stream<QString> _micTestTextStream;
+		bool _needWriteSettings = false;
+		std::unique_ptr<tgvoip::AudioInputTester> _micTester;
+		Ui::LevelMeter* _micTestLevel = nullptr;
+		base::Timer _levelUpdateTimer;
+	};
 } // namespace Settings
-

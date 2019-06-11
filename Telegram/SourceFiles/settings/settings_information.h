@@ -9,22 +9,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 
-namespace Settings {
+namespace Settings
+{
+	class Information : public Section
+	{
+	public:
+		Information(
+			QWidget* parent,
+			not_null<Window::SessionController*> controller,
+			not_null<UserData*> self);
 
-class Information : public Section {
-public:
-	Information(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		not_null<UserData*> self);
+	private:
+		void setupContent(not_null<Window::SessionController*> controller);
 
-private:
-	void setupContent(not_null<Window::SessionController*> controller);
-
-	not_null<UserData*> _self;
-	//rpl::variable<bool> _canSaveChanges;
-	//Fn<void(FnMut<void()> done)> _save;
-
-};
-
+		not_null<UserData*> _self;
+		//rpl::variable<bool> _canSaveChanges;
+		//Fn<void(FnMut<void()> done)> _save;
+	};
 } // namespace Settings

@@ -17,50 +17,60 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "styles/style_history.h"
 
-namespace {
-
-using TextState = HistoryView::TextState;
-
+namespace
+{
+	using TextState = HistoryView::TextState;
 } // namespace
 
 HistoryInvoice::HistoryInvoice(
 	not_null<Element*> parent,
-	not_null<Data::Invoice*> invoice)
-: HistoryMedia(parent)
-, _title(st::msgMinWidth)
-, _description(st::msgMinWidth)
-, _status(st::msgMinWidth) {
+	not_null<Data::Invoice*> invoice):
+	HistoryMedia(parent)
+	, _title(st::msgMinWidth)
+	, _description(st::msgMinWidth)
+	, _status(st::msgMinWidth)
+{
 	fillFromData(invoice);
 }
 
-void HistoryInvoice::fillFromData(not_null<Data::Invoice*> invoice) {
-	if (invoice->photo) {
+void HistoryInvoice::fillFromData(not_null<Data::Invoice*> invoice)
+{
+	if (invoice->photo)
+	{
 		_attach = std::make_unique<HistoryPhoto>(
 			_parent,
 			_parent->data(),
 			invoice->photo);
-	} else {
+	}
+	else
+	{
 		_attach = nullptr;
 	}
-	auto labelText = [&] {
-		if (invoice->receiptMsgId) {
-			if (invoice->isTest) {
+	auto labelText = [&]
+	{
+		if (invoice->receiptMsgId)
+		{
+			if (invoice->isTest)
+			{
 				return lang(lng_payments_receipt_label_test);
 			}
 			return lang(lng_payments_receipt_label);
-		} else if (invoice->isTest) {
+		}
+		else if (invoice->isTest)
+		{
 			return lang(lng_payments_invoice_label_test);
 		}
 		return lang(lng_payments_invoice_label);
 	};
-	auto statusText = TextWithEntities {
+	auto statusText = TextWithEntities{
 		FillAmountAndCurrency(invoice->amount, invoice->currency),
 		EntitiesInText()
 	};
 	statusText.entities.push_back({
 		EntityType::Bold,
 		0,
-		statusText.text.size() });
+		statusText.text.size()
+	});
 	statusText.text += ' ' + labelText().toUpper();
 	_status.setMarkedText(
 		st::defaultTextStyle,
@@ -70,8 +80,9 @@ void HistoryInvoice::fillFromData(not_null<Data::Invoice*> invoice) {
 	_receiptMsgId = invoice->receiptMsgId;
 
 	// init strings
-	if (!invoice->description.isEmpty()) {
-		auto marked = TextWithEntities { invoice->description };
+	if (!invoice->description.isEmpty())
+	{
+		auto marked = TextWithEntities{invoice->description};
 		auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
 		TextUtilities::ParseEntities(marked, parseFlags);
 		_description.setMarkedText(
@@ -79,7 +90,8 @@ void HistoryInvoice::fillFromData(not_null<Data::Invoice*> invoice) {
 			marked,
 			Ui::WebpageTextDescriptionOptions());
 	}
-	if (!invoice->title.isEmpty()) {
+	if (!invoice->title.isEmpty())
+	{
 		_title.setText(
 			st::webPageTitleStyle,
 			invoice->title,
@@ -87,14 +99,19 @@ void HistoryInvoice::fillFromData(not_null<Data::Invoice*> invoice) {
 	}
 }
 
-QSize HistoryInvoice::countOptimalSize() {
+QSize HistoryInvoice::countOptimalSize()
+{
 	auto lineHeight = unitedLineHeight();
 
-	if (_attach) {
-		if (_status.hasSkipBlock()) {
+	if (_attach)
+	{
+		if (_status.hasSkipBlock())
+		{
 			_status.removeSkipBlock();
 		}
-	} else {
+	}
+	else
+	{
 		_status.updateSkipBlock(
 			_parent->skipBlockWidth(),
 			_parent->skipBlockHeight());
@@ -111,62 +128,79 @@ QSize HistoryInvoice::countOptimalSize() {
 	auto descMaxLines = 4096;
 	auto descriptionMinHeight = _description.isEmpty() ? 0 : qMin(_description.minHeight(), descMaxLines * lineHeight);
 
-	if (!_title.isEmpty()) {
+	if (!_title.isEmpty())
+	{
 		accumulate_max(maxWidth, _title.maxWidth());
 		minHeight += titleMinHeight;
 	}
-	if (!_description.isEmpty()) {
+	if (!_description.isEmpty())
+	{
 		accumulate_max(maxWidth, _description.maxWidth());
 		minHeight += descriptionMinHeight;
 	}
-	if (_attach) {
+	if (_attach)
+	{
 		auto attachAtTop = _title.isEmpty() && _description.isEmpty();
 		if (!attachAtTop) minHeight += st::mediaInBubbleSkip;
 
 		_attach->initDimensions();
 		auto bubble = _attach->bubbleMargins();
 		auto maxMediaWidth = _attach->maxWidth() - bubble.left() - bubble.right();
-		if (isBubbleBottom() && _attach->customInfoLayout()) {
+		if (isBubbleBottom() && _attach->customInfoLayout())
+		{
 			maxMediaWidth += skipBlockWidth;
 		}
 		accumulate_max(maxWidth, maxMediaWidth);
 		minHeight += _attach->minHeight() - bubble.top() - bubble.bottom();
-	} else {
+	}
+	else
+	{
 		accumulate_max(maxWidth, _status.maxWidth());
 		minHeight += st::mediaInBubbleSkip + _status.minHeight();
 	}
 	auto padding = inBubblePadding();
 	maxWidth += padding.left() + padding.right();
 	minHeight += padding.top() + padding.bottom();
-	return { maxWidth, minHeight };
+	return {maxWidth, minHeight};
 }
 
-QSize HistoryInvoice::countCurrentSize(int newWidth) {
+QSize HistoryInvoice::countCurrentSize(int newWidth)
+{
 	accumulate_min(newWidth, maxWidth());
 	auto innerWidth = newWidth - st::msgPadding.left() - st::msgPadding.right();
 
 	auto lineHeight = unitedLineHeight();
 
 	auto newHeight = 0;
-	if (_title.isEmpty()) {
+	if (_title.isEmpty())
+	{
 		_titleHeight = 0;
-	} else {
-		if (_title.countHeight(innerWidth) < 2 * st::webPageTitleFont->height) {
+	}
+	else
+	{
+		if (_title.countHeight(innerWidth) < 2 * st::webPageTitleFont->height)
+		{
 			_titleHeight = lineHeight;
-		} else {
+		}
+		else
+		{
 			_titleHeight = 2 * lineHeight;
 		}
 		newHeight += _titleHeight;
 	}
 
-	if (_description.isEmpty()) {
+	if (_description.isEmpty())
+	{
 		_descriptionHeight = 0;
-	} else {
+	}
+	else
+	{
 		_descriptionHeight = _description.countHeight(innerWidth);
 		newHeight += _descriptionHeight;
 	}
 
-	if (_attach) {
+	if (_attach)
+	{
 		auto attachAtTop = !_title.isEmpty() && _description.isEmpty();
 		if (!attachAtTop) newHeight += st::mediaInBubbleSkip;
 
@@ -174,61 +208,72 @@ QSize HistoryInvoice::countCurrentSize(int newWidth) {
 
 		_attach->resizeGetHeight(innerWidth + bubble.left() + bubble.right());
 		newHeight += _attach->height() - bubble.top() - bubble.bottom();
-		if (isBubbleBottom() && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > innerWidth + bubble.left() + bubble.right()) {
+		if (isBubbleBottom() && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > innerWidth + bubble.left() + bubble.right())
+		{
 			newHeight += bottomInfoPadding();
 		}
-	} else {
+	}
+	else
+	{
 		newHeight += st::mediaInBubbleSkip + _status.countHeight(innerWidth);
 	}
 	auto padding = inBubblePadding();
 	newHeight += padding.top() + padding.bottom();
 
-	return { newWidth, newHeight };
+	return {newWidth, newHeight};
 }
 
 TextSelection HistoryInvoice::toDescriptionSelection(
-		TextSelection selection) const {
+	TextSelection selection) const
+{
 	return HistoryView::UnshiftItemSelection(selection, _title);
 }
 
 TextSelection HistoryInvoice::fromDescriptionSelection(
-		TextSelection selection) const {
+	TextSelection selection) const
+{
 	return HistoryView::ShiftItemSelection(selection, _title);
 }
 
-void HistoryInvoice::refreshParentId(not_null<HistoryItem*> realParent) {
-	if (_attach) {
+void HistoryInvoice::refreshParentId(not_null<HistoryItem*> realParent)
+{
+	if (_attach)
+	{
 		_attach->refreshParentId(realParent);
 	}
 }
 
-void HistoryInvoice::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
+void HistoryInvoice::draw(Painter& p, const QRect& r, TextSelection selection, crl::time ms) const
+{
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintw = width(), painth = height();
 
 	auto outbg = _parent->hasOutLayout();
 	bool selected = (selection == FullSelection);
 
-	auto &barfg = selected ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor);
-	auto &semibold = selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg);
-	auto &regular = selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg);
+	auto& barfg = selected ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor);
+	auto& semibold = selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg);
+	auto& regular = selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg);
 
 	QMargins bubble(_attach ? _attach->bubbleMargins() : QMargins());
 	auto padding = inBubblePadding();
 	auto tshift = padding.top();
 	auto bshift = padding.bottom();
 	paintw -= padding.left() + padding.right();
-	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > paintw + bubble.left() + bubble.right()) {
+	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > paintw + bubble.left() + bubble.right())
+	{
 		bshift += bottomInfoPadding();
 	}
 
 	auto lineHeight = unitedLineHeight();
-	if (_titleHeight) {
+	if (_titleHeight)
+	{
 		p.setPen(semibold);
 		p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outSemiboldPalette : st::inSemiboldPalette));
 
 		auto endskip = 0;
-		if (_title.hasSkipBlock()) {
+		if (_title.hasSkipBlock())
+		{
 			endskip = _parent->skipBlockWidth();
 		}
 		_title.drawLeftElided(p, padding.left(), tshift, paintw, width(), _titleHeight / lineHeight, style::al_left, 0, -1, endskip, false, selection);
@@ -236,12 +281,14 @@ void HistoryInvoice::draw(Painter &p, const QRect &r, TextSelection selection, c
 
 		p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
 	}
-	if (_descriptionHeight) {
+	if (_descriptionHeight)
+	{
 		p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
 		_description.drawLeft(p, padding.left(), tshift, paintw, width(), style::al_left, 0, -1, toDescriptionSelection(selection));
 		tshift += _descriptionHeight;
 	}
-	if (_attach) {
+	if (_attach)
+	{
 		auto attachAtTop = !_titleHeight && !_descriptionHeight;
 		if (!attachAtTop) tshift += st::mediaInBubbleSkip;
 
@@ -249,7 +296,7 @@ void HistoryInvoice::draw(Painter &p, const QRect &r, TextSelection selection, c
 		auto attachTop = tshift - bubble.top();
 		if (rtl()) attachLeft = width() - attachLeft - _attach->width();
 
-		auto attachSelection = selected ? FullSelection : TextSelection { 0, 0 };
+		auto attachSelection = selected ? FullSelection : TextSelection{0, 0};
 
 		p.translate(attachLeft, attachTop);
 		_attach->draw(p, r.translated(-attachLeft, -attachTop), attachSelection, ms);
@@ -269,16 +316,20 @@ void HistoryInvoice::draw(Painter &p, const QRect &r, TextSelection selection, c
 		_status.drawLeftElided(p, statusX + st::msgDateImgPadding.x(), statusY + st::msgDateImgPadding.y(), available, pixwidth);
 
 		p.translate(-attachLeft, -attachTop);
-	} else {
+	}
+	else
+	{
 		p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
 		_status.drawLeft(p, padding.left(), tshift + st::mediaInBubbleSkip, paintw, width());
 	}
 }
 
-TextState HistoryInvoice::textState(QPoint point, StateRequest request) const {
+TextState HistoryInvoice::textState(QPoint point, StateRequest request) const
+{
 	auto result = TextState(_parent);
 
-	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
+	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1)
+	{
 		return result;
 	}
 	auto paintw = width(), painth = height();
@@ -287,40 +338,50 @@ TextState HistoryInvoice::textState(QPoint point, StateRequest request) const {
 	auto padding = inBubblePadding();
 	auto tshift = padding.top();
 	auto bshift = padding.bottom();
-	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > paintw + bubble.left() + bubble.right()) {
+	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > paintw + bubble.left() + bubble.right())
+	{
 		bshift += bottomInfoPadding();
 	}
 	paintw -= padding.left() + padding.right();
 
 	auto lineHeight = unitedLineHeight();
 	auto symbolAdd = 0;
-	if (_titleHeight) {
-		if (point.y() >= tshift && point.y() < tshift + _titleHeight) {
+	if (_titleHeight)
+	{
+		if (point.y() >= tshift && point.y() < tshift + _titleHeight)
+		{
 			Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleHeight / lineHeight;
 			result = TextState(_parent, _title.getStateElidedLeft(
-				point - QPoint(padding.left(), tshift),
-				paintw,
-				width(),
-				titleRequest));
-		} else if (point.y() >= tshift + _titleHeight) {
+				                   point - QPoint(padding.left(), tshift),
+				                   paintw,
+				                   width(),
+				                   titleRequest));
+		}
+		else if (point.y() >= tshift + _titleHeight)
+		{
 			symbolAdd += _title.length();
 		}
 		tshift += _titleHeight;
 	}
-	if (_descriptionHeight) {
-		if (point.y() >= tshift && point.y() < tshift + _descriptionHeight) {
+	if (_descriptionHeight)
+	{
+		if (point.y() >= tshift && point.y() < tshift + _descriptionHeight)
+		{
 			result = TextState(_parent, _description.getStateLeft(
-				point - QPoint(padding.left(), tshift),
-				paintw,
-				width(),
-				request.forText()));
-		} else if (point.y() >= tshift + _descriptionHeight) {
+				                   point - QPoint(padding.left(), tshift),
+				                   paintw,
+				                   width(),
+				                   request.forText()));
+		}
+		else if (point.y() >= tshift + _descriptionHeight)
+		{
 			symbolAdd += _description.length();
 		}
 		tshift += _descriptionHeight;
 	}
-	if (_attach) {
+	if (_attach)
+	{
 		auto attachAtTop = !_titleHeight && !_descriptionHeight;
 		if (!attachAtTop) tshift += st::mediaInBubbleSkip;
 
@@ -328,7 +389,8 @@ TextState HistoryInvoice::textState(QPoint point, StateRequest request) const {
 		auto attachTop = tshift - bubble.top();
 		if (rtl()) attachLeft = width() - attachLeft - _attach->width();
 
-		if (QRect(attachLeft, tshift, _attach->width(), height() - tshift - bshift).contains(point)) {
+		if (QRect(attachLeft, tshift, _attach->width(), height() - tshift - bshift).contains(point))
+		{
 			result = _attach->textState(point - QPoint(attachLeft, attachTop), request);
 		}
 	}
@@ -337,43 +399,55 @@ TextState HistoryInvoice::textState(QPoint point, StateRequest request) const {
 	return result;
 }
 
-TextSelection HistoryInvoice::adjustSelection(TextSelection selection, TextSelectType type) const {
-	if (!_descriptionHeight || selection.to <= _title.length()) {
+TextSelection HistoryInvoice::adjustSelection(TextSelection selection, TextSelectType type) const
+{
+	if (!_descriptionHeight || selection.to <= _title.length())
+	{
 		return _title.adjustSelection(selection, type);
 	}
 	auto descriptionSelection = _description.adjustSelection(toDescriptionSelection(selection), type);
-	if (selection.from >= _title.length()) {
+	if (selection.from >= _title.length())
+	{
 		return fromDescriptionSelection(descriptionSelection);
 	}
 	auto titleSelection = _title.adjustSelection(selection, type);
-	return { titleSelection.from, fromDescriptionSelection(descriptionSelection).to };
+	return {titleSelection.from, fromDescriptionSelection(descriptionSelection).to};
 }
 
-void HistoryInvoice::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
-	if (_attach) {
+void HistoryInvoice::clickHandlerActiveChanged(const ClickHandlerPtr& p, bool active)
+{
+	if (_attach)
+	{
 		_attach->clickHandlerActiveChanged(p, active);
 	}
 }
 
-void HistoryInvoice::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	if (_attach) {
+void HistoryInvoice::clickHandlerPressedChanged(const ClickHandlerPtr& p, bool pressed)
+{
+	if (_attach)
+	{
 		_attach->clickHandlerPressedChanged(p, pressed);
 	}
 }
 
-TextForMimeData HistoryInvoice::selectedText(TextSelection selection) const {
+TextForMimeData HistoryInvoice::selectedText(TextSelection selection) const
+{
 	auto titleResult = _title.toTextForMimeData(selection);
 	auto descriptionResult = _description.toTextForMimeData(
 		toDescriptionSelection(selection));
-	if (titleResult.empty()) {
+	if (titleResult.empty())
+	{
 		return descriptionResult;
-	} else if (descriptionResult.empty()) {
+	}
+	else if (descriptionResult.empty())
+	{
 		return titleResult;
 	}
 	return titleResult.append('\n').append(std::move(descriptionResult));
 }
 
-QMargins HistoryInvoice::inBubblePadding() const {
+QMargins HistoryInvoice::inBubblePadding() const
+{
 	auto lshift = st::msgPadding.left();
 	auto rshift = st::msgPadding.right();
 	auto bshift = isBubbleBottom() ? st::msgPadding.top() : st::mediaInBubbleSkip;
@@ -381,57 +455,61 @@ QMargins HistoryInvoice::inBubblePadding() const {
 	return QMargins(lshift, tshift, rshift, bshift);
 }
 
-int HistoryInvoice::bottomInfoPadding() const {
+int HistoryInvoice::bottomInfoPadding() const
+{
 	if (!isBubbleBottom()) return 0;
 
 	auto result = st::msgDateFont->height;
 	return result;
 }
 
-QString FillAmountAndCurrency(uint64 amount, const QString &currency) {
-	static const auto ShortCurrencyNames = QMap<QString, QString> {
-		{ qsl("USD"), QString::fromUtf8("\x24") },
-		{ qsl("GBP"), QString::fromUtf8("\xC2\xA3") },
-		{ qsl("EUR"), QString::fromUtf8("\xE2\x82\xAC") },
-		{ qsl("JPY"), QString::fromUtf8("\xC2\xA5") },
+QString FillAmountAndCurrency(uint64 amount, const QString& currency)
+{
+	static const auto ShortCurrencyNames = QMap<QString, QString>{
+		{qsl("USD"), QString::fromUtf8("\x24")},
+		{qsl("GBP"), QString::fromUtf8("\xC2\xA3")},
+		{qsl("EUR"), QString::fromUtf8("\xE2\x82\xAC")},
+		{qsl("JPY"), QString::fromUtf8("\xC2\xA5")},
 	};
-	static const auto Denominators = QMap<QString, int> {
-		{ qsl("CLF"), 10000 },
-		{ qsl("BHD"), 1000 },
-		{ qsl("IQD"), 1000 },
-		{ qsl("JOD"), 1000 },
-		{ qsl("KWD"), 1000 },
-		{ qsl("LYD"), 1000 },
-		{ qsl("OMR"), 1000 },
-		{ qsl("TND"), 1000 },
-		{ qsl("BIF"), 1 },
-		{ qsl("BYR"), 1 },
-		{ qsl("CLP"), 1 },
-		{ qsl("CVE"), 1 },
-		{ qsl("DJF"), 1 },
-		{ qsl("GNF"), 1 },
-		{ qsl("ISK"), 1 },
-		{ qsl("JPY"), 1 },
-		{ qsl("KMF"), 1 },
-		{ qsl("KRW"), 1 },
-		{ qsl("MGA"), 1 },
-		{ qsl("PYG"), 1 },
-		{ qsl("RWF"), 1 },
-		{ qsl("UGX"), 1 },
-		{ qsl("UYI"), 1 },
-		{ qsl("VND"), 1 },
-		{ qsl("VUV"), 1 },
-		{ qsl("XAF"), 1 },
-		{ qsl("XOF"), 1 },
-		{ qsl("XPF"), 1 },
-		{ qsl("MRO"), 10 },
+	static const auto Denominators = QMap<QString, int>{
+		{qsl("CLF"), 10000},
+		{qsl("BHD"), 1000},
+		{qsl("IQD"), 1000},
+		{qsl("JOD"), 1000},
+		{qsl("KWD"), 1000},
+		{qsl("LYD"), 1000},
+		{qsl("OMR"), 1000},
+		{qsl("TND"), 1000},
+		{qsl("BIF"), 1},
+		{qsl("BYR"), 1},
+		{qsl("CLP"), 1},
+		{qsl("CVE"), 1},
+		{qsl("DJF"), 1},
+		{qsl("GNF"), 1},
+		{qsl("ISK"), 1},
+		{qsl("JPY"), 1},
+		{qsl("KMF"), 1},
+		{qsl("KRW"), 1},
+		{qsl("MGA"), 1},
+		{qsl("PYG"), 1},
+		{qsl("RWF"), 1},
+		{qsl("UGX"), 1},
+		{qsl("UYI"), 1},
+		{qsl("VND"), 1},
+		{qsl("VUV"), 1},
+		{qsl("XAF"), 1},
+		{qsl("XOF"), 1},
+		{qsl("XPF"), 1},
+		{qsl("MRO"), 10},
 	};
 	const auto currencyText = ShortCurrencyNames.value(currency, currency);
 	const auto denominator = Denominators.value(currency, 100);
 	const auto currencyValue = amount / float64(denominator);
-	const auto digits = [&] {
+	const auto digits = [&]
+	{
 		auto result = 0;
-		for (auto test = 1; test < denominator; test *= 10) {
+		for (auto test = 1; test < denominator; test *= 10)
+		{
 			++result;
 		}
 		return result;

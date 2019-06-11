@@ -10,45 +10,46 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "base/timer.h"
 
-namespace Ui {
-namespace Toast {
-namespace internal {
+namespace Ui
+{
+	namespace Toast
+	{
+		namespace internal
+		{
+			class Widget;
+			class Manager : public QObject
+			{
+			Q_OBJECT
 
-class Widget;
-class Manager : public QObject {
-	Q_OBJECT
+			public:
+				Manager(const Manager& other) = delete;
+				Manager& operator=(const Manager& other) = delete;
 
-public:
-	Manager(const Manager &other) = delete;
-	Manager &operator=(const Manager &other) = delete;
+				static Manager* instance(QWidget* parent);
 
-	static Manager *instance(QWidget *parent);
+				void addToast(std::unique_ptr<Instance>&& toast);
 
-	void addToast(std::unique_ptr<Instance> &&toast);
+				~Manager();
 
-	~Manager();
+			protected:
+				bool eventFilter(QObject* o, QEvent* e);
 
-protected:
-	bool eventFilter(QObject *o, QEvent *e);
+			private slots:
+				void onToastWidgetDestroyed(QObject* widget);
 
-private slots:
-	void onToastWidgetDestroyed(QObject *widget);
+			private:
+				Manager(QWidget* parent);
+				void startNextHideTimer();
+				void hideByTimer();
 
-private:
-	Manager(QWidget *parent);
-	void startNextHideTimer();
-	void hideByTimer();
+				base::Timer _hideTimer;
+				crl::time _nextHide = 0;
 
-	base::Timer _hideTimer;
-	crl::time _nextHide = 0;
-
-	QMultiMap<crl::time, Instance*> _toastByHideTime;
-	QMap<Widget*, Instance*> _toastByWidget;
-	QList<Instance*> _toasts;
-	OrderedSet<QPointer<QWidget>> _toastParents;
-
-};
-
-} // namespace internal
-} // namespace Toast
+				QMultiMap<crl::time, Instance*> _toastByHideTime;
+				QMap<Widget*, Instance*> _toastByWidget;
+				QList<Instance*> _toasts;
+				OrderedSet<QPointer<QWidget>> _toastParents;
+			};
+		} // namespace internal
+	} // namespace Toast
 } // namespace Ui

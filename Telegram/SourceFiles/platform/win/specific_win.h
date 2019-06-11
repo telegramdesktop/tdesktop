@@ -11,51 +11,61 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class LocationCoords;
 
-namespace Platform {
+namespace Platform
+{
+	inline void SetWatchingMediaKeys(bool watching)
+	{
+	}
 
-inline void SetWatchingMediaKeys(bool watching) {
-}
+	bool IsApplicationActive();
 
-bool IsApplicationActive();
+	inline bool TranslucentWindowsSupported(QPoint globalPosition)
+	{
+		return true;
+	}
 
-inline bool TranslucentWindowsSupported(QPoint globalPosition) {
-	return true;
-}
+	inline void StartTranslucentPaint(QPainter& p, QPaintEvent* e)
+	{
+	}
 
-inline void StartTranslucentPaint(QPainter &p, QPaintEvent *e) {
-}
+	inline void InitOnTopPanel(QWidget* panel)
+	{
+	}
 
-inline void InitOnTopPanel(QWidget *panel) {
-}
+	inline void DeInitOnTopPanel(QWidget* panel)
+	{
+	}
 
-inline void DeInitOnTopPanel(QWidget *panel) {
-}
+	inline void ReInitOnTopPanel(QWidget* panel)
+	{
+	}
 
-inline void ReInitOnTopPanel(QWidget *panel) {
-}
+	QString CurrentExecutablePath(int argc, char* argv[]);
 
-QString CurrentExecutablePath(int argc, char *argv[]);
+	namespace ThirdParty
+	{
+		inline void start()
+		{
+		}
 
-namespace ThirdParty {
-
-inline void start() {
-}
-
-inline void finish() {
-}
-
-} // namespace ThirdParty
+		inline void finish()
+		{
+		}
+	} // namespace ThirdParty
 } // namespace Platform
 
-inline QString psServerPrefix() {
+inline QString psServerPrefix()
+{
 	return qsl("Global\\");
 }
-inline void psCheckLocalSocket(const QString &) {
+
+inline void psCheckLocalSocket(const QString&)
+{
 }
 
 void psWriteDump();
 
-void psDeleteDir(const QString &dir);
+void psDeleteDir(const QString& dir);
 
 QStringList psInitLogs();
 void psClearInitLogs();
@@ -68,43 +78,60 @@ void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
 
 QRect psDesktopRect();
-void psShowOverAll(QWidget *w, bool canFocus = true);
-void psBringToBack(QWidget *w);
+void psShowOverAll(QWidget* w, bool canFocus = true);
+void psBringToBack(QWidget* w);
 
 int psCleanup();
 int psFixPrevious();
 
 void psNewVersion();
 
-void psUpdateOverlayed(TWidget *widget);
-inline QByteArray psDownloadPathBookmark(const QString &path) {
+void psUpdateOverlayed(TWidget* widget);
+
+inline QByteArray psDownloadPathBookmark(const QString& path)
+{
 	return QByteArray();
-}
-inline QByteArray psPathBookmark(const QString &path) {
-	return QByteArray();
-}
-inline void psDownloadPathEnableAccess() {
 }
 
-class PsFileBookmark {
+inline QByteArray psPathBookmark(const QString& path)
+{
+	return QByteArray();
+}
+
+inline void psDownloadPathEnableAccess()
+{
+}
+
+class PsFileBookmark
+{
 public:
-	PsFileBookmark(const QByteArray &bookmark) {
+	PsFileBookmark(const QByteArray& bookmark)
+	{
 	}
-	bool check() const {
+
+	bool check() const
+	{
 		return true;
 	}
-	bool enable() const {
+
+	bool enable() const
+	{
 		return true;
 	}
-	void disable() const {
+
+	void disable() const
+	{
 	}
-	const QString &name(const QString &original) const {
+
+	const QString& name(const QString& original) const
+	{
 		return original;
 	}
-	QByteArray bookmark() const {
+
+	QByteArray bookmark() const
+	{
 		return QByteArray();
 	}
-
 };
 
-bool psLaunchMaps(const LocationCoords &coords);
+bool psLaunchMaps(const LocationCoords& coords);

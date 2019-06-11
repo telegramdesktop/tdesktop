@@ -10,14 +10,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "scheme.h"
 #include "base/flags.h"
 
-inline MTPbool MTP_bool(bool v) {
+inline MTPbool MTP_bool(bool v)
+{
 	return v ? MTP_boolTrue() : MTP_boolFalse();
 }
 
-inline bool mtpIsTrue(const MTPBool &v) {
+inline bool mtpIsTrue(const MTPBool& v)
+{
 	return v.type() == mtpc_boolTrue;
 }
-inline bool mtpIsFalse(const MTPBool &v) {
+
+inline bool mtpIsFalse(const MTPBool& v)
+{
 	return !mtpIsTrue(v);
 }
 
@@ -34,7 +38,8 @@ namespace base {\
 }
 
 // we use the same flags field for some additional client side flags
-enum class MTPDmessage_ClientFlag : uint32 {
+enum class MTPDmessage_ClientFlag : uint32
+{
 	// message has links for "shared links" indexing
 	f_has_text_links = (1U << 30),
 
@@ -74,7 +79,8 @@ enum class MTPDmessage_ClientFlag : uint32 {
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
 
-enum class MTPDreplyKeyboardMarkup_ClientFlag : uint32 {
+enum class MTPDreplyKeyboardMarkup_ClientFlag : uint32
+{
 	// none (zero) markup
 	f_zero = (1U << 30),
 
@@ -92,7 +98,8 @@ enum class MTPDreplyKeyboardMarkup_ClientFlag : uint32 {
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDreplyKeyboardMarkup)
 
-enum class MTPDstickerSet_ClientFlag : uint32 {
+enum class MTPDstickerSet_ClientFlag : uint32
+{
 	// sticker set is not yet loaded
 	f_not_loaded = (1U << 30),
 
@@ -119,7 +126,8 @@ DEFINE_MTP_CLIENT_FLAGS(MTPDstickerSet)
 //};
 //DEFINE_MTP_CLIENT_FLAGS(MTPDuser)
 
-enum class MTPDchat_ClientFlag : uint32 {
+enum class MTPDchat_ClientFlag : uint32
+{
 	// forbidden constructor received
 	f_forbidden = (1U << 31),
 
@@ -128,7 +136,8 @@ enum class MTPDchat_ClientFlag : uint32 {
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDchat)
 
-enum class MTPDchannel_ClientFlag : uint32 {
+enum class MTPDchannel_ClientFlag : uint32
+{
 	// forbidden constructor received
 	f_forbidden = (1U << 31),
 

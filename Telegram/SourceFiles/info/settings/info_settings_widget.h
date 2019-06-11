@@ -10,76 +10,79 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_content_widget.h"
 #include "info/info_controller.h"
 
-namespace Settings {
-class Section;
+namespace Settings
+{
+	class Section;
 } // namespace Settings
 
-namespace Info {
-namespace Settings {
+namespace Info
+{
+	namespace Settings
+	{
+		using Type = Section::SettingsType;
 
-using Type = Section::SettingsType;
+		struct Tag;
+		class InnerWidget;
 
-struct Tag;
-class InnerWidget;
+		class Memento final : public ContentMemento
+		{
+		public:
+			Memento(not_null<UserData*> self, Type type);
 
-class Memento final : public ContentMemento {
-public:
-	Memento(not_null<UserData*> self, Type type);
+			object_ptr<ContentWidget> createWidget(
+				QWidget* parent,
+				not_null<Controller*> controller,
+				const QRect& geometry) override;
 
-	object_ptr<ContentWidget> createWidget(
-		QWidget *parent,
-		not_null<Controller*> controller,
-		const QRect &geometry) override;
+			Section section() const override;
 
-	Section section() const override;
+			Type type() const
+			{
+				return _type;
+			}
 
-	Type type() const {
-		return _type;
-	}
+			not_null<UserData*> self() const
+			{
+				return settingsSelf();
+			}
 
-	not_null<UserData*> self() const {
-		return settingsSelf();
-	}
+			~Memento();
 
-	~Memento();
+		private:
+			Type _type = Type();
+		};
 
-private:
-	Type _type = Type();
+		class Widget final : public ContentWidget
+		{
+		public:
+			Widget(
+				QWidget* parent,
+				not_null<Controller*> controller);
 
-};
+			not_null<UserData*> self() const;
 
-class Widget final : public ContentWidget {
-public:
-	Widget(
-		QWidget *parent,
-		not_null<Controller*> controller);
+			bool showInternal(
+				not_null<ContentMemento*> memento) override;
 
-	not_null<UserData*> self() const;
+			void setInternalState(
+				const QRect& geometry,
+				not_null<Memento*> memento);
 
-	bool showInternal(
-		not_null<ContentMemento*> memento) override;
+			rpl::producer<bool> canSaveChanges() const override;
+			void saveChanges(FnMut<void()> done) override;
 
-	void setInternalState(
-		const QRect &geometry,
-		not_null<Memento*> memento);
+			rpl::producer<bool> desiredShadowVisibility() const override;
 
-	rpl::producer<bool> canSaveChanges() const override;
-	void saveChanges(FnMut<void()> done) override;
+		private:
+			void saveState(not_null<Memento*> memento);
+			void restoreState(not_null<Memento*> memento);
 
-	rpl::producer<bool> desiredShadowVisibility() const override;
+			std::unique_ptr<ContentMemento> doCreateMemento() override;
 
-private:
-	void saveState(not_null<Memento*> memento);
-	void restoreState(not_null<Memento*> memento);
+			not_null<UserData*> _self;
+			Type _type = Type();
 
-	std::unique_ptr<ContentMemento> doCreateMemento() override;
-
-	not_null<UserData*> _self;
-	Type _type = Type();
-
-	not_null<::Settings::Section*> _inner;
-
-};
-
-} // namespace Settings
+			not_null<::Settings::Section*> _inner;
+		};
+	} // namespace Settings
 } // namespace Info

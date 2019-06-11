@@ -10,121 +10,132 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/bytes.h"
 
-namespace Media {
-namespace Audio {
+namespace Media
+{
+	namespace Audio
+	{
+		class Instance;
 
-class Instance;
+		class Track
+		{
+		public:
+			Track(not_null<Instance*> instance);
 
-class Track {
-public:
-	Track(not_null<Instance*> instance);
+			void samplePeakEach(crl::time peakDuration);
 
-	void samplePeakEach(crl::time peakDuration);
+			void fillFromData(bytes::vector&& data);
+			void fillFromFile(const FileLocation& location);
+			void fillFromFile(const QString& filePath);
 
-	void fillFromData(bytes::vector &&data);
-	void fillFromFile(const FileLocation &location);
-	void fillFromFile(const QString &filePath);
+			void playOnce()
+			{
+				playWithLooping(false);
+			}
 
-	void playOnce() {
-		playWithLooping(false);
-	}
-	void playInLoop() {
-		playWithLooping(true);
-	}
+			void playInLoop()
+			{
+				playWithLooping(true);
+			}
 
-	bool isLooping() const {
-		return _looping;
-	}
-	bool isActive() const {
-		return _active;
-	}
-	bool failed() const {
-		return _failed;
-	}
+			bool isLooping() const
+			{
+				return _looping;
+			}
 
-	int64 getLengthMs() const {
-		return _lengthMs;
-	}
-	float64 getPeakValue(crl::time when) const;
+			bool isActive() const
+			{
+				return _active;
+			}
 
-	void detachFromDevice();
-	void reattachToDevice();
-	void updateState();
+			bool failed() const
+			{
+				return _failed;
+			}
 
-	~Track();
+			int64 getLengthMs() const
+			{
+				return _lengthMs;
+			}
 
-private:
-	void finish();
-	void ensureSourceCreated();
-	void playWithLooping(bool looping);
+			float64 getPeakValue(crl::time when) const;
 
-	not_null<Instance*> _instance;
+			void detachFromDevice();
+			void reattachToDevice();
+			void updateState();
 
-	bool _failed = false;
-	bool _active = false;
-	bool _looping = false;
-	float64 _volume = 1.;
+			~Track();
 
-	int64 _samplesCount = 0;
-	int32 _sampleRate = 0;
-	bytes::vector _samples;
+		private:
+			void finish();
+			void ensureSourceCreated();
+			void playWithLooping(bool looping);
 
-	crl::time _peakDurationMs = 0;
-	int _peakEachPosition = 0;
-	std::vector<uint16> _peaks;
-	uint16 _peakValueMin = 0;
-	uint16 _peakValueMax = 0;
+			not_null<Instance*> _instance;
 
-	crl::time _lengthMs = 0;
-	crl::time _stateUpdatedAt = 0;
+			bool _failed = false;
+			bool _active = false;
+			bool _looping = false;
+			float64 _volume = 1.;
 
-	int32 _alFormat = 0;
-	int64 _alPosition = 0;
-	uint32 _alSource = 0;
-	uint32 _alBuffer = 0;
+			int64 _samplesCount = 0;
+			int32 _sampleRate = 0;
+			bytes::vector _samples;
 
-};
+			crl::time _peakDurationMs = 0;
+			int _peakEachPosition = 0;
+			std::vector<uint16> _peaks;
+			uint16 _peakValueMin = 0;
+			uint16 _peakValueMax = 0;
 
-class Instance {
-public:
-	// Thread: Main.
-	Instance();
+			crl::time _lengthMs = 0;
+			crl::time _stateUpdatedAt = 0;
 
-	std::unique_ptr<Track> createTrack();
+			int32 _alFormat = 0;
+			int64 _alPosition = 0;
+			uint32 _alSource = 0;
+			uint32 _alBuffer = 0;
+		};
 
-	base::Observable<Track*> &trackFinished() {
-		return _trackFinished;
-	}
+		class Instance
+		{
+		public:
+			// Thread: Main.
+			Instance();
 
-	void detachTracks();
-	void reattachTracks();
-	bool hasActiveTracks() const;
+			std::unique_ptr<Track> createTrack();
 
-	void scheduleDetachFromDevice();
-	void scheduleDetachIfNotUsed();
-	void stopDetachIfNotUsed();
+			base::Observable<Track*>& trackFinished()
+			{
+				return _trackFinished;
+			}
 
-	~Instance();
+			void detachTracks();
+			void reattachTracks();
+			bool hasActiveTracks() const;
 
-private:
-	friend class Track;
-	void registerTrack(Track *track);
-	void unregisterTrack(Track *track);
-	void trackStarted(Track *track);
-	void trackFinished(Track *track);
+			void scheduleDetachFromDevice();
+			void scheduleDetachIfNotUsed();
+			void stopDetachIfNotUsed();
 
-private:
-	std::set<Track*> _tracks;
-	base::Observable<Track*> _trackFinished;
+			~Instance();
 
-	base::Timer _updateTimer;
+		private:
+			friend class Track;
+			void registerTrack(Track* track);
+			void unregisterTrack(Track* track);
+			void trackStarted(Track* track);
+			void trackFinished(Track* track);
 
-	base::Timer _detachFromDeviceTimer;
-	bool _detachFromDeviceForce = false;
+		private:
+			std::set<Track*> _tracks;
+			base::Observable<Track*> _trackFinished;
 
-};
+			base::Timer _updateTimer;
 
-Instance &Current();
+			base::Timer _detachFromDeviceTimer;
+			bool _detachFromDeviceForce = false;
+		};
 
-} // namespace Audio
+		Instance& Current();
+	} // namespace Audio
 } // namespace Media

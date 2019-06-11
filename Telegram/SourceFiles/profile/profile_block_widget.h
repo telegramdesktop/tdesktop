@@ -10,55 +10,63 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/observer.h"
 #include "ui/rp_widget.h"
 
-namespace Profile {
+namespace Profile
+{
+	class SectionMemento;
 
-class SectionMemento;
+	class BlockWidget : public Ui::RpWidget, protected base::Subscriber
+	{
+	public:
+		BlockWidget(QWidget* parent, PeerData* peer, const QString& title);
 
-class BlockWidget : public Ui::RpWidget, protected base::Subscriber {
-public:
-	BlockWidget(QWidget *parent, PeerData *peer, const QString &title);
+		virtual void showFinished()
+		{
+		}
 
-	virtual void showFinished() {
-	}
+		virtual void saveState(not_null<SectionMemento*> memento)
+		{
+		}
 
-	virtual void saveState(not_null<SectionMemento*> memento) {
-	}
-	virtual void restoreState(not_null<SectionMemento*> memento) {
-	}
+		virtual void restoreState(not_null<SectionMemento*> memento)
+		{
+		}
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	virtual void paintContents(Painter &p) {
-	}
+	protected:
+		void paintEvent(QPaintEvent* e) override;
 
-	// Where does the block content start (after the title).
-	int contentTop() const;
+		virtual void paintContents(Painter& p)
+		{
+		}
 
-	// Resizes content and counts natural widget height for the desired width.
-	int resizeGetHeight(int newWidth) override = 0;
+		// Where does the block content start (after the title).
+		int contentTop() const;
 
-	void contentSizeUpdated() {
-		auto oldHeight = height();
-		resizeToWidth(width());
-		emit heightUpdated();
-	}
+		// Resizes content and counts natural widget height for the desired width.
+		int resizeGetHeight(int newWidth) override = 0;
 
-	PeerData *peer() const {
-		return _peer;
-	}
+		void contentSizeUpdated()
+		{
+			auto oldHeight = height();
+			resizeToWidth(width());
+			emit heightUpdated();
+		}
 
-	bool emptyTitle() const {
-		return _title.isEmpty();
-	}
+		PeerData* peer() const
+		{
+			return _peer;
+		}
 
-private:
-	void paintTitle(Painter &p);
+		bool emptyTitle() const
+		{
+			return _title.isEmpty();
+		}
 
-	PeerData *_peer;
-	QString _title;
+	private:
+		void paintTitle(Painter& p);
 
-};
+		PeerData* _peer;
+		QString _title;
+	};
 
-int defaultOutlineButtonLeft();
-
+	int defaultOutlineButtonLeft();
 } // namespace Profile

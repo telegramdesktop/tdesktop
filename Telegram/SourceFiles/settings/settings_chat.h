@@ -9,22 +9,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 
-namespace Settings {
+namespace Settings
+{
+	void SetupDataStorage(not_null<Ui::VerticalLayout*> container);
+	void SetupAutoDownload(not_null<Ui::VerticalLayout*> container);
+	void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container);
+	void SetupSupport(not_null<Ui::VerticalLayout*> container);
 
-void SetupDataStorage(not_null<Ui::VerticalLayout*> container);
-void SetupAutoDownload(not_null<Ui::VerticalLayout*> container);
-void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container);
-void SetupSupport(not_null<Ui::VerticalLayout*> container);
+	class Chat : public Section
+	{
+	public:
+		Chat(QWidget* parent, not_null<UserData*> self);
 
-class Chat : public Section {
-public:
-	Chat(QWidget *parent, not_null<UserData*> self);
+	private:
+		void setupContent();
 
-private:
-	void setupContent();
-
-	not_null<UserData*> _self;
-
-};
-
+		not_null<UserData*> _self;
+	};
 } // namespace Settings

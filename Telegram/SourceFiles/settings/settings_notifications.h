@@ -9,17 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 
-namespace Settings {
+namespace Settings
+{
+	class Notifications : public Section
+	{
+	public:
+		Notifications(QWidget* parent, not_null<UserData*> self);
 
-class Notifications : public Section {
-public:
-	Notifications(QWidget *parent, not_null<UserData*> self);
+	private:
+		void setupContent();
 
-private:
-	void setupContent();
-
-	not_null<UserData*> _self;
-
-};
-
+		not_null<UserData*> _self;
+	};
 } // namespace Settings

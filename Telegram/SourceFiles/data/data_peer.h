@@ -13,8 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 enum LangKey : int;
 
-namespace Ui {
-class EmptyUserpic;
+namespace Ui
+{
+	class EmptyUserpic;
 } // namespace Ui
 
 class AuthSession;
@@ -23,19 +24,19 @@ class UserData;
 class ChatData;
 class ChannelData;
 
-namespace Main {
-class Account;
+namespace Main
+{
+	class Account;
 } // namespace Main
 
-namespace Data {
+namespace Data
+{
+	class Session;
 
-class Session;
-
-int PeerColorIndex(PeerId peerId);
-int PeerColorIndex(int32 bareId);
-style::color PeerUserpicColor(PeerId peerId);
-PeerId FakePeerIdForJustName(const QString &name);
-
+	int PeerColorIndex(PeerId peerId);
+	int PeerColorIndex(int32 bareId);
+	style::color PeerUserpicColor(PeerId peerId);
+	PeerId FakePeerIdForJustName(const QString& name);
 } // namespace Data
 
 using ChatAdminRight = MTPDchatAdminRights::Flag;
@@ -43,121 +44,160 @@ using ChatRestriction = MTPDchatBannedRights::Flag;
 using ChatAdminRights = MTPDchatAdminRights::Flags;
 using ChatRestrictions = MTPDchatBannedRights::Flags;
 
-namespace Data {
+namespace Data
+{
+	class RestrictionCheckResult
+	{
+	public:
+		[[nodiscard]] static RestrictionCheckResult Allowed()
+		{
+			return {0};
+		}
 
-class RestrictionCheckResult {
-public:
-	[[nodiscard]] static RestrictionCheckResult Allowed() {
-		return { 0 };
-	}
-	[[nodiscard]] static RestrictionCheckResult WithEveryone() {
-		return { 1 };
-	}
-	[[nodiscard]] static RestrictionCheckResult Explicit() {
-		return { 2 };
-	}
+		[[nodiscard]] static RestrictionCheckResult WithEveryone()
+		{
+			return {1};
+		}
 
-	explicit operator bool() const {
-		return (_value != 0);
-	}
+		[[nodiscard]] static RestrictionCheckResult Explicit()
+		{
+			return {2};
+		}
 
-	bool operator==(const RestrictionCheckResult &other) const {
-		return (_value == other._value);
-	}
-	bool operator!=(const RestrictionCheckResult &other) const {
-		return !(*this == other);
-	}
+		explicit operator bool() const
+		{
+			return (_value != 0);
+		}
 
-	[[nodiscard]] bool isAllowed() const {
-		return (*this == Allowed());
-	}
-	[[nodiscard]] bool isWithEveryone() const {
-		return (*this == WithEveryone());
-	}
-	[[nodiscard]] bool isExplicit() const {
-		return (*this == Explicit());
-	}
+		bool operator==(const RestrictionCheckResult& other) const
+		{
+			return (_value == other._value);
+		}
 
-private:
-	RestrictionCheckResult(int value) : _value(value) {
-	}
+		bool operator!=(const RestrictionCheckResult& other) const
+		{
+			return !(*this == other);
+		}
 
-	int _value = 0;
+		[[nodiscard]] bool isAllowed() const
+		{
+			return (*this == Allowed());
+		}
 
-};
+		[[nodiscard]] bool isWithEveryone() const
+		{
+			return (*this == WithEveryone());
+		}
 
+		[[nodiscard]] bool isExplicit() const
+		{
+			return (*this == Explicit());
+		}
+
+	private:
+		RestrictionCheckResult(int value) :
+			_value(value)
+		{
+		}
+
+		int _value = 0;
+	};
 } // namespace Data
 
-class PeerClickHandler : public ClickHandler {
+class PeerClickHandler : public ClickHandler
+{
 public:
 	PeerClickHandler(not_null<PeerData*> peer);
 	void onClick(ClickContext context) const override;
 
-	not_null<PeerData*> peer() const {
+	not_null<PeerData*> peer() const
+	{
 		return _peer;
 	}
 
 private:
 	not_null<PeerData*> _peer;
-
 };
 
-class PeerData {
+class PeerData
+{
 protected:
 	PeerData(not_null<Data::Session*> owner, PeerId id);
-	PeerData(const PeerData &other) = delete;
-	PeerData &operator=(const PeerData &other) = delete;
+	PeerData(const PeerData& other) = delete;
+	PeerData& operator=(const PeerData& other) = delete;
 
 public:
 	virtual ~PeerData();
 
 	static constexpr auto kServiceNotificationsId = peerFromUser(777000);
 
-	[[nodiscard]] Data::Session &owner() const;
-	[[nodiscard]] AuthSession &session() const;
-	[[nodiscard]] Main::Account &account() const;
+	[[nodiscard]] Data::Session& owner() const;
+	[[nodiscard]] AuthSession& session() const;
+	[[nodiscard]] Main::Account& account() const;
 
-	[[nodiscard]] bool isUser() const {
+	[[nodiscard]] bool isUser() const
+	{
 		return peerIsUser(id);
 	}
-	[[nodiscard]] bool isChat() const {
+
+	[[nodiscard]] bool isChat() const
+	{
 		return peerIsChat(id);
 	}
-	[[nodiscard]] bool isChannel() const {
+
+	[[nodiscard]] bool isChannel() const
+	{
 		return peerIsChannel(id);
 	}
-	[[nodiscard]] bool isSelf() const {
+
+	[[nodiscard]] bool isSelf() const
+	{
 		return (input.type() == mtpc_inputPeerSelf);
 	}
+
 	[[nodiscard]] bool isVerified() const;
 	[[nodiscard]] bool isMegagroup() const;
 
-	[[nodiscard]] bool isNotificationsUser() const {
+	[[nodiscard]] bool isNotificationsUser() const
+	{
 		return (id == peerFromUser(333000))
 			|| (id == kServiceNotificationsId);
 	}
-	[[nodiscard]] bool isServiceUser() const {
+
+	[[nodiscard]] bool isServiceUser() const
+	{
 		return isUser() && !(id % 1000);
 	}
 
-	[[nodiscard]] std::optional<TimeId> notifyMuteUntil() const {
+	[[nodiscard]] std::optional<TimeId> notifyMuteUntil() const
+	{
 		return _notify.muteUntil();
 	}
-	bool notifyChange(const MTPPeerNotifySettings &settings) {
+
+	bool notifyChange(const MTPPeerNotifySettings& settings)
+	{
 		return _notify.change(settings);
 	}
+
 	bool notifyChange(
-			std::optional<int> muteForSeconds,
-			std::optional<bool> silentPosts) {
+		std::optional<int> muteForSeconds,
+		std::optional<bool> silentPosts)
+	{
 		return _notify.change(muteForSeconds, silentPosts);
 	}
-	[[nodiscard]] bool notifySettingsUnknown() const {
+
+	[[nodiscard]] bool notifySettingsUnknown() const
+	{
 		return _notify.settingsUnknown();
 	}
-	[[nodiscard]] std::optional<bool> notifySilentPosts() const {
+
+	[[nodiscard]] std::optional<bool> notifySilentPosts() const
+	{
 		return _notify.silentPosts();
 	}
-	[[nodiscard]] MTPinputPeerNotifySettings notifySerialize() const {
+
+	[[nodiscard]] MTPinputPeerNotifySettings notifySerialize() const
+	{
 		return _notify.serialize();
 	}
 
@@ -166,71 +206,80 @@ public:
 		ChatRestriction right) const;
 	[[nodiscard]] bool canRevokeFullHistory() const;
 
-	[[nodiscard]] UserData *asUser();
-	[[nodiscard]] const UserData *asUser() const;
-	[[nodiscard]] ChatData *asChat();
-	[[nodiscard]] const ChatData *asChat() const;
-	[[nodiscard]] ChannelData *asChannel();
-	[[nodiscard]] const ChannelData *asChannel() const;
-	[[nodiscard]] ChannelData *asMegagroup();
-	[[nodiscard]] const ChannelData *asMegagroup() const;
-	[[nodiscard]] ChatData *asChatNotMigrated();
-	[[nodiscard]] const ChatData *asChatNotMigrated() const;
-	[[nodiscard]] ChannelData *asChannelOrMigrated();
-	[[nodiscard]] const ChannelData *asChannelOrMigrated() const;
+	[[nodiscard]] UserData* asUser();
+	[[nodiscard]] const UserData* asUser() const;
+	[[nodiscard]] ChatData* asChat();
+	[[nodiscard]] const ChatData* asChat() const;
+	[[nodiscard]] ChannelData* asChannel();
+	[[nodiscard]] const ChannelData* asChannel() const;
+	[[nodiscard]] ChannelData* asMegagroup();
+	[[nodiscard]] const ChannelData* asMegagroup() const;
+	[[nodiscard]] ChatData* asChatNotMigrated();
+	[[nodiscard]] const ChatData* asChatNotMigrated() const;
+	[[nodiscard]] ChannelData* asChannelOrMigrated();
+	[[nodiscard]] const ChannelData* asChannelOrMigrated() const;
 
-	[[nodiscard]] ChatData *migrateFrom() const;
-	[[nodiscard]] ChannelData *migrateTo() const;
+	[[nodiscard]] ChatData* migrateFrom() const;
+	[[nodiscard]] ChannelData* migrateTo() const;
 	[[nodiscard]] not_null<PeerData*> migrateToOrMe();
 	[[nodiscard]] not_null<const PeerData*> migrateToOrMe() const;
 
 	void updateFull();
 	void updateFullForced();
 	void fullUpdated();
-	[[nodiscard]] bool wasFullUpdated() const {
+
+	[[nodiscard]] bool wasFullUpdated() const
+	{
 		return (_lastFullUpdate != 0);
 	}
 
-	[[nodiscard]] const Text &dialogName() const;
-	[[nodiscard]] const QString &shortName() const;
+	[[nodiscard]] const Text& dialogName() const;
+	[[nodiscard]] const QString& shortName() const;
 	[[nodiscard]] QString userName() const;
 
-	[[nodiscard]] int32 bareId() const {
+	[[nodiscard]] int32 bareId() const
+	{
 		return int32(uint32(id & 0xFFFFFFFFULL));
 	}
 
-	[[nodiscard]] const base::flat_set<QString> &nameWords() const {
+	[[nodiscard]] const base::flat_set<QString>& nameWords() const
+	{
 		return _nameWords;
 	}
-	[[nodiscard]] const base::flat_set<QChar> &nameFirstLetters() const {
+
+	[[nodiscard]] const base::flat_set<QChar>& nameFirstLetters() const
+	{
 		return _nameFirstLetters;
 	}
 
 	void setUserpic(
 		PhotoId photoId,
-		const StorageImageLocation &location,
+		const StorageImageLocation& location,
 		ImagePtr userpic);
-	void setUserpicPhoto(const MTPPhoto &data);
+	void setUserpicPhoto(const MTPPhoto& data);
 	void paintUserpic(
-		Painter &p,
+		Painter& p,
 		int x,
 		int y,
 		int size) const;
+
 	void paintUserpicLeft(
-			Painter &p,
-			int x,
-			int y,
-			int w,
-			int size) const {
+		Painter& p,
+		int x,
+		int y,
+		int w,
+		int size) const
+	{
 		paintUserpic(p, rtl() ? (w - x - size) : x, y, size);
 	}
+
 	void paintUserpicRounded(
-		Painter &p,
+		Painter& p,
 		int x,
 		int y,
 		int size) const;
 	void paintUserpicSquare(
-		Painter &p,
+		Painter& p,
 		int x,
 		int y,
 		int size) const;
@@ -238,31 +287,42 @@ public:
 	[[nodiscard]] bool userpicLoaded() const;
 	[[nodiscard]] bool useEmptyUserpic() const;
 	[[nodiscard]] InMemoryKey userpicUniqueKey() const;
-	void saveUserpic(const QString &path, int size) const;
-	void saveUserpicRounded(const QString &path, int size) const;
+	void saveUserpic(const QString& path, int size) const;
+	void saveUserpicRounded(const QString& path, int size) const;
 	[[nodiscard]] QPixmap genUserpic(int size) const;
 	[[nodiscard]] QPixmap genUserpicRounded(int size) const;
-	[[nodiscard]] StorageImageLocation userpicLocation() const {
+
+	[[nodiscard]] StorageImageLocation userpicLocation() const
+	{
 		return _userpicLocation;
 	}
-	[[nodiscard]] bool userpicPhotoUnknown() const {
+
+	[[nodiscard]] bool userpicPhotoUnknown() const
+	{
 		return (_userpicPhotoId == kUnknownPhotoId);
 	}
-	[[nodiscard]] PhotoId userpicPhotoId() const {
+
+	[[nodiscard]] PhotoId userpicPhotoId() const
+	{
 		return userpicPhotoUnknown() ? 0 : _userpicPhotoId;
 	}
+
 	[[nodiscard]] Data::FileOrigin userpicOrigin() const;
 	[[nodiscard]] Data::FileOrigin userpicPhotoOrigin() const;
 
 	// If this string is not empty we must not allow to open the
 	// conversation and we must show this string instead.
-	[[nodiscard]] virtual QString unavailableReason() const {
+	[[nodiscard]] virtual QString unavailableReason() const
+	{
 		return QString();
 	}
 
 	[[nodiscard]] ClickHandlerPtr createOpenLink();
-	[[nodiscard]] const ClickHandlerPtr &openLink() {
-		if (!_openLink) {
+
+	[[nodiscard]] const ClickHandlerPtr& openLink()
+	{
+		if (!_openLink)
+		{
 			_openLink = createOpenLink();
 		}
 		return _openLink;
@@ -271,25 +331,33 @@ public:
 	[[nodiscard]] ImagePtr currentUserpic() const;
 
 	[[nodiscard]] bool canPinMessages() const;
-	[[nodiscard]] MsgId pinnedMessageId() const {
+
+	[[nodiscard]] MsgId pinnedMessageId() const
+	{
 		return _pinnedMessageId;
 	}
+
 	void setPinnedMessageId(MsgId messageId);
-	void clearPinnedMessage() {
+
+	void clearPinnedMessage()
+	{
 		setPinnedMessageId(0);
 	}
 
 	[[nodiscard]] bool canExportChatHistory() const;
 
 	// Returns true if about text was changed.
-	bool setAbout(const QString &newAbout);
-	const QString &about() const {
+	bool setAbout(const QString& newAbout);
+
+	const QString& about() const
+	{
 		return _about;
 	}
 
 	void checkFolder(FolderId folderId);
 
-	enum LoadedStatus {
+	enum LoadedStatus
+	{
 		NotLoaded = 0x00,
 		MinimalLoaded = 0x01,
 		FullLoaded = 0x02,
@@ -305,13 +373,13 @@ public:
 
 protected:
 	void updateNameDelayed(
-		const QString &newName,
-		const QString &newNameOrPhone,
-		const QString &newUsername);
+		const QString& newName,
+		const QString& newNameOrPhone,
+		const QString& newUsername);
 	void updateUserpic(
 		PhotoId photoId,
 		MTP::DcId dcId,
-		const MTPFileLocation &location);
+		const MTPFileLocation& location);
 	void clearUserpic();
 
 private:
@@ -321,7 +389,7 @@ private:
 
 	void setUserpicChecked(
 		PhotoId photoId,
-		const StorageImageLocation &location,
+		const StorageImageLocation& location,
 		ImagePtr userpic);
 
 	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);
@@ -343,15 +411,13 @@ private:
 	MsgId _pinnedMessageId = 0;
 
 	QString _about;
-
 };
 
-namespace Data {
+namespace Data
+{
+	std::vector<ChatRestrictions> ListOfRestrictions();
 
-std::vector<ChatRestrictions> ListOfRestrictions();
-
-std::optional<LangKey> RestrictionErrorKey(
-	not_null<PeerData*> peer,
-	ChatRestriction restriction);
-
+	std::optional<LangKey> RestrictionErrorKey(
+		not_null<PeerData*> peer,
+		ChatRestriction restriction);
 } // namespace Data

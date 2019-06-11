@@ -10,34 +10,42 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/observer.h"
 
-namespace Ui {
-template <typename Enum>
-class RadioenumGroup;
-template <typename Enum>
-class Radioenum;
-class LinkButton;
+namespace Ui
+{
+	template <typename Enum>
+	class RadioenumGroup;
+	template <typename Enum>
+	class Radioenum;
+	class LinkButton;
 } // namespace Ui
 
-class DownloadPathBox : public BoxContent {
+class DownloadPathBox : public BoxContent
+{
 public:
-	DownloadPathBox(QWidget *parent);
+	DownloadPathBox(QWidget* parent);
 
 protected:
 	void prepare() override;
 
-	void resizeEvent(QResizeEvent *e) override;
+	void resizeEvent(QResizeEvent* e) override;
 
 private:
-	enum class Directory {
+	enum class Directory
+	{
 		Downloads,
 		Temp,
 		Custom,
 	};
 	void radioChanged(Directory value);
-	Directory typeFromPath(const QString &path) {
-		if (path.isEmpty()) {
+
+	Directory typeFromPath(const QString& path)
+	{
+		if (path.isEmpty())
+		{
 			return Directory::Downloads;
-		} else if (path == qsl("tmp")) {
+		}
+		else if (path == qsl("tmp"))
+		{
 			return Directory::Temp;
 		}
 		return Directory::Custom;
@@ -45,7 +53,7 @@ private:
 
 	void save();
 	void updateControlsVisibility();
-	void setPathText(const QString &text);
+	void setPathText(const QString& text);
 	void editPath();
 
 	QString _path;
@@ -56,5 +64,4 @@ private:
 	object_ptr<Ui::Radioenum<Directory>> _temp;
 	object_ptr<Ui::Radioenum<Directory>> _dir;
 	object_ptr<Ui::LinkButton> _pathLink;
-
 };

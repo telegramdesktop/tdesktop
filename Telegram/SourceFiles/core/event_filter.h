@@ -7,24 +7,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Core {
+namespace Core
+{
+	class EventFilter : public QObject
+	{
+	public:
+		EventFilter(
+			not_null<QObject*> parent,
+			Fn<bool(not_null<QEvent*>)> filter);
 
-class EventFilter : public QObject {
-public:
-	EventFilter(
-		not_null<QObject*> parent,
+	protected:
+		bool eventFilter(QObject* watched, QEvent* event);
+
+	private:
+		Fn<bool(not_null<QEvent*>)> _filter;
+	};
+
+	not_null<QObject*> InstallEventFilter(
+		not_null<QObject*> object,
 		Fn<bool(not_null<QEvent*>)> filter);
-
-protected:
-	bool eventFilter(QObject *watched, QEvent *event);
-
-private:
-	Fn<bool(not_null<QEvent*>)> _filter;
-
-};
-
-not_null<QObject*> InstallEventFilter(
-	not_null<QObject*> object,
-	Fn<bool(not_null<QEvent*>)> filter);
-
 } // namespace Core

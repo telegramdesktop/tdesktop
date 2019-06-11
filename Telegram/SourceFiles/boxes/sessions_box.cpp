@@ -26,15 +26,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_settings.h"
 
-namespace {
-
-constexpr auto kSessionsShortPollTimeout = 60 * crl::time(1000);
-
+namespace
+{
+	constexpr auto kSessionsShortPollTimeout = 60 * crl::time(1000);
 } // namespace
 
-class SessionsBox::List : public Ui::RpWidget {
+class SessionsBox::List : public Ui::RpWidget
+{
 public:
-	List(QWidget *parent);
+	List(QWidget* parent);
 
 	void showData(gsl::span<const Entry> items);
 	rpl::producer<int> itemsCount() const;
@@ -43,7 +43,7 @@ public:
 	void terminating(uint64 hash, bool terminating);
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
+	void paintEvent(QPaintEvent* e) override;
 
 	int resizeGetHeight(int newWidth) override;
 
@@ -52,14 +52,14 @@ private:
 	std::map<uint64, std::unique_ptr<Ui::IconButton>> _terminateButtons;
 	rpl::event_stream<uint64> _terminate;
 	rpl::event_stream<int> _itemsCount;
-
 };
 
-class SessionsBox::Inner : public Ui::RpWidget {
+class SessionsBox::Inner : public Ui::RpWidget
+{
 public:
-	Inner(QWidget *parent);
+	Inner(QWidget* parent);
 
-	void showData(const Full &data);
+	void showData(const Full& data);
 	rpl::producer<uint64> terminateOne() const;
 	rpl::producer<> terminateAll() const;
 
@@ -72,17 +72,24 @@ private:
 	QPointer<Info::Profile::Button> _terminateAll;
 	QPointer<List> _incomplete;
 	QPointer<List> _list;
-
 };
 
-SessionsBox::SessionsBox(QWidget*)
-: _shortPollTimer([=] { shortPollSessions(); }) {
+SessionsBox::SessionsBox(QWidget*):
+	_shortPollTimer([=]
+	{
+		shortPollSessions();
+	})
+{
 }
 
-void SessionsBox::prepare() {
+void SessionsBox::prepare()
+{
 	setTitle(langFactory(lng_sessions_other_header));
 
-	addButton(langFactory(lng_close), [=] { closeBox(); });
+	addButton(langFactory(lng_close), [=]
+	{
+		closeBox();
+	});
 
 	setDimensions(st::boxWideWidth, st::sessionsHeight);
 
@@ -90,17 +97,20 @@ void SessionsBox::prepare() {
 	_inner->resize(width(), st::noContactsHeight);
 
 	_inner->terminateOne(
-	) | rpl::start_with_next([=](uint64 hash) {
+	) | rpl::start_with_next([=](uint64 hash)
+	{
 		terminateOne(hash);
 	}, lifetime());
 
 	_inner->terminateAll(
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=]
+	{
 		terminateAll();
 	}, lifetime());
 
 	Auth().data().newAuthorizationChecks(
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=]
+	{
 		shortPollSessions();
 	}, lifetime());
 
@@ -108,25 +118,30 @@ void SessionsBox::prepare() {
 	shortPollSessions();
 }
 
-void SessionsBox::setLoading(bool loading) {
-	if (_loading != loading) {
+void SessionsBox::setLoading(bool loading)
+{
+	if (_loading != loading)
+	{
 		_loading = loading;
 		setInnerVisible(!_loading);
 	}
 }
 
-void SessionsBox::resizeEvent(QResizeEvent *e) {
+void SessionsBox::resizeEvent(QResizeEvent* e)
+{
 	BoxContent::resizeEvent(e);
 
 	_inner->resize(width(), _inner->height());
 }
 
-void SessionsBox::paintEvent(QPaintEvent *e) {
+void SessionsBox::paintEvent(QPaintEvent* e)
+{
 	BoxContent::paintEvent(e);
 
 	Painter p(this);
 
-	if (_loading) {
+	if (_loading)
+	{
 		p.setFont(st::noContactsFont);
 		p.setPen(st::noContactsColor);
 		p.drawText(
@@ -136,28 +151,38 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void SessionsBox::got(const MTPaccount_Authorizations &result) {
+void SessionsBox::got(const MTPaccount_Authorizations& result)
+{
 	_shortPollRequest = 0;
 	setLoading(false);
 	_data = Full();
 
-	result.match([&](const MTPDaccount_authorizations &data) {
-		const auto &list = data.vauthorizations.v;
-		for (const auto &auth : list) {
-			auth.match([&](const MTPDauthorization &data) {
+	result.match([&](const MTPDaccount_authorizations& data)
+	{
+		const auto& list = data.vauthorizations.v;
+		for (const auto& auth : list)
+		{
+			auth.match([&](const MTPDauthorization& data)
+			{
 				auto entry = ParseEntry(data);
-				if (!entry.hash) {
+				if (!entry.hash)
+				{
 					_data.current = std::move(entry);
-				} else if (entry.incomplete) {
+				}
+				else if (entry.incomplete)
+				{
 					_data.incomplete.push_back(std::move(entry));
-				} else {
+				}
+				else
+				{
 					_data.list.push_back(std::move(entry));
 				}
 			});
 		}
 	});
 
-	const auto getActiveTime = [](const Entry &entry) {
+	const auto getActiveTime = [](const Entry& entry)
+	{
 		return entry.activeTime;
 	};
 	ranges::sort(_data.list, std::greater<>(), getActiveTime);
@@ -168,7 +193,8 @@ void SessionsBox::got(const MTPaccount_Authorizations &result) {
 	_shortPollTimer.callOnce(kSessionsShortPollTimeout);
 }
 
-SessionsBox::Entry SessionsBox::ParseEntry(const MTPDauthorization &data) {
+SessionsBox::Entry SessionsBox::ParseEntry(const MTPDauthorization& data)
+{
 	auto result = Entry();
 
 	result.hash = data.is_current() ? 0 : data.vhash.v;
@@ -179,10 +205,11 @@ SessionsBox::Entry SessionsBox::ParseEntry(const MTPDauthorization &data) {
 	const auto systemVer = qs(data.vsystem_version);
 	const auto deviceModel = qs(data.vdevice_model);
 	const auto apiId = data.vapi_id.v;
-	if (apiId == 2040 || apiId == 17349) {
+	if (apiId == 2040 || apiId == 17349)
+	{
 		appName = (apiId == 2040)
-			? qstr("Telegram Desktop")
-			: qstr("Telegram Desktop (GitHub)");
+			          ? qstr("Telegram Desktop")
+			          : qstr("Telegram Desktop (GitHub)");
 		//if (systemVer == qstr("windows")) {
 		//	deviceModel = qsl("Windows");
 		//} else if (systemVer == qstr("os x")) {
@@ -190,25 +217,30 @@ SessionsBox::Entry SessionsBox::ParseEntry(const MTPDauthorization &data) {
 		//} else if (systemVer == qstr("linux")) {
 		//	deviceModel = qsl("Linux");
 		//}
-		if (appVer == QString::number(appVer.toInt())) {
+		if (appVer == QString::number(appVer.toInt()))
+		{
 			const auto ver = appVer.toInt();
 			appVer = QString("%1.%2"
-			).arg(ver / 1000000
-			).arg((ver % 1000000) / 1000)
+				).arg(ver / 1000000
+				).arg((ver % 1000000) / 1000)
 				+ ((ver % 1000)
-					? ('.' + QString::number(ver % 1000))
-					: QString());
-		//} else {
-		//	appVer = QString();
+					   ? ('.' + QString::number(ver % 1000))
+					   : QString());
+			//} else {
+			//	appVer = QString();
 		}
-	} else {
-		appName = qs(data.vapp_name);// +qsl(" for ") + qs(d.vplatform);
-		if (appVer.indexOf('(') >= 0) {
+	}
+	else
+	{
+		appName = qs(data.vapp_name); // +qsl(" for ") + qs(d.vplatform);
+		if (appVer.indexOf('(') >= 0)
+		{
 			appVer = appVer.mid(appVer.indexOf('('));
 		}
 	}
 	result.name = appName;
-	if (!appVer.isEmpty()) {
+	if (!appVer.isEmpty())
+	{
 		result.name += ' ' + appVer;
 	}
 
@@ -221,24 +253,32 @@ SessionsBox::Entry SessionsBox::ParseEntry(const MTPDauthorization &data) {
 	//}
 
 	result.activeTime = data.vdate_active.v
-		? data.vdate_active.v
-		: data.vdate_created.v;
+		                    ? data.vdate_active.v
+		                    : data.vdate_created.v;
 	result.info = qs(data.vdevice_model) + qstr(", ") + (platform.isEmpty() ? QString() : platform + ' ') + qs(data.vsystem_version);
 	result.ip = qs(data.vip) + (country.isEmpty() ? QString() : QString::fromUtf8(" \xe2\x80\x93 ") + country);
-	if (!result.hash) {
+	if (!result.hash)
+	{
 		result.active = lang(lng_status_online);
 		result.activeWidth = st::sessionWhenFont->width(lang(lng_status_online));
-	} else {
+	}
+	else
+	{
 		const auto now = QDateTime::currentDateTime();
 		const auto lastTime = ParseDateTime(result.activeTime);
 		const auto nowDate = now.date();
 		const auto lastDate = lastTime.date();
-		if (lastDate == nowDate) {
+		if (lastDate == nowDate)
+		{
 			result.active = lastTime.toString(cTimeFormat());
-		} else if (lastDate.year() == nowDate.year()
-			&& lastDate.weekNumber() == nowDate.weekNumber()) {
+		}
+		else if (lastDate.year() == nowDate.year()
+			&& lastDate.weekNumber() == nowDate.weekNumber())
+		{
 			result.active = langDayOfWeek(lastDate);
-		} else {
+		}
+		else
+		{
 			result.active = lastDate.toString(qsl("d.MM.yy"));
 		}
 		result.activeWidth = st::sessionWhenFont->width(result.active);
@@ -249,7 +289,8 @@ SessionsBox::Entry SessionsBox::ParseEntry(const MTPDauthorization &data) {
 	return result;
 }
 
-void SessionsBox::ResizeEntry(Entry &entry) {
+void SessionsBox::ResizeEntry(Entry& entry)
+{
 	const auto available = st::boxWideWidth
 		- st::sessionPadding.left()
 		- st::sessionTerminateSkip;
@@ -258,12 +299,14 @@ void SessionsBox::ResizeEntry(Entry &entry) {
 	const auto availableListInfo = available - st::sessionTerminate.width;
 
 	const auto resize = [](
-			const style::font &font,
-			QString &string,
-			int &stringWidth,
-			int available) {
+		const style::font& font,
+		QString& string,
+		int& stringWidth,
+		int available)
+	{
 		stringWidth = font->width(string);
-		if (stringWidth > available) {
+		if (stringWidth > available)
+		{
 			string = font->elided(string, available);
 			stringWidth = font->width(string);
 		}
@@ -275,32 +318,41 @@ void SessionsBox::ResizeEntry(Entry &entry) {
 	resize(st::sessionInfoFont, entry.ip, entry.ipWidth, available);
 }
 
-void SessionsBox::shortPollSessions() {
-	if (_shortPollRequest) {
+void SessionsBox::shortPollSessions()
+{
+	if (_shortPollRequest)
+	{
 		return;
 	}
 	_shortPollRequest = request(MTPaccount_GetAuthorizations(
-	)).done([=](const MTPaccount_Authorizations &result) {
+	)).done([=](const MTPaccount_Authorizations& result)
+	{
 		got(result);
 	}).send();
 	update();
 }
 
-void SessionsBox::terminateOne(uint64 hash) {
+void SessionsBox::terminateOne(uint64 hash)
+{
 	if (_terminateBox) _terminateBox->deleteLater();
-	const auto callback = crl::guard(this, [=] {
-		if (_terminateBox) {
+	const auto callback = crl::guard(this, [=]
+	{
+		if (_terminateBox)
+		{
 			_terminateBox->closeBox();
 			_terminateBox = nullptr;
 		}
 		request(MTPaccount_ResetAuthorization(
 			MTP_long(hash)
-		)).done([=](const MTPBool &result) {
+		)).done([=](const MTPBool& result)
+		{
 			_inner->terminatingOne(hash, false);
-			const auto getHash = [](const Entry &entry) {
+			const auto getHash = [](const Entry& entry)
+			{
 				return entry.hash;
 			};
-			const auto removeByHash = [&](std::vector<Entry> &list) {
+			const auto removeByHash = [&](std::vector<Entry>& list)
+			{
 				list.erase(
 					ranges::remove(list, hash, getHash),
 					end(list));
@@ -308,7 +360,8 @@ void SessionsBox::terminateOne(uint64 hash) {
 			removeByHash(_data.incomplete);
 			removeByHash(_data.list);
 			_inner->showData(_data);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const RPCError& error)
+		{
 			_inner->terminatingOne(hash, false);
 		}).send();
 		_inner->terminatingOne(hash, true);
@@ -322,18 +375,23 @@ void SessionsBox::terminateOne(uint64 hash) {
 		LayerOption::KeepOther);
 }
 
-void SessionsBox::terminateAll() {
+void SessionsBox::terminateAll()
+{
 	if (_terminateBox) _terminateBox->deleteLater();
-	const auto callback = crl::guard(this, [=] {
-		if (_terminateBox) {
+	const auto callback = crl::guard(this, [=]
+	{
+		if (_terminateBox)
+		{
 			_terminateBox->closeBox();
 			_terminateBox = nullptr;
 		}
 		request(MTPauth_ResetAuthorizations(
-		)).done([=](const MTPBool &result) {
+		)).done([=](const MTPBool& result)
+		{
 			request(base::take(_shortPollRequest)).cancel();
 			shortPollSessions();
-		}).fail([=](const RPCError &result) {
+		}).fail([=](const RPCError& result)
+		{
 			request(base::take(_shortPollRequest)).cancel();
 			shortPollSessions();
 		}).send();
@@ -348,12 +406,14 @@ void SessionsBox::terminateAll() {
 		LayerOption::KeepOther);
 }
 
-SessionsBox::Inner::Inner(QWidget *parent)
-: RpWidget(parent) {
+SessionsBox::Inner::Inner(QWidget* parent):
+	RpWidget(parent)
+{
 	setupContent();
 }
 
-void SessionsBox::Inner::setupContent() {
+void SessionsBox::Inner::setupContent()
+{
 	using namespace Settings;
 	using namespace rpl::mappers;
 
@@ -420,53 +480,65 @@ void SessionsBox::Inner::setupContent() {
 	Ui::ResizeFitChild(this, content);
 }
 
-void SessionsBox::Inner::showData(const Full &data) {
-	_current->showData({ &data.current, &data.current + 1 });
+void SessionsBox::Inner::showData(const Full& data)
+{
+	_current->showData({&data.current, &data.current + 1});
 	_list->showData(data.list);
 	_incomplete->showData(data.incomplete);
 }
 
-rpl::producer<> SessionsBox::Inner::terminateAll() const {
-	return _terminateAll->clicks() | rpl::map([] {
+rpl::producer<> SessionsBox::Inner::terminateAll() const
+{
+	return _terminateAll->clicks() | rpl::map([]
+	{
 		return rpl::empty_value();
 	});
 }
 
-rpl::producer<uint64> SessionsBox::Inner::terminateOne() const {
+rpl::producer<uint64> SessionsBox::Inner::terminateOne() const
+{
 	return rpl::merge(
 		_incomplete->terminate(),
 		_list->terminate());
 }
 
-void SessionsBox::Inner::terminatingOne(uint64 hash, bool terminating) {
+void SessionsBox::Inner::terminatingOne(uint64 hash, bool terminating)
+{
 	_incomplete->terminating(hash, terminating);
 	_list->terminating(hash, terminating);
 }
 
-SessionsBox::List::List(QWidget *parent) : RpWidget(parent) {
+SessionsBox::List::List(QWidget* parent) :
+	RpWidget(parent)
+{
 	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
-void SessionsBox::List::showData(gsl::span<const Entry> items) {
+void SessionsBox::List::showData(gsl::span<const Entry> items)
+{
 	auto buttons = base::take(_terminateButtons);
 	_items.clear();
 	_items.insert(begin(_items), items.begin(), items.end());
-	for (const auto &entry : _items) {
+	for (const auto& entry : _items)
+	{
 		const auto hash = entry.hash;
-		if (!hash) {
+		if (!hash)
+		{
 			continue;
 		}
-		const auto button = [&] {
+		const auto button = [&]
+		{
 			const auto i = buttons.find(hash);
 			return _terminateButtons.emplace(
 				hash,
 				(i != end(buttons)
-					? std::move(i->second)
-					: std::make_unique<Ui::IconButton>(
-						this,
-						st::sessionTerminate))).first->second.get();
+					 ? std::move(i->second)
+					 : std::make_unique<Ui::IconButton>(
+						 this,
+						 st::sessionTerminate))).first->second.get();
 		}();
-		button->setClickedCallback([=] {
+		button->setClickedCallback([=]
+		{
 			_terminate.fire_copy(hash);
 		});
 		button->show();
@@ -479,31 +551,40 @@ void SessionsBox::List::showData(gsl::span<const Entry> items) {
 	_itemsCount.fire(_items.size());
 }
 
-rpl::producer<int> SessionsBox::List::itemsCount() const {
+rpl::producer<int> SessionsBox::List::itemsCount() const
+{
 	return _itemsCount.events_starting_with(_items.size());
 }
 
-rpl::producer<uint64> SessionsBox::List::terminate() const {
+rpl::producer<uint64> SessionsBox::List::terminate() const
+{
 	return _terminate.events();
 }
 
-void SessionsBox::List::terminating(uint64 hash, bool terminating) {
+void SessionsBox::List::terminating(uint64 hash, bool terminating)
+{
 	const auto i = _terminateButtons.find(hash);
-	if (i != _terminateButtons.cend()) {
-		if (terminating) {
+	if (i != _terminateButtons.cend())
+	{
+		if (terminating)
+		{
 			i->second->clearState();
 			i->second->hide();
-		} else {
+		}
+		else
+		{
 			i->second->show();
 		}
 	}
 }
 
-int SessionsBox::List::resizeGetHeight(int newWidth) {
+int SessionsBox::List::resizeGetHeight(int newWidth)
+{
 	return _items.size() * st::sessionHeight;
 }
 
-void SessionsBox::List::paintEvent(QPaintEvent *e) {
+void SessionsBox::List::paintEvent(QPaintEvent* e)
+{
 	QRect r(e->rect());
 	Painter p(this);
 
@@ -523,8 +604,9 @@ void SessionsBox::List::paintEvent(QPaintEvent *e) {
 	const auto xact = st::sessionTerminateSkip
 		+ st::sessionTerminate.iconPosition.x();
 	p.translate(0, from * st::sessionHeight);
-	for (auto i = from; i != till; ++i) {
-		const auto &entry = _items[i];
+	for (auto i = from; i != till; ++i)
+	{
+		const auto& entry = _items[i];
 
 		p.setFont(st::sessionNameFont);
 		p.setPen(st::sessionNameFg);

@@ -9,75 +9,80 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct FileMediaInformation;
 
-namespace Storage {
-
-enum class MimeDataState {
-	None,
-	Files,
-	PhotoFiles,
-	Image,
-};
-
-MimeDataState ComputeMimeDataState(const QMimeData *data);
-
-struct PreparedFile {
-	enum class AlbumType {
+namespace Storage
+{
+	enum class MimeDataState
+	{
 		None,
-		Photo,
-		Video,
+		Files,
+		PhotoFiles,
+		Image,
 	};
 
-	PreparedFile(const QString &path);
-	PreparedFile(PreparedFile &&other);
-	PreparedFile &operator=(PreparedFile &&other);
-	~PreparedFile();
+	MimeDataState ComputeMimeDataState(const QMimeData* data);
 
-	QString path;
-	QByteArray content;
-	QString mime;
-	std::unique_ptr<FileMediaInformation> information;
-	QImage preview;
-	QSize shownDimensions;
-	AlbumType type = AlbumType::None;
+	struct PreparedFile
+	{
+		enum class AlbumType
+		{
+			None,
+			Photo,
+			Video,
+		};
 
-};
+		PreparedFile(const QString& path);
+		PreparedFile(PreparedFile&& other);
+		PreparedFile& operator=(PreparedFile&& other);
+		~PreparedFile();
 
-struct PreparedList {
-	enum class Error {
-		None,
-		NonLocalUrl,
-		Directory,
-		EmptyFile,
-		TooLargeFile,
+		QString path;
+		QByteArray content;
+		QString mime;
+		std::unique_ptr<FileMediaInformation> information;
+		QImage preview;
+		QSize shownDimensions;
+		AlbumType type = AlbumType::None;
 	};
 
-	PreparedList() = default;
-	PreparedList(Error error, QString errorData)
-	: error(error)
-	, errorData(errorData) {
-	}
-	static PreparedList Reordered(
-		PreparedList &&list,
-		std::vector<int> order);
-	void mergeToEnd(PreparedList &&other);
+	struct PreparedList
+	{
+		enum class Error
+		{
+			None,
+			NonLocalUrl,
+			Directory,
+			EmptyFile,
+			TooLargeFile,
+		};
 
-	bool canAddCaption(bool isAlbum, bool compressImages) const;
+		PreparedList() = default;
 
-	Error error = Error::None;
-	QString errorData;
-	std::vector<PreparedFile> files;
-	bool allFilesForCompress = true;
-	bool albumIsPossible = false;
+		PreparedList(Error error, QString errorData) :
+			error(error)
+			, errorData(errorData)
+		{
+		}
 
-};
+		static PreparedList Reordered(
+			PreparedList&& list,
+			std::vector<int> order);
+		void mergeToEnd(PreparedList&& other);
 
-bool ValidateThumbDimensions(int width, int height);
-PreparedList PrepareMediaList(const QList<QUrl> &files, int previewWidth);
-PreparedList PrepareMediaList(const QStringList &files, int previewWidth);
-PreparedList PrepareMediaFromImage(
-	QImage &&image,
-	QByteArray &&content,
-	int previewWidth);
-int MaxAlbumItems();
+		bool canAddCaption(bool isAlbum, bool compressImages) const;
 
+		Error error = Error::None;
+		QString errorData;
+		std::vector<PreparedFile> files;
+		bool allFilesForCompress = true;
+		bool albumIsPossible = false;
+	};
+
+	bool ValidateThumbDimensions(int width, int height);
+	PreparedList PrepareMediaList(const QList<QUrl>& files, int previewWidth);
+	PreparedList PrepareMediaList(const QStringList& files, int previewWidth);
+	PreparedList PrepareMediaFromImage(
+		QImage&& image,
+		QByteArray&& content,
+		int previewWidth);
+	int MaxAlbumItems();
 } // namespace Storage

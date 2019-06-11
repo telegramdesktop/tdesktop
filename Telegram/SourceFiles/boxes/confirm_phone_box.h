@@ -11,20 +11,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "ui/widgets/input_fields.h"
 
-namespace Ui {
-class InputField;
-class FlatLabel;
+namespace Ui
+{
+	class InputField;
+	class FlatLabel;
 } // namespace Ui
 
-void ShowPhoneBannedError(const QString &phone);
+void ShowPhoneBannedError(const QString& phone);
 
-class SentCodeField : public Ui::InputField {
+class SentCodeField : public Ui::InputField
+{
 public:
 	SentCodeField(
-		QWidget *parent,
-		const style::InputField &st,
+		QWidget* parent,
+		const style::InputField& st,
 		Fn<QString()> placeholderFactory = nullptr,
-		const QString &val = QString());
+		const QString& val = QString());
 
 	void setAutoSubmit(int length, Fn<void()> submitCallback);
 	void setChangedCallback(Fn<void()> changedCallback);
@@ -39,36 +41,45 @@ private:
 	int _autoSubmitLength = 0;
 	Fn<void()> _submitCallback;
 	Fn<void()> _changedCallback;
-
 };
 
-class SentCodeCall {
+class SentCodeCall
+{
 public:
 	SentCodeCall(
 		FnMut<void()> callCallback,
 		Fn<void()> updateCallback);
 
-	enum class State {
+	enum class State
+	{
 		Waiting,
 		Calling,
 		Called,
 		Disabled,
 	};
-	struct Status {
-		Status() {
+	struct Status
+	{
+		Status()
+		{
 		}
-		Status(State state, int timeout) : state(state), timeout(timeout) {
+
+		Status(State state, int timeout) :
+			state(state), timeout(timeout)
+		{
 		}
 
 		State state = State::Disabled;
 		int timeout = 0;
 	};
-	void setStatus(const Status &status);
+	void setStatus(const Status& status);
 
-	void callDone() {
-		if (_status.state == State::Calling) {
+	void callDone()
+	{
+		if (_status.state == State::Calling)
+		{
 			_status.state = State::Called;
-			if (_update) {
+			if (_update)
+			{
 				_update();
 			}
 		}
@@ -81,12 +92,12 @@ private:
 	base::Timer _timer;
 	FnMut<void()> _call;
 	Fn<void()> _update;
-
 };
 
-class ConfirmPhoneBox : public BoxContent, public RPCSender {
+class ConfirmPhoneBox : public BoxContent, public RPCSender
+{
 public:
-	static void start(const QString &phone, const QString &hash);
+	static void start(const QString& phone, const QString& hash);
 
 	~ConfirmPhoneBox();
 
@@ -94,31 +105,33 @@ protected:
 	void prepare() override;
 	void setInnerFocus() override;
 
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent* e) override;
+	void resizeEvent(QResizeEvent* e) override;
 
 private:
-	ConfirmPhoneBox(QWidget*, const QString &phone, const QString &hash);
+	ConfirmPhoneBox(QWidget*, const QString& phone, const QString& hash);
 	friend class object_ptr<ConfirmPhoneBox>;
 
 	void sendCode();
 	void sendCall();
 	void checkPhoneAndHash();
 
-	void sendCodeDone(const MTPauth_SentCode &result);
-	bool sendCodeFail(const RPCError &error);
+	void sendCodeDone(const MTPauth_SentCode& result);
+	bool sendCodeFail(const RPCError& error);
 
-	void callDone(const MTPauth_SentCode &result);
+	void callDone(const MTPauth_SentCode& result);
 
-	void confirmDone(const MTPBool &result);
-	bool confirmFail(const RPCError &error);
+	void confirmDone(const MTPBool& result);
+	bool confirmFail(const RPCError& error);
 
-	QString getPhone() const {
+	QString getPhone() const
+	{
 		return _phone;
 	}
+
 	void launch();
 
-	void showError(const QString &error);
+	void showError(const QString& error);
 
 	mtpRequestId _sendCodeRequestId = 0;
 
@@ -132,10 +145,9 @@ private:
 
 	mtpRequestId _checkCodeRequestId = 0;
 
-	object_ptr<Ui::FlatLabel> _about = { nullptr };
-	object_ptr<SentCodeField> _code = { nullptr };
+	object_ptr<Ui::FlatLabel> _about = {nullptr};
+	object_ptr<SentCodeField> _code = {nullptr};
 
 	QString _error;
 	SentCodeCall _call;
-
 };

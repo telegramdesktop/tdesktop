@@ -7,76 +7,76 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Shortcuts {
+namespace Shortcuts
+{
+	enum class Command
+	{
+		Close,
+		Lock,
+		Minimize,
+		Quit,
 
-enum class Command {
-	Close,
-	Lock,
-	Minimize,
-	Quit,
+		MediaPlay,
+		MediaPause,
+		MediaPlayPause,
+		MediaStop,
+		MediaPrevious,
+		MediaNext,
 
-	MediaPlay,
-	MediaPause,
-	MediaPlayPause,
-	MediaStop,
-	MediaPrevious,
-	MediaNext,
+		Search,
 
-	Search,
+		ChatPrevious,
+		ChatNext,
+		ChatFirst,
+		ChatLast,
+		ChatSelf,
+		ChatPinned1,
+		ChatPinned2,
+		ChatPinned3,
+		ChatPinned4,
+		ChatPinned5,
 
-	ChatPrevious,
-	ChatNext,
-	ChatFirst,
-	ChatLast,
-	ChatSelf,
-	ChatPinned1,
-	ChatPinned2,
-	ChatPinned3,
-	ChatPinned4,
-	ChatPinned5,
+		SupportReloadTemplates,
+		SupportToggleMuted,
+		SupportScrollToCurrent,
+		SupportHistoryBack,
+		SupportHistoryForward,
+	};
 
-	SupportReloadTemplates,
-	SupportToggleMuted,
-	SupportScrollToCurrent,
-	SupportHistoryBack,
-	SupportHistoryForward,
-};
+	[[nodiscard]] FnMut<bool()> RequestHandler(Command command);
 
-[[nodiscard]] FnMut<bool()> RequestHandler(Command command);
+	class Request
+	{
+	public:
+		bool check(Command command, int priority = 0);
+		bool handle(FnMut<bool()> handler);
 
-class Request {
-public:
-	bool check(Command command, int priority = 0);
-	bool handle(FnMut<bool()> handler);
+	private:
+		explicit Request(Command command);
 
-private:
-	explicit Request(Command command);
+		Command _command;
+		int _handlerPriority = -1;
+		FnMut<bool()> _handler;
 
-	Command _command;
-	int _handlerPriority = -1;
-	FnMut<bool()> _handler;
+		friend FnMut<bool()> RequestHandler(Command command);
+	};
 
-	friend FnMut<bool()> RequestHandler(Command command);
+	rpl::producer<not_null<Request*>> Requests();
 
-};
+	void Start();
+	void Finish();
 
-rpl::producer<not_null<Request*>> Requests();
+	bool Launch(Command command);
+	bool HandleEvent(not_null<QShortcutEvent*> event);
 
-void Start();
-void Finish();
+	const QStringList& Errors();
 
-bool Launch(Command command);
-bool HandleEvent(not_null<QShortcutEvent*> event);
+	// Media shortcuts are not enabled by default, because other
+	// applications also use them. They are enabled only when
+	// the in-app player is active and disabled back after.
+	void ToggleMediaShortcuts(bool toggled);
 
-const QStringList &Errors();
-
-// Media shortcuts are not enabled by default, because other
-// applications also use them. They are enabled only when
-// the in-app player is active and disabled back after.
-void ToggleMediaShortcuts(bool toggled);
-
-// Support shortcuts are not enabled by default, because they
-// have some conflicts with default input shortcuts, like Ctrl+Delete.
-void ToggleSupportShortcuts(bool toggled);
-
+	// Support shortcuts are not enabled by default, because they
+	// have some conflicts with default input shortcuts, like Ctrl+Delete.
+	void ToggleSupportShortcuts(bool toggled);
 } // namespace Shortcuts

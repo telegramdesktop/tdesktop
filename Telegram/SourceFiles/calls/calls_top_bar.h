@@ -11,51 +11,51 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "ui/rp_widget.h"
 
-namespace Ui {
-class IconButton;
-class AbstractButton;
-class LabelSimple;
-class FlatLabel;
+namespace Ui
+{
+	class IconButton;
+	class AbstractButton;
+	class LabelSimple;
+	class FlatLabel;
 } // namespace Ui
 
-namespace Calls {
+namespace Calls
+{
+	class Call;
+	class SignalBars;
 
-class Call;
-class SignalBars;
+	class TopBar : public Ui::RpWidget, private base::Subscriber
+	{
+	public:
+		TopBar(QWidget* parent, const base::weak_ptr<Call>& call);
 
-class TopBar : public Ui::RpWidget, private base::Subscriber {
-public:
-	TopBar(QWidget *parent, const base::weak_ptr<Call> &call);
+		~TopBar();
 
-	~TopBar();
+	protected:
+		void resizeEvent(QResizeEvent* e) override;
+		void paintEvent(QPaintEvent* e) override;
 
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
+	private:
+		void initControls();
+		void updateInfoLabels();
+		void setInfoLabels();
+		void updateDurationText();
+		void updateControlsGeometry();
+		void startDurationUpdateTimer(crl::time currentDuration);
+		void setMuted(bool mute);
 
-private:
-	void initControls();
-	void updateInfoLabels();
-	void setInfoLabels();
-	void updateDurationText();
-	void updateControlsGeometry();
-	void startDurationUpdateTimer(crl::time currentDuration);
-	void setMuted(bool mute);
+		base::weak_ptr<Call> _call;
 
-	base::weak_ptr<Call> _call;
+		bool _muted = false;
+		object_ptr<Ui::LabelSimple> _durationLabel;
+		object_ptr<SignalBars> _signalBars;
+		object_ptr<Ui::FlatLabel> _fullInfoLabel;
+		object_ptr<Ui::FlatLabel> _shortInfoLabel;
+		object_ptr<Ui::LabelSimple> _hangupLabel;
+		object_ptr<Ui::IconButton> _mute;
+		object_ptr<Ui::AbstractButton> _info;
+		object_ptr<Ui::IconButton> _hangup;
 
-	bool _muted = false;
-	object_ptr<Ui::LabelSimple> _durationLabel;
-	object_ptr<SignalBars> _signalBars;
-	object_ptr<Ui::FlatLabel> _fullInfoLabel;
-	object_ptr<Ui::FlatLabel> _shortInfoLabel;
-	object_ptr<Ui::LabelSimple> _hangupLabel;
-	object_ptr<Ui::IconButton> _mute;
-	object_ptr<Ui::AbstractButton> _info;
-	object_ptr<Ui::IconButton> _hangup;
-
-	base::Timer _updateDurationTimer;
-
-};
-
+		base::Timer _updateDurationTimer;
+	};
 } // namespace Calls

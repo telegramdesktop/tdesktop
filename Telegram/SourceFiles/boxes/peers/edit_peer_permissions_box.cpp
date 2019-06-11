@@ -24,218 +24,252 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
-namespace {
-
-template <typename CheckboxesMap, typename DependenciesMap>
-void ApplyDependencies(
-		const CheckboxesMap &checkboxes,
-		const DependenciesMap &dependencies,
-		QPointer<Ui::Checkbox> changed) {
-	const auto checkAndApply = [&](
-			auto &&current,
+namespace
+{
+	template <typename CheckboxesMap, typename DependenciesMap>
+	void ApplyDependencies(
+		const CheckboxesMap& checkboxes,
+		const DependenciesMap& dependencies,
+		QPointer<Ui::Checkbox> changed)
+	{
+		const auto checkAndApply = [&](
+			auto&& current,
 			auto dependency,
-			bool isChecked) {
-		for (auto &&checkbox : checkboxes) {
-			if ((checkbox.first & dependency)
-				&& (checkbox.second->checked() == isChecked)) {
-				current->setChecked(isChecked);
-				return true;
+			bool isChecked)
+		{
+			for (auto&& checkbox : checkboxes)
+			{
+				if ((checkbox.first & dependency)
+					&& (checkbox.second->checked() == isChecked))
+				{
+					current->setChecked(isChecked);
+					return true;
+				}
 			}
-		}
-		return false;
-	};
-	const auto applySomeDependency = [&] {
-		auto result = false;
-		for (auto &&entry : checkboxes) {
-			if (entry.second == changed) {
-				continue;
-			}
-			auto isChecked = entry.second->checked();
-			for (auto &&dependency : dependencies) {
-				const auto check = isChecked
-					? dependency.first
-					: dependency.second;
-				if (entry.first & check) {
-					if (checkAndApply(
+			return false;
+		};
+		const auto applySomeDependency = [&]
+		{
+			auto result = false;
+			for (auto&& entry : checkboxes)
+			{
+				if (entry.second == changed)
+				{
+					continue;
+				}
+				auto isChecked = entry.second->checked();
+				for (auto&& dependency : dependencies)
+				{
+					const auto check = isChecked
+						                   ? dependency.first
+						                   : dependency.second;
+					if (entry.first & check)
+					{
+						if (checkAndApply(
 							entry.second,
 							(isChecked
-								? dependency.second
-								: dependency.first),
-							!isChecked)) {
-						result = true;
-						break;
+								 ? dependency.second
+								 : dependency.first),
+							!isChecked))
+						{
+							result = true;
+							break;
+						}
 					}
 				}
 			}
-		}
-		return result;
-	};
+			return result;
+		};
 
-	const auto maxFixesCount = int(checkboxes.size());
-	for (auto i = 0; i != maxFixesCount; ++i) {
-		if (!applySomeDependency()) {
-			break;
-		}
-	};
-}
-
-std::vector<std::pair<ChatRestrictions, LangKey>> RestrictionLabels() {
-	const auto langKeys = {
-		lng_rights_chat_send_text,
-		lng_rights_chat_send_media,
-		lng_rights_chat_send_stickers,
-		lng_rights_chat_send_links,
-		lng_rights_chat_send_polls,
-		lng_rights_chat_add_members,
-		lng_rights_group_pin,
-		lng_rights_group_info,
-	};
-
-	std::vector<std::pair<ChatRestrictions, LangKey>> vector;
-	const auto restrictions = Data::ListOfRestrictions();
-	auto i = 0;
-	for (const auto key : langKeys) {
-		vector.push_back({restrictions[i++], key});
+		const auto maxFixesCount = int(checkboxes.size());
+		for (auto i = 0; i != maxFixesCount; ++i)
+		{
+			if (!applySomeDependency())
+			{
+				break;
+			}
+		};
 	}
-	return vector;
-}
 
-std::vector<std::pair<ChatAdminRights, LangKey>> AdminRightLabels(
+	std::vector<std::pair<ChatRestrictions, LangKey>> RestrictionLabels()
+	{
+		const auto langKeys = {
+			lng_rights_chat_send_text,
+			lng_rights_chat_send_media,
+			lng_rights_chat_send_stickers,
+			lng_rights_chat_send_links,
+			lng_rights_chat_send_polls,
+			lng_rights_chat_add_members,
+			lng_rights_group_pin,
+			lng_rights_group_info,
+		};
+
+		std::vector<std::pair<ChatRestrictions, LangKey>> vector;
+		const auto restrictions = Data::ListOfRestrictions();
+		auto i = 0;
+		for (const auto key : langKeys)
+		{
+			vector.push_back({restrictions[i++], key});
+		}
+		return vector;
+	}
+
+	std::vector<std::pair<ChatAdminRights, LangKey>> AdminRightLabels(
 		bool isGroup,
-		bool anyoneCanAddMembers) {
-	using Flag = ChatAdminRight;
+		bool anyoneCanAddMembers)
+	{
+		using Flag = ChatAdminRight;
 
-	if (isGroup) {
+		if (isGroup)
+		{
+			return {
+				{Flag::f_change_info, lng_rights_group_info},
+				{Flag::f_delete_messages, lng_rights_group_delete},
+				{Flag::f_ban_users, lng_rights_group_ban},
+				{
+					Flag::f_invite_users, anyoneCanAddMembers
+						                      ? lng_rights_group_invite_link
+						                      : lng_rights_group_invite
+				},
+				{Flag::f_pin_messages, lng_rights_group_pin},
+				{Flag::f_add_admins, lng_rights_add_admins},
+			};
+		}
+		else
+		{
+			return {
+				{Flag::f_change_info, lng_rights_channel_info},
+				{Flag::f_post_messages, lng_rights_channel_post},
+				{Flag::f_edit_messages, lng_rights_channel_edit},
+				{Flag::f_delete_messages, lng_rights_channel_delete},
+				{Flag::f_invite_users, lng_rights_group_invite},
+				{Flag::f_add_admins, lng_rights_add_admins}
+			};
+		}
+	}
+
+	auto Dependencies(ChatRestrictions)
+	-> std::vector<std::pair<ChatRestriction, ChatRestriction>>
+	{
+		using Flag = ChatRestriction;
+
 		return {
-			{ Flag::f_change_info, lng_rights_group_info },
-			{ Flag::f_delete_messages, lng_rights_group_delete },
-			{ Flag::f_ban_users, lng_rights_group_ban },
-			{ Flag::f_invite_users, anyoneCanAddMembers
-				? lng_rights_group_invite_link
-				: lng_rights_group_invite },
-			{ Flag::f_pin_messages, lng_rights_group_pin },
-			{ Flag::f_add_admins, lng_rights_add_admins },
-		};
-	} else {
-		return {
-			{ Flag::f_change_info, lng_rights_channel_info },
-			{ Flag::f_post_messages, lng_rights_channel_post },
-			{ Flag::f_edit_messages, lng_rights_channel_edit },
-			{ Flag::f_delete_messages, lng_rights_channel_delete },
-			{ Flag::f_invite_users, lng_rights_group_invite },
-			{ Flag::f_add_admins, lng_rights_add_admins }
+			// stickers <-> gifs
+			{Flag::f_send_gifs, Flag::f_send_stickers},
+			{Flag::f_send_stickers, Flag::f_send_gifs},
+
+			// stickers <-> games
+			{Flag::f_send_games, Flag::f_send_stickers},
+			{Flag::f_send_stickers, Flag::f_send_games},
+
+			// stickers <-> inline
+			{Flag::f_send_inline, Flag::f_send_stickers},
+			{Flag::f_send_stickers, Flag::f_send_inline},
+
+			// stickers -> send_media
+			{Flag::f_send_stickers, Flag::f_send_messages},
+
+			// embed_links -> send_media
+			{Flag::f_embed_links, Flag::f_send_messages},
+
+			// send_media -> send_messages
+			{Flag::f_send_media, Flag::f_send_messages},
+
+			// send_polls -> send_messages
+			{Flag::f_send_polls, Flag::f_send_messages},
+
+			// send_messages -> view_messages
+			{Flag::f_send_messages, Flag::f_view_messages},
 		};
 	}
-}
 
-auto Dependencies(ChatRestrictions)
--> std::vector<std::pair<ChatRestriction, ChatRestriction>> {
-	using Flag = ChatRestriction;
+	ChatRestrictions NegateRestrictions(ChatRestrictions value)
+	{
+		using Flag = ChatRestriction;
 
-	return {
-		// stickers <-> gifs
-		{ Flag::f_send_gifs, Flag::f_send_stickers },
-		{ Flag::f_send_stickers, Flag::f_send_gifs },
+		return (~value) & (Flag(0)
+			// view_messages is always allowed, so it is never in restrictions.
+			//| Flag::f_view_messages
+			| Flag::f_change_info
+			| Flag::f_embed_links
+			| Flag::f_invite_users
+			| Flag::f_pin_messages
+			| Flag::f_send_games
+			| Flag::f_send_gifs
+			| Flag::f_send_inline
+			| Flag::f_send_media
+			| Flag::f_send_messages
+			| Flag::f_send_polls
+			| Flag::f_send_stickers);
+	}
 
-		// stickers <-> games
-		{ Flag::f_send_games, Flag::f_send_stickers },
-		{ Flag::f_send_stickers, Flag::f_send_games },
+	auto Dependencies(ChatAdminRights)
+	-> std::vector<std::pair<ChatAdminRight, ChatAdminRight>>
+	{
+		return {};
+	}
 
-		// stickers <-> inline
-		{ Flag::f_send_inline, Flag::f_send_stickers },
-		{ Flag::f_send_stickers, Flag::f_send_inline },
+	auto ToPositiveNumberString()
+	{
+		return rpl::map([](int count)
+		{
+			return count ? QString::number(count) : QString();
+		});
+	}
 
-		// stickers -> send_media
-		{ Flag::f_send_stickers, Flag::f_send_messages },
+	ChatRestrictions DisabledByAdminRights(not_null<PeerData*> peer)
+	{
+		using Flag = ChatRestriction;
+		using Admin = ChatAdminRight;
+		using Admins = ChatAdminRights;
 
-		// embed_links -> send_media
-		{ Flag::f_embed_links, Flag::f_send_messages },
-
-		// send_media -> send_messages
-		{ Flag::f_send_media, Flag::f_send_messages },
-
-		// send_polls -> send_messages
-		{ Flag::f_send_polls, Flag::f_send_messages },
-
-		// send_messages -> view_messages
-		{ Flag::f_send_messages, Flag::f_view_messages },
-	};
-}
-
-ChatRestrictions NegateRestrictions(ChatRestrictions value) {
-	using Flag = ChatRestriction;
-
-	return (~value) & (Flag(0)
-		// view_messages is always allowed, so it is never in restrictions.
-		//| Flag::f_view_messages
-		| Flag::f_change_info
-		| Flag::f_embed_links
-		| Flag::f_invite_users
-		| Flag::f_pin_messages
-		| Flag::f_send_games
-		| Flag::f_send_gifs
-		| Flag::f_send_inline
-		| Flag::f_send_media
-		| Flag::f_send_messages
-		| Flag::f_send_polls
-		| Flag::f_send_stickers);
-}
-
-auto Dependencies(ChatAdminRights)
--> std::vector<std::pair<ChatAdminRight, ChatAdminRight>> {
-	return {};
-}
-
-auto ToPositiveNumberString() {
-	return rpl::map([](int count) {
-		return count ? QString::number(count) : QString();
-	});
-}
-
-ChatRestrictions DisabledByAdminRights(not_null<PeerData*> peer) {
-	using Flag = ChatRestriction;
-	using Admin = ChatAdminRight;
-	using Admins = ChatAdminRights;
-
-	const auto adminRights = [&] {
-		const auto full = ~Admins(0);
-		if (const auto chat = peer->asChat()) {
-			return chat->amCreator() ? full : chat->adminRights();
-		} else if (const auto channel = peer->asChannel()) {
-			return channel->amCreator() ? full : channel->adminRights();
-		}
-		Unexpected("User in DisabledByAdminRights.");
-	}();
-	return Flag(0)
-		| ((adminRights & Admin::f_pin_messages)
-			? Flag(0)
-			: Flag::f_pin_messages)
-		| ((adminRights & Admin::f_invite_users)
-			? Flag(0)
-			: Flag::f_invite_users)
-		| ((adminRights & Admin::f_change_info)
-			? Flag(0)
-			: Flag::f_change_info);
-}
-
+		const auto adminRights = [&]
+		{
+			const auto full = ~Admins(0);
+			if (const auto chat = peer->asChat())
+			{
+				return chat->amCreator() ? full : chat->adminRights();
+			}
+			else if (const auto channel = peer->asChannel())
+			{
+				return channel->amCreator() ? full : channel->adminRights();
+			}
+			Unexpected("User in DisabledByAdminRights.");
+		}();
+		return Flag(0)
+			| ((adminRights & Admin::f_pin_messages)
+				   ? Flag(0)
+				   : Flag::f_pin_messages)
+			| ((adminRights & Admin::f_invite_users)
+				   ? Flag(0)
+				   : Flag::f_invite_users)
+			| ((adminRights & Admin::f_change_info)
+				   ? Flag(0)
+				   : Flag::f_change_info);
+	}
 } // namespace
 
-ChatAdminRights DisabledByDefaultRestrictions(not_null<PeerData*> peer) {
+ChatAdminRights DisabledByDefaultRestrictions(not_null<PeerData*> peer)
+{
 	using Flag = ChatAdminRight;
 	using Restriction = ChatRestriction;
 
-	const auto restrictions = FixDependentRestrictions([&] {
-		if (const auto chat = peer->asChat()) {
+	const auto restrictions = FixDependentRestrictions([&]
+	{
+		if (const auto chat = peer->asChat())
+		{
 			return chat->defaultRestrictions();
-		} else if (const auto channel = peer->asChannel()) {
+		}
+		else if (const auto channel = peer->asChannel())
+		{
 			return channel->defaultRestrictions();
 		}
 		Unexpected("User in DisabledByDefaultRestrictions.");
 	}());
 	return Flag(0)
 		| ((restrictions & Restriction::f_pin_messages)
-			? Flag(0)
-			: Flag::f_pin_messages)
+			   ? Flag(0)
+			   : Flag::f_pin_messages)
 		//
 		// We allow to edit 'invite_users' admin right no matter what
 		// is chosen in default permissions for 'invite_users', because
@@ -246,50 +280,61 @@ ChatAdminRights DisabledByDefaultRestrictions(not_null<PeerData*> peer) {
 		//	: Flag::f_invite_users)
 		//
 		| ((restrictions & Restriction::f_change_info)
-			? Flag(0)
-			: Flag::f_change_info);
+			   ? Flag(0)
+			   : Flag::f_change_info);
 }
 
-ChatRestrictions FixDependentRestrictions(ChatRestrictions restrictions) {
-	const auto &dependencies = Dependencies(restrictions);
+ChatRestrictions FixDependentRestrictions(ChatRestrictions restrictions)
+{
+	const auto& dependencies = Dependencies(restrictions);
 
 	// Fix iOS bug of saving send_inline like embed_links.
 	// We copy send_stickers to send_inline.
-	if (restrictions & ChatRestriction::f_send_stickers) {
+	if (restrictions & ChatRestriction::f_send_stickers)
+	{
 		restrictions |= ChatRestriction::f_send_inline;
-	} else {
+	}
+	else
+	{
 		restrictions &= ~ChatRestriction::f_send_inline;
 	}
 
 	// Apply the strictest.
-	const auto fixOne = [&] {
-		for (const auto [first, second] : dependencies) {
-			if ((restrictions & second) && !(restrictions & first)) {
+	const auto fixOne = [&]
+	{
+		for (const auto [first, second] : dependencies)
+		{
+			if ((restrictions & second) && !(restrictions & first))
+			{
 				restrictions |= first;
 				return true;
 			}
 		}
 		return false;
 	};
-	while (fixOne()) {
+	while (fixOne())
+	{
 	}
 	return restrictions;
 }
 
 EditPeerPermissionsBox::EditPeerPermissionsBox(
 	QWidget*,
-	not_null<PeerData*> peer)
-: _peer(peer->migrateToOrMe()) {
+	not_null<PeerData*> peer):
+	_peer(peer->migrateToOrMe())
+{
 }
 
 auto EditPeerPermissionsBox::saveEvents() const
--> rpl::producer<MTPDchatBannedRights::Flags> {
+-> rpl::producer<MTPDchatBannedRights::Flags>
+{
 	Expects(_save != nullptr);
 
 	return _save->clicks() | rpl::map(_value);
 }
 
-void EditPeerPermissionsBox::prepare() {
+void EditPeerPermissionsBox::prepare()
+{
 	setTitle(langFactory(lng_manage_peer_permissions));
 
 	const auto inner = setInnerWidget(object_ptr<Ui::VerticalLayout>(this));
@@ -298,26 +343,33 @@ void EditPeerPermissionsBox::prepare() {
 	using Flags = ChatRestrictions;
 
 	const auto disabledByAdminRights = DisabledByAdminRights(_peer);
-	const auto restrictions = FixDependentRestrictions([&] {
-		if (const auto chat = _peer->asChat()) {
+	const auto restrictions = FixDependentRestrictions([&]
+	{
+		if (const auto chat = _peer->asChat())
+		{
 			return chat->defaultRestrictions()
 				| disabledByAdminRights;
-		} else if (const auto channel = _peer->asChannel()) {
+		}
+		else if (const auto channel = _peer->asChannel())
+		{
 			return channel->defaultRestrictions()
 				| (channel->isPublic()
-					? (Flag::f_change_info | Flag::f_pin_messages)
-					: Flags(0))
+					   ? (Flag::f_change_info | Flag::f_pin_messages)
+					   : Flags(0))
 				| disabledByAdminRights;
 		}
 		Unexpected("User in EditPeerPermissionsBox.");
 	}());
-	const auto disabledMessages = [&] {
+	const auto disabledMessages = [&]
+	{
 		auto result = std::map<Flags, QString>();
-			result.emplace(
-				disabledByAdminRights,
-				lang(lng_rights_permission_cant_edit));
-		if (const auto channel = _peer->asChannel()) {
-			if (channel->isPublic()) {
+		result.emplace(
+			disabledByAdminRights,
+			lang(lng_rights_permission_cant_edit));
+		if (const auto channel = _peer->asChannel())
+		{
+			if (channel->isPublic())
+			{
 				result.emplace(
 					Flag::f_change_info | Flag::f_pin_messages,
 					lang(lng_rights_permission_unavailable));
@@ -338,15 +390,21 @@ void EditPeerPermissionsBox::prepare() {
 
 	_value = getRestrictions;
 	_save = addButton(langFactory(lng_settings_save));
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(langFactory(lng_cancel), [=]
+	{
+		closeBox();
+	});
 
 	setDimensionsToContent(st::boxWidth, inner);
 }
 
 void EditPeerPermissionsBox::addBannedButtons(
-		not_null<Ui::VerticalLayout*> container) {
-	if (const auto chat = _peer->asChat()) {
-		if (!chat->amCreator()) {
+	not_null<Ui::VerticalLayout*> container)
+{
+	if (const auto chat = _peer->asChat())
+	{
+		if (!chat->amCreator())
+		{
 			return;
 		}
 	}
@@ -354,29 +412,32 @@ void EditPeerPermissionsBox::addBannedButtons(
 
 	container->add(
 		object_ptr<BoxContentDivider>(container),
-		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
+		{0, st::infoProfileSkip, 0, st::infoProfileSkip});
 
 	const auto navigation = App::wnd()->sessionController();
 	container->add(EditPeerInfoBox::CreateButton(
 		container,
 		Lang::Viewer(lng_manage_peer_exceptions),
 		(channel
-			? Info::Profile::RestrictedCountValue(channel)
-			: rpl::single(0)) | ToPositiveNumberString(),
-		[=] {
+			 ? Info::Profile::RestrictedCountValue(channel)
+			 : rpl::single(0)) | ToPositiveNumberString(),
+		[=]
+		{
 			ParticipantsBoxController::Start(
 				navigation,
 				_peer,
 				ParticipantsBoxController::Role::Restricted);
 		},
 		st::peerPermissionsButton));
-	if (channel) {
+	if (channel)
+	{
 		container->add(EditPeerInfoBox::CreateButton(
 			container,
 			Lang::Viewer(lng_manage_peer_removed_users),
 			Info::Profile::KickedCountValue(channel)
 			| ToPositiveNumberString(),
-			[=] {
+			[=]
+			{
 				ParticipantsBoxController::Start(
 					navigation,
 					_peer,
@@ -391,23 +452,29 @@ template <
 	typename DisabledMessagePairs,
 	typename FlagLabelPairs>
 EditFlagsControl<Flags> CreateEditFlags(
-		QWidget *parent,
-		LangKey header,
-		Flags checked,
-		const DisabledMessagePairs &disabledMessagePairs,
-		const FlagLabelPairs &flagLabelPairs) {
+	QWidget* parent,
+	LangKey header,
+	Flags checked,
+	const DisabledMessagePairs& disabledMessagePairs,
+	const FlagLabelPairs& flagLabelPairs)
+{
 	auto widget = object_ptr<Ui::VerticalLayout>(parent);
 	const auto container = widget.data();
 
 	const auto checkboxes = container->lifetime(
 	).make_state<std::map<Flags, QPointer<Ui::Checkbox>>>();
 
-	const auto value = [=] {
+	const auto value = [=]
+	{
 		auto result = Flags(0);
-		for (const auto &[flags, checkbox] : *checkboxes) {
-			if (checkbox->checked()) {
+		for (const auto& [flags, checkbox] : *checkboxes)
+		{
+			if (checkbox->checked())
+			{
 				result |= flags;
-			} else {
+			}
+			else
+			{
 				result &= ~flags;
 			}
 		}
@@ -417,7 +484,8 @@ EditFlagsControl<Flags> CreateEditFlags(
 	const auto changes = container->lifetime(
 	).make_state<rpl::event_stream<>>();
 
-	const auto applyDependencies = [=](Ui::Checkbox *control) {
+	const auto applyDependencies = [=](Ui::Checkbox* control)
+	{
 		static const auto dependencies = Dependencies(Flags());
 		ApplyDependencies(*checkboxes, dependencies, control);
 	};
@@ -429,13 +497,17 @@ EditFlagsControl<Flags> CreateEditFlags(
 			st::rightsHeaderLabel),
 		st::rightsHeaderMargin);
 
-	auto addCheckbox = [&](Flags flags, const QString &text) {
+	auto addCheckbox = [&](Flags flags, const QString& text)
+	{
 		const auto lockedIt = ranges::find_if(
 			disabledMessagePairs,
-			[&](const auto &pair) { return (pair.first & flags) != 0; });
+			[&](const auto& pair)
+			{
+				return (pair.first & flags) != 0;
+			});
 		const auto locked = (lockedIt != end(disabledMessagePairs))
-			? std::make_optional(lockedIt->second)
-			: std::nullopt;
+			                    ? std::make_optional(lockedIt->second)
+			                    : std::nullopt;
 		const auto toggled = ((checked & flags) != 0);
 		auto toggle = std::make_unique<Ui::ToggleView>(
 			st::rightsToggle,
@@ -449,14 +521,20 @@ EditFlagsControl<Flags> CreateEditFlags(
 				std::move(toggle)),
 			st::rightsToggleMargin);
 		control->checkedChanges(
-		) | rpl::start_with_next([=](bool checked) {
-			if (locked.has_value()) {
-				if (checked != toggled) {
+		) | rpl::start_with_next([=](bool checked)
+		{
+			if (locked.has_value())
+			{
+				if (checked != toggled)
+				{
 					Ui::Toast::Show(*locked);
 					control->setChecked(toggled);
 				}
-			} else {
-				InvokeQueued(control, [=] {
+			}
+			else
+			{
+				InvokeQueued(control, [=]
+				{
 					applyDependencies(control);
 					changes->fire({});
 				});
@@ -464,12 +542,14 @@ EditFlagsControl<Flags> CreateEditFlags(
 		}, control->lifetime());
 		checkboxes->emplace(flags, control);
 	};
-	for (const auto &[flags, label] : flagLabelPairs) {
+	for (const auto& [flags, label] : flagLabelPairs)
+	{
 		addCheckbox(flags, lang(label));
 	}
 
 	applyDependencies(nullptr);
-	for (const auto &[flags, checkbox] : *checkboxes) {
+	for (const auto& [flags, checkbox] : *checkboxes)
+	{
 		checkbox->finishAnimating();
 	}
 
@@ -481,17 +561,19 @@ EditFlagsControl<Flags> CreateEditFlags(
 }
 
 EditFlagsControl<MTPDchatBannedRights::Flags> CreateEditRestrictions(
-		QWidget *parent,
-		LangKey header,
-		MTPDchatBannedRights::Flags restrictions,
-		std::map<MTPDchatBannedRights::Flags, QString> disabledMessages) {
+	QWidget* parent,
+	LangKey header,
+	MTPDchatBannedRights::Flags restrictions,
+	std::map<MTPDchatBannedRights::Flags, QString> disabledMessages)
+{
 	auto result = CreateEditFlags(
 		parent,
 		header,
 		NegateRestrictions(restrictions),
 		disabledMessages,
 		RestrictionLabels());
-	result.value = [original = std::move(result.value)]{
+	result.value = [original = std::move(result.value)]
+	{
 		return NegateRestrictions(original());
 	};
 	result.changes = std::move(
@@ -502,12 +584,13 @@ EditFlagsControl<MTPDchatBannedRights::Flags> CreateEditRestrictions(
 }
 
 EditFlagsControl<MTPDchatAdminRights::Flags> CreateEditAdminRights(
-		QWidget *parent,
-		LangKey header,
-		MTPDchatAdminRights::Flags rights,
-		std::map<MTPDchatAdminRights::Flags, QString> disabledMessages,
-		bool isGroup,
-		bool anyoneCanAddMembers) {
+	QWidget* parent,
+	LangKey header,
+	MTPDchatAdminRights::Flags rights,
+	std::map<MTPDchatAdminRights::Flags, QString> disabledMessages,
+	bool isGroup,
+	bool anyoneCanAddMembers)
+{
 	return CreateEditFlags(
 		parent,
 		header,

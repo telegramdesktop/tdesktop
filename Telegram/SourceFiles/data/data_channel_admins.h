@@ -7,21 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Data {
+namespace Data
+{
+	class ChannelAdminChanges
+	{
+	public:
+		ChannelAdminChanges(not_null<ChannelData*> channel);
 
-class ChannelAdminChanges {
-public:
-	ChannelAdminChanges(not_null<ChannelData*> channel);
+		void feed(UserId userId, bool isAdmin);
 
-	void feed(UserId userId, bool isAdmin);
+		~ChannelAdminChanges();
 
-	~ChannelAdminChanges();
-
-private:
-	not_null<ChannelData*> _channel;
-	base::flat_set<UserId> &_admins;
-	base::flat_map<UserId, bool> _changes;
-
-};
-
+	private:
+		not_null<ChannelData*> _channel;
+		base::flat_set<UserId>& _admins;
+		base::flat_map<UserId, bool> _changes;
+	};
 } // namespace Data

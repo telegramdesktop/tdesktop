@@ -8,9 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #pragma once
 
-struct CountryInfo {
-	CountryInfo(const char *_name, const char *_iso2, const char *_code) : name(_name), iso2(_iso2), code(_code) {
+struct CountryInfo
+{
+	CountryInfo(const char* _name, const char* _iso2, const char* _code) :
+		name(_name), iso2(_iso2), code(_code)
+	{
 	}
+
 	const char *name, *iso2, *code;
 };
 
@@ -251,5 +255,5 @@ static const CountryInfo countries[] = {
 typedef QHash<QString, const CountryInfo *> CountriesByCode;
 typedef QHash<QString, const CountryInfo *> CountriesByISO2;
 
-const CountriesByCode &countriesByCode();
-const CountriesByISO2 &countriesByISO2();
+const CountriesByCode& countriesByCode();
+const CountriesByISO2& countriesByISO2();

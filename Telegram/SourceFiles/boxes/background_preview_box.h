@@ -15,24 +15,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 
-namespace Ui {
-class Checkbox;
+namespace Ui
+{
+	class Checkbox;
 } // namespace Ui
 
 class BackgroundPreviewBox
 	: public BoxContent
-	, private HistoryView::SimpleElementDelegate {
+	  , private HistoryView::SimpleElementDelegate
+{
 public:
-	BackgroundPreviewBox(QWidget*, const Data::WallPaper &paper);
+	BackgroundPreviewBox(QWidget*, const Data::WallPaper& paper);
 
 	static bool Start(
-		const QString &slug,
-		const QMap<QString, QString> &params);
+		const QString& slug,
+		const QMap<QString, QString>& params);
 
 protected:
 	void prepare() override;
 
-	void paintEvent(QPaintEvent *e) override;
+	void paintEvent(QPaintEvent* e) override;
 
 private:
 	using Element = HistoryView::Element;
@@ -46,13 +48,13 @@ private:
 
 	void checkLoadedDocument();
 	bool setScaledFromThumb();
-	void setScaledFromImage(QImage &&image, QImage &&blurred);
+	void setScaledFromImage(QImage&& image, QImage&& blurred);
 	void updateServiceBg(std::optional<QColor> background);
 	std::optional<QColor> patternBackgroundColor() const;
-	void paintImage(Painter &p);
-	void paintRadial(Painter &p);
-	void paintTexts(Painter &p, crl::time ms);
-	void paintDate(Painter &p);
+	void paintImage(Painter& p);
+	void paintRadial(Painter& p);
+	void paintTexts(Painter& p, crl::time ms);
+	void paintDate(Painter& p);
 	void createBlurCheckbox();
 	int textsTop() const;
 	void startFadeInFrom(QPixmap previous);
@@ -67,6 +69,5 @@ private:
 	Ui::RadialAnimation _radial;
 	base::binary_guard _generating;
 	std::optional<QColor> _serviceBg;
-	object_ptr<Ui::Checkbox> _blur = { nullptr };
-
+	object_ptr<Ui::Checkbox> _blur = {nullptr};
 };

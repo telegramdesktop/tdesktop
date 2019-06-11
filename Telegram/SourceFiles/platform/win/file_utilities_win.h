@@ -9,12 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_file_utilities.h"
 
-namespace Platform {
-namespace File {
-
-inline QString UrlToLocal(const QUrl &url) {
-	return url.toLocalFile();
-}
-
-} // namespace File
+namespace Platform
+{
+	namespace File
+	{
+		inline QString UrlToLocal(const QUrl& url)
+		{
+			return url.toLocalFile();
+		}
+	} // namespace File
 } // namespace Platform

@@ -11,177 +11,208 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "info/info_wrap_widget.h"
 
-namespace Storage {
-enum class SharedMediaType : signed char;
+namespace Storage
+{
+	enum class SharedMediaType : signed char;
 } // namespace Storage
 
-namespace Ui {
-class ScrollArea;
-class InputField;
-struct ScrollToRequest;
-template <typename Widget>
-class PaddingWrap;
+namespace Ui
+{
+	class ScrollArea;
+	class InputField;
+	struct ScrollToRequest;
+	template <typename Widget>
+	class PaddingWrap;
 } // namespace Ui
 
-namespace Info {
-namespace Settings {
-struct Tag;
-} // namespace Settings
+namespace Info
+{
+	namespace Settings
+	{
+		struct Tag;
+	} // namespace Settings
 
-class ContentMemento;
-class Controller;
+	class ContentMemento;
+	class Controller;
 
-class ContentWidget : public Ui::RpWidget {
-public:
-	ContentWidget(
-		QWidget *parent,
-		not_null<Controller*> controller);
+	class ContentWidget : public Ui::RpWidget
+	{
+	public:
+		ContentWidget(
+			QWidget* parent,
+			not_null<Controller*> controller);
 
-	virtual bool showInternal(
-		not_null<ContentMemento*> memento) = 0;
-	std::unique_ptr<ContentMemento> createMemento();
+		virtual bool showInternal(
+			not_null<ContentMemento*> memento) = 0;
+		std::unique_ptr<ContentMemento> createMemento();
 
-	virtual void setIsStackBottom(bool isStackBottom) {
-	}
+		virtual void setIsStackBottom(bool isStackBottom)
+		{
+		}
 
-	rpl::producer<int> scrollHeightValue() const;
-	rpl::producer<int> desiredHeightValue() const override;
-	virtual rpl::producer<bool> desiredShadowVisibility() const;
-	bool hasTopBarShadow() const;
+		rpl::producer<int> scrollHeightValue() const;
+		rpl::producer<int> desiredHeightValue() const override;
+		virtual rpl::producer<bool> desiredShadowVisibility() const;
+		bool hasTopBarShadow() const;
 
-	virtual void setInnerFocus();
+		virtual void setInnerFocus();
 
-	// When resizing the widget with top edge moved up or down and we
-	// want to add this top movement to the scroll position, so inner
-	// content will not move.
-	void setGeometryWithTopMoved(
-		const QRect &newGeometry,
-		int topDelta);
-	void applyAdditionalScroll(int additionalScroll);
-	int scrollTillBottom(int forHeight) const;
-	rpl::producer<int> scrollTillBottomChanges() const;
+		// When resizing the widget with top edge moved up or down and we
+		// want to add this top movement to the scroll position, so inner
+		// content will not move.
+		void setGeometryWithTopMoved(
+			const QRect& newGeometry,
+			int topDelta);
+		void applyAdditionalScroll(int additionalScroll);
+		int scrollTillBottom(int forHeight) const;
+		rpl::producer<int> scrollTillBottomChanges() const;
 
-	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e);
-	QRect rectForFloatPlayer() const;
+		// Float player interface.
+		bool wheelEventFromFloatPlayer(QEvent* e);
+		QRect rectForFloatPlayer() const;
 
-	virtual rpl::producer<SelectedItems> selectedListValue() const;
-	virtual void cancelSelection() {
-	}
+		virtual rpl::producer<SelectedItems> selectedListValue() const;
 
-	virtual rpl::producer<bool> canSaveChanges() const;
-	virtual void saveChanges(FnMut<void()> done);
+		virtual void cancelSelection()
+		{
+		}
 
-protected:
-	template <typename Widget>
-	Widget *setInnerWidget(object_ptr<Widget> inner) {
-		return static_cast<Widget*>(
-			doSetInnerWidget(std::move(inner)));
-	}
+		virtual rpl::producer<bool> canSaveChanges() const;
+		virtual void saveChanges(FnMut<void()> done);
 
-	not_null<Controller*> controller() const {
-		return _controller;
-	}
+	protected:
+		template <typename Widget>
+		Widget* setInnerWidget(object_ptr<Widget> inner)
+		{
+			return static_cast<Widget*>(
+				doSetInnerWidget(std::move(inner)));
+		}
 
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
+		not_null<Controller*> controller() const
+		{
+			return _controller;
+		}
 
-	void setScrollTopSkip(int scrollTopSkip);
-	int scrollTopSave() const;
-	void scrollTopRestore(int scrollTop);
-	void scrollTo(const Ui::ScrollToRequest &request);
+		void resizeEvent(QResizeEvent* e) override;
+		void paintEvent(QPaintEvent* e) override;
 
-private:
-	RpWidget *doSetInnerWidget(object_ptr<RpWidget> inner);
-	void updateControlsGeometry();
-	void refreshSearchField(bool shown);
+		void setScrollTopSkip(int scrollTopSkip);
+		int scrollTopSave() const;
+		void scrollTopRestore(int scrollTop);
+		void scrollTo(const Ui::ScrollToRequest& request);
 
-	virtual std::unique_ptr<ContentMemento> doCreateMemento() = 0;
+	private:
+		RpWidget* doSetInnerWidget(object_ptr<RpWidget> inner);
+		void updateControlsGeometry();
+		void refreshSearchField(bool shown);
 
-	const not_null<Controller*> _controller;
+		virtual std::unique_ptr<ContentMemento> doCreateMemento() = 0;
 
-	style::color _bg;
-	rpl::variable<int> _scrollTopSkip = -1;
-	rpl::event_stream<int> _scrollTillBottomChanges;
-	object_ptr<Ui::ScrollArea> _scroll;
-	Ui::PaddingWrap<Ui::RpWidget> *_innerWrap = nullptr;
-	base::unique_qptr<Ui::RpWidget> _searchWrap = nullptr;
-	QPointer<Ui::InputField> _searchField;
-	int _innerDesiredHeight = 0;
+		const not_null<Controller*> _controller;
 
-	// Saving here topDelta in setGeometryWithTopMoved() to get it passed to resizeEvent().
-	int _topDelta = 0;
+		style::color _bg;
+		rpl::variable<int> _scrollTopSkip = -1;
+		rpl::event_stream<int> _scrollTillBottomChanges;
+		object_ptr<Ui::ScrollArea> _scroll;
+		Ui::PaddingWrap<Ui::RpWidget>* _innerWrap = nullptr;
+		base::unique_qptr<Ui::RpWidget> _searchWrap = nullptr;
+		QPointer<Ui::InputField> _searchField;
+		int _innerDesiredHeight = 0;
 
-};
+		// Saving here topDelta in setGeometryWithTopMoved() to get it passed to resizeEvent().
+		int _topDelta = 0;
+	};
 
-class ContentMemento {
-public:
-	ContentMemento(PeerId peerId, PeerId migratedPeerId)
-	: _peerId(peerId)
-	, _migratedPeerId(migratedPeerId) {
-	}
-	//explicit ContentMemento(not_null<Data::Feed*> feed) : _feed(feed) { // #feed
-	//}
-	explicit ContentMemento(Settings::Tag settings);
+	class ContentMemento
+	{
+	public:
+		ContentMemento(PeerId peerId, PeerId migratedPeerId) :
+			_peerId(peerId)
+			, _migratedPeerId(migratedPeerId)
+		{
+		}
 
-	virtual object_ptr<ContentWidget> createWidget(
-		QWidget *parent,
-		not_null<Controller*> controller,
-		const QRect &geometry) = 0;
+		//explicit ContentMemento(not_null<Data::Feed*> feed) : _feed(feed) { // #feed
+		//}
+		explicit ContentMemento(Settings::Tag settings);
 
-	PeerId peerId() const {
-		return _peerId;
-	}
-	PeerId migratedPeerId() const {
-		return _migratedPeerId;
-	}
-	//Data::Feed *feed() const { // #feed
-	//	return _feed;
-	//}
-	UserData *settingsSelf() const {
-		return _settingsSelf;
-	}
-	Key key() const;
+		virtual object_ptr<ContentWidget> createWidget(
+			QWidget* parent,
+			not_null<Controller*> controller,
+			const QRect& geometry) = 0;
 
-	virtual Section section() const = 0;
+		PeerId peerId() const
+		{
+			return _peerId;
+		}
 
-	virtual ~ContentMemento() = default;
+		PeerId migratedPeerId() const
+		{
+			return _migratedPeerId;
+		}
 
-	void setScrollTop(int scrollTop) {
-		_scrollTop = scrollTop;
-	}
-	int scrollTop() const {
-		return _scrollTop;
-	}
-	void setSearchFieldQuery(const QString &query) {
-		_searchFieldQuery = query;
-	}
-	QString searchFieldQuery() const {
-		return _searchFieldQuery;
-	}
-	void setSearchEnabledByContent(bool enabled) {
-		_searchEnabledByContent = enabled;
-	}
-	bool searchEnabledByContent() const {
-		return _searchEnabledByContent;
-	}
-	void setSearchStartsFocused(bool focused) {
-		_searchStartsFocused = focused;
-	}
-	bool searchStartsFocused() const {
-		return _searchStartsFocused;
-	}
+		//Data::Feed *feed() const { // #feed
+		//	return _feed;
+		//}
+		UserData* settingsSelf() const
+		{
+			return _settingsSelf;
+		}
 
-private:
-	const PeerId _peerId = 0;
-	const PeerId _migratedPeerId = 0;
-	//Data::Feed * const _feed = nullptr; // #feed
-	UserData * const _settingsSelf = nullptr;
-	int _scrollTop = 0;
-	QString _searchFieldQuery;
-	bool _searchEnabledByContent = false;
-	bool _searchStartsFocused = false;
+		Key key() const;
 
-};
+		virtual Section section() const = 0;
 
+		virtual ~ContentMemento() = default;
+
+		void setScrollTop(int scrollTop)
+		{
+			_scrollTop = scrollTop;
+		}
+
+		int scrollTop() const
+		{
+			return _scrollTop;
+		}
+
+		void setSearchFieldQuery(const QString& query)
+		{
+			_searchFieldQuery = query;
+		}
+
+		QString searchFieldQuery() const
+		{
+			return _searchFieldQuery;
+		}
+
+		void setSearchEnabledByContent(bool enabled)
+		{
+			_searchEnabledByContent = enabled;
+		}
+
+		bool searchEnabledByContent() const
+		{
+			return _searchEnabledByContent;
+		}
+
+		void setSearchStartsFocused(bool focused)
+		{
+			_searchStartsFocused = focused;
+		}
+
+		bool searchStartsFocused() const
+		{
+			return _searchStartsFocused;
+		}
+
+	private:
+		const PeerId _peerId = 0;
+		const PeerId _migratedPeerId = 0;
+		//Data::Feed * const _feed = nullptr; // #feed
+		UserData* const _settingsSelf = nullptr;
+		int _scrollTop = 0;
+		QString _searchFieldQuery;
+		bool _searchEnabledByContent = false;
+		bool _searchStartsFocused = false;
+	};
 } // namespace Info

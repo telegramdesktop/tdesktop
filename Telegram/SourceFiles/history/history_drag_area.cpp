@@ -22,13 +22,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "ui/widgets/shadow.h"
 
-DragArea::DragArea(QWidget *parent) : TWidget(parent) {
+DragArea::DragArea(QWidget* parent) :
+	TWidget(parent)
+{
 	setMouseTracking(true);
 	setAcceptDrops(true);
 }
 
-bool DragArea::overlaps(const QRect &globalRect) {
-	if (isHidden() || _a_opacity.animating()) {
+bool DragArea::overlaps(const QRect& globalRect)
+{
+	if (isHidden() || _a_opacity.animating())
+	{
 		return false;
 	}
 
@@ -39,44 +43,55 @@ bool DragArea::overlaps(const QRect &globalRect) {
 }
 
 
-void DragArea::mouseMoveEvent(QMouseEvent *e) {
+void DragArea::mouseMoveEvent(QMouseEvent* e)
+{
 	if (_hiding) return;
 
 	auto in = QRect(st::dragPadding.left(), st::dragPadding.top(), width() - st::dragPadding.left() - st::dragPadding.right(), height() - st::dragPadding.top() - st::dragPadding.bottom()).contains(e->pos());
 	setIn(in);
 }
 
-void DragArea::dragMoveEvent(QDragMoveEvent *e) {
+void DragArea::dragMoveEvent(QDragMoveEvent* e)
+{
 	QRect r(st::dragPadding.left(), st::dragPadding.top(), width() - st::dragPadding.left() - st::dragPadding.right(), height() - st::dragPadding.top() - st::dragPadding.bottom());
 	setIn(r.contains(e->pos()));
 	e->setDropAction(_in ? Qt::CopyAction : Qt::IgnoreAction);
 	e->accept();
 }
 
-void DragArea::setIn(bool in) {
-	if (_in != in) {
+void DragArea::setIn(bool in)
+{
+	if (_in != in)
+	{
 		_in = in;
-		_a_in.start([this] { update(); }, _in ? 0. : 1., _in ? 1. : 0., st::boxDuration);
+		_a_in.start([this]
+		{
+			update();
+		}, _in ? 0. : 1., _in ? 1. : 0., st::boxDuration);
 	}
 }
 
-void DragArea::setText(const QString &text, const QString &subtext) {
+void DragArea::setText(const QString& text, const QString& subtext)
+{
 	_text = text;
 	_subtext = subtext;
 	update();
 }
 
-void DragArea::paintEvent(QPaintEvent *e) {
+void DragArea::paintEvent(QPaintEvent* e)
+{
 	Painter p(this);
 
 	auto opacity = _a_opacity.value(_hiding ? 0. : 1.);
-	if (!_a_opacity.animating() && _hiding) {
+	if (!_a_opacity.animating() && _hiding)
+	{
 		return;
 	}
 	p.setOpacity(opacity);
 	auto inner = innerRect();
 
-	if (!_cache.isNull()) {
+	if (!_cache.isNull())
+	{
 		p.drawPixmapLeft(inner.x() - st::boxRoundShadow.extend.left(), inner.y() - st::boxRoundShadow.extend.top(), width(), _cache);
 		return;
 	}
@@ -93,76 +108,99 @@ void DragArea::paintEvent(QPaintEvent *e) {
 	p.drawText(QRect(0, (height() + st::dragHeight) / 2 - st::dragSubfont->height, width(), st::dragSubfont->height * 2), _subtext, QTextOption(style::al_top));
 }
 
-void DragArea::dragEnterEvent(QDragEnterEvent *e) {
+void DragArea::dragEnterEvent(QDragEnterEvent* e)
+{
 	static_cast<HistoryWidget*>(parentWidget())->dragEnterEvent(e);
 	e->setDropAction(Qt::IgnoreAction);
 	e->accept();
 }
 
-void DragArea::dragLeaveEvent(QDragLeaveEvent *e) {
+void DragArea::dragLeaveEvent(QDragLeaveEvent* e)
+{
 	static_cast<HistoryWidget*>(parentWidget())->dragLeaveEvent(e);
 	setIn(false);
 }
 
-void DragArea::dropEvent(QDropEvent *e) {
+void DragArea::dropEvent(QDropEvent* e)
+{
 	static_cast<HistoryWidget*>(parentWidget())->dropEvent(e);
-	if (e->isAccepted() && _droppedCallback) {
+	if (e->isAccepted() && _droppedCallback)
+	{
 		_droppedCallback(e->mimeData());
 	}
 }
 
-void DragArea::otherEnter() {
+void DragArea::otherEnter()
+{
 	showStart();
 }
 
-void DragArea::otherLeave() {
+void DragArea::otherLeave()
+{
 	hideStart();
 }
 
-void DragArea::hideFast() {
+void DragArea::hideFast()
+{
 	_a_opacity.stop();
 	hide();
 }
 
-void DragArea::hideStart() {
-	if (_hiding || isHidden()) {
+void DragArea::hideStart()
+{
+	if (_hiding || isHidden())
+	{
 		return;
 	}
-	if (_cache.isNull()) {
+	if (_cache.isNull())
+	{
 		_cache = Ui::GrabWidget(
 			this,
 			innerRect().marginsAdded(st::boxRoundShadow.extend));
 	}
 	_hiding = true;
 	setIn(false);
-	_a_opacity.start([this] { opacityAnimationCallback(); }, 1., 0., st::boxDuration);
+	_a_opacity.start([this]
+	{
+		opacityAnimationCallback();
+	}, 1., 0., st::boxDuration);
 }
 
-void DragArea::hideFinish() {
+void DragArea::hideFinish()
+{
 	hide();
 	_in = false;
 	_a_in.stop();
 }
 
-void DragArea::showStart() {
-	if (!_hiding && !isHidden()) {
+void DragArea::showStart()
+{
+	if (!_hiding && !isHidden())
+	{
 		return;
 	}
 	_hiding = false;
-	if (_cache.isNull()) {
+	if (_cache.isNull())
+	{
 		_cache = Ui::GrabWidget(
 			this,
 			innerRect().marginsAdded(st::boxRoundShadow.extend));
 	}
 	show();
-	_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::boxDuration);
+	_a_opacity.start([this]
+	{
+		opacityAnimationCallback();
+	}, 0., 1., st::boxDuration);
 }
 
-void DragArea::opacityAnimationCallback() {
+void DragArea::opacityAnimationCallback()
+{
 	update();
-	if (!_a_opacity.animating()) {
+	if (!_a_opacity.animating())
+	{
 		_cache = QPixmap();
-		if (_hiding) {
+		if (_hiding)
+		{
 			hideFinish();
 		}
 	}

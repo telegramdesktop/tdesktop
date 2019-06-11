@@ -7,42 +7,51 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/click_handler.h"
 
-ClickHandlerHost::~ClickHandlerHost() {
+ClickHandlerHost::~ClickHandlerHost()
+{
 	ClickHandler::hostDestroyed(this);
 }
 
 NeverFreedPointer<ClickHandlerPtr> ClickHandler::_active;
 NeverFreedPointer<ClickHandlerPtr> ClickHandler::_pressed;
-ClickHandlerHost *ClickHandler::_activeHost = nullptr;
-ClickHandlerHost *ClickHandler::_pressedHost = nullptr;
+ClickHandlerHost* ClickHandler::_activeHost = nullptr;
+ClickHandlerHost* ClickHandler::_pressedHost = nullptr;
 
-bool ClickHandler::setActive(const ClickHandlerPtr &p, ClickHandlerHost *host) {
-	if ((_active && (*_active == p)) || (!_active && !p)) {
+bool ClickHandler::setActive(const ClickHandlerPtr& p, ClickHandlerHost* host)
+{
+	if ((_active && (*_active == p)) || (!_active && !p))
+	{
 		return false;
 	}
 
 	// emit clickHandlerActiveChanged only when there is no
 	// other pressed click handler currently, if there is
 	// this method will be called when it is unpressed
-	if (_active && *_active) {
+	if (_active && *_active)
+	{
 		const auto emitClickHandlerActiveChanged = false
 			|| !_pressed
 			|| !*_pressed
 			|| (*_pressed == *_active);
 		const auto wasactive = base::take(*_active);
-		if (_activeHost) {
-			if (emitClickHandlerActiveChanged) {
+		if (_activeHost)
+		{
+			if (emitClickHandlerActiveChanged)
+			{
 				_activeHost->clickHandlerActiveChanged(wasactive, false);
 			}
 			_activeHost = nullptr;
 		}
 	}
-	if (p) {
+	if (p)
+	{
 		_active.createIfNull();
 		*_active = p;
-		if ((_activeHost = host)) {
+		if ((_activeHost = host))
+		{
 			bool emitClickHandlerActiveChanged = (!_pressed || !*_pressed || *_pressed == *_active);
-			if (emitClickHandlerActiveChanged) {
+			if (emitClickHandlerActiveChanged)
+			{
 				_activeHost->clickHandlerActiveChanged(*_active, true);
 			}
 		}
@@ -50,6 +59,7 @@ bool ClickHandler::setActive(const ClickHandlerPtr &p, ClickHandlerHost *host) {
 	return true;
 }
 
-auto ClickHandler::getTextEntity() const -> TextEntity {
-	return { EntityType::Invalid };
+auto ClickHandler::getTextEntity() const -> TextEntity
+{
+	return {EntityType::Invalid};
 }

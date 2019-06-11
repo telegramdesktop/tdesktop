@@ -11,20 +11,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class AuthSession;
 
-namespace Data {
-class Session;
+namespace Data
+{
+	class Session;
 } // namespace Data
 
-class PhotoData {
+class PhotoData
+{
 public:
 	PhotoData(not_null<Data::Session*> owner, PhotoId id);
 
-	[[nodiscard]] Data::Session &owner() const;
-	[[nodiscard]] AuthSession &session() const;
+	[[nodiscard]] Data::Session& owner() const;
+	[[nodiscard]] AuthSession& session() const;
 
 	void automaticLoad(
 		Data::FileOrigin origin,
-		const HistoryItem *item);
+		const HistoryItem* item);
 	void automaticLoadSettingsChanged();
 
 	void download(Data::FileOrigin origin);
@@ -40,15 +42,15 @@ public:
 	[[nodiscard]] bool waitingForAlbum() const;
 
 	void unload();
-	[[nodiscard]] Image *getReplyPreview(Data::FileOrigin origin);
+	[[nodiscard]] Image* getReplyPreview(Data::FileOrigin origin);
 
 	void setRemoteLocation(
 		int32 dc,
 		uint64 access,
-		const QByteArray &fileReference);
+		const QByteArray& fileReference);
 	[[nodiscard]] MTPInputPhoto mtpInput() const;
 	[[nodiscard]] QByteArray fileReference() const;
-	void refreshFileReference(const QByteArray &value);
+	void refreshFileReference(const QByteArray& value);
 
 	// When we have some client-side generated photo
 	// (for example for displaying an external inline bot result)
@@ -60,7 +62,7 @@ public:
 
 	void loadThumbnail(Data::FileOrigin origin);
 	void loadThumbnailSmall(Data::FileOrigin origin);
-	Image *thumbnailInline() const;
+	Image* thumbnailInline() const;
 	not_null<Image*> thumbnailSmall() const;
 	not_null<Image*> thumbnail() const;
 
@@ -81,7 +83,7 @@ public:
 	TimeId date = 0;
 	bool hasSticker = false;
 
-	PeerData *peer = nullptr; // for chat and channel photos connection
+	PeerData* peer = nullptr; // for chat and channel photos connection
 	// geo, caption
 
 	std::unique_ptr<Data::UploadState> uploadingData;
@@ -98,55 +100,59 @@ private:
 	Data::ReplyPreview _replyPreview;
 
 	not_null<Data::Session*> _owner;
-
 };
 
-class PhotoClickHandler : public FileClickHandler {
+class PhotoClickHandler : public FileClickHandler
+{
 public:
 	PhotoClickHandler(
 		not_null<PhotoData*> photo,
 		FullMsgId context = FullMsgId(),
-		PeerData *peer = nullptr)
-	: FileClickHandler(context)
-	, _photo(photo)
-	, _peer(peer) {
+		PeerData* peer = nullptr) :
+		FileClickHandler(context)
+		, _photo(photo)
+		, _peer(peer)
+	{
 	}
-	not_null<PhotoData*> photo() const {
+
+	not_null<PhotoData*> photo() const
+	{
 		return _photo;
 	}
-	PeerData *peer() const {
+
+	PeerData* peer() const
+	{
 		return _peer;
 	}
 
 private:
 	not_null<PhotoData*> _photo;
-	PeerData *_peer = nullptr;
-
+	PeerData* _peer = nullptr;
 };
 
-class PhotoOpenClickHandler : public PhotoClickHandler {
+class PhotoOpenClickHandler : public PhotoClickHandler
+{
 public:
 	using PhotoClickHandler::PhotoClickHandler;
 
 protected:
 	void onClickImpl() const override;
-
 };
 
-class PhotoSaveClickHandler : public PhotoClickHandler {
+class PhotoSaveClickHandler : public PhotoClickHandler
+{
 public:
 	using PhotoClickHandler::PhotoClickHandler;
 
 protected:
 	void onClickImpl() const override;
-
 };
 
-class PhotoCancelClickHandler : public PhotoClickHandler {
+class PhotoCancelClickHandler : public PhotoClickHandler
+{
 public:
 	using PhotoClickHandler::PhotoClickHandler;
 
 protected:
 	void onClickImpl() const override;
-
 };

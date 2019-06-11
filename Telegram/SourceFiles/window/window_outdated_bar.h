@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Ui {
-class RpWidget;
+namespace Ui
+{
+	class RpWidget;
 } // namespace Ui
 
-namespace Window {
-
-object_ptr<Ui::RpWidget> CreateOutdatedBar(not_null<QWidget*> parent);
-
+namespace Window
+{
+	object_ptr<Ui::RpWidget> CreateOutdatedBar(not_null<QWidget*> parent);
 } // namespace Window

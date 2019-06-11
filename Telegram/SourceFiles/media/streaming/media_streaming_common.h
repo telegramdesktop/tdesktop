@@ -7,136 +7,156 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Media {
+namespace Media
+{
+	constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
+	constexpr auto kDurationMax = crl::time(std::numeric_limits<int>::max());
+	constexpr auto kDurationUnavailable = std::numeric_limits<crl::time>::max();
 
-constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
-constexpr auto kDurationMax = crl::time(std::numeric_limits<int>::max());
-constexpr auto kDurationUnavailable = std::numeric_limits<crl::time>::max();
+	namespace Audio
+	{
+		bool SupportsSpeedControl();
+	} // namespace Audio
 
-namespace Audio {
-bool SupportsSpeedControl();
-} // namespace Audio
+	namespace Streaming
+	{
+		inline bool SupportsSpeedControl()
+		{
+			return Media::Audio::SupportsSpeedControl();
+		}
 
-namespace Streaming {
+		class VideoTrack;
+		class AudioTrack;
 
-inline bool SupportsSpeedControl() {
-	return Media::Audio::SupportsSpeedControl();
-}
+		enum class Mode
+		{
+			Both,
+			Audio,
+			Video,
+			Inspection,
+		};
 
-class VideoTrack;
-class AudioTrack;
+		struct PlaybackOptions
+		{
+			Mode mode = Mode::Both;
+			crl::time position = 0;
+			float64 speed = 1.; // Valid values between 0.5 and 2.
+			AudioMsgId audioId;
+			bool syncVideoByAudio = true;
+			bool dropStaleFrames = true;
+			bool loop = false;
+		};
 
-enum class Mode {
-	Both,
-	Audio,
-	Video,
-	Inspection,
-};
+		struct TrackState
+		{
+			crl::time position = kTimeUnknown;
+			crl::time receivedTill = kTimeUnknown;
+			crl::time duration = kTimeUnknown;
+		};
 
-struct PlaybackOptions {
-	Mode mode = Mode::Both;
-	crl::time position = 0;
-	float64 speed = 1.; // Valid values between 0.5 and 2.
-	AudioMsgId audioId;
-	bool syncVideoByAudio = true;
-	bool dropStaleFrames = true;
-	bool loop = false;
-};
+		struct VideoInformation
+		{
+			TrackState state;
+			QSize size;
+			QImage cover;
+			int rotation = 0;
+		};
 
-struct TrackState {
-	crl::time position = kTimeUnknown;
-	crl::time receivedTill = kTimeUnknown;
-	crl::time duration = kTimeUnknown;
-};
+		struct AudioInformation
+		{
+			TrackState state;
+		};
 
-struct VideoInformation {
-	TrackState state;
-	QSize size;
-	QImage cover;
-	int rotation = 0;
-};
+		struct Information
+		{
+			VideoInformation video;
+			AudioInformation audio;
+			int headerSize = 0;
+		};
 
-struct AudioInformation {
-	TrackState state;
-};
+		template <typename Track>
+		struct PreloadedUpdate
+		{
+			crl::time till = kTimeUnknown;
+		};
 
-struct Information {
-	VideoInformation video;
-	AudioInformation audio;
-	int headerSize = 0;
-};
+		template <typename Track>
+		struct PlaybackUpdate
+		{
+			crl::time position = kTimeUnknown;
+		};
 
-template <typename Track>
-struct PreloadedUpdate {
-	crl::time till = kTimeUnknown;
-};
+		using PreloadedVideo = PreloadedUpdate<VideoTrack>;
+		using UpdateVideo = PlaybackUpdate<VideoTrack>;
+		using PreloadedAudio = PreloadedUpdate<AudioTrack>;
+		using UpdateAudio = PlaybackUpdate<AudioTrack>;
 
-template <typename Track>
-struct PlaybackUpdate {
-	crl::time position = kTimeUnknown;
-};
+		struct WaitingForData
+		{
+			bool waiting = false;
+		};
 
-using PreloadedVideo = PreloadedUpdate<VideoTrack>;
-using UpdateVideo = PlaybackUpdate<VideoTrack>;
-using PreloadedAudio = PreloadedUpdate<AudioTrack>;
-using UpdateAudio = PlaybackUpdate<AudioTrack>;
+		struct MutedByOther
+		{
+		};
 
-struct WaitingForData {
-	bool waiting = false;
-};
+		struct Finished
+		{
+		};
 
-struct MutedByOther {
-};
+		struct Update
+		{
+			base::variant<
+				Information,
+				PreloadedVideo,
+				UpdateVideo,
+				PreloadedAudio,
+				UpdateAudio,
+				WaitingForData,
+				MutedByOther,
+				Finished> data;
+		};
 
-struct Finished {
-};
+		enum class Error
+		{
+			OpenFailed,
+			LoadFailed,
+			InvalidData,
+			NotStreamable,
+		};
 
-struct Update {
-	base::variant<
-		Information,
-		PreloadedVideo,
-		UpdateVideo,
-		PreloadedAudio,
-		UpdateAudio,
-		WaitingForData,
-		MutedByOther,
-		Finished> data;
-};
+		struct FrameRequest
+		{
+			QSize resize;
+			QSize outer;
+			ImageRoundRadius radius = ImageRoundRadius();
+			RectParts corners = RectPart::AllCorners;
+			bool strict = true;
 
-enum class Error {
-	OpenFailed,
-	LoadFailed,
-	InvalidData,
-	NotStreamable,
-};
+			static FrameRequest NonStrict()
+			{
+				auto result = FrameRequest();
+				result.strict = false;
+				return result;
+			}
 
-struct FrameRequest {
-	QSize resize;
-	QSize outer;
-	ImageRoundRadius radius = ImageRoundRadius();
-	RectParts corners = RectPart::AllCorners;
-	bool strict = true;
+			bool empty() const
+			{
+				return resize.isEmpty();
+			}
 
-	static FrameRequest NonStrict() {
-		auto result = FrameRequest();
-		result.strict = false;
-		return result;
-	}
+			bool operator==(const FrameRequest& other) const
+			{
+				return (resize == other.resize)
+					&& (outer == other.outer)
+					&& (radius == other.radius)
+					&& (corners == other.corners);
+			}
 
-	bool empty() const {
-		return resize.isEmpty();
-	}
-
-	bool operator==(const FrameRequest &other) const {
-		return (resize == other.resize)
-			&& (outer == other.outer)
-			&& (radius == other.radius)
-			&& (corners == other.corners);
-	}
-	bool operator!=(const FrameRequest &other) const {
-		return !(*this == other);
-	}
-};
-
-} // namespace Streaming
+			bool operator!=(const FrameRequest& other) const
+			{
+				return !(*this == other);
+			}
+		};
+	} // namespace Streaming
 } // namespace Media

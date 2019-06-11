@@ -10,62 +10,69 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/basic_types.h"
 #include "base/assertion.h"
 
-namespace Core {
-class Launcher;
+namespace Core
+{
+	class Launcher;
 } // namespace Core
 
-namespace Logs {
+namespace Logs
+{
+	void SetDebugEnabled(bool enabled);
+	bool DebugEnabled();
 
-void SetDebugEnabled(bool enabled);
-bool DebugEnabled();
+	void start(not_null<Core::Launcher*> launcher);
+	bool started();
+	void finish();
 
-void start(not_null<Core::Launcher*> launcher);
-bool started();
-void finish();
+	bool instanceChecked();
+	void multipleInstances();
 
-bool instanceChecked();
-void multipleInstances();
+	void closeMain();
 
-void closeMain();
+	void writeMain(const QString& v);
 
-void writeMain(const QString &v);
+	void writeDebug(const char* file, int32 line, const QString& v);
+	void writeTcp(const QString& v);
+	void writeMtp(int32 dc, const QString& v);
 
-void writeDebug(const char *file, int32 line, const QString &v);
-void writeTcp(const QString &v);
-void writeMtp(int32 dc, const QString &v);
+	QString full();
 
-QString full();
-
-inline const char *b(bool v) {
-	return v ? "[TRUE]" : "[FALSE]";
-}
-
-struct MemoryBuffer {
-	MemoryBuffer(const void *ptr, uint32 size) : p(ptr), s(size) {
+	inline const char* b(bool v)
+	{
+		return v ? "[TRUE]" : "[FALSE]";
 	}
-	QString str() const {
-		QString result;
-		const uchar *buf((const uchar*)p);
-		const char *hex = "0123456789ABCDEF";
-		result.reserve(s * 3);
-		for (uint32 i = 0; i < s; ++i) {
-			result += hex[(buf[i] >> 4)];
-			result += hex[buf[i] & 0x0F];
-			result += ' ';
+
+	struct MemoryBuffer
+	{
+		MemoryBuffer(const void* ptr, uint32 size) :
+			p(ptr), s(size)
+		{
 		}
-		result.chop(1);
-		return result;
+
+		QString str() const
+		{
+			QString result;
+			const uchar* buf((const uchar*)p);
+			const char* hex = "0123456789ABCDEF";
+			result.reserve(s * 3);
+			for (uint32 i = 0; i < s; ++i)
+			{
+				result += hex[(buf[i] >> 4)];
+				result += hex[buf[i] & 0x0F];
+				result += ' ';
+			}
+			result.chop(1);
+			return result;
+		}
+
+		const void* p;
+		uint32 s;
+	};
+
+	inline MemoryBuffer mb(const void* ptr, uint32 size)
+	{
+		return MemoryBuffer(ptr, size);
 	}
-
-	const void *p;
-	uint32 s;
-
-};
-
-inline MemoryBuffer mb(const void *ptr, uint32 size) {
-	return MemoryBuffer(ptr, size);
-}
-
 } // namespace Logs
 
 #define LOG(msg) (Logs::writeMain(QString msg))

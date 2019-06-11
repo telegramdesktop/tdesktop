@@ -14,48 +14,64 @@ struct HistoryMessageVia;
 struct HistoryMessageReply;
 struct HistoryMessageForwarded;
 
-namespace Lottie {
-class Animation;
+namespace Lottie
+{
+	class Animation;
 } // namespace Lottie
 
-class HistorySticker : public HistoryMedia {
+class HistorySticker : public HistoryMedia
+{
 public:
 	HistorySticker(
 		not_null<Element*> parent,
 		not_null<DocumentData*> document);
 	~HistorySticker();
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
+	void draw(Painter& p, const QRect& r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
-	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
-		return true;
-	}
-	bool dragItem() const override {
-		return true;
-	}
-	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
+	bool toggleSelectionByHandlerClick(const ClickHandlerPtr& p) const override
+	{
 		return true;
 	}
 
-	DocumentData *getDocument() const override {
+	bool dragItem() const override
+	{
+		return true;
+	}
+
+	bool dragItemByHandler(const ClickHandlerPtr& p) const override
+	{
+		return true;
+	}
+
+	DocumentData* getDocument() const override
+	{
 		return _data;
 	}
 
-	bool needsBubble() const override {
+	bool needsBubble() const override
+	{
 		return false;
 	}
-	bool customInfoLayout() const override {
-		return true;
-	}
-	QString emoji() const {
-		return _emoji;
-	}
-	bool hidesForwardedInfo() const override {
+
+	bool customInfoLayout() const override
+	{
 		return true;
 	}
 
-	void unloadHeavyPart() override {
+	QString emoji() const
+	{
+		return _emoji;
+	}
+
+	bool hidesForwardedInfo() const override
+	{
+		return true;
+	}
+
+	void unloadHeavyPart() override
+	{
 		unloadLottie();
 	}
 
@@ -64,7 +80,7 @@ private:
 	QSize countCurrentSize(int newWidth) override;
 
 	bool needInfoDisplay() const;
-	int additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const;
+	int additionalWidth(const HistoryMessageVia* via, const HistoryMessageReply* reply) const;
 	int additionalWidth() const;
 
 	void setupLottie();
@@ -77,5 +93,4 @@ private:
 	QString _emoji;
 	std::unique_ptr<Lottie::Animation> _lottie;
 	rpl::lifetime _lifetime;
-
 };
