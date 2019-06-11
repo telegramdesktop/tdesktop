@@ -4218,7 +4218,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const auto &d = update.c_updatePeerSettings();
 		const auto peerId = peerFromMTP(d.vpeer);
 		if (const auto peer = session().data().peerLoaded(peerId)) {
-			//peer->updateSettings(d.vsettings);
+			const auto settings = d.vsettings.match([](
+					const MTPDpeerSettings &data) {
+				return data.vflags.v;
+			});
+			peer->setSettings(settings);
 		}
 	} break;
 

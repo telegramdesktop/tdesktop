@@ -296,6 +296,15 @@ void ContactStatus::setupBlockHandler(not_null<UserData*> peer) {
 }
 
 void ContactStatus::setupShareHandler(not_null<UserData*> peer) {
+	_bar.entity()->shareClicks(
+	) | rpl::start_with_next([=] {
+		peer->setSettings(0);
+		peer->session().api().request(MTPcontacts_AcceptContact(
+			peer->inputUser
+		)).done([=](const MTPUpdates &result) {
+			peer->session().api().applyUpdates(result);
+		}).send();
+	}, _bar.lifetime());
 }
 
 void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
