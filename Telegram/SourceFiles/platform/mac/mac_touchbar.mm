@@ -106,9 +106,7 @@ inline bool IsUserOnline(PeerData *peer) {
 }
 
 inline int UnreadCount(PeerData *peer) {
-	return (peer
-		&& AuthSession::Exists()
-		&& Auth().data().history(peer->id)->unreadCountForBadge());
+	return (peer && peer->owner().history(peer->id)->unreadCountForBadge());
 }
 
 NSString *FormatTime(int time) {
@@ -130,7 +128,7 @@ NSString *FormatTime(int time) {
 }
 
 bool PaintUnreadBadge(Painter &p, PeerData *peer) {
-	const auto history = Auth().data().history(peer->id);
+	const auto history = peer->owner().history(peer->id);
 	const auto count = history->unreadCountForBadge();
 	if (!count) {
 		return false;
@@ -346,8 +344,8 @@ void SendKeyEvent(int command) {
 	// Don't draw self userpic if we pin Saved Messages.
 	if (self.number <= kSavedMessagesId || IsSelfPeer(_peer)) {
 		const auto s = kIdealIconSize * cIntRetinaFactor();
-		auto *pixmap = new QPixmap(s, s);
-		Painter paint(pixmap);
+		_userpic = QPixmap(s, s);
+		Painter paint(&_userpic);
 		paint.fillRect(QRectF(0, 0, s, s), QColor(0, 0, 0, 255));
 
 		if (self.number == kArchiveId) {
@@ -357,8 +355,7 @@ void SendKeyEvent(int command) {
 		} else {
 			Ui::EmptyUserpic::PaintSavedMessages(paint, 0, 0, s, s);
 		}
-		pixmap->setDevicePixelRatio(cRetinaFactor());
-		_userpic = *pixmap;
+		_userpic.setDevicePixelRatio(cRetinaFactor());
 		[self updateImage:_userpic];
 		return;
 	}
