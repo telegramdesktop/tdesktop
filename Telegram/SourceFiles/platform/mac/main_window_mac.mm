@@ -768,7 +768,7 @@ void MainWindow::updateGlobalMenuHook() {
 		canDelete = list->canDeleteSelected();
 	}
 	if (_private->_touchBar) {
-		[_private->_touchBar showInputFieldItems:showTouchBarItem];
+		[_private->_touchBar showInputFieldItem:showTouchBarItem];
 	}
 	App::wnd()->updateIsActive(0);
 	const auto logged = account().sessionExists();

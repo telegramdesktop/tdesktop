@@ -27,6 +27,12 @@
 #include "window/window_session_controller.h"
 #include "ui/empty_userpic.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_settings.h"
+#include "stickers.h"
+#include "data/data_document.h"
+#include "data/data_file_origin.h"
+#include "chat_helpers/stickers_list_widget.h"
+#include "apiwrap.h"
 
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
@@ -34,6 +40,7 @@ namespace {
 //https://developer.apple.com/design/human-interface-guidelines/macos/touch-bar/touch-bar-icons-and-images/
 constexpr auto kIdealIconSize = 36;
 constexpr auto kMaximumIconSize = 44;
+constexpr auto kScrubberHeight = 30;
 
 constexpr auto kCommandPlayPause = 0x002;
 constexpr auto kCommandPlaylistPrevious = 0x003;
@@ -47,6 +54,7 @@ constexpr auto kCommandClear = 0x013;
 constexpr auto kCommandLink = 0x014;
 
 constexpr auto kCommandPopoverInput = 0x020;
+constexpr auto kCommandPopoverStickers = 0x021;
 
 constexpr auto kMs = 1000;
 
@@ -54,6 +62,16 @@ constexpr auto kSongType = AudioMsgId::Type::Song;
 
 constexpr auto kSavedMessagesId = 0;
 constexpr auto kArchiveId = -1;
+
+constexpr auto kMaxStickerSets = 5;
+
+NSString *const kTypePinned = @"pinned";
+NSString *const kTypeSlider = @"slider";
+NSString *const kTypeButton = @"button";
+NSString *const kTypeText = @"text";
+NSString *const kTypeTextButton = @"textButton";
+NSString *const kTypePopover = @"popover";
+NSString *const kTypeScrubber = @"scrubber";
 
 const NSString *kCustomizationIdPlayer = @"telegram.touchbar";
 const NSString *kCustomizationIdMain = @"telegram.touchbarMain";
@@ -75,6 +93,20 @@ const NSTouchBarItemIdentifier kMonospaceItemIdentifier = [NSString stringWithFo
 const NSTouchBarItemIdentifier kClearItemIdentifier = [NSString stringWithFormat:@"%@.clear", kCustomizationIdMain];
 const NSTouchBarItemIdentifier kLinkItemIdentifier = [NSString stringWithFormat:@"%@.link", kCustomizationIdMain];
 
+const NSTouchBarItemIdentifier kPopoverStickersItemIdentifier = [NSString stringWithFormat:@"%@.popoverStickers", kCustomizationIdMain];
+const NSTouchBarItemIdentifier kScrubberStickersItemIdentifier = [NSString stringWithFormat:@"%@.scrubberStickers", kCustomizationIdMain];
+const NSTouchBarItemIdentifier kStickerItemIdentifier = [NSString stringWithFormat:@"%@.stickerItem", kCustomizationIdMain];
+const NSTouchBarItemIdentifier kStickerTitleItemIdentifier = [NSString stringWithFormat:@"%@.stickerTitleItem", kCustomizationIdMain];
+
+struct StickerScrubberItem {
+	StickerScrubberItem(QString title) : title(title) {
+	}
+	StickerScrubberItem(DocumentData* document) : document(document) {
+	}
+	QString title = QString();
+	DocumentData* document = nullptr;
+};
+
 using Platform::Q2NSString;
 
 NSImage *CreateNSImageFromStyleIcon(const style::icon &icon, int size = kIdealIconSize) {
@@ -84,6 +116,19 @@ NSImage *CreateNSImageFromStyleIcon(const style::icon &icon, int size = kIdealIc
 	NSImage *image = [qt_mac_create_nsimage(pixmap) autorelease];
 	[image setSize:NSMakeSize(size, size)];
 	return image;
+}
+
+int WidthFromString(NSString *s) {
+	return (int)ceil(
+		[[NSTextField labelWithString:s] frame].size.width) * 1.2;
+}
+
+NSString *NSStringFromLang(LangKey key) {
+	return [NSString stringWithUTF8String:lang(key).toUtf8().constData()];
+}
+
+NSString *NSStringFromQString(QString s) {
+	return [NSString stringWithUTF8String:s.toUtf8().constData()];
 }
 
 inline bool CurrentSongExists() {
@@ -196,6 +241,64 @@ void SendKeyEvent(int command) {
 	}
 	QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyPress, key, modifier));
 	QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyRelease, key, modifier));
+}
+
+void AppendStickerSet(std::vector<StickerScrubberItem> &to, uint64 setId) {
+	auto &sets = Auth().data().stickerSets();
+	auto it = sets.constFind(setId);
+	if (it == sets.cend() || it->stickers.isEmpty()) {
+		return;
+	}
+	if (it->flags & MTPDstickerSet::Flag::f_archived) {
+		return;
+	}
+	if (!(it->flags & MTPDstickerSet::Flag::f_installed_date)) {
+		return;
+	}
+
+	to.emplace_back(StickerScrubberItem(it->title.isEmpty()
+		? it->shortName
+		: it->title));
+	for (auto sticker : it->stickers) {
+		to.emplace_back(StickerScrubberItem(sticker));
+	}
+}
+
+void AppendRecentStickers(std::vector<StickerScrubberItem> &to) {
+	const auto &sets = Auth().data().stickerSets();
+	const auto cloudIt = sets.constFind(Stickers::CloudRecentSetId);
+	const auto favedIt = sets.constFind(Stickers::FavedSetId);
+	const auto cloudCount = (cloudIt != sets.cend())
+		? cloudIt->stickers.size()
+		: 0;
+	if (cloudCount > 0) {
+		to.emplace_back(StickerScrubberItem(cloudIt->title));
+		auto count = 0;
+		for (const auto document : cloudIt->stickers) {
+			if (Stickers::IsFaved(document)) {
+				continue;
+			}
+			to.emplace_back(StickerScrubberItem(document));
+		}
+	}
+	for (auto recent : Stickers::GetRecentPack()) {
+		to.emplace_back(StickerScrubberItem(recent.first));
+	}
+}
+
+void AppendFavedStickers(std::vector<StickerScrubberItem> &to) {
+	const auto &sets = Auth().data().stickerSets();
+	const auto it = sets.constFind(Stickers::FavedSetId);
+	const auto count = (it != sets.cend())
+		? it->stickers.size()
+		: 0;
+	if (!count) {
+		return;
+	}
+	to.emplace_back(StickerScrubberItem(it->title));
+	for (const auto document : it->stickers) {
+		to.emplace_back(StickerScrubberItem(document));
+	}
 }
 
 } // namespace
@@ -384,6 +487,174 @@ void SendKeyEvent(int command) {
 @end
 
 
+
+@interface StickerScrubberItemView : NSScrubberItemView
+@property (strong) NSImageView *imageView;
+@end
+@implementation StickerScrubberItemView {
+	rpl::lifetime _lifetime;
+	Data::FileOrigin _origin;
+	QSize _dimensions;
+	Image *_image;
+}
+
+- (instancetype)initWithFrame:(NSRect)frameRect {
+	self = [super initWithFrame:frameRect];
+	if (!self) {
+		return self;
+	}
+	_imageView = [NSImageView imageViewWithImage:
+		[[NSImage alloc] initWithSize:frameRect.size]];
+	[self.imageView setAutoresizingMask:
+		(NSAutoresizingMaskOptions)(NSViewWidthSizable | NSViewHeightSizable)];
+	[self addSubview:self.imageView];
+	return self;
+}
+
+- (void)addDocument:(DocumentData *)document {
+	if (!document->sticker()) {
+		return;
+	}
+	_image = document->getStickerSmall();
+	if (!_image) {
+		return;
+	}
+	_dimensions = document->dimensions;
+	_origin = document->stickerSetOrigin();
+	_image->load(_origin);
+	if (_image->loaded()) {
+		[self updateImage];
+		return;
+	}
+
+	base::ObservableViewer(
+		Auth().downloaderTaskFinished()
+	) | rpl::start_with_next([=] {
+		if (_image->loaded()) {
+			[self updateImage];
+			_lifetime.destroy();
+		}
+	}, _lifetime);
+}
+- (void)updateImage {
+	const auto size = _dimensions
+			.scaled(kScrubberHeight, kScrubberHeight, Qt::KeepAspectRatio);
+	_imageView.image = [qt_mac_create_nsimage(
+			_image->pixSingle(
+				_origin,
+				size.width(),
+				size.height(),
+				kScrubberHeight,
+				kScrubberHeight,
+				ImageRoundRadius::None))
+		autorelease];
+}
+@end
+
+
+@interface StickersCustomTouchBarItem: NSCustomTouchBarItem
+	<NSScrubberDelegate,
+	NSScrubberDataSource,
+	NSScrubberFlowLayoutDelegate>
+@end
+
+#pragma mark -
+
+@implementation StickersCustomTouchBarItem {
+	Fn<void()> _stickerSent;
+	std::vector<StickerScrubberItem> _stickers;
+}
+
+- (id) init:(Fn<void()>)stickerSent {
+	self = [super initWithIdentifier:kScrubberStickersItemIdentifier];
+	if (!self) {
+		return self;
+	}
+	_stickerSent = std::move(stickerSent);
+	[self updateStickers];
+
+	NSScrubber *scrubber = [[[NSScrubber alloc] initWithFrame:NSZeroRect] autorelease];
+	NSScrubberFlowLayout *layout = [[[NSScrubberFlowLayout alloc] init] autorelease];
+	layout.itemSpacing = 10;
+	scrubber.scrubberLayout = layout;
+	scrubber.mode = NSScrubberModeFree;
+	scrubber.delegate = self;
+	scrubber.dataSource = self;
+	scrubber.floatsSelectionViews = true;
+	scrubber.showsAdditionalContentIndicators = true;
+	scrubber.itemAlignment = NSScrubberAlignmentCenter;
+	[scrubber registerClass:[StickerScrubberItemView class] forItemIdentifier:kStickerItemIdentifier];
+	[scrubber registerClass:[NSScrubberTextItemView class] forItemIdentifier:kStickerTitleItemIdentifier];
+
+	self.view = scrubber;
+	return self;
+}
+
+- (void)encodeWithCoder:(nonnull NSCoder *)aCoder {
+	// Has not been implemented.
+}
+
+#pragma mark - NSScrubberDelegate
+
+- (NSInteger)numberOfItemsForScrubber:(NSScrubber *)scrubber {
+	return _stickers.size();
+}
+
+- (NSScrubberItemView *)scrubber:(NSScrubber *)scrubber viewForItemAtIndex:(NSInteger)index {
+	const auto document = _stickers[index].document;
+	if (document) {
+		StickerScrubberItemView *itemView = [scrubber makeItemWithIdentifier:kStickerItemIdentifier owner:nil];
+		[itemView addDocument:document];
+		return itemView;
+	} else {
+		NSScrubberTextItemView *itemView = [scrubber makeItemWithIdentifier:kStickerTitleItemIdentifier owner:nil];
+		itemView.textField.stringValue = NSStringFromQString(_stickers[index].title);
+		return itemView;
+	}
+}
+
+- (NSSize)scrubber:(NSScrubber *)scrubber layout:(NSScrubberFlowLayout *)layout sizeForItemAtIndex:(NSInteger)index {
+	if (const auto t = _stickers[index].title; !t.isEmpty()) {
+		return NSMakeSize(
+			WidthFromString(NSStringFromQString(t)) + 20, kScrubberHeight);
+	}
+	return NSMakeSize(kScrubberHeight, kScrubberHeight);
+}
+
+- (void)scrubber:(NSScrubber *)scrubber didSelectItemAtIndex:(NSInteger)index {
+	if (const auto document = _stickers[index].document) {
+		const auto controller = App::wnd()->sessionController();
+		if (const auto history = controller->activeChatCurrent().history()) {
+			Core::Sandbox::Instance().customEnterFromEventLoop([=] {
+				Auth().api().sendExistingDocument(
+					document,
+					document->stickerSetOrigin(),
+					{},
+					ApiWrap::SendOptions(history));
+			});
+			_stickerSent();
+		}
+	}
+}
+
+- (void)updateStickers {
+	std::vector<StickerScrubberItem> temp;
+	temp.reserve(Auth().data().stickerSetsOrder().size() + 3);
+	AppendFavedStickers(temp);
+	AppendRecentStickers(temp);
+	auto count = 0;
+	for (auto setId : Auth().data().stickerSetsOrder()) {
+		AppendStickerSet(temp, setId);
+		if (++count == kMaxStickerSets) {
+			break;
+		}
+	}
+	_stickers = std::move(temp);
+}
+
+@end
+
+
 @interface TouchBar()<NSTouchBarDelegate>
 @end // @interface TouchBar
 
@@ -401,6 +672,7 @@ void SendKeyEvent(int command) {
 	double _position;
 
 	rpl::lifetime _lifetime;
+	rpl::lifetime _lifetimeSessionControllerChecker;
 }
 
 - (id) init:(NSView *)view {
@@ -415,39 +687,39 @@ void SendKeyEvent(int command) {
 	_parentView = view;
 	self.touchBarItems = @{
 		kPinnedPanelItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":  @"pinned",
+			@"type":  kTypePinned,
 		}],
 		kSeekBarItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type": @"slider",
+			@"type": kTypeSlider,
 			@"name": @"Seek Bar"
 		}],
 		kPlayItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":     @"button",
+			@"type":     kTypeButton,
 			@"name":     @"Play Button",
 			@"cmd":      [NSNumber numberWithInt:kCommandPlayPause],
 			@"image":    CreateNSImageFromStyleIcon(st::touchBarIconPlayerPause, iconSize),
 			@"imageAlt": CreateNSImageFromStyleIcon(st::touchBarIconPlayerPlay, iconSize),
 		}],
 		kPreviousItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":  @"button",
+			@"type":  kTypeButton,
 			@"name":  @"Previous Playlist Item",
 			@"cmd":   [NSNumber numberWithInt:kCommandPlaylistPrevious],
 			@"image": CreateNSImageFromStyleIcon(st::touchBarIconPlayerPrevious, iconSize),
 		}],
 		kNextItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":  @"button",
+			@"type":  kTypeButton,
 			@"name":  @"Next Playlist Item",
 			@"cmd":   [NSNumber numberWithInt:kCommandPlaylistNext],
 			@"image": CreateNSImageFromStyleIcon(st::touchBarIconPlayerNext, iconSize),
 		}],
 		kCommandClosePlayerItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":  @"button",
+			@"type":  kTypeButton,
 			@"name":  @"Close Player",
 			@"cmd":   [NSNumber numberWithInt:kCommandClosePlayer],
 			@"image": CreateNSImageFromStyleIcon(st::touchBarIconPlayerClose, iconSize),
 		}],
 		kCurrentPositionItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type": @"text",
+			@"type": kTypeText,
 			@"name": @"Current Position"
 		}],
 		kBoldItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
@@ -476,10 +748,22 @@ void SendKeyEvent(int command) {
 			@"cmd":   [NSNumber numberWithInt:kCommandLink],
 		}],
 		kPopoverInputItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":  @"popover",
+			@"type":  kTypePopover,
 			@"name":  @"Input Field",
 			@"cmd":   [NSNumber numberWithInt:kCommandPopoverInput],
 			@"image": [NSImage imageNamed:NSImageNameTouchBarTextItalicTemplate],
+		}],
+		kPopoverStickersItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+			@"type":  kTypePopover,
+			@"name":  @"Stickers",
+			@"cmd":   [NSNumber numberWithInt:kCommandPopoverStickers],
+			@"image": CreateNSImageFromStyleIcon(st::settingsIconStickers, iconSize * 2),
+		 }],
+		 kScrubberStickersItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+			@"type":  kTypeScrubber,
+			@"name":  @"Stickers",
+			@"cmd":   [NSNumber numberWithInt:kCommandPopoverStickers],
+			@"image": CreateNSImageFromStyleIcon(st::settingsIconStickers, iconSize),
 		}]
 	};
 
@@ -524,6 +808,39 @@ void SendKeyEvent(int command) {
 		[self toggleArchiveButton:folder->chatsList()->empty()];
 	}, _lifetime);
 
+
+	// At the time of this touchbar creation the sessionController does
+	// not yet exist. But at the time of chatsListChanges event
+	// the sessionController is valid and we can work with it.
+	// So _lifetimeSessionControllerChecker is needed only once.
+	Auth().data().chatsListChanges(
+	) | rpl::start_with_next([=] {
+		if (const auto window = App::wnd()) {
+			if (const auto controller = window->sessionController()) {
+				_lifetimeSessionControllerChecker.destroy();
+				controller->activeChatChanges(
+				) | rpl::start_with_next([=](Dialogs::Key key) {
+					const auto show = key.peer()
+						&& key.history()
+						&& key.peer()->canWrite();
+					[self showItem:kPopoverStickersItemIdentifier show:show];
+				}, _lifetime);
+			}
+		}
+	}, _lifetimeSessionControllerChecker);
+
+	Auth().data().stickersUpdated(
+	) | rpl::start_with_next([=] {
+		[self updateStickerTouchBar:
+			[_touchBarMain itemForIdentifier:kPopoverStickersItemIdentifier]];
+	}, _lifetime);
+
+	Auth().data().recentStickersUpdated(
+	) | rpl::start_with_next([=] {
+		[self updateStickerTouchBar:
+			[_touchBarMain itemForIdentifier:kPopoverStickersItemIdentifier]];
+	}, _lifetime);
+
 	[self updatePinnedButtons];
 
 	return self;
@@ -533,7 +850,10 @@ void SendKeyEvent(int command) {
 				 makeItemForIdentifier:(NSTouchBarItemIdentifier)identifier {
 	const id dictionaryItem = self.touchBarItems[identifier];
 	const id type = dictionaryItem[@"type"];
-	if ([type isEqualToString:@"slider"]) {
+	const auto isType = [type](NSString *string) {
+		return [type isEqualToString:string];
+	};
+	if (isType(kTypeSlider)) {
 		NSSliderTouchBarItem *item = [[NSSliderTouchBarItem alloc] initWithIdentifier:identifier];
 		item.slider.minValue = 0.0f;
 		item.slider.maxValue = 1.0f;
@@ -542,24 +862,19 @@ void SendKeyEvent(int command) {
 		item.customizationLabel = dictionaryItem[@"name"];
 		[dictionaryItem setObject:item.slider forKey:@"view"];
 		return item;
-	} else if ([type isEqualToString:@"button"]) {
+	} else if (isType(kTypeButton) || isType(kTypeTextButton)) {
 		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
-		NSImage *image = dictionaryItem[@"image"];
-		NSButton *button = [NSButton buttonWithImage:image target:self action:@selector(buttonAction:)];
+		NSButton *button = isType(kTypeButton)
+			? [NSButton buttonWithImage:dictionaryItem[@"image"]
+				target:self action:@selector(buttonAction:)]
+			: [NSButton buttonWithTitle:dictionaryItem[@"name"]
+				target:self action:@selector(buttonAction:)];
 		button.tag = [dictionaryItem[@"cmd"] intValue];
 		item.view = button;
 		item.customizationLabel = dictionaryItem[@"name"];
 		[dictionaryItem setObject:button forKey:@"view"];
 		return item;
-	} else if ([type isEqualToString:@"textButton"]) {
-		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
-		NSButton *button = [NSButton buttonWithTitle:dictionaryItem[@"name"] target:self action:@selector(buttonAction:)];
-		button.tag = [dictionaryItem[@"cmd"] intValue];
-		item.view = button;
-		item.customizationLabel = dictionaryItem[@"name"];
-		[dictionaryItem setObject:button forKey:@"view"];
-		return item;
-	} else if ([type isEqualToString:@"text"]) {
+	} else if (isType(kTypeText)) {
 		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
 		NSTextField *text = [NSTextField labelWithString:@"00:00 / 00:00"];
 		text.alignment = NSTextAlignmentCenter;
@@ -567,25 +882,34 @@ void SendKeyEvent(int command) {
 		item.customizationLabel = dictionaryItem[@"name"];
 		[dictionaryItem setObject:text forKey:@"view"];
 		return item;
-	} else if ([type isEqualToString:@"popover"]) {
+	} else if (isType(kTypePopover)) {
 		NSPopoverTouchBarItem *item = [[NSPopoverTouchBarItem alloc] initWithIdentifier:identifier];
 		item.collapsedRepresentationImage = dictionaryItem[@"image"];
-
-		NSTouchBar *secondaryTouchBar = [[NSTouchBar alloc] init];
-		secondaryTouchBar.delegate = self;
-		if ([dictionaryItem[@"cmd"] intValue] == kCommandPopoverInput) {
+		const auto command = [dictionaryItem[@"cmd"] intValue];
+		if (command == kCommandPopoverInput) {
+			NSTouchBar *secondaryTouchBar = [[NSTouchBar alloc] init];
+			secondaryTouchBar.delegate = self;
 			secondaryTouchBar.defaultItemIdentifiers = @[
 				kBoldItemIdentifier,
 				kItalicItemIdentifier,
 				kMonospaceItemIdentifier,
 				kLinkItemIdentifier,
 				kClearItemIdentifier];
+			item.pressAndHoldTouchBar = secondaryTouchBar;
+			item.popoverTouchBar = secondaryTouchBar;
+		} else if (command == kCommandPopoverStickers) {
+			[self updateStickerTouchBar:item];
 		}
-
-		item.pressAndHoldTouchBar = secondaryTouchBar;
-		item.popoverTouchBar = secondaryTouchBar;
 		return item;
-	} else if ([type isEqualToString:@"pinned"]) {
+	} else if (isType(kTypeScrubber)) {
+		StickersCustomTouchBarItem *item = [[StickersCustomTouchBarItem alloc]
+			init:[=] {
+				NSPopoverTouchBarItem *item = [_touchBarMain itemForIdentifier:kPopoverStickersItemIdentifier];
+				[item dismissPopover:nil];
+				[self updateStickerTouchBar:item];
+			}];
+		return item;
+	} else if (isType(kTypePinned)) {
 		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
 		_mainPinnedButtons = [[NSMutableArray alloc] init];
 		NSStackView *stackView = [[NSStackView alloc] init];
@@ -655,13 +979,31 @@ void SendKeyEvent(int command) {
 	_touchBarType = type;
 }
 
-- (void) showInputFieldItems:(bool)show {
-	NSMutableArray *items = [NSMutableArray arrayWithObject:kPinnedPanelItemIdentifier];
+- (void) showInputFieldItem:(bool)show {
+	[self showItem:kPopoverInputItemIdentifier show:show];
+}
+
+- (void) showItem:(NSTouchBarItemIdentifier)item show:(bool)show {
+	NSMutableArray *items = [NSMutableArray arrayWithArray:_touchBarMain.defaultItemIdentifiers];
 	if (show) {
-		[items addObject:kPopoverInputItemIdentifier];
-		_touchBarMain.principalItemIdentifier = kPopoverInputItemIdentifier;
+		if (![items containsObject:item]) {
+			[items addObject:item];
+		}
+	} else if ([items containsObject:item]) {
+		[items removeObject:item];
 	}
 	_touchBarMain.defaultItemIdentifiers = items;
+}
+
+- (void) updateStickerTouchBar:(NSPopoverTouchBarItem *)item {
+	NSTouchBar *secondaryTouchBar = [[NSTouchBar alloc] init];
+	secondaryTouchBar.delegate = self;
+	[[StickersCustomTouchBarItem alloc] init:[=] {
+		[item dismissPopover:nil];
+		[self updateStickerTouchBar:item];
+	}];
+	secondaryTouchBar.defaultItemIdentifiers = @[kScrubberStickersItemIdentifier];
+	item.popoverTouchBar = secondaryTouchBar;
 }
 
 // Main Touchbar.
@@ -791,7 +1133,6 @@ void SendKeyEvent(int command) {
 
 	NSString *fString = [[textField.stringValue componentsSeparatedByCharactersInSet:
 		[NSCharacterSet decimalDigitCharacterSet]] componentsJoinedByString:@"0"];
-	NSSize size = [[NSTextField labelWithString:fString] frame].size;
 
 	NSLayoutConstraint *con =
 		[NSLayoutConstraint constraintWithItem:field
@@ -800,7 +1141,7 @@ void SendKeyEvent(int command) {
 										toItem:nil
 									 attribute:NSLayoutAttributeNotAnAttribute
 									multiplier:1.0
-									  constant:(int)ceil(size.width) * 1.2];
+									  constant:WidthFromString(fString)];
 	[field addConstraint:con];
 	[item setObject:con forKey:@"constrain"];
 }

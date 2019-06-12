@@ -1397,6 +1397,14 @@ rpl::producer<> Session::stickersUpdated() const {
 	return _stickersUpdated.events();
 }
 
+void Session::notifyRecentStickersUpdated() {
+	_recentStickersUpdated.fire({});
+}
+
+rpl::producer<> Session::recentStickersUpdated() const {
+	return _recentStickersUpdated.events();
+}
+
 void Session::notifySavedGifsUpdated() {
 	_savedGifsUpdated.fire({});
 }

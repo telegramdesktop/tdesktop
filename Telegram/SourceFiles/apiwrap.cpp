@@ -5229,6 +5229,7 @@ void ApiWrap::sendExistingDocument(
 		main->finishForwarding(history);
 		if (document->sticker()) {
 			main->incrementSticker(document);
+			_session->data().notifyRecentStickersUpdated();
 		}
 	}
 }
