@@ -100,7 +100,7 @@ PeerData::PeerData(not_null<Data::Session*> owner, PeerId id)
 : id(id)
 , _owner(owner)
 , _userpicEmpty(createEmptyUserpic()) {
-	nameText.setText(st::msgNameStyle, QString(), Ui::NameTextOptions());
+	_nameText.setText(st::msgNameStyle, QString(), Ui::NameTextOptions());
 }
 
 Data::Session &PeerData::owner() const {
@@ -134,7 +134,7 @@ void PeerData::updateNameDelayed(
 		}
 	}
 	name = newName;
-	nameText.setText(st::msgNameStyle, name, Ui::NameTextOptions());
+	_nameText.setText(st::msgNameStyle, name, Ui::NameTextOptions());
 	refreshEmptyUserpic();
 	Notify::PeerUpdate update(this);
 	if (nameVersion++ > 1) {
@@ -592,12 +592,22 @@ not_null<const PeerData*> PeerData::migrateToOrMe() const {
 	return this;
 }
 
-const Text &PeerData::dialogName() const {
-	return migrateTo()
-		? migrateTo()->dialogName()
-		: (isUser() && !asUser()->phoneText.isEmpty())
-			? asUser()->phoneText
-			: nameText;
+const Text &PeerData::topBarNameText() const {
+	if (const auto to = migrateTo()) {
+		return to->topBarNameText();
+	} else if (const auto user = asUser()) {
+		if (!user->phoneText.isEmpty()) {
+			return user->phoneText;
+		}
+	}
+	return _nameText;
+}
+
+const Text &PeerData::nameText() const {
+	if (const auto to = migrateTo()) {
+		return to->nameText();
+	}
+	return _nameText;
 }
 
 const QString &PeerData::shortName() const {

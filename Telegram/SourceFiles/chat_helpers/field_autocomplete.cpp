@@ -593,10 +593,13 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 				}
 			}
 			if (!_mrows->isEmpty()) {
-				UserData *user = _mrows->at(i);
-				QString first = (!filterIsEmpty && user->username.startsWith(filter, Qt::CaseInsensitive)) ? ('@' + user->username.mid(0, filterSize)) : QString();
-				QString second = first.isEmpty() ? (user->username.isEmpty() ? QString() : ('@' + user->username)) : user->username.mid(filterSize);
-				int32 firstwidth = st::mentionFont->width(first), secondwidth = st::mentionFont->width(second), unamewidth = firstwidth + secondwidth, namewidth = user->nameText.maxWidth();
+				const auto user = _mrows->at(i);
+				auto first = (!filterIsEmpty && user->username.startsWith(filter, Qt::CaseInsensitive)) ? ('@' + user->username.mid(0, filterSize)) : QString();
+				auto second = first.isEmpty() ? (user->username.isEmpty() ? QString() : ('@' + user->username)) : user->username.mid(filterSize);
+				auto firstwidth = st::mentionFont->width(first);
+				auto secondwidth = st::mentionFont->width(second);
+				auto unamewidth = firstwidth + secondwidth;
+				auto namewidth = user->nameText().maxWidth();
 				if (mentionwidth < unamewidth + namewidth) {
 					namewidth = (mentionwidth * namewidth) / (namewidth + unamewidth);
 					unamewidth = mentionwidth - namewidth;
@@ -615,7 +618,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 				user->paintUserpicLeft(p, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width(), st::mentionPhotoSize);
 
 				p.setPen(selected ? st::mentionNameFgOver : st::mentionNameFg);
-				user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
+				user->nameText().drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
 
 				p.setFont(st::mentionFont);
 				p.setPen(selected ? st::mentionFgOverActive : st::mentionFgActive);

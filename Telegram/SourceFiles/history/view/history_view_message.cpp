@@ -295,7 +295,7 @@ QSize Message::performCountOptimalSize() {
 			if (displayFromName()) {
 				const auto from = item->displayFrom();
 				const auto &name = from
-					? from->nameText
+					? from->nameText()
 					: item->hiddenForwardedInfo()->nameText;
 				auto namew = st::msgPadding.left()
 					+ name.maxWidth()
@@ -548,10 +548,10 @@ void Message::paintFromName(
 			const auto from = item->displayFrom();
 			if (item->isPost()) {
 				p.setPen(selected ? st::msgInServiceFgSelected : st::msgInServiceFg);
-				return &from->nameText;
+				return &from->nameText();
 			} else if (from) {
 				p.setPen(FromNameFg(from->id, selected));
-				return &from->nameText;
+				return &from->nameText();
 			} else if (const auto info = item->hiddenForwardedInfo()) {
 				p.setPen(FromNameFg(info->colorPeerId, selected));
 				return &info->nameText;
@@ -888,7 +888,7 @@ bool Message::getStateFromName(
 			const auto from = item->displayFrom();
 			const auto nameText = [&]() -> const Text* {
 				if (from) {
-					return &from->nameText;
+					return &from->nameText();
 				} else if (const auto info = item->hiddenForwardedInfo()) {
 					return &info->nameText;
 				} else {
@@ -1563,7 +1563,7 @@ void Message::fromNameUpdated(int width) const {
 		if (!displayForwardedFrom()) {
 			const auto nameText = [&]() -> const Text* {
 				if (from) {
-					return &from->nameText;
+					return &from->nameText();
 				} else if (const auto info = item->hiddenForwardedInfo()) {
 					return &info->nameText;
 				} else {

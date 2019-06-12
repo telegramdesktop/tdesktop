@@ -716,7 +716,7 @@ void Notification::updateNotifyDisplay() {
 
 		p.setPen(st::dialogsNameFg);
 		if (!options.hideNameAndPhoto) {
-			_history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+			_history->peer->nameText().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 		} else {
 			p.setFont(st::msgNameFont);
 			static QString notifyTitle = st::msgNameFont->elided(qsl("Telegram Desktop"), rectForName.width());

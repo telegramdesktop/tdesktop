@@ -334,7 +334,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			width(),
 			text);
 	} else if (const auto history = _activeChat.history()) {
-		history->peer->dialogName().drawElided(p, nameleft, nametop, namewidth);
+		history->peer->topBarNameText().drawElided(p, nameleft, nametop, namewidth);
 
 		p.setFont(st::dialogsTextFont);
 		if (paintConnectingState(p, nameleft, statustop, width())) {

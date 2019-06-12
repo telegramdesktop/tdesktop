@@ -332,7 +332,7 @@ void MainMenu::refreshBackground() {
 		st::mainMenuCoverTextLeft,
 		st::mainMenuCoverNameTop,
 		std::max(
-			st::semiboldFont->width(Auth().user()->nameText.toString()),
+			st::semiboldFont->width(Auth().user()->nameText().toString()),
 			st::normalFont->width(_phoneText)),
 		st::semiboldFont->height * 2);
 
@@ -405,7 +405,7 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 		}
 		p.setPen(st::mainMenuCoverFg);
 		p.setFont(st::semiboldFont);
-		Auth().user()->nameText.drawLeftElided(
+		Auth().user()->nameText().drawLeftElided(
 			p,
 			st::mainMenuCoverTextLeft,
 			st::mainMenuCoverNameTop,

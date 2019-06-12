@@ -117,7 +117,7 @@ void UserCheckbox::paintEvent(QPaintEvent *e) {
 	auto nameTop = userpicTop + st::contactsNameTop;
 	auto nameWidth = width() - nameLeft - st::contactsPadding.right();
 	p.setPen(st::contactsNameFg);
-	_user->nameText.drawLeftElided(p, nameLeft, nameTop, nameWidth, width());
+	_user->nameText().drawLeftElided(p, nameLeft, nameTop, nameWidth, width());
 
 	auto statusLeft = nameLeft;
 	auto statusTop = userpicTop + st::contactsStatusTop;

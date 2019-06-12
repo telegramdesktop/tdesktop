@@ -424,9 +424,9 @@ void paintRow(
 		if (!(flags & Flag::SearchResult) && from->isVerified()) {
 			auto icon = &(active ? st::dialogsVerifiedIconActive : (selected ? st::dialogsVerifiedIconOver : st::dialogsVerifiedIcon));
 			rectForName.setWidth(rectForName.width() - icon->width());
-			icon->paint(p, rectForName.topLeft() + QPoint(qMin(from->dialogName().maxWidth(), rectForName.width()), 0), fullWidth);
+			icon->paint(p, rectForName.topLeft() + QPoint(qMin(from->nameText().maxWidth(), rectForName.width()), 0), fullWidth);
 		}
-		from->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+		from->nameText().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	} else if (hiddenSenderInfo) {
 		hiddenSenderInfo->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	} else {

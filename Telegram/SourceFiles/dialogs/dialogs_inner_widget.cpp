@@ -733,7 +733,7 @@ void InnerWidget::paintPeerSearchResult(
 	if (peer->isVerified()) {
 		auto icon = &(active ? st::dialogsVerifiedIconActive : (selected ? st::dialogsVerifiedIconOver : st::dialogsVerifiedIcon));
 		rectForName.setWidth(rectForName.width() - icon->width());
-		icon->paint(p, rectForName.topLeft() + QPoint(qMin(peer->dialogName().maxWidth(), rectForName.width()), 0), fullWidth);
+		icon->paint(p, rectForName.topLeft() + QPoint(qMin(peer->nameText().maxWidth(), rectForName.width()), 0), fullWidth);
 	}
 
 	QRect tr(nameleft, st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip, namewidth, st::dialogsTextFont->height);
@@ -758,7 +758,7 @@ void InnerWidget::paintPeerSearchResult(
 	}
 
 	p.setPen(active ? st::dialogsTextFgActive : st::dialogsNameFg);
-	peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+	peer->nameText().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
 void InnerWidget::paintSearchInChat(Painter &p) const {

@@ -204,8 +204,9 @@ public:
 		return (_lastFullUpdate != 0);
 	}
 
-	[[nodiscard]] const Text &dialogName() const;
+	[[nodiscard]] const Text &nameText() const;
 	[[nodiscard]] const QString &shortName() const;
+	[[nodiscard]] const Text &topBarNameText() const;
 	[[nodiscard]] QString userName() const;
 
 	[[nodiscard]] int32 bareId() const {
@@ -324,7 +325,6 @@ public:
 
 	const PeerId id;
 	QString name;
-	Text nameText;
 	LoadedStatus loadedStatus = NotLoaded;
 	MTPinputPeer input;
 
@@ -359,6 +359,7 @@ private:
 	PhotoId _userpicPhotoId = kUnknownPhotoId;
 	mutable std::unique_ptr<Ui::EmptyUserpic> _userpicEmpty;
 	StorageImageLocation _userpicLocation;
+	Text _nameText;
 
 	Data::NotifySettings _notify;
 
