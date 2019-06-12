@@ -22,7 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "auth_session.h"
 #include "boxes/confirm_box.h"
-#include "boxes/generic_box.h"
+#include "boxes/generic_box.h" // window->show(Box(InitMethod()))
+#include "boxes/peers/edit_contact_box.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 
@@ -293,14 +294,14 @@ void ContactStatus::setupHandlers(not_null<PeerData*> peer) {
 void ContactStatus::setupAddHandler(not_null<UserData*> user) {
 	_bar.entity()->addClicks(
 	) | rpl::start_with_next([=] {
-		Window::PeerMenuAddContact(user);
+		_window->show(Box(EditContactBox, _window, user));
 	}, _bar.lifetime());
 }
 
 void ContactStatus::setupBlockHandler(not_null<UserData*> user) {
 	_bar.entity()->blockClicks(
 	) | rpl::start_with_next([=] {
-		_window->show(Box(Window::PeerMenuBlockUserBox, user, _window));
+		_window->show(Box(Window::PeerMenuBlockUserBox, _window, user));
 	}, _bar.lifetime());
 }
 

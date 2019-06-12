@@ -34,6 +34,9 @@ public:
 	void setWidth(int width) {
 		_width = width;
 	}
+	void setFocusCallback(Fn<void()> callback) {
+		_focus = callback;
+	}
 
 	int rowsCount() const {
 		return _content->count();
@@ -65,6 +68,12 @@ public:
 
 	void addSkip(int height);
 
+	void setInnerFocus() override {
+		if (_focus) {
+			_focus();
+		}
+	}
+
 protected:
 	void prepare() override;
 
@@ -90,6 +99,7 @@ private:
 		-> Initer<std::decay_t<InitMethod>, std::decay_t<InitArgs>...>;
 
 	FnMut<void(not_null<GenericBox*>)> _init;
+	Fn<void()> _focus;
 	object_ptr<Ui::VerticalLayout> _content;
 	int _width = 0;
 

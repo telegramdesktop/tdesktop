@@ -50,14 +50,13 @@ void PeerMenuAddMuteAction(
 void PeerMenuExportChat(not_null<PeerData*> peer);
 void PeerMenuDeleteContact(not_null<UserData*> user);
 void PeerMenuShareContactBox(not_null<UserData*> user);
-void PeerMenuAddContact(not_null<UserData*> user);
 void PeerMenuAddChannelMembers(not_null<ChannelData*> channel);
 //void PeerMenuUngroupFeed(not_null<Data::Feed*> feed); // #feed
 void PeerMenuCreatePoll(not_null<PeerData*> peer);
 void PeerMenuBlockUserBox(
 	not_null<GenericBox*> box,
-	not_null<UserData*> user,
-	not_null<Window::Controller*> window);
+	not_null<Window::Controller*> window,
+	not_null<UserData*> user);
 
 void ToggleHistoryArchived(not_null<History*> history, bool archived);
 Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer);

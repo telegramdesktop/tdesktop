@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/generic_box.h"
 #include "boxes/create_poll_box.h"
 #include "boxes/peers/add_participants_box.h"
-#include "boxes/peers/add_to_contacts_box.h"
+#include "boxes/peers/edit_contact_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/labels.h"
@@ -345,7 +345,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 		} else if (user->isBot()) {
 			user->session().api().blockUser(user);
 		} else {
-			window->show(Box(PeerMenuBlockUserBox, user, window));
+			window->show(Box(PeerMenuBlockUserBox, window, user));
 		}
 	});
 
@@ -363,6 +363,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 }
 
 void Filler::addUserActions(not_null<UserData*> user) {
+	const auto window = &_controller->window()->controller();
 	if (_source != PeerMenuSource::ChatsList) {
 		if (Auth().supportMode()) {
 			_addAction("Edit support info", [=] {
@@ -372,7 +373,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 		if (!user->isContact() && !user->isSelf() && !user->isBot()) {
 			_addAction(
 				lang(lng_info_add_as_contact),
-				[=] { PeerMenuAddContact(user); });
+				[=] { window->show(Box(EditContactBox, window, user)); });
 		}
 		if (user->canShareThisContact()) {
 			_addAction(
@@ -382,7 +383,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 		if (user->isContact() && !user->isSelf()) {
 			_addAction(
 				lang(lng_info_edit_contact),
-				[=] { Ui::show(Box<AddContactBox>(user)); });
+				[=] { window->show(Box(EditContactBox, window, user)); });
 			_addAction(
 				lang(lng_info_delete_contact),
 				[=] { PeerMenuDeleteContact(user); });
@@ -413,10 +414,11 @@ void Filler::addUserActions(not_null<UserData*> user) {
 
 void Filler::addChatActions(not_null<ChatData*> chat) {
 	if (_source != PeerMenuSource::ChatsList) {
+		const auto controller = _controller;
 		if (EditPeerInfoBox::Available(chat)) {
 			const auto text = lang(lng_manage_group_title);
 			_addAction(text, [=] {
-				App::wnd()->sessionController()->showEditPeerBox(chat);
+				controller->showEditPeerBox(chat);
 			});
 		}
 		if (chat->canAddMembers()) {
@@ -456,11 +458,12 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	//}
 	if (_source != PeerMenuSource::ChatsList) {
 		if (EditPeerInfoBox::Available(channel)) {
+			const auto controller = _controller;
 			const auto text = lang(isGroup
 				? lng_manage_group_title
 				: lng_manage_channel_title);
 			_addAction(text, [=] {
-				App::wnd()->sessionController()->showEditPeerBox(channel);
+				controller->showEditPeerBox(channel);
 			});
 		}
 		if (channel->canAddMembers()) {
@@ -636,10 +639,6 @@ void PeerMenuDeleteContact(not_null<UserData*> user) {
 		deleteSure));
 }
 
-void PeerMenuAddContact(not_null<UserData*> user) {
-	Ui::show(Box<AddToContactsBox>(&App::wnd()->controller(), user));
-}
-
 void PeerMenuShareContactBox(not_null<UserData*> user) {
 	const auto weak = std::make_shared<QPointer<PeerListBox>>();
 	auto callback = [=](not_null<PeerData*> peer) {
@@ -706,8 +705,8 @@ void PeerMenuCreatePoll(not_null<PeerData*> peer) {
 
 void PeerMenuBlockUserBox(
 		not_null<GenericBox*> box,
-		not_null<UserData*> user,
-		not_null<Window::Controller*> window) {
+		not_null<Window::Controller*> window,
+		not_null<UserData*> user) {
 	using Flag = MTPDpeerSettings::Flag;
 	const auto settings = user->settings().value_or(Flag(0));
 

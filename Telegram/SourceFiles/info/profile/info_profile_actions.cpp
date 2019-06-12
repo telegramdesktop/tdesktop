@@ -24,7 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/report_box.h"
-#include "boxes/generic_box.h"
+#include "boxes/generic_box.h" // window->show(Box(InitMethod()))
+#include "boxes/peers/edit_contact_box.h"
 #include "lang/lang_keys.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -34,7 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_text.h"
 #include "support/support_helper.h"
 #include "window/window_session_controller.h"
-#include "window/window_controller.h"
+#include "window/window_controller.h" // Window::Controller::show.
 #include "window/window_peer_menu.h"
 #include "mainwidget.h"
 #include "mainwindow.h" // MainWindow::controller.
@@ -405,11 +406,12 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 	} else {
 		addSendMessageButton();
 
+		const auto window = &_controller->parentController()->window()->controller();
 		AddMainButton(
 			_wrap,
 			Lang::Viewer(lng_info_add_as_contact),
 			CanAddContactValue(user),
-			[user] { Window::PeerMenuAddContact(user); },
+			[=] { window->show(Box(EditContactBox, window, user)); },
 			tracker);
 	}
 	return tracker;
@@ -483,11 +485,12 @@ void ActionsFiller::addShareContactAction(not_null<UserData*> user) {
 }
 
 void ActionsFiller::addEditContactAction(not_null<UserData*> user) {
+	const auto window = &_controller->parentController()->window()->controller();
 	AddActionButton(
 		_wrap,
 		Lang::Viewer(lng_info_edit_contact),
 		IsContactValue(user),
-		[=] { Ui::show(Box<AddContactBox>(user)); });
+		[=] { window->show(Box(EditContactBox, window, user)); });
 }
 
 void ActionsFiller::addDeleteContactAction(
@@ -603,7 +606,7 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 		} else if (user->isBot()) {
 			user->session().api().blockUser(user);
 		} else {
-			window->show(Box(Window::PeerMenuBlockUserBox, user, window));
+			window->show(Box(Window::PeerMenuBlockUserBox, window, user));
 		}
 	};
 	AddActionButton(
