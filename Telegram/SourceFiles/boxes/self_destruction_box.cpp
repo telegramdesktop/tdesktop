@@ -21,7 +21,6 @@ SelfDestructionBox::SelfDestructionBox(
 , _loading(
 		this,
 		lang(lng_contacts_loading),
-		Ui::FlatLabel::InitType::Simple,
 		st::membersAbout) {
 	std::move(
 		preloaded
@@ -55,7 +54,6 @@ void SelfDestructionBox::showContent() {
 	_description.create(
 		this,
 		lang(lng_self_destruct_description),
-		Ui::FlatLabel::InitType::Simple,
 		st::boxLabel);
 	_description->moveToLeft(st::boxPadding.left(), y);
 	y += _description->height() + st::boxMediumSkip;
@@ -93,7 +91,6 @@ void SelfDestructionBox::prepare() {
 	auto fake = object_ptr<Ui::FlatLabel>(
 		this,
 		lang(lng_self_destruct_description),
-		Ui::FlatLabel::InitType::Simple,
 		st::boxLabel);
 	const auto boxHeight = st::boxOptionListPadding.top()
 		+ fake->height() + st::boxMediumSkip

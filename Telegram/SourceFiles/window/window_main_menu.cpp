@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/menu.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/text/text_utilities.h"
 #include "ui/special_buttons.h"
 #include "ui/empty_userpic.h"
 #include "mainwindow.h"
@@ -58,7 +59,7 @@ bool IsShadowShown(const QImage &img, const QRect r, float64 intensityText) {
 	return false;
 }
 
-}
+} // namespace
 
 namespace Window {
 
@@ -192,8 +193,10 @@ MainMenu::MainMenu(
 	refreshMenu();
 	refreshBackground();
 
-	_telegram->setRichText(textcmdLink(1, qsl("Telegram Desktop")));
-	_telegram->setLink(1, std::make_shared<UrlClickHandler>(qsl("https://desktop.telegram.org")));
+	_telegram->setMarkedText(Ui::Text::Link(
+		qsl("Telegram Desktop"),
+		qsl("https://desktop.telegram.org")));
+	_telegram->setLinksTrusted();
 	_version->setRichText(textcmdLink(1, lng_settings_current_version(lt_version, currentVersionText())) + QChar(' ') + QChar(8211) + QChar(' ') + textcmdLink(2, lang(lng_menu_about)));
 	_version->setLink(1, std::make_shared<UrlClickHandler>(qsl("https://desktop.telegram.org/changelog")));
 	_version->setLink(2, std::make_shared<LambdaClickHandler>([] { Ui::show(Box<AboutBox>()); }));

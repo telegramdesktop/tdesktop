@@ -1249,7 +1249,6 @@ RevokePublicLinkBox::RevokePublicLinkBox(
 : _aboutRevoke(
 	this,
 	lang(lng_channels_too_much_public_about),
-	Ui::FlatLabel::InitType::Simple,
 	st::aboutRevokePublicLabel)
 , _revokeCallback(std::move(revokeCallback)) {
 }

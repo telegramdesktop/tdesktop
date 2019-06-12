@@ -91,14 +91,12 @@ void ProgressWidget::Row::fillCurrentInstance() {
 		object_ptr<Ui::FlatLabel>(
 			this,
 			_data.label,
-			Ui::FlatLabel::InitType::Simple,
 			st::exportProgressLabel));
 	_current.info = base::make_unique_q<Ui::FadeWrap<Ui::FlatLabel>>(
 		this,
 		object_ptr<Ui::FlatLabel>(
 			this,
 			_data.info,
-			Ui::FlatLabel::InitType::Simple,
 			st::exportProgressInfoLabel));
 	_current.label->hide(anim::type::instant);
 	_current.info->hide(anim::type::instant);
@@ -248,7 +246,6 @@ ProgressWidget::ProgressWidget(
 		object_ptr<Ui::FlatLabel>(
 			this,
 			lang(lng_export_progress),
-			Ui::FlatLabel::InitType::Simple,
 			st::exportAboutLabel),
 		st::exportAboutPadding);
 

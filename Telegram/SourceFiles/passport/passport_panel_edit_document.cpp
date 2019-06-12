@@ -101,14 +101,13 @@ void RequestTypeBox::setupControls(
 	const auto header = Ui::CreateChild<Ui::FlatLabel>(
 		this,
 		lang(lng_passport_document_type),
-		Ui::FlatLabel::InitType::Simple,
 		st::boxDividerLabel);
 
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>(0);
 	auto buttons = std::vector<QPointer<Ui::Radiobutton>>();
 	auto index = 0;
 	for (const auto &label : labels) {
-		buttons.push_back(Ui::CreateChild<Ui::Radiobutton>(
+		buttons.emplace_back(Ui::CreateChild<Ui::Radiobutton>(
 			this,
 			group,
 			index++,
@@ -119,7 +118,6 @@ void RequestTypeBox::setupControls(
 	const auto description = Ui::CreateChild<Ui::FlatLabel>(
 		this,
 		about,
-		Ui::FlatLabel::InitType::Simple,
 		st::boxDividerLabel);
 
 	auto y = 0;
@@ -169,7 +167,6 @@ void DeleteDocumentBox::setupControls(
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		this,
 		text,
-		Ui::FlatLabel::InitType::Simple,
 		st::boxLabel);
 	const auto details = !detailsCheckbox.isEmpty()
 		? Ui::CreateChild<Ui::Checkbox>(
@@ -377,7 +374,6 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 					object_ptr<Ui::FlatLabel>(
 						inner,
 						*error,
-						Ui::FlatLabel::InitType::Simple,
 						st::passportVerifyErrorLabel),
 					st::passportValueErrorPadding));
 			_commonError->toggle(true, anim::type::instant);
@@ -386,7 +382,6 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 			object_ptr<Ui::FlatLabel>(
 				inner,
 				data ? _scheme.detailsHeader : _scheme.fieldsHeader,
-				Ui::FlatLabel::InitType::Simple,
 				st::passportFormHeader),
 			st::passportDetailsHeaderPadding);
 		enumerateRows([&](

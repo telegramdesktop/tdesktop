@@ -50,7 +50,6 @@ Bar::Bar(not_null<QWidget*> parent, QDate date)
 	st::windowOutdatedTitle)
 , _details(this,
 	QString(),
-	Ui::FlatLabel::InitType::Simple,
 	st::windowOutdatedDetails)
 , _close(this, st::windowOutdatedClose)
 , _soon(_date >= QDate::currentDate()) {

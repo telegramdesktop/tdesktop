@@ -11,8 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
-#include "boxes/confirm_phone_box.h"
 #include "ui/toast/toast.h"
+#include "ui/text/text_utilities.h"
+#include "boxes/confirm_phone_box.h"
 #include "boxes/confirm_box.h"
 #include "auth_session.h"
 #include "data/data_session.h"
@@ -48,7 +49,6 @@ void createErrorLabel(
 			object_ptr<Ui::FlatLabel>(
 				parent,
 				text,
-				Ui::FlatLabel::InitType::Simple,
 				st::changePhoneError));
 		label->hide(anim::type::instant);
 		label->moveToLeft(x, y);
@@ -129,7 +129,7 @@ void ChangePhoneBox::EnterPhone::prepare() {
 	_phone->moveToLeft(st::boxPadding.left(), st::boxLittleSkip);
 	connect(_phone, &Ui::PhoneInput::submitted, [=] { submit(); });
 
-	auto description = object_ptr<Ui::FlatLabel>(this, lang(lng_change_phone_new_description), Ui::FlatLabel::InitType::Simple, st::changePhoneLabel);
+	auto description = object_ptr<Ui::FlatLabel>(this, lang(lng_change_phone_new_description), st::changePhoneLabel);
 	auto errorSkip = st::boxLittleSkip + st::changePhoneError.style.font->height;
 	description->moveToLeft(st::boxPadding.left(), _phone->y() + _phone->height() + errorSkip + st::boxLittleSkip);
 
@@ -237,8 +237,10 @@ ChangePhoneBox::EnterCode::EnterCode(QWidget*, const QString &phone, const QStri
 void ChangePhoneBox::EnterCode::prepare() {
 	setTitle(langFactory(lng_change_phone_title));
 
-	auto descriptionText = lng_change_phone_code_description(lt_phone, textcmdStartSemibold() + App::formatPhone(_phone) + textcmdStopSemibold());
-	auto description = object_ptr<Ui::FlatLabel>(this, descriptionText, Ui::FlatLabel::InitType::Rich, st::changePhoneLabel);
+	auto descriptionText = lng_change_phone_code_description__rich(
+		lt_phone,
+		Ui::Text::Bold(App::formatPhone(_phone)));
+	auto description = object_ptr<Ui::FlatLabel>(this, rpl::single(descriptionText), st::changePhoneLabel);
 	description->moveToLeft(st::boxPadding.left(), 0);
 
 	auto phoneValue = QString();
@@ -299,7 +301,7 @@ void ChangePhoneBox::EnterCode::updateCall() {
 	if (text.isEmpty()) {
 		_callLabel.destroy();
 	} else if (!_callLabel) {
-		_callLabel.create(this, text, Ui::FlatLabel::InitType::Simple, st::changePhoneLabel);
+		_callLabel.create(this, text, st::changePhoneLabel);
 		_callLabel->moveToLeft(st::boxPadding.left(), countHeight() - _callLabel->height());
 		_callLabel->show();
 	} else {
@@ -346,7 +348,12 @@ void ChangePhoneBox::prepare() {
 		closeBox();
 	});
 
-	auto label = object_ptr<Ui::FlatLabel>(this, lang(lng_change_phone_description), Ui::FlatLabel::InitType::Rich, st::changePhoneDescription);
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		this,
+		Lang::Viewer(
+			lng_change_phone_about
+		) | Ui::Text::ToRichLangValue(),
+		st::changePhoneDescription);
 	label->moveToLeft((st::boxWideWidth - label->width()) / 2, st::changePhoneDescriptionTop);
 
 	setDimensions(st::boxWideWidth, label->bottomNoMargins() + st::boxLittleSkip);

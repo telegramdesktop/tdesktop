@@ -262,7 +262,7 @@ void SettingsWidget::addLocationLabel(
 			0,
 			text.size(),
 			QString("internal:edit_export_path") });
-		return lng_export_option_location__generic<TextWithEntities>(
+		return lng_export_option_location__rich(
 			lt_path,
 			pathLink);
 	});
@@ -303,7 +303,7 @@ void SettingsWidget::addLimitsLabel(
 			0,
 			end.size(),
 			QString("internal:edit_till") });
-		return lng_export_limits__generic<TextWithEntities>(
+		return lng_export_limits__rich(
 			lt_from,
 			fromLink,
 			lt_till,
@@ -454,7 +454,6 @@ void SettingsWidget::addHeader(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			lang(key),
-			Ui::FlatLabel::InitType::Simple,
 			st::exportHeaderLabel),
 		st::exportHeaderPadding);
 }
@@ -493,7 +492,6 @@ not_null<Ui::Checkbox*> SettingsWidget::addOptionWithAbout(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			lang(about),
-			Ui::FlatLabel::InitType::Simple,
 			st::exportAboutOptionLabel),
 		st::exportAboutOptionPadding);
 	return result;

@@ -160,12 +160,10 @@ LocalStorageBox::Row::Row(
 , _title(
 	this,
 	titleText(data),
-	Ui::FlatLabel::InitType::Simple,
 	st::localStorageRowTitle)
 , _description(
 	this,
 	sizeText(data),
-	Ui::FlatLabel::InitType::Simple,
 	st::localStorageRowSize)
 , _clear(this, std::move(clear), st::localStorageClear) {
 	_clear->setVisible(data.count != 0);
@@ -192,7 +190,6 @@ void LocalStorageBox::Row::toggleProgress(bool shown) {
 		_clearing = object_ptr<Ui::FlatLabel>(
 			this,
 			lang(lng_local_storage_clearing),
-			Ui::FlatLabel::InitType::Simple,
 			st::localStorageRowSize);
 		_clearing->show();
 		_description->hide();

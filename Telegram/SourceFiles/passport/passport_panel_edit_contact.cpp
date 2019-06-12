@@ -102,7 +102,6 @@ void VerifyBox::setupControls(
 		object_ptr<Ui::FlatLabel>(
 			_content,
 			text,
-			Ui::FlatLabel::InitType::Simple,
 			st::boxLabel),
 		small);
 	_code = _content->add(
@@ -118,7 +117,6 @@ void VerifyBox::setupControls(
 			object_ptr<Ui::FlatLabel>(
 				_content,
 				QString(),
-				Ui::FlatLabel::InitType::Simple,
 				st::passportVerifyErrorLabel)),
 		small);
 	const auto waiter = _content->add(
@@ -256,14 +254,12 @@ void PanelEditContact::setupControls(
 				object_ptr<Ui::FlatLabel>(
 					_content,
 					_scheme.aboutExisting,
-					Ui::FlatLabel::InitType::Simple,
 					st::boxDividerLabel),
 				st::passportFormLabelPadding));
 		_content->add(
 			object_ptr<Ui::FlatLabel>(
 				_content,
 				_scheme.newHeader,
-				Ui::FlatLabel::InitType::Simple,
 				st::passportFormHeader),
 			st::passportDetailsHeaderPadding);
 	}
@@ -308,7 +304,6 @@ void PanelEditContact::setupControls(
 			object_ptr<Ui::FlatLabel>(
 				_content,
 				QString(),
-				Ui::FlatLabel::InitType::Simple,
 				st::passportVerifyErrorLabel),
 			st::passportContactErrorPadding),
 		st::passportContactErrorMargin);
@@ -320,7 +315,6 @@ void PanelEditContact::setupControls(
 			object_ptr<Ui::FlatLabel>(
 				_content,
 				_scheme.aboutNew,
-				Ui::FlatLabel::InitType::Simple,
 				st::boxDividerLabel),
 			st::passportFormLabelPadding));
 

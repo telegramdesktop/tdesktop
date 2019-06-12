@@ -174,7 +174,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_phone_title" = "Your Phone Number";
 "lng_phone_desc" = "Please confirm your country code and\nenter your mobile phone number.";
-"lng_phone_notreg" = "If you don't have a Telegram account yet,\nplease [b]sign up[/b] with {link_start}Android / iPhone{link_end} or {signup_start}here{signup_end}";
 "lng_country_code" = "Country Code";
 "lng_bad_country_code" = "Invalid Country Code";
 "lng_country_ph" = "Search";
@@ -183,7 +182,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_code_ph" = "Your code";
 "lng_code_desc" = "We have sent you a message with activation\ncode to your phone. Please enter it below.";
-"lng_code_telegram" = "Please enter the code you've just received\nin your previous [b]Telegram[/b] app.";
+"lng_code_from_telegram" = "Please enter the code you've just received\nin your previous **Telegram** app.";
 "lng_code_no_telegram" = "Send code via SMS";
 "lng_code_call" = "Telegram will call you in {minutes}:{seconds}";
 "lng_code_calling" = "Requesting a call from Telegram...";
@@ -687,7 +686,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_self_destruct_years#other" = "{count} years";
 
 "lng_change_phone_title" = "Change phone number";
-"lng_change_phone_description" = "You can change your Telegram number\nhere. Your account and all your cloud data\n— messages, media, contacts, etc. will be\nmoved to the new number.\n\n[b]Important[/b]: all your Telegram contacts will\nget your [b]new number[/b] added to their address\nbook, provided they had your old number and\nyou haven't blocked them in Telegram.";
+"lng_change_phone_about" = "You can change your Telegram number\nhere. Your account and all your cloud data\n— messages, media, contacts, etc. will be\nmoved to the new number.\n\n**Important**: all your Telegram contacts will\nget your **new number** added to their address\nbook, provided they had your old number and\nyou haven't blocked them in Telegram.";
 "lng_change_phone_warning" = "All your Telegram contacts will get your new number added to their address book, provided they had your old number and you haven't blocked them in Telegram.";
 "lng_change_phone_occupied" = "The number {phone} is already connected to a Telegram account. Please delete that account before migrating to the new number.";
 "lng_change_phone_button" = "Change number";
@@ -1473,9 +1472,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_box_leave" = "Leave";
 
 "lng_about_version" = "version {version}";
-"lng_about_text_1" = "Official free messaging app based on [a href=\"https://core.telegram.org/api\"]Telegram API[/a]\nfor speed and security.";
-"lng_about_text_2" = "This software is licensed under [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3.\nSource code is available on [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
-"lng_about_text_3" = "Visit {faq_open}Telegram FAQ{faq_close} for more info.";
+"lng_about_text1" = "Official free messaging app based on {api_link}\nfor speed and security.";
+"lng_about_text1_api" = "Telegram API";
+"lng_about_text2" = "This software is licensed under {gpl_link} version 3.\nSource code is available on {github_link}.";
+"lng_about_text2_gpl" = "GNU GPL";
+"lng_about_text2_github" = "GitHub";
+"lng_about_text3" = "Visit {faq_link} for more info.";
+"lng_about_text3_faq" = "Telegram FAQ";
 "lng_about_done" = "Done";
 
 "lng_search_no_results" = "No messages found";
@@ -1502,7 +1505,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_yesterday" = "yesterday at {time}";
 "lng_mediaview_date_time" = "{date} at {time}";
 
-"lng_mediaview_saved" = "Image was saved to your [c]Downloads[/c] folder";
+"lng_mediaview_saved_to" = "Image was saved to your {downloads} folder";
+"lng_mediaview_downloads" = "Downloads";
 "lng_mediaview_video_loading" = "Loading - {percent}";
 
 "lng_theme_preview_title" = "Theme Preview";

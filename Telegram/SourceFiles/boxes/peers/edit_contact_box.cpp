@@ -214,14 +214,14 @@ void Builder::setupWarning() {
 	const auto name = _user->shortName();
 	const auto nameWithEntities = TextWithEntities{ name };
 	const auto text = _phone.isEmpty()
-		? lng_contact_phone_after__generic<TextWithEntities>(
+		? lng_contact_phone_after__rich(
 			lt_user,
 			nameWithEntities,
 			lt_visible,
 			Ui::Text::Bold(lang(lng_contact_phone_visible)),
 			lt_name,
 			nameWithEntities)
-		: lng_contact_phone_show__generic<TextWithEntities>(
+		: lng_contact_phone_show__rich(
 			lt_button,
 			Ui::Text::Bold(lang(lng_box_done).toUpper()),
 			lt_user,

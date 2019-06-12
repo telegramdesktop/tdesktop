@@ -90,7 +90,7 @@ void Inner::checkRestrictedPeer() {
 			ChatRestriction::f_send_inline);
 		if (errorKey) {
 			if (!_restrictedLabel) {
-				_restrictedLabel.create(this, lang(*errorKey), Ui::FlatLabel::InitType::Simple, st::stickersRestrictedLabel);
+				_restrictedLabel.create(this, lang(*errorKey), st::stickersRestrictedLabel);
 				_restrictedLabel->show();
 				_restrictedLabel->move(st::inlineResultsLeft - st::buttonRadius, st::stickerPanPadding);
 				if (_switchPmButton) {

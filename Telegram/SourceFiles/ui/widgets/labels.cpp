@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 
 #include "ui/widgets/popup_menu.h"
+#include "core/click_handler_types.h" // UrlClickHandler
 #include "chat_helpers/message_field.h" // SetClipboardText/MimeDataFromText
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
@@ -140,17 +141,12 @@ FlatLabel::FlatLabel(QWidget *parent, const style::FlatLabel &st)
 FlatLabel::FlatLabel(
 	QWidget *parent,
 	const QString &text,
-	InitType initType,
 	const style::FlatLabel &st)
 : RpWidget(parent)
 , _text(st.minWidth ? st.minWidth : QFIXED_MAX)
 , _st(st)
 , _contextCopyText(lang(lng_context_copy_text)) {
-	if (initType == InitType::Rich) {
-		setRichText(text);
-	} else {
-		setText(text);
-	}
+	setText(text);
 	init();
 }
 
@@ -287,6 +283,20 @@ void FlatLabel::refreshSize() {
 
 void FlatLabel::setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk) {
 	_text.setLink(lnkIndex, lnk);
+}
+
+void FlatLabel::setLinksTrusted() {
+	static const auto TrustedLinksFilter = [](
+			const ClickHandlerPtr &link,
+			Qt::MouseButton button) {
+		if (const auto url = dynamic_cast<UrlClickHandler*>(link.get())) {
+			url->UrlClickHandler::onClick({ button });
+			return false;
+		}
+		return true;
+	};
+	setClickHandlerFilter(TrustedLinksFilter);
+
 }
 
 void FlatLabel::setClickHandlerFilter(ClickHandlerFilter &&filter) {

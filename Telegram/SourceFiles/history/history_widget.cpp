@@ -2100,7 +2100,6 @@ void HistoryWidget::refreshAboutProxyPromotion() {
 				object_ptr<Ui::FlatLabel>(
 					this,
 					lang(lng_proxy_sponsor_about),
-					Ui::FlatLabel::InitType::Simple,
 					st::historyAboutProxy),
 				st::historyAboutProxyPadding);
 		}

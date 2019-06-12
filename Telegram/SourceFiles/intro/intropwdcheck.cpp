@@ -326,7 +326,7 @@ void PwdCheckWidget::showReset() {
 void PwdCheckWidget::updateDescriptionText() {
 	auto pwdHidden = _pwdField->isHidden();
 	auto emailPattern = _emailPattern;
-	setDescriptionText([pwdHidden, emailPattern] {
+	setDescriptionText([=] {
 		return pwdHidden ? lng_signin_recover_desc(lt_email, emailPattern) : lang(lng_signin_desc);
 	});
 }

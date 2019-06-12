@@ -117,9 +117,7 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 }
 
 void Controller::choose(not_null<ChannelData*> chat) {
-	auto text = lng_manage_discussion_group_sure__generic<
-		TextWithEntities
-	>(
+	auto text = lng_manage_discussion_group_sure__rich(
 		lt_group,
 		Ui::Text::Bold(chat->name),
 		lt_channel,
@@ -132,7 +130,7 @@ void Controller::choose(not_null<ChannelData*> chat) {
 		text.append("\n\n" + lang(lng_manage_discussion_group_private));
 		if (chat->hiddenPreHistory()) {
 			text.append("\n\n");
-			text.append(lng_manage_discussion_group_warning__generic(
+			text.append(lng_manage_discussion_group_warning__rich(
 				lt_visible,
 				Ui::Text::Bold(lang(lng_manage_discussion_group_visible))));
 		}
@@ -154,9 +152,7 @@ void Controller::choose(not_null<ChannelData*> chat) {
 }
 
 void Controller::choose(not_null<ChatData*> chat) {
-	auto text = lng_manage_discussion_group_sure__generic<
-		TextWithEntities
-	>(
+	auto text = lng_manage_discussion_group_sure__rich(
 		lt_group,
 		Ui::Text::Bold(chat->name),
 		lt_channel,
@@ -196,17 +192,16 @@ object_ptr<Ui::RpWidget> SetupAbout(
 	auto about = object_ptr<Ui::FlatLabel>(
 		parent,
 		QString(),
-		Ui::FlatLabel::InitType::Simple,
 		st::linkedChatAbout);
 	about->setMarkedText([&]() -> TextWithEntities {
 		if (!channel->isBroadcast()) {
-			return lng_manage_linked_channel_about__generic<
-				TextWithEntities
-			>(lt_channel, Ui::Text::Bold(chat->name));
+			return lng_manage_linked_channel_about__rich(
+				lt_channel,
+				Ui::Text::Bold(chat->name));
 		} else if (chat != nullptr) {
-			return lng_manage_discussion_group_about_chosen__generic<
-				TextWithEntities
-			>(lt_group, Ui::Text::Bold(chat->name));
+			return lng_manage_discussion_group_about_chosen__rich(
+				lt_group,
+				Ui::Text::Bold(chat->name));
 		} else {
 			return { lang(lng_manage_discussion_group_about) };
 		}
@@ -222,7 +217,6 @@ object_ptr<Ui::RpWidget> SetupFooter(
 		lang(channel->isBroadcast()
 			? lng_manage_discussion_group_posted
 			: lng_manage_linked_channel_posted),
-		Ui::FlatLabel::InitType::Simple,
 		st::linkedChatAbout);
 }
 

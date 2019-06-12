@@ -51,7 +51,7 @@ void UsernameBox::prepare() {
 	connect(_username, &Ui::MaskedInputField::submitted, [=] { save(); });
 	_link->addClickHandler([=] { linkClick(); });
 
-	_about.setRichText(st::usernameTextStyle, lang(lng_username_about));
+	_about.setText(st::usernameTextStyle, lang(lng_username_about));
 	setDimensions(st::boxWidth, st::usernamePadding.top() + _username->height() + st::usernameSkip + _about.countHeight(st::boxWidth - st::usernamePadding.left()) + 3 * st::usernameTextStyle.lineHeight + st::usernamePadding.bottom());
 
 	_checkTimer->setSingleShot(true);

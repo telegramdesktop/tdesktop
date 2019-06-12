@@ -87,7 +87,7 @@ void PasscodeBox::prepare() {
 	addButton(langFactory(_turningOff ? lng_passcode_remove_button : lng_settings_save), [=] { save(); });
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 
-	_about.setRichText(st::passcodeTextStyle, lang(_cloudPwd ? lng_cloud_password_about : lng_passcode_about));
+	_about.setText(st::passcodeTextStyle, lang(_cloudPwd ? lng_cloud_password_about : lng_passcode_about));
 	_aboutHeight = _about.countHeight(st::boxWidth - st::boxPadding.left() * 1.5);
 	if (_turningOff) {
 		_oldPasscode->show();

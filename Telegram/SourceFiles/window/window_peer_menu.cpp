@@ -715,7 +715,7 @@ void PeerMenuBlockUserBox(
 	box->addRow(object_ptr<Ui::FlatLabel>(
 		box,
 		rpl::single(
-			lng_blocked_list_confirm_text__generic<TextWithEntities>(
+			lng_blocked_list_confirm_text__rich(
 				lt_name,
 				Ui::Text::Bold(name))),
 		st::blockUserConfirmation));

@@ -675,7 +675,7 @@ StickersBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> megagroup) : T
 , _megagroupSetInput(_megagroupSet->mgInfo->stickerSet)
 , _megagroupSetField(this, st::groupStickersField, [] { return qsl("stickerset"); }, QString(), true)
 , _megagroupDivider(this)
-, _megagroupSubTitle(this, lang(lng_stickers_group_from_your), Ui::FlatLabel::InitType::Simple, st::boxTitle) {
+, _megagroupSubTitle(this, lang(lng_stickers_group_from_your), st::boxTitle) {
 	_megagroupSetField->setLinkPlaceholder(Core::App().createInternalLink(qsl("addstickers/")));
 	_megagroupSetField->setPlaceholderHidden(false);
 	_megagroupSetAddressChangedTimer.setCallback([this] { handleMegagroupSetAddressChange(); });

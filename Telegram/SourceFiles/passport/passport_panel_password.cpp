@@ -36,12 +36,10 @@ PanelAskPassword::PanelAskPassword(
 , _about1(
 	this,
 	lng_passport_request1(lt_bot, App::peerName(_controller->bot())),
-	Ui::FlatLabel::InitType::Simple,
 	st::passportPasswordLabelBold)
 , _about2(
 	this,
 	lang(lng_passport_request2),
-	Ui::FlatLabel::InitType::Simple,
 	st::passportPasswordLabel)
 , _password(
 	this,
@@ -59,7 +57,6 @@ PanelAskPassword::PanelAskPassword(
 		_hint.create(
 			this,
 			hint,
-			Ui::FlatLabel::InitType::Simple,
 			st::passportPasswordHintLabel);
 	}
 	_controller->passwordError(
@@ -84,7 +81,6 @@ void PanelAskPassword::showError(const QString &error) {
 	_error.create(
 		this,
 		error,
-		Ui::FlatLabel::InitType::Simple,
 		st::passportErrorLabel);
 	_error->show();
 	updateControlsGeometry();
@@ -180,7 +176,6 @@ void PanelNoPassword::setupContent() {
 				lng_passport_request1(
 					lt_bot,
 					App::peerName(_controller->bot())),
-				Ui::FlatLabel::InitType::Simple,
 				st::passportPasswordLabelBold)),
 		st::passportPasswordAbout1Padding)->entity();
 
@@ -190,7 +185,6 @@ void PanelNoPassword::setupContent() {
 			object_ptr<Ui::FlatLabel>(
 				_inner,
 				lang(lng_passport_request2),
-				Ui::FlatLabel::InitType::Simple,
 				st::passportPasswordLabel)),
 		st::passportPasswordAbout2Padding)->entity();
 
@@ -212,7 +206,6 @@ void PanelNoPassword::setupContent() {
 			object_ptr<Ui::FlatLabel>(
 				_inner,
 				lang(lng_passport_create_password),
-				Ui::FlatLabel::InitType::Simple,
 				st::passportPasswordSetupLabel)),
 		st::passportFormAbout2Padding)->entity();
 
@@ -229,7 +222,6 @@ void PanelNoPassword::refreshBottom() {
 				(pattern.isEmpty()
 					? lang(lng_passport_about_password)
 					: lng_passport_code_sent(lt_email, pattern)),
-				Ui::FlatLabel::InitType::Simple,
 				st::passportPasswordSetupLabel)),
 		st::passportFormAbout2Padding)->entity());
 	if (pattern.isEmpty()) {

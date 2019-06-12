@@ -685,7 +685,6 @@ void TabbedSelector::checkRestrictedPeer() {
 				_restrictedLabel.create(
 					this,
 					lang(*errorKey),
-					Ui::FlatLabel::InitType::Simple,
 					st::stickersRestrictedLabel);
 				_restrictedLabel->show();
 				updateRestrictedLabelGeometry();

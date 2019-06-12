@@ -64,9 +64,6 @@ inline bool operator!=(TextSelection a, TextSelection b) {
 
 static constexpr TextSelection AllTextSelection = { 0, 0xFFFF };
 
-typedef QPair<QString, QString> TextCustomTag; // open str and close str
-typedef QMap<QChar, TextCustomTag> TextCustomTagsMap;
-
 namespace Ui {
 namespace Text {
 
@@ -118,7 +115,7 @@ public:
 	int countHeight(int width) const;
 	void countLineWidths(int width, QVector<int> *lineWidths) const;
 	void setText(const style::TextStyle &st, const QString &text, const TextParseOptions &options = _defaultOptions);
-	void setRichText(const style::TextStyle &st, const QString &text, TextParseOptions options = _defaultOptions, const TextCustomTagsMap &custom = TextCustomTagsMap());
+	void setRichText(const style::TextStyle &st, const QString &text, TextParseOptions options = _defaultOptions);
 	void setMarkedText(const style::TextStyle &st, const TextWithEntities &textWithEntities, const TextParseOptions &options = _defaultOptions);
 
 	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);

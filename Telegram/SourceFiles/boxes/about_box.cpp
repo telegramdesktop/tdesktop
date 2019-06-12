@@ -13,17 +13,48 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "styles/style_boxes.h"
+#include "ui/text/text_utilities.h"
 #include "platform/platform_file_utilities.h"
 #include "platform/platform_info.h"
 #include "core/click_handler_types.h"
 #include "core/update_checker.h"
+#include "styles/style_boxes.h"
+
+namespace {
+
+rpl::producer<TextWithEntities> Text1() {
+	return rpl::single(lng_about_text1__rich(
+		lt_api_link,
+		Ui::Text::Link(
+			lang(lng_about_text1_api),
+			"https://core.telegram.org/api")));
+}
+
+rpl::producer<TextWithEntities> Text2() {
+	return rpl::single(lng_about_text2__rich(
+		lt_gpl_link,
+		Ui::Text::Link(
+			lang(lng_about_text2_gpl),
+			"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE"),
+		lt_github_link,
+		Ui::Text::Link(
+			lang(lng_about_text2_github),
+			"https://github.com/telegramdesktop/tdesktop")));
+}
+
+rpl::producer<TextWithEntities> Text3() {
+	return rpl::single(lng_about_text3__rich(
+		lt_faq_link,
+		Ui::Text::Link(lang(lng_about_text3_faq), telegramFaqLink())));
+}
+
+} // namespace
 
 AboutBox::AboutBox(QWidget *parent)
 : _version(this, lng_about_version(lt_version, currentVersionText()), st::aboutVersionLink)
-, _text1(this, lang(lng_about_text_1), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
-, _text2(this, lang(lng_about_text_2), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
-, _text3(this, st::aboutLabel) {
+, _text1(this, Text1(), st::aboutLabel)
+, _text2(this, Text2(), st::aboutLabel)
+, _text3(this, Text3(), st::aboutLabel) {
 }
 
 void AboutBox::prepare() {
@@ -31,18 +62,9 @@ void AboutBox::prepare() {
 
 	addButton(langFactory(lng_close), [this] { closeBox(); });
 
-	const auto linkFilter = [](const ClickHandlerPtr &link, auto button) {
-		if (const auto url = dynamic_cast<UrlClickHandler*>(link.get())) {
-			url->UrlClickHandler::onClick({ button });
-			return false;
-		}
-		return true;
-	};
-
-	_text3->setRichText(lng_about_text_3(lt_faq_open, qsl("[a href=\"%1\"]").arg(telegramFaqLink()), lt_faq_close, qsl("[/a]")));
-	_text1->setClickHandlerFilter(linkFilter);
-	_text2->setClickHandlerFilter(linkFilter);
-	_text3->setClickHandlerFilter(linkFilter);
+	_text1->setLinksTrusted();
+	_text2->setLinksTrusted();
+	_text3->setLinksTrusted();
 
 	_version->setClickedCallback([this] { showVersionHistory(); });
 

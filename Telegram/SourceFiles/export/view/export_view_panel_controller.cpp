@@ -53,7 +53,6 @@ void SuggestBox::prepare() {
 	const auto content = Ui::CreateChild<Ui::FlatLabel>(
 		this,
 		lang(lng_export_suggest_text),
-		Ui::FlatLabel::InitType::Simple,
 		st::boxLabel);
 	widthValue(
 	) | rpl::start_with_next([=](int width) {
@@ -233,7 +232,6 @@ void PanelController::showCriticalError(const QString &text) {
 		object_ptr<Ui::FlatLabel>(
 			_panel.get(),
 			text,
-			Ui::FlatLabel::InitType::Simple,
 			st::exportErrorLabel),
 		style::margins(0, st::exportPanelSize.height() / 4, 0, 0));
 	container->widthValue(

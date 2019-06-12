@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/text/text_utilities.h"
 #include "ui/text_options.h"
 #include "ui/special_buttons.h"
 #include "styles/style_passport.h"
@@ -232,7 +233,6 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 			object_ptr<Ui::FlatLabel>(
 				inner,
 				lng_passport_request1(lt_bot, App::peerName(bot)),
-				Ui::FlatLabel::InitType::Simple,
 				st::passportPasswordLabelBold)),
 		st::passportFormAbout1Padding)->entity();
 
@@ -242,7 +242,6 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 			object_ptr<Ui::FlatLabel>(
 				inner,
 				lang(lng_passport_request2),
-				Ui::FlatLabel::InitType::Simple,
 				st::passportPasswordLabel)),
 		st::passportFormAbout2Padding)->entity();
 
@@ -253,7 +252,6 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 		object_ptr<Ui::FlatLabel>(
 			inner,
 			lang(lng_passport_header),
-			Ui::FlatLabel::InitType::Simple,
 			st::passportFormHeader),
 		st::passportFormHeaderPadding);
 
@@ -294,24 +292,22 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 		});
 	}, lifetime());
 	const auto policyUrl = _controller->privacyPolicyUrl();
+	const auto richText = policyUrl.isEmpty()
+		? TextWithEntities{ lng_passport_allow(lt_bot, '@' + bot->username) }
+		: lng_passport_accept_allow__rich(
+			lt_policy,
+			Ui::Text::Link(
+				lng_passport_policy(lt_bot, App::peerName(bot)),
+				policyUrl),
+			lt_bot,
+			TextWithEntities{ '@' + bot->username });
 	const auto policy = inner->add(
 		object_ptr<Ui::FlatLabel>(
 			inner,
-			(policyUrl.isEmpty()
-				? lng_passport_allow(lt_bot, '@' + bot->username)
-				: lng_passport_accept_allow(
-					lt_policy,
-					textcmdLink(
-						1,
-						lng_passport_policy(lt_bot, App::peerName(bot))),
-					lt_bot,
-					'@' + bot->username)),
-			Ui::FlatLabel::InitType::Rich,
+			rpl::single(richText),
 			st::passportFormPolicy),
 		st::passportFormPolicyPadding);
-	if (!policyUrl.isEmpty()) {
-		policy->setLink(1, std::make_shared<UrlClickHandler>(policyUrl));
-	}
+	policy->setLinksTrusted();
 
 	return inner;
 }

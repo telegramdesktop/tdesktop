@@ -138,8 +138,9 @@ public:
 		void paintEvent(QPaintEvent *e) override;
 		void resizeEvent(QResizeEvent *e) override;
 
-		void setTitleText(Fn<QString()> richTitleTextFactory);
-		void setDescriptionText(Fn<QString()> richDescriptionTextFactory);
+		void setTitleText(Fn<QString()> titleTextFactory);
+		void setDescriptionText(Fn<QString()> descriptionTextFactory);
+		void setDescriptionText(Fn<TextWithEntities()> richDescriptionTextFactory);
 		bool paintAnimated(Painter &p, QRect clip);
 
 		void fillSentCodeData(const MTPDauth_sentCode &type);
@@ -213,7 +214,7 @@ public:
 		object_ptr<Ui::FlatLabel> _title;
 		Fn<QString()> _titleTextFactory;
 		object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _description;
-		Fn<QString()> _descriptionTextFactory;
+		Fn<TextWithEntities()> _descriptionTextFactory;
 
 		bool _errorCentered = false;
 		bool _errorBelowLink = false;

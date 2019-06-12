@@ -365,7 +365,6 @@ void EditRestrictedBox::prepare() {
 		object_ptr<Ui::FlatLabel>(
 			this,
 			lang(lng_rights_chat_banned_until_header),
-			Ui::FlatLabel::InitType::Simple,
 			st::rightsHeaderLabel),
 		st::rightsHeaderMargin);
 	setRestrictUntil(_until);

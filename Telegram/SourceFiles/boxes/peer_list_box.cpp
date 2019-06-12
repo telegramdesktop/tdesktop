@@ -246,7 +246,7 @@ void PeerListController::setDescriptionText(const QString &text) {
 	if (text.isEmpty()) {
 		setDescription(nullptr);
 	} else {
-		setDescription(object_ptr<Ui::FlatLabel>(nullptr, text, Ui::FlatLabel::InitType::Simple, st::membersAbout));
+		setDescription(object_ptr<Ui::FlatLabel>(nullptr, text, st::membersAbout));
 	}
 }
 
@@ -254,7 +254,7 @@ void PeerListController::setSearchLoadingText(const QString &text) {
 	if (text.isEmpty()) {
 		setSearchLoading(nullptr);
 	} else {
-		setSearchLoading(object_ptr<Ui::FlatLabel>(nullptr, text, Ui::FlatLabel::InitType::Simple, st::membersAbout));
+		setSearchLoading(object_ptr<Ui::FlatLabel>(nullptr, text, st::membersAbout));
 	}
 }
 
@@ -262,7 +262,7 @@ void PeerListController::setSearchNoResultsText(const QString &text) {
 	if (text.isEmpty()) {
 		setSearchNoResults(nullptr);
 	} else {
-		setSearchNoResults(object_ptr<Ui::FlatLabel>(nullptr, text, Ui::FlatLabel::InitType::Simple, st::membersAbout));
+		setSearchNoResults(object_ptr<Ui::FlatLabel>(nullptr, text, st::membersAbout));
 	}
 }
 
@@ -886,7 +886,6 @@ void PeerListContent::setSearchMode(PeerListSearchMode mode) {
 				setSearchLoading(object_ptr<Ui::FlatLabel>(
 					this,
 					lang(lng_contacts_loading),
-					Ui::FlatLabel::InitType::Simple,
 					st::membersAbout));
 			}
 		} else {

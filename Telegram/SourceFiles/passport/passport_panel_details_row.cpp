@@ -530,7 +530,6 @@ DateRow::DateRow(
 	object_ptr<Ui::FlatLabel>(
 		this,
 		QString(" / "),
-		Ui::FlatLabel::InitType::Simple,
 		st::passportDetailsSeparator),
 	st::passportDetailsSeparatorPadding)
 , _month(
@@ -543,7 +542,6 @@ DateRow::DateRow(
 	object_ptr<Ui::FlatLabel>(
 		this,
 		QString(" / "),
-		Ui::FlatLabel::InitType::Simple,
 		st::passportDetailsSeparator),
 	st::passportDetailsSeparatorPadding)
 , _year(
@@ -1066,7 +1064,6 @@ void PanelDetailsRow::showError(std::optional<QString> error) {
 				object_ptr<Ui::FlatLabel>(
 					this,
 					*error,
-					Ui::FlatLabel::InitType::Simple,
 					st::passportVerifyErrorLabel));
 		} else {
 			_error->entity()->setText(*error);

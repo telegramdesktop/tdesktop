@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/text/text_utilities.h"
 #include "boxes/confirm_box.h"
 #include "styles/style_intro.h"
 
@@ -101,7 +102,11 @@ void CodeWidget::refreshLang() {
 }
 
 void CodeWidget::updateDescText() {
-	setDescriptionText(langFactory(getData()->codeByTelegram ? lng_code_telegram : lng_code_desc));
+	const auto byTelegram = getData()->codeByTelegram;
+	setDescriptionText([=] {
+		return Ui::Text::RichLangValue(
+			lang(byTelegram ? lng_code_from_telegram : lng_code_desc));
+	});
 	if (getData()->codeByTelegram) {
 		_noTelegramCode->show();
 		_callTimer->stop();

@@ -304,7 +304,6 @@ BioManager SetupBio(
 	const auto countdown = Ui::CreateChild<Ui::FlatLabel>(
 		container.get(),
 		QString(),
-		Ui::FlatLabel::InitType::Simple,
 		st::settingsBioCountdown);
 
 	rpl::combine(

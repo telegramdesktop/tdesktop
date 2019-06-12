@@ -534,7 +534,6 @@ void ProxiesBox::setupContent() {
 			object_ptr<Ui::FlatLabel>(
 				inner,
 				lang(lng_proxy_about),
-				Ui::FlatLabel::InitType::Simple,
 				st::boxDividerLabel),
 			st::proxyAboutPadding),
 		style::margins(0, 0, 0, st::proxyRowPadding.top()));
@@ -652,7 +651,6 @@ void ProxiesBox::createNoRowsLabel() {
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		_noRows.get(),
 		lang(lng_proxy_description),
-		Ui::FlatLabel::InitType::Simple,
 		st::proxyEmptyListLabel);
 	_noRows->widthValue(
 	) | rpl::start_with_next([=](int width) {
@@ -780,7 +778,6 @@ void ProxyBox::setupTypes() {
 			object_ptr<Ui::FlatLabel>(
 				_content,
 				lang(lng_proxy_sponsor_warning),
-				Ui::FlatLabel::InitType::Simple,
 				st::boxDividerLabel),
 			st::proxyAboutSponsorPadding)));
 }
@@ -911,7 +908,6 @@ void ProxyBox::addLabel(
 		object_ptr<Ui::FlatLabel>(
 			parent,
 			text,
-			Ui::FlatLabel::InitType::Simple,
 			st::proxyEditTitle),
 		st::proxyEditTitlePadding);
 }

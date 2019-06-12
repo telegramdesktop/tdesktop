@@ -89,8 +89,8 @@ void ConfirmSwitchBox::prepare() {
 		0,
 		percent.text.size() });
 	const auto text = (_official
-		? lng_language_switch_about_official__generic<TextWithEntities>
-		: lng_language_switch_about_unofficial__generic<TextWithEntities>)(
+		? lng_language_switch_about_official__rich
+		: lng_language_switch_about_unofficial__rich)(
 		lt_lang_name,
 		name,
 		lt_percent,

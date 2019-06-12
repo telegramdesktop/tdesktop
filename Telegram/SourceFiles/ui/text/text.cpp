@@ -2652,82 +2652,9 @@ void String::setMarkedText(const style::TextStyle &st, const TextWithEntities &t
 	recountNaturalSize(true, options.dir);
 }
 
-void String::setRichText(const style::TextStyle &st, const QString &text, TextParseOptions options, const TextCustomTagsMap &custom) {
-	QString parsed;
-	parsed.reserve(text.size());
-	const QChar *s = text.constData(), *ch = s;
-	for (const QChar *b = s, *e = b + text.size(); ch != e; ++ch) {
-		if (ch->unicode() == '\\') {
-			if (ch > s) parsed.append(s, ch - s);
-			s = ch + 1;
-
-			if (s < e) ++ch;
-			continue;
-		}
-		if (ch->unicode() == '[') {
-			if (ch > s) parsed.append(s, ch - s);
-			s = ch;
-
-			const QChar *tag = ch + 1;
-			if (tag >= e) continue;
-
-			bool closing = false, other = false;
-			if (tag->unicode() == '/') {
-				closing = true;
-				if (++tag >= e) continue;
-			}
-
-			TextCommands cmd;
-			switch (tag->unicode()) {
-			case 'b': cmd = closing ? TextCommandNoBold : TextCommandBold; break;
-			case 'i': cmd = closing ? TextCommandNoItalic : TextCommandItalic; break;
-			case 'u': cmd = closing ? TextCommandNoUnderline : TextCommandUnderline; break;
-			default : other = true; break;
-			}
-
-			if (!other) {
-				if (++tag >= e || tag->unicode() != ']') continue;
-				parsed.append(TextCommand).append(QChar(cmd)).append(TextCommand);
-				ch = tag;
-				s = ch + 1;
-				continue;
-			}
-
-			if (tag->unicode() != 'a') {
-				TextCustomTagsMap::const_iterator i = custom.constFind(*tag);
-				if (++tag >= e || tag->unicode() != ']' || i == custom.cend()) continue;
-				parsed.append(closing ? i->second : i->first);
-				ch = tag;
-				s = ch + 1;
-				continue;
-			}
-
-			if (closing) {
-				if (++tag >= e || tag->unicode() != ']') continue;
-				parsed.append(textcmdStopLink());
-				ch = tag;
-				s = ch + 1;
-				continue;
-			}
-			if (++tag >= e || tag->unicode() != ' ') continue;
-			while (tag < e && tag->unicode() == ' ') ++tag;
-			if (tag + 5 < e && text.midRef(tag - b, 6) == qsl("href=\"")) {
-				tag += 6;
-				const QChar *tagend = tag;
-				while (tagend < e && tagend->unicode() != '"') ++tagend;
-				if (++tagend >= e || tagend->unicode() != ']') continue;
-				parsed.append(textcmdStartLink(QString(tag, tagend - 1 - tag)));
-				ch = tagend;
-				s = ch + 1;
-				continue;
-			}
-		}
-	}
-	if (ch > s) parsed.append(s, ch - s);
-	s = ch;
-
+void String::setRichText(const style::TextStyle &st, const QString &text, TextParseOptions options) {
 	options.flags |= TextParseRichText;
-	setText(st, parsed, options);
+	setText(st, text, options);
 }
 
 void String::setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk) {

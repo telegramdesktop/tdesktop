@@ -392,7 +392,7 @@ PinMessageBox::PinMessageBox(
 	MsgId msgId)
 : _peer(peer)
 , _msgId(msgId)
-, _text(this, lang(lng_pinned_pin_sure), Ui::FlatLabel::InitType::Simple, st::boxLabel) {
+, _text(this, lang(lng_pinned_pin_sure), st::boxLabel) {
 }
 
 void PinMessageBox::prepare() {
@@ -649,11 +649,11 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 			boldName.entities.push_back(
 				{ EntityType::Bold, 0, boldName.text.size() });
 			if (canRevokeOutgoingCount == 1) {
-				result.description = lng_selected_unsend_about_user_one__generic<TextWithEntities>(
+				result.description = lng_selected_unsend_about_user_one__rich(
 					lt_user,
 					boldName);
 			} else {
-				result.description = lng_selected_unsend_about_user__generic<TextWithEntities>(
+				result.description = lng_selected_unsend_about_user__rich(
 					lt_count,
 					canRevokeOutgoingCount,
 					lt_user,
@@ -911,12 +911,12 @@ ConfirmInviteBox::~ConfirmInviteBox() = default;
 
 ConfirmDontWarnBox::ConfirmDontWarnBox(
 	QWidget*,
-	const QString &text,
+	rpl::producer<TextWithEntities> text,
 	const QString &checkbox,
 	const QString &confirm,
 	FnMut<void(bool)> callback)
 : _confirm(confirm)
-, _content(setupContent(text, checkbox, std::move(callback))) {
+, _content(setupContent(std::move(text), checkbox, std::move(callback))) {
 }
 
 void ConfirmDontWarnBox::prepare() {
@@ -926,15 +926,14 @@ void ConfirmDontWarnBox::prepare() {
 }
 
 not_null<Ui::RpWidget*> ConfirmDontWarnBox::setupContent(
-		const QString &text,
+		rpl::producer<TextWithEntities> text,
 		const QString &checkbox,
 		FnMut<void(bool)> callback) {
 	const auto result = Ui::CreateChild<Ui::VerticalLayout>(this);
 	result->add(
 		object_ptr<Ui::FlatLabel>(
 			result,
-			text,
-			Ui::FlatLabel::InitType::Rich,
+			std::move(text),
 			st::boxLabel),
 		st::boxPadding);
 	const auto control = result->add(

@@ -541,7 +541,6 @@ void Row::setupLabels(const Set &set) {
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
 		this,
 		set.name,
-		Ui::FlatLabel::InitType::Simple,
 		st::localStorageRowTitle);
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_status = Ui::CreateChild<Ui::FlatLabel>(

@@ -224,7 +224,7 @@ class ConfirmDontWarnBox : public BoxContent {
 public:
 	ConfirmDontWarnBox(
 		QWidget*,
-		const QString &text,
+		rpl::producer<TextWithEntities> text,
 		const QString &checkbox,
 		const QString &confirm,
 		FnMut<void(bool)> callback);
@@ -234,7 +234,7 @@ protected:
 
 private:
 	not_null<Ui::RpWidget*> setupContent(
-		const QString &text,
+		rpl::producer<TextWithEntities> text,
 		const QString &checkbox,
 		FnMut<void(bool)> callback);
 

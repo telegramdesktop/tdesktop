@@ -150,7 +150,6 @@ not_null<Ui::FlatLabel*> CreateWarningLabel(
 	const auto result = Ui::CreateChild<Ui::FlatLabel>(
 		parent.get(),
 		QString(),
-		Ui::FlatLabel::InitType::Simple,
 		st::createPollWarning);
 	result->setAttribute(Qt::WA_TransparentForMouseEvents);
 	QObject::connect(field, &Ui::InputField::changed, [=] {

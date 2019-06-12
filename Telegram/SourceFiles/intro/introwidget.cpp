@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "boxes/confirm_box.h"
 #include "ui/text/text.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
@@ -324,17 +325,19 @@ void Widget::showTerms() {
 	} else if (!_terms) {
 		auto entity = object_ptr<Ui::FlatLabel>(
 			this,
-			lng_terms_signup(
+			rpl::single(lng_terms_signup__rich(
 				lt_link,
-				textcmdLink(1, lang(lng_terms_signup_link))),
-			Ui::FlatLabel::InitType::Rich,
+				Ui::Text::Link(lang(lng_terms_signup_link)))),
 			st::introTermsLabel);
 		_terms.create(this, std::move(entity));
-		_terms->entity()->setLink(
-			1,
-			std::make_shared<LambdaClickHandler>([=] {
+		_terms->entity()->setClickHandlerFilter([=](
+				const ClickHandlerPtr &handler,
+				Qt::MouseButton button) {
+			if (button == Qt::LeftButton) {
 				showTerms(nullptr);
-			}));
+			}
+			return false;
+		});
 		updateControlsGeometry();
 		_terms->hide(anim::type::instant);
 	}
@@ -670,24 +673,32 @@ void Widget::Step::updateLabelsPosition() {
 	}
 }
 
-void Widget::Step::setTitleText(Fn<QString()> richTitleTextFactory) {
-	_titleTextFactory = std::move(richTitleTextFactory);
+void Widget::Step::setTitleText(Fn<QString()> titleTextFactory) {
+	_titleTextFactory = std::move(titleTextFactory);
 	refreshTitle();
 	updateLabelsPosition();
 }
 
 void Widget::Step::refreshTitle() {
-	_title->setRichText(_titleTextFactory());
+	_title->setText(_titleTextFactory());
 }
 
-void Widget::Step::setDescriptionText(Fn<QString()> richDescriptionTextFactory) {
+void Widget::Step::setDescriptionText(Fn<QString()> descriptionTextFactory) {
+	_descriptionTextFactory = [=] {
+		return TextWithEntities{ descriptionTextFactory() };
+	};
+	refreshDescription();
+	updateLabelsPosition();
+}
+
+void Widget::Step::setDescriptionText(Fn<TextWithEntities()> richDescriptionTextFactory) {
 	_descriptionTextFactory = std::move(richDescriptionTextFactory);
 	refreshDescription();
 	updateLabelsPosition();
 }
 
 void Widget::Step::refreshDescription() {
-	_description->entity()->setRichText(_descriptionTextFactory());
+	_description->entity()->setMarkedText(_descriptionTextFactory());
 }
 
 void Widget::Step::refreshLang() {

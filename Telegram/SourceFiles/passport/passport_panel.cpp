@@ -71,7 +71,6 @@ void Panel::showCriticalError(const QString &error) {
 		object_ptr<Ui::FlatLabel>(
 			_widget.get(),
 			error,
-			Ui::FlatLabel::InitType::Simple,
 			st::passportErrorLabel),
 		style::margins(0, st::passportPanelSize.height() / 3, 0, 0));
 	container->widthValue(

@@ -149,7 +149,6 @@ not_null<Ui::RpWidget*> UrlAuthBox::setupContent(
 		object_ptr<Ui::FlatLabel>(
 			result,
 			lng_url_auth_open_confirm(lt_link, url),
-			Ui::FlatLabel::InitType::Simple,
 			st::boxLabel),
 		st::boxPadding);
 	const auto addCheckbox = [&](const QString &text) {

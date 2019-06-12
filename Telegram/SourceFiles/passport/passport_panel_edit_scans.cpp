@@ -519,7 +519,6 @@ void EditScans::setupScans(const QString &header) {
 				object_ptr<Ui::FlatLabel>(
 					inner,
 					_error,
-					Ui::FlatLabel::InitType::Simple,
 					st::passportVerifyErrorLabel),
 				st::passportValueErrorPadding));
 		_commonError->toggle(true, anim::type::instant);
@@ -555,7 +554,6 @@ void EditScans::setupList(
 			object_ptr<Ui::FlatLabel>(
 				container,
 				header,
-				Ui::FlatLabel::InitType::Simple,
 				st::passportFormHeader),
 			st::passportUploadHeaderPadding));
 	list.header->toggle(
@@ -568,7 +566,6 @@ void EditScans::setupList(
 				object_ptr<Ui::FlatLabel>(
 					container,
 					list.errorMissing,
-					Ui::FlatLabel::InitType::Simple,
 					st::passportVerifyErrorLabel),
 				st::passportUploadErrorPadding));
 		list.uploadMoreError->toggle(true, anim::type::instant);
@@ -659,7 +656,6 @@ void EditScans::setupSpecialScans(
 				object_ptr<Ui::FlatLabel>(
 					inner,
 					_error,
-					Ui::FlatLabel::InitType::Simple,
 					st::passportVerifyErrorLabel),
 				st::passportValueErrorPadding));
 		_commonError->toggle(true, anim::type::instant);
@@ -678,7 +674,6 @@ void EditScans::setupSpecialScans(
 					object_ptr<Ui::FlatLabel>(
 						inner,
 						header,
-						Ui::FlatLabel::InitType::Simple,
 						st::passportFormHeader),
 					st::passportUploadHeaderPadding));
 			scan.header->toggle(scan.file.key.id != 0, anim::type::instant);
@@ -707,7 +702,6 @@ void EditScans::setupSpecialScans(
 			object_ptr<Ui::FlatLabel>(
 				inner,
 				description(type),
-				Ui::FlatLabel::InitType::Simple,
 				st::boxDividerLabel),
 			st::passportFormLabelPadding));
 	}

@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "ui/image/image.h"
 #include "ui/image/image_source.h"
+#include "ui/text/text_utilities.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "lottie/lottie_animation.h"
@@ -96,9 +97,9 @@ void LaunchWithWarning(const QString &name, HistoryItem *item) {
 		File::Launch(name);
 	};
 	Ui::show(Box<ConfirmDontWarnBox>(
-		lng_launch_exe_warning(
+		rpl::single(lng_launch_exe_warning__rich(
 			lt_extension,
-			textcmdStartSemibold() + extension + textcmdStopSemibold()),
+			Ui::Text::Bold(extension))),
 		lang(lng_launch_exe_dont_ask),
 		lang(lng_launch_exe_sure),
 		callback));

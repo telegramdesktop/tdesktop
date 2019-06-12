@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/image/image.h"
+#include "ui/text/text_utilities.h"
 #include "ui/text_options.h"
 #include "boxes/confirm_box.h"
 #include "media/audio/media_audio.h"
@@ -235,11 +236,13 @@ OverlayWidget::OverlayWidget()
 	setWindowIcon(Window::CreateIcon(&Core::App().activeAccount()));
 	setWindowTitle(qsl("Media viewer"));
 
-	TextCustomTagsMap custom;
-	custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
-	_saveMsgText.setRichText(st::mediaviewSaveMsgStyle, lang(lng_mediaview_saved), Ui::DialogTextOptions(), custom);
+	const auto text = lng_mediaview_saved_to__rich(
+		lt_downloads,
+		Ui::Text::Link(
+			lang(lng_mediaview_downloads),
+			"internal:show_saved_message"));
+	_saveMsgText.setMarkedText(st::mediaviewSaveMsgStyle, text, Ui::DialogTextOptions());
 	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::mediaviewSaveMsgPadding.left() + st::mediaviewSaveMsgPadding.right(), st::mediaviewSaveMsgStyle.font->height + st::mediaviewSaveMsgPadding.top() + st::mediaviewSaveMsgPadding.bottom());
-	_saveMsgText.setLink(1, std::make_shared<LambdaClickHandler>([this] { showSaveMsgFile(); }));
 
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 
@@ -3441,7 +3444,11 @@ void OverlayWidget::updateOver(QPoint pos) {
 void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 	updateOver(e->pos());
 
-	if (ClickHandlerPtr activated = ClickHandler::unpressed()) {
+	if (const auto activated = ClickHandler::unpressed()) {
+		if (activated->dragText() == qstr("internal:show_saved_message")) {
+			showSaveMsgFile();
+			return;
+		}
 		App::activateClickHandler(activated, e->button());
 		return;
 	}

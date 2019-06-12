@@ -77,14 +77,9 @@ class FlatLabel : public RpWidget, public ClickHandlerHost {
 public:
 	FlatLabel(QWidget *parent, const style::FlatLabel &st = st::defaultFlatLabel);
 
-	enum class InitType {
-		Simple,
-		Rich,
-	};
 	FlatLabel(
 		QWidget *parent,
 		const QString &text,
-		InitType initType,
 		const style::FlatLabel &st = st::defaultFlatLabel);
 
 	FlatLabel(
@@ -112,6 +107,7 @@ public:
 	QMargins getMargins() const override;
 
 	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
+	void setLinksTrusted();
 
 	using ClickHandlerFilter = Fn<bool(const ClickHandlerPtr&, Qt::MouseButton)>;
 	void setClickHandlerFilter(ClickHandlerFilter &&filter);

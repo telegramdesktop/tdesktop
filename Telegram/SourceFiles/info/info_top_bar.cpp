@@ -486,7 +486,7 @@ bool TopBar::computeCanDelete() const {
 Ui::StringWithNumbers TopBar::generateSelectedText() const {
 	using Data = Ui::StringWithNumbers;
 	using Type = Storage::SharedMediaType;
-	auto phrase = [&] {
+	const auto phrase = [&] {
 		switch (_selectedItems.type) {
 		case Type::Photo: return lng_media_selected_photo__generic<Data>;
 		case Type::Video: return lng_media_selected_video__generic<Data>;
