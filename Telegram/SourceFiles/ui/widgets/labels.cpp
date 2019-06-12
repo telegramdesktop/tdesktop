@@ -306,7 +306,7 @@ void FlatLabel::mousePressEvent(QMouseEvent *e) {
 	dragActionStart(e->globalPos(), e->button());
 }
 
-Text::StateResult FlatLabel::dragActionStart(const QPoint &p, Qt::MouseButton button) {
+Ui::Text::StateResult FlatLabel::dragActionStart(const QPoint &p, Qt::MouseButton button) {
 	_lastMousePos = p;
 	auto state = dragActionUpdate();
 
@@ -359,7 +359,7 @@ Text::StateResult FlatLabel::dragActionStart(const QPoint &p, Qt::MouseButton bu
 	return state;
 }
 
-Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton button) {
+Ui::Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton button) {
 	_lastMousePos = p;
 	auto state = dragActionUpdate();
 
@@ -715,7 +715,7 @@ std::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(
 	return result;
 }
 
-Text::StateResult FlatLabel::dragActionUpdate() {
+Ui::Text::StateResult FlatLabel::dragActionUpdate() {
 	auto m = mapFromGlobal(_lastMousePos);
 	auto state = getTextState(m);
 	updateHover(state);
@@ -728,7 +728,7 @@ Text::StateResult FlatLabel::dragActionUpdate() {
 	return state;
 }
 
-void FlatLabel::updateHover(const Text::StateResult &state) {
+void FlatLabel::updateHover(const Ui::Text::StateResult &state) {
 	bool lnkChanged = ClickHandler::setActive(state.link, this);
 
 	if (!_selectable) {
@@ -791,15 +791,15 @@ void FlatLabel::refreshCursor(bool uponSymbol) {
 	}
 }
 
-Text::StateResult FlatLabel::getTextState(const QPoint &m) const {
-	Text::StateRequestElided request;
+Ui::Text::StateResult FlatLabel::getTextState(const QPoint &m) const {
+	Ui::Text::StateRequestElided request;
 	request.align = _st.align;
 	if (_selectable) {
-		request.flags |= Text::StateRequest::Flag::LookupSymbol;
+		request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 	}
 	int textWidth = width() - _st.margin.left() - _st.margin.right();
 
-	Text::StateResult state;
+	Ui::Text::StateResult state;
 	bool heightExceeded = _st.maxHeight && (_st.maxHeight < _fullTextHeight || textWidth < _text.maxWidth());
 	bool renderElided = _breakEverywhere || heightExceeded;
 	if (renderElided) {
@@ -807,7 +807,7 @@ Text::StateResult FlatLabel::getTextState(const QPoint &m) const {
 		auto lines = _st.maxHeight ? qMax(_st.maxHeight / lineHeight, 1) : ((height() / lineHeight) + 2);
 		request.lines = lines;
 		if (_breakEverywhere) {
-			request.flags |= Text::StateRequest::Flag::BreakEverywhere;
+			request.flags |= Ui::Text::StateRequest::Flag::BreakEverywhere;
 		}
 		state = _text.getStateElided(m - QPoint(_st.margin.left(), _st.margin.top()), textWidth, request);
 	} else {

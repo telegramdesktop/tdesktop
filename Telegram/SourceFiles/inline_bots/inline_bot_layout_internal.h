@@ -199,7 +199,7 @@ private:
 	ClickHandlerPtr _link;
 
 	mutable QPixmap _thumb;
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 	QString _duration;
 	int _durationWidth = 0;
 
@@ -286,7 +286,7 @@ private:
 	};
 	mutable std::unique_ptr<AnimationData> _animation;
 
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 	ClickHandlerPtr _open, _cancel;
 
 	// >= 0 will contain download / upload string, _statusSize = loaded bytes
@@ -317,7 +317,7 @@ public:
 
 private:
 	mutable QPixmap _thumb;
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 
 	void prepareThumbnail(int width, int height) const;
 
@@ -340,7 +340,7 @@ private:
 
 	bool _withThumb;
 	mutable QPixmap _thumb;
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 	QString _thumbLetter, _urlText;
 	int32 _urlWidth;
 
@@ -375,7 +375,7 @@ private:
 	mutable QPixmap _thumb;
 	mutable bool _thumbGood = false;
 	mutable std::unique_ptr<Ui::RadialAnimation> _radial;
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 
 	QSize _frameSize;
 

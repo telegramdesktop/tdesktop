@@ -230,7 +230,7 @@ private:
 	int _x = -1;
 	int _y = -1;
 	int _width = 0;
-	Text _text;
+	Text::String _text;
 	style::color _color;
 	bool _over = false;
 	QPixmap _cache;

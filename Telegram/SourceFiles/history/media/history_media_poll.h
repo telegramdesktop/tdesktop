@@ -118,10 +118,10 @@ private:
 	bool _voted = false;
 	bool _closed = false;
 
-	Text _question;
-	Text _subtitle;
+	Ui::Text::String _question;
+	Ui::Text::String _subtitle;
 	std::vector<Answer> _answers;
-	Text _totalVotesLabel;
+	Ui::Text::String _totalVotesLabel;
 
 	mutable std::unique_ptr<AnswersAnimation> _answersAnimation;
 	mutable std::unique_ptr<SendingAnimation> _sendingAnimation;

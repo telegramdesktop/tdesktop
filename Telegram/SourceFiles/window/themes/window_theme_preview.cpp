@@ -94,7 +94,7 @@ private:
 		Received
 	};
 	struct Row {
-		Text name;
+		Ui::Text::String name;
 		QString letters;
 		enum class Type {
 			User,
@@ -107,7 +107,7 @@ private:
 		bool muted = false;
 		bool pinned = false;
 		QString date;
-		Text text;
+		Ui::Text::String text;
 		Status status = Status::None;
 		bool selected = false;
 		bool active = false;
@@ -120,15 +120,15 @@ private:
 		QString date;
 		bool attached = false;
 		bool tail = true;
-		Text text = { st::msgMinWidth };
+		Ui::Text::String text = { st::msgMinWidth };
 		QVector<int> waveform;
 		int waveactive = 0;
 		QString wavestatus;
 		QImage photo;
 		int photoWidth = 0;
 		int photoHeight = 0;
-		Text replyName = { st::msgMinWidth };
-		Text replyText = { st::msgMinWidth };
+		Ui::Text::String replyName = { st::msgMinWidth };
+		Ui::Text::String replyText = { st::msgMinWidth };
 	};
 
 	void prepare();
@@ -177,7 +177,7 @@ private:
 	int _rowsTop = 0;
 	std::vector<Row> _rows;
 
-	Text _topBarName;
+	Ui::Text::String _topBarName;
 	QString _topBarStatus;
 	bool _topBarStatusActive = false;
 

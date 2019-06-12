@@ -67,10 +67,10 @@ public:
 
 	static void paintBubble(Painter &p, int x, int y, int w, int h);
 
-	static void paintComplexBubble(Painter &p, int left, int width, const Text &text, const QRect &textRect);
+	static void paintComplexBubble(Painter &p, int left, int width, const Ui::Text::String &text, const QRect &textRect);
 
 private:
-	static QVector<int> countLineWidths(const Text &text, const QRect &textRect);
+	static QVector<int> countLineWidths(const Ui::Text::String &text, const QRect &textRect);
 
 };
 
@@ -84,9 +84,9 @@ private:
 	void fillAboutGroup();
 
 	not_null<History*> _history;
-	Text _header = { st::msgMinWidth };
-	Text _text = { st::msgMinWidth };
-	std::vector<Text> _phrases;
+	Ui::Text::String _header = { st::msgMinWidth };
+	Ui::Text::String _text = { st::msgMinWidth };
+	std::vector<Ui::Text::String> _phrases;
 
 };
 

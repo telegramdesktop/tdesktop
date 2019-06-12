@@ -684,7 +684,7 @@ void Notification::updateNotifyDisplay() {
 
 		if (!options.hideMessageText) {
 			const HistoryItem *textCachedFor = nullptr;
-			Text itemTextCache(itemWidth);
+			Ui::Text::String itemTextCache(itemWidth);
 			QRect r(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dialogsTextFont->height);
 			if (_item) {
 				auto active = false, selected = false;

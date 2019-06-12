@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class GenericBox;
+
 namespace Ui {
 class RpWidget;
 } // namespace Ui
@@ -17,6 +19,7 @@ class Folder;
 
 namespace Window {
 
+class Controller;
 class SessionController;
 
 enum class PeerMenuSource {
@@ -51,6 +54,10 @@ void PeerMenuAddContact(not_null<UserData*> user);
 void PeerMenuAddChannelMembers(not_null<ChannelData*> channel);
 //void PeerMenuUngroupFeed(not_null<Data::Feed*> feed); // #feed
 void PeerMenuCreatePoll(not_null<PeerData*> peer);
+void PeerMenuBlockUserBox(
+	not_null<GenericBox*> box,
+	not_null<UserData*> user,
+	not_null<Window::Controller*> window);
 
 void ToggleHistoryArchived(not_null<History*> history, bool archived);
 Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer);

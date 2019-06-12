@@ -12,9 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/text/text_utilities.h"
 #include "info/profile/info_profile_cover.h"
 #include "lang/lang_keys.h"
 #include "window/window_controller.h"
+#include "ui/toast/toast.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "styles/style_boxes.h"
@@ -27,12 +29,6 @@ QString UserPhone(not_null<UserData*> user) {
 	return phone.isEmpty()
 		? user->owner().findContactPhone(user->bareId())
 		: phone;
-}
-
-TextWithEntities BoldText(const QString &text) {
-	auto result = TextWithEntities{ text };
-	result.entities.push_back({ EntityType::Bold, 0, text.size() });
-	return result;
 }
 
 } // namespace
@@ -163,6 +159,7 @@ void AddToContactsBox::initNameFields(
 			if (box) {
 				box->closeBox();
 			}
+			Ui::Toast::Show(lng_new_contact_add_done(lt_user, firstValue));
 		}).fail([=](const RPCError &error) {
 		}).send();
 	};
@@ -170,21 +167,19 @@ void AddToContactsBox::initNameFields(
 
 void AddToContactsBox::setupWarning(
 		not_null<Ui::VerticalLayout*> container) {
-	const auto name = _user->firstName.isEmpty()
-		? _user->lastName
-		: _user->firstName;
+	const auto name = _user->shortName();
 	const auto nameWithEntities = TextWithEntities{ name };
 	const auto text = _phone.isEmpty()
 		? lng_contact_phone_after__generic<TextWithEntities>(
 			lt_user,
 			nameWithEntities,
 			lt_visible,
-			BoldText(lang(lng_contact_phone_visible)),
+			Ui::Text::Bold(lang(lng_contact_phone_visible)),
 			lt_name,
 			nameWithEntities)
 		: lng_contact_phone_show__generic<TextWithEntities>(
 			lt_button,
-			BoldText(lang(lng_box_done).toUpper()),
+			Ui::Text::Bold(lang(lng_box_done).toUpper()),
 			lt_user,
 			TextWithEntities{ name });
 	container->add(

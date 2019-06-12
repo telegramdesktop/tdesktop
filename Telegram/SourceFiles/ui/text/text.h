@@ -67,15 +67,52 @@ static constexpr TextSelection AllTextSelection = { 0, 0xFFFF };
 typedef QPair<QString, QString> TextCustomTag; // open str and close str
 typedef QMap<QChar, TextCustomTag> TextCustomTagsMap;
 
-class ITextBlock;
-class Text {
+namespace Ui {
+namespace Text {
+
+class AbstractBlock;
+
+struct StateRequest {
+	enum class Flag {
+		BreakEverywhere = (1 << 0),
+		LookupSymbol = (1 << 1),
+		LookupLink = (1 << 2),
+		LookupCustomTooltip = (1 << 3),
+	};
+	using Flags = base::flags<Flag>;
+	friend inline constexpr auto is_flag_type(Flag) { return true; };
+
+	StateRequest() {
+	}
+
+	style::align align = style::al_left;
+	Flags flags = Flag::LookupLink;
+};
+
+struct StateResult {
+	ClickHandlerPtr link;
+	bool uponSymbol = false;
+	bool afterSymbol = false;
+	uint16 symbol = 0;
+};
+
+struct StateRequestElided : public StateRequest {
+	StateRequestElided() {
+	}
+	StateRequestElided(const StateRequest &other) : StateRequest(other) {
+	}
+	int lines = 1;
+	int removeFromEnd = 0;
+};
+
+class String {
 public:
-	Text(int32 minResizeWidth = QFIXED_MAX);
-	Text(const style::TextStyle &st, const QString &text, const TextParseOptions &options = _defaultOptions, int32 minResizeWidth = QFIXED_MAX, bool richText = false);
-	Text(const Text &other);
-	Text(Text &&other);
-	Text &operator=(const Text &other);
-	Text &operator=(Text &&other);
+	String(int32 minResizeWidth = QFIXED_MAX);
+	String(const style::TextStyle &st, const QString &text, const TextParseOptions &options = _defaultOptions, int32 minResizeWidth = QFIXED_MAX, bool richText = false);
+	String(const String &other);
+	String(String &&other);
+	String &operator=(const String &other);
+	String &operator=(String &&other);
 
 	int countWidth(int width) const;
 	int countHeight(int width) const;
@@ -113,40 +150,10 @@ public:
 		drawElided(p, rtl() ? right : (outerw - right - width), top, width, lines, align, yFrom, yTo, removeFromEnd, breakEverywhere, selection);
 	}
 
-	struct StateRequest {
-		enum class Flag {
-			BreakEverywhere     = (1 << 0),
-			LookupSymbol        = (1 << 1),
-			LookupLink          = (1 << 2),
-			LookupCustomTooltip = (1 << 3),
-		};
-		using Flags = base::flags<Flag>;
-		friend inline constexpr auto is_flag_type(Flag) { return true; };
-
-		StateRequest() {
-		}
-
-		style::align align = style::al_left;
-		Flags flags = Flag::LookupLink;
-	};
-	struct StateResult {
-		ClickHandlerPtr link;
-		bool uponSymbol = false;
-		bool afterSymbol = false;
-		uint16 symbol = 0;
-	};
 	StateResult getState(QPoint point, int width, StateRequest request = StateRequest()) const;
 	StateResult getStateLeft(QPoint point, int width, int outerw, StateRequest request = StateRequest()) const {
 		return getState(rtlpoint(point, outerw), width, request);
 	}
-	struct StateRequestElided : public StateRequest {
-		StateRequestElided() {
-		}
-		StateRequestElided(const StateRequest &other) : StateRequest(other) {
-		}
-		int lines = 1;
-		int removeFromEnd = 0;
-    };
 	StateResult getStateElided(QPoint point, int width, StateRequestElided request = StateRequestElided()) const;
 	StateResult getStateElidedLeft(QPoint point, int width, int outerw, StateRequestElided request = StateRequestElided()) const {
 		return getStateElided(rtlpoint(point, outerw), width, request);
@@ -195,14 +202,14 @@ public:
 	}
 
 	void clear();
-	~Text();
+	~String();
 
 private:
-	using TextBlocks = std::vector<std::unique_ptr<ITextBlock>>;
+	using TextBlocks = std::vector<std::unique_ptr<AbstractBlock>>;
 	using TextLinks = QVector<ClickHandlerPtr>;
 
 	uint16 countBlockEnd(const TextBlocks::const_iterator &i, const TextBlocks::const_iterator &e) const;
-	uint16 countBlockLength(const Text::TextBlocks::const_iterator &i, const Text::TextBlocks::const_iterator &e) const;
+	uint16 countBlockLength(const TextBlocks::const_iterator &i, const TextBlocks::const_iterator &e) const;
 
 	// Template method for originalText(), originalTextWithEntities().
 	template <typename AppendPartCallback, typename ClickHandlerStartCallback, typename ClickHandlerFinishCallback, typename FlagsChangeCallback>
@@ -237,10 +244,14 @@ private:
 
 	Qt::LayoutDirection _startDir = Qt::LayoutDirectionAuto;
 
-	friend class TextParser;
-	friend class TextPainter;
+	friend class Parser;
+	friend class Renderer;
 
 };
+
+} // namespace Text
+} // namespace Ui
+
 inline TextSelection snapSelection(int from, int to) {
 	return { static_cast<uint16>(snap(from, 0, 0xFFFF)), static_cast<uint16>(snap(to, 0, 0xFFFF)) };
 }
@@ -250,10 +261,10 @@ inline TextSelection shiftSelection(TextSelection selection, uint16 byLength) {
 inline TextSelection unshiftSelection(TextSelection selection, uint16 byLength) {
 	return snapSelection(int(selection.from) - int(byLength), int(selection.to) - int(byLength));
 }
-inline TextSelection shiftSelection(TextSelection selection, const Text &byText) {
+inline TextSelection shiftSelection(TextSelection selection, const Ui::Text::String &byText) {
 	return shiftSelection(selection, byText.length());
 }
-inline TextSelection unshiftSelection(TextSelection selection, const Text &byText) {
+inline TextSelection unshiftSelection(TextSelection selection, const Ui::Text::String &byText) {
 	return unshiftSelection(selection, byText.length());
 }
 

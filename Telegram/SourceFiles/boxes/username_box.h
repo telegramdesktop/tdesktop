@@ -49,7 +49,7 @@ private:
 	mtpRequestId _checkRequestId = 0;
 	QString _sentUsername, _checkUsername, _errorText, _goodText;
 
-	Text _about;
+	Ui::Text::String _about;
 	object_ptr<QTimer> _checkTimer;
 
 };

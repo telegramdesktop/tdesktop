@@ -106,7 +106,7 @@ private:
 	not_null<DocumentData*> _data;
 	int _thumbw = 1;
 	int _thumbh = 1;
-	Text _caption;
+	Ui::Text::String _caption;
 	Media::Clip::ReaderPointer _gif;
 
 	void setStatusSize(int newSize) const;

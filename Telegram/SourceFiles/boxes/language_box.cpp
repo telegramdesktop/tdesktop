@@ -72,8 +72,8 @@ protected:
 private:
 	struct Row {
 		Language data;
-		Text title = { st::boxWideWidth / 2 };
-		Text description = { st::boxWideWidth / 2 };
+		Ui::Text::String title = { st::boxWideWidth / 2 };
+		Ui::Text::String description = { st::boxWideWidth / 2 };
 		int top = 0;
 		int height = 0;
 		mutable std::unique_ptr<Ui::RippleAnimation> ripple;

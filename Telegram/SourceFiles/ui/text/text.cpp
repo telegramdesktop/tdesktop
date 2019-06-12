@@ -18,14 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "mainwindow.h"
 
-namespace {
-
-inline int32 countBlockHeight(const ITextBlock *b, const style::TextStyle *st) {
-	return (b->type() == TextBlockTSkip) ? static_cast<const SkipBlock*>(b)->height() : (st->lineHeight > st->font->height) ? st->lineHeight : st->font->height;
-}
-
-} // namespace
-
 bool chIsBad(QChar ch) {
 	return (ch == 0)
         || (ch >= 8232 && ch < 8237)
@@ -139,7 +131,24 @@ const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink) 
 	return (result < end && *result == TextCommand) ? (result + 1) : from;
 }
 
-class TextParser {
+const TextParseOptions _defaultOptions = {
+	TextParseLinks | TextParseMultiline, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+
+const TextParseOptions _textPlainOptions = {
+	TextParseMultiline, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+
+namespace Ui {
+namespace Text {
+
+class Parser {
 public:
 	static Qt::LayoutDirection stringDirection(const QString &str, int32 from, int32 to) {
 		const ushort *p = reinterpret_cast<const ushort*>(str.unicode()) + from;
@@ -505,7 +514,7 @@ public:
 		emoji = e;
 	}
 
-	TextParser(Text *t, const QString &text, const TextParseOptions &options) : _t(t),
+	Parser(String *t, const QString &text, const TextParseOptions &options) : _t(t),
 		source { text },
 		rich(options.flags & TextParseRichText),
 		multiline(options.flags & TextParseMultiline),
@@ -516,7 +525,7 @@ public:
 		parse(options);
 	}
 
-	TextParser(Text *t, const TextWithEntities &textWithEntities, const TextParseOptions &options) : _t(t),
+	Parser(String *t, const TextWithEntities &textWithEntities, const TextParseOptions &options) : _t(t),
 		source(textWithEntities),
 		rich(options.flags & TextParseRichText),
 		multiline(options.flags & TextParseMultiline),
@@ -717,7 +726,7 @@ private:
 		*outDisplayStatus = (*outLinkText == readable) ? LinkDisplayedFull : LinkDisplayedElided;
 	}
 
-	Text *_t;
+	String *_t;
 	TextWithEntities source;
 	const QChar *start, *end, *ptr;
 	bool rich, multiline;
@@ -749,6 +758,7 @@ private:
 };
 
 namespace {
+
 // COPIED FROM qtextengine.cpp AND MODIFIED
 
 struct BidiStatus {
@@ -841,17 +851,21 @@ static void eAppendItems(QScriptAnalysis *analysis, int &start, int &stop, const
 	start = stop;
 }
 
+inline int32 countBlockHeight(const AbstractBlock *b, const style::TextStyle *st) {
+	return (b->type() == TextBlockTSkip) ? static_cast<const SkipBlock*>(b)->height() : (st->lineHeight > st->font->height) ? st->lineHeight : st->font->height;
+}
+
 } // namespace
 
-class TextPainter {
+class Renderer {
 public:
-	TextPainter(Painter *p, const Text *t)
+	Renderer(Painter *p, const String *t)
 	: _p(p)
 	, _t(t)
 	, _originalPen(p ? p->pen() : QPen()) {
 	}
 
-	~TextPainter() {
+	~Renderer() {
 		restoreAfterElided();
 		if (_p) {
 			_p->setPen(_originalPen);
@@ -1071,15 +1085,15 @@ public:
 		draw(left, top, w, align, yFrom, yTo, selection);
 	}
 
-	Text::StateResult getState(QPoint point, int w, Text::StateRequest request) {
+	StateResult getState(QPoint point, int w, StateRequest request) {
 		if (!_t->isNull() && point.y() >= 0) {
 			_lookupRequest = request;
 			_lookupX = point.x();
 			_lookupY = point.y();
 
-			_breakEverywhere = (_lookupRequest.flags & Text::StateRequest::Flag::BreakEverywhere);
-			_lookupSymbol = (_lookupRequest.flags & Text::StateRequest::Flag::LookupSymbol);
-			_lookupLink = (_lookupRequest.flags & Text::StateRequest::Flag::LookupLink);
+			_breakEverywhere = (_lookupRequest.flags & StateRequest::Flag::BreakEverywhere);
+			_lookupSymbol = (_lookupRequest.flags & StateRequest::Flag::LookupSymbol);
+			_lookupLink = (_lookupRequest.flags & StateRequest::Flag::LookupLink);
 			if (_lookupSymbol || (_lookupX >= 0 && _lookupX < w)) {
 				draw(0, 0, w, _lookupRequest.align, _lookupY, _lookupY + 1);
 			}
@@ -1087,15 +1101,15 @@ public:
 		return _lookupResult;
 	}
 
-	Text::StateResult getStateElided(QPoint point, int w, Text::StateRequestElided request) {
+	StateResult getStateElided(QPoint point, int w, StateRequestElided request) {
 		if (!_t->isNull() && point.y() >= 0 && request.lines > 0) {
 			_lookupRequest = request;
 			_lookupX = point.x();
 			_lookupY = point.y();
 
-			_breakEverywhere = (_lookupRequest.flags & Text::StateRequest::Flag::BreakEverywhere);
-			_lookupSymbol = (_lookupRequest.flags & Text::StateRequest::Flag::LookupSymbol);
-			_lookupLink = (_lookupRequest.flags & Text::StateRequest::Flag::LookupLink);
+			_breakEverywhere = (_lookupRequest.flags & StateRequest::Flag::BreakEverywhere);
+			_lookupSymbol = (_lookupRequest.flags & StateRequest::Flag::LookupSymbol);
+			_lookupLink = (_lookupRequest.flags & StateRequest::Flag::LookupLink);
 			if (_lookupSymbol || (_lookupX >= 0 && _lookupX < w)) {
 				int yTo = _lookupY + 1;
 				if (yTo < 0 || (request.lines - 1) * _t->_st->font->height < yTo) {
@@ -1110,9 +1124,9 @@ public:
 	}
 
 private:
-	void initNextParagraph(Text::TextBlocks::const_iterator i) {
+	void initNextParagraph(String::TextBlocks::const_iterator i) {
 		_parStartBlock = i;
-		Text::TextBlocks::const_iterator e = _t->_blocks.cend();
+		const auto e = _t->_blocks.cend();
 		if (i == e) {
 			_parStart = _t->_text.size();
 			_parLength = 0;
@@ -1131,7 +1145,7 @@ private:
 	void initParagraphBidi() {
 		if (!_parLength || !_parAnalysis.isEmpty()) return;
 
-		Text::TextBlocks::const_iterator i = _parStartBlock, e = _t->_blocks.cend(), n = i + 1;
+		String::TextBlocks::const_iterator i = _parStartBlock, e = _t->_blocks.cend(), n = i + 1;
 
 		bool ignore = false;
 		bool rtl = (_parDirection == Qt::RightToLeft);
@@ -1171,7 +1185,7 @@ private:
 		}
 	}
 
-	bool drawLine(uint16 _lineEnd, const Text::TextBlocks::const_iterator &_endBlockIter, const Text::TextBlocks::const_iterator &_end) {
+	bool drawLine(uint16 _lineEnd, const String::TextBlocks::const_iterator &_endBlockIter, const String::TextBlocks::const_iterator &_end) {
 		_yDelta = (_lineHeight - _fontHeight) / 2;
 		if (_yTo >= 0 && (_y + _yDelta >= _yTo || _y >= _yTo)) return false;
 		if (_y + _yDelta + _fontHeight <= _yFrom) {
@@ -1618,13 +1632,13 @@ private:
 		_p->fillRect(left, _y + _yDelta, width, _fontHeight, _textPalette->selectBg);
 	}
 
-	void elideSaveBlock(int32 blockIndex, ITextBlock *&_endBlock, int32 elideStart, int32 elideWidth) {
+	void elideSaveBlock(int32 blockIndex, AbstractBlock *&_endBlock, int32 elideStart, int32 elideWidth) {
 		if (_elideSavedBlock) {
 			restoreAfterElided();
 		}
 
 		_elideSavedIndex = blockIndex;
-		auto mutableText = const_cast<Text*>(_t);
+		auto mutableText = const_cast<String*>(_t);
 		_elideSavedBlock = std::move(mutableText->_blocks[blockIndex]);
 		mutableText->_blocks[blockIndex] = std::make_unique<TextBlock>(_t->_st->font, _t->_text, QFIXED_MAX, elideStart, 0, _elideSavedBlock->flags(), _elideSavedBlock->lnkIndex());
 		_blocksSize = blockIndex + 1;
@@ -1641,7 +1655,7 @@ private:
 		}
 	}
 
-	void prepareElidedLine(QString &lineText, int32 lineStart, int32 &lineLength, ITextBlock *&_endBlock, int repeat = 0) {
+	void prepareElidedLine(QString &lineText, int32 lineStart, int32 &lineLength, AbstractBlock *&_endBlock, int repeat = 0) {
 		static const QString _Elide = qsl("...");
 
 		_f = _t->_st->font;
@@ -1751,7 +1765,7 @@ private:
 
 	void restoreAfterElided() {
 		if (_elideSavedBlock) {
-			const_cast<Text*>(_t)->_blocks[_elideSavedIndex] = std::move(_elideSavedBlock);
+			const_cast<String*>(_t)->_blocks[_elideSavedIndex] = std::move(_elideSavedBlock);
 		}
 	}
 
@@ -1807,7 +1821,7 @@ private:
 		return result;
 	}
 
-	void eSetFont(ITextBlock *block) {
+	void eSetFont(AbstractBlock *block) {
 		style::font newFont = _t->_st->font;
 		int flags = block->flags();
 		if (flags) {
@@ -1931,8 +1945,8 @@ private:
 	QChar::Direction eSkipBoundryNeutrals(QScriptAnalysis *analysis,
 											const ushort *unicode,
 											int &sor, int &eor, BidiControl &control,
-											Text::TextBlocks::const_iterator i) {
-		Text::TextBlocks::const_iterator e = _t->_blocks.cend(), n = i + 1;
+											String::TextBlocks::const_iterator i) {
+		String::TextBlocks::const_iterator e = _t->_blocks.cend(), n = i + 1;
 
 		QChar::Direction dir = control.basicDirection();
 		int level = sor > 0 ? analysis[sor - 1].bidiLevel : control.level;
@@ -1980,7 +1994,7 @@ private:
 		QChar::Direction dir = rightToLeft ? QChar::DirR : QChar::DirL;
 		BidiStatus status;
 
-		Text::TextBlocks::const_iterator i = _parStartBlock, e = _t->_blocks.cend(), n = i + 1;
+		String::TextBlocks::const_iterator i = _parStartBlock, e = _t->_blocks.cend(), n = i + 1;
 
 		QChar::Direction sdir;
 		TextBlockType _stype = (*_parStartBlock)->type();
@@ -2389,7 +2403,7 @@ private:
 	}
 
 private:
-	void applyBlockProperties(ITextBlock *block) {
+	void applyBlockProperties(AbstractBlock *block) {
 		eSetFont(block);
 		if (_p) {
 			if (block->lnkIndex()) {
@@ -2407,7 +2421,7 @@ private:
 
 	Painter *_p = nullptr;
 	const style::TextPalette *_textPalette = nullptr;
-	const Text *_t = nullptr;
+	const String *_t = nullptr;
 	bool _elideLast = false;
 	bool _breakEverywhere = false;
 	int _elideRemoveFromEnd = 0;
@@ -2424,7 +2438,7 @@ private:
 	const QChar *_str = nullptr;
 
 	// current paragraph data
-	Text::TextBlocks::const_iterator _parStartBlock;
+	String::TextBlocks::const_iterator _parStartBlock;
 	Qt::LayoutDirection _parDirection;
 	int _parStart = 0;
 	int _parLength = 0;
@@ -2440,7 +2454,7 @@ private:
 	// elided hack support
 	int _blocksSize = 0;
 	int _elideSavedIndex = 0;
-	std::unique_ptr<ITextBlock> _elideSavedBlock;
+	std::unique_ptr<AbstractBlock> _elideSavedBlock;
 
 	int _lineStart = 0;
 	int _localFrom = 0;
@@ -2451,29 +2465,15 @@ private:
 	int _lookupY = 0;
 	bool _lookupSymbol = false;
 	bool _lookupLink = false;
-	Text::StateRequest _lookupRequest;
-	Text::StateResult _lookupResult;
+	StateRequest _lookupRequest;
+	StateResult _lookupResult;
 
 };
 
-const TextParseOptions _defaultOptions = {
-	TextParseLinks | TextParseMultiline, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-
-const TextParseOptions _textPlainOptions = {
-	TextParseMultiline, // flags
-	0, // maxw
-	0, // maxh
-	Qt::LayoutDirectionAuto, // dir
-};
-
-Text::Text(int32 minResizeWidth) : _minResizeWidth(minResizeWidth) {
+String::String(int32 minResizeWidth) : _minResizeWidth(minResizeWidth) {
 }
 
-Text::Text(const style::TextStyle &st, const QString &text, const TextParseOptions &options, int32 minResizeWidth, bool richText) : _minResizeWidth(minResizeWidth) {
+String::String(const style::TextStyle &st, const QString &text, const TextParseOptions &options, int32 minResizeWidth, bool richText) : _minResizeWidth(minResizeWidth) {
 	if (richText) {
 		setRichText(st, text, options);
 	} else {
@@ -2481,7 +2481,7 @@ Text::Text(const style::TextStyle &st, const QString &text, const TextParseOptio
 	}
 }
 
-Text::Text(const Text &other)
+String::String(const String &other)
 : _minResizeWidth(other._minResizeWidth)
 , _maxWidth(other._maxWidth)
 , _minHeight(other._minHeight)
@@ -2495,7 +2495,7 @@ Text::Text(const Text &other)
 	}
 }
 
-Text::Text(Text &&other)
+String::String(String &&other)
 : _minResizeWidth(other._minResizeWidth)
 , _maxWidth(other._maxWidth)
 , _minHeight(other._minHeight)
@@ -2507,7 +2507,7 @@ Text::Text(Text &&other)
 	other.clearFields();
 }
 
-Text &Text::operator=(const Text &other) {
+String &String::operator=(const String &other) {
 	_minResizeWidth = other._minResizeWidth;
 	_maxWidth = other._maxWidth;
 	_minHeight = other._minHeight;
@@ -2522,7 +2522,7 @@ Text &Text::operator=(const Text &other) {
 	return *this;
 }
 
-Text &Text::operator=(Text &&other) {
+String &String::operator=(String &&other) {
 	_minResizeWidth = other._minResizeWidth;
 	_maxWidth = other._maxWidth;
 	_minHeight = other._minHeight;
@@ -2535,16 +2535,16 @@ Text &Text::operator=(Text &&other) {
 	return *this;
 }
 
-void Text::setText(const style::TextStyle &st, const QString &text, const TextParseOptions &options) {
+void String::setText(const style::TextStyle &st, const QString &text, const TextParseOptions &options) {
 	_st = &st;
 	clear();
 	{
-		TextParser parser(this, text, options);
+		Parser parser(this, text, options);
 	}
 	recountNaturalSize(true, options.dir);
 }
 
-void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
+void String::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	NewlineBlock *lastNewline = 0;
 
 	_maxWidth = _minHeight = 0;
@@ -2560,7 +2560,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 			if (initial) {
 				Qt::LayoutDirection dir = optionsDir;
 				if (dir == Qt::LayoutDirectionAuto) {
-					dir = TextParser::stringDirection(_text, lastNewlineStart, b->from());
+					dir = Parser::stringDirection(_text, lastNewlineStart, b->from());
 				}
 				if (lastNewline) {
 					lastNewline->_nextDir = dir;
@@ -2602,7 +2602,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	if (initial) {
 		Qt::LayoutDirection dir = optionsDir;
 		if (dir == Qt::LayoutDirectionAuto) {
-			dir = TextParser::stringDirection(_text, lastNewlineStart, _text.size());
+			dir = Parser::stringDirection(_text, lastNewlineStart, _text.size());
 		}
 		if (lastNewline) {
 			lastNewline->_nextDir = dir;
@@ -2617,7 +2617,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	}
 }
 
-void Text::setMarkedText(const style::TextStyle &st, const TextWithEntities &textWithEntities, const TextParseOptions &options) {
+void String::setMarkedText(const style::TextStyle &st, const TextWithEntities &textWithEntities, const TextParseOptions &options) {
 	_st = &st;
 	clear();
 	{
@@ -2645,14 +2645,14 @@ void Text::setMarkedText(const style::TextStyle &st, const TextWithEntities &tex
 //			}
 //		}
 //		newText.append("},\n\n").append(text);
-//		TextParser parser(this, { newText, EntitiesInText() }, options);
+//		Parser parser(this, { newText, EntitiesInText() }, options);
 
-		TextParser parser(this, textWithEntities, options);
+		Parser parser(this, textWithEntities, options);
 	}
 	recountNaturalSize(true, options.dir);
 }
 
-void Text::setRichText(const style::TextStyle &st, const QString &text, TextParseOptions options, const TextCustomTagsMap &custom) {
+void String::setRichText(const style::TextStyle &st, const QString &text, TextParseOptions options, const TextCustomTagsMap &custom) {
 	QString parsed;
 	parsed.reserve(text.size());
 	const QChar *s = text.constData(), *ch = s;
@@ -2730,20 +2730,20 @@ void Text::setRichText(const style::TextStyle &st, const QString &text, TextPars
 	setText(st, parsed, options);
 }
 
-void Text::setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk) {
+void String::setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk) {
 	if (!lnkIndex || lnkIndex > _links.size()) return;
 	_links[lnkIndex - 1] = lnk;
 }
 
-bool Text::hasLinks() const {
+bool String::hasLinks() const {
 	return !_links.isEmpty();
 }
 
-bool Text::hasSkipBlock() const {
+bool String::hasSkipBlock() const {
 	return _blocks.empty() ? false : _blocks.back()->type() == TextBlockTSkip;
 }
 
-bool Text::updateSkipBlock(int width, int height) {
+bool String::updateSkipBlock(int width, int height) {
 	if (!_blocks.empty() && _blocks.back()->type() == TextBlockTSkip) {
 		const auto block = static_cast<SkipBlock*>(_blocks.back().get());
 		if (block->width() == width && block->height() == height) {
@@ -2764,7 +2764,7 @@ bool Text::updateSkipBlock(int width, int height) {
 	return true;
 }
 
-bool Text::removeSkipBlock() {
+bool String::removeSkipBlock() {
 	if (_blocks.empty() || _blocks.back()->type() != TextBlockTSkip) {
 		return false;
 	}
@@ -2774,7 +2774,7 @@ bool Text::removeSkipBlock() {
 	return true;
 }
 
-int Text::countWidth(int width) const {
+int String::countWidth(int width) const {
 	if (QFixed(width) >= _maxWidth) {
 		return _maxWidth.ceil().toInt();
 	}
@@ -2788,7 +2788,7 @@ int Text::countWidth(int width) const {
 	return maxLineWidth.ceil().toInt();
 }
 
-int Text::countHeight(int width) const {
+int String::countHeight(int width) const {
 	if (QFixed(width) >= _maxWidth) {
 		return _minHeight;
 	}
@@ -2799,14 +2799,14 @@ int Text::countHeight(int width) const {
 	return result;
 }
 
-void Text::countLineWidths(int width, QVector<int> *lineWidths) const {
+void String::countLineWidths(int width, QVector<int> *lineWidths) const {
 	enumerateLines(width, [lineWidths](QFixed lineWidth, int lineHeight) {
 		lineWidths->push_back(lineWidth.ceil().toInt());
 	});
 }
 
 template <typename Callback>
-void Text::enumerateLines(int w, Callback callback) const {
+void String::enumerateLines(int w, Callback callback) const {
 	QFixed width = w;
 	if (width < _minResizeWidth) width = _minResizeWidth;
 
@@ -2915,27 +2915,27 @@ void Text::enumerateLines(int w, Callback callback) const {
 	}
 }
 
-void Text::draw(Painter &painter, int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, TextSelection selection, bool fullWidthSelection) const {
+void String::draw(Painter &painter, int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, TextSelection selection, bool fullWidthSelection) const {
 //	painter.fillRect(QRect(left, top, w, countHeight(w)), QColor(0, 0, 0, 32)); // debug
-	TextPainter p(&painter, this);
+	Renderer p(&painter, this);
 	p.draw(left, top, w, align, yFrom, yTo, selection, fullWidthSelection);
 }
 
-void Text::drawElided(Painter &painter, int32 left, int32 top, int32 w, int32 lines, style::align align, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere, TextSelection selection) const {
+void String::drawElided(Painter &painter, int32 left, int32 top, int32 w, int32 lines, style::align align, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere, TextSelection selection) const {
 //	painter.fillRect(QRect(left, top, w, countHeight(w)), QColor(0, 0, 0, 32)); // debug
-	TextPainter p(&painter, this);
+	Renderer p(&painter, this);
 	p.drawElided(left, top, w, align, lines, yFrom, yTo, removeFromEnd, breakEverywhere, selection);
 }
 
-Text::StateResult Text::getState(QPoint point, int width, StateRequest request) const {
-	return TextPainter(nullptr, this).getState(point, width, request);
+StateResult String::getState(QPoint point, int width, StateRequest request) const {
+	return Renderer(nullptr, this).getState(point, width, request);
 }
 
-Text::StateResult Text::getStateElided(QPoint point, int width, StateRequestElided request) const {
-	return TextPainter(nullptr, this).getStateElided(point, width, request);
+StateResult String::getStateElided(QPoint point, int width, StateRequestElided request) const {
+	return Renderer(nullptr, this).getStateElided(point, width, request);
 }
 
-TextSelection Text::adjustSelection(TextSelection selection, TextSelectType selectType) const {
+TextSelection String::adjustSelection(TextSelection selection, TextSelectType selectType) const {
 	uint16 from = selection.from, to = selection.to;
 	if (from < _text.size() && from <= to) {
 		if (to > _text.size()) to = _text.size();
@@ -2974,20 +2974,20 @@ TextSelection Text::adjustSelection(TextSelection selection, TextSelectType sele
 	return { from, to };
 }
 
-bool Text::isEmpty() const {
+bool String::isEmpty() const {
 	return _blocks.empty() || _blocks[0]->type() == TextBlockTSkip;
 }
 
-uint16 Text::countBlockEnd(const TextBlocks::const_iterator &i, const TextBlocks::const_iterator &e) const {
+uint16 String::countBlockEnd(const TextBlocks::const_iterator &i, const TextBlocks::const_iterator &e) const {
 	return (i + 1 == e) ? _text.size() : (*(i + 1))->from();
 }
 
-uint16 Text::countBlockLength(const Text::TextBlocks::const_iterator &i, const Text::TextBlocks::const_iterator &e) const {
+uint16 String::countBlockLength(const String::TextBlocks::const_iterator &i, const String::TextBlocks::const_iterator &e) const {
 	return countBlockEnd(i, e) - (*i)->from();
 }
 
 template <typename AppendPartCallback, typename ClickHandlerStartCallback, typename ClickHandlerFinishCallback, typename FlagsChangeCallback>
-void Text::enumerateText(TextSelection selection, AppendPartCallback appendPartCallback, ClickHandlerStartCallback clickHandlerStartCallback, ClickHandlerFinishCallback clickHandlerFinishCallback, FlagsChangeCallback flagsChangeCallback) const {
+void String::enumerateText(TextSelection selection, AppendPartCallback appendPartCallback, ClickHandlerStartCallback clickHandlerStartCallback, ClickHandlerFinishCallback clickHandlerFinishCallback, FlagsChangeCallback flagsChangeCallback) const {
 	if (isEmpty() || selection.empty()) {
 		return;
 	}
@@ -3045,19 +3045,19 @@ void Text::enumerateText(TextSelection selection, AppendPartCallback appendPartC
 	}
 }
 
-QString Text::toString(TextSelection selection) const {
+QString String::toString(TextSelection selection) const {
 	return toText(selection, false, false).rich.text;
 }
 
-TextWithEntities Text::toTextWithEntities(TextSelection selection) const {
+TextWithEntities String::toTextWithEntities(TextSelection selection) const {
 	return toText(selection, false, true).rich;
 }
 
-TextForMimeData Text::toTextForMimeData(TextSelection selection) const {
+TextForMimeData String::toTextForMimeData(TextSelection selection) const {
 	return toText(selection, true, true);
 }
 
-TextForMimeData Text::toText(
+TextForMimeData String::toText(
 		TextSelection selection,
 		bool composeExpanded,
 		bool composeEntities) const {
@@ -3143,16 +3143,19 @@ TextForMimeData Text::toText(
 	return result;
 }
 
-void Text::clear() {
+void String::clear() {
 	clearFields();
 	_text.clear();
 }
 
-void Text::clearFields() {
+void String::clearFields() {
 	_blocks.clear();
 	_links.clear();
 	_maxWidth = _minHeight = 0;
 	_startDir = Qt::LayoutDirectionAuto;
 }
 
-Text::~Text() = default;
+String::~String() = default;
+
+} // namespace Text
+} // namespace Ui

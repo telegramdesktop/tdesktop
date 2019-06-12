@@ -85,7 +85,7 @@ private:
 
 		PeerData *peer;
 		Ui::RoundImageCheckbox checkbox;
-		Text name;
+		Ui::Text::String name;
 		Ui::Animations::Simple nameActive;
 	};
 

@@ -83,9 +83,9 @@ private:
 
 	int _titleHeight = 0;
 	int _descriptionHeight = 0;
-	Text _title;
-	Text _description;
-	Text _status;
+	Ui::Text::String _title;
+	Ui::Text::String _description;
+	Ui::Text::String _status;
 
 	MsgId _receiptMsgId = 0;
 

@@ -802,7 +802,7 @@ void InnerWidget::paintSearchInFilter(
 		PaintUserpic paintUserpic,
 		int top,
 		const style::icon *icon,
-		const Text &text) const {
+		const Ui::Text::String &text) const {
 	const auto savedPen = p.pen();
 	const auto userpicLeft = st::dialogsPadding.x();
 	const auto userpicTop = top
@@ -838,7 +838,7 @@ void InnerWidget::paintSearchInPeer(
 		Painter &p,
 		not_null<PeerData*> peer,
 		int top,
-		const Text &text) const {
+		const Ui::Text::String &text) const {
 	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
 		peer->paintUserpicLeft(p, x, y, width(), size);
 	};
@@ -849,7 +849,7 @@ void InnerWidget::paintSearchInPeer(
 void InnerWidget::paintSearchInSaved(
 		Painter &p,
 		int top,
-		const Text &text) const {
+		const Ui::Text::String &text) const {
 	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
 		Ui::EmptyUserpic::PaintSavedMessages(p, x, y, width(), size);
 	};
@@ -860,7 +860,7 @@ void InnerWidget::paintSearchInSaved(
 //		Painter &p,
 //		not_null<Data::Feed*> feed,
 //		int top,
-//		const Text &text) const {
+//		const Ui::Text::String &text) const {
 //	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
 //		feed->paintUserpicLeft(p, x, y, width(), size);
 //	};

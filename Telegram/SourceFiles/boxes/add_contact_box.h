@@ -169,7 +169,7 @@ private:
 	object_ptr<Ui::Radioenum<Privacy>> _public;
 	object_ptr<Ui::Radioenum<Privacy>> _private;
 	int32 _aboutPublicWidth, _aboutPublicHeight;
-	Text _aboutPublic, _aboutPrivate;
+	Ui::Text::String _aboutPublic, _aboutPrivate;
 
 	object_ptr<Ui::UsernameInput> _link;
 

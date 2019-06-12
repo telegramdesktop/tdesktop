@@ -102,13 +102,13 @@ TextSelection ShiftItemSelection(
 
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
-		const Text &byText) {
+		const Ui::Text::String &byText) {
 	return UnshiftItemSelection(selection, byText.length());
 }
 
 TextSelection ShiftItemSelection(
 		TextSelection selection,
-		const Text &byText) {
+		const Ui::Text::String &byText) {
 	return ShiftItemSelection(selection, byText.length());
 }
 

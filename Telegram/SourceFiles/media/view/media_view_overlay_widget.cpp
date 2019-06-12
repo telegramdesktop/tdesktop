@@ -1607,7 +1607,7 @@ void OverlayWidget::refreshFromLabel(HistoryItem *item) {
 }
 
 void OverlayWidget::refreshCaption(HistoryItem *item) {
-	_caption = Text();
+	_caption = Ui::Text::String();
 	if (!item) {
 		return;
 	} else if (const auto media = item->media()) {
@@ -1625,7 +1625,7 @@ void OverlayWidget::refreshCaption(HistoryItem *item) {
 		}
 		return false;
 	}();
-	_caption = Text(st::msgMinWidth);
+	_caption = Ui::Text::String(st::msgMinWidth);
 	_caption.setMarkedText(
 		st::mediaviewCaptionStyle,
 		caption,

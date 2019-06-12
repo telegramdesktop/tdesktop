@@ -61,7 +61,7 @@ private:
 
 	int _phonew = 0;
 	QString _fname, _lname, _phone;
-	Text _name;
+	Ui::Text::String _name;
 	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
 
 	ClickHandlerPtr _linkl;

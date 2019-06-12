@@ -592,7 +592,7 @@ not_null<const PeerData*> PeerData::migrateToOrMe() const {
 	return this;
 }
 
-const Text &PeerData::topBarNameText() const {
+const Ui::Text::String &PeerData::topBarNameText() const {
 	if (const auto to = migrateTo()) {
 		return to->topBarNameText();
 	} else if (const auto user = asUser()) {
@@ -603,7 +603,7 @@ const Text &PeerData::topBarNameText() const {
 	return _nameText;
 }
 
-const Text &PeerData::nameText() const {
+const Ui::Text::String &PeerData::nameText() const {
 	if (const auto to = migrateTo()) {
 		return to->nameText();
 	}
@@ -611,7 +611,10 @@ const Text &PeerData::nameText() const {
 }
 
 const QString &PeerData::shortName() const {
-	return isUser() ? asUser()->firstName : name;
+	if (const auto user = asUser()) {
+		return user->firstName.isEmpty() ? user->lastName : user->firstName;
+	}
+	return name;
 }
 
 QString PeerData::userName() const {

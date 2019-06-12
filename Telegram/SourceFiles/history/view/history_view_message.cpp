@@ -544,7 +544,7 @@ void Message::paintFromName(
 		}
 
 		p.setFont(st::msgNameFont);
-		const auto nameText = [&]() -> const Text* {
+		const auto nameText = [&]() -> const Ui::Text::String * {
 			const auto from = item->displayFrom();
 			if (item->isPost()) {
 				p.setPen(selected ? st::msgInServiceFgSelected : st::msgInServiceFg);
@@ -886,7 +886,7 @@ bool Message::getStateFromName(
 				availableWidth -= st::msgPadding.right() + replyWidth;
 			}
 			const auto from = item->displayFrom();
-			const auto nameText = [&]() -> const Text* {
+			const auto nameText = [&]() -> const Ui::Text::String * {
 				if (from) {
 					return &from->nameText();
 				} else if (const auto info = item->hiddenForwardedInfo()) {
@@ -932,7 +932,7 @@ bool Message::getStateForwardedInfo(
 			auto breakEverywhere = (forwarded->text.countHeight(trect.width()) > 2 * st::semiboldFont->height);
 			auto textRequest = request.forText();
 			if (breakEverywhere) {
-				textRequest.flags |= Text::StateRequest::Flag::BreakEverywhere;
+				textRequest.flags |= Ui::Text::StateRequest::Flag::BreakEverywhere;
 			}
 			*outResult = TextState(item, forwarded->text.getState(
 				point - trect.topLeft(),
@@ -1561,7 +1561,7 @@ void Message::fromNameUpdated(int width) const {
 	item->_fromNameVersion = from ? from->nameVersion : 1;
 	if (const auto via = item->Get<HistoryMessageVia>()) {
 		if (!displayForwardedFrom()) {
-			const auto nameText = [&]() -> const Text* {
+			const auto nameText = [&]() -> const Ui::Text::String * {
 				if (from) {
 					return &from->nameText();
 				} else if (const auto info = item->hiddenForwardedInfo()) {

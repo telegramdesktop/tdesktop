@@ -93,7 +93,7 @@ private:
 
 	int _titleLines, _descriptionLines;
 
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 
 	int _gameTagWidth = 0;
 

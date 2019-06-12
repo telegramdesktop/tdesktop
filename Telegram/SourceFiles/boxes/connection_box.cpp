@@ -59,7 +59,7 @@ private:
 
 	View _view;
 
-	Text _title;
+	Ui::Text::String _title;
 	object_ptr<Ui::IconButton> _menuToggle;
 	rpl::event_stream<> _deleteClicks;
 	rpl::event_stream<> _restoreClicks;

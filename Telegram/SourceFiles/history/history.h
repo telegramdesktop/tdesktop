@@ -360,7 +360,7 @@ public:
 
 	mtpRequestId sendRequestId = 0;
 
-	Text cloudDraftTextCache;
+	Ui::Text::String cloudDraftTextCache;
 
 private:
 	friend class HistoryBlock;
@@ -516,7 +516,7 @@ private:
 	base::flat_map<not_null<UserData*>, crl::time> _typing;
 	base::flat_map<not_null<UserData*>, SendAction> _sendActions;
 	QString _sendActionString;
-	Text _sendActionText;
+	Ui::Text::String _sendActionText;
 	Ui::SendActionAnimation _sendActionAnimation;
 	base::flat_map<SendAction::Type, crl::time> _mySendActions;
 

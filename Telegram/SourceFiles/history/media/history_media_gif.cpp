@@ -63,7 +63,7 @@ HistoryGif::HistoryGif(
 
 QSize HistoryGif::countOptimalSize() {
 	if (_parent->media() != this) {
-		_caption = Text();
+		_caption = Ui::Text::String();
 	} else if (_caption.hasSkipBlock()) {
 		_caption.updateSkipBlock(
 			_parent->skipBlockWidth(),
@@ -596,7 +596,7 @@ TextState HistoryGif::textState(QPoint point, StateRequest request) const {
 				auto breakEverywhere = (forwardedHeightReal > forwardedHeight);
 				auto textRequest = request.forText();
 				if (breakEverywhere) {
-					textRequest.flags |= Text::StateRequest::Flag::BreakEverywhere;
+					textRequest.flags |= Ui::Text::StateRequest::Flag::BreakEverywhere;
 				}
 				result = TextState(_parent, forwarded->text.getState(
 					point - QPoint(rectx + st::msgReplyPadding.left(), recty + st::msgReplyPadding.top()),
@@ -785,7 +785,7 @@ bool HistoryGif::isReadyForOpen() const {
 void HistoryGif::parentTextUpdated() {
 	_caption = (_parent->media() == this)
 		? createCaption(_parent->data())
-		: Text();
+		: Ui::Text::String();
 	history()->owner().requestViewResize(_parent);
 }
 

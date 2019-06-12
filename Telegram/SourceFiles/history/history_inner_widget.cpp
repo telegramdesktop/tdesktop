@@ -1041,7 +1041,7 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 		TextState dragState;
 		if (_trippleClickTimer.isActive() && (screenPos - _trippleClickPoint).manhattanLength() < QApplication::startDragDistance()) {
 			StateRequest request;
-			request.flags = Text::StateRequest::Flag::LookupSymbol;
+			request.flags = Ui::Text::StateRequest::Flag::LookupSymbol;
 			dragState = mouseActionView->textState(_dragStartPosition, request);
 			if (dragState.cursor == CursorState::Text) {
 				TextSelection selStatus = { dragState.symbol, dragState.symbol };
@@ -1060,7 +1060,7 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 			}
 		} else if (App::pressedItem()) {
 			StateRequest request;
-			request.flags = Text::StateRequest::Flag::LookupSymbol;
+			request.flags = Ui::Text::StateRequest::Flag::LookupSymbol;
 			dragState = mouseActionView->textState(_dragStartPosition, request);
 		}
 		if (_mouseSelectType != TextSelectType::Paragraphs) {
@@ -1144,7 +1144,7 @@ std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
 				&& (_selected.find(_dragStateItem) != _selected.cend());
 		} else {
 			StateRequest request;
-			request.flags |= Text::StateRequest::Flag::LookupSymbol;
+			request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 			auto dragState = mouseActionView->textState(_dragStartPosition, request);
 			uponSelected = (dragState.cursor == CursorState::Text);
 			if (uponSelected) {
@@ -1416,7 +1416,7 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 				&& (_selected.empty()
 					|| _selected.cbegin()->second != FullSelection)))) {
 		StateRequest request;
-		request.flags |= Text::StateRequest::Flag::LookupSymbol;
+		request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 		auto dragState = mouseActionView->textState(_dragStartPosition, request);
 		if (dragState.cursor == CursorState::Text) {
 			_mouseTextSymbol = dragState.symbol;
@@ -1478,7 +1478,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			if (App::mousedItem() && App::mousedItem() == App::hoveredItem()) {
 				auto mousePos = mapPointToItem(mapFromGlobal(_mousePosition), App::mousedItem());
 				StateRequest request;
-				request.flags |= Text::StateRequest::Flag::LookupSymbol;
+				request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 				auto dragState = App::mousedItem()->textState(mousePos, request);
 				if (dragState.cursor == CursorState::Text
 					&& dragState.symbol >= selFrom
@@ -2556,7 +2556,7 @@ void HistoryInner::mouseActionUpdate() {
 		if (!dragState.link) {
 			StateRequest request;
 			if (_mouseAction == MouseAction::Selecting) {
-				request.flags |= Text::StateRequest::Flag::LookupSymbol;
+				request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 			} else {
 				selectingText = false;
 			}
@@ -3142,7 +3142,7 @@ QString HistoryInner::tooltipText() const {
 		StateRequest request;
 		const auto local = mapFromGlobal(_mousePosition);
 		const auto point = _widget->clampMousePosition(local);
-		request.flags |= Text::StateRequest::Flag::LookupCustomTooltip;
+		request.flags |= Ui::Text::StateRequest::Flag::LookupCustomTooltip;
 		const auto state = view->textState(
 			mapPointToItem(point, view),
 			request);

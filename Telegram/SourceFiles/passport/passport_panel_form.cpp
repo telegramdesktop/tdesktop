@@ -47,8 +47,8 @@ private:
 	int countAvailableWidth() const;
 	int countAvailableWidth(int newWidth) const;
 
-	Text _title;
-	Text _description;
+	Ui::Text::String _title;
+	Ui::Text::String _description;
 	int _titleHeight = 0;
 	int _descriptionHeight = 0;
 	bool _ready = false;

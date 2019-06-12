@@ -107,7 +107,7 @@ private:
 	int _titleLines = 0;
 	int _descriptionLines = 0;
 
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 	int _siteNameWidth = 0;
 
 	QString _duration;

@@ -119,7 +119,7 @@ private:
 		QPoint point,
 		StateRequest request) const;
 
-	Text _caption;
+	Ui::Text::String _caption;
 	std::vector<Part> _parts;
 	bool _needBubble = false;
 

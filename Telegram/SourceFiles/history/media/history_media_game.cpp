@@ -290,7 +290,7 @@ TextState HistoryGame::textState(QPoint point, StateRequest request) const {
 	auto lineHeight = unitedLineHeight();
 	if (_titleLines) {
 		if (point.y() >= tshift && point.y() < tshift + _titleLines * lineHeight) {
-			Text::StateRequestElided titleRequest = request.forText();
+			Ui::Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleLines;
 			result = TextState(_parent, _title.getStateElidedLeft(
 				point - QPoint(padding.left(), tshift),
@@ -304,7 +304,7 @@ TextState HistoryGame::textState(QPoint point, StateRequest request) const {
 	}
 	if (_descriptionLines) {
 		if (point.y() >= tshift && point.y() < tshift + _descriptionLines * lineHeight) {
-			Text::StateRequestElided descriptionRequest = request.forText();
+			Ui::Text::StateRequestElided descriptionRequest = request.forText();
 			descriptionRequest.lines = _descriptionLines;
 			result = TextState(_parent, _description.getStateElidedLeft(
 				point - QPoint(padding.left(), tshift),
@@ -420,7 +420,7 @@ void HistoryGame::parentTextUpdated() {
 				consumed,
 				Ui::ItemTextOptions(_parent->data()));
 		} else {
-			_description = Text(st::msgMinWidth - st::webPageLeft);
+			_description = Ui::Text::String(st::msgMinWidth - st::webPageLeft);
 		}
 		history()->owner().requestViewResize(_parent);
 	}

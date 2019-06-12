@@ -240,7 +240,7 @@ private:
 	bool _upLoaded = true;
 	bool _downLoaded = true;
 	bool _filterChanged = false;
-	Text _emptyText;
+	Ui::Text::String _emptyText;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;

@@ -198,7 +198,7 @@ private:
 	rpl::event_stream<bool> _checkedChanges;
 	QPixmap _checkCache;
 
-	Text _text;
+	Text::String _text;
 	style::align _checkAlignment = style::al_left;
 	bool _allowMultiline = false;
 

@@ -93,6 +93,6 @@ private:
 	int _serviceWidth = 0;
 	int _pixw = 1;
 	int _pixh = 1;
-	Text _caption;
+	Ui::Text::String _caption;
 
 };

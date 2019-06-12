@@ -101,7 +101,7 @@ private:
 	void prepareThumb(const QImage &preview);
 
 	QPixmap _fileThumb;
-	Text _nameText;
+	Ui::Text::String _nameText;
 	bool _fileIsAudio = false;
 	bool _fileIsImage = false;
 	QString _statusText;

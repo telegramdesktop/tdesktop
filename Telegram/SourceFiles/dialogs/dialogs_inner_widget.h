@@ -267,23 +267,23 @@ private:
 		Painter &p,
 		not_null<PeerData*> peer,
 		int top,
-		const Text &text) const;
+		const Ui::Text::String &text) const;
 	void paintSearchInSaved(
 		Painter &p,
 		int top,
-		const Text &text) const;
+		const Ui::Text::String &text) const;
 	//void paintSearchInFeed( // #feed
 	//	Painter &p,
 	//	not_null<Data::Feed*> feed,
 	//	int top,
-	//	const Text &text) const;
+	//	const Ui::Text::String &text) const;
 	template <typename PaintUserpic>
 	void paintSearchInFilter(
 		Painter &p,
 		PaintUserpic paintUserpic,
 		int top,
 		const style::icon *icon,
-		const Text &text) const;
+		const Ui::Text::String &text) const;
 	void refreshSearchInChatLabel();
 
 	void clearSearchResults(bool clearPeerSearchResults = true);
@@ -376,8 +376,8 @@ private:
 	Key _searchInChat;
 	History *_searchInMigrated = nullptr;
 	UserData *_searchFromUser = nullptr;
-	Text _searchInChatText;
-	Text _searchFromUserText;
+	Ui::Text::String _searchInChatText;
+	Ui::Text::String _searchFromUserText;
 	RowDescriptor _menuRow;
 
 	Fn<void()> _loadMoreCallback;

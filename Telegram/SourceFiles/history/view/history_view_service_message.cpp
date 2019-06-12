@@ -207,7 +207,7 @@ void ServiceMessagePainter::paintBubble(Painter &p, int x, int y, int w, int h) 
 	paintBubblePart(p, x, y, w, h, SideStyle::Rounded, SideStyle::Rounded);
 }
 
-void ServiceMessagePainter::paintComplexBubble(Painter &p, int left, int width, const Text &text, const QRect &textRect) {
+void ServiceMessagePainter::paintComplexBubble(Painter &p, int left, int width, const Ui::Text::String &text, const QRect &textRect) {
 	createCircleMasks();
 
 	auto lineWidths = countLineWidths(text, textRect);
@@ -259,7 +259,7 @@ void ServiceMessagePainter::paintComplexBubble(Painter &p, int left, int width, 
 	}
 }
 
-QVector<int> ServiceMessagePainter::countLineWidths(const Text &text, const QRect &textRect) {
+QVector<int> ServiceMessagePainter::countLineWidths(const Ui::Text::String &text, const QRect &textRect) {
 	int linesCount = qMax(textRect.height() / st::msgServiceFont->height, 1);
 	QVector<int> lineWidths;
 	lineWidths.reserve(linesCount);
@@ -553,7 +553,7 @@ void EmptyPainter::fillAboutGroup() {
 		lang(lng_group_about3),
 		lang(lng_group_about4),
 	};
-	const auto setText = [](Text &text, const QString &content) {
+	const auto setText = [](Ui::Text::String &text, const QString &content) {
 		text.setText(
 			st::serviceTextStyle,
 			content,
@@ -575,7 +575,7 @@ void EmptyPainter::paint(Painter &p, int width, int height) {
 	const auto maxPhraseWidth = ranges::max_element(
 		_phrases,
 		ranges::less(),
-		&Text::maxWidth
+		&Ui::Text::String::maxWidth
 	)->maxWidth();
 
 	const auto &font = st::serviceTextStyle.font;
@@ -589,7 +589,7 @@ void EmptyPainter::paint(Painter &p, int width, int height) {
 			_header.maxWidth(),
 			_text.maxWidth() }) + padding.left() + padding.right());
 	const auto innerWidth = bubbleWidth - padding.left() - padding.right();
-	const auto textHeight = [&](const Text &text) {
+	const auto textHeight = [&](const Ui::Text::String &text) {
 		return std::min(
 			text.countHeight(innerWidth),
 			kMaxTextLines * font->height);

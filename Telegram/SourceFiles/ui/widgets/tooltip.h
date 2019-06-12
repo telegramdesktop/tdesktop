@@ -51,7 +51,7 @@ private:
 	const AbstractTooltipShower *_shower = nullptr;
 	base::Timer _showTimer;
 
-	Text _text;
+	Text::String _text;
 	QPoint _point;
 
 	const style::Tooltip *_st = nullptr;

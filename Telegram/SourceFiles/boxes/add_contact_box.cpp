@@ -168,7 +168,7 @@ private:
 		}
 
 		not_null<PeerData*> peer;
-		Text name, status;
+		Ui::Text::String name, status;
 	};
 	void paintChat(Painter &p, const ChatRow &row, bool selected) const;
 	void updateSelected();

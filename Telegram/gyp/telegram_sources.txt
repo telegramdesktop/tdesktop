@@ -745,6 +745,8 @@
 <(src_loc)/ui/text/text_block.h
 <(src_loc)/ui/text/text_entity.cpp
 <(src_loc)/ui/text/text_entity.h
+<(src_loc)/ui/text/text_utilities.cpp
+<(src_loc)/ui/text/text_utilities.h
 <(src_loc)/ui/toast/toast.cpp
 <(src_loc)/ui/toast/toast.h
 <(src_loc)/ui/toast/toast_manager.cpp

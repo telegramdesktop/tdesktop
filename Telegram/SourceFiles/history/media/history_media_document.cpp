@@ -825,7 +825,7 @@ void HistoryDocument::refreshParentId(not_null<HistoryItem*> realParent) {
 void HistoryDocument::parentTextUpdated() {
 	auto caption = (_parent->media() == this)
 		? createCaption(_parent->data())
-		: Text();
+		: Ui::Text::String();
 	if (!caption.isEmpty()) {
 		AddComponents(HistoryDocumentCaptioned::Bit());
 		auto captioned = Get<HistoryDocumentCaptioned>();

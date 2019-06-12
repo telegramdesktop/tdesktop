@@ -132,7 +132,7 @@ private:
 	object_ptr<TWidget> _membersShowArea = { nullptr };
 	rpl::event_stream<bool> _membersShowAreaActive;
 
-	Text _titlePeerText;
+	Ui::Text::String _titlePeerText;
 	bool _titlePeerTextOnline = false;
 	int _leftTaken = 0;
 	int _rightTaken = 0;

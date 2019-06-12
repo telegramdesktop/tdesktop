@@ -926,7 +926,7 @@ void InnerWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 	mouseActionStart(e->globalPos(), e->button());
 	if (((_mouseAction == MouseAction::Selecting && _selectedItem != nullptr) || (_mouseAction == MouseAction::None)) && _mouseSelectType == TextSelectType::Letters && _mouseActionItem) {
 		StateRequest request;
-		request.flags |= Text::StateRequest::Flag::LookupSymbol;
+		request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 		auto dragState = _mouseActionItem->textState(_dragStartPosition, request);
 		if (dragState.cursor == CursorState::Text) {
 			_mouseTextSymbol = dragState.symbol;
@@ -968,7 +968,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				mapFromGlobal(_mousePosition),
 				App::mousedItem());
 			StateRequest request;
-			request.flags |= Text::StateRequest::Flag::LookupSymbol;
+			request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 			auto dragState = App::mousedItem()->textState(mousePos, request);
 			if (dragState.cursor == CursorState::Text
 				&& base::in_range(dragState.symbol, selFrom, selTo)) {
@@ -1308,7 +1308,7 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 		TextState dragState;
 		if (_trippleClickTimer.isActive() && (screenPos - _trippleClickPoint).manhattanLength() < QApplication::startDragDistance()) {
 			StateRequest request;
-			request.flags = Text::StateRequest::Flag::LookupSymbol;
+			request.flags = Ui::Text::StateRequest::Flag::LookupSymbol;
 			dragState = _mouseActionItem->textState(_dragStartPosition, request);
 			if (dragState.cursor == CursorState::Text) {
 				auto selection = TextSelection { dragState.symbol, dragState.symbol };
@@ -1322,7 +1322,7 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 			}
 		} else if (App::pressedItem()) {
 			StateRequest request;
-			request.flags = Text::StateRequest::Flag::LookupSymbol;
+			request.flags = Ui::Text::StateRequest::Flag::LookupSymbol;
 			dragState = _mouseActionItem->textState(_dragStartPosition, request);
 		}
 		if (_mouseSelectType != TextSelectType::Paragraphs) {
@@ -1455,7 +1455,7 @@ void InnerWidget::updateSelected() {
 		}
 		StateRequest request;
 		if (_mouseAction == MouseAction::Selecting) {
-			request.flags |= Text::StateRequest::Flag::LookupSymbol;
+			request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 		} else {
 			selectingText = false;
 		}
@@ -1563,7 +1563,7 @@ void InnerWidget::performDrag() {
 	//		uponSelected = _selected.contains(_mouseActionItem);
 	//	} else {
 	//		StateRequest request;
-	//		request.flags |= Text::StateRequest::Flag::LookupSymbol;
+	//		request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 	//		auto dragState = _mouseActionItem->textState(_dragStartPosition.x(), _dragStartPosition.y(), request);
 	//		uponSelected = (dragState.cursor == CursorState::Text);
 	//		if (uponSelected) {

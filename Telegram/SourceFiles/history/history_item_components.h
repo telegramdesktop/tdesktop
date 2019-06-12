@@ -41,7 +41,7 @@ struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, Hist
 
 	bool isElided = false;
 	QString author;
-	Text signature;
+	Ui::Text::String signature;
 };
 
 struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, HistoryItem> {
@@ -49,7 +49,7 @@ struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, Hist
 	int maxWidth() const;
 
 	TimeId date = 0;
-	Text text;
+	Ui::Text::String text;
 };
 
 struct HiddenSenderInfo {
@@ -60,7 +60,7 @@ struct HiddenSenderInfo {
 	QString lastName;
 	PeerId colorPeerId = 0;
 	Ui::EmptyUserpic userpic;
-	Text nameText;
+	Ui::Text::String nameText;
 
 	inline bool operator==(const HiddenSenderInfo &other) const {
 		return name == other.name;
@@ -78,7 +78,7 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	std::unique_ptr<HiddenSenderInfo> hiddenSenderInfo;
 	QString originalAuthor;
 	MsgId originalId = 0;
-	mutable Text text = { 1 };
+	mutable Ui::Text::String text = { 1 };
 
 	PeerData *savedFromPeer = nullptr;
 	MsgId savedFromMsgId = 0;
@@ -145,7 +145,7 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	MsgId replyToMsgId = 0;
 	HistoryItem *replyToMsg = nullptr;
 	ClickHandlerPtr replyToLnk;
-	mutable Text replyToName, replyToText;
+	mutable Ui::Text::String replyToName, replyToText;
 	mutable int replyToVersion = 0;
 	mutable int maxReplyWidth = 0;
 	std::unique_ptr<HistoryMessageVia> replyToVia;
@@ -329,7 +329,7 @@ private:
 		Button &operator=(Button &&other);
 		~Button();
 
-		Text text = { 1 };
+		Ui::Text::String text = { 1 };
 		QRect rect;
 		int characters = 0;
 		float64 howMuchOver = 0.;
@@ -388,7 +388,7 @@ struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed, 
 struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned, HistoryDocument> {
 	HistoryDocumentCaptioned();
 
-	Text _caption;
+	Ui::Text::String _caption;
 };
 
 struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed, HistoryDocument> {

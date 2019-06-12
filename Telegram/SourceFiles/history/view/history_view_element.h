@@ -79,10 +79,10 @@ TextSelection ShiftItemSelection(
 	uint16 byLength);
 TextSelection UnshiftItemSelection(
 	TextSelection selection,
-	const Text &byText);
+	const Ui::Text::String &byText);
 TextSelection ShiftItemSelection(
 	TextSelection selection,
-	const Text &byText);
+	const Ui::Text::String &byText);
 
 // Any HistoryView::Element can have this Component for
 // displaying the unread messages bar above the message.

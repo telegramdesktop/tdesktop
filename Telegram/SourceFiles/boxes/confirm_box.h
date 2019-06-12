@@ -67,7 +67,7 @@ private:
 	const style::RoundButton &_confirmStyle;
 	bool _informative = false;
 
-	Text _text;
+	Ui::Text::String _text;
 	int _textWidth = 0;
 	int _textHeight = 0;
 	int _maxLineCount = 16;
@@ -109,7 +109,7 @@ private:
 
 	not_null<ChannelData*> _channel;
 
-	Text _text;
+	Ui::Text::String _text;
 	int32 _textWidth, _textHeight;
 
 	QRect _invitationLink;

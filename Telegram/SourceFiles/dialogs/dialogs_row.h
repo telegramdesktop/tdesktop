@@ -91,7 +91,7 @@ public:
 	uint64 sortKey() const;
 
 	void validateListEntryCache() const;
-	const Text &listEntryCache() const {
+	const Ui::Text::String &listEntryCache() const {
 		return _listEntryCache;
 	}
 
@@ -104,7 +104,7 @@ private:
 	Key _id;
 	int _pos = 0;
 	mutable uint32 _listEntryCacheVersion = 0;
-	mutable Text _listEntryCache;
+	mutable Ui::Text::String _listEntryCache;
 
 };
 
@@ -125,7 +125,7 @@ private:
 	Key _searchInChat;
 	not_null<HistoryItem*> _item;
 	mutable const HistoryItem *_cacheFor = nullptr;
-	mutable Text _cache;
+	mutable Ui::Text::String _cache;
 
 };
 

@@ -124,7 +124,7 @@ private:
 
 	int _aboutHeight = 0;
 
-	Text _about, _hintText;
+	Ui::Text::String _about, _hintText;
 
 	object_ptr<Ui::PasswordInput> _oldPasscode;
 	object_ptr<Ui::PasswordInput> _newPasscode;

@@ -14,13 +14,13 @@ public:
 	BotCommand(const QString &command, const QString &description);
 
 	bool setDescription(const QString &description);
-	const Text &descriptionText() const;
+	const Ui::Text::String &descriptionText() const;
 
 	QString command;
 
 private:
 	QString _description;
-	mutable Text _descriptionText;
+	mutable Ui::Text::String _descriptionText;
 
 };
 
@@ -31,7 +31,7 @@ struct BotInfo {
 	int version = 0;
 	QString description, inlinePlaceholder;
 	QList<BotCommand> commands;
-	Text text = Text{ int(st::msgMinWidth) }; // description
+	Ui::Text::String text = { int(st::msgMinWidth) }; // description
 
 	QString startToken, startGroupToken, shareGameShortName;
 	PeerId inlineReturnPeerId = 0;
@@ -160,7 +160,7 @@ public:
 		return _phone;
 	}
 	QString nameOrPhone;
-	Text phoneText;
+	Ui::Text::String phoneText;
 	TimeId onlineTill = 0;
 
 	enum class ContactStatus : char {

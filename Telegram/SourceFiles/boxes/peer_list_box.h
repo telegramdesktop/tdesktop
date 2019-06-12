@@ -100,7 +100,7 @@ public:
 	}
 
 	void refreshName(const style::PeerListItem &st);
-	const Text &name() const {
+	const Ui::Text::String &name() const {
 		return _name;
 	}
 
@@ -203,8 +203,8 @@ private:
 	not_null<PeerData*> _peer;
 	std::unique_ptr<Ui::RippleAnimation> _ripple;
 	std::unique_ptr<Ui::RoundImageCheckbox> _checkbox;
-	Text _name;
-	Text _status;
+	Ui::Text::String _name;
+	Ui::Text::String _status;
 	StatusType _statusType = StatusType::Online;
 	crl::time _statusValidTill = 0;
 	base::flat_set<QChar> _nameFirstLetters;

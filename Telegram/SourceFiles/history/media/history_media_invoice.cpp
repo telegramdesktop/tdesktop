@@ -296,7 +296,7 @@ TextState HistoryInvoice::textState(QPoint point, StateRequest request) const {
 	auto symbolAdd = 0;
 	if (_titleHeight) {
 		if (point.y() >= tshift && point.y() < tshift + _titleHeight) {
-			Text::StateRequestElided titleRequest = request.forText();
+			Ui::Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleHeight / lineHeight;
 			result = TextState(_parent, _title.getStateElidedLeft(
 				point - QPoint(padding.left(), tshift),

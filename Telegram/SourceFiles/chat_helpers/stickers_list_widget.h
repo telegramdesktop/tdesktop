@@ -268,7 +268,7 @@ private:
 	OverState _pressed;
 	QPoint _lastMousePosition;
 
-	Text _megagroupSetAbout;
+	Ui::Text::String _megagroupSetAbout;
 	QString _megagroupSetButtonText;
 	int _megagroupSetButtonTextWidth = 0;
 	QRect _megagroupSetButtonRect;

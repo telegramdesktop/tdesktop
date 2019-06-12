@@ -131,7 +131,7 @@ struct HistoryPoll::Answer {
 
 	void fillText(const PollAnswer &original);
 
-	Text text;
+	Ui::Text::String text;
 	QByteArray option;
 	int votes = 0;
 	int votesPercent = 0;
@@ -807,7 +807,7 @@ TextState HistoryPoll::textState(QPoint point, StateRequest request) const {
 				result.link = answer.handler;
 			} else {
 				result.customTooltip = true;
-				using Flag = Text::StateRequest::Flag;
+				using Flag = Ui::Text::StateRequest::Flag;
 				if (request.flags & Flag::LookupCustomTooltip) {
 					result.customTooltipText = answer.votes
 						? lng_polls_votes_count(lt_count_decimal, answer.votes)

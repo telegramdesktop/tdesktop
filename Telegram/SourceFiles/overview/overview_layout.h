@@ -282,7 +282,7 @@ private:
 
 	const style::OverviewFileLayout &_st;
 
-	Text _name, _details;
+	Ui::Text::String _name, _details;
 	int _nameVersion;
 
 	void updateName();
@@ -330,7 +330,7 @@ private:
 	bool _thumbLoaded = false;
 	QPixmap _thumb;
 
-	Text _name;
+	Ui::Text::String _name;
 	QString _date, _ext;
 	int32 _datew, _extw;
 	int32 _thumbw, _colorIndex;
@@ -364,7 +364,7 @@ private:
 	WebPageData *_page = nullptr;
 	int _pixw = 0;
 	int _pixh = 0;
-	Text _text = { st::msgMinWidth };
+	Ui::Text::String _text = { st::msgMinWidth };
 
 	struct LinkEntry {
 		LinkEntry() : width(0) {

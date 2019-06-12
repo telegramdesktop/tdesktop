@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/text/text_utilities.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_values.h"
 #include "boxes/peer_list_box.h"
@@ -25,13 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kEnableSearchRowsCount = 10;
-
-TextWithEntities BoldText(const QString &text) {
-	auto result = TextWithEntities{ text };
-	result.entities.push_back(
-		EntityInText(EntityType::Bold, 0, text.size()));
-	return result;
-}
 
 class Controller : public PeerListController, public base::has_weak_ptr {
 public:
@@ -127,9 +121,9 @@ void Controller::choose(not_null<ChannelData*> chat) {
 		TextWithEntities
 	>(
 		lt_group,
-		BoldText(chat->name),
+		Ui::Text::Bold(chat->name),
 		lt_channel,
-		BoldText(_channel->name));
+		Ui::Text::Bold(_channel->name));
 	if (!_channel->isPublic()) {
 		text.append(
 			"\n\n" + lang(lng_manage_linked_channel_private));
@@ -140,7 +134,7 @@ void Controller::choose(not_null<ChannelData*> chat) {
 			text.append("\n\n");
 			text.append(lng_manage_discussion_group_warning__generic(
 				lt_visible,
-				BoldText(lang(lng_manage_discussion_group_visible))));
+				Ui::Text::Bold(lang(lng_manage_discussion_group_visible))));
 		}
 	}
 	const auto box = std::make_shared<QPointer<BoxContent>>();
@@ -164,9 +158,9 @@ void Controller::choose(not_null<ChatData*> chat) {
 		TextWithEntities
 	>(
 		lt_group,
-		BoldText(chat->name),
+		Ui::Text::Bold(chat->name),
 		lt_channel,
-		BoldText(_channel->name));
+		Ui::Text::Bold(_channel->name));
 	if (!_channel->isPublic()) {
 		text.append(
 			"\n\n" + lang(lng_manage_linked_channel_private));
@@ -175,7 +169,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 	text.append("\n\n");
 	text.append(lng_manage_discussion_group_warning__generic(
 		lt_visible,
-		BoldText(lang(lng_manage_discussion_group_visible))));
+		Ui::Text::Bold(lang(lng_manage_discussion_group_visible))));
 	const auto box = std::make_shared<QPointer<BoxContent>>();
 	const auto sure = [=] {
 		if (*box) {
@@ -208,11 +202,11 @@ object_ptr<Ui::RpWidget> SetupAbout(
 		if (!channel->isBroadcast()) {
 			return lng_manage_linked_channel_about__generic<
 				TextWithEntities
-			>(lt_channel, BoldText(chat->name));
+			>(lt_channel, Ui::Text::Bold(chat->name));
 		} else if (chat != nullptr) {
 			return lng_manage_discussion_group_about_chosen__generic<
 				TextWithEntities
-			>(lt_group, BoldText(chat->name));
+			>(lt_group, Ui::Text::Bold(chat->name));
 		} else {
 			return { lang(lng_manage_discussion_group_about) };
 		}

@@ -245,8 +245,10 @@ private:
 
 };
 
-template <typename BoxType, typename ...Args>
+class GenericBox;
+
+template <typename BoxType = GenericBox, typename ...Args>
 inline object_ptr<BoxType> Box(Args&&... args) {
-	auto parent = static_cast<QWidget*>(nullptr);
+	const auto parent = static_cast<QWidget*>(nullptr);
 	return object_ptr<BoxType>(parent, std::forward<Args>(args)...);
 }

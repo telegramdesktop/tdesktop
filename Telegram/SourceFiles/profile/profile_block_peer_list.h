@@ -33,7 +33,7 @@ public:
 		~Item();
 
 		PeerData * const peer;
-		Text name;
+		Ui::Text::String name;
 		QString statusText;
 		bool statusHasOnlineColor = false;
 		enum class AdminState {

@@ -63,7 +63,7 @@ void HistoryPhoto::create(FullMsgId contextId, PeerData *chat) {
 
 QSize HistoryPhoto::countOptimalSize() {
 	if (_parent->media() != this) {
-		_caption = Text();
+		_caption = Ui::Text::String();
 	} else if (_caption.hasSkipBlock()) {
 		_caption.updateSkipBlock(
 			_parent->skipBlockWidth(),
@@ -560,6 +560,6 @@ bool HistoryPhoto::isReadyForOpen() const {
 void HistoryPhoto::parentTextUpdated() {
 	_caption = (_parent->media() == this)
 		? createCaption(_parent->data())
-		: Text();
+		: Ui::Text::String();
 	history()->owner().requestViewResize(_parent);
 }

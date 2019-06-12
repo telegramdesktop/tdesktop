@@ -142,7 +142,7 @@ private:
 	void refreshHeight();
 
 	Type _type = Type::Photo;
-	Text _header;
+	Ui::Text::String _header;
 	Items _items;
 	int _itemsLeft = 0;
 	int _itemsTop = 0;
@@ -1452,7 +1452,7 @@ void ListWidget::switchToWordSelection() {
 	Expects(_overLayout != nullptr);
 
 	StateRequest request;
-	request.flags |= Text::StateRequest::Flag::LookupSymbol;
+	request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 	auto dragState = _overLayout->getState(_pressState.cursor, request);
 	if (dragState.cursor != CursorState::Text) {
 		return;
@@ -1665,7 +1665,7 @@ void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 		}
 		StateRequest request;
 		if (_mouseAction == MouseAction::Selecting) {
-			request.flags |= Text::StateRequest::Flag::LookupSymbol;
+			request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 		} else {
 			inTextSelection = false;
 		}
@@ -1830,7 +1830,7 @@ void ListWidget::mouseActionStart(
 		auto validStartPoint = startDistance < QApplication::startDragDistance();
 		if (_trippleClickStartTime != 0 && validStartPoint) {
 			StateRequest request;
-			request.flags = Text::StateRequest::Flag::LookupSymbol;
+			request.flags = Ui::Text::StateRequest::Flag::LookupSymbol;
 			dragState = pressLayout->getState(_pressState.cursor, request);
 			if (dragState.cursor == CursorState::Text) {
 				TextSelection selStatus = { dragState.symbol, dragState.symbol };
@@ -1846,7 +1846,7 @@ void ListWidget::mouseActionStart(
 			}
 		} else {
 			StateRequest request;
-			request.flags = Text::StateRequest::Flag::LookupSymbol;
+			request.flags = Ui::Text::StateRequest::Flag::LookupSymbol;
 			dragState = pressLayout->getState(_pressState.cursor, request);
 		}
 		if (_mouseSelectType != TextSelectType::Paragraphs) {
@@ -1901,7 +1901,7 @@ void ListWidget::performDrag() {
 		} else if (auto pressLayout = getExistingLayout(
 				_pressState.itemId)) {
 			StateRequest request;
-			request.flags |= Text::StateRequest::Flag::LookupSymbol;
+			request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 			auto dragState = pressLayout->getState(
 				_pressState.cursor,
 				request);

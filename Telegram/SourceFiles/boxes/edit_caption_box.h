@@ -100,7 +100,7 @@ private:
 	int _thumbx = 0;
 	int _thumbw = 0;
 	int _thumbh = 0;
-	Text _name;
+	Ui::Text::String _name;
 	QString _status;
 	bool _isAudio = false;
 	bool _isImage = false;

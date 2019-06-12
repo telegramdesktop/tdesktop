@@ -99,8 +99,8 @@ private:
 	int countAvailableWidth() const;
 
 	const style::PassportScanRow &_st;
-	Text _name;
-	Text _status;
+	Ui::Text::String _name;
+	Ui::Text::String _status;
 	int _nameHeight = 0;
 	int _statusHeight = 0;
 	bool _error = false;

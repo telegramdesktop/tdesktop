@@ -12,10 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/mute_settings_box.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/report_box.h"
+#include "boxes/generic_box.h"
 #include "boxes/create_poll_box.h"
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/peers/add_to_contacts_box.h"
 #include "ui/toast/toast.h"
+#include "ui/text/text_utilities.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/checkbox.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
@@ -23,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "history/history.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "support/support_helper.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
@@ -248,9 +253,9 @@ void Filler::addTogglePin() {
 }
 
 void Filler::addInfo() {
-	auto controller = _controller;
-	auto peer = _peer;
-	auto infoKey = (peer->isChat() || peer->isMegagroup())
+	const auto controller = _controller;
+	const auto peer = _peer;
+	const auto infoKey = (peer->isChat() || peer->isMegagroup())
 		? lng_context_view_group
 		: (peer->isUser()
 			? lng_context_view_profile
@@ -324,7 +329,8 @@ void Filler::addToggleArchive() {
 }
 
 void Filler::addBlockUser(not_null<UserData*> user) {
-	auto blockText = [](not_null<UserData*> user) {
+	const auto window = &_controller->window()->controller();
+	const auto blockText = [](not_null<UserData*> user) {
 		return lang(user->isBlocked()
 			? ((user->isBot() && !user->isSupport())
 				? lng_profile_restart_bot
@@ -333,11 +339,13 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 				? lng_profile_block_bot
 				: lng_profile_block_user));
 	};
-	auto blockAction = _addAction(blockText(user), [=] {
+	const auto blockAction = _addAction(blockText(user), [=] {
 		if (user->isBlocked()) {
-			Auth().api().unblockUser(user);
+			user->session().api().unblockUser(user);
+		} else if (user->isBot()) {
+			user->session().api().blockUser(user);
 		} else {
-			Auth().api().blockUser(user);
+			window->show(Box(PeerMenuBlockUserBox, user, window));
 		}
 	});
 
@@ -694,6 +702,77 @@ void PeerMenuCreatePoll(not_null<PeerData*> peer) {
 			box->submitFailed(lang(lng_attach_failed));
 		}));
 	}, box->lifetime());
+}
+
+void PeerMenuBlockUserBox(
+		not_null<GenericBox*> box,
+		not_null<UserData*> user,
+		not_null<Window::Controller*> window) {
+	using Flag = MTPDpeerSettings::Flag;
+	const auto settings = user->settings().value_or(Flag(0));
+
+	const auto name = user->shortName();
+
+	box->addRow(object_ptr<Ui::FlatLabel>(
+		box,
+		rpl::single(
+			lng_blocked_list_confirm_text__generic<TextWithEntities>(
+				lt_name,
+				Ui::Text::Bold(name))),
+		st::blockUserConfirmation));
+
+	box->addSkip(st::boxMediumSkip);
+
+	const auto report = (settings & Flag::f_report_spam)
+		? box->addRow(object_ptr<Ui::Checkbox>(
+			box,
+			lang(lng_report_spam),
+			true,
+			st::defaultBoxCheckbox))
+		: nullptr;
+
+	if (report) {
+		box->addSkip(st::boxMediumSkip);
+	}
+
+	const auto clear = box->addRow(object_ptr<Ui::Checkbox>(
+		box,
+		lang(lng_blocked_list_confirm_clear),
+		true,
+		st::defaultBoxCheckbox));
+
+	box->addSkip(st::boxLittleSkip);
+
+	box->setTitle([=] {
+		return lng_blocked_list_confirm_title(lt_name, name);
+	});
+
+	box->addButton(langFactory(lng_blocked_list_confirm_ok), [=] {
+		const auto reportChecked = report && report->checked();
+		const auto clearChecked = clear->checked();
+
+		box->closeBox();
+
+		user->session().api().blockUser(user);
+		if (reportChecked) {
+			user->session().api().request(MTPmessages_ReportSpam(
+				user->input
+			)).send();
+		}
+		if (clearChecked) {
+			crl::on_main(&user->session(), [=] {
+				user->session().api().deleteConversation(user, false);
+			});
+			window->sessionController()->showBackFromStack();
+		}
+
+		Ui::Toast::Show(
+			lng_new_contact_block_done(lt_user, user->shortName()));
+	}, st::attentionBoxButton);
+
+	box->addButton(langFactory(lng_cancel), [=] {
+		box->closeBox();
+	});
 }
 
 QPointer<Ui::RpWidget> ShowForwardMessagesBox(

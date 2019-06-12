@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "private/qfontengine_p.h"
 
+namespace Ui {
+namespace Text {
+
 enum TextBlockType {
 	TextBlockTNewline = 0x01,
 	TextBlockTText = 0x02,
@@ -26,9 +29,9 @@ enum TextBlockFlags {
 	TextBlockFPre = 0x40,
 };
 
-class ITextBlock {
+class AbstractBlock {
 public:
-	ITextBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex) : _from(from), _flags((flags & 0xFF) | ((lnkIndex & 0xFFFF) << 12)) {
+	AbstractBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex) : _from(from), _flags((flags & 0xFF) | ((lnkIndex & 0xFFFF) << 12)) {
 	}
 
 	uint16 from() const {
@@ -64,8 +67,8 @@ public:
 		return (_flags & 0xFF);
 	}
 
-	virtual std::unique_ptr<ITextBlock> clone() const = 0;
-	virtual ~ITextBlock() {
+	virtual std::unique_ptr<AbstractBlock> clone() const = 0;
+	virtual ~AbstractBlock() {
 	}
 
 protected:
@@ -84,9 +87,9 @@ protected:
 
 };
 
-class NewlineBlock : public ITextBlock {
+class NewlineBlock : public AbstractBlock {
 public:
-	NewlineBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex) : ITextBlock(font, str, from, length, flags, lnkIndex), _nextDir(Qt::LayoutDirectionAuto) {
+	NewlineBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex) : AbstractBlock(font, str, from, length, flags, lnkIndex), _nextDir(Qt::LayoutDirectionAuto) {
 		_flags |= ((TextBlockTNewline & 0x0F) << 8);
 	}
 
@@ -94,17 +97,16 @@ public:
 		return _nextDir;
 	}
 
-	std::unique_ptr<ITextBlock> clone() const override {
+	std::unique_ptr<AbstractBlock> clone() const override {
 		return std::make_unique<NewlineBlock>(*this);
 	}
 
 private:
 	Qt::LayoutDirection _nextDir;
 
-	friend class Text;
-	friend class TextParser;
-
-	friend class TextPainter;
+	friend class String;
+	friend class Parser;
+	friend class Renderer;
 
 };
 
@@ -140,50 +142,48 @@ private:
 
 };
 
-class TextBlock : public ITextBlock {
+class TextBlock : public AbstractBlock {
 public:
 	TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, uint16 lnkIndex);
 
-	std::unique_ptr<ITextBlock> clone() const override {
+	std::unique_ptr<AbstractBlock> clone() const override {
 		return std::make_unique<TextBlock>(*this);
 	}
 
 private:
-	friend class ITextBlock;
+	friend class AbstractBlock;
 	QFixed real_f_rbearing() const {
 		return _words.isEmpty() ? 0 : _words.back().f_rbearing();
 	}
 
-	typedef QVector<TextWord> TextWords;
+	using TextWords = QVector<TextWord>;
 	TextWords _words;
 
-	friend class Text;
-	friend class TextParser;
-
+	friend class String;
+	friend class Parser;
+	friend class Renderer;
 	friend class BlockParser;
-	friend class TextPainter;
 
 };
 
-class EmojiBlock : public ITextBlock {
+class EmojiBlock : public AbstractBlock {
 public:
 	EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex, EmojiPtr emoji);
 
-	std::unique_ptr<ITextBlock> clone() const {
+	std::unique_ptr<AbstractBlock> clone() const override {
 		return std::make_unique<EmojiBlock>(*this);
 	}
 
 private:
 	EmojiPtr emoji = nullptr;
 
-	friend class Text;
-	friend class TextParser;
-
-	friend class TextPainter;
+	friend class String;
+	friend class Parser;
+	friend class Renderer;
 
 };
 
-class SkipBlock : public ITextBlock {
+class SkipBlock : public AbstractBlock {
 public:
 	SkipBlock(const style::font &font, const QString &str, uint16 from, int32 w, int32 h, uint16 lnkIndex);
 
@@ -191,16 +191,18 @@ public:
 		return _height;
 	}
 
-	std::unique_ptr<ITextBlock> clone() const override {
+	std::unique_ptr<AbstractBlock> clone() const override {
 		return std::make_unique<SkipBlock>(*this);
 	}
 
 private:
 	int32 _height;
 
-	friend class Text;
-	friend class TextParser;
-
-	friend class TextPainter;
+	friend class String;
+	friend class Parser;
+	friend class Renderer;
 
 };
+
+} // namespace Text
+} // namespace Ui

@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/report_box.h"
+#include "boxes/generic_box.h"
 #include "lang/lang_keys.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -33,8 +34,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_text.h"
 #include "support/support_helper.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "window/window_peer_menu.h"
 #include "mainwidget.h"
+#include "mainwindow.h" // MainWindow::controller.
 #include "auth_session.h"
 #include "core/application.h"
 #include "apiwrap.h"
@@ -566,6 +569,8 @@ void ActionsFiller::addReportAction() {
 }
 
 void ActionsFiller::addBlockAction(not_null<UserData*> user) {
+	const auto window = &_controller->parentController()->window()->controller();
+
 	auto text = Notify::PeerUpdateValue(
 		user,
 		Notify::PeerUpdate::Flag::UserIsBlocked
@@ -591,12 +596,14 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 	});
 	auto callback = [=] {
 		if (user->isBlocked()) {
-			Auth().api().unblockUser(user);
+			user->session().api().unblockUser(user);
 			if (user->botInfo) {
 				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
 			}
+		} else if (user->isBot()) {
+			user->session().api().blockUser(user);
 		} else {
-			Auth().api().blockUser(user);
+			window->show(Box(Window::PeerMenuBlockUserBox, user, window));
 		}
 	};
 	AddActionButton(

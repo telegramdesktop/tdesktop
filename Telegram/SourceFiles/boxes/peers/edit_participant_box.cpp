@@ -50,7 +50,7 @@ private:
 	not_null<PeerData*> _peer;
 	not_null<UserData*> _user;
 	object_ptr<Ui::UserpicButton> _userPhoto;
-	Text _userName;
+	Ui::Text::String _userName;
 	bool _hasAdminRights = false;
 	object_ptr<Ui::VerticalLayout> _rows;
 

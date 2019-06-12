@@ -37,14 +37,14 @@ QSize HistoryMedia::countCurrentSize(int newWidth) {
 	return QSize(qMin(newWidth, maxWidth()), minHeight());
 }
 
-Text HistoryMedia::createCaption(not_null<HistoryItem*> item) const {
+Ui::Text::String HistoryMedia::createCaption(not_null<HistoryItem*> item) const {
 	if (item->emptyText()) {
-		return Text();
+		return {};
 	}
 	const auto minResizeWidth = st::minPhotoSize
 		- st::msgPadding.left()
 		- st::msgPadding.right();
-	auto result = Text(minResizeWidth);
+	auto result = Ui::Text::String(minResizeWidth);
 	result.setMarkedText(
 		st::messageTextStyle,
 		item->originalText(),

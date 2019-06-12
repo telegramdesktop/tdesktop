@@ -486,17 +486,17 @@ private:
 	void handlePeerMigration();
 
 	MsgId _replyToId = 0;
-	Text _replyToName;
+	Ui::Text::String _replyToName;
 	int _replyToNameVersion = 0;
 
 	HistoryItemsList _toForward;
-	Text _toForwardFrom, _toForwardText;
+	Ui::Text::String _toForwardFrom, _toForwardText;
 	int _toForwardNameVersion = 0;
 
 	MsgId _editMsgId = 0;
 
 	HistoryItem *_replyEditMsg = nullptr;
-	Text _replyEditMsgText;
+	Ui::Text::String _replyEditMsgText;
 	mutable base::Timer _updateEditTimeLeftDisplay;
 
 	object_ptr<Ui::IconButton> _fieldBarCancel;
@@ -509,7 +509,7 @@ private:
 
 		MsgId msgId = 0;
 		HistoryItem *msg = nullptr;
-		Text text;
+		Ui::Text::String text;
 		object_ptr<Ui::IconButton> cancel;
 		object_ptr<Ui::PlainShadow> shadow;
 	};
@@ -554,8 +554,8 @@ private:
 	typedef QMap<QString, WebPageId> PreviewCache;
 	PreviewCache _previewCache;
 	mtpRequestId _previewRequest = 0;
-	Text _previewTitle;
-	Text _previewDescription;
+	Ui::Text::String _previewTitle;
+	Ui::Text::String _previewDescription;
 	base::Timer _previewTimer;
 	bool _previewCancelled = false;
 

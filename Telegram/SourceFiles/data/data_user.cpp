@@ -33,13 +33,13 @@ BotCommand::BotCommand(
 bool BotCommand::setDescription(const QString &description) {
 	if (_description != description) {
 		_description = description;
-		_descriptionText = Text();
+		_descriptionText = Ui::Text::String();
 		return true;
 	}
 	return false;
 }
 
-const Text &BotCommand::descriptionText() const {
+const Ui::Text::String &BotCommand::descriptionText() const {
 	if (_descriptionText.isEmpty() && !_description.isEmpty()) {
 		_descriptionText.setText(
 			st::defaultTextStyle,
@@ -158,30 +158,31 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 		QString desc = qs(d.vdescription);
 		if (botInfo->description != desc) {
 			botInfo->description = desc;
-			botInfo->text = Text(st::msgMinWidth);
+			botInfo->text = Ui::Text::String(st::msgMinWidth);
 		}
 
 		auto &v = d.vcommands.v;
 		botInfo->commands.reserve(v.size());
 		auto changedCommands = false;
 		int32 j = 0;
-		for (int32 i = 0, l = v.size(); i < l; ++i) {
-			if (v.at(i).type() != mtpc_botCommand) continue;
-
-			QString cmd = qs(v.at(i).c_botCommand().vcommand), desc = qs(v.at(i).c_botCommand().vdescription);
-			if (botInfo->commands.size() <= j) {
-				botInfo->commands.push_back(BotCommand(cmd, desc));
-				changedCommands = true;
-			} else {
-				if (botInfo->commands[j].command != cmd) {
-					botInfo->commands[j].command = cmd;
+		for (const auto &command : v) {
+			command.match([&](const MTPDbotCommand &data) {
+				const auto cmd = qs(data.vcommand);
+				const auto desc = qs(data.vdescription);
+				if (botInfo->commands.size() <= j) {
+					botInfo->commands.push_back(BotCommand(cmd, desc));
 					changedCommands = true;
+				} else {
+					if (botInfo->commands[j].command != cmd) {
+						botInfo->commands[j].command = cmd;
+						changedCommands = true;
+					}
+					if (botInfo->commands[j].setDescription(desc)) {
+						changedCommands = true;
+					}
 				}
-				if (botInfo->commands[j].setDescription(desc)) {
-					changedCommands = true;
-				}
-			}
-			++j;
+				++j;
+			});
 		}
 		while (j < botInfo->commands.size()) {
 			botInfo->commands.pop_back();

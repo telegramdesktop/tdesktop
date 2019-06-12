@@ -761,7 +761,7 @@ void HistoryItem::drawInDialog(
 		bool selected,
 		DrawInDialog way,
 		const HistoryItem *&cacheFor,
-		Text &cache) const {
+		Ui::Text::String &cache) const {
 	if (r.isEmpty()) {
 		return;
 	}

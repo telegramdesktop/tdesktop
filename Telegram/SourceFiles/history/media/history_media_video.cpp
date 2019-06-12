@@ -88,7 +88,7 @@ QSize HistoryVideo::countOptimalDimensions() const {
 
 QSize HistoryVideo::countOptimalSize() {
 	if (_parent->media() != this) {
-		_caption = Text();
+		_caption = Ui::Text::String();
 	} else if (_caption.hasSkipBlock()) {
 		_caption.updateSkipBlock(
 			_parent->skipBlockWidth(),
@@ -598,7 +598,7 @@ bool HistoryVideo::needsBubble() const {
 void HistoryVideo::parentTextUpdated() {
 	_caption = (_parent->media() == this)
 		? createCaption(_parent->data())
-		: Text();
+		: Ui::Text::String();
 	history()->owner().requestViewResize(_parent);
 }
 

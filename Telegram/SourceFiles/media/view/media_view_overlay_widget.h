@@ -348,7 +348,7 @@ private:
 	int _groupThumbsAvailableWidth = 0;
 	int _groupThumbsLeft = 0;
 	int _groupThumbsTop = 0;
-	Text _caption;
+	Ui::Text::String _caption;
 	QRect _captionRect;
 
 	int _width = 0;
@@ -394,7 +394,7 @@ private:
 
 	PeerData *_from = nullptr;
 	QString _fromName;
-	Text _fromNameLabel;
+	Ui::Text::String _fromNameLabel;
 
 	std::optional<int> _index; // Index in current _sharedMedia data.
 	std::optional<int> _fullIndex; // Index in full shared media.
@@ -448,7 +448,7 @@ private:
 	anim::value _saveMsgOpacity;
 	QRect _saveMsg;
 	QTimer _saveMsgUpdater;
-	Text _saveMsgText;
+	Ui::Text::String _saveMsgText;
 
 	base::flat_map<OverState, crl::time> _animations;
 	base::flat_map<OverState, anim::value> _animationOpacities;

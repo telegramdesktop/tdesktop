@@ -236,7 +236,7 @@ public:
 		bool selected,
 		DrawInDialog way,
 		const HistoryItem *&cacheFor,
-		Text &cache) const;
+		Ui::Text::String &cache) const;
 
 	bool emptyText() const {
 		return _text.isEmpty();
@@ -334,7 +334,7 @@ protected:
 
 	void setGroupId(MessageGroupId groupId);
 
-	Text _text = { st::msgMinWidth };
+	Ui::Text::String _text = { st::msgMinWidth };
 	int _textWidth = -1;
 	int _textHeight = 0;
 

@@ -59,7 +59,7 @@ private:
 	TextSelection fromDescriptionSelection(TextSelection selection) const;
 
 	LocationData *_data;
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 	ClickHandlerPtr _link;
 
 	int fullWidth() const;

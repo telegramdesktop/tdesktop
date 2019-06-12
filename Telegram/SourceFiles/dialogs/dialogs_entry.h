@@ -169,7 +169,7 @@ public:
 	}
 
 	mutable const HistoryItem *textCachedFor = nullptr; // cache
-	mutable Text lastItemTextCache;
+	mutable Ui::Text::String lastItemTextCache;
 
 protected:
 	auto unreadStateChangeNotifier(bool required) {
