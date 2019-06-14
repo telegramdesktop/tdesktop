@@ -104,6 +104,7 @@ private:
 	UserData *applyBanned(const MTPDchannelParticipantBanned &data);
 	void fillFromChat(not_null<ChatData*> chat);
 	void fillFromChannel(not_null<ChannelData*> channel);
+	void subscribeToCreatorChange(not_null<ChannelData*> channel);
 
 	not_null<PeerData*> _peer;
 	Role _role = Role::Members;
@@ -226,6 +227,8 @@ private:
 
 	void subscribeToMigration();
 	void migrate(not_null<ChannelData*> channel);
+	void subscribeToCreatorChange(not_null<ChannelData*> channel);
+	void fullListRefresh();
 
 	not_null<Window::SessionNavigation*> _navigation;
 	not_null<PeerData*> _peer;

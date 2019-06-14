@@ -331,7 +331,7 @@ public:
 		const MTPchannels_ChannelParticipants &result,
 		Fn<void(
 			int availableCount,
-			const QVector<MTPChannelParticipant> &list)> callbackList,
+			const QVector<MTPChannelParticipant> &list)> callbackList = nullptr,
 		Fn<void()> callbackNotModified = nullptr);
 	void addChatParticipants(
 		not_null<PeerData*> peer,

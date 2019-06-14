@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/admin_log/history_admin_log_inner.h"
 #include "history/view/history_view_element.h"
+#include "history/history_location_manager.h"
 #include "history/history_service.h"
 #include "history/history_message.h"
 #include "history/history.h"
@@ -604,9 +605,25 @@ void GenerateItems(
 	};
 
 	auto createChangeLocation = [&](const MTPDchannelAdminLogEventActionChangeLocation &action) {
-		const auto now = (action.vnew_value.type() != mtpc_channelLocationEmpty);
-		auto text = (now ? lng_admin_log_changed_location_chat : lng_admin_log_removed_location_chat)(lt_from, fromLinkText);
-		addSimpleServiceMessage(text);
+		action.vnew_value.match([&](const MTPDchannelLocation &data) {
+			const auto address = qs(data.vaddress);
+			const auto link = data.vgeo_point.match([&](const MTPDgeoPoint &data) {
+				return textcmdLink(
+					LocationClickHandler::Url(LocationCoords(data)),
+					address);
+			}, [&](const MTPDgeoPointEmpty &) {
+				return address;
+			});
+			const auto text = lng_admin_log_changed_location_chat(
+				lt_from,
+				fromLinkText,
+				lt_address,
+				link);
+			addSimpleServiceMessage(text);
+		}, [&](const MTPDchannelLocationEmpty &) {
+			const auto text = lng_admin_log_removed_location_chat(lt_from, fromLinkText);
+			addSimpleServiceMessage(text);
+		});
 	};
 
 	action.match([&](const MTPDchannelAdminLogEventActionChangeTitle &data) {

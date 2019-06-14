@@ -1755,7 +1755,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_removed_linked_chat" = "{from} removed the discussion group";
 "lng_admin_log_changed_linked_channel" = "{from} changed the linked channel to «{chat}»";
 "lng_admin_log_removed_linked_channel" = "{from} removed the linked channel";
-"lng_admin_log_changed_location_chat" = "{from} changed the group location";
+"lng_admin_log_changed_location_chat" = "{from} changed the group location to {address}";
 "lng_admin_log_removed_location_chat" = "{from} removed the group location";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_restricted_forever" = "indefinitely";

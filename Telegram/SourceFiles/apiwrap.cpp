@@ -3572,7 +3572,9 @@ void ApiWrap::parseRecentChannelParticipants(
 				availableCount,
 				list);
 		}
-		callbackList(availableCount, list);
+		if (callbackList) {
+			callbackList(availableCount, list);
+		}
 	}, std::move(callbackNotModified));
 }
 

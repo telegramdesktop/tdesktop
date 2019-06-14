@@ -52,8 +52,12 @@ void LocationClickHandler::onClick(ClickContext context) const {
 }
 
 void LocationClickHandler::setup() {
-	auto latlon = _coords.latAsString() + ',' + _coords.lonAsString();
-	_text = qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
+	_text = Url(_coords);
+}
+
+QString LocationClickHandler::Url(const LocationCoords &coords) {
+	const auto latlon = coords.latAsString() + ',' + coords.lonAsString();
+	return qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
 }
 
 LocationData::LocationData(const LocationCoords &coords)

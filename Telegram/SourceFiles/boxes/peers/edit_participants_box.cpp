@@ -718,6 +718,9 @@ ParticipantsBoxController::ParticipantsBoxController(
 	if (_role == Role::Profile) {
 		setupListChangeViewers();
 	}
+	if (const auto channel = _peer->asChannel()) {
+		subscribeToCreatorChange(channel);
+	}
 }
 
 void ParticipantsBoxController::setupListChangeViewers() {
@@ -1782,6 +1785,54 @@ void ParticipantsBoxController::subscribeToMigration() {
 void ParticipantsBoxController::migrate(not_null<ChannelData*> channel) {
 	_peer = channel;
 	_additional.migrate(channel);
+	subscribeToCreatorChange(channel);
+}
+
+void ParticipantsBoxController::subscribeToCreatorChange(
+		not_null<ChannelData*> channel) {
+	const auto isCreator = channel->amCreator();
+	channel->flagsValue(
+	) | rpl::filter([](const ChannelData::Flags::Change &change) {
+		return (change.diff & MTPDchannel::Flag::f_creator);
+	}) | rpl::filter([=] {
+		return (isCreator != channel->amCreator());
+	}) | rpl::start_with_next([=] {
+		if (channel->isBroadcast()) {
+			fullListRefresh();
+			return;
+		}
+		const auto weak = base::make_weak(this);
+		const auto api = &channel->session().api();
+		api->request(MTPchannels_GetParticipants(
+			channel->inputChannel,
+			MTP_channelParticipantsRecent(),
+			MTP_int(0),
+			MTP_int(Global::ChatSizeMax()),
+			MTP_int(0)
+		)).done([=](const MTPchannels_ChannelParticipants &result) {
+			channel->mgInfo->creator = channel->amCreator()
+				? channel->session().user().get()
+				: nullptr;
+			channel->mgInfo->lastAdmins.clear();
+			channel->mgInfo->lastRestricted.clear();
+			channel->mgInfo->lastParticipants.clear();
+			api->parseRecentChannelParticipants(channel, result);
+			if (weak) {
+				fullListRefresh();
+			}
+		}).send();
+	}, lifetime());
+}
+
+void ParticipantsBoxController::fullListRefresh() {
+	_additional = ParticipantsAdditionalData(_peer, _role);
+
+	while (const auto count = delegate()->peerListFullRowsCount()) {
+		delegate()->peerListRemoveRow(
+			delegate()->peerListRowAt(count - 1));
+	}
+	loadMoreRows();
+	delegate()->peerListRefreshRows();
 }
 
 ParticipantsBoxSearchController::ParticipantsBoxSearchController(

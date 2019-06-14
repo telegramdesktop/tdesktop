@@ -98,6 +98,8 @@ public:
 		setup();
 	}
 
+	static QString Url(const LocationCoords &coords);
+
 	void onClick(ClickContext context) const override;
 
 	QString tooltip() const override {
