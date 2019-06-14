@@ -481,13 +481,7 @@ object_ptr<BoxContent> EditCloudPasswordBox(not_null<AuthSession*> session) {
 	const auto current = session->api().passwordStateCurrent();
 	Assert(current.has_value());
 
-	auto result = Box<PasscodeBox>(
-		current->request,
-		current->newPassword,
-		current->hasRecovery,
-		current->notEmptyPassport,
-		current->hint,
-		current->newSecureSecret);
+	auto result = Box<PasscodeBox>(PasscodeBox::CloudFields::From(*current));
 	const auto box = result.data();
 
 	rpl::merge(
@@ -513,14 +507,9 @@ void RemoveCloudPassword() {
 		Auth().api().clearUnconfirmedPassword();
 		return;
 	}
-	const auto box = Ui::show(Box<PasscodeBox>(
-		current->request,
-		current->newPassword,
-		current->hasRecovery,
-		current->notEmptyPassport,
-		current->hint,
-		current->newSecureSecret,
-		true));
+	auto fields = PasscodeBox::CloudFields::From(*current);
+	fields.turningOff = true;
+	const auto box = Ui::show(Box<PasscodeBox>(fields));
 
 	rpl::merge(
 		box->newPasswordSet(

@@ -712,16 +712,10 @@ void PanelController::setupPassword() {
 		return;
 	}
 
-	const auto hasRecovery = false;
-	const auto notEmptyPassport = false;
-	const auto hint = QString();
-	auto box = show(Box<PasscodeBox>(
-		Core::CloudPasswordCheckRequest(), // current
-		settings.newAlgo,
-		hasRecovery,
-		notEmptyPassport,
-		hint,
-		settings.newSecureAlgo));
+	auto fields = PasscodeBox::CloudFields();
+	fields.newAlgo = settings.newAlgo;
+	fields.newSecureSecretAlgo = settings.newSecureAlgo;
+	auto box = show(Box<PasscodeBox>(fields));
 	box->newPasswordSet(
 	) | rpl::filter([=](const QByteArray &password) {
 		return !password.isEmpty();

@@ -17,18 +17,32 @@ class PasswordInput;
 class LinkButton;
 } // namespace Ui
 
+namespace Core {
+struct CloudPasswordState;
+} // namespace Core
+
 class PasscodeBox : public BoxContent, private MTP::Sender {
 public:
 	PasscodeBox(QWidget*, bool turningOff);
-	PasscodeBox(
-		QWidget*,
-		const Core::CloudPasswordCheckRequest &curRequest,
-		const Core::CloudPasswordAlgo &newAlgo,
-		bool hasRecovery,
-		bool notEmptyPassport,
-		const QString &hint,
-		const Core::SecureSecretAlgo &newSecureSecretAlgo,
-		bool turningOff = false);
+
+	struct CloudFields {
+		static CloudFields From(const Core::CloudPasswordState &current);
+
+		Core::CloudPasswordCheckRequest curRequest;
+		Core::CloudPasswordAlgo newAlgo;
+		bool hasRecovery = false;
+		bool notEmptyPassport = false;
+		QString hint;
+		Core::SecureSecretAlgo newSecureSecretAlgo;
+		bool turningOff = false;
+
+		// Check cloud password for some action.
+		Fn<void(const MTPInputCheckPasswordSRP &)> customCheckedCallback;
+		std::optional<QString> title;
+		std::optional<QString> description;
+		std::optional<QString> button;
+	};
+	PasscodeBox(QWidget*, const CloudFields &fields);
 
 	rpl::producer<QByteArray> newPasswordSet() const;
 	rpl::producer<> passwordReloadNeeded() const;
@@ -55,6 +69,7 @@ private:
 	void recoverByEmail();
 	void recoverExpired();
 	bool currentlyHave() const;
+	bool onlyCheckCurrent() const;
 
 	void setPasswordDone(const QByteArray &newPasswordBytes);
 	void setPasswordFail(const RPCError &error);
@@ -71,7 +86,7 @@ private:
 	void recoverStartFail(const RPCError &error);
 
 	void recover();
-	void clearCloudPassword(const QString &oldPassword);
+	void submitOnlyCheckCloudPassword(const QString &oldPassword);
 	void setNewCloudPassword(const QString &newPassword);
 
 	void checkPassword(
@@ -97,7 +112,7 @@ private:
 		const QString &newPassword,
 		Fn<void()> callback);
 
-	void sendClearCloudPassword(const QString &oldPassword);
+	void sendOnlyCheckCloudPassword(const QString &oldPassword);
 	void sendClearCloudPassword(const Core::CloudPasswordResult &check);
 
 	void handleSrpIdInvalid();
@@ -110,14 +125,10 @@ private:
 	QPointer<BoxContent> _replacedBy;
 	bool _turningOff = false;
 	bool _cloudPwd = false;
+	CloudFields _cloudFields;
 	mtpRequestId _setRequest = 0;
 
-	Core::CloudPasswordCheckRequest _curRequest;
 	crl::time _lastSrpIdInvalidTime = 0;
-	Core::CloudPasswordAlgo _newAlgo;
-	Core::SecureSecretAlgo _newSecureSecretAlgo;
-	bool _hasRecovery = false;
-	bool _notEmptyPassport = false;
 	bool _skipEmailWarning = false;
 	CheckPasswordCallback _checkPasswordCallback;
 	bytes::vector _checkPasswordHash;
