@@ -95,7 +95,7 @@ std::vector<std::pair<ChatRestrictions, LangKey>> RestrictionLabels() {
 	const auto restrictions = Data::ListOfRestrictions();
 	auto i = 0;
 	for (const auto key : langKeys) {
-		vector.push_back({restrictions[i++], key});
+		vector.emplace_back(restrictions[i++], key);
 	}
 	return vector;
 }
@@ -274,6 +274,14 @@ ChatRestrictions FixDependentRestrictions(ChatRestrictions restrictions) {
 	while (fixOne()) {
 	}
 	return restrictions;
+}
+
+ChatAdminRights FullAdminRights(bool isGroup) {
+	auto result = ChatAdminRights();
+	for (const auto &[flag, label] : AdminRightLabels(isGroup, true)) {
+		result |= flag;
+	}
+	return result;
 }
 
 EditPeerPermissionsBox::EditPeerPermissionsBox(

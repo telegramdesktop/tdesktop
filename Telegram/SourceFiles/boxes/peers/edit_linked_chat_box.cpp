@@ -163,7 +163,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 	}
 	text.append("\n\n" + lang(lng_manage_discussion_group_private));
 	text.append("\n\n");
-	text.append(lng_manage_discussion_group_warning__generic(
+	text.append(lng_manage_discussion_group_warning__rich(
 		lt_visible,
 		Ui::Text::Bold(lang(lng_manage_discussion_group_visible))));
 	const auto box = std::make_shared<QPointer<BoxContent>>();

@@ -16,6 +16,8 @@ class LinkButton;
 class Checkbox;
 class Radiobutton;
 class RadiobuttonGroup;
+template <typename Widget>
+class SlideWrap;
 } // namespace Ui
 
 class CalendarBox;
@@ -77,15 +79,21 @@ private:
 
 	static MTPChatAdminRights Defaults(not_null<PeerData*> peer);
 
+	void transferOwnership();
+	bool handleTransferPasswordError(const RPCError &error);
+	void requestTransferPassword();
 	bool canSave() const {
 		return !!_saveCallback;
 	}
 	void refreshAboutAddAdminsText(bool canAddAdmins);
+	bool canTransferOwnership() const;
+	not_null<Ui::SlideWrap<Ui::RpWidget>*> setupTransferButton(bool isGroup);
 
 	const MTPChatAdminRights _oldRights;
 	Fn<void(MTPChatAdminRights, MTPChatAdminRights)> _saveCallback;
 
 	QPointer<Ui::FlatLabel> _aboutAddAdmins;
+	mtpRequestId _checkTransferRequestId = 0;
 
 };
 

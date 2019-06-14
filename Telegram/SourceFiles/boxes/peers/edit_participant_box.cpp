@@ -10,24 +10,92 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/text/text_utilities.h"
 #include "ui/text_options.h"
 #include "ui/special_buttons.h"
+#include "info/profile/info_profile_button.h"
+#include "settings/settings_privacy_security.h"
 #include "boxes/calendar_box.h"
+#include "boxes/generic_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
+#include "boxes/peers/edit_peer_info_box.h"
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "core/core_cloud_password.h"
+#include "apiwrap.h"
+#include "auth_session.h"
 #include "styles/style_boxes.h"
+#include "styles/style_info.h"
 
 namespace {
 
 constexpr auto kMaxRestrictDelayDays = 366;
 constexpr auto kSecondsInDay = 24 * 60 * 60;
 constexpr auto kSecondsInWeek = 7 * kSecondsInDay;
+
+enum class PasswordErrorType {
+	None,
+	NoPassword,
+	Later,
+};
+
+void SetCloudPassword(not_null<GenericBox*> box, not_null<UserData*> user) {
+	user->session().api().reloadPasswordState();
+	user->session().api().passwordState(
+	) | rpl::start_with_next([=] {
+		using namespace Settings;
+		const auto weak = make_weak(box);
+		if (CheckEditCloudPassword()) {
+			box->getDelegate()->show(
+				EditCloudPasswordBox(&user->session()));
+		} else {
+			box->getDelegate()->show(CloudPasswordAppOutdatedBox());
+		}
+		if (weak) {
+			weak->closeBox();
+		}
+	}, box->lifetime());
+}
+
+void TransferPasswordError(
+		not_null<GenericBox*> box,
+		not_null<UserData*> user,
+		PasswordErrorType error) {
+	box->setTitle(langFactory(lng_rights_transfer_check));
+	box->setWidth(st::transferCheckWidth);
+
+	auto text = lng_rights_transfer_check_about__rich(
+		lt_user,
+		Ui::Text::Bold(user->shortName())
+	).append('\n').append('\n').append(
+		Ui::Text::RichLangValue(lang(lng_rights_transfer_check_password))
+	).append('\n').append('\n').append(
+		Ui::Text::RichLangValue(lang(lng_rights_transfer_check_session))
+	);
+	if (error == PasswordErrorType::Later) {
+		text.append('\n').append('\n').append(
+			Ui::Text::RichLangValue(lang(lng_rights_transfer_check_later))
+		);
+	}
+	box->addRow(object_ptr<Ui::FlatLabel>(
+		box,
+		rpl::single(text),
+		st::boxLabel));
+	if (error == PasswordErrorType::Later) {
+		box->addButton(langFactory(lng_box_ok), [=] { box->closeBox(); });
+	} else {
+		box->addButton(langFactory(lng_rights_transfer_set_password), [=] {
+			SetCloudPassword(box, user);
+		});
+		box->addButton(langFactory(lng_cancel), [=] { box->closeBox(); });
+	}
+}
 
 } // namespace
 
@@ -244,6 +312,7 @@ void EditAdminBox::prepare() {
 		return result;
 	}();
 
+	const auto isGroup = chat || channel->isMegagroup();
 	const auto anyoneCanAddMembers = chat
 		? chat->anyoneCanAddMembers()
 		: channel->anyoneCanAddMembers();
@@ -252,18 +321,31 @@ void EditAdminBox::prepare() {
 		lng_rights_edit_admin_header,
 		prepareFlags,
 		disabledMessages,
-		peer()->isChat() || peer()->isMegagroup(),
+		isGroup,
 		anyoneCanAddMembers);
 	addControl(std::move(checkboxes), QMargins());
 
-	_aboutAddAdmins = addControl(
-		object_ptr<Ui::FlatLabel>(this, st::boxLabel),
-		st::rightsAboutMargin);
-	rpl::single(
+	auto selectedFlags = rpl::single(
 		getChecked()
 	) | rpl::then(std::move(
 		changes
-	)) | rpl::map(
+	));
+	if (canTransferOwnership()) {
+		const auto allFlags = FullAdminRights(isGroup);
+		setupTransferButton(
+			isGroup
+		)->toggleOn(rpl::duplicate(
+			selectedFlags
+		) | rpl::map(
+			((_1 & allFlags) == allFlags)
+		))->setDuration(0);
+	}
+	_aboutAddAdmins = addControl(
+		object_ptr<Ui::FlatLabel>(this, st::boxLabel),
+		st::rightsAboutMargin);
+	std::move(
+		selectedFlags
+	) | rpl::map(
 		(_1 & Flag::f_add_admins) != 0
 	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool checked) {
@@ -287,6 +369,88 @@ void EditAdminBox::prepare() {
 	} else {
 		addButton(langFactory(lng_box_ok), [this] { closeBox(); });
 	}
+}
+
+bool EditAdminBox::canTransferOwnership() const {
+	if (user()->isInaccessible() || user()->isBot()) {
+		return false;
+	} else if (const auto chat = peer()->asChat()) {
+		return chat->amCreator();
+	} else if (const auto channel = peer()->asChannel()) {
+		return channel->amCreator();
+	}
+	Unexpected("Chat type in EditAdminBox::canTransferOwnership.");
+}
+
+not_null<Ui::SlideWrap<Ui::RpWidget>*> EditAdminBox::setupTransferButton(
+		bool isGroup) {
+	const auto wrap = addControl(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			this,
+			object_ptr<Ui::VerticalLayout>(this)));
+
+	const auto container = wrap->entity();
+	const auto addDivider = [&] {
+		container->add(
+			object_ptr<BoxContentDivider>(container),
+			{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
+	};
+
+	addDivider();
+	container->add(EditPeerInfoBox::CreateButton(
+		this,
+		Lang::Viewer(isGroup
+			? lng_rights_transfer_group
+			: lng_rights_transfer_channel),
+		rpl::single(QString()),
+		[=] { transferOwnership(); },
+		st::peerPermissionsButton));
+	addDivider();
+
+	return wrap;
+}
+
+void EditAdminBox::transferOwnership() {
+	if (_checkTransferRequestId) {
+		return;
+	}
+	const auto channel = peer()->isChannel()
+		? peer()->asChannel()->inputChannel
+		: MTP_inputChannelEmpty();
+	const auto api = &peer()->session().api();
+	_checkTransferRequestId = api->request(MTPchannels_EditCreator(
+		channel,
+		MTP_inputUserEmpty(),
+		MTP_inputCheckPasswordEmpty()
+	)).fail([=](const RPCError &error) {
+		_checkTransferRequestId = 0;
+		if (!handleTransferPasswordError(error)) {
+			requestTransferPassword();
+		}
+	}).send();
+}
+
+bool EditAdminBox::handleTransferPasswordError(const RPCError &error) {
+	const auto type = [&] {
+		const auto &type = error.type();
+		if (type == qstr("PASSWORD_MISSING")) {
+			return PasswordErrorType::NoPassword;
+		} else if (type.startsWith(qstr("PASSWORD_TOO_FRESH_"))
+			|| type.startsWith(qstr("SESSION_TOO_FRESH_"))) {
+			return PasswordErrorType::Later;
+		}
+		return PasswordErrorType::None;
+	}();
+	if (type == PasswordErrorType::None) {
+		return false;
+	}
+
+	getDelegate()->show(Box(TransferPasswordError, user(), type));
+	return true;
+}
+
+void EditAdminBox::requestTransferPassword() {
+
 }
 
 void EditAdminBox::refreshAboutAddAdminsText(bool canAddAdmins) {

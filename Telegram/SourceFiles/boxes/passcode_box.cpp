@@ -226,10 +226,17 @@ void PasscodeBox::setInnerFocus() {
 }
 
 void PasscodeBox::setPasswordDone(const QByteArray &newPasswordBytes) {
+	if (_replacedBy) {
+		_replacedBy->closeBox();
+	}
 	_setRequest = 0;
 	_newPasswordSet.fire_copy(newPasswordBytes);
-	auto text = lang(_reenterPasscode->isHidden() ? lng_cloud_password_removed : (_oldPasscode->isHidden() ? lng_cloud_password_was_set : lng_cloud_password_updated));
-	getDelegate()->show(Box<InformBox>(text), LayerOption::CloseOther);
+	const auto weak = make_weak(this);
+	const auto text = lang(_reenterPasscode->isHidden() ? lng_cloud_password_removed : (_oldPasscode->isHidden() ? lng_cloud_password_was_set : lng_cloud_password_updated));
+	getDelegate()->show(Box<InformBox>(text));
+	if (weak) {
+		closeBox();
+	}
 }
 
 void PasscodeBox::closeReplacedBy() {
@@ -353,8 +360,7 @@ void PasscodeBox::validateEmail(
 			submit,
 			resend,
 			errors->events(),
-			resent->events()),
-		LayerOption::KeepOther);
+			resent->events()));
 
 	box->setCloseByOutsideClick(false);
 	box->setCloseByEscape(false);
@@ -441,9 +447,12 @@ void PasscodeBox::save(bool force) {
 		}
 		if (!_recoverEmail->isHidden() && email.isEmpty() && !force) {
 			_skipEmailWarning = true;
-			_replacedBy = getDelegate()->show(Box<ConfirmBox>(lang(lng_cloud_password_about_recover), lang(lng_cloud_password_skip_email), st::attentionBoxButton, crl::guard(this, [this] {
-				save(true);
-			})));
+			_replacedBy = getDelegate()->show(
+				Box<ConfirmBox>(
+					lang(lng_cloud_password_about_recover),
+					lang(lng_cloud_password_skip_email),
+					st::attentionBoxButton,
+					crl::guard(this, [this] { save(true); })));
 		} else if (_newPasscode->isHidden()) {
 			clearCloudPassword(old);
 		} else if (_oldPasscode->isHidden()) {
@@ -452,6 +461,7 @@ void PasscodeBox::save(bool force) {
 			changeCloudPassword(old, pwd);
 		}
 	} else {
+		closeReplacedBy();
 		const auto weak = make_weak(this);
 		cSetPasscodeBadTries(0);
 		Local::setPasscode(pwd.toUtf8());

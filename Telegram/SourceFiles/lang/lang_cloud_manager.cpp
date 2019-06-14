@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/labels.h"
+#include "ui/text/text_utilities.h"
 #include "lang/lang_file_parser.h"
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h"
@@ -72,42 +73,23 @@ ConfirmSwitchBox::ConfirmSwitchBox(
 void ConfirmSwitchBox::prepare() {
 	setTitle(langFactory(lng_language_switch_title));
 
-	auto link = TextWithEntities{ lang(lng_language_switch_link) };
-	link.entities.push_back({
-		EntityType::CustomUrl,
-		0,
-		link.text.size(),
-		QString("internal:go_to_translations") });
-	auto name = TextWithEntities{ _name };
-	name.entities.push_back({
-		EntityType::Bold,
-		0,
-		name.text.size() });
-	auto percent = TextWithEntities{ QString::number(_percent) };
-	percent.entities.push_back({
-		EntityType::Bold,
-		0,
-		percent.text.size() });
 	const auto text = (_official
 		? lng_language_switch_about_official__rich
 		: lng_language_switch_about_unofficial__rich)(
 		lt_lang_name,
-		name,
+		Ui::Text::Bold(_name),
 		lt_percent,
-		percent,
+		Ui::Text::Bold(QString::number(_percent)),
 		lt_link,
-		link);
-	auto content = Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
+		Ui::Text::Link(lang(lng_language_switch_link), _editLink));
+	const auto content = Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
 		this,
 		object_ptr<Ui::FlatLabel>(
 			this,
 			rpl::single(text),
 			st::boxLabel),
 		QMargins{ st::boxPadding.left(), 0, st::boxPadding.right(), 0 });
-	content->entity()->setClickHandlerFilter([=](auto&&...) {
-		UrlClickHandler::Open(_editLink);
-		return false;
-	});
+	content->entity()->setLinksTrusted();
 
 	addButton(langFactory(lng_language_switch_apply), [=] {
 		const auto apply = _apply;
@@ -133,29 +115,19 @@ NotReadyBox::NotReadyBox(
 void NotReadyBox::prepare() {
 	setTitle(langFactory(lng_language_not_ready_title));
 
-	auto link = TextWithEntities{ lang(lng_language_not_ready_link) };
-	link.entities.push_back({
-		EntityType::CustomUrl,
-		0,
-		link.text.size(),
-		QString("internal:go_to_translations") });
-	auto name = TextWithEntities{ _name };
-	const auto text = lng_language_not_ready_about__generic(
+	const auto text = lng_language_not_ready_about__rich(
 		lt_lang_name,
-		name,
+		TextWithEntities{ _name },
 		lt_link,
-		link);
-	auto content = Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
+		Ui::Text::Link(lang(lng_language_not_ready_link), _editLink));
+	const auto content = Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
 		this,
 		object_ptr<Ui::FlatLabel>(
 			this,
 			rpl::single(text),
 			st::boxLabel),
 		QMargins{ st::boxPadding.left(), 0, st::boxPadding.right(), 0 });
-	content->entity()->setClickHandlerFilter([=](auto&&...) {
-		UrlClickHandler::Open(_editLink);
-		return false;
-	});
+	content->entity()->setLinksTrusted();
 
 	addButton(langFactory(lng_box_ok), [=] { closeBox(); });
 

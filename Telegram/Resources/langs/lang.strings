@@ -1651,6 +1651,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_chat_banned_custom" = "Custom";
 "lng_rights_chat_banned_custom_date" = "Until {date}";
 
+"lng_rights_transfer_group" = "Transfer group ownership";
+"lng_rights_transfer_channel" = "Transfer channel ownership";
+"lng_rights_transfer_check" = "Security check";
+"lng_rights_transfer_check_about" = "You can transfer this group to {user} only if you have:";
+"lng_rights_transfer_check_password" = "• Enabled **2-Step Verification** more than **7 days** ago.";
+"lng_rights_transfer_check_session" = "• Logged in on this device more than **24 hours** ago.";
+"lng_rights_transfer_check_later" = "Please come back later.";
+"lng_rights_transfer_set_password" = "Set password";
+"lng_rights_transfer_about" = "This will transfer the full **owner rights** for {group} to {user}.";
+"lng_rights_transfer_sure" = "Change owner";
+"lng_rights_transfer_password" = "Please enter your password to complete the transfer.";
+"lng_rights_transfer_done_group" = "{user} is now the owner of the group.";
+"lng_rights_transfer_done_channel" = "{user} is now the owner of the channel.";
+
 "lng_restricted_send_message" = "The admins of this group restricted you from writing here.";
 "lng_restricted_send_media" = "The admins of this group restricted you from posting media content here.";
 "lng_restricted_send_stickers" = "The admins of this group restricted you from posting stickers here.";

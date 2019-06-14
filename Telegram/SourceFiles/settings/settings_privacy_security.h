@@ -16,6 +16,11 @@ namespace Settings {
 
 int ExceptionUsersCount(const std::vector<not_null<PeerData*>> &exceptions);
 
+bool CheckEditCloudPassword();
+object_ptr<BoxContent> EditCloudPasswordBox(not_null<AuthSession*> session);
+void RemoveCloudPassword();
+object_ptr<BoxContent> CloudPasswordAppOutdatedBox();
+
 void AddPrivacyButton(
 	not_null<Ui::VerticalLayout*> container,
 	LangKey label,

@@ -985,3 +985,5 @@ addContactWarningMargin: margins(19px, 10px, 19px, 5px);
 blockUserConfirmation: FlatLabel(boxLabel) {
 	minWidth: 240px;
 }
+
+transferCheckWidth: 300px;

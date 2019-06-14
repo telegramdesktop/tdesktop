@@ -552,8 +552,6 @@ void LayerStackWidget::startAnimation(
 		ClearOld clearOldWidgets,
 		Action action,
 		anim::type animated) {
-	if (App::quitting()) return;
-
 	if (animated == anim::type::instant) {
 		setupNewWidgets();
 		clearOldWidgets();
@@ -845,7 +843,13 @@ void LayerStackWidget::sendFakeMouseEvent() {
 	sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
 }
 
-LayerStackWidget::~LayerStackWidget() = default;
+LayerStackWidget::~LayerStackWidget() {
+	// Some layer destructors call back into LayerStackWidget.
+	while (!_layers.empty() || !_closingLayers.empty()) {
+		hideAll(anim::type::instant);
+		clearClosingLayers();
+	}
+}
 
 } // namespace Window
 

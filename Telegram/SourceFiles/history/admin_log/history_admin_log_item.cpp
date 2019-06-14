@@ -133,7 +133,7 @@ TextWithEntities GenerateAdminChangeText(
 
 	auto newFlags = newRights ? newRights->c_chatAdminRights().vflags.v : MTPDchatAdminRights::Flags(0);
 	auto prevFlags = prevRights ? prevRights->c_chatAdminRights().vflags.v : MTPDchatAdminRights::Flags(0);
-	auto result = lng_admin_log_promoted__generic(lt_user, user);
+	auto result = lng_admin_log_promoted__rich(lt_user, user);
 
 	auto useInviteLinkPhrase = channel->isMegagroup() && channel->anyoneCanAddMembers();
 	auto invitePhrase = (useInviteLinkPhrase ? lng_admin_log_admin_invite_link : lng_admin_log_admin_invite_users);
@@ -201,14 +201,14 @@ TextWithEntities GenerateBannedChangeText(
 	auto newUntil = newRights ? newRights->c_chatBannedRights().vuntil_date.v : TimeId(0);
 	auto indefinitely = ChannelData::IsRestrictedForever(newUntil);
 	if (newFlags & Flag::f_view_messages) {
-		return lng_admin_log_banned__generic(lt_user, user);
+		return lng_admin_log_banned__rich(lt_user, user);
 	}
 	auto untilText = indefinitely
 		? lang(lng_admin_log_restricted_forever)
 		: lng_admin_log_restricted_until(
 			lt_date,
 			langDateTime(ParseDateTime(newUntil)));
-	auto result = lng_admin_log_restricted__generic(
+	auto result = lng_admin_log_restricted__rich(
 		lt_user,
 		user,
 		lt_until,
@@ -241,7 +241,7 @@ auto GenerateUserString(MTPint userId) {
 		EntityType::Mention,
 		0,
 		mention.text.size() });
-	return lng_admin_log_user_with_username__generic(lt_name, name, lt_mention, mention);
+	return lng_admin_log_user_with_username__rich(lt_name, name, lt_mention, mention);
 }
 
 auto GenerateParticipantChangeTextInner(
@@ -251,7 +251,7 @@ auto GenerateParticipantChangeTextInner(
 	const auto oldType = oldParticipant ? oldParticipant->type() : 0;
 	return participant.match([&](const MTPDchannelParticipantCreator &data) {
 		// No valid string here :(
-		return lng_admin_log_invited__generic(
+		return lng_admin_log_invited__rich(
 			lt_user,
 			GenerateUserString(data.vuser_id));
 	}, [&](const MTPDchannelParticipantAdmin &data) {
@@ -285,7 +285,7 @@ auto GenerateParticipantChangeTextInner(
 				nullptr,
 				&oldParticipant->c_channelParticipantBanned().vbanned_rights);
 		}
-		return lng_admin_log_invited__generic(lt_user, user);
+		return lng_admin_log_invited__rich(lt_user, user);
 	});
 }
 

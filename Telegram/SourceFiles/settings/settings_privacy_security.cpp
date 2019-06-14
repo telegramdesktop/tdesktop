@@ -238,82 +238,6 @@ void SetupLocalPasscode(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container);
 }
 
-bool CheckEditCloudPassword() {
-	const auto current = Auth().api().passwordStateCurrent();
-	Assert(current.has_value());
-	if (!current->unknownAlgorithm
-		&& current->newPassword
-		&& current->newSecureSecret) {
-		return true;
-	}
-	auto box = std::make_shared<QPointer<BoxContent>>();
-	const auto callback = [=] {
-		Core::UpdateApplication();
-		if (*box) (*box)->closeBox();
-	};
-	*box = Ui::show(Box<ConfirmBox>(
-		lang(lng_passport_app_out_of_date),
-		lang(lng_menu_update),
-		callback));
-	return false;
-}
-
-void EditCloudPassword() {
-	const auto current = Auth().api().passwordStateCurrent();
-	Assert(current.has_value());
-
-	const auto box = Ui::show(Box<PasscodeBox>(
-		current->request,
-		current->newPassword,
-		current->hasRecovery,
-		current->notEmptyPassport,
-		current->hint,
-		current->newSecureSecret));
-
-	rpl::merge(
-		box->newPasswordSet() | rpl::map([] { return rpl::empty_value(); }),
-		box->passwordReloadNeeded()
-	) | rpl::start_with_next([=] {
-		Auth().api().reloadPasswordState();
-	}, box->lifetime());
-
-	box->clearUnconfirmedPassword(
-	) | rpl::start_with_next([=] {
-		Auth().api().clearUnconfirmedPassword();
-	}, box->lifetime());
-}
-
-void RemoveCloudPassword() {
-	const auto current = Auth().api().passwordStateCurrent();
-	Assert(current.has_value());
-
-	if (!current->request) {
-		Auth().api().clearUnconfirmedPassword();
-		return;
-	}
-	const auto box = Ui::show(Box<PasscodeBox>(
-		current->request,
-		current->newPassword,
-		current->hasRecovery,
-		current->notEmptyPassport,
-		current->hint,
-		current->newSecureSecret,
-		true));
-
-	rpl::merge(
-		box->newPasswordSet(
-		) | rpl::map([] { return rpl::empty_value(); }),
-		box->passwordReloadNeeded()
-	) | rpl::start_with_next([=] {
-		Auth().api().reloadPasswordState();
-	}, box->lifetime());
-
-	box->clearUnconfirmedPassword(
-	) | rpl::start_with_next([=] {
-		Auth().api().clearUnconfirmedPassword();
-	}, box->lifetime());
-}
-
 void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 	using namespace rpl::mappers;
 	using State = Core::CloudPasswordState;
@@ -396,7 +320,9 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 	))->setDuration(0);
 	change->entity()->addClickHandler([] {
 		if (CheckEditCloudPassword()) {
-			EditCloudPassword();
+			Ui::show(EditCloudPasswordBox(&Auth()));
+		} else {
+			Ui::show(CloudPasswordAppOutdatedBox());
 		}
 	});
 
@@ -437,6 +363,8 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 	const auto remove = [] {
 		if (CheckEditCloudPassword()) {
 			RemoveCloudPassword();
+		} else {
+			Ui::show(CloudPasswordAppOutdatedBox());
 		}
 	};
 	const auto disable = container->add(
@@ -535,6 +463,91 @@ int ExceptionUsersCount(const std::vector<not_null<PeerData*>> &exceptions) {
 		return already + 1;
 	};
 	return ranges::accumulate(exceptions, 0, add);
+}
+
+bool CheckEditCloudPassword() {
+	const auto current = Auth().api().passwordStateCurrent();
+	Assert(current.has_value());
+
+	if (!current->unknownAlgorithm
+		&& current->newPassword
+		&& current->newSecureSecret) {
+		return true;
+	}
+	return false;
+}
+
+object_ptr<BoxContent> EditCloudPasswordBox(not_null<AuthSession*> session) {
+	const auto current = session->api().passwordStateCurrent();
+	Assert(current.has_value());
+
+	auto result = Box<PasscodeBox>(
+		current->request,
+		current->newPassword,
+		current->hasRecovery,
+		current->notEmptyPassport,
+		current->hint,
+		current->newSecureSecret);
+	const auto box = result.data();
+
+	rpl::merge(
+		box->newPasswordSet() | rpl::map([] { return rpl::empty_value(); }),
+		box->passwordReloadNeeded()
+	) | rpl::start_with_next([=] {
+		session->api().reloadPasswordState();
+	}, box->lifetime());
+
+	box->clearUnconfirmedPassword(
+	) | rpl::start_with_next([=] {
+		session->api().clearUnconfirmedPassword();
+	}, box->lifetime());
+
+	return std::move(result);
+}
+
+void RemoveCloudPassword() {
+	const auto current = Auth().api().passwordStateCurrent();
+	Assert(current.has_value());
+
+	if (!current->request) {
+		Auth().api().clearUnconfirmedPassword();
+		return;
+	}
+	const auto box = Ui::show(Box<PasscodeBox>(
+		current->request,
+		current->newPassword,
+		current->hasRecovery,
+		current->notEmptyPassport,
+		current->hint,
+		current->newSecureSecret,
+		true));
+
+	rpl::merge(
+		box->newPasswordSet(
+		) | rpl::map([] { return rpl::empty_value(); }),
+		box->passwordReloadNeeded()
+	) | rpl::start_with_next([=] {
+		Auth().api().reloadPasswordState();
+	}, box->lifetime());
+
+	box->clearUnconfirmedPassword(
+	) | rpl::start_with_next([=] {
+		Auth().api().clearUnconfirmedPassword();
+	}, box->lifetime());
+}
+
+object_ptr<BoxContent> CloudPasswordAppOutdatedBox() {
+	auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto callback = [=] {
+		Core::UpdateApplication();
+		if (*box) (*box)->closeBox();
+	};
+	auto result = Box<ConfirmBox>(
+		lang(lng_passport_app_out_of_date),
+		lang(lng_menu_update),
+		callback);
+	*box = result.data();
+	return std::move(result);
 }
 
 void AddPrivacyButton(
