@@ -237,6 +237,7 @@ private:
 	std::unique_ptr<ParticipantsOnlineSorter> _onlineSorter;
 	BoxPointer _editBox;
 	BoxPointer _addBox;
+	QPointer<BoxContent> _editParticipantBox;
 
 };
 

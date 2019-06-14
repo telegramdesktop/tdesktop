@@ -461,6 +461,9 @@ void AddSpecialBoxController::showAdmin(
 		return;
 	}
 	_editBox = nullptr;
+	if (_editParticipantBox) {
+		_editParticipantBox->closeBox();
+	}
 
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
@@ -557,17 +560,21 @@ void AddSpecialBoxController::showAdmin(
 			editAdminDone(user, newRights);
 		});
 		const auto fail = crl::guard(this, [=] {
-			_editBox = nullptr;
+			if (_editParticipantBox) {
+				_editParticipantBox->closeBox();
+			}
 		});
 		box->setSaveCallback(SaveAdminCallback(_peer, user, done, fail));
 	}
-	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
+	_editParticipantBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
 
 void AddSpecialBoxController::editAdminDone(
 		not_null<UserData*> user,
 		const MTPChatAdminRights &rights) {
-	_editBox = nullptr;
+	if (_editParticipantBox) {
+		_editParticipantBox->closeBox();
+	}
 
 	const auto date = unixtime(); // Incorrect, but ignored.
 	if (rights.c_chatAdminRights().vflags.v == 0) {
@@ -598,6 +605,9 @@ void AddSpecialBoxController::showRestricted(
 		return;
 	}
 	_editBox = nullptr;
+	if (_editParticipantBox) {
+		_editParticipantBox->closeBox();
+	}
 
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
@@ -646,18 +656,22 @@ void AddSpecialBoxController::showRestricted(
 			editRestrictedDone(user, newRights);
 		});
 		const auto fail = crl::guard(this, [=] {
-			_editBox = nullptr;
+			if (_editParticipantBox) {
+				_editParticipantBox->closeBox();
+			}
 		});
 		box->setSaveCallback(
 			SaveRestrictedCallback(_peer, user, done, fail));
 	}
-	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
+	_editParticipantBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
 
 void AddSpecialBoxController::editRestrictedDone(
 		not_null<UserData*> user,
 		const MTPChatBannedRights &rights) {
-	_editBox = nullptr;
+	if (_editParticipantBox) {
+		_editParticipantBox->closeBox();
+	}
 
 	const auto date = unixtime(); // Incorrect, but ignored.
 	if (rights.c_chatBannedRights().vflags.v == 0) {

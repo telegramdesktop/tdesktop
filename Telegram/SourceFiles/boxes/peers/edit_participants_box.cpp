@@ -1422,18 +1422,22 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 			editAdminDone(user, newRights);
 		});
 		const auto fail = crl::guard(this, [=] {
-			_editBox = nullptr;
+			if (_editParticipantBox) {
+				_editParticipantBox->closeBox();
+			}
 		});
 		box->setSaveCallback(SaveAdminCallback(_peer, user, done, fail));
 	}
-	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
+	_editParticipantBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
 
 void ParticipantsBoxController::editAdminDone(
 		not_null<UserData*> user,
 		const MTPChatAdminRights &rights) {
 	_addBox = nullptr;
-	_editBox = nullptr;
+	if (_editParticipantBox) {
+		_editParticipantBox->closeBox();
+	}
 
 	const auto date = unixtime(); // Incorrect, but ignored.
 	if (rights.c_chatAdminRights().vflags.v == 0) {
@@ -1485,19 +1489,23 @@ void ParticipantsBoxController::showRestricted(not_null<UserData*> user) {
 			editRestrictedDone(user, newRights);
 		});
 		const auto fail = crl::guard(this, [=] {
-			_editBox = nullptr;
+			if (_editParticipantBox) {
+				_editParticipantBox->closeBox();
+			}
 		});
 		box->setSaveCallback(
 			SaveRestrictedCallback(_peer, user, done, fail));
 	}
-	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
+	_editParticipantBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
 
 void ParticipantsBoxController::editRestrictedDone(
 		not_null<UserData*> user,
 		const MTPChatBannedRights &rights) {
 	_addBox = nullptr;
-	_editBox = nullptr;
+	if (_editParticipantBox) {
+		_editParticipantBox->closeBox();
+	}
 
 	const auto date = unixtime(); // Incorrect, but ignored.
 	if (rights.c_chatBannedRights().vflags.v == 0) {
