@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_privacy_security.h"
 #include "boxes/calendar_box.h"
 #include "boxes/generic_box.h"
+#include "boxes/confirm_box.h"
+#include "boxes/passcode_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "data/data_peer_values.h"
@@ -46,7 +48,6 @@ enum class PasswordErrorType {
 };
 
 void SetCloudPassword(not_null<GenericBox*> box, not_null<UserData*> user) {
-	user->session().api().reloadPasswordState();
 	user->session().api().passwordState(
 	) | rpl::start_with_next([=] {
 		using namespace Settings;
@@ -414,10 +415,12 @@ void EditAdminBox::transferOwnership() {
 	if (_checkTransferRequestId) {
 		return;
 	}
+
 	const auto channel = peer()->isChannel()
 		? peer()->asChannel()->inputChannel
 		: MTP_inputChannelEmpty();
 	const auto api = &peer()->session().api();
+	api->reloadPasswordState();
 	_checkTransferRequestId = api->request(MTPchannels_EditCreator(
 		channel,
 		MTP_inputUserEmpty(),
@@ -425,7 +428,7 @@ void EditAdminBox::transferOwnership() {
 	)).fail([=](const RPCError &error) {
 		_checkTransferRequestId = 0;
 		if (!handleTransferPasswordError(error)) {
-			requestTransferPassword();
+			transferOwnershipChecked();
 		}
 	}).send();
 }
@@ -449,7 +452,90 @@ bool EditAdminBox::handleTransferPasswordError(const RPCError &error) {
 	return true;
 }
 
-void EditAdminBox::requestTransferPassword() {
+void EditAdminBox::transferOwnershipChecked() {
+	if (const auto chat = peer()->asChatNotMigrated()) {
+		peer()->session().api().migrateChat(chat, crl::guard(this, [=](
+				not_null<ChannelData*> channel) {
+			requestTransferPassword(channel);
+		}));
+	} else if (const auto channel = peer()->asChannelOrMigrated()) {
+		requestTransferPassword(channel);
+	} else {
+		Unexpected("Peer in SaveAdminCallback.");
+	}
+
+}
+
+void EditAdminBox::requestTransferPassword(not_null<ChannelData*> channel) {
+	peer()->session().api().passwordState(
+	) | rpl::take(
+		1
+	) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
+		const auto box = std::make_shared<QPointer<PasscodeBox>>();
+		auto fields = PasscodeBox::CloudFields::From(state);
+		fields.customTitle = lang(lng_rights_transfer_password_title);
+		fields.customDescription
+			= lang(lng_rights_transfer_password_description);
+		fields.customSubmitButton = lang(lng_passcode_submit);
+		fields.customCheckCallback = crl::guard(this, [=](
+				const Core::CloudPasswordResult &result) {
+			sendTransferRequestFrom(*box, channel, result);
+		});
+		*box = getDelegate()->show(Box<PasscodeBox>(fields));
+	}, lifetime());
+}
+
+void EditAdminBox::sendTransferRequestFrom(
+		QPointer<PasscodeBox> box,
+		not_null<ChannelData*> channel,
+		const Core::CloudPasswordResult &result) {
+	const auto weak = make_weak(this);
+	channel->session().api().request(MTPchannels_EditCreator(
+		channel->inputChannel,
+		user()->inputUser,
+		result.result
+	)).done([=](const MTPUpdates &result) {
+		channel->session().api().applyUpdates(result);
+		if (weak) {
+			closeBox();
+		}
+		if (box) {
+			box->closeBox();
+		}
+	}).fail(crl::guard(this, [=](const RPCError &error) {
+		if (box && box->handleCustomCheckError(error)) {
+			return;
+		}
+
+		const auto &type = error.type();
+		const auto problem = [&] {
+			if (type == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
+				return lang(lng_channels_too_much_public_other);
+			} else if (type == qstr("ADMINS_TOO_MUCH")) {
+				return lang(channel->isBroadcast()
+					? lng_error_admin_limit_channel
+					: lng_error_admin_limit);
+			} else if (type == qstr("CHANNEL_INVALID")) {
+				return lang(channel->isBroadcast()
+					? lng_channel_not_accessible
+					: lng_group_not_accessible);
+			}
+			return Lang::Hard::ServerError();
+		}();
+		const auto recoverable = [&] {
+			return (type == qstr("PASSWORD_MISSING"))
+				|| (type == qstr("PASSWORD_TOO_FRESH_XXX"))
+				|| (type == qstr("SESSION_TOO_FRESH_XXX"));
+		}();
+		const auto weak = make_weak(this);
+		getDelegate()->show(Box<InformBox>(problem));
+		if (box) {
+			box->closeBox();
+		}
+		if (weak && !recoverable) {
+			closeBox();
+		}
+	})).send();
 
 }
 

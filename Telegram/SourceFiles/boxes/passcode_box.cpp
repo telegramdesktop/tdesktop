@@ -88,12 +88,12 @@ bool PasscodeBox::currentlyHave() const {
 }
 
 bool PasscodeBox::onlyCheckCurrent() const {
-	return _turningOff || _cloudFields.customCheckedCallback;
+	return _turningOff || _cloudFields.customCheckCallback;
 }
 
 void PasscodeBox::prepare() {
 	addButton([=] {
-		return _cloudFields.button.value_or(lang(_turningOff
+		return _cloudFields.customSubmitButton.value_or(lang(_turningOff
 			? lng_passcode_remove_button
 			: lng_settings_save));
 	}, [=] { save(); });
@@ -101,7 +101,7 @@ void PasscodeBox::prepare() {
 
 	_about.setText(
 		st::passcodeTextStyle,
-		_cloudFields.description.value_or(lang(_cloudPwd
+		_cloudFields.customDescription.value_or(lang(_cloudPwd
 			? lng_cloud_password_about
 			: lng_passcode_about)));
 	_aboutHeight = _about.countHeight(st::boxWidth - st::boxPadding.left() * 1.5);
@@ -109,7 +109,7 @@ void PasscodeBox::prepare() {
 	if (onlyCheck) {
 		_oldPasscode->show();
 		setTitle([=] {
-			return _cloudFields.title.value_or(lang(_cloudPwd
+			return _cloudFields.customTitle.value_or(lang(_cloudPwd
 				? lng_cloud_password_remove
 				: lng_passcode_remove));
 		});
@@ -286,7 +286,7 @@ void PasscodeBox::setPasswordFail(const RPCError &error) {
 
 	closeReplacedBy();
 	_setRequest = 0;
-	const auto err = error.type();
+	const auto &err = error.type();
 	if (err == qstr("PASSWORD_HASH_INVALID")
 		|| err == qstr("SRP_PASSWORD_CHANGED")) {
 		if (_oldPasscode->isHidden()) {
@@ -295,7 +295,7 @@ void PasscodeBox::setPasswordFail(const RPCError &error) {
 		} else {
 			badOldPasscode();
 		}
-	} else if (error.type() == qstr("SRP_ID_INVALID")) {
+	} else if (err == qstr("SRP_ID_INVALID")) {
 		handleSrpIdInvalid();
 	//} else if (err == qstr("NEW_PASSWORD_BAD")) {
 	//} else if (err == qstr("NEW_SALT_INVALID")) {
@@ -504,7 +504,7 @@ void PasscodeBox::submitOnlyCheckCloudPassword(const QString &oldPassword) {
 		sendOnlyCheckCloudPassword(oldPassword);
 	};
 	if (_cloudFields.turningOff && _cloudFields.notEmptyPassport) {
-		Assert(!_cloudFields.customCheckedCallback);
+		Assert(!_cloudFields.customCheckCallback);
 
 		const auto box = std::make_shared<QPointer<BoxContent>>();
 		const auto confirmed = [=] {
@@ -524,8 +524,8 @@ void PasscodeBox::submitOnlyCheckCloudPassword(const QString &oldPassword) {
 
 void PasscodeBox::sendOnlyCheckCloudPassword(const QString &oldPassword) {
 	checkPassword(oldPassword, [=](const Core::CloudPasswordResult &check) {
-		if (const auto onstack = _cloudFields.customCheckedCallback) {
-			onstack(check.result);
+		if (const auto onstack = _cloudFields.customCheckCallback) {
+			onstack(check);
 		} else {
 			Assert(_cloudFields.turningOff);
 			sendClearCloudPassword(check);
@@ -586,6 +586,18 @@ void PasscodeBox::requestPasswordData() {
 void PasscodeBox::serverError() {
 	getDelegate()->show(Box<InformBox>(Lang::Hard::ServerError()));
 	closeBox();
+}
+
+bool PasscodeBox::handleCustomCheckError(const RPCError &error) {
+	const auto &type = error.type();
+	if (MTP::isFloodError(error)
+		|| type == qstr("PASSWORD_HASH_INVALID")
+		|| type == qstr("SRP_PASSWORD_CHANGED")
+		|| type == qstr("SRP_ID_INVALID")) {
+		setPasswordFail(error);
+		return true;
+	}
+	return false;
 }
 
 void PasscodeBox::sendClearCloudPassword(

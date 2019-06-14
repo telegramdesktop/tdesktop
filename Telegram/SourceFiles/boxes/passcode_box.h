@@ -37,16 +37,18 @@ public:
 		bool turningOff = false;
 
 		// Check cloud password for some action.
-		Fn<void(const MTPInputCheckPasswordSRP &)> customCheckedCallback;
-		std::optional<QString> title;
-		std::optional<QString> description;
-		std::optional<QString> button;
+		Fn<void(const Core::CloudPasswordResult &)> customCheckCallback;
+		std::optional<QString> customTitle;
+		std::optional<QString> customDescription;
+		std::optional<QString> customSubmitButton;
 	};
 	PasscodeBox(QWidget*, const CloudFields &fields);
 
 	rpl::producer<QByteArray> newPasswordSet() const;
 	rpl::producer<> passwordReloadNeeded() const;
 	rpl::producer<> clearUnconfirmedPassword() const;
+
+	bool handleCustomCheckError(const RPCError &error);
 
 protected:
 	void prepare() override;

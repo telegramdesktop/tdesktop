@@ -1048,6 +1048,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channels_too_much_public_revoke_confirm_group" = "Are you sure you want to revoke the link {link}?\n\nThe group «{group}» will become private.";
 "lng_channels_too_much_public_revoke_confirm_channel" = "Are you sure you want to revoke the link {link}?\n\nThe channel «{group}» will become private.";
 "lng_channels_too_much_public_revoke" = "Revoke";
+"lng_channels_too_much_public_other" = "Sorry, the target user has too many public groups or channels already. Please ask them to make one of their existing groups or channels private first.";
 
 "lng_group_invite_bad_link" = "This invite link is broken or has expired.";
 "lng_group_invite_join" = "Join";
@@ -1661,7 +1662,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_transfer_set_password" = "Set password";
 "lng_rights_transfer_about" = "This will transfer the full **owner rights** for {group} to {user}.";
 "lng_rights_transfer_sure" = "Change owner";
-"lng_rights_transfer_password" = "Please enter your password to complete the transfer.";
+"lng_rights_transfer_password_title" = "Two-step verification";
+"lng_rights_transfer_password_description" = "Please enter your password to complete the transfer.";
 "lng_rights_transfer_done_group" = "{user} is now the owner of the group.";
 "lng_rights_transfer_done_channel" = "{user} is now the owner of the channel.";
 
