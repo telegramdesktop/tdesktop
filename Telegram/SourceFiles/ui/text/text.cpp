@@ -22,6 +22,8 @@ namespace Ui {
 namespace Text {
 namespace {
 
+constexpr auto kStringLinkIndexShift = uint16(0x8000);
+
 Qt::LayoutDirection StringDirection(const QString &str, int32 from, int32 to) {
 	const ushort *p = reinterpret_cast<const ushort*>(str.unicode()) + from;
 	const ushort *end = p + (to - from);
@@ -46,6 +48,64 @@ Qt::LayoutDirection StringDirection(const QString &str, int32 from, int32 to) {
 		++p;
 	}
 	return Qt::LayoutDirectionAuto;
+}
+
+TextWithEntities PrepareRichFromPlain(
+		const QString &text,
+		const TextParseOptions &options) {
+	auto result = TextWithEntities{ text };
+	if (options.flags & TextParseLinks) {
+		TextUtilities::ParseEntities(
+			result,
+			options.flags,
+			(options.flags & TextParseRichText));
+	}
+	return result;
+}
+
+TextWithEntities PrepareRichFromRich(
+		const TextWithEntities &text,
+		const TextParseOptions &options) {
+	auto result = text;
+	const auto &preparsed = text.entities;
+	if ((options.flags & TextParseLinks) && !preparsed.isEmpty()) {
+		bool parseMentions = (options.flags & TextParseMentions);
+		bool parseHashtags = (options.flags & TextParseHashtags);
+		bool parseBotCommands = (options.flags & TextParseBotCommands);
+		bool parseMarkdown = (options.flags & TextParseMarkdown);
+		if (!parseMentions || !parseHashtags || !parseBotCommands || !parseMarkdown) {
+			int32 i = 0, l = preparsed.size();
+			result.entities.clear();
+			result.entities.reserve(l);
+			const QChar s = result.text.size();
+			for (; i < l; ++i) {
+				auto type = preparsed.at(i).type();
+				if (((type == EntityType::Mention || type == EntityType::MentionName) && !parseMentions) ||
+					(type == EntityType::Hashtag && !parseHashtags) ||
+					(type == EntityType::Cashtag && !parseHashtags) ||
+					(type == EntityType::BotCommand && !parseBotCommands) || // #TODO entities
+					((type == EntityType::Bold || type == EntityType::Italic || type == EntityType::Code || type == EntityType::Pre) && !parseMarkdown)) {
+					continue;
+				}
+				result.entities.push_back(preparsed.at(i));
+			}
+		}
+	}
+	return result;
+}
+
+QFixed ComputeStopAfter(const TextParseOptions &options, const style::TextStyle &st) {
+	return (options.maxw > 0 && options.maxh > 0)
+		? ((options.maxh / st.font->height) + 1) * options.maxw
+		: QFIXED_MAX;
+}
+
+// Open Sans tilde fix.
+bool ComputeCheckTilde(const style::TextStyle &st) {
+	const auto &font = st.font;
+	return (font->size() * cIntRetinaFactor() == 13)
+		&& (font->flags() == 0)
+		&& (font->f.family() == qstr("Open Sans"));
 }
 
 } // namespace
@@ -194,6 +254,9 @@ public:
 		const TextParseOptions &options);
 
 private:
+	struct ReadyToken {
+	};
+
 	enum LinkDisplayStatus {
 		LinkDisplayedFull,
 		LinkDisplayedElided,
@@ -211,6 +274,26 @@ private:
 		LinkDisplayStatus displayStatus = LinkDisplayedFull;
 	};
 
+	class StartedEntity {
+	public:
+		explicit StartedEntity(TextBlockFlags flags);
+		explicit StartedEntity(uint16 lnkIndex);
+
+		std::optional<TextBlockFlags> flags() const;
+		std::optional<uint16> lnkIndex() const;
+
+	private:
+		int _value = 0;
+
+	};
+
+	Parser(
+		not_null<String*> string,
+		TextWithEntities &&source,
+		const TextParseOptions &options,
+		ReadyToken);
+
+	void trimSourceRange();
 	void blockCreated();
 	void createBlock(int32 skipBack = 0);
 	void createSkipBlock(int32 w, int32 h);
@@ -223,6 +306,12 @@ private:
 	bool readCommand();
 	void parseCurrentChar();
 	void parseEmojiFromCurrent();
+	void checkForElidedSkipBlock();
+	void finalize(const TextParseOptions &options);
+
+	void finishEntities();
+	void skipPassedEntities();
+	void skipBadEntities();
 
 	bool isInvalidEntity(const EntityInText &entity) const;
 	bool isLinkEntity(const EntityInText &entity) const;
@@ -233,18 +322,27 @@ private:
 		QString *outLinkText,
 		LinkDisplayStatus *outDisplayStatus);
 
-	not_null<String*> _t;
-	TextWithEntities _source;
-	const QChar *_start = nullptr;
-	const QChar *_end = nullptr;
-	const QChar *_ptr = nullptr;
-	bool _rich = false;
-	bool _multiline = false;
-	EntitiesInText::const_iterator _waitingEntity;
-	EntitiesInText::const_iterator _entitiesEnd;
+	static ClickHandlerPtr CreateHandlerForLink(
+		const TextLinkData &link,
+		const TextParseOptions &options);
 
-	QVector<TextLinkData> _links;
-	QMap<const QChar*, QList<int32>> _removeFlags;
+	const not_null<String*> _t;
+	const TextWithEntities _source;
+	const QChar * const _start = nullptr;
+	const QChar *_end = nullptr; // mutable, because we trim by decrementing.
+	const QChar *_ptr = nullptr;
+	const EntitiesInText::const_iterator _entitiesEnd;
+	EntitiesInText::const_iterator _waitingEntity;
+	const bool _rich = false;
+	const bool _multiline = false;
+
+	const QFixed _stopAfterWidth; // summary width of all added words
+	const bool _checkTilde = false; // do we need a special text block for tilde symbol
+
+	std::vector<TextLinkData> _links;
+	base::flat_map<
+		const QChar*,
+		std::vector<StartedEntity>> _startedEntities;
 
 	uint16 _maxLnkIndex = 0;
 
@@ -255,7 +353,6 @@ private:
 	int32 _blockStart = 0; // offset in result, from which current parsed block is started
 	int32 _diacs = 0; // diac chars skipped without good char
 	QFixed _sumWidth;
-	QFixed _stopAfterWidth; // summary width of all added words
 	bool _sumFinished = false;
 	bool _newlineAwaited = false;
 
@@ -263,7 +360,6 @@ private:
 	QChar _ch; // current char (low surrogate, if current char is surrogate pair)
 	int32 _emojiLookback = 0; // how far behind the current ptr to look for current emoji
 	bool _lastSkipped = false; // did we skip current char
-	bool _checkTilde = false; // do we need a special text block for tilde symbol
 
 };
 
@@ -278,54 +374,66 @@ Parser::TextLinkData::TextLinkData(
 , displayStatus(displayStatus) {
 }
 
+Parser::StartedEntity::StartedEntity(TextBlockFlags flags) : _value(flags) {
+	Expects(_value >= 0 && _value < int(kStringLinkIndexShift));
+}
+
+Parser::StartedEntity::StartedEntity(uint16 lnkIndex) : _value(lnkIndex) {
+	Expects(_value >= kStringLinkIndexShift);
+}
+
+std::optional<TextBlockFlags> Parser::StartedEntity::flags() const {
+	if (_value < int(kStringLinkIndexShift)) {
+		return TextBlockFlags(_value);
+	}
+	return std::nullopt;
+}
+
+std::optional<uint16> Parser::StartedEntity::lnkIndex() const {
+	if (_value >= int(kStringLinkIndexShift)) {
+		return uint16(_value);
+	}
+	return std::nullopt;
+}
+
 Parser::Parser(
 	not_null<String*> string,
 	const QString &text,
 	const TextParseOptions &options)
-: _t(string)
-, _source { text }
-, _rich(options.flags & TextParseRichText)
-, _multiline(options.flags & TextParseMultiline)
-, _stopAfterWidth(QFIXED_MAX) {
-	if (options.flags & TextParseLinks) {
-		TextUtilities::ParseEntities(_source, options.flags, _rich);
-	}
-	parse(options);
+: Parser(
+	string,
+	PrepareRichFromPlain(text, options),
+	options,
+	ReadyToken()) {
 }
 
 Parser::Parser(
 	not_null<String*> string,
 	const TextWithEntities &textWithEntities,
 	const TextParseOptions &options)
+: Parser(
+	string,
+	PrepareRichFromRich(textWithEntities, options),
+	options,
+	ReadyToken()) {
+}
+
+Parser::Parser(
+	not_null<String*> string,
+	TextWithEntities &&source,
+	const TextParseOptions &options,
+	ReadyToken)
 : _t(string)
-, _source(textWithEntities)
+, _source(std::move(source))
+, _start(_source.text.constData())
+, _end(_start + _source.text.size())
+, _ptr(_start)
+, _entitiesEnd(_source.entities.end())
+, _waitingEntity(_source.entities.begin())
 , _rich(options.flags & TextParseRichText)
 , _multiline(options.flags & TextParseMultiline)
-, _stopAfterWidth(QFIXED_MAX) {
-	auto &preparsed = textWithEntities.entities;
-	if ((options.flags & TextParseLinks) && !preparsed.isEmpty()) {
-		bool parseMentions = (options.flags & TextParseMentions);
-		bool parseHashtags = (options.flags & TextParseHashtags);
-		bool parseBotCommands = (options.flags & TextParseBotCommands);
-		bool parseMarkdown = (options.flags & TextParseMarkdown);
-		if (!parseMentions || !parseHashtags || !parseBotCommands || !parseMarkdown) {
-			int32 i = 0, l = preparsed.size();
-			_source.entities.clear();
-			_source.entities.reserve(l);
-			const QChar s = _source.text.size();
-			for (; i < l; ++i) {
-				auto type = preparsed.at(i).type();
-				if (((type == EntityType::Mention || type == EntityType::MentionName) && !parseMentions) ||
-					(type == EntityType::Hashtag && !parseHashtags) ||
-					(type == EntityType::Cashtag && !parseHashtags) ||
-					(type == EntityType::BotCommand && !parseBotCommands) || // #TODO entities
-					((type == EntityType::Bold || type == EntityType::Italic || type == EntityType::Code || type == EntityType::Pre) && !parseMarkdown)) {
-					continue;
-				}
-				_source.entities.push_back(preparsed.at(i));
-			}
-		}
-	}
+, _stopAfterWidth(ComputeStopAfter(options, *_t->_st))
+, _checkTilde(ComputeCheckTilde(*_t->_st)) {
 	parse(options);
 }
 
@@ -337,7 +445,10 @@ void Parser::blockCreated() {
 }
 
 void Parser::createBlock(int32 skipBack) {
-	if (_lnkIndex < 0x8000 && _lnkIndex > _maxLnkIndex) _maxLnkIndex = _lnkIndex;
+	if (_lnkIndex < kStringLinkIndexShift && _lnkIndex > _maxLnkIndex) {
+		_maxLnkIndex = _lnkIndex;
+	}
+
 	int32 len = int32(_t->_text.size()) + skipBack - _blockStart;
 	if (len > 0) {
 		bool newline = !_emoji && (len == 1 && _t->_text.at(_blockStart) == QChar::LineFeed);
@@ -387,90 +498,109 @@ bool Parser::checkCommand() {
 	return result;
 }
 
-// Returns true if at least one entity was parsed in the current position.
-bool Parser::checkEntities() {
-	while (!_removeFlags.isEmpty() && (_ptr >= _removeFlags.firstKey() || _ptr >= _end)) {
-		const QList<int32> &removing(_removeFlags.first());
-		for (int32 i = removing.size(); i > 0;) {
-			int32 flag = removing.at(--i);
-			if (_flags & flag) {
-				createBlock();
-				_flags &= ~flag;
-				if (flag == TextBlockFPre
-					&& !_t->_blocks.empty()
-					&& _t->_blocks.back()->type() != TextBlockTNewline) {
-					_newlineAwaited = true;
+void Parser::finishEntities() {
+	while (!_startedEntities.empty()
+		&& (_ptr >= _startedEntities.begin()->first || _ptr >= _end)) {
+		auto list = std::move(_startedEntities.begin()->second);
+		_startedEntities.erase(_startedEntities.begin());
+
+		while (!list.empty()) {
+			if (const auto flags = list.back().flags()) {
+				if (_flags & (*flags)) {
+					createBlock();
+					_flags &= ~(*flags);
+					if (((*flags) & TextBlockFPre)
+						&& !_t->_blocks.empty()
+						&& _t->_blocks.back()->type() != TextBlockTNewline) {
+						_newlineAwaited = true;
+					}
+				}
+			} else if (const auto lnkIndex = list.back().lnkIndex()) {
+				if (_lnkIndex == *lnkIndex) {
+					createBlock();
+					_lnkIndex = 0;
 				}
 			}
+			list.pop_back();
 		}
-		_removeFlags.erase(_removeFlags.begin());
 	}
-	while (_waitingEntity != _entitiesEnd && _start + _waitingEntity->offset() + _waitingEntity->length() <= _ptr) {
-		++_waitingEntity;
-	}
-	if (_waitingEntity == _entitiesEnd || _ptr < _start + _waitingEntity->offset()) {
+}
+
+// Returns true if at least one entity was parsed in the current position.
+bool Parser::checkEntities() {
+	finishEntities();
+	skipPassedEntities();
+	if (_waitingEntity == _entitiesEnd
+		|| _ptr < _start + _waitingEntity->offset()) {
 		return false;
 	}
 
-	int32 startFlags = 0;
-	QString linkData, linkText;
-	auto type = _waitingEntity->type(), linkType = EntityType::Invalid;
-	LinkDisplayStatus linkDisplayStatus = LinkDisplayedFull;
-	if (type == EntityType::Bold) {
-		startFlags = TextBlockFSemibold;
-	} else if (type == EntityType::Italic) {
-		startFlags = TextBlockFItalic;
-	} else if (type == EntityType::Code) { // #TODO entities
-		startFlags = TextBlockFCode;
-	} else if (type == EntityType::Pre) {
-		startFlags = TextBlockFPre;
+	auto flags = TextBlockFlags();
+	auto link = TextLinkData();
+	const auto entityType = _waitingEntity->type();
+	const auto entityLength = _waitingEntity->length();
+	const auto entityBegin = _start + _waitingEntity->offset();
+	const auto entityEnd = entityBegin + entityLength;
+	if (entityType == EntityType::Bold) {
+		flags = TextBlockFSemibold;
+	} else if (entityType == EntityType::Italic) {
+		flags = TextBlockFItalic;
+	} else if (entityType == EntityType::Code) { // #TODO entities
+		flags = TextBlockFCode;
+	} else if (entityType == EntityType::Pre) {
+		flags = TextBlockFPre;
 		createBlock();
 		if (!_t->_blocks.empty() && _t->_blocks.back()->type() != TextBlockTNewline) {
 			createNewlineBlock();
 		}
-	} else if (type == EntityType::Url
-		    || type == EntityType::Email
-		    || type == EntityType::Mention
-		    || type == EntityType::Hashtag
-		    || type == EntityType::Cashtag
-		    || type == EntityType::BotCommand) {
-		linkType = type;
-		linkData = QString(_start + _waitingEntity->offset(), _waitingEntity->length());
-		if (linkType == EntityType::Url) {
-			computeLinkText(linkData, &linkText, &linkDisplayStatus);
+	} else if (entityType == EntityType::Url
+		|| entityType == EntityType::Email
+		|| entityType == EntityType::Mention
+		|| entityType == EntityType::Hashtag
+		|| entityType == EntityType::Cashtag
+		|| entityType == EntityType::BotCommand) {
+		link.type = entityType;
+		link.data = QString(entityBegin, entityLength);
+		if (link.type == EntityType::Url) {
+			computeLinkText(link.data, &link.text, &link.displayStatus);
 		} else {
-			linkText = linkData;
+			link.text = link.data;
 		}
-	} else if (type == EntityType::CustomUrl || type == EntityType::MentionName) {
-		linkType = type;
-		linkData = _waitingEntity->data();
-		linkText = QString(_start + _waitingEntity->offset(), _waitingEntity->length());
+	} else if (entityType == EntityType::CustomUrl
+		|| entityType == EntityType::MentionName) {
+		link.type = entityType;
+		link.data = _waitingEntity->data();
+		link.text = QString(_start + _waitingEntity->offset(), _waitingEntity->length());
 	}
 
-	if (linkType != EntityType::Invalid) {
+	if (link.type != EntityType::Invalid) {
 		createBlock();
 
-		_links.push_back(TextLinkData(linkType, linkText, linkData, linkDisplayStatus));
-		_lnkIndex = 0x8000 + _links.size();
+		_links.push_back(link);
+		_lnkIndex = kStringLinkIndexShift + _links.size();
 
-		for (auto entityEnd = _start + _waitingEntity->offset() + _waitingEntity->length(); _ptr < entityEnd; ++_ptr) {
-			parseCurrentChar();
-			parseEmojiFromCurrent();
-
-			if (_sumFinished || _t->_text.size() >= 0x8000) break; // 32k max
-		}
-		createBlock();
-
-		_lnkIndex = 0;
-	} else if (startFlags) {
-		if (!(_flags & startFlags)) {
+		_startedEntities[entityEnd].emplace_back(_lnkIndex);
+	} else if (flags) {
+		if (!(_flags & flags)) {
 			createBlock();
-			_flags |= startFlags;
-			_removeFlags[_start + _waitingEntity->offset() + _waitingEntity->length()].push_front(startFlags);
+			_flags |= flags;
+			_startedEntities[entityEnd].emplace_back(flags);
 		}
 	}
 
 	++_waitingEntity;
+	skipBadEntities();
+	return true;
+}
+
+void Parser::skipPassedEntities() {
+	while (_waitingEntity != _entitiesEnd
+		&& _start + _waitingEntity->offset() + _waitingEntity->length() <= _ptr) {
+		++_waitingEntity;
+	}
+}
+
+void Parser::skipBadEntities() {
 	if (_links.size() >= 0x7FFF) {
 		while (_waitingEntity != _entitiesEnd
 			&& (isLinkEntity(*_waitingEntity)
@@ -482,7 +612,6 @@ bool Parser::checkEntities() {
 			++_waitingEntity;
 		}
 	}
-	return true;
 }
 
 bool Parser::readSkipBlockCommand() {
@@ -580,8 +709,8 @@ bool Parser::readCommand() {
 	case TextCommandLinkText: {
 		createBlock();
 		int32 len = _ptr->unicode();
-		_links.push_back(TextLinkData(EntityType::CustomUrl, QString(), QString(++_ptr, len), LinkDisplayedFull));
-		_lnkIndex = 0x8000 + _links.size();
+		_links.emplace_back(EntityType::CustomUrl, QString(), QString(++_ptr, len), LinkDisplayedFull);
+		_lnkIndex = kStringLinkIndexShift + _links.size();
 	} break;
 
 	case TextCommandSkipBlock:
@@ -594,29 +723,35 @@ bool Parser::readCommand() {
 }
 
 void Parser::parseCurrentChar() {
-	int skipBack = 0;
 	_ch = ((_ptr < _end) ? *_ptr : 0);
 	_emojiLookback = 0;
-	bool skip = false, isNewLine = _multiline && chIsNewline(_ch), isSpace = chIsSpace(_ch), isDiac = chIsDiac(_ch), isTilde = _checkTilde && (_ch == '~');
-	if (chIsBad(_ch) || _ch.isLowSurrogate()) {
-		skip = true;
-	} else if (_ch == 0xFE0F && Platform::IsMac()) {
-		// Some sequences like 0x0E53 0xFE0F crash OS X harfbuzz text processing :(
-		skip = true;
-	} else if (isDiac) {
-		if (_lastSkipped || _emoji || ++_diacs > chMaxDiacAfterSymbol()) {
-			skip = true;
+	const auto isNewLine = _multiline && chIsNewline(_ch);
+	const auto isSpace = chIsSpace(_ch);
+	const auto isDiac = chIsDiac(_ch);
+	const auto isTilde = _checkTilde && (_ch == '~');
+	const auto skip = [&] {
+		if (chIsBad(_ch) || _ch.isLowSurrogate()) {
+			return true;
+		} else if (_ch == 0xFE0F && Platform::IsMac()) {
+			// Some sequences like 0x0E53 0xFE0F crash OS X harfbuzz text processing :(
+			return true;
+		} else if (isDiac) {
+			if (_lastSkipped || _emoji || ++_diacs > chMaxDiacAfterSymbol()) {
+				return true;
+			}
+		} else if (_ch.isHighSurrogate()) {
+			if (_ptr + 1 >= _end || !(_ptr + 1)->isLowSurrogate()) {
+				return true;
+			}
 		}
-	} else if (_ch.isHighSurrogate()) {
-		if (_ptr + 1 >= _end || !(_ptr + 1)->isLowSurrogate()) {
-			skip = true;
-		} else {
-			_t->_text.push_back(_ch);
-			skipBack = -1;
-			++_ptr;
-			_ch = *_ptr;
-			_emojiLookback = 1;
-		}
+		return false;
+	}();
+
+	if (_ch.isHighSurrogate() && !skip) {
+		_t->_text.push_back(_ch);
+		++_ptr;
+		_ch = *_ptr;
+		_emojiLookback = 1;
 	}
 
 	_lastSkipped = skip;
@@ -625,12 +760,12 @@ void Parser::parseCurrentChar() {
 	} else {
 		if (isTilde) { // tilde fix in OpenSans
 			if (!(_flags & TextBlockFTilde)) {
-				createBlock(skipBack);
+				createBlock(-_emojiLookback);
 				_flags |= TextBlockFTilde;
 			}
 		} else {
 			if (_flags & TextBlockFTilde) {
-				createBlock(skipBack);
+				createBlock(-_emojiLookback);
 				_flags &= ~TextBlockFTilde;
 			}
 		}
@@ -639,7 +774,9 @@ void Parser::parseCurrentChar() {
 		} else if (isSpace) {
 			_t->_text.push_back(QChar::Space);
 		} else {
-			if (_emoji) createBlock(skipBack);
+			if (_emoji) {
+				createBlock(-_emojiLookback);
+			}
 			_t->_text.push_back(_ch);
 		}
 		if (!isDiac) _diacs = 0;
@@ -688,108 +825,73 @@ bool Parser::isLinkEntity(const EntityInText &entity) const {
 }
 
 void Parser::parse(const TextParseOptions &options) {
-	if (options.maxw > 0 && options.maxh > 0) {
-		_stopAfterWidth = ((options.maxh / _t->_st->font->height) + 1) * options.maxw;
-	}
-
-	_start = _source.text.constData();
-	_end = _start + _source.text.size();
-
-	_entitiesEnd = _source.entities.cend();
-	_waitingEntity = _source.entities.cbegin();
-	while (_waitingEntity != _entitiesEnd && isInvalidEntity(*_waitingEntity)) {
-		++_waitingEntity;
-	}
-	const auto firstMonospaceOffset = EntityInText::FirstMonospaceOffset(
-		_source.entities,
-		_end - _start);
-
-	_ptr = _start;
-	while (_ptr != _end && chIsTrimmed(*_ptr, _rich) && _ptr != _start + firstMonospaceOffset) {
-		++_ptr;
-	}
-	while (_ptr != _end && chIsTrimmed(*(_end - 1), _rich)) {
-		--_end;
-	}
+	skipBadEntities();
+	trimSourceRange();
 
 	_t->_text.resize(0);
 	_t->_text.reserve(_end - _ptr);
 
-	_checkTilde = (_t->_st->font->size() * cIntRetinaFactor() == 13)
-		&& (_t->_st->font->flags() == 0)
-		&& (_t->_st->font->f.family() == qstr("Open Sans")); // tilde Open Sans fix
 	for (; _ptr <= _end; ++_ptr) {
 		while (checkEntities() || (_rich && checkCommand())) {
 		}
 		parseCurrentChar();
 		parseEmojiFromCurrent();
 
-		if (_sumFinished || _t->_text.size() >= 0x8000) break; // 32k max
-	}
-	createBlock();
-	if (_sumFinished && _rich) { // we could've skipped the final skip block command
-		for (; _ptr < _end; ++_ptr) {
-			if (*_ptr == TextCommand && readSkipBlockCommand()) {
-				break;
-			}
+		if (_sumFinished || _t->_text.size() >= 0x8000) {
+			break; // 32k max
 		}
 	}
-	_removeFlags.clear();
+	createBlock();
+	checkForElidedSkipBlock();
+	finalize(options);
+}
 
+void Parser::trimSourceRange() {
+	const auto firstMonospaceOffset = EntityInText::FirstMonospaceOffset(
+		_source.entities,
+		_end - _start);
+
+	while (_ptr != _end && chIsTrimmed(*_ptr, _rich) && _ptr != _start + firstMonospaceOffset) {
+		++_ptr;
+	}
+	while (_ptr != _end && chIsTrimmed(*(_end - 1), _rich)) {
+		--_end;
+	}
+}
+
+void Parser::checkForElidedSkipBlock() {
+	if (!_sumFinished || !_rich) {
+		return;
+	}
+	// We could've skipped the final skip block command.
+	for (; _ptr < _end; ++_ptr) {
+		if (*_ptr == TextCommand && readSkipBlockCommand()) {
+			break;
+		}
+	}
+}
+
+void Parser::finalize(const TextParseOptions &options) {
 	_t->_links.resize(_maxLnkIndex);
 	for (const auto &block : _t->_blocks) {
 		const auto b = block.get();
-		if (b->lnkIndex() > 0x8000) {
-			_lnkIndex = _maxLnkIndex + (b->lnkIndex() - 0x8000);
-			if (_t->_links.size() < _lnkIndex) {
-				_t->_links.resize(_lnkIndex);
-				auto &link = _links[_lnkIndex - _maxLnkIndex - 1];
-				auto handler = ClickHandlerPtr();
-				switch (link.type) {
-				case EntityType::CustomUrl: {
-					if (!link.data.isEmpty()) {
-						handler = std::make_shared<HiddenUrlClickHandler>(link.data);
-					}
-				} break;
-				case EntityType::Email:
-				case EntityType::Url: handler = std::make_shared<UrlClickHandler>(link.data, link.displayStatus == LinkDisplayedFull); break;
-				case EntityType::BotCommand: handler = std::make_shared<BotCommandClickHandler>(link.data); break;
-				case EntityType::Hashtag:
-					if (options.flags & TextTwitterMentions) {
-						handler = std::make_shared<UrlClickHandler>(qsl("https://twitter.com/hashtag/") + link.data.mid(1) + qsl("?src=hash"), true);
-					} else if (options.flags & TextInstagramMentions) {
-						handler = std::make_shared<UrlClickHandler>(qsl("https://instagram.com/explore/tags/") + link.data.mid(1) + '/', true);
-					} else {
-						handler = std::make_shared<HashtagClickHandler>(link.data);
-					}
-				break;
-				case EntityType::Cashtag:
-					handler = std::make_shared<CashtagClickHandler>(link.data);
-					break;
-				case EntityType::Mention:
-					if (options.flags & TextTwitterMentions) {
-						handler = std::make_shared<UrlClickHandler>(qsl("https://twitter.com/") + link.data.mid(1), true);
-					} else if (options.flags & TextInstagramMentions) {
-						handler = std::make_shared<UrlClickHandler>(qsl("https://instagram.com/") + link.data.mid(1) + '/', true);
-					} else {
-						handler = std::make_shared<MentionClickHandler>(link.data);
-					}
-				break;
-				case EntityType::MentionName: {
-					auto fields = TextUtilities::MentionNameDataToFields(link.data);
-					if (fields.userId) {
-						handler = std::make_shared<MentionNameClickHandler>(link.text, fields.userId, fields.accessHash);
-					} else {
-						LOG(("Bad mention name: %1").arg(link.data));
-					}
-				} break;
-				}
+		const auto shiftedIndex = b->lnkIndex();
+		if (shiftedIndex <= kStringLinkIndexShift) {
+			continue;
+		}
+		const auto realIndex = (shiftedIndex - kStringLinkIndexShift);
+		const auto index = _maxLnkIndex + realIndex;
+		b->setLnkIndex(index);
+		if (_t->_links.size() >= index) {
+			continue;
+		}
 
-				if (handler) {
-					_t->setLink(_lnkIndex, handler);
-				}
-			}
-			b->setLnkIndex(_lnkIndex);
+		_t->_links.resize(index);
+		const auto handler = CreateHandlerForLink(
+			_links[realIndex - 1],
+			options);
+		if (handler) {
+			_t->setLink(index, handler);
 		}
 	}
 	_t->_links.squeeze();
@@ -807,6 +909,70 @@ void Parser::computeLinkText(const QString &linkData, QString *outLinkText, Link
 		: linkData;
 	*outLinkText = _t->_st->font->elided(readable, st::linkCropLimit);
 	*outDisplayStatus = (*outLinkText == readable) ? LinkDisplayedFull : LinkDisplayedElided;
+}
+
+ClickHandlerPtr Parser::CreateHandlerForLink(
+		const TextLinkData &link,
+		const TextParseOptions &options) {
+	switch (link.type) {
+	case EntityType::CustomUrl:
+		return !link.data.isEmpty()
+			? std::make_shared<HiddenUrlClickHandler>(link.data)
+			: nullptr;
+
+	case EntityType::Email:
+	case EntityType::Url:
+		return std::make_shared<UrlClickHandler>(
+			link.data,
+			link.displayStatus == LinkDisplayedFull);
+
+	case EntityType::BotCommand:
+		return std::make_shared<BotCommandClickHandler>(link.data);
+
+	case EntityType::Hashtag:
+		if (options.flags & TextTwitterMentions) {
+			return std::make_shared<UrlClickHandler>(
+				(qsl("https://twitter.com/hashtag/")
+					+ link.data.mid(1)
+					+ qsl("?src=hash")),
+				true);
+		} else if (options.flags & TextInstagramMentions) {
+			return std::make_shared<UrlClickHandler>(
+				(qsl("https://instagram.com/explore/tags/")
+					+ link.data.mid(1)
+					+ '/'),
+				true);
+		}
+		return std::make_shared<HashtagClickHandler>(link.data);
+
+	case EntityType::Cashtag:
+		return std::make_shared<CashtagClickHandler>(link.data);
+
+	case EntityType::Mention:
+		if (options.flags & TextTwitterMentions) {
+			return std::make_shared<UrlClickHandler>(
+				qsl("https://twitter.com/") + link.data.mid(1),
+				true);
+		} else if (options.flags & TextInstagramMentions) {
+			return std::make_shared<UrlClickHandler>(
+				qsl("https://instagram.com/") + link.data.mid(1) + '/',
+				true);
+		}
+		return std::make_shared<MentionClickHandler>(link.data);
+
+	case EntityType::MentionName: {
+		auto fields = TextUtilities::MentionNameDataToFields(link.data);
+		if (fields.userId) {
+			return std::make_shared<MentionNameClickHandler>(
+				link.text,
+				fields.userId,
+				fields.accessHash);
+		} else {
+			LOG(("Bad mention name: %1").arg(link.data));
+		}
+	} break;
+	}
+	return nullptr;
 }
 
 namespace {
@@ -1849,7 +2015,10 @@ private:
 	}
 
 	style::font applyFlags(int32 flags, const style::font &f) {
-		style::font result = f;
+		if (!flags) {
+			return f;
+		}
+		auto result = f;
 		if ((flags & TextBlockFPre) || (flags & TextBlockFCode)) {
 			result = App::monofont();
 			if (result->size() != f->size() || result->flags() != f->flags()) {
@@ -1874,27 +2043,20 @@ private:
 	}
 
 	void eSetFont(AbstractBlock *block) {
-		style::font newFont = _t->_st->font;
-		int flags = block->flags();
-		if (flags) {
-			newFont = applyFlags(flags, _t->_st->font);
-		}
-		if (block->lnkIndex()) {
-			if (ClickHandler::showAsActive(_t->_links.at(block->lnkIndex() - 1))) {
-				if (_t->_st->font != _t->_st->linkFontOver) {
-					newFont = _t->_st->linkFontOver;
-				}
-			} else {
-				if (_t->_st->font != _t->_st->linkFont) {
-					newFont = _t->_st->linkFont;
-				}
+		const auto flags = block->flags();
+		const auto usedFont = [&] {
+			if (const auto index = block->lnkIndex()) {
+				return ClickHandler::showAsActive(_t->_links.at(index - 1))
+					? _t->_st->linkFontOver
+					: _t->_st->linkFont;
 			}
-		}
+			return _t->_st->font;
+		}();
+		const auto newFont = applyFlags(flags, usedFont);
 		if (newFont != _f) {
-			if (newFont->family() == _t->_st->font->family()) {
-				newFont = applyFlags(flags | newFont->flags(), _t->_st->font);
-			}
-			_f = newFont;
+			_f = (newFont->family() == _t->_st->font->family())
+				? applyFlags(flags | newFont->flags(), _t->_st->font)
+				: newFont;
 			_e->fnt = _f->f;
 			_e->resetFontEngineCache();
 		}
