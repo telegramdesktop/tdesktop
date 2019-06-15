@@ -32,35 +32,38 @@ QString UserPhone(not_null<UserData*> user) {
 		: phone;
 }
 
-class Builder {
+class Controller {
 public:
-	Builder(
+	Controller(
 		not_null<GenericBox*> box,
 		not_null<Window::Controller*> window,
 		not_null<UserData*> user);
 
-	void build();
+	void prepare();
 
 private:
 	void setupContent();
 	void setupCover();
 	void setupNameFields();
 	void setupWarning();
+	void setupSharePhoneNumber();
 	void initNameFields(
 		not_null<Ui::InputField*> first,
 		not_null<Ui::InputField*> last,
 		bool inverted);
+	void sendRequest(const QString &first, const QString &last);
 
 	not_null<GenericBox*> _box;
 	not_null<Window::Controller*> _window;
 	not_null<UserData*> _user;
+	Ui::Checkbox *_sharePhone = nullptr;
 	QString _phone;
 	Fn<void()> _focus;
 	Fn<void()> _save;
 
 };
 
-Builder::Builder(
+Controller::Controller(
 	not_null<GenericBox*> box,
 	not_null<Window::Controller*> window,
 	not_null<UserData*> user)
@@ -70,27 +73,26 @@ Builder::Builder(
 , _phone(UserPhone(user)) {
 }
 
-void Builder::build() {
-	const auto box = _box;
-
+void Controller::prepare() {
 	setupContent();
 
-	box->setTitle(langFactory(_user->isContact()
+	_box->setTitle(langFactory(_user->isContact()
 		? lng_edit_contact_title
 		: lng_enter_contact_data));
 
-	box->addButton(langFactory(lng_box_done), _save);
-	box->addButton(langFactory(lng_cancel), [=] { box->closeBox(); });
-	box->setFocusCallback(_focus);
+	_box->addButton(langFactory(lng_box_done), _save);
+	_box->addButton(langFactory(lng_cancel), [=] { _box->closeBox(); });
+	_box->setFocusCallback(_focus);
 }
 
-void Builder::setupContent() {
+void Controller::setupContent() {
 	setupCover();
 	setupNameFields();
 	setupWarning();
+	setupSharePhoneNumber();
 }
 
-void Builder::setupCover() {
+void Controller::setupCover() {
 	_box->addRow(
 		object_ptr<Info::Profile::Cover>(
 			_box,
@@ -102,7 +104,7 @@ void Builder::setupCover() {
 		style::margins())->setAttribute(Qt::WA_TransparentForMouseEvents);
 }
 
-void Builder::setupNameFields() {
+void Controller::setupNameFields() {
 	const auto inverted = langFirstNameGoesSecond();
 	const auto first = _box->addRow(
 		object_ptr<Ui::InputField>(
@@ -126,67 +128,34 @@ void Builder::setupNameFields() {
 	initNameFields(first, last, inverted);
 }
 
-void Builder::initNameFields(
+void Controller::initNameFields(
 		not_null<Ui::InputField*> first,
 		not_null<Ui::InputField*> last,
 		bool inverted) {
-	const auto box = _box;
-	const auto phone = _phone;
-	const auto user = _user;
 	const auto getValue = [](not_null<Ui::InputField*> field) {
 		return TextUtilities::SingleLine(field->getLastText()).trimmed();
 	};
 
 	if (inverted) {
-		box->setTabOrder(last, first);
+		_box->setTabOrder(last, first);
 	}
-	const auto focus = [=] {
+	_focus = [=] {
 		const auto firstValue = getValue(first);
 		const auto lastValue = getValue(last);
 		const auto empty = firstValue.isEmpty() && lastValue.isEmpty();
 		const auto focusFirst = (inverted != empty);
 		(focusFirst ? first : last)->setFocusFast();
 	};
-	const auto save = [=] {
+	_save = [=] {
 		const auto firstValue = getValue(first);
 		const auto lastValue = getValue(last);
 		const auto empty = firstValue.isEmpty() && lastValue.isEmpty();
 		if (empty) {
-			focus();
+			_focus();
 			(inverted ? last : first)->showError();
 			return;
 		}
-		const auto wasContact = user->isContact();
-		const auto weak = make_weak(box);
-		user->session().api().request(MTPcontacts_AddContact(
-			MTP_flags(0),
-			user->inputUser,
-			MTP_string(firstValue),
-			MTP_string(lastValue),
-			MTP_string(phone)
-		)).done([=](const MTPUpdates &result) {
-			user->setName(
-				firstValue,
-				lastValue,
-				user->nameOrPhone,
-				user->username);
-			user->session().api().applyUpdates(result);
-			if (const auto settings = user->settings()) {
-				using Flag = MTPDpeerSettings::Flag;
-				const auto flags = Flag::f_add_contact
-					| Flag::f_block_contact
-					| Flag::f_report_spam;
-				user->setSettings(*settings & ~flags);
-			}
-			if (weak) {
-				weak->closeBox();
-			}
-			if (!wasContact) {
-				Ui::Toast::Show(
-					lng_new_contact_add_done(lt_user, firstValue));
-			}
-		}).fail([=](const RPCError &error) {
-		}).send();
+		sendRequest(firstValue, lastValue);
 	};
 	const auto submit = [=] {
 		const auto firstValue = first->getLastText().trimmed();
@@ -200,38 +169,79 @@ void Builder::initNameFields(
 			_save();
 		}
 	};
-	QObject::connect(first, &Ui::InputField::submitted, [=] { submit(); });
-	QObject::connect(last, &Ui::InputField::submitted, [=] { submit(); });
-
-	_focus = focus;
-	_save = save;
+	QObject::connect(first, &Ui::InputField::submitted, submit);
+	QObject::connect(last, &Ui::InputField::submitted, submit);
 }
 
-void Builder::setupWarning() {
-	if (_user->isContact()) {
+void Controller::sendRequest(const QString &first, const QString &last) {
+	const auto wasContact = _user->isContact();
+	const auto weak = make_weak(_box);
+	using Flag = MTPcontacts_AddContact::Flag;
+	_user->session().api().request(MTPcontacts_AddContact(
+		MTP_flags((_sharePhone && _sharePhone->checked())
+			? Flag::f_add_phone_privacy_exception
+			: Flag(0)),
+		_user->inputUser,
+		MTP_string(first),
+		MTP_string(last),
+		MTP_string(_phone)
+	)).done([=](const MTPUpdates &result) {
+		_user->setName(
+			first,
+			last,
+			_user->nameOrPhone,
+			_user->username);
+		_user->session().api().applyUpdates(result);
+		if (const auto settings = _user->settings()) {
+			using Flag = MTPDpeerSettings::Flag;
+			const auto flags = Flag::f_add_contact
+				| Flag::f_block_contact
+				| Flag::f_report_spam;
+			_user->setSettings(*settings & ~flags);
+		}
+		if (weak) {
+			weak->closeBox();
+		}
+		if (!wasContact) {
+			Ui::Toast::Show(lng_new_contact_add_done(lt_user, first));
+		}
+	}).fail([=](const RPCError &error) {
+	}).send();
+}
+
+void Controller::setupWarning() {
+	if (_user->isContact() || !_phone.isEmpty()) {
 		return;
 	}
-	const auto name = _user->shortName();
-	const auto nameWithEntities = TextWithEntities{ name };
-	const auto text = _phone.isEmpty()
-		? lng_contact_phone_after__rich(
-			lt_user,
-			nameWithEntities,
-			lt_visible,
-			Ui::Text::Bold(lang(lng_contact_phone_visible)),
-			lt_name,
-			nameWithEntities)
-		: lng_contact_phone_show__rich(
-			lt_button,
-			Ui::Text::Bold(lang(lng_box_done).toUpper()),
-			lt_user,
-			TextWithEntities{ name });
 	_box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			_box,
-			rpl::single(text),
+			lng_contact_phone_after(lt_user, _user->shortName()),
 			st::changePhoneLabel),
 		st::addContactWarningMargin);
+}
+
+void Controller::setupSharePhoneNumber() {
+	const auto settings = _user->settings();
+	using Setting = MTPDpeerSettings::Flag;
+	if (!settings
+		|| !((*settings) & Setting::f_need_contacts_exception)) {
+		return;
+	}
+	_sharePhone = _box->addRow(
+		object_ptr<Ui::Checkbox>(
+			_box,
+			lang(lng_contact_share_phone),
+			true,
+			st::defaultBoxCheckbox),
+		st::addContactWarningMargin);
+	_box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			_box,
+			lng_contact_phone_will_be_shared(lt_user, _user->shortName()),
+			st::changePhoneLabel),
+		st::addContactWarningMargin);
+
 }
 
 } // namespace
@@ -240,5 +250,5 @@ void EditContactBox(
 		not_null<GenericBox*> box,
 		not_null<Window::Controller*> window,
 		not_null<UserData*> user) {
-	Builder(box, window, user).build();
+	box->lifetime().make_state<Controller>(box, window, user)->prepare();
 }

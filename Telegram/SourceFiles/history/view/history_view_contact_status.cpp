@@ -239,7 +239,7 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 				FlagsChange flags,
 				FullFlagsChange full,
 				SettingsChange settings) {
-			if (!settings.value || (full.value & FullFlag::f_blocked)) {
+			if (full.value & FullFlag::f_blocked) {
 				return State::None;
 			} else if (user->isContact()) {
 				if (settings.value & Setting::f_share_contact) {
@@ -249,8 +249,10 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 				}
 			} else if (settings.value & Setting::f_block_contact) {
 				return State::AddOrBlock;
-			} else {
+			} else if (settings.value & Setting::f_add_contact) {
 				return State::Add;
+			} else {
+				return State::None;
 			}
 		});
 	}
