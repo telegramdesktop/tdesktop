@@ -75,9 +75,6 @@ public:
 		_saveCallback = std::move(callback);
 	}
 
-	~EditAdminBox() {
-	}
-
 protected:
 	void prepare() override;
 
@@ -107,6 +104,7 @@ private:
 
 	QPointer<Ui::FlatLabel> _aboutAddAdmins;
 	mtpRequestId _checkTransferRequestId = 0;
+	mtpRequestId _transferRequestId = 0;
 
 };
 

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text_options.h"
 #include "ui/special_buttons.h"
@@ -489,20 +490,26 @@ void EditAdminBox::sendTransferRequestFrom(
 		QPointer<PasscodeBox> box,
 		not_null<ChannelData*> channel,
 		const Core::CloudPasswordResult &result) {
+	if (_transferRequestId) {
+		return;
+	}
 	const auto weak = make_weak(this);
-	channel->session().api().request(MTPchannels_EditCreator(
+	const auto user = this->user();
+	const auto api = &channel->session().api();
+	_transferRequestId = api->request(MTPchannels_EditCreator(
 		channel->inputChannel,
-		user()->inputUser,
+		user->inputUser,
 		result.result
 	)).done([=](const MTPUpdates &result) {
-		channel->session().api().applyUpdates(result);
-		if (weak) {
-			closeBox();
-		}
-		if (box) {
-			box->closeBox();
-		}
+		api->applyUpdates(result);
+		Ui::Toast::Show((channel->isBroadcast()
+			? lng_rights_transfer_done_channel
+			: lng_rights_transfer_done_group)(lt_user, user->shortName()));
+		Ui::hideLayer();
 	}).fail(crl::guard(this, [=](const RPCError &error) {
+		if (weak) {
+			_transferRequestId = 0;
+		}
 		if (box && box->handleCustomCheckError(error)) {
 			return;
 		}
