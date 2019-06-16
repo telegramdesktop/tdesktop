@@ -1,9 +1,11 @@
-image: Visual Studio 2017
+image: Visual Studio 2019
 clone_folder: C:\TBuild\tdesktop
 test: off
 deploy: off
 
 environment:
+  GYP_MSVS_OVERRIDE_PATH: 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\'
+  GYP_MSVS_VERSION: 2019
   matrix:
    - BUILD_VERSION:
    - BUILD_VERSION: disable_register_custom_scheme
