@@ -780,6 +780,10 @@ Instance &Current() {
 	return Core::App().langpack();
 }
 
+QString Current(LangKey key) {
+	return Current().getValue(key);
+}
+
 rpl::producer<QString> Viewer(LangKey key) {
 	return rpl::single(
 		Current().getValue(key)

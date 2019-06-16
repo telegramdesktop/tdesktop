@@ -29,10 +29,20 @@ public:
 	bool writeSource();
 
 private:
+	void writeHeaderForwardDeclarations();
+	void writeHeaderTagTypes();
+	void writeHeaderKeyType();
+	void writeHeaderTaggedMethods();
+	void writeHeaderInterface();
+	void writeHeaderTagValueLookup();
+	void writeHeaderReactiveInterface();
+	void writeHeaderProducersInterface();
+	void writeHeaderProducersInstances();
+
 	QString getFullKey(const LangPack::Entry &entry);
 
 	template <typename ComputeResult>
-	void writeSetSearch(const std::set<QString, std::greater<QString>> &set, ComputeResult computeResult, const QString &invalidResult);
+	void writeSetSearch(const std::set<QString, std::greater<>> &set, ComputeResult computeResult, const QString &invalidResult);
 
 	const LangPack &langpack_;
 	QString basePath_, baseName_;

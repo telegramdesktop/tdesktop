@@ -962,27 +962,25 @@ PluralResult Plural(
 	const auto f = NonZeroPartToInt(fraction);
 	const auto t = f;
 
-	auto &langpack = Lang::Current();
-	auto useNonDefaultPlural = (ChoosePlural != ChoosePluralDefault)
-		&& langpack.isNonDefaultPlural(LangKey(keyBase));
-	auto shift = (useNonDefaultPlural ? ChoosePlural : ChoosePluralDefault)(
+	const auto useNonDefaultPlural = (ChoosePlural != ChoosePluralDefault)
+		&& Lang::Current().isNonDefaultPlural(LangKey(keyBase));
+	const auto shift = (useNonDefaultPlural ? ChoosePlural : ChoosePluralDefault)(
 		(integer ? i : -1),
 		i,
 		v,
 		w,
 		f,
 		t);
-	auto string = langpack.getValue(LangKey(keyBase + shift));
 	if (integer) {
 		const auto round = qRound(value);
 		if (type == lt_count_short) {
-			return { string, shortened.string };
+			return { shift, shortened.string };
 		} else if (type == lt_count_decimal) {
-			return { string, QString("%L1").arg(round) };
+			return { shift, QString("%L1").arg(round) };
 		}
-		return { string, QString::number(round) };
+		return { shift, QString::number(round) };
 	}
-	return { string, FormatDouble(value) };
+	return { shift, FormatDouble(value) };
 }
 
 void UpdatePluralRules(const QString &languageId) {

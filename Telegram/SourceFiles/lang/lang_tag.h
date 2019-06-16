@@ -22,7 +22,7 @@ struct ShortenedCount {
 ShortenedCount FormatCountToShort(int64 number);
 
 struct PluralResult {
-	QString string;
+	int keyShift = 0;
 	QString replacement;
 };
 PluralResult Plural(

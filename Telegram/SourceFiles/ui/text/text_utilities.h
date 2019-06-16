@@ -21,6 +21,9 @@ TextWithEntities Link(
 	const QString &text,
 	const QString &url = "internal:action");
 TextWithEntities RichLangValue(const QString &text);
+inline TextWithEntities WithEntities(const QString &text) {
+	return { text };
+}
 
 inline auto ToBold() {
 	return rpl::map(Bold);
@@ -34,6 +37,10 @@ inline auto ToLink(const QString &url = "internal:action") {
 
 inline auto ToRichLangValue() {
 	return rpl::map(RichLangValue);
+}
+
+inline auto ToWithEntities() {
+	return rpl::map(WithEntities);
 }
 
 } // namespace Text

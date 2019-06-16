@@ -56,6 +56,7 @@ Language DefaultLanguage();
 class Instance;
 Instance &Current();
 
+QString Current(LangKey key);
 rpl::producer<QString> Viewer(LangKey key);
 
 enum class Pack {
