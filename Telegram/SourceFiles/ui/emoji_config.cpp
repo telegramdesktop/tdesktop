@@ -29,6 +29,8 @@ constexpr auto kSetVersion = uint32(1);
 constexpr auto kCacheVersion = uint32(3);
 constexpr auto kMaxId = uint32(1 << 8);
 
+constexpr auto kScaleForTouchBar = 150;
+
 const auto kSets = {
 	Set{ 0,   0,         0, "Mac",      ":/gui/emoji/set0_preview.webp" },
 	Set{ 1, 246, 7'336'383, "Android",  ":/gui/emoji/set1_preview.webp" },
@@ -87,6 +89,13 @@ auto InstanceNormal = std::unique_ptr<Instance>();
 auto InstanceLarge = std::unique_ptr<Instance>();
 auto Universal = std::shared_ptr<UniversalImages>();
 auto Updates = rpl::event_stream<>();
+auto UpdatesRecent = rpl::event_stream<>();
+
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+auto TouchbarSize = -1;
+auto TouchbarInstance = std::unique_ptr<Instance>();
+auto TouchbarEmoji = (Instance*)nullptr;
+#endif
 
 auto MainEmojiMap = std::map<int, QPixmap>();
 auto OtherEmojiMap = std::map<int, std::map<int, QPixmap>>();
@@ -521,6 +530,17 @@ void Init() {
 
 	InstanceNormal = std::make_unique<Instance>(SizeNormal);
 	InstanceLarge = std::make_unique<Instance>(SizeLarge);
+
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+	if (cScale() != kScaleForTouchBar) {
+		TouchbarSize = int(ConvertScale(18 * 4 / 3.,
+			kScaleForTouchBar * cIntRetinaFactor()));
+		TouchbarInstance = std::make_unique<Instance>(TouchbarSize);
+		TouchbarEmoji = TouchbarInstance.get();
+	} else {
+		TouchbarEmoji = InstanceLarge.get();
+	}
+#endif
 }
 
 void Clear() {
@@ -529,6 +549,10 @@ void Clear() {
 
 	InstanceNormal = nullptr;
 	InstanceLarge = nullptr;
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+	TouchbarInstance = nullptr;
+	TouchbarEmoji = nullptr;
+#endif
 }
 
 void ClearIrrelevantCache() {
@@ -620,6 +644,14 @@ int GetSizeLarge() {
 
 	return SizeLarge;
 }
+
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+int GetSizeTouchbar() {
+	return (cScale() == kScaleForTouchBar)
+		? GetSizeLarge()
+		: TouchbarSize;
+}
+#endif
 
 int One::variantsCount() const {
 	return hasVariants() ? 5 : 0;
@@ -841,6 +873,11 @@ void AddRecent(EmojiPtr emoji) {
 			qSwap(*i, *(i - 1));
 		}
 	}
+	UpdatesRecent.fire({});
+}
+
+rpl::producer<> UpdatedRecent() {
+	return UpdatesRecent.events();
 }
 
 const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight) {
@@ -857,6 +894,7 @@ const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight) {
 		image.fill(Qt::transparent);
 		{
 			QPainter p(&image);
+			PainterHighQualityEnabler hq(p);
 			Draw(
 				p,
 				emoji,
@@ -872,6 +910,15 @@ const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight) {
 }
 
 void Draw(QPainter &p, EmojiPtr emoji, int size, int x, int y) {
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+	const auto s = (cScale() == kScaleForTouchBar)
+		? SizeLarge
+		: TouchbarSize;
+	if (size == s) {
+		TouchbarEmoji->draw(p, emoji, x, y);
+		return;
+	}
+#endif
 	if (size == SizeNormal) {
 		InstanceNormal->draw(p, emoji, x, y);
 	} else if (size == SizeLarge) {

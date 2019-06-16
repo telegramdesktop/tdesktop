@@ -44,6 +44,9 @@ rpl::producer<> Updated();
 
 int GetSizeNormal();
 int GetSizeLarge();
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+int GetSizeTouchbar();
+#endif
 
 class One {
 	struct CreationTag {
@@ -156,6 +159,7 @@ inline int ColorIndexFromOldKey(uint64 oldKey) {
 void ReplaceInText(TextWithEntities &result);
 RecentEmojiPack &GetRecent();
 void AddRecent(EmojiPtr emoji);
+rpl::producer<> UpdatedRecent();
 
 const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight);
 void Draw(QPainter &p, EmojiPtr emoji, int size, int x, int y);
