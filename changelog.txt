@@ -1,3 +1,9 @@
+1.7.8 beta (17.06.19)
+
+- Hide archived chats in the main menu.
+- See who is online straight from the chat list.
+- Apply formatting to selected text parts from the MacBook Pro TouchBar.
+
 1.7.7 (10.06.19)
 
 - Bug fixes and other minor improvements.
