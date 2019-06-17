@@ -11,7 +11,7 @@ namespace Dialogs {
 
 class Row;
 class FakeRow;
-class RippleRow;
+class BasicRow;
 
 namespace Layout {
 
@@ -51,7 +51,7 @@ public:
 
 void PaintCollapsedRow(
 	Painter &p,
-	const RippleRow &row,
+	const BasicRow &row,
 	Data::Folder *folder,
 	const QString &text,
 	int unread,

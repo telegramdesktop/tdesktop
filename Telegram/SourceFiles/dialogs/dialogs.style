@@ -37,6 +37,7 @@ dialogsPadding: point(10px, 8px);
 dialogsOnlineBadgeStroke: 2px;
 dialogsOnlineBadgeSize: 10px;
 dialogsOnlineBadgeSkip: point(10px, 12px);
+dialogsOnlineBadgeDuration: 150;
 
 dialogsImportantBarHeight: 37px;
 

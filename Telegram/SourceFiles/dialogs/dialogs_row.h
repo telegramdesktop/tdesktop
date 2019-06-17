@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/text/text.h"
+#include "ui/effects/animations.h"
 #include "dialogs/dialogs_key.h"
 
 class History;
@@ -22,28 +23,55 @@ namespace Layout {
 class RowPainter;
 } // namespace Layout
 
-class RippleRow {
+class BasicRow {
 public:
-	RippleRow();
-	~RippleRow();
+	BasicRow();
+	~BasicRow();
+
+	void setOnline(bool online, Fn<void()> updateCallback = nullptr) const;
+	void paintUserpic(
+		Painter &p,
+		not_null<PeerData*> peer,
+		bool allowOnline,
+		bool active,
+		int fullWidth) const;
 
 	void addRipple(QPoint origin, QSize size, Fn<void()> updateCallback);
 	void stopLastRipple();
 
-	void paintRipple(Painter &p, int x, int y, int outerWidth, const QColor *colorOverride = nullptr) const;
+	void paintRipple(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		const QColor *colorOverride = nullptr) const;
 
 private:
+	struct OnlineUserpic {
+		InMemoryKey key;
+		float64 online = 0.;
+		bool active = false;
+		QImage frame;
+		Ui::Animations::Simple animation;
+	};
+
+	void ensureOnlineUserpic() const;
+	static void PaintOnlineFrame(
+		not_null<OnlineUserpic*> data,
+		not_null<PeerData*> peer);
+
 	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
+	mutable std::unique_ptr<OnlineUserpic> _onlineUserpic;
+	mutable bool _online = false;
 
 };
 
 class List;
-class Row : public RippleRow {
+class Row : public BasicRow {
 public:
 	explicit Row(std::nullptr_t) {
 	}
-	Row(Key key, int pos) : _id(key), _pos(pos) {
-	}
+	Row(Key key, int pos);
 
 	Key key() const {
 		return _id;
@@ -80,7 +108,7 @@ private:
 
 };
 
-class FakeRow : public RippleRow {
+class FakeRow : public BasicRow {
 public:
 	FakeRow(Key searchInChat, not_null<HistoryItem*> item);
 

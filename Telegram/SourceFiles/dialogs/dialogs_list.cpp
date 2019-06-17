@@ -31,7 +31,7 @@ not_null<Row*> List::addToEnd(Key key) {
 		key,
 		std::make_unique<Row>(key, _rows.size())
 	).first->second.get();
-	_rows.push_back(result);
+	_rows.emplace_back(result);
 	if (_sortMode == SortMode::Date) {
 		adjustByDate(result);
 	}

@@ -110,13 +110,14 @@ rpl::producer<bool> CanWriteValue(ChatData *chat);
 rpl::producer<bool> CanWriteValue(ChannelData *channel);
 rpl::producer<bool> CanWriteValue(not_null<PeerData*> peer);
 
-TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now);
-crl::time OnlineChangeTimeout(TimeId online, TimeId now);
-crl::time OnlineChangeTimeout(not_null<UserData*> user, TimeId now);
-QString OnlineText(TimeId online, TimeId now);
-QString OnlineText(not_null<UserData*> user, TimeId now);
-QString OnlineTextFull(not_null<UserData*> user, TimeId now);
-bool OnlineTextActive(TimeId online, TimeId now);
-bool OnlineTextActive(not_null<UserData*> user, TimeId now);
+[[nodiscard]] TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now);
+[[nodiscard]] crl::time OnlineChangeTimeout(TimeId online, TimeId now);
+[[nodiscard]] crl::time OnlineChangeTimeout(not_null<UserData*> user, TimeId now);
+[[nodiscard]] QString OnlineText(TimeId online, TimeId now);
+[[nodiscard]] QString OnlineText(not_null<UserData*> user, TimeId now);
+[[nodiscard]] QString OnlineTextFull(not_null<UserData*> user, TimeId now);
+[[nodiscard]] bool OnlineTextActive(TimeId online, TimeId now);
+[[nodiscard]] bool OnlineTextActive(not_null<UserData*> user, TimeId now);
+[[nodiscard]] bool IsPeerAnOnlineUser(not_null<PeerData*> peer);
 
 } // namespace Data

@@ -204,7 +204,7 @@ enum class Flag {
 	Selected         = 0x02,
 	SearchResult     = 0x04,
 	SavedMessages    = 0x08,
-	UserOnline       = 0x10,
+	AllowUserOnline  = 0x10,
 	//FeedSearchResult = 0x10, // #feed
 };
 inline constexpr bool is_flag_type(Flag) { return true; }
@@ -212,7 +212,7 @@ inline constexpr bool is_flag_type(Flag) { return true; }
 template <typename PaintItemCallback, typename PaintCounterCallback>
 void paintRow(
 		Painter &p,
-		not_null<const RippleRow*> row,
+		not_null<const BasicRow*> row,
 		not_null<Entry*> entry,
 		Dialogs::Key chat,
 		PeerData *from,
@@ -252,51 +252,12 @@ void paintRow(
 			fullWidth,
 			st::dialogsPhotoSize);
 	} else if (from) {
-		if (flags & Flag::UserOnline) {
-			auto frame = QImage(
-				st::dialogsPhotoSize * cRetinaFactor(),
-				st::dialogsPhotoSize * cRetinaFactor(),
-				QImage::Format_ARGB32_Premultiplied);
-			frame.setDevicePixelRatio(cRetinaFactor());
-			frame.fill(Qt::transparent);
-			{
-				Painter q(&frame);
-				from->paintUserpicLeft(
-						q,
-						0,
-						0,
-						fullWidth,
-						st::dialogsPhotoSize);
-
-				PainterHighQualityEnabler hq(q);
-				q.setCompositionMode(QPainter::CompositionMode_Source);
-
-				const auto size = st::dialogsOnlineBadgeSize;
-				const auto stroke = st::dialogsOnlineBadgeStroke;
-				const auto skip = st::dialogsOnlineBadgeSkip;
-				const auto edge = st::dialogsPadding.x() + st::dialogsPhotoSize;
-
-				auto pen = QPen(Qt::transparent);
-				pen.setWidth(stroke);
-				q.setPen(pen);
-				q.setBrush(active
-					? st::dialogsOnlineBadgeFgActive
-					: st::dialogsOnlineBadgeFg);
-				q.drawEllipse(
-					edge - skip.x() - size,
-					edge - skip.y() - size,
-					size,
-					size);
-			}
-			p.drawImage(st::dialogsPadding, frame);
-		} else {
-			from->paintUserpicLeft(
-				p,
-				st::dialogsPadding.x(),
-				st::dialogsPadding.y(),
-				fullWidth,
-				st::dialogsPhotoSize);
-		}
+		row->paintUserpic(
+			p,
+			from,
+			(flags & Flag::AllowUserOnline),
+			active,
+			fullWidth);
 	} else if (hiddenSenderInfo) {
 		hiddenSenderInfo->userpic.paint(
 			p,
@@ -690,14 +651,11 @@ void RowPainter::paint(
 			? history->peer->migrateTo()
 			: history->peer.get())
 		: nullptr;
-	const auto showUserOnline = peer
-		&& peer->isUser()
-		&& Data::OnlineTextActive(peer->asUser(), unixtime())
-		&& !(fullWidth < st::columnMinimalWidthLeft
-			&& (displayUnreadCounter || displayUnreadMark));
+	const auto allowUserOnline = (fullWidth >= st::columnMinimalWidthLeft)
+		|| (!displayUnreadCounter && !displayUnreadMark);
 	const auto flags = (active ? Flag::Active : Flag(0))
 		| (selected ? Flag::Selected : Flag(0))
-		| (showUserOnline ? Flag::UserOnline : Flag(0))
+		| (allowUserOnline ? Flag::AllowUserOnline : Flag(0))
 		| (peer && peer->isSelf() ? Flag::SavedMessages : Flag(0));
 	const auto paintItemCallback = [&](int nameleft, int namewidth) {
 		const auto texttop = st::dialogsPadding.y()
@@ -908,7 +866,7 @@ QRect RowPainter::sendActionAnimationRect(int animationWidth, int animationHeigh
 
 void PaintCollapsedRow(
 		Painter &p,
-		const RippleRow &row,
+		const BasicRow &row,
 		Data::Folder *folder,
 		const QString &text,
 		int unread,

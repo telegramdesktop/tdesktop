@@ -25,6 +25,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
+
 namespace Dialogs {
 
 class Row;
@@ -203,6 +207,10 @@ private:
 	}
 	bool uniqueSearchResults() const;
 	bool hasHistoryInResults(not_null<History*> history) const;
+
+	int defaultRowTop(not_null<Row*> row) const;
+	void setupOnlineStatusCheck();
+	void userOnlineUpdated(const Notify::PeerUpdate &update);
 
 	void setupShortcuts();
 	RowDescriptor computeJump(

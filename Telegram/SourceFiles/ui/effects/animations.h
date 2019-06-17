@@ -58,6 +58,10 @@ public:
 		float64 to,
 		crl::time duration,
 		anim::transition transition = anim::linear);
+	void change(
+		float64 to,
+		crl::time duration,
+		anim::transition transition = anim::linear);
 	void stop();
 	[[nodiscard]] bool animating() const;
 	[[nodiscard]] float64 value(float64 final) const;
@@ -325,6 +329,16 @@ inline void Simple::start(
 		}
 		return result;
 	});
+	startPrepared(to, duration, transition);
+}
+
+inline void Simple::change(
+		float64 to,
+		crl::time duration,
+		anim::transition transition) {
+	Expects(_data != nullptr);
+
+	prepare(0. /* ignored */, duration);
 	startPrepared(to, duration, transition);
 }
 

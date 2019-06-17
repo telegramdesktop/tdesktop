@@ -96,13 +96,7 @@ inline bool UseEmptyUserpic(PeerData *peer) {
 }
 
 inline bool IsSelfPeer(PeerData *peer) {
-	return (peer && peer->id == Auth().userPeerId());
-}
-
-inline bool IsUserOnline(PeerData *peer) {
-	return peer
-		&& peer->isUser()
-		&& Data::OnlineTextActive(peer->asUser(), unixtime());
+	return (peer && peer->isSelf());
 }
 
 inline int UnreadCount(PeerData *peer) {
@@ -266,7 +260,7 @@ void SendKeyEvent(int command) {
 		themeChanged
 	) | rpl::filter([=](const Update &update) {
 		return update.type == Update::Type::ApplyingTheme
-			&& (UnreadCount(_peer) || IsUserOnline(_peer));
+			&& (UnreadCount(_peer) || Data::IsPeerAnOnlineUser(_peer));
 	}) | rpl::start_with_next([=] {
 		[self updateBadge];
 	}, _lifetime);
@@ -373,7 +367,7 @@ void SendKeyEvent(int command) {
 	// Draw unread or online badge.
 	auto pixmap = App::pixmapFromImageInPlace(_userpic.toImage());
 	Painter p(&pixmap);
-	if (!PaintUnreadBadge(p, _peer) && IsUserOnline(_peer)) {
+	if (!PaintUnreadBadge(p, _peer) && Data::IsPeerAnOnlineUser(_peer)) {
 		PaintOnlineCircle(p);
 	}
 	[self updateImage:pixmap];

@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_peer_values.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -79,21 +80,21 @@ struct InnerWidget::CollapsedRow {
 	}
 
 	Data::Folder *folder = nullptr;
-	RippleRow row;
+	BasicRow row;
 };
 
 struct InnerWidget::HashtagResult {
 	HashtagResult(const QString &tag) : tag(tag) {
 	}
 	QString tag;
-	RippleRow row;
+	BasicRow row;
 };
 
 struct InnerWidget::PeerSearchResult {
 	PeerSearchResult(not_null<PeerData*> peer) : peer(peer) {
 	}
 	not_null<PeerData*> peer;
-	RippleRow row;
+	BasicRow row;
 };
 
 InnerWidget::InnerWidget(
@@ -177,39 +178,7 @@ InnerWidget::InnerWidget(
 			UpdateRowSection::Default | UpdateRowSection::Filtered);
 	}, lifetime());
 
-	const auto handleUserOnline = [=](const Notify::PeerUpdate &peerUpdate) {
-		if (peerUpdate.peer->isSelf()) {
-			return;
-		}
-		const auto history = session().data().historyLoaded(peerUpdate.peer);
-		if (!history) {
-			return;
-		}
-		const auto size = st::dialogsOnlineBadgeSize;
-		const auto stroke = st::dialogsOnlineBadgeStroke;
-		const auto skip = st::dialogsOnlineBadgeSkip;
-		const auto edge = st::dialogsPadding.x() + st::dialogsPhotoSize;
-		const auto updateRect = QRect(
-			edge - skip.x() - size,
-			edge - skip.y() - size,
-			size,
-			size
-		).marginsAdded(
-			{ stroke, stroke, stroke, stroke }
-		).translated(
-			st::dialogsPadding
-		);
-		updateDialogRow(
-			RowDescriptor(
-				history,
-				FullMsgId()),
-			updateRect,
-			UpdateRowSection::Default | UpdateRowSection::Filtered);
-	};
-
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(
-		Notify::PeerUpdate::Flag::UserOnlineChanged,
-		handleUserOnline));
+	setupOnlineStatusCheck();
 
 	session().data().chatsListChanges(
 	) | rpl::filter([=](Data::Folder *folder) {
@@ -1507,6 +1476,15 @@ void InnerWidget::repaintCollapsedFolderRow(not_null<Data::Folder*> folder) {
 	}
 }
 
+int InnerWidget::defaultRowTop(not_null<Row*> row) const {
+	const auto position = row->pos();
+	auto top = dialogsOffset();
+	if (base::in_range(position, 0, _pinnedRows.size())) {
+		top += qRound(_pinnedRows[position].yadd.current());
+	}
+	return top + position * st::dialogsRowHeight;
+}
+
 void InnerWidget::repaintDialogRow(
 		Mode list,
 		not_null<Row*> row) {
@@ -1515,12 +1493,7 @@ void InnerWidget::repaintDialogRow(
 			if (const auto folder = row->folder()) {
 				repaintCollapsedFolderRow(folder);
 			}
-			auto position = row->pos();
-			auto top = dialogsOffset();
-			if (base::in_range(position, 0, _pinnedRows.size())) {
-				top += qRound(_pinnedRows[position].yadd.current());
-			}
-			update(0, top + position * st::dialogsRowHeight, width(), st::dialogsRowHeight);
+			update(0, defaultRowTop(row), width(), st::dialogsRowHeight);
 		}
 	} else if (_state == WidgetState::Filtered) {
 		if (list == Mode::All) {
@@ -2814,6 +2787,71 @@ MsgId InnerWidget::lastSearchId() const {
 
 MsgId InnerWidget::lastSearchMigratedId() const {
 	return _lastSearchMigratedId;
+}
+
+void InnerWidget::setupOnlineStatusCheck() {
+	using namespace Notify;
+	subscribe(PeerUpdated(), PeerUpdatedHandler(
+		PeerUpdate::Flag::UserOnlineChanged,
+		[=](const PeerUpdate &update) { userOnlineUpdated(update); }));
+}
+
+void InnerWidget::userOnlineUpdated(const Notify::PeerUpdate &update) {
+	const auto user = update.peer->isSelf()
+		? nullptr
+		: update.peer->asUser();
+	if (!user) {
+		return;
+	}
+	const auto history = session().data().historyLoaded(user);
+	if (!history) {
+		return;
+	}
+	const auto size = st::dialogsOnlineBadgeSize;
+	const auto stroke = st::dialogsOnlineBadgeStroke;
+	const auto skip = st::dialogsOnlineBadgeSkip;
+	const auto edge = st::dialogsPadding.x() + st::dialogsPhotoSize;
+	const auto updateRect = QRect(
+		edge - skip.x() - size,
+		edge - skip.y() - size,
+		size,
+		size
+	).marginsAdded(
+		{ stroke, stroke, stroke, stroke }
+	).translated(
+		st::dialogsPadding
+	);
+	const auto repaint = [=] {
+		updateDialogRow(
+			RowDescriptor(
+				history,
+				FullMsgId()),
+			updateRect,
+			UpdateRowSection::Default | UpdateRowSection::Filtered);
+	};
+	repaint();
+
+	const auto findRow = [&](not_null<History*> history)
+	-> std::pair<Row*, int> {
+		if (state() == WidgetState::Default) {
+			const auto row = shownDialogs()->getRow({ history });
+			return { row, row ? defaultRowTop(row) : 0 };
+		}
+		const auto i = ranges::find(
+			_filterResults,
+			history.get(),
+			[](not_null<Row*> row) { return row->history(); });
+		const auto index = (i - begin(_filterResults));
+		const auto row = (i == end(_filterResults)) ? nullptr : i->get();
+		return { row, filteredOffset() + index * st::dialogsRowHeight };
+	};
+	if (const auto &[row, top] = findRow(history); row != nullptr) {
+		const auto visible = (top < _visibleBottom)
+			&& (top + st::dialogsRowHeight > _visibleTop);
+		row->setOnline(
+			Data::OnlineTextActive(user, unixtime()),
+			visible ? Fn<void()>(crl::guard(this, repaint)) : nullptr);
+	}
 }
 
 void InnerWidget::setupShortcuts() {

@@ -366,4 +366,11 @@ bool OnlineTextActive(not_null<UserData*> user, TimeId now) {
 	return OnlineTextActive(user->onlineTill, now);
 }
 
+bool IsPeerAnOnlineUser(not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return OnlineTextActive(user, unixtime());
+	}
+	return false;
+}
+
 } // namespace Data
