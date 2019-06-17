@@ -181,21 +181,27 @@ InnerWidget::InnerWidget(
 		if (peerUpdate.peer->isSelf()) {
 			return;
 		}
-		const auto circleSize = st::dialogsOnlineBadgeSize
-			+ st::dialogsOnlineBadgeSizePadding;
+		const auto history = session().data().historyLoaded(peerUpdate.peer);
+		if (!history) {
+			return;
+		}
+		const auto size = st::dialogsOnlineBadgeSize;
+		const auto stroke = st::dialogsOnlineBadgeStroke;
+		const auto skip = st::dialogsOnlineBadgeSkip;
+		const auto edge = st::dialogsPadding.x() + st::dialogsPhotoSize;
 		const auto updateRect = QRect(
-			st::dialogsPadding.x()
-				+ st::dialogsPhotoSize
-				- st::dialogsOnlineBadgeRightSkip
-				- circleSize,
-			st::dialogsPadding.y()
-				+ st::dialogsPhotoSize
-				- circleSize,
-			circleSize,
-			circleSize);
+			edge - skip.x() - size,
+			edge - skip.y() - size,
+			size,
+			size
+		).marginsAdded(
+			{ stroke, stroke, stroke, stroke }
+		).translated(
+			st::dialogsPadding
+		);
 		updateDialogRow(
 			RowDescriptor(
-				session().data().history(peerUpdate.peer->id),
+				history,
 				FullMsgId()),
 			updateRect,
 			UpdateRowSection::Default | UpdateRowSection::Filtered);

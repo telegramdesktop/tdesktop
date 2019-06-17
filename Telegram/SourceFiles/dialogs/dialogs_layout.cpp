@@ -260,37 +260,31 @@ void paintRow(
 			frame.setDevicePixelRatio(cRetinaFactor());
 			frame.fill(Qt::transparent);
 			{
-				const auto size = st::dialogsOnlineBadgeSize;
-				const auto paddingSize = st::dialogsOnlineBadgeSizePadding;
-				const auto circleSize = size + paddingSize;
-				const auto offset = size + paddingSize / 2;
-				const auto x = st::dialogsPadding.x() + st::dialogsPhotoSize - st::dialogsOnlineBadgeRightSkip - size;
-				const auto y = st::dialogsPadding.y() + st::dialogsPhotoSize - size;
-
 				Painter q(&frame);
-				PainterHighQualityEnabler hq(q);
 				from->paintUserpicLeft(
 						q,
 						0,
 						0,
 						fullWidth,
 						st::dialogsPhotoSize);
-				q.setPen(Qt::NoPen);
-				q.setBrush(Qt::transparent);
-				q.setCompositionMode(QPainter::CompositionMode_SourceOut);
-				q.drawEllipse(
-					x - circleSize,
-					y - circleSize,
-					circleSize,
-					circleSize);
 
+				PainterHighQualityEnabler hq(q);
+				q.setCompositionMode(QPainter::CompositionMode_Source);
+
+				const auto size = st::dialogsOnlineBadgeSize;
+				const auto stroke = st::dialogsOnlineBadgeStroke;
+				const auto skip = st::dialogsOnlineBadgeSkip;
+				const auto edge = st::dialogsPadding.x() + st::dialogsPhotoSize;
+
+				auto pen = QPen(Qt::transparent);
+				pen.setWidth(stroke);
+				q.setPen(pen);
 				q.setBrush(active
 					? st::dialogsOnlineBadgeFgActive
 					: st::dialogsOnlineBadgeFg);
-				q.setCompositionMode(QPainter::CompositionMode_Source);
 				q.drawEllipse(
-					x - offset,
-					y - offset,
+					edge - skip.x() - size,
+					edge - skip.y() - size,
 					size,
 					size);
 			}
