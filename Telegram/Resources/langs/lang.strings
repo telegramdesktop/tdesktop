@@ -1252,6 +1252,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dialogs_text_media_wrapped" = "{media},";
 "lng_dialogs_show_all_chats" = "Show all chats";
 "lng_dialogs_hide_muted_chats" = "Hide muted chats";
+"lng_dialogs_skip_archive_in_search" = "Skip results from archive";
+"lng_dialogs_show_archive_in_search" = "With results from archive";
 
 "lng_open_this_link" = "Open this link?";
 "lng_open_link" = "Open";

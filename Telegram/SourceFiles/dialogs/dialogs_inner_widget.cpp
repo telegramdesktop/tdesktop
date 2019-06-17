@@ -1693,6 +1693,21 @@ void InnerWidget::fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu) {
 	});
 }
 
+void InnerWidget::fillArchiveSearchMenu(not_null<Ui::PopupMenu*> menu) {
+	const auto folder = session().data().folderLoaded(Data::Folder::kId);
+	if (!folder || !folder->chatsListSize() || _searchInChat) {
+		return;
+	}
+	const auto skip = session().settings().skipArchiveInSearch();
+	const auto text = lang(skip
+		? lng_dialogs_show_archive_in_search
+		: lng_dialogs_skip_archive_in_search);
+	menu->addAction(text, [=] {
+		session().settings().setSkipArchiveInSearch(!skip);
+		session().saveSettingsDelayed();
+	});
+}
+
 void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 	_menu = nullptr;
 
@@ -1712,8 +1727,7 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 		} else if (_state == WidgetState::Filtered) {
 			if (base::in_range(_filteredSelected, 0, _filterResults.size())) {
 				return { _filterResults[_filteredSelected]->key(), FullMsgId() };
-			} else if (session().supportMode()
-				&& base::in_range(_searchedSelected, 0, _searchResults.size())) {
+			} else if (base::in_range(_searchedSelected, 0, _searchResults.size())) {
 				return {
 					_searchResults[_searchedSelected]->item()->history(),
 					_searchResults[_searchedSelected]->item()->fullId()
@@ -1730,8 +1744,12 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 	}
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
-	if (session().supportMode() && row.fullId) {
-		fillSupportSearchMenu(_menu.get());
+	if (row.fullId) {
+		if (session().supportMode()) {
+			fillSupportSearchMenu(_menu.get());
+		} else {
+			fillArchiveSearchMenu(_menu.get());
+		}
 	} else if (const auto history = row.key.history()) {
 		Window::FillPeerMenu(
 			_controller,

@@ -176,6 +176,9 @@ Widget::Widget(
 		refreshLoadMoreButton(mayBlock, isBlocked);
 	}, lifetime());
 
+	fullSearchRefreshOn(session().settings().skipArchiveInSearchChanges(
+	) | rpl::map([] { return rpl::empty_value(); }));
+
 	connect(_inner, SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), _scroll, SLOT(scrollToY(int,int)));
 	connect(_inner, SIGNAL(dialogMoved(int,int)), this, SLOT(onDialogMoved(int,int)));
@@ -365,7 +368,13 @@ void Widget::setupSupportMode() {
 		return;
 	}
 
-	session().settings().supportAllSearchResultsValue(
+	fullSearchRefreshOn(session().settings().supportAllSearchResultsValue(
+	) | rpl::map([] { return rpl::empty_value(); }));
+}
+
+void Widget::fullSearchRefreshOn(rpl::producer<> events) {
+	std::move(
+		events
 	) | rpl::filter([=] {
 		return !_searchQuery.isEmpty();
 	}) | rpl::start_with_next([=] {
@@ -777,10 +786,14 @@ bool Widget::onSearchMessages(bool searchCache) {
 		//		rpcDone(&Widget::searchReceived, SearchRequestType::FromStart),
 		//		rpcFail(&Widget::searchFailed, SearchRequestType::FromStart));
 		} else {
+			const auto flags = session().settings().skipArchiveInSearch()
+				? MTPmessages_SearchGlobal::Flag::f_folder_id
+				: MTPmessages_SearchGlobal::Flag(0);
+			const auto folderId = 0;
 			_searchRequest = MTP::send(
 				MTPmessages_SearchGlobal(
-					MTP_flags(0),
-					MTP_int(0), // folder_id
+					MTP_flags(flags),
+					MTP_int(folderId),
 					MTP_string(_searchQuery),
 					MTP_int(0),
 					MTP_inputPeerEmpty(),
@@ -916,10 +929,14 @@ void Widget::onSearchMore() {
 			//		rpcDone(&Widget::searchReceived, offsetId ? SearchRequestType::FromOffset : SearchRequestType::FromStart),
 			//		rpcFail(&Widget::searchFailed, offsetId ? SearchRequestType::FromOffset : SearchRequestType::FromStart));
 			} else {
+				const auto flags = session().settings().skipArchiveInSearch()
+					? MTPmessages_SearchGlobal::Flag::f_folder_id
+					: MTPmessages_SearchGlobal::Flag(0);
+				const auto folderId = 0;
 				_searchRequest = MTP::send(
 					MTPmessages_SearchGlobal(
-						MTP_flags(0),
-						MTP_int(0), // folder_id
+						MTP_flags(flags),
+						MTP_int(folderId),
 						MTP_string(_searchQuery),
 						MTP_int(_searchNextRate),
 						offsetPeer

@@ -153,6 +153,7 @@ private:
 	QPixmap grabForFolderSlideAnimation();
 	void startSlideAnimation();
 
+	void fullSearchRefreshOn(rpl::producer<> events);
 	void applyFilterUpdate(bool force = false);
 	void refreshLoadMoreButton(bool mayBlock, bool isBlocked);
 	void loadMoreBlockedByDate();

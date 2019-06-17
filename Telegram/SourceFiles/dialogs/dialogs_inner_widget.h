@@ -240,6 +240,7 @@ private:
 		QRect updateRect = QRect(),
 		UpdateRowSections sections = UpdateRowSection::All);
 	void fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu);
+	void fillArchiveSearchMenu(not_null<Ui::PopupMenu*> menu);
 
 	int dialogsOffset() const;
 	int fixedOnTopCount() const;

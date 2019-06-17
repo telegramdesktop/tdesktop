@@ -97,6 +97,7 @@ QByteArray AuthSessionSettings::serialize() const {
 		stream << qint32(_variables.archiveCollapsed.current() ? 1 : 0);
 		stream << qint32(_variables.notifyAboutPinned.current() ? 1 : 0);
 		stream << qint32(_variables.archiveInMainMenu.current() ? 1 : 0);
+		stream << qint32(_variables.skipArchiveInSearch.current() ? 1 : 0);
 	}
 	return result;
 }
@@ -136,6 +137,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	qint32 archiveCollapsed = _variables.archiveCollapsed.current() ? 1 : 0;
 	qint32 notifyAboutPinned = _variables.notifyAboutPinned.current() ? 1 : 0;
 	qint32 archiveInMainMenu = _variables.archiveInMainMenu.current() ? 1 : 0;
+	qint32 skipArchiveInSearch = _variables.skipArchiveInSearch.current() ? 1 : 0;
 
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
@@ -224,6 +226,9 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	if (!stream.atEnd()) {
 		stream >> archiveInMainMenu;
 	}
+	if (!stream.atEnd()) {
+		stream >> skipArchiveInSearch;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for AuthSessionSettings::constructFromSerialized()"));
@@ -296,6 +301,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	_variables.archiveCollapsed = (archiveCollapsed == 1);
 	_variables.notifyAboutPinned = (notifyAboutPinned == 1);
 	_variables.archiveInMainMenu = (archiveInMainMenu == 1);
+	_variables.skipArchiveInSearch = (skipArchiveInSearch == 1);
 }
 
 void AuthSessionSettings::setSupportChatsTimeSlice(int slice) {
@@ -402,6 +408,18 @@ rpl::producer<bool> AuthSessionSettings::archiveCollapsedChanges() const {
 	return _variables.archiveCollapsed.changes();
 }
 
+void AuthSessionSettings::setArchiveInMainMenu(bool inMainMenu) {
+	_variables.archiveInMainMenu = inMainMenu;
+}
+
+bool AuthSessionSettings::archiveInMainMenu() const {
+	return _variables.archiveInMainMenu.current();
+}
+
+rpl::producer<bool> AuthSessionSettings::archiveInMainMenuChanges() const {
+	return _variables.archiveInMainMenu.changes();
+}
+
 void AuthSessionSettings::setNotifyAboutPinned(bool notify) {
 	_variables.notifyAboutPinned = notify;
 }
@@ -414,16 +432,16 @@ rpl::producer<bool> AuthSessionSettings::notifyAboutPinnedChanges() const {
 	return _variables.notifyAboutPinned.changes();
 }
 
-void AuthSessionSettings::setArchiveInMainMenu(bool inMainMenu) {
-	_variables.archiveInMainMenu = inMainMenu;
+void AuthSessionSettings::setSkipArchiveInSearch(bool skip) {
+	_variables.skipArchiveInSearch = skip;
 }
 
-bool AuthSessionSettings::archiveInMainMenu() const {
-	return _variables.archiveInMainMenu.current();
+bool AuthSessionSettings::skipArchiveInSearch() const {
+	return _variables.skipArchiveInSearch.current();
 }
 
-rpl::producer<bool> AuthSessionSettings::archiveInMainMenuChanges() const {
-	return _variables.archiveInMainMenu.changes();
+rpl::producer<bool> AuthSessionSettings::skipArchiveInSearchChanges() const {
+	return _variables.skipArchiveInSearch.changes();
 }
 
 AuthSession &Auth() {
