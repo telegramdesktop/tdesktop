@@ -36,12 +36,16 @@ void Basic::restart() {
 	Expects(_started >= 0);
 
 	_started = crl::now();
+
+	Ensures(_started >= 0);
 }
 
 void Basic::markStarted() {
 	Expects(_started < 0);
 
 	_started = crl::now();
+
+	Ensures(_started >= 0);
 }
 
 void Basic::markStopped() {
