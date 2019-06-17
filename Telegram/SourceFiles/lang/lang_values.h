@@ -169,7 +169,7 @@ struct Producer<lngtag_count, Tags...> {
 		auto plural = Plural(base, count, type);
 		return ReplaceUnwrap<Tags...>::template Call(
 			ReplaceTag<T>::Call(
-				p(Lang::Current(base + plural.keyShift)),
+				p(Lang::Current(LangKey(base + plural.keyShift))),
 				type,
 				StartReplacements<T>::Call(
 					std::move(plural.replacement))),
