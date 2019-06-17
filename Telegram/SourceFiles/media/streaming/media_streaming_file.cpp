@@ -149,7 +149,7 @@ Stream File::Context::initStream(
 	result.duration = (info->duration != AV_NOPTS_VALUE)
 		? PtsToTime(info->duration, result.timeBase)
 		: PtsToTime(format->duration, kUniversalTimeBase);
-	if (!result.duration) {
+	if (result.duration <= 0) {
 		result.codec = nullptr;
 	} else if (result.duration == kTimeUnknown) {
 		result.duration = kDurationUnavailable;
