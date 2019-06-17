@@ -220,13 +220,7 @@ void Folder::paintUserpic(
 		int x,
 		int y,
 		int size) const {
-	paintUserpic(
-		p,
-		x,
-		y,
-		size,
-		st::historyPeerArchiveUserpicBg,
-		st::historyPeerUserpicFg);
+	paintUserpic(p, x, y, size, nullptr, nullptr);
 }
 
 void Folder::paintUserpic(
@@ -236,24 +230,47 @@ void Folder::paintUserpic(
 		int size,
 		const style::color &bg,
 		const style::color &fg) const {
+	paintUserpic(p, x, y, size, &bg, &fg);
+}
+
+void Folder::paintUserpic(
+		Painter &p,
+		int x,
+		int y,
+		int size,
+		const style::color *overrideBg,
+		const style::color *overrideFg) const {
 	p.setPen(Qt::NoPen);
-	p.setBrush(bg);
+	p.setBrush(overrideBg ? *overrideBg : st::historyPeerArchiveUserpicBg);
 	{
 		PainterHighQualityEnabler hq(p);
 		p.drawEllipse(x, y, size, size);
 	}
 	if (size == st::dialogsPhotoSize) {
-		st::dialogsArchiveUserpic.paintInCenter(p, { x, y, size, size }, fg->c);
+		const auto rect = QRect{ x, y, size, size };
+		if (overrideFg) {
+			st::dialogsArchiveUserpic.paintInCenter(
+				p,
+				rect,
+				(*overrideFg)->c);
+		} else {
+			st::dialogsArchiveUserpic.paintInCenter(p, rect);
+		}
 	} else {
 		p.save();
 		const auto ratio = size / float64(st::dialogsPhotoSize);
 		p.translate(x + size / 2., y + size / 2.);
 		p.scale(ratio, ratio);
 		const auto skip = st::dialogsPhotoSize;
-		st::dialogsArchiveUserpic.paintInCenter(
-			p,
-			{ -skip, -skip, 2 * skip, 2 * skip },
-			fg->c);
+		const auto rect = QRect{ -skip, -skip, 2 * skip, 2 * skip };
+		if (overrideFg) {
+			st::dialogsArchiveUserpic.paintInCenter(
+				p,
+				rect,
+				(*overrideFg)->c);
+		} else {
+			st::dialogsArchiveUserpic.paintInCenter(p, rect);
+		}
 		p.restore();
 	}
 	//const auto small = (size - st::lineWidth) / 2; // #feed
