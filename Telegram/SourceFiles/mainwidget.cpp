@@ -3535,6 +3535,7 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 
 	bool isOnline = !App::quitting() && App::wnd()->isActive();
 	int updateIn = Global::OnlineUpdatePeriod();
+	Assert(updateIn >= 0);
 	if (isOnline) {
 		const auto idle = crl::now() - Core::App().lastNonIdleTime();
 		if (idle >= Global::OfflineIdleTimeout()) {
@@ -3545,6 +3546,7 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 			}
 		} else {
 			updateIn = qMin(updateIn, int(Global::OfflineIdleTimeout() - idle));
+			Assert(updateIn >= 0);
 		}
 	}
 	auto ms = crl::now();
@@ -3579,6 +3581,7 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 		_lastSetOnline = ms;
 	} else if (isOnline) {
 		updateIn = qMin(updateIn, int(_lastSetOnline + Global::OnlineUpdatePeriod() - ms));
+		Assert(updateIn >= 0);
 	}
 	_onlineTimer.callOnce(updateIn);
 }
