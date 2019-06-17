@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "ui/widgets/labels.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/special_buttons.h"
 #include "window/window_session_controller.h"
 #include "observer_peer.h"
@@ -446,7 +447,7 @@ void SharedMediaCover::createLabel() {
 	using namespace rpl::mappers;
 	auto label = object_ptr<Ui::FlatLabel>(
 		this,
-		Lang::Viewer(lng_profile_shared_media) | ToUpperValue(),
+		Lang::Viewer(lng_profile_shared_media) | Ui::Text::ToUpper(),
 		st::infoBlockHeaderLabel);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 

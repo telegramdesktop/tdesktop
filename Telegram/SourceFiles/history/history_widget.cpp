@@ -21,8 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/special_buttons.h"
+#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/image/image.h"
+#include "ui/special_buttons.h"
 #include "inline_bots/inline_bot_result.h"
 #include "data/data_drafts.h"
 #include "data/data_session.h"
@@ -45,7 +46,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "profile/profile_block_group_members.h"
 #include "info/info_memento.h"
-#include "info/profile/info_profile_values.h" // Info::Profile::ToUpperValue
 #include "core/click_handler_types.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -156,7 +156,7 @@ object_ptr<Ui::FlatButton> SetupDiscussButton(
 	const auto button = result.data();
 	auto text = Lang::Viewer(
 		lng_channel_discuss
-	) | Info::Profile::ToUpperValue();
+	) | Ui::Text::ToUpper();
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
 		rpl::duplicate(text),

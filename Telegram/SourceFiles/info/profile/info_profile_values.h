@@ -36,12 +36,6 @@ inline auto WithEmptyEntities() {
 	});
 }
 
-inline auto ToUpperValue() {
-	return rpl::map([](QString &&text) {
-		return std::move(text).toUpper();
-	});
-}
-
 rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer);
 rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user);
 rpl::producer<TextWithEntities> BioValue(not_null<UserData*> user);

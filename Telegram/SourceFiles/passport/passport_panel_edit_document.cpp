@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_details_row.h"
 #include "passport/passport_panel_edit_scans.h"
 #include "info/profile/info_profile_button.h"
-#include "info/profile/info_profile_values.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
@@ -21,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "boxes/abstract_box.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
@@ -486,7 +486,7 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		inner->add(
 			object_ptr<Info::Profile::Button>(
 				inner,
-				std::move(*text) | Info::Profile::ToUpperValue(),
+				std::move(*text) | Ui::Text::ToUpper(),
 				st::passportDeleteButton),
 			st::passportUploadButtonPadding
 		)->addClickHandler([=] {

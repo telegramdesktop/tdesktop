@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/labels.h"
 #include "ui/toast/toast.h"
+#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "boxes/abstract_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_box.h"
@@ -96,7 +97,7 @@ auto AddMainButton(
 		Ui::MultiSlideTracker &tracker) {
 	tracker.track(AddActionButton(
 		parent,
-		std::move(text) | ToUpperValue(),
+		std::move(text) | Ui::Text::ToUpper(),
 		std::move(toggleOn),
 		std::move(callback),
 		st::infoMainButton));

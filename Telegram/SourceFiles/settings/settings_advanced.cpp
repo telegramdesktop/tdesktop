@@ -13,11 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "boxes/connection_box.h"
 #include "boxes/about_box.h"
 #include "boxes/confirm_box.h"
 #include "info/profile/info_profile_button.h"
-#include "info/profile/info_profile_values.h"
 #include "platform/platform_specific.h"
 #include "platform/platform_info.h"
 #include "lang/lang_keys.h"
@@ -111,7 +111,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		st::settingsButton);
 	const auto update = Ui::CreateChild<Button>(
 		check.get(),
-		Lang::Viewer(lng_update_telegram) | Info::Profile::ToUpperValue(),
+		Lang::Viewer(lng_update_telegram) | Ui::Text::ToUpper(),
 		st::settingsUpdate);
 	update->hide();
 	check->widthValue() | rpl::start_with_next([=](int width) {

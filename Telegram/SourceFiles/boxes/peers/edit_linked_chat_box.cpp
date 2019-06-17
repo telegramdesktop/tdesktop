@@ -12,9 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
-#include "ui/text/text_utilities.h"
+#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "info/profile/info_profile_button.h"
-#include "info/profile/info_profile_values.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
@@ -228,9 +227,8 @@ object_ptr<Ui::RpWidget> SetupCreateGroup(
 
 	auto result = object_ptr<Info::Profile::Button>(
 		parent,
-		Lang::Viewer(
-			lng_manage_discussion_group_create
-		) | Info::Profile::ToUpperValue(),
+		tr::lng_manage_discussion_group_create(
+		) | Ui::Text::ToUpper(),
 		st::infoCreateLinkedChatButton);
 	result->addClickHandler([=] {
 		const auto guarded = crl::guard(parent, callback);
@@ -253,7 +251,7 @@ object_ptr<Ui::RpWidget> SetupUnlink(
 		Lang::Viewer(channel->isBroadcast()
 			? lng_manage_discussion_group_unlink
 			: lng_manage_linked_channel_unlink
-		) | Info::Profile::ToUpperValue(),
+		) | Ui::Text::ToUpper(),
 		st::infoUnlinkChatButton);
 	result->addClickHandler([=] {
 		callback(nullptr);

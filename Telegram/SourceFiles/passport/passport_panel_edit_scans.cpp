@@ -10,12 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_controller.h"
 #include "passport/passport_panel_details_row.h"
 #include "info/profile/info_profile_button.h"
-#include "info/profile/info_profile_values.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/text_options.h"
 #include "core/file_utilities.h"
 #include "lang/lang_keys.h"
@@ -212,7 +212,7 @@ Ui::SlideWrap<ScanButton> *EditScans::List::nonDeletedErrorRow() const {
 rpl::producer<QString> EditScans::List::uploadButtonText() const {
 	return Lang::Viewer(files.empty()
 		? lng_passport_upload_scans
-		: lng_passport_upload_more) | Info::Profile::ToUpperValue();
+		: lng_passport_upload_more) | Ui::Text::ToUpper();
 }
 
 void EditScans::List::hideError() {
@@ -686,7 +686,7 @@ void EditScans::setupSpecialScans(
 		) | rpl::map([=, type = type](bool created) {
 			return Lang::Viewer(uploadKey(type, created));
 		}) | rpl::flatten_latest(
-		) | Info::Profile::ToUpperValue();
+		) | Ui::Text::ToUpper();
 		scan.upload = inner->add(
 			object_ptr<Info::Profile::Button>(
 				inner,

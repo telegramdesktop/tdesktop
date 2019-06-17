@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/search_field_controller.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
@@ -167,7 +168,7 @@ object_ptr<Ui::FlatLabel> Members::setupTitle() {
 			_peer
 		) | rpl::map([](int count) {
 			return lng_chat_status_members(lt_count_decimal, count);
-		}) | ToUpperValue(),
+		}) | Ui::Text::ToUpper(),
 		st::infoBlockHeaderLabel);
 	result->setAttribute(Qt::WA_TransparentForMouseEvents);
 	return result;
