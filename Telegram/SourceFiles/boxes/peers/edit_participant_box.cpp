@@ -429,7 +429,16 @@ void EditAdminBox::transferOwnership() {
 	)).fail([=](const RPCError &error) {
 		_checkTransferRequestId = 0;
 		if (!handleTransferPasswordError(error)) {
-			transferOwnershipChecked();
+			getDelegate()->show(Box<ConfirmBox>(
+				tr::lng_rights_transfer_about(
+					tr::now,
+					lt_group,
+					Ui::Text::Bold(peer()->name),
+					lt_user,
+					Ui::Text::Bold(user()->shortName()),
+					Ui::Text::RichLangValue),
+				lang(lng_rights_transfer_sure),
+				crl::guard(this, [=] { transferOwnershipChecked(); })));
 		}
 	}).send();
 }
