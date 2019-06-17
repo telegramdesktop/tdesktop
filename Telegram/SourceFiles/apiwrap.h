@@ -99,7 +99,9 @@ public:
 		bool operator!=(const BlockedUsersSlice &other) const;
 	};
 
-	ApiWrap(not_null<AuthSession*> session);
+	explicit ApiWrap(not_null<AuthSession*> session);
+
+	AuthSession &session() const;
 
 	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
 	void applyNotifySettings(

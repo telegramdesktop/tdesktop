@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 
 class ApiWrap;
+class AuthSession;
 
 namespace Storage {
 namespace Cache {
@@ -106,6 +107,8 @@ public:
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
 		uint8 cacheTag);
+
+	AuthSession &session() const;
 
 	bool finished() const {
 		return _finished;

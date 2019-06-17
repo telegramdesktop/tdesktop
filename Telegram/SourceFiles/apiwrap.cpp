@@ -248,6 +248,10 @@ ApiWrap::ApiWrap(not_null<AuthSession*> session)
 	});
 }
 
+AuthSession &ApiWrap::session() const {
+	return *_session;
+}
+
 void ApiWrap::setupSupportMode() {
 	if (!_session->supportMode()) {
 		return;

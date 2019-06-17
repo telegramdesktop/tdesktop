@@ -171,6 +171,10 @@ FileLoader::FileLoader(
 	Expects(!_filename.isEmpty() || (_size <= Storage::kMaxFileInMemory));
 }
 
+AuthSession &FileLoader::session() const {
+	return _downloader->api().session();
+}
+
 void FileLoader::finishWithBytes(const QByteArray &data) {
 	_data = data;
 	_localStatus = LocalStatus::Loaded;
@@ -411,7 +415,7 @@ void FileLoader::loadLocal(const Storage::Cache::Key &key) {
 				std::move(image));
 		});
 	};
-	Auth().data().cache().get(key, [=, callback = std::move(done)](
+	session().data().cache().get(key, [=, callback = std::move(done)](
 			QByteArray &&value) mutable {
 		if (readImage) {
 			crl::async([
@@ -478,6 +482,7 @@ void FileLoader::cancel(bool fail) {
 	removeFromQueue();
 
 	const auto queue = _queue;
+	const auto sessionGuard = &session();
 	const auto weak = make_weak(this);
 	if (fail) {
 		emit failed(this, started);
@@ -488,7 +493,9 @@ void FileLoader::cancel(bool fail) {
 		_filename = QString();
 		_file.setFileName(_filename);
 	}
-	LoadNextFromQueue(queue);
+
+	// Current cancel() call could be made from ~AuthSession().
+	crl::on_main(sessionGuard, [=] { LoadNextFromQueue(queue); });
 }
 
 void FileLoader::startLoading() {
@@ -596,7 +603,7 @@ bool FileLoader::finalizeResult() {
 		}
 		if ((_toCache == LoadToCacheAsWell)
 			&& (_data.size() <= Storage::kMaxFileInMemory)) {
-			Auth().data().cache().put(
+			session().data().cache().put(
 				cacheKey(),
 				Storage::Cache::Database::TaggedValue(
 					base::duplicate(_data),
@@ -775,7 +782,7 @@ mtpRequestId mtpFileLoader::sendRequest(const RequestData &requestData) {
 	}, [&](const StorageFileLocation &location) {
 		return MTP::send(
 			MTPupload_GetFile(
-				location.tl(Auth().userId()),
+				location.tl(session().userId()),
 				MTP_int(offset),
 				MTP_int(limit)),
 			rpcDone(&mtpFileLoader::normalPartLoaded),
@@ -1053,7 +1060,7 @@ bool mtpFileLoader::normalPartFailed(
 	}
 	if (error.code() == 400
 		&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
-		Auth().api().refreshFileReference(
+		session().api().refreshFileReference(
 			_origin,
 			this,
 			requestId,
