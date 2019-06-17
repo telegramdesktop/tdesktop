@@ -185,9 +185,7 @@ Filler::Filler(
 }
 
 bool Filler::showInfo() {
-	if (_source == PeerMenuSource::Profile
-		|| _source == PeerMenuSource::ChatsList
-		|| _peer->isSelf()) {
+	if (_source == PeerMenuSource::Profile || _peer->isSelf()) {
 		return false;
 	} else if (_controller->activeChatCurrent().peer() != _peer) {
 		return true;
