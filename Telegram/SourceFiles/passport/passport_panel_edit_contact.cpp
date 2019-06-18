@@ -234,15 +234,11 @@ void PanelEditContact::setupControls(
 		_content->add(
 			object_ptr<Info::Profile::Button>(
 				_content,
-				Lang::Viewer(
-					lng_passport_use_existing__tagged
-				) | rpl::map([=] {
-					return lng_passport_use_existing(
-						lt_existing,
-						(_scheme.format
-							? _scheme.format(existing)
-							: existing));
-				}),
+				tr::lng_passport_use_existing(
+					lt_existing,
+					rpl::single(_scheme.format
+						? _scheme.format(existing)
+						: existing)),
 				st::passportUploadButton),
 			st::passportUploadButtonPadding
 		)->addClickHandler([=] {

@@ -154,12 +154,9 @@ object_ptr<Ui::FlatButton> SetupDiscussButton(
 		QString(),
 		st::historyComposeButton);
 	const auto button = result.data();
-	auto text = Lang::Viewer(
-		lng_channel_discuss
-	) | Ui::Text::ToUpper();
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
-		rpl::duplicate(text),
+		tr::lng_channel_discuss() | Ui::Text::ToUpper(),
 		st::historyComposeButtonLabel);
 	const auto badge = Ui::CreateChild<Ui::UnreadBadge>(button);
 	label->show();

@@ -46,7 +46,7 @@ Bar::Bar(not_null<QWidget*> parent, QDate date)
 : _date(date)
 , _title(
 	this,
-	Lang::Viewer(lng_outdated_title) | Ui::Text::ToUpper(),
+	tr::lng_outdated_title() | Ui::Text::ToUpper(),
 	st::windowOutdatedTitle)
 , _details(this,
 	QString(),

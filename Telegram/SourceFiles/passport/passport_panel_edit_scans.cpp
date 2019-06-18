@@ -210,9 +210,9 @@ Ui::SlideWrap<ScanButton> *EditScans::List::nonDeletedErrorRow() const {
 }
 
 rpl::producer<QString> EditScans::List::uploadButtonText() const {
-	return Lang::Viewer(files.empty()
-		? lng_passport_upload_scans
-		: lng_passport_upload_more) | Ui::Text::ToUpper();
+	return (files.empty()
+		? tr::lng_passport_upload_scans
+		: tr::lng_passport_upload_more)() | Ui::Text::ToUpper();
 }
 
 void EditScans::List::hideError() {
@@ -611,37 +611,37 @@ void EditScans::setupSpecialScans(
 		}
 		Unexpected("Type in special row title.");
 	};
-	const auto uploadKey = [=](FileType type, bool hasScan) {
+	const auto uploadText = [=](FileType type, bool hasScan) {
 		switch (type) {
 		case FileType::FrontSide:
 			return requiresBothSides
 				? (hasScan
-					? lng_passport_reupload_front_side
-					: lng_passport_upload_front_side)
+					? tr::lng_passport_reupload_front_side
+					: tr::lng_passport_upload_front_side)
 				: (hasScan
-					? lng_passport_reupload_main_page
-					: lng_passport_upload_main_page);
+					? tr::lng_passport_reupload_main_page
+					: tr::lng_passport_upload_main_page);
 		case FileType::ReverseSide:
 			return hasScan
-				? lng_passport_reupload_reverse_side
-				: lng_passport_upload_reverse_side;
+				? tr::lng_passport_reupload_reverse_side
+				: tr::lng_passport_upload_reverse_side;
 		case FileType::Selfie:
 			return hasScan
-				? lng_passport_reupload_selfie
-				: lng_passport_upload_selfie;
+				? tr::lng_passport_reupload_selfie
+				: tr::lng_passport_upload_selfie;
 		}
 		Unexpected("Type in special row upload key.");
 	};
 	const auto description = [&](FileType type) {
 		switch (type) {
 		case FileType::FrontSide:
-			return lang(requiresBothSides
-				? lng_passport_front_side_description
-				: lng_passport_main_page_description);
+			return requiresBothSides
+				? tr::lng_passport_front_side_description
+				: tr::lng_passport_main_page_description;
 		case FileType::ReverseSide:
-			return lang(lng_passport_reverse_side_description);
+			return tr::lng_passport_reverse_side_description;
 		case FileType::Selfie:
-			return lang(lng_passport_selfie_description);
+			return tr::lng_passport_selfie_description;
 		}
 		Unexpected("Type in special row upload key.");
 	};
@@ -684,7 +684,7 @@ void EditScans::setupSpecialScans(
 		}
 		auto label = scan.rowCreated.value(
 		) | rpl::map([=, type = type](bool created) {
-			return Lang::Viewer(uploadKey(type, created));
+			return uploadText(type, created)();
 		}) | rpl::flatten_latest(
 		) | Ui::Text::ToUpper();
 		scan.upload = inner->add(
@@ -701,7 +701,7 @@ void EditScans::setupSpecialScans(
 			inner,
 			object_ptr<Ui::FlatLabel>(
 				inner,
-				description(type),
+				description(type)(tr::now),
 				st::boxDividerLabel),
 			st::passportFormLabelPadding));
 	}

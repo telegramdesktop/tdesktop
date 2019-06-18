@@ -551,78 +551,76 @@ rpl::producer<QString> TitleValue(
 		const Section &section,
 		Key key,
 		bool isStackBottom) {
-	return Lang::Viewer([&] {
-		const auto peer = key.peer();
+	const auto peer = key.peer();
 
-		switch (section.type()) {
-		case Section::Type::Profile:
-			/*if (const auto feed = key.feed()) {
-				return lng_info_feed_title;
-			} else */if (const auto user = peer->asUser()) {
-				return (user->isBot() && !user->isSupport())
-					? lng_info_bot_title
-					: lng_info_user_title;
-			} else if (const auto channel = peer->asChannel()) {
-				return channel->isMegagroup()
-					? lng_info_group_title
-					: lng_info_channel_title;
-			} else if (peer->isChat()) {
-				return lng_info_group_title;
-			}
-			Unexpected("Bad peer type in Info::TitleValue()");
-
-		case Section::Type::Media:
-			if (peer->isSelf() && isStackBottom) {
-				return lng_profile_shared_media;
-			}
-			switch (section.mediaType()) {
-			case Section::MediaType::Photo:
-				return lng_media_type_photos;
-			case Section::MediaType::Video:
-				return lng_media_type_videos;
-			case Section::MediaType::MusicFile:
-				return lng_media_type_songs;
-			case Section::MediaType::File:
-				return lng_media_type_files;
-			case Section::MediaType::RoundVoiceFile:
-				return lng_media_type_audios;
-			case Section::MediaType::Link:
-				return lng_media_type_links;
-			case Section::MediaType::RoundFile:
-				return lng_media_type_rounds;
-			}
-			Unexpected("Bad media type in Info::TitleValue()");
-
-		case Section::Type::CommonGroups:
-			return lng_profile_common_groups_section;
-
-		case Section::Type::Members:
-			return lng_profile_participants_section;
-
-		//case Section::Type::Channels: // #feed
-		//	return lng_info_feed_channels;
-
-		case Section::Type::Settings:
-			switch (section.settingsType()) {
-			case Section::SettingsType::Main:
-				return lng_menu_settings;
-			case Section::SettingsType::Information:
-				return lng_settings_section_info;
-			case Section::SettingsType::Notifications:
-				return lng_settings_section_notify;
-			case Section::SettingsType::PrivacySecurity:
-				return lng_settings_section_privacy;
-			case Section::SettingsType::Advanced:
-				return lng_settings_advanced;
-			case Section::SettingsType::Chat:
-				return lng_settings_section_chat_settings;
-			case Section::SettingsType::Calls:
-				return lng_settings_section_call_settings;
-			}
-			Unexpected("Bad settings type in Info::TitleValue()");
+	switch (section.type()) {
+	case Section::Type::Profile:
+		/*if (const auto feed = key.feed()) {
+			return tr::lng_info_feed_title();
+		} else */if (const auto user = peer->asUser()) {
+			return (user->isBot() && !user->isSupport())
+				? tr::lng_info_bot_title()
+				: tr::lng_info_user_title();
+		} else if (const auto channel = peer->asChannel()) {
+			return channel->isMegagroup()
+				? tr::lng_info_group_title()
+				: tr::lng_info_channel_title();
+		} else if (peer->isChat()) {
+			return tr::lng_info_group_title();
 		}
-		Unexpected("Bad section type in Info::TitleValue()");
-	}());
+		Unexpected("Bad peer type in Info::TitleValue()");
+
+	case Section::Type::Media:
+		if (peer->isSelf() && isStackBottom) {
+			return tr::lng_profile_shared_media();
+		}
+		switch (section.mediaType()) {
+		case Section::MediaType::Photo:
+			return tr::lng_media_type_photos();
+		case Section::MediaType::Video:
+			return tr::lng_media_type_videos();
+		case Section::MediaType::MusicFile:
+			return tr::lng_media_type_songs();
+		case Section::MediaType::File:
+			return tr::lng_media_type_files();
+		case Section::MediaType::RoundVoiceFile:
+			return tr::lng_media_type_audios();
+		case Section::MediaType::Link:
+			return tr::lng_media_type_links();
+		case Section::MediaType::RoundFile:
+			return tr::lng_media_type_rounds();
+		}
+		Unexpected("Bad media type in Info::TitleValue()");
+
+	case Section::Type::CommonGroups:
+		return tr::lng_profile_common_groups_section();
+
+	case Section::Type::Members:
+		return tr::lng_profile_participants_section();
+
+	//case Section::Type::Channels: // #feed
+	//	return tr::lng_info_feed_channels();
+
+	case Section::Type::Settings:
+		switch (section.settingsType()) {
+		case Section::SettingsType::Main:
+			return tr::lng_menu_settings();
+		case Section::SettingsType::Information:
+			return tr::lng_settings_section_info();
+		case Section::SettingsType::Notifications:
+			return tr::lng_settings_section_notify();
+		case Section::SettingsType::PrivacySecurity:
+			return tr::lng_settings_section_privacy();
+		case Section::SettingsType::Advanced:
+			return tr::lng_settings_advanced();
+		case Section::SettingsType::Chat:
+			return tr::lng_settings_section_chat_settings();
+		case Section::SettingsType::Calls:
+			return tr::lng_settings_section_call_settings();
+		}
+		Unexpected("Bad settings type in Info::TitleValue()");
+	}
+	Unexpected("Bad section type in Info::TitleValue()");
 }
 
 } // namespace Info

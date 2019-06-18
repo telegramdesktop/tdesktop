@@ -99,7 +99,7 @@ void Controller::setupCover() {
 			_user,
 			_window->sessionController(),
 			(_phone.isEmpty()
-				? Lang::Viewer(lng_contact_mobile_hidden)
+				? tr::lng_contact_mobile_hidden()
 				: rpl::single(App::formatPhone(_phone)))),
 		style::margins())->setAttribute(Qt::WA_TransparentForMouseEvents);
 }

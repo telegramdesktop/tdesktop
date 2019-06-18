@@ -597,7 +597,7 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 		not_null<Ui::VerticalLayout*> container) {
 	using namespace Settings;
 
-	AddSubsectionTitle(container, lng_polls_create_question);
+	AddSubsectionTitle(container, tr::lng_polls_create_question());
 	const auto question = container->add(
 		object_ptr<Ui::InputField>(
 			container,
@@ -645,7 +645,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	const auto question = setupQuestion(container);
 	AddDivider(container);
 	AddSkip(container);
-	AddSubsectionTitle(container, lng_polls_create_options);
+	AddSubsectionTitle(container, tr::lng_polls_create_options());
 	const auto options = lifetime().make_state<Options>(
 		getDelegate()->outerContainer(),
 		container);

@@ -23,7 +23,7 @@ object_ptr<BoxContent> CloudPasswordAppOutdatedBox();
 
 void AddPrivacyButton(
 	not_null<Ui::VerticalLayout*> container,
-	LangKey label,
+	rpl::producer<QString> label,
 	ApiWrap::Privacy::Key key,
 	Fn<std::unique_ptr<EditPrivacyController>()> controller);
 

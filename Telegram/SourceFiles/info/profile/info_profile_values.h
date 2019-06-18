@@ -30,12 +30,6 @@ inline auto ToSingleLine() {
 	});
 }
 
-inline auto WithEmptyEntities() {
-	return rpl::map([](QString &&text) {
-		return TextWithEntities{ std::move(text), {} };
-	});
-}
-
 rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer);
 rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user);
 rpl::producer<TextWithEntities> BioValue(not_null<UserData*> user);

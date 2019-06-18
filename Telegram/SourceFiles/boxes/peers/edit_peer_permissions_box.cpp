@@ -336,7 +336,7 @@ void EditPeerPermissionsBox::prepare() {
 
 	auto [checkboxes, getRestrictions, changes] = CreateEditRestrictions(
 		this,
-		lng_rights_default_restrictions_header,
+		tr::lng_rights_default_restrictions_header(),
 		restrictions,
 		disabledMessages);
 
@@ -367,7 +367,7 @@ void EditPeerPermissionsBox::addBannedButtons(
 	const auto navigation = App::wnd()->sessionController();
 	container->add(EditPeerInfoBox::CreateButton(
 		container,
-		Lang::Viewer(lng_manage_peer_exceptions),
+		tr::lng_manage_peer_exceptions(),
 		(channel
 			? Info::Profile::RestrictedCountValue(channel)
 			: rpl::single(0)) | ToPositiveNumberString(),
@@ -381,7 +381,7 @@ void EditPeerPermissionsBox::addBannedButtons(
 	if (channel) {
 		container->add(EditPeerInfoBox::CreateButton(
 			container,
-			Lang::Viewer(lng_manage_peer_removed_users),
+			tr::lng_manage_peer_removed_users(),
 			Info::Profile::KickedCountValue(channel)
 			| ToPositiveNumberString(),
 			[=] {
@@ -400,7 +400,7 @@ template <
 	typename FlagLabelPairs>
 EditFlagsControl<Flags> CreateEditFlags(
 		QWidget *parent,
-		LangKey header,
+		rpl::producer<QString> header,
 		Flags checked,
 		const DisabledMessagePairs &disabledMessagePairs,
 		const FlagLabelPairs &flagLabelPairs) {
@@ -433,7 +433,7 @@ EditFlagsControl<Flags> CreateEditFlags(
 	container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
-			Lang::Viewer(header),
+			std::move(header),
 			st::rightsHeaderLabel),
 		st::rightsHeaderMargin);
 
@@ -490,7 +490,7 @@ EditFlagsControl<Flags> CreateEditFlags(
 
 EditFlagsControl<MTPDchatBannedRights::Flags> CreateEditRestrictions(
 		QWidget *parent,
-		LangKey header,
+		rpl::producer<QString> header,
 		MTPDchatBannedRights::Flags restrictions,
 		std::map<MTPDchatBannedRights::Flags, QString> disabledMessages) {
 	auto result = CreateEditFlags(
@@ -511,7 +511,7 @@ EditFlagsControl<MTPDchatBannedRights::Flags> CreateEditRestrictions(
 
 EditFlagsControl<MTPDchatAdminRights::Flags> CreateEditAdminRights(
 		QWidget *parent,
-		LangKey header,
+	rpl::producer<QString> header,
 		MTPDchatAdminRights::Flags rights,
 		std::map<MTPDchatAdminRights::Flags, QString> disabledMessages,
 		bool isGroup,

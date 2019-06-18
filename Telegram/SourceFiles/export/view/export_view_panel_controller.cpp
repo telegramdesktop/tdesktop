@@ -142,9 +142,9 @@ void PanelController::activatePanel() {
 void PanelController::createPanel() {
 	const auto singlePeer = _settings->onlySinglePeer();
 	_panel = base::make_unique_q<Ui::SeparatePanel>();
-	_panel->setTitle(Lang::Viewer(singlePeer
-		? lng_export_header_chats
-		: lng_export_title));
+	_panel->setTitle((singlePeer
+		? tr::lng_export_header_chats
+		: tr::lng_export_title)());
 	_panel->setInnerSize(st::exportPanelSize);
 	_panel->closeRequests(
 	) | rpl::start_with_next([=] {
@@ -268,7 +268,7 @@ void PanelController::showProgress() {
 	_settings->availableAt = 0;
 	ClearSuggestStart();
 
-	_panel->setTitle(Lang::Viewer(lng_export_progress_title));
+	_panel->setTitle(tr::lng_export_progress_title());
 
 	auto progress = base::make_unique_q<ProgressWidget>(
 		_panel.get(),
@@ -365,7 +365,7 @@ void PanelController::updateState(State &&state) {
 	} else if (const auto error = base::get_if<OutputErrorState>(&_state)) {
 		showError(*error);
 	} else if (_state.is<FinishedState>()) {
-		_panel->setTitle(Lang::Viewer(lng_export_title));
+		_panel->setTitle(tr::lng_export_title());
 		_panel->setHideOnDeactivate(false);
 	} else if (_state.is<CancelledState>()) {
 		LOG(("Export Info: Stop Panel After Cancel."));

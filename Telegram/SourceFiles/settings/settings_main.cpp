@@ -34,7 +34,7 @@ void SetupLanguageButton(
 		bool icon) {
 	const auto button = AddButtonWithLabel(
 		container,
-		lng_settings_language,
+		tr::lng_settings_language(),
 		rpl::single(Lang::Current().nativeName()),
 		icon ? st::settingsSectionButton : st::settingsButton,
 		icon ? &st::settingsIconLanguage : nullptr);
@@ -56,12 +56,12 @@ void SetupSections(
 	AddSkip(container);
 
 	const auto addSection = [&](
-			LangKey label,
+			rpl::producer<QString> label,
 			Type type,
 			const style::icon *icon) {
 		AddButton(
 			container,
-			label,
+			std::move(label),
 			st::settingsSectionButton,
 			icon
 		)->addClickHandler([=] { showOther(type); });
@@ -73,24 +73,24 @@ void SetupSections(
 		AddSkip(container);
 	} else {
 		addSection(
-			lng_settings_information,
+			tr::lng_settings_information(),
 			Type::Information,
 			&st::settingsIconInformation);
 	}
 	addSection(
-		lng_settings_section_notify,
+		tr::lng_settings_section_notify(),
 		Type::Notifications,
 		&st::settingsIconNotifications);
 	addSection(
-		lng_settings_section_privacy,
+		tr::lng_settings_section_privacy(),
 		Type::PrivacySecurity,
 		&st::settingsIconPrivacySecurity);
 	addSection(
-		lng_settings_section_chat_settings,
+		tr::lng_settings_section_chat_settings(),
 		Type::Chat,
 		&st::settingsIconChat);
 	addSection(
-		lng_settings_advanced,
+		tr::lng_settings_advanced(),
 		Type::Advanced,
 		&st::settingsIconGeneral);
 
@@ -116,7 +116,7 @@ void SetupInterfaceScale(
 	const auto switched = (cConfigScale() == kInterfaceScaleAuto);
 	const auto button = AddButton(
 		container,
-		lng_settings_default_scale,
+		tr::lng_settings_default_scale(),
 		icon ? st::settingsSectionButton : st::settingsButton,
 		icon ? &st::settingsIconInterfaceScale : nullptr
 	)->toggleOn(toggled->events_starting_with_copy(switched));
@@ -216,7 +216,7 @@ void OpenFaq() {
 void SetupFaq(not_null<Ui::VerticalLayout*> container, bool icon) {
 	AddButton(
 		container,
-		lng_settings_faq,
+		tr::lng_settings_faq(),
 		icon ? st::settingsSectionButton : st::settingsButton,
 		icon ? &st::settingsIconFaq : nullptr
 	)->addClickHandler(OpenFaq);
@@ -231,7 +231,7 @@ void SetupHelp(not_null<Ui::VerticalLayout*> container) {
 	if (AuthSession::Exists()) {
 		const auto button = AddButton(
 			container,
-			lng_settings_ask_question,
+			tr::lng_settings_ask_question(),
 			st::settingsSectionButton);
 		button->addClickHandler([=] {
 			const auto ready = crl::guard(button, [](const MTPUser &data) {

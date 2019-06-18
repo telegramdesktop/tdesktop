@@ -320,7 +320,7 @@ void EditAdminBox::prepare() {
 		: channel->anyoneCanAddMembers();
 	auto [checkboxes, getChecked, changes] = CreateEditAdminRights(
 		this,
-		lng_rights_edit_admin_header,
+		tr::lng_rights_edit_admin_header(),
 		prepareFlags,
 		disabledMessages,
 		isGroup,
@@ -401,9 +401,9 @@ not_null<Ui::SlideWrap<Ui::RpWidget>*> EditAdminBox::setupTransferButton(
 	addDivider();
 	container->add(EditPeerInfoBox::CreateButton(
 		this,
-		Lang::Viewer(isGroup
-			? lng_rights_transfer_group
-			: lng_rights_transfer_channel),
+		(isGroup
+			? tr::lng_rights_transfer_group
+			: tr::lng_rights_transfer_channel)(),
 		rpl::single(QString()),
 		[=] { transferOwnership(); },
 		st::peerPermissionsButton));
@@ -620,7 +620,7 @@ void EditRestrictedBox::prepare() {
 
 	auto [checkboxes, getRestrictions, changes] = CreateEditRestrictions(
 		this,
-		lng_rights_user_restrictions_header,
+		tr::lng_rights_user_restrictions_header(),
 		prepareFlags,
 		disabledMessages);
 	addControl(std::move(checkboxes), QMargins());

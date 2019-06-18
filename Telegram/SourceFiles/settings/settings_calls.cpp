@@ -96,10 +96,10 @@ void Calls::setupContent() {
 	}();
 
 	AddSkip(content);
-	AddSubsectionTitle(content, lng_settings_call_section_output);
+	AddSubsectionTitle(content, tr::lng_settings_call_section_output());
 	AddButtonWithLabel(
 		content,
-		lng_settings_call_output_device,
+		tr::lng_settings_call_output_device(),
 		rpl::single(
 			currentOutputName
 		) | rpl::then(
@@ -171,10 +171,10 @@ void Calls::setupContent() {
 	AddSkip(content);
 	AddDivider(content);
 	AddSkip(content);
-	AddSubsectionTitle(content, lng_settings_call_section_input);
+	AddSubsectionTitle(content, tr::lng_settings_call_section_input());
 	AddButtonWithLabel(
 		content,
-		lng_settings_call_input_device,
+		tr::lng_settings_call_input_device(),
 		rpl::single(
 			currentInputName
 		) | rpl::then(
@@ -276,12 +276,12 @@ void Calls::setupContent() {
 	AddSkip(content);
 	AddDivider(content);
 	AddSkip(content);
-	AddSubsectionTitle(content, lng_settings_call_section_other);
+	AddSubsectionTitle(content, tr::lng_settings_call_section_other());
 
 #if defined Q_OS_MAC && !defined OS_MAC_STORE
 	AddButton(
 		content,
-		lng_settings_call_audio_ducking,
+		tr::lng_settings_call_audio_ducking(),
 		st::settingsButton
 	)->toggleOn(
 		rpl::single(Global::CallAudioDuckingEnabled())
@@ -298,7 +298,7 @@ void Calls::setupContent() {
 
 	AddButton(
 		content,
-		lng_settings_call_open_system_prefs,
+		tr::lng_settings_call_open_system_prefs(),
 		st::settingsButton
 	)->addClickHandler([] {
 		const auto opened = Platform::OpenSystemSettings(

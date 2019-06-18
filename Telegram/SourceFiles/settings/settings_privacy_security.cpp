@@ -106,7 +106,7 @@ rpl::producer<int> BlockedUsersCount() {
 
 void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsPrivacySkip);
-	AddSubsectionTitle(container, lng_settings_privacy_title);
+	AddSubsectionTitle(container, tr::lng_settings_privacy_title());
 
 	auto count = BlockedUsersCount(
 	) | rpl::map([](int count) {
@@ -114,7 +114,7 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 	});
 	AddButtonWithLabel(
 		container,
-		lng_settings_blocked_users,
+		tr::lng_settings_blocked_users(),
 		std::move(count),
 		st::settingsButton
 	)->addClickHandler([] {
@@ -132,38 +132,39 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 	});
 
 	using Key = Privacy::Key;
-	const auto add = [&](LangKey label, Key key, auto controller) {
-		AddPrivacyButton(container, label, key, controller);
+	const auto add = [&](
+			rpl::producer<QString> label,
+			Key key,
+			auto controller) {
+		AddPrivacyButton(container, std::move(label), key, controller);
 	};
 	add(
-		lng_settings_phone_number_privacy,
+		tr::lng_settings_phone_number_privacy(),
 		Key::PhoneNumber,
 		[] { return std::make_unique<PhoneNumberPrivacyController>(); });
 	add(
-		lng_settings_last_seen,
+		tr::lng_settings_last_seen(),
 		Key::LastSeen,
 		[] { return std::make_unique<LastSeenPrivacyController>(); });
 	add(
-		lng_settings_forwards_privacy,
+		tr::lng_settings_forwards_privacy(),
 		Key::Forwards,
 		[] { return std::make_unique<ForwardsPrivacyController>(); });
 	add(
-		lng_settings_profile_photo_privacy,
+		tr::lng_settings_profile_photo_privacy(),
 		Key::ProfilePhoto,
 		[] { return std::make_unique<ProfilePhotoPrivacyController>(); });
 	add(
-		lng_settings_calls,
+		tr::lng_settings_calls(),
 		Key::Calls,
 		[] { return std::make_unique<CallsPrivacyController>(); });
 	add(
-		lng_settings_groups_invite,
+		tr::lng_settings_groups_invite(),
 		Key::Invites,
 		[] { return std::make_unique<GroupsInvitePrivacyController>(); });
 
 	AddSkip(container, st::settingsPrivacySecurityPadding);
-	AddDividerText(
-		container,
-		Lang::Viewer(lng_settings_group_privacy_about));
+	AddDividerText(container, tr::lng_settings_group_privacy_about());
 }
 
 not_null<Ui::SlideWrap<Ui::PlainShadow>*> AddSeparator(
@@ -177,15 +178,15 @@ not_null<Ui::SlideWrap<Ui::PlainShadow>*> AddSeparator(
 
 void SetupLocalPasscode(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container);
-	AddSubsectionTitle(container, lng_settings_passcode_title);
+	AddSubsectionTitle(container, tr::lng_settings_passcode_title());
 
 	auto has = PasscodeChanges(
 	) | rpl::map([] {
 		return Global::LocalPasscode();
 	});
 	auto text = rpl::combine(
-		Lang::Viewer(lng_passcode_change),
-		Lang::Viewer(lng_passcode_turn_on),
+		tr::lng_passcode_change(),
+		tr::lng_passcode_turn_on(),
 		base::duplicate(has),
 		[](const QString &change, const QString &create, bool has) {
 			return has ? change : create;
@@ -207,15 +208,15 @@ void SetupLocalPasscode(not_null<Ui::VerticalLayout*> container) {
 	inner->add(
 		object_ptr<Button>(
 			inner,
-			Lang::Viewer(lng_settings_passcode_disable),
+			tr::lng_settings_passcode_disable(),
 			st::settingsButton)
 	)->addClickHandler([] {
 		Ui::show(Box<PasscodeBox>(true));
 	});
 
 	const auto label = Platform::LastUserInputTimeSupported()
-		? lng_passcode_autolock_away
-		: lng_passcode_autolock_inactive;
+		? tr::lng_passcode_autolock_away
+		: tr::lng_passcode_autolock_inactive;
 	auto value = PasscodeChanges(
 	) | rpl::map([] {
 		const auto autolock = Global::AutoLock();
@@ -226,7 +227,7 @@ void SetupLocalPasscode(not_null<Ui::VerticalLayout*> container) {
 
 	AddButtonWithLabel(
 		inner,
-		label,
+		label(),
 		std::move(value),
 		st::settingsButton
 	)->addClickHandler([] {
@@ -244,7 +245,7 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 
 	AddDivider(container);
 	AddSkip(container);
-	AddSubsectionTitle(container, lng_settings_password_title);
+	AddSubsectionTitle(container, tr::lng_settings_password_title());
 
 	auto has = rpl::single(
 		false
@@ -300,8 +301,8 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 	}, label->lifetime());
 
 	auto text = rpl::combine(
-		Lang::Viewer(lng_cloud_password_set),
-		Lang::Viewer(lng_cloud_password_edit),
+		tr::lng_cloud_password_set(),
+		tr::lng_cloud_password_edit(),
 		base::duplicate(has)
 	) | rpl::map([](const QString &set, const QString &edit, bool has) {
 		return has ? edit : set;
@@ -331,7 +332,7 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 			container,
 			object_ptr<Button>(
 				container,
-				Lang::Viewer(lng_cloud_password_confirm),
+				tr::lng_cloud_password_confirm(),
 				st::settingsButton)));
 	confirm->toggleOn(rpl::single(
 		false
@@ -372,7 +373,7 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 			container,
 			object_ptr<Button>(
 				container,
-				Lang::Viewer(lng_settings_password_disable),
+				tr::lng_settings_password_disable(),
 				st::settingsButton)));
 	disable->toggleOn(rpl::combine(
 		rpl::duplicate(has),
@@ -385,7 +386,7 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 			container,
 			object_ptr<Button>(
 				container,
-				Lang::Viewer(lng_settings_password_abort),
+				tr::lng_settings_password_abort(),
 				st::settingsAttentionButton)));
 	abort->toggleOn(rpl::combine(
 		rpl::duplicate(has),
@@ -412,7 +413,7 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 void SetupSelfDestruction(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
-	AddSubsectionTitle(container, lng_settings_destroy_title);
+	AddSubsectionTitle(container, tr::lng_settings_destroy_title());
 
 	Auth().api().reloadSelfDestruct();
 	const auto label = [] {
@@ -424,7 +425,7 @@ void SetupSelfDestruction(not_null<Ui::VerticalLayout*> container) {
 
 	AddButtonWithLabel(
 		container,
-		lng_settings_destroy_if,
+		tr::lng_settings_destroy_if(),
 		label(),
 		st::settingsButton
 	)->addClickHandler([] {
@@ -436,19 +437,17 @@ void SetupSelfDestruction(not_null<Ui::VerticalLayout*> container) {
 
 void SetupSessionsList(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container);
-	AddSubsectionTitle(container, lng_settings_sessions_title);
+	AddSubsectionTitle(container, tr::lng_settings_sessions_title());
 
 	AddButton(
 		container,
-		lng_settings_show_sessions,
+		tr::lng_settings_show_sessions(),
 		st::settingsButton
 	)->addClickHandler([] {
 		Ui::show(Box<SessionsBox>());
 	});
 	AddSkip(container, st::settingsPrivacySecurityPadding);
-	AddDividerText(
-		container,
-		Lang::Viewer(lng_settings_sessions_about));
+	AddDividerText(container, tr::lng_settings_sessions_about());
 }
 
 } // namespace
@@ -541,13 +540,13 @@ object_ptr<BoxContent> CloudPasswordAppOutdatedBox() {
 
 void AddPrivacyButton(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey label,
+		rpl::producer<QString> label,
 		Privacy::Key key,
 		Fn<std::unique_ptr<EditPrivacyController>()> controller) {
 	const auto shower = Ui::CreateChild<rpl::lifetime>(container.get());
 	AddButtonWithLabel(
 		container,
-		label,
+		std::move(label),
 		PrivacyString(key),
 		st::settingsButton
 	)->addClickHandler([=] {

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "auth_session.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/text/text_utilities.h"
 #include "data/data_peer_values.h"
 #include "data/data_shared_media.h"
 #include "data/data_folder.h"
@@ -30,7 +31,7 @@ rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer) {
 		Notify::PeerUpdate::Flag::NameChanged
 	) | rpl::map([=] {
 		return App::peerName(peer);
-	}) | WithEmptyEntities();
+	}) | Ui::Text::ToWithEntities();
 }
 
 rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
@@ -39,7 +40,7 @@ rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
 			Notify::PeerUpdate::Flag::UserPhoneChanged
 	) | rpl::map([user] {
 		return App::formatPhone(user->phone());
-	}) | WithEmptyEntities();
+	}) | Ui::Text::ToWithEntities();
 }
 
 auto PlainBioValue(not_null<UserData*> user) {
@@ -52,7 +53,7 @@ auto PlainBioValue(not_null<UserData*> user) {
 rpl::producer<TextWithEntities> BioValue(not_null<UserData*> user) {
 	return PlainBioValue(user)
 		| ToSingleLine()
-		| WithEmptyEntities();
+		| Ui::Text::ToWithEntities();
 }
 
 auto PlainUsernameValue(not_null<PeerData*> peer) {
@@ -71,7 +72,7 @@ rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user) {
 		return username.isEmpty()
 			? QString()
 			: ('@' + username);
-	}) | WithEmptyEntities();
+	}) | Ui::Text::ToWithEntities();
 }
 
 rpl::producer<QString> PlainAboutValue(not_null<PeerData*> peer) {
@@ -95,7 +96,7 @@ rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer) {
 	}
 	return PlainAboutValue(
 		peer
-	) | WithEmptyEntities(
+	) | Ui::Text::ToWithEntities(
 	) | rpl::map([=](TextWithEntities &&text) {
 		TextUtilities::ParseEntities(text, flags);
 		return std::move(text);

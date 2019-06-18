@@ -45,7 +45,7 @@ public:
 		std::optional<FnMut<void(Privacy, QString)>> savedCallback = {},
 		std::optional<Privacy> privacySaved = {},
 		std::optional<QString> usernameSaved = {},
-		std::optional<LangKey> usernameError = {});
+		std::optional<rpl::producer<QString>> usernameError = {});
 
 protected:
 	void prepare() override;
@@ -57,7 +57,7 @@ private:
 
 	std::optional<Privacy> _privacySavedValue;
 	std::optional<QString> _usernameSavedValue;
-	std::optional<LangKey> _usernameError;
+	std::optional<rpl::producer<QString>> _usernameError;
 
 	rpl::event_stream<> _focusRequests;
 

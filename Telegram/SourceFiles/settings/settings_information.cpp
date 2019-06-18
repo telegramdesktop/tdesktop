@@ -218,17 +218,17 @@ void SetupRows(
 
 	AddRow(
 		container,
-		Lang::Viewer(lng_settings_name_label),
+		tr::lng_settings_name_label(),
 		Info::Profile::NameValue(self),
-		lang(lng_profile_copy_fullname),
+		tr::lng_profile_copy_fullname(tr::now),
 		[=] { Ui::show(Box<EditNameBox>(self)); },
 		st::settingsInfoName);
 
 	AddRow(
 		container,
-		Lang::Viewer(lng_settings_phone_label),
+		tr::lng_settings_phone_label(),
 		Info::Profile::PhoneValue(self),
-		lang(lng_profile_copy_phone),
+		tr::lng_profile_copy_phone(tr::now),
 		[] { Ui::show(Box<ChangePhoneBox>()); },
 		st::settingsInfoPhone);
 
@@ -239,14 +239,14 @@ void SetupRows(
 		return username.text.isEmpty();
 	});
 	auto label = rpl::combine(
-		Lang::Viewer(lng_settings_username_label),
+		tr::lng_settings_username_label(),
 		std::move(empty)
 	) | rpl::map([](const QString &label, bool empty) {
 		return empty ? "t.me/username" : label;
 	});
 	auto value = rpl::combine(
 		std::move(username),
-		Lang::Viewer(lng_settings_username_add)
+		tr::lng_settings_username_add()
 	) | rpl::map([](const TextWithEntities &username, const QString &add) {
 		if (!username.text.isEmpty()) {
 			return username;
@@ -263,7 +263,7 @@ void SetupRows(
 		container,
 		std::move(label),
 		std::move(value),
-		lang(lng_context_copy_mention),
+		tr::lng_context_copy_mention(tr::now),
 		[=] { Ui::show(Box<UsernameBox>()); },
 		st::settingsInfoUsername);
 
@@ -392,7 +392,7 @@ BioManager SetupBio(
 	container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
-			Lang::Viewer(lng_settings_about_bio),
+			tr::lng_settings_about_bio(),
 			st::boxDividerLabel),
 		st::settingsBioLabelPadding);
 

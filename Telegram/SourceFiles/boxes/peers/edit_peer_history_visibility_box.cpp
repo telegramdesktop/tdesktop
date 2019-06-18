@@ -26,8 +26,8 @@ namespace {
 void AddRadioButton(
 		not_null<Ui::VerticalLayout*> container,
 		HistoryVisibility value,
-		LangKey groupTextKey,
-		LangKey groupAboutKey,
+		const QString &groupText,
+		rpl::producer<QString> groupAbout,
 		std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> historyVisibility) {
 	container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
@@ -36,13 +36,13 @@ void AddRadioButton(
 		container,
 		historyVisibility,
 		value,
-		lang(groupTextKey),
+		groupText,
 		st::defaultBoxCheckbox));
 	container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 		container,
 		object_ptr<Ui::FlatLabel>(
 			container,
-			Lang::Viewer(groupAboutKey),
+			std::move(groupAbout),
 			st::editPeerPrivacyLabel),
 		st::editPeerPreHistoryLabelMargins));
 }
@@ -80,16 +80,16 @@ void FillContent(
 	AddRadioButton(
 		container,
 		HistoryVisibility::Visible,
-		lng_manage_history_visibility_shown,
-		lng_manage_history_visibility_shown_about,
+		tr::lng_manage_history_visibility_shown(tr::now),
+		tr::lng_manage_history_visibility_shown_about(),
 		historyVisibility);
 	AddRadioButton(
 		container,
 		HistoryVisibility::Hidden,
-		lng_manage_history_visibility_hidden,
+		tr::lng_manage_history_visibility_hidden(tr::now),
 		(peer->isChat()
-			? lng_manage_history_visibility_hidden_legacy
-			: lng_manage_history_visibility_hidden_about),
+			? tr::lng_manage_history_visibility_hidden_legacy
+			: tr::lng_manage_history_visibility_hidden_about)(),
 		historyVisibility);
 }
 

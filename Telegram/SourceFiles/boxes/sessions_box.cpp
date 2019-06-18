@@ -359,7 +359,7 @@ void SessionsBox::Inner::setupContent() {
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	AddSubsectionTitle(content, lng_sessions_header);
+	AddSubsectionTitle(content, tr::lng_sessions_header());
 	_current = content->add(object_ptr<List>(content));
 	const auto terminateWrap = content->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -369,12 +369,10 @@ void SessionsBox::Inner::setupContent() {
 	_terminateAll = terminateInner->add(
 		object_ptr<Info::Profile::Button>(
 			terminateInner,
-			Lang::Viewer(lng_sessions_terminate_all),
+			tr::lng_sessions_terminate_all(),
 			st::terminateSessionsButton));
 	AddSkip(terminateInner);
-	AddDividerText(
-		terminateInner,
-		Lang::Viewer(lng_sessions_terminate_all_about));
+	AddDividerText(terminateInner, tr::lng_sessions_terminate_all_about());
 
 	const auto incompleteWrap = content->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -382,12 +380,10 @@ void SessionsBox::Inner::setupContent() {
 			object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
 	const auto incompleteInner = incompleteWrap->entity();
 	AddSkip(incompleteInner);
-	AddSubsectionTitle(incompleteInner, lng_sessions_incomplete);
+	AddSubsectionTitle(incompleteInner, tr::lng_sessions_incomplete());
 	_incomplete = incompleteInner->add(object_ptr<List>(incompleteInner));
 	AddSkip(incompleteInner);
-	AddDividerText(
-		incompleteInner,
-		Lang::Viewer(lng_sessions_incomplete_about));
+	AddDividerText(incompleteInner, tr::lng_sessions_incomplete_about());
 
 	const auto listWrap = content->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -395,7 +391,7 @@ void SessionsBox::Inner::setupContent() {
 			object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
 	const auto listInner = listWrap->entity();
 	AddSkip(listInner);
-	AddSubsectionTitle(listInner, lng_sessions_other_header);
+	AddSubsectionTitle(listInner, tr::lng_sessions_other_header());
 	_list = listInner->add(object_ptr<List>(listInner));
 	AddSkip(listInner);
 
@@ -404,7 +400,7 @@ void SessionsBox::Inner::setupContent() {
 			content,
 			object_ptr<Ui::FlatLabel>(
 				content,
-				Lang::Viewer(lng_sessions_other_desc),
+				tr::lng_sessions_other_desc(),
 				st::boxDividerLabel),
 			st::settingsDividerLabelPadding))->setDuration(0);
 

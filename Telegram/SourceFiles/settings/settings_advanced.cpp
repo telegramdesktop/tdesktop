@@ -57,7 +57,7 @@ void SetupConnectionType(not_null<Ui::VerticalLayout*> container) {
 	};
 	const auto button = AddButtonWithLabel(
 		container,
-		lng_settings_connection_type,
+		tr::lng_settings_connection_type(),
 		rpl::single(
 			rpl::empty_value()
 		) | rpl::then(base::ObservableViewer(
@@ -88,7 +88,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		currentVersionText());
 	const auto toggle = AddButton(
 		container,
-		lng_settings_update_automatically,
+		tr::lng_settings_update_automatically(),
 		st::settingsUpdateToggle);
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		toggle.get(),
@@ -102,16 +102,16 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	const auto inner = options->entity();
 	const auto install = cAlphaVersion() ? nullptr : AddButton(
 		inner,
-		lng_settings_install_beta,
+		tr::lng_settings_install_beta(),
 		st::settingsButton).get();
 
 	const auto check = AddButton(
 		inner,
-		lng_settings_check_now,
+		tr::lng_settings_check_now(),
 		st::settingsButton);
 	const auto update = Ui::CreateChild<Button>(
 		check.get(),
-		Lang::Viewer(lng_update_telegram) | Ui::Text::ToUpper(),
+		tr::lng_update_telegram() | Ui::Text::ToUpper(),
 		st::settingsUpdate);
 	update->hide();
 	check->widthValue() | rpl::start_with_next([=](int width) {
@@ -403,7 +403,7 @@ void SetupTray(not_null<Ui::VerticalLayout*> container) {
 void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
-		lng_settings_enable_animations,
+		tr::lng_settings_enable_animations(),
 		st::settingsButton
 	)->toggleOn(
 		rpl::single(!anim::Disabled())
@@ -421,7 +421,7 @@ void SetupPerformance(not_null<Ui::VerticalLayout*> container) {
 
 	AddButton(
 		container,
-		lng_settings_autoplay_gifs,
+		tr::lng_settings_autoplay_gifs(),
 		st::settingsButton
 	)->toggleOn(
 		rpl::single(cAutoPlayGif())
@@ -442,10 +442,10 @@ void SetupSystemIntegration(
 		Fn<void(Type)> showOther) {
 	AddDivider(container);
 	AddSkip(container);
-	AddSubsectionTitle(container, lng_settings_system_integration);
+	AddSubsectionTitle(container, tr::lng_settings_system_integration());
 	AddButton(
 		container,
-		lng_settings_section_call_settings,
+		tr::lng_settings_section_call_settings(),
 		st::settingsButton
 	)->addClickHandler([=] {
 		showOther(Type::Calls);
@@ -478,7 +478,7 @@ void Advanced::setupContent() {
 		if (HasUpdate()) {
 			addDivider();
 			AddSkip(content);
-			AddSubsectionTitle(content, lng_settings_version_info);
+			AddSubsectionTitle(content, tr::lng_settings_version_info());
 			SetupUpdate(content);
 			AddSkip(content);
 		}
@@ -489,7 +489,7 @@ void Advanced::setupContent() {
 	if (HasConnectionType()) {
 		addDivider();
 		AddSkip(content);
-		AddSubsectionTitle(content, lng_settings_network_proxy);
+		AddSubsectionTitle(content, tr::lng_settings_network_proxy());
 		SetupConnectionType(content);
 		AddSkip(content);
 	}
@@ -501,7 +501,7 @@ void Advanced::setupContent() {
 
 	AddDivider(content);
 	AddSkip(content);
-	AddSubsectionTitle(content, lng_settings_performance);
+	AddSubsectionTitle(content, tr::lng_settings_performance());
 	SetupPerformance(content);
 	AddSkip(content);
 

@@ -44,13 +44,13 @@ struct EditFlagsControl {
 
 EditFlagsControl<MTPDchatBannedRights::Flags> CreateEditRestrictions(
 	QWidget *parent,
-	LangKey header,
+	rpl::producer<QString> header,
 	MTPDchatBannedRights::Flags restrictions,
 	std::map<MTPDchatBannedRights::Flags, QString> disabledMessages);
 
 EditFlagsControl<MTPDchatAdminRights::Flags> CreateEditAdminRights(
 	QWidget *parent,
-	LangKey header,
+	rpl::producer<QString> header,
 	MTPDchatAdminRights::Flags rights,
 	std::map<MTPDchatAdminRights::Flags, QString> disabledMessages,
 	bool isGroup,

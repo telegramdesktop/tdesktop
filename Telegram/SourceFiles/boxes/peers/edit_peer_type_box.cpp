@@ -78,9 +78,9 @@ public:
 		return _controls.privacy->value();
 	}
 
-	void showError(LangKey key) {
+	void showError(rpl::producer<QString> text) {
 		_controls.usernameInput->showError();
-		showUsernameError(Lang::Viewer(key));
+		showUsernameError(std::move(text));
 	}
 
 private:
@@ -129,10 +129,10 @@ private:
 	void addRoundButton(
 		not_null<Ui::VerticalLayout*> container,
 		Privacy value,
-		LangKey groupTextKey,
-		LangKey channelTextKey,
-		LangKey groupAboutKey,
-		LangKey channelAboutKey);
+		const QString &groupText,
+		const QString &channelText,
+		rpl::producer<QString> groupAbout,
+		rpl::producer<QString> channelAbout);
 
 	bool inviteLinkShown();
 	QString inviteLinkText();
@@ -197,21 +197,21 @@ void Controller::createContent() {
 void Controller::addRoundButton(
 		not_null<Ui::VerticalLayout*> container,
 		Privacy value,
-		LangKey groupTextKey,
-		LangKey channelTextKey,
-		LangKey groupAboutKey,
-		LangKey channelAboutKey) {
+		const QString &groupText,
+		const QString &channelText,
+		rpl::producer<QString> groupAbout,
+		rpl::producer<QString> channelAbout) {
 	container->add(object_ptr<Ui::Radioenum<Privacy>>(
 		container,
 		_controls.privacy,
 		value,
-		lang(_isGroup ? groupTextKey : channelTextKey),
+		(_isGroup ? groupText : channelText),
 		st::editPeerPrivacyBoxCheckbox));
 	container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 		container,
 		object_ptr<Ui::FlatLabel>(
 			container,
-			Lang::Viewer(_isGroup ? groupAboutKey : channelAboutKey),
+			std::move(_isGroup ? groupAbout : channelAbout),
 			st::editPeerPrivacyLabel),
 		st::editPeerPrivacyLabelMargins));
 	container->add(object_ptr<Ui::FixedHeightWidget>(
@@ -249,17 +249,17 @@ void Controller::fillPrivaciesButtons(
 	addRoundButton(
 		container,
 		Privacy::Public,
-		lng_create_public_group_title,
-		lng_create_public_channel_title,
-		lng_create_public_group_about,
-		lng_create_public_channel_about);
+		tr::lng_create_public_group_title(tr::now),
+		tr::lng_create_public_channel_title(tr::now),
+		tr::lng_create_public_group_about(),
+		tr::lng_create_public_channel_about());
 	addRoundButton(
 		container,
 		Privacy::Private,
-		lng_create_private_group_title,
-		lng_create_private_channel_title,
-		lng_create_private_group_about,
-		lng_create_private_channel_about);
+		tr::lng_create_private_group_title(tr::now),
+		tr::lng_create_private_channel_title(tr::now),
+		tr::lng_create_private_group_about(),
+		tr::lng_create_private_channel_about());
 
 	_controls.privacy->setChangedCallback([=](Privacy value) {
 		privacyChanged(value);
@@ -303,7 +303,7 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 		container,
 		object_ptr<Ui::FlatLabel>(
 			container,
-			Lang::Viewer(lng_create_group_link),
+			tr::lng_create_group_link(),
 			st::editPeerSectionLabel),
 		st::editPeerUsernameTitleLabelMargins));
 
@@ -334,7 +334,7 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 		container,
 		object_ptr<Ui::FlatLabel>(
 			container,
-			Lang::Viewer(lng_create_channel_link_about),
+			tr::lng_create_channel_link_about(),
 			st::editPeerPrivacyLabel),
 		st::editPeerUsernameAboutLabelMargins));
 
@@ -415,8 +415,7 @@ void Controller::checkUsernameAvailability() {
 			return;
 		}
 		if (!mtpIsTrue(result) && checking != username) {
-			showUsernameError(
-				Lang::Viewer(lng_create_channel_link_occupied));
+			showUsernameError(tr::lng_create_channel_link_occupied());
 		} else {
 			showUsernameGood();
 		}
@@ -438,12 +437,10 @@ void Controller::checkUsernameAvailability() {
 				setFocusUsername();
 			}
 		} else if (type == qstr("USERNAME_INVALID")) {
-			showUsernameError(
-				Lang::Viewer(lng_create_channel_link_invalid));
+			showUsernameError(tr::lng_create_channel_link_invalid());
 		} else if (type == qstr("USERNAME_OCCUPIED")
 			&& checking != username) {
-			showUsernameError(
-				Lang::Viewer(lng_create_channel_link_occupied));
+			showUsernameError(tr::lng_create_channel_link_occupied());
 		}
 	}).send();
 }
@@ -475,11 +472,9 @@ void Controller::usernameChanged() {
 			&& (ch != '_');
 	}) != username.end();
 	if (bad) {
-		showUsernameError(
-			Lang::Viewer(lng_create_channel_link_bad_symbols));
+		showUsernameError(tr::lng_create_channel_link_bad_symbols());
 	} else if (username.size() < kMinUsernameLength) {
-		showUsernameError(
-			Lang::Viewer(lng_create_channel_link_too_short));
+		showUsernameError(tr::lng_create_channel_link_too_short());
 	} else {
 		_controls.usernameResult = nullptr;
 		_checkUsernameTimer.callOnce(kUsernameCheckTimeout);
@@ -494,7 +489,7 @@ void Controller::showUsernameError(rpl::producer<QString> &&error) {
 void Controller::showUsernameGood() {
 	_isAllowSave = true;
 	showUsernameResult(
-		Lang::Viewer(lng_create_channel_link_available),
+		tr::lng_create_channel_link_available(),
 		&st::editPeerUsernameGood);
 }
 
@@ -585,7 +580,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 	if (!_isInviteLink) {
 		container->add(object_ptr<Ui::FlatLabel>(
 			container,
-			Lang::Viewer(lng_profile_invite_link_section),
+			tr::lng_profile_invite_link_section(),
 			st::editPeerSectionLabel));
 		container->add(object_ptr<Ui::FixedHeightWidget>(
 			container,
@@ -659,7 +654,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkCreate() {
 	if (!_isInviteLink) {
 		container->add(object_ptr<Ui::FlatLabel>(
 			container,
-			Lang::Viewer(lng_profile_invite_link_section),
+			tr::lng_profile_invite_link_section(),
 			st::editPeerSectionLabel));
 		container->add(object_ptr<Ui::FixedHeightWidget>(
 			container,
@@ -700,7 +695,7 @@ EditPeerTypeBox::EditPeerTypeBox(
 	std::optional<FnMut<void(Privacy, QString)>> savedCallback,
 	std::optional<Privacy> privacySaved,
 	std::optional<QString> usernameSaved,
-	std::optional<LangKey> usernameError)
+	std::optional<rpl::producer<QString>> usernameError)
 : _peer(peer)
 , _savedCallback(std::move(savedCallback))
 , _privacySavedValue(privacySaved)
@@ -728,7 +723,7 @@ void EditPeerTypeBox::prepare() {
 		[=] {
 			controller->setFocusUsername();
 			if (_usernameError.has_value()) {
-				controller->showError(*_usernameError);
+				controller->showError(std::move(*_usernameError));
 				_usernameError = std::nullopt;
 			}
 		},

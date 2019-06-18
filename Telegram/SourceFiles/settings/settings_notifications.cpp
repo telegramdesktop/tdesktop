@@ -491,14 +491,14 @@ void SetupAdvancedNotifications(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsCheckboxesSkip);
 	AddDivider(container);
 	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(container, lng_settings_notifications_position);
+	AddSubsectionTitle(container, tr::lng_settings_notifications_position());
 	AddSkip(container, st::settingsCheckboxesSkip);
 
 	const auto position = container->add(
 		object_ptr<NotificationsCount>(container));
 
 	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(container, lng_settings_notifications_count);
+	AddSubsectionTitle(container, tr::lng_settings_notifications_count());
 
 	const auto count = container->add(
 		object_ptr<Ui::SettingsSlider>(container, st::settingsSlider),
@@ -515,7 +515,7 @@ void SetupAdvancedNotifications(not_null<Ui::VerticalLayout*> container) {
 }
 
 void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
-	AddSubsectionTitle(container, lng_settings_notify_title);
+	AddSubsectionTitle(container, tr::lng_settings_notify_title());
 
 	const auto checkbox = [&](LangKey label, bool checked) {
 		return object_ptr<Ui::Checkbox>(
@@ -552,7 +552,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsCheckboxesSkip);
 	AddDivider(container);
 	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(container, lng_settings_badge_title);
+	AddSubsectionTitle(container, tr::lng_settings_badge_title());
 
 	const auto muted = addCheckbox(
 		lng_settings_include_muted,
@@ -565,7 +565,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsCheckboxesSkip);
 	AddDivider(container);
 	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(container, lng_settings_events_title);
+	AddSubsectionTitle(container, tr::lng_settings_events_title());
 
 	const auto joined = addCheckbox(
 		lng_settings_events_joined,
@@ -615,7 +615,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		AddSkip(container, st::settingsCheckboxesSkip);
 		AddDivider(container);
 		AddSkip(container, st::settingsCheckboxesSkip);
-		AddSubsectionTitle(container, lng_settings_native_title);
+		AddSubsectionTitle(container, tr::lng_settings_native_title());
 		return addCheckbox(nativeKey, Global::NativeNotifications());
 	}();
 

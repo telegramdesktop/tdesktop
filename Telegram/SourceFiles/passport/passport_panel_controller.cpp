@@ -829,21 +829,21 @@ auto PanelController::deleteValueLabel() const
 	Expects(_editScope != nullptr);
 
 	if (hasValueDocument()) {
-		return Lang::Viewer(lng_passport_delete_document);
+		return tr::lng_passport_delete_document();
 	} else if (!hasValueFields()) {
 		return std::nullopt;
 	}
 	switch (_editScope->type) {
 	case Scope::Type::PersonalDetails:
 	case Scope::Type::Identity:
-		return Lang::Viewer(lng_passport_delete_details);
+		return tr::lng_passport_delete_details();
 	case Scope::Type::AddressDetails:
 	case Scope::Type::Address:
-		return Lang::Viewer(lng_passport_delete_address);
+		return tr::lng_passport_delete_address();
 	case Scope::Type::Email:
-		return Lang::Viewer(lng_passport_delete_email);
+		return tr::lng_passport_delete_email();
 	case Scope::Type::Phone:
-		return Lang::Viewer(lng_passport_delete_phone);
+		return tr::lng_passport_delete_phone();
 	}
 	Unexpected("Type in PanelController::deleteValueLabel.");
 }

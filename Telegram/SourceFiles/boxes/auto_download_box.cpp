@@ -63,14 +63,14 @@ void AutoDownloadBox::setupContent() {
 	};
 
 	const auto values = Ui::CreateChild<base::flat_map<Type, int>>(content);
-	const auto add = [&](Type type, LangKey label) {
+	const auto add = [&](Type type, rpl::producer<QString> label) {
 		if (ranges::find(kHidden, type) != end(kHidden)) {
 			return;
 		}
 		const auto value = settings->bytesLimit(_source, type);
 		AddButton(
 			content,
-			label,
+			std::move(label),
 			st::settingsButton
 		)->toggleOn(
 			rpl::single(value > 0)
@@ -80,13 +80,13 @@ void AutoDownloadBox::setupContent() {
 		}, content->lifetime());
 		values->emplace(type, value);
 	};
-	add(Type::Photo, lng_media_photo_title);
-	add(Type::VoiceMessage, lng_media_audio_title);
-	add(Type::VideoMessage, lng_media_video_messages_title);
-	add(Type::Video, lng_media_video_title);
-	add(Type::File, lng_media_file_title);
-	add(Type::Music, lng_media_music_title);
-	add(Type::GIF, lng_media_animation_title);
+	add(Type::Photo, tr::lng_media_photo_title());
+	add(Type::VoiceMessage, tr::lng_media_audio_title());
+	add(Type::VideoMessage, tr::lng_media_video_messages_title());
+	add(Type::Video, tr::lng_media_video_title());
+	add(Type::File, tr::lng_media_file_title());
+	add(Type::Music, tr::lng_media_music_title());
+	add(Type::GIF, tr::lng_media_animation_title());
 
 	const auto limits = Ui::CreateChild<rpl::event_stream<int>>(content);
 	using Pair = base::flat_map<Type, int>::value_type;
@@ -98,7 +98,7 @@ void AutoDownloadBox::setupContent() {
 	const auto limit = Ui::CreateChild<int>(content, initialLimit);
 	AddButtonWithLabel(
 		content,
-		lng_media_size_limit,
+		tr::lng_media_size_limit(),
 		limits->events_starting_with_copy(
 			initialLimit
 		) | rpl::map([](int value) {

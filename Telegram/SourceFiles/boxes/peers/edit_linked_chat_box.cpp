@@ -248,10 +248,9 @@ object_ptr<Ui::RpWidget> SetupUnlink(
 		Fn<void(ChannelData*)> callback) {
 	auto result = object_ptr<Info::Profile::Button>(
 		parent,
-		Lang::Viewer(channel->isBroadcast()
-			? lng_manage_discussion_group_unlink
-			: lng_manage_linked_channel_unlink
-		) | Ui::Text::ToUpper(),
+		(channel->isBroadcast()
+			? tr::lng_manage_discussion_group_unlink
+			: tr::lng_manage_linked_channel_unlink)() | Ui::Text::ToUpper(),
 		st::infoUnlinkChatButton);
 	result->addClickHandler([=] {
 		callback(nullptr);

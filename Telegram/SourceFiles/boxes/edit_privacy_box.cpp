@@ -311,13 +311,13 @@ void EditPrivacyBox::setupContent() {
 				content,
 				object_ptr<Button>(
 					content,
-					Lang::Viewer(text),
+					rpl::duplicate(text),
 					st::settingsButton)));
 		CreateRightLabel(
 			button->entity(),
 			std::move(label),
 			st::settingsButton,
-			text);
+			std::move(text));
 		button->toggleOn(rpl::duplicate(
 			optionValue
 		) | rpl::map([=] {
@@ -344,7 +344,7 @@ void EditPrivacyBox::setupContent() {
 
 	AddDivider(content);
 	AddSkip(content);
-	AddSubsectionTitle(content, lng_edit_privacy_exceptions);
+	AddSubsectionTitle(content, tr::lng_edit_privacy_exceptions());
 	const auto always = addExceptionLink(Exception::Always);
 	const auto never = addExceptionLink(Exception::Never);
 	addLabel(content, _controller->exceptionsDescription());

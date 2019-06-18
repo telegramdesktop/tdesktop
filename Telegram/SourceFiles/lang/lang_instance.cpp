@@ -780,18 +780,21 @@ Instance &Current() {
 	return Core::App().langpack();
 }
 
+namespace details {
+
 QString Current(LangKey key) {
-	return Current().getValue(key);
+	return Lang::Current().getValue(key);
 }
 
 rpl::producer<QString> Viewer(LangKey key) {
 	return rpl::single(
-		Current().getValue(key)
+		Lang::Current().getValue(key)
 	) | then(base::ObservableViewer(
-		Current().updated()
+		Lang::Current().updated()
 	) | rpl::map([=] {
-		return Current().getValue(key);
+		return Lang::Current().getValue(key);
 	}));
 }
 
+} // namespace details
 } // namespace Lang

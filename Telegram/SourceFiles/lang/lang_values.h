@@ -13,13 +13,12 @@ enum LangKey : int;
 enum lngtag_count : int;
 
 namespace Lang {
-
-QString Current(LangKey key);
-rpl::producer<QString> Viewer(LangKey key);
-
 namespace details {
 
 inline constexpr auto kPluralCount = 6;
+
+QString Current(LangKey key);
+rpl::producer<QString> Viewer(LangKey key);
 
 template <typename Tag> struct TagValue;
 
@@ -90,7 +89,9 @@ struct Producer {
 		typename T = decltype(std::declval<P>()(QString())),
 		typename ...Values>
 	static T Current(LangKey base, P p, const Values &...values) {
-		return ReplaceUnwrap<Tags...>::template Call(p(Lang::Current(base)), values...);
+		return ReplaceUnwrap<Tags...>::template Call(
+			p(Lang::details::Current(base)),
+			values...);
 	}
 };
 
@@ -107,7 +108,7 @@ struct Producer<> {
 		typename P,
 		typename T = decltype(std::declval<P>()(QString()))>
 	static T Current(LangKey base, P p) {
-		return p(Lang::Current(base));
+		return p(Lang::details::Current(base));
 	}
 };
 
@@ -169,7 +170,7 @@ struct Producer<lngtag_count, Tags...> {
 		auto plural = Plural(base, count, type);
 		return ReplaceUnwrap<Tags...>::template Call(
 			ReplaceTag<T>::Call(
-				p(Lang::Current(LangKey(base + plural.keyShift))),
+				p(Lang::details::Current(LangKey(base + plural.keyShift))),
 				type,
 				StartReplacements<T>::Call(
 					std::move(plural.replacement))),

@@ -447,7 +447,7 @@ void SharedMediaCover::createLabel() {
 	using namespace rpl::mappers;
 	auto label = object_ptr<Ui::FlatLabel>(
 		this,
-		Lang::Viewer(lng_profile_shared_media) | Ui::Text::ToUpper(),
+		tr::lng_profile_shared_media() | Ui::Text::ToUpper(),
 		st::infoBlockHeaderLabel);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 

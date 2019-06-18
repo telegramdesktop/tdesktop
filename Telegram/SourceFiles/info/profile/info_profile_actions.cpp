@@ -216,12 +216,12 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 	auto result = object_ptr<Ui::VerticalLayout>(_wrap);
 	auto tracker = Ui::MultiSlideTracker();
 	auto addInfoLineGeneric = [&](
-			rpl::producer<QString> label,
+			rpl::producer<QString> &&label,
 			rpl::producer<TextWithEntities> &&text,
 			const style::FlatLabel &textSt = st::infoLabeled) {
 		auto line = CreateTextWithLabel(
 			result,
-			std::move(label) | WithEmptyEntities(),
+			std::move(label) | Ui::Text::ToWithEntities(),
 			std::move(text),
 			textSt,
 			st::infoProfileLabeledPadding);
@@ -229,20 +229,20 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		return line.text;
 	};
 	auto addInfoLine = [&](
-			LangKey label,
+			rpl::producer<QString> &&label,
 			rpl::producer<TextWithEntities> &&text,
 			const style::FlatLabel &textSt = st::infoLabeled) {
 		return addInfoLineGeneric(
-			Lang::Viewer(label),
+			std::move(label),
 			std::move(text),
 			textSt);
 	};
 	auto addInfoOneLine = [&](
-			LangKey label,
+			rpl::producer<QString> &&label,
 			rpl::producer<TextWithEntities> &&text,
 			const QString &contextCopyText) {
 		auto result = addInfoLine(
-			label,
+			std::move(label),
 			std::move(text),
 			st::infoLabeledOneLine);
 		result->setDoubleClickSelectsParagraph(true);
@@ -257,16 +257,16 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		}
 
 		addInfoOneLine(
-			lng_info_mobile_label,
+			tr::lng_info_mobile_label(),
 			PhoneValue(user),
 			lang(lng_profile_copy_phone));
 		if (user->botInfo) {
-			addInfoLine(lng_info_about_label, AboutValue(user));
+			addInfoLine(tr::lng_info_about_label(), AboutValue(user));
 		} else {
-			addInfoLine(lng_info_bio_label, BioValue(user));
+			addInfoLine(tr::lng_info_bio_label(), BioValue(user));
 		}
 		addInfoOneLine(
-			lng_info_username_label,
+			tr::lng_info_username_label(),
 			UsernameValue(user),
 			lang(lng_context_copy_mention));
 	} else {
@@ -288,7 +288,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			return result;
 		});
 		auto link = addInfoOneLine(
-			lng_info_link_label,
+			tr::lng_info_link_label(),
 			std::move(linkText),
 			QString());
 		link->setClickHandlerFilter([peer = _peer](auto&&...) {
@@ -300,7 +300,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			}
 			return false;
 		});
-		addInfoLine(lng_info_about_label, AboutValue(_peer));
+		addInfoLine(tr::lng_info_about_label(), AboutValue(_peer));
 	}
 	if (!_peer->isSelf()) {
 		// No notifications toggle for Self => no separator.
@@ -325,7 +325,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 	const auto peer = _peer;
 	auto result = object_ptr<Button>(
 		_wrap,
-		Lang::Viewer(lng_profile_enable_notifications),
+		tr::lng_profile_enable_notifications(),
 		st::infoNotificationsButton);
 	result->toggleOn(
 		NotificationsEnabledValue(peer)
@@ -384,7 +384,7 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 		};
 		AddMainButton(
 			_wrap,
-			Lang::Viewer(lng_profile_send_message),
+			tr::lng_profile_send_message(),
 			std::move(sendMessageVisible),
 			std::move(sendMessage),
 			tracker);
@@ -410,7 +410,7 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 		const auto window = &_controller->parentController()->window()->controller();
 		AddMainButton(
 			_wrap,
-			Lang::Viewer(lng_info_add_as_contact),
+			tr::lng_info_add_as_contact(),
 			CanAddContactValue(user),
 			[=] { window->show(Box(EditContactBox, window, user)); },
 			tracker);
@@ -439,7 +439,7 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 	};
 	AddMainButton(
 		_wrap,
-		Lang::Viewer(lng_profile_view_channel),
+		tr::lng_profile_view_channel(),
 		std::move(viewChannelVisible),
 		std::move(viewChannel),
 		tracker);
@@ -472,7 +472,7 @@ void ActionsFiller::addInviteToGroupAction(
 		not_null<UserData*> user) {
 	AddActionButton(
 		_wrap,
-		Lang::Viewer(lng_profile_invite_to_group),
+		tr::lng_profile_invite_to_group(),
 		CanInviteBotToGroupValue(user),
 		[user] { AddBotToGroupBoxController::Start(user); });
 }
@@ -480,7 +480,7 @@ void ActionsFiller::addInviteToGroupAction(
 void ActionsFiller::addShareContactAction(not_null<UserData*> user) {
 	AddActionButton(
 		_wrap,
-		Lang::Viewer(lng_info_share_contact),
+		tr::lng_info_share_contact(),
 		CanShareContactValue(user),
 		[user] { Window::PeerMenuShareContactBox(user); });
 }
@@ -489,7 +489,7 @@ void ActionsFiller::addEditContactAction(not_null<UserData*> user) {
 	const auto window = &_controller->parentController()->window()->controller();
 	AddActionButton(
 		_wrap,
-		Lang::Viewer(lng_info_edit_contact),
+		tr::lng_info_edit_contact(),
 		IsContactValue(user),
 		[=] { window->show(Box(EditContactBox, window, user)); });
 }
@@ -498,7 +498,7 @@ void ActionsFiller::addDeleteContactAction(
 		not_null<UserData*> user) {
 	AddActionButton(
 		_wrap,
-		Lang::Viewer(lng_info_delete_contact),
+		tr::lng_info_delete_contact(),
 		IsContactValue(user),
 		[user] { Window::PeerMenuDeleteContact(user); });
 }
@@ -506,7 +506,7 @@ void ActionsFiller::addDeleteContactAction(
 void ActionsFiller::addClearHistoryAction(not_null<UserData*> user) {
 	AddActionButton(
 		_wrap,
-		Lang::Viewer(lng_profile_clear_history),
+		tr::lng_profile_clear_history(),
 		rpl::single(true),
 		 Window::ClearHistoryHandler(user));
 }
@@ -515,7 +515,7 @@ void ActionsFiller::addDeleteConversationAction(
 		not_null<UserData*> user) {
 	AddActionButton(
 		_wrap,
-		Lang::Viewer(lng_profile_delete_conversation),
+		tr::lng_profile_delete_conversation(),
 		rpl::single(true),
 		Window::DeleteAndLeaveHandler(user));
 }
@@ -550,23 +550,25 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 			App::sendBotCommand(user, user, '/' + original);
 		}
 	};
-	auto addBotCommand = [=](LangKey key, const QString &command) {
+	auto addBotCommand = [=](
+			rpl::producer<QString> text,
+			const QString &command) {
 		AddActionButton(
 			_wrap,
-			Lang::Viewer(key),
+			std::move(text),
 			hasBotCommandValue(command),
 			[=] { sendBotCommand(command); });
 	};
-	addBotCommand(lng_profile_bot_help, qsl("help"));
-	addBotCommand(lng_profile_bot_settings, qsl("settings"));
-	addBotCommand(lng_profile_bot_privacy, qsl("privacy"));
+	addBotCommand(tr::lng_profile_bot_help(), qsl("help"));
+	addBotCommand(tr::lng_profile_bot_settings(), qsl("settings"));
+	addBotCommand(tr::lng_profile_bot_privacy(), qsl("privacy"));
 }
 
 void ActionsFiller::addReportAction() {
 	const auto peer = _peer;
 	AddActionButton(
 		_wrap,
-		Lang::Viewer(lng_profile_report),
+		tr::lng_profile_report(),
 		rpl::single(true),
 		[=] { Ui::show(Box<ReportBox>(peer)); },
 		st::infoBlockButton);
@@ -581,14 +583,14 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 	) | rpl::map([user] {
 		switch (user->blockStatus()) {
 		case UserData::BlockStatus::Blocked:
-			return Lang::Viewer((user->isBot() && !user->isSupport())
-				? lng_profile_restart_bot
-				: lng_profile_unblock_user);
+			return ((user->isBot() && !user->isSupport())
+				? tr::lng_profile_restart_bot
+				: tr::lng_profile_unblock_user)();
 		case UserData::BlockStatus::NotBlocked:
 		default:
-			return Lang::Viewer((user->isBot() && !user->isSupport())
-				? lng_profile_block_bot
-				: lng_profile_block_user);
+			return ((user->isBot() && !user->isSupport())
+				? tr::lng_profile_block_bot
+				: tr::lng_profile_block_user)();
 		}
 	}) | rpl::flatten_latest(
 	) | rpl::start_spawning(_wrap->lifetime());
@@ -622,7 +624,7 @@ void ActionsFiller::addLeaveChannelAction(
 		not_null<ChannelData*> channel) {
 	AddActionButton(
 		_wrap,
-		Lang::Viewer(lng_profile_leave_channel),
+		tr::lng_profile_leave_channel(),
 		AmInChannelValue(channel),
 		Window::DeleteAndLeaveHandler(channel));
 }
@@ -635,7 +637,7 @@ void ActionsFiller::addJoinChannelAction(
 		| rpl::start_spawning(_wrap->lifetime());
 	AddActionButton(
 		_wrap,
-		Lang::Viewer(lng_profile_join_channel),
+		tr::lng_profile_join_channel(),
 		rpl::duplicate(joinVisible),
 		[channel] { Auth().api().joinChannel(channel); });
 	_wrap->add(object_ptr<Ui::SlideWrap<Ui::FixedHeightWidget>>(
@@ -736,7 +738,7 @@ object_ptr<Ui::RpWidget> ActionsFiller::fill() {
 //	const auto feedId = _feed->id();
 //	auto result = object_ptr<Button>(
 //		_wrap,
-//		Lang::Viewer(lng_info_feed_is_default),
+//		tr::lng_info_feed_is_default(),
 //		st::infoNotificationsButton);
 //	result->toggleOn(
 //		Auth().data().defaultFeedIdValue(

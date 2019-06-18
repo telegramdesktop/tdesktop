@@ -268,7 +268,7 @@ void IntroWidget::forceContentRepaint() {
 
 void IntroWidget::createTopBar() {
 	_topBar.create(this, st::infoLayerTopBar);
-	_topBar->setTitle(Lang::Viewer(lng_menu_settings));
+	_topBar->setTitle(tr::lng_menu_settings());
 	auto close = _topBar->addButton(
 		base::make_unique_q<Ui::IconButton>(
 			_topBar,

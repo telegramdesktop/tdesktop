@@ -43,12 +43,12 @@ public:
 	[[nodiscard]] virtual bool hasOption(Option option) {
 		return true;
 	}
-	[[nodiscard]] virtual LangKey optionsTitleKey() = 0;
+	[[nodiscard]] virtual rpl::producer<QString> optionsTitleKey() = 0;
 	[[nodiscard]] virtual LangKey optionLabelKey(Option option);
 	[[nodiscard]] virtual rpl::producer<QString> warning() {
 		return rpl::never<QString>();
 	}
-	[[nodiscard]] virtual LangKey exceptionButtonTextKey(
+	[[nodiscard]] virtual rpl::producer<QString> exceptionButtonTextKey(
 		Exception exception) = 0;
 	[[nodiscard]] virtual QString exceptionBoxTitle(
 		Exception exception) = 0;

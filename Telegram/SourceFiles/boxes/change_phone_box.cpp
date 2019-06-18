@@ -350,9 +350,7 @@ void ChangePhoneBox::prepare() {
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		this,
-		Lang::Viewer(
-			lng_change_phone_about
-		) | Ui::Text::ToRichLangValue(),
+		tr::lng_change_phone_about(Ui::Text::RichLangValue),
 		st::changePhoneDescription);
 	label->moveToLeft((st::boxWideWidth - label->width()) / 2, st::changePhoneDescriptionTop);
 
