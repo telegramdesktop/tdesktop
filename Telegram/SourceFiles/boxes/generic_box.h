@@ -80,7 +80,11 @@ protected:
 private:
 	template <typename InitMethod, typename ...InitArgs>
 	struct Initer {
-		template <typename OtherMethod, typename ...OtherArgs>
+		template <
+			typename OtherMethod,
+			typename ...OtherArgs,
+			typename = std::enable_if_t<
+				std::is_constructible_v<InitMethod, OtherMethod&&>>>
 		Initer(OtherMethod &&method, OtherArgs &&...args);
 
 		void operator()(not_null<GenericBox*> box);
@@ -106,7 +110,7 @@ private:
 };
 
 template <typename InitMethod, typename ...InitArgs>
-template <typename OtherMethod, typename ...OtherArgs>
+template <typename OtherMethod, typename ...OtherArgs, typename>
 GenericBox::Initer<InitMethod, InitArgs...>::Initer(
 	OtherMethod &&method,
 	OtherArgs &&...args)
