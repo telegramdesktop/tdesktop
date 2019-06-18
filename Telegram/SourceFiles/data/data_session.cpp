@@ -101,12 +101,15 @@ QString ExtractUnavailableReason(const QString &restriction) {
 	// {full} is in "{type}-{tag}-{tag}-{tag}" format
 	// if we find "all" tag we return the restriction string
 	const auto typeTags = restriction.mid(0, fullEnd).split('-').mid(1);
-#ifndef OS_MAC_STORE
-	const auto restrictionApplies = typeTags.contains(qsl("all"));
-#else // OS_MAC_STORE
+#ifdef OS_MAC_STORE
 	const auto restrictionApplies = typeTags.contains(qsl("all"))
 		|| typeTags.contains(qsl("ios"));
-#endif // OS_MAC_STORE
+#elif defined OS_WIN_STORE // OS_MAC_STORE
+	const auto restrictionApplies = typeTags.contains(qsl("all"))
+		|| typeTags.contains(qsl("ms"));
+#else
+	const auto restrictionApplies = typeTags.contains(qsl("all"));
+#endif // OS_MAC_STORE || OS_WIN_STORE
 	if (restrictionApplies) {
 		return restriction.midRef(fullEnd + 1).trimmed().toString();
 	}
