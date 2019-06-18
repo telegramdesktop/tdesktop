@@ -99,8 +99,11 @@ inline bool IsSelfPeer(PeerData *peer) {
 	return (peer && peer->isSelf());
 }
 
-inline int UnreadCount(PeerData *peer) {
-	return (peer && peer->owner().history(peer->id)->unreadCountForBadge());
+inline int UnreadCount(not_null<PeerData*> peer) {
+	if (const auto history = peer->owner().historyLoaded(peer)) {
+		return history->unreadCountForBadge();
+	}
+	return 0;
 }
 
 NSString *FormatTime(int time) {
@@ -259,7 +262,8 @@ void SendKeyEvent(int command) {
 	std::move(
 		themeChanged
 	) | rpl::filter([=](const Update &update) {
-		return update.type == Update::Type::ApplyingTheme
+		return (update.type == Update::Type::ApplyingTheme)
+			&& (_peer != nullptr)
 			&& (UnreadCount(_peer) || Data::IsPeerAnOnlineUser(_peer));
 	}) | rpl::start_with_next([=] {
 		[self updateBadge];
@@ -286,8 +290,8 @@ void SendKeyEvent(int command) {
 	if (_peer == newPeer) {
 		return;
 	}
-	_peer = newPeer;
 	_peerChangedLifetime.destroy();
+	_peer = newPeer;
 	if (!_peer) {
 		return;
 	}
