@@ -657,7 +657,7 @@ ManageSetsBox::ManageSetsBox(QWidget*) {
 void ManageSetsBox::prepare() {
 	const auto inner = setInnerWidget(object_ptr<Inner>(this));
 
-	setTitle(langFactory(lng_emoji_manage_sets));
+	setTitle(tr::lng_emoji_manage_sets());
 
 	addButton(langFactory(lng_close), [=] { closeBox(); });
 

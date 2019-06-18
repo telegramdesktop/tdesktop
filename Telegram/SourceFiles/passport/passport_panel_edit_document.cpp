@@ -35,7 +35,7 @@ class RequestTypeBox : public BoxContent {
 public:
 	RequestTypeBox(
 		QWidget*,
-		const QString &title,
+		rpl::producer<QString> title,
 		const QString &about,
 		std::vector<QString> labels,
 		Fn<void(int index)> submit);
@@ -49,7 +49,7 @@ private:
 		std::vector<QString> labels,
 		Fn<void(int index)> submit);
 
-	QString _title;
+	rpl::producer<QString> _title;
 	Fn<void()> _submit;
 	int _height = 0;
 
@@ -79,16 +79,16 @@ private:
 
 RequestTypeBox::RequestTypeBox(
 	QWidget*,
-	const QString &title,
+	rpl::producer<QString> title,
 	const QString &about,
 	std::vector<QString> labels,
 	Fn<void(int index)> submit)
-: _title(title) {
+: _title(std::move(title)) {
 	setupControls(about, std::move(labels), submit);
 }
 
 void RequestTypeBox::prepare() {
-	setTitle([=] { return _title; });
+	setTitle(std::move(_title));
 	addButton(langFactory(lng_passport_upload_document), _submit);
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });
 	setDimensions(st::boxWidth, _height);
@@ -680,7 +680,7 @@ object_ptr<BoxContent> RequestIdentityType(
 		Fn<void(int index)> submit,
 		std::vector<QString> labels) {
 	return Box<RequestTypeBox>(
-		lang(lng_passport_identity_title),
+		tr::lng_passport_identity_title(),
 		lang(lng_passport_identity_about),
 		std::move(labels),
 		submit);
@@ -690,7 +690,7 @@ object_ptr<BoxContent> RequestAddressType(
 		Fn<void(int index)> submit,
 		std::vector<QString> labels) {
 	return Box<RequestTypeBox>(
-		lang(lng_passport_address_title),
+		tr::lng_passport_address_title(),
 		lang(lng_passport_address_about),
 		std::move(labels),
 		submit);

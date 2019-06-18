@@ -325,7 +325,7 @@ ContactsBoxController::ContactsBoxController(
 void ContactsBoxController::prepare() {
 	setSearchNoResultsText(lang(lng_blocked_list_not_found));
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
-	delegate()->peerListSetTitle(langFactory(lng_contacts_header));
+	delegate()->peerListSetTitle(tr::lng_contacts_header());
 
 	prepareViewHook();
 
@@ -497,9 +497,9 @@ void AddBotToGroupBoxController::updateLabels() {
 }
 
 void AddBotToGroupBoxController::prepareViewHook() {
-	delegate()->peerListSetTitle(langFactory(sharingBotGame()
-		? lng_bot_choose_chat
-		: lng_bot_choose_group));
+	delegate()->peerListSetTitle(sharingBotGame()
+		? tr::lng_bot_choose_chat()
+		: tr::lng_bot_choose_group());
 	updateLabels();
 	Auth().data().chatsListLoadedEvents(
 	) | rpl::filter([=](Data::Folder *folder) {
@@ -515,7 +515,7 @@ ChooseRecipientBoxController::ChooseRecipientBoxController(
 }
 
 void ChooseRecipientBoxController::prepareViewHook() {
-	delegate()->peerListSetTitle(langFactory(lng_forward_choose));
+	delegate()->peerListSetTitle(tr::lng_forward_choose());
 }
 
 void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {

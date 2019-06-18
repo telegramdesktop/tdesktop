@@ -1037,7 +1037,7 @@ Ui::ScrollToRequest Content::jump(int rows) {
 void LanguageBox::prepare() {
 	addButton(langFactory(lng_box_ok), [=] { closeBox(); });
 
-	setTitle(langFactory(lng_languages));
+	setTitle(tr::lng_languages());
 
 	const auto select = createMultiSelect();
 

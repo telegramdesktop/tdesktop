@@ -285,9 +285,9 @@ object_ptr<BoxContent> EditLinkedChatBox(
 			st::linkedChatAboutPadding);
 		box->peerListSetBelowWidget(std::move(below));
 
-		box->setTitle(langFactory(channel->isBroadcast()
-			? lng_manage_discussion_group
-			: lng_manage_linked_channel));
+		box->setTitle(channel->isBroadcast()
+			? tr::lng_manage_discussion_group()
+			: tr::lng_manage_linked_channel());
 		box->addButton(langFactory(lng_close), [=] { box->closeBox(); });
 	};
 	auto controller = std::make_unique<Controller>(

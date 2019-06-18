@@ -225,7 +225,7 @@ struct PeerListState;
 
 class PeerListDelegate {
 public:
-	virtual void peerListSetTitle(Fn<QString()> title) = 0;
+	virtual void peerListSetTitle(rpl::producer<QString> title) = 0;
 	virtual void peerListSetAdditionalTitle(Fn<QString()> title) = 0;
 	virtual void peerListSetDescription(object_ptr<Ui::FlatLabel> description) = 0;
 	virtual void peerListSetSearchLoading(object_ptr<Ui::FlatLabel> loading) = 0;
@@ -755,7 +755,7 @@ public:
 		std::unique_ptr<PeerListController> controller,
 		Fn<void(not_null<PeerListBox*>)> init);
 
-	void peerListSetTitle(Fn<QString()> title) override {
+	void peerListSetTitle(rpl::producer<QString> title) override {
 		setTitle(std::move(title));
 	}
 	void peerListSetAdditionalTitle(

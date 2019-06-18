@@ -507,7 +507,7 @@ ConfirmContactBox::ConfirmContactBox(
 }
 
 void ConfirmContactBox::prepare() {
-	setTitle([] { return "Confirmation"; });
+	setTitle(rpl::single(qsl("Confirmation"))); // #TODO hard_lang
 
 	auto maxWidth = 0;
 	if (_comment) {

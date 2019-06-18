@@ -69,7 +69,7 @@ void TransferPasswordError(
 		not_null<GenericBox*> box,
 		not_null<UserData*> user,
 		PasswordErrorType error) {
-	box->setTitle(langFactory(lng_rights_transfer_check));
+	box->setTitle(tr::lng_rights_transfer_check());
 	box->setWidth(st::transferCheckWidth);
 
 	auto text = lng_rights_transfer_check_about__rich(
@@ -271,9 +271,9 @@ void EditAdminBox::prepare() {
 	EditParticipantBox::prepare();
 
 	auto hadRights = _oldRights.c_chatAdminRights().vflags.v;
-	setTitle(langFactory(hadRights
-		? lng_rights_edit_admin
-		: lng_channel_add_admin));
+	setTitle(hadRights
+		? tr::lng_rights_edit_admin()
+		: tr::lng_channel_add_admin());
 
 	addControl(
 		object_ptr<BoxContentDivider>(this),
@@ -579,7 +579,7 @@ EditRestrictedBox::EditRestrictedBox(
 void EditRestrictedBox::prepare() {
 	EditParticipantBox::prepare();
 
-	setTitle(langFactory(lng_rights_user_restrictions));
+	setTitle(tr::lng_rights_user_restrictions());
 
 	addControl(
 		object_ptr<BoxContentDivider>(this),

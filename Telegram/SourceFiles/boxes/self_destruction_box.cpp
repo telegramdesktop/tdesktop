@@ -86,7 +86,7 @@ QString SelfDestructionBox::DaysLabel(int days) {
 }
 
 void SelfDestructionBox::prepare() {
-	setTitle(langFactory(lng_self_destruct_title));
+	setTitle(tr::lng_self_destruct_title());
 
 	auto fake = object_ptr<Ui::FlatLabel>(
 		this,

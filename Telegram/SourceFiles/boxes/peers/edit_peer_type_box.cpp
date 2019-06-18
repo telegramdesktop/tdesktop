@@ -58,12 +58,12 @@ public:
 	QString getUsernameInput();
 	void setFocusUsername();
 
-	LangKey getTitle() {
+	rpl::producer<QString> getTitle() {
 		return _isInviteLink
-			? lng_profile_invite_link_section
+			? tr::lng_profile_invite_link_section()
 			: _isGroup
-			? lng_manage_peer_group_type
-			: lng_manage_peer_channel_type;
+			? tr::lng_manage_peer_group_type()
+			: tr::lng_manage_peer_channel_type();
 	}
 
 	bool isInviteLink() {
@@ -730,7 +730,7 @@ void EditPeerTypeBox::prepare() {
 		lifetime());
 	controller->createContent();
 
-	setTitle(langFactory(controller->getTitle()));
+	setTitle(controller->getTitle());
 
 	if (!controller->isInviteLink() && _savedCallback.has_value()) {
 		addButton(langFactory(lng_settings_save), [=] {

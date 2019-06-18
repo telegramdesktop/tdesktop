@@ -31,7 +31,7 @@ RateCallBox::RateCallBox(QWidget*, uint64 callId, uint64 callAccessHash)
 }
 
 void RateCallBox::prepare() {
-	setTitle(langFactory(lng_call_rate_label));
+	setTitle(tr::lng_call_rate_label());
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	for (auto i = 0; i < kMaxRating; ++i) {

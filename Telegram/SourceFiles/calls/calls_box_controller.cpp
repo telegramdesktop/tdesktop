@@ -224,7 +224,7 @@ void BoxController::prepare() {
 		}
 	});
 
-	delegate()->peerListSetTitle(langFactory(lng_call_box_title));
+	delegate()->peerListSetTitle(tr::lng_call_box_title());
 	setDescriptionText(lang(lng_contacts_loading));
 	delegate()->peerListRefreshRows();
 

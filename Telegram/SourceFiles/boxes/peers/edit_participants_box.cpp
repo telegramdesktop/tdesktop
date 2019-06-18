@@ -1012,18 +1012,18 @@ rpl::producer<int> ParticipantsBoxController::onlineCountValue() const {
 }
 
 void ParticipantsBoxController::prepare() {
-	const auto titleKey = [&] {
+	auto title = [&] {
 		switch (_role) {
-		case Role::Admins: return lng_channel_admins;
+		case Role::Admins: return tr::lng_channel_admins();
 		case Role::Profile:
-		case Role::Members: return lng_profile_participants_section;
-		case Role::Restricted: return lng_exceptions_list_title;
-		case Role::Kicked: return lng_removed_list_title;
+		case Role::Members: return tr::lng_profile_participants_section();
+		case Role::Restricted: return tr::lng_exceptions_list_title();
+		case Role::Kicked: return tr::lng_removed_list_title();
 		}
 		Unexpected("Role in ParticipantsBoxController::prepare()");
 	}();
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
-	delegate()->peerListSetTitle(langFactory(titleKey));
+	delegate()->peerListSetTitle(std::move(title));
 	setDescriptionText(lang(lng_contacts_loading));
 	setSearchNoResultsText(lang(lng_blocked_list_not_found));
 

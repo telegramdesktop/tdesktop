@@ -42,7 +42,7 @@ void UsernameBox::prepare() {
 		? QString()
 		: lang(lng_username_available);
 
-	setTitle(langFactory(lng_username_title));
+	setTitle(tr::lng_username_title());
 
 	addButton(langFactory(lng_settings_save), [=] { save(); });
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });

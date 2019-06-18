@@ -131,7 +131,7 @@ void Calls::setupContent() {
 			}
 		});
 		Ui::show(Box<SingleChoiceBox>(
-			lng_settings_call_output_device,
+			tr::lng_settings_call_output_device(),
 			options,
 			currentOption,
 			save));
@@ -209,7 +209,7 @@ void Calls::setupContent() {
 			}
 		});
 		Ui::show(Box<SingleChoiceBox>(
-			lng_settings_call_input_device,
+			tr::lng_settings_call_input_device(),
 			options,
 			currentOption,
 			save));

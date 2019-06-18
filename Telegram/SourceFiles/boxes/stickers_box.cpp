@@ -255,12 +255,12 @@ void StickersBox::prepare() {
 		if (_tabs) {
 			Local::readArchivedStickers();
 		} else {
-			setTitle(langFactory(lng_stickers_group_set));
+			setTitle(tr::lng_stickers_group_set());
 		}
 	} else if (_section == Section::Archived) {
 		requestArchivedSets();
 	} else if (_section == Section::Attached) {
-		setTitle(langFactory(lng_stickers_attached_sets));
+		setTitle(tr::lng_stickers_attached_sets());
 	}
 	if (_tabs) {
 		if (Auth().data().archivedStickerSetsOrder().isEmpty()) {

@@ -62,7 +62,7 @@ SearchFromController::SearchFromController(
 
 void SearchFromController::prepare() {
 	ParticipantsBoxController::prepare();
-	delegate()->peerListSetTitle(langFactory(lng_search_messages_from));
+	delegate()->peerListSetTitle(tr::lng_search_messages_from());
 }
 
 void SearchFromController::rowClicked(not_null<PeerListRow*> row) {

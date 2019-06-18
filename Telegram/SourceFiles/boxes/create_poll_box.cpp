@@ -725,7 +725,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 }
 
 void CreatePollBox::prepare() {
-	setTitle(langFactory(lng_polls_create_title));
+	setTitle(tr::lng_polls_create_title());
 
 	const auto inner = setInnerWidget(setupContent());
 

@@ -230,7 +230,7 @@ QString CountrySelectBox::ISOByPhone(const QString &phone) {
 }
 
 void CountrySelectBox::prepare() {
-	setTitle(langFactory(lng_country_select));
+	setTitle(tr::lng_country_select());
 
 	_select->resizeToWidth(st::boxWidth);
 	_select->setQueryChangedCallback([=](const QString &query) {

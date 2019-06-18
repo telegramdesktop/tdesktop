@@ -48,7 +48,7 @@ DebugInfoBox::DebugInfoBox(QWidget*, base::weak_ptr<Call> call)
 }
 
 void DebugInfoBox::prepare() {
-	setTitle([] { return QString("Call Debug"); });
+	setTitle(rpl::single(qsl("Call Debug")));
 
 	addButton(langFactory(lng_close), [this] { closeBox(); });
 	_text = setInnerWidget(

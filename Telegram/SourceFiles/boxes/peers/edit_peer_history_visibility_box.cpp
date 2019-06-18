@@ -111,7 +111,7 @@ EditPeerHistoryVisibilityBox::EditPeerHistoryVisibilityBox(
 void EditPeerHistoryVisibilityBox::prepare() {
 	_peer->updateFull();
 
-	setTitle(langFactory(lng_manage_history_visibility_title));
+	setTitle(tr::lng_manage_history_visibility_title());
 	addButton(langFactory(lng_settings_save), [=] {
 		auto local = std::move(_savedCallback);
 		local(_historyVisibility->value());

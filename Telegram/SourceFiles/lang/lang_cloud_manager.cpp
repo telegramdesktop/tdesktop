@@ -71,7 +71,7 @@ ConfirmSwitchBox::ConfirmSwitchBox(
 }
 
 void ConfirmSwitchBox::prepare() {
-	setTitle(langFactory(lng_language_switch_title));
+	setTitle(tr::lng_language_switch_title());
 
 	const auto text = (_official
 		? lng_language_switch_about_official__rich
@@ -113,7 +113,7 @@ NotReadyBox::NotReadyBox(
 }
 
 void NotReadyBox::prepare() {
-	setTitle(langFactory(lng_language_not_ready_title));
+	setTitle(tr::lng_language_not_ready_title());
 
 	const auto text = lng_language_not_ready_about__rich(
 		lt_lang_name,

@@ -106,6 +106,10 @@ public:
 		return _implementation ? _implementation(consumer) : lifetime();
 	}
 
+	bool empty() const {
+		return !_implementation;
+	}
+
 private:
 	std::function<lifetime(const consumer_type<type_erased_handlers<Value, Error>> &)> _implementation;
 
@@ -439,7 +443,7 @@ public:
 	}
 
 	explicit operator bool() const {
-		return (this->_generator != nullptr);
+		return !this->_generator.empty();
 	}
 
 };

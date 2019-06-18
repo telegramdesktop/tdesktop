@@ -631,7 +631,7 @@ EditColorBox::EditColorBox(QWidget*, const QString &title, QColor current) : Box
 }
 
 void EditColorBox::prepare() {
-	setTitle([=] { return _title; });
+	setTitle(rpl::single(_title));
 
 	const auto hsvChanged = [=] { updateFromHSVFields(); };
 	const auto rgbChanged = [=] { updateFromRGBFields(); };

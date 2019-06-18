@@ -122,7 +122,7 @@ BackgroundBox::BackgroundBox(QWidget*) {
 }
 
 void BackgroundBox::prepare() {
-	setTitle(langFactory(lng_backgrounds_header));
+	setTitle(tr::lng_backgrounds_header());
 
 	addButton(langFactory(lng_close), [=] { closeBox(); });
 

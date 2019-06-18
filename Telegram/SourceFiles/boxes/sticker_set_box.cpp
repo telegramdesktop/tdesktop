@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/image/image.h"
+#include "ui/text/text_utilities.h"
 #include "ui/emoji_config.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -39,7 +40,7 @@ public:
 	bool loaded() const;
 	bool notInstalled() const;
 	bool official() const;
-	Fn<TextWithEntities()> title() const;
+	rpl::producer<TextWithEntities> title() const;
 	QString shortName() const;
 
 	void install();
@@ -113,7 +114,7 @@ void StickerSetBox::Show(DocumentData *document) {
 }
 
 void StickerSetBox::prepare() {
-	setTitle(langFactory(lng_contacts_loading));
+	setTitle(tr::lng_contacts_loading());
 
 	_inner = setInnerWidget(object_ptr<Inner>(this, _set), st::stickersScroll);
 	Auth().data().stickersUpdated(
@@ -519,18 +520,15 @@ bool StickerSetBox::Inner::official() const {
 	return _loaded && _setShortName.isEmpty();
 }
 
-Fn<TextWithEntities()> StickerSetBox::Inner::title() const {
-	auto text = TextWithEntities { _setTitle };
-	if (_loaded) {
-		if (_pack.isEmpty()) {
-			return [] { return TextWithEntities { lang(lng_attach_failed), EntitiesInText() }; };
-		} else {
-			TextUtilities::ParseEntities(text, TextParseMentions);
-		}
-	} else {
-		return [] { return TextWithEntities { lang(lng_contacts_loading), EntitiesInText() }; };
+rpl::producer<TextWithEntities> StickerSetBox::Inner::title() const {
+	if (!_loaded) {
+		return tr::lng_contacts_loading() | Ui::Text::ToWithEntities();
+	} else if (_pack.isEmpty()) {
+		return tr::lng_attach_failed() | Ui::Text::ToWithEntities();
 	}
-	return [text] { return text; };
+	auto text = TextWithEntities{ _setTitle };
+	TextUtilities::ParseEntities(text, TextParseMentions);
+	return rpl::single(text);
 }
 
 QString StickerSetBox::Inner::shortName() const {

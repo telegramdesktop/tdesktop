@@ -83,7 +83,7 @@ std::unique_ptr<PeerListRow> ListController::createRow(
 void ListController::prepare() {
 	setSearchNoResultsText(lang(lng_bot_groups_not_found));
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
-	delegate()->peerListSetTitle(langFactory(lng_profile_common_groups_section));
+	delegate()->peerListSetTitle(tr::lng_profile_common_groups_section());
 }
 
 void ListController::loadMoreRows() {
@@ -240,7 +240,7 @@ object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
 	return result;
 }
 
-void InnerWidget::peerListSetTitle(Fn<QString()> title) {
+void InnerWidget::peerListSetTitle(rpl::producer<QString> title) {
 }
 
 void InnerWidget::peerListSetAdditionalTitle(

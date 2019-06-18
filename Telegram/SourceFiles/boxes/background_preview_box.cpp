@@ -407,7 +407,7 @@ not_null<HistoryView::ElementDelegate*> BackgroundPreviewBox::delegate() {
 }
 
 void BackgroundPreviewBox::prepare() {
-	setTitle(langFactory(lng_background_header));
+	setTitle(tr::lng_background_header());
 
 	addButton(langFactory(lng_background_apply), [=] { apply(); });
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });

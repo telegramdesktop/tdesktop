@@ -157,10 +157,9 @@ void EditLinkBox::prepare() {
 		}
 	});
 
-	const auto title = url->getLastText().isEmpty()
-			? lng_formatting_link_create_title
-			: lng_formatting_link_edit_title;
-	setTitle(langFactory(title));
+	setTitle(url->getLastText().isEmpty()
+		? tr::lng_formatting_link_create_title()
+		: tr::lng_formatting_link_edit_title());
 
 	addButton(langFactory(lng_formatting_link_create), submit);
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });

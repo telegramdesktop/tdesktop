@@ -41,7 +41,7 @@ SuggestBox::SuggestBox(QWidget*) {
 }
 
 void SuggestBox::prepare() {
-	setTitle(langFactory(lng_export_suggest_title));
+	setTitle(tr::lng_export_suggest_title());
 
 	addButton(langFactory(lng_box_ok), [=] {
 		closeBox();

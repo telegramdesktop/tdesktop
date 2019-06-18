@@ -80,7 +80,7 @@ SessionsBox::SessionsBox(QWidget*)
 }
 
 void SessionsBox::prepare() {
-	setTitle(langFactory(lng_sessions_other_header));
+	setTitle(tr::lng_sessions_other_header());
 
 	addButton(langFactory(lng_close), [=] { closeBox(); });
 

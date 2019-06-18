@@ -16,8 +16,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/text/text_utilities.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+
+void BoxContent::setTitle(rpl::producer<QString> title) {
+	getDelegate()->setTitle(std::move(title) | Ui::Text::ToWithEntities());
+}
 
 QPointer<Ui::RoundButton> BoxContent::addButton(
 		Fn<QString()> textFactory,
@@ -310,18 +315,10 @@ void AbstractBox::parentResized() {
 	update();
 }
 
-void AbstractBox::setTitle(Fn<TextWithEntities()> titleFactory) {
-	_titleFactory = std::move(titleFactory);
-	refreshTitle();
-}
-
-void AbstractBox::refreshTitle() {
-	auto wasTitle = hasTitle();
-	if (_titleFactory) {
-		if (!_title) {
-			_title.create(this, st::boxTitle);
-		}
-		_title->setMarkedText(_titleFactory());
+void AbstractBox::setTitle(rpl::producer<TextWithEntities> title) {
+	const auto wasTitle = hasTitle();
+	if (title) {
+		_title.create(this, std::move(title), st::boxTitle);
 		updateTitlePosition();
 	} else {
 		_title.destroy();
@@ -350,7 +347,6 @@ void AbstractBox::refreshAdditionalTitle() {
 }
 
 void AbstractBox::refreshLang() {
-	refreshTitle();
 	refreshAdditionalTitle();
 	InvokeQueued(this, [this] { updateButtonsPositions(); });
 }

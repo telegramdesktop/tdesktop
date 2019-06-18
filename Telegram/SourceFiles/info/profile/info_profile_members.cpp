@@ -409,7 +409,7 @@ void Members::visibleTopBottomUpdated(
 	setChildVisibleTopBottom(_list, visibleTop, visibleBottom);
 }
 
-void Members::peerListSetTitle(Fn<QString()> title) {
+void Members::peerListSetTitle(rpl::producer<QString> title) {
 }
 
 void Members::peerListSetAdditionalTitle(

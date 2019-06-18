@@ -43,7 +43,7 @@ void AutoDownloadBox::setupContent() {
 	using namespace rpl::mappers;
 	using Type = Data::AutoDownload::Type;
 
-	setTitle(langFactory(lng_media_auto_title));
+	setTitle(tr::lng_media_auto_title());
 
 	const auto settings = &Auth().settings().autoDownload();
 	const auto checked = [=](Source source, Type type) {

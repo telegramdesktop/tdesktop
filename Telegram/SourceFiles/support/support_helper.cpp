@@ -73,7 +73,7 @@ EditInfoBox::EditInfoBox(
 }
 
 void EditInfoBox::prepare() {
-	setTitle([] { return QString("Edit support information"); }); // #TODO hard_lang
+	setTitle(rpl::single(qsl("Edit support information"))); // #TODO hard_lang
 
 	const auto save = [=] {
 		const auto done = crl::guard(this, [=](bool success) {

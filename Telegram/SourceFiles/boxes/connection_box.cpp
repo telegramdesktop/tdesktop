@@ -469,7 +469,7 @@ ProxiesBox::ProxiesBox(
 }
 
 void ProxiesBox::prepare() {
-	setTitle(langFactory(lng_proxy_settings));
+	setTitle(tr::lng_proxy_settings());
 
 	addButton(langFactory(lng_proxy_add), [=] { addNewProxy(); });
 	addButton(langFactory(lng_close), [=] { closeBox(); });
@@ -698,7 +698,7 @@ ProxyBox::ProxyBox(
 }
 
 void ProxyBox::prepare() {
-	setTitle(langFactory(lng_proxy_edit));
+	setTitle(tr::lng_proxy_edit());
 
 	refreshButtons();
 	setDimensionsToContent(st::boxWideWidth, _content);

@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 
 void AutoLockBox::prepare() {
-	setTitle(langFactory(lng_passcode_autolock));
+	setTitle(tr::lng_passcode_autolock());
 
 	addButton(langFactory(lng_box_ok), [this] { closeBox(); });
 

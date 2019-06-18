@@ -384,7 +384,7 @@ FilterBox::FilterBox(QWidget*, not_null<ChannelData*> channel, const std::vector
 }
 
 void FilterBox::prepare() {
-	setTitle(langFactory(lng_admin_log_filter_title));
+	setTitle(tr::lng_admin_log_filter_title());
 
 	_inner = setInnerWidget(object_ptr<Inner>(this, _channel, _admins, _initialFilter, [this] { refreshButtons(); }));
 	_inner->resizeToWidth(st::boxWideWidth);

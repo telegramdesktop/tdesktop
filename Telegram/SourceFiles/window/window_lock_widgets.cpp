@@ -215,7 +215,7 @@ rpl::producer<> TermsBox::cancelClicks() const {
 }
 
 void TermsBox::prepare() {
-	setTitle(langFactory(lng_terms_header));
+	setTitle(tr::lng_terms_header());
 
 	auto check = std::make_unique<Ui::CheckView>(st::defaultCheck, false);
 	const auto ageCheck = check.get();

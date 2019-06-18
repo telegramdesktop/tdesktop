@@ -32,7 +32,9 @@ namespace {
 
 class PrivacyExceptionsBoxController : public ChatsListBoxController {
 public:
-	PrivacyExceptionsBoxController(Fn<QString()> titleFactory, const std::vector<not_null<PeerData*>> &selected);
+	PrivacyExceptionsBoxController(
+		rpl::producer<QString> title,
+		const std::vector<not_null<PeerData*>> &selected);
 	void rowClicked(not_null<PeerListRow*> row) override;
 
 	std::vector<not_null<PeerData*>> getResult() const;
@@ -42,20 +44,20 @@ protected:
 	std::unique_ptr<Row> createRow(not_null<History*> history) override;
 
 private:
-	Fn<QString()> _titleFactory;
+	rpl::producer<QString> _title;
 	std::vector<not_null<PeerData*>> _selected;
 
 };
 
 PrivacyExceptionsBoxController::PrivacyExceptionsBoxController(
-	Fn<QString()> titleFactory,
+	rpl::producer<QString> title,
 	const std::vector<not_null<PeerData*>> &selected)
-: _titleFactory(std::move(titleFactory))
+: _title(std::move(title))
 , _selected(selected) {
 }
 
 void PrivacyExceptionsBoxController::prepareViewHook() {
-	delegate()->peerListSetTitle(_titleFactory);
+	delegate()->peerListSetTitle(std::move(_title));
 	delegate()->peerListAddSelectedRows(_selected);
 }
 
@@ -127,9 +129,7 @@ void EditPrivacyBox::editExceptions(
 		Exception exception,
 		Fn<void()> done) {
 	auto controller = std::make_unique<PrivacyExceptionsBoxController>(
-		crl::guard(this, [=] {
-			return _controller->exceptionBoxTitle(exception);
-		}),
+		_controller->exceptionBoxTitle(exception),
 		exceptions(exception));
 	auto initBox = [=, controller = controller.get()](
 			not_null<PeerListBox*> box) {
@@ -272,7 +272,7 @@ Ui::FlatLabel *EditPrivacyBox::addLabel(
 void EditPrivacyBox::setupContent() {
 	using namespace Settings;
 
-	setTitle([=] { return _controller->title(); });
+	setTitle(_controller->title());
 
 	auto wrap = object_ptr<Ui::VerticalLayout>(this);
 	const auto content = wrap.data();

@@ -29,7 +29,7 @@ void DownloadPathBox::prepare() {
 	addButton(langFactory(lng_connection_save), [this] { save(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
-	setTitle(langFactory(lng_download_path_header));
+	setTitle(tr::lng_download_path_header());
 
 	_group->setChangedCallback([this](Directory value) { radioChanged(value); });
 

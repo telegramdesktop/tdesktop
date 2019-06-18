@@ -742,9 +742,9 @@ void PeerMenuBlockUserBox(
 
 	box->addSkip(st::boxLittleSkip);
 
-	box->setTitle([=] {
-		return lng_blocked_list_confirm_title(lt_name, name);
-	});
+	box->setTitle(tr::lng_blocked_list_confirm_title(
+		lt_name,
+		rpl::single(name)));
 
 	box->addButton(langFactory(lng_blocked_list_confirm_ok), [=] {
 		const auto reportChecked = report && report->checked();

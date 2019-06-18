@@ -568,7 +568,7 @@ ThemeExportBox::ThemeExportBox(QWidget*, const QByteArray &paletteContent, const
 }
 
 void ThemeExportBox::prepare() {
-	setTitle(langFactory(lng_theme_editor_background_image));
+	setTitle(tr::lng_theme_editor_background_image());
 
 	addButton(langFactory(lng_theme_editor_export), [this] { exportTheme(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });

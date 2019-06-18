@@ -108,20 +108,24 @@ void PasscodeBox::prepare() {
 	const auto onlyCheck = onlyCheckCurrent();
 	if (onlyCheck) {
 		_oldPasscode->show();
-		setTitle([=] {
-			return _cloudFields.customTitle.value_or(lang(_cloudPwd
-				? lng_cloud_password_remove
-				: lng_passcode_remove));
-		});
+		setTitle(_cloudFields.customTitle
+			? rpl::single(*_cloudFields.customTitle)
+			: _cloudPwd
+			? tr::lng_cloud_password_remove()
+			: tr::lng_passcode_remove());
 		setDimensions(st::boxWidth, st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_cloudFields.hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + st::passcodeAboutSkip + _aboutHeight + st::passcodePadding.bottom());
 	} else {
 		if (currentlyHave()) {
 			_oldPasscode->show();
-			setTitle(langFactory(_cloudPwd ? lng_cloud_password_change : lng_passcode_change));
+			setTitle(_cloudPwd
+				? tr::lng_cloud_password_change()
+				: tr::lng_passcode_change());
 			setDimensions(st::boxWidth, st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_cloudFields.hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + _newPasscode->height() + st::passcodeLittleSkip + _reenterPasscode->height() + st::passcodeSkip + (_cloudPwd ? _passwordHint->height() + st::passcodeLittleSkip : 0) + st::passcodeAboutSkip + _aboutHeight + st::passcodePadding.bottom());
 		} else {
 			_oldPasscode->hide();
-			setTitle(langFactory(_cloudPwd ? lng_cloud_password_create : lng_passcode_create));
+			setTitle(_cloudPwd
+				? tr::lng_cloud_password_create()
+				: tr::lng_passcode_create());
 			setDimensions(st::boxWidth, st::passcodePadding.top() + _newPasscode->height() + st::passcodeLittleSkip + _reenterPasscode->height() + st::passcodeSkip + (_cloudPwd ? _passwordHint->height() + st::passcodeLittleSkip : 0) + st::passcodeAboutSkip + _aboutHeight + (_cloudPwd ? (st::passcodeLittleSkip + _recoverEmail->height() + st::passcodeSkip) : st::passcodePadding.bottom()));
 		}
 	}
@@ -908,7 +912,7 @@ rpl::producer<> RecoverBox::recoveryExpired() const {
 }
 
 void RecoverBox::prepare() {
-	setTitle(langFactory(lng_signin_recover_title));
+	setTitle(tr::lng_signin_recover_title());
 
 	addButton(langFactory(lng_passcode_submit), [=] { submit(); });
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });

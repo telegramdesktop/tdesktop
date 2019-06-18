@@ -297,7 +297,7 @@ void LocalStorageBox::Show(
 }
 
 void LocalStorageBox::prepare() {
-	setTitle(langFactory(lng_local_storage_title));
+	setTitle(tr::lng_local_storage_title());
 
 	addButton(langFactory(lng_box_ok), [this] { closeBox(); });
 

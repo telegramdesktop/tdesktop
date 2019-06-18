@@ -39,7 +39,7 @@ public:
 	[[nodiscard]] virtual Key key() = 0;
 	[[nodiscard]] virtual MTPInputPrivacyKey apiKey() = 0;
 
-	[[nodiscard]] virtual QString title() = 0;
+	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
 	[[nodiscard]] virtual bool hasOption(Option option) {
 		return true;
 	}
@@ -50,7 +50,7 @@ public:
 	}
 	[[nodiscard]] virtual rpl::producer<QString> exceptionButtonTextKey(
 		Exception exception) = 0;
-	[[nodiscard]] virtual QString exceptionBoxTitle(
+	[[nodiscard]] virtual rpl::producer<QString> exceptionBoxTitle(
 		Exception exception) = 0;
 	[[nodiscard]] virtual auto exceptionsDescription()
 		-> rpl::producer<QString> = 0;

@@ -34,17 +34,17 @@ ReportBox::ReportBox(QWidget*, not_null<PeerData*> peer, MessageIdsList ids)
 }
 
 void ReportBox::prepare() {
-	setTitle(langFactory([&] {
+	setTitle([&] {
 		if (_ids) {
-			return lng_report_message_title;
+			return tr::lng_report_message_title();
 		} else if (_peer->isUser()) {
-			return lng_report_bot_title;
+			return tr::lng_report_bot_title();
 		} else if (_peer->isMegagroup()) {
-			return lng_report_group_title;
+			return tr::lng_report_group_title();
 		} else {
-			return lng_report_title;
+			return tr::lng_report_title();
 		}
-	}()));
+	}());
 
 	addButton(langFactory(lng_report_button), [=] { report(); });
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });

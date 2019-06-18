@@ -298,7 +298,7 @@ auto EditPeerPermissionsBox::saveEvents() const
 }
 
 void EditPeerPermissionsBox::prepare() {
-	setTitle(langFactory(lng_manage_peer_permissions));
+	setTitle(tr::lng_manage_peer_permissions());
 
 	const auto inner = setInnerWidget(object_ptr<Ui::VerticalLayout>(this));
 

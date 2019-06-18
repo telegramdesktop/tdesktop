@@ -205,7 +205,7 @@ void ShareBox::prepare() {
 	_select->resizeToWidth(st::boxWideWidth);
 	Ui::SendPendingMoveResizeEvents(_select);
 
-	setTitle(langFactory(lng_share_title));
+	setTitle(tr::lng_share_title());
 
 	_inner = setInnerWidget(
 		object_ptr<Inner>(

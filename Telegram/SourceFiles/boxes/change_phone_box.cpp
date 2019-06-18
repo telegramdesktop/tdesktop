@@ -120,7 +120,7 @@ private:
 };
 
 void ChangePhoneBox::EnterPhone::prepare() {
-	setTitle(langFactory(lng_change_phone_title));
+	setTitle(tr::lng_change_phone_title());
 
 	auto phoneValue = QString();
 	_phone.create(this, st::defaultInputField, tr::lng_change_phone_new_title(), phoneValue);
@@ -235,7 +235,7 @@ ChangePhoneBox::EnterCode::EnterCode(QWidget*, const QString &phone, const QStri
 }
 
 void ChangePhoneBox::EnterCode::prepare() {
-	setTitle(langFactory(lng_change_phone_title));
+	setTitle(tr::lng_change_phone_title());
 
 	auto descriptionText = lng_change_phone_code_description__rich(
 		lt_phone,
@@ -338,7 +338,7 @@ bool ChangePhoneBox::EnterCode::sendCodeFail(const RPCError &error) {
 }
 
 void ChangePhoneBox::prepare() {
-	setTitle(langFactory(lng_change_phone_title));
+	setTitle(tr::lng_change_phone_title());
 	addButton(langFactory(lng_change_phone_button), [] {
 		Ui::show(Box<ConfirmBox>(lang(lng_change_phone_warning), [] {
 			Ui::show(Box<EnterPhone>());

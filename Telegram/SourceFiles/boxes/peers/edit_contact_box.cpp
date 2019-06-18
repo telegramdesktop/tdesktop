@@ -76,9 +76,9 @@ Controller::Controller(
 void Controller::prepare() {
 	setupContent();
 
-	_box->setTitle(langFactory(_user->isContact()
-		? lng_edit_contact_title
-		: lng_enter_contact_data));
+	_box->setTitle(_user->isContact()
+		? tr::lng_edit_contact_title()
+		: tr::lng_enter_contact_data());
 
 	_box->addButton(langFactory(lng_box_done), _save);
 	_box->addButton(langFactory(lng_cancel), [=] { _box->closeBox(); });

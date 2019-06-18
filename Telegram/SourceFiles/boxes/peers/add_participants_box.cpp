@@ -155,7 +155,7 @@ void AddParticipantsBoxController::updateTitle() {
 		&& !_peer->isMegagroup())
 		? QString() :
 		QString("%1 / %2").arg(fullCount()).arg(Global::MegagroupSizeMax());
-	delegate()->peerListSetTitle(langFactory(lng_profile_add_participant));
+	delegate()->peerListSetTitle(tr::lng_profile_add_participant());
 	delegate()->peerListSetAdditionalTitle([=] { return additional; });
 }
 
@@ -287,18 +287,18 @@ std::unique_ptr<PeerListRow> AddSpecialBoxController::createSearchRow(
 
 void AddSpecialBoxController::prepare() {
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
-	const auto title = [&] {
+	auto title = [&] {
 		switch (_role) {
 		case Role::Admins:
-			return langFactory(lng_channel_add_admin);
+			return tr::lng_channel_add_admin();
 		case Role::Restricted:
-			return langFactory(lng_channel_add_exception);
+			return tr::lng_channel_add_exception();
 		case Role::Kicked:
-			return langFactory(lng_channel_add_removed);
+			return tr::lng_channel_add_removed();
 		}
 		Unexpected("Role in AddSpecialBoxController::prepare()");
 	}();
-	delegate()->peerListSetTitle(title);
+	delegate()->peerListSetTitle(std::move(title));
 	setDescriptionText(lang(lng_contacts_loading));
 	setSearchNoResultsText(lang(lng_blocked_list_not_found));
 

@@ -269,9 +269,9 @@ Controller::Controller(
 : _box(box)
 , _peer(peer)
 , _isGroup(_peer->isChat() || _peer->isMegagroup()) {
-	_box->setTitle(langFactory(_isGroup
-		? lng_edit_group
-		: lng_edit_channel_title));
+	_box->setTitle(_isGroup
+		? tr::lng_edit_group()
+		: tr::lng_edit_channel_title());
 	_box->addButton(langFactory(lng_settings_save), [this] {
 		save();
 	});

@@ -26,7 +26,7 @@ MuteSettingsBox::MuteSettingsBox(QWidget *parent, not_null<PeerData*> peer)
 }
 
 void MuteSettingsBox::prepare() {
-	setTitle(langFactory(lng_disable_notifications_from_tray));
+	setTitle(tr::lng_disable_notifications_from_tray());
 	auto y = 0;
 
 	object_ptr<Ui::FlatLabel> info(this, st::boxLabel);

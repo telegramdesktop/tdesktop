@@ -31,7 +31,7 @@ class VerifyBox : public BoxContent {
 public:
 	VerifyBox(
 		QWidget*,
-		const QString &title,
+		rpl::producer<QString> title,
 		const QString &text,
 		int codeLength,
 		Fn<void(QString code)> submit,
@@ -55,7 +55,7 @@ private:
 		rpl::producer<QString> error,
 		rpl::producer<QString> resent);
 
-	QString _title;
+	rpl::producer<QString> _title;
 	Fn<void()> _submit;
 	QPointer<SentCodeField> _code;
 	QPointer<Ui::VerticalLayout> _content;
@@ -64,7 +64,7 @@ private:
 
 VerifyBox::VerifyBox(
 	QWidget*,
-	const QString &title,
+	rpl::producer<QString> title,
 	const QString &text,
 	int codeLength,
 	Fn<void(QString code)> submit,
@@ -72,7 +72,7 @@ VerifyBox::VerifyBox(
 	rpl::producer<QString> call,
 	rpl::producer<QString> error,
 	rpl::producer<QString> resent)
-: _title(title) {
+: _title(std::move(title)) {
 	setupControls(
 		text,
 		codeLength,
@@ -185,7 +185,7 @@ void VerifyBox::setInnerFocus() {
 }
 
 void VerifyBox::prepare() {
-	setTitle([=] { return _title; });
+	setTitle(std::move(_title));
 
 	addButton(langFactory(lng_change_phone_new_submit), _submit);
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });
@@ -391,7 +391,7 @@ object_ptr<BoxContent> VerifyPhoneBox(
 		rpl::producer<QString> call,
 		rpl::producer<QString> error) {
 	return Box<VerifyBox>(
-		lang(lng_passport_phone_title),
+		tr::lng_passport_phone_title(),
 		lng_passport_confirm_phone(lt_phone, App::formatPhone(phone)),
 		codeLength,
 		submit,
@@ -409,7 +409,7 @@ object_ptr<BoxContent> VerifyEmailBox(
 		rpl::producer<QString> error,
 		rpl::producer<QString> resent) {
 	return Box<VerifyBox>(
-		lang(lng_passport_email_title),
+		tr::lng_passport_email_title(),
 		lng_passport_confirm_email(lt_email, email),
 		codeLength,
 		submit,

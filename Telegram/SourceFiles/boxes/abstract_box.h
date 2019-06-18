@@ -30,7 +30,7 @@ class BoxContent;
 class BoxContentDelegate {
 public:
 	virtual void setLayerType(bool layerType) = 0;
-	virtual void setTitle(Fn<TextWithEntities()> titleFactory) = 0;
+	virtual void setTitle(rpl::producer<TextWithEntities> title) = 0;
 	virtual void setAdditionalTitle(Fn<QString()> additionalFactory) = 0;
 	virtual void setCloseByOutsideClick(bool close) = 0;
 
@@ -81,15 +81,9 @@ public:
 		getDelegate()->closeBox();
 	}
 
-	void setTitle(Fn<QString()> titleFactory) {
-		if (titleFactory) {
-			getDelegate()->setTitle([titleFactory] { return TextWithEntities { titleFactory(), EntitiesInText() }; });
-		} else {
-			getDelegate()->setTitle(Fn<TextWithEntities()>());
-		}
-	}
-	void setTitle(Fn<TextWithEntities()> titleFactory) {
-		getDelegate()->setTitle(std::move(titleFactory));
+	void setTitle(rpl::producer<QString> title);
+	void setTitle(rpl::producer<TextWithEntities> title) {
+		getDelegate()->setTitle(std::move(title));
 	}
 	void setAdditionalTitle(Fn<QString()> additional) {
 		getDelegate()->setAdditionalTitle(std::move(additional));
@@ -256,7 +250,7 @@ public:
 	void parentResized() override;
 
 	void setLayerType(bool layerType) override;
-	void setTitle(Fn<TextWithEntities()> titleFactory) override;
+	void setTitle(rpl::producer<TextWithEntities> title) override;
 	void setAdditionalTitle(Fn<QString()> additionalFactory) override;
 	void showBox(
 		object_ptr<BoxContent> box,
@@ -307,7 +301,6 @@ protected:
 private:
 	void paintAdditionalTitle(Painter &p);
 	void updateTitlePosition();
-	void refreshTitle();
 	void refreshAdditionalTitle();
 	void refreshLang();
 

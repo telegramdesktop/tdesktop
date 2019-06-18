@@ -212,10 +212,13 @@ void AddContactBox::prepare() {
 		setTabOrder(_last, _first);
 	}
 	if (_user) {
-		setTitle(langFactory(lng_edit_contact_title));
+		setTitle(tr::lng_edit_contact_title());
 	} else {
-		auto readyToAdd = !_phone->getLastText().isEmpty() && (!_first->getLastText().isEmpty() || !_last->getLastText().isEmpty());
-		setTitle(langFactory(readyToAdd ? lng_confirm_contact_data : lng_enter_contact_data));
+		const auto readyToAdd = !_phone->getLastText().isEmpty()
+			&& (!_first->getLastText().isEmpty() || !_last->getLastText().isEmpty());
+		setTitle(readyToAdd
+			? tr::lng_confirm_contact_data()
+			: tr::lng_enter_contact_data());
 	}
 	updateButtons();
 
@@ -1092,7 +1095,7 @@ EditNameBox::EditNameBox(QWidget*, not_null<UserData*> user)
 void EditNameBox::prepare() {
 	auto newHeight = st::contactPadding.top() + _first->height();
 
-	setTitle(langFactory(lng_edit_self_title));
+	setTitle(tr::lng_edit_self_title());
 	newHeight += st::contactSkip + _last->height();
 
 	newHeight += st::boxPadding.bottom() + st::contactPadding.bottom();

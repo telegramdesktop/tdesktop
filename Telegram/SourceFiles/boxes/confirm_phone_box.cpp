@@ -282,7 +282,7 @@ void ConfirmPhoneBox::prepare() {
 	_code->setAutoSubmit(_sentCodeLength, [=] { sendCode(); });
 	_code->setChangedCallback([=] { showError(QString()); });
 
-	setTitle(langFactory(lng_confirm_phone_title));
+	setTitle(tr::lng_confirm_phone_title());
 
 	addButton(langFactory(lng_confirm_phone_send), [=] { sendCode(); });
 	addButton(langFactory(lng_cancel), [=] { closeBox(); });

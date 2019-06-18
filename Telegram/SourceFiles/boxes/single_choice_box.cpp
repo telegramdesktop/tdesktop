@@ -17,18 +17,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 SingleChoiceBox::SingleChoiceBox(
 	QWidget*,
-	LangKey title,
+	rpl::producer<QString> title,
 	const std::vector<QString> &optionTexts,
 	int initialSelection,
 	Fn<void(int)> callback)
-: _title(title)
+: _title(std::move(title))
 , _optionTexts(optionTexts)
 , _initialSelection(initialSelection)
 , _callback(callback) {
 }
 
 void SingleChoiceBox::prepare() {
-	setTitle(langFactory(_title));
+	setTitle(std::move(_title));
 
 	addButton(langFactory(lng_box_ok), [=] { closeBox(); });
 
