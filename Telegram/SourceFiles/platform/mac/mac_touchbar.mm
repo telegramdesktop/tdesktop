@@ -77,6 +77,7 @@ NSString *const kTypeText = @"text";
 NSString *const kTypeTextButton = @"textButton";
 NSString *const kTypePopover = @"popover";
 NSString *const kTypeScrubber = @"scrubber";
+NSString *const kTypePicker = @"picker";
 
 const NSString *kCustomizationIdPlayer = @"telegram.touchbar";
 const NSString *kCustomizationIdMain = @"telegram.touchbarMain";
@@ -98,10 +99,9 @@ const NSTouchBarItemIdentifier kMonospaceItemIdentifier = [NSString stringWithFo
 const NSTouchBarItemIdentifier kClearItemIdentifier = [NSString stringWithFormat:@"%@.clear", kCustomizationIdMain];
 const NSTouchBarItemIdentifier kLinkItemIdentifier = [NSString stringWithFormat:@"%@.link", kCustomizationIdMain];
 
-const NSTouchBarItemIdentifier kPopoverStickersItemIdentifier = [NSString stringWithFormat:@"%@.popoverStickers", kCustomizationIdMain];
+const NSTouchBarItemIdentifier kPickerPopoverItemIdentifier = [NSString stringWithFormat:@"%@.pickerButtons", kCustomizationIdMain];
 const NSTouchBarItemIdentifier kScrubberStickersItemIdentifier = [NSString stringWithFormat:@"%@.scrubberStickers", kCustomizationIdMain];
 const NSTouchBarItemIdentifier kStickerItemIdentifier = [NSString stringWithFormat:@"%@.stickerItem", kCustomizationIdMain];
-const NSTouchBarItemIdentifier kPopoverEmojiItemIdentifier = [NSString stringWithFormat:@"%@.popoverEmoji", kCustomizationIdMain];
 const NSTouchBarItemIdentifier kScrubberEmojiItemIdentifier = [NSString stringWithFormat:@"%@.scrubberEmoji", kCustomizationIdMain];
 const NSTouchBarItemIdentifier kEmojiItemIdentifier = [NSString stringWithFormat:@"%@.emojiItem", kCustomizationIdMain];
 const NSTouchBarItemIdentifier kPickerTitleItemIdentifier = [NSString stringWithFormat:@"%@.pickerTitleItem", kCustomizationIdMain];
@@ -748,6 +748,8 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	NSTouchBar *_touchBarMain;
 	NSTouchBar *_touchBarAudioPlayer;
 
+	NSPopoverTouchBarItem *_popoverPicker;
+
 	Platform::TouchBarType _touchBarType;
 	Platform::TouchBarType _touchBarTypeBeforeLock;
 
@@ -836,27 +838,17 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			@"cmd":   [NSNumber numberWithInt:kCommandPopoverInput],
 			@"image": [NSImage imageNamed:NSImageNameTouchBarTextItalicTemplate],
 		}],
-		kPopoverStickersItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":  kTypePopover,
-			@"name":  @"Stickers",
-			@"cmd":   [NSNumber numberWithInt:kCommandPopoverStickers],
-			@"image": CreateNSImageFromStyleIcon(st::settingsIconStickers, iconSize * 2),
-		 }],
-		 kScrubberStickersItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+		kScrubberStickersItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
 			@"type":  kTypeScrubber,
-			@"name":  @"Stickers",
 			@"cmd":   [NSNumber numberWithInt:kCommandScrubberStickers],
 		}],
-		kPopoverEmojiItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":  kTypePopover,
-			@"name":  @"Emoji",
-			@"cmd":   [NSNumber numberWithInt:kCommandPopoverEmoji],
-			@"image": CreateNSImageFromStyleIcon(st::settingsIconEmoji, iconSize * 2),
-		 }],
-		 kScrubberEmojiItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+		kScrubberEmojiItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
 			@"type":  kTypeScrubber,
-			@"name":  @"Emoji",
 			@"cmd":   [NSNumber numberWithInt:kCommandScrubberEmoji],
+		}],
+		kPickerPopoverItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+			@"type":  kTypePicker,
+			@"name":  @"Picker",
 		}]
 	};
 
@@ -916,8 +908,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 					const auto show = key.peer()
 						&& key.history()
 						&& key.peer()->canWrite();
-					[self showItem:kPopoverStickersItemIdentifier show:show];
-					[self showItem:kPopoverEmojiItemIdentifier show:show];
+					[self showPickerItem:show];
 				}, _lifetime);
 			}
 		}
@@ -927,18 +918,14 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		Auth().data().stickersUpdated(),
 		Auth().data().recentStickersUpdated()
 	) | rpl::start_with_next([=] {
-		[self updatePickerPopover:
-			[_touchBarMain itemForIdentifier:kPopoverStickersItemIdentifier]
-			type:ScrubberItemType::Sticker];
+		[self updatePickerPopover:ScrubberItemType::Sticker];
 	}, _lifetime);
 
 	rpl::merge(
 		Ui::Emoji::UpdatedRecent(),
 		Ui::Emoji::Updated()
 	) | rpl::start_with_next([=] {
-		[self updatePickerPopover:
-			[_touchBarMain itemForIdentifier:kPopoverEmojiItemIdentifier]
-			type:ScrubberItemType::Emoji];
+		[self updatePickerPopover:ScrubberItemType::Emoji];
 	}, _lifetime);
 
 	[self updatePinnedButtons];
@@ -997,10 +984,6 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 				kClearItemIdentifier];
 			item.pressAndHoldTouchBar = secondaryTouchBar;
 			item.popoverTouchBar = secondaryTouchBar;
-		} else if (command == kCommandPopoverStickers) {
-			[self updatePickerPopover:item type:ScrubberItemType::Sticker];
-		} else if (command == kCommandPopoverEmoji) {
-			[self updatePickerPopover:item type:ScrubberItemType::Emoji];
 		}
 		return item;
 	} else if (isType(kTypeScrubber)) {
@@ -1010,10 +993,29 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			? ScrubberItemType::Sticker
 			: ScrubberItemType::Emoji;
 		const auto popover = isSticker
-			? [_touchBarMain itemForIdentifier:kPopoverStickersItemIdentifier]
+			? _popoverPicker
 			: nil;
 		PickerCustomTouchBarItem *item = [[PickerCustomTouchBarItem alloc]
 			init:type popover:popover];
+		return item;
+	} else if (isType(kTypePicker)) {
+		NSPopoverTouchBarItem *item = [[NSPopoverTouchBarItem alloc] initWithIdentifier:identifier];
+		_popoverPicker = item;
+		NSSegmentedControl *segment = [[NSSegmentedControl alloc] init];
+		[self updatePickerPopover:ScrubberItemType::Sticker];
+		[self updatePickerPopover:ScrubberItemType::Emoji];
+		const auto imageSize = kIdealIconSize / 3 * 2;
+		segment.segmentStyle = NSSegmentStyleSeparated;
+		segment.segmentCount = 2;
+		[segment setImage:CreateNSImageFromStyleIcon(st::settingsIconStickers, imageSize) forSegment:0];
+		[segment setImage:CreateNSImageFromStyleIcon(st::settingsIconEmoji, imageSize) forSegment:1];
+		[segment setWidth:92 forSegment:0];
+		[segment setWidth:92 forSegment:1];
+		segment.target = self;
+		segment.action = @selector(segmentClicked:);
+		segment.trackingMode = NSSegmentSwitchTrackingMomentary;
+		item.visibilityPriority = NSTouchBarItemPriorityHigh;
+		item.collapsedRepresentation = segment;
 		return item;
 	} else if (isType(kTypePinned)) {
 		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
@@ -1087,6 +1089,21 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 
 - (void) showInputFieldItem:(bool)show {
 	[self showItem:kPopoverInputItemIdentifier show:show];
+	if (show) {
+		[self showItem:kPickerPopoverItemIdentifier show:false];
+	} else {
+		const auto chat = App::wnd()->sessionController()->activeChatCurrent();
+		[self showItem:kPickerPopoverItemIdentifier show:(!show
+			&& chat
+			&& chat.history()->peer->canWrite())];
+	}
+}
+
+- (void) showPickerItem:(bool)show {
+	[self showItem:kPickerPopoverItemIdentifier show:show];
+	if (show) {
+		[self showItem:kPopoverInputItemIdentifier show:false];
+	}
 }
 
 - (void) showItem:(NSTouchBarItemIdentifier)item show:(bool)show {
@@ -1101,20 +1118,18 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	_touchBarMain.defaultItemIdentifiers = items;
 }
 
-- (void) updatePickerPopover:(NSPopoverTouchBarItem *)item
-	type:(ScrubberItemType)type {
-
+- (void) updatePickerPopover:(ScrubberItemType)type {
 	NSTouchBar *secondaryTouchBar = [[NSTouchBar alloc] init];
 	secondaryTouchBar.delegate = self;
 	const auto popover = IsSticker(type)
-		? item
+		? _popoverPicker
 		: nil;
 	[[PickerCustomTouchBarItem alloc] init:type popover:popover];
 	const auto identifier = IsSticker(type)
 		? kScrubberStickersItemIdentifier
 		: kScrubberEmojiItemIdentifier;
 	secondaryTouchBar.defaultItemIdentifiers = @[identifier];
-	item.popoverTouchBar = secondaryTouchBar;
+	_popoverPicker.popoverTouchBar = secondaryTouchBar;
 }
 
 // Main Touchbar.
@@ -1297,6 +1312,14 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			Media::Player::instance()->startSeeking(kSongType);
 		}
 	});
+}
+
+- (void) segmentClicked:(NSSegmentedControl *)sender {
+	const auto identifier = sender.selectedSegment
+		? kScrubberEmojiItemIdentifier
+		: kScrubberStickersItemIdentifier;
+	_popoverPicker.popoverTouchBar.defaultItemIdentifiers = @[identifier];
+	[_popoverPicker showPopover:nil];
 }
 
 -(void)dealloc {
