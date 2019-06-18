@@ -102,7 +102,7 @@ void ReportBox::reasonChanged(Reason reason) {
 				this,
 				st::profileReportReasonOther,
 				Ui::InputField::Mode::MultiLine,
-				langFactory(lng_report_reason_description));
+				tr::lng_report_reason_description());
 			_reasonOtherText->show();
 			_reasonOtherText->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 			_reasonOtherText->setMaxLength(kReportReasonLengthMax);
@@ -192,7 +192,7 @@ bool ReportBox::reportFail(const RPCError &error) {
 void ReportBox::updateMaxHeight() {
 	const auto buttonsCount = _ids ? 5 : 4;
 	auto newHeight = st::boxOptionListPadding.top() + _reasonSpam->getMargins().top() + buttonsCount * _reasonSpam->heightNoMargins() + (buttonsCount - 1) * st::boxOptionListSkip + _reasonSpam->getMargins().bottom() + st::boxOptionListPadding.bottom();
-			
+
 	if (_reasonOtherText) {
 		newHeight += st::newGroupDescriptionPadding.top() + _reasonOtherText->height() + st::newGroupDescriptionPadding.bottom();
 	}

@@ -193,7 +193,7 @@ bool ControllerObject::ioCatchError(Output::Result result) {
 //}
 //
 //rpl::producer<PasswordUpdate> ControllerObject::passwordUpdate() const {
-//	return rpl::never<PasswordUpdate>();
+//	return nullptr;
 //}
 //
 //void ControllerObject::reloadPasswordState() {

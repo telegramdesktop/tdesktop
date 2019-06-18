@@ -61,7 +61,7 @@ EditInfoBox::EditInfoBox(
 	this,
 	st::supportInfoField,
 	Ui::InputField::Mode::MultiLine,
-	[] { return QString("Support information"); },
+	rpl::single(qsl("Support information")), // #TODO hard_lang
 	text)
 , _submit(std::move(submit)) {
 	_field->setMaxLength(kMaxSupportInfoLength);
@@ -73,7 +73,7 @@ EditInfoBox::EditInfoBox(
 }
 
 void EditInfoBox::prepare() {
-	setTitle([] { return QString("Edit support information"); });
+	setTitle([] { return QString("Edit support information"); }); // #TODO hard_lang
 
 	const auto save = [=] {
 		const auto done = crl::guard(this, [=](bool success) {

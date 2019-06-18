@@ -396,7 +396,7 @@ void Autocomplete::setupContent() {
 		object_ptr<Ui::InputField>(
 			this,
 			st::gifsSearchField,
-			[] { return "Search for templates"; }),
+			rpl::single(qsl("Search for templates"))), // #TODO hard_lang
 		st::autocompleteSearchPadding);
 	const auto input = inputWrap->entity();
 	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(

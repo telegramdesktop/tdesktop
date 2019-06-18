@@ -23,7 +23,7 @@ public:
 	SentCodeField(
 		QWidget *parent,
 		const style::InputField &st,
-		Fn<QString()> placeholderFactory = nullptr,
+		rpl::producer<QString> placeholder = nullptr,
 		const QString &val = QString());
 
 	void setAutoSubmit(int length, Fn<void()> submitCallback);

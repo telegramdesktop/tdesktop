@@ -102,7 +102,7 @@ private:
 	Settings _internal_data;
 
 	struct Wrap {
-		Wrap(rpl::producer<> value = rpl::never<>())
+		Wrap(rpl::producer<> value = nullptr)
 		: value(std::move(value)) {
 		}
 

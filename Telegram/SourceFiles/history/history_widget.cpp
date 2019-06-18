@@ -272,7 +272,7 @@ HistoryWidget::HistoryWidget(
 	this,
 	st::historyComposeField,
 	Ui::InputField::Mode::MultiLine,
-	langFactory(lng_message_ph))
+	tr::lng_message_ph())
 , _recordCancelWidth(st::historyRecordFont->width(lang(lng_record_cancel)))
 , _recordingAnimation([=](crl::time now) {
 	return recordingAnimationCallback(now);
@@ -3899,19 +3899,20 @@ void HistoryWidget::onCheckFieldAutocomplete() {
 
 void HistoryWidget::updateFieldPlaceholder() {
 	if (_editMsgId) {
-		_field->setPlaceholder(langFactory(lng_edit_message_text));
+		_field->setPlaceholder(tr::lng_edit_message_text());
 	} else {
 		if (_inlineBot && !_inlineLookingUpBot) {
-			auto text = _inlineBot->botInfo->inlinePlaceholder.mid(1);
-			_field->setPlaceholder([text] { return text; }, _inlineBot->username.size() + 2);
+			_field->setPlaceholder(
+				rpl::single(_inlineBot->botInfo->inlinePlaceholder.mid(1)),
+				_inlineBot->username.size() + 2);
 		} else {
 			const auto peer = _history ? _history->peer.get() : nullptr;
-			_field->setPlaceholder(langFactory(
-				(peer && peer->isChannel() && !peer->isMegagroup())
-				? (session().data().notifySilentPosts(peer)
-					? lng_broadcast_silent_ph
-					: lng_broadcast_ph)
-				: lng_message_ph));
+			_field->setPlaceholder(
+				((peer && peer->isChannel() && !peer->isMegagroup())
+					? (session().data().notifySilentPosts(peer)
+						? tr::lng_broadcast_silent_ph()
+						: tr::lng_broadcast_ph())
+					: tr::lng_message_ph()));
 		}
 	}
 	updateSendButtonType();

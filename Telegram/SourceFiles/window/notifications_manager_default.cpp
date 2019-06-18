@@ -792,7 +792,7 @@ void Notification::showReplyField() {
 		this,
 		st::notifyReplyArea,
 		Ui::InputField::Mode::MultiLine,
-		langFactory(lng_message_ph));
+		tr::lng_message_ph());
 	_replyArea->resize(width() - st::notifySendReply.width - 2 * st::notifyBorderWidth, st::notifySendReply.height);
 	_replyArea->moveToLeft(st::notifyBorderWidth, st::notifyMinHeight);
 	_replyArea->show();

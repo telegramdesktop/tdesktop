@@ -26,8 +26,8 @@ SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, d
 	lang(lng_settings_crop_profile),
 	Ui::UserpicButton::Role::ChangePhoto,
 	st::defaultUserpicButton)
-, _first(this, st::introName, langFactory(lng_signup_firstname))
-, _last(this, st::introName, langFactory(lng_signup_lastname))
+, _first(this, st::introName, tr::lng_signup_firstname())
+, _last(this, st::introName, tr::lng_signup_lastname())
 , _invertOrder(langFirstNameGoesSecond())
 , _checkRequest(this) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });

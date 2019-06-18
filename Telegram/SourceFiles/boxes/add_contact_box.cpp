@@ -189,9 +189,9 @@ private:
 };
 
 AddContactBox::AddContactBox(QWidget*, QString fname, QString lname, QString phone)
-: _first(this, st::defaultInputField, langFactory(lng_signup_firstname), fname)
-, _last(this, st::defaultInputField, langFactory(lng_signup_lastname), lname)
-, _phone(this, st::defaultInputField, langFactory(lng_contact_phone), phone)
+: _first(this, st::defaultInputField, tr::lng_signup_firstname(), fname)
+, _last(this, st::defaultInputField, tr::lng_signup_lastname(), lname)
+, _phone(this, st::defaultInputField, tr::lng_contact_phone(), phone)
 , _invertOrder(langFirstNameGoesSecond()) {
 	if (!phone.isEmpty()) {
 		_phone->setDisabled(true);
@@ -200,9 +200,9 @@ AddContactBox::AddContactBox(QWidget*, QString fname, QString lname, QString pho
 
 AddContactBox::AddContactBox(QWidget*, UserData *user)
 : _user(user)
-, _first(this, st::defaultInputField, langFactory(lng_signup_firstname), user->firstName)
-, _last(this, st::defaultInputField, langFactory(lng_signup_lastname), user->lastName)
-, _phone(this, st::defaultInputField, langFactory(lng_contact_phone), user->phone())
+, _first(this, st::defaultInputField, tr::lng_signup_firstname(), user->firstName)
+, _last(this, st::defaultInputField, tr::lng_signup_lastname(), user->lastName)
+, _phone(this, st::defaultInputField, tr::lng_contact_phone(), user->phone())
 , _invertOrder(langFirstNameGoesSecond()) {
 	_phone->setDisabled(true);
 }
@@ -427,9 +427,9 @@ void GroupInfoBox::prepare() {
 	_title.create(
 		this,
 		st::defaultInputField,
-		langFactory((_type == Type::Channel)
-			? lng_dlg_new_channel_name
-			: lng_dlg_new_group_name),
+		(_type == Type::Channel
+			? tr::lng_dlg_new_channel_name
+			: tr::lng_dlg_new_group_name)(),
 		_initialTitle);
 	_title->setMaxLength(kMaxGroupChannelTitle);
 	_title->setInstantReplaces(Ui::InstantReplaces::Default());
@@ -443,7 +443,7 @@ void GroupInfoBox::prepare() {
 			this,
 			st::newGroupDescription,
 			Ui::InputField::Mode::MultiLine,
-			langFactory(lng_create_group_description));
+			tr::lng_create_group_description());
 		_description->show();
 		_description->setMaxLength(kMaxChannelDescription);
 		_description->setInstantReplaces(Ui::InstantReplaces::Default());
@@ -733,7 +733,7 @@ SetupChannelBox::SetupChannelBox(QWidget*, ChannelData *channel, bool existing)
 , _aboutPublicWidth(st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultRadio.diameter - st::defaultBoxCheckbox.textPosition.x())
 , _aboutPublic(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
 , _aboutPrivate(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
-, _link(this, st::setupChannelLink, Fn<QString()>(), channel->username, true) {
+, _link(this, st::setupChannelLink, nullptr, channel->username, true) {
 }
 
 void SetupChannelBox::prepare() {
@@ -1084,8 +1084,8 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 
 EditNameBox::EditNameBox(QWidget*, not_null<UserData*> user)
 : _user(user)
-, _first(this, st::defaultInputField, langFactory(lng_signup_firstname), _user->firstName)
-, _last(this, st::defaultInputField, langFactory(lng_signup_lastname), _user->lastName)
+, _first(this, st::defaultInputField, tr::lng_signup_firstname(), _user->firstName)
+, _last(this, st::defaultInputField, tr::lng_signup_lastname(), _user->lastName)
 , _invertOrder(langFirstNameGoesSecond()) {
 }
 

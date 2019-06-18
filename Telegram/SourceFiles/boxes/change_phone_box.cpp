@@ -123,7 +123,7 @@ void ChangePhoneBox::EnterPhone::prepare() {
 	setTitle(langFactory(lng_change_phone_title));
 
 	auto phoneValue = QString();
-	_phone.create(this, st::defaultInputField, langFactory(lng_change_phone_new_title), phoneValue);
+	_phone.create(this, st::defaultInputField, tr::lng_change_phone_new_title(), phoneValue);
 
 	_phone->resize(st::boxWidth - 2 * st::boxPadding.left(), _phone->height());
 	_phone->moveToLeft(st::boxPadding.left(), st::boxLittleSkip);
@@ -244,7 +244,7 @@ void ChangePhoneBox::EnterCode::prepare() {
 	description->moveToLeft(st::boxPadding.left(), 0);
 
 	auto phoneValue = QString();
-	_code.create(this, st::defaultInputField, langFactory(lng_change_phone_code_title), phoneValue);
+	_code.create(this, st::defaultInputField, tr::lng_change_phone_code_title(), phoneValue);
 	_code->setAutoSubmit(_codeLength, [=] { submit(); });
 	_code->setChangedCallback([=] { hideError(); });
 

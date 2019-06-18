@@ -112,7 +112,7 @@ void EditLinkBox::prepare() {
 		object_ptr<Ui::InputField>(
 			content,
 			st::defaultInputField,
-			langFactory(lng_formatting_link_text),
+			tr::lng_formatting_link_text(),
 			_startText),
 		st::markdownLinkFieldPadding);
 	text->setInstantReplaces(Ui::InstantReplaces::Default());
@@ -125,7 +125,7 @@ void EditLinkBox::prepare() {
 		object_ptr<Ui::InputField>(
 			content,
 			st::defaultInputField,
-			langFactory(lng_formatting_link_url),
+			tr::lng_formatting_link_url(),
 			_startLink.trimmed()),
 		st::markdownLinkFieldPadding);
 

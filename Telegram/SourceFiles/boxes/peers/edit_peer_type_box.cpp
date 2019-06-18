@@ -315,7 +315,7 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 		object_ptr<Ui::UsernameInput>(
 			container,
 			st::setupChannelLink,
-			Fn<QString()>(),
+			nullptr,
 			username,
 			true));
 	_controls.usernameInput->heightValue(

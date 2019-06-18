@@ -234,13 +234,18 @@ void MultiSelect::Item::setOver(bool over) {
 MultiSelect::MultiSelect(
 	QWidget *parent,
 	const style::MultiSelect &st,
-	Fn<QString()> placeholderFactory)
+	rpl::producer<QString> placeholder)
 : RpWidget(parent)
 , _st(st)
 , _scroll(this, _st.scroll) {
-	_inner = _scroll->setOwnedWidget(object_ptr<Inner>(this, st, std::move(placeholderFactory), [this](int activeTop, int activeBottom) {
+	const auto scrollCallback = [=](int activeTop, int activeBottom) {
 		scrollTo(activeTop, activeBottom);
-	}));
+	};
+	_inner = _scroll->setOwnedWidget(object_ptr<Inner>(
+		this,
+		st,
+		std::move(placeholder),
+		scrollCallback));
 	_scroll->installEventFilter(this);
 	_inner->setResizedCallback([this](int innerHeightDelta) {
 		auto newHeight = resizeGetHeight(width());
@@ -357,7 +362,12 @@ int MultiSelect::resizeGetHeight(int newWidth) {
 	return newHeight;
 }
 
-MultiSelect::Inner::Inner(QWidget *parent, const style::MultiSelect &st, Fn<QString()> placeholder, ScrollCallback callback) : TWidget(parent)
+MultiSelect::Inner::Inner(
+	QWidget *parent,
+	const style::MultiSelect &st,
+	rpl::producer<QString> placeholder,
+	ScrollCallback callback)
+: TWidget(parent)
 , _st(st)
 , _scrollCallback(std::move(callback))
 , _field(this, _st.field, std::move(placeholder))

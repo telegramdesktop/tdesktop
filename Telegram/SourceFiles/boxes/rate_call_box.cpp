@@ -77,7 +77,7 @@ void RateCallBox::ratingChanged(int value) {
 				this,
 				st::callRatingComment,
 				Ui::InputField::Mode::MultiLine,
-				langFactory(lng_call_rate_comment));
+				tr::lng_call_rate_comment());
 			_comment->show();
 			_comment->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 			_comment->setMaxLength(kRateCallCommentLengthMax);

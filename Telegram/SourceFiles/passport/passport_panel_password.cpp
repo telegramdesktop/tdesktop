@@ -44,7 +44,7 @@ PanelAskPassword::PanelAskPassword(
 , _password(
 	this,
 	st::defaultInputField,
-	langFactory(lng_passport_password_placeholder))
+	tr::lng_passport_password_placeholder())
 , _submit(this, langFactory(lng_passport_next), st::passportPasswordSubmit)
 , _forgot(this, lang(lng_signin_recover), st::defaultLinkButton) {
 	connect(_password, &Ui::PasswordInput::submitted, this, [=] {

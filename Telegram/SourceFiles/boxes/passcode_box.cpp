@@ -43,11 +43,11 @@ PasscodeBox::CloudFields PasscodeBox::CloudFields::From(
 PasscodeBox::PasscodeBox(QWidget*, bool turningOff)
 : _turningOff(turningOff)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
-, _oldPasscode(this, st::defaultInputField, langFactory(lng_passcode_enter_old))
-, _newPasscode(this, st::defaultInputField, langFactory(Global::LocalPasscode() ? lng_passcode_enter_new : lng_passcode_enter_first))
-, _reenterPasscode(this, st::defaultInputField, langFactory(lng_passcode_confirm_new))
-, _passwordHint(this, st::defaultInputField, langFactory(lng_cloud_password_hint))
-, _recoverEmail(this, st::defaultInputField, langFactory(lng_cloud_password_email))
+, _oldPasscode(this, st::defaultInputField, tr::lng_passcode_enter_old())
+, _newPasscode(this, st::defaultInputField, Global::LocalPasscode() ? tr::lng_passcode_enter_new() : tr::lng_passcode_enter_first())
+, _reenterPasscode(this, st::defaultInputField, tr::lng_passcode_confirm_new())
+, _passwordHint(this, st::defaultInputField, tr::lng_cloud_password_hint())
+, _recoverEmail(this, st::defaultInputField, tr::lng_cloud_password_email())
 , _recover(this, lang(lng_signin_recover)) {
 }
 
@@ -56,11 +56,11 @@ PasscodeBox::PasscodeBox(QWidget*, const CloudFields &fields)
 , _cloudPwd(true)
 , _cloudFields(fields)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
-, _oldPasscode(this, st::defaultInputField, langFactory(lng_cloud_password_enter_old))
-, _newPasscode(this, st::defaultInputField, langFactory(fields.curRequest ? lng_cloud_password_enter_new : lng_cloud_password_enter_first))
-, _reenterPasscode(this, st::defaultInputField, langFactory(lng_cloud_password_confirm_new))
-, _passwordHint(this, st::defaultInputField, langFactory(fields.curRequest ? lng_cloud_password_change_hint : lng_cloud_password_hint))
-, _recoverEmail(this, st::defaultInputField, langFactory(lng_cloud_password_email))
+, _oldPasscode(this, st::defaultInputField, tr::lng_cloud_password_enter_old())
+, _newPasscode(this, st::defaultInputField, fields.curRequest ? tr::lng_cloud_password_enter_new() : tr::lng_cloud_password_enter_first())
+, _reenterPasscode(this, st::defaultInputField, tr::lng_cloud_password_confirm_new())
+, _passwordHint(this, st::defaultInputField, fields.curRequest ? tr::lng_cloud_password_change_hint() : tr::lng_cloud_password_hint())
+, _recoverEmail(this, st::defaultInputField, tr::lng_cloud_password_email())
 , _recover(this, lang(lng_signin_recover)) {
 	Expects(!_turningOff || _cloudFields.curRequest);
 
@@ -896,7 +896,7 @@ RecoverBox::RecoverBox(
 	bool notEmptyPassport)
 : _pattern(st::normalFont->elided(lng_signin_recover_hint(lt_recover_email, pattern), st::boxWidth - st::boxPadding.left() * 1.5))
 , _notEmptyPassport(notEmptyPassport)
-, _recoverCode(this, st::defaultInputField, langFactory(lng_signin_code)) {
+, _recoverCode(this, st::defaultInputField, tr::lng_signin_code()) {
 }
 
 rpl::producer<> RecoverBox::passwordCleared() const {

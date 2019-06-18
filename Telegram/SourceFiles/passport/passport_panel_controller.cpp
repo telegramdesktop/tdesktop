@@ -487,7 +487,7 @@ EditContactScheme GetContactScheme(Scope::Type type) {
 		auto result = Scheme(ValueType::Text);
 		result.aboutExisting = lang(lng_passport_use_existing_email);
 		result.newHeader = lang(lng_passport_new_email);
-		result.newPlaceholder = langFactory(lng_passport_email_title);
+		result.newPlaceholder = tr::lng_passport_email_title();
 		result.aboutNew = lang(lng_passport_new_email_code);
 		result.validate = [](const QString &value) {
 			const auto at = value.indexOf('@');
@@ -1360,7 +1360,7 @@ void PanelController::processVerificationNeeded(
 					return field->verification.error;
 				}) | rpl::distinct_until_changed(),
 
-				rpl::never<QString>()));
+				nullptr));
 		} else {
 			Unexpected("Type in processVerificationNeeded.");
 		}

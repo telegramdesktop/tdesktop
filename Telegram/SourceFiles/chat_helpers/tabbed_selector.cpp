@@ -401,28 +401,20 @@ rpl::producer<not_null<DocumentData*>> TabbedSelector::fileChosen() const {
 }
 
 rpl::producer<not_null<PhotoData*>> TabbedSelector::photoChosen() const {
-	return full()
-		? gifs()->photoChosen()
-		: rpl::never<not_null<PhotoData*>>();
+	return full() ? gifs()->photoChosen() : nullptr;
 }
 
 auto TabbedSelector::inlineResultChosen() const
 -> rpl::producer<InlineChosen> {
-	return full()
-		? gifs()->inlineResultChosen()
-		: rpl::never<InlineChosen>();
+	return full() ? gifs()->inlineResultChosen() : nullptr;
 }
 
 rpl::producer<> TabbedSelector::cancelled() const {
-	return full()
-		? gifs()->cancelRequests()
-		: rpl::never<>();
+	return full() ? gifs()->cancelRequests() : nullptr;
 }
 
 rpl::producer<> TabbedSelector::checkForHide() const {
-	return full()
-		? stickers()->checkForHide()
-		: rpl::never<>();
+	return full() ? stickers()->checkForHide() : nullptr;
 }
 
 rpl::producer<> TabbedSelector::slideFinished() const {

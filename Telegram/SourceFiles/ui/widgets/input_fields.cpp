@@ -886,9 +886,14 @@ const InstantReplaces &InstantReplaces::Default() {
 	return result;
 }
 
-FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, Fn<QString()> placeholderFactory, const QString &v) : TWidgetHelper<QLineEdit>(v, parent)
+FlatInput::FlatInput(
+	QWidget *parent,
+	const style::FlatInput &st,
+	rpl::producer<QString> placeholder,
+	const QString &v)
+: RpWidgetWrap<QLineEdit>(v, parent)
 , _oldtext(v)
-, _placeholderFactory(std::move(placeholderFactory))
+, _placeholderFull(std::move(placeholder))
 , _placeholderVisible(!v.length())
 , _st(st)
 , _textMrg(_st.textMrg) {
@@ -898,8 +903,10 @@ FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, Fn<QString()> 
 	setFont(_st.font->f);
 	setAlignment(_st.align);
 
-	subscribe(Lang::Current().updated(), [this] { refreshPlaceholder(); });
-	refreshPlaceholder();
+	_placeholderFull.value(
+	) | rpl::start_with_next([=](const QString &text) {
+		refreshPlaceholder(text);
+	}, lifetime());
 
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.paletteChanged()) {
@@ -935,15 +942,17 @@ void FlatInput::onTouchTimer() {
 	_touchRightButton = true;
 }
 
-bool FlatInput::event(QEvent *e) {
-	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
-		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
+bool FlatInput::eventHook(QEvent *e) {
+	if (e->type() == QEvent::TouchBegin
+		|| e->type() == QEvent::TouchUpdate
+		|| e->type() == QEvent::TouchEnd
+		|| e->type() == QEvent::TouchCancel) {
+		const auto ev = static_cast<QTouchEvent*>(e);
 		if (ev->device()->type() == QTouchDevice::TouchScreen) {
 			touchEvent(ev);
-			return QLineEdit::event(e);
 		}
 	}
-	return QLineEdit::event(e);
+	return Parent::eventHook(e);
 }
 
 void FlatInput::touchEvent(QTouchEvent *e) {
@@ -990,7 +999,7 @@ void FlatInput::touchEvent(QTouchEvent *e) {
 
 void FlatInput::setTextMrg(const QMargins &textMrg) {
 	_textMrg = textMrg;
-	refreshPlaceholder();
+	refreshPlaceholder(_placeholderFull.current());
 	update();
 }
 
@@ -1068,22 +1077,20 @@ void FlatInput::focusOutEvent(QFocusEvent *e) {
 }
 
 void FlatInput::resizeEvent(QResizeEvent *e) {
-	refreshPlaceholder();
+	refreshPlaceholder(_placeholderFull.current());
 	return QLineEdit::resizeEvent(e);
 }
 
-void FlatInput::setPlaceholder(Fn<QString()> placeholderFactory) {
-	_placeholderFactory = std::move(placeholderFactory);
-	refreshPlaceholder();
+void FlatInput::setPlaceholder(rpl::producer<QString> placeholder) {
+	_placeholderFull = std::move(placeholder);
 }
 
-void FlatInput::refreshPlaceholder() {
-	auto availw = width() - _textMrg.left() - _textMrg.right() - _st.phPos.x() - 1;
-	auto placeholderText = _placeholderFactory ? _placeholderFactory() : QString();
-	if (_st.font->width(placeholderText) > availw) {
-		_placeholder = _st.font->elided(placeholderText, availw);
+void FlatInput::refreshPlaceholder(const QString &text) {
+	const auto availw = width() - _textMrg.left() - _textMrg.right() - _st.phPos.x() - 1;
+	if (_st.font->width(text) > availw) {
+		_placeholder = _st.font->elided(text, availw);
 	} else {
-		_placeholder = placeholderText;
+		_placeholder = text;
 	}
 	update();
 }
@@ -1190,13 +1197,13 @@ void FlatInput::onTextChange(const QString &text) {
 InputField::InputField(
 	QWidget *parent,
 	const style::InputField &st,
-	Fn<QString()> placeholderFactory,
+	rpl::producer<QString> placeholder,
 	const QString &value)
 : InputField(
 	parent,
 	st,
 	Mode::SingleLine,
-	std::move(placeholderFactory),
+	std::move(placeholder),
 	{ value, {} }) {
 }
 
@@ -1204,13 +1211,13 @@ InputField::InputField(
 	QWidget *parent,
 	const style::InputField &st,
 	Mode mode,
-	Fn<QString()> placeholderFactory,
+	rpl::producer<QString> placeholder,
 	const QString &value)
 : InputField(
 	parent,
 	st,
 	mode,
-	std::move(placeholderFactory),
+	std::move(placeholder),
 	{ value, {} }) {
 }
 
@@ -1218,7 +1225,7 @@ InputField::InputField(
 	QWidget *parent,
 	const style::InputField &st,
 	Mode mode,
-	Fn<QString()> placeholderFactory,
+	rpl::producer<QString> placeholder,
 	const TextWithTags &value)
 : RpWidget(parent)
 , _st(st)
@@ -1227,7 +1234,7 @@ InputField::InputField(
 , _maxHeight(st.heightMax)
 , _inner(std::make_unique<Inner>(this))
 , _lastTextWithTags(value)
-, _placeholderFactory(std::move(placeholderFactory)) {
+, _placeholderFull(std::move(placeholder)) {
 	_inner->setDocument(Ui::CreateChild<InputDocument>(_inner.get(), _st));
 
 	_inner->setAcceptRichText(false);
@@ -1243,8 +1250,10 @@ InputField::InputField(
 		_inner->setWordWrapMode(QTextOption::NoWrap);
 	}
 
-	subscribe(Lang::Current().updated(), [=] { refreshPlaceholder(); });
-	refreshPlaceholder();
+	_placeholderFull.value(
+	) | rpl::start_with_next([=](const QString &text) {
+		refreshPlaceholder(text);
+	}, lifetime());
 
 	subscribe(Window::Theme::Background(), [=](
 			const Window::Theme::BackgroundUpdate &update) {
@@ -1666,7 +1675,7 @@ void InputField::paintEvent(QPaintEvent *e) {
 			p.restore();
 		}
 	}
-	TWidget::paintEvent(e);
+	RpWidget::paintEvent(e);
 }
 
 int InputField::placeholderSkipWidth() const {
@@ -3430,40 +3439,38 @@ void InputField::insertFromMimeDataInner(const QMimeData *source) {
 }
 
 void InputField::resizeEvent(QResizeEvent *e) {
-	refreshPlaceholder();
+	refreshPlaceholder(_placeholderFull.current());
 	_inner->setGeometry(rect().marginsRemoved(_st.textMargins));
 	_borderAnimationStart = width() / 2;
-	TWidget::resizeEvent(e);
+	RpWidget::resizeEvent(e);
 	checkContentHeight();
 }
 
-void InputField::refreshPlaceholder() {
-	auto placeholderText = _placeholderFactory ? _placeholderFactory() : QString();
-	auto availableWidth = width() - _st.textMargins.left() - _st.textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1;
+void InputField::refreshPlaceholder(const QString &text) {
+	const auto availableWidth = width() - _st.textMargins.left() - _st.textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1;
 	if (_st.placeholderScale > 0.) {
 		auto placeholderFont = _st.placeholderFont->f;
 		placeholderFont.setStyleStrategy(QFont::PreferMatch);
-		auto metrics = QFontMetrics(placeholderFont);
-		_placeholder = metrics.elidedText(placeholderText, Qt::ElideRight, availableWidth);
+		const auto metrics = QFontMetrics(placeholderFont);
+		_placeholder = metrics.elidedText(text, Qt::ElideRight, availableWidth);
 		_placeholderPath = QPainterPath();
 		if (!_placeholder.isEmpty()) {
 			_placeholderPath.addText(0, QFontMetrics(placeholderFont).ascent(), placeholderFont, _placeholder);
 		}
 	} else {
-		_placeholder = _st.placeholderFont->elided(placeholderText, availableWidth);
+		_placeholder = _st.placeholderFont->elided(text, availableWidth);
 	}
 	update();
 }
 
 void InputField::setPlaceholder(
-		Fn<QString()> placeholderFactory,
+		rpl::producer<QString> placeholder,
 		int afterSymbols) {
-	_placeholderFactory = std::move(placeholderFactory);
+	_placeholderFull = std::move(placeholder);
 	if (_placeholderAfterSymbols != afterSymbols) {
 		_placeholderAfterSymbols = afterSymbols;
 		startPlaceholderAnimation();
 	}
-	refreshPlaceholder();
 }
 
 void InputField::setEditLinkCallback(
@@ -3495,19 +3502,21 @@ InputField::~InputField() = default;
 MaskedInputField::MaskedInputField(
 	QWidget *parent,
 	const style::InputField &st,
-	Fn<QString()> placeholderFactory,
+	rpl::producer<QString> placeholder,
 	const QString &val)
 : Parent(val, parent)
 , _st(st)
 , _oldtext(val)
-, _placeholderFactory(std::move(placeholderFactory)) {
+, _placeholderFull(std::move(placeholder)) {
 	resize(_st.width, _st.heightMin);
 
 	setFont(_st.font);
 	setAlignment(_st.textAlign);
 
-	subscribe(Lang::Current().updated(), [this] { refreshPlaceholder(); });
-	refreshPlaceholder();
+	_placeholderFull.value(
+	) | rpl::start_with_next([=](const QString &text) {
+		refreshPlaceholder(text);
+	}, lifetime());
 
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.paletteChanged()) {
@@ -3572,7 +3581,7 @@ int MaskedInputField::borderAnimationStart() const {
 
 void MaskedInputField::setTextMargins(const QMargins &mrg) {
 	_textMargins = mrg;
-	refreshPlaceholder();
+	refreshPlaceholder(_placeholderFull.current());
 }
 
 void MaskedInputField::onTouchTimer() {
@@ -3755,36 +3764,34 @@ void MaskedInputField::setFocused(bool focused) {
 }
 
 void MaskedInputField::resizeEvent(QResizeEvent *e) {
-	refreshPlaceholder();
+	refreshPlaceholder(_placeholderFull.current());
 	_borderAnimationStart = width() / 2;
 	QLineEdit::resizeEvent(e);
 }
 
-void MaskedInputField::refreshPlaceholder() {
-	auto placeholderText = _placeholderFactory ? _placeholderFactory() : QString();
-	auto availableWidth = width() - _textMargins.left() - _textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1;
+void MaskedInputField::refreshPlaceholder(const QString &text) {
+	const auto availableWidth = width() - _textMargins.left() - _textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1;
 	if (_st.placeholderScale > 0.) {
 		auto placeholderFont = _st.placeholderFont->f;
 		placeholderFont.setStyleStrategy(QFont::PreferMatch);
-		auto metrics = QFontMetrics(placeholderFont);
-		_placeholder = metrics.elidedText(placeholderText, Qt::ElideRight, availableWidth);
+		const auto metrics = QFontMetrics(placeholderFont);
+		_placeholder = metrics.elidedText(text, Qt::ElideRight, availableWidth);
 		_placeholderPath = QPainterPath();
 		if (!_placeholder.isEmpty()) {
 			_placeholderPath.addText(0, QFontMetrics(placeholderFont).ascent(), placeholderFont, _placeholder);
 		}
 	} else {
-		_placeholder = _st.placeholderFont->elided(placeholderText, availableWidth);
+		_placeholder = _st.placeholderFont->elided(text, availableWidth);
 	}
 	update();
 }
 
-void MaskedInputField::setPlaceholder(Fn<QString()> placeholderFactory) {
-	_placeholderFactory = std::move(placeholderFactory);
-	refreshPlaceholder();
+void MaskedInputField::setPlaceholder(rpl::producer<QString> placeholder) {
+	_placeholderFull = std::move(placeholder);
 }
 
 void MaskedInputField::contextMenuEvent(QContextMenuEvent *e) {
-	if (auto menu = createStandardContextMenu()) {
+	if (const auto menu = createStandardContextMenu()) {
 		(new Ui::PopupMenu(this, menu))->popup(e->globalPos());
 	}
 }
@@ -4105,11 +4112,21 @@ void PhonePartInput::onChooseCode(const QString &code) {
 	startPlaceholderAnimation();
 }
 
-PasswordInput::PasswordInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+PasswordInput::PasswordInput(
+	QWidget *parent,
+	const style::InputField &st,
+	rpl::producer<QString> placeholder,
+	const QString &val)
+: MaskedInputField(parent, st, std::move(placeholder), val) {
 	setEchoMode(QLineEdit::Password);
 }
 
-PortInput::PortInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+PortInput::PortInput(
+	QWidget *parent,
+	const style::InputField &st,
+	rpl::producer<QString> placeholder,
+	const QString &val)
+: MaskedInputField(parent, st, std::move(placeholder), val) {
 	if (!val.toInt() || val.toInt() > 65535) {
 		setText(QString());
 	}
@@ -4140,7 +4157,12 @@ void PortInput::correctValue(
 	setCorrectedText(now, nowCursor, newText, newPos);
 }
 
-HexInput::HexInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+HexInput::HexInput(
+	QWidget *parent,
+	const style::InputField &st,
+	rpl::producer<QString> placeholder,
+	const QString &val)
+: MaskedInputField(parent, st, std::move(placeholder), val) {
 	if (!QRegularExpression("^[a-fA-F0-9]+$").match(val).hasMatch()) {
 		setText(QString());
 	}
@@ -4167,8 +4189,15 @@ void HexInput::correctValue(
 	setCorrectedText(now, nowCursor, newText, newPos);
 }
 
-UsernameInput::UsernameInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val, bool isLink) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
-	setLinkPlaceholder(isLink ? Core::App().createInternalLink(QString()) : QString());
+UsernameInput::UsernameInput(
+	QWidget *parent,
+	const style::InputField &st,
+	rpl::producer<QString> placeholder,
+	const QString &val,
+	bool isLink)
+: MaskedInputField(parent, st, std::move(placeholder), val) {
+	setLinkPlaceholder(
+		isLink ? Core::App().createInternalLink(QString()) : QString());
 }
 
 void UsernameInput::setLinkPlaceholder(const QString &placeholder) {
@@ -4214,7 +4243,12 @@ void UsernameInput::correctValue(
 	setCorrectedText(now, nowCursor, now.mid(from, len), newPos);
 }
 
-PhoneInput::PhoneInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory, const QString &val) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+PhoneInput::PhoneInput(
+	QWidget *parent,
+	const style::InputField &st,
+	rpl::producer<QString> placeholder,
+	const QString &val)
+: MaskedInputField(parent, st, std::move(placeholder), val) {
 	QString phone(val);
 	if (phone.isEmpty()) {
 		clearText();

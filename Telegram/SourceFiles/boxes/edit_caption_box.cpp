@@ -249,7 +249,7 @@ EditCaptionBox::EditCaptionBox(
 		this,
 		st::confirmCaptionArea,
 		Ui::InputField::Mode::MultiLine,
-		langFactory(lng_photo_caption),
+		tr::lng_photo_caption(),
 		editData);
 	_field->setMaxLength(Global::CaptionLengthMax());
 	_field->setSubmitSettings(Ui::InputField::SubmitSettings::Both);

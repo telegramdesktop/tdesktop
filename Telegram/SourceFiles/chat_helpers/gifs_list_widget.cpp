@@ -63,7 +63,7 @@ private:
 
 GifsListWidget::Footer::Footer(not_null<GifsListWidget*> parent) : InnerFooter(parent)
 , _pan(parent)
-, _field(this, st::gifsSearchField, langFactory(lng_gifs_search))
+, _field(this, st::gifsSearchField, tr::lng_gifs_search())
 , _cancel(this, st::gifsSearchCancel) {
 	connect(_field, &Ui::InputField::submitted, [=] {
 		_pan->sendInlineRequest();

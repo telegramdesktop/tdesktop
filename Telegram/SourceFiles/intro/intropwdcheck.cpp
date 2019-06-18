@@ -29,9 +29,9 @@ PwdCheckWidget::PwdCheckWidget(
 , _hasRecovery(getData()->hasRecovery)
 , _notEmptyPassport(getData()->pwdNotEmptyPassport)
 , _hint(getData()->pwdHint)
-, _pwdField(this, st::introPassword, langFactory(lng_signin_password))
+, _pwdField(this, st::introPassword, tr::lng_signin_password())
 , _pwdHint(this, st::introPasswordHint)
-, _codeField(this, st::introPassword, langFactory(lng_signin_code))
+, _codeField(this, st::introPassword, tr::lng_signin_code())
 , _toRecover(this, lang(lng_signin_recover))
 , _toPassword(this, lang(lng_signin_try_password))
 , _checkRequest(this) {

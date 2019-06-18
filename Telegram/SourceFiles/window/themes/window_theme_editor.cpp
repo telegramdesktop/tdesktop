@@ -692,7 +692,7 @@ void ThemeExportBox::exportTheme() {
 Editor::Editor(QWidget*, const QString &path)
 : _scroll(this, st::themesScroll)
 , _close(this, st::contactsMultiSelect.fieldCancel)
-, _select(this, st::contactsMultiSelect, langFactory(lng_country_ph))
+, _select(this, st::contactsMultiSelect, tr::lng_country_ph())
 , _leftShadow(this)
 , _topShadow(this)
 , _export(this, lang(lng_theme_editor_export_button).toUpper(), st::dialogsUpdateButton) {

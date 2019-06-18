@@ -160,14 +160,14 @@ ShareBox::ShareBox(
 , _select(
 	this,
 	st::contactsMultiSelect,
-	langFactory(lng_participant_filter))
+	tr::lng_participant_filter())
 , _comment(
 	this,
 	object_ptr<Ui::InputField>(
 		this,
 		st::shareComment,
 		Ui::InputField::Mode::MultiLine,
-		langFactory(lng_photos_comment)),
+		tr::lng_photos_comment()),
 	st::shareCommentPadding)
 , _searchTimer([=] { searchByUsername(); }) {
 }

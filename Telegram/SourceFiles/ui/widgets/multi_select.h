@@ -19,7 +19,10 @@ class ScrollArea;
 
 class MultiSelect : public RpWidget {
 public:
-	MultiSelect(QWidget *parent, const style::MultiSelect &st, Fn<QString()> placeholderFactory = Fn<QString()>());
+	MultiSelect(
+		QWidget *parent,
+		const style::MultiSelect &st,
+		rpl::producer<QString> placeholder = nullptr);
 
 	QString getQuery() const;
 	void setInnerFocus();
@@ -72,7 +75,11 @@ private:
 class MultiSelect::Inner : public TWidget {
 public:
 	using ScrollCallback = Fn<void(int activeTop, int activeBottom)>;
-	Inner(QWidget *parent, const style::MultiSelect &st, Fn<QString()> placeholderFactory, ScrollCallback callback);
+	Inner(
+		QWidget *parent,
+		const style::MultiSelect &st,
+		rpl::producer<QString> placeholder,
+		ScrollCallback callback);
 
 	QString getQuery() const;
 	bool setInnerFocus();

@@ -69,9 +69,9 @@ void ShowPhoneBannedError(const QString &phone) {
 SentCodeField::SentCodeField(
 	QWidget *parent,
 	const style::InputField &st,
-	Fn<QString()> placeholderFactory,
+	rpl::producer<QString> placeholder,
 	const QString &val)
-: Ui::InputField(parent, st, std::move(placeholderFactory), val) {
+: Ui::InputField(parent, st, std::move(placeholder), val) {
 	connect(this, &Ui::InputField::changed, [this] { fix(); });
 }
 
@@ -278,7 +278,7 @@ void ConfirmPhoneBox::prepare() {
 	}
 	_about->setMarkedText(aboutText);
 
-	_code.create(this, st::confirmPhoneCodeField, langFactory(lng_code_ph));
+	_code.create(this, st::confirmPhoneCodeField, tr::lng_code_ph());
 	_code->setAutoSubmit(_sentCodeLength, [=] { sendCode(); });
 	_code->setChangedCallback([=] { showError(QString()); });
 

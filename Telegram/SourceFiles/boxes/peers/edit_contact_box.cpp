@@ -110,13 +110,13 @@ void Controller::setupNameFields() {
 		object_ptr<Ui::InputField>(
 			_box,
 			st::defaultInputField,
-			langFactory(lng_signup_firstname),
+			tr::lng_signup_firstname(),
 			_user->firstName),
 		st::addContactFieldMargin);
 	auto preparedLast = object_ptr<Ui::InputField>(
 		_box,
 		st::defaultInputField,
-		langFactory(lng_signup_lastname),
+		tr::lng_signup_lastname(),
 		_user->lastName);
 	const auto last = inverted
 		? _box->insertRow(

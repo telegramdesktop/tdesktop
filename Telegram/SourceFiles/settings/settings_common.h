@@ -46,7 +46,7 @@ public:
 	using RpWidget::RpWidget;
 
 	virtual rpl::producer<Type> sectionShowOther() {
-		return rpl::never<Type>();
+		return nullptr;
 	}
 	virtual rpl::producer<bool> sectionCanSaveChanges() {
 		return rpl::single(false);

@@ -368,9 +368,9 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 		object_ptr<Ui::InputField>(
 			_wrap,
 			st::defaultInputField,
-			langFactory(_isGroup
-				? lng_dlg_new_group_name
-				: lng_dlg_new_channel_name),
+			(_isGroup
+				? tr::lng_dlg_new_group_name
+				: tr::lng_dlg_new_channel_name)(),
 			_peer->name),
 		st::editPeerTitleMargins);
 	result->entity()->setMaxLength(kMaxGroupChannelTitle);
@@ -403,7 +403,7 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 			_wrap,
 			st::editPeerDescription,
 			Ui::InputField::Mode::MultiLine,
-			langFactory(lng_create_group_description),
+			tr::lng_create_group_description(),
 			_peer->about()),
 		st::editPeerDescriptionMargins);
 	result->entity()->setMaxLength(kMaxChannelDescription);

@@ -22,8 +22,8 @@ namespace Intro {
 CodeInput::CodeInput(
 	QWidget *parent,
 	const style::InputField &st,
-	Fn<QString()> placeholderFactory)
-: Ui::MaskedInputField(parent, st, std::move(placeholderFactory)) {
+	rpl::producer<QString> placeholder)
+: Ui::MaskedInputField(parent, st, std::move(placeholder)) {
 }
 
 void CodeInput::setDigitsCountMax(int digitsCount) {
@@ -75,7 +75,7 @@ void CodeInput::correctValue(const QString &was, int wasCursor, QString &now, in
 
 CodeWidget::CodeWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
 , _noTelegramCode(this, lang(lng_code_no_telegram), st::introLink)
-, _code(this, st::introCode, langFactory(lng_code_ph))
+, _code(this, st::introCode, tr::lng_code_ph())
 , _callTimer(this)
 , _callStatus(getData()->callStatus)
 , _callTimeout(getData()->callTimeout)

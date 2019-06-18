@@ -297,7 +297,7 @@ BioManager SetupBio(
 			container,
 			*style,
 			Ui::InputField::Mode::MultiLine,
-			langFactory(lng_bio_placeholder),
+			tr::lng_bio_placeholder(),
 			*current),
 		st::settingsBioMargins);
 

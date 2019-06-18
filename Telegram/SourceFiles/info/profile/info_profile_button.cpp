@@ -59,14 +59,14 @@ rpl::producer<bool> Button::toggledChanges() const {
 	if (_toggle) {
 		return _toggle->checkedChanges();
 	}
-	return rpl::never<bool>();
+	return nullptr;
 }
 
 rpl::producer<bool> Button::toggledValue() const {
 	if (_toggle) {
 		return _toggle->checkedValue();
 	}
-	return rpl::never<bool>();
+	return nullptr;
 }
 
 void Button::setColorOverride(std::optional<QColor> textColorOverride) {

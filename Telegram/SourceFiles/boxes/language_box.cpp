@@ -1122,7 +1122,7 @@ not_null<Ui::MultiSelect*> LanguageBox::createMultiSelect() {
 	const auto result = Ui::CreateChild<Ui::MultiSelect>(
 		this,
 		st::contactsMultiSelect,
-		langFactory(lng_participant_filter));
+		tr::lng_participant_filter());
 	result->resizeToWidth(st::boxWidth);
 	result->moveToLeft(0, 0);
 	return result;

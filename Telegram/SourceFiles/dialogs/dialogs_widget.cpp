@@ -156,7 +156,7 @@ Widget::Widget(
 : Window::AbstractSectionWidget(parent, controller)
 , _searchControls(this)
 , _mainMenuToggle(_searchControls, st::dialogsMenuToggle)
-, _filter(_searchControls, st::dialogsFilter, langFactory(lng_dlg_filter))
+, _filter(_searchControls, st::dialogsFilter, tr::lng_dlg_filter())
 , _chooseFromUser(
 	_searchControls,
 	object_ptr<Ui::IconButton>(this, st::dialogsSearchFrom))

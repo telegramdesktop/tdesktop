@@ -46,7 +46,7 @@ public:
 	[[nodiscard]] virtual rpl::producer<QString> optionsTitleKey() = 0;
 	[[nodiscard]] virtual LangKey optionLabelKey(Option option);
 	[[nodiscard]] virtual rpl::producer<QString> warning() {
-		return rpl::never<QString>();
+		return nullptr;
 	}
 	[[nodiscard]] virtual rpl::producer<QString> exceptionButtonTextKey(
 		Exception exception) = 0;

@@ -108,7 +108,7 @@ void VerifyBox::setupControls(
 		object_ptr<SentCodeField>(
 			_content,
 			st::defaultInputField,
-			langFactory(lng_change_phone_code_title)),
+			tr::lng_change_phone_code_title()),
 		small);
 
 	const auto problem = _content->add(
@@ -265,21 +265,21 @@ void PanelEditContact::setupControls(
 	const auto fieldPadding = existing.isEmpty()
 		? st::passportContactFieldPadding
 		: st::passportContactNewFieldPadding;
-	const auto fieldPlaceholder = existing.isEmpty()
-		? _scheme.newPlaceholder
+	auto fieldPlaceholder = existing.isEmpty()
+		? rpl::duplicate(_scheme.newPlaceholder)
 		: nullptr;
 	auto wrap = object_ptr<Ui::RpWidget>(_content);
 	if (_scheme.type == Scheme::ValueType::Phone) {
 		_field = Ui::CreateChild<Ui::PhoneInput>(
 			wrap.data(),
 			fieldStyle,
-			fieldPlaceholder,
+			std::move(fieldPlaceholder),
 			data);
 	} else {
 		_field = Ui::CreateChild<Ui::MaskedInputField>(
 			wrap.data(),
 			fieldStyle,
-			fieldPlaceholder,
+			std::move(fieldPlaceholder),
 			data);
 	}
 
@@ -398,7 +398,7 @@ object_ptr<BoxContent> VerifyPhoneBox(
 		nullptr,
 		std::move(call),
 		std::move(error),
-		rpl::never<QString>());
+		nullptr);
 }
 
 object_ptr<BoxContent> VerifyEmailBox(

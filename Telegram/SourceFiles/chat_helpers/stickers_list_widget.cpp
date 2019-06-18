@@ -197,7 +197,7 @@ void StickersListWidget::Footer::initSearch() {
 	_searchField.create(
 		this,
 		st::gifsSearchField,
-		langFactory(lng_stickers_search_sets));
+		tr::lng_stickers_search_sets());
 	_searchCancel.create(this, st::gifsSearchCancel);
 	_searchField->show();
 	_searchCancel->show(anim::type::instant);

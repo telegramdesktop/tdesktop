@@ -96,7 +96,7 @@ void LockWidget::paintContent(Painter &p) {
 
 PasscodeLockWidget::PasscodeLockWidget(QWidget *parent)
 : LockWidget(parent)
-, _passcode(this, st::passcodeInput, langFactory(lng_passcode_ph))
+, _passcode(this, st::passcodeInput, tr::lng_passcode_ph())
 , _submit(this, langFactory(lng_passcode_submit), st::passcodeSubmit)
 , _logout(this, lang(lng_passcode_logout)) {
 	connect(_passcode, &Ui::MaskedInputField::changed, [=] { changed(); });

@@ -905,14 +905,14 @@ rpl::producer<int> SingleFilePreview::desiredHeightValue() const {
 	return rpl::single(st::boxPhotoPadding.top() + h + st::msgShadow);
 }
 
-Fn<QString()> FieldPlaceholder(
+rpl::producer<QString> FieldPlaceholder(
 		const Storage::PreparedList &list,
 		SendFilesWay way) {
 	const auto isAlbum = (way == SendFilesWay::Album);
 	const auto compressImages = (way != SendFilesWay::Files);
-	return langFactory(list.canAddCaption(isAlbum, compressImages)
-		? lng_photo_caption
-		: lng_photos_comment);
+	return list.canAddCaption(isAlbum, compressImages)
+		? tr::lng_photo_caption()
+		: tr::lng_photos_comment();
 }
 
 } // namespace

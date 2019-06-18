@@ -637,8 +637,8 @@ void Player::start() {
 	const auto guard = base::make_weak(&_sessionGuard);
 
 	rpl::merge(
-		_audio ? _audio->waitingForData() : rpl::never(),
-		_video ? _video->waitingForData() : rpl::never()
+		_audio ? _audio->waitingForData() : nullptr,
+		_video ? _video->waitingForData() : nullptr
 	) | rpl::filter([=] {
 		return !bothReceivedEnough(kBufferFor);
 	}) | rpl::start_with_next([=] {

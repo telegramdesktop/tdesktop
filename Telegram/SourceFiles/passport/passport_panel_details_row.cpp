@@ -29,7 +29,7 @@ public:
 	PostcodeInput(
 		QWidget *parent,
 		const style::InputField &st,
-		Fn<QString()> placeholderFactory,
+		rpl::producer<QString> placeholder,
 		const QString &val);
 
 protected:
@@ -44,9 +44,9 @@ protected:
 PostcodeInput::PostcodeInput(
 	QWidget *parent,
 	const style::InputField &st,
-	Fn<QString()> placeholderFactory,
+	rpl::producer<QString> placeholder,
 	const QString &val)
-: MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+: MaskedInputField(parent, st, std::move(placeholder), val) {
 	if (!QRegularExpression("^[a-zA-Z0-9\\-]+$").match(val).hasMatch()) {
 		setText(QString());
 	}
@@ -523,7 +523,7 @@ DateRow::DateRow(
 , _day(
 	this,
 	st::passportDetailsDateField,
-	langFactory(lng_date_input_day),
+	tr::lng_date_input_day(),
 	GetDay(value))
 , _separator1(
 	this,
@@ -535,7 +535,7 @@ DateRow::DateRow(
 , _month(
 	this,
 	st::passportDetailsDateField,
-	langFactory(lng_date_input_month),
+	tr::lng_date_input_month(),
 	GetMonth(value))
 , _separator2(
 	this,
@@ -547,7 +547,7 @@ DateRow::DateRow(
 , _year(
 	this,
 	st::passportDetailsDateField,
-	langFactory(lng_date_input_year),
+	tr::lng_date_input_year(),
 	GetYear(value))
 , _value(valueCurrent()) {
 	const auto focused = [=](const object_ptr<DateInput> &field) {

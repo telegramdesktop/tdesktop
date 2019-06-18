@@ -792,12 +792,12 @@ void ProxyBox::setupSocketAddress(const ProxyData &data) {
 	_host = Ui::CreateChild<Ui::InputField>(
 		address,
 		st::connectionHostInputField,
-		langFactory(lng_connection_host_ph),
+		tr::lng_connection_host_ph(),
 		data.host);
 	_port = Ui::CreateChild<Ui::PortInput>(
 		address,
 		st::connectionPortInputField,
-		langFactory(lng_connection_port_ph),
+		tr::lng_connection_port_ph(),
 		data.port ? QString::number(data.port) : QString());
 	address->widthValue(
 	) | rpl::start_with_next([=](int width) {
@@ -820,7 +820,7 @@ void ProxyBox::setupCredentials(const ProxyData &data) {
 		object_ptr<Ui::InputField>(
 			credentials,
 			st::connectionUserInputField,
-			langFactory(lng_connection_user_ph),
+			tr::lng_connection_user_ph(),
 			data.user),
 		st::proxyEditInputPadding);
 
@@ -828,7 +828,7 @@ void ProxyBox::setupCredentials(const ProxyData &data) {
 	_password = Ui::CreateChild<Ui::PasswordInput>(
 		passwordWrap.data(),
 		st::connectionPasswordInputField,
-		langFactory(lng_connection_password_ph),
+		tr::lng_connection_password_ph(),
 		(data.type == Type::Mtproto) ? QString() : data.password);
 	_password->move(0, 0);
 	_password->heightValue(
@@ -854,7 +854,7 @@ void ProxyBox::setupMtprotoCredentials(const ProxyData &data) {
 	_secret = Ui::CreateChild<Ui::HexInput>(
 		secretWrap.data(),
 		st::connectionUserInputField,
-		langFactory(lng_connection_proxy_secret_ph),
+		tr::lng_connection_proxy_secret_ph(),
 		(data.type == Type::Mtproto) ? data.password : QString());
 	_secret->setMaxLength(ProxyData::MaxMtprotoPasswordLength());
 	_secret->move(0, 0);

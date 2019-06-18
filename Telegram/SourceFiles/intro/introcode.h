@@ -20,7 +20,10 @@ namespace Intro {
 
 class CodeInput final : public Ui::MaskedInputField {
 public:
-	CodeInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory);
+	CodeInput(
+		QWidget *parent,
+		const style::InputField &st,
+		rpl::producer<QString> placeholder);
 
 	void setDigitsCountMax(int digitsCount);
 

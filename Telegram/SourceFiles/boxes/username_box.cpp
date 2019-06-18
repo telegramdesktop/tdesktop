@@ -29,7 +29,7 @@ UsernameBox::UsernameBox(QWidget*)
 : _username(
 	this,
 	st::defaultInputField,
-	[] { return qsl("@username"); },
+	rpl::single(qsl("@username")),
 	Auth().user()->username,
 	false)
 , _link(this, QString(), st::boxLinkButton)

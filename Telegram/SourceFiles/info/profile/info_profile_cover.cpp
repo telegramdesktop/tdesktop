@@ -194,7 +194,7 @@ rpl::producer<bool> SectionWithToggle::toggledValue() const {
 	if (_toggle) {
 		return _toggle->checkedValue();
 	}
-	return rpl::never<bool>();
+	return nullptr;
 }
 
 rpl::producer<bool> SectionWithToggle::toggleShownValue() const {

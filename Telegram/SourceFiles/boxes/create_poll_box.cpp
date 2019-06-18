@@ -186,7 +186,7 @@ Options::Option Options::Option::Create(
 				container,
 				st::createPollOptionField,
 				Ui::InputField::Mode::NoNewlines,
-				langFactory(lng_polls_create_option_add))));
+				tr::lng_polls_create_option_add())));
 	InitField(outer, field->entity());
 	field->entity()->setMaxLength(kOptionLimit + kErrorLimit);
 	result._field.reset(field);
@@ -311,7 +311,7 @@ void Options::Option::clearValue() {
 }
 
 void Options::Option::setPlaceholder() const {
-	field()->setPlaceholder(langFactory(lng_polls_create_option_add));
+	field()->setPlaceholder(tr::lng_polls_create_option_add());
 }
 
 void Options::Option::toggleRemoveAlways(bool toggled) {
@@ -323,7 +323,7 @@ not_null<Ui::InputField*> Options::Option::field() const {
 }
 
 void Options::Option::removePlaceholder() const {
-	field()->setPlaceholder(nullptr);
+	field()->setPlaceholder(rpl::single(QString()));
 }
 
 PollAnswer Options::Option::toPollAnswer(int index) const {
@@ -603,7 +603,7 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 			container,
 			st::createPollField,
 			Ui::InputField::Mode::MultiLine,
-			langFactory(lng_polls_create_question_placeholder)),
+			tr::lng_polls_create_question_placeholder()),
 		st::createPollFieldPadding);
 	InitField(getDelegate()->outerContainer(), question);
 	question->setMaxLength(kQuestionLimit + kErrorLimit);

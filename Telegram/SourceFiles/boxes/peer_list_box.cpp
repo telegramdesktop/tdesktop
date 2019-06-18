@@ -56,7 +56,10 @@ PeerListBox::PeerListBox(
 void PeerListBox::createMultiSelect() {
 	Expects(_select == nullptr);
 
-	auto entity = object_ptr<Ui::MultiSelect>(this, st::contactsMultiSelect, langFactory(lng_participant_filter));
+	auto entity = object_ptr<Ui::MultiSelect>(
+		this, 
+		st::contactsMultiSelect,
+		tr::lng_participant_filter());
 	_select.create(this, std::move(entity));
 	_select->heightValue(
 	) | rpl::start_with_next(

@@ -104,7 +104,7 @@ FixedBar::FixedBar(
 	not_null<ChannelData*> channel) : TWidget(parent)
 , _controller(controller)
 , _channel(channel)
-, _field(this, st::historyAdminLogSearchField, langFactory(lng_dlg_filter))
+, _field(this, st::historyAdminLogSearchField, tr::lng_dlg_filter())
 , _backButton(this, lang(lng_admin_log_title_all))
 , _search(this, st::topBarSearch)
 , _cancel(this, st::historyAdminLogCancelSearch)
