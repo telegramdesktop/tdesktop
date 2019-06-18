@@ -20,8 +20,8 @@ PhotoCropBox::PhotoCropBox(
 }
 
 void PhotoCropBox::prepare() {
-	addButton(langFactory(lng_settings_save), [this] { sendPhoto(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(tr::lng_settings_save(), [this] { sendPhoto(); });
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	int32 s = st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
 	_thumb = App::pixmapFromImageInPlace(_img.scaled(s * cIntRetinaFactor(), s * cIntRetinaFactor(), Qt::KeepAspectRatio, Qt::SmoothTransformation));

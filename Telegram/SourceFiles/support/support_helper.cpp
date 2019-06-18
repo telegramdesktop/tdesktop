@@ -85,8 +85,8 @@ void EditInfoBox::prepare() {
 		});
 		_submit(_field->getTextWithAppliedMarkdown(), done);
 	};
-	addButton(langFactory(lng_settings_save), save);
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_settings_save(), save);
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	connect(_field, &Ui::InputField::submitted, save);
 	connect(_field, &Ui::InputField::cancelled, [=] { closeBox(); });

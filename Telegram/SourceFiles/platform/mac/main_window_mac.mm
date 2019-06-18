@@ -674,8 +674,8 @@ void MainWindow::createGlobalMenu() {
 			return;
 		}
 		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](not_null<PeerListBox*> box) {
-			box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
-			box->addLeftButton(langFactory(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
+			box->addButton(tr::lng_close(), [box] { box->closeBox(); });
+			box->addLeftButton(tr::lng_profile_add_contact(), [] { App::wnd()->onShowAddContact(); });
 		}));
 	}));
 	psAddContact = window->addAction(lang(lng_mac_menu_add_contact), App::wnd(), SLOT(onShowAddContact()));

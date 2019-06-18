@@ -284,8 +284,8 @@ void ConfirmPhoneBox::prepare() {
 
 	setTitle(tr::lng_confirm_phone_title());
 
-	addButton(langFactory(lng_confirm_phone_send), [=] { sendCode(); });
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_confirm_phone_send(), [=] { sendCode(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	setDimensions(st::boxWidth, st::usernamePadding.top() + _code->height() + st::usernameSkip + _about->height() + st::usernameSkip);
 

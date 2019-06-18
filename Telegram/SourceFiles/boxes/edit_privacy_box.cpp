@@ -133,7 +133,7 @@ void EditPrivacyBox::editExceptions(
 		exceptions(exception));
 	auto initBox = [=, controller = controller.get()](
 			not_null<PeerListBox*> box) {
-		box->addButton(langFactory(lng_settings_save), crl::guard(this, [=] {
+		box->addButton(tr::lng_settings_save(), crl::guard(this, [=] {
 			exceptions(exception) = controller->getResult();
 			const auto type = [&] {
 				switch (exception) {
@@ -151,7 +151,7 @@ void EditPrivacyBox::editExceptions(
 			done();
 			box->closeBox();
 		}));
-		box->addButton(langFactory(lng_cancel), [=] { box->closeBox(); });
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	};
 	Ui::show(
 		Box<PeerListBox>(std::move(controller), std::move(initBox)),
@@ -354,7 +354,7 @@ void EditPrivacyBox::setupContent() {
 		content->add(std::move(below));
 	}
 
-	addButton(langFactory(lng_settings_save), [=] {
+	addButton(tr::lng_settings_save(), [=] {
 		const auto someAreDisallowed = (_value.option != Option::Everyone)
 			|| !_value.never.empty();
 		_controller->confirmSave(someAreDisallowed, crl::guard(this, [=] {
@@ -364,7 +364,7 @@ void EditPrivacyBox::setupContent() {
 			closeBox();
 		}));
 	});
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	const auto linkHeight = st::settingsButton.padding.top()
 		+ st::settingsButton.height

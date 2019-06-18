@@ -65,9 +65,9 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	this,
 	object_ptr<Ui::RoundButton>(
 		this,
-		langFactory(lng_menu_settings),
+		tr::lng_menu_settings(),
 		st::defaultBoxButton))
-, _next(this, Fn<QString()>(), st::introNextButton) {
+, _next(this, nullptr, st::introNextButton) {
 	auto country = Platform::SystemCountry();
 	if (country.isEmpty()) {
 		country = str_const_toString(kDefaultCountry);
@@ -174,7 +174,7 @@ void Widget::onCheckUpdateStatus() {
 			this,
 			object_ptr<Ui::RoundButton>(
 				this,
-				langFactory(lng_menu_update),
+				tr::lng_menu_update(),
 				st::defaultBoxButton));
 		if (!_a_show.animating()) {
 			_update->setVisible(true);
@@ -241,7 +241,7 @@ void Widget::historyMove(Direction direction) {
 	if (_update) {
 		_update->toggle(!stepHasCover, anim::type::normal);
 	}
-	_next->setText([this] { return getStep()->nextButtonText(); });
+	_next->setText(getStep()->nextButtonText());
 	if (_resetAccount) _resetAccount->show(anim::type::normal);
 	if (_terms) _terms->show(anim::type::normal);
 	if (_changeLanguage) {
@@ -307,7 +307,10 @@ void Widget::appendStep(Step *step) {
 
 void Widget::showResetButton() {
 	if (!_resetAccount) {
-		auto entity = object_ptr<Ui::RoundButton>(this, langFactory(lng_signin_reset_account), st::introResetButton);
+		auto entity = object_ptr<Ui::RoundButton>(
+			this,
+			tr::lng_signin_reset_account(),
+			st::introResetButton);
 		_resetAccount.create(this, std::move(entity));
 		_resetAccount->hide(anim::type::instant);
 		_resetAccount->entity()->setClickedCallback([this] { resetAccount(); });
@@ -325,9 +328,10 @@ void Widget::showTerms() {
 	} else if (!_terms) {
 		auto entity = object_ptr<Ui::FlatLabel>(
 			this,
-			rpl::single(lng_terms_signup__rich(
+			tr::lng_terms_signup(
 				lt_link,
-				Ui::Text::Link(lang(lng_terms_signup_link)))),
+				tr::lng_terms_signup_link() | Ui::Text::ToLink(),
+				Ui::Text::WithEntities),
 			st::introTermsLabel);
 		_terms.create(this, std::move(entity));
 		_terms->entity()->setClickHandlerFilter([=](
@@ -385,7 +389,7 @@ void Widget::resetAccount() {
 				Ui::show(Box<InformBox>(lang(lng_signin_reset_cancelled)));
 			} else {
 				Ui::hideLayer();
-				getStep()->showError(&Lang::Hard::ServerError);
+				getStep()->showError(rpl::single(Lang::Hard::ServerError()));
 			}
 		}).send();
 	})));
@@ -415,11 +419,11 @@ void Widget::showTerms(Fn<void()> callback) {
 	const auto box = Ui::show(callback
 		? Box<Window::TermsBox>(
 			getData()->termsLock,
-			langFactory(lng_terms_agree),
-			langFactory(lng_terms_decline))
+			tr::lng_terms_agree(),
+			tr::lng_terms_decline())
 		: Box<Window::TermsBox>(
 			getData()->termsLock.text,
-			langFactory(lng_box_ok),
+			tr::lng_box_ok(),
 			nullptr));
 
 	box->setCloseByEscape(false);
@@ -439,8 +443,8 @@ void Widget::showTerms(Fn<void()> callback) {
 	) | rpl::start_with_next([=] {
 		const auto box = Ui::show(Box<Window::TermsBox>(
 			TextWithEntities{ lang(lng_terms_signup_sorry) },
-			langFactory(lng_intro_finish),
-			langFactory(lng_terms_decline)));
+			tr::lng_intro_finish(),
+			tr::lng_terms_decline()));
 		box->agreeClicks(
 		) | rpl::start_with_next([=] {
 			if (weak) {
@@ -459,7 +463,7 @@ void Widget::showTerms(Fn<void()> callback) {
 void Widget::showControls() {
 	getStep()->show();
 	_next->show();
-	_next->setText([this] { return getStep()->nextButtonText(); });
+	_next->setText(getStep()->nextButtonText());
 	_connecting->setForceHidden(false);
 	auto hasCover = getStep()->hasCover();
 	_settings->toggle(!hasCover, anim::type::instant);
@@ -605,8 +609,8 @@ Widget::~Widget() {
 	if (App::wnd()) App::wnd()->noIntro(this);
 }
 
-QString Widget::Step::nextButtonText() const {
-	return lang(lng_intro_next);
+rpl::producer<QString> Widget::Step::nextButtonText() const {
+	return tr::lng_intro_next();
 }
 
 void Widget::Step::finish(const MTPUser &user, QImage &&photo) {
@@ -673,39 +677,19 @@ void Widget::Step::updateLabelsPosition() {
 	}
 }
 
-void Widget::Step::setTitleText(Fn<QString()> titleTextFactory) {
-	_titleTextFactory = std::move(titleTextFactory);
-	refreshTitle();
-	updateLabelsPosition();
+void Widget::Step::setTitleText(rpl::producer<QString> titleText) {
+	_titleText = std::move(titleText);
 }
 
-void Widget::Step::refreshTitle() {
-	_title->setText(_titleTextFactory());
+void Widget::Step::setDescriptionText(
+		rpl::producer<QString> descriptionText) {
+	setDescriptionText(
+		std::move(descriptionText) | Ui::Text::ToWithEntities());
 }
 
-void Widget::Step::setDescriptionText(Fn<QString()> descriptionTextFactory) {
-	_descriptionTextFactory = [=] {
-		return TextWithEntities{ descriptionTextFactory() };
-	};
-	refreshDescription();
-	updateLabelsPosition();
-}
-
-void Widget::Step::setDescriptionText(Fn<TextWithEntities()> richDescriptionTextFactory) {
-	_descriptionTextFactory = std::move(richDescriptionTextFactory);
-	refreshDescription();
-	updateLabelsPosition();
-}
-
-void Widget::Step::refreshDescription() {
-	_description->entity()->setMarkedText(_descriptionTextFactory());
-}
-
-void Widget::Step::refreshLang() {
-	refreshTitle();
-	refreshDescription();
-	refreshError();
-	updateLabelsPosition();
+void Widget::Step::setDescriptionText(
+		rpl::producer<TextWithEntities> richDescriptionText) {
+	_descriptionText = std::move(richDescriptionText);
 }
 
 void Widget::Step::showFinished() {
@@ -886,14 +870,12 @@ void Widget::Step::setErrorBelowLink(bool below) {
 	}
 }
 
-void Widget::Step::showError(Fn<QString()> textFactory) {
-	_errorTextFactory = std::move(textFactory);
-	refreshError();
-	updateLabelsPosition();
+void Widget::Step::showError(rpl::producer<QString> text) {
+	_errorText = std::move(text);
 }
 
-void Widget::Step::refreshError() {
-	if (!_errorTextFactory) {
+void Widget::Step::refreshError(const QString &text) {
+	if (text.isEmpty()) {
 		if (_error) _error->hide(anim::type::normal);
 	} else {
 		if (!_error) {
@@ -906,13 +888,14 @@ void Widget::Step::refreshError() {
 						: st::introError));
 			_error->hide(anim::type::instant);
 		}
-		_error->entity()->setText(_errorTextFactory());
+		_error->entity()->setText(text);
 		updateLabelsPosition();
 		_error->show(anim::type::normal);
 	}
 }
 
-Widget::Step::Step(QWidget *parent, Data *data, bool hasCover) : TWidget(parent)
+Widget::Step::Step(QWidget *parent, Data *data, bool hasCover)
+: RpWidget(parent)
 , _data(data)
 , _hasCover(hasCover)
 , _title(this, _hasCover ? st::introCoverTitle : st::introTitle)
@@ -933,7 +916,23 @@ Widget::Step::Step(QWidget *parent, Data *data, bool hasCover) : TWidget(parent)
 			}
 		}
 	});
-	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+
+	_errorText.value(
+	) | rpl::start_with_next([=](const QString &text) {
+		refreshError(text);
+	}, lifetime());
+
+	_titleText.value(
+	) | rpl::start_with_next([=](const QString &text) {
+		_title->setText(text);
+		updateLabelsPosition();
+	}, lifetime());
+
+	_descriptionText.value(
+	) | rpl::start_with_next([=](const TextWithEntities &text) {
+		_description->entity()->setMarkedText(text);
+		updateLabelsPosition();
+	}, lifetime());
 }
 
 void Widget::Step::prepareShowAnimated(Step *after) {
@@ -1030,7 +1029,7 @@ bool Widget::Step::hasBack() const {
 void Widget::Step::activate() {
 	_title->show();
 	_description->show(anim::type::instant);
-	if (_errorTextFactory) {
+	if (!_errorText.current().isEmpty()) {
 		_error->show(anim::type::instant);
 	}
 }

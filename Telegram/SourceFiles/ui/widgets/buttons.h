@@ -105,10 +105,10 @@ class RoundButton : public RippleButton, private base::Subscriber {
 public:
 	RoundButton(
 		QWidget *parent,
-		Fn<QString()> textFactory,
+		rpl::producer<QString> text,
 		const style::RoundButton &st);
 
-	void setText(Fn<QString()> textFactory);
+	void setText(rpl::producer<QString> text);
 
 	void setNumbersText(const QString &numbersText) {
 		setNumbersText(numbersText, numbersText.toInt());
@@ -139,14 +139,12 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
-	void refreshText();
-	QString computeFullText() const;
 	void setNumbersText(const QString &numbersText, int numbers);
 	void numbersAnimationCallback();
-	void resizeToText();
+	void resizeToText(const QString &text);
 
+	rpl::variable<QString> _textFull;
 	QString _text;
-	Fn<QString()> _textFactory;
 	int _textWidth;
 
 	std::unique_ptr<NumbersAnimation> _numbers;

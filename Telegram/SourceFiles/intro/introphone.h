@@ -54,7 +54,7 @@ private:
 	QString fullNumber() const;
 	void stopCheck();
 
-	void showPhoneError(Fn<QString()> textFactory);
+	void showPhoneError(rpl::producer<QString> text);
 	void hidePhoneError();
 
 	bool _changed = false;

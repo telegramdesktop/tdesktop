@@ -257,7 +257,7 @@ ProgressWidget::ProgressWidget(
 
 	_cancel = base::make_unique_q<Ui::RoundButton>(
 		this,
-		langFactory(lng_export_stop),
+		tr::lng_export_stop(),
 		st::exportCancelButton);
 	setupBottomButton(_cancel.get());
 }
@@ -310,7 +310,7 @@ void ProgressWidget::showDone() {
 	_about->setText(lang(lng_export_about_done));
 	_done = base::make_unique_q<Ui::RoundButton>(
 		this,
-		langFactory(lng_export_done),
+		tr::lng_export_done(),
 		st::exportDoneButton);
 	const auto desired = std::min(
 		st::exportDoneButton.font->width(lang(lng_export_done).toUpper())

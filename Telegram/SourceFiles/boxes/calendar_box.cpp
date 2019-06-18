@@ -501,7 +501,7 @@ void CalendarBox::prepare() {
 //	_inner = setInnerWidget(object_ptr<Inner>(this, _context.get()), st::calendarScroll, st::calendarTitleHeight);
 	_inner->setDateChosenCallback(std::move(_callback));
 
-	addButton(langFactory(lng_close), [this] { closeBox(); });
+	addButton(tr::lng_close(), [this] { closeBox(); });
 
 	subscribe(_context->month(), [this](QDate month) { monthChanged(month); });
 

@@ -161,8 +161,8 @@ void EditLinkBox::prepare() {
 		? tr::lng_formatting_link_create_title()
 		: tr::lng_formatting_link_edit_title());
 
-	addButton(langFactory(lng_formatting_link_create), submit);
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_formatting_link_create(), submit);
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	content->resizeToWidth(st::boxWidth);
 	content->moveToLeft(0, 0);

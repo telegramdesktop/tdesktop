@@ -654,8 +654,8 @@ void EditColorBox::prepare() {
 	connect(_blueField, &Ui::MaskedInputField::submitted, submitted);
 	connect(_result, &Ui::MaskedInputField::submitted, submitted);
 
-	addButton(langFactory(lng_settings_save), [=] { saveColor(); });
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_settings_save(), [=] { saveColor(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	auto height = st::colorEditSkip + st::colorPickerSize + st::colorEditSkip + st::colorSliderWidth + st::colorEditSkip;
 	setDimensions(st::colorEditWidth, height);

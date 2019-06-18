@@ -400,10 +400,12 @@ void AddContactBox::retry() {
 void AddContactBox::updateButtons() {
 	clearButtons();
 	if (_retrying) {
-		addButton(langFactory(lng_try_other_contact), [this] { retry(); });
+		addButton(tr::lng_try_other_contact(), [=] { retry(); });
 	} else {
-		addButton(langFactory(_user ? lng_settings_save : lng_add_contact), [this] { save(); });
-		addButton(langFactory(lng_cancel), [this] { closeBox(); });
+		addButton(
+			_user ? tr::lng_settings_save() : tr::lng_add_contact(),
+			[=] { save(); });
+		addButton(tr::lng_cancel(), [=] { closeBox(); });
 	}
 }
 
@@ -464,8 +466,12 @@ void GroupInfoBox::prepare() {
 
 	connect(_title, &Ui::InputField::submitted, [=] { submitName(); });
 
-	addButton(langFactory((_type != Type::Group) ? lng_create_group_create : lng_create_group_next), [this] { submit(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(
+		(_type != Type::Group
+			? tr::lng_create_group_create()
+			: tr::lng_create_group_next()),
+		[=] { submit(); });
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	updateMaxHeight();
 }
@@ -618,12 +624,8 @@ void GroupInfoBox::submit() {
 					}
 				}
 			};
-			box->addButton(
-				langFactory(lng_create_group_create),
-				std::move(create));
-			box->addButton(
-				langFactory(lng_cancel),
-				[box] { box->closeBox(); });
+			box->addButton(tr::lng_create_group_create(), std::move(create));
+			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 		};
 		Ui::show(
 			Box<PeerListBox>(
@@ -744,10 +746,17 @@ void SetupChannelBox::prepare() {
 
 	setMouseTracking(true);
 
-	_checkRequestId = MTP::send(MTPchannels_CheckUsername(_channel->inputChannel, MTP_string("preston")), RPCDoneHandlerPtr(), rpcFail(&SetupChannelBox::onFirstCheckFail));
+	_checkRequestId = MTP::send(
+		MTPchannels_CheckUsername(
+			_channel->inputChannel,
+			MTP_string("preston")),
+		RPCDoneHandlerPtr(),
+		rpcFail(&SetupChannelBox::onFirstCheckFail));
 
-	addButton(langFactory(lng_settings_save), [=] { save(); });
-	addButton(langFactory(_existing ? lng_cancel : lng_create_group_skip), [=] { closeBox(); });
+	addButton(tr::lng_settings_save(), [=] { save(); });
+	addButton(
+		_existing ? tr::lng_cancel() : tr::lng_create_group_skip(),
+		[=] { closeBox(); });
 
 	connect(_link, &Ui::MaskedInputField::changed, [=] { handleChange(); });
 	_link->setVisible(_privacyGroup->value() == Privacy::Public);
@@ -1101,8 +1110,8 @@ void EditNameBox::prepare() {
 	newHeight += st::boxPadding.bottom() + st::contactPadding.bottom();
 	setDimensions(st::boxWideWidth, newHeight);
 
-	addButton(langFactory(lng_settings_save), [=] { save(); });
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_settings_save(), [=] { save(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
 	}
@@ -1266,7 +1275,7 @@ void RevokePublicLinkBox::prepare() {
 		}
 	}), st::boxLayerScroll, _innerTop);
 
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	subscribe(Auth().downloaderTaskFinished(), [=] { update(); });
 

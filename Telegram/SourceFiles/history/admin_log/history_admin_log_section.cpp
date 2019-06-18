@@ -108,7 +108,7 @@ FixedBar::FixedBar(
 , _backButton(this, lang(lng_admin_log_title_all))
 , _search(this, st::topBarSearch)
 , _cancel(this, st::historyAdminLogCancelSearch)
-, _filter(this, langFactory(lng_admin_log_filter), st::topBarButton) {
+, _filter(this, tr::lng_admin_log_filter(), st::topBarButton) {
 	_backButton->moveToLeft(0, 0);
 	_backButton->setClickedCallback([=] { goBack(); });
 	_filter->setClickedCallback([=] { showFilterSignal.notify(); });

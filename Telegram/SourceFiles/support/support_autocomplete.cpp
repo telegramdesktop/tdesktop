@@ -539,7 +539,7 @@ void ConfirmContactBox::prepare() {
 		}
 	};
 
-	const auto button = addButton(langFactory(lng_send_button), [] {});
+	const auto button = addButton(tr::lng_send_button(), [] {});
 	button->clicks(
 	) | rpl::start_with_next([=](Qt::MouseButton which) {
 		_submit((which == Qt::RightButton)
@@ -548,7 +548,7 @@ void ConfirmContactBox::prepare() {
 	}, button->lifetime());
 	button->setAcceptBoth(true);
 
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 }
 
 void ConfirmContactBox::keyPressEvent(QKeyEvent *e) {

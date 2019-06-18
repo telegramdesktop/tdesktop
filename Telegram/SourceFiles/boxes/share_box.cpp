@@ -400,11 +400,11 @@ void ShareBox::keyPressEvent(QKeyEvent *e) {
 void ShareBox::createButtons() {
 	clearButtons();
 	if (_hasSelected) {
-		addButton(langFactory(lng_share_confirm), [=] { submit(); });
+		addButton(tr::lng_share_confirm(), [=] { submit(); });
 	} else if (_copyCallback) {
-		addButton(langFactory(lng_share_copy_link), [=] { copyLink(); });
+		addButton(tr::lng_share_copy_link(), [=] { copyLink(); });
 	}
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 }
 
 void ShareBox::applyFilterUpdate(const QString &query) {

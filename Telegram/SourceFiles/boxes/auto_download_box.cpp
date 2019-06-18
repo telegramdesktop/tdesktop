@@ -121,7 +121,7 @@ void AutoDownloadBox::setupContent() {
 			limits->fire_copy(value);
 		});
 
-	addButton(langFactory(lng_connection_save), [=] {
+	addButton(tr::lng_connection_save(), [=] {
 		auto allowMore = ranges::view::all(
 			*values
 		) | ranges::view::filter([&](Pair pair) {
@@ -173,7 +173,7 @@ void AutoDownloadBox::setupContent() {
 		}
 		closeBox();
 	});
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	setDimensionsToContent(st::boxWidth, content);
 }

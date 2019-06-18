@@ -187,8 +187,8 @@ void VerifyBox::setInnerFocus() {
 void VerifyBox::prepare() {
 	setTitle(std::move(_title));
 
-	addButton(langFactory(lng_change_phone_new_submit), _submit);
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_change_phone_new_submit(), _submit);
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	_content->resizeToWidth(st::boxWidth);
 	_content->heightValue(
@@ -214,7 +214,7 @@ PanelEditContact::PanelEditContact(
 , _bottomShadow(this)
 , _done(
 		this,
-		langFactory(lng_passport_save_value),
+		tr::lng_passport_save_value(),
 		st::passportPanelSaveValue) {
 	setupControls(data, existing);
 }

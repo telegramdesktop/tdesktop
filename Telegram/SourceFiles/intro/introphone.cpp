@@ -44,8 +44,8 @@ PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, dat
 	connect(_code, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
-	setTitleText(langFactory(lng_phone_title));
-	setDescriptionText(langFactory(lng_phone_desc));
+	setTitleText(tr::lng_phone_title());
+	setDescriptionText(tr::lng_phone_desc());
 	subscribe(getData()->updated, [this] { countryChanged(); });
 	setErrorCentered(true);
 
@@ -72,9 +72,9 @@ void PhoneWidget::updateSignupGeometry() {
 	}
 }
 
-void PhoneWidget::showPhoneError(Fn<QString()> textFactory) {
+void PhoneWidget::showPhoneError(rpl::producer<QString> text) {
 	_phone->showError();
-	showError(std::move(textFactory));
+	showError(std::move(text));
 }
 
 void PhoneWidget::hidePhoneError() {
@@ -101,7 +101,7 @@ void PhoneWidget::submit() {
 
 	const auto phone = fullNumber();
 	if (!AllowPhoneAttempt(phone)) {
-		showPhoneError(langFactory(lng_bad_phone));
+		showPhoneError(tr::lng_bad_phone());
 		_phone->setFocus();
 		return;
 	}
@@ -146,7 +146,7 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	_sentRequest = 0;
 
 	if (result.type() != mtpc_auth_sentCode) {
-		showPhoneError(&Lang::Hard::ServerError);
+		showPhoneError(rpl::single(Lang::Hard::ServerError()));
 		return;
 	}
 
@@ -169,7 +169,7 @@ bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		stopCheck();
 		_sentRequest = 0;
-		showPhoneError(langFactory(lng_flood_error));
+		showPhoneError(tr::lng_flood_error());
 		return true;
 	}
 	if (MTP::isDefaultHandledError(error)) return false;
@@ -181,17 +181,16 @@ bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
 		Ui::show(Box<InformBox>(lang(lng_error_phone_flood)));
 		return true;
 	} else if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
-		showPhoneError(langFactory(lng_bad_phone));
+		showPhoneError(tr::lng_bad_phone());
 		return true;
 	} else if (err == qstr("PHONE_NUMBER_BANNED")) {
 		ShowPhoneBannedError(_sentPhone);
 		return true;
 	}
 	if (Logs::DebugEnabled()) { // internal server error
-		auto text = err + ": " + error.description();
-		showPhoneError([text] { return text; });
+		showPhoneError(rpl::single(err + ": " + error.description()));
 	} else {
-		showPhoneError(&Lang::Hard::ServerError);
+		showPhoneError(rpl::single(Lang::Hard::ServerError()));
 	}
 	return false;
 }

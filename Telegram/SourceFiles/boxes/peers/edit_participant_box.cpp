@@ -72,30 +72,37 @@ void TransferPasswordError(
 	box->setTitle(tr::lng_rights_transfer_check());
 	box->setWidth(st::transferCheckWidth);
 
-	auto text = lng_rights_transfer_check_about__rich(
+	auto text = tr::lng_rights_transfer_check_about(
+		tr::now,
 		lt_user,
-		Ui::Text::Bold(user->shortName())
+		Ui::Text::Bold(user->shortName()),
+		Ui::Text::WithEntities
 	).append('\n').append('\n').append(
-		Ui::Text::RichLangValue(lang(lng_rights_transfer_check_password))
+		tr::lng_rights_transfer_check_password(
+			tr::now,
+			Ui::Text::RichLangValue)
 	).append('\n').append('\n').append(
-		Ui::Text::RichLangValue(lang(lng_rights_transfer_check_session))
+		tr::lng_rights_transfer_check_session(
+			tr::now,
+			Ui::Text::RichLangValue)
 	);
 	if (error == PasswordErrorType::Later) {
 		text.append('\n').append('\n').append(
-			Ui::Text::RichLangValue(lang(lng_rights_transfer_check_later))
-		);
+			tr::lng_rights_transfer_check_later(
+				tr::now,
+				Ui::Text::RichLangValue));
 	}
 	box->addRow(object_ptr<Ui::FlatLabel>(
 		box,
 		rpl::single(text),
 		st::boxLabel));
 	if (error == PasswordErrorType::Later) {
-		box->addButton(langFactory(lng_box_ok), [=] { box->closeBox(); });
+		box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 	} else {
-		box->addButton(langFactory(lng_rights_transfer_set_password), [=] {
+		box->addButton(tr::lng_rights_transfer_set_password(), [=] {
 			SetCloudPassword(box, user);
 		});
-		box->addButton(langFactory(lng_cancel), [=] { box->closeBox(); });
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	}
 }
 
@@ -355,7 +362,7 @@ void EditAdminBox::prepare() {
 	}, lifetime());
 
 	if (canSave()) {
-		addButton(langFactory(lng_settings_save), [=, value = getChecked] {
+		addButton(tr::lng_settings_save(), [=, value = getChecked] {
 			if (!_saveCallback) {
 				return;
 			}
@@ -367,9 +374,9 @@ void EditAdminBox::prepare() {
 				_oldRights,
 				MTP_chatAdminRights(MTP_flags(newFlags)));
 		});
-		addButton(langFactory(lng_cancel), [this] { closeBox(); });
+		addButton(tr::lng_cancel(), [this] { closeBox(); });
 	} else {
-		addButton(langFactory(lng_box_ok), [this] { closeBox(); });
+		addButton(tr::lng_box_ok(), [this] { closeBox(); });
 	}
 }
 
@@ -652,10 +659,10 @@ void EditRestrictedBox::prepare() {
 					MTP_flags(value()),
 					MTP_int(getRealUntilValue())));
 		};
-		addButton(langFactory(lng_settings_save), save);
-		addButton(langFactory(lng_cancel), [=] { closeBox(); });
+		addButton(tr::lng_settings_save(), save);
+		addButton(tr::lng_cancel(), [=] { closeBox(); });
 	} else {
-		addButton(langFactory(lng_box_ok), [=] { closeBox(); });
+		addButton(tr::lng_box_ok(), [=] { closeBox(); });
 	}
 }
 
@@ -682,7 +689,7 @@ void EditRestrictedBox::showRestrictUntil() {
 		QDate::currentDate().addDays(kMaxRestrictDelayDays));
 	_restrictUntilBox->setMinDate(tomorrow);
 	_restrictUntilBox->addLeftButton(
-		langFactory(lng_rights_chat_banned_forever),
+		tr::lng_rights_chat_banned_forever(),
 		[=] { setRestrictUntil(0); });
 }
 

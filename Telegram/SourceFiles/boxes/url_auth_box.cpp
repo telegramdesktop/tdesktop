@@ -135,8 +135,8 @@ UrlAuthBox::UrlAuthBox(
 
 void UrlAuthBox::prepare() {
 	setDimensionsToContent(st::boxWidth, _content);
-	addButton(langFactory(lng_open_link), [=] { _callback(); });
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_open_link(), [=] { _callback(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 }
 
 not_null<Ui::RpWidget*> UrlAuthBox::setupContent(

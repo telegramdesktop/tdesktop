@@ -89,8 +89,8 @@ RequestTypeBox::RequestTypeBox(
 
 void RequestTypeBox::prepare() {
 	setTitle(std::move(_title));
-	addButton(langFactory(lng_passport_upload_document), _submit);
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_passport_upload_document(), _submit);
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	setDimensions(st::boxWidth, _height);
 }
 
@@ -154,8 +154,8 @@ DeleteDocumentBox::DeleteDocumentBox(
 }
 
 void DeleteDocumentBox::prepare() {
-	addButton(langFactory(lng_box_delete), _submit);
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_box_delete(), _submit);
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	setDimensions(st::boxWidth, _height);
 }
@@ -221,7 +221,7 @@ PanelEditDocument::PanelEditDocument(
 , _bottomShadow(this)
 , _done(
 		this,
-		langFactory(lng_passport_save_value),
+		tr::lng_passport_save_value(),
 		st::passportPanelSaveValue) {
 	setupControls(
 		&error,
@@ -249,7 +249,7 @@ PanelEditDocument::PanelEditDocument(
 , _bottomShadow(this)
 , _done(
 		this,
-		langFactory(lng_passport_save_value),
+		tr::lng_passport_save_value(),
 		st::passportPanelSaveValue) {
 	setupControls(
 		nullptr,
@@ -274,7 +274,7 @@ PanelEditDocument::PanelEditDocument(
 , _bottomShadow(this)
 , _done(
 		this,
-		langFactory(lng_passport_save_value),
+		tr::lng_passport_save_value(),
 		st::passportPanelSaveValue) {
 	setupControls(&error, &data, nullptr, nullptr, {}, {}, {});
 }

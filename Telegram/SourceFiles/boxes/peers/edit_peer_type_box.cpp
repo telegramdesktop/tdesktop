@@ -733,7 +733,7 @@ void EditPeerTypeBox::prepare() {
 	setTitle(controller->getTitle());
 
 	if (!controller->isInviteLink() && _savedCallback.has_value()) {
-		addButton(langFactory(lng_settings_save), [=] {
+		addButton(tr::lng_settings_save(), [=] {
 			const auto v = controller->getPrivacy();
 			if (!controller->isAllowSave() && (v == Privacy::Public)) {
 				controller->setFocusUsername();
@@ -749,7 +749,7 @@ void EditPeerTypeBox::prepare() {
 		});
 	}
 	addButton(
-		langFactory(controller->isInviteLink() ? lng_close : lng_cancel),
+		controller->isInviteLink() ? tr::lng_close() : tr::lng_cancel(),
 		[=] { closeBox(); });
 
 	setDimensionsToContent(st::boxWideWidth, content);

@@ -787,7 +787,7 @@ void ParticipantsBoxController::Start(
 		role);
 	auto initBox = [=, controller = controller.get()](
 			not_null<PeerListBox*> box) {
-		box->addButton(langFactory(lng_close), [=] { box->closeBox(); });
+		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 
 		const auto chat = peer->asChat();
 		const auto channel = peer->asChannel();
@@ -814,23 +814,23 @@ void ParticipantsBoxController::Start(
 
 			Unexpected("Role value in ParticipantsBoxController::Start()");
 		}();
-		const auto addNewItemText = [&] {
+		auto addNewItemText = [&] {
 			switch (role) {
 			case Role::Members:
-				return langFactory((chat || channel->isMegagroup())
-					? lng_channel_add_members
-					: lng_channel_add_users);
+				return (chat || channel->isMegagroup())
+					? tr::lng_channel_add_members()
+					: tr::lng_channel_add_users();
 			case Role::Admins:
-				return langFactory(lng_channel_add_admin);
+				return tr::lng_channel_add_admin();
 			case Role::Restricted:
-				return langFactory(lng_channel_add_exception);
+				return tr::lng_channel_add_exception();
 			case Role::Kicked:
-				return langFactory(lng_channel_add_removed);
+				return tr::lng_channel_add_removed();
 			}
 			Unexpected("Role value in ParticipantsBoxController::Start()");
 		}();
 		if (canAddNewItem) {
-			box->addLeftButton(addNewItemText, [=] {
+			box->addLeftButton(std::move(addNewItemText), [=] {
 				controller->addNewItem();
 			});
 		}
@@ -858,7 +858,7 @@ void ParticipantsBoxController::addNewItem() {
 		editRestrictedDone(user, rights);
 	});
 	const auto initBox = [](not_null<PeerListBox*> box) {
-		box->addButton(langFactory(lng_cancel), [=] { box->closeBox(); });
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	};
 
 	_addBox = Ui::show(

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/text/text_utilities.h"
 #include "platform/platform_specific.h"
 #include "core/file_utilities.h"
 #include "boxes/calendar_box.h"
@@ -246,30 +247,24 @@ void SettingsWidget::setupPathAndFormat(
 void SettingsWidget::addLocationLabel(
 		not_null<Ui::VerticalLayout*> container) {
 #ifndef OS_MAC_STORE
-	auto pathLabel = value() | rpl::map([](const Settings &data) {
+	auto pathLink = value() | rpl::map([](const Settings &data) {
 		return data.path;
 	}) | rpl::distinct_until_changed(
 	) | rpl::map([](const QString &path) {
 		const auto text = IsDefaultPath(path)
 			? QString("Downloads/Telegram Desktop")
 			: path;
-		auto pathLink = TextWithEntities{
+		return Ui::Text::Link(
 			QDir::toNativeSeparators(text),
-			EntitiesInText()
-		};
-		pathLink.entities.push_back({
-			EntityType::CustomUrl,
-			0,
-			text.size(),
-			QString("internal:edit_export_path") });
-		return lng_export_option_location__rich(
-			lt_path,
-			pathLink);
+			QString("internal:edit_export_path"));
 	});
 	const auto label = container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
-			std::move(pathLabel),
+			tr::lng_export_option_location(
+				lt_path,
+				std::move(pathLink),
+				Ui::Text::WithEntities),
 			st::exportLocationLabel),
 		st::exportLocationPadding);
 	label->setClickHandlerFilter([=](auto&&...) {
@@ -281,40 +276,40 @@ void SettingsWidget::addLocationLabel(
 
 void SettingsWidget::addLimitsLabel(
 		not_null<Ui::VerticalLayout*> container) {
-	auto pathLabel = value() | rpl::map([](const Settings &data) {
-		return std::make_tuple(data.singlePeerFrom, data.singlePeerTill);
+	auto fromLink = value() | rpl::map([](const Settings &data) {
+		return data.singlePeerFrom;
 	}) | rpl::distinct_until_changed(
-	) | rpl::map([](TimeId from, TimeId till) {
-		const auto begin = from
-			? langDayOfMonthFull(ParseDateTime(from).date())
-			: lang(lng_export_beginning);
-		const auto end = till
-			? langDayOfMonthFull(ParseDateTime(till).date())
-			: lang(lng_export_end);
-		auto fromLink = TextWithEntities{ begin };
-		fromLink.entities.push_back({
-			EntityType::CustomUrl,
-			0,
-			begin.size(),
-			QString("internal:edit_from") });
-		auto tillLink = TextWithEntities{ end };
-		tillLink.entities.push_back({
-			EntityType::CustomUrl,
-			0,
-			end.size(),
-			QString("internal:edit_till") });
-		return lng_export_limits__rich(
-			lt_from,
-			fromLink,
-			lt_till,
-			tillLink);
-	}) | rpl::after_next([=] {
+	) | rpl::map([](TimeId from) {
+		return (from
+			? rpl::single(langDayOfMonthFull(ParseDateTime(from).date()))
+			: tr::lng_export_beginning()
+		) | Ui::Text::ToLink(qsl("internal:edit_from"));
+	}) | rpl::flatten_latest();
+
+	auto tillLink = value() | rpl::map([](const Settings &data) {
+		return data.singlePeerTill;
+	}) | rpl::distinct_until_changed(
+	) | rpl::map([](TimeId till) {
+		return (till
+			? rpl::single(langDayOfMonthFull(ParseDateTime(till).date()))
+			: tr::lng_export_end()
+		) | Ui::Text::ToLink(qsl("internal:edit_till"));
+	}) | rpl::flatten_latest();
+
+	auto datesText = tr::lng_export_limits(
+		lt_from,
+		std::move(fromLink),
+		lt_till,
+		std::move(tillLink),
+		Ui::Text::WithEntities
+	) | rpl::after_next([=] {
 		container->resizeToWidth(container->width());
 	});
+
 	const auto label = container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
-			std::move(pathLabel),
+			std::move(datesText),
 			st::exportLocationLabel),
 		st::exportLimitsPadding);
 	label->setClickHandlerFilter([=](
@@ -331,7 +326,7 @@ void SettingsWidget::addLimitsLabel(
 				readData().singlePeerFrom,
 				0,
 				readData().singlePeerTill,
-				lng_export_from_beginning,
+				tr::lng_export_from_beginning(),
 				done);
 		} else if (url == qstr("internal:edit_till")) {
 			const auto done = [=](TimeId limit) {
@@ -343,7 +338,7 @@ void SettingsWidget::addLimitsLabel(
 				readData().singlePeerTill,
 				readData().singlePeerFrom,
 				0,
-				lng_export_till_end,
+				tr::lng_export_till_end(),
 				done);
 		} else {
 			Unexpected("Click handler URL in export limits edit.");
@@ -357,7 +352,7 @@ void SettingsWidget::editDateLimit(
 		TimeId current,
 		TimeId min,
 		TimeId max,
-		LangKey resetLabel,
+		rpl::producer<QString> resetLabel,
 		Fn<void(TimeId)> done) {
 	Expects(_showBoxCallback != nullptr);
 
@@ -377,7 +372,7 @@ void SettingsWidget::editDateLimit(
 		box->setMinDate(min
 			? ParseDateTime(min).date()
 			: QDate(2013, 8, 1)); // Telegram was launched in August 2013 :)
-		box->addLeftButton(langFactory(resetLabel), crl::guard(this, [=] {
+		box->addLeftButton(std::move(resetLabel), crl::guard(this, [=] {
 			done(0);
 			if (const auto weak = shared->data()) {
 				weak->closeBox();
@@ -632,7 +627,7 @@ void SettingsWidget::refreshButtons(
 	const auto start = canStart
 		? Ui::CreateChild<Ui::RoundButton>(
 			container.get(),
-			langFactory(lng_export_start),
+			tr::lng_export_start(),
 			st::defaultBoxButton)
 		: nullptr;
 	if (start) {
@@ -652,7 +647,7 @@ void SettingsWidget::refreshButtons(
 
 	const auto cancel = Ui::CreateChild<Ui::RoundButton>(
 		container.get(),
-		langFactory(lng_cancel),
+		tr::lng_cancel(),
 		st::defaultBoxButton);
 	cancel->show();
 	_cancelClicks = cancel->clicks(

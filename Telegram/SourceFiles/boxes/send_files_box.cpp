@@ -1441,8 +1441,8 @@ void SendFilesBox::setupShadows(
 }
 
 void SendFilesBox::prepare() {
-	_send = addButton(langFactory(lng_send_button), [=] { send(); });
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	_send = addButton(tr::lng_send_button(), [=] { send(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	initSendWay();
 	setupCaption();
 	preparePreview();

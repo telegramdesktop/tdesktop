@@ -43,11 +43,11 @@ SuggestBox::SuggestBox(QWidget*) {
 void SuggestBox::prepare() {
 	setTitle(tr::lng_export_suggest_title());
 
-	addButton(langFactory(lng_box_ok), [=] {
+	addButton(tr::lng_box_ok(), [=] {
 		closeBox();
 		Auth().data().startExport(Local::ReadExportSettings().singlePeer);
 	});
-	addButton(langFactory(lng_export_suggest_cancel), [=] { closeBox(); });
+	addButton(tr::lng_export_suggest_cancel(), [=] { closeBox(); });
 	setCloseByOutsideClick(false);
 
 	const auto content = Ui::CreateChild<Ui::FlatLabel>(

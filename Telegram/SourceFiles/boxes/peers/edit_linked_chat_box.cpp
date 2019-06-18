@@ -116,22 +116,25 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 }
 
 void Controller::choose(not_null<ChannelData*> chat) {
-	auto text = lng_manage_discussion_group_sure__rich(
+	auto text = tr::lng_manage_discussion_group_sure(
+		tr::now,
 		lt_group,
 		Ui::Text::Bold(chat->name),
 		lt_channel,
-		Ui::Text::Bold(_channel->name));
+		Ui::Text::Bold(_channel->name),
+		Ui::Text::WithEntities);
 	if (!_channel->isPublic()) {
 		text.append(
-			"\n\n" + lang(lng_manage_linked_channel_private));
+			"\n\n" + tr::lng_manage_linked_channel_private(tr::now));
 	}
 	if (!chat->isPublic()) {
-		text.append("\n\n" + lang(lng_manage_discussion_group_private));
+		text.append(
+			"\n\n" + tr::lng_manage_discussion_group_private(tr::now));
 		if (chat->hiddenPreHistory()) {
 			text.append("\n\n");
-			text.append(lng_manage_discussion_group_warning__rich(
-				lt_visible,
-				Ui::Text::Bold(lang(lng_manage_discussion_group_visible))));
+			text.append(tr::lng_manage_discussion_group_warning(
+				tr::now,
+				Ui::Text::RichLangValue));
 		}
 	}
 	const auto box = std::make_shared<QPointer<BoxContent>>();
@@ -151,20 +154,21 @@ void Controller::choose(not_null<ChannelData*> chat) {
 }
 
 void Controller::choose(not_null<ChatData*> chat) {
-	auto text = lng_manage_discussion_group_sure__rich(
+	auto text = tr::lng_manage_discussion_group_sure(
+		tr::now,
 		lt_group,
 		Ui::Text::Bold(chat->name),
 		lt_channel,
-		Ui::Text::Bold(_channel->name));
+		Ui::Text::Bold(_channel->name),
+		Ui::Text::WithEntities);
 	if (!_channel->isPublic()) {
-		text.append(
-			"\n\n" + lang(lng_manage_linked_channel_private));
+		text.append("\n\n" + tr::lng_manage_linked_channel_private(tr::now));
 	}
-	text.append("\n\n" + lang(lng_manage_discussion_group_private));
+	text.append("\n\n" + tr::lng_manage_discussion_group_private(tr::now));
 	text.append("\n\n");
-	text.append(lng_manage_discussion_group_warning__rich(
-		lt_visible,
-		Ui::Text::Bold(lang(lng_manage_discussion_group_visible))));
+	text.append(tr::lng_manage_discussion_group_warning(
+		tr::now,
+		Ui::Text::RichLangValue));
 	const auto box = std::make_shared<QPointer<BoxContent>>();
 	const auto sure = [=] {
 		if (*box) {
@@ -192,18 +196,23 @@ object_ptr<Ui::RpWidget> SetupAbout(
 		parent,
 		QString(),
 		st::linkedChatAbout);
-	about->setMarkedText([&]() -> TextWithEntities {
+	about->setMarkedText([&] {
 		if (!channel->isBroadcast()) {
-			return lng_manage_linked_channel_about__rich(
+			return tr::lng_manage_linked_channel_about(
+				tr::now,
 				lt_channel,
-				Ui::Text::Bold(chat->name));
+				Ui::Text::Bold(chat->name),
+				Ui::Text::WithEntities);
 		} else if (chat != nullptr) {
-			return lng_manage_discussion_group_about_chosen__rich(
+			return tr::lng_manage_discussion_group_about_chosen(
+				tr::now,
 				lt_group,
-				Ui::Text::Bold(chat->name));
-		} else {
-			return { lang(lng_manage_discussion_group_about) };
+				Ui::Text::Bold(chat->name),
+				Ui::Text::WithEntities);
 		}
+		return tr::lng_manage_discussion_group_about(
+			tr::now,
+			Ui::Text::WithEntities);
 	}());
 	return std::move(about);
 }
@@ -288,7 +297,7 @@ object_ptr<BoxContent> EditLinkedChatBox(
 		box->setTitle(channel->isBroadcast()
 			? tr::lng_manage_discussion_group()
 			: tr::lng_manage_linked_channel());
-		box->addButton(langFactory(lng_close), [=] { box->closeBox(); });
+		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 	};
 	auto controller = std::make_unique<Controller>(
 		channel,

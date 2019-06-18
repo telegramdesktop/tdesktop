@@ -188,7 +188,6 @@ ResultString " << (isPlural ? entry.keyBase : key) << "__generic(" << genericPar
 	return result;\n\
 }\n\
 inline constexpr auto " << (isPlural ? entry.keyBase : key) << " = &" << (isPlural ? entry.keyBase : key) << "__generic<QString>;\n\
-inline constexpr auto " << (isPlural ? entry.keyBase : key) << "__rich = &" << (isPlural ? entry.keyBase : key) << "__generic<TextWithEntities>;\n\
 \n";
 		}
 	}

@@ -518,7 +518,7 @@ Notification::Notification(
 , _item(msg)
 , _forwardedCount(forwardedCount)
 , _close(this, st::notifyClose)
-, _reply(this, langFactory(lng_notification_reply), st::defaultBoxButton) {
+, _reply(this, tr::lng_notification_reply(), st::defaultBoxButton) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
 	auto position = computePosition(st::notifyMinHeight);

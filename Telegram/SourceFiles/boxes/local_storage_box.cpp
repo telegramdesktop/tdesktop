@@ -124,7 +124,7 @@ public:
 	Row(
 		QWidget *parent,
 		Fn<QString(size_type)> title,
-		Fn<QString()> clear,
+		rpl::producer<QString> clear,
 		const Database::TaggedSummary &data);
 
 	void update(const Database::TaggedSummary &data);
@@ -153,7 +153,7 @@ private:
 LocalStorageBox::Row::Row(
 	QWidget *parent,
 	Fn<QString(size_type)> title,
-	Fn<QString()> clear,
+	rpl::producer<QString> clear,
 	const Database::TaggedSummary &data)
 : RpWidget(parent)
 , _titleFactory(std::move(title))
@@ -299,7 +299,7 @@ void LocalStorageBox::Show(
 void LocalStorageBox::prepare() {
 	setTitle(tr::lng_local_storage_title());
 
-	addButton(langFactory(lng_box_ok), [this] { closeBox(); });
+	addButton(tr::lng_box_ok(), [this] { closeBox(); });
 
 	setupControls();
 }
@@ -365,7 +365,7 @@ void LocalStorageBox::setupControls() {
 	const auto createRow = [&](
 			uint16 tag,
 			Fn<QString(size_type)> title,
-			Fn<QString()> clear,
+			rpl::producer<QString> clear,
 			const Database::TaggedSummary &data) {
 		auto result = container->add(object_ptr<Ui::SlideWrap<Row>>(
 			container,
@@ -395,7 +395,7 @@ void LocalStorageBox::setupControls() {
 		tracker.track(createRow(
 			tag,
 			std::move(title),
-			langFactory(lng_local_storage_clear_some),
+			tr::lng_local_storage_clear_some(),
 			data));
 	};
 	auto summaryTitle = [](size_type) {
@@ -407,7 +407,7 @@ void LocalStorageBox::setupControls() {
 	createRow(
 		0,
 		std::move(summaryTitle),
-		langFactory(lng_local_storage_clear),
+		tr::lng_local_storage_clear(),
 		summary());
 	setupLimits(container);
 	const auto shadow = container->add(object_ptr<Ui::SlideWrap<>>(
@@ -422,7 +422,7 @@ void LocalStorageBox::setupControls() {
 	tracker.track(createRow(
 		kFakeMediaCacheTag,
 		std::move(mediaCacheTitle),
-		langFactory(lng_local_storage_clear_some),
+		tr::lng_local_storage_clear_some(),
 		_statsBig.full));
 	shadow->toggleOn(
 		std::move(tracker).atLeastOneShownValue()
@@ -572,10 +572,10 @@ void LocalStorageBox::limitsChanged() {
 		_limitsChanged = changed;
 		clearButtons();
 		if (_limitsChanged) {
-			addButton(langFactory(lng_settings_save), [=] { save(); });
-			addButton(langFactory(lng_cancel), [=] { closeBox(); });
+			addButton(tr::lng_settings_save(), [=] { save(); });
+			addButton(tr::lng_cancel(), [=] { closeBox(); });
 		} else {
-			addButton(langFactory(lng_box_ok), [=] { closeBox(); });
+			addButton(tr::lng_box_ok(), [=] { closeBox(); });
 		}
 	}
 }

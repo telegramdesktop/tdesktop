@@ -243,8 +243,7 @@ object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
 void InnerWidget::peerListSetTitle(rpl::producer<QString> title) {
 }
 
-void InnerWidget::peerListSetAdditionalTitle(
-		Fn<QString()> title) {
+void InnerWidget::peerListSetAdditionalTitle(rpl::producer<QString> title) {
 }
 
 bool InnerWidget::peerListIsRowSelected(not_null<PeerData*> peer) {

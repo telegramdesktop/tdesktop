@@ -97,11 +97,12 @@ void LaunchWithWarning(const QString &name, HistoryItem *item) {
 		File::Launch(name);
 	};
 	Ui::show(Box<ConfirmDontWarnBox>(
-		rpl::single(lng_launch_exe_warning__rich(
+		tr::lng_launch_exe_warning(
 			lt_extension,
-			Ui::Text::Bold(extension))),
+			rpl::single(Ui::Text::Bold(extension)),
+			Ui::Text::WithEntities),
 		lang(lng_launch_exe_dont_ask),
-		lang(lng_launch_exe_sure),
+		tr::lng_launch_exe_sure(),
 		callback));
 }
 

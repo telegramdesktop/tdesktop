@@ -14,10 +14,6 @@ inline QString lang(LangKey key) {
 	return Lang::Current().getValue(key);
 }
 
-inline Fn<QString()> langFactory(LangKey key) {
-	return [key] { return Lang::Current().getValue(key); };
-}
-
 template <typename WithYear, typename WithoutYear>
 inline QString langDateMaybeWithYear(QDate date, WithYear withYear, WithoutYear withoutYear) {
 	auto month = date.month();

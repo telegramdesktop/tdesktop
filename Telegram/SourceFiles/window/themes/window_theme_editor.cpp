@@ -570,8 +570,8 @@ ThemeExportBox::ThemeExportBox(QWidget*, const QByteArray &paletteContent, const
 void ThemeExportBox::prepare() {
 	setTitle(tr::lng_theme_editor_background_image());
 
-	addButton(langFactory(lng_theme_editor_export), [this] { exportTheme(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(tr::lng_theme_editor_export(), [this] { exportTheme(); });
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	auto height = st::themesSmallSkip + st::themesBackgroundSize + st::themesSmallSkip + _tileBackground->height();
 

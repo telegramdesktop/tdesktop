@@ -46,8 +46,8 @@ void ReportBox::prepare() {
 		}
 	}());
 
-	addButton(langFactory(lng_report_button), [=] { report(); });
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_report_button(), [=] { report(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	_reasonGroup = std::make_shared<Ui::RadioenumGroup<Reason>>(
 		Reason::Spam);

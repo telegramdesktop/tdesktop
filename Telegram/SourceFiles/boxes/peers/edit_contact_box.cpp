@@ -80,8 +80,8 @@ void Controller::prepare() {
 		? tr::lng_edit_contact_title()
 		: tr::lng_enter_contact_data());
 
-	_box->addButton(langFactory(lng_box_done), _save);
-	_box->addButton(langFactory(lng_cancel), [=] { _box->closeBox(); });
+	_box->addButton(tr::lng_box_done(), _save);
+	_box->addButton(tr::lng_cancel(), [=] { _box->closeBox(); });
 	_box->setFocusCallback(_focus);
 }
 

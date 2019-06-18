@@ -177,7 +177,7 @@ PanelForm::PanelForm(
 , _bottomShadow(this)
 , _submit(
 		this,
-		langFactory(lng_passport_authorize),
+		tr::lng_passport_authorize(),
 		st::passportPanelAuthorize) {
 	setupControls();
 }
@@ -292,19 +292,24 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 		});
 	}, lifetime());
 	const auto policyUrl = _controller->privacyPolicyUrl();
-	const auto richText = policyUrl.isEmpty()
-		? TextWithEntities{ lng_passport_allow(lt_bot, '@' + bot->username) }
-		: lng_passport_accept_allow__rich(
-			lt_policy,
-			Ui::Text::Link(
-				lng_passport_policy(lt_bot, App::peerName(bot)),
-				policyUrl),
+	auto text = policyUrl.isEmpty()
+		? tr::lng_passport_allow(
 			lt_bot,
-			TextWithEntities{ '@' + bot->username });
+			rpl::single('@' + bot->username)
+		) | Ui::Text::ToWithEntities()
+		: tr::lng_passport_accept_allow(
+			lt_policy,
+			tr::lng_passport_policy(
+				lt_bot,
+				rpl::single(App::peerName(bot))
+			) | Ui::Text::ToLink(policyUrl),
+			lt_bot,
+			rpl::single('@' + bot->username) | Ui::Text::ToWithEntities(),
+			Ui::Text::WithEntities);
 	const auto policy = inner->add(
 		object_ptr<Ui::FlatLabel>(
 			inner,
-			rpl::single(richText),
+			std::move(text),
 			st::passportFormPolicy),
 		st::passportFormPolicyPadding);
 	policy->setLinksTrusted();

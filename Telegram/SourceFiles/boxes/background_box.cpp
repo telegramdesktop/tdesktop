@@ -124,7 +124,7 @@ BackgroundBox::BackgroundBox(QWidget*) {
 void BackgroundBox::prepare() {
 	setTitle(tr::lng_backgrounds_header());
 
-	addButton(langFactory(lng_close), [=] { closeBox(); });
+	addButton(tr::lng_close(), [=] { closeBox(); });
 
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 

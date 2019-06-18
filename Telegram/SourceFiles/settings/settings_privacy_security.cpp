@@ -119,10 +119,10 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 		st::settingsButton
 	)->addClickHandler([] {
 		const auto initBox = [](not_null<PeerListBox*> box) {
-			box->addButton(langFactory(lng_close), [=] {
+			box->addButton(tr::lng_close(), [=] {
 				box->closeBox();
 			});
-			box->addLeftButton(langFactory(lng_blocked_list_add), [] {
+			box->addLeftButton(tr::lng_blocked_list_add(), [] {
 				BlockedBoxController::BlockNewUser();
 			});
 		};

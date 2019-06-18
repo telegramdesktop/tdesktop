@@ -659,7 +659,7 @@ void ManageSetsBox::prepare() {
 
 	setTitle(tr::lng_emoji_manage_sets());
 
-	addButton(langFactory(lng_close), [=] { closeBox(); });
+	addButton(tr::lng_close(), [=] { closeBox(); });
 
 	setDimensionsToContent(st::boxWidth, inner);
 }

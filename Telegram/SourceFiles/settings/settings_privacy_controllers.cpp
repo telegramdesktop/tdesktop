@@ -260,7 +260,7 @@ void BlockedBoxController::BlockNewUser() {
 			Auth().api().blockUser(user);
 			box->closeBox();
 		});
-		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
+		box->addButton(tr::lng_cancel(), [box] { box->closeBox(); });
 	};
 	Ui::show(
 		Box<PeerListBox>(std::move(controller), std::move(initBox)),

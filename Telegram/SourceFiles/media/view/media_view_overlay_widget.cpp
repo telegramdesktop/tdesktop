@@ -236,11 +236,13 @@ OverlayWidget::OverlayWidget()
 	setWindowIcon(Window::CreateIcon(&Core::App().activeAccount()));
 	setWindowTitle(qsl("Media viewer"));
 
-	const auto text = lng_mediaview_saved_to__rich(
+	const auto text = tr::lng_mediaview_saved_to(
+		tr::now,
 		lt_downloads,
 		Ui::Text::Link(
-			lang(lng_mediaview_downloads),
-			"internal:show_saved_message"));
+			tr::lng_mediaview_downloads(tr::now),
+			"internal:show_saved_message"),
+		Ui::Text::WithEntities);
 	_saveMsgText.setMarkedText(st::mediaviewSaveMsgStyle, text, Ui::DialogTextOptions());
 	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::mediaviewSaveMsgPadding.left() + st::mediaviewSaveMsgPadding.right(), st::mediaviewSaveMsgStyle.font->height + st::mediaviewSaveMsgPadding.top() + st::mediaviewSaveMsgPadding.bottom());
 
@@ -2241,7 +2243,7 @@ void OverlayWidget::initThemePreview() {
 			if (_themePreview) {
 				_themeApply.create(
 					this,
-					langFactory(lng_theme_preview_apply),
+					tr::lng_theme_preview_apply(),
 					st::themePreviewApplyButton);
 				_themeApply->show();
 				_themeApply->setClickedCallback([this] {
@@ -2251,7 +2253,7 @@ void OverlayWidget::initThemePreview() {
 				});
 				_themeCancel.create(
 					this,
-					langFactory(lng_cancel),
+					tr::lng_cancel(),
 					st::themePreviewCancelButton);
 				_themeCancel->show();
 				_themeCancel->setClickedCallback([this] { close(); });

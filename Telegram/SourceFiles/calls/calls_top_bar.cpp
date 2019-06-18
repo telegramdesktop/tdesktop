@@ -50,7 +50,7 @@ DebugInfoBox::DebugInfoBox(QWidget*, base::weak_ptr<Call> call)
 void DebugInfoBox::prepare() {
 	setTitle(rpl::single(qsl("Call Debug")));
 
-	addButton(langFactory(lng_close), [this] { closeBox(); });
+	addButton(tr::lng_close(), [this] { closeBox(); });
 	_text = setInnerWidget(
 		object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 			this,

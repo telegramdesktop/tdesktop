@@ -92,12 +92,14 @@ bool PasscodeBox::onlyCheckCurrent() const {
 }
 
 void PasscodeBox::prepare() {
-	addButton([=] {
-		return _cloudFields.customSubmitButton.value_or(lang(_turningOff
-			? lng_passcode_remove_button
-			: lng_settings_save));
-	}, [=] { save(); });
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(
+		(_cloudFields.customSubmitButton
+			? rpl::single(*_cloudFields.customSubmitButton)
+			: _turningOff
+			? tr::lng_passcode_remove_button()
+			: tr::lng_settings_save()),
+		[=] { save(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	_about.setText(
 		st::passcodeTextStyle,
@@ -914,8 +916,8 @@ rpl::producer<> RecoverBox::recoveryExpired() const {
 void RecoverBox::prepare() {
 	setTitle(tr::lng_signin_recover_title());
 
-	addButton(langFactory(lng_passcode_submit), [=] { submit(); });
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_passcode_submit(), [=] { submit(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	setDimensions(st::boxWidth, st::passcodePadding.top() + st::passcodePadding.bottom() + st::passcodeTextLine + _recoverCode->height() + st::passcodeTextLine);
 

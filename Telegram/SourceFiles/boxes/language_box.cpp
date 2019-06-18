@@ -1035,7 +1035,7 @@ Ui::ScrollToRequest Content::jump(int rows) {
 } // namespace
 
 void LanguageBox::prepare() {
-	addButton(langFactory(lng_box_ok), [=] { closeBox(); });
+	addButton(tr::lng_box_ok(), [=] { closeBox(); });
 
 	setTitle(tr::lng_languages());
 

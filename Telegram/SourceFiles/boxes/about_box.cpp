@@ -23,29 +23,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 rpl::producer<TextWithEntities> Text1() {
-	return rpl::single(lng_about_text1__rich(
+	return tr::lng_about_text1(
 		lt_api_link,
-		Ui::Text::Link(
-			lang(lng_about_text1_api),
-			"https://core.telegram.org/api")));
+		tr::lng_about_text1_api(
+		) | Ui::Text::ToLink("https://core.telegram.org/api"),
+		Ui::Text::WithEntities);
 }
 
 rpl::producer<TextWithEntities> Text2() {
-	return rpl::single(lng_about_text2__rich(
+	return tr::lng_about_text2(
 		lt_gpl_link,
-		Ui::Text::Link(
-			lang(lng_about_text2_gpl),
+		tr::lng_about_text2_gpl(
+		) | Ui::Text::ToLink(
 			"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE"),
 		lt_github_link,
-		Ui::Text::Link(
-			lang(lng_about_text2_github),
-			"https://github.com/telegramdesktop/tdesktop")));
+		tr::lng_about_text2_github(
+		) | Ui::Text::ToLink(
+			"https://github.com/telegramdesktop/tdesktop"),
+		Ui::Text::WithEntities);
 }
 
 rpl::producer<TextWithEntities> Text3() {
-	return rpl::single(lng_about_text3__rich(
+	return tr::lng_about_text3(
 		lt_faq_link,
-		Ui::Text::Link(lang(lng_about_text3_faq), telegramFaqLink())));
+		tr::lng_about_text3_faq() | Ui::Text::ToLink(telegramFaqLink()),
+		Ui::Text::WithEntities);
 }
 
 } // namespace
@@ -60,7 +62,7 @@ AboutBox::AboutBox(QWidget *parent)
 void AboutBox::prepare() {
 	setTitle(rpl::single(qsl("Telegram Desktop")));
 
-	addButton(langFactory(lng_close), [this] { closeBox(); });
+	addButton(tr::lng_close(), [this] { closeBox(); });
 
 	_text1->setLinksTrusted();
 	_text2->setLinksTrusted();

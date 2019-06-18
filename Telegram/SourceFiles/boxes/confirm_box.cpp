@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
+#include "ui/text/text_utilities.h"
 #include "ui/empty_userpic.h"
 #include "core/click_handler_types.h"
 #include "window/window_session_controller.h"
@@ -183,12 +184,12 @@ void ConfirmBox::init(const TextWithEntities &text) {
 
 void ConfirmBox::prepare() {
 	addButton(
-		[=] { return _confirmText; },
+		rpl::single(_confirmText),
 		[=] { confirmed(); },
 		_confirmStyle);
 	if (!_informative) {
 		addButton(
-			[=] { return _cancelText; },
+			rpl::single(_cancelText),
 			[=] { _cancelled = true; closeBox(); });
 	}
 
@@ -320,7 +321,7 @@ MaxInviteBox::MaxInviteBox(QWidget*, not_null<ChannelData*> channel) : BoxConten
 void MaxInviteBox::prepare() {
 	setMouseTracking(true);
 
-	addButton(langFactory(lng_box_ok), [this] { closeBox(); });
+	addButton(tr::lng_box_ok(), [=] { closeBox(); });
 
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * st::boxLabelStyle.lineHeight);
@@ -396,8 +397,8 @@ PinMessageBox::PinMessageBox(
 }
 
 void PinMessageBox::prepare() {
-	addButton(langFactory(lng_pinned_pin), [this] { pinMessage(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(tr::lng_pinned_pin(), [this] { pinMessage(); });
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	if (_peer->isChat() || _peer->isMegagroup()) {
 		_notify.create(this, lang(lng_pinned_notify), true, st::defaultBoxCheckbox);
@@ -488,7 +489,7 @@ void DeleteMessagesBox::prepare() {
 	const auto appendDetails = [&](TextWithEntities &&text) {
 		details.append(qstr("\n\n")).append(std::move(text));
 	};
-	auto deleteKey = lng_box_delete;
+	auto deleteText = tr::lng_box_delete();
 	auto deleteStyle = &st::defaultBoxButton;
 	if (const auto peer = _wipeHistoryPeer) {
 		if (_wipeHistoryJustClear) {
@@ -508,9 +509,9 @@ void DeleteMessagesBox::prepare() {
 				: lang(peer->isMegagroup()
 					? lng_sure_leave_group
 					: lng_sure_leave_channel);
-			deleteKey = _wipeHistoryPeer->isUser()
-				? lng_box_delete
-				: lng_box_leave;
+			deleteText = _wipeHistoryPeer->isUser()
+				? tr::lng_box_delete()
+				: tr::lng_box_leave();
 			deleteStyle = &(peer->isChannel()
 				? st::defaultBoxButton
 				: st::attentionBoxButton);
@@ -521,6 +522,7 @@ void DeleteMessagesBox::prepare() {
 		}
 	} else if (_moderateFrom) {
 		Assert(_moderateInChannel != nullptr);
+
 		details.text = lang(lng_selected_delete_sure_this);
 		if (_moderateBan) {
 			_banUser.create(this, lang(lng_ban_user), false, st::defaultBoxCheckbox);
@@ -552,10 +554,10 @@ void DeleteMessagesBox::prepare() {
 	_text.create(this, rpl::single(std::move(details)), st::boxLabel);
 
 	addButton(
-		langFactory(deleteKey),
+		std::move(deleteText),
 		[=] { deleteAndClear(); },
 		*deleteStyle);
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	auto fullHeight = st::boxPadding.top() + _text->height() + st::boxPadding.bottom();
 	if (_moderateFrom) {
@@ -639,34 +641,37 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 				lt_user,
 				user->firstName);
 		} else {
-			result.checkbox = lang(lng_delete_for_everyone_check);
+			result.checkbox = tr::lng_delete_for_everyone_check(tr::now);
 		}
 		return result;
 	} else if (canRevokeOutgoingCount > 0) {
-		result.checkbox = lang(lng_delete_for_other_my);
+		result.checkbox = tr::lng_delete_for_other_my(tr::now);
 		if (const auto user = peer->asUser()) {
-			auto boldName = TextWithEntities{ user->firstName };
-			boldName.entities.push_back(
-				{ EntityType::Bold, 0, boldName.text.size() });
 			if (canRevokeOutgoingCount == 1) {
-				result.description = lng_selected_unsend_about_user_one__rich(
+				result.description = tr::lng_selected_unsend_about_user_one(
+					tr::now,
 					lt_user,
-					boldName);
+					Ui::Text::Bold(user->shortName()),
+					Ui::Text::WithEntities);
 			} else {
-				result.description = lng_selected_unsend_about_user__rich(
+				result.description = tr::lng_selected_unsend_about_user(
+					tr::now,
 					lt_count,
 					canRevokeOutgoingCount,
 					lt_user,
-					boldName);
+					Ui::Text::Bold(user->shortName()),
+					Ui::Text::WithEntities);
 			}
 		} else if (canRevokeOutgoingCount == 1) {
-			result.description = TextWithEntities{
-				lang(lng_selected_unsend_about_group_one) };
+			result.description = tr::lng_selected_unsend_about_group_one(
+				tr::now,
+				Ui::Text::WithEntities);
 		} else {
-			result.description = TextWithEntities{
-				lng_selected_unsend_about_group(
-					lt_count,
-					canRevokeOutgoingCount) };
+			result.description = tr::lng_selected_unsend_about_group(
+				tr::now,
+				lt_count,
+				canRevokeOutgoingCount,
+				Ui::Text::WithEntities);
 		}
 		return result;
 	}
@@ -836,11 +841,12 @@ std::vector<not_null<UserData*>> ConfirmInviteBox::GetParticipants(
 }
 
 void ConfirmInviteBox::prepare() {
-	const auto joinKey = _isChannel
-		? lng_profile_join_channel
-		: lng_profile_join_group;
-	addButton(langFactory(joinKey), _submit);
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(
+		(_isChannel
+			? tr::lng_profile_join_channel()
+			: tr::lng_profile_join_group()),
+		_submit);
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	while (_participants.size() > 4) {
 		_participants.pop_back();
@@ -913,16 +919,16 @@ ConfirmDontWarnBox::ConfirmDontWarnBox(
 	QWidget*,
 	rpl::producer<TextWithEntities> text,
 	const QString &checkbox,
-	const QString &confirm,
+	rpl::producer<QString> confirm,
 	FnMut<void(bool)> callback)
-: _confirm(confirm)
+: _confirm(std::move(confirm))
 , _content(setupContent(std::move(text), checkbox, std::move(callback))) {
 }
 
 void ConfirmDontWarnBox::prepare() {
 	setDimensionsToContent(st::boxWidth, _content);
-	addButton([=] { return _confirm; }, [=] { _callback(); });
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(std::move(_confirm), [=] { _callback(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 }
 
 not_null<Ui::RpWidget*> ConfirmDontWarnBox::setupContent(

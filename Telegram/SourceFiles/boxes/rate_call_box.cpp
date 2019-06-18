@@ -32,7 +32,7 @@ RateCallBox::RateCallBox(QWidget*, uint64 callId, uint64 callAccessHash)
 
 void RateCallBox::prepare() {
 	setTitle(tr::lng_call_rate_label());
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	for (auto i = 0; i < kMaxRating; ++i) {
 		_stars.push_back(object_ptr<Ui::IconButton>(this, st::callRatingStar));
@@ -62,8 +62,8 @@ void RateCallBox::ratingChanged(int value) {
 	Expects(value > 0 && value <= kMaxRating);
 	if (!_rating) {
 		clearButtons();
-		addButton(langFactory(lng_send_button), [this] { send(); });
-		addButton(langFactory(lng_cancel), [this] { closeBox(); });
+		addButton(tr::lng_send_button(), [this] { send(); });
+		addButton(tr::lng_cancel(), [this] { closeBox(); });
 	}
 	_rating = value;
 

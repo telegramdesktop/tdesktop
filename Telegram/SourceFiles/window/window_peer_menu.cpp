@@ -672,7 +672,7 @@ void PeerMenuShareContactBox(not_null<UserData*> user) {
 	*weak = Ui::show(Box<PeerListBox>(
 		std::make_unique<ChooseRecipientBoxController>(std::move(callback)),
 		[](not_null<PeerListBox*> box) {
-			box->addButton(langFactory(lng_cancel), [box] {
+			box->addButton(tr::lng_cancel(), [box] {
 				box->closeBox();
 			});
 		}));
@@ -714,10 +714,10 @@ void PeerMenuBlockUserBox(
 
 	box->addRow(object_ptr<Ui::FlatLabel>(
 		box,
-		rpl::single(
-			lng_blocked_list_confirm_text__rich(
-				lt_name,
-				Ui::Text::Bold(name))),
+		tr::lng_blocked_list_confirm_text(
+			lt_name,
+			rpl::single(Ui::Text::Bold(name)),
+			Ui::Text::WithEntities),
 		st::blockUserConfirmation));
 
 	box->addSkip(st::boxMediumSkip);
@@ -746,7 +746,7 @@ void PeerMenuBlockUserBox(
 		lt_name,
 		rpl::single(name)));
 
-	box->addButton(langFactory(lng_blocked_list_confirm_ok), [=] {
+	box->addButton(tr::lng_blocked_list_confirm_ok(), [=] {
 		const auto reportChecked = report && report->checked();
 		const auto clearChecked = clear->checked();
 
@@ -769,7 +769,7 @@ void PeerMenuBlockUserBox(
 			lng_new_contact_block_done(lt_user, user->shortName()));
 	}, st::attentionBoxButton);
 
-	box->addButton(langFactory(lng_cancel), [=] {
+	box->addButton(tr::lng_cancel(), [=] {
 		box->closeBox();
 	});
 }
@@ -803,7 +803,7 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 		}
 	};
 	auto initBox = [](not_null<PeerListBox*> box) {
-		box->addButton(langFactory(lng_cancel), [box] {
+		box->addButton(tr::lng_cancel(), [box] {
 			box->closeBox();
 		});
 	};

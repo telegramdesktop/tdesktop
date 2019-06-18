@@ -72,11 +72,11 @@ void SelfDestructionBox::showContent() {
 	showChildren();
 
 	clearButtons();
-	addButton(langFactory(lng_settings_save), [=] {
+	addButton(tr::lng_settings_save(), [=] {
 		Auth().api().saveSelfDestruct(_ttlGroup->value());
 		closeBox();
 	});
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 }
 
 QString SelfDestructionBox::DaysLabel(int days) {
@@ -102,7 +102,7 @@ void SelfDestructionBox::prepare() {
 
 	setDimensions(st::boxWidth, boxHeight);
 
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	if (_loading) {
 		_loading->moveToLeft(

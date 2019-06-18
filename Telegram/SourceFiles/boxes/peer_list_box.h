@@ -226,7 +226,7 @@ struct PeerListState;
 class PeerListDelegate {
 public:
 	virtual void peerListSetTitle(rpl::producer<QString> title) = 0;
-	virtual void peerListSetAdditionalTitle(Fn<QString()> title) = 0;
+	virtual void peerListSetAdditionalTitle(rpl::producer<QString> title) = 0;
 	virtual void peerListSetDescription(object_ptr<Ui::FlatLabel> description) = 0;
 	virtual void peerListSetSearchLoading(object_ptr<Ui::FlatLabel> loading) = 0;
 	virtual void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) = 0;
@@ -758,8 +758,7 @@ public:
 	void peerListSetTitle(rpl::producer<QString> title) override {
 		setTitle(std::move(title));
 	}
-	void peerListSetAdditionalTitle(
-			Fn<QString()> title) override {
+	void peerListSetAdditionalTitle(rpl::producer<QString> title) override {
 		setAdditionalTitle(std::move(title));
 	}
 	void peerListSetSearchMode(PeerListSearchMode mode) override;

@@ -226,7 +226,7 @@ public:
 		QWidget*,
 		rpl::producer<TextWithEntities> text,
 		const QString &checkbox,
-		const QString &confirm,
+		rpl::producer<QString> confirm,
 		FnMut<void(bool)> callback);
 
 protected:
@@ -238,7 +238,7 @@ private:
 		const QString &checkbox,
 		FnMut<void(bool)> callback);
 
-	QString _confirm;
+	rpl::producer<QString> _confirm;
 	FnMut<void()> _callback;
 	not_null<Ui::RpWidget*> _content;
 

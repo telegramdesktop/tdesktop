@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 void AutoLockBox::prepare() {
 	setTitle(tr::lng_passcode_autolock());
 
-	addButton(langFactory(lng_box_ok), [this] { closeBox(); });
+	addButton(tr::lng_box_ok(), [this] { closeBox(); });
 
 	auto options = { 60, 300, 3600, 18000 };
 

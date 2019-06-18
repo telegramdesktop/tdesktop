@@ -78,8 +78,8 @@ void MuteSettingsBox::prepare() {
 			muteForSeconds);
 		closeBox();
 	};
-	addButton(langFactory(lng_box_ok), _save);
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(tr::lng_box_ok(), _save);
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	setDimensions(st::boxWidth, y);
 }

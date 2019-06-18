@@ -73,30 +73,31 @@ ConfirmSwitchBox::ConfirmSwitchBox(
 void ConfirmSwitchBox::prepare() {
 	setTitle(tr::lng_language_switch_title());
 
-	const auto text = (_official
-		? lng_language_switch_about_official__rich
-		: lng_language_switch_about_unofficial__rich)(
-		lt_lang_name,
-		Ui::Text::Bold(_name),
-		lt_percent,
-		Ui::Text::Bold(QString::number(_percent)),
-		lt_link,
-		Ui::Text::Link(lang(lng_language_switch_link), _editLink));
+	auto text = (_official
+		? tr::lng_language_switch_about_official
+		: tr::lng_language_switch_about_unofficial)(
+			lt_lang_name,
+			rpl::single(Ui::Text::Bold(_name)),
+			lt_percent,
+			rpl::single(Ui::Text::Bold(QString::number(_percent))),
+			lt_link,
+			tr::lng_language_switch_link() | Ui::Text::ToLink(_editLink),
+			Ui::Text::WithEntities);
 	const auto content = Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
 		this,
 		object_ptr<Ui::FlatLabel>(
 			this,
-			rpl::single(text),
+			std::move(text),
 			st::boxLabel),
 		QMargins{ st::boxPadding.left(), 0, st::boxPadding.right(), 0 });
 	content->entity()->setLinksTrusted();
 
-	addButton(langFactory(lng_language_switch_apply), [=] {
+	addButton(tr::lng_language_switch_apply(), [=] {
 		const auto apply = _apply;
 		closeBox();
 		apply();
 	});
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	content->resizeToWidth(st::boxWideWidth);
 	content->heightValue(
@@ -115,21 +116,22 @@ NotReadyBox::NotReadyBox(
 void NotReadyBox::prepare() {
 	setTitle(tr::lng_language_not_ready_title());
 
-	const auto text = lng_language_not_ready_about__rich(
+	auto text = tr::lng_language_not_ready_about(
 		lt_lang_name,
-		TextWithEntities{ _name },
+		rpl::single(_name) | Ui::Text::ToWithEntities(),
 		lt_link,
-		Ui::Text::Link(lang(lng_language_not_ready_link), _editLink));
+		tr::lng_language_not_ready_link() | Ui::Text::ToLink(_editLink),
+		Ui::Text::WithEntities);
 	const auto content = Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
 		this,
 		object_ptr<Ui::FlatLabel>(
 			this,
-			rpl::single(text),
+			std::move(text),
 			st::boxLabel),
 		QMargins{ st::boxPadding.left(), 0, st::boxPadding.right(), 0 });
 	content->entity()->setLinksTrusted();
 
-	addButton(langFactory(lng_box_ok), [=] { closeBox(); });
+	addButton(tr::lng_box_ok(), [=] { closeBox(); });
 
 	content->resizeToWidth(st::boxWidth);
 	content->heightValue(

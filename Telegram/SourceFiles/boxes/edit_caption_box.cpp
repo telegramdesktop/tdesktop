@@ -583,13 +583,13 @@ void EditCaptionBox::createEditMediaButton() {
 }
 
 void EditCaptionBox::prepare() {
-	addButton(langFactory(lng_settings_save), [this] { save(); });
+	addButton(tr::lng_settings_save(), [this] { save(); });
 	if (_isAllowedEditMedia) {
 		createEditMediaButton();
 	} else {
 		_preparedList.files.clear();
 	}
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	updateBoxSize();
 	connect(_field, &Ui::InputField::submitted, [=] { save(); });

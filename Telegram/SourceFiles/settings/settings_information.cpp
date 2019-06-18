@@ -51,7 +51,7 @@ void SetupPhoto(
 		st::settingsInfoPhoto);
 	const auto upload = Ui::CreateChild<Ui::RoundButton>(
 		wrap,
-		langFactory(lng_settings_upload),
+		tr::lng_settings_upload(),
 		st::settingsInfoPhotoSet);
 	upload->setFullRadius(true);
 	upload->addClickHandler([=] {

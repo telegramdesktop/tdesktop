@@ -153,10 +153,10 @@ void AddParticipantsBoxController::updateTitle() {
 	const auto additional = (_peer
 		&& _peer->isChannel()
 		&& !_peer->isMegagroup())
-		? QString() :
-		QString("%1 / %2").arg(fullCount()).arg(Global::MegagroupSizeMax());
+		? QString()
+		: qsl("%1 / %2").arg(fullCount()).arg(Global::MegagroupSizeMax());
 	delegate()->peerListSetTitle(tr::lng_profile_add_participant());
-	delegate()->peerListSetAdditionalTitle([=] { return additional; });
+	delegate()->peerListSetAdditionalTitle(rpl::single(additional));
 }
 
 bool AddParticipantsBoxController::inviteSelectedUsers(
@@ -183,12 +183,12 @@ void AddParticipantsBoxController::Start(not_null<ChatData*> chat) {
 	auto controller = std::make_unique<AddParticipantsBoxController>(chat);
 	const auto weak = controller.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {
-		box->addButton(langFactory(lng_participant_invite), [=] {
+		box->addButton(tr::lng_participant_invite(), [=] {
 			if (weak->inviteSelectedUsers(box)) {
 				Ui::showPeerHistory(chat, ShowAtTheEndMsgId);
 			}
 		});
-		box->addButton(langFactory(lng_cancel), [=] { box->closeBox(); });
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	};
 	Ui::show(
 		Box<PeerListBox>(
@@ -206,7 +206,7 @@ void AddParticipantsBoxController::Start(
 		std::move(alreadyIn));
 	const auto weak = controller.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {
-		box->addButton(langFactory(lng_participant_invite), [=] {
+		box->addButton(tr::lng_participant_invite(), [=] {
 			if (weak->inviteSelectedUsers(box)) {
 				if (channel->isMegagroup()) {
 					Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
@@ -216,7 +216,7 @@ void AddParticipantsBoxController::Start(
 			}
 		});
 		box->addButton(
-			langFactory(justCreated ? lng_create_group_skip : lng_cancel),
+			justCreated ? tr::lng_create_group_skip() : tr::lng_cancel(),
 			[=] { box->closeBox(); });
 		if (justCreated) {
 			box->boxClosing() | rpl::start_with_next([=] {

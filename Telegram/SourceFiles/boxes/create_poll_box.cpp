@@ -700,10 +700,10 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		clearButtons();
 		if (valid) {
 			addButton(
-				langFactory(lng_polls_create_button),
+				tr::lng_polls_create_button(),
 				[=] { _submitRequests.fire(collectResult()); });
 		}
-		addButton(langFactory(lng_cancel), [=] { closeBox(); });
+		addButton(tr::lng_cancel(), [=] { closeBox(); });
 	}, lifetime());
 
 	options->isValidChanged(

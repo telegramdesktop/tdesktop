@@ -112,12 +112,12 @@ void EditPeerHistoryVisibilityBox::prepare() {
 	_peer->updateFull();
 
 	setTitle(tr::lng_manage_history_visibility_title());
-	addButton(langFactory(lng_settings_save), [=] {
+	addButton(tr::lng_settings_save(), [=] {
 		auto local = std::move(_savedCallback);
 		local(_historyVisibility->value());
 		closeBox();
 	});
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	setupContent();
 }

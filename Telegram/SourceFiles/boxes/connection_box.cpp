@@ -471,8 +471,8 @@ ProxiesBox::ProxiesBox(
 void ProxiesBox::prepare() {
 	setTitle(tr::lng_proxy_settings());
 
-	addButton(langFactory(lng_proxy_add), [=] { addNewProxy(); });
-	addButton(langFactory(lng_close), [=] { closeBox(); });
+	addButton(tr::lng_proxy_add(), [=] { addNewProxy(); });
+	addButton(tr::lng_close(), [=] { closeBox(); });
 
 	setupContent();
 }
@@ -706,12 +706,12 @@ void ProxyBox::prepare() {
 
 void ProxyBox::refreshButtons() {
 	clearButtons();
-	addButton(langFactory(lng_settings_save), [=] { save(); });
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_settings_save(), [=] { save(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	const auto type = _type->value();
 	if (type == Type::Socks5 || type == Type::Mtproto) {
-		addLeftButton(langFactory(lng_proxy_share), [=] { share(); });
+		addLeftButton(tr::lng_proxy_share(), [=] { share(); });
 	}
 }
 

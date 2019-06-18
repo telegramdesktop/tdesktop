@@ -90,7 +90,7 @@ public:
 		Forward,
 		Replace,
 	};
-	class Step : public TWidget, public RPCSender, protected base::Subscriber {
+	class Step : public Ui::RpWidget, public RPCSender, protected base::Subscriber {
 	public:
 		Step(QWidget *parent, Data *data, bool hasCover = false);
 
@@ -120,16 +120,16 @@ public:
 		virtual void finished();
 
 		virtual void submit() = 0;
-		virtual QString nextButtonText() const;
+		virtual rpl::producer<QString> nextButtonText() const;
 
 		int contentLeft() const;
 		int contentTop() const;
 
 		void setErrorCentered(bool centered);
 		void setErrorBelowLink(bool below);
-		void showError(Fn<QString()> textFactory);
+		void showError(rpl::producer<QString> text);
 		void hideError() {
-			showError(Fn<QString()>());
+			showError(rpl::single(QString()));
 		}
 
 		~Step();
@@ -138,9 +138,10 @@ public:
 		void paintEvent(QPaintEvent *e) override;
 		void resizeEvent(QResizeEvent *e) override;
 
-		void setTitleText(Fn<QString()> titleTextFactory);
-		void setDescriptionText(Fn<QString()> descriptionTextFactory);
-		void setDescriptionText(Fn<TextWithEntities()> richDescriptionTextFactory);
+		void setTitleText(rpl::producer<QString> titleText);
+		void setDescriptionText(rpl::producer<QString> descriptionText);
+		void setDescriptionText(
+			rpl::producer<TextWithEntities> richDescriptionText);
 		bool paintAnimated(Painter &p, QRect clip);
 
 		void fillSentCodeData(const MTPDauth_sentCode &type);
@@ -190,7 +191,7 @@ public:
 		};
 		void updateLabelsPosition();
 		void paintContentSnapshot(Painter &p, const QPixmap &snapshot, float64 alpha, float64 howMuchHidden);
-		void refreshError();
+		void refreshError(const QString &text);
 		void refreshTitle();
 		void refreshDescription();
 		void refreshLang();
@@ -208,17 +209,16 @@ public:
 		Fn<void(Step *step, Direction direction)> _goCallback;
 		Fn<void()> _showResetCallback;
 		Fn<void()> _showTermsCallback;
-		Fn<void(
-			Fn<void()> callback)> _acceptTermsCallback;
+		Fn<void(Fn<void()> callback)> _acceptTermsCallback;
 
+		rpl::variable<QString> _titleText;
 		object_ptr<Ui::FlatLabel> _title;
-		Fn<QString()> _titleTextFactory;
+		rpl::variable<TextWithEntities> _descriptionText;
 		object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _description;
-		Fn<TextWithEntities()> _descriptionTextFactory;
 
 		bool _errorCentered = false;
 		bool _errorBelowLink = false;
-		Fn<QString()> _errorTextFactory;
+		rpl::variable<QString> _errorText;
 		object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _error = { nullptr };
 
 		Ui::Animations::Simple _a_show;

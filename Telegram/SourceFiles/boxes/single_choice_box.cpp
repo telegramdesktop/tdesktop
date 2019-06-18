@@ -30,7 +30,7 @@ SingleChoiceBox::SingleChoiceBox(
 void SingleChoiceBox::prepare() {
 	setTitle(std::move(_title));
 
-	addButton(langFactory(lng_box_ok), [=] { closeBox(); });
+	addButton(tr::lng_box_ok(), [=] { closeBox(); });
 
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>(_initialSelection);
 

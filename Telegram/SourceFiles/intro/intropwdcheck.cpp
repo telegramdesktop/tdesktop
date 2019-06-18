@@ -45,7 +45,7 @@ PwdCheckWidget::PwdCheckWidget(
 	connect(_pwdField, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(_codeField, SIGNAL(changed()), this, SLOT(onInputChange()));
 
-	setTitleText(langFactory(lng_signin_title));
+	setTitleText(tr::lng_signin_title());
 	updateDescriptionText();
 	setErrorBelowLink(true);
 
@@ -130,7 +130,7 @@ void PwdCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorization &re
 	}
 	auto &d = result.c_auth_authorization();
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
-		showError(&Lang::Hard::ServerError);
+		showError(rpl::single(Lang::Hard::ServerError()));
 		return;
 	}
 	finish(d.vuser);
@@ -140,7 +140,7 @@ void PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		_sentRequest = 0;
 		stopCheck();
-		showError(langFactory(lng_flood_error));
+		showError(tr::lng_flood_error());
 		_pwdField->showError();
 		return;
 	}
@@ -150,7 +150,7 @@ void PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 	const auto &type = error.type();
 	if (type == qstr("PASSWORD_HASH_INVALID")
 		|| type == qstr("SRP_PASSWORD_CHANGED")) {
-		showError(langFactory(lng_signin_bad_password));
+		showError(tr::lng_signin_bad_password());
 		_pwdField->selectAll();
 		_pwdField->showError();
 	} else if (type == qstr("PASSWORD_EMPTY")
@@ -160,10 +160,9 @@ void PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 		handleSrpIdInvalid();
 	} else {
 		if (Logs::DebugEnabled()) { // internal server error
-			const auto text = type + ": " + error.description();
-			showError([=] { return text; });
+			showError(rpl::single(type + ": " + error.description()));
 		} else {
-			showError(&Lang::Hard::ServerError);
+			showError(rpl::single(Lang::Hard::ServerError()));
 		}
 		_pwdField->setFocus();
 	}
@@ -174,7 +173,7 @@ void PwdCheckWidget::handleSrpIdInvalid() {
 	if (_lastSrpIdInvalidTime > 0
 		&& now - _lastSrpIdInvalidTime < Core::kHandleSrpIdInvalidTimeout) {
 		_request.id = 0;
-		showError(&Lang::Hard::ServerError);
+		showError(rpl::single(Lang::Hard::ServerError()));
 	} else {
 		_lastSrpIdInvalidTime = now;
 		requestPasswordData();
@@ -223,12 +222,12 @@ void PwdCheckWidget::passwordChecked() {
 }
 
 void PwdCheckWidget::serverError() {
-	showError(&Lang::Hard::ServerError);
+	showError(rpl::single(Lang::Hard::ServerError()));
 }
 
 void PwdCheckWidget::codeSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
-		showError(langFactory(lng_flood_error));
+		showError(tr::lng_flood_error());
 		_codeField->showError();
 		return;
 	}
@@ -245,15 +244,14 @@ void PwdCheckWidget::codeSubmitFail(const RPCError &error) {
 		_emailPattern = QString();
 		onToPassword();
 	} else if (type == qstr("CODE_INVALID")) {
-		showError(langFactory(lng_signin_wrong_code));
+		showError(tr::lng_signin_wrong_code());
 		_codeField->selectAll();
 		_codeField->showError();
 	} else {
 		if (Logs::DebugEnabled()) { // internal server error
-			const auto text = type + ": " + error.description();
-			showError([=] { return text; });
+			showError(rpl::single(type + ": " + error.description()));
 		} else {
-			showError(&Lang::Hard::ServerError);
+			showError(rpl::single(Lang::Hard::ServerError()));
 		}
 		_codeField->setFocus();
 	}
@@ -326,9 +324,9 @@ void PwdCheckWidget::showReset() {
 void PwdCheckWidget::updateDescriptionText() {
 	auto pwdHidden = _pwdField->isHidden();
 	auto emailPattern = _emailPattern;
-	setDescriptionText([=] {
-		return pwdHidden ? lng_signin_recover_desc(lt_email, emailPattern) : lang(lng_signin_desc);
-	});
+	setDescriptionText(pwdHidden
+		? tr::lng_signin_recover_desc(lt_email, rpl::single(emailPattern))
+		: tr::lng_signin_desc());
 }
 
 void PwdCheckWidget::onInputChange() {
@@ -379,8 +377,8 @@ void PwdCheckWidget::submit() {
 	}
 }
 
-QString PwdCheckWidget::nextButtonText() const {
-	return lang(lng_intro_submit);
+rpl::producer<QString> PwdCheckWidget::nextButtonText() const {
+	return tr::lng_intro_submit();
 }
 
 } // namespace Intro

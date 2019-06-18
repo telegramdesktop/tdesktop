@@ -45,7 +45,7 @@ PanelAskPassword::PanelAskPassword(
 	this,
 	st::defaultInputField,
 	tr::lng_passport_password_placeholder())
-, _submit(this, langFactory(lng_passport_next), st::passportPasswordSubmit)
+, _submit(this, tr::lng_passport_next(), st::passportPasswordSubmit)
 , _forgot(this, lang(lng_signin_recover), st::defaultLinkButton) {
 	connect(_password, &Ui::PasswordInput::submitted, this, [=] {
 		submit();
@@ -230,7 +230,7 @@ void PanelNoPassword::refreshBottom() {
 				_inner,
 				object_ptr<Ui::RoundButton>(
 					_inner,
-					langFactory(lng_passport_password_create),
+					tr::lng_passport_password_create(),
 					st::defaultBoxButton)));
 		button->entity()->addClickHandler([=] {
 			_controller->setupPassword();
@@ -242,14 +242,14 @@ void PanelNoPassword::refreshBottom() {
 				st::defaultBoxButton.height));
 		const auto cancel = Ui::CreateChild<Ui::RoundButton>(
 			container,
-			langFactory(lng_cancel),
+			tr::lng_cancel(),
 			st::defaultBoxButton);
 		cancel->addClickHandler([=] {
 			_controller->cancelPasswordSubmit();
 		});
 		const auto validate = Ui::CreateChild<Ui::RoundButton>(
 			container,
-			langFactory(lng_passport_email_validate),
+			tr::lng_passport_email_validate(),
 			st::defaultBoxButton);
 		validate->addClickHandler([=] {
 			_controller->validateRecoveryEmail();

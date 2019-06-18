@@ -393,7 +393,7 @@ std::unique_ptr<PeerListRow> ContactsBoxController::createRow(not_null<UserData*
 
 void AddBotToGroupBoxController::Start(not_null<UserData*> bot) {
 	auto initBox = [=](not_null<PeerListBox*> box) {
-		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
+		box->addButton(tr::lng_cancel(), [box] { box->closeBox(); });
 	};
 	Ui::show(Box<PeerListBox>(std::make_unique<AddBotToGroupBoxController>(bot), std::move(initBox)));
 }

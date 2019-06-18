@@ -88,7 +88,7 @@ private:
 		TimeId current,
 		TimeId min,
 		TimeId max,
-		LangKey resetLabel,
+		rpl::producer<QString> resetLabel,
 		Fn<void(TimeId)> done);
 
 	const Settings &readData() const;

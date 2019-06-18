@@ -86,13 +86,13 @@ public:
 	TermsBox(
 		QWidget*,
 		const TermsLock &data,
-		Fn<QString()> agree,
-		Fn<QString()> cancel);
+		rpl::producer<QString> agree,
+		rpl::producer<QString> cancel);
 	TermsBox(
 		QWidget*,
 		const TextWithEntities &text,
-		Fn<QString()> agree,
-		Fn<QString()> cancel,
+		rpl::producer<QString> agree,
+		rpl::producer<QString> cancel,
 		bool attentionAgree = false);
 
 	rpl::producer<> agreeClicks() const;
@@ -106,8 +106,8 @@ protected:
 
 private:
 	TermsLock _data;
-	Fn<QString()> _agree;
-	Fn<QString()> _cancel;
+	rpl::producer<QString> _agree;
+	rpl::producer<QString> _cancel;
 	rpl::event_stream<> _agreeClicks;
 	rpl::event_stream<> _cancelClicks;
 	QString _lastClickedMention;

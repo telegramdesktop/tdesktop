@@ -230,21 +230,26 @@ void FlatButton::setTextMargins(QMargins margins) {
 	update();
 }
 
-RoundButton::RoundButton(QWidget *parent, Fn<QString()> textFactory, const style::RoundButton &st) : RippleButton(parent, st.ripple)
-, _textFactory(std::move(textFactory))
+RoundButton::RoundButton(
+	QWidget *parent,
+	rpl::producer<QString> text,
+	const style::RoundButton &st)
+: RippleButton(parent, st.ripple)
+, _textFull(std::move(text))
 , _st(st) {
-	subscribe(Lang::Current().updated(), [this] { refreshText(); });
-	refreshText();
+	_textFull.value(
+	) | rpl::start_with_next([=](const QString &text) {
+		resizeToText(text);
+	}, lifetime());
 }
 
 void RoundButton::setTextTransform(TextTransform transform) {
 	_transform = transform;
-	refreshText();
+	resizeToText(_textFull.current());
 }
 
-void RoundButton::setText(Fn<QString()> textFactory) {
-	_textFactory = std::move(textFactory);
-	refreshText();
+void RoundButton::setText(rpl::producer<QString> text) {
+	_textFull = std::move(text);
 }
 
 void RoundButton::setNumbersText(const QString &numbersText, int numbers) {
@@ -258,7 +263,7 @@ void RoundButton::setNumbersText(const QString &numbersText, int numbers) {
 		}
 		_numbers->setText(numbersText, numbers);
 	}
-	refreshText();
+	resizeToText(_textFull.current());
 }
 
 void RoundButton::setWidthChangedCallback(Fn<void()> callback) {
@@ -277,13 +282,12 @@ void RoundButton::finishNumbersAnimation() {
 }
 
 void RoundButton::numbersAnimationCallback() {
-	resizeToText();
-	update();
+	resizeToText(_textFull.current());
 }
 
 void RoundButton::setFullWidth(int newFullWidth) {
 	_fullWidthOverride = newFullWidth;
-	refreshText();
+	resizeToText(_textFull.current());
 }
 
 void RoundButton::setFullRadius(bool enabled) {
@@ -291,24 +295,14 @@ void RoundButton::setFullRadius(bool enabled) {
 	update();
 }
 
-void RoundButton::refreshText() {
-	_text = computeFullText();
-	_textWidth = _text.isEmpty() ? 0 : _st.font->width(_text);
+void RoundButton::resizeToText(const QString &text) {
+	_text = (_transform == TextTransform::ToUpper) ? text.toUpper() : text;
+	_textWidth = _st.font->width(_text);
 
-	resizeToText();
-	update();
-}
-
-QString RoundButton::computeFullText() const {
-	auto result = _textFactory ? _textFactory() : QString();
-	return (_transform == TextTransform::ToUpper) ? result.toUpper() : result;
-}
-
-void RoundButton::resizeToText() {
 	int innerWidth = contentWidth();
 	if (_fullWidthOverride > 0) {
 		if (_fullWidthOverride < innerWidth + (_st.height - _st.font->height)) {
-			_text = _st.font->elided(computeFullText(), qMax(_fullWidthOverride - (_st.height - _st.font->height), 1));
+			_text = _st.font->elided(text, qMax(_fullWidthOverride - (_st.height - _st.font->height), 1));
 			_textWidth = _st.font->width(_text);
 		}
 		resize(_fullWidthOverride, _st.height + _st.padding.top() + _st.padding.bottom());
@@ -318,11 +312,13 @@ void RoundButton::resizeToText() {
 		resize(innerWidth - _st.width + _st.padding.left() + _st.padding.right(), _st.height + _st.padding.top() + _st.padding.bottom());
 	} else {
 		if (_st.width < innerWidth + (_st.height - _st.font->height)) {
-			_text = _st.font->elided(computeFullText(), qMax(_st.width - (_st.height - _st.font->height), 1));
+			_text = _st.font->elided(_text, qMax(_st.width - (_st.height - _st.font->height), 1));
 			_textWidth = _st.font->width(_text);
 		}
 		resize(_st.width + _st.padding.left() + _st.padding.right(), _st.height + _st.padding.top() + _st.padding.bottom());
 	}
+
+	update();
 }
 
 int RoundButton::contentWidth() const {

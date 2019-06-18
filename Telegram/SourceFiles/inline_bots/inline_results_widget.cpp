@@ -428,15 +428,14 @@ void Inner::refreshSwitchPmButton(const CacheEntry *entry) {
 		_switchPmStartToken.clear();
 	} else {
 		if (!_switchPmButton) {
-			_switchPmButton.create(this, Fn<QString()>(), st::switchPmButton);
+			_switchPmButton.create(this, nullptr, st::switchPmButton);
 			_switchPmButton->show();
 			_switchPmButton->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 			connect(_switchPmButton, SIGNAL(clicked()), this, SLOT(onSwitchPm()));
 		}
-		auto text = entry->switchPmText;
-		_switchPmButton->setText([text] { return text; }); // doesn't perform text.toUpper()
+		_switchPmButton->setText(rpl::single(entry->switchPmText));
 		_switchPmStartToken = entry->switchPmStartToken;
-		auto buttonTop = st::stickerPanPadding;
+		const auto buttonTop = st::stickerPanPadding;
 		_switchPmButton->move(st::inlineResultsLeft - st::buttonRadius, buttonTop);
 		if (isRestrictedView()) {
 			_switchPmButton->hide();

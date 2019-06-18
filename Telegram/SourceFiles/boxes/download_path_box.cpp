@@ -26,8 +26,8 @@ DownloadPathBox::DownloadPathBox(QWidget *parent)
 }
 
 void DownloadPathBox::prepare() {
-	addButton(langFactory(lng_connection_save), [this] { save(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(tr::lng_connection_save(), [this] { save(); });
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	setTitle(tr::lng_download_path_header());
 

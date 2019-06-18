@@ -170,8 +170,8 @@ void MainWindow::checkLockByTerms() {
 	Ui::hideSettingsAndLayer(anim::type::instant);
 	const auto box = Ui::show(Box<TermsBox>(
 		*data,
-		langFactory(lng_terms_agree),
-		langFactory(lng_terms_decline)));
+		tr::lng_terms_agree(),
+		tr::lng_terms_decline()));
 
 	box->setCloseByEscape(false);
 	box->setCloseByOutsideClick(false);
@@ -205,8 +205,8 @@ void MainWindow::showTermsDecline() {
 	const auto box = Ui::show(
 		Box<Window::TermsBox>(
 			TextWithEntities{ lang(lng_terms_update_sorry) },
-			langFactory(lng_terms_decline_and_delete),
-			langFactory(lng_terms_back),
+			tr::lng_terms_decline_and_delete(),
+			tr::lng_terms_back(),
 			true),
 		LayerOption::KeepOther);
 

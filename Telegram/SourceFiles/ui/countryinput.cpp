@@ -245,7 +245,7 @@ void CountrySelectBox::prepare() {
 		st::countriesScroll,
 		_select->height());
 
-	addButton(langFactory(lng_close), [=] { closeBox(); });
+	addButton(tr::lng_close(), [=] { closeBox(); });
 
 	setDimensions(st::boxWidth, st::boxMaxListHeight);
 

@@ -291,11 +291,15 @@ void StickersBox::prepare() {
 	}
 
 	if (_megagroupSet) {
-		addButton(langFactory(lng_settings_save), [this] { _installed.widget()->saveGroupSet(); closeBox(); });
-		addButton(langFactory(lng_cancel), [this] { closeBox(); });
+		addButton(
+			tr::lng_settings_save(),
+			[=] { _installed.widget()->saveGroupSet(); closeBox(); });
+		addButton(tr::lng_cancel(), [=] { closeBox(); });
 	} else {
 		const auto close = _section == Section::Attached;
-		addButton(langFactory(close ? lng_close : lng_about_done), [this] { closeBox(); });
+		addButton(
+			close ? tr::lng_close() : tr::lng_about_done(),
+			[=] { closeBox(); });
 	}
 
 	if (_section == Section::Installed) {

@@ -412,8 +412,7 @@ void Members::visibleTopBottomUpdated(
 void Members::peerListSetTitle(rpl::producer<QString> title) {
 }
 
-void Members::peerListSetAdditionalTitle(
-		Fn<QString()> title) {
+void Members::peerListSetAdditionalTitle(rpl::producer<QString> title) {
 }
 
 bool Members::peerListIsRowSelected(not_null<PeerData*> peer) {

@@ -44,8 +44,8 @@ void UsernameBox::prepare() {
 
 	setTitle(tr::lng_username_title());
 
-	addButton(langFactory(lng_settings_save), [=] { save(); });
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_settings_save(), [=] { save(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	connect(_username, &Ui::MaskedInputField::changed, [=] { changed(); });
 	connect(_username, &Ui::MaskedInputField::submitted, [=] { save(); });

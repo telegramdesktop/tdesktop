@@ -409,10 +409,10 @@ not_null<HistoryView::ElementDelegate*> BackgroundPreviewBox::delegate() {
 void BackgroundPreviewBox::prepare() {
 	setTitle(tr::lng_background_header());
 
-	addButton(langFactory(lng_background_apply), [=] { apply(); });
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_background_apply(), [=] { apply(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	if (_paper.hasShareUrl()) {
-		addLeftButton(langFactory(lng_background_share), [=] { share(); });
+		addLeftButton(tr::lng_background_share(), [=] { share(); });
 	}
 	updateServiceBg(_paper.backgroundColor());
 

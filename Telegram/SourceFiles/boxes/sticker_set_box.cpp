@@ -157,16 +157,16 @@ void StickerSetBox::updateButtons() {
 	clearButtons();
 	if (_inner->loaded()) {
 		if (_inner->notInstalled()) {
-			addButton(langFactory(lng_stickers_add_pack), [=] { addStickers(); });
-			addButton(langFactory(lng_cancel), [=] { closeBox(); });
+			addButton(tr::lng_stickers_add_pack(), [=] { addStickers(); });
+			addButton(tr::lng_cancel(), [=] { closeBox(); });
 		} else if (_inner->official()) {
-			addButton(langFactory(lng_about_done), [=] { closeBox(); });
+			addButton(tr::lng_about_done(), [=] { closeBox(); });
 		} else {
-			addButton(langFactory(lng_stickers_share_pack), [=] { shareStickers(); });
-			addButton(langFactory(lng_cancel), [=] { closeBox(); });
+			addButton(tr::lng_stickers_share_pack(), [=] { shareStickers(); });
+			addButton(tr::lng_cancel(), [=] { closeBox(); });
 		}
 	} else {
-		addButton(langFactory(lng_cancel), [=] { closeBox(); });
+		addButton(tr::lng_cancel(), [=] { closeBox(); });
 	}
 	update();
 }

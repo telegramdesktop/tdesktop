@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
+#include "ui/text/text_utilities.h"
 #include "boxes/sticker_set_box.h"
 #include "core/application.h"
 #include "auth_session.h"
@@ -134,7 +135,7 @@ TextWithEntities GenerateAdminChangeText(
 
 	auto newFlags = newRights ? newRights->c_chatAdminRights().vflags.v : MTPDchatAdminRights::Flags(0);
 	auto prevFlags = prevRights ? prevRights->c_chatAdminRights().vflags.v : MTPDchatAdminRights::Flags(0);
-	auto result = lng_admin_log_promoted__rich(lt_user, user);
+	auto result = tr::lng_admin_log_promoted(tr::now, lt_user, user, Ui::Text::WithEntities);
 
 	auto useInviteLinkPhrase = channel->isMegagroup() && channel->anyoneCanAddMembers();
 	auto invitePhrase = (useInviteLinkPhrase ? lng_admin_log_admin_invite_link : lng_admin_log_admin_invite_users);
@@ -202,18 +203,21 @@ TextWithEntities GenerateBannedChangeText(
 	auto newUntil = newRights ? newRights->c_chatBannedRights().vuntil_date.v : TimeId(0);
 	auto indefinitely = ChannelData::IsRestrictedForever(newUntil);
 	if (newFlags & Flag::f_view_messages) {
-		return lng_admin_log_banned__rich(lt_user, user);
+		return tr::lng_admin_log_banned(tr::now, lt_user, user, Ui::Text::WithEntities);
 	}
 	auto untilText = indefinitely
-		? lang(lng_admin_log_restricted_forever)
-		: lng_admin_log_restricted_until(
+		? tr::lng_admin_log_restricted_forever(tr::now)
+		: tr::lng_admin_log_restricted_until(
+			tr::now,
 			lt_date,
 			langDateTime(ParseDateTime(newUntil)));
-	auto result = lng_admin_log_restricted__rich(
+	auto result = tr::lng_admin_log_restricted(
+		tr::now,
 		lt_user,
 		user,
 		lt_until,
-		TextWithEntities { untilText });
+		TextWithEntities { untilText },
+		Ui::Text::WithEntities);
 	const auto changes = GenerateBannedChangeText(newRights, prevRights);
 	if (!changes.isEmpty()) {
 		result.text.append('\n' + changes);
@@ -242,7 +246,13 @@ auto GenerateUserString(MTPint userId) {
 		EntityType::Mention,
 		0,
 		mention.text.size() });
-	return lng_admin_log_user_with_username__rich(lt_name, name, lt_mention, mention);
+	return tr::lng_admin_log_user_with_username(
+		tr::now,
+		lt_name,
+		name,
+		lt_mention,
+		mention,
+		Ui::Text::WithEntities);
 }
 
 auto GenerateParticipantChangeTextInner(
@@ -252,9 +262,11 @@ auto GenerateParticipantChangeTextInner(
 	const auto oldType = oldParticipant ? oldParticipant->type() : 0;
 	return participant.match([&](const MTPDchannelParticipantCreator &data) {
 		// No valid string here :(
-		return lng_admin_log_invited__rich(
+		return tr::lng_admin_log_invited(
+			tr::now,
 			lt_user,
-			GenerateUserString(data.vuser_id));
+			GenerateUserString(data.vuser_id),
+			Ui::Text::WithEntities);
 	}, [&](const MTPDchannelParticipantAdmin &data) {
 		auto user = GenerateUserString(data.vuser_id);
 		return GenerateAdminChangeText(
@@ -286,7 +298,7 @@ auto GenerateParticipantChangeTextInner(
 				nullptr,
 				&oldParticipant->c_channelParticipantBanned().vbanned_rights);
 		}
-		return lng_admin_log_invited__rich(lt_user, user);
+		return tr::lng_admin_log_invited(tr::now, lt_user, user, Ui::Text::WithEntities);
 	});
 }
 

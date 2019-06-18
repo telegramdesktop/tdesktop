@@ -272,10 +272,10 @@ Controller::Controller(
 	_box->setTitle(_isGroup
 		? tr::lng_edit_group()
 		: tr::lng_edit_channel_title());
-	_box->addButton(langFactory(lng_settings_save), [this] {
+	_box->addButton(tr::lng_settings_save(), [this] {
 		save();
 	});
-	_box->addButton(langFactory(lng_cancel), [this] {
+	_box->addButton(tr::lng_cancel(), [this] {
 		_box->closeBox();
 	});
 	subscribeToMigration();

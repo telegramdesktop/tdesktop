@@ -396,13 +396,13 @@ void FilterBox::prepare() {
 void FilterBox::refreshButtons() {
 	clearButtons();
 	if (_inner->canSave()) {
-		addButton(langFactory(lng_settings_save), [this] {
+		addButton(tr::lng_settings_save(), [this] {
 			if (_saveCallback) {
 				_saveCallback(_inner->filter());
 			}
 		});
 	}
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 }
 
 void FilterBox::resizeToContent() {

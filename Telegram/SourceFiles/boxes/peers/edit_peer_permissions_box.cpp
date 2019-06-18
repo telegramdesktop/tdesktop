@@ -345,8 +345,8 @@ void EditPeerPermissionsBox::prepare() {
 	addBannedButtons(inner);
 
 	_value = getRestrictions;
-	_save = addButton(langFactory(lng_settings_save));
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	_save = addButton(tr::lng_settings_save());
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	setDimensionsToContent(st::boxWidth, inner);
 }

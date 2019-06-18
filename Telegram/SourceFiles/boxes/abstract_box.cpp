@@ -25,19 +25,19 @@ void BoxContent::setTitle(rpl::producer<QString> title) {
 }
 
 QPointer<Ui::RoundButton> BoxContent::addButton(
-		Fn<QString()> textFactory,
+		rpl::producer<QString> text,
 		Fn<void()> clickCallback) {
 	return addButton(
-		std::move(textFactory),
+		std::move(text),
 		std::move(clickCallback),
 		st::defaultBoxButton);
 }
 
 QPointer<Ui::RoundButton> BoxContent::addLeftButton(
-		Fn<QString()> textFactory,
+		rpl::producer<QString> text,
 		Fn<void()> clickCallback) {
 	return getDelegate()->addLeftButton(
-		std::move(textFactory),
+		std::move(text),
 		std::move(clickCallback),
 		st::defaultBoxButton);
 }
@@ -252,13 +252,21 @@ void BoxContent::paintEvent(QPaintEvent *e) {
 	}
 }
 
-AbstractBox::AbstractBox(not_null<Window::LayerStackWidget*> layer, object_ptr<BoxContent> content)
+AbstractBox::AbstractBox(
+	not_null<Window::LayerStackWidget*> layer,
+	object_ptr<BoxContent> content)
 : LayerWidget(layer)
 , _layer(layer)
 , _content(std::move(content)) {
-	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+	subscribe(Lang::Current().updated(), [=] { refreshLang(); });
 	_content->setParent(this);
 	_content->setDelegate(this);
+
+	_additionalTitle.changes(
+	) | rpl::start_with_next([=] {
+		updateSize();
+		update();
+	}, lifetime());
 }
 
 void AbstractBox::setLayerType(bool layerType) {
@@ -297,7 +305,8 @@ void AbstractBox::paintEvent(QPaintEvent *e) {
 			p.fillRect(rect, st::boxBg);
 		}
 	}
-	if (!_additionalTitle.isEmpty() && clip.intersects(QRect(0, 0, width(), titleHeight()))) {
+	if (!_additionalTitle.current().isEmpty()
+		&& clip.intersects(QRect(0, 0, width(), titleHeight()))) {
 		paintAdditionalTitle(p);
 	}
 }
@@ -305,7 +314,7 @@ void AbstractBox::paintEvent(QPaintEvent *e) {
 void AbstractBox::paintAdditionalTitle(Painter &p) {
 	p.setFont(st::boxLayerTitleAdditionalFont);
 	p.setPen(st::boxTitleAdditionalFg);
-	p.drawTextLeft(_titleLeft + (_title ? _title->width() : 0) + st::boxLayerTitleAdditionalSkip, _titleTop + st::boxTitleFont->ascent - st::boxLayerTitleAdditionalFont->ascent, width(), _additionalTitle);
+	p.drawTextLeft(_titleLeft + (_title ? _title->width() : 0) + st::boxLayerTitleAdditionalSkip, _titleTop + st::boxTitleFont->ascent - st::boxLayerTitleAdditionalFont->ascent, width(), _additionalTitle.current());
 }
 
 void AbstractBox::parentResized() {
@@ -328,9 +337,8 @@ void AbstractBox::setTitle(rpl::producer<TextWithEntities> title) {
 	}
 }
 
-void AbstractBox::setAdditionalTitle(Fn<QString()> additionalFactory) {
-	_additionalTitleFactory = std::move(additionalFactory);
-	refreshAdditionalTitle();
+void AbstractBox::setAdditionalTitle(rpl::producer<QString> additional) {
+	_additionalTitle = std::move(additional);
 }
 
 void AbstractBox::setCloseByOutsideClick(bool close) {
@@ -341,18 +349,12 @@ bool AbstractBox::closeByOutsideClick() const {
 	return _closeByOutsideClick;
 }
 
-void AbstractBox::refreshAdditionalTitle() {
-	_additionalTitle = _additionalTitleFactory ? _additionalTitleFactory() : QString();
-	update();
-}
-
 void AbstractBox::refreshLang() {
-	refreshAdditionalTitle();
 	InvokeQueued(this, [this] { updateButtonsPositions(); });
 }
 
 bool AbstractBox::hasTitle() const {
-	return (_title != nullptr) || !_additionalTitle.isEmpty();
+	return (_title != nullptr) || !_additionalTitle.current().isEmpty();
 }
 
 void AbstractBox::showBox(
@@ -405,8 +407,11 @@ void AbstractBox::clearButtons() {
 	_topButton = nullptr;
 }
 
-QPointer<Ui::RoundButton> AbstractBox::addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
-	_buttons.push_back(object_ptr<Ui::RoundButton>(this, std::move(textFactory), st));
+QPointer<Ui::RoundButton> AbstractBox::addButton(
+		rpl::producer<QString> text,
+		Fn<void()> clickCallback,
+		const style::RoundButton &st) {
+	_buttons.emplace_back(this, std::move(text), st);
 	auto result = QPointer<Ui::RoundButton>(_buttons.back());
 	result->setClickedCallback(std::move(clickCallback));
 	result->show();
@@ -414,8 +419,11 @@ QPointer<Ui::RoundButton> AbstractBox::addButton(Fn<QString()> textFactory, Fn<v
 	return result;
 }
 
-QPointer<Ui::RoundButton> AbstractBox::addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
-	_leftButton = object_ptr<Ui::RoundButton>(this, std::move(textFactory), st);
+QPointer<Ui::RoundButton> AbstractBox::addLeftButton(
+		rpl::producer<QString> text,
+		Fn<void()> clickCallback,
+		const style::RoundButton &st) {
+	_leftButton = object_ptr<Ui::RoundButton>(this, std::move(text), st);
 	auto result = QPointer<Ui::RoundButton>(_leftButton);
 	result->setClickedCallback(std::move(clickCallback));
 	result->show();
