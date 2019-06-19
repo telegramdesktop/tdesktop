@@ -455,7 +455,9 @@ HistoryMessage::HistoryMessage(
 	int fwdViewsCount = original->viewsCount();
 	if (fwdViewsCount > 0) {
 		config.viewsCount = fwdViewsCount;
-	} else if (isPost()) {
+	} else if (isPost()
+		|| (original->senderOriginal()
+			&& original->senderOriginal()->isChannel())) {
 		config.viewsCount = 1;
 	}
 
@@ -1114,7 +1116,7 @@ void HistoryMessage::setViewsCount(int32 count) {
 	views->_views = count;
 	views->_viewsText = (views->_views > 0)
 		? Lang::FormatCountToShort(views->_views).string
-		: QString();
+		: QString("1");
 	views->_viewsWidth = views->_viewsText.isEmpty()
 		? 0
 		: st::msgDateFont->width(views->_viewsText);
