@@ -3763,9 +3763,23 @@ void OverlayWidget::updateHeader() {
 	auto count = _fullCount ? *_fullCount : -1;
 	if (index >= 0 && index < count && count > 1) {
 		if (_doc) {
-			_headerText = lng_mediaview_file_n_of_count(lt_file, _doc->filename().isEmpty() ? lang(lng_mediaview_doc_image) : _doc->filename(), lt_n, QString::number(index + 1), lt_count, QString::number(count));
+			_headerText = tr::lng_mediaview_file_n_of_amount(
+				tr::now,
+				lt_file,
+				(_doc->filename().isEmpty()
+					? tr::lng_mediaview_doc_image(tr::now)
+					: _doc->filename()),
+				lt_n,
+				QString::number(index + 1),
+				lt_amount,
+				QString::number(count));
 		} else {
-			_headerText = lng_mediaview_n_of_count(lt_n, QString::number(index + 1), lt_count, QString::number(count));
+			_headerText = tr::lng_mediaview_n_of_amount(
+				tr::now,
+				lt_n,
+				QString::number(index + 1),
+				lt_amount,
+				QString::number(count));
 		}
 	} else {
 		if (_doc) {

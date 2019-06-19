@@ -107,9 +107,9 @@ bool Generator::writeHeader() {
 	writeHeaderForwardDeclarations();
 	writeHeaderTagTypes();
 	writeHeaderKeyType();
-	writeHeaderTaggedMethods();
 	writeHeaderInterface();
 	writeHeaderReactiveInterface();
+	writeHeaderTaggedMethods();
 
 	return header_->finalize();
 }
@@ -161,34 +161,20 @@ void Generator::writeHeaderTaggedMethods() {
 	for (auto &entry : langpack_.entries) {
 		auto isPlural = !entry.keyBase.isEmpty();
 		auto &key = entry.key;
-		auto genericParams = QStringList();
 		auto params = QStringList();
-		auto applyTags = QStringList();
-		auto plural = QString();
+		auto args = QStringList();
 		for (auto &tagData : entry.tags) {
 			auto &tag = tagData.tag;
 			auto isPluralTag = isPlural && (tag == kPluralTags[0]);
-			genericParams.push_back("lngtag_" + tag + (isPluralTag ? " type" : "") + ", " + (isPluralTag ? "float64 " : "const ResultString &") + tag + "__val");
-			params.push_back("lngtag_" + tag + ", " + (isPluralTag ? "float64 " : "const QString &") + tag + "__val");
-			if (isPluralTag) {
-				plural = "\tauto plural = Lang::Plural(" + key + ", " + tag + "__val, type);\n";
-				applyTags.push_back("\tresult = Lang::ReplaceTag<ResultString>::Call(std::move(result), lt_" + tag + ", Lang::StartReplacements<ResultString>::Call(std::move(plural.replacement)));\n");
-			} else {
-				applyTags.push_back("\tresult = Lang::ReplaceTag<ResultString>::Call(std::move(result), lt_" + tag + ", " + tag + "__val);\n");
-			}
+			params.push_back("lngtag_" + tag + (isPluralTag ? " type" : "") + ", " + (isPluralTag ? "float64 " : "const QString &") + tag + "__val");
+			args.push_back((isPluralTag ? "type" : ("lt_" + tag)) + ", " + tag + "__val");
 		}
 		if (!entry.tags.empty() && (!isPlural || key == ComputePluralKey(entry.keyBase, 0))) {
 			auto initialString = isPlural ? ("lang(LangKey(" + key + " + plural.keyShift))") : ("lang(" + getFullKey(entry) + ")");
 			header_->stream() << "\
-template <typename ResultString>\n\
-ResultString " << (isPlural ? entry.keyBase : key) << "__generic(" << genericParams.join(QString(", ")) << ") {\n\
-" << plural << "\
-	auto result = Lang::StartReplacements<ResultString>::Call(" << initialString << ");\n\
-" << applyTags.join(QString()) << "\
-	return result;\n\
-}\n\
-inline constexpr auto " << (isPlural ? entry.keyBase : key) << " = &" << (isPlural ? entry.keyBase : key) << "__generic<QString>;\n\
-\n";
+inline QString " << (isPlural ? entry.keyBase : key) << "(" << params.join(QString(", ")) << ") {\n\
+	return tr::" << (isPlural ? entry.keyBase : key) << "(tr::now, " << args.join(QString(", ")) << ");\n\
+}\n";
 		}
 	}
 }
@@ -196,7 +182,6 @@ inline constexpr auto " << (isPlural ? entry.keyBase : key) << " = &" << (isPlur
 void Generator::writeHeaderInterface() {
 	header_->pushNamespace("Lang").stream() << "\
 \n\
-const char *GetKeyName(LangKey key);\n\
 ushort GetTagIndex(QLatin1String tag);\n\
 LangKey GetKeyIndex(QLatin1String key);\n\
 bool IsTagReplaced(LangKey key, ushort tag);\n\
@@ -209,13 +194,17 @@ QString GetOriginalValue(LangKey key);\n\
 void Generator::writeHeaderTagValueLookup() {
 	header_->pushNamespace("details").stream() << "\
 \n\
-template <typename Tag> struct TagValue;\n\
+template <typename Tag>\n\
+struct TagData;\n\
+\n\
+template <typename Tag>\n\
+inline constexpr ushort TagValue() {\n\
+	return TagData<Tag>::value;\n\
+}\n\
 \n";
 
 	for (auto &tag : langpack_.tags) {
-		if (tag.tag != kPluralTags[0]) {
-			header_->stream() << "template <> struct TagValue<lngtag_" << tag.tag << "> : std::integral_constant<lngtag_" << tag.tag <<", lt_" << tag.tag << "> {};\n";
-		}
+		header_->stream() << "template <> struct TagData<lngtag_" << tag.tag << "> : std::integral_constant<ushort, ushort(lt_" << tag.tag << ")> {};\n";
 	}
 
 	header_->popNamespace();
@@ -329,14 +318,6 @@ bool Generator::writeSource() {
 	source_ = std::make_unique<common::CppFile>(basePath_ + ".cpp", project_);
 
 	source_->include("lang/lang_keys.h").pushNamespace("Lang").pushNamespace().stream() << "\
-const char *KeyNames[kLangKeysCount] = {\n\
-\n";
-	for (auto &entry : langpack_.entries) {
-		source_->stream() << "\"" << entry.key << "\",\n";
-	}
-	source_->stream() << "\
-\n\
-};\n\
 \n\
 QChar DefaultData[] = {";
 	auto count = 0;
@@ -380,10 +361,6 @@ int Offsets[] = {";
 	writeOffset();
 	source_->stream() << " };\n";
 	source_->popNamespace().stream() << "\
-\n\
-const char *GetKeyName(LangKey key) {\n\
-	return (key < 0 || key >= kLangKeysCount) ? \"\" : KeyNames[key];\n\
-}\n\
 \n\
 ushort GetTagIndex(QLatin1String tag) {\n\
 	auto size = tag.size();\n\

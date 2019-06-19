@@ -64,6 +64,10 @@ private:
 };
 
 struct StringWithNumbers {
+	static StringWithNumbers FromString(const QString &text) {
+		return { text };
+	}
+
 	QString text;
 	int offset = -1;
 	int length = 0;

@@ -484,20 +484,23 @@ bool TopBar::computeCanDelete() const {
 }
 
 Ui::StringWithNumbers TopBar::generateSelectedText() const {
-	using Data = Ui::StringWithNumbers;
 	using Type = Storage::SharedMediaType;
 	const auto phrase = [&] {
 		switch (_selectedItems.type) {
-		case Type::Photo: return lng_media_selected_photo__generic<Data>;
-		case Type::Video: return lng_media_selected_video__generic<Data>;
-		case Type::File: return lng_media_selected_file__generic<Data>;
-		case Type::MusicFile: return lng_media_selected_song__generic<Data>;
-		case Type::Link: return lng_media_selected_link__generic<Data>;
-		case Type::RoundVoiceFile: return lng_media_selected_audio__generic<Data>;
+		case Type::Photo: return tr::lng_media_selected_photo;
+		case Type::Video: return tr::lng_media_selected_video;
+		case Type::File: return tr::lng_media_selected_file;
+		case Type::MusicFile: return tr::lng_media_selected_song;
+		case Type::Link: return tr::lng_media_selected_link;
+		case Type::RoundVoiceFile: return tr::lng_media_selected_audio;
 		}
 		Unexpected("Type in TopBar::generateSelectedText()");
 	}();
-	return phrase(lt_count, _selectedItems.list.size());
+	return phrase(
+		tr::now,
+		lt_count,
+		_selectedItems.list.size(),
+		Ui::StringWithNumbers::FromString);
 }
 
 bool TopBar::selectionMode() const {

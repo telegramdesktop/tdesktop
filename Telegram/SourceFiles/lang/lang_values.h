@@ -17,10 +17,11 @@ namespace details {
 
 inline constexpr auto kPluralCount = 6;
 
+template <typename Tag>
+inline constexpr ushort TagValue();
+
 QString Current(LangKey key);
 rpl::producer<QString> Viewer(LangKey key);
-
-template <typename Tag> struct TagValue;
 
 template <int Index, typename Type, typename Tuple>
 Type ReplaceUnwrapTuple(Type accumulated, const Tuple &tuple) {
@@ -63,7 +64,7 @@ struct ReplaceUnwrap<Tag, Tags...> {
 		return ReplaceUnwrap<Tags...>::template Call(
 			ReplaceTag<Type>::Call(
 				std::move(accumulated),
-				TagValue<Tag>::value,
+				TagValue<Tag>(),
 				value),
 			values...);
 	}
@@ -80,7 +81,7 @@ struct Producer {
 			Viewer(base),
 			std::move(values)...
 		) | rpl::map([p = std::move(p)](auto tuple) {
-			return ReplaceUnwrapTuple<1>(p(std::get<0>(tuple)), tuple, TagValue<Tags>::value...);
+			return ReplaceUnwrapTuple<1>(p(std::get<0>(tuple)), tuple, TagValue<Tags>()...);
 		});
 	}
 
@@ -149,11 +150,11 @@ struct Producer<lngtag_count, Tags...> {
 			return ReplaceUnwrapTuple<7>(
 				ReplaceTag<T>::Call(
 					p(select()),
-					type,
+					TagValue<lngtag_count>(),
 					StartReplacements<T>::Call(
 						std::move(plural.replacement))),
 				tuple,
-				TagValue<Tags>::value...);
+				TagValue<Tags>()...);
 		});
 	}
 
@@ -161,7 +162,7 @@ struct Producer<lngtag_count, Tags...> {
 		typename P,
 		typename T = decltype(std::declval<P>()(QString())),
 		typename ...Values>
-	static T Current(
+		static T Current(
 			LangKey base,
 			P p,
 			lngtag_count type,
@@ -171,7 +172,7 @@ struct Producer<lngtag_count, Tags...> {
 		return ReplaceUnwrap<Tags...>::template Call(
 			ReplaceTag<T>::Call(
 				p(Lang::details::Current(LangKey(base + plural.keyShift))),
-				type,
+				TagValue<lngtag_count>(),
 				StartReplacements<T>::Call(
 					std::move(plural.replacement))),
 			values...);

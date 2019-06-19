@@ -115,7 +115,7 @@ Content ContentFromState(const ProcessingState &state) {
 	default: Unexpected("Step in ContentFromState.");
 	}
 	while (result.rows.size() < 3) {
-		result.rows.push_back(Content::Row());
+		result.rows.emplace_back();
 	}
 	return result;
 }
@@ -124,17 +124,23 @@ Content ContentFromState(const FinishedState &state) {
 	auto result = Content();
 	result.rows.push_back({
 		Content::kDoneId,
-		lang(lng_export_finished),
+		tr::lng_export_finished(tr::now),
 		QString(),
 		1. });
 	result.rows.push_back({
 		Content::kDoneId,
-		lng_export_total_files(lt_count, QString::number(state.filesCount)),
+		tr::lng_export_total_amount(
+			tr::now,
+			lt_amount,
+			QString::number(state.filesCount)),
 		QString(),
 		1. });
 	result.rows.push_back({
 		Content::kDoneId,
-		lng_export_total_size(lt_size, formatSizeText(state.bytesCount)),
+		tr::lng_export_total_size(
+			tr::now,
+			lt_size,
+			formatSizeText(state.bytesCount)),
 		QString(),
 		1. });
 	return result;

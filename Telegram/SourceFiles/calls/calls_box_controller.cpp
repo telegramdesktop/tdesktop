@@ -171,7 +171,14 @@ void BoxController::Row::refreshStatus() {
 		}
 		return lng_call_box_status_date(lt_date, langDayOfMonthFull(_date), lt_time, time);
 	};
-	setCustomStatus((_items.size() > 1) ? lng_call_box_status_group(lt_count, QString::number(_items.size()), lt_status, text()) : text());
+	setCustomStatus((_items.size() > 1)
+		? tr::lng_call_box_status_group(
+			tr::now,
+			lt_amount,
+			QString::number(_items.size()),
+			lt_status,
+			text())
+		: text());
 }
 
 BoxController::Row::Type BoxController::Row::ComputeType(

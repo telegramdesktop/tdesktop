@@ -322,10 +322,16 @@ void ParsedFile::addEntity(QString key, const QString &value) {
 		}
 	} else {
 		result_.entries.push_back(entry);
-		for (auto &pluralEntry : tagsData.entries) {
+		for (auto &tag : entry.tags) {
+			const auto plural = std::find(std::begin(kPluralTags), std::end(kPluralTags), tag.tag);
+			if (plural != std::end(kPluralTags)) {
+				logErrorBadString() << "plural tag '" << tag.tag.toStdString() << "' used in non-plural key '" << key.toStdString() << "'";
+			}
+		}
+		for (auto &tagEntry : tagsData.entries) {
 			auto taggedEntry = LangPack::Entry();
-			taggedEntry.key = key + "__" + pluralEntry.key;
-			taggedEntry.value = pluralEntry.value;
+			taggedEntry.key = key + "__" + tagEntry.key;
+			taggedEntry.value = tagEntry.value;
 			result_.entries.push_back(taggedEntry);
 		}
 	}
