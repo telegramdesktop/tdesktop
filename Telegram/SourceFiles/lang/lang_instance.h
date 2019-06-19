@@ -96,19 +96,19 @@ public:
 	void applyDifference(
 		Pack pack,
 		const MTPDlangPackDifference &difference);
-	static std::map<LangKey, QString> ParseStrings(
+	static std::map<ushort, QString> ParseStrings(
 		const MTPVector<MTPLangPackString> &strings);
 	base::Observable<void> &updated() {
 		return _updated;
 	}
 
-	QString getValue(LangKey key) const {
+	QString getValue(ushort key) const {
 		Expects(key >= 0 && key < _values.size());
 
 		return _values[key];
 	}
 	QString getNonDefaultValue(const QByteArray &key) const;
-	bool isNonDefaultPlural(LangKey key) const {
+	bool isNonDefaultPlural(ushort key) const {
 		Expects(key >= 0 && key + 5 < _nonDefaultSet.size());
 
 		return _nonDefaultSet[key]
@@ -163,8 +163,8 @@ private:
 
 namespace details {
 
-QString Current(LangKey key);
-rpl::producer<QString> Viewer(LangKey key);
+QString Current(ushort key);
+rpl::producer<QString> Viewer(ushort key);
 
 } // namespace details
 } // namespace Lang

@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
 
-enum LangKey : int;
-
 namespace style {
 struct InfoProfileCountButton;
 } // namespace style

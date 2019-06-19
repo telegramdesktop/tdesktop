@@ -31,13 +31,14 @@ public:
 private:
 	void writeHeaderForwardDeclarations();
 	void writeHeaderTagTypes();
-	void writeHeaderKeyType();
 	void writeHeaderTaggedMethods();
 	void writeHeaderInterface();
 	void writeHeaderTagValueLookup();
 	void writeHeaderReactiveInterface();
 	void writeHeaderProducersInterface();
 	void writeHeaderProducersInstances();
+
+	void writeSourceLangKeyConstants();
 
 	QString getFullKey(const LangPack::Entry &entry);
 

@@ -963,7 +963,7 @@ PluralResult Plural(
 	const auto t = f;
 
 	const auto useNonDefaultPlural = (ChoosePlural != ChoosePluralDefault)
-		&& Lang::Current().isNonDefaultPlural(LangKey(keyBase));
+		&& Lang::Current().isNonDefaultPlural(keyBase);
 	const auto shift = (useNonDefaultPlural ? ChoosePlural : ChoosePluralDefault)(
 		(integer ? i : -1),
 		i,

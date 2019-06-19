@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_tag.h"
 
-enum LangKey : int;
 enum lngtag_count : int;
 
 namespace Lang {
@@ -20,8 +19,8 @@ inline constexpr auto kPluralCount = 6;
 template <typename Tag>
 inline constexpr ushort TagValue();
 
-QString Current(LangKey key);
-rpl::producer<QString> Viewer(LangKey key);
+QString Current(ushort key);
+rpl::producer<QString> Viewer(ushort key);
 
 template <int Index, typename Type, typename Tuple>
 Type ReplaceUnwrapTuple(Type accumulated, const Tuple &tuple) {
@@ -76,7 +75,7 @@ struct Producer {
 		typename P,
 		typename T = decltype(std::declval<P>()(QString())),
 		typename ...Values>
-	static rpl::producer<T> Combine(LangKey base, P p, Values &...values) {
+	static rpl::producer<T> Combine(ushort base, P p, Values &...values) {
 		return rpl::combine(
 			Viewer(base),
 			std::move(values)...
@@ -89,7 +88,7 @@ struct Producer {
 		typename P,
 		typename T = decltype(std::declval<P>()(QString())),
 		typename ...Values>
-	static T Current(LangKey base, P p, const Values &...values) {
+	static T Current(ushort base, P p, const Values &...values) {
 		return ReplaceUnwrap<Tags...>::template Call(
 			p(Lang::details::Current(base)),
 			values...);
@@ -101,14 +100,14 @@ struct Producer<> {
 	template <
 		typename P,
 		typename T = decltype(std::declval<P>()(QString()))>
-	static rpl::producer<T> Combine(LangKey base, P p) {
+	static rpl::producer<T> Combine(ushort base, P p) {
 		return Viewer(base) | rpl::map(std::move(p));
 	}
 
 	template <
 		typename P,
 		typename T = decltype(std::declval<P>()(QString()))>
-	static T Current(LangKey base, P p) {
+	static T Current(ushort base, P p) {
 		return p(Lang::details::Current(base));
 	}
 };
@@ -120,18 +119,18 @@ struct Producer<lngtag_count, Tags...> {
 		typename T = decltype(std::declval<P>()(QString())),
 		typename ...Values>
 	static rpl::producer<T> Combine(
-			LangKey base,
+			ushort base,
 			P p,
 			lngtag_count type,
 			rpl::producer<float64> &count,
 			Values &...values) {
 		return rpl::combine(
 			Viewer(base),
-			Viewer(LangKey(base + 1)),
-			Viewer(LangKey(base + 2)),
-			Viewer(LangKey(base + 3)),
-			Viewer(LangKey(base + 4)),
-			Viewer(LangKey(base + 5)),
+			Viewer(base + 1),
+			Viewer(base + 2),
+			Viewer(base + 3),
+			Viewer(base + 4),
+			Viewer(base + 5),
 			std::move(count),
 			std::move(values)...
 		) | rpl::map([base, type, p = std::move(p)](auto tuple) {
@@ -163,7 +162,7 @@ struct Producer<lngtag_count, Tags...> {
 		typename T = decltype(std::declval<P>()(QString())),
 		typename ...Values>
 		static T Current(
-			LangKey base,
+			ushort base,
 			P p,
 			lngtag_count type,
 			float64 count,
@@ -171,7 +170,7 @@ struct Producer<lngtag_count, Tags...> {
 		auto plural = Plural(base, count, type);
 		return ReplaceUnwrap<Tags...>::template Call(
 			ReplaceTag<T>::Call(
-				p(Lang::details::Current(LangKey(base + plural.keyShift))),
+				p(Lang::details::Current(base + plural.keyShift)),
 				TagValue<lngtag_count>(),
 				StartReplacements<T>::Call(
 					std::move(plural.replacement))),

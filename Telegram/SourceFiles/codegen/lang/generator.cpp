@@ -106,7 +106,6 @@ bool Generator::writeHeader() {
 
 	writeHeaderForwardDeclarations();
 	writeHeaderTagTypes();
-	writeHeaderKeyType();
 	writeHeaderInterface();
 	writeHeaderReactiveInterface();
 	writeHeaderTaggedMethods();
@@ -117,11 +116,10 @@ bool Generator::writeHeader() {
 void Generator::writeHeaderForwardDeclarations() {
 	header_->pushNamespace("Lang").stream() << "\
 \n\
-inline constexpr auto kTagsCount = " << langpack_.tags.size() << ";\n\
+inline constexpr ushort kTagsCount = " << langpack_.tags.size() << ";\n\
+inline constexpr ushort kKeysCount = " << langpack_.entries.size() << ";\n\
 \n";
-
-	header_->popNamespace().newline().stream() << "\
-enum LangKey : int;\n\n";
+	header_->popNamespace().newline();
 }
 
 void Generator::writeHeaderTagTypes() {
@@ -141,19 +139,6 @@ void Generator::writeHeaderTagTypes() {
 		}
 	}
 	header_->newline();
-}
-
-void Generator::writeHeaderKeyType() {
-	header_->stream() << "\
-enum LangKey : int {\n";
-	for (auto &entry : langpack_.entries) {
-		header_->stream() << "\t" << getFullKey(entry) << ",\n";
-	}
-	header_->stream() << "\
-\n\
-	kLangKeysCount,\n\
-};\n\
-\n";
 }
 
 void Generator::writeHeaderTaggedMethods() {
@@ -181,9 +166,9 @@ void Generator::writeHeaderInterface() {
 	header_->pushNamespace("Lang").stream() << "\
 \n\
 ushort GetTagIndex(QLatin1String tag);\n\
-LangKey GetKeyIndex(QLatin1String key);\n\
-bool IsTagReplaced(LangKey key, ushort tag);\n\
-QString GetOriginalValue(LangKey key);\n\
+ushort GetKeyIndex(QLatin1String key);\n\
+bool IsTagReplaced(ushort key, ushort tag);\n\
+QString GetOriginalValue(ushort key);\n\
 \n";
 	writeHeaderTagValueLookup();
 	header_->popNamespace().newline();
@@ -286,7 +271,7 @@ struct phrase<" << tags.join(", ") << "> {\n\
 		return ::Lang::details::Producer<" << tags.join(", ") << ">::template Current(" << values.join(", ") << ");\n\
 	}\n\
 \n\
-	LangKey base;\n\
+	ushort base;\n\
 };\n\
 \n";
 	}
@@ -304,17 +289,29 @@ void Generator::writeHeaderProducersInstances() {
 		}
 		if (!isPlural || key == ComputePluralKey(entry.keyBase, 0)) {
 			header_->stream() << "\
-inline constexpr phrase<" << tags.join(", ") << "> " << (isPlural ? entry.keyBase : key) << "{ LangKey(" << index << ") };\n";
+inline constexpr phrase<" << tags.join(", ") << "> " << (isPlural ? entry.keyBase : key) << "{ ushort(" << index << ") };\n";
 		}
 		++index;
 	}
 	header_->newline();
 }
 
+void Generator::writeSourceLangKeyConstants() {
+	auto index = 0;
+	for (auto &entry : langpack_.entries) {
+		source_->stream() << "constexpr auto " << getFullKey(entry) << " = ushort(" << (index++) << ");\n";
+	}
+	source_->newline();
+}
+
 bool Generator::writeSource() {
 	source_ = std::make_unique<common::CppFile>(basePath_ + ".cpp", project_);
 
-	source_->include("lang/lang_keys.h").pushNamespace("Lang").pushNamespace().stream() << "\
+	source_->include("lang/lang_keys.h").pushNamespace("Lang").pushNamespace();
+
+	writeSourceLangKeyConstants();
+
+	source_->stream() << "\
 \n\
 QChar DefaultData[] = {";
 	auto count = 0;
@@ -375,7 +372,7 @@ ushort GetTagIndex(QLatin1String tag) {\n\
 	source_->stream() << "\
 }\n\
 \n\
-LangKey GetKeyIndex(QLatin1String key) {\n\
+ushort GetKeyIndex(QLatin1String key) {\n\
 	auto size = key.size();\n\
 	auto data = key.data();\n";
 
@@ -397,15 +394,16 @@ LangKey GetKeyIndex(QLatin1String key) {\n\
 		}
 	}
 
-	writeSetSearch(keysSet, [&taggedKeys](const QString &key) {
+	writeSetSearch(keysSet, [&](const QString &key) {
 		auto it = taggedKeys.find(key);
 		return (it != taggedKeys.end()) ? it->second : key;
-	}, "kLangKeysCount");
+	}, "kKeysCount");
+	header_->popNamespace().newline();
 
 	source_->stream() << "\
 }\n\
 \n\
-bool IsTagReplaced(LangKey key, ushort tag) {\n\
+bool IsTagReplaced(ushort key, ushort tag) {\n\
 	switch (key) {\n";
 
 	auto lastWrittenPluralEntry = QString();
@@ -444,9 +442,10 @@ bool IsTagReplaced(LangKey key, ushort tag) {\n\
 	return false;\n\
 }\n\
 \n\
-QString GetOriginalValue(LangKey key) {\n\
-	Expects(key >= 0 && key < kLangKeysCount);\n\
-	auto offset = Offsets[key];\n\
+QString GetOriginalValue(ushort key) {\n\
+	Expects(key >= 0 && key < kKeysCount);\n\
+\n\
+	const auto offset = Offsets[key];\n\
 	return QString::fromRawData(DefaultData + offset, Offsets[key + 1] - offset);\n\
 }\n\
 \n";

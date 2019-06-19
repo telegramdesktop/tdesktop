@@ -16,7 +16,7 @@ constexpr auto kLangFileLimit = 1024 * 1024;
 
 } // namespace
 
-FileParser::FileParser(const QString &file, const std::set<LangKey> &request)
+FileParser::FileParser(const QString &file, const std::set<ushort> &request)
 : _content(base::parse::stripComments(ReadFile(file, file)))
 , _request(request) {
 	parse();
@@ -90,7 +90,7 @@ bool FileParser::readKeyValue(const char *&from, const char *end) {
 	}
 
 	auto skipping = false;
-	auto keyIndex = kLangKeysCount;
+	auto keyIndex = kKeysCount;
 	if (!_callback) {
 		keyIndex = GetKeyIndex(key);
 		skipping = (_request.find(keyIndex) == _request.end());

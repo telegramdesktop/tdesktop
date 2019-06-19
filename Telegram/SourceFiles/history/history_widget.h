@@ -23,7 +23,6 @@ struct SendingAlbum;
 enum class SendMediaType;
 enum class CompressConfirm;
 class MessageLinksParser;
-enum LangKey : int;
 
 namespace InlineBots {
 namespace Layout {

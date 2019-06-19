@@ -11,8 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "apiwrap.h"
 
-enum LangKey : int;
-
 namespace Ui {
 class VerticalLayout;
 class FlatLabel;

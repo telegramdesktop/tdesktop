@@ -11,8 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_flags.h"
 #include "data/data_notify_settings.h"
 
-enum LangKey : int;
-
 namespace Ui {
 class EmptyUserpic;
 } // namespace Ui

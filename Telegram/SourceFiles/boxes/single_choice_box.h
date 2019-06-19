@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include <vector>
 
-enum LangKey : int;
-
 namespace Ui {
 class Radiobutton;
 } // namespace Ui

@@ -468,7 +468,7 @@ void CloudManager::switchToLanguage(const Language &data) {
 		)).done([=](const MTPVector<MTPLangPackString> &result) {
 			_switchingToLanguageRequest = 0;
 			const auto values = Instance::ParseStrings(result);
-			const auto getValue = [&](LangKey key) {
+			const auto getValue = [&](ushort key) {
 				auto it = values.find(key);
 				return (it == values.cend())
 					? GetOriginalValue(key)
@@ -476,7 +476,7 @@ void CloudManager::switchToLanguage(const Language &data) {
 			};
 			const auto text = tr::lng_sure_save_language(tr::now)
 				+ "\n\n"
-				+ getValue(lng_sure_save_language);
+				+ getValue(tr::lng_sure_save_language.base);
 			Ui::show(
 				Box<ConfirmBox>(
 					text,
@@ -498,15 +498,17 @@ void CloudManager::performSwitchToCustom() {
 			return;
 		}
 
-		auto filePath = result.paths.front();
-		Lang::FileParser loader(filePath, { lng_sure_save_language });
+		const auto filePath = result.paths.front();
+		auto loader = Lang::FileParser(
+			filePath,
+			{ tr::lng_sure_save_language.base });
 		if (loader.errors().isEmpty()) {
 			weak->request(weak->_switchingToLanguageRequest).cancel();
 			if (weak->canApplyWithoutRestart(qsl("#custom"))) {
 				weak->_langpack.switchToCustomFile(filePath);
 			} else {
 				const auto values = loader.found();
-				const auto getValue = [&](LangKey key) {
+				const auto getValue = [&](ushort key) {
 					const auto it = values.find(key);
 					return (it == values.cend())
 						? GetOriginalValue(key)
@@ -514,7 +516,7 @@ void CloudManager::performSwitchToCustom() {
 				};
 				const auto text = tr::lng_sure_save_language(tr::now)
 					+ "\n\n"
-					 + getValue(lng_sure_save_language);
+					 + getValue(tr::lng_sure_save_language.base);
 				const auto change = [=] {
 					weak->_langpack.switchToCustomFile(filePath);
 					App::restart();

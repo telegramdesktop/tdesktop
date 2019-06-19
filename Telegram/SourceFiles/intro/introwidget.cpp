@@ -149,17 +149,19 @@ void Widget::createLanguageLink() {
 	const auto defaultId = Lang::DefaultLanguageId();
 	const auto suggested = Lang::CurrentCloudManager().suggestedLanguage();
 	if (currentId != defaultId) {
-		createLink(Lang::GetOriginalValue(lng_switch_to_this), defaultId);
+		createLink(
+			Lang::GetOriginalValue(tr::lng_switch_to_this.base),
+			defaultId);
 	} else if (!suggested.isEmpty() && suggested != currentId) {
 		request(MTPlangpack_GetStrings(
 			MTP_string(Lang::CloudLangPackName()),
 			MTP_string(suggested),
 			MTP_vector<MTPstring>(1, MTP_string("lng_switch_to_this"))
 		)).done([=](const MTPVector<MTPLangPackString> &result) {
-			auto strings = Lang::Instance::ParseStrings(result);
-			auto it = strings.find(lng_switch_to_this);
-			if (it != strings.end()) {
-				createLink(it->second, suggested);
+			const auto strings = Lang::Instance::ParseStrings(result);
+			const auto i = strings.find(tr::lng_switch_to_this.base);
+			if (i != strings.end()) {
+				createLink(i->second, suggested);
 			}
 		}).send();
 	}

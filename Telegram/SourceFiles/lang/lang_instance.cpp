@@ -27,9 +27,9 @@ constexpr auto kLangValuesLimit = 20000;
 
 std::vector<QString> PrepareDefaultValues() {
 	auto result = std::vector<QString>();
-	result.reserve(kLangKeysCount);
-	for (auto i = 0; i != kLangKeysCount; ++i) {
-		result.emplace_back(GetOriginalValue(LangKey(i)));
+	result.reserve(kKeysCount);
+	for (auto i = 0; i != kKeysCount; ++i) {
+		result.emplace_back(GetOriginalValue(ushort(i)));
 	}
 	return result;
 }
@@ -38,7 +38,7 @@ class ValueParser {
 public:
 	ValueParser(
 		const QByteArray &key,
-		LangKey keyIndex,
+		ushort keyIndex,
 		const QByteArray &value);
 
 	QString takeResult() {
@@ -55,7 +55,7 @@ private:
 	bool readTag();
 
 	const QByteArray &_key;
-	LangKey _keyIndex = kLangKeysCount;
+	ushort _keyIndex = kKeysCount;
 
 	QLatin1String _currentTag;
 	ushort _currentTagIndex = 0;
@@ -72,7 +72,10 @@ private:
 
 };
 
-ValueParser::ValueParser(const QByteArray &key, LangKey keyIndex, const QByteArray &value)
+ValueParser::ValueParser(
+	const QByteArray &key,
+	ushort keyIndex,
+	const QByteArray &value)
 : _key(key)
 , _keyIndex(keyIndex)
 , _currentTag("")
@@ -196,7 +199,7 @@ void ParseKeyValue(
 		const QByteArray &value,
 		Save &&save) {
 	const auto index = GetKeyIndex(QLatin1String(key));
-	if (index != kLangKeysCount) {
+	if (index != kKeysCount) {
 		ValueParser parser(key, index, value);
 		if (parser.parse()) {
 			save(index, parser.takeResult());
@@ -240,12 +243,12 @@ struct Instance::PrivateTag {
 
 Instance::Instance()
 : _values(PrepareDefaultValues())
-, _nonDefaultSet(kLangKeysCount, 0) {
+, _nonDefaultSet(kKeysCount, 0) {
 }
 
 Instance::Instance(not_null<Instance*> derived, const PrivateTag &)
 : _derived(derived)
-, _nonDefaultSet(kLangKeysCount, 0) {
+, _nonDefaultSet(kKeysCount, 0) {
 }
 
 void Instance::switchToId(const Language &data) {
@@ -298,7 +301,7 @@ void Instance::reset(const Language &data) {
 	_version = 0;
 	_nonDefaultValues.clear();
 	for (auto i = 0, count = int(_values.size()); i != count; ++i) {
-		_values[i] = GetOriginalValue(LangKey(i));
+		_values[i] = GetOriginalValue(ushort(i));
 	}
 	ranges::fill(_nonDefaultSet, 0);
 
@@ -340,12 +343,14 @@ QString Instance::baseId() const {
 }
 
 QString Instance::name() const {
-	return _name.isEmpty() ? getValue(lng_language_name) : _name;
+	return _name.isEmpty()
+		? getValue(tr::lng_language_name.base)
+		: _name;
 }
 
 QString Instance::nativeName() const {
 	return _nativeName.isEmpty()
-		? getValue(lng_language_name)
+		? getValue(tr::lng_language_name.base)
 		: _nativeName;
 }
 
@@ -719,17 +724,17 @@ void Instance::applyDifferenceToMe(
 	}
 }
 
-std::map<LangKey, QString> Instance::ParseStrings(
+std::map<ushort, QString> Instance::ParseStrings(
 		const MTPVector<MTPLangPackString> &strings) {
-	auto result = std::map<LangKey, QString>();
+	auto result = std::map<ushort, QString>();
 	for (const auto &string : strings.v) {
 		HandleString(string, [&](auto &&key, auto &&value) {
-			ParseKeyValue(key, value, [&](LangKey key, QString &&value) {
+			ParseKeyValue(key, value, [&](ushort key, QString &&value) {
 				result[key] = std::move(value);
 			});
 		}, [&](auto &&key) {
 			auto keyIndex = GetKeyIndex(QLatin1String(key));
-			if (keyIndex != kLangKeysCount) {
+			if (keyIndex != kKeysCount) {
 				result.erase(keyIndex);
 			}
 		});
@@ -748,7 +753,7 @@ QString Instance::getNonDefaultValue(const QByteArray &key) const {
 
 void Instance::applyValue(const QByteArray &key, const QByteArray &value) {
 	_nonDefaultValues[key] = value;
-	ParseKeyValue(key, value, [&](LangKey key, QString &&value) {
+	ParseKeyValue(key, value, [&](ushort key, QString &&value) {
 		_nonDefaultSet[key] = 1;
 		if (!_derived) {
 			_values[key] = std::move(value);
@@ -773,7 +778,7 @@ void Instance::resetValue(const QByteArray &key) {
 	_nonDefaultValues.erase(key);
 
 	const auto keyIndex = GetKeyIndex(QLatin1String(key));
-	if (keyIndex != kLangKeysCount) {
+	if (keyIndex != kKeysCount) {
 		_nonDefaultSet[keyIndex] = 0;
 		if (!_derived) {
 			const auto base = _base
@@ -794,11 +799,11 @@ Instance &Current() {
 
 namespace details {
 
-QString Current(LangKey key) {
+QString Current(ushort key) {
 	return Lang::Current().getValue(key);
 }
 
-rpl::producer<QString> Viewer(LangKey key) {
+rpl::producer<QString> Viewer(ushort key) {
 	return rpl::single(
 		Lang::Current().getValue(key)
 	) | then(base::ObservableViewer(
