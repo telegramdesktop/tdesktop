@@ -44,7 +44,8 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 					file.fields.downloadOffset,
 					file.fields.size);
 			} else {
-				return lng_passport_scan_uploaded(
+				return tr::lng_passport_scan_uploaded(
+					tr::now,
 					lt_date,
 					langDateTimeFull(ParseDateTime(file.fields.date)));
 			}
@@ -56,7 +57,8 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 					file.uploadData->offset,
 					file.uploadData->bytes.size());
 			} else {
-				return lng_passport_scan_uploaded(
+				return tr::lng_passport_scan_uploaded(
+					tr::now,
 					lt_date,
 					langDateTimeFull(ParseDateTime(file.fields.date)));
 			}
@@ -301,7 +303,8 @@ EditDocumentScheme GetDocumentScheme(
 				const auto language = languageValue(countryCode);
 				return language.isEmpty()
 					? tr::lng_passport_native_name_title(tr::now)
-					: lng_passport_native_name_language(
+					: tr::lng_passport_native_name_language(
+						tr::now,
 						lt_language,
 						language);
 			};
@@ -312,7 +315,8 @@ EditDocumentScheme GetDocumentScheme(
 				}
 				const auto name = CountrySelectBox::NameByISO(countryCode);
 				Assert(!name.isEmpty());
-				return lng_passport_native_name_about(
+				return tr::lng_passport_native_name_about(
+					tr::now,
 					lt_country,
 					name);
 			};

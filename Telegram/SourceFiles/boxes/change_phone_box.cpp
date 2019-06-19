@@ -207,7 +207,8 @@ bool ChangePhoneBox::EnterPhone::sendPhoneFail(const QString &phoneNumber, const
 		return true;
 	} else if (error.type() == qstr("PHONE_NUMBER_OCCUPIED")) {
 		Ui::show(Box<InformBox>(
-			lng_change_phone_occupied(
+			tr::lng_change_phone_occupied(
+				tr::now,
 				lt_phone,
 				App::formatPhone(phoneNumber)),
 			tr::lng_box_ok(tr::now)));

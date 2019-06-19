@@ -31,7 +31,6 @@ public:
 private:
 	void writeHeaderForwardDeclarations();
 	void writeHeaderTagTypes();
-	void writeHeaderTaggedMethods();
 	void writeHeaderInterface();
 	void writeHeaderTagValueLookup();
 	void writeHeaderReactiveInterface();

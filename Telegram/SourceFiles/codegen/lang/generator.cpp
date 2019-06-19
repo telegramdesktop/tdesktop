@@ -108,7 +108,6 @@ bool Generator::writeHeader() {
 	writeHeaderTagTypes();
 	writeHeaderInterface();
 	writeHeaderReactiveInterface();
-	writeHeaderTaggedMethods();
 
 	return header_->finalize();
 }
@@ -116,8 +115,8 @@ bool Generator::writeHeader() {
 void Generator::writeHeaderForwardDeclarations() {
 	header_->pushNamespace("Lang").stream() << "\
 \n\
-inline constexpr ushort kTagsCount = " << langpack_.tags.size() << ";\n\
-inline constexpr ushort kKeysCount = " << langpack_.entries.size() << ";\n\
+inline constexpr auto kTagsCount = ushort(" << langpack_.tags.size() << ");\n\
+inline constexpr auto kKeysCount = ushort(" << langpack_.entries.size() << ");\n\
 \n";
 	header_->popNamespace().newline();
 }
@@ -139,27 +138,6 @@ void Generator::writeHeaderTagTypes() {
 		}
 	}
 	header_->newline();
-}
-
-void Generator::writeHeaderTaggedMethods() {
-	for (auto &entry : langpack_.entries) {
-		auto isPlural = !entry.keyBase.isEmpty();
-		auto &key = entry.key;
-		auto params = QStringList();
-		auto args = QStringList();
-		for (auto &tagData : entry.tags) {
-			auto &tag = tagData.tag;
-			auto isPluralTag = isPlural && (tag == kPluralTags[0]);
-			params.push_back("lngtag_" + tag + (isPluralTag ? " type" : "") + ", " + (isPluralTag ? "float64 " : "const QString &") + tag + "__val");
-			args.push_back((isPluralTag ? "type" : ("lt_" + tag)) + ", " + tag + "__val");
-		}
-		if (!entry.tags.empty() && (!isPlural || key == ComputePluralKey(entry.keyBase, 0))) {
-			header_->stream() << "\
-inline QString " << (isPlural ? entry.keyBase : key) << "(" << params.join(QString(", ")) << ") {\n\
-	return tr::" << (isPlural ? entry.keyBase : key) << "(tr::now, " << args.join(QString(", ")) << ");\n\
-}\n";
-		}
-	}
 }
 
 void Generator::writeHeaderInterface() {
@@ -218,6 +196,12 @@ struct now_t {\n\
 };\n\
 \n\
 inline constexpr now_t now{};\n\
+\n\
+inline auto to_count() {\n\
+	return rpl::map([](auto value) {\n\
+		return float64(value);\n\
+	});\n\
+}\n\
 \n\
 template <typename ...Tags>\n\
 struct phrase;\n\
@@ -297,6 +281,7 @@ inline constexpr phrase<" << tags.join(", ") << "> " << (isPlural ? entry.keyBas
 }
 
 void Generator::writeSourceLangKeyConstants() {
+	source_->newline();
 	auto index = 0;
 	for (auto &entry : langpack_.entries) {
 		source_->stream() << "constexpr auto " << getFullKey(entry) << " = ushort(" << (index++) << ");\n";
@@ -312,7 +297,6 @@ bool Generator::writeSource() {
 	writeSourceLangKeyConstants();
 
 	source_->stream() << "\
-\n\
 QChar DefaultData[] = {";
 	auto count = 0;
 	auto fulllength = 0;

@@ -224,7 +224,7 @@ void TermsBox::prepare() {
 			this,
 			object_ptr<Ui::Checkbox>(
 				this,
-				lng_terms_age(lt_count, *_data.minAge),
+				tr::lng_terms_age(tr::now, lt_count, *_data.minAge),
 				st::defaultCheckbox,
 				std::move(check)),
 			st::termsAgePadding)
@@ -251,7 +251,7 @@ void TermsBox::prepare() {
 			: QString();
 		if (TextUtilities::RegExpMention().match(link).hasMatch()) {
 			_lastClickedMention = link;
-			Ui::Toast::Show(lng_terms_agree_to_proceed(lt_bot, link));
+			Ui::Toast::Show(tr::lng_terms_agree_to_proceed(tr::now, lt_bot, link));
 			return false;
 		}
 		return true;

@@ -52,7 +52,8 @@ PwdCheckWidget::PwdCheckWidget(
 	if (_hint.isEmpty()) {
 		_pwdHint->hide();
 	} else {
-		_pwdHint->setText(lng_signin_hint(lt_password_hint, _hint));
+		_pwdHint->setText(
+			tr::lng_signin_hint(tr::now, lt_password_hint, _hint));
 	}
 	_codeField->hide();
 	_toPassword->hide();
@@ -61,10 +62,16 @@ PwdCheckWidget::PwdCheckWidget(
 }
 
 void PwdCheckWidget::refreshLang() {
-	if (_toRecover) _toRecover->setText(tr::lng_signin_recover(tr::now));
-	if (_toPassword) _toPassword->setText(tr::lng_signin_try_password(tr::now));
+	if (_toRecover) {
+		_toRecover->setText(tr::lng_signin_recover(tr::now));
+	}
+	if (_toPassword) {
+		_toPassword->setText(
+			tr::lng_signin_try_password(tr::now));
+	}
 	if (!_hint.isEmpty()) {
-		_pwdHint->setText(lng_signin_hint(lt_password_hint, _hint));
+		_pwdHint->setText(
+			tr::lng_signin_hint(tr::now, lt_password_hint, _hint));
 	}
 	updateControlsGeometry();
 }

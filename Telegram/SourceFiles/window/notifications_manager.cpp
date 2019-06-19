@@ -521,7 +521,7 @@ void NativeManager::doShowNotification(HistoryItem *item, int forwardedCount) {
 		? tr::lng_notification_preview(tr::now)
 		: (forwardedCount < 2
 			? (item->groupId() ? tr::lng_in_dlg_album(tr::now) : item->notificationText())
-			: lng_forward_messages(lt_count, forwardedCount));
+			: tr::lng_forward_messages(tr::now, lt_count, forwardedCount));
 
 	doShowNativeNotification(
 		item->history()->peer,

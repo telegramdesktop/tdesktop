@@ -611,7 +611,7 @@ void SettingsWidget::addSizeSlider(
 	}) | rpl::start_with_next([=](int sizeLimit) {
 		const auto limit = sizeLimit / kMegabyte;
 		const auto size = QString::number(limit) + " MB";
-		const auto text = lng_export_option_size_limit(lt_size, size);
+		const auto text = tr::lng_export_option_size_limit(tr::now, lt_size, size);
 		label->setText(text);
 	}, slider->lifetime());
 

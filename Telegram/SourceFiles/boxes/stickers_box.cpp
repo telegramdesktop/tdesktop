@@ -886,7 +886,7 @@ void StickersBox::Inner::paintRow(Painter &p, Row *set, int index) {
 		}
 	}
 
-	auto statusText = (set->count > 0) ? lng_stickers_count(lt_count, set->count) : tr::lng_contacts_loading(tr::now);
+	auto statusText = (set->count > 0) ? tr::lng_stickers_count(tr::now, lt_count, set->count) : tr::lng_contacts_loading(tr::now);
 
 	p.setFont(st::contactsStatusFont);
 	p.setPen(st::contactsStatusFg);

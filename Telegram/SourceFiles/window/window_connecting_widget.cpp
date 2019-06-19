@@ -404,12 +404,12 @@ auto ConnectionState::computeLayout(const State &state) const -> Layout {
 
 	case State::Type::Waiting:
 		Assert(state.waitTillRetry > 0);
-		result.text = lng_reconnecting(lt_count, state.waitTillRetry);
+		result.text = tr::lng_reconnecting(tr::now, lt_count, state.waitTillRetry);
 		break;
 	}
 	result.textWidth = st::normalFont->width(result.text);
 	const auto maxTextWidth = (state.type == State::Type::Waiting)
-		? st::normalFont->width(lng_reconnecting(lt_count, 88))
+		? st::normalFont->width(tr::lng_reconnecting(tr::now, lt_count, 88))
 		: result.textWidth;
 	result.contentWidth = (result.textWidth > 0)
 		? (st::connectingTextPadding.left()

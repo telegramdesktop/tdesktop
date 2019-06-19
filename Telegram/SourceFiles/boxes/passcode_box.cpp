@@ -67,7 +67,7 @@ PasscodeBox::PasscodeBox(QWidget*, const CloudFields &fields)
 	if (!_cloudFields.hint.isEmpty()) {
 		_hintText.setText(
 			st::passcodeTextStyle,
-			lng_signin_hint(lt_password_hint, _cloudFields.hint));
+			tr::lng_signin_hint(tr::now, lt_password_hint, _cloudFields.hint));
 	}
 }
 
@@ -912,7 +912,7 @@ RecoverBox::RecoverBox(
 	QWidget*,
 	const QString &pattern,
 	bool notEmptyPassport)
-: _pattern(st::normalFont->elided(lng_signin_recover_hint(lt_recover_email, pattern), st::boxWidth - st::boxPadding.left() * 1.5))
+: _pattern(st::normalFont->elided(tr::lng_signin_recover_hint(tr::now, lt_recover_email, pattern), st::boxWidth - st::boxPadding.left() * 1.5))
 , _notEmptyPassport(notEmptyPassport)
 , _recoverCode(this, st::defaultInputField, tr::lng_signin_code()) {
 }

@@ -106,7 +106,7 @@ void WarningWidget::setSecondsLeft(int secondsLeft) {
 }
 
 void WarningWidget::updateText() {
-	_text = lng_theme_reverting(lt_count, _secondsLeft);
+	_text = tr::lng_theme_reverting(tr::now, lt_count, _secondsLeft);
 }
 
 void WarningWidget::showAnimated() {

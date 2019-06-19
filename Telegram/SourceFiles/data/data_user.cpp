@@ -113,7 +113,7 @@ void UserData::setName(const QString &newFirstName, const QString &newLastName, 
 			firstName = newFirstName;
 			lastName = newLastName;
 		}
-		newFullName = lastName.isEmpty() ? firstName : lng_full_name(lt_first_name, firstName, lt_last_name, lastName);
+		newFullName = lastName.isEmpty() ? firstName : tr::lng_full_name(tr::now, lt_first_name, firstName, lt_last_name, lastName);
 	}
 	updateNameDelayed(newFullName, newPhoneName, newUsername);
 }

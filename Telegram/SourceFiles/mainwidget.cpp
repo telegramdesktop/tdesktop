@@ -920,7 +920,7 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 		const auto link = textcmdLink(
 			Core::App().createInternalLinkFull(qsl("spambot")),
 			tr::lng_cant_more_info(tr::now));
-		const auto text = lng_error_public_groups_denied(lt_more_info, link);
+		const auto text = tr::lng_error_public_groups_denied(tr::now, lt_more_info, link);
 		Ui::show(Box<InformBox>(text));
 		return true;
 	}
@@ -934,7 +934,7 @@ void MainWidget::cacheBackground() {
 		auto &bg = Window::Theme::Background()->pixmapForTiled();
 
 		auto result = QImage(_willCacheFor.width() * cIntRetinaFactor(), _willCacheFor.height() * cIntRetinaFactor(), QImage::Format_RGB32);
-        result.setDevicePixelRatio(cRetinaFactor());
+		result.setDevicePixelRatio(cRetinaFactor());
 		{
 			QPainter p(&result);
 			auto left = 0;
@@ -3353,7 +3353,7 @@ bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.code() == 400) {
-		Ui::show(Box<InformBox>(lng_username_not_found(lt_user, name)));
+		Ui::show(Box<InformBox>(tr::lng_username_not_found(tr::now, lt_user, name)));
 	}
 	return true;
 }

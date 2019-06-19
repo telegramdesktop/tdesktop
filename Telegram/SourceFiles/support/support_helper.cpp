@@ -121,15 +121,18 @@ QString FormatDateTime(TimeId value) {
 	const auto now = QDateTime::currentDateTime();
 	const auto date = ParseDateTime(value);
 	if (date.date() == now.date()) {
-		return lng_mediaview_today(
+		return tr::lng_mediaview_today(
+			tr::now,
 			lt_time,
 			date.time().toString(cTimeFormat()));
 	} else if (date.date().addDays(1) == now.date()) {
-		return lng_mediaview_yesterday(
+		return tr::lng_mediaview_yesterday(
+			tr::now,
 			lt_time,
 			date.time().toString(cTimeFormat()));
 	} else {
-		return lng_mediaview_date_time(
+		return tr::lng_mediaview_date_time(
+			tr::now,
 			lt_date,
 			date.date().toString(qsl("dd.MM.yy")),
 			lt_time,

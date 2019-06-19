@@ -103,9 +103,9 @@ QString TimeLimitText(size_type limit) {
 	const auto weeks = (days / 7);
 	const auto months = (days / 29);
 	return (months > 0)
-		? lng_local_storage_limit_months(lt_count, months)
+		? tr::lng_local_storage_limit_months(tr::now, lt_count, months)
 		: (limit > 0)
-		? lng_local_storage_limit_weeks(lt_count, weeks)
+		? tr::lng_local_storage_limit_weeks(tr::now, lt_count, weeks)
 		: tr::lng_local_storage_limit_never(tr::now);
 }
 
@@ -390,7 +390,7 @@ void LocalStorageBox::setupControls() {
 		const auto &data = (i != end(_stats.tagged)) ? i->second : empty;
 		auto factory = std::forward<decltype(titleFactory)>(titleFactory);
 		auto title = [factory = std::move(factory)](size_type count) {
-			return factory(lt_count, count);
+			return factory(tr::now, lt_count, count);
 		};
 		tracker.track(createRow(
 			tag,
@@ -414,11 +414,11 @@ void LocalStorageBox::setupControls() {
 		container,
 		object_ptr<Ui::PlainShadow>(container),
 		st::localStorageRowPadding));
-	createTagRow(Data::kImageCacheTag, lng_local_storage_image);
-	createTagRow(Data::kStickerCacheTag, lng_local_storage_sticker);
-	createTagRow(Data::kVoiceMessageCacheTag, lng_local_storage_voice);
-	createTagRow(Data::kVideoMessageCacheTag, lng_local_storage_round);
-	createTagRow(Data::kAnimationCacheTag, lng_local_storage_animation);
+	createTagRow(Data::kImageCacheTag, tr::lng_local_storage_image);
+	createTagRow(Data::kStickerCacheTag, tr::lng_local_storage_sticker);
+	createTagRow(Data::kVoiceMessageCacheTag, tr::lng_local_storage_voice);
+	createTagRow(Data::kVideoMessageCacheTag, tr::lng_local_storage_round);
+	createTagRow(Data::kAnimationCacheTag, tr::lng_local_storage_animation);
 	tracker.track(createRow(
 		kFakeMediaCacheTag,
 		std::move(mediaCacheTitle),
@@ -506,14 +506,14 @@ void LocalStorageBox::updateTotalLabel() {
 	Expects(_totalLabel != nullptr);
 
 	const auto text = SizeLimitText(_totalSizeLimit);
-	_totalLabel->setText(lng_local_storage_size_limit(lt_size, text));
+	_totalLabel->setText(tr::lng_local_storage_size_limit(tr::now, lt_size, text));
 }
 
 void LocalStorageBox::updateMediaLabel() {
 	Expects(_mediaLabel != nullptr);
 
 	const auto text = SizeLimitText(_mediaSizeLimit);
-	_mediaLabel->setText(lng_local_storage_media_limit(lt_size, text));
+	_mediaLabel->setText(tr::lng_local_storage_media_limit(tr::now, lt_size, text));
 }
 
 void LocalStorageBox::setupLimits(not_null<Ui::VerticalLayout*> container) {
@@ -555,7 +555,7 @@ void LocalStorageBox::setupLimits(not_null<Ui::VerticalLayout*> container) {
 		[=](not_null<Ui::LabelSimple*> label, size_type limit) {
 			_timeLimit = ValueToLimit(limit);
 			const auto text = TimeLimitText(_timeLimit);
-			label->setText(lng_local_storage_time_limit(lt_limit, text));
+			label->setText(tr::lng_local_storage_time_limit(tr::now, lt_limit, text));
 			limitsChanged();
 		});
 }

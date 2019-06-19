@@ -62,7 +62,7 @@ not_null<HistoryItem*> CreateUnsupportedMessage(
 		UserId from) {
 	const auto siteLink = qsl("https://desktop.telegram.org");
 	auto text = TextWithEntities{
-		lng_message_unsupported(lt_link, siteLink)
+		tr::lng_message_unsupported(tr::now, lt_link, siteLink)
 	};
 	TextUtilities::ParseEntities(text, Ui::ItemTextNoMonoOptions().flags);
 	text.entities.push_front(
@@ -748,8 +748,8 @@ QString HistoryItem::inDialogsText(DrawInDialog way) const {
 	}();
 	if (sender) {
 		auto fromText = sender->isSelf() ? tr::lng_from_you(tr::now) : sender->shortName();
-		auto fromWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, TextUtilities::Clean(fromText)));
-		return lng_dialogs_text_with_from(lt_from_part, fromWrapped, lt_message, plainText);
+		auto fromWrapped = textcmdLink(1, tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, TextUtilities::Clean(fromText)));
+		return tr::lng_dialogs_text_with_from(tr::now, lt_from_part, fromWrapped, lt_message, plainText);
 	}
 	return plainText;
 }

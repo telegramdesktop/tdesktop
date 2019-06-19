@@ -86,7 +86,7 @@ void ContactStatus::Bar::showState(State state) {
 	_share->setVisible(state == State::SharePhoneNumber);
 	_report->setVisible(state == State::ReportSpam);
 	_add->setText((state == State::Add)
-		? lng_new_contact_add_name(lt_user, _name).toUpper()
+		? tr::lng_new_contact_add_name(tr::now, lt_user, _name).toUpper()
 		: tr::lng_new_contact_add(tr::now).toUpper());
 	updateButtonsGeometry();
 }
@@ -317,7 +317,7 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 			user->session().api().applyUpdates(result);
 
 			Ui::Toast::Show(
-				lng_new_contact_share_done(lt_user, user->shortName()));
+				tr::lng_new_contact_share_done(tr::now, lt_user, user->shortName()));
 		}).send();
 	}, _bar.lifetime());
 }

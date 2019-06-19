@@ -12,20 +12,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 template <typename WithYear, typename WithoutYear>
-inline QString langDateMaybeWithYear(QDate date, WithYear withYear, WithoutYear withoutYear) {
-	auto month = date.month();
+inline QString langDateMaybeWithYear(
+		QDate date,
+		WithYear withYear,
+		WithoutYear withoutYear) {
+	const auto month = date.month();
 	if (month <= 0 || month > 12) {
 		return qsl("MONTH_ERR");
 	};
-	auto year = date.year();
-	auto current = QDate::currentDate();
-	auto currentYear = current.year();
-	auto currentMonth = current.month();
+	const auto year = date.year();
+	const auto current = QDate::currentDate();
+	const auto currentYear = current.year();
+	const auto currentMonth = current.month();
 	if (year != currentYear) {
-		auto yearIsMuchGreater = [](int year, int otherYear) {
+		const auto yearIsMuchGreater = [](int year, int otherYear) {
 			return (year > otherYear + 1);
 		};
-		auto monthIsMuchGreater = [](int year, int month, int otherYear, int otherMonth) {
+		const auto monthIsMuchGreater = [](
+				int year,
+				int month,
+				int otherYear,
+				int otherMonth) {
 			return (year == otherYear + 1) && (month + 12 > otherMonth + 3);
 		};
 		if (false
@@ -123,23 +130,54 @@ bool langFirstNameGoesSecond() {
 QString langDayOfMonth(const QDate &date) {
 	auto day = date.day();
 	return langDateMaybeWithYear(date, [&](int month, int year) {
-		return lng_month_day_year(lt_month, MonthSmall(month)(tr::now), lt_day, QString::number(day), lt_year, QString::number(year));
+		return tr::lng_month_day_year(
+			tr::now,
+			lt_month,
+			MonthSmall(month)(tr::now),
+			lt_day,
+			QString::number(day),
+			lt_year,
+			QString::number(year));
 	}, [day](int month, int year) {
-		return lng_month_day(lt_month, MonthSmall(month)(tr::now), lt_day, QString::number(day));
+		return tr::lng_month_day(
+			tr::now,
+			lt_month,
+			MonthSmall(month)(tr::now),
+			lt_day,
+			QString::number(day));
 	});
 }
 
 QString langDayOfMonthFull(const QDate &date) {
 	auto day = date.day();
 	return langDateMaybeWithYear(date, [day](int month, int year) {
-		return lng_month_day_year(lt_month, MonthDay(month)(tr::now), lt_day, QString::number(day), lt_year, QString::number(year));
+		return tr::lng_month_day_year(
+			tr::now,
+			lt_month,
+			MonthDay(month)(tr::now),
+			lt_day,
+			QString::number(day),
+			lt_year,
+			QString::number(year));
 	}, [day](int month, int year) {
-		return lng_month_day(lt_month, MonthDay(month)(tr::now), lt_day, QString::number(day));
+		return tr::lng_month_day(
+			tr::now,
+			lt_month,
+			MonthDay(month)(tr::now),
+			lt_day,
+			QString::number(day));
 	});
 }
 
 QString langMonthOfYear(int month, int year) {
-	return (month > 0 && month <= 12) ? lng_month_year(lt_month, MonthSmall(month)(tr::now), lt_year, QString::number(year)) : qsl("MONTH_ERR");
+	return (month > 0 && month <= 12)
+		? tr::lng_month_year(
+			tr::now,
+			lt_month,
+			MonthSmall(month)(tr::now),
+			lt_year,
+			QString::number(year))
+		: qsl("MONTH_ERR");
 }
 
 QString langMonth(const QDate &date) {
@@ -151,7 +189,14 @@ QString langMonth(const QDate &date) {
 }
 
 QString langMonthOfYearFull(int month, int year) {
-	return (month > 0 && month <= 12) ? lng_month_year(lt_month, Month(month)(tr::now), lt_year, QString::number(year)) : qsl("MONTH_ERR");
+	return (month > 0 && month <= 12)
+		? tr::lng_month_year(
+			tr::now,
+			lt_month,
+			Month(month)(tr::now),
+			lt_year,
+			QString::number(year))
+		: qsl("MONTH_ERR");
 }
 
 QString langMonthFull(const QDate &date) {

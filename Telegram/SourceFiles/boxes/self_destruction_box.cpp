@@ -81,8 +81,8 @@ void SelfDestructionBox::showContent() {
 
 QString SelfDestructionBox::DaysLabel(int days) {
 	return (days > 364)
-		? lng_self_destruct_years(lt_count, days / 365)
-		: lng_self_destruct_months(lt_count, qMax(days / 30, 1));
+		? tr::lng_self_destruct_years(tr::now, lt_count, days / 365)
+		: tr::lng_self_destruct_months(tr::now, lt_count, qMax(days / 30, 1));
 }
 
 void SelfDestructionBox::prepare() {

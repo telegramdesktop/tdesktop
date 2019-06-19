@@ -499,7 +499,7 @@ void OverlayWidget::updateDocSize() {
 			totalStr = QString::number(total);
 			mb = qsl("B");
 		}
-		_docSize = lng_media_save_progress(lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
+		_docSize = tr::lng_media_save_progress(tr::now, lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
 	} else {
 		_docSize = formatSizeText(_doc->size);
 	}
@@ -579,11 +579,11 @@ void OverlayWidget::updateControls() {
 		return dNow;
 	}();
 	if (d.date() == dNow.date()) {
-		_dateText = lng_mediaview_today(lt_time, d.time().toString(cTimeFormat()));
+		_dateText = tr::lng_mediaview_today(tr::now, lt_time, d.time().toString(cTimeFormat()));
 	} else if (d.date().addDays(1) == dNow.date()) {
-		_dateText = lng_mediaview_yesterday(lt_time, d.time().toString(cTimeFormat()));
+		_dateText = tr::lng_mediaview_yesterday(tr::now, lt_time, d.time().toString(cTimeFormat()));
 	} else {
-		_dateText = lng_mediaview_date_time(lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(cTimeFormat()));
+		_dateText = tr::lng_mediaview_date_time(tr::now, lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(cTimeFormat()));
 	}
 	if (!_fromName.isEmpty()) {
 		_fromNameLabel.setText(st::mediaviewTextStyle, _fromName, Ui::NameTextOptions());

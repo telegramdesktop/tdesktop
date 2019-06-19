@@ -90,15 +90,15 @@ QString WithCaptionDialogsText(
 		return textcmdLink(1, TextUtilities::Clean(attachType));
 	}
 
-	auto captionText = TextUtilities::Clean(caption);
-	auto attachTypeWrapped = textcmdLink(1, lng_dialogs_text_media_wrapped(
-		lt_media,
-		TextUtilities::Clean(attachType)));
-	return lng_dialogs_text_media(
+	return tr::lng_dialogs_text_media(
+		tr::now,
 		lt_media_part,
-		attachTypeWrapped,
+		textcmdLink(1, tr::lng_dialogs_text_media_wrapped(
+			tr::now,
+			lt_media,
+			TextUtilities::Clean(attachType))),
 		lt_caption,
-		captionText);
+		TextUtilities::Clean(caption));
 }
 
 QString WithCaptionNotificationText(
@@ -108,12 +108,13 @@ QString WithCaptionNotificationText(
 		return attachType;
 	}
 
-	auto attachTypeWrapped = lng_dialogs_text_media_wrapped(
-		lt_media,
-		attachType);
-	return lng_dialogs_text_media(
+	return tr::lng_dialogs_text_media(
+		tr::now,
 		lt_media_part,
-		attachTypeWrapped,
+		tr::lng_dialogs_text_media_wrapped(
+			tr::now,
+			lt_media,
+			attachType),
 		lt_caption,
 		caption);
 }
@@ -586,7 +587,7 @@ QString MediaFile::notificationText() const {
 	if (const auto sticker = _document->sticker()) {
 		return _emoji.isEmpty()
 			? tr::lng_in_dlg_sticker(tr::now)
-			: lng_in_dlg_sticker_emoji(lt_emoji, _emoji);
+			: tr::lng_in_dlg_sticker_emoji(tr::now, lt_emoji, _emoji);
 	}
 	const auto type = [&] {
 		if (_document->isVideoMessage()) {
@@ -610,7 +611,7 @@ QString MediaFile::notificationText() const {
 QString MediaFile::pinnedTextSubstring() const {
 	if (const auto sticker = _document->sticker()) {
 		if (!_emoji.isEmpty()) {
-			return lng_action_pinned_media_emoji_sticker(lt_emoji, _emoji);
+			return tr::lng_action_pinned_media_emoji_sticker(tr::now, lt_emoji, _emoji);
 		}
 		return tr::lng_action_pinned_media_sticker(tr::now);
 	} else if (_document->isAnimation()) {
@@ -636,7 +637,7 @@ TextForMimeData MediaFile::clipboardText() const {
 			: QString();
 		if (const auto sticker = _document->sticker()) {
 			if (!_emoji.isEmpty()) {
-				return lng_in_dlg_sticker_emoji(lt_emoji, _emoji);
+				return tr::lng_in_dlg_sticker_emoji(tr::now, lt_emoji, _emoji);
 			}
 			return tr::lng_in_dlg_sticker(tr::now);
 		} else if (_document->isAnimation()) {
@@ -816,7 +817,8 @@ QString MediaContact::pinnedTextSubstring() const {
 
 TextForMimeData MediaContact::clipboardText() const {
 	const auto text = qsl("[ ") + tr::lng_in_dlg_contact(tr::now) + qsl(" ]\n")
-		+ lng_full_name(
+		+ tr::lng_full_name(
+			tr::now,
 			lt_first_name,
 			_contact.firstName,
 			lt_last_name,
@@ -953,7 +955,8 @@ const Call *MediaCall::call() const {
 QString MediaCall::notificationText() const {
 	auto result = Text(parent(), _call.finishReason);
 	if (_call.duration > 0) {
-		result = lng_call_type_and_duration(
+		result = tr::lng_call_type_and_duration(
+			tr::now,
 			lt_type,
 			result,
 			lt_duration,
@@ -1133,7 +1136,7 @@ GameData *MediaGame::game() const {
 
 QString MediaGame::pinnedTextSubstring() const {
 	const auto title = _game->title;
-	return lng_action_pinned_media_game(lt_game, title);
+	return tr::lng_action_pinned_media_game(tr::now, lt_game, title);
 }
 
 TextForMimeData MediaGame::clipboardText() const {

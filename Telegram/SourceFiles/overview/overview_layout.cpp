@@ -595,7 +595,8 @@ Voice::Voice(
 	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
 	_details.setText(
 		st::defaultTextStyle,
-		lng_date_and_duration(
+		tr::lng_date_and_duration(
+			tr::now,
 			lt_date,
 			dateText,
 			lt_duration,
@@ -821,9 +822,9 @@ void Voice::updateName() {
 	auto version = 0;
 	if (const auto forwarded = parent()->Get<HistoryMessageForwarded>()) {
 		if (parent()->fromOriginal()->isChannel()) {
-			_name.setText(st::semiboldTextStyle, lng_forwarded_channel(lt_channel, App::peerName(parent()->fromOriginal())), Ui::NameTextOptions());
+			_name.setText(st::semiboldTextStyle, tr::lng_forwarded_channel(tr::now, lt_channel, App::peerName(parent()->fromOriginal())), Ui::NameTextOptions());
 		} else {
-			_name.setText(st::semiboldTextStyle, lng_forwarded(lt_user, App::peerName(parent()->fromOriginal())), Ui::NameTextOptions());
+			_name.setText(st::semiboldTextStyle, tr::lng_forwarded(tr::now, lt_user, App::peerName(parent()->fromOriginal())), Ui::NameTextOptions());
 		}
 	} else {
 		_name.setText(st::semiboldTextStyle, App::peerName(parent()->from()), Ui::NameTextOptions());

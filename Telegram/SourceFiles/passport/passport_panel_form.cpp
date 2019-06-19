@@ -232,7 +232,7 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 			inner,
 			object_ptr<Ui::FlatLabel>(
 				inner,
-				lng_passport_request1(lt_bot, App::peerName(bot)),
+				tr::lng_passport_request1(tr::now, lt_bot, App::peerName(bot)),
 				st::passportPasswordLabelBold)),
 		st::passportFormAbout1Padding)->entity();
 

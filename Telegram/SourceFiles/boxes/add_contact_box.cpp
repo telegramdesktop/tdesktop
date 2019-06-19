@@ -69,9 +69,9 @@ QString PeerFloodErrorText(PeerFloodType type) {
 		Core::App().createInternalLinkFull(qsl("spambot")),
 		tr::lng_cant_more_info(tr::now));
 	if (type == PeerFloodType::InviteGroup) {
-		return lng_cant_invite_not_contact(lt_more_info, link);
+		return tr::lng_cant_invite_not_contact(tr::now, lt_more_info, link);
 	}
-	return lng_cant_send_to_not_contact(lt_more_info, link);
+	return tr::lng_cant_send_to_not_contact(tr::now, lt_more_info, link);
 }
 
 void ShowAddParticipantsError(
@@ -245,7 +245,7 @@ void AddContactBox::paintEvent(QPaintEvent *e) {
 		p.setPen(st::boxTextFg);
 		p.setFont(st::boxTextFont);
 		auto textHeight = height() - st::contactPadding.top() - st::contactPadding.bottom() - st::boxPadding.bottom();
-		p.drawText(QRect(st::boxPadding.left(), st::contactPadding.top(), width() - st::boxPadding.left() - st::boxPadding.right(), textHeight), lng_contact_not_joined(lt_name, _sentName), style::al_topleft);
+		p.drawText(QRect(st::boxPadding.left(), st::contactPadding.top(), width() - st::boxPadding.left() - st::boxPadding.right(), textHeight), tr::lng_contact_not_joined(tr::now, lt_name, _sentName), style::al_topleft);
 	} else {
 		st::contactUserIcon.paint(
 			p,
@@ -1348,8 +1348,15 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	auto pressed = base::take(_pressed);
 	setCursor((_selected || _pressed) ? style::cur_pointer : style::cur_default);
 	if (pressed && pressed == _selected) {
-		auto text_method = pressed->isMegagroup() ? lng_channels_too_much_public_revoke_confirm_group : lng_channels_too_much_public_revoke_confirm_channel;
-		auto text = text_method(lt_link, Core::App().createInternalLink(pressed->userName()), lt_group, pressed->name);
+		auto text_method = pressed->isMegagroup()
+			? tr::lng_channels_too_much_public_revoke_confirm_group
+			: tr::lng_channels_too_much_public_revoke_confirm_channel;
+		auto text = text_method(
+			tr::now,
+			lt_link,
+			Core::App().createInternalLink(pressed->userName()),
+			lt_group,
+			pressed->name);
 		auto confirmText = tr::lng_channels_too_much_public_revoke(tr::now);
 		_weakRevokeConfirmBox = Ui::show(Box<ConfirmBox>(text, confirmText, crl::guard(this, [this, pressed]() {
 			if (_revokeRequestId) return;

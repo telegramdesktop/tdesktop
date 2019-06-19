@@ -181,9 +181,9 @@ QString SentCodeCall::getText() const {
 	switch (_status.state) {
 	case State::Waiting: {
 		if (_status.timeout >= 3600) {
-			return lng_code_call(lt_minutes, qsl("%1:%2").arg(_status.timeout / 3600).arg((_status.timeout / 60) % 60, 2, 10, QChar('0')), lt_seconds, qsl("%1").arg(_status.timeout % 60, 2, 10, QChar('0')));
+			return tr::lng_code_call(tr::now, lt_minutes, qsl("%1:%2").arg(_status.timeout / 3600).arg((_status.timeout / 60) % 60, 2, 10, QChar('0')), lt_seconds, qsl("%1").arg(_status.timeout % 60, 2, 10, QChar('0')));
 		}
-		return lng_code_call(lt_minutes, QString::number(_status.timeout / 60), lt_seconds, qsl("%1").arg(_status.timeout % 60, 2, 10, QChar('0')));
+		return tr::lng_code_call(tr::now, lt_minutes, QString::number(_status.timeout / 60), lt_seconds, qsl("%1").arg(_status.timeout % 60, 2, 10, QChar('0')));
 	} break;
 	case State::Calling: return tr::lng_code_calling(tr::now);
 	case State::Called: return tr::lng_code_called(tr::now);
@@ -271,7 +271,7 @@ void ConfirmPhoneBox::prepare() {
 	_about.create(this, st::confirmPhoneAboutLabel);
 	TextWithEntities aboutText;
 	auto formattedPhone = App::formatPhone(_phone);
-	aboutText.text = lng_confirm_phone_about(lt_phone, formattedPhone);
+	aboutText.text = tr::lng_confirm_phone_about(tr::now, lt_phone, formattedPhone);
 	auto phonePosition = aboutText.text.indexOf(formattedPhone);
 	if (phonePosition >= 0) {
 		aboutText.entities.push_back({ EntityType::Bold, phonePosition, formattedPhone.size() });
@@ -321,7 +321,7 @@ void ConfirmPhoneBox::sendCode() {
 
 void ConfirmPhoneBox::confirmDone(const MTPBool &result) {
 	_sendCodeRequestId = 0;
-	Ui::show(Box<InformBox>(lng_confirm_phone_success(lt_phone, App::formatPhone(_phone))));
+	Ui::show(Box<InformBox>(tr::lng_confirm_phone_success(tr::now, lt_phone, App::formatPhone(_phone))));
 }
 
 bool ConfirmPhoneBox::confirmFail(const RPCError &error) {

@@ -315,7 +315,7 @@ InformBox::InformBox(QWidget*, const TextWithEntities &text, const QString &done
 
 MaxInviteBox::MaxInviteBox(QWidget*, not_null<ChannelData*> channel) : BoxContent()
 , _channel(channel)
-, _text(st::boxLabelStyle, lng_participant_invite_sorry(lt_count, Global::ChatSizeMax()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right()) {
+, _text(st::boxLabelStyle, tr::lng_participant_invite_sorry(tr::now, lt_count, Global::ChatSizeMax()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right()) {
 }
 
 void MaxInviteBox::prepare() {
@@ -496,8 +496,8 @@ void DeleteMessagesBox::prepare() {
 			details.text = peer->isSelf()
 				? tr::lng_sure_delete_saved_messages(tr::now)
 				: peer->isUser()
-				? lng_sure_delete_history(lt_contact, peer->name)
-				: lng_sure_delete_group_history(lt_group, peer->name);
+				? tr::lng_sure_delete_history(tr::now, lt_contact, peer->name)
+				: tr::lng_sure_delete_group_history(tr::now, lt_group, peer->name);
 			deleteStyle = &st::attentionBoxButton;
 		} else {
 			details.text = peer->isSelf()
@@ -534,7 +534,7 @@ void DeleteMessagesBox::prepare() {
 	} else {
 		details.text = (_ids.size() == 1)
 			? tr::lng_selected_delete_sure_this(tr::now)
-			: lng_selected_delete_sure(lt_count, _ids.size());
+			: tr::lng_selected_delete_sure(tr::now, lt_count, _ids.size());
 		if (const auto peer = checkFromSinglePeer()) {
 			auto count = int(_ids.size());
 			if (auto revoke = revokeText(peer)) {
@@ -542,12 +542,12 @@ void DeleteMessagesBox::prepare() {
 				appendDetails(std::move(revoke->description));
 			} else if (peer && peer->isChannel()) {
 				if (peer->isMegagroup()) {
-					appendDetails({ lng_delete_for_everyone_hint(lt_count, count) });
+					appendDetails({ tr::lng_delete_for_everyone_hint(tr::now, lt_count, count) });
 				}
 			} else if (peer->isChat()) {
-				appendDetails({ lng_delete_for_me_chat_hint(lt_count, count) });
+				appendDetails({ tr::lng_delete_for_me_chat_hint(tr::now, lt_count, count) });
 			} else if (!peer->isSelf()) {
-				appendDetails({ lng_delete_for_me_hint(lt_count, count) });
+				appendDetails({ tr::lng_delete_for_me_hint(tr::now, lt_count, count) });
 			}
 		}
 	}
@@ -597,7 +597,8 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 		if (!peer->canRevokeFullHistory()) {
 			return std::nullopt;
 		} else if (const auto user = peer->asUser()) {
-			result.checkbox = lng_delete_for_other_check(
+			result.checkbox = tr::lng_delete_for_other_check(
+				tr::now,
 				lt_user,
 				user->firstName);
 		} else {
@@ -637,7 +638,8 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 
 	if (canRevokeAll) {
 		if (const auto user = peer->asUser()) {
-			result.checkbox = lng_delete_for_other_check(
+			result.checkbox = tr::lng_delete_for_other_check(
+				tr::now,
 				lt_user,
 				user->firstName);
 		} else {

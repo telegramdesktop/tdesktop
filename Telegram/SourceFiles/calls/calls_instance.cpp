@@ -39,7 +39,7 @@ void Instance::startOutgoingCall(not_null<UserData*> user) {
 	if (user->callsStatus() == UserData::CallsStatus::Private) {
 		// Request full user once more to refresh the setting in case it was changed.
 		Auth().api().requestFullPeer(user);
-		Ui::show(Box<InformBox>(lng_call_error_not_available(lt_user, App::peerName(user))));
+		Ui::show(Box<InformBox>(tr::lng_call_error_not_available(tr::now, lt_user, App::peerName(user))));
 		return;
 	}
 	requestMicrophonePermissionOrFail(crl::guard(this, [=] {

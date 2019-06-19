@@ -392,7 +392,10 @@ object_ptr<BoxContent> VerifyPhoneBox(
 		rpl::producer<QString> error) {
 	return Box<VerifyBox>(
 		tr::lng_passport_phone_title(),
-		lng_passport_confirm_phone(lt_phone, App::formatPhone(phone)),
+		tr::lng_passport_confirm_phone(
+			tr::now,
+			lt_phone,
+			App::formatPhone(phone)),
 		codeLength,
 		submit,
 		nullptr,
@@ -410,7 +413,7 @@ object_ptr<BoxContent> VerifyEmailBox(
 		rpl::producer<QString> resent) {
 	return Box<VerifyBox>(
 		tr::lng_passport_email_title(),
-		lng_passport_confirm_email(lt_email, email),
+		tr::lng_passport_confirm_email(tr::now, lt_email, email),
 		codeLength,
 		submit,
 		resend,

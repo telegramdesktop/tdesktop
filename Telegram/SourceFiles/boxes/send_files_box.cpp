@@ -1550,11 +1550,11 @@ void SendFilesBox::setupSendWayControls() {
 			? tr::lng_send_separate_photos_videos(tr::now)
 			: (_list.albumIsPossible
 				? tr::lng_send_separate_photos(tr::now)
-				: lng_send_photos(lt_count, _list.files.size())));
+				: tr::lng_send_photos(tr::now, lt_count, _list.files.size())));
 	}
 	addRadio(_sendFiles, SendFilesWay::Files, (_list.files.size() == 1)
 		? tr::lng_send_file(tr::now)
-		: lng_send_files(lt_count, _list.files.size()));
+		: tr::lng_send_files(tr::now, lt_count, _list.files.size()));
 }
 
 void SendFilesBox::applyAlbumOrder() {
@@ -1753,8 +1753,8 @@ void SendFilesBox::setupTitleText() {
 		const auto onlyImages = (_compressConfirm != CompressConfirm::None)
 			&& (_albumVideosCount == 0);
 		_titleText = onlyImages
-			? lng_send_images_selected(lt_count, _list.files.size())
-			: lng_send_files_selected(lt_count, _list.files.size());
+			? tr::lng_send_images_selected(tr::now, lt_count, _list.files.size())
+			: tr::lng_send_files_selected(tr::now, lt_count, _list.files.size());
 		_titleHeight = st::boxTitleHeight;
 	} else {
 		_titleText = QString();

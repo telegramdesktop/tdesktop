@@ -193,7 +193,7 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 			open();
 		};
 		Ui::show(Box<ConfirmBox>(
-			lng_allow_bot_pass(lt_bot_name, _bot->name),
+			tr::lng_allow_bot_pass(tr::now, lt_bot_name, _bot->name),
 			tr::lng_allow_bot(tr::now),
 			callback));
 	}

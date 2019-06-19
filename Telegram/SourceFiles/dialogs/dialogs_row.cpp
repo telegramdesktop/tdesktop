@@ -52,7 +52,8 @@ QString ComposeFolderListEntryText(not_null<Data::Folder*> folder) {
 		auto i = peers.begin();
 		auto result = wrapName(*i);
 		for (++i; i != peers.end(); ++i) {
-			result = lng_archived_last_list(
+			result = tr::lng_archived_last_list(
+				tr::now,
 				lt_accumulated,
 				result,
 				lt_chat,
@@ -61,7 +62,7 @@ QString ComposeFolderListEntryText(not_null<Data::Folder*> folder) {
 		return result;
 	}();
 	return (shown < count)
-		? lng_archived_last(lt_count, (count - shown), lt_chats, accumulated)
+		? tr::lng_archived_last(tr::now, lt_count, (count - shown), lt_chats, accumulated)
 		: accumulated;
 }
 

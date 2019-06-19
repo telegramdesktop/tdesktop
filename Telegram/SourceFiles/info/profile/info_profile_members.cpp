@@ -164,11 +164,11 @@ void Members::setupHeader() {
 object_ptr<Ui::FlatLabel> Members::setupTitle() {
 	auto result = object_ptr<Ui::FlatLabel>(
 		_titleWrap,
-		MembersCountValue(
-			_peer
-		) | rpl::map([](int count) {
-			return lng_chat_status_members(lt_count_decimal, count);
-		}) | Ui::Text::ToUpper(),
+		tr::lng_chat_status_members(
+			lt_count_decimal,
+			MembersCountValue(_peer) | tr::to_count(),
+			Ui::Text::Upper
+		),
 		st::infoBlockHeaderLabel);
 	result->setAttribute(Qt::WA_TransparentForMouseEvents);
 	return result;

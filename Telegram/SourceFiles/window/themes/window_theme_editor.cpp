@@ -563,7 +563,7 @@ ThemeExportBox::ThemeExportBox(QWidget*, const QByteArray &paletteContent, const
 , _backgroundContent(backgroundContent)
 , _chooseFromFile(this, tr::lng_settings_bg_from_file(tr::now), st::boxLinkButton)
 , _tileBackground(this, tr::lng_settings_bg_tile(tr::now), tileBackground, st::defaultBoxCheckbox) {
-	_imageText = lng_theme_editor_saved_to_jpg(lt_size, formatSizeText(_backgroundContent.size()));
+	_imageText = tr::lng_theme_editor_saved_to_jpg(tr::now, lt_size, formatSizeText(_backgroundContent.size()));
 	_chooseFromFile->setClickedCallback([this] { chooseBackgroundFromFile(); });
 }
 
@@ -638,7 +638,7 @@ void ThemeExportBox::chooseBackgroundFromFile() {
 				_backgroundContent = content;
 				_isPng = (format == "png");
 				auto sizeText = formatSizeText(_backgroundContent.size());
-				_imageText = _isPng ? lng_theme_editor_read_from_png(lt_size, sizeText) : lng_theme_editor_read_from_jpg(lt_size, sizeText);
+				_imageText = _isPng ? tr::lng_theme_editor_read_from_png(tr::now, lt_size, sizeText) : tr::lng_theme_editor_read_from_jpg(tr::now, lt_size, sizeText);
 				_tileBackground->setChecked(false);
 				updateThumbnail();
 			}

@@ -1241,7 +1241,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 				}
 			}
 
-			auto statusText = (size > 0) ? lng_stickers_count(lt_count, size) : tr::lng_contacts_loading(tr::now);
+			auto statusText = (size > 0) ? tr::lng_stickers_count(tr::now, lt_count, size) : tr::lng_contacts_loading(tr::now);
 			p.setFont(st::stickersTrendingSubheaderFont);
 			p.setPen(st::stickersTrendingSubheaderFg);
 			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, info.top + st::stickersTrendingSubheaderTop, width(), statusText);
@@ -2435,7 +2435,7 @@ void StickersListWidget::removeSet(uint64 setId) {
 	auto it = sets.constFind(setId);
 	if (it != sets.cend()) {
 		_removingSetId = it->id;
-		auto text = lng_stickers_remove_pack(lt_sticker_pack, it->title);
+		auto text = tr::lng_stickers_remove_pack(tr::now, lt_sticker_pack, it->title);
 		Ui::show(Box<ConfirmBox>(text, tr::lng_stickers_remove_pack_confirm(tr::now), crl::guard(this, [=] {
 			Ui::hideLayer();
 			auto &sets = Auth().data().stickerSetsRef();

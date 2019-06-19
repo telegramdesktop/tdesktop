@@ -3936,10 +3936,12 @@ bool HistoryWidget::showSendingFilesError(
 		case Error::None: return QString();
 		case Error::EmptyFile:
 		case Error::Directory:
-		case Error::NonLocalUrl: return lng_send_image_empty(
+		case Error::NonLocalUrl: return tr::lng_send_image_empty(
+			tr::now,
 			lt_name,
 			list.errorData);
-		case Error::TooLargeFile: return lng_send_image_too_large(
+		case Error::TooLargeFile: return tr::lng_send_image_too_large(
+			tr::now,
 			lt_name,
 			list.errorData);
 		}
@@ -6252,17 +6254,17 @@ void HistoryWidget::updateForwardingTexts() {
 			}
 		}
 		if (names.size() > 2) {
-			from = lng_forwarding_from(lt_count, names.size() - 1, lt_user, names[0]);
+			from = tr::lng_forwarding_from(tr::now, lt_count, names.size() - 1, lt_user, names[0]);
 		} else if (names.size() < 2) {
 			from = fullname;
 		} else {
-			from = lng_forwarding_from_two(lt_user, names[0], lt_second_user, names[1]);
+			from = tr::lng_forwarding_from_two(tr::now, lt_user, names[0], lt_second_user, names[1]);
 		}
 
 		if (count < 2) {
 			text = _toForward.front()->inReplyText();
 		} else {
-			text = textcmdLink(1, lng_forward_messages(lt_count, count));
+			text = textcmdLink(1, tr::lng_forward_messages(tr::now, lt_count, count));
 		}
 	}
 	_toForwardFrom.setText(st::msgNameStyle, from, Ui::NameTextOptions());

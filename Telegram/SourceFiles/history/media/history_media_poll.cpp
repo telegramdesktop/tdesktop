@@ -810,7 +810,7 @@ TextState HistoryPoll::textState(QPoint point, StateRequest request) const {
 				using Flag = Ui::Text::StateRequest::Flag;
 				if (request.flags & Flag::LookupCustomTooltip) {
 					result.customTooltipText = answer.votes
-						? lng_polls_votes_count(lt_count_decimal, answer.votes)
+						? tr::lng_polls_votes_count(tr::now, lt_count_decimal, answer.votes)
 						: tr::lng_polls_votes_none(tr::now);
 				}
 			}

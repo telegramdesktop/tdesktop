@@ -119,7 +119,7 @@ void UnreadBar::init(int newCount) {
 	count = newCount;
 	text = /*(count == kCountUnknown) // #feed
 		? tr::lng_unread_bar_some(tr::now)
-		: */lng_unread_bar(lt_count, count);
+		: */tr::lng_unread_bar(tr::now, lt_count, count);
 	width = st::semiboldFont->width(text);
 }
 

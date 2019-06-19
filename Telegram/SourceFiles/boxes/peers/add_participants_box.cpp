@@ -731,8 +731,11 @@ void AddSpecialBoxController::kickUser(
 	// Finally kick him.
 	if (!sure) {
 		const auto text = ((_peer->isChat() || _peer->isMegagroup())
-			? lng_profile_sure_kick
-			: lng_profile_sure_kick_channel)(lt_user, App::peerName(user));
+			? tr::lng_profile_sure_kick
+			: tr::lng_profile_sure_kick_channel)(
+				tr::now,
+				lt_user,
+				App::peerName(user));
 		_editBox = Ui::show(
 			Box<ConfirmBox>(text, kickUserSure),
 			LayerOption::KeepOther);

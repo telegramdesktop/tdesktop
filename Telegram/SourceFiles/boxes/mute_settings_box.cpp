@@ -56,9 +56,9 @@ void MuteSettingsBox::prepare() {
 	for (const auto hours : { 1, 4, 18, 72, kForeverHours }) {
 		const auto text = [&] {
 			if (hours < 24) {
-				return lng_mute_duration_hours(lt_count, hours);
+				return tr::lng_mute_duration_hours(tr::now, lt_count, hours);
 			} else if (hours < kForeverHours) {
-				return lng_mute_duration_days(lt_count, hours / 24);
+				return tr::lng_mute_duration_days(tr::now, lt_count, hours / 24);
 			} else {
 				return tr::lng_mute_duration_forever(tr::now);
 			}

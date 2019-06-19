@@ -150,7 +150,7 @@ void Calls::setupContent() {
 	const auto updateOutputLabel = [=](int value) {
 		const auto percent = QString::number(value);
 		outputLabel->setText(
-			lng_settings_call_output_volume(lt_percent, percent));
+			tr::lng_settings_call_output_volume(tr::now, lt_percent, percent));
 	};
 	const auto updateOutputVolume = [=](int value) {
 		_needWriteSettings = true;
@@ -228,7 +228,7 @@ void Calls::setupContent() {
 	const auto updateInputLabel = [=](int value) {
 		const auto percent = QString::number(value);
 		inputLabel->setText(
-			lng_settings_call_input_volume(lt_percent, percent));
+			tr::lng_settings_call_input_volume(tr::now, lt_percent, percent));
 	};
 	const auto updateInputVolume = [=](int value) {
 		_needWriteSettings = true;

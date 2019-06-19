@@ -771,7 +771,7 @@ void TopBarWidget::updateOnlineDisplay() {
 			} else if (chat->count <= 0) {
 				text = tr::lng_group_status(tr::now);
 			} else {
-				text = lng_chat_status_members(lt_count_decimal, chat->count);
+				text = tr::lng_chat_status_members(tr::now, lt_count_decimal, chat->count);
 			}
 		} else {
 			const auto self = Auth().user();
@@ -784,11 +784,11 @@ void TopBarWidget::updateOnlineDisplay() {
 				}
 			}
 			if (online > 0 && !onlyMe) {
-				auto membersCount = lng_chat_status_members(lt_count_decimal, chat->participants.size());
-				auto onlineCount = lng_chat_status_online(lt_count, online);
-				text = lng_chat_status_members_online(lt_members_count, membersCount, lt_online_count, onlineCount);
+				auto membersCount = tr::lng_chat_status_members(tr::now, lt_count_decimal, chat->participants.size());
+				auto onlineCount = tr::lng_chat_status_online(tr::now, lt_count, online);
+				text = tr::lng_chat_status_members_online(tr::now, lt_members_count, membersCount, lt_online_count, onlineCount);
 			} else if (chat->participants.size() > 0) {
-				text = lng_chat_status_members(lt_count_decimal, chat->participants.size());
+				text = tr::lng_chat_status_members(tr::now, lt_count_decimal, chat->participants.size());
 			} else {
 				text = tr::lng_group_status(tr::now);
 			}
@@ -810,16 +810,16 @@ void TopBarWidget::updateOnlineDisplay() {
 				}
 			}
 			if (online && !onlyMe) {
-				auto membersCount = lng_chat_status_members(lt_count_decimal, channel->membersCount());
-				auto onlineCount = lng_chat_status_online(lt_count, online);
-				text = lng_chat_status_members_online(lt_members_count, membersCount, lt_online_count, onlineCount);
+				auto membersCount = tr::lng_chat_status_members(tr::now, lt_count_decimal, channel->membersCount());
+				auto onlineCount = tr::lng_chat_status_online(tr::now, lt_count, online);
+				text = tr::lng_chat_status_members_online(tr::now, lt_members_count, membersCount, lt_online_count, onlineCount);
 			} else if (channel->membersCount() > 0) {
-				text = lng_chat_status_members(lt_count_decimal, channel->membersCount());
+				text = tr::lng_chat_status_members(tr::now, lt_count_decimal, channel->membersCount());
 			} else {
 				text = tr::lng_group_status(tr::now);
 			}
 		} else if (channel->membersCount() > 0) {
-			text = lng_chat_status_members(lt_count_decimal, channel->membersCount());
+			text = tr::lng_chat_status_members(tr::now, lt_count_decimal, channel->membersCount());
 
 		} else {
 			text = channel->isMegagroup() ? tr::lng_group_status(tr::now) : tr::lng_channel_status(tr::now);

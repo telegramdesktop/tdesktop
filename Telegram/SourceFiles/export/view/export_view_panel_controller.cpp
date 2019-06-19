@@ -199,9 +199,10 @@ void PanelController::showError(const ApiErrorState &error) {
 			if (hours <= 0) {
 				return tr::lng_export_delay_less_than_hour(tr::now);
 			}
-			return lng_export_delay_hours(lt_count, hours);
+			return tr::lng_export_delay_hours(tr::now, lt_count, hours);
 		}();
-		showError(lng_export_delay(
+		showError(tr::lng_export_delay(
+			tr::now,
 			lt_hours,
 			hoursText,
 			lt_date,

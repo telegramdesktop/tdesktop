@@ -811,7 +811,7 @@ void Panel::leaveToChildEvent(QEvent *e, QWidget *child) {
 }
 
 QString Panel::tooltipText() const {
-	return lng_call_fingerprint_tooltip(lt_user, App::peerName(_user));
+	return tr::lng_call_fingerprint_tooltip(tr::now, lt_user, App::peerName(_user));
 }
 
 QPoint Panel::tooltipPos() const {

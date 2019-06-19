@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 void HistoryMessageVia::create(UserId userId) {
 	bot = Auth().data().user(userId);
 	maxWidth = st::msgServiceNameFont->width(
-		lng_inline_bot_via(lt_inline_bot, '@' + bot->username));
+		tr::lng_inline_bot_via(tr::now, lt_inline_bot, '@' + bot->username));
 	link = std::make_shared<LambdaClickHandler>([bot = this->bot] {
 		App::insertBotCommand('@' + bot->username);
 	});
@@ -40,7 +40,7 @@ void HistoryMessageVia::resize(int32 availw) const {
 		text = QString();
 		width = 0;
 	} else {
-		text = lng_inline_bot_via(lt_inline_bot, '@' + bot->username);
+		text = tr::lng_inline_bot_via(tr::now, lt_inline_bot, '@' + bot->username);
 		if (availw < maxWidth) {
 			text = st::msgServiceNameFont->elided(text, availw);
 			width = st::msgServiceNameFont->width(text);
@@ -102,7 +102,8 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 		? App::peerName(originalSender)
 		: hiddenSenderInfo->name;
 	if (!originalAuthor.isEmpty()) {
-		phrase = lng_forwarded_signed(
+		phrase = tr::lng_forwarded_signed(
+			tr::now,
 			lt_channel,
 			name,
 			lt_user,
@@ -112,13 +113,15 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 	}
 	if (via) {
 		if (fromChannel) {
-			phrase = lng_forwarded_channel_via(
+			phrase = tr::lng_forwarded_channel_via(
+				tr::now,
 				lt_channel,
 				textcmdLink(1, phrase),
 				lt_inline_bot,
 				textcmdLink(2, '@' + via->bot->username));
 		} else {
-			phrase = lng_forwarded_via(
+			phrase = tr::lng_forwarded_via(
+				tr::now,
 				lt_user,
 				textcmdLink(1, phrase),
 				lt_inline_bot,
@@ -126,11 +129,13 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 		}
 	} else {
 		if (fromChannel) {
-			phrase = lng_forwarded_channel(
+			phrase = tr::lng_forwarded_channel(
+				tr::now,
 				lt_channel,
 				textcmdLink(1, phrase));
 		} else {
-			phrase = lng_forwarded(
+			phrase = tr::lng_forwarded(
+				tr::now,
 				lt_user,
 				textcmdLink(1, phrase));
 		}

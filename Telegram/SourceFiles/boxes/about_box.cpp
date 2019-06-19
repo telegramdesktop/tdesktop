@@ -53,7 +53,7 @@ rpl::producer<TextWithEntities> Text3() {
 } // namespace
 
 AboutBox::AboutBox(QWidget *parent)
-: _version(this, lng_about_version(lt_version, currentVersionText()), st::aboutVersionLink)
+: _version(this, tr::lng_about_version(tr::now, lt_version, currentVersionText()), st::aboutVersionLink)
 , _text1(this, Text1(), st::aboutLabel)
 , _text2(this, Text2(), st::aboutLabel)
 , _text3(this, Text3(), st::aboutLabel) {

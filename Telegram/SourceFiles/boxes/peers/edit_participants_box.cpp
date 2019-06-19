@@ -1554,8 +1554,11 @@ void ParticipantsBoxController::editRestrictedDone(
 
 void ParticipantsBoxController::kickMember(not_null<UserData*> user) {
 	const auto text = ((_peer->isChat() || _peer->isMegagroup())
-		? lng_profile_sure_kick
-		: lng_profile_sure_kick_channel)(lt_user, user->firstName);
+		? tr::lng_profile_sure_kick
+		: tr::lng_profile_sure_kick_channel)(
+			tr::now,
+			lt_user,
+			user->firstName);
 	_editBox = Ui::show(
 		Box<ConfirmBox>(
 			text,
@@ -1598,7 +1601,8 @@ void ParticipantsBoxController::kickMemberSure(not_null<UserData*> user) {
 void ParticipantsBoxController::removeAdmin(not_null<UserData*> user) {
 	_editBox = Ui::show(
 		Box<ConfirmBox>(
-			lng_profile_sure_remove_admin(
+			tr::lng_profile_sure_remove_admin(
+				tr::now,
 				lt_user,
 				user->firstName),
 			tr::lng_box_remove(tr::now),
@@ -1752,7 +1756,8 @@ void ParticipantsBoxController::refreshCustomStatus(
 	const auto user = row->peer()->asUser();
 	if (_role == Role::Admins) {
 		if (const auto by = _additional.adminPromotedBy(user)) {
-			row->setCustomStatus(lng_channel_admin_status_promoted_by(
+			row->setCustomStatus(tr::lng_channel_admin_status_promoted_by(
+				tr::now,
 				lt_user,
 				App::peerName(by)));
 		} else {
@@ -1767,10 +1772,11 @@ void ParticipantsBoxController::refreshCustomStatus(
 	} else if (_role == Role::Kicked || _role == Role::Restricted) {
 		const auto by = _additional.restrictedBy(user);
 		row->setCustomStatus((_role == Role::Kicked
-			? lng_channel_banned_status_removed_by
-			: lng_channel_banned_status_restricted_by)(
-			lt_user,
-			by ? App::peerName(by) : "Unknown"));
+			? tr::lng_channel_banned_status_removed_by
+			: tr::lng_channel_banned_status_restricted_by)(
+				tr::now,
+				lt_user,
+				by ? App::peerName(by) : "Unknown"));
 	}
 }
 

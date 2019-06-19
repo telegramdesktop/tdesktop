@@ -56,7 +56,7 @@ Bar::Bar(not_null<QWidget*> parent, QDate date)
 	_title->setTryMakeSimilarLines(true);
 	_details->setTryMakeSimilarLines(true);
 	_details->setText(_soon
-		? lng_outdated_soon(lt_date, langDayOfMonthFull(date))
+		? tr::lng_outdated_soon(tr::now, lt_date, langDayOfMonthFull(date))
 		: tr::lng_outdated_now(tr::now));
 }
 

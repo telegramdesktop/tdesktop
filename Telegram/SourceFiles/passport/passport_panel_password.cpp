@@ -35,7 +35,10 @@ PanelAskPassword::PanelAskPassword(
 	st::passportPasswordUserpic)
 , _about1(
 	this,
-	lng_passport_request1(lt_bot, App::peerName(_controller->bot())),
+	tr::lng_passport_request1(
+		tr::now,
+		lt_bot,
+		App::peerName(_controller->bot())),
 	st::passportPasswordLabelBold)
 , _about2(
 	this,
@@ -173,7 +176,8 @@ void PanelNoPassword::setupContent() {
 			_inner,
 			object_ptr<Ui::FlatLabel>(
 				_inner,
-				lng_passport_request1(
+				tr::lng_passport_request1(
+					tr::now,
 					lt_bot,
 					App::peerName(_controller->bot())),
 				st::passportPasswordLabelBold)),
@@ -221,7 +225,7 @@ void PanelNoPassword::refreshBottom() {
 				_inner,
 				(pattern.isEmpty()
 					? tr::lng_passport_about_password(tr::now)
-					: lng_passport_code_sent(lt_email, pattern)),
+					: tr::lng_passport_code_sent(tr::now, lt_email, pattern)),
 				st::passportPasswordSetupLabel)),
 		st::passportFormAbout2Padding)->entity());
 	if (pattern.isEmpty()) {

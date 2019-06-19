@@ -675,7 +675,8 @@ void ForwardsPrivacyController::PaintForwardedTooltip(
 	const auto innerWidth = bubbleWidth
 		- st::msgPadding.left()
 		- st::msgPadding.right();
-	const auto phrase = lng_forwarded(
+	const auto phrase = tr::lng_forwarded(
+		tr::now,
 		lt_user,
 		App::peerName(view->data()->history()->session().user()));
 	const auto kReplacementPosition = QChar(0x0001);

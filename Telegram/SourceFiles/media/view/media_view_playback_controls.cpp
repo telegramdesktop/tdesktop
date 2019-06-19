@@ -186,7 +186,8 @@ void PlaybackControls::setLoadingProgress(int ready, int total) {
 		const auto percent = int(std::round(progress * 100));
 		if (_loadingPercent != percent) {
 			_loadingPercent = percent;
-			_downloadProgress->setText(lng_mediaview_video_loading(
+			_downloadProgress->setText(tr::lng_mediaview_video_loading(
+				tr::now,
 				lt_percent,
 				QString::number(percent) + '%'));
 			if (_playbackSlider->width() > _downloadProgress->width()) {

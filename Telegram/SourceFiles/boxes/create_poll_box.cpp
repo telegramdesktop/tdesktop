@@ -654,7 +654,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		setCloseByOutsideClick(!count);
 	}) | rpl::map([=](int count) {
 		return (count < kMaxOptionsCount)
-			? lng_polls_create_limit(lt_count, kMaxOptionsCount - count)
+			? tr::lng_polls_create_limit(tr::now, lt_count, kMaxOptionsCount - count)
 			: tr::lng_polls_create_maximum(tr::now);
 	}) | rpl::after_next([=] {
 		container->resizeToWidth(container->widthNoMargins());

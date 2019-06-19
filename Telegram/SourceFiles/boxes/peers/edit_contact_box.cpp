@@ -203,7 +203,7 @@ void Controller::sendRequest(const QString &first, const QString &last) {
 			weak->closeBox();
 		}
 		if (!wasContact) {
-			Ui::Toast::Show(lng_new_contact_add_done(lt_user, first));
+			Ui::Toast::Show(tr::lng_new_contact_add_done(tr::now, lt_user, first));
 		}
 	}).fail([=](const RPCError &error) {
 	}).send();
@@ -216,7 +216,7 @@ void Controller::setupWarning() {
 	_box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			_box,
-			lng_contact_phone_after(lt_user, _user->shortName()),
+			tr::lng_contact_phone_after(tr::now, lt_user, _user->shortName()),
 			st::changePhoneLabel),
 		st::addContactWarningMargin);
 }
@@ -238,7 +238,7 @@ void Controller::setupSharePhoneNumber() {
 	_box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			_box,
-			lng_contact_phone_will_be_shared(lt_user, _user->shortName()),
+			tr::lng_contact_phone_will_be_shared(tr::now, lt_user, _user->shortName()),
 			st::changePhoneLabel),
 		st::addContactWarningMargin);
 

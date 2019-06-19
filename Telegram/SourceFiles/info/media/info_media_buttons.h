@@ -27,21 +27,21 @@ namespace Media {
 
 using Type = Storage::SharedMediaType;
 
-inline auto MediaTextPhrase(Type type) {
+inline tr::phrase<lngtag_count> MediaTextPhrase(Type type) {
 	switch (type) {
-	case Type::Photo: return lng_profile_photos;
-	case Type::Video: return lng_profile_videos;
-	case Type::File: return lng_profile_files;
-	case Type::MusicFile: return lng_profile_songs;
-	case Type::Link: return lng_profile_shared_links;
-	case Type::RoundVoiceFile: return lng_profile_audios;
+	case Type::Photo: return tr::lng_profile_photos;
+	case Type::Video: return tr::lng_profile_videos;
+	case Type::File: return tr::lng_profile_files;
+	case Type::MusicFile: return tr::lng_profile_songs;
+	case Type::Link: return tr::lng_profile_shared_links;
+	case Type::RoundVoiceFile: return tr::lng_profile_audios;
 	}
 	Unexpected("Type in MediaTextPhrase()");
 };
 
 inline auto MediaText(Type type) {
 	return [phrase = MediaTextPhrase(type)](int count) {
-		return phrase(lt_count, count);
+		return phrase(tr::now, lt_count, count);
 	};
 }
 
@@ -106,7 +106,7 @@ inline auto AddCommonGroupsButton(
 		parent,
 		Profile::CommonGroupsCountValue(user),
 		[](int count) {
-			return lng_profile_common_groups(lt_count, count);
+			return tr::lng_profile_common_groups(tr::now, lt_count, count);
 		},
 		tracker)->entity();
 	result->addClickHandler([=] {

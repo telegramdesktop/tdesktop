@@ -299,23 +299,23 @@ QString OnlineText(TimeId online, TimeId now) {
 	if (!minutes) {
 		return tr::lng_status_lastseen_now(tr::now);
 	} else if (minutes < 60) {
-		return lng_status_lastseen_minutes(lt_count, minutes);
+		return tr::lng_status_lastseen_minutes(tr::now, lt_count, minutes);
 	}
 	const auto hours = (now - online) / 3600;
 	if (hours < 12) {
-		return lng_status_lastseen_hours(lt_count, hours);
+		return tr::lng_status_lastseen_hours(tr::now, lt_count, hours);
 	}
 	const auto onlineFull = ParseDateTime(online);
 	const auto nowFull = ParseDateTime(now);
 	if (onlineFull.date() == nowFull.date()) {
 		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
-		return lng_status_lastseen_today(lt_time, onlineTime);
+		return tr::lng_status_lastseen_today(tr::now, lt_time, onlineTime);
 	} else if (onlineFull.date().addDays(1) == nowFull.date()) {
 		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
-		return lng_status_lastseen_yesterday(lt_time, onlineTime);
+		return tr::lng_status_lastseen_yesterday(tr::now, lt_time, onlineTime);
 	}
 	const auto date = onlineFull.date().toString(qsl("dd.MM.yy"));
-	return lng_status_lastseen_date(lt_date, date);
+	return tr::lng_status_lastseen_date(tr::now, lt_date, date);
 }
 
 QString OnlineText(not_null<UserData*> user, TimeId now) {
@@ -335,14 +335,14 @@ QString OnlineTextFull(not_null<UserData*> user, TimeId now) {
 	const auto nowFull = ParseDateTime(now);
 	if (onlineFull.date() == nowFull.date()) {
 		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
-		return lng_status_lastseen_today(lt_time, onlineTime);
+		return tr::lng_status_lastseen_today(tr::now, lt_time, onlineTime);
 	} else if (onlineFull.date().addDays(1) == nowFull.date()) {
 		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
-		return lng_status_lastseen_yesterday(lt_time, onlineTime);
+		return tr::lng_status_lastseen_yesterday(tr::now, lt_time, onlineTime);
 	}
 	const auto date = onlineFull.date().toString(qsl("dd.MM.yy"));
 	const auto time = onlineFull.time().toString(cTimeFormat());
-	return lng_status_lastseen_date_time(lt_date, date, lt_time, time);
+	return tr::lng_status_lastseen_date_time(tr::now, lt_date, date, lt_time, time);
 }
 
 bool OnlineTextActive(TimeId online, TimeId now) {

@@ -272,7 +272,7 @@ void EditScans::List::pushScan(const ScanInfo &info) {
 	rows.push_back(CreateScan(
 		wrap,
 		info,
-		lng_passport_scan_index(lt_index, QString::number(index + 1))));
+		tr::lng_passport_scan_index(tr::now, lt_index, QString::number(index + 1))));
 	rows.back()->hide(anim::type::instant);
 
 	const auto scan = rows.back()->entity();

@@ -218,8 +218,8 @@ void SetupLocalPasscode(not_null<Ui::VerticalLayout*> container) {
 	) | rpl::map([] {
 		const auto autolock = Global::AutoLock();
 		return (autolock % 3600)
-			? lng_passcode_autolock_minutes(lt_count, autolock / 60)
-			: lng_passcode_autolock_hours(lt_count, autolock / 3600);
+			? tr::lng_passcode_autolock_minutes(tr::now, lt_count, autolock / 60)
+			: tr::lng_passcode_autolock_hours(tr::now, lt_count, autolock / 3600);
 	});
 
 	AddButtonWithLabel(
@@ -263,7 +263,7 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 	) | rpl::filter([](const QString &pattern) {
 		return !pattern.isEmpty();
 	}) | rpl::map([](const QString &pattern) {
-		return lng_cloud_password_waiting_code(lt_email, pattern);
+		return tr::lng_cloud_password_waiting_code(tr::now, lt_email, pattern);
 	}));
 	auto unconfirmed = rpl::duplicate(
 		pattern

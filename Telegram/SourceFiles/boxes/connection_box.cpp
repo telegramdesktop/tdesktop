@@ -304,7 +304,8 @@ void ProxyRow::paintEvent(QPaintEvent *e) {
 	const auto status = [&] {
 		switch (_view.state) {
 		case State::Available:
-			return lng_proxy_available(
+			return tr::lng_proxy_available(
+				tr::now,
 				lt_ping,
 				QString::number(_view.ping));
 		case State::Checking:
@@ -952,7 +953,8 @@ void ProxiesBoxController::ShowApplyConfirmation(
 	}
 	if (proxy) {
 		const auto box = std::make_shared<QPointer<ConfirmBox>>();
-		const auto text = lng_sure_enable_socks(
+		const auto text = tr::lng_sure_enable_socks(
+			tr::now,
 			lt_server,
 			server,
 			lt_port,

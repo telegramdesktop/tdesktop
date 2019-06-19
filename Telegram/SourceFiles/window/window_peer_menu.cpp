@@ -138,7 +138,8 @@ bool PinnedLimitReached(Dialogs::Key key) {
 		Auth().data().setChatPinned(key, true);
 		Auth().api().savePinnedOrder(folder);
 	} else {
-		auto errorText = lng_error_pinned_max(
+		auto errorText = tr::lng_error_pinned_max(
+			tr::now,
 			lt_count,
 			pinnedMax);
 		Ui::show(Box<InformBox>(errorText));
@@ -624,7 +625,8 @@ void PeerMenuExportChat(not_null<PeerData*> peer) {
 }
 
 void PeerMenuDeleteContact(not_null<UserData*> user) {
-	const auto text = lng_sure_delete_contact(
+	const auto text = tr::lng_sure_delete_contact(
+		tr::now,
 		lt_contact,
 		App::peerName(user));
 	const auto deleteSure = [=] {
@@ -662,7 +664,7 @@ void PeerMenuShareContactBox(not_null<UserData*> user) {
 			? peer->name
 			: '\xAB' + peer->name + '\xBB';
 		Ui::show(Box<ConfirmBox>(
-			lng_forward_share_contact(lt_recipient, recipient),
+			tr::lng_forward_share_contact(tr::now, lt_recipient, recipient),
 			tr::lng_forward_send(tr::now),
 			[peer, user] {
 				const auto history = peer->owner().history(peer);
@@ -768,7 +770,7 @@ void PeerMenuBlockUserBox(
 		}
 
 		Ui::Toast::Show(
-			lng_new_contact_block_done(lt_user, user->shortName()));
+			tr::lng_new_contact_block_done(tr::now, lt_user, user->shortName()));
 	}, st::attentionBoxButton);
 
 	box->addButton(tr::lng_cancel(), [=] {

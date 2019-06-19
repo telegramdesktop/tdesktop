@@ -614,7 +614,8 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				? tr::lng_search_no_results(tr::now)
 				: showUnreadInSearchResults
 				? qsl("Search results")
-				: lng_search_found_results(
+				: tr::lng_search_found_results(
+					tr::now,
 					lt_count,
 					_searchedMigratedCount + _searchedCount);
 			p.fillRect(0, 0, fullWidth, st::searchedBarHeight, st::searchedBarBg);
@@ -2251,7 +2252,8 @@ void InnerWidget::refreshSearchInChatLabel() {
 		return QString();
 	}();
 	if (!from.isEmpty()) {
-		const auto fromUserText = lng_dlg_search_from(
+		const auto fromUserText = tr::lng_dlg_search_from(
+			tr::now,
 			lt_user,
 			textcmdLink(1, from));
 		_searchFromUserText.setText(

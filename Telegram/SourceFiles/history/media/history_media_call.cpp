@@ -36,7 +36,8 @@ HistoryCall::HistoryCall(
 	if (_duration) {
 		if (_reason != FinishReason::Missed
 			&& _reason != FinishReason::Busy) {
-			_status = lng_call_duration_info(
+			_status = tr::lng_call_duration_info(
+				tr::now,
 				lt_time,
 				_status,
 				lt_duration,

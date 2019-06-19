@@ -167,7 +167,7 @@ SetState ComputeState(int id) {
 
 QString StateDescription(const SetState &state) {
 	return state.match([](const Available &data) {
-		return lng_emoji_set_download(lt_size, formatSizeText(data.size));
+		return tr::lng_emoji_set_download(tr::now, lt_size, formatSizeText(data.size));
 	}, [](const Ready &data) -> QString {
 		return tr::lng_emoji_set_ready(tr::now);
 	}, [](const Active &data) -> QString {
@@ -176,7 +176,8 @@ QString StateDescription(const SetState &state) {
 		const auto percent = (data.size > 0)
 			? snap((data.already * 100) / float64(data.size), 0., 100.)
 			: 0.;
-		return lng_emoji_set_loading(
+		return tr::lng_emoji_set_loading(
+			tr::now,
 			lt_percent,
 			QString::number(int(std::round(percent))) + '%',
 			lt_progress,

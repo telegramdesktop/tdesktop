@@ -997,13 +997,14 @@ void FileLoadTask::process() {
 void FileLoadTask::finish() {
 	if (!_result || !_result->filesize || _result->filesize < 0) {
 		Ui::show(
-			Box<InformBox>(lng_send_image_empty(lt_name, _filepath)),
+			Box<InformBox>(
+				tr::lng_send_image_empty(tr::now, lt_name, _filepath)),
 			LayerOption::KeepOther);
 		removeFromAlbum();
 	} else if (_result->filesize > App::kFileSizeLimit) {
 		Ui::show(
 			Box<InformBox>(
-				lng_send_image_too_large(lt_name, _filepath)),
+				tr::lng_send_image_too_large(tr::now, lt_name, _filepath)),
 			LayerOption::KeepOther);
 		removeFromAlbum();
 	} else if (App::main()) {

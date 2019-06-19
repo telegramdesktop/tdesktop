@@ -469,7 +469,7 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 		[button setHidden:YES];
 #endif // OS_MAC_STORE
 		NSTextField *goodLabel = [[NSTextField alloc] init];
-		[goodLabel setStringValue:Q2NSString(lng_mac_this_app_can_open(lt_file, NS2QString(name)))];
+		[goodLabel setStringValue:Q2NSString(tr::lng_mac_this_app_can_open(tr::now, lt_file, NS2QString(name)))];
 		[goodLabel setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
 		[goodLabel setBezeled:NO];
 		[goodLabel setDrawsBackground:NO];
@@ -482,7 +482,7 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 		[goodLabel setFrame:goodFrame];
 
 		NSTextField *badLabel = [[NSTextField alloc] init];
-		[badLabel setStringValue:Q2NSString(lng_mac_not_known_app(lt_file, NS2QString(name)))];
+		[badLabel setStringValue:Q2NSString(tr::lng_mac_not_known_app(tr::now, lt_file, NS2QString(name)))];
 		[badLabel setFont:[goodLabel font]];
 		[badLabel setBezeled:NO];
 		[badLabel setDrawsBackground:NO];

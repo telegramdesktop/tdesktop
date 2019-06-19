@@ -551,7 +551,8 @@ void ApiWrap::sendMessageFail(const RPCError &error) {
 		const auto link = textcmdLink(
 			Core::App().createInternalLinkFull(qsl("spambot")),
 			tr::lng_cant_more_info(tr::now));
-		Ui::show(Box<InformBox>(lng_error_public_groups_denied(
+		Ui::show(Box<InformBox>(tr::lng_error_public_groups_denied(
+			tr::now,
 			lt_more_info,
 			link)));
 	}

@@ -9,13 +9,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 namespace Text {
+namespace details {
 
-inline auto ToUpper() {
-	return rpl::map([](QString &&text) {
+struct ToUpperType {
+	inline QString operator()(const QString &text) const {
+		return text.toUpper();
+	}
+	inline QString operator()(QString &&text) const {
 		return std::move(text).toUpper();
-	});
-}
+	}
+};
 
+} // namespace details
+
+inline constexpr auto Upper = details::ToUpperType{};
 TextWithEntities Bold(const QString &text);
 TextWithEntities Link(
 	const QString &text,
@@ -23,6 +30,10 @@ TextWithEntities Link(
 TextWithEntities RichLangValue(const QString &text);
 inline TextWithEntities WithEntities(const QString &text) {
 	return { text };
+}
+
+inline auto ToUpper() {
+	return rpl::map(Upper);
 }
 
 inline auto ToBold() {

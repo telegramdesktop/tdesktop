@@ -3100,21 +3100,24 @@ QString HistoryInner::tooltipText() const {
 			auto dateText = view->dateTime().toString(
 				QLocale::system().dateTimeFormat(QLocale::LongFormat));
 			if (const auto editedDate = view->displayedEditDate()) {
-				dateText += '\n' + lng_edited_date(
+				dateText += '\n' + tr::lng_edited_date(
+					tr::now,
 					lt_date,
 					ParseDateTime(editedDate).toString(
 						QLocale::system().dateTimeFormat(
 							QLocale::LongFormat)));
 			}
 			if (const auto forwarded = view->data()->Get<HistoryMessageForwarded>()) {
-				dateText += '\n' + lng_forwarded_date(
+				dateText += '\n' + tr::lng_forwarded_date(
+					tr::now,
 					lt_date,
 					ParseDateTime(forwarded->originalDate).toString(
 						QLocale::system().dateTimeFormat(
 							QLocale::LongFormat)));
 				if (const auto media = view->media()) {
 					if (media->hidesForwardedInfo()) {
-						dateText += "\n" + lng_forwarded(
+						dateText += "\n" + tr::lng_forwarded(
+							tr::now,
 							lt_user,
 							(forwarded->originalSender
 								? forwarded->originalSender->shortName()
@@ -3124,7 +3127,7 @@ QString HistoryInner::tooltipText() const {
 			}
 			if (const auto msgsigned = view->data()->Get<HistoryMessageSigned>()) {
 				if (msgsigned->isElided) {
-					dateText += '\n' + lng_signed_author(lt_user, msgsigned->author);
+					dateText += '\n' + tr::lng_signed_author(tr::now, lt_user, msgsigned->author);
 				}
 			}
 			return dateText;

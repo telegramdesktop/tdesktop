@@ -705,7 +705,7 @@ void Notification::updateNotifyDisplay() {
 					r.setTop(r.top() + st::dialogsTextFont->height);
 				}
 				p.setPen(st::dialogsTextFg);
-				p.drawText(r.left(), r.top() + st::dialogsTextFont->ascent, lng_forward_messages(lt_count, _forwardedCount));
+				p.drawText(r.left(), r.top() + st::dialogsTextFont->ascent, tr::lng_forward_messages(tr::now, lt_count, _forwardedCount));
 			}
 		} else {
 			static QString notifyText = st::dialogsTextFont->elided(tr::lng_notification_preview(tr::now), itemWidth);

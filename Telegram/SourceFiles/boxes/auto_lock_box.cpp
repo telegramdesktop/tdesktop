@@ -25,7 +25,7 @@ void AutoLockBox::prepare() {
 	auto count = int(options.size());
 	_options.reserve(count);
 	for (auto seconds : options) {
-		_options.emplace_back(this, group, seconds, (seconds % 3600) ? lng_passcode_autolock_minutes(lt_count, seconds / 60) : lng_passcode_autolock_hours(lt_count, seconds / 3600), st::autolockButton);
+		_options.emplace_back(this, group, seconds, (seconds % 3600) ? tr::lng_passcode_autolock_minutes(tr::now, lt_count, seconds / 60) : tr::lng_passcode_autolock_hours(tr::now, lt_count, seconds / 3600), st::autolockButton);
 		_options.back()->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
 		y += _options.back()->heightNoMargins() + st::boxOptionListSkip;
 	}

@@ -128,13 +128,27 @@ void CodeWidget::updateCallText() {
 		switch (_callStatus) {
 		case Widget::Data::CallStatus::Waiting: {
 			if (_callTimeout >= 3600) {
-				return lng_code_call(lt_minutes, qsl("%1:%2").arg(_callTimeout / 3600).arg((_callTimeout / 60) % 60, 2, 10, QChar('0')), lt_seconds, qsl("%1").arg(_callTimeout % 60, 2, 10, QChar('0')));
+				return tr::lng_code_call(
+					tr::now,
+					lt_minutes,
+					qsl("%1:%2"
+					).arg(_callTimeout / 3600
+					).arg((_callTimeout / 60) % 60, 2, 10, QChar('0')),
+					lt_seconds,
+					qsl("%1").arg(_callTimeout % 60, 2, 10, QChar('0')));
 			} else {
-				return lng_code_call(lt_minutes, QString::number(_callTimeout / 60), lt_seconds, qsl("%1").arg(_callTimeout % 60, 2, 10, QChar('0')));
+				return tr::lng_code_call(
+					tr::now,
+					lt_minutes,
+					QString::number(_callTimeout / 60),
+					lt_seconds,
+					qsl("%1").arg(_callTimeout % 60, 2, 10, QChar('0')));
 			}
 		} break;
-		case Widget::Data::CallStatus::Calling: return tr::lng_code_calling(tr::now);
-		case Widget::Data::CallStatus::Called: return tr::lng_code_called(tr::now);
+		case Widget::Data::CallStatus::Calling:
+			return tr::lng_code_calling(tr::now);
+		case Widget::Data::CallStatus::Called:
+			return tr::lng_code_called(tr::now);
 		}
 		return QString();
 	})();

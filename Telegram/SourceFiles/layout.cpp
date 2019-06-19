@@ -48,7 +48,7 @@ QString formatDownloadText(qint64 ready, qint64 total) {
 		totalStr = QString::number(total);
 		mb = qsl("B");
 	}
-	return lng_save_downloaded(lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
+	return tr::lng_save_downloaded(tr::now, lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
 }
 
 QString formatDurationText(qint64 duration) {
@@ -59,24 +59,24 @@ QString formatDurationText(qint64 duration) {
 QString formatDurationWords(qint64 duration) {
 	if (duration > 59) {
 		auto minutes = (duration / 60);
-		auto minutesCount = lng_duration_minsec_minutes(lt_count, minutes);
+		auto minutesCount = tr::lng_duration_minsec_minutes(tr::now, lt_count, minutes);
 		auto seconds = (duration % 60);
-		auto secondsCount = lng_duration_minsec_seconds(lt_count, seconds);
-		return lng_duration_minutes_seconds(lt_minutes_count, minutesCount, lt_seconds_count, secondsCount);
+		auto secondsCount = tr::lng_duration_minsec_seconds(tr::now, lt_count, seconds);
+		return tr::lng_duration_minutes_seconds(tr::now, lt_minutes_count, minutesCount, lt_seconds_count, secondsCount);
 	}
-	return lng_duration_seconds(lt_count, duration);
+	return tr::lng_duration_seconds(tr::now, lt_count, duration);
 }
 
 QString formatDurationAndSizeText(qint64 duration, qint64 size) {
-	return lng_duration_and_size(lt_duration, formatDurationText(duration), lt_size, formatSizeText(size));
+	return tr::lng_duration_and_size(tr::now, lt_duration, formatDurationText(duration), lt_size, formatSizeText(size));
 }
 
 QString formatGifAndSizeText(qint64 size) {
-	return lng_duration_and_size(lt_duration, qsl("GIF"), lt_size, formatSizeText(size));
+	return tr::lng_duration_and_size(tr::now, lt_duration, qsl("GIF"), lt_size, formatSizeText(size));
 }
 
 QString formatPlayedText(qint64 played, qint64 duration) {
-	return lng_duration_played(lt_played, formatDurationText(played), lt_duration, formatDurationText(duration));
+	return tr::lng_duration_played(tr::now, lt_played, formatDurationText(played), lt_duration, formatDurationText(duration));
 }
 
 int32 documentColorIndex(DocumentData *document, QString &ext) {

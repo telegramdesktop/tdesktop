@@ -519,8 +519,11 @@ void EditAdminBox::sendTransferRequestFrom(
 	)).done([=](const MTPUpdates &result) {
 		api->applyUpdates(result);
 		Ui::Toast::Show((channel->isBroadcast()
-			? lng_rights_transfer_done_channel
-			: lng_rights_transfer_done_group)(lt_user, user->shortName()));
+			? tr::lng_rights_transfer_done_channel
+			: tr::lng_rights_transfer_done_group)(
+				tr::now,
+				lt_user,
+				user->shortName()));
 		Ui::hideLayer();
 	}).fail(crl::guard(this, [=](const RPCError &error) {
 		if (weak) {
@@ -744,7 +747,8 @@ void EditRestrictedBox::createUntilVariants() {
 			&& until <= to) {
 			addVariant(
 				until,
-				lng_rights_chat_banned_custom_date(
+				tr::lng_rights_chat_banned_custom_date(
+					tr::now,
 					lt_date,
 					langDayOfMonthFull(ParseDateTime(until).date())));
 		}
@@ -765,9 +769,9 @@ void EditRestrictedBox::createUntilVariants() {
 	auto nextDay = now + kSecondsInDay;
 	auto nextWeek = now + kSecondsInWeek;
 	addCurrentVariant(0, nextDay);
-	addVariant(kUntilOneDay, lng_rights_chat_banned_day(lt_count, 1));
+	addVariant(kUntilOneDay, tr::lng_rights_chat_banned_day(tr::now, lt_count, 1));
 	addCurrentVariant(nextDay, nextWeek);
-	addVariant(kUntilOneWeek, lng_rights_chat_banned_week(lt_count, 1));
+	addVariant(kUntilOneWeek, tr::lng_rights_chat_banned_week(tr::now, lt_count, 1));
 	addCurrentVariant(nextWeek, INT_MAX);
 	addVariant(kUntilCustom, tr::lng_rights_chat_banned_custom(tr::now));
 }

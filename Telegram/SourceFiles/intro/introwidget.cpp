@@ -373,22 +373,52 @@ void Widget::resetAccount() {
 
 			auto type = error.type();
 			if (type.startsWith(qstr("2FA_CONFIRM_WAIT_"))) {
-				auto seconds = type.mid(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
-				auto days = (seconds + 59) / 86400;
-				auto hours = ((seconds + 59) % 86400) / 3600;
-				auto minutes = ((seconds + 59) % 3600) / 60;
-				auto when = lng_signin_reset_minutes(lt_count, minutes);
+				const auto seconds = type.mid(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
+				const auto days = (seconds + 59) / 86400;
+				const auto hours = ((seconds + 59) % 86400) / 3600;
+				const auto minutes = ((seconds + 59) % 3600) / 60;
+				auto when = tr::lng_signin_reset_minutes(
+					tr::now,
+					lt_count,
+					minutes);
 				if (days > 0) {
-					auto daysCount = lng_signin_reset_days(lt_count, days);
-					auto hoursCount = lng_signin_reset_hours(lt_count, hours);
-					when = lng_signin_reset_in_days(lt_days_count, daysCount, lt_hours_count, hoursCount, lt_minutes_count, when);
+					const auto daysCount = tr::lng_signin_reset_days(
+						tr::now,
+						lt_count,
+						days);
+					const auto hoursCount = tr::lng_signin_reset_hours(
+						tr::now,
+						lt_count,
+						hours);
+					when = tr::lng_signin_reset_in_days(
+						tr::now,
+						lt_days_count,
+						daysCount,
+						lt_hours_count,
+						hoursCount,
+						lt_minutes_count,
+						when);
 				} else if (hours > 0) {
-					auto hoursCount = lng_signin_reset_hours(lt_count, hours);
-					when = lng_signin_reset_in_hours(lt_hours_count, hoursCount, lt_minutes_count, when);
+					const auto hoursCount = tr::lng_signin_reset_hours(
+						tr::now,
+						lt_count,
+						hours);
+					when = tr::lng_signin_reset_in_hours(
+						tr::now,
+						lt_hours_count,
+						hoursCount,
+						lt_minutes_count,
+						when);
 				}
-				Ui::show(Box<InformBox>(lng_signin_reset_wait(lt_phone_number, App::formatPhone(getData()->phone), lt_when, when)));
+				Ui::show(Box<InformBox>(tr::lng_signin_reset_wait(
+					tr::now,
+					lt_phone_number,
+					App::formatPhone(getData()->phone),
+					lt_when,
+					when)));
 			} else if (type == qstr("2FA_RECENT_CONFIRM")) {
-				Ui::show(Box<InformBox>(tr::lng_signin_reset_cancelled(tr::now)));
+				Ui::show(Box<InformBox>(
+					tr::lng_signin_reset_cancelled(tr::now)));
 			} else {
 				Ui::hideLayer();
 				getStep()->showError(rpl::single(Lang::Hard::ServerError()));

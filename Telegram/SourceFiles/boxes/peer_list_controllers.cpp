@@ -418,9 +418,9 @@ void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
 	});
 	auto confirmText = [chat] {
 		if (chat->isUser()) {
-			return lng_bot_sure_share_game(lt_user, App::peerName(chat));
+			return tr::lng_bot_sure_share_game(tr::now, lt_user, App::peerName(chat));
 		}
-		return lng_bot_sure_share_game_group(lt_group, chat->name);
+		return tr::lng_bot_sure_share_game_group(tr::now, lt_group, chat->name);
 	}();
 	Ui::show(
 		Box<ConfirmBox>(confirmText, std::move(send)),
@@ -439,7 +439,7 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 	auto send = crl::guard(this, [bot = _bot, chat] {
 		AddBotToGroup(bot, chat);
 	});
-	auto confirmText = lng_bot_sure_invite(lt_group, chat->name);
+	auto confirmText = tr::lng_bot_sure_invite(tr::now, lt_group, chat->name);
 	Ui::show(
 		Box<ConfirmBox>(confirmText, send),
 		LayerOption::KeepOther);

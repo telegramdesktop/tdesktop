@@ -72,7 +72,7 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 	auto user = selectedPeer->asUser();
 	Assert(user != nullptr);
 
-	auto text = lng_profile_sure_kick(lt_user, user->firstName);
+	auto text = tr::lng_profile_sure_kick(tr::now, lt_user, user->firstName);
 	auto currentRestrictedRights = [&]() -> MTPChatBannedRights {
 		if (auto channel = peer()->asMegagroup()) {
 			auto it = channel->mgInfo->lastRestricted.find(user);

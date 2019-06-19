@@ -102,7 +102,8 @@ void AutoDownloadBox::setupContent() {
 		limits->events_starting_with_copy(
 			initialLimit
 		) | rpl::map([](int value) {
-			return lng_media_size_up_to(
+			return tr::lng_media_size_up_to(
+				tr::now,
 				lt_size,
 				QString::number(value / kMegabyte) + " MB");
 		}),

@@ -522,11 +522,18 @@ void Widget::handleSongChange() {
 				const auto time = parsed.time().toString(cTimeFormat());
 				const auto today = QDateTime::currentDateTime().date();
 				if (date == today) {
-					return lng_player_message_today(lt_time, time);
+					return tr::lng_player_message_today(
+						tr::now,
+						lt_time,
+						time);
 				} else if (date.addDays(1) == today) {
-					return lng_player_message_yesterday(lt_time, time);
+					return tr::lng_player_message_yesterday(
+						tr::now,
+						lt_time,
+						time);
 				}
-				return lng_player_message_date(
+				return tr::lng_player_message_date(
+					tr::now,
 					lt_date,
 					langDayOfMonthFull(date),
 					lt_time,

@@ -127,11 +127,11 @@ bool SectionToggle::checkRippleStartPosition(QPoint position) const {
 }
 
 auto MembersStatusText(int count) {
-	return lng_chat_status_members(lt_count_decimal, count);
+	return tr::lng_chat_status_members(tr::now, lt_count_decimal, count);
 };
 
 auto OnlineStatusText(int count) {
-	return lng_chat_status_online(lt_count_decimal, count);
+	return tr::lng_chat_status_online(tr::now, lt_count_decimal, count);
 };
 
 auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {

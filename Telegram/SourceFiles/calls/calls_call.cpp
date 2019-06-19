@@ -872,9 +872,9 @@ void Call::setFailedQueued(int error) {
 
 void Call::handleRequestError(const RPCError &error) {
 	if (error.type() == qstr("USER_PRIVACY_RESTRICTED")) {
-		Ui::show(Box<InformBox>(lng_call_error_not_available(lt_user, App::peerName(_user))));
+		Ui::show(Box<InformBox>(tr::lng_call_error_not_available(tr::now, lt_user, App::peerName(_user))));
 	} else if (error.type() == qstr("PARTICIPANT_VERSION_OUTDATED")) {
-		Ui::show(Box<InformBox>(lng_call_error_outdated(lt_user, App::peerName(_user))));
+		Ui::show(Box<InformBox>(tr::lng_call_error_outdated(tr::now, lt_user, App::peerName(_user))));
 	} else if (error.type() == qstr("CALL_PROTOCOL_LAYER_INVALID")) {
 		Ui::show(Box<InformBox>(Lang::Hard::CallErrorIncompatible().replace("{user}", App::peerName(_user))));
 	}

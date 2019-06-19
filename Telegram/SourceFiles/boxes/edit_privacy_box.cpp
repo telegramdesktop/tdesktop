@@ -95,7 +95,7 @@ std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxControl
 	}();
 	if (count > 0) {
 		result->setCustomStatus(
-			lng_chat_status_members(lt_count_decimal, count));
+			tr::lng_chat_status_members(tr::now, lt_count_decimal, count));
 	}
 	return result;
 }
@@ -302,7 +302,7 @@ void EditPrivacyBox::setupContent() {
 			return Settings::ExceptionUsersCount(exceptions(exception));
 		}) | rpl::map([](int count) {
 			return count
-				? lng_edit_privacy_exceptions_count(lt_count, count)
+				? tr::lng_edit_privacy_exceptions_count(tr::now, lt_count, count)
 				: tr::lng_edit_privacy_exceptions_add(tr::now);
 		});
 		auto text = _controller->exceptionButtonTextKey(exception);

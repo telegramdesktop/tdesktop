@@ -310,7 +310,8 @@ ScopeRow DocumentsOneOfRow(
 		const auto type1 = documents.front()->type;
 		const auto type2 = documents.back()->type;
 		return {
-			lng_passport_or_title(
+			tr::lng_passport_or_title(
+				tr::now,
 				lt_document,
 				DocumentName(type1),
 				lt_second_document,

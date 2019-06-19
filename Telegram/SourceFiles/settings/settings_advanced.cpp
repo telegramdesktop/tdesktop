@@ -48,11 +48,11 @@ void SetupConnectionType(not_null<Ui::VerticalLayout*> container) {
 		if (Global::ProxySettings() != ProxyData::Settings::Enabled) {
 			return transport.isEmpty()
 				? tr::lng_connection_auto_connecting(tr::now)
-				: lng_connection_auto(lt_transport, transport);
+				: tr::lng_connection_auto(tr::now, lt_transport, transport);
 		} else {
 			return transport.isEmpty()
 				? tr::lng_connection_proxy_connecting(tr::now)
-				: lng_connection_proxy(lt_transport, transport);
+				: tr::lng_connection_proxy(tr::now, lt_transport, transport);
 		}
 	};
 	const auto button = AddButtonWithLabel(
@@ -83,7 +83,8 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		container.get());
 	const auto downloading = Ui::CreateChild<rpl::event_stream<bool>>(
 		container.get());
-	const auto version = lng_settings_current_version(
+	const auto version = tr::lng_settings_current_version(
+		tr::now,
 		lt_version,
 		currentVersionText());
 	const auto toggle = AddButton(
@@ -130,7 +131,8 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	const auto showDownloadProgress = [=](int64 ready, int64 total) {
-		texts->fire(lng_settings_downloading_update(
+		texts->fire(tr::lng_settings_downloading_update(
+			tr::now,
 			lt_progress,
 			formatDownloadText(ready, total)));
 		downloading->fire(true);
