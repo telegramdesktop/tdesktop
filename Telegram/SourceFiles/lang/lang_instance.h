@@ -81,6 +81,7 @@ public:
 	QString langPackName() const;
 	QString cloudLangCode(Pack pack) const;
 	QString id() const;
+	rpl::producer<QString> idChanges() const;
 	QString baseId() const;
 	QString name() const;
 	QString nativeName() const;
@@ -141,6 +142,7 @@ private:
 	Instance *_derived = nullptr;
 
 	QString _id, _pluralId;
+	rpl::event_stream<QString> _idChanges;
 	QString _name, _nativeName;
 	int _legacyId = kLegacyLanguageNone;
 	QString _customFilePathAbsolute;

@@ -55,6 +55,7 @@ public:
 
 	void activateSelected();
 	rpl::producer<Language> activations() const;
+	void changeChosen(const QString &chosen);
 
 	Ui::ScrollToRequest rowScrollRequest(int index) const;
 
@@ -170,6 +171,7 @@ public:
 	Ui::ScrollToRequest jump(int rows);
 	void filter(const QString &query);
 	rpl::producer<Language> activations() const;
+	void changeChosen(const QString &chosen);
 	void activateBySubmit();
 
 private:
@@ -180,6 +182,7 @@ private:
 	Fn<Ui::ScrollToRequest(int rows)> _jump;
 	Fn<void(const QString &query)> _filter;
 	Fn<rpl::producer<Language>()> _activations;
+	Fn<void(const QString &chosen)> _changeChosen;
 	Fn<void()> _activateBySubmit;
 
 };
@@ -613,6 +616,12 @@ rpl::producer<Language> Rows::activations() const {
 	return _activations.events();
 }
 
+void Rows::changeChosen(const QString &chosen) {
+	for (const auto &row : _rows) {
+		row.check->setChecked(row.data.id == chosen, anim::type::normal);
+	}
+}
+
 void Rows::setSelected(int selected) {
 	_mouseSelection = false;
 	const auto limit = count();
@@ -1003,6 +1012,14 @@ void Content::setupContent(
 			other->activations()
 		) | rpl::type_erased();
 	};
+	_changeChosen = [=](const QString &chosen) {
+		if (main) {
+			main->changeChosen(chosen);
+		}
+		if (other) {
+			other->changeChosen(chosen);
+		}
+	};
 	_activateBySubmit = [=] {
 		if (selectedIndex() < 0) {
 			_jump(1);
@@ -1022,6 +1039,10 @@ void Content::filter(const QString &query) {
 
 rpl::producer<Language> Content::activations() const {
 	return _activations();
+}
+
+void Content::changeChosen(const QString &chosen) {
+	_changeChosen(chosen);
 }
 
 void Content::activateBySubmit() {
@@ -1076,6 +1097,9 @@ void LanguageBox::prepare() {
 		// So we check that the language really has changed.
 		if (language.id != Lang::Current().id()) {
 			Lang::CurrentCloudManager().switchToLanguage(language);
+			if (inner) {
+				inner->changeChosen(Lang::Current().id());
+			}
 		}
 	}, inner->lifetime());
 

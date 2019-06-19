@@ -422,7 +422,11 @@ void CloudManager::requestLanguageAndSwitch(
 		_switchingToLanguageRequest = 0;
 		const auto language = Lang::ParseLanguage(result);
 		const auto finalize = [=] {
-			performSwitchAndRestart(language);
+			if (canApplyWithoutRestart(language.id)) {
+				performSwitchAndAddToRecent(language);
+			} else {
+				performSwitchAndRestart(language);
+			}
 		};
 		if (!warning) {
 			finalize();
@@ -452,7 +456,7 @@ void CloudManager::switchToLanguage(const Language &data) {
 	if (data.id == qstr("#custom")) {
 		performSwitchToCustom();
 	} else if (canApplyWithoutRestart(data.id)) {
-		performSwitch(data);
+		performSwitchAndAddToRecent(data);
 	} else {
 		QVector<MTPstring> keys;
 		keys.reserve(3);
@@ -545,9 +549,13 @@ void CloudManager::performSwitch(const Language &data) {
 	requestLangPackDifference(Pack::Base);
 }
 
-void CloudManager::performSwitchAndRestart(const Language &data) {
+void CloudManager::performSwitchAndAddToRecent(const Language &data) {
 	Local::pushRecentLanguage(data);
 	performSwitch(data);
+}
+
+void CloudManager::performSwitchAndRestart(const Language &data) {
+	performSwitchAndAddToRecent(data);
 	restartAfterSwitch();
 }
 

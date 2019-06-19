@@ -35,7 +35,11 @@ void SetupLanguageButton(
 	const auto button = AddButtonWithLabel(
 		container,
 		tr::lng_settings_language(),
-		rpl::single(Lang::Current().nativeName()),
+		rpl::single(
+			Lang::Current().id()
+		) | rpl::then(
+			Lang::Current().idChanges()
+		) | rpl::map([] { return Lang::Current().nativeName(); }),
 		icon ? st::settingsSectionButton : st::settingsButton,
 		icon ? &st::settingsIconLanguage : nullptr);
 	const auto guard = Ui::CreateChild<base::binary_guard>(button.get());

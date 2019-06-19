@@ -38,9 +38,9 @@ public:
 
 		// Check cloud password for some action.
 		Fn<void(const Core::CloudPasswordResult &)> customCheckCallback;
-		std::optional<QString> customTitle;
+		rpl::producer<QString> customTitle;
 		std::optional<QString> customDescription;
-		std::optional<QString> customSubmitButton;
+		rpl::producer<QString> customSubmitButton;
 	};
 	PasscodeBox(QWidget*, const CloudFields &fields);
 

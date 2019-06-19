@@ -301,6 +301,8 @@ void Instance::reset(const Language &data) {
 		_values[i] = GetOriginalValue(LangKey(i));
 	}
 	ranges::fill(_nonDefaultSet, 0);
+
+	_idChanges.fire_copy(_id);
 }
 
 QString Instance::systemLangCode() const {
@@ -327,6 +329,10 @@ QString Instance::cloudLangCode(Pack pack) const {
 
 QString Instance::id() const {
 	return id(Pack::Current);
+}
+
+rpl::producer<QString> Instance::idChanges() const {
+	return _idChanges.events();
 }
 
 QString Instance::baseId() const {
@@ -538,6 +544,8 @@ void Instance::fillFromSerialized(
 		applyValue(nonDefaultStrings[i], nonDefaultStrings[i + 1]);
 	}
 	updatePluralRules();
+
+	_idChanges.fire_copy(_id);
 }
 
 void Instance::loadFromContent(const QByteArray &content) {
@@ -560,6 +568,8 @@ void Instance::fillFromCustomContent(
 	_pluralId = PluralCodeForCustom(absolutePath, relativePath);
 	_name = _nativeName = QString();
 	loadFromCustomContent(absolutePath, relativePath, content);
+
+	_idChanges.fire_copy(_id);
 }
 
 void Instance::loadFromCustomContent(
@@ -624,6 +634,8 @@ void Instance::fillFromLegacy(int legacyId, const QString &legacyPath) {
 	_name = _nativeName = QString();
 	_base = nullptr;
 	updatePluralRules();
+
+	_idChanges.fire_copy(_id);
 }
 
 // SetCallback takes two QByteArrays: key, value.

@@ -490,10 +490,10 @@ void EditAdminBox::requestTransferPassword(not_null<ChannelData*> channel) {
 	) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
 		const auto box = std::make_shared<QPointer<PasscodeBox>>();
 		auto fields = PasscodeBox::CloudFields::From(state);
-		fields.customTitle = lang(lng_rights_transfer_password_title);
+		fields.customTitle = tr::lng_rights_transfer_password_title();
 		fields.customDescription
 			= lang(lng_rights_transfer_password_description);
-		fields.customSubmitButton = lang(lng_passcode_submit);
+		fields.customSubmitButton = tr::lng_passcode_submit();
 		fields.customCheckCallback = crl::guard(this, [=](
 				const Core::CloudPasswordResult &result) {
 			sendTransferRequestFrom(*box, channel, result);

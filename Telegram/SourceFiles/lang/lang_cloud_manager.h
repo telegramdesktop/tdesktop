@@ -60,6 +60,7 @@ private:
 	bool canApplyWithoutRestart(const QString &id) const;
 	void performSwitchToCustom();
 	void performSwitch(const Language &data);
+	void performSwitchAndAddToRecent(const Language &data);
 	void performSwitchAndRestart(const Language &data);
 	void restartAfterSwitch();
 	void offerSwitchLangPack();

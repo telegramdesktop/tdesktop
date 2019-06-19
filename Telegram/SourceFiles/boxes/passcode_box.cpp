@@ -94,7 +94,7 @@ bool PasscodeBox::onlyCheckCurrent() const {
 void PasscodeBox::prepare() {
 	addButton(
 		(_cloudFields.customSubmitButton
-			? rpl::single(*_cloudFields.customSubmitButton)
+			? std::move(_cloudFields.customSubmitButton)
 			: _turningOff
 			? tr::lng_passcode_remove_button()
 			: tr::lng_settings_save()),
@@ -111,7 +111,7 @@ void PasscodeBox::prepare() {
 	if (onlyCheck) {
 		_oldPasscode->show();
 		setTitle(_cloudFields.customTitle
-			? rpl::single(*_cloudFields.customTitle)
+			? std::move(_cloudFields.customTitle)
 			: _cloudPwd
 			? tr::lng_cloud_password_remove()
 			: tr::lng_passcode_remove());
