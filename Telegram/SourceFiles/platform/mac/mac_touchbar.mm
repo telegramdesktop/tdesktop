@@ -55,11 +55,8 @@ constexpr auto kCommandMonospace = 0x012;
 constexpr auto kCommandClear = 0x013;
 constexpr auto kCommandLink = 0x014;
 
-constexpr auto kCommandPopoverInput = 0x020;
-constexpr auto kCommandPopoverStickers = 0x021;
-constexpr auto kCommandScrubberStickers = 0x022;
-constexpr auto kCommandPopoverEmoji = 0x023;
-constexpr auto kCommandScrubberEmoji = 0x024;
+constexpr auto kCommandScrubberStickers = 0x020;
+constexpr auto kCommandScrubberEmoji = 0x021;
 
 constexpr auto kMs = 1000;
 
@@ -75,9 +72,10 @@ NSString *const kTypeSlider = @"slider";
 NSString *const kTypeButton = @"button";
 NSString *const kTypeText = @"text";
 NSString *const kTypeTextButton = @"textButton";
-NSString *const kTypePopover = @"popover";
 NSString *const kTypeScrubber = @"scrubber";
 NSString *const kTypePicker = @"picker";
+NSString *const kTypeFormatter = @"formatter";
+NSString *const kTypeFormatterSegment = @"formatterSegment";
 
 const NSString *kCustomizationIdPlayer = @"telegram.touchbar";
 const NSString *kCustomizationIdMain = @"telegram.touchbarMain";
@@ -93,11 +91,7 @@ const NSTouchBarItemIdentifier kCommandClosePlayerItemIdentifier = [NSString str
 const NSTouchBarItemIdentifier kCurrentPositionItemIdentifier = [NSString stringWithFormat:@"%@.currentPosition", kCustomizationIdPlayer];
 
 const NSTouchBarItemIdentifier kPopoverInputItemIdentifier = [NSString stringWithFormat:@"%@.popoverInput", kCustomizationIdMain];
-const NSTouchBarItemIdentifier kBoldItemIdentifier = [NSString stringWithFormat:@"%@.bold", kCustomizationIdMain];
-const NSTouchBarItemIdentifier kItalicItemIdentifier = [NSString stringWithFormat:@"%@.italic", kCustomizationIdMain];
-const NSTouchBarItemIdentifier kMonospaceItemIdentifier = [NSString stringWithFormat:@"%@.monospace", kCustomizationIdMain];
-const NSTouchBarItemIdentifier kClearItemIdentifier = [NSString stringWithFormat:@"%@.clear", kCustomizationIdMain];
-const NSTouchBarItemIdentifier kLinkItemIdentifier = [NSString stringWithFormat:@"%@.link", kCustomizationIdMain];
+const NSTouchBarItemIdentifier kPopoverInputFormatterItemIdentifier = [NSString stringWithFormat:@"%@.popoverInputFormatter", kCustomizationIdMain];
 
 const NSTouchBarItemIdentifier kPickerPopoverItemIdentifier = [NSString stringWithFormat:@"%@.pickerButtons", kCustomizationIdMain];
 const NSTouchBarItemIdentifier kScrubberStickersItemIdentifier = [NSString stringWithFormat:@"%@.scrubberStickers", kCustomizationIdMain];
@@ -153,14 +147,6 @@ NSImage *CreateNSImageFromEmoji(EmojiPtr emoji) {
 int WidthFromString(NSString *s) {
 	return (int)ceil(
 		[[NSTextField labelWithString:s] frame].size.width) * 1.2;
-}
-
-NSString *NSStringFromLang(LangKey key) {
-	return [NSString stringWithUTF8String:lang(key).toUtf8().constData()];
-}
-
-NSString *NSStringFromQString(QString s) {
-	return [NSString stringWithUTF8String:s.toUtf8().constData()];
 }
 
 inline bool IsSticker(ScrubberItemType type) {
@@ -668,7 +654,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		return itemView;
 	} else {
 		NSScrubberTextItemView *itemView = [scrubber makeItemWithIdentifier:kPickerTitleItemIdentifier owner:nil];
-		itemView.textField.stringValue = NSStringFromQString(item.title);
+		itemView.textField.stringValue = Q2NSString(item.title);
 		return itemView;
 	}
 }
@@ -676,7 +662,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 - (NSSize)scrubber:(NSScrubber *)scrubber layout:(NSScrubberFlowLayout *)layout sizeForItemAtIndex:(NSInteger)index {
 	if (const auto t = _stickers[index].title; !t.isEmpty()) {
 		return NSMakeSize(
-			WidthFromString(NSStringFromQString(t)) + 30, kScrubberHeight);
+			WidthFromString(Q2NSString(t)) + 30, kScrubberHeight);
 	}
 	return NSMakeSize(kScrubberHeight, kScrubberHeight);
 }
@@ -807,36 +793,12 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			@"type": kTypeText,
 			@"name": @"Current Position"
 		}],
-		kBoldItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":  @"textButton",
-			@"name":  Q2NSString(tr::lng_menu_formatting_bold(tr::now)),
-			@"cmd":   [NSNumber numberWithInt:kCommandBold],
-		}],
-		kItalicItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":  @"textButton",
-			@"name":  Q2NSString(tr::lng_menu_formatting_italic(tr::now)),
-			@"cmd":   [NSNumber numberWithInt:kCommandItalic],
-		}],
-		kMonospaceItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":  @"textButton",
-			@"name":  Q2NSString(tr::lng_menu_formatting_monospace(tr::now)),
-			@"cmd":   [NSNumber numberWithInt:kCommandMonospace],
-		}],
-		kClearItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":  @"textButton",
-			@"name":  Q2NSString(tr::lng_menu_formatting_clear(tr::now)),
-			@"cmd":   [NSNumber numberWithInt:kCommandClear],
-		}],
-		kLinkItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":  @"textButton",
-			@"name":  Q2NSString(tr::lng_info_link_label(tr::now)),
-			@"cmd":   [NSNumber numberWithInt:kCommandLink],
-		}],
 		kPopoverInputItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
-			@"type":  kTypePopover,
-			@"name":  @"Input Field",
-			@"cmd":   [NSNumber numberWithInt:kCommandPopoverInput],
+			@"type":  kTypeFormatter,
 			@"image": [NSImage imageNamed:NSImageNameTouchBarTextItalicTemplate],
+		}],
+		kPopoverInputFormatterItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
+			@"type":  kTypeFormatterSegment,
 		}],
 		kScrubberStickersItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
 			@"type":  kTypeScrubber,
@@ -969,22 +931,34 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		item.customizationLabel = dictionaryItem[@"name"];
 		[dictionaryItem setObject:text forKey:@"view"];
 		return item;
-	} else if (isType(kTypePopover)) {
+	} else if (isType(kTypeFormatter)) {
 		NSPopoverTouchBarItem *item = [[NSPopoverTouchBarItem alloc] initWithIdentifier:identifier];
 		item.collapsedRepresentationImage = dictionaryItem[@"image"];
-		const auto command = [dictionaryItem[@"cmd"] intValue];
-		if (command == kCommandPopoverInput) {
-			NSTouchBar *secondaryTouchBar = [[NSTouchBar alloc] init];
-			secondaryTouchBar.delegate = self;
-			secondaryTouchBar.defaultItemIdentifiers = @[
-				kBoldItemIdentifier,
-				kItalicItemIdentifier,
-				kMonospaceItemIdentifier,
-				kLinkItemIdentifier,
-				kClearItemIdentifier];
-			item.pressAndHoldTouchBar = secondaryTouchBar;
-			item.popoverTouchBar = secondaryTouchBar;
+		NSTouchBar *secondaryTouchBar = [[NSTouchBar alloc] init];
+		secondaryTouchBar.delegate = self;
+		secondaryTouchBar.defaultItemIdentifiers = @[kPopoverInputFormatterItemIdentifier];
+		item.pressAndHoldTouchBar = secondaryTouchBar;
+		item.popoverTouchBar = secondaryTouchBar;
+		return item;
+	} else if (isType(kTypeFormatterSegment)) {
+		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
+		NSSegmentedControl *segment = [[NSSegmentedControl alloc] init];
+		segment.segmentStyle = NSSegmentStyleRounded;
+		static const auto strings = {
+			tr::lng_menu_formatting_bold,
+			tr::lng_menu_formatting_italic,
+			tr::lng_menu_formatting_monospace,
+			tr::lng_menu_formatting_clear,
+			tr::lng_info_link_label,
+		};
+		segment.segmentCount = strings.size();
+		auto count = 0;
+		for (const auto s : strings) {
+			[segment setLabel:Q2NSString(s(tr::now)) forSegment:count++];
 		}
+		segment.target = self;
+		segment.action = @selector(formatterClicked:);
+		item.view = segment;
 		return item;
 	} else if (isType(kTypeScrubber)) {
 		const auto isSticker = ([dictionaryItem[@"cmd"] intValue]
@@ -1289,14 +1263,6 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		case kCommandClosePlayer:
 			App::main()->closeBothPlayers();
 			break;
-		// Input Field.
-		case kCommandBold:
-		case kCommandItalic:
-		case kCommandMonospace:
-		case kCommandClear:
-		case kCommandLink:
-			SendKeyEvent(command);
-			break;
 		}
 	});
 }
@@ -1320,6 +1286,14 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		: kScrubberStickersItemIdentifier;
 	_popoverPicker.popoverTouchBar.defaultItemIdentifiers = @[identifier];
 	[_popoverPicker showPopover:nil];
+}
+
+- (void) formatterClicked:(NSSegmentedControl *)sender {
+	[[_touchBarMain itemForIdentifier:kPopoverInputItemIdentifier]
+		dismissPopover:nil];
+	const auto command = int(sender.selectedSegment) + kCommandBold;
+	sender.selectedSegment = -1;
+	SendKeyEvent(command);
 }
 
 -(void)dealloc {
