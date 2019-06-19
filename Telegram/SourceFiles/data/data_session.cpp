@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "passport/passport_form_controller.h"
 #include "window/themes/window_theme.h"
-#include "lang/lang_keys.h" // lang(lng_deleted) in user name
+#include "lang/lang_keys.h" // tr::lng_deleted(tr::now) in user name
 #include "data/data_media_types.h"
 #include "data/data_folder.h"
 #include "data/data_channel.h"
@@ -298,7 +298,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 
 		result->input = MTP_inputPeerUser(data.vid, MTP_long(0));
 		result->inputUser = MTP_inputUser(data.vid, MTP_long(0));
-		result->setName(lang(lng_deleted), QString(), QString(), QString());
+		result->setName(tr::lng_deleted(tr::now), QString(), QString(), QString());
 		result->setPhoto(MTP_userProfilePhotoEmpty());
 		//result->setFlags(MTPDuser_ClientFlag::f_inaccessible | 0);
 		result->setFlags(MTPDuser::Flag::f_deleted);
@@ -342,7 +342,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				result->setPhone(QString());
 				update.flags |= UpdateFlag::UserPhoneChanged;
 			}
-			result->setName(lang(lng_deleted), QString(), QString(), QString());
+			result->setName(tr::lng_deleted(tr::now), QString(), QString(), QString());
 			result->setPhoto(MTP_userProfilePhotoEmpty());
 			status = &emptyStatus;
 		} else {

@@ -126,7 +126,7 @@ void Changelogs::addLocalLogs() {
 			lt_version,
 			QString::fromLatin1(AppVersionStr),
 			lt_changes,
-			lang(lng_new_version_minor),
+			tr::lng_new_version_minor(tr::now),
 			lt_link,
 			qsl("https://desktop.telegram.org/changelog"));
 		addLocalLog(text.trimmed());

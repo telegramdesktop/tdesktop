@@ -44,7 +44,7 @@ public:
 		return true;
 	}
 	[[nodiscard]] virtual rpl::producer<QString> optionsTitleKey() = 0;
-	[[nodiscard]] virtual LangKey optionLabelKey(Option option);
+	[[nodiscard]] virtual QString optionLabel(Option option);
 	[[nodiscard]] virtual rpl::producer<QString> warning() {
 		return nullptr;
 	}

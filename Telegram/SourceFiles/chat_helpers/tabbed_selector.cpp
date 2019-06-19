@@ -663,20 +663,20 @@ void TabbedSelector::setCurrentPeer(PeerData *peer) {
 
 void TabbedSelector::checkRestrictedPeer() {
 	if (_currentPeer) {
-		const auto errorKey = (_currentTabType == SelectorTab::Stickers)
-			? Data::RestrictionErrorKey(
+		const auto error = (_currentTabType == SelectorTab::Stickers)
+			? Data::RestrictionError(
 				_currentPeer,
 				ChatRestriction::f_send_stickers)
 			: (_currentTabType == SelectorTab::Gifs)
-			? Data::RestrictionErrorKey(
+			? Data::RestrictionError(
 				_currentPeer,
 				ChatRestriction::f_send_gifs)
 			: std::nullopt;
-		if (errorKey) {
+		if (error) {
 			if (!_restrictedLabel) {
 				_restrictedLabel.create(
 					this,
-					lang(*errorKey),
+					*error,
 					st::stickersRestrictedLabel);
 				_restrictedLabel->show();
 				updateRestrictedLabelGeometry();
@@ -748,9 +748,9 @@ void TabbedSelector::createTabsSlider() {
 	_tabsSlider.create(this, st::emojiTabs);
 
 	auto sections = QStringList();
-	sections.push_back(lang(lng_switch_emoji).toUpper());
-	sections.push_back(lang(lng_switch_stickers).toUpper());
-	sections.push_back(lang(lng_switch_gifs).toUpper());
+	sections.push_back(tr::lng_switch_emoji(tr::now).toUpper());
+	sections.push_back(tr::lng_switch_stickers(tr::now).toUpper());
+	sections.push_back(tr::lng_switch_gifs(tr::now).toUpper());
 	_tabsSlider->setSections(sections);
 
 	_tabsSlider->setActiveSectionFast(static_cast<int>(_currentTabType));

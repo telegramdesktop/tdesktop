@@ -295,7 +295,7 @@ void paintRow(
 	const auto promoted = (history && history->useProxyPromotion())
 		&& !(flags & (Flag::SearchResult/* | Flag::FeedSearchResult*/)); // #feed
 	if (promoted) {
-		const auto text = lang(lng_proxy_sponsor);
+		const auto text = tr::lng_proxy_sponsor(tr::now);
 		PaintRowTopRight(p, text, rectForName, active, selected);
 	} else if (from/* && !(flags & Flag::FeedSearchResult)*/) { // #feed
 		if (const auto chatTypeIcon = ChatTypeIcon(from, active, selected)) {
@@ -329,7 +329,7 @@ void paintRow(
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
 		if (history && !history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			if (history->cloudDraftTextCache.isEmpty()) {
-				auto draftWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, lang(lng_from_draft)));
+				auto draftWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, tr::lng_from_draft(tr::now)));
 				auto draftText = supportMode
 					? textcmdLink(1, Support::ChatOccupiedString(history))
 					: lng_dialogs_text_with_from(lt_from_part, draftWrapped, lt_message, TextUtilities::Clean(draft->textWithTags.text));
@@ -414,7 +414,7 @@ void paintRow(
 	p.setPen(nameFg);
 	if (flags & Flag::SavedMessages) {
 		p.setFont(st::msgNameFont);
-		auto text = lang(lng_saved_messages);
+		auto text = tr::lng_saved_messages(tr::now);
 		auto textWidth = st::msgNameFont->width(text);
 		if (textWidth > rectForName.width()) {
 			text = st::msgNameFont->elided(text, rectForName.width());

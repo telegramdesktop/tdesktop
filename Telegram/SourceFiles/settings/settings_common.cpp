@@ -173,11 +173,11 @@ void AddSubsectionTitle(
 void FillMenu(Fn<void(Type)> showOther, MenuCallback addAction) {
 	if (!Auth().supportMode()) {
 		addAction(
-			lang(lng_settings_information),
+			tr::lng_settings_information(tr::now),
 			[=] { showOther(Type::Information); });
 	}
 	addAction(
-		lang(lng_settings_logout),
+		tr::lng_settings_logout(tr::now),
 		[=] { App::wnd()->onLogout(); });
 }
 

@@ -63,7 +63,7 @@ void WarningWidget::paintEvent(QPaintEvent *e) {
 
 	p.setFont(st::boxTitleFont);
 	p.setPen(st::boxTitleFg);
-	p.drawTextLeft(_inner.x() + st::boxTitlePosition.x(), _inner.y() + st::boxTitlePosition.y(), width(), lang(lng_theme_sure_keep));
+	p.drawTextLeft(_inner.x() + st::boxTitlePosition.x(), _inner.y() + st::boxTitlePosition.y(), width(), tr::lng_theme_sure_keep(tr::now));
 
 	p.setFont(st::boxTextFont);
 	p.setPen(st::boxTextFg);

@@ -81,7 +81,7 @@ void Controller::prepare() {
 		auto row = std::make_unique<PeerListRow>(chat);
 		const auto username = chat->userName();
 		row->setCustomStatus(username.isEmpty()
-			? lang(lng_manage_discussion_group_private_status)
+			? tr::lng_manage_discussion_group_private_status(tr::now)
 			: ('@' + username));
 		delegate()->peerListAppendRow(std::move(row));
 	};
@@ -148,7 +148,7 @@ void Controller::choose(not_null<ChannelData*> chat) {
 	*box = Ui::show(
 		Box<ConfirmBox>(
 			text,
-			lang(lng_manage_discussion_group_link),
+			tr::lng_manage_discussion_group_link(tr::now),
 			sure),
 		LayerOption::KeepOther);
 }
@@ -183,7 +183,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 	*box = Ui::show(
 		Box<ConfirmBox>(
 			text,
-			lang(lng_manage_discussion_group_link),
+			tr::lng_manage_discussion_group_link(tr::now),
 			sure),
 		LayerOption::KeepOther);
 }
@@ -222,9 +222,9 @@ object_ptr<Ui::RpWidget> SetupFooter(
 		not_null<ChannelData*> channel) {
 	return object_ptr<Ui::FlatLabel>(
 		parent,
-		lang(channel->isBroadcast()
-			? lng_manage_discussion_group_posted
-			: lng_manage_linked_channel_posted),
+		(channel->isBroadcast()
+			? tr::lng_manage_discussion_group_posted
+			: tr::lng_manage_linked_channel_posted)(),
 		st::linkedChatAbout);
 }
 

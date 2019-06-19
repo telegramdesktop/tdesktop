@@ -66,15 +66,15 @@ ContactStatus::Bar::Bar(QWidget *parent, const QString &name)
 	st::historyContactStatusButton)
 , _block(
 	this,
-	lang(lng_new_contact_block).toUpper(),
+	tr::lng_new_contact_block(tr::now).toUpper(),
 	st::historyContactStatusBlock)
 , _share(
 	this,
-	lang(lng_new_contact_share).toUpper(),
+	tr::lng_new_contact_share(tr::now).toUpper(),
 	st::historyContactStatusButton)
 , _report(
 	this,
-	lang(lng_report_spam_and_leave).toUpper(),
+	tr::lng_report_spam_and_leave(tr::now).toUpper(),
 	st::historyContactStatusBlock)
 , _close(this, st::historyReplyCancel) {
 	resize(_close->size());
@@ -87,7 +87,7 @@ void ContactStatus::Bar::showState(State state) {
 	_report->setVisible(state == State::ReportSpam);
 	_add->setText((state == State::Add)
 		? lng_new_contact_add_name(lt_user, _name).toUpper()
-		: lang(lng_new_contact_add).toUpper());
+		: tr::lng_new_contact_add(tr::now).toUpper());
 	updateButtonsGeometry();
 }
 
@@ -344,7 +344,7 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 				peer->session().api().deleteConversation(peer, false);
 			});
 
-			Ui::Toast::Show(lang(lng_report_spam_done));
+			Ui::Toast::Show(tr::lng_report_spam_done(tr::now));
 
 			// Destroys _bar.
 			_window->sessionController()->showBackFromStack();
@@ -352,12 +352,12 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 		if (const auto user = peer->asUser()) {
 			peer->session().api().blockUser(user);
 		}
-		const auto text = lang((peer->isChat() || peer->isMegagroup())
-				? lng_report_spam_sure_group
-				: lng_report_spam_sure_channel);
+		const auto text = ((peer->isChat() || peer->isMegagroup())
+			? tr::lng_report_spam_sure_group
+			: tr::lng_report_spam_sure_channel)(tr::now);
 		_window->show(Box<ConfirmBox>(
 			text,
-			lang(lng_report_spam_ok),
+			tr::lng_report_spam_ok(tr::now),
 			st::attentionBoxButton,
 			callback));
 	}, _bar.lifetime());

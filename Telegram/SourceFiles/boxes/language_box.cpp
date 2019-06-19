@@ -409,7 +409,7 @@ bool Rows::hasMenu(not_null<const Row*> row) const {
 void Rows::share(not_null<const Row*> row) const {
 	const auto link = qsl("https://t.me/setlanguage/") + row->data.id;
 	QApplication::clipboard()->setText(link);
-	Ui::Toast::Show(lang(lng_username_copied));
+	Ui::Toast::Show(tr::lng_username_copied(tr::now));
 }
 
 void Rows::remove(not_null<Row*> row) {
@@ -461,15 +461,15 @@ void Rows::showMenu(int index) {
 	};
 	const auto id = row->data.id;
 	if (canShare(row)) {
-		addAction(lang(lng_proxy_edit_share), [=] { share(row); });
+		addAction(tr::lng_proxy_edit_share(tr::now), [=] { share(row); });
 	}
 	if (canRemove(row)) {
 		if (row->removed) {
-			addAction(lang(lng_proxy_menu_restore), [=] {
+			addAction(tr::lng_proxy_menu_restore(tr::now), [=] {
 				restore(row);
 			});
 		} else {
-			addAction(lang(lng_proxy_menu_delete), [=] {
+			addAction(tr::lng_proxy_menu_delete(tr::now), [=] {
 				remove(row);
 			});
 		}

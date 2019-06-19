@@ -109,10 +109,10 @@ QSize HistoryContact::countOptimalSize() {
 	}
 	if (_contact && _contact->isContact()) {
 		_linkl = sendMessageClickHandler(_contact);
-		_link = lang(lng_profile_send_message).toUpper();
+		_link = tr::lng_profile_send_message(tr::now).toUpper();
 	} else if (_userId) {
 		_linkl = addContactClickHandler(_parent->data());
-		_link = lang(lng_profile_add_contact).toUpper();
+		_link = tr::lng_profile_add_contact(tr::now).toUpper();
 	}
 	_linkw = _link.isEmpty() ? 0 : st::semiboldFont->width(_link);
 

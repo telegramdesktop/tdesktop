@@ -135,35 +135,38 @@ void SettingsWidget::setupFullExportOptions(
 		not_null<Ui::VerticalLayout*> container) {
 	addOptionWithAbout(
 		container,
-		lng_export_option_info,
+		tr::lng_export_option_info(tr::now),
 		Type::PersonalInfo | Type::Userpics,
-		lng_export_option_info_about);
+		tr::lng_export_option_info_about(tr::now));
 	addOptionWithAbout(
 		container,
-		lng_export_option_contacts,
+		tr::lng_export_option_contacts(tr::now),
 		Type::Contacts,
-		lng_export_option_contacts_about);
-	addHeader(container, lng_export_header_chats);
+		tr::lng_export_option_contacts_about(tr::now));
+	addHeader(container, tr::lng_export_header_chats(tr::now));
 	addOption(
 		container,
-		lng_export_option_personal_chats,
+		tr::lng_export_option_personal_chats(tr::now),
 		Type::PersonalChats);
-	addOption(container, lng_export_option_bot_chats, Type::BotChats);
+	addOption(
+		container,
+		tr::lng_export_option_bot_chats(tr::now),
+		Type::BotChats);
 	addChatOption(
 		container,
-		lng_export_option_private_groups,
+		tr::lng_export_option_private_groups(tr::now),
 		Type::PrivateGroups);
 	addChatOption(
 		container,
-		lng_export_option_private_channels,
+		tr::lng_export_option_private_channels(tr::now),
 		Type::PrivateChannels);
 	addChatOption(
 		container,
-		lng_export_option_public_groups,
+		tr::lng_export_option_public_groups(tr::now),
 		Type::PublicGroups);
 	addChatOption(
 		container,
-		lng_export_option_public_channels,
+		tr::lng_export_option_public_channels(tr::now),
 		Type::PublicChannels);
 }
 
@@ -178,7 +181,7 @@ void SettingsWidget::setupMediaOptions(
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
 	const auto media = mediaWrap->entity();
-	addHeader(media, lng_export_header_media);
+	addHeader(media, tr::lng_export_header_media(tr::now));
 	addMediaOptions(media);
 
 	value() | rpl::map([](const Settings &data) {
@@ -201,17 +204,17 @@ void SettingsWidget::setupMediaOptions(
 
 void SettingsWidget::setupOtherOptions(
 		not_null<Ui::VerticalLayout*> container) {
-	addHeader(container, lng_export_header_other);
+	addHeader(container, tr::lng_export_header_other(tr::now));
 	addOptionWithAbout(
 		container,
-		lng_export_option_sessions,
+		tr::lng_export_option_sessions(tr::now),
 		Type::Sessions,
-		lng_export_option_sessions_about);
+		tr::lng_export_option_sessions_about(tr::now));
 	addOptionWithAbout(
 		container,
-		lng_export_option_other,
+		tr::lng_export_option_other(tr::now),
 		Type::OtherData,
-		lng_export_option_other_about);
+		tr::lng_export_option_other_about(tr::now));
 }
 
 void SettingsWidget::setupPathAndFormat(
@@ -228,20 +231,20 @@ void SettingsWidget::setupPathAndFormat(
 			data.format = format;
 		});
 	});
-	const auto addFormatOption = [&](LangKey key, Format format) {
+	const auto addFormatOption = [&](QString label, Format format) {
 		const auto radio = container->add(
 			object_ptr<Ui::Radioenum<Format>>(
 				container,
 				formatGroup,
 				format,
-				lang(key),
+				label,
 				st::defaultBoxCheckbox),
 			st::exportSettingPadding);
 	};
-	addHeader(container, lng_export_header_format);
+	addHeader(container, tr::lng_export_header_format(tr::now));
 	addLocationLabel(container);
-	addFormatOption(lng_export_option_html, Format::Html);
-	addFormatOption(lng_export_option_json, Format::Json);
+	addFormatOption(tr::lng_export_option_html(tr::now), Format::Html);
+	addFormatOption(tr::lng_export_option_json(tr::now), Format::Json);
 }
 
 void SettingsWidget::addLocationLabel(
@@ -444,23 +447,23 @@ not_null<Ui::RpWidget*> SettingsWidget::setupButtons(
 
 void SettingsWidget::addHeader(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key) {
+		const QString &text) {
 	container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
-			lang(key),
+			text,
 			st::exportHeaderLabel),
 		st::exportHeaderPadding);
 }
 
 not_null<Ui::Checkbox*> SettingsWidget::addOption(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
+		const QString &text,
 		Types types) {
 	const auto checkbox = container->add(
 		object_ptr<Ui::Checkbox>(
 			container,
-			lang(key),
+			text,
 			((readData().types & types) == types),
 			st::defaultBoxCheckbox),
 		st::exportSettingPadding);
@@ -479,14 +482,14 @@ not_null<Ui::Checkbox*> SettingsWidget::addOption(
 
 not_null<Ui::Checkbox*> SettingsWidget::addOptionWithAbout(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
+		const QString &text,
 		Types types,
-		LangKey about) {
-	const auto result = addOption(container, key, types);
+		const QString &about) {
+	const auto result = addOption(container, text, types);
 	const auto label = container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
-			lang(about),
+			about,
 			st::exportAboutOptionLabel),
 		st::exportAboutOptionPadding);
 	return result;
@@ -494,15 +497,15 @@ not_null<Ui::Checkbox*> SettingsWidget::addOptionWithAbout(
 
 void SettingsWidget::addChatOption(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
+		const QString &text,
 		Types types) {
-	const auto checkbox = addOption(container, key, types);
+	const auto checkbox = addOption(container, text, types);
 	const auto onlyMy = container->add(
 		object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 			container,
 			object_ptr<Ui::Checkbox>(
 				container,
-				lang(lng_export_option_only_my),
+				tr::lng_export_option_only_my(tr::now),
 				((readData().fullChats & types) != types),
 				st::defaultBoxCheckbox),
 			st::exportSubSettingPadding));
@@ -528,36 +531,45 @@ void SettingsWidget::addChatOption(
 
 void SettingsWidget::addMediaOptions(
 		not_null<Ui::VerticalLayout*> container) {
-	addMediaOption(container, lng_export_option_photos, MediaType::Photo);
 	addMediaOption(
 		container,
-		lng_export_option_video_files,
+		tr::lng_export_option_photos(tr::now),
+		MediaType::Photo);
+	addMediaOption(
+		container,
+		tr::lng_export_option_video_files(tr::now),
 		MediaType::Video);
 	addMediaOption(
 		container,
-		lng_export_option_voice_messages,
+		tr::lng_export_option_voice_messages(tr::now),
 		MediaType::VoiceMessage);
 	addMediaOption(
 		container,
-		lng_export_option_video_messages,
+		tr::lng_export_option_video_messages(tr::now),
 		MediaType::VideoMessage);
 	addMediaOption(
 		container,
-		lng_export_option_stickers,
+		tr::lng_export_option_stickers(tr::now),
 		MediaType::Sticker);
-	addMediaOption(container, lng_export_option_gifs, MediaType::GIF);
-	addMediaOption(container, lng_export_option_files, MediaType::File);
+	addMediaOption(
+		container,
+		tr::lng_export_option_gifs(tr::now),
+		MediaType::GIF);
+	addMediaOption(
+		container,
+		tr::lng_export_option_files(tr::now),
+		MediaType::File);
 	addSizeSlider(container);
 }
 
 void SettingsWidget::addMediaOption(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
+		const QString &text,
 		MediaType type) {
 	const auto checkbox = container->add(
 		object_ptr<Ui::Checkbox>(
 			container,
-			lang(key),
+			text,
 			((readData().media.types & type) == type),
 			st::defaultBoxCheckbox),
 		st::exportSettingPadding);
@@ -675,7 +687,7 @@ void SettingsWidget::chooseFolder() {
 	};
 	FileDialog::GetFolder(
 		this,
-		lang(lng_export_folder),
+		tr::lng_export_folder(tr::now),
 		readData().path,
 		callback);
 }

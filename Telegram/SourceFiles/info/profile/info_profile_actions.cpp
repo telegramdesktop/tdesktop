@@ -259,7 +259,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		addInfoOneLine(
 			tr::lng_info_mobile_label(),
 			PhoneValue(user),
-			lang(lng_profile_copy_phone));
+			tr::lng_profile_copy_phone(tr::now));
 		if (user->botInfo) {
 			addInfoLine(tr::lng_info_about_label(), AboutValue(user));
 		} else {
@@ -268,7 +268,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		addInfoOneLine(
 			tr::lng_info_username_label(),
 			UsernameValue(user),
-			lang(lng_context_copy_mention));
+			tr::lng_context_copy_mention(tr::now));
 	} else {
 		auto linkText = LinkValue(
 			_peer
@@ -296,7 +296,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 				peer->userName());
 			if (!link.isEmpty()) {
 				QApplication::clipboard()->setText(link);
-				Ui::Toast::Show(lang(lng_username_copied));
+				Ui::Toast::Show(tr::lng_username_copied(tr::now));
 			}
 			return false;
 		});

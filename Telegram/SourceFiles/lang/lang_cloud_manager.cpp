@@ -358,7 +358,7 @@ bool CloudManager::showOfferSwitchBox() {
 			+ language.nativeName
 			+ "? You can always change your language in Settings.",
 			"Change",
-			lang(lng_cancel),
+			tr::lng_cancel(tr::now),
 			confirm,
 			cancel),
 		LayerOption::KeepOther);
@@ -407,7 +407,7 @@ void CloudManager::requestLanguageAndSwitch(
 	Expects(!id.isEmpty());
 
 	if (LanguageIdOrDefault(_langpack.id()) == id) {
-		Ui::show(Box<InformBox>(lang(lng_language_already)));
+		Ui::show(Box<InformBox>(tr::lng_language_already(tr::now)));
 		return;
 	} else if (id == qstr("#custom")) {
 		performSwitchToCustom();
@@ -442,7 +442,7 @@ void CloudManager::requestLanguageAndSwitch(
 	}).fail([=](const RPCError &error) {
 		_switchingToLanguageRequest = 0;
 		if (error.type() == "LANG_CODE_NOT_SUPPORTED") {
-			Ui::show(Box<InformBox>(lang(lng_language_not_found)));
+			Ui::show(Box<InformBox>(tr::lng_language_not_found(tr::now)));
 		}
 	}).send();
 }
@@ -474,14 +474,14 @@ void CloudManager::switchToLanguage(const Language &data) {
 					? GetOriginalValue(key)
 					: it->second;
 			};
-			const auto text = lang(lng_sure_save_language)
+			const auto text = tr::lng_sure_save_language(tr::now)
 				+ "\n\n"
 				+ getValue(lng_sure_save_language);
 			Ui::show(
 				Box<ConfirmBox>(
 					text,
-					lang(lng_box_ok),
-					lang(lng_cancel),
+					tr::lng_box_ok(tr::now),
+					tr::lng_cancel(tr::now),
 					[=] { performSwitchAndRestart(data); }),
 				LayerOption::KeepOther);
 		}).fail([=](const RPCError &error) {
@@ -512,7 +512,7 @@ void CloudManager::performSwitchToCustom() {
 						? GetOriginalValue(key)
 						: it.value();
 				};
-				const auto text = lang(lng_sure_save_language)
+				const auto text = tr::lng_sure_save_language(tr::now)
 					+ "\n\n"
 					 + getValue(lng_sure_save_language);
 				const auto change = [=] {
@@ -522,8 +522,8 @@ void CloudManager::performSwitchToCustom() {
 				Ui::show(
 					Box<ConfirmBox>(
 						text,
-						lang(lng_box_ok),
-						lang(lng_cancel),
+						tr::lng_box_ok(tr::now),
+						tr::lng_cancel(tr::now),
 						change),
 					LayerOption::KeepOther);
 			}

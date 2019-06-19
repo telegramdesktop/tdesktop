@@ -175,8 +175,8 @@ void SetupInterfaceScale(
 					[=] { (*setScale)(cConfigScale()); });
 			});
 			Ui::show(Box<ConfirmBox>(
-				lang(lng_settings_need_restart),
-				lang(lng_settings_restart_now),
+				tr::lng_settings_need_restart(tr::now),
+				tr::lng_settings_restart_now(tr::now),
 				confirmed,
 				cancelled));
 		} else if (scale != cConfigScale()) {
@@ -247,9 +247,9 @@ void SetupHelp(not_null<Ui::VerticalLayout*> container) {
 				Auth().api().requestSupportContact(ready);
 			});
 			auto box = Box<ConfirmBox>(
-				lang(lng_settings_ask_sure),
-				lang(lng_settings_ask_ok),
-				lang(lng_settings_faq_button),
+				tr::lng_settings_ask_sure(tr::now),
+				tr::lng_settings_ask_ok(tr::now),
+				tr::lng_settings_faq_button(tr::now),
 				sure,
 				OpenFaq);
 			box->setStrictCancel(true);

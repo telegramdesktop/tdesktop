@@ -98,7 +98,7 @@ PasscodeLockWidget::PasscodeLockWidget(QWidget *parent)
 : LockWidget(parent)
 , _passcode(this, st::passcodeInput, tr::lng_passcode_ph())
 , _submit(this, tr::lng_passcode_submit(), st::passcodeSubmit)
-, _logout(this, lang(lng_passcode_logout)) {
+, _logout(this, tr::lng_passcode_logout(tr::now)) {
 	connect(_passcode, &Ui::MaskedInputField::changed, [=] { changed(); });
 	connect(_passcode, &Ui::MaskedInputField::submitted, [=] { submit(); });
 
@@ -111,7 +111,7 @@ void PasscodeLockWidget::paintContent(Painter &p) {
 
 	p.setFont(st::passcodeHeaderFont);
 	p.setPen(st::windowFg);
-	p.drawText(QRect(0, _passcode->y() - st::passcodeHeaderHeight, width(), st::passcodeHeaderHeight), lang(lng_passcode_enter), style::al_center);
+	p.drawText(QRect(0, _passcode->y() - st::passcodeHeaderHeight, width(), st::passcodeHeaderHeight), tr::lng_passcode_enter(tr::now), style::al_center);
 
 	if (!_error.isEmpty()) {
 		p.setFont(st::boxTextFont);
@@ -126,7 +126,7 @@ void PasscodeLockWidget::submit() {
 		return;
 	}
 	if (!passcodeCanTry()) {
-		_error = lang(lng_flood_error);
+		_error = tr::lng_flood_error(tr::now);
 		_passcode->showError();
 		update();
 		return;
@@ -147,7 +147,7 @@ void PasscodeLockWidget::submit() {
 }
 
 void PasscodeLockWidget::error() {
-	_error = lang(lng_passcode_wrong);
+	_error = tr::lng_passcode_wrong(tr::now);
 	_passcode->selectAll();
 	_passcode->showError();
 	update();

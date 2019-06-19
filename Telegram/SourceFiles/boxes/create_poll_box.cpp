@@ -655,7 +655,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	}) | rpl::map([=](int count) {
 		return (count < kMaxOptionsCount)
 			? lng_polls_create_limit(lt_count, kMaxOptionsCount - count)
-			: lang(lng_polls_create_maximum);
+			: tr::lng_polls_create_maximum(tr::now);
 	}) | rpl::after_next([=] {
 		container->resizeToWidth(container->widthNoMargins());
 	});

@@ -123,7 +123,7 @@ QSize HistoryGame::countOptimalSize() {
 	minHeight += padding.top() + padding.bottom();
 
 	if (!_gameTagWidth) {
-		_gameTagWidth = st::msgDateFont->width(lang(lng_game_tag).toUpper());
+		_gameTagWidth = st::msgDateFont->width(tr::lng_game_tag(tr::now).toUpper());
 	}
 	return { maxWidth, minHeight };
 }
@@ -262,7 +262,7 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, crl:
 
 		p.setFont(st::msgDateFont);
 		p.setPen(st::msgDateImgFg);
-		p.drawTextLeft(gameX + st::msgDateImgPadding.x(), gameY + st::msgDateImgPadding.y(), pixwidth, lang(lng_game_tag).toUpper());
+		p.drawTextLeft(gameX + st::msgDateImgPadding.x(), gameY + st::msgDateImgPadding.y(), pixwidth, tr::lng_game_tag(tr::now).toUpper());
 
 		p.translate(-attachLeft, -attachTop);
 	}

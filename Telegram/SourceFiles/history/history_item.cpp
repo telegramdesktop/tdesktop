@@ -727,7 +727,7 @@ QString HistoryItem::inDialogsText(DrawInDialog way) const {
 	auto getText = [this]() {
 		if (_media) {
 			if (_groupId) {
-				return textcmdLink(1, TextUtilities::Clean(lang(lng_in_dlg_album)));
+				return textcmdLink(1, TextUtilities::Clean(tr::lng_in_dlg_album(tr::now)));
 			}
 			return _media->chatListText();
 		} else if (!emptyText()) {
@@ -747,7 +747,7 @@ QString HistoryItem::inDialogsText(DrawInDialog way) const {
 		return nullptr;
 	}();
 	if (sender) {
-		auto fromText = sender->isSelf() ? lang(lng_from_you) : sender->shortName();
+		auto fromText = sender->isSelf() ? tr::lng_from_you(tr::now) : sender->shortName();
 		auto fromWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, TextUtilities::Clean(fromText)));
 		return lng_dialogs_text_with_from(lt_from_part, fromWrapped, lt_message, plainText);
 	}
@@ -828,7 +828,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 				data.vfrom_id.v);
 		} else if (checked == MediaCheckResult::Empty) {
 			const auto text = HistoryService::PreparedText {
-				lang(lng_message_empty)
+				tr::lng_message_empty(tr::now)
 			};
 			return history->owner().makeServiceMessage(
 				history,
@@ -848,7 +848,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 		return history->owner().makeServiceMessage(history, data);
 	}, [&](const MTPDmessageEmpty &data) -> HistoryItem* {
 		const auto text = HistoryService::PreparedText{
-			lang(lng_message_empty)
+			tr::lng_message_empty(tr::now)
 		};
 		return history->owner().makeServiceMessage(history, data.vid.v, TimeId(0), text);
 	});

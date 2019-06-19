@@ -56,7 +56,7 @@ bool JoinGroupByHash(const Match &match, const QVariant &context) {
 			return;
 		}
 		Core::App().hideMediaView();
-		Ui::show(Box<InformBox>(lang(lng_group_invite_bad_link)));
+		Ui::show(Box<InformBox>(tr::lng_group_invite_bad_link(tr::now)));
 	});
 	return true;
 }
@@ -246,7 +246,7 @@ bool ResolvePrivatePost(const Match &match, const QVariant &context) {
 			msgId);
 	};
 	const auto fail = [=] {
-		Ui::show(Box<InformBox>(lang(lng_error_post_link_invalid)));
+		Ui::show(Box<InformBox>(tr::lng_error_post_link_invalid(tr::now)));
 	};
 	const auto auth = &Auth();
 	if (const auto channel = auth->data().channelLoaded(channelId)) {
@@ -292,7 +292,7 @@ bool HandleUnknown(const Match &match, const QVariant &context) {
 			};
 			*box = Ui::show(Box<ConfirmBox>(
 				text,
-				lang(lng_menu_update),
+				tr::lng_menu_update(tr::now),
 				callback));
 		} else {
 			Ui::show(Box<InformBox>(text));

@@ -548,10 +548,10 @@ EmptyPainter::EmptyPainter(not_null<History*> history) : _history(history) {
 
 void EmptyPainter::fillAboutGroup() {
 	const auto phrases = {
-		lang(lng_group_about1),
-		lang(lng_group_about2),
-		lang(lng_group_about3),
-		lang(lng_group_about4),
+		tr::lng_group_about1(tr::now),
+		tr::lng_group_about2(tr::now),
+		tr::lng_group_about3(tr::now),
+		tr::lng_group_about4(tr::now),
 	};
 	const auto setText = [](Ui::Text::String &text, const QString &content) {
 		text.setText(
@@ -559,8 +559,8 @@ void EmptyPainter::fillAboutGroup() {
 			content,
 			Ui::NameTextOptions());
 	};
-	setText(_header, lang(lng_group_about_header));
-	setText(_text, lang(lng_group_about_text));
+	setText(_header, tr::lng_group_about_header(tr::now));
+	setText(_text, tr::lng_group_about_text(tr::now));
 	for (const auto &text : phrases) {
 		_phrases.emplace_back(st::msgMinWidth);
 		setText(_phrases.back(), text);

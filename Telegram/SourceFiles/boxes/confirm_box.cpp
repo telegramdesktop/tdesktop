@@ -45,8 +45,8 @@ ConfirmBox::ConfirmBox(
 	const QString &text,
 	FnMut<void()> confirmedCallback,
 	FnMut<void()> cancelledCallback)
-: _confirmText(lang(lng_box_ok))
-, _cancelText(lang(lng_cancel))
+: _confirmText(tr::lng_box_ok(tr::now))
+, _cancelText(tr::lng_cancel(tr::now))
 , _confirmStyle(st::defaultBoxButton)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
 , _confirmedCallback(std::move(confirmedCallback))
@@ -61,7 +61,7 @@ ConfirmBox::ConfirmBox(
 	FnMut<void()> confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
-, _cancelText(lang(lng_cancel))
+, _cancelText(tr::lng_cancel(tr::now))
 , _confirmStyle(st::defaultBoxButton)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
 , _confirmedCallback(std::move(confirmedCallback))
@@ -76,7 +76,7 @@ ConfirmBox::ConfirmBox(
 	FnMut<void()> confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
-, _cancelText(lang(lng_cancel))
+, _cancelText(tr::lng_cancel(tr::now))
 , _confirmStyle(st::defaultBoxButton)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
 , _confirmedCallback(std::move(confirmedCallback))
@@ -92,7 +92,7 @@ ConfirmBox::ConfirmBox(
 	FnMut<void()> confirmedCallback,
 	FnMut<void()> cancelledCallback)
 : _confirmText(confirmText)
-, _cancelText(lang(lng_cancel))
+, _cancelText(tr::lng_cancel(tr::now))
 , _confirmStyle(confirmStyle)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
 , _confirmedCallback(std::move(confirmedCallback))
@@ -301,13 +301,13 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 	}
 }
 
-InformBox::InformBox(QWidget*, const QString &text, Fn<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, lang(lng_box_ok), std::move(closedCallback)) {
+InformBox::InformBox(QWidget*, const QString &text, Fn<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, tr::lng_box_ok(tr::now), std::move(closedCallback)) {
 }
 
 InformBox::InformBox(QWidget*, const QString &text, const QString &doneText, Fn<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std::move(closedCallback)) {
 }
 
-InformBox::InformBox(QWidget*, const TextWithEntities &text, Fn<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, lang(lng_box_ok), std::move(closedCallback)) {
+InformBox::InformBox(QWidget*, const TextWithEntities &text, Fn<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, tr::lng_box_ok(tr::now), std::move(closedCallback)) {
 }
 
 InformBox::InformBox(QWidget*, const TextWithEntities &text, const QString &doneText, Fn<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std::move(closedCallback)) {
@@ -345,7 +345,7 @@ void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 			_channel->session().api().exportInviteLink(_channel);
 		} else {
 			QGuiApplication::clipboard()->setText(_channel->inviteLink());
-			Ui::Toast::Show(lang(lng_create_channel_link_copied));
+			Ui::Toast::Show(tr::lng_create_channel_link_copied(tr::now));
 		}
 	}
 }
@@ -378,7 +378,7 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 	option.setWrapMode(QTextOption::WrapAnywhere);
 	p.setFont(_linkOver ? st::defaultInputField.font->underline() : st::defaultInputField.font);
 	p.setPen(st::defaultLinkButton.color);
-	auto inviteLinkText = _channel->inviteLink().isEmpty() ? lang(lng_group_invite_create) : _channel->inviteLink();
+	auto inviteLinkText = _channel->inviteLink().isEmpty() ? tr::lng_group_invite_create(tr::now) : _channel->inviteLink();
 	p.drawText(_invitationLink, inviteLinkText, option);
 }
 
@@ -393,7 +393,7 @@ PinMessageBox::PinMessageBox(
 	MsgId msgId)
 : _peer(peer)
 , _msgId(msgId)
-, _text(this, lang(lng_pinned_pin_sure), st::boxLabel) {
+, _text(this, tr::lng_pinned_pin_sure(tr::now), st::boxLabel) {
 }
 
 void PinMessageBox::prepare() {
@@ -401,7 +401,7 @@ void PinMessageBox::prepare() {
 	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	if (_peer->isChat() || _peer->isMegagroup()) {
-		_notify.create(this, lang(lng_pinned_notify), true, st::defaultBoxCheckbox);
+		_notify.create(this, tr::lng_pinned_notify(tr::now), true, st::defaultBoxCheckbox);
 	}
 
 	auto height = st::boxPadding.top() + _text->height() + st::boxPadding.bottom();
@@ -494,21 +494,21 @@ void DeleteMessagesBox::prepare() {
 	if (const auto peer = _wipeHistoryPeer) {
 		if (_wipeHistoryJustClear) {
 			details.text = peer->isSelf()
-				? lang(lng_sure_delete_saved_messages)
+				? tr::lng_sure_delete_saved_messages(tr::now)
 				: peer->isUser()
 				? lng_sure_delete_history(lt_contact, peer->name)
 				: lng_sure_delete_group_history(lt_group, peer->name);
 			deleteStyle = &st::attentionBoxButton;
 		} else {
 			details.text = peer->isSelf()
-				? lang(lng_sure_delete_saved_messages)
+				? tr::lng_sure_delete_saved_messages(tr::now)
 				: peer->isUser()
-				? lng_sure_delete_history(lt_contact, peer->name)
+				? tr::lng_sure_delete_history(tr::now, lt_contact, peer->name)
 				: peer->isChat()
-				? lng_sure_delete_and_exit(lt_group, peer->name)
-				: lang(peer->isMegagroup()
-					? lng_sure_leave_group
-					: lng_sure_leave_channel);
+				? tr::lng_sure_delete_and_exit(tr::now, lt_group, peer->name)
+				: peer->isMegagroup()
+				? tr::lng_sure_leave_group(tr::now)
+				: tr::lng_sure_leave_channel(tr::now);
 			deleteText = _wipeHistoryPeer->isUser()
 				? tr::lng_box_delete()
 				: tr::lng_box_leave();
@@ -523,17 +523,17 @@ void DeleteMessagesBox::prepare() {
 	} else if (_moderateFrom) {
 		Assert(_moderateInChannel != nullptr);
 
-		details.text = lang(lng_selected_delete_sure_this);
+		details.text = tr::lng_selected_delete_sure_this(tr::now);
 		if (_moderateBan) {
-			_banUser.create(this, lang(lng_ban_user), false, st::defaultBoxCheckbox);
+			_banUser.create(this, tr::lng_ban_user(tr::now), false, st::defaultBoxCheckbox);
 		}
-		_reportSpam.create(this, lang(lng_report_spam), false, st::defaultBoxCheckbox);
+		_reportSpam.create(this, tr::lng_report_spam(tr::now), false, st::defaultBoxCheckbox);
 		if (_moderateDeleteAll) {
-			_deleteAll.create(this, lang(lng_delete_all_from), false, st::defaultBoxCheckbox);
+			_deleteAll.create(this, tr::lng_delete_all_from(tr::now), false, st::defaultBoxCheckbox);
 		}
 	} else {
 		details.text = (_ids.size() == 1)
-			? lang(lng_selected_delete_sure_this)
+			? tr::lng_selected_delete_sure_this(tr::now)
 			: lng_selected_delete_sure(lt_count, _ids.size());
 		if (const auto peer = checkFromSinglePeer()) {
 			auto count = int(_ids.size());
@@ -601,7 +601,7 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 				lt_user,
 				user->firstName);
 		} else {
-			result.checkbox = lang(lng_delete_for_everyone_check);
+			result.checkbox = tr::lng_delete_for_everyone_check(tr::now);
 		}
 		return result;
 	}
@@ -793,17 +793,13 @@ ConfirmInviteBox::ConfirmInviteBox(
 	const auto title = qs(data.vtitle);
 	const auto count = data.vparticipants_count.v;
 	const auto status = [&] {
-		if (_participants.empty() || _participants.size() >= count) {
-			if (count > 0) {
-				return lng_chat_status_members(lt_count_decimal, count);
-			} else {
-				return lang(_isChannel
-					? lng_channel_status
-					: lng_group_status);
-			}
-		} else {
-			return lng_group_invite_members(lt_count, count);
-		}
+		return (!_participants.empty() && _participants.size() < count)
+			? tr::lng_group_invite_members(tr::now, lt_count, count)
+			: (count > 0)
+			? tr::lng_chat_status_members(tr::now, lt_count_decimal, count)
+			: _isChannel
+			? tr::lng_channel_status(tr::now)
+			: tr::lng_group_status(tr::now);
 	}();
 	_title->setText(title);
 	_status->setText(status);

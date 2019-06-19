@@ -525,7 +525,7 @@ void EditScans::setupScans(const QString &header) {
 	}
 
 	setupList(inner, FileType::Scan, header);
-	setupList(inner, FileType::Translation, lang(lng_passport_translation));
+	setupList(inner, FileType::Translation, tr::lng_passport_translation(tr::now));
 
 	init();
 }
@@ -601,13 +601,13 @@ void EditScans::setupSpecialScans(
 	const auto title = [&](FileType type) {
 		switch (type) {
 		case FileType::FrontSide:
-			return lang(requiresBothSides
-				? lng_passport_front_side_title
-				: lng_passport_main_page_title);
+			return requiresBothSides
+				? tr::lng_passport_front_side_title(tr::now)
+				: tr::lng_passport_main_page_title(tr::now);
 		case FileType::ReverseSide:
-			return lang(lng_passport_reverse_side_title);
+			return tr::lng_passport_reverse_side_title(tr::now);
 		case FileType::Selfie:
-			return lang(lng_passport_selfie_title);
+			return tr::lng_passport_selfie_title(tr::now);
 		}
 		Unexpected("Type in special row title.");
 	};
@@ -706,7 +706,7 @@ void EditScans::setupSpecialScans(
 			st::passportFormLabelPadding));
 	}
 
-	setupList(inner, FileType::Translation, lang(lng_passport_translation));
+	setupList(inner, FileType::Translation, tr::lng_passport_translation(tr::now));
 
 	init();
 }
@@ -808,13 +808,13 @@ void EditScans::createSpecialScanRow(
 	const auto name = [&] {
 		switch (type) {
 		case FileType::FrontSide:
-			return lang(requiresBothSides
-				? lng_passport_front_side_title
-				: lng_passport_main_page_title);
+			return requiresBothSides
+				? tr::lng_passport_front_side_title(tr::now)
+				: tr::lng_passport_main_page_title(tr::now);
 		case FileType::ReverseSide:
-			return lang(lng_passport_reverse_side_title);
+			return tr::lng_passport_reverse_side_title(tr::now);
 		case FileType::Selfie:
-			return lang(lng_passport_selfie_title);
+			return tr::lng_passport_selfie_title(tr::now);
 		}
 		Unexpected("Type in special file name.");
 	}();
@@ -836,7 +836,7 @@ void EditScans::createSpecialScanRow(
 
 void EditScans::chooseScan(FileType type) {
 	if (!_controller->canAddScan(type)) {
-		_controller->showToast(lang(lng_passport_scans_limit_reached));
+		_controller->showToast(tr::lng_passport_scans_limit_reached(tr::now));
 		return;
 	}
 	ChooseScan(this, type, [=](QByteArray &&content) {
@@ -928,7 +928,7 @@ void EditScans::ChooseScan(
 		|| (type == FileType::Translation);
 	(allowMany ? FileDialog::GetOpenPaths : FileDialog::GetOpenPath)(
 		parent,
-		lang(lng_passport_choose_image),
+		tr::lng_passport_choose_image(tr::now),
 		filter,
 		processOpened,
 		nullptr);

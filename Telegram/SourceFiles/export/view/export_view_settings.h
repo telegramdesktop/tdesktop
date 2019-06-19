@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/export_settings.h"
 #include "ui/rp_widget.h"
 
-enum LangKey : int;
-
 namespace Ui {
 class VerticalLayout;
 class Checkbox;
@@ -55,24 +53,24 @@ private:
 	void setupPathAndFormat(not_null<Ui::VerticalLayout*> container);
 	void addHeader(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key);
+		const QString &text);
 	not_null<Ui::Checkbox*> addOption(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
+		const QString &text,
 		Types types);
 	not_null<Ui::Checkbox*> addOptionWithAbout(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
+		const QString &text,
 		Types types,
-		LangKey about);
+		const QString &about);
  	void addChatOption(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
+		const QString &text,
 		Types types);
 	void addMediaOptions(not_null<Ui::VerticalLayout*> container);
 	void addMediaOption(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
+		const QString &text,
 		MediaType type);
 	void addSizeSlider(not_null<Ui::VerticalLayout*> container);
 	void addLocationLabel(

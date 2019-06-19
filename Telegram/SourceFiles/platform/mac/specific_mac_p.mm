@@ -39,7 +39,6 @@ std::optional<bool> ApplicationIsActive;
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
 using Platform::Q2NSString;
-using Platform::NSlang;
 using Platform::NS2QString;
 
 @interface qVisualize : NSObject {

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
+#include "ui/text/text_utilities.h"
 #include "core/file_utilities.h"
 #include "lang/lang_keys.h"
 #include "boxes/peers/edit_participant_box.h"
@@ -451,11 +452,17 @@ void InnerWidget::updateEmptyText() {
 	options.flags |= TextParseMarkdown;
 	auto hasSearch = !_searchQuery.isEmpty();
 	auto hasFilter = (_filter.flags != 0) || !_filter.allUsers;
-	auto text = TextWithEntities { lang((hasSearch || hasFilter) ? lng_admin_log_no_results_title : lng_admin_log_no_events_title) };
-	text.entities.append(EntityInText(EntityType::Bold, 0, text.text.size()));
+	auto text = Ui::Text::Bold((hasSearch || hasFilter)
+		? tr::lng_admin_log_no_results_title(tr::now)
+		: tr::lng_admin_log_no_events_title(tr::now));
 	auto description = hasSearch
-		? lng_admin_log_no_results_search_text(lt_query, TextUtilities::Clean(_searchQuery))
-		: lang(hasFilter ? lng_admin_log_no_results_text : lng_admin_log_no_events_text);
+		? tr::lng_admin_log_no_results_search_text(
+			tr::now,
+			lt_query,
+			TextUtilities::Clean(_searchQuery))
+		: hasFilter
+		? tr::lng_admin_log_no_results_text(tr::now)
+		: tr::lng_admin_log_no_events_text(tr::now);
 	text.text.append(qstr("\n\n") + description);
 	_emptyText.setMarkedText(st::defaultTextStyle, text, options);
 }
@@ -994,22 +1001,22 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
 	if (lnkPhoto || lnkDocument) {
 		if (isUponSelected > 0) {
-			_menu->addAction(lang(lng_context_copy_selected), [=] {
+			_menu->addAction(tr::lng_context_copy_selected(tr::now), [=] {
 				copySelectedText();
 			});
 		}
 		if (lnkPhoto) {
 			const auto photo = lnkPhoto->photo();
-			_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
+			_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 				savePhotoToFile(photo);
 			}));
-			_menu->addAction(lang(lng_context_copy_image), [=] {
+			_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
 				copyContextImage(photo);
 			});
 		} else {
 			auto document = lnkDocument->document();
 			if (document->loading()) {
-				_menu->addAction(lang(lng_context_cancel_download), [=] {
+				_menu->addAction(tr::lng_context_cancel_download(tr::now), [=] {
 					cancelContextDownload(document);
 				});
 			} else {
@@ -1018,17 +1025,17 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						const auto itemId = view
 							? view->data()->fullId()
 							: FullMsgId();
-						_menu->addAction(lang(lng_context_open_gif), [=] {
+						_menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
 							openContextGif(itemId);
 						});
 					}
 				}
 				if (!document->filepath(DocumentData::FilePathResolve::Checked).isEmpty()) {
-					_menu->addAction(lang(Platform::IsMac() ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
+					_menu->addAction(Platform::IsMac() ? tr::lng_context_show_in_finder(tr::now) : tr::lng_context_show_in_folder(tr::now), [=] {
 						showContextInFolder(document);
 					});
 				}
-				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsVoice ? lng_context_save_audio : (lnkIsAudio ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
+				_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ?  tr::lng_context_save_audio(tr::now) : (lnkIsAudio ?  tr::lng_context_save_audio_file(tr::now) :  tr::lng_context_save_file(tr::now))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 					saveDocumentToFile(document);
 				}));
 			}
@@ -1045,20 +1052,20 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 		auto msg = dynamic_cast<HistoryMessage*>(item);
 		if (isUponSelected > 0) {
-			_menu->addAction(lang(lng_context_copy_selected), [this] { copySelectedText(); });
+			_menu->addAction(tr::lng_context_copy_selected(tr::now), [this] { copySelectedText(); });
 		} else {
 			if (item && !isUponSelected) {
 				const auto media = view->media();
 				const auto mediaHasTextForCopy = media && media->hasTextForCopy();
 				if (const auto document = media ? media->getDocument() : nullptr) {
 					if (document->sticker()) {
-						_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
+						_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 							saveDocumentToFile(document);
 						}));
 					}
 				}
 				if (msg && !link && (view->hasVisibleText() || mediaHasTextForCopy)) {
-					_menu->addAction(lang(lng_context_copy_text), [=] {
+					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
 						copyContextText(itemId);
 					});
 				}
@@ -1093,7 +1100,7 @@ void InnerWidget::savePhotoToFile(PhotoData *photo) {
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
 		this,
-		lang(lng_save_photo),
+		tr::lng_save_photo(tr::now),
 		filter,
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
 		crl::guard(this, [=](const QString &result) {
@@ -1163,7 +1170,7 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 			return;
 		}
 	}
-	_menu->addAction(lang(lng_context_restrict_user), [=] {
+	_menu->addAction(tr::lng_context_restrict_user(tr::now), [=] {
 		auto editRestrictions = [=](bool hasAdminRights, const MTPChatBannedRights &currentRights) {
 			auto weak = QPointer<InnerWidget>(this);
 			auto weakBox = std::make_shared<QPointer<EditRestrictedBox>>();

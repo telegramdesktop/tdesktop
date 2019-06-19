@@ -125,7 +125,7 @@ public:
 
 	rpl::producer<QString> title() override;
 	rpl::producer<QString> optionsTitleKey() override;
-	LangKey optionLabelKey(EditPrivacyBox::Option option) override;
+	QString optionLabel(EditPrivacyBox::Option option) override;
 	rpl::producer<QString> warning() override;
 	rpl::producer<QString> exceptionButtonTextKey(
 		Exception exception) override;

@@ -304,7 +304,7 @@ void HistoryPoll::updateTexts() {
 		_closed = _poll->closed;
 		_subtitle.setText(
 			st::msgDateTextStyle,
-			lang(_closed ? lng_polls_closed : lng_polls_anonymous));
+			_closed ? tr::lng_polls_closed(tr::now) : tr::lng_polls_anonymous(tr::now));
 	}
 
 	updateAnswers();
@@ -386,8 +386,8 @@ void HistoryPoll::updateTotalVotes() {
 	}
 	_totalVotes = _poll->totalVoters;
 	const auto string = !_totalVotes
-		? lang(lng_polls_votes_none)
-		: lng_polls_votes_count(lt_count_short, _totalVotes);
+		? tr::lng_polls_votes_none(tr::now)
+		: tr::lng_polls_votes_count(tr::now, lt_count_short, _totalVotes);
 	_totalVotesLabel.setText(st::msgDateTextStyle, string);
 }
 
@@ -811,7 +811,7 @@ TextState HistoryPoll::textState(QPoint point, StateRequest request) const {
 				if (request.flags & Flag::LookupCustomTooltip) {
 					result.customTooltipText = answer.votes
 						? lng_polls_votes_count(lt_count_decimal, answer.votes)
-						: lang(lng_polls_votes_none);
+						: tr::lng_polls_votes_none(tr::now);
 				}
 			}
 			return result;

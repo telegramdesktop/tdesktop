@@ -77,7 +77,7 @@ QString findValidCode(QString fullCode) {
 
 CountryInput::CountryInput(QWidget *parent, const style::InputField &st) : TWidget(parent)
 , _st(st)
-, _text(lang(lng_country_code)) {
+, _text(tr::lng_country_code(tr::now)) {
 	initCountries();
 	resize(_st.width, _st.heightMin);
 
@@ -85,7 +85,7 @@ CountryInput::CountryInput(QWidget *parent, const style::InputField &st) : TWidg
 	auto placeholderFont = _st.placeholderFont->f;
 	placeholderFont.setStyleStrategy(QFont::PreferMatch);
 	auto metrics = QFontMetrics(placeholderFont);
-	auto placeholder = QString();// metrics.elidedText(lang(lng_country_fake_ph), Qt::ElideRight, availableWidth);
+	auto placeholder = QString();// metrics.elidedText(tr::lng_country_fake_ph(tr::now), Qt::ElideRight, availableWidth);
 	if (!placeholder.isNull()) {
 		_placeholderPath.addText(0, QFontMetrics(placeholderFont).ascent(), placeholderFont, placeholder);
 	}
@@ -169,10 +169,10 @@ void CountryInput::onChooseCode(const QString &code) {
 			_chosenIso = lastValidISO = info->iso2;
 			setText(QString::fromUtf8(info->name));
 		} else {
-			setText(lang(lng_bad_country_code));
+			setText(tr::lng_bad_country_code(tr::now));
 		}
 	} else {
-		setText(lang(lng_country_code));
+		setText(tr::lng_country_code(tr::now));
 	}
 	update();
 }
@@ -389,7 +389,7 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 		p.fillRect(r, st::boxBg);
 		p.setFont(st::noContactsFont);
 		p.setPen(st::noContactsColor);
-		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_country_none), style::al_center);
+		p.drawText(QRect(0, 0, width(), st::noContactsHeight), tr::lng_country_none(tr::now), style::al_center);
 	}
 }
 

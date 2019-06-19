@@ -121,8 +121,7 @@ inline constexpr auto kTagsCount = " << langpack_.tags.size() << ";\n\
 \n";
 
 	header_->popNamespace().newline().stream() << "\
-enum LangKey : int;\n\
-QString lang(LangKey key);\n\n";
+enum LangKey : int;\n\n";
 }
 
 void Generator::writeHeaderTagTypes() {
@@ -170,7 +169,6 @@ void Generator::writeHeaderTaggedMethods() {
 			args.push_back((isPluralTag ? "type" : ("lt_" + tag)) + ", " + tag + "__val");
 		}
 		if (!entry.tags.empty() && (!isPlural || key == ComputePluralKey(entry.keyBase, 0))) {
-			auto initialString = isPlural ? ("lang(LangKey(" + key + " + plural.keyShift))") : ("lang(" + getFullKey(entry) + ")");
 			header_->stream() << "\
 inline QString " << (isPlural ? entry.keyBase : key) << "(" << params.join(QString(", ")) << ") {\n\
 	return tr::" << (isPlural ? entry.keyBase : key) << "(tr::now, " << args.join(QString(", ")) << ");\n\
@@ -207,7 +205,7 @@ inline constexpr ushort TagValue() {\n\
 		header_->stream() << "template <> struct TagData<lngtag_" << tag.tag << "> : std::integral_constant<ushort, ushort(lt_" << tag.tag << ")> {};\n";
 	}
 
-	header_->popNamespace();
+	header_->newline().popNamespace();
 }
 
 void Generator::writeHeaderReactiveInterface() {
@@ -231,14 +229,13 @@ struct Identity {\n\
 
 	header_->popNamespace().newline();
 	header_->stream() << "\
-\n\
 struct now_t {\n\
 };\n\
 \n\
 inline constexpr now_t now{};\n\
 \n\
 template <typename ...Tags>\n\
-struct Producer;\n\
+struct phrase;\n\
 \n";
 	std::set<QStringList> producersDeclared;
 	for (auto &entry : langpack_.entries) {
@@ -274,19 +271,19 @@ struct Producer;\n\
 		}
 		header_->stream() << "\
 template <>\n\
-struct Producer<" << tags.join(", ") << "> {\n\
+struct phrase<" << tags.join(", ") << "> {\n\
 	template <\n\
 		typename P = details::Identity,\n\
 		typename T = decltype(std::declval<P>()(QString()))>\n\
 	rpl::producer<T> operator()(" << producerArgs.join(", ") << ") const {\n\
-		return ::Lang::details::template Producer<" << tags.join(", ") << ">::template Combine(" << values.join(", ") << ");\n\
+		return ::Lang::details::Producer<" << tags.join(", ") << ">::template Combine(" << values.join(", ") << ");\n\
 	}\n\
 \n\
 	template <\n\
 		typename P = details::Identity,\n\
 		typename T = decltype(std::declval<P>()(QString()))>\n\
 	T operator()(now_t, " << currentArgs.join(", ") << ") const {\n\
-		return ::Lang::details::template Producer<" << tags.join(", ") << ">::template Current(" << values.join(", ") << ");\n\
+		return ::Lang::details::Producer<" << tags.join(", ") << ">::template Current(" << values.join(", ") << ");\n\
 	}\n\
 \n\
 	LangKey base;\n\
@@ -307,7 +304,7 @@ void Generator::writeHeaderProducersInstances() {
 		}
 		if (!isPlural || key == ComputePluralKey(entry.keyBase, 0)) {
 			header_->stream() << "\
-inline constexpr Producer<" << tags.join(", ") << "> " << (isPlural ? entry.keyBase : key) << "{ LangKey(" << index << ") };\n";
+inline constexpr phrase<" << tags.join(", ") << "> " << (isPlural ? entry.keyBase : key) << "{ LangKey(" << index << ") };\n";
 		}
 		++index;
 	}

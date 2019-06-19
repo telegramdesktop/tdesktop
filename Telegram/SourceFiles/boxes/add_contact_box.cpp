@@ -67,7 +67,7 @@ style::InputField CreateBioFieldStyle() {
 QString PeerFloodErrorText(PeerFloodType type) {
 	auto link = textcmdLink(
 		Core::App().createInternalLinkFull(qsl("spambot")),
-		lang(lng_cant_more_info));
+		tr::lng_cant_more_info(tr::now));
 	if (type == PeerFloodType::InviteGroup) {
 		return lng_cant_invite_not_contact(lt_more_info, link);
 	}
@@ -107,9 +107,9 @@ void ShowAddParticipantsError(
 			};
 			Ui::show(
 				Box<ConfirmBox>(
-					lang(lng_cant_invite_offer_admin),
-					lang(lng_cant_invite_make_admin),
-					lang(lng_cancel),
+					tr::lng_cant_invite_offer_admin(tr::now),
+					tr::lng_cant_invite_make_admin(tr::now),
+					tr::lng_cancel(tr::now),
 					makeAdmin),
 				LayerOption::KeepOther);
 			return;
@@ -121,33 +121,32 @@ void ShowAddParticipantsError(
 	const auto hasBot = (bot != end(users));
 	const auto text = [&] {
 		if (error == qstr("USER_BOT")) {
-			return lang(lng_cant_invite_bot_to_channel);
+			return tr::lng_cant_invite_bot_to_channel(tr::now);
 		} else if (error == qstr("USER_LEFT_CHAT")) {
 			// Trying to return a user who has left.
 		} else if (error == qstr("USER_KICKED")) {
 			// Trying to return a user who was kicked by admin.
-			return lang(lng_cant_invite_banned);
+			return tr::lng_cant_invite_banned(tr::now);
 		} else if (error == qstr("USER_PRIVACY_RESTRICTED")) {
-			return lang(lng_cant_invite_privacy);
+			return tr::lng_cant_invite_privacy(tr::now);
 		} else if (error == qstr("USER_NOT_MUTUAL_CONTACT")) {
 			// Trying to return user who does not have me in contacts.
-			return lang(lng_failed_add_not_mutual);
+			return tr::lng_failed_add_not_mutual(tr::now);
 		} else if (error == qstr("USER_ALREADY_PARTICIPANT") && hasBot) {
-			return lang(lng_bot_already_in_group);
+			return tr::lng_bot_already_in_group(tr::now);
 		} else if (error == qstr("BOT_GROUPS_BLOCKED")) {
-			return lang(lng_error_cant_add_bot);
+			return tr::lng_error_cant_add_bot(tr::now);
 		} else if (error == qstr("PEER_FLOOD")) {
 			const auto isGroup = (chat->isChat() || chat->isMegagroup());
 			return PeerFloodErrorText(isGroup
 				? PeerFloodType::InviteGroup
 				: PeerFloodType::InviteChannel);
 		} else if (error == qstr("ADMINS_TOO_MUCH")) {
-			const auto isGroup = (chat->isChat() || chat->isMegagroup());
-			return lang(isGroup
-				? lng_error_admin_limit
-				: lng_error_admin_limit_channel);
+			return ((chat->isChat() || chat->isMegagroup())
+				? tr::lng_error_admin_limit
+				: tr::lng_error_admin_limit_channel)(tr::now);
 		}
-		return lang(lng_failed_add_participant);
+		return tr::lng_failed_add_participant(tr::now);
 	}();
 	Ui::show(Box<InformBox>(text), LayerOption::KeepOther);
 }
@@ -424,9 +423,9 @@ void GroupInfoBox::prepare() {
 
 	_photo.create(
 		this,
-		lang((_type == Type::Channel)
-			? lng_create_channel_crop
-			: lng_create_group_crop),
+		((_type == Type::Channel)
+			? tr::lng_create_channel_crop
+			: tr::lng_create_group_crop)(tr::now),
 		Ui::UserpicButton::Role::ChangePhoto,
 		st::defaultUserpicButton);
 	_title.create(
@@ -582,7 +581,7 @@ void GroupInfoBox::createGroup(
 			}
 		} else if (error.type() == qstr("USERS_TOO_FEW")) {
 			Ui::show(
-				Box<InformBox>(lang(lng_cant_invite_privacy)),
+				Box<InformBox>(tr::lng_cant_invite_privacy(tr::now)),
 				LayerOption::KeepOther);
 		} else if (error.type() == qstr("PEER_FLOOD")) {
 			Ui::show(
@@ -591,7 +590,7 @@ void GroupInfoBox::createGroup(
 				LayerOption::KeepOther);
 		} else if (error.type() == qstr("USER_RESTRICTED")) {
 			Ui::show(
-				Box<InformBox>(lang(lng_cant_do_this)),
+				Box<InformBox>(tr::lng_cant_do_this(tr::now)),
 				LayerOption::KeepOther);
 		}
 	}).send();
@@ -703,9 +702,9 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 			_title->setFocus();
 			_title->showError();
 		} else if (error.type() == qstr("USER_RESTRICTED")) {
-			Ui::show(Box<InformBox>(lang(lng_cant_do_this)));
+			Ui::show(Box<InformBox>(tr::lng_cant_do_this(tr::now)));
 		} else if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
-			Ui::show(Box<InformBox>(lang(lng_cant_do_this))); // TODO
+			Ui::show(Box<InformBox>(tr::lng_cant_do_this(tr::now))); // TODO
 		}
 	}).send();
 }
@@ -733,11 +732,37 @@ SetupChannelBox::SetupChannelBox(QWidget*, ChannelData *channel, bool existing)
 : _channel(channel)
 , _existing(existing)
 , _privacyGroup(std::make_shared<Ui::RadioenumGroup<Privacy>>(Privacy::Public))
-, _public(this, _privacyGroup, Privacy::Public, lang(channel->isMegagroup() ? lng_create_public_group_title : lng_create_public_channel_title), st::defaultBoxCheckbox)
-, _private(this, _privacyGroup, Privacy::Private, lang(channel->isMegagroup() ? lng_create_private_group_title : lng_create_private_channel_title), st::defaultBoxCheckbox)
+, _public(
+	this,
+	_privacyGroup,
+	Privacy::Public,
+	(channel->isMegagroup()
+		? tr::lng_create_public_group_title
+		: tr::lng_create_public_channel_title)(tr::now),
+	st::defaultBoxCheckbox)
+, _private(
+	this,
+	_privacyGroup,
+	Privacy::Private,
+	(channel->isMegagroup()
+		? tr::lng_create_private_group_title
+		: tr::lng_create_private_channel_title)(tr::now),
+	st::defaultBoxCheckbox)
 , _aboutPublicWidth(st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultRadio.diameter - st::defaultBoxCheckbox.textPosition.x())
-, _aboutPublic(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
-, _aboutPrivate(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
+, _aboutPublic(
+	st::defaultTextStyle,
+	(channel->isMegagroup()
+		? tr::lng_create_public_group_about
+		: tr::lng_create_public_channel_about)(tr::now),
+	_defaultOptions,
+	_aboutPublicWidth)
+, _aboutPrivate(
+	st::defaultTextStyle,
+	(channel->isMegagroup()
+		? tr::lng_create_private_group_about
+		: tr::lng_create_private_channel_about)(tr::now),
+	_defaultOptions,
+	_aboutPublicWidth)
 , _link(this, st::setupChannelLink, nullptr, channel->username, true) {
 }
 
@@ -826,7 +851,13 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 	if (!_channel->isMegagroup() || !_link->isHidden()) {
 		p.setPen(st::boxTextFg);
 		p.setFont(st::newGroupLinkFont);
-		p.drawTextLeft(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultInputField.textMargins.left(), _link->y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop, width(), lang(_link->isHidden() ? lng_create_group_invite_link : lng_create_group_link));
+		p.drawTextLeft(
+			st::boxPadding.left() + st::newGroupPadding.left() + st::defaultInputField.textMargins.left(),
+			_link->y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop,
+			width(),
+			(_link->isHidden()
+				? tr::lng_create_group_invite_link
+				: tr::lng_create_group_link)(tr::now));
 	}
 
 	if (_link->isHidden()) {
@@ -835,7 +866,7 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 			option.setWrapMode(QTextOption::WrapAnywhere);
 			p.setFont(_linkOver ? st::boxTextFont->underline() : st::boxTextFont);
 			p.setPen(st::defaultLinkButton.color);
-			auto inviteLinkText = _channel->inviteLink().isEmpty() ? lang(lng_group_invite_create) : _channel->inviteLink();
+			auto inviteLinkText = _channel->inviteLink().isEmpty() ? tr::lng_group_invite_create(tr::now) : _channel->inviteLink();
 			p.drawText(_invitationLink, inviteLinkText, option);
 		}
 	} else {
@@ -872,7 +903,7 @@ void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 			_channel->session().api().exportInviteLink(_channel);
 		} else {
 			QGuiApplication::clipboard()->setText(_channel->inviteLink());
-			Ui::Toast::Show(lang(lng_create_channel_link_copied));
+			Ui::Toast::Show(tr::lng_create_channel_link_copied(tr::now));
 		}
 	}
 }
@@ -927,8 +958,8 @@ void SetupChannelBox::handleChange() {
 		for (int32 i = 0; i < len; ++i) {
 			QChar ch = name.at(i);
 			if ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '_') {
-				if (_errorText != lang(lng_create_channel_link_bad_symbols)) {
-					_errorText = lang(lng_create_channel_link_bad_symbols);
+				if (_errorText != tr::lng_create_channel_link_bad_symbols(tr::now)) {
+					_errorText = tr::lng_create_channel_link_bad_symbols(tr::now);
 					update();
 				}
 				_checkTimer.stop();
@@ -936,8 +967,8 @@ void SetupChannelBox::handleChange() {
 			}
 		}
 		if (name.size() < kMinUsernameLength) {
-			if (_errorText != lang(lng_create_channel_link_too_short)) {
-				_errorText = lang(lng_create_channel_link_too_short);
+			if (_errorText != tr::lng_create_channel_link_too_short(tr::now)) {
+				_errorText = tr::lng_create_channel_link_too_short(tr::now);
 				update();
 			}
 			_checkTimer.stop();
@@ -1008,13 +1039,13 @@ bool SetupChannelBox::onUpdateFail(const RPCError &error) {
 	} else if (err == "USERNAME_INVALID") {
 		_link->setFocus();
 		_link->showError();
-		_errorText = lang(lng_create_channel_link_invalid);
+		_errorText = tr::lng_create_channel_link_invalid(tr::now);
 		update();
 		return true;
 	} else if (err == "USERNAME_OCCUPIED" || err == "USERNAMES_UNAVAILABLE") {
 		_link->setFocus();
 		_link->showError();
-		_errorText = lang(lng_create_channel_link_occupied);
+		_errorText = tr::lng_create_channel_link_occupied(tr::now);
 		update();
 		return true;
 	}
@@ -1024,8 +1055,8 @@ bool SetupChannelBox::onUpdateFail(const RPCError &error) {
 
 void SetupChannelBox::onCheckDone(const MTPBool &result) {
 	_checkRequestId = 0;
-	QString newError = (mtpIsTrue(result) || _checkUsername == _channel->username) ? QString() : lang(lng_create_channel_link_occupied);
-	QString newGood = newError.isEmpty() ? lang(lng_create_channel_link_available) : QString();
+	QString newError = (mtpIsTrue(result) || _checkUsername == _channel->username) ? QString() : tr::lng_create_channel_link_occupied(tr::now);
+	QString newGood = newError.isEmpty() ? tr::lng_create_channel_link_available(tr::now) : QString();
 	if (_errorText != newError || _goodText != newGood) {
 		_errorText = newError;
 		_goodText = newGood;
@@ -1050,11 +1081,11 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 		}
 		return true;
 	} else if (err == qstr("USERNAME_INVALID")) {
-		_errorText = lang(lng_create_channel_link_invalid);
+		_errorText = tr::lng_create_channel_link_invalid(tr::now);
 		update();
 		return true;
 	} else if (err == qstr("USERNAME_OCCUPIED") && _checkUsername != _channel->username) {
-		_errorText = lang(lng_create_channel_link_occupied);
+		_errorText = tr::lng_create_channel_link_occupied(tr::now);
 		update();
 		return true;
 	}
@@ -1218,7 +1249,7 @@ bool EditNameBox::saveSelfFail(const RPCError &error) {
 
 RevokePublicLinkBox::Inner::Inner(QWidget *parent, Fn<void()> revokeCallback) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
-, _revokeWidth(st::normalFont->width(lang(lng_channels_too_much_public_revoke)))
+, _revokeWidth(st::normalFont->width(tr::lng_channels_too_much_public_revoke(tr::now)))
 , _revokeCallback(std::move(revokeCallback)) {
 	setMouseTracking(true);
 
@@ -1260,7 +1291,7 @@ RevokePublicLinkBox::RevokePublicLinkBox(
 	Fn<void()> revokeCallback)
 : _aboutRevoke(
 	this,
-	lang(lng_channels_too_much_public_about),
+	tr::lng_channels_too_much_public_about(tr::now),
 	st::aboutRevokePublicLabel)
 , _revokeCallback(std::move(revokeCallback)) {
 }
@@ -1319,7 +1350,7 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	if (pressed && pressed == _selected) {
 		auto text_method = pressed->isMegagroup() ? lng_channels_too_much_public_revoke_confirm_group : lng_channels_too_much_public_revoke_confirm_channel;
 		auto text = text_method(lt_link, Core::App().createInternalLink(pressed->userName()), lt_group, pressed->name);
-		auto confirmText = lang(lng_channels_too_much_public_revoke);
+		auto confirmText = tr::lng_channels_too_much_public_revoke(tr::now);
 		_weakRevokeConfirmBox = Ui::show(Box<ConfirmBox>(text, confirmText, crl::guard(this, [this, pressed]() {
 			if (_revokeRequestId) return;
 			_revokeRequestId = request(MTPchannels_UpdateUsername(
@@ -1370,7 +1401,7 @@ void RevokePublicLinkBox::Inner::paintChat(Painter &p, const ChatRow &row, bool 
 
 	p.setFont(selected ? st::linkOverFont : st::linkFont);
 	p.setPen(selected ? st::defaultLinkButton.overColor : st::defaultLinkButton.color);
-	p.drawTextRight(st::contactsPadding.right() + st::contactsCheckPosition.x(), st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, width(), lang(lng_channels_too_much_public_revoke), _revokeWidth);
+	p.drawTextRight(st::contactsPadding.right() + st::contactsCheckPosition.x(), st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, width(), tr::lng_channels_too_much_public_revoke(tr::now), _revokeWidth);
 
 	p.setPen(st::contactsStatusFg);
 	p.setTextPalette(st::revokePublicLinkStatusPalette);

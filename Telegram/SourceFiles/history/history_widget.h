@@ -453,7 +453,7 @@ private:
 	void checkTabbedSelectorToggleTooltip();
 
 	bool canWriteMessage() const;
-	std::optional<LangKey> writeRestrictionKey() const;
+	std::optional<QString> writeRestriction() const;
 	void orderWidgets();
 
 	void clearInlineBot();

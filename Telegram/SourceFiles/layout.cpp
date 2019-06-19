@@ -85,10 +85,10 @@ int32 documentColorIndex(DocumentData *document, QString &ext) {
 	auto name = document
 		? (document->filename().isEmpty()
 			? (document->sticker()
-				? lang(lng_in_dlg_sticker)
+				? tr::lng_in_dlg_sticker(tr::now)
 				: qsl("Unknown File"))
 			: document->filename())
-		: lang(lng_message_empty);
+		: tr::lng_message_empty(tr::now);
 	name = name.toLower();
 	auto lastDot = name.lastIndexOf('.');
 	auto mime = document

@@ -169,9 +169,9 @@ QString StateDescription(const SetState &state) {
 	return state.match([](const Available &data) {
 		return lng_emoji_set_download(lt_size, formatSizeText(data.size));
 	}, [](const Ready &data) -> QString {
-		return lang(lng_emoji_set_ready);
+		return tr::lng_emoji_set_ready(tr::now);
 	}, [](const Active &data) -> QString {
-		return lang(lng_emoji_set_active);
+		return tr::lng_emoji_set_active(tr::now);
 	}, [](const Loading &data) {
 		const auto percent = (data.size > 0)
 			? snap((data.already * 100) / float64(data.size), 0., 100.)
@@ -182,7 +182,7 @@ QString StateDescription(const SetState &state) {
 			lt_progress,
 			formatDownloadText(data.already, data.size));
 	}, [](const Failed &data) {
-		return lang(lng_attach_failed);
+		return tr::lng_attach_failed(tr::now);
 	});
 }
 

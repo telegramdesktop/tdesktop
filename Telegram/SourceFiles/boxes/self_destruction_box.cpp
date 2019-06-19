@@ -20,7 +20,7 @@ SelfDestructionBox::SelfDestructionBox(
 : _ttlValues{ 30, 90, 180, 365 }
 , _loading(
 		this,
-		lang(lng_contacts_loading),
+		tr::lng_contacts_loading(tr::now),
 		st::membersAbout) {
 	std::move(
 		preloaded
@@ -53,7 +53,7 @@ void SelfDestructionBox::showContent() {
 	auto y = st::boxOptionListPadding.top();
 	_description.create(
 		this,
-		lang(lng_self_destruct_description),
+		tr::lng_self_destruct_description(tr::now),
 		st::boxLabel);
 	_description->moveToLeft(st::boxPadding.left(), y);
 	y += _description->height() + st::boxMediumSkip;
@@ -90,7 +90,7 @@ void SelfDestructionBox::prepare() {
 
 	auto fake = object_ptr<Ui::FlatLabel>(
 		this,
-		lang(lng_self_destruct_description),
+		tr::lng_self_destruct_description(tr::now),
 		st::boxLabel);
 	const auto boxHeight = st::boxOptionListPadding.top()
 		+ fake->height() + st::boxMediumSkip

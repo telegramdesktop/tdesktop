@@ -100,7 +100,9 @@ UrlClickHandler::UrlClickHandler(const QString &url, bool fullDisplayed)
 }
 
 QString UrlClickHandler::copyToClipboardContextItemText() const {
-	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);
+	return isEmail()
+		? tr::lng_context_copy_email(tr::now)
+		: tr::lng_context_copy_link(tr::now);
 }
 
 QString UrlClickHandler::url() const {
@@ -161,8 +163,8 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 				: url;
 			Ui::show(
 				Box<ConfirmBox>(
-					lang(lng_open_this_link) + qsl("\n\n") + displayUrl,
-					lang(lng_open_link),
+					tr::lng_open_this_link(tr::now) + qsl("\n\n") + displayUrl,
+					tr::lng_open_link(tr::now),
 					[=] { Ui::hideLayer(); open(); }),
 				LayerOption::KeepOther);
 		} else {
@@ -192,7 +194,7 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 		};
 		Ui::show(Box<ConfirmBox>(
 			lng_allow_bot_pass(lt_bot_name, _bot->name),
-			lang(lng_allow_bot),
+			tr::lng_allow_bot(tr::now),
 			callback));
 	}
 }
@@ -202,7 +204,7 @@ auto HiddenUrlClickHandler::getTextEntity() const -> TextEntity {
 }
 
 QString MentionClickHandler::copyToClipboardContextItemText() const {
-	return lang(lng_context_copy_mention);
+	return tr::lng_context_copy_mention(tr::now);
 }
 
 void MentionClickHandler::onClick(ClickContext context) const {
@@ -241,7 +243,7 @@ QString MentionNameClickHandler::tooltip() const {
 }
 
 QString HashtagClickHandler::copyToClipboardContextItemText() const {
-	return lang(lng_context_copy_hashtag);
+	return tr::lng_context_copy_hashtag(tr::now);
 }
 
 void HashtagClickHandler::onClick(ClickContext context) const {
@@ -256,7 +258,7 @@ auto HashtagClickHandler::getTextEntity() const -> TextEntity {
 }
 
 QString CashtagClickHandler::copyToClipboardContextItemText() const {
-	return lang(lng_context_copy_hashtag);
+	return tr::lng_context_copy_hashtag(tr::now);
 }
 
 void CashtagClickHandler::onClick(ClickContext context) const {

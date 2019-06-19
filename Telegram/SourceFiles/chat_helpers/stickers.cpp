@@ -67,7 +67,7 @@ void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	Local::writeArchivedStickers();
 
 	Ui::Toast::Config toast;
-	toast.text = lang(lng_stickers_packs_archived);
+	toast.text = tr::lng_stickers_packs_archived(tr::now);
 	toast.maxWidth = st::stickersToastMaxWidth;
 	toast.padding = st::stickersToastPadding;
 	Ui::Toast::Show(toast);
@@ -175,7 +175,7 @@ void UndoInstallLocally(uint64 setId) {
 	Auth().data().notifyStickersUpdated();
 
 	Ui::show(
-		Box<InformBox>(lang(lng_stickers_not_found)),
+		Box<InformBox>(tr::lng_stickers_not_found(tr::now)),
 		LayerOption::KeepOther);
 }
 
@@ -1064,7 +1064,7 @@ void NewSetReceived(const MTPmessages_StickerSet &data) {
 QString GetSetTitle(const MTPDstickerSet &s) {
 	auto title = qs(s.vtitle);
 	if ((s.vflags.v & MTPDstickerSet::Flag::f_official) && !title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
-		return lang(lng_stickers_default_set);
+		return tr::lng_stickers_default_set(tr::now);
 	}
 	return title;
 }

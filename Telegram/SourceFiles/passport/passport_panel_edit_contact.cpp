@@ -126,7 +126,7 @@ void VerifyBox::setupControls(
 			st::boxDividerLabel),
 		small);
 	if (resend) {
-		auto link = TextWithEntities{ lang(lng_cloud_password_resend) };
+		auto link = TextWithEntities{ tr::lng_cloud_password_resend(tr::now) };
 		link.entities.push_back({
 			EntityType::CustomUrl,
 			0,

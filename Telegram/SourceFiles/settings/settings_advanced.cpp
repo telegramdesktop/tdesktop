@@ -47,11 +47,11 @@ void SetupConnectionType(not_null<Ui::VerticalLayout*> container) {
 		const auto transport = MTP::dctransport();
 		if (Global::ProxySettings() != ProxyData::Settings::Enabled) {
 			return transport.isEmpty()
-				? lang(lng_connection_auto_connecting)
+				? tr::lng_connection_auto_connecting(tr::now)
 				: lng_connection_auto(lt_transport, transport);
 		} else {
 			return transport.isEmpty()
-				? lang(lng_connection_proxy_connecting)
+				? tr::lng_connection_proxy_connecting(tr::now)
 				: lng_connection_proxy(lt_transport, transport);
 		}
 	};
@@ -143,7 +143,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 			showDownloadProgress(checker.already(), checker.size());
 			break;
 		case State::Ready:
-			texts->fire(lang(lng_settings_update_ready));
+			texts->fire(tr::lng_settings_update_ready(tr::now));
 			update->show();
 			break;
 		default:
@@ -198,12 +198,12 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 
 	checker.checking() | rpl::start_with_next([=] {
 		options->setAttribute(Qt::WA_TransparentForMouseEvents);
-		texts->fire(lang(lng_settings_update_checking));
+		texts->fire(tr::lng_settings_update_checking(tr::now));
 		downloading->fire(false);
 	}, options->lifetime());
 	checker.isLatest() | rpl::start_with_next([=] {
 		options->setAttribute(Qt::WA_TransparentForMouseEvents, false);
-		texts->fire(lang(lng_settings_latest_installed));
+		texts->fire(tr::lng_settings_latest_installed(tr::now));
 		downloading->fire(false);
 	}, options->lifetime());
 	checker.progress(
@@ -212,12 +212,12 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	}, options->lifetime());
 	checker.failed() | rpl::start_with_next([=] {
 		options->setAttribute(Qt::WA_TransparentForMouseEvents, false);
-		texts->fire(lang(lng_settings_update_fail));
+		texts->fire(tr::lng_settings_update_fail(tr::now));
 		downloading->fire(false);
 	}, options->lifetime());
 	checker.ready() | rpl::start_with_next([=] {
 		options->setAttribute(Qt::WA_TransparentForMouseEvents, false);
-		texts->fire(lang(lng_settings_update_ready));
+		texts->fire(tr::lng_settings_update_ready(tr::now));
 		update->show();
 		downloading->fire(false);
 	}, options->lifetime());
@@ -243,19 +243,19 @@ bool HasTray() {
 }
 
 void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
-	const auto checkbox = [&](LangKey label, bool checked) {
+	const auto checkbox = [&](const QString &label, bool checked) {
 		return object_ptr<Ui::Checkbox>(
 			container,
-			lang(label),
+			label,
 			checked,
 			st::settingsCheckbox);
 	};
-	const auto addCheckbox = [&](LangKey label, bool checked) {
+	const auto addCheckbox = [&](const QString &label, bool checked) {
 		return container->add(
 			checkbox(label, checked),
 			st::settingsCheckboxPadding);
 	};
-	const auto addSlidingCheckbox = [&](LangKey label, bool checked) {
+	const auto addSlidingCheckbox = [&](const QString &label, bool checked) {
 		return container->add(
 			object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 				container,
@@ -269,7 +269,7 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 			|| (workMode == dbiwmWindowAndTray);
 	};
 	const auto tray = addCheckbox(
-		lng_settings_workmode_tray,
+		tr::lng_settings_workmode_tray(tr::now),
 		trayEnabled());
 
 	const auto taskbarEnabled = [] {
@@ -279,7 +279,7 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 	};
 	const auto taskbar = Platform::IsWindows()
 		? addCheckbox(
-			lng_settings_workmode_window,
+			tr::lng_settings_workmode_window(tr::now),
 			taskbarEnabled())
 		: nullptr;
 
@@ -328,13 +328,13 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 		};
 
 		const auto autostart = addCheckbox(
-			lng_settings_auto_start,
+			tr::lng_settings_auto_start(tr::now),
 			cAutoStart());
 		const auto minimized = addSlidingCheckbox(
-			lng_settings_start_min,
+			tr::lng_settings_start_min(tr::now),
 			minimizedToggled());
 		const auto sendto = addCheckbox(
-			lng_settings_add_sendto,
+			tr::lng_settings_add_sendto(tr::now),
 			cSendToMenu());
 
 		autostart->checkedChanges(
@@ -360,7 +360,7 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 			if (Global::LocalPasscode()) {
 				minimized->entity()->setChecked(false);
 				Ui::show(Box<InformBox>(
-					lang(lng_error_start_minimized_passcoded)));
+					tr::lng_error_start_minimized_passcoded(tr::now)));
 			} else {
 				cSetStartMinimized(checked);
 				Local::writeSettings();

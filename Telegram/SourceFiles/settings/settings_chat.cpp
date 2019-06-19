@@ -111,9 +111,9 @@ void ChooseFromFile(not_null<QWidget*> parent);
 BackgroundRow::BackgroundRow(QWidget *parent) : RpWidget(parent)
 , _chooseFromGallery(
 	this,
-	lang(lng_settings_bg_from_gallery),
+	tr::lng_settings_bg_from_gallery(tr::now),
 	st::settingsLink)
-, _chooseFromFile(this, lang(lng_settings_bg_from_file), st::settingsLink)
+, _chooseFromFile(this, tr::lng_settings_bg_from_file(tr::now), st::settingsLink)
 , _radial([=](crl::time now) { radialAnimationCallback(now); }) {
 	updateImage();
 
@@ -400,7 +400,7 @@ void ChooseFromFile(not_null<QWidget*> parent) {
 	};
 	FileDialog::GetOpenPath(
 		parent.get(),
-		lang(lng_choose_image),
+		tr::lng_choose_image(tr::now),
 		filters.join(qsl(";;")),
 		crl::guard(parent, callback));
 
@@ -408,9 +408,9 @@ void ChooseFromFile(not_null<QWidget*> parent) {
 
 QString DownloadPathText() {
 	if (Global::DownloadPath().isEmpty()) {
-		return lang(lng_download_path_default);
+		return tr::lng_download_path_default(tr::now);
 	} else if (Global::DownloadPath() == qsl("tmp")) {
-		return lang(lng_download_path_temp);
+		return tr::lng_download_path_temp(tr::now);
 	}
 	return QDir::toNativeSeparators(Global::DownloadPath());
 }
@@ -428,14 +428,14 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 		std::move(wrap),
 		QMargins(0, 0, 0, st::settingsCheckbox.margin.bottom())));
 
-	const auto checkbox = [&](LangKey label, bool checked) {
+	const auto checkbox = [&](const QString &label, bool checked) {
 		return object_ptr<Ui::Checkbox>(
 			container,
-			lang(label),
+			label,
 			checked,
 			st::settingsCheckbox);
 	};
-	const auto add = [&](LangKey label, bool checked, auto &&handle) {
+	const auto add = [&](const QString &label, bool checked, auto &&handle) {
 		inner->add(
 			checkbox(label, checked),
 			st::settingsCheckboxPadding
@@ -445,7 +445,7 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 			inner->lifetime());
 	};
 	add(
-		lng_settings_replace_emojis,
+		tr::lng_settings_replace_emojis(tr::now),
 		Global::ReplaceEmoji(),
 		[](bool checked) {
 			Global::SetReplaceEmoji(checked);
@@ -454,7 +454,7 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 		});
 
 	add(
-		lng_settings_suggest_emoji,
+		tr::lng_settings_suggest_emoji(tr::now),
 		Global::SuggestEmoji(),
 		[](bool checked) {
 			Global::SetSuggestEmoji(checked);
@@ -462,7 +462,7 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 		});
 
 	add(
-		lng_settings_suggest_by_emoji,
+		tr::lng_settings_suggest_by_emoji(tr::now),
 		Global::SuggestStickersByEmoji(),
 		[](bool checked) {
 			Global::SetSuggestStickersByEmoji(checked);
@@ -513,24 +513,24 @@ void SetupMessages(not_null<Ui::VerticalLayout*> container) {
 
 	const auto group = std::make_shared<Ui::RadioenumGroup<SendByType>>(
 		Auth().settings().sendSubmitWay());
-	const auto add = [&](SendByType value, LangKey key) {
+	const auto add = [&](SendByType value, const QString &text) {
 		inner->add(
 			object_ptr<Ui::Radioenum<SendByType>>(
 				inner,
 				group,
 				value,
-				lang(key),
+				text,
 				st::settingsSendType),
 			st::settingsSendTypePadding);
 	};
 	const auto small = st::settingsSendTypePadding;
 	const auto top = skip;
-	add(SendByType::Enter, lng_settings_send_enter);
+	add(SendByType::Enter, tr::lng_settings_send_enter(tr::now));
 	add(
 		SendByType::CtrlEnter,
 		(Platform::IsMac()
-			? lng_settings_send_cmdenter
-			: lng_settings_send_ctrlenter));
+			? tr::lng_settings_send_cmdenter(tr::now)
+			: tr::lng_settings_send_ctrlenter(tr::now)));
 
 	group->setChangedCallback([](SendByType value) {
 		Auth().settings().setSendSubmitWay(value);
@@ -677,7 +677,7 @@ void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 	const auto tile = inner->add(
 		object_ptr<Ui::Checkbox>(
 			inner,
-			lang(lng_settings_bg_tile),
+			tr::lng_settings_bg_tile(tr::now),
 			Window::Theme::Background()->tile(),
 			st::settingsCheckbox),
 		st::settingsSendTypePadding);
@@ -686,7 +686,7 @@ void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 			inner,
 			object_ptr<Ui::Checkbox>(
 				inner,
-				lang(lng_settings_adaptive_wide),
+				tr::lng_settings_adaptive_wide(tr::now),
 				Global::AdaptiveForWide(),
 				st::settingsCheckbox),
 			st::settingsSendTypePadding));

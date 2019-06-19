@@ -30,7 +30,7 @@ void MuteSettingsBox::prepare() {
 	auto y = 0;
 
 	object_ptr<Ui::FlatLabel> info(this, st::boxLabel);
-	info->setText(lang(lng_mute_box_tip));
+	info->setText(tr::lng_mute_box_tip(tr::now));
 	info->moveToLeft(st::boxPadding.left(), y);
 	y += info->height() + st::boxLittleSkip;
 
@@ -60,7 +60,7 @@ void MuteSettingsBox::prepare() {
 			} else if (hours < kForeverHours) {
 				return lng_mute_duration_days(lt_count, hours / 24);
 			} else {
-				return lang(lng_mute_duration_forever);
+				return tr::lng_mute_duration_forever(tr::now);
 			}
 		}();
 		object_ptr<Ui::Radiobutton> option(this, group, hours, text);

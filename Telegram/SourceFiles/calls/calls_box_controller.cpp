@@ -232,7 +232,7 @@ void BoxController::prepare() {
 	});
 
 	delegate()->peerListSetTitle(tr::lng_call_box_title());
-	setDescriptionText(lang(lng_contacts_loading));
+	setDescriptionText(tr::lng_contacts_loading(tr::now));
 	delegate()->peerListRefreshRows();
 
 	loadMoreRows();
@@ -284,7 +284,7 @@ void BoxController::loadMoreRows() {
 }
 
 void BoxController::refreshAbout() {
-	setDescriptionText(delegate()->peerListFullRowsCount() ? QString() : lang(lng_call_box_about));
+	setDescriptionText(delegate()->peerListFullRowsCount() ? QString() : tr::lng_call_box_about(tr::now));
 }
 
 void BoxController::rowClicked(not_null<PeerListRow*> row) {

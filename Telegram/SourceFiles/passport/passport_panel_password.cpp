@@ -39,14 +39,14 @@ PanelAskPassword::PanelAskPassword(
 	st::passportPasswordLabelBold)
 , _about2(
 	this,
-	lang(lng_passport_request2),
+	tr::lng_passport_request2(tr::now),
 	st::passportPasswordLabel)
 , _password(
 	this,
 	st::defaultInputField,
 	tr::lng_passport_password_placeholder())
 , _submit(this, tr::lng_passport_next(), st::passportPasswordSubmit)
-, _forgot(this, lang(lng_signin_recover), st::defaultLinkButton) {
+, _forgot(this, tr::lng_signin_recover(tr::now), st::defaultLinkButton) {
 	connect(_password, &Ui::PasswordInput::submitted, this, [=] {
 		submit();
 	});
@@ -184,7 +184,7 @@ void PanelNoPassword::setupContent() {
 			_inner,
 			object_ptr<Ui::FlatLabel>(
 				_inner,
-				lang(lng_passport_request2),
+				tr::lng_passport_request2(tr::now),
 				st::passportPasswordLabel)),
 		st::passportPasswordAbout2Padding)->entity();
 
@@ -205,7 +205,7 @@ void PanelNoPassword::setupContent() {
 			_inner,
 			object_ptr<Ui::FlatLabel>(
 				_inner,
-				lang(lng_passport_create_password),
+				tr::lng_passport_create_password(tr::now),
 				st::passportPasswordSetupLabel)),
 		st::passportFormAbout2Padding)->entity();
 
@@ -220,7 +220,7 @@ void PanelNoPassword::refreshBottom() {
 			object_ptr<Ui::FlatLabel>(
 				_inner,
 				(pattern.isEmpty()
-					? lang(lng_passport_about_password)
+					? tr::lng_passport_about_password(tr::now)
 					: lng_passport_code_sent(lt_email, pattern)),
 				st::passportPasswordSetupLabel)),
 		st::passportFormAbout2Padding)->entity());

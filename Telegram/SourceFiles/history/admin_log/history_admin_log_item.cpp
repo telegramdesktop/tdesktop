@@ -113,7 +113,7 @@ const auto CollectChanges = [](auto &phraseMap, auto plusFlags, auto minusFlags)
 		auto result = QString();
 		for (auto &phrase : phraseMap) {
 			if (flags & phrase.first) {
-				result.append('\n' + (prefix + lang(phrase.second)));
+				result.append('\n' + (prefix + phrase.second(tr::now)));
 			}
 		}
 		return result;
@@ -138,16 +138,18 @@ TextWithEntities GenerateAdminChangeText(
 	auto result = tr::lng_admin_log_promoted(tr::now, lt_user, user, Ui::Text::WithEntities);
 
 	auto useInviteLinkPhrase = channel->isMegagroup() && channel->anyoneCanAddMembers();
-	auto invitePhrase = (useInviteLinkPhrase ? lng_admin_log_admin_invite_link : lng_admin_log_admin_invite_users);
-	static auto phraseMap = std::map<Flags, LangKey> {
-		{ Flag::f_change_info, lng_admin_log_admin_change_info },
-		{ Flag::f_post_messages, lng_admin_log_admin_post_messages },
-		{ Flag::f_edit_messages, lng_admin_log_admin_edit_messages },
-		{ Flag::f_delete_messages, lng_admin_log_admin_delete_messages },
-		{ Flag::f_ban_users, lng_admin_log_admin_ban_users },
+	auto invitePhrase = useInviteLinkPhrase
+		? tr::lng_admin_log_admin_invite_link
+		: tr::lng_admin_log_admin_invite_users;
+	static auto phraseMap = std::map<Flags, tr::phrase<>> {
+		{ Flag::f_change_info, tr::lng_admin_log_admin_change_info },
+		{ Flag::f_post_messages, tr::lng_admin_log_admin_post_messages },
+		{ Flag::f_edit_messages, tr::lng_admin_log_admin_edit_messages },
+		{ Flag::f_delete_messages, tr::lng_admin_log_admin_delete_messages },
+		{ Flag::f_ban_users, tr::lng_admin_log_admin_ban_users },
 		{ Flag::f_invite_users, invitePhrase },
-		{ Flag::f_pin_messages, lng_admin_log_admin_pin_messages },
-		{ Flag::f_add_admins, lng_admin_log_admin_add_admins },
+		{ Flag::f_pin_messages, tr::lng_admin_log_admin_pin_messages },
+		{ Flag::f_add_admins, tr::lng_admin_log_admin_add_admins },
 	};
 	phraseMap[Flag::f_invite_users] = invitePhrase;
 
@@ -176,16 +178,16 @@ QString GenerateBannedChangeText(
 
 	auto newFlags = newRights ? newRights->c_chatBannedRights().vflags.v : Flags(0);
 	auto prevFlags = prevRights ? prevRights->c_chatBannedRights().vflags.v : Flags(0);
-	static auto phraseMap = std::map<Flags, LangKey>{
-		{ Flag::f_view_messages, lng_admin_log_banned_view_messages },
-		{ Flag::f_send_messages, lng_admin_log_banned_send_messages },
-		{ Flag::f_send_media, lng_admin_log_banned_send_media },
-		{ Flag::f_send_stickers | Flag::f_send_gifs | Flag::f_send_inline | Flag::f_send_games, lng_admin_log_banned_send_stickers },
-		{ Flag::f_embed_links, lng_admin_log_banned_embed_links },
-		{ Flag::f_send_polls, lng_admin_log_banned_send_polls },
-		{ Flag::f_change_info, lng_admin_log_admin_change_info },
-		{ Flag::f_invite_users, lng_admin_log_admin_invite_users },
-		{ Flag::f_pin_messages, lng_admin_log_admin_pin_messages },
+	static auto phraseMap = std::map<Flags, tr::phrase<>>{
+		{ Flag::f_view_messages, tr::lng_admin_log_banned_view_messages },
+		{ Flag::f_send_messages, tr::lng_admin_log_banned_send_messages },
+		{ Flag::f_send_media, tr::lng_admin_log_banned_send_media },
+		{ Flag::f_send_stickers | Flag::f_send_gifs | Flag::f_send_inline | Flag::f_send_games, tr::lng_admin_log_banned_send_stickers },
+		{ Flag::f_embed_links, tr::lng_admin_log_banned_embed_links },
+		{ Flag::f_send_polls, tr::lng_admin_log_banned_send_polls },
+		{ Flag::f_change_info, tr::lng_admin_log_admin_change_info },
+		{ Flag::f_invite_users, tr::lng_admin_log_admin_invite_users },
+		{ Flag::f_pin_messages, tr::lng_admin_log_admin_pin_messages },
 	};
 	return CollectChanges(phraseMap, prevFlags, newFlags);
 }
@@ -309,7 +311,7 @@ TextWithEntities GenerateParticipantChangeText(not_null<ChannelData*> channel, c
 }
 
 TextWithEntities GenerateDefaultBannedRightsChangeText(not_null<ChannelData*> channel, const MTPChatBannedRights &rights, const MTPChatBannedRights &oldRights) {
-	auto result = TextWithEntities{ lang(lng_admin_log_changed_default_permissions) };
+	auto result = TextWithEntities{ tr::lng_admin_log_changed_default_permissions(tr::now) };
 	const auto changes = GenerateBannedChangeText(&rights, &oldRights);
 	if (!changes.isEmpty()) {
 		result.text.append('\n' + changes);
@@ -402,7 +404,7 @@ void GenerateItems(
 		auto body = history->owner().makeMessage(history, idManager->next(), bodyFlags, bodyReplyTo, bodyViaBotId, date, peerToUser(from->id), QString(), newDescription);
 		if (!oldValue.isEmpty()) {
 			auto oldDescription = PrepareText(oldValue, QString());
-			body->addLogEntryOriginal(id, lang(lng_admin_log_previous_description), oldDescription);
+			body->addLogEntryOriginal(id, tr::lng_admin_log_previous_description(tr::now), oldDescription);
 		}
 		addPart(body);
 	};
@@ -423,7 +425,7 @@ void GenerateItems(
 		auto body = history->owner().makeMessage(history, idManager->next(), bodyFlags, bodyReplyTo, bodyViaBotId, date, peerToUser(from->id), QString(), newLink);
 		if (!oldValue.isEmpty()) {
 			auto oldLink = PrepareText(Core::App().createInternalLinkFull(oldValue), QString());
-			body->addLogEntryOriginal(id, lang(lng_admin_log_previous_link), oldLink);
+			body->addLogEntryOriginal(id, tr::lng_admin_log_previous_link(tr::now), oldLink);
 		}
 		addPart(body);
 	};
@@ -491,9 +493,15 @@ void GenerateItems(
 				date),
 			detachExistingItem);
 		if (oldValue.text.isEmpty()) {
-			oldValue = PrepareText(QString(), lang(lng_admin_log_empty_text));
+			oldValue = PrepareText(QString(), tr::lng_admin_log_empty_text(tr::now));
 		}
-		body->addLogEntryOriginal(id, lang(canHaveCaption ? lng_admin_log_previous_caption : lng_admin_log_previous_message), oldValue);
+
+		body->addLogEntryOriginal(
+			id,
+			(canHaveCaption
+				? tr::lng_admin_log_previous_caption
+				: tr::lng_admin_log_previous_message)(tr::now),
+			oldValue);
 		addPart(body);
 	};
 
@@ -556,7 +564,7 @@ void GenerateItems(
 				lt_from,
 				fromLinkText,
 				lt_sticker_set,
-				textcmdLink(2, lang(lng_admin_log_changed_stickers_set)));
+				textcmdLink(2, tr::lng_admin_log_changed_stickers_set(tr::now)));
 			auto setLink = std::make_shared<LambdaClickHandler>([set] {
 				Ui::show(Box<StickerSetBox>(set));
 			});

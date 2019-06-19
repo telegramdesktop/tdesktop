@@ -69,7 +69,7 @@ void Calls::setupContent() {
 
 	const auto currentOutputName = [&] {
 		if (Global::CallOutputDeviceID() == qsl("default")) {
-			return lang(lng_settings_call_device_default);
+			return tr::lng_settings_call_device_default(tr::now);
 		}
 		const auto &list = VoIPController::EnumerateAudioOutputs();
 		const auto i = ranges::find(
@@ -83,7 +83,7 @@ void Calls::setupContent() {
 
 	const auto currentInputName = [&] {
 		if (Global::CallInputDeviceID() == qsl("default")) {
-			return lang(lng_settings_call_device_default);
+			return tr::lng_settings_call_device_default(tr::now);
 		}
 		const auto &list = VoIPController::EnumerateAudioInputs();
 		const auto i = ranges::find(
@@ -109,7 +109,7 @@ void Calls::setupContent() {
 	)->addClickHandler([=] {
 		const auto &devices = VoIPController::EnumerateAudioOutputs();
 		const auto options = ranges::view::concat(
-			ranges::view::single(lang(lng_settings_call_device_default)),
+			ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
 			devices | ranges::view::transform(getName)
 		) | ranges::to_vector;
 		const auto i = ranges::find(
@@ -184,7 +184,7 @@ void Calls::setupContent() {
 	)->addClickHandler([=] {
 		const auto &devices = VoIPController::EnumerateAudioInputs();
 		const auto options = ranges::view::concat(
-			ranges::view::single(lang(lng_settings_call_device_default)),
+			ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
 			devices | ranges::view::transform(getName)
 		) | ranges::to_vector;
 		const auto i = ranges::find(
@@ -249,7 +249,7 @@ void Calls::setupContent() {
 	AddButton(
 		content,
 		rpl::single(
-			lang(lng_settings_call_test_mic)
+			tr::lng_settings_call_test_mic(tr::now)
 		) | rpl::then(
 			_micTestTextStream.events()
 		),
@@ -304,7 +304,7 @@ void Calls::setupContent() {
 		const auto opened = Platform::OpenSystemSettings(
 			Platform::SystemSettingsType::Audio);
 		if (!opened) {
-			Ui::show(Box<InformBox>(lang(lng_linux_no_audio_prefs)));
+			Ui::show(Box<InformBox>(tr::lng_linux_no_audio_prefs(tr::now)));
 		}
 	});
 	AddSkip(content);
@@ -336,25 +336,25 @@ void Calls::requestPermissionAndStartTestingMicrophone() {
 			Ui::hideLayer();
 		};
 		Ui::show(Box<ConfirmBox>(
-			lang(lng_no_mic_permission),
-			lang(lng_menu_settings),
+			tr::lng_no_mic_permission(tr::now),
+			tr::lng_menu_settings(tr::now),
 			showSystemSettings));
 	}
 }
 
 void Calls::startTestingMicrophone() {
-	_micTestTextStream.fire(lang(lng_settings_call_stop_mic_test));
+	_micTestTextStream.fire(tr::lng_settings_call_stop_mic_test(tr::now));
 	_levelUpdateTimer.callEach(50);
 	_micTester = std::make_unique<tgvoip::AudioInputTester>(
 		Global::CallInputDeviceID().toStdString());
 	if (_micTester->Failed()) {
 		stopTestingMicrophone();
-		Ui::show(Box<InformBox>(lang(lng_call_error_audio_io)));
+		Ui::show(Box<InformBox>(tr::lng_call_error_audio_io(tr::now)));
 	}
 }
 
 void Calls::stopTestingMicrophone() {
-	_micTestTextStream.fire(lang(lng_settings_call_test_mic));
+	_micTestTextStream.fire(tr::lng_settings_call_test_mic(tr::now));
 	_levelUpdateTimer.cancel();
 	_micTester.reset();
 	_micTestLevel->setValue(0.0f);

@@ -85,12 +85,12 @@ void Inner::visibleTopBottomUpdated(
 
 void Inner::checkRestrictedPeer() {
 	if (_inlineQueryPeer) {
-		const auto errorKey = Data::RestrictionErrorKey(
+		const auto error = Data::RestrictionError(
 			_inlineQueryPeer,
 			ChatRestriction::f_send_inline);
-		if (errorKey) {
+		if (error) {
 			if (!_restrictedLabel) {
-				_restrictedLabel.create(this, lang(*errorKey), st::stickersRestrictedLabel);
+				_restrictedLabel.create(this, *error, st::stickersRestrictedLabel);
 				_restrictedLabel->show();
 				_restrictedLabel->move(st::inlineResultsLeft - st::buttonRadius, st::stickerPanPadding);
 				if (_switchPmButton) {
@@ -151,7 +151,7 @@ void Inner::paintInlineItems(Painter &p, const QRect &r) {
 	if (_rows.isEmpty() && !_switchPmButton) {
 		p.setFont(st::normalFont);
 		p.setPen(st::noContactsColor);
-		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), lang(lng_inline_bot_no_results), style::al_center);
+		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), tr::lng_inline_bot_no_results(tr::now), style::al_center);
 		return;
 	}
 	auto gifPaused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::InlineResults);

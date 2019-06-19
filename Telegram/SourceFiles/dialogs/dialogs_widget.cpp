@@ -476,7 +476,7 @@ void Widget::checkUpdateStatus() {
 		if (_updateTelegram) return;
 		_updateTelegram.create(
 			this,
-			lang(lng_update_telegram),
+			tr::lng_update_telegram(tr::now),
 			st::dialogsUpdateButton,
 			st::dialogsInstallUpdate,
 			st::dialogsInstallUpdateOver);
@@ -1563,7 +1563,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 		p.fillRect(0, aboveTop, width(), st::dialogsForwardHeight, st::dialogsForwardBg);
 		p.setPen(st::dialogsForwardFg);
 		p.setFont(st::dialogsForwardFont);
-		p.drawTextLeft(st::dialogsForwardTextLeft, st::dialogsForwardTextTop, width(), lang(lng_forward_choose));
+		p.drawTextLeft(st::dialogsForwardTextLeft, st::dialogsForwardTextTop, width(), tr::lng_forward_choose(tr::now));
 		aboveTop += st::dialogsForwardHeight;
 	}
 	auto above = QRect(0, aboveTop, width(), _scroll->y() - aboveTop);

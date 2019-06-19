@@ -306,7 +306,7 @@ Editor::Inner::Inner(QWidget *parent, const QString &path) : TWidget(parent)
 		if (update.type == BackgroundUpdate::Type::TestingTheme) {
 			Revert();
 			App::CallDelayed(st::slideDuration, this, [] {
-				Ui::show(Box<InformBox>(lang(lng_theme_editor_cant_change_theme)));
+				Ui::show(Box<InformBox>(tr::lng_theme_editor_cant_change_theme(tr::now)));
 			});
 		}
 	});
@@ -394,7 +394,7 @@ void Editor::Inner::paintEvent(QPaintEvent *e) {
 	p.setFont(st::boxTitleFont);
 	p.setPen(st::windowFg);
 	if (!_newRows->isHidden()) {
-		p.drawTextLeft(st::themeEditorMargin.left(), _existingRows->y() + _existingRows->height() + st::boxLayerTitlePosition.y(), width(), lang(lng_theme_editor_new_keys));
+		p.drawTextLeft(st::themeEditorMargin.left(), _existingRows->y() + _existingRows->height() + st::boxLayerTitlePosition.y(), width(), tr::lng_theme_editor_new_keys(tr::now));
 	}
 }
 
@@ -561,8 +561,8 @@ ThemeExportBox::ThemeExportBox(QWidget*, const QByteArray &paletteContent, const
 , _paletteContent(paletteContent)
 , _background(background)
 , _backgroundContent(backgroundContent)
-, _chooseFromFile(this, lang(lng_settings_bg_from_file), st::boxLinkButton)
-, _tileBackground(this, lang(lng_settings_bg_tile), tileBackground, st::defaultBoxCheckbox) {
+, _chooseFromFile(this, tr::lng_settings_bg_from_file(tr::now), st::boxLinkButton)
+, _tileBackground(this, tr::lng_settings_bg_tile(tr::now), tileBackground, st::defaultBoxCheckbox) {
 	_imageText = lng_theme_editor_saved_to_jpg(lt_size, formatSizeText(_backgroundContent.size()));
 	_chooseFromFile->setClickedCallback([this] { chooseBackgroundFromFile(); });
 }
@@ -621,7 +621,7 @@ void ThemeExportBox::updateThumbnail() {
 }
 
 void ThemeExportBox::chooseBackgroundFromFile() {
-	FileDialog::GetOpenPath(this, lang(lng_theme_editor_choose_image), "Image files (*.jpeg *.jpg *.png)", crl::guard(this, [this](const FileDialog::OpenResult &result) {
+	FileDialog::GetOpenPath(this, tr::lng_theme_editor_choose_image(tr::now), "Image files (*.jpeg *.jpg *.png)", crl::guard(this, [this](const FileDialog::OpenResult &result) {
 		auto content = result.remoteContent;
 		if (!result.paths.isEmpty()) {
 			QFile f(result.paths.front());
@@ -648,7 +648,7 @@ void ThemeExportBox::chooseBackgroundFromFile() {
 
 void ThemeExportBox::exportTheme() {
 	App::CallDelayed(st::defaultRippleAnimation.hideDuration, this, [this] {
-		auto caption = lang(lng_theme_editor_choose_name);
+		auto caption = tr::lng_theme_editor_choose_name(tr::now);
 		auto filter = "Themes (*.tdesktop-theme)";
 		auto name = "awesome.tdesktop-theme";
 		FileDialog::GetWritePath(this, caption, filter, name, crl::guard(this, [this](const QString &path) {
@@ -667,7 +667,7 @@ void ThemeExportBox::exportTheme() {
 
 			if (zip.error() != ZIP_OK) {
 				LOG(("Theme Error: could not export zip-ed theme, status: %1").arg(zip.error()));
-				Ui::show(Box<InformBox>(lang(lng_theme_editor_error)));
+				Ui::show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
 				return;
 			}
 			auto result = zip.result();
@@ -675,16 +675,16 @@ void ThemeExportBox::exportTheme() {
 			QFile f(path);
 			if (!f.open(QIODevice::WriteOnly)) {
 				LOG(("Theme Error: could not open zip-ed theme file '%1' for writing").arg(path));
-				Ui::show(Box<InformBox>(lang(lng_theme_editor_error)));
+				Ui::show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
 				return;
 			}
 			if (f.write(result) != result.size()) {
 				LOG(("Theme Error: could not write zip-ed theme to file '%1'").arg(path));
-				Ui::show(Box<InformBox>(lang(lng_theme_editor_error)));
+				Ui::show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
 				return;
 			}
 			Ui::hideLayer();
-			Ui::Toast::Show(lang(lng_theme_editor_done));
+			Ui::Toast::Show(tr::lng_theme_editor_done(tr::now));
 		}));
 	});
 }
@@ -695,13 +695,13 @@ Editor::Editor(QWidget*, const QString &path)
 , _select(this, st::contactsMultiSelect, tr::lng_country_ph())
 , _leftShadow(this)
 , _topShadow(this)
-, _export(this, lang(lng_theme_editor_export_button).toUpper(), st::dialogsUpdateButton) {
+, _export(this, tr::lng_theme_editor_export_button(tr::now).toUpper(), st::dialogsUpdateButton) {
 	_inner = _scroll->setOwnedWidget(object_ptr<Inner>(this, path));
 
 	_export->setClickedCallback(_inner->exportCallback());
 
 	_inner->setErrorCallback([this] {
-		Ui::show(Box<InformBox>(lang(lng_theme_editor_error)));
+		Ui::show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
 
 		// This could be from inner->_context observable notification.
 		// We should not destroy it while iterating in subscribers.
@@ -781,7 +781,7 @@ void Editor::paintEvent(QPaintEvent *e) {
 
 	p.setFont(st::boxTitleFont);
 	p.setPen(st::windowFg);
-	p.drawTextLeft(st::themeEditorMargin.left(), st::themeEditorMargin.top(), width(), lang(lng_theme_editor_title));
+	p.drawTextLeft(st::themeEditorMargin.left(), st::themeEditorMargin.top(), width(), tr::lng_theme_editor_title(tr::now));
 }
 
 void Editor::Start() {
@@ -792,7 +792,7 @@ void Editor::Start() {
 				writeDefaultPalette(path);
 			}
 			if (!Apply(path)) {
-				Ui::show(Box<InformBox>(lang(lng_theme_editor_error)));
+				Ui::show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
 				return;
 			}
 			KeepApplied();
@@ -802,7 +802,7 @@ void Editor::Start() {
 		};
 		FileDialog::GetWritePath(
 			App::wnd(),
-			lang(lng_theme_editor_save_palette),
+			tr::lng_theme_editor_save_palette(tr::now),
 			"Palette (*.tdesktop-palette)",
 			"colors.tdesktop-palette",
 			start);

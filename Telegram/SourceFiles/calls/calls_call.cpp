@@ -888,7 +888,7 @@ void Call::handleControllerError(int error) {
 				"{user}",
 				App::peerName(_user))));
 	} else if (error == tgvoip::ERROR_AUDIO_IO) {
-		Ui::show(Box<InformBox>(lang(lng_call_error_audio_io)));
+		Ui::show(Box<InformBox>(tr::lng_call_error_audio_io(tr::now)));
 	}
 	finish(FinishType::Failed);
 }

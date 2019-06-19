@@ -672,15 +672,15 @@ void HistoryDocument::setStatusSize(int newSize, qint64 realDuration) const {
 	HistoryFileMedia::setStatusSize(newSize, _data->size, duration, realDuration);
 	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
 		if (_statusSize == FileStatusSizeReady) {
-			thumbed->_link = lang(lng_media_download).toUpper();
+			thumbed->_link = tr::lng_media_download(tr::now).toUpper();
 		} else if (_statusSize == FileStatusSizeLoaded) {
-			thumbed->_link = lang(lng_media_open_with).toUpper();
+			thumbed->_link = tr::lng_media_open_with(tr::now).toUpper();
 		} else if (_statusSize == FileStatusSizeFailed) {
-			thumbed->_link = lang(lng_media_download).toUpper();
+			thumbed->_link = tr::lng_media_download(tr::now).toUpper();
 		} else if (_statusSize >= 0) {
-			thumbed->_link = lang(lng_media_cancel).toUpper();
+			thumbed->_link = tr::lng_media_cancel(tr::now).toUpper();
 		} else {
-			thumbed->_link = lang(lng_media_open_with).toUpper();
+			thumbed->_link = tr::lng_media_open_with(tr::now).toUpper();
 		}
 		thumbed->_linkw = st::semiboldFont->width(thumbed->_link);
 	}

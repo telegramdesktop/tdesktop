@@ -703,9 +703,9 @@ StickersListWidget::StickersListWidget(
 : Inner(parent, controller)
 , _section(Section::Stickers)
 , _megagroupSetAbout(st::columnMinimalWidthThird - st::emojiScroll.width - st::emojiPanHeaderLeft)
-, _addText(lang(lng_stickers_featured_add).toUpper())
+, _addText(tr::lng_stickers_featured_add(tr::now).toUpper())
 , _addWidth(st::stickersTrendingAdd.font->width(_addText))
-, _settings(this, lang(lng_stickers_you_have))
+, _settings(this, tr::lng_stickers_you_have(tr::now))
 , _previewTimer([=] { showPreview(); })
 , _searchRequestTimer([=] { sendSearchRequest(); }) {
 	setMouseTracking(true);
@@ -1241,7 +1241,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 				}
 			}
 
-			auto statusText = (size > 0) ? lng_stickers_count(lt_count, size) : lang(lng_contacts_loading);
+			auto statusText = (size > 0) ? lng_stickers_count(lt_count, size) : tr::lng_contacts_loading(tr::now);
 			p.setFont(st::stickersTrendingSubheaderFont);
 			p.setPen(st::stickersTrendingSubheaderFg);
 			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, info.top + st::stickersTrendingSubheaderTop, width(), statusText);
@@ -1314,7 +1314,7 @@ void StickersListWidget::paintEmptySearchResults(Painter &p) {
 	const auto iconTop = (height() / 3) - (st::stickersEmpty.height() / 2);
 	st::stickersEmpty.paint(p, iconLeft, iconTop, width());
 
-	const auto text = lang(lng_stickers_nothing_found);
+	const auto text = tr::lng_stickers_nothing_found(tr::now);
 	const auto textWidth = st::normalFont->width(text);
 	p.setFont(st::normalFont);
 	p.setPen(st::windowSubTextFg);
@@ -1937,7 +1937,7 @@ void StickersListWidget::refreshRecentStickers(bool performResize) {
 				Stickers::RecentSetId,
 				(MTPDstickerSet::Flag::f_official
 					| MTPDstickerSet_ClientFlag::f_special),
-				lang(lng_recent_stickers),
+				tr::lng_recent_stickers(tr::now),
 				shortName,
 				thumbnail,
 				externalLayout,
@@ -1998,7 +1998,7 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 				_mySets.emplace_back(
 					Stickers::MegagroupSetId,
 					MTPDstickerSet_ClientFlag::f_special | 0,
-					lang(lng_group_stickers),
+					tr::lng_group_stickers(tr::now),
 					shortName,
 					thumbnail,
 					externalLayout,
@@ -2036,7 +2036,7 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 			_mySets.emplace_back(
 				Stickers::MegagroupSetId,
 				MTPDstickerSet_ClientFlag::f_special | 0,
-				lang(lng_group_stickers),
+				tr::lng_group_stickers(tr::now),
 				shortName,
 				thumbnail,
 				externalLayout,
@@ -2317,8 +2317,8 @@ void StickersListWidget::showMegagroupSet(ChannelData *megagroup) {
 		if (_megagroupSetAbout.isEmpty()) {
 			_megagroupSetAbout.setText(
 				st::stickerGroupCategoryAbout,
-				lang(lng_group_stickers_description));
-			_megagroupSetButtonText = lang(lng_group_stickers_add).toUpper();
+				tr::lng_group_stickers_description(tr::now));
+			_megagroupSetButtonText = tr::lng_group_stickers_add(tr::now).toUpper();
 			refreshMegagroupSetGeometry();
 		}
 		_megagroupSetButtonRipple.reset();
@@ -2415,7 +2415,7 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 		return;
 	}
 	_removingSetId = Stickers::MegagroupSetId;
-	Ui::show(Box<ConfirmBox>(lang(lng_stickers_remove_group_set), crl::guard(this, [this, group = _megagroupSet] {
+	Ui::show(Box<ConfirmBox>(tr::lng_stickers_remove_group_set(tr::now), crl::guard(this, [this, group = _megagroupSet] {
 		Expects(group->mgInfo != nullptr);
 
 		if (group->mgInfo->stickerSet.type() != mtpc_inputStickerSetEmpty) {
@@ -2436,7 +2436,7 @@ void StickersListWidget::removeSet(uint64 setId) {
 	if (it != sets.cend()) {
 		_removingSetId = it->id;
 		auto text = lng_stickers_remove_pack(lt_sticker_pack, it->title);
-		Ui::show(Box<ConfirmBox>(text, lang(lng_stickers_remove_pack_confirm), crl::guard(this, [=] {
+		Ui::show(Box<ConfirmBox>(text, tr::lng_stickers_remove_pack_confirm(tr::now), crl::guard(this, [=] {
 			Ui::hideLayer();
 			auto &sets = Auth().data().stickerSetsRef();
 			auto it = sets.find(_removingSetId);

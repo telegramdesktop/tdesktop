@@ -88,7 +88,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareChannelCreate = [this](const MTPDmessageActionChannelCreate &action) {
 		auto result = PreparedText {};
 		if (isPost()) {
-			result.text = lang(lng_action_created_channel);
+			result.text = tr::lng_action_created_channel(tr::now);
 		} else {
 			result.links.push_back(fromLink());
 			result.text = lng_action_created_chat(lt_from, fromLinkText(), lt_title, TextUtilities::Clean(qs(action.vtitle)));
@@ -99,7 +99,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareChatDeletePhoto = [this] {
 		auto result = PreparedText{};
 		if (isPost()) {
-			result.text = lang(lng_action_removed_photo_channel);
+			result.text = tr::lng_action_removed_photo_channel(tr::now);
 		} else {
 			result.links.push_back(fromLink());
 			result.text = lng_action_removed_photo(lt_from, fromLinkText());
@@ -124,7 +124,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareChatEditPhoto = [this](const MTPDmessageActionChatEditPhoto &action) {
 		auto result = PreparedText{};
 		if (isPost()) {
-			result.text = lang(lng_action_changed_photo_channel);
+			result.text = tr::lng_action_changed_photo_channel(tr::now);
 		} else {
 			result.links.push_back(fromLink());
 			result.text = lng_action_changed_photo(lt_from, fromLinkText());
@@ -146,7 +146,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareScreenshotTaken = [this] {
 		auto result = PreparedText{};
 		if (out()) {
-			result.text = lang(lng_action_you_took_screenshot);
+			result.text = tr::lng_action_you_took_screenshot(tr::now);
 		} else {
 			result.links.push_back(fromLink());
 			result.text = lng_action_took_screenshot(lt_from, fromLinkText());
@@ -176,24 +176,24 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			documents.push_back([&] {
 				switch (type.type()) {
 				case mtpc_secureValueTypePersonalDetails:
-					return lang(lng_action_secure_personal_details);
+					return tr::lng_action_secure_personal_details(tr::now);
 				case mtpc_secureValueTypePassport:
 				case mtpc_secureValueTypeDriverLicense:
 				case mtpc_secureValueTypeIdentityCard:
 				case mtpc_secureValueTypeInternalPassport:
-					return lang(lng_action_secure_proof_of_identity);
+					return tr::lng_action_secure_proof_of_identity(tr::now);
 				case mtpc_secureValueTypeAddress:
-					return lang(lng_action_secure_address);
+					return tr::lng_action_secure_address(tr::now);
 				case mtpc_secureValueTypeUtilityBill:
 				case mtpc_secureValueTypeBankStatement:
 				case mtpc_secureValueTypeRentalAgreement:
 				case mtpc_secureValueTypePassportRegistration:
 				case mtpc_secureValueTypeTemporaryRegistration:
-					return lang(lng_action_secure_proof_of_address);
+					return tr::lng_action_secure_proof_of_address(tr::now);
 				case mtpc_secureValueTypePhone:
-					return lang(lng_action_secure_phone);
+					return tr::lng_action_secure_phone(tr::now);
 				case mtpc_secureValueTypeEmail:
-					return lang(lng_action_secure_email);
+					return tr::lng_action_secure_email(tr::now);
 				}
 				Unexpected("Type in prepareSecureValuesSent.");
 			}());
@@ -257,12 +257,12 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareContactSignUp();
 	}, [](const MTPDmessageActionPaymentSentMe &) {
 		LOG(("API Error: messageActionPaymentSentMe received."));
-		return PreparedText{ lang(lng_message_empty) };
+		return PreparedText{ tr::lng_message_empty(tr::now) };
 	}, [](const MTPDmessageActionSecureValuesSentMe &) {
 		LOG(("API Error: messageActionSecureValuesSentMe received."));
-		return PreparedText{ lang(lng_message_empty) };
+		return PreparedText{ tr::lng_message_empty(tr::now) };
 	}, [](const MTPDmessageActionEmpty &) {
-		return PreparedText{ lang(lng_message_empty) };
+		return PreparedText{ tr::lng_message_empty(tr::now) };
 	});
 
 	setServiceText(messageText);
@@ -393,10 +393,10 @@ HistoryService::PreparedText HistoryService::preparePinnedText() {
 	} else if (pinned && pinned->msgId) {
 		result.links.push_back(fromLink());
 		result.links.push_back(pinned->lnk);
-		result.text = lng_action_pinned_media(lt_from, fromLinkText(), lt_media, textcmdLink(2, lang(lng_contacts_loading)));
+		result.text = lng_action_pinned_media(lt_from, fromLinkText(), lt_media, textcmdLink(2, tr::lng_contacts_loading(tr::now)));
 	} else {
 		result.links.push_back(fromLink());
-		result.text = lng_action_pinned_media(lt_from, fromLinkText(), lt_media, lang(lng_deleted_message));
+		result.text = lng_action_pinned_media(lt_from, fromLinkText(), lt_media, tr::lng_deleted_message(tr::now));
 	}
 	return result;
 }
@@ -420,9 +420,9 @@ HistoryService::PreparedText HistoryService::prepareGameScoreText() {
 					return textcmdLink(result.links.size(), titleText);
 				}
 			}
-			return lang(lng_deleted_message);
+			return tr::lng_deleted_message(tr::now);
 		} else if (gamescore && gamescore->msgId) {
-			return lang(lng_contacts_loading);
+			return tr::lng_contacts_loading(tr::now);
 		}
 		return QString();
 	};
@@ -474,9 +474,9 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 					return invoice->title;
 				}
 			}
-			return lang(lng_deleted_message);
+			return tr::lng_deleted_message(tr::now);
 		} else if (payment && payment->msgId) {
-			return lang(lng_contacts_loading);
+			return tr::lng_contacts_loading(tr::now);
 		}
 		return QString();
 	}();
@@ -592,8 +592,8 @@ crl::time HistoryService::getSelfDestructIn(crl::time now) {
 			if (selfdestruct->destructAt <= now) {
 				auto text = [selfdestruct] {
 					switch (selfdestruct->type) {
-					case HistoryServiceSelfDestruct::Type::Photo: return lang(lng_ttl_photo_expired);
-					case HistoryServiceSelfDestruct::Type::Video: return lang(lng_ttl_video_expired);
+					case HistoryServiceSelfDestruct::Type::Photo: return tr::lng_ttl_photo_expired(tr::now);
+					case HistoryServiceSelfDestruct::Type::Video: return tr::lng_ttl_video_expired(tr::now);
 					}
 					Unexpected("Type in HistoryServiceSelfDestruct::Type");
 				};
@@ -615,7 +615,7 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 			Assert(photo.has_ttl_seconds());
 			setSelfDestruct(HistoryServiceSelfDestruct::Type::Photo, photo.vttl_seconds.v);
 			if (out()) {
-				setServiceText({ lang(lng_ttl_photo_sent) });
+				setServiceText({ tr::lng_ttl_photo_sent(tr::now) });
 			} else {
 				auto result = PreparedText();
 				result.links.push_back(fromLink());
@@ -623,7 +623,7 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 				setServiceText(std::move(result));
 			}
 		} else {
-			setServiceText({ lang(lng_ttl_photo_expired) });
+			setServiceText({ tr::lng_ttl_photo_expired(tr::now) });
 		}
 	} break;
 	case mtpc_messageMediaDocument: {
@@ -632,7 +632,7 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 			Assert(document.has_ttl_seconds());
 			setSelfDestruct(HistoryServiceSelfDestruct::Type::Video, document.vttl_seconds.v);
 			if (out()) {
-				setServiceText({ lang(lng_ttl_video_sent) });
+				setServiceText({ tr::lng_ttl_video_sent(tr::now) });
 			} else {
 				auto result = PreparedText();
 				result.links.push_back(fromLink());
@@ -640,7 +640,7 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 				setServiceText(std::move(result));
 			}
 		} else {
-			setServiceText({ lang(lng_ttl_video_expired) });
+			setServiceText({ tr::lng_ttl_video_expired(tr::now) });
 		}
 	} break;
 
@@ -767,7 +767,7 @@ HistoryService::PreparedText GenerateJoinedText(
 			textcmdLink(1, self->name));
 		return result;
 	}
-	return { lang(lng_action_you_joined) };
+	return { tr::lng_action_you_joined(tr::now) };
 }
 
 HistoryService *GenerateJoinedMessage(

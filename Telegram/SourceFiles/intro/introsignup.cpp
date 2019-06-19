@@ -23,7 +23,7 @@ namespace Intro {
 SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
 , _photo(
 	this,
-	lang(lng_settings_crop_profile),
+	tr::lng_settings_crop_profile(tr::now),
 	Ui::UserpicButton::Role::ChangePhoto,
 	st::defaultUserpicButton)
 , _first(this, st::introName, tr::lng_signup_firstname())
@@ -144,7 +144,7 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 	stopCheck();
 	auto &err = error.type();
 	if (err == qstr("PHONE_NUMBER_FLOOD")) {
-		Ui::show(Box<InformBox>(lang(lng_error_phone_flood)));
+		Ui::show(Box<InformBox>(tr::lng_error_phone_flood(tr::now)));
 		return true;
 	} else if (err == qstr("PHONE_NUMBER_INVALID")
 		|| err == qstr("PHONE_NUMBER_BANNED")

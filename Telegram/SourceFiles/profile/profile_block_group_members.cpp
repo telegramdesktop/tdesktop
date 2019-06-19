@@ -41,7 +41,7 @@ GroupMembersWidget::GroupMembersWidget(
 	QWidget *parent,
 	PeerData *peer,
 	const style::PeerListItem &st)
-: PeerListWidget(parent, peer, QString(), st, lang(lng_profile_kick)) {
+: PeerListWidget(parent, peer, QString(), st, tr::lng_profile_kick(tr::now)) {
 	_updateOnlineTimer.setSingleShot(true);
 	connect(&_updateOnlineTimer, SIGNAL(timeout()), this, SLOT(onUpdateOnlineDisplay()));
 
@@ -82,7 +82,7 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 		}
 		return MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
 	}();
-	Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), [user, currentRestrictedRights, peer = peer()] {
+	Ui::show(Box<ConfirmBox>(text, tr::lng_box_remove(tr::now), [user, currentRestrictedRights, peer = peer()] {
 		Ui::hideLayer();
 		if (const auto chat = peer->asChat()) {
 			Auth().api().kickParticipant(chat, user);
@@ -160,7 +160,9 @@ void GroupMembersWidget::updateItemStatusText(Item *item) {
 	if (member->statusText.isEmpty() || (member->onlineTextTill <= _now)) {
 		if (user->botInfo) {
 			auto seesAllMessages = (user->botInfo->readsAllHistory || (member->adminState != Item::AdminState::None));
-			member->statusText = lang(seesAllMessages ? lng_status_bot_reads_all : lng_status_bot_not_reads_all);
+			member->statusText = seesAllMessages
+				? tr::lng_status_bot_reads_all(tr::now)
+				: tr::lng_status_bot_not_reads_all(tr::now);
 			member->onlineTextTill = _now + 86400;
 		} else {
 			member->statusHasOnlineColor = Data::OnlineTextActive(member->onlineTill, _now);

@@ -136,15 +136,21 @@ auto OnlineStatusText(int count) {
 
 auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
 	if (onlineCount > 1 && onlineCount <= fullCount) {
-		return lng_chat_status_members_online(
-			lt_members_count, MembersStatusText(fullCount),
-			lt_online_count, OnlineStatusText(onlineCount));
+		return tr::lng_chat_status_members_online(
+			tr::now,
+			lt_members_count,
+			MembersStatusText(fullCount),
+			lt_online_count,
+			OnlineStatusText(onlineCount));
 	} else if (fullCount > 0) {
-		return lng_chat_status_members(lt_count_decimal, fullCount);
+		return tr::lng_chat_status_members(
+			tr::now,
+			lt_count_decimal,
+			fullCount);
 	}
-	return lang(isGroup
-		? lng_group_status
-		: lng_channel_status);
+	return isGroup
+		? tr::lng_group_status(tr::now)
+		: tr::lng_channel_status(tr::now);
 };
 
 } // namespace
@@ -247,7 +253,7 @@ Cover::Cover(
 	_peer->updateFull();
 
 	_name->setSelectable(true);
-	_name->setContextCopyText(lang(lng_profile_copy_fullname));
+	_name->setContextCopyText(tr::lng_profile_copy_fullname(tr::now));
 
 	if (!_peer->isMegagroup()) {
 		_status->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -366,7 +372,7 @@ void Cover::refreshStatusText() {
 				: result;
 		} else if (auto chat = _peer->asChat()) {
 			if (!chat->amIn()) {
-				return lang(lng_chat_status_unaccessible);
+				return tr::lng_chat_status_unaccessible(tr::now);
 			}
 			auto fullCount = std::max(
 				chat->count,
@@ -380,7 +386,7 @@ void Cover::refreshStatusText() {
 				channel->isMegagroup());
 			return hasMembersLink ? textcmdLink(1, result) : result;
 		}
-		return lang(lng_chat_status_unaccessible);
+		return tr::lng_chat_status_unaccessible(tr::now);
 	}();
 	_status->setRichText(statusText);
 	if (hasMembersLink) {

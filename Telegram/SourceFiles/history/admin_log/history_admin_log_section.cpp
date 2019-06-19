@@ -105,7 +105,7 @@ FixedBar::FixedBar(
 , _controller(controller)
 , _channel(channel)
 , _field(this, st::historyAdminLogSearchField, tr::lng_dlg_filter())
-, _backButton(this, lang(lng_admin_log_title_all))
+, _backButton(this, tr::lng_admin_log_title_all(tr::now))
 , _search(this, st::topBarSearch)
 , _cancel(this, st::historyAdminLogCancelSearch)
 , _filter(this, tr::lng_admin_log_filter(), st::topBarButton) {
@@ -125,9 +125,9 @@ FixedBar::FixedBar(
 
 void FixedBar::applyFilter(const FilterValue &value) {
 	auto hasFilter = (value.flags != 0) || !value.allUsers;
-	_backButton->setText(lang(hasFilter
-		? lng_admin_log_title_selected
-		: lng_admin_log_title_all));
+	_backButton->setText(hasFilter
+		? tr::lng_admin_log_title_selected(tr::now)
+		: tr::lng_admin_log_title_all(tr::now));
 }
 
 void FixedBar::goBack() {
@@ -254,7 +254,7 @@ Widget::Widget(QWidget *parent, not_null<Window::SessionController*> controller,
 , _scroll(this, st::historyScroll, false)
 , _fixedBar(this, controller, channel)
 , _fixedBarShadow(this)
-, _whatIsThis(this, lang(lng_admin_log_about).toUpper(), st::historyComposeButton) {
+, _whatIsThis(this, tr::lng_admin_log_about(tr::now).toUpper(), st::historyComposeButton) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
 	subscribe(_fixedBar->showFilterSignal, [this] { showFilter(); });
@@ -275,7 +275,7 @@ Widget::Widget(QWidget *parent, not_null<Window::SessionController*> controller,
 
 	connect(_scroll, &Ui::ScrollArea::scrolled, this, [this] { onScroll(); });
 
-	_whatIsThis->setClickedCallback([=] { Ui::show(Box<InformBox>(lang(lng_admin_log_about_text))); });
+	_whatIsThis->setClickedCallback([=] { Ui::show(Box<InformBox>(tr::lng_admin_log_about_text(tr::now))); });
 
 	setupShortcuts();
 }

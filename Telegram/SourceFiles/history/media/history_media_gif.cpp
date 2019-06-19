@@ -71,7 +71,7 @@ QSize HistoryGif::countOptimalSize() {
 	}
 	if (_gif && _gif->state() == Media::Clip::State::Error) {
 		if (!_gif->autoplay()) {
-			Ui::show(Box<InformBox>(lang(lng_gif_error)));
+			Ui::show(Box<InformBox>(tr::lng_gif_error(tr::now)));
 		}
 		setClipReader(Media::Clip::ReaderPointer::Bad());
 	}
@@ -713,7 +713,7 @@ int HistoryGif::additionalWidth() const {
 
 QString HistoryGif::mediaTypeString() const {
 	return _data->isVideoMessage()
-		? lang(lng_in_dlg_video_message)
+		? tr::lng_in_dlg_video_message(tr::now)
 		: qsl("GIF");
 }
 

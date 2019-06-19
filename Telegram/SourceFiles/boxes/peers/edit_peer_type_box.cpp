@@ -516,13 +516,13 @@ void Controller::showUsernameResult(
 }
 
 void Controller::createInviteLink() {
-	exportInviteLink(lang(_isGroup
-		? lng_group_invite_about
-		: lng_group_invite_about_channel));
+	exportInviteLink((_isGroup
+		? tr::lng_group_invite_about
+		: tr::lng_group_invite_about_channel)(tr::now));
 }
 
 void Controller::revokeInviteLink() {
-	exportInviteLink(lang(lng_group_invite_about_new));
+	exportInviteLink(tr::lng_group_invite_about_new(tr::now));
 }
 
 void Controller::exportInviteLink(const QString &confirmation) {
@@ -595,7 +595,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 	_controls.inviteLink->setBreakEverywhere(true);
 	_controls.inviteLink->setClickHandlerFilter([=](auto&&...) {
 		QApplication::clipboard()->setText(inviteLinkText());
-		Ui::Toast::Show(lang(lng_group_invite_copied));
+		Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
 		return false;
 	});
 
@@ -604,7 +604,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 		st::editPeerInviteLinkSkip));
 	container->add(object_ptr<Ui::LinkButton>(
 		container,
-		lang(lng_group_invite_create_new),
+		tr::lng_group_invite_create_new(tr::now),
 		st::editPeerInviteLinkButton)
 	)->addClickHandler([=] { revokeInviteLink(); });
 
@@ -663,7 +663,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkCreate() {
 
 	container->add(object_ptr<Ui::LinkButton>(
 		_wrap,
-		lang(lng_group_invite_create),
+		tr::lng_group_invite_create(tr::now),
 		st::editPeerInviteLinkButton)
 	)->addClickHandler([this] {
 		createInviteLink();

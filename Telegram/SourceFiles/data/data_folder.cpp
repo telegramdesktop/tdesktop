@@ -54,7 +54,7 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 : Entry(owner, this)
 , _id(id)
 , _chatsList(PinnedDialogsInFolderMaxValue())
-, _name(lang(lng_archived_name)) {
+, _name(tr::lng_archived_name(tr::now)) {
 	indexNameParts();
 
 	Notify::PeerUpdateViewer(

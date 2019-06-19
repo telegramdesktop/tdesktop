@@ -672,7 +672,7 @@ void Application::startLocalStorage() {
 void Application::forceLogOut(const TextWithEntities &explanation) {
 	const auto box = Ui::show(Box<InformBox>(
 		explanation,
-		lang(lng_passcode_logout)));
+		tr::lng_passcode_logout(tr::now)));
 	box->setCloseByEscape(false);
 	box->setCloseByOutsideClick(false);
 	connect(box, &QObject::destroyed, [=] {

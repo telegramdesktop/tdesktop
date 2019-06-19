@@ -102,11 +102,11 @@ std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxControl
 
 } // namespace
 
-LangKey EditPrivacyController::optionLabelKey(Option option) {
+QString EditPrivacyController::optionLabel(Option option) {
 	switch (option) {
-	case Option::Everyone: return lng_edit_privacy_everyone;
-	case Option::Contacts: return lng_edit_privacy_contacts;
-	case Option::Nobody: return lng_edit_privacy_nobody;
+	case Option::Everyone: return tr::lng_edit_privacy_everyone(tr::now);
+	case Option::Contacts: return tr::lng_edit_privacy_contacts(tr::now);
+	case Option::Nobody: return tr::lng_edit_privacy_nobody(tr::now);
 	}
 	Unexpected("Option value in optionsLabelKey.");
 }
@@ -244,7 +244,7 @@ Ui::Radioenum<EditPrivacyBox::Option> *EditPrivacyBox::addOption(
 			container,
 			group,
 			option,
-			lang(_controller->optionLabelKey(option)),
+			_controller->optionLabel(option),
 			st::settingsSendType),
 		st::settingsSendTypePadding);
 }
@@ -303,7 +303,7 @@ void EditPrivacyBox::setupContent() {
 		}) | rpl::map([](int count) {
 			return count
 				? lng_edit_privacy_exceptions_count(lt_count, count)
-				: lang(lng_edit_privacy_exceptions_add);
+				: tr::lng_edit_privacy_exceptions_add(tr::now);
 		});
 		auto text = _controller->exceptionButtonTextKey(exception);
 		const auto button = content->add(

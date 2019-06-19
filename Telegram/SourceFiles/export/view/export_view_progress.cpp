@@ -245,7 +245,7 @@ ProgressWidget::ProgressWidget(
 	_about = _body->add(
 		object_ptr<Ui::FlatLabel>(
 			this,
-			lang(lng_export_progress),
+			tr::lng_export_progress(tr::now),
 			st::exportAboutLabel),
 		st::exportAboutPadding);
 
@@ -307,13 +307,13 @@ void ProgressWidget::updateState(Content &&content) {
 
 void ProgressWidget::showDone() {
 	_cancel = nullptr;
-	_about->setText(lang(lng_export_about_done));
+	_about->setText(tr::lng_export_about_done(tr::now));
 	_done = base::make_unique_q<Ui::RoundButton>(
 		this,
 		tr::lng_export_done(),
 		st::exportDoneButton);
 	const auto desired = std::min(
-		st::exportDoneButton.font->width(lang(lng_export_done).toUpper())
+		st::exportDoneButton.font->width(tr::lng_export_done(tr::now).toUpper())
 		+ st::exportDoneButton.height
 		- st::exportDoneButton.font->height,
 		st::exportPanelSize.width() - 2 * st::exportCancelBottom);

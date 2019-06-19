@@ -52,7 +52,7 @@ void SuggestBox::prepare() {
 
 	const auto content = Ui::CreateChild<Ui::FlatLabel>(
 		this,
-		lang(lng_export_suggest_text),
+		tr::lng_export_suggest_text(tr::now),
 		st::boxLabel);
 	widthValue(
 	) | rpl::start_with_next([=](int width) {
@@ -72,17 +72,14 @@ void SuggestBox::prepare() {
 
 Environment PrepareEnvironment() {
 	auto result = Environment();
-	const auto utfLang = [](LangKey key) {
-		return lang(key).toUtf8();
-	};
 	result.internalLinksDomain = Global::InternalLinksDomain();
-	result.aboutTelegram = utfLang(lng_export_about_telegram);
-	result.aboutContacts = utfLang(lng_export_about_contacts);
-	result.aboutFrequent = utfLang(lng_export_about_frequent);
-	result.aboutSessions = utfLang(lng_export_about_sessions);
-	result.aboutWebSessions = utfLang(lng_export_about_web_sessions);
-	result.aboutChats = utfLang(lng_export_about_chats);
-	result.aboutLeftChats = utfLang(lng_export_about_left_chats);
+	result.aboutTelegram = tr::lng_export_about_telegram(tr::now).toUtf8();
+	result.aboutContacts = tr::lng_export_about_contacts(tr::now).toUtf8();
+	result.aboutFrequent = tr::lng_export_about_frequent(tr::now).toUtf8();
+	result.aboutSessions = tr::lng_export_about_sessions(tr::now).toUtf8();
+	result.aboutWebSessions = tr::lng_export_about_web_sessions(tr::now).toUtf8();
+	result.aboutChats = tr::lng_export_about_chats(tr::now).toUtf8();
+	result.aboutLeftChats = tr::lng_export_about_left_chats(tr::now).toUtf8();
 	return result;
 }
 
@@ -191,7 +188,7 @@ void PanelController::showError(const ApiErrorState &error) {
 	LOG(("Export Info: API Error '%1'.").arg(error.data.type()));
 
 	if (error.data.type() == qstr("TAKEOUT_INVALID")) {
-		showError(lang(lng_export_invalid));
+		showError(tr::lng_export_invalid(tr::now));
 	} else if (error.data.type().startsWith(qstr("TAKEOUT_INIT_DELAY_"))) {
 		const auto seconds = std::max(error.data.type().mid(
 			qstr("TAKEOUT_INIT_DELAY_").size()).toInt(), 1);
@@ -200,7 +197,7 @@ void PanelController::showError(const ApiErrorState &error) {
 		const auto hours = seconds / 3600;
 		const auto hoursText = [&] {
 			if (hours <= 0) {
-				return lang(lng_export_delay_less_than_hour);
+				return tr::lng_export_delay_less_than_hour(tr::now);
 			}
 			return lng_export_delay_hours(lt_count, hours);
 		}();
@@ -316,8 +313,8 @@ void PanelController::stopWithConfirmation(FnMut<void()> callback) {
 	const auto hidden = _panel->isHidden();
 	const auto old = _confirmStopBox;
 	auto box = Box<ConfirmBox>(
-		lang(lng_export_sure_stop),
-		lang(lng_export_stop),
+		tr::lng_export_sure_stop(tr::now),
+		tr::lng_export_stop(tr::now),
 		st::attentionBoxButton,
 		std::move(stop));
 	_confirmStopBox = box.data();

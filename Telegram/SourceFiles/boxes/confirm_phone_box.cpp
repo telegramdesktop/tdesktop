@@ -58,9 +58,9 @@ void ShowPhoneBannedError(const QString &phone) {
 		}
 	};
 	*box = Ui::show(Box<ConfirmBox>(
-		lang(lng_signin_banned_text),
-		lang(lng_box_ok),
-		lang(lng_signin_banned_help),
+		tr::lng_signin_banned_text(tr::now),
+		tr::lng_box_ok(tr::now),
+		tr::lng_signin_banned_help(tr::now),
 		close,
 		[=] { SendToBannedHelp(phone); close(); }));
 
@@ -185,8 +185,8 @@ QString SentCodeCall::getText() const {
 		}
 		return lng_code_call(lt_minutes, QString::number(_status.timeout / 60), lt_seconds, qsl("%1").arg(_status.timeout % 60, 2, 10, QChar('0')));
 	} break;
-	case State::Calling: return lang(lng_code_calling);
-	case State::Called: return lang(lng_code_called);
+	case State::Calling: return tr::lng_code_calling(tr::now);
+	case State::Called: return tr::lng_code_called(tr::now);
 	}
 	return QString();
 }
@@ -246,11 +246,11 @@ void ConfirmPhoneBox::sendCodeDone(const MTPauth_SentCode &result) {
 bool ConfirmPhoneBox::sendCodeFail(const RPCError &error) {
 	auto errorText = Lang::Hard::ServerError();
 	if (MTP::isFloodError(error)) {
-		errorText = lang(lng_flood_error);
+		errorText = tr::lng_flood_error(tr::now);
 	} else if (MTP::isDefaultHandledError(error)) {
 		return false;
 	} else if (error.code() == 400) {
-		errorText = lang(lng_confirm_phone_link_invalid);
+		errorText = tr::lng_confirm_phone_link_invalid(tr::now);
 	}
 	_sendCodeRequestId = 0;
 	Ui::show(Box<InformBox>(errorText));
@@ -327,13 +327,13 @@ void ConfirmPhoneBox::confirmDone(const MTPBool &result) {
 bool ConfirmPhoneBox::confirmFail(const RPCError &error) {
 	auto errorText = Lang::Hard::ServerError();
 	if (MTP::isFloodError(error)) {
-		errorText = lang(lng_flood_error);
+		errorText = tr::lng_flood_error(tr::now);
 	} else if (MTP::isDefaultHandledError(error)) {
 		return false;
 	} else {
 		auto &errorType = error.type();
 		if (errorType == qstr("PHONE_CODE_EMPTY") || errorType == qstr("PHONE_CODE_INVALID")) {
-			errorText = lang(lng_bad_code);
+			errorText = tr::lng_bad_code(tr::now);
 		}
 	}
 	_sendCodeRequestId = 0;
@@ -369,7 +369,7 @@ void ConfirmPhoneBox::paintEvent(QPaintEvent *e) {
 	auto errorText = _error;
 	if (errorText.isEmpty()) {
 		p.setPen(st::usernameDefaultFg);
-		errorText = lang(lng_confirm_phone_enter_code);
+		errorText = tr::lng_confirm_phone_enter_code(tr::now);
 	} else {
 		p.setPen(st::boxTextFgError);
 	}

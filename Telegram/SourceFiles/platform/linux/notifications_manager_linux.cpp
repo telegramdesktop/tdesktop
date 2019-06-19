@@ -165,7 +165,7 @@ private:
 		Libs::notify_notification_set_timeout(_data, Libs::NOTIFY_EXPIRES_DEFAULT);
 
 		if ((*guarded)->hasActionsSupport()) {
-			auto label = lang(lng_notification_reply).toUtf8();
+			auto label = tr::lng_notification_reply(tr::now).toUtf8();
 			auto actionReceiver = _data;
 			auto actionHandler = &NotificationData::notificationClicked;
 			auto actionLabel = label.constData();

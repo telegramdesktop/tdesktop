@@ -199,9 +199,9 @@ void EditParticipantBox::Inner::paintEvent(QPaintEvent *e) {
 		if (_user->botInfo) {
 			const auto seesAllMessages = _user->botInfo->readsAllHistory
 				|| _hasAdminRights;
-			return lang(seesAllMessages
-				? lng_status_bot_reads_all
-				: lng_status_bot_not_reads_all);
+			return (seesAllMessages
+				? tr::lng_status_bot_reads_all
+				: tr::lng_status_bot_not_reads_all)(tr::now);
 		}
 		return Data::OnlineText(_user->onlineTill, unixtime());
 	};
@@ -305,16 +305,16 @@ void EditAdminBox::prepare() {
 		if (!canSave()) {
 			result.emplace(
 				~Flags(0),
-				lang(lng_rights_about_admin_cant_edit));
+				tr::lng_rights_about_admin_cant_edit(tr::now));
 		} else {
 			result.emplace(
 				disabledByDefaults,
-				lang(lng_rights_permission_for_all));
+				tr::lng_rights_permission_for_all(tr::now));
 			if (const auto channel = peer()->asChannel()) {
 				if (!channel->amCreator()) {
 					result.emplace(
 						~channel->adminRights(),
-						lang(lng_rights_permission_cant_edit));
+						tr::lng_rights_permission_cant_edit(tr::now));
 				}
 			}
 		}
@@ -444,7 +444,7 @@ void EditAdminBox::transferOwnership() {
 					lt_user,
 					Ui::Text::Bold(user()->shortName()),
 					Ui::Text::RichLangValue),
-				lang(lng_rights_transfer_sure),
+				tr::lng_rights_transfer_sure(tr::now),
 				crl::guard(this, [=] { transferOwnershipChecked(); })));
 		}
 	}).send();
@@ -492,7 +492,7 @@ void EditAdminBox::requestTransferPassword(not_null<ChannelData*> channel) {
 		auto fields = PasscodeBox::CloudFields::From(state);
 		fields.customTitle = tr::lng_rights_transfer_password_title();
 		fields.customDescription
-			= lang(lng_rights_transfer_password_description);
+			= tr::lng_rights_transfer_password_description(tr::now);
 		fields.customSubmitButton = tr::lng_passcode_submit();
 		fields.customCheckCallback = crl::guard(this, [=](
 				const Core::CloudPasswordResult &result) {
@@ -533,15 +533,15 @@ void EditAdminBox::sendTransferRequestFrom(
 		const auto &type = error.type();
 		const auto problem = [&] {
 			if (type == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
-				return lang(lng_channels_too_much_public_other);
+				return tr::lng_channels_too_much_public_other(tr::now);
 			} else if (type == qstr("ADMINS_TOO_MUCH")) {
-				return lang(channel->isBroadcast()
-					? lng_error_admin_limit_channel
-					: lng_error_admin_limit);
+				return (channel->isBroadcast()
+					? tr::lng_error_admin_limit_channel
+					: tr::lng_error_admin_limit)(tr::now);
 			} else if (type == qstr("CHANNEL_INVALID")) {
-				return lang(channel->isBroadcast()
-					? lng_channel_not_accessible
-					: lng_group_not_accessible);
+				return (channel->isBroadcast()
+					? tr::lng_channel_not_accessible
+					: tr::lng_group_not_accessible)(tr::now);
 			}
 			return Lang::Hard::ServerError();
 		}();
@@ -565,11 +565,11 @@ void EditAdminBox::sendTransferRequestFrom(
 void EditAdminBox::refreshAboutAddAdminsText(bool canAddAdmins) {
 	_aboutAddAdmins->setText([&] {
 		if (!canSave()) {
-			return lang(lng_rights_about_admin_cant_edit);
+			return tr::lng_rights_about_admin_cant_edit(tr::now);
 		} else if (canAddAdmins) {
-			return lang(lng_rights_about_add_admins_yes);
+			return tr::lng_rights_about_add_admins_yes(tr::now);
 		}
-		return lang(lng_rights_about_add_admins_no);
+		return tr::lng_rights_about_add_admins_no(tr::now);
 	}());
 }
 
@@ -611,7 +611,7 @@ void EditRestrictedBox::prepare() {
 		if (!canSave()) {
 			result.emplace(
 				~Flags(0),
-				lang(lng_rights_about_restriction_cant_edit));
+				tr::lng_rights_about_restriction_cant_edit(tr::now));
 		} else {
 			const auto disabled = FixDependentRestrictions(
 				defaultRestrictions
@@ -620,7 +620,7 @@ void EditRestrictedBox::prepare() {
 					: Flags(0)));
 			result.emplace(
 				disabled,
-				lang(lng_rights_restriction_for_all));
+				tr::lng_rights_restriction_for_all(tr::now));
 		}
 		return result;
 	}();
@@ -637,7 +637,7 @@ void EditRestrictedBox::prepare() {
 	addControl(
 		object_ptr<Ui::FlatLabel>(
 			this,
-			lang(lng_rights_chat_banned_until_header),
+			tr::lng_rights_chat_banned_until_header(tr::now),
 			st::rightsHeaderLabel),
 		st::rightsHeaderMargin);
 	setRestrictUntil(_until);
@@ -645,7 +645,7 @@ void EditRestrictedBox::prepare() {
 	//addControl(
 	//	object_ptr<Ui::LinkButton>(
 	//		this,
-	//		lang(lng_rights_chat_banned_block),
+	//		tr::lng_rights_chat_banned_block(tr::now),
 	//		st::boxLinkButton));
 
 	if (canSave()) {
@@ -759,7 +759,7 @@ void EditRestrictedBox::createUntilVariants() {
 			addCustomVariant(oldUntil, from, to);
 		}
 	};
-	addVariant(0, lang(lng_rights_chat_banned_forever));
+	addVariant(0, tr::lng_rights_chat_banned_forever(tr::now));
 
 	auto now = unixtime();
 	auto nextDay = now + kSecondsInDay;
@@ -769,7 +769,7 @@ void EditRestrictedBox::createUntilVariants() {
 	addCurrentVariant(nextDay, nextWeek);
 	addVariant(kUntilOneWeek, lng_rights_chat_banned_week(lt_count, 1));
 	addCurrentVariant(nextWeek, INT_MAX);
-	addVariant(kUntilCustom, lang(lng_rights_chat_banned_custom));
+	addVariant(kUntilCustom, tr::lng_rights_chat_banned_custom(tr::now));
 }
 
 TimeId EditRestrictedBox::getRealUntilValue() const {

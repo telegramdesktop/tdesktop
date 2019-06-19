@@ -79,51 +79,51 @@ void ApplyDependencies(
 	};
 }
 
-std::vector<std::pair<ChatRestrictions, LangKey>> RestrictionLabels() {
+std::vector<std::pair<ChatRestrictions, QString>> RestrictionLabels() {
 	const auto langKeys = {
-		lng_rights_chat_send_text,
-		lng_rights_chat_send_media,
-		lng_rights_chat_send_stickers,
-		lng_rights_chat_send_links,
-		lng_rights_chat_send_polls,
-		lng_rights_chat_add_members,
-		lng_rights_group_pin,
-		lng_rights_group_info,
+		tr::lng_rights_chat_send_text,
+		tr::lng_rights_chat_send_media,
+		tr::lng_rights_chat_send_stickers,
+		tr::lng_rights_chat_send_links,
+		tr::lng_rights_chat_send_polls,
+		tr::lng_rights_chat_add_members,
+		tr::lng_rights_group_pin,
+		tr::lng_rights_group_info,
 	};
 
-	std::vector<std::pair<ChatRestrictions, LangKey>> vector;
+	std::vector<std::pair<ChatRestrictions, QString>> vector;
 	const auto restrictions = Data::ListOfRestrictions();
 	auto i = 0;
-	for (const auto key : langKeys) {
-		vector.emplace_back(restrictions[i++], key);
+	for (const auto &key : langKeys) {
+		vector.emplace_back(restrictions[i++], key(tr::now));
 	}
 	return vector;
 }
 
-std::vector<std::pair<ChatAdminRights, LangKey>> AdminRightLabels(
+std::vector<std::pair<ChatAdminRights, QString>> AdminRightLabels(
 		bool isGroup,
 		bool anyoneCanAddMembers) {
 	using Flag = ChatAdminRight;
 
 	if (isGroup) {
 		return {
-			{ Flag::f_change_info, lng_rights_group_info },
-			{ Flag::f_delete_messages, lng_rights_group_delete },
-			{ Flag::f_ban_users, lng_rights_group_ban },
+			{ Flag::f_change_info, tr::lng_rights_group_info(tr::now) },
+			{ Flag::f_delete_messages, tr::lng_rights_group_delete(tr::now) },
+			{ Flag::f_ban_users, tr::lng_rights_group_ban(tr::now) },
 			{ Flag::f_invite_users, anyoneCanAddMembers
-				? lng_rights_group_invite_link
-				: lng_rights_group_invite },
-			{ Flag::f_pin_messages, lng_rights_group_pin },
-			{ Flag::f_add_admins, lng_rights_add_admins },
+				? tr::lng_rights_group_invite_link(tr::now)
+				: tr::lng_rights_group_invite(tr::now) },
+			{ Flag::f_pin_messages, tr::lng_rights_group_pin(tr::now) },
+			{ Flag::f_add_admins, tr::lng_rights_add_admins(tr::now) },
 		};
 	} else {
 		return {
-			{ Flag::f_change_info, lng_rights_channel_info },
-			{ Flag::f_post_messages, lng_rights_channel_post },
-			{ Flag::f_edit_messages, lng_rights_channel_edit },
-			{ Flag::f_delete_messages, lng_rights_channel_delete },
-			{ Flag::f_invite_users, lng_rights_group_invite },
-			{ Flag::f_add_admins, lng_rights_add_admins }
+			{ Flag::f_change_info, tr::lng_rights_channel_info(tr::now) },
+			{ Flag::f_post_messages, tr::lng_rights_channel_post(tr::now) },
+			{ Flag::f_edit_messages, tr::lng_rights_channel_edit(tr::now) },
+			{ Flag::f_delete_messages, tr::lng_rights_channel_delete(tr::now) },
+			{ Flag::f_invite_users, tr::lng_rights_group_invite(tr::now) },
+			{ Flag::f_add_admins, tr::lng_rights_add_admins(tr::now) }
 		};
 	}
 }
@@ -323,12 +323,12 @@ void EditPeerPermissionsBox::prepare() {
 		auto result = std::map<Flags, QString>();
 			result.emplace(
 				disabledByAdminRights,
-				lang(lng_rights_permission_cant_edit));
+				tr::lng_rights_permission_cant_edit(tr::now));
 		if (const auto channel = _peer->asChannel()) {
 			if (channel->isPublic()) {
 				result.emplace(
 					Flag::f_change_info | Flag::f_pin_messages,
-					lang(lng_rights_permission_unavailable));
+					tr::lng_rights_permission_unavailable(tr::now));
 			}
 		}
 		return result;
@@ -473,7 +473,7 @@ EditFlagsControl<Flags> CreateEditFlags(
 		checkboxes->emplace(flags, control);
 	};
 	for (const auto &[flags, label] : flagLabelPairs) {
-		addCheckbox(flags, lang(label));
+		addCheckbox(flags, label);
 	}
 
 	applyDependencies(nullptr);

@@ -64,10 +64,10 @@ void SendDataCommon::addToHistory(
 QString SendDataCommon::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
-	const auto errorKey = Data::RestrictionErrorKey(
+	const auto error = Data::RestrictionError(
 		history->peer,
 		ChatRestriction::f_send_messages);
-	return errorKey ? lang(*errorKey) : QString();
+	return error.value_or(QString());
 }
 
 SendDataCommon::SentMTPMessageFields SendText::getSentMessageFields() const {
@@ -144,10 +144,10 @@ void SendPhoto::addToHistory(
 QString SendPhoto::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
-	const auto errorKey = Data::RestrictionErrorKey(
+	const auto error = Data::RestrictionError(
 		history->peer,
 		ChatRestriction::f_send_media);
-	return errorKey ? lang(*errorKey) : QString();
+	return error.value_or(QString());
 }
 
 void SendFile::addToHistory(
@@ -177,23 +177,23 @@ void SendFile::addToHistory(
 QString SendFile::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
-	const auto errorMedia = Data::RestrictionErrorKey(
+	const auto errorMedia = Data::RestrictionError(
 		history->peer,
 		ChatRestriction::f_send_media);
-	const auto errorStickers = Data::RestrictionErrorKey(
+	const auto errorStickers = Data::RestrictionError(
 		history->peer,
 		ChatRestriction::f_send_stickers);
-	const auto errorGifs = Data::RestrictionErrorKey(
+	const auto errorGifs = Data::RestrictionError(
 		history->peer,
 		ChatRestriction::f_send_gifs);
 	return errorMedia
-		? lang(*errorMedia)
+		? *errorMedia
 		: (errorStickers && (_document->sticker() != nullptr))
-		? lang(*errorStickers)
+		? *errorStickers
 		: (errorGifs
 			&& _document->isAnimation()
 			&& !_document->isVideoMessage())
-		? lang(*errorGifs)
+		? *errorGifs
 		: QString();
 }
 
@@ -223,10 +223,10 @@ void SendGame::addToHistory(
 QString SendGame::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
-	const auto errorKey = Data::RestrictionErrorKey(
+	const auto error = Data::RestrictionError(
 		history->peer,
 		ChatRestriction::f_send_games);
-	return errorKey ? lang(*errorKey) : QString();
+	return error.value_or(QString());
 }
 
 } // namespace internal

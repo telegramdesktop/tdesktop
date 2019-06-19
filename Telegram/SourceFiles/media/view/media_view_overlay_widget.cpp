@@ -223,9 +223,9 @@ OverlayWidget::LottieFile::LottieFile(
 OverlayWidget::OverlayWidget()
 : OverlayParent(nullptr)
 , _transparentBrush(style::transparentPlaceholderBrush())
-, _docDownload(this, lang(lng_media_download), st::mediaviewFileLink)
-, _docSaveAs(this, lang(lng_mediaview_save_as), st::mediaviewFileLink)
-, _docCancel(this, lang(lng_cancel), st::mediaviewFileLink)
+, _docDownload(this, tr::lng_media_download(tr::now), st::mediaviewFileLink)
+, _docSaveAs(this, tr::lng_mediaview_save_as(tr::now), st::mediaviewFileLink)
+, _docCancel(this, tr::lng_cancel(tr::now), st::mediaviewFileLink)
 , _radial([=](crl::time now) { return radialAnimationCallback(now); })
 , _lastAction(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction)
 , _stateAnimation([=](crl::time now) { return stateAnimationCallback(now); })
@@ -658,22 +658,22 @@ void OverlayWidget::updateActions() {
 	_actions.clear();
 
 	if (_doc && _doc->loading()) {
-		_actions.push_back({ lang(lng_cancel), SLOT(onSaveCancel()) });
+		_actions.push_back({ tr::lng_cancel(tr::now), SLOT(onSaveCancel()) });
 	}
 	if (IsServerMsgId(_msgid.msg)) {
-		_actions.push_back({ lang(lng_context_to_msg), SLOT(onToMessage()) });
+		_actions.push_back({ tr::lng_context_to_msg(tr::now), SLOT(onToMessage()) });
 	}
 	if (_doc && !_doc->filepath(DocumentData::FilePathResolve::Checked).isEmpty()) {
-		_actions.push_back({ lang(Platform::IsMac() ? lng_context_show_in_finder : lng_context_show_in_folder), SLOT(onShowInFolder()) });
+		_actions.push_back({ Platform::IsMac() ? tr::lng_context_show_in_finder(tr::now) : tr::lng_context_show_in_folder(tr::now), SLOT(onShowInFolder()) });
 	}
 	if ((_doc && documentContentShown()) || (_photo && _photo->loaded())) {
-		_actions.push_back({ lang(lng_mediaview_copy), SLOT(onCopy()) });
+		_actions.push_back({ tr::lng_mediaview_copy(tr::now), SLOT(onCopy()) });
 	}
 	if (_photo && _photo->hasSticker) {
-		_actions.push_back({ lang(lng_context_attached_stickers), SLOT(onAttachedStickers()) });
+		_actions.push_back({ tr::lng_context_attached_stickers(tr::now), SLOT(onAttachedStickers()) });
 	}
 	if (_canForwardItem) {
-		_actions.push_back({ lang(lng_mediaview_forward), SLOT(onForward()) });
+		_actions.push_back({ tr::lng_mediaview_forward(tr::now), SLOT(onForward()) });
 	}
 	auto canDelete = [&] {
 		if (_canDeleteItem) {
@@ -690,12 +690,12 @@ void OverlayWidget::updateActions() {
 		return false;
 	}();
 	if (canDelete) {
-		_actions.push_back({ lang(lng_mediaview_delete), SLOT(onDelete()) });
+		_actions.push_back({ tr::lng_mediaview_delete(tr::now), SLOT(onDelete()) });
 	}
-	_actions.push_back({ lang(lng_mediaview_save_as), SLOT(onSaveAs()) });
+	_actions.push_back({ tr::lng_mediaview_save_as(tr::now), SLOT(onSaveAs()) });
 
 	if (const auto overviewType = computeOverviewType()) {
-		_actions.push_back({ lang(_doc ? lng_mediaview_files_all : lng_mediaview_photos_all), SLOT(onOverview()) });
+		_actions.push_back({ _doc ? tr::lng_mediaview_files_all(tr::now) : tr::lng_mediaview_photos_all(tr::now), SLOT(onOverview()) });
 	}
 }
 
@@ -1121,7 +1121,7 @@ void OverlayWidget::onSaveAs() {
 			}
 
 			psBringToBack(this);
-			file = FileNameForSave(lang(lng_save_file), filter, qsl("doc"), name, true, alreadyDir);
+			file = FileNameForSave(tr::lng_save_file(tr::now), filter, qsl("doc"), name, true, alreadyDir);
 			psShowOverAll(this);
 			if (!file.isEmpty() && file != location.name()) {
 				if (_doc->data().isEmpty()) {
@@ -1150,7 +1150,7 @@ void OverlayWidget::onSaveAs() {
 		auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 		FileDialog::GetWritePath(
 			this,
-			lang(lng_save_photo),
+			tr::lng_save_photo(tr::now),
 			filter,
 			filedialogDefaultName(
 				qsl("photo"),
@@ -1909,14 +1909,14 @@ void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
 
 		if (_doc) {
 			_docName = (_doc->type == StickerDocument)
-				? lang(lng_in_dlg_sticker)
+				? tr::lng_in_dlg_sticker(tr::now)
 				: (_doc->type == AnimatedDocument
 					? qsl("GIF")
 					: (_doc->filename().isEmpty()
-						? lang(lng_mediaview_doc_image)
+						? tr::lng_mediaview_doc_image(tr::now)
 						: _doc->filename()));
 		} else {
-			_docName = lang(lng_message_empty);
+			_docName = tr::lng_message_empty(tr::now);
 		}
 		_docNameWidth = st::mediaviewFileNameFont->width(_docName);
 		if (_docNameWidth > maxw) {
@@ -2892,9 +2892,9 @@ void OverlayWidget::paintThemePreview(Painter &p, QRect clip) {
 			p.setPen(st::themePreviewLoadingFg);
 			p.drawText(
 				_themePreviewRect,
-				lang(_themePreviewId
-					? lng_theme_preview_generating
-					: lng_theme_preview_invalid),
+				(_themePreviewId
+					? tr::lng_theme_preview_generating(tr::now)
+					: tr::lng_theme_preview_invalid(tr::now)),
 				QTextOption(style::al_center));
 		}
 	}
@@ -2919,7 +2919,7 @@ void OverlayWidget::paintThemePreview(Painter &p, QRect clip) {
 	if (titleRect.intersects(clip)) {
 		p.setFont(st::themePreviewTitleFont);
 		p.setPen(st::themePreviewTitleFg);
-		p.drawTextLeft(titleRect.x(), titleRect.y(), width(), lang(lng_theme_preview_title));
+		p.drawTextLeft(titleRect.x(), titleRect.y(), width(), tr::lng_theme_preview_title(tr::now));
 	}
 
 	auto buttonsRect = QRect(_themePreviewRect.x(), _themePreviewRect.y() + _themePreviewRect.height() - st::themePreviewMargin.bottom(), _themePreviewRect.width(), st::themePreviewMargin.bottom());
@@ -3783,18 +3783,18 @@ void OverlayWidget::updateHeader() {
 		}
 	} else {
 		if (_doc) {
-			_headerText = _doc->filename().isEmpty() ? lang(lng_mediaview_doc_image) : _doc->filename();
+			_headerText = _doc->filename().isEmpty() ? tr::lng_mediaview_doc_image(tr::now) : _doc->filename();
 		} else if (_msgid) {
-			_headerText = lang(lng_mediaview_single_photo);
+			_headerText = tr::lng_mediaview_single_photo(tr::now);
 		} else if (_user) {
-			_headerText = lang(lng_mediaview_profile_photo);
+			_headerText = tr::lng_mediaview_profile_photo(tr::now);
 		} else if ((_history && _history->channelId() && !_history->isMegagroup())
 			|| (_peer && _peer->isChannel() && !_peer->isMegagroup())) {
-			_headerText = lang(lng_mediaview_channel_photo);
+			_headerText = tr::lng_mediaview_channel_photo(tr::now);
 		} else if (_peer) {
-			_headerText = lang(lng_mediaview_group_photo);
+			_headerText = tr::lng_mediaview_group_photo(tr::now);
 		} else {
-			_headerText = lang(lng_mediaview_single_photo);
+			_headerText = tr::lng_mediaview_single_photo(tr::now);
 		}
 	}
 	_headerHasLink = computeOverviewType() != std::nullopt;

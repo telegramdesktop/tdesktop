@@ -488,7 +488,7 @@ bool History::updateSendActionNeedsAnimating(crl::time now, bool force) {
 				(end(_typing) - 1)->first->firstName);
 		} else if (typingCount) {
 			newTypingString = peer->isUser()
-				? lang(lng_typing)
+				? tr::lng_typing(tr::now)
 				: lng_user_typing(
 					lt_user,
 					begin(_typing)->first->firstName);
@@ -497,16 +497,16 @@ bool History::updateSendActionNeedsAnimating(crl::time now, bool force) {
 			using Type = SendAction::Type;
 			auto sendActionString = [](Type type, const QString &name) -> QString {
 				switch (type) {
-				case Type::RecordVideo: return name.isEmpty() ? lang(lng_send_action_record_video) : lng_user_action_record_video(lt_user, name);
-				case Type::UploadVideo: return name.isEmpty() ? lang(lng_send_action_upload_video) : lng_user_action_upload_video(lt_user, name);
-				case Type::RecordVoice: return name.isEmpty() ? lang(lng_send_action_record_audio) : lng_user_action_record_audio(lt_user, name);
-				case Type::UploadVoice: return name.isEmpty() ? lang(lng_send_action_upload_audio) : lng_user_action_upload_audio(lt_user, name);
-				case Type::RecordRound: return name.isEmpty() ? lang(lng_send_action_record_round) : lng_user_action_record_round(lt_user, name);
-				case Type::UploadRound: return name.isEmpty() ? lang(lng_send_action_upload_round) : lng_user_action_upload_round(lt_user, name);
-				case Type::UploadPhoto: return name.isEmpty() ? lang(lng_send_action_upload_photo) : lng_user_action_upload_photo(lt_user, name);
-				case Type::UploadFile: return name.isEmpty() ? lang(lng_send_action_upload_file) : lng_user_action_upload_file(lt_user, name);
+				case Type::RecordVideo: return name.isEmpty() ? tr::lng_send_action_record_video(tr::now) : lng_user_action_record_video(lt_user, name);
+				case Type::UploadVideo: return name.isEmpty() ? tr::lng_send_action_upload_video(tr::now) : lng_user_action_upload_video(lt_user, name);
+				case Type::RecordVoice: return name.isEmpty() ? tr::lng_send_action_record_audio(tr::now) : lng_user_action_record_audio(lt_user, name);
+				case Type::UploadVoice: return name.isEmpty() ? tr::lng_send_action_upload_audio(tr::now) : lng_user_action_upload_audio(lt_user, name);
+				case Type::RecordRound: return name.isEmpty() ? tr::lng_send_action_record_round(tr::now) : lng_user_action_record_round(lt_user, name);
+				case Type::UploadRound: return name.isEmpty() ? tr::lng_send_action_upload_round(tr::now) : lng_user_action_upload_round(lt_user, name);
+				case Type::UploadPhoto: return name.isEmpty() ? tr::lng_send_action_upload_photo(tr::now) : lng_user_action_upload_photo(lt_user, name);
+				case Type::UploadFile: return name.isEmpty() ? tr::lng_send_action_upload_file(tr::now) : lng_user_action_upload_file(lt_user, name);
 				case Type::ChooseLocation:
-				case Type::ChooseContact: return name.isEmpty() ? lang(lng_typing) : lng_user_typing(lt_user, name);
+				case Type::ChooseContact: return name.isEmpty() ? tr::lng_typing(tr::now) : lng_user_typing(lt_user, name);
 				default: break;
 				};
 				return QString();
@@ -536,7 +536,7 @@ bool History::updateSendActionNeedsAnimating(crl::time now, bool force) {
 						(end(_sendActions) - 1)->first->firstName);
 				} else {
 					newTypingString = peer->isUser()
-						? lang(lng_playing_game)
+						? tr::lng_playing_game(tr::now)
 						: lng_user_playing_game(
 							lt_user,
 							begin(_sendActions)->first->firstName);

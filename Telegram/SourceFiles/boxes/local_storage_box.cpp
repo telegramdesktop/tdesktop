@@ -106,7 +106,7 @@ QString TimeLimitText(size_type limit) {
 		? lng_local_storage_limit_months(lt_count, months)
 		: (limit > 0)
 		? lng_local_storage_limit_weeks(lt_count, weeks)
-		: lang(lng_local_storage_limit_never);
+		: tr::lng_local_storage_limit_never(tr::now);
 }
 
 size_type LimitToValue(size_type timeLimit) {
@@ -189,7 +189,7 @@ void LocalStorageBox::Row::toggleProgress(bool shown) {
 		_progress->start();
 		_clearing = object_ptr<Ui::FlatLabel>(
 			this,
-			lang(lng_local_storage_clearing),
+			tr::lng_local_storage_clearing(tr::now),
 			st::localStorageRowSize);
 		_clearing->show();
 		_description->hide();
@@ -260,7 +260,7 @@ QString LocalStorageBox::Row::titleText(const Database::TaggedSummary &data) con
 QString LocalStorageBox::Row::sizeText(const Database::TaggedSummary &data) const {
 	return data.totalSize
 		? formatSizeText(data.totalSize)
-		: lang(lng_local_storage_empty);
+		: tr::lng_local_storage_empty(tr::now);
 }
 
 LocalStorageBox::LocalStorageBox(
@@ -399,10 +399,10 @@ void LocalStorageBox::setupControls() {
 			data));
 	};
 	auto summaryTitle = [](size_type) {
-		return lang(lng_local_storage_summary);
+		return tr::lng_local_storage_summary(tr::now);
 	};
 	auto mediaCacheTitle = [](size_type) {
-		return lang(lng_local_storage_media);
+		return tr::lng_local_storage_media(tr::now);
 	};
 	createRow(
 		0,

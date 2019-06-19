@@ -131,7 +131,7 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 		p.setPen(st::noContactsColor);
 		p.drawText(
 			QRect(0, 0, width(), st::noContactsHeight),
-			lang(lng_contacts_loading),
+			tr::lng_contacts_loading(tr::now),
 			style::al_center);
 	}
 }
@@ -226,8 +226,8 @@ SessionsBox::Entry SessionsBox::ParseEntry(const MTPDauthorization &data) {
 	result.info = qs(data.vdevice_model) + qstr(", ") + (platform.isEmpty() ? QString() : platform + ' ') + qs(data.vsystem_version);
 	result.ip = qs(data.vip) + (country.isEmpty() ? QString() : QString::fromUtf8(" \xe2\x80\x93 ") + country);
 	if (!result.hash) {
-		result.active = lang(lng_status_online);
-		result.activeWidth = st::sessionWhenFont->width(lang(lng_status_online));
+		result.active = tr::lng_status_online(tr::now);
+		result.activeWidth = st::sessionWhenFont->width(tr::lng_status_online(tr::now));
 	} else {
 		const auto now = QDateTime::currentDateTime();
 		const auto lastTime = ParseDateTime(result.activeTime);
@@ -315,8 +315,8 @@ void SessionsBox::terminateOne(uint64 hash) {
 	});
 	_terminateBox = Ui::show(
 		Box<ConfirmBox>(
-			lang(lng_settings_reset_one_sure),
-			lang(lng_settings_reset_button),
+			tr::lng_settings_reset_one_sure(tr::now),
+			tr::lng_settings_reset_button(tr::now),
 			st::attentionBoxButton,
 			callback),
 		LayerOption::KeepOther);
@@ -341,8 +341,8 @@ void SessionsBox::terminateAll() {
 	});
 	_terminateBox = Ui::show(
 		Box<ConfirmBox>(
-			lang(lng_settings_reset_sure),
-			lang(lng_settings_reset_button),
+			tr::lng_settings_reset_sure(tr::now),
+			tr::lng_settings_reset_button(tr::now),
 			st::attentionBoxButton,
 			callback),
 		LayerOption::KeepOther);

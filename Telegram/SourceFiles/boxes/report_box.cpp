@@ -54,21 +54,21 @@ void ReportBox::prepare() {
 	const auto createButton = [&](
 			object_ptr<Ui::Radioenum<Reason>> &button,
 			Reason reason,
-			LangKey key) {
+			const QString &text) {
 		button.create(
 			this,
 			_reasonGroup,
 			reason,
-			lang(key),
+			text,
 			st::defaultBoxCheckbox);
 	};
-	createButton(_reasonSpam, Reason::Spam, lng_report_reason_spam);
-	createButton(_reasonViolence, Reason::Violence, lng_report_reason_violence);
+	createButton(_reasonSpam, Reason::Spam, tr::lng_report_reason_spam(tr::now));
+	createButton(_reasonViolence, Reason::Violence, tr::lng_report_reason_violence(tr::now));
 	if (_ids) {
-		createButton(_reasonChildAbuse, Reason::ChildAbuse, lng_report_reason_child_abuse);
+		createButton(_reasonChildAbuse, Reason::ChildAbuse, tr::lng_report_reason_child_abuse(tr::now));
 	}
-	createButton(_reasonPornography, Reason::Pornography, lng_report_reason_pornography);
-	createButton(_reasonOther, Reason::Other, lng_report_reason_other);
+	createButton(_reasonPornography, Reason::Pornography, tr::lng_report_reason_pornography(tr::now));
+	createButton(_reasonOther, Reason::Other, tr::lng_report_reason_other(tr::now));
 	_reasonGroup->setChangedCallback([=](Reason value) {
 		reasonChanged(value);
 	});
@@ -173,7 +173,7 @@ void ReportBox::report() {
 
 void ReportBox::reportDone(const MTPBool &result) {
 	_requestId = 0;
-	Ui::Toast::Show(lang(lng_report_thanks));
+	Ui::Toast::Show(tr::lng_report_thanks(tr::now));
 	closeBox();
 }
 

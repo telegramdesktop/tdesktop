@@ -42,7 +42,7 @@ QString LocationClickHandler::copyToClipboardText() const {
 }
 
 QString LocationClickHandler::copyToClipboardContextItemText() const {
-	return lang(lng_context_copy_link);
+	return tr::lng_context_copy_link(tr::now);
 }
 
 void LocationClickHandler::onClick(ClickContext context) const {

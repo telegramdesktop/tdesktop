@@ -141,7 +141,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 
 						QApplication::clipboard()->setText(link);
 
-						Ui::Toast::Show(lang(lng_share_game_link_copied));
+						Ui::Toast::Show(tr::lng_share_game_link_copied(tr::now));
 					}
 				}
 			}
@@ -183,7 +183,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			history->session().api().applyUpdates(updates);
 			data->requests.remove(requestId);
 			if (data->requests.empty()) {
-				Ui::Toast::Show(lang(lng_share_done));
+				Ui::Toast::Show(tr::lng_share_done(tr::now));
 				Ui::hideLayer();
 			}
 		};
@@ -276,7 +276,7 @@ QString GetErrorTextForForward(
 		not_null<PeerData*> peer,
 		const HistoryItemsList &items) {
 	if (!peer->canWrite()) {
-		return lang(lng_forward_cant);
+		return tr::lng_forward_cant(tr::now);
 	}
 
 	for (const auto item : items) {
@@ -287,12 +287,10 @@ QString GetErrorTextForForward(
 			}
 		}
 	}
-	const auto errorKey = Data::RestrictionErrorKey(
+	const auto error = Data::RestrictionError(
 		peer,
 		ChatRestriction::f_send_inline);
-	return (errorKey && HasInlineItems(items))
-		? lang(*errorKey)
-		: QString();
+	return (error && HasInlineItems(items)) ? *error : QString();
 }
 
 struct HistoryMessage::CreateConfig {
@@ -893,7 +891,7 @@ void HistoryMessage::replaceBuyWithReceiptInMarkup() {
 		for (auto &row : markup->rows) {
 			for (auto &button : row) {
 				if (button.type == HistoryMessageMarkupButton::Type::Buy) {
-					button.text = lang(lng_payments_receipt_button);
+					button.text = tr::lng_payments_receipt_button(tr::now);
 				}
 			}
 		}

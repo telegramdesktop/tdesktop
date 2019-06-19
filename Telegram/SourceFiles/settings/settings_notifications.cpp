@@ -272,7 +272,7 @@ void NotificationsCount::prepareNotificationSampleLarge() {
 
 		auto rectForName = rtlrect(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height, w);
 
-		auto notifyText = st::dialogsTextFont->elided(lang(lng_notification_sample), itemWidth);
+		auto notifyText = st::dialogsTextFont->elided(tr::lng_notification_sample(tr::now), itemWidth);
 		p.setFont(st::dialogsTextFont);
 		p.setPen(st::dialogsTextFgService);
 		p.drawText(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height + st::dialogsTextFont->ascent, notifyText);
@@ -517,19 +517,19 @@ void SetupAdvancedNotifications(not_null<Ui::VerticalLayout*> container) {
 void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	AddSubsectionTitle(container, tr::lng_settings_notify_title());
 
-	const auto checkbox = [&](LangKey label, bool checked) {
+	const auto checkbox = [&](const QString &label, bool checked) {
 		return object_ptr<Ui::Checkbox>(
 			container,
-			lang(label),
+			label,
 			checked,
 			st::settingsCheckbox);
 	};
-	const auto addCheckbox = [&](LangKey label, bool checked) {
+	const auto addCheckbox = [&](const QString &label, bool checked) {
 		return container->add(
 			checkbox(label, checked),
 			st::settingsCheckboxPadding);
 	};
-	const auto addSlidingCheckbox = [&](LangKey label, bool checked) {
+	const auto addSlidingCheckbox = [&](const QString &label, bool checked) {
 		return container->add(
 			object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 				container,
@@ -537,16 +537,16 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 				st::settingsCheckboxPadding));
 	};
 	const auto desktop = addCheckbox(
-		lng_settings_desktop_notify,
+		tr::lng_settings_desktop_notify(tr::now),
 		Global::DesktopNotify());
 	const auto name = addSlidingCheckbox(
-		lng_settings_show_name,
+		tr::lng_settings_show_name(tr::now),
 		(Global::NotifyView() <= dbinvShowName));
 	const auto preview = addSlidingCheckbox(
-		lng_settings_show_preview,
+		tr::lng_settings_show_preview(tr::now),
 		(Global::NotifyView() <= dbinvShowPreview));
 	const auto sound = addCheckbox(
-		lng_settings_sound_notify,
+		tr::lng_settings_sound_notify(tr::now),
 		Global::SoundNotify());
 
 	AddSkip(container, st::settingsCheckboxesSkip);
@@ -555,10 +555,10 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	AddSubsectionTitle(container, tr::lng_settings_badge_title());
 
 	const auto muted = addCheckbox(
-		lng_settings_include_muted,
+		tr::lng_settings_include_muted(tr::now),
 		Auth().settings().includeMutedCounter());
 	const auto count = addCheckbox(
-		lng_settings_count_unread,
+		tr::lng_settings_count_unread(tr::now),
 		Auth().settings().countUnreadMessages());
 
 
@@ -568,7 +568,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	AddSubsectionTitle(container, tr::lng_settings_events_title());
 
 	const auto joined = addCheckbox(
-		lng_settings_events_joined,
+		tr::lng_settings_events_joined(tr::now),
 		!Auth().api().contactSignupSilentCurrent().value_or(false));
 	Auth().api().contactSignupSilent(
 	) | rpl::start_with_next([=](bool silent) {
@@ -583,7 +583,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	}, joined->lifetime());
 
 	const auto pinned = addCheckbox(
-		lng_settings_events_pinned,
+		tr::lng_settings_events_pinned(tr::now),
 		Auth().settings().notifyAboutPinned());
 	Auth().settings().notifyAboutPinnedChanges(
 	) | rpl::start_with_next([=](bool notify) {
@@ -597,18 +597,18 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		Auth().saveSettingsDelayed();
 	}, joined->lifetime());
 
-	const auto nativeKey = [&] {
+	const auto nativeText = [&] {
 		if (!Platform::Notifications::Supported()) {
-			return LangKey();
+			return QString();
 		} else if (Platform::IsWindows()) {
-			return lng_settings_use_windows;
+			return tr::lng_settings_use_windows(tr::now);
 		} else if (Platform::IsLinux()) {
-			return lng_settings_use_native_notifications;
+			return tr::lng_settings_use_native_notifications(tr::now);
 		}
-		return LangKey();
+		return QString();
 	}();
 	const auto native = [&]() -> Ui::Checkbox* {
-		if (!nativeKey) {
+		if (nativeText.isEmpty()) {
 			return nullptr;
 		}
 
@@ -616,7 +616,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		AddDivider(container);
 		AddSkip(container, st::settingsCheckboxesSkip);
 		AddSubsectionTitle(container, tr::lng_settings_native_title());
-		return addCheckbox(nativeKey, Global::NativeNotifications());
+		return addCheckbox(nativeText, Global::NativeNotifications());
 	}();
 
 	const auto advancedSlide = !Platform::IsMac10_8OrGreater()

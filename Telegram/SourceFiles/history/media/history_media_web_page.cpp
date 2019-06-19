@@ -726,7 +726,7 @@ int HistoryWebPage::bottomInfoPadding() const {
 
 QString HistoryWebPage::displayedSiteName() const {
 	return (_data->document && _data->document->isWallPaper())
-		? lang(lng_media_chat_background)
+		? tr::lng_media_chat_background(tr::now)
 		: _data->siteName;
 }
 

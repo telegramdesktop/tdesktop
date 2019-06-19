@@ -134,7 +134,7 @@ FlatLabel::FlatLabel(QWidget *parent, const style::FlatLabel &st)
 : RpWidget(parent)
 , _text(st.minWidth ? st.minWidth : QFIXED_MAX)
 , _st(st)
-, _contextCopyText(lang(lng_context_copy_text)) {
+, _contextCopyText(tr::lng_context_copy_text(tr::now)) {
 	init();
 }
 
@@ -145,7 +145,7 @@ FlatLabel::FlatLabel(
 : RpWidget(parent)
 , _text(st.minWidth ? st.minWidth : QFIXED_MAX)
 , _st(st)
-, _contextCopyText(lang(lng_context_copy_text)) {
+, _contextCopyText(tr::lng_context_copy_text(tr::now)) {
 	setText(text);
 	init();
 }
@@ -157,7 +157,7 @@ FlatLabel::FlatLabel(
 : RpWidget(parent)
 , _text(st.minWidth ? st.minWidth : QFIXED_MAX)
 , _st(st)
-, _contextCopyText(lang(lng_context_copy_text)) {
+, _contextCopyText(tr::lng_context_copy_text(tr::now)) {
 	textUpdated();
 	std::move(
 		text
@@ -173,7 +173,7 @@ FlatLabel::FlatLabel(
 : RpWidget(parent)
 , _text(st.minWidth ? st.minWidth : QFIXED_MAX)
 , _st(st)
-, _contextCopyText(lang(lng_context_copy_text)) {
+, _contextCopyText(tr::lng_context_copy_text(tr::now)) {
 	textUpdated();
 	std::move(
 		text
@@ -571,7 +571,7 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 	if (fullSelection && !_contextCopyText.isEmpty()) {
 		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()));
 	} else if (uponSelection && !fullSelection) {
-		_contextMenu->addAction(lang(lng_context_copy_selected), this, SLOT(onCopySelectedText()));
+		_contextMenu->addAction(tr::lng_context_copy_selected(tr::now), this, SLOT(onCopySelectedText()));
 	} else if (!hasSelection && !_contextCopyText.isEmpty()) {
 		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()));
 	}

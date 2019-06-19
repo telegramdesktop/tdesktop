@@ -3298,7 +3298,7 @@ void InputField::addMarkdownActions(
 	if (!_markdownEnabled) {
 		return;
 	}
-	const auto formatting = new QAction(lang(lng_menu_formatting), menu);
+	const auto formatting = new QAction(tr::lng_menu_formatting(tr::now), menu);
 	addMarkdownMenuAction(menu, formatting);
 
 	const auto submenu = new QMenu(menu);
@@ -3316,48 +3316,48 @@ void InputField::addMarkdownActions(
 	}
 	const auto fullTag = GetFullSimpleTextTag(textWithTags);
 	const auto add = [&](
-			LangKey key,
+			const QString &base,
 			QKeySequence sequence,
 			bool disabled,
 			auto callback) {
 		const auto add = sequence.isEmpty()
 			? QString()
 			: QChar('\t') + sequence.toString(QKeySequence::NativeText);
-		const auto action = new QAction(lang(key) + add, submenu);
+		const auto action = new QAction(base + add, submenu);
 		connect(action, &QAction::triggered, this, callback);
 		action->setDisabled(disabled);
 		submenu->addAction(action);
 	};
 	const auto addtag = [&](
-			LangKey key,
+			const QString &base,
 			QKeySequence sequence,
 			const QString &tag) {
 		const auto disabled = (fullTag == tag)
 			|| (fullTag == kTagPre && tag == kTagCode);
-		add(key, sequence, (!hasText || fullTag == tag), [=] {
+		add(base, sequence, (!hasText || fullTag == tag), [=] {
 			toggleSelectionMarkdown(tag);
 		});
 	};
 	const auto addlink = [&] {
 		const auto selection = editLinkSelection(e);
 		const auto data = selectionEditLinkData(selection);
-		const auto key = data.link.isEmpty()
-			? lng_menu_formatting_link_create
-			: lng_menu_formatting_link_edit;
-		add(key, kEditLinkSequence, false, [=] {
+		const auto base = data.link.isEmpty()
+			? tr::lng_menu_formatting_link_create(tr::now)
+			: tr::lng_menu_formatting_link_edit(tr::now);
+		add(base, kEditLinkSequence, false, [=] {
 			editMarkdownLink(selection);
 		});
 	};
 	const auto addclear = [&] {
 		const auto disabled = !hasText || !hasTags;
-		add(lng_menu_formatting_clear, kClearFormatSequence, disabled, [=] {
+		add(tr::lng_menu_formatting_clear(tr::now), kClearFormatSequence, disabled, [=] {
 			clearSelectionMarkdown();
 		});
 	};
 
-	addtag(lng_menu_formatting_bold, QKeySequence::Bold, kTagBold);
-	addtag(lng_menu_formatting_italic, QKeySequence::Italic, kTagItalic);
-	addtag(lng_menu_formatting_monospace, kMonospaceSequence, kTagCode);
+	addtag(tr::lng_menu_formatting_bold(tr::now), QKeySequence::Bold, kTagBold);
+	addtag(tr::lng_menu_formatting_italic(tr::now), QKeySequence::Italic, kTagItalic);
+	addtag(tr::lng_menu_formatting_monospace(tr::now), kMonospaceSequence, kTagCode);
 
 	if (_editLinkCallback) {
 		submenu->addSeparator();
@@ -3982,7 +3982,7 @@ void CountryCodeInput::correctValue(
 	}
 }
 
-PhonePartInput::PhonePartInput(QWidget *parent, const style::InputField &st) : MaskedInputField(parent, st/*, lang(lng_phone_ph)*/) {
+PhonePartInput::PhonePartInput(QWidget *parent, const style::InputField &st) : MaskedInputField(parent, st/*, tr::lng_phone_ph(tr::now)*/) {
 }
 
 void PhonePartInput::paintAdditionalPlaceholder(Painter &p) {
@@ -4307,7 +4307,7 @@ void PhoneInput::correctValue(
 	if (_pattern.isEmpty()) {
 		newPlaceholder = QString();
 	} else if (_pattern.size() == 1 && _pattern.at(0) == digits.size()) {
-		newPlaceholder = QString(_pattern.at(0) + 2, ' ') + lang(lng_contact_phone);
+		newPlaceholder = QString(_pattern.at(0) + 2, ' ') + tr::lng_contact_phone(tr::now);
 	} else {
 		newPlaceholder.reserve(20);
 		for (int i = 0, l = _pattern.size(); i < l; ++i) {

@@ -22,12 +22,12 @@ TextForMimeData WrapAsReply(
 	const auto name = to->author()->name;
 	auto result = TextForMimeData();
 	result.reserve(
-		lang(lng_in_reply_to).size()
+		tr::lng_in_reply_to(tr::now).size()
 		+ name.size()
 		+ 4
 		+ text.expanded.size());
 	return result.append('['
-	).append(lang(lng_in_reply_to)
+	).append(tr::lng_in_reply_to(tr::now)
 	).append(' '
 	).append(name
 	).append(qstr("]\n")
@@ -123,6 +123,6 @@ TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
 		return (++first == end) ? result : TextForMimeData();
 	}();
 	return WrapAsItem(group->items.back(), Data::WithCaptionClipboardText(
-		lang(lng_in_dlg_album),
+		tr::lng_in_dlg_album(tr::now),
 		std::move(caption)));
 }

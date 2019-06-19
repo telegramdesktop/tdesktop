@@ -302,7 +302,7 @@ void AbstractTextRow<Input>::finishInnerAnimating() {
 
 QString CountryString(const QString &code) {
 	const auto name = CountrySelectBox::NameByISO(code);
-	return name.isEmpty() ? lang(lng_passport_country_choose) : name;
+	return name.isEmpty() ? tr::lng_passport_country_choose(tr::now) : name;
 }
 
 CountryRow::CountryRow(
@@ -739,13 +739,13 @@ int DateRow::resizeInner(int left, int top, int width) {
 	const auto addToWidth = st::passportDetailsSeparatorPadding.left();
 	const auto dayWidth = _st.textMargins.left()
 		+ _st.placeholderMargins.left()
-		+ font->width(lang(lng_date_input_day))
+		+ font->width(tr::lng_date_input_day(tr::now))
 		+ _st.placeholderMargins.right()
 		+ _st.textMargins.right()
 		+ addToWidth;
 	const auto monthWidth = _st.textMargins.left()
 		+ _st.placeholderMargins.left()
-		+ font->width(lang(lng_date_input_month))
+		+ font->width(tr::lng_date_input_month(tr::now))
 		+ _st.placeholderMargins.right()
 		+ _st.textMargins.right()
 		+ addToWidth;
@@ -850,14 +850,14 @@ GenderRow::GenderRow(
 	this,
 	_group,
 	Gender::Male,
-	lang(lng_passport_gender_male),
+	tr::lng_passport_gender_male(tr::now),
 	st::defaultCheckbox,
 	createRadioView(_maleRadio))
 , _female(
 	this,
 	_group,
 	Gender::Female,
-	lang(lng_passport_gender_female),
+	tr::lng_passport_gender_female(tr::now),
 	st::defaultCheckbox,
 	createRadioView(_femaleRadio))
 , _value(StringToGender(value) ? value : QString()) {

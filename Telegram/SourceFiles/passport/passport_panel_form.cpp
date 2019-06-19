@@ -241,7 +241,7 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 			inner,
 			object_ptr<Ui::FlatLabel>(
 				inner,
-				lang(lng_passport_request2),
+				tr::lng_passport_request2(tr::now),
 				st::passportPasswordLabel)),
 		st::passportFormAbout2Padding)->entity();
 
@@ -251,7 +251,7 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 	inner->add(
 		object_ptr<Ui::FlatLabel>(
 			inner,
-			lang(lng_passport_header),
+			tr::lng_passport_header(tr::now),
 			st::passportFormHeader),
 		st::passportFormHeaderPadding);
 

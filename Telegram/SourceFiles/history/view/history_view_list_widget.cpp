@@ -2248,7 +2248,7 @@ void ListWidget::mouseActionUpdate() {
 
 ClickHandlerPtr ListWidget::hiddenUserpicLink(FullMsgId id) {
 	static const auto result = std::make_shared<LambdaClickHandler>([] {
-		Ui::Toast::Show(lang(lng_forwarded_hidden));
+		Ui::Toast::Show(tr::lng_forwarded_hidden(tr::now));
 	});
 	return result;
 }

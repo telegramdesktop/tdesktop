@@ -1227,7 +1227,7 @@ void ListWidget::showContextMenu(
 	const auto itemFullId = item->fullId();
 	_contextMenu = base::make_unique_q<Ui::PopupMenu>(this);
 	_contextMenu->addAction(
-		lang(lng_context_to_msg),
+		tr::lng_context_to_msg(tr::now),
 		[itemFullId] {
 			if (auto item = Auth().data().message(itemFullId)) {
 				Ui::showPeerHistoryAtItem(item);
@@ -1254,7 +1254,7 @@ void ListWidget::showContextMenu(
 			if (auto document = fileLink->document()) {
 				if (document->loading()) {
 					_contextMenu->addAction(
-						lang(lng_context_cancel_download),
+						tr::lng_context_cancel_download(tr::now),
 						[document] {
 							document->cancel();
 						});
@@ -1268,9 +1268,9 @@ void ListWidget::showContextMenu(
 								File::ShowInFolder(filepath);
 							});
 						_contextMenu->addAction(
-							lang(Platform::IsMac()
-								? lng_context_show_in_finder
-								: lng_context_show_in_folder),
+							(Platform::IsMac()
+								? tr::lng_context_show_in_finder(tr::now)
+								: tr::lng_context_show_in_folder(tr::now)),
 							std::move(handler));
 					}
 					auto handler = App::LambdaDelayed(
@@ -1283,13 +1283,13 @@ void ListWidget::showContextMenu(
 								DocumentSaveClickHandler::Mode::ToNewFile);
 						});
 					_contextMenu->addAction(
-						lang(isVideo
-							? lng_context_save_video
+						(isVideo
+							? tr::lng_context_save_video(tr::now)
 							: isVoice
-							? lng_context_save_audio
+							? tr::lng_context_save_audio(tr::now)
 							: isAudio
-							? lng_context_save_audio_file
-							: lng_context_save_file),
+							? tr::lng_context_save_audio_file(tr::now)
+							: tr::lng_context_save_file(tr::now)),
 						std::move(handler));
 				}
 			}
@@ -1307,20 +1307,20 @@ void ListWidget::showContextMenu(
 	if (overSelected == SelectionState::OverSelectedItems) {
 		if (canForwardAll()) {
 			_contextMenu->addAction(
-				lang(lng_context_forward_selected),
+				tr::lng_context_forward_selected(tr::now),
 				crl::guard(this, [this] {
 					forwardSelected();
 				}));
 		}
 		if (canDeleteAll()) {
 			_contextMenu->addAction(
-				lang(lng_context_delete_selected),
+				tr::lng_context_delete_selected(tr::now),
 				crl::guard(this, [this] {
 					deleteSelected();
 				}));
 		}
 		_contextMenu->addAction(
-			lang(lng_context_clear_selection),
+			tr::lng_context_clear_selection(tr::now),
 			crl::guard(this, [this] {
 				clearSelected();
 			}));
@@ -1328,21 +1328,21 @@ void ListWidget::showContextMenu(
 		if (overSelected != SelectionState::NotOverSelectedItems) {
 			if (item->allowsForward()) {
 				_contextMenu->addAction(
-					lang(lng_context_forward_msg),
+					tr::lng_context_forward_msg(tr::now),
 					crl::guard(this, [this, universalId] {
 						forwardItem(universalId);
 					}));
 			}
 			if (item->canDelete()) {
 				_contextMenu->addAction(
-					lang(lng_context_delete_msg),
+					tr::lng_context_delete_msg(tr::now),
 					crl::guard(this, [this, universalId] {
 						deleteItem(universalId);
 					}));
 			}
 		}
 		_contextMenu->addAction(
-			lang(lng_context_select_msg),
+			tr::lng_context_select_msg(tr::now),
 			crl::guard(this, [this, universalId] {
 				if (hasSelectedText()) {
 					clearSelected();

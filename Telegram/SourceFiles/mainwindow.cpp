@@ -128,19 +128,19 @@ void MainWindow::firstShow() {
 	trayIconMenu = new QMenu(this);
 #endif // else for Q_OS_WIN
 
-	auto notificationActionText = lang(Global::DesktopNotify()
-		? lng_disable_notifications_from_tray
-		: lng_enable_notifications_from_tray);
+	auto notificationActionText = Global::DesktopNotify()
+		? tr::lng_disable_notifications_from_tray(tr::now)
+		: tr::lng_enable_notifications_from_tray(tr::now);
 
 	if (Platform::IsLinux()) {
-		trayIconMenu->addAction(lang(lng_open_from_tray), this, SLOT(showFromTray()));
-		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()));
+		trayIconMenu->addAction(tr::lng_open_from_tray(tr::now), this, SLOT(showFromTray()));
+		trayIconMenu->addAction(tr::lng_minimize_to_tray(tr::now), this, SLOT(minimizeToTray()));
 		trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()));
-		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()));
+		trayIconMenu->addAction(tr::lng_quit_from_tray(tr::now), this, SLOT(quitFromTray()));
 	} else {
-		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()));
+		trayIconMenu->addAction(tr::lng_minimize_to_tray(tr::now), this, SLOT(minimizeToTray()));
 		trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()));
-		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()));
+		trayIconMenu->addAction(tr::lng_quit_from_tray(tr::now), this, SLOT(quitFromTray()));
 	}
 	Global::RefWorkMode().setForced(Global::WorkMode().value(), true);
 
@@ -558,7 +558,9 @@ void MainWindow::updateTrayMenu(bool force) {
 		disconnect(toggleAction, SIGNAL(triggered(bool)), this, SLOT(minimizeToTray()));
 		disconnect(toggleAction, SIGNAL(triggered(bool)), this, SLOT(showFromTray()));
 		connect(toggleAction, SIGNAL(triggered(bool)), this, active ? SLOT(minimizeToTray()) : SLOT(showFromTray()));
-		toggleAction->setText(lang(active ? lng_minimize_to_tray : lng_open_from_tray));
+		toggleAction->setText(active
+			? tr::lng_minimize_to_tray(tr::now)
+			: tr::lng_open_from_tray(tr::now));
 
 		// On macOS just remove trayIcon menu if the window is not active.
 		// So we will activate the window on click instead of showing the menu.
@@ -567,9 +569,9 @@ void MainWindow::updateTrayMenu(bool force) {
 		}
 	}
 	auto notificationAction = actions.at(Platform::IsLinux() ? 2 : 1);
-	auto notificationActionText = lang(Global::DesktopNotify()
-		? lng_disable_notifications_from_tray
-		: lng_enable_notifications_from_tray);
+	auto notificationActionText = Global::DesktopNotify()
+		? tr::lng_disable_notifications_from_tray(tr::now)
+		: tr::lng_enable_notifications_from_tray(tr::now);
 	notificationAction->setText(notificationActionText);
 
 #ifndef Q_OS_WIN
@@ -627,8 +629,8 @@ void MainWindow::onLogout() {
 		}
 	};
 	Ui::show(Box<ConfirmBox>(
-		lang(lng_sure_logout),
-		lang(lng_settings_logout),
+		tr::lng_sure_logout(tr::now),
+		tr::lng_settings_logout(tr::now),
 		st::attentionBoxButton,
 		callback));
 }
@@ -706,7 +708,7 @@ bool MainWindow::skipTrayClick() const {
 void MainWindow::toggleDisplayNotifyFromTray() {
 	if (Core::App().locked()) {
 		if (!isActive()) showFromTray();
-		Ui::show(Box<InformBox>(lang(lng_passcode_need_unblock)));
+		Ui::show(Box<InformBox>(tr::lng_passcode_need_unblock(tr::now)));
 		return;
 	}
 	if (!account().sessionExists()) {

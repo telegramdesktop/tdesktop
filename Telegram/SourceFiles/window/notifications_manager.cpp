@@ -518,9 +518,9 @@ void NativeManager::doShowNotification(HistoryItem *item, int forwardedCount) {
 	const auto title = options.hideNameAndPhoto ? qsl("Telegram Desktop") : item->history()->peer->name;
 	const auto subtitle = options.hideNameAndPhoto ? QString() : item->notificationHeader();
 	const auto text = options.hideMessageText
-		? lang(lng_notification_preview)
+		? tr::lng_notification_preview(tr::now)
 		: (forwardedCount < 2
-			? (item->groupId() ? lang(lng_in_dlg_album) : item->notificationText())
+			? (item->groupId() ? tr::lng_in_dlg_album(tr::now) : item->notificationText())
 			: lng_forward_messages(lt_count, forwardedCount));
 
 	doShowNativeNotification(

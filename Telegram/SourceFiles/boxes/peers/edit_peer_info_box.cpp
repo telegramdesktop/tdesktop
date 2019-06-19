@@ -1296,16 +1296,16 @@ void Controller::deleteWithConfirmation() {
 	const auto channel = _peer->asChannel();
 	Assert(channel != nullptr);
 
-	const auto text = lang(_isGroup
-		? lng_sure_delete_group
-		: lng_sure_delete_channel);
+	const auto text = (_isGroup
+		? tr::lng_sure_delete_group
+		: tr::lng_sure_delete_channel)(tr::now);
 	const auto deleteCallback = crl::guard(this, [=] {
 		deleteChannel();
 	});
 	Ui::show(
 		Box<ConfirmBox>(
 			text,
-			lang(lng_box_delete),
+			tr::lng_box_delete(tr::now),
 			st::attentionBoxButton,
 			deleteCallback),
 		LayerOption::KeepOther);

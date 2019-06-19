@@ -1541,19 +1541,19 @@ void SendFilesBox::setupSendWayControls() {
 		button->show();
 	};
 	if (_list.albumIsPossible) {
-		addRadio(_sendAlbum, SendFilesWay::Album, lang(lng_send_album));
+		addRadio(_sendAlbum, SendFilesWay::Album, tr::lng_send_album(tr::now));
 	}
 	if (!_list.albumIsPossible || _albumPhotosCount > 0) {
 		addRadio(_sendPhotos, SendFilesWay::Photos, (_list.files.size() == 1)
-			? lang(lng_send_photo)
+			? tr::lng_send_photo(tr::now)
 			: (_albumVideosCount > 0)
-			? lang(lng_send_separate_photos_videos)
+			? tr::lng_send_separate_photos_videos(tr::now)
 			: (_list.albumIsPossible
-				? lang(lng_send_separate_photos)
+				? tr::lng_send_separate_photos(tr::now)
 				: lng_send_photos(lt_count, _list.files.size())));
 	}
 	addRadio(_sendFiles, SendFilesWay::Files, (_list.files.size() == 1)
-		? lang(lng_send_file)
+		? tr::lng_send_file(tr::now)
 		: lng_send_files(lt_count, _list.files.size()));
 }
 

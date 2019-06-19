@@ -322,7 +322,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			width(),
 			text);
 	} else if (_activeChat.peer()->isSelf()) {
-		auto text = lang(lng_saved_messages);
+		auto text = tr::lng_saved_messages(tr::now);
 		auto textWidth = st::historySavedFont->width(text);
 		if (namewidth < textWidth) {
 			text = st::historySavedFont->elided(text, namewidth);
@@ -373,7 +373,7 @@ bool TopBarWidget::paintConnectingState(
 		+ st::topBarConnectingAnimation.size.width()
 		+ st::topBarConnectingSkip;
 	p.setPen(st::historyStatusFg);
-	p.drawTextLeft(left, top, outerWidth, lang(lng_status_connecting));
+	p.drawTextLeft(left, top, outerWidth, tr::lng_status_connecting(tr::now));
 	return true;
 }
 
@@ -764,12 +764,12 @@ void TopBarWidget::updateOnlineDisplay() {
 		}
 	} else if (const auto chat = _activeChat.peer()->asChat()) {
 		if (!chat->amIn()) {
-			text = lang(lng_chat_status_unaccessible);
+			text = tr::lng_chat_status_unaccessible(tr::now);
 		} else if (chat->participants.empty()) {
 			if (!_titlePeerText.isEmpty()) {
 				text = _titlePeerText.toString();
 			} else if (chat->count <= 0) {
-				text = lang(lng_group_status);
+				text = tr::lng_group_status(tr::now);
 			} else {
 				text = lng_chat_status_members(lt_count_decimal, chat->count);
 			}
@@ -790,7 +790,7 @@ void TopBarWidget::updateOnlineDisplay() {
 			} else if (chat->participants.size() > 0) {
 				text = lng_chat_status_members(lt_count_decimal, chat->participants.size());
 			} else {
-				text = lang(lng_group_status);
+				text = tr::lng_group_status(tr::now);
 			}
 		}
 	} else if (const auto channel = _activeChat.peer()->asChannel()) {
@@ -816,12 +816,13 @@ void TopBarWidget::updateOnlineDisplay() {
 			} else if (channel->membersCount() > 0) {
 				text = lng_chat_status_members(lt_count_decimal, channel->membersCount());
 			} else {
-				text = lang(lng_group_status);
+				text = tr::lng_group_status(tr::now);
 			}
 		} else if (channel->membersCount() > 0) {
 			text = lng_chat_status_members(lt_count_decimal, channel->membersCount());
+
 		} else {
-			text = lang(channel->isMegagroup() ? lng_group_status : lng_channel_status);
+			text = channel->isMegagroup() ? tr::lng_group_status(tr::now) : tr::lng_channel_status(tr::now);
 		}
 	}
 	if (_titlePeerText.toString() != text) {

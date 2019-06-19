@@ -892,7 +892,7 @@ void Panel::updateStatusText(State state) {
 		switch (state) {
 		case State::Starting:
 		case State::WaitingInit:
-		case State::WaitingInitAck: return lang(lng_call_status_connecting);
+		case State::WaitingInitAck: return tr::lng_call_status_connecting(tr::now);
 		case State::Established: {
 			if (_call) {
 				auto durationMs = _call->getDurationMs();
@@ -900,19 +900,19 @@ void Panel::updateStatusText(State state) {
 				startDurationUpdateTimer(durationMs);
 				return formatDurationText(durationSeconds);
 			}
-			return lang(lng_call_status_ended);
+			return tr::lng_call_status_ended(tr::now);
 		} break;
 		case State::FailedHangingUp:
-		case State::Failed: return lang(lng_call_status_failed);
-		case State::HangingUp: return lang(lng_call_status_hanging);
+		case State::Failed: return tr::lng_call_status_failed(tr::now);
+		case State::HangingUp: return tr::lng_call_status_hanging(tr::now);
 		case State::Ended:
-		case State::EndedByOtherDevice: return lang(lng_call_status_ended);
-		case State::ExchangingKeys: return lang(lng_call_status_exchanging);
-		case State::Waiting: return lang(lng_call_status_waiting);
-		case State::Requesting: return lang(lng_call_status_requesting);
-		case State::WaitingIncoming: return lang(lng_call_status_incoming);
-		case State::Ringing: return lang(lng_call_status_ringing);
-		case State::Busy: return lang(lng_call_status_busy);
+		case State::EndedByOtherDevice: return tr::lng_call_status_ended(tr::now);
+		case State::ExchangingKeys: return tr::lng_call_status_exchanging(tr::now);
+		case State::Waiting: return tr::lng_call_status_waiting(tr::now);
+		case State::Requesting: return tr::lng_call_status_requesting(tr::now);
+		case State::WaitingIncoming: return tr::lng_call_status_incoming(tr::now);
+		case State::Ringing: return tr::lng_call_status_ringing(tr::now);
+		case State::Busy: return tr::lng_call_status_busy(tr::now);
 		}
 		Unexpected("State in stateChanged()");
 	};

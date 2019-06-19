@@ -341,14 +341,14 @@ void StickersBox::refreshTabs() {
 
 	_tabIndices.clear();
 	auto sections = QStringList();
-	sections.push_back(lang(lng_stickers_installed_tab).toUpper());
+	sections.push_back(tr::lng_stickers_installed_tab(tr::now).toUpper());
 	_tabIndices.push_back(Section::Installed);
 	if (!Auth().data().featuredStickerSetsOrder().isEmpty()) {
-		sections.push_back(lang(lng_stickers_featured_tab).toUpper());
+		sections.push_back(tr::lng_stickers_featured_tab(tr::now).toUpper());
 		_tabIndices.push_back(Section::Featured);
 	}
 	if (!Auth().data().archivedStickerSetsOrder().isEmpty()) {
-		sections.push_back(lang(lng_stickers_archived_tab).toUpper());
+		sections.push_back(tr::lng_stickers_archived_tab(tr::now).toUpper());
 		_tabIndices.push_back(Section::Archived);
 	}
 	_tabs->setSections(sections);
@@ -407,7 +407,7 @@ void StickersBox::updateTabsGeometry() {
 
 	auto featuredLeft = width() / 3;
 	auto featuredRight = 2 * width() / 3;
-	auto featuredTextWidth = st::stickersTabs.labelFont->width(lang(lng_stickers_featured_tab).toUpper());
+	auto featuredTextWidth = st::stickersTabs.labelFont->width(tr::lng_stickers_featured_tab(tr::now).toUpper());
 	auto featuredTextRight = featuredLeft + (featuredRight - featuredLeft - featuredTextWidth) / 2 + featuredTextWidth;
 	auto unreadBadgeLeft = featuredTextRight - st::stickersFeaturedBadgeSkip;
 	auto unreadBadgeTop = st::stickersFeaturedBadgeTop;
@@ -661,9 +661,9 @@ StickersBox::Inner::Inner(QWidget *parent, StickersBox::Section section) : TWidg
 	return shiftingAnimationCallback(now);
 })
 , _itemsTop(st::membersMarginTop)
-, _addText(lang(lng_stickers_featured_add).toUpper())
+, _addText(tr::lng_stickers_featured_add(tr::now).toUpper())
 , _addWidth(st::stickersTrendingAdd.font->width(_addText))
-, _undoText(lang(lng_stickers_return).toUpper())
+, _undoText(tr::lng_stickers_return(tr::now).toUpper())
 , _undoWidth(st::stickersUndoRemove.font->width(_undoText)) {
 	setup();
 }
@@ -679,7 +679,7 @@ StickersBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> megagroup) : T
 , _megagroupSetInput(_megagroupSet->mgInfo->stickerSet)
 , _megagroupSetField(this, st::groupStickersField, rpl::single(qsl("stickerset")), QString(), true)
 , _megagroupDivider(this)
-, _megagroupSubTitle(this, lang(lng_stickers_group_from_your), st::boxTitle) {
+, _megagroupSubTitle(this, tr::lng_stickers_group_from_your(tr::now), st::boxTitle) {
 	_megagroupSetField->setLinkPlaceholder(Core::App().createInternalLink(qsl("addstickers/")));
 	_megagroupSetField->setPlaceholderHidden(false);
 	_megagroupSetAddressChangedTimer.setCallback([this] { handleMegagroupSetAddressChange(); });
@@ -733,7 +733,7 @@ void StickersBox::Inner::paintEvent(QPaintEvent *e) {
 	if (_rows.empty()) {
 		p.setFont(st::noContactsFont);
 		p.setPen(st::noContactsColor);
-		p.drawText(QRect(0, y, width(), st::noContactsHeight), lang(lng_contacts_loading), style::al_center);
+		p.drawText(QRect(0, y, width(), st::noContactsHeight), tr::lng_contacts_loading(tr::now), style::al_center);
 	} else {
 		p.translate(0, _itemsTop);
 
@@ -886,7 +886,7 @@ void StickersBox::Inner::paintRow(Painter &p, Row *set, int index) {
 		}
 	}
 
-	auto statusText = (set->count > 0) ? lng_stickers_count(lt_count, set->count) : lang(lng_contacts_loading);
+	auto statusText = (set->count > 0) ? lng_stickers_count(lt_count, set->count) : tr::lng_contacts_loading(tr::now);
 
 	p.setFont(st::contactsStatusFont);
 	p.setPen(st::contactsStatusFg);
@@ -1484,9 +1484,9 @@ void StickersBox::Inner::rebuild() {
 	auto &sets = Auth().data().stickerSets();
 	if (_megagroupSet) {
 		auto usingFeatured = Auth().data().stickerSetsOrder().empty();
-		_megagroupSubTitle->setText(lang(usingFeatured
-			? lng_stickers_group_from_featured
-			: lng_stickers_group_from_your));
+		_megagroupSubTitle->setText(usingFeatured
+			? tr::lng_stickers_group_from_featured(tr::now)
+			: tr::lng_stickers_group_from_your(tr::now));
 		updateControlsGeometry();
 	} else if (_section == Section::Installed) {
 		auto cloudIt = sets.constFind(Stickers::CloudRecentSetId);

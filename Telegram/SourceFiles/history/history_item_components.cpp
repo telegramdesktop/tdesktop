@@ -70,7 +70,7 @@ int HistoryMessageSigned::maxWidth() const {
 }
 
 void HistoryMessageEdited::refresh(const QString &date, bool displayed) {
-	const auto prefix = displayed ? (lang(lng_edited) + ' ') : QString();
+	const auto prefix = displayed ? (tr::lng_edited(tr::now) + ' ') : QString();
 	text.setText(st::msgDateTextStyle, prefix + date, Ui::NameTextOptions());
 }
 
@@ -143,7 +143,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 	};
 	text.setText(st::fwdTextStyle, phrase, opts);
 	static const auto hidden = std::make_shared<LambdaClickHandler>([] {
-		Ui::Toast::Show(lang(lng_forwarded_hidden));
+		Ui::Toast::Show(tr::lng_forwarded_hidden(tr::now));
 	});
 
 	text.setLink(1, fromChannel
@@ -256,7 +256,7 @@ void HistoryMessageReply::updateName() const {
 
 		maxReplyWidth = previewSkip + qMax(w, qMin(replyToText.maxWidth(), int32(st::maxSignatureSize)));
 	} else {
-		maxReplyWidth = st::msgDateFont->width(lang(replyToMsgId ? lng_profile_loading : lng_deleted_message));
+		maxReplyWidth = st::msgDateFont->width(replyToMsgId ? tr::lng_profile_loading(tr::now) : tr::lng_deleted_message(tr::now));
 	}
 	maxReplyWidth = st::msgReplyPadding.left() + st::msgReplyBarSkip + maxReplyWidth + st::msgReplyPadding.right();
 }
@@ -336,7 +336,7 @@ void HistoryMessageReply::paint(
 			p.setFont(st::msgDateFont);
 			auto &date = outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg);
 			p.setPen((flags & PaintFlag::InBubble) ? date : st::msgDateImgFg);
-			p.drawTextLeft(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2, w + 2 * x, st::msgDateFont->elided(lang(replyToMsgId ? lng_profile_loading : lng_deleted_message), w - st::msgReplyBarSkip));
+			p.drawTextLeft(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2, w + 2 * x, st::msgDateFont->elided(replyToMsgId ? tr::lng_profile_loading(tr::now) : tr::lng_deleted_message(tr::now), w - st::msgReplyBarSkip));
 		}
 	}
 }
@@ -365,7 +365,7 @@ QString ReplyMarkupClickHandler::copyToClipboardContextItemText() const {
 	if (const auto button = getButton()) {
 		using Type = HistoryMessageMarkupButton::Type;
 		if (button->type == Type::Url || button->type == Type::Auth) {
-			return lang(lng_context_copy_link);
+			return tr::lng_context_copy_link(tr::now);
 		}
 	}
 	return QString();

@@ -747,7 +747,7 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 		_submitRequestId = 0;
 		_submitSuccess = true;
 
-		_view->showToast(lang(lng_passport_success));
+		_view->showToast(tr::lng_passport_success(tr::now));
 
 		App::CallDelayed(
 			Ui::Toast::DefaultDuration + st::toastFadeOutDuration,
@@ -886,10 +886,10 @@ void FormController::submitPassword(
 			_password = PasswordSettings();
 			reloadPassword();
 		} else if (MTP::isFloodError(error)) {
-			_passwordError.fire(lang(lng_flood_error));
+			_passwordError.fire(tr::lng_flood_error(tr::now));
 		} else if (error.type() == qstr("PASSWORD_HASH_INVALID")
 			|| error.type() == qstr("SRP_PASSWORD_CHANGED")) {
-			_passwordError.fire(lang(lng_passport_password_wrong));
+			_passwordError.fire(tr::lng_passport_password_wrong(tr::now));
 		} else {
 			_passwordError.fire_copy(error.type());
 		}
@@ -970,7 +970,7 @@ void FormController::checkSavedPasswordSettings(
 
 void FormController::recoverPassword() {
 	if (!_password.hasRecovery) {
-		_view->show(Box<InformBox>(lang(lng_signin_no_email_forgot)));
+		_view->show(Box<InformBox>(tr::lng_signin_no_email_forgot(tr::now)));
 		return;
 	} else if (_recoverRequestId) {
 		return;
@@ -1352,7 +1352,7 @@ void FormController::uploadScan(
 		FileType type,
 		QByteArray &&content) {
 	if (!canAddScan(value, type)) {
-		_view->showToast(lang(lng_passport_scans_limit_reached));
+		_view->showToast(tr::lng_passport_scans_limit_reached(tr::now));
 		return;
 	}
 	const auto nonconst = findValue(value);
@@ -1453,7 +1453,7 @@ void FormController::scanDeleteRestore(
 	auto &scan = nonconst->fileInEdit(type, fileIndex);
 	if (scan.deleted && !deleted) {
 		if (!canAddScan(value, type)) {
-			_view->showToast(lang(lng_passport_scans_limit_reached));
+			_view->showToast(tr::lng_passport_scans_limit_reached(tr::now));
 			return;
 		}
 	}
@@ -1607,10 +1607,10 @@ void FormController::verify(
 	verificationError(nonconst, QString());
 	if (nonconst->verification.codeLength > 0
 		&& nonconst->verification.codeLength != prepared.size()) {
-		verificationError(nonconst, lang(lng_signin_wrong_code));
+		verificationError(nonconst, tr::lng_signin_wrong_code(tr::now));
 		return;
 	} else if (prepared.isEmpty()) {
-		verificationError(nonconst, lang(lng_signin_wrong_code));
+		verificationError(nonconst, tr::lng_signin_wrong_code(tr::now));
 		return;
 	}
 	nonconst->verification.requestId = [&] {
@@ -1628,7 +1628,7 @@ void FormController::verify(
 				if (error.type() == qstr("PHONE_CODE_INVALID")) {
 					verificationError(
 						nonconst,
-						lang(lng_signin_wrong_code));
+						tr::lng_signin_wrong_code(tr::now));
 				} else {
 					verificationError(nonconst, error.type());
 				}
@@ -1645,7 +1645,7 @@ void FormController::verify(
 				if (error.type() == qstr("CODE_INVALID")) {
 					verificationError(
 						nonconst,
-						lang(lng_signin_wrong_code));
+						tr::lng_signin_wrong_code(tr::now));
 				} else {
 					verificationError(nonconst, error.type());
 				}
@@ -2033,7 +2033,7 @@ void FormController::sendSaveRequest(
 		} else if (code == qstr("PHONE_NUMBER_INVALID")) {
 			if (value->type == Value::Type::Phone) {
 				value->data.parsedInEdit.fields["value"].error
-					= lang(lng_bad_phone);
+					= tr::lng_bad_phone(tr::now);
 				valueSaveFailed(value);
 				return;
 			}
@@ -2045,7 +2045,7 @@ void FormController::sendSaveRequest(
 		} else if (code == qstr("EMAIL_INVALID")) {
 			if (value->type == Value::Type::Email) {
 				value->data.parsedInEdit.fields["value"].error
-					= lang(lng_cloud_password_bad_email);
+					= tr::lng_cloud_password_bad_email(tr::now);
 				valueSaveFailed(value);
 				return;
 			}
@@ -2252,8 +2252,8 @@ void FormController::saveSecret(
 void FormController::suggestRestart() {
 	_suggestingRestart = true;
 	_view->show(Box<ConfirmBox>(
-		lang(lng_passport_restart_sure),
-		lang(lng_passport_restart),
+		tr::lng_passport_restart_sure(tr::now),
+		tr::lng_passport_restart(tr::now),
 		[=] { _controller->showPassportForm(_request); },
 		[=] { cancel(); }));
 }
@@ -2469,7 +2469,7 @@ auto FormController::findFile(const FileKey &key)
 
 void FormController::formDone(const MTPaccount_AuthorizationForm &result) {
 	if (!parseForm(result)) {
-		_view->showCriticalError(lang(lng_passport_form_error));
+		_view->showCriticalError(tr::lng_passport_form_error(tr::now));
 	} else {
 		showForm();
 	}
@@ -2538,7 +2538,7 @@ void FormController::formFail(const QString &error) {
 	_serviceErrorText = error;
 	if (!handleAppUpdateError(error)) {
 		_view->showCriticalError(
-			lang(lng_passport_form_error) + "\n" + error);
+			tr::lng_passport_form_error(tr::now) + "\n" + error);
 	}
 }
 
@@ -2636,8 +2636,8 @@ bool FormController::applyPassword(PasswordSettings &&settings) {
 void FormController::cancel() {
 	if (!_submitSuccess && _serviceErrorText.isEmpty()) {
 		_view->show(Box<ConfirmBox>(
-			lang(lng_passport_stop_sure),
-			lang(lng_passport_stop),
+			tr::lng_passport_stop_sure(tr::now),
+			tr::lng_passport_stop(tr::now),
 			[=] { cancelSure(); },
 			[=] { cancelAbort(); }));
 	} else {

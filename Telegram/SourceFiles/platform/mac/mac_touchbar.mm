@@ -9,6 +9,7 @@
 #import "mac_touchbar.h"
 #import <QuartzCore/QuartzCore.h>
 
+#include "platform/mac/mac_utilities.h"
 #include "auth_session.h"
 #include "core/application.h"
 #include "core/sandbox.h"
@@ -74,6 +75,8 @@ const NSTouchBarItemIdentifier kMonospaceItemIdentifier = [NSString stringWithFo
 const NSTouchBarItemIdentifier kClearItemIdentifier = [NSString stringWithFormat:@"%@.clear", kCustomizationIdMain];
 const NSTouchBarItemIdentifier kLinkItemIdentifier = [NSString stringWithFormat:@"%@.link", kCustomizationIdMain];
 
+using Platform::Q2NSString;
+
 NSImage *CreateNSImageFromStyleIcon(const style::icon &icon, int size = kIdealIconSize) {
 	const auto instance = icon.instance(QColor(255, 255, 255, 255), 100);
 	auto pixmap = QPixmap::fromImage(instance);
@@ -81,10 +84,6 @@ NSImage *CreateNSImageFromStyleIcon(const style::icon &icon, int size = kIdealIc
 	NSImage *image = [qt_mac_create_nsimage(pixmap) autorelease];
 	[image setSize:NSMakeSize(size, size)];
 	return image;
-}
-
-NSString *NSStringFromLang(LangKey key) {
-	return [NSString stringWithUTF8String:lang(key).toUtf8().constData()];
 }
 
 inline bool CurrentSongExists() {
@@ -453,27 +452,27 @@ void SendKeyEvent(int command) {
 		}],
 		kBoldItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
 			@"type":  @"textButton",
-			@"name":  NSStringFromLang(lng_menu_formatting_bold),
+			@"name":  Q2NSString(tr::lng_menu_formatting_bold(tr::now)),
 			@"cmd":   [NSNumber numberWithInt:kCommandBold],
 		}],
 		kItalicItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
 			@"type":  @"textButton",
-			@"name":  NSStringFromLang(lng_menu_formatting_italic),
+			@"name":  Q2NSString(tr::lng_menu_formatting_italic(tr::now)),
 			@"cmd":   [NSNumber numberWithInt:kCommandItalic],
 		}],
 		kMonospaceItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
 			@"type":  @"textButton",
-			@"name":  NSStringFromLang(lng_menu_formatting_monospace),
+			@"name":  Q2NSString(tr::lng_menu_formatting_monospace(tr::now)),
 			@"cmd":   [NSNumber numberWithInt:kCommandMonospace],
 		}],
 		kClearItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
 			@"type":  @"textButton",
-			@"name":  NSStringFromLang(lng_menu_formatting_clear),
+			@"name":  Q2NSString(tr::lng_menu_formatting_clear(tr::now)),
 			@"cmd":   [NSNumber numberWithInt:kCommandClear],
 		}],
 		kLinkItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{
 			@"type":  @"textButton",
-			@"name":  NSStringFromLang(lng_info_link_label),
+			@"name":  Q2NSString(tr::lng_info_link_label(tr::now)),
 			@"cmd":   [NSNumber numberWithInt:kCommandLink],
 		}],
 		kPopoverInputItemIdentifier: [NSMutableDictionary dictionaryWithDictionary:@{

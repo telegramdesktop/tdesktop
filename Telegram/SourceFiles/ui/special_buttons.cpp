@@ -37,11 +37,11 @@ constexpr int kWideScale = 5;
 
 QString CropTitle(not_null<PeerData*> peer) {
 	if (peer->isChat() || peer->isMegagroup()) {
-		return lang(lng_create_group_crop);
+		return tr::lng_create_group_crop(tr::now);
 	} else if (peer->isChannel()) {
-		return lang(lng_create_channel_crop);
+		return tr::lng_create_channel_crop(tr::now);
 	} else {
-		return lang(lng_settings_crop_profile);
+		return tr::lng_settings_crop_profile(tr::now);
 	}
 }
 
@@ -70,7 +70,7 @@ void SuggestPhoto(
 		|| badAspect(image.width(), image.height())
 		|| badAspect(image.height(), image.width())) {
 		Ui::show(
-			Box<InformBox>(lang(lng_bad_photo)),
+			Box<InformBox>(tr::lng_bad_photo(tr::now)),
 			LayerOption::KeepOther);
 		return;
 	}
@@ -125,7 +125,7 @@ void ShowChoosePhotoBox(
 	};
 	FileDialog::GetOpenPath(
 		parent,
-		lang(lng_choose_image),
+		tr::lng_choose_image(tr::now),
 		filter,
 		std::move(handleChosenPhoto));
 }
@@ -1021,7 +1021,9 @@ void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 QString SilentToggle::tooltipText() const {
-	return lang(_checked ? lng_wont_be_notified : lng_will_be_notified);
+	return _checked
+		? tr::lng_wont_be_notified(tr::now)
+		: tr::lng_will_be_notified(tr::now);
 }
 
 QPoint SilentToggle::tooltipPos() const {

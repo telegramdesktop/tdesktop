@@ -295,7 +295,7 @@ void PeerListBox::addSelectItem(not_null<PeerData*> peer, PeerListRow::SetStyle 
 	}
 	const auto respect = _controller->respectSavedMessagesChat();
 	const auto text = (respect && peer->isSelf())
-		? lang(lng_saved_short)
+		? tr::lng_saved_short(tr::now)
 		: peer->shortName();
 	const auto callback = PaintUserpicCallback(peer, respect);
 	if (style == PeerListRow::SetStyle::Fast) {
@@ -375,7 +375,7 @@ void PeerListRow::refreshStatus() {
 	_statusValidTill = 0;
 	if (auto user = peer()->asUser()) {
 		if (_isSavedMessagesChat) {
-			setStatusText(lang(lng_saved_forward_here));
+			setStatusText(tr::lng_saved_forward_here(tr::now));
 		} else {
 			auto time = unixtime();
 			setStatusText(Data::OnlineText(user, time));
@@ -387,16 +387,16 @@ void PeerListRow::refreshStatus() {
 		}
 	} else if (auto chat = peer()->asChat()) {
 		if (!chat->amIn()) {
-			setStatusText(lang(lng_chat_status_unaccessible));
+			setStatusText(tr::lng_chat_status_unaccessible(tr::now));
 		} else if (chat->count > 0) {
 			setStatusText(lng_chat_status_members(lt_count_decimal, chat->count));
 		} else {
-			setStatusText(lang(lng_group_status));
+			setStatusText(tr::lng_group_status(tr::now));
 		}
 	} else if (peer()->isMegagroup()) {
-		setStatusText(lang(lng_group_status));
+		setStatusText(tr::lng_group_status(tr::now));
 	} else if (peer()->isChannel()) {
-		setStatusText(lang(lng_channel_status));
+		setStatusText(tr::lng_channel_status(tr::now));
 	}
 }
 
@@ -409,7 +409,7 @@ void PeerListRow::refreshName(const style::PeerListItem &st) {
 		return;
 	}
 	const auto text = _isSavedMessagesChat
-		? lang(lng_saved_messages)
+		? tr::lng_saved_messages(tr::now)
 		: peer()->name;
 	_name.setText(st.nameStyle, text, Ui::NameTextOptions());
 }
@@ -888,7 +888,7 @@ void PeerListContent::setSearchMode(PeerListSearchMode mode) {
 			if (!_searchLoading) {
 				setSearchLoading(object_ptr<Ui::FlatLabel>(
 					this,
-					lang(lng_contacts_loading),
+					tr::lng_contacts_loading(tr::now),
 					st::membersAbout));
 			}
 		} else {

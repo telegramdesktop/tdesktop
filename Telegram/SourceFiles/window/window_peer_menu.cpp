@@ -233,9 +233,9 @@ void Filler::addTogglePin() {
 		isPinned = history->isPinnedDialog();
 	}
 	auto pinText = [](bool isPinned) {
-		return lang(isPinned
-			? lng_context_unpin_from_top
-			: lng_context_pin_to_top);
+		return isPinned
+			? tr::lng_context_unpin_from_top(tr::now)
+			: tr::lng_context_pin_to_top(tr::now);
 	};
 	auto pinToggle = [=] {
 		TogglePinnedDialog(peer->owner().history(peer));
@@ -255,18 +255,18 @@ void Filler::addTogglePin() {
 void Filler::addInfo() {
 	const auto controller = _controller;
 	const auto peer = _peer;
-	const auto infoKey = (peer->isChat() || peer->isMegagroup())
-		? lng_context_view_group
+	const auto text = (peer->isChat() || peer->isMegagroup())
+		? tr::lng_context_view_group(tr::now)
 		: (peer->isUser()
-			? lng_context_view_profile
-			: lng_context_view_channel);
-	_addAction(lang(infoKey), [=] {
+			? tr::lng_context_view_profile(tr::now)
+			: tr::lng_context_view_channel(tr::now));
+	_addAction(text, [=] {
 		controller->showPeerInfo(peer);
 	});
 }
 
 //void Filler::addSearch() {
-//	_addAction(lang(lng_profile_search_messages), [peer = _peer] {
+//	_addAction(tr::lng_profile_search_messages(tr::now), [peer = _peer] {
 //		App::main()->searchInChat(peer->owner().history(peer));
 //	});
 //}
@@ -281,9 +281,9 @@ void Filler::addToggleUnreadMark() {
 		return false;
 	};
 	const auto label = [=](not_null<PeerData*> peer) {
-		return lang(isUnread(peer)
-			? lng_context_mark_read
-			: lng_context_mark_unread);
+		return isUnread(peer)
+			? tr::lng_context_mark_read(tr::now)
+			: tr::lng_context_mark_unread(tr::now);
 	};
 	auto action = _addAction(label(peer), [=] {
 		const auto markAsRead = isUnread(peer);
@@ -324,20 +324,22 @@ void Filler::addToggleArchive() {
 			!archived);
 	};
 	_addAction(
-		lang(archived ? lng_archived_remove : lng_archived_add),
+		(archived
+			? tr::lng_archived_remove(tr::now)
+			: tr::lng_archived_add(tr::now)),
 		toggle);
 }
 
 void Filler::addBlockUser(not_null<UserData*> user) {
 	const auto window = &_controller->window()->controller();
 	const auto blockText = [](not_null<UserData*> user) {
-		return lang(user->isBlocked()
+		return user->isBlocked()
 			? ((user->isBot() && !user->isSupport())
-				? lng_profile_restart_bot
-				: lng_profile_unblock_user)
+				? tr::lng_profile_restart_bot(tr::now)
+				: tr::lng_profile_unblock_user(tr::now))
 			: ((user->isBot() && !user->isSupport())
-				? lng_profile_block_bot
-				: lng_profile_block_user));
+				? tr::lng_profile_block_bot(tr::now)
+				: tr::lng_profile_block_user(tr::now));
 	};
 	const auto blockAction = _addAction(blockText(user), [=] {
 		if (user->isBlocked()) {
@@ -372,38 +374,38 @@ void Filler::addUserActions(not_null<UserData*> user) {
 		}
 		if (!user->isContact() && !user->isSelf() && !user->isBot()) {
 			_addAction(
-				lang(lng_info_add_as_contact),
+				tr::lng_info_add_as_contact(tr::now),
 				[=] { window->show(Box(EditContactBox, window, user)); });
 		}
 		if (user->canShareThisContact()) {
 			_addAction(
-				lang(lng_info_share_contact),
+				tr::lng_info_share_contact(tr::now),
 				[=] { PeerMenuShareContactBox(user); });
 		}
 		if (user->isContact() && !user->isSelf()) {
 			_addAction(
-				lang(lng_info_edit_contact),
+				tr::lng_info_edit_contact(tr::now),
 				[=] { window->show(Box(EditContactBox, window, user)); });
 			_addAction(
-				lang(lng_info_delete_contact),
+				tr::lng_info_delete_contact(tr::now),
 				[=] { PeerMenuDeleteContact(user); });
 		}
 		if (user->isBot() && !user->botInfo->cantJoinGroups) {
 			_addAction(
-				lang(lng_profile_invite_to_group),
+				tr::lng_profile_invite_to_group(tr::now),
 				[=] { AddBotToGroupBoxController::Start(user); });
 		}
 		if (user->canExportChatHistory()) {
 			_addAction(
-				lang(lng_profile_export_chat),
+				tr::lng_profile_export_chat(tr::now),
 				[=] { PeerMenuExportChat(user); });
 		}
 	}
 	_addAction(
-		lang(lng_profile_delete_conversation),
+		tr::lng_profile_delete_conversation(tr::now),
 		DeleteAndLeaveHandler(user));
 	_addAction(
-		lang(lng_profile_clear_history),
+		tr::lng_profile_clear_history(tr::now),
 		ClearHistoryHandler(user));
 	if (!user->isInaccessible()
 		&& user != Auth().user()
@@ -416,32 +418,32 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 	if (_source != PeerMenuSource::ChatsList) {
 		const auto controller = _controller;
 		if (EditPeerInfoBox::Available(chat)) {
-			const auto text = lang(lng_manage_group_title);
+			const auto text = tr::lng_manage_group_title(tr::now);
 			_addAction(text, [=] {
 				controller->showEditPeerBox(chat);
 			});
 		}
 		if (chat->canAddMembers()) {
 			_addAction(
-				lang(lng_profile_add_participant),
+				tr::lng_profile_add_participant(tr::now),
 				[chat] { AddChatMembers(chat); });
 		}
 		if (chat->canSendPolls()) {
 			_addAction(
-				lang(lng_polls_create),
+				tr::lng_polls_create(tr::now),
 				[=] { PeerMenuCreatePoll(chat); });
 		}
 		if (chat->canExportChatHistory()) {
 			_addAction(
-				lang(lng_profile_export_chat),
+				tr::lng_profile_export_chat(tr::now),
 				[=] { PeerMenuExportChat(chat); });
 		}
 	}
 	_addAction(
-		lang(lng_profile_clear_and_exit),
+		tr::lng_profile_clear_and_exit(tr::now),
 		DeleteAndLeaveHandler(_peer));
 	_addAction(
-		lang(lng_profile_clear_history),
+		tr::lng_profile_clear_history(tr::now),
 		ClearHistoryHandler(_peer));
 }
 
@@ -452,52 +454,52 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	//	const auto grouped = (feed != nullptr);
 	//	if (!grouped || feed->channels().size() > 1) {
 	//		_addAction( // #feed
-	//			lang(grouped ? lng_feed_ungroup : lng_feed_group),
+	//			(grouped ? tr::lng_feed_ungroup(tr::now) : tr::lng_feed_group(tr::now)),
 	//			[=] { ToggleChannelGrouping(channel, !grouped); });
 	//	}
 	//}
 	if (_source != PeerMenuSource::ChatsList) {
 		if (EditPeerInfoBox::Available(channel)) {
 			const auto controller = _controller;
-			const auto text = lang(isGroup
-				? lng_manage_group_title
-				: lng_manage_channel_title);
+			const auto text = isGroup
+				? tr::lng_manage_group_title(tr::now)
+				: tr::lng_manage_channel_title(tr::now);
 			_addAction(text, [=] {
 				controller->showEditPeerBox(channel);
 			});
 		}
 		if (channel->canAddMembers()) {
 			_addAction(
-				lang(lng_channel_add_members),
+				tr::lng_channel_add_members(tr::now),
 				[channel] { PeerMenuAddChannelMembers(channel); });
 		}
 		if (channel->canSendPolls()) {
 			_addAction(
-				lang(lng_polls_create),
+				tr::lng_polls_create(tr::now),
 				[=] { PeerMenuCreatePoll(channel); });
 		}
 		if (channel->canExportChatHistory()) {
 			_addAction(
-				lang(isGroup
-					? lng_profile_export_chat
-					: lng_profile_export_channel),
+				(isGroup
+					? tr::lng_profile_export_chat(tr::now)
+					: tr::lng_profile_export_channel(tr::now)),
 				[=] { PeerMenuExportChat(channel); });
 		}
 	}
 	if (channel->amIn()) {
 		if (isGroup && !channel->isPublic()) {
 			_addAction(
-				lang(lng_profile_clear_history),
+				tr::lng_profile_clear_history(tr::now),
 				ClearHistoryHandler(channel));
 		}
-		auto text = lang(isGroup
-			? lng_profile_leave_group
-			: lng_profile_leave_channel);
+		auto text = isGroup
+			? tr::lng_profile_leave_group(tr::now)
+			: tr::lng_profile_leave_channel(tr::now);
 		_addAction(text, DeleteAndLeaveHandler(channel));
 	} else {
-		auto text = lang(isGroup
-			? lng_profile_join_group
-			: lng_profile_join_channel);
+		auto text = isGroup
+			? tr::lng_profile_join_group(tr::now)
+			: tr::lng_profile_join_channel(tr::now);
 		_addAction(
 			text,
 			[channel] { Auth().api().joinChannel(channel); });
@@ -506,7 +508,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 		auto needReport = !channel->amCreator()
 			&& (!isGroup || channel->isPublic());
 		if (needReport) {
-			_addAction(lang(lng_profile_report), [channel] {
+			_addAction(tr::lng_profile_report(tr::now), [channel] {
 				Ui::show(Box<ReportBox>(channel));
 			});
 		}
@@ -563,17 +565,17 @@ void FolderFiller::addTogglesForArchive() {
 	}
 	const auto controller = _controller;
 	const auto hidden = controller->session().settings().archiveCollapsed();
-	const auto text = lang(hidden
-		? lng_context_archive_expand
-		: lng_context_archive_collapse);
+	const auto text = hidden
+		? tr::lng_context_archive_expand(tr::now)
+		: tr::lng_context_archive_collapse(tr::now);
 	_addAction(text, [=] {
 		controller->session().settings().setArchiveCollapsed(!hidden);
 		controller->session().saveSettingsDelayed();
 	});
 
-	_addAction(lang(lng_context_archive_to_menu), [=] {
+	_addAction(tr::lng_context_archive_to_menu(tr::now), [=] {
 		Ui::Toast::Config toast;
-		toast.text = lang(lng_context_archive_to_menu_info);
+		toast.text = tr::lng_context_archive_to_menu_info(tr::now);
 		toast.maxWidth = st::boxWideWidth;
 		toast.durationMs = kArchivedToastDuration;
 		Ui::Toast::Show(toast);
@@ -587,7 +589,7 @@ void FolderFiller::addTogglesForArchive() {
 //void FolderFiller::addInfo() {
 //	auto controller = _controller;
 //	auto feed = _feed;
-//	_addAction(lang(lng_context_view_feed_info), [=] {
+//	_addAction(tr::lng_context_view_feed_info(tr::now), [=] {
 //		controller->showSection(Info::Memento(
 //			feed,
 //			Info::Section(Info::Section::Type::Profile)));
@@ -596,21 +598,21 @@ void FolderFiller::addTogglesForArchive() {
 //
 //void FolderFiller::addNotifications() {
 //	const auto feed = _feed;
-//	_addAction(lang(lng_feed_notifications), [=] {
+//	_addAction(tr::lng_feed_notifications(tr::now), [=] {
 //		Info::FeedProfile::NotificationsController::Start(feed);
 //	});
 //}
 //
 //void FolderFiller::addSearch() {
 //	const auto feed = _feed;
-//	_addAction(lang(lng_profile_search_messages), [=] {
+//	_addAction(tr::lng_profile_search_messages(tr::now), [=] {
 //		App::main()->searchInChat(feed);
 //	});
 //}
 //
 //void FolderFiller::addUngroup() {
 //	const auto feed = _feed;
-//	//_addAction(lang(lng_feed_ungroup_all), [=] { // #feed
+//	//_addAction(tr::lng_feed_ungroup_all(tr::now), [=] { // #feed
 //	//	PeerMenuUngroupFeed(feed);
 //	//});
 //}
@@ -635,7 +637,7 @@ void PeerMenuDeleteContact(not_null<UserData*> user) {
 	};
 	Ui::show(Box<ConfirmBox>(
 		text,
-		lang(lng_box_delete),
+		tr::lng_box_delete(tr::now),
 		deleteSure));
 }
 
@@ -644,13 +646,13 @@ void PeerMenuShareContactBox(not_null<UserData*> user) {
 	auto callback = [=](not_null<PeerData*> peer) {
 		if (!peer->canWrite()) {
 			Ui::show(Box<InformBox>(
-				lang(lng_forward_share_cant)),
+				tr::lng_forward_share_cant(tr::now)),
 				LayerOption::KeepOther);
 			return;
 		} else if (peer->isSelf()) {
 			auto options = ApiWrap::SendOptions(peer->owner().history(peer));
 			Auth().api().shareContact(user, options);
-			Ui::Toast::Show(lang(lng_share_done));
+			Ui::Toast::Show(tr::lng_share_done(tr::now));
 			if (auto strong = *weak) {
 				strong->closeBox();
 			}
@@ -661,7 +663,7 @@ void PeerMenuShareContactBox(not_null<UserData*> user) {
 			: '\xAB' + peer->name + '\xBB';
 		Ui::show(Box<ConfirmBox>(
 			lng_forward_share_contact(lt_recipient, recipient),
-			lang(lng_forward_send),
+			tr::lng_forward_send(tr::now),
 			[peer, user] {
 				const auto history = peer->owner().history(peer);
 				Ui::showPeerHistory(history, ShowAtTheEndMsgId);
@@ -698,7 +700,7 @@ void PeerMenuCreatePoll(not_null<PeerData*> peer) {
 			box->closeBox();
 		}), crl::guard(box, [=](const RPCError &error) {
 			*lock = false;
-			box->submitFailed(lang(lng_attach_failed));
+			box->submitFailed(tr::lng_attach_failed(tr::now));
 		}));
 	}, box->lifetime());
 }
@@ -725,7 +727,7 @@ void PeerMenuBlockUserBox(
 	const auto report = (settings & Flag::f_report_spam)
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box,
-			lang(lng_report_spam),
+			tr::lng_report_spam(tr::now),
 			true,
 			st::defaultBoxCheckbox))
 		: nullptr;
@@ -736,7 +738,7 @@ void PeerMenuBlockUserBox(
 
 	const auto clear = box->addRow(object_ptr<Ui::Checkbox>(
 		box,
-		lang(lng_blocked_list_confirm_clear),
+		tr::lng_blocked_list_confirm_clear(tr::now),
 		true,
 		st::defaultBoxCheckbox));
 
@@ -789,7 +791,7 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 				auto options = ApiWrap::SendOptions(peer->owner().history(peer));
 				options.generateLocal = false;
 				Auth().api().forwardMessages(std::move(items), options, [] {
-					Ui::Toast::Show(lang(lng_share_done));
+					Ui::Toast::Show(tr::lng_share_done(tr::now));
 				});
 			}
 		} else {
@@ -850,9 +852,9 @@ void PeerMenuAddMuteAction(
 		const PeerMenuCallback &addAction) {
 	Auth().data().requestNotifySettings(peer);
 	const auto muteText = [](bool isMuted) {
-		return lang(isMuted
-			? lng_enable_notifications_from_tray
-			: lng_disable_notifications_from_tray);
+		return isMuted
+			? tr::lng_enable_notifications_from_tray(tr::now)
+			: tr::lng_disable_notifications_from_tray(tr::now);
 	};
 	const auto muteAction = addAction(QString("-"), [=] {
 		if (!Auth().data().notifyIsMuted(peer)) {
@@ -872,17 +874,17 @@ void PeerMenuAddMuteAction(
 // #feed
 //void PeerMenuUngroupFeed(not_null<Data::Feed*> feed) {
 //	Ui::show(Box<ConfirmBox>(
-//		lang(lng_feed_sure_ungroup_all),
-//		lang(lng_feed_ungroup_sure),
+//		tr::lng_feed_sure_ungroup_all(tr::now),
+//		tr::lng_feed_ungroup_sure(tr::now),
 //		[=] { Ui::hideLayer(); Auth().api().ungroupAllFromFeed(feed); }));
 //}
 //
 void ToggleHistoryArchived(not_null<History*> history, bool archived) {
 	const auto callback = [=] {
 		Ui::Toast::Config toast;
-		toast.text = lang(archived
-			? lng_archived_added
-			: lng_archived_removed);
+		toast.text = archived
+			? tr::lng_archived_added(tr::now)
+			: tr::lng_archived_removed(tr::now);
 		toast.maxWidth = st::boxWideWidth;
 		if (archived) {
 			toast.durationMs = kArchivedToastDuration;

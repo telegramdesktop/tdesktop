@@ -159,9 +159,9 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 	};
 	*box = Ui::show(
 		Box<ConfirmBox>(
-			lang(lng_background_sure_delete),
-			lang(lng_selected_delete),
-			lang(lng_cancel),
+			tr::lng_background_sure_delete(tr::now),
+			tr::lng_selected_delete(tr::now),
+			tr::lng_cancel(tr::now),
 			remove),
 		LayerOption::KeepOther);
 }
@@ -251,7 +251,7 @@ void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 	if (_papers.empty()) {
 		p.setFont(st::noContactsFont);
 		p.setPen(st::noContactsColor);
-		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_loading), style::al_center);
+		p.drawText(QRect(0, 0, width(), st::noContactsHeight), tr::lng_contacts_loading(tr::now), style::al_center);
 		return;
 	}
 	auto row = 0;

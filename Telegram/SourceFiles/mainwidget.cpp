@@ -612,7 +612,7 @@ bool MainWidget::shareUrl(
 
 	const auto peer = session().data().peer(peerId);
 	if (!peer->canWrite()) {
-		Ui::show(Box<InformBox>(lang(lng_share_cant)));
+		Ui::show(Box<InformBox>(tr::lng_share_cant(tr::now)));
 		return false;
 	}
 	TextWithTags textWithTags = {
@@ -648,7 +648,7 @@ bool MainWidget::inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) {
 
 	const auto peer = session().data().peer(peerId);
 	if (!peer->canWrite()) {
-		Ui::show(Box<InformBox>(lang(lng_inline_switch_cant)));
+		Ui::show(Box<InformBox>(tr::lng_inline_switch_cant(tr::now)));
 		return false;
 	}
 	const auto h = peer->owner().history(peer);
@@ -688,12 +688,12 @@ bool MainWidget::sendPaths(PeerId peerId) {
 
 	auto peer = session().data().peer(peerId);
 	if (!peer->canWrite()) {
-		Ui::show(Box<InformBox>(lang(lng_forward_send_files_cant)));
+		Ui::show(Box<InformBox>(tr::lng_forward_send_files_cant(tr::now)));
 		return false;
-	} else if (const auto key = Data::RestrictionErrorKey(
+	} else if (const auto error = Data::RestrictionError(
 			peer,
 			ChatRestriction::f_send_media)) {
-		Ui::show(Box<InformBox>(lang(*key)));
+		Ui::show(Box<InformBox>(*error));
 		return false;
 	}
 	Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
@@ -716,7 +716,7 @@ void MainWidget::onFilesOrForwardDrop(
 	} else {
 		auto peer = session().data().peer(peerId);
 		if (!peer->canWrite()) {
-			Ui::show(Box<InformBox>(lang(lng_forward_send_files_cant)));
+			Ui::show(Box<InformBox>(tr::lng_forward_send_files_cant(tr::now)));
 			return;
 		}
 		Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
@@ -825,14 +825,14 @@ void MainWidget::showForwardLayer(MessageIdsList &&items) {
 	};
 	hiderLayer(base::make_unique_q<Window::HistoryHider>(
 		this,
-		lang(lng_forward_choose),
+		tr::lng_forward_choose(tr::now),
 		std::move(callback)));
 }
 
 void MainWidget::showSendPathsLayer() {
 	hiderLayer(base::make_unique_q<Window::HistoryHider>(
 		this,
-		lang(lng_forward_choose),
+		tr::lng_forward_choose(tr::now),
 		[=](PeerId peer) { return sendPaths(peer); }));
 	if (_hider) {
 		connect(_hider, &QObject::destroyed, [] {
@@ -863,16 +863,16 @@ void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
 		session().uploader().unpause();
 	};
 	Ui::show(Box<ConfirmBox>(
-		lang(lng_selected_cancel_sure_this),
-		lang(lng_selected_upload_stop),
-		lang(lng_continue),
+		tr::lng_selected_cancel_sure_this(tr::now),
+		tr::lng_selected_upload_stop(tr::now),
+		tr::lng_continue(tr::now),
 		stopUpload,
 		continueUpload));
 }
 
 void MainWidget::deletePhotoLayer(PhotoData *photo) {
 	if (!photo) return;
-	Ui::show(Box<ConfirmBox>(lang(lng_delete_photo_sure), lang(lng_box_delete), crl::guard(this, [=] {
+	Ui::show(Box<ConfirmBox>(tr::lng_delete_photo_sure(tr::now), tr::lng_box_delete(tr::now), crl::guard(this, [=] {
 		session().api().clearPeerPhoto(photo);
 		Ui::hideLayer();
 	})));
@@ -888,7 +888,7 @@ void MainWidget::shareUrlLayer(const QString &url, const QString &text) {
 	};
 	hiderLayer(base::make_unique_q<Window::HistoryHider>(
 		this,
-		lang(lng_forward_choose),
+		tr::lng_forward_choose(tr::now),
 		std::move(callback)));
 }
 
@@ -898,7 +898,7 @@ void MainWidget::inlineSwitchLayer(const QString &botAndQuery) {
 	};
 	hiderLayer(base::make_unique_q<Window::HistoryHider>(
 		this,
-		lang(lng_inline_switch_choose),
+		tr::lng_inline_switch_choose(tr::now),
 		std::move(callback)));
 }
 
@@ -919,7 +919,7 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 	} else if (error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		const auto link = textcmdLink(
 			Core::App().createInternalLinkFull(qsl("spambot")),
-			lang(lng_cant_more_info));
+			tr::lng_cant_more_info(tr::now));
 		const auto text = lng_error_public_groups_denied(lt_more_info, link);
 		Ui::show(Box<InformBox>(text));
 		return true;
@@ -1259,7 +1259,7 @@ void MainWidget::documentLoadFailed(FileLoader *loader, bool started) {
 	if (started) {
 		const auto origin = loader->fileOrigin();
 		const auto failedFileName = loader->fileName();
-		Ui::show(Box<ConfirmBox>(lang(lng_download_finish_failed), crl::guard(this, [=] {
+		Ui::show(Box<ConfirmBox>(tr::lng_download_finish_failed(tr::now), crl::guard(this, [=] {
 			Ui::hideLayer();
 			if (document) {
 				document->save(origin, failedFileName);
@@ -1269,7 +1269,7 @@ void MainWidget::documentLoadFailed(FileLoader *loader, bool started) {
 		// Sometimes we have LOCATION_INVALID error in documents / stickers.
 		// Sometimes FILE_REFERENCE_EXPIRED could not be handled.
 		//
-		//Ui::show(Box<ConfirmBox>(lang(lng_download_path_failed), lang(lng_download_path_settings), crl::guard(this, [=] {
+		//Ui::show(Box<ConfirmBox>(tr::lng_download_path_failed(tr::now), tr::lng_download_path_settings(tr::now), crl::guard(this, [=] {
 		//	Global::SetDownloadPath(QString());
 		//	Global::SetDownloadPathBookmark(QByteArray());
 		//	Ui::show(Box<DownloadPathBox>());
@@ -2194,7 +2194,7 @@ bool MainWidget::deleteChannelFailed(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	//if (error.type() == qstr("CHANNEL_TOO_LARGE")) {
-	//	Ui::show(Box<InformBox>(lang(lng_cant_delete_channel)));
+	//	Ui::show(Box<InformBox>(tr::lng_cant_delete_channel(tr::now)));
 	//}
 
 	return true;
@@ -2304,7 +2304,7 @@ void MainWidget::hideAll() {
 void MainWidget::showAll() {
 	if (cPasswordRecovered()) {
 		cSetPasswordRecovered(false);
-		Ui::show(Box<InformBox>(lang(lng_signin_password_removed)));
+		Ui::show(Box<InformBox>(tr::lng_signin_password_removed(tr::now)));
 	}
 	if (Adaptive::OneColumn()) {
 		_sideShadow->hide();
@@ -3373,7 +3373,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 			it = sets.insert(Stickers::CloudRecentSetId, Stickers::Set(
 				Stickers::CloudRecentSetId,
 				uint64(0),
-				lang(lng_recent_stickers),
+				tr::lng_recent_stickers(tr::now),
 				QString(),
 				0, // count
 				0, // hash
@@ -3381,7 +3381,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 				TimeId(0),
 				ImagePtr()));
 		} else {
-			it->title = lang(lng_recent_stickers);
+			it->title = tr::lng_recent_stickers(tr::now);
 		}
 	}
 	auto removedFromEmoji = std::vector<not_null<EmojiPtr>>();

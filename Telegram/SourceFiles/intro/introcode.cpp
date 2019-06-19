@@ -74,7 +74,7 @@ void CodeInput::correctValue(const QString &was, int wasCursor, QString &now, in
 }
 
 CodeWidget::CodeWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
-, _noTelegramCode(this, lang(lng_code_no_telegram), st::introLink)
+, _noTelegramCode(this, tr::lng_code_no_telegram(tr::now), st::introLink)
 , _code(this, st::introCode, tr::lng_code_ph())
 , _callTimer(this)
 , _callStatus(getData()->callStatus)
@@ -96,7 +96,7 @@ CodeWidget::CodeWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
 }
 
 void CodeWidget::refreshLang() {
-	if (_noTelegramCode) _noTelegramCode->setText(lang(lng_code_no_telegram));
+	if (_noTelegramCode) _noTelegramCode->setText(tr::lng_code_no_telegram(tr::now));
 	updateDescText();
 	updateControlsGeometry();
 }
@@ -133,8 +133,8 @@ void CodeWidget::updateCallText() {
 				return lng_code_call(lt_minutes, QString::number(_callTimeout / 60), lt_seconds, qsl("%1").arg(_callTimeout % 60, 2, 10, QChar('0')));
 			}
 		} break;
-		case Widget::Data::CallStatus::Calling: return lang(lng_code_calling);
-		case Widget::Data::CallStatus::Called: return lang(lng_code_called);
+		case Widget::Data::CallStatus::Calling: return tr::lng_code_calling(tr::now);
+		case Widget::Data::CallStatus::Called: return tr::lng_code_called(tr::now);
 		}
 		return QString();
 	})();
@@ -311,8 +311,8 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 			if (*box) (*box)->closeBox();
 		};
 		*box = Ui::show(Box<ConfirmBox>(
-			lang(lng_passport_app_out_of_date),
-			lang(lng_menu_update),
+			tr::lng_passport_app_out_of_date(tr::now),
+			tr::lng_menu_update(tr::now),
 			callback));
 		return;
 	}

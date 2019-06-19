@@ -380,7 +380,7 @@ namespace Data {
 
 std::vector<ChatRestrictions> ListOfRestrictions();
 
-std::optional<LangKey> RestrictionErrorKey(
+std::optional<QString> RestrictionError(
 	not_null<PeerData*> peer,
 	ChatRestriction restriction);
 

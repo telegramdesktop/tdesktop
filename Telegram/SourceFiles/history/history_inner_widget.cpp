@@ -560,7 +560,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 			p.setFont(st::msgNameFont);
 			p.setPen(st::dialogsNameFg);
-			p.drawText(_botAbout->rect.left() + st::msgPadding.left(), _botAbout->rect.top() + st::msgPadding.top() + st::msgNameFont->ascent, lang(lng_bot_description));
+			p.drawText(_botAbout->rect.left() + st::msgPadding.left(), _botAbout->rect.top() + st::msgPadding.top() + st::msgNameFont->ascent, tr::lng_bot_description(tr::now));
 
 			p.setPen(st::historyTextInFg);
 			_botAbout->info->text.draw(p, _botAbout->rect.left() + st::msgPadding.left(), _botAbout->rect.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip, _botAbout->width);
@@ -1503,18 +1503,18 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		const auto itemId = item->fullId();
 		if (canSendMessages) {
-			_menu->addAction(lang(lng_context_reply_msg), [=] {
+			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {
 				_widget->replyToMessage(itemId);
 			});
 		}
 		if (item->allowsEdit(unixtime())) {
-			_menu->addAction(lang(lng_context_edit_msg), [=] {
+			_menu->addAction(tr::lng_context_edit_msg(tr::now), [=] {
 				_widget->editMessage(itemId);
 			});
 		}
 		if (item->canPin()) {
 			const auto isPinned = item->isPinned();
-			_menu->addAction(lang(isPinned ? lng_context_unpin_msg : lng_context_pin_msg), [=] {
+			_menu->addAction(isPinned ? tr::lng_context_unpin_msg(tr::now) : tr::lng_context_pin_msg(tr::now), [=] {
 				if (isPinned) {
 					_widget->unpinMessage(itemId);
 				} else {
@@ -1524,21 +1524,21 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	};
 	const auto addPhotoActions = [&](not_null<PhotoData*> photo) {
-		_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
+		_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 			savePhotoToFile(photo);
 		}));
-		_menu->addAction(lang(lng_context_copy_image), [=] {
+		_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
 			copyContextImage(photo);
 		});
 		if (photo->hasSticker) {
-			_menu->addAction(lang(lng_context_attached_stickers), [=] {
+			_menu->addAction(tr::lng_context_attached_stickers(tr::now), [=] {
 				Auth().api().requestAttachedStickerSets(photo);
 			});
 		}
 	};
 	const auto addDocumentActions = [&](not_null<DocumentData*> document) {
 		if (document->loading()) {
-			_menu->addAction(lang(lng_context_cancel_download), [=] {
+			_menu->addAction(tr::lng_context_cancel_download(tr::now), [=] {
 				cancelContextDownload(document);
 			});
 			return;
@@ -1550,20 +1550,20 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto lnkIsAudio = document->isAudioFile();
 		if (document->loaded() && document->isGifv()) {
 			if (!cAutoPlayGif()) {
-				_menu->addAction(lang(lng_context_open_gif), [=] {
+				_menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
 					openContextGif(itemId);
 				});
 			}
-			_menu->addAction(lang(lng_context_save_gif), [=] {
+			_menu->addAction(tr::lng_context_save_gif(tr::now), [=] {
 				saveContextGif(itemId);
 			});
 		}
 		if (!document->filepath(DocumentData::FilePathResolve::Checked).isEmpty()) {
-			_menu->addAction(lang(Platform::IsMac() ? lng_context_show_in_finder : lng_context_show_in_folder), [=] {
+			_menu->addAction(Platform::IsMac() ? tr::lng_context_show_in_finder(tr::now) : tr::lng_context_show_in_folder(tr::now), [=] {
 				showContextInFolder(document);
 			});
 		}
-		_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsVoice ? lng_context_save_audio : (lnkIsAudio ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
+		_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ? tr::lng_context_save_audio(tr::now) : (lnkIsAudio ? tr::lng_context_save_audio_file(tr::now) : tr::lng_context_save_file(tr::now))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 			saveDocumentToFile(itemId, document);
 		}));
 	};
@@ -1575,9 +1575,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto itemId = item ? item->fullId() : FullMsgId();
 		if (isUponSelected > 0) {
 			_menu->addAction(
-				lang((isUponSelected > 1)
-					? lng_context_copy_selected_items
-					: lng_context_copy_selected),
+				(isUponSelected > 1
+					? tr::lng_context_copy_selected_items(tr::now)
+					: tr::lng_context_copy_selected(tr::now)),
 				[=] { copySelectedText(); });
 		}
 		addItemActions(item);
@@ -1587,45 +1587,45 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			addDocumentActions(lnkDocument->document());
 		}
 		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
-			_menu->addAction(lang(item->history()->peer->isMegagroup() ? lng_context_copy_link : lng_context_copy_post_link), [=] {
+			_menu->addAction(item->history()->peer->isMegagroup() ? tr::lng_context_copy_link(tr::now) : tr::lng_context_copy_post_link(tr::now), [=] {
 				HistoryView::CopyPostLink(itemId);
 			});
 		}
 		if (isUponSelected > 1) {
 			if (selectedState.count > 0 && selectedState.canForwardCount == selectedState.count) {
-				_menu->addAction(lang(lng_context_forward_selected), [=] {
+				_menu->addAction(tr::lng_context_forward_selected(tr::now), [=] {
 					_widget->forwardSelected();
 				});
 			}
 			if (selectedState.count > 0 && selectedState.canDeleteCount == selectedState.count) {
-				_menu->addAction(lang(lng_context_delete_selected), [=] {
+				_menu->addAction(tr::lng_context_delete_selected(tr::now), [=] {
 					_widget->confirmDeleteSelected();
 				});
 			}
-			_menu->addAction(lang(lng_context_clear_selection), [=] {
+			_menu->addAction(tr::lng_context_clear_selection(tr::now), [=] {
 				_widget->clearSelected();
 			});
 		} else if (item) {
 			const auto itemId = item->fullId();
 			if (isUponSelected != -2) {
 				if (item->allowsForward()) {
-					_menu->addAction(lang(lng_context_forward_msg), [=] {
+					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardItem(itemId);
 					});
 				}
 				if (item->canDelete()) {
-					_menu->addAction(lang(lng_context_delete_msg), [=] {
+					_menu->addAction(tr::lng_context_delete_msg(tr::now), [=] {
 						deleteItem(itemId);
 					});
 				}
 				if (item->suggestReport()) {
-					_menu->addAction(lang(lng_context_report_msg), [=] {
+					_menu->addAction(tr::lng_context_report_msg(tr::now), [=] {
 						reportItem(itemId);
 					});
 				}
 			}
 			if (IsServerMsgId(item->id) && !item->serviceMsg()) {
-				_menu->addAction(lang(lng_context_select_msg), [=] {
+				_menu->addAction(tr::lng_context_select_msg(tr::now), [=] {
 					if (const auto item = Auth().data().message(itemId)) {
 						if (const auto view = item->mainView()) {
 							changeSelection(&_selected, item, SelectAction::Select);
@@ -1661,9 +1661,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto msg = dynamic_cast<HistoryMessage*>(item);
 		if (isUponSelected > 0) {
 			_menu->addAction(
-				lang((isUponSelected > 1)
-					? lng_context_copy_selected_items
-					: lng_context_copy_selected),
+				((isUponSelected > 1)
+					? tr::lng_context_copy_selected_items(tr::now)
+					: tr::lng_context_copy_selected(tr::now)),
 				[=] { copySelectedText(); });
 			addItemActions(item);
 		} else {
@@ -1674,17 +1674,17 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (const auto document = media ? media->getDocument() : nullptr) {
 					if (document->sticker()) {
 						if (document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-							_menu->addAction(lang(document->isStickerSetInstalled() ? lng_context_pack_info : lng_context_pack_add), [=] {
+							_menu->addAction(document->isStickerSetInstalled() ? tr::lng_context_pack_info(tr::now) : tr::lng_context_pack_add(tr::now), [=] {
 								showStickerPackInfo(document);
 							});
-							_menu->addAction(lang(Stickers::IsFaved(document) ? lng_faved_stickers_remove : lng_faved_stickers_add), [=] {
+							_menu->addAction(Stickers::IsFaved(document) ? tr::lng_faved_stickers_remove(tr::now) : tr::lng_faved_stickers_add(tr::now), [=] {
 								Auth().api().toggleFavedSticker(
 									document,
 									itemId,
 									!Stickers::IsFaved(document));
 							});
 						}
-						_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
+						_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 							saveDocumentToFile(itemId, document);
 						}));
 					}
@@ -1693,12 +1693,12 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					if (const auto poll = media->poll()) {
 						if (!poll->closed) {
 							if (poll->voted()) {
-								_menu->addAction(lang(lng_polls_retract), [=] {
+								_menu->addAction(tr::lng_polls_retract(tr::now), [=] {
 									Auth().api().sendPollVotes(itemId, {});
 								});
 							}
 							if (item->canStopPoll()) {
-								_menu->addAction(lang(lng_polls_stop), [=] {
+								_menu->addAction(tr::lng_polls_stop(tr::now), [=] {
 									HistoryView::StopPoll(itemId);
 								});
 							}
@@ -1706,7 +1706,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					}
 				}
 				if (msg && view && !link && (view->hasVisibleText() || mediaHasTextForCopy)) {
-					_menu->addAction(lang(lng_context_copy_text), [=] {
+					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
 						copyContextText(itemId);
 					});
 				}
@@ -1723,44 +1723,44 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					QApplication::clipboard()->setText(text);
 				});
 		} else if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
-			_menu->addAction(lang(item->history()->peer->isMegagroup() ? lng_context_copy_link : lng_context_copy_post_link), [=] {
+			_menu->addAction(item->history()->peer->isMegagroup() ? tr::lng_context_copy_link(tr::now) : tr::lng_context_copy_post_link(tr::now), [=] {
 				HistoryView::CopyPostLink(itemId);
 			});
 		}
 		if (isUponSelected > 1) {
 			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
-				_menu->addAction(lang(lng_context_forward_selected), [=] {
+				_menu->addAction(tr::lng_context_forward_selected(tr::now), [=] {
 					_widget->forwardSelected();
 				});
 			}
 			if (selectedState.count > 0 && selectedState.count == selectedState.canDeleteCount) {
-				_menu->addAction(lang(lng_context_delete_selected), [=] {
+				_menu->addAction(tr::lng_context_delete_selected(tr::now), [=] {
 					_widget->confirmDeleteSelected();
 				});
 			}
-			_menu->addAction(lang(lng_context_clear_selection), [=] {
+			_menu->addAction(tr::lng_context_clear_selection(tr::now), [=] {
 				_widget->clearSelected();
 			});
 		} else if (item && ((isUponSelected != -2 && (canForward || canDelete)) || item->id > 0)) {
 			if (isUponSelected != -2) {
 				if (canForward) {
-					_menu->addAction(lang(lng_context_forward_msg), [=] {
+					_menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 						forwardAsGroup(itemId);
 					});
 				}
 				if (canDelete) {
-					_menu->addAction(lang((msg && msg->uploading()) ? lng_context_cancel_upload : lng_context_delete_msg), [=] {
+					_menu->addAction((msg && msg->uploading()) ? tr::lng_context_cancel_upload(tr::now) : tr::lng_context_delete_msg(tr::now), [=] {
 						deleteAsGroup(itemId);
 					});
 				}
 				if (canReport) {
-					_menu->addAction(lang(lng_context_report_msg), [=] {
+					_menu->addAction(tr::lng_context_report_msg(tr::now), [=] {
 						reportAsGroup(itemId);
 					});
 				}
 			}
 			if (item->id > 0 && !item->serviceMsg()) {
-				_menu->addAction(lang(lng_context_select_msg), [=] {
+				_menu->addAction(tr::lng_context_select_msg(tr::now), [=] {
 					if (const auto item = Auth().data().message(itemId)) {
 						if (const auto view = item->mainView()) {
 							changeSelectionAsGroup(&_selected, item, SelectAction::Select);
@@ -1775,7 +1775,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				&& IsServerMsgId(App::mousedItem()->data()->id)
 				&& !App::mousedItem()->data()->serviceMsg()) {
 				const auto itemId = App::mousedItem()->data()->fullId();
-				_menu->addAction(lang(lng_context_select_msg), [=] {
+				_menu->addAction(tr::lng_context_select_msg(tr::now), [=] {
 					if (const auto item = Auth().data().message(itemId)) {
 						if (const auto view = item->mainView()) {
 							changeSelectionAsGroup(&_selected, item, SelectAction::Select);
@@ -1806,7 +1806,7 @@ void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
 		this,
-		lang(lng_save_photo),
+		tr::lng_save_photo(tr::now),
 		filter,
 		filedialogDefaultName(
 			qsl("photo"),
@@ -2015,7 +2015,7 @@ void HistoryInner::recountHistoryGeometry() {
 		int32 tw = _scroll->width() - st::msgMargin.left() - st::msgMargin.right();
 		if (tw > st::msgMaxWidth) tw = st::msgMaxWidth;
 		tw -= st::msgPadding.left() + st::msgPadding.right();
-		int32 mw = qMax(_botAbout->info->text.maxWidth(), st::msgNameFont->width(lang(lng_bot_description)));
+		int32 mw = qMax(_botAbout->info->text.maxWidth(), st::msgNameFont->width(tr::lng_bot_description(tr::now)));
 		if (tw > mw) tw = mw;
 
 		_botAbout->width = tw;
@@ -2062,7 +2062,7 @@ void HistoryInner::updateBotInfo(bool recount) {
 				int32 tw = _scroll->width() - st::msgMargin.left() - st::msgMargin.right();
 				if (tw > st::msgMaxWidth) tw = st::msgMaxWidth;
 				tw -= st::msgPadding.left() + st::msgPadding.right();
-				int32 mw = qMax(_botAbout->info->text.maxWidth(), st::msgNameFont->width(lang(lng_bot_description)));
+				int32 mw = qMax(_botAbout->info->text.maxWidth(), st::msgNameFont->width(tr::lng_bot_description(tr::now)));
 				if (tw > mw) tw = mw;
 
 				_botAbout->width = tw;
@@ -2723,7 +2723,7 @@ void HistoryInner::mouseActionUpdate() {
 
 ClickHandlerPtr HistoryInner::hiddenUserpicLink(FullMsgId id) {
 	static const auto result = std::make_shared<LambdaClickHandler>([] {
-		Ui::Toast::Show(lang(lng_forwarded_hidden));
+		Ui::Toast::Show(tr::lng_forwarded_hidden(tr::now));
 	});
 	return result;
 }

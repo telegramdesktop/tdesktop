@@ -105,7 +105,7 @@ InnerWidget::InnerWidget(
 , _pinnedShiftAnimation([=](crl::time now) {
 	return pinnedShiftAnimationCallback(now);
 })
-, _addContactLnk(this, lang(lng_add_contact_button))
+, _addContactLnk(this, tr::lng_add_contact_button(tr::now))
 , _cancelSearchInChat(this, st::dialogsCancelSearchInPeer)
 , _cancelSearchFromUser(this, st::dialogsCancelSearchInPeer) {
 
@@ -478,7 +478,12 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			p.fillRect(dialogsClip, st::dialogsBg);
 			p.setFont(st::noContactsFont);
 			p.setPen(st::noContactsColor);
-			p.drawText(QRect(0, 0, fullWidth, st::noContactsHeight - (session().data().contactsLoaded().current() ? st::noContactsFont->height : 0)), lang(session().data().contactsLoaded().current() ? lng_no_chats : lng_contacts_loading), style::al_center);
+			p.drawText(
+				QRect(0, 0, fullWidth, st::noContactsHeight - (session().data().contactsLoaded().current() ? st::noContactsFont->height : 0)),
+				(session().data().contactsLoaded().current()
+					? tr::lng_no_chats
+					: tr::lng_contacts_loading)(tr::now),
+				style::al_center);
 		}
 	} else if (_state == WidgetState::Filtered) {
 		if (!_hashtagResults.empty()) {
@@ -557,7 +562,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			p.fillRect(0, 0, fullWidth, st::searchedBarHeight, st::searchedBarBg);
 			p.setFont(st::searchedBarFont);
 			p.setPen(st::searchedBarFg);
-			p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), lang(lng_search_global_results));
+			p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), tr::lng_search_global_results(tr::now));
 			p.translate(0, st::searchedBarHeight);
 
 			auto skip = peerSearchOffset();
@@ -598,7 +603,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					st::searchedBarPosition.x(),
 					st::searchedBarPosition.y(),
 					width(),
-					lang(lng_dlg_search_for_messages));
+					tr::lng_dlg_search_for_messages(tr::now));
 				p.translate(0, st::searchedBarHeight);
 			}
 		}
@@ -606,7 +611,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		const auto showUnreadInSearchResults = uniqueSearchResults();
 		if (!_waitingForSearch || !_searchResults.empty()) {
 			const auto text = _searchResults.empty()
-				? lang(lng_search_no_results)
+				? tr::lng_search_no_results(tr::now)
 				: showUnreadInSearchResults
 				? qsl("Search results")
 				: lng_search_found_results(
@@ -676,8 +681,8 @@ void InnerWidget::paintCollapsedRow(
 	const auto text = row->folder
 		? row->folder->chatListName()
 		: (_mode == Dialogs::Mode::Important)
-		? (narrow ? "Show" : lang(lng_dialogs_show_all_chats))
-		: (narrow ? "Hide" : lang(lng_dialogs_hide_muted_chats));
+		? (narrow ? "Show" : tr::lng_dialogs_show_all_chats(tr::now))
+		: (narrow ? "Hide" : tr::lng_dialogs_hide_muted_chats(tr::now));
 	const auto unread = row->folder
 		? row->folder->chatListUnreadCount()
 		: (_mode == Dialogs::Mode::Important)
@@ -768,7 +773,7 @@ void InnerWidget::paintSearchInChat(Painter &p) const {
 	p.fillRect(0, 0, width(), top, st::searchedBarBg);
 	p.setFont(st::searchedBarFont);
 	p.setPen(st::searchedBarFg);
-	p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), lang(lng_dlg_search_in));
+	p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), tr::lng_dlg_search_in(tr::now));
 
 	auto fullRect = QRect(0, top, width(), height - top);
 	p.fillRect(fullRect, st::dialogsBg);
@@ -1699,9 +1704,9 @@ void InnerWidget::fillArchiveSearchMenu(not_null<Ui::PopupMenu*> menu) {
 		return;
 	}
 	const auto skip = session().settings().skipArchiveInSearch();
-	const auto text = lang(skip
-		? lng_dialogs_show_archive_in_search
-		: lng_dialogs_skip_archive_in_search);
+	const auto text = skip
+		? tr::lng_dialogs_show_archive_in_search(tr::now)
+		: tr::lng_dialogs_skip_archive_in_search(tr::now);
 	menu->addAction(text, [=] {
 		session().settings().setSkipArchiveInSearch(!skip);
 		session().saveSettingsDelayed();
@@ -2225,7 +2230,7 @@ void InnerWidget::refreshSearchInChatLabel() {
 	const auto dialog = [&] {
 		if (const auto peer = _searchInChat.peer()) {
 			if (peer->isSelf()) {
-				return lang(lng_saved_messages);
+				return tr::lng_saved_messages(tr::now);
 			}
 			return peer->name;
 		//} else if (const auto feed = _searchInChat.feed()) { // #feed

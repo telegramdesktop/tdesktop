@@ -399,7 +399,7 @@ auto ConnectionState::computeLayout(const State &state) const -> Layout {
 		|| state.type == State::Type::Waiting;
 	switch (state.type) {
 	case State::Type::Connecting:
-		result.text = state.underCursor ? lang(lng_connecting) : QString();
+		result.text = state.underCursor ? tr::lng_connecting(tr::now) : QString();
 		break;
 
 	case State::Type::Waiting:
@@ -419,7 +419,7 @@ auto ConnectionState::computeLayout(const State &state) const -> Layout {
 	if (state.type == State::Type::Waiting) {
 		result.contentWidth += st::connectingRetryLink.padding.left()
 			+ st::connectingRetryLink.font->width(
-				lang(lng_reconnecting_try_now))
+				tr::lng_reconnecting_try_now(tr::now))
 			+ st::connectingRetryLink.padding.right();
 	}
 	result.hasRetry = (state.type == State::Type::Waiting);
@@ -576,7 +576,7 @@ void ConnectionState::Widget::refreshRetryLink(bool hasRetry) {
 	if (hasRetry && !_retry) {
 		_retry = base::make_unique_q<Ui::LinkButton>(
 			this,
-			lang(lng_reconnecting_try_now),
+			tr::lng_reconnecting_try_now(tr::now),
 			st::connectingRetryLink);
 		_retry->addClickHandler([=] {
 			MTP::restart();

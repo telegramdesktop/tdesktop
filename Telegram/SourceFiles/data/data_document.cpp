@@ -101,7 +101,7 @@ void LaunchWithWarning(const QString &name, HistoryItem *item) {
 			lt_extension,
 			rpl::single(Ui::Text::Bold(extension)),
 			Ui::Text::WithEntities),
-		lang(lng_launch_exe_dont_ask),
+		tr::lng_launch_exe_dont_ask(tr::now),
 		tr::lng_launch_exe_sure(),
 		callback));
 }
@@ -262,7 +262,7 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 		name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : already;
 		filter = mp3 ? qsl("MP3 Audio (*.mp3);;") : qsl("OGG Opus Audio (*.ogg);;");
 		filter += FileDialog::AllFilesFilter();
-		caption = lang(lng_save_audio);
+		caption = tr::lng_save_audio(tr::now);
 		prefix = qsl("audio");
 	} else if (data->isVideoFile()) {
 		name = already.isEmpty() ? data->filename() : already;
@@ -274,7 +274,7 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 		} else {
 			filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
 		}
-		caption = lang(lng_save_video);
+		caption = tr::lng_save_video(tr::now);
 		prefix = qsl("video");
 	} else {
 		name = already.isEmpty() ? data->filename() : already;
@@ -286,7 +286,9 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 		} else {
 			filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
 		}
-		caption = lang(data->isAudioFile() ? lng_save_audio_file : lng_save_file);
+		caption = data->isAudioFile()
+			? tr::lng_save_audio_file(tr::now)
+			: tr::lng_save_file(tr::now);
 		prefix = qsl("doc");
 	}
 
@@ -1708,9 +1710,9 @@ base::binary_guard ReadImageAsync(
 //				document->owner().message(contextId));
 //		};
 //		Ui::show(Box<ConfirmBox>(
-//			lang(lng_player_cant_stream),
-//			lang(lng_player_download),
-//			lang(lng_cancel),
+//			tr::lng_player_cant_stream(tr::now),
+//			tr::lng_player_download(tr::now),
+//			tr::lng_cancel(tr::now),
 //			save));
 //	} else if (IsValidMediaFile(filepath)) {
 //		File::Launch(filepath);

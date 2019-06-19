@@ -45,13 +45,13 @@ void HistoryInvoice::fillFromData(not_null<Data::Invoice*> invoice) {
 	auto labelText = [&] {
 		if (invoice->receiptMsgId) {
 			if (invoice->isTest) {
-				return lang(lng_payments_receipt_label_test);
+				return tr::lng_payments_receipt_label_test(tr::now);
 			}
-			return lang(lng_payments_receipt_label);
+			return tr::lng_payments_receipt_label(tr::now);
 		} else if (invoice->isTest) {
-			return lang(lng_payments_invoice_label_test);
+			return tr::lng_payments_invoice_label_test(tr::now);
 		}
-		return lang(lng_payments_invoice_label);
+		return tr::lng_payments_invoice_label(tr::now);
 	};
 	auto statusText = TextWithEntities {
 		FillAmountAndCurrency(invoice->amount, invoice->currency),

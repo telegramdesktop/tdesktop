@@ -48,7 +48,7 @@ constexpr auto kExportLocalTimeout = crl::time(1000);
 //	if (const auto channel = peer->asChannel()) {
 //		const auto grouped = (channel->feed() != nullptr);
 //		menu->addAction( // #feed
-//			lang(grouped ? lng_feed_ungroup : lng_feed_group),
+//			grouped ? tr::lng_feed_ungroup(tr::now) : tr::lng_feed_group(tr::now),
 //			[=] { Window::ToggleChannelGrouping(channel, !grouped); });
 //	}
 //}
@@ -60,7 +60,7 @@ void SavePhotoToFile(not_null<PhotoData*> photo) {
 
 	FileDialog::GetWritePath(
 		Core::App().getFileDialogParent(),
-		lang(lng_save_photo),
+		tr::lng_save_photo(tr::now),
 		qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter(),
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
 		crl::guard(&Auth(), [=](const QString &result) {
@@ -95,12 +95,12 @@ void AddPhotoActions(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<PhotoData*> photo) {
 	menu->addAction(
-		lang(lng_context_save_image),
+		tr::lng_context_save_image(tr::now),
 		App::LambdaDelayed(
 			st::defaultDropdownMenu.menu.ripple.hideDuration,
 			&Auth(),
 			[=] { SavePhotoToFile(photo); }));
-	menu->addAction(lang(lng_context_copy_image), [=] {
+	menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
 		CopyImage(photo);
 	});
 }
@@ -133,16 +133,17 @@ void AddSaveDocumentAction(
 			document,
 			DocumentSaveClickHandler::Mode::ToNewFile);
 	};
+
 	menu->addAction(
-		lang(document->isVideoFile()
-			? lng_context_save_video
+		(document->isVideoFile()
+			? tr::lng_context_save_video(tr::now)
 			: (document->isVoiceMessage()
-				? lng_context_save_audio
+				? tr::lng_context_save_audio(tr::now)
 				: (document->isAudioFile()
-					? lng_context_save_audio_file
+					? tr::lng_context_save_audio_file(tr::now)
 					: (document->sticker()
-						? lng_context_save_image
-						: lng_context_save_file)))),
+						? tr::lng_context_save_image(tr::now)
+						: tr::lng_context_save_file(tr::now))))),
 		App::LambdaDelayed(
 			st::defaultDropdownMenu.menu.ripple.hideDuration,
 			&Auth(),
@@ -154,14 +155,14 @@ void AddDocumentActions(
 		not_null<DocumentData*> document,
 		FullMsgId contextId) {
 	if (document->loading()) {
-		menu->addAction(lang(lng_context_cancel_download), [=] {
+		menu->addAction(tr::lng_context_cancel_download(tr::now), [=] {
 			document->cancel();
 		});
 		return;
 	}
 	if (document->loaded() && document->isGifv()) {
 		if (!cAutoPlayGif()) {
-			menu->addAction(lang(lng_context_open_gif), [=] {
+			menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
 				OpenGif(contextId);
 			});
 		}
@@ -169,22 +170,22 @@ void AddDocumentActions(
 	if (document->sticker()
 		&& document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
 		menu->addAction(
-			lang(document->isStickerSetInstalled()
-				? lng_context_pack_info
-				: lng_context_pack_add),
+			(document->isStickerSetInstalled()
+				? tr::lng_context_pack_info(tr::now)
+				: tr::lng_context_pack_add(tr::now)),
 			[=] { ShowStickerPackInfo(document); });
 		menu->addAction(
-			lang(Stickers::IsFaved(document)
-				? lng_faved_stickers_remove
-				: lng_faved_stickers_add),
+			(Stickers::IsFaved(document)
+				? tr::lng_faved_stickers_remove(tr::now)
+				: tr::lng_faved_stickers_add(tr::now)),
 			[=] { ToggleFavedSticker(document, contextId); });
 	}
 	if (!document->filepath(
 			DocumentData::FilePathResolve::Checked).isEmpty()) {
 		menu->addAction(
-			lang(Platform::IsMac()
-				? lng_context_show_in_finder
-				: lng_context_show_in_folder),
+			(Platform::IsMac()
+				? tr::lng_context_show_in_finder(tr::now)
+				: tr::lng_context_show_in_folder(tr::now)),
 			[=] { ShowInFolder(document); });
 	}
 	AddSaveDocumentAction(menu, contextId, document);
@@ -204,9 +205,9 @@ void AddPostLinkAction(
 	}
 	const auto itemId = item->fullId();
 	menu->addAction(
-		lang(item->history()->peer->isMegagroup()
-			? lng_context_copy_link
-			: lng_context_copy_post_link),
+		(item->history()->peer->isMegagroup()
+			? tr::lng_context_copy_link
+			: tr::lng_context_copy_post_link)(tr::now),
 		[=] { CopyPostLink(itemId); });
 }
 
@@ -231,7 +232,7 @@ bool AddForwardSelectedAction(
 		return false;
 	}
 
-	menu->addAction(lang(lng_context_forward_selected), [=] {
+	menu->addAction(tr::lng_context_forward_selected(tr::now), [=] {
 		const auto weak = make_weak(list);
 		auto items = ExtractIdsList(request.selectedItems);
 		Window::ShowForwardMessagesBox(std::move(items), [=] {
@@ -264,7 +265,7 @@ bool AddForwardMessageAction(
 		}
 	}
 	const auto itemId = item->fullId();
-	menu->addAction(lang(lng_context_forward_msg), [=] {
+	menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 		if (const auto item = Auth().data().message(itemId)) {
 			Window::ShowForwardMessagesBox(asGroup
 				? Auth().data().itemOrItsGroup(item)
@@ -295,7 +296,7 @@ bool AddDeleteSelectedAction(
 		return false;
 	}
 
-	menu->addAction(lang(lng_context_delete_selected), [=] {
+	menu->addAction(tr::lng_context_delete_selected(tr::now), [=] {
 		const auto weak = make_weak(list);
 		auto items = ExtractIdsList(request.selectedItems);
 		const auto box = Ui::show(Box<DeleteMessagesBox>(std::move(items)));
@@ -329,7 +330,7 @@ bool AddDeleteMessageAction(
 		}
 	}
 	const auto itemId = item->fullId();
-	menu->addAction(lang(lng_context_delete_msg), [=] {
+	menu->addAction(tr::lng_context_delete_msg(tr::now), [=] {
 		if (const auto item = Auth().data().message(itemId)) {
 			if (asGroup) {
 				if (const auto group = Auth().data().groups().find(item)) {
@@ -367,7 +368,7 @@ bool AddClearSelectionAction(
 	if (!request.overSelection || request.selectedItems.empty()) {
 		return false;
 	}
-	menu->addAction(lang(lng_context_clear_selection), [=] {
+	menu->addAction(tr::lng_context_clear_selection(tr::now), [=] {
 		list->cancelSelection();
 	});
 	return true;
@@ -385,7 +386,7 @@ bool AddSelectMessageAction(
 	}
 	const auto itemId = item->fullId();
 	const auto asGroup = (request.pointState != PointState::GroupPart);
-	menu->addAction(lang(lng_context_select_msg), [=] {
+	menu->addAction(tr::lng_context_select_msg(tr::now), [=] {
 		if (const auto item = Auth().data().message(itemId)) {
 			if (asGroup) {
 				list->selectItemAsGroup(item);
@@ -458,9 +459,9 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		|| !request.selectedText.empty();
 
 	if (request.overSelection) {
-		const auto text = lang(request.selectedItems.empty()
-			? lng_context_copy_selected
-			: lng_context_copy_selected_items);
+		const auto text = request.selectedItems.empty()
+			? tr::lng_context_copy_selected(tr::now)
+			: tr::lng_context_copy_selected_items(tr::now);
 		result->addAction(text, [=] {
 			SetClipboardText(list->getSelectedText());
 		});
@@ -490,7 +491,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		}
 		if (!link && (view->hasVisibleText() || mediaHasTextForCopy)) {
 			const auto asGroup = (request.pointState != PointState::GroupPart);
-			result->addAction(lang(lng_context_copy_text), [=] {
+			result->addAction(tr::lng_context_copy_text(tr::now), [=] {
 				if (const auto item = Auth().data().message(itemId)) {
 					if (asGroup) {
 						if (const auto group = Auth().data().groups().find(item)) {
@@ -520,9 +521,9 @@ void CopyPostLink(FullMsgId itemId) {
 	const auto channel = item->history()->peer->asChannel();
 	Assert(channel != nullptr);
 
-	Ui::Toast::Show(lang(channel->isPublic()
-		? lng_channel_public_link_copied
-		: lng_context_about_private_link));
+	Ui::Toast::Show(channel->isPublic()
+		? tr::lng_channel_public_link_copied(tr::now)
+		: tr::lng_context_about_private_link(tr::now));
 }
 
 void StopPoll(FullMsgId itemId) {
@@ -533,9 +534,9 @@ void StopPoll(FullMsgId itemId) {
 		}
 	};
 	Ui::show(Box<ConfirmBox>(
-		lang(lng_polls_stop_warning),
-		lang(lng_polls_stop_sure),
-		lang(lng_cancel),
+		tr::lng_polls_stop_warning(tr::now),
+		tr::lng_polls_stop_sure(tr::now),
+		tr::lng_cancel(tr::now),
 		stop));
 }
 

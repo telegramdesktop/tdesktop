@@ -38,7 +38,7 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 	const auto status = [&] {
 		if (file.fields.accessHash) {
 			if (file.fields.downloadOffset < 0) {
-				return lang(lng_attach_failed);
+				return tr::lng_attach_failed(tr::now);
 			} else if (file.fields.downloadOffset < file.fields.size) {
 				return formatDownloadText(
 					file.fields.downloadOffset,
@@ -50,7 +50,7 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 			}
 		} else if (file.uploadData) {
 			if (file.uploadData->offset < 0) {
-				return lang(lng_attach_failed);
+				return tr::lng_attach_failed(tr::now);
 			} else if (file.uploadData->fullId) {
 				return formatDownloadText(
 					file.uploadData->offset,
@@ -117,9 +117,9 @@ EditDocumentScheme GetDocumentScheme(
 	};
 	const auto GenderFormat = [](const QString &value) {
 		if (value == qstr("male")) {
-			return lang(lng_passport_gender_male);
+			return tr::lng_passport_gender_male(tr::now);
 		} else if (value == qstr("female")) {
-			return lang(lng_passport_gender_female);
+			return tr::lng_passport_gender_female(tr::now);
 		}
 		return value;
 	};
@@ -143,7 +143,7 @@ EditDocumentScheme GetDocumentScheme(
 		} else if (!QRegularExpression(
 			"^[a-zA-Z0-9\\.,/&\\-' ]+$"
 		).match(value).hasMatch()) {
-			return lang(lng_passport_bad_name);
+			return tr::lng_passport_bad_name(tr::now);
 		}
 		return std::nullopt;
 	};
@@ -183,19 +183,19 @@ EditDocumentScheme GetDocumentScheme(
 	case Scope::Type::PersonalDetails:
 	case Scope::Type::Identity: {
 		auto result = Scheme();
-		result.detailsHeader = lang(lng_passport_personal_details);
-		result.fieldsHeader = lang(lng_passport_document_details);
+		result.detailsHeader = tr::lng_passport_personal_details(tr::now);
+		result.fieldsHeader = tr::lng_passport_document_details(tr::now);
 		if (scansType) {
 			result.scansHeader = [&] {
 				switch (*scansType) {
 				case Value::Type::Passport:
-					return lang(lng_passport_identity_passport);
+					return tr::lng_passport_identity_passport(tr::now);
 				case Value::Type::DriverLicense:
-					return lang(lng_passport_identity_license);
+					return tr::lng_passport_identity_license(tr::now);
 				case Value::Type::IdentityCard:
-					return lang(lng_passport_identity_card);
+					return tr::lng_passport_identity_card(tr::now);
 				case Value::Type::InternalPassport:
-					return lang(lng_passport_identity_internal);
+					return tr::lng_passport_identity_internal(tr::now);
 				default:
 					Unexpected("scansType in GetDocumentScheme:Identity.");
 				}
@@ -206,7 +206,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Fields,
 				PanelDetailsType::Text,
 				qsl("first_name"),
-				lang(lng_passport_first_name),
+				tr::lng_passport_first_name(tr::now),
 				NameValidate,
 				DontFormat,
 				kMaxNameSize,
@@ -215,7 +215,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Fields,
 				PanelDetailsType::Text,
 				qsl("middle_name"),
-				lang(lng_passport_middle_name),
+				tr::lng_passport_middle_name(tr::now),
 				NameOrEmptyValidate,
 				DontFormat,
 				kMaxNameSize,
@@ -225,7 +225,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Fields,
 				PanelDetailsType::Text,
 				qsl("last_name"),
-				lang(lng_passport_last_name),
+				tr::lng_passport_last_name(tr::now),
 				NameValidate,
 				DontFormat,
 				kMaxNameSize,
@@ -235,7 +235,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Fields,
 				PanelDetailsType::Date,
 				qsl("birth_date"),
-				lang(lng_passport_birth_date),
+				tr::lng_passport_birth_date(tr::now),
 				DateValidate,
 				DontFormat,
 			},
@@ -243,7 +243,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Fields,
 				PanelDetailsType::Gender,
 				qsl("gender"),
-				lang(lng_passport_gender),
+				tr::lng_passport_gender(tr::now),
 				GenderValidate,
 				GenderFormat,
 			},
@@ -251,7 +251,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Fields,
 				PanelDetailsType::Country,
 				qsl("country_code"),
-				lang(lng_passport_country),
+				tr::lng_passport_country(tr::now),
 				CountryValidate,
 				CountryFormat,
 			},
@@ -259,7 +259,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Fields,
 				PanelDetailsType::Country,
 				qsl("residence_country_code"),
-				lang(lng_passport_residence_country),
+				tr::lng_passport_residence_country(tr::now),
 				CountryValidate,
 				CountryFormat,
 			},
@@ -267,7 +267,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Scans,
 				PanelDetailsType::Text,
 				qsl("document_no"),
-				lang(lng_passport_document_number),
+				tr::lng_passport_document_number(tr::now),
 				DocumentValidate,
 				DontFormat,
 				kMaxDocumentSize,
@@ -276,7 +276,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Scans,
 				PanelDetailsType::Date,
 				qsl("expiry_date"),
-				lang(lng_passport_expiry_date),
+				tr::lng_passport_expiry_date(tr::now),
 				DateOrEmptyValidate,
 				DontFormat,
 			},
@@ -300,7 +300,7 @@ EditDocumentScheme GetDocumentScheme(
 			result.additionalHeader = [=](const QString &countryCode) {
 				const auto language = languageValue(countryCode);
 				return language.isEmpty()
-					? lang(lng_passport_native_name_title)
+					? tr::lng_passport_native_name_title(tr::now)
 					: lng_passport_native_name_language(
 						lt_language,
 						language);
@@ -308,7 +308,7 @@ EditDocumentScheme GetDocumentScheme(
 			result.additionalDescription = [=](const QString &countryCode) {
 				const auto language = languageValue(countryCode);
 				if (!language.isEmpty()) {
-					return lang(lng_passport_native_name_language_about);
+					return tr::lng_passport_native_name_language_about(tr::now);
 				}
 				const auto name = CountrySelectBox::NameByISO(countryCode);
 				Assert(!name.isEmpty());
@@ -336,7 +336,7 @@ EditDocumentScheme GetDocumentScheme(
 					ValueClass::Additional,
 					PanelDetailsType::Text,
 					qsl("first_name_native"),
-					lang(lng_passport_first_name),
+					tr::lng_passport_first_name(tr::now),
 					NativeNameValidate,
 					DontFormat,
 					kMaxNameSize,
@@ -347,7 +347,7 @@ EditDocumentScheme GetDocumentScheme(
 					ValueClass::Additional,
 					PanelDetailsType::Text,
 					qsl("middle_name_native"),
-					lang(lng_passport_middle_name),
+					tr::lng_passport_middle_name(tr::now),
 					NativeNameOrEmptyValidate,
 					DontFormat,
 					kMaxNameSize,
@@ -358,7 +358,7 @@ EditDocumentScheme GetDocumentScheme(
 					ValueClass::Additional,
 					PanelDetailsType::Text,
 					qsl("last_name_native"),
-					lang(lng_passport_last_name),
+					tr::lng_passport_last_name(tr::now),
 					NativeNameValidate,
 					DontFormat,
 					kMaxNameSize,
@@ -376,23 +376,23 @@ EditDocumentScheme GetDocumentScheme(
 	case Scope::Type::AddressDetails:
 	case Scope::Type::Address: {
 		auto result = Scheme();
-		result.detailsHeader = lang(lng_passport_address);
+		result.detailsHeader = tr::lng_passport_address(tr::now);
 		if (scansType) {
 			switch (*scansType) {
 			case Value::Type::UtilityBill:
-				result.scansHeader = lang(lng_passport_address_bill);
+				result.scansHeader = tr::lng_passport_address_bill(tr::now);
 				break;
 			case Value::Type::BankStatement:
-				result.scansHeader = lang(lng_passport_address_statement);
+				result.scansHeader = tr::lng_passport_address_statement(tr::now);
 				break;
 			case Value::Type::RentalAgreement:
-				result.scansHeader = lang(lng_passport_address_agreement);
+				result.scansHeader = tr::lng_passport_address_agreement(tr::now);
 				break;
 			case Value::Type::PassportRegistration:
-				result.scansHeader = lang(lng_passport_address_registration);
+				result.scansHeader = tr::lng_passport_address_registration(tr::now);
 				break;
 			case Value::Type::TemporaryRegistration:
-				result.scansHeader = lang(lng_passport_address_temporary);
+				result.scansHeader = tr::lng_passport_address_temporary(tr::now);
 				break;
 			default:
 				Unexpected("scansType in GetDocumentScheme:Address.");
@@ -403,7 +403,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Fields,
 				PanelDetailsType::Text,
 				qsl("street_line1"),
-				lang(lng_passport_street),
+				tr::lng_passport_street(tr::now),
 				StreetValidate,
 				DontFormat,
 				kMaxStreetSize,
@@ -412,7 +412,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Fields,
 				PanelDetailsType::Text,
 				qsl("street_line2"),
-				lang(lng_passport_street),
+				tr::lng_passport_street(tr::now),
 				DontValidate,
 				DontFormat,
 				kMaxStreetSize,
@@ -421,7 +421,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Fields,
 				PanelDetailsType::Text,
 				qsl("city"),
-				lang(lng_passport_city),
+				tr::lng_passport_city(tr::now),
 				CityValidate,
 				DontFormat,
 				kMaxStreetSize,
@@ -430,7 +430,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Fields,
 				PanelDetailsType::Text,
 				qsl("state"),
-				lang(lng_passport_state),
+				tr::lng_passport_state(tr::now),
 				DontValidate,
 				DontFormat,
 				kMaxStreetSize,
@@ -439,7 +439,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Fields,
 				PanelDetailsType::Country,
 				qsl("country_code"),
-				lang(lng_passport_country),
+				tr::lng_passport_country(tr::now),
 				CountryValidate,
 				CountryFormat,
 			},
@@ -447,7 +447,7 @@ EditDocumentScheme GetDocumentScheme(
 				ValueClass::Fields,
 				PanelDetailsType::Postcode,
 				qsl("post_code"),
-				lang(lng_passport_postcode),
+				tr::lng_passport_postcode(tr::now),
 				PostcodeValidate,
 				DontFormat,
 				kMaxPostcodeSize,
@@ -466,9 +466,9 @@ EditContactScheme GetContactScheme(Scope::Type type) {
 	switch (type) {
 	case Scope::Type::Phone: {
 		auto result = Scheme(ValueType::Phone);
-		result.aboutExisting = lang(lng_passport_use_existing_phone);
-		result.newHeader = lang(lng_passport_new_phone);
-		result.aboutNew = lang(lng_passport_new_phone_code);
+		result.aboutExisting = tr::lng_passport_use_existing_phone(tr::now);
+		result.newHeader = tr::lng_passport_new_phone(tr::now);
+		result.aboutNew = tr::lng_passport_new_phone_code(tr::now);
 		result.validate = [](const QString &value) {
 			return QRegularExpression(
 				"^\\d{2,12}$"
@@ -485,10 +485,10 @@ EditContactScheme GetContactScheme(Scope::Type type) {
 
 	case Scope::Type::Email: {
 		auto result = Scheme(ValueType::Text);
-		result.aboutExisting = lang(lng_passport_use_existing_email);
-		result.newHeader = lang(lng_passport_new_email);
+		result.aboutExisting = tr::lng_passport_use_existing_email(tr::now);
+		result.newHeader = tr::lng_passport_new_email(tr::now);
 		result.newPlaceholder = tr::lng_passport_email_title();
-		result.aboutNew = lang(lng_passport_new_email_code);
+		result.aboutNew = tr::lng_passport_new_email_code(tr::now);
 		result.validate = [](const QString &value) {
 			const auto at = value.indexOf('@');
 			const auto dot = value.lastIndexOf('.');
@@ -742,8 +742,8 @@ void PanelController::setupPassword() {
 void PanelController::cancelPasswordSubmit() {
 	const auto box = std::make_shared<QPointer<BoxContent>>();
 	*box = show(Box<ConfirmBox>(
-		lang(lng_passport_stop_password_sure),
-		lang(lng_passport_stop),
+		tr::lng_passport_stop_password_sure(tr::now),
+		tr::lng_passport_stop(tr::now),
 		[=] { if (*box) (*box)->closeBox(); _form->cancelPassword(); }));
 }
 
@@ -874,26 +874,26 @@ void PanelController::deleteValue() {
 	const auto text = [&] {
 		switch (_editScope->type) {
 		case Scope::Type::PersonalDetails:
-			return lang(lng_passport_delete_details_sure);
+			return tr::lng_passport_delete_details_sure(tr::now);
 		case Scope::Type::Identity:
-			return lang(lng_passport_delete_document_sure);
+			return tr::lng_passport_delete_document_sure(tr::now);
 		case Scope::Type::AddressDetails:
-			return lang(lng_passport_delete_address_sure);
+			return tr::lng_passport_delete_address_sure(tr::now);
 		case Scope::Type::Address:
-			return lang(lng_passport_delete_document_sure);
+			return tr::lng_passport_delete_document_sure(tr::now);
 		case Scope::Type::Phone:
-			return lang(lng_passport_delete_phone_sure);
+			return tr::lng_passport_delete_phone_sure(tr::now);
 		case Scope::Type::Email:
-			return lang(lng_passport_delete_email_sure);
+			return tr::lng_passport_delete_email_sure(tr::now);
 		}
 		Unexpected("Type in deleteValue.");
 	}();
 	const auto checkbox = (hasValueDocument() && hasValueFields()) ? [&] {
 		switch (_editScope->type) {
 		case Scope::Type::Identity:
-			return lang(lng_passport_delete_details);
+			return tr::lng_passport_delete_details(tr::now);
 		case Scope::Type::Address:
-			return lang(lng_passport_delete_address);
+			return tr::lng_passport_delete_address(tr::now);
 		}
 		Unexpected("Type in deleteValue.");
 	}() : QString();
@@ -972,8 +972,8 @@ void PanelController::showUpdateAppBox() {
 	};
 	show(
 		Box<ConfirmBox>(
-			lang(lng_passport_app_out_of_date),
-			lang(lng_menu_update),
+			tr::lng_passport_app_out_of_date(tr::now),
+			tr::lng_menu_update(tr::now),
 			callback,
 			[=] { _form->cancelSure(); }),
 		LayerOption::KeepOther,
@@ -1038,13 +1038,13 @@ void PanelController::requestScopeFilesType(int index) {
 				}) | ranges::view::transform([](Value::Type type) {
 					switch (type) {
 					case Value::Type::Passport:
-						return lang(lng_passport_identity_passport);
+						return tr::lng_passport_identity_passport(tr::now);
 					case Value::Type::IdentityCard:
-						return lang(lng_passport_identity_card);
+						return tr::lng_passport_identity_card(tr::now);
 					case Value::Type::DriverLicense:
-						return lang(lng_passport_identity_license);
+						return tr::lng_passport_identity_license(tr::now);
 					case Value::Type::InternalPassport:
-						return lang(lng_passport_identity_internal);
+						return tr::lng_passport_identity_internal(tr::now);
 					default:
 						Unexpected("IdentityType in requestScopeFilesType");
 					}
@@ -1061,15 +1061,15 @@ void PanelController::requestScopeFilesType(int index) {
 				}) | ranges::view::transform([](Value::Type type) {
 					switch (type) {
 					case Value::Type::UtilityBill:
-						return lang(lng_passport_address_bill);
+						return tr::lng_passport_address_bill(tr::now);
 					case Value::Type::BankStatement:
-						return lang(lng_passport_address_statement);
+						return tr::lng_passport_address_statement(tr::now);
 					case Value::Type::RentalAgreement:
-						return lang(lng_passport_address_agreement);
+						return tr::lng_passport_address_agreement(tr::now);
 					case Value::Type::PassportRegistration:
-						return lang(lng_passport_address_registration);
+						return tr::lng_passport_address_registration(tr::now);
 					case Value::Type::TemporaryRegistration:
-						return lang(lng_passport_address_temporary);
+						return tr::lng_passport_address_temporary(tr::now);
 					default:
 						Unexpected("AddressType in requestScopeFilesType");
 					}
@@ -1109,11 +1109,11 @@ void PanelController::readScanError(ReadScanError error) {
 	show(Box<InformBox>([&] {
 		switch (error) {
 		case ReadScanError::FileTooLarge:
-			return lang(lng_passport_error_too_large);
+			return tr::lng_passport_error_too_large(tr::now);
 		case ReadScanError::BadImageSize:
-			return lang(lng_passport_error_bad_size);
+			return tr::lng_passport_error_bad_size(tr::now);
 		case ReadScanError::CantReadImage:
-			return lang(lng_passport_error_cant_read);
+			return tr::lng_passport_error_cant_read(tr::now);
 		case ReadScanError::Unknown:
 			return Lang::Hard::UnknownSecureScanError();
 		}
@@ -1391,7 +1391,7 @@ void PanelController::saveScope(ValueMap &&data, ValueMap &&filesData) {
 	Expects(_panel != nullptr);
 
 	if (uploadingScopeScan()) {
-		showToast(lang(lng_passport_wait_upload));
+		showToast(tr::lng_passport_wait_upload(tr::now));
 		return;
 	} else if (savingScope()) {
 		return;
@@ -1426,8 +1426,8 @@ void PanelController::cancelEditScope() {
 	if (_panelHasUnsavedChanges && _panelHasUnsavedChanges()) {
 		if (!_confirmForgetChangesBox) {
 			_confirmForgetChangesBox = show(Box<ConfirmBox>(
-				lang(lng_passport_sure_cancel),
-				lang(lng_continue),
+				tr::lng_passport_sure_cancel(tr::now),
+				tr::lng_continue(tr::now),
 				[=] { _panel->showForm(); }));
 			_editScopeBoxes.emplace_back(_confirmForgetChangesBox);
 		}

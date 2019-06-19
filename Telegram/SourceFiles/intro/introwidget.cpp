@@ -359,7 +359,7 @@ void Widget::acceptTerms(Fn<void()> callback) {
 void Widget::resetAccount() {
 	if (_resetRequest) return;
 
-	Ui::show(Box<ConfirmBox>(lang(lng_signin_sure_reset), lang(lng_signin_reset), st::attentionBoxButton, crl::guard(this, [this] {
+	Ui::show(Box<ConfirmBox>(tr::lng_signin_sure_reset(tr::now), tr::lng_signin_reset(tr::now), st::attentionBoxButton, crl::guard(this, [this] {
 		if (_resetRequest) return;
 		_resetRequest = request(MTPaccount_DeleteAccount(MTP_string("Forgot password"))).done([this](const MTPBool &result) {
 			_resetRequest = 0;
@@ -386,7 +386,7 @@ void Widget::resetAccount() {
 				}
 				Ui::show(Box<InformBox>(lng_signin_reset_wait(lt_phone_number, App::formatPhone(getData()->phone), lt_when, when)));
 			} else if (type == qstr("2FA_RECENT_CONFIRM")) {
-				Ui::show(Box<InformBox>(lang(lng_signin_reset_cancelled)));
+				Ui::show(Box<InformBox>(tr::lng_signin_reset_cancelled(tr::now)));
 			} else {
 				Ui::hideLayer();
 				getStep()->showError(rpl::single(Lang::Hard::ServerError()));
@@ -442,7 +442,7 @@ void Widget::showTerms(Fn<void()> callback) {
 	box->cancelClicks(
 	) | rpl::start_with_next([=] {
 		const auto box = Ui::show(Box<Window::TermsBox>(
-			TextWithEntities{ lang(lng_terms_signup_sorry) },
+			TextWithEntities{ tr::lng_terms_signup_sorry(tr::now) },
 			tr::lng_intro_finish(),
 			tr::lng_terms_decline()));
 		box->agreeClicks(

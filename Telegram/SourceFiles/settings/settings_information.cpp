@@ -71,12 +71,12 @@ void SetupPhoto(
 			if (image.isNull()
 				|| image.width() > 10 * image.height()
 				|| image.height() > 10 * image.width()) {
-				Ui::show(Box<InformBox>(lang(lng_bad_photo)));
+				Ui::show(Box<InformBox>(tr::lng_bad_photo(tr::now)));
 				return;
 			}
 
 			const auto box = Ui::show(
-				Box<PhotoCropBox>(image, lang(lng_settings_crop_profile)));
+				Box<PhotoCropBox>(image, tr::lng_settings_crop_profile(tr::now)));
 			box->ready(
 			) | rpl::start_with_next([=](QImage &&image) {
 				Auth().api().uploadPeerPhoto(self, std::move(image));
@@ -84,7 +84,7 @@ void SetupPhoto(
 		};
 		FileDialog::GetOpenPath(
 			upload,
-			lang(lng_choose_image),
+			tr::lng_choose_image(tr::now),
 			filter,
 			crl::guard(upload, callback));
 	});

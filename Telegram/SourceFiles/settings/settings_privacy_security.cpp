@@ -49,30 +49,27 @@ rpl::producer<> PasscodeChanges() {
 }
 
 QString PrivacyBase(Privacy::Key key, Privacy::Option option) {
-	const auto phrase = [&] {
-		using Key = Privacy::Key;
-		using Option = Privacy::Option;
-		switch (key) {
-		case Key::CallsPeer2Peer:
-			switch (option) {
-			case Option::Everyone:
-				return lng_edit_privacy_calls_p2p_everyone;
-			case Option::Contacts:
-				return lng_edit_privacy_calls_p2p_contacts;
-			case Option::Nobody:
-				return lng_edit_privacy_calls_p2p_nobody;
-			}
-			Unexpected("Value in Privacy::Option.");
-		default:
-			switch (option) {
-			case Option::Everyone: return lng_edit_privacy_everyone;
-			case Option::Contacts: return lng_edit_privacy_contacts;
-			case Option::Nobody: return lng_edit_privacy_nobody;
-			}
-			Unexpected("Value in Privacy::Option.");
+	using Key = Privacy::Key;
+	using Option = Privacy::Option;
+	switch (key) {
+	case Key::CallsPeer2Peer:
+		switch (option) {
+		case Option::Everyone:
+			return tr::lng_edit_privacy_calls_p2p_everyone(tr::now);
+		case Option::Contacts:
+			return tr::lng_edit_privacy_calls_p2p_contacts(tr::now);
+		case Option::Nobody:
+			return tr::lng_edit_privacy_calls_p2p_nobody(tr::now);
 		}
-	}();
-	return lang(phrase);
+		Unexpected("Value in Privacy::Option.");
+	default:
+		switch (option) {
+		case Option::Everyone: return tr::lng_edit_privacy_everyone(tr::now);
+		case Option::Contacts: return tr::lng_edit_privacy_contacts(tr::now);
+		case Option::Nobody: return tr::lng_edit_privacy_nobody(tr::now);
+		}
+		Unexpected("Value in Privacy::Option.");
+	}
 }
 
 rpl::producer<QString> PrivacyString(Privacy::Key key) {
@@ -260,7 +257,7 @@ void SetupCloudPassword(not_null<Ui::VerticalLayout*> container) {
 		return state.unconfirmedPattern;
 	});
 	auto confirmation = rpl::single(
-		lang(lng_profile_loading)
+		tr::lng_profile_loading(tr::now)
 	) | rpl::then(rpl::duplicate(
 		pattern
 	) | rpl::filter([](const QString &pattern) {
@@ -531,8 +528,8 @@ object_ptr<BoxContent> CloudPasswordAppOutdatedBox() {
 		if (*box) (*box)->closeBox();
 	};
 	auto result = Box<ConfirmBox>(
-		lang(lng_passport_app_out_of_date),
-		lang(lng_menu_update),
+		tr::lng_passport_app_out_of_date(tr::now),
+		tr::lng_menu_update(tr::now),
 		callback);
 	*box = result.data();
 	return std::move(result);

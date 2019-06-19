@@ -124,13 +124,13 @@ int KeyboardStyle::minButtonWidth(
 }
 
 QString MessageBadgeText(not_null<const HistoryMessage*> message) {
-	return lang(message->hasAdminBadge()
-		? lng_admin_badge
-		: lng_channel_badge);
+	return message->hasAdminBadge()
+		? tr::lng_admin_badge(tr::now)
+		: tr::lng_channel_badge(tr::now);
 }
 
 QString FastReplyText() {
-	return lang(lng_fast_reply);
+	return tr::lng_fast_reply(tr::now);
 }
 
 void PaintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool outbg, RectPart tailSide) {
@@ -899,7 +899,7 @@ bool Message::getStateFromName(
 				&& point.x() < availableLeft + availableWidth
 				&& point.x() < availableLeft + nameText->maxWidth()) {
 				static const auto hidden = std::make_shared<LambdaClickHandler>([] {
-					Ui::Toast::Show(lang(lng_forwarded_hidden));
+					Ui::Toast::Show(tr::lng_forwarded_hidden(tr::now));
 				});
 				outResult->link = from ? from->openLink() : hidden;
 				return true;

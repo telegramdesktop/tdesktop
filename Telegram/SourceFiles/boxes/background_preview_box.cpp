@@ -390,12 +390,12 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 : _text1(GenerateTextItem(
 	delegate(),
 	Auth().data().history(peerFromUser(PeerData::kServiceNotificationsId)),
-	lang(lng_background_text1),
+	tr::lng_background_text1(tr::now),
 	false))
 , _text2(GenerateTextItem(
 	delegate(),
 	Auth().data().history(peerFromUser(PeerData::kServiceNotificationsId)),
-	lang(lng_background_text2),
+	tr::lng_background_text2(tr::now),
 	true))
 , _paper(paper)
 , _radial([=](crl::time now) { radialAnimationCallback(now); }) {
@@ -439,7 +439,7 @@ void BackgroundPreviewBox::prepare() {
 void BackgroundPreviewBox::createBlurCheckbox() {
 	_blur.create(
 		this,
-		lang(lng_background_blur),
+		tr::lng_background_blur(tr::now),
 		st::backgroundCheckbox,
 		std::make_unique<ServiceCheck>(
 			st::backgroundCheck,
@@ -492,7 +492,7 @@ void BackgroundPreviewBox::apply() {
 
 void BackgroundPreviewBox::share() {
 	QApplication::clipboard()->setText(_paper.shareUrl());
-	Ui::Toast::Show(lang(lng_background_link_copied));
+	Ui::Toast::Show(tr::lng_background_link_copied(tr::now));
 }
 
 void BackgroundPreviewBox::paintEvent(QPaintEvent *e) {
@@ -742,13 +742,13 @@ bool BackgroundPreviewBox::Start(
 		return true;
 	}
 	if (!IsValidWallPaperSlug(slug)) {
-		Ui::show(Box<InformBox>(lang(lng_background_bad_link)));
+		Ui::show(Box<InformBox>(tr::lng_background_bad_link(tr::now)));
 		return false;
 	}
 	Auth().api().requestWallPaper(slug, [=](const Data::WallPaper &result) {
 		Ui::show(Box<BackgroundPreviewBox>(result.withUrlParams(params)));
 	}, [](const RPCError &error) {
-		Ui::show(Box<InformBox>(lang(lng_background_bad_link)));
+		Ui::show(Box<InformBox>(tr::lng_background_bad_link(tr::now)));
 	});
 	return true;
 }

@@ -91,7 +91,7 @@ void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	} else if (count >= Global::ChatSizeMax()
 		&& count < Global::MegagroupSizeMax()) {
 		Ui::show(
-			Box<InformBox>(lang(lng_profile_add_more_after_create)),
+			Box<InformBox>(tr::lng_profile_add_more_after_create(tr::now)),
 			LayerOption::KeepOther);
 	}
 }
@@ -299,8 +299,8 @@ void AddSpecialBoxController::prepare() {
 		Unexpected("Role in AddSpecialBoxController::prepare()");
 	}();
 	delegate()->peerListSetTitle(std::move(title));
-	setDescriptionText(lang(lng_contacts_loading));
-	setSearchNoResultsText(lang(lng_blocked_list_not_found));
+	setDescriptionText(tr::lng_contacts_loading(tr::now));
+	setSearchNoResultsText(tr::lng_blocked_list_not_found(tr::now));
 
 	if (const auto chat = _peer->asChat()) {
 		prepareChatRows(chat);
@@ -409,7 +409,7 @@ void AddSpecialBoxController::loadMoreRows() {
 		if (delegate()->peerListFullRowsCount() > 0) {
 			setDescriptionText(QString());
 		} else if (_allLoaded) {
-			setDescriptionText(lang(lng_blocked_list_not_found));
+			setDescriptionText(tr::lng_blocked_list_not_found(tr::now));
 		}
 		delegate()->peerListRefreshRows();
 	}).fail([this](const RPCError &error) {
@@ -488,20 +488,20 @@ void AddSpecialBoxController::showAdmin(
 				if (!sure) {
 					_editBox = Ui::show(
 						Box<ConfirmBox>(
-							lang(lng_sure_add_admin_unremove),
+							tr::lng_sure_add_admin_unremove(tr::now),
 							showAdminSure),
 						LayerOption::KeepOther);
 					return;
 				}
 			} else {
 				Ui::show(Box<InformBox>(
-					lang(lng_error_cant_add_admin_unban)),
+					tr::lng_error_cant_add_admin_unban(tr::now)),
 					LayerOption::KeepOther);
 				return;
 			}
 		} else {
 			Ui::show(Box<InformBox>(
-				lang(lng_error_cant_add_admin_invite)),
+				tr::lng_error_cant_add_admin_invite(tr::now)),
 				LayerOption::KeepOther);
 			return;
 		}
@@ -511,14 +511,14 @@ void AddSpecialBoxController::showAdmin(
 			if (!sure) {
 				_editBox = Ui::show(
 					Box<ConfirmBox>(
-						lang(lng_sure_add_admin_unremove),
+						tr::lng_sure_add_admin_unremove(tr::now),
 						showAdminSure),
 					LayerOption::KeepOther);
 				return;
 			}
 		} else {
 			Ui::show(Box<InformBox>(
-				lang(lng_error_cant_add_admin_unban)),
+				tr::lng_error_cant_add_admin_unban(tr::now)),
 				LayerOption::KeepOther);
 			return;
 		}
@@ -526,10 +526,9 @@ void AddSpecialBoxController::showAdmin(
 		// The user is not in the group yet.
 		if (canAddMembers) {
 			if (!sure) {
-				const auto text = lang(
-					((_peer->isChat() || _peer->isMegagroup())
-						? lng_sure_add_admin_invite
-						: lng_sure_add_admin_invite_channel));
+				const auto text = ((_peer->isChat() || _peer->isMegagroup())
+					? tr::lng_sure_add_admin_invite
+					: tr::lng_sure_add_admin_invite_channel)(tr::now);
 				_editBox = Ui::show(
 					Box<ConfirmBox>(
 						text,
@@ -539,7 +538,7 @@ void AddSpecialBoxController::showAdmin(
 			}
 		} else {
 			Ui::show(
-				Box<InformBox>(lang(lng_error_cant_add_admin_invite)),
+				Box<InformBox>(tr::lng_error_cant_add_admin_invite(tr::now)),
 				LayerOption::KeepOther);
 			return;
 		}
@@ -626,14 +625,14 @@ void AddSpecialBoxController::showRestricted(
 			if (!sure) {
 				_editBox = Ui::show(
 					Box<ConfirmBox>(
-						lang(lng_sure_ban_admin),
+						tr::lng_sure_ban_admin(tr::now),
 						showRestrictedSure),
 					LayerOption::KeepOther);
 				return;
 			}
 		} else {
 			Ui::show(
-				Box<InformBox>(lang(lng_error_cant_ban_admin)),
+				Box<InformBox>(tr::lng_error_cant_ban_admin(tr::now)),
 				LayerOption::KeepOther);
 			return;
 		}
@@ -716,14 +715,14 @@ void AddSpecialBoxController::kickUser(
 			if (!sure) {
 				_editBox = Ui::show(
 					Box<ConfirmBox>(
-						lang(lng_sure_ban_admin),
+						tr::lng_sure_ban_admin(tr::now),
 						kickUserSure),
 					LayerOption::KeepOther);
 				return;
 			}
 		} else {
 			Ui::show(
-				Box<InformBox>(lang(lng_error_cant_ban_admin)),
+				Box<InformBox>(tr::lng_error_cant_ban_admin(tr::now)),
 				LayerOption::KeepOther);
 			return;
 		}

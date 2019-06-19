@@ -227,8 +227,8 @@ Dialogs::RowDescriptor WrapWidget::activeChat() const {
 //void WrapWidget::createTabs() {
 //	_topTabs.create(this, st::infoTabs);
 //	auto sections = QStringList();
-//	sections.push_back(lang(lng_profile_info_section).toUpper());
-//	sections.push_back(lang(lng_info_tab_media).toUpper());
+//	sections.push_back(tr::lng_profile_info_section(tr::now).toUpper());
+//	sections.push_back(tr::lng_info_tab_media(tr::now).toUpper());
 //	_topTabs->setSections(sections);
 //	_topTabs->setActiveSection(static_cast<int>(_tab));
 //	_topTabs->finishAnimating();
@@ -424,8 +424,8 @@ void WrapWidget::checkBeforeClose(Fn<void()> close) {
 	};
 	if (_controller->canSaveChangesNow()) {
 		Ui::show(Box<ConfirmBox>(
-			lang(lng_settings_close_sure),
-			lang(lng_close),
+			tr::lng_settings_close_sure(tr::now),
+			tr::lng_close(tr::now),
 			confirmed));
 	} else {
 		confirmed();

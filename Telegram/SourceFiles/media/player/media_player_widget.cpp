@@ -540,7 +540,7 @@ void Widget::handleSongChange() {
 				name.size(),
 				QString()));
 		} else {
-			textWithEntities.text = lang(lng_media_audio);
+			textWithEntities.text = tr::lng_media_audio(tr::now);
 		}
 	} else {
 		const auto song = document->song();

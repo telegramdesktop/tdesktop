@@ -100,7 +100,7 @@ void RequestTypeBox::setupControls(
 		Fn<void(int index)> submit) {
 	const auto header = Ui::CreateChild<Ui::FlatLabel>(
 		this,
-		lang(lng_passport_document_type),
+		tr::lng_passport_document_type(tr::now),
 		st::boxDividerLabel);
 
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>(0);
@@ -681,7 +681,7 @@ object_ptr<BoxContent> RequestIdentityType(
 		std::vector<QString> labels) {
 	return Box<RequestTypeBox>(
 		tr::lng_passport_identity_title(),
-		lang(lng_passport_identity_about),
+		tr::lng_passport_identity_about(tr::now),
 		std::move(labels),
 		submit);
 }
@@ -691,7 +691,7 @@ object_ptr<BoxContent> RequestAddressType(
 		std::vector<QString> labels) {
 	return Box<RequestTypeBox>(
 		tr::lng_passport_address_title(),
-		lang(lng_passport_address_about),
+		tr::lng_passport_address_about(tr::now),
 		std::move(labels),
 		submit);
 }

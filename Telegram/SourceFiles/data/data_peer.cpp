@@ -82,9 +82,9 @@ void PeerClickHandler::onClick(ClickContext context) const {
 			&& _peer->isChannel()
 			&& controller->activeChatCurrent().peer() != _peer) {
 			if (!_peer->asChannel()->isPublic() && !_peer->asChannel()->amIn()) {
-				Ui::show(Box<InformBox>(lang(_peer->isMegagroup()
-					? lng_group_not_accessible
-					: lng_channel_not_accessible)));
+				Ui::show(Box<InformBox>(_peer->isMegagroup()
+					? tr::lng_group_not_accessible(tr::now)
+					: tr::lng_channel_not_accessible(tr::now)));
 			} else {
 				controller->showPeerHistory(
 					_peer,
@@ -455,7 +455,7 @@ void PeerData::fillNames() {
 		appendToIndex(user->username);
 		if (isSelf()) {
 			const auto english = qsl("Saved messages");
-			const auto localized = lang(lng_saved_messages);
+			const auto localized = tr::lng_saved_messages(tr::now);
 			appendToIndex(english);
 			if (localized != english) {
 				appendToIndex(localized);
@@ -709,7 +709,7 @@ std::vector<ChatRestrictions> ListOfRestrictions() {
 	};
 }
 
-std::optional<LangKey> RestrictionErrorKey(
+std::optional<QString> RestrictionError(
 		not_null<PeerData*> peer,
 		ChatRestriction restriction) {
 	using Flag = ChatRestriction;
@@ -718,29 +718,29 @@ std::optional<LangKey> RestrictionErrorKey(
 		switch (restriction) {
 		case Flag::f_send_polls:
 			return all
-				? lng_restricted_send_polls_all
-				: lng_restricted_send_polls;
+				? tr::lng_restricted_send_polls_all(tr::now)
+				: tr::lng_restricted_send_polls(tr::now);
 		case Flag::f_send_messages:
 			return all
-				? lng_restricted_send_message_all
-				: lng_restricted_send_message;
+				? tr::lng_restricted_send_message_all(tr::now)
+				: tr::lng_restricted_send_message(tr::now);
 		case Flag::f_send_media:
 			return all
-				? lng_restricted_send_media_all
-				: lng_restricted_send_media;
+				? tr::lng_restricted_send_media_all(tr::now)
+				: tr::lng_restricted_send_media(tr::now);
 		case Flag::f_send_stickers:
 			return all
-				? lng_restricted_send_stickers_all
-				: lng_restricted_send_stickers;
+				? tr::lng_restricted_send_stickers_all(tr::now)
+				: tr::lng_restricted_send_stickers(tr::now);
 		case Flag::f_send_gifs:
 			return all
-				? lng_restricted_send_gifs_all
-				: lng_restricted_send_gifs;
+				? tr::lng_restricted_send_gifs_all(tr::now)
+				: tr::lng_restricted_send_gifs(tr::now);
 		case Flag::f_send_inline:
 		case Flag::f_send_games:
 			return all
-				? lng_restricted_send_inline_all
-				: lng_restricted_send_inline;
+				? tr::lng_restricted_send_inline_all(tr::now)
+				: tr::lng_restricted_send_inline(tr::now);
 		}
 		Unexpected("Restriction in Data::RestrictionErrorKey.");
 	}

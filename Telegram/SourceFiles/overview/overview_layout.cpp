@@ -253,7 +253,7 @@ void StatusText::update(int newSize, int fullSize, int duration, crl::time realD
 	} else if (_size == FileStatusSizeLoaded) {
 		_text = (duration >= 0) ? formatDurationText(duration) : (duration < -1 ? qsl("GIF") : formatSizeText(fullSize));
 	} else if (_size == FileStatusSizeFailed) {
-		_text = lang(lng_attach_failed);
+		_text = tr::lng_attach_failed(tr::now);
 	} else if (_size >= 0) {
 		_text = formatDownloadText(_size, fullSize);
 	} else {

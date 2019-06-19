@@ -145,7 +145,7 @@ void StickerSetBox::addStickers() {
 void StickerSetBox::shareStickers() {
 	auto url = Core::App().createInternalLinkFull(qsl("addstickers/") + _inner->shortName());
 	QApplication::clipboard()->setText(url);
-	Ui::show(Box<InformBox>(lang(lng_stickers_copied)));
+	Ui::show(Box<InformBox>(tr::lng_stickers_copied(tr::now)));
 }
 
 void StickerSetBox::updateTitleAndButtons() {
@@ -260,7 +260,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 	});
 
 	if (_pack.isEmpty()) {
-		Ui::show(Box<InformBox>(lang(lng_stickers_not_found)));
+		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 		return;
 	} else {
 		int32 rows = _pack.size() / kStickersPanelPerRow + ((_pack.size() % kStickersPanelPerRow) ? 1 : 0);
@@ -285,7 +285,7 @@ bool StickerSetBox::Inner::failedSet(const RPCError &error) {
 
 	_loaded = true;
 
-	Ui::show(Box<InformBox>(lang(lng_stickers_not_found)));
+	Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 
 	return true;
 }
@@ -359,7 +359,7 @@ void StickerSetBox::Inner::installDone(const MTPmessages_StickerSetInstallResult
 bool StickerSetBox::Inner::installFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	Ui::show(Box<InformBox>(lang(lng_stickers_not_found)));
+	Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 
 	return true;
 }
@@ -538,7 +538,7 @@ QString StickerSetBox::Inner::shortName() const {
 void StickerSetBox::Inner::install() {
 	if (isMasksSet()) {
 		Ui::show(
-			Box<InformBox>(lang(lng_stickers_masks_pack)),
+			Box<InformBox>(tr::lng_stickers_masks_pack(tr::now)),
 			LayerOption::KeepOther);
 		return;
 	}

@@ -81,7 +81,7 @@ void BlockUserBoxController::updateIsBlocked(not_null<PeerListRow*> row, UserDat
 	auto blocked = user->isBlocked();
 	row->setDisabledState(blocked ? PeerListRow::State::DisabledChecked : PeerListRow::State::Active);
 	if (blocked) {
-		row->setCustomStatus(lang(lng_blocked_list_already_blocked));
+		row->setCustomStatus(tr::lng_blocked_list_already_blocked(tr::now));
 	} else {
 		row->clearCustomStatus();
 	}
@@ -155,7 +155,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 
 void BlockedBoxController::prepare() {
 	delegate()->peerListSetTitle(tr::lng_blocked_list_title());
-	setDescriptionText(lang(lng_contacts_loading));
+	setDescriptionText(tr::lng_contacts_loading(tr::now));
 	delegate()->peerListRefreshRows();
 
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
@@ -169,7 +169,7 @@ void BlockedBoxController::prepare() {
 	) | rpl::take(
 		1
 	) | rpl::start_with_next([=](const ApiWrap::BlockedUsersSlice &result) {
-		setDescriptionText(lang(lng_blocked_list_about));
+		setDescriptionText(tr::lng_blocked_list_about(tr::now));
 		_loadRequestId = 0;
 		_offset = result.list.size();
 		_allLoaded = (_offset >= result.total);
@@ -286,18 +286,18 @@ bool BlockedBoxController::prependRow(not_null<UserData*> user) {
 std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 		not_null<UserData*> user) const {
 	auto row = std::make_unique<PeerListRowWithLink>(user);
-	row->setActionLink(lang((user->isBot() && !user->isSupport())
-		? lng_blocked_list_restart
-		: lng_blocked_list_unblock));
+	row->setActionLink((user->isBot() && !user->isSupport())
+		? tr::lng_blocked_list_restart(tr::now)
+		: tr::lng_blocked_list_unblock(tr::now));
 	const auto status = [&] {
 		if (!user->phone().isEmpty()) {
 			return App::formatPhone(user->phone());
 		} else if (!user->username.isEmpty()) {
 			return '@' + user->username;
 		} else if (user->botInfo) {
-			return lang(lng_status_bot);
+			return tr::lng_status_bot(tr::now);
 		}
-		return lang(lng_blocked_list_unknown_phone);
+		return tr::lng_blocked_list_unknown_phone(tr::now);
 	}();
 	row->setCustomStatus(status);
 	return std::move(row);
@@ -403,9 +403,9 @@ void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, FnMut<void()
 			Local::writeUserSettings();
 		};
 		auto box = Box<ConfirmBox>(
-			lang(lng_edit_privacy_lastseen_warning),
-			lang(lng_continue),
-			lang(lng_cancel),
+			tr::lng_edit_privacy_lastseen_warning(tr::now),
+			tr::lng_continue(tr::now),
+			tr::lng_cancel(tr::now),
 			std::move(callback));
 		*weakBox = Ui::show(std::move(box), LayerOption::KeepOther);
 	} else {
@@ -528,12 +528,12 @@ rpl::producer<QString> CallsPeer2PeerPrivacyController::optionsTitleKey() {
 	return tr::lng_edit_privacy_calls_p2p_header();
 }
 
-LangKey CallsPeer2PeerPrivacyController::optionLabelKey(
+QString CallsPeer2PeerPrivacyController::optionLabel(
 		EditPrivacyBox::Option option) {
 	switch (option) {
-		case Option::Everyone: return lng_edit_privacy_calls_p2p_everyone;
-		case Option::Contacts: return lng_edit_privacy_calls_p2p_contacts;
-		case Option::Nobody: return lng_edit_privacy_calls_p2p_nobody;
+	case Option::Everyone: return tr::lng_edit_privacy_calls_p2p_everyone(tr::now);
+	case Option::Contacts: return tr::lng_edit_privacy_calls_p2p_contacts(tr::now);
+	case Option::Nobody: return tr::lng_edit_privacy_calls_p2p_nobody(tr::now);
 	}
 	Unexpected("Option value in optionsLabelKey.");
 }
@@ -616,7 +616,7 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 		delegate(),
 		Auth().data().history(
 			peerFromUser(PeerData::kServiceNotificationsId)),
-		lang(lng_edit_privacy_forwards_sample_message));
+		tr::lng_edit_privacy_forwards_sample_message(tr::now));
 	const auto view = message.get();
 
 	auto result = object_ptr<Ui::RpWidget>(parent);
@@ -678,9 +678,12 @@ void ForwardsPrivacyController::PaintForwardedTooltip(
 	const auto phrase = lng_forwarded(
 		lt_user,
 		App::peerName(view->data()->history()->session().user()));
-	const auto possiblePosition = Lang::FindTagReplacementPosition(
-		lang(lng_forwarded__tagged),
-		lt_user);
+	const auto kReplacementPosition = QChar(0x0001);
+	const auto possiblePosition = tr::lng_forwarded(
+		tr::now,
+		lt_user,
+		QString(1, kReplacementPosition)
+	).indexOf(kReplacementPosition);
 	const auto position = (possiblePosition >= 0
 		&& possiblePosition < phrase.size())
 		? possiblePosition
@@ -691,18 +694,17 @@ void ForwardsPrivacyController::PaintForwardedTooltip(
 		< 2 * st::msgServiceFont->height;
 	const auto nameLeft = skip + (small ? st::msgServiceFont->width(before) : 0);
 	const auto right = skip + innerWidth;
-	const auto key = [&] {
+	const auto text = [&] {
 		switch (value) {
 		case Option::Everyone:
-			return lng_edit_privacy_forwards_sample_everyone;
+			return tr::lng_edit_privacy_forwards_sample_everyone(tr::now);
 		case Option::Contacts:
-			return lng_edit_privacy_forwards_sample_contacts;
+			return tr::lng_edit_privacy_forwards_sample_contacts(tr::now);
 		case Option::Nobody:
-			return lng_edit_privacy_forwards_sample_nobody;
+			return tr::lng_edit_privacy_forwards_sample_nobody(tr::now);
 		}
 		Unexpected("Option value in ForwardsPrivacyController.");
 	}();
-	const auto text = lang(key);
 	const auto &font = st::toastTextStyle.font;
 	const auto textWidth = font->width(text);
 	const auto arrowSkip = st::settingsForwardPrivacyArrowSkip;

@@ -129,7 +129,7 @@ void ChangePhoneBox::EnterPhone::prepare() {
 	_phone->moveToLeft(st::boxPadding.left(), st::boxLittleSkip);
 	connect(_phone, &Ui::PhoneInput::submitted, [=] { submit(); });
 
-	auto description = object_ptr<Ui::FlatLabel>(this, lang(lng_change_phone_new_description), st::changePhoneLabel);
+	auto description = object_ptr<Ui::FlatLabel>(this, tr::lng_change_phone_new_description(tr::now), st::changePhoneLabel);
 	auto errorSkip = st::boxLittleSkip + st::changePhoneError.style.font->height;
 	description->moveToLeft(st::boxPadding.left(), _phone->y() + _phone->height() + errorSkip + st::boxLittleSkip);
 
@@ -196,11 +196,11 @@ void ChangePhoneBox::EnterPhone::sendPhoneDone(const QString &phoneNumber, const
 bool ChangePhoneBox::EnterPhone::sendPhoneFail(const QString &phoneNumber, const RPCError &error) {
 	auto errorText = Lang::Hard::ServerError();
 	if (MTP::isFloodError(error)) {
-		errorText = lang(lng_flood_error);
+		errorText = tr::lng_flood_error(tr::now);
 	} else if (MTP::isDefaultHandledError(error)) {
 		return false;
 	} else if (error.type() == qstr("PHONE_NUMBER_INVALID")) {
-		errorText = lang(lng_bad_phone);
+		errorText = tr::lng_bad_phone(tr::now);
 	} else if (error.type() == qstr("PHONE_NUMBER_BANNED")) {
 		ShowPhoneBannedError(phoneNumber);
 		_requestId = 0;
@@ -210,7 +210,7 @@ bool ChangePhoneBox::EnterPhone::sendPhoneFail(const QString &phoneNumber, const
 			lng_change_phone_occupied(
 				lt_phone,
 				App::formatPhone(phoneNumber)),
-			lang(lng_box_ok)));
+			tr::lng_box_ok(tr::now)));
 		_requestId = 0;
 		return true;
 	}
@@ -286,7 +286,7 @@ void ChangePhoneBox::EnterCode::submit() {
 		if (weak) {
 			Ui::hideLayer();
 		}
-		Ui::Toast::Show(lang(lng_change_phone_success));
+		Ui::Toast::Show(tr::lng_change_phone_success(tr::now));
 	}), rpcFail(crl::guard(this, [this](const RPCError &error) {
 		return sendCodeFail(error);
 	})));
@@ -321,18 +321,18 @@ void ChangePhoneBox::EnterCode::showError(const QString &text) {
 bool ChangePhoneBox::EnterCode::sendCodeFail(const RPCError &error) {
 	auto errorText = Lang::Hard::ServerError();
 	if (MTP::isFloodError(error)) {
-		errorText = lang(lng_flood_error);
+		errorText = tr::lng_flood_error(tr::now);
 	} else if (MTP::isDefaultHandledError(error)) {
 		return false;
 	} else if (error.type() == qstr("PHONE_CODE_EMPTY") || error.type() == qstr("PHONE_CODE_INVALID")) {
-		errorText = lang(lng_bad_code);
+		errorText = tr::lng_bad_code(tr::now);
 	} else if (error.type() == qstr("PHONE_CODE_EXPIRED")
 		|| error.type() == qstr("PHONE_NUMBER_BANNED")) {
 		closeBox(); // Go back to phone input.
 		_requestId = 0;
 		return true;
 	} else if (error.type() == qstr("PHONE_NUMBER_INVALID")) {
-		errorText = lang(lng_bad_phone);
+		errorText = tr::lng_bad_phone(tr::now);
 	}
 	_requestId = 0;
 	showError(errorText);
@@ -342,7 +342,7 @@ bool ChangePhoneBox::EnterCode::sendCodeFail(const RPCError &error) {
 void ChangePhoneBox::prepare() {
 	setTitle(tr::lng_change_phone_title());
 	addButton(tr::lng_change_phone_button(), [] {
-		Ui::show(Box<ConfirmBox>(lang(lng_change_phone_warning), [] {
+		Ui::show(Box<ConfirmBox>(tr::lng_change_phone_warning(tr::now), [] {
 			Ui::show(Box<EnterPhone>());
 		}));
 	});

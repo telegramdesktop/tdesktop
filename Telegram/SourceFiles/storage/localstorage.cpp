@@ -3484,13 +3484,13 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 
 		setFlags = MTPDstickerSet::Flags::from_raw(setFlagsValue);
 		if (setId == Stickers::DefaultSetId) {
-			setTitle = lang(lng_stickers_default_set);
+			setTitle = tr::lng_stickers_default_set(tr::now);
 			setFlags |= MTPDstickerSet::Flag::f_official | MTPDstickerSet_ClientFlag::f_special;
 		} else if (setId == Stickers::CustomSetId) {
 			setTitle = qsl("Custom stickers");
 			setFlags |= MTPDstickerSet_ClientFlag::f_special;
 		} else if (setId == Stickers::CloudRecentSetId) {
-			setTitle = lang(lng_recent_stickers);
+			setTitle = tr::lng_recent_stickers(tr::now);
 			setFlags |= MTPDstickerSet_ClientFlag::f_special;
 		} else if (setId == Stickers::FavedSetId) {
 			setTitle = Lang::Hard::FavedSetTitle();
@@ -3721,7 +3721,7 @@ void importOldRecentStickers() {
 	auto &def = sets.insert(Stickers::DefaultSetId, Stickers::Set(
 		Stickers::DefaultSetId,
 		uint64(0),
-		lang(lng_stickers_default_set),
+		tr::lng_stickers_default_set(tr::now),
 		QString(),
 		0, // count
 		0, // hash
