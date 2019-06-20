@@ -18,22 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 
 namespace ChatHelpers {
-namespace {
-
-tr::phrase<> CategoryTitle(int index) {
-	switch (index) {
-	case 1: return tr::lng_emoji_category1;
-	case 2: return tr::lng_emoji_category2;
-	case 3: return tr::lng_emoji_category3;
-	case 4: return tr::lng_emoji_category4;
-	case 5: return tr::lng_emoji_category5;
-	case 6: return tr::lng_emoji_category6;
-	case 7: return tr::lng_emoji_category7;
-	}
-	Unexpected("Index in CategoryTitle.");
-}
-
-} // namespace
 
 class EmojiColorPicker : public Ui::RpWidget {
 public:
@@ -545,7 +529,7 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 		if (info.section > 0 && r.top() < info.rowsTop) {
 			p.setFont(st::emojiPanHeaderFont);
 			p.setPen(st::emojiPanHeaderFg);
-			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, info.top + st::emojiPanHeaderTop, width(), CategoryTitle(info.section)(tr::now));
+			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, info.top + st::emojiPanHeaderTop, width(), Ui::Emoji::CategoryTitle(info.section)(tr::now));
 		}
 		if (r.top() + r.height() > info.rowsTop) {
 			ensureLoaded(info.section);

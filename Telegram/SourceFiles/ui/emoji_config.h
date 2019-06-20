@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/binary_guard.h"
 #include "emoji.h"
+#include "lang/lang_keys.h"
 
 namespace Ui {
 namespace Emoji {
@@ -36,6 +37,8 @@ struct Set {
 
 // Thread safe, callback is called on main thread.
 void SwitchToSet(int id, Fn<void(bool)> callback);
+
+tr::phrase<> CategoryTitle(int index);
 
 std::vector<Set> Sets();
 int CurrentSetId();

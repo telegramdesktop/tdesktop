@@ -576,6 +576,19 @@ void ClearIrrelevantCache() {
 	});
 }
 
+tr::phrase<> CategoryTitle(int index) {
+	switch (index) {
+	case 1: return tr::lng_emoji_category1;
+	case 2: return tr::lng_emoji_category2;
+	case 3: return tr::lng_emoji_category3;
+	case 4: return tr::lng_emoji_category4;
+	case 5: return tr::lng_emoji_category5;
+	case 6: return tr::lng_emoji_category6;
+	case 7: return tr::lng_emoji_category7;
+	}
+	Unexpected("Index in CategoryTitle.");
+}
+
 std::vector<Set> Sets() {
 	return kSets | ranges::to_vector;
 }

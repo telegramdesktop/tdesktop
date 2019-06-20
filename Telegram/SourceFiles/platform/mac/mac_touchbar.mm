@@ -172,6 +172,15 @@ inline int UnreadCount(not_null<PeerData*> peer) {
 	return 0;
 }
 
+QString TitleRecentlyUsed() {
+	const auto &sets = Auth().data().stickerSets();
+	const auto it = sets.constFind(Stickers::CloudRecentSetId);
+	if (it != sets.cend()) {
+		return it->title;
+	}
+	return tr::lng_recent_stickers(tr::now);
+}
+
 NSString *FormatTime(int time) {
 	const auto seconds = time % 60;
 	const auto minutes = (time / 60) % 60;
@@ -324,16 +333,12 @@ void AppendFavedStickers(std::vector<PickerScrubberItem> &to) {
 }
 
 void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
-	// Get 'Recent' string.
-	const auto recent = Auth().data().stickerSets()
-		.constFind(Stickers::CloudRecentSetId)->title;
-
 	for (auto i = 0; i != ChatHelpers::kEmojiSectionCount; ++i) {
 		const auto section = Ui::Emoji::GetSection(
 			static_cast<Ui::Emoji::Section>(i));
 		const auto title = i
-			? lang(LangKey(lng_emoji_category1 + i))
-			: recent;
+			? Ui::Emoji::CategoryTitle(i)(tr::now)
+			: TitleRecentlyUsed();
 		to.emplace_back(title);
 		for (const auto &emoji : section) {
 			to.emplace_back(PickerScrubberItem(emoji));
@@ -711,6 +716,10 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		if (++count == kMaxStickerSets) {
 			break;
 		}
+	}
+	if (!temp.size()) {
+		temp.emplace_back(PickerScrubberItem(
+			tr::lng_stickers_nothing_found(tr::now)));
 	}
 	_stickers = std::move(temp);
 }
