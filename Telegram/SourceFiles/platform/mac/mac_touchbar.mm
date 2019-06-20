@@ -326,7 +326,8 @@ void AppendFavedStickers(std::vector<PickerScrubberItem> &to) {
 	if (!count) {
 		return;
 	}
-	to.emplace_back(PickerScrubberItem(it->title));
+	to.emplace_back(PickerScrubberItem(
+		tr::lng_mac_touchbar_favorite_stickers(tr::now)));
 	for (const auto document : it->stickers) {
 		to.emplace_back(PickerScrubberItem(document));
 	}

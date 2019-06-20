@@ -2126,4 +2126,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mac_menu_new_channel" = "New Channel";
 "lng_mac_menu_show" = "Show Telegram";
 
+"lng_mac_touchbar_favorite_stickers" = "Favorite stickers";
+
 // Keys finished
