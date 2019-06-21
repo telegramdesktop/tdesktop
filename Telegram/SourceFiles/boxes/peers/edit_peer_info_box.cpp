@@ -240,6 +240,7 @@ private:
 	std::optional<Privacy> _privacySavedValue;
 	std::optional<ChannelData*> _linkedChatSavedValue;
 	ChannelData *_linkedChatOriginalValue = nullptr;
+	bool _channelHasLocationOriginalValue = false;
 	std::optional<HistoryVisibility> _historyVisibilitySavedValue;
 	std::optional<QString> _usernameSavedValue;
 	std::optional<bool> _signaturesSavedValue;
@@ -489,7 +490,8 @@ void Controller::refreshHistoryVisibility(anim::type animated) {
 		return;
 	}
 	_controls.historyVisibilityWrap->toggle(
-		(_privacySavedValue != Privacy::Public
+		(_privacySavedValue != Privacy::HasUsername
+			&& !_channelHasLocationOriginalValue
 			&& (!_linkedChatSavedValue || !*_linkedChatSavedValue)),
 		animated);
 };
@@ -506,6 +508,7 @@ void Controller::showEditPeerTypeBox(
 	Ui::show(
 		Box<EditPeerTypeBox>(
 			_peer,
+			_channelHasLocationOriginalValue,
 			boxCallback,
 			_privacySavedValue,
 			_usernameSavedValue,
@@ -569,26 +572,34 @@ void Controller::fillPrivacyTypeButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
 	// Create Privacy Button.
+	const auto hasLocation = _peer->isChannel()
+		&& _peer->asChannel()->hasLocation();
 	_privacySavedValue = (_peer->isChannel()
-		&& _peer->asChannel()->isPublic())
-		? Privacy::Public
-		: Privacy::Private;
+		&& _peer->asChannel()->hasUsername())
+		? Privacy::HasUsername
+		: Privacy::NoUsername;
 
 	const auto isGroup = (_peer->isChat() || _peer->isMegagroup());
 	AddButtonWithText(
 		_controls.buttonsLayout,
-		(isGroup
+		(hasLocation
+			? tr::lng_manage_peer_link_type
+			: isGroup
 			? tr::lng_manage_peer_group_type
 			: tr::lng_manage_peer_channel_type)(),
 		_privacyTypeUpdates.events(
 		) | rpl::map([=](Privacy flag) {
-			return (Privacy::Public == flag
-				? (isGroup
+			return (flag == Privacy::HasUsername)
+				? (hasLocation
+					? tr::lng_manage_peer_link_permanent
+					: isGroup
 					? tr::lng_manage_public_group_title
-					: tr::lng_manage_public_peer_title)
-				: (isGroup
+					: tr::lng_manage_public_peer_title)()
+				: (hasLocation
+					? tr::lng_manage_peer_link_invite
+					: isGroup
 					? tr::lng_manage_private_group_title
-					: tr::lng_manage_private_peer_title))();
+					: tr::lng_manage_private_peer_title)();
 		}) | rpl::flatten_latest(),
 		[=] { showEditPeerTypeBox(); });
 
@@ -640,9 +651,7 @@ void Controller::fillInviteLinkButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
 	const auto buttonCallback = [=] {
-		Ui::show(
-			Box<EditPeerTypeBox>(_peer),
-			LayerOption::KeepOther);
+		Ui::show(Box<EditPeerTypeBox>(_peer), LayerOption::KeepOther);
 	};
 
 	AddButtonWithText(
@@ -685,6 +694,7 @@ void Controller::fillHistoryVisibilityButton() {
 	_historyVisibilitySavedValue = (!channel || channel->hiddenPreHistory())
 		? HistoryVisibility::Hidden
 		: HistoryVisibility::Visible;
+	_channelHasLocationOriginalValue = channel && channel->hasLocation();
 
 	const auto updateHistoryVisibility =
 		std::make_shared<rpl::event_stream<HistoryVisibility>>();
@@ -945,7 +955,7 @@ std::optional<Controller::Saving> Controller::validate() const {
 bool Controller::validateUsername(Saving &to) const {
 	if (!_privacySavedValue) {
 		return true;
-	} else if (_privacySavedValue != Privacy::Public) {
+	} else if (_privacySavedValue != Privacy::HasUsername) {
 		to.username = QString();
 		return true;
 	}
@@ -994,7 +1004,8 @@ bool Controller::validateDescription(Saving &to) const {
 bool Controller::validateHistoryVisibility(Saving &to) const {
 	if (!_controls.historyVisibilityWrap
 		|| !_controls.historyVisibilityWrap->toggled()
-		|| (_privacySavedValue == Privacy::Public)) {
+		|| _channelHasLocationOriginalValue
+		|| (_privacySavedValue == Privacy::HasUsername)) {
 		return true;
 	}
 	to.hiddenPreHistory

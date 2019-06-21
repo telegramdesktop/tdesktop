@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryItem;
 class HistoryMedia;
-class LocationCoords;
-struct LocationData;
 
 namespace base {
 template <typename Enum>
@@ -28,6 +26,9 @@ class Element;
 } // namespace HistoryView
 
 namespace Data {
+
+class LocationPoint;
+struct LocationThumbnail;
 
 enum class CallFinishReason : char {
 	Missed,
@@ -76,7 +77,7 @@ public:
 	virtual const Call *call() const;
 	virtual GameData *game() const;
 	virtual const Invoice *invoice() const;
-	virtual LocationData *location() const;
+	virtual LocationThumbnail *location() const;
 	virtual PollData *poll() const;
 
 	virtual bool uploading() const;
@@ -226,16 +227,16 @@ class MediaLocation : public Media {
 public:
 	MediaLocation(
 		not_null<HistoryItem*> parent,
-		const LocationCoords &coords);
+		const LocationPoint &point);
 	MediaLocation(
 		not_null<HistoryItem*> parent,
-		const LocationCoords &coords,
+		const LocationPoint &point,
 		const QString &title,
 		const QString &description);
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
-	LocationData *location() const override;
+	LocationThumbnail *location() const override;
 	QString chatListText() const override;
 	QString notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -248,7 +249,7 @@ public:
 		not_null<HistoryItem*> realParent) override;
 
 private:
-	not_null<LocationData*> _location;
+	not_null<LocationThumbnail*> _location;
 	QString _title;
 	QString _description;
 

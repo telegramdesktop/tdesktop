@@ -1025,9 +1025,10 @@ Article::Article(not_null<Context*> context, Result *result, bool withThumb) : I
 , _withThumb(withThumb)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
-	LocationCoords location;
-	if (!_link && result->getLocationCoords(&location)) {
-		_link = std::make_shared<LocationClickHandler>(location);
+	if (!_link) {
+		if (const auto point = result->getLocationPoint()) {
+			_link = std::make_shared<LocationClickHandler>(*point);
+		}
 	}
 	_thumbLetter = getResultThumbLetter();
 }

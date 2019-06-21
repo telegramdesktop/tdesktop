@@ -168,7 +168,7 @@ const Invoice *Media::invoice() const {
 	return nullptr;
 }
 
-LocationData *Media::location() const {
+LocationThumbnail *Media::location() const {
 	return nullptr;
 }
 
@@ -861,17 +861,17 @@ std::unique_ptr<HistoryMedia> MediaContact::createView(
 
 MediaLocation::MediaLocation(
 	not_null<HistoryItem*> parent,
-	const LocationCoords &coords)
-: MediaLocation(parent, coords, QString(), QString()) {
+	const LocationPoint &point)
+: MediaLocation(parent, point, QString(), QString()) {
 }
 
 MediaLocation::MediaLocation(
 	not_null<HistoryItem*> parent,
-	const LocationCoords &coords,
+	const LocationPoint &point,
 	const QString &title,
 	const QString &description)
 : Media(parent)
-, _location(parent->history()->owner().location(coords))
+, _location(parent->history()->owner().location(point))
 , _title(title)
 , _description(description) {
 }
@@ -879,12 +879,12 @@ MediaLocation::MediaLocation(
 std::unique_ptr<Media> MediaLocation::clone(not_null<HistoryItem*> parent) {
 	return std::make_unique<MediaLocation>(
 		parent,
-		_location->coords,
+		_location->point,
 		_title,
 		_description);
 }
 
-LocationData *MediaLocation::location() const {
+LocationThumbnail *MediaLocation::location() const {
 	return _location;
 }
 
@@ -915,7 +915,7 @@ TextForMimeData MediaLocation::clipboardText() const {
 	if (!descriptionResult.text.isEmpty()) {
 		result.append(std::move(descriptionResult));
 	}
-	result.append(LocationClickHandler(_location->coords).dragText());
+	result.append(LocationClickHandler(_location->point).dragText());
 	return result;
 }
 

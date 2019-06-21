@@ -45,8 +45,8 @@ public:
 	virtual bool hasLocationCoords() const {
 		return false;
 	}
-	virtual bool getLocationCoords(LocationCoords *outLocation) const {
-		return false;
+	virtual std::optional<Data::LocationPoint> getLocationPoint() const {
+		return std::nullopt;
 	}
 	virtual QString getLayoutTitle(const Result *owner) const;
 	virtual QString getLayoutDescription(const Result *owner) const;
@@ -121,14 +121,12 @@ public:
 	bool hasLocationCoords() const override {
 		return true;
 	}
-	bool getLocationCoords(LocationCoords *outLocation) const override {
-		Assert(outLocation != nullptr);
-		*outLocation = _location;
-		return true;
+	std::optional<Data::LocationPoint> getLocationPoint() const override {
+		return _location;
 	}
 
 private:
-	LocationCoords _location;
+	Data::LocationPoint _location;
 
 };
 
@@ -153,14 +151,12 @@ public:
 	bool hasLocationCoords() const override {
 		return true;
 	}
-	bool getLocationCoords(LocationCoords *outLocation) const override {
-		Assert(outLocation != nullptr);
-		*outLocation = _location;
-		return true;
+	std::optional<Data::LocationPoint> getLocationPoint() const override {
+		return _location;
 	}
 
 private:
-	LocationCoords _location;
+	Data::LocationPoint _location;
 	QString _venueId, _provider, _title, _address;
 
 };

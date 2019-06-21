@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
+#include "history/history_location_manager.h" // LocationClickHandler.
 #include "boxes/abstract_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_box.h"
@@ -249,11 +250,11 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		result->setContextCopyText(contextCopyText);
 		return result;
 	};
-	if (auto user = _peer->asUser()) {
-		if (Auth().supportMode()) {
+	if (const auto user = _peer->asUser()) {
+		if (user->session().supportMode()) {
 			addInfoLineGeneric(
-				Auth().supportHelper().infoLabelValue(user),
-				Auth().supportHelper().infoTextValue(user));
+				user->session().supportHelper().infoLabelValue(user),
+				user->session().supportHelper().infoTextValue(user));
 		}
 
 		addInfoOneLine(
@@ -273,26 +274,20 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		auto linkText = LinkValue(
 			_peer
 		) | rpl::map([](const QString &link) {
-			auto result = TextWithEntities{ link, {} };
-			if (!link.isEmpty()) {
-				auto remove = qstr("https://");
-				if (result.text.startsWith(remove)) {
-					result.text.remove(0, remove.size());
-				}
-				result.entities.push_back({
-					EntityType::CustomUrl,
-					0,
-					result.text.size(),
-					link });
-			}
-			return result;
+			return link.isEmpty()
+				? TextWithEntities()
+				: Ui::Text::Link(
+					(link.startsWith(qstr("https://"))
+						? link.mid(qstr("https://").size())
+						: link),
+					link);
 		});
 		auto link = addInfoOneLine(
 			tr::lng_info_link_label(),
 			std::move(linkText),
 			QString());
 		link->setClickHandlerFilter([peer = _peer](auto&&...) {
-			auto link = Core::App().createInternalLinkFull(
+			const auto link = Core::App().createInternalLinkFull(
 				peer->userName());
 			if (!link.isEmpty()) {
 				QApplication::clipboard()->setText(link);
@@ -300,6 +295,24 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			}
 			return false;
 		});
+
+		if (const auto channel = _peer->asChannel()) {
+			auto locationText = LocationValue(
+				channel
+			) | rpl::map([](const ChannelLocation *location) {
+				return location
+					? Ui::Text::Link(
+						location->address,
+						LocationClickHandler::Url(location->point))
+					: TextWithEntities();
+			});
+			addInfoOneLine(
+				tr::lng_info_location_label(),
+				std::move(locationText),
+				QString()
+			)->setLinksTrusted();
+		}
+
 		addInfoLine(tr::lng_info_about_label(), AboutValue(_peer));
 	}
 	if (!_peer->isSelf()) {

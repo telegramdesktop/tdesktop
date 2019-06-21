@@ -478,6 +478,6 @@ bool linuxMoveFile(const char *from, const char *to) {
 	return true;
 }
 
-bool psLaunchMaps(const LocationCoords &coords) {
+bool psLaunchMaps(const Data::LocationPoint &point) {
 	return false;
 }

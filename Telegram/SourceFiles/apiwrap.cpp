@@ -691,11 +691,11 @@ QString ApiWrap::exportDirectMessageLink(not_null<HistoryItem*> item) {
 	const auto itemId = item->fullId();
 	const auto channel = item->history()->peer->asChannel();
 	const auto fallback = [&] {
-		const auto base = channel->isPublic()
+		const auto base = channel->hasUsername()
 			? channel->username
 			: "c/" + QString::number(channel->bareId());
 		const auto query = base + '/' + QString::number(item->id);
-		if (channel->isPublic() && !channel->isMegagroup()) {
+		if (channel->hasUsername() && !channel->isMegagroup()) {
 			if (const auto media = item->media()) {
 				if (const auto document = media->document()) {
 					if (document->isVideoMessage()) {

@@ -537,6 +537,8 @@ void EditAdminBox::sendTransferRequestFrom(
 		const auto problem = [&] {
 			if (type == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
 				return tr::lng_channels_too_much_public_other(tr::now);
+			} else if (type == qstr("CHANNELS_ADMIN_LOCATED_TOO_MUCH")) {
+				return tr::lng_channels_too_much_located_other(tr::now);
 			} else if (type == qstr("ADMINS_TOO_MUCH")) {
 				return (channel->isBroadcast()
 					? tr::lng_error_admin_limit_channel

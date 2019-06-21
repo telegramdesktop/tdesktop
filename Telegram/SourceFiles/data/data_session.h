@@ -58,7 +58,7 @@ struct SavedCredentials;
 namespace Data {
 
 class Folder;
-
+class LocationPoint;
 class WallPaper;
 
 class Session final {
@@ -521,8 +521,8 @@ public:
 	not_null<PollData*> processPoll(const MTPPoll &data);
 	not_null<PollData*> processPoll(const MTPDmessageMediaPoll &data);
 
-	[[nodiscard]] not_null<LocationData*> location(
-		const LocationCoords &coords);
+	[[nodiscard]] not_null<LocationThumbnail*> location(
+		const LocationPoint &point);
 
 	void registerPhotoItem(
 		not_null<const PhotoData*> photo,
@@ -895,8 +895,8 @@ private:
 		not_null<const WebPageData*>,
 		base::flat_set<not_null<ViewElement*>>> _webpageViews;
 	std::unordered_map<
-		LocationCoords,
-		std::unique_ptr<LocationData>> _locations;
+		LocationPoint,
+		std::unique_ptr<LocationThumbnail>> _locations;
 	std::unordered_map<
 		PollId,
 		std::unique_ptr<PollData>> _polls;

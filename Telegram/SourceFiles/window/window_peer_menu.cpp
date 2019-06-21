@@ -506,7 +506,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 			[channel] { Auth().api().joinChannel(channel); });
 	}
 	if (_source != PeerMenuSource::ChatsList) {
-		auto needReport = !channel->amCreator()
+		const auto needReport = !channel->amCreator()
 			&& (!isGroup || channel->isPublic());
 		if (needReport) {
 			_addAction(tr::lng_profile_report(tr::now), [channel] {

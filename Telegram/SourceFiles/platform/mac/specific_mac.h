@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/mac/specific_mac_p.h"
 
-class LocationCoords;
+namespace Data {
+class LocationPoint;
+} // namespace Data
 
 namespace Platform {
 
@@ -108,4 +110,4 @@ QString strStyleOfInterface();
 QString strTitleWrapClass();
 QString strTitleClass();
 
-bool psLaunchMaps(const LocationCoords &coords);
+bool psLaunchMaps(const Data::LocationPoint &point);

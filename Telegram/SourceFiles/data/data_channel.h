@@ -9,6 +9,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_peer.h"
 #include "data/data_pts_waiter.h"
+#include "data/data_location.h"
+
+struct ChannelLocation {
+	QString address;
+	Data::LocationPoint point;
+
+	friend inline bool operator==(
+			const ChannelLocation &a,
+			const ChannelLocation &b) {
+		return a.address.isEmpty()
+			? b.address.isEmpty()
+			: (a.address == b.address && a.point == b.point);
+	}
+	friend inline bool operator!=(
+			const ChannelLocation &a,
+			const ChannelLocation &b) {
+		return !(a == b);
+	}
+};
 
 class MegagroupInfo {
 public:
@@ -34,6 +53,9 @@ public:
 	ChatData *getMigrateFromChat() const;
 	void setMigrateFromChat(ChatData *chat);
 
+	const ChannelLocation *getLocation() const;
+	void setLocation(const ChannelLocation &location);
+
 	std::deque<not_null<UserData*>> lastParticipants;
 	base::flat_map<not_null<UserData*>, Admin> lastAdmins;
 	base::flat_map<not_null<UserData*>, Restricted> lastRestricted;
@@ -57,6 +79,7 @@ public:
 
 private:
 	ChatData *_migratedFrom = nullptr;
+	ChannelLocation _location;
 
 };
 
@@ -79,7 +102,8 @@ public:
 	static constexpr auto kEssentialFullFlags = 0
 		| MTPDchannelFull::Flag::f_can_view_participants
 		| MTPDchannelFull::Flag::f_can_set_username
-		| MTPDchannelFull::Flag::f_can_set_stickers;
+		| MTPDchannelFull::Flag::f_can_set_stickers
+		| MTPDchannelFull::Flag::f_location;
 	using FullFlags = Data::Flags<
 		MTPDchannelFull::Flags,
 		kEssentialFullFlags>;
@@ -206,8 +230,14 @@ public:
 	bool isBroadcast() const {
 		return flags() & MTPDchannel::Flag::f_broadcast;
 	}
-	bool isPublic() const {
+	bool hasUsername() const {
 		return flags() & MTPDchannel::Flag::f_username;
+	}
+	bool hasLocation() const {
+		return fullFlags() & MTPDchannelFull::Flag::f_location;
+	}
+	bool isPublic() const {
+		return hasUsername() || hasLocation();
 	}
 	bool amCreator() const {
 		return flags() & MTPDchannel::Flag::f_creator;
@@ -278,6 +308,9 @@ public:
 	void setInviteLink(const QString &newInviteLink);
 	QString inviteLink() const;
 	bool canHaveInviteLink() const;
+
+	void setLocation(const MTPChannelLocation &data);
+	const ChannelLocation *getLocation() const;
 
 	void setLinkedChat(ChannelData *linked);
 	ChannelData *linkedChat() const;

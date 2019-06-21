@@ -58,8 +58,8 @@ rpl::producer<TextWithEntities> BioValue(not_null<UserData*> user) {
 
 auto PlainUsernameValue(not_null<PeerData*> peer) {
 	return Notify::PeerUpdateValue(
-			peer,
-			Notify::PeerUpdate::Flag::UsernameChanged
+		peer,
+		Notify::PeerUpdate::Flag::UsernameChanged
 	) | rpl::map([peer] {
 		return peer->userName();
 	});
@@ -110,6 +110,16 @@ rpl::producer<QString> LinkValue(not_null<PeerData*> peer) {
 		return username.isEmpty()
 			? QString()
 			: Core::App().createInternalLinkFull(username);
+	});
+}
+
+rpl::producer<const ChannelLocation*> LocationValue(
+		not_null<ChannelData*> channel) {
+	return Notify::PeerUpdateValue(
+		channel,
+		Notify::PeerUpdate::Flag::ChannelLocation
+	) | rpl::map([=] {
+		return channel->getLocation();
 	});
 }
 

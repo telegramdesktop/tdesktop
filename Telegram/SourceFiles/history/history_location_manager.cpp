@@ -18,23 +18,6 @@ namespace {
 constexpr auto kCoordPrecision = 8;
 constexpr auto kMaxHttpRedirects = 5;
 
-GeoPointLocation ComputeLocation(const LocationCoords &coords) {
-	const auto scale = 1 + (cScale() * cIntRetinaFactor()) / 200;
-	const auto zoom = 13 + (scale - 1);
-	const auto w = st::locationSize.width() / scale;
-	const auto h = st::locationSize.height() / scale;
-
-	auto result = GeoPointLocation();
-	result.lat = coords.lat();
-	result.lon = coords.lon();
-	result.access = coords.accessHash();
-	result.width = w;
-	result.height = h;
-	result.zoom = zoom;
-	result.scale = scale;
-	return result;
-}
-
 } // namespace
 
 QString LocationClickHandler::copyToClipboardText() const {
@@ -46,25 +29,16 @@ QString LocationClickHandler::copyToClipboardContextItemText() const {
 }
 
 void LocationClickHandler::onClick(ClickContext context) const {
-	if (!psLaunchMaps(_coords)) {
+	if (!psLaunchMaps(_point)) {
 		QDesktopServices::openUrl(_text);
 	}
 }
 
 void LocationClickHandler::setup() {
-	_text = Url(_coords);
+	_text = Url(_point);
 }
 
-QString LocationClickHandler::Url(const LocationCoords &coords) {
-	const auto latlon = coords.latAsString() + ',' + coords.lonAsString();
+QString LocationClickHandler::Url(const Data::LocationPoint &point) {
+	const auto latlon = point.latAsString() + ',' + point.lonAsString();
 	return qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
-}
-
-LocationData::LocationData(const LocationCoords &coords)
-: coords(coords)
-, thumb(Images::Create(ComputeLocation(coords))) {
-}
-
-void LocationData::load(Data::FileOrigin origin) {
-	thumb->load(origin);
 }

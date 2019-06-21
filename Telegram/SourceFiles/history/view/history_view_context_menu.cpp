@@ -521,7 +521,7 @@ void CopyPostLink(FullMsgId itemId) {
 	const auto channel = item->history()->peer->asChannel();
 	Assert(channel != nullptr);
 
-	Ui::Toast::Show(channel->isPublic()
+	Ui::Toast::Show(channel->hasUsername()
 		? tr::lng_channel_public_link_copied(tr::now)
 		: tr::lng_context_about_private_link(tr::now));
 }

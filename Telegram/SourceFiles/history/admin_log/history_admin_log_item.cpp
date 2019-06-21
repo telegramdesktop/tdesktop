@@ -667,7 +667,7 @@ void GenerateItems(
 			const auto address = qs(data.vaddress);
 			const auto link = data.vgeo_point.match([&](const MTPDgeoPoint &data) {
 				return textcmdLink(
-					LocationClickHandler::Url(LocationCoords(data)),
+					LocationClickHandler::Url(Data::LocationPoint(data)),
 					address);
 			}, [&](const MTPDgeoPointEmpty &) {
 				return address;

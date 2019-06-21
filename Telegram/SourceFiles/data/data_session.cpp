@@ -2885,14 +2885,13 @@ void Session::applyUpdate(const MTPDupdateChatDefaultBannedRights &update) {
 	}
 }
 
-not_null<LocationData*> Session::location(const LocationCoords &coords) {
-	auto i = _locations.find(coords);
-	if (i == _locations.cend()) {
-		i = _locations.emplace(
-			coords,
-			std::make_unique<LocationData>(coords)).first;
-	}
-	return i->second.get();
+not_null<LocationThumbnail*> Session::location(const LocationPoint &point) {
+	const auto i = _locations.find(point);
+	return (i != _locations.cend())
+		? i->second.get()
+		: _locations.emplace(
+			point,
+			std::make_unique<LocationThumbnail>(point)).first->second.get();
 }
 
 void Session::registerPhotoItem(

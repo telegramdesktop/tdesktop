@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/map.h>
 #include "observer_peer.h"
 
+struct ChannelLocation;
+
 namespace Ui {
 class RpWidget;
 template <typename Widget>
@@ -36,6 +38,8 @@ rpl::producer<TextWithEntities> BioValue(not_null<UserData*> user);
 rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user);
 rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer);
 rpl::producer<QString> LinkValue(not_null<PeerData*> peer);
+rpl::producer<const ChannelLocation*> LocationValue(
+	not_null<ChannelData*> channel);
 rpl::producer<bool> NotificationsEnabledValue(not_null<PeerData*> peer);
 rpl::producer<bool> IsContactValue(not_null<UserData*> user);
 rpl::producer<bool> CanInviteBotToGroupValue(not_null<UserData*> user);

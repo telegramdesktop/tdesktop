@@ -190,6 +190,8 @@
 <(src_loc)/data/data_game.h
 <(src_loc)/data/data_groups.cpp
 <(src_loc)/data/data_groups.h
+<(src_loc)/data/data_location.cpp
+<(src_loc)/data/data_location.h
 <(src_loc)/data/data_media_types.cpp
 <(src_loc)/data/data_media_types.h
 <(src_loc)/data/data_messages.cpp

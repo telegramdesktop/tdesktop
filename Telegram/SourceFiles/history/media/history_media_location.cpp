@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text_options.h"
 #include "data/data_file_origin.h"
+#include "data/data_location.h"
 #include "styles/style_history.h"
 
 namespace {
@@ -26,14 +27,14 @@ using TextState = HistoryView::TextState;
 
 HistoryLocation::HistoryLocation(
 	not_null<Element*> parent,
-	not_null<LocationData*> location,
+	not_null<Data::LocationThumbnail*> location,
 	const QString &title,
 	const QString &description)
 : HistoryMedia(parent)
 , _data(location)
 , _title(st::msgMinWidth)
 , _description(st::msgMinWidth)
-, _link(std::make_shared<LocationClickHandler>(_data->coords)) {
+, _link(std::make_shared<LocationClickHandler>(_data->point)) {
 	if (!title.isEmpty()) {
 		_title.setText(
 			st::webPageTitleStyle,

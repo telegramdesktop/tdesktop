@@ -66,6 +66,7 @@ struct PeerUpdate {
 		ChannelStickersChanged    = (1 << 18),
 		ChannelPromotedChanged    = (1 << 19),
 		ChannelLinkedChat         = (1 << 20),
+		ChannelLocation           = (1 << 21),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

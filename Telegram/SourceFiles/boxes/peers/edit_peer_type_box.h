@@ -25,8 +25,8 @@ class Button;
 } // namespace Info
 
 enum class Privacy {
-	Public,
-	Private,
+	HasUsername,
+	NoUsername,
 };
 
 enum class UsernameState {
@@ -37,12 +37,16 @@ enum class UsernameState {
 
 class EditPeerTypeBox : public BoxContent {
 public:
+	// Edit just the invite link.
+	EditPeerTypeBox(QWidget*, not_null<PeerData*> peer);
+
 	EditPeerTypeBox(
 		QWidget*,
-		not_null<PeerData*> p,
-		std::optional<FnMut<void(Privacy, QString)>> savedCallback = {},
-		std::optional<Privacy> privacySaved = {},
-		std::optional<QString> usernameSaved = {},
+		not_null<PeerData*> peer,
+		bool useLocationPhrases,
+		std::optional<FnMut<void(Privacy, QString)>> savedCallback,
+		std::optional<Privacy> privacySaved,
+		std::optional<QString> usernameSaved,
 		std::optional<rpl::producer<QString>> usernameError = {});
 
 protected:
@@ -51,6 +55,7 @@ protected:
 
 private:
 	not_null<PeerData*> _peer;
+	bool _useLocationPhrases = false;
 	std::optional<FnMut<void(Privacy, QString)>> _savedCallback;
 
 	std::optional<Privacy> _privacySavedValue;

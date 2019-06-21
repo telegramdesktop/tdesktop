@@ -583,6 +583,6 @@ void psWriteDump() {
 #endif // TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
-bool psLaunchMaps(const LocationCoords &coords) {
-	return QDesktopServices::openUrl(qsl("bingmaps:?lvl=16&collection=point.%1_%2_Point").arg(coords.latAsString()).arg(coords.lonAsString()));
+bool psLaunchMaps(const Data::LocationPoint &point) {
+	return QDesktopServices::openUrl(qsl("bingmaps:?lvl=16&collection=point.%1_%2_Point").arg(point.latAsString()).arg(point.lonAsString()));
 }

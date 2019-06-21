@@ -223,17 +223,16 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		return nullptr;
 	}
 
-	LocationCoords coords;
-	if (result->getLocationCoords(&coords)) {
+	if (const auto point = result->getLocationPoint()) {
 		const auto scale = 1 + (cScale() * cIntRetinaFactor()) / 200;
 		const auto zoom = 15 + (scale - 1);
 		const auto w = st::inlineThumbSize / scale;
 		const auto h = st::inlineThumbSize / scale;
 
 		auto location = GeoPointLocation();
-		location.lat = coords.lat();
-		location.lon = coords.lon();
-		location.access = coords.accessHash();
+		location.lat = point->lat();
+		location.lon = point->lon();
+		location.access = point->accessHash();
 		location.width = w;
 		location.height = h;
 		location.zoom = zoom;
@@ -329,8 +328,8 @@ QString Result::getErrorOnSend(History *history) const {
 	return sendData->getErrorOnSend(this, history);
 }
 
-bool Result::getLocationCoords(LocationCoords *outLocation) const {
-	return sendData->getLocationCoords(outLocation);
+std::optional<Data::LocationPoint> Result::getLocationPoint() const {
+	return sendData->getLocationPoint();
 }
 
 QString Result::getLayoutTitle() const {

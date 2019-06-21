@@ -789,7 +789,7 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		return media.vgeo.match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
 				item,
-				LocationCoords(point));
+				Data::LocationPoint(point));
 		}, [](const MTPDgeoPointEmpty &) -> Result {
 			return nullptr;
 		});
@@ -797,7 +797,7 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		return media.vgeo.match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
 				item,
-				LocationCoords(point));
+				Data::LocationPoint(point));
 		}, [](const MTPDgeoPointEmpty &) -> Result {
 			return nullptr;
 		});
@@ -805,7 +805,7 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		return media.vgeo.match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
 				item,
-				LocationCoords(point),
+				Data::LocationPoint(point),
 				qs(media.vtitle),
 				qs(media.vaddress));
 		}, [](const MTPDgeoPointEmpty &data) -> Result {

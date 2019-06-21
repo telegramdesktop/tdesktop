@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_location.h"
 #include "history/history.h"
 #include "observer_peer.h"
 #include "auth_session.h"
@@ -30,6 +31,14 @@ ChatData *MegagroupInfo::getMigrateFromChat() const {
 
 void MegagroupInfo::setMigrateFromChat(ChatData *chat) {
 	_migratedFrom = chat;
+}
+
+const ChannelLocation *MegagroupInfo::getLocation() const {
+	return _location.address.isEmpty() ? nullptr : &_location;
+}
+
+void MegagroupInfo::setLocation(const ChannelLocation &location) {
+	_location = location;
 }
 
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
@@ -90,6 +99,37 @@ QString ChannelData::inviteLink() const {
 bool ChannelData::canHaveInviteLink() const {
 	return (adminRights() & AdminRight::f_invite_users)
 		|| amCreator();
+}
+
+void ChannelData::setLocation(const MTPChannelLocation &data) {
+	if (!mgInfo) {
+		return;
+	}
+	const auto was = mgInfo->getLocation();
+	const auto wasValue = was ? *was : ChannelLocation();
+	data.match([&](const MTPDchannelLocation &data) {
+		data.vgeo_point.match([&](const MTPDgeoPoint &point) {
+			mgInfo->setLocation({
+				qs(data.vaddress),
+				Data::LocationPoint(point)
+			});
+		}, [&](const MTPDgeoPointEmpty &) {
+			mgInfo->setLocation(ChannelLocation());
+		});
+	}, [&](const MTPDchannelLocationEmpty &) {
+		mgInfo->setLocation(ChannelLocation());
+	});
+	const auto now = mgInfo->getLocation();
+	const auto nowValue = now ? *now : ChannelLocation();
+	if (was != now || (was && wasValue != nowValue)) {
+		Notify::peerUpdatedDelayed(
+			this,
+			Notify::PeerUpdate::Flag::ChannelLocation);
+	}
+}
+
+const ChannelLocation *ChannelData::getLocation() const {
+	return mgInfo ? mgInfo->getLocation() : nullptr;
 }
 
 void ChannelData::setLinkedChat(ChannelData *linked) {
@@ -600,11 +640,14 @@ void ApplyChannelUpdate(
 		? update.vkicked_count.v
 		: 0);
 	channel->setInviteLink(update.vexported_invite.match([&](
-		const MTPDchatInviteExported & data) {
+			const MTPDchatInviteExported &data) {
 		return qs(data.vlink);
 	}, [&](const MTPDchatInviteEmpty &) {
 		return QString();
 	}));
+	channel->setLocation(update.has_location()
+		? update.vlocation
+		: MTPChannelLocation(MTP_channelLocationEmpty()));
 	channel->setLinkedChat(update.has_linked_chat_id()
 		? channel->owner().channelLoaded(update.vlinked_chat_id.v)
 		: nullptr);
