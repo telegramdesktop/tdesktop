@@ -15,9 +15,9 @@ Tell us what should happen
 Tell us what happens instead
 
 ### Configuration
-**Operating system:**
+**Operating system**:
 
-**Version of Telegram Desktop:**
+**Version of Telegram Desktop**:
 
 **Used theme**:
 
