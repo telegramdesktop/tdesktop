@@ -103,13 +103,13 @@ public:
 	}
 
 	QString getValue(ushort key) const {
-		Expects(key >= 0 && key < _values.size());
+		Expects(key < _values.size());
 
 		return _values[key];
 	}
 	QString getNonDefaultValue(const QByteArray &key) const;
 	bool isNonDefaultPlural(ushort key) const {
-		Expects(key >= 0 && key + 5 < _nonDefaultSet.size());
+		Expects(key + 5 < _nonDefaultSet.size());
 
 		return _nonDefaultSet[key]
 			|| _nonDefaultSet[key + 1]

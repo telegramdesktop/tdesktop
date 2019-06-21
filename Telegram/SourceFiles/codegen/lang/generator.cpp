@@ -350,7 +350,7 @@ ushort GetTagIndex(QLatin1String tag) {\n\
 	}
 
 	writeSetSearch(tagsSet, [](const QString &tag) {
-		return "lt_" + tag;
+		return "ushort(lt_" + tag + ")";
 	}, "kTagsCount");
 
 	source_->stream() << "\
@@ -427,7 +427,7 @@ bool IsTagReplaced(ushort key, ushort tag) {\n\
 }\n\
 \n\
 QString GetOriginalValue(ushort key) {\n\
-	Expects(key >= 0 && key < kKeysCount);\n\
+	Expects(key < kKeysCount);\n\
 \n\
 	const auto offset = Offsets[key];\n\
 	return QString::fromRawData(DefaultData + offset, Offsets[key + 1] - offset);\n\
