@@ -172,6 +172,17 @@ inline int UnreadCount(not_null<PeerData*> peer) {
 	return 0;
 }
 
+inline bool CanWriteToActiveChat() {
+	if (const auto window = App::wnd()) {
+		if (const auto controller = window->sessionController()) {
+			if (const auto chat = controller->activeChatCurrent()) {
+				return chat.history()->peer->canWrite();
+			}
+		}
+	}
+	return false;
+}
+
 QString TitleRecentlyUsed() {
 	const auto &sets = Auth().data().stickerSets();
 	const auto it = sets.constFind(Stickers::CloudRecentSetId);
@@ -677,37 +688,39 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 }
 
 - (void)scrubber:(NSScrubber *)scrubber didSelectItemAtIndex:(NSInteger)index {
-	const auto controller = App::wnd()->sessionController();
-	if (const auto history = controller->activeChatCurrent().history()) {
-		Fn<void()> callback;
-		if (const auto document = _stickers[index].document) {
-			callback = [=] {
-				Auth().api().sendExistingDocument(
-					document,
-					document->stickerSetOrigin(),
-					{},
-					ApiWrap::SendOptions(history));
-			};
-		}
-		if (const auto emoji = _stickers[index].emoji) {
-			callback = [=] {
-				if (const auto inputField = qobject_cast<Ui::InputField*>(
-						QApplication::focusWidget()->parentWidget())) {
-					Ui::InsertEmojiAtCursor(inputField->textCursor(), emoji);
-					Ui::Emoji::AddRecent(emoji);
-				}
-			};
-		}
-		if (!callback) {
-			return;
-		}
-		Core::Sandbox::Instance().customEnterFromEventLoop(
-			std::move(callback));
-		if (_parentPopover) {
-			[_parentPopover dismissPopover:nil];
-		}
-		scrubber.selectedIndex = -1;
+	if (!CanWriteToActiveChat()) {
+		return;
 	}
+	const auto history = App::wnd()->sessionController()->activeChatCurrent()
+		.history();
+
+	const auto callback = [&]() -> bool {
+		if (const auto document = _stickers[index].document) {
+			Auth().api().sendExistingDocument(
+				document,
+				document->stickerSetOrigin(),
+				{},
+				ApiWrap::SendOptions(history));
+			return true;
+		} else if (const auto emoji = _stickers[index].emoji) {
+			if (const auto inputField = qobject_cast<QTextEdit*>(
+					QApplication::focusWidget())) {
+				Ui::InsertEmojiAtCursor(inputField->textCursor(), emoji);
+				Ui::Emoji::AddRecent(emoji);
+				return true;
+			}
+		}
+		return false;
+	};
+
+	if (!Core::Sandbox::Instance().customEnterFromEventLoop(callback)) {
+		return;
+	}
+
+	if (_parentPopover) {
+		[_parentPopover dismissPopover:nil];
+	}
+	scrubber.selectedIndex = -1;
 }
 
 - (void)updateStickers {
@@ -1075,32 +1088,23 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 }
 
 - (void) showInputFieldItem:(bool)show {
-	[self showItem:kPopoverInputItemIdentifier show:show];
-	if (show) {
-		[self showItem:kPickerPopoverItemIdentifier show:false];
-	} else {
-		const auto chat = App::wnd()->sessionController()->activeChatCurrent();
-		[self showItem:kPickerPopoverItemIdentifier show:(!show
-			&& chat
-			&& chat.history()->peer->canWrite())];
-	}
+	[self showItemInMain: show
+		? kPopoverInputItemIdentifier
+		: CanWriteToActiveChat()
+			? kPickerPopoverItemIdentifier
+			: nil];
 }
 
 - (void) showPickerItem:(bool)show {
-	[self showItem:kPickerPopoverItemIdentifier show:show];
-	if (show) {
-		[self showItem:kPopoverInputItemIdentifier show:false];
-	}
+	[self showItemInMain: show
+		? kPickerPopoverItemIdentifier
+		: nil];
 }
 
-- (void) showItem:(NSTouchBarItemIdentifier)item show:(bool)show {
-	NSMutableArray *items = [NSMutableArray arrayWithArray:_touchBarMain.defaultItemIdentifiers];
-	if (show) {
-		if (![items containsObject:item]) {
-			[items addObject:item];
-		}
-	} else if ([items containsObject:item]) {
-		[items removeObject:item];
+- (void) showItemInMain:(NSTouchBarItemIdentifier)item {
+	NSMutableArray *items = [NSMutableArray arrayWithArray:@[kPinnedPanelItemIdentifier]];
+	if (item) {
+		[items addObject:item];
 	}
 	_touchBarMain.defaultItemIdentifiers = items;
 }
