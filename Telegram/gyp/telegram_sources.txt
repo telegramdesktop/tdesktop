@@ -174,6 +174,8 @@
 <(src_loc)/data/data_channel.h
 <(src_loc)/data/data_channel_admins.cpp
 <(src_loc)/data/data_channel_admins.h
+<(src_loc)/data/data_countries.cpp
+<(src_loc)/data/data_countries.h
 <(src_loc)/data/data_document.cpp
 <(src_loc)/data/data_document.h
 <(src_loc)/data/data_document_good_thumbnail.cpp
@@ -874,7 +876,6 @@
 <(src_loc)/auth_session.cpp
 <(src_loc)/auth_session.h
 <(src_loc)/config.h
-<(src_loc)/countries.h
 <(src_loc)/facades.cpp
 <(src_loc)/facades.h
 <(src_loc)/layout.cpp

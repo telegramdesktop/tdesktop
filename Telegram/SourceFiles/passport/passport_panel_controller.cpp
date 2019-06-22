@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/countryinput.h"
 #include "core/update_checker.h"
+#include "data/data_countries.h"
 #include "layout.h"
 #include "styles/style_boxes.h"
 
@@ -114,7 +115,7 @@ EditDocumentScheme GetDocumentScheme(
 	using ValueClass = Scheme::ValueClass;
 	const auto DontFormat = nullptr;
 	const auto CountryFormat = [](const QString &value) {
-		const auto result = CountrySelectBox::NameByISO(value);
+		const auto result = Data::CountryNameByISO2(value);
 		return result.isEmpty() ? value : result;
 	};
 	const auto GenderFormat = [](const QString &value) {
@@ -313,7 +314,7 @@ EditDocumentScheme GetDocumentScheme(
 				if (!language.isEmpty()) {
 					return tr::lng_passport_native_name_language_about(tr::now);
 				}
-				const auto name = CountrySelectBox::NameByISO(countryCode);
+				const auto name = Data::CountryNameByISO2(countryCode);
 				Assert(!name.isEmpty());
 				return tr::lng_passport_native_name_about(
 					tr::now,

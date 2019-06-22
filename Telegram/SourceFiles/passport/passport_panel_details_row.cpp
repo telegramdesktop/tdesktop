@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/countryinput.h"
 #include "auth_session.h"
 #include "data/data_user.h"
+#include "data/data_countries.h"
 #include "styles/style_boxes.h"
 #include "styles/style_passport.h"
 
@@ -301,7 +302,7 @@ void AbstractTextRow<Input>::finishInnerAnimating() {
 }
 
 QString CountryString(const QString &code) {
-	const auto name = CountrySelectBox::NameByISO(code);
+	const auto name = Data::CountryNameByISO2(code);
 	return name.isEmpty() ? tr::lng_passport_country_choose(tr::now) : name;
 }
 
@@ -378,8 +379,8 @@ void CountryRow::errorAnimationCallback() {
 
 void CountryRow::chooseCountry() {
 	const auto top = _value.current();
-	const auto name = CountrySelectBox::NameByISO(top);
-	const auto isoByPhone = CountrySelectBox::ISOByPhone(
+	const auto name = Data::CountryNameByISO2(top);
+	const auto isoByPhone = Data::CountryISO2ByPhone(
 		Auth().user()->phone());
 	const auto box = _controller->show(Box<CountrySelectBox>(!name.isEmpty()
 		? top

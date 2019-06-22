@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "lang/lang_keys.h"
 #include "data/data_user.h"
+#include "data/data_countries.h" // Data::ValidPhoneCode
 #include "mainwindow.h"
 #include "numbers.h"
 #include "auth_session.h"
@@ -3968,7 +3969,7 @@ void CountryCodeInput::correctValue(
 		}
 	}
 	if (!addToNumber.isEmpty()) {
-		auto validCode = findValidCode(newText.mid(1));
+		auto validCode = Data::ValidPhoneCode(newText.mid(1));
 		addToNumber = newText.mid(1 + validCode.length()) + addToNumber;
 		newText = '+' + validCode;
 	}
