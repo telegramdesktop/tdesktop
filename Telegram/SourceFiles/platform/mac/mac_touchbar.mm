@@ -11,6 +11,7 @@
 
 #include "apiwrap.h"
 #include "auth_session.h"
+#include "boxes/confirm_box.h"
 #include "chat_helpers/emoji_list_widget.h"
 #include "core/application.h"
 #include "core/sandbox.h"
@@ -691,16 +692,21 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	if (!CanWriteToActiveChat()) {
 		return;
 	}
-	const auto history = App::wnd()->sessionController()->activeChatCurrent()
-		.history();
+	const auto chat = App::wnd()->sessionController()->activeChatCurrent();
 
 	const auto callback = [&]() -> bool {
 		if (const auto document = _stickers[index].document) {
+			if (const auto error = Data::RestrictionError(
+					chat.peer(),
+					ChatRestriction::f_send_stickers)) {
+				Ui::show(Box<InformBox>(*error));
+				return true;
+			}
 			Auth().api().sendExistingDocument(
 				document,
 				document->stickerSetOrigin(),
 				{},
-				ApiWrap::SendOptions(history));
+				ApiWrap::SendOptions(chat.history()));
 			return true;
 		} else if (const auto emoji = _stickers[index].emoji) {
 			if (const auto inputField = qobject_cast<QTextEdit*>(
