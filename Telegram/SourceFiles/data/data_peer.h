@@ -312,7 +312,7 @@ public:
 	auto settingsValue() const {
 		return (_settings.current() & kSettingsUnknown)
 			? _settings.changes()
-			: _settings.value();
+			: (_settings.value() | rpl::type_erased());
 	}
 
 	enum LoadedStatus {

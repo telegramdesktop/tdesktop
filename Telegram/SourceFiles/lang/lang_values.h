@@ -19,6 +19,9 @@ inline constexpr auto kPluralCount = 6;
 template <typename Tag>
 inline constexpr ushort TagValue();
 
+template <typename P>
+using S = std::decay_t<decltype(std::declval<P>()(QString()))>;
+
 QString Current(ushort key);
 rpl::producer<QString> Viewer(ushort key);
 
@@ -71,11 +74,8 @@ struct ReplaceUnwrap<Tag, Tags...> {
 
 template <typename ...Tags>
 struct Producer {
-	template <
-		typename P,
-		typename T = decltype(std::declval<P>()(QString())),
-		typename ...Values>
-	static rpl::producer<T> Combine(ushort base, P p, Values &...values) {
+	template <typename P, typename ...Values>
+	static rpl::producer<S<P>> Combine(ushort base, P p, Values &...values) {
 		return rpl::combine(
 			Viewer(base),
 			std::move(values)...
@@ -84,11 +84,8 @@ struct Producer {
 		});
 	}
 
-	template <
-		typename P,
-		typename T = decltype(std::declval<P>()(QString())),
-		typename ...Values>
-	static T Current(ushort base, P p, const Values &...values) {
+	template <typename P, typename ...Values>
+	static S<P> Current(ushort base, P p, const Values &...values) {
 		return ReplaceUnwrap<Tags...>::template Call(
 			p(Lang::details::Current(base)),
 			values...);
@@ -97,28 +94,21 @@ struct Producer {
 
 template <>
 struct Producer<> {
-	template <
-		typename P,
-		typename T = decltype(std::declval<P>()(QString()))>
-	static rpl::producer<T> Combine(ushort base, P p) {
+	template <typename P>
+	static rpl::producer<S<P>> Combine(ushort base, P p) {
 		return Viewer(base) | rpl::map(std::move(p));
 	}
 
-	template <
-		typename P,
-		typename T = decltype(std::declval<P>()(QString()))>
-	static T Current(ushort base, P p) {
+	template <typename P>
+	static S<P> Current(ushort base, P p) {
 		return p(Lang::details::Current(base));
 	}
 };
 
 template <typename ...Tags>
 struct Producer<lngtag_count, Tags...> {
-	template <
-		typename P,
-		typename T = decltype(std::declval<P>()(QString())),
-		typename ...Values>
-	static rpl::producer<T> Combine(
+	template <typename P, typename ...Values>
+	static rpl::producer<S<P>> Combine(
 			ushort base,
 			P p,
 			lngtag_count type,
@@ -147,21 +137,18 @@ struct Producer<lngtag_count, Tags...> {
 				Unexpected("Lang shift value in Plural result.");
 			};
 			return ReplaceUnwrapTuple<7>(
-				ReplaceTag<T>::Call(
+				ReplaceTag<S<P>>::Call(
 					p(select()),
 					TagValue<lngtag_count>(),
-					StartReplacements<T>::Call(
+					StartReplacements<S<P>>::Call(
 						std::move(plural.replacement))),
 				tuple,
 				TagValue<Tags>()...);
 		});
 	}
 
-	template <
-		typename P,
-		typename T = decltype(std::declval<P>()(QString())),
-		typename ...Values>
-		static T Current(
+	template <typename P, typename ...Values>
+	static S<P> Current(
 			ushort base,
 			P p,
 			lngtag_count type,
@@ -169,10 +156,10 @@ struct Producer<lngtag_count, Tags...> {
 			const Values &...values) {
 		auto plural = Plural(base, count, type);
 		return ReplaceUnwrap<Tags...>::template Call(
-			ReplaceTag<T>::Call(
+			ReplaceTag<S<P>>::Call(
 				p(Lang::details::Current(base + plural.keyShift)),
 				TagValue<lngtag_count>(),
-				StartReplacements<T>::Call(
+				StartReplacements<S<P>>::Call(
 					std::move(plural.replacement))),
 			values...);
 	}

@@ -203,6 +203,9 @@ inline auto to_count() {\n\
 	});\n\
 }\n\
 \n\
+template <typename P>\n\
+using S = std::decay_t<decltype(std::declval<P>()(QString()))>;\n\
+\n\
 template <typename ...Tags>\n\
 struct phrase;\n\
 \n";
@@ -222,9 +225,9 @@ struct phrase;\n\
 			tags.push_back("lngtag_" + tag);
 			const auto type1 = "lngtag_" + tag;
 			const auto arg1 = type1 + (isPluralTag ? " type" : "");
-			const auto producerType2 = (isPluralTag ? "rpl::producer<float64> " : "rpl::producer<T> ");
+			const auto producerType2 = (isPluralTag ? "rpl::producer<float64> " : "rpl::producer<S<P>> ");
 			const auto producerArg2 = producerType2 + tag + "__val";
-			const auto currentType2 = (isPluralTag ? "float64 " : "const T &");
+			const auto currentType2 = (isPluralTag ? "float64 " : "const S<P> &");
 			const auto currentArg2 = currentType2 + tag + "__val";
 			producerArgs.push_back(arg1 + ", " + producerArg2);
 			currentArgs.push_back(arg1 + ", " + currentArg2);
@@ -241,17 +244,13 @@ struct phrase;\n\
 		header_->stream() << "\
 template <>\n\
 struct phrase<" << tags.join(", ") << "> {\n\
-	template <\n\
-		typename P = details::Identity,\n\
-		typename T = decltype(std::declval<P>()(QString()))>\n\
-	rpl::producer<T> operator()(" << producerArgs.join(", ") << ") const {\n\
+	template <typename P = details::Identity>\n\
+	rpl::producer<S<P>> operator()(" << producerArgs.join(", ") << ") const {\n\
 		return ::Lang::details::Producer<" << tags.join(", ") << ">::template Combine(" << values.join(", ") << ");\n\
 	}\n\
 \n\
-	template <\n\
-		typename P = details::Identity,\n\
-		typename T = decltype(std::declval<P>()(QString()))>\n\
-	T operator()(now_t, " << currentArgs.join(", ") << ") const {\n\
+	template <typename P = details::Identity>\n\
+	S<P> operator()(now_t, " << currentArgs.join(", ") << ") const {\n\
 		return ::Lang::details::Producer<" << tags.join(", ") << ">::template Current(" << values.join(", ") << ");\n\
 	}\n\
 \n\
