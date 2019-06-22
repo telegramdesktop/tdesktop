@@ -895,6 +895,9 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	Auth().data().chatsListChanges(
 	) | rpl::start_with_next([=] {
 		if (const auto window = App::wnd()) {
+			if (!Auth().data().stickerSets().size()) {
+				Auth().api().updateStickers();
+			}
 			if (const auto controller = window->sessionController()) {
 				_lifetimeSessionControllerChecker.destroy();
 				controller->activeChatChanges(
