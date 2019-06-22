@@ -440,7 +440,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	}
 	_peerChangedLifetime.destroy();
 	_peer = newPeer;
-	if (!_peer) {
+	if (!_peer || IsSelfPeer(_peer)) {
 		return;
 	}
 	Notify::PeerUpdateViewer(
@@ -516,6 +516,9 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 }
 
 - (void) updateBadge {
+	if (IsSelfPeer(_peer)) {
+		return;
+	}
 	// Draw unread or online badge.
 	auto pixmap = App::pixmapFromImageInPlace(_userpic.toImage());
 	Painter p(&pixmap);
