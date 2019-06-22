@@ -228,7 +228,7 @@ bool Instance::isQuitPrevent() {
 	if (!_currentCall) {
 		return false;
 	}
-	LOG(("Calls::Instance prevents quit, saving drafts..."));
+	LOG(("Calls::Instance prevents quit, hanging up a call..."));
 	return true;
 }
 

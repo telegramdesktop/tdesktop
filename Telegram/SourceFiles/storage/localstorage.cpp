@@ -709,6 +709,8 @@ AuthSessionSettings &GetStoredAuthSessionCache() {
 void _writeMap(WriteMapWhen when = WriteMapWhen::Soon);
 
 void _writeLocations(WriteMapWhen when = WriteMapWhen::Soon) {
+	Expects(_manager != nullptr);
+
 	if (when != WriteMapWhen::Now) {
 		_manager->writeLocations(when == WriteMapWhen::Fast);
 		return;
@@ -2398,6 +2400,8 @@ ReadMapState _readMap(const QByteArray &pass) {
 }
 
 void _writeMap(WriteMapWhen when) {
+	Expects(_manager != nullptr);
+
 	if (when != WriteMapWhen::Now) {
 		_manager->writeMap(when == WriteMapWhen::Fast);
 		return;
@@ -2530,7 +2534,7 @@ void finish() {
 		_writeMap(WriteMapWhen::Now);
 		_manager->finish();
 		_manager->deleteLater();
-		_manager = 0;
+		_manager = nullptr;
 		delete base::take(_localLoader);
 	}
 }

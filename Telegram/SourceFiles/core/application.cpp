@@ -103,6 +103,10 @@ Application::~Application() {
 	_window.reset();
 	_mediaView.reset();
 
+	// This can call writeMap() that serializes AuthSession.
+	// In case it gets called after authSessionDestroy() we get missing data.
+	Local::finish();
+
 	// Some MTP requests can be cancelled from data clearing.
 	authSessionDestroy();
 
@@ -126,7 +130,6 @@ Application::~Application() {
 	Media::Player::finish(_audio.get());
 	style::stopManager();
 
-	Local::finish();
 	Global::finish();
 	ThirdParty::finish();
 
