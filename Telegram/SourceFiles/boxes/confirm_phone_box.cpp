@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
+#include "ui/text/text_utilities.h"
 #include "core/click_handler_types.h" // UrlClickHandler
 #include "base/qthelp_url.h" // qthelp::url_encode
 #include "platform/platform_info.h" // Platform::SystemVersionPretty
@@ -268,15 +269,13 @@ void ConfirmPhoneBox::launch() {
 }
 
 void ConfirmPhoneBox::prepare() {
-	_about.create(this, st::confirmPhoneAboutLabel);
-	TextWithEntities aboutText;
-	auto formattedPhone = App::formatPhone(_phone);
-	aboutText.text = tr::lng_confirm_phone_about(tr::now, lt_phone, formattedPhone);
-	auto phonePosition = aboutText.text.indexOf(formattedPhone);
-	if (phonePosition >= 0) {
-		aboutText.entities.push_back({ EntityType::Bold, phonePosition, formattedPhone.size() });
-	}
-	_about->setMarkedText(aboutText);
+	_about.create(
+		this,
+		tr::lng_confirm_phone_about(
+			lt_phone,
+			rpl::single(Ui::Text::Bold(App::formatPhone(_phone))),
+			Ui::Text::WithEntities),
+		st::confirmPhoneAboutLabel);
 
 	_code.create(this, st::confirmPhoneCodeField, tr::lng_code_ph());
 	_code->setAutoSubmit(_sentCodeLength, [=] { sendCode(); });

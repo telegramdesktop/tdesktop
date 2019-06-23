@@ -322,6 +322,7 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 			}
 			if (flags & TextBlockFItalic) blockFont = blockFont->italic();
 			if (flags & TextBlockFUnderline) blockFont = blockFont->underline();
+			if (flags & TextBlockFStrikeOut) blockFont = blockFont->strikeout();
 			if (flags & TextBlockFTilde) { // tilde fix in OpenSans
 				blockFont = st::semiboldFont;
 			}

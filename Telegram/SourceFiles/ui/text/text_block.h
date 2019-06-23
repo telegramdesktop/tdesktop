@@ -23,10 +23,11 @@ enum TextBlockFlags {
 	TextBlockFBold = 0x01,
 	TextBlockFItalic = 0x02,
 	TextBlockFUnderline = 0x04,
-	TextBlockFTilde = 0x08, // tilde fix in OpenSans
-	TextBlockFSemibold = 0x10,
-	TextBlockFCode = 0x20,
-	TextBlockFPre = 0x40,
+	TextBlockFStrikeOut = 0x08,
+	TextBlockFTilde = 0x10, // tilde fix in OpenSans
+	TextBlockFSemibold = 0x20,
+	TextBlockFCode = 0x40,
+	TextBlockFPre = 0x80,
 };
 
 class AbstractBlock {

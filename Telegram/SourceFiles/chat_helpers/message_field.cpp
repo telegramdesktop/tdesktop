@@ -237,6 +237,10 @@ EntitiesInText ConvertTextTagsToEntities(const TextWithTags::Tags &tags) {
 			push(EntityType::Bold);
 		} else if (tag.id == Ui::InputField::kTagItalic) {
 			push(EntityType::Italic);
+		} else if (tag.id == Ui::InputField::kTagUnderline) {
+			push(EntityType::Underline);
+		} else if (tag.id == Ui::InputField::kTagStrikeOut) {
+			push(EntityType::StrikeOut);
 		} else if (tag.id == Ui::InputField::kTagCode) {
 			push(EntityType::Code);
 		} else if (tag.id == Ui::InputField::kTagPre) { // #TODO entities
@@ -274,8 +278,14 @@ TextWithTags::Tags ConvertEntitiesToTextTags(const EntitiesInText &entities) {
 			}
 		} break;
 		case EntityType::Bold: push(Ui::InputField::kTagBold); break;
-		case EntityType::Italic: push(Ui::InputField::kTagItalic); break; // #TODO entities
-		case EntityType::Code: push(Ui::InputField::kTagCode); break;
+		case EntityType::Italic: push(Ui::InputField::kTagItalic); break;
+		case EntityType::Underline:
+			push(Ui::InputField::kTagUnderline);
+			break;
+		case EntityType::StrikeOut:
+			push(Ui::InputField::kTagStrikeOut);
+			break;
+		case EntityType::Code: push(Ui::InputField::kTagCode); break; // #TODO entities
 		case EntityType::Pre: push(Ui::InputField::kTagPre); break;
 		}
 	}

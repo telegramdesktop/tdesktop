@@ -21,6 +21,8 @@ enum class EntityType {
 
 	Bold,
 	Italic,
+	Underline,
+	StrikeOut,
 	Code, // inline
 	Pre,  // block
 };
@@ -267,6 +269,8 @@ QString MarkdownBoldGoodBefore();
 QString MarkdownBoldBadAfter();
 QString MarkdownItalicGoodBefore();
 QString MarkdownItalicBadAfter();
+QString MarkdownStrikeOutGoodBefore();
+QString MarkdownStrikeOutBadAfter();
 QString MarkdownCodeGoodBefore();
 QString MarkdownCodeBadAfter();
 QString MarkdownPreGoodBefore();

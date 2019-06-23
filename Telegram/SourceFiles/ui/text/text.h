@@ -21,10 +21,12 @@ enum TextCommands {
 	TextCommandNoItalic    = 0x04,
 	TextCommandUnderline   = 0x05,
 	TextCommandNoUnderline = 0x06,
-	TextCommandSemibold    = 0x07,
-	TextCommandNoSemibold  = 0x08,
-	TextCommandLinkIndex   = 0x09, // 0 - NoLink
-	TextCommandLinkText    = 0x0A,
+	TextCommandStrikeOut   = 0x07,
+	TextCommandNoStrikeOut = 0x08,
+	TextCommandSemibold    = 0x09,
+	TextCommandNoSemibold  = 0x0A,
+	TextCommandLinkIndex   = 0x0B, // 0 - NoLink
+	TextCommandLinkText    = 0x0C,
 	TextCommandSkipBlock   = 0x0D,
 
 	TextCommandLangTag     = 0x20,

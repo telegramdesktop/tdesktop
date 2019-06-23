@@ -56,8 +56,9 @@ enum FontFlags {
 	FontBold = 0x01,
 	FontItalic = 0x02,
 	FontUnderline = 0x04,
+	FontStrikeOut = 0x08,
 
-	FontDifferentFlags = 0x08,
+	FontDifferentFlags = 0x10,
 };
 
 class FontData {
@@ -79,6 +80,7 @@ public:
 	Font bold(bool set = true) const;
 	Font italic(bool set = true) const;
 	Font underline(bool set = true) const;
+	Font strikeout(bool set = true) const;
 
 	int size() const;
 	uint32 flags() const;

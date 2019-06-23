@@ -151,6 +151,8 @@ public:
 	};
 	static const QString kTagBold;
 	static const QString kTagItalic;
+	static const QString kTagUnderline;
+	static const QString kTagStrikeOut;
 	static const QString kTagCode;
 	static const QString kTagPre;
 

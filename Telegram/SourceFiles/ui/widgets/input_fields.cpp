@@ -38,6 +38,8 @@ const auto kObjectReplacement = QString::fromRawData(
 	1);
 const auto &kTagBold = InputField::kTagBold;
 const auto &kTagItalic = InputField::kTagItalic;
+const auto &kTagUnderline = InputField::kTagUnderline;
+const auto &kTagStrikeOut = InputField::kTagStrikeOut;
 const auto &kTagCode = InputField::kTagCode;
 const auto &kTagPre = InputField::kTagPre;
 const auto kNewlineChars = QString("\r\n")
@@ -46,6 +48,7 @@ const auto kNewlineChars = QString("\r\n")
 	+ QChar(QChar::ParagraphSeparator)
 	+ QChar(QChar::LineSeparator);
 const auto kClearFormatSequence = QKeySequence("ctrl+shift+n");
+const auto kStrikeOutSequence = QKeySequence("ctrl+shift+x");
 const auto kMonospaceSequence = QKeySequence("ctrl+shift+m");
 const auto kEditLinkSequence = QKeySequence("ctrl+k");
 
@@ -175,12 +178,16 @@ struct TagStartExpression {
 	QString tag;
 	QString goodBefore;
 	QString badAfter;
+	QString badBefore;
+	QString goodAfter;
 };
 
 constexpr auto kTagBoldIndex = 0;
 constexpr auto kTagItalicIndex = 1;
-constexpr auto kTagCodeIndex = 2;
-constexpr auto kTagPreIndex = 3;
+//constexpr auto kTagUnderlineIndex = 2;
+constexpr auto kTagStrikeOutIndex = 2;
+constexpr auto kTagCodeIndex = 3;
+constexpr auto kTagPreIndex = 4;
 constexpr auto kInvalidPosition = std::numeric_limits<int>::max() / 2;
 
 class TagSearchItem {
@@ -208,24 +215,34 @@ public:
 		const auto length = text.size();
 		const auto &tag = expression.tag;
 		const auto tagLength = tag.size();
-		const auto isGood = [&](QChar ch) {
-			return (expression.goodBefore.indexOf(ch) >= 0);
+		const auto isGoodBefore = [&](QChar ch) {
+			return expression.goodBefore.isEmpty()
+				|| (expression.goodBefore.indexOf(ch) >= 0);
 		};
-		const auto isBad = [&](QChar ch) {
-			return (expression.badAfter.indexOf(ch) >= 0);
+		const auto isBadAfter = [&](QChar ch) {
+			return !expression.badAfter.isEmpty()
+				&& (expression.badAfter.indexOf(ch) >= 0);
+		};
+		const auto isBadBefore = [&](QChar ch) {
+			return !expression.badBefore.isEmpty()
+				&& (expression.badBefore.indexOf(ch) >= 0);
+		};
+		const auto isGoodAfter = [&](QChar ch) {
+			return expression.goodAfter.isEmpty()
+				|| (expression.goodAfter.indexOf(ch) >= 0);
 		};
 		const auto check = [&](Edge edge) {
 			if (_position > 0) {
 				const auto before = text[_position - 1];
-				if ((edge == Edge::Open && !isGood(before))
-					|| (edge == Edge::Close && isBad(before))) {
+				if ((edge == Edge::Open && !isGoodBefore(before))
+					|| (edge == Edge::Close && isBadBefore(before))) {
 					return false;
 				}
 			}
 			if (_position + tagLength < length) {
 				const auto after = text[_position + tagLength];
-				if ((edge == Edge::Open && isBad(after))
-					|| (edge == Edge::Close && !isGood(after))) {
+				if ((edge == Edge::Open && isBadAfter(after))
+					|| (edge == Edge::Close && !isGoodAfter(after))) {
 					return false;
 				}
 			}
@@ -275,22 +292,44 @@ const std::vector<TagStartExpression> &TagStartExpressions() {
 		{
 			kTagBold,
 			TextUtilities::MarkdownBoldGoodBefore(),
-			TextUtilities::MarkdownBoldBadAfter()
+			TextUtilities::MarkdownBoldBadAfter(),
+			TextUtilities::MarkdownBoldBadAfter(),
+			TextUtilities::MarkdownBoldGoodBefore()
 		},
 		{
 			kTagItalic,
 			TextUtilities::MarkdownItalicGoodBefore(),
-			TextUtilities::MarkdownItalicBadAfter()
+			TextUtilities::MarkdownItalicBadAfter(),
+			TextUtilities::MarkdownItalicBadAfter(),
+			TextUtilities::MarkdownItalicGoodBefore()
+		},
+		//{
+		//	kTagUnderline,
+		//	TextUtilities::MarkdownUnderlineGoodBefore(),
+		//	TextUtilities::MarkdownUnderlineBadAfter(),
+		//	TextUtilities::MarkdownUnderlineBadAfter(),
+		//	TextUtilities::MarkdownUnderlineGoodBefore()
+		//},
+		{
+			kTagStrikeOut,
+			TextUtilities::MarkdownStrikeOutGoodBefore(),
+			TextUtilities::MarkdownStrikeOutBadAfter(),
+			TextUtilities::MarkdownStrikeOutBadAfter(),
+			QString(),
 		},
 		{
 			kTagCode,
 			TextUtilities::MarkdownCodeGoodBefore(),
-			TextUtilities::MarkdownCodeBadAfter()
+			TextUtilities::MarkdownCodeBadAfter(),
+			TextUtilities::MarkdownCodeBadAfter(),
+			TextUtilities::MarkdownCodeGoodBefore()
 		},
 		{
 			kTagPre,
 			TextUtilities::MarkdownPreGoodBefore(),
-			TextUtilities::MarkdownPreBadAfter()
+			TextUtilities::MarkdownPreBadAfter(),
+			TextUtilities::MarkdownPreBadAfter(),
+			TextUtilities::MarkdownPreGoodBefore()
 		},
 	};
 	return cached;
@@ -300,6 +339,8 @@ const std::map<QString, int> &TagIndices() {
 	static auto cached = std::map<QString, int> {
 		{ kTagBold, kTagBoldIndex },
 		{ kTagItalic, kTagItalicIndex },
+		//{ kTagUnderline, kTagUnderlineIndex },
+		{ kTagStrikeOut, kTagStrikeOutIndex },
 		{ kTagCode, kTagCodeIndex },
 		{ kTagPre, kTagPreIndex },
 	};
@@ -646,6 +687,12 @@ QTextCharFormat PrepareTagFormat(
 	} else if (tag == kTagItalic) {
 		result.setForeground(st.textFg);
 		result.setFont(st.font->italic());
+	} else if (tag == kTagUnderline) {
+		result.setForeground(st.textFg);
+		result.setFont(st.font->underline());
+	} else if (tag == kTagStrikeOut) {
+		result.setForeground(st.textFg);
+		result.setFont(st.font->strikeout());
 	} else if (tag == kTagCode || tag == kTagPre) {
 		result.setForeground(st::defaultTextPalette.monoFg);
 		result.setFont(AdjustFont(App::monofont(), st.font));
@@ -794,6 +841,8 @@ QString ExpandCustomLinks(const TextWithTags &text) {
 
 const QString InputField::kTagBold = qsl("**");
 const QString InputField::kTagItalic = qsl("__");
+const QString InputField::kTagUnderline = qsl("^^"); // Not for Markdown.
+const QString InputField::kTagStrikeOut = qsl("~~");
 const QString InputField::kTagCode = qsl("`");
 const QString InputField::kTagPre = qsl("```");
 
@@ -2694,6 +2743,10 @@ bool InputField::handleMarkdownKey(QKeyEvent *e) {
 		toggleSelectionMarkdown(kTagBold);
 	} else if (e == QKeySequence::Italic) {
 		toggleSelectionMarkdown(kTagItalic);
+	} else if (e == QKeySequence::Underline) {
+		toggleSelectionMarkdown(kTagUnderline);
+	} else if (matches(kStrikeOutSequence)) {
+		toggleSelectionMarkdown(kTagStrikeOut);
 	} else if (matches(kMonospaceSequence)) {
 		toggleSelectionMarkdown(kTagCode);
 	} else if (matches(kClearFormatSequence)) {
@@ -3358,6 +3411,8 @@ void InputField::addMarkdownActions(
 
 	addtag(tr::lng_menu_formatting_bold(tr::now), QKeySequence::Bold, kTagBold);
 	addtag(tr::lng_menu_formatting_italic(tr::now), QKeySequence::Italic, kTagItalic);
+	addtag(tr::lng_menu_formatting_underline(tr::now), QKeySequence::Underline, kTagUnderline);
+	addtag(tr::lng_menu_formatting_strike_out(tr::now), kStrikeOutSequence, kTagStrikeOut);
 	addtag(tr::lng_menu_formatting_monospace(tr::now), kMonospaceSequence, kTagCode);
 
 	if (_editLinkCallback) {

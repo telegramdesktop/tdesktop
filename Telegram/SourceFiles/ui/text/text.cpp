@@ -84,7 +84,12 @@ TextWithEntities PrepareRichFromRich(
 					(type == EntityType::Hashtag && !parseHashtags) ||
 					(type == EntityType::Cashtag && !parseHashtags) ||
 					(type == EntityType::BotCommand && !parseBotCommands) || // #TODO entities
-					((type == EntityType::Bold || type == EntityType::Italic || type == EntityType::Code || type == EntityType::Pre) && !parseMarkdown)) {
+					(!parseMarkdown && (type == EntityType::Bold
+						|| type == EntityType::Italic
+						|| type == EntityType::Underline
+						|| type == EntityType::StrikeOut
+						|| type == EntityType::Code
+						|| type == EntityType::Pre))) {
 					continue;
 				}
 				result.entities.push_back(preparsed.at(i));
@@ -545,6 +550,10 @@ bool Parser::checkEntities() {
 		flags = TextBlockFSemibold;
 	} else if (entityType == EntityType::Italic) {
 		flags = TextBlockFItalic;
+	} else if (entityType == EntityType::Underline) {
+		flags = TextBlockFUnderline;
+	} else if (entityType == EntityType::StrikeOut) {
+		flags = TextBlockFStrikeOut;
 	} else if (entityType == EntityType::Code) { // #TODO entities
 		flags = TextBlockFCode;
 	} else if (entityType == EntityType::Pre) {
@@ -698,6 +707,20 @@ bool Parser::readCommand() {
 			_flags &= ~TextBlockFUnderline;
 		}
 	break;
+
+	case TextCommandStrikeOut:
+		if (!(_flags & TextBlockFStrikeOut)) {
+			createBlock();
+			_flags |= TextBlockFStrikeOut;
+		}
+		break;
+
+	case TextCommandNoStrikeOut:
+		if (_flags & TextBlockFStrikeOut) {
+			createBlock();
+			_flags &= ~TextBlockFStrikeOut;
+		}
+		break;
 
 	case TextCommandLinkIndex:
 		if (_ptr->unicode() != _lnkIndex) {
@@ -2035,6 +2058,7 @@ private:
 			}
 			if (flags & TextBlockFItalic) result = result->italic();
 			if (flags & TextBlockFUnderline) result = result->underline();
+			if (flags & TextBlockFStrikeOut) result = result->strikeout();
 			if (flags & TextBlockFTilde) { // tilde fix in OpenSans
 				result = st::semiboldFont;
 			}
@@ -3217,6 +3241,8 @@ TextForMimeData String::toText(
 		? std::vector<MarkdownTagTracker>{
 			{ TextBlockFItalic, EntityType::Italic },
 			{ TextBlockFSemibold, EntityType::Bold },
+			{ TextBlockFUnderline, EntityType::Underline },
+			{ TextBlockFStrikeOut, EntityType::StrikeOut },
 			{ TextBlockFCode, EntityType::Code }, // #TODO entities
 			{ TextBlockFPre, EntityType::Pre }
 		} : std::vector<MarkdownTagTracker>();

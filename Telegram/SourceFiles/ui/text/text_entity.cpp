@@ -36,7 +36,7 @@ QString ExpressionSeparators(const QString &additional) {
 
 QString Separators(const QString &additional) {
 	static const auto quotes = Quotes();
-	return qsl(" \x10\n\r\t.,:;<>|'\"[]{}~!?%^()-+=")
+	return qsl(" \x10\n\r\t.,:;<>|'\"[]{}!?%^()-+=")
 		+ QChar(0xfdd0) // QTextBeginningOfFrame
 		+ QChar(0xfdd1) // QTextEndOfFrame
 		+ QChar(QChar::ParagraphSeparator)
@@ -46,15 +46,19 @@ QString Separators(const QString &additional) {
 }
 
 QString SeparatorsBold() {
-	return Separators(qsl("`/"));
+	return Separators(qsl("`~/"));
 }
 
 QString SeparatorsItalic() {
-	return Separators(qsl("`*/"));
+	return Separators(qsl("`*~/"));
+}
+
+QString SeparatorsStrikeOut() {
+	return Separators(qsl("`*~/"));
 }
 
 QString SeparatorsMono() {
-	return Separators(qsl("*/"));
+	return Separators(qsl("*~/"));
 }
 
 QString ExpressionHashtag() {
@@ -1173,6 +1177,14 @@ QString MarkdownItalicBadAfter() {
 	return qsl("_");
 }
 
+QString MarkdownStrikeOutGoodBefore() {
+	return SeparatorsStrikeOut();
+}
+
+QString MarkdownStrikeOutBadAfter() {
+	return qsl("~");
+}
+
 QString MarkdownCodeGoodBefore() {
 	return SeparatorsMono();
 }
@@ -1500,6 +1512,8 @@ EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 			case mtpc_messageEntityBotCommand: { auto &d = entity.c_messageEntityBotCommand(); result.push_back({ EntityType::BotCommand, d.voffset.v, d.vlength.v }); } break;
 			case mtpc_messageEntityBold: { auto &d = entity.c_messageEntityBold(); result.push_back({ EntityType::Bold, d.voffset.v, d.vlength.v }); } break;
 			case mtpc_messageEntityItalic: { auto &d = entity.c_messageEntityItalic(); result.push_back({ EntityType::Italic, d.voffset.v, d.vlength.v }); } break;
+			case mtpc_messageEntityUnderline: { auto &d = entity.c_messageEntityUnderline(); result.push_back({ EntityType::Underline, d.voffset.v, d.vlength.v }); } break;
+			case mtpc_messageEntityStrike: { auto &d = entity.c_messageEntityStrike(); result.push_back({ EntityType::StrikeOut, d.voffset.v, d.vlength.v }); } break;
 			case mtpc_messageEntityCode: { auto &d = entity.c_messageEntityCode(); result.push_back({ EntityType::Code, d.voffset.v, d.vlength.v }); } break;
 			case mtpc_messageEntityPre: { auto &d = entity.c_messageEntityPre(); result.push_back({ EntityType::Pre, d.voffset.v, d.vlength.v, Clean(qs(d.vlanguage)) }); } break;
 				// #TODO entities
@@ -1517,6 +1531,8 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 		if (option == ConvertOption::SkipLocal
 			&& entity.type() != EntityType::Bold
 			&& entity.type() != EntityType::Italic
+			&& entity.type() != EntityType::Underline
+			&& entity.type() != EntityType::StrikeOut
 			&& entity.type() != EntityType::Code // #TODO entities
 			&& entity.type() != EntityType::Pre
 			&& entity.type() != EntityType::MentionName
@@ -1550,6 +1566,8 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 		case EntityType::BotCommand: v.push_back(MTP_messageEntityBotCommand(offset, length)); break;
 		case EntityType::Bold: v.push_back(MTP_messageEntityBold(offset, length)); break;
 		case EntityType::Italic: v.push_back(MTP_messageEntityItalic(offset, length)); break;
+		case EntityType::Underline: v.push_back(MTP_messageEntityUnderline(offset, length)); break;
+		case EntityType::StrikeOut: v.push_back(MTP_messageEntityStrike(offset, length)); break;
 		case EntityType::Code: v.push_back(MTP_messageEntityCode(offset, length)); break; // #TODO entities
 		case EntityType::Pre: v.push_back(MTP_messageEntityPre(offset, length, MTP_string(entity.data()))); break;
 		}

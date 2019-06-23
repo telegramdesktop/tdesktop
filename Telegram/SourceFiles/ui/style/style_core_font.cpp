@@ -64,6 +64,7 @@ FontData::FontData(int size, uint32 flags, int family, Font *other)
 	}
 	f.setItalic(_flags & FontItalic);
 	f.setUnderline(_flags & FontUnderline);
+	f.setStrikeOut(_flags & FontStrikeOut);
 	f.setStyleStrategy(QFont::PreferQuality);
 
 	m = QFontMetrics(f);
@@ -84,6 +85,10 @@ Font FontData::italic(bool set) const {
 
 Font FontData::underline(bool set) const {
 	return otherFlagsFont(FontUnderline, set);
+}
+
+Font FontData::strikeout(bool set) const {
+	return otherFlagsFont(FontStrikeOut, set);
 }
 
 int FontData::size() const {
