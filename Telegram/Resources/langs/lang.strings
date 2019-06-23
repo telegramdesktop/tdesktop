@@ -119,6 +119,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_channel_status" = "channel";
 "lng_group_status" = "group";
+"lng_scam_badge" = "SCAM";
 
 "lng_flood_error" = "Too many tries. Please try again later.";
 "lng_gif_error" = "An error has occurred while reading GIF animation :(";

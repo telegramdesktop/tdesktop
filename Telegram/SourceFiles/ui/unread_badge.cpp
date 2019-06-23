@@ -7,7 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/unread_badge.h"
 
+#include "data/data_peer.h"
 #include "dialogs/dialogs_layout.h"
+#include "lang/lang_keys.h"
+#include "styles/style_dialogs.h"
 
 namespace Ui {
 
@@ -43,6 +46,93 @@ void UnreadBadge::paintEvent(QPaintEvent *e) {
 		unreadRight,
 		unreadTop,
 		unreadSt);
+}
+
+QSize ScamBadgeSize() {
+	const auto phrase = tr::lng_scam_badge(tr::now);
+	const auto phraseWidth = st::dialogsScamFont->width(phrase);
+	const auto width = st::dialogsScamPadding.left()
+		+ phraseWidth
+		+ st::dialogsScamPadding.right();
+	const auto height = st::dialogsScamPadding.top()
+		+ st::dialogsScamFont->height
+		+ st::dialogsScamPadding.bottom();
+	return { width, height };
+}
+
+void DrawScamBadge(
+		Painter &p,
+		QRect rect,
+		int outerWidth,
+		const style::color &color,
+		const QString &phrase,
+		int phraseWidth) {
+	PainterHighQualityEnabler hq(p);
+	auto pen = color->p;
+	pen.setWidth(st::lineWidth);
+	p.setPen(pen);
+	p.setBrush(Qt::NoBrush);
+	p.drawRoundedRect(rect, st::dialogsScamRadius, st::dialogsScamRadius);
+	p.setFont(st::dialogsScamFont);
+	p.drawTextLeft(
+		rect.x() + st::dialogsScamPadding.left(),
+		rect.y() + st::dialogsScamPadding.top(),
+		outerWidth,
+		phrase,
+		phraseWidth);
+}
+
+void DrawScamBadge(
+		Painter &p,
+		QRect rect,
+		int outerWidth,
+		const style::color &color) {
+	const auto phrase = tr::lng_scam_badge(tr::now);
+	DrawScamBadge(
+		p,
+		rect,
+		outerWidth,
+		color,
+		phrase,
+		st::dialogsScamFont->width(phrase));
+}
+
+int DrawPeerBadgeGetWidth(
+		not_null<PeerData*> peer,
+		Painter &p,
+		QRect rectForName,
+		int nameWidth,
+		int outerWidth,
+		const PeerBadgeStyle &st) {
+	if (peer->isVerified() && st.verified) {
+		const auto iconw = st.verified->width();
+		st.verified->paint(
+			p,
+			rectForName.x() + qMin(nameWidth, rectForName.width() - iconw),
+			rectForName.y(),
+			outerWidth);
+		return iconw;
+	} else if (peer->isScam() && st.scam) {
+		const auto phrase = tr::lng_scam_badge(tr::now);
+		const auto phraseWidth = st::dialogsScamFont->width(phrase);
+		const auto width = st::dialogsScamPadding.left()
+			+ phraseWidth
+			+ st::dialogsScamPadding.right();
+		const auto height = st::dialogsScamPadding.top()
+			+ st::dialogsScamFont->height
+			+ st::dialogsScamPadding.bottom();
+		const auto rect = QRect(
+			(rectForName.x()
+				+ qMin(
+					nameWidth + st::dialogsScamSkip,
+					rectForName.width() - width)),
+			rectForName.y() + (rectForName.height() - height) / 2,
+			width,
+			height);
+		DrawScamBadge(p, rect, outerWidth, *st.scam, phrase, phraseWidth);
+		return st::dialogsScamSkip + width;
+	}
+	return 0;
 }
 
 } // namespace Ui

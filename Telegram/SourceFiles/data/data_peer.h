@@ -141,6 +141,7 @@ public:
 		return (input.type() == mtpc_inputPeerSelf);
 	}
 	[[nodiscard]] bool isVerified() const;
+	[[nodiscard]] bool isScam() const;
 	[[nodiscard]] bool isMegagroup() const;
 
 	[[nodiscard]] bool isNotificationsUser() const {

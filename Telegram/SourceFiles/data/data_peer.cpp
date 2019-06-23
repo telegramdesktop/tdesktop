@@ -618,19 +618,30 @@ const QString &PeerData::shortName() const {
 }
 
 QString PeerData::userName() const {
-	return isUser()
-		? asUser()->username
-		: isChannel()
-			? asChannel()->username
-			: QString();
+	if (const auto user = asUser()) {
+		return user->username;
+	} else if (const auto channel = asChannel()) {
+		return channel->username;
+	}
+	return QString();
 }
 
 bool PeerData::isVerified() const {
-	return isUser()
-		? asUser()->isVerified()
-		: isChannel()
-			? asChannel()->isVerified()
-			: false;
+	if (const auto user = asUser()) {
+		return user->isVerified();
+	} else if (const auto channel = asChannel()) {
+		return channel->isVerified();
+	}
+	return false;
+}
+
+bool PeerData::isScam() const {
+	if (const auto user = asUser()) {
+		return user->isScam();
+	} else if (const auto channel = asChannel()) {
+		return channel->isScam();
+	}
+	return false;
 }
 
 bool PeerData::isMegagroup() const {
@@ -638,13 +649,14 @@ bool PeerData::isMegagroup() const {
 }
 
 bool PeerData::canWrite() const {
-	return isChannel()
-		? asChannel()->canWrite()
-		: isChat()
-			? asChat()->canWrite()
-			: isUser()
-				? asUser()->canWrite()
-				: false;
+	if (const auto user = asUser()) {
+		return user->canWrite();
+	} else if (const auto channel = asChannel()) {
+		return channel->canWrite();
+	} else if (const auto chat = asChat()) {
+		return chat->canWrite();
+	}
+	return false;
 }
 
 Data::RestrictionCheckResult PeerData::amRestricted(

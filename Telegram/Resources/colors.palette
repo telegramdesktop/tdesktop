@@ -195,6 +195,7 @@ dialogsUnreadBgMuted: #bbbbbb; // chat list unread badge background for muted ch
 dialogsUnreadFg: windowFgActive; // chat list unread badge text
 dialogsArchiveFg: #525252 | dialogsNameFg; // chat list archive name text
 dialogsOnlineBadgeFg: #4dc920 | dialogsUnreadBg; // chat list online status
+dialogsScamFg: dialogsDraftFg; // chat list scam label
 
 dialogsBgOver: windowBgOver; // chat list background with mouse over
 dialogsNameFgOver: windowBoldFgOver; // chat list name text with mouse over
@@ -210,7 +211,8 @@ dialogsSentIconFgOver: dialogsSentIconFg; // chat list sent message tick / doubl
 dialogsUnreadBgOver: dialogsUnreadBg; // chat list unread badge background for not muted chat with mouse over
 dialogsUnreadBgMutedOver: dialogsUnreadBgMuted; // chat list unread badge background for muted chat with mouse over
 dialogsUnreadFgOver: dialogsUnreadFg; // chat list unread badge text with mouse over
-dialogsArchiveFgOver: #525252 | dialogsNameFgOver; // chat list archive name text
+dialogsArchiveFgOver: #525252 | dialogsNameFgOver; // chat list archive name text with mouse over
+dialogsScamFgOver: dialogsDraftFgOver; // chat list scam label with mouse over
 
 dialogsBgActive: #419fd9; // chat list background for current (active) chat
 dialogsNameFgActive: windowFgActive; // chat list name text for current (active) chat
@@ -227,6 +229,7 @@ dialogsUnreadBgActive: dialogsTextFgActive; // chat list unread badge background
 dialogsUnreadBgMutedActive: dialogsDraftFgActive; // chat list unread badge background for muted chat for current (active) chat
 dialogsUnreadFgActive: dialogsBgActive; // chat list unread badge text for current (active) chat
 dialogsOnlineBadgeFgActive: #ffffff; // chat list online status for current (active) chat
+dialogsScamFgActive: dialogsDraftFgActive; // chat list scam label for current (active) chat
 
 dialogsRippleBg: windowBgRipple; // chat list background ripple effect
 dialogsRippleBgActive: activeButtonBgRipple; // chat list background ripple effect for current (active) chat

@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/empty_userpic.h"
+#include "ui/unread_badge.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
@@ -736,11 +737,25 @@ void InnerWidget::paintPeerSearchResult(
 		chatTypeIcon->paint(p, rectForName.topLeft(), fullWidth);
 		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 	}
-	if (peer->isVerified()) {
-		auto icon = &(active ? st::dialogsVerifiedIconActive : (selected ? st::dialogsVerifiedIconOver : st::dialogsVerifiedIcon));
-		rectForName.setWidth(rectForName.width() - icon->width());
-		icon->paint(p, rectForName.topLeft() + QPoint(qMin(peer->nameText().maxWidth(), rectForName.width()), 0), fullWidth);
-	}
+	const auto badgeStyle = Ui::PeerBadgeStyle{
+		(active
+			? &st::dialogsVerifiedIconActive
+			: selected
+			? &st::dialogsVerifiedIconOver
+			: &st::dialogsVerifiedIcon),
+		(active
+			? &st::dialogsScamFgActive
+			: selected
+			? &st::dialogsScamFgOver
+			: &st::dialogsScamFg) };
+	const auto badgeWidth = Ui::DrawPeerBadgeGetWidth(
+		peer,
+		p,
+		rectForName,
+		peer->nameText().maxWidth(),
+		fullWidth,
+		badgeStyle);
+	rectForName.setWidth(rectForName.width() - badgeWidth);
 
 	QRect tr(nameleft, st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip, namewidth, st::dialogsTextFont->height);
 	p.setFont(st::dialogsTextFont);

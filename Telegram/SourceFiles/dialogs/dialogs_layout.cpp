@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "ui/empty_userpic.h"
 #include "ui/text_options.h"
+#include "ui/unread_badge.h"
 #include "lang/lang_keys.h"
 #include "support/support_helper.h"
 #include "history/history_item_components.h"
@@ -406,26 +407,46 @@ void paintRow(
 		sendStateIcon->paint(p, rectForName.topLeft() + QPoint(rectForName.width(), 0), fullWidth);
 	}
 
-	const auto nameFg = active
-		? st::dialogsNameFgActive
-		: (selected
-			? st::dialogsNameFgOver
-			: st::dialogsNameFg);
-	p.setPen(nameFg);
 	if (flags & Flag::SavedMessages) {
-		p.setFont(st::msgNameFont);
 		auto text = tr::lng_saved_messages(tr::now);
-		auto textWidth = st::msgNameFont->width(text);
+		const auto textWidth = st::msgNameFont->width(text);
 		if (textWidth > rectForName.width()) {
 			text = st::msgNameFont->elided(text, rectForName.width());
 		}
+		p.setFont(st::msgNameFont);
+		p.setPen(active
+			? st::dialogsNameFgActive
+			: selected
+			? st::dialogsNameFgOver
+			: st::dialogsNameFg);
 		p.drawTextLeft(rectForName.left(), rectForName.top(), fullWidth, text);
 	} else if (from) {
-		if (!(flags & Flag::SearchResult) && from->isVerified()) {
-			auto icon = &(active ? st::dialogsVerifiedIconActive : (selected ? st::dialogsVerifiedIconOver : st::dialogsVerifiedIcon));
-			rectForName.setWidth(rectForName.width() - icon->width());
-			icon->paint(p, rectForName.topLeft() + QPoint(qMin(from->nameText().maxWidth(), rectForName.width()), 0), fullWidth);
+		if (!(flags & Flag::SearchResult)) {
+			const auto badgeStyle = Ui::PeerBadgeStyle{
+				(active
+					? &st::dialogsVerifiedIconActive
+					: selected
+					? &st::dialogsVerifiedIconOver
+					: &st::dialogsVerifiedIcon),
+				(active
+					? &st::dialogsScamFgActive
+					: selected
+					? &st::dialogsScamFgOver
+					: &st::dialogsScamFg) };
+			const auto badgeWidth = Ui::DrawPeerBadgeGetWidth(
+				from,
+				p,
+				rectForName,
+				from->nameText().maxWidth(),
+				fullWidth,
+				badgeStyle);
+			rectForName.setWidth(rectForName.width() - badgeWidth);
 		}
+		p.setPen(active
+			? st::dialogsNameFgActive
+			: selected
+			? st::dialogsNameFgOver
+			: st::dialogsNameFg);
 		from->nameText().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	} else if (hiddenSenderInfo) {
 		hiddenSenderInfo->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());

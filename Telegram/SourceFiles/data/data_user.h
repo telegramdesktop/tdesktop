@@ -48,6 +48,7 @@ public:
 		| MTPDuser::Flag::f_bot_chat_history
 		| MTPDuser::Flag::f_bot_nochats
 		| MTPDuser::Flag::f_verified
+		| MTPDuser::Flag::f_scam
 		| MTPDuser::Flag::f_restricted
 		| MTPDuser::Flag::f_bot_inline_geo;
 	using Flags = Data::Flags<
@@ -118,6 +119,9 @@ public:
 
 	bool isVerified() const {
 		return flags() & MTPDuser::Flag::f_verified;
+	}
+	bool isScam() const {
+		return flags() & MTPDuser::Flag::f_scam;
 	}
 	bool isBotInlineGeo() const {
 		return flags() & MTPDuser::Flag::f_bot_inline_geo;

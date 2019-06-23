@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/special_buttons.h"
+#include "ui/unread_badge.h"
 #include "window/window_session_controller.h"
 #include "observer_peer.h"
 #include "core/application.h"
@@ -316,9 +317,14 @@ void Cover::initViewers(rpl::producer<QString> title) {
 	}
 	VerifiedValue(
 		_peer
-	) | rpl::start_with_next(
-		[=](bool verified) { setVerified(verified); },
-		lifetime());
+	) | rpl::start_with_next([=](bool verified) {
+		setVerified(verified);
+	}, lifetime());
+	ScamValue(
+		_peer
+	) | rpl::start_with_next([=](bool scam) {
+		setScam(scam);
+	}, lifetime());
 }
 
 void Cover::refreshUploadPhotoOverlay() {
@@ -337,6 +343,7 @@ void Cover::setVerified(bool verified) {
 		return;
 	}
 	if (verified) {
+		_scamBadge.destroy();
 		_verifiedCheck.create(this);
 		_verifiedCheck->show();
 		_verifiedCheck->resize(st::infoVerifiedCheck.size());
@@ -347,6 +354,34 @@ void Cover::setVerified(bool verified) {
 		}, _verifiedCheck->lifetime());
 	} else {
 		_verifiedCheck.destroy();
+	}
+	refreshNameGeometry(width());
+}
+
+void Cover::setScam(bool scam) {
+	if ((_scamBadge != nullptr) == scam) {
+		return;
+	}
+	if (scam) {
+		_verifiedCheck.destroy();
+		const auto size = Ui::ScamBadgeSize();
+		const auto skip = st::infoVerifiedCheckPosition.x();
+		_scamBadge.create(this);
+		_scamBadge->show();
+		_scamBadge->resize(
+			size.width() + 2 * skip,
+			size.height() + 2 * skip);
+		_scamBadge->paintRequest(
+		) | rpl::start_with_next([=, badge = _scamBadge.data()] {
+			Painter p(badge);
+			Ui::DrawScamBadge(
+				p,
+				badge->rect().marginsRemoved({ skip, skip, skip, skip }),
+				badge->width(),
+				st::attentionButtonFg);
+		}, _scamBadge->lifetime());
+	} else {
+		_scamBadge.destroy();
 	}
 	refreshNameGeometry(width());
 }
@@ -409,17 +444,29 @@ void Cover::refreshNameGeometry(int newWidth) {
 		- toggleSkip();
 	if (_verifiedCheck) {
 		nameWidth -= st::infoVerifiedCheckPosition.x()
-			+ st::infoVerifiedCheck.width();
+			+ _verifiedCheck->width();
+	} else if (_scamBadge) {
+		nameWidth -= st::infoVerifiedCheckPosition.x()
+			+ _scamBadge->width();
 	}
 	_name->resizeToNaturalWidth(nameWidth);
 	_name->moveToLeft(nameLeft, nameTop, newWidth);
 	if (_verifiedCheck) {
-		auto checkLeft = nameLeft
+		const auto checkLeft = nameLeft
 			+ _name->width()
 			+ st::infoVerifiedCheckPosition.x();
-		auto checkTop = nameTop
+		const auto checkTop = nameTop
 			+ st::infoVerifiedCheckPosition.y();
 		_verifiedCheck->moveToLeft(checkLeft, checkTop, newWidth);
+	} else if (_scamBadge) {
+		const auto skip = st::infoVerifiedCheckPosition.x();
+		const auto badgeLeft = nameLeft
+			+ _name->width()
+			+ st::infoVerifiedCheckPosition.x()
+			- skip;
+		const auto badgeTop = nameTop
+			+ (_name->height() - _scamBadge->height()) / 2;
+		_scamBadge->moveToLeft(badgeLeft, badgeTop, newWidth);
 	}
 }
 

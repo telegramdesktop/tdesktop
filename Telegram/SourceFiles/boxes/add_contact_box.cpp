@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
 #include "ui/text_options.h"
+#include "ui/unread_badge.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -1399,11 +1400,21 @@ void RevokePublicLinkBox::Inner::paintChat(Painter &p, const ChatRow &row, bool 
 
 	int32 namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
 	int32 namew = width() - namex - st::contactsPadding.right() - (_revokeWidth + st::contactsCheckPosition.x() * 2);
-	if (peer->isVerified()) {
-		auto icon = &st::dialogsVerifiedIcon;
-		namew -= icon->width();
-		icon->paint(p, namex + qMin(row.name.maxWidth(), namew), st::contactsPadding.top() + st::contactsNameTop, width());
-	}
+
+	const auto badgeStyle = Ui::PeerBadgeStyle{
+		&st::dialogsVerifiedIcon,
+		&st::attentionButtonFg };
+	namew -= Ui::DrawPeerBadgeGetWidth(
+		peer,
+		p,
+		QRect(
+			namex,
+			st::contactsPadding.top() + st::contactsNameTop,
+			row.name.maxWidth(),
+			st::contactsNameStyle.font->height),
+		namew,
+		width(),
+		badgeStyle);
 	row.name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
 
 	p.setFont(selected ? st::linkOverFont : st::linkFont);

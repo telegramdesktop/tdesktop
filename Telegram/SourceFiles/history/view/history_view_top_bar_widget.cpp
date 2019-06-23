@@ -304,17 +304,17 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	auto nameleft = _leftTaken;
 	auto nametop = st::topBarArrowPadding.top();
 	auto statustop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
-	auto namewidth = width() - _rightTaken - nameleft;
+	auto availableWidth = width() - _rightTaken - nameleft;
 
 	auto history = _activeChat.history();
 
-	p.setPen(st::dialogsNameFg);
 	if (const auto folder = _activeChat.folder()) {
 		auto text = folder->chatListName(); // TODO feed name emoji
-		auto textWidth = st::historySavedFont->width(text);
-		if (namewidth < textWidth) {
-			text = st::historySavedFont->elided(text, namewidth);
+		const auto textWidth = st::historySavedFont->width(text);
+		if (availableWidth < textWidth) {
+			text = st::historySavedFont->elided(text, availableWidth);
 		}
+		p.setPen(st::dialogsNameFg);
 		p.setFont(st::historySavedFont);
 		p.drawTextLeft(
 			nameleft,
@@ -323,10 +323,11 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			text);
 	} else if (_activeChat.peer()->isSelf()) {
 		auto text = tr::lng_saved_messages(tr::now);
-		auto textWidth = st::historySavedFont->width(text);
-		if (namewidth < textWidth) {
-			text = st::historySavedFont->elided(text, namewidth);
+		const auto textWidth = st::historySavedFont->width(text);
+		if (availableWidth < textWidth) {
+			text = st::historySavedFont->elided(text, availableWidth);
 		}
+		p.setPen(st::dialogsNameFg);
 		p.setFont(st::historySavedFont);
 		p.drawTextLeft(
 			nameleft,
@@ -334,7 +335,30 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			width(),
 			text);
 	} else if (const auto history = _activeChat.history()) {
-		history->peer->topBarNameText().drawElided(p, nameleft, nametop, namewidth);
+		const auto peer = history->peer;
+		const auto &text = peer->topBarNameText();
+		const auto badgeStyle = Ui::PeerBadgeStyle{
+			nullptr,
+			&st::attentionButtonFg };
+		const auto badgeWidth = Ui::DrawPeerBadgeGetWidth(
+			peer,
+			p,
+			QRect(
+				nameleft,
+				nametop,
+				availableWidth,
+				st::msgNameStyle.font->height),
+			text.maxWidth(),
+			width(),
+			badgeStyle);
+		const auto namewidth = availableWidth - badgeWidth;
+
+		p.setPen(st::dialogsNameFg);
+		peer->topBarNameText().drawElided(
+			p,
+			nameleft,
+			nametop,
+			namewidth);
 
 		p.setFont(st::dialogsTextFont);
 		if (paintConnectingState(p, nameleft, statustop, width())) {
@@ -343,13 +367,13 @@ void TopBarWidget::paintTopBar(Painter &p) {
 				p,
 				nameleft,
 				statustop,
-				namewidth,
+			availableWidth,
 				width(),
 				st::historyStatusFgTyping,
 				crl::now())) {
 			return;
 		} else {
-			paintStatus(p, nameleft, statustop, namewidth, width());
+			paintStatus(p, nameleft, statustop, availableWidth, width());
 		}
 	}
 }

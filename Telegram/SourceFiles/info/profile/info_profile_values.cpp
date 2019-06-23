@@ -310,14 +310,14 @@ rpl::producer<int> CommonGroupsCountValue(not_null<UserData*> user) {
 }
 
 rpl::producer<bool> CanAddMemberValue(not_null<PeerData*> peer) {
-	if (auto chat = peer->asChat()) {
+	if (const auto chat = peer->asChat()) {
 		return Notify::PeerUpdateValue(
 			chat,
 			Notify::PeerUpdate::Flag::RightsChanged
 		) | rpl::map([=] {
 			return chat->canAddMembers();
 		});
-	} else if (auto channel = peer->asChannel()) {
+	} else if (const auto channel = peer->asChannel()) {
 		return Notify::PeerUpdateValue(
 			channel,
 			Notify::PeerUpdate::Flag::RightsChanged
@@ -329,12 +329,23 @@ rpl::producer<bool> CanAddMemberValue(not_null<PeerData*> peer) {
 }
 
 rpl::producer<bool> VerifiedValue(not_null<PeerData*> peer) {
-	if (auto user = peer->asUser()) {
+	if (const auto user = peer->asUser()) {
 		return Data::PeerFlagValue(user, MTPDuser::Flag::f_verified);
-	} else if (auto channel = peer->asChannel()) {
+	} else if (const auto channel = peer->asChannel()) {
 		return Data::PeerFlagValue(
 			channel,
 			MTPDchannel::Flag::f_verified);
+	}
+	return rpl::single(false);
+}
+
+rpl::producer<bool> ScamValue(not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return Data::PeerFlagValue(user, MTPDuser::Flag::f_scam);
+	} else if (const auto channel = peer->asChannel()) {
+		return Data::PeerFlagValue(
+			channel,
+			MTPDchannel::Flag::f_scam);
 	}
 	return rpl::single(false);
 }

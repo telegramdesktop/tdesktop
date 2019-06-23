@@ -91,6 +91,7 @@ public:
 		| MTPDchannel_ClientFlag::f_forbidden
 		| MTPDchannel::Flag::f_broadcast
 		| MTPDchannel::Flag::f_verified
+		| MTPDchannel::Flag::f_scam
 		| MTPDchannel::Flag::f_megagroup
 		| MTPDchannel::Flag::f_restricted
 		| MTPDchannel::Flag::f_signatures
@@ -191,6 +192,9 @@ public:
 	}
 	bool isVerified() const {
 		return flags() & MTPDchannel::Flag::f_verified;
+	}
+	bool isScam() const {
+		return flags() & MTPDchannel::Flag::f_scam;
 	}
 
 	static MTPChatBannedRights KickedRestrictedRights();
