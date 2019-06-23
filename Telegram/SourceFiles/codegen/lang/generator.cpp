@@ -209,7 +209,7 @@ using S = std::decay_t<decltype(std::declval<P>()(QString()))>;\n\
 template <typename ...Tags>\n\
 struct phrase;\n\
 \n";
-	std::set<QStringList> producersDeclared;
+	std::set<QString> producersDeclared;
 	for (auto &entry : langpack_.entries) {
 		const auto isPlural = !entry.keyBase.isEmpty();
 		const auto &key = entry.key;
@@ -238,7 +238,7 @@ struct phrase;\n\
 		}
 		producerArgs.push_back("P p = P()");
 		currentArgs.push_back("P p = P()");
-		if (!producersDeclared.emplace(tags).second) {
+		if (!producersDeclared.emplace(tags.join(',')).second) {
 			continue;
 		}
 		header_->stream() << "\

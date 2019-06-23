@@ -136,12 +136,14 @@ NSImage *CreateNSImageFromEmoji(EmojiPtr emoji) {
 	pixmap.fill(Qt::black);
 	Painter paint(&pixmap);
 	PainterHighQualityEnabler hq(paint);
+#ifndef OS_MAC_OLD
 	Ui::Emoji::Draw(
 		paint,
 		std::move(emoji),
 		Ui::Emoji::GetSizeTouchbar(),
 		0,
 		0);
+#endif // OS_MAC_OLD
 	return [qt_mac_create_nsimage(pixmap) autorelease];
 }
 
