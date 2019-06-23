@@ -52,9 +52,11 @@ constexpr auto kCommandClosePlayer = 0x005;
 
 constexpr auto kCommandBold = 0x010;
 constexpr auto kCommandItalic = 0x011;
-constexpr auto kCommandMonospace = 0x012;
-constexpr auto kCommandClear = 0x013;
-constexpr auto kCommandLink = 0x014;
+constexpr auto kCommandUnderline = 0x012;
+constexpr auto kCommandStrikeOut = 0x013;
+constexpr auto kCommandMonospace = 0x014;
+constexpr auto kCommandClear = 0x015;
+constexpr auto kCommandLink = 0x016;
 
 constexpr auto kCommandScrubberStickers = 0x020;
 constexpr auto kCommandScrubberEmoji = 0x021;
@@ -296,6 +298,13 @@ void SendKeyEvent(int command) {
 		break;
 	case kCommandLink:
 		key = Qt::Key_K;
+		break;
+	case kCommandUnderline:
+		key = Qt::Key_U;
+		break;
+	case kCommandStrikeOut:
+		key = Qt::Key_X;
+		modifier |= Qt::ShiftModifier;
 		break;
 	}
 	QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyPress, key, modifier));
@@ -991,28 +1000,36 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		NSTouchBar *secondaryTouchBar = [[NSTouchBar alloc] init];
 		secondaryTouchBar.delegate = self;
 		secondaryTouchBar.defaultItemIdentifiers = @[kPopoverInputFormatterItemIdentifier];
-		item.pressAndHoldTouchBar = secondaryTouchBar;
 		item.popoverTouchBar = secondaryTouchBar;
 		return item;
 	} else if (isType(kTypeFormatterSegment)) {
 		NSCustomTouchBarItem *item = [[NSCustomTouchBarItem alloc] initWithIdentifier:identifier];
+		NSScrollView *scroll = [[NSScrollView alloc] init];
 		NSSegmentedControl *segment = [[NSSegmentedControl alloc] init];
 		segment.segmentStyle = NSSegmentStyleRounded;
+		segment.target = self;
+		segment.action = @selector(formatterClicked:);
+
 		static const auto strings = {
 			tr::lng_menu_formatting_bold,
 			tr::lng_menu_formatting_italic,
+			tr::lng_menu_formatting_underline,
+			tr::lng_menu_formatting_strike_out,
 			tr::lng_menu_formatting_monospace,
 			tr::lng_menu_formatting_clear,
 			tr::lng_info_link_label,
 		};
 		segment.segmentCount = strings.size();
+		auto width = 0;
 		auto count = 0;
 		for (const auto s : strings) {
-			[segment setLabel:Q2NSString(s(tr::now)) forSegment:count++];
+			const auto string = Q2NSString(s(tr::now));
+			width += WidthFromString(string) * 1.4;
+			[segment setLabel:string forSegment:count++];
 		}
-		segment.target = self;
-		segment.action = @selector(formatterClicked:);
-		item.view = segment;
+		segment.frame = NSMakeRect(0, 0, width, kScrubberHeight);
+		[scroll setDocumentView:segment];
+		item.view = scroll;
 		return item;
 	} else if (isType(kTypeScrubber)) {
 		const auto isSticker = ([dictionaryItem[@"cmd"] intValue]
