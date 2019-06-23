@@ -33,13 +33,13 @@ rpl::producer<TextWithEntities> Text1() {
 rpl::producer<TextWithEntities> Text2() {
 	return tr::lng_about_text2(
 		lt_gpl_link,
-		tr::lng_about_text2_gpl(
-		) | Ui::Text::ToLink(
-			"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE"),
+		rpl::single(Ui::Text::Link(
+			"GNU GPL",
+			"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE")),
 		lt_github_link,
-		tr::lng_about_text2_github(
-		) | Ui::Text::ToLink(
-			"https://github.com/telegramdesktop/tdesktop"),
+		rpl::single(Ui::Text::Link(
+			"GitHub",
+			"https://github.com/telegramdesktop/tdesktop")),
 		Ui::Text::WithEntities);
 }
 
