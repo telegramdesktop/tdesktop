@@ -80,9 +80,11 @@ void Controller::prepare() {
 		}
 		auto row = std::make_unique<PeerListRow>(chat);
 		const auto username = chat->userName();
-		row->setCustomStatus(username.isEmpty()
-			? tr::lng_manage_discussion_group_private_status(tr::now)
-			: ('@' + username));
+		row->setCustomStatus(!username.isEmpty()
+			? ('@' + username)
+			: (chat->isChannel() && !chat->isMegagroup())
+			? tr::lng_manage_linked_channel_private_status(tr::now)
+			: tr::lng_manage_discussion_group_private_status(tr::now));
 		delegate()->peerListAppendRow(std::move(row));
 	};
 	if (_chat) {

@@ -867,6 +867,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_linked_channel_private" = "Any member of this group will be able to see messages in the channel.";
 "lng_manage_discussion_group_private" = "Anyone from the channel will be able to see messages in this group.";
 "lng_manage_discussion_group_link" = "Link group";
+"lng_manage_linked_channel_private_status" = "private channel";
 "lng_manage_discussion_group_private_status" = "private group";
 "lng_manage_linked_channel_about" = "{channel} is linking the group as its discussion board.";
 "lng_manage_linked_channel_unlink" = "Unlink channel";
