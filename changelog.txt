@@ -1,3 +1,11 @@
+1.7.9 (23.06.19)
+
+- You can now add any users to your contacts, even if their phone numbers are not visible.
+- Transfer ownership of group chats and channels by granting full rights to another admin. Useful when switching jobs or if you just want to retire as creator.
+- Hide archived chats to the main menu.
+- See who is online straight from the chat list.
+- Use the MacBook Pro TouchBar to apply formatting to selected text, insert emoji, and send stickers.
+
 1.7.8 beta (17.06.19)
 
 - Hide archived chats in the main menu.
