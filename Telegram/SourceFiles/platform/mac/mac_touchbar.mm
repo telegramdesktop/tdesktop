@@ -173,15 +173,29 @@ inline int UnreadCount(not_null<PeerData*> peer) {
 	return 0;
 }
 
-inline bool CanWriteToActiveChat() {
+inline auto GetActiveChat() {
 	if (const auto window = App::wnd()) {
 		if (const auto controller = window->sessionController()) {
-			if (const auto chat = controller->activeChatCurrent()) {
-				return chat.history()->peer->canWrite();
-			}
+			return controller->activeChatCurrent();
 		}
 	}
+	return Dialogs::Key();
+}
+
+inline bool CanWriteToActiveChat() {
+	if (const auto history = GetActiveChat().history()) {
+		return history->peer->canWrite();
+	}
 	return false;
+}
+
+inline std::optional<QString> RestrictionToSendStickers() {
+	if (const auto peer = GetActiveChat().peer()) {
+		return Data::RestrictionError(
+			peer,
+			ChatRestriction::f_send_stickers);
+	}
+	return std::nullopt;
 }
 
 QString TitleRecentlyUsed() {
@@ -692,15 +706,12 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	if (!CanWriteToActiveChat()) {
 		return;
 	}
-	const auto chat = App::wnd()->sessionController()->activeChatCurrent();
+	const auto chat = GetActiveChat();
 
 	const auto callback = [&]() -> bool {
 		if (const auto document = _stickers[index].document) {
-			if (const auto error = Data::RestrictionError(
-					chat.peer(),
-					ChatRestriction::f_send_stickers)) {
+			if (const auto error = RestrictionToSendStickers()) {
 				Ui::show(Box<InformBox>(*error));
-				return true;
 			}
 			Auth().api().sendExistingDocument(
 				document,
@@ -731,6 +742,12 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 
 - (void)updateStickers {
 	std::vector<PickerScrubberItem> temp;
+	if (const auto error = RestrictionToSendStickers()) {
+		temp.emplace_back(PickerScrubberItem(
+			tr::lng_restricted_send_stickers_all(tr::now)));
+		_stickers = std::move(temp);
+		return;
+	}
 	AppendFavedStickers(temp);
 	AppendRecentStickers(temp);
 	auto count = 0;
