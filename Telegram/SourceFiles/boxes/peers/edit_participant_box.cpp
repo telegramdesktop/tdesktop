@@ -563,8 +563,7 @@ void EditAdminBox::sendTransferRequestFrom(
 		if (weak && !recoverable) {
 			closeBox();
 		}
-	})).send();
-
+	})).handleFloodErrors().send();
 }
 
 void EditAdminBox::refreshAboutAddAdminsText(bool canAddAdmins) {

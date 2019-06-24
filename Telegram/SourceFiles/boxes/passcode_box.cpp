@@ -637,9 +637,9 @@ void PasscodeBox::sendClearCloudPassword(
 			MTPSecureSecretSettings())
 	)).done([=](const MTPBool &result) {
 		setPasswordDone({});
-	}).handleFloodErrors().fail([=](const RPCError &error) mutable {
+	}).fail([=](const RPCError &error) mutable {
 		setPasswordFail({}, QString(), error);
-	}).send();
+	}).handleFloodErrors().send();
 }
 
 void PasscodeBox::setNewCloudPassword(const QString &newPassword) {
