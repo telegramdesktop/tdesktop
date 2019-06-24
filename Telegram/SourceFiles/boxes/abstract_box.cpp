@@ -328,6 +328,7 @@ void AbstractBox::setTitle(rpl::producer<TextWithEntities> title) {
 	const auto wasTitle = hasTitle();
 	if (title) {
 		_title.create(this, std::move(title), st::boxTitle);
+		_title->show();
 		updateTitlePosition();
 	} else {
 		_title.destroy();
