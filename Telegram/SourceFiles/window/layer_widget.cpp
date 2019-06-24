@@ -397,7 +397,7 @@ void LayerStackWidget::hideCurrent(anim::type animated) {
 }
 
 void LayerStackWidget::hideLayers(anim::type animated) {
-	startAnimation([] {}, [this] {
+	startAnimation([] {}, [&] {
 		clearLayers();
 	}, Action::HideLayer, animated);
 }

@@ -306,7 +306,9 @@ void MainWindow::ensureLayerCreated() {
 		bodyWidget());
 
 	_layer->hideFinishEvents(
-	) | rpl::start_with_next([=] {
+	) | rpl::filter([=] {
+		return _layer != nullptr; // Last hide finish is sent from destructor.
+	}) | rpl::start_with_next([=] {
 		destroyLayer();
 	}, _layer->lifetime());
 
@@ -319,12 +321,14 @@ void MainWindow::destroyLayer() {
 	if (!_layer) {
 		return;
 	}
+
 	auto layer = base::take(_layer);
 	const auto resetFocus = Ui::InFocusChain(layer);
 	if (resetFocus) {
 		setFocus();
 	}
 	layer = nullptr;
+
 	if (const auto controller = sessionController()) {
 		controller->disableGifPauseReason(Window::GifPauseReason::Layer);
 	}
@@ -337,11 +341,10 @@ void MainWindow::destroyLayer() {
 }
 
 void MainWindow::ui_hideSettingsAndLayer(anim::type animated) {
-	if (_layer) {
+	if (animated == anim::type::instant) {
+		destroyLayer();
+	} else if (_layer) {
 		_layer->hideAll(animated);
-		if (animated == anim::type::instant) {
-			destroyLayer();
-		}
 	}
 }
 

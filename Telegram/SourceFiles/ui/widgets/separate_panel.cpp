@@ -285,7 +285,9 @@ void SeparatePanel::ensureLayerCreated() {
 		_layer->resize(size);
 	}, _layer->lifetime());
 	_layer->hideFinishEvents(
-	) | rpl::start_with_next([=]{
+	) | rpl::filter([=] {
+		return _layer != nullptr; // Last hide finish is sent from destructor.
+	}) | rpl::start_with_next([=] {
 		if (Ui::InFocusChain(_layer)) {
 			setFocus();
 		}
