@@ -1760,6 +1760,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_banned" = "banned {user}";
 "lng_admin_log_restricted" = "changed restrictions for {user} {until}";
 "lng_admin_log_promoted" = "changed privileges for {user}";
+"lng_admin_log_transferred" = "transferred ownership to {user}";
 "lng_admin_log_changed_default_permissions" = "changed default permissions";
 "lng_admin_log_changed_stickers_group" = "{from} changed the group's {sticker_set}";
 "lng_admin_log_changed_stickers_set" = "sticker set";

@@ -264,7 +264,7 @@ auto GenerateParticipantChangeTextInner(
 	const auto oldType = oldParticipant ? oldParticipant->type() : 0;
 	return participant.match([&](const MTPDchannelParticipantCreator &data) {
 		// No valid string here :(
-		return tr::lng_admin_log_invited(
+		return tr::lng_admin_log_transferred(
 			tr::now,
 			lt_user,
 			GenerateUserString(data.vuser_id),
@@ -575,6 +575,12 @@ void GenerateItems(
 	};
 
 	auto createParticipantToggleAdmin = [&](const MTPDchannelAdminLogEventActionParticipantToggleAdmin &action) {
+		if (action.vnew_participant.type() == mtpc_channelParticipantAdmin
+			&& action.vprev_participant.type() == mtpc_channelParticipantCreator) {
+			// In case of ownership transfer we show that message in
+			// the "User > Creator" part and skip the "Creator > Admin" part.
+			return;
+		}
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
