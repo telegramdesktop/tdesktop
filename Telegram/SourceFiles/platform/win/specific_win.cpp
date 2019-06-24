@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/wrapper_wrl_implements_h.h"
 #include <windows.ui.notifications.h>
 
+#include <openssl/conf.h>
+
 #include <dbghelp.h>
 #include <shlobj.h>
 #include <Shlwapi.h>
@@ -275,6 +277,15 @@ int psFixPrevious() {
 }
 
 namespace Platform {
+namespace ThirdParty {
+
+void start() {
+	// Force OpenSSL skipping the config by passing an invalid filename.
+	qputenv("OPENSSL_CONF", ":/:");
+	OPENSSL_config(nullptr);
+}
+
+} // namespace ThirdParty
 
 void start() {
 	Dlls::init();

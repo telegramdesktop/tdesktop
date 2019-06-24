@@ -40,8 +40,7 @@ QString CurrentExecutablePath(int argc, char *argv[]);
 
 namespace ThirdParty {
 
-inline void start() {
-}
+void start();
 
 inline void finish() {
 }
