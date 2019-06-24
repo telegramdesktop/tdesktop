@@ -343,7 +343,7 @@ void PasscodeBox::validateEmail(
 	const auto errors = std::make_shared<rpl::event_stream<QString>>();
 	const auto resent = std::make_shared<rpl::event_stream<QString>>();
 	const auto set = std::make_shared<bool>(false);
-	const auto submit = [=](QString code) {
+	const auto submit = crl::guard(this, [=](QString code) {
 		if (_setRequest) {
 			return;
 		}
@@ -372,8 +372,8 @@ void PasscodeBox::validateEmail(
 				errors->fire(Lang::Hard::ServerError());
 			}
 		}).handleFloodErrors().send();
-	};
-	const auto resend = [=] {
+	});
+	const auto resend = crl::guard(this, [=] {
 		if (_setRequest) {
 			return;
 		}
@@ -385,8 +385,8 @@ void PasscodeBox::validateEmail(
 			_setRequest = 0;
 			errors->fire(Lang::Hard::ServerError());
 		}).send();
-	};
-	const auto box = getDelegate()->show(
+	});
+	const auto box = _replacedBy = getDelegate()->show(
 		Passport::VerifyEmailBox(
 			email,
 			codeLength,
