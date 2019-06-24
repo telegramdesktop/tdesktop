@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "boxes/sticker_set_box.h"
 #include "core/application.h"
+#include "mainwindow.h" // App::wnd()->sessionController
 #include "auth_session.h"
 
 namespace AdminLog {
@@ -602,7 +603,9 @@ void GenerateItems(
 				lt_sticker_set,
 				textcmdLink(2, tr::lng_admin_log_changed_stickers_set(tr::now)));
 			auto setLink = std::make_shared<LambdaClickHandler>([set] {
-				Ui::show(Box<StickerSetBox>(set));
+				Ui::show(Box<StickerSetBox>(
+					App::wnd()->sessionController(),
+					set));
 			});
 			auto message = HistoryService::PreparedText { text };
 			message.links.push_back(fromLink);

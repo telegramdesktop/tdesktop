@@ -2360,7 +2360,7 @@ void StickersListWidget::displaySet(uint64 setId) {
 	if (it != sets.cend()) {
 		_displayingSetId = setId;
 		auto box = Ui::show(
-			Box<StickerSetBox>(Stickers::inputSetId(*it)),
+			Box<StickerSetBox>(controller(), Stickers::inputSetId(*it)),
 			LayerOption::KeepOther);
 		connect(box, &QObject::destroyed, this, [this] {
 			_displayingSetId = 0;

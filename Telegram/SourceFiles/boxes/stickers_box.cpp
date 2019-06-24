@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
 #include "chat_helpers/stickers.h"
 #include "boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
@@ -1212,7 +1213,9 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 			if (auto set = getSetByRow(row)) {
 				setSelected(SelectedRow());
 				Ui::show(
-					Box<StickerSetBox>(Stickers::inputSetId(*set)),
+					Box<StickerSetBox>(
+						App::wnd()->sessionController(),
+						Stickers::inputSetId(*set)),
 					LayerOption::KeepOther);
 			}
 		};

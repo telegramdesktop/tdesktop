@@ -1128,7 +1128,7 @@ void InnerWidget::copySelectedText() {
 }
 
 void InnerWidget::showStickerPackInfo(not_null<DocumentData*> document) {
-	StickerSetBox::Show(document);
+	StickerSetBox::Show(_controller, document);
 }
 
 void InnerWidget::cancelContextDownload(not_null<DocumentData*> document) {

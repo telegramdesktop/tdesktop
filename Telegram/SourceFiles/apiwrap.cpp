@@ -2844,7 +2844,7 @@ void ApiWrap::requestAttachedStickerSets(not_null<PhotoData*> photo) {
 			? MTP_inputStickerSetID(setData->vid, setData->vaccess_hash)
 			: MTP_inputStickerSetShortName(setData->vshort_name);
 		Ui::show(
-			Box<StickerSetBox>(setId),
+			Box<StickerSetBox>(App::wnd()->sessionController(), setId),
 			LayerOption::KeepOther);
 
 	}).fail([=](const RPCError &error) {

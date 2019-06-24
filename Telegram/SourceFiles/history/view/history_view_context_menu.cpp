@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "mainwidget.h"
+#include "mainwindow.h" // App::wnd()->sessionController
 #include "auth_session.h"
 #include "apiwrap.h"
 
@@ -79,7 +80,7 @@ void CopyImage(not_null<PhotoData*> photo) {
 }
 
 void ShowStickerPackInfo(not_null<DocumentData*> document) {
-	StickerSetBox::Show(document);
+	StickerSetBox::Show(App::wnd()->sessionController(), document);
 }
 
 void ToggleFavedSticker(

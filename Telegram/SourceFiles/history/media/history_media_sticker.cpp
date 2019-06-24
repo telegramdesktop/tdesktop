@@ -50,7 +50,7 @@ QSize HistorySticker::countOptimalSize() {
 
 	if (!_packLink && sticker && sticker->set.type() != mtpc_inputStickerSetEmpty) {
 		_packLink = std::make_shared<LambdaClickHandler>([document = _data] {
-			StickerSetBox::Show(document);
+			StickerSetBox::Show(App::wnd()->sessionController(), document);
 		});
 	}
 	_pixw = _data->dimensions.width();
@@ -97,9 +97,6 @@ QSize HistorySticker::countCurrentSize(int newWidth) {
 }
 
 void HistorySticker::setupLottie() {
-	if (_lottie) {
-		return;
-	}
 	_lottie = _data->data().isEmpty()
 		? Lottie::FromFile(_data->filepath())
 		: Lottie::FromData(_data->data());
@@ -128,7 +125,7 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, c
 	auto sticker = _data->sticker();
 	if (!sticker) return;
 
-	if (sticker->animated && !_lottie && _data->loaded()) {
+	if (sticker->animated && _data->loaded() && !_lottie) {
 		const_cast<HistorySticker*>(this)->setupLottie();
 	}
 

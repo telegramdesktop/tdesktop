@@ -67,6 +67,7 @@ bool ShowStickerSet(const Match &match, const QVariant &context) {
 	}
 	Core::App().hideMediaView();
 	Ui::show(Box<StickerSetBox>(
+		App::wnd()->sessionController(),
 		MTP_inputStickerSetShortName(MTP_string(match->captured(1)))));
 	return true;
 }

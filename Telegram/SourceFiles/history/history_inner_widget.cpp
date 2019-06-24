@@ -1825,7 +1825,7 @@ void HistoryInner::copyContextImage(not_null<PhotoData*> photo) {
 }
 
 void HistoryInner::showStickerPackInfo(not_null<DocumentData*> document) {
-	StickerSetBox::Show(document);
+	StickerSetBox::Show(_controller, document);
 }
 
 void HistoryInner::cancelContextDownload(not_null<DocumentData*> document) {
