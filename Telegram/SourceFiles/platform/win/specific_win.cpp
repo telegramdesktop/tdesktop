@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <windows.ui.notifications.h>
 
 #include <openssl/conf.h>
+#include <openssl/engine.h>
+#include <openssl/err.h>
 
 #include <dbghelp.h>
 #include <shlobj.h>
@@ -278,11 +280,20 @@ int psFixPrevious() {
 
 namespace Platform {
 namespace ThirdParty {
+namespace {
+
+void StartOpenSSL() {
+	// Don't use dynamic OpenSSL config, it can load unwanted DLLs.
+	OPENSSL_load_builtin_modules();
+	ENGINE_load_builtin_engines();
+	ERR_clear_error();
+	OPENSSL_no_config();
+}
+
+} // namespace
 
 void start() {
-	// Force OpenSSL skipping the config by passing an invalid filename.
-	qputenv("OPENSSL_CONF", ":/:");
-	OPENSSL_config(nullptr);
+	StartOpenSSL();
 }
 
 } // namespace ThirdParty
