@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/emoji_config.h"
 #include "window/window_main_menu.h"
+#include "lottie/lottie_animation.h"
 #include "auth_session.h"
 #include "chat_helpers/stickers.h"
 #include "window/window_session_controller.h"
@@ -856,7 +857,7 @@ LayerStackWidget::~LayerStackWidget() {
 MediaPreviewWidget::MediaPreviewWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: TWidget(parent)
+: RpWidget(parent)
 , _controller(controller)
 , _emojiSize(Ui::Emoji::GetSizeLarge() / cIntRetinaFactor()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -867,8 +868,18 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	QRect r(e->rect());
 
-	auto image = currentImage();
-	int w = image.width() / cIntRetinaFactor(), h = image.height() / cIntRetinaFactor();
+	const auto image = [&] {
+		if (!_lottie || !_lottie->ready()) {
+			return QImage();
+		}
+		auto request = Lottie::FrameRequest();
+		request.resize = currentDimensions() * cIntRetinaFactor();
+		_lottie->markFrameShown();
+		return _lottie->frame(request);
+	}();
+	const auto pixmap = image.isNull() ? currentImage() : QPixmap();
+	const auto size = image.isNull() ? pixmap.size() : image.size();
+	int w = size.width() / cIntRetinaFactor(), h = size.height() / cIntRetinaFactor();
 	auto shown = _a_shown.value(_hiding ? 0. : 1.);
 	if (!_a_shown.animating()) {
 		if (_hiding) {
@@ -882,7 +893,13 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 //		h = qMax(qRound(h * (st::stickerPreviewMin + ((1. - st::stickerPreviewMin) * shown)) / 2.) * 2 + int(h % 2), 1);
 	}
 	p.fillRect(r, st::stickerPreviewBg);
-	p.drawPixmap((width() - w) / 2, (height() - h) / 2, image);
+	if (image.isNull()) {
+		p.drawPixmap((width() - w) / 2, (height() - h) / 2, pixmap);
+	} else {
+		p.drawImage(
+			QRect((width() - w) / 2, (height() - h) / 2, w, h),
+			image);
+	}
 	if (!_emojiList.empty()) {
 		const auto emojiCount = _emojiList.size();
 		const auto emojiWidth = (emojiCount * _emojiSize) + (emojiCount - 1) * st::stickerEmojiSkip;
@@ -977,6 +994,7 @@ void MediaPreviewWidget::fillEmojiString() {
 }
 
 void MediaPreviewWidget::resetGifAndCache() {
+	_lottie = nullptr;
 	_gif.reset();
 	_cacheStatus = CacheNotLoaded;
 	_cachedSize = QSize();
@@ -1021,11 +1039,30 @@ QSize MediaPreviewWidget::currentDimensions() const {
 	return result;
 }
 
+void MediaPreviewWidget::setupLottie() {
+	Expects(_document != nullptr);
+
+	_lottie = _document->data().isEmpty()
+		? Lottie::FromFile(_document->filepath())
+		: Lottie::FromData(_document->data());
+
+	_lottie->updates(
+	) | rpl::start_with_next_error([=](Lottie::Update update) {
+		this->update();
+	}, [=](Lottie::Error error) {
+	}, lifetime());
+}
+
 QPixmap MediaPreviewWidget::currentImage() const {
 	if (_document) {
-		if (_document->sticker()) {
+		if (const auto sticker = _document->sticker()) {
 			if (_cacheStatus != CacheLoaded) {
-				if (const auto image = _document->getStickerLarge()) {
+				if (sticker->animated && !_lottie && _document->loaded()) {
+					const_cast<MediaPreviewWidget*>(this)->setupLottie();
+				}
+				if (_lottie && _lottie->ready()) {
+					return QPixmap();
+				} else if (const auto image = _document->getStickerLarge()) {
 					QSize s = currentDimensions();
 					_cache = image->pix(_origin, s.width(), s.height());
 					_cacheStatus = CacheLoaded;

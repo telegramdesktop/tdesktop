@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "data/data_file_origin.h"
 
+namespace Lottie {
+class Animation;
+} // namespace Lottie
+
 namespace Window {
 
 class MainMenu;
@@ -195,9 +199,11 @@ private:
 
 } // namespace Window
 
-class MediaPreviewWidget : public TWidget, private base::Subscriber {
+class MediaPreviewWidget : public Ui::RpWidget, private base::Subscriber {
 public:
-	MediaPreviewWidget(QWidget *parent, not_null<Window::SessionController*> controller);
+	MediaPreviewWidget(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
 
 	void showPreview(
 		Data::FileOrigin origin,
@@ -216,6 +222,7 @@ protected:
 private:
 	QSize currentDimensions() const;
 	QPixmap currentImage() const;
+	void setupLottie();
 	void startShow();
 	void fillEmojiString();
 	void resetGifAndCache();
@@ -228,6 +235,7 @@ private:
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
 	Media::Clip::ReaderPointer _gif;
+	std::unique_ptr<Lottie::Animation> _lottie;
 
 	int _emojiSize;
 	std::vector<not_null<EmojiPtr>> _emojiList;
