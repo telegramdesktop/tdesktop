@@ -302,7 +302,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			) | rpl::map([](const ChannelLocation *location) {
 				return location
 					? Ui::Text::Link(
-						location->address,
+						TextUtilities::SingleLine(location->address),
 						LocationClickHandler::Url(location->point))
 					: TextWithEntities();
 			});
