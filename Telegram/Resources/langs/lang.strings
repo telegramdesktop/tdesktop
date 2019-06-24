@@ -1213,6 +1213,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_new_contact_block_done" = "{user} is now blocked.";
 "lng_new_contact_add" = "Add contact";
 "lng_new_contact_share" = "Share my phone number";
+"lng_new_contact_share_sure" = "Are you sure you want to share your phone number {phone} with {user}?";
 "lng_new_contact_share_done" = "{user} can now see your phone number.";
 "lng_new_contact_add_name" = "Add {user} to contacts";
 "lng_new_contact_add_done" = "{user} is now in your contact list.";

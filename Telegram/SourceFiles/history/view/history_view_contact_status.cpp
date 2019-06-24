@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/toast/toast.h"
+#include "ui/text/text_utilities.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -310,15 +311,34 @@ void ContactStatus::setupBlockHandler(not_null<UserData*> user) {
 void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 	_bar.entity()->shareClicks(
 	) | rpl::start_with_next([=] {
-		user->setSettings(0);
-		user->session().api().request(MTPcontacts_AcceptContact(
-			user->inputUser
-		)).done([=](const MTPUpdates &result) {
-			user->session().api().applyUpdates(result);
+		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto share = [=] {
+			user->setSettings(0);
+			user->session().api().request(MTPcontacts_AcceptContact(
+				user->inputUser
+			)).done([=](const MTPUpdates &result) {
+				user->session().api().applyUpdates(result);
 
-			Ui::Toast::Show(
-				tr::lng_new_contact_share_done(tr::now, lt_user, user->shortName()));
-		}).send();
+				Ui::Toast::Show(tr::lng_new_contact_share_done(
+					tr::now,
+					lt_user,
+					user->shortName()));
+			}).send();
+			if (*box) {
+				(*box)->closeBox();
+			}
+		};
+		*box = _window->show(Box<ConfirmBox>(
+			tr::lng_new_contact_share_sure(
+				tr::now,
+				lt_phone,
+				Ui::Text::WithEntities(
+					App::formatPhone(user->session().user()->phone())),
+				lt_user,
+				Ui::Text::Bold(App::peerName(user)),
+				Ui::Text::WithEntities),
+			tr::lng_box_ok(tr::now),
+			share));
 	}, _bar.lifetime());
 }
 
