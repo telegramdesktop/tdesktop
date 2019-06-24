@@ -32,6 +32,50 @@ QString UserPhone(not_null<UserData*> user) {
 		: phone;
 }
 
+void SendRequest(
+		QPointer<GenericBox> box,
+		not_null<UserData*> user,
+		bool sharePhone,
+		const QString &first,
+		const QString &last,
+		const QString &phone) {
+	const auto wasContact = user->isContact();
+	using Flag = MTPcontacts_AddContact::Flag;
+	user->session().api().request(MTPcontacts_AddContact(
+		MTP_flags(sharePhone
+			? Flag::f_add_phone_privacy_exception
+			: Flag(0)),
+		user->inputUser,
+		MTP_string(first),
+		MTP_string(last),
+		MTP_string(phone)
+	)).done([=](const MTPUpdates &result) {
+		user->setName(
+			first,
+			last,
+			user->nameOrPhone,
+			user->username);
+		user->session().api().applyUpdates(result);
+		if (const auto settings = user->settings()) {
+			using Flag = MTPDpeerSettings::Flag;
+			const auto flags = Flag::f_add_contact
+				| Flag::f_block_contact
+				| Flag::f_report_spam;
+			user->setSettings(*settings & ~flags);
+		}
+		if (box) {
+			box->closeBox();
+		}
+		if (!wasContact) {
+			Ui::Toast::Show(tr::lng_new_contact_add_done(
+				tr::now,
+				lt_user,
+				first));
+		}
+	}).fail([=](const RPCError &error) {
+	}).send();
+}
+
 class Controller {
 public:
 	Controller(
@@ -51,7 +95,6 @@ private:
 		not_null<Ui::InputField*> first,
 		not_null<Ui::InputField*> last,
 		bool inverted);
-	void sendRequest(const QString &first, const QString &last);
 
 	not_null<GenericBox*> _box;
 	not_null<Window::Controller*> _window;
@@ -155,7 +198,13 @@ void Controller::initNameFields(
 			(inverted ? last : first)->showError();
 			return;
 		}
-		sendRequest(firstValue, lastValue);
+		SendRequest(
+			make_weak(_box),
+			_user,
+			_sharePhone && _sharePhone->checked(),
+			firstValue,
+			lastValue,
+			_phone);
 	};
 	const auto submit = [=] {
 		const auto firstValue = first->getLastText().trimmed();
@@ -171,42 +220,6 @@ void Controller::initNameFields(
 	};
 	QObject::connect(first, &Ui::InputField::submitted, submit);
 	QObject::connect(last, &Ui::InputField::submitted, submit);
-}
-
-void Controller::sendRequest(const QString &first, const QString &last) {
-	const auto wasContact = _user->isContact();
-	const auto weak = make_weak(_box);
-	using Flag = MTPcontacts_AddContact::Flag;
-	_user->session().api().request(MTPcontacts_AddContact(
-		MTP_flags((_sharePhone && _sharePhone->checked())
-			? Flag::f_add_phone_privacy_exception
-			: Flag(0)),
-		_user->inputUser,
-		MTP_string(first),
-		MTP_string(last),
-		MTP_string(_phone)
-	)).done([=](const MTPUpdates &result) {
-		_user->setName(
-			first,
-			last,
-			_user->nameOrPhone,
-			_user->username);
-		_user->session().api().applyUpdates(result);
-		if (const auto settings = _user->settings()) {
-			using Flag = MTPDpeerSettings::Flag;
-			const auto flags = Flag::f_add_contact
-				| Flag::f_block_contact
-				| Flag::f_report_spam;
-			_user->setSettings(*settings & ~flags);
-		}
-		if (weak) {
-			weak->closeBox();
-		}
-		if (!wasContact) {
-			Ui::Toast::Show(tr::lng_new_contact_add_done(tr::now, lt_user, first));
-		}
-	}).fail([=](const RPCError &error) {
-	}).send();
 }
 
 void Controller::setupWarning() {
