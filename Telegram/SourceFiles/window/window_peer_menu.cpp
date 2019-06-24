@@ -48,7 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 namespace {
 
-constexpr auto kArchivedToastDuration = crl::time(3000);
+constexpr auto kArchivedToastDuration = crl::time(5000);
 
 class Filler {
 public:
