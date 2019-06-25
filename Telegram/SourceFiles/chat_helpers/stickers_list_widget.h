@@ -21,6 +21,10 @@ class LinkButton;
 class RippleAnimation;
 } // namespace Ui
 
+namespace Lottie {
+class Animation;
+} // namespace Lottie
+
 namespace ChatHelpers {
 
 struct StickerIcon;
@@ -129,6 +133,11 @@ private:
 		int rowsBottom = 0;
 	};
 
+	struct Sticker {
+		not_null<DocumentData*> document;
+		std::unique_ptr<Lottie::Animation> animated;
+	};
+
 	struct Set {
 		Set(
 			uint64 id,
@@ -138,7 +147,7 @@ private:
 			ImagePtr thumbnail,
 			bool externalLayout,
 			int count,
-			const Stickers::Pack &pack = Stickers::Pack());
+			std::vector<Sticker> &&stickers = {});
 		Set(Set &&other);
 		Set &operator=(Set &&other);
 		~Set();
@@ -148,11 +157,13 @@ private:
 		QString title;
 		QString shortName;
 		ImagePtr thumbnail;
-		Stickers::Pack pack;
+		std::vector<Sticker> stickers;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
 		bool externalLayout = false;
 		int count = 0;
 	};
+
+	static std::vector<Sticker> PrepareStickers(const Stickers::Pack &pack);
 
 	template <typename Callback>
 	bool enumerateSections(Callback callback) const;
@@ -171,7 +182,7 @@ private:
 
 	bool setHasTitle(const Set &set) const;
 	bool stickerHasDeleteButton(const Set &set, int index) const;
-	Stickers::Pack collectRecentStickers();
+	std::vector<Sticker> collectRecentStickers();
 	void refreshRecentStickers(bool resize = true);
 	void refreshFavedStickers();
 	enum class GroupStickersPlace {
@@ -202,8 +213,9 @@ private:
 	void paintFeaturedStickers(Painter &p, QRect clip);
 	void paintStickers(Painter &p, QRect clip);
 	void paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected);
-	void paintSticker(Painter &p, Set &set, int y, int index, bool selected, bool deleteSelected);
+	void paintSticker(Painter &p, Set &set, int y, int section, int index, bool selected, bool deleteSelected);
 	void paintEmptySearchResults(Painter &p);
+	void setupLottie(Set &set, int section, int index);
 
 	int stickersRight() const;
 	bool featuredHasAddButton(int index) const;
