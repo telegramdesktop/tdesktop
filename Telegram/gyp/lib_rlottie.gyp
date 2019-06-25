@@ -24,6 +24,7 @@
     'defines': [
       '_USE_MATH_DEFINES',
       'LOT_BUILD',
+      'RLOTTIE_WITH_STATIC_QT',
     ],
     'include_dirs': [
       '<(rlottie_loc)/inc',
@@ -59,8 +60,8 @@
       '<(rlottie_src)/vector/freetype/v_ft_stroker.h',
       '<(rlottie_src)/vector/freetype/v_ft_types.h',
 
-      '<(rlottie_src)/vector/pixman/pixman-arm-neon-asm.h',
-      '<(rlottie_src)/vector/pixman/pixman-arm-neon-asm.S',
+      #'<(rlottie_src)/vector/pixman/pixman-arm-neon-asm.h',
+      #'<(rlottie_src)/vector/pixman/pixman-arm-neon-asm.S',
       '<(rlottie_src)/vector/pixman/vregion.cpp',
       '<(rlottie_src)/vector/pixman/vregion.h',
 
