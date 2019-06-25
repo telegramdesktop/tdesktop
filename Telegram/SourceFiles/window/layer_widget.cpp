@@ -864,6 +864,13 @@ MediaPreviewWidget::MediaPreviewWidget(
 	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 }
 
+QRect MediaPreviewWidget::updateArea() const {
+	const auto size = currentDimensions();
+	return QRect(
+		QPoint((width() - size.width()) / 2, (height() - size.height()) / 2),
+		size);
+}
+
 void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	QRect r(e->rect());
@@ -1048,7 +1055,11 @@ void MediaPreviewWidget::setupLottie() {
 
 	_lottie->updates(
 	) | rpl::start_with_next_error([=](Lottie::Update update) {
-		this->update();
+		update.data.match([&](const Lottie::Information &) {
+			this->update();
+		}, [&](const Lottie::DisplayFrameRequest &) {
+			this->update(updateArea());
+		});
 	}, [=](Lottie::Error error) {
 	}, lifetime());
 }
@@ -1152,7 +1163,7 @@ void MediaPreviewWidget::clipCallback(Media::Clip::Notification notification) {
 
 	case NotificationRepaint: {
 		if (_gif && !_gif->currentDisplayed()) {
-			update();
+			updateArea();
 		}
 	} break;
 	}
