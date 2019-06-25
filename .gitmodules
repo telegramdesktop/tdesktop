@@ -22,3 +22,6 @@
 [submodule "Telegram/ThirdParty/rapidjson"]
 	path = Telegram/ThirdParty/rapidjson
 	url = https://github.com/Tencent/rapidjson.git
+[submodule "Telegram/ThirdParty/rlottie"]
+	path = Telegram/ThirdParty/rlottie
+	url = https://github.com/john-preston/rlottie
