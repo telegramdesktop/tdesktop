@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 #include "rasterrenderer/rasterrenderer.h"
 #include "logs.h"
+#include "rlottie.h"
 
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/count_if.hpp>
@@ -23,6 +24,8 @@ namespace Lottie {
 namespace {
 
 constexpr auto kDisplaySkipped = crl::time(-1);
+constexpr auto kMaxFrameRate = 120;
+constexpr auto kMaxSize = 3096;
 
 std::weak_ptr<FrameRenderer> GlobalInstance;
 
@@ -171,21 +174,40 @@ void FrameRendererObject::queueGenerateFrames() {
 	});
 }
 
-SharedState::SharedState(const JsonObject &definition)
-: _scene(definition) {
-	if (_scene.isValid()) {
+SharedState::SharedState(std::unique_ptr<rlottie::Animation> animation)
+: _animation(std::move(animation)) {
+	Expects(_animation != nullptr);
+
+	if (isValid()) {
 		auto cover = QImage();
 		renderFrame(cover, FrameRequest::NonStrict(), 0);
 		init(std::move(cover));
 	}
 }
 
+bool SharedState::isValid() const {
+	auto width = size_t(0);
+	auto height = size_t(0);
+	_animation->size(width, height);
+	const auto frameRate = int(_animation->frameRate());
+	return _animation->totalFrame() > 0
+		&& frameRate > 0
+		&& frameRate <= kMaxFrameRate
+		&& width > 0
+		&& width <= kMaxSize
+		&& height > 0
+		&& height <= kMaxSize;
+}
+
 void SharedState::renderFrame(
 		QImage &image,
 		const FrameRequest &request,
 		int index) {
-	const auto realSize = QSize(_scene.width(), _scene.height());
-	if (realSize.isEmpty() || _scene.endFrame() <= _scene.startFrame()) {
+	auto width = size_t(0);
+	auto height = size_t(0);
+	_animation->size(width, height);
+	const auto realSize = QSize(width, height);
+	if (realSize.isEmpty() || !_animation->totalFrame()) {
 		return;
 	}
 
@@ -195,32 +217,19 @@ void SharedState::renderFrame(
 	}
 	image.fill(Qt::transparent);
 
-	QPainter p(&image);
-	p.setRenderHints(QPainter::Antialiasing);
-	p.setRenderHints(QPainter::SmoothPixmapTransform);
-	p.setRenderHint(QPainter::TextAntialiasing);
-	p.setRenderHints(QPainter::HighQualityAntialiasing);
-	if (realSize != size) {
-		p.scale(
-			size.width() / float64(realSize.width()),
-			size.height() / float64(realSize.height()));
-	}
-
-	const auto frame = std::clamp(
-		_scene.startFrame() + index,
-		_scene.startFrame(),
-		_scene.endFrame() - 1);
-	_scene.updateProperties(frame);
-
-	RasterRenderer renderer(&p);
-	_scene.render(renderer, frame);
+	auto surface = rlottie::Surface(
+		reinterpret_cast<uint32_t*>(image.bits()),
+		image.width(),
+		image.height(),
+		image.bytesPerLine());
+	_animation->renderSync(index, surface);
 }
 
 void SharedState::init(QImage cover) {
 	Expects(!initialized());
 
-	_frameRate = _scene.frameRate();
-	_framesCount = _scene.endFrame() - _scene.startFrame();
+	_frameRate = int(_animation->frameRate());
+	_framesCount = int(_animation->totalFrame());
 	_duration = crl::time(1000) * _framesCount / _frameRate;
 
 	_frames[0].original = std::move(cover);
@@ -319,13 +328,17 @@ not_null<const Frame*> SharedState::getFrame(int index) const {
 }
 
 Information SharedState::information() const {
-	if (!_scene.isValid()) {
+	if (!isValid()) {
 		return {};
 	}
+	auto width = size_t(0);
+	auto height = size_t(0);
+	_animation->size(width, height);
+
 	auto result = Information();
-	result.frameRate = _scene.frameRate();
-	result.size = QSize(_scene.width(), _scene.height());
-	result.framesCount = _scene.endFrame() - _scene.startFrame();
+	result.frameRate = int(_animation->frameRate());
+	result.size = QSize(width, height);
+	result.framesCount = int(_animation->totalFrame());
 	return result;
 }
 
@@ -420,6 +433,8 @@ crl::time SharedState::markFrameShown() {
 	}
 	Unexpected("Counter value in Lottie::SharedState::markFrameShown.");
 }
+
+SharedState::~SharedState() = default;
 
 std::shared_ptr<FrameRenderer> FrameRenderer::Instance() {
 	if (auto result = GlobalInstance.lock()) {

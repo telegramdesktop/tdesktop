@@ -10,14 +10,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/basic_types.h"
 #include "base/weak_ptr.h"
 #include "lottie/lottie_common.h"
-#include "bmscene.h"
 
 #include <QImage>
 #include <crl/crl_time.h>
 #include <crl/crl_object_on_queue.h>
 #include <limits>
 
-class BMBase;
+namespace rlottie {
+class Animation;
+} // namespace rlottie
+
 class QImage;
 
 namespace Lottie {
@@ -41,7 +43,7 @@ QImage PrepareFrameByRequest(
 
 class SharedState {
 public:
-	explicit SharedState(const JsonObject &definition);
+	explicit SharedState(std::unique_ptr<rlottie::Animation> animation);
 
 	void start(not_null<Animation*> owner, crl::time now);
 
@@ -56,7 +58,10 @@ public:
 	void renderFrame(QImage &image, const FrameRequest &request, int index);
 	[[nodiscard]] bool renderNextFrame(const FrameRequest &request);
 
+	~SharedState();
+
 private:
+	bool isValid() const;
 	void init(QImage cover);
 	void renderNextFrame(
 		not_null<Frame*> frame,
@@ -65,7 +70,7 @@ private:
 	[[nodiscard]] not_null<const Frame*> getFrame(int index) const;
 	[[nodiscard]] int counter() const;
 
-	BMScene _scene;
+	std::unique_ptr<rlottie::Animation> _animation;
 
 	static constexpr auto kCounterUninitialized = -1;
 	std::atomic<int> _counter = kCounterUninitialized;

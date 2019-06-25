@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/algorithm.h"
 #include "zlib.h"
 #include "logs.h"
+#include "rlottie.h"
 
 #include <QFile>
 #include <crl/crl_async.h>
@@ -82,14 +83,15 @@ auto Init(QByteArray &&content)
 			<< content.size();
 		return Error::ParseFailed;
 	}
-	const auto document = JsonDocument(std::move(content));
-	if (const auto error = document.error()) {
+	auto animation = rlottie::Animation::loadFromData(
+		std::string(content.constData(), content.size()),
+		std::string());
+	if (!animation) {
 		qWarning()
-			<< "Lottie Error: Parse failed with code: "
-			<< error;
+			<< "Lottie Error: Parse failed.";
 		return Error::ParseFailed;
 	}
-	auto result = std::make_unique<SharedState>(document.root());
+	auto result = std::make_unique<SharedState>(std::move(animation));
 	auto information = result->information();
 	if (!information.frameRate
 		|| information.framesCount <= 0
