@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/streaming/media_streaming_loader.h"
 #include "media/streaming/media_streaming_file_delegate.h"
+#include "ffmpeg/ffmpeg_utility.h"
 
 namespace Media {
 namespace Streaming {
@@ -85,26 +86,30 @@ int64_t File::Context::seek(int64_t offset, int whence) {
 
 void File::Context::logError(QLatin1String method) {
 	if (!unroll()) {
-		LogError(method);
+		FFmpeg::LogError(method);
 	}
 }
 
-void File::Context::logError(QLatin1String method, AvErrorWrap error) {
+void File::Context::logError(
+		QLatin1String method,
+		FFmpeg::AvErrorWrap error) {
 	if (!unroll()) {
-		LogError(method, error);
+		FFmpeg::LogError(method, error);
 	}
 }
 
 void File::Context::logFatal(QLatin1String method) {
 	if (!unroll()) {
-		LogError(method);
+		FFmpeg::LogError(method);
 		fail(_format ? Error::InvalidData : Error::OpenFailed);
 	}
 }
 
-void File::Context::logFatal(QLatin1String method, AvErrorWrap error) {
+void File::Context::logFatal(
+		QLatin1String method,
+		FFmpeg::AvErrorWrap error) {
 	if (!unroll()) {
-		LogError(method, error);
+		FFmpeg::LogError(method, error);
 		fail(_format ? Error::InvalidData : Error::OpenFailed);
 	}
 }
@@ -126,8 +131,8 @@ Stream File::Context::initStream(
 
 	const auto info = format->streams[index];
 	if (type == AVMEDIA_TYPE_VIDEO) {
-		result.rotation = ReadRotationFromMetadata(info);
-		result.aspect = ValidateAspectRatio(info->sample_aspect_ratio);
+		result.rotation = FFmpeg::ReadRotationFromMetadata(info);
+		result.aspect = FFmpeg::ValidateAspectRatio(info->sample_aspect_ratio);
 	} else if (type == AVMEDIA_TYPE_AUDIO) {
 		result.frequency = info->codecpar->sample_rate;
 		if (!result.frequency) {
@@ -135,20 +140,20 @@ Stream File::Context::initStream(
 		}
 	}
 
-	result.codec = MakeCodecPointer(info);
+	result.codec = FFmpeg::MakeCodecPointer(info);
 	if (!result.codec) {
 		return result;
 	}
 
-	result.frame = MakeFramePointer();
+	result.frame = FFmpeg::MakeFramePointer();
 	if (!result.frame) {
 		result.codec = nullptr;
 		return result;
 	}
 	result.timeBase = info->time_base;
 	result.duration = (info->duration != AV_NOPTS_VALUE)
-		? PtsToTime(info->duration, result.timeBase)
-		: PtsToTime(format->duration, kUniversalTimeBase);
+		? FFmpeg::PtsToTime(info->duration, result.timeBase)
+		: FFmpeg::PtsToTime(format->duration, FFmpeg::kUniversalTimeBase);
 	if (result.duration <= 0) {
 		result.codec = nullptr;
 	} else if (result.duration == kTimeUnknown) {
@@ -167,7 +172,7 @@ void File::Context::seekToPosition(
 		not_null<AVFormatContext*> format,
 		const Stream &stream,
 		crl::time position) {
-	auto error = AvErrorWrap();
+	auto error = FFmpeg::AvErrorWrap();
 
 	if (!position) {
 		return;
@@ -192,7 +197,7 @@ void File::Context::seekToPosition(
 	error = av_seek_frame(
 		format,
 		stream.index,
-		TimeToPts(
+		FFmpeg::TimeToPts(
 			std::clamp(position, crl::time(0), stream.duration - 1),
 			stream.timeBase),
 		AVSEEK_FLAG_BACKWARD);
@@ -202,13 +207,13 @@ void File::Context::seekToPosition(
 	return logFatal(qstr("av_seek_frame"), error);
 }
 
-base::variant<Packet, AvErrorWrap> File::Context::readPacket() {
-	auto error = AvErrorWrap();
+base::variant<FFmpeg::Packet, FFmpeg::AvErrorWrap> File::Context::readPacket() {
+	auto error = FFmpeg::AvErrorWrap();
 
-	auto result = Packet();
+	auto result = FFmpeg::Packet();
 	error = av_read_frame(_format.get(), &result.fields());
 	if (unroll()) {
-		return AvErrorWrap();
+		return FFmpeg::AvErrorWrap();
 	} else if (!error) {
 		return std::move(result);
 	} else if (error.code() != AVERROR_EOF) {
@@ -218,12 +223,12 @@ base::variant<Packet, AvErrorWrap> File::Context::readPacket() {
 }
 
 void File::Context::start(crl::time position) {
-	auto error = AvErrorWrap();
+	auto error = FFmpeg::AvErrorWrap();
 
 	if (unroll()) {
 		return;
 	}
-	auto format = MakeFormatPointer(
+	auto format = FFmpeg::MakeFormatPointer(
 		static_cast<void *>(this),
 		&Context::Read,
 		nullptr,
@@ -279,7 +284,7 @@ void File::Context::readNextPacket() {
 	auto result = readPacket();
 	if (unroll()) {
 		return;
-	} else if (const auto packet = base::get_if<Packet>(&result)) {
+	} else if (const auto packet = base::get_if<FFmpeg::Packet>(&result)) {
 		const auto more = _delegate->fileProcessPacket(std::move(*packet));
 		if (!more) {
 			do {
@@ -290,17 +295,17 @@ void File::Context::readNextPacket() {
 		}
 	} else {
 		// Still trying to read by drain.
-		Assert(result.is<AvErrorWrap>());
-		Assert(result.get<AvErrorWrap>().code() == AVERROR_EOF);
+		Assert(result.is<FFmpeg::AvErrorWrap>());
+		Assert(result.get<FFmpeg::AvErrorWrap>().code() == AVERROR_EOF);
 		handleEndOfFile();
 	}
 }
 
 void File::Context::handleEndOfFile() {
-	const auto more = _delegate->fileProcessPacket(Packet());
+	const auto more = _delegate->fileProcessPacket(FFmpeg::Packet());
 	if (_delegate->fileReadMore()) {
 		_readTillEnd = false;
-		auto error = AvErrorWrap(av_seek_frame(
+		auto error = FFmpeg::AvErrorWrap(av_seek_frame(
 			_format.get(),
 			-1, // stream_index
 			0, // timestamp

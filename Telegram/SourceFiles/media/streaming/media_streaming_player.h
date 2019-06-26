@@ -84,7 +84,7 @@ private:
 	void fileError(Error error) override;
 	void fileWaitingForData() override;
 	void fileFullInCache(bool fullInCache) override;
-	bool fileProcessPacket(Packet &&packet) override;
+	bool fileProcessPacket(FFmpeg::Packet &&packet) override;
 	bool fileReadMore() override;
 
 	// Called from the main thread.
@@ -117,7 +117,7 @@ private:
 	[[nodiscard]] crl::time loadInAdvanceFor() const;
 
 	template <typename Track>
-	int durationByPacket(const Track &track, const Packet &packet);
+	int durationByPacket(const Track &track, const FFmpeg::Packet &packet);
 
 	// Valid after fileReady call ends. Thread-safe.
 	[[nodiscard]] crl::time computeAudioDuration() const;

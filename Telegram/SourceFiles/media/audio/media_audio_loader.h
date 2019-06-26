@@ -37,7 +37,7 @@ public:
 	virtual ReadResult readMore(
 		QByteArray &samples,
 		int64 &samplesCount) = 0;
-	virtual void enqueuePackets(std::deque<Streaming::Packet> &&packets) {
+	virtual void enqueuePackets(std::deque<FFmpeg::Packet> &&packets) {
 		Unexpected("enqueuePackets() call on not ChildFFMpegLoader.");
 	}
 	virtual void setForceToBuffer(bool force) {

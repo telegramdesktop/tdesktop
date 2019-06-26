@@ -49,7 +49,7 @@ FFMpegReaderImplementation::FFMpegReaderImplementation(
 	QByteArray *data,
 	const AudioMsgId &audio)
 : ReaderImplementation(location, data)
-, _frame(Streaming::MakeFramePointer())
+, _frame(FFmpeg::MakeFramePointer())
 , _audioMsgId(audio) {
 }
 
@@ -119,7 +119,7 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 		] {
 			native->size = size;
 			native->data = data;
-			packet = Streaming::Packet();
+			packet = FFmpeg::Packet();
 		});
 
 		res = avcodec_send_packet(_codecContext, native);
@@ -275,7 +275,7 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 		}
 	}
 
-	Streaming::ClearFrameMemory(_frame.get());
+	FFmpeg::ClearFrameMemory(_frame.get());
 
 	return true;
 }
@@ -385,7 +385,7 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 			_audioStreamId = -1;
 		} else {
 			soundData = std::make_unique<ExternalSoundData>();
-			soundData->codec = Streaming::CodecPointer(audioContext);
+			soundData->codec = FFmpeg::CodecPointer(audioContext);
 			soundData->frequency = _fmtContext->streams[_audioStreamId]->codecpar->sample_rate;
 			if (_fmtContext->streams[_audioStreamId]->duration == AV_NOPTS_VALUE) {
 				soundData->length = (_fmtContext->duration * soundData->frequency) / AV_TIME_BASE;
@@ -405,7 +405,7 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		}
 	}
 
-	Streaming::Packet packet;
+	FFmpeg::Packet packet;
 	auto readResult = readPacket(packet);
 	if (readResult == PacketResult::Ok && positionMs > 0) {
 		positionMs = countPacketMs(packet);
@@ -436,7 +436,7 @@ bool FFMpegReaderImplementation::inspectAt(crl::time &positionMs) {
 
 	_packetQueue.clear();
 
-	Streaming::Packet packet;
+	FFmpeg::Packet packet;
 	auto readResult = readPacket(packet);
 	if (readResult == PacketResult::Ok && positionMs > 0) {
 		positionMs = countPacketMs(packet);
@@ -481,7 +481,7 @@ FFMpegReaderImplementation::~FFMpegReaderImplementation() {
 	if (_fmtContext) avformat_free_context(_fmtContext);
 }
 
-FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(Streaming::Packet &packet) {
+FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(FFmpeg::Packet &packet) {
 	int res = 0;
 	if ((res = av_read_frame(_fmtContext, &packet.fields())) < 0) {
 		if (res == AVERROR_EOF) {
@@ -489,7 +489,7 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 				// queue terminating packet to audio player
 				Player::mixer()->feedFromExternal({
 					_audioMsgId,
-					Streaming::Packet()
+					FFmpeg::Packet()
 				});
 			}
 			return PacketResult::EndOfFile;
@@ -501,7 +501,7 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 	return PacketResult::Ok;
 }
 
-void FFMpegReaderImplementation::processPacket(Streaming::Packet &&packet) {
+void FFMpegReaderImplementation::processPacket(FFmpeg::Packet &&packet) {
 	const auto &native = packet.fields();
 	auto videoPacket = (native.stream_index == _streamId);
 	auto audioPacket = (_audioStreamId >= 0 && native.stream_index == _audioStreamId);
@@ -523,7 +523,7 @@ void FFMpegReaderImplementation::processPacket(Streaming::Packet &&packet) {
 }
 
 crl::time FFMpegReaderImplementation::countPacketMs(
-		const Streaming::Packet &packet) const {
+		const FFmpeg::Packet &packet) const {
 	const auto &native = packet.fields();
 	int64 packetPts = (native.pts == AV_NOPTS_VALUE) ? native.dts : native.pts;
 	crl::time packetMs = (packetPts * 1000LL * _fmtContext->streams[native.stream_index]->time_base.num) / _fmtContext->streams[native.stream_index]->time_base.den;
@@ -531,7 +531,7 @@ crl::time FFMpegReaderImplementation::countPacketMs(
 }
 
 FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readAndProcessPacket() {
-	Streaming::Packet packet;
+	FFmpeg::Packet packet;
 	auto result = readPacket(packet);
 	if (result == PacketResult::Ok) {
 		processPacket(std::move(packet));

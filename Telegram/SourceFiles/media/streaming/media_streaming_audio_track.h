@@ -43,7 +43,7 @@ public:
 	[[nodiscard]] crl::time streamDuration() const;
 
 	// Called from the same unspecified thread.
-	void process(Packet &&packet);
+	void process(FFmpeg::Packet &&packet);
 	void waitForData();
 
 	// Called from the main thread.
@@ -52,11 +52,11 @@ public:
 private:
 	// Called from the same unspecified thread.
 	[[nodiscard]] bool initialized() const;
-	[[nodiscard]] bool tryReadFirstFrame(Packet &&packet);
+	[[nodiscard]] bool tryReadFirstFrame(FFmpeg::Packet &&packet);
 	[[nodiscard]] bool fillStateFromFrame();
 	[[nodiscard]] bool processFirstFrame();
 	void mixerInit();
-	void mixerEnqueue(Packet &&packet);
+	void mixerEnqueue(FFmpeg::Packet &&packet);
 	void mixerForceToBuffer();
 	void callReady();
 
@@ -83,7 +83,7 @@ private:
 	rpl::variable<crl::time> _playPosition;
 
 	// For initial frame skipping for an exact seek.
-	FramePointer _initialSkippingFrame;
+	FFmpeg::FramePointer _initialSkippingFrame;
 
 };
 

@@ -47,7 +47,7 @@ crl::time AudioTrack::streamDuration() const {
 	return _stream.duration;
 }
 
-void AudioTrack::process(Packet &&packet) {
+void AudioTrack::process(FFmpeg::Packet &&packet) {
 	if (packet.empty()) {
 		_readTillEnd = true;
 	}
@@ -68,7 +68,7 @@ bool AudioTrack::initialized() const {
 	return !_ready;
 }
 
-bool AudioTrack::tryReadFirstFrame(Packet &&packet) {
+bool AudioTrack::tryReadFirstFrame(FFmpeg::Packet &&packet) {
 	if (ProcessPacket(_stream, std::move(packet)).failed()) {
 		return false;
 	}
@@ -97,13 +97,13 @@ bool AudioTrack::tryReadFirstFrame(Packet &&packet) {
 		// Try skipping frames until one is after the requested position.
 		std::swap(_initialSkippingFrame, _stream.frame);
 		if (!_stream.frame) {
-			_stream.frame = MakeFramePointer();
+			_stream.frame = FFmpeg::MakeFramePointer();
 		}
 	}
 }
 
 bool AudioTrack::processFirstFrame() {
-	if (!FrameHasData(_stream.frame.get())) {
+	if (!FFmpeg::FrameHasData(_stream.frame.get())) {
 		return false;
 	}
 	mixerInit();
@@ -148,7 +148,7 @@ void AudioTrack::callReady() {
 	base::take(_ready)({ VideoInformation(), data });
 }
 
-void AudioTrack::mixerEnqueue(Packet &&packet) {
+void AudioTrack::mixerEnqueue(FFmpeg::Packet &&packet) {
 	Media::Player::mixer()->feedFromExternal({
 		_audioId,
 		std::move(packet)

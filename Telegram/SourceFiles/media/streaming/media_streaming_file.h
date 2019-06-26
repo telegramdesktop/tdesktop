@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_common.h"
 #include "media/streaming/media_streaming_utility.h"
 #include "media/streaming/media_streaming_reader.h"
+#include "ffmpeg/ffmpeg_utility.h"
 #include "base/bytes.h"
 #include "base/weak_ptr.h"
 
@@ -64,9 +65,9 @@ private:
 
 		[[nodiscard]] bool unroll() const;
 		void logError(QLatin1String method);
-		void logError(QLatin1String method, AvErrorWrap error);
+		void logError(QLatin1String method, FFmpeg::AvErrorWrap error);
 		void logFatal(QLatin1String method);
-		void logFatal(QLatin1String method, AvErrorWrap error);
+		void logFatal(QLatin1String method, FFmpeg::AvErrorWrap error);
 		void fail(Error error);
 
 		Stream initStream(
@@ -78,7 +79,8 @@ private:
 			crl::time position);
 
 		// TODO base::expected.
-		[[nodiscard]] base::variant<Packet, AvErrorWrap> readPacket();
+		[[nodiscard]] auto readPacket()
+		-> base::variant<FFmpeg::Packet, FFmpeg::AvErrorWrap>;
 
 		void handleEndOfFile();
 		void sendFullInCache(bool force = false);
@@ -94,7 +96,7 @@ private:
 		crl::semaphore _semaphore;
 		std::atomic<bool> _interrupted = false;
 
-		FormatPointer _format;
+		FFmpeg::FormatPointer _format;
 
 	};
 

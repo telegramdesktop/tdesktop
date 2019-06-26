@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_cache.h"
 
 #include "lottie/lottie_frame_renderer.h"
+#include "ffmpeg/ffmpeg_utility.h"
 #include "base/bytes.h"
 
 #include <QDataStream>
@@ -30,6 +31,9 @@ bool UncompressToRaw(AlignedStorage &to, bytes::const_span from) {
 }
 
 void Decode(QImage &to, const AlignedStorage &from, const QSize &fromSize) {
+	if (!FFmpeg::GoodStorageForFrame(to, fromSize)) {
+		to = FFmpeg::CreateFrameStorage(fromSize);
+	}
 	auto fromBytes = static_cast<const char*>(from.aligned());
 	auto toBytes = to.bits();
 	const auto fromPerLine = from.bytesPerLine();

@@ -324,7 +324,7 @@ void Player::fileWaitingForData() {
 	}
 }
 
-bool Player::fileProcessPacket(Packet &&packet) {
+bool Player::fileProcessPacket(FFmpeg::Packet &&packet) {
 	_waitingForData = false;
 
 	const auto &native = packet.fields();
@@ -337,14 +337,14 @@ bool Player::fileProcessPacket(Packet &&packet) {
 			crl::on_main(&_sessionGuard, [=] {
 				audioReceivedTill(till);
 			});
-			_audio->process(Packet());
+			_audio->process(FFmpeg::Packet());
 		}
 		if (_video) {
 			const auto till = _loopingShift + computeVideoDuration();
 			crl::on_main(&_sessionGuard, [=] {
 				videoReceivedTill(till);
 			});
-			_video->process(Packet());
+			_video->process(FFmpeg::Packet());
 		}
 	} else if (_audio && _audio->streamIndex() == native.stream_index) {
 		accumulate_max(
@@ -352,7 +352,7 @@ bool Player::fileProcessPacket(Packet &&packet) {
 			durationByPacket(*_audio, packet));
 
 		const auto till = _loopingShift + std::clamp(
-			PacketPosition(packet, _audio->streamTimeBase()),
+			FFmpeg::PacketPosition(packet, _audio->streamTimeBase()),
 			crl::time(0),
 			computeAudioDuration() - 1);
 		crl::on_main(&_sessionGuard, [=] {
@@ -365,7 +365,7 @@ bool Player::fileProcessPacket(Packet &&packet) {
 			durationByPacket(*_video, packet));
 
 		const auto till = _loopingShift + std::clamp(
-			PacketPosition(packet, _video->streamTimeBase()),
+			FFmpeg::PacketPosition(packet, _video->streamTimeBase()),
 			crl::time(0),
 			computeVideoDuration() - 1);
 		crl::on_main(&_sessionGuard, [=] {
@@ -404,7 +404,7 @@ void Player::streamFailed(Error error) {
 template <typename Track>
 int Player::durationByPacket(
 		const Track &track,
-		const Packet &packet) {
+		const FFmpeg::Packet &packet) {
 	// We've set this value on the first cycle.
 	if (_loopingShift || _totalDuration != kDurationUnavailable) {
 		return 0;

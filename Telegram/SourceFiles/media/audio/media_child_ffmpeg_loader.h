@@ -13,8 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media {
 
 struct ExternalSoundData {
-	Streaming::CodecPointer codec;
-	Streaming::FramePointer frame;
+	FFmpeg::CodecPointer codec;
+	FFmpeg::FramePointer frame;
 	int32 frequency = Media::Player::kDefaultFrequency;
 	int64 length = 0;
 	float64 speed = 1.; // 0.5 <= speed <= 2.
@@ -22,7 +22,7 @@ struct ExternalSoundData {
 
 struct ExternalSoundPart {
 	AudioMsgId audio;
-	Streaming::Packet packet;
+	FFmpeg::Packet packet;
 };
 
 class ChildFFMpegLoader : public AbstractAudioFFMpegLoader {
@@ -36,7 +36,7 @@ public:
 	}
 
 	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override;
-	void enqueuePackets(std::deque<Streaming::Packet> &&packets) override;
+	void enqueuePackets(std::deque<FFmpeg::Packet> &&packets) override;
 	void setForceToBuffer(bool force) override;
 	bool forceToBuffer() const override;
 
@@ -55,7 +55,7 @@ private:
 		int64 &samplesAdded);
 
 	std::unique_ptr<ExternalSoundData> _parentData;
-	std::deque<Streaming::Packet> _queue;
+	std::deque<FFmpeg::Packet> _queue;
 	bool _forceToBuffer = false;
 	bool _eofReached = false;
 

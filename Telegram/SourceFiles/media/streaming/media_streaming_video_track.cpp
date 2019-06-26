@@ -34,7 +34,7 @@ public:
 		FnMut<void(const Information &)> ready,
 		Fn<void(Error)> error);
 
-	void process(Packet &&packet);
+	void process(FFmpeg::Packet &&packet);
 
 	[[nodisacrd]] rpl::producer<> checkNextFrame() const;
 	[[nodisacrd]] rpl::producer<> waitingForData() const;
@@ -60,7 +60,7 @@ private:
 
 	void fail(Error error);
 	[[nodiscard]] bool interrupted() const;
-	[[nodiscard]] bool tryReadFirstFrame(Packet &&packet);
+	[[nodiscard]] bool tryReadFirstFrame(FFmpeg::Packet &&packet);
 	[[nodiscard]] bool fillStateFromFrame();
 	[[nodiscard]] bool processFirstFrame();
 	void queueReadFrames(crl::time delay = 0);
@@ -71,7 +71,7 @@ private:
 	void callReady();
 	[[nodiscard]] bool loopAround();
 	[[nodiscard]] crl::time computeDuration() const;
-	[[nodiscard]] int durationByPacket(const Packet &packet);
+	[[nodiscard]] int durationByPacket(const FFmpeg::Packet &packet);
 
 	// Force frame position to be clamped to [0, duration] and monotonic.
 	[[nodiscard]] crl::time currentFramePosition() const;
@@ -103,7 +103,7 @@ private:
 	base::ConcurrentTimer _readFramesTimer;
 
 	// For initial frame skipping for an exact seek.
-	FramePointer _initialSkippingFrame;
+	FFmpeg::FramePointer _initialSkippingFrame;
 
 };
 
@@ -142,7 +142,7 @@ rpl::producer<> VideoTrackObject::waitingForData() const {
 		: _waitingForData.events();
 }
 
-void VideoTrackObject::process(Packet &&packet) {
+void VideoTrackObject::process(FFmpeg::Packet &&packet) {
 	if (interrupted()) {
 		return;
 	}
@@ -164,12 +164,12 @@ void VideoTrackObject::process(Packet &&packet) {
 	}
 }
 
-int VideoTrackObject::durationByPacket(const Packet &packet) {
+int VideoTrackObject::durationByPacket(const FFmpeg::Packet &packet) {
 	// We've set this value on the first cycle.
 	if (_loopingShift || _stream.duration != kDurationUnavailable) {
 		return 0;
 	}
-	const auto result = DurationByPacket(packet, _stream.timeBase);
+	const auto result = FFmpeg::DurationByPacket(packet, _stream.timeBase);
 	if (result < 0) {
 		fail(Error::InvalidData);
 		return 0;
@@ -395,7 +395,7 @@ void VideoTrackObject::updateFrameRequest(const FrameRequest &request) {
 	_request = request;
 }
 
-bool VideoTrackObject::tryReadFirstFrame(Packet &&packet) {
+bool VideoTrackObject::tryReadFirstFrame(FFmpeg::Packet &&packet) {
 	if (ProcessPacket(_stream, std::move(packet)).failed()) {
 		return false;
 	}
@@ -424,7 +424,7 @@ bool VideoTrackObject::tryReadFirstFrame(Packet &&packet) {
 		// Try skipping frames until one is after the requested position.
 		std::swap(_initialSkippingFrame, _stream.frame);
 		if (!_stream.frame) {
-			_stream.frame = MakeFramePointer();
+			_stream.frame = FFmpeg::MakeFramePointer();
 		}
 	}
 }
@@ -470,8 +470,10 @@ void VideoTrackObject::callReady() {
 	const auto frame = _shared->frameForPaint();
 
 	auto data = VideoInformation();
-	data.size = CorrectByAspect(frame->original.size(), _stream.aspect);
-	if (RotationSwapWidthHeight(_stream.rotation)) {
+	data.size = FFmpeg::CorrectByAspect(
+		frame->original.size(),
+		_stream.aspect);
+	if (FFmpeg::RotationSwapWidthHeight(_stream.rotation)) {
 		data.size.transpose();
 	}
 	data.cover = frame->original;
@@ -756,7 +758,7 @@ crl::time VideoTrack::streamDuration() const {
 	return _streamDuration;
 }
 
-void VideoTrack::process(Packet &&packet) {
+void VideoTrack::process(FFmpeg::Packet &&packet) {
 	_wrapped.with([
 		packet = std::move(packet)
 	](Implementation &unwrapped) mutable {

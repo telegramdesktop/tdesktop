@@ -47,7 +47,7 @@ private:
 	QMutex _fromExternalMutex;
 	base::flat_map<
 		AudioMsgId,
-		std::deque<Streaming::Packet>> _fromExternalQueues;
+		std::deque<FFmpeg::Packet>> _fromExternalQueues;
 	base::flat_set<AudioMsgId> _fromExternalForceToBuffer;
 	SingleQueuedInvokation _fromExternalNotify;
 

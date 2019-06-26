@@ -109,7 +109,7 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(
 }
 
 void ChildFFMpegLoader::enqueuePackets(
-		std::deque<Streaming::Packet> &&packets) {
+		std::deque<FFmpeg::Packet> &&packets) {
 	if (_queue.empty()) {
 		_queue = std::move(packets);
 	} else {

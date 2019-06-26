@@ -191,13 +191,13 @@ AbstractAudioFFMpegLoader::AbstractAudioFFMpegLoader(
 	const QByteArray &data,
 	bytes::vector &&buffer)
 : AbstractFFMpegLoader(file, data, std::move(buffer))
-, _frame(Streaming::MakeFramePointer()) {
+, _frame(FFmpeg::MakeFramePointer()) {
 }
 
 bool AbstractAudioFFMpegLoader::initUsingContext(
-	not_null<AVCodecContext *> context,
-	int64 initialCount,
-	int initialFrequency) {
+		not_null<AVCodecContext*> context,
+		int64 initialCount,
+		int initialFrequency) {
 	const auto layout = ComputeChannelLayout(
 		context->channel_layout,
 		context->channels);
@@ -264,7 +264,7 @@ bool AbstractAudioFFMpegLoader::initUsingContext(
 }
 
 auto AbstractAudioFFMpegLoader::replaceFrameAndRead(
-	Streaming::FramePointer frame,
+	FFmpeg::FramePointer frame,
 	QByteArray &result,
 	int64 &samplesAdded)
 -> ReadResult {

@@ -105,7 +105,7 @@ protected:
 	// Streaming player provides the first frame to the ChildFFMpegLoader
 	// so we replace our allocated frame with the one provided.
 	ReadResult replaceFrameAndRead(
-		Streaming::FramePointer frame,
+		FFmpeg::FramePointer frame,
 		QByteArray &result,
 		int64 &samplesAdded);
 
@@ -126,7 +126,7 @@ private:
 		uint8_t **data,
 		int count) const;
 
-	Streaming::FramePointer _frame;
+	FFmpeg::FramePointer _frame;
 	int _outputFormat = AL_FORMAT_STEREO16;
 	int _outputChannels = 2;
 	int _outputSampleSize = 2 * sizeof(uint16);

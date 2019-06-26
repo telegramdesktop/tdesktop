@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media {
 
-constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
-constexpr auto kDurationMax = crl::time(std::numeric_limits<int>::max());
-constexpr auto kDurationUnavailable = std::numeric_limits<crl::time>::max();
+inline constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
+inline constexpr auto kDurationMax = crl::time(std::numeric_limits<int>::max());
+inline constexpr auto kDurationUnavailable = std::numeric_limits<crl::time>::max();
 
 namespace Audio {
 bool SupportsSpeedControl();

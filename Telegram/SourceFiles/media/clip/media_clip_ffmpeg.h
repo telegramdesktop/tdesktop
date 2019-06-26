@@ -55,9 +55,9 @@ private:
 		EndOfFile,
 		Error,
 	};
-	PacketResult readPacket(Streaming::Packet &packet);
-	void processPacket(Streaming::Packet &&packet);
-	crl::time countPacketMs(const Streaming::Packet &packet) const;
+	PacketResult readPacket(FFmpeg::Packet &packet);
+	void processPacket(FFmpeg::Packet &&packet);
+	crl::time countPacketMs(const FFmpeg::Packet &packet) const;
 	PacketResult readAndProcessPacket();
 
 	enum class Rotation {
@@ -83,7 +83,7 @@ private:
 	AVFormatContext *_fmtContext = nullptr;
 	AVCodecContext *_codecContext = nullptr;
 	int _streamId = 0;
-	Streaming::FramePointer _frame;
+	FFmpeg::FramePointer _frame;
 	bool _opened = false;
 	bool _hadFrame = false;
 	bool _frameRead = false;
@@ -95,7 +95,7 @@ private:
 	crl::time _lastReadVideoMs = 0;
 	crl::time _lastReadAudioMs = 0;
 
-	std::deque<Streaming::Packet> _packetQueue;
+	std::deque<FFmpeg::Packet> _packetQueue;
 
 	int _width = 0;
 	int _height = 0;
