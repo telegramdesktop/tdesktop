@@ -1101,7 +1101,7 @@ std::shared_ptr<::Media::Streaming::Reader> Session::documentStreamedReader(
 		return nullptr;
 	}
 	auto result = std::make_shared<::Media::Streaming::Reader>(
-		this,
+		&cacheBigFile(),
 		std::move(loader));
 	if (!PruneDestroyedAndSet(_streamedReaders, document, result)) {
 		_streamedReaders.emplace_or_assign(document, result);

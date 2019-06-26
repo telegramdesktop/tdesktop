@@ -1380,6 +1380,12 @@ void StickersListWidget::setupLottie(Set &set, int section, int index) {
 	}, lifetime());
 }
 
+QSize StickersListWidget::boundingBoxSize() const {
+	return QSize(
+		_singleSize.width() - st::buttonRadius * 2,
+		_singleSize.height() - st::buttonRadius * 2);
+}
+
 void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, int index, bool selected, bool deleteSelected) {
 	auto &sticker = set.stickers[index];
 	const auto document = sticker.document;
@@ -1410,16 +1416,15 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 	auto h = qMax(qRound(coef * document->dimensions.height()), 1);
 	auto ppos = pos + QPoint((_singleSize.width() - w) / 2, (_singleSize.height() - h) / 2);
 	if (sticker.animated && sticker.animated->ready()) {
-		const auto size = QSize(w, h);
 		auto request = Lottie::FrameRequest();
-		request.resize = size * cIntRetinaFactor();
+		request.box = boundingBoxSize() * cIntRetinaFactor();
 		const auto paused = controller()->isGifPausedAtLeastFor(
 			Window::GifPauseReason::SavedGifs);
 		if (!paused) {
 			sticker.animated->markFrameShown();
 		}
 		p.drawImage(
-			QRect(ppos, size),
+			QRect(ppos, QSize(w, h)),
 			sticker.animated->frame(request));
 	} else if (const auto image = document->getStickerSmall()) {
 		if (image->loaded()) {

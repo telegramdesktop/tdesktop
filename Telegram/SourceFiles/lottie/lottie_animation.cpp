@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 
 #include "lottie/lottie_frame_renderer.h"
+#include "storage/cache/storage_cache_database.h"
 #include "base/algorithm.h"
 #include "zlib.h"
 #include "logs.h"
@@ -68,6 +69,17 @@ std::unique_ptr<Animation> FromFile(const QString &path) {
 
 std::unique_ptr<Animation> FromData(const QByteArray &data) {
 	return std::make_unique<Animation>(base::duplicate(data));
+}
+
+std::unique_ptr<Animation> FromCached(
+		not_null<Storage::Cache::Database*> cache,
+		Storage::Cache::Key key,
+		const QByteArray &data,
+		const QString &filepath,
+		QSize box) {
+	return data.isEmpty()
+		? Lottie::FromFile(filepath)
+		: Lottie::FromData(data);
 }
 
 auto Init(QByteArray &&content)

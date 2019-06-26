@@ -47,18 +47,26 @@ enum class Error {
 };
 
 struct FrameRequest {
-	QSize resize;
+	QSize box;
 	std::optional<QColor> colored;
 
-	bool empty() const {
-		return resize.isEmpty();
+	[[nodiscard]] bool empty() const {
+		return box.isEmpty();
+	}
+	[[nodiscard]] QSize size(const QSize &original) const {
+		Expects(!box.isEmpty());
+
+		const auto result = original.scaled(box, Qt::KeepAspectRatio);
+		return QSize(
+			std::max(result.width(), 1),
+			std::max(result.height(), 1));
 	}
 
-	bool operator==(const FrameRequest &other) const {
-		return (resize == other.resize)
+	[[nodiscard]] bool operator==(const FrameRequest &other) const {
+		return (box == other.box)
 			&& (colored == other.colored);
 	}
-	bool operator!=(const FrameRequest &other) const {
+	[[nodiscard]] bool operator!=(const FrameRequest &other) const {
 		return !(*this == other);
 	}
 };

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "ui/toast/toast.h"
 #include "ui/emoji_config.h"
+#include "lottie/lottie_animation.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Stickers {
@@ -1084,6 +1085,26 @@ RecentStickerPack &GetRecentPack() {
 		}
 	}
 	return cRefRecentStickers();
+}
+
+std::unique_ptr<Lottie::Animation> LottieFromDocument(
+		not_null<DocumentData*> document,
+		LottieSize sizeTag,
+		QSize box) {
+	const auto data = document->data();
+	const auto filepath = document->filepath();
+	if (const auto key = document->bigFileBaseCacheKey()) {
+		return Lottie::FromCached(
+			&document->session().data().cacheBigFile(),
+			Storage::Cache::Key{ key->high, key->low + int(sizeTag) },
+			data,
+			filepath,
+			box);
+	} else if (!data.isEmpty()) {
+		return Lottie::FromData(data);
+	} else {
+		return Lottie::FromFile(filepath);
+	}
 }
 
 } // namespace Stickers

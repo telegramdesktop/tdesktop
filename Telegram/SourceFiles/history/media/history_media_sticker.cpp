@@ -184,7 +184,8 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, c
 			pixmap);
 	} else if (lottieReady) {
 		auto request = Lottie::FrameRequest();
-		request.resize = QSize(_pixw, _pixh) * cIntRetinaFactor();
+		request.box = QSize(st::maxStickerSize, st::maxStickerSize)
+			* cIntRetinaFactor();
 		if (selected) {
 			request.colored = st::msgStickerOverlay->c;
 		}

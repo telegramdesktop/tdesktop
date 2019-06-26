@@ -880,7 +880,7 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 			return QImage();
 		}
 		auto request = Lottie::FrameRequest();
-		request.resize = currentDimensions() * cIntRetinaFactor();
+		request.box = currentDimensions() * cIntRetinaFactor();
 		_lottie->markFrameShown();
 		return _lottie->frame(request);
 	}();

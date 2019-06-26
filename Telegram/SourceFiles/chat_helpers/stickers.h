@@ -9,6 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/sender.h"
 
+class DocumentData;
+
+namespace Lottie {
+class Animation;
+} // namespace Lottie
+
 namespace Stickers {
 
 constexpr auto DefaultSetId = 0; // for backward compatibility
@@ -102,5 +108,18 @@ void NewSetReceived(const MTPmessages_StickerSet &data);
 QString GetSetTitle(const MTPDstickerSet &s);
 
 RecentStickerPack &GetRecentPack();
+
+enum class LottieSize : uchar {
+	MessageHistory,
+	StickerSet,
+	StickersPanel,
+	StickersColumn,
+	MediaPreview,
+};
+
+std::unique_ptr<Lottie::Animation> LottieFromDocument(
+	not_null<DocumentData*> document,
+	LottieSize sizeTag,
+	QSize box);
 
 } // namespace Stickers

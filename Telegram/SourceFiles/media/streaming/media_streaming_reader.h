@@ -19,12 +19,9 @@ class StreamedFileDownloader;
 namespace Storage {
 namespace Cache {
 struct Key;
+class Database;
 } // namespace Cache
 } // namespace Storage
-
-namespace Data {
-class Session;
-} // namespace Data
 
 namespace Media {
 namespace Streaming {
@@ -36,7 +33,9 @@ enum class Error;
 class Reader final : public base::has_weak_ptr {
 public:
 	// Main thread.
-	Reader(not_null<Data::Session*> owner, std::unique_ptr<Loader> loader);
+	Reader(
+		not_null<Storage::Cache::Database*> cache,
+		std::unique_ptr<Loader> loader);
 
 	// Any thread.
 	[[nodiscard]] int size() const;
@@ -222,7 +221,7 @@ private:
 	static std::shared_ptr<CacheHelper> InitCacheHelper(
 		std::optional<Storage::Cache::Key> baseKey);
 
-	const not_null<Data::Session*> _owner;
+	const not_null<Storage::Cache::Database*> _cache;
 	const std::unique_ptr<Loader> _loader;
 	const std::shared_ptr<CacheHelper> _cacheHelper;
 

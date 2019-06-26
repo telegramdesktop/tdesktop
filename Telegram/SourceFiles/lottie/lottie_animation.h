@@ -23,6 +23,13 @@ class QImage;
 class QString;
 class QByteArray;
 
+namespace Storage {
+namespace Cache {
+class Database;
+struct Key;
+} // namespace Cache
+} // namespace Storage
+
 namespace Lottie {
 
 constexpr auto kMaxFileSize = 1024 * 1024;
@@ -33,6 +40,12 @@ class FrameRenderer;
 
 std::unique_ptr<Animation> FromFile(const QString &path);
 std::unique_ptr<Animation> FromData(const QByteArray &data);
+std::unique_ptr<Animation> FromCached(
+	not_null<Storage::Cache::Database*> cache,
+	Storage::Cache::Key key,
+	const QByteArray &data,
+	const QString &filepath,
+	QSize box);
 
 QImage ReadThumbnail(QByteArray &&content);
 

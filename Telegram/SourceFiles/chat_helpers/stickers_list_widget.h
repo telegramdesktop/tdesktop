@@ -165,6 +165,8 @@ private:
 
 	static std::vector<Sticker> PrepareStickers(const Stickers::Pack &pack);
 
+	QSize boundingBoxSize() const;
+
 	template <typename Callback>
 	bool enumerateSections(Callback callback) const;
 	SectionInfo sectionInfo(int section) const;

@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_common.h"
 #include "media/streaming/media_streaming_loader.h"
 #include "storage/cache/storage_cache_database.h"
-#include "data/data_session.h"
 
 namespace Media {
 namespace Streaming {
@@ -846,9 +845,9 @@ Reader::SerializedSlice Reader::Slices::unloadToCache() {
 }
 
 Reader::Reader(
-	not_null<Data::Session*> owner,
+	not_null<Storage::Cache::Database*> cache,
 	std::unique_ptr<Loader> loader)
-: _owner(owner)
+: _cache(cache)
 , _loader(std::move(loader))
 , _cacheHelper(InitCacheHelper(_loader->baseCacheKey()))
 , _slices(_loader->size(), _cacheHelper != nullptr) {
@@ -1140,7 +1139,7 @@ void Reader::readFromCache(int sliceNumber) {
 	for (auto i = 0; i != count; ++i) {
 		keys.push_back(_cacheHelper->key(i + 1));
 	}
-	_owner->cacheBigFile().getWithSizes(key, std::move(keys), ready);
+	_cache->getWithSizes(key, std::move(keys), ready);
 }
 
 bool Reader::readFromCacheForDownloader(int sliceNumber) {
@@ -1158,9 +1157,7 @@ void Reader::putToCache(SerializedSlice &&slice) {
 	Expects(_cacheHelper != nullptr);
 	Expects(slice.number >= 0);
 
-	_owner->cacheBigFile().put(
-		_cacheHelper->key(slice.number),
-		std::move(slice.data));
+	_cache->put(_cacheHelper->key(slice.number), std::move(slice.data));
 }
 
 int Reader::size() const {
@@ -1359,7 +1356,7 @@ void Reader::finalizeCache() {
 		putToCache(std::move(toCache));
 		toCache = _slices.unloadToCache();
 	}
-	_owner->cacheBigFile().sync();
+	_cache->sync();
 }
 
 Reader::~Reader() {

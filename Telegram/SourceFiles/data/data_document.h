@@ -181,6 +181,9 @@ public:
 	void refreshGoodThumbnail();
 	void replaceGoodThumbnail(std::unique_ptr<Images::Source> &&source);
 
+	[[nodiscard]] auto bigFileBaseCacheKey() const
+	-> std::optional<Storage::Cache::Key>;
+
 	void setRemoteLocation(
 		int32 dc,
 		uint64 access,

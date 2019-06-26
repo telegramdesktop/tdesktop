@@ -668,6 +668,21 @@ void DocumentData::setGoodThumbnailOnUpload(
 			QString(), std::move(bytes), "JPG", std::move(image)));
 }
 
+auto DocumentData::bigFileBaseCacheKey() const
+-> std::optional<Storage::Cache::Key> {
+	if (hasRemoteLocation()) {
+		return StorageFileLocation(
+			_dc,
+			session().userId(),
+			MTP_inputDocumentFileLocation(
+				MTP_long(id),
+				MTP_long(_access),
+				MTP_bytes(_fileReference),
+				MTP_string(QString()))).bigFileBaseCacheKey();
+	}
+	return std::nullopt;
+}
+
 bool DocumentData::saveToCache() const {
 	return (type == StickerDocument && size < Storage::kMaxStickerInMemory)
 		|| (isAnimation() && size < Storage::kMaxAnimationInMemory)

@@ -77,22 +77,25 @@ private:
 [[nodiscard]] bool GoodForRequest(
 		const QImage &image,
 		const FrameRequest &request) {
-	if (request.resize.isEmpty()) {
+	if (request.box.isEmpty()) {
 		return true;
 	} else if (request.colored.has_value()) {
 		return false;
 	}
-	return (request.resize == image.size());
+	const auto size = image.size();
+	return (request.box.width() == size.width())
+		|| (request.box.height() == size.height());
 }
 
 [[nodiscard]] QImage PrepareByRequest(
 		const QImage &original,
 		const FrameRequest &request,
 		QImage storage) {
-	Expects(!request.resize.isEmpty());
+	Expects(!request.box.isEmpty());
 
-	if (!GoodStorageForFrame(storage, request.resize)) {
-		storage = CreateFrameStorage(request.resize);
+	const auto size = request.size(original.size());
+	if (!GoodStorageForFrame(storage, size)) {
+		storage = CreateFrameStorage(size);
 	}
 	storage.fill(Qt::transparent);
 
@@ -101,7 +104,7 @@ private:
 		p.setRenderHint(QPainter::Antialiasing);
 		p.setRenderHint(QPainter::SmoothPixmapTransform);
 		p.setRenderHint(QPainter::HighQualityAntialiasing);
-		p.drawImage(QRect(QPoint(), request.resize), original);
+		p.drawImage(QRect(QPoint(), size), original);
 	}
 	if (request.colored.has_value()) {
 		storage = Images::prepareColored(*request.colored, std::move(storage));
@@ -211,7 +214,7 @@ void SharedState::renderFrame(
 		return;
 	}
 
-	const auto size = request.resize.isEmpty() ? _size : request.resize;
+	const auto size = request.box.isEmpty() ? _size : request.size(_size);
 	if (!GoodStorageForFrame(image, size)) {
 		image = CreateFrameStorage(size);
 	}

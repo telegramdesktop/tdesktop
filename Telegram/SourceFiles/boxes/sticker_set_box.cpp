@@ -69,6 +69,8 @@ private:
 		Ui::Animations::Simple overAnimation;
 	};
 
+	QSize boundingBoxSize() const;
+
 	void paintSticker(Painter &p, int index, QPoint position) const;
 	void setupLottie(int index);
 
@@ -505,13 +507,20 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 	}
 }
 
+QSize StickerSetBox::Inner::boundingBoxSize() const {
+	return QSize(
+		st::stickersSize.width() - st::buttonRadius * 2,
+		st::stickersSize.height() - st::buttonRadius * 2);
+}
+
 void StickerSetBox::Inner::setupLottie(int index) {
 	auto &element = _elements[index];
 	const auto document = element.document;
 
-	element.animated = document->data().isEmpty()
-		? Lottie::FromFile(document->filepath())
-		: Lottie::FromData(document->data());
+	element.animated = Stickers::LottieFromDocument(
+		document,
+		Stickers::LottieSize::StickerSet,
+		boundingBoxSize() * cIntRetinaFactor());
 	const auto animation = element.animated.get();
 
 	animation->updates(
@@ -550,16 +559,15 @@ void StickerSetBox::Inner::paintSticker(
 	if (h < 1) h = 1;
 	QPoint ppos = position + QPoint((st::stickersSize.width() - w) / 2, (st::stickersSize.height() - h) / 2);
 	if (element.animated && element.animated->ready()) {
-		const auto size = QSize(w, h);
 		auto request = Lottie::FrameRequest();
-		request.resize = size * cIntRetinaFactor();
+		request.box = boundingBoxSize() * cIntRetinaFactor();
 		const auto paused = _controller->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Layer);
 		if (!paused) {
 			element.animated->markFrameShown();
 		}
 		p.drawImage(
-			QRect(ppos, size),
+			QRect(ppos, QSize(w, h)),
 			element.animated->frame(request));
 	} else if (const auto image = document->getStickerSmall()) {
 		p.drawPixmapLeft(
@@ -581,7 +589,7 @@ bool StickerSetBox::Inner::notInstalled() const {
 	if ((it == Auth().data().stickerSets().cend())
 		|| !(it->flags & MTPDstickerSet::Flag::f_installed_date)
 		|| (it->flags & MTPDstickerSet::Flag::f_archived)) {
-		return _pack.size() > 0;
+		return !_pack.empty();
 	}
 	return false;
 }

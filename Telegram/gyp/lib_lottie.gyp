@@ -29,11 +29,13 @@
       'crl.gyp:crl',
       'lib_base.gyp:lib_base',
       'lib_rlottie.gyp:lib_rlottie',
+      'lib_storage.gyp:lib_storage',
     ],
     'export_dependent_settings': [
       'crl.gyp:crl',
       'lib_base.gyp:lib_base',
       'lib_rlottie.gyp:lib_rlottie',
+      'lib_storage.gyp:lib_storage',
     ],
     'defines': [
       'LOT_BUILD',
