@@ -16,12 +16,6 @@
 [submodule "Telegram/ThirdParty/xxHash"]
 	path = Telegram/ThirdParty/xxHash
 	url = https://github.com/Cyan4973/xxHash.git
-[submodule "Telegram/ThirdParty/qtlottie"]
-	path = Telegram/ThirdParty/qtlottie
-	url = https://github.com/telegramdesktop/qtlottie.git
-[submodule "Telegram/ThirdParty/rapidjson"]
-	path = Telegram/ThirdParty/rapidjson
-	url = https://github.com/Tencent/rapidjson.git
 [submodule "Telegram/ThirdParty/rlottie"]
 	path = Telegram/ThirdParty/rlottie
 	url = https://github.com/john-preston/rlottie

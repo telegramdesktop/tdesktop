@@ -8,14 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 
 #include "lottie/lottie_frame_renderer.h"
-#include "rasterrenderer/rasterrenderer.h"
-#include "json.h"
 #include "base/algorithm.h"
 #include "zlib.h"
 #include "logs.h"
-#include "rlottie.h"
 
 #include <QFile>
+#include <QDebug>
+#include <rlottie.h>
 #include <crl/crl_async.h>
 #include <crl/crl_on_main.h>
 

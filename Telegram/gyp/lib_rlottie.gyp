@@ -24,7 +24,6 @@
     'defines': [
       '_USE_MATH_DEFINES',
       'LOT_BUILD',
-      'RLOTTIE_WITH_STATIC_QT',
     ],
     'include_dirs': [
       '<(rlottie_loc)/inc',
@@ -110,7 +109,11 @@
       '<(rlottie_src)/vector/vstackallocator.h',
       '<(rlottie_src)/vector/vtaskqueue.h',
     ],
-    'conditions': [[ 'build_macold', {
+    'conditions': [[ 'not build_win', {
+      'defines': [
+        'RLOTTIE_WITH_STATIC_QT',
+      ]
+    }], [ 'build_macold', {
       'xcode_settings': {
         'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
       },

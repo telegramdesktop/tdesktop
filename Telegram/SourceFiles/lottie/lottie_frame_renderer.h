@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_common.h"
 
 #include <QImage>
+#include <QSize>
 #include <crl/crl_time.h>
 #include <crl/crl_object_on_queue.h>
 #include <limits>
@@ -19,8 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace rlottie {
 class Animation;
 } // namespace rlottie
-
-class QImage;
 
 namespace Lottie {
 
@@ -61,6 +60,7 @@ public:
 	~SharedState();
 
 private:
+	void calculateProperties();
 	bool isValid() const;
 	void init(QImage cover);
 	void renderNextFrame(
@@ -83,7 +83,8 @@ private:
 	crl::time _duration = kTimeUnknown;
 	int _frameIndex = 0;
 	int _framesCount = 0;
-	int _frameRate;
+	int _frameRate = 0;
+	QSize _size;
 	std::atomic<int> _accumulatedDelayMs = 0;
 
 };

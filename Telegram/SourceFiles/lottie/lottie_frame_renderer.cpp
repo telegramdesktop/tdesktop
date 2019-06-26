@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_frame_renderer.h"
 
 #include "lottie/lottie_animation.h"
-#include "rasterrenderer/rasterrenderer.h"
 #include "logs.h"
 #include "rlottie.h"
 
@@ -178,6 +177,7 @@ SharedState::SharedState(std::unique_ptr<rlottie::Animation> animation)
 : _animation(std::move(animation)) {
 	Expects(_animation != nullptr);
 
+	calculateProperties();
 	if (isValid()) {
 		auto cover = QImage();
 		renderFrame(cover, FrameRequest::NonStrict(), 0);
@@ -185,33 +185,33 @@ SharedState::SharedState(std::unique_ptr<rlottie::Animation> animation)
 	}
 }
 
-bool SharedState::isValid() const {
+void SharedState::calculateProperties() {
 	auto width = size_t(0);
 	auto height = size_t(0);
 	_animation->size(width, height);
-	const auto frameRate = int(_animation->frameRate());
-	return _animation->totalFrame() > 0
-		&& frameRate > 0
-		&& frameRate <= kMaxFrameRate
-		&& width > 0
-		&& width <= kMaxSize
-		&& height > 0
-		&& height <= kMaxSize;
+	const auto rate = _animation->frameRate();
+	const auto count = _animation->totalFrame();
+
+	_size = QSize(
+		(width > 0 && width < kMaxSize) ? int(width) : 0,
+		(height > 0 && height < kMaxSize) ? int(height) : 0);
+	_frameRate = (rate >= 1. && rate <= kMaxFrameRate) ? int(rate) : 0;
+	_framesCount = (count > 0) ? int(count) : 0;
+}
+
+bool SharedState::isValid() const {
+	return (_framesCount > 0) && (_frameRate > 0) && !_size.isEmpty();
 }
 
 void SharedState::renderFrame(
 		QImage &image,
 		const FrameRequest &request,
 		int index) {
-	auto width = size_t(0);
-	auto height = size_t(0);
-	_animation->size(width, height);
-	const auto realSize = QSize(width, height);
-	if (realSize.isEmpty() || !_animation->totalFrame()) {
+	if (!isValid()) {
 		return;
 	}
 
-	const auto size = request.resize.isEmpty() ? realSize : request.resize;
+	const auto size = request.resize.isEmpty() ? _size : request.resize;
 	if (!GoodStorageForFrame(image, size)) {
 		image = CreateFrameStorage(size);
 	}
@@ -228,8 +228,6 @@ void SharedState::renderFrame(
 void SharedState::init(QImage cover) {
 	Expects(!initialized());
 
-	_frameRate = int(_animation->frameRate());
-	_framesCount = int(_animation->totalFrame());
 	_duration = crl::time(1000) * _framesCount / _frameRate;
 
 	_frames[0].original = std::move(cover);
@@ -331,14 +329,10 @@ Information SharedState::information() const {
 	if (!isValid()) {
 		return {};
 	}
-	auto width = size_t(0);
-	auto height = size_t(0);
-	_animation->size(width, height);
-
 	auto result = Information();
-	result.frameRate = int(_animation->frameRate());
-	result.size = QSize(width, height);
-	result.framesCount = int(_animation->totalFrame());
+	result.frameRate = _frameRate;
+	result.size = _size;
+	result.framesCount = _framesCount;
 	return result;
 }
 
