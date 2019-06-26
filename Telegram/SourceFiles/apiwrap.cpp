@@ -507,6 +507,7 @@ void ApiWrap::toggleHistoryArchived(
 	if (const auto already = _historyArchivedRequests.take(history)) {
 		request(already->first).cancel();
 	}
+	const auto isPinned = history->isPinnedDialog();
 	const auto archiveId = Data::Folder::kId;
 	const auto requestId = request(MTPfolders_EditPeerFolders(
 		MTP_vector<MTPInputFolderPeer>(
@@ -523,6 +524,9 @@ void ApiWrap::toggleHistoryArchived(
 		}
 		if (const auto data = _historyArchivedRequests.take(history)) {
 			data->second();
+		}
+		if (isPinned) {
+			_session->data().notifyPinnedDialogsOrderUpdated();
 		}
 	}).fail([=](const RPCError &error) {
 		_historyArchivedRequests.remove(history);
