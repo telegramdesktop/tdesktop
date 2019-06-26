@@ -49,13 +49,6 @@ enum class Error {
 struct FrameRequest {
 	QSize resize;
 	std::optional<QColor> colored;
-	bool strict = true;
-
-	static FrameRequest NonStrict() {
-		auto result = FrameRequest();
-		result.strict = false;
-		return result;
-	}
 
 	bool empty() const {
 		return resize.isEmpty();

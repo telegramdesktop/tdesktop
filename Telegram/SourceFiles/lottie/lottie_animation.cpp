@@ -21,7 +21,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Lottie {
 namespace {
 
-QByteArray UnpackGzip(const QByteArray &bytes) {
+std::string UnpackGzip(const QByteArray &bytes) {
+	const auto original = [&] {
+		return std::string(bytes.constData(), bytes.size());
+	};
 	z_stream stream;
 	stream.zalloc = nullptr;
 	stream.zfree = nullptr;
@@ -30,11 +33,11 @@ QByteArray UnpackGzip(const QByteArray &bytes) {
 	stream.next_in = nullptr;
 	int res = inflateInit2(&stream, 16 + MAX_WBITS);
 	if (res != Z_OK) {
-		return bytes;
+		return original();
 	}
 	const auto guard = gsl::finally([&] { inflateEnd(&stream); });
 
-	auto result = QByteArray(kMaxFileSize + 1, Qt::Uninitialized);
+	auto result = std::string(kMaxFileSize + 1, char(0));
 	stream.avail_in = bytes.size();
 	stream.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(bytes.data()));
 	stream.avail_out = 0;
@@ -43,9 +46,9 @@ QByteArray UnpackGzip(const QByteArray &bytes) {
 		stream.next_out = reinterpret_cast<Bytef*>(result.data());
 		int res = inflate(&stream, Z_NO_FLUSH);
 		if (res != Z_OK && res != Z_STREAM_END) {
-			return bytes;
+			return original();
 		} else if (!stream.avail_out) {
-			return bytes;
+			return original();
 		}
 	}
 	result.resize(result.size() - stream.avail_out);
@@ -75,21 +78,16 @@ auto Init(QByteArray &&content)
 			<< content.size();
 		return Error::ParseFailed;
 	}
-	content = UnpackGzip(content);
-	if (content.size() > kMaxFileSize) {
-		qWarning()
-			<< "Lottie Error: Too large file: "
-			<< content.size();
-		return Error::ParseFailed;
-	}
-	auto animation = rlottie::Animation::loadFromData(
-		std::string(content.constData(), content.size()),
-		std::string());
+	const auto string = UnpackGzip(content);
+	Assert(string.size() <= kMaxFileSize);
+
+	auto animation = rlottie::Animation::loadFromData(string, std::string());
 	if (!animation) {
 		qWarning()
 			<< "Lottie Error: Parse failed.";
 		return Error::ParseFailed;
 	}
+
 	auto result = std::make_unique<SharedState>(std::move(animation));
 	auto information = result->information();
 	if (!information.frameRate
@@ -154,8 +152,7 @@ QImage Animation::frame(const FrameRequest &request) const {
 	Expects(_renderer != nullptr);
 
 	const auto frame = _state->frameForPaint();
-	const auto changed = (frame->request != request)
-		&& (request.strict || !frame->request.strict);
+	const auto changed = (frame->request != request);
 	if (changed) {
 		frame->request = request;
 		_renderer->updateFrameRequest(_state, request);

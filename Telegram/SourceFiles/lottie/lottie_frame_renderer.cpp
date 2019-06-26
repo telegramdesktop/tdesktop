@@ -180,7 +180,7 @@ SharedState::SharedState(std::unique_ptr<rlottie::Animation> animation)
 	calculateProperties();
 	if (isValid()) {
 		auto cover = QImage();
-		renderFrame(cover, FrameRequest::NonStrict(), 0);
+		renderFrame(cover, FrameRequest(), 0);
 		init(std::move(cover));
 	}
 }

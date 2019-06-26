@@ -32,7 +32,7 @@ struct Frame {
 	crl::time displayed = kTimeUnknown;
 	crl::time display = kTimeUnknown;
 
-	FrameRequest request = FrameRequest::NonStrict();
+	FrameRequest request;
 	QImage prepared;
 };
 
