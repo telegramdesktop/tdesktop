@@ -97,7 +97,10 @@ QSize HistorySticker::countCurrentSize(int newWidth) {
 }
 
 void HistorySticker::setupLottie() {
-	_lottie = Lottie::FromContent(_data->data(), _data->filepath());
+	_lottie = Stickers::LottieFromDocument(
+		_data,
+		Stickers::LottieSize::MessageHistory,
+		QSize(st::maxStickerSize, st::maxStickerSize) * cIntRetinaFactor());
 	_parent->data()->history()->owner().registerHeavyViewPart(_parent);
 
 	_lottie->updates(

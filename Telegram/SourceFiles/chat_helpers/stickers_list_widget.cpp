@@ -1368,9 +1368,10 @@ void StickersListWidget::setupLottie(Set &set, int section, int index) {
 	auto &sticker = set.stickers[index];
 	const auto document = sticker.document;
 
-	sticker.animated = Lottie::FromContent(
-		document->data(),
-		document->filepath());
+	sticker.animated = Stickers::LottieFromDocument(
+		document,
+		Stickers::LottieSize::StickersColumn, // #TODO stickers
+		boundingBoxSize() * cIntRetinaFactor());
 	const auto animation = sticker.animated.get();
 
 	animation->updates(

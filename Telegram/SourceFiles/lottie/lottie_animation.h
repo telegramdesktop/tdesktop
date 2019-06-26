@@ -30,6 +30,10 @@ struct Key;
 } // namespace Cache
 } // namespace Storage
 
+namespace rlottie {
+class Animation;
+} // namespace rlottie
+
 namespace Lottie {
 
 inline constexpr auto kMaxFileSize = 1024 * 1024;
@@ -46,13 +50,16 @@ std::unique_ptr<Animation> FromCached(
 	Storage::Cache::Key key,
 	const QByteArray &data,
 	const QString &filepath,
-	QSize box);
+	const FrameRequest &request);
 
 QImage ReadThumbnail(const QByteArray &content);
 
 namespace details {
 
 using InitData = base::variant<std::unique_ptr<SharedState>, Error>;
+
+std::unique_ptr<rlottie::Animation> CreateFromContent(
+	const QByteArray &content);
 
 } // namespace details
 
@@ -63,7 +70,7 @@ public:
 		not_null<Storage::Cache::Database*> cache,
 		Storage::Cache::Key key,
 		const QByteArray &content,
-		QSize box);
+		const FrameRequest &request);
 	~Animation();
 
 	//void play(const PlaybackOptions &options);

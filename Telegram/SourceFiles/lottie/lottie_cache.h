@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Lottie {
 
+struct FrameRequest;
+
 class AlignedStorage {
 public:
 	void allocate(int packedBytesPerLine, int lines);
@@ -46,22 +48,40 @@ private:
 
 class CacheState {
 public:
-	enum class Encoder : uchar {
+	enum class Encoder : quint8 {
 		YUV420A4_LZ4,
 	};
 
-	CacheState(const QByteArray &data, QSize box);
+	CacheState(const QByteArray &data, const FrameRequest &request);
 
+	void init(
+		QSize original,
+		int frameRate,
+		int framesCount,
+		const FrameRequest &request);
 	[[nodiscard]] int frameRate() const;
 	[[nodiscard]] int framesReady() const;
 	[[nodiscard]] int framesCount() const;
+	[[nodiscard]] QSize originalSize() const;
 	[[nodiscard]] QImage takeFirstFrame();
 
+	[[nodiscard]] bool renderFrame(
+		QImage &to,
+		const FrameRequest &request,
+		int index);
+	void appendFrame(
+		const QImage &frame,
+		const FrameRequest &request,
+		int index);
+
 private:
-	[[nodiscard]] bool readHeader(QSize box);
 	void prepareBuffers();
-	[[nodiscard]] bool readCompressedDelta(int offset);
-	[[nodiscard]] int uncompressedDeltaSize() const;
+
+	void writeHeader();
+	void incrementFramesReady();
+	[[nodiscard]] bool readHeader(const FrameRequest &request);
+	void writeCompressedDelta();
+	[[nodiscard]] bool readCompressedDelta();
 
 	QByteArray _data;
 	QSize _size;
@@ -72,7 +92,9 @@ private:
 	int _frameRate = 0;
 	int _framesCount = 0;
 	int _framesReady = 0;
+	int _headerSize = 0;
 	int _offset = 0;
+	int _offsetFrameIndex = 0;
 	Encoder _encoder = Encoder::YUV420A4_LZ4;
 
 };

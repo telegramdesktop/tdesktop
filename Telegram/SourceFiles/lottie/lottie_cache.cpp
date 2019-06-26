@@ -30,7 +30,15 @@ bool UncompressToRaw(AlignedStorage &to, bytes::const_span from) {
 	}
 }
 
-void Decode(QImage &to, const AlignedStorage &from, const QSize &fromSize) {
+void CompressFromRaw(QByteArray &to, const AlignedStorage &from) {
+	const auto size = to.size();
+	to.resize(size + from.rawSize());
+	memcpy(to.data() + size, from.raw(), from.rawSize());
+	// #TODO stickers
+}
+
+void Decode(QImage &to, AlignedStorage &from, const QSize &fromSize) {
+	from.copyRawToAligned();
 	if (!FFmpeg::GoodStorageForFrame(to, fromSize)) {
 		to = FFmpeg::CreateFrameStorage(fromSize);
 	}
@@ -42,6 +50,46 @@ void Decode(QImage &to, const AlignedStorage &from, const QSize &fromSize) {
 		memcpy(toBytes, fromBytes, to.width() * 4);
 		fromBytes += fromPerLine;
 		toBytes += toPerLine;
+	}
+}
+
+void Encode(AlignedStorage &to, const QImage &from, const QSize &toSize) {
+	auto fromBytes = from.bits();
+	auto toBytes = static_cast<char*>(to.aligned());
+	const auto fromPerLine = from.bytesPerLine();
+	const auto toPerLine = to.bytesPerLine();
+	for (auto i = 0; i != to.lines(); ++i) {
+		memcpy(toBytes, fromBytes, from.width() * 4);
+		fromBytes += fromPerLine;
+		toBytes += toPerLine;
+	}
+	to.copyAlignedToRaw();
+}
+
+void Xor(AlignedStorage &to, const AlignedStorage &from) {
+	Expects(to.rawSize() == from.rawSize());
+
+	using Block = std::conditional_t<
+		sizeof(void*) == sizeof(uint64),
+		uint64,
+		uint32>;
+	constexpr auto kBlockSize = sizeof(Block);
+	const auto amount = from.rawSize();
+	const auto fromBytes = reinterpret_cast<const uchar*>(from.raw());
+	const auto toBytes = reinterpret_cast<uchar*>(to.raw());
+	const auto skip = reinterpret_cast<quintptr>(toBytes) % kBlockSize;
+	const auto blocks = (amount - skip) / kBlockSize;
+	for (auto i = 0; i != skip; ++i) {
+		toBytes[i] ^= fromBytes[i];
+	}
+	const auto fromBlocks = reinterpret_cast<const Block*>(fromBytes + skip);
+	const auto toBlocks = reinterpret_cast<Block*>(toBytes + skip);
+	for (auto i = 0; i != blocks; ++i) {
+		toBlocks[i] ^= fromBlocks[i];
+	}
+	const auto left = amount - skip - (blocks * kBlockSize);
+	for (auto i = amount - left; i != amount; ++i) {
+		toBytes[i] ^= fromBytes[i];
 	}
 }
 
@@ -104,10 +152,10 @@ void AlignedStorage::copyRawToAligned() {
 	if (fromPerLine == toPerLine) {
 		return;
 	}
-	auto from = static_cast<char*>(raw());
+	auto from = static_cast<const char*>(raw());
 	auto to = static_cast<char*>(aligned());
 	for (auto i = 0; i != _lines; ++i) {
-		memcpy(from, to, fromPerLine);
+		memcpy(to, from, fromPerLine);
 		from += fromPerLine;
 		to += toPerLine;
 	}
@@ -119,20 +167,34 @@ void AlignedStorage::copyAlignedToRaw() {
 	if (fromPerLine == toPerLine) {
 		return;
 	}
-	auto from = static_cast<char*>(aligned());
+	auto from = static_cast<const char*>(aligned());
 	auto to = static_cast<char*>(raw());
 	for (auto i = 0; i != _lines; ++i) {
-		memcpy(from, to, toPerLine);
+		memcpy(to, from, toPerLine);
 		from += fromPerLine;
 		to += toPerLine;
 	}
 }
 
-CacheState::CacheState(const QByteArray &data, QSize box)
+CacheState::CacheState(const QByteArray &data, const FrameRequest &request)
 : _data(data) {
-	if (!readHeader(box)) {
+	if (!readHeader(request)) {
 		_framesReady = 0;
+		_data = QByteArray();
 	}
+}
+
+void CacheState::init(
+		QSize original,
+		int frameRate,
+		int framesCount,
+		const FrameRequest &request) {
+	_size = request.size(original);
+	_original = original;
+	_frameRate = frameRate;
+	_framesCount = framesCount;
+	_framesReady = 0;
+	prepareBuffers();
 }
 
 int CacheState::frameRate() const {
@@ -147,14 +209,18 @@ int CacheState::framesCount() const {
 	return _framesCount;
 }
 
-bool CacheState::readHeader(QSize box) {
+QSize CacheState::originalSize() const {
+	return _original;
+}
+
+bool CacheState::readHeader(const FrameRequest &request) {
 	if (_data.isEmpty()) {
 		return false;
 
 	}
 	QDataStream stream(&_data, QIODevice::ReadOnly);
 
-	auto encoder = uchar(0);
+	auto encoder = quint8(0);
 	stream >> encoder;
 	if (static_cast<Encoder>(encoder) != Encoder::YUV420A4_LZ4) {
 		return false;
@@ -180,47 +246,137 @@ bool CacheState::readHeader(QSize box) {
 		|| (framesCount > kMaxFramesCount)
 		|| (framesReady <= 0)
 		|| (framesReady > framesCount)
-		|| FrameRequest{ box }.size(original) != size) {
+		|| request.size(original) != size) {
 		return false;
 	}
+	_headerSize = stream.device()->pos();
 	_size = size;
 	_original = original;
 	_frameRate = frameRate;
 	_framesCount = framesCount;
 	_framesReady = framesReady;
 	prepareBuffers();
-	if (!readCompressedDelta(stream.device()->pos())) {
-		return false;
-	}
-	_uncompressed.copyRawToAligned();
-	std::swap(_uncompressed, _previous);
-	Decode(_firstFrame, _previous, _size);
-	return true;
+	return renderFrame(_firstFrame, request, 0);
 }
 
 QImage CacheState::takeFirstFrame() {
 	return std::move(_firstFrame);
 }
 
+bool CacheState::renderFrame(
+		QImage &to,
+		const FrameRequest &request,
+		int index) {
+	Expects(index >= _framesReady
+		|| index == _offsetFrameIndex
+		|| index == 0);
+
+	if (index >= _framesReady) {
+		return false;
+	} else if (request.size(_original) != _size) {
+		return false;
+	} else if (index == 0) {
+		_offset = _headerSize;
+		_offsetFrameIndex = 0;
+	}
+	if (!readCompressedDelta()) {
+		_framesReady = 0;
+		_data = QByteArray();
+		return false;
+	}
+	if (index == 0) {
+		std::swap(_uncompressed, _previous);
+	} else {
+		Xor(_previous, _uncompressed);
+	}
+	Decode(to, _previous, _size);
+	return true;
+}
+
+void CacheState::appendFrame(
+		const QImage &frame,
+		const FrameRequest &request,
+		int index) {
+	if (request.size(_original) != _size) {
+		_framesReady = 0;
+		_data = QByteArray();
+	}
+	if (index != _framesReady) {
+		return;
+	}
+	if (index == 0) {
+		_size = request.size(_original);
+		writeHeader();
+		prepareBuffers();
+	} else {
+		incrementFramesReady();
+	}
+	Encode(_uncompressed, frame, _size);
+	if (index == 0) {
+		writeCompressedDelta();
+		std::swap(_uncompressed, _previous);
+	} else {
+		std::swap(_uncompressed, _previous);
+		Xor(_uncompressed, _previous);
+		writeCompressedDelta();
+	}
+}
+
+void CacheState::writeHeader() {
+	Expects(_framesReady == 0);
+	Expects(_data.isEmpty());
+
+	QDataStream stream(&_data, QIODevice::WriteOnly);
+
+	stream
+		<< static_cast<quint8>(Encoder::YUV420A4_LZ4)
+		<< _size
+		<< _original
+		<< qint32(_frameRate)
+		<< qint32(_framesCount)
+		<< qint32(++_framesReady);
+	_headerSize = stream.device()->pos();
+}
+
+void CacheState::incrementFramesReady() {
+	Expects(_headerSize > sizeof(qint32) && _data.size() > _headerSize);
+
+	const auto framesReady = qint32(++_framesReady);
+	bytes::copy(
+		bytes::make_detached_span(_data).subspan(
+			_headerSize - sizeof(qint32)),
+		bytes::object_as_span(&framesReady));
+}
+
+void CacheState::writeCompressedDelta() {
+	auto length = qint32(0);
+	const auto size = _data.size();
+	_data.resize(size + sizeof(length));
+	CompressFromRaw(_data, _uncompressed);
+	length = _data.size() - size - sizeof(length);
+	bytes::copy(
+		bytes::make_detached_span(_data).subspan(size),
+		bytes::object_as_span(&length));
+}
+
 void CacheState::prepareBuffers() {
 	_uncompressed.allocate(_size.width() * 4, _size.height());
+	_previous.allocate(_size.width() * 4, _size.height());
 }
 
-int CacheState::uncompressedDeltaSize() const {
-	return _size.width() * _size.height() * 4; // #TODO stickers
-}
-
-bool CacheState::readCompressedDelta(int offset) {
+bool CacheState::readCompressedDelta() {
 	auto length = qint32(0);
-	const auto part = bytes::make_span(_data).subspan(offset);
+	const auto part = bytes::make_span(_data).subspan(_offset);
 	if (part.size() < sizeof(length)) {
 		return false;
 	}
-	bytes::copy(bytes::object_as_span(&length), part);
+	bytes::copy(
+		bytes::object_as_span(&length),
+		part.subspan(0, sizeof(length)));
 	const auto bytes = part.subspan(sizeof(length));
-	const auto uncompressedSize = uncompressedDeltaSize();
 
-	_offset = offset + length;
+	_offset += sizeof(length) + length;
+	++_offsetFrameIndex;
 	return (length <= bytes.size())
 		? UncompressToRaw(_uncompressed, bytes.subspan(0, length))
 		: false;

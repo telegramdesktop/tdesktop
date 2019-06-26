@@ -1099,7 +1099,7 @@ std::unique_ptr<Lottie::Animation> LottieFromDocument(
 			Storage::Cache::Key{ key->high, key->low + int(sizeTag) },
 			data,
 			filepath,
-			box);
+			Lottie::FrameRequest{ box });
 	}
 	return Lottie::FromContent(data, filepath);
 }

@@ -21,6 +21,13 @@ namespace rlottie {
 class Animation;
 } // namespace rlottie
 
+namespace Storage {
+namespace Cache {
+class Database;
+struct Key;
+} // namespace Cache
+} // namespace Storage
+
 namespace Lottie {
 
 inline constexpr auto kMaxFrameRate = 120;
@@ -28,7 +35,7 @@ inline constexpr auto kMaxSize = 3096;
 inline constexpr auto kMaxFramesCount = 600;
 
 class Animation;
-class JsonObject;
+class CacheState;
 
 struct Frame {
 	QImage original;
@@ -47,6 +54,13 @@ QImage PrepareFrameByRequest(
 class SharedState {
 public:
 	explicit SharedState(std::unique_ptr<rlottie::Animation> animation);
+	SharedState(
+		const QByteArray &content,
+		std::unique_ptr<rlottie::Animation> animation,
+		CacheState &&state,
+		not_null<Storage::Cache::Database*> cache,
+		Storage::Cache::Key key,
+		const FrameRequest &request);
 
 	void start(not_null<Animation*> owner, crl::time now);
 
@@ -64,9 +78,12 @@ public:
 	~SharedState();
 
 private:
+	struct Cache;
+
+	void construct(const FrameRequest &request);
 	void calculateProperties();
 	bool isValid() const;
-	void init(QImage cover);
+	void init(QImage cover, const FrameRequest &request);
 	void renderNextFrame(
 		not_null<Frame*> frame,
 		const FrameRequest &request);
@@ -74,6 +91,7 @@ private:
 	[[nodiscard]] not_null<const Frame*> getFrame(int index) const;
 	[[nodiscard]] int counter() const;
 
+	QByteArray _content;
 	std::unique_ptr<rlottie::Animation> _animation;
 
 	static constexpr auto kCounterUninitialized = -1;
@@ -90,6 +108,8 @@ private:
 	int _frameRate = 0;
 	QSize _size;
 	std::atomic<int> _accumulatedDelayMs = 0;
+
+	std::unique_ptr<Cache> _cache;
 
 };
 

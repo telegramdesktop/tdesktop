@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_frame_renderer.h"
 
 #include "lottie/lottie_animation.h"
+#include "lottie/lottie_cache.h"
+#include "storage/cache/storage_cache_database.h"
 #include "logs.h"
 #include "rlottie.h"
 
@@ -72,6 +74,26 @@ private:
 
 };
 
+struct SharedState::Cache {
+	Cache(
+		CacheState &&state,
+		not_null<Storage::Cache::Database*> storage,
+		Storage::Cache::Key key);
+
+	CacheState state;
+	not_null<Storage::Cache::Database*> storage;
+	Storage::Cache::Key key;
+};
+
+SharedState::Cache::Cache(
+	CacheState &&state,
+	not_null<Storage::Cache::Database*> storage,
+	Storage::Cache::Key key)
+: state(std::move(state))
+, storage(storage)
+, key(key) {
+}
+
 [[nodiscard]] bool GoodForRequest(
 		const QImage &image,
 		const FrameRequest &request) {
@@ -133,6 +155,8 @@ FrameRendererObject::FrameRendererObject(
 
 void FrameRendererObject::append(std::unique_ptr<SharedState> state) {
 	_entries.push_back({ std::move(state) });
+	auto &entry = _entries.back();
+	entry.request = entry.state->frameForPaint()->request;
 	queueGenerateFrames();
 }
 
@@ -176,22 +200,56 @@ void FrameRendererObject::queueGenerateFrames() {
 
 SharedState::SharedState(std::unique_ptr<rlottie::Animation> animation)
 : _animation(std::move(animation)) {
-	Expects(_animation != nullptr);
+	construct(FrameRequest());
+}
 
+SharedState::SharedState(
+	const QByteArray &content,
+	std::unique_ptr<rlottie::Animation> animation,
+	CacheState &&state,
+	not_null<Storage::Cache::Database*> cache,
+	Storage::Cache::Key key,
+	const FrameRequest &request)
+: _content(content)
+, _animation(std::move(animation))
+, _cache(std::make_unique<Cache>(std::move(state), cache, key)) {
+	construct(request);
+}
+
+void SharedState::construct(const FrameRequest &request) {
 	calculateProperties();
-	if (isValid()) {
-		auto cover = QImage();
-		renderFrame(cover, FrameRequest(), 0);
-		init(std::move(cover));
+	if (!isValid()) {
+		return;
 	}
+	auto cover = _cache ? _cache->state.takeFirstFrame() : QImage();
+	if (!cover.isNull()) {
+		init(std::move(cover), request);
+		return;
+	}
+	if (_cache) {
+		_cache->state.init(_size, _frameRate, _framesCount, request);
+	}
+	renderFrame(cover, request, 0);
+	init(std::move(cover), request);
 }
 
 void SharedState::calculateProperties() {
+	Expects(_animation != nullptr || _cache != nullptr);
+
 	auto width = size_t(0);
 	auto height = size_t(0);
-	_animation->size(width, height);
-	const auto rate = _animation->frameRate();
-	const auto count = _animation->totalFrame();
+	if (_animation) {
+		_animation->size(width, height);
+	} else {
+		width = _cache->state.originalSize().width();
+		height = _cache->state.originalSize().height();
+	}
+	const auto rate = _animation
+		? _animation->frameRate()
+		: _cache->state.frameRate();
+	const auto count = _animation
+		? _animation->totalFrame()
+		: _cache->state.framesCount();
 
 	_size = QSize(
 		(width > 0 && width < kMaxSize) ? int(width) : 0,
@@ -216,21 +274,33 @@ void SharedState::renderFrame(
 	if (!GoodStorageForFrame(image, size)) {
 		image = CreateFrameStorage(size);
 	}
-	image.fill(Qt::transparent);
+	if (_cache && _cache->state.renderFrame(image, request, index)) {
+		return;
+	} else if (!_animation) {
+		_animation = details::CreateFromContent(_content);
+	}
 
+	image.fill(Qt::transparent);
 	auto surface = rlottie::Surface(
 		reinterpret_cast<uint32_t*>(image.bits()),
 		image.width(),
 		image.height(),
 		image.bytesPerLine());
 	_animation->renderSync(index, surface);
+	if (_cache) {
+		_cache->state.appendFrame(image, request, index);
+		if (_cache->state.framesReady() == _cache->state.framesCount()) {
+			_animation = nullptr;
+		}
+	}
 }
 
-void SharedState::init(QImage cover) {
+void SharedState::init(QImage cover, const FrameRequest &request) {
 	Expects(!initialized());
 
 	_duration = crl::time(1000) * _framesCount / _frameRate;
 
+	_frames[0].request = request;
 	_frames[0].original = std::move(cover);
 	_frames[0].position = 0;
 
@@ -302,8 +372,7 @@ bool SharedState::renderNextFrame(const FrameRequest &request) {
 	case 6: return present(6, 0);
 	case 7: return prerender(1);
 	}
-	Unexpected("Counter value in VideoTrack::Shared::prepareState.");
-
+	Unexpected("Counter value in Lottie::SharedState::renderNextFrame.");
 }
 
 int SharedState::counter() const {
