@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 
 #include "lottie/lottie_frame_renderer.h"
+#include "lottie/lottie_cache.h"
 #include "storage/cache/storage_cache_database.h"
 #include "base/algorithm.h"
 #include "zlib.h"
@@ -56,19 +57,85 @@ std::string UnpackGzip(const QByteArray &bytes) {
 	return result;
 }
 
-} // namespace
-
-std::unique_ptr<Animation> FromFile(const QString &path) {
-	return FromData([&] {
-		auto f = QFile(path);
-		return (f.size() <= kMaxFileSize && f.open(QIODevice::ReadOnly))
-			? f.readAll()
-			: QByteArray();
-	}());
+QByteArray ReadFile(const QString &filepath) {
+	auto f = QFile(filepath);
+	return (f.size() <= kMaxFileSize && f.open(QIODevice::ReadOnly))
+		? f.readAll()
+		: QByteArray();
 }
 
-std::unique_ptr<Animation> FromData(const QByteArray &data) {
-	return std::make_unique<Animation>(base::duplicate(data));
+QByteArray ReadContent(const QByteArray &data, const QString &filepath) {
+	return data.isEmpty() ? ReadFile(filepath) : base::duplicate(data);
+}
+
+std::optional<Error> ContentError(const QByteArray &content) {
+	if (content.size() > kMaxFileSize) {
+		qWarning() << "Lottie Error: Too large file: " << content.size();
+		return Error::ParseFailed;
+	}
+	return std::nullopt;
+}
+
+std::unique_ptr<rlottie::Animation> CreateImplementation(
+		const QByteArray &content) {
+	const auto string = UnpackGzip(content);
+	Assert(string.size() <= kMaxFileSize);
+
+	auto result = rlottie::Animation::loadFromData(string, std::string());
+	if (!result) {
+		qWarning() << "Lottie Error: Parse failed.";
+	}
+	return result;
+}
+
+details::InitData CheckSharedState(std::unique_ptr<SharedState> state) {
+	Expects(state != nullptr);
+
+	auto information = state->information();
+	if (!information.frameRate
+		|| information.framesCount <= 0
+		|| information.size.isEmpty()) {
+		return Error::NotSupported;
+	}
+	return state;
+}
+
+details::InitData Init(const QByteArray &content) {
+	if (const auto error = ContentError(content)) {
+		return *error;
+	}
+	auto animation = CreateImplementation(content);
+	return animation
+		? CheckSharedState(std::make_unique<SharedState>(
+			std::move(animation)))
+		: Error::ParseFailed;
+}
+
+details::InitData Init(
+		const QByteArray &content,
+		not_null<Storage::Cache::Database*> cache,
+		Storage::Cache::Key key,
+		const QByteArray &cached,
+		QSize box) {
+	if (const auto error = ContentError(content)) {
+		return *error;
+	}
+	auto state = CacheState(cached, box);
+	const auto prepare = !state.framesCount()
+		|| (state.framesReady() < state.framesCount());
+	auto animation = prepare ? CreateImplementation(content) : nullptr;
+	return (!prepare || animation)
+		? CheckSharedState(std::make_unique<SharedState>(
+			std::move(animation)))
+		: Error::ParseFailed;
+}
+
+} // namespace
+
+std::unique_ptr<Animation> FromContent(
+		const QByteArray &data,
+		const QString &filepath) {
+	return std::make_unique<Animation>(ReadContent(data, filepath));
 }
 
 std::unique_ptr<Animation> FromCached(
@@ -77,40 +144,14 @@ std::unique_ptr<Animation> FromCached(
 		const QByteArray &data,
 		const QString &filepath,
 		QSize box) {
-	return data.isEmpty()
-		? Lottie::FromFile(filepath)
-		: Lottie::FromData(data);
+	return std::make_unique<Animation>(
+		cache,
+		key,
+		ReadContent(data, filepath),
+		box);
 }
 
-auto Init(QByteArray &&content)
--> base::variant<std::unique_ptr<SharedState>, Error> {
-	if (content.size() > kMaxFileSize) {
-		qWarning()
-			<< "Lottie Error: Too large file: "
-			<< content.size();
-		return Error::ParseFailed;
-	}
-	const auto string = UnpackGzip(content);
-	Assert(string.size() <= kMaxFileSize);
-
-	auto animation = rlottie::Animation::loadFromData(string, std::string());
-	if (!animation) {
-		qWarning()
-			<< "Lottie Error: Parse failed.";
-		return Error::ParseFailed;
-	}
-
-	auto result = std::make_unique<SharedState>(std::move(animation));
-	auto information = result->information();
-	if (!information.frameRate
-		|| information.framesCount <= 0
-		|| information.size.isEmpty()) {
-		return Error::NotSupported;
-	}
-	return std::move(result);
-}
-
-QImage ReadThumbnail(QByteArray &&content) {
+QImage ReadThumbnail(const QByteArray &content) {
 	return Init(std::move(content)).match([](
 		const std::unique_ptr<SharedState> &state) {
 		return state->frameForPaint()->original;
@@ -119,15 +160,28 @@ QImage ReadThumbnail(QByteArray &&content) {
 	});
 }
 
-Animation::Animation(QByteArray &&content)
+Animation::Animation(const QByteArray &content)
 : _timer([=] { checkNextFrameRender(); }) {
 	const auto weak = base::make_weak(this);
-	crl::async([=, content = base::take(content)]() mutable {
-		crl::on_main(weak, [this, result = Init(std::move(content))]() mutable {
-			result.match([&](std::unique_ptr<SharedState> &state) {
-				parseDone(std::move(state));
-			}, [&](Error error) {
-				parseFailed(error);
+	crl::async([=] {
+		crl::on_main(weak, [=, data = Init(content)]() mutable {
+			initDone(std::move(data));
+		});
+	});
+}
+
+Animation::Animation(
+	not_null<Storage::Cache::Database*> cache,
+	Storage::Cache::Key key,
+	const QByteArray &content,
+	QSize box)
+: _timer([=] { checkNextFrameRender(); }) {
+	const auto weak = base::make_weak(this);
+	cache->get(key, [=](QByteArray &&cached) mutable {
+		crl::async([=] {
+			auto result = Init(content, cache, key, cached, box);
+			crl::on_main(weak, [=, data = std::move(result)]() mutable {
+				initDone(std::move(data));
 			});
 		});
 	});
@@ -138,6 +192,14 @@ Animation::~Animation() {
 		Assert(_state != nullptr);
 		_renderer->remove(_state);
 	}
+}
+
+void Animation::initDone(details::InitData &&data) {
+	data.match([&](std::unique_ptr<SharedState> &state) {
+		parseDone(std::move(state));
+	}, [&](Error error) {
+		parseFailed(error);
+	});
 }
 
 void Animation::parseDone(std::unique_ptr<SharedState> state) {

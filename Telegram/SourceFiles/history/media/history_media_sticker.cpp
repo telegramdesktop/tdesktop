@@ -97,9 +97,7 @@ QSize HistorySticker::countCurrentSize(int newWidth) {
 }
 
 void HistorySticker::setupLottie() {
-	_lottie = _data->data().isEmpty()
-		? Lottie::FromFile(_data->filepath())
-		: Lottie::FromData(_data->data());
+	_lottie = Lottie::FromContent(_data->data(), _data->filepath());
 	_parent->data()->history()->owner().registerHeavyViewPart(_parent);
 
 	_lottie->updates(

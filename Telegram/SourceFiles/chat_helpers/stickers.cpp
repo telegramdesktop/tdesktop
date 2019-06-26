@@ -1100,11 +1100,8 @@ std::unique_ptr<Lottie::Animation> LottieFromDocument(
 			data,
 			filepath,
 			box);
-	} else if (!data.isEmpty()) {
-		return Lottie::FromData(data);
-	} else {
-		return Lottie::FromFile(filepath);
 	}
+	return Lottie::FromContent(data, filepath);
 }
 
 } // namespace Stickers

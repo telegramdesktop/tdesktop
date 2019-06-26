@@ -23,8 +23,6 @@ namespace Lottie {
 namespace {
 
 constexpr auto kDisplaySkipped = crl::time(-1);
-constexpr auto kMaxFrameRate = 120;
-constexpr auto kMaxSize = 3096;
 
 std::weak_ptr<FrameRenderer> GlobalInstance;
 
@@ -199,7 +197,7 @@ void SharedState::calculateProperties() {
 		(width > 0 && width < kMaxSize) ? int(width) : 0,
 		(height > 0 && height < kMaxSize) ? int(height) : 0);
 	_frameRate = (rate >= 1. && rate <= kMaxFrameRate) ? int(rate) : 0;
-	_framesCount = (count > 0) ? int(count) : 0;
+	_framesCount = (count > 0 && count <= kMaxFramesCount) ? int(count) : 0;
 }
 
 bool SharedState::isValid() const {

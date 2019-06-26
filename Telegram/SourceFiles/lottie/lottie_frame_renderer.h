@@ -23,6 +23,10 @@ class Animation;
 
 namespace Lottie {
 
+inline constexpr auto kMaxFrameRate = 120;
+inline constexpr auto kMaxSize = 3096;
+inline constexpr auto kMaxFramesCount = 600;
+
 class Animation;
 class JsonObject;
 

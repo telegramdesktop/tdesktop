@@ -32,14 +32,15 @@ struct Key;
 
 namespace Lottie {
 
-constexpr auto kMaxFileSize = 1024 * 1024;
+inline constexpr auto kMaxFileSize = 1024 * 1024;
 
-class Animation;
 class SharedState;
+class Animation;
 class FrameRenderer;
 
-std::unique_ptr<Animation> FromFile(const QString &path);
-std::unique_ptr<Animation> FromData(const QByteArray &data);
+std::unique_ptr<Animation> FromContent(
+	const QByteArray &data,
+		const QString &filepath);
 std::unique_ptr<Animation> FromCached(
 	not_null<Storage::Cache::Database*> cache,
 	Storage::Cache::Key key,
@@ -47,11 +48,22 @@ std::unique_ptr<Animation> FromCached(
 	const QString &filepath,
 	QSize box);
 
-QImage ReadThumbnail(QByteArray &&content);
+QImage ReadThumbnail(const QByteArray &content);
+
+namespace details {
+
+using InitData = base::variant<std::unique_ptr<SharedState>, Error>;
+
+} // namespace details
 
 class Animation final : public base::has_weak_ptr {
 public:
-	explicit Animation(QByteArray &&content);
+	explicit Animation(const QByteArray &content);
+	Animation(
+		not_null<Storage::Cache::Database*> cache,
+		Storage::Cache::Key key,
+		const QByteArray &content,
+		QSize box);
 	~Animation();
 
 	//void play(const PlaybackOptions &options);
@@ -69,6 +81,7 @@ public:
 	void checkStep();
 
 private:
+	void initDone(details::InitData &&data);
 	void parseDone(std::unique_ptr<SharedState> state);
 	void parseFailed(Error error);
 
