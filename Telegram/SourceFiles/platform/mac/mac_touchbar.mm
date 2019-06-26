@@ -425,9 +425,12 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	}
 	self.number = num;
 
-	NSButton *button = [NSButton buttonWithImage:[NSImage imageNamed:NSImageNameStopProgressTemplate] target:self action:@selector(buttonActionPin:)];
-	[button setBordered:NO];
-	[button sizeToFit];
+	NSButton *button = [[NSButton alloc] initWithFrame:NSZeroRect];
+	NSButtonCell *cell = [[NSButtonCell alloc] init];
+	[cell setBezelStyle:NSBezelStyleCircular];
+	button.cell = cell;
+	button.target = self;
+	button.action = @selector(buttonActionPin:);
 	self.view = button;
 
 	using Update = const Window::Theme::BackgroundUpdate;
@@ -529,14 +532,13 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		const auto s = kIdealIconSize * cIntRetinaFactor();
 		_userpic = QPixmap(s, s);
 		Painter paint(&_userpic);
-		paint.fillRect(QRectF(0, 0, s, s), QColor(0, 0, 0, 255));
+		paint.fillRect(QRectF(0, 0, s, s), Qt::black);
 
-		if (self.number == kArchiveId) {
-			if (const auto folder = Auth().data().folderLoaded(Data::Folder::kId)) {
-				folder->paintUserpic(paint, 0, 0, s);
-			}
-		} else {
+		if (self.number != kArchiveId) {
 			Ui::EmptyUserpic::PaintSavedMessages(paint, 0, 0, s, s);
+		} else if (const auto folder =
+				Auth().data().folderLoaded(Data::Folder::kId)) {
+			folder->paintUserpic(paint, 0, 0, s);
 		}
 		_userpic.setDevicePixelRatio(cRetinaFactor());
 		[self updateImage:_userpic];
@@ -567,7 +569,9 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 
 - (void) updateImage:(QPixmap)pixmap {
 	NSButton *button = self.view;
-	button.image = [qt_mac_create_nsimage(pixmap) autorelease];
+	NSImage *image = [qt_mac_create_nsimage(pixmap) autorelease];
+	[image setSize:NSMakeSize(kScrubberHeight, kScrubberHeight)];
+	[button.cell setImage:image];
 }
 
 @end
@@ -923,10 +927,10 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	Auth().data().chatsListChanges(
 	) | rpl::start_with_next([=] {
 		if (const auto window = App::wnd()) {
-			if (!Auth().data().stickerSets().size()) {
-				Auth().api().updateStickers();
-			}
 			if (const auto controller = window->sessionController()) {
+				if (!Auth().data().stickerSets().size()) {
+					Auth().api().updateStickers();
+				}
 				_lifetimeSessionControllerChecker.destroy();
 				controller->activeChatChanges(
 				) | rpl::start_with_next([=](Dialogs::Key key) {
@@ -1075,10 +1079,11 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 				button.isDeletedFromView = true;
 				continue;
 			}
-			[stackView addView:button.view inGravity:NSStackViewGravityCenter];
+			[stackView addView:button.view inGravity:NSStackViewGravityTrailing];
 		}
-
-		[stackView setSpacing:-15];
+		const auto space = 30;
+		[stackView setEdgeInsets:NSEdgeInsetsMake(0, space / 2., 0, space)];
+		[stackView setSpacing:space];
 		item.view = stackView;
 		[dictionaryItem setObject:item.view forKey:@"view"];
 		return item;
@@ -1090,7 +1095,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 - (void) createTouchBar {
 	_touchBarMain = [[NSTouchBar alloc] init];
 	_touchBarMain.delegate = self;
-	_touchBarMain.defaultItemIdentifiers = @[kPinnedPanelItemIdentifier];
+	[self showItemInMain:nil];
 
 	_touchBarAudioPlayer = [[NSTouchBar alloc] init];
 	_touchBarAudioPlayer.delegate = self;
