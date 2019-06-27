@@ -1093,10 +1093,25 @@ std::unique_ptr<Lottie::Animation> LottieFromDocument(
 		QSize box) {
 	const auto data = document->data();
 	const auto filepath = document->filepath();
-	if (const auto key = document->bigFileBaseCacheKey()) {
+	if (const auto baseKey = document->bigFileBaseCacheKey()) {
+		const auto key = Storage::Cache::Key{
+			baseKey->high,
+			baseKey->low + int(sizeTag)
+		};
+		const auto get = [=](FnMut<void(QByteArray &&cached)> handler) {
+			document->session().data().cacheBigFile().get(
+				key,
+				std::move(handler));
+		};
+		const auto weak = base::make_weak(&document->session());
+		const auto put = [=](QByteArray &&cached) {
+			crl::on_main(weak, [=, data = std::move(cached)]() mutable {
+				weak->data().cacheBigFile().put(key, std::move(data));
+			});
+		};
 		return Lottie::FromCached(
-			&document->session().data().cacheBigFile(),
-			Storage::Cache::Key{ key->high, key->low + int(sizeTag) },
+			get,
+			put,
 			data,
 			filepath,
 			Lottie::FrameRequest{ box });

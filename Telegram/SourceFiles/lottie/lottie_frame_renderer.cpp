@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lottie/lottie_animation.h"
 #include "lottie/lottie_cache.h"
-#include "storage/cache/storage_cache_database.h"
 #include "logs.h"
 #include "rlottie.h"
 
@@ -73,26 +72,6 @@ private:
 	bool _queued = false;
 
 };
-
-struct SharedState::Cache {
-	Cache(
-		CacheState &&state,
-		not_null<Storage::Cache::Database*> storage,
-		Storage::Cache::Key key);
-
-	CacheState state;
-	not_null<Storage::Cache::Database*> storage;
-	Storage::Cache::Key key;
-};
-
-SharedState::Cache::Cache(
-	CacheState &&state,
-	not_null<Storage::Cache::Database*> storage,
-	Storage::Cache::Key key)
-: state(std::move(state))
-, storage(storage)
-, key(key) {
-}
 
 [[nodiscard]] bool GoodForRequest(
 		const QImage &image,
@@ -206,13 +185,11 @@ SharedState::SharedState(std::unique_ptr<rlottie::Animation> animation)
 SharedState::SharedState(
 	const QByteArray &content,
 	std::unique_ptr<rlottie::Animation> animation,
-	CacheState &&state,
-	not_null<Storage::Cache::Database*> cache,
-	Storage::Cache::Key key,
+	std::unique_ptr<Cache> cache,
 	const FrameRequest &request)
 : _content(content)
 , _animation(std::move(animation))
-, _cache(std::make_unique<Cache>(std::move(state), cache, key)) {
+, _cache(std::move(cache)) {
 	construct(request);
 }
 
@@ -221,13 +198,13 @@ void SharedState::construct(const FrameRequest &request) {
 	if (!isValid()) {
 		return;
 	}
-	auto cover = _cache ? _cache->state.takeFirstFrame() : QImage();
+	auto cover = _cache ? _cache->takeFirstFrame() : QImage();
 	if (!cover.isNull()) {
 		init(std::move(cover), request);
 		return;
 	}
 	if (_cache) {
-		_cache->state.init(_size, _frameRate, _framesCount, request);
+		_cache->init(_size, _frameRate, _framesCount, request);
 	}
 	renderFrame(cover, request, 0);
 	init(std::move(cover), request);
@@ -241,15 +218,15 @@ void SharedState::calculateProperties() {
 	if (_animation) {
 		_animation->size(width, height);
 	} else {
-		width = _cache->state.originalSize().width();
-		height = _cache->state.originalSize().height();
+		width = _cache->originalSize().width();
+		height = _cache->originalSize().height();
 	}
 	const auto rate = _animation
 		? _animation->frameRate()
-		: _cache->state.frameRate();
+		: _cache->frameRate();
 	const auto count = _animation
 		? _animation->totalFrame()
-		: _cache->state.framesCount();
+		: _cache->framesCount();
 
 	_size = QSize(
 		(width > 0 && width < kMaxSize) ? int(width) : 0,
@@ -274,7 +251,7 @@ void SharedState::renderFrame(
 	if (!GoodStorageForFrame(image, size)) {
 		image = CreateFrameStorage(size);
 	}
-	if (_cache && _cache->state.renderFrame(image, request, index)) {
+	if (_cache && _cache->renderFrame(image, request, index)) {
 		return;
 	} else if (!_animation) {
 		_animation = details::CreateFromContent(_content);
@@ -288,8 +265,8 @@ void SharedState::renderFrame(
 		image.bytesPerLine());
 	_animation->renderSync(index, surface);
 	if (_cache) {
-		_cache->state.appendFrame(image, request, index);
-		if (_cache->state.framesReady() == _cache->state.framesCount()) {
+		_cache->appendFrame(image, request, index);
+		if (_cache->framesReady() == _cache->framesCount()) {
 			_animation = nullptr;
 		}
 	}

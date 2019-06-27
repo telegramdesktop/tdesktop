@@ -23,13 +23,6 @@ class QImage;
 class QString;
 class QByteArray;
 
-namespace Storage {
-namespace Cache {
-class Database;
-struct Key;
-} // namespace Cache
-} // namespace Storage
-
 namespace rlottie {
 class Animation;
 } // namespace rlottie
@@ -46,8 +39,8 @@ std::unique_ptr<Animation> FromContent(
 	const QByteArray &data,
 		const QString &filepath);
 std::unique_ptr<Animation> FromCached(
-	not_null<Storage::Cache::Database*> cache,
-	Storage::Cache::Key key,
+	FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
+	FnMut<void(QByteArray &&cached)> put, // Unknown thread.
 	const QByteArray &data,
 	const QString &filepath,
 	const FrameRequest &request);
@@ -67,8 +60,8 @@ class Animation final : public base::has_weak_ptr {
 public:
 	explicit Animation(const QByteArray &content);
 	Animation(
-		not_null<Storage::Cache::Database*> cache,
-		Storage::Cache::Key key,
+		FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
+		FnMut<void(QByteArray &&cached)> put, // Unknown thread.
 		const QByteArray &content,
 		const FrameRequest &request);
 	~Animation();

@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lottie/lottie_frame_renderer.h"
 #include "lottie/lottie_cache.h"
-#include "storage/cache/storage_cache_database.h"
 #include "base/algorithm.h"
 #include "zlib.h"
 #include "logs.h"
@@ -101,24 +100,21 @@ details::InitData Init(const QByteArray &content) {
 
 details::InitData Init(
 		const QByteArray &content,
-		not_null<Storage::Cache::Database*> cache,
-		Storage::Cache::Key key,
+		FnMut<void(QByteArray &&cached)> put,
 		const QByteArray &cached,
 		const FrameRequest &request) {
 	if (const auto error = ContentError(content)) {
 		return *error;
 	}
-	auto state = CacheState(cached, request);
-	const auto prepare = !state.framesCount()
-		|| (state.framesReady() < state.framesCount());
+	auto cache = std::make_unique<Cache>(cached, request, std::move(put));
+	const auto prepare = !cache->framesCount()
+		|| (cache->framesReady() < cache->framesCount());
 	auto animation = prepare ? details::CreateFromContent(content) : nullptr;
 	return (!prepare || animation)
 		? CheckSharedState(std::make_unique<SharedState>(
 			content,
 			std::move(animation),
-			std::move(state),
-			cache,
-			key,
+			std::move(cache),
 			request))
 		: Error::ParseFailed;
 }
@@ -148,14 +144,14 @@ std::unique_ptr<Animation> FromContent(
 }
 
 std::unique_ptr<Animation> FromCached(
-		not_null<Storage::Cache::Database*> cache,
-		Storage::Cache::Key key,
+		FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
+		FnMut<void(QByteArray &&cached)> put, // Unknown thread.
 		const QByteArray &data,
 		const QString &filepath,
-	const FrameRequest &request) {
+		const FrameRequest &request) {
 	return std::make_unique<Animation>(
-		cache,
-		key,
+		std::move(get),
+		std::move(put),
 		ReadContent(data, filepath),
 		request);
 }
@@ -180,15 +176,15 @@ Animation::Animation(const QByteArray &content)
 }
 
 Animation::Animation(
-	not_null<Storage::Cache::Database*> cache,
-	Storage::Cache::Key key,
+	FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
+	FnMut<void(QByteArray &&cached)> put, // Unknown thread.
 	const QByteArray &content,
 	const FrameRequest &request)
 : _timer([=] { checkNextFrameRender(); }) {
 	const auto weak = base::make_weak(this);
-	cache->get(key, [=](QByteArray &&cached) mutable {
-		crl::async([=] {
-			auto result = Init(content, cache, key, cached, request);
+	get([=, put = std::move(put)](QByteArray &&cached) mutable {
+		crl::async([=, put = std::move(put)]() mutable {
+			auto result = Init(content, std::move(put), cached, request);
 			crl::on_main(weak, [=, data = std::move(result)]() mutable {
 				initDone(std::move(data));
 			});

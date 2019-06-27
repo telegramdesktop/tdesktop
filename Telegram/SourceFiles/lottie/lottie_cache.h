@@ -50,13 +50,16 @@ private:
 
 };
 
-class CacheState {
+class Cache {
 public:
 	enum class Encoder : qint8 {
 		YUV420A4_LZ4,
 	};
 
-	CacheState(const QByteArray &data, const FrameRequest &request);
+	Cache(
+		const QByteArray &data,
+		const FrameRequest &request,
+		FnMut<void(QByteArray &&cached)> put);
 
 	void init(
 		QSize original,
@@ -77,6 +80,8 @@ public:
 		const QImage &frame,
 		const FrameRequest &request,
 		int index);
+
+	~Cache();
 
 private:
 	struct ReadResult {
@@ -112,6 +117,8 @@ private:
 	int _offset = 0;
 	int _offsetFrameIndex = 0;
 	Encoder _encoder = Encoder::YUV420A4_LZ4;
+	FnMut<void(QByteArray &&cached)> _put;
+	bool _changed = false;
 
 };
 

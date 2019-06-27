@@ -222,9 +222,13 @@ void DecodeAlpha(QImage &to, const EncodedStorage &from) {
 		const auto till = ints + width;
 		while (ints != till) {
 			const auto value = uint32(*alpha++);
-			*ints = (*ints & 0x00FFFFFFU) | ((value & 0xF0U) << 24);
+			*ints = (*ints & 0x00FFFFFFU)
+				| ((value & 0xF0U) << 24)
+				| ((value & 0xF0U) << 20);
 			++ints;
-			*ints = (*ints & 0x00FFFFFFU) | (value << 28);
+			*ints = (*ints & 0x00FFFFFFU)
+				| (value << 28)
+				| ((value & 0x0FU) << 24);
 			++ints;
 		}
 		bytes += perLine;
@@ -399,15 +403,19 @@ int EncodedStorage::aBytesPerLine() const {
 	return _width / 2;
 }
 
-CacheState::CacheState(const QByteArray &data, const FrameRequest &request)
-: _data(data) {
+Cache::Cache(
+	const QByteArray &data,
+	const FrameRequest &request,
+	FnMut<void(QByteArray &&cached)> put)
+: _data(data)
+, _put(std::move(put)) {
 	if (!readHeader(request)) {
 		_framesReady = 0;
 		_data = QByteArray();
 	}
 }
 
-void CacheState::init(
+void Cache::init(
 		QSize original,
 		int frameRate,
 		int framesCount,
@@ -420,30 +428,30 @@ void CacheState::init(
 	prepareBuffers();
 }
 
-int CacheState::frameRate() const {
+int Cache::frameRate() const {
 	return _frameRate;
 }
 
-int CacheState::framesReady() const {
+int Cache::framesReady() const {
 	return _framesReady;
 }
 
-int CacheState::framesCount() const {
+int Cache::framesCount() const {
 	return _framesCount;
 }
 
-QSize CacheState::originalSize() const {
+QSize Cache::originalSize() const {
 	return _original;
 }
 
-bool CacheState::readHeader(const FrameRequest &request) {
+bool Cache::readHeader(const FrameRequest &request) {
 	if (_data.isEmpty()) {
 		return false;
 
 	}
 	QDataStream stream(&_data, QIODevice::ReadOnly);
 
-	auto encoder = quint8(0);
+	auto encoder = quint32(0);
 	stream >> encoder;
 	if (static_cast<Encoder>(encoder) != Encoder::YUV420A4_LZ4) {
 		return false;
@@ -481,11 +489,11 @@ bool CacheState::readHeader(const FrameRequest &request) {
 	return renderFrame(_firstFrame, request, 0);
 }
 
-QImage CacheState::takeFirstFrame() {
+QImage Cache::takeFirstFrame() {
 	return std::move(_firstFrame);
 }
 
-bool CacheState::renderFrame(
+bool Cache::renderFrame(
 		QImage &to,
 		const FrameRequest &request,
 		int index) {
@@ -516,7 +524,7 @@ bool CacheState::renderFrame(
 	return true;
 }
 
-void CacheState::appendFrame(
+void Cache::appendFrame(
 		const QImage &frame,
 		const FrameRequest &request,
 		int index) {
@@ -547,7 +555,10 @@ void CacheState::appendFrame(
 	}
 }
 
-void CacheState::finalizeEncoding() {
+void Cache::finalizeEncoding() {
+	if (_encode.compressedFrames.empty()) {
+		return;
+	}
 	const auto size = (_data.isEmpty() ? headerSize() : _data.size())
 		+ ranges::accumulate(
 			_encode.compressedFrames,
@@ -571,15 +582,16 @@ void CacheState::finalizeEncoding() {
 		to += amount;
 	}
 	_encode = EncodeFields();
-	constexpr auto test = sizeof(_encode);
 	LOG(("SIZE: %1 (%2x%3, %4 frames, %5 xored)").arg(_data.size()).arg(_size.width()).arg(_size.height()).arg(_framesCount).arg(xored));
+
+	_put(QByteArray(_data));
 }
 
-int CacheState::headerSize() const {
+int Cache::headerSize() const {
 	return 8 * sizeof(qint32);
 }
 
-void CacheState::writeHeader() {
+void Cache::writeHeader() {
 	Expects(_data.isEmpty());
 
 	QDataStream stream(&_data, QIODevice::WriteOnly);
@@ -593,7 +605,7 @@ void CacheState::writeHeader() {
 		<< qint32(_framesReady);
 }
 
-void CacheState::prepareBuffers() {
+void Cache::prepareBuffers() {
 	// 12 bit per pixel in YUV420P.
 	const auto bytesPerLine = _size.width();
 
@@ -601,7 +613,7 @@ void CacheState::prepareBuffers() {
 	_previous.allocate(bytesPerLine, _size.height());
 }
 
-CacheState::ReadResult CacheState::readCompressedFrame() {
+Cache::ReadResult Cache::readCompressedFrame() {
 	auto length = qint32(0);
 	const auto part = bytes::make_span(_data).subspan(_offset);
 	if (part.size() < sizeof(length)) {
@@ -622,6 +634,10 @@ CacheState::ReadResult CacheState::readCompressedFrame() {
 		? UncompressToRaw(_uncompressed, bytes.subspan(0, length))
 		: false;
 	return { ok, xored };
+}
+
+Cache::~Cache() {
+	finalizeEncoding();
 }
 
 } // namespace Lottie

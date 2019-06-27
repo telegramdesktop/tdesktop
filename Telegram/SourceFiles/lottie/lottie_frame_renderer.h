@@ -21,13 +21,6 @@ namespace rlottie {
 class Animation;
 } // namespace rlottie
 
-namespace Storage {
-namespace Cache {
-class Database;
-struct Key;
-} // namespace Cache
-} // namespace Storage
-
 namespace Lottie {
 
 inline constexpr auto kMaxFrameRate = 120;
@@ -35,7 +28,7 @@ inline constexpr auto kMaxSize = 3096;
 inline constexpr auto kMaxFramesCount = 600;
 
 class Animation;
-class CacheState;
+class Cache;
 
 struct Frame {
 	QImage original;
@@ -57,9 +50,7 @@ public:
 	SharedState(
 		const QByteArray &content,
 		std::unique_ptr<rlottie::Animation> animation,
-		CacheState &&state,
-		not_null<Storage::Cache::Database*> cache,
-		Storage::Cache::Key key,
+		std::unique_ptr<Cache> cache,
 		const FrameRequest &request);
 
 	void start(not_null<Animation*> owner, crl::time now);
@@ -78,8 +69,6 @@ public:
 	~SharedState();
 
 private:
-	struct Cache;
-
 	void construct(const FrameRequest &request);
 	void calculateProperties();
 	bool isValid() const;
