@@ -146,13 +146,20 @@ using FramePointer = std::unique_ptr<AVFrame, FrameDeleter>;
 void ClearFrameMemory(AVFrame *frame);
 
 struct SwscaleDeleter {
-	QSize resize;
-	QSize frameSize;
-	int frameFormat = int(AV_PIX_FMT_NONE);
+	QSize srcSize;
+	int srcFormat = int(AV_PIX_FMT_NONE);
+	QSize dstSize;
+	int dstFormat = int(AV_PIX_FMT_NONE);
 
 	void operator()(SwsContext *value);
 };
 using SwscalePointer = std::unique_ptr<SwsContext, SwscaleDeleter>;
+[[nodiscard]] SwscalePointer MakeSwscalePointer(
+	QSize srcSize,
+	int srcFormat,
+	QSize dstSize,
+	int dstFormat, // This field doesn't take part in caching!
+	SwscalePointer *existing = nullptr);
 [[nodiscard]] SwscalePointer MakeSwscalePointer(
 	not_null<AVFrame*> frame,
 	QSize resize,

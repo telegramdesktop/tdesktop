@@ -174,8 +174,10 @@ void FrameDeleter::operator()(AVFrame *value) {
 }
 
 SwscalePointer MakeSwscalePointer(
-		not_null<AVFrame*> frame,
-		QSize resize,
+		QSize srcSize,
+		int srcFormat,
+		QSize dstSize,
+		int dstFormat,
 		SwscalePointer *existing) {
 	// We have to use custom caching for SwsContext, because
 	// sws_getCachedContext checks passed flags with existing context flags,
@@ -184,25 +186,26 @@ SwscalePointer MakeSwscalePointer(
 	// to the resulting context, so the caching doesn't work.
 	if (existing && (*existing) != nullptr) {
 		const auto &deleter = existing->get_deleter();
-		if (deleter.resize == resize
-			&& deleter.frameSize == QSize(frame->width, frame->height)
-			&& deleter.frameFormat == frame->format) {
+		if (deleter.srcSize == srcSize
+			&& deleter.srcFormat == srcFormat
+			&& deleter.dstSize == dstSize
+			&& deleter.dstFormat == dstFormat) {
 			return std::move(*existing);
 		}
 	}
-	if (frame->format <= AV_PIX_FMT_NONE || frame->format >= AV_PIX_FMT_NB) {
+	if (srcFormat <= AV_PIX_FMT_NONE || srcFormat >= AV_PIX_FMT_NB) {
 		LogError(qstr("frame->format"));
 		return SwscalePointer();
 	}
 
 	const auto result = sws_getCachedContext(
 		existing ? existing->release() : nullptr,
-		frame->width,
-		frame->height,
-		AVPixelFormat(frame->format),
-		resize.width(),
-		resize.height(),
-		AV_PIX_FMT_BGRA,
+		srcSize.width(),
+		srcSize.height(),
+		AVPixelFormat(srcFormat),
+		dstSize.width(),
+		dstSize.height(),
+		AVPixelFormat(dstFormat),
 		0,
 		nullptr,
 		nullptr,
@@ -212,7 +215,19 @@ SwscalePointer MakeSwscalePointer(
 	}
 	return SwscalePointer(
 		result,
-		{ resize, QSize{ frame->width, frame->height }, frame->format });
+		{ srcSize, srcFormat, dstSize, dstFormat });
+}
+
+SwscalePointer MakeSwscalePointer(
+		not_null<AVFrame*> frame,
+		QSize resize,
+		SwscalePointer *existing) {
+	return MakeSwscalePointer(
+		QSize(frame->width, frame->height),
+		frame->format,
+		resize,
+		AV_PIX_FMT_BGRA,
+		existing);
 }
 
 void SwscaleDeleter::operator()(SwsContext *value) {

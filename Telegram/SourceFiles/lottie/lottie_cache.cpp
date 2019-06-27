@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "logs.h"
 
 #include <QDataStream>
+#include <private/qdrawhelper_p.h>
 #include <lz4.h>
 #include <lz4hc.h>
 #include <range/v3/numeric/accumulate.hpp>
@@ -22,62 +23,119 @@ namespace {
 
 constexpr auto kAlignStorage = 16;
 
-void Xor(AlignedStorage &to, const AlignedStorage &from) {
-	Expects(to.rawSize() == from.rawSize());
+void Xor(EncodedStorage &to, const EncodedStorage &from) {
+	Expects(to.size() == from.size());
 
 	using Block = std::conditional_t<
 		sizeof(void*) == sizeof(uint64),
 		uint64,
 		uint32>;
 	constexpr auto kBlockSize = sizeof(Block);
-	const auto amount = from.rawSize();
-	const auto fromBytes = reinterpret_cast<const uchar*>(from.raw());
-	const auto toBytes = reinterpret_cast<uchar*>(to.raw());
-	const auto skip = reinterpret_cast<quintptr>(toBytes) % kBlockSize;
-	const auto blocks = (amount - skip) / kBlockSize;
-	for (auto i = 0; i != skip; ++i) {
-		toBytes[i] ^= fromBytes[i];
-	}
-	const auto fromBlocks = reinterpret_cast<const Block*>(fromBytes + skip);
-	const auto toBlocks = reinterpret_cast<Block*>(toBytes + skip);
+	const auto amount = from.size();
+	const auto fromBytes = reinterpret_cast<const uchar*>(from.data());
+	const auto toBytes = reinterpret_cast<uchar*>(to.data());
+	const auto blocks = amount / kBlockSize;
+	const auto fromBlocks = reinterpret_cast<const Block*>(fromBytes);
+	const auto toBlocks = reinterpret_cast<Block*>(toBytes);
 	for (auto i = 0; i != blocks; ++i) {
 		toBlocks[i] ^= fromBlocks[i];
 	}
-	const auto left = amount - skip - (blocks * kBlockSize);
+	const auto left = amount - (blocks * kBlockSize);
 	for (auto i = amount - left; i != amount; ++i) {
 		toBytes[i] ^= fromBytes[i];
 	}
 }
 
-bool UncompressToRaw(AlignedStorage &to, bytes::const_span from) {
-	if (from.empty() || from.size() > to.rawSize()) {
+void UnPremultiply(QImage &to, const QImage &from) {
+	// This creates QImage::Format_ARGB32_Premultiplied, but we use it
+	// as an image in QImage::Format_ARGB32 format.
+	if (!FFmpeg::GoodStorageForFrame(to, from.size())) {
+		to = FFmpeg::CreateFrameStorage(from.size());
+	}
+
+	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
+	const auto convert = layout->convertFromARGB32PM;
+	const auto fromPerLine = from.bytesPerLine();
+	const auto toPerLine = to.bytesPerLine();
+	const auto width = from.width();
+	if (fromPerLine != width * 4 || toPerLine != width * 4) {
+		auto fromBytes = from.bits();
+		auto toBytes = to.bits();
+		for (auto i = 0; i != to.height(); ++i) {
+			convert(
+				reinterpret_cast<uint*>(toBytes),
+				reinterpret_cast<const uint*>(fromBytes),
+				width,
+				layout,
+				nullptr);
+			fromBytes += fromPerLine;
+			toBytes += toPerLine;
+		}
+	} else {
+		convert(
+			reinterpret_cast<uint*>(to.bits()),
+			reinterpret_cast<const uint*>(from.bits()),
+			from.width() * from.height(),
+			layout,
+			nullptr);
+	}
+}
+
+void PremultiplyInplace(QImage &image) {
+	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
+	const auto convert = layout->convertToARGB32PM;
+	const auto perLine = image.bytesPerLine();
+	const auto width = image.width();
+	if (perLine != width * 4) {
+		auto bytes = image.bits();
+		for (auto i = 0; i != image.height(); ++i) {
+			convert(
+				reinterpret_cast<uint*>(bytes),
+				reinterpret_cast<const uint*>(bytes),
+				width,
+				layout,
+				nullptr);
+			bytes += perLine;
+		}
+	} else {
+		convert(
+			reinterpret_cast<uint*>(image.bits()),
+			reinterpret_cast<const uint*>(image.bits()),
+			image.width() * image.height(),
+			layout,
+			nullptr);
+	}
+}
+
+bool UncompressToRaw(EncodedStorage &to, bytes::const_span from) {
+	if (from.empty() || from.size() > to.size()) {
 		return false;
-	} else if (from.size() == to.rawSize()) {
-		memcpy(to.raw(), from.data(), from.size());
+	} else if (from.size() == to.size()) {
+		memcpy(to.data(), from.data(), from.size());
 		return true;
 	}
 	const auto result = LZ4_decompress_safe(
 		reinterpret_cast<const char*>(from.data()),
-		static_cast<char*>(to.raw()),
+		to.data(),
 		from.size(),
-		to.rawSize());
-	return (result == to.rawSize());
+		to.size());
+	return (result == to.size());
 }
 
-void CompressFromRaw(QByteArray &to, const AlignedStorage &from) {
-	const auto size = from.rawSize();
+void CompressFromRaw(QByteArray &to, const EncodedStorage &from) {
+	const auto size = from.size();
 	const auto max = sizeof(qint32) + LZ4_compressBound(size);
 	to.reserve(max);
 	to.resize(max);
 	const auto compressed = LZ4_compress_default(
-		static_cast<const char*>(from.raw()),
+		from.data(),
 		to.data() + sizeof(qint32),
 		size,
 		to.size() - sizeof(qint32));
 	Assert(compressed > 0);
 	if (compressed >= size + sizeof(qint32)) {
 		to.resize(size + sizeof(qint32));
-		memcpy(to.data() + sizeof(qint32), from.raw(), size);
+		memcpy(to.data() + sizeof(qint32), from.data(), size);
 	} else {
 		to.resize(compressed + sizeof(qint32));
 	}
@@ -90,8 +148,8 @@ void CompressFromRaw(QByteArray &to, const AlignedStorage &from) {
 void CompressAndSwapFrame(
 		QByteArray &to,
 		QByteArray *additional,
-		AlignedStorage &frame,
-		AlignedStorage &previous) {
+		EncodedStorage &frame,
+		EncodedStorage &previous) {
 	CompressFromRaw(to, frame);
 	std::swap(frame, previous);
 	if (!additional) {
@@ -113,116 +171,232 @@ void CompressAndSwapFrame(
 		bytes::object_as_span(&negativeLength));
 }
 
-void Decode(QImage &to, AlignedStorage &from, const QSize &fromSize) {
-	from.copyRawToAligned();
-	if (!FFmpeg::GoodStorageForFrame(to, fromSize)) {
-		to = FFmpeg::CreateFrameStorage(fromSize);
-	}
-	auto fromBytes = static_cast<const char*>(from.aligned());
-	auto toBytes = to.bits();
-	const auto fromPerLine = from.bytesPerLine();
-	const auto toPerLine = to.bytesPerLine();
-	for (auto i = 0; i != to.height(); ++i) {
-		memcpy(toBytes, fromBytes, to.width() * 4);
-		fromBytes += fromPerLine;
-		toBytes += toPerLine;
+void DecodeYUV2RGB(
+		QImage &to,
+		const EncodedStorage &from,
+		FFmpeg::SwscalePointer &context) {
+	context = FFmpeg::MakeSwscalePointer(
+		to.size(),
+		AV_PIX_FMT_YUV420P,
+		to.size(),
+		AV_PIX_FMT_BGRA,
+		&context);
+	Assert(context != nullptr);
+
+	// AV_NUM_DATA_POINTERS defined in AVFrame struct
+	const uint8_t *src[AV_NUM_DATA_POINTERS] = {
+		from.yData(),
+		from.uData(),
+		from.vData(),
+		nullptr
+	};
+	int srcLineSize[AV_NUM_DATA_POINTERS] = {
+		from.yBytesPerLine(),
+		from.uBytesPerLine(),
+		from.vBytesPerLine(),
+		0
+	};
+	uint8_t *dst[AV_NUM_DATA_POINTERS] = { to.bits(), nullptr };
+	int dstLineSize[AV_NUM_DATA_POINTERS] = { to.bytesPerLine(), 0 };
+
+	const auto lines = sws_scale(
+		context.get(),
+		src,
+		srcLineSize,
+		0,
+		to.height(),
+		dst,
+		dstLineSize);
+
+	Ensures(lines == to.height());
+}
+
+void DecodeAlpha(QImage &to, const EncodedStorage &from) {
+	auto bytes = to.bits();
+	auto alpha = from.aData();
+	const auto perLine = to.bytesPerLine();
+	const auto width = to.width();
+	const auto height = to.height();
+	for (auto i = 0; i != height; ++i) {
+		auto ints = reinterpret_cast<uint32*>(bytes);
+		const auto till = ints + width;
+		while (ints != till) {
+			const auto value = uint32(*alpha++);
+			*ints = (*ints & 0x00FFFFFFU) | ((value & 0xF0U) << 24);
+			++ints;
+			*ints = (*ints & 0x00FFFFFFU) | (value << 28);
+			++ints;
+		}
+		bytes += perLine;
 	}
 }
 
-void Encode(AlignedStorage &to, const QImage &from, const QSize &toSize) {
-	auto fromBytes = from.bits();
-	auto toBytes = static_cast<char*>(to.aligned());
-	const auto fromPerLine = from.bytesPerLine();
-	const auto toPerLine = to.bytesPerLine();
-	for (auto i = 0; i != to.lines(); ++i) {
-		memcpy(toBytes, fromBytes, from.width() * 4);
-		fromBytes += fromPerLine;
-		toBytes += toPerLine;
+void Decode(
+		QImage &to,
+		const EncodedStorage &from,
+		const QSize &fromSize,
+		FFmpeg::SwscalePointer &context) {
+	if (!FFmpeg::GoodStorageForFrame(to, fromSize)) {
+		to = FFmpeg::CreateFrameStorage(fromSize);
 	}
-	to.copyAlignedToRaw();
+	DecodeYUV2RGB(to, from, context);
+	DecodeAlpha(to, from);
+	PremultiplyInplace(to);
+}
+
+void EncodeRGB2YUV(
+		EncodedStorage &to,
+		const QImage &from,
+		FFmpeg::SwscalePointer &context) {
+	context = FFmpeg::MakeSwscalePointer(
+		from.size(),
+		AV_PIX_FMT_BGRA,
+		from.size(),
+		AV_PIX_FMT_YUV420P,
+		&context);
+	Assert(context != nullptr);
+
+	// AV_NUM_DATA_POINTERS defined in AVFrame struct
+	const uint8_t *src[AV_NUM_DATA_POINTERS] = { from.bits(), nullptr };
+	int srcLineSize[AV_NUM_DATA_POINTERS] = { from.bytesPerLine(), 0 };
+	uint8_t *dst[AV_NUM_DATA_POINTERS] = {
+		to.yData(),
+		to.uData(),
+		to.vData(),
+		nullptr
+	};
+	int dstLineSize[AV_NUM_DATA_POINTERS] = {
+		to.yBytesPerLine(),
+		to.uBytesPerLine(),
+		to.vBytesPerLine(),
+		0
+	};
+
+	const auto lines = sws_scale(
+		context.get(),
+		src,
+		srcLineSize,
+		0,
+		from.height(),
+		dst,
+		dstLineSize);
+
+	Ensures(lines == from.height());
+}
+
+void EncodeAlpha(EncodedStorage &to, const QImage &from) {
+	auto bytes = from.bits();
+	auto alpha = to.aData();
+	const auto perLine = from.bytesPerLine();
+	const auto width = from.width();
+	const auto height = from.height();
+	for (auto i = 0; i != height; ++i) {
+		auto ints = reinterpret_cast<const uint32*>(bytes);
+		const auto till = ints + width;
+		for (; ints != till; ints += 2) {
+			*alpha++ = (((*ints) >> 24) & 0xF0U) | ((*(ints + 1)) >> 28);
+		}
+		bytes += perLine;
+	}
+}
+
+void Encode(
+		EncodedStorage &to,
+		const QImage &from,
+		QImage &cache,
+		FFmpeg::SwscalePointer &context) {
+	UnPremultiply(cache, from);
+	EncodeRGB2YUV(to, cache, context);
+	EncodeAlpha(to, cache);
 }
 
 } // namespace
 
-void AlignedStorage::allocate(int packedBytesPerLine, int lines) {
-	Expects(packedBytesPerLine >= 0);
-	Expects(lines >= 0);
+void EncodedStorage::allocate(int width, int height) {
+	Expects((width % 2) == 0 && (height % 2) == 0);
 
-	_packedBytesPerLine = packedBytesPerLine;
-	_lines = lines;
-	reallocate();
+	if (_width != width || _height != height) {
+		_width = width;
+		_height = height;
+		reallocate();
+	}
 }
 
-void AlignedStorage::reallocate() {
-	const auto perLine = bytesPerLine();
-	const auto total = perLine * _lines;
-	_buffer = QByteArray(total + kAlignStorage - 1, Qt::Uninitialized);
-	_raw = (perLine != _packedBytesPerLine)
-		? QByteArray(_packedBytesPerLine * _lines, Qt::Uninitialized)
-		: QByteArray();
+void EncodedStorage::reallocate() {
+	const auto total = _width * _height * 2;
+	_data = QByteArray(total + kAlignStorage - 1, Qt::Uninitialized);
 }
 
-int AlignedStorage::lines() const {
-	return _lines;
+int EncodedStorage::width() const {
+	return _width;
 }
 
-int AlignedStorage::rawSize() const {
-	return _lines * _packedBytesPerLine;
+int EncodedStorage::height() const {
+	return _height;
 }
 
-void *AlignedStorage::raw() {
-	return (bytesPerLine() == _packedBytesPerLine) ? aligned() : _raw.data();
+int EncodedStorage::size() const {
+	return _width * _height * 2;
 }
 
-const void *AlignedStorage::raw() const {
-	return (bytesPerLine() == _packedBytesPerLine) ? aligned() : _raw.data();
-}
-
-int AlignedStorage::bytesPerLine() const {
-	return kAlignStorage
-		* ((_packedBytesPerLine + kAlignStorage - 1) / kAlignStorage);
-}
-
-void *AlignedStorage::aligned() {
-	const auto result = reinterpret_cast<quintptr>(_buffer.data());
-	return reinterpret_cast<void*>(kAlignStorage
+char *EncodedStorage::data() {
+	const auto result = reinterpret_cast<quintptr>(_data.data());
+	return reinterpret_cast<char*>(kAlignStorage
 		* ((result + kAlignStorage - 1) / kAlignStorage));
 }
 
-const void *AlignedStorage::aligned() const {
-	const auto result = reinterpret_cast<quintptr>(_buffer.data());
-	return reinterpret_cast<void*>(kAlignStorage
+const char *EncodedStorage::data() const {
+	const auto result = reinterpret_cast<quintptr>(_data.data());
+	return reinterpret_cast<const char*>(kAlignStorage
 		* ((result + kAlignStorage - 1) / kAlignStorage));
 }
 
-void AlignedStorage::copyRawToAligned() {
-	const auto fromPerLine = _packedBytesPerLine;
-	const auto toPerLine = bytesPerLine();
-	if (fromPerLine == toPerLine) {
-		return;
-	}
-	auto from = static_cast<const char*>(raw());
-	auto to = static_cast<char*>(aligned());
-	for (auto i = 0; i != _lines; ++i) {
-		memcpy(to, from, fromPerLine);
-		from += fromPerLine;
-		to += toPerLine;
-	}
+uint8_t *EncodedStorage::yData() {
+	return reinterpret_cast<uint8_t*>(data());
 }
 
-void AlignedStorage::copyAlignedToRaw() {
-	const auto fromPerLine = bytesPerLine();
-	const auto toPerLine = _packedBytesPerLine;
-	if (fromPerLine == toPerLine) {
-		return;
-	}
-	auto from = static_cast<const char*>(aligned());
-	auto to = static_cast<char*>(raw());
-	for (auto i = 0; i != _lines; ++i) {
-		memcpy(to, from, toPerLine);
-		from += fromPerLine;
-		to += toPerLine;
-	}
+const uint8_t *EncodedStorage::yData() const {
+	return reinterpret_cast<const uint8_t*>(data());
+}
+
+int EncodedStorage::yBytesPerLine() const {
+	return _width;
+}
+
+uint8_t *EncodedStorage::uData() {
+	return yData() + (_width * _height);
+}
+
+const uint8_t *EncodedStorage::uData() const {
+	return yData() + (_width * _height);
+}
+
+int EncodedStorage::uBytesPerLine() const {
+	return _width / 2;
+}
+
+uint8_t *EncodedStorage::vData() {
+	return uData() + (_width * _height / 4);
+}
+
+const uint8_t *EncodedStorage::vData() const {
+	return uData() + (_width * _height / 4);
+}
+
+int EncodedStorage::vBytesPerLine() const {
+	return _width / 2;
+}
+
+uint8_t *EncodedStorage::aData() {
+	return uData() + (_width * _height) / 2;
+}
+
+const uint8_t *EncodedStorage::aData() const {
+	return uData() + (_width * _height) / 2;
+}
+
+int EncodedStorage::aBytesPerLine() const {
+	return _width / 2;
 }
 
 CacheState::CacheState(const QByteArray &data, const FrameRequest &request)
@@ -338,7 +512,7 @@ bool CacheState::renderFrame(
 	} else {
 		std::swap(_uncompressed, _previous);
 	}
-	Decode(to, _previous, _size);
+	Decode(to, _previous, _size, _decodeContext);
 	return true;
 }
 
@@ -355,17 +529,19 @@ void CacheState::appendFrame(
 	}
 	if (index == 0) {
 		_size = request.size(_original);
-		_compressedFrames.reserve(_framesCount);
+		_encode = EncodeFields();
+		_encode.compressedFrames.reserve(_framesCount);
 		prepareBuffers();
 	}
-	Encode(_uncompressed, frame, _size);
+	Assert(frame.size() == _size);
+	Encode(_uncompressed, frame, _encode.cache, _encode.context);
 	CompressAndSwapFrame(
-		_compressBuffer,
-		(index != 0) ? &_xorCompressBuffer : nullptr,
+		_encode.compressBuffer,
+		(index != 0) ? &_encode.xorCompressBuffer : nullptr,
 		_uncompressed,
 		_previous);
-	_compressedFrames.push_back(_compressBuffer);
-	_compressedFrames.back().detach();
+	_encode.compressedFrames.push_back(_encode.compressBuffer);
+	_encode.compressedFrames.back().detach();
 	if (++_framesReady == _framesCount) {
 		finalizeEncoding();
 	}
@@ -374,7 +550,7 @@ void CacheState::appendFrame(
 void CacheState::finalizeEncoding() {
 	const auto size = (_data.isEmpty() ? headerSize() : _data.size())
 		+ ranges::accumulate(
-			_compressedFrames,
+			_encode.compressedFrames,
 			0,
 			std::plus(),
 			&QByteArray::size);
@@ -386,7 +562,7 @@ void CacheState::finalizeEncoding() {
 	const auto offset = _data.size();
 	_data.resize(size);
 	auto to = _data.data() + offset;
-	for (const auto &block : _compressedFrames) {
+	for (const auto &block : _encode.compressedFrames) {
 		const auto amount = qint32(block.size());
 		memcpy(to, block.data(), amount);
 		if (*reinterpret_cast<const qint32*>(block.data()) < 0) {
@@ -394,11 +570,8 @@ void CacheState::finalizeEncoding() {
 		}
 		to += amount;
 	}
-	_compressedFrames.clear();
-	_compressedFrames.shrink_to_fit();
-	_compressBuffer.clear();
-	_compressBuffer.squeeze();
-
+	_encode = EncodeFields();
+	constexpr auto test = sizeof(_encode);
 	LOG(("SIZE: %1 (%2x%3, %4 frames, %5 xored)").arg(_data.size()).arg(_size.width()).arg(_size.height()).arg(_framesCount).arg(xored));
 }
 
@@ -421,8 +594,11 @@ void CacheState::writeHeader() {
 }
 
 void CacheState::prepareBuffers() {
-	_uncompressed.allocate(_size.width() * 4, _size.height());
-	_previous.allocate(_size.width() * 4, _size.height());
+	// 12 bit per pixel in YUV420P.
+	const auto bytesPerLine = _size.width();
+
+	_uncompressed.allocate(bytesPerLine, _size.height());
+	_previous.allocate(bytesPerLine, _size.height());
 }
 
 CacheState::ReadResult CacheState::readCompressedFrame() {

@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "private/qfontengine_p.h"
+#include <private/qfontengine_p.h>
 
 namespace Ui {
 namespace Text {

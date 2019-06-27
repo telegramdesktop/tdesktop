@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ffmpeg/ffmpeg_utility.h"
+
 #include <QImage>
 #include <QSize>
 #include <QByteArray>
@@ -15,34 +17,36 @@ namespace Lottie {
 
 struct FrameRequest;
 
-class AlignedStorage {
+class EncodedStorage {
 public:
-	void allocate(int packedBytesPerLine, int lines);
+	void allocate(int width, int height);
 
-	int lines() const;
-	int rawSize() const;
+	int width() const;
+	int height() const;
 
-	// Gives a pointer to packedBytesPerLine * lines bytes of memory.
-	void *raw();
-	const void *raw() const;
+	char *data();
+	const char *data() const;
+	int size() const;
 
-	// Gives a stride value in the aligned storage (% 16 == 0).
-	int bytesPerLine() const;
-
-	// Gives a pointer to the aligned memory (% 16 == 0).
-	void *aligned();
-	const void *aligned() const;
-
-	void copyRawToAligned();
-	void copyAlignedToRaw();
+	uint8_t *yData();
+	const uint8_t *yData() const;
+	int yBytesPerLine() const;
+	uint8_t *uData();
+	const uint8_t *uData() const;
+	int uBytesPerLine() const;
+	uint8_t *vData();
+	const uint8_t *vData() const;
+	int vBytesPerLine() const;
+	uint8_t *aData();
+	const uint8_t *aData() const;
+	int aBytesPerLine() const;
 
 private:
 	void reallocate();
 
-	int _packedBytesPerLine = 0;
-	int _lines = 0;
-	QByteArray _raw;
-	QByteArray _buffer;
+	int _width = 0;
+	int _height = 0;
+	QByteArray _data;
 
 };
 
@@ -79,6 +83,13 @@ private:
 		bool ok = false;
 		bool xored = false;
 	};
+	struct EncodeFields {
+		std::vector<QByteArray> compressedFrames;
+		QByteArray compressBuffer;
+		QByteArray xorCompressBuffer;
+		QImage cache;
+		FFmpeg::SwscalePointer context;
+	};
 	int headerSize() const;
 	void prepareBuffers();
 	void finalizeEncoding();
@@ -88,13 +99,12 @@ private:
 	[[nodiscard]] ReadResult readCompressedFrame();
 
 	QByteArray _data;
-	std::vector<QByteArray> _compressedFrames;
-	QByteArray _compressBuffer;
-	QByteArray _xorCompressBuffer;
+	EncodeFields _encode;
 	QSize _size;
 	QSize _original;
-	AlignedStorage _uncompressed;
-	AlignedStorage _previous;
+	EncodedStorage _uncompressed;
+	EncodedStorage _previous;
+	FFmpeg::SwscalePointer _decodeContext;
 	QImage _firstFrame;
 	int _frameRate = 0;
 	int _framesCount = 0;

@@ -54,12 +54,14 @@ struct FrameRequest {
 		return box.isEmpty();
 	}
 	[[nodiscard]] QSize size(const QSize &original) const {
-		Expects(!box.isEmpty());
+		Expects(!empty());
 
 		const auto result = original.scaled(box, Qt::KeepAspectRatio);
+		const auto skipw = result.width() % 2;
+		const auto skiph = result.height() % 2;
 		return QSize(
-			std::max(result.width(), 1),
-			std::max(result.height(), 1));
+			std::max(result.width() - skipw, 2),
+			std::max(result.height() - skiph, 2));
 	}
 
 	[[nodiscard]] bool operator==(const FrameRequest &other) const {

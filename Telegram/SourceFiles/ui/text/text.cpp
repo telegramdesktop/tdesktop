@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/text/text.h"
 
-#include <private/qharfbuzz_p.h>
-
 #include "core/click_handler_types.h"
 #include "core/crash_reports.h"
 #include "ui/text/text_block.h"
@@ -17,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_info.h"
 #include "boxes/confirm_box.h"
 #include "mainwindow.h"
+
+#include <private/qharfbuzz_p.h>
 
 namespace Ui {
 namespace Text {
