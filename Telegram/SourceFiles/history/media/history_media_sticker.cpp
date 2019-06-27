@@ -185,8 +185,7 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, c
 			pixmap);
 	} else if (lottieReady) {
 		auto request = Lottie::FrameRequest();
-		request.box = QSize(st::maxStickerSize, st::maxStickerSize)
-			* cIntRetinaFactor();
+		request.box = QSize(_pixw, _pixh) * cIntRetinaFactor();
 		if (selected) {
 			request.colored = st::msgStickerOverlay->c;
 		}
@@ -194,9 +193,15 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, c
 		if (!paused) {
 			_lottie->markFrameShown();
 		}
+		const auto frame = _lottie->frame(request);
+		const auto size = frame.size() / cIntRetinaFactor();
 		p.drawImage(
-			QRect(usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2, _pixw, _pixh),
-			_lottie->frame(request));
+			QRect(
+				QPoint(
+					usex + (usew - size.width()) / 2,
+					(minHeight() - size.height()) / 2),
+				size),
+			frame);
 	}
 	if (!inWebPage) {
 		auto fullRight = usex + usew;

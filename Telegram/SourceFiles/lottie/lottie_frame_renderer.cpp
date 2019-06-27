@@ -177,9 +177,11 @@ void FrameRendererObject::queueGenerateFrames() {
 	});
 }
 
-SharedState::SharedState(std::unique_ptr<rlottie::Animation> animation)
+SharedState::SharedState(
+	std::unique_ptr<rlottie::Animation> animation,
+	const FrameRequest &request)
 : _animation(std::move(animation)) {
-	construct(FrameRequest());
+	construct(request);
 }
 
 SharedState::SharedState(

@@ -1049,7 +1049,10 @@ QSize MediaPreviewWidget::currentDimensions() const {
 void MediaPreviewWidget::setupLottie() {
 	Expects(_document != nullptr);
 
-	_lottie = Lottie::FromContent(_document->data(), _document->filepath());
+	_lottie = Lottie::FromContent(
+		_document->data(),
+		_document->filepath(),
+		Lottie::FrameRequest{ currentDimensions() * cIntRetinaFactor() });
 
 	_lottie->updates(
 	) | rpl::start_with_next_error([=](Lottie::Update update) {

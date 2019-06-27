@@ -46,7 +46,9 @@ QImage PrepareFrameByRequest(
 
 class SharedState {
 public:
-	explicit SharedState(std::unique_ptr<rlottie::Animation> animation);
+	SharedState(
+		std::unique_ptr<rlottie::Animation> animation,
+		const FrameRequest &request);
 	SharedState(
 		const QByteArray &content,
 		std::unique_ptr<rlottie::Animation> animation,

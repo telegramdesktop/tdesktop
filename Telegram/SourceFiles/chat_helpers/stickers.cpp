@@ -23,6 +23,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 
 namespace Stickers {
+namespace {
+
+constexpr auto kDontCacheLottieAfterArea = 512 * 512;
+
+} // namespace
 
 void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	auto &v = d.vsets.v;
@@ -1093,6 +1098,13 @@ std::unique_ptr<Lottie::Animation> LottieFromDocument(
 		QSize box) {
 	const auto data = document->data();
 	const auto filepath = document->filepath();
+	if (box.width() & box.height() > kDontCacheLottieAfterArea) {
+		// Don't use frame caching for large stickers.
+		return Lottie::FromContent(
+			data,
+			filepath,
+			Lottie::FrameRequest{ box });
+	}
 	if (const auto baseKey = document->bigFileBaseCacheKey()) {
 		const auto key = Storage::Cache::Key{
 			baseKey->high,
@@ -1116,7 +1128,7 @@ std::unique_ptr<Lottie::Animation> LottieFromDocument(
 			filepath,
 			Lottie::FrameRequest{ box });
 	}
-	return Lottie::FromContent(data, filepath);
+	return Lottie::FromContent(data, filepath, Lottie::FrameRequest{ box });
 }
 
 } // namespace Stickers

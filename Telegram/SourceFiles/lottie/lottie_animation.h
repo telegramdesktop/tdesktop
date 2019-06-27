@@ -37,7 +37,8 @@ class FrameRenderer;
 
 std::unique_ptr<Animation> FromContent(
 	const QByteArray &data,
-		const QString &filepath);
+	const QString &filepath,
+	const FrameRequest &request);
 std::unique_ptr<Animation> FromCached(
 	FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
 	FnMut<void(QByteArray &&cached)> put, // Unknown thread.
@@ -58,7 +59,9 @@ std::unique_ptr<rlottie::Animation> CreateFromContent(
 
 class Animation final : public base::has_weak_ptr {
 public:
-	explicit Animation(const QByteArray &content);
+	explicit Animation(
+		const QByteArray &content,
+		const FrameRequest &request);
 	Animation(
 		FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
 		FnMut<void(QByteArray &&cached)> put, // Unknown thread.

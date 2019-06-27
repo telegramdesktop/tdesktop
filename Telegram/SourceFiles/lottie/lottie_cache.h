@@ -94,6 +94,9 @@ private:
 		QByteArray xorCompressBuffer;
 		QImage cache;
 		FFmpeg::SwscalePointer context;
+		int totalSize = 0;
+		crl::profile_time encode = 0;
+		crl::profile_time compress = 0;
 	};
 	int headerSize() const;
 	void prepareBuffers();

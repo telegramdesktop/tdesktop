@@ -23,6 +23,9 @@ namespace {
 
 constexpr auto kAlignStorage = 16;
 
+// Must not exceed max database allowed entry size.
+constexpr auto kMaxCacheSize = 10 * 1024 * 1024;
+
 void Xor(EncodedStorage &to, const EncodedStorage &from) {
 	Expects(to.size() == from.size());
 
@@ -451,7 +454,7 @@ bool Cache::readHeader(const FrameRequest &request) {
 	}
 	QDataStream stream(&_data, QIODevice::ReadOnly);
 
-	auto encoder = quint32(0);
+	auto encoder = qint32(0);
 	stream >> encoder;
 	if (static_cast<Encoder>(encoder) != Encoder::YUV420A4_LZ4) {
 		return false;
@@ -542,13 +545,26 @@ void Cache::appendFrame(
 		prepareBuffers();
 	}
 	Assert(frame.size() == _size);
+	const auto now = crl::profile();
 	Encode(_uncompressed, frame, _encode.cache, _encode.context);
+	const auto enc = crl::profile();
 	CompressAndSwapFrame(
 		_encode.compressBuffer,
 		(index != 0) ? &_encode.xorCompressBuffer : nullptr,
 		_uncompressed,
 		_previous);
-	_encode.compressedFrames.push_back(_encode.compressBuffer);
+	_encode.compress += crl::profile() - enc;
+	_encode.encode += enc - now;
+	const auto compressed = _encode.compressBuffer;
+	const auto nowSize = (_data.isEmpty() ? headerSize() : _data.size())
+		+ _encode.totalSize;
+	const auto totalSize = nowSize + compressed.size();
+	if (nowSize <= kMaxCacheSize && totalSize > kMaxCacheSize) {
+		// Write to cache while we still can.
+		finalizeEncoding();
+	}
+	_encode.totalSize += compressed.size();
+	_encode.compressedFrames.push_back(compressed);
 	_encode.compressedFrames.back().detach();
 	if (++_framesReady == _framesCount) {
 		finalizeEncoding();
@@ -560,31 +576,26 @@ void Cache::finalizeEncoding() {
 		return;
 	}
 	const auto size = (_data.isEmpty() ? headerSize() : _data.size())
-		+ ranges::accumulate(
-			_encode.compressedFrames,
-			0,
-			std::plus(),
-			&QByteArray::size);
+		+ _encode.totalSize;
 	if (_data.isEmpty()) {
 		_data.reserve(size);
 		writeHeader();
 	}
-	auto xored = 0;
 	const auto offset = _data.size();
 	_data.resize(size);
 	auto to = _data.data() + offset;
 	for (const auto &block : _encode.compressedFrames) {
 		const auto amount = qint32(block.size());
 		memcpy(to, block.data(), amount);
-		if (*reinterpret_cast<const qint32*>(block.data()) < 0) {
-			++xored;
-		}
 		to += amount;
 	}
+	if (_data.size() <= kMaxCacheSize) {
+		_put(QByteArray(_data));
+		LOG(("SIZE: %1 (%2x%3, %4 frames, %5 encode, %6 compress)").arg(_data.size()).arg(_size.width()).arg(_size.height()).arg(_framesCount).arg(_encode.encode / float64(_encode.compressedFrames.size())).arg(_encode.compress / float64(_encode.compressedFrames.size())));
+	} else {
+		LOG(("WARNING: %1 (%2x%3, %4 frames, %5 encode, %6 compress)").arg(_data.size()).arg(_size.width()).arg(_size.height()).arg(_framesCount).arg(_encode.encode / float64(_encode.compressedFrames.size())).arg(_encode.compress / float64(_encode.compressedFrames.size())));
+	}
 	_encode = EncodeFields();
-	LOG(("SIZE: %1 (%2x%3, %4 frames, %5 xored)").arg(_data.size()).arg(_size.width()).arg(_size.height()).arg(_framesCount).arg(xored));
-
-	_put(QByteArray(_data));
 }
 
 int Cache::headerSize() const {

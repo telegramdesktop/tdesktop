@@ -87,14 +87,17 @@ details::InitData CheckSharedState(std::unique_ptr<SharedState> state) {
 	return state;
 }
 
-details::InitData Init(const QByteArray &content) {
+details::InitData Init(
+		const QByteArray &content,
+		const FrameRequest &request) {
 	if (const auto error = ContentError(content)) {
 		return *error;
 	}
 	auto animation = details::CreateFromContent(content);
 	return animation
 		? CheckSharedState(std::make_unique<SharedState>(
-			std::move(animation)))
+			std::move(animation),
+			request))
 		: Error::ParseFailed;
 }
 
@@ -139,8 +142,9 @@ std::unique_ptr<rlottie::Animation> CreateFromContent(
 
 std::unique_ptr<Animation> FromContent(
 		const QByteArray &data,
-		const QString &filepath) {
-	return std::make_unique<Animation>(ReadContent(data, filepath));
+		const QString &filepath,
+		const FrameRequest &request) {
+	return std::make_unique<Animation>(ReadContent(data, filepath), request);
 }
 
 std::unique_ptr<Animation> FromCached(
@@ -157,7 +161,7 @@ std::unique_ptr<Animation> FromCached(
 }
 
 QImage ReadThumbnail(const QByteArray &content) {
-	return Init(std::move(content)).match([](
+	return Init(content, FrameRequest()).match([](
 		const std::unique_ptr<SharedState> &state) {
 		return state->frameForPaint()->original;
 	}, [](Error) {
@@ -165,11 +169,11 @@ QImage ReadThumbnail(const QByteArray &content) {
 	});
 }
 
-Animation::Animation(const QByteArray &content)
+Animation::Animation(const QByteArray &content, const FrameRequest &request)
 : _timer([=] { checkNextFrameRender(); }) {
 	const auto weak = base::make_weak(this);
 	crl::async([=] {
-		crl::on_main(weak, [=, data = Init(content)]() mutable {
+		crl::on_main(weak, [=, data = Init(content, request)]() mutable {
 			initDone(std::move(data));
 		});
 	});
