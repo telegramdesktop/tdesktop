@@ -10,15 +10,44 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_frame_renderer.h"
 #include "ffmpeg/ffmpeg_utility.h"
 #include "base/bytes.h"
+#include "logs.h"
 
 #include <QDataStream>
 #include <lz4.h>
+#include <lz4hc.h>
 #include <range/v3/numeric/accumulate.hpp>
 
 namespace Lottie {
 namespace {
 
 constexpr auto kAlignStorage = 16;
+
+void Xor(AlignedStorage &to, const AlignedStorage &from) {
+	Expects(to.rawSize() == from.rawSize());
+
+	using Block = std::conditional_t<
+		sizeof(void*) == sizeof(uint64),
+		uint64,
+		uint32>;
+	constexpr auto kBlockSize = sizeof(Block);
+	const auto amount = from.rawSize();
+	const auto fromBytes = reinterpret_cast<const uchar*>(from.raw());
+	const auto toBytes = reinterpret_cast<uchar*>(to.raw());
+	const auto skip = reinterpret_cast<quintptr>(toBytes) % kBlockSize;
+	const auto blocks = (amount - skip) / kBlockSize;
+	for (auto i = 0; i != skip; ++i) {
+		toBytes[i] ^= fromBytes[i];
+	}
+	const auto fromBlocks = reinterpret_cast<const Block*>(fromBytes + skip);
+	const auto toBlocks = reinterpret_cast<Block*>(toBytes + skip);
+	for (auto i = 0; i != blocks; ++i) {
+		toBlocks[i] ^= fromBlocks[i];
+	}
+	const auto left = amount - skip - (blocks * kBlockSize);
+	for (auto i = amount - left; i != amount; ++i) {
+		toBytes[i] ^= fromBytes[i];
+	}
+}
 
 bool UncompressToRaw(AlignedStorage &to, bytes::const_span from) {
 	if (from.empty() || from.size() > to.rawSize()) {
@@ -37,21 +66,51 @@ bool UncompressToRaw(AlignedStorage &to, bytes::const_span from) {
 
 void CompressFromRaw(QByteArray &to, const AlignedStorage &from) {
 	const auto size = from.rawSize();
-	const auto max = LZ4_compressBound(size);
+	const auto max = sizeof(qint32) + LZ4_compressBound(size);
 	to.reserve(max);
 	to.resize(max);
 	const auto compressed = LZ4_compress_default(
 		static_cast<const char*>(from.raw()),
-		to.data(),
+		to.data() + sizeof(qint32),
 		size,
-		to.size());
+		to.size() - sizeof(qint32));
 	Assert(compressed > 0);
-	if (compressed >= size) {
-		to.resize(size);
-		memcpy(to.data(), from.raw(), size);
+	if (compressed >= size + sizeof(qint32)) {
+		to.resize(size + sizeof(qint32));
+		memcpy(to.data() + sizeof(qint32), from.raw(), size);
 	} else {
-		to.resize(compressed);
+		to.resize(compressed + sizeof(qint32));
 	}
+	const auto length = qint32(to.size() - sizeof(qint32));
+	bytes::copy(
+		bytes::make_detached_span(to),
+		bytes::object_as_span(&length));
+}
+
+void CompressAndSwapFrame(
+		QByteArray &to,
+		QByteArray *additional,
+		AlignedStorage &frame,
+		AlignedStorage &previous) {
+	CompressFromRaw(to, frame);
+	std::swap(frame, previous);
+	if (!additional) {
+		return;
+	}
+
+	// Check if XOR-d delta compresses better.
+	Xor(frame, previous);
+	CompressFromRaw(*additional, frame);
+	if (additional->size() >= to.size()) {
+		return;
+	}
+	std::swap(to, *additional);
+
+	// Negative length means we XOR-d with the previous frame.
+	const auto negativeLength = -qint32(to.size() - sizeof(qint32));
+	bytes::copy(
+		bytes::make_detached_span(to),
+		bytes::object_as_span(&negativeLength));
 }
 
 void Decode(QImage &to, AlignedStorage &from, const QSize &fromSize) {
@@ -81,33 +140,6 @@ void Encode(AlignedStorage &to, const QImage &from, const QSize &toSize) {
 		toBytes += toPerLine;
 	}
 	to.copyAlignedToRaw();
-}
-
-void Xor(AlignedStorage &to, const AlignedStorage &from) {
-	Expects(to.rawSize() == from.rawSize());
-
-	using Block = std::conditional_t<
-		sizeof(void*) == sizeof(uint64),
-		uint64,
-		uint32>;
-	constexpr auto kBlockSize = sizeof(Block);
-	const auto amount = from.rawSize();
-	const auto fromBytes = reinterpret_cast<const uchar*>(from.raw());
-	const auto toBytes = reinterpret_cast<uchar*>(to.raw());
-	const auto skip = reinterpret_cast<quintptr>(toBytes) % kBlockSize;
-	const auto blocks = (amount - skip) / kBlockSize;
-	for (auto i = 0; i != skip; ++i) {
-		toBytes[i] ^= fromBytes[i];
-	}
-	const auto fromBlocks = reinterpret_cast<const Block*>(fromBytes + skip);
-	const auto toBlocks = reinterpret_cast<Block*>(toBytes + skip);
-	for (auto i = 0; i != blocks; ++i) {
-		toBlocks[i] ^= fromBlocks[i];
-	}
-	const auto left = amount - skip - (blocks * kBlockSize);
-	for (auto i = amount - left; i != amount; ++i) {
-		toBytes[i] ^= fromBytes[i];
-	}
 }
 
 } // namespace
@@ -295,15 +327,16 @@ bool CacheState::renderFrame(
 		_offset = headerSize();
 		_offsetFrameIndex = 0;
 	}
-	if (!readCompressedDelta()) {
+	const auto [ok, xored] = readCompressedFrame();
+	if (!ok || (xored && index == 0)) {
 		_framesReady = 0;
 		_data = QByteArray();
 		return false;
 	}
-	if (index == 0) {
-		std::swap(_uncompressed, _previous);
-	} else {
+	if (xored) {
 		Xor(_previous, _uncompressed);
+	} else {
+		std::swap(_uncompressed, _previous);
 	}
 	Decode(to, _previous, _size);
 	return true;
@@ -326,14 +359,13 @@ void CacheState::appendFrame(
 		prepareBuffers();
 	}
 	Encode(_uncompressed, frame, _size);
-	if (index == 0) {
-		writeCompressedDelta();
-		std::swap(_uncompressed, _previous);
-	} else {
-		std::swap(_uncompressed, _previous);
-		Xor(_uncompressed, _previous);
-		writeCompressedDelta();
-	}
+	CompressAndSwapFrame(
+		_compressBuffer,
+		(index != 0) ? &_xorCompressBuffer : nullptr,
+		_uncompressed,
+		_previous);
+	_compressedFrames.push_back(_compressBuffer);
+	_compressedFrames.back().detach();
 	if (++_framesReady == _framesCount) {
 		finalizeEncoding();
 	}
@@ -341,7 +373,6 @@ void CacheState::appendFrame(
 
 void CacheState::finalizeEncoding() {
 	const auto size = (_data.isEmpty() ? headerSize() : _data.size())
-		+ (_compressedFrames.size() * sizeof(qint32))
 		+ ranges::accumulate(
 			_compressedFrames,
 			0,
@@ -351,19 +382,24 @@ void CacheState::finalizeEncoding() {
 		_data.reserve(size);
 		writeHeader();
 	}
+	auto xored = 0;
 	const auto offset = _data.size();
 	_data.resize(size);
 	auto to = _data.data() + offset;
 	for (const auto &block : _compressedFrames) {
 		const auto amount = qint32(block.size());
-		memcpy(to, &amount, sizeof(qint32));
-		to += sizeof(qint32);
 		memcpy(to, block.data(), amount);
+		if (*reinterpret_cast<const qint32*>(block.data()) < 0) {
+			++xored;
+		}
 		to += amount;
 	}
 	_compressedFrames.clear();
 	_compressedFrames.shrink_to_fit();
-	_compressBuffer = QByteArray();
+	_compressBuffer.clear();
+	_compressBuffer.squeeze();
+
+	LOG(("SIZE: %1 (%2x%3, %4 frames, %5 xored)").arg(_data.size()).arg(_size.width()).arg(_size.height()).arg(_framesCount).arg(xored));
 }
 
 int CacheState::headerSize() const {
@@ -384,33 +420,32 @@ void CacheState::writeHeader() {
 		<< qint32(_framesReady);
 }
 
-void CacheState::writeCompressedDelta() {
-	CompressFromRaw(_compressBuffer, _uncompressed);
-	_compressedFrames.push_back(_compressBuffer);
-	_compressedFrames.back().detach();
-}
-
 void CacheState::prepareBuffers() {
 	_uncompressed.allocate(_size.width() * 4, _size.height());
 	_previous.allocate(_size.width() * 4, _size.height());
 }
 
-bool CacheState::readCompressedDelta() {
+CacheState::ReadResult CacheState::readCompressedFrame() {
 	auto length = qint32(0);
 	const auto part = bytes::make_span(_data).subspan(_offset);
 	if (part.size() < sizeof(length)) {
-		return false;
+		return { false };
 	}
 	bytes::copy(
 		bytes::object_as_span(&length),
 		part.subspan(0, sizeof(length)));
 	const auto bytes = part.subspan(sizeof(length));
 
+	const auto xored = (length < 0);
+	if (xored) {
+		length = -length;
+	}
 	_offset += sizeof(length) + length;
 	++_offsetFrameIndex;
-	return (length <= bytes.size())
+	const auto ok = (length <= bytes.size())
 		? UncompressToRaw(_uncompressed, bytes.subspan(0, length))
 		: false;
+	return { ok, xored };
 }
 
 } // namespace Lottie

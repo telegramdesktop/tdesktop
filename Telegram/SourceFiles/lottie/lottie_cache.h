@@ -75,18 +75,22 @@ public:
 		int index);
 
 private:
+	struct ReadResult {
+		bool ok = false;
+		bool xored = false;
+	};
 	int headerSize() const;
 	void prepareBuffers();
 	void finalizeEncoding();
 
 	void writeHeader();
 	[[nodiscard]] bool readHeader(const FrameRequest &request);
-	void writeCompressedDelta();
-	[[nodiscard]] bool readCompressedDelta();
+	[[nodiscard]] ReadResult readCompressedFrame();
 
 	QByteArray _data;
 	std::vector<QByteArray> _compressedFrames;
 	QByteArray _compressBuffer;
+	QByteArray _xorCompressBuffer;
 	QSize _size;
 	QSize _original;
 	AlignedStorage _uncompressed;
