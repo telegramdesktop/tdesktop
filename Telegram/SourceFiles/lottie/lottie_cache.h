@@ -48,7 +48,7 @@ private:
 
 class CacheState {
 public:
-	enum class Encoder : quint8 {
+	enum class Encoder : qint8 {
 		YUV420A4_LZ4,
 	};
 
@@ -75,15 +75,18 @@ public:
 		int index);
 
 private:
+	int headerSize() const;
 	void prepareBuffers();
+	void finalizeEncoding();
 
 	void writeHeader();
-	void incrementFramesReady();
 	[[nodiscard]] bool readHeader(const FrameRequest &request);
 	void writeCompressedDelta();
 	[[nodiscard]] bool readCompressedDelta();
 
 	QByteArray _data;
+	std::vector<QByteArray> _compressedFrames;
+	QByteArray _compressBuffer;
 	QSize _size;
 	QSize _original;
 	AlignedStorage _uncompressed;
@@ -92,7 +95,6 @@ private:
 	int _frameRate = 0;
 	int _framesCount = 0;
 	int _framesReady = 0;
-	int _headerSize = 0;
 	int _offset = 0;
 	int _offsetFrameIndex = 0;
 	Encoder _encoder = Encoder::YUV420A4_LZ4;

@@ -24,6 +24,7 @@
       'official_build_target%': '',
       'submodules_loc': '../ThirdParty',
       'rlottie_loc': '<(submodules_loc)/rlottie/inc',
+      'lz4_loc': '<(submodules_loc)/lz4/lib',
     },
     'dependencies': [
       'crl.gyp:crl',
@@ -31,6 +32,7 @@
       'lib_rlottie.gyp:lib_rlottie',
       'lib_storage.gyp:lib_storage',
       'lib_ffmpeg.gyp:lib_ffmpeg',
+      'lib_lz4.gyp:lib_lz4',
     ],
     'export_dependent_settings': [
       'crl.gyp:crl',
@@ -38,6 +40,7 @@
       'lib_rlottie.gyp:lib_rlottie',
       'lib_storage.gyp:lib_storage',
       'lib_ffmpeg.gyp:lib_ffmpeg',
+      'lib_lz4.gyp:lib_lz4',
     ],
     'defines': [
       'LOT_BUILD',
@@ -49,6 +52,7 @@
       '<(libs_loc)/zlib',
       '<(libs_loc)/ffmpeg',
       '<(rlottie_loc)',
+      '<(lz4_loc)',
       '<(submodules_loc)/GSL/include',
       '<(submodules_loc)/variant/include',
       '<(submodules_loc)/crl/src',

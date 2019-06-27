@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 
 #include <QDataStream>
+#include <lz4.h>
+#include <range/v3/numeric/accumulate.hpp>
 
 namespace Lottie {
 namespace {
@@ -24,17 +26,32 @@ bool UncompressToRaw(AlignedStorage &to, bytes::const_span from) {
 	} else if (from.size() == to.rawSize()) {
 		memcpy(to.raw(), from.data(), from.size());
 		return true;
-	} else {
-		// #TODO stickers
-		return false;
 	}
+	const auto result = LZ4_decompress_safe(
+		reinterpret_cast<const char*>(from.data()),
+		static_cast<char*>(to.raw()),
+		from.size(),
+		to.rawSize());
+	return (result == to.rawSize());
 }
 
 void CompressFromRaw(QByteArray &to, const AlignedStorage &from) {
-	const auto size = to.size();
-	to.resize(size + from.rawSize());
-	memcpy(to.data() + size, from.raw(), from.rawSize());
-	// #TODO stickers
+	const auto size = from.rawSize();
+	const auto max = LZ4_compressBound(size);
+	to.reserve(max);
+	to.resize(max);
+	const auto compressed = LZ4_compress_default(
+		static_cast<const char*>(from.raw()),
+		to.data(),
+		size,
+		to.size());
+	Assert(compressed > 0);
+	if (compressed >= size) {
+		to.resize(size);
+		memcpy(to.data(), from.raw(), size);
+	} else {
+		to.resize(compressed);
+	}
 }
 
 void Decode(QImage &to, AlignedStorage &from, const QSize &fromSize) {
@@ -249,7 +266,6 @@ bool CacheState::readHeader(const FrameRequest &request) {
 		|| request.size(original) != size) {
 		return false;
 	}
-	_headerSize = stream.device()->pos();
 	_size = size;
 	_original = original;
 	_frameRate = frameRate;
@@ -276,7 +292,7 @@ bool CacheState::renderFrame(
 	} else if (request.size(_original) != _size) {
 		return false;
 	} else if (index == 0) {
-		_offset = _headerSize;
+		_offset = headerSize();
 		_offsetFrameIndex = 0;
 	}
 	if (!readCompressedDelta()) {
@@ -306,10 +322,8 @@ void CacheState::appendFrame(
 	}
 	if (index == 0) {
 		_size = request.size(_original);
-		writeHeader();
+		_compressedFrames.reserve(_framesCount);
 		prepareBuffers();
-	} else {
-		incrementFramesReady();
 	}
 	Encode(_uncompressed, frame, _size);
 	if (index == 0) {
@@ -320,43 +334,60 @@ void CacheState::appendFrame(
 		Xor(_uncompressed, _previous);
 		writeCompressedDelta();
 	}
+	if (++_framesReady == _framesCount) {
+		finalizeEncoding();
+	}
+}
+
+void CacheState::finalizeEncoding() {
+	const auto size = (_data.isEmpty() ? headerSize() : _data.size())
+		+ (_compressedFrames.size() * sizeof(qint32))
+		+ ranges::accumulate(
+			_compressedFrames,
+			0,
+			std::plus(),
+			&QByteArray::size);
+	if (_data.isEmpty()) {
+		_data.reserve(size);
+		writeHeader();
+	}
+	const auto offset = _data.size();
+	_data.resize(size);
+	auto to = _data.data() + offset;
+	for (const auto &block : _compressedFrames) {
+		const auto amount = qint32(block.size());
+		memcpy(to, &amount, sizeof(qint32));
+		to += sizeof(qint32);
+		memcpy(to, block.data(), amount);
+		to += amount;
+	}
+	_compressedFrames.clear();
+	_compressedFrames.shrink_to_fit();
+	_compressBuffer = QByteArray();
+}
+
+int CacheState::headerSize() const {
+	return 8 * sizeof(qint32);
 }
 
 void CacheState::writeHeader() {
-	Expects(_framesReady == 0);
 	Expects(_data.isEmpty());
 
 	QDataStream stream(&_data, QIODevice::WriteOnly);
 
 	stream
-		<< static_cast<quint8>(Encoder::YUV420A4_LZ4)
+		<< static_cast<qint32>(Encoder::YUV420A4_LZ4)
 		<< _size
 		<< _original
 		<< qint32(_frameRate)
 		<< qint32(_framesCount)
-		<< qint32(++_framesReady);
-	_headerSize = stream.device()->pos();
-}
-
-void CacheState::incrementFramesReady() {
-	Expects(_headerSize > sizeof(qint32) && _data.size() > _headerSize);
-
-	const auto framesReady = qint32(++_framesReady);
-	bytes::copy(
-		bytes::make_detached_span(_data).subspan(
-			_headerSize - sizeof(qint32)),
-		bytes::object_as_span(&framesReady));
+		<< qint32(_framesReady);
 }
 
 void CacheState::writeCompressedDelta() {
-	auto length = qint32(0);
-	const auto size = _data.size();
-	_data.resize(size + sizeof(length));
-	CompressFromRaw(_data, _uncompressed);
-	length = _data.size() - size - sizeof(length);
-	bytes::copy(
-		bytes::make_detached_span(_data).subspan(size),
-		bytes::object_as_span(&length));
+	CompressFromRaw(_compressBuffer, _uncompressed);
+	_compressedFrames.push_back(_compressBuffer);
+	_compressedFrames.back().detach();
 }
 
 void CacheState::prepareBuffers() {
