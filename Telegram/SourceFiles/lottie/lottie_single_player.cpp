@@ -10,9 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_frame_renderer.h"
 
 namespace Lottie {
-namespace {
-
-} // namespace
 
 SinglePlayer::SinglePlayer(
 	const QByteArray &content,
@@ -32,6 +29,12 @@ SinglePlayer::SinglePlayer(
 , _renderer(FrameRenderer::Instance()) {
 }
 
+SinglePlayer::~SinglePlayer() {
+	if (_state) {
+		_renderer->remove(_state);
+	}
+}
+
 void SinglePlayer::start(
 		not_null<Animation*> animation,
 		std::unique_ptr<SharedState> state) {
@@ -40,7 +43,6 @@ void SinglePlayer::start(
 	_state = state.get();
 	auto information = state->information();
 	state->start(this, crl::now());
-	_renderer = FrameRenderer::Instance();
 	_renderer->append(std::move(state));
 	_updates.fire({ std::move(information) });
 
@@ -56,13 +58,7 @@ void SinglePlayer::failed(not_null<Animation*> animation, Error error) {
 	_updates.fire_error(std::move(error));
 }
 
-SinglePlayer::~SinglePlayer() {
-	if (_state) {
-		_renderer->remove(_state);
-	}
-}
-
-rpl::producer<Update, Error> SinglePlayer::updates() {
+rpl::producer<Update, Error> SinglePlayer::updates() const {
 	return _updates.events();
 }
 
@@ -87,7 +83,7 @@ void SinglePlayer::checkNextFrameAvailability() {
 
 	_nextFrameTime = _state->nextFrameDisplayTime();
 	if (_nextFrameTime != kTimeUnknown) {
-		checkStep();
+		checkNextFrameRender();
 	}
 }
 
@@ -102,8 +98,8 @@ void SinglePlayer::checkNextFrameRender() {
 	} else {
 		_timer.cancel();
 
-		_nextFrameTime = kTimeUnknown;
-		const auto position = markFrameDisplayed(now);
+		const auto exact = std::exchange(_nextFrameTime, kTimeUnknown);
+		const auto position = _state->markFrameDisplayed(now, now - exact);
 		_updates.fire({ DisplayFrameRequest{ position } });
 	}
 }
@@ -117,19 +113,11 @@ void SinglePlayer::updateFrameRequest(
 	_renderer->updateFrameRequest(_state, request);
 }
 
-crl::time SinglePlayer::markFrameDisplayed(crl::time now) {
+void SinglePlayer::markFrameShown() {
 	Expects(_state != nullptr);
 
-	return _state->markFrameDisplayed(now);
-}
-
-crl::time SinglePlayer::markFrameShown() {
-	Expects(_renderer != nullptr);
-
-	const auto result = _state->markFrameShown();
-	_renderer->frameShown(_state);
-
-	return result;
+	_state->markFrameShown();
+	_renderer->frameShown();
 }
 
 } // namespace Lottie

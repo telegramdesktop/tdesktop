@@ -10,12 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_common.h"
 #include "base/weak_ptr.h"
 
-#include <QSize>
-#include <crl/crl_time.h>
-#include <rpl/event_stream.h>
-#include <vector>
-#include <optional>
-
 class QImage;
 class QString;
 class QByteArray;
@@ -28,7 +22,6 @@ namespace Lottie {
 
 class Player;
 class SharedState;
-class FrameRenderer;
 
 QImage ReadThumbnail(const QByteArray &content);
 

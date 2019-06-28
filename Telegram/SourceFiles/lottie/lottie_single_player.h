@@ -11,7 +11,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 #include "base/timer.h"
 
+#include <rpl/event_stream.h>
+
 namespace Lottie {
+
+class FrameRenderer;
+
+struct DisplayFrameRequest {
+	crl::time time = 0;
+};
+
+struct Update {
+	base::variant<
+		Information,
+		DisplayFrameRequest> data;
+};
 
 class SinglePlayer final : public Player {
 public:
@@ -29,21 +43,16 @@ public:
 		not_null<Animation*> animation,
 		std::unique_ptr<SharedState> state) override;
 	void failed(not_null<Animation*> animation, Error error) override;
-
-	rpl::producer<Update, Error> updates() override;
-
-	[[nodiscard]] bool ready() const;
-	[[nodiscard]] QImage frame(const FrameRequest &request) const;
-
 	void updateFrameRequest(
 		not_null<const Animation*> animation,
 		const FrameRequest &request) override;
-
-	// Returns frame position, if any frame was marked as displayed.
-	crl::time markFrameDisplayed(crl::time now) override;
-	crl::time markFrameShown() override;
-
+	void markFrameShown() override;
 	void checkStep() override;
+
+	rpl::producer<Update, Error> updates() const;
+
+	[[nodiscard]] bool ready() const;
+	[[nodiscard]] QImage frame(const FrameRequest &request) const;
 
 private:
 	void checkNextFrameAvailability();
@@ -51,7 +60,7 @@ private:
 
 	Animation _animation;
 	base::Timer _timer;
-	std::shared_ptr<FrameRenderer> _renderer;
+	const std::shared_ptr<FrameRenderer> _renderer;
 	SharedState *_state = nullptr;
 	crl::time _nextFrameTime = kTimeUnknown;
 	rpl::event_stream<Update, Error> _updates;

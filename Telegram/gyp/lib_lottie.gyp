@@ -64,6 +64,8 @@
       '<(src_loc)/lottie/lottie_common.h',
       '<(src_loc)/lottie/lottie_frame_renderer.cpp',
       '<(src_loc)/lottie/lottie_frame_renderer.h',
+      '<(src_loc)/lottie/lottie_multi_player.cpp',
+      '<(src_loc)/lottie/lottie_multi_player.h',
       '<(src_loc)/lottie/lottie_player.h',
       '<(src_loc)/lottie/lottie_single_player.cpp',
       '<(src_loc)/lottie/lottie_single_player.h',

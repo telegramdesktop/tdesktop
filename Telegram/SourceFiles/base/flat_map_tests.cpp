@@ -69,10 +69,10 @@ TEST_CASE("simple flat_maps tests", "[flat_map]") {
 
 TEST_CASE("flat_maps custom comparator", "[flat_map]") {
 	base::flat_map<int_wrap, string, int_wrap_comparator> v;
-	v.emplace({ 0 }, "a");
-	v.emplace({ 5 }, "b");
-	v.emplace({ 4 }, "d");
-	v.emplace({ 2 }, "e");
+	v.emplace(int_wrap{ 0 }, "a");
+	v.emplace(int_wrap{ 5 }, "b");
+	v.emplace(int_wrap{ 4 }, "d");
+	v.emplace(int_wrap{ 2 }, "e");
 
 	auto checkSorted = [&] {
 		auto prev = v.begin();
@@ -85,7 +85,7 @@ TEST_CASE("flat_maps custom comparator", "[flat_map]") {
 	checkSorted();
 
 	SECTION("adding item puts it in the right position") {
-		v.emplace({ 3 }, "c");
+		v.emplace(int_wrap{ 3 }, "c");
 		REQUIRE(v.size() == 5);
 		REQUIRE(v.find({ 3 }) != v.end());
 		checkSorted();

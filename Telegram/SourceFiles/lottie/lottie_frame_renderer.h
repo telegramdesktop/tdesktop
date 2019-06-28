@@ -62,7 +62,7 @@ public:
 
 	[[nodiscard]] not_null<Frame*> frameForPaint();
 	[[nodiscard]] crl::time nextFrameDisplayTime() const;
-	crl::time markFrameDisplayed(crl::time now);
+	crl::time markFrameDisplayed(crl::time now, crl::time delayed);
 	crl::time markFrameShown();
 
 	void renderFrame(QImage &image, const FrameRequest &request, int index);
@@ -108,6 +108,7 @@ class FrameRendererObject;
 
 class FrameRenderer final {
 public:
+	static std::shared_ptr<FrameRenderer> CreateIndependent();
 	static std::shared_ptr<FrameRenderer> Instance();
 
 	void append(std::unique_ptr<SharedState> entry);
@@ -115,7 +116,7 @@ public:
 	void updateFrameRequest(
 		not_null<SharedState*> entry,
 		const FrameRequest &request);
-	void frameShown(not_null<SharedState*> entry);
+	void frameShown();
 	void remove(not_null<SharedState*> state);
 
 private:

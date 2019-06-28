@@ -49,7 +49,7 @@ public:
 		crl::weak_on_queue<FrameRendererObject> weak);
 
 	void append(std::unique_ptr<SharedState> entry);
-	void frameShown(not_null<SharedState*> entry);
+	void frameShown();
 	void updateFrameRequest(
 		not_null<SharedState*> entry,
 		const FrameRequest &request);
@@ -140,7 +140,7 @@ void FrameRendererObject::append(std::unique_ptr<SharedState> state) {
 	queueGenerateFrames();
 }
 
-void FrameRendererObject::frameShown(not_null<SharedState*> entry) {
+void FrameRendererObject::frameShown() {
 	queueGenerateFrames();
 }
 
@@ -423,28 +423,29 @@ crl::time SharedState::nextFrameDisplayTime() const {
 	Unexpected("Counter value in VideoTrack::Shared::nextFrameDisplayTime.");
 }
 
-crl::time SharedState::markFrameDisplayed(crl::time now) {
+crl::time SharedState::markFrameDisplayed(crl::time now, crl::time delayed) {
 	const auto mark = [&](int counter) {
 		const auto next = (counter + 1) % (2 * kFramesCount);
 		const auto index = next / 2;
 		const auto frame = getFrame(index);
 		Assert(frame->position != kTimeUnknown);
-		Assert(frame->displayed == kTimeUnknown);
 
+		if (frame->displayed != kTimeUnknown) {
+			return kTimeUnknown;
+		}
 		frame->displayed = now;
-		_accumulatedDelayMs += (frame->displayed - frame->display);
-
 		return frame->position;
 	};
 
+	_accumulatedDelayMs += delayed;
 	switch (counter()) {
-	case 0: Unexpected("Value 0 in SharedState::markFrameDisplayed.");
+	case 0: return kTimeUnknown;
 	case 1: return mark(1);
-	case 2: Unexpected("Value 2 in SharedState::markFrameDisplayed.");
+	case 2: return kTimeUnknown;
 	case 3: return mark(3);
-	case 4: Unexpected("Value 4 in SharedState::markFrameDisplayed.");
+	case 4: return kTimeUnknown;
 	case 5: return mark(5);
-	case 6: Unexpected("Value 6 in SharedState::markFrameDisplayed.");
+	case 6: return kTimeUnknown;
 	case 7: return mark(7);
 	}
 	Unexpected("Counter value in Lottie::SharedState::markFrameDisplayed.");
@@ -480,11 +481,15 @@ crl::time SharedState::markFrameShown() {
 
 SharedState::~SharedState() = default;
 
+std::shared_ptr<FrameRenderer> FrameRenderer::CreateIndependent() {
+	return std::make_shared<FrameRenderer>();
+}
+
 std::shared_ptr<FrameRenderer> FrameRenderer::Instance() {
 	if (auto result = GlobalInstance.lock()) {
 		return result;
 	}
-	auto result = std::make_shared<FrameRenderer>();
+	auto result = CreateIndependent();
 	GlobalInstance = result;
 	return result;
 }
@@ -496,9 +501,9 @@ void FrameRenderer::append(std::unique_ptr<SharedState> entry) {
 	});
 }
 
-void FrameRenderer::frameShown(not_null<SharedState*> entry) {
+void FrameRenderer::frameShown() {
 	_wrapped.with([=](FrameRendererObject &unwrapped) {
-		unwrapped.frameShown(entry);
+		unwrapped.frameShown();
 	});
 }
 

@@ -53,12 +53,19 @@ struct flat_multi_map_pair_type {
 	, second(std::forward<OtherValue>(value)) {
 	}
 
-	flat_multi_map_pair_type(const flat_multi_map_pair_type&) = default;
-	flat_multi_map_pair_type(flat_multi_map_pair_type&&) = default;
+	flat_multi_map_pair_type(const flat_multi_map_pair_type &pair)
+	: first(pair.first)
+	, second(pair.second) {
+	}
+
+	flat_multi_map_pair_type(flat_multi_map_pair_type &&pair)
+	: first(std::move(const_cast<Key&>(pair.first)))
+	, second(std::move(pair.second)) {
+	}
 
 	flat_multi_map_pair_type &operator=(const flat_multi_map_pair_type&) = delete;
 	flat_multi_map_pair_type &operator=(flat_multi_map_pair_type &&other) {
-		const_cast<Key&>(first) = other.first;
+		const_cast<Key&>(first) = std::move(const_cast<Key&>(other.first));
 		second = std::move(other.second);
 		return *this;
 	}
@@ -474,6 +481,28 @@ public:
 		return compare()(key, where->first) ? impl().end() : where;
 	}
 
+	template <typename OtherKey, typename = typename Compare::is_transparent>
+	iterator findFirst(const OtherKey &key) {
+		if (empty()
+			|| compare()(key, front().first)
+			|| compare()(back().first, key)) {
+			return end();
+		}
+		auto where = getLowerBound(key);
+		return compare()(key, where->first) ? impl().end() : where;
+	}
+
+	template <typename OtherKey, typename = typename Compare::is_transparent>
+	const_iterator findFirst(const OtherKey &key) const {
+		if (empty()
+			|| compare()(key, front().first)
+			|| compare()(back().first, key)) {
+			return end();
+		}
+		auto where = getLowerBound(key);
+		return compare()(key, where->first) ? impl().end() : where;
+	}
+
 	bool contains(const Key &key) const {
 		return findFirst(key) != end();
 	}
@@ -558,48 +587,54 @@ private:
 		return _data.elements;
 	}
 
-	typename impl_t::iterator getLowerBound(const Key &key) {
+	template <typename OtherKey>
+	typename impl_t::iterator getLowerBound(const OtherKey &key) {
 		return std::lower_bound(
 			std::begin(impl()),
 			std::end(impl()),
 			key,
 			compare());
 	}
-	typename impl_t::const_iterator getLowerBound(const Key &key) const {
+	template <typename OtherKey>
+	typename impl_t::const_iterator getLowerBound(const OtherKey &key) const {
 		return std::lower_bound(
 			std::begin(impl()),
 			std::end(impl()),
 			key,
 			compare());
 	}
-	typename impl_t::iterator getUpperBound(const Key &key) {
+	template <typename OtherKey>
+	typename impl_t::iterator getUpperBound(const OtherKey &key) {
 		return std::upper_bound(
 			std::begin(impl()),
 			std::end(impl()),
 			key,
 			compare());
 	}
-	typename impl_t::const_iterator getUpperBound(const Key &key) const {
+	template <typename OtherKey>
+	typename impl_t::const_iterator getUpperBound(const OtherKey &key) const {
 		return std::upper_bound(
 			std::begin(impl()),
 			std::end(impl()),
 			key,
 			compare());
 	}
+	template <typename OtherKey>
 	std::pair<
 		typename impl_t::iterator,
 		typename impl_t::iterator
-	> getEqualRange(const Key &key) {
+	> getEqualRange(const OtherKey &key) {
 		return std::equal_range(
 			std::begin(impl()),
 			std::end(impl()),
 			key,
 			compare());
 	}
+	template <typename OtherKey>
 	std::pair<
 		typename impl_t::const_iterator,
 		typename impl_t::const_iterator
-	> getEqualRange(const Key &key) const {
+	> getEqualRange(const OtherKey &key) const {
 		return std::equal_range(
 			std::begin(impl()),
 			std::end(impl()),
@@ -720,12 +755,12 @@ public:
 		where->second = std::move(value);
 		return { where, false };
 	}
-	template <typename... Args>
+	template <typename OtherKey, typename... Args>
 	std::pair<iterator, bool> emplace(
-			const Key &key,
+			OtherKey &&key,
 			Args&&... args) {
 		return this->insert(value_type(
-			key,
+			std::forward<OtherKey>(key),
 			Type(std::forward<Args>(args)...)));
 	}
 	template <typename... Args>
@@ -774,6 +809,14 @@ public:
 	}
 	const_iterator find(const Key &key) const {
 		return this->findFirst(key);
+	}
+	template <typename OtherKey, typename = typename Compare::is_transparent>
+	iterator find(const OtherKey &key) {
+		return this->findFirst<OtherKey>(key);
+	}
+	template <typename OtherKey, typename = typename Compare::is_transparent>
+	const_iterator find(const OtherKey &key) const {
+		return this->findFirst<OtherKey>(key);
 	}
 
 	Type &operator[](const Key &key) {

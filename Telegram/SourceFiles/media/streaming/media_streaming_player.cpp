@@ -111,7 +111,7 @@ void Player::checkNextFrameAvailability() {
 
 	_nextFrameTime = _video->nextFrameDisplayTime();
 	if (_nextFrameTime != kTimeUnknown) {
-		checkVideoStep();
+		checkNextFrameRender();
 	}
 }
 

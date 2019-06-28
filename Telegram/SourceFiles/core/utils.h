@@ -36,44 +36,6 @@ inline constexpr D up_cast(T object) {
 	}
 }
 
-// We need a custom comparator for std::set<std::unique_ptr<T>>::find to work with pointers.
-// thanks to http://stackoverflow.com/questions/18939882/raw-pointer-lookup-for-sets-of-unique-ptrs
-template <typename T>
-struct pointer_comparator {
-	using is_transparent = std::true_type;
-
-	// helper does some magic in order to reduce the number of
-	// pairs of types we need to know how to compare: it turns
-	// everything into a pointer, and then uses `std::less<T*>`
-	// to do the comparison:
-	struct helper {
-		T *ptr = nullptr;
-		helper() = default;
-		helper(const helper &other) = default;
-		helper(T *p) : ptr(p) {
-		}
-		template <typename ...Ts>
-		helper(const std::shared_ptr<Ts...> &other) : ptr(other.get()) {
-		}
-		template <typename ...Ts>
-		helper(const std::unique_ptr<Ts...> &other) : ptr(other.get()) {
-		}
-		bool operator<(helper other) const {
-			return std::less<T*>()(ptr, other.ptr);
-		}
-	};
-
-	// without helper, we'd need 2^n different overloads, where
-	// n is the number of types we want to support (so, 8 with
-	// raw pointers, unique pointers, and shared pointers).  That
-	// seems silly.
-	// && helps enforce rvalue use only
-	bool operator()(const helper &&lhs, const helper &&rhs) const {
-		return lhs < rhs;
-	}
-
-};
-
 template <typename T>
 using set_of_unique_ptr = std::set<std::unique_ptr<T>, base::pointer_comparator<T>>;
 

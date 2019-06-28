@@ -27,16 +27,6 @@ struct Information {
 	QSize size;
 };
 
-struct DisplayFrameRequest {
-	crl::time time = 0;
-};
-
-struct Update {
-	base::variant<
-		Information,
-		DisplayFrameRequest> data;
-};
-
 enum class Error {
 	ParseFailed,
 	NotSupported,
