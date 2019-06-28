@@ -14,7 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
-#include "lottie/lottie_single_player.h"
+#include "lottie/lottie_multi_player.h"
+#include "lottie/lottie_animation.h"
 #include "boxes/stickers_box.h"
 #include "inline_bots/inline_bot_result.h"
 #include "chat_helpers/stickers.h"
@@ -839,6 +840,7 @@ bool StickersListWidget::enumerateSections(Callback callback) const {
 
 StickersListWidget::SectionInfo StickersListWidget::sectionInfo(int section) const {
 	Expects(section >= 0 && section < shownSets().size());
+
 	auto result = SectionInfo();
 	enumerateSections([searchForSection = section, &result](const SectionInfo &info) {
 		if (info.section == searchForSection) {
@@ -1200,6 +1202,13 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 			return false;
 		}
 		auto &set = sets[info.section];
+		if (const auto player = set.lottiePlayer.get()) {
+			const auto paused = controller()->isGifPausedAtLeastFor(
+				Window::GifPauseReason::SavedGifs);
+			if (!paused) {
+				player->markFrameShown();
+			}
+		}
 		if (set.externalLayout) {
 			const auto size = (set.flags
 				& MTPDstickerSet_ClientFlag::f_not_loaded)
@@ -1364,21 +1373,41 @@ void StickersListWidget::paintMegagroupEmptySet(Painter &p, int y, bool buttonSe
 	p.drawTextLeft(button.x() - (st::stickerGroupCategoryAdd.width / 2), button.y() + st::stickerGroupCategoryAdd.textTop, width(), _megagroupSetButtonText, _megagroupSetButtonTextWidth);
 }
 
+void StickersListWidget::ensureLottiePlayer(Set &set) {
+	if (set.lottiePlayer) {
+		return;
+	}
+	set.lottiePlayer = std::make_unique<Lottie::MultiPlayer>(
+		getLottieRenderer());
+	const auto raw = set.lottiePlayer.get();
+	set.lottiePlayer->updates(
+	) | rpl::start_with_next([=] {
+		const auto &sets = shownSets();
+
+		enumerateSections([&](const SectionInfo &info) {
+			if (shownSets()[info.section].lottiePlayer.get() == raw) {
+				update(
+					0,
+					info.rowsTop,
+					width(),
+					info.rowsBottom - info.rowsTop);
+				return false;
+			}
+			return true;
+		});
+	}, lifetime());
+}
+
 void StickersListWidget::setupLottie(Set &set, int section, int index) {
 	auto &sticker = set.stickers[index];
 	const auto document = sticker.document;
 
-	sticker.animated = Stickers::LottiePlayerFromDocument(
+	ensureLottiePlayer(set);
+	sticker.animated = Stickers::LottieAnimationFromDocument(
+		set.lottiePlayer.get(),
 		document,
 		Stickers::LottieSize::StickersPanel,
 		boundingBoxSize() * cIntRetinaFactor());
-	const auto animation = sticker.animated.get();
-
-	animation->updates(
-	) | rpl::start_with_next_error([=](Lottie::Update update) {
-		rtlupdate(stickerRect(section, index));
-	}, [=](Lottie::Error error) {
-	}, lifetime());
 }
 
 QSize StickersListWidget::boundingBoxSize() const {
@@ -1419,11 +1448,6 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 	if (sticker.animated && sticker.animated->ready()) {
 		auto request = Lottie::FrameRequest();
 		request.box = boundingBoxSize() * cIntRetinaFactor();
-		const auto paused = controller()->isGifPausedAtLeastFor(
-			Window::GifPauseReason::SavedGifs);
-		if (!paused) {
-			sticker.animated->markFrameShown();
-		}
 		const auto frame = sticker.animated->frame(request);
 		p.drawImage(
 			QRect(ppos, frame.size() / cIntRetinaFactor()),
@@ -1787,7 +1811,7 @@ void StickersListWidget::refreshStickers() {
 	refreshFavedStickers();
 	refreshRecentStickers(false);
 	refreshMegagroupStickers(GroupStickersPlace::Visible);
-	for_const (auto setId, Auth().data().stickerSetsOrder()) {
+	for (const auto setId : Auth().data().stickerSetsOrder()) {
 		const auto externalLayout = false;
 		appendSet(_mySets, setId, externalLayout, AppendSkip::Archived);
 	}
@@ -1796,7 +1820,7 @@ void StickersListWidget::refreshStickers() {
 	_featuredSets.clear();
 	_featuredSets.reserve(Auth().data().featuredStickerSetsOrder().size());
 
-	for_const (auto setId, Auth().data().featuredStickerSetsOrder()) {
+	for (const auto setId : Auth().data().featuredStickerSetsOrder()) {
 		const auto externalLayout = true;
 		appendSet(_featuredSets, setId, externalLayout, AppendSkip::Installed);
 	}
@@ -2309,6 +2333,16 @@ void StickersListWidget::showPreview() {
 		Ui::showMediaPreview(document->stickerSetOrigin(), document);
 		_previewShown = true;
 	}
+}
+
+auto StickersListWidget::getLottieRenderer()
+-> std::shared_ptr<Lottie::FrameRenderer> {
+	if (auto result = _lottieRenderer.lock()) {
+		return result;
+	}
+	auto result = Lottie::MakeFrameRenderer();
+	_lottieRenderer = result;
+	return result;
 }
 
 void StickersListWidget::showStickerSet(uint64 setId) {

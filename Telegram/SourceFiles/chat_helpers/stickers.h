@@ -13,6 +13,8 @@ class DocumentData;
 
 namespace Lottie {
 class SinglePlayer;
+class MultiPlayer;
+class Animation;
 } // namespace Lottie
 
 namespace Stickers {
@@ -116,6 +118,11 @@ enum class LottieSize : uchar {
 };
 
 std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
+	not_null<DocumentData*> document,
+	LottieSize sizeTag,
+	QSize box);
+not_null<Lottie::Animation*> LottieAnimationFromDocument(
+	not_null<Lottie::MultiPlayer*> player,
 	not_null<DocumentData*> document,
 	LottieSize sizeTag,
 	QSize box);

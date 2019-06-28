@@ -22,7 +22,9 @@ class RippleAnimation;
 } // namespace Ui
 
 namespace Lottie {
-class SinglePlayer;
+class Animation;
+class MultiPlayer;
+class FrameRenderer;
 } // namespace Lottie
 
 namespace ChatHelpers {
@@ -141,7 +143,7 @@ private:
 
 	struct Sticker {
 		not_null<DocumentData*> document;
-		std::unique_ptr<Lottie::SinglePlayer> animated;
+		Lottie::Animation *animated = nullptr;
 	};
 
 	struct Set {
@@ -165,6 +167,7 @@ private:
 		ImagePtr thumbnail;
 		std::vector<Sticker> stickers;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
+		std::unique_ptr<Lottie::MultiPlayer> lottiePlayer;
 		bool externalLayout = false;
 		int count = 0;
 	};
@@ -223,6 +226,8 @@ private:
 	void paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected);
 	void paintSticker(Painter &p, Set &set, int y, int section, int index, bool selected, bool deleteSelected);
 	void paintEmptySearchResults(Painter &p);
+
+	void ensureLottiePlayer(Set &set);
 	void setupLottie(Set &set, int section, int index);
 
 	int stickersRight() const;
@@ -265,6 +270,8 @@ private:
 
 	void showPreview();
 
+	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
+
 	ChannelData *_megagroupSet = nullptr;
 	uint64 _megagroupSetIdRequested = 0;
 	std::vector<Set> _mySets;
@@ -273,6 +280,7 @@ private:
 	base::flat_set<uint64> _installedLocallySets;
 	std::vector<bool> _custom;
 	base::flat_set<not_null<DocumentData*>> _favedStickersMap;
+	std::weak_ptr<Lottie::FrameRenderer> _lottieRenderer;
 
 	Section _section = Section::Stickers;
 

@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/emoji_config.h"
 #include "lottie/lottie_single_player.h"
+#include "lottie/lottie_multi_player.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Stickers {
@@ -1092,7 +1093,9 @@ RecentStickerPack &GetRecentPack() {
 	return cRefRecentStickers();
 }
 
-std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
+template <typename Method>
+auto LottieFromDocument(
+		Method &&method,
 		not_null<DocumentData*> document,
 		LottieSize sizeTag,
 		QSize box) {
@@ -1100,7 +1103,7 @@ std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
 	const auto filepath = document->filepath();
 	if (box.width() & box.height() > kDontCacheLottieAfterArea) {
 		// Don't use frame caching for large stickers.
-		return std::make_unique<Lottie::SinglePlayer>(
+		return method(
 			Lottie::ReadContent(data, filepath),
 			Lottie::FrameRequest{ box });
 	}
@@ -1120,15 +1123,37 @@ std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
 				weak->data().cacheBigFile().put(key, std::move(data));
 			});
 		};
-		return std::make_unique<Lottie::SinglePlayer>(
+		return method(
 			get,
 			put,
 			Lottie::ReadContent(data, filepath),
 			Lottie::FrameRequest{ box });
 	}
-	return std::make_unique<Lottie::SinglePlayer>(
+	return method(
 		Lottie::ReadContent(data, filepath),
 		Lottie::FrameRequest{ box });
+}
+
+std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
+		not_null<DocumentData*> document,
+		LottieSize sizeTag,
+		QSize box) {
+	const auto method = [](auto &&...args) {
+		return std::make_unique<Lottie::SinglePlayer>(
+			std::forward<decltype(args)>(args)...);
+	};
+	return LottieFromDocument(method, document, sizeTag, box);
+}
+
+not_null<Lottie::Animation*> LottieAnimationFromDocument(
+		not_null<Lottie::MultiPlayer*> player,
+		not_null<DocumentData*> document,
+		LottieSize sizeTag,
+		QSize box) {
+	const auto method = [&](auto &&...args) {
+		return player->append(std::forward<decltype(args)>(args)...);
+	};
+	return LottieFromDocument(method, document, sizeTag, box);
 }
 
 } // namespace Stickers
