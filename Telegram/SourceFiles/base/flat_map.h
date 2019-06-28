@@ -481,7 +481,7 @@ public:
 		return compare()(key, where->first) ? impl().end() : where;
 	}
 
-	template <typename OtherKey, typename = typename Compare::is_transparent>
+	template <typename OtherKey>
 	iterator findFirst(const OtherKey &key) {
 		if (empty()
 			|| compare()(key, front().first)
@@ -492,7 +492,7 @@ public:
 		return compare()(key, where->first) ? impl().end() : where;
 	}
 
-	template <typename OtherKey, typename = typename Compare::is_transparent>
+	template <typename OtherKey>
 	const_iterator findFirst(const OtherKey &key) const {
 		if (empty()
 			|| compare()(key, front().first)
@@ -810,13 +810,13 @@ public:
 	const_iterator find(const Key &key) const {
 		return this->findFirst(key);
 	}
-	template <typename OtherKey, typename = typename Compare::is_transparent>
+	template <typename OtherKey>
 	iterator find(const OtherKey &key) {
-		return this->findFirst<OtherKey>(key);
+		return this->template findFirst<OtherKey>(key);
 	}
-	template <typename OtherKey, typename = typename Compare::is_transparent>
+	template <typename OtherKey>
 	const_iterator find(const OtherKey &key) const {
-		return this->findFirst<OtherKey>(key);
+		return this->template findFirst<OtherKey>(key);
 	}
 
 	Type &operator[](const Key &key) {

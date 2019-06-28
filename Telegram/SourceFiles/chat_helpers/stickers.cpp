@@ -1101,7 +1101,7 @@ auto LottieFromDocument(
 		QSize box) {
 	const auto data = document->data();
 	const auto filepath = document->filepath();
-	if (box.width() & box.height() > kDontCacheLottieAfterArea) {
+	if (box.width() * box.height() > kDontCacheLottieAfterArea) {
 		// Don't use frame caching for large stickers.
 		return method(
 			Lottie::ReadContent(data, filepath),

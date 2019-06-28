@@ -121,7 +121,6 @@ private:
 	int _offsetFrameIndex = 0;
 	Encoder _encoder = Encoder::YUV420A4_LZ4;
 	FnMut<void(QByteArray &&cached)> _put;
-	bool _changed = false;
 
 };
 

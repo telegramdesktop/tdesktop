@@ -483,6 +483,7 @@ bool Cache::readHeader(const FrameRequest &request) {
 		|| request.size(original) != size) {
 		return false;
 	}
+	_encoder = static_cast<Encoder>(encoder);
 	_size = size;
 	_original = original;
 	_frameRate = frameRate;
@@ -608,7 +609,7 @@ void Cache::writeHeader() {
 	QDataStream stream(&_data, QIODevice::WriteOnly);
 
 	stream
-		<< static_cast<qint32>(Encoder::YUV420A4_LZ4)
+		<< static_cast<qint32>(_encoder)
 		<< _size
 		<< _original
 		<< qint32(_frameRate)

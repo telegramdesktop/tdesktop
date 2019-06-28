@@ -172,7 +172,7 @@ void MultiPlayer::checkNextFrameRender() {
 void MultiPlayer::updateFrameRequest(
 		not_null<const Animation*> animation,
 		const FrameRequest &request) {
-	const auto i = _active.find(animation.get());
+	const auto i = _active.find(animation);
 	Assert(i != _active.end());
 
 	_renderer->updateFrameRequest(i->second, request);
