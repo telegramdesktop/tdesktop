@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
 #include "ui/emoji_config.h"
-#include "lottie/lottie_animation.h"
+#include "lottie/lottie_single_player.h"
 #include "window/window_session_controller.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -65,7 +65,7 @@ protected:
 private:
 	struct Element {
 		not_null<DocumentData*> document;
-		std::unique_ptr<Lottie::Animation> animated;
+		std::unique_ptr<Lottie::SinglePlayer> animated;
 		Ui::Animations::Simple overAnimation;
 	};
 
@@ -517,7 +517,7 @@ void StickerSetBox::Inner::setupLottie(int index) {
 	auto &element = _elements[index];
 	const auto document = element.document;
 
-	element.animated = Stickers::LottieFromDocument(
+	element.animated = Stickers::LottiePlayerFromDocument(
 		document,
 		Stickers::LottieSize::StickerSet,
 		boundingBoxSize() * cIntRetinaFactor());
@@ -566,9 +566,10 @@ void StickerSetBox::Inner::paintSticker(
 		if (!paused) {
 			element.animated->markFrameShown();
 		}
+		const auto frame = element.animated->frame(request);
 		p.drawImage(
-			QRect(ppos, QSize(w, h)),
-			element.animated->frame(request));
+			QRect(ppos, frame.size() / cIntRetinaFactor()),
+			frame);
 	} else if (const auto image = document->getStickerSmall()) {
 		p.drawPixmapLeft(
 			ppos,

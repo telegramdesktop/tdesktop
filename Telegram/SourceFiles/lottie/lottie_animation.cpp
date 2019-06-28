@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lottie/lottie_frame_renderer.h"
 #include "lottie/lottie_cache.h"
+#include "lottie/lottie_player.h"
 #include "base/algorithm.h"
 #include "zlib.h"
 #include "logs.h"
@@ -54,17 +55,6 @@ std::string UnpackGzip(const QByteArray &bytes) {
 	}
 	result.resize(result.size() - stream.avail_out);
 	return result;
-}
-
-QByteArray ReadFile(const QString &filepath) {
-	auto f = QFile(filepath);
-	return (f.size() <= kMaxFileSize && f.open(QIODevice::ReadOnly))
-		? f.readAll()
-		: QByteArray();
-}
-
-QByteArray ReadContent(const QByteArray &data, const QString &filepath) {
-	return data.isEmpty() ? ReadFile(filepath) : base::duplicate(data);
 }
 
 std::optional<Error> ContentError(const QByteArray &content) {
@@ -140,26 +130,6 @@ std::unique_ptr<rlottie::Animation> CreateFromContent(
 
 } // namespace details
 
-std::unique_ptr<Animation> FromContent(
-		const QByteArray &data,
-		const QString &filepath,
-		const FrameRequest &request) {
-	return std::make_unique<Animation>(ReadContent(data, filepath), request);
-}
-
-std::unique_ptr<Animation> FromCached(
-		FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
-		FnMut<void(QByteArray &&cached)> put, // Unknown thread.
-		const QByteArray &data,
-		const QString &filepath,
-		const FrameRequest &request) {
-	return std::make_unique<Animation>(
-		std::move(get),
-		std::move(put),
-		ReadContent(data, filepath),
-		request);
-}
-
 QImage ReadThumbnail(const QByteArray &content) {
 	return Init(content, FrameRequest()).match([](
 		const std::unique_ptr<SharedState> &state) {
@@ -169,8 +139,11 @@ QImage ReadThumbnail(const QByteArray &content) {
 	});
 }
 
-Animation::Animation(const QByteArray &content, const FrameRequest &request)
-: _timer([=] { checkNextFrameRender(); }) {
+Animation::Animation(
+	not_null<Player*> player,
+	const QByteArray &content,
+	const FrameRequest &request)
+: _player(player) {
 	const auto weak = base::make_weak(this);
 	crl::async([=] {
 		crl::on_main(weak, [=, data = Init(content, request)]() mutable {
@@ -180,11 +153,12 @@ Animation::Animation(const QByteArray &content, const FrameRequest &request)
 }
 
 Animation::Animation(
+	not_null<Player*> player,
 	FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
 	FnMut<void(QByteArray &&cached)> put, // Unknown thread.
 	const QByteArray &content,
 	const FrameRequest &request)
-: _timer([=] { checkNextFrameRender(); }) {
+: _player(player) {
 	const auto weak = base::make_weak(this);
 	get([=, put = std::move(put)](QByteArray &&cached) mutable {
 		crl::async([=, put = std::move(put)]() mutable {
@@ -196,11 +170,8 @@ Animation::Animation(
 	});
 }
 
-Animation::~Animation() {
-	if (_renderer) {
-		Assert(_state != nullptr);
-		_renderer->remove(_state);
-	}
+bool Animation::ready() const {
+	return (_state != nullptr);
 }
 
 void Animation::initDone(details::InitData &&data) {
@@ -214,97 +185,24 @@ void Animation::initDone(details::InitData &&data) {
 void Animation::parseDone(std::unique_ptr<SharedState> state) {
 	Expects(state != nullptr);
 
-	auto information = state->information();
 	_state = state.get();
-	_state->start(this, crl::now());
-	_renderer = FrameRenderer::Instance();
-	_renderer->append(std::move(state));
-	_updates.fire({ std::move(information) });
-
-	crl::on_main_update_requests(
-	) | rpl::start_with_next([=] {
-		checkStep();
-	}, _lifetime);
+	_player->start(this, std::move(state));
 }
 
 void Animation::parseFailed(Error error) {
-	_updates.fire_error(std::move(error));
+	_player->failed(this, error);
 }
 
 QImage Animation::frame(const FrameRequest &request) const {
-	Expects(_renderer != nullptr);
+	Expects(_state != nullptr);
 
 	const auto frame = _state->frameForPaint();
 	const auto changed = (frame->request != request);
 	if (changed) {
 		frame->request = request;
-		_renderer->updateFrameRequest(_state, request);
+		_player->updateFrameRequest(this, request);
 	}
 	return PrepareFrameByRequest(frame, !changed);
 }
-
-rpl::producer<Update, Error> Animation::updates() const {
-	return _updates.events();
-}
-
-bool Animation::ready() const {
-	return (_renderer != nullptr);
-}
-
-crl::time Animation::markFrameDisplayed(crl::time now) {
-	Expects(_renderer != nullptr);
-
-	const auto result = _state->markFrameDisplayed(now);
-
-	return result;
-}
-
-crl::time Animation::markFrameShown() {
-	Expects(_renderer != nullptr);
-
-	const auto result = _state->markFrameShown();
-	_renderer->frameShown(_state);
-
-	return result;
-}
-
-void Animation::checkStep() {
-	if (_nextFrameTime != kTimeUnknown) {
-		checkNextFrameRender();
-	} else {
-		checkNextFrameAvailability();
-	}
-}
-
-void Animation::checkNextFrameAvailability() {
-	Expects(_renderer != nullptr);
-
-	_nextFrameTime = _state->nextFrameDisplayTime();
-	if (_nextFrameTime != kTimeUnknown) {
-		checkStep();
-	}
-}
-
-void Animation::checkNextFrameRender() {
-	Expects(_nextFrameTime != kTimeUnknown);
-
-	const auto now = crl::now();
-	if (now < _nextFrameTime) {
-		if (!_timer.isActive()) {
-			_timer.callOnce(_nextFrameTime - now);
-		}
-	} else {
-		_timer.cancel();
-
-		_nextFrameTime = kTimeUnknown;
-		const auto position = markFrameDisplayed(now);
-		_updates.fire({ DisplayFrameRequest{ position } });
-	}
-}
-
-//void Animation::play(const PlaybackOptions &options) {
-//	_options = options;
-//	_started = crl::now();
-//}
 
 } // namespace Lottie

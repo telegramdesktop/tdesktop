@@ -15,7 +15,7 @@ struct HistoryMessageReply;
 struct HistoryMessageForwarded;
 
 namespace Lottie {
-class Animation;
+class SinglePlayer;
 } // namespace Lottie
 
 class HistorySticker : public HistoryMedia {
@@ -75,7 +75,7 @@ private:
 	ClickHandlerPtr _packLink;
 	not_null<DocumentData*> _data;
 	QString _emoji;
-	std::unique_ptr<Lottie::Animation> _lottie;
+	std::unique_ptr<Lottie::SinglePlayer> _lottie;
 	rpl::lifetime _lifetime;
 
 };

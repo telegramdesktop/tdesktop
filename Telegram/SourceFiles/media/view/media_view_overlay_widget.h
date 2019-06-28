@@ -120,7 +120,6 @@ private slots:
 
 private:
 	struct Streamed;
-	struct LottieFile;
 
 	enum OverState {
 		OverNone,
@@ -313,9 +312,6 @@ private:
 	void paintTransformedVideoFrame(Painter &p);
 	void clearStreaming();
 
-	void paintLottieFrame(Painter &p, QRect clip);
-	void clearLottie();
-
 	QBrush _transparentBrush;
 
 	PhotoData *_photo = nullptr;
@@ -364,8 +360,6 @@ private:
 	bool _blurred = true;
 
 	std::unique_ptr<Streamed> _streamed;
-	std::unique_ptr<LottieFile> _lottie;
-	bool _lottieDark = false;
 
 	const style::icon *_docIcon = nullptr;
 	style::color _docIconColor;

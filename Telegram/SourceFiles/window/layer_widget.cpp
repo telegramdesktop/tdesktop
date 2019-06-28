@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/emoji_config.h"
 #include "window/window_main_menu.h"
-#include "lottie/lottie_animation.h"
+#include "lottie/lottie_single_player.h"
 #include "auth_session.h"
 #include "chat_helpers/stickers.h"
 #include "window/window_session_controller.h"
@@ -1049,9 +1049,8 @@ QSize MediaPreviewWidget::currentDimensions() const {
 void MediaPreviewWidget::setupLottie() {
 	Expects(_document != nullptr);
 
-	_lottie = Lottie::FromContent(
-		_document->data(),
-		_document->filepath(),
+	_lottie = std::make_unique<Lottie::SinglePlayer>(
+		Lottie::ReadContent(_document->data(), _document->filepath()),
 		Lottie::FrameRequest{ currentDimensions() * cIntRetinaFactor() });
 
 	_lottie->updates(

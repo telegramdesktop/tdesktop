@@ -27,7 +27,7 @@ inline constexpr auto kMaxFrameRate = 120;
 inline constexpr auto kMaxSize = 3096;
 inline constexpr auto kMaxFramesCount = 600;
 
-class Animation;
+class Player;
 class Cache;
 
 struct Frame {
@@ -55,7 +55,7 @@ public:
 		std::unique_ptr<Cache> cache,
 		const FrameRequest &request);
 
-	void start(not_null<Animation*> owner, crl::time now);
+	void start(not_null<Player*> owner, crl::time now);
 
 	[[nodiscard]] Information information() const;
 	[[nodiscard]] bool initialized() const;
@@ -91,7 +91,7 @@ private:
 	static constexpr auto kFramesCount = 4;
 	std::array<Frame, kFramesCount> _frames;
 
-	base::weak_ptr<Animation> _owner;
+	base::weak_ptr<Player> _owner;
 	crl::time _started = kTimeUnknown;
 	crl::time _duration = kTimeUnknown;
 	int _frameIndex = 0;
@@ -111,6 +111,7 @@ public:
 	static std::shared_ptr<FrameRenderer> Instance();
 
 	void append(std::unique_ptr<SharedState> entry);
+
 	void updateFrameRequest(
 		not_null<SharedState*> entry,
 		const FrameRequest &request);

@@ -932,7 +932,8 @@ Widget::~Widget() = default;
 
 void Widget::hideFinished() {
 	hide();
-	_controller->disableGifPauseReason(Window::GifPauseReason::InlineResults);
+	_controller->disableGifPauseReason(
+		Window::GifPauseReason::InlineResults);
 
 	_inner->hideFinish(true);
 	_a_show.stop();
@@ -953,7 +954,8 @@ void Widget::showStarted() {
 		recountContentMaxHeight();
 		_inner->preloadImages();
 		show();
-		_controller->enableGifPauseReason(Window::GifPauseReason::InlineResults);
+		_controller->enableGifPauseReason(
+			Window::GifPauseReason::InlineResults);
 		startShowAnimation();
 	} else if (_hiding) {
 		startOpacityAnimation(false);

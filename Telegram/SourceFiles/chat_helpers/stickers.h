@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class DocumentData;
 
 namespace Lottie {
-class Animation;
+class SinglePlayer;
 } // namespace Lottie
 
 namespace Stickers {
@@ -113,11 +113,9 @@ enum class LottieSize : uchar {
 	MessageHistory,
 	StickerSet,
 	StickersPanel,
-	StickersColumn,
-	MediaPreview,
 };
 
-std::unique_ptr<Lottie::Animation> LottieFromDocument(
+std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
 	not_null<DocumentData*> document,
 	LottieSize sizeTag,
 	QSize box);

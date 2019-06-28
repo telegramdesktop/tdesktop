@@ -22,7 +22,7 @@ class RippleAnimation;
 } // namespace Ui
 
 namespace Lottie {
-class Animation;
+class SinglePlayer;
 } // namespace Lottie
 
 namespace ChatHelpers {
@@ -98,20 +98,22 @@ private:
 	};
 
 	struct OverSticker {
-		int section;
-		int index;
-		bool overDelete;
+		int section = 0;
+		int index = 0;
+		bool overDelete = false;
 	};
 	struct OverSet {
-		int section;
+		int section = 0;
 	};
 	struct OverButton {
-		int section;
+		int section = 0;
 	};
 	struct OverGroupAdd {
 	};
 	friend inline bool operator==(OverSticker a, OverSticker b) {
-		return (a.section == b.section) && (a.index == b.index) && (a.overDelete == b.overDelete);
+		return (a.section == b.section)
+			&& (a.index == b.index)
+			&& (a.overDelete == b.overDelete);
 	}
 	friend inline bool operator==(OverSet a, OverSet b) {
 		return (a.section == b.section);
@@ -122,7 +124,11 @@ private:
 	friend inline bool operator==(OverGroupAdd a, OverGroupAdd b) {
 		return true;
 	}
-	using OverState = base::optional_variant<OverSticker, OverSet, OverButton, OverGroupAdd>;
+	using OverState = base::optional_variant<
+		OverSticker,
+		OverSet,
+		OverButton,
+		OverGroupAdd>;
 
 	struct SectionInfo {
 		int section = 0;
@@ -135,7 +141,7 @@ private:
 
 	struct Sticker {
 		not_null<DocumentData*> document;
-		std::unique_ptr<Lottie::Animation> animated;
+		std::unique_ptr<Lottie::SinglePlayer> animated;
 	};
 
 	struct Set {

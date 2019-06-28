@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "ui/toast/toast.h"
 #include "ui/emoji_config.h"
-#include "lottie/lottie_animation.h"
+#include "lottie/lottie_single_player.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Stickers {
@@ -1092,7 +1092,7 @@ RecentStickerPack &GetRecentPack() {
 	return cRefRecentStickers();
 }
 
-std::unique_ptr<Lottie::Animation> LottieFromDocument(
+std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
 		not_null<DocumentData*> document,
 		LottieSize sizeTag,
 		QSize box) {
@@ -1100,9 +1100,8 @@ std::unique_ptr<Lottie::Animation> LottieFromDocument(
 	const auto filepath = document->filepath();
 	if (box.width() & box.height() > kDontCacheLottieAfterArea) {
 		// Don't use frame caching for large stickers.
-		return Lottie::FromContent(
-			data,
-			filepath,
+		return std::make_unique<Lottie::SinglePlayer>(
+			Lottie::ReadContent(data, filepath),
 			Lottie::FrameRequest{ box });
 	}
 	if (const auto baseKey = document->bigFileBaseCacheKey()) {
@@ -1121,14 +1120,15 @@ std::unique_ptr<Lottie::Animation> LottieFromDocument(
 				weak->data().cacheBigFile().put(key, std::move(data));
 			});
 		};
-		return Lottie::FromCached(
+		return std::make_unique<Lottie::SinglePlayer>(
 			get,
 			put,
-			data,
-			filepath,
+			Lottie::ReadContent(data, filepath),
 			Lottie::FrameRequest{ box });
 	}
-	return Lottie::FromContent(data, filepath, Lottie::FrameRequest{ box });
+	return std::make_unique<Lottie::SinglePlayer>(
+		Lottie::ReadContent(data, filepath),
+		Lottie::FrameRequest{ box });
 }
 
 } // namespace Stickers

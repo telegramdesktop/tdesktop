@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "lottie/lottie_frame_renderer.h"
 
+#include "lottie/lottie_player.h"
 #include "lottie/lottie_animation.h"
 #include "lottie/lottie_cache.h"
 #include "logs.h"
@@ -290,7 +291,7 @@ void SharedState::init(QImage cover, const FrameRequest &request) {
 	_counter.store(0, std::memory_order_release);
 }
 
-void SharedState::start(not_null<Animation*> owner, crl::time now) {
+void SharedState::start(not_null<Player*> owner, crl::time now) {
 	_owner = owner;
 	_started = now;
 }

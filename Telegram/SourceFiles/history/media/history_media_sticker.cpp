@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h" // isGifPausedAtLeastFor.
 #include "data/data_session.h"
 #include "data/data_document.h"
-#include "lottie/lottie_animation.h"
+#include "lottie/lottie_single_player.h"
 #include "styles/style_history.h"
 
 namespace {
@@ -97,7 +97,7 @@ QSize HistorySticker::countCurrentSize(int newWidth) {
 }
 
 void HistorySticker::setupLottie() {
-	_lottie = Stickers::LottieFromDocument(
+	_lottie = Stickers::LottiePlayerFromDocument(
 		_data,
 		Stickers::LottieSize::MessageHistory,
 		QSize(st::maxStickerSize, st::maxStickerSize) * cIntRetinaFactor());

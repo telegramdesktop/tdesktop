@@ -16,14 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Lottie {
 
-constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
+inline constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
+inline constexpr auto kMaxFileSize = 1024 * 1024;
 
 class Animation;
-
-struct PlaybackOptions {
-	float64 speed = 1.;
-	bool loop = true;
-};
 
 struct Information {
 	int frameRate = 0;
@@ -72,5 +68,7 @@ struct FrameRequest {
 		return !(*this == other);
 	}
 };
+
+QByteArray ReadContent(const QByteArray &data, const QString &filepath);
 
 } // namespace Lottie

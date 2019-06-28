@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 
 namespace Lottie {
-class Animation;
+class SinglePlayer;
 } // namespace Lottie
 
 namespace Window {
@@ -236,7 +236,7 @@ private:
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
 	Media::Clip::ReaderPointer _gif;
-	std::unique_ptr<Lottie::Animation> _lottie;
+	std::unique_ptr<Lottie::SinglePlayer> _lottie;
 
 	int _emojiSize;
 	std::vector<not_null<EmojiPtr>> _emojiList;

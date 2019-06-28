@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
-#include "lottie/lottie_animation.h"
+#include "lottie/lottie_single_player.h"
 #include "boxes/stickers_box.h"
 #include "inline_bots/inline_bot_result.h"
 #include "chat_helpers/stickers.h"
@@ -1368,9 +1368,9 @@ void StickersListWidget::setupLottie(Set &set, int section, int index) {
 	auto &sticker = set.stickers[index];
 	const auto document = sticker.document;
 
-	sticker.animated = Stickers::LottieFromDocument(
+	sticker.animated = Stickers::LottiePlayerFromDocument(
 		document,
-		Stickers::LottieSize::StickersColumn, // #TODO stickers
+		Stickers::LottieSize::StickersPanel,
 		boundingBoxSize() * cIntRetinaFactor());
 	const auto animation = sticker.animated.get();
 
@@ -1424,9 +1424,10 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 		if (!paused) {
 			sticker.animated->markFrameShown();
 		}
+		const auto frame = sticker.animated->frame(request);
 		p.drawImage(
-			QRect(ppos, QSize(w, h)),
-			sticker.animated->frame(request));
+			QRect(ppos, frame.size() / cIntRetinaFactor()),
+			frame);
 	} else if (const auto image = document->getStickerSmall()) {
 		if (image->loaded()) {
 			p.drawPixmapLeft(
