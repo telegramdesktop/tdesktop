@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_frame_renderer.h"
 #include "ffmpeg/ffmpeg_utility.h"
 #include "base/bytes.h"
-#include "logs.h"
 
 #include <QDataStream>
 #include <private/qdrawhelper_p.h>
@@ -546,16 +545,12 @@ void Cache::appendFrame(
 		prepareBuffers();
 	}
 	Assert(frame.size() == _size);
-	const auto now = crl::profile();
 	Encode(_uncompressed, frame, _encode.cache, _encode.context);
-	const auto enc = crl::profile();
 	CompressAndSwapFrame(
 		_encode.compressBuffer,
 		(index != 0) ? &_encode.xorCompressBuffer : nullptr,
 		_uncompressed,
 		_previous);
-	_encode.compress += crl::profile() - enc;
-	_encode.encode += enc - now;
 	const auto compressed = _encode.compressBuffer;
 	const auto nowSize = (_data.isEmpty() ? headerSize() : _data.size())
 		+ _encode.totalSize;
@@ -592,9 +587,6 @@ void Cache::finalizeEncoding() {
 	}
 	if (_data.size() <= kMaxCacheSize) {
 		_put(QByteArray(_data));
-		LOG(("SIZE: %1 (%2x%3, %4 frames, %5 encode, %6 compress)").arg(_data.size()).arg(_size.width()).arg(_size.height()).arg(_framesCount).arg(_encode.encode / float64(_encode.compressedFrames.size())).arg(_encode.compress / float64(_encode.compressedFrames.size())));
-	} else {
-		LOG(("WARNING: %1 (%2x%3, %4 frames, %5 encode, %6 compress)").arg(_data.size()).arg(_size.width()).arg(_size.height()).arg(_framesCount).arg(_encode.encode / float64(_encode.compressedFrames.size())).arg(_encode.compress / float64(_encode.compressedFrames.size())));
 	}
 	_encode = EncodeFields();
 }

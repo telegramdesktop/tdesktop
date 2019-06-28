@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_player.h"
 #include "lottie/lottie_animation.h"
 #include "lottie/lottie_cache.h"
-#include "logs.h"
 #include "rlottie.h"
 
 #include <range/v3/algorithm/find.hpp>

@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "logs.h"
 
 #include <QFile>
-#include <QDebug>
 #include <rlottie.h>
 #include <crl/crl_async.h>
 #include <crl/crl_on_main.h>
@@ -59,7 +58,7 @@ std::string UnpackGzip(const QByteArray &bytes) {
 
 std::optional<Error> ContentError(const QByteArray &content) {
 	if (content.size() > kMaxFileSize) {
-		qWarning() << "Lottie Error: Too large file: " << content.size();
+		LOG(("Lottie Error: Too large file: %1").arg(content.size()));
 		return Error::ParseFailed;
 	}
 	return std::nullopt;
@@ -123,7 +122,7 @@ std::unique_ptr<rlottie::Animation> CreateFromContent(
 
 	auto result = rlottie::Animation::loadFromData(string, std::string());
 	if (!result) {
-		qWarning() << "Lottie Error: Parse failed.";
+		LOG(("Lottie Error: Parse failed."));
 	}
 	return result;
 }
