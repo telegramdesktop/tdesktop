@@ -559,6 +559,7 @@ confirmCaptionArea: InputField(defaultInputField) {
 }
 confirmBg: windowBgOver;
 confirmMaxHeight: 245px;
+confirmMaxHeightSkip: 25px;
 confirmCompressedSkip: 10px;
 
 supportInfoField: InputField(defaultInputField) {

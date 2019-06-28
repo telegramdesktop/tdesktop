@@ -440,13 +440,16 @@ void EditCaptionBox::updateEditPreview() {
 		_doc = true;
 	}
 
-	_wayWrap->toggle(_photo && !_isAlbum, anim::type::instant);
+	const auto showCheckbox = _photo && !_isAlbum;
+	_wayWrap->toggle(showCheckbox, anim::type::instant);
 
 	if (!_doc) {
 		_thumb = App::pixmapFromImageInPlace(
 			file->preview.scaled(
 				st::sendMediaPreviewSize * cIntRetinaFactor(),
-				st::confirmMaxHeight * cIntRetinaFactor(),
+				(st::confirmMaxHeight - (showCheckbox
+					? st::confirmMaxHeightSkip
+					: 0)) * cIntRetinaFactor(),
 				Qt::KeepAspectRatio));
 		_thumbw = _thumb.width() / cIntRetinaFactor();
 		_thumbh = _thumb.height() / cIntRetinaFactor();
