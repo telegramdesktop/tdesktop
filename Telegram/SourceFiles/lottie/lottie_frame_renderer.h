@@ -26,6 +26,8 @@ namespace Lottie {
 inline constexpr auto kMaxFrameRate = 120;
 inline constexpr auto kMaxSize = 3096;
 inline constexpr auto kMaxFramesCount = 600;
+inline constexpr auto kFrameDisplayTimeAlreadyDone
+	= std::numeric_limits<crl::time>::max();
 
 class Player;
 class Cache;
@@ -66,7 +68,12 @@ public:
 	crl::time markFrameShown();
 
 	void renderFrame(QImage &image, const FrameRequest &request, int index);
-	[[nodiscard]] bool renderNextFrame(const FrameRequest &request);
+
+	struct RenderResult {
+		bool rendered = false;
+		base::weak_ptr<Player> notify;
+	};
+	[[nodiscard]] RenderResult renderNextFrame(const FrameRequest &request);
 
 	~SharedState();
 

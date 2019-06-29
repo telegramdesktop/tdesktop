@@ -71,7 +71,9 @@ QImage SinglePlayer::frame(const FrameRequest &request) const {
 }
 
 void SinglePlayer::checkStep() {
-	if (_nextFrameTime != kTimeUnknown) {
+	if (_nextFrameTime == kFrameDisplayTimeAlreadyDone) {
+		return;
+	} else if (_nextFrameTime != kTimeUnknown) {
 		checkNextFrameRender();
 	} else {
 		checkNextFrameAvailability();
@@ -80,8 +82,10 @@ void SinglePlayer::checkStep() {
 
 void SinglePlayer::checkNextFrameAvailability() {
 	Expects(_state != nullptr);
+	Expects(_nextFrameTime == kTimeUnknown);
 
 	_nextFrameTime = _state->nextFrameDisplayTime();
+	Assert(_nextFrameTime != kFrameDisplayTimeAlreadyDone);
 	if (_nextFrameTime != kTimeUnknown) {
 		checkNextFrameRender();
 	}
@@ -98,7 +102,9 @@ void SinglePlayer::checkNextFrameRender() {
 	} else {
 		_timer.cancel();
 
-		const auto exact = std::exchange(_nextFrameTime, kTimeUnknown);
+		const auto exact = std::exchange(
+			_nextFrameTime,
+			kFrameDisplayTimeAlreadyDone);
 		const auto position = _state->markFrameDisplayed(now, now - exact);
 		_updates.fire({ DisplayFrameRequest{ position } });
 	}
@@ -116,8 +122,12 @@ void SinglePlayer::updateFrameRequest(
 void SinglePlayer::markFrameShown() {
 	Expects(_state != nullptr);
 
-	_state->markFrameShown();
-	_renderer->frameShown();
+	if (_nextFrameTime == kFrameDisplayTimeAlreadyDone) {
+		_nextFrameTime = kTimeUnknown;
+	}
+	if (_state->markFrameShown() != kTimeUnknown) {
+		_renderer->frameShown();
+	}
 }
 
 } // namespace Lottie

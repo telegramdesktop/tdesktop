@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lottie/lottie_frame_renderer.h"
 #include "lottie/lottie_animation.h"
+#include "logs.h"
 
 #include <range/v3/algorithm/remove.hpp>
 
@@ -19,7 +20,8 @@ std::shared_ptr<FrameRenderer> MakeFrameRenderer() {
 }
 
 MultiPlayer::MultiPlayer(std::shared_ptr<FrameRenderer> renderer)
-: _renderer(renderer ? std::move(renderer) : FrameRenderer::Instance()) {
+: _timer([=] { checkNextFrameRender(); })
+, _renderer(renderer ? std::move(renderer) : FrameRenderer::Instance()) {
 }
 
 MultiPlayer::~MultiPlayer() {
@@ -125,7 +127,9 @@ rpl::producer<MultiUpdate> MultiPlayer::updates() const {
 }
 
 void MultiPlayer::checkStep() {
-	if (_nextFrameTime != kTimeUnknown) {
+	if (_nextFrameTime == kFrameDisplayTimeAlreadyDone) {
+		return;
+	} else if (_nextFrameTime != kTimeUnknown) {
 		checkNextFrameRender();
 	} else {
 		checkNextFrameAvailability();
@@ -133,6 +137,8 @@ void MultiPlayer::checkStep() {
 }
 
 void MultiPlayer::checkNextFrameAvailability() {
+	Expects(_nextFrameTime == kTimeUnknown);
+
 	if (_active.empty()) {
 		return;
 	}
@@ -140,13 +146,25 @@ void MultiPlayer::checkNextFrameAvailability() {
 	for (const auto &[animation, state] : _active) {
 		const auto time = state->nextFrameDisplayTime();
 		if (time == kTimeUnknown) {
+			for (const auto &[animation, state] : _active) {
+				if (state->nextFrameDisplayTime() != kTimeUnknown) {
+					PROFILE_LOG(("PLAYER -------- SOME READY, BUT NOT ALL"));
+					break;
+				}
+			}
 			return;
+		} else if (time == kFrameDisplayTimeAlreadyDone) {
+			continue;
 		}
 		if (next == kTimeUnknown || next > time) {
 			next = time;
 		}
 	}
-	Assert(next != kTimeUnknown);
+	if (next == kTimeUnknown) {
+		PROFILE_LOG(("PLAYER ALL DISPLAYED, WAITING PAINT."));
+		return;
+	}
+	PROFILE_LOG(("PLAYER NEXT FRAME TIME: %1").arg(next));
 	_nextFrameTime = next;
 	checkNextFrameRender();
 }
@@ -157,15 +175,17 @@ void MultiPlayer::checkNextFrameRender() {
 	const auto now = crl::now();
 	if (now < _nextFrameTime) {
 		if (!_timer.isActive()) {
+			PROFILE_LOG(("PLAYER TIMER FOR: %1").arg(_nextFrameTime - now));
 			_timer.callOnce(_nextFrameTime - now);
 		}
 	} else {
 		_timer.cancel();
 
-		const auto exact = std::exchange(_nextFrameTime, kTimeUnknown);
+		const auto exact = std::exchange(
+			_nextFrameTime,
+			kFrameDisplayTimeAlreadyDone);
 		markFrameDisplayed(now, now - exact);
 		_updates.fire({});
-		checkStep();
 	}
 }
 
@@ -181,23 +201,37 @@ void MultiPlayer::updateFrameRequest(
 void MultiPlayer::markFrameDisplayed(crl::time now, crl::time delayed) {
 	Expects(!_active.empty());
 
+	auto displayed = 0;
+	auto waiting = 0;
 	for (const auto &[animation, state] : _active) {
 		const auto time = state->nextFrameDisplayTime();
 		Assert(time != kTimeUnknown);
-		if (now >= time) {
+		if (time == kFrameDisplayTimeAlreadyDone) {
+			continue;
+		} else if (now >= time) {
+			++displayed;
 			state->markFrameDisplayed(now, delayed);
+		} else {
+			++waiting;
 		}
 	}
+	PROFILE_LOG(("PLAYER FRAME DISPLAYED AT: %1, DELAYED: %2, (MARKED %3, WAITING %4)").arg(now).arg(delayed).arg(displayed).arg(waiting));
 }
 
 void MultiPlayer::markFrameShown() {
-	if (_active.empty()) {
-		return;
+	if (_nextFrameTime == kFrameDisplayTimeAlreadyDone) {
+		_nextFrameTime = kTimeUnknown;
 	}
+	auto count = 0;
 	for (const auto &[animation, state] : _active) {
-		state->markFrameShown();
+		if (state->markFrameShown() != kTimeUnknown) {
+			++count;
+		}
 	}
-	_renderer->frameShown();
+	PROFILE_LOG(("PLAYER MARKED SHOWN %1 OF %2").arg(count).arg(_active.size()));
+	if (count) {
+		_renderer->frameShown();
+	}
 }
 
 } // namespace Lottie

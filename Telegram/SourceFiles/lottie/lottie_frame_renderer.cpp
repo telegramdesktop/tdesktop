@@ -10,11 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_player.h"
 #include "lottie/lottie_animation.h"
 #include "lottie/lottie_cache.h"
-#include "rlottie.h"
+#include "base/flat_map.h"
+#include "logs.h"
 
+#include <QPainter>
+#include <rlottie.h>
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/count_if.hpp>
-#include <QPainter>
 
 namespace Images {
 QImage prepareColored(QColor add, QImage image);
@@ -158,11 +160,30 @@ void FrameRendererObject::remove(not_null<SharedState*> entry) {
 }
 
 void FrameRendererObject::generateFrames() {
-	const auto renderOne = [&](const Entry & entry) {
-		return entry.state->renderNextFrame(entry.request);
+	auto players = base::flat_map<Player*, base::weak_ptr<Player>>();
+	const auto renderOne = [&](const Entry &entry) {
+		const auto result = entry.state->renderNextFrame(entry.request);
+		if (const auto player = result.notify.get()) {
+			players.emplace(player, result.notify);
+		}
+		return result.rendered;
 	};
-	if (ranges::count_if(_entries, renderOne) > 0) {
+	const auto rendered = ranges::count_if(_entries, renderOne);
+	if (rendered) {
+		PROFILE_LOG(("RENDERER: %1, ALL: %2, PLAYERS: %3").arg(rendered).arg(_entries.size()).arg(players.size()));
+		if (!players.empty()) {
+			crl::on_main([players = std::move(players)] {
+				for (const auto &[player, weak] : players) {
+					if (weak) {
+						PROFILE_LOG(("RENDERER -- ON MAIN CHECK"));
+						weak->checkStep();
+					}
+				}
+			});
+		}
 		queueGenerateFrames();
+	} else {
+		PROFILE_LOG(("RENDERER EMPTY"));
 	}
 }
 
@@ -311,20 +332,21 @@ void SharedState::renderNextFrame(
 	frame->displayed = kTimeUnknown;
 }
 
-bool SharedState::renderNextFrame(const FrameRequest &request) {
-	const auto prerender = [&](int index) {
+auto SharedState::renderNextFrame(const FrameRequest &request)
+-> RenderResult {
+	const auto prerender = [&](int index) -> RenderResult {
 		const auto frame = getFrame(index);
 		const auto next = getFrame((index + 1) % kFramesCount);
 		if (!IsRendered(frame)) {
 			renderNextFrame(frame, request);
-			return true;
+			return { true };
 		} else if (!IsRendered(next)) {
 			renderNextFrame(next, request);
-			return true;
+			return { true };
 		}
-		return false;
+		return { false };
 	};
-	const auto present = [&](int counter, int index) {
+	const auto present = [&](int counter, int index) -> RenderResult {
 		const auto frame = getFrame(index);
 		if (!IsRendered(frame)) {
 			renderNextFrame(frame, request);
@@ -335,10 +357,7 @@ bool SharedState::renderNextFrame(const FrameRequest &request) {
 		_counter.store(
 			(counter + 1) % (2 * kFramesCount),
 			std::memory_order_release);
-		crl::on_main(_owner, [=] {
-			_owner->checkStep();
-		});
-		return true;
+		return { true, _owner };
 	};
 
 	switch (counter()) {
@@ -401,7 +420,7 @@ crl::time SharedState::nextFrameDisplayTime() const {
 		const auto frame = getFrame(index);
 		if (frame->displayed != kTimeUnknown) {
 			// Frame already displayed, but not yet shown.
-			return kTimeUnknown;
+			return kFrameDisplayTimeAlreadyDone;
 		}
 		Assert(IsRendered(frame));
 		Assert(frame->display != kTimeUnknown);

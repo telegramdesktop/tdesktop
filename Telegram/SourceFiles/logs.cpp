@@ -319,6 +319,11 @@ bool DebugEnabled() {
 #endif
 }
 
+QString ProfilePrefix() {
+	const auto now = crl::profile();
+	return '[' + QString::number(now / 1000., 'f', 3) + "] ";
+}
+
 void start(not_null<Core::Launcher*> launcher) {
 	Assert(LogsData == nullptr);
 

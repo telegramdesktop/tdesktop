@@ -19,6 +19,8 @@ namespace Logs {
 void SetDebugEnabled(bool enabled);
 bool DebugEnabled();
 
+QString ProfilePrefix();
+
 void start(not_null<Core::Launcher*> launcher);
 bool started();
 void finish();
@@ -70,6 +72,8 @@ inline MemoryBuffer mb(const void *ptr, uint32 size) {
 
 #define LOG(msg) (Logs::writeMain(QString msg))
 //usage LOG(("log: %1 %2").arg(1).arg(2))
+
+#define PROFILE_LOG(msg) (Logs::writeMain(Logs::ProfilePrefix() + QString msg))
 
 #define DEBUG_LOG(msg) {\
 	if (Logs::DebugEnabled() || !Logs::started()) {\
