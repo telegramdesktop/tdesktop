@@ -653,6 +653,9 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 @implementation PickerCustomTouchBarItem {
 	std::vector<PickerScrubberItem> _stickers;
 	NSPopoverTouchBarItem *_parentPopover;
+	std::unique_ptr<base::Timer> _previewTimer;
+	int _highlightedIndex;
+	bool _previewShown;
 }
 
 - (id) init:(ScrubberItemType)type popover:(NSPopoverTouchBarItem *)popover {
@@ -677,6 +680,14 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	[scrubber registerClass:[PickerScrubberItemView class] forItemIdentifier:kStickerItemIdentifier];
 	[scrubber registerClass:[NSScrubberTextItemView class] forItemIdentifier:kPickerTitleItemIdentifier];
 	[scrubber registerClass:[NSScrubberImageItemView class] forItemIdentifier:kEmojiItemIdentifier];
+
+	_previewShown = false;
+	_highlightedIndex = 0;
+	_previewTimer = !IsSticker(type)
+		? nullptr
+		: std::make_unique<base::Timer>([=] {
+			[self showPreview];
+		});
 
 	self.view = scrubber;
 	return self;
@@ -721,6 +732,13 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	if (!CanWriteToActiveChat()) {
 		return;
 	}
+	scrubber.selectedIndex = -1;
+	if (_previewShown && [self hidePreview]) {
+		return;
+	}
+	if (_previewTimer) {
+		_previewTimer->cancel();
+	}
 	const auto chat = GetActiveChat();
 
 	const auto callback = [&]() -> bool {
@@ -752,7 +770,47 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	if (_parentPopover) {
 		[_parentPopover dismissPopover:nil];
 	}
-	scrubber.selectedIndex = -1;
+}
+
+- (void)scrubber:(NSScrubber *)scrubber didHighlightItemAtIndex:(NSInteger)index {
+	if (_previewTimer) {
+		_previewTimer->callOnce(QApplication::startDragTime());
+		_highlightedIndex = index;
+	}
+}
+
+- (void)scrubber:(NSScrubber *)scrubber didChangeVisibleRange:(NSRange)visibleRange {
+	[self didCancelInteractingWithScrubber:scrubber];
+}
+
+- (void)didCancelInteractingWithScrubber:(NSScrubber *)scrubber {
+	if (_previewTimer) {
+		_previewTimer->cancel();
+	}
+	if (_previewShown) {
+		[self hidePreview];
+	}
+}
+
+- (void)showPreview {
+	if (const auto document = _stickers[_highlightedIndex].document) {
+		if (const auto w = App::wnd()) {
+			w->showMediaPreview(document->stickerSetOrigin(), document);
+			_previewShown = true;
+		}
+	}
+}
+
+- (bool)hidePreview {
+	if (const auto w = App::wnd()) {
+		Core::Sandbox::Instance().customEnterFromEventLoop([=] {
+			w->hideMediaPreview();
+		});
+		_previewShown = false;
+		_highlightedIndex = 0;
+		return true;
+	}
+	return false;
 }
 
 - (void)updateStickers {
