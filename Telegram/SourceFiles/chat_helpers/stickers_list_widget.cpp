@@ -2617,7 +2617,9 @@ void StickersListWidget::setSelected(OverState newSelected) {
 				const auto &set = sets[sticker->section];
 				Assert(sticker->index >= 0 && sticker->index < set.stickers.size());
 				const auto document = set.stickers[sticker->index].document;
-				Ui::showMediaPreview(document->stickerSetOrigin(), document);
+				if (const auto w = App::wnd()) {
+					w->showMediaPreview(document->stickerSetOrigin(), document);
+				}
 			}
 		}
 	}
@@ -2630,8 +2632,10 @@ void StickersListWidget::showPreview() {
 		const auto &set = sets[sticker->section];
 		Assert(sticker->index >= 0 && sticker->index < set.stickers.size());
 		const auto document = set.stickers[sticker->index].document;
-		Ui::showMediaPreview(document->stickerSetOrigin(), document);
-		_previewShown = true;
+		if (const auto w = App::wnd()) {
+			w->showMediaPreview(document->stickerSetOrigin(), document);
+			_previewShown = true;
+		}
 	}
 }
 

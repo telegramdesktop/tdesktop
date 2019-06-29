@@ -683,12 +683,14 @@ void Inner::updateSelected() {
 			_pressed = _selected;
 			if (row >= 0 && col >= 0) {
 				auto layout = _rows.at(row).items.at(col);
-				if (const auto previewDocument = layout->getPreviewDocument()) {
-					Ui::showMediaPreview(
-						Data::FileOrigin(),
-						previewDocument);
-				} else if (auto previewPhoto = layout->getPreviewPhoto()) {
-					Ui::showMediaPreview(Data::FileOrigin(), previewPhoto);
+				if (const auto w = App::wnd()) {
+					if (const auto previewDocument = layout->getPreviewDocument()) {
+						w->showMediaPreview(
+							Data::FileOrigin(),
+							previewDocument);
+					} else if (auto previewPhoto = layout->getPreviewPhoto()) {
+						w->showMediaPreview(Data::FileOrigin(), previewPhoto);
+					}
 				}
 			}
 		}
@@ -708,12 +710,14 @@ void Inner::showPreview() {
 	int row = _pressed / MatrixRowShift, col = _pressed % MatrixRowShift;
 	if (row < _rows.size() && col < _rows.at(row).items.size()) {
 		auto layout = _rows.at(row).items.at(col);
-		if (const auto previewDocument = layout->getPreviewDocument()) {
-			Ui::showMediaPreview(Data::FileOrigin(), previewDocument);
-			_previewShown = true;
-		} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
-			Ui::showMediaPreview(Data::FileOrigin(), previewPhoto);
-			_previewShown = true;
+		if (const auto w = App::wnd()) {
+			if (const auto previewDocument = layout->getPreviewDocument()) {
+				w->showMediaPreview(Data::FileOrigin(), previewDocument);
+				_previewShown = true;
+			} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
+				w->showMediaPreview(Data::FileOrigin(), previewPhoto);
+				_previewShown = true;
+			}
 		}
 	}
 }

@@ -411,9 +411,11 @@ void StickerSetBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 		int index = stickerFromGlobalPos(e->globalPos());
 		if (index >= 0 && index < _pack.size() && index != _previewShown) {
 			_previewShown = index;
-			Ui::showMediaPreview(
-				Data::FileOriginStickerSet(_setId, _setAccess),
-				_pack[_previewShown]);
+			if (const auto w = App::wnd()) {
+				w->showMediaPreview(
+					Data::FileOriginStickerSet(_setId, _setAccess),
+					_pack[_previewShown]);
+			}
 		}
 	}
 }
@@ -472,9 +474,11 @@ void StickerSetBox::Inner::showPreview() {
 	int index = stickerFromGlobalPos(QCursor::pos());
 	if (index >= 0 && index < _pack.size()) {
 		_previewShown = index;
-		Ui::showMediaPreview(
-			Data::FileOriginStickerSet(_setId, _setAccess),
-			_pack[_previewShown]);
+		if (const auto w = App::wnd()) {
+			w->showMediaPreview(
+				Data::FileOriginStickerSet(_setId, _setAccess),
+				_pack[_previewShown]);
+		}
 	}
 }
 

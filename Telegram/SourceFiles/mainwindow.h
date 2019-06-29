@@ -109,12 +109,13 @@ public:
 	void ui_hideSettingsAndLayer(anim::type animated);
 	void ui_removeLayerBlackout();
 	bool ui_isLayerShown();
-	void ui_showMediaPreview(
+	void showMediaPreview(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> document);
-	void ui_showMediaPreview(
+	void showMediaPreview(
 		Data::FileOrigin origin,
 		not_null<PhotoData*> photo);
+	void hideMediaPreview();
 
 protected:
 	bool eventFilter(QObject *o, QEvent *e) override;
@@ -152,7 +153,6 @@ private:
 	void handleTrayIconActication(
 		QSystemTrayIcon::ActivationReason reason) override;
 
-	void hideMediaPreview();
 	void ensureLayerCreated();
 	void destroyLayer();
 

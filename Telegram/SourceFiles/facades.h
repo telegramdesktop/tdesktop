@@ -97,11 +97,6 @@ void showBox(
 
 } // namespace internal
 
-void showMediaPreview(
-	Data::FileOrigin origin,
-	not_null<DocumentData*> document);
-void showMediaPreview(Data::FileOrigin origin, not_null<PhotoData*> photo);
-
 template <typename BoxType>
 QPointer<BoxType> show(
 		object_ptr<BoxType> content,

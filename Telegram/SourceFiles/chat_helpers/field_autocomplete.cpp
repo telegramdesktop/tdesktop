@@ -1030,9 +1030,11 @@ void FieldAutocompleteInner::selectByMouse(QPoint globalPosition) {
 		if (_down >= 0 && _sel >= 0 && _down != _sel) {
 			_down = _sel;
 			if (_down >= 0 && _down < _srows->size()) {
-				Ui::showMediaPreview(
-					(*_srows)[_down].document->stickerSetOrigin(),
-					(*_srows)[_down].document);
+				if (const auto w = App::wnd()) {
+					w->showMediaPreview(
+						(*_srows)[_down].document->stickerSetOrigin(),
+						(*_srows)[_down].document);
+				}
 			}
 		}
 	}
@@ -1050,10 +1052,12 @@ void FieldAutocompleteInner::onParentGeometryChanged() {
 
 void FieldAutocompleteInner::showPreview() {
 	if (_down >= 0 && _down < _srows->size()) {
-		Ui::showMediaPreview(
-			(*_srows)[_down].document->stickerSetOrigin(),
-			(*_srows)[_down].document);
-		_previewShown = true;
+		if (const auto w = App::wnd()) {
+			w->showMediaPreview(
+				(*_srows)[_down].document->stickerSetOrigin(),
+				(*_srows)[_down].document);
+			_previewShown = true;
+		}
 	}
 }
 

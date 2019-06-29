@@ -382,7 +382,7 @@ bool MainWindow::ui_isLayerShown() {
 	return _layer != nullptr;
 }
 
-void MainWindow::ui_showMediaPreview(
+void MainWindow::showMediaPreview(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> document) {
 	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) {
@@ -398,7 +398,7 @@ void MainWindow::ui_showMediaPreview(
 	_mediaPreview->showPreview(origin, document);
 }
 
-void MainWindow::ui_showMediaPreview(
+void MainWindow::showMediaPreview(
 		Data::FileOrigin origin,
 		not_null<PhotoData*> photo) {
 	if (!photo) {

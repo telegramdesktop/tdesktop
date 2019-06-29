@@ -192,20 +192,6 @@ void showBox(
 
 } // namespace internal
 
-void showMediaPreview(
-		Data::FileOrigin origin,
-		not_null<DocumentData*> document) {
-	if (auto w = App::wnd()) {
-		w->ui_showMediaPreview(origin, document);
-	}
-}
-
-void showMediaPreview(Data::FileOrigin origin, not_null<PhotoData*> photo) {
-	if (auto w = App::wnd()) {
-		w->ui_showMediaPreview(origin, photo);
-	}
-}
-
 void hideLayer(anim::type animated) {
 	if (auto w = App::wnd()) {
 		w->ui_showBox(
