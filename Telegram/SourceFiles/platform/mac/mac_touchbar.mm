@@ -43,7 +43,8 @@ namespace {
 //https://developer.apple.com/design/human-interface-guidelines/macos/touch-bar/touch-bar-icons-and-images/
 constexpr auto kIdealIconSize = 36;
 constexpr auto kMaximumIconSize = 44;
-constexpr auto kScrubberHeight = 30;
+constexpr auto kCircleDiameter = 30;
+constexpr auto kPinnedButtonsSpace = 30;
 
 constexpr auto kCommandPlayPause = 0x002;
 constexpr auto kCommandPlaylistPrevious = 0x003;
@@ -386,6 +387,68 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 
 } // namespace
 
+@interface PinButton : NSButton
+@end // @interface PinButton
+
+@implementation PinButton {
+	int _startPosition;
+	int _tempIndex;
+	bool _orderChanged;
+}
+
+- (void)touchesBeganWithEvent:(NSEvent *)event {
+	if ([event.allTouches allObjects].count > 1) {
+		return;
+	}
+	_orderChanged = false;
+	_tempIndex = self.tag  - 1;
+	_startPosition = [self getTouchX:event];
+	[super touchesBeganWithEvent:event];
+}
+
+- (void)touchesMovedWithEvent:(NSEvent *)event {
+	if (self.tag <= kSavedMessagesId) {
+		return;
+	}
+	if ([event.allTouches allObjects].count > 1) {
+		return;
+	}
+	const auto currentPosition = [self getTouchX:event];
+	const auto step = kPinnedButtonsSpace + kCircleDiameter;
+	if (std::abs(_startPosition - currentPosition) > step) {
+		const auto delta = (currentPosition > _startPosition) ? 1 : -1;
+		const auto newIndex = _tempIndex + delta;
+		const auto &order = Auth().data().pinnedChatsOrder(nullptr);
+
+		// In case the order has been changed from another device
+		// while the user is dragging the dialog.
+		if (_tempIndex >= order.size()) {
+			return;
+		}
+
+		if (newIndex >= 0 && newIndex < order.size()) {
+			Auth().data().reorderTwoPinnedChats(
+				order.at(_tempIndex).history(),
+				order.at(newIndex).history());
+			_tempIndex = newIndex;
+			_startPosition = currentPosition;
+			_orderChanged = true;
+		}
+	}
+}
+
+- (void)touchesEndedWithEvent:(NSEvent *)event {
+	if (_orderChanged) {
+		Auth().api().savePinnedOrder(nullptr);
+	}
+	[super touchesEndedWithEvent:event];
+}
+
+- (int)getTouchX:(NSEvent *)e {
+	return [[[e.allTouches allObjects] objectAtIndex:0] locationInView:self].x;
+}
+@end // @implementation PinButton
+
 @interface PinnedDialogButton : NSCustomTouchBarItem
 
 @property(nonatomic, assign) int number;
@@ -425,10 +488,11 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	}
 	self.number = num;
 
-	NSButton *button = [[NSButton alloc] initWithFrame:NSZeroRect];
+	PinButton *button = [[PinButton alloc] initWithFrame:NSZeroRect];
 	NSButtonCell *cell = [[NSButtonCell alloc] init];
 	[cell setBezelStyle:NSBezelStyleCircular];
 	button.cell = cell;
+	button.tag = num;
 	button.target = self;
 	button.action = @selector(buttonActionPin:);
 	self.view = button;
@@ -570,17 +634,16 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 - (void) updateImage:(QPixmap)pixmap {
 	NSButton *button = self.view;
 	NSImage *image = [qt_mac_create_nsimage(pixmap) autorelease];
-	[image setSize:NSMakeSize(kScrubberHeight, kScrubberHeight)];
+	[image setSize:NSMakeSize(kCircleDiameter, kCircleDiameter)];
 	[button.cell setImage:image];
 }
 
-@end
-
+@end // @implementation PinnedDialogButton
 
 
 @interface PickerScrubberItemView : NSScrubberItemView
 @property (strong) NSImageView *imageView;
-@end
+@end // @interface PickerScrubberItemView
 @implementation PickerScrubberItemView {
 	rpl::lifetime _lifetime;
 	Data::FileOrigin _origin;
@@ -628,25 +691,25 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 }
 - (void)updateImage {
 	const auto size = _dimensions
-			.scaled(kScrubberHeight, kScrubberHeight, Qt::KeepAspectRatio);
+			.scaled(kCircleDiameter, kCircleDiameter, Qt::KeepAspectRatio);
 	_imageView.image = [qt_mac_create_nsimage(
 			_image->pixSingle(
 				_origin,
 				size.width(),
 				size.height(),
-				kScrubberHeight,
-				kScrubberHeight,
+				kCircleDiameter,
+				kCircleDiameter,
 				ImageRoundRadius::None))
 		autorelease];
 }
-@end
+@end // @implementation PickerScrubberItemView
 
 
 @interface PickerCustomTouchBarItem: NSCustomTouchBarItem
 	<NSScrubberDelegate,
 	NSScrubberDataSource,
 	NSScrubberFlowLayoutDelegate>
-@end
+@end // @interface PickerCustomTouchBarItem
 
 #pragma mark -
 
@@ -723,9 +786,9 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 - (NSSize)scrubber:(NSScrubber *)scrubber layout:(NSScrubberFlowLayout *)layout sizeForItemAtIndex:(NSInteger)index {
 	if (const auto t = _stickers[index].title; !t.isEmpty()) {
 		return NSMakeSize(
-			WidthFromString(Q2NSString(t)) + 30, kScrubberHeight);
+			WidthFromString(Q2NSString(t)) + kCircleDiameter, kCircleDiameter);
 	}
-	return NSMakeSize(kScrubberHeight, kScrubberHeight);
+	return NSMakeSize(kCircleDiameter, kCircleDiameter);
 }
 
 - (void)scrubber:(NSScrubber *)scrubber didSelectItemAtIndex:(NSInteger)index {
@@ -843,7 +906,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	_stickers = std::move(temp);
 }
 
-@end
+@end // @implementation PickerCustomTouchBarItem
 
 
 @interface TouchBar()<NSTouchBarDelegate>
@@ -1089,7 +1152,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			width += WidthFromString(string) * 1.4;
 			[segment setLabel:string forSegment:count++];
 		}
-		segment.frame = NSMakeRect(0, 0, width, kScrubberHeight);
+		segment.frame = NSMakeRect(0, 0, width, kCircleDiameter);
 		[scroll setDocumentView:segment];
 		item.view = scroll;
 		return item;
@@ -1139,7 +1202,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			}
 			[stackView addView:button.view inGravity:NSStackViewGravityTrailing];
 		}
-		const auto space = 30;
+		const auto space = kPinnedButtonsSpace;
 		[stackView setEdgeInsets:NSEdgeInsetsMake(0, space / 2., 0, space)];
 		[stackView setSpacing:space];
 		item.view = stackView;
@@ -1428,4 +1491,4 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	[super dealloc];
 }
 
-@end
+@end // @implementation TouchBar
