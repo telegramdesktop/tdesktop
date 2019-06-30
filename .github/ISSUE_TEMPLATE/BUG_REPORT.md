@@ -1,3 +1,9 @@
+---
+name: Bug report
+about: Report errors or unexpected behavior.
+
+---
+
 <!--
 Thanks for reporting issues of Telegram Desktop!
 
