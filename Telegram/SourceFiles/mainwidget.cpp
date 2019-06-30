@@ -2706,7 +2706,9 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 		}
 	} else if (e->type() == QEvent::MouseButtonPress) {
 		if (static_cast<QMouseEvent*>(e)->button() == Qt::BackButton) {
-			handleHistoryBack();
+			if (!Core::App().hideMediaView()) {
+				handleHistoryBack();
+			}
 			return true;
 		}
 	} else if (e->type() == QEvent::Wheel) {
