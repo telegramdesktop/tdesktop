@@ -102,10 +102,10 @@ void SinglePlayer::checkNextFrameRender() {
 	} else {
 		_timer.cancel();
 
-		const auto exact = std::exchange(
-			_nextFrameTime,
-			kFrameDisplayTimeAlreadyDone);
-		const auto position = _state->markFrameDisplayed(now, now - exact);
+		const auto position = _state->markFrameDisplayed(now);
+		_state->addTimelineDelay(now - _nextFrameTime);
+
+		_nextFrameTime = kFrameDisplayTimeAlreadyDone;
 		_updates.fire({ DisplayFrameRequest{ position } });
 	}
 }

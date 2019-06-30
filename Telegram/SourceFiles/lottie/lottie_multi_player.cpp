@@ -22,6 +22,10 @@ std::shared_ptr<FrameRenderer> MakeFrameRenderer() {
 MultiPlayer::MultiPlayer(std::shared_ptr<FrameRenderer> renderer)
 : _timer([=] { checkNextFrameRender(); })
 , _renderer(renderer ? std::move(renderer) : FrameRenderer::Instance()) {
+	crl::on_main_update_requests(
+	) | rpl::start_with_next([=] {
+		checkStep();
+	}, _lifetime);
 }
 
 MultiPlayer::~MultiPlayer() {
@@ -54,26 +58,22 @@ not_null<Animation*> MultiPlayer::append(
 	return _animations.back().get();
 }
 
-crl::time MultiPlayer::startAtRightTime(not_null<SharedState*> state) {
+void MultiPlayer::startAtRightTime(not_null<SharedState*> state) {
 	Expects(!_active.empty());
 	Expects((_active.size() == 1) == (_started == kTimeUnknown));
 
+	const auto now = crl::now();
 	if (_active.size() == 1) {
-		_started = crl::now();
-		state->start(this, _started);
-		return _started;
+		_started = now;
 	}
 
-	const auto now = crl::now();
 	const auto rate = state->information().frameRate;
 	Assert(rate != 0);
 
-	const auto started = _started + _accumulatedDelay;
+	const auto started = _started + _delay;
 	const auto skipFrames = (now - started) * rate / 1000;
-	const auto startAt = started + (1000 * skipFrames / rate);
 
-	state->start(this, startAt);
-	return startAt;
+	state->start(this, _started, _delay, skipFrames);
 }
 
 void MultiPlayer::start(
@@ -81,21 +81,32 @@ void MultiPlayer::start(
 		std::unique_ptr<SharedState> state) {
 	Expects(state != nullptr);
 
+	if (_nextFrameTime == kTimeUnknown) {
+		appendToActive(animation, std::move(state));
+	} else {
+		// We always try to mark as shown at the same time, so we start a new
+		// animation at the same time we mark all existing as shown.
+		_pendingToStart.emplace(animation, std::move(state));
+	}
+}
+
+void MultiPlayer::appendPendingToActive() {
+	for (auto &[animation, state] : base::take(_pendingToStart)) {
+		appendToActive(animation, std::move(state));
+	}
+}
+
+void MultiPlayer::appendToActive(
+		not_null<Animation*> animation,
+		std::unique_ptr<SharedState> state) {
+	Expects(_nextFrameTime == kTimeUnknown);
+
 	_active.emplace(animation, state.get());
 
 	auto information = state->information();
 	startAtRightTime(state.get());
 	_renderer->append(std::move(state));
 	_updates.fire({});
-
-	crl::on_main_update_requests(
-	) | rpl::start_with_next([=] {
-		checkStep();
-	}, _lifetime);
-
-	_nextFrameTime = kTimeUnknown;
-	_timer.cancel();
-	checkStep();
 }
 
 void MultiPlayer::remove(not_null<Animation*> animation) {
@@ -112,7 +123,7 @@ void MultiPlayer::remove(not_null<Animation*> animation) {
 
 	if (_active.empty()) {
 		_started = kTimeUnknown;
-		_accumulatedDelay = 0;
+		_delay = 0;
 		_nextFrameTime = kTimeUnknown;
 		_timer.cancel();
 	}
@@ -127,7 +138,7 @@ rpl::producer<MultiUpdate> MultiPlayer::updates() const {
 }
 
 void MultiPlayer::checkStep() {
-	if (_nextFrameTime == kFrameDisplayTimeAlreadyDone) {
+	if (_active.empty() || _nextFrameTime == kFrameDisplayTimeAlreadyDone) {
 		return;
 	} else if (_nextFrameTime != kTimeUnknown) {
 		checkNextFrameRender();
@@ -139,9 +150,6 @@ void MultiPlayer::checkStep() {
 void MultiPlayer::checkNextFrameAvailability() {
 	Expects(_nextFrameTime == kTimeUnknown);
 
-	if (_active.empty()) {
-		return;
-	}
 	auto next = kTimeUnknown;
 	for (const auto &[animation, state] : _active) {
 		const auto time = state->nextFrameDisplayTime();
@@ -181,10 +189,10 @@ void MultiPlayer::checkNextFrameRender() {
 	} else {
 		_timer.cancel();
 
-		const auto exact = std::exchange(
-			_nextFrameTime,
-			kFrameDisplayTimeAlreadyDone);
-		markFrameDisplayed(now, now - exact);
+		markFrameDisplayed(now);
+		addTimelineDelay(now - _nextFrameTime);
+
+		_nextFrameTime = kFrameDisplayTimeAlreadyDone;
 		_updates.fire({});
 	}
 }
@@ -198,7 +206,7 @@ void MultiPlayer::updateFrameRequest(
 	_renderer->updateFrameRequest(i->second, request);
 }
 
-void MultiPlayer::markFrameDisplayed(crl::time now, crl::time delayed) {
+void MultiPlayer::markFrameDisplayed(crl::time now) {
 	Expects(!_active.empty());
 
 	auto displayed = 0;
@@ -210,17 +218,27 @@ void MultiPlayer::markFrameDisplayed(crl::time now, crl::time delayed) {
 			continue;
 		} else if (now >= time) {
 			++displayed;
-			state->markFrameDisplayed(now, delayed);
+			state->markFrameDisplayed(now);
 		} else {
 			++waiting;
 		}
 	}
-	PROFILE_LOG(("PLAYER FRAME DISPLAYED AT: %1, DELAYED: %2, (MARKED %3, WAITING %4)").arg(now).arg(delayed).arg(displayed).arg(waiting));
+	PROFILE_LOG(("PLAYER FRAME DISPLAYED AT: %1 (MARKED %2, WAITING %3)").arg(now).arg(displayed).arg(waiting));
+}
+
+void MultiPlayer::addTimelineDelay(crl::time delayed) {
+	Expects(!_active.empty());
+
+	for (const auto &[animation, state] : _active) {
+		state->addTimelineDelay(delayed);
+	}
+	_delay += delayed;
 }
 
 void MultiPlayer::markFrameShown() {
 	if (_nextFrameTime == kFrameDisplayTimeAlreadyDone) {
 		_nextFrameTime = kTimeUnknown;
+		appendPendingToActive();
 	}
 	auto count = 0;
 	for (const auto &[animation, state] : _active) {

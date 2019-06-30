@@ -56,8 +56,13 @@ public:
 	void remove(not_null<Animation*> animation);
 
 private:
-	crl::time startAtRightTime(not_null<SharedState*> state);
-	void markFrameDisplayed(crl::time now, crl::time delayed);
+	void appendToActive(
+		not_null<Animation*> animation,
+		std::unique_ptr<SharedState> state);
+	void startAtRightTime(not_null<SharedState*> state);
+	void appendPendingToActive();
+	void markFrameDisplayed(crl::time now);
+	void addTimelineDelay(crl::time delayed);
 	void checkNextFrameAvailability();
 	void checkNextFrameRender();
 
@@ -65,9 +70,12 @@ private:
 	const std::shared_ptr<FrameRenderer> _renderer;
 	std::vector<std::unique_ptr<Animation>> _animations;
 	base::flat_map<not_null<Animation*>, not_null<SharedState*>> _active;
+	base::flat_map<
+		not_null<Animation*>,
+		std::unique_ptr<SharedState>> _pendingToStart;
 	//base::flat_map<not_null<Animation*>, not_null<SharedState*>> _paused;
 	crl::time _started = kTimeUnknown;
-	crl::time _accumulatedDelay = 0;
+	crl::time _delay = 0;
 	crl::time _nextFrameTime = kTimeUnknown;
 	rpl::event_stream<MultiUpdate> _updates;
 	rpl::lifetime _lifetime;

@@ -57,14 +57,19 @@ public:
 		std::unique_ptr<Cache> cache,
 		const FrameRequest &request);
 
-	void start(not_null<Player*> owner, crl::time now);
+	void start(
+		not_null<Player*> owner,
+		crl::time now,
+		crl::time delay = 0,
+		int skippedFrames = 0);
 
 	[[nodiscard]] Information information() const;
 	[[nodiscard]] bool initialized() const;
 
 	[[nodiscard]] not_null<Frame*> frameForPaint();
 	[[nodiscard]] crl::time nextFrameDisplayTime() const;
-	crl::time markFrameDisplayed(crl::time now, crl::time delayed);
+	void addTimelineDelay(crl::time delayed);
+	crl::time markFrameDisplayed(crl::time now);
 	crl::time markFrameShown();
 
 	void renderFrame(QImage &image, const FrameRequest &request, int index);
@@ -88,10 +93,13 @@ private:
 	[[nodiscard]] not_null<Frame*> getFrame(int index);
 	[[nodiscard]] not_null<const Frame*> getFrame(int index) const;
 	[[nodiscard]] int counter() const;
+	[[nodiscard]] crl::time currentFramePosition() const;
 
 	QByteArray _content;
 	std::unique_ptr<rlottie::Animation> _animation;
 
+	// crl::queue changes 0,2,4,6 to 1,3,5,7.
+	// main thread changes 1,3,5,7 to 2,4,6,0.
 	static constexpr auto kCounterUninitialized = -1;
 	std::atomic<int> _counter = kCounterUninitialized;
 
@@ -100,12 +108,16 @@ private:
 
 	base::weak_ptr<Player> _owner;
 	crl::time _started = kTimeUnknown;
-	crl::time _duration = kTimeUnknown;
+
+	// (_counter % 2) == 1 main thread can write _delay.
+	// (_counter % 2) == 0 crl::queue can read _delay.
+	crl::time _delay = kTimeUnknown;
+
 	int _frameIndex = 0;
+	int _skippedFrames = 0;
 	int _framesCount = 0;
 	int _frameRate = 0;
 	QSize _size;
-	std::atomic<int> _accumulatedDelayMs = 0;
 
 	std::unique_ptr<Cache> _cache;
 
