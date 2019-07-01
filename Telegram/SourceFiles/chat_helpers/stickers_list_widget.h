@@ -167,9 +167,19 @@ private:
 		ImagePtr thumbnail;
 		std::vector<Sticker> stickers;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
-		std::unique_ptr<Lottie::MultiPlayer> lottiePlayer;
+		Lottie::MultiPlayer *lottiePlayer = nullptr;
 		bool externalLayout = false;
 		int count = 0;
+	};
+	struct LottieSet {
+		struct Item {
+			not_null<Lottie::Animation*> animation;
+			bool stale = false;
+		};
+		std::unique_ptr<Lottie::MultiPlayer> player;
+		base::flat_map<DocumentId, Item> items;
+		bool stale = false;
+		rpl::lifetime lifetime;
 	};
 
 	static std::vector<Sticker> PrepareStickers(const Stickers::Pack &pack);
@@ -181,6 +191,7 @@ private:
 	SectionInfo sectionInfo(int section) const;
 	SectionInfo sectionInfoByOffset(int yOffset) const;
 
+	void setSection(Section section);
 	void displaySet(uint64 setId);
 	void installSet(uint64 setId);
 	void removeMegagroupSet(bool locally);
@@ -188,6 +199,8 @@ private:
 	void sendInstallRequest(
 		uint64 setId,
 		const MTPInputStickerSet &input);
+	void refreshMySets();
+	void refreshFeaturedSets();
 	void refreshSearchSets();
 	void refreshSearchIndex();
 
@@ -233,6 +246,9 @@ private:
 	void checkVisibleLottie();
 	void pauseInvisibleLottieIn(const SectionInfo &info);
 	void destroyLottieIn(Set &set);
+	void refillLottieData();
+	void refillLottieData(Set &set);
+	void clearLottieData();
 
 	int stickersRight() const;
 	bool featuredHasAddButton(int index) const;
@@ -319,6 +335,8 @@ private:
 	base::Timer _searchRequestTimer;
 	QString _searchQuery, _searchNextQuery;
 	mtpRequestId _searchRequestId = 0;
+
+	base::flat_map<uint64, LottieSet> _lottieData;
 
 	rpl::event_stream<not_null<DocumentData*>> _chosen;
 	rpl::event_stream<> _scrollUpdated;
