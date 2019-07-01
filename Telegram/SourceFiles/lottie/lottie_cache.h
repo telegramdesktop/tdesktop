@@ -101,6 +101,7 @@ private:
 	void finalizeEncoding();
 
 	void writeHeader();
+	void updateFramesReadyCount();
 	[[nodiscard]] bool readHeader(const FrameRequest &request);
 	[[nodiscard]] ReadResult readCompressedFrame();
 

@@ -517,6 +517,8 @@ bool Cache::renderFrame(
 		_framesReady = 0;
 		_data = QByteArray();
 		return false;
+	} else if (index + 1 == _framesReady && _data.size() > _offset) {
+		_data.resize(_offset);
 	}
 	if (xored) {
 		Xor(_previous, _uncompressed);
@@ -576,6 +578,8 @@ void Cache::finalizeEncoding() {
 	if (_data.isEmpty()) {
 		_data.reserve(size);
 		writeHeader();
+	} else {
+		updateFramesReadyCount();
 	}
 	const auto offset = _data.size();
 	_data.resize(size);
@@ -607,6 +611,16 @@ void Cache::writeHeader() {
 		<< qint32(_frameRate)
 		<< qint32(_framesCount)
 		<< qint32(_framesReady);
+}
+
+void Cache::updateFramesReadyCount() {
+	Expects(_data.size() >= headerSize());
+
+	const auto serialized = qint32(_framesReady);
+	const auto offset = headerSize() - sizeof(qint32);
+	bytes::copy(
+		bytes::make_detached_span(_data).subspan(offset),
+		bytes::object_as_span(&serialized));
 }
 
 void Cache::prepareBuffers() {
