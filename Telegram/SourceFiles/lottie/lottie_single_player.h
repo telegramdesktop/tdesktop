@@ -18,7 +18,6 @@ namespace Lottie {
 class FrameRenderer;
 
 struct DisplayFrameRequest {
-	crl::time time = 0;
 };
 
 struct Update {

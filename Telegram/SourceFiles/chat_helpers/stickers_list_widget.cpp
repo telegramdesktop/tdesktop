@@ -763,10 +763,11 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 void StickersListWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
-	auto top = getVisibleTop();
 	Inner::visibleTopBottomUpdated(visibleTop, visibleBottom);
 	if (_section == Section::Featured) {
 		readVisibleSets();
+	} else {
+		pauseInvisibleLottie();
 	}
 	validateSelectedIcon(ValidateIconAnimations::Full);
 }
@@ -1202,13 +1203,6 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 			return false;
 		}
 		auto &set = sets[info.section];
-		if (const auto player = set.lottiePlayer.get()) {
-			const auto paused = controller()->isGifPausedAtLeastFor(
-				Window::GifPauseReason::SavedGifs);
-			if (!paused) {
-				player->markFrameShown();
-			}
-		}
 		if (set.externalLayout) {
 			const auto size = (set.flags
 				& MTPDstickerSet_ClientFlag::f_not_loaded)
@@ -1280,6 +1274,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 				auto deleteSelected = false;
 				paintSticker(p, set, info.rowsTop, info.section, index, selected, deleteSelected);
 			}
+			markLottieFrameShown(set);
 			return true;
 		}
 		if (setHasTitle(set) && clip.top() < info.rowsTop) {
@@ -1307,28 +1302,93 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 			p.setPen(st::emojiPanHeaderFg);
 			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, info.top + st::emojiPanHeaderTop, width(), titleText, titleWidth);
 		}
-		if (clip.top() + clip.height() > info.rowsTop) {
-			if (set.id == Stickers::MegagroupSetId && set.stickers.empty()) {
-				auto buttonSelected = (base::get_if<OverGroupAdd>(&_selected) != nullptr);
-				paintMegagroupEmptySet(p, info.rowsTop, buttonSelected);
-			} else {
-				auto special = (set.flags & MTPDstickerSet::Flag::f_official) != 0;
-				auto fromRow = floorclamp(clip.y() - info.rowsTop, _singleSize.height(), 0, info.rowsCount);
-				auto toRow = ceilclamp(clip.y() + clip.height() - info.rowsTop, _singleSize.height(), 0, info.rowsCount);
-				for (int i = fromRow; i < toRow; ++i) {
-					for (int j = fromColumn; j < toColumn; ++j) {
-						int index = i * _columnCount + j;
-						if (index >= info.count) break;
+		if (clip.top() + clip.height() <= info.rowsTop) {
+			return true;
+		} else if (set.id == Stickers::MegagroupSetId && set.stickers.empty()) {
+			auto buttonSelected = (base::get_if<OverGroupAdd>(&_selected) != nullptr);
+			paintMegagroupEmptySet(p, info.rowsTop, buttonSelected);
+			return true;
+		}
+		auto special = (set.flags & MTPDstickerSet::Flag::f_official) != 0;
+		auto fromRow = floorclamp(clip.y() - info.rowsTop, _singleSize.height(), 0, info.rowsCount);
+		auto toRow = ceilclamp(clip.y() + clip.height() - info.rowsTop, _singleSize.height(), 0, info.rowsCount);
+		for (int i = fromRow; i < toRow; ++i) {
+			for (int j = fromColumn; j < toColumn; ++j) {
+				int index = i * _columnCount + j;
+				if (index >= info.count) break;
 
-						auto selected = selectedSticker ? (selectedSticker->section == info.section && selectedSticker->index == index) : false;
-						auto deleteSelected = selected && selectedSticker->overDelete;
-						paintSticker(p, set, info.rowsTop, info.section, index, selected, deleteSelected);
-					}
+				auto selected = selectedSticker ? (selectedSticker->section == info.section && selectedSticker->index == index) : false;
+				auto deleteSelected = selected && selectedSticker->overDelete;
+				paintSticker(p, set, info.rowsTop, info.section, index, selected, deleteSelected);
+			}
+		}
+		markLottieFrameShown(set);
+		return true;
+	});
+}
+
+void StickersListWidget::markLottieFrameShown(Set &set) {
+	if (const auto player = set.lottiePlayer.get()) {
+		const auto paused = controller()->isGifPausedAtLeastFor(
+			Window::GifPauseReason::SavedGifs);
+		if (!paused) {
+			player->markFrameShown();
+		}
+	}
+}
+
+void StickersListWidget::pauseInvisibleLottie() {
+	if (shownSets().empty()) {
+		return;
+	}
+	const auto visibleBottom = getVisibleBottom();
+	const auto top = sectionInfoByOffset(getVisibleTop());
+	pauseInvisibleLottieIn(top);
+	if (top.rowsBottom < visibleBottom) {
+		pauseInvisibleLottieIn(sectionInfoByOffset(visibleBottom));
+	}
+}
+
+void StickersListWidget::pauseInvisibleLottieIn(const SectionInfo &info) {
+	auto &set = shownSets()[info.section];
+	const auto player = set.lottiePlayer.get();
+	if (!player) {
+		return;
+	}
+	const auto pauseInRows = [&](int fromRow, int tillRow) {
+		Expects(fromRow <= tillRow);
+
+		for (auto i = fromRow; i != tillRow; ++i) {
+			for (auto j = 0; j != _columnCount; ++j) {
+				const auto index = i * _columnCount + j;
+				if (index >= info.count) {
+					break;
+				}
+				if (const auto animated = set.stickers[index].animated) {
+					player->pause(animated);
 				}
 			}
 		}
-		return true;
-	});
+	};
+
+	const auto visibleTop = getVisibleTop();
+	const auto visibleBottom = getVisibleBottom();
+	if (visibleTop >= info.rowsTop + _singleSize.height()
+		&& visibleTop < info.rowsBottom) {
+		const auto pauseHeight = (visibleTop - info.rowsTop);
+		const auto pauseRows = std::min(
+			pauseHeight / _singleSize.height(),
+			info.rowsCount);
+		pauseInRows(0, pauseRows);
+	}
+	if (visibleBottom > info.rowsTop
+		&& visibleBottom + _singleSize.height() <= info.rowsBottom) {
+		const auto pauseHeight = (info.rowsBottom - visibleBottom);
+		const auto pauseRows = std::min(
+			pauseHeight / _singleSize.height(),
+			info.rowsCount);
+		pauseInRows(info.rowsCount - pauseRows, info.rowsCount);
+	}
 }
 
 void StickersListWidget::paintEmptySearchResults(Painter &p) {
@@ -1452,6 +1512,8 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 		p.drawImage(
 			QRect(ppos, frame.size() / cIntRetinaFactor()),
 			frame);
+
+		set.lottiePlayer->unpause(sticker.animated);
 	} else if (const auto image = document->getStickerSmall()) {
 		if (image->loaded()) {
 			p.drawPixmapLeft(

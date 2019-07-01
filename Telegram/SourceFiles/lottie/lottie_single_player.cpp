@@ -102,11 +102,11 @@ void SinglePlayer::checkNextFrameRender() {
 	} else {
 		_timer.cancel();
 
-		const auto position = _state->markFrameDisplayed(now);
+		_state->markFrameDisplayed(now);
 		_state->addTimelineDelay(now - _nextFrameTime);
 
 		_nextFrameTime = kFrameDisplayTimeAlreadyDone;
-		_updates.fire({ DisplayFrameRequest{ position } });
+		_updates.fire({ DisplayFrameRequest() });
 	}
 }
 
@@ -125,7 +125,7 @@ void SinglePlayer::markFrameShown() {
 	if (_nextFrameTime == kFrameDisplayTimeAlreadyDone) {
 		_nextFrameTime = kTimeUnknown;
 	}
-	if (_state->markFrameShown() != kTimeUnknown) {
+	if (_state->markFrameShown()) {
 		_renderer->frameShown();
 	}
 }

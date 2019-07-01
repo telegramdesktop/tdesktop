@@ -28,15 +28,16 @@ inline constexpr auto kMaxSize = 3096;
 inline constexpr auto kMaxFramesCount = 600;
 inline constexpr auto kFrameDisplayTimeAlreadyDone
 	= std::numeric_limits<crl::time>::max();
+inline constexpr auto kDisplayedInitial = crl::time(-1);
 
 class Player;
 class Cache;
 
 struct Frame {
 	QImage original;
-	crl::time position = kTimeUnknown;
-	crl::time displayed = kTimeUnknown;
+	crl::time displayed = kDisplayedInitial;
 	crl::time display = kTimeUnknown;
+	int index = 0;
 
 	FrameRequest request;
 	QImage prepared;
@@ -68,9 +69,9 @@ public:
 
 	[[nodiscard]] not_null<Frame*> frameForPaint();
 	[[nodiscard]] crl::time nextFrameDisplayTime() const;
-	void addTimelineDelay(crl::time delayed);
-	crl::time markFrameDisplayed(crl::time now);
-	crl::time markFrameShown();
+	void addTimelineDelay(crl::time delayed, int skippedFrames = 0);
+	void markFrameDisplayed(crl::time now);
+	bool markFrameShown();
 
 	void renderFrame(QImage &image, const FrameRequest &request, int index);
 
@@ -90,10 +91,10 @@ private:
 	void renderNextFrame(
 		not_null<Frame*> frame,
 		const FrameRequest &request);
+	[[nodiscard]] crl::time countFrameDisplayTime(int index) const;
 	[[nodiscard]] not_null<Frame*> getFrame(int index);
 	[[nodiscard]] not_null<const Frame*> getFrame(int index) const;
 	[[nodiscard]] int counter() const;
-	[[nodiscard]] crl::time currentFramePosition() const;
 
 	QByteArray _content;
 	std::unique_ptr<rlottie::Animation> _animation;

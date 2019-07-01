@@ -229,6 +229,9 @@ private:
 
 	void ensureLottiePlayer(Set &set);
 	void setupLottie(Set &set, int section, int index);
+	void markLottieFrameShown(Set &set);
+	void pauseInvisibleLottie();
+	void pauseInvisibleLottieIn(const SectionInfo &info);
 
 	int stickersRight() const;
 	bool featuredHasAddButton(int index) const;

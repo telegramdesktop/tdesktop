@@ -32,6 +32,9 @@ MultiPlayer::~MultiPlayer() {
 	for (const auto &[animation, state] : _active) {
 		_renderer->remove(state);
 	}
+	for (const auto &[animation, info] : _paused) {
+		_renderer->remove(info.state);
+	}
 }
 
 not_null<Animation*> MultiPlayer::append(
@@ -58,22 +61,35 @@ not_null<Animation*> MultiPlayer::append(
 	return _animations.back().get();
 }
 
-void MultiPlayer::startAtRightTime(not_null<SharedState*> state) {
-	Expects(!_active.empty());
-	Expects((_active.size() == 1) == (_started == kTimeUnknown));
-
-	const auto now = crl::now();
-	if (_active.size() == 1) {
-		_started = now;
+void MultiPlayer::startAtRightTime(std::unique_ptr<SharedState> state) {
+	if (_started == kTimeUnknown) {
+		_started = crl::now();
+		_lastSyncTime = kTimeUnknown;
+		_delay = 0;
 	}
+	const auto lastSyncTime = (_lastSyncTime != kTimeUnknown)
+		? _lastSyncTime
+		: _started;
+	const auto frameIndex = countFrameIndex(
+		state.get(),
+		lastSyncTime,
+		_delay);
+	state->start(this, _started, _delay, frameIndex);
+
+	_renderer->append(std::move(state));
+}
+
+int MultiPlayer::countFrameIndex(
+		not_null<SharedState*> state,
+		crl::time time,
+		crl::time delay) const {
+	Expects(time != kTimeUnknown);
 
 	const auto rate = state->information().frameRate;
 	Assert(rate != 0);
 
-	const auto started = _started + _delay;
-	const auto skipFrames = (now - started) * rate / 1000;
-
-	state->start(this, _started, _delay, skipFrames);
+	const auto framesTime = time - _started - delay;
+	return ((framesTime + 1) * rate - 1) / 1000;
 }
 
 void MultiPlayer::start(
@@ -81,39 +97,86 @@ void MultiPlayer::start(
 		std::unique_ptr<SharedState> state) {
 	Expects(state != nullptr);
 
-	if (_nextFrameTime == kTimeUnknown) {
-		appendToActive(animation, std::move(state));
+	const auto paused = _pausedBeforeStart.remove(animation);
+	auto info = StartingInfo{ std::move(state), paused };
+	if (_active.empty()
+		|| (_lastSyncTime == kTimeUnknown
+			&& _nextFrameTime == kTimeUnknown)) {
+		startBeforeLifeCycle(animation, std::move(info));
 	} else {
 		// We always try to mark as shown at the same time, so we start a new
 		// animation at the same time we mark all existing as shown.
-		_pendingToStart.emplace(animation, std::move(state));
+		_pendingToStart.emplace(animation, std::move(info));
 	}
-}
-
-void MultiPlayer::appendPendingToActive() {
-	for (auto &[animation, state] : base::take(_pendingToStart)) {
-		appendToActive(animation, std::move(state));
-	}
-}
-
-void MultiPlayer::appendToActive(
-		not_null<Animation*> animation,
-		std::unique_ptr<SharedState> state) {
-	Expects(_nextFrameTime == kTimeUnknown);
-
-	_active.emplace(animation, state.get());
-
-	auto information = state->information();
-	startAtRightTime(state.get());
-	_renderer->append(std::move(state));
 	_updates.fire({});
 }
 
+void MultiPlayer::startBeforeLifeCycle(
+		not_null<Animation*> animation,
+		StartingInfo &&info) {
+	_active.emplace(animation, info.state.get());
+	startAtRightTime(std::move(info.state));
+	if (info.paused) {
+		_pendingPause.emplace(animation);
+	}
+}
+
+void MultiPlayer::startInsideLifeCycle(
+		not_null<Animation*> animation,
+		StartingInfo &&info) {
+	const auto state = info.state.get();
+	if (info.paused) {
+		_paused.emplace(
+			animation,
+			PausedInfo{ state, _lastSyncTime, _delay });
+	} else {
+		_active.emplace(animation, state);
+	}
+	startAtRightTime(std::move(info.state));
+}
+
+void MultiPlayer::processPending() {
+	Expects(_lastSyncTime != kTimeUnknown);
+
+	for (const auto &animation : base::take(_pendingPause)) {
+		pauseAndSaveState(animation);
+	}
+	for (const auto &animation : base::take(_pendingUnpause)) {
+		unpauseAndKeepUp(animation);
+	}
+	for (auto &[animation, info] : base::take(_pendingToStart)) {
+		startInsideLifeCycle(animation, std::move(info));
+	}
+	for (const auto &animation : base::take(_pendingRemove)) {
+		removeNow(animation);
+	}
+}
+
 void MultiPlayer::remove(not_null<Animation*> animation) {
+	if (!_active.empty()) {
+		_pendingRemove.emplace(animation);
+	} else {
+		removeNow(animation);
+	}
+}
+
+void MultiPlayer::removeNow(not_null<Animation*> animation) {
 	const auto i = _active.find(animation);
 	if (i != end(_active)) {
 		_renderer->remove(i->second);
+		_active.erase(i);
 	}
+	const auto j = _paused.find(animation);
+	if (j != end(_paused)) {
+		_renderer->remove(j->second.state);
+		_paused.erase(j);
+	}
+
+	_pendingRemove.remove(animation);
+	_pendingToStart.remove(animation);
+	_pendingPause.remove(animation);
+	_pendingUnpause.remove(animation);
+	_pausedBeforeStart.remove(animation);
 	_animations.erase(
 		ranges::remove(
 			_animations,
@@ -122,11 +185,93 @@ void MultiPlayer::remove(not_null<Animation*> animation) {
 		end(_animations));
 
 	if (_active.empty()) {
-		_started = kTimeUnknown;
-		_delay = 0;
 		_nextFrameTime = kTimeUnknown;
 		_timer.cancel();
+		if (_paused.empty()) {
+			_started = kTimeUnknown;
+			_lastSyncTime = kTimeUnknown;
+			_delay = 0;
+		}
 	}
+}
+
+void MultiPlayer::pause(not_null<Animation*> animation) {
+	if (_active.contains(animation)) {
+		_pendingPause.emplace(animation);
+	} else if (_paused.contains(animation)) {
+		_pendingUnpause.remove(animation);
+	} else if (const auto i = _pendingToStart.find(animation); i != end(_pendingToStart)) {
+		i->second.paused = true;
+	} else {
+		_pausedBeforeStart.emplace(animation);
+	}
+}
+
+void MultiPlayer::unpause(not_null<Animation*> animation) {
+	if (const auto i = _paused.find(animation); i != end(_paused)) {
+		if (_active.empty()) {
+			unpauseFirst(animation, i->second.state);
+			_paused.erase(i);
+		} else {
+			_pendingUnpause.emplace(animation);
+		}
+	} else if (_pendingPause.contains(animation)) {
+		_pendingPause.remove(animation);
+	} else {
+		const auto i = _pendingToStart.find(animation);
+		if (i != end(_pendingToStart)) {
+			i->second.paused = false;
+		} else {
+			_pausedBeforeStart.remove(animation);
+		}
+	}
+}
+
+void MultiPlayer::unpauseFirst(
+		not_null<Animation*> animation,
+		not_null<SharedState*> state) {
+	Expects(_lastSyncTime != kTimeUnknown);
+
+	_active.emplace(animation, state);
+
+	const auto now = crl::now();
+	addTimelineDelay(now - _lastSyncTime);
+	_lastSyncTime = now;
+
+	markFrameShown();
+}
+
+void MultiPlayer::pauseAndSaveState(not_null<Animation*> animation) {
+	Expects(_lastSyncTime != kTimeUnknown);
+
+	const auto i = _active.find(animation);
+	Assert(i != end(_active));
+	_paused.emplace(
+		animation,
+		PausedInfo{ i->second, _lastSyncTime, _delay });
+	_active.erase(i);
+}
+
+void MultiPlayer::unpauseAndKeepUp(not_null<Animation*> animation) {
+	Expects(_lastSyncTime != kTimeUnknown);
+
+	const auto i = _paused.find(animation);
+	Assert(i != end(_paused));
+	const auto state = i->second.state;
+	const auto frameIndexAtPaused = countFrameIndex(
+		state,
+		i->second.pauseTime,
+		i->second.pauseDelay);
+	const auto frameIndexNow = countFrameIndex(
+		state,
+		_lastSyncTime,
+		_delay);
+	PROFILE_LOG(("UNPAUSED WITH %1 DELAY AND %2 SKIPPED FRAMES").arg(_delay - i->second.pauseDelay).arg(frameIndexNow - frameIndexAtPaused));
+	state->addTimelineDelay(
+		(_delay - i->second.pauseDelay),
+		frameIndexNow - frameIndexAtPaused);
+	_active.emplace(animation, state);
+	_paused.erase(i);
 }
 
 void MultiPlayer::failed(not_null<Animation*> animation, Error error) {
@@ -191,8 +336,9 @@ void MultiPlayer::checkNextFrameRender() {
 
 		markFrameDisplayed(now);
 		addTimelineDelay(now - _nextFrameTime);
-
+		_lastSyncTime = now;
 		_nextFrameTime = kFrameDisplayTimeAlreadyDone;
+		processPending();
 		_updates.fire({});
 	}
 }
@@ -200,10 +346,20 @@ void MultiPlayer::checkNextFrameRender() {
 void MultiPlayer::updateFrameRequest(
 		not_null<const Animation*> animation,
 		const FrameRequest &request) {
-	const auto i = _active.find(animation);
-	Assert(i != _active.end());
-
-	_renderer->updateFrameRequest(i->second, request);
+	const auto state = [&] {
+		const auto key = animation;
+		if (const auto i = _active.find(animation); i != end(_active)) {
+			return i->second.get();
+		} else if (const auto j = _paused.find(animation);
+				j != end(_paused)) {
+			return j->second.state.get();
+		} else if (const auto k = _pendingToStart.find(animation);
+				k != end(_pendingToStart)) {
+			return k->second.state.get();
+		}
+		Unexpected("Animation in MultiPlayer::updateFrameRequest.");
+	}();
+	_renderer->updateFrameRequest(state, request);
 }
 
 void MultiPlayer::markFrameDisplayed(crl::time now) {
@@ -238,11 +394,10 @@ void MultiPlayer::addTimelineDelay(crl::time delayed) {
 void MultiPlayer::markFrameShown() {
 	if (_nextFrameTime == kFrameDisplayTimeAlreadyDone) {
 		_nextFrameTime = kTimeUnknown;
-		appendPendingToActive();
 	}
 	auto count = 0;
 	for (const auto &[animation, state] : _active) {
-		if (state->markFrameShown() != kTimeUnknown) {
+		if (state->markFrameShown()) {
 			++count;
 		}
 	}

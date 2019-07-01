@@ -25,8 +25,6 @@ QImage prepareColored(QColor add, QImage image);
 namespace Lottie {
 namespace {
 
-constexpr auto kDisplaySkipped = crl::time(-1);
-
 std::weak_ptr<FrameRenderer> GlobalInstance;
 
 constexpr auto kImageFormat = QImage::Format_ARGB32_Premultiplied;
@@ -300,11 +298,6 @@ void SharedState::init(QImage cover, const FrameRequest &request) {
 
 	_frames[0].request = request;
 	_frames[0].original = std::move(cover);
-	_frames[0].position = 0;
-
-	// Usually main thread sets displayed time before _counter increment.
-	// But in this case we update _counter, so we set a fake displayed time.
-	_frames[0].displayed = kDisplaySkipped;
 }
 
 void SharedState::start(
@@ -316,14 +309,11 @@ void SharedState::start(
 	_started = started;
 	_delay = delay;
 	_skippedFrames = skippedFrames;
-
-	_frames[0].position = currentFramePosition();
 	_counter.store(0, std::memory_order_release);
 }
 
 bool IsRendered(not_null<const Frame*> frame) {
-	return (frame->position != kTimeUnknown)
-		&& (frame->displayed == kTimeUnknown);
+	return (frame->displayed == kTimeUnknown);
 }
 
 void SharedState::renderNextFrame(
@@ -332,13 +322,10 @@ void SharedState::renderNextFrame(
 	Expects(_framesCount > 0);
 
 	renderFrame(frame->original, request, (++_frameIndex) % _framesCount);
+	frame->request = request;
 	PrepareFrameByRequest(frame);
-	frame->position = currentFramePosition();
+	frame->index = _frameIndex;
 	frame->displayed = kTimeUnknown;
-}
-
-crl::time SharedState::currentFramePosition() const {
-	return crl::time(1000) * (_skippedFrames + _frameIndex) / _frameRate;
 }
 
 auto SharedState::renderNextFrame(const FrameRequest &request)
@@ -360,7 +347,8 @@ auto SharedState::renderNextFrame(const FrameRequest &request)
 		if (!IsRendered(frame)) {
 			renderNextFrame(frame, request);
 		}
-		frame->display = _started + _delay + frame->position;
+		frame->display = countFrameDisplayTime(frame->index);
+		PROFILE_LOG(("DISPLAY AT: %1 (STARTED %2, DELAY %3, FRAME: %4, RATE: %5, {SKIPPED %6, INDEX: %7})").arg(frame->display).arg(_started).arg(_delay).arg(_skippedFrames + frame->index).arg(_frameRate).arg(_skippedFrames).arg(frame->index));
 
 		// Release this frame to the main thread for rendering.
 		_counter.store(
@@ -380,6 +368,12 @@ auto SharedState::renderNextFrame(const FrameRequest &request)
 	case 7: return prerender(1);
 	}
 	Unexpected("Counter value in Lottie::SharedState::renderNextFrame.");
+}
+
+crl::time SharedState::countFrameDisplayTime(int index) const {
+	return _started
+		+ _delay
+		+ crl::time(1000) * (_skippedFrames + index) / _frameRate;
 }
 
 int SharedState::counter() const {
@@ -416,7 +410,6 @@ Information SharedState::information() const {
 not_null<Frame*> SharedState::frameForPaint() {
 	const auto result = getFrame(counter() / 2);
 	Assert(!result->original.isNull());
-	Assert(result->position != kTimeUnknown);
 	Assert(result->displayed != kTimeUnknown);
 
 	return result;
@@ -450,27 +443,48 @@ crl::time SharedState::nextFrameDisplayTime() const {
 	Unexpected("Counter value in VideoTrack::Shared::nextFrameDisplayTime.");
 }
 
-void SharedState::addTimelineDelay(crl::time delayed) {
-	if (!delayed) {
+void SharedState::addTimelineDelay(crl::time delayed, int skippedFrames) {
+	if (!delayed && !skippedFrames) {
 		return;
 	}
 
-	Assert(counter() % 2 == 1);
-	_delay += delayed;
+	const auto recountCurrentFrame = [&](int counter) {
+		_delay += delayed;
+		_skippedFrames += skippedFrames;
+
+		const auto next = (counter + 1) % (2 * kFramesCount);
+		const auto index = next / 2;
+		const auto frame = getFrame(index);
+		if (frame->displayed != kTimeUnknown) {
+			// Frame already displayed.
+			return;
+		}
+		Assert(IsRendered(frame));
+		Assert(frame->display != kTimeUnknown);
+		frame->display = countFrameDisplayTime(frame->index);
+	};
+
+	switch (counter()) {
+	case 0: Unexpected("Value 0 in SharedState::addTimelineDelay.");
+	case 1: return recountCurrentFrame(1);
+	case 2: Unexpected("Value 2 in SharedState::addTimelineDelay.");
+	case 3: return recountCurrentFrame(3);
+	case 4: Unexpected("Value 4 in SharedState::addTimelineDelay.");
+	case 5: return recountCurrentFrame(5);
+	case 6: Unexpected("Value 6 in SharedState::addTimelineDelay.");
+	case 7: return recountCurrentFrame(7);
+	}
+	Unexpected("Counter value in VideoTrack::Shared::nextFrameDisplayTime.");
 }
 
-crl::time SharedState::markFrameDisplayed(crl::time now) {
+void SharedState::markFrameDisplayed(crl::time now) {
 	const auto mark = [&](int counter) {
 		const auto next = (counter + 1) % (2 * kFramesCount);
 		const auto index = next / 2;
 		const auto frame = getFrame(index);
-		Assert(frame->position != kTimeUnknown);
-
-		if (frame->displayed != kTimeUnknown) {
-			return kTimeUnknown;
+		if (frame->displayed == kTimeUnknown) {
+			frame->displayed = now;
 		}
-		frame->displayed = now;
-		return frame->position;
 	};
 
 	switch (counter()) {
@@ -486,29 +500,28 @@ crl::time SharedState::markFrameDisplayed(crl::time now) {
 	Unexpected("Counter value in Lottie::SharedState::markFrameDisplayed.");
 }
 
-crl::time SharedState::markFrameShown() {
+bool SharedState::markFrameShown() {
 	const auto jump = [&](int counter) {
 		const auto next = (counter + 1) % (2 * kFramesCount);
 		const auto index = next / 2;
 		const auto frame = getFrame(index);
-		Assert(frame->position != kTimeUnknown);
 		if (frame->displayed == kTimeUnknown) {
-			return kTimeUnknown;
+			return false;
 		}
 		_counter.store(
 			next,
 			std::memory_order_release);
-		return frame->position;
+		return true;
 	};
 
 	switch (counter()) {
-	case 0: return kTimeUnknown;
+	case 0: return false;
 	case 1: return jump(1);
-	case 2: return kTimeUnknown;
+	case 2: return false;
 	case 3: return jump(3);
-	case 4: return kTimeUnknown;
+	case 4: return false;
 	case 5: return jump(5);
-	case 6: return kTimeUnknown;
+	case 6: return false;
 	case 7: return jump(7);
 	}
 	Unexpected("Counter value in Lottie::SharedState::markFrameShown.");
