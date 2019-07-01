@@ -219,9 +219,9 @@ private:
 	std::vector<Set> &shownSets();
 	const std::vector<Set> &shownSets() const;
 	int featuredRowHeight() const;
-	void readVisibleSets();
+	void checkVisibleFeatured(int visibleTop, int visibleBottom);
+	void readVisibleFeatured(int visibleTop, int visibleBottom);
 
-	void paintFeaturedStickers(Painter &p, QRect clip);
 	void paintStickers(Painter &p, QRect clip);
 	void paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected);
 	void paintSticker(Painter &p, Set &set, int y, int section, int index, bool selected, bool deleteSelected);
@@ -230,8 +230,9 @@ private:
 	void ensureLottiePlayer(Set &set);
 	void setupLottie(Set &set, int section, int index);
 	void markLottieFrameShown(Set &set);
-	void pauseInvisibleLottie();
+	void checkVisibleLottie();
 	void pauseInvisibleLottieIn(const SectionInfo &info);
+	void destroyLottieIn(Set &set);
 
 	int stickersRight() const;
 	bool featuredHasAddButton(int index) const;

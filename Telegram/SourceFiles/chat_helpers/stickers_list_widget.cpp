@@ -730,7 +730,7 @@ StickersListWidget::StickersListWidget(
 	subscribe(Auth().downloaderTaskFinished(), [=] {
 		if (isVisible()) {
 			update();
-			readVisibleSets();
+			readVisibleFeatured(getVisibleTop(), getVisibleBottom());
 		}
 	});
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::ChannelStickersChanged, [this](const Notify::PeerUpdate &update) {
@@ -765,25 +765,42 @@ void StickersListWidget::visibleTopBottomUpdated(
 		int visibleBottom) {
 	Inner::visibleTopBottomUpdated(visibleTop, visibleBottom);
 	if (_section == Section::Featured) {
-		readVisibleSets();
+		checkVisibleFeatured(visibleTop, visibleBottom);
 	} else {
-		pauseInvisibleLottie();
+		checkVisibleLottie();
 	}
 	validateSelectedIcon(ValidateIconAnimations::Full);
 }
 
-void StickersListWidget::readVisibleSets() {
-	auto itemsVisibleTop = getVisibleTop();
-	auto itemsVisibleBottom = getVisibleBottom();
-	auto rowHeight = featuredRowHeight();
-	int rowFrom = floorclamp(itemsVisibleTop, rowHeight, 0, _featuredSets.size());
-	int rowTo = ceilclamp(itemsVisibleBottom, rowHeight, 0, _featuredSets.size());
-	for (int i = rowFrom; i < rowTo; ++i) {
+void StickersListWidget::checkVisibleFeatured(
+		int visibleTop,
+		int visibleBottom) {
+	readVisibleFeatured(visibleTop, visibleBottom);
+
+	const auto visibleHeight = visibleBottom - visibleTop;
+	const auto rowHeight = featuredRowHeight();
+	const auto destroyAbove = floorclamp(visibleTop - visibleHeight, rowHeight, 0, _featuredSets.size());
+	const auto destroyBelow = ceilclamp(visibleBottom + visibleHeight, rowHeight, 0, _featuredSets.size());
+	for (auto i = 0; i != destroyAbove; ++i) {
+		destroyLottieIn(_featuredSets[i]);
+	}
+	for (auto i = destroyBelow; i != _featuredSets.size(); ++i) {
+		destroyLottieIn(_featuredSets[i]);
+	}
+}
+
+void StickersListWidget::readVisibleFeatured(
+		int visibleTop,
+		int visibleBottom) {
+	const auto rowHeight = featuredRowHeight();
+	const auto rowFrom = floorclamp(visibleTop, rowHeight, 0, _featuredSets.size());
+	const auto rowTo = ceilclamp(visibleBottom, rowHeight, 0, _featuredSets.size());
+	for (auto i = rowFrom; i < rowTo; ++i) {
 		auto &set = _featuredSets[i];
 		if (!(set.flags & MTPDstickerSet_ClientFlag::f_unread)) {
 			continue;
 		}
-		if (i * rowHeight < itemsVisibleTop || (i + 1) * rowHeight > itemsVisibleBottom) {
+		if (i * rowHeight < visibleTop || (i + 1) * rowHeight > visibleBottom) {
 			continue;
 		}
 		int count = qMin(int(set.stickers.size()), _columnCount);
@@ -1337,15 +1354,35 @@ void StickersListWidget::markLottieFrameShown(Set &set) {
 	}
 }
 
-void StickersListWidget::pauseInvisibleLottie() {
+void StickersListWidget::checkVisibleLottie() {
 	if (shownSets().empty()) {
 		return;
 	}
+	const auto visibleTop = getVisibleTop();
 	const auto visibleBottom = getVisibleBottom();
-	const auto top = sectionInfoByOffset(getVisibleTop());
-	pauseInvisibleLottieIn(top);
-	if (top.rowsBottom < visibleBottom) {
-		pauseInvisibleLottieIn(sectionInfoByOffset(visibleBottom));
+	const auto destroyAfterDistance = (visibleBottom - visibleTop) * 2;
+	const auto destroyAbove = visibleTop - destroyAfterDistance;
+	const auto destroyBelow = visibleBottom + destroyAfterDistance;
+	enumerateSections([&](const SectionInfo &info) {
+		if (destroyBelow <= info.rowsTop
+			|| destroyAbove >= info.rowsBottom) {
+			destroyLottieIn(shownSets()[info.section]);
+		} else if ((visibleTop > info.rowsTop && visibleTop < info.rowsBottom)
+			|| (visibleBottom > info.rowsTop
+				&& visibleBottom < info.rowsBottom)) {
+			pauseInvisibleLottieIn(info);
+		}
+		return true;
+	});
+}
+
+void StickersListWidget::destroyLottieIn(Set &set) {
+	if (!set.lottiePlayer) {
+		return;
+	}
+	set.lottiePlayer = nullptr;
+	for (auto &sticker : set.stickers) {
+		sticker.animated = nullptr;
 	}
 }
 
