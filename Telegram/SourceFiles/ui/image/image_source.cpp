@@ -275,11 +275,15 @@ QImage RemoteSource::takeLoaded() {
 		return QImage();
 	}
 
-	auto data = _loader->imageData(shrinkBox());
-	if (data.isNull()) {
+	if (_loader->cancelled()) {
 		_cancelled = true;
 		destroyLoader();
 		return QImage();
+	}
+	auto data = _loader->imageData(shrinkBox());
+	if (data.isNull()) {
+		// Bad content in the image.
+		data = Image::Empty()->original();
 	}
 
 	setInformation(_loader->bytes().size(), data.width(), data.height());
@@ -303,7 +307,7 @@ void RemoteSource::destroyLoader() {
 
 void RemoteSource::loadLocal() {
 	if (_loader) {
-		return;  
+		return;
 	}
 
 	_loader = createLoader(Data::FileOrigin(), LoadFromLocalOnly, true);
