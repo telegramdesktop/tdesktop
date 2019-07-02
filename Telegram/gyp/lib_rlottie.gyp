@@ -18,6 +18,7 @@
     'variables': {
       'official_build_target%': '',
       'submodules_loc': '../ThirdParty',
+      'libs_loc': '../../../Libraries',
       'rlottie_loc': '<(submodules_loc)/rlottie',
       'rlottie_src': '<(rlottie_loc)/src',
     },

@@ -18,6 +18,7 @@
     'variables': {
       'official_build_target%': '',
       'submodules_loc': '../ThirdParty',
+      'libs_loc': '../../../Libraries',
       'lz4_loc': '<(submodules_loc)/lz4/lib',
     },
     'defines': [
