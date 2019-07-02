@@ -1154,10 +1154,11 @@ auto LottieFromDocument(
 std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
 		not_null<DocumentData*> document,
 		LottieSize sizeTag,
-		QSize box) {
-	const auto method = [](auto &&...args) {
+		QSize box,
+		std::shared_ptr<Lottie::FrameRenderer> renderer) {
+	const auto method = [&](auto &&...args) {
 		return std::make_unique<Lottie::SinglePlayer>(
-			std::forward<decltype(args)>(args)...);
+			std::forward<decltype(args)>(args)..., std::move(renderer));
 	};
 	return LottieFromDocument(method, document, sizeTag, box);
 }

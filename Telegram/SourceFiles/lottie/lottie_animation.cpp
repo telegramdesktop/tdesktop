@@ -129,6 +129,10 @@ std::unique_ptr<rlottie::Animation> CreateFromContent(
 
 } // namespace details
 
+std::shared_ptr<FrameRenderer> MakeFrameRenderer() {
+	return FrameRenderer::CreateIndependent();
+}
+
 QImage ReadThumbnail(const QByteArray &content) {
 	return Init(content, FrameRequest()).match([](
 		const std::unique_ptr<SharedState> &state) {

@@ -15,10 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Lottie {
 
-std::shared_ptr<FrameRenderer> MakeFrameRenderer() {
-	return FrameRenderer::CreateIndependent();
-}
-
 MultiPlayer::MultiPlayer(std::shared_ptr<FrameRenderer> renderer)
 : _timer([=] { checkNextFrameRender(); })
 , _renderer(renderer ? std::move(renderer) : FrameRenderer::Instance()) {

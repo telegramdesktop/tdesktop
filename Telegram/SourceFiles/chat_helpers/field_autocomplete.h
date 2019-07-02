@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/animations.h"
-#include "ui/twidget.h"
+#include "ui/rp_widget.h"
 #include "base/timer.h"
 #include "chat_helpers/stickers.h"
 
@@ -16,22 +16,33 @@ namespace Ui {
 class ScrollArea;
 } // namespace Ui
 
+namespace Lottie {
+class SinglePlayer;
+class FrameRenderer;
+} // namespace Lottie;
+
 namespace internal {
+
+struct StickerSuggestion {
+	not_null<DocumentData*> document;
+	std::unique_ptr<Lottie::SinglePlayer> animated;
+};
 
 using MentionRows = QList<UserData*>;
 using HashtagRows = QList<QString>;
 using BotCommandRows = QList<QPair<UserData*, const BotCommand*>>;
-using StickerRows = std::vector<not_null<DocumentData*>>;
+using StickerRows = std::vector<StickerSuggestion>;
 
 class FieldAutocompleteInner;
 
 } // namespace internal
 
-class FieldAutocomplete final : public TWidget {
+class FieldAutocomplete final : public Ui::RpWidget {
 	Q_OBJECT
 
 public:
 	FieldAutocomplete(QWidget *parent);
+	~FieldAutocomplete();
 
 	bool clearFilteredBotCommands();
 	void showFiltered(
@@ -70,8 +81,6 @@ public:
 
 	void hideFast();
 
-	~FieldAutocomplete();
-
 signals:
 	void mentionChosen(UserData *user, FieldAutocomplete::ChooseMethod method) const;
 	void hashtagChosen(QString hashtag, FieldAutocomplete::ChooseMethod method) const;
@@ -93,6 +102,7 @@ private:
 
 	void updateFiltered(bool resetScroll = false);
 	void recount(bool resetScroll = false);
+	internal::StickerRows getStickerSuggestions();
 
 	QPixmap _cache;
 	internal::MentionRows _mrows;
@@ -100,7 +110,12 @@ private:
 	internal::BotCommandRows _brows;
 	internal::StickerRows _srows;
 
-	void rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const internal::StickerRows &srows, bool resetScroll);
+	void rowsUpdated(
+		internal::MentionRows &&mrows,
+		internal::HashtagRows &&hrows,
+		internal::BotCommandRows &&brows,
+		internal::StickerRows &&srows,
+		bool resetScroll);
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<internal::FieldAutocompleteInner> _inner;
@@ -132,17 +147,25 @@ private:
 
 namespace internal {
 
-class FieldAutocompleteInner final : public TWidget, private base::Subscriber {
+class FieldAutocompleteInner final
+	: public Ui::RpWidget
+	, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	FieldAutocompleteInner(FieldAutocomplete *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, StickerRows *srows);
+	FieldAutocompleteInner(
+		not_null<FieldAutocomplete*> parent,
+		not_null<MentionRows*> mrows,
+		not_null<HashtagRows*> hrows,
+		not_null<BotCommandRows*> brows,
+		not_null<StickerRows*> srows);
 
 	void clearSel(bool hidden = false);
 	bool moveSel(int key);
 	bool chooseSelected(FieldAutocomplete::ChooseMethod method) const;
 
 	void setRecentInlineBotsInRows(int32 bots);
+	void rowsUpdated();
 
 signals:
 	void mentionChosen(UserData *user, FieldAutocomplete::ChooseMethod method) const;
@@ -170,11 +193,17 @@ private:
 	void showPreview();
 	void selectByMouse(QPoint global);
 
-	FieldAutocomplete *_parent = nullptr;
-	MentionRows *_mrows = nullptr;
-	HashtagRows *_hrows = nullptr;
-	BotCommandRows *_brows = nullptr;
-	StickerRows *_srows = nullptr;
+	void setupLottie(StickerSuggestion &suggestion);
+	void repaintSticker(not_null<DocumentData*> document);
+	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
+
+	not_null<FieldAutocomplete*> _parent;
+	not_null<MentionRows*> _mrows;
+	not_null<HashtagRows*> _hrows;
+	not_null<BotCommandRows*> _brows;
+	not_null<StickerRows*> _srows;
+	rpl::lifetime _stickersLifetime;
+	std::weak_ptr<Lottie::FrameRenderer> _lottieRenderer;
 	int _stickersPerRow = 1;
 	int _recentInlineBotsInRows = 0;
 	int _sel = -1;

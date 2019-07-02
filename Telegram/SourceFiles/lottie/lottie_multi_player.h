@@ -27,8 +27,6 @@ struct MultiUpdate {
 	//	std::pair<Animation*, Error>> data;
 };
 
-std::shared_ptr<FrameRenderer> MakeFrameRenderer();
-
 class MultiPlayer final : public Player {
 public:
 	explicit MultiPlayer(std::shared_ptr<FrameRenderer> renderer = nullptr);

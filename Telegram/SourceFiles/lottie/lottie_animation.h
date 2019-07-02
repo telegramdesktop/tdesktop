@@ -22,6 +22,9 @@ namespace Lottie {
 
 class Player;
 class SharedState;
+class FrameRenderer;
+
+std::shared_ptr<FrameRenderer> MakeFrameRenderer();
 
 QImage ReadThumbnail(const QByteArray &content);
 

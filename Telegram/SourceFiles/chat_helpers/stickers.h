@@ -132,7 +132,8 @@ enum class LottieSize : uchar {
 [[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
 	not_null<DocumentData*> document,
 	LottieSize sizeTag,
-	QSize box);
+	QSize box,
+	std::shared_ptr<Lottie::FrameRenderer> renderer = nullptr);
 [[nodiscard]] not_null<Lottie::Animation*> LottieAnimationFromDocument(
 	not_null<Lottie::MultiPlayer*> player,
 	not_null<DocumentData*> document,
