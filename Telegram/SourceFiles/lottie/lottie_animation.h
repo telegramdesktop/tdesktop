@@ -48,6 +48,7 @@ public:
 		const FrameRequest &request);
 
 	[[nodiscard]] bool ready() const;
+	[[nodiscard]] QImage frame() const;
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
 
 private:

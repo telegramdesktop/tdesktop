@@ -136,7 +136,10 @@ private:
 int stickerPacksCount(bool includeArchivedOfficial = false);
 
 // This class is hold in header because it requires Qt preprocessing.
-class StickersBox::Inner : public TWidget, private base::Subscriber, private MTP::Sender {
+class StickersBox::Inner
+	: public Ui::RpWidget
+	, private base::Subscriber
+	, private MTP::Sender {
 	Q_OBJECT
 
 public:
@@ -233,6 +236,7 @@ private:
 		int32 pixh = 0;
 		anim::value yadd;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
+		std::unique_ptr<Lottie::SinglePlayer> lottie;
 	};
 	struct MegagroupSet {
 		inline bool operator==(const MegagroupSet &other) const {
@@ -272,11 +276,14 @@ private:
 	void ensureRipple(const style::RippleAnimation &st, QImage mask, bool removeButton);
 
 	bool shiftingAnimationCallback(crl::time now);
-	void paintRow(Painter &p, Row *set, int index);
-	void paintFakeButton(Painter &p, Row *set, int index);
+	void paintRow(Painter &p, not_null<Row*> set, int index);
+	void paintRowThumbnail(Painter &p, not_null<Row*> set, int left);
+	void paintFakeButton(Painter &p, not_null<Row*> set, int index);
 	void clear();
 	void setActionSel(int32 actionSel);
 	float64 aboveShadowOpacity() const;
+	void validateLottieAnimation(not_null<Row*> set);
+	void updateRowThumbnail(not_null<Row*> set);
 
 	void readVisibleSets();
 

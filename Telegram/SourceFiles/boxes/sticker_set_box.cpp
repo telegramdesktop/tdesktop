@@ -559,14 +559,12 @@ void StickerSetBox::Inner::paintSticker(
 	if (h < 1) h = 1;
 	QPoint ppos = position + QPoint((st::stickersSize.width() - w) / 2, (st::stickersSize.height() - h) / 2);
 	if (element.animated && element.animated->ready()) {
-		auto request = Lottie::FrameRequest();
-		request.box = boundingBoxSize() * cIntRetinaFactor();
 		const auto paused = _controller->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Layer);
 		if (!paused) {
 			element.animated->markFrameShown();
 		}
-		const auto frame = element.animated->frame(request);
+		const auto frame = element.animated->frame();
 		p.drawImage(
 			QRect(ppos, frame.size() / cIntRetinaFactor()),
 			frame);

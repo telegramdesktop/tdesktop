@@ -192,6 +192,12 @@ void Animation::parseFailed(Error error) {
 	_player->failed(this, error);
 }
 
+QImage Animation::frame() const {
+	Expects(_state != nullptr);
+
+	return PrepareFrameByRequest(_state->frameForPaint(), true);
+}
+
 QImage Animation::frame(const FrameRequest &request) const {
 	Expects(_state != nullptr);
 

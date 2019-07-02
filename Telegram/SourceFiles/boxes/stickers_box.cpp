@@ -20,8 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "storage/localstorage.h"
 #include "dialogs/dialogs_layout.h"
-#include "styles/style_boxes.h"
-#include "styles/style_chat_helpers.h"
+#include "lottie/lottie_single_player.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
@@ -31,7 +30,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/image/image.h"
+#include "window/window_session_controller.h"
 #include "auth_session.h"
+#include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 
 namespace {
 
@@ -655,7 +657,8 @@ StickersBox::Inner::Row::Row(
 
 StickersBox::Inner::Row::~Row() = default;
 
-StickersBox::Inner::Inner(QWidget *parent, StickersBox::Section section) : TWidget(parent)
+StickersBox::Inner::Inner(QWidget *parent, StickersBox::Section section)
+: RpWidget(parent)
 , _section(section)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _shiftingAnimation([=](crl::time now) {
@@ -669,7 +672,8 @@ StickersBox::Inner::Inner(QWidget *parent, StickersBox::Section section) : TWidg
 	setup();
 }
 
-StickersBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> megagroup) : TWidget(parent)
+StickersBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> megagroup)
+: RpWidget(parent)
 , _section(StickersBox::Section::Installed)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _shiftingAnimation([=](crl::time now) {
@@ -794,7 +798,7 @@ QRect StickersBox::Inner::relativeButtonRect(bool removeButton) const {
 	return QRect(buttonx, buttony, buttonw, buttonh);
 }
 
-void StickersBox::Inner::paintRow(Painter &p, Row *set, int index) {
+void StickersBox::Inner::paintRow(Painter &p, not_null<Row*> set, int index) {
 	auto xadd = 0, yadd = qRound(set->yadd.current());
 	if (xadd || yadd) p.translate(xadd, yadd);
 
@@ -854,17 +858,7 @@ void StickersBox::Inner::paintRow(Painter &p, Row *set, int index) {
 	}
 
 	if (set->sticker) {
-		const auto origin = Data::FileOriginStickerSet(
-			set->id,
-			set->accessHash);
-		const auto thumb = set->thumbnail
-			? set->thumbnail.get()
-			: set->sticker->thumbnail();
-		if (thumb) {
-			thumb->load(origin);
-			auto pix = thumb->pix(origin, set->pixw, set->pixh);
-			p.drawPixmapLeft(stickerx + (st::contactsPhotoSize - set->pixw) / 2, st::contactsPadding.top() + (st::contactsPhotoSize - set->pixh) / 2, width(), pix);
-		}
+		paintRowThumbnail(p, set, stickerx);
 	}
 
 	int namex = stickerx + st::contactsPhotoSize + st::contactsPadding.left();
@@ -897,7 +891,97 @@ void StickersBox::Inner::paintRow(Painter &p, Row *set, int index) {
 	if (xadd || yadd) p.translate(-xadd, -yadd);
 }
 
-void StickersBox::Inner::paintFakeButton(Painter &p, Row *set, int index) {
+void StickersBox::Inner::paintRowThumbnail(
+		Painter &p,
+		not_null<Row*> set,
+		int left) {
+	const auto origin = Data::FileOriginStickerSet(
+		set->id,
+		set->accessHash);
+	const auto thumb = set->thumbnail
+		? set->thumbnail.get()
+		: set->sticker->thumbnail();
+	if (!thumb) {
+		return;
+	}
+	thumb->load(origin);
+	validateLottieAnimation(set);
+	if (!set->lottie) {
+		if (!thumb->loaded()) {
+			return;
+		}
+		p.drawPixmapLeft(
+			left + (st::contactsPhotoSize - set->pixw) / 2,
+			st::contactsPadding.top() + (st::contactsPhotoSize - set->pixh) / 2,
+			width(),
+			thumb->pix(origin, set->pixw, set->pixh));
+	} else if (set->lottie->ready()) {
+		const auto frame = set->lottie->frame();
+		const auto size = frame.size() / cIntRetinaFactor();
+		p.drawImage(
+			QRect(
+				left + (st::contactsPhotoSize - size.width()) / 2,
+				st::contactsPadding.top() + (st::contactsPhotoSize - size.height()) / 2,
+				size.width(),
+				size.height()),
+			frame);
+		const auto controller = App::wnd()->sessionController();
+		const auto paused = controller->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Layer);
+		if (!paused) {
+			set->lottie->markFrameShown();
+		}
+	}
+}
+
+void StickersBox::Inner::validateLottieAnimation(not_null<Row*> set) {
+	if (set->lottie
+		|| !Stickers::HasLottieThumbnail(set->thumbnail, set->sticker)) {
+		return;
+	}
+	auto player = Stickers::LottieThumbnail(
+		set->thumbnail,
+		set->sticker,
+		Stickers::LottieSize::SetsListThumbnail,
+		QSize(
+			st::contactsPhotoSize,
+			st::contactsPhotoSize) * cIntRetinaFactor());
+	if (!player) {
+		return;
+	}
+	set->lottie = std::move(player);
+	set->lottie->updates(
+	) | rpl::start_with_next([=] {
+		updateRowThumbnail(set);
+	}, lifetime());
+}
+
+void StickersBox::Inner::updateRowThumbnail(not_null<Row*> set) {
+	const auto rowTop = [&] {
+		if (set == _megagroupSelectedSet.get()) {
+			return _megagroupDivider->y() - _rowHeight;
+		}
+		auto top = _itemsTop;
+		for (const auto &row : _rows) {
+			if (row.get() == set) {
+				return top + qRound(row->yadd.current());
+			}
+			top += _rowHeight;
+		}
+		Unexpected("StickersBox::Inner::updateRowThumbnail: row not found");
+	}();
+	const auto left = st::contactsPadding.left()
+		+ ((!_megagroupSet && _section == Section::Installed)
+			? st::stickersReorderIcon.width() + st::stickersReorderSkip
+			: 0);
+	update(
+		left,
+		rowTop + st::contactsPadding.top(),
+		st::contactsPhotoSize,
+		st::contactsPhotoSize);
+}
+
+void StickersBox::Inner::paintFakeButton(Painter &p, not_null<Row*> set, int index) {
 	auto removeButton = (_section == Section::Installed && !set->removed);
 	auto rect = relativeButtonRect(removeButton);
 	if (_section != Section::Installed && set->installed && !set->archived && !set->removed) {
@@ -1535,36 +1619,41 @@ void StickersBox::Inner::updateSize(int newWidth) {
 void StickersBox::Inner::updateRows() {
 	int maxNameWidth = countMaxNameWidth();
 	auto &sets = Auth().data().stickerSets();
-	for_const (auto &row, _rows) {
-		auto it = sets.constFind(row->id);
-		if (it != sets.cend()) {
-			auto &set = it.value();
-			if (!row->sticker) {
-				auto thumbnail = ImagePtr();
-				auto sticker = (DocumentData*)nullptr;
-				auto pixw = 0, pixh = 0;
-				fillSetCover(set, &thumbnail, &sticker, &pixw, &pixh);
-				if (sticker) {
-					row->thumbnail = thumbnail;
-					row->sticker = sticker;
-					row->pixw = pixw;
-					row->pixh = pixh;
-				}
-			}
-			if (!row->isRecentSet()) {
-				auto wasInstalled = row->installed;
-				auto wasArchived = row->archived;
-				fillSetFlags(set, &row->installed, &row->official, &row->unread, &row->archived);
-				if (_section == Section::Installed) {
-					row->archived = false;
-				}
-				if (row->installed != wasInstalled || row->archived != wasArchived) {
-					row->ripple.reset();
-				}
-			}
-			row->title = fillSetTitle(set, maxNameWidth, &row->titleWidth);
-			row->count = fillSetCount(set);
+	for (const auto &row : _rows) {
+		const auto it = sets.constFind(row->id);
+		if (it == sets.cend()) {
+			continue;
 		}
+		const auto &set = it.value();
+		if (!row->sticker) {
+			auto thumbnail = ImagePtr();
+			auto sticker = (DocumentData*)nullptr;
+			auto pixw = 0, pixh = 0;
+			fillSetCover(set, &thumbnail, &sticker, &pixw, &pixh);
+			if (sticker) {
+				if ((row->thumbnail.get() != thumbnail.get())
+					|| (!thumbnail && row->sticker != sticker)) {
+					row->lottie = nullptr;
+				}
+				row->thumbnail = thumbnail;
+				row->sticker = sticker;
+				row->pixw = pixw;
+				row->pixh = pixh;
+			}
+		}
+		if (!row->isRecentSet()) {
+			auto wasInstalled = row->installed;
+			auto wasArchived = row->archived;
+			fillSetFlags(set, &row->installed, &row->official, &row->unread, &row->archived);
+			if (_section == Section::Installed) {
+				row->archived = false;
+			}
+			if (row->installed != wasInstalled || row->archived != wasArchived) {
+				row->ripple.reset();
+			}
+		}
+		row->title = fillSetTitle(set, maxNameWidth, &row->titleWidth);
+		row->count = fillSetCount(set);
 	}
 	update();
 }

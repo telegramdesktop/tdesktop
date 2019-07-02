@@ -68,6 +68,10 @@ bool SinglePlayer::ready() const {
 	return _animation.ready();
 }
 
+QImage SinglePlayer::frame() const {
+	return _animation.frame();
+}
+
 QImage SinglePlayer::frame(const FrameRequest &request) const {
 	return _animation.frame(request);
 }
