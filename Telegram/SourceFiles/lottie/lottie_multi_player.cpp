@@ -248,7 +248,6 @@ void MultiPlayer::unpauseAndKeepUp(not_null<Animation*> animation) {
 		state,
 		_lastSyncTime,
 		_delay);
-	PROFILE_LOG(("UNPAUSED WITH %1 DELAY AND %2 SKIPPED FRAMES").arg(_delay - i->second.pauseDelay).arg(frameIndexNow - frameIndexAtPaused));
 	state->addTimelineDelay(
 		(_delay - i->second.pauseDelay),
 		frameIndexNow - frameIndexAtPaused);
@@ -283,7 +282,6 @@ void MultiPlayer::checkNextFrameAvailability() {
 		if (time == kTimeUnknown) {
 			for (const auto &[animation, state] : _active) {
 				if (state->nextFrameDisplayTime() != kTimeUnknown) {
-					PROFILE_LOG(("PLAYER -------- SOME READY, BUT NOT ALL"));
 					break;
 				}
 			}
@@ -296,10 +294,8 @@ void MultiPlayer::checkNextFrameAvailability() {
 		}
 	}
 	if (next == kTimeUnknown) {
-		PROFILE_LOG(("PLAYER ALL DISPLAYED, WAITING PAINT."));
 		return;
 	}
-	PROFILE_LOG(("PLAYER NEXT FRAME TIME: %1").arg(next));
 	_nextFrameTime = next;
 	checkNextFrameRender();
 }
@@ -310,7 +306,6 @@ void MultiPlayer::checkNextFrameRender() {
 	const auto now = crl::now();
 	if (now < _nextFrameTime) {
 		if (!_timer.isActive()) {
-			PROFILE_LOG(("PLAYER TIMER FOR: %1").arg(_nextFrameTime - now));
 			_timer.callOnce(_nextFrameTime - now);
 		}
 	} else {
@@ -347,21 +342,15 @@ void MultiPlayer::updateFrameRequest(
 void MultiPlayer::markFrameDisplayed(crl::time now) {
 	Expects(!_active.empty());
 
-	auto displayed = 0;
-	auto waiting = 0;
 	for (const auto &[animation, state] : _active) {
 		const auto time = state->nextFrameDisplayTime();
 		Assert(time != kTimeUnknown);
 		if (time == kFrameDisplayTimeAlreadyDone) {
 			continue;
 		} else if (now >= time) {
-			++displayed;
 			state->markFrameDisplayed(now);
-		} else {
-			++waiting;
 		}
 	}
-	PROFILE_LOG(("PLAYER FRAME DISPLAYED AT: %1 (MARKED %2, WAITING %3)").arg(now).arg(displayed).arg(waiting));
 }
 
 void MultiPlayer::addTimelineDelay(crl::time delayed) {
@@ -383,7 +372,6 @@ void MultiPlayer::markFrameShown() {
 			++count;
 		}
 	}
-	PROFILE_LOG(("PLAYER MARKED SHOWN %1 OF %2").arg(count).arg(_active.size()));
 	if (count) {
 		_renderer->frameShown();
 	}

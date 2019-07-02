@@ -1600,7 +1600,6 @@ void StickersListWidget::ensureLottiePlayer(Set &set) {
 	raw->updates(
 	) | rpl::start_with_next([=] {
 		const auto &sets = shownSets();
-		PROFILE_LOG(("WIDGET REPAINT REQUESTED"));
 		enumerateSections([&](const SectionInfo &info) {
 			if (shownSets()[info.section].lottiePlayer == raw) {
 				update(

@@ -168,20 +168,16 @@ void FrameRendererObject::generateFrames() {
 	};
 	const auto rendered = ranges::count_if(_entries, renderOne);
 	if (rendered) {
-		PROFILE_LOG(("RENDERER: %1, ALL: %2, PLAYERS: %3").arg(rendered).arg(_entries.size()).arg(players.size()));
 		if (!players.empty()) {
 			crl::on_main([players = std::move(players)] {
 				for (const auto &[player, weak] : players) {
 					if (weak) {
-						PROFILE_LOG(("RENDERER -- ON MAIN CHECK"));
 						weak->checkStep();
 					}
 				}
 			});
 		}
 		queueGenerateFrames();
-	} else {
-		PROFILE_LOG(("RENDERER EMPTY"));
 	}
 }
 
@@ -348,7 +344,6 @@ auto SharedState::renderNextFrame(const FrameRequest &request)
 			renderNextFrame(frame, request);
 		}
 		frame->display = countFrameDisplayTime(frame->index);
-		PROFILE_LOG(("DISPLAY AT: %1 (STARTED %2, DELAY %3, FRAME: %4, RATE: %5, {SKIPPED %6, INDEX: %7})").arg(frame->display).arg(_started).arg(_delay).arg(_skippedFrames + frame->index).arg(_frameRate).arg(_skippedFrames).arg(frame->index));
 
 		// Release this frame to the main thread for rendering.
 		_counter.store(
