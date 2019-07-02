@@ -524,9 +524,8 @@ void StickerSetBox::Inner::setupLottie(int index) {
 	const auto animation = element.animated.get();
 
 	animation->updates(
-	) | rpl::start_with_next_error([=](Lottie::Update update) {
-		this->update();
-	}, [=](Lottie::Error error) {
+	) | rpl::start_with_next([=] {
+		update();
 	}, lifetime());
 }
 

@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/text/text.h"
 
+namespace Lottie {
+class SinglePlayer;
+} // namespace Lottie
+
 namespace InlineBots {
 namespace Layout {
 namespace internal {
@@ -151,6 +155,7 @@ private:
 class Sticker : public FileBase {
 public:
 	Sticker(not_null<Context*> context, Result *result);
+	~Sticker();
 	// Not used anywhere currently.
 	//Sticker(not_null<Context*> context, DocumentData *document);
 
@@ -173,14 +178,18 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 
 private:
+	void setupLottie(not_null<DocumentData*> document) const;
 	QSize getThumbSize() const;
+	void prepareThumbnail() const;
 
 	mutable Ui::Animations::Simple _a_over;
 	mutable bool _active = false;
 
 	mutable QPixmap _thumb;
 	mutable bool _thumbLoaded = false;
-	void prepareThumbnail() const;
+
+	mutable std::unique_ptr<Lottie::SinglePlayer> _lottie;
+	mutable rpl::lifetime _lifetime;
 
 };
 

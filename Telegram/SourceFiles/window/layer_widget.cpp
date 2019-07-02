@@ -879,10 +879,8 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 		if (!_lottie || !_lottie->ready()) {
 			return QImage();
 		}
-		auto request = Lottie::FrameRequest();
-		request.box = currentDimensions() * cIntRetinaFactor();
 		_lottie->markFrameShown();
-		return _lottie->frame(request);
+		return _lottie->frame();
 	}();
 	const auto pixmap = image.isNull() ? currentImage() : QPixmap();
 	const auto size = image.isNull() ? pixmap.size() : image.size();
@@ -1054,13 +1052,12 @@ void MediaPreviewWidget::setupLottie() {
 		Lottie::FrameRequest{ currentDimensions() * cIntRetinaFactor() });
 
 	_lottie->updates(
-	) | rpl::start_with_next_error([=](Lottie::Update update) {
+	) | rpl::start_with_next([=](Lottie::Update update) {
 		update.data.match([&](const Lottie::Information &) {
 			this->update();
 		}, [&](const Lottie::DisplayFrameRequest &) {
 			this->update(updateArea());
 		});
-	}, [=](Lottie::Error error) {
 	}, lifetime());
 }
 

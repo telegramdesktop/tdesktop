@@ -126,7 +126,6 @@ private:
 		int newSelected,
 		ValidateIconAnimations animations);
 	void validateIconLottieAnimation(const StickerIcon &icon);
-	QSize iconBox() const;
 
 	void refreshIconsGeometry(ValidateIconAnimations animations);
 	void refillLottieData();
@@ -701,12 +700,6 @@ void StickersListWidget::Footer::paintFeaturedStickerSetsBadge(Painter &p, int i
 	}
 }
 
-QSize StickersListWidget::Footer::iconBox() const {
-	return QSize(
-		st::stickerIconWidth - 2 * st::stickerIconPadding,
-		st::emojiFooterHeight - 2 * st::stickerIconPadding);
-}
-
 void StickersListWidget::Footer::validateIconLottieAnimation(
 		const StickerIcon &icon) {
 	if (icon.lottie
@@ -717,7 +710,10 @@ void StickersListWidget::Footer::validateIconLottieAnimation(
 		icon.thumbnail,
 		icon.sticker,
 		Stickers::LottieSize::StickersFooter,
-		iconBox() * cIntRetinaFactor(),
+		QSize(
+			st::stickerIconWidth - 2 * st::stickerIconPadding,
+			st::emojiFooterHeight - 2 * st::stickerIconPadding
+		) * cIntRetinaFactor(),
 		_pan->getLottieRenderer());
 	if (!player) {
 		return;
@@ -768,9 +764,7 @@ void StickersListWidget::Footer::paintSetIcon(
 				width(),
 				thumb->pix(origin, icon.pixw, icon.pixh));
 		} else if (icon.lottie->ready()) {
-			auto request = Lottie::FrameRequest();
-			request.box = iconBox() * cIntRetinaFactor();
-			const auto frame = icon.lottie->frame(request);
+			const auto frame = icon.lottie->frame();
 			const auto size = frame.size() / cIntRetinaFactor();
 			p.drawImage(
 				QRect(

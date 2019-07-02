@@ -126,6 +126,7 @@ enum class LottieSize : uchar {
 	StickersPanel,
 	StickersFooter,
 	SetsListThumbnail,
+	InlineResults,
 };
 
 [[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(

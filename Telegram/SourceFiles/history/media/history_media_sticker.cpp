@@ -104,13 +104,12 @@ void HistorySticker::setupLottie() {
 	_parent->data()->history()->owner().registerHeavyViewPart(_parent);
 
 	_lottie->updates(
-	) | rpl::start_with_next_error([=](Lottie::Update update) {
+	) | rpl::start_with_next([=](Lottie::Update update) {
 		update.data.match([&](const Lottie::Information &information) {
 			_parent->data()->history()->owner().requestViewResize(_parent);
 		}, [&](const Lottie::DisplayFrameRequest &request) {
 			_parent->data()->history()->owner().requestViewRepaint(_parent);
 		});
-	}, [=](Lottie::Error error) {
 	}, _lifetime);
 }
 
@@ -126,7 +125,7 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, c
 	auto sticker = _data->sticker();
 	if (!sticker) return;
 
-	if (sticker->animated && _data->loaded() && !_lottie) {
+	if (sticker->animated && !_lottie && _data->loaded()) {
 		const_cast<HistorySticker*>(this)->setupLottie();
 	}
 

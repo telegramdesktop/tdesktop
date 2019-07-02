@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_widgets.h"
 #include "inline_bots/inline_bot_result.h"
+#include "lottie/lottie_single_player.h"
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
@@ -387,6 +388,8 @@ Sticker::Sticker(not_null<Context*> context, Result *result)
 : FileBase(context, result) {
 }
 
+Sticker::~Sticker() = default;
+
 void Sticker::initDimensions() {
 	_maxw = st::stickerPanSize.width();
 	_minh = st::stickerPanSize.height();
@@ -411,7 +414,17 @@ void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	}
 
 	prepareThumbnail();
-	if (!_thumb.isNull()) {
+	if (_lottie && _lottie->ready()) {
+		const auto frame = _lottie->frame();
+		_lottie->markFrameShown();
+		const auto size = frame.size() / cIntRetinaFactor();
+		const auto pos = QPoint(
+			(st::stickerPanSize.width() - size.width()) / 2,
+			(st::stickerPanSize.height() - size.height()) / 2);
+		p.drawImage(
+			QRect(pos, size),
+			frame);
+	} else if (!_thumb.isNull()) {
 		int w = _thumb.width() / cIntRetinaFactor(), h = _thumb.height() / cIntRetinaFactor();
 		QPoint pos = QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
 		p.drawPixmap(pos, _thumb);
@@ -450,11 +463,31 @@ QSize Sticker::getThumbSize() const {
 	return QSize(qMax(w, 1), qMax(h, 1));
 }
 
+void Sticker::setupLottie(not_null<DocumentData*> document) const {
+	_lottie = Stickers::LottiePlayerFromDocument(
+		document,
+		Stickers::LottieSize::InlineResults,
+		QSize(
+			st::stickerPanSize.width() - st::buttonRadius * 2,
+			st::stickerPanSize.height() - st::buttonRadius * 2
+		) * cIntRetinaFactor());
+
+	_lottie->updates(
+	) | rpl::start_with_next([=] {
+		update();
+	}, _lifetime);
+}
+
 void Sticker::prepareThumbnail() const {
 	if (const auto document = getShownDocument()) {
+		if (document->sticker()->animated
+			&& !_lottie
+			&& document->loaded()) {
+			setupLottie(document);
+		}
 		document->checkStickerSmall();
 		if (const auto sticker = document->getStickerSmall()) {
-			if (!_thumbLoaded && sticker->loaded()) {
+			if (!_lottie && !_thumbLoaded && sticker->loaded()) {
 				const auto thumbSize = getThumbSize();
 				_thumb = sticker->pix(
 					document->stickerSetOrigin(),
