@@ -5239,6 +5239,9 @@ void HistoryWidget::replyToNextMessage() {
 				const auto next = nextView->data();
 				Ui::showPeerHistoryAtItem(next);
 				replyToMessage(next);
+			} else {
+				clearHighlightMessages();
+				cancelReply(false);
 			}
 		}
 	}
