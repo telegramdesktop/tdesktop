@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
 #include "lottie/lottie_multi_player.h"
+#include "lottie/lottie_single_player.h"
 #include "lottie/lottie_animation.h"
 #include "boxes/stickers_box.h"
 #include "inline_bots/inline_bot_result.h"
@@ -64,6 +65,7 @@ struct StickerIcon {
 	}
 	uint64 setId = 0;
 	ImagePtr thumbnail;
+	mutable Lottie::SinglePlayer *lottie = nullptr;
 	DocumentData *sticker = nullptr;
 	ChannelData *megagroup = nullptr;
 	int pixw = 0;
@@ -71,9 +73,11 @@ struct StickerIcon {
 
 };
 
-class StickersListWidget::Footer : public TabbedSelector::InnerFooter, private base::Subscriber {
+class StickersListWidget::Footer
+	: public TabbedSelector::InnerFooter
+	, private base::Subscriber {
 public:
-	Footer(not_null<StickersListWidget*> parent);
+	explicit Footer(not_null<StickersListWidget*> parent);
 
 	void preloadImages();
 	void validateSelectedIcon(
@@ -87,6 +91,8 @@ public:
 	void stealFocus();
 	void returnFocus();
 	void setLoading(bool loading);
+
+	void clearLottieData();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -106,6 +112,12 @@ private:
 	};
 	using OverState = base::variant<SpecialOver, int>;
 
+	struct LottieIcon {
+		std::unique_ptr<Lottie::SinglePlayer> player;
+		bool stale = false;
+		rpl::lifetime lifetime;
+	};
+
 	template <typename Callback>
 	void enumerateVisibleIcons(Callback callback);
 
@@ -113,9 +125,13 @@ private:
 	void setSelectedIcon(
 		int newSelected,
 		ValidateIconAnimations animations);
+	void validateIconLottieAnimation(const StickerIcon &icon);
+	QSize iconBox() const;
 
 	void refreshIconsGeometry(ValidateIconAnimations animations);
+	void refillLottieData();
 	void updateSelected();
+	void updateSetIcon(uint64 setId);
 	void finishDragging();
 	void paintStickerSettingsIcon(Painter &p) const;
 	void paintSearchIcon(Painter &p) const;
@@ -134,6 +150,7 @@ private:
 	static constexpr auto kVisibleIconsCount = 8;
 
 	QList<StickerIcon> _icons;
+	mutable base::flat_map<uint64, LottieIcon> _lottieData;
 	OverState _iconOver = SpecialOver::None;
 	int _iconSel = 0;
 	OverState _iconDown = SpecialOver::None;
@@ -191,7 +208,8 @@ StickersListWidget::Set &StickersListWidget::Set::operator=(
 	Set &&other) = default;
 StickersListWidget::Set::~Set() = default;
 
-StickersListWidget::Footer::Footer(not_null<StickersListWidget*> parent) : InnerFooter(parent)
+StickersListWidget::Footer::Footer(not_null<StickersListWidget*> parent)
+: InnerFooter(parent)
 , _pan(parent)
 , _iconsAnimation([=](crl::time now) {
 	return iconsAnimationCallback(now);
@@ -203,6 +221,34 @@ StickersListWidget::Footer::Footer(not_null<StickersListWidget*> parent) : Inner
 	subscribe(Auth().downloaderTaskFinished(), [this] {
 		update();
 	});
+}
+
+void StickersListWidget::Footer::clearLottieData() {
+	for (auto &icon : _icons) {
+		icon.lottie = nullptr;
+	}
+	_lottieData.clear();
+}
+
+void StickersListWidget::Footer::refillLottieData() {
+	for (auto &item : _lottieData) {
+		item.second.stale = true;
+	}
+	for (auto &icon : _icons) {
+		const auto i = _lottieData.find(icon.setId);
+		if (i == end(_lottieData)) {
+			continue;
+		}
+		icon.lottie = i->second.player.get();
+		i->second.stale = false;
+	}
+	for (auto i = begin(_lottieData); i != end(_lottieData);) {
+		if (i->second.stale) {
+			i = _lottieData.erase(i);
+		} else {
+			++i;
+		}
+	}
 }
 
 void StickersListWidget::Footer::initSearch() {
@@ -282,7 +328,7 @@ void StickersListWidget::Footer::enumerateVisibleIcons(Callback callback) {
 }
 
 void StickersListWidget::Footer::preloadImages() {
-	enumerateVisibleIcons([](const StickerIcon & icon, int x) {
+	enumerateVisibleIcons([](const StickerIcon &icon, int x) {
 		if (const auto sticker = icon.sticker) {
 			const auto origin = sticker->stickerSetOrigin();
 			if (icon.thumbnail) {
@@ -607,6 +653,7 @@ void StickersListWidget::Footer::updateSelected() {
 void StickersListWidget::Footer::refreshIcons(
 		ValidateIconAnimations animations) {
 	_pan->fillIcons(_icons);
+	refillLottieData();
 	refreshIconsGeometry(animations);
 }
 
@@ -654,6 +701,49 @@ void StickersListWidget::Footer::paintFeaturedStickerSetsBadge(Painter &p, int i
 	}
 }
 
+QSize StickersListWidget::Footer::iconBox() const {
+	return QSize(
+		st::stickerIconWidth - 2 * st::stickerIconPadding,
+		st::emojiFooterHeight - 2 * st::stickerIconPadding);
+}
+
+void StickersListWidget::Footer::validateIconLottieAnimation(
+		const StickerIcon &icon) {
+	if (icon.lottie
+		|| !Stickers::HasLottieThumbnail(ImagePtr(), icon.sticker)) {
+		return;
+	}
+	auto player = Stickers::LottieThumbnail(
+		ImagePtr(),
+		icon.sticker,
+		Stickers::LottieSize::StickersFooter,
+		iconBox() * cIntRetinaFactor(),
+		_pan->getLottieRenderer());
+	if (!player) {
+		return;
+	}
+	icon.lottie = player.get();
+	const auto id = icon.setId;
+	const auto [i, ok] = _lottieData.emplace(
+		id,
+		LottieIcon{ std::move(player) });
+	Assert(ok);
+
+	icon.lottie->updates(
+	) | rpl::start_with_next([=] {
+		updateSetIcon(id);
+	}, i->second.lifetime);
+}
+
+void StickersListWidget::Footer::updateSetIcon(uint64 setId) {
+	enumerateVisibleIcons([&](const StickerIcon &icon, int x) {
+		if (icon.setId != setId) {
+			return;
+		}
+		update(x, _iconsTop, st::stickerIconWidth, st::emojiFooterHeight);
+	});
+}
+
 void StickersListWidget::Footer::paintSetIcon(
 		Painter &p,
 		const StickerIcon &icon,
@@ -663,11 +753,35 @@ void StickersListWidget::Footer::paintSetIcon(
 		const auto thumb = icon.thumbnail
 			? icon.thumbnail.get()
 			: icon.sticker->thumbnail();
-		if (thumb) {
-			thumb->load(origin);
+		if (!thumb) {
+			return;
+		}
+		thumb->load(origin);
+		if (!thumb->loaded()) {
+			return;
+		}
+		const_cast<Footer*>(this)->validateIconLottieAnimation(icon);
+		if (!icon.lottie) {
 			auto pix = thumb->pix(origin, icon.pixw, icon.pixh);
 
 			p.drawPixmapLeft(x + (st::stickerIconWidth - icon.pixw) / 2, _iconsTop + (st::emojiFooterHeight - icon.pixh) / 2, width(), pix);
+		} else if (icon.lottie->ready()) {
+			auto request = Lottie::FrameRequest();
+			request.box = iconBox() * cIntRetinaFactor();
+			const auto frame = icon.lottie->frame(request);
+			const auto size = frame.size() / cIntRetinaFactor();
+			p.drawImage(
+				QRect(
+					x + (st::stickerIconWidth - size.width()) / 2,
+					_iconsTop + (st::emojiFooterHeight - size.height()) / 2,
+					size.width(),
+					size.height()),
+				frame);
+			const auto paused = _pan->controller()->isGifPausedAtLeastFor(
+				Window::GifPauseReason::SavedGifs);
+			if (!paused) {
+				icon.lottie->markFrameShown();
+			}
 		}
 	} else if (icon.megagroup) {
 		icon.megagroup->paintUserpicLeft(p, x + (st::stickerIconWidth - st::stickerGroupCategorySize) / 2, _iconsTop + (st::emojiFooterHeight - st::stickerGroupCategorySize) / 2, width(), st::stickerGroupCategorySize);
@@ -1901,11 +2015,17 @@ TabbedSelector::InnerFooter *StickersListWidget::getFooter() const {
 void StickersListWidget::processHideFinished() {
 	clearSelection();
 	clearLottieData();
+	if (_footer) {
+		_footer->clearLottieData();
+	}
 }
 
 void StickersListWidget::processPanelHideFinished() {
 	clearInstalledLocally();
 	clearLottieData();
+	if (_footer) {
+		_footer->clearLottieData();
+	}
 	// Preserve panel state through visibility toggles.
 	//// Reset to the recent stickers section.
 	//if (_section == Section::Featured && (!_footer || !_footer->hasOnlyFeaturedSets())) {

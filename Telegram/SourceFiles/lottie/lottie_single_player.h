@@ -30,12 +30,14 @@ class SinglePlayer final : public Player {
 public:
 	SinglePlayer(
 		const QByteArray &content,
-		const FrameRequest &request);
+		const FrameRequest &request,
+		std::shared_ptr<FrameRenderer> renderer = nullptr);
 	SinglePlayer(
 		FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
 		FnMut<void(QByteArray &&cached)> put, // Unknown thread.
 		const QByteArray &content,
-		const FrameRequest &request);
+		const FrameRequest &request,
+		std::shared_ptr<FrameRenderer> renderer = nullptr);
 	~SinglePlayer();
 
 	void start(

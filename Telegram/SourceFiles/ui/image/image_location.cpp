@@ -407,9 +407,17 @@ Storage::Cache::Key StorageFileLocation::bigFileBaseCacheKey() const {
 		return Storage::Cache::Key{ high, low };
 	}
 
+	case Type::StickerSetThumb: {
+		const auto high = (uint64(uint32(_localId)) << 24)
+			| ((uint64(_type) + 1) << 16)
+			| ((uint64(_dcId) & 0xFFULL) << 8)
+			| (_volumeId >> 56);
+		const auto low = (_volumeId << 8);
+		return Storage::Cache::Key{ high, low };
+	}
+
 	case Type::Legacy:
 	case Type::PeerPhoto:
-	case Type::StickerSetThumb:
 	case Type::Encrypted:
 	case Type::Secure:
 	case Type::Photo:

@@ -1094,6 +1094,36 @@ RecentStickerPack &GetRecentPack() {
 }
 
 template <typename Method>
+auto LottieCachedFromContent(
+		Method &&method,
+		Storage::Cache::Key baseKey,
+		LottieSize sizeTag,
+		not_null<AuthSession*> session,
+		const QByteArray &content,
+		QSize box) {
+	const auto key = Storage::Cache::Key{
+		baseKey.high,
+		baseKey.low + int(sizeTag)
+	};
+	const auto get = [=](FnMut<void(QByteArray &&cached)> handler) {
+		session->data().cacheBigFile().get(
+			key,
+			std::move(handler));
+	};
+	const auto weak = base::make_weak(session.get());
+	const auto put = [=](QByteArray &&cached) {
+		crl::on_main(weak, [=, data = std::move(cached)]() mutable {
+			weak->data().cacheBigFile().put(key, std::move(data));
+		});
+	};
+	return method(
+		get,
+		put,
+		content,
+		Lottie::FrameRequest{ box });
+}
+
+template <typename Method>
 auto LottieFromDocument(
 		Method &&method,
 		not_null<DocumentData*> document,
@@ -1108,26 +1138,13 @@ auto LottieFromDocument(
 			Lottie::FrameRequest{ box });
 	}
 	if (const auto baseKey = document->bigFileBaseCacheKey()) {
-		const auto key = Storage::Cache::Key{
-			baseKey->high,
-			baseKey->low + int(sizeTag)
-		};
-		const auto get = [=](FnMut<void(QByteArray &&cached)> handler) {
-			document->session().data().cacheBigFile().get(
-				key,
-				std::move(handler));
-		};
-		const auto weak = base::make_weak(&document->session());
-		const auto put = [=](QByteArray &&cached) {
-			crl::on_main(weak, [=, data = std::move(cached)]() mutable {
-				weak->data().cacheBigFile().put(key, std::move(data));
-			});
-		};
-		return method(
-			get,
-			put,
+		return LottieCachedFromContent(
+			std::forward<Method>(method),
+			*baseKey,
+			sizeTag,
+			&document->session(),
 			Lottie::ReadContent(data, filepath),
-			Lottie::FrameRequest{ box });
+			box);
 	}
 	return method(
 		Lottie::ReadContent(data, filepath),
@@ -1154,6 +1171,100 @@ not_null<Lottie::Animation*> LottieAnimationFromDocument(
 		return player->append(std::forward<decltype(args)>(args)...);
 	};
 	return LottieFromDocument(method, document, sizeTag, box);
+}
+
+bool HasLottieThumbnail(
+		ImagePtr thumbnail,
+		not_null<DocumentData*> sticker) {
+	if (thumbnail) {
+		if (!thumbnail->loaded()) {
+			return false;
+		}
+		const auto &location = thumbnail->location();
+		const auto &bytes = thumbnail->bytesForCache();
+		return location.valid()
+			&& location.type() == StorageFileLocation::Type::StickerSetThumb
+			&& !bytes.isEmpty();
+	} else if (const auto info = sticker->sticker()) {
+		if (!info->animated) {
+			return false;
+		}
+		sticker->automaticLoad(sticker->stickerSetOrigin(), nullptr);
+		if (!sticker->loaded()) {
+			return false;
+		}
+		return sticker->bigFileBaseCacheKey().has_value();
+	}
+	return false;
+}
+
+std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
+		ImagePtr thumbnail,
+		not_null<DocumentData*> sticker,
+		LottieSize sizeTag,
+		QSize box,
+		std::shared_ptr<Lottie::FrameRenderer> renderer) {
+	const auto baseKey = thumbnail
+		? thumbnail->location().file().bigFileBaseCacheKey()
+		: sticker->bigFileBaseCacheKey();
+	if (!baseKey) {
+		return nullptr;
+	}
+	const auto content = (thumbnail
+		? thumbnail->bytesForCache()
+		: Lottie::ReadContent(sticker->data(), sticker->filepath()));
+	if (content.isEmpty()) {
+		return nullptr;
+	}
+	const auto method = [](auto &&...args) {
+		return std::make_unique<Lottie::SinglePlayer>(
+			std::forward<decltype(args)>(args)...);
+	};
+	return LottieCachedFromContent(
+		method,
+		*baseKey,
+		sizeTag,
+		&sticker->session(),
+		content,
+		box);
+}
+
+ThumbnailSource::ThumbnailSource(
+	const StorageImageLocation &location,
+	int size)
+: StorageSource(location, size) {
+}
+
+QImage ThumbnailSource::takeLoaded() {
+	if (_bytesForAnimated.isEmpty()
+		&& _loader
+		&& _loader->finished()
+		&& !_loader->cancelled()) {
+		_bytesForAnimated = _loader->bytes();
+	}
+	auto result = StorageSource::takeLoaded();
+	if (!_bytesForAnimated.isEmpty()
+		&& !result.isNull()
+		&& result.size() != Image::Empty()->original().size()) {
+		_bytesForAnimated = QByteArray();
+	}
+	return result;
+}
+
+QByteArray ThumbnailSource::bytesForCache() {
+	return _bytesForAnimated;
+}
+
+std::unique_ptr<FileLoader> ThumbnailSource::createLoader(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) {
+	auto result = StorageSource::createLoader(
+		origin,
+		fromCloud,
+		autoLoading);
+	_loader = result.get();
+	return result;
 }
 
 } // namespace Stickers

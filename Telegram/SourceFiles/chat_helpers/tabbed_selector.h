@@ -214,6 +214,10 @@ class TabbedSelector::Inner : public Ui::RpWidget {
 public:
 	Inner(QWidget *parent, not_null<Window::SessionController*> controller);
 
+	not_null<Window::SessionController*> controller() const {
+		return _controller;
+	}
+
 	int getVisibleTop() const {
 		return _visibleTop;
 	}
@@ -245,10 +249,6 @@ protected:
 		int visibleBottom) override;
 	int minimalHeight() const;
 	int resizeGetHeight(int newWidth) override final;
-
-	not_null<Window::SessionController*> controller() const {
-		return _controller;
-	}
 
 	virtual int countDesiredHeight(int newWidth) = 0;
 	virtual InnerFooter *getFooter() const = 0;

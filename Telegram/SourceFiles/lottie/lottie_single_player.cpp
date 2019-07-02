@@ -13,20 +13,22 @@ namespace Lottie {
 
 SinglePlayer::SinglePlayer(
 	const QByteArray &content,
-	const FrameRequest &request)
+	const FrameRequest &request,
+	std::shared_ptr<FrameRenderer> renderer)
 : _animation(this, content, request)
 , _timer([=] { checkNextFrameRender(); })
-, _renderer(FrameRenderer::Instance()) {
+, _renderer(renderer ? renderer : FrameRenderer::Instance()) {
 }
 
 SinglePlayer::SinglePlayer(
 	FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
 	FnMut<void(QByteArray &&cached)> put, // Unknown thread.
 	const QByteArray &content,
-	const FrameRequest &request)
+	const FrameRequest &request,
+	std::shared_ptr<FrameRenderer> renderer)
 : _animation(this, std::move(get), std::move(put), content, request)
 , _timer([=] { checkNextFrameRender(); })
-, _renderer(FrameRenderer::Instance()) {
+, _renderer(renderer ? renderer : FrameRenderer::Instance()) {
 }
 
 SinglePlayer::~SinglePlayer() {

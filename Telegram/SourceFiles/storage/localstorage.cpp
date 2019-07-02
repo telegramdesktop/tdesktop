@@ -3516,7 +3516,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 				setHash,
 				MTPDstickerSet::Flags(setFlags),
 				setInstallDate,
-				Images::Create(setThumbnail)));
+				Images::CreateStickerSetThumbnail(setThumbnail)));
 		}
 		auto &set = it.value();
 		auto inputSet = MTP_inputStickerSetID(MTP_long(set.id), MTP_long(set.access));

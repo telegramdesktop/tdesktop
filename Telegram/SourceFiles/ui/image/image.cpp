@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/cache/storage_cache_database.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "chat_helpers/stickers.h"
 #include "auth_session.h"
 
 using namespace Images;
@@ -161,7 +162,11 @@ ImagePtr Create(int width, int height) {
 		height)));
 }
 
-ImagePtr Create(const StorageImageLocation &location, int size) {
+template <typename SourceType>
+ImagePtr Create(
+		const StorageImageLocation &location,
+		int size,
+		const QByteArray &bytes) {
 	if (!location.valid()) {
 		return ImagePtr();
 	}
@@ -173,41 +178,63 @@ ImagePtr Create(const StorageImageLocation &location, int size) {
 		: StorageImages.emplace(
 			key,
 			std::make_unique<Image>(
-				std::make_unique<StorageSource>(location, size))
+				std::make_unique<SourceType>(location, size))
 		).first->second.get();
 	if (found) {
 		image->refreshFileReference(location.fileReference());
 	}
+	if (!bytes.isEmpty()) {
+		image->setImageBytes(bytes);
+	}
 	return ImagePtr(image);
+
+}
+
+ImagePtr Create(const StorageImageLocation &location, int size) {
+	return Create<StorageSource>(location, size, QByteArray());
 }
 
 ImagePtr Create(
 		const StorageImageLocation &location,
 		const QByteArray &bytes) {
-	const auto key = inMemoryKey(location);
-	const auto i = StorageImages.find(key);
-	const auto found = (i != end(StorageImages));
-	const auto image = found
-		? i->second.get()
-		: StorageImages.emplace(
-			key,
-			std::make_unique<Image>(
-				std::make_unique<StorageSource>(location, bytes.size()))
-		).first->second.get();
-	if (found) {
-		image->refreshFileReference(location.fileReference());
-	}
-	image->setImageBytes(bytes);
-	return ImagePtr(image);
+	return Create<StorageSource>(location, bytes.size(), bytes);
 }
 
-template <typename CreateLocation>
+struct CreateStorageImage {
+	ImagePtr operator()(
+			const StorageImageLocation &location,
+			int size) {
+		return Create(location, size);
+	}
+	ImagePtr operator()(
+			const StorageImageLocation &location,
+			const QByteArray &bytes) {
+		return Create(location, bytes);
+	}
+};
+
+struct CreateSetThumbnail {
+	using Source = Stickers::ThumbnailSource;
+	ImagePtr operator()(
+			const StorageImageLocation &location,
+			int size) {
+		return Create<Source>(location, size, QByteArray());
+	}
+	ImagePtr operator()(
+			const StorageImageLocation &location,
+			const QByteArray &bytes) {
+		return Create<Source>(location, bytes.size(), bytes);
+	}
+};
+
+template <typename CreateLocation, typename Method = CreateStorageImage>
 ImagePtr CreateFromPhotoSize(
 		CreateLocation &&createLocation,
-		const MTPPhotoSize &size) {
+		const MTPPhotoSize &size,
+		Method method = Method()) {
 	return size.match([&](const MTPDphotoSize &data) {
 		const auto &location = data.vlocation.c_fileLocationToBeDeprecated();
-		return Create(
+		return method(
 			StorageImageLocation(
 				createLocation(data.vtype, location),
 				data.vw.v,
@@ -216,7 +243,7 @@ ImagePtr CreateFromPhotoSize(
 	}, [&](const MTPDphotoCachedSize &data) {
 		const auto bytes = qba(data.vbytes);
 		const auto &location = data.vlocation.c_fileLocationToBeDeprecated();
-		return Create(
+		return method(
 			StorageImageLocation(
 				createLocation(data.vtype, location),
 				data.vw.v,
@@ -291,7 +318,11 @@ ImagePtr Create(const MTPDstickerSet &set, const MTPPhotoSize &size) {
 				location.vvolume_id,
 				location.vlocal_id));
 	};
-	return CreateFromPhotoSize(create, size);
+	return CreateFromPhotoSize(create, size, CreateSetThumbnail());
+}
+
+ImagePtr CreateStickerSetThumbnail(const StorageImageLocation &location) {
+	return CreateSetThumbnail()(location, 0);
 }
 
 ImagePtr Create(const MTPDphoto &photo, const MTPPhotoSize &size) {

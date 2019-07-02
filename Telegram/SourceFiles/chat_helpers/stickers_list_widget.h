@@ -69,6 +69,8 @@ public:
 	void sendSearchRequest();
 	void searchForSets(const QString &query);
 
+	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
+
 	~StickersListWidget();
 
 protected:
@@ -289,8 +291,6 @@ private:
 	void addSearchRow(not_null<const Stickers::Set*> set);
 
 	void showPreview();
-
-	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
 
 	ChannelData *_megagroupSet = nullptr;
 	uint64 _megagroupSetIdRequested = 0;

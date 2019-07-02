@@ -27,6 +27,7 @@ ImagePtr Create(
 	QImage &&data);
 ImagePtr Create(int width, int height);
 ImagePtr Create(const StorageImageLocation &location, int size = 0);
+ImagePtr CreateStickerSetThumbnail(const StorageImageLocation &location);
 ImagePtr Create( // photoCachedSize
 	const StorageImageLocation &location,
 	const QByteArray &bytes);
