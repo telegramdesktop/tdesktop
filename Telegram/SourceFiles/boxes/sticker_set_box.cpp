@@ -21,7 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
 #include "ui/emoji_config.h"
-#include "lottie/lottie_single_player.h"
+#include "lottie/lottie_multi_player.h"
+#include "lottie/lottie_animation.h"
 #include "window/window_session_controller.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -65,9 +66,11 @@ protected:
 private:
 	struct Element {
 		not_null<DocumentData*> document;
-		std::unique_ptr<Lottie::SinglePlayer> animated;
+		Lottie::Animation *animated = nullptr;
 		Ui::Animations::Simple overAnimation;
 	};
+
+	void visibleTopBottomUpdated(int visibleTop, int visibleBottom) override;
 
 	QSize boundingBoxSize() const;
 
@@ -86,11 +89,14 @@ private:
 		return (_setFlags & MTPDstickerSet::Flag::f_masks);
 	}
 
+	not_null<Lottie::MultiPlayer*> getLottiePlayer();
+
 	void showPreview();
 
 	not_null<Window::SessionController*> _controller;
 	MTP::Sender _mtp;
 	std::vector<Element> _elements;
+	std::unique_ptr<Lottie::MultiPlayer> _lottiePlayer;
 	Stickers::Pack _pack;
 	Stickers::ByEmojiMap _emoji;
 	bool _loaded = false;
@@ -472,6 +478,18 @@ void StickerSetBox::Inner::showPreview() {
 	}
 }
 
+not_null<Lottie::MultiPlayer*> StickerSetBox::Inner::getLottiePlayer() {
+	if (!_lottiePlayer) {
+		_lottiePlayer = std::make_unique<Lottie::MultiPlayer>(
+			Lottie::MakeFrameRenderer());
+		_lottiePlayer->updates(
+		) | rpl::start_with_next([=] {
+			update();
+		}, lifetime());
+	}
+	return _lottiePlayer.get();
+}
+
 int32 StickerSetBox::Inner::stickerFromGlobalPos(const QPoint &p) const {
 	QPoint l(mapFromGlobal(p));
 	if (rtl()) l.setX(width() - l.x());
@@ -492,7 +510,8 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	int32 rows = _elements.size() / kStickersPanelPerRow + ((_elements.size() % kStickersPanelPerRow) ? 1 : 0);
+	int32 rows = (_elements.size() / kStickersPanelPerRow)
+		+ ((_elements.size() % kStickersPanelPerRow) ? 1 : 0);
 	int32 from = qFloor(e->rect().top() / st::stickersSize.height()), to = qFloor(e->rect().bottom() / st::stickersSize.height()) + 1;
 
 	for (int32 i = from; i < to; ++i) {
@@ -505,6 +524,14 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 			paintSticker(p, index, pos);
 		}
 	}
+
+	if (_lottiePlayer) {
+		const auto paused = _controller->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Layer);
+		if (!paused) {
+			_lottiePlayer->markFrameShown();
+		}
+	}
 }
 
 QSize StickerSetBox::Inner::boundingBoxSize() const {
@@ -513,20 +540,56 @@ QSize StickerSetBox::Inner::boundingBoxSize() const {
 		st::stickersSize.height() - st::buttonRadius * 2);
 }
 
+void StickerSetBox::Inner::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
+	const auto pauseInRows = [&](int fromRow, int tillRow) {
+		Expects(fromRow <= tillRow);
+
+		for (auto i = fromRow; i != tillRow; ++i) {
+			for (auto j = 0; j != kStickersPanelPerRow; ++j) {
+				const auto index = i * kStickersPanelPerRow + j;
+				if (index >= _elements.size()) {
+					break;
+				}
+				if (const auto animated = _elements[index].animated) {
+					_lottiePlayer->pause(animated);
+				}
+			}
+		}
+	};
+	const auto count = int(_elements.size());
+	const auto rowsCount = (count / kStickersPanelPerRow)
+		+ ((count % kStickersPanelPerRow) ? 1 : 0);
+	const auto rowsTop = st::stickersPadding.top();
+	const auto singleHeight = st::stickersSize.height();
+	const auto rowsBottom = rowsTop + rowsCount * singleHeight;
+	if (visibleTop >= rowsTop + singleHeight && visibleTop < rowsBottom) {
+		const auto pauseHeight = (visibleTop - rowsTop);
+		const auto pauseRows = std::min(
+			pauseHeight / singleHeight,
+			rowsCount);
+		pauseInRows(0, pauseRows);
+	}
+	if (visibleBottom > rowsTop
+		&& visibleBottom + singleHeight <= rowsBottom) {
+		const auto pauseHeight = (rowsBottom - visibleBottom);
+		const auto pauseRows = std::min(
+			pauseHeight / singleHeight,
+			rowsCount);
+		pauseInRows(rowsCount - pauseRows, rowsCount);
+	}
+}
+
 void StickerSetBox::Inner::setupLottie(int index) {
 	auto &element = _elements[index];
 	const auto document = element.document;
 
-	element.animated = Stickers::LottiePlayerFromDocument(
+	element.animated = Stickers::LottieAnimationFromDocument(
+		getLottiePlayer(),
 		document,
 		Stickers::LottieSize::StickerSet,
 		boundingBoxSize() * cIntRetinaFactor());
-	const auto animation = element.animated.get();
-
-	animation->updates(
-	) | rpl::start_with_next([=] {
-		update();
-	}, lifetime());
 }
 
 void StickerSetBox::Inner::paintSticker(
@@ -558,15 +621,12 @@ void StickerSetBox::Inner::paintSticker(
 	if (h < 1) h = 1;
 	QPoint ppos = position + QPoint((st::stickersSize.width() - w) / 2, (st::stickersSize.height() - h) / 2);
 	if (element.animated && element.animated->ready()) {
-		const auto paused = _controller->isGifPausedAtLeastFor(
-			Window::GifPauseReason::Layer);
-		if (!paused) {
-			element.animated->markFrameShown();
-		}
 		const auto frame = element.animated->frame();
 		p.drawImage(
 			QRect(ppos, frame.size() / cIntRetinaFactor()),
 			frame);
+
+		_lottiePlayer->unpause(element.animated);
 	} else if (const auto image = document->getStickerSmall()) {
 		p.drawPixmapLeft(
 			ppos,

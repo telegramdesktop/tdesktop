@@ -69,10 +69,7 @@ private:
 		bool paused = false;
 	};
 
-	void startBeforeLifeCycle(
-		not_null<Animation*> animation,
-		StartingInfo &&info);
-	void startInsideLifeCycle(
+	void addNewToActive(
 		not_null<Animation*> animation,
 		StartingInfo &&info);
 	[[nodiscard]] int countFrameIndex(

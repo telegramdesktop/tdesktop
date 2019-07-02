@@ -98,7 +98,7 @@ void MultiPlayer::start(
 	if (_active.empty()
 		|| (_lastSyncTime == kTimeUnknown
 			&& _nextFrameTime == kTimeUnknown)) {
-		startBeforeLifeCycle(animation, std::move(info));
+		addNewToActive(animation, std::move(info));
 	} else {
 		// We always try to mark as shown at the same time, so we start a new
 		// animation at the same time we mark all existing as shown.
@@ -107,7 +107,7 @@ void MultiPlayer::start(
 	_updates.fire({});
 }
 
-void MultiPlayer::startBeforeLifeCycle(
+void MultiPlayer::addNewToActive(
 		not_null<Animation*> animation,
 		StartingInfo &&info) {
 	_active.emplace(animation, info.state.get());
@@ -115,20 +115,6 @@ void MultiPlayer::startBeforeLifeCycle(
 	if (info.paused) {
 		_pendingPause.emplace(animation);
 	}
-}
-
-void MultiPlayer::startInsideLifeCycle(
-		not_null<Animation*> animation,
-		StartingInfo &&info) {
-	const auto state = info.state.get();
-	if (info.paused) {
-		_paused.emplace(
-			animation,
-			PausedInfo{ state, _lastSyncTime, _delay });
-	} else {
-		_active.emplace(animation, state);
-	}
-	startAtRightTime(std::move(info.state));
 }
 
 void MultiPlayer::processPending() {
@@ -141,7 +127,7 @@ void MultiPlayer::processPending() {
 		unpauseAndKeepUp(animation);
 	}
 	for (auto &[animation, info] : base::take(_pendingToStart)) {
-		startInsideLifeCycle(animation, std::move(info));
+		addNewToActive(animation, std::move(info));
 	}
 	for (const auto &animation : base::take(_pendingRemove)) {
 		removeNow(animation);
