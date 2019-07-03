@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/grouped_layout.h"
 #include "ui/text_options.h"
 #include "ui/special_buttons.h"
+#include "lottie/lottie_single_player.h"
 #include "data/data_document.h"
 #include "media/clip/media_clip_reader.h"
 #include "window/window_session_controller.h"
@@ -41,6 +42,7 @@ constexpr auto kMinPreviewWidth = 20;
 constexpr auto kShrinkDuration = crl::time(150);
 constexpr auto kDragDuration = crl::time(200);
 const auto kStickerMimeString = qstr("image/webp");
+const auto kAnimatedStickerMimeString = qstr("application/x-tgsticker");
 
 class SingleMediaPreview : public Ui::RpWidget {
 public:
@@ -82,6 +84,7 @@ private:
 	int _previewWidth = 0;
 	int _previewHeight = 0;
 	Media::Clip::ReaderPointer _gifPreview;
+	std::unique_ptr<Lottie::SinglePlayer> _lottiePreview;
 
 };
 
@@ -590,7 +593,8 @@ SingleMediaPreview *SingleMediaPreview::Create(
 			preview.height())) {
 		return nullptr;
 	}
-	const auto sticker = (file.information->filemime == kStickerMimeString);
+	const auto sticker = (file.information->filemime == kStickerMimeString)
+		|| (file.information->filemime == kAnimatedStickerMimeString);
 	return Ui::CreateChild<SingleMediaPreview>(
 		parent,
 		controller,
@@ -627,7 +631,7 @@ void SingleMediaPreview::preparePreview(
 		const QString &animatedPreviewPath) {
 	auto maxW = 0;
 	auto maxH = 0;
-	if (_animated) {
+	if (_animated && !_sticker) {
 		auto limitW = st::sendMediaPreviewSize;
 		auto limitH = st::confirmMaxHeight;
 		maxW = qMax(preview.width(), 1);
@@ -683,7 +687,17 @@ void SingleMediaPreview::preparePreview(
 
 void SingleMediaPreview::prepareAnimatedPreview(
 		const QString &animatedPreviewPath) {
-	if (!animatedPreviewPath.isEmpty()) {
+	if (_sticker && _animated) {
+		const auto box = QSize(_previewWidth, _previewHeight)
+			* cIntRetinaFactor();
+		_lottiePreview = std::make_unique<Lottie::SinglePlayer>(
+			Lottie::ReadContent(QByteArray(), animatedPreviewPath),
+			Lottie::FrameRequest{ box });
+		_lottiePreview->updates(
+		) | rpl::start_with_next([=] {
+			update();
+		}, lifetime());
+	} else if (!animatedPreviewPath.isEmpty()) {
 		auto callback = [=](Media::Clip::Notification notification) {
 			clipCallback(notification);
 		};
@@ -734,10 +748,21 @@ void SingleMediaPreview::paintEvent(QPaintEvent *e) {
 		auto paused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
 		auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : crl::now());
 		p.drawPixmap(_previewLeft, st::boxPhotoPadding.top(), frame);
+	} else if (_lottiePreview && _lottiePreview->ready()) {
+		const auto frame = _lottiePreview->frame();
+		const auto size = frame.size() / cIntRetinaFactor();
+		p.drawImage(
+			QRect(
+				_previewLeft + (_previewWidth - size.width()) / 2,
+				st::boxPhotoPadding.top() + (_previewHeight - size.height()) / 2,
+				size.width(),
+				size.height()),
+			frame);
+		_lottiePreview->markFrameShown();
 	} else {
 		p.drawPixmap(_previewLeft, st::boxPhotoPadding.top(), _preview);
 	}
-	if (_animated && !_gifPreview) {
+	if (_animated && !_gifPreview && !_lottiePreview) {
 		auto inner = QRect(_previewLeft + (_previewWidth - st::msgFileSize) / 2, st::boxPhotoPadding.top() + (_previewHeight - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::msgDateImgBg);

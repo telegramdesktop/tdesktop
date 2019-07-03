@@ -316,7 +316,10 @@ bool PreparedList::canAddCaption(bool isAlbum, bool compressImages) const {
 		if (files.empty() || compressImages) {
 			return false;
 		}
-		return (files.front().mime == qstr("image/webp"));
+		return (files.front().mime == qstr("image/webp"))
+			|| files.front().path.endsWith(
+				qstr(".tgs"),
+				Qt::CaseInsensitive);
 	};
 	return isAlbum || (files.size() == 1 && !isSticker());
 }
