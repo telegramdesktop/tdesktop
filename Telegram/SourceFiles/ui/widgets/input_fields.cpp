@@ -185,9 +185,9 @@ struct TagStartExpression {
 constexpr auto kTagBoldIndex = 0;
 constexpr auto kTagItalicIndex = 1;
 //constexpr auto kTagUnderlineIndex = 2;
-//constexpr auto kTagStrikeOutIndex = 2;
-constexpr auto kTagCodeIndex = 2;
-constexpr auto kTagPreIndex = 3;
+constexpr auto kTagStrikeOutIndex = 2;
+constexpr auto kTagCodeIndex = 3;
+constexpr auto kTagPreIndex = 4;
 constexpr auto kInvalidPosition = std::numeric_limits<int>::max() / 2;
 
 class TagSearchItem {
@@ -310,13 +310,13 @@ const std::vector<TagStartExpression> &TagStartExpressions() {
 		//	TextUtilities::MarkdownUnderlineBadAfter(),
 		//	TextUtilities::MarkdownUnderlineGoodBefore()
 		//},
-		//{
-		//	kTagStrikeOut,
-		//	TextUtilities::MarkdownStrikeOutGoodBefore(),
-		//	TextUtilities::MarkdownStrikeOutBadAfter(),
-		//	TextUtilities::MarkdownStrikeOutBadAfter(),
-		//	QString(),
-		//},
+		{
+			kTagStrikeOut,
+			TextUtilities::MarkdownStrikeOutGoodBefore(),
+			TextUtilities::MarkdownStrikeOutBadAfter(),
+			TextUtilities::MarkdownStrikeOutBadAfter(),
+			QString(),
+		},
 		{
 			kTagCode,
 			TextUtilities::MarkdownCodeGoodBefore(),
@@ -340,7 +340,7 @@ const std::map<QString, int> &TagIndices() {
 		{ kTagBold, kTagBoldIndex },
 		{ kTagItalic, kTagItalicIndex },
 		//{ kTagUnderline, kTagUnderlineIndex },
-		//{ kTagStrikeOut, kTagStrikeOutIndex },
+		{ kTagStrikeOut, kTagStrikeOutIndex },
 		{ kTagCode, kTagCodeIndex },
 		{ kTagPre, kTagPreIndex },
 	};
@@ -2743,10 +2743,10 @@ bool InputField::handleMarkdownKey(QKeyEvent *e) {
 		toggleSelectionMarkdown(kTagBold);
 	} else if (e == QKeySequence::Italic) {
 		toggleSelectionMarkdown(kTagItalic);
-	//} else if (e == QKeySequence::Underline) {
-	//	toggleSelectionMarkdown(kTagUnderline);
-	//} else if (matches(kStrikeOutSequence)) {
-	//	toggleSelectionMarkdown(kTagStrikeOut);
+	} else if (e == QKeySequence::Underline) {
+		toggleSelectionMarkdown(kTagUnderline);
+	} else if (matches(kStrikeOutSequence)) {
+		toggleSelectionMarkdown(kTagStrikeOut);
 	} else if (matches(kMonospaceSequence)) {
 		toggleSelectionMarkdown(kTagCode);
 	} else if (matches(kClearFormatSequence)) {
@@ -3411,8 +3411,8 @@ void InputField::addMarkdownActions(
 
 	addtag(tr::lng_menu_formatting_bold(tr::now), QKeySequence::Bold, kTagBold);
 	addtag(tr::lng_menu_formatting_italic(tr::now), QKeySequence::Italic, kTagItalic);
-	//addtag(tr::lng_menu_formatting_underline(tr::now), QKeySequence::Underline, kTagUnderline);
-	//addtag(tr::lng_menu_formatting_strike_out(tr::now), kStrikeOutSequence, kTagStrikeOut);
+	addtag(tr::lng_menu_formatting_underline(tr::now), QKeySequence::Underline, kTagUnderline);
+	addtag(tr::lng_menu_formatting_strike_out(tr::now), kStrikeOutSequence, kTagStrikeOut);
 	addtag(tr::lng_menu_formatting_monospace(tr::now), kMonospaceSequence, kTagCode);
 
 	if (_editLinkCallback) {
