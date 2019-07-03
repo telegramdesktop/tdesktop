@@ -9,10 +9,10 @@ To make it easier for us to help you please enter detailed information below.
 3. 
 
 ### Expected behaviour
-Tell us what should happen
+<!-- Tell us what should happen -->
 
 ### Actual behaviour
-Tell us what happens instead
+<!-- Tell us what happens instead -->
 
 ### Configuration
 **Operating system**:
