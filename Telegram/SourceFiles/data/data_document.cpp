@@ -912,9 +912,9 @@ void DocumentData::save(
 	if (_loader) {
 		if (!_loader->setFileName(toFile)) {
 			cancel();
-			_flags &= ~Flag::DownloadCancelled;
 		}
 	}
+	_flags &= ~Flag::DownloadCancelled;
 
 	if (_loader) {
 		if (fromCloud == LoadFromCloudOrLocal) {
