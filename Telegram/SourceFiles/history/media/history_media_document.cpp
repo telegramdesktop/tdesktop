@@ -243,8 +243,11 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		if (const auto normal = _data->thumbnail()) {
 			if (normal->loaded()) {
 				thumb = normal->pixSingle(_realParent->fullId(), thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
-			} else if (const auto blurred = _data->thumbnailInline()) {
-				thumb = blurred->pixBlurredSingle(_realParent->fullId(), thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
+			} else {
+				_data->loadThumbnail(_realParent->fullId());
+				if (const auto blurred = _data->thumbnailInline()) {
+					thumb = blurred->pixBlurredSingle(_realParent->fullId(), thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
+				}
 			}
 		}
 		p.drawPixmap(rthumb.topLeft(), thumb);
