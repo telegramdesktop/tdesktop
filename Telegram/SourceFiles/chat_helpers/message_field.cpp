@@ -605,6 +605,12 @@ void MessageLinksParser::parse() {
 		_list = QStringList();
 		return;
 	}
+	const auto tagCanIntersectWithLink = [](const QString &tag) {
+		return (tag == Ui::InputField::kTagBold)
+			|| (tag == Ui::InputField::kTagItalic)
+			|| (tag == Ui::InputField::kTagUnderline)
+			|| (tag == Ui::InputField::kTagStrikeOut);
+	};
 
 	auto ranges = QVector<LinkRange>();
 
@@ -620,7 +626,9 @@ void MessageLinksParser::parse() {
 		++tag;
 	};
 	const auto processTagsBefore = [&](int offset) {
-		while (tag != tagsEnd && tag->offset + tag->length <= offset) {
+		while (tag != tagsEnd
+			&& (tag->offset + tag->length <= offset
+				|| tagCanIntersectWithLink(tag->id))) {
 			processTag();
 		}
 	};
@@ -640,9 +648,9 @@ void MessageLinksParser::parse() {
 		while (markdownTag != markdownTagsEnd
 			&& (markdownTag->adjustedStart
 				+ markdownTag->adjustedLength <= from
-				|| !markdownTag->closed)) {
+				|| !markdownTag->closed
+				|| tagCanIntersectWithLink(markdownTag->tag))) {
 			++markdownTag;
-			continue;
 		}
 		if (markdownTag == markdownTagsEnd
 			|| markdownTag->adjustedStart >= from + length) {
