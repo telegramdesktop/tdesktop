@@ -45,9 +45,15 @@ std::map<int, const char*> BetaLogs() {
 
 		"\xE2\x80\xA2 Apply formatting to selected text parts "
 		"from the MacBook Pro TouchBar."
+	},
+	{
+		1007011,
+		"\xE2\x80\xA2 Use strikethrough and underline formatting.\n"
+
+		"\xE2\x80\xA2 Bug fixes and other minor improvements."
 	}
 	};
-}
+};
 
 QString FormatVersionDisplay(int version) {
 	return QString::number(version / 1000000)
