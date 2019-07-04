@@ -52,6 +52,7 @@ bool IsValidPhone(QString phone) {
 		|| (phone.startsWith(qsl("42"))
 			&& (phone.length() == 2
 				|| phone.length() == 5
+				|| phone.length() == 6
 				|| phone == qsl("4242")));
 }
 
