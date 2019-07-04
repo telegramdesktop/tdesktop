@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/abstract_button.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
 #include "base/timer.h"
@@ -48,7 +49,11 @@ struct CacheEntry {
 	Results results;
 };
 
-class Inner : public TWidget, public Context, private base::Subscriber {
+class Inner
+	: public TWidget
+	, public Ui::AbstractTooltipShower
+	, public Context
+	, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -75,6 +80,10 @@ public:
 	void setResultSelectedCallback(Fn<void(Result *result, UserData *bot)> callback) {
 		_resultSelectedCallback = std::move(callback);
 	}
+
+	// Ui::AbstractTooltipShower interface.
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
 
 	~Inner();
 

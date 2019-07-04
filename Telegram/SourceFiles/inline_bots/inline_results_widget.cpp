@@ -131,6 +131,17 @@ int Inner::countHeight() {
 	return result + st::stickerPanPadding;
 }
 
+QString Inner::tooltipText() const {
+	if (const auto lnk = ClickHandler::getActive()) {
+		return lnk->tooltip();
+	}
+	return QString();
+}
+
+QPoint Inner::tooltipPos() const {
+	return _lastMousePos;
+}
+
 Inner::~Inner() = default;
 
 void Inner::paintEvent(QPaintEvent *e) {
@@ -248,6 +259,7 @@ void Inner::mouseMoveEvent(QMouseEvent *e) {
 
 void Inner::leaveEventHook(QEvent *e) {
 	clearSelection();
+	Ui::Tooltip::Hide();
 }
 
 void Inner::leaveToChildEvent(QEvent *e, QWidget *child) {
@@ -683,6 +695,10 @@ void Inner::updateSelected() {
 	}
 	if (ClickHandler::setActive(lnk, lnkhost)) {
 		setCursor(lnk ? style::cur_pointer : style::cur_default);
+		Ui::Tooltip::Hide();
+	}
+	if (lnk) {
+		Ui::Tooltip::Show(1000, this);
 	}
 }
 
