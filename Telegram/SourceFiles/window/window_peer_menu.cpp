@@ -344,7 +344,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 	};
 	const auto blockAction = _addAction(blockText(user), [=] {
 		if (user->isBlocked()) {
-			user->session().api().unblockUser(user);
+			PeerMenuUnblockUserWithBotRestart(user);
 		} else if (user->isBot()) {
 			user->session().api().blockUser(user);
 		} else {
@@ -775,6 +775,14 @@ void PeerMenuBlockUserBox(
 
 	box->addButton(tr::lng_cancel(), [=] {
 		box->closeBox();
+	});
+}
+
+void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user) {
+	user->session().api().unblockUser(user, [=] {
+		if (user->isBot() && !user->isSupport()) {
+			user->session().api().sendBotStart(user);
+		}
 	});
 }
 

@@ -615,14 +615,12 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 	});
 	auto callback = [=] {
 		if (user->isBlocked()) {
-			user->session().api().unblockUser(user);
+			Window::PeerMenuUnblockUserWithBotRestart(user);
 			if (user->botInfo) {
 				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
 			}
-		} else if (user->isBot()) {
-			user->session().api().blockUser(user);
 		} else {
-			window->show(Box(Window::PeerMenuBlockUserBox, window, user));
+			user->session().api().blockUser(user);
 		}
 	};
 	AddActionButton(

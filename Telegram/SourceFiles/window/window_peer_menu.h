@@ -57,6 +57,7 @@ void PeerMenuBlockUserBox(
 	not_null<GenericBox*> box,
 	not_null<Window::Controller*> window,
 	not_null<UserData*> user);
+void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user);
 
 void ToggleHistoryArchived(not_null<History*> history, bool archived);
 Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer);

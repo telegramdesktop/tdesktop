@@ -286,9 +286,7 @@ bool BlockedBoxController::prependRow(not_null<UserData*> user) {
 std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 		not_null<UserData*> user) const {
 	auto row = std::make_unique<PeerListRowWithLink>(user);
-	row->setActionLink((user->isBot() && !user->isSupport())
-		? tr::lng_blocked_list_restart(tr::now)
-		: tr::lng_blocked_list_unblock(tr::now));
+	row->setActionLink(tr::lng_blocked_list_unblock(tr::now));
 	const auto status = [&] {
 		if (!user->phone().isEmpty()) {
 			return App::formatPhone(user->phone());

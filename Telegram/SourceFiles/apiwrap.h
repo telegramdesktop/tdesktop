@@ -249,7 +249,7 @@ public:
 	void leaveChannel(not_null<ChannelData*> channel);
 
 	void blockUser(not_null<UserData*> user);
-	void unblockUser(not_null<UserData*> user);
+	void unblockUser(not_null<UserData*> user, Fn<void()> onDone = nullptr);
 
 	void exportInviteLink(not_null<PeerData*> peer);
 	void requestNotifySettings(const MTPInputNotifyPeer &peer);

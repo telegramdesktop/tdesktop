@@ -2224,38 +2224,40 @@ void ApiWrap::blockUser(not_null<UserData*> user) {
 	}
 }
 
-void ApiWrap::unblockUser(not_null<UserData*> user) {
+void ApiWrap::unblockUser(not_null<UserData*> user, Fn<void()> onDone) {
 	if (!user->isBlocked()) {
 		Notify::peerUpdatedDelayed(
 			user,
 			Notify::PeerUpdate::Flag::UserIsBlocked);
-	} else if (_blockRequests.find(user) == end(_blockRequests)) {
-		const auto requestId = request(MTPcontacts_Unblock(
-			user->inputUser
-		)).done([=](const MTPBool &result) {
-			_blockRequests.erase(user);
-			user->setIsBlocked(false);
-			if (_blockedUsersSlice) {
-				auto &list = _blockedUsersSlice->list;
-				for (auto i = list.begin(); i != list.end(); ++i) {
-					if (i->user == user) {
-						list.erase(i);
-						break;
-					}
-				}
-				if (_blockedUsersSlice->total > list.size()) {
-					--_blockedUsersSlice->total;
-				}
-				_blockedUsersChanges.fire_copy(*_blockedUsersSlice);
-			}
-			if (user->isBot() && !user->isSupport()) {
-				sendBotStart(user);
-			}
-		}).fail([=](const RPCError &error) {
-			_blockRequests.erase(user);
-		}).send();
-		_blockRequests.emplace(user, requestId);
+		return;
+	} else if (_blockRequests.find(user) != end(_blockRequests)) {
+		return;
 	}
+	const auto requestId = request(MTPcontacts_Unblock(
+		user->inputUser
+	)).done([=](const MTPBool &result) {
+		_blockRequests.erase(user);
+		user->setIsBlocked(false);
+		if (_blockedUsersSlice) {
+			auto &list = _blockedUsersSlice->list;
+			for (auto i = list.begin(); i != list.end(); ++i) {
+				if (i->user == user) {
+					list.erase(i);
+					break;
+				}
+			}
+			if (_blockedUsersSlice->total > list.size()) {
+				--_blockedUsersSlice->total;
+			}
+			_blockedUsersChanges.fire_copy(*_blockedUsersSlice);
+		}
+		if (onDone) {
+			onDone();
+		}
+	}).fail([=](const RPCError &error) {
+		_blockRequests.erase(user);
+	}).send();
+	_blockRequests.emplace(user, requestId);
 }
 
 void ApiWrap::exportInviteLink(not_null<PeerData*> peer) {

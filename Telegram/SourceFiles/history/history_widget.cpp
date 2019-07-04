@@ -2831,11 +2831,11 @@ void HistoryWidget::send(Qt::KeyboardModifiers modifiers) {
 }
 
 void HistoryWidget::unblockUser() {
-	if (!_peer || !_peer->isUser()) {
+	if (const auto user = _peer ? _peer->asUser() : nullptr) {
+		Window::PeerMenuUnblockUserWithBotRestart(user);
+	} else {
 		updateControlsVisibility();
-		return;
 	}
-	session().api().unblockUser(_peer->asUser());
 }
 
 void HistoryWidget::sendBotStartCommand() {
