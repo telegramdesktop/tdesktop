@@ -156,6 +156,10 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, c
 		const auto w = _pixw;
 		const auto h = _pixh;
 		const auto &c = st::msgStickerOverlay;
+		const auto good = _data->goodThumbnail();
+		if (!lottieReady && good && !good->loaded()) {
+			good->load({});
+		}
 		static QPixmap empty;
 		if (lottieReady) {
 			return empty;
@@ -170,6 +174,10 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, c
 		//	return selected
 		//		? blurred->pixBlurredColored(o, c, w, h)
 		//		: blurred->pixBlurred(o, w, h);
+		} else if (good && good->loaded()) {
+			return selected
+				? good->pixColored(o, c, w, h)
+				: good->pix(o, w, h);
 		} else if (const auto thumbnail = _data->thumbnail()) {
 			return selected
 				? thumbnail->pixBlurredColored(o, c, w, h)

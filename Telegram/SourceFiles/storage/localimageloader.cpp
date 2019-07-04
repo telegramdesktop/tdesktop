@@ -894,6 +894,13 @@ void FileLoadTask::process() {
 					MTP_string(QString()),
 					MTP_inputStickerSetEmpty(),
 					MTPMaskCoords()));
+				if (isAnimation) {
+					goodThumbnail = fullimage;
+					{
+						QBuffer buffer(&goodThumbnailBytes);
+						goodThumbnail.save(&buffer, "WEBP", kThumbnailQuality);
+					}
+				}
 			} else if (isAnimation) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (_type != SendMediaType::File) {

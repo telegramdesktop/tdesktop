@@ -636,7 +636,10 @@ Image *DocumentData::goodThumbnail() const {
 }
 
 void DocumentData::validateGoodThumbnail() {
-	if (!isVideoFile() && !isAnimation() && !isWallPaper()) {
+	if (!isVideoFile()
+		&& !isAnimation()
+		&& !isWallPaper()
+		&& (!sticker() || !sticker()->animated)) {
 		_goodThumbnail = nullptr;
 	} else if (!_goodThumbnail && hasRemoteLocation()) {
 		_goodThumbnail = std::make_unique<Image>(
@@ -665,7 +668,10 @@ void DocumentData::setGoodThumbnailOnUpload(
 	}
 	_goodThumbnail = std::make_unique<Image>(
 		std::make_unique<Images::LocalFileSource>(
-			QString(), std::move(bytes), "JPG", std::move(image)));
+			QString(),
+			std::move(bytes),
+			sticker() ? "WEBP" : "JPG",
+			std::move(image)));
 }
 
 auto DocumentData::bigFileBaseCacheKey() const

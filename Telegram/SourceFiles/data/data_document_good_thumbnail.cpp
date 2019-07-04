@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "media/clip/media_clip_reader.h"
+#include "lottie/lottie_animation.h"
 #include "auth_session.h"
 
 namespace Data {
@@ -19,12 +20,20 @@ namespace {
 constexpr auto kGoodThumbQuality = 87;
 constexpr auto kWallPaperSize = 960;
 
+enum class FileType {
+	Video,
+	AnimatedSticker,
+	WallPaper,
+};
+
 QImage Prepare(
 		const QString &path,
 		QByteArray data,
-		bool isWallPaper) {
-	if (!isWallPaper) {
+		FileType type) {
+	if (type == FileType::Video) {
 		return Media::Clip::PrepareForSending(path, data).thumbnail;
+	} else if (type == FileType::AnimatedSticker) {
+		return Lottie::ReadThumbnail(Lottie::ReadContent(data, path));
 	}
 	const auto validateSize = [](QSize size) {
 		return (size.width() + size.height()) < 10'000;
@@ -64,7 +73,11 @@ void GoodThumbSource::generate(base::binary_guard &&guard) {
 		return;
 	}
 	const auto data = _document->data();
-	const auto isWallPaper = _document->isWallPaper();
+	const auto type = _document->isWallPaper()
+		? FileType::WallPaper
+		: _document->sticker()
+		? FileType::AnimatedSticker
+		: FileType::Video;
 	auto location = _document->location().isEmpty()
 		? nullptr
 		: std::make_unique<FileLocation>(_document->location());
@@ -80,11 +93,13 @@ void GoodThumbSource::generate(base::binary_guard &&guard) {
 		const auto filepath = (location && location->accessEnable())
 			? location->name()
 			: QString();
-		auto result = Prepare(filepath, data, isWallPaper);
+		auto result = Prepare(filepath, data, type);
 		auto bytes = QByteArray();
 		if (!result.isNull()) {
 			auto buffer = QBuffer(&bytes);
-			const auto format = (isWallPaper && result.hasAlphaChannel())
+			const auto format = (type == FileType::AnimatedSticker)
+				? "WEBP"
+				: (type == FileType::WallPaper && result.hasAlphaChannel())
 				? "PNG"
 				: "JPG";
 			result.save(&buffer, format, kGoodThumbQuality);
