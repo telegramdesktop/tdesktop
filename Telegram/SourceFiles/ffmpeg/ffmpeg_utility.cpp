@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "logs.h"
 
 #include <QImage>
+#include <private/qdrawhelper_p.h>
 
 extern "C" {
 #include <libavutil/opt.h>
@@ -351,6 +352,67 @@ QImage CreateFrameStorage(QSize size) {
 		kImageFormat,
 		AlignedImageBufferCleanupHandler,
 		cleanupData);
+}
+
+void UnPremultiply(QImage &to, const QImage &from) {
+	// This creates QImage::Format_ARGB32_Premultiplied, but we use it
+	// as an image in QImage::Format_ARGB32 format.
+	if (!GoodStorageForFrame(to, from.size())) {
+		to = CreateFrameStorage(from.size());
+	}
+
+	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
+	const auto convert = layout->convertFromARGB32PM;
+	const auto fromPerLine = from.bytesPerLine();
+	const auto toPerLine = to.bytesPerLine();
+	const auto width = from.width();
+	if (fromPerLine != width * 4 || toPerLine != width * 4) {
+		auto fromBytes = from.bits();
+		auto toBytes = to.bits();
+		for (auto i = 0; i != to.height(); ++i) {
+			convert(
+				reinterpret_cast<uint*>(toBytes),
+				reinterpret_cast<const uint*>(fromBytes),
+				width,
+				layout,
+				nullptr);
+			fromBytes += fromPerLine;
+			toBytes += toPerLine;
+		}
+	} else {
+		convert(
+			reinterpret_cast<uint*>(to.bits()),
+			reinterpret_cast<const uint*>(from.bits()),
+			from.width() * from.height(),
+			layout,
+			nullptr);
+	}
+}
+
+void PremultiplyInplace(QImage &image) {
+	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
+	const auto convert = layout->convertToARGB32PM;
+	const auto perLine = image.bytesPerLine();
+	const auto width = image.width();
+	if (perLine != width * 4) {
+		auto bytes = image.bits();
+		for (auto i = 0; i != image.height(); ++i) {
+			convert(
+				reinterpret_cast<uint*>(bytes),
+				reinterpret_cast<const uint*>(bytes),
+				width,
+				layout,
+				nullptr);
+			bytes += perLine;
+		}
+	} else {
+		convert(
+			reinterpret_cast<uint*>(image.bits()),
+			reinterpret_cast<const uint*>(image.bits()),
+			image.width() * image.height(),
+			layout,
+			nullptr);
+	}
 }
 
 } // namespace FFmpeg

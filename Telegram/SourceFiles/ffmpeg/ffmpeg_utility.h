@@ -189,4 +189,7 @@ void LogError(QLatin1String method, FFmpeg::AvErrorWrap error);
 [[nodiscard]] bool GoodStorageForFrame(const QImage &storage, QSize size);
 [[nodiscard]] QImage CreateFrameStorage(QSize size);
 
+void UnPremultiply(QImage &to, const QImage &from);
+void PremultiplyInplace(QImage &image);
+
 } // namespace FFmpeg

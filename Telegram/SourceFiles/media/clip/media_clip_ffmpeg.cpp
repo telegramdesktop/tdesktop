@@ -254,6 +254,9 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 			return false;
 		}
 	}
+	if (hasAlpha) {
+		FFmpeg::PremultiplyInplace(to);
+	}
 	if (_rotation != Rotation::None) {
 		QTransform rotationTransform;
 		switch (_rotation) {

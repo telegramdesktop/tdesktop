@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 
 #include <QDataStream>
-#include <private/qdrawhelper_p.h>
 #include <lz4.h>
 #include <lz4hc.h>
 #include <range/v3/numeric/accumulate.hpp>
@@ -45,67 +44,6 @@ void Xor(EncodedStorage &to, const EncodedStorage &from) {
 	const auto left = amount - (blocks * kBlockSize);
 	for (auto i = amount - left; i != amount; ++i) {
 		toBytes[i] ^= fromBytes[i];
-	}
-}
-
-void UnPremultiply(QImage &to, const QImage &from) {
-	// This creates QImage::Format_ARGB32_Premultiplied, but we use it
-	// as an image in QImage::Format_ARGB32 format.
-	if (!FFmpeg::GoodStorageForFrame(to, from.size())) {
-		to = FFmpeg::CreateFrameStorage(from.size());
-	}
-
-	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
-	const auto convert = layout->convertFromARGB32PM;
-	const auto fromPerLine = from.bytesPerLine();
-	const auto toPerLine = to.bytesPerLine();
-	const auto width = from.width();
-	if (fromPerLine != width * 4 || toPerLine != width * 4) {
-		auto fromBytes = from.bits();
-		auto toBytes = to.bits();
-		for (auto i = 0; i != to.height(); ++i) {
-			convert(
-				reinterpret_cast<uint*>(toBytes),
-				reinterpret_cast<const uint*>(fromBytes),
-				width,
-				layout,
-				nullptr);
-			fromBytes += fromPerLine;
-			toBytes += toPerLine;
-		}
-	} else {
-		convert(
-			reinterpret_cast<uint*>(to.bits()),
-			reinterpret_cast<const uint*>(from.bits()),
-			from.width() * from.height(),
-			layout,
-			nullptr);
-	}
-}
-
-void PremultiplyInplace(QImage &image) {
-	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
-	const auto convert = layout->convertToARGB32PM;
-	const auto perLine = image.bytesPerLine();
-	const auto width = image.width();
-	if (perLine != width * 4) {
-		auto bytes = image.bits();
-		for (auto i = 0; i != image.height(); ++i) {
-			convert(
-				reinterpret_cast<uint*>(bytes),
-				reinterpret_cast<const uint*>(bytes),
-				width,
-				layout,
-				nullptr);
-			bytes += perLine;
-		}
-	} else {
-		convert(
-			reinterpret_cast<uint*>(image.bits()),
-			reinterpret_cast<const uint*>(image.bits()),
-			image.width() * image.height(),
-			layout,
-			nullptr);
 	}
 }
 
@@ -247,7 +185,7 @@ void Decode(
 	}
 	DecodeYUV2RGB(to, from, context);
 	DecodeAlpha(to, from);
-	PremultiplyInplace(to);
+	FFmpeg::PremultiplyInplace(to);
 }
 
 void EncodeRGB2YUV(
@@ -311,7 +249,7 @@ void Encode(
 		const QImage &from,
 		QImage &cache,
 		FFmpeg::SwscalePointer &context) {
-	UnPremultiply(cache, from);
+	FFmpeg::UnPremultiply(cache, from);
 	EncodeRGB2YUV(to, cache, context);
 	EncodeAlpha(to, cache);
 }
