@@ -8,73 +8,101 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/main_queue_processor.h"
 
 #include "core/sandbox.h"
+#include "platform/platform_specific.h"
 
 namespace Core {
 namespace {
 
-QMutex ProcessorMutex;
-MainQueueProcessor *ProcessorInstance/* = nullptr*/;
-
 constexpr auto kProcessorEvent = QEvent::Type(QEvent::User + 1);
 static_assert(kProcessorEvent < QEvent::MaxUser);
 
-class ProcessorEvent : public QEvent {
-public:
-	ProcessorEvent(void (*callable)(void*), void *argument);
+QMutex ProcessorMutex;
+MainQueueProcessor *ProcessorInstance/* = nullptr*/;
 
-	void process();
-
-private:
-	void (*_callable)(void*) = nullptr;
-	void *_argument = nullptr;
-
+enum class ProcessState : int {
+	Processed,
+	FillingUp,
+	Waiting,
 };
 
-ProcessorEvent::ProcessorEvent(void (*callable)(void*), void *argument)
-: QEvent(kProcessorEvent)
-, _callable(callable)
-, _argument(argument) {
+std::atomic<ProcessState> MainQueueProcessState/* = ProcessState(0)*/;
+void (*MainQueueProcessCallback)(void*)/* = nullptr*/;
+void *MainQueueProcessArgument/* = nullptr*/;
+
+void PushToMainQueueGeneric(void (*callable)(void*), void *argument) {
+	Expects(Platform::UseMainQueueGeneric());
+
+	auto expected = ProcessState::Processed;
+	const auto fill = MainQueueProcessState.compare_exchange_strong(
+		expected,
+		ProcessState::FillingUp);
+	if (fill) {
+		MainQueueProcessCallback = callable;
+		MainQueueProcessArgument = argument;
+		MainQueueProcessState.store(ProcessState::Waiting);
+	}
+
+	auto event = std::make_unique<QEvent>(kProcessorEvent);
+
+	QMutexLocker lock(&ProcessorMutex);
+	if (ProcessorInstance) {
+		QApplication::postEvent(ProcessorInstance, event.release());
+	}
 }
 
-void ProcessorEvent::process() {
-	_callable(_argument);
-}
+void DrainMainQueueGeneric() {
+	Expects(Platform::UseMainQueueGeneric());
 
-void ProcessObservables() {
-	Global::RefHandleObservables().call();
+	if (MainQueueProcessState.load() != ProcessState::Waiting) {
+		return;
+	}
+	const auto callback = MainQueueProcessCallback;
+	const auto argument = MainQueueProcessArgument;
+	MainQueueProcessState.store(ProcessState::Processed);
+
+	callback(argument);
 }
 
 } // namespace
 
 MainQueueProcessor::MainQueueProcessor() {
-	acquire();
-
-	crl::init_main_queue([](void (*callable)(void*), void *argument) {
-		QMutexLocker lock(&ProcessorMutex);
-
-		if (ProcessorInstance) {
-			const auto event = new ProcessorEvent(callable, argument);
-			QApplication::postEvent(ProcessorInstance, event);
-		}
-	});
-	crl::wrap_main_queue([](void (*callable)(void*), void *argument) {
-		Sandbox::Instance().customEnterFromEventLoop([&] {
-			callable(argument);
+	if constexpr (Platform::UseMainQueueGeneric()) {
+		acquire();
+		crl::init_main_queue(PushToMainQueueGeneric);
+	} else {
+		crl::wrap_main_queue([](void (*callable)(void*), void *argument) {
+			Sandbox::Instance().customEnterFromEventLoop([&] {
+				callable(argument);
+			});
 		});
-	});
+	}
 
-	base::InitObservables(ProcessObservables);
+	Core::Sandbox::Instance().widgetUpdateRequests(
+	) | rpl::start_with_next([] {
+		if constexpr (Platform::UseMainQueueGeneric()) {
+			DrainMainQueueGeneric();
+		} else {
+			Platform::DrainMainQueue();
+		}
+	}, _lifetime);
+
+	base::InitObservables([] {
+		Global::RefHandleObservables().call();
+	});
 }
 
 bool MainQueueProcessor::event(QEvent *event) {
-	if (event->type() == kProcessorEvent) {
-		static_cast<ProcessorEvent*>(event)->process();
-		return true;
+	if constexpr (Platform::UseMainQueueGeneric()) {
+		if (event->type() == kProcessorEvent) {
+			DrainMainQueueGeneric();
+			return true;
+		}
 	}
 	return QObject::event(event);
 }
 
 void MainQueueProcessor::acquire() {
+	Expects(Platform::UseMainQueueGeneric());
 	Expects(ProcessorInstance == nullptr);
 
 	QMutexLocker lock(&ProcessorMutex);
@@ -82,6 +110,7 @@ void MainQueueProcessor::acquire() {
 }
 
 void MainQueueProcessor::release() {
+	Expects(Platform::UseMainQueueGeneric());
 	Expects(ProcessorInstance == this);
 
 	QMutexLocker lock(&ProcessorMutex);
@@ -89,7 +118,9 @@ void MainQueueProcessor::release() {
 }
 
 MainQueueProcessor::~MainQueueProcessor() {
-	release();
+	if constexpr (Platform::UseMainQueueGeneric()) {
+		release();
+	}
 }
 
 } // namespace

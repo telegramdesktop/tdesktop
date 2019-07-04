@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "platform/platform_specific.h"
 #include "platform/win/wrapper_windows_h.h"
 
 namespace Data {
@@ -37,6 +38,10 @@ inline void ReInitOnTopPanel(QWidget *panel) {
 }
 
 QString CurrentExecutablePath(int argc, char *argv[]);
+
+inline constexpr bool UseMainQueueGeneric() {
+	return true;
+}
 
 namespace ThirdParty {
 

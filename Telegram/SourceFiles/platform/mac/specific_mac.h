@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "platform/platform_specific.h"
 #include "platform/mac/specific_mac_p.h"
 
 namespace Data {
@@ -22,6 +23,10 @@ inline bool TranslucentWindowsSupported(QPoint globalPosition) {
 QString CurrentExecutablePath(int argc, char *argv[]);
 
 void RemoveQuarantine(const QString &path);
+
+inline constexpr bool UseMainQueueGeneric() {
+	return false;
+}
 
 namespace ThirdParty {
 

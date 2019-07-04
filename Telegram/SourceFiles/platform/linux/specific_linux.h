@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "platform/platform_specific.h"
+
 #include <execinfo.h>
 #include <signal.h>
 
@@ -37,6 +39,10 @@ QString CurrentExecutablePath(int argc, char *argv[]);
 
 inline std::optional<crl::time> LastUserInputTime() {
 	return std::nullopt;
+}
+
+inline constexpr bool UseMainQueueGeneric() {
+	return true;
 }
 
 } // namespace Platform

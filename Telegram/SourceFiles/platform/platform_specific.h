@@ -45,6 +45,9 @@ bool OpenSystemSettings(SystemSettingsType type);
 	return LastUserInputTime().has_value();
 }
 
+[[nodiscard]] constexpr bool UseMainQueueGeneric();
+void DrainMainQueue(); // Needed only if UseMainQueueGeneric() is false.
+
 namespace ThirdParty {
 
 void start();
