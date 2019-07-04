@@ -13,24 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Lang {
 
-constexpr auto kLegacyLanguageNone = -2;
-constexpr auto kLegacyCustomLanguage = -1;
-constexpr auto kLegacyDefaultLanguage = 0;
-
-constexpr str_const kLegacyLanguages[] = {
-	"en",
-	"it",
-	"es",
-	"de",
-	"nl",
-	"pt_BR",
-	"ko",
-};
-
-inline QString ConvertLegacyLanguageId(const QString &languageId) {
-	return languageId.toLower().replace('_', '-');
-}
-
 struct Language {
 	QString id;
 	QString pluralId;
@@ -91,7 +73,6 @@ public:
 
 	QByteArray serialize() const;
 	void fillFromSerialized(const QByteArray &data, int dataAppVersion);
-	void fillFromLegacy(int legacyId, const QString &legacyPath);
 
 	void applyDifference(
 		Pack pack,
@@ -144,7 +125,6 @@ private:
 	QString _id, _pluralId;
 	rpl::event_stream<QString> _idChanges;
 	QString _name, _nativeName;
-	int _legacyId = kLegacyLanguageNone;
 	QString _customFilePathAbsolute;
 	QString _customFilePathRelative;
 	QByteArray _customFileContent;

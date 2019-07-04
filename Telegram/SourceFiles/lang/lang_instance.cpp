@@ -294,7 +294,6 @@ void Instance::reset(const Language &data) {
 	_name = data.name;
 	_nativeName = data.nativeName;
 
-	_legacyId = kLegacyLanguageNone;
 	_customFilePathAbsolute = QString();
 	_customFilePathRelative = QString();
 	_customFileContent = QByteArray();
@@ -601,46 +600,6 @@ bool Instance::loadFromCustomFile(const QString &filePath) {
 		return true;
 	}
 	return false;
-}
-
-void Instance::fillFromLegacy(int legacyId, const QString &legacyPath) {
-	if (legacyId == kLegacyDefaultLanguage) {
-		_legacyId = legacyId;
-
-		// We suppose that user didn't switch to the default language,
-		// so we will suggest him to switch to his language if we get it.
-		//
-		// The old available languages (de/it/nl/ko/es/pt_BR) won't be
-		// suggested anyway, because everyone saw the suggestion in intro.
-		_id = QString();// str_const_toString(kLegacyLanguages[legacyId]);
-	} else if (legacyId == kLegacyCustomLanguage) {
-		auto absolutePath = QFileInfo(legacyPath).absoluteFilePath();
-		auto relativePath = QDir().relativeFilePath(absolutePath);
-		auto content = Lang::FileParser::ReadFile(absolutePath, relativePath);
-		if (!content.isEmpty()) {
-			_legacyId = legacyId;
-			fillFromCustomContent(absolutePath, relativePath, content);
-		}
-	} else if (legacyId > kLegacyDefaultLanguage && legacyId < base::array_size(kLegacyLanguages)) {
-		auto languageId = str_const_toString(kLegacyLanguages[legacyId]);
-		auto resourcePath = qsl(":/langs/lang_") + languageId + qsl(".strings");
-		auto content = Lang::FileParser::ReadFile(resourcePath, resourcePath);
-		if (!content.isEmpty()) {
-			_legacyId = legacyId;
-			_id = languageId;
-			_version = 0;
-			loadFromContent(content);
-		}
-	}
-	_id = LanguageIdOrDefault(ConvertLegacyLanguageId(_id));
-	if (!isCustom()) {
-		_pluralId = _id;
-	}
-	_name = _nativeName = QString();
-	_base = nullptr;
-	updatePluralRules();
-
-	_idChanges.fire_copy(_id);
 }
 
 // SetCallback takes two QByteArrays: key, value.

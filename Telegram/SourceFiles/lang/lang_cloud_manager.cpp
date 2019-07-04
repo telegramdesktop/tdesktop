@@ -240,23 +240,11 @@ void CloudManager::setSuggestedLanguage(const QString &langCode) {
 		_languageWasSuggested = true;
 		_firstLanguageSuggestion.notify();
 
-		if (AuthSession::Exists() && _langpack.id().isEmpty() && !_suggestedLanguage.isEmpty()) {
-			auto isLegacy = [](const QString &languageId) {
-				for (auto &legacyString : kLegacyLanguages) {
-					auto legacyId = str_const_toString(legacyString);
-					if (ConvertLegacyLanguageId(legacyId) == languageId) {
-						return true;
-					}
-				}
-				return false;
-			};
-
-			// The old available languages (de/it/nl/ko/es/pt_BR) won't be
-			// suggested anyway, because everyone saw the suggestion in intro.
-			if (!isLegacy(_suggestedLanguage)) {
-				_offerSwitchToId = _suggestedLanguage;
-				offerSwitchLangPack();
-			}
+		if (AuthSession::Exists()
+			&& _langpack.id().isEmpty()
+			&& !_suggestedLanguage.isEmpty()) {
+			_offerSwitchToId = _suggestedLanguage;
+			offerSwitchLangPack();
 		}
 	}
 }

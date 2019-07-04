@@ -841,17 +841,11 @@ void _readLocations() {
 }
 
 struct ReadSettingsContext {
-	int legacyLanguageId = Lang::kLegacyLanguageNone;
-	QString legacyLanguageFile;
 	MTP::DcOptions dcOptions;
 };
 
 void applyReadContext(ReadSettingsContext &&context) {
 	Core::App().dcOptions()->addFromOther(std::move(context.dcOptions));
-	if (context.legacyLanguageId != Lang::kLegacyLanguageNone) {
-		Lang::Current().fillFromLegacy(context.legacyLanguageId, context.legacyLanguageFile);
-		writeLangPack();
-	}
 }
 
 QByteArray serializeCallSettings(){
@@ -1478,16 +1472,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
-
-		context.legacyLanguageId = v;
 	} break;
 
 	case dbiLangFileOld: {
 		QString v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
-
-		context.legacyLanguageFile = v;
 	} break;
 
 	case dbiWindowPosition: {
