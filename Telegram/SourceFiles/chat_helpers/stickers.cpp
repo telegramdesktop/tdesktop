@@ -731,20 +731,34 @@ std::vector<not_null<DocumentData*>> GetListByEmoji(
 	const auto CreateSortKey = [&](
 			not_null<DocumentData*> document,
 			int base) {
+		if (document->sticker() && document->sticker()->animated) {
+			base += kSlice;
+		}
 		return TimeId(base + int((document->id ^ seed) % kSlice));
 	};
 	const auto CreateRecentSortKey = [&](not_null<DocumentData*> document) {
-		return CreateSortKey(document, kSlice * 4);
+		return CreateSortKey(document, kSlice * 6);
 	};
 	auto myCounter = 0;
-	const auto CreateMySortKey = [&] {
-		return (kSlice * 4 - (++myCounter));
+	const auto CreateMySortKey = [&](not_null<DocumentData*> document) {
+		auto base = kSlice * 6;
+		if (!document->sticker() || !document->sticker()->animated) {
+			base -= kSlice;
+		}
+		return (base - (++myCounter));
 	};
 	const auto CreateFeaturedSortKey = [&](not_null<DocumentData*> document) {
 		return CreateSortKey(document, kSlice * 2);
 	};
 	const auto CreateOtherSortKey = [&](not_null<DocumentData*> document) {
-		return CreateSortKey(document, kSlice);
+		return CreateSortKey(document, 0);
+	};
+	const auto InstallDateAdjusted = [&](
+			TimeId date,
+			not_null<DocumentData*> document) {
+		return (document->sticker() && document->sticker()->animated)
+			? date
+			: date / 2;
 	};
 	const auto InstallDate = [&](not_null<DocumentData*> document) {
 		Expects(document->sticker() != nullptr);
@@ -754,7 +768,7 @@ std::vector<not_null<DocumentData*>> GetListByEmoji(
 			const auto setId = sticker->set.c_inputStickerSetID().vid.v;
 			const auto setIt = sets.find(setId);
 			if (setIt != sets.end()) {
-				return setIt->installDate;
+				return InstallDateAdjusted(setIt->installDate, document);
 			}
 		}
 		return TimeId(0);
@@ -806,9 +820,9 @@ std::vector<not_null<DocumentData*>> GetListByEmoji(
 			for (const auto document : *i) {
 				const auto installDate = my ? it->installDate : TimeId(0);
 				const auto date = (installDate > 1)
-					? installDate
+					? InstallDateAdjusted(installDate, document)
 					: my
-					? CreateMySortKey()
+					? CreateMySortKey(document)
 					: CreateFeaturedSortKey(document);
 				add(document, date);
 			}
@@ -823,7 +837,7 @@ std::vector<not_null<DocumentData*>> GetListByEmoji(
 	//	MTPDstickerSet::Flag::f_installed_date);
 
 	if (!setsToRequest.empty()) {
-		for (const auto [setId, accessHash] : setsToRequest) {
+		for (const auto &[setId, accessHash] : setsToRequest) {
 			Auth().api().scheduleStickerSetRequest(setId, accessHash);
 		}
 		Auth().api().requestStickerSets();
@@ -843,7 +857,7 @@ std::vector<not_null<DocumentData*>> GetListByEmoji(
 	ranges::action::sort(
 		result,
 		std::greater<>(),
-		[](const StickerWithDate &data) { return data.date; });
+		&StickerWithDate::date);
 
 	return ranges::view::all(
 		result
