@@ -510,6 +510,11 @@ void Manager::notificationReplied(
 	message.replyTo = (msgId > 0 && !history->peer->isUser()) ? msgId : 0;
 	message.clearDraft = false;
 	Auth().api().sendMessage(std::move(message));
+
+	const auto item = history->owner().message(history->channelId(), msgId);
+	if (item && item->isUnreadMention() && !item->isUnreadMedia()) {
+		Auth().api().markMediaRead(item);
+	}
 }
 
 void NativeManager::doShowNotification(HistoryItem *item, int forwardedCount) {
