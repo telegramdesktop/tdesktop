@@ -778,6 +778,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_info_section" = "Info";
 "lng_info_tab_media" = "Media";
 "lng_info_mobile_label" = "Mobile";
+"lng_info_mobile_hidden" = "Hidden";
 "lng_info_username_label" = "Username";
 "lng_info_bio_label" = "Bio";
 "lng_info_link_label" = "Link";
@@ -789,7 +790,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_info_channel_title" = "Channel Info";
 "lng_profile_enable_notifications" = "Notifications";
 "lng_profile_send_message" = "Send Message";
-"lng_info_add_as_contact" = "Add as contact";
+"lng_info_add_as_contact" = "Add to contacts";
 "lng_profile_shared_media" = "Shared media";
 "lng_media_type_photos" = "Photos";
 "lng_media_type_videos" = "Videos";

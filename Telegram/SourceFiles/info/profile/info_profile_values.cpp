@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
+#include "lang/lang_keys.h"
 #include "data/data_peer_values.h"
 #include "data/data_shared_media.h"
 #include "data/data_folder.h"
@@ -24,6 +25,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Info {
 namespace Profile {
+namespace {
+
+auto PlainBioValue(not_null<UserData*> user) {
+	return Notify::PeerUpdateValue(
+		user,
+		Notify::PeerUpdate::Flag::AboutChanged
+	) | rpl::map([=] { return user->about(); });
+}
+
+auto PlainUsernameValue(not_null<PeerData*> peer) {
+	return Notify::PeerUpdateValue(
+		peer,
+		Notify::PeerUpdate::Flag::UsernameChanged
+	) | rpl::map([=] {
+		return peer->userName();
+	});
+}
+
+} // namespace
 
 rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer) {
 	return Notify::PeerUpdateValue(
@@ -43,26 +63,27 @@ rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
 	}) | Ui::Text::ToWithEntities();
 }
 
-auto PlainBioValue(not_null<UserData*> user) {
-	return Notify::PeerUpdateValue(
-		user,
-		Notify::PeerUpdate::Flag::AboutChanged
-	) | rpl::map([user] { return user->about(); });
+rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user) {
+	return rpl::combine(
+		PhoneValue(user),
+		PlainUsernameValue(user),
+		PlainBioValue(user),
+		tr::lng_info_mobile_hidden()
+	) | rpl::map([](
+			const TextWithEntities &phone,
+			const QString &username,
+			const QString &bio,
+			const QString &hidden) {
+		return (phone.text.isEmpty() && username.isEmpty() && bio.isEmpty())
+			? Ui::Text::WithEntities(hidden)
+			: phone;
+	});
 }
 
 rpl::producer<TextWithEntities> BioValue(not_null<UserData*> user) {
 	return PlainBioValue(user)
 		| ToSingleLine()
 		| Ui::Text::ToWithEntities();
-}
-
-auto PlainUsernameValue(not_null<PeerData*> peer) {
-	return Notify::PeerUpdateValue(
-		peer,
-		Notify::PeerUpdate::Flag::UsernameChanged
-	) | rpl::map([peer] {
-		return peer->userName();
-	});
 }
 
 rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user) {
