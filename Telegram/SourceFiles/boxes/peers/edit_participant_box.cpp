@@ -381,7 +381,7 @@ void EditAdminBox::prepare() {
 }
 
 bool EditAdminBox::canTransferOwnership() const {
-	if (user()->isInaccessible() || user()->isBot()) {
+	if (user()->isInaccessible() || user()->isBot() || user()->isSelf()) {
 		return false;
 	} else if (const auto chat = peer()->asChat()) {
 		return chat->amCreator();
