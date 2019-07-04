@@ -2328,15 +2328,20 @@ not_null<DocumentData*> Session::processDocument(
 
 	case mtpc_document: {
 		const auto &fields = data.c_document();
+		const auto mime = qs(fields.vmime_type);
+		const auto format = (mime == qstr("image/webp")
+			|| mime == qstr("application/x-tgsticker"))
+			? "WEBP"
+			: "JPG";
 		return document(
 			fields.vid.v,
 			fields.vaccess_hash.v,
 			fields.vfile_reference.v,
 			fields.vdate.v,
 			fields.vattributes.v,
-			qs(fields.vmime_type),
+			mime,
 			ImagePtr(),
-			Images::Create(std::move(thumb), "JPG"),
+			Images::Create(std::move(thumb), format),
 			fields.vdc_id.v,
 			fields.vsize.v,
 			StorageImageLocation());
