@@ -1703,6 +1703,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								});
 							}
 						}
+					} else if (const auto contact = media->sharedContact()) {
+						const auto phone = contact->phoneNumber;
+						_menu->addAction(tr::lng_profile_copy_phone(tr::now), [=] {
+							QApplication::clipboard()->setText(phone);
+						});
 					}
 				}
 				if (msg && view && !link && (view->hasVisibleText() || mediaHasTextForCopy)) {
