@@ -279,21 +279,10 @@ inline constexpr phrase<" << tags.join(", ") << "> " << (isPlural ? entry.keyBas
 	header_->newline();
 }
 
-void Generator::writeSourceLangKeyConstants() {
-	source_->newline();
-	auto index = 0;
-	for (auto &entry : langpack_.entries) {
-		source_->stream() << "constexpr auto " << getFullKey(entry) << " = ushort(" << (index++) << ");\n";
-	}
-	source_->newline();
-}
-
 bool Generator::writeSource() {
 	source_ = std::make_unique<common::CppFile>(basePath_ + ".cpp", project_);
 
 	source_->include("lang/lang_keys.h").pushNamespace("Lang").pushNamespace();
-
-	writeSourceLangKeyConstants();
 
 	source_->stream() << "\
 QChar DefaultData[] = {";
@@ -359,6 +348,19 @@ ushort GetKeyIndex(QLatin1String key) {\n\
 	auto size = key.size();\n\
 	auto data = key.data();\n";
 
+	auto index = 0;
+	auto indices = std::map<QString, QString>();
+	for (auto &entry : langpack_.entries) {
+		indices.emplace(getFullKey(entry), QString::number(index++));
+	}
+	const auto indexOfKey = [&](const QString &full) {
+		const auto i = indices.find(full);
+		if (i == indices.end()) {
+			return QString();
+		}
+		return i->second;
+	};
+
 	auto taggedKeys = std::map<QString, QString>();
 	auto keysSet = std::set<QString, std::greater<>>();
 	for (auto &entry : langpack_.entries) {
@@ -379,7 +381,8 @@ ushort GetKeyIndex(QLatin1String key) {\n\
 
 	writeSetSearch(keysSet, [&](const QString &key) {
 		auto it = taggedKeys.find(key);
-		return (it != taggedKeys.end()) ? it->second : key;
+		const auto name = (it != taggedKeys.end()) ? it->second : key;
+		return indexOfKey(name);
 	}, "kKeysCount");
 	header_->popNamespace().newline();
 
@@ -401,11 +404,11 @@ bool IsTagReplaced(ushort key, ushort tag) {\n\
 			lastWrittenPluralEntry = entry.keyBase;
 			for (auto i = 0; i != kPluralPartCount; ++i) {
 				source_->stream() << "\
-	case " << ComputePluralKey(entry.keyBase, i) << ":" << ((i + 1 == kPluralPartCount) ? " {" : "") << "\n";
+	case " << indexOfKey(ComputePluralKey(entry.keyBase, i)) << ":" << ((i + 1 == kPluralPartCount) ? " {" : "") << "\n";
 			}
 		} else {
 			source_->stream() << "\
-	case " << getFullKey(entry) << ": {\n";
+	case " << indexOfKey(getFullKey(entry)) << ": {\n";
 		}
 		source_->stream() << "\
 		switch (tag) {\n";

@@ -37,8 +37,6 @@ private:
 	void writeHeaderProducersInterface();
 	void writeHeaderProducersInstances();
 
-	void writeSourceLangKeyConstants();
-
 	QString getFullKey(const LangPack::Entry &entry);
 
 	template <typename ComputeResult>
