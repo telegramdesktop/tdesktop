@@ -1440,7 +1440,8 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 		&& !ClickHandler::getPressed()
 		&& (_mouseCursorState == CursorState::None
 			|| _mouseCursorState == CursorState::Date)
-		&& !inSelectionMode()) {
+		&& !inSelectionMode()
+		&& !_emptyPainter) {
 		if (const auto item = _mouseActionItem) {
 			mouseActionCancel();
 			_widget->replyToMessage(item);
