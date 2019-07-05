@@ -1892,6 +1892,9 @@ void HistoryWidget::updateControlsVisibility() {
 	updateHistoryDownVisibility();
 	updateUnreadMentionsVisibility();
 	if (!_history || _a_show.animating()) {
+		if (_tabbedPanel) {
+			_tabbedPanel->hideFast();
+		}
 		hideChildren();
 		return;
 	}
@@ -2926,6 +2929,9 @@ void HistoryWidget::showAnimated(
 	_topShadow->setVisible(params.withTopBarShadow ? false : true);
 	_cacheOver = App::main()->grabForShowAnimation(params);
 
+	if (_tabbedPanel) {
+		_tabbedPanel->hideFast();
+	}
 	hideChildren();
 	if (params.withTopBarShadow) _topShadow->show();
 

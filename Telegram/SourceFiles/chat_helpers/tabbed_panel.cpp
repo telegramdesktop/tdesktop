@@ -232,6 +232,9 @@ void TabbedPanel::otherLeave() {
 void TabbedPanel::hideFast() {
 	if (isHidden()) return;
 
+	if (_selector && !_selector->isHidden()) {
+		_selector->beforeHiding();
+	}
 	_hideTimer.cancel();
 	_hiding = false;
 	_a_opacity.stop();
