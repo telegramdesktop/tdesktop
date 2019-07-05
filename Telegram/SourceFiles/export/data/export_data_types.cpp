@@ -108,11 +108,11 @@ bool IsUserPeerId(PeerId peerId) {
 
 PeerId ParsePeerId(const MTPPeer &data) {
 	return data.match([](const MTPDpeerUser &data) {
-		return UserPeerId(data.vuser_id.v);
+		return UserPeerId(data.vuser_id().v);
 	}, [](const MTPDpeerChat &data) {
-		return ChatPeerId(data.vchat_id.v);
+		return ChatPeerId(data.vchat_id().v);
 	}, [](const MTPDpeerChannel &data) {
-		return ChatPeerId(data.vchannel_id.v);
+		return ChatPeerId(data.vchannel_id().v);
 	});
 }
 
@@ -141,10 +141,10 @@ std::vector<TextPart> ParseText(
 	};
 	for (const auto &entity : entities) {
 		const auto start = entity.match([](const auto &data) {
-			return data.voffset.v;
+			return data.voffset().v;
 		});
 		const auto length = entity.match([](const auto &data) {
-			return data.vlength.v;
+			return data.vlength().v;
 		});
 
 		if (start < offset || length <= 0 || start + length > size) {
@@ -179,11 +179,11 @@ std::vector<TextPart> ParseText(
 		part.text = mid(start, length);
 		part.additional = entity.match(
 		[](const MTPDmessageEntityPre &data) {
-			return ParseString(data.vlanguage);
+			return ParseString(data.vlanguage());
 		}, [](const MTPDmessageEntityTextUrl &data) {
-			return ParseString(data.vurl);
+			return ParseString(data.vurl());
 		}, [](const MTPDmessageEntityMentionName &data) {
-			return NumberToString(data.vuser_id.v);
+			return NumberToString(data.vuser_id().v);
 		}, [](const auto &) { return Utf8String(); });
 
 		result.push_back(std::move(part));
@@ -213,28 +213,28 @@ Image ParseMaxImage(
 	result.file.suggestedPath = suggestedPath;
 
 	auto maxArea = int64(0);
-	for (const auto &size : photo.vsizes.v) {
+	for (const auto &size : photo.vsizes().v) {
 		size.match([](const MTPDphotoSizeEmpty &) {
 		}, [](const MTPDphotoStrippedSize &) {
 			// Max image size should not be a stripped image.
 		}, [&](const auto &data) {
-			const auto area = data.vw.v * int64(data.vh.v);
+			const auto area = data.vw().v * int64(data.vh().v);
 			if (area > maxArea) {
-				result.width = data.vw.v;
-				result.height = data.vh.v;
+				result.width = data.vw().v;
+				result.height = data.vh().v;
 				result.file.location = FileLocation{
-					photo.vdc_id.v,
+					photo.vdc_id().v,
 					MTP_inputPhotoFileLocation(
-						photo.vid,
-						photo.vaccess_hash,
-						photo.vfile_reference,
-						data.vtype) };
+						photo.vid(),
+						photo.vaccess_hash(),
+						photo.vfile_reference(),
+						data.vtype()) };
 				if constexpr (MTPDphotoCachedSize::Is<decltype(data)>()) {
-					result.file.content = data.vbytes.v;
+					result.file.content = data.vbytes().v;
 					result.file.size = result.file.content.size();
 				} else {
 					result.file.content = QByteArray();
-					result.file.size = data.vsize.v;
+					result.file.size = data.vsize().v;
 				}
 				maxArea = area;
 			}
@@ -246,11 +246,11 @@ Image ParseMaxImage(
 Photo ParsePhoto(const MTPPhoto &data, const QString &suggestedPath) {
 	auto result = Photo();
 	data.match([&](const MTPDphoto &data) {
-		result.id = data.vid.v;
-		result.date = data.vdate.v;
+		result.id = data.vid().v;
+		result.date = data.vdate().v;
 		result.image = ParseMaxImage(data, suggestedPath);
 	}, [&](const MTPDphotoEmpty &data) {
-		result.id = data.vid.v;
+		result.id = data.vid().v;
 	});
 	return result;
 }
@@ -260,33 +260,37 @@ void ParseAttributes(
 		const MTPVector<MTPDocumentAttribute> &attributes) {
 	for (const auto &value : attributes.v) {
 		value.match([&](const MTPDdocumentAttributeImageSize &data) {
-			result.width = data.vw.v;
-			result.height = data.vh.v;
+			result.width = data.vw().v;
+			result.height = data.vh().v;
 		}, [&](const MTPDdocumentAttributeAnimated &data) {
 			result.isAnimated = true;
 		}, [&](const MTPDdocumentAttributeSticker &data) {
 			result.isSticker = true;
-			result.stickerEmoji = ParseString(data.valt);
+			result.stickerEmoji = ParseString(data.valt());
 		}, [&](const MTPDdocumentAttributeVideo &data) {
 			if (data.is_round_message()) {
 				result.isVideoMessage = true;
 			} else {
 				result.isVideoFile = true;
 			}
-			result.width = data.vw.v;
-			result.height = data.vh.v;
-			result.duration = data.vduration.v;
+			result.width = data.vw().v;
+			result.height = data.vh().v;
+			result.duration = data.vduration().v;
 		}, [&](const MTPDdocumentAttributeAudio &data) {
 			if (data.is_voice()) {
 				result.isVoiceMessage = true;
 			} else {
 				result.isAudioFile = true;
 			}
-			result.songPerformer = ParseString(data.vperformer);
-			result.songTitle = ParseString(data.vtitle);
-			result.duration = data.vduration.v;
+			if (const auto performer = data.vperformer()) {
+				result.songPerformer = ParseString(*performer);
+			}
+			if (const auto title = data.vtitle()) {
+				result.songTitle = ParseString(*title);
+			}
+			result.duration = data.vduration().v;
 		}, [&](const MTPDdocumentAttributeFilename &data) {
-			result.name = ParseString(data.vfile_name);
+			result.name = ParseString(data.vfile_name());
 		}, [&](const MTPDdocumentAttributeHasStickers &data) {
 		});
 	}
@@ -396,18 +400,23 @@ QString DocumentFolder(const Document &data) {
 Image ParseDocumentThumb(
 		const MTPDdocument &document,
 		const QString &documentPath) {
+	const auto thumbs = document.vthumbs();
+	if (!thumbs) {
+		return Image();
+	}
+
 	const auto area = [](const MTPPhotoSize &size) {
 		return size.match([](const MTPDphotoSizeEmpty &) {
 			return 0;
 		}, [](const MTPDphotoStrippedSize &) {
 			return 0;
 		}, [](const auto &data) {
-			return data.vw.v * data.vh.v;
+			return data.vw().v * data.vh().v;
 		});
 	};
-	const auto &thumbs = document.vthumbs.v;
-	const auto i = ranges::max_element(thumbs, ranges::less(), area);
-	if (i == thumbs.end()) {
+	const auto &list = thumbs->v;
+	const auto i = ranges::max_element(list, ranges::less(), area);
+	if (i == list.end()) {
 		return Image();
 	}
 	return i->match([](const MTPDphotoSizeEmpty &) {
@@ -416,21 +425,21 @@ Image ParseDocumentThumb(
 		return Image();
 	}, [&](const auto &data) {
 		auto result = Image();
-		result.width = data.vw.v;
-		result.height = data.vh.v;
+		result.width = data.vw().v;
+		result.height = data.vh().v;
 		result.file.location = FileLocation{
-			document.vdc_id.v,
+			document.vdc_id().v,
 			MTP_inputDocumentFileLocation(
-				document.vid,
-				document.vaccess_hash,
-				document.vfile_reference,
-				data.vtype) };
+				document.vid(),
+				document.vaccess_hash(),
+				document.vfile_reference(),
+				data.vtype()) };
 		if constexpr (MTPDphotoCachedSize::Is<decltype(data)>()) {
-			result.file.content = data.vbytes.v;
+			result.file.content = data.vbytes().v;
 			result.file.size = result.file.content.size();
 		} else {
 			result.file.content = QByteArray();
-			result.file.size = data.vsize.v;
+			result.file.size = data.vsize().v;
 		}
 		result.file.suggestedPath = documentPath + "_thumb.jpg";
 		return result;
@@ -444,18 +453,18 @@ Document ParseDocument(
 		TimeId date) {
 	auto result = Document();
 	data.match([&](const MTPDdocument &data) {
-		result.id = data.vid.v;
-		result.date = data.vdate.v;
-		result.mime = ParseString(data.vmime_type);
-		ParseAttributes(result, data.vattributes);
+		result.id = data.vid().v;
+		result.date = data.vdate().v;
+		result.mime = ParseString(data.vmime_type());
+		ParseAttributes(result, data.vattributes());
 
-		result.file.size = data.vsize.v;
-		result.file.location.dcId = data.vdc_id.v;
+		result.file.size = data.vsize().v;
+		result.file.location.dcId = data.vdc_id().v;
 		result.file.location.data = MTP_inputDocumentFileLocation(
-			data.vid,
-			data.vaccess_hash,
-			data.vfile_reference,
-			MTP_string(QString()));
+			data.vid(),
+			data.vaccess_hash(),
+			data.vfile_reference(),
+			MTP_string());
 		result.file.suggestedPath = suggestedFolder
 			+ DocumentFolder(result) + '/'
 			+ CleanDocumentName(ComputeDocumentName(context, result, date));
@@ -464,7 +473,7 @@ Document ParseDocument(
 			data,
 			result.file.suggestedPath);
 	}, [&](const MTPDdocumentEmpty &data) {
-		result.id = data.vid.v;
+		result.id = data.vid().v;
 	});
 	return result;
 }
@@ -474,13 +483,13 @@ SharedContact ParseSharedContact(
 		const MTPDmessageMediaContact &data,
 		const QString &suggestedFolder) {
 	auto result = SharedContact();
-	result.info.userId = data.vuser_id.v;
-	result.info.firstName = ParseString(data.vfirst_name);
-	result.info.lastName = ParseString(data.vlast_name);
-	result.info.phoneNumber = ParseString(data.vphone_number);
-	if (!data.vvcard.v.isEmpty()) {
-		result.vcard.content = data.vvcard.v;
-		result.vcard.size = data.vvcard.v.size();
+	result.info.userId = data.vuser_id().v;
+	result.info.firstName = ParseString(data.vfirst_name());
+	result.info.lastName = ParseString(data.vlast_name());
+	result.info.phoneNumber = ParseString(data.vphone_number());
+	if (!data.vvcard().v.isEmpty()) {
+		result.vcard.content = data.vvcard().v;
+		result.vcard.size = data.vvcard().v.size();
 		result.vcard.suggestedPath = suggestedFolder
 			+ "contacts/contact_"
 			+ QString::number(++context.contacts)
@@ -492,8 +501,8 @@ SharedContact ParseSharedContact(
 GeoPoint ParseGeoPoint(const MTPGeoPoint &data) {
 	auto result = GeoPoint();
 	data.match([&](const MTPDgeoPoint &data) {
-		result.latitude = data.vlat.v;
-		result.longitude = data.vlong.v;
+		result.latitude = data.vlat().v;
+		result.longitude = data.vlong().v;
 		result.valid = true;
 	}, [](const MTPDgeoPointEmpty &data) {});
 	return result;
@@ -501,19 +510,19 @@ GeoPoint ParseGeoPoint(const MTPGeoPoint &data) {
 
 Venue ParseVenue(const MTPDmessageMediaVenue &data) {
 	auto result = Venue();
-	result.point = ParseGeoPoint(data.vgeo);
-	result.title = ParseString(data.vtitle);
-	result.address = ParseString(data.vaddress);
+	result.point = ParseGeoPoint(data.vgeo());
+	result.title = ParseString(data.vtitle());
+	result.address = ParseString(data.vaddress());
 	return result;
 }
 
 Game ParseGame(const MTPGame &data, int32 botId) {
 	return data.match([&](const MTPDgame &data) {
 		auto result = Game();
-		result.id = data.vid.v;
-		result.title = ParseString(data.vtitle);
-		result.description = ParseString(data.vdescription);
-		result.shortName = ParseString(data.vshort_name);
+		result.id = data.vid().v;
+		result.title = ParseString(data.vtitle());
+		result.description = ParseString(data.vdescription());
+		result.shortName = ParseString(data.vshort_name());
 		result.botId = botId;
 		return result;
 	});
@@ -521,49 +530,49 @@ Game ParseGame(const MTPGame &data, int32 botId) {
 
 Invoice ParseInvoice(const MTPDmessageMediaInvoice &data) {
 	auto result = Invoice();
-	result.title = ParseString(data.vtitle);
-	result.description = ParseString(data.vdescription);
-	result.currency = ParseString(data.vcurrency);
-	result.amount = data.vtotal_amount.v;
-	if (data.has_receipt_msg_id()) {
-		result.receiptMsgId = data.vreceipt_msg_id.v;
+	result.title = ParseString(data.vtitle());
+	result.description = ParseString(data.vdescription());
+	result.currency = ParseString(data.vcurrency());
+	result.amount = data.vtotal_amount().v;
+	if (const auto receiptMsgId = data.vreceipt_msg_id()) {
+		result.receiptMsgId = receiptMsgId->v;
 	}
 	return result;
 }
 
 Poll ParsePoll(const MTPDmessageMediaPoll &data) {
 	auto result = Poll();
-	data.vpoll.match([&](const MTPDpoll &poll) {
-		result.id = poll.vid.v;
-		result.question = ParseString(poll.vquestion);
+	data.vpoll().match([&](const MTPDpoll &poll) {
+		result.id = poll.vid().v;
+		result.question = ParseString(poll.vquestion());
 		result.closed = poll.is_closed();
 		result.answers = ranges::view::all(
-			poll.vanswers.v
+			poll.vanswers().v
 		) | ranges::view::transform([](const MTPPollAnswer &answer) {
 			return answer.match([](const MTPDpollAnswer &answer) {
 				auto result = Poll::Answer();
-				result.text = ParseString(answer.vtext);
-				result.option = answer.voption.v;
+				result.text = ParseString(answer.vtext());
+				result.option = answer.voption().v;
 				return result;
 			});
 		}) | ranges::to_vector;
 	});
-	data.vresults.match([&](const MTPDpollResults &results) {
-		if (results.has_total_voters()) {
-			result.totalVotes = results.vtotal_voters.v;
+	data.vresults().match([&](const MTPDpollResults &results) {
+		if (const auto totalVotes = results.vtotal_voters()) {
+			result.totalVotes = totalVotes->v;
 		}
-		if (results.has_results()) {
-			for (const auto &single : results.vresults.v) {
+		if (const auto resultsList = results.vresults()) {
+			for (const auto &single : resultsList->v) {
 				single.match([&](const MTPDpollAnswerVoters &voters) {
-					const auto &option = voters.voption.v;
+					const auto &option = voters.voption().v;
 					const auto i = ranges::find(
 						result.answers,
-						voters.voption.v,
+						voters.voption().v,
 						&Poll::Answer::option);
 					if (i == end(result.answers)) {
 						return;
 					}
-					i->votes = voters.vvoters.v;
+					i->votes = voters.vvoters().v;
 					if (voters.is_chosen()) {
 						i->my = true;
 					}
@@ -585,7 +594,7 @@ UserpicsSlice ParseUserpicsSlice(
 			+ PreparePhotoFileName(
 				++baseIndex,
 				(photo.type() == mtpc_photo
-					? photo.c_photo().vdate.v
+					? photo.c_photo().vdate().v
 					: TimeId(0)));
 		result.list.push_back(ParsePhoto(photo, suggestedPath));
 	}
@@ -657,18 +666,18 @@ QString WriteImageThumb(
 ContactInfo ParseContactInfo(const MTPUser &data) {
 	auto result = ContactInfo();
 	data.match([&](const MTPDuser &data) {
-		result.userId = data.vid.v;
-		if (data.has_first_name()) {
-			result.firstName = ParseString(data.vfirst_name);
+		result.userId = data.vid().v;
+		if (const auto firstName = data.vfirst_name()) {
+			result.firstName = ParseString(*firstName);
 		}
-		if (data.has_last_name()) {
-			result.lastName = ParseString(data.vlast_name);
+		if (const auto lastName = data.vlast_name()) {
+			result.lastName = ParseString(*lastName);
 		}
-		if (data.has_phone()) {
-			result.phoneNumber = ParseString(data.vphone);
+		if (const auto phone = data.vphone()) {
+			result.phoneNumber = ParseString(*phone);
 		}
 	}, [&](const MTPDuserEmpty &data) {
-		result.userId = data.vid.v;
+		result.userId = data.vid().v;
 	});
 	return result;
 }
@@ -684,22 +693,21 @@ User ParseUser(const MTPUser &data) {
 	auto result = User();
 	result.info = ParseContactInfo(data);
 	data.match([&](const MTPDuser &data) {
-		result.id = data.vid.v;
-		if (data.has_username()) {
-			result.username = ParseString(data.vusername);
+		result.id = data.vid().v;
+		if (const auto username = data.vusername()) {
+			result.username = ParseString(*username);
 		}
-		if (data.has_bot_info_version()) {
+		if (data.vbot_info_version()) {
 			result.isBot = true;
 		}
 		if (data.is_self()) {
 			result.isSelf = true;
 		}
-		const auto access_hash = data.has_access_hash()
-			? data.vaccess_hash
-			: MTP_long(0);
-		result.input = MTP_inputUser(data.vid, access_hash);
+		result.input = MTP_inputUser(
+			data.vid(),
+			MTP_long(data.vaccess_hash().value_or_empty()));
 	}, [&](const MTPDuserEmpty &data) {
-		result.input = MTP_inputUser(data.vid, MTP_long(0));
+		result.input = MTP_inputUser(data.vid(), MTP_long(0));
 	});
 	return result;
 }
@@ -716,35 +724,35 @@ std::map<int32, User> ParseUsersList(const MTPVector<MTPUser> &data) {
 Chat ParseChat(const MTPChat &data) {
 	auto result = Chat();
 	data.match([&](const MTPDchat &data) {
-		result.id = data.vid.v;
-		result.title = ParseString(data.vtitle);
+		result.id = data.vid().v;
+		result.title = ParseString(data.vtitle());
 		result.input = MTP_inputPeerChat(MTP_int(result.id));
 	}, [&](const MTPDchatEmpty &data) {
-		result.id = data.vid.v;
+		result.id = data.vid().v;
 		result.input = MTP_inputPeerChat(MTP_int(result.id));
 	}, [&](const MTPDchatForbidden &data) {
-		result.id = data.vid.v;
-		result.title = ParseString(data.vtitle);
+		result.id = data.vid().v;
+		result.title = ParseString(data.vtitle());
 		result.input = MTP_inputPeerChat(MTP_int(result.id));
 	}, [&](const MTPDchannel &data) {
-		result.id = data.vid.v;
+		result.id = data.vid().v;
 		result.isBroadcast = data.is_broadcast();
 		result.isSupergroup = data.is_megagroup();
-		result.title = ParseString(data.vtitle);
-		if (data.has_username()) {
-			result.username = ParseString(data.vusername);
+		result.title = ParseString(data.vtitle());
+		if (const auto username = data.vusername()) {
+			result.username = ParseString(*username);
 		}
 		result.input = MTP_inputPeerChannel(
 			MTP_int(result.id),
-			data.vaccess_hash);
+			MTP_long(data.vaccess_hash().value_or_empty()));
 	}, [&](const MTPDchannelForbidden &data) {
-		result.id = data.vid.v;
+		result.id = data.vid().v;
 		result.isBroadcast = data.is_broadcast();
 		result.isSupergroup = data.is_megagroup();
-		result.title = ParseString(data.vtitle);
+		result.title = ParseString(data.vtitle());
 		result.input = MTP_inputPeerChannel(
 			MTP_int(result.id),
-			data.vaccess_hash);
+			data.vaccess_hash());
 	});
 	return result;
 }
@@ -802,7 +810,7 @@ MTPInputPeer Peer::input() const {
 	if (const auto user = this->user()) {
 		if (user->input.type() == mtpc_inputUser) {
 			const auto &input = user->input.c_inputUser();
-			return MTP_inputPeerUser(input.vuser_id, input.vaccess_hash);
+			return MTP_inputPeerUser(input.vuser_id(), input.vaccess_hash());
 		}
 		return MTP_inputPeerEmpty();
 	} else if (const auto chat = this->chat()) {
@@ -898,44 +906,46 @@ Media ParseMedia(
 
 	auto result = Media();
 	data.match([&](const MTPDmessageMediaPhoto &data) {
-		auto photo = data.has_photo()
+		const auto photo = data.vphoto();
+		auto content = photo
 			? ParsePhoto(
-				data.vphoto,
+				*photo,
 				folder
 				+ "photos/"
 				+ PreparePhotoFileName(++context.photos, date))
 			: Photo();
-		if (data.has_ttl_seconds()) {
-			result.ttl = data.vttl_seconds.v;
-			photo.image.file = File();
+		if (const auto ttl = data.vttl_seconds()) {
+			result.ttl = ttl->v;
+			content.image.file = File();
 		}
-		result.content = photo;
+		result.content = content;
 	}, [&](const MTPDmessageMediaGeo &data) {
-		result.content = ParseGeoPoint(data.vgeo);
+		result.content = ParseGeoPoint(data.vgeo());
 	}, [&](const MTPDmessageMediaContact &data) {
 		result.content = ParseSharedContact(context, data, folder);
 	}, [&](const MTPDmessageMediaUnsupported &data) {
 		result.content = UnsupportedMedia();
 	}, [&](const MTPDmessageMediaDocument &data) {
-		auto document = data.has_document()
-			? ParseDocument(context, data.vdocument, folder, date)
+		const auto document = data.vdocument();
+		auto content = document
+			? ParseDocument(context, *document, folder, date)
 			: Document();
-		if (data.has_ttl_seconds()) {
-			result.ttl = data.vttl_seconds.v;
-			document.file = File();
+		if (const auto ttl = data.vttl_seconds()) {
+			result.ttl = ttl->v;
+			content.file = File();
 		}
-		result.content = document;
+		result.content = content;
 	}, [&](const MTPDmessageMediaWebPage &data) {
 		// Ignore web pages.
 	}, [&](const MTPDmessageMediaVenue &data) {
 		result.content = ParseVenue(data);
 	}, [&](const MTPDmessageMediaGame &data) {
-		result.content = ParseGame(data.vgame, context.botId);
+		result.content = ParseGame(data.vgame(), context.botId);
 	}, [&](const MTPDmessageMediaInvoice &data) {
 		result.content = ParseInvoice(data);
 	}, [&](const MTPDmessageMediaGeoLive &data) {
-		result.content = ParseGeoPoint(data.vgeo);
-		result.ttl = data.vperiod.v;
+		result.content = ParseGeoPoint(data.vgeo());
+		result.ttl = data.vperiod().v;
 	}, [&](const MTPDmessageMediaPoll &data) {
 		result.content = ParsePoll(data);
 	}, [](const MTPDmessageMediaEmpty &data) {});
@@ -950,20 +960,20 @@ ServiceAction ParseServiceAction(
 	auto result = ServiceAction();
 	data.match([&](const MTPDmessageActionChatCreate &data) {
 		auto content = ActionChatCreate();
-		content.title = ParseString(data.vtitle);
-		content.userIds.reserve(data.vusers.v.size());
-		for (const auto &userId : data.vusers.v) {
+		content.title = ParseString(data.vtitle());
+		content.userIds.reserve(data.vusers().v.size());
+		for (const auto &userId : data.vusers().v) {
 			content.userIds.push_back(userId.v);
 		}
 		result.content = content;
 	}, [&](const MTPDmessageActionChatEditTitle &data) {
 		auto content = ActionChatEditTitle();
-		content.title = ParseString(data.vtitle);
+		content.title = ParseString(data.vtitle());
 		result.content = content;
 	}, [&](const MTPDmessageActionChatEditPhoto &data) {
 		auto content = ActionChatEditPhoto();
 		content.photo = ParsePhoto(
-			data.vphoto,
+			data.vphoto(),
 			mediaFolder
 			+ "photos/"
 			+ PreparePhotoFileName(++context.photos, date));
@@ -972,31 +982,31 @@ ServiceAction ParseServiceAction(
 		result.content = ActionChatDeletePhoto();
 	}, [&](const MTPDmessageActionChatAddUser &data) {
 		auto content = ActionChatAddUser();
-		content.userIds.reserve(data.vusers.v.size());
-		for (const auto &user : data.vusers.v) {
+		content.userIds.reserve(data.vusers().v.size());
+		for (const auto &user : data.vusers().v) {
 			content.userIds.push_back(user.v);
 		}
 		result.content = content;
 	}, [&](const MTPDmessageActionChatDeleteUser &data) {
 		auto content = ActionChatDeleteUser();
-		content.userId = data.vuser_id.v;
+		content.userId = data.vuser_id().v;
 		result.content = content;
 	}, [&](const MTPDmessageActionChatJoinedByLink &data) {
 		auto content = ActionChatJoinedByLink();
-		content.inviterId = data.vinviter_id.v;
+		content.inviterId = data.vinviter_id().v;
 		result.content = content;
 	}, [&](const MTPDmessageActionChannelCreate &data) {
 		auto content = ActionChannelCreate();
-		content.title = ParseString(data.vtitle);
+		content.title = ParseString(data.vtitle());
 		result.content = content;
 	}, [&](const MTPDmessageActionChatMigrateTo &data) {
 		auto content = ActionChatMigrateTo();
-		content.channelId = data.vchannel_id.v;
+		content.channelId = data.vchannel_id().v;
 		result.content = content;
 	}, [&](const MTPDmessageActionChannelMigrateFrom &data) {
 		auto content = ActionChannelMigrateFrom();
-		content.title = ParseString(data.vtitle);
-		content.chatId = data.vchat_id.v;
+		content.title = ParseString(data.vtitle());
+		content.chatId = data.vchat_id().v;
 		result.content = content;
 	}, [&](const MTPDmessageActionPinMessage &data) {
 		result.content = ActionPinMessage();
@@ -1004,24 +1014,24 @@ ServiceAction ParseServiceAction(
 		result.content = ActionHistoryClear();
 	}, [&](const MTPDmessageActionGameScore &data) {
 		auto content = ActionGameScore();
-		content.gameId = data.vgame_id.v;
-		content.score = data.vscore.v;
+		content.gameId = data.vgame_id().v;
+		content.score = data.vscore().v;
 		result.content = content;
 	}, [&](const MTPDmessageActionPaymentSentMe &data) {
 		// Should not be in user inbox.
 	}, [&](const MTPDmessageActionPaymentSent &data) {
 		auto content = ActionPaymentSent();
-		content.currency = ParseString(data.vcurrency);
-		content.amount = data.vtotal_amount.v;
+		content.currency = ParseString(data.vcurrency());
+		content.amount = data.vtotal_amount().v;
 		result.content = content;
 	}, [&](const MTPDmessageActionPhoneCall &data) {
 		auto content = ActionPhoneCall();
-		if (data.has_duration()) {
-			content.duration = data.vduration.v;
+		if (const auto duration = data.vduration()) {
+			content.duration = duration->v;
 		}
-		if (data.has_reason()) {
+		if (const auto reason = data.vreason()) {
 			using Reason = ActionPhoneCall::DiscardReason;
-			content.discardReason = data.vreason.match(
+			content.discardReason = reason->match(
 			[](const MTPDphoneCallDiscardReasonMissed &data) {
 				return Reason::Missed;
 			}, [](const MTPDphoneCallDiscardReasonDisconnect &data) {
@@ -1037,19 +1047,19 @@ ServiceAction ParseServiceAction(
 		result.content = ActionScreenshotTaken();
 	}, [&](const MTPDmessageActionCustomAction &data) {
 		auto content = ActionCustomAction();
-		content.message = ParseString(data.vmessage);
+		content.message = ParseString(data.vmessage());
 		result.content = content;
 	}, [&](const MTPDmessageActionBotAllowed &data) {
 		auto content = ActionBotAllowed();
-		content.domain = ParseString(data.vdomain);
+		content.domain = ParseString(data.vdomain());
 		result.content = content;
 	}, [&](const MTPDmessageActionSecureValuesSentMe &data) {
 		// Should not be in user inbox.
 	}, [&](const MTPDmessageActionSecureValuesSent &data) {
 		auto content = ActionSecureValuesSent();
-		content.types.reserve(data.vtypes.v.size());
+		content.types.reserve(data.vtypes().v.size());
 		using Type = ActionSecureValuesSent::Type;
-		for (const auto &type : data.vtypes.v) {
+		for (const auto &type : data.vtypes().v) {
 			content.types.push_back(type.match(
 			[](const MTPDsecureValueTypePersonalDetails &data) {
 				return Type::PersonalDetails;
@@ -1116,71 +1126,73 @@ Message ParseMessage(
 		const QString &mediaFolder) {
 	auto result = Message();
 	data.match([&](const auto &data) {
-		result.id = data.vid.v;
+		result.id = data.vid().v;
 		if constexpr (!MTPDmessageEmpty::Is<decltype(data)>()) {
-			result.toId = ParsePeerId(data.vto_id);
+			result.toId = ParsePeerId(data.vto_id());
+			const auto fromId = data.vfrom_id();
 			const auto peerId = (!data.is_out()
-				&& data.has_from_id()
-				&& data.vto_id.type() == mtpc_peerUser)
-				? UserPeerId(data.vfrom_id.v)
+				&& fromId
+				&& data.vto_id().type() == mtpc_peerUser)
+				? UserPeerId(fromId->v)
 				: result.toId;
 			if (IsChatPeerId(peerId)) {
 				result.chatId = BarePeerId(peerId);
 			}
-			if (data.has_from_id()) {
-				result.fromId = data.vfrom_id.v;
+			if (fromId) {
+				result.fromId = fromId->v;
 			}
-			if (data.has_reply_to_msg_id()) {
-				result.replyToMsgId = data.vreply_to_msg_id.v;
+			if (const auto replyToMsgId = data.vreply_to_msg_id()) {
+				result.replyToMsgId = replyToMsgId->v;
 			}
-			result.date = data.vdate.v;
+			result.date = data.vdate().v;
 			result.out = data.is_out();
 		}
 	});
 	data.match([&](const MTPDmessage &data) {
-		if (data.has_edit_date()) {
-			result.edited = data.vedit_date.v;
+		if (const auto editDate = data.vedit_date()) {
+			result.edited = editDate->v;
 		}
-		if (data.has_fwd_from()) {
-			result.forwardedFromId = data.vfwd_from.match(
+		if (const auto fwdFrom = data.vfwd_from()) {
+			result.forwardedFromId = fwdFrom->match(
 			[](const MTPDmessageFwdHeader &data) {
-				if (data.has_channel_id()) {
-					return ChatPeerId(data.vchannel_id.v);
-				} else if (data.has_from_id()) {
-					return UserPeerId(data.vfrom_id.v);
+				if (const auto channelId = data.vchannel_id()) {
+					return ChatPeerId(channelId->v);
+				} else if (const auto fromId = data.vfrom_id()) {
+					return UserPeerId(fromId->v);
 				}
 				return PeerId(0);
 			});
-			result.forwardedFromName = data.vfwd_from.match(
+			result.forwardedFromName = fwdFrom->match(
 			[](const MTPDmessageFwdHeader &data) {
-				return data.has_from_name()
-					? data.vfrom_name.v
-					: QByteArray();
+				if (const auto fromName = data.vfrom_name()) {
+					return fromName->v;
+				}
+				return QByteArray();
 			});
-			result.forwardedDate = data.vfwd_from.match(
+			result.forwardedDate = fwdFrom->match(
 			[](const MTPDmessageFwdHeader &data) {
-				return data.vdate.v;
+				return data.vdate().v;
 			});
-			result.savedFromChatId = data.vfwd_from.match(
+			result.savedFromChatId = fwdFrom->match(
 			[](const MTPDmessageFwdHeader &data) {
-				if (data.has_saved_from_peer()) {
-					return ParsePeerId(data.vsaved_from_peer);
+				if (const auto savedFromPeer = data.vsaved_from_peer()) {
+					return ParsePeerId(*savedFromPeer);
 				}
 				return PeerId(0);
 			});
 			result.forwarded = result.forwardedFromId
 				|| !result.forwardedFromName.isEmpty();
 		}
-		if (data.has_post_author()) {
-			result.signature = ParseString(data.vpost_author);
+		if (const auto postAuthor = data.vpost_author()) {
+			result.signature = ParseString(*postAuthor);
 		}
-		if (data.has_reply_to_msg_id()) {
-			result.replyToMsgId = data.vreply_to_msg_id.v;
+		if (const auto replyToMsgId = data.vreply_to_msg_id()) {
+			result.replyToMsgId = replyToMsgId->v;
 		}
-		if (data.has_via_bot_id()) {
-			result.viaBotId = data.vvia_bot_id.v;
+		if (const auto viaBotId = data.vvia_bot_id()) {
+			result.viaBotId = viaBotId->v;
 		}
-		if (data.has_media()) {
+		if (const auto media = data.vmedia()) {
 			context.botId = (result.viaBotId
 				? result.viaBotId
 				: IsUserPeerId(result.forwardedFromId)
@@ -1188,7 +1200,7 @@ Message ParseMessage(
 				: result.fromId);
 			result.media = ParseMedia(
 				context,
-				data.vmedia,
+				*media,
 				mediaFolder,
 				result.date);
 			if (result.media.ttl && !data.is_out()) {
@@ -1198,18 +1210,16 @@ Message ParseMessage(
 			context.botId = 0;
 		}
 		result.text = ParseText(
-			data.vmessage,
-			(data.has_entities()
-				? data.ventities.v
-				: QVector<MTPMessageEntity>{}));
+			data.vmessage(),
+			data.ventities().value_or_empty());
 	}, [&](const MTPDmessageService &data) {
 		result.action = ParseServiceAction(
 			context,
-			data.vaction,
+			data.vaction(),
 			mediaFolder,
 			result.date);
 	}, [&](const MTPDmessageEmpty &data) {
-		result.id = data.vid.v;
+		result.id = data.vid().v;
 	});
 	return result;
 }
@@ -1232,9 +1242,9 @@ PersonalInfo ParsePersonalInfo(const MTPUserFull &data) {
 
 	const auto &fields = data.c_userFull();
 	auto result = PersonalInfo();
-	result.user = ParseUser(fields.vuser);
-	if (fields.has_about()) {
-		result.bio = ParseString(fields.vabout);
+	result.user = ParseUser(fields.vuser());
+	if (const auto about = fields.vabout()) {
+		result.bio = ParseString(*about);
 	}
 	return result;
 }
@@ -1244,10 +1254,10 @@ ContactsList ParseContactsList(const MTPcontacts_Contacts &data) {
 
 	auto result = ContactsList();
 	const auto &contacts = data.c_contacts_contacts();
-	const auto map = ParseUsersList(contacts.vusers);
-	result.list.reserve(contacts.vcontacts.v.size());
-	for (const auto &contact : contacts.vcontacts.v) {
-		const auto userId = contact.c_contact().vuser_id.v;
+	const auto map = ParseUsersList(contacts.vusers());
+	result.list.reserve(contacts.vcontacts().v.size());
+	for (const auto &contact : contacts.vcontacts().v) {
+		const auto userId = contact.c_contact().vuser_id().v;
 		if (const auto i = map.find(userId); i != end(map)) {
 			result.list.push_back(i->second.info);
 		} else {
@@ -1263,10 +1273,10 @@ ContactsList ParseContactsList(const MTPVector<MTPSavedContact> &data) {
 	for (const auto &contact : data.v) {
 		auto info = contact.match([](const MTPDsavedPhoneContact &data) {
 			auto info = ContactInfo();
-			info.firstName = ParseString(data.vfirst_name);
-			info.lastName = ParseString(data.vlast_name);
-			info.phoneNumber = ParseString(data.vphone);
-			info.date = data.vdate.v;
+			info.firstName = ParseString(data.vfirst_name());
+			info.lastName = ParseString(data.vlast_name());
+			info.phoneNumber = ParseString(data.vphone());
+			info.date = data.vdate().v;
 			return info;
 		});
 		result.list.push_back(std::move(info));
@@ -1297,13 +1307,13 @@ bool AppendTopPeers(ContactsList &to, const MTPcontacts_TopPeers &data) {
 	}, [](const MTPDcontacts_topPeersDisabled &data) {
 		return true;
 	}, [&](const MTPDcontacts_topPeers &data) {
-		const auto peers = ParsePeersLists(data.vusers, data.vchats);
+		const auto peers = ParsePeersLists(data.vusers(), data.vchats());
 		const auto append = [&](
 				std::vector<TopPeer> &to,
 				const MTPVector<MTPTopPeer> &list) {
 			for (const auto &topPeer : list.v) {
 				to.push_back(topPeer.match([&](const MTPDtopPeer &data) {
-					const auto peerId = ParsePeerId(data.vpeer);
+					const auto peerId = ParsePeerId(data.vpeer());
 					auto peer = [&] {
 						const auto i = peers.find(peerId);
 						return (i != peers.end())
@@ -1312,23 +1322,23 @@ bool AppendTopPeers(ContactsList &to, const MTPcontacts_TopPeers &data) {
 					}();
 					return TopPeer{
 						Peer{ std::move(peer) },
-						data.vrating.v
+						data.vrating().v
 					};
 				}));
 			}
 		};
-		for (const auto &list : data.vcategories.v) {
+		for (const auto &list : data.vcategories().v) {
 			const auto appended = list.match(
 			[&](const MTPDtopPeerCategoryPeers &data) {
-				const auto category = data.vcategory.type();
+				const auto category = data.vcategory().type();
 				if (category == mtpc_topPeerCategoryCorrespondents) {
-					append(to.correspondents, data.vpeers);
+					append(to.correspondents, data.vpeers());
 					return true;
 				} else if (category == mtpc_topPeerCategoryBotsInline) {
-					append(to.inlineBots, data.vpeers);
+					append(to.inlineBots, data.vpeers());
 					return true;
 				} else if (category == mtpc_topPeerCategoryPhoneCalls) {
-					append(to.phoneCalls, data.vpeers);
+					append(to.phoneCalls, data.vpeers());
 					return true;
 				} else {
 					return false;
@@ -1345,17 +1355,17 @@ bool AppendTopPeers(ContactsList &to, const MTPcontacts_TopPeers &data) {
 Session ParseSession(const MTPAuthorization &data) {
 	return data.match([&](const MTPDauthorization &data) {
 		auto result = Session();
-		result.applicationId = data.vapi_id.v;
-		result.platform = ParseString(data.vplatform);
-		result.deviceModel = ParseString(data.vdevice_model);
-		result.systemVersion = ParseString(data.vsystem_version);
-		result.applicationName = ParseString(data.vapp_name);
-		result.applicationVersion = ParseString(data.vapp_version);
-		result.created = data.vdate_created.v;
-		result.lastActive = data.vdate_active.v;
-		result.ip = ParseString(data.vip);
-		result.country = ParseString(data.vcountry);
-		result.region = ParseString(data.vregion);
+		result.applicationId = data.vapi_id().v;
+		result.platform = ParseString(data.vplatform());
+		result.deviceModel = ParseString(data.vdevice_model());
+		result.systemVersion = ParseString(data.vsystem_version());
+		result.applicationName = ParseString(data.vapp_name());
+		result.applicationVersion = ParseString(data.vapp_version());
+		result.created = data.vdate_created().v;
+		result.lastActive = data.vdate_active().v;
+		result.ip = ParseString(data.vip());
+		result.country = ParseString(data.vcountry());
+		result.region = ParseString(data.vregion());
 		return result;
 	});
 }
@@ -1363,7 +1373,7 @@ Session ParseSession(const MTPAuthorization &data) {
 SessionsList ParseSessionsList(const MTPaccount_Authorizations &data) {
 	return data.match([](const MTPDaccount_authorizations &data) {
 		auto result = SessionsList();
-		const auto &list = data.vauthorizations.v;
+		const auto &list = data.vauthorizations().v;
 		result.list.reserve(list.size());
 		for (const auto &session : list) {
 			result.list.push_back(ParseSession(session));
@@ -1377,17 +1387,17 @@ WebSession ParseWebSession(
 		const std::map<int32, User> &users) {
 	return data.match([&](const MTPDwebAuthorization &data) {
 		auto result = WebSession();
-		const auto i = users.find(data.vbot_id.v);
+		const auto i = users.find(data.vbot_id().v);
 		if (i != users.end() && i->second.isBot) {
 			result.botUsername = i->second.username;
 		}
-		result.domain = ParseString(data.vdomain);
-		result.platform = ParseString(data.vplatform);
-		result.browser = ParseString(data.vbrowser);
-		result.created = data.vdate_created.v;
-		result.lastActive = data.vdate_active.v;
-		result.ip = ParseString(data.vip);
-		result.region = ParseString(data.vregion);
+		result.domain = ParseString(data.vdomain());
+		result.platform = ParseString(data.vplatform());
+		result.browser = ParseString(data.vbrowser());
+		result.created = data.vdate_created().v;
+		result.lastActive = data.vdate_active().v;
+		result.ip = ParseString(data.vip());
+		result.region = ParseString(data.vregion());
 		return result;
 	});
 }
@@ -1396,8 +1406,8 @@ SessionsList ParseWebSessionsList(
 		const MTPaccount_WebAuthorizations &data) {
 	return data.match([&](const MTPDaccount_webAuthorizations &data) {
 		auto result = SessionsList();
-		const auto users = ParseUsersList(data.vusers);
-		const auto &list = data.vauthorizations.v;
+		const auto users = ParseUsersList(data.vusers());
+		const auto &list = data.vauthorizations().v;
 		result.webList.reserve(list.size());
 		for (const auto &session : list) {
 			result.webList.push_back(ParseWebSession(session, users));
@@ -1455,10 +1465,10 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 	data.match([](const MTPDmessages_dialogsNotModified &data) {
 		Unexpected("dialogsNotModified in ParseDialogsInfo.");
 	}, [&](const auto &data) { // MTPDmessages_dialogs &data) {
-		const auto peers = ParsePeersLists(data.vusers, data.vchats);
-		const auto messages = ParseMessagesList(data.vmessages, folder);
-		result.chats.reserve(result.chats.size() + data.vdialogs.v.size());
-		for (const auto &dialog : data.vdialogs.v) {
+		const auto peers = ParsePeersLists(data.vusers(), data.vchats());
+		const auto messages = ParseMessagesList(data.vmessages(), folder);
+		result.chats.reserve(result.chats.size() + data.vdialogs().v.size());
+		for (const auto &dialog : data.vdialogs().v) {
 			if (dialog.type() != mtpc_dialog) {
 				LOG(("API Error: Unexpected dialog type in chats export."));
 				continue;
@@ -1466,7 +1476,7 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 			const auto &fields = dialog.c_dialog();
 
 			auto info = DialogInfo();
-			info.peerId = ParsePeerId(fields.vpeer);
+			info.peerId = ParsePeerId(fields.vpeer());
 			const auto peerIt = peers.find(info.peerId);
 			if (peerIt != end(peers)) {
 				const auto &peer = peerIt->second;
@@ -1481,7 +1491,7 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 					: Utf8String();
 				info.input = peer.input();
 			}
-			info.topMessageId = fields.vtop_message.v;
+			info.topMessageId = fields.vtop_message().v;
 			const auto shift = IsChatPeerId(info.peerId)
 				? (uint64(uint32(BarePeerId(info.peerId))) << 32)
 				: 0;
@@ -1524,8 +1534,8 @@ DialogInfo DialogInfoFromChat(const Chat &data) {
 DialogsInfo ParseLeftChannelsInfo(const MTPmessages_Chats &data) {
 	auto result = DialogsInfo();
 	data.match([&](const auto &data) { //MTPDmessages_chats &data) {
-		result.left.reserve(data.vchats.v.size());
-		for (const auto &single : data.vchats.v) {
+		result.left.reserve(data.vchats().v.size());
+		for (const auto &single : data.vchats().v) {
 			auto info = DialogInfoFromChat(ParseChat(single));
 			info.isLeftChannel = true;
 			result.left.push_back(std::move(info));
@@ -1539,7 +1549,7 @@ DialogsInfo ParseDialogsInfo(
 		const MTPVector<MTPUser> &data) {
 	const auto singleId = singlePeer.match(
 	[](const MTPDinputPeerUser &data) {
-		return data.vuser_id.v;
+		return data.vuser_id().v;
 	}, [](const MTPDinputPeerSelf &data) {
 		return 0;
 	}, [](const auto &data) -> int {
@@ -1549,7 +1559,7 @@ DialogsInfo ParseDialogsInfo(
 	result.chats.reserve(data.v.size());
 	for (const auto &single : data.v) {
 		const auto userId = single.match([&](const auto &data) {
-			return data.vid.v;
+			return data.vid().v;
 		});
 		if (userId != singleId
 			&& (singleId != 0
@@ -1568,18 +1578,18 @@ DialogsInfo ParseDialogsInfo(
 		const MTPmessages_Chats &data) {
 	const auto singleId = singlePeer.match(
 	[](const MTPDinputPeerChat &data) {
-		return data.vchat_id.v;
+		return data.vchat_id().v;
 	}, [](const MTPDinputPeerChannel &data) {
-		return data.vchannel_id.v;
+		return data.vchannel_id().v;
 	}, [](const auto &data) -> int {
 		Unexpected("Single peer type in ParseDialogsInfo(chats).");
 	});
 	auto result = DialogsInfo();
 	data.match([&](const auto &data) { //MTPDmessages_chats &data) {
-		result.chats.reserve(data.vchats.v.size());
-		for (const auto &single : data.vchats.v) {
+		result.chats.reserve(data.vchats().v.size());
+		for (const auto &single : data.vchats().v) {
 			const auto chatId = single.match([&](const auto &data) {
-				return data.vid.v;
+				return data.vid().v;
 			});
 			if (chatId != singleId) {
 				continue;
@@ -1654,14 +1664,14 @@ TimeId SingleMessageDate(const MTPmessages_Messages &data) {
 	return data.match([&](const MTPDmessages_messagesNotModified &data) {
 		return 0;
 	}, [&](const auto &data) {
-		const auto &list = data.vmessages.v;
+		const auto &list = data.vmessages().v;
 		if (list.isEmpty()) {
 			return 0;
 		}
 		return list[0].match([](const MTPDmessageEmpty &data) {
 			return 0;
 		}, [](const auto &data) {
-			return data.vdate.v;
+			return data.vdate().v;
 		});
 	});
 }

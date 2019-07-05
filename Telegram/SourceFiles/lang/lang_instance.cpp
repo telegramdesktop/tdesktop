@@ -611,27 +611,17 @@ void HandleString(
 		SetCallback setCallback,
 		ResetCallback resetCallback) {
 	string.match([&](const MTPDlangPackString &data) {
-		setCallback(qba(data.vkey), qba(data.vvalue));
+		setCallback(qba(data.vkey()), qba(data.vvalue()));
 	}, [&](const MTPDlangPackStringPluralized &data) {
-		const auto key = qba(data.vkey);
-		setCallback(
-			key + "#zero",
-			data.has_zero_value() ? qba(data.vzero_value) : QByteArray());
-		setCallback(
-			key + "#one",
-			data.has_one_value() ? qba(data.vone_value) : QByteArray());
-		setCallback(
-			key + "#two",
-			data.has_two_value() ? qba(data.vtwo_value) : QByteArray());
-		setCallback(
-			key + "#few",
-			data.has_few_value() ? qba(data.vfew_value) : QByteArray());
-		setCallback(
-			key + "#many",
-			data.has_many_value() ? qba(data.vmany_value) : QByteArray());
-		setCallback(key + "#other", qba(data.vother_value));
+		const auto key = qba(data.vkey());
+		setCallback(key + "#zero", data.vzero_value().value_or_empty());
+		setCallback(key + "#one", data.vone_value().value_or_empty());
+		setCallback(key + "#two", data.vtwo_value().value_or_empty());
+		setCallback(key + "#few", data.vfew_value().value_or_empty());
+		setCallback(key + "#many", data.vmany_value().value_or_empty());
+		setCallback(key + "#other", qba(data.vother_value()));
 	}, [&](const MTPDlangPackStringDeleted &data) {
-		auto key = qba(data.vkey);
+		auto key = qba(data.vkey());
 		resetCallback(key);
 		const auto postfixes = {
 			"#zero",
@@ -665,11 +655,11 @@ void Instance::applyDifference(
 
 void Instance::applyDifferenceToMe(
 		const MTPDlangPackDifference &difference) {
-	Expects(LanguageIdOrDefault(_id) == qs(difference.vlang_code));
-	Expects(difference.vfrom_version.v <= _version);
+	Expects(LanguageIdOrDefault(_id) == qs(difference.vlang_code()));
+	Expects(difference.vfrom_version().v <= _version);
 
-	_version = difference.vversion.v;
-	for (const auto &string : difference.vstrings.v) {
+	_version = difference.vversion().v;
+	for (const auto &string : difference.vstrings().v) {
 		HandleString(string, [&](auto &&key, auto &&value) {
 			applyValue(key, value);
 		}, [&](auto &&key) {

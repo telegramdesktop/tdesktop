@@ -631,7 +631,7 @@ void PasscodeBox::sendClearCloudPassword(
 		MTP_account_passwordInputSettings(
 			MTP_flags(flags),
 			Core::PrepareCloudPasswordAlgo(_cloudFields.newAlgo),
-			MTP_bytes(QByteArray()), // new_password_hash
+			MTP_bytes(), // new_password_hash
 			MTP_string(hint),
 			MTP_string(email),
 			MTPSecureSecretSettings())
@@ -693,26 +693,26 @@ void PasscodeBox::changeCloudPassword(
 		Expects(result.type() == mtpc_account_passwordSettings);
 		const auto &data = result.c_account_passwordSettings();
 
-		if (!data.has_secure_settings()) {
+		const auto wrapped = data.vsecure_settings();
+		if (!wrapped) {
 			checkPasswordHash([=](const Core::CloudPasswordResult &check) {
 				const auto empty = QByteArray();
 				sendChangeCloudPassword(check, newPassword, empty);
 			});
 			return;
 		}
-		const auto &wrapped = data.vsecure_settings;
-		const auto &settings = wrapped.c_secureSecretSettings();
+		const auto &settings = wrapped->c_secureSecretSettings();
 		const auto passwordUtf = oldPassword.toUtf8();
 		const auto secret = Passport::DecryptSecureSecret(
-			bytes::make_span(settings.vsecure_secret.v),
+			bytes::make_span(settings.vsecure_secret().v),
 			Core::ComputeSecureSecretHash(
-				Core::ParseSecureSecretAlgo(settings.vsecure_algo),
+				Core::ParseSecureSecretAlgo(settings.vsecure_algo()),
 				bytes::make_span(passwordUtf)));
 		if (secret.empty()) {
 			LOG(("API Error: Failed to decrypt secure secret."));
 			suggestSecretReset(newPassword);
 		} else if (Passport::CountSecureSecretId(secret)
-				!= settings.vsecure_secret_id.v) {
+				!= settings.vsecure_secret_id().v) {
 			LOG(("API Error: Wrong secure secret id."));
 			suggestSecretReset(newPassword);
 		} else {
@@ -760,7 +760,7 @@ void PasscodeBox::resetSecret(
 			MTPstring(), // email
 			MTP_secureSecretSettings(
 				MTP_securePasswordKdfAlgoUnknown(), // secure_algo
-				MTP_bytes(QByteArray()), // secure_secret
+				MTP_bytes(), // secure_secret
 				MTP_long(0))) // secure_secret_id
 	)).done([=](const MTPBool &result) {
 		_setRequest = 0;
@@ -899,7 +899,7 @@ void PasscodeBox::recover() {
 }
 
 void PasscodeBox::recoverStarted(const MTPauth_PasswordRecovery &result) {
-	_pattern = qs(result.c_auth_passwordRecovery().vemail_pattern);
+	_pattern = qs(result.c_auth_passwordRecovery().vemail_pattern());
 	recover();
 }
 

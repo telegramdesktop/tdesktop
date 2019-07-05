@@ -36,15 +36,15 @@ constexpr auto kMegabyte = 1024 * 1024;
 
 PeerId ReadPeerId(const MTPInputPeer &data) {
 	return data.match([](const MTPDinputPeerUser &data) {
-		return peerFromUser(data.vuser_id.v);
+		return peerFromUser(data.vuser_id().v);
 	}, [](const MTPDinputPeerUserFromMessage &data) {
-		return peerFromUser(data.vuser_id.v);
+		return peerFromUser(data.vuser_id().v);
 	}, [](const MTPDinputPeerChat &data) {
-		return peerFromChat(data.vchat_id.v);
+		return peerFromChat(data.vchat_id().v);
 	}, [](const MTPDinputPeerChannel &data) {
-		return peerFromChannel(data.vchannel_id.v);
+		return peerFromChannel(data.vchannel_id().v);
 	}, [](const MTPDinputPeerChannelFromMessage &data) {
-		return peerFromChannel(data.vchannel_id.v);
+		return peerFromChannel(data.vchannel_id().v);
 	}, [](const MTPDinputPeerSelf &data) {
 		return Auth().userPeerId();
 	}, [](const MTPDinputPeerEmpty &data) {

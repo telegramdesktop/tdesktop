@@ -104,10 +104,10 @@ void Changelogs::requestCloudLogs() {
 			resultEmpty = false;
 			break;
 		case mtpc_updatesCombined:
-			resultEmpty = result.c_updatesCombined().vupdates.v.isEmpty();
+			resultEmpty = result.c_updatesCombined().vupdates().v.isEmpty();
 			break;
 		case mtpc_updates:
-			resultEmpty = result.c_updates().vupdates.v.isEmpty();
+			resultEmpty = result.c_updates().vupdates().v.isEmpty();
 			break;
 		case mtpc_updatesTooLong:
 		case mtpc_updateShortSentMessage:

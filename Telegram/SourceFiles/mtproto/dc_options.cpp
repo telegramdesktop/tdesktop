@@ -146,15 +146,13 @@ void DcOptions::processFromList(
 		}
 
 		auto &option = mtpOption.c_dcOption();
-		auto dcId = option.vid.v;
-		auto flags = option.vflags.v;
+		auto dcId = option.vid().v;
+		auto flags = option.vflags().v;
 		auto ip = std::string(
-			option.vip_address.v.constData(),
-			option.vip_address.v.size());
-		auto port = option.vport.v;
-		auto secret = option.has_secret()
-			? bytes::make_vector(option.vsecret.v)
-			: bytes::vector();
+			option.vip_address().v.constData(),
+			option.vip_address().v.size());
+		auto port = option.vport().v;
+		auto secret = bytes::make_vector(option.vsecret().value_or_empty());
 		ApplyOneOption(data, dcId, flags, ip, port, secret);
 	}
 
@@ -537,18 +535,18 @@ DcType DcOptions::dcType(ShiftedDcId shiftedDcId) const {
 void DcOptions::setCDNConfig(const MTPDcdnConfig &config) {
 	WriteLocker lock(this);
 	_cdnPublicKeys.clear();
-	for_const (auto &publicKey, config.vpublic_keys.v) {
+	for_const (auto &publicKey, config.vpublic_keys().v) {
 		Expects(publicKey.type() == mtpc_cdnPublicKey);
 		const auto &keyData = publicKey.c_cdnPublicKey();
-		const auto keyBytes = bytes::make_span(keyData.vpublic_key.v);
+		const auto keyBytes = bytes::make_span(keyData.vpublic_key().v);
 		auto key = internal::RSAPublicKey(keyBytes);
 		if (key.isValid()) {
-			_cdnPublicKeys[keyData.vdc_id.v].emplace(
+			_cdnPublicKeys[keyData.vdc_id().v].emplace(
 				key.getFingerPrint(),
 				std::move(key));
 		} else {
 			LOG(("MTP Error: could not read this public RSA key:"));
-			LOG((qs(keyData.vpublic_key)));
+			LOG((qs(keyData.vpublic_key())));
 		}
 	}
 }

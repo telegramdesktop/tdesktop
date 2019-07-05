@@ -210,7 +210,7 @@ Fn<void(
 			};
 			const auto flags = newRights.match([](
 					const MTPDchatAdminRights &data) {
-				return data.vflags.v;
+				return data.vflags().v;
 			});
 			if (flags == ChatData::DefaultAdminRights()) {
 				saveChatAdmin(true);
@@ -250,7 +250,7 @@ Fn<void(
 		if (const auto chat = peer->asChatNotMigrated()) {
 			const auto flags = newRights.match([](
 					const MTPDchatBannedRights &data) {
-				return data.vflags.v;
+				return data.vflags().v;
 			});
 			if (flags & MTPDchatBannedRights::Flag::f_view_messages) {
 				SaveChatParticipantKick(chat, user, done, onFail);
@@ -510,13 +510,13 @@ UserData *ParticipantsAdditionalData::applyParticipant(
 			&& overrideRole != Role::Members) {
 			return logBad();
 		}
-		return applyRegular(data.vuser_id);
+		return applyRegular(data.vuser_id());
 	}, [&](const MTPDchannelParticipant &data) {
 		if (overrideRole != Role::Profile
 			&& overrideRole != Role::Members) {
 			return logBad();
 		}
-		return applyRegular(data.vuser_id);
+		return applyRegular(data.vuser_id());
 	}, [&](const MTPDchannelParticipantBanned &data) {
 		if (overrideRole != Role::Profile
 			&& overrideRole != Role::Members
@@ -530,7 +530,7 @@ UserData *ParticipantsAdditionalData::applyParticipant(
 
 UserData *ParticipantsAdditionalData::applyCreator(
 		const MTPDchannelParticipantCreator &data) {
-	if (const auto user = applyRegular(data.vuser_id)) {
+	if (const auto user = applyRegular(data.vuser_id())) {
 		_creator = user;
 		return user;
 	}
@@ -539,7 +539,7 @@ UserData *ParticipantsAdditionalData::applyCreator(
 
 UserData *ParticipantsAdditionalData::applyAdmin(
 		const MTPDchannelParticipantAdmin &data) {
-	const auto user = _peer->owner().userLoaded(data.vuser_id.v);
+	const auto user = _peer->owner().userLoaded(data.vuser_id().v);
 	if (!user) {
 		return nullptr;
 	} else if (const auto chat = _peer->asChat()) {
@@ -552,13 +552,13 @@ UserData *ParticipantsAdditionalData::applyAdmin(
 	_restrictedRights.erase(user);
 	_kicked.erase(user);
 	_restrictedBy.erase(user);
-	_adminRights[user] = data.vadmin_rights;
+	_adminRights[user] = data.vadmin_rights();
 	if (data.is_can_edit()) {
 		_adminCanEdit.emplace(user);
 	} else {
 		_adminCanEdit.erase(user);
 	}
-	if (const auto by = _peer->owner().userLoaded(data.vpromoted_by.v)) {
+	if (const auto by = _peer->owner().userLoaded(data.vpromoted_by().v)) {
 		const auto i = _adminPromotedBy.find(user);
 		if (i == _adminPromotedBy.end()) {
 			_adminPromotedBy.emplace(user, by);
@@ -567,7 +567,7 @@ UserData *ParticipantsAdditionalData::applyAdmin(
 		}
 	} else {
 		LOG(("API Error: No user %1 for admin promoted by."
-			).arg(data.vpromoted_by.v));
+			).arg(data.vpromoted_by().v));
 	}
 	return user;
 }
@@ -594,7 +594,7 @@ UserData *ParticipantsAdditionalData::applyRegular(MTPint userId) {
 
 UserData *ParticipantsAdditionalData::applyBanned(
 		const MTPDchannelParticipantBanned &data) {
-	const auto user = _peer->owner().userLoaded(data.vuser_id.v);
+	const auto user = _peer->owner().userLoaded(data.vuser_id().v);
 	if (!user) {
 		return nullptr;
 	}
@@ -608,8 +608,8 @@ UserData *ParticipantsAdditionalData::applyBanned(
 	} else {
 		_kicked.erase(user);
 	}
-	_restrictedRights[user] = data.vbanned_rights;
-	if (const auto by = _peer->owner().userLoaded(data.vkicked_by.v)) {
+	_restrictedRights[user] = data.vbanned_rights();
+	if (const auto by = _peer->owner().userLoaded(data.vkicked_by().v)) {
 		const auto i = _restrictedBy.find(user);
 		if (i == _restrictedBy.end()) {
 			_restrictedBy.emplace(user, by);
@@ -1201,9 +1201,9 @@ void ParticipantsBoxController::loadMoreRows() {
 		} else if (_role == Role::Admins) {
 			return MTP_channelParticipantsAdmins();
 		} else if (_role == Role::Restricted) {
-			return MTP_channelParticipantsBanned(MTP_string(QString()));
+			return MTP_channelParticipantsBanned(MTP_string());
 		}
-		return MTP_channelParticipantsKicked(MTP_string(QString()));
+		return MTP_channelParticipantsKicked(MTP_string());
 	}();
 
 	// First query is small and fast, next loads a lot of rows.
@@ -1442,7 +1442,7 @@ void ParticipantsBoxController::editAdminDone(
 	}
 
 	const auto date = unixtime(); // Incorrect, but ignored.
-	if (rights.c_chatAdminRights().vflags.v == 0) {
+	if (rights.c_chatAdminRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
 			MTP_int(user->bareId()),
 			MTP_int(date)));
@@ -1510,7 +1510,7 @@ void ParticipantsBoxController::editRestrictedDone(
 	}
 
 	const auto date = unixtime(); // Incorrect, but ignored.
-	if (rights.c_chatBannedRights().vflags.v == 0) {
+	if (rights.c_chatBannedRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
 			MTP_int(user->bareId()),
 			MTP_int(date)));
@@ -1996,7 +1996,7 @@ void ParticipantsBoxSearchController::searchDone(
 
 	_requestId = 0;
 	result.match([&](const MTPDchannels_channelParticipants &data) {
-		const auto &list = data.vparticipants.v;
+		const auto &list = data.vparticipants().v;
 		if (list.size() < requestedCount) {
 			// We want cache to have full information about a query with
 			// small results count (that we don't need the second request).

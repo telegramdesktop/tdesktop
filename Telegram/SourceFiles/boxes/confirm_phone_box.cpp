@@ -227,21 +227,27 @@ void ConfirmPhoneBox::checkPhoneAndHash() {
 }
 
 void ConfirmPhoneBox::sendCodeDone(const MTPauth_SentCode &result) {
-	Expects(result.type() == mtpc_auth_sentCode);
-	_sendCodeRequestId = 0;
-
-	auto &resultInner = result.c_auth_sentCode();
-	switch (resultInner.vtype.type()) {
-	case mtpc_auth_sentCodeTypeApp: LOG(("Error: should not be in-app code!")); break;
-	case mtpc_auth_sentCodeTypeSms: _sentCodeLength = resultInner.vtype.c_auth_sentCodeTypeSms().vlength.v; break;
-	case mtpc_auth_sentCodeTypeCall: _sentCodeLength = resultInner.vtype.c_auth_sentCodeTypeCall().vlength.v; break;
-	case mtpc_auth_sentCodeTypeFlashCall: LOG(("Error: should not be flashcall!")); break;
-	}
-	_phoneHash = qs(resultInner.vphone_code_hash);
-	if (resultInner.has_next_type() && resultInner.vnext_type.type() == mtpc_auth_codeTypeCall) {
-		_call.setStatus({ SentCodeCall::State::Waiting, resultInner.has_timeout() ? resultInner.vtimeout.v : 60 });
-	}
-	launch();
+	result.match([&](const MTPDauth_sentCode &data) {
+		_sendCodeRequestId = 0;
+		_sentCodeLength = data.vtype().match([&](const MTPDauth_sentCodeTypeApp &data) {
+			LOG(("Error: should not be in-app code!"));
+			return 0;
+		}, [&](const MTPDauth_sentCodeTypeSms &data) {
+			return data.vlength().v;
+		}, [&](const MTPDauth_sentCodeTypeCall &data) {
+			return data.vlength().v;
+		}, [&](const MTPDauth_sentCodeTypeFlashCall &data) {
+			LOG(("Error: should not be flashcall!"));
+			return 0;
+		});
+		_phoneHash = qs(data.vphone_code_hash());
+		if (const auto nextType = data.vnext_type()) {
+			if (nextType->type() == mtpc_auth_codeTypeCall) {
+				_call.setStatus({ SentCodeCall::State::Waiting, data.vtimeout().value_or(60) });
+			}
+		}
+		launch();
+	});
 }
 
 bool ConfirmPhoneBox::sendCodeFail(const RPCError &error) {

@@ -369,6 +369,49 @@ SecureRequest SecureRequest::Serialize(const Request &request) {
 	return serialized;
 }
 
+template <typename Type>
+struct RepeatHelper {
+	using type = Type;
+};
+template <typename Type>
+using Repeat = typename RepeatHelper<Type>::type;
+
+template <typename Type>
+class conditional {
+public:
+	conditional() = default;
+	conditional(const Type *value) : _value(value) {
+	}
+
+	operator const Type*() const {
+		return _value;
+	}
+	const Type *operator->() const {
+		Expects(_value != nullptr);
+
+		return _value;
+	}
+	const Type &operator*() const {
+		Expects(_value != nullptr);
+
+		return *_value;
+	}
+
+	template <typename Inner = std::decay_t<decltype(std::declval<Type>().v)>>
+	Inner value_or(Repeat<Inner> fallback) const {
+		return _value ? _value->v : fallback;
+	}
+
+	template <typename Inner = std::decay_t<decltype(std::declval<Type>().v)>>
+	Inner value_or_empty() const {
+		return _value ? _value->v : Inner();
+	}
+
+private:
+	const Type *_value = nullptr;
+
+};
+
 } // namespace MTP
 
 class MTPint {
@@ -660,9 +703,11 @@ private:
 	friend MTPstring MTP_string(const std::string &v);
 	friend MTPstring MTP_string(const QString &v);
 	friend MTPstring MTP_string(const char *v);
+	friend MTPstring MTP_string();
 
 	friend MTPbytes MTP_bytes(const QByteArray &v);
 	friend MTPbytes MTP_bytes(QByteArray &&v);
+	friend MTPbytes MTP_bytes();
 
 };
 using MTPString = MTPBoxed<MTPstring>;
@@ -677,6 +722,9 @@ inline MTPstring MTP_string(const QString &v) {
 inline MTPstring MTP_string(const char *v) {
 	return MTPstring(QByteArray(v, strlen(v)));
 }
+inline MTPstring MTP_string() {
+	return MTPstring(QByteArray());
+}
 MTPstring MTP_string(const QByteArray &v) = delete;
 
 inline MTPbytes MTP_bytes(const QByteArray &v) {
@@ -684,6 +732,9 @@ inline MTPbytes MTP_bytes(const QByteArray &v) {
 }
 inline MTPbytes MTP_bytes(QByteArray &&v) {
 	return MTPbytes(std::move(v));
+}
+inline MTPbytes MTP_bytes() {
+	return MTPbytes(QByteArray());
 }
 inline MTPbytes MTP_bytes(bytes::const_span buffer) {
 	return MTP_bytes(QByteArray(
@@ -703,6 +754,10 @@ inline bool operator!=(const MTPstring &a, const MTPstring &b) {
 
 inline QString qs(const MTPstring &v) {
 	return QString::fromUtf8(v.v);
+}
+
+inline QString qs(const QByteArray &v) {
+	return QString::fromUtf8(v);
 }
 
 inline QByteArray qba(const MTPstring &v) {
@@ -756,6 +811,8 @@ private:
 	friend MTPvector<U> MTP_vector(const QVector<U> &v);
 	template <typename U>
 	friend MTPvector<U> MTP_vector(QVector<U> &&v);
+	template <typename U>
+	friend MTPvector<U> MTP_vector();
 
 };
 template <typename T>
@@ -773,6 +830,10 @@ inline MTPvector<T> MTP_vector(const QVector<T> &v) {
 template <typename T>
 inline MTPvector<T> MTP_vector(QVector<T> &&v) {
 	return MTPvector<T>(std::move(v));
+}
+template <typename T>
+inline MTPvector<T> MTP_vector() {
+	return MTPvector<T>();
 }
 template <typename T>
 using MTPVector = MTPBoxed<MTPvector<T>>;

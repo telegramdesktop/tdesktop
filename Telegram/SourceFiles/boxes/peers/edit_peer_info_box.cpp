@@ -553,7 +553,7 @@ void Controller::showEditLinkedChatBox() {
 	).done([=](const MTPmessages_Chats &result) {
 		_linkedChatsRequestId = 0;
 		const auto list = result.match([&](const auto &data) {
-			return data.vchats.v;
+			return data.vchats().v;
 		});
 		auto chats = std::vector<not_null<PeerData*>>();
 		chats.reserve(list.size());

@@ -303,18 +303,18 @@ AdminLog::OwnedItem GenerateContactItem(
 		MTP_int(viaBotId),
 		MTP_int(replyTo),
 		MTP_int(unixtime()),
-		MTP_string(QString()),
+		MTP_string(),
 		MTP_messageMediaContact(
 			MTP_string(data.phone),
 			MTP_string(data.firstName),
 			MTP_string(data.lastName),
-			MTP_string(QString()),
+			MTP_string(),
 			MTP_int(0)),
 		MTPReplyMarkup(),
 		MTPVector<MTPMessageEntity>(),
 		MTP_int(0),
 		MTP_int(0),
-		MTP_string(QString()),
+		MTP_string(),
 		MTP_long(0));
 	const auto item = history->owner().makeMessage(
 		history,

@@ -99,7 +99,7 @@ void ListController::loadMoreRows() {
 		_preloadGroupId = 0;
 		_allLoaded = true;
 		const auto &chats = result.match([](const auto &data) {
-			return data.vchats.v;
+			return data.vchats().v;
 		});
 		if (!chats.empty()) {
 			for (const auto &chat : chats) {

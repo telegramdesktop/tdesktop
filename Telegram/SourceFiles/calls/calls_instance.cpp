@@ -169,26 +169,26 @@ bytes::const_span Instance::updateDhConfig(
 	};
 	return data.match([&](const MTPDmessages_dhConfig &data)
 	-> bytes::const_span {
-		auto primeBytes = bytes::make_vector(data.vp.v);
-		if (!MTP::IsPrimeAndGood(primeBytes, data.vg.v)) {
+		auto primeBytes = bytes::make_vector(data.vp().v);
+		if (!MTP::IsPrimeAndGood(primeBytes, data.vg().v)) {
 			LOG(("API Error: bad p/g received in dhConfig."));
 			return {};
-		} else if (!validRandom(data.vrandom.v)) {
+		} else if (!validRandom(data.vrandom().v)) {
 			return {};
 		}
-		_dhConfig.g = data.vg.v;
+		_dhConfig.g = data.vg().v;
 		_dhConfig.p = std::move(primeBytes);
-		_dhConfig.version = data.vversion.v;
-		return bytes::make_span(data.vrandom.v);
+		_dhConfig.version = data.vversion().v;
+		return bytes::make_span(data.vrandom().v);
 	}, [&](const MTPDmessages_dhConfigNotModified &data)
 	-> bytes::const_span {
 		if (!_dhConfig.g || _dhConfig.p.empty()) {
 			LOG(("API Error: dhConfigNotModified on zero version."));
 			return {};
-		} else if (!validRandom(data.vrandom.v)) {
+		} else if (!validRandom(data.vrandom().v)) {
 			return {};
 		}
-		return bytes::make_span(data.vrandom.v);
+		return bytes::make_span(data.vrandom().v);
 	});
 }
 
@@ -203,7 +203,7 @@ void Instance::refreshServerConfig() {
 		_serverConfigRequestId = 0;
 		_lastServerConfigUpdateTime = crl::now();
 
-		const auto &json = result.c_dataJSON().vdata.v;
+		const auto &json = result.c_dataJSON().vdata().v;
 		UpdateConfig(std::string(json.data(), json.size()));
 	}).fail([this](const RPCError &error) {
 		_serverConfigRequestId = 0;
@@ -211,7 +211,7 @@ void Instance::refreshServerConfig() {
 }
 
 void Instance::handleUpdate(const MTPDupdatePhoneCall& update) {
-	handleCallUpdate(update.vphone_call);
+	handleCallUpdate(update.vphone_call());
 }
 
 void Instance::showInfoPanel(not_null<Call*> call) {
@@ -235,7 +235,7 @@ bool Instance::isQuitPrevent() {
 void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 	if (call.type() == mtpc_phoneCallRequested) {
 		auto &phoneCall = call.c_phoneCallRequested();
-		auto user = Auth().data().userLoaded(phoneCall.vadmin_id.v);
+		auto user = Auth().data().userLoaded(phoneCall.vadmin_id().v);
 		if (!user) {
 			LOG(("API Error: User not loaded for phoneCallRequested."));
 		} else if (user->isSelf()) {
@@ -244,12 +244,12 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 		if (alreadyInCall() || !user || user->isSelf()) {
 			request(MTPphone_DiscardCall(
 				MTP_flags(0),
-				MTP_inputPhoneCall(phoneCall.vid, phoneCall.vaccess_hash),
+				MTP_inputPhoneCall(phoneCall.vid(), phoneCall.vaccess_hash()),
 				MTP_int(0),
 				MTP_phoneCallDiscardReasonBusy(),
 				MTP_long(0)
 			)).send();
-		} else if (phoneCall.vdate.v + (Global::CallRingTimeoutMs() / 1000) < unixtime()) {
+		} else if (phoneCall.vdate().v + (Global::CallRingTimeoutMs() / 1000) < unixtime()) {
 			LOG(("Ignoring too old call."));
 		} else {
 			createCall(user, Call::Type::Incoming);

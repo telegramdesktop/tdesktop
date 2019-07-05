@@ -153,11 +153,12 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	const auto &d = result.c_auth_sentCode();
 	fillSentCodeData(d);
 	getData()->phone = _sentPhone;
-	getData()->phoneHash = qba(d.vphone_code_hash);
+	getData()->phoneHash = qba(d.vphone_code_hash());
 	getData()->phoneIsRegistered = d.is_phone_registered();
-	if (d.has_next_type() && d.vnext_type.type() == mtpc_auth_codeTypeCall) {
+	const auto next = d.vnext_type();
+	if (next && next->type() == mtpc_auth_codeTypeCall) {
 		getData()->callStatus = Widget::Data::CallStatus::Waiting;
-		getData()->callTimeout = d.has_timeout() ? d.vtimeout.v : 60;
+		getData()->callTimeout = d.vtimeout().value_or(60);
 	} else {
 		getData()->callStatus = Widget::Data::CallStatus::Disabled;
 		getData()->callTimeout = 0;

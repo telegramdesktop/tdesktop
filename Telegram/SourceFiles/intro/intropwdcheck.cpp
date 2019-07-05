@@ -136,11 +136,11 @@ void PwdCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorization &re
 		cSetPasswordRecovered(true);
 	}
 	auto &d = result.c_auth_authorization();
-	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
+	if (d.vuser().type() != mtpc_user || !d.vuser().c_user().is_self()) { // wtf?
 		showError(rpl::single(Lang::Hard::ServerError()));
 		return;
 	}
-	finish(d.vuser);
+	finish(d.vuser());
 }
 
 void PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
@@ -265,7 +265,7 @@ void PwdCheckWidget::codeSubmitFail(const RPCError &error) {
 }
 
 void PwdCheckWidget::recoverStarted(const MTPauth_PasswordRecovery &result) {
-	_emailPattern = qs(result.c_auth_passwordRecovery().vemail_pattern);
+	_emailPattern = qs(result.c_auth_passwordRecovery().vemail_pattern());
 	updateDescriptionText();
 }
 

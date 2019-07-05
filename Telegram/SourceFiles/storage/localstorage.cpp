@@ -4667,15 +4667,15 @@ void WriteExportSettings(const Export::Settings &settings) {
 		settings.singlePeer.match([&](const MTPDinputPeerUser & user) {
 			data.stream
 				<< kSinglePeerTypeUser
-				<< qint32(user.vuser_id.v)
-				<< quint64(user.vaccess_hash.v);
+				<< qint32(user.vuser_id().v)
+				<< quint64(user.vaccess_hash().v);
 		}, [&](const MTPDinputPeerChat & chat) {
-			data.stream << kSinglePeerTypeChat << qint32(chat.vchat_id.v);
+			data.stream << kSinglePeerTypeChat << qint32(chat.vchat_id().v);
 		}, [&](const MTPDinputPeerChannel & channel) {
 			data.stream
 				<< kSinglePeerTypeChannel
-				<< qint32(channel.vchannel_id.v)
-				<< quint64(channel.vaccess_hash.v);
+				<< qint32(channel.vchannel_id().v)
+				<< quint64(channel.vaccess_hash().v);
 		}, [&](const MTPDinputPeerSelf &) {
 			data.stream << kSinglePeerTypeSelf;
 		}, [&](const MTPDinputPeerEmpty &) {

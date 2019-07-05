@@ -38,17 +38,17 @@ PollData::PollData(PollId id) : id(id) {
 }
 
 bool PollData::applyChanges(const MTPDpoll &poll) {
-	Expects(poll.vid.v == id);
+	Expects(poll.vid().v == id);
 
-	const auto newQuestion = qs(poll.vquestion);
+	const auto newQuestion = qs(poll.vquestion());
 	const auto newClosed = poll.is_closed();
 	auto newAnswers = ranges::view::all(
-		poll.vanswers.v
+		poll.vanswers().v
 	) | ranges::view::transform([](const MTPPollAnswer &data) {
 		return data.match([](const MTPDpollAnswer &answer) {
 			auto result = PollAnswer();
-			result.option = answer.voption.v;
-			result.text = qs(answer.vtext);
+			result.option = answer.voption().v;
+			result.text = qs(answer.vtext());
 			return result;
 		});
 	}) | ranges::view::take(
@@ -82,12 +82,11 @@ bool PollData::applyResults(const MTPPollResults &results) {
 	return results.match([&](const MTPDpollResults &results) {
 		lastResultsUpdate = crl::now();
 
-		const auto newTotalVoters = results.has_total_voters()
-			? results.vtotal_voters.v
-			: totalVoters;
+		const auto newTotalVoters =
+			results.vtotal_voters().value_or(totalVoters);
 		auto changed = (newTotalVoters != totalVoters);
-		if (results.has_results()) {
-			for (const auto &result : results.vresults.v) {
+		if (const auto list = results.vresults()) {
+			for (const auto &result : list->v) {
 				if (applyResultToAnswers(result, results.is_min())) {
 					changed = true;
 				}
@@ -124,14 +123,14 @@ bool PollData::applyResultToAnswers(
 		const MTPPollAnswerVoters &result,
 		bool isMinResults) {
 	return result.match([&](const MTPDpollAnswerVoters &voters) {
-		const auto &option = voters.voption.v;
+		const auto &option = voters.voption().v;
 		const auto answer = answerByOption(option);
 		if (!answer) {
 			return false;
 		}
-		auto changed = (answer->votes != voters.vvoters.v);
+		auto changed = (answer->votes != voters.vvoters().v);
 		if (changed) {
-			answer->votes = voters.vvoters.v;
+			answer->votes = voters.vvoters().v;
 		}
 		if (!isMinResults) {
 			if (answer->chosen != voters.is_chosen()) {

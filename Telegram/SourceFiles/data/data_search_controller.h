@@ -26,7 +26,7 @@ struct SearchResult {
 	int fullCount = 0;
 };
 
-MTPmessages_Search PrepareSearchRequest(
+std::optional<MTPmessages_Search> PrepareSearchRequest(
 	not_null<PeerData*> peer,
 	Storage::SharedMediaType type,
 	const QString &query,

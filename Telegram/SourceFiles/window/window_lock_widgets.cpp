@@ -172,14 +172,13 @@ void PasscodeLockWidget::setInnerFocus() {
 }
 
 TermsLock TermsLock::FromMTP(const MTPDhelp_termsOfService &data) {
+	const auto minAge = data.vmin_age_confirm();
 	return {
-		bytes::make_vector(data.vid.c_dataJSON().vdata.v),
+		bytes::make_vector(data.vid().c_dataJSON().vdata().v),
 		TextWithEntities {
-			TextUtilities::Clean(qs(data.vtext)),
-			TextUtilities::EntitiesFromMTP(data.ventities.v) },
-		(data.has_min_age_confirm()
-			? base::make_optional(data.vmin_age_confirm.v)
-			: std::nullopt),
+			TextUtilities::Clean(qs(data.vtext())),
+			TextUtilities::EntitiesFromMTP(data.ventities().v) },
+		(minAge ? std::make_optional(minAge->v) : std::nullopt),
 		data.is_popup()
 	};
 }

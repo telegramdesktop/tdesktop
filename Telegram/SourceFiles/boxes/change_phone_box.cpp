@@ -167,22 +167,24 @@ void ChangePhoneBox::EnterPhone::sendPhoneDone(const QString &phoneNumber, const
 
 	auto codeLength = 0;
 	auto &data = result.c_auth_sentCode();
-	switch (data.vtype.type()) {
+	switch (data.vtype().type()) {
 	case mtpc_auth_sentCodeTypeApp:
 		LOG(("Error: should not be in-app code!"));
 		showError(Lang::Hard::ServerError());
 		return;
-	case mtpc_auth_sentCodeTypeSms: codeLength = data.vtype.c_auth_sentCodeTypeSms().vlength.v; break;
-	case mtpc_auth_sentCodeTypeCall: codeLength = data.vtype.c_auth_sentCodeTypeCall().vlength.v; break;
+	case mtpc_auth_sentCodeTypeSms: codeLength = data.vtype().c_auth_sentCodeTypeSms().vlength().v; break;
+	case mtpc_auth_sentCodeTypeCall: codeLength = data.vtype().c_auth_sentCodeTypeCall().vlength().v; break;
 	case mtpc_auth_sentCodeTypeFlashCall:
 		LOG(("Error: should not be flashcall!"));
 		showError(Lang::Hard::ServerError());
 		return;
 	}
-	auto phoneCodeHash = qs(data.vphone_code_hash);
+	auto phoneCodeHash = qs(data.vphone_code_hash());
 	auto callTimeout = 0;
-	if (data.has_next_type() && data.vnext_type.type() == mtpc_auth_codeTypeCall) {
-		callTimeout = data.has_timeout() ? data.vtimeout.v : 60;
+	if (const auto nextType = data.vnext_type()) {
+		if (nextType->type() == mtpc_auth_codeTypeCall) {
+			callTimeout = data.vtimeout().value_or(60);
+		}
 	}
 	Ui::show(
 		Box<EnterCode>(

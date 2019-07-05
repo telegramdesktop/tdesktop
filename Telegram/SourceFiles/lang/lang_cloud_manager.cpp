@@ -63,10 +63,10 @@ ConfirmSwitchBox::ConfirmSwitchBox(
 	QWidget*,
 	const MTPDlangPackLanguage &data,
 	Fn<void()> apply)
-: _name(qs(data.vnative_name))
-, _percent(data.vtranslated_count.v * 100 / data.vstrings_count.v)
+: _name(qs(data.vnative_name()))
+, _percent(data.vtranslated_count().v * 100 / data.vstrings_count().v)
 , _official(data.is_official())
-, _editLink(qs(data.vtranslations_url))
+, _editLink(qs(data.vtranslations_url()))
 , _apply(std::move(apply)) {
 }
 
@@ -109,8 +109,8 @@ void ConfirmSwitchBox::prepare() {
 NotReadyBox::NotReadyBox(
 	QWidget*,
 	const MTPDlangPackLanguage &data)
-: _name(qs(data.vnative_name))
-, _editLink(qs(data.vtranslations_url)) {
+: _name(qs(data.vnative_name()))
+, _editLink(qs(data.vtranslations_url())) {
 }
 
 void NotReadyBox::prepare() {
@@ -145,13 +145,11 @@ void NotReadyBox::prepare() {
 Language ParseLanguage(const MTPLangPackLanguage &data) {
 	return data.match([](const MTPDlangPackLanguage &data) {
 		return Language{
-			qs(data.vlang_code),
-			qs(data.vplural_code),
-			(data.has_base_lang_code()
-				? qs(data.vbase_lang_code)
-				: QString()),
-			qs(data.vname),
-			qs(data.vnative_name)
+			qs(data.vlang_code()),
+			qs(data.vplural_code()),
+			qs(data.vbase_lang_code().value_or_empty()),
+			qs(data.vname()),
+			qs(data.vnative_name())
 		};
 	});
 }
@@ -268,7 +266,7 @@ void CloudManager::applyLangPackDifference(
 	}
 
 	const auto &langpack = difference.c_langPackDifference();
-	const auto langpackId = qs(langpack.vlang_code);
+	const auto langpackId = qs(langpack.vlang_code());
 	const auto pack = packTypeFromId(langpackId);
 	if (pack != Pack::None) {
 		applyLangPackData(pack, langpack);
@@ -356,9 +354,9 @@ bool CloudManager::showOfferSwitchBox() {
 void CloudManager::applyLangPackData(
 		Pack pack,
 		const MTPDlangPackDifference &data) {
-	if (_langpack.version(pack) < data.vfrom_version.v) {
+	if (_langpack.version(pack) < data.vfrom_version().v) {
 		requestLangPackDifference(pack);
-	} else if (!data.vstrings.v.isEmpty()) {
+	} else if (!data.vstrings().v.isEmpty()) {
 		_langpack.applyDifference(pack, data);
 		Local::writeLangPack();
 	} else if (_restartAfterSwitch) {
@@ -421,7 +419,7 @@ void CloudManager::requestLanguageAndSwitch(
 			return;
 		}
 		result.match([=](const MTPDlangPackLanguage &data) {
-			if (data.vstrings_count.v > 0) {
+			if (data.vstrings_count().v > 0) {
 				Ui::show(Box<ConfirmSwitchBox>(data, finalize));
 			} else {
 				Ui::show(Box<NotReadyBox>(data));

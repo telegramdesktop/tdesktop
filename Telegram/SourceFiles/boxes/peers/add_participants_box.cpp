@@ -444,8 +444,8 @@ bool AddSpecialBoxController::checkInfoLoaded(
 		Expects(result.type() == mtpc_channels_channelParticipant);
 
 		const auto &participant = result.c_channels_channelParticipant();
-		channel->owner().processUsers(participant.vusers);
-		_additional.applyParticipant(participant.vparticipant);
+		channel->owner().processUsers(participant.vusers());
+		_additional.applyParticipant(participant.vparticipant());
 		callback();
 	}).fail([=](const RPCError &error) {
 		_additional.setExternal(user);
@@ -576,7 +576,7 @@ void AddSpecialBoxController::editAdminDone(
 	}
 
 	const auto date = unixtime(); // Incorrect, but ignored.
-	if (rights.c_chatAdminRights().vflags.v == 0) {
+	if (rights.c_chatAdminRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
 			MTP_int(user->bareId()),
 			MTP_int(date)));
@@ -673,7 +673,7 @@ void AddSpecialBoxController::editRestrictedDone(
 	}
 
 	const auto date = unixtime(); // Incorrect, but ignored.
-	if (rights.c_chatBannedRights().vflags.v == 0) {
+	if (rights.c_chatBannedRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
 			MTP_int(user->bareId()),
 			MTP_int(date)));
@@ -938,7 +938,7 @@ void AddSpecialBoxSearchController::searchParticipantsDone(
 	}
 	_requestId = 0;
 	result.match([&](const MTPDchannels_channelParticipants &data) {
-		const auto &list = data.vparticipants.v;
+		const auto &list = data.vparticipants().v;
 		if (list.size() < requestedCount) {
 			// We want cache to have full information about a query with
 			// small results count (that we don't need the second request).
@@ -992,8 +992,8 @@ void AddSpecialBoxSearchController::searchGlobalDone(
 	auto &found = result.c_contacts_found();
 	auto query = _query;
 	if (requestId) {
-		_peer->owner().processUsers(found.vusers);
-		_peer->owner().processChats(found.vchats);
+		_peer->owner().processUsers(found.vusers());
+		_peer->owner().processChats(found.vchats());
 		auto it = _globalQueries.find(requestId);
 		if (it != _globalQueries.cend()) {
 			query = it->second;
@@ -1016,8 +1016,8 @@ void AddSpecialBoxSearchController::searchGlobalDone(
 	if (_requestId == requestId) {
 		_requestId = 0;
 		_globalLoaded = true;
-		feedList(found.vmy_results);
-		feedList(found.vresults);
+		feedList(found.vmy_results());
+		feedList(found.vresults());
 		delegate()->peerListSearchRefreshRows();
 	}
 }

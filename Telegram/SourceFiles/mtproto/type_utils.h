@@ -136,5 +136,3 @@ enum class MTPDchannel_ClientFlag : uint32 {
 	MIN_FIELD = (1U << 31),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDchannel)
-
-extern const MTPVector<MTPMessageEntity> MTPnullEntities;

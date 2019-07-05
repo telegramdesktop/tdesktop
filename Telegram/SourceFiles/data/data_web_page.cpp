@@ -62,18 +62,18 @@ WebPageCollage ExtractCollage(
 	result.items.reserve(count);
 	for (const auto &item : items) {
 		const auto good = item.match([&](const MTPDpageBlockPhoto &data) {
-			const auto photo = storage.photo(data.vphoto_id.v);
+			const auto photo = storage.photo(data.vphoto_id().v);
 			if (photo->isNull()) {
 				return false;
 			}
-			result.items.push_back(photo);
+			result.items.emplace_back(photo);
 			return true;
 		}, [&](const MTPDpageBlockVideo &data) {
-			const auto document = storage.document(data.vvideo_id.v);
+			const auto document = storage.document(data.vvideo_id().v);
 			if (!document->isVideoFile()) {
 				return false;
 			}
-			result.items.push_back(document);
+			result.items.emplace_back(document);
 			return true;
 		}, [](const auto &) -> bool {
 			Unexpected("Type of block in Collage.");
@@ -86,19 +86,20 @@ WebPageCollage ExtractCollage(
 }
 
 WebPageCollage ExtractCollage(const MTPDwebPage &data) {
-	if (!data.has_cached_page()) {
+	const auto page = data.vcached_page();
+	if (!page) {
 		return {};
 	}
 	const auto processMedia = [&] {
-		if (data.has_photo()) {
-			Auth().data().processPhoto(data.vphoto);
+		if (const auto photo = data.vphoto()) {
+			Auth().data().processPhoto(*photo);
 		}
-		if (data.has_document()) {
-			Auth().data().processDocument(data.vdocument);
+		if (const auto document = data.vdocument()) {
+			Auth().data().processDocument(*document);
 		}
 	};
-	return data.vcached_page.match([&](const auto &page) {
-		for (const auto &block : page.vblocks.v) {
+	return page->match([&](const auto &page) {
+		for (const auto &block : page.vblocks().v) {
 			switch (block.type()) {
 			case mtpc_pageBlockPhoto:
 			case mtpc_pageBlockVideo:
@@ -110,15 +111,15 @@ WebPageCollage ExtractCollage(const MTPDwebPage &data) {
 			case mtpc_pageBlockSlideshow:
 				processMedia();
 				return ExtractCollage(
-					block.c_pageBlockSlideshow().vitems.v,
-					page.vphotos.v,
-					page.vdocuments.v);
+					block.c_pageBlockSlideshow().vitems().v,
+					page.vphotos().v,
+					page.vdocuments().v);
 			case mtpc_pageBlockCollage:
 				processMedia();
 				return ExtractCollage(
-					block.c_pageBlockCollage().vitems.v,
-					page.vphotos.v,
-					page.vdocuments.v);
+					block.c_pageBlockCollage().vitems().v,
+					page.vphotos().v,
+					page.vdocuments().v);
 			default: break;
 			}
 		}
@@ -129,8 +130,8 @@ WebPageCollage ExtractCollage(const MTPDwebPage &data) {
 } // namespace
 
 WebPageType ParseWebPageType(const MTPDwebPage &page) {
-	const auto type = page.has_type() ? qs(page.vtype) : QString();
-	if (type == qstr("video") || page.has_embed_url()) {
+	const auto type = qs(page.vtype().value_or_empty());
+	if (type == qstr("video") || page.vembed_url()) {
 		return WebPageType::Video;
 	} else if (type == qstr("photo")) {
 		return WebPageType::Photo;
@@ -138,7 +139,7 @@ WebPageType ParseWebPageType(const MTPDwebPage &page) {
 		return WebPageType::Profile;
 	} else if (type == qstr("telegram_background")) {
 		return WebPageType::WallPaper;
-	} else if (page.has_cached_page()) {
+	} else if (page.vcached_page()) {
 		return WebPageType::ArticleWithIV;
 	} else {
 		return WebPageType::Article;

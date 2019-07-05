@@ -17,14 +17,14 @@ namespace {
 std::optional<MTPInputChannel> ExtractChannel(
 		const MTPcontacts_ResolvedPeer &result) {
 	const auto &data = result.c_contacts_resolvedPeer();
-	if (const auto peer = peerFromMTP(data.vpeer)) {
-		for (const auto &chat : data.vchats.v) {
+	if (const auto peer = peerFromMTP(data.vpeer())) {
+		for (const auto &chat : data.vchats().v) {
 			if (chat.type() == mtpc_channel) {
 				const auto &channel = chat.c_channel();
-				if (peer == peerFromChannel(channel.vid)) {
+				if (peer == peerFromChannel(channel.vid())) {
 					return MTP_inputChannel(
-						channel.vid,
-						channel.vaccess_hash);
+						channel.vid(),
+						MTP_long(channel.vaccess_hash().value_or_empty()));
 				}
 			}
 		}
@@ -40,23 +40,23 @@ std::optional<DedicatedLoader::File> ParseFile(
 		return std::nullopt;
 	}
 	const auto &data = message->c_message();
-	if (!data.has_media()
-		|| data.vmedia.type() != mtpc_messageMediaDocument) {
+	const auto media = data.vmedia();
+	if (!media || media->type() != mtpc_messageMediaDocument) {
 		LOG(("Update Error: MTP file media not found."));
 		return std::nullopt;
 	}
-	const auto &document = data.vmedia.c_messageMediaDocument();
-	if (!document.has_document()
-		|| document.vdocument.type() != mtpc_document) {
+	const auto &inner = media->c_messageMediaDocument();
+	const auto document = inner.vdocument();
+	if (!document || document->type() != mtpc_document) {
 		LOG(("Update Error: MTP file not found."));
 		return std::nullopt;
 	}
-	const auto &fields = document.vdocument.c_document();
+	const auto &fields = document->c_document();
 	const auto name = [&] {
-		for (const auto &attribute : fields.vattributes.v) {
+		for (const auto &attribute : fields.vattributes().v) {
 			if (attribute.type() == mtpc_documentAttributeFilename) {
 				const auto &data = attribute.c_documentAttributeFilename();
-				return qs(data.vfile_name);
+				return qs(data.vfile_name());
 			}
 		}
 		return QString();
@@ -65,17 +65,17 @@ std::optional<DedicatedLoader::File> ParseFile(
 		LOG(("Update Error: MTP file name not found."));
 		return std::nullopt;
 	}
-	const auto size = fields.vsize.v;
+	const auto size = fields.vsize().v;
 	if (size <= 0) {
 		LOG(("Update Error: MTP file size is invalid."));
 		return std::nullopt;
 	}
 	const auto location = MTP_inputDocumentFileLocation(
-		fields.vid,
-		fields.vaccess_hash,
-		fields.vfile_reference,
-		MTP_string(QString()));
-	return DedicatedLoader::File{ name, size, fields.vdc_id.v, location };
+		fields.vid(),
+		fields.vaccess_hash(),
+		fields.vfile_reference(),
+		MTP_string());
+	return DedicatedLoader::File{ name, size, fields.vdc_id().v, location };
 }
 
 } // namespace
@@ -329,7 +329,7 @@ void DedicatedLoader::gotPart(int offset, const MTPupload_File &result) {
 		return;
 	}
 	const auto &data = result.c_upload_file();
-	if (data.vbytes.v.isEmpty()) {
+	if (data.vbytes().v.isEmpty()) {
 		LOG(("Update Error: MTP empty part received."));
 		threadSafeFailed();
 		return;
@@ -341,7 +341,7 @@ void DedicatedLoader::gotPart(int offset, const MTPupload_File &result) {
 		[](const Request &request) { return request.offset; });
 	Assert(i != end(_requests));
 
-	i->bytes = data.vbytes.v;
+	i->bytes = data.vbytes().v;
 	while (!_requests.empty() && !_requests.front().bytes.isEmpty()) {
 		writeChunk(bytes::make_span(_requests.front().bytes), _size);
 		_requests.pop_front();
@@ -415,9 +415,9 @@ std::optional<MTPMessage> GetMessagesElement(
 	return list.match([&](const MTPDmessages_messagesNotModified &) {
 		return std::optional<MTPMessage>(std::nullopt);
 	}, [&](const auto &data) {
-		return data.vmessages.v.isEmpty()
+		return data.vmessages().v.isEmpty()
 			? std::nullopt
-			: std::make_optional(data.vmessages.v[0]);
+			: std::make_optional(data.vmessages().v[0]);
 	});
 }
 

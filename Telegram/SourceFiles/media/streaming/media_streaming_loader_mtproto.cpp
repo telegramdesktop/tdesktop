@@ -144,15 +144,15 @@ void LoaderMtproto::requestDone(int offset, const MTPupload_File &result) {
 	result.match([&](const MTPDupload_file &data) {
 		_requests.erase(offset);
 		sendNext();
-		_parts.fire({ offset, data.vbytes.v });
+		_parts.fire({ offset, data.vbytes().v });
 	}, [&](const MTPDupload_fileCdnRedirect &data) {
 		changeCdnParams(
 			offset,
-			data.vdc_id.v,
-			data.vfile_token.v,
-			data.vencryption_key.v,
-			data.vencryption_iv.v,
-			data.vfile_hashes.v);
+			data.vdc_id().v,
+			data.vfile_token().v,
+			data.vencryption_key().v,
+			data.vencryption_iv().v,
+			data.vfile_hashes().v);
 	});
 }
 

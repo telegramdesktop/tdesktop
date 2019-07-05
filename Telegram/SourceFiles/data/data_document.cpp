@@ -428,7 +428,7 @@ void DocumentOpenWithClickHandler::onClickImpl() const {
 Data::FileOrigin StickerData::setOrigin() const {
 	return set.match([&](const MTPDinputStickerSetID &data) {
 		return Data::FileOrigin(
-			Data::FileOriginStickerSet(data.vid.v, data.vaccess_hash.v));
+			Data::FileOriginStickerSet(data.vid().v, data.vaccess_hash().v));
 	}, [&](const auto &) {
 		return Data::FileOrigin();
 	});
@@ -466,7 +466,7 @@ void DocumentData::setattributes(
 
 	for (const auto &attribute : attributes) {
 		attribute.match([&](const MTPDdocumentAttributeImageSize &data) {
-			dimensions = QSize(data.vw.v, data.vh.v);
+			dimensions = QSize(data.vw().v, data.vh().v);
 		}, [&](const MTPDdocumentAttributeAnimated &data) {
 			if (type == FileDocument
 				|| type == StickerDocument
@@ -480,10 +480,10 @@ void DocumentData::setattributes(
 				_additional = std::make_unique<StickerData>();
 			}
 			if (sticker()) {
-				sticker()->alt = qs(data.valt);
+				sticker()->alt = qs(data.valt());
 				if (sticker()->set.type() != mtpc_inputStickerSetID
-					|| data.vstickerset.type() == mtpc_inputStickerSetID) {
-					sticker()->set = data.vstickerset;
+					|| data.vstickerset().type() == mtpc_inputStickerSetID) {
+					sticker()->set = data.vstickerset();
 				}
 			}
 		}, [&](const MTPDdocumentAttributeVideo &data) {
@@ -492,9 +492,9 @@ void DocumentData::setattributes(
 					? RoundVideoDocument
 					: VideoDocument;
 			}
-			_duration = data.vduration.v;
+			_duration = data.vduration().v;
 			setMaybeSupportsStreaming(data.is_supports_streaming());
-			dimensions = QSize(data.vw.v, data.vh.v);
+			dimensions = QSize(data.vw().v, data.vh().v);
 		}, [&](const MTPDdocumentAttributeAudio &data) {
 			if (type == FileDocument) {
 				if (data.is_voice()) {
@@ -506,19 +506,19 @@ void DocumentData::setattributes(
 				}
 			}
 			if (const auto voiceData = voice()) {
-				voiceData->duration = data.vduration.v;
+				voiceData->duration = data.vduration().v;
 				voiceData->waveform = documentWaveformDecode(
-					qba(data.vwaveform));
+					data.vwaveform().value_or_empty());
 				voiceData->wavemax = voiceData->waveform.empty()
 					? uchar(0)
 					: *ranges::max_element(voiceData->waveform);
 			} else if (const auto songData = song()) {
-				songData->duration = data.vduration.v;
-				songData->title = qs(data.vtitle);
-				songData->performer = qs(data.vperformer);
+				songData->duration = data.vduration().v;
+				songData->title = qs(data.vtitle().value_or_empty());
+				songData->performer = qs(data.vperformer().value_or_empty());
 			}
 		}, [&](const MTPDdocumentAttributeFilename &data) {
-			_filename = qs(data.vfile_name);
+			_filename = qs(data.vfile_name());
 
 			// We don't want LTR/RTL mark/embedding/override/isolate chars
 			// in filenames, because they introduce a security issue, when
@@ -684,7 +684,7 @@ auto DocumentData::bigFileBaseCacheKey() const
 				MTP_long(id),
 				MTP_long(_access),
 				MTP_bytes(_fileReference),
-				MTP_string(QString()))).bigFileBaseCacheKey();
+				MTP_string())).bigFileBaseCacheKey();
 	}
 	return std::nullopt;
 }
@@ -961,7 +961,7 @@ void DocumentData::save(
 						MTP_long(id),
 						MTP_long(_access),
 						MTP_bytes(_fileReference),
-						MTP_string(QString()))),
+						MTP_string())),
 				origin,
 				locationType(),
 				toFile,
@@ -1119,12 +1119,12 @@ bool DocumentData::isStickerSetInstalled() const {
 
 	const auto &sets = _owner->stickerSets();
 	return sticker()->set.match([&](const MTPDinputStickerSetID &data) {
-		const auto i = sets.constFind(data.vid.v);
+		const auto i = sets.constFind(data.vid().v);
 		return (i != sets.cend())
 			&& !(i->flags & MTPDstickerSet::Flag::f_archived)
 			&& (i->flags & MTPDstickerSet::Flag::f_installed_date);
 	}, [&](const MTPDinputStickerSetShortName &data) {
-		const auto name = qs(data.vshort_name).toLower();
+		const auto name = qs(data.vshort_name()).toLower();
 		for (const auto &set : sets) {
 			if (set.shortName.toLower() == name) {
 				return !(set.flags & MTPDstickerSet::Flag::f_archived)
@@ -1326,7 +1326,7 @@ auto DocumentData::createStreamingLoader(
 					MTP_long(id),
 					MTP_long(_access),
 					MTP_bytes(_fileReference),
-					MTP_string(QString()))),
+					MTP_string())),
 			size,
 			origin)
 		: nullptr;

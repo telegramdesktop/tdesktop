@@ -841,7 +841,7 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
 				list
 			) | ranges::view::transform([](const MTPChannelParticipant &p) {
 				return p.match([](const auto &data) {
-					return data.vuser_id.v;
+					return data.vuser_id().v;
 				});
 			}) | ranges::view::transform([](UserId userId) {
 				return Auth().data().userLoaded(userId);

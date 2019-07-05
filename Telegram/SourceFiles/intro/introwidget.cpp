@@ -431,11 +431,11 @@ void Widget::getNearestDC() {
 	request(MTPhelp_GetNearestDc()).done([this](const MTPNearestDc &result) {
 		auto &nearest = result.c_nearestDc();
 		DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3"
-			).arg(qs(nearest.vcountry)
-			).arg(nearest.vnearest_dc.v
-			).arg(nearest.vthis_dc.v));
-		Core::App().suggestMainDcId(nearest.vnearest_dc.v);
-		auto nearestCountry = qs(nearest.vcountry);
+			).arg(qs(nearest.vcountry())
+			).arg(nearest.vnearest_dc().v
+			).arg(nearest.vthis_dc().v));
+		Core::App().suggestMainDcId(nearest.vnearest_dc().v);
+		auto nearestCountry = qs(nearest.vcountry());
 		if (getData()->country != nearestCountry) {
 			getData()->country = nearestCountry;
 			getData()->updated.notify();
@@ -648,7 +648,7 @@ rpl::producer<QString> Widget::Step::nextButtonText() const {
 void Widget::Step::finish(const MTPUser &user, QImage &&photo) {
 	if (user.type() != mtpc_user
 		|| !user.c_user().is_self()
-		|| !user.c_user().vid.v) {
+		|| !user.c_user().vid().v) {
 		// No idea what to do here.
 		// We could've reset intro and MTP, but this really should not happen.
 		Ui::show(Box<InformBox>("Internal error: bad user.is_self() after sign in."));
@@ -776,26 +776,27 @@ bool Widget::Step::paintAnimated(Painter &p, QRect clip) {
 }
 
 void Widget::Step::fillSentCodeData(const MTPDauth_sentCode &data) {
-	if (data.has_terms_of_service()) {
-		const auto &terms = data.vterms_of_service.c_help_termsOfService();
-		getData()->termsLock = Window::TermsLock::FromMTP(terms);
+	if (const auto terms = data.vterms_of_service()) {
+		terms->match([&](const MTPDhelp_termsOfService &data) {
+			getData()->termsLock = Window::TermsLock::FromMTP(data);
+		});
 	} else {
 		getData()->termsLock = Window::TermsLock();
 	}
 
-	const auto &type = data.vtype;
+	const auto &type = data.vtype();
 	switch (type.type()) {
 	case mtpc_auth_sentCodeTypeApp: {
 		getData()->codeByTelegram = true;
-		getData()->codeLength = type.c_auth_sentCodeTypeApp().vlength.v;
+		getData()->codeLength = type.c_auth_sentCodeTypeApp().vlength().v;
 	} break;
 	case mtpc_auth_sentCodeTypeSms: {
 		getData()->codeByTelegram = false;
-		getData()->codeLength = type.c_auth_sentCodeTypeSms().vlength.v;
+		getData()->codeLength = type.c_auth_sentCodeTypeSms().vlength().v;
 	} break;
 	case mtpc_auth_sentCodeTypeCall: {
 		getData()->codeByTelegram = false;
-		getData()->codeLength = type.c_auth_sentCodeTypeCall().vlength.v;
+		getData()->codeLength = type.c_auth_sentCodeTypeCall().vlength().v;
 	} break;
 	case mtpc_auth_sentCodeTypeFlashCall: LOG(("Error: should not be flashcall!")); break;
 	}

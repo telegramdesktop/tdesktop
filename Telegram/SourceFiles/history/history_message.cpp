@@ -317,18 +317,20 @@ struct HistoryMessage::CreateConfig {
 void HistoryMessage::FillForwardedInfo(
 		CreateConfig &config,
 		const MTPDmessageFwdHeader &data) {
-	config.originalDate = data.vdate.v;
-	if (data.has_from_id() || data.has_channel_id()) {
-		config.senderOriginal = data.has_channel_id()
-			? peerFromChannel(data.vchannel_id)
-			: peerFromUser(data.vfrom_id);
+	if (const auto channelId = data.vchannel_id()) {
+		config.senderOriginal = peerFromChannel(*channelId);
+	} else if (const auto fromId = data.vfrom_id()) {
+		config.senderOriginal = peerFromUser(*fromId);
 	}
-	if (data.has_from_name()) config.senderNameOriginal = qs(data.vfrom_name);
-	if (data.has_channel_post()) config.originalId = data.vchannel_post.v;
-	if (data.has_post_author()) config.authorOriginal = qs(data.vpost_author);
-	if (data.has_saved_from_peer() && data.has_saved_from_msg_id()) {
-		config.savedFromPeer = peerFromMTP(data.vsaved_from_peer);
-		config.savedFromMsgId = data.vsaved_from_msg_id.v;
+	config.originalDate = data.vdate().v;
+	config.senderNameOriginal = qs(data.vfrom_name().value_or_empty());
+	config.originalId = data.vchannel_post().value_or_empty();
+	config.authorOriginal = qs(data.vpost_author().value_or_empty());
+	const auto savedFromPeer = data.vsaved_from_peer();
+	const auto savedFromMsgId = data.vsaved_from_msg_id();
+	if (savedFromPeer && savedFromMsgId) {
+		config.savedFromPeer = peerFromMTP(*savedFromPeer);
+		config.savedFromMsgId = savedFromMsgId->v;
 	}
 }
 
@@ -337,39 +339,35 @@ HistoryMessage::HistoryMessage(
 	const MTPDmessage &data)
 : HistoryItem(
 		history,
-		data.vid.v,
-		data.vflags.v,
-		data.vdate.v,
-		data.has_from_id() ? data.vfrom_id.v : UserId(0)) {
+		data.vid().v,
+		data.vflags().v,
+		data.vdate().v,
+		data.vfrom_id().value_or_empty()) {
 	auto config = CreateConfig();
-
-	if (data.has_fwd_from()) {
-		data.vfwd_from.match([&](const MTPDmessageFwdHeader &data) {
+	if (const auto forwarded = data.vfwd_from()) {
+		forwarded->match([&](const MTPDmessageFwdHeader &data) {
 			FillForwardedInfo(config, data);
 		});
 	}
-	if (data.has_reply_to_msg_id()) config.replyTo = data.vreply_to_msg_id.v;
-	if (data.has_via_bot_id()) config.viaBotId = data.vvia_bot_id.v;
-	if (data.has_views()) config.viewsCount = data.vviews.v;
-	if (data.has_reply_markup()) config.mtpMarkup = &data.vreply_markup;
-	if (data.has_edit_date()) config.editDate = data.vedit_date.v;
-	if (data.has_post_author()) config.author = qs(data.vpost_author);
+	config.replyTo = data.vreply_to_msg_id().value_or_empty();
+	config.viaBotId = data.vvia_bot_id().value_or_empty();
+	config.viewsCount = data.vviews().value_or(-1);
+	config.mtpMarkup = data.vreply_markup();
+	config.editDate = data.vedit_date().value_or_empty();
+	config.author = qs(data.vpost_author().value_or_empty());
 
 	createComponents(config);
 
-	if (data.has_media()) {
-		setMedia(data.vmedia);
+	if (const auto media = data.vmedia()) {
+		setMedia(*media);
 	}
-
-	auto text = TextUtilities::Clean(qs(data.vmessage));
-	auto entities = data.has_entities()
-		? TextUtilities::EntitiesFromMTP(data.ventities.v)
-		: EntitiesInText();
-	setText({ text, entities });
-
-	if (data.has_grouped_id()) {
+	setText({
+		TextUtilities::Clean(qs(data.vmessage())),
+		TextUtilities::EntitiesFromMTP(data.ventities().value_or_empty())
+	});
+	if (const auto groupedId = data.vgrouped_id()) {
 		setGroupId(
-			MessageGroupId::FromRaw(history->peer->id, data.vgrouped_id.v));
+			MessageGroupId::FromRaw(history->peer->id, groupedId->v));
 	}
 }
 
@@ -378,21 +376,21 @@ HistoryMessage::HistoryMessage(
 	const MTPDmessageService &data)
 : HistoryItem(
 		history,
-		data.vid.v,
-		mtpCastFlags(data.vflags.v),
-		data.vdate.v,
-		data.has_from_id() ? data.vfrom_id.v : UserId(0)) {
+		data.vid().v,
+		mtpCastFlags(data.vflags().v),
+		data.vdate().v,
+		data.vfrom_id().value_or_empty()) {
 	auto config = CreateConfig();
 
-	if (data.has_reply_to_msg_id()) config.replyTo = data.vreply_to_msg_id.v;
+	config.replyTo = data.vreply_to_msg_id().value_or_empty();
 
 	createComponents(config);
 
-	switch (data.vaction.type()) {
+	switch (data.vaction().type()) {
 	case mtpc_messageActionPhoneCall: {
 		_media = std::make_unique<Data::MediaCall>(
 			this,
-			data.vaction.c_messageActionPhoneCall());
+			data.vaction().c_messageActionPhoneCall());
 	} break;
 
 	default: Unexpected("Service message action type in HistoryMessage.");
@@ -450,9 +448,10 @@ HistoryMessage::HistoryMessage(
 	if (flags & MTPDmessage::Flag::f_post_author) {
 		config.author = postAuthor;
 	}
-	auto fwdViaBot = original->viaBot();
-	if (fwdViaBot) config.viaBotId = peerToUser(fwdViaBot->id);
-	int fwdViewsCount = original->viewsCount();
+	if (const auto fwdViaBot = original->viaBot()) {
+		config.viaBotId = peerToUser(fwdViaBot->id);
+	}
+	const auto fwdViewsCount = original->viewsCount();
 	if (fwdViewsCount > 0) {
 		config.viewsCount = fwdViewsCount;
 	} else if (isPost()
@@ -672,7 +671,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (config.mtpMarkup) {
 		// optimization: don't create markup component for the case
 		// MTPDreplyKeyboardHide with flags = 0, assume it has f_zero flag
-		if (config.mtpMarkup->type() != mtpc_replyKeyboardHide || config.mtpMarkup->c_replyKeyboardHide().vflags.v != 0) {
+		if (config.mtpMarkup->type() != mtpc_replyKeyboardHide || config.mtpMarkup->c_replyKeyboardHide().vflags().v != 0) {
 			mask |= HistoryMessageReplyMarkup::Bit();
 		}
 	} else if (config.inlineMarkup) {
@@ -783,12 +782,12 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 	return media.match([&](const MTPDmessageMediaContact &media) -> Result {
 		return std::make_unique<Data::MediaContact>(
 			item,
-			media.vuser_id.v,
-			qs(media.vfirst_name),
-			qs(media.vlast_name),
-			qs(media.vphone_number));
+			media.vuser_id().v,
+			qs(media.vfirst_name()),
+			qs(media.vlast_name()),
+			qs(media.vphone_number()));
 	}, [&](const MTPDmessageMediaGeo &media) -> Result {
-		return media.vgeo.match([&](const MTPDgeoPoint &point) -> Result {
+		return media.vgeo().match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
 				item,
 				Data::LocationPoint(point));
@@ -796,7 +795,7 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 			return nullptr;
 		});
 	}, [&](const MTPDmessageMediaGeoLive &media) -> Result {
-		return media.vgeo.match([&](const MTPDgeoPoint &point) -> Result {
+		return media.vgeo().match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
 				item,
 				Data::LocationPoint(point));
@@ -804,28 +803,29 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 			return nullptr;
 		});
 	}, [&](const MTPDmessageMediaVenue &media) -> Result {
-		return media.vgeo.match([&](const MTPDgeoPoint &point) -> Result {
+		return media.vgeo().match([&](const MTPDgeoPoint &point) -> Result {
 			return std::make_unique<Data::MediaLocation>(
 				item,
 				Data::LocationPoint(point),
-				qs(media.vtitle),
-				qs(media.vaddress));
+				qs(media.vtitle()),
+				qs(media.vaddress()));
 		}, [](const MTPDgeoPointEmpty &data) -> Result {
 			return nullptr;
 		});
 	}, [&](const MTPDmessageMediaPhoto &media) -> Result {
-		if (media.has_ttl_seconds()) {
+		const auto photo = media.vphoto();
+		if (media.vttl_seconds()) {
 			LOG(("App Error: "
 				"Unexpected MTPMessageMediaPhoto "
 				"with ttl_seconds in HistoryMessage."));
 			return nullptr;
-		} else if (!media.has_photo()) {
+		} else if (!photo) {
 			LOG(("API Error: "
 				"Got MTPMessageMediaPhoto "
 				"without photo and without ttl_seconds."));
 			return nullptr;
 		}
-		return media.vphoto.match([&](const MTPDphoto &photo) -> Result {
+		return photo->match([&](const MTPDphoto &photo) -> Result {
 			return std::make_unique<Data::MediaPhoto>(
 				item,
 				item->history()->owner().processPhoto(photo));
@@ -833,19 +833,19 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 			return nullptr;
 		});
 	}, [&](const MTPDmessageMediaDocument &media) -> Result {
-		if (media.has_ttl_seconds()) {
+		const auto document = media.vdocument();
+		if (media.vttl_seconds()) {
 			LOG(("App Error: "
 				"Unexpected MTPMessageMediaDocument "
 				"with ttl_seconds in HistoryMessage."));
 			return nullptr;
-		} else if (!media.has_document()) {
+		} else if (!document) {
 			LOG(("API Error: "
 				"Got MTPMessageMediaDocument "
 				"without document and without ttl_seconds."));
 			return nullptr;
 		}
-		const auto &document = media.vdocument;
-		return document.match([&](const MTPDdocument &document) -> Result {
+		return document->match([&](const MTPDdocument &document) -> Result {
 			return std::make_unique<Data::MediaFile>(
 				item,
 				item->history()->owner().processDocument(document));
@@ -853,7 +853,7 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 			return nullptr;
 		});
 	}, [&](const MTPDmessageMediaWebPage &media) {
-		return media.vwebpage.match([](const MTPDwebPageEmpty &) -> Result {
+		return media.vwebpage().match([](const MTPDwebPageEmpty &) -> Result {
 			return nullptr;
 		}, [&](const MTPDwebPagePending &webpage) -> Result {
 			return std::make_unique<Data::MediaWebPage>(
@@ -869,7 +869,7 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 			return nullptr;
 		});
 	}, [&](const MTPDmessageMediaGame &media) -> Result {
-		return media.vgame.match([&](const MTPDgame &game) {
+		return media.vgame().match([&](const MTPDgame &game) {
 			return std::make_unique<Data::MediaGame>(
 				item,
 				item->history()->owner().processGame(game));
@@ -909,31 +909,31 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	//	}
 	//}
 
-	if (message.has_edit_date()) {
+	if (const auto editDate = message.vedit_date()) {
 		_flags |= MTPDmessage::Flag::f_edit_date;
 		if (!Has<HistoryMessageEdited>()) {
 			AddComponents(HistoryMessageEdited::Bit());
 		}
 		auto edited = Get<HistoryMessageEdited>();
-		edited->date = message.vedit_date.v;
+		edited->date = editDate->v;
 	}
 
-	TextWithEntities textWithEntities = { qs(message.vmessage), EntitiesInText() };
-	if (message.has_entities()) {
-		textWithEntities.entities = TextUtilities::EntitiesFromMTP(message.ventities.v);
-	}
-	setReplyMarkup(message.has_reply_markup() ? (&message.vreply_markup) : nullptr);
+	const auto textWithEntities = TextWithEntities{
+		qs(message.vmessage()),
+		TextUtilities::EntitiesFromMTP(message.ventities().value_or_empty())
+	};
+	setReplyMarkup(message.vreply_markup());
 	if (!isLocalUpdateMedia()) {
-		refreshMedia(message.has_media() ? (&message.vmedia) : nullptr);
+		refreshMedia(message.vmedia());
 	}
-	setViewsCount(message.has_views() ? message.vviews.v : -1);
+	setViewsCount(message.vviews().value_or(-1));
 	setText(textWithEntities);
 
 	finishEdition(keyboardTop);
 }
 
 void HistoryMessage::applyEdition(const MTPDmessageService &message) {
-	if (message.vaction.type() == mtpc_messageActionHistoryClear) {
+	if (message.vaction().type() == mtpc_messageActionHistoryClear) {
 		setReplyMarkup(nullptr);
 		refreshMedia(nullptr);
 		setEmptyText();
@@ -1059,7 +1059,7 @@ void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
 
 	// optimization: don't create markup component for the case
 	// MTPDreplyKeyboardHide with flags = 0, assume it has f_zero flag
-	if (markup->type() == mtpc_replyKeyboardHide && markup->c_replyKeyboardHide().vflags.v == 0) {
+	if (markup->type() == mtpc_replyKeyboardHide && markup->c_replyKeyboardHide().vflags().v == 0) {
 		bool changed = false;
 		if (Has<HistoryMessageReplyMarkup>()) {
 			RemoveComponents(HistoryMessageReplyMarkup::Bit());

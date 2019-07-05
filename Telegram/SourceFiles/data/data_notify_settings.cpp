@@ -55,15 +55,17 @@ NotifySettingsValue::NotifySettingsValue(
 }
 
 bool NotifySettingsValue::change(const MTPDpeerNotifySettings &data) {
-	return change(data.has_mute_until()
-		? base::make_optional(data.vmute_until.v)
-		: std::nullopt, data.has_sound()
-		? base::make_optional(qs(data.vsound))
-		: std::nullopt, data.has_show_previews()
-		? base::make_optional(mtpIsTrue(data.vshow_previews))
-		: std::nullopt, data.has_silent()
-		? base::make_optional(mtpIsTrue(data.vsilent))
-		: std::nullopt);
+	const auto mute = data.vmute_until();
+	const auto sound = data.vsound();
+	const auto showPreviews = data.vshow_previews();
+	const auto silent = data.vsilent();
+	return change(
+		mute ? std::make_optional(mute->v) : std::nullopt,
+		sound ? std::make_optional(qs(*sound)) : std::nullopt,
+		(showPreviews
+			? std::make_optional(mtpIsTrue(*showPreviews))
+			: std::nullopt),
+		silent ? std::make_optional(mtpIsTrue(*silent)) : std::nullopt);
 }
 
 bool NotifySettingsValue::change(
@@ -139,7 +141,7 @@ bool NotifySettings::change(const MTPPeerNotifySettings &settings) {
 	Expects(settings.type() == mtpc_peerNotifySettings);
 
 	auto &data = settings.c_peerNotifySettings();
-	const auto empty = !data.vflags.v;
+	const auto empty = !data.vflags().v;
 	if (empty) {
 		if (!_known || _value) {
 			_known = true;

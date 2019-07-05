@@ -380,24 +380,24 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 	Assert(_simpleConfig.type() == mtpc_help_configSimple);
 	auto &config = _simpleConfig.c_help_configSimple();
 	auto now = unixtime();
-	if (now < config.vdate.v || now > config.vexpires.v) {
-		LOG(("Config Error: Bad date frame for simple config: %1-%2, our time is %3.").arg(config.vdate.v).arg(config.vexpires.v).arg(now));
+	if (now < config.vdate().v || now > config.vexpires().v) {
+		LOG(("Config Error: Bad date frame for simple config: %1-%2, our time is %3.").arg(config.vdate().v).arg(config.vexpires().v).arg(now));
 		return;
 	}
-	if (config.vrules.v.empty()) {
+	if (config.vrules().v.empty()) {
 		LOG(("Config Error: Empty simple config received."));
 		return;
 	}
-	for (auto &rule : config.vrules.v) {
+	for (auto &rule : config.vrules().v) {
 		Assert(rule.type() == mtpc_accessPointRule);
 		auto &data = rule.c_accessPointRule();
-		const auto phoneRules = qs(data.vphone_prefix_rules);
+		const auto phoneRules = qs(data.vphone_prefix_rules());
 		if (!CheckPhoneByPrefixesRules(_phone, phoneRules)) {
 			continue;
 		}
 
-		const auto dcId = data.vdc_id.v;
-		for (const auto &address : data.vips.v) {
+		const auto dcId = data.vdc_id().v;
+		for (const auto &address : data.vips().v) {
 			const auto parseIp = [](const MTPint &ipv4) {
 				const auto ip = *reinterpret_cast<const uint32*>(&ipv4.v);
 				return qsl("%1.%2.%3.%4"
@@ -409,15 +409,15 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 			switch (address.type()) {
 			case mtpc_ipPort: {
 				const auto &fields = address.c_ipPort();
-				_callback(dcId, parseIp(fields.vipv4), fields.vport.v, {});
+				_callback(dcId, parseIp(fields.vipv4()), fields.vport().v, {});
 			} break;
 			case mtpc_ipPortSecret: {
 				const auto &fields = address.c_ipPortSecret();
 				_callback(
 					dcId,
-					parseIp(fields.vipv4),
-					fields.vport.v,
-					bytes::make_span(fields.vsecret.v));
+					parseIp(fields.vipv4()),
+					fields.vport().v,
+					bytes::make_span(fields.vsecret().v));
 			} break;
 			default: Unexpected("Type in simpleConfig ips.");
 			}

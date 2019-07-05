@@ -45,9 +45,9 @@ rpl::producer<int> PinnedDialogsInFolderMaxValue() {
 //	Expects(position.type() == mtpc_feedPosition);
 //
 //	const auto &data = position.c_feedPosition();
-//	return MessagePosition(data.vdate.v, FullMsgId(
-//		peerToChannel(peerFromMTP(data.vpeer)),
-//		data.vid.v));
+//	return MessagePosition(data.vdate().v, FullMsgId(
+//		peerToChannel(peerFromMTP(data.vpeer())),
+//		data.vid().v));
 //}
 
 Folder::Folder(not_null<Data::Session*> owner, FolderId id)
@@ -330,11 +330,11 @@ TimeId Folder::adjustedChatListTimeId() const {
 
 void Folder::applyDialog(const MTPDdialogFolder &data) {
 	updateCloudUnread(data);
-	if (const auto peerId = peerFromMTP(data.vpeer)) {
+	if (const auto peerId = peerFromMTP(data.vpeer())) {
 		const auto history = owner().history(peerId);
 		const auto fullId = FullMsgId(
 			peerToChannel(peerId),
-			data.vtop_message.v);
+			data.vtop_message().v);
 		history->setFolder(this, owner().message(fullId));
 	} else {
 		_chatsList.clear();
@@ -348,10 +348,10 @@ void Folder::applyDialog(const MTPDdialogFolder &data) {
 void Folder::updateCloudUnread(const MTPDdialogFolder &data) {
 	const auto notifier = unreadStateChangeNotifier(!_chatsList.loaded());
 
-	_cloudUnread.messages = data.vunread_muted_messages_count.v
-		+ data.vunread_unmuted_messages_count.v;
-	_cloudUnread.chats = data.vunread_muted_peers_count.v
-			+ data.vunread_unmuted_peers_count.v;
+	_cloudUnread.messages = data.vunread_muted_messages_count().v
+		+ data.vunread_unmuted_messages_count().v;
+	_cloudUnread.chats = data.vunread_muted_peers_count().v
+			+ data.vunread_unmuted_peers_count().v;
 	finalizeCloudUnread();
 
 	_cloudUnread.known = true;
@@ -379,7 +379,7 @@ Dialogs::UnreadState Folder::chatListUnreadState() const {
 }
 
 void Folder::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
-	const auto folderId = data.has_folder_id() ? data.vfolder_id.v : 0;
+	const auto folderId = data.vfolder_id().value_or_empty();
 	if (folderId != 0) {
 		LOG(("API Error: Nested folders detected."));
 	}

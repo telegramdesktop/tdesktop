@@ -121,11 +121,11 @@ void SignupWidget::onCheckRequest() {
 void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	auto &d = result.c_auth_authorization();
-	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
+	if (d.vuser().type() != mtpc_user || !d.vuser().c_user().is_self()) { // wtf?
 		showError(rpl::single(Lang::Hard::ServerError()));
 		return;
 	}
-	finish(d.vuser, _photo->takeResultImage());
+	finish(d.vuser(), _photo->takeResultImage());
 }
 
 bool SignupWidget::nameSubmitFail(const RPCError &error) {

@@ -217,10 +217,10 @@ StickerSetBox::Inner::Inner(
 , _input(set)
 , _previewTimer([=] { showPreview(); }) {
 	set.match([&](const MTPDinputStickerSetID &data) {
-		_setId = data.vid.v;
-		_setAccess = data.vaccess_hash.v;
+		_setId = data.vid().v;
+		_setAccess = data.vaccess_hash().v;
 	}, [&](const MTPDinputStickerSetShortName &data) {
-		_setShortName = qs(data.vshort_name);
+		_setShortName = qs(data.vshort_name());
 	}, [&](const MTPDinputStickerSetEmpty &) {
 	});
 
@@ -247,7 +247,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 	_selected = -1;
 	setCursor(style::cur_default);
 	set.match([&](const MTPDmessages_stickerSet &data) {
-		const auto &v = data.vdocuments.v;
+		const auto &v = data.vdocuments().v;
 		_pack.reserve(v.size());
 		_elements.reserve(v.size());
 		for (const auto &item : v) {
@@ -259,11 +259,11 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			_pack.push_back(document);
 			_elements.push_back({ document });
 		}
-		for (const auto &pack : data.vpacks.v) {
+		for (const auto &pack : data.vpacks().v) {
 			pack.match([&](const MTPDstickerPack &pack) {
-				if (const auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
+				if (const auto emoji = Ui::Emoji::Find(qs(pack.vemoticon()))) {
 					const auto original = emoji->original();
-					auto &stickers = pack.vdocuments.v;
+					auto &stickers = pack.vdocuments().v;
 
 					auto p = Stickers::Pack();
 					p.reserve(stickers.size());
@@ -277,20 +277,20 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 				}
 			});
 		}
-		data.vset.match([&](const MTPDstickerSet &set) {
+		data.vset().match([&](const MTPDstickerSet &set) {
 			_setTitle = Stickers::GetSetTitle(set);
-			_setShortName = qs(set.vshort_name);
-			_setId = set.vid.v;
-			_setAccess = set.vaccess_hash.v;
-			_setCount = set.vcount.v;
-			_setHash = set.vhash.v;
-			_setFlags = set.vflags.v;
-			_setInstallDate = set.has_installed_date()
-				? set.vinstalled_date.v
-				: TimeId(0);
-			_setThumbnail = set.has_thumb()
-				? Images::Create(set, set.vthumb)
-				: ImagePtr();
+			_setShortName = qs(set.vshort_name());
+			_setId = set.vid().v;
+			_setAccess = set.vaccess_hash().v;
+			_setCount = set.vcount().v;
+			_setHash = set.vhash().v;
+			_setFlags = set.vflags().v;
+			_setInstallDate = set.vinstalled_date().value_or(0);
+			if (const auto thumb = set.vthumb()) {
+				_setThumbnail = Images::Create(set, *thumb);
+			} else {
+				_setThumbnail = ImagePtr();
+			}
 			auto &sets = Auth().data().stickerSetsRef();
 			const auto it = sets.find(_setId);
 			if (it != sets.cend()) {

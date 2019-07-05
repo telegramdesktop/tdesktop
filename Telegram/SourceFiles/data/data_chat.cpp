@@ -32,7 +32,7 @@ void ChatData::setPhoto(const MTPChatPhoto &photo) {
 
 void ChatData::setPhoto(PhotoId photoId, const MTPChatPhoto &photo) {
 	photo.match([&](const MTPDchatPhoto &data) {
-		updateUserpic(photoId, data.vdc_id.v, data.vphoto_small);
+		updateUserpic(photoId, data.vdc_id().v, data.vphoto_small());
 	}, [&](const MTPDchatPhotoEmpty &) {
 		clearUserpic();
 	});
@@ -128,10 +128,10 @@ void ChatData::setInviteLink(const QString &newInviteLink) {
 }
 
 void ChatData::setAdminRights(const MTPChatAdminRights &rights) {
-	if (rights.c_chatAdminRights().vflags.v == adminRights()) {
+	if (rights.c_chatAdminRights().vflags().v == adminRights()) {
 		return;
 	}
-	_adminRights.set(rights.c_chatAdminRights().vflags.v);
+	_adminRights.set(rights.c_chatAdminRights().vflags().v);
 	Notify::peerUpdatedDelayed(
 		this,
 		(UpdateFlag::RightsChanged
@@ -140,10 +140,10 @@ void ChatData::setAdminRights(const MTPChatAdminRights &rights) {
 }
 
 void ChatData::setDefaultRestrictions(const MTPChatBannedRights &rights) {
-	if (rights.c_chatBannedRights().vflags.v == defaultRestrictions()) {
+	if (rights.c_chatBannedRights().vflags().v == defaultRestrictions()) {
 		return;
 	}
-	_defaultRestrictions.set(rights.c_chatBannedRights().vflags.v);
+	_defaultRestrictions.set(rights.c_chatBannedRights().vflags().v);
 	Notify::peerUpdatedDelayed(this, UpdateFlag::RightsChanged);
 }
 
@@ -186,19 +186,19 @@ namespace Data {
 void ApplyChatUpdate(
 		not_null<ChatData*> chat,
 		const MTPDupdateChatParticipants &update) {
-	ApplyChatUpdate(chat, update.vparticipants);
+	ApplyChatUpdate(chat, update.vparticipants());
 }
 
 void ApplyChatUpdate(
 		not_null<ChatData*> chat,
 		const MTPDupdateChatParticipantAdd &update) {
-	if (chat->applyUpdateVersion(update.vversion.v)
+	if (chat->applyUpdateVersion(update.vversion().v)
 		!= ChatData::UpdateStatus::Good) {
 		return;
 	} else if (chat->count < 0) {
 		return;
 	}
-	const auto user = chat->owner().userLoaded(update.vuser_id.v);
+	const auto user = chat->owner().userLoaded(update.vuser_id().v);
 	if (!user
 		|| (!chat->participants.empty()
 			&& chat->participants.contains(user))) {
@@ -213,7 +213,7 @@ void ApplyChatUpdate(
 		chat->botStatus = 0;
 	} else {
 		chat->participants.emplace(user);
-		if (update.vinviter_id.v == chat->session().userId()) {
+		if (update.vinviter_id().v == chat->session().userId()) {
 			chat->invitedByMe.insert(user);
 		} else {
 			chat->invitedByMe.remove(user);
@@ -234,13 +234,13 @@ void ApplyChatUpdate(
 void ApplyChatUpdate(
 		not_null<ChatData*> chat,
 		const MTPDupdateChatParticipantDelete &update) {
-	if (chat->applyUpdateVersion(update.vversion.v)
+	if (chat->applyUpdateVersion(update.vversion().v)
 		!= ChatData::UpdateStatus::Good) {
 		return;
 	} else if (chat->count <= 0) {
 		return;
 	}
-	const auto user = chat->owner().userLoaded(update.vuser_id.v);
+	const auto user = chat->owner().userLoaded(update.vuser_id().v);
 	if (!user
 		|| (!chat->participants.empty()
 			&& !chat->participants.contains(user))) {
@@ -278,22 +278,22 @@ void ApplyChatUpdate(
 void ApplyChatUpdate(
 		not_null<ChatData*> chat,
 		const MTPDupdateChatParticipantAdmin &update) {
-	if (chat->applyUpdateVersion(update.vversion.v)
+	if (chat->applyUpdateVersion(update.vversion().v)
 		!= ChatData::UpdateStatus::Good) {
 		return;
 	}
 
-	const auto user = chat->owner().userLoaded(update.vuser_id.v);
+	const auto user = chat->owner().userLoaded(update.vuser_id().v);
 	if (!user) {
 		chat->invalidateParticipants();
 		return;
 	}
 	if (user->isSelf()) {
-		chat->setAdminRights(MTP_chatAdminRights(mtpIsTrue(update.vis_admin)
+		chat->setAdminRights(MTP_chatAdminRights(mtpIsTrue(update.vis_admin())
 			? MTP_flags(ChatData::DefaultAdminRights())
 			: MTP_flags(0)));
 	}
-	if (mtpIsTrue(update.vis_admin)) {
+	if (mtpIsTrue(update.vis_admin())) {
 		if (chat->noParticipantInfo()) {
 			chat->session().api().requestFullPeer(chat);
 		} else {
@@ -310,20 +310,20 @@ void ApplyChatUpdate(
 void ApplyChatUpdate(
 		not_null<ChatData*> chat,
 		const MTPDupdateChatDefaultBannedRights &update) {
-	if (chat->applyUpdateVersion(update.vversion.v)
+	if (chat->applyUpdateVersion(update.vversion().v)
 		!= ChatData::UpdateStatus::Good) {
 		return;
 	}
-	chat->setDefaultRestrictions(update.vdefault_banned_rights);
+	chat->setDefaultRestrictions(update.vdefault_banned_rights());
 }
 
 void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
-	ApplyChatUpdate(chat, update.vparticipants);
+	ApplyChatUpdate(chat, update.vparticipants());
 
-	if (update.has_bot_info()) {
-		for (const auto &item : update.vbot_info.v) {
+	if (const auto info = update.vbot_info()) {
+		for (const auto &item : info->v) {
 			item.match([&](const MTPDbotInfo &data) {
-				const auto userId = data.vuser_id.v;
+				const auto userId = data.vuser_id().v;
 				if (const auto bot = chat->owner().userLoaded(userId)) {
 					bot->setBotInfo(item);
 					chat->session().api().fullPeerUpdated().notify(bot);
@@ -331,48 +331,50 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 			});
 		}
 	}
-	chat->setFullFlags(update.vflags.v);
-	chat->setUserpicPhoto(update.has_chat_photo()
-		? update.vchat_photo
-		: MTPPhoto(MTP_photoEmpty(MTP_long(0))));
-	chat->setInviteLink(update.vexported_invite.match([&](
+	chat->setFullFlags(update.vflags().v);
+	if (const auto photo = update.vchat_photo()) {
+		chat->setUserpicPhoto(*photo);
+	} else {
+		chat->setUserpicPhoto(MTP_photoEmpty(MTP_long(0)));
+	}
+	chat->setInviteLink(update.vexported_invite().match([&](
 			const MTPDchatInviteExported &data) {
-		return qs(data.vlink);
+		return qs(data.vlink());
 	}, [&](const MTPDchatInviteEmpty &) {
 		return QString();
 	}));
-	if (update.has_pinned_msg_id()) {
-		chat->setPinnedMessageId(update.vpinned_msg_id.v);
+	if (const auto pinned = update.vpinned_msg_id()) {
+		chat->setPinnedMessageId(pinned->v);
 	} else {
 		chat->clearPinnedMessage();
 	}
-	chat->checkFolder(update.has_folder_id() ? update.vfolder_id.v : 0);
+	chat->checkFolder(update.vfolder_id().value_or_empty());
 	chat->fullUpdated();
 
 	chat->session().api().applyNotifySettings(
 		MTP_inputNotifyPeer(chat->input),
-		update.vnotify_settings);
+		update.vnotify_settings());
 }
 
 void ApplyChatUpdate(
 		not_null<ChatData*> chat,
 		const MTPChatParticipants &participants) {
 	participants.match([&](const MTPDchatParticipantsForbidden &data) {
-		if (data.has_self_participant()) {
-			// data.vself_participant.
+		if (const auto self = data.vself_participant()) {
+			// self->
 		}
 		chat->count = -1;
 		chat->invalidateParticipants();
 	}, [&](const MTPDchatParticipants &data) {
-		const auto status = chat->applyUpdateVersion(data.vversion.v);
+		const auto status = chat->applyUpdateVersion(data.vversion().v);
 		if (status == ChatData::UpdateStatus::TooOld) {
 			return;
 		}
 		// Even if we skipped some updates, we got current participants
 		// and we've requested peer from API to have current rights.
-		chat->setVersion(data.vversion.v);
+		chat->setVersion(data.vversion().v);
 
-		const auto &list = data.vparticipants.v;
+		const auto &list = data.vparticipants().v;
 		chat->count = list.size();
 		chat->participants.clear();
 		chat->invitedByMe.clear();
@@ -381,7 +383,7 @@ void ApplyChatUpdate(
 		const auto selfUserId = chat->session().userId();
 		for (const auto &participant : list) {
 			const auto userId = participant.match([&](const auto &data) {
-				return data.vuser_id.v;
+				return data.vuser_id().v;
 			});
 			const auto user = chat->owner().userLoaded(userId);
 			if (!user) {
@@ -395,7 +397,7 @@ void ApplyChatUpdate(
 					const MTPDchatParticipantCreator &data) {
 				return 0;
 			}, [&](const auto &data) {
-				return data.vinviter_id.v;
+				return data.vinviter_id().v;
 			});
 			if (inviterId == selfUserId) {
 				chat->invitedByMe.insert(user);

@@ -48,7 +48,7 @@ void UrlAuthBox::Activate(
 
 		button->requestId = 0;
 		result.match([&](const MTPDurlAuthResultAccepted &data) {
-			UrlClickHandler::Open(qs(data.vurl));
+			UrlClickHandler::Open(qs(data.vurl()));
 		}, [&](const MTPDurlAuthResultDefault &data) {
 			HiddenUrlClickHandler::Open(url);
 		}, [&](const MTPDurlAuthResultRequest &data) {
@@ -82,7 +82,7 @@ void UrlAuthBox::Request(
 	const auto url = QString::fromUtf8(button->data);
 
 	const auto bot = request.is_request_write_access()
-		? session->data().processUser(request.vbot).get()
+		? session->data().processUser(request.vbot()).get()
 		: nullptr;
 	const auto box = std::make_shared<QPointer<BoxContent>>();
 	const auto finishWithUrl = [=](const QString &url) {
@@ -105,7 +105,7 @@ void UrlAuthBox::Request(
 			)).done([=](const MTPUrlAuthResult &result) {
 				const auto to = result.match(
 				[&](const MTPDurlAuthResultAccepted &data) {
-					return qs(data.vurl);
+					return qs(data.vurl());
 				}, [&](const MTPDurlAuthResultDefault &data) {
 					return url;
 				}, [&](const MTPDurlAuthResultRequest &data) {
@@ -120,7 +120,7 @@ void UrlAuthBox::Request(
 		}
 	};
 	*box = Ui::show(
-		Box<UrlAuthBox>(url, qs(request.vdomain), bot, callback),
+		Box<UrlAuthBox>(url, qs(request.vdomain()), bot, callback),
 		LayerOption::KeepOther);
 }
 

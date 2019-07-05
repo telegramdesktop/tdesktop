@@ -158,7 +158,7 @@ void StickersBox::showAttachedStickers() {
 	auto addedSet = false;
 	for (const auto &stickerSet : _attachedSets.v) {
 		const auto setData = stickerSet.match([&](const auto &data) {
-			return data.vset.match([&](const MTPDstickerSet &data) {
+			return data.vset().match([&](const MTPDstickerSet &data) {
 				return &data;
 			});
 		});
@@ -201,19 +201,19 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 
 	auto addedSet = false;
 	auto changedSets = false;
-	for_const (const auto &stickerSet, stickers.vsets.v) {
+	for_const (const auto &stickerSet, stickers.vsets().v) {
 		const MTPDstickerSet *setData = nullptr;
 		switch (stickerSet.type()) {
 		case mtpc_stickerSetCovered: {
 			auto &d = stickerSet.c_stickerSetCovered();
-			if (d.vset.type() == mtpc_stickerSet) {
-				setData = &d.vset.c_stickerSet();
+			if (d.vset().type() == mtpc_stickerSet) {
+				setData = &d.vset().c_stickerSet();
 			}
 		} break;
 		case mtpc_stickerSetMultiCovered: {
 			auto &d = stickerSet.c_stickerSetMultiCovered();
-			if (d.vset.type() == mtpc_stickerSet) {
-				setData = &d.vset.c_stickerSet();
+			if (d.vset().type() == mtpc_stickerSet) {
+				setData = &d.vset().c_stickerSet();
 			}
 		} break;
 		}
@@ -239,7 +239,7 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 	if (addedSet) {
 		_archived.widget()->updateSize();
 	} else {
-		_allArchivedLoaded = stickers.vsets.v.isEmpty()
+		_allArchivedLoaded = stickers.vsets().v.isEmpty()
 			|| (!changedSets && offsetId != 0);
 		if (changedSets) {
 			loadMoreArchived();
@@ -1324,8 +1324,8 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 void StickersBox::Inner::saveGroupSet() {
 	Expects(_megagroupSet != nullptr);
 
-	auto oldId = (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetID) ? _megagroupSet->mgInfo->stickerSet.c_inputStickerSetID().vid.v : 0;
-	auto newId = (_megagroupSetInput.type() == mtpc_inputStickerSetID) ? _megagroupSetInput.c_inputStickerSetID().vid.v : 0;
+	auto oldId = (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetID) ? _megagroupSet->mgInfo->stickerSet.c_inputStickerSetID().vid().v : 0;
+	auto newId = (_megagroupSetInput.type() == mtpc_inputStickerSetID) ? _megagroupSetInput.c_inputStickerSetID().vid().v : 0;
 	if (newId != oldId) {
 		Auth().api().setGroupStickerSet(_megagroupSet, _megagroupSetInput);
 		Auth().api().stickerSetInstalled(Stickers::MegagroupSetId);
@@ -1492,11 +1492,11 @@ void StickersBox::Inner::rebuildMegagroupSet() {
 		return;
 	}
 	auto &set = _megagroupSetInput.c_inputStickerSetID();
-	auto setId = set.vid.v;
+	auto setId = set.vid().v;
 	auto &sets = Auth().data().stickerSets();
 	auto it = sets.find(setId);
 	if (it == sets.cend() || (it->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
-		Auth().api().scheduleStickerSetRequest(set.vid.v, set.vaccess_hash.v);
+		Auth().api().scheduleStickerSetRequest(set.vid().v, set.vaccess_hash().v);
 		return;
 	}
 

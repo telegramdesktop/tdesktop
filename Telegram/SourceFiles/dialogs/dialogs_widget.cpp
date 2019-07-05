@@ -999,10 +999,10 @@ void Widget::searchReceived(
 			auto &d = result.c_messages_messages();
 			if (_searchRequest != 0) {
 				// Don't apply cached data!
-				session().data().processUsers(d.vusers);
-				session().data().processChats(d.vchats);
+				session().data().processUsers(d.vusers());
+				session().data().processChats(d.vchats());
 			}
-			auto &msgs = d.vmessages.v;
+			auto &msgs = d.vmessages().v;
 			_inner->searchReceived(msgs, type, msgs.size());
 			if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
 				_searchFullMigrated = true;
@@ -1015,17 +1015,18 @@ void Widget::searchReceived(
 			auto &d = result.c_messages_messagesSlice();
 			if (_searchRequest != 0) {
 				// Don't apply cached data!
-				session().data().processUsers(d.vusers);
-				session().data().processChats(d.vchats);
+				session().data().processUsers(d.vusers());
+				session().data().processChats(d.vchats());
 			}
-			auto &msgs = d.vmessages.v;
-			const auto someAdded = _inner->searchReceived(msgs, type, d.vcount.v);
-			const auto rateUpdated = d.has_next_rate() && (d.vnext_rate.v != _searchNextRate);
+			auto &msgs = d.vmessages().v;
+			const auto someAdded = _inner->searchReceived(msgs, type, d.vcount().v);
+			const auto nextRate = d.vnext_rate();
+			const auto rateUpdated = nextRate && (nextRate->v != _searchNextRate);
 			const auto finished = (type == SearchRequestType::FromStart || type == SearchRequestType::FromOffset)
 				? !rateUpdated
 				: !someAdded;
 			if (rateUpdated) {
-				_searchNextRate = d.vnext_rate.v;
+				_searchNextRate = nextRate->v;
 			}
 			if (finished) {
 				if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
@@ -1040,7 +1041,7 @@ void Widget::searchReceived(
 			auto &d = result.c_messages_channelMessages();
 			if (const auto peer = _searchInChat.peer()) {
 				if (const auto channel = peer->asChannel()) {
-					channel->ptsReceived(d.vpts.v);
+					channel->ptsReceived(d.vpts().v);
 				} else {
 					LOG(("API Error: "
 						"received messages.channelMessages when no channel "
@@ -1053,11 +1054,11 @@ void Widget::searchReceived(
 			}
 			if (_searchRequest != 0) {
 				// Don't apply cached data!
-				session().data().processUsers(d.vusers);
-				session().data().processChats(d.vchats);
+				session().data().processUsers(d.vusers());
+				session().data().processChats(d.vchats());
 			}
-			auto &msgs = d.vmessages.v;
-			if (!_inner->searchReceived(msgs, type, d.vcount.v)) {
+			auto &msgs = d.vmessages().v;
+			if (!_inner->searchReceived(msgs, type, d.vcount().v)) {
 				if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
 					_searchFullMigrated = true;
 				} else {
@@ -1099,9 +1100,9 @@ void Widget::peerSearchReceived(
 		switch (result.type()) {
 		case mtpc_contacts_found: {
 			auto &d = result.c_contacts_found();
-			session().data().processUsers(d.vusers);
-			session().data().processChats(d.vchats);
-			_inner->peerSearchReceived(q, d.vmy_results.v, d.vresults.v);
+			session().data().processUsers(d.vusers());
+			session().data().processChats(d.vchats());
+			_inner->peerSearchReceived(q, d.vmy_results().v, d.vresults().v);
 		} break;
 		}
 

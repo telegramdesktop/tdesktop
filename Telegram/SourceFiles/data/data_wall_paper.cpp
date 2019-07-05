@@ -316,29 +316,31 @@ std::optional<WallPaper> WallPaper::Create(const MTPDwallPaper &data) {
 	using Flag = MTPDwallPaper::Flag;
 
 	const auto document = Auth().data().processDocument(
-		data.vdocument);
+		data.vdocument());
 	if (!document->checkWallPaperProperties()) {
 		return std::nullopt;
 	}
-	auto result = WallPaper(data.vid.v);
-	result._accessHash = data.vaccess_hash.v;
-	result._flags = data.vflags.v;
-	result._slug = qs(data.vslug);
+	auto result = WallPaper(data.vid().v);
+	result._accessHash = data.vaccess_hash().v;
+	result._flags = data.vflags().v;
+	result._slug = qs(data.vslug());
 	result._document = document;
-	if (data.has_settings()) {
+	if (const auto settings = data.vsettings()) {
 		const auto isPattern = ((result._flags & Flag::f_pattern) != 0);
-		data.vsettings.match([&](const MTPDwallPaperSettings &data) {
+		settings->match([&](const MTPDwallPaperSettings &data) {
 			using Flag = MTPDwallPaperSettings::Flag;
 
-			result._settings = data.vflags.v;
-			if (isPattern && data.has_background_color()) {
+			result._settings = data.vflags().v;
+			const auto backgroundColor = data.vbackground_color();
+			if (isPattern && backgroundColor) {
 				result._backgroundColor = MaybeColorFromSerialized(
-					data.vbackground_color.v);
+					backgroundColor->v);
 			} else {
 				result._settings &= ~Flag::f_background_color;
 			}
-			if (isPattern && data.has_intensity()) {
-				result._intensity = data.vintensity.v;
+			const auto intensity = data.vintensity();
+			if (isPattern && intensity) {
+				result._intensity = intensity->v;
 			} else {
 				result._settings &= ~Flag::f_intensity;
 			}

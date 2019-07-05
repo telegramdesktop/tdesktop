@@ -353,14 +353,14 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	if (!isBoxShown() || !App::main()) return;
 
 	const auto &d = res.c_contacts_importedContacts();
-	Auth().data().processUsers(d.vusers);
+	Auth().data().processUsers(d.vusers());
 
-	const auto &v = d.vimported.v;
+	const auto &v = d.vimported().v;
 	const auto user = [&]() -> UserData* {
 		if (!v.isEmpty()) {
 			auto &c = v.front().c_importedContact();
-			if (c.vclient_id.v == _contactId) {
-				return Auth().data().userLoaded(c.vuser_id.v);
+			if (c.vclient_id().v == _contactId) {
+				return Auth().data().userLoaded(c.vuser_id().v);
 			}
 		}
 		return nullptr;
@@ -380,7 +380,7 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 
 void AddContactBox::onSaveUserDone(const MTPcontacts_ImportedContacts &res) {
 	auto &d = res.c_contacts_importedContacts();
-	Auth().data().processUsers(d.vusers);
+	Auth().data().processUsers(d.vusers());
 	closeBox();
 }
 
@@ -544,9 +544,9 @@ void GroupInfoBox::createGroup(
 			| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
 				switch (updates->type()) {
 				case mtpc_updates:
-					return &updates->c_updates().vchats.v;
+					return &updates->c_updates().vchats().v;
 				case mtpc_updatesCombined:
-					return &updates->c_updatesCombined().vchats.v;
+					return &updates->c_updatesCombined().vchats().v;
 				}
 				LOG(("API Error: unexpected update cons %1 "
 					"(GroupInfoBox::creationDone)").arg(updates->type()));
@@ -559,7 +559,7 @@ void GroupInfoBox::createGroup(
 					: std::nullopt;
 			}
 			| [](auto chats) {
-				return Auth().data().chat(chats->front().c_chat().vid.v);
+				return Auth().data().chat(chats->front().c_chat().vid().v);
 			}
 			| [&](not_null<ChatData*> chat) {
 				if (!image.isNull()) {
@@ -653,9 +653,9 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 			| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
 				switch (updates->type()) {
 				case mtpc_updates:
-					return &updates->c_updates().vchats.v;
+					return &updates->c_updates().vchats().v;
 				case mtpc_updatesCombined:
-					return &updates->c_updatesCombined().vchats.v;
+					return &updates->c_updatesCombined().vchats().v;
 				}
 				LOG(("API Error: unexpected update cons %1 (GroupInfoBox::createChannel)").arg(updates->type()));
 				return std::nullopt;
@@ -666,7 +666,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 					: std::nullopt;
 			}
 			| [](auto chats) {
-				return Auth().data().channel(chats->front().c_channel().vid.v);
+				return Auth().data().channel(chats->front().c_channel().vid().v);
 			}
 			| [&](not_null<ChannelData*> channel) {
 				auto image = _photo->takeResultImage();
@@ -681,7 +681,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 				)).done([=](const MTPExportedChatInvite &result) {
 					_creationRequestId = 0;
 					if (result.type() == mtpc_chatInviteExported) {
-						auto link = qs(result.c_chatInviteExported().vlink);
+						auto link = qs(result.c_chatInviteExported().vlink());
 						_createdChannel->setInviteLink(link);
 					}
 					if (_channelDone) {
@@ -1261,7 +1261,7 @@ RevokePublicLinkBox::Inner::Inner(QWidget *parent, Fn<void()> revokeCallback) : 
 		MTP_flags(0)
 	)).done([=](const MTPmessages_Chats &result) {
 		const auto &chats = result.match([](const auto &data) {
-			return data.vchats.v;
+			return data.vchats().v;
 		});
 		for (const auto &chat : chats) {
 			if (const auto peer = Auth().data().processChat(chat)) {
@@ -1364,7 +1364,7 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 			if (_revokeRequestId) return;
 			_revokeRequestId = request(MTPchannels_UpdateUsername(
 				pressed->asChannel()->inputChannel,
-				MTP_string("")
+				MTP_string()
 			)).done([=](const MTPBool &result) {
 				const auto callback = _revokeCallback;
 				if (_weakRevokeConfirmBox) {

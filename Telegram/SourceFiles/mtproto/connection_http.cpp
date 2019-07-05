@@ -171,7 +171,7 @@ void HttpConnection::requestFinished(QNetworkReply *reply) {
 				try {
 					const auto res_pq = readPQFakeReply(data);
 					const auto &data = res_pq.c_resPQ();
-					if (data.vnonce == _checkNonce) {
+					if (data.vnonce() == _checkNonce) {
 						DEBUG_LOG(("Connection Info: "
 							"HTTP-transport to %1 connected by pq-response"
 							).arg(_address));

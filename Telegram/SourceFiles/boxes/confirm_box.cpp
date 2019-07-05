@@ -792,8 +792,8 @@ ConfirmInviteBox::ConfirmInviteBox(
 , _status(this, st::confirmInviteStatus)
 , _participants(GetParticipants(data))
 , _isChannel(data.is_channel() && !data.is_megagroup()) {
-	const auto title = qs(data.vtitle);
-	const auto count = data.vparticipants_count.v;
+	const auto title = qs(data.vtitle());
+	const auto count = data.vparticipants_count().v;
 	const auto status = [&] {
 		return (!_participants.empty() && _participants.size() < count)
 			? tr::lng_group_invite_members(tr::now, lt_count, count)
@@ -806,7 +806,7 @@ ConfirmInviteBox::ConfirmInviteBox(
 	_title->setText(title);
 	_status->setText(status);
 
-	const auto photo = Auth().data().processPhoto(data.vphoto);
+	const auto photo = Auth().data().processPhoto(data.vphoto());
 	if (!photo->isNull()) {
 		_photo = photo->thumbnail();
 		if (!_photo->loaded()) {
@@ -824,10 +824,11 @@ ConfirmInviteBox::ConfirmInviteBox(
 
 std::vector<not_null<UserData*>> ConfirmInviteBox::GetParticipants(
 		const MTPDchatInvite &data) {
-	if (!data.has_participants()) {
+	const auto participants = data.vparticipants();
+	if (!participants) {
 		return {};
 	}
-	const auto &v = data.vparticipants.v;
+	const auto &v = participants->v;
 	auto result = std::vector<not_null<UserData*>>();
 	result.reserve(v.size());
 	for (const auto &participant : v) {

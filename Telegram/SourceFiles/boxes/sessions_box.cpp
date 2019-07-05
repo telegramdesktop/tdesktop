@@ -141,7 +141,7 @@ void SessionsBox::got(const MTPaccount_Authorizations &result) {
 	_data = Full();
 
 	result.match([&](const MTPDaccount_authorizations &data) {
-		const auto &list = data.vauthorizations.v;
+		const auto &list = data.vauthorizations().v;
 		for (const auto &auth : list) {
 			auth.match([&](const MTPDauthorization &data) {
 				auto entry = ParseEntry(data);
@@ -170,14 +170,14 @@ void SessionsBox::got(const MTPaccount_Authorizations &result) {
 SessionsBox::Entry SessionsBox::ParseEntry(const MTPDauthorization &data) {
 	auto result = Entry();
 
-	result.hash = data.is_current() ? 0 : data.vhash.v;
+	result.hash = data.is_current() ? 0 : data.vhash().v;
 	result.incomplete = data.is_password_pending();
 
 	auto appName = QString();
-	auto appVer = qs(data.vapp_version);
-	const auto systemVer = qs(data.vsystem_version);
-	const auto deviceModel = qs(data.vdevice_model);
-	const auto apiId = data.vapi_id.v;
+	auto appVer = qs(data.vapp_version());
+	const auto systemVer = qs(data.vsystem_version());
+	const auto deviceModel = qs(data.vdevice_model());
+	const auto apiId = data.vapi_id().v;
 	if (apiId == 2040 || apiId == 17349) {
 		appName = (apiId == 2040)
 			? qstr("Telegram Desktop")
@@ -201,7 +201,7 @@ SessionsBox::Entry SessionsBox::ParseEntry(const MTPDauthorization &data) {
 		//	appVer = QString();
 		}
 	} else {
-		appName = qs(data.vapp_name);// +qsl(" for ") + qs(d.vplatform);
+		appName = qs(data.vapp_name());// +qsl(" for ") + qs(d.vplatform());
 		if (appVer.indexOf('(') >= 0) {
 			appVer = appVer.mid(appVer.indexOf('('));
 		}
@@ -211,19 +211,19 @@ SessionsBox::Entry SessionsBox::ParseEntry(const MTPDauthorization &data) {
 		result.name += ' ' + appVer;
 	}
 
-	const auto country = qs(data.vcountry);
-	const auto platform = qs(data.vplatform);
+	const auto country = qs(data.vcountry());
+	const auto platform = qs(data.vplatform());
 	//const auto &countries = countriesByISO2();
 	//const auto j = countries.constFind(country);
 	//if (j != countries.cend()) {
 	//	country = QString::fromUtf8(j.value()->name);
 	//}
 
-	result.activeTime = data.vdate_active.v
-		? data.vdate_active.v
-		: data.vdate_created.v;
-	result.info = qs(data.vdevice_model) + qstr(", ") + (platform.isEmpty() ? QString() : platform + ' ') + qs(data.vsystem_version);
-	result.ip = qs(data.vip) + (country.isEmpty() ? QString() : QString::fromUtf8(" \xe2\x80\x93 ") + country);
+	result.activeTime = data.vdate_active().v
+		? data.vdate_active().v
+		: data.vdate_created().v;
+	result.info = qs(data.vdevice_model()) + qstr(", ") + (platform.isEmpty() ? QString() : platform + ' ') + qs(data.vsystem_version());
+	result.ip = qs(data.vip()) + (country.isEmpty() ? QString() : QString::fromUtf8(" \xe2\x80\x93 ") + country);
 	if (!result.hash) {
 		result.active = tr::lng_status_online(tr::now);
 		result.activeWidth = st::sessionWhenFont->width(tr::lng_status_online(tr::now));

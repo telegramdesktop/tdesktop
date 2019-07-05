@@ -748,71 +748,65 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	_lastConfigLoadedTime = crl::now();
 
 	const auto &data = result.c_config();
-	DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(mtpIsTrue(data.vtest_mode)).arg(data.vthis_dc.v).arg(data.vdc_options.v.size()));
-	if (data.vdc_options.v.empty()) {
+	DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max().v).arg(data.vdate().v).arg(mtpIsTrue(data.vtest_mode())).arg(data.vthis_dc().v).arg(data.vdc_options().v.size()));
+	if (data.vdc_options().v.empty()) {
 		LOG(("MTP Error: config with empty dc_options received!"));
 	} else {
-		_dcOptions->setFromList(data.vdc_options);
+		_dcOptions->setFromList(data.vdc_options());
 	}
 
-	Global::SetChatSizeMax(data.vchat_size_max.v);
-	Global::SetMegagroupSizeMax(data.vmegagroup_size_max.v);
-	Global::SetForwardedCountMax(data.vforwarded_count_max.v);
-	Global::SetOnlineUpdatePeriod(data.vonline_update_period_ms.v);
-	Global::SetOfflineBlurTimeout(data.voffline_blur_timeout_ms.v);
-	Global::SetOfflineIdleTimeout(data.voffline_idle_timeout_ms.v);
-	Global::SetOnlineCloudTimeout(data.vonline_cloud_timeout_ms.v);
-	Global::SetNotifyCloudDelay(data.vnotify_cloud_delay_ms.v);
-	Global::SetNotifyDefaultDelay(data.vnotify_default_delay_ms.v);
-	Global::SetPushChatPeriod(data.vpush_chat_period_ms.v);
-	Global::SetPushChatLimit(data.vpush_chat_limit.v);
-	Global::SetSavedGifsLimit(data.vsaved_gifs_limit.v);
-	Global::SetEditTimeLimit(data.vedit_time_limit.v);
-	Global::SetRevokeTimeLimit(data.vrevoke_time_limit.v);
-	Global::SetRevokePrivateTimeLimit(data.vrevoke_pm_time_limit.v);
+	Global::SetChatSizeMax(data.vchat_size_max().v);
+	Global::SetMegagroupSizeMax(data.vmegagroup_size_max().v);
+	Global::SetForwardedCountMax(data.vforwarded_count_max().v);
+	Global::SetOnlineUpdatePeriod(data.vonline_update_period_ms().v);
+	Global::SetOfflineBlurTimeout(data.voffline_blur_timeout_ms().v);
+	Global::SetOfflineIdleTimeout(data.voffline_idle_timeout_ms().v);
+	Global::SetOnlineCloudTimeout(data.vonline_cloud_timeout_ms().v);
+	Global::SetNotifyCloudDelay(data.vnotify_cloud_delay_ms().v);
+	Global::SetNotifyDefaultDelay(data.vnotify_default_delay_ms().v);
+	Global::SetPushChatPeriod(data.vpush_chat_period_ms().v);
+	Global::SetPushChatLimit(data.vpush_chat_limit().v);
+	Global::SetSavedGifsLimit(data.vsaved_gifs_limit().v);
+	Global::SetEditTimeLimit(data.vedit_time_limit().v);
+	Global::SetRevokeTimeLimit(data.vrevoke_time_limit().v);
+	Global::SetRevokePrivateTimeLimit(data.vrevoke_pm_time_limit().v);
 	Global::SetRevokePrivateInbox(data.is_revoke_pm_inbox());
-	Global::SetStickersRecentLimit(data.vstickers_recent_limit.v);
-	Global::SetStickersFavedLimit(data.vstickers_faved_limit.v);
+	Global::SetStickersRecentLimit(data.vstickers_recent_limit().v);
+	Global::SetStickersFavedLimit(data.vstickers_faved_limit().v);
 	Global::SetPinnedDialogsCountMax(
-		std::max(data.vpinned_dialogs_count_max.v, 1));
+		std::max(data.vpinned_dialogs_count_max().v, 1));
 	Global::SetPinnedDialogsInFolderMax(
-		std::max(data.vpinned_infolder_count_max.v, 1));
-	Core::App().setInternalLinkDomain(qs(data.vme_url_prefix));
-	Global::SetChannelsReadMediaPeriod(data.vchannels_read_media_period.v);
-	Global::SetWebFileDcId(data.vwebfile_dc_id.v);
-	Global::SetTxtDomainString(qs(data.vdc_txt_domain_name));
-	Global::SetCallReceiveTimeoutMs(data.vcall_receive_timeout_ms.v);
-	Global::SetCallRingTimeoutMs(data.vcall_ring_timeout_ms.v);
-	Global::SetCallConnectTimeoutMs(data.vcall_connect_timeout_ms.v);
-	Global::SetCallPacketTimeoutMs(data.vcall_packet_timeout_ms.v);
+		std::max(data.vpinned_infolder_count_max().v, 1));
+	Core::App().setInternalLinkDomain(qs(data.vme_url_prefix()));
+	Global::SetChannelsReadMediaPeriod(data.vchannels_read_media_period().v);
+	Global::SetWebFileDcId(data.vwebfile_dc_id().v);
+	Global::SetTxtDomainString(qs(data.vdc_txt_domain_name()));
+	Global::SetCallReceiveTimeoutMs(data.vcall_receive_timeout_ms().v);
+	Global::SetCallRingTimeoutMs(data.vcall_ring_timeout_ms().v);
+	Global::SetCallConnectTimeoutMs(data.vcall_connect_timeout_ms().v);
+	Global::SetCallPacketTimeoutMs(data.vcall_packet_timeout_ms().v);
 	if (Global::PhoneCallsEnabled() != data.is_phonecalls_enabled()) {
 		Global::SetPhoneCallsEnabled(data.is_phonecalls_enabled());
 		Global::RefPhoneCallsEnabledChanged().notify();
 	}
 	Global::SetBlockedMode(data.is_blocked_mode());
-	Global::SetCaptionLengthMax(data.vcaption_length_max.v);
+	Global::SetCaptionLengthMax(data.vcaption_length_max().v);
 
-	const auto lang = data.has_suggested_lang_code()
-		? qs(data.vsuggested_lang_code)
-		: QString();
+	const auto lang = qs(data.vsuggested_lang_code().value_or_empty());
 	Lang::CurrentCloudManager().setSuggestedLanguage(lang);
 	Lang::CurrentCloudManager().setCurrentVersions(
-		(data.has_lang_pack_version()
-			? data.vlang_pack_version.v
-			: 0),
-		(data.has_base_lang_pack_version()
-			? data.vbase_lang_pack_version.v
-			: 0));
+		data.vlang_pack_version().value_or_empty(),
+		data.vbase_lang_pack_version().value_or_empty());
 
 	Core::App().configUpdated();
 
-	if (data.has_autoupdate_url_prefix()) {
-		Local::writeAutoupdatePrefix(qs(data.vautoupdate_url_prefix));
+	if (const auto prefix = data.vautoupdate_url_prefix()) {
+		Local::writeAutoupdatePrefix(qs(*prefix));
 	}
 	Local::writeSettings();
 
 	_configExpiresAt = crl::now()
-		+ (data.vexpires.v - unixtime()) * crl::time(1000);
+		+ (data.vexpires().v - unixtime()) * crl::time(1000);
 	requestConfigIfExpired();
 
 	emit _instance->configLoaded();
@@ -1198,7 +1192,7 @@ void Instance::Private::exportDone(const MTPauth_ExportedAuthorization &result, 
 	}
 
 	auto &data = result.c_auth_exportedAuthorization();
-	_instance->send(MTPauth_ImportAuthorization(data.vid, data.vbytes), rpcDone([this](const MTPauth_Authorization &result, mtpRequestId requestId) {
+	_instance->send(MTPauth_ImportAuthorization(data.vid(), data.vbytes()), rpcDone([this](const MTPauth_Authorization &result, mtpRequestId requestId) {
 		importDone(result, requestId);
 	}), rpcFail([this](const RPCError &error, mtpRequestId requestId) {
 		return importFail(error, requestId);

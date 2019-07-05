@@ -836,7 +836,7 @@ void mtpFileLoader::normalPartLoaded(
 	if (result.type() == mtpc_upload_fileCdnRedirect) {
 		return switchToCDN(offset, result.c_upload_fileCdnRedirect());
 	}
-	auto buffer = bytes::make_span(result.c_upload_file().vbytes.v);
+	auto buffer = bytes::make_span(result.c_upload_file().vbytes().v);
 	return partLoaded(offset, buffer);
 }
 
@@ -846,16 +846,16 @@ void mtpFileLoader::webPartLoaded(
 	result.match([&](const MTPDupload_webFile &data) {
 		const auto offset = finishSentRequestGetOffset(requestId);
 		if (!_size) {
-			_size = data.vsize.v;
-		} else if (data.vsize.v != _size) {
+			_size = data.vsize().v;
+		} else if (data.vsize().v != _size) {
 			LOG(("MTP Error: "
 				"Bad size provided by bot for webDocument: %1, real: %2"
 				).arg(_size
-				).arg(data.vsize.v));
+				).arg(data.vsize().v));
 			cancel(true);
 			return;
 		}
-		partLoaded(offset, bytes::make_span(data.vbytes.v));
+		partLoaded(offset, bytes::make_span(data.vbytes().v));
 	});
 }
 
@@ -874,7 +874,7 @@ void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId 
 		const auto requestId = MTP::send(
 			MTPupload_ReuploadCdnFile(
 				MTP_bytes(_cdnToken),
-				data.vrequest_token),
+				data.vrequest_token()),
 			rpcDone(&mtpFileLoader::reuploadDone),
 			rpcFail(&mtpFileLoader::cdnPartFailed),
 			shiftedDcId);
@@ -895,7 +895,7 @@ void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId 
 		state.ivec[13] = static_cast<uchar>((counterOffset >> 16) & 0xFF);
 		state.ivec[12] = static_cast<uchar>((counterOffset >> 24) & 0xFF);
 
-		auto decryptInPlace = data.vbytes.v;
+		auto decryptInPlace = data.vbytes().v;
 		auto buffer = bytes::make_detached_span(decryptInPlace);
 		MTP::aesCtrEncrypt(buffer, key.data(), &state);
 
@@ -1119,19 +1119,19 @@ void mtpFileLoader::switchToCDN(
 		const MTPDupload_fileCdnRedirect &redirect) {
 	changeCDNParams(
 		offset,
-		redirect.vdc_id.v,
-		redirect.vfile_token.v,
-		redirect.vencryption_key.v,
-		redirect.vencryption_iv.v,
-		redirect.vfile_hashes.v);
+		redirect.vdc_id().v,
+		redirect.vfile_token().v,
+		redirect.vencryption_key().v,
+		redirect.vencryption_iv().v,
+		redirect.vfile_hashes().v);
 }
 
 void mtpFileLoader::addCdnHashes(const QVector<MTPFileHash> &hashes) {
 	for (const auto &hash : hashes) {
 		hash.match([&](const MTPDfileHash &data) {
 			_cdnFileHashes.emplace(
-				data.voffset.v,
-				CdnFileHash{ data.vlimit.v, data.vhash.v });
+				data.voffset().v,
+				CdnFileHash{ data.vlimit().v, data.vhash().v });
 		});
 	}
 }

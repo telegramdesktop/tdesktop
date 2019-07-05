@@ -229,12 +229,12 @@ void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	_sentRequest = 0;
 	auto &d = result.c_auth_authorization();
-	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
+	if (d.vuser().type() != mtpc_user || !d.vuser().c_user().is_self()) { // wtf?
 		showCodeError(rpl::single(Lang::Hard::ServerError()));
 		return;
 	}
 	cSetLoggedPhoneNumber(getData()->phone);
-	finish(d.vuser);
+	finish(d.vuser());
 }
 
 bool CodeWidget::codeSubmitFail(const RPCError &error) {
@@ -314,7 +314,7 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 	_sentRequest = 0;
 	const auto &d = result.c_account_password();
 	getData()->pwdRequest = Core::ParseCloudPasswordCheckRequest(d);
-	if (!d.has_current_algo() || !d.has_srp_id() || !d.has_srp_B()) {
+	if (!d.vcurrent_algo() || !d.vsrp_id() || !d.vsrp_B()) {
 		LOG(("API Error: No current password received on login."));
 		_code->setFocus();
 		return;
@@ -331,7 +331,7 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 		return;
 	}
 	getData()->hasRecovery = d.is_has_recovery();
-	getData()->pwdHint = qs(d.vhint);
+	getData()->pwdHint = qs(d.vhint().value_or_empty());
 	getData()->pwdNotEmptyPassport = d.is_has_secure_values();
 	goReplace(new Intro::PwdCheckWidget(parentWidget(), getData()));
 }
@@ -377,9 +377,10 @@ void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
 	const auto &d = result.c_auth_sentCode();
 	fillSentCodeData(d);
 	_code->setDigitsCountMax(getData()->codeLength);
-	if (d.has_next_type() && d.vnext_type.type() == mtpc_auth_codeTypeCall) {
+	const auto next = d.vnext_type();
+	if (next && next->type() == mtpc_auth_codeTypeCall) {
 		getData()->callStatus = Widget::Data::CallStatus::Waiting;
-		getData()->callTimeout = d.has_timeout() ? d.vtimeout.v : 60;
+		getData()->callTimeout = d.vtimeout().value_or(60);
 	} else {
 		getData()->callStatus = Widget::Data::CallStatus::Disabled;
 		getData()->callTimeout = 0;

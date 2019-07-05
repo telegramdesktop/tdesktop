@@ -280,7 +280,7 @@ Helper::Helper(not_null<AuthSession*> session)
 	request(MTPhelp_GetSupportName(
 	)).done([=](const MTPhelp_SupportName &result) {
 		result.match([&](const MTPDhelp_supportName &data) {
-			setSupportName(qs(data.vname));
+			setSupportName(qs(data.vname()));
 		});
 	}).fail([=](const RPCError &error) {
 		setSupportName(
@@ -434,11 +434,11 @@ void Helper::applyInfo(
 	};
 	result.match([&](const MTPDhelp_userInfo &data) {
 		auto info = UserInfo();
-		info.author = qs(data.vauthor);
-		info.date = data.vdate.v;
+		info.author = qs(data.vauthor());
+		info.date = data.vdate().v;
 		info.text = TextWithEntities{
-			qs(data.vmessage),
-			TextUtilities::EntitiesFromMTP(data.ventities.v) };
+			qs(data.vmessage()),
+			TextUtilities::EntitiesFromMTP(data.ventities().v) };
 		if (info.text.empty()) {
 			remove();
 		} else if (_userInformation[user] != info) {

@@ -896,8 +896,8 @@ void MtpChecker::start() {
 		_mtp.send(
 			MTPmessages_GetHistory(
 				MTP_inputPeerChannel(
-					channel.c_inputChannel().vchannel_id,
-					channel.c_inputChannel().vaccess_hash),
+					channel.c_inputChannel().vchannel_id(),
+					channel.c_inputChannel().vaccess_hash()),
 				MTP_int(0),  // offset_id
 				MTP_int(0),  // offset_date
 				MTP_int(0),  // add_offset
@@ -936,7 +936,7 @@ auto MtpChecker::parseMessage(const MTPmessages_Messages &result) const
 		LOG(("Update Error: MTP feed message not found."));
 		return std::nullopt;
 	}
-	return parseText(message->c_message().vmessage.v);
+	return parseText(message->c_message().vmessage().v);
 }
 
 auto MtpChecker::parseText(const QByteArray &text) const

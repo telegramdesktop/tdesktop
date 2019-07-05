@@ -38,10 +38,10 @@ void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 				MTP_inputGameShortName(
 					bot->inputUser,
 					MTP_string(bot->botInfo->shareGameShortName))),
-			MTP_string(""),
+			MTP_string(),
 			MTP_long(randomId),
 			MTPReplyMarkup(),
-			MTPnullEntities),
+			MTPVector<MTPMessageEntity>()),
 		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
 		App::main()->rpcFail(&MainWidget::sendMessageFail),
 		0,
@@ -182,8 +182,8 @@ void PeerListGlobalSearchController::searchDone(
 	auto &contacts = result.c_contacts_found();
 	auto query = _query;
 	if (requestId) {
-		Auth().data().processUsers(contacts.vusers);
-		Auth().data().processChats(contacts.vchats);
+		Auth().data().processUsers(contacts.vusers());
+		Auth().data().processChats(contacts.vchats());
 		auto it = _queries.find(requestId);
 		if (it != _queries.cend()) {
 			query = it->second;
@@ -200,8 +200,8 @@ void PeerListGlobalSearchController::searchDone(
 	};
 	if (_requestId == requestId) {
 		_requestId = 0;
-		feedList(contacts.vmy_results);
-		feedList(contacts.vresults);
+		feedList(contacts.vmy_results());
+		feedList(contacts.vresults());
 		delegate()->peerListSearchRefreshRows();
 	}
 }

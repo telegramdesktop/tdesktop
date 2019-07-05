@@ -199,14 +199,14 @@ void ConfigLoader::specialConfigLoaded(const MTPConfig &result) {
 	Expects(result.type() == mtpc_config);
 
 	auto &data = result.c_config();
-	if (data.vdc_options.v.empty()) {
+	if (data.vdc_options().v.empty()) {
 		LOG(("MTP Error: config with empty dc_options received!"));
 		return;
 	}
 
 	// We use special config only for dc options.
 	// For everything else we wait for normal config from main dc.
-	_instance->dcOptions()->setFromList(data.vdc_options);
+	_instance->dcOptions()->setFromList(data.vdc_options());
 }
 
 } // namespace internal

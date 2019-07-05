@@ -15,9 +15,9 @@ class LocationPoint {
 public:
 	LocationPoint() = default;
 	explicit LocationPoint(const MTPDgeoPoint &point)
-	: _lat(point.vlat.v)
-	, _lon(point.vlong.v)
-	, _access(point.vaccess_hash.v) {
+	: _lat(point.vlat().v)
+	, _lon(point.vlong().v)
+	, _access(point.vaccess_hash().v) {
 	}
 
 	QString latAsString() const {

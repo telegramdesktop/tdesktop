@@ -327,8 +327,8 @@ void PeerData::updateUserpic(
 				MTP_inputPeerPhotoFileLocation(
 					MTP_flags(0),
 					input,
-					deprecated.vvolume_id,
-					deprecated.vlocal_id)),
+					deprecated.vvolume_id(),
+					deprecated.vlocal_id())),
 			size,
 			size);
 	});

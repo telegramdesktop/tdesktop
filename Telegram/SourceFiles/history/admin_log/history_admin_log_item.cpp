@@ -52,39 +52,44 @@ MTPMessage PrepareLogMessage(
 		const auto removeFlags = MTPDmessageService::Flag::f_out
 			| MTPDmessageService::Flag::f_post
 			/* | MTPDmessageService::Flag::f_reply_to_msg_id*/;
-		const auto flags = message.vflags.v & ~removeFlags;
+		const auto flags = message.vflags().v & ~removeFlags;
+		const auto fromId = message.vfrom_id();
 		return MTP_messageService(
 			MTP_flags(flags),
 			MTP_int(newId),
-			message.vfrom_id,
-			message.vto_id,
-			message.vreply_to_msg_id,
+			MTP_int(message.vfrom_id().value_or_empty()),
+			message.vto_id(),
+			MTP_int(0), // reply_to_msg_id
 			MTP_int(newDate),
-			message.vaction);
+			message.vaction());
 	}, [&](const MTPDmessage &message) {
 		const auto removeFlags = MTPDmessage::Flag::f_out
 			| MTPDmessage::Flag::f_post
 			| MTPDmessage::Flag::f_reply_to_msg_id
 			| MTPDmessage::Flag::f_edit_date
 			| MTPDmessage::Flag::f_grouped_id;
-		const auto flags = message.vflags.v & ~removeFlags;
+		const auto flags = message.vflags().v & ~removeFlags;
+		const auto fwdFrom = message.vfwd_from();
+		const auto media = message.vmedia();
+		const auto markup = message.vreply_markup();
+		const auto entities = message.ventities();
 		return MTP_message(
 			MTP_flags(flags),
 			MTP_int(newId),
-			message.vfrom_id,
-			message.vto_id,
-			message.vfwd_from,
-			message.vvia_bot_id,
-			message.vreply_to_msg_id,
+			MTP_int(message.vfrom_id().value_or_empty()),
+			message.vto_id(),
+			fwdFrom ? *fwdFrom : MTPMessageFwdHeader(),
+			MTP_int(message.vvia_bot_id().value_or_empty()),
+			MTP_int(0), // reply_to_msg_id
 			MTP_int(newDate),
-			message.vmessage,
-			message.vmedia,
-			message.vreply_markup,
-			message.ventities,
-			message.vviews,
-			message.vedit_date,
-			MTP_string(""),
-			message.vgrouped_id);
+			message.vmessage(),
+			media ? *media : MTPMessageMedia(),
+			markup ? *markup : MTPReplyMarkup(),
+			entities ? *entities : MTPVector<MTPMessageEntity>(),
+			MTP_int(message.vviews().value_or_empty()),
+			MTP_int(0), // edit_date
+			MTP_string(),
+			MTP_long(0)); // grouped_id
 	});
 }
 
@@ -92,8 +97,9 @@ bool MediaCanHaveCaption(const MTPMessage &message) {
 	if (message.type() != mtpc_message) {
 		return false;
 	}
-	auto &data = message.c_message();
-	auto mediaType = data.has_media() ? data.vmedia.type() : mtpc_messageMediaEmpty;
+	const auto &data = message.c_message();
+	const auto media = data.vmedia();
+	const auto mediaType = media ? media->type() : mtpc_messageMediaEmpty;
 	return (mediaType == mtpc_messageMediaDocument || mediaType == mtpc_messageMediaPhoto);
 }
 
@@ -101,12 +107,11 @@ TextWithEntities ExtractEditedText(const MTPMessage &message) {
 	if (message.type() != mtpc_message) {
 		return TextWithEntities();
 	}
-	auto &data = message.c_message();
-	auto text = TextUtilities::Clean(qs(data.vmessage));
-	auto entities = data.has_entities()
-		? TextUtilities::EntitiesFromMTP(data.ventities.v)
-		: EntitiesInText();
-	return { text, entities };
+	const auto &data = message.c_message();
+	return {
+		TextUtilities::Clean(qs(data.vmessage())),
+		TextUtilities::EntitiesFromMTP(data.ventities().value_or_empty())
+	};
 }
 
 const auto CollectChanges = [](auto &phraseMap, auto plusFlags, auto minusFlags) {
@@ -134,8 +139,8 @@ TextWithEntities GenerateAdminChangeText(
 	using Flag = MTPDchatAdminRights::Flag;
 	using Flags = MTPDchatAdminRights::Flags;
 
-	auto newFlags = newRights ? newRights->c_chatAdminRights().vflags.v : MTPDchatAdminRights::Flags(0);
-	auto prevFlags = prevRights ? prevRights->c_chatAdminRights().vflags.v : MTPDchatAdminRights::Flags(0);
+	auto newFlags = newRights ? newRights->c_chatAdminRights().vflags().v : MTPDchatAdminRights::Flags(0);
+	auto prevFlags = prevRights ? prevRights->c_chatAdminRights().vflags().v : MTPDchatAdminRights::Flags(0);
 	auto result = tr::lng_admin_log_promoted(tr::now, lt_user, user, Ui::Text::WithEntities);
 
 	auto useInviteLinkPhrase = channel->isMegagroup() && channel->anyoneCanAddMembers();
@@ -177,8 +182,8 @@ QString GenerateBannedChangeText(
 	using Flag = MTPDchatBannedRights::Flag;
 	using Flags = MTPDchatBannedRights::Flags;
 
-	auto newFlags = newRights ? newRights->c_chatBannedRights().vflags.v : Flags(0);
-	auto prevFlags = prevRights ? prevRights->c_chatBannedRights().vflags.v : Flags(0);
+	auto newFlags = newRights ? newRights->c_chatBannedRights().vflags().v : Flags(0);
+	auto prevFlags = prevRights ? prevRights->c_chatBannedRights().vflags().v : Flags(0);
 	static auto phraseMap = std::map<Flags, tr::phrase<>>{
 		{ Flag::f_view_messages, tr::lng_admin_log_banned_view_messages },
 		{ Flag::f_send_messages, tr::lng_admin_log_banned_send_messages },
@@ -202,8 +207,8 @@ TextWithEntities GenerateBannedChangeText(
 	using Flag = MTPDchatBannedRights::Flag;
 	using Flags = MTPDchatBannedRights::Flags;
 
-	auto newFlags = newRights ? newRights->c_chatBannedRights().vflags.v : Flags(0);
-	auto newUntil = newRights ? newRights->c_chatBannedRights().vuntil_date.v : TimeId(0);
+	auto newFlags = newRights ? newRights->c_chatBannedRights().vflags().v : Flags(0);
+	auto newUntil = newRights ? newRights->c_chatBannedRights().vuntil_date().v : TimeId(0);
 	auto indefinitely = ChannelData::IsRestrictedForever(newUntil);
 	if (newFlags & Flag::f_view_messages) {
 		return tr::lng_admin_log_banned(tr::now, lt_user, user, Ui::Text::WithEntities);
@@ -268,38 +273,38 @@ auto GenerateParticipantChangeTextInner(
 		return tr::lng_admin_log_transferred(
 			tr::now,
 			lt_user,
-			GenerateUserString(data.vuser_id),
+			GenerateUserString(data.vuser_id()),
 			Ui::Text::WithEntities);
 	}, [&](const MTPDchannelParticipantAdmin &data) {
-		auto user = GenerateUserString(data.vuser_id);
+		auto user = GenerateUserString(data.vuser_id());
 		return GenerateAdminChangeText(
 			channel,
 			user,
-			&data.vadmin_rights,
+			&data.vadmin_rights(),
 			(oldType == mtpc_channelParticipantAdmin)
-				? &oldParticipant->c_channelParticipantAdmin().vadmin_rights
+				? &oldParticipant->c_channelParticipantAdmin().vadmin_rights()
 				: nullptr);
 	}, [&](const MTPDchannelParticipantBanned &data) {
-		auto user = GenerateUserString(data.vuser_id);
+		auto user = GenerateUserString(data.vuser_id());
 		return GenerateBannedChangeText(
 			user,
-			&data.vbanned_rights,
+			&data.vbanned_rights(),
 			(oldType == mtpc_channelParticipantBanned)
-				? &oldParticipant->c_channelParticipantBanned().vbanned_rights
+				? &oldParticipant->c_channelParticipantBanned().vbanned_rights()
 				: nullptr);
 	}, [&](const auto &data) {
-		auto user = GenerateUserString(data.vuser_id);
+		auto user = GenerateUserString(data.vuser_id());
 		if (oldType == mtpc_channelParticipantAdmin) {
 			return GenerateAdminChangeText(
 				channel,
 				user,
 				nullptr,
-				&oldParticipant->c_channelParticipantAdmin().vadmin_rights);
+				&oldParticipant->c_channelParticipantAdmin().vadmin_rights());
 		} else if (oldType == mtpc_channelParticipantBanned) {
 			return GenerateBannedChangeText(
 				user,
 				nullptr,
-				&oldParticipant->c_channelParticipantBanned().vbanned_rights);
+				&oldParticipant->c_channelParticipantBanned().vbanned_rights());
 		}
 		return tr::lng_admin_log_invited(tr::now, lt_user, user, Ui::Text::WithEntities);
 	});
@@ -364,11 +369,11 @@ void GenerateItems(
 		Fn<void(OwnedItem item)> callback) {
 	Expects(history->peer->isChannel());
 
-	auto id = event.vid.v;
-	auto from = Auth().data().user(event.vuser_id.v);
+	auto id = event.vid().v;
+	auto from = Auth().data().user(event.vuser_id().v);
 	auto channel = history->peer->asChannel();
-	auto &action = event.vaction;
-	auto date = event.vdate.v;
+	auto &action = event.vaction();
+	auto date = event.vdate().v;
 	auto addPart = [&](not_null<HistoryItem*> item) {
 		return callback(OwnedItem(delegate, item));
 	};
@@ -392,13 +397,13 @@ void GenerateItems(
 				lt_from,
 				fromLinkText,
 				lt_title,
-				qs(action.vnew_value));
+				qs(action.vnew_value()));
 		addSimpleServiceMessage(text);
 	};
 
 	auto createChangeAbout = [&](const MTPDchannelAdminLogEventActionChangeAbout &action) {
-		auto newValue = qs(action.vnew_value);
-		auto oldValue = qs(action.vprev_value);
+		auto newValue = qs(action.vnew_value());
+		auto oldValue = qs(action.vprev_value());
 		auto text = (channel->isMegagroup()
 			? (newValue.isEmpty()
 				? tr::lng_admin_log_removed_description_group
@@ -422,8 +427,8 @@ void GenerateItems(
 	};
 
 	auto createChangeUsername = [&](const MTPDchannelAdminLogEventActionChangeUsername &action) {
-		auto newValue = qs(action.vnew_value);
-		auto oldValue = qs(action.vprev_value);
+		auto newValue = qs(action.vnew_value());
+		auto oldValue = qs(action.vprev_value());
 		auto text = (channel->isMegagroup()
 			? (newValue.isEmpty()
 				? tr::lng_admin_log_removed_link_group
@@ -447,7 +452,7 @@ void GenerateItems(
 	};
 
 	auto createChangePhoto = [&](const MTPDchannelAdminLogEventActionChangePhoto &action) {
-		action.vnew_photo.match([&](const MTPDphoto &data) {
+		action.vnew_photo().match([&](const MTPDphoto &data) {
 			auto photo = Auth().data().processPhoto(data);
 			auto text = (channel->isMegagroup()
 				? tr::lng_admin_log_changed_photo_group
@@ -468,7 +473,7 @@ void GenerateItems(
 	};
 
 	auto createToggleInvites = [&](const MTPDchannelAdminLogEventActionToggleInvites &action) {
-		auto enabled = (action.vnew_value.type() == mtpc_boolTrue);
+		auto enabled = (action.vnew_value().type() == mtpc_boolTrue);
 		auto text = (enabled
 			? tr::lng_admin_log_invites_enabled
 			: tr::lng_admin_log_invites_disabled);
@@ -476,7 +481,7 @@ void GenerateItems(
 	};
 
 	auto createToggleSignatures = [&](const MTPDchannelAdminLogEventActionToggleSignatures &action) {
-		auto enabled = (action.vnew_value.type() == mtpc_boolTrue);
+		auto enabled = (action.vnew_value().type() == mtpc_boolTrue);
 		auto text = (enabled
 			? tr::lng_admin_log_signatures_enabled
 			: tr::lng_admin_log_signatures_disabled);
@@ -484,7 +489,7 @@ void GenerateItems(
 	};
 
 	auto createUpdatePinned = [&](const MTPDchannelAdminLogEventActionUpdatePinned &action) {
-		if (action.vmessage.type() == mtpc_messageEmpty) {
+		if (action.vmessage().type() == mtpc_messageEmpty) {
 			auto text = tr::lng_admin_log_unpinned_message(tr::now, lt_from, fromLinkText);
 			addSimpleServiceMessage(text);
 		} else {
@@ -494,7 +499,7 @@ void GenerateItems(
 			auto detachExistingItem = false;
 			addPart(history->createItem(
 				PrepareLogMessage(
-					action.vmessage,
+					action.vmessage(),
 					idManager->next(),
 					date),
 				detachExistingItem));
@@ -502,8 +507,8 @@ void GenerateItems(
 	};
 
 	auto createEditMessage = [&](const MTPDchannelAdminLogEventActionEditMessage &action) {
-		auto newValue = ExtractEditedText(action.vnew_message);
-		auto canHaveCaption = MediaCanHaveCaption(action.vnew_message);
+		auto newValue = ExtractEditedText(action.vnew_message());
+		auto canHaveCaption = MediaCanHaveCaption(action.vnew_message());
 		auto text = (!canHaveCaption
 			? tr::lng_admin_log_edited_message
 			: newValue.text.isEmpty()
@@ -514,11 +519,11 @@ void GenerateItems(
 				fromLinkText);
 		addSimpleServiceMessage(text);
 
-		auto oldValue = ExtractEditedText(action.vprev_message);
+		auto oldValue = ExtractEditedText(action.vprev_message());
 		auto detachExistingItem = false;
 		auto body = history->createItem(
 			PrepareLogMessage(
-				action.vnew_message,
+				action.vnew_message(),
 				idManager->next(),
 				date),
 			detachExistingItem);
@@ -541,7 +546,7 @@ void GenerateItems(
 
 		auto detachExistingItem = false;
 		addPart(history->createItem(
-			PrepareLogMessage(action.vmessage, idManager->next(), date),
+			PrepareLogMessage(action.vmessage(), idManager->next(), date),
 			detachExistingItem));
 	};
 
@@ -563,7 +568,7 @@ void GenerateItems(
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
-		auto bodyText = GenerateParticipantChangeText(channel, action.vparticipant);
+		auto bodyText = GenerateParticipantChangeText(channel, action.vparticipant());
 		addPart(history->owner().makeMessage(history, idManager->next(), bodyFlags, bodyReplyTo, bodyViaBotId, date, peerToUser(from->id), QString(), bodyText));
 	};
 
@@ -571,13 +576,13 @@ void GenerateItems(
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
-		auto bodyText = GenerateParticipantChangeText(channel, action.vnew_participant, &action.vprev_participant);
+		auto bodyText = GenerateParticipantChangeText(channel, action.vnew_participant(), &action.vprev_participant());
 		addPart(history->owner().makeMessage(history, idManager->next(), bodyFlags, bodyReplyTo, bodyViaBotId, date, peerToUser(from->id), QString(), bodyText));
 	};
 
 	auto createParticipantToggleAdmin = [&](const MTPDchannelAdminLogEventActionParticipantToggleAdmin &action) {
-		if (action.vnew_participant.type() == mtpc_channelParticipantAdmin
-			&& action.vprev_participant.type() == mtpc_channelParticipantCreator) {
+		if (action.vnew_participant().type() == mtpc_channelParticipantAdmin
+			&& action.vprev_participant().type() == mtpc_channelParticipantCreator) {
 			// In case of ownership transfer we show that message in
 			// the "User > Creator" part and skip the "Creator > Admin" part.
 			return;
@@ -585,12 +590,12 @@ void GenerateItems(
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
-		auto bodyText = GenerateParticipantChangeText(channel, action.vnew_participant, &action.vprev_participant);
+		auto bodyText = GenerateParticipantChangeText(channel, action.vnew_participant(), &action.vprev_participant());
 		addPart(history->owner().makeMessage(history, idManager->next(), bodyFlags, bodyReplyTo, bodyViaBotId, date, peerToUser(from->id), QString(), bodyText));
 	};
 
 	auto createChangeStickerSet = [&](const MTPDchannelAdminLogEventActionChangeStickerSet &action) {
-		auto set = action.vnew_stickerset;
+		auto set = action.vnew_stickerset();
 		auto removed = (set.type() == mtpc_inputStickerSetEmpty);
 		if (removed) {
 			auto text = tr::lng_admin_log_removed_stickers_group(tr::now, lt_from, fromLinkText);
@@ -615,7 +620,7 @@ void GenerateItems(
 	};
 
 	auto createTogglePreHistoryHidden = [&](const MTPDchannelAdminLogEventActionTogglePreHistoryHidden &action) {
-		auto hidden = (action.vnew_value.type() == mtpc_boolTrue);
+		auto hidden = (action.vnew_value().type() == mtpc_boolTrue);
 		auto text = (hidden
 			? tr::lng_admin_log_history_made_hidden
 			: tr::lng_admin_log_history_made_visible);
@@ -626,7 +631,7 @@ void GenerateItems(
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
-		auto bodyText = GenerateDefaultBannedRightsChangeText(channel, action.vnew_banned_rights, action.vprev_banned_rights);
+		auto bodyText = GenerateDefaultBannedRightsChangeText(channel, action.vnew_banned_rights(), action.vprev_banned_rights());
 		addPart(history->owner().makeMessage(history, idManager->next(), bodyFlags, bodyReplyTo, bodyViaBotId, date, peerToUser(from->id), QString(), bodyText));
 	};
 
@@ -636,14 +641,14 @@ void GenerateItems(
 
 		auto detachExistingItem = false;
 		addPart(history->createItem(
-			PrepareLogMessage(action.vmessage, idManager->next(), date),
+			PrepareLogMessage(action.vmessage(), idManager->next(), date),
 			detachExistingItem));
 	};
 
 	auto createChangeLinkedChat = [&](const MTPDchannelAdminLogEventActionChangeLinkedChat &action) {
 		const auto broadcast = channel->isBroadcast();
-		const auto was = history->owner().channelLoaded(action.vprev_value.v);
-		const auto now = history->owner().channelLoaded(action.vnew_value.v);
+		const auto was = history->owner().channelLoaded(action.vprev_value().v);
+		const auto now = history->owner().channelLoaded(action.vnew_value().v);
 		if (!now) {
 			auto text = (broadcast
 				? tr::lng_admin_log_removed_linked_chat
@@ -672,9 +677,9 @@ void GenerateItems(
 	};
 
 	auto createChangeLocation = [&](const MTPDchannelAdminLogEventActionChangeLocation &action) {
-		action.vnew_value.match([&](const MTPDchannelLocation &data) {
-			const auto address = qs(data.vaddress);
-			const auto link = data.vgeo_point.match([&](const MTPDgeoPoint &data) {
+		action.vnew_value().match([&](const MTPDchannelLocation &data) {
+			const auto address = qs(data.vaddress());
+			const auto link = data.vgeo_point().match([&](const MTPDgeoPoint &data) {
 				return textcmdLink(
 					LocationClickHandler::Url(Data::LocationPoint(data)),
 					address);

@@ -777,46 +777,46 @@ void HistoryMessageReplyMarkup::createFromButtonRows(
 	for (const auto &row : list) {
 		row.match([&](const MTPDkeyboardButtonRow &data) {
 			auto row = std::vector<Button>();
-			row.reserve(data.vbuttons.v.size());
-			for (const auto &button : data.vbuttons.v) {
+			row.reserve(data.vbuttons().v.size());
+			for (const auto &button : data.vbuttons().v) {
 				using Type = Button::Type;
 				button.match([&](const MTPDkeyboardButton &data) {
-					row.emplace_back(Type::Default, qs(data.vtext));
+					row.emplace_back(Type::Default, qs(data.vtext()));
 				}, [&](const MTPDkeyboardButtonCallback &data) {
 					row.emplace_back(
 						Type::Callback,
-						qs(data.vtext),
-						qba(data.vdata));
+						qs(data.vtext()),
+						qba(data.vdata()));
 				}, [&](const MTPDkeyboardButtonRequestGeoLocation &data) {
-					row.emplace_back(Type::RequestLocation, qs(data.vtext));
+					row.emplace_back(Type::RequestLocation, qs(data.vtext()));
 				}, [&](const MTPDkeyboardButtonRequestPhone &data) {
-					row.emplace_back(Type::RequestPhone, qs(data.vtext));
+					row.emplace_back(Type::RequestPhone, qs(data.vtext()));
 				}, [&](const MTPDkeyboardButtonUrl &data) {
 					row.emplace_back(
 						Type::Url,
-						qs(data.vtext),
-						qba(data.vurl));
+						qs(data.vtext()),
+						qba(data.vurl()));
 				}, [&](const MTPDkeyboardButtonSwitchInline &data) {
 					const auto type = data.is_same_peer()
 						? Type::SwitchInlineSame
 						: Type::SwitchInline;
-					row.emplace_back(type, qs(data.vtext), qba(data.vquery));
+					row.emplace_back(type, qs(data.vtext()), qba(data.vquery()));
 					if (type == Type::SwitchInline) {
 						// Optimization flag.
 						// Fast check on all new messages if there is a switch button to auto-click it.
 						flags |= MTPDreplyKeyboardMarkup_ClientFlag::f_has_switch_inline_button;
 					}
 				}, [&](const MTPDkeyboardButtonGame &data) {
-					row.emplace_back(Type::Game, qs(data.vtext));
+					row.emplace_back(Type::Game, qs(data.vtext()));
 				}, [&](const MTPDkeyboardButtonBuy &data) {
-					row.emplace_back(Type::Buy, qs(data.vtext));
+					row.emplace_back(Type::Buy, qs(data.vtext()));
 				}, [&](const MTPDkeyboardButtonUrlAuth &data) {
 					row.emplace_back(
 						Type::Auth,
-						qs(data.vtext),
-						qba(data.vurl),
-						data.has_fwd_text() ? qs(data.vfwd_text) : QString(),
-						data.vbutton_id.v);
+						qs(data.vtext()),
+						qba(data.vurl()),
+						qs(data.vfwd_text().value_or_empty()),
+						data.vbutton_id().v);
 				}, [&](const MTPDinputKeyboardButtonUrlAuth &data) {
 					LOG(("API Error: inputKeyboardButtonUrlAuth received."));
 					// Should not get those for the users.
@@ -837,26 +837,26 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 	switch (markup.type()) {
 	case mtpc_replyKeyboardMarkup: {
 		auto &d = markup.c_replyKeyboardMarkup();
-		flags = d.vflags.v;
+		flags = d.vflags().v;
 
-		createFromButtonRows(d.vrows.v);
+		createFromButtonRows(d.vrows().v);
 	} break;
 
 	case mtpc_replyInlineMarkup: {
 		auto &d = markup.c_replyInlineMarkup();
 		flags = MTPDreplyKeyboardMarkup::Flags(0) | MTPDreplyKeyboardMarkup_ClientFlag::f_inline;
 
-		createFromButtonRows(d.vrows.v);
+		createFromButtonRows(d.vrows().v);
 	} break;
 
 	case mtpc_replyKeyboardHide: {
 		auto &d = markup.c_replyKeyboardHide();
-		flags = mtpCastFlags(d.vflags) | MTPDreplyKeyboardMarkup_ClientFlag::f_zero;
+		flags = mtpCastFlags(d.vflags()) | MTPDreplyKeyboardMarkup_ClientFlag::f_zero;
 	} break;
 
 	case mtpc_replyKeyboardForceReply: {
 		auto &d = markup.c_replyKeyboardForceReply();
-		flags = mtpCastFlags(d.vflags) | MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
+		flags = mtpCastFlags(d.vflags()) | MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
 	} break;
 	}
 }

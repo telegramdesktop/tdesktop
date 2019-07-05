@@ -47,14 +47,13 @@ Draft::Draft(
 void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
 	const auto history = Auth().data().history(peerId);
 	const auto textWithTags = TextWithTags {
-		qs(draft.vmessage),
+		qs(draft.vmessage()),
 		ConvertEntitiesToTextTags(
-			draft.has_entities()
-			? TextUtilities::EntitiesFromMTP(draft.ventities.v)
-			: EntitiesInText())
+			TextUtilities::EntitiesFromMTP(
+				draft.ventities().value_or_empty()))
 	};
-	auto replyTo = draft.has_reply_to_msg_id() ? draft.vreply_to_msg_id.v : MsgId(0);
-	if (history->skipCloudDraft(textWithTags.text, replyTo, draft.vdate.v)) {
+	auto replyTo = draft.vreply_to_msg_id().value_or_empty();
+	if (history->skipCloudDraft(textWithTags.text, replyTo, draft.vdate().v)) {
 		return;
 	}
 	auto cloudDraft = std::make_unique<Draft>(
@@ -62,7 +61,7 @@ void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
 		replyTo,
 		MessageCursor(QFIXED_MAX, QFIXED_MAX, QFIXED_MAX),
 		draft.is_no_webpage());
-	cloudDraft->date = draft.vdate.v;
+	cloudDraft->date = draft.vdate().v;
 
 	history->setCloudDraft(std::move(cloudDraft));
 	history->applyCloudDraft();

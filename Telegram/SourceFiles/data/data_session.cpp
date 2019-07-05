@@ -117,14 +117,18 @@ QString ExtractUnavailableReason(const QString &restriction) {
 }
 
 MTPPhotoSize FindDocumentInlineThumbnail(const MTPDdocument &data) {
-	const auto &thumbs = data.vthumbs.v;
+	const auto thumbs = data.vthumbs();
+	if (!thumbs) {
+		return MTP_photoSizeEmpty(MTP_string());
+	}
+	const auto &list = thumbs->v;
 	const auto i = ranges::find(
-		thumbs,
+		list,
 		mtpc_photoStrippedSize,
 		&MTPPhotoSize::type);
-	return (i != thumbs.end())
+	return (i != list.end())
 		? (*i)
-		: MTPPhotoSize(MTP_photoSizeEmpty(MTP_string("")));
+		: MTPPhotoSize(MTP_photoSizeEmpty(MTP_string()));
 }
 
 MTPPhotoSize FindDocumentThumbnail(const MTPDdocument &data) {
@@ -135,14 +139,18 @@ MTPPhotoSize FindDocumentThumbnail(const MTPDdocument &data) {
 		}, [](const MTPDphotoStrippedSize &) {
 			return kInvalid;
 		}, [](const auto &data) {
-			return (data.vw.v * data.vh.v);
+			return (data.vw().v * data.vh().v);
 		});
 	};
-	const auto &thumbs = data.vthumbs.v;
-	const auto i = ranges::max_element(thumbs, std::less<>(), area);
-	return (i != thumbs.end() && area(*i) > 0)
+	const auto thumbs = data.vthumbs();
+	if (!thumbs) {
+		return MTP_photoSizeEmpty(MTP_string());
+	}
+	const auto &list = thumbs->v;
+	const auto i = ranges::max_element(list, std::less<>(), area);
+	return (i != list.end() && area(*i) > 0)
 		? (*i)
-		: MTPPhotoSize(MTP_photoSizeEmpty(MTP_string("")));
+		: MTPPhotoSize(MTP_photoSizeEmpty(MTP_string()));
 }
 
 rpl::producer<int> PinnedDialogsCountMaxValue() {
@@ -285,7 +293,7 @@ ChannelData *Session::channelLoaded(ChannelId id) const {
 
 not_null<UserData*> Session::processUser(const MTPUser &data) {
 	const auto result = user(data.match([](const auto &data) {
-		return data.vid.v;
+		return data.vid().v;
 	}));
 	auto minimal = false;
 	const MTPUserStatus *status = nullptr;
@@ -296,8 +304,8 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 	data.match([&](const MTPDuserEmpty &data) {
 		const auto canShareThisContact = result->canShareThisContactFast();
 
-		result->input = MTP_inputPeerUser(data.vid, MTP_long(0));
-		result->inputUser = MTP_inputUser(data.vid, MTP_long(0));
+		result->input = MTP_inputPeerUser(data.vid(), MTP_long(0));
+		result->inputUser = MTP_inputUser(data.vid(), MTP_long(0));
 		result->setName(tr::lng_deleted(tr::now), QString(), QString(), QString());
 		result->setPhoto(MTP_userProfilePhotoEmpty());
 		//result->setFlags(MTPDuser_ClientFlag::f_inaccessible | 0);
@@ -320,22 +328,25 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			const auto mask = 0
 				//| MTPDuser_ClientFlag::f_inaccessible
 				| MTPDuser::Flag::f_deleted;
-			result->setFlags((result->flags() & ~mask) | (data.vflags.v & mask));
+			result->setFlags((result->flags() & ~mask) | (data.vflags().v & mask));
 		} else {
-			result->setFlags(data.vflags.v);
+			result->setFlags(data.vflags().v);
 			if (data.is_self()) {
 				result->input = MTP_inputPeerSelf();
 				result->inputUser = MTP_inputUserSelf();
-			} else if (!data.has_access_hash()) {
-				result->input = MTP_inputPeerUser(data.vid, MTP_long(result->accessHash()));
-				result->inputUser = MTP_inputUser(data.vid, MTP_long(result->accessHash()));
+			} else if (const auto accessHash = data.vaccess_hash()) {
+				result->input = MTP_inputPeerUser(data.vid(), *accessHash);
+				result->inputUser = MTP_inputUser(data.vid(), *accessHash);
 			} else {
-				result->input = MTP_inputPeerUser(data.vid, data.vaccess_hash);
-				result->inputUser = MTP_inputUser(data.vid, data.vaccess_hash);
+				result->input = MTP_inputPeerUser(data.vid(), MTP_long(result->accessHash()));
+				result->inputUser = MTP_inputUser(data.vid(), MTP_long(result->accessHash()));
 			}
-			result->setUnavailableReason(data.is_restricted()
-				? ExtractUnavailableReason(qs(data.vrestriction_reason))
-				: QString());
+			if (const auto restriction = data.vrestriction_reason()) {
+				result->setUnavailableReason(
+					ExtractUnavailableReason(qs(*restriction)));
+			} else {
+				result->setUnavailableReason(QString());
+			}
 		}
 		if (data.is_deleted()) {
 			if (!result->phone().isEmpty()) {
@@ -349,11 +360,11 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			// apply first_name and last_name from minimal user only if we don't have
 			// local values for first name and last name already, otherwise skip
 			bool noLocalName = result->firstName.isEmpty() && result->lastName.isEmpty();
-			QString fname = (!minimal || noLocalName) ? (data.has_first_name() ? TextUtilities::SingleLine(qs(data.vfirst_name)) : QString()) : result->firstName;
-			QString lname = (!minimal || noLocalName) ? (data.has_last_name() ? TextUtilities::SingleLine(qs(data.vlast_name)) : QString()) : result->lastName;
+			QString fname = (!minimal || noLocalName) ? TextUtilities::SingleLine(qs(data.vfirst_name().value_or_empty())) : result->firstName;
+			QString lname = (!minimal || noLocalName) ? TextUtilities::SingleLine(qs(data.vlast_name().value_or_empty())) : result->lastName;
 
-			QString phone = minimal ? result->phone() : (data.has_phone() ? qs(data.vphone) : QString());
-			QString uname = minimal ? result->username : (data.has_username() ? TextUtilities::SingleLine(qs(data.vusername)) : QString());
+			QString phone = minimal ? result->phone() : qs(data.vphone().value_or_empty());
+			QString uname = minimal ? result->username : TextUtilities::SingleLine(qs(data.vusername().value_or_empty()));
 
 			const auto phoneChanged = (result->phone() != phone);
 			if (phoneChanged) {
@@ -394,25 +405,29 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				CrashReports::SetAnnotation("Username", uname);
 			}
 			result->setName(fname, lname, pname, uname);
-			if (data.has_photo()) {
-				result->setPhoto(data.vphoto);
+			if (const auto photo = data.vphoto()) {
+				result->setPhoto(*photo);
 			} else {
 				result->setPhoto(MTP_userProfilePhotoEmpty());
 			}
-			if (data.has_access_hash()) {
-				result->setAccessHash(data.vaccess_hash.v);
+			if (const auto accessHash = data.vaccess_hash()) {
+				result->setAccessHash(accessHash->v);
 			}
-			status = data.has_status() ? &data.vstatus : &emptyStatus;
+			status = data.vstatus();
 		}
 		if (!minimal) {
-			if (data.has_bot_info_version()) {
-				result->setBotInfoVersion(data.vbot_info_version.v);
+			if (const auto botInfoVersion = data.vbot_info_version()) {
+				result->setBotInfoVersion(botInfoVersion->v);
 				result->botInfo->readsAllHistory = data.is_bot_chat_history();
 				if (result->botInfo->cantJoinGroups != data.is_bot_nochats()) {
 					result->botInfo->cantJoinGroups = data.is_bot_nochats();
 					update.flags |= UpdateFlag::BotCanAddToGroups;
 				}
-				result->botInfo->inlinePlaceholder = data.has_bot_inline_placeholder() ? '_' + qs(data.vbot_inline_placeholder) : QString();
+				if (const auto placeholder = data.vbot_inline_placeholder()) {
+					result->botInfo->inlinePlaceholder = '_' + qs(*placeholder);
+				} else {
+					result->botInfo->inlinePlaceholder = QString();
+				}
 			} else {
 				result->setBotInfoVersion(-1);
 			}
@@ -456,15 +471,15 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 
 not_null<PeerData*> Session::processChat(const MTPChat &data) {
 	const auto result = data.match([&](const MTPDchat &data) {
-		return peer(peerFromChat(data.vid.v));
+		return peer(peerFromChat(data.vid().v));
 	}, [&](const MTPDchatForbidden &data) {
-		return peer(peerFromChat(data.vid.v));
+		return peer(peerFromChat(data.vid().v));
 	}, [&](const MTPDchatEmpty &data) {
-		return peer(peerFromChat(data.vid.v));
+		return peer(peerFromChat(data.vid().v));
 	}, [&](const MTPDchannel &data) {
-		return peer(peerFromChannel(data.vid.v));
+		return peer(peerFromChannel(data.vid().v));
 	}, [&](const MTPDchannelForbidden &data) {
-		return peer(peerFromChannel(data.vid.v));
+		return peer(peerFromChannel(data.vid().v));
 	});
 	auto minimal = false;
 
@@ -475,45 +490,49 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		const auto chat = result->asChat();
 
 		const auto canAddMembers = chat->canAddMembers();
-		if (chat->version() < data.vversion.v) {
-			chat->setVersion(data.vversion.v);
+		if (chat->version() < data.vversion().v) {
+			chat->setVersion(data.vversion().v);
 			chat->invalidateParticipants();
 		}
 
-		chat->input = MTP_inputPeerChat(data.vid);
-		chat->setName(qs(data.vtitle));
-		chat->setPhoto(data.vphoto);
-		chat->date = data.vdate.v;
+		chat->input = MTP_inputPeerChat(data.vid());
+		chat->setName(qs(data.vtitle()));
+		chat->setPhoto(data.vphoto());
+		chat->date = data.vdate().v;
 
-		chat->setAdminRights(data.has_admin_rights()
-			? data.vadmin_rights
-			: MTPChatAdminRights(MTP_chatAdminRights(MTP_flags(0))));
-		chat->setDefaultRestrictions(data.has_default_banned_rights()
-			? data.vdefault_banned_rights
-			: MTPChatBannedRights(
-				MTP_chatBannedRights(MTP_flags(0), MTP_int(0))));
+		if (const auto rights = data.vadmin_rights()) {
+			chat->setAdminRights(*rights);
+		} else {
+			chat->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
+		}
+		if (const auto rights = data.vdefault_banned_rights()) {
+			chat->setDefaultRestrictions(*rights);
+		} else {
+			chat->setDefaultRestrictions(
+				MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+		}
 
-		const auto &migratedTo = data.has_migrated_to()
-			? data.vmigrated_to
-			: MTPInputChannel(MTP_inputChannelEmpty());
-		migratedTo.match([&](const MTPDinputChannel & input) {
-			const auto channel = this->channel(input.vchannel_id.v);
-			channel->addFlags(MTPDchannel::Flag::f_megagroup);
-			if (!channel->access) {
-				channel->input = MTP_inputPeerChannel(
-					input.vchannel_id,
-					input.vaccess_hash);
-				channel->inputChannel = migratedTo;
-				channel->access = input.vaccess_hash.v;
-			}
-			ApplyMigration(chat, channel);
-		}, [](const MTPDinputChannelFromMessage &) {
-			LOG(("API Error: migrated_to contains channel from message."));
-		}, [](const MTPDinputChannelEmpty &) {
-		});
+		if (const auto migratedTo = data.vmigrated_to()) {
+			migratedTo->match([&](const MTPDinputChannel &input) {
+				const auto channel = this->channel(input.vchannel_id().v);
+				channel->addFlags(MTPDchannel::Flag::f_megagroup);
+				if (!channel->access) {
+					channel->input = MTP_inputPeerChannel(
+						input.vchannel_id(),
+						input.vaccess_hash());
+					channel->inputChannel = *migratedTo;
+					channel->access = input.vaccess_hash().v;
+				}
+				ApplyMigration(chat, channel);
+			}, [](const MTPDinputChannelFromMessage &) {
+				LOG(("API Error: "
+					"migrated_to contains channel from message."));
+			}, [](const MTPDinputChannelEmpty &) {
+			});
+		}
 
-		chat->setFlags(data.vflags.v);
-		chat->count = data.vparticipants_count.v;
+		chat->setFlags(data.vflags().v);
+		chat->count = data.vparticipants_count().v;
 
 		if (canAddMembers != chat->canAddMembers()) {
 			update.flags |= UpdateFlag::RightsChanged;
@@ -523,8 +542,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 
 		const auto canAddMembers = chat->canAddMembers();
 
-		chat->input = MTP_inputPeerChat(data.vid);
-		chat->setName(qs(data.vtitle));
+		chat->input = MTP_inputPeerChat(data.vid());
+		chat->setName(qs(data.vtitle()));
 		chat->setPhoto(MTP_chatPhotoEmpty());
 		chat->date = 0;
 		chat->count = -1;
@@ -546,10 +565,9 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				LOG(("API Warning: not loaded minimal channel applied."));
 			}
 		} else {
-			const auto accessHash = data.has_access_hash()
-				? data.vaccess_hash
-				: MTP_long(0);
-			channel->input = MTP_inputPeerChannel(data.vid, accessHash);
+			channel->input = MTP_inputPeerChannel(
+				data.vid(),
+				MTP_long(data.vaccess_hash().value_or_empty()));
 		}
 
 		const auto wasInChannel = channel->amIn();
@@ -557,52 +575,61 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		const auto canViewMembers = channel->canViewMembers();
 		const auto canAddMembers = channel->canAddMembers();
 
-		if (data.has_participants_count()) {
-			channel->setMembersCount(data.vparticipants_count.v);
+		if (const auto count = data.vparticipants_count()) {
+			channel->setMembersCount(count->v);
 		}
-		channel->setDefaultRestrictions(data.has_default_banned_rights()
-			? data.vdefault_banned_rights
-			: MTPChatBannedRights(
-				MTP_chatBannedRights(MTP_flags(0), MTP_int(0))));
+		if (const auto rights = data.vdefault_banned_rights()) {
+			channel->setDefaultRestrictions(*rights);
+		} else {
+			channel->setDefaultRestrictions(
+				MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+		}
 		if (minimal) {
 			auto mask = 0
 				| MTPDchannel::Flag::f_broadcast
 				| MTPDchannel::Flag::f_verified
 				| MTPDchannel::Flag::f_megagroup
 				| MTPDchannel_ClientFlag::f_forbidden;
-			channel->setFlags((channel->flags() & ~mask) | (data.vflags.v & mask));
+			channel->setFlags((channel->flags() & ~mask) | (data.vflags().v & mask));
 		} else {
-			if (data.has_admin_rights()) {
-				channel->setAdminRights(data.vadmin_rights);
+			if (const auto rights = data.vadmin_rights()) {
+				channel->setAdminRights(*rights);
 			} else if (channel->hasAdminRights()) {
 				channel->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
 			}
-			if (data.has_banned_rights()) {
-				channel->setRestrictions(data.vbanned_rights);
+			if (const auto rights = data.vbanned_rights()) {
+				channel->setRestrictions(*rights);
 			} else if (channel->hasRestrictions()) {
-				channel->setRestrictions(MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+				channel->setRestrictions(
+					MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 			}
-			channel->inputChannel = MTP_inputChannel(data.vid, data.vaccess_hash);
-			channel->access = data.vaccess_hash.v;
-			channel->date = data.vdate.v;
-			if (channel->version() < data.vversion.v) {
-				channel->setVersion(data.vversion.v);
+			const auto hash = data.vaccess_hash().value_or(channel->access);
+			channel->inputChannel = MTP_inputChannel(
+				data.vid(),
+				MTP_long(hash));
+			channel->access = hash;
+			channel->date = data.vdate().v;
+			if (channel->version() < data.vversion().v) {
+				channel->setVersion(data.vversion().v);
 			}
-			channel->setUnavailableReason(data.is_restricted()
-				? ExtractUnavailableReason(qs(data.vrestriction_reason))
-				: QString());
-			channel->setFlags(data.vflags.v);
-			//if (data.has_feed_id()) { // #feed
-			//	channel->setFeed(feed(data.vfeed_id.v));
+			if (const auto restriction = data.vrestriction_reason()) {
+				channel->setUnavailableReason(qs(*restriction));
+			} else {
+				channel->setUnavailableReason(QString());
+			}
+			channel->setFlags(data.vflags().v);
+			//if (const auto feedId = data.vfeed_id()) { // #feed
+			//	channel->setFeed(feed(feedId->v));
 			//} else {
 			//	channel->clearFeed();
 			//}
 		}
 
-		QString uname = data.has_username() ? TextUtilities::SingleLine(qs(data.vusername)) : QString();
-		channel->setName(qs(data.vtitle), uname);
+		channel->setName(
+			qs(data.vtitle()),
+			TextUtilities::SingleLine(qs(data.vusername().value_or_empty())));
 
-		channel->setPhoto(data.vphoto);
+		channel->setPhoto(data.vphoto());
 
 		if (wasInChannel != channel->amIn()) {
 			update.flags |= UpdateFlag::ChannelAmIn;
@@ -614,17 +641,17 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		}
 	}, [&](const MTPDchannelForbidden &data) {
 		const auto channel = result->asChannel();
-		channel->input = MTP_inputPeerChannel(data.vid, data.vaccess_hash);
+		channel->input = MTP_inputPeerChannel(data.vid(), data.vaccess_hash());
 
 		auto wasInChannel = channel->amIn();
 		auto canViewAdmins = channel->canViewAdmins();
 		auto canViewMembers = channel->canViewMembers();
 		auto canAddMembers = channel->canAddMembers();
 
-		channel->inputChannel = MTP_inputChannel(data.vid, data.vaccess_hash);
+		channel->inputChannel = MTP_inputChannel(data.vid(), data.vaccess_hash());
 
 		auto mask = mtpCastFlags(MTPDchannelForbidden::Flag::f_broadcast | MTPDchannelForbidden::Flag::f_megagroup);
-		channel->setFlags((channel->flags() & ~mask) | (mtpCastFlags(data.vflags) & mask) | MTPDchannel_ClientFlag::f_forbidden);
+		channel->setFlags((channel->flags() & ~mask) | (mtpCastFlags(data.vflags()) & mask) | MTPDchannel_ClientFlag::f_forbidden);
 
 		if (channel->hasAdminRights()) {
 			channel->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
@@ -633,9 +660,9 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			channel->setRestrictions(MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 		}
 
-		channel->setName(qs(data.vtitle), QString());
+		channel->setName(qs(data.vtitle()), QString());
 
-		channel->access = data.vaccess_hash.v;
+		channel->access = data.vaccess_hash().v;
 		channel->setPhoto(MTP_chatPhotoEmpty());
 		channel->date = 0;
 		channel->setMembersCount(0);
@@ -684,15 +711,15 @@ PeerData *Session::processChats(const MTPVector<MTPChat> &data) {
 void Session::applyMaximumChatVersions(const MTPVector<MTPChat> &data) {
 	for (const auto &chat : data.v) {
 		chat.match([&](const MTPDchat &data) {
-			if (const auto chat = chatLoaded(data.vid.v)) {
-				if (data.vversion.v < chat->version()) {
-					chat->setVersion(data.vversion.v);
+			if (const auto chat = chatLoaded(data.vid().v)) {
+				if (data.vversion().v < chat->version()) {
+					chat->setVersion(data.vversion().v);
 				}
 			}
 		}, [&](const MTPDchannel &data) {
-			if (const auto channel = channelLoaded(data.vid.v)) {
-				if (data.vversion.v < channel->version()) {
-					channel->setVersion(data.vversion.v);
+			if (const auto channel = channelLoaded(data.vid().v)) {
+				if (data.vversion().v < channel->version()) {
+					channel->setVersion(data.vversion().v);
 				}
 			}
 		}, [](const auto &) {
@@ -1483,7 +1510,7 @@ void Session::applyPinnedChats(
 		const QVector<MTPDialogPeer> &list) {
 	for (const auto &peer : list) {
 		peer.match([&](const MTPDdialogPeer &data) {
-			const auto history = this->history(peerFromMTP(data.vpeer));
+			const auto history = this->history(peerFromMTP(data.vpeer()));
 			if (folder) {
 				history->setFolder(folder);
 			} else {
@@ -1518,7 +1545,7 @@ void Session::applyDialogs(
 void Session::applyDialog(
 		Data::Folder *requestFolder,
 		const MTPDdialog &data) {
-	const auto peerId = peerFromMTP(data.vpeer);
+	const auto peerId = peerFromMTP(data.vpeer());
 	if (!peerId) {
 		return;
 	}
@@ -1544,7 +1571,7 @@ void Session::applyDialog(
 	if (requestFolder) {
 		LOG(("API Error: requestFolder != nullptr for dialogFolder."));
 	}
-	const auto folder = processFolder(data.vfolder);
+	const auto folder = processFolder(data.vfolder());
 	folder->applyDialog(data);
 	setPinnedFromDialog(folder, data.is_pinned());
 }
@@ -1580,27 +1607,23 @@ void Session::reorderTwoPinnedChats(
 
 bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
 	const auto peer = [&] {
-		const auto result = peerFromMTP(data.vto_id);
-		return (data.has_from_id() && result == session().userPeerId())
-			? peerFromUser(data.vfrom_id)
-			: result;
-	}();
-	if (const auto existing = message(peerToChannel(peer), data.vid.v)) {
-		{
-			auto text = qs(data.vmessage);
-			auto entities = data.has_entities()
-				? TextUtilities::EntitiesFromMTP(data.ventities.v)
-				: EntitiesInText();
-			existing->setText({ std::move(text), std::move(entities) });
+		const auto result = peerFromMTP(data.vto_id());
+		if (const auto fromId = data.vfrom_id()) {
+			if (result == session().userPeerId()) {
+				return peerFromUser(*fromId);
+			}
 		}
-		existing->updateSentMedia(data.has_media() ? &data.vmedia : nullptr);
-		existing->updateReplyMarkup(data.has_reply_markup()
-			? &data.vreply_markup
-			: nullptr);
-		existing->updateForwardedInfo(data.has_fwd_from()
-			? &data.vfwd_from
-			: nullptr);
-		existing->setViewsCount(data.has_views() ? data.vviews.v : -1);
+		return result;
+	}();
+	if (const auto existing = message(peerToChannel(peer), data.vid().v)) {
+		existing->setText({
+			qs(data.vmessage()),
+			TextUtilities::EntitiesFromMTP(data.ventities().value_or_empty())
+		});
+		existing->updateSentMedia(data.vmedia());
+		existing->updateReplyMarkup(data.vreply_markup());
+		existing->updateForwardedInfo(data.vfwd_from());
+		existing->setViewsCount(data.vviews().value_or(-1));
 		existing->indexAsNewItem();
 		requestItemTextRefresh(existing);
 		if (existing->mainView()) {
@@ -1618,12 +1641,15 @@ void Session::updateEditedMessage(const MTPMessage &data) {
 		return nullptr;
 	}, [&](const auto &data) {
 		const auto peer = [&] {
-			const auto result = peerFromMTP(data.vto_id);
-			return (data.has_from_id() && result == session().userPeerId())
-				? peerFromUser(data.vfrom_id)
-				: result;
+			const auto result = peerFromMTP(data.vto_id());
+			if (const auto fromId = data.vfrom_id()) {
+				if (result == session().userPeerId()) {
+					return peerFromUser(*fromId);
+				}
+			}
+			return result;
 		}();
-		return message(peerToChannel(peer), data.vid.v);
+		return message(peerToChannel(peer), data.vid().v);
 	});
 	if (!existing) {
 		return;
@@ -2071,12 +2097,12 @@ not_null<PhotoData*> Session::processPhoto(const MTPPhoto &data) {
 	return data.match([&](const MTPDphoto &data) {
 		return processPhoto(data);
 	}, [&](const MTPDphotoEmpty &data) {
-		return photo(data.vid.v);
+		return photo(data.vid().v);
 	});
 }
 
 not_null<PhotoData*> Session::processPhoto(const MTPDphoto &data) {
-	const auto result = photo(data.vid.v);
+	const auto result = photo(data.vid().v);
 	photoApplyFields(result, data);
 	return result;
 }
@@ -2111,18 +2137,18 @@ not_null<PhotoData*> Session::processPhoto(
 	const auto large = image(LargeLevels);
 	return data.match([&](const MTPDphoto &data) {
 		return photo(
-			data.vid.v,
-			data.vaccess_hash.v,
-			data.vfile_reference.v,
-			data.vdate.v,
-			data.vdc_id.v,
+			data.vid().v,
+			data.vaccess_hash().v,
+			data.vfile_reference().v,
+			data.vdate().v,
+			data.vdc_id().v,
 			data.is_has_stickers(),
 			thumbnailInline,
 			thumbnailSmall,
 			thumbnail,
 			large);
 	}, [&](const MTPDphotoEmpty &data) {
-		return photo(data.vid.v);
+		return photo(data.vid().v);
 	});
 }
 
@@ -2156,7 +2182,7 @@ void Session::photoConvert(
 		not_null<PhotoData*> original,
 		const MTPPhoto &data) {
 	const auto id = data.match([](const auto &data) {
-		return data.vid.v;
+		return data.vid().v;
 	});
 	if (original->id != id) {
 		auto i = _photos.find(id);
@@ -2227,14 +2253,14 @@ void Session::photoApplyFields(
 void Session::photoApplyFields(
 		not_null<PhotoData*> photo,
 		const MTPDphoto &data) {
-	const auto &sizes = data.vsizes.v;
+	const auto &sizes = data.vsizes().v;
 	const auto find = [&](const QByteArray &levels) {
 		const auto kInvalidIndex = int(levels.size());
 		const auto level = [&](const MTPPhotoSize &size) {
 			const auto letter = size.match([](const MTPDphotoSizeEmpty &) {
 				return char(0);
 			}, [](const auto &size) {
-				return size.vtype.v.isEmpty() ? char(0) : size.vtype.v[0];
+				return size.vtype().v.isEmpty() ? char(0) : size.vtype().v[0];
 			});
 			const auto index = levels.indexOf(letter);
 			return (index >= 0) ? index : kInvalidIndex;
@@ -2256,10 +2282,10 @@ void Session::photoApplyFields(
 	if (thumbnailSmall && thumbnail && large) {
 		photoApplyFields(
 			photo,
-			data.vaccess_hash.v,
-			data.vfile_reference.v,
-			data.vdate.v,
-			data.vdc_id.v,
+			data.vaccess_hash().v,
+			data.vfile_reference().v,
+			data.vdate().v,
+			data.vdc_id().v,
 			data.is_has_stickers(),
 			thumbnailInline,
 			thumbnailSmall,
@@ -2308,13 +2334,13 @@ not_null<DocumentData*> Session::processDocument(const MTPDocument &data) {
 		return processDocument(data.c_document());
 
 	case mtpc_documentEmpty:
-		return document(data.c_documentEmpty().vid.v);
+		return document(data.c_documentEmpty().vid().v);
 	}
 	Unexpected("Type in Session::document().");
 }
 
 not_null<DocumentData*> Session::processDocument(const MTPDdocument &data) {
-	const auto result = document(data.vid.v);
+	const auto result = document(data.vid().v);
 	documentApplyFields(result, data);
 	return result;
 }
@@ -2324,26 +2350,26 @@ not_null<DocumentData*> Session::processDocument(
 		QImage &&thumb) {
 	switch (data.type()) {
 	case mtpc_documentEmpty:
-		return document(data.c_documentEmpty().vid.v);
+		return document(data.c_documentEmpty().vid().v);
 
 	case mtpc_document: {
 		const auto &fields = data.c_document();
-		const auto mime = qs(fields.vmime_type);
+		const auto mime = qs(fields.vmime_type());
 		const auto format = (mime == qstr("image/webp")
 			|| mime == qstr("application/x-tgsticker"))
 			? "WEBP"
 			: "JPG";
 		return document(
-			fields.vid.v,
-			fields.vaccess_hash.v,
-			fields.vfile_reference.v,
-			fields.vdate.v,
-			fields.vattributes.v,
+			fields.vid().v,
+			fields.vaccess_hash().v,
+			fields.vfile_reference().v,
+			fields.vdate().v,
+			fields.vattributes().v,
 			mime,
 			ImagePtr(),
 			Images::Create(std::move(thumb), format),
-			fields.vdc_id.v,
-			fields.vsize.v,
+			fields.vdc_id().v,
+			fields.vsize().v,
 			StorageImageLocation());
 	} break;
 	}
@@ -2383,8 +2409,8 @@ void Session::documentConvert(
 		const MTPDocument &data) {
 	const auto id = [&] {
 		switch (data.type()) {
-		case mtpc_document: return data.c_document().vid.v;
-		case mtpc_documentEmpty: return data.c_documentEmpty().vid.v;
+		case mtpc_document: return data.c_document().vid().v;
+		case mtpc_documentEmpty: return data.c_documentEmpty().vid().v;
 		}
 		Unexpected("Type in Session::documentConvert().");
 	}();
@@ -2441,16 +2467,16 @@ DocumentData *Session::documentFromWeb(
 		uint64(0),
 		QByteArray(),
 		unixtime(),
-		data.vattributes.v,
-		data.vmime_type.v,
+		data.vattributes().v,
+		data.vmime_type().v,
 		ImagePtr(),
 		thumb,
 		MTP::maindc(),
-		int32(0), // data.vsize.v
+		int32(0), // data.vsize().v
 		StorageImageLocation());
 	result->setWebLocation(WebFileLocation(
-		data.vurl.v,
-		data.vaccess_hash.v));
+		data.vurl().v,
+		data.vaccess_hash().v));
 	return result;
 }
 
@@ -2462,14 +2488,14 @@ DocumentData *Session::documentFromWeb(
 		uint64(0),
 		QByteArray(),
 		unixtime(),
-		data.vattributes.v,
-		data.vmime_type.v,
+		data.vattributes().v,
+		data.vmime_type().v,
 		ImagePtr(),
 		thumb,
 		MTP::maindc(),
-		int32(0), // data.vsize.v
+		int32(0), // data.vsize().v
 		StorageImageLocation());
-	result->setContentUrl(qs(data.vurl));
+	result->setContentUrl(qs(data.vurl()));
 	return result;
 }
 
@@ -2489,15 +2515,15 @@ void Session::documentApplyFields(
 	const auto thumbnail = Images::Create(data, thumbnailSize);
 	documentApplyFields(
 		document,
-		data.vaccess_hash.v,
-		data.vfile_reference.v,
-		data.vdate.v,
-		data.vattributes.v,
-		qs(data.vmime_type),
+		data.vaccess_hash().v,
+		data.vfile_reference().v,
+		data.vdate().v,
+		data.vattributes().v,
+		qs(data.vmime_type()),
 		Images::Create(data, thumbnailInline),
 		thumbnail,
-		data.vdc_id.v,
-		data.vsize.v,
+		data.vdc_id().v,
+		data.vsize().v,
 		thumbnail->location());
 }
 
@@ -2548,7 +2574,7 @@ not_null<WebPageData*> Session::processWebpage(const MTPWebPage &data) {
 	case mtpc_webPage:
 		return processWebpage(data.c_webPage());
 	case mtpc_webPageEmpty: {
-		const auto result = webpage(data.c_webPageEmpty().vid.v);
+		const auto result = webpage(data.c_webPageEmpty().vid().v);
 		if (result->pendingTill > 0) {
 			result->pendingTill = -1; // failed
 		}
@@ -2565,14 +2591,14 @@ not_null<WebPageData*> Session::processWebpage(const MTPWebPage &data) {
 }
 
 not_null<WebPageData*> Session::processWebpage(const MTPDwebPage &data) {
-	const auto result = webpage(data.vid.v);
+	const auto result = webpage(data.vid().v);
 	webpageApplyFields(result, data);
 	return result;
 }
 
 not_null<WebPageData*> Session::processWebpage(const MTPDwebPagePending &data) {
 	constexpr auto kDefaultPendingTimeout = 60;
-	const auto result = webpage(data.vid.v);
+	const auto result = webpage(data.vid().v);
 	webpageApplyFields(
 		result,
 		WebPageType::Article,
@@ -2586,8 +2612,8 @@ not_null<WebPageData*> Session::processWebpage(const MTPDwebPagePending &data) {
 		WebPageCollage(),
 		0,
 		QString(),
-		data.vdate.v
-			? data.vdate.v
+		data.vdate().v
+			? data.vdate().v
 			: (unixtime() + kDefaultPendingTimeout));
 	return result;
 }
@@ -2648,34 +2674,30 @@ void Session::webpageApplyFields(
 		not_null<WebPageData*> page,
 		const MTPDwebPage &data) {
 	auto description = TextWithEntities {
-		data.has_description()
-			? TextUtilities::Clean(qs(data.vdescription))
-			: QString()
+		TextUtilities::Clean(qs(data.vdescription().value_or_empty()))
 	};
-	const auto siteName = data.has_site_name()
-		? qs(data.vsite_name)
-		: QString();
+	const auto siteName = qs(data.vsite_name().value_or_empty());
 	auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
 	if (siteName == qstr("Twitter") || siteName == qstr("Instagram")) {
 		parseFlags |= TextParseHashtags | TextParseMentions;
 	}
 	TextUtilities::ParseEntities(description, parseFlags);
 	const auto pendingTill = TimeId(0);
+	const auto photo = data.vphoto();
+	const auto document = data.vdocument();
 	webpageApplyFields(
 		page,
 		ParseWebPageType(data),
-		qs(data.vurl),
-		qs(data.vdisplay_url),
+		qs(data.vurl()),
+		qs(data.vdisplay_url()),
 		siteName,
-		data.has_title() ? qs(data.vtitle) : QString(),
+		qs(data.vtitle().value_or_empty()),
 		description,
-		data.has_photo() ? processPhoto(data.vphoto).get() : nullptr,
-		(data.has_document()
-			? processDocument(data.vdocument).get()
-			: nullptr),
+		photo ? processPhoto(*photo).get() : nullptr,
+		document ? processDocument(*document).get() : nullptr,
 		WebPageCollage(data),
-		data.has_duration() ? data.vduration.v : 0,
-		data.has_author() ? qs(data.vauthor) : QString(),
+		data.vduration().value_or_empty(),
+		qs(data.vauthor().value_or_empty()),
 		pendingTill);
 }
 
@@ -2724,7 +2746,7 @@ not_null<GameData*> Session::game(GameId id) {
 }
 
 not_null<GameData*> Session::processGame(const MTPDgame &data) {
-	const auto result = game(data.vid.v);
+	const auto result = game(data.vid().v);
 	gameApplyFields(result, data);
 	return result;
 }
@@ -2754,7 +2776,7 @@ void Session::gameConvert(
 		const MTPGame &data) {
 	Expects(data.type() == mtpc_game);
 
-	const auto id = data.c_game().vid.v;
+	const auto id = data.c_game().vid().v;
 	if (original->id != id) {
 		auto i = _games.find(id);
 		if (i == _games.end()) {
@@ -2778,16 +2800,15 @@ void Session::gameConvert(
 void Session::gameApplyFields(
 		not_null<GameData*> game,
 		const MTPDgame &data) {
+	const auto document = data.vdocument();
 	gameApplyFields(
 		game,
-		data.vaccess_hash.v,
-		qs(data.vshort_name),
-		qs(data.vtitle),
-		qs(data.vdescription),
-		processPhoto(data.vphoto),
-		(data.has_document()
-			? processDocument(data.vdocument).get()
-			: nullptr));
+		data.vaccess_hash().v,
+		qs(data.vshort_name()),
+		qs(data.vtitle()),
+		qs(data.vdescription()),
+		processPhoto(data.vphoto()),
+		document ? processDocument(*document).get() : nullptr);
 }
 
 void Session::gameApplyFields(
@@ -2820,7 +2841,7 @@ not_null<PollData*> Session::poll(PollId id) {
 
 not_null<PollData*> Session::processPoll(const MTPPoll &data) {
 	return data.match([&](const MTPDpoll &data) {
-		const auto id = data.vid.v;
+		const auto id = data.vid().v;
 		const auto result = poll(id);
 		const auto changed = result->applyChanges(data);
 		if (changed) {
@@ -2831,8 +2852,8 @@ not_null<PollData*> Session::processPoll(const MTPPoll &data) {
 }
 
 not_null<PollData*> Session::processPoll(const MTPDmessageMediaPoll &data) {
-	const auto result = processPoll(data.vpoll);
-	const auto changed = result->applyResults(data.vresults);
+	const auto result = processPoll(data.vpoll());
+	const auto changed = result->applyResults(data.vresults());
 	if (changed) {
 		notifyPollUpdateDelayed(result);
 	}
@@ -2841,21 +2862,22 @@ not_null<PollData*> Session::processPoll(const MTPDmessageMediaPoll &data) {
 
 void Session::applyUpdate(const MTPDupdateMessagePoll &update) {
 	const auto updated = [&] {
-		const auto i = _polls.find(update.vpoll_id.v);
+		const auto poll = update.vpoll();
+		const auto i = _polls.find(update.vpoll_id().v);
 		return (i == end(_polls))
 			? nullptr
-			: update.has_poll()
-			? processPoll(update.vpoll).get()
+			: poll
+			? processPoll(*poll).get()
 			: i->second.get();
 	}();
-	if (updated && updated->applyResults(update.vresults)) {
+	if (updated && updated->applyResults(update.vresults())) {
 		notifyPollUpdateDelayed(updated);
 	}
 }
 
 void Session::applyUpdate(const MTPDupdateChatParticipants &update) {
-	const auto chatId = update.vparticipants.match([](const auto &update) {
-		return update.vchat_id.v;
+	const auto chatId = update.vparticipants().match([](const auto &update) {
+		return update.vchat_id().v;
 	});
 	if (const auto chat = chatLoaded(chatId)) {
 		ApplyChatUpdate(chat, update);
@@ -2868,25 +2890,25 @@ void Session::applyUpdate(const MTPDupdateChatParticipants &update) {
 }
 
 void Session::applyUpdate(const MTPDupdateChatParticipantAdd &update) {
-	if (const auto chat = chatLoaded(update.vchat_id.v)) {
+	if (const auto chat = chatLoaded(update.vchat_id().v)) {
 		ApplyChatUpdate(chat, update);
 	}
 }
 
 void Session::applyUpdate(const MTPDupdateChatParticipantDelete &update) {
-	if (const auto chat = chatLoaded(update.vchat_id.v)) {
+	if (const auto chat = chatLoaded(update.vchat_id().v)) {
 		ApplyChatUpdate(chat, update);
 	}
 }
 
 void Session::applyUpdate(const MTPDupdateChatParticipantAdmin &update) {
-	if (const auto chat = chatLoaded(update.vchat_id.v)) {
+	if (const auto chat = chatLoaded(update.vchat_id().v)) {
 		ApplyChatUpdate(chat, update);
 	}
 }
 
 void Session::applyUpdate(const MTPDupdateChatDefaultBannedRights &update) {
-	if (const auto peer = peerLoaded(peerFromMTP(update.vpeer))) {
+	if (const auto peer = peerLoaded(peerFromMTP(update.vpeer()))) {
 		if (const auto chat = peer->asChat()) {
 			ApplyChatUpdate(chat, update);
 		} else if (const auto channel = peer->asChannel()) {
@@ -3246,11 +3268,9 @@ not_null<Folder*> Session::processFolder(const MTPFolder &data) {
 }
 
 not_null<Folder*> Session::processFolder(const MTPDfolder &data) {
-	const auto result = folder(data.vid.v);
-	//if (data.has_photo()) {
-	//	data.vphoto;
-	//}
-	//data.vtitle;
+	const auto result = folder(data.vid().v);
+	//data.vphoto();
+	//data.vtitle();
 	return result;
 }
 // // #feed
@@ -3402,7 +3422,7 @@ void Session::applyNotifySetting(
 	} break;
 	case mtpc_notifyPeer: {
 		const auto &data = notifyPeer.c_notifyPeer();
-		if (const auto peer = peerLoaded(peerFromMTP(data.vpeer))) {
+		if (const auto peer = peerLoaded(peerFromMTP(data.vpeer()))) {
 			if (peer->notifyChange(settings)) {
 				updateNotifySettingsLocal(peer);
 			}
@@ -3611,7 +3631,7 @@ PeerData *Session::proxyPromoted() const {
 
 bool Session::updateWallpapers(const MTPaccount_WallPapers &data) {
 	return data.match([&](const MTPDaccount_wallPapers &data) {
-		setWallpapers(data.vwallpapers.v, data.vhash.v);
+		setWallpapers(data.vwallpapers().v, data.vhash().v);
 		return true;
 	}, [&](const MTPDaccount_wallPapersNotModified &) {
 		return false;

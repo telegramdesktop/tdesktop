@@ -84,36 +84,36 @@ StorageFileLocation::StorageFileLocation(
 : _dcId(dcId) {
 	tl.match([&](const MTPDinputFileLocation &data) {
 		_type = Type::Legacy;
-		_volumeId = data.vvolume_id.v;
-		_localId = data.vlocal_id.v;
-		_accessHash = data.vsecret.v;
-		_fileReference = data.vfile_reference.v;
+		_volumeId = data.vvolume_id().v;
+		_localId = data.vlocal_id().v;
+		_accessHash = data.vsecret().v;
+		_fileReference = data.vfile_reference().v;
 	}, [&](const MTPDinputEncryptedFileLocation &data) {
 		_type = Type::Encrypted;
-		_id = data.vid.v;
-		_accessHash = data.vaccess_hash.v;
+		_id = data.vid().v;
+		_accessHash = data.vaccess_hash().v;
 	}, [&](const MTPDinputDocumentFileLocation &data) {
 		_type = Type::Document;
-		_id = data.vid.v;
-		_accessHash = data.vaccess_hash.v;
-		_fileReference = data.vfile_reference.v;
-		_sizeLetter = data.vthumb_size.v.isEmpty()
+		_id = data.vid().v;
+		_accessHash = data.vaccess_hash().v;
+		_fileReference = data.vfile_reference().v;
+		_sizeLetter = data.vthumb_size().v.isEmpty()
 			? uint8(0)
-			: uint8(data.vthumb_size.v[0]);
+			: uint8(data.vthumb_size().v[0]);
 	}, [&](const MTPDinputSecureFileLocation &data) {
 		_type = Type::Secure;
-		_id = data.vid.v;
-		_accessHash = data.vaccess_hash.v;
+		_id = data.vid().v;
+		_accessHash = data.vaccess_hash().v;
 	}, [&](const MTPDinputTakeoutFileLocation &data) {
 		_type = Type::Takeout;
 	}, [&](const MTPDinputPhotoFileLocation &data) {
 		_type = Type::Photo;
-		_id = data.vid.v;
-		_accessHash = data.vaccess_hash.v;
-		_fileReference = data.vfile_reference.v;
-		_sizeLetter = data.vthumb_size.v.isEmpty()
+		_id = data.vid().v;
+		_accessHash = data.vaccess_hash().v;
+		_fileReference = data.vfile_reference().v;
+		_sizeLetter = data.vthumb_size().v.isEmpty()
 			? char(0)
-			: data.vthumb_size.v[0];
+			: data.vthumb_size().v[0];
 	}, [&](const MTPDinputPeerPhotoFileLocation &data) {
 		_type = Type::PeerPhoto;
 		const auto fillPeer = base::overload([&](
@@ -122,45 +122,45 @@ StorageFileLocation::StorageFileLocation(
 		}, [&](const MTPDinputPeerSelf & data) {
 			_id = peerFromUser(self);
 		}, [&](const MTPDinputPeerChat & data) {
-			_id = peerFromChat(data.vchat_id);
+			_id = peerFromChat(data.vchat_id());
 		}, [&](const MTPDinputPeerUser & data) {
-			_id = peerFromUser(data.vuser_id);
-			_accessHash = data.vaccess_hash.v;
+			_id = peerFromUser(data.vuser_id());
+			_accessHash = data.vaccess_hash().v;
 		}, [&](const MTPDinputPeerChannel & data) {
-			_id = peerFromChannel(data.vchannel_id);
-			_accessHash = data.vaccess_hash.v;
+			_id = peerFromChannel(data.vchannel_id());
+			_accessHash = data.vaccess_hash().v;
 		});
-		data.vpeer.match(fillPeer, [&](
+		data.vpeer().match(fillPeer, [&](
 				const MTPDinputPeerUserFromMessage &data) {
-			data.vpeer.match(fillPeer, [&](auto &&) {
+			data.vpeer().match(fillPeer, [&](auto &&) {
 				// Bad data provided.
 				_id = _accessHash = 0;
 			});
-			_inMessagePeerId = data.vuser_id.v;
-			_inMessageId = data.vmsg_id.v;
+			_inMessagePeerId = data.vuser_id().v;
+			_inMessageId = data.vmsg_id().v;
 		}, [&](const MTPDinputPeerChannelFromMessage &data) {
-			data.vpeer.match(fillPeer, [&](auto &&) {
+			data.vpeer().match(fillPeer, [&](auto &&) {
 				// Bad data provided.
 				_id = _accessHash = 0;
 			});
-			_inMessagePeerId = -data.vchannel_id.v;
-			_inMessageId = data.vmsg_id.v;
+			_inMessagePeerId = -data.vchannel_id().v;
+			_inMessageId = data.vmsg_id().v;
 		});
-		_volumeId = data.vvolume_id.v;
-		_localId = data.vlocal_id.v;
+		_volumeId = data.vvolume_id().v;
+		_localId = data.vlocal_id().v;
 		_sizeLetter = data.is_big() ? 'c' : 'a';
 	}, [&](const MTPDinputStickerSetThumb &data) {
 		_type = Type::StickerSetThumb;
-		data.vstickerset.match([&](const MTPDinputStickerSetEmpty &data) {
+		data.vstickerset().match([&](const MTPDinputStickerSetEmpty &data) {
 			_id = 0;
 		}, [&](const MTPDinputStickerSetID &data) {
-			_id = data.vid.v;
-			_accessHash = data.vaccess_hash.v;
+			_id = data.vid().v;
+			_accessHash = data.vaccess_hash().v;
 		}, [&](const MTPDinputStickerSetShortName &data) {
 			Unexpected("inputStickerSetShortName in StorageFileLocation().");
 		});
-		_volumeId = data.vvolume_id.v;
-		_localId = data.vlocal_id.v;
+		_volumeId = data.vvolume_id().v;
+		_localId = data.vlocal_id().v;
 	});
 }
 

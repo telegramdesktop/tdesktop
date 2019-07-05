@@ -59,8 +59,8 @@ public:
 class SendDataCommon : public SendData {
 public:
 	struct SentMTPMessageFields {
-		MTPString text = MTP_string("");
-		MTPVector<MTPMessageEntity> entities = MTPnullEntities;
+		MTPString text = MTP_string();
+		MTPVector<MTPMessageEntity> entities = MTP_vector<MTPMessageEntity>();
 		MTPMessageMedia media = MTP_messageMediaEmpty();
 	};
 	virtual SentMTPMessageFields getSentMessageFields() const = 0;

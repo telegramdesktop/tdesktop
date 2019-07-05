@@ -1045,20 +1045,21 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 	auto adding = (it != _inlineCache.cend());
 	if (result.type() == mtpc_messages_botResults) {
 		auto &d = result.c_messages_botResults();
-		Auth().data().processUsers(d.vusers);
+		Auth().data().processUsers(d.vusers());
 
-		auto &v = d.vresults.v;
-		auto queryId = d.vquery_id.v;
+		auto &v = d.vresults().v;
+		auto queryId = d.vquery_id().v;
 
 		if (it == _inlineCache.cend()) {
 			it = _inlineCache.emplace(_inlineQuery, std::make_unique<internal::CacheEntry>()).first;
 		}
 		auto entry = it->second.get();
-		entry->nextOffset = qs(d.vnext_offset);
-		if (d.has_switch_pm() && d.vswitch_pm.type() == mtpc_inlineBotSwitchPM) {
-			auto &switchPm = d.vswitch_pm.c_inlineBotSwitchPM();
-			entry->switchPmText = qs(switchPm.vtext);
-			entry->switchPmStartToken = qs(switchPm.vstart_param);
+		entry->nextOffset = qs(d.vnext_offset().value_or_empty());
+		if (const auto switchPm = d.vswitch_pm()) {
+			switchPm->match([&](const MTPDinlineBotSwitchPM &data) {
+				entry->switchPmText = qs(data.vtext());
+				entry->switchPmStartToken = qs(data.vstart_param());
+			});
 		}
 
 		if (auto count = v.size()) {

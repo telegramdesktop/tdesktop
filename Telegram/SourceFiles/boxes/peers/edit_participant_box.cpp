@@ -251,7 +251,7 @@ EditAdminBox::EditAdminBox(
 	nullptr,
 	peer,
 	user,
-	(rights.c_chatAdminRights().vflags.v != 0))
+	(rights.c_chatAdminRights().vflags().v != 0))
 , _oldRights(rights) {
 }
 
@@ -277,7 +277,7 @@ void EditAdminBox::prepare() {
 
 	EditParticipantBox::prepare();
 
-	auto hadRights = _oldRights.c_chatAdminRights().vflags.v;
+	auto hadRights = _oldRights.c_chatAdminRights().vflags().v;
 	setTitle(hadRights
 		? tr::lng_rights_edit_admin()
 		: tr::lng_channel_add_admin());
@@ -297,7 +297,7 @@ void EditAdminBox::prepare() {
 		&& channel
 		&& !channel->amCreator();
 	const auto prepareFlags = disabledByDefaults
-		| (prepareRights.c_chatAdminRights().vflags.v
+		| (prepareRights.c_chatAdminRights().vflags().v
 			& (filterByMyRights ? channel->adminRights() : ~Flag(0)));
 
 	const auto disabledMessages = [&] {
@@ -601,11 +601,11 @@ void EditRestrictedBox::prepare() {
 	const auto defaultRestrictions = chat
 		? chat->defaultRestrictions()
 		: channel->defaultRestrictions();
-	const auto prepareRights = (_oldRights.c_chatBannedRights().vflags.v
+	const auto prepareRights = (_oldRights.c_chatBannedRights().vflags().v
 		? _oldRights
 		: Defaults(peer()));
 	const auto prepareFlags = FixDependentRestrictions(
-		prepareRights.c_chatBannedRights().vflags.v
+		prepareRights.c_chatBannedRights().vflags().v
 		| defaultRestrictions
 		| ((channel && channel->isPublic())
 			? (Flag::f_change_info | Flag::f_pin_messages)
@@ -636,7 +636,7 @@ void EditRestrictedBox::prepare() {
 		disabledMessages);
 	addControl(std::move(checkboxes), QMargins());
 
-	_until = prepareRights.c_chatBannedRights().vuntil_date.v;
+	_until = prepareRights.c_chatBannedRights().vuntil_date().v;
 	addControl(object_ptr<BoxContentDivider>(this), st::rightsUntilMargin);
 	addControl(
 		object_ptr<Ui::FlatLabel>(
@@ -755,7 +755,7 @@ void EditRestrictedBox::createUntilVariants() {
 		}
 	};
 	auto addCurrentVariant = [&](TimeId from, TimeId to) {
-		auto oldUntil = _oldRights.c_chatBannedRights().vuntil_date.v;
+		auto oldUntil = _oldRights.c_chatBannedRights().vuntil_date().v;
 		if (oldUntil < _until) {
 			addCustomVariant(oldUntil, from, to);
 		}

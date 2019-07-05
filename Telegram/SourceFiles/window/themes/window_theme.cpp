@@ -450,7 +450,7 @@ void ChatBackground::checkUploadWallPaper() {
 			result.match([&](const MTPDwallPaper &data) {
 				_session->data().documentConvert(
 					_session->data().document(documentId),
-					data.vdocument);
+					data.vdocument());
 			});
 			if (const auto paper = Data::WallPaper::Create(result)) {
 				setPaper(*paper);

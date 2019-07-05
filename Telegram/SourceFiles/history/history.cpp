@@ -374,27 +374,27 @@ bool History::updateSendActionNeedsAnimating(
 		emplaceAction(
 			Type::UploadVideo,
 			kStatusShowClientsideUploadVideo,
-			data.vprogress.v);
+			data.vprogress().v);
 	}, [&](const MTPDsendMessageUploadAudioAction &data) {
 		emplaceAction(
 			Type::UploadVoice,
 			kStatusShowClientsideUploadVoice,
-			data.vprogress.v);
+			data.vprogress().v);
 	}, [&](const MTPDsendMessageUploadRoundAction &data) {
 		emplaceAction(
 			Type::UploadRound,
 			kStatusShowClientsideUploadRound,
-			data.vprogress.v);
+			data.vprogress().v);
 	}, [&](const MTPDsendMessageUploadPhotoAction &data) {
 		emplaceAction(
 			Type::UploadPhoto,
 			kStatusShowClientsideUploadPhoto,
-			data.vprogress.v);
+			data.vprogress().v);
 	}, [&](const MTPDsendMessageUploadDocumentAction &data) {
 		emplaceAction(
 			Type::UploadFile,
 			kStatusShowClientsideUploadFile,
-			data.vprogress.v);
+			data.vprogress().v);
 	}, [&](const MTPDsendMessageGamePlayAction &) {
 		const auto i = _sendActions.find(user);
 		if ((i == end(_sendActions))
@@ -587,10 +587,7 @@ HistoryItem *History::createItem(
 			result->removeMainView();
 		}
 		if (message.type() == mtpc_message) {
-			const auto media = message.c_message().has_media()
-				? &message.c_message().vmedia
-				: nullptr;
-			result->updateSentMedia(media);
+			result->updateSentMedia(message.c_message().vmedia());
 		}
 		return result;
 	}
@@ -838,9 +835,9 @@ void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
 	auto count = 0;
 	auto messages = (const QVector<MTPMessage>*)nullptr;
 	auto getMessages = [&](auto &list) {
-		owner().processUsers(list.vusers);
-		owner().processChats(list.vchats);
-		return &list.vmessages.v;
+		owner().processUsers(list.vusers());
+		owner().processChats(list.vchats());
+		return &list.vmessages().v;
 	};
 	switch (result.type()) {
 	case mtpc_messages_messages: {
@@ -852,14 +849,14 @@ void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
 	case mtpc_messages_messagesSlice: {
 		auto &d = result.c_messages_messagesSlice();
 		messages = getMessages(d);
-		count = d.vcount.v;
+		count = d.vcount().v;
 	} break;
 
 	case mtpc_messages_channelMessages: {
 		LOG(("API Error: unexpected messages.channelMessages! (History::addUnreadMentionsSlice)"));
 		auto &d = result.c_messages_channelMessages();
 		messages = getMessages(d);
-		count = d.vcount.v;
+		count = d.vcount().v;
 	} break;
 
 	case mtpc_messages_messagesNotModified: {
@@ -1019,14 +1016,14 @@ void History::applyMessageChanges(
 void History::applyServiceChanges(
 		not_null<HistoryItem*> item,
 		const MTPDmessageService &data) {
-	auto &action = data.vaction;
+	auto &action = data.vaction();
 	switch (action.type()) {
 	case mtpc_messageActionChatAddUser: {
 		auto &d = action.c_messageActionChatAddUser();
 		if (const auto megagroup = peer->asMegagroup()) {
 			const auto mgInfo = megagroup->mgInfo.get();
 			Assert(mgInfo != nullptr);
-			for (const auto &userId : d.vusers.v) {
+			for (const auto &userId : d.vusers().v) {
 				if (const auto user = owner().userLoaded(userId.v)) {
 					if (!base::contains(mgInfo->lastParticipants, user)) {
 						mgInfo->lastParticipants.push_front(user);
@@ -1073,7 +1070,7 @@ void History::applyServiceChanges(
 
 	case mtpc_messageActionChatDeleteUser: {
 		auto &d = action.c_messageActionChatDeleteUser();
-		auto uid = d.vuser_id.v;
+		auto uid = d.vuser_id().v;
 		if (lastKeyboardFrom == peerFromUser(uid)) {
 			clearLastKeyboard();
 		}
@@ -1114,8 +1111,8 @@ void History::applyServiceChanges(
 
 	case mtpc_messageActionChatEditPhoto: {
 		auto &d = action.c_messageActionChatEditPhoto();
-		d.vphoto.match([&](const MTPDphoto &data) {
-			const auto &sizes = data.vsizes.v;
+		d.vphoto().match([&](const MTPDphoto &data) {
+			const auto &sizes = data.vsizes().v;
 			if (!sizes.isEmpty()) {
 				auto photo = owner().processPhoto(data);
 				photo->peer = peer;
@@ -1124,18 +1121,18 @@ void History::applyServiceChanges(
 				const MTPFileLocation *smallLoc = nullptr;
 				const MTPFileLocation *bigLoc = nullptr;
 				switch (smallSize.type()) {
-				case mtpc_photoSize: smallLoc = &smallSize.c_photoSize().vlocation; break;
-				case mtpc_photoCachedSize: smallLoc = &smallSize.c_photoCachedSize().vlocation; break;
+				case mtpc_photoSize: smallLoc = &smallSize.c_photoSize().vlocation(); break;
+				case mtpc_photoCachedSize: smallLoc = &smallSize.c_photoCachedSize().vlocation(); break;
 				}
 				switch (bigSize.type()) {
-				case mtpc_photoSize: bigLoc = &bigSize.c_photoSize().vlocation; break;
-				case mtpc_photoCachedSize: bigLoc = &bigSize.c_photoCachedSize().vlocation; break;
+				case mtpc_photoSize: bigLoc = &bigSize.c_photoSize().vlocation(); break;
+				case mtpc_photoCachedSize: bigLoc = &bigSize.c_photoCachedSize().vlocation(); break;
 				}
 				if (smallLoc && bigLoc) {
 					if (const auto chat = peer->asChat()) {
-						chat->setPhoto(photo->id, MTP_chatPhoto(*smallLoc, *bigLoc, data.vdc_id));
+						chat->setPhoto(photo->id, MTP_chatPhoto(*smallLoc, *bigLoc, data.vdc_id()));
 					} else if (const auto channel = peer->asChannel()) {
-						channel->setPhoto(photo->id, MTP_chatPhoto(*smallLoc, *bigLoc, data.vdc_id));
+						channel->setPhoto(photo->id, MTP_chatPhoto(*smallLoc, *bigLoc, data.vdc_id()));
 					}
 					peer->loadUserpic();
 				}
@@ -1152,7 +1149,7 @@ void History::applyServiceChanges(
 	case mtpc_messageActionChatEditTitle: {
 		auto &d = action.c_messageActionChatEditTitle();
 		if (auto chat = peer->asChat()) {
-			chat->setName(qs(d.vtitle));
+			chat->setName(qs(d.vtitle()));
 		}
 	} break;
 
@@ -1160,7 +1157,7 @@ void History::applyServiceChanges(
 		if (const auto chat = peer->asChat()) {
 			chat->addFlags(MTPDchat::Flag::f_deactivated);
 			const auto &d = action.c_messageActionChatMigrateTo();
-			if (const auto channel = owner().channelLoaded(d.vchannel_id.v)) {
+			if (const auto channel = owner().channelLoaded(d.vchannel_id().v)) {
 				Data::ApplyMigration(chat, channel);
 			}
 		}
@@ -1170,15 +1167,17 @@ void History::applyServiceChanges(
 		if (const auto channel = peer->asChannel()) {
 			channel->addFlags(MTPDchannel::Flag::f_megagroup);
 			const auto &d = action.c_messageActionChannelMigrateFrom();
-			if (const auto chat = owner().chatLoaded(d.vchat_id.v)) {
+			if (const auto chat = owner().chatLoaded(d.vchat_id().v)) {
 				Data::ApplyMigration(chat, channel);
 			}
 		}
 	} break;
 
 	case mtpc_messageActionPinMessage: {
-		if (data.has_reply_to_msg_id() && item) {
-			item->history()->peer->setPinnedMessageId(data.vreply_to_msg_id.v);
+		if (const auto replyToMsgId = data.vreply_to_msg_id()) {
+			if (item) {
+				item->history()->peer->setPinnedMessageId(replyToMsgId->v);
+			}
 		}
 	} break;
 
@@ -1848,7 +1847,7 @@ void History::setFolderPointer(Data::Folder *folder) {
 }
 
 void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
-	const auto folderId = data.has_folder_id() ? data.vfolder_id.v : 0;
+	const auto folderId = data.vfolder_id().value_or_empty();
 	if (!folderKnown()) {
 		if (folderId) {
 			setFolder(owner().folder(folderId));
@@ -2401,9 +2400,9 @@ void History::setFakeChatListMessageFrom(const MTPmessages_Messages &data) {
 			const MTPDmessages_messagesNotModified &) {
 		return static_cast<const MTPMessage*>(nullptr);
 	}, [&](const auto &data) {
-		for (const auto &message : data.vmessages.v) {
+		for (const auto &message : data.vmessages().v) {
 			const auto id = message.match([](const auto &data) {
-				return data.vid.v;
+				return data.vid().v;
 			});
 			if (id != last->id) {
 				return &message;
@@ -2500,27 +2499,28 @@ bool History::isServerSideUnread(not_null<const HistoryItem*> item) const {
 void History::applyDialog(
 		Data::Folder *requestFolder,
 		const MTPDdialog &data) {
-	const auto folder = data.has_folder_id()
-		? (data.vfolder_id.v
-			? owner().folder(data.vfolder_id.v).get()
-			: nullptr)
-		: requestFolder;
+	const auto folderId = data.vfolder_id();
+	const auto folder = !folderId
+		? requestFolder
+		: folderId->v
+		? owner().folder(folderId->v).get()
+		: nullptr;
 	applyDialogFields(
 		folder,
-		data.vunread_count.v,
-		data.vread_inbox_max_id.v,
-		data.vread_outbox_max_id.v);
-	applyDialogTopMessage(data.vtop_message.v);
+		data.vunread_count().v,
+		data.vread_inbox_max_id().v,
+		data.vread_outbox_max_id().v);
+	applyDialogTopMessage(data.vtop_message().v);
 	setUnreadMark(data.is_unread_mark());
-	setUnreadMentionsCount(data.vunread_mentions_count.v);
+	setUnreadMentionsCount(data.vunread_mentions_count().v);
 	if (const auto channel = peer->asChannel()) {
-		if (data.has_pts()) {
-			channel->ptsReceived(data.vpts.v);
+		if (const auto pts = data.vpts()) {
+			channel->ptsReceived(pts->v);
 		}
 		if (!channel->amCreator()) {
 			const auto topMessageId = FullMsgId(
 				peerToChannel(channel->id),
-				data.vtop_message.v);
+				data.vtop_message().v);
 			if (const auto item = owner().message(topMessageId)) {
 				if (item->date() <= channel->date) {
 					session().api().requestSelfParticipant(channel);
@@ -2529,11 +2529,12 @@ void History::applyDialog(
 		}
 	}
 	owner().applyNotifySetting(
-		MTP_notifyPeer(data.vpeer),
-		data.vnotify_settings);
+		MTP_notifyPeer(data.vpeer()),
+		data.vnotify_settings());
 
-	if (data.has_draft() && data.vdraft.type() == mtpc_draftMessage) {
-		Data::applyPeerCloudDraft(peer->id, data.vdraft.c_draftMessage());
+	const auto draft = data.vdraft();
+	if (draft && draft->type() == mtpc_draftMessage) {
+		Data::applyPeerCloudDraft(peer->id, draft->c_draftMessage());
 	}
 	session().api().dialogEntryApplied(this);
 }

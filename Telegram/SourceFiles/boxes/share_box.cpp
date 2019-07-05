@@ -336,12 +336,12 @@ void ShareBox::peopleReceived(
 		switch (result.type()) {
 		case mtpc_contacts_found: {
 			auto &found = result.c_contacts_found();
-			Auth().data().processUsers(found.vusers);
-			Auth().data().processChats(found.vchats);
+			Auth().data().processUsers(found.vusers());
+			Auth().data().processChats(found.vchats());
 			_inner->peopleReceived(
 				query,
-				found.vmy_results.v,
-				found.vresults.v);
+				found.vmy_results().v,
+				found.vresults().v);
 		} break;
 		}
 
@@ -1151,7 +1151,7 @@ void ShareGameScoreByHash(const QString &hash) {
 			auto requestChannel = MTPchannels_GetChannels(requestChannelIds);
 			MTP::send(requestChannel, rpcDone([=](const MTPmessages_Chats &result) {
 				result.match([](const auto &data) {
-					Auth().data().processChats(data.vchats);
+					Auth().data().processChats(data.vchats());
 				});
 				if (const auto channel = Auth().data().channelLoaded(channelId)) {
 					resolveMessageAndShareScore(channel);

@@ -85,11 +85,11 @@ void PinnedList::applyList(
 	clear();
 	for (const auto &peer : ranges::view::reverse(list)) {
 		peer.match([&](const MTPDdialogPeer &data) {
-			if (const auto peerId = peerFromMTP(data.vpeer)) {
+			if (const auto peerId = peerFromMTP(data.vpeer())) {
 				setPinned(owner->history(peerId), true);
 			}
 		}, [&](const MTPDdialogPeerFolder &data) {
-			const auto folderId = data.vfolder_id.v;
+			const auto folderId = data.vfolder_id().v;
 			setPinned(owner->folder(folderId), true);
 		});
 	}

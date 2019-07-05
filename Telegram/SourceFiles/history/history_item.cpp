@@ -88,47 +88,49 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 	}, [](const MTPDmessageMediaContact &) {
 		return Result::Good;
 	}, [](const MTPDmessageMediaGeo &data) {
-		return data.vgeo.match([](const MTPDgeoPoint &) {
+		return data.vgeo().match([](const MTPDgeoPoint &) {
 			return Result::Good;
 		}, [](const MTPDgeoPointEmpty &) {
 			return Result::Empty;
 		});
 	}, [](const MTPDmessageMediaVenue &data) {
-		return data.vgeo.match([](const MTPDgeoPoint &) {
+		return data.vgeo().match([](const MTPDgeoPoint &) {
 			return Result::Good;
 		}, [](const MTPDgeoPointEmpty &) {
 			return Result::Empty;
 		});
 	}, [](const MTPDmessageMediaGeoLive &data) {
-		return data.vgeo.match([](const MTPDgeoPoint &) {
+		return data.vgeo().match([](const MTPDgeoPoint &) {
 			return Result::Good;
 		}, [](const MTPDgeoPointEmpty &) {
 			return Result::Empty;
 		});
 	}, [](const MTPDmessageMediaPhoto &data) {
-		if (data.has_ttl_seconds()) {
+		const auto photo = data.vphoto();
+		if (data.vttl_seconds()) {
 			return Result::HasTimeToLive;
-		} else if (!data.has_photo()) {
+		} else if (!photo) {
 			return Result::Empty;
 		}
-		return data.vphoto.match([](const MTPDphoto &) {
+		return photo->match([](const MTPDphoto &) {
 			return Result::Good;
 		}, [](const MTPDphotoEmpty &) {
 			return Result::Empty;
 		});
 	}, [](const MTPDmessageMediaDocument &data) {
-		if (data.has_ttl_seconds()) {
+		const auto document = data.vdocument();
+		if (data.vttl_seconds()) {
 			return Result::HasTimeToLive;
-		} else if (!data.has_document()) {
+		} else if (!document) {
 			return Result::Empty;
 		}
-		return data.vdocument.match([](const MTPDdocument &) {
+		return document->match([](const MTPDdocument &) {
 			return Result::Good;
 		}, [](const MTPDdocumentEmpty &) {
 			return Result::Empty;
 		});
 	}, [](const MTPDmessageMediaWebPage &data) {
-		return data.vwebpage.match([](const MTPDwebPage &) {
+		return data.vwebpage().match([](const MTPDwebPage &) {
 			return Result::Good;
 		}, [](const MTPDwebPageEmpty &) {
 			return Result::Good;
@@ -138,7 +140,7 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 			return Result::Unsupported;
 		});
 	}, [](const MTPDmessageMediaGame &data) {
-		return data.vgame.match([](const MTPDgame &) {
+		return data.vgame().match([](const MTPDgame &) {
 			return Result::Good;
 		});
 	}, [](const MTPDmessageMediaInvoice &) {
@@ -814,35 +816,36 @@ not_null<HistoryItem*> HistoryItem::Create(
 		not_null<History*> history,
 		const MTPMessage &message) {
 	return message.match([&](const MTPDmessage &data) -> HistoryItem* {
-		const auto checked = data.has_media()
-			? CheckMessageMedia(data.vmedia)
+		const auto media = data.vmedia();
+		const auto checked = media
+			? CheckMessageMedia(*media)
 			: MediaCheckResult::Good;
 		if (checked == MediaCheckResult::Unsupported) {
 			return CreateUnsupportedMessage(
 				history,
-				data.vid.v,
-				data.vflags.v,
-				data.vreply_to_msg_id.v,
-				data.vvia_bot_id.v,
-				data.vdate.v,
-				data.vfrom_id.v);
+				data.vid().v,
+				data.vflags().v,
+				data.vreply_to_msg_id().value_or_empty(),
+				data.vvia_bot_id().value_or_empty(),
+				data.vdate().v,
+				data.vfrom_id().value_or_empty());
 		} else if (checked == MediaCheckResult::Empty) {
 			const auto text = HistoryService::PreparedText {
 				tr::lng_message_empty(tr::now)
 			};
 			return history->owner().makeServiceMessage(
 				history,
-				data.vid.v,
-				data.vdate.v,
+				data.vid().v,
+				data.vdate().v,
 				text,
-				data.vflags.v,
-				data.has_from_id() ? data.vfrom_id.v : UserId(0));
+				data.vflags().v,
+				data.vfrom_id().value_or_empty());
 		} else if (checked == MediaCheckResult::HasTimeToLive) {
 			return history->owner().makeServiceMessage(history, data);
 		}
 		return history->owner().makeMessage(history, data);
 	}, [&](const MTPDmessageService &data) -> HistoryItem* {
-		if (data.vaction.type() == mtpc_messageActionPhoneCall) {
+		if (data.vaction().type() == mtpc_messageActionPhoneCall) {
 			return history->owner().makeMessage(history, data);
 		}
 		return history->owner().makeServiceMessage(history, data);
@@ -850,6 +853,6 @@ not_null<HistoryItem*> HistoryItem::Create(
 		const auto text = HistoryService::PreparedText{
 			tr::lng_message_empty(tr::now)
 		};
-		return history->owner().makeServiceMessage(history, data.vid.v, TimeId(0), text);
+		return history->owner().makeServiceMessage(history, data.vid().v, TimeId(0), text);
 	});
 }

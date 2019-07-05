@@ -45,7 +45,7 @@ bool JoinGroupByHash(const Match &match, const QVariant &context) {
 				Auth().api().importChatInvite(hash);
 			}));
 		}, [=](const MTPDchatInviteAlready &data) {
-			if (const auto chat = Auth().data().processChat(data.vchat)) {
+			if (const auto chat = Auth().data().processChat(data.vchat())) {
 				App::wnd()->sessionController()->showPeerHistory(
 					chat,
 					Window::SectionShow::Way::Forward);
@@ -260,7 +260,7 @@ bool ResolvePrivatePost(const Match &match, const QVariant &context) {
 			MTP_inputChannel(MTP_int(channelId), MTP_long(0)))
 	)).done([=](const MTPmessages_Chats &result) {
 		result.match([&](const auto &data) {
-			const auto peer = auth->data().processChats(data.vchats);
+			const auto peer = auth->data().processChats(data.vchats());
 			if (peer && peer->id == peerFromChannel(channelId)) {
 				done(peer);
 			} else {
@@ -280,10 +280,9 @@ bool HandleUnknown(const Match &match, const QVariant &context) {
 	const auto request = match->captured(1);
 	const auto callback = [=](const MTPDhelp_deepLinkInfo &result) {
 		const auto text = TextWithEntities{
-			qs(result.vmessage),
-			(result.has_entities()
-				? TextUtilities::EntitiesFromMTP(result.ventities.v)
-				: EntitiesInText())
+			qs(result.vmessage()),
+			TextUtilities::EntitiesFromMTP(
+				result.ventities().value_or_empty())
 		};
 		if (result.is_update_app()) {
 			const auto box = std::make_shared<QPointer<BoxContent>>();

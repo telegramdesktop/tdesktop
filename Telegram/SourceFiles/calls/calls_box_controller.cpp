@@ -246,7 +246,7 @@ void BoxController::loadMoreRows() {
 	_loadRequestId = request(MTPmessages_Search(
 		MTP_flags(0),
 		MTP_inputPeerEmpty(),
-		MTP_string(QString()),
+		MTP_string(),
 		MTP_inputUserEmpty(),
 		MTP_inputMessagesFilterPhoneCalls(MTP_flags(0)),
 		MTP_int(0),
@@ -261,9 +261,9 @@ void BoxController::loadMoreRows() {
 		_loadRequestId = 0;
 
 		auto handleResult = [&](auto &data) {
-			Auth().data().processUsers(data.vusers);
-			Auth().data().processChats(data.vchats);
-			receivedCalls(data.vmessages.v);
+			Auth().data().processUsers(data.vusers());
+			Auth().data().processChats(data.vchats());
+			receivedCalls(data.vmessages().v);
 		};
 
 		switch (result.type()) {

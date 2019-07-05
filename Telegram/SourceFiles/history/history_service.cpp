@@ -37,7 +37,7 @@ constexpr auto kPinnedMessageTextLimit = 16;
 void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareChatAddUserText = [this](const MTPDmessageActionChatAddUser &action) {
 		auto result = PreparedText{};
-		auto &users = action.vusers.v;
+		auto &users = action.vusers().v;
 		if (users.size() == 1) {
 			auto u = history()->owner().user(users[0].v);
 			if (u == _from) {
@@ -81,7 +81,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareChatCreate = [this](const MTPDmessageActionChatCreate &action) {
 		auto result = PreparedText{};
 		result.links.push_back(fromLink());
-		result.text = tr::lng_action_created_chat(tr::now, lt_from, fromLinkText(), lt_title, TextUtilities::Clean(qs(action.vtitle)));
+		result.text = tr::lng_action_created_chat(tr::now, lt_from, fromLinkText(), lt_title, TextUtilities::Clean(qs(action.vtitle())));
 		return result;
 	};
 
@@ -91,7 +91,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			result.text = tr::lng_action_created_channel(tr::now);
 		} else {
 			result.links.push_back(fromLink());
-			result.text = tr::lng_action_created_chat(tr::now, lt_from, fromLinkText(), lt_title, TextUtilities::Clean(qs(action.vtitle)));
+			result.text = tr::lng_action_created_chat(tr::now, lt_from, fromLinkText(), lt_title, TextUtilities::Clean(qs(action.vtitle())));
 		}
 		return result;
 	};
@@ -109,11 +109,11 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareChatDeleteUser = [this](const MTPDmessageActionChatDeleteUser &action) {
 		auto result = PreparedText{};
-		if (peerFromUser(action.vuser_id) == _from->id) {
+		if (peerFromUser(action.vuser_id()) == _from->id) {
 			result.links.push_back(fromLink());
 			result.text = tr::lng_action_user_left(tr::now, lt_from, fromLinkText());
 		} else {
-			auto user = history()->owner().user(action.vuser_id.v);
+			auto user = history()->owner().user(action.vuser_id().v);
 			result.links.push_back(fromLink());
 			result.links.push_back(user->createOpenLink());
 			result.text = tr::lng_action_kick_user(tr::now, lt_from, fromLinkText(), lt_user, textcmdLink(2, user->name));
@@ -135,10 +135,10 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareChatEditTitle = [this](const MTPDmessageActionChatEditTitle &action) {
 		auto result = PreparedText{};
 		if (isPost()) {
-			result.text = tr::lng_action_changed_title_channel(tr::now, lt_title, TextUtilities::Clean(qs(action.vtitle)));
+			result.text = tr::lng_action_changed_title_channel(tr::now, lt_title, TextUtilities::Clean(qs(action.vtitle())));
 		} else {
 			result.links.push_back(fromLink());
-			result.text = tr::lng_action_changed_title(tr::now, lt_from, fromLinkText(), lt_title, TextUtilities::Clean(qs(action.vtitle)));
+			result.text = tr::lng_action_changed_title(tr::now, lt_from, fromLinkText(), lt_title, TextUtilities::Clean(qs(action.vtitle())));
 		}
 		return result;
 	};
@@ -156,13 +156,13 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareCustomAction = [&](const MTPDmessageActionCustomAction &action) {
 		auto result = PreparedText{};
-		result.text = qs(action.vmessage);
+		result.text = qs(action.vmessage());
 		return result;
 	};
 
 	auto prepareBotAllowed = [&](const MTPDmessageActionBotAllowed &action) {
 		auto result = PreparedText{};
-		const auto domain = qs(action.vdomain);
+		const auto domain = qs(action.vdomain());
 		result.text = tr::lng_action_bot_allowed_from_domain(
 			tr::now,
 			lt_domain,
@@ -173,7 +173,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareSecureValuesSent = [&](const MTPDmessageActionSecureValuesSent &action) {
 		auto result = PreparedText{};
 		auto documents = QStringList();
-		for (const auto &type : action.vtypes.v) {
+		for (const auto &type : action.vtypes().v) {
 			documents.push_back([&] {
 				switch (type.type()) {
 				case mtpc_secureValueTypePersonalDetails:
@@ -277,7 +277,7 @@ void HistoryService::applyAction(const MTPMessageAction &action) {
 	action.match([&](const MTPDmessageActionChatAddUser &data) {
 		if (const auto channel = history()->peer->asMegagroup()) {
 			const auto selfUserId = history()->session().userId();
-			for (const auto &item : data.vusers.v) {
+			for (const auto &item : data.vusers().v) {
 				if (item.v == selfUserId) {
 					channel->mgInfo->joinedMessageFound = true;
 					break;
@@ -291,7 +291,7 @@ void HistoryService::applyAction(const MTPMessageAction &action) {
 			}
 		}
 	}, [&](const MTPDmessageActionChatEditPhoto &data) {
-		data.vphoto.match([&](const MTPDphoto &photo) {
+		data.vphoto().match([&](const MTPDphoto &photo) {
 			_media = std::make_unique<Data::MediaPhoto>(
 				this,
 				history()->peer,
@@ -498,12 +498,12 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 HistoryService::HistoryService(
 	not_null<History*> history,
 	const MTPDmessage &data)
-: HistoryItem(
+	: HistoryItem(
 		history,
-		data.vid.v,
-		data.vflags.v,
-		data.vdate.v,
-		data.has_from_id() ? data.vfrom_id.v : UserId(0)) {
+		data.vid().v,
+		data.vflags().v,
+		data.vdate().v,
+		data.vfrom_id().value_or_empty()) {
 	createFromMtp(data);
 }
 
@@ -512,10 +512,10 @@ HistoryService::HistoryService(
 	const MTPDmessageService &data)
 : HistoryItem(
 		history,
-		data.vid.v,
-		mtpCastFlags(data.vflags.v),
-		data.vdate.v,
-		data.has_from_id() ? data.vfrom_id.v : UserId(0)) {
+		data.vid().v,
+		mtpCastFlags(data.vflags().v),
+		data.vdate().v,
+		data.vfrom_id().value_or_empty()) {
 	createFromMtp(data);
 }
 
@@ -613,13 +613,18 @@ crl::time HistoryService::getSelfDestructIn(crl::time now) {
 }
 
 void HistoryService::createFromMtp(const MTPDmessage &message) {
-	auto mediaType = message.vmedia.type();
+	const auto media = message.vmedia();
+	Assert(media != nullptr);
+
+	const auto mediaType = media->type();
 	switch (mediaType) {
 	case mtpc_messageMediaPhoto: {
 		if (message.is_media_unread()) {
-			auto &photo = message.vmedia.c_messageMediaPhoto();
-			Assert(photo.has_ttl_seconds());
-			setSelfDestruct(HistoryServiceSelfDestruct::Type::Photo, photo.vttl_seconds.v);
+			const auto &photo = media->c_messageMediaPhoto();
+			const auto ttl = photo.vttl_seconds();
+			Assert(ttl != nullptr);
+
+			setSelfDestruct(HistoryServiceSelfDestruct::Type::Photo, ttl->v);
 			if (out()) {
 				setServiceText({ tr::lng_ttl_photo_sent(tr::now) });
 			} else {
@@ -634,9 +639,11 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 	} break;
 	case mtpc_messageMediaDocument: {
 		if (message.is_media_unread()) {
-			auto &document = message.vmedia.c_messageMediaDocument();
-			Assert(document.has_ttl_seconds());
-			setSelfDestruct(HistoryServiceSelfDestruct::Type::Video, document.vttl_seconds.v);
+			const auto &document = media->c_messageMediaDocument();
+			const auto ttl = document.vttl_seconds();
+			Assert(ttl != nullptr);
+
+			setSelfDestruct(HistoryServiceSelfDestruct::Type::Video, ttl->v);
 			if (out()) {
 				setServiceText({ tr::lng_ttl_video_sent(tr::now) });
 			} else {
@@ -655,21 +662,21 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 }
 
 void HistoryService::createFromMtp(const MTPDmessageService &message) {
-	if (message.vaction.type() == mtpc_messageActionGameScore) {
+	if (message.vaction().type() == mtpc_messageActionGameScore) {
 		UpdateComponents(HistoryServiceGameScore::Bit());
-		Get<HistoryServiceGameScore>()->score = message.vaction.c_messageActionGameScore().vscore.v;
-	} else if (message.vaction.type() == mtpc_messageActionPaymentSent) {
+		Get<HistoryServiceGameScore>()->score = message.vaction().c_messageActionGameScore().vscore().v;
+	} else if (message.vaction().type() == mtpc_messageActionPaymentSent) {
 		UpdateComponents(HistoryServicePayment::Bit());
-		auto amount = message.vaction.c_messageActionPaymentSent().vtotal_amount.v;
-		auto currency = qs(message.vaction.c_messageActionPaymentSent().vcurrency);
+		auto amount = message.vaction().c_messageActionPaymentSent().vtotal_amount().v;
+		auto currency = qs(message.vaction().c_messageActionPaymentSent().vcurrency());
 		Get<HistoryServicePayment>()->amount = FillAmountAndCurrency(amount, currency);
 	}
-	if (message.has_reply_to_msg_id()) {
-		if (message.vaction.type() == mtpc_messageActionPinMessage) {
+	if (const auto replyToMsgId = message.vreply_to_msg_id()) {
+		if (message.vaction().type() == mtpc_messageActionPinMessage) {
 			UpdateComponents(HistoryServicePinned::Bit());
 		}
-		if (auto dependent = GetDependentData()) {
-			dependent->msgId = message.vreply_to_msg_id.v;
+		if (const auto dependent = GetDependentData()) {
+			dependent->msgId = replyToMsgId->v;
 			if (!updateDependent()) {
 				history()->session().api().requestMessageData(
 					history()->peer->asChannel(),
@@ -678,7 +685,7 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 			}
 		}
 	}
-	setMessageByAction(message.vaction);
+	setMessageByAction(message.vaction());
 }
 
 void HistoryService::applyEdition(const MTPDmessageService &message) {
@@ -687,7 +694,7 @@ void HistoryService::applyEdition(const MTPDmessageService &message) {
 
 	createFromMtp(message);
 
-	if (message.vaction.type() == mtpc_messageActionHistoryClear) {
+	if (message.vaction().type() == mtpc_messageActionHistoryClear) {
 		removeMedia();
 		finishEditionToEmpty();
 	} else {

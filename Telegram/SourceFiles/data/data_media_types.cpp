@@ -46,8 +46,8 @@ namespace {
 Call ComputeCallData(const MTPDmessageActionPhoneCall &call) {
 	auto result = Call();
 	result.finishReason = [&] {
-		if (call.has_reason()) {
-			switch (call.vreason.type()) {
+		if (const auto reason = call.vreason()) {
+			switch (reason->type()) {
 			case mtpc_phoneCallDiscardReasonBusy:
 				return CallFinishReason::Busy;
 			case mtpc_phoneCallDiscardReasonDisconnect:
@@ -61,7 +61,7 @@ Call ComputeCallData(const MTPDmessageActionPhoneCall &call) {
 		}
 		return CallFinishReason::Hangup;
 	}();
-	result.duration = call.has_duration() ? call.vduration.v : 0;;
+	result.duration = call.vduration().value_or_empty();
 	return result;
 }
 
@@ -70,15 +70,13 @@ Invoice ComputeInvoiceData(
 		const MTPDmessageMediaInvoice &data) {
 	auto result = Invoice();
 	result.isTest = data.is_test();
-	result.amount = data.vtotal_amount.v;
-	result.currency = qs(data.vcurrency);
-	result.description = qs(data.vdescription);
-	result.title = TextUtilities::SingleLine(qs(data.vtitle));
-	if (data.has_receipt_msg_id()) {
-		result.receiptMsgId = data.vreceipt_msg_id.v;
-	}
-	if (data.has_photo()) {
-		result.photo = item->history()->owner().photoFromWeb(data.vphoto);
+	result.amount = data.vtotal_amount().v;
+	result.currency = qs(data.vcurrency());
+	result.description = qs(data.vdescription());
+	result.title = TextUtilities::SingleLine(qs(data.vtitle()));
+	result.receiptMsgId = data.vreceipt_msg_id().value_or_empty();
+	if (const auto photo = data.vphoto()) {
+		result.photo = item->history()->owner().photoFromWeb(*photo);
 	}
 	return result;
 }
@@ -346,10 +344,11 @@ bool MediaPhoto::updateInlineResultMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaPhoto) {
 		return false;
 	}
-	auto &data = media.c_messageMediaPhoto();
-	if (data.has_photo() && !data.has_ttl_seconds()) {
+	const auto &data = media.c_messageMediaPhoto();
+	const auto content = data.vphoto();
+	if (content && !data.vttl_seconds()) {
 		const auto photo = parent()->history()->owner().processPhoto(
-			data.vphoto);
+			*content);
 		if (photo == _photo) {
 			return true;
 		} else {
@@ -367,22 +366,23 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaPhoto) {
 		return false;
 	}
-	auto &mediaPhoto = media.c_messageMediaPhoto();
-	if (!mediaPhoto.has_photo() || mediaPhoto.has_ttl_seconds()) {
+	const auto &mediaPhoto = media.c_messageMediaPhoto();
+	const auto content = mediaPhoto.vphoto();
+	if (!content || mediaPhoto.vttl_seconds()) {
 		LOG(("Api Error: "
 			"Got MTPMessageMediaPhoto without photo "
 			"or with ttl_seconds in updateSentMedia()"));
 		return false;
 	}
-	parent()->history()->owner().photoConvert(_photo, mediaPhoto.vphoto);
+	parent()->history()->owner().photoConvert(_photo, *content);
 
-	if (mediaPhoto.vphoto.type() != mtpc_photo) {
+	if (content->type() != mtpc_photo) {
 		return false;
 	}
-	const auto &photo = mediaPhoto.vphoto.c_photo();
+	const auto &photo = content->c_photo();
 
 	struct SizeData {
-		MTPstring type = MTP_string(QString());
+		MTPstring type = MTP_string();
 		int width = 0;
 		int height = 0;
 		QByteArray bytes;
@@ -394,12 +394,12 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 
 		const auto key = StorageImageLocation(
 			StorageFileLocation(
-				photo.vdc_id.v,
+				photo.vdc_id().v,
 				_photo->session().userId(),
 				MTP_inputPhotoFileLocation(
-					photo.vid,
-					photo.vaccess_hash,
-					photo.vfile_reference,
+					photo.vid(),
+					photo.vaccess_hash(),
+					photo.vfile_reference(),
 					size.type)),
 			size.width,
 			size.height);
@@ -422,23 +422,23 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 		image->replaceSource(
 			std::make_unique<Images::StorageSource>(key, length));
 	};
-	auto &sizes = photo.vsizes.v;
+	auto &sizes = photo.vsizes().v;
 	auto max = 0;
 	auto maxSize = SizeData();
 	for (const auto &data : sizes) {
 		const auto size = data.match([](const MTPDphotoSize &data) {
 			return SizeData{
-				data.vtype,
-				data.vw.v,
-				data.vh.v,
+				data.vtype(),
+				data.vw().v,
+				data.vh().v,
 				QByteArray()
 			};
 		}, [](const MTPDphotoCachedSize &data) {
 			return SizeData{
-				data.vtype,
-				data.vw.v,
-				data.vh.v,
-				qba(data.vbytes)
+				data.vtype(),
+				data.vw().v,
+				data.vh().v,
+				qba(data.vbytes())
 			};
 		}, [](const MTPDphotoSizeEmpty &) {
 			return SizeData();
@@ -708,10 +708,11 @@ bool MediaFile::updateInlineResultMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaDocument) {
 		return false;
 	}
-	auto &data = media.c_messageMediaDocument();
-	if (data.has_document() && !data.has_ttl_seconds()) {
+	const auto &data = media.c_messageMediaDocument();
+	const auto content = data.vdocument();
+	if (content && !data.vttl_seconds()) {
 		const auto document = parent()->history()->owner().processDocument(
-			data.vdocument);
+			*content);
 		if (document == _document) {
 			return false;
 		} else {
@@ -729,14 +730,15 @@ bool MediaFile::updateSentMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaDocument) {
 		return false;
 	}
-	auto &data = media.c_messageMediaDocument();
-	if (!data.has_document() || data.has_ttl_seconds()) {
+	const auto &data = media.c_messageMediaDocument();
+	const auto content = data.vdocument();
+	if (!content || data.vttl_seconds()) {
 		LOG(("Api Error: "
 			"Got MTPMessageMediaDocument without document "
 			"or with ttl_seconds in updateSentMedia()"));
 		return false;
 	}
-	parent()->history()->owner().documentConvert(_document, data.vdocument);
+	parent()->history()->owner().documentConvert(_document, *content);
 
 	if (const auto good = _document->goodThumbnail()) {
 		auto bytes = good->bytesForCache();
@@ -836,11 +838,11 @@ bool MediaContact::updateSentMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaContact) {
 		return false;
 	}
-	if (_contact.userId != media.c_messageMediaContact().vuser_id.v) {
+	if (_contact.userId != media.c_messageMediaContact().vuser_id().v) {
 		parent()->history()->owner().unregisterContactItem(
 			_contact.userId,
 			parent());
-		_contact.userId = media.c_messageMediaContact().vuser_id.v;
+		_contact.userId = media.c_messageMediaContact().vuser_id().v;
 		parent()->history()->owner().registerContactItem(
 			_contact.userId,
 			parent());
@@ -1168,7 +1170,7 @@ bool MediaGame::updateSentMedia(const MTPMessageMedia &media) {
 		return false;
 	}
 	parent()->history()->owner().gameConvert(
-		_game, media.c_messageMediaGame().vgame);
+		_game, media.c_messageMediaGame().vgame());
 	return true;
 }
 

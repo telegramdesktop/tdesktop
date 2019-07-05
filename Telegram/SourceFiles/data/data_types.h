@@ -183,9 +183,9 @@ inline MTPint peerToBareMTPInt(const PeerId &id) {
 }
 inline PeerId peerFromMTP(const MTPPeer &peer) {
 	switch (peer.type()) {
-	case mtpc_peerUser: return peerFromUser(peer.c_peerUser().vuser_id);
-	case mtpc_peerChat: return peerFromChat(peer.c_peerChat().vchat_id);
-	case mtpc_peerChannel: return peerFromChannel(peer.c_peerChannel().vchannel_id);
+	case mtpc_peerUser: return peerFromUser(peer.c_peerUser().vuser_id());
+	case mtpc_peerChat: return peerFromChat(peer.c_peerChat().vchat_id());
+	case mtpc_peerChannel: return peerFromChannel(peer.c_peerChannel().vchannel_id());
 	}
 	return 0;
 }

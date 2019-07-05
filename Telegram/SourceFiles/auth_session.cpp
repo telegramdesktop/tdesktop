@@ -532,7 +532,7 @@ bool AuthSession::validateSelf(const MTPUser &user) {
 	if (user.type() != mtpc_user || !user.c_user().is_self()) {
 		LOG(("API Error: bad self user received."));
 		return false;
-	} else if (user.c_user().vid.v != userId()) {
+	} else if (user.c_user().vid().v != userId()) {
 		LOG(("Auth Error: wrong self user received."));
 		crl::on_main(this, [] { Core::App().logOut(); });
 		return false;

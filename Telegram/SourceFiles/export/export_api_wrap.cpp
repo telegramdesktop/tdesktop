@@ -50,40 +50,40 @@ LocationKey ComputeLocationKey(const Data::FileLocation &value) {
 	result.type = value.dcId;
 	value.data.match([&](const MTPDinputFileLocation &data) {
 		result.type |= (1ULL << 24);
-		result.type |= (uint64(uint32(data.vlocal_id.v)) << 32);
-		result.id = data.vvolume_id.v;
+		result.type |= (uint64(uint32(data.vlocal_id().v)) << 32);
+		result.id = data.vvolume_id().v;
 	}, [&](const MTPDinputDocumentFileLocation &data) {
-		const auto letter = data.vthumb_size.v.isEmpty()
+		const auto letter = data.vthumb_size().v.isEmpty()
 			? char(0)
-			: data.vthumb_size.v[0];
+			: data.vthumb_size().v[0];
 		result.type |= (2ULL << 24);
 		result.type |= (uint64(uint32(letter)) << 16);
-		result.id = data.vid.v;
+		result.id = data.vid().v;
 	}, [&](const MTPDinputSecureFileLocation &data) {
 		result.type |= (3ULL << 24);
-		result.id = data.vid.v;
+		result.id = data.vid().v;
 	}, [&](const MTPDinputEncryptedFileLocation &data) {
 		result.type |= (4ULL << 24);
-		result.id = data.vid.v;
+		result.id = data.vid().v;
 	}, [&](const MTPDinputTakeoutFileLocation &data) {
 		result.type |= (5ULL << 24);
 	}, [&](const MTPDinputPhotoFileLocation &data) {
-		const auto letter = data.vthumb_size.v.isEmpty()
+		const auto letter = data.vthumb_size().v.isEmpty()
 			? char(0)
-			: data.vthumb_size.v[0];
+			: data.vthumb_size().v[0];
 		result.type |= (6ULL << 24);
 		result.type |= (uint64(uint32(letter)) << 16);
-		result.id = data.vid.v;
+		result.id = data.vid().v;
 	}, [&](const MTPDinputPeerPhotoFileLocation &data) {
 		const auto letter = data.is_big() ? char(1) : char(0);
 		result.type |= (7ULL << 24);
-		result.type |= (uint64(uint32(data.vlocal_id.v)) << 32);
+		result.type |= (uint64(uint32(data.vlocal_id().v)) << 32);
 		result.type |= (uint64(uint32(letter)) << 16);
-		result.id = data.vvolume_id.v;
+		result.id = data.vvolume_id().v;
 	}, [&](const MTPDinputStickerSetThumb &data) {
 		result.type |= (8ULL << 24);
-		result.type |= (uint64(uint32(data.vlocal_id.v)) << 32);
-		result.id = data.vvolume_id.v;
+		result.type |= (uint64(uint32(data.vlocal_id().v)) << 32);
+		result.id = data.vvolume_id().v;
 	});
 	return result;
 }
@@ -386,9 +386,12 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
 	)).fail([=](RPCError &&result) {
 		if (result.type() == qstr("TAKEOUT_FILE_EMPTY")
 			&& _otherDataProcess != nullptr) {
-			filePartDone(0, MTP_upload_file(MTP_storage_filePartial(),
-				MTP_int(0),
-				MTP_bytes(QByteArray())));
+			filePartDone(
+				0,
+				MTP_upload_file(
+					MTP_storage_filePartial(),
+					MTP_int(0),
+					MTP_bytes()));
 		} else if (result.type() == qstr("LOCATION_INVALID")
 			|| result.type() == qstr("VERSION_INVALID")) {
 			filePartUnavailable();
@@ -481,9 +484,9 @@ void ApiWrap::requestUserpicsCount() {
 
 		_startProcess->info.userpicsCount = result.match(
 		[](const MTPDphotos_photos &data) {
-			return int(data.vphotos.v.size());
+			return int(data.vphotos().v.size());
 		}, [](const MTPDphotos_photosSlice &data) {
-			return data.vcount.v;
+			return data.vcount().v;
 		});
 
 		sendNextStartRequest();
@@ -540,9 +543,9 @@ void ApiWrap::requestDialogsCount() {
 
 		const auto count = result.match(
 		[](const MTPDmessages_dialogs &data) {
-			return int(data.vdialogs.v.size());
+			return int(data.vdialogs().v.size());
 		}, [](const MTPDmessages_dialogsSlice &data) {
-			return data.vcount.v;
+			return data.vcount().v;
 		}, [](const MTPDmessages_dialogsNotModified &data) {
 			return -1;
 		});
@@ -654,7 +657,7 @@ void ApiWrap::startMainSession(FnMut<void()> done) {
 	)).done([=, done = std::move(done)](
 			const MTPaccount_Takeout &result) mutable {
 		_takeoutId = result.match([](const MTPDaccount_takeout &data) {
-			return data.vid.v;
+			return data.vid().v;
 		});
 		done();
 	}).fail([=](RPCError &&result) {
@@ -669,7 +672,7 @@ void ApiWrap::requestPersonalInfo(FnMut<void(Data::PersonalInfo&&)> done) {
 		Expects(result.type() == mtpc_userFull);
 
 		const auto &full = result.c_userFull();
-		if (full.vuser.type() == mtpc_user) {
+		if (full.vuser().type() == mtpc_user) {
 			done(Data::ParsePersonalInfo(result));
 		} else {
 			error("Bad user type.");
@@ -726,9 +729,9 @@ void ApiWrap::requestUserpics(
 
 		auto startInfo = result.match(
 		[](const MTPDphotos_photos &data) {
-			return Data::UserpicsInfo{ data.vphotos.v.size() };
+			return Data::UserpicsInfo{ data.vphotos().v.size() };
 		}, [](const MTPDphotos_photosSlice &data) {
-			return Data::UserpicsInfo{ data.vcount.v };
+			return Data::UserpicsInfo{ data.vcount().v };
 		});
 		if (!_userpicsProcess->start(std::move(startInfo))) {
 			return;
@@ -746,7 +749,7 @@ void ApiWrap::handleUserpicsSlice(const MTPphotos_Photos &result) {
 			_userpicsProcess->lastSlice = true;
 		}
 		loadUserpicsFiles(Data::ParseUserpicsSlice(
-			data.vphotos,
+			data.vphotos(),
 			_userpicsProcess->processed));
 	});
 }
@@ -883,10 +886,10 @@ void ApiWrap::requestTopPeersSlice() {
 		}, [](const MTPDcontacts_topPeersDisabled &data) {
 			return true;
 		}, [&](const MTPDcontacts_topPeers &data) {
-			for (const auto &category : data.vcategories.v) {
+			for (const auto &category : data.vcategories().v) {
 				const auto loaded = category.match(
 				[&](const MTPDtopPeerCategoryPeers &data) {
-					return offset + data.vpeers.v.size() >= data.vcount.v;
+					return offset + data.vpeers().v.size() >= data.vcount().v;
 				});
 				if (!loaded) {
 					return false;
@@ -954,11 +957,11 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 
 		const auto count = result.match(
 			[](const MTPDmessages_messages &data) {
-			return data.vmessages.v.size();
+			return data.vmessages().v.size();
 		}, [](const MTPDmessages_messagesSlice &data) {
-			return data.vcount.v;
+			return data.vcount().v;
 		}, [](const MTPDmessages_channelMessages &data) {
-			return data.vcount.v;
+			return data.vcount().v;
 		}, [](const MTPDmessages_messagesNotModified &data) {
 			return -1;
 		});
@@ -1068,16 +1071,16 @@ void ApiWrap::requestSinglePeerDialog() {
 		)).done(std::move(doneSinglePeer)).send();
 	};
 	_settings->singlePeer.match([&](const MTPDinputPeerUser &data) {
-		requestUser(MTP_inputUser(data.vuser_id, data.vaccess_hash));
+		requestUser(MTP_inputUser(data.vuser_id(), data.vaccess_hash()));
 	}, [&](const MTPDinputPeerChat &data) {
 		mainRequest(MTPmessages_GetChats(
-			MTP_vector<MTPint>(1, data.vchat_id)
+			MTP_vector<MTPint>(1, data.vchat_id())
 		)).done(std::move(doneSinglePeer)).send();
 	}, [&](const MTPDinputPeerChannel &data) {
 		mainRequest(MTPchannels_GetChannels(
 			MTP_vector<MTPInputChannel>(
 				1,
-				MTP_inputChannel(data.vchannel_id, data.vaccess_hash))
+				MTP_inputChannel(data.vchannel_id(), data.vaccess_hash()))
 		)).done(std::move(doneSinglePeer)).send();
 	}, [&](const MTPDinputPeerSelf &data) {
 		requestUser(MTP_inputUserSelf());
@@ -1117,7 +1120,7 @@ void ApiWrap::requestDialogsSlice() {
 		[](const MTPDmessages_dialogs &data) {
 			return true;
 		}, [](const MTPDmessages_dialogsSlice &data) {
-			return data.vdialogs.v.isEmpty();
+			return data.vdialogs().v.isEmpty();
 		}, [](const MTPDmessages_dialogsNotModified &data) {
 			return true;
 		});
@@ -1201,21 +1204,21 @@ void ApiWrap::requestLeftChannelsSliceGeneric(FnMut<void()> done) {
 		const auto process = _leftChannelsProcess.get();
 		process->offset += result.match(
 		[](const auto &data) {
-			return int(data.vchats.v.size());
+			return int(data.vchats().v.size());
 		});
 
 		process->fullCount = result.match(
 		[](const MTPDmessages_chats &data) {
-			return int(data.vchats.v.size());
+			return int(data.vchats().v.size());
 		}, [](const MTPDmessages_chatsSlice &data) {
-			return data.vcount.v;
+			return data.vcount().v;
 		});
 
 		process->finished = result.match(
 		[](const MTPDmessages_chats &data) {
 			return true;
 		}, [](const MTPDmessages_chatsSlice &data) {
-			return data.vchats.v.isEmpty();
+			return data.vchats().v.isEmpty();
 		});
 
 		if (process->progress) {
@@ -1289,9 +1292,9 @@ void ApiWrap::requestMessagesSlice() {
 			}
 			loadMessagesFiles(Data::ParseMessagesSlice(
 				_chatProcess->context,
-				data.vmessages,
-				data.vusers,
-				data.vchats,
+				data.vmessages(),
+				data.vusers(),
+				data.vchats(),
 				_chatProcess->info.relativePath));
 		});
 	});
@@ -1315,7 +1318,7 @@ void ApiWrap::requestChatMessages(
 		splitRequest(splitIndex, MTPmessages_Search(
 			MTP_flags(MTPmessages_Search::Flag::f_from_id),
 			_chatProcess->info.input,
-			MTP_string(""), // query
+			MTP_string(), // query
 			_user,
 			MTP_inputMessagesFilterEmpty(),
 			MTP_int(0), // min_date
@@ -1646,7 +1649,7 @@ void ApiWrap::filePartDone(int offset, const MTPupload_File &result) {
 		return;
 	}
 	const auto &data = result.c_upload_file();
-	if (data.vbytes.v.isEmpty()) {
+	if (data.vbytes().v.isEmpty()) {
 		if (_fileProcess->size > 0) {
 			error("Empty bytes received in file part.");
 			return;
@@ -1665,7 +1668,7 @@ void ApiWrap::filePartDone(int offset, const MTPupload_File &result) {
 			[](const Request &request) { return request.offset; });
 		Assert(i != end(requests));
 
-		i->bytes = data.vbytes.v;
+		i->bytes = data.vbytes().v;
 
 		auto &file = _fileProcess->file;
 		while (!requests.empty() && !requests.front().bytes.isEmpty()) {

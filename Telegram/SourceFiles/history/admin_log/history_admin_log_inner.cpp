@@ -396,7 +396,7 @@ void InnerWidget::requestAdmins() {
 				list
 			) | ranges::view::transform([&](const MTPChannelParticipant &p) {
 				const auto userId = p.match([](const auto &data) {
-					return data.vuser_id.v;
+					return data.vuser_id().v;
 				});
 				const auto canEdit = p.match([](
 						const MTPDchannelParticipantAdmin &data) {
@@ -622,10 +622,10 @@ void InnerWidget::preloadMore(Direction direction) {
 		requestId = 0;
 
 		auto &results = result.c_channels_adminLogResults();
-		_channel->owner().processUsers(results.vusers);
-		_channel->owner().processChats(results.vchats);
+		_channel->owner().processUsers(results.vusers());
+		_channel->owner().processChats(results.vchats());
 		if (!loadedFlag) {
-			addEvents(direction, results.vevents.v);
+			addEvents(direction, results.vevents().v);
 		}
 	}).fail([this, &requestId, &loadedFlag](const RPCError &error) {
 		requestId = 0;
@@ -656,7 +656,7 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 	addToItems.reserve(oldItemsCount + events.size() * 2);
 	for (const auto &event : events) {
 		event.match([&](const MTPDchannelAdminLogEvent &data) {
-			const auto id = data.vid.v;
+			const auto id = data.vid().v;
 			if (_eventIds.find(id) != _eventIds.end()) {
 				return;
 			}
@@ -1199,11 +1199,11 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 				Expects(result.type() == mtpc_channels_channelParticipant);
 
 				auto &participant = result.c_channels_channelParticipant();
-				_channel->owner().processUsers(participant.vusers);
-				auto type = participant.vparticipant.type();
+				_channel->owner().processUsers(participant.vusers());
+				auto type = participant.vparticipant().type();
 				if (type == mtpc_channelParticipantBanned) {
-					auto &banned = participant.vparticipant.c_channelParticipantBanned();
-					editRestrictions(false, banned.vbanned_rights);
+					auto &banned = participant.vparticipant().c_channelParticipantBanned();
+					editRestrictions(false, banned.vbanned_rights());
 				} else {
 					auto hasAdminRights = (type == mtpc_channelParticipantAdmin)
 						|| (type == mtpc_channelParticipantCreator);
@@ -1239,7 +1239,7 @@ void InnerWidget::restrictUser(
 
 void InnerWidget::restrictUserDone(not_null<UserData*> user, const MTPChatBannedRights &rights) {
 	Expects(rights.type() == mtpc_chatBannedRights);
-	if (rights.c_chatBannedRights().vflags.v) {
+	if (rights.c_chatBannedRights().vflags().v) {
 		_admins.erase(std::remove(_admins.begin(), _admins.end(), user), _admins.end());
 		_adminsCanEdit.erase(std::remove(_adminsCanEdit.begin(), _adminsCanEdit.end(), user), _adminsCanEdit.end());
 	}

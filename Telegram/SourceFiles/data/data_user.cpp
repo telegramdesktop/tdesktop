@@ -74,7 +74,7 @@ void UserData::setIsContact(bool is) {
 void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 	if (photo.type() == mtpc_userProfilePhoto) {
 		const auto &data = photo.c_userProfilePhoto();
-		updateUserpic(data.vphoto_id.v, data.vdc_id.v, data.vphoto_small);
+		updateUserpic(data.vphoto_id().v, data.vdc_id().v, data.vphoto_small());
 	} else {
 		clearUserpic();
 	}
@@ -153,22 +153,22 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
 	case mtpc_botInfo: {
 		const auto &d(info.c_botInfo());
-		if (peerFromUser(d.vuser_id.v) != id || !botInfo) return;
+		if (peerFromUser(d.vuser_id().v) != id || !botInfo) return;
 
-		QString desc = qs(d.vdescription);
+		QString desc = qs(d.vdescription());
 		if (botInfo->description != desc) {
 			botInfo->description = desc;
 			botInfo->text = Ui::Text::String(st::msgMinWidth);
 		}
 
-		auto &v = d.vcommands.v;
+		auto &v = d.vcommands().v;
 		botInfo->commands.reserve(v.size());
 		auto changedCommands = false;
 		int32 j = 0;
 		for (const auto &command : v) {
 			command.match([&](const MTPDbotCommand &data) {
-				const auto cmd = qs(data.vcommand);
-				const auto desc = qs(data.vdescription);
+				const auto cmd = qs(data.vcommand());
+				const auto desc = qs(data.vdescription());
 				if (botInfo->commands.size() <= j) {
 					botInfo->commands.push_back(BotCommand(cmd, desc));
 					changedCommands = true;
@@ -260,39 +260,39 @@ bool UserData::hasCalls() const {
 namespace Data {
 
 void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
-	user->owner().processUser(update.vuser);
-	if (update.has_profile_photo()) {
-		user->owner().processPhoto(update.vprofile_photo);
+	user->owner().processUser(update.vuser());
+	if (const auto photo = update.vprofile_photo()) {
+		user->owner().processPhoto(*photo);
 	}
-	const auto settings = update.vsettings.match([&](
+	const auto settings = update.vsettings().match([&](
 			const MTPDpeerSettings &data) {
-		return data.vflags.v;
+		return data.vflags().v;
 	});
 	user->setSettings(settings);
 	user->session().api().applyNotifySettings(
 		MTP_inputNotifyPeer(user->input),
-		update.vnotify_settings);
+		update.vnotify_settings());
 
-	if (update.has_bot_info()) {
-		user->setBotInfo(update.vbot_info);
+	if (const auto info = update.vbot_info()) {
+		user->setBotInfo(*info);
 	} else {
 		user->setBotInfoVersion(-1);
 	}
-	if (update.has_pinned_msg_id()) {
-		user->setPinnedMessageId(update.vpinned_msg_id.v);
+	if (const auto pinned = update.vpinned_msg_id()) {
+		user->setPinnedMessageId(pinned->v);
 	} else {
 		user->clearPinnedMessage();
 	}
-	user->setFullFlags(update.vflags.v);
+	user->setFullFlags(update.vflags().v);
 	user->setIsBlocked(update.is_blocked());
 	user->setCallsStatus(update.is_phone_calls_private()
 		? UserData::CallsStatus::Private
 		: update.is_phone_calls_available()
 		? UserData::CallsStatus::Enabled
 		: UserData::CallsStatus::Disabled);
-	user->setAbout(update.has_about() ? qs(update.vabout) : QString());
-	user->setCommonChatsCount(update.vcommon_chats_count.v);
-	user->checkFolder(update.has_folder_id() ? update.vfolder_id.v : 0);
+	user->setAbout(qs(update.vabout().value_or_empty()));
+	user->setCommonChatsCount(update.vcommon_chats_count().v);
+	user->checkFolder(update.vfolder_id().value_or_empty());
 	user->fullUpdated();
 }
 
