@@ -100,7 +100,8 @@ void HistorySticker::setupLottie() {
 	_lottie = Stickers::LottiePlayerFromDocument(
 		_data,
 		Stickers::LottieSize::MessageHistory,
-		QSize(st::maxStickerSize, st::maxStickerSize) * cIntRetinaFactor());
+		QSize(st::maxStickerSize, st::maxStickerSize) * cIntRetinaFactor(),
+		Lottie::Quality::High);
 	_parent->data()->history()->owner().registerHeavyViewPart(_parent);
 
 	_lottie->updates(

@@ -24,6 +24,7 @@ class SinglePlayer;
 class MultiPlayer;
 class FrameRenderer;
 class Animation;
+enum class Quality : char;
 } // namespace Lottie
 
 namespace Stickers {
@@ -133,6 +134,7 @@ enum class LottieSize : uchar {
 	not_null<DocumentData*> document,
 	LottieSize sizeTag,
 	QSize box,
+	Lottie::Quality quality = Lottie::Quality(),
 	std::shared_ptr<Lottie::FrameRenderer> renderer = nullptr);
 [[nodiscard]] not_null<Lottie::Animation*> LottieAnimationFromDocument(
 	not_null<Lottie::MultiPlayer*> player,

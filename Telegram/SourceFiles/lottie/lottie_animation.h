@@ -42,13 +42,15 @@ public:
 	Animation(
 		not_null<Player*> player,
 		const QByteArray &content,
-		const FrameRequest &request);
+		const FrameRequest &request,
+		Quality quality);
 	Animation(
 		not_null<Player*> player,
 		FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
 		FnMut<void(QByteArray &&cached)> put, // Unknown thread.
 		const QByteArray &content,
-		const FrameRequest &request);
+		const FrameRequest &request,
+		Quality quality);
 
 	[[nodiscard]] bool ready() const;
 	[[nodiscard]] QImage frame() const;

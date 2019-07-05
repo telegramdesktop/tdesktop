@@ -485,6 +485,7 @@ void StickerSetBox::Inner::showPreview() {
 not_null<Lottie::MultiPlayer*> StickerSetBox::Inner::getLottiePlayer() {
 	if (!_lottiePlayer) {
 		_lottiePlayer = std::make_unique<Lottie::MultiPlayer>(
+			Lottie::Quality::Default,
 			Lottie::MakeFrameRenderer());
 		_lottiePlayer->updates(
 		) | rpl::start_with_next([=] {

@@ -971,6 +971,7 @@ void FieldAutocompleteInner::setupLottie(StickerSuggestion &suggestion) {
 			st::stickerPanSize.width() - st::buttonRadius * 2,
 			st::stickerPanSize.height() - st::buttonRadius * 2
 		) * cIntRetinaFactor(),
+		Lottie::Quality::Default,
 		getLottieRenderer());
 
 	suggestion.animated->updates(

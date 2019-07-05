@@ -51,12 +51,14 @@ class SharedState {
 public:
 	SharedState(
 		std::unique_ptr<rlottie::Animation> animation,
-		const FrameRequest &request);
+		const FrameRequest &request,
+		Quality quality);
 	SharedState(
 		const QByteArray &content,
 		std::unique_ptr<rlottie::Animation> animation,
 		std::unique_ptr<Cache> cache,
-		const FrameRequest &request);
+		const FrameRequest &request,
+		Quality quality);
 
 	void start(
 		not_null<Player*> owner,
@@ -98,6 +100,7 @@ private:
 
 	QByteArray _content;
 	std::unique_ptr<rlottie::Animation> _animation;
+	Quality _quality = Quality::Default;
 
 	// crl::queue changes 0,2,4,6 to 1,3,5,7.
 	// main thread changes 1,3,5,7 to 2,4,6,0.

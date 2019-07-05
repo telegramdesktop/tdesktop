@@ -50,6 +50,11 @@ struct FrameRequest {
 	}
 };
 
+enum class Quality : char {
+	Default,
+	High,
+};
+
 QByteArray ReadContent(const QByteArray &data, const QString &filepath);
 
 } // namespace Lottie

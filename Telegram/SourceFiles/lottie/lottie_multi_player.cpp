@@ -15,8 +15,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Lottie {
 
-MultiPlayer::MultiPlayer(std::shared_ptr<FrameRenderer> renderer)
-: _timer([=] { checkNextFrameRender(); })
+MultiPlayer::MultiPlayer(
+	Quality quality,
+	std::shared_ptr<FrameRenderer> renderer)
+: _quality(quality)
+, _timer([=] { checkNextFrameRender(); })
 , _renderer(renderer ? std::move(renderer) : FrameRenderer::Instance()) {
 	crl::on_main_update_requests(
 	) | rpl::start_with_next([=] {
@@ -43,7 +46,8 @@ not_null<Animation*> MultiPlayer::append(
 		std::move(get),
 		std::move(put),
 		content,
-		request));
+		request,
+		_quality));
 	return _animations.back().get();
 }
 
@@ -53,7 +57,8 @@ not_null<Animation*> MultiPlayer::append(
 	_animations.push_back(std::make_unique<Animation>(
 		this,
 		content,
-		request));
+		request,
+		_quality));
 	return _animations.back().get();
 }
 

@@ -580,11 +580,9 @@ void Cache::writeHeader() {
 void Cache::updateFramesReadyCount() {
 	Expects(_data.size() >= headerSize());
 
-	const auto serialized = qint32(_framesReady);
-	const auto offset = headerSize() - sizeof(qint32);
-	bytes::copy(
-		bytes::make_detached_span(_data).subspan(offset),
-		bytes::object_as_span(&serialized));
+	QDataStream stream(&_data, QIODevice::ReadWrite);
+	stream.device()->seek(headerSize() - sizeof(qint32));
+	stream << qint32(_framesReady);
 }
 
 void Cache::prepareBuffers() {

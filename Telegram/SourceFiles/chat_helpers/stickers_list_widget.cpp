@@ -1593,6 +1593,7 @@ void StickersListWidget::ensureLottiePlayer(Set &set) {
 	const auto [i, ok] = _lottieData.emplace(
 		set.id,
 		LottieSet{ std::make_unique<Lottie::MultiPlayer>(
+			Lottie::Quality::Default,
 			getLottieRenderer()) });
 	Assert(ok);
 	const auto raw = set.lottiePlayer = i->second.player.get();

@@ -78,7 +78,8 @@ details::InitData CheckSharedState(std::unique_ptr<SharedState> state) {
 
 details::InitData Init(
 		const QByteArray &content,
-		const FrameRequest &request) {
+		const FrameRequest &request,
+		Quality quality) {
 	if (const auto error = ContentError(content)) {
 		return *error;
 	}
@@ -86,7 +87,8 @@ details::InitData Init(
 	return animation
 		? CheckSharedState(std::make_unique<SharedState>(
 			std::move(animation),
-			request))
+			request,
+			quality))
 		: Error::ParseFailed;
 }
 
@@ -94,7 +96,8 @@ details::InitData Init(
 		const QByteArray &content,
 		FnMut<void(QByteArray &&cached)> put,
 		const QByteArray &cached,
-		const FrameRequest &request) {
+		const FrameRequest &request,
+		Quality quality) {
 	if (const auto error = ContentError(content)) {
 		return *error;
 	}
@@ -107,7 +110,8 @@ details::InitData Init(
 			content,
 			std::move(animation),
 			std::move(cache),
-			request))
+			request,
+			quality))
 		: Error::ParseFailed;
 }
 
@@ -134,7 +138,7 @@ std::shared_ptr<FrameRenderer> MakeFrameRenderer() {
 }
 
 QImage ReadThumbnail(const QByteArray &content) {
-	return Init(content, FrameRequest()).match([](
+	return Init(content, FrameRequest(), Quality::High).match([](
 		const std::unique_ptr<SharedState> &state) {
 		return state->frameForPaint()->original;
 	}, [](Error) {
@@ -145,11 +149,12 @@ QImage ReadThumbnail(const QByteArray &content) {
 Animation::Animation(
 	not_null<Player*> player,
 	const QByteArray &content,
-	const FrameRequest &request)
+	const FrameRequest &request,
+	Quality quality)
 : _player(player) {
 	const auto weak = base::make_weak(this);
 	crl::async([=] {
-		crl::on_main(weak, [=, data = Init(content, request)]() mutable {
+		crl::on_main(weak, [=, data = Init(content, request, quality)]() mutable {
 			initDone(std::move(data));
 		});
 	});
@@ -160,12 +165,13 @@ Animation::Animation(
 	FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
 	FnMut<void(QByteArray &&cached)> put, // Unknown thread.
 	const QByteArray &content,
-	const FrameRequest &request)
+	const FrameRequest &request,
+	Quality quality)
 : _player(player) {
 	const auto weak = base::make_weak(this);
 	get([=, put = std::move(put)](QByteArray &&cached) mutable {
 		crl::async([=, put = std::move(put)]() mutable {
-			auto result = Init(content, std::move(put), cached, request);
+			auto result = Init(content, std::move(put), cached, request, quality);
 			crl::on_main(weak, [=, data = std::move(result)]() mutable {
 				initDone(std::move(data));
 			});

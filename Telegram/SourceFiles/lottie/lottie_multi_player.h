@@ -29,7 +29,9 @@ struct MultiUpdate {
 
 class MultiPlayer final : public Player {
 public:
-	explicit MultiPlayer(std::shared_ptr<FrameRenderer> renderer = nullptr);
+	MultiPlayer(
+		Quality quality = Quality::Default,
+		std::shared_ptr<FrameRenderer> renderer = nullptr);
 	~MultiPlayer();
 
 	void start(
@@ -89,6 +91,7 @@ private:
 	void unpauseAndKeepUp(not_null<Animation*> animation);
 	void removeNow(not_null<Animation*> animation);
 
+	Quality _quality = Quality::Default;
 	base::Timer _timer;
 	const std::shared_ptr<FrameRenderer> _renderer;
 	std::vector<std::unique_ptr<Animation>> _animations;

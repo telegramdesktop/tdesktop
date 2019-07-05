@@ -31,12 +31,14 @@ public:
 	SinglePlayer(
 		const QByteArray &content,
 		const FrameRequest &request,
+		Quality quality = Quality::Default,
 		std::shared_ptr<FrameRenderer> renderer = nullptr);
 	SinglePlayer(
 		FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
 		FnMut<void(QByteArray &&cached)> put, // Unknown thread.
 		const QByteArray &content,
 		const FrameRequest &request,
+		Quality quality = Quality::Default,
 		std::shared_ptr<FrameRenderer> renderer = nullptr);
 	~SinglePlayer();
 
