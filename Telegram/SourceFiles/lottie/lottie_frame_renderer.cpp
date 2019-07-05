@@ -47,7 +47,9 @@ public:
 	explicit FrameRendererObject(
 		crl::weak_on_queue<FrameRendererObject> weak);
 
-	void append(std::unique_ptr<SharedState> entry);
+	void append(
+		std::unique_ptr<SharedState> entry,
+		const FrameRequest &request);
 	void frameShown();
 	void updateFrameRequest(
 		not_null<SharedState*> entry,
@@ -132,10 +134,10 @@ FrameRendererObject::FrameRendererObject(
 : _weak(std::move(weak)) {
 }
 
-void FrameRendererObject::append(std::unique_ptr<SharedState> state) {
-	_entries.push_back({ std::move(state) });
-	auto &entry = _entries.back();
-	entry.request = entry.state->frameForPaint()->request;
+void FrameRendererObject::append(
+		std::unique_ptr<SharedState> state,
+		const FrameRequest &request) {
+	_entries.push_back({ std::move(state), request });
 	queueGenerateFrames();
 }
 
@@ -537,10 +539,12 @@ std::shared_ptr<FrameRenderer> FrameRenderer::Instance() {
 	return result;
 }
 
-void FrameRenderer::append(std::unique_ptr<SharedState> entry) {
-	_wrapped.with([entry = std::move(entry)](
+void FrameRenderer::append(
+		std::unique_ptr<SharedState> entry,
+		const FrameRequest &request) {
+	_wrapped.with([=, entry = std::move(entry)](
 			FrameRendererObject &unwrapped) mutable {
-		unwrapped.append(std::move(entry));
+		unwrapped.append(std::move(entry), request);
 	});
 }
 

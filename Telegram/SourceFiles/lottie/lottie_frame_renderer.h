@@ -131,7 +131,9 @@ public:
 	static std::shared_ptr<FrameRenderer> CreateIndependent();
 	static std::shared_ptr<FrameRenderer> Instance();
 
-	void append(std::unique_ptr<SharedState> entry);
+	void append(
+		std::unique_ptr<SharedState> entry,
+		const FrameRequest &request);
 
 	void updateFrameRequest(
 		not_null<SharedState*> entry,

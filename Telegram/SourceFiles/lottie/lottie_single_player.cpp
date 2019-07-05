@@ -45,7 +45,8 @@ void SinglePlayer::start(
 	_state = state.get();
 	auto information = state->information();
 	state->start(this, crl::now());
-	_renderer->append(std::move(state));
+	const auto request = state->frameForPaint()->request;
+	_renderer->append(std::move(state), request);
 	_updates.fire({ std::move(information) });
 
 	crl::on_main_update_requests(
