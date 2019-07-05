@@ -492,8 +492,8 @@ HistoryMessage::HistoryMessage(
 	UserId from,
 	const QString &postAuthor,
 	const TextWithEntities &textWithEntities)
-: HistoryItem(history, id, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
-	createComponentsHelper(flags, replyTo, viaBotId, postAuthor, MTPReplyMarkup());
+: HistoryItem(history, id, flags & ~MTPDmessage::Flag::f_reply_markup, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
+	createComponentsHelper(flags & ~MTPDmessage::Flag::f_reply_markup, replyTo, viaBotId, postAuthor, MTPReplyMarkup());
 
 	setText(textWithEntities);
 }
