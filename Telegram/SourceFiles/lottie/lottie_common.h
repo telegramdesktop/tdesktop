@@ -39,16 +39,7 @@ struct FrameRequest {
 	[[nodiscard]] bool empty() const {
 		return box.isEmpty();
 	}
-	[[nodiscard]] QSize size(const QSize &original) const {
-		Expects(!empty());
-
-		const auto result = original.scaled(box, Qt::KeepAspectRatio);
-		const auto skipw = result.width() % 2;
-		const auto skiph = result.height() % 2;
-		return QSize(
-			std::max(result.width() - skipw, 2),
-			std::max(result.height() - skiph, 2));
-	}
+	[[nodiscard]] QSize size(const QSize &original) const;
 
 	[[nodiscard]] bool operator==(const FrameRequest &other) const {
 		return (box == other.box)

@@ -23,6 +23,17 @@ QByteArray ReadFile(const QString &filepath) {
 
 } // namespace
 
+QSize FrameRequest::size(const QSize &original) const {
+	Expects(!empty());
+
+	const auto result = original.scaled(box, Qt::KeepAspectRatio);
+	const auto skipw = result.width() % 8;
+	const auto skiph = result.height() % 8;
+	return QSize(
+		std::max(result.width() - skipw, 8),
+		std::max(result.height() - skiph, 8));
+}
+
 QByteArray ReadContent(const QByteArray &data, const QString &filepath) {
 	return data.isEmpty() ? ReadFile(filepath) : base::duplicate(data);
 }

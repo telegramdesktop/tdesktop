@@ -254,12 +254,34 @@ void Encode(
 	EncodeAlpha(to, cache);
 }
 
+int YLineSize(int width) {
+	return ((width + kAlignStorage - 1) / kAlignStorage) * kAlignStorage;
+}
+
+int UVLineSize(int width) {
+	return (((width / 2) + kAlignStorage - 1) / kAlignStorage) * kAlignStorage;
+}
+
+int YSize(int width, int height) {
+	return YLineSize(width) * height;
+}
+
+int UVSize(int width, int height) {
+	return UVLineSize(width) * (height / 2);
+}
+
+int ASize(int width, int height) {
+	return (width * height) / 2;
+}
+
 } // namespace
 
 void EncodedStorage::allocate(int width, int height) {
 	Expects((width % 2) == 0 && (height % 2) == 0);
 
-	if (_width != width || _height != height) {
+	if (YSize(width, height) != YSize(_width, _height)
+		|| UVSize(width, height) != UVSize(_width, _height)
+		|| ASize(width, height) != ASize(_width, _height)) {
 		_width = width;
 		_height = height;
 		reallocate();
@@ -267,8 +289,10 @@ void EncodedStorage::allocate(int width, int height) {
 }
 
 void EncodedStorage::reallocate() {
-	const auto total = _width * _height * 2;
-	_data = QByteArray(total + kAlignStorage - 1, Qt::Uninitialized);
+	const auto total = YSize(_width, _height)
+		+ 2 * UVSize(_width, _height)
+		+ ASize(_width, _height);
+	_data = QByteArray(total + kAlignStorage - 1, 0);
 }
 
 int EncodedStorage::width() const {
@@ -280,7 +304,9 @@ int EncodedStorage::height() const {
 }
 
 int EncodedStorage::size() const {
-	return _width * _height * 2;
+	return YSize(_width, _height)
+		+ 2 * UVSize(_width, _height)
+		+ ASize(_width, _height);
 }
 
 char *EncodedStorage::data() {
@@ -304,39 +330,39 @@ const uint8_t *EncodedStorage::yData() const {
 }
 
 int EncodedStorage::yBytesPerLine() const {
-	return _width;
+	return YLineSize(_width);
 }
 
 uint8_t *EncodedStorage::uData() {
-	return yData() + (_width * _height);
+	return yData() + YSize(_width, _height);
 }
 
 const uint8_t *EncodedStorage::uData() const {
-	return yData() + (_width * _height);
+	return yData() + YSize(_width, _height);
 }
 
 int EncodedStorage::uBytesPerLine() const {
-	return _width / 2;
+	return UVLineSize(_width);
 }
 
 uint8_t *EncodedStorage::vData() {
-	return uData() + (_width * _height / 4);
+	return uData() + UVSize(_width, _height);
 }
 
 const uint8_t *EncodedStorage::vData() const {
-	return uData() + (_width * _height / 4);
+	return uData() + UVSize(_width, _height);
 }
 
 int EncodedStorage::vBytesPerLine() const {
-	return _width / 2;
+	return UVLineSize(_width);
 }
 
 uint8_t *EncodedStorage::aData() {
-	return uData() + (_width * _height) / 2;
+	return uData() + 2 * UVSize(_width, _height);
 }
 
 const uint8_t *EncodedStorage::aData() const {
-	return uData() + (_width * _height) / 2;
+	return uData() + 2 * UVSize(_width, _height);
 }
 
 int EncodedStorage::aBytesPerLine() const {
