@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <crl/crl_time.h>
 
 #include <QSize>
+#include <QString>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
