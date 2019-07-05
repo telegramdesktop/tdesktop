@@ -376,6 +376,15 @@ struct RepeatHelper {
 template <typename Type>
 using Repeat = typename RepeatHelper<Type>::type;
 
+struct InnerHelper {
+	static void Check(...);
+	template <typename Type, typename Result = decltype(std::declval<Type>().v)>
+	static Result Check(const Type&);
+
+	template <typename Type>
+	using type = std::decay_t<decltype(Check(std::declval<Type>()))>;
+};
+
 template <typename Type>
 class conditional {
 public:
@@ -397,12 +406,16 @@ public:
 		return *_value;
 	}
 
-	template <typename Inner = std::decay_t<decltype(std::declval<Type>().v)>>
+	template <
+		typename Inner = InnerHelper::type<Type>,
+		typename = std::enable_if_t<!std::is_same_v<Inner, void>>>
 	Inner value_or(Repeat<Inner> fallback) const {
 		return _value ? _value->v : fallback;
 	}
 
-	template <typename Inner = std::decay_t<decltype(std::declval<Type>().v)>>
+	template <
+		typename Inner = InnerHelper::type<Type>,
+		typename = std::enable_if_t<!std::is_same_v<Inner, void>>>
 	Inner value_or_empty() const {
 		return _value ? _value->v : Inner();
 	}
