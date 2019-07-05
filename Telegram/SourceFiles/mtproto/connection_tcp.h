@@ -7,18 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/auth_key.h"
 #include "mtproto/connection_abstract.h"
-#include "base/timer.h"
+#include "mtproto/auth_key.h"
 
 namespace MTP {
 namespace internal {
 
+class AbstractSocket;
+
 class TcpConnection : public AbstractConnection {
 public:
-	TcpConnection(
-		QThread *thread,
-		const ProxyData &proxy);
+	TcpConnection(QThread *thread, const ProxyData &proxy);
 
 	ConnectionPointer clone(const ProxyData &proxy) override;
 
@@ -55,7 +54,7 @@ private:
 
 	void socketConnected();
 	void socketDisconnected();
-	void socketError(QAbstractSocket::SocketError e);
+	void socketError();
 
 	mtpBuffer parsePacket(bytes::const_span bytes);
 	void ensureAvailableInBuffer(int amount);
@@ -67,7 +66,7 @@ private:
 
 	void sendBuffer(mtpBuffer &&buffer);
 
-	QTcpSocket _socket;
+	std::unique_ptr<AbstractSocket> _socket;
 	bool _connectionStarted = false;
 
 	int _offsetBytes = 0;
@@ -91,6 +90,9 @@ private:
 	QString _address;
 	int32 _port = 0;
 	crl::time _pingTime = 0;
+
+	rpl::lifetime _connectedLifetime;
+	rpl::lifetime _lifetime;
 
 };
 

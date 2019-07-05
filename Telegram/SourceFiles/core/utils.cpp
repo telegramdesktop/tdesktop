@@ -305,11 +305,12 @@ bool ProxyData::operator!=(const ProxyData &other) const {
 }
 
 bool ProxyData::ValidMtprotoPassword(const QString &secret) {
+	using Expression = QRegularExpression;
 	if (secret.size() == 32) {
-		static const auto check = QRegularExpression("^[a-fA-F0-9]{32}$");
+		static const auto check = Expression("^[a-fA-F0-9]{32}$");
 		return check.match(secret).hasMatch();
 	} else if (secret.size() == 34) {
-		static const auto check = QRegularExpression("^dd[a-fA-F0-9]{32}$");
+		static const auto check = Expression("^(dd|ee)[a-fA-F0-9]{32}$");
 		return check.match(secret).hasMatch();
 	}
 	return false;

@@ -161,6 +161,7 @@ ConnectionPointer AbstractConnection::Create(
 		not_null<Instance*> instance,
 		DcOptions::Variants::Protocol protocol,
 		QThread *thread,
+		const bytes::vector &secret,
 		const ProxyData &proxy) {
 	auto result = [&] {
 		if (protocol == DcOptions::Variants::Tcp) {

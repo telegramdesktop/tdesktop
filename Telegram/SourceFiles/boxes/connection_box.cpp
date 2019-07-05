@@ -999,6 +999,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 			mtproto,
 			type,
 			QThread::currentThread(),
+			item.data.secretFromMtprotoPassword(),
 			item.data);
 		setupChecker(item.id, checker);
 	};

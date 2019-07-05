@@ -356,6 +356,7 @@ void ConnectionPrivate::appendTestConnection(
 			_instance,
 			protocol,
 			thread(),
+			protocolSecret,
 			_connectionOptions->proxy),
 		priority
 	});

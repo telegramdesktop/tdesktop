@@ -1,0 +1,122 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+#include "mtproto/mtp_tcp_socket.h"
+
+namespace MTP {
+namespace internal {
+namespace {
+
+using ErrorSignal = void(QTcpSocket::*)(QAbstractSocket::SocketError);
+const auto QTcpSocket_error = ErrorSignal(&QAbstractSocket::error);
+
+} // namespace
+
+TcpSocket::TcpSocket(not_null<QThread*> thread, const ProxyData &proxy)
+: AbstractSocket(thread) {
+	_socket.moveToThread(thread);
+	_socket.setProxy(ToNetworkProxy(proxy));
+	const auto wrap = [&](auto handler) {
+		return [=](auto &&...args) {
+			InvokeQueued(this, [=] { handler(args...); });
+		};
+	};
+	using Error = QAbstractSocket::SocketError;
+	connect(
+		&_socket,
+		&QTcpSocket::connected,
+		wrap([=] { _connected.fire({}); }));
+	connect(
+		&_socket,
+		&QTcpSocket::disconnected,
+		wrap([=] { _disconnected.fire({}); }));
+	connect(
+		&_socket,
+		&QTcpSocket::readyRead,
+		wrap([=] { _readyRead.fire({}); }));
+	connect(
+		&_socket,
+		QTcpSocket_error,
+		wrap([=](Error e) { logError(e); _error.fire({}); }));
+}
+
+TcpSocket::~TcpSocket() {
+	_socket.close();
+}
+
+void TcpSocket::connectToHost(const QString &address, int port) {
+	_socket.connectToHost(address, port);
+}
+
+bool TcpSocket::isConnected() {
+	return (_socket.state() == QAbstractSocket::ConnectedState);
+}
+
+int TcpSocket::bytesAvailable() {
+	return _socket.bytesAvailable();
+}
+
+int64 TcpSocket::read(char *buffer, int64 maxLength) {
+	return _socket.read(buffer, maxLength);
+}
+
+int64 TcpSocket::write(const char *buffer, int64 length) {
+	return _socket.write(buffer, length);
+}
+
+int32 TcpSocket::debugState() {
+	return _socket.state();
+}
+
+void TcpSocket::LogError(int errorCode, const QString &errorText) {
+	switch (errorCode) {
+	case QAbstractSocket::ConnectionRefusedError:
+		LOG(("TCP Error: socket connection refused - %1").arg(errorText));
+		break;
+
+	case QAbstractSocket::RemoteHostClosedError:
+		TCP_LOG(("TCP Info: remote host closed socket connection - %1"
+			).arg(errorText));
+		break;
+
+	case QAbstractSocket::HostNotFoundError:
+		LOG(("TCP Error: host not found - %1").arg(errorText));
+		break;
+
+	case QAbstractSocket::SocketTimeoutError:
+		LOG(("TCP Error: socket timeout - %1").arg(errorText));
+		break;
+
+	case QAbstractSocket::NetworkError:
+		LOG(("TCP Error: network - %1").arg(errorText));
+		break;
+
+	case QAbstractSocket::ProxyAuthenticationRequiredError:
+	case QAbstractSocket::ProxyConnectionRefusedError:
+	case QAbstractSocket::ProxyConnectionClosedError:
+	case QAbstractSocket::ProxyConnectionTimeoutError:
+	case QAbstractSocket::ProxyNotFoundError:
+	case QAbstractSocket::ProxyProtocolError:
+		LOG(("TCP Error: proxy (%1) - %2").arg(errorCode).arg(errorText));
+		break;
+
+	default:
+		LOG(("TCP Error: other (%1) - %2").arg(errorCode).arg(errorText));
+		break;
+	}
+
+	TCP_LOG(("TCP Error %1, restarting! - %2"
+		).arg(errorCode
+		).arg(errorText));
+}
+
+void TcpSocket::logError(int errorCode) {
+	LogError(errorCode, _socket.errorString());
+}
+
+} // namespace internal
+} // namespace MTP

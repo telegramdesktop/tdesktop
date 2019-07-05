@@ -51,9 +51,7 @@ class AbstractConnection : public QObject {
 	Q_OBJECT
 
 public:
-	AbstractConnection(
-		QThread *thread,
-		const ProxyData &proxy);
+	AbstractConnection(QThread *thread, const ProxyData &proxy);
 	AbstractConnection(const AbstractConnection &other) = delete;
 	AbstractConnection &operator=(const AbstractConnection &other) = delete;
 	virtual ~AbstractConnection() = default;
@@ -63,6 +61,7 @@ public:
 		not_null<Instance*> instance,
 		DcOptions::Variants::Protocol protocol,
 		QThread *thread,
+		const bytes::vector &secret,
 		const ProxyData &proxy);
 
 	virtual ConnectionPointer clone(const ProxyData &proxy) = 0;

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/connection_tcp.h"
 
+#include "mtproto/mtp_abstract_socket.h"
 #include "base/bytes.h"
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
@@ -23,9 +24,6 @@ constexpr auto kPacketSizeMax = int(0x01000000 * sizeof(mtpPrime));
 constexpr auto kFullConnectionTimeout = 8 * crl::time(1000);
 constexpr auto kSmallBufferSize = 256 * 1024;
 constexpr auto kMinPacketBuffer = 256;
-
-using ErrorSignal = void(QTcpSocket::*)(QAbstractSocket::SocketError);
-const auto QTcpSocket_error = ErrorSignal(&QAbstractSocket::error);
 
 } // namespace
 
@@ -240,28 +238,6 @@ auto TcpConnection::Protocol::Create(bytes::vector &&secret)
 TcpConnection::TcpConnection(QThread *thread, const ProxyData &proxy)
 : AbstractConnection(thread, proxy)
 , _checkNonce(rand_value<MTPint128>()) {
-	_socket.moveToThread(thread);
-	_socket.setProxy(ToNetworkProxy(proxy));
-	connect(
-		&_socket,
-		&QTcpSocket::connected,
-		this,
-		&TcpConnection::socketConnected);
-	connect(
-		&_socket,
-		&QTcpSocket::disconnected,
-		this,
-		&TcpConnection::socketDisconnected);
-	connect(
-		&_socket,
-		&QTcpSocket::readyRead,
-		this,
-		&TcpConnection::socketRead);
-	connect(
-		&_socket,
-		QTcpSocket_error,
-		this,
-		&TcpConnection::socketError);
 }
 
 ConnectionPointer TcpConnection::clone(const ProxyData &proxy) {
@@ -299,10 +275,8 @@ void TcpConnection::ensureAvailableInBuffer(int amount) {
 void TcpConnection::socketRead() {
 	Expects(_leftBytes > 0 || !_usingLargeBuffer);
 
-	if (_socket.state() != QAbstractSocket::ConnectedState) {
-		LOG(("MTP error: "
-			"socket not connected in socketRead(), state: %1"
-			).arg(_socket.state()));
+	if (_socket->isConnected()) {
+		LOG(("MTP Error: Socket not connected in socketRead()"));
 		emit error(kErrorCodeOther);
 		return;
 	}
@@ -321,7 +295,7 @@ void TcpConnection::socketRead() {
 		const auto free = full.subspan(_readBytes);
 		Assert(free.size() >= readLimit);
 
-		const auto readCount = _socket.read(
+		const auto readCount = _socket->read(
 			reinterpret_cast<char*>(free.data()),
 			readLimit);
 		if (readCount > 0) {
@@ -389,7 +363,7 @@ void TcpConnection::socketRead() {
 			TCP_LOG(("TCP Info: no bytes read, but bytes available was true..."));
 			break;
 		}
-	} while (_socket.state() == QAbstractSocket::ConnectedState && _socket.bytesAvailable());
+	} while (_socket->isConnected() && _socket->bytesAvailable());
 }
 
 mtpBuffer TcpConnection::parsePacket(bytes::const_span bytes) {
@@ -416,45 +390,6 @@ mtpBuffer TcpConnection::parsePacket(bytes::const_span bytes) {
 	auto result = mtpBuffer(ints.size());
 	memcpy(result.data(), ints.data(), ints.size() * sizeof(mtpPrime));
 	return result;
-}
-
-void TcpConnection::handleError(QAbstractSocket::SocketError e, QTcpSocket &socket) {
-	switch (e) {
-	case QAbstractSocket::ConnectionRefusedError:
-	LOG(("TCP Error: socket connection refused - %1").arg(socket.errorString()));
-	break;
-
-	case QAbstractSocket::RemoteHostClosedError:
-	TCP_LOG(("TCP Info: remote host closed socket connection - %1").arg(socket.errorString()));
-	break;
-
-	case QAbstractSocket::HostNotFoundError:
-	LOG(("TCP Error: host not found - %1").arg(socket.errorString()));
-	break;
-
-	case QAbstractSocket::SocketTimeoutError:
-	LOG(("TCP Error: socket timeout - %1").arg(socket.errorString()));
-	break;
-
-	case QAbstractSocket::NetworkError:
-	LOG(("TCP Error: network - %1").arg(socket.errorString()));
-	break;
-
-	case QAbstractSocket::ProxyAuthenticationRequiredError:
-	case QAbstractSocket::ProxyConnectionRefusedError:
-	case QAbstractSocket::ProxyConnectionClosedError:
-	case QAbstractSocket::ProxyConnectionTimeoutError:
-	case QAbstractSocket::ProxyNotFoundError:
-	case QAbstractSocket::ProxyProtocolError:
-	LOG(("TCP Error: proxy (%1) - %2").arg(e).arg(socket.errorString()));
-	break;
-
-	default:
-	LOG(("TCP Error: other (%1) - %2").arg(e).arg(socket.errorString()));
-	break;
-	}
-
-	TCP_LOG(("TCP Error %1, restarting! - %2").arg(e).arg(socket.errorString()));
 }
 
 void TcpConnection::socketConnected() {
@@ -544,9 +479,11 @@ void TcpConnection::writeConnectionStart() {
 	const auto dcId = reinterpret_cast<int16*>(nonce.data() + 60);
 	*dcId = _protocolDcId;
 
-	_socket.write(reinterpret_cast<const char*>(nonce.data()), 56);
+	_socket->write(reinterpret_cast<const char*>(nonce.data()), 56);
 	aesCtrEncrypt(nonce, _sendKey, &_sendState);
-	_socket.write(reinterpret_cast<const char*>(nonce.subspan(56).data()), 8);
+	_socket->write(
+		reinterpret_cast<const char*>(nonce.subspan(56).data()),
+		8);
 }
 
 void TcpConnection::sendBuffer(mtpBuffer &&buffer) {
@@ -559,7 +496,7 @@ void TcpConnection::sendBuffer(mtpBuffer &&buffer) {
 	const auto bytes = _protocol->finalizePacket(buffer);
 	TCP_LOG(("TCP Info: write packet %1 bytes").arg(bytes.size()));
 	aesCtrEncrypt(bytes, _sendKey, &_sendState);
-	_socket.write(
+	_socket->write(
 		reinterpret_cast<const char*>(bytes.data()),
 		bytes.size());
 }
@@ -568,12 +505,9 @@ void TcpConnection::sendBuffer(mtpBuffer &&buffer) {
 void TcpConnection::disconnectFromServer() {
 	if (_status == Status::Finished) return;
 	_status = Status::Finished;
-
-	disconnect(&_socket, &QTcpSocket::connected, nullptr, nullptr);
-	disconnect(&_socket, &QTcpSocket::disconnected, nullptr, nullptr);
-	disconnect(&_socket, &QTcpSocket::readyRead, nullptr, nullptr);
-	disconnect(&_socket, QTcpSocket_error, nullptr, nullptr);
-	_socket.close();
+	_connectedLifetime.destroy();
+	_lifetime.destroy();
+	_socket = nullptr;
 }
 
 void TcpConnection::connectToServer(
@@ -605,9 +539,30 @@ void TcpConnection::connectToServer(
 			).arg(protocolDcId
 			).arg(_address + ':' + QString::number(_port)));
 	}
+	_socket = AbstractSocket::Create(thread(), protocolSecret, _proxy);
 	_protocolDcId = protocolDcId;
 
-	_socket.connectToHost(_address, _port);
+	_socket->connected(
+	) | rpl::start_with_next([=] {
+		socketConnected();
+	}, _connectedLifetime);
+
+	_socket->disconnected(
+	) | rpl::start_with_next([=] {
+		socketDisconnected();
+	}, _lifetime);
+
+	_socket->readyRead(
+	) | rpl::start_with_next([=] {
+		socketRead();
+	}, _lifetime);
+
+	_socket->error(
+	) | rpl::start_with_next([=] {
+		socketError();
+	}, _lifetime);
+
+	_socket->connectToHost(_address, _port);
 }
 
 crl::time TcpConnection::pingTime() const {
@@ -641,11 +596,7 @@ void TcpConnection::socketPacket(bytes::const_span bytes) {
 			if (data.vnonce() == _checkNonce) {
 				DEBUG_LOG(("Connection Info: Valid pq response by TCP."));
 				_status = Status::Ready;
-				disconnect(
-					&_socket,
-					&QTcpSocket::connected,
-					nullptr,
-					nullptr);
+				_connectedLifetime.destroy();
 				_pingTime = (crl::now() - _pingTime);
 				emit connected();
 			} else {
@@ -667,7 +618,7 @@ bool TcpConnection::isConnected() const {
 }
 
 int32 TcpConnection::debugState() const {
-	return _socket.state();
+	return _socket->debugState();
 }
 
 QString TcpConnection::transport() const {
@@ -691,10 +642,9 @@ QString TcpConnection::tag() const {
 	return result;
 }
 
-void TcpConnection::socketError(QAbstractSocket::SocketError e) {
+void TcpConnection::socketError() {
 	if (_status == Status::Finished) return;
 
-	handleError(e, _socket);
 	emit error(kErrorCodeOther);
 }
 
