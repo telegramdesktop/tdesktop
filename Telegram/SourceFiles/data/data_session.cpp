@@ -613,7 +613,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				channel->setVersion(data.vversion().v);
 			}
 			if (const auto restriction = data.vrestriction_reason()) {
-				channel->setUnavailableReason(qs(*restriction));
+				channel->setUnavailableReason(
+					ExtractUnavailableReason(qs(*restriction)));
 			} else {
 				channel->setUnavailableReason(QString());
 			}
