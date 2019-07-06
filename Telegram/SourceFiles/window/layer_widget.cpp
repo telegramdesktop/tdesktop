@@ -1161,7 +1161,7 @@ void MediaPreviewWidget::clipCallback(Media::Clip::Notification notification) {
 
 	case NotificationRepaint: {
 		if (_gif && !_gif->currentDisplayed()) {
-			updateArea();
+			update(updateArea());
 		}
 	} break;
 	}

@@ -226,7 +226,7 @@ private:
 	void startShow();
 	void fillEmojiString();
 	void resetGifAndCache();
-	QRect updateArea() const;
+	[[nodiscard]] QRect updateArea() const;
 
 	not_null<Window::SessionController*> _controller;
 
