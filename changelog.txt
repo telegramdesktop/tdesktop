@@ -1,3 +1,12 @@
+1.7.13 (06.07.19)
+
+- Send ultra-lightweight high-quality animated stickers to express emotion with motion.
+- Receive animated stickers instantly on any connection at just 20-30 KB per sticker.
+- Enjoy smooth animations at 60 frames per second.
+- Create new animated sets and upload them to @stickers for everybody to use.
+- Try out these sample stickers: t.me/addstickers/hotcherry
+- Use strikethrough and underline formatting.
+
 1.7.12 beta (05.07.19)
 
 - Bug fixes and other minor improvements.
