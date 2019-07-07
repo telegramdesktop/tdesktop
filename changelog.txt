@@ -1,3 +1,7 @@
+1.7.14 (07.07.19)
+
+- Bug fixes and other minor improvements.
+
 1.7.13 (06.07.19)
 
 - Send ultra-lightweight high-quality animated stickers to express emotion with motion.

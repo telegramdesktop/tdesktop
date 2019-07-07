@@ -268,8 +268,8 @@ void SharedState::calculateProperties() {
 		: _cache->framesCount();
 
 	_size = QSize(
-		(width > 0 && width < kMaxSize) ? int(width) : 0,
-		(height > 0 && height < kMaxSize) ? int(height) : 0);
+		(width > 0 && width <= kMaxSize) ? int(width) : 0,
+		(height > 0 && height <= kMaxSize) ? int(height) : 0);
 	_frameRate = (rate > 0 && rate <= kMaxFrameRate) ? int(rate) : 0;
 	_framesCount = (count > 0 && count <= kMaxFramesCount) ? int(count) : 0;
 }

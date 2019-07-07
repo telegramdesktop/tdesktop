@@ -23,9 +23,9 @@ class Animation;
 
 namespace Lottie {
 
-inline constexpr auto kMaxFrameRate = 120;
-inline constexpr auto kMaxSize = 3096;
-inline constexpr auto kMaxFramesCount = 600;
+inline constexpr auto kMaxFrameRate = 60;
+inline constexpr auto kMaxSize = 512;
+inline constexpr auto kMaxFramesCount = 180;
 inline constexpr auto kFrameDisplayTimeAlreadyDone
 	= std::numeric_limits<crl::time>::max();
 inline constexpr auto kDisplayedInitial = crl::time(-1);
