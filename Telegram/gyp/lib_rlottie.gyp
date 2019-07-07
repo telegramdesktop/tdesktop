@@ -24,7 +24,7 @@
     },
     'defines': [
       '_USE_MATH_DEFINES',
-      'RAPIDJSON_ASSERT=',
+      'RAPIDJSON_ASSERT=(void)',
       'LOT_BUILD',
     ],
     'include_dirs': [
