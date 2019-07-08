@@ -224,7 +224,9 @@ bytes::const_span TcpConnection::Protocol::VersionD::readPacket(
 
 auto TcpConnection::Protocol::Create(bytes::vector &&secret)
 -> std::unique_ptr<Protocol> {
-	if (secret.size() == 17 && static_cast<uchar>(secret[0]) == 0xDD) {
+	if (secret.size() == 17
+		&& (static_cast<uchar>(secret[0]) == 0xDD
+			|| static_cast<uchar>(secret[0]) == 0xEE)) {
 		return std::make_unique<VersionD>(
 			bytes::make_vector(bytes::make_span(secret).subspan(1)));
 	} else if (secret.size() == 16) {
@@ -363,7 +365,7 @@ void TcpConnection::socketRead() {
 			TCP_LOG(("TCP Info: no bytes read, but bytes available was true..."));
 			break;
 		}
-	} while (_socket->isConnected() && _socket->bytesAvailable());
+	} while (_socket->isConnected() && _socket->hasBytesAvailable());
 }
 
 mtpBuffer TcpConnection::parsePacket(bytes::const_span bytes) {

@@ -9,12 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP {
 namespace internal {
-namespace {
-
-using ErrorSignal = void(QTcpSocket::*)(QAbstractSocket::SocketError);
-const auto QTcpSocket_error = ErrorSignal(&QAbstractSocket::error);
-
-} // namespace
 
 TcpSocket::TcpSocket(not_null<QThread*> thread, const ProxyData &proxy)
 : AbstractSocket(thread) {
@@ -38,14 +32,13 @@ TcpSocket::TcpSocket(not_null<QThread*> thread, const ProxyData &proxy)
 		&_socket,
 		&QTcpSocket::readyRead,
 		wrap([=] { _readyRead.fire({}); }));
+
+	using ErrorSignal = void(QTcpSocket::*)(QAbstractSocket::SocketError);
+	const auto QTcpSocket_error = ErrorSignal(&QAbstractSocket::error);
 	connect(
 		&_socket,
 		QTcpSocket_error,
-		wrap([=](Error e) { logError(e); _error.fire({}); }));
-}
-
-TcpSocket::~TcpSocket() {
-	_socket.close();
+		wrap([=](Error e) { handleError(e); }));
 }
 
 void TcpSocket::connectToHost(const QString &address, int port) {
@@ -56,8 +49,8 @@ bool TcpSocket::isConnected() {
 	return (_socket.state() == QAbstractSocket::ConnectedState);
 }
 
-int TcpSocket::bytesAvailable() {
-	return _socket.bytesAvailable();
+bool TcpSocket::hasBytesAvailable() {
+	return _socket.bytesAvailable() > 0;
 }
 
 int64 TcpSocket::read(char *buffer, int64 maxLength) {
@@ -114,8 +107,9 @@ void TcpSocket::LogError(int errorCode, const QString &errorText) {
 		).arg(errorText));
 }
 
-void TcpSocket::logError(int errorCode) {
+void TcpSocket::handleError(int errorCode) {
 	LogError(errorCode, _socket.errorString());
+	_error.fire({});
 }
 
 } // namespace internal

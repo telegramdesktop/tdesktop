@@ -535,6 +535,8 @@
 <(src_loc)/mtproto/mtp_abstract_socket.h
 <(src_loc)/mtproto/mtp_tcp_socket.cpp
 <(src_loc)/mtproto/mtp_tcp_socket.h
+<(src_loc)/mtproto/mtp_tls_socket.cpp
+<(src_loc)/mtproto/mtp_tls_socket.h
 <(src_loc)/mtproto/mtp_instance.cpp
 <(src_loc)/mtproto/mtp_instance.h
 <(src_loc)/mtproto/rsa_public_key.cpp

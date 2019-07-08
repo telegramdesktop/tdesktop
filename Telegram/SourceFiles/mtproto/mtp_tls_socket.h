@@ -12,9 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP {
 namespace internal {
 
-class TcpSocket : public AbstractSocket {
+class TlsSocket : public AbstractSocket {
 public:
-	TcpSocket(not_null<QThread*> thread, const ProxyData &proxy);
+	TlsSocket(
+		not_null<QThread*> thread,
+		const bytes::vector &secret,
+		const ProxyData &proxy);
 
 	void connectToHost(const QString &address, int port) override;
 	bool isConnected() override;
@@ -24,12 +27,32 @@ public:
 
 	int32 debugState() override;
 
-	static void LogError(int errorCode, const QString &errorText);
-
 private:
-	void handleError(int errorCode);
+	enum class State {
+		NotConnected,
+		Connecting,
+		WaitingHello,
+		Ready,
+		Working,
+		Error,
+	};
+
+	void plainConnected();
+	void plainDisconnected();
+	void plainReadyRead();
+	void handleError(int errorCode = 0);
+	[[nodiscard]] bool requiredHelloPartReady() const;
+	void readHello();
+	void checkHelloParts12(int parts1Size);
+	void checkHelloParts34(int parts123Size);
+	void checkHelloDigest();
+	void readData();
 
 	QTcpSocket _socket;
+	bytes::vector _key;
+	State _state = State::NotConnected;
+	QByteArray _incoming;
+	int16 _serverHelloLength = 0;
 
 };
 
