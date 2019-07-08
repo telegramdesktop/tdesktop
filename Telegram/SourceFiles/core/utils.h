@@ -270,6 +270,11 @@ struct ProxyData {
 		Http,
 		Mtproto,
 	};
+	enum class Status {
+		Valid,
+		Unsupported,
+		Invalid,
+	};
 
 	Type type = Type::None;
 	QString host;
@@ -279,16 +284,18 @@ struct ProxyData {
 	std::vector<QString> resolvedIPs;
 	crl::time resolvedExpireAt = 0;
 
-	bool valid() const;
-	bool supportsCalls() const;
-	bool tryCustomResolve() const;
-	bytes::vector secretFromMtprotoPassword() const;
-	explicit operator bool() const;
-	bool operator==(const ProxyData &other) const;
-	bool operator!=(const ProxyData &other) const;
+	[[nodiscard]] bool valid() const;
+	[[nodiscard]] Status status() const;
+	[[nodiscard]] bool supportsCalls() const;
+	[[nodiscard]] bool tryCustomResolve() const;
+	[[nodiscard]] bytes::vector secretFromMtprotoPassword() const;
+	[[nodiscard]] explicit operator bool() const;
+	[[nodiscard]] bool operator==(const ProxyData &other) const;
+	[[nodiscard]] bool operator!=(const ProxyData &other) const;
 
-	static bool ValidMtprotoPassword(const QString &secret);
-	static int MaxMtprotoPasswordLength();
+	[[nodiscard]] static bool ValidMtprotoPassword(const QString &password);
+	[[nodiscard]] static Status MtprotoPasswordStatus(
+		const QString &password);
 
 };
 

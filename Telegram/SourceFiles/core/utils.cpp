@@ -62,29 +62,126 @@ namespace {
 
 std::atomic<int> GlobalAtomicRequestId = 0;
 
-	QReadWriteLock unixtimeLock;
-	volatile int32 unixtimeDelta = 0;
-	volatile bool unixtimeWasSet = false;
-    volatile uint64 _msgIdStart, _msgIdLocal = 0, _msgIdMsStart;
+QReadWriteLock unixtimeLock;
+volatile int32 unixtimeDelta = 0;
+volatile bool unixtimeWasSet = false;
+volatile uint64 _msgIdStart, _msgIdLocal = 0, _msgIdMsStart;
 
-	void _initMsgIdConstants() {
+void _initMsgIdConstants() {
 #ifdef Q_OS_WIN
-		LARGE_INTEGER li;
-		QueryPerformanceCounter(&li);
-		_msgIdMsStart = li.QuadPart;
+	LARGE_INTEGER li;
+	QueryPerformanceCounter(&li);
+	_msgIdMsStart = li.QuadPart;
 #elif defined Q_OS_MAC
-		_msgIdMsStart = mach_absolute_time();
+	_msgIdMsStart = mach_absolute_time();
 #else
-		timespec ts;
-		clock_gettime(CLOCK_REALTIME, &ts);
-		_msgIdMsStart = 1000000000 * uint64(ts.tv_sec) + uint64(ts.tv_nsec);
+	timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	_msgIdMsStart = 1000000000 * uint64(ts.tv_sec) + uint64(ts.tv_nsec);
 #endif
 
-		uint32 msgIdRand;
-		memset_rand(&msgIdRand, sizeof(uint32));
-		_msgIdStart = (((uint64)((uint32)unixtime()) << 32) | (uint64)msgIdRand);
-	}
+	uint32 msgIdRand;
+	memset_rand(&msgIdRand, sizeof(uint32));
+	_msgIdStart = (((uint64)((uint32)unixtime()) << 32) | (uint64)msgIdRand);
 }
+
+[[nodiscard]] bool IsHexMtprotoPassword(const QString &password) {
+	const auto bad = [](QChar ch) {
+		const auto code = ch.unicode();
+		return (code < 'a' || code > 'f')
+			&& (code < 'A' || code > 'F')
+			&& (code < '0' || code > '9');
+	};
+	return (password.size() % 2 == 0)
+		&& (std::find_if(password.begin(), password.end(), bad)
+			== password.end());
+}
+
+[[nodiscard]] ProxyData::Status HexMtprotoPasswordStatus(
+	const QString &password) {
+	const auto size = password.size() / 2;
+	const auto valid = (size == 16)
+		|| (size == 17 && (password[0] == 'd') && (password[1] == 'd'))
+		|| (size >= 21 && (password[0] == 'e') && (password[1] == 'e'));
+	if (valid) {
+		return ProxyData::Status::Valid;
+	} else if (size < 16) {
+		return ProxyData::Status::Invalid;
+	}
+	return ProxyData::Status::Unsupported;
+}
+
+[[nodiscard]] bytes::vector SecretFromHexMtprotoPassword(
+		const QString &password) {
+	Expects(password.size() % 2 == 0);
+
+	const auto size = password.size() / 2;
+	const auto fromHex = [](QChar ch) -> int {
+		const auto code = int(ch.unicode());
+		if (code >= '0' && code <= '9') {
+			return (code - '0');
+		} else if (code >= 'A' && code <= 'F') {
+			return 10 + (code - 'A');
+		} else if (ch >= 'a' && ch <= 'f') {
+			return 10 + (code - 'a');
+		}
+		Unexpected("Code in ProxyData fromHex.");
+	};
+	auto result = bytes::vector(size);
+	for (auto i = 0; i != size; ++i) {
+		const auto high = fromHex(password[2 * i]);
+		const auto low = fromHex(password[2 * i + 1]);
+		if (high < 0 || low < 0) {
+			return {};
+		}
+		result[i] = static_cast<bytes::type>(high * 16 + low);
+	}
+	return result;
+}
+
+[[nodiscard]] bool IsBase64UrlMtprotoPassword(const QString &password) {
+	const auto bad = [](QChar ch) {
+		const auto code = ch.unicode();
+		return (code < 'a' || code > 'z')
+			&& (code < 'A' || code > 'Z')
+			&& (code < '0' || code > '9')
+			&& (code != '_')
+			&& (code != '-');
+	};
+	return (password.size() % 4 != 1)
+		&& (std::find_if(password.begin(), password.end(), bad)
+			== password.end());
+}
+
+[[nodiscard]] ProxyData::Status Base64UrlMtprotoPasswordStatus(
+		const QString &password) {
+	const auto size = (password.size() * 3) / 4;
+	const auto valid = (size == 16)
+		|| (size == 17
+			&& (password[0] == '3')
+			&& ((password[1] >= 'Q') && (password[1] <= 'Z')
+				|| (password[1] >= 'a') && (password[1] <= 'f')))
+		|| (size >= 21
+			&& (password[0] == '7')
+			&& (password[1] >= 'g')
+			&& (password[1] <= 'v'));
+	if (size < 16) {
+		return ProxyData::Status::Invalid;
+	} else if (valid) {
+		return ProxyData::Status::Valid;
+	}
+	return ProxyData::Status::Unsupported;
+}
+
+[[nodiscard]] bytes::vector SecretFromBase64UrlMtprotoPassword(
+		const QString &password) {
+	const auto result = QByteArray::fromBase64(
+		password.toLatin1(),
+		QByteArray::Base64UrlEncoding);
+	return bytes::make_vector(bytes::make_span(result));
+}
+
+} // namespace
 
 TimeId LocalUnixtime() {
 	return (TimeId)time(nullptr);
@@ -233,16 +330,16 @@ namespace {
 }
 
 bool ProxyData::valid() const {
-	if (type == Type::None || host.isEmpty() || !port) {
-		return false;
-	} else if (type == Type::Mtproto && !ValidMtprotoPassword(password)) {
-		return false;
-	}
-	return true;
+	return status() == Status::Valid;
 }
 
-int ProxyData::MaxMtprotoPasswordLength() {
-	return 34;
+ProxyData::Status ProxyData::status() const {
+	if (type == Type::None || host.isEmpty() || !port) {
+		return Status::Invalid;
+	} else if (type == Type::Mtproto) {
+		return MtprotoPasswordStatus(password);
+	}
+	return Status::Valid;
 }
 
 bool ProxyData::supportsCalls() const {
@@ -259,30 +356,13 @@ bool ProxyData::tryCustomResolve() const {
 
 bytes::vector ProxyData::secretFromMtprotoPassword() const {
 	Expects(type == Type::Mtproto);
-	Expects(password.size() % 2 == 0);
 
-	const auto length = password.size() / 2;
-	const auto fromHex = [](QChar ch) -> int {
-		const auto code = int(ch.unicode());
-		if (code >= '0' && code <= '9') {
-			return (code - '0');
-		} else if (code >= 'A' && code <= 'F') {
-			return 10 + (code - 'A');
-		} else if (ch >= 'a' && ch <= 'f') {
-			return 10 + (code - 'a');
-		}
-		return -1;
-	};
-	auto result = bytes::vector(length);
-	for (auto i = 0; i != length; ++i) {
-		const auto high = fromHex(password[2 * i]);
-		const auto low = fromHex(password[2 * i + 1]);
-		if (high < 0 || low < 0) {
-			return {};
-		}
-		result[i] = static_cast<gsl::byte>(high * 16 + low);
+	if (IsHexMtprotoPassword(password)) {
+		return SecretFromHexMtprotoPassword(password);
+	} else if (IsBase64UrlMtprotoPassword(password)) {
+		return SecretFromBase64UrlMtprotoPassword(password);
 	}
-	return result;
+	return {};
 }
 
 ProxyData::operator bool() const {
@@ -304,16 +384,17 @@ bool ProxyData::operator!=(const ProxyData &other) const {
 	return !(*this == other);
 }
 
-bool ProxyData::ValidMtprotoPassword(const QString &secret) {
-	using Expression = QRegularExpression;
-	if (secret.size() == 32) {
-		static const auto check = Expression("^[a-fA-F0-9]{32}$");
-		return check.match(secret).hasMatch();
-	} else if (secret.size() == 34) {
-		static const auto check = Expression("^(dd|ee)[a-fA-F0-9]{32}$");
-		return check.match(secret).hasMatch();
+bool ProxyData::ValidMtprotoPassword(const QString &password) {
+	return MtprotoPasswordStatus(password) == Status::Valid;
+}
+
+ProxyData::Status ProxyData::MtprotoPasswordStatus(const QString &password) {
+	if (IsHexMtprotoPassword(password)) {
+		return HexMtprotoPasswordStatus(password);
+	} else if (IsBase64UrlMtprotoPassword(password)) {
+		return Base64UrlMtprotoPasswordStatus(password);
 	}
-	return false;
+	return Status::Invalid;
 }
 
 ProxyData ToDirectIpProxy(const ProxyData &proxy, int ipIndex) {

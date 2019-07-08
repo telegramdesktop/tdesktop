@@ -131,8 +131,8 @@ class ClientHelloGenerator {
 public:
 	ClientHelloGenerator(
 		const MTPTlsClientHello &rules,
-		const QByteArray &domain,
-		const bytes::vector &key);
+		bytes::const_span domain,
+		bytes::const_span key);
 	[[nodiscard]] ClientHello result();
 
 private:
@@ -149,8 +149,8 @@ private:
 	void writeDigest();
 	void writeTimestamp();
 
-	const QByteArray &_domain;
-	const bytes::vector &_key;
+	bytes::const_span _domain;
+	bytes::const_span _key;
 	bytes::vector _greases;
 	std::vector<int> _scopeStack;
 	QByteArray _result;
@@ -162,8 +162,8 @@ private:
 
 ClientHelloGenerator::ClientHelloGenerator(
 	const MTPTlsClientHello &rules,
-	const QByteArray &domain,
-	const bytes::vector &key)
+	bytes::const_span domain,
+	bytes::const_span key)
 : _domain(domain)
 , _key(key)
 , _greases(PrepareGreases()) {
@@ -256,7 +256,7 @@ void ClientHelloGenerator::writeBlock(const MTPDtlsBlockDomain &data) {
 	if (storage.empty()) {
 		return;
 	}
-	bytes::copy(storage, bytes::make_span(_domain));
+	bytes::copy(storage, _domain);
 }
 
 void ClientHelloGenerator::writeBlock(const MTPDtlsBlockScope &data) {
@@ -309,20 +309,9 @@ void ClientHelloGenerator::writeTimestamp() {
 
 [[nodiscard]] ClientHello PrepareClientHello(
 		const MTPTlsClientHello &rules,
-		const QByteArray &domain,
-		const bytes::vector &key) {
+		bytes::const_span domain,
+		bytes::const_span key) {
 	return ClientHelloGenerator(rules, domain, key).result();
-}
-
-[[nodiscard]] bytes::vector ExtractKey(
-		const bytes::vector &secret,
-		const ProxyData &proxy) {
-	const auto proxySecret = proxy.secretFromMtprotoPassword();
-	const auto &useSecret = proxySecret.empty() ? secret : proxySecret;
-	if (useSecret.size() != 17 || useSecret[0] != bytes::type(0xEE)) {
-		return {};
-	}
-	return bytes::make_vector(bytes::make_span(useSecret).subspan(1));
 }
 
 [[nodiscard]] bool CheckPart(bytes::const_span data, QLatin1String check) {
@@ -345,11 +334,13 @@ void ClientHelloGenerator::writeTimestamp() {
 TlsSocket::TlsSocket(
 	not_null<QThread*> thread,
 	const bytes::vector &secret,
-	const ProxyData &proxy)
+	const QNetworkProxy &proxy)
 : AbstractSocket(thread)
-, _key(ExtractKey(secret, proxy)) {
+, _secret(secret) {
+	Expects(_secret.size() >= 21 && _secret[0] == bytes::type(0xEE));
+
 	_socket.moveToThread(thread);
-	_socket.setProxy(ToNetworkProxy(proxy));
+	_socket.setProxy(proxy);
 	const auto wrap = [&](auto handler) {
 		return [=](auto &&...args) {
 			InvokeQueued(this, [=] { handler(args...); });
@@ -377,6 +368,14 @@ TlsSocket::TlsSocket(
 		wrap([=](Error e) { handleError(e); }));
 }
 
+bytes::const_span TlsSocket::domainFromSecret() const {
+	return bytes::make_span(_secret).subspan(17);
+}
+
+bytes::const_span TlsSocket::keyFromSecret() const {
+	return bytes::make_span(_secret).subspan(1, 16);
+}
+
 void TlsSocket::plainConnected() {
 	if (_state != State::Connecting) {
 		return;
@@ -385,8 +384,8 @@ void TlsSocket::plainConnected() {
 	static const auto kClientHelloRules = PrepareClientHelloRules();
 	const auto hello = PrepareClientHello(
 		kClientHelloRules,
-		"www.google.com",
-		_key);
+		domainFromSecret(),
+		keyFromSecret());
 	if (hello.data.isEmpty()) {
 		LOG(("TLS Error: Could not generate Client Hello!"));
 		_state = State::Error;
@@ -492,7 +491,7 @@ void TlsSocket::checkHelloDigest() {
 		kHelloDigestLength);
 	const auto digestCopy = bytes::make_vector(digest);
 	bytes::set_with_const(digest, bytes::type(0));
-	const auto check = openssl::HmacSha256(_key, fulldata);
+	const auto check = openssl::HmacSha256(keyFromSecret(), fulldata);
 	if (bytes::compare(digestCopy, check) != 0) {
 		LOG(("TLS Error: Bad Server Hello digest."));
 		handleError();

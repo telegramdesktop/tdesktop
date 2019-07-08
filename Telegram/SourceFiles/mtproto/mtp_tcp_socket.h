@@ -14,7 +14,7 @@ namespace internal {
 
 class TcpSocket final : public AbstractSocket {
 public:
-	TcpSocket(not_null<QThread*> thread, const ProxyData &proxy);
+	TcpSocket(not_null<QThread*> thread, const QNetworkProxy &proxy);
 
 	void connectToHost(const QString &address, int port) override;
 	bool isConnected() override;

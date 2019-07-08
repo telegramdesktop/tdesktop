@@ -17,7 +17,7 @@ public:
 	TlsSocket(
 		not_null<QThread*> thread,
 		const bytes::vector &secret,
-		const ProxyData &proxy);
+		const QNetworkProxy &proxy);
 
 	void connectToHost(const QString &address, int port) override;
 	bool isConnected() override;
@@ -36,6 +36,9 @@ private:
 		Error,
 	};
 
+	[[nodiscard]] bytes::const_span domainFromSecret() const;
+	[[nodiscard]] bytes::const_span keyFromSecret() const;
+
 	void plainConnected();
 	void plainDisconnected();
 	void plainReadyRead();
@@ -49,8 +52,8 @@ private:
 	[[nodiscard]] bool checkNextPacket();
 	void shiftIncomingBy(int amount);
 
+	const bytes::vector _secret;
 	QTcpSocket _socket;
-	bytes::vector _key;
 	State _state = State::NotConnected;
 	QByteArray _incoming;
 	int _incomingGoodDataOffset = 0;

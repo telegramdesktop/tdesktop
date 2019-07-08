@@ -17,7 +17,7 @@ public:
 	static std::unique_ptr<AbstractSocket> Create(
 		not_null<QThread*> thread,
 		const bytes::vector &secret,
-		const ProxyData &proxy);
+		const QNetworkProxy &proxy);
 
 	explicit AbstractSocket(not_null<QThread*> thread) {
 		moveToThread(thread);

@@ -257,7 +257,7 @@ bool DcOptions::ApplyOneOption(
 				return false;
 			}
 		}
-		i->second.push_back(Endpoint(dcId, flags, ip, port, secret));
+		i->second.emplace_back(dcId, flags, ip, port, secret);
 	} else {
 		data.emplace(dcId, std::vector<Endpoint>(
 			1,

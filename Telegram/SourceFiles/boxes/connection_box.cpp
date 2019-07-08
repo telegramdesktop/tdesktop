@@ -31,6 +31,57 @@ namespace {
 
 constexpr auto kSaveSettingsDelayedTimeout = crl::time(1000);
 
+class Base64UrlInput : public Ui::MaskedInputField {
+public:
+	Base64UrlInput(
+		QWidget *parent,
+		const style::InputField &st,
+		rpl::producer<QString> placeholder,
+		const QString &val);
+
+protected:
+	void correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) override;
+
+};
+
+Base64UrlInput::Base64UrlInput(
+	QWidget *parent,
+	const style::InputField &st,
+	rpl::producer<QString> placeholder,
+	const QString &val)
+: MaskedInputField(parent, st, std::move(placeholder), val) {
+	if (!QRegularExpression("^[a-zA-Z0-9_\\-]+$").match(val).hasMatch()) {
+		setText(QString());
+	}
+}
+
+void Base64UrlInput::correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) {
+	QString newText;
+	newText.reserve(now.size());
+	auto newPos = nowCursor;
+	for (auto i = 0, l = now.size(); i < l; ++i) {
+		const auto ch = now[i];
+		if ((ch >= '0' && ch <= '9')
+			|| (ch >= 'a' && ch <= 'z')
+			|| (ch >= 'A' && ch <= 'Z')
+			|| (ch == '-')
+			|| (ch == '_')) {
+			newText.append(ch);
+		} else if (i < nowCursor) {
+			--newPos;
+		}
+	}
+	setCorrectedText(now, nowCursor, newText, newPos);
+}
+
 class ProxyRow : public Ui::RippleButton {
 public:
 	using View = ProxiesBoxController::ItemView;
@@ -150,7 +201,7 @@ private:
 	QPointer<Ui::PortInput> _port;
 	QPointer<Ui::InputField> _user;
 	QPointer<Ui::PasswordInput> _password;
-	QPointer<Ui::HexInput> _secret;
+	QPointer<Base64UrlInput> _secret;
 
 	QPointer<Ui::SlideWrap<Ui::VerticalLayout>> _credentials;
 	QPointer<Ui::SlideWrap<Ui::VerticalLayout>> _mtprotoCredentials;
@@ -852,12 +903,11 @@ void ProxyBox::setupMtprotoCredentials(const ProxyData &data) {
 	addLabel(mtproto, tr::lng_proxy_credentials(tr::now));
 
 	auto secretWrap = object_ptr<Ui::RpWidget>(mtproto);
-	_secret = Ui::CreateChild<Ui::HexInput>(
+	_secret = Ui::CreateChild<Base64UrlInput>(
 		secretWrap.data(),
 		st::connectionUserInputField,
 		tr::lng_connection_proxy_secret_ph(),
 		(data.type == Type::Mtproto) ? data.password : QString());
-	_secret->setMaxLength(ProxyData::MaxMtprotoPasswordLength());
 	_secret->move(0, 0);
 	_secret->heightValue(
 	) | rpl::start_with_next([=, wrap = secretWrap.data()](int height) {
@@ -975,6 +1025,11 @@ void ProxiesBoxController::ShowApplyConfirmation(
 				strong->closeBox();
 			}
 		}), LayerOption::KeepOther);
+	} else {
+		Ui::show(Box<InformBox>(
+			(proxy.status() == ProxyData::Status::Unsupported
+				? tr::lng_proxy_unsupported(tr::now)
+				: tr::lng_proxy_invalid(tr::now))));
 	}
 }
 

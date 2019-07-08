@@ -1332,9 +1332,13 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 
 			const auto unchecked = static_cast<ProxyData::Settings>(settings);
 			switch (unchecked) {
+			case ProxyData::Settings::Enabled:
+				Global::SetProxySettings(Global::SelectedProxy()
+					? ProxyData::Settings::Enabled
+					: ProxyData::Settings::System);
+				break;
 			case ProxyData::Settings::Disabled:
 			case ProxyData::Settings::System:
-			case ProxyData::Settings::Enabled:
 				Global::SetProxySettings(unchecked);
 				break;
 			default:

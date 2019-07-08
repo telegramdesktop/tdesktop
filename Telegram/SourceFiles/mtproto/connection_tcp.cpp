@@ -30,7 +30,7 @@ constexpr auto kConnectionStartPrefixSize = 64;
 
 class TcpConnection::Protocol {
 public:
-	static std::unique_ptr<Protocol> Create(bytes::vector &&secret);
+	static std::unique_ptr<Protocol> Create(bytes::const_span secret);
 
 	virtual uint32 id() const = 0;
 	virtual bool supportsArbitraryLength() const = 0;
@@ -223,15 +223,14 @@ bytes::const_span TcpConnection::Protocol::VersionD::readPacket(
 	return bytes.subspan(sizeLength, size - sizeLength);
 }
 
-auto TcpConnection::Protocol::Create(bytes::vector &&secret)
+auto TcpConnection::Protocol::Create(bytes::const_span secret)
 -> std::unique_ptr<Protocol> {
-	if (secret.size() == 17
-		&& (static_cast<uchar>(secret[0]) == 0xDD
-			|| static_cast<uchar>(secret[0]) == 0xEE)) {
+	if ((secret.size() >= 21 && secret[0] == bytes::type(0xEE))
+		|| (secret.size() == 17 && secret[0] == bytes::type(0xDD))) {
 		return std::make_unique<VersionD>(
-			bytes::make_vector(bytes::make_span(secret).subspan(1)));
+			bytes::make_vector(secret.subspan(1, 16)));
 	} else if (secret.size() == 16) {
-		return std::make_unique<Version1>(std::move(secret));
+		return std::make_unique<Version1>(bytes::make_vector(secret));
 	} else if (secret.empty()) {
 		return std::make_unique<Version0>();
 	}
@@ -522,10 +521,13 @@ void TcpConnection::connectToServer(
 	Expects(_protocol == nullptr);
 	Expects(_protocolDcId == 0);
 
+	const auto secret = (_proxy.type == ProxyData::Type::Mtproto)
+		? _proxy.secretFromMtprotoPassword()
+		: protocolSecret;
 	if (_proxy.type == ProxyData::Type::Mtproto) {
 		_address = _proxy.host;
 		_port = _proxy.port;
-		_protocol = Protocol::Create(_proxy.secretFromMtprotoPassword());
+		_protocol = Protocol::Create(secret);
 
 		DEBUG_LOG(("TCP Info: "
 			"dc:%1 - Connecting to proxy '%2'"
@@ -534,14 +536,17 @@ void TcpConnection::connectToServer(
 	} else {
 		_address = address;
 		_port = port;
-		_protocol = Protocol::Create(base::duplicate(protocolSecret));
+		_protocol = Protocol::Create(secret);
 
 		DEBUG_LOG(("TCP Info: "
 			"dc:%1 - Connecting to '%2'"
 			).arg(protocolDcId
 			).arg(_address + ':' + QString::number(_port)));
 	}
-	_socket = AbstractSocket::Create(thread(), protocolSecret, _proxy);
+	_socket = AbstractSocket::Create(
+		thread(),
+		secret,
+		ToNetworkProxy(_proxy));
 	_protocolDcId = protocolDcId;
 
 	_socket->connected(

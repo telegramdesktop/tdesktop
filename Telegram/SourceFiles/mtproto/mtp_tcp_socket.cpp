@@ -10,10 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP {
 namespace internal {
 
-TcpSocket::TcpSocket(not_null<QThread*> thread, const ProxyData &proxy)
+TcpSocket::TcpSocket(not_null<QThread*> thread, const QNetworkProxy &proxy)
 : AbstractSocket(thread) {
 	_socket.moveToThread(thread);
-	_socket.setProxy(ToNetworkProxy(proxy));
+	_socket.setProxy(proxy);
 	const auto wrap = [&](auto handler) {
 		return [=](auto &&...args) {
 			InvokeQueued(this, [=] { handler(args...); });
