@@ -376,7 +376,7 @@ void UnPremultiply(QImage &to, const QImage &from) {
 				reinterpret_cast<const uint*>(fromBytes),
 				0,
 				width,
-				layout,
+				nullprt,
 				nullptr);
 			fromBytes += fromPerLine;
 			toBytes += toPerLine;
@@ -387,7 +387,7 @@ void UnPremultiply(QImage &to, const QImage &from) {
 			reinterpret_cast<const uint*>(from.bits()),
 			0,
 			from.width() * from.height(),
-			layout,
+			nullptr,
 			nullptr);
 	}
 }
@@ -406,7 +406,7 @@ void PremultiplyInplace(QImage &image) {
 				reinterpret_cast<const uchar*>(bytes),
 				0,
 				width,
-				layout,
+				nullptr,
 				nullptr);
 			bytes += perLine;
 		}
@@ -416,7 +416,7 @@ void PremultiplyInplace(QImage &image) {
 			reinterpret_cast<const uchar*>(image.bits()),
 			0,
 			image.width() * image.height(),
-			layout,
+			nullptr,
 			nullptr);
 	}
 }
