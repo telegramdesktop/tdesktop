@@ -361,8 +361,9 @@ void UnPremultiply(QImage &to, const QImage &from) {
 		to = CreateFrameStorage(from.size());
 	}
 
+	QPixelLayout qPixelLayouts[QImage::NImageFormats];
 	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
-	const auto convert = layout->convertFromARGB32PM;
+	const auto convert = layout->storeFromARGB32PM;
 	const auto fromPerLine = from.bytesPerLine();
 	const auto toPerLine = to.bytesPerLine();
 	const auto width = from.width();
@@ -371,8 +372,9 @@ void UnPremultiply(QImage &to, const QImage &from) {
 		auto toBytes = to.bits();
 		for (auto i = 0; i != to.height(); ++i) {
 			convert(
-				reinterpret_cast<uint*>(toBytes),
+				reinterpret_cast<uchar*>(toBytes),
 				reinterpret_cast<const uint*>(fromBytes),
+				0,
 				width,
 				layout,
 				nullptr);
@@ -381,8 +383,9 @@ void UnPremultiply(QImage &to, const QImage &from) {
 		}
 	} else {
 		convert(
-			reinterpret_cast<uint*>(to.bits()),
+			reinterpret_cast<uchar*>(to.bits()),
 			reinterpret_cast<const uint*>(from.bits()),
+			0,
 			from.width() * from.height(),
 			layout,
 			nullptr);
@@ -390,8 +393,9 @@ void UnPremultiply(QImage &to, const QImage &from) {
 }
 
 void PremultiplyInplace(QImage &image) {
+	QPixelLayout qPixelLayouts[QImage::NImageFormats];
 	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
-	const auto convert = layout->convertToARGB32PM;
+	const auto convert = layout->fetchToARGB32PM;
 	const auto perLine = image.bytesPerLine();
 	const auto width = image.width();
 	if (perLine != width * 4) {
@@ -399,7 +403,8 @@ void PremultiplyInplace(QImage &image) {
 		for (auto i = 0; i != image.height(); ++i) {
 			convert(
 				reinterpret_cast<uint*>(bytes),
-				reinterpret_cast<const uint*>(bytes),
+				reinterpret_cast<const uchar*>(bytes),
+				0,
 				width,
 				layout,
 				nullptr);
@@ -408,7 +413,8 @@ void PremultiplyInplace(QImage &image) {
 	} else {
 		convert(
 			reinterpret_cast<uint*>(image.bits()),
-			reinterpret_cast<const uint*>(image.bits()),
+			reinterpret_cast<const uchar*>(image.bits()),
+			0,
 			image.width() * image.height(),
 			layout,
 			nullptr);
