@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/bytes.h"
+
 namespace MTP {
 namespace internal {
 
@@ -38,8 +40,10 @@ public:
 	virtual void connectToHost(const QString &address, int port) = 0;
 	[[nodiscard]] virtual bool isConnected() = 0;
 	[[nodiscard]] virtual bool hasBytesAvailable() = 0;
-	[[nodiscard]] virtual int64 read(char *buffer, int64 maxLength) = 0;
-	virtual int64 write(const char *buffer, int64 length) = 0;
+	[[nodiscard]] virtual int64 read(bytes::span buffer) = 0;
+	virtual void write(
+		bytes::const_span prefix,
+		bytes::const_span buffer) = 0;
 
 	virtual int32 debugState() = 0;
 

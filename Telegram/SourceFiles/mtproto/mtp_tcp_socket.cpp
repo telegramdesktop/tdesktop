@@ -53,12 +53,23 @@ bool TcpSocket::hasBytesAvailable() {
 	return _socket.bytesAvailable() > 0;
 }
 
-int64 TcpSocket::read(char *buffer, int64 maxLength) {
-	return _socket.read(buffer, maxLength);
+int64 TcpSocket::read(bytes::span buffer) {
+	return _socket.read(
+		reinterpret_cast<char*>(buffer.data()),
+		buffer.size());
 }
 
-int64 TcpSocket::write(const char *buffer, int64 length) {
-	return _socket.write(buffer, length);
+void TcpSocket::write(bytes::const_span prefix, bytes::const_span buffer) {
+	Expects(!buffer.empty());
+
+	if (!prefix.empty()) {
+		_socket.write(
+			reinterpret_cast<const char*>(prefix.data()),
+			prefix.size());
+	}
+	_socket.write(
+		reinterpret_cast<const char*>(buffer.data()),
+		buffer.size());
 }
 
 int32 TcpSocket::debugState() {

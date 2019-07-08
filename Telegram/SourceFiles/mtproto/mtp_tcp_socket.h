@@ -12,15 +12,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP {
 namespace internal {
 
-class TcpSocket : public AbstractSocket {
+class TcpSocket final : public AbstractSocket {
 public:
 	TcpSocket(not_null<QThread*> thread, const ProxyData &proxy);
 
 	void connectToHost(const QString &address, int port) override;
 	bool isConnected() override;
 	bool hasBytesAvailable() override;
-	int64 read(char *buffer, int64 maxLength) override;
-	int64 write(const char *buffer, int64 length) override;
+	int64 read(bytes::span buffer) override;
+	void write(bytes::const_span prefix, bytes::const_span buffer) override;
 
 	int32 debugState() override;
 

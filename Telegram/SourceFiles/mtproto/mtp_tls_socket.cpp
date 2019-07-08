@@ -22,7 +22,9 @@ const auto kServerHelloPart1 = qstr("\x16\x03\x03");
 const auto kServerHelloPart3 = qstr("\x14\x03\x03\x00\x01\x01\x17\x03\x03");
 constexpr auto kServerHelloDigestPosition = 11;
 const auto kServerHeader = qstr("\x17\x03\x03");
-constexpr auto kServerDataSkip = 5;
+constexpr auto kClientPartSize = 2878;
+const auto kClientPrefix = qstr("\x14\x03\x03\x00\x01\x01");
+const auto kClientHeader = qstr("\x17\x03\x03");
 
 [[nodiscard]] MTPTlsClientHello PrepareClientHelloRules() {
 	auto stack = std::vector<QVector<MTPTlsBlock>>();
@@ -258,11 +260,11 @@ void ClientHelloGenerator::writeBlock(const MTPDtlsBlockDomain &data) {
 }
 
 void ClientHelloGenerator::writeBlock(const MTPDtlsBlockScope &data) {
-	const auto already = _result.size();
 	const auto storage = grow(kLengthSize);
 	if (storage.empty()) {
 		return;
 	}
+	const auto already = _result.size();
 	writeBlocks(data.ventries().v);
 	const auto length = qToBigEndian(uint16(_result.size() - already));
 	bytes::copy(storage, bytes::object_as_span(&length));
@@ -383,7 +385,7 @@ void TlsSocket::plainConnected() {
 	static const auto kClientHelloRules = PrepareClientHelloRules();
 	const auto hello = PrepareClientHello(
 		kClientHelloRules,
-		"google.com",
+		"www.google.com",
 		_key);
 	if (hello.data.isEmpty()) {
 		LOG(("TLS Error: Could not generate Client Hello!"));
@@ -400,14 +402,15 @@ void TlsSocket::plainDisconnected() {
 	_state = State::NotConnected;
 	_incoming = QByteArray();
 	_serverHelloLength = 0;
+	_incomingGoodDataOffset = 0;
+	_incomingGoodDataLimit = 0;
 	_disconnected.fire({});
 }
 
 void TlsSocket::plainReadyRead() {
 	switch (_state) {
 	case State::WaitingHello: return readHello();
-	case State::Ready:
-	case State::Working: return readData();
+	case State::Connected: return readData();
 	}
 }
 
@@ -481,8 +484,7 @@ void TlsSocket::checkHelloParts34(int parts123Size) {
 }
 
 void TlsSocket::checkHelloDigest() {
-	const auto incoming = bytes::make_detached_span(_incoming);
-	const auto fulldata = incoming.subspan(
+	const auto fulldata = bytes::make_detached_span(_incoming).subspan(
 		0,
 		kHelloDigestLength + _serverHelloLength);
 	const auto digest = fulldata.subspan(
@@ -496,18 +498,70 @@ void TlsSocket::checkHelloDigest() {
 		handleError();
 		return;
 	}
-	if (incoming.size() > fulldata.size()) {
-		bytes::move(incoming, incoming.subspan(fulldata.size()));
-		_incoming.chop(fulldata.size());
-		InvokeQueued(this, [=] { readData(); });
-	} else {
-		_incoming.clear();
+	shiftIncomingBy(fulldata.size());
+	if (!_incoming.isEmpty()) {
+		InvokeQueued(this, [=] {
+			if (!checkNextPacket()) {
+				handleError();
+			}
+		});
 	}
-	_state = State::Ready;
+	_incomingGoodDataOffset = _incomingGoodDataLimit = 0;
+	_state = State::Connected;
 	_connected.fire({});
 }
 
 void TlsSocket::readData() {
+	if (!isConnected()) {
+		return;
+	}
+	_incoming.append(_socket.readAll());
+	if (!checkNextPacket()) {
+		handleError();
+	} else if (hasBytesAvailable()) {
+		_readyRead.fire({});
+	}
+}
+
+bool TlsSocket::checkNextPacket() {
+	auto offset = 0;
+	const auto incoming = bytes::make_span(_incoming);
+	while (!_incomingGoodDataLimit) {
+		const auto fullHeader = kServerHeader.size() + kLengthSize;
+		if (incoming.size() <= offset + fullHeader) {
+			return true;
+		}
+		if (!CheckPart(incoming.subspan(offset), kServerHeader)) {
+			LOG(("TLS Error: Bad packet header."));
+			return false;
+		}
+		const auto length = ReadPartLength(
+			incoming,
+			offset + kServerHeader.size());
+		if (length > 0) {
+			if (offset > 0) {
+				shiftIncomingBy(offset);
+			}
+			_incomingGoodDataOffset = fullHeader;
+			_incomingGoodDataLimit = length;
+		} else {
+			offset += kServerHeader.size() + kLengthSize + length;
+		}
+	}
+	return true;
+}
+
+void TlsSocket::shiftIncomingBy(int amount) {
+	Expects(_incomingGoodDataOffset == 0);
+	Expects(_incomingGoodDataLimit == 0);
+
+	const auto incoming = bytes::make_detached_span(_incoming);
+	if (incoming.size() > amount) {
+		bytes::move(incoming, incoming.subspan(amount));
+		_incoming.chop(amount);
+	} else {
+		_incoming.clear();
+	}
 }
 
 void TlsSocket::connectToHost(const QString &address, int port) {
@@ -518,19 +572,76 @@ void TlsSocket::connectToHost(const QString &address, int port) {
 }
 
 bool TlsSocket::isConnected() {
-	return (_socket.state() == QAbstractSocket::ConnectedState);
+	return (_state == State::Connected);
 }
 
 bool TlsSocket::hasBytesAvailable() {
-	return _socket.bytesAvailable();
+	return (_incomingGoodDataLimit > 0)
+		&& (_incomingGoodDataOffset < _incoming.size());
 }
 
-int64 TlsSocket::read(char *buffer, int64 maxLength) {
-	return _socket.read(buffer, maxLength);
+int64 TlsSocket::read(bytes::span buffer) {
+	auto written = int64(0);
+	while (_incomingGoodDataLimit) {
+		const auto available = std::min(
+			_incomingGoodDataLimit,
+			_incoming.size() - _incomingGoodDataOffset);
+		if (available <= 0) {
+			return written;
+		}
+		const auto write = std::min(index_type(available), buffer.size());
+		if (write <= 0) {
+			return written;
+		}
+		bytes::copy(
+			buffer,
+			bytes::make_span(_incoming).subspan(
+				_incomingGoodDataOffset,
+				write));
+		written += write;
+		buffer = buffer.subspan(write);
+		_incomingGoodDataLimit -= write;
+		_incomingGoodDataOffset += write;
+		if (_incomingGoodDataLimit) {
+			return written;
+		}
+		shiftIncomingBy(base::take(_incomingGoodDataOffset));
+		if (!checkNextPacket()) {
+			_state = State::Error;
+			InvokeQueued(this, [=] { handleError(); });
+			return written;
+		}
+	}
+	return written;
 }
 
-int64 TlsSocket::write(const char *buffer, int64 length) {
-	return _socket.write(buffer, length);
+void TlsSocket::write(bytes::const_span prefix, bytes::const_span buffer) {
+	Expects(!buffer.empty());
+
+	if (!isConnected()) {
+		return;
+	}
+	if (!prefix.empty()) {
+		_socket.write(kClientPrefix.data(), kClientPrefix.size());
+	}
+	while (!buffer.empty()) {
+		const auto write = std::min(
+			kClientPartSize - prefix.size(),
+			buffer.size());
+		_socket.write(kClientHeader.data(), kClientHeader.size());
+		const auto size = qToBigEndian(uint16(prefix.size() + write));
+		_socket.write(reinterpret_cast<const char*>(&size), sizeof(size));
+		if (!prefix.empty()) {
+			_socket.write(
+				reinterpret_cast<const char*>(prefix.data()),
+				prefix.size());
+			prefix = bytes::const_span();
+		}
+		_socket.write(
+			reinterpret_cast<const char*>(buffer.data()),
+			write);
+		buffer = buffer.subspan(write);
+	}
 }
 
 int32 TlsSocket::debugState() {

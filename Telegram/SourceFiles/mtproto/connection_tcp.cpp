@@ -24,6 +24,7 @@ constexpr auto kPacketSizeMax = int(0x01000000 * sizeof(mtpPrime));
 constexpr auto kFullConnectionTimeout = 8 * crl::time(1000);
 constexpr auto kSmallBufferSize = 256 * 1024;
 constexpr auto kMinPacketBuffer = 256;
+constexpr auto kConnectionStartPrefixSize = 64;
 
 } // namespace
 
@@ -277,7 +278,7 @@ void TcpConnection::ensureAvailableInBuffer(int amount) {
 void TcpConnection::socketRead() {
 	Expects(_leftBytes > 0 || !_usingLargeBuffer);
 
-	if (_socket->isConnected()) {
+	if (!_socket || !_socket->isConnected()) {
 		LOG(("MTP Error: Socket not connected in socketRead()"));
 		emit error(kErrorCodeOther);
 		return;
@@ -295,11 +296,7 @@ void TcpConnection::socketRead() {
 		auto &buffer = _usingLargeBuffer ? _largeBuffer : _smallBuffer;
 		const auto full = bytes::make_span(buffer).subspan(_offsetBytes);
 		const auto free = full.subspan(_readBytes);
-		Assert(free.size() >= readLimit);
-
-		const auto readCount = _socket->read(
-			reinterpret_cast<char*>(free.data()),
-			readLimit);
+		const auto readCount = _socket->read(free.subspan(0, readLimit));
 		if (readCount > 0) {
 			const auto read = free.subspan(0, readCount);
 			aesCtrEncrypt(read, _receiveKey, &_receiveState);
@@ -365,7 +362,9 @@ void TcpConnection::socketRead() {
 			TCP_LOG(("TCP Info: no bytes read, but bytes available was true..."));
 			break;
 		}
-	} while (_socket->isConnected() && _socket->hasBytesAvailable());
+	} while (_socket
+		&& _socket->isConnected()
+		&& _socket->hasBytesAvailable());
 }
 
 mtpBuffer TcpConnection::parsePacket(bytes::const_span bytes) {
@@ -423,16 +422,31 @@ bool TcpConnection::requiresExtendedPadding() const {
 void TcpConnection::sendData(mtpBuffer &&buffer) {
 	Expects(buffer.size() > 2);
 
-	if (_status != Status::Finished) {
-		sendBuffer(std::move(buffer));
+	if (!_socket) {
+		return;
 	}
+	char connectionStartPrefixBytes[kConnectionStartPrefixSize];
+	const auto connectionStartPrefix = prepareConnectionStartPrefix(
+		bytes::make_span(connectionStartPrefixBytes));
+
+	// buffer: 2 available int-s + data + available int.
+	const auto bytes = _protocol->finalizePacket(buffer);
+	TCP_LOG(("TCP Info: write packet %1 bytes").arg(bytes.size()));
+	aesCtrEncrypt(bytes, _sendKey, &_sendState);
+	_socket->write(connectionStartPrefix, bytes);
 }
 
-void TcpConnection::writeConnectionStart() {
+bytes::const_span TcpConnection::prepareConnectionStartPrefix(
+		bytes::span buffer) {
 	Expects(_protocol != nullptr);
 
+	if (_connectionStarted) {
+		return {};
+	}
+	_connectionStarted = true;
+
 	// prepare random part
-	auto nonceBytes = bytes::vector(64);
+	char nonceBytes[64];
 	const auto nonce = bytes::make_span(nonceBytes);
 
 	const auto zero = reinterpret_cast<uchar*>(nonce.data());
@@ -481,31 +495,17 @@ void TcpConnection::writeConnectionStart() {
 	const auto dcId = reinterpret_cast<int16*>(nonce.data() + 60);
 	*dcId = _protocolDcId;
 
-	_socket->write(reinterpret_cast<const char*>(nonce.data()), 56);
+	bytes::copy(buffer, nonce.subspan(0, 56));
 	aesCtrEncrypt(nonce, _sendKey, &_sendState);
-	_socket->write(
-		reinterpret_cast<const char*>(nonce.subspan(56).data()),
-		8);
+	bytes::copy(buffer.subspan(56), nonce.subspan(56));
+
+	return buffer;
 }
-
-void TcpConnection::sendBuffer(mtpBuffer &&buffer) {
-	if (!_connectionStarted) {
-		writeConnectionStart();
-		_connectionStarted = true;
-	}
-
-	// buffer: 2 available int-s + data + available int.
-	const auto bytes = _protocol->finalizePacket(buffer);
-	TCP_LOG(("TCP Info: write packet %1 bytes").arg(bytes.size()));
-	aesCtrEncrypt(bytes, _sendKey, &_sendState);
-	_socket->write(
-		reinterpret_cast<const char*>(bytes.data()),
-		bytes.size());
-}
-
 
 void TcpConnection::disconnectFromServer() {
-	if (_status == Status::Finished) return;
+	if (_status == Status::Finished) {
+		return;
+	}
 	_status = Status::Finished;
 	_connectedLifetime.destroy();
 	_lifetime.destroy();
@@ -576,7 +576,7 @@ crl::time TcpConnection::fullConnectTimeout() const {
 }
 
 void TcpConnection::socketPacket(bytes::const_span bytes) {
-	if (_status == Status::Finished) return;
+	Expects(_socket != nullptr);
 
 	// old quickack?..
 	const auto data = parsePacket(bytes);
@@ -620,7 +620,7 @@ bool TcpConnection::isConnected() const {
 }
 
 int32 TcpConnection::debugState() const {
-	return _socket->debugState();
+	return _socket ? _socket->debugState() : -1;
 }
 
 QString TcpConnection::transport() const {
@@ -645,7 +645,9 @@ QString TcpConnection::tag() const {
 }
 
 void TcpConnection::socketError() {
-	if (_status == Status::Finished) return;
+	if (!_socket) {
+		return;
+	}
 
 	emit error(kErrorCodeOther);
 }
