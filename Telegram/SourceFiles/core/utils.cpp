@@ -86,19 +86,22 @@ void _initMsgIdConstants() {
 }
 
 [[nodiscard]] bool IsHexMtprotoPassword(const QString &password) {
+	const auto size = password.size();
+	if (size < 32 || size % 2 == 1) {
+		return false;
+	}
 	const auto bad = [](QChar ch) {
 		const auto code = ch.unicode();
 		return (code < 'a' || code > 'f')
 			&& (code < 'A' || code > 'F')
 			&& (code < '0' || code > '9');
 	};
-	return (password.size() % 2 == 0)
-		&& (std::find_if(password.begin(), password.end(), bad)
-			== password.end());
+	const auto i = std::find_if(password.begin(), password.end(), bad);
+	return (i == password.end());
 }
 
 [[nodiscard]] ProxyData::Status HexMtprotoPasswordStatus(
-	const QString &password) {
+		const QString &password) {
 	const auto size = password.size() / 2;
 	const auto valid = (size == 16)
 		|| (size == 17 && (password[0] == 'd') && (password[1] == 'd'))
@@ -139,7 +142,28 @@ void _initMsgIdConstants() {
 	return result;
 }
 
+[[nodiscard]] QStringRef Base64UrlInner(const QString &password) {
+	Expects(password.size() > 2);
+
+	// Skip one or two '=' at the end of the string.
+	return password.midRef(0, [&] {
+		auto result = password.size();
+		for (auto i = 0; i != 2; ++i) {
+			const auto prev = result - 1;
+			if (password[prev] != '=') {
+				break;
+			}
+			result = prev;
+		}
+		return result;
+	}());
+}
+
 [[nodiscard]] bool IsBase64UrlMtprotoPassword(const QString &password) {
+	const auto size = password.size();
+	if (size < 22 || size % 4 == 1) {
+		return false;
+	}
 	const auto bad = [](QChar ch) {
 		const auto code = ch.unicode();
 		return (code < 'a' || code > 'z')
@@ -148,14 +172,15 @@ void _initMsgIdConstants() {
 			&& (code != '_')
 			&& (code != '-');
 	};
-	return (password.size() % 4 != 1)
-		&& (std::find_if(password.begin(), password.end(), bad)
-			== password.end());
+	const auto inner = Base64UrlInner(password);
+	const auto i = std::find_if(inner.begin(), inner.end(), bad);
+	return (i == inner.end());
 }
 
 [[nodiscard]] ProxyData::Status Base64UrlMtprotoPasswordStatus(
 		const QString &password) {
-	const auto size = (password.size() * 3) / 4;
+	const auto inner = Base64UrlInner(password);
+	const auto size = (inner.size() * 3) / 4;
 	const auto valid = (size == 16)
 		|| (size == 17
 			&& (password[0] == '3')
