@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/never.h>
 #include <rpl/merge.h>
-#include "styles/style_info.h"
 #include "lang/lang_keys.h"
 #include "info/info_wrap_widget.h"
 #include "info/info_controller.h"
@@ -18,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "mainwidget.h"
+#include "auth_session.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/input_fields.h"
@@ -26,6 +26,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/search_field_controller.h"
 #include "window/window_peer_menu.h"
+#include "data/data_session.h"
+#include "data/data_channel.h"
+#include "data/data_user.h"
+#include "styles/style_info.h"
 
 namespace Info {
 
@@ -211,10 +215,7 @@ void TopBar::createSearchView(
 
 	auto button = base::make_unique_q<Ui::IconButton>(this, _st.search);
 	auto search = button.get();
-	search->addClickHandler([=] {
-		_searchModeEnabled = true;
-		updateControlsVisibility(anim::type::normal);
-	});
+	search->addClickHandler([=] { showSearch(); });
 	auto searchWrap = pushButton(std::move(button));
 	registerToggleControlCallback(searchWrap, [=] {
 		return !selectionMode()
@@ -282,6 +283,11 @@ void TopBar::createSearchView(
 		_searchModeAvailable = visible || alreadyInSearch;
 		updateControlsVisibility(anim::type::instant);
 	}, wrap->lifetime());
+}
+
+void TopBar::showSearch() {
+	_searchModeEnabled = true;
+	updateControlsVisibility(anim::type::normal);
 }
 
 void TopBar::removeButton(not_null<Ui::RpWidget*> button) {
@@ -352,8 +358,7 @@ void TopBar::updateSelectionControlsGeometry(int newWidth) {
 void TopBar::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
-	auto highlight = _a_highlight.current(ms, _highlight ? 1. : 0.);
+	auto highlight = _a_highlight.value(_highlight ? 1. : 0.);
 	if (_highlight && !_a_highlight.animating()) {
 		_highlight = false;
 		startHighlightAnimation();
@@ -479,20 +484,23 @@ bool TopBar::computeCanDelete() const {
 }
 
 Ui::StringWithNumbers TopBar::generateSelectedText() const {
-	using Data = Ui::StringWithNumbers;
 	using Type = Storage::SharedMediaType;
-	auto phrase = [&] {
+	const auto phrase = [&] {
 		switch (_selectedItems.type) {
-		case Type::Photo: return lng_media_selected_photo__generic<Data>;
-		case Type::Video: return lng_media_selected_video__generic<Data>;
-		case Type::File: return lng_media_selected_file__generic<Data>;
-		case Type::MusicFile: return lng_media_selected_song__generic<Data>;
-		case Type::Link: return lng_media_selected_link__generic<Data>;
-		case Type::RoundVoiceFile: return lng_media_selected_audio__generic<Data>;
+		case Type::Photo: return tr::lng_media_selected_photo;
+		case Type::Video: return tr::lng_media_selected_video;
+		case Type::File: return tr::lng_media_selected_file;
+		case Type::MusicFile: return tr::lng_media_selected_song;
+		case Type::Link: return tr::lng_media_selected_link;
+		case Type::RoundVoiceFile: return tr::lng_media_selected_audio;
 		}
 		Unexpected("Type in TopBar::generateSelectedText()");
 	}();
-	return phrase(lt_count, _selectedItems.list.size());
+	return phrase(
+		tr::now,
+		lt_count,
+		_selectedItems.list.size(),
+		Ui::StringWithNumbers::FromString);
 }
 
 bool TopBar::selectionMode() const {
@@ -508,8 +516,8 @@ MessageIdsList TopBar::collectItems() const {
 		_selectedItems.list
 	) | ranges::view::transform([](auto &&item) {
 		return item.msgId;
-	}) | ranges::view::filter([](const FullMsgId &msgId) {
-		return App::histItemById(msgId) != nullptr;
+	}) | ranges::view::filter([](FullMsgId msgId) {
+		return Auth().data().message(msgId) != nullptr;
 	}) | ranges::to_vector;
 }
 
@@ -546,78 +554,76 @@ rpl::producer<QString> TitleValue(
 		const Section &section,
 		Key key,
 		bool isStackBottom) {
-	return Lang::Viewer([&] {
-		const auto peer = key.peer();
+	const auto peer = key.peer();
 
-		switch (section.type()) {
-		case Section::Type::Profile:
-			if (const auto feed = key.feed()) {
-				return lng_info_feed_title;
-			} else if (auto user = peer->asUser()) {
-				return user->botInfo
-					? lng_info_bot_title
-					: lng_info_user_title;
-			} else if (auto channel = peer->asChannel()) {
-				return channel->isMegagroup()
-					? lng_info_group_title
-					: lng_info_channel_title;
-			} else if (peer->isChat()) {
-				return lng_info_group_title;
-			}
-			Unexpected("Bad peer type in Info::TitleValue()");
-
-		case Section::Type::Media:
-			if (peer->isSelf() && isStackBottom) {
-				return lng_profile_shared_media;
-			}
-			switch (section.mediaType()) {
-			case Section::MediaType::Photo:
-				return lng_media_type_photos;
-			case Section::MediaType::Video:
-				return lng_media_type_videos;
-			case Section::MediaType::MusicFile:
-				return lng_media_type_songs;
-			case Section::MediaType::File:
-				return lng_media_type_files;
-			case Section::MediaType::RoundVoiceFile:
-				return lng_media_type_audios;
-			case Section::MediaType::Link:
-				return lng_media_type_links;
-			case Section::MediaType::RoundFile:
-				return lng_media_type_rounds;
-			}
-			Unexpected("Bad media type in Info::TitleValue()");
-
-		case Section::Type::CommonGroups:
-			return lng_profile_common_groups_section;
-
-		case Section::Type::Members:
-			return lng_profile_participants_section;
-
-		case Section::Type::Channels:
-			return lng_info_feed_channels;
-
-		case Section::Type::Settings:
-			switch (section.settingsType()) {
-			case Section::SettingsType::Main:
-				return lng_menu_settings;
-			case Section::SettingsType::Information:
-				return lng_settings_section_info;
-			case Section::SettingsType::Notifications:
-				return lng_settings_section_notify;
-			case Section::SettingsType::PrivacySecurity:
-				return lng_settings_section_privacy;
-			case Section::SettingsType::Advanced:
-				return lng_settings_advanced;
-			case Section::SettingsType::Chat:
-				return lng_settings_section_chat_settings;
-			case Section::SettingsType::Calls:
-				return lng_settings_section_call_settings;
-			}
-			Unexpected("Bad settings type in Info::TitleValue()");
+	switch (section.type()) {
+	case Section::Type::Profile:
+		/*if (const auto feed = key.feed()) {
+			return tr::lng_info_feed_title();
+		} else */if (const auto user = peer->asUser()) {
+			return (user->isBot() && !user->isSupport())
+				? tr::lng_info_bot_title()
+				: tr::lng_info_user_title();
+		} else if (const auto channel = peer->asChannel()) {
+			return channel->isMegagroup()
+				? tr::lng_info_group_title()
+				: tr::lng_info_channel_title();
+		} else if (peer->isChat()) {
+			return tr::lng_info_group_title();
 		}
-		Unexpected("Bad section type in Info::TitleValue()");
-	}());
+		Unexpected("Bad peer type in Info::TitleValue()");
+
+	case Section::Type::Media:
+		if (peer->isSelf() && isStackBottom) {
+			return tr::lng_profile_shared_media();
+		}
+		switch (section.mediaType()) {
+		case Section::MediaType::Photo:
+			return tr::lng_media_type_photos();
+		case Section::MediaType::Video:
+			return tr::lng_media_type_videos();
+		case Section::MediaType::MusicFile:
+			return tr::lng_media_type_songs();
+		case Section::MediaType::File:
+			return tr::lng_media_type_files();
+		case Section::MediaType::RoundVoiceFile:
+			return tr::lng_media_type_audios();
+		case Section::MediaType::Link:
+			return tr::lng_media_type_links();
+		case Section::MediaType::RoundFile:
+			return tr::lng_media_type_rounds();
+		}
+		Unexpected("Bad media type in Info::TitleValue()");
+
+	case Section::Type::CommonGroups:
+		return tr::lng_profile_common_groups_section();
+
+	case Section::Type::Members:
+		return tr::lng_profile_participants_section();
+
+	//case Section::Type::Channels: // #feed
+	//	return tr::lng_info_feed_channels();
+
+	case Section::Type::Settings:
+		switch (section.settingsType()) {
+		case Section::SettingsType::Main:
+			return tr::lng_menu_settings();
+		case Section::SettingsType::Information:
+			return tr::lng_settings_section_info();
+		case Section::SettingsType::Notifications:
+			return tr::lng_settings_section_notify();
+		case Section::SettingsType::PrivacySecurity:
+			return tr::lng_settings_section_privacy();
+		case Section::SettingsType::Advanced:
+			return tr::lng_settings_advanced();
+		case Section::SettingsType::Chat:
+			return tr::lng_settings_section_chat_settings();
+		case Section::SettingsType::Calls:
+			return tr::lng_settings_section_call_settings();
+		}
+		Unexpected("Bad settings type in Info::TitleValue()");
+	}
+	Unexpected("Bad section type in Info::TitleValue()");
 }
 
 } // namespace Info

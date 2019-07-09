@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/effects/animations.h"
+
 namespace Ui {
 namespace Toast {
 
@@ -43,9 +45,9 @@ private:
 	void opacityAnimationCallback();
 
 	bool _hiding = false;
-	Animation _a_opacity;
+	Ui::Animations::Simple _a_opacity;
 
-	const TimeMs _hideAtMs;
+	const crl::time _hideAtMs;
 
 	// ToastManager should reset _widget pointer if _widget is destroyed.
 	friend class internal::Manager;

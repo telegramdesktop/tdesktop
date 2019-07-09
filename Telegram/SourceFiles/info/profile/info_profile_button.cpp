@@ -59,14 +59,14 @@ rpl::producer<bool> Button::toggledChanges() const {
 	if (_toggle) {
 		return _toggle->checkedChanges();
 	}
-	return rpl::never<bool>();
+	return nullptr;
 }
 
 rpl::producer<bool> Button::toggledValue() const {
 	if (_toggle) {
 		return _toggle->checkedValue();
 	}
-	return rpl::never<bool>();
+	return nullptr;
 }
 
 void Button::setColorOverride(std::optional<QColor> textColorOverride) {
@@ -77,11 +77,10 @@ void Button::setColorOverride(std::optional<QColor> textColorOverride) {
 void Button::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
 	auto paintOver = (isOver() || isDown()) && !isDisabled();
 	p.fillRect(e->rect(), paintOver ? _st.textBgOver : _st.textBg);
 
-	paintRipple(p, 0, 0, ms);
+	paintRipple(p, 0, 0);
 
 	auto outerw = width();
 	p.setFont(_st.font);
@@ -99,7 +98,7 @@ void Button::paintEvent(QPaintEvent *e) {
 
 	if (_toggle) {
 		auto rect = toggleRect();
-		_toggle->paint(p, rect.left(), rect.top(), outerw, ms);
+		_toggle->paint(p, rect.left(), rect.top(), outerw);
 	}
 }
 

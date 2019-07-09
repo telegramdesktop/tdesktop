@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/abstract_button.h"
+#include "ui/effects/animations.h"
 #include "styles/style_widgets.h"
 
 #include <memory>
@@ -59,7 +60,7 @@ public:
 	~RippleButton();
 
 protected:
-	void paintRipple(QPainter &p, int x, int y, TimeMs ms, const QColor *colorOverride = nullptr);
+	void paintRipple(QPainter &p, int x, int y, const QColor *colorOverride = nullptr);
 
 	void onStateChanged(State was, StateChangeSource source) override;
 
@@ -68,7 +69,6 @@ protected:
 
 private:
 	void ensureRipple();
-	void handleRipples(bool wasDown, bool wasPress);
 
 	const style::RippleAnimation &_st;
 	std::unique_ptr<RippleAnimation> _ripple;
@@ -82,7 +82,8 @@ public:
 	FlatButton(QWidget *parent, const QString &text, const style::FlatButton &st);
 
 	void setText(const QString &text);
-	void setWidth(int32 w);
+	void setWidth(int w);
+	void setTextMargins(QMargins margins);
 
 	int32 textWidth() const;
 
@@ -92,8 +93,9 @@ protected:
 	void onStateChanged(State was, StateChangeSource source) override;
 
 private:
-	QString _text, _textForAutoSize;
-	int _width;
+	QString _text;
+	QMargins _textMargins;
+	int _width = 0;
 
 	const style::FlatButton &_st;
 
@@ -103,10 +105,10 @@ class RoundButton : public RippleButton, private base::Subscriber {
 public:
 	RoundButton(
 		QWidget *parent,
-		Fn<QString()> textFactory,
+		rpl::producer<QString> text,
 		const style::RoundButton &st);
 
-	void setText(Fn<QString()> textFactory);
+	void setText(rpl::producer<QString> text);
 
 	void setNumbersText(const QString &numbersText) {
 		setNumbersText(numbersText, numbersText.toInt());
@@ -115,7 +117,6 @@ public:
 		setNumbersText(QString::number(numbers), numbers);
 	}
 	void setWidthChangedCallback(Fn<void()> callback);
-	void stepNumbersAnimation(TimeMs ms);
 	void finishNumbersAnimation();
 
 	int contentWidth() const;
@@ -138,14 +139,12 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
-	void refreshText();
-	QString computeFullText() const;
 	void setNumbersText(const QString &numbersText, int numbers);
 	void numbersAnimationCallback();
-	void resizeToText();
+	void resizeToText(const QString &text);
 
+	rpl::variable<QString> _textFull;
 	QString _text;
-	Fn<QString()> _textFactory;
 	int _textWidth;
 
 	std::unique_ptr<NumbersAnimation> _numbers;
@@ -175,13 +174,15 @@ protected:
 	QImage prepareRippleMask() const override;
 	QPoint prepareRippleStartPosition() const override;
 
+	const style::IconButton &style();
+
 private:
 	const style::IconButton &_st;
 	const style::icon *_iconOverride = nullptr;
 	const style::icon *_iconOverrideOver = nullptr;
 	const style::color *_rippleColorOverride = nullptr;
 
-	Animation _a_over;
+	Ui::Animations::Simple _a_over;
 
 };
 
@@ -216,7 +217,7 @@ public:
 		return toggle(false, animated);
 	}
 	void finishAnimating() {
-		_a_show.finish();
+		_showAnimation.stop();
 		animationCallback();
 	}
 
@@ -234,18 +235,17 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
-	void step_loading(TimeMs ms, bool timer);
-	bool stopLoadingAnimation(TimeMs ms);
+	bool loadingCallback(crl::time now);
+	bool stopLoadingAnimation(crl::time now);
 	void animationCallback();
 
 	const style::CrossButton &_st;
 
 	bool _shown = false;
-	Animation _a_show;
+	Ui::Animations::Simple _showAnimation;
 
-	TimeMs _loadingStartMs = 0;
-	TimeMs _loadingStopMs = 0;
-	BasicAnimation _a_loading;
+	crl::time _loadingStopMs = 0;
+	Ui::Animations::Basic _loadingAnimation;
 
 };
 

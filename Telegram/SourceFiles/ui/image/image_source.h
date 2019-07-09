@@ -15,14 +15,8 @@ class ImageSource : public Source {
 public:
 	ImageSource(QImage &&data, const QByteArray &format);
 
-	void load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
-	void loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
+	void load(Data::FileOrigin origin) override;
+	void loadEvenCancelled(Data::FileOrigin origin) override;
 	QImage takeLoaded() override;
 	void unload() override;
 
@@ -70,14 +64,8 @@ public:
 		const QByteArray &format = QByteArray(),
 		QImage &&data = QImage());
 
-	void load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
-	void loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
+	void load(Data::FileOrigin origin) override;
+	void loadEvenCancelled(Data::FileOrigin origin) override;
 	QImage takeLoaded() override;
 	void unload() override;
 
@@ -122,14 +110,8 @@ private:
 
 class RemoteSource : public Source {
 public:
-	void load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
-	void loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
+	void load(Data::FileOrigin origin) override;
+	void loadEvenCancelled(Data::FileOrigin origin) override;
 	QImage takeLoaded() override;
 	void unload() override;
 
@@ -160,7 +142,7 @@ protected:
 	// If after loading the image we need to shrink it to fit into a
 	// specific size, you can return this size here.
 	virtual QSize shrinkBox() const = 0;
-	virtual FileLoader *createLoader(
+	virtual std::unique_ptr<FileLoader> createLoader(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) = 0;
@@ -168,11 +150,11 @@ protected:
 	void loadLocal();
 
 private:
-	bool loaderValid() const;
 	bool cancelled() const;
-	void destroyLoader(FileLoader *newValue = nullptr);
+	void destroyLoader();
 
-	FileLoader *_loader = nullptr;
+	std::unique_ptr<FileLoader> _loader;
+	bool _cancelled = false;
 
 };
 
@@ -194,7 +176,7 @@ public:
 
 protected:
 	QSize shrinkBox() const override;
-	FileLoader *createLoader(
+	std::unique_ptr<FileLoader> createLoader(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) override;
@@ -222,7 +204,7 @@ public:
 
 protected:
 	QSize shrinkBox() const override;
-	FileLoader *createLoader(
+	std::unique_ptr<FileLoader> createLoader(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) override;
@@ -248,7 +230,7 @@ public:
 
 protected:
 	QSize shrinkBox() const override;
-	FileLoader *createLoader(
+	std::unique_ptr<FileLoader> createLoader(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) override;
@@ -263,14 +245,8 @@ public:
 	DelayedStorageSource();
 	DelayedStorageSource(int width, int height);
 
-	void load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
-	void loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
+	void load(Data::FileOrigin origin) override;
+	void loadEvenCancelled(Data::FileOrigin origin) override;
 
 	void setDelayedStorageLocation(
 		const StorageImageLocation &location) override;
@@ -283,7 +259,9 @@ public:
 	void automaticLoadSettingsChanged() override;
 
 	bool loading() override {
-		return _location.isNull() ? _loadRequested : StorageSource::loading();
+		return _location.valid()
+			? StorageSource::loading()
+			: _loadRequested;
 	}
 	bool displayLoading() override;
 	void cancel() override;
@@ -311,7 +289,7 @@ public:
 
 protected:
 	QSize shrinkBox() const override;
-	FileLoader *createLoader(
+	std::unique_ptr<FileLoader> createLoader(
 		Data::FileOrigin origin,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading) override;

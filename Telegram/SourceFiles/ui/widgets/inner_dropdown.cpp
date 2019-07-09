@@ -22,7 +22,10 @@ constexpr int kFadeAlphaMax = 160;
 
 namespace Ui {
 
-InnerDropdown::InnerDropdown(QWidget *parent, const style::InnerDropdown &st) : TWidget(parent)
+InnerDropdown::InnerDropdown(
+	QWidget *parent,
+	const style::InnerDropdown &st)
+: RpWidget(parent)
 , _st(st)
 , _scroll(this, _st.scroll) {
 	_hideTimer.setSingleShot(true);
@@ -30,11 +33,21 @@ InnerDropdown::InnerDropdown(QWidget *parent, const style::InnerDropdown &st) : 
 
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 
-	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWindowActiveChanged()));
-	}
-
 	hide();
+
+	shownValue(
+	) | rpl::filter([](bool shown) {
+		return shown;
+	}) | rpl::take(1) | rpl::map([=] {
+		// We can't invoke this before the window is created.
+		// So instead we start handling them on the first show().
+		return macWindowDeactivateEvents();
+	}) | rpl::flatten_latest(
+	) | rpl::filter([=] {
+		return !isHidden();
+	}) | rpl::start_with_next([=] {
+		leaveEvent(nullptr);
+	}, lifetime());
 }
 
 QPointer<TWidget> InnerDropdown::doSetOwnedWidget(object_ptr<TWidget> widget) {
@@ -71,12 +84,6 @@ void InnerDropdown::resizeToContent() {
 	}
 }
 
-void InnerDropdown::onWindowActiveChanged() {
-	if (!App::wnd()->windowHandle()->isActive() && !isHidden()) {
-		leaveEvent(nullptr);
-	}
-}
-
 void InnerDropdown::resizeEvent(QResizeEvent *e) {
 	_scroll->setGeometry(rect().marginsRemoved(_st.padding).marginsRemoved(_st.scrollMargin));
 	if (auto widget = static_cast<TWidget*>(_scroll->widget())) {
@@ -96,16 +103,15 @@ void InnerDropdown::onScroll() {
 void InnerDropdown::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	const auto ms = getms();
-	if (_a_show.animating(ms)) {
-		if (auto opacity = _a_opacity.current(ms, _hiding ? 0. : 1.)) {
+	if (_a_show.animating()) {
+		if (auto opacity = _a_opacity.value(_hiding ? 0. : 1.)) {
 			// _a_opacity.current(ms)->opacityAnimationCallback()->_showAnimation.reset()
 			if (_showAnimation) {
-				_showAnimation->paintFrame(p, 0, 0, width(), _a_show.current(1.), opacity);
+				_showAnimation->paintFrame(p, 0, 0, width(), _a_show.value(1.), opacity);
 			}
 		}
-	} else if (_a_opacity.animating(ms)) {
-		p.setOpacity(_a_opacity.current(0.));
+	} else if (_a_opacity.animating()) {
+		p.setOpacity(_a_opacity.value(0.));
 		p.drawPixmap(0, 0, _cache);
 	} else if (_hiding || isHidden()) {
 		hideFinished();
@@ -125,19 +131,18 @@ void InnerDropdown::enterEventHook(QEvent *e) {
 	if (_autoHiding) {
 		showAnimated(_origin);
 	}
-	return TWidget::enterEventHook(e);
+	return RpWidget::enterEventHook(e);
 }
 
 void InnerDropdown::leaveEventHook(QEvent *e) {
 	if (_autoHiding) {
-		const auto ms = getms();
-		if (_a_show.animating(ms) || _a_opacity.animating(ms)) {
+		if (_a_show.animating() || _a_opacity.animating()) {
 			hideAnimated();
 		} else {
 			_hideTimer.start(300);
 		}
 	}
-	return TWidget::leaveEventHook(e);
+	return RpWidget::leaveEventHook(e);
 }
 
 void InnerDropdown::otherEnter() {
@@ -148,8 +153,7 @@ void InnerDropdown::otherEnter() {
 
 void InnerDropdown::otherLeave() {
 	if (_autoHiding) {
-		const auto ms = getms();
-		if (_a_show.animating(ms) || _a_opacity.animating(ms)) {
+		if (_a_show.animating() || _a_opacity.animating()) {
 			hideAnimated();
 		} else {
 			_hideTimer.start(0);
@@ -184,7 +188,7 @@ void InnerDropdown::hideAnimated(HideOption option) {
 
 void InnerDropdown::finishAnimating() {
 	if (_a_show.animating()) {
-		_a_show.finish();
+		_a_show.stop();
 		showAnimationCallback();
 	}
 	if (_showAnimation) {
@@ -192,7 +196,7 @@ void InnerDropdown::finishAnimating() {
 		showChildren();
 	}
 	if (_a_opacity.animating()) {
-		_a_opacity.finish();
+		_a_opacity.stop();
 		opacityAnimationCallback();
 	}
 }
@@ -217,7 +221,7 @@ void InnerDropdown::hideFast() {
 }
 
 void InnerDropdown::hideFinished() {
-	_a_show.finish();
+	_a_show.stop();
 	_showAnimation.reset();
 	_cache = QPixmap();
 	_ignoreShowEvents = false;
@@ -300,9 +304,9 @@ QImage InnerDropdown::grabForPanelAnimation() {
 	{
 		Painter p(&result);
 		App::roundRect(p, rect().marginsRemoved(_st.padding), _st.bg, ImageRoundRadius::Small);
-		for (auto child : children()) {
-			if (auto widget = qobject_cast<QWidget*>(child)) {
-				widget->render(&p, widget->pos(), widget->rect(), QWidget::DrawChildren | QWidget::IgnoreMask);
+		for (const auto child : children()) {
+			if (const auto widget = qobject_cast<QWidget*>(child)) {
+				RenderWidget(p, widget, widget->pos());
 			}
 		}
 	}

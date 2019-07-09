@@ -136,11 +136,11 @@ DeclareRefSetting(RecentInlineBots, RecentInlineBots);
 DeclareSetting(bool, PasswordRecovered);
 
 DeclareSetting(int32, PasscodeBadTries);
-DeclareSetting(TimeMs, PasscodeLastTry);
+DeclareSetting(crl::time, PasscodeLastTry);
 
 inline bool passcodeCanTry() {
 	if (cPasscodeBadTries() < 3) return true;
-	auto dt = getms(true) - cPasscodeLastTry();
+	auto dt = crl::now() - cPasscodeLastTry();
 	switch (cPasscodeBadTries()) {
 	case 3: return dt >= 5000;
 	case 4: return dt >= 10000;
@@ -157,32 +157,16 @@ DeclareSetting(QString, StartUrl);
 DeclareSetting(float64, RetinaFactor);
 DeclareSetting(int32, IntRetinaFactor);
 
-DeclareReadSetting(DBIPlatform, Platform);
-DeclareReadSetting(QString, PlatformString);
-DeclareReadSetting(bool, IsElCapitan);
-DeclareReadSetting(bool, IsSnowLeopard);
-
 DeclareSetting(int, OtherOnline);
-
-class PeerData;
-typedef QMap<PeerData*, QDateTime> SavedPeers;
-typedef QMultiMap<QDateTime, PeerData*> SavedPeersByTime;
-DeclareRefSetting(SavedPeers, SavedPeers);
-DeclareRefSetting(SavedPeersByTime, SavedPeersByTime);
-
-typedef QMap<uint64, DBIPeerReportSpamStatus> ReportSpamStatuses;
-DeclareRefSetting(ReportSpamStatuses, ReportSpamStatuses);
-
 DeclareSetting(bool, AutoPlayGif);
 
-DeclareSetting(bool, ShowCallbackData);
 DeclareSetting(bool, ShowUsername);
 DeclareSetting(bool, IgnoreBlocked);
+DeclareSetting(bool, ShowCallbackData);
 DeclareSetting(bool, TextMention);
 DeclareSetting(bool, AutoCopy);
-DeclareSetting(int, DialogsType);
 DeclareSetting(int, Typing);
-DeclareSetting(bool, Template);
+DeclareSetting(unsigned, LastTab);
 
 constexpr auto kInterfaceScaleAuto = 0;
 constexpr auto kInterfaceScaleMin = 100;
@@ -207,6 +191,10 @@ inline T ConvertScale(T value, int scale) {
 template <typename T>
 inline T ConvertScale(T value) {
 	return ConvertScale(value, cScale());
+}
+
+inline QSize ConvertScale(QSize size) {
+	return QSize(ConvertScale(size.width()), ConvertScale(size.height()));
 }
 
 inline void SetScaleChecked(int scale) {

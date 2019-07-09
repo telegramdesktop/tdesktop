@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/auto_download_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/background_box.h"
+#include "boxes/background_preview_box.h"
 #include "boxes/download_path_box.h"
 #include "boxes/local_storage_box.h"
 #include "ui/wrap/vertical_layout.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
+#include "ui/image/image_source.h"
 #include "lang/lang_keys.h"
 #include "window/themes/window_theme_editor.h"
 #include "window/themes/window_theme.h"
@@ -30,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "data/data_session.h"
 #include "chat_helpers/emoji_sets_manager.h"
+#include "platform/platform_info.h"
 #include "support/support_common.h"
 #include "support/support_templates.h"
 #include "auth_session.h"
@@ -55,8 +58,8 @@ private:
 	bool radialLoading() const;
 	QRect radialRect() const;
 	void radialStart();
-	TimeMs radialTimeShift() const;
-	void step_radial(TimeMs ms, bool timer);
+	crl::time radialTimeShift() const;
+	void radialAnimationCallback(crl::time now);
 
 	QPixmap _background;
 	object_ptr<Ui::LinkButton> _chooseFromGallery;
@@ -91,8 +94,7 @@ public:
 		Painter &p,
 		int left,
 		int top,
-		int outerWidth,
-		TimeMs ms) override;
+		int outerWidth) override;
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 
@@ -109,10 +111,10 @@ void ChooseFromFile(not_null<QWidget*> parent);
 BackgroundRow::BackgroundRow(QWidget *parent) : RpWidget(parent)
 , _chooseFromGallery(
 	this,
-	lang(lng_settings_bg_from_gallery),
+	tr::lng_settings_bg_from_gallery(tr::now),
 	st::settingsLink)
-, _chooseFromFile(this, lang(lng_settings_bg_from_file), st::settingsLink)
-, _radial(animation(this, &BackgroundRow::step_radial)) {
+, _chooseFromFile(this, tr::lng_settings_bg_from_file(tr::now), st::settingsLink)
+, _radial([=](crl::time now) { radialAnimationCallback(now); }) {
 	updateImage();
 
 	_chooseFromGallery->addClickHandler([] {
@@ -137,16 +139,11 @@ BackgroundRow::BackgroundRow(QWidget *parent) : RpWidget(parent)
 void BackgroundRow::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	bool radial = false;
-	float64 radialOpacity = 0;
-	if (_radial.animating()) {
-		_radial.step(getms());
-		radial = _radial.animating();
-		radialOpacity = _radial.opacity();
-	}
+	const auto radial = _radial.animating();
+	const auto radialOpacity = radial ? _radial.opacity() : 0.;
 	if (radial) {
 		const auto backThumb = App::main()->newBackgroundThumb();
-		if (backThumb->isNull()) {
+		if (!backThumb) {
 			p.drawPixmap(0, 0, _background);
 		} else {
 			const auto &pix = backThumb->pixBlurred(
@@ -238,21 +235,21 @@ void BackgroundRow::radialStart() {
 			_radial.update(
 				radialProgress(),
 				!radialLoading(),
-				getms() + shift);
+				crl::now() + shift);
 		}
 	}
 }
 
-TimeMs BackgroundRow::radialTimeShift() const {
+crl::time BackgroundRow::radialTimeShift() const {
 	return st::radialDuration;
 }
 
-void BackgroundRow::step_radial(TimeMs ms, bool timer) {
+void BackgroundRow::radialAnimationCallback(crl::time now) {
 	const auto updated = _radial.update(
 		radialProgress(),
 		!radialLoading(),
-		ms + radialTimeShift());
-	if (timer && _radial.animating() && (!anim::Disabled() || updated)) {
+		now + radialTimeShift());
+	if (!anim::Disabled() || updated) {
 		rtlupdate(radialRect());
 	}
 }
@@ -265,26 +262,35 @@ void BackgroundRow::updateImage() {
 		Painter p(&back);
 		PainterHighQualityEnabler hq(p);
 
-		const auto &pix = Window::Theme::Background()->pixmap();
-		const auto sx = (pix.width() > pix.height())
-			? ((pix.width() - pix.height()) / 2)
-			: 0;
-		const auto sy = (pix.height() > pix.width())
-			? ((pix.height() - pix.width()) / 2)
-			: 0;
-		const auto s = (pix.width() > pix.height())
-			? pix.height()
-			: pix.width();
-		p.drawPixmap(
-			0,
-			0,
-			st::settingsBackgroundThumb,
-			st::settingsBackgroundThumb,
-			pix,
-			sx,
-			sy,
-			s,
-			s);
+		if (const auto color = Window::Theme::Background()->colorForFill()) {
+			p.fillRect(
+				0,
+				0,
+				st::settingsBackgroundThumb,
+				st::settingsBackgroundThumb,
+				*color);
+		} else {
+			const auto &pix = Window::Theme::Background()->pixmap();
+			const auto sx = (pix.width() > pix.height())
+				? ((pix.width() - pix.height()) / 2)
+				: 0;
+			const auto sy = (pix.height() > pix.width())
+				? ((pix.height() - pix.width()) / 2)
+				: 0;
+			const auto s = (pix.width() > pix.height())
+				? pix.height()
+				: pix.width();
+			p.drawPixmap(
+				0,
+				0,
+				st::settingsBackgroundThumb,
+				st::settingsBackgroundThumb,
+				pix,
+				sx,
+				sy,
+				s,
+				s);
+		}
 	}
 	Images::prepareRound(back, ImageRoundRadius::Small);
 	_background = App::pixmapFromImageInPlace(std::move(back));
@@ -313,8 +319,7 @@ void DefaultTheme::paint(
 		Painter &p,
 		int left,
 		int top,
-		int outerWidth,
-		TimeMs ms) {
+		int outerWidth) {
 	const auto received = QRect(
 		st::settingsThemeBubblePosition,
 		st::settingsThemeBubbleSize);
@@ -341,8 +346,7 @@ void DefaultTheme::paint(
 		p,
 		(outerWidth - radio.width()) / 2,
 		getSize().height() - radio.height() - st::settingsThemeRadioBottom,
-		outerWidth,
-		getms());
+		outerWidth);
 }
 
 QImage DefaultTheme::prepareRippleMask() const {
@@ -358,7 +362,7 @@ void DefaultTheme::checkedChangedHook(anim::type animated) {
 }
 
 void ChooseFromFile(not_null<QWidget*> parent) {
-	const auto imgExtensions = cImgExtensions();
+	const auto &imgExtensions = cImgExtensions();
 	auto filters = QStringList(
 		qsl("Theme files (*.tdesktop-theme *.tdesktop-palette *")
 		+ imgExtensions.join(qsl(" *"))
@@ -386,28 +390,17 @@ void ChooseFromFile(not_null<QWidget*> parent) {
 			: App::readImage(result.remoteContent);
 		if (image.isNull() || image.width() <= 0 || image.height() <= 0) {
 			return;
-		} else if (image.width() > 4096 * image.height()) {
-			image = image.copy(
-				(image.width() - 4096 * image.height()) / 2,
-				0,
-				4096 * image.height(),
-				image.height());
-		} else if (image.height() > 4096 * image.width()) {
-			image = image.copy(
-				0,
-				(image.height() - 4096 * image.width()) / 2,
-				image.width(),
-				4096 * image.width());
 		}
-
-		Window::Theme::Background()->setImage(
-			Window::Theme::kCustomBackground,
-			std::move(image));
-		Window::Theme::Background()->setTile(false);
+		auto local = Data::CustomWallPaper();
+		local.setLocalImageAsThumbnail(std::make_shared<Image>(
+			std::make_unique<Images::ImageSource>(
+				std::move(image),
+				"JPG")));
+		Ui::show(Box<BackgroundPreviewBox>(local));
 	};
 	FileDialog::GetOpenPath(
 		parent.get(),
-		lang(lng_choose_image),
+		tr::lng_choose_image(tr::now),
 		filters.join(qsl(";;")),
 		crl::guard(parent, callback));
 
@@ -415,9 +408,9 @@ void ChooseFromFile(not_null<QWidget*> parent) {
 
 QString DownloadPathText() {
 	if (Global::DownloadPath().isEmpty()) {
-		return lang(lng_download_path_default);
+		return tr::lng_download_path_default(tr::now);
 	} else if (Global::DownloadPath() == qsl("tmp")) {
-		return lang(lng_download_path_temp);
+		return tr::lng_download_path_temp(tr::now);
 	}
 	return QDir::toNativeSeparators(Global::DownloadPath());
 }
@@ -426,7 +419,7 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
-	AddSubsectionTitle(container, lng_settings_stickers_emoji);
+	AddSubsectionTitle(container, tr::lng_settings_stickers_emoji());
 
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
 	const auto inner = wrap.data();
@@ -435,14 +428,14 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 		std::move(wrap),
 		QMargins(0, 0, 0, st::settingsCheckbox.margin.bottom())));
 
-	const auto checkbox = [&](LangKey label, bool checked) {
+	const auto checkbox = [&](const QString &label, bool checked) {
 		return object_ptr<Ui::Checkbox>(
 			container,
-			lang(label),
+			label,
 			checked,
 			st::settingsCheckbox);
 	};
-	const auto add = [&](LangKey label, bool checked, auto &&handle) {
+	const auto add = [&](const QString &label, bool checked, auto &&handle) {
 		inner->add(
 			checkbox(label, checked),
 			st::settingsCheckboxPadding
@@ -452,7 +445,7 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 			inner->lifetime());
 	};
 	add(
-		lng_settings_replace_emojis,
+		tr::lng_settings_replace_emojis(tr::now),
 		Global::ReplaceEmoji(),
 		[](bool checked) {
 			Global::SetReplaceEmoji(checked);
@@ -461,7 +454,7 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 		});
 
 	add(
-		lng_settings_suggest_emoji,
+		tr::lng_settings_suggest_emoji(tr::now),
 		Global::SuggestEmoji(),
 		[](bool checked) {
 			Global::SetSuggestEmoji(checked);
@@ -469,7 +462,7 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 		});
 
 	add(
-		lng_settings_suggest_by_emoji,
+		tr::lng_settings_suggest_by_emoji(tr::now),
 		Global::SuggestStickersByEmoji(),
 		[](bool checked) {
 			Global::SetSuggestStickersByEmoji(checked);
@@ -478,7 +471,7 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 
 	AddButton(
 		container,
-		lng_stickers_you_have,
+		tr::lng_stickers_you_have(),
 		st::settingsChatButton,
 		&st::settingsIconStickers,
 		st::settingsChatIconLeft
@@ -488,7 +481,7 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 
 	AddButton(
 		container,
-		lng_emoji_manage_sets,
+		tr::lng_emoji_manage_sets(),
 		st::settingsChatButton,
 		&st::settingsIconEmoji,
 		st::settingsChatIconLeft
@@ -503,7 +496,7 @@ void SetupMessages(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
-	AddSubsectionTitle(container, lng_settings_messages);
+	AddSubsectionTitle(container, tr::lng_settings_messages());
 
 	AddSkip(container, st::settingsSendTypeSkip);
 
@@ -520,24 +513,24 @@ void SetupMessages(not_null<Ui::VerticalLayout*> container) {
 
 	const auto group = std::make_shared<Ui::RadioenumGroup<SendByType>>(
 		Auth().settings().sendSubmitWay());
-	const auto add = [&](SendByType value, LangKey key) {
+	const auto add = [&](SendByType value, const QString &text) {
 		inner->add(
 			object_ptr<Ui::Radioenum<SendByType>>(
 				inner,
 				group,
 				value,
-				lang(key),
+				text,
 				st::settingsSendType),
 			st::settingsSendTypePadding);
 	};
 	const auto small = st::settingsSendTypePadding;
 	const auto top = skip;
-	add(SendByType::Enter, lng_settings_send_enter);
+	add(SendByType::Enter, tr::lng_settings_send_enter(tr::now));
 	add(
 		SendByType::CtrlEnter,
-		((cPlatform() == dbipMac || cPlatform() == dbipMacOld)
-			? lng_settings_send_cmdenter
-			: lng_settings_send_ctrlenter));
+		(Platform::IsMac()
+			? tr::lng_settings_send_cmdenter(tr::now)
+			: tr::lng_settings_send_ctrlenter(tr::now)));
 
 	group->setChangedCallback([](SendByType value) {
 		Auth().settings().setSendSubmitWay(value);
@@ -553,7 +546,7 @@ void SetupMessages(not_null<Ui::VerticalLayout*> container) {
 void SetupExport(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
-		lng_settings_export_data,
+		tr::lng_settings_export_data(),
 		st::settingsButton
 	)->addClickHandler([] {
 		Ui::hideSettingsAndLayer();
@@ -567,10 +560,12 @@ void SetupExport(not_null<Ui::VerticalLayout*> container) {
 void SetupLocalStorage(not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
-		lng_settings_manage_local_storage,
+		tr::lng_settings_manage_local_storage(),
 		st::settingsButton
 	)->addClickHandler([] {
-		LocalStorageBox::Show(&Auth().data().cache());
+		LocalStorageBox::Show(
+			&Auth().data().cache(),
+			&Auth().data().cacheBigFile());
 	});
 }
 
@@ -580,11 +575,11 @@ void SetupDataStorage(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
-	AddSubsectionTitle(container, lng_settings_data_storage);
+	AddSubsectionTitle(container, tr::lng_settings_data_storage());
 
 	const auto ask = AddButton(
 		container,
-		lng_download_path_ask,
+		tr::lng_download_path_ask(),
 		st::settingsButton
 	)->toggleOn(rpl::single(Global::AskDownloadPath()));
 
@@ -595,7 +590,7 @@ void SetupDataStorage(not_null<Ui::VerticalLayout*> container) {
 			container,
 			object_ptr<Button>(
 				container,
-				Lang::Viewer(lng_download_path),
+				tr::lng_download_path(),
 				st::settingsButton)));
 	auto pathtext = rpl::single(
 		rpl::empty_value()
@@ -608,7 +603,7 @@ void SetupDataStorage(not_null<Ui::VerticalLayout*> container) {
 		path->entity(),
 		std::move(pathtext),
 		st::settingsButton,
-		lng_download_path);
+		tr::lng_download_path());
 	path->entity()->addClickHandler([] {
 		Ui::show(Box<DownloadPathBox>());
 	});
@@ -638,21 +633,21 @@ void SetupAutoDownload(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
-	AddSubsectionTitle(container, lng_media_auto_settings);
+	AddSubsectionTitle(container, tr::lng_media_auto_settings());
 
 	using Source = Data::AutoDownload::Source;
-	const auto add = [&](LangKey label, Source source) {
+	const auto add = [&](rpl::producer<QString> label, Source source) {
 		AddButton(
 			container,
-			label,
+			std::move(label),
 			st::settingsButton
 		)->addClickHandler([=] {
 			Ui::show(Box<AutoDownloadBox>(source));
 		});
 	};
-	add(lng_media_auto_in_private, Source::User);
-	add(lng_media_auto_in_groups, Source::Group);
-	add(lng_media_auto_in_channels, Source::Channel);
+	add(tr::lng_media_auto_in_private(), Source::User);
+	add(tr::lng_media_auto_in_groups(), Source::Group);
+	add(tr::lng_media_auto_in_channels(), Source::Channel);
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 }
@@ -661,7 +656,7 @@ void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
-	AddSubsectionTitle(container, lng_settings_section_background);
+	AddSubsectionTitle(container, tr::lng_settings_section_background());
 
 	container->add(
 		object_ptr<BackgroundRow>(container),
@@ -682,7 +677,7 @@ void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 	const auto tile = inner->add(
 		object_ptr<Ui::Checkbox>(
 			inner,
-			lang(lng_settings_bg_tile),
+			tr::lng_settings_bg_tile(tr::now),
 			Window::Theme::Background()->tile(),
 			st::settingsCheckbox),
 		st::settingsSendTypePadding);
@@ -691,7 +686,7 @@ void SetupChatBackground(not_null<Ui::VerticalLayout*> container) {
 			inner,
 			object_ptr<Ui::Checkbox>(
 				inner,
-				lang(lng_settings_adaptive_wide),
+				tr::lng_settings_adaptive_wide(tr::now),
 				Global::AdaptiveForWide(),
 				st::settingsCheckbox),
 			st::settingsSendTypePadding));
@@ -802,7 +797,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			return Type(-1);
 		}
 		const auto path = Window::Theme::Background()->themeAbsolutePath();
-		for (const auto scheme : schemes) {
+		for (const auto &scheme : schemes) {
 			if (path == scheme.path) {
 				return scheme.type;
 			}
@@ -910,7 +905,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsPrivacySkip);
 
-	AddSubsectionTitle(container, lng_settings_themes);
+	AddSubsectionTitle(container, tr::lng_settings_themes());
 
 	AddSkip(container, st::settingsThemesTopSkip);
 	SetupDefaultThemes(container);
@@ -918,7 +913,7 @@ void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 
 	AddButton(
 		container,
-		lng_settings_bg_edit_theme,
+		tr::lng_settings_bg_edit_theme(),
 		st::settingsChatButton,
 		&st::settingsIconThemes,
 		st::settingsChatIconLeft

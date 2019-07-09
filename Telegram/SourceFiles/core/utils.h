@@ -36,77 +36,11 @@ inline constexpr D up_cast(T object) {
 	}
 }
 
-template <typename Container, typename T>
-inline bool contains(const Container &container, const T &value) {
-	auto end = std::end(container);
-	return std::find(std::begin(container), end, value) != end;
-}
-
-// We need a custom comparator for std::set<std::unique_ptr<T>>::find to work with pointers.
-// thanks to http://stackoverflow.com/questions/18939882/raw-pointer-lookup-for-sets-of-unique-ptrs
-template <typename T>
-struct pointer_comparator {
-	using is_transparent = std::true_type;
-
-	// helper does some magic in order to reduce the number of
-	// pairs of types we need to know how to compare: it turns
-	// everything into a pointer, and then uses `std::less<T*>`
-	// to do the comparison:
-	struct helper {
-		T *ptr = nullptr;
-		helper() = default;
-		helper(const helper &other) = default;
-		helper(T *p) : ptr(p) {
-		}
-		template <typename ...Ts>
-		helper(const std::shared_ptr<Ts...> &other) : ptr(other.get()) {
-		}
-		template <typename ...Ts>
-		helper(const std::unique_ptr<Ts...> &other) : ptr(other.get()) {
-		}
-		bool operator<(helper other) const {
-			return std::less<T*>()(ptr, other.ptr);
-		}
-	};
-
-	// without helper, we'd need 2^n different overloads, where
-	// n is the number of types we want to support (so, 8 with
-	// raw pointers, unique pointers, and shared pointers).  That
-	// seems silly.
-	// && helps enforce rvalue use only
-	bool operator()(const helper &&lhs, const helper &&rhs) const {
-		return lhs < rhs;
-	}
-
-};
-
 template <typename T>
 using set_of_unique_ptr = std::set<std::unique_ptr<T>, base::pointer_comparator<T>>;
 
 template <typename T>
 using set_of_shared_ptr = std::set<std::shared_ptr<T>, base::pointer_comparator<T>>;
-
-// Thanks https://stackoverflow.com/a/28139075
-
-template <typename Container>
-struct reversion_wrapper {
-	Container &container;
-};
-
-template <typename Container>
-auto begin(reversion_wrapper<Container> wrapper) {
-	return std::rbegin(wrapper.container);
-}
-
-template <typename Container>
-auto end(reversion_wrapper<Container> wrapper) {
-	return std::rend(wrapper.container);
-}
-
-template <typename Container>
-reversion_wrapper<Container> reversed(Container &&container) {
-	return { container };
-}
 
 template <typename Value, typename From, typename Till>
 inline bool in_range(Value &&value, From &&from, Till &&till) {
@@ -122,7 +56,7 @@ inline bool in_range(Value &&value, From &&from, Till &&till) {
 #define for_const(range_declaration, range_expression) for (range_declaration : std::as_const(range_expression))
 
 template <typename Lambda>
-inline void InvokeQueued(QObject *context, Lambda &&lambda) {
+inline void InvokeQueued(const QObject *context, Lambda &&lambda) {
 	QObject proxy;
 	QObject::connect(&proxy, &QObject::destroyed, context, std::forward<Lambda>(lambda), Qt::QueuedConnection);
 }
@@ -189,10 +123,7 @@ namespace ThirdParty {
 void start();
 void finish();
 
-}
-
-bool checkms(); // returns true if time has changed
-TimeMs getms(bool checked = false);
+} // namespace ThirdParty
 
 const static uint32 _md5_block_size = 64;
 class HashMd5 {
@@ -352,7 +283,7 @@ struct ProxyData {
 	QString user, password;
 
 	std::vector<QString> resolvedIPs;
-	TimeMs resolvedExpireAt = 0;
+	crl::time resolvedExpireAt = 0;
 
 	bool valid() const;
 	bool supportsCalls() const;
@@ -371,23 +302,6 @@ ProxyData ToDirectIpProxy(const ProxyData &proxy, int ipIndex = 0);
 QNetworkProxy ToNetworkProxy(const ProxyData &proxy);
 
 static const int MatrixRowShift = 40000;
-
-enum DBIPlatform {
-	dbipWindows = 0,
-	dbipMac = 1,
-	dbipLinux64 = 2,
-	dbipLinux32 = 3,
-	dbipMacOld = 4,
-};
-
-enum DBIPeerReportSpamStatus {
-	dbiprsNoButton = 0, // hidden, but not in the cloud settings yet
-	dbiprsUnknown = 1, // contacts not loaded yet
-	dbiprsShowButton = 2, // show report spam button, each show peer request setting from cloud
-	dbiprsReportSent = 3, // report sent, but the report spam panel is not hidden yet
-	dbiprsHidden = 4, // hidden in the cloud or not needed (bots, contacts, etc), no more requests
-	dbiprsRequesting = 5, // requesting the cloud setting right now
-};
 
 inline int rowscount(int fullCount, int countPerRow) {
 	return (fullCount + countPerRow - 1) / countPerRow;

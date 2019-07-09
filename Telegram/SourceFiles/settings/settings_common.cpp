@@ -31,7 +31,7 @@ namespace Settings {
 object_ptr<Section> CreateSection(
 		Type type,
 		not_null<QWidget*> parent,
-		Window::Controller *controller,
+		Window::SessionController *controller,
 		UserData *self) {
 	switch (type) {
 	case Type::Main:
@@ -80,15 +80,6 @@ void AddDividerText(
 
 not_null<Button*> AddButton(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey text,
-		const style::InfoProfileButton &st,
-		const style::icon *leftIcon,
-		int iconLeft) {
-	return AddButton(container, Lang::Viewer(text), st, leftIcon, iconLeft);
-}
-
-not_null<Button*> AddButton(
-		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> text,
 		const style::InfoProfileButton &st,
 		const style::icon *leftIcon,
@@ -128,13 +119,13 @@ void CreateRightLabel(
 		not_null<Button*> button,
 		rpl::producer<QString> label,
 		const style::InfoProfileButton &st,
-		LangKey buttonText) {
+		rpl::producer<QString> buttonText) {
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
 		button.get(),
 		st::settingsButtonRight);
 	rpl::combine(
 		button->widthValue(),
-		Lang::Viewer(buttonText),
+		std::move(buttonText),
 		std::move(label)
 	) | rpl::start_with_next([=, &st](
 			int width,
@@ -154,13 +145,18 @@ void CreateRightLabel(
 
 not_null<Button*> AddButtonWithLabel(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey text,
+		rpl::producer<QString> text,
 		rpl::producer<QString> label,
 		const style::InfoProfileButton &st,
 		const style::icon *leftIcon,
 		int iconLeft) {
-	const auto button = AddButton(container, text, st, leftIcon, iconLeft);
-	CreateRightLabel(button, std::move(label), st, text);
+	const auto button = AddButton(
+		container,
+		rpl::duplicate(text),
+		st,
+		leftIcon,
+		iconLeft);
+	CreateRightLabel(button, std::move(label), st, std::move(text));
 	return button;
 }
 
@@ -175,20 +171,14 @@ void AddSubsectionTitle(
 		st::settingsSubsectionTitlePadding);
 }
 
-void AddSubsectionTitle(
-		not_null<Ui::VerticalLayout*> container,
-		LangKey text) {
-	AddSubsectionTitle(container, Lang::Viewer(text));
-}
-
 void FillMenu(Fn<void(Type)> showOther, MenuCallback addAction) {
 	if (!Auth().supportMode()) {
 		addAction(
-			lang(lng_settings_information),
+			tr::lng_settings_information(tr::now),
 			[=] { showOther(Type::Information); });
 	}
 	addAction(
-		lang(lng_settings_logout),
+		tr::lng_settings_logout(tr::now),
 		[=] { App::wnd()->onLogout(); });
 }
 

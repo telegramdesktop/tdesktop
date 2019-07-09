@@ -20,7 +20,10 @@ namespace lang {
 
 constexpr auto kPluralPartCount = 6;
 extern const std::array<QString, kPluralPartCount> kPluralParts;
-extern const QString kPluralTag;
+
+constexpr auto kPluralTagsCount = 3;
+extern const std::array<QString, kPluralTagsCount> kPluralTags;
+
 QString ComputePluralKey(const QString &base, int index);
 
 struct LangPack {

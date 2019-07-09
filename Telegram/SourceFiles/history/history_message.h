@@ -22,7 +22,6 @@ QString GetErrorTextForForward(
 	not_null<PeerData*> peer,
 	const HistoryItemsList &items);
 void FastShareMessage(not_null<HistoryItem*> item);
-QString FormatViewsCount(int views);
 
 class HistoryMessage
 	: public HistoryItem {
@@ -89,14 +88,20 @@ public:
 
 	void refreshMedia(const MTPMessageMedia *media);
 	void refreshSentMedia(const MTPMessageMedia *media);
+	void returnSavedMedia() override;
 	void setMedia(const MTPMessageMedia &media);
-	static std::unique_ptr<Data::Media> CreateMedia(
+	[[nodiscard]] static std::unique_ptr<Data::Media> CreateMedia(
 		not_null<HistoryMessage*> item,
 		const MTPMessageMedia &media);
 
-	bool allowsForward() const override;
-	bool allowsEdit(TimeId now) const override;
-	bool uploading() const;
+	[[nodiscard]] bool allowsForward() const override;
+	[[nodiscard]] bool allowsEdit(TimeId now) const override;
+	[[nodiscard]] bool uploading() const;
+
+	[[nodiscard]] bool hasAdminBadge() const {
+		return _flags & MTPDmessage_ClientFlag::f_has_admin_badge;
+	}
+	[[nodiscard]] bool hasMessageBadge() const;
 
 	void applyGroupAdminChanges(
 		const base::flat_map<UserId, bool> &changes) override;
@@ -106,7 +111,7 @@ public:
 
 	void dependencyItemRemoved(HistoryItem *dependency) override;
 
-	QString notificationHeader() const override;
+	[[nodiscard]] QString notificationHeader() const override;
 
 	void applyEdition(const MTPDmessage &message) override;
 	void applyEdition(const MTPDmessageService &message) override;
@@ -114,59 +119,59 @@ public:
 	void updateReplyMarkup(const MTPReplyMarkup *markup) override {
 		setReplyMarkup(markup);
 	}
+	void updateForwardedInfo(const MTPMessageFwdHeader *fwd) override;
 
 	void addToUnreadMentions(UnreadMentionType type) override;
 	void eraseFromUnreadMentions() override;
-	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
+	[[nodiscard]] Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	void setText(const TextWithEntities &textWithEntities) override;
-	TextWithEntities originalText() const override;
-	TextWithEntities clipboardText() const override;
-	bool textHasLinks() const override;
+	[[nodiscard]] TextWithEntities originalText() const override;
+	[[nodiscard]] TextForMimeData clipboardText() const override;
+	[[nodiscard]] bool textHasLinks() const override;
 
-	int viewsCount() const override;
-	not_null<PeerData*> displayFrom() const;
+	[[nodiscard]] int viewsCount() const override;
 	bool updateDependencyItem() override;
-	MsgId dependencyMsgId() const override {
+	[[nodiscard]] MsgId dependencyMsgId() const override {
 		return replyToId();
 	}
 
-	HistoryMessage *toHistoryMessage() override { // dynamic_cast optimize
+	// dynamic_cast optimization.
+	[[nodiscard]] HistoryMessage *toHistoryMessage() override {
 		return this;
 	}
-	const HistoryMessage *toHistoryMessage() const override { // dynamic_cast optimize
+	[[nodiscard]] const HistoryMessage *toHistoryMessage() const override {
 		return this;
 	}
 
-	std::unique_ptr<HistoryView::Element> createView(
+	[[nodiscard]] std::unique_ptr<HistoryView::Element> createView(
 		not_null<HistoryView::ElementDelegate*> delegate) override;
 
 	~HistoryMessage();
 
 private:
 	void setEmptyText();
-	bool hasAdminBadge() const {
-		return _flags & MTPDmessage_ClientFlag::f_has_admin_badge;
-	}
-	bool isTooOldForEdit(TimeId now) const;
-	bool isUnsupportedMessage() const {
-		return _flags & MTPDmessage_ClientFlag::f_is_unsupported;
+	[[nodiscard]] bool isTooOldForEdit(TimeId now) const;
+	[[nodiscard]] bool isLegacyMessage() const {
+		return _flags & MTPDmessage::Flag::f_legacy;
 	}
 
 	// For an invoice button we replace the button text with a "Receipt" key.
 	// It should show the receipt for the payed invoice. Still let mobile apps do that.
 	void replaceBuyWithReceiptInMarkup();
 
-	void applyEditionToEmpty();
-
 	void setReplyMarkup(const MTPReplyMarkup *markup);
 
 	struct CreateConfig;
 	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, const QString &postAuthor, const MTPReplyMarkup &markup);
 	void createComponents(const CreateConfig &config);
+	void setupForwardedComponent(const CreateConfig &config);
+
+	static void FillForwardedInfo(
+		CreateConfig &config,
+		const MTPDmessageFwdHeader &data);
 
 	void updateAdminBadgeState();
-	ClickHandlerPtr fastReplyLink() const;
 
 	QString _timeText;
 	int _timeWidth = 0;

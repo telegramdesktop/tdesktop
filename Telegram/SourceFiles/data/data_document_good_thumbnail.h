@@ -17,14 +17,8 @@ class GoodThumbSource : public Images::Source {
 public:
 	explicit GoodThumbSource(not_null<DocumentData*> document);
 
-	void load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
-	void loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) override;
+	void load(Data::FileOrigin origin) override;
+	void loadEvenCancelled(Data::FileOrigin origin) override;
 	QImage takeLoaded() override;
 	void unload() override;
 

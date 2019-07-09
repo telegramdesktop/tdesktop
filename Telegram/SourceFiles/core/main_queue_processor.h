@@ -21,6 +21,8 @@ private:
 	void acquire();
 	void release();
 
+	rpl::lifetime _lifetime;
+
 };
 
 } // namespace Core

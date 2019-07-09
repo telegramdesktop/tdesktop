@@ -48,8 +48,12 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 		}
 		writeStorageImageLocation(stream, document->sticker()->loc);
 	} else {
-		stream << qint32(document->duration());
-		writeStorageImageLocation(stream, document->thumb->location());
+		stream << qint32(document->getDuration());
+		if (const auto thumb = document->thumbnail()) {
+			writeStorageImageLocation(stream, thumb->location());
+		} else {
+			writeStorageImageLocation(stream, StorageImageLocation());
+		}
 	}
 }
 
@@ -77,7 +81,7 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 	}
 
 	qint32 duration = -1;
-	StorageImageLocation thumb;
+	std::optional<StorageImageLocation> thumb;
 	if (type == StickerDocument) {
 		QString alt;
 		qint32 typeOfSet;
@@ -127,7 +131,12 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		}
 	}
 
-	if (!dc && !access) {
+	if ((!dc && !access)
+		|| !thumb
+		|| (thumb->valid() && !thumb->file().isDocumentThumbnail())) {
+		stream.setStatus(QDataStream::ReadCorruptData);
+		// We can't convert legacy thumbnail location to modern, because
+		// size letter ('s' or 'm') is lost, it was not saved in legacy.
 		return nullptr;
 	}
 	return Auth().data().document(
@@ -137,10 +146,11 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 		date,
 		attributes,
 		mime,
-		thumb.isNull() ? ImagePtr() : Images::Create(thumb),
+		ImagePtr(),
+		Images::Create(*thumb),
 		dc,
 		size,
-		thumb);
+		*thumb);
 }
 
 DocumentData *Document::readStickerFromStream(int streamAppVersion, QDataStream &stream, const StickerSetInfo &info) {
@@ -172,7 +182,11 @@ int Document::sizeInStream(DocumentData *document) {
 		// + duration
 		result += sizeof(qint32);
 		// + thumb loc
-		result += Serialize::storageImageLocationSize(document->thumb->location());
+		if (const auto thumb = document->thumbnail()) {
+			result += Serialize::storageImageLocationSize(thumb->location());
+		} else {
+			result += Serialize::storageImageLocationSize(StorageImageLocation());
+		}
 	}
 
 	return result;

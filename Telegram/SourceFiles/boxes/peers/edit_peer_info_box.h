@@ -8,7 +8,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <rpl/event_stream.h>
-#include "boxes/peers/manage_peer_box.h"
+#include "boxes/abstract_box.h"
+
+namespace style {
+struct InfoProfileCountButton;
+} // namespace style
+
+namespace Ui {
+class VerticalLayout;
+} // namespace Ui
+
+namespace Info {
+namespace Profile {
+class Button;
+} // namespace Profile
+} // namespace Info
 
 class EditPeerInfoBox : public BoxContent {
 public:
@@ -18,11 +32,21 @@ public:
 		_focusRequests.fire({});
 	}
 
+	static bool Available(not_null<PeerData*> peer);
+
+	[[nodiscard]] static object_ptr<Info::Profile::Button> CreateButton(
+		not_null<QWidget*> parent,
+		rpl::producer<QString> &&text,
+		rpl::producer<QString> &&count,
+		Fn<void()> callback,
+		const style::InfoProfileCountButton &st,
+		const style::icon *icon = nullptr);
+
 protected:
 	void prepare() override;
 
 private:
-	not_null<PeerData*> _peer;
 	rpl::event_stream<> _focusRequests;
+	not_null<PeerData*> _peer;
 
 };

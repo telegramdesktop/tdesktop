@@ -203,6 +203,9 @@ Stats AbstractWriter::produceTestExample(
 		if (++count % 3 == 0) {
 			message.forwardedFromId = Data::UserPeerId(user.info.userId);
 			message.forwardedDate = date();
+		} else if (count % 3 == 2) {
+			message.forwardedFromName = "Test hidden forward";
+			message.forwardedDate = date();
 		}
 		message.fromId = user.info.userId;
 		message.replyToMsgId = counter();

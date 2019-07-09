@@ -72,6 +72,7 @@
       '<(src_loc)/base/qthelp_url.h',
       '<(src_loc)/base/runtime_composer.cpp',
       '<(src_loc)/base/runtime_composer.h',
+      '<(src_loc)/base/thread_safe_wrap.h',
       '<(src_loc)/base/timer.cpp',
       '<(src_loc)/base/timer.h',
       '<(src_loc)/base/type_traits.h',

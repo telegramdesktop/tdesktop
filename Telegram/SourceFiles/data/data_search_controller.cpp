@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "data/data_session.h"
 #include "data/data_messages.h"
+#include "data/data_channel.h"
 #include "history/history.h"
 #include "history/history_item.h"
 
@@ -17,11 +18,11 @@ namespace Api {
 namespace {
 
 constexpr auto kSharedMediaLimit = 100;
-constexpr auto kDefaultSearchTimeoutMs = TimeMs(200);
+constexpr auto kDefaultSearchTimeoutMs = crl::time(200);
 
 } // namespace
 
-MTPmessages_Search PrepareSearchRequest(
+std::optional<MTPmessages_Search> PrepareSearchRequest(
 		not_null<PeerData*> peer,
 		Storage::SharedMediaType type,
 		const QString &query,
@@ -55,6 +56,9 @@ MTPmessages_Search PrepareSearchRequest(
 		}
 		return MTP_inputMessagesFilterEmpty();
 	}();
+	if (query.isEmpty() && filter.type() == mtpc_inputMessagesFilterEmpty) {
+		return std::nullopt;
+	}
 
 	const auto minId = 0;
 	const auto maxId = 0;
@@ -106,32 +110,32 @@ SearchResult ParseSearchResult(
 		switch (data.type()) {
 		case mtpc_messages_messages: {
 			auto &d = data.c_messages_messages();
-			App::feedUsers(d.vusers);
-			App::feedChats(d.vchats);
-			result.fullCount = d.vmessages.v.size();
-			return &d.vmessages.v;
+			peer->owner().processUsers(d.vusers());
+			peer->owner().processChats(d.vchats());
+			result.fullCount = d.vmessages().v.size();
+			return &d.vmessages().v;
 		} break;
 
 		case mtpc_messages_messagesSlice: {
 			auto &d = data.c_messages_messagesSlice();
-			App::feedUsers(d.vusers);
-			App::feedChats(d.vchats);
-			result.fullCount = d.vcount.v;
-			return &d.vmessages.v;
+			peer->owner().processUsers(d.vusers());
+			peer->owner().processChats(d.vchats());
+			result.fullCount = d.vcount().v;
+			return &d.vmessages().v;
 		} break;
 
 		case mtpc_messages_channelMessages: {
 			auto &d = data.c_messages_channelMessages();
 			if (auto channel = peer->asChannel()) {
-				channel->ptsReceived(d.vpts.v);
+				channel->ptsReceived(d.vpts().v);
 			} else {
 				LOG(("API Error: received messages.channelMessages when "
 					"no channel was passed! (ParseSearchResult)"));
 			}
-			App::feedUsers(d.vusers);
-			App::feedChats(d.vchats);
-			result.fullCount = d.vcount.v;
-			return &d.vmessages.v;
+			peer->owner().processUsers(d.vusers());
+			peer->owner().processChats(d.vchats());
+			result.fullCount = d.vcount().v;
+			return &d.vmessages().v;
 		} break;
 
 		case mtpc_messages_messagesNotModified: {
@@ -147,10 +151,10 @@ SearchResult ParseSearchResult(
 		return result;
 	}
 
-	auto addType = NewMessageExisting;
+	const auto addType = NewMessageType::Existing;
 	result.messageIds.reserve(messages->size());
-	for (auto &message : *messages) {
-		if (auto item = App::histories().addNewMessage(message, addType)) {
+	for (const auto &message : *messages) {
+		if (auto item = peer->owner().addNewMessage(message, addType)) {
 			auto itemId = item->id;
 			if ((type == Storage::SharedMediaType::kCount)
 				|| item->sharedMediaTypes().test(type)) {
@@ -177,9 +181,9 @@ SearchResult ParseSearchResult(
 }
 
 SearchController::CacheEntry::CacheEntry(const Query &query)
-: peerData(App::peer(query.peerId))
+: peerData(Auth().data().peer(query.peerId))
 , migratedData(query.migratedPeerId
-	? base::make_optional(Data(App::peer(query.migratedPeerId)))
+	? base::make_optional(Data(Auth().data().peer(query.migratedPeerId)))
 	: std::nullopt) {
 }
 
@@ -344,12 +348,17 @@ void SearchController::requestMore(
 	if (listData->requests.contains(key)) {
 		return;
 	}
-	auto requestId = request(PrepareSearchRequest(
+	auto prepared = PrepareSearchRequest(
 		listData->peer,
 		query.type,
 		query.query,
 		key.aroundId,
-		key.direction)
+		key.direction);
+	if (!prepared) {
+		return;
+	}
+	auto requestId = request(
+		std::move(*prepared)
 	).done([=](const MTPmessages_Messages &result) {
 		listData->requests.remove(key);
 		auto parsed = ParseSearchResult(
@@ -378,7 +387,7 @@ void DelayedSearchController::setQuery(const Query &query) {
 
 void DelayedSearchController::setQuery(
 		const Query &query,
-		TimeMs delay) {
+		crl::time delay) {
 	if (currentQuery() == query) {
 		_timer.cancel();
 		return;

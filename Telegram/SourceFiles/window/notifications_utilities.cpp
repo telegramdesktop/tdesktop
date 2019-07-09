@@ -8,7 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_utilities.h"
 
 #include "platform/platform_specific.h"
-#include "messenger.h"
+#include "core/application.h"
+#include "data/data_peer.h"
 #include "styles/style_window.h"
 
 namespace Window {
@@ -20,13 +21,14 @@ constexpr int kNotifyDeletePhotoAfterMs = 60000;
 
 } // namespace
 
-CachedUserpics::CachedUserpics(Type type) : _type(type) {
-	connect(&_clearTimer, SIGNAL(timeout()), this, SLOT(onClear()));
+CachedUserpics::CachedUserpics(Type type)
+: _type(type)
+, _clearTimer([=] { onClear(); }) {
 	QDir().mkpath(cWorkingDir() + qsl("tdata/temp"));
 }
 
-QString CachedUserpics::get(const StorageKey &key, PeerData *peer) {
-	auto ms = getms(true);
+QString CachedUserpics::get(const InMemoryKey &key, PeerData *peer) {
+	auto ms = crl::now();
 	auto i = _images.find(key);
 	if (i != _images.cend()) {
 		if (i->until) {
@@ -49,7 +51,7 @@ QString CachedUserpics::get(const StorageKey &key, PeerData *peer) {
 				peer->saveUserpic(v.path, st::notifyMacPhotoSize);
 			}
 		} else {
-			Messenger::Instance().logoNoMargin().save(v.path, "PNG");
+			Core::App().logoNoMargin().save(v.path, "PNG");
 		}
 		i = _images.insert(key, v);
 		_someSavedFlag = true;
@@ -57,8 +59,8 @@ QString CachedUserpics::get(const StorageKey &key, PeerData *peer) {
 	return i->path;
 }
 
-TimeMs CachedUserpics::clear(TimeMs ms) {
-	TimeMs result = 0;
+crl::time CachedUserpics::clear(crl::time ms) {
+	crl::time result = 0;
 	for (auto i = _images.begin(); i != _images.end();) {
 		if (!i->until) {
 			++i;
@@ -86,11 +88,11 @@ void CachedUserpics::clearInMs(int ms) {
 			return;
 		}
 	}
-	_clearTimer.start(ms);
+	_clearTimer.callOnce(ms);
 }
 
 void CachedUserpics::onClear() {
-	auto ms = getms(true);
+	auto ms = crl::now();
 	auto minuntil = clear(ms);
 	if (minuntil) {
 		clearInMs(int(minuntil - ms));
@@ -99,8 +101,8 @@ void CachedUserpics::onClear() {
 
 CachedUserpics::~CachedUserpics() {
 	if (_someSavedFlag) {
-		TimeMs result = 0;
-		for_const (auto &item, _images) {
+		crl::time result = 0;
+		for (const auto &item : std::as_const(_images)) {
 			QFile(item.path).remove();
 		}
 

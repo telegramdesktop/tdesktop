@@ -174,6 +174,9 @@ private:
 
 };
 
+struct ZeroFlagsHelper {
+};
+
 } // namespace internal
 } // namespace MTP
 
@@ -366,6 +369,62 @@ SecureRequest SecureRequest::Serialize(const Request &request) {
 	return serialized;
 }
 
+template <typename Type>
+struct RepeatHelper {
+	using type = Type;
+};
+template <typename Type>
+using Repeat = typename RepeatHelper<Type>::type;
+
+struct InnerHelper {
+	static void Check(...);
+	template <typename Type, typename Result = decltype(std::declval<Type>().v)>
+	static Result Check(const Type&);
+
+	template <typename Type>
+	using type = std::decay_t<decltype(Check(std::declval<Type>()))>;
+};
+
+template <typename Type>
+class conditional {
+public:
+	conditional() = default;
+	conditional(const Type *value) : _value(value) {
+	}
+
+	operator const Type*() const {
+		return _value;
+	}
+	const Type *operator->() const {
+		Expects(_value != nullptr);
+
+		return _value;
+	}
+	const Type &operator*() const {
+		Expects(_value != nullptr);
+
+		return *_value;
+	}
+
+	template <
+		typename Inner = InnerHelper::type<Type>,
+		typename = std::enable_if_t<!std::is_same_v<Inner, void>>>
+	Inner value_or(Repeat<Inner> fallback) const {
+		return _value ? _value->v : fallback;
+	}
+
+	template <
+		typename Inner = InnerHelper::type<Type>,
+		typename = std::enable_if_t<!std::is_same_v<Inner, void>>>
+	Inner value_or_empty() const {
+		return _value ? _value->v : Inner();
+	}
+
+private:
+	const Type *_value = nullptr;
+
+};
+
 } // namespace MTP
 
 class MTPint {
@@ -400,21 +459,16 @@ inline MTPint MTP_int(int32 v) {
 }
 using MTPInt = MTPBoxed<MTPint>;
 
-namespace internal {
-
-struct ZeroFlagsHelper {
-};
-
-} // namespace internal
-
 template <typename Flags>
 class MTPflags {
 public:
 	Flags v = 0;
-	static_assert(sizeof(Flags) == sizeof(int32), "MTPflags are allowed only wrapping int32 flag types!");
+	static_assert(
+		sizeof(Flags) == sizeof(int32),
+		"MTPflags are allowed only wrapping int32 flag types!");
 
 	MTPflags() = default;
-	MTPflags(internal::ZeroFlagsHelper helper) {
+	MTPflags(MTP::internal::ZeroFlagsHelper helper) {
 	}
 
 	uint32 innerLength() const {
@@ -454,8 +508,8 @@ inline MTPflags<base::flags<T>> MTP_flags(T v) {
 	return MTPflags<base::flags<T>>(v);
 }
 
-inline internal::ZeroFlagsHelper MTP_flags(void(internal::ZeroFlagsHelper::*)()) {
-	return internal::ZeroFlagsHelper();
+inline MTP::internal::ZeroFlagsHelper MTP_flags(void(MTP::internal::ZeroFlagsHelper::*)()) {
+	return MTP::internal::ZeroFlagsHelper();
 }
 
 template <typename Flags>
@@ -610,11 +664,13 @@ public:
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_double) {
 		if (from + 2 > end) throw mtpErrorInsufficient();
 		if (cons != mtpc_double) throw mtpErrorUnexpected(cons, "MTPdouble");
-		*(uint64*)(&v) = (uint64)(((uint32*)from)[0]) | ((uint64)(((uint32*)from)[1]) << 32);
+		auto nv = (uint64)(((uint32*)from)[0]) | ((uint64)(((uint32*)from)[1]) << 32);
+		std::memcpy(&v, &nv, sizeof(v));
 		from += 2;
 	}
 	void write(mtpBuffer &to) const {
-		uint64 iv = *(uint64*)(&v);
+		uint64 iv;
+		std::memcpy(&iv, &v, sizeof(v));
 		to.push_back((mtpPrime)(iv & 0xFFFFFFFFL));
 		to.push_back((mtpPrime)(iv >> 32));
 	}
@@ -660,9 +716,11 @@ private:
 	friend MTPstring MTP_string(const std::string &v);
 	friend MTPstring MTP_string(const QString &v);
 	friend MTPstring MTP_string(const char *v);
+	friend MTPstring MTP_string();
 
 	friend MTPbytes MTP_bytes(const QByteArray &v);
 	friend MTPbytes MTP_bytes(QByteArray &&v);
+	friend MTPbytes MTP_bytes();
 
 };
 using MTPString = MTPBoxed<MTPstring>;
@@ -677,6 +735,9 @@ inline MTPstring MTP_string(const QString &v) {
 inline MTPstring MTP_string(const char *v) {
 	return MTPstring(QByteArray(v, strlen(v)));
 }
+inline MTPstring MTP_string() {
+	return MTPstring(QByteArray());
+}
 MTPstring MTP_string(const QByteArray &v) = delete;
 
 inline MTPbytes MTP_bytes(const QByteArray &v) {
@@ -684,6 +745,9 @@ inline MTPbytes MTP_bytes(const QByteArray &v) {
 }
 inline MTPbytes MTP_bytes(QByteArray &&v) {
 	return MTPbytes(std::move(v));
+}
+inline MTPbytes MTP_bytes() {
+	return MTPbytes(QByteArray());
 }
 inline MTPbytes MTP_bytes(bytes::const_span buffer) {
 	return MTP_bytes(QByteArray(
@@ -703,6 +767,10 @@ inline bool operator!=(const MTPstring &a, const MTPstring &b) {
 
 inline QString qs(const MTPstring &v) {
 	return QString::fromUtf8(v.v);
+}
+
+inline QString qs(const QByteArray &v) {
+	return QString::fromUtf8(v);
 }
 
 inline QByteArray qba(const MTPstring &v) {
@@ -756,6 +824,8 @@ private:
 	friend MTPvector<U> MTP_vector(const QVector<U> &v);
 	template <typename U>
 	friend MTPvector<U> MTP_vector(QVector<U> &&v);
+	template <typename U>
+	friend MTPvector<U> MTP_vector();
 
 };
 template <typename T>
@@ -773,6 +843,10 @@ inline MTPvector<T> MTP_vector(const QVector<T> &v) {
 template <typename T>
 inline MTPvector<T> MTP_vector(QVector<T> &&v) {
 	return MTPvector<T>(std::move(v));
+}
+template <typename T>
+inline MTPvector<T> MTP_vector() {
+	return MTPvector<T>();
 }
 template <typename T>
 using MTPVector = MTPBoxed<MTPvector<T>>;

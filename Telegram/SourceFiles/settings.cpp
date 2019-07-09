@@ -62,49 +62,26 @@ RecentInlineBots gRecentInlineBots;
 
 bool gPasswordRecovered = false;
 int32 gPasscodeBadTries = 0;
-TimeMs gPasscodeLastTry = 0;
+crl::time gPasscodeLastTry = 0;
 
 float64 gRetinaFactor = 1.;
 int32 gIntRetinaFactor = 1;
 
-#ifdef Q_OS_WIN
-DBIPlatform gPlatform = dbipWindows;
-#elif defined OS_MAC_OLD
-DBIPlatform gPlatform = dbipMacOld;
-#elif defined Q_OS_MAC
-DBIPlatform gPlatform = dbipMac;
-#elif defined Q_OS_LINUX64
-DBIPlatform gPlatform = dbipLinux64;
-#elif defined Q_OS_LINUX32
-DBIPlatform gPlatform = dbipLinux32;
-#else
-#error Unknown platform
-#endif
-QString gPlatformString;
-bool gIsElCapitan = false;
-bool gIsSnowLeopard = false;
-
 int gOtherOnline = 0;
-
-SavedPeers gSavedPeers;
-SavedPeersByTime gSavedPeersByTime;
-
-ReportSpamStatuses gReportSpamStatuses;
 
 int32 gAutoDownloadPhoto = 0; // all auto download
 int32 gAutoDownloadAudio = 0;
 int32 gAutoDownloadGif = 0;
 bool gAutoPlayGif = true;
 
-bool gShowCallbackData = false;
 bool gShowUsername = true;
 bool gIgnoreBlocked = true;
+bool gShowCallbackData = false;
 bool gTextMention = false;
 bool gAutoCopy = false;
-int gDialogsType = 0;
 #ifdef Q_OS_WIN
 	int gTyping = 0x000; // Windows will broken input
 #else
 	int gTyping = 0x111;
 #endif // Q_OS_WIN
-bool gTemplate = true;
+unsigned gLastTab = 0;

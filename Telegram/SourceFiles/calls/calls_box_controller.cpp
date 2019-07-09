@@ -97,7 +97,6 @@ public:
 	}
 	void paintAction(
 		Painter &p,
-		TimeMs ms,
 		int x,
 		int y,
 		int outerWidth,
@@ -143,7 +142,6 @@ void BoxController::Row::paintStatusText(Painter &p, const style::PeerListItem &
 
 void BoxController::Row::paintAction(
 		Painter &p,
-		TimeMs ms,
 		int x,
 		int y,
 		int outerWidth,
@@ -151,7 +149,7 @@ void BoxController::Row::paintAction(
 		bool actionSelected) {
 	auto size = actionSize();
 	if (_actionRipple) {
-		_actionRipple->paint(p, x + st::callReDial.rippleAreaPosition.x(), y + st::callReDial.rippleAreaPosition.y(), outerWidth, ms);
+		_actionRipple->paint(p, x + st::callReDial.rippleAreaPosition.x(), y + st::callReDial.rippleAreaPosition.y(), outerWidth);
 		if (_actionRipple->empty()) {
 			_actionRipple.reset();
 		}
@@ -167,13 +165,20 @@ void BoxController::Row::refreshStatus() {
 		auto time = ItemDateTime(_items.front()).time().toString(cTimeFormat());
 		auto today = QDateTime::currentDateTime().date();
 		if (_date == today) {
-			return lng_call_box_status_today(lt_time, time);
+			return tr::lng_call_box_status_today(tr::now, lt_time, time);
 		} else if (_date.addDays(1) == today) {
-			return lng_call_box_status_yesterday(lt_time, time);
+			return tr::lng_call_box_status_yesterday(tr::now, lt_time, time);
 		}
-		return lng_call_box_status_date(lt_date, langDayOfMonthFull(_date), lt_time, time);
+		return tr::lng_call_box_status_date(tr::now, lt_date, langDayOfMonthFull(_date), lt_time, time);
 	};
-	setCustomStatus((_items.size() > 1) ? lng_call_box_status_group(lt_count, QString::number(_items.size()), lt_status, text()) : text());
+	setCustomStatus((_items.size() > 1)
+		? tr::lng_call_box_status_group(
+			tr::now,
+			lt_amount,
+			QString::number(_items.size()),
+			lt_status,
+			text())
+		: text());
 }
 
 BoxController::Row::Type BoxController::Row::ComputeType(
@@ -208,8 +213,8 @@ void BoxController::Row::stopLastActionRipple() {
 
 void BoxController::prepare() {
 	Auth().data().itemRemoved(
-	) | rpl::start_with_next([this](auto item) {
-		if (auto row = rowForItem(item)) {
+	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+		if (const auto row = rowForItem(item)) {
 			row->itemRemoved(item);
 			if (!row->hasItems()) {
 				delegate()->peerListRemoveRow(row);
@@ -220,14 +225,14 @@ void BoxController::prepare() {
 			delegate()->peerListRefreshRows();
 		}
 	}, lifetime());
-	subscribe(Current().newServiceMessage(), [this](const FullMsgId &msgId) {
-		if (auto item = App::histItemById(msgId)) {
+	subscribe(Current().newServiceMessage(), [=](FullMsgId msgId) {
+		if (const auto item = Auth().data().message(msgId)) {
 			insertRow(item, InsertWay::Prepend);
 		}
 	});
 
-	delegate()->peerListSetTitle(langFactory(lng_call_box_title));
-	setDescriptionText(lang(lng_contacts_loading));
+	delegate()->peerListSetTitle(tr::lng_call_box_title());
+	setDescriptionText(tr::lng_contacts_loading(tr::now));
 	delegate()->peerListRefreshRows();
 
 	loadMoreRows();
@@ -241,7 +246,7 @@ void BoxController::loadMoreRows() {
 	_loadRequestId = request(MTPmessages_Search(
 		MTP_flags(0),
 		MTP_inputPeerEmpty(),
-		MTP_string(QString()),
+		MTP_string(),
 		MTP_inputUserEmpty(),
 		MTP_inputMessagesFilterPhoneCalls(MTP_flags(0)),
 		MTP_int(0),
@@ -255,10 +260,10 @@ void BoxController::loadMoreRows() {
 	)).done([this](const MTPmessages_Messages &result) {
 		_loadRequestId = 0;
 
-		auto handleResult = [this](auto &data) {
-			App::feedUsers(data.vusers);
-			App::feedChats(data.vchats);
-			receivedCalls(data.vmessages.v);
+		auto handleResult = [&](auto &data) {
+			Auth().data().processUsers(data.vusers());
+			Auth().data().processChats(data.vchats());
+			receivedCalls(data.vmessages().v);
 		};
 
 		switch (result.type()) {
@@ -279,7 +284,7 @@ void BoxController::loadMoreRows() {
 }
 
 void BoxController::refreshAbout() {
-	setDescriptionText(delegate()->peerListFullRowsCount() ? QString() : lang(lng_call_box_about));
+	setDescriptionText(delegate()->peerListFullRowsCount() ? QString() : tr::lng_call_box_about(tr::now));
 }
 
 void BoxController::rowClicked(not_null<PeerListRow*> row) {
@@ -302,11 +307,13 @@ void BoxController::receivedCalls(const QVector<MTPMessage> &result) {
 		_allLoaded = true;
 	}
 
-	for_const (auto &message, result) {
-		auto msgId = IdFromMessage(message);
-		auto peerId = PeerFromMessage(message);
-		if (auto peer = App::peerLoaded(peerId)) {
-			auto item = App::histories().addNewMessage(message, NewMessageExisting);
+	for (const auto &message : result) {
+		const auto msgId = IdFromMessage(message);
+		const auto peerId = PeerFromMessage(message);
+		if (const auto peer = Auth().data().peerLoaded(peerId)) {
+			const auto item = Auth().data().addNewMessage(
+				message,
+				NewMessageType::Existing);
 			insertRow(item, InsertWay::Append);
 		} else {
 			LOG(("API Error: a search results with not loaded peer %1").arg(peerId));

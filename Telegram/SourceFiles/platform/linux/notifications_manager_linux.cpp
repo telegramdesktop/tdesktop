@@ -165,7 +165,7 @@ private:
 		Libs::notify_notification_set_timeout(_data, Libs::NOTIFY_EXPIRES_DEFAULT);
 
 		if ((*guarded)->hasActionsSupport()) {
-			auto label = lang(lng_notification_reply).toUtf8();
+			auto label = tr::lng_notification_reply(tr::now).toUtf8();
 			auto actionReceiver = _data;
 			auto actionHandler = &NotificationData::notificationClicked;
 			auto actionLabel = label.constData();
@@ -440,12 +440,9 @@ void Manager::Private::showNextNotification() {
 		return;
 	}
 
-	StorageKey key;
-	if (data.hideNameAndPhoto) {
-		key = StorageKey(0, 0);
-	} else {
-		key = data.peer->userpicUniqueKey();
-	}
+	const auto key = data.hideNameAndPhoto
+		? InMemoryKey()
+		: data.peer->userpicUniqueKey();
 	notification->setImage(_cachedUserpics.get(key, data.peer));
 
 	auto i = _notifications.find(peerId);

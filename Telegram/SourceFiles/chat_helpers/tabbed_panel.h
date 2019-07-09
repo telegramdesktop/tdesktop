@@ -7,11 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "base/timer.h"
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Ui {
@@ -24,10 +25,10 @@ class TabbedSelector;
 
 class TabbedPanel : public Ui::RpWidget {
 public:
-	TabbedPanel(QWidget *parent, not_null<Window::Controller*> controller);
+	TabbedPanel(QWidget *parent, not_null<Window::SessionController*> controller);
 	TabbedPanel(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		object_ptr<TabbedSelector> selector);
 
 	object_ptr<TabbedSelector> takeSelector();
@@ -67,7 +68,6 @@ private:
 		return !_selector;
 	}
 	void showFromSelector();
-	void windowActiveChanged();
 
 	style::margins innerPadding() const;
 
@@ -77,7 +77,7 @@ private:
 	QImage grabForAnimation();
 	void startShowAnimation();
 	void startOpacityAnimation(bool hiding);
-	void prepareCache();
+	void prepareCacheFor(bool hiding);
 
 	void opacityAnimationCallback();
 
@@ -87,7 +87,7 @@ private:
 	bool preventAutoHide() const;
 	void updateContentHeight();
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 	object_ptr<TabbedSelector> _selector;
 
 	int _contentMaxHeight = 0;
@@ -99,12 +99,12 @@ private:
 	int _maxContentHeight = 0;
 
 	std::unique_ptr<Ui::PanelAnimation> _showAnimation;
-	Animation _a_show;
+	Ui::Animations::Simple _a_show;
 
 	bool _hiding = false;
 	bool _hideAfterSlide = false;
 	QPixmap _cache;
-	Animation _a_opacity;
+	Ui::Animations::Simple _a_opacity;
 	base::Timer _hideTimer;
 
 };

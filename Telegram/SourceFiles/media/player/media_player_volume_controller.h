@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
+
 namespace Ui {
 class IconButton;
 class MediaSlider;
@@ -32,7 +35,7 @@ private:
 
 };
 
-class VolumeWidget : public TWidget {
+class VolumeWidget : public Ui::RpWidget {
 	Q_OBJECT
 
 public:
@@ -53,7 +56,6 @@ protected:
 private slots:
 	void onShowStart();
 	void onHideStart();
-	void onWindowActiveChanged();
 
 private:
 	void otherEnter();
@@ -66,7 +68,7 @@ private:
 	bool _hiding = false;
 
 	QPixmap _cache;
-	Animation _a_appearance;
+	Ui::Animations::Simple _a_appearance;
 
 	QTimer _hideTimer, _showTimer;
 
@@ -74,5 +76,5 @@ private:
 
 };
 
-} // namespace Clip
+} // namespace Player
 } // namespace Media

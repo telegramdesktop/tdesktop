@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
 #include "mtproto/sender.h"
 #include "auth_session.h"
@@ -24,7 +25,7 @@ class FlatLabel;
 } // namesapce Ui
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace ChatHelpers {
@@ -52,7 +53,7 @@ public:
 
 	TabbedSelector(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		Mode mode = Mode::Full);
 
 	rpl::producer<EmojiPtr> emojiChosen() const;
@@ -147,9 +148,9 @@ private:
 	bool full() const;
 	Tab createTab(
 		SelectorTab type,
-		not_null<Window::Controller*> controller);
+		not_null<Window::SessionController*> controller);
 
-	void paintSlideFrame(Painter &p, TimeMs ms);
+	void paintSlideFrame(Painter &p);
 	void paintContent(Painter &p);
 
 	void checkRestrictedPeer();
@@ -191,7 +192,7 @@ private:
 
 	class SlideAnimation;
 	std::unique_ptr<SlideAnimation> _slideAnimation;
-	Animation _a_slide;
+	Ui::Animations::Simple _a_slide;
 
 	object_ptr<Ui::SettingsSlider> _tabsSlider = { nullptr };
 	object_ptr<Ui::PlainShadow> _topShadow;
@@ -211,7 +212,11 @@ private:
 
 class TabbedSelector::Inner : public Ui::RpWidget {
 public:
-	Inner(QWidget *parent, not_null<Window::Controller*> controller);
+	Inner(QWidget *parent, not_null<Window::SessionController*> controller);
+
+	not_null<Window::SessionController*> controller() const {
+		return _controller;
+	}
 
 	int getVisibleTop() const {
 		return _visibleTop;
@@ -245,10 +250,6 @@ protected:
 	int minimalHeight() const;
 	int resizeGetHeight(int newWidth) override final;
 
-	not_null<Window::Controller*> controller() const {
-		return _controller;
-	}
-
 	virtual int countDesiredHeight(int newWidth) = 0;
 	virtual InnerFooter *getFooter() const = 0;
 	virtual void processHideFinished() {
@@ -260,7 +261,7 @@ protected:
 	void disableScroll(bool disabled);
 
 private:
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;

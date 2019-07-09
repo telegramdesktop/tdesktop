@@ -43,8 +43,8 @@ struct HistoryServiceSelfDestruct
 		Video,
 	};
 	Type type = Type::Photo;
-	TimeMs timeToLive = 0;
-	TimeMs destructAt = 0;
+	crl::time timeToLive = 0;
+	crl::time destructAt = 0;
 };
 
 namespace HistoryView {
@@ -86,7 +86,7 @@ public:
 	}
 
 	void applyEdition(const MTPDmessageService &message) override;
-	TimeMs getSelfDestructIn(TimeMs now) override;
+	crl::time getSelfDestructIn(crl::time now) override;
 
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
@@ -111,12 +111,8 @@ protected:
 
 	void setServiceText(const PreparedText &prepared);
 
-	QString fromLinkText() const {
-		return textcmdLink(1, _from->name);
-	};
-	ClickHandlerPtr fromLink() const {
-		return _from->createOpenLink();
-	};
+	QString fromLinkText() const;
+	ClickHandlerPtr fromLink() const;
 
 	void removeMedia();
 
@@ -141,7 +137,10 @@ private:
 	void createFromMtp(const MTPDmessage &message);
 	void createFromMtp(const MTPDmessageService &message);
 	void setMessageByAction(const MTPmessageAction &action);
-	void setSelfDestruct(HistoryServiceSelfDestruct::Type type, int ttlSeconds);
+	void setSelfDestruct(
+		HistoryServiceSelfDestruct::Type type,
+		int ttlSeconds);
+	void applyAction(const MTPMessageAction &action);
 
 	PreparedText preparePinnedText();
 	PreparedText prepareGameScoreText();

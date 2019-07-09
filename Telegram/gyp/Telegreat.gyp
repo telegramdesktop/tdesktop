@@ -75,6 +75,8 @@
       'lib_base.gyp:lib_base',
       'lib_export.gyp:lib_export',
       'lib_storage.gyp:lib_storage',
+      'lib_lottie.gyp:lib_lottie',
+      'lib_ffmpeg.gyp:lib_ffmpeg',
     ],
 
     'defines': [
@@ -123,22 +125,30 @@
       [ '"<(official_build_target)" != ""', {
         'defines': [
           'TDESKTOP_OFFICIAL_TARGET=<(official_build_target)',
+          'TDESKTOP_FORCE_GTK_FILE_DIALOG',
         ],
         'dependencies': [
           'utils.gyp:Packer',
         ],
       }], [ 'build_mac', {
+        'mac_hardened_runtime': 1,
         'mac_bundle': '1',
         'mac_bundle_resources': [
           '<!@(python -c "for s in \'<@(langpacks)\'.split(\' \'): print(\'<(res_loc)/langs/\' + s + \'.lproj/Localizable.strings\')")',
           '../Telegram/Images.xcassets',
+        ],
+        'xcode_settings': {
+          'ENABLE_HARDENED_RUNTIME': 'YES',
+        },
+        'sources': [
+          '../Telegram/Telegreat.entitlements',
         ],
       }], [ 'build_macstore', {
         'mac_sandbox': 1,
         'mac_sandbox_development_team': '6N38VWS5BX',
         'product_name': 'Telegreat',
         'sources': [
-          '../Telegram/Telegreat.entitlements',
+          '../Telegram/Telegreat Desktop.entitlements',
         ],
       }],
     ],

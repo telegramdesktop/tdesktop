@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/toast/toast_manager.h"
 
-#include "application.h"
 #include "ui/toast/toast_widget.h"
 
 namespace Ui {
@@ -20,8 +19,8 @@ NeverFreedPointer<QMap<QObject*, Manager*>> _managers;
 
 } // namespace
 
-Manager::Manager(QWidget *parent) : QObject(parent) {
-	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideTimeout()));
+Manager::Manager(QWidget *parent) : QObject(parent)
+, _hideTimer([=] { hideByTimer(); }) {
 }
 
 bool Manager::eventFilter(QObject *o, QEvent *e) {
@@ -80,8 +79,8 @@ void Manager::addToast(std::unique_ptr<Instance> &&toast) {
 	}
 }
 
-void Manager::onHideTimeout() {
-	auto now = getms(true);
+void Manager::hideByTimer() {
+	auto now = crl::now();
 	for (auto i = _toastByHideTime.begin(); i != _toastByHideTime.cend();) {
 		if (i.key() <= now) {
 			auto toast = i.value();
@@ -112,11 +111,13 @@ void Manager::onToastWidgetDestroyed(QObject *widget) {
 void Manager::startNextHideTimer() {
 	if (_toastByHideTime.isEmpty()) return;
 
-	auto ms = getms(true);
+	auto ms = crl::now();
 	if (ms >= _toastByHideTime.firstKey()) {
-		QMetaObject::invokeMethod(this, SLOT("onHideTimeout"), Qt::QueuedConnection);
+		crl::on_main(this, [=] {
+			hideByTimer();
+		});
 	} else {
-		_hideTimer.start(_toastByHideTime.firstKey() - ms);
+		_hideTimer.callOnce(_toastByHideTime.firstKey() - ms);
 	}
 }
 

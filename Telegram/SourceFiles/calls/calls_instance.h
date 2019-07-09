@@ -60,13 +60,14 @@ private:
 
 	void refreshDhConfig();
 	void refreshServerConfig();
+	bytes::const_span updateDhConfig(const MTPmessages_DhConfig &data);
 
 	bool alreadyInCall();
 	void handleCallUpdate(const MTPPhoneCall &call);
 
 	DhConfig _dhConfig;
 
-	TimeMs _lastServerConfigUpdateTime = 0;
+	crl::time _lastServerConfigUpdateTime = 0;
 	mtpRequestId _serverConfigRequestId = 0;
 
 	std::unique_ptr<Call> _currentCall;

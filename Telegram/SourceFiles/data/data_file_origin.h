@@ -60,41 +60,85 @@ struct FileOriginSavedGifs {
 	}
 };
 
-using FileOrigin = base::optional_variant<
-	FileOriginMessage,
-	FileOriginUserPhoto,
-	FileOriginPeerPhoto,
-	FileOriginStickerSet,
-	FileOriginSavedGifs>;
+struct FileOriginWallpaper {
+	FileOriginWallpaper(uint64 paperId, uint64 accessHash)
+	: paperId(paperId)
+	, accessHash(accessHash) {
+	}
 
-// Volume_id, dc_id, local_id.
-struct SimpleFileLocationId {
-	SimpleFileLocationId(uint64 volumeId, int32 dcId, int32 localId);
+	uint64 paperId = 0;
+	uint64 accessHash = 0;
 
-	uint64 volumeId = 0;
-	int32 dcId = 0;
-	int32 localId = 0;
+	inline bool operator<(const FileOriginWallpaper &other) const {
+		return paperId < other.paperId;
+	}
 };
 
-bool operator<(
-	const SimpleFileLocationId &a,
-	const SimpleFileLocationId &b);
+struct FileOrigin {
+	using Variant = base::optional_variant<
+		FileOriginMessage,
+		FileOriginUserPhoto,
+		FileOriginPeerPhoto,
+		FileOriginStickerSet,
+		FileOriginSavedGifs,
+		FileOriginWallpaper>;
 
-using DocumentFileLocationId = uint64;
+	FileOrigin() = default;
+	FileOrigin(FileOriginMessage data) : data(data) {
+	}
+	FileOrigin(FileOriginUserPhoto data) : data(data) {
+	}
+	FileOrigin(FileOriginPeerPhoto data) : data(data) {
+	}
+	FileOrigin(FileOriginStickerSet data) : data(data) {
+	}
+	FileOrigin(FileOriginSavedGifs data) : data(data) {
+	}
+	FileOrigin(FileOriginWallpaper data) : data(data) {
+	}
+
+	explicit operator bool() const {
+		return data.has_value();
+	}
+	inline bool operator<(const FileOrigin &other) const {
+		return data < other.data;
+	}
+
+	Variant data;
+};
+
+struct DocumentFileLocationId {
+	uint64 id = 0;
+};
+
+inline bool operator<(DocumentFileLocationId a, DocumentFileLocationId b) {
+	return a.id < b.id;
+}
+
+struct PhotoFileLocationId {
+	uint64 id = 0;
+};
+
+inline bool operator<(PhotoFileLocationId a, PhotoFileLocationId b) {
+	return a.id < b.id;
+}
+
 using FileLocationId = base::variant<
-	SimpleFileLocationId,
-	DocumentFileLocationId>;
-using UpdatedFileReferences = std::map<FileLocationId, QByteArray>;
+	DocumentFileLocationId,
+	PhotoFileLocationId>;
+
+struct UpdatedFileReferences {
+	std::map<FileLocationId, QByteArray> data;
+};
 
 UpdatedFileReferences GetFileReferences(const MTPmessages_Messages &data);
 UpdatedFileReferences GetFileReferences(const MTPphotos_Photos &data);
-UpdatedFileReferences GetFileReferences(const MTPVector<MTPUser> &data);
-UpdatedFileReferences GetFileReferences(const MTPmessages_Chats &data);
 UpdatedFileReferences GetFileReferences(
 	const MTPmessages_RecentStickers &data);
 UpdatedFileReferences GetFileReferences(
 	const MTPmessages_FavedStickers &data);
 UpdatedFileReferences GetFileReferences(const MTPmessages_StickerSet &data);
 UpdatedFileReferences GetFileReferences(const MTPmessages_SavedGifs &data);
+UpdatedFileReferences GetFileReferences(const MTPWallPaper &data);
 
 } // namespace Data

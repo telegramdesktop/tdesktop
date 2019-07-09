@@ -18,8 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <shellapi.h>
 
 #include <roapi.h>
-#include <wrl\client.h>
-#include <wrl\implements.h>
+#include <wrl/client.h>
+#include "platform/win/wrapper_wrl_implements_h.h"
 #include <windows.ui.notifications.h>
 
 #include <strsafe.h>
@@ -196,7 +196,7 @@ typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ::IInsp
 typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ToastDismissedEventArgs*> DesktopToastDismissedEventHandler;
 typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ToastFailedEventArgs*> DesktopToastFailedEventHandler;
 
-class ToastEventHandler : public Implements<
+class ToastEventHandler final : public Implements<
 	DesktopToastActivatedEventHandler,
 	DesktopToastDismissedEventHandler,
 	DesktopToastFailedEventHandler> {
@@ -210,7 +210,6 @@ public:
 	, _msgId(msg)
 	, _weak(guarded) {
 	}
-	~ToastEventHandler() = default;
 
 	void performOnMainQueue(FnMut<void(Manager *manager)> task) {
 		const auto weak = _weak;
@@ -374,8 +373,8 @@ private:
 };
 
 Manager::Private::Private(Manager *instance, Type type)
-: _guarded(std::make_shared<Manager*>(instance))
-, _cachedUserpics(type) {
+: _cachedUserpics(type)
+, _guarded(std::make_shared<Manager*>(instance)) {
 }
 
 bool Manager::Private::init() {
@@ -460,14 +459,11 @@ bool Manager::Private::showNotification(PeerData *peer, MsgId msgId, const QStri
 	hr = SetAudioSilent(toastXml.Get());
 	if (!SUCCEEDED(hr)) return false;
 
-	StorageKey key;
-	if (hideNameAndPhoto) {
-		key = StorageKey(0, 0);
-	} else {
-		key = peer->userpicUniqueKey();
-	}
-	auto userpicPath = _cachedUserpics.get(key, peer);
-	auto userpicPathWide = QDir::toNativeSeparators(userpicPath).toStdWString();
+	const auto key = hideNameAndPhoto
+		? InMemoryKey()
+		: peer->userpicUniqueKey();
+	const auto userpicPath = _cachedUserpics.get(key, peer);
+	const auto userpicPathWide = QDir::toNativeSeparators(userpicPath).toStdWString();
 
 	hr = SetImageSrc(userpicPathWide.c_str(), toastXml.Get());
 	if (!SUCCEEDED(hr)) return false;
@@ -652,10 +648,10 @@ void queryUserNotificationState() {
 }
 
 static constexpr auto kQuerySettingsEachMs = 1000;
-TimeMs LastSettingsQueryMs = 0;
+crl::time LastSettingsQueryMs = 0;
 
 void querySystemNotificationSettings() {
-	auto ms = getms(true);
+	auto ms = crl::now();
 	if (LastSettingsQueryMs > 0 && ms <= LastSettingsQueryMs + kQuerySettingsEachMs) {
 		return;
 	}
@@ -669,14 +665,15 @@ void querySystemNotificationSettings() {
 bool SkipAudio() {
 	querySystemNotificationSettings();
 
-	if (UserNotificationState == QUNS_NOT_PRESENT || UserNotificationState == QUNS_PRESENTATION_MODE) {
+	if (UserNotificationState == QUNS_NOT_PRESENT
+		|| UserNotificationState == QUNS_PRESENTATION_MODE
+		|| QuietHoursEnabled) {
 		return true;
 	}
-	if (QuietHoursEnabled) {
-		return true;
-	}
-	if (EventFilter::getInstance()->sessionLoggedOff()) {
-		return true;
+	if (const auto filter = EventFilter::GetInstance()) {
+		if (filter->sessionLoggedOff()) {
+			return true;
+		}
 	}
 	return false;
 }
@@ -684,10 +681,10 @@ bool SkipAudio() {
 bool SkipToast() {
 	querySystemNotificationSettings();
 
-	if (UserNotificationState == QUNS_PRESENTATION_MODE || UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN/* || UserNotificationState == QUNS_BUSY*/) {
-		return true;
-	}
-	if (QuietHoursEnabled) {
+	if (UserNotificationState == QUNS_PRESENTATION_MODE
+		|| UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN
+		//|| UserNotificationState == QUNS_BUSY
+		|| QuietHoursEnabled) {
 		return true;
 	}
 	return false;

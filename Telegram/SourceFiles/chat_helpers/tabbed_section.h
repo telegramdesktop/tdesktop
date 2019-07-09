@@ -24,7 +24,7 @@ public:
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		Window::Column column,
 		const QRect &geometry) override;
 
@@ -40,10 +40,10 @@ class TabbedSection : public Window::SectionWidget {
 public:
 	TabbedSection(
 		QWidget *parent,
-		not_null<Window::Controller*> controller);
+		not_null<Window::SessionController*> controller);
 	TabbedSection(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		object_ptr<TabbedSelector> selector,
 		Fn<void(object_ptr<TabbedSelector>)> returnMethod);
 

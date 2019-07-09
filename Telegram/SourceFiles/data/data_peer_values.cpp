@@ -8,12 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 
 #include "lang/lang_keys.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
 
 namespace Data {
 namespace {
 
-constexpr auto kMinOnlineChangeTimeout = TimeMs(1000);
-constexpr auto kMaxOnlineChangeTimeout = 86400 * TimeMs(1000);
+constexpr auto kMinOnlineChangeTimeout = crl::time(1000);
+constexpr auto kMaxOnlineChangeTimeout = 86400 * crl::time(1000);
 constexpr auto kSecondsInDay = 86400;
 
 int OnlinePhraseChangeInSeconds(TimeId online, TimeId now) {
@@ -40,12 +43,14 @@ int OnlinePhraseChangeInSeconds(TimeId online, TimeId now) {
 }
 
 std::optional<QString> OnlineTextSpecial(not_null<UserData*> user) {
-	if (isNotificationsUser(user->id)) {
-		return lang(lng_status_service_notifications);
-	} else if (user->botInfo) {
-		return lang(lng_status_bot);
-	} else if (isServiceUser(user->id)) {
-		return lang(lng_status_support);
+	if (user->isNotificationsUser()) {
+		return tr::lng_status_service_notifications(tr::now);
+	} else if (user->isSupport()) {
+		return tr::lng_status_support(tr::now);
+	} else if (user->isBot()) {
+		return tr::lng_status_bot(tr::now);
+	} else if (user->isServiceUser()) {
+		return tr::lng_status_support(tr::now);
 	}
 	return std::nullopt;
 }
@@ -54,16 +59,16 @@ std::optional<QString> OnlineTextCommon(TimeId online, TimeId now) {
 	if (online <= 0) {
 		switch (online) {
 		case 0:
-		case -1: return lang(lng_status_offline);
-		case -2: return lang(lng_status_recently);
-		case -3: return lang(lng_status_last_week);
-		case -4: return lang(lng_status_last_month);
+		case -1: return tr::lng_status_offline(tr::now);
+		case -2: return tr::lng_status_recently(tr::now);
+		case -3: return tr::lng_status_last_week(tr::now);
+		case -4: return tr::lng_status_last_month(tr::now);
 		}
 		return (-online > now)
-			? lang(lng_status_online)
-			: lang(lng_status_recently);
+			? tr::lng_status_online(tr::now)
+			: tr::lng_status_recently(tr::now);
 	} else if (online > now) {
-		return lang(lng_status_online);
+		return tr::lng_status_online(tr::now);
 	}
 	return std::nullopt;
 }
@@ -76,14 +81,30 @@ inline auto AdminRightsValue(not_null<ChannelData*> channel) {
 
 inline auto AdminRightsValue(
 		not_null<ChannelData*> channel,
-		MTPDchannelAdminRights::Flags mask) {
+		MTPDchatAdminRights::Flags mask) {
 	return FlagsValueWithMask(AdminRightsValue(channel), mask);
 }
 
 inline auto AdminRightValue(
 		not_null<ChannelData*> channel,
-		MTPDchannelAdminRights::Flag flag) {
+		MTPDchatAdminRights::Flag flag) {
 	return SingleFlagValue(AdminRightsValue(channel), flag);
+}
+
+inline auto AdminRightsValue(not_null<ChatData*> chat) {
+	return chat->adminRightsValue();
+}
+
+inline auto AdminRightsValue(
+		not_null<ChatData*> chat,
+		MTPDchatAdminRights::Flags mask) {
+	return FlagsValueWithMask(AdminRightsValue(chat), mask);
+}
+
+inline auto AdminRightValue(
+		not_null<ChatData*> chat,
+		MTPDchatAdminRights::Flag flag) {
+	return SingleFlagValue(AdminRightsValue(chat), flag);
 }
 
 inline auto RestrictionsValue(not_null<ChannelData*> channel) {
@@ -92,14 +113,46 @@ inline auto RestrictionsValue(not_null<ChannelData*> channel) {
 
 inline auto RestrictionsValue(
 		not_null<ChannelData*> channel,
-		MTPDchannelBannedRights::Flags mask) {
+		MTPDchatBannedRights::Flags mask) {
 	return FlagsValueWithMask(RestrictionsValue(channel), mask);
 }
 
 inline auto RestrictionValue(
 		not_null<ChannelData*> channel,
-		MTPDchannelBannedRights::Flag flag) {
+		MTPDchatBannedRights::Flag flag) {
 	return SingleFlagValue(RestrictionsValue(channel), flag);
+}
+
+inline auto DefaultRestrictionsValue(not_null<ChannelData*> channel) {
+	return channel->defaultRestrictionsValue();
+}
+
+inline auto DefaultRestrictionsValue(
+		not_null<ChannelData*> channel,
+		MTPDchatBannedRights::Flags mask) {
+	return FlagsValueWithMask(DefaultRestrictionsValue(channel), mask);
+}
+
+inline auto DefaultRestrictionValue(
+		not_null<ChannelData*> channel,
+		MTPDchatBannedRights::Flag flag) {
+	return SingleFlagValue(DefaultRestrictionsValue(channel), flag);
+}
+
+inline auto DefaultRestrictionsValue(not_null<ChatData*> chat) {
+	return chat->defaultRestrictionsValue();
+}
+
+inline auto DefaultRestrictionsValue(
+		not_null<ChatData*> chat,
+		MTPDchatBannedRights::Flags mask) {
+	return FlagsValueWithMask(DefaultRestrictionsValue(chat), mask);
+}
+
+inline auto DefaultRestrictionValue(
+		not_null<ChatData*> chat,
+		MTPDchatBannedRights::Flag flag) {
+	return SingleFlagValue(DefaultRestrictionsValue(chat), flag);
 }
 
 rpl::producer<bool> PeerFlagValue(
@@ -122,17 +175,36 @@ rpl::producer<bool> CanWriteValue(UserData *user) {
 
 rpl::producer<bool> CanWriteValue(ChatData *chat) {
 	using namespace rpl::mappers;
-	auto mask = 0
+	const auto mask = 0
 		| MTPDchat::Flag::f_deactivated
 		| MTPDchat_ClientFlag::f_forbidden
 		| MTPDchat::Flag::f_left
+		| MTPDchat::Flag::f_creator
 		| MTPDchat::Flag::f_kicked;
-	return PeerFlagsValue(chat, mask)
-		| rpl::map(!_1);
+	return rpl::combine(
+		PeerFlagsValue(chat, mask),
+		AdminRightsValue(chat),
+		DefaultRestrictionValue(
+			chat,
+			MTPDchatBannedRights::Flag::f_send_messages),
+		[](
+				MTPDchat::Flags flags,
+				Data::Flags<ChatAdminRights>::Change adminRights,
+				bool defaultSendMessagesRestriction) {
+			const auto amOutFlags = 0
+				| MTPDchat::Flag::f_deactivated
+				| MTPDchat_ClientFlag::f_forbidden
+				| MTPDchat::Flag::f_left
+				| MTPDchat::Flag::f_kicked;
+			return !(flags & amOutFlags)
+				&& ((flags & MTPDchat::Flag::f_creator)
+					|| (adminRights.value != MTPDchatAdminRights::Flags(0))
+					|| !defaultSendMessagesRestriction);
+		});
 }
 
 rpl::producer<bool> CanWriteValue(ChannelData *channel) {
-	auto mask = 0
+	const auto mask = 0
 		| MTPDchannel::Flag::f_left
 		| MTPDchannel_ClientFlag::f_forbidden
 		| MTPDchannel::Flag::f_creator
@@ -141,22 +213,27 @@ rpl::producer<bool> CanWriteValue(ChannelData *channel) {
 		PeerFlagsValue(channel, mask),
 		AdminRightValue(
 			channel,
-			MTPDchannelAdminRights::Flag::f_post_messages),
+			MTPDchatAdminRights::Flag::f_post_messages),
 		RestrictionValue(
 			channel,
-			MTPDchannelBannedRights::Flag::f_send_messages),
+			MTPDchatBannedRights::Flag::f_send_messages),
+		DefaultRestrictionValue(
+			channel,
+			MTPDchatBannedRights::Flag::f_send_messages),
 		[](
 				MTPDchannel::Flags flags,
 				bool postMessagesRight,
-				bool sendMessagesRestriction) {
-			auto notAmInFlags = 0
+				bool sendMessagesRestriction,
+				bool defaultSendMessagesRestriction) {
+			const auto notAmInFlags = 0
 				| MTPDchannel::Flag::f_left
 				| MTPDchannel_ClientFlag::f_forbidden;
 			return !(flags & notAmInFlags)
 				&& (postMessagesRight
 					|| (flags & MTPDchannel::Flag::f_creator)
 					|| (!(flags & MTPDchannel::Flag::f_broadcast)
-						&& !sendMessagesRestriction));
+						&& !sendMessagesRestriction
+						&& !defaultSendMessagesRestriction));
 		});
 }
 
@@ -172,7 +249,7 @@ rpl::producer<bool> CanWriteValue(not_null<PeerData*> peer) {
 }
 
 TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now) {
-	if (isServiceUser(user->id) || user->botInfo) {
+	if (user->isServiceUser() || user->isBot()) {
 		return -1;
 	}
 	const auto online = user->onlineTill;
@@ -198,17 +275,17 @@ TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now) {
 	return online;
 }
 
-TimeMs OnlineChangeTimeout(TimeId online, TimeId now) {
+crl::time OnlineChangeTimeout(TimeId online, TimeId now) {
 	const auto result = OnlinePhraseChangeInSeconds(online, now);
 	Assert(result >= 0);
 	return snap(
-		result * TimeMs(1000),
+		result * crl::time(1000),
 		kMinOnlineChangeTimeout,
 		kMaxOnlineChangeTimeout);
 }
 
-TimeMs OnlineChangeTimeout(not_null<UserData*> user, TimeId now) {
-	if (isServiceUser(user->id) || user->botInfo) {
+crl::time OnlineChangeTimeout(not_null<UserData*> user, TimeId now) {
+	if (user->isServiceUser() || user->botInfo) {
 		return kMaxOnlineChangeTimeout;
 	}
 	return OnlineChangeTimeout(user->onlineTill, now);
@@ -220,25 +297,25 @@ QString OnlineText(TimeId online, TimeId now) {
 	}
 	const auto minutes = (now - online) / 60;
 	if (!minutes) {
-		return lang(lng_status_lastseen_now);
+		return tr::lng_status_lastseen_now(tr::now);
 	} else if (minutes < 60) {
-		return lng_status_lastseen_minutes(lt_count, minutes);
+		return tr::lng_status_lastseen_minutes(tr::now, lt_count, minutes);
 	}
 	const auto hours = (now - online) / 3600;
 	if (hours < 12) {
-		return lng_status_lastseen_hours(lt_count, hours);
+		return tr::lng_status_lastseen_hours(tr::now, lt_count, hours);
 	}
 	const auto onlineFull = ParseDateTime(online);
 	const auto nowFull = ParseDateTime(now);
 	if (onlineFull.date() == nowFull.date()) {
 		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
-		return lng_status_lastseen_today(lt_time, onlineTime);
+		return tr::lng_status_lastseen_today(tr::now, lt_time, onlineTime);
 	} else if (onlineFull.date().addDays(1) == nowFull.date()) {
 		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
-		return lng_status_lastseen_yesterday(lt_time, onlineTime);
+		return tr::lng_status_lastseen_yesterday(tr::now, lt_time, onlineTime);
 	}
 	const auto date = onlineFull.date().toString(qsl("dd.MM.yy"));
-	return lng_status_lastseen_date(lt_date, date);
+	return tr::lng_status_lastseen_date(tr::now, lt_date, date);
 }
 
 QString OnlineText(not_null<UserData*> user, TimeId now) {
@@ -258,14 +335,14 @@ QString OnlineTextFull(not_null<UserData*> user, TimeId now) {
 	const auto nowFull = ParseDateTime(now);
 	if (onlineFull.date() == nowFull.date()) {
 		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
-		return lng_status_lastseen_today(lt_time, onlineTime);
+		return tr::lng_status_lastseen_today(tr::now, lt_time, onlineTime);
 	} else if (onlineFull.date().addDays(1) == nowFull.date()) {
 		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
-		return lng_status_lastseen_yesterday(lt_time, onlineTime);
+		return tr::lng_status_lastseen_yesterday(tr::now, lt_time, onlineTime);
 	}
 	const auto date = onlineFull.date().toString(qsl("dd.MM.yy"));
 	const auto time = onlineFull.time().toString(cTimeFormat());
-	return lng_status_lastseen_date_time(lt_date, date, lt_time, time);
+	return tr::lng_status_lastseen_date_time(tr::now, lt_date, date, lt_time, time);
 }
 
 bool OnlineTextActive(TimeId online, TimeId now) {
@@ -283,10 +360,17 @@ bool OnlineTextActive(TimeId online, TimeId now) {
 }
 
 bool OnlineTextActive(not_null<UserData*> user, TimeId now) {
-	if (isServiceUser(user->id) || user->botInfo) {
+	if (user->isServiceUser() || user->botInfo) {
 		return false;
 	}
 	return OnlineTextActive(user->onlineTill, now);
+}
+
+bool IsPeerAnOnlineUser(not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return OnlineTextActive(user, unixtime());
+	}
+	return false;
 }
 
 } // namespace Data

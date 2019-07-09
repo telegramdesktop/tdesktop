@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "profile/profile_block_widget.h"
-#include "styles/style_profile.h"
 
 namespace Ui {
 class RippleAnimation;
@@ -19,18 +18,22 @@ namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
 
+namespace style {
+struct PeerListItem;
+} // namespace style
+
 namespace Profile {
 
 class PeerListWidget : public BlockWidget {
 public:
-	PeerListWidget(QWidget *parent, PeerData *peer, const QString &title, const style::PeerListItem &st = st::profileMemberItem, const QString &removeText = QString());
+	PeerListWidget(QWidget *parent, PeerData *peer, const QString &title, const style::PeerListItem &st, const QString &removeText);
 
 	struct Item {
 		explicit Item(PeerData *peer);
 		~Item();
 
 		PeerData * const peer;
-		Text name;
+		Ui::Text::String name;
 		QString statusText;
 		bool statusHasOnlineColor = false;
 		enum class AdminState {
@@ -42,7 +45,7 @@ public:
 		bool hasRemoveLink = false;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
 	};
-	virtual int getListTop() const {
+	int getListTop() const {
 		return contentTop();
 	}
 
@@ -98,7 +101,6 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
 	void enterEventHook(QEvent *e) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override {
 		enterEventHook(e);
@@ -106,10 +108,6 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override {
 		leaveEventHook(e);
-	}
-
-	virtual Ui::PopupMenu *fillPeerMenu(PeerData *peer) {
-		return nullptr;
 	}
 
 private:
@@ -121,7 +119,7 @@ private:
 	void preloadPhotos();
 	int rowWidth() const;
 
-	void paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedRemove, TimeMs ms);
+	void paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedRemove);
 
 	const style::PeerListItem &_st;
 
@@ -144,9 +142,6 @@ private:
 
 	QString _removeText;
 	int _removeWidth = 0;
-
-	Ui::PopupMenu *_menu = nullptr;
-	int _menuRowIndex = -1;
 
 };
 

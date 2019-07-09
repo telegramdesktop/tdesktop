@@ -19,17 +19,17 @@ DownloadPathBox::DownloadPathBox(QWidget *parent)
 : _path(Global::DownloadPath())
 , _pathBookmark(Global::DownloadPathBookmark())
 , _group(std::make_shared<Ui::RadioenumGroup<Directory>>(typeFromPath(_path)))
-, _default(this, _group, Directory::Downloads, lang(lng_download_path_default_radio), st::defaultBoxCheckbox)
-, _temp(this, _group, Directory::Temp, lang(lng_download_path_temp_radio), st::defaultBoxCheckbox)
-, _dir(this, _group, Directory::Custom, lang(lng_download_path_dir_radio), st::defaultBoxCheckbox)
+, _default(this, _group, Directory::Downloads, tr::lng_download_path_default_radio(tr::now), st::defaultBoxCheckbox)
+, _temp(this, _group, Directory::Temp, tr::lng_download_path_temp_radio(tr::now), st::defaultBoxCheckbox)
+, _dir(this, _group, Directory::Custom, tr::lng_download_path_dir_radio(tr::now), st::defaultBoxCheckbox)
 , _pathLink(this, QString(), st::boxLinkButton) {
 }
 
 void DownloadPathBox::prepare() {
-	addButton(langFactory(lng_connection_save), [this] { save(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(tr::lng_connection_save(), [this] { save(); });
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
-	setTitle(langFactory(lng_download_path_header));
+	setTitle(tr::lng_download_path_header());
 
 	_group->setChangedCallback([this](Directory value) { radioChanged(value); });
 
@@ -99,7 +99,7 @@ void DownloadPathBox::editPath() {
 	};
 	FileDialog::GetFolder(
 		this,
-		lang(lng_download_path_choose),
+		tr::lng_download_path_choose(tr::now),
 		initialPath,
 		crl::guard(this, handleFolder));
 }

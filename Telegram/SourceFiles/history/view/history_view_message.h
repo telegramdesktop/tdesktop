@@ -38,7 +38,7 @@ public:
 		Painter &p,
 		QRect clip,
 		TextSelection selection,
-		TimeMs ms) const override;
+		crl::time ms) const override;
 	PointState pointState(QPoint point) const override;
 	TextState textState(
 		QPoint point,
@@ -56,7 +56,7 @@ public:
 		int bottom,
 		QPoint point,
 		InfoDisplayType type) const override;
-	TextWithEntities selectedText(TextSelection selection) const override;
+	TextForMimeData selectedText(TextSelection selection) const override;
 	TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;

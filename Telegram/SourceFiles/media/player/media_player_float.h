@@ -8,25 +8,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 
 namespace Window {
-class Controller;
+class SessionController;
 class AbstractSectionWidget;
 enum class Column;
 } // namespace Window
 
 namespace Media {
-namespace Clip {
-class Playback;
-} // namespace Clip
+namespace View {
+class PlaybackProgress;
+} // namespace View
+} // namespace Media
 
+namespace Media {
+namespace Streaming {
+class Player;
+} // namespace Streaming
+} // namespace Media
+
+namespace Media {
 namespace Player {
 
 class Float : public Ui::RpWidget, private base::Subscriber {
 public:
 	Float(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item,
 		Fn<void(bool visible)> toggleCallback,
 		Fn<void(bool closed)> draggedCallback);
@@ -44,7 +53,7 @@ public:
 		return outRatio();
 	}
 	bool isReady() const {
-		return (getReader() != nullptr);
+		return (getPlayer() != nullptr);
 	}
 	void detach();
 	bool detached() const {
@@ -69,16 +78,17 @@ protected:
 
 private:
 	float64 outRatio() const;
-	Clip::Reader *getReader() const;
-	Clip::Playback *getPlayback() const;
+	Streaming::Player *getPlayer() const;
+	View::PlaybackProgress *getPlayback() const;
 	void repaintItem();
 	void prepareShadow();
 	bool hasFrame() const;
 	bool fillFrame();
 	QRect getInnerRect() const;
 	void finishDrag(bool closed);
+	void pauseResume();
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 	HistoryItem *_item = nullptr;
 	Fn<void(bool visible)> _toggleCallback;
 
@@ -98,7 +108,7 @@ private:
 class FloatDelegate {
 public:
 	virtual not_null<Ui::RpWidget*> floatPlayerWidget() = 0;
-	virtual not_null<Window::Controller*> floatPlayerController() = 0;
+	virtual not_null<Window::SessionController*> floatPlayerController() = 0;
 	virtual not_null<Window::AbstractSectionWidget*> floatPlayerGetSection(
 		Window::Column column) = 0;
 	virtual void floatPlayerEnumerateSections(Fn<void(
@@ -131,6 +141,8 @@ public:
 	-> rpl::producer<FloatPlayerFilterWheelEventRequest> {
 		return _filterWheelEvent.events();
 	}
+
+	virtual ~FloatDelegate() = default;
 
 protected:
 	void floatPlayerCheckVisibility() {
@@ -180,7 +192,7 @@ private:
 		template <typename ToggleCallback, typename DraggedCallback>
 		Item(
 			not_null<QWidget*> parent,
-			not_null<Window::Controller*> controller,
+			not_null<Window::SessionController*> controller,
 			not_null<HistoryItem*> item,
 			ToggleCallback toggle,
 			DraggedCallback dragged);
@@ -189,11 +201,11 @@ private:
 		bool hiddenByHistory = false;
 		bool visible = false;
 		RectPart animationSide;
-		Animation visibleAnimation;
+		Ui::Animations::Simple visibleAnimation;
 		Window::Column column;
 		RectPart corner;
 		QPoint dragFrom;
-		Animation draggedAnimation;
+		Ui::Animations::Simple draggedAnimation;
 		bool hiddenByDrag = false;
 		object_ptr<Float> widget;
 	};
@@ -229,7 +241,7 @@ private:
 
 	not_null<FloatDelegate*> _delegate;
 	not_null<Ui::RpWidget*> _parent;
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 	std::vector<std::unique_ptr<Item>> _items;
 
 	rpl::event_stream<FullMsgId> _closeEvents;

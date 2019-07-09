@@ -10,11 +10,14 @@ using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 
 minPhotoSize: 100px;
+minVideoSize: 160px;
 maxMediaSize: 430px;
 maxStickerSize: 256px;
 maxGifSize: 320px;
 maxVideoMessageSize: 240px;
 maxSignatureSize: 144px;
+maxWallPaperWidth: 160px;
+maxWallPaperHeight: 240px;
 
 historyMinimalWidth: 380px;
 
@@ -64,6 +67,14 @@ historyToDownBadgeSize: 22px;
 
 historyToDownShownAfter: 480px;
 historyToDownDuration: 150;
+
+dialogsToUpAbove: icon {{ "history_down_arrow-flip_vertical", historyToDownFg, point(17px, 20px) }};
+dialogsToUpAboveOver: icon {{ "history_down_arrow-flip_vertical", historyToDownFgOver, point(17px, 20px) }};
+
+dialogsToUp: TwoIconButton(historyToDown) {
+	iconAbove: dialogsToUpAbove;
+	iconAboveOver: dialogsToUpAboveOver;
+}
 
 historyUnreadMentions: TwoIconButton(historyToDown) {
 	iconAbove: icon {{ "history_unread_mention", historyToDownFg, point(16px, 16px) }};
@@ -183,10 +194,27 @@ historyComposeButton: FlatButton {
 		color: historyComposeButtonBgRipple;
 	}
 }
+historyComposeButtonLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowActiveTextFg;
+	style: semiboldTextStyle;
+}
 historyUnblock: FlatButton(historyComposeButton) {
 	color: attentionButtonFg;
 	overColor: attentionButtonFgOver;
 }
+historyContactStatusButton: FlatButton(historyComposeButton) {
+	height: 49px;
+	textTop: 16px;
+	overBgColor: historyComposeButtonBg;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: historyComposeButtonBgOver;
+	}
+}
+historyContactStatusBlock: FlatButton(historyContactStatusButton) {
+	color: attentionButtonFg;
+	overColor: attentionButtonFg;
+}
+historyContactStatusMinSkip: 16px;
 
 historySendIcon: icon {{ "send_control_send", historySendIconFg }};
 historySendIconOver: icon {{ "send_control_send", historySendIconFgOver }};
@@ -286,23 +314,6 @@ historyReplyCancel: IconButton {
 		color: windowBgOver;
 	}
 }
-
-reportSpamHide: FlatButton {
-	color: windowActiveTextFg;
-	overColor: windowActiveTextFg;
-
-	bgColor: transparent;
-	overBgColor: transparent;
-
-	width: -40px;
-	height: 46px;
-
-	textTop: 15px;
-
-	font: font(fsize);
-	overFont: font(fsize underline);
-}
-reportSpamSeparator: 30px;
 
 msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
@@ -543,3 +554,29 @@ boxAttachEmoji: IconButton(historyAttachEmoji) {
 	rippleAreaSize: 0px;
 }
 boxAttachEmojiTop: 20px;
+
+historyGroupAboutMargin: 16px;
+historyGroupAboutPadding: margins(24px, 16px, 24px, 16px);
+historyGroupAboutBulletSkip: 16px;
+historyGroupAboutHeaderSkip: 10px;
+historyGroupAboutTextSkip: 10px;
+historyGroupAboutSkip: 8px;
+
+historyVideoDownloadSize: msgFileSize;
+historyVideoCancel: icon {{ "playlist_cancel", historyFileThumbIconFg }};
+historyVideoCancelSelected: icon {{ "playlist_cancel", historyFileThumbIconFgSelected }};
+historyVideoDownload: icon {{ "playlist_download", historyFileThumbIconFg }};
+historyVideoDownloadSelected: icon {{ "playlist_download", historyFileThumbIconFgSelected }};
+historyVideoRadialLine: msgFileRadialLine;
+
+historyAudioDownloadSize: 20px;
+historyAudioRadialLine: 2px;
+historyAudioDownloadShift: 28px;
+historyAudioInCancel: icon {{ "history_audio_cancel", historyFileInIconFg }};
+historyAudioInCancelSelected: icon {{ "history_audio_cancel", historyFileInIconFgSelected }};
+historyAudioOutCancel: icon {{ "history_audio_cancel", historyFileOutIconFg }};
+historyAudioOutCancelSelected: icon {{ "history_audio_cancel", historyFileOutIconFgSelected }};
+historyAudioInDownload: icon {{ "history_audio_download", historyFileInIconFg }};
+historyAudioInDownloadSelected: icon {{ "history_audio_download", historyFileInIconFgSelected }};
+historyAudioOutDownload: icon {{ "history_audio_download", historyFileOutIconFg }};
+historyAudioOutDownloadSelected: icon {{ "history_audio_download", historyFileOutIconFgSelected }};

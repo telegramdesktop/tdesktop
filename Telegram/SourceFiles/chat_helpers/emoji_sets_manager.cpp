@@ -12,12 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/emoji_config.h"
 #include "lang/lang_keys.h"
 #include "base/zlib_help.h"
 #include "layout.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "mainwidget.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
@@ -119,20 +120,18 @@ private:
 	void setupPreview(const Set &set);
 	void setupAnimation();
 	void paintPreview(Painter &p) const;
-	void paintRadio(Painter &p, TimeMs ms);
-	void updateAnimation(TimeMs ms);
+	void paintRadio(Painter &p);
 	void setupHandler();
 	void load();
-
-	void step_radial(TimeMs ms, bool timer);
+	void radialAnimationCallback(crl::time now);
 
 	int _id = 0;
 	bool _switching = false;
 	rpl::variable<SetState> _state;
 	Ui::FlatLabel *_status = nullptr;
 	std::array<QPixmap, 4> _preview;
-	Animation _toggled;
-	Animation _active;
+	Ui::Animations::Simple _toggled;
+	Ui::Animations::Simple _active;
 	std::unique_ptr<Ui::RadialAnimation> _loading;
 
 };
@@ -168,22 +167,23 @@ SetState ComputeState(int id) {
 
 QString StateDescription(const SetState &state) {
 	return state.match([](const Available &data) {
-		return lng_emoji_set_download(lt_size, formatSizeText(data.size));
+		return tr::lng_emoji_set_download(tr::now, lt_size, formatSizeText(data.size));
 	}, [](const Ready &data) -> QString {
-		return lang(lng_emoji_set_ready);
+		return tr::lng_emoji_set_ready(tr::now);
 	}, [](const Active &data) -> QString {
-		return lang(lng_emoji_set_active);
+		return tr::lng_emoji_set_active(tr::now);
 	}, [](const Loading &data) {
 		const auto percent = (data.size > 0)
 			? snap((data.already * 100) / float64(data.size), 0., 100.)
 			: 0.;
-		return lng_emoji_set_loading(
+		return tr::lng_emoji_set_loading(
+			tr::now,
 			lt_percent,
 			QString::number(int(std::round(percent))) + '%',
 			lt_progress,
 			formatDownloadText(data.already, data.size));
 	}, [](const Failed &data) {
-		return lang(lng_attach_failed);
+		return tr::lng_attach_failed(tr::now);
 	});
 }
 
@@ -245,7 +245,7 @@ Loader::Loader(QObject *parent, int id)
 , _id(id)
 , _size(GetDownloadSize(_id))
 , _state(Loading{ 0, _size })
-, _mtproto(Messenger::Instance().mtp()) {
+, _mtproto(Core::App().mtp()) {
 	const auto ready = [=](std::unique_ptr<MTP::DedicatedLoader> loader) {
 		if (loader) {
 			setImplementation(std::move(loader));
@@ -355,11 +355,9 @@ void Row::paintEvent(QPaintEvent *e) {
 	const auto bg = over ? st::windowBgOver : st::windowBg;
 	p.fillRect(rect(), bg);
 
-	const auto ms = getms();
-	paintRipple(p, 0, 0, ms);
-
+	paintRipple(p, 0, 0);
 	paintPreview(p);
-	paintRadio(p, ms);
+	paintRadio(p);
 }
 
 void Row::paintPreview(Painter &p) const {
@@ -377,16 +375,14 @@ void Row::paintPreview(Painter &p) const {
 	}
 }
 
-void Row::paintRadio(Painter &p, TimeMs ms) {
-	updateAnimation(ms);
-
+void Row::paintRadio(Painter &p) {
 	const auto loading = _loading
 		? _loading->computeState()
 		: Ui::RadialState{ 0., 0, FullArcLength };
 	const auto isToggledSet = _state.current().is<Active>();
 	const auto isActiveSet = isToggledSet || _state.current().is<Loading>();
-	const auto toggled = _toggled.current(ms, isToggledSet ? 1. : 0.);
-	const auto active = _active.current(ms, isActiveSet ? 1. : 0.);
+	const auto toggled = _toggled.value(isToggledSet ? 1. : 0.);
+	const auto active = _active.value(isActiveSet ? 1. : 0.);
 	const auto _st = &st::defaultRadio;
 
 	PainterHighQualityEnabler hq(p);
@@ -466,7 +462,7 @@ void Row::onStateChanged(State was, StateChangeSource source) {
 
 void Row::updateStatusColorOverride() {
 	const auto isToggledSet = _state.current().is<Active>();
-	const auto toggled = _toggled.current(isToggledSet ? 1. : 0.);
+	const auto toggled = _toggled.value(isToggledSet ? 1. : 0.);
 	const auto over = showOver();
 	if (toggled == 0. && !over) {
 		_status->setTextColorOverride(std::nullopt);
@@ -546,7 +542,6 @@ void Row::setupLabels(const Set &set) {
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
 		this,
 		set.name,
-		Ui::FlatLabel::InitType::Simple,
 		st::localStorageRowTitle);
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_status = Ui::CreateChild<Ui::FlatLabel>(
@@ -582,8 +577,18 @@ void Row::setupPreview(const Set &set) {
 	}
 }
 
-void Row::step_radial(TimeMs ms, bool timer) {
-	if (timer && !anim::Disabled()) {
+void Row::radialAnimationCallback(crl::time now) {
+	const auto updated = [&] {
+		const auto state = _state.current();
+		if (const auto loading = base::get_if<Loading>(&state)) {
+			const auto progress = (loading->size > 0)
+				? (loading->already / float64(loading->size))
+				: 0.;
+			return _loading->update(progress, false, now);
+		}
+		return false;
+	}();
+	if (!anim::Disabled() || updated) {
 		update();
 	}
 }
@@ -620,32 +625,29 @@ void Row::setupAnimation() {
 			st::defaultRadio.duration);
 	}, lifetime());
 
-	_toggled.finish();
-	_active.finish();
-	updateStatusColorOverride();
-}
-
-void Row::updateAnimation(TimeMs ms) {
-	const auto state = _state.current();
-	if (const auto loading = base::get_if<Loading>(&state)) {
-		const auto progress = (loading->size > 0)
-			? (loading->already / float64(loading->size))
-			: 0.;
-		if (!_loading) {
+	_state.value(
+	) | rpl::map([](const SetState &state) {
+		return base::get_if<Loading>(&state);
+	}) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](const Loading *loading) {
+		if (loading && !_loading) {
 			_loading = std::make_unique<Ui::RadialAnimation>(
-				animation(this, &Row::step_radial));
+				[=](crl::time now) { radialAnimationCallback(now); });
+			const auto progress = (loading->size > 0)
+				? (loading->already / float64(loading->size))
+				: 0.;
 			_loading->start(progress);
-		} else {
-			_loading->update(progress, false, getms());
+		} else if (!loading && _loading) {
+			_loading->update(
+				_state.current().is<Failed>() ? 0. : 1.,
+				true,
+				crl::now());
 		}
-	} else if (_loading) {
-		_loading->update(state.is<Failed>() ? 0. : 1., true, getms());
-	} else {
-		_loading = nullptr;
-	}
-	if (_loading && !_loading->animating()) {
-		_loading = nullptr;
-	}
+	}, lifetime());
+
+	_toggled.stop();
+	_active.stop();
+	updateStatusColorOverride();
 }
 
 } // namespace
@@ -656,9 +658,9 @@ ManageSetsBox::ManageSetsBox(QWidget*) {
 void ManageSetsBox::prepare() {
 	const auto inner = setInnerWidget(object_ptr<Inner>(this));
 
-	setTitle(langFactory(lng_emoji_manage_sets));
+	setTitle(tr::lng_emoji_manage_sets());
 
-	addButton(langFactory(lng_close), [=] { closeBox(); });
+	addButton(tr::lng_close(), [=] { closeBox(); });
 
 	setDimensionsToContent(st::boxWidth, inner);
 }

@@ -17,8 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "mainwindow.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "core/click_handler_types.h"
 #include "ui/toast/toast.h"
 #include "auth_session.h"
@@ -32,8 +33,8 @@ namespace {
 
 constexpr auto kDocumentScansLimit = 20;
 constexpr auto kTranslationScansLimit = 20;
-constexpr auto kShortPollTimeout = TimeMs(3000);
-constexpr auto kRememberCredentialsDelay = TimeMs(1800 * 1000);
+constexpr auto kShortPollTimeout = crl::time(3000);
+constexpr auto kRememberCredentialsDelay = crl::time(1800 * 1000);
 
 Config GlobalConfig;
 
@@ -142,14 +143,14 @@ void CollectToRequestedRow(
 		RequestedRow &row,
 		const MTPSecureRequiredType &data) {
 	data.match([&](const MTPDsecureRequiredType &data) {
-		row.values.emplace_back(ConvertType(data.vtype));
+		row.values.emplace_back(ConvertType(data.vtype()));
 		auto &value = row.values.back();
 		value.selfieRequired = data.is_selfie_required();
 		value.translationRequired = data.is_translation_required();
 		value.nativeNames = data.is_native_names();
 	}, [&](const MTPDsecureRequiredTypeOneOf &data) {
-		row.values.reserve(row.values.size() + data.vtypes.v.size());
-		for (const auto &one : data.vtypes.v) {
+		row.values.reserve(row.values.size() + data.vtypes().v.size());
+		for (const auto &one : data.vtypes().v) {
 			CollectToRequestedRow(row, one);
 		}
 	});
@@ -238,10 +239,10 @@ Config &ConfigInstance() {
 Config ParseConfig(const MTPhelp_PassportConfig &data) {
 	return data.match([](const MTPDhelp_passportConfig &data) {
 		auto result = Config();
-		result.hash = data.vhash.v;
+		result.hash = data.vhash().v;
 		auto error = QJsonParseError{ 0, QJsonParseError::NoError };
 		const auto document = QJsonDocument::fromJson(
-			data.vcountries_langs.c_dataJSON().vdata.v,
+			data.vcountries_langs().c_dataJSON().vdata().v,
 			&error);
 		if (error.error != QJsonParseError::NoError) {
 			LOG(("API Error: Failed to parse passport config, error: %1."
@@ -609,7 +610,7 @@ std::vector<EditFile> Value::takeAllFilesInEdit() {
 }
 
 FormController::FormController(
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	const FormRequest &request)
 : _controller(controller)
 , _request(PreprocessRequest(request))
@@ -746,7 +747,7 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 		_submitRequestId = 0;
 		_submitSuccess = true;
 
-		_view->showToast(lang(lng_passport_success));
+		_view->showToast(tr::lng_passport_success(tr::now));
 
 		App::CallDelayed(
 			Ui::Toast::DefaultDuration + st::toastFadeOutDuration,
@@ -842,12 +843,11 @@ void FormController::submitPassword(
 		_passwordCheckRequestId = 0;
 		_savedPasswordValue = QByteArray();
 		const auto &data = result.c_account_passwordSettings();
-		_password.confirmedEmail = qs(data.vemail);
-		if (data.has_secure_settings()) {
-			const auto &wrapped = data.vsecure_settings;
-			const auto &settings = wrapped.c_secureSecretSettings();
+		_password.confirmedEmail = qs(data.vemail().value_or_empty());
+		if (const auto wrapped = data.vsecure_settings()) {
+			const auto &settings = wrapped->c_secureSecretSettings();
 			const auto algo = Core::ParseSecureSecretAlgo(
-				settings.vsecure_algo);
+				settings.vsecure_algo());
 			if (!algo) {
 				_view->showUpdateAppBox();
 				return;
@@ -856,10 +856,10 @@ void FormController::submitPassword(
 				algo,
 				bytes::make_span(password));
 			validateSecureSecret(
-				bytes::make_span(settings.vsecure_secret.v),
+				bytes::make_span(settings.vsecure_secret().v),
 				hashForSecret,
 				bytes::make_span(password),
-				settings.vsecure_secret_id.v);
+				settings.vsecure_secret_id().v);
 			if (!_secret.empty()) {
 				auto saved = SavedCredentials();
 				saved.hashForAuth = base::take(_passwordCheckHash);
@@ -885,10 +885,10 @@ void FormController::submitPassword(
 			_password = PasswordSettings();
 			reloadPassword();
 		} else if (MTP::isFloodError(error)) {
-			_passwordError.fire(lang(lng_flood_error));
+			_passwordError.fire(tr::lng_flood_error(tr::now));
 		} else if (error.type() == qstr("PASSWORD_HASH_INVALID")
 			|| error.type() == qstr("SRP_PASSWORD_CHANGED")) {
-			_passwordError.fire(lang(lng_passport_password_wrong));
+			_passwordError.fire(tr::lng_passport_password_wrong(tr::now));
 		} else {
 			_passwordError.fire_copy(error.type());
 		}
@@ -896,7 +896,7 @@ void FormController::submitPassword(
 }
 
 bool FormController::handleSrpIdInvalid(mtpRequestId &guard) {
-	const auto now = getms(true);
+	const auto now = crl::now();
 	if (_lastSrpIdInvalidTime > 0
 		&& now - _lastSrpIdInvalidTime < Core::kHandleSrpIdInvalidTimeout) {
 		_password.request.id = 0;
@@ -934,22 +934,21 @@ void FormController::checkSavedPasswordSettings(
 
 		_passwordCheckRequestId = 0;
 		const auto &data = result.c_account_passwordSettings();
-		if (data.has_secure_settings()) {
-			const auto &wrapped = data.vsecure_settings;
-			const auto &settings = wrapped.c_secureSecretSettings();
+		if (const auto wrapped = data.vsecure_settings()) {
+			const auto &settings = wrapped->c_secureSecretSettings();
 			const auto algo = Core::ParseSecureSecretAlgo(
-				settings.vsecure_algo);
+				settings.vsecure_algo());
 			if (!algo) {
 				_view->showUpdateAppBox();
 				return;
-			} else if (!settings.vsecure_secret.v.isEmpty()
-				&& settings.vsecure_secret_id.v == credentials.secretId) {
-				_password.confirmedEmail = qs(data.vemail);
+			} else if (!settings.vsecure_secret().v.isEmpty()
+				&& settings.vsecure_secret_id().v == credentials.secretId) {
+				_password.confirmedEmail = qs(data.vemail().value_or_empty());
 				validateSecureSecret(
-					bytes::make_span(settings.vsecure_secret.v),
+					bytes::make_span(settings.vsecure_secret().v),
 					credentials.hashForSecret,
 					{},
-					settings.vsecure_secret_id.v);
+					settings.vsecure_secret_id().v);
 			}
 		}
 		if (_secret.empty()) {
@@ -969,7 +968,7 @@ void FormController::checkSavedPasswordSettings(
 
 void FormController::recoverPassword() {
 	if (!_password.hasRecovery) {
-		_view->show(Box<InformBox>(lang(lng_signin_no_email_forgot)));
+		_view->show(Box<InformBox>(tr::lng_signin_no_email_forgot(tr::now)));
 		return;
 	} else if (_recoverRequestId) {
 		return;
@@ -981,7 +980,7 @@ void FormController::recoverPassword() {
 		_recoverRequestId = 0;
 
 		const auto &data = result.c_auth_passwordRecovery();
-		const auto pattern = qs(data.vemail_pattern);
+		const auto pattern = qs(data.vemail_pattern());
 		const auto box = _view->show(Box<RecoverBox>(
 			pattern,
 			_password.notEmptyPassport));
@@ -1095,7 +1094,7 @@ void FormController::resetSecret(
 			MTPstring(), // email
 			MTP_secureSecretSettings(
 				MTP_securePasswordKdfAlgoUnknown(), // secure_algo
-				MTP_bytes(QByteArray()), // secure_secret
+				MTP_bytes(), // secure_secret
 				MTP_long(0))) // secure_secret_id
 	)).done([=](const MTPBool &result) {
 		_saveSecretRequestId = 0;
@@ -1144,11 +1143,11 @@ void FormController::fillErrors() {
 		return nullptr;
 	};
 	const auto setSpecialScanError = [&](FileType type, auto &&data) {
-		if (const auto value = find(data.vtype)) {
+		if (const auto value = find(data.vtype())) {
 			if (value->requiresSpecialScan(type)) {
 				const auto i = value->specialScans.find(type);
 				if (i != value->specialScans.end()) {
-					i->second.error = qs(data.vtext);
+					i->second.error = qs(data.vtext());
 				} else {
 					LOG(("API Error: "
 						"Special scan %1 not found for error value."
@@ -1159,48 +1158,48 @@ void FormController::fillErrors() {
 	};
 	for (const auto &error : _form.pendingErrors) {
 		error.match([&](const MTPDsecureValueError &data) {
-			if (const auto value = find(data.vtype)) {
+			if (const auto value = find(data.vtype())) {
 				if (CanHaveErrors(value->type)) {
-					value->error = qs(data.vtext);
+					value->error = qs(data.vtext());
 				}
 			}
 		}, [&](const MTPDsecureValueErrorData &data) {
-			if (const auto value = find(data.vtype)) {
-				const auto key = qs(data.vfield);
+			if (const auto value = find(data.vtype())) {
+				const auto key = qs(data.vfield());
 				if (CanHaveErrors(value->type)
 					&& !SkipFieldCheck(value, key)) {
-					value->data.parsed.fields[key].error = qs(data.vtext);
+					value->data.parsed.fields[key].error = qs(data.vtext());
 				}
 			}
 		}, [&](const MTPDsecureValueErrorFile &data) {
-			const auto hash = bytes::make_span(data.vfile_hash.v);
-			if (const auto value = find(data.vtype)) {
+			const auto hash = bytes::make_span(data.vfile_hash().v);
+			if (const auto value = find(data.vtype())) {
 				if (const auto file = scan(*value, FileType::Scan, hash)) {
 					if (value->requiresScan(FileType::Scan)) {
-						file->error = qs(data.vtext);
+						file->error = qs(data.vtext());
 					}
 				}
 			}
 		}, [&](const MTPDsecureValueErrorFiles &data) {
-			if (const auto value = find(data.vtype)) {
+			if (const auto value = find(data.vtype())) {
 				if (value->requiresScan(FileType::Scan)) {
 					value->fileMissingError(FileType::Scan)
-						= qs(data.vtext);
+						= qs(data.vtext());
 				}
 			}
 		}, [&](const MTPDsecureValueErrorTranslationFile &data) {
-			const auto hash = bytes::make_span(data.vfile_hash.v);
-			if (const auto value = find(data.vtype)) {
+			const auto hash = bytes::make_span(data.vfile_hash().v);
+			if (const auto value = find(data.vtype())) {
 				const auto file = scan(*value, FileType::Translation, hash);
 				if (file && value->requiresScan(FileType::Translation)) {
-					file->error = qs(data.vtext);
+					file->error = qs(data.vtext());
 				}
 			}
 		}, [&](const MTPDsecureValueErrorTranslationFiles &data) {
-			if (const auto value = find(data.vtype)) {
+			if (const auto value = find(data.vtype())) {
 				if (value->requiresScan(FileType::Translation)) {
 					value->fileMissingError(FileType::Translation)
-						= qs(data.vtext);
+						= qs(data.vtext());
 				}
 			}
 		}, [&](const MTPDsecureValueErrorFrontSide &data) {
@@ -1351,7 +1350,7 @@ void FormController::uploadScan(
 		FileType type,
 		QByteArray &&content) {
 	if (!canAddScan(value, type)) {
-		_view->showToast(lang(lng_passport_scans_limit_reached));
+		_view->showToast(tr::lng_passport_scans_limit_reached(tr::now));
 		return;
 	}
 	const auto nonconst = findValue(value);
@@ -1452,7 +1451,7 @@ void FormController::scanDeleteRestore(
 	auto &scan = nonconst->fileInEdit(type, fileIndex);
 	if (scan.deleted && !deleted) {
 		if (!canAddScan(value, type)) {
-			_view->showToast(lang(lng_passport_scans_limit_reached));
+			_view->showToast(tr::lng_passport_scans_limit_reached(tr::now));
 			return;
 		}
 	}
@@ -1606,10 +1605,10 @@ void FormController::verify(
 	verificationError(nonconst, QString());
 	if (nonconst->verification.codeLength > 0
 		&& nonconst->verification.codeLength != prepared.size()) {
-		verificationError(nonconst, lang(lng_signin_wrong_code));
+		verificationError(nonconst, tr::lng_signin_wrong_code(tr::now));
 		return;
 	} else if (prepared.isEmpty()) {
-		verificationError(nonconst, lang(lng_signin_wrong_code));
+		verificationError(nonconst, tr::lng_signin_wrong_code(tr::now));
 		return;
 	}
 	nonconst->verification.requestId = [&] {
@@ -1627,7 +1626,7 @@ void FormController::verify(
 				if (error.type() == qstr("PHONE_CODE_INVALID")) {
 					verificationError(
 						nonconst,
-						lang(lng_signin_wrong_code));
+						tr::lng_signin_wrong_code(tr::now));
 				} else {
 					verificationError(nonconst, error.type());
 				}
@@ -1644,7 +1643,7 @@ void FormController::verify(
 				if (error.type() == qstr("CODE_INVALID")) {
 					verificationError(
 						nonconst,
-						lang(lng_signin_wrong_code));
+						tr::lng_signin_wrong_code(tr::now));
 				} else {
 					verificationError(nonconst, error.type());
 				}
@@ -1711,11 +1710,13 @@ void FormController::loadFile(File &file) {
 	const auto [j, ok] = _fileLoaders.emplace(
 		key,
 		std::make_unique<mtpFileLoader>(
-			file.dcId,
-			file.id,
-			file.accessHash,
-			QByteArray(), // file_reference
-			std::nullopt, // origin
+			StorageFileLocation(
+				file.dcId,
+				Auth().userId(),
+				MTP_inputSecureFileLocation(
+					MTP_long(file.id),
+					MTP_long(file.accessHash))),
+			Data::FileOrigin(),
 			SecureFileLocation,
 			QString(),
 			file.size,
@@ -2030,7 +2031,7 @@ void FormController::sendSaveRequest(
 		} else if (code == qstr("PHONE_NUMBER_INVALID")) {
 			if (value->type == Value::Type::Phone) {
 				value->data.parsedInEdit.fields["value"].error
-					= lang(lng_bad_phone);
+					= tr::lng_bad_phone(tr::now);
 				valueSaveFailed(value);
 				return;
 			}
@@ -2042,7 +2043,7 @@ void FormController::sendSaveRequest(
 		} else if (code == qstr("EMAIL_INVALID")) {
 			if (value->type == Value::Type::Email) {
 				value->data.parsedInEdit.fields["value"].error
-					= lang(lng_cloud_password_bad_email);
+					= tr::lng_cloud_password_bad_email(tr::now);
 				valueSaveFailed(value);
 				return;
 			}
@@ -2081,17 +2082,18 @@ QString FormController::getPlainTextFromValue(
 
 void FormController::startPhoneVerification(not_null<Value*> value) {
 	value->verification.requestId = request(MTPaccount_SendVerifyPhoneCode(
-		MTP_flags(MTPaccount_SendVerifyPhoneCode::Flag(0)),
 		MTP_string(getPhoneFromValue(value)),
-		MTPBool()
+		MTP_codeSettings(
+			MTP_flags(0),
+			MTPstring())
 	)).done([=](const MTPauth_SentCode &result) {
 		Expects(result.type() == mtpc_auth_sentCode);
 
 		value->verification.requestId = 0;
 
 		const auto &data = result.c_auth_sentCode();
-		value->verification.phoneCodeHash = qs(data.vphone_code_hash);
-		switch (data.vtype.type()) {
+		value->verification.phoneCodeHash = qs(data.vphone_code_hash());
+		switch (data.vtype().type()) {
 		case mtpc_auth_sentCodeTypeApp:
 			LOG(("API Error: sentCodeTypeApp not expected "
 				"in FormController::startPhoneVerification."));
@@ -2101,33 +2103,32 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 				"in FormController::startPhoneVerification."));
 			return;
 		case mtpc_auth_sentCodeTypeCall: {
-			const auto &type = data.vtype.c_auth_sentCodeTypeCall();
-			value->verification.codeLength = (type.vlength.v > 0)
-				? type.vlength.v
+			const auto &type = data.vtype().c_auth_sentCodeTypeCall();
+			value->verification.codeLength = (type.vlength().v > 0)
+				? type.vlength().v
 				: -1;
 			value->verification.call = std::make_unique<SentCodeCall>(
 				[=] { requestPhoneCall(value); },
 				[=] { _verificationUpdate.fire_copy(value); });
 			value->verification.call->setStatus(
 				{ SentCodeCall::State::Called, 0 });
-			if (data.has_next_type()) {
+			if (data.vnext_type()) {
 				LOG(("API Error: next_type is not supported for calls."));
 			}
 		} break;
 		case mtpc_auth_sentCodeTypeSms: {
-			const auto &type = data.vtype.c_auth_sentCodeTypeSms();
-			value->verification.codeLength = (type.vlength.v > 0)
-				? type.vlength.v
+			const auto &type = data.vtype().c_auth_sentCodeTypeSms();
+			value->verification.codeLength = (type.vlength().v > 0)
+				? type.vlength().v
 				: -1;
-			const auto &next = data.vnext_type;
-			if (data.has_next_type()
-				&& next.type() == mtpc_auth_codeTypeCall) {
+			const auto next = data.vnext_type();
+			if (next && next->type() == mtpc_auth_codeTypeCall) {
 				value->verification.call = std::make_unique<SentCodeCall>(
 					[=] { requestPhoneCall(value); },
 					[=] { _verificationUpdate.fire_copy(value); });
 				value->verification.call->setStatus({
 					SentCodeCall::State::Waiting,
-					data.has_timeout() ? data.vtimeout.v : 60 });
+					data.vtimeout().value_or(60) });
 			}
 		} break;
 		}
@@ -2146,8 +2147,8 @@ void FormController::startEmailVerification(not_null<Value*> value) {
 
 		value->verification.requestId = 0;
 		const auto &data = result.c_account_sentEmailCode();
-		value->verification.codeLength = (data.vlength.v > 0)
-			? data.vlength.v
+		value->verification.codeLength = (data.vlength().v > 0)
+			? data.vlength().v
 			: -1;
 		_verificationNeeded.fire_copy(value);
 	}).fail([=](const RPCError &error) {
@@ -2248,8 +2249,8 @@ void FormController::saveSecret(
 void FormController::suggestRestart() {
 	_suggestingRestart = true;
 	_view->show(Box<ConfirmBox>(
-		lang(lng_passport_restart_sure),
-		lang(lng_passport_restart),
+		tr::lng_passport_restart_sure(tr::now),
+		tr::lng_passport_restart(tr::now),
 		[=] { _controller->showPassportForm(_request); },
 		[=] { cancel(); }));
 }
@@ -2299,13 +2300,13 @@ auto FormController::parseFile(
 	case mtpc_secureFile: {
 		const auto &fields = data.c_secureFile();
 		auto result = File();
-		result.id = fields.vid.v;
-		result.accessHash = fields.vaccess_hash.v;
-		result.size = fields.vsize.v;
-		result.date = fields.vdate.v;
-		result.dcId = fields.vdc_id.v;
-		result.hash = bytes::make_vector(fields.vfile_hash.v);
-		result.encryptedSecret = bytes::make_vector(fields.vsecret.v);
+		result.id = fields.vid().v;
+		result.accessHash = fields.vaccess_hash().v;
+		result.size = fields.vsize().v;
+		result.date = fields.vdate().v;
+		result.dcId = fields.vdc_id().v;
+		result.hash = bytes::make_vector(fields.vfile_hash().v);
+		result.encryptedSecret = bytes::make_vector(fields.vsecret().v);
 		fillDownloadedFile(result, editData);
 		return result;
 	} break;
@@ -2347,22 +2348,22 @@ auto FormController::parseValue(
 	Expects(value.type() == mtpc_secureValue);
 
 	const auto &data = value.c_secureValue();
-	const auto type = ConvertType(data.vtype);
+	const auto type = ConvertType(data.vtype());
 	auto result = Value(type);
-	result.submitHash = bytes::make_vector(data.vhash.v);
-	if (data.has_data()) {
-		Assert(data.vdata.type() == mtpc_secureData);
-		const auto &fields = data.vdata.c_secureData();
-		result.data.original = fields.vdata.v;
-		result.data.hash = bytes::make_vector(fields.vdata_hash.v);
-		result.data.encryptedSecret = bytes::make_vector(fields.vsecret.v);
+	result.submitHash = bytes::make_vector(data.vhash().v);
+	if (const auto secureData = data.vdata()) {
+		secureData->match([&](const MTPDsecureData &data) {
+			result.data.original = data.vdata().v;
+			result.data.hash = bytes::make_vector(data.vdata_hash().v);
+			result.data.encryptedSecret = bytes::make_vector(data.vsecret().v);
+		});
 	}
-	if (data.has_files()) {
-		result.files(FileType::Scan) = parseFiles(data.vfiles.v, editData);
+	if (const auto files = data.vfiles()) {
+		result.files(FileType::Scan) = parseFiles(files->v, editData);
 	}
-	if (data.has_translation()) {
+	if (const auto translation = data.vtranslation()) {
 		result.files(FileType::Translation) = parseFiles(
-			data.vtranslation.v,
+			translation->v,
 			editData);
 	}
 	const auto parseSpecialScan = [&](
@@ -2372,26 +2373,21 @@ auto FormController::parseValue(
 			result.specialScans.emplace(type, std::move(*parsed));
 		}
 	};
-	if (data.has_front_side()) {
-		parseSpecialScan(FileType::FrontSide, data.vfront_side);
+	if (const auto side = data.vfront_side()) {
+		parseSpecialScan(FileType::FrontSide, *side);
 	}
-	if (data.has_reverse_side()) {
-		parseSpecialScan(FileType::ReverseSide, data.vreverse_side);
+	if (const auto side = data.vreverse_side()) {
+		parseSpecialScan(FileType::ReverseSide, *side);
 	}
-	if (data.has_selfie()) {
-		parseSpecialScan(FileType::Selfie, data.vselfie);
+	if (const auto selfie = data.vselfie()) {
+		parseSpecialScan(FileType::Selfie, *selfie);
 	}
-	if (data.has_plain_data()) {
-		switch (data.vplain_data.type()) {
-		case mtpc_securePlainPhone: {
-			const auto &fields = data.vplain_data.c_securePlainPhone();
-			result.data.parsed.fields["value"].text = qs(fields.vphone);
-		} break;
-		case mtpc_securePlainEmail: {
-			const auto &fields = data.vplain_data.c_securePlainEmail();
-			result.data.parsed.fields["value"].text = qs(fields.vemail);
-		} break;
-		}
+	if (const auto plain = data.vplain_data()) {
+		plain->match([&](const MTPDsecurePlainPhone &data) {
+			result.data.parsed.fields["value"].text = qs(data.vphone());
+		}, [&](const MTPDsecurePlainEmail &data) {
+			result.data.parsed.fields["value"].text = qs(data.vemail());
+		});
 	}
 	return result;
 }
@@ -2465,7 +2461,7 @@ auto FormController::findFile(const FileKey &key)
 
 void FormController::formDone(const MTPaccount_AuthorizationForm &result) {
 	if (!parseForm(result)) {
-		_view->showCriticalError(lang(lng_passport_form_error));
+		_view->showCriticalError(tr::lng_passport_form_error(tr::now));
 	} else {
 		showForm();
 	}
@@ -2490,9 +2486,9 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 
 	const auto &data = result.c_account_authorizationForm();
 
-	App::feedUsers(data.vusers);
+	Auth().data().processUsers(data.vusers());
 
-	for (const auto &value : data.vvalues.v) {
+	for (const auto &value : data.vvalues().v) {
 		auto parsed = parseValue(value);
 		const auto type = parsed.type;
 		const auto alreadyIt = _form.values.find(type);
@@ -2503,10 +2499,10 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 		}
 		_form.values.emplace(type, std::move(parsed));
 	}
-	if (data.has_privacy_policy_url()) {
-		_form.privacyPolicyUrl = qs(data.vprivacy_policy_url);
+	if (const auto url = data.vprivacy_policy_url()) {
+		_form.privacyPolicyUrl = qs(*url);
 	}
-	for (const auto &required : data.vrequired_types.v) {
+	for (const auto &required : data.vrequired_types().v) {
 		const auto row = CollectRequestedRow(required);
 		for (const auto requested : row.values) {
 			const auto type = requested.type;
@@ -2524,8 +2520,8 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 	if (!ValidateForm(_form)) {
 		return false;
 	}
-	_bot = App::userLoaded(_request.botId);
-	_form.pendingErrors = data.verrors.v;
+	_bot = Auth().data().userLoaded(_request.botId);
+	_form.pendingErrors = data.verrors().v;
 	return true;
 }
 
@@ -2534,7 +2530,7 @@ void FormController::formFail(const QString &error) {
 	_serviceErrorText = error;
 	if (!handleAppUpdateError(error)) {
 		_view->showCriticalError(
-			lang(lng_passport_form_error) + "\n" + error);
+			tr::lng_passport_form_error(tr::now) + "\n" + error);
 	}
 }
 
@@ -2604,20 +2600,18 @@ void FormController::showForm() {
 
 bool FormController::applyPassword(const MTPDaccount_password &result) {
 	auto settings = PasswordSettings();
-	settings.hint = qs(result.vhint);
+	settings.hint = qs(result.vhint().value_or_empty());
 	settings.hasRecovery = result.is_has_recovery();
 	settings.notEmptyPassport = result.is_has_secure_values();
 	settings.request = Core::ParseCloudPasswordCheckRequest(result);
-	settings.unknownAlgo = result.has_current_algo()
-		&& !settings.request;
-	settings.unconfirmedPattern = result.has_email_unconfirmed_pattern()
-		? qs(result.vemail_unconfirmed_pattern)
-		: QString();
+	settings.unknownAlgo = result.vcurrent_algo() && !settings.request;
+	settings.unconfirmedPattern =
+		qs(result.vemail_unconfirmed_pattern().value_or_empty());
 	settings.newAlgo = Core::ValidateNewCloudPasswordAlgo(
-		Core::ParseCloudPasswordAlgo(result.vnew_algo));
+		Core::ParseCloudPasswordAlgo(result.vnew_algo()));
 	settings.newSecureAlgo = Core::ValidateNewSecureSecretAlgo(
-		Core::ParseSecureSecretAlgo(result.vnew_secure_algo));
-	openssl::AddRandomSeed(bytes::make_span(result.vsecure_random.v));
+		Core::ParseSecureSecretAlgo(result.vnew_secure_algo()));
+	openssl::AddRandomSeed(bytes::make_span(result.vsecure_random().v));
 	return applyPassword(std::move(settings));
 }
 
@@ -2632,8 +2626,8 @@ bool FormController::applyPassword(PasswordSettings &&settings) {
 void FormController::cancel() {
 	if (!_submitSuccess && _serviceErrorText.isEmpty()) {
 		_view->show(Box<ConfirmBox>(
-			lang(lng_passport_stop_sure),
-			lang(lng_passport_stop),
+			tr::lng_passport_stop_sure(tr::now),
+			tr::lng_passport_stop(tr::now),
 			[=] { cancelSure(); },
 			[=] { cancelAbort(); }));
 	} else {

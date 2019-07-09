@@ -21,6 +21,10 @@ extern "C" {
 #include <openssl/evp.h>
 } // extern "C"
 
+#ifdef small
+#undef small
+#endif // small
+
 namespace openssl {
 
 class Context {

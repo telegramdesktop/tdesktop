@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-namespace Ui {
-class RoundCheckbox;
-} // namespace Ui
+namespace Data {
+class WallPaper;
+} // namespace Data
 
 class BackgroundBox : public BoxContent {
 public:
@@ -21,9 +21,10 @@ protected:
 	void prepare() override;
 
 private:
-	void backgroundChosen(int index);
-
 	class Inner;
+
+	void removePaper(const Data::WallPaper &paper);
+
 	QPointer<Inner> _inner;
 
 };

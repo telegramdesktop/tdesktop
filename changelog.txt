@@ -1,3 +1,177 @@
+1.7.14 (07.07.19)
+
+- Bug fixes and other minor improvements.
+
+1.7.13 (06.07.19)
+
+- Send ultra-lightweight high-quality animated stickers to express emotion with motion.
+- Receive animated stickers instantly on any connection at just 20-30 KB per sticker.
+- Enjoy smooth animations at 60 frames per second.
+- Create new animated sets and upload them to @stickers for everybody to use.
+- Try out these sample stickers: t.me/addstickers/hotcherry
+- Use strikethrough and underline formatting.
+
+1.7.12 beta (05.07.19)
+
+- Bug fixes and other minor improvements.
+
+1.7.11 beta (04.07.19)
+
+- Use strikethrough and underline formatting.
+- Bug fixes and other minor improvements.
+
+1.7.10 (24.06.19)
+
+- Bug fixes and other minor improvements.
+
+1.7.9 (23.06.19)
+
+- You can now add any users to your contacts, even if their phone numbers are not visible.
+- Transfer ownership of group chats and channels by granting full rights to another admin. Useful when switching jobs or if you just want to retire as creator.
+- Hide archived chats to the main menu.
+- See who is online straight from the chat list.
+- Use the MacBook Pro TouchBar to apply formatting to selected text, insert emoji, and send stickers.
+
+1.7.8 beta (17.06.19)
+
+- Hide archived chats in the main menu.
+- See who is online straight from the chat list.
+- Apply formatting to selected text parts from the MacBook Pro TouchBar.
+
+1.7.7 (10.06.19)
+
+- Bug fixes and other minor improvements.
+
+1.7.6 beta (06.06.19)
+
+- Bug fixes and other minor improvements.
+
+1.7.5 beta (05.06.19)
+
+- Crash fix.
+
+1.7.4 beta (04.06.19)
+
+- Download video files while watching them using streaming.
+- Set EOL for Windows XP / Vista and OS X 10.6 to 10.9 at September 1.
+
+1.7.3 (01.06.19)
+
+- Bug fixes and other minor improvements.
+
+1.7.2 (31.05.19)
+
+- Choose who can see your phone number with granular precision in Privacy & Security settings.
+- Add group chats to "Always/Never Share" exceptions for any privacy setting. Permissions will update as users leave and join the groups.
+- Connect a discussion group to your channel, subscribers will see a "Discuss" button.
+- Integrate bots seamlessly with web services. For example, see t.me/DiscussThis/1
+- Use TouchBar on MacBooks Pro to control music playback and switch between pinned chats.
+
+1.7.1 beta (28.05.19)
+
+- Disable pinned messages notifications in Settings.
+
+1.7 (08.05.19)
+
+Introducing Archived Chats:
+
+- Archive any chat from the right-click menu.
+- Chats with enabled notifications will pop out of the archive when a notification arrives.
+- Muted chats will stay in the archive.
+- Pin an unlimited number of chats in your archive.
+
+1.6.7 (13.04.19)
+
+- Replace media when editing messages with media content.
+- Jump quickly to the top of your chats list.
+- Get emoji suggestions for the first word you type in a message.
+- Help Telegram improve emoji suggestions in your language using this interface https://translations.telegram.org/en/emoji
+
+1.6.6 beta (11.04.19)
+
+- Bug fixes and other minor improvements.
+
+1.6.5 beta (06.04.19)
+
+- Bug fixes and other minor improvements.
+
+1.6.4 beta (05.04.19)
+
+- Replace media when editing messages with media content.
+- Jump quickly to the top of your chats list.
+- Get emoji suggestions for the first word you type in a message.
+- Help Telegram improve emoji suggestions in your language using this interface https://translations.telegram.org/en/emoji
+
+1.6.3 (25.03.19)
+
+- Bug fixes and other minor improvements.
+
+1.6.2 (24.03.19)
+
+- Delete any message on both ends in any private chat, anytime.
+- Control whether your forwarded messages link back to your account.
+- Control who may see your profile picture.
+- Enjoy the new streamlined group management screen.
+
+1.6.1 (20.03.19)
+
+- Bug fixes and other minor improvements.
+
+1.6 (18.03.19)
+
+- Play video files and listen to music without waiting for them to fully download.
+- Press CTRL+0 (CMD+0 on macOS) to jump to your Saved Messages.
+
+1.5.18 beta (15.03.19)
+
+- Bug fixes and other minor improvements.
+
+1.5.17 beta (13.03.19)
+
+- Bug fixes and other minor improvements.
+
+1.5.16 beta (12.03.19)
+
+- Play video files and listen to received music without waiting for them to download.
+- Press CTRL+0 (CMD+0 on macOS) to jump to your Saved Messages.
+
+1.5.15 (12.02.19)
+
+- Crash fix.
+
+1.5.14 (12.02.19)
+
+- Crash fix.
+
+1.5.13 (12.02.19)
+
+- Bug fixes and other minor improvements.
+
+1.5.12 (09.02.19)
+
+- Apply blur effects to backgrounds.
+- Use the backgrounds you set in Telegram Desktop in all other Telegram apps.
+
+1.5.11 (01.02.19)
+
+- Bug fixes and other minor improvements.
+
+1.5.10 (01.02.19)
+
+- Bug fixes and other minor improvements.
+
+1.5.9 (31.01.19)
+
+- Bug fixes and other minor improvements.
+
+1.5.8 (21.01.19)
+
+- Global permissions for groups. Restrict all members in any group from posting certain types of content.
+- Unified group settings. Make groups public, set admins with granular permissions and toggle persistent history in just a few clicks in any group.
+- Choose the emoji set you would like to use in Chat Settings.
+- Choose input and output devices for Telegram Calls in Settings > Advanced > Call Settings.
+- Support for automatically downloading files and music.
+
 1.5.7 beta (11.01.19)
 
 - Choose the emoji set you would like to use in Settings > Chat Settings.

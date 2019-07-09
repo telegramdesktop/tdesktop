@@ -92,7 +92,7 @@ msgServiceFont: semiboldFont;
 msgServiceNameFont: semiboldFont;
 msgServicePhotoWidth: 100px;
 msgDateFont: font(13px);
-msgMinWidth: 190px;
+msgMinWidth: 160px;
 msgPhotoSize: 33px;
 msgPhotoSkip: 40px;
 msgPadding: margins(13px, 7px, 13px, 8px);
@@ -293,5 +293,8 @@ notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 
 stickerIconLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
 stickerIconRight: icon {{ "fade_horizontal", emojiPanCategories }};
+
+emojiSuggestionsFadeLeft: icon {{ "fade_horizontal-flip_horizontal", boxBg }};
+emojiSuggestionsFadeRight: icon {{ "fade_horizontal", boxBg }};
 
 transparentPlaceholderSize: 4px;

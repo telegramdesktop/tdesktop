@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/variable.h>
 #include "data/data_search_controller.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "settings/settings_common.h"
 
 namespace Ui {
@@ -31,17 +31,17 @@ struct Tag {
 class Key {
 public:
 	Key(not_null<PeerData*> peer);
-	Key(not_null<Data::Feed*> feed);
+	//Key(not_null<Data::Feed*> feed); // #feed
 	Key(Settings::Tag settings);
 
 	PeerData *peer() const;
-	Data::Feed *feed() const;
+	//Data::Feed *feed() const; // #feed
 	UserData *settingsSelf() const;
 
 private:
 	base::variant<
 		not_null<PeerData*>,
-		not_null<Data::Feed*>,
+		//not_null<Data::Feed*>, // #feed
 		Settings::Tag> _value;
 
 };
@@ -58,7 +58,7 @@ public:
 		Media,
 		CommonGroups,
 		Members,
-		Channels,
+		//Channels, // #feed
 		Settings,
 	};
 	using SettingsType = ::Settings::Type;
@@ -97,31 +97,19 @@ private:
 
 };
 
-class AbstractController : public Window::Navigation {
+class AbstractController : public Window::SessionNavigation {
 public:
-	AbstractController(not_null<Window::Controller*> parent)
-	: _parent(parent) {
-	}
+	AbstractController(not_null<Window::SessionController*> parent);
 
 	virtual Key key() const = 0;
 	virtual PeerData *migrated() const = 0;
 	virtual Section section() const = 0;
 
-	PeerId peerId() const {
-		if (const auto peer = key().peer()) {
-			return peer->id;
-		}
-		return PeerId(0);
-	}
-	PeerId migratedPeerId() const {
-		if (auto peer = migrated()) {
-			return peer->id;
-		}
-		return PeerId(0);
-	}
-	Data::Feed *feed() const {
-		return key().feed();
-	}
+	PeerId peerId() const;
+	PeerId migratedPeerId() const;
+	//Data::Feed *feed() const { // #feed
+	//	return key().feed();
+	//}
 	UserData *settingsSelf() const {
 		return key().settingsSelf();
 	}
@@ -139,12 +127,12 @@ public:
 		const Window::SectionShow &params = Window::SectionShow()) override;
 	void showBackFromStack(
 		const Window::SectionShow &params = Window::SectionShow()) override;
-	not_null<Window::Controller*> parentController() override {
+	not_null<Window::SessionController*> parentController() override {
 		return _parent;
 	}
 
 private:
-	not_null<Window::Controller*> _parent;
+	not_null<Window::SessionController*> _parent;
 
 };
 
@@ -152,7 +140,7 @@ class Controller : public AbstractController {
 public:
 	Controller(
 		not_null<WrapWidget*> widget,
-		not_null<Window::Controller*> window,
+		not_null<Window::SessionController*> window,
 		not_null<ContentMemento*> memento);
 
 	Key key() const override {

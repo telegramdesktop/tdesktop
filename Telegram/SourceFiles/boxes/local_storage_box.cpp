@@ -26,19 +26,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kSizeLimitsCount = 20;
+constexpr auto kMegabyte = int64(1024 * 1024);
+constexpr auto kTotalSizeLimitsCount = 18;
+constexpr auto kMediaSizeLimitsCount = 18;
+constexpr auto kMinimalSizeLimit = 100 * kMegabyte;
 constexpr auto kTimeLimitsCount = 16;
 constexpr auto kMaxTimeLimitValue = std::numeric_limits<size_type>::max();
+constexpr auto kFakeMediaCacheTag = uint16(0xFFFF);
 
-int64 SizeLimitInMB(int index) {
-	if (index < 10) {
-		return int64(index + 1) * 100;
+int64 TotalSizeLimitInMB(int index) {
+	if (index < 8) {
+		return int64(index + 2) * 100;
 	}
-	return int64(index - 9) * 1024;
+	return int64(index - 7) * 1024;
 }
 
-int64 SizeLimit(int index) {
-	return SizeLimitInMB(index) * 1024 * 1024;
+int64 TotalSizeLimit(int index) {
+	return TotalSizeLimitInMB(index) * kMegabyte;
+}
+
+int64 MediaSizeLimitInMB(int index) {
+	if (index < 9) {
+		return int64(index + 1) * 100;
+	}
+	return int64(index - 8) * 1024;
+}
+
+int64 MediaSizeLimit(int index) {
+	return MediaSizeLimitInMB(index) * kMegabyte;
 }
 
 QString SizeLimitText(int64 limit) {
@@ -88,10 +103,10 @@ QString TimeLimitText(size_type limit) {
 	const auto weeks = (days / 7);
 	const auto months = (days / 29);
 	return (months > 0)
-		? lng_local_storage_limit_months(lt_count, months)
+		? tr::lng_local_storage_limit_months(tr::now, lt_count, months)
 		: (limit > 0)
-		? lng_local_storage_limit_weeks(lt_count, weeks)
-		: lang(lng_local_storage_limit_never);
+		? tr::lng_local_storage_limit_weeks(tr::now, lt_count, weeks)
+		: tr::lng_local_storage_limit_never(tr::now);
 }
 
 size_type LimitToValue(size_type timeLimit) {
@@ -109,7 +124,7 @@ public:
 	Row(
 		QWidget *parent,
 		Fn<QString(size_type)> title,
-		Fn<QString()> clear,
+		rpl::producer<QString> clear,
 		const Database::TaggedSummary &data);
 
 	void update(const Database::TaggedSummary &data);
@@ -124,7 +139,7 @@ protected:
 private:
 	QString titleText(const Database::TaggedSummary &data) const;
 	QString sizeText(const Database::TaggedSummary &data) const;
-	void step_radial(TimeMs ms, bool timer);
+	void radialAnimationCallback();
 
 	Fn<QString(size_type)> _titleFactory;
 	object_ptr<Ui::FlatLabel> _title;
@@ -138,19 +153,17 @@ private:
 LocalStorageBox::Row::Row(
 	QWidget *parent,
 	Fn<QString(size_type)> title,
-	Fn<QString()> clear,
+	rpl::producer<QString> clear,
 	const Database::TaggedSummary &data)
 : RpWidget(parent)
 , _titleFactory(std::move(title))
 , _title(
 	this,
 	titleText(data),
-	Ui::FlatLabel::InitType::Simple,
 	st::localStorageRowTitle)
 , _description(
 	this,
 	sizeText(data),
-	Ui::FlatLabel::InitType::Simple,
 	st::localStorageRowSize)
 , _clear(this, std::move(clear), st::localStorageClear) {
 	_clear->setVisible(data.count != 0);
@@ -171,13 +184,12 @@ void LocalStorageBox::Row::toggleProgress(bool shown) {
 		_clearing.destroy();
 	} else if (!_progress) {
 		_progress = std::make_unique<Ui::InfiniteRadialAnimation>(
-			animation(this, &Row::step_radial),
+			[=] { radialAnimationCallback(); },
 			st::proxyCheckingAnimation);
 		_progress->start();
 		_clearing = object_ptr<Ui::FlatLabel>(
 			this,
-			lang(lng_local_storage_clearing),
-			Ui::FlatLabel::InitType::Simple,
+			tr::lng_local_storage_clearing(tr::now),
 			st::localStorageRowSize);
 		_clearing->show();
 		_description->hide();
@@ -186,8 +198,8 @@ void LocalStorageBox::Row::toggleProgress(bool shown) {
 	}
 }
 
-void LocalStorageBox::Row::step_radial(TimeMs ms, bool timer) {
-	if (timer && !anim::Disabled()) {
+void LocalStorageBox::Row::radialAnimationCallback() {
+	if (!anim::Disabled()) {
 		RpWidget::update();
 	}
 }
@@ -229,11 +241,9 @@ void LocalStorageBox::Row::paintEvent(QPaintEvent *e) {
 		return;
 	}
 	Painter p(this);
-
 	const auto padding = st::localStorageRowPadding;
 	const auto height = st::localStorageRowHeight;
 	const auto bottom = height - padding.bottom() - _description->height();
-	_progress->step(crl::time());
 	_progress->draw(
 		p,
 		{
@@ -250,26 +260,36 @@ QString LocalStorageBox::Row::titleText(const Database::TaggedSummary &data) con
 QString LocalStorageBox::Row::sizeText(const Database::TaggedSummary &data) const {
 	return data.totalSize
 		? formatSizeText(data.totalSize)
-		: lang(lng_local_storage_empty);
+		: tr::lng_local_storage_empty(tr::now);
 }
 
 LocalStorageBox::LocalStorageBox(
 	QWidget*,
 	not_null<Database*> db,
+	not_null<Database*> dbBig,
 	CreateTag)
-: _db(db) {
+: _db(db)
+, _dbBig(dbBig) {
 	const auto &settings = Local::cacheSettings();
-	_sizeLimit = settings.totalSizeLimit;
+	const auto &settingsBig = Local::cacheBigFileSettings();
+	_totalSizeLimit = settings.totalSizeLimit + settingsBig.totalSizeLimit;
+	_mediaSizeLimit = settingsBig.totalSizeLimit;
 	_timeLimit = settings.totalTimeLimit;
 }
 
-void LocalStorageBox::Show(not_null<Database*> db) {
+void LocalStorageBox::Show(
+		not_null<Database*> db,
+		not_null<Database*> dbBig) {
 	auto shared = std::make_shared<object_ptr<LocalStorageBox>>(
-		Box<LocalStorageBox>(db, CreateTag()));
+		Box<LocalStorageBox>(db, dbBig, CreateTag()));
 	const auto weak = shared->data();
-	db->statsOnMain(
-	) | rpl::start_with_next([=](Database::Stats &&stats) {
-		weak->update(std::move(stats));
+	rpl::combine(
+		db->statsOnMain(),
+		dbBig->statsOnMain()
+	) | rpl::start_with_next([=](
+			Database::Stats &&stats,
+			Database::Stats &&statsBig) {
+		weak->update(std::move(stats), std::move(statsBig));
 		if (auto &strong = *shared) {
 			Ui::show(std::move(strong));
 		}
@@ -277,16 +297,16 @@ void LocalStorageBox::Show(not_null<Database*> db) {
 }
 
 void LocalStorageBox::prepare() {
-	setTitle(langFactory(lng_local_storage_title));
+	setTitle(tr::lng_local_storage_title());
 
-	addButton(langFactory(lng_box_ok), [this] { closeBox(); });
+	addButton(tr::lng_box_ok(), [this] { closeBox(); });
 
 	setupControls();
 }
 
 void LocalStorageBox::updateRow(
 		not_null<Ui::SlideWrap<Row>*> row,
-		Database::TaggedSummary *data) {
+		const Database::TaggedSummary *data) {
 	const auto summary = (_rows.find(0)->second == row);
 	const auto shown = (data && data->count && data->totalSize) || summary;
 	if (shown) {
@@ -295,28 +315,45 @@ void LocalStorageBox::updateRow(
 	row->toggle(shown, anim::type::normal);
 }
 
-void LocalStorageBox::update(Database::Stats &&stats) {
+void LocalStorageBox::update(
+		Database::Stats &&stats,
+		Database::Stats &&statsBig) {
 	_stats = std::move(stats);
+	_statsBig = std::move(statsBig);
 	if (const auto i = _rows.find(0); i != end(_rows)) {
-		i->second->entity()->toggleProgress(_stats.clearing);
+		i->second->entity()->toggleProgress(
+			_stats.clearing || _statsBig.clearing);
 	}
 	for (const auto &entry : _rows) {
-		if (entry.first) {
+		if (entry.first == kFakeMediaCacheTag) {
+			updateRow(entry.second, &_statsBig.full);
+		} else if (entry.first) {
 			const auto i = _stats.tagged.find(entry.first);
 			updateRow(
 				entry.second,
 				(i != end(_stats.tagged)) ? &i->second : nullptr);
 		} else {
-			updateRow(entry.second, &_stats.full);
+			const auto full = summary();
+			updateRow(entry.second, &full);
 		}
 	}
 }
 
-void LocalStorageBox::clearByTag(uint8 tag) {
-	if (tag) {
+auto LocalStorageBox::summary() const -> Database::TaggedSummary {
+	auto result = _stats.full;
+	result.count += _statsBig.full.count;
+	result.totalSize += _statsBig.full.totalSize;
+	return result;
+}
+
+void LocalStorageBox::clearByTag(uint16 tag) {
+	if (tag == kFakeMediaCacheTag) {
+		_dbBig->clear();
+	} else if (tag) {
 		_db->clearByTag(tag);
 	} else {
 		_db->clear();
+		_dbBig->clear();
 		Ui::Emoji::ClearIrrelevantCache();
 	}
 }
@@ -326,9 +363,9 @@ void LocalStorageBox::setupControls() {
 		object_ptr<Ui::VerticalLayout>(this),
 		st::contactsMultiSelect.scroll);
 	const auto createRow = [&](
-			uint8 tag,
+			uint16 tag,
 			Fn<QString(size_type)> title,
-			Fn<QString()> clear,
+			rpl::producer<QString> clear,
 			const Database::TaggedSummary &data) {
 		auto result = container->add(object_ptr<Ui::SlideWrap<Row>>(
 			container,
@@ -353,32 +390,40 @@ void LocalStorageBox::setupControls() {
 		const auto &data = (i != end(_stats.tagged)) ? i->second : empty;
 		auto factory = std::forward<decltype(titleFactory)>(titleFactory);
 		auto title = [factory = std::move(factory)](size_type count) {
-			return factory(lt_count, count);
+			return factory(tr::now, lt_count, count);
 		};
 		tracker.track(createRow(
 			tag,
 			std::move(title),
-			langFactory(lng_local_storage_clear_some),
+			tr::lng_local_storage_clear_some(),
 			data));
 	};
 	auto summaryTitle = [](size_type) {
-		return lang(lng_local_storage_summary);
+		return tr::lng_local_storage_summary(tr::now);
+	};
+	auto mediaCacheTitle = [](size_type) {
+		return tr::lng_local_storage_media(tr::now);
 	};
 	createRow(
 		0,
 		std::move(summaryTitle),
-		langFactory(lng_local_storage_clear),
-		_stats.full);
+		tr::lng_local_storage_clear(),
+		summary());
 	setupLimits(container);
 	const auto shadow = container->add(object_ptr<Ui::SlideWrap<>>(
 		container,
 		object_ptr<Ui::PlainShadow>(container),
 		st::localStorageRowPadding));
-	createTagRow(Data::kImageCacheTag, lng_local_storage_image);
-	createTagRow(Data::kStickerCacheTag, lng_local_storage_sticker);
-	createTagRow(Data::kVoiceMessageCacheTag, lng_local_storage_voice);
-	createTagRow(Data::kVideoMessageCacheTag, lng_local_storage_round);
-	createTagRow(Data::kAnimationCacheTag, lng_local_storage_animation);
+	createTagRow(Data::kImageCacheTag, tr::lng_local_storage_image);
+	createTagRow(Data::kStickerCacheTag, tr::lng_local_storage_sticker);
+	createTagRow(Data::kVoiceMessageCacheTag, tr::lng_local_storage_voice);
+	createTagRow(Data::kVideoMessageCacheTag, tr::lng_local_storage_round);
+	createTagRow(Data::kAnimationCacheTag, tr::lng_local_storage_animation);
+	tracker.track(createRow(
+		kFakeMediaCacheTag,
+		std::move(mediaCacheTitle),
+		tr::lng_local_storage_clear_some(),
+		_statsBig.full));
 	shadow->toggleOn(
 		std::move(tracker).atLeastOneShownValue()
 	);
@@ -394,7 +439,7 @@ template <
 	typename Convert,
 	typename Callback,
 	typename>
-void LocalStorageBox::createLimitsSlider(
+not_null<Ui::MediaSlider*> LocalStorageBox::createLimitsSlider(
 		not_null<Ui::VerticalLayout*> container,
 		int valuesCount,
 		Convert &&convert,
@@ -415,6 +460,60 @@ void LocalStorageBox::createLimitsSlider(
 		[=, callback = std::forward<Callback>(callback)](Value value) {
 			callback(label, value);
 		});
+	return slider;
+}
+
+void LocalStorageBox::updateMediaLimit() {
+	const auto good = [&](int64 mediaLimit) {
+		return (_totalSizeLimit - mediaLimit >= kMinimalSizeLimit);
+	};
+	if (good(_mediaSizeLimit) || !_mediaSlider || !_mediaLabel) {
+		return;
+	}
+	auto index = 1;
+	while ((index < kMediaSizeLimitsCount)
+		&& (MediaSizeLimit(index) * 2 <= _totalSizeLimit)) {
+		++index;
+	}
+	--index;
+	_mediaSizeLimit = MediaSizeLimit(index);
+	_mediaSlider->setValue(index / float64(kMediaSizeLimitsCount - 1));
+	updateMediaLabel();
+
+	Ensures(good(_mediaSizeLimit));
+}
+
+void LocalStorageBox::updateTotalLimit() {
+	const auto good = [&](int64 totalLimit) {
+		return (totalLimit - _mediaSizeLimit >= kMinimalSizeLimit);
+	};
+	if (good(_totalSizeLimit) || !_totalSlider || !_totalLabel) {
+		return;
+	}
+	auto index = kTotalSizeLimitsCount - 1;
+	while ((index > 0)
+		&& (TotalSizeLimit(index - 1) >= 2 * _mediaSizeLimit)) {
+		--index;
+	}
+	_totalSizeLimit = TotalSizeLimit(index);
+	_totalSlider->setValue(index / float64(kTotalSizeLimitsCount - 1));
+	updateTotalLabel();
+
+	Ensures(good(_totalSizeLimit));
+}
+
+void LocalStorageBox::updateTotalLabel() {
+	Expects(_totalLabel != nullptr);
+
+	const auto text = SizeLimitText(_totalSizeLimit);
+	_totalLabel->setText(tr::lng_local_storage_size_limit(tr::now, lt_size, text));
+}
+
+void LocalStorageBox::updateMediaLabel() {
+	Expects(_mediaLabel != nullptr);
+
+	const auto text = SizeLimitText(_mediaSizeLimit);
+	_mediaLabel->setText(tr::lng_local_storage_media_limit(tr::now, lt_size, text));
 }
 
 void LocalStorageBox::setupLimits(not_null<Ui::VerticalLayout*> container) {
@@ -422,15 +521,29 @@ void LocalStorageBox::setupLimits(not_null<Ui::VerticalLayout*> container) {
 		object_ptr<Ui::PlainShadow>(container),
 		st::localStorageRowPadding);
 
-	createLimitsSlider(
+	_totalSlider = createLimitsSlider(
 		container,
-		kSizeLimitsCount,
-		SizeLimit,
-		_sizeLimit,
+		kTotalSizeLimitsCount,
+		TotalSizeLimit,
+		_totalSizeLimit,
 		[=](not_null<Ui::LabelSimple*> label, int64 limit) {
-			const auto text = SizeLimitText(limit);
-			label->setText(lng_local_storage_size_limit(lt_size, text));
-			_sizeLimit = limit;
+			_totalSizeLimit = limit;
+			_totalLabel = label;
+			updateTotalLabel();
+			updateMediaLimit();
+			limitsChanged();
+		});
+
+	_mediaSlider = createLimitsSlider(
+		container,
+		kMediaSizeLimitsCount,
+		MediaSizeLimit,
+		_mediaSizeLimit,
+		[=](not_null<Ui::LabelSimple*> label, int64 limit) {
+			_mediaSizeLimit = limit;
+			_mediaLabel = label;
+			updateMediaLabel();
+			updateTotalLimit();
 			limitsChanged();
 		});
 
@@ -440,25 +553,29 @@ void LocalStorageBox::setupLimits(not_null<Ui::VerticalLayout*> container) {
 		TimeLimit,
 		LimitToValue(_timeLimit),
 		[=](not_null<Ui::LabelSimple*> label, size_type limit) {
-			const auto text = TimeLimitText(ValueToLimit(limit));
-			label->setText(lng_local_storage_time_limit(lt_limit, text));
-			_timeLimit = limit;
+			_timeLimit = ValueToLimit(limit);
+			const auto text = TimeLimitText(_timeLimit);
+			label->setText(tr::lng_local_storage_time_limit(tr::now, lt_limit, text));
 			limitsChanged();
 		});
 }
 
 void LocalStorageBox::limitsChanged() {
 	const auto &settings = Local::cacheSettings();
-	const auto changed = (settings.totalSizeLimit != _sizeLimit)
-		|| (settings.totalTimeLimit != _timeLimit);
+	const auto &settingsBig = Local::cacheBigFileSettings();
+	const auto sizeLimit = _totalSizeLimit - _mediaSizeLimit;
+	const auto changed = (settings.totalSizeLimit != sizeLimit)
+		|| (settingsBig.totalSizeLimit != _mediaSizeLimit)
+		|| (settings.totalTimeLimit != _timeLimit)
+		|| (settingsBig.totalTimeLimit != _timeLimit);
 	if (_limitsChanged != changed) {
 		_limitsChanged = changed;
 		clearButtons();
 		if (_limitsChanged) {
-			addButton(langFactory(lng_settings_save), [=] { save(); });
-			addButton(langFactory(lng_cancel), [=] { closeBox(); });
+			addButton(tr::lng_settings_save(), [=] { save(); });
+			addButton(tr::lng_cancel(), [=] { closeBox(); });
 		} else {
-			addButton(langFactory(lng_box_ok), [=] { closeBox(); });
+			addButton(tr::lng_box_ok(), [=] { closeBox(); });
 		}
 	}
 }
@@ -469,9 +586,12 @@ void LocalStorageBox::save() {
 		return;
 	}
 	auto update = Storage::Cache::Database::SettingsUpdate();
-	update.totalSizeLimit = _sizeLimit;
+	update.totalSizeLimit = _totalSizeLimit - _mediaSizeLimit;
 	update.totalTimeLimit = _timeLimit;
-	Local::updateCacheSettings(update);
+	auto updateBig = Storage::Cache::Database::SettingsUpdate();
+	updateBig.totalSizeLimit = _mediaSizeLimit;
+	updateBig.totalTimeLimit = _timeLimit;
+	Local::updateCacheSettings(update, updateBig);
 	Auth().data().cache().updateSettings(update);
 	closeBox();
 }

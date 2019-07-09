@@ -108,13 +108,6 @@ profileInviteLinkText: FlatLabel(profileBlockTextPart) {
 
 profileLimitReachedSkip: 6px;
 
-profileMemberItem: PeerListItem(defaultPeerListItem) {
-	left: 8px;
-	bottom: profileBlockMarginBottom;
-	button: defaultLeftOutlineButton;
-	maximalWidth: profileBlockWideWidthMax;
-	statusFgOver: profileStatusFgOver;
-}
 profileMemberPaddingLeft: 16px;
 profileMemberNameFg: windowBoldFg;
 profileMemberCreatorIcon: icon {{ "profile_admin_star", profileAdminStartFg, point(4px, 3px) }};

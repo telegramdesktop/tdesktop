@@ -15,13 +15,6 @@ struct ClickContext {
 	QVariant other;
 };
 
-enum ExpandLinksMode {
-	ExpandLinksNone,
-	ExpandLinksShortened,
-	ExpandLinksAll,
-	ExpandLinksUrlOnly, // For custom urls leaves only url instead of text.
-};
-
 class ClickHandlerHost {
 protected:
 	virtual void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
@@ -33,8 +26,7 @@ protected:
 
 };
 
-class EntityInText;
-struct TextWithEntities;
+enum class EntityType;
 class ClickHandler {
 public:
 	virtual ~ClickHandler() {
@@ -61,10 +53,11 @@ public:
 	}
 
 	// Entities in text support.
-
-	// This method returns empty string if just textPart should be used (nothing to expand).
-	virtual QString getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const;
-	virtual TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const;
+	struct TextEntity {
+		EntityType type = EntityType();
+		QString data;
+	};
+	virtual TextEntity getTextEntity() const;
 
 	// This method should be called on mouse over a click handler.
 	// It returns true if the active handler was changed or false otherwise.
@@ -148,11 +141,6 @@ public:
 			_pressedHost = nullptr;
 		}
 	}
-
-protected:
-	// For click handlers like mention or hashtag in getExpandedLinkTextWithEntities()
-	// we return just an empty string ("use original string part") with single entity.
-	TextWithEntities simpleTextWithEntity(const EntityInText &entity) const;
 
 private:
 	static NeverFreedPointer<ClickHandlerPtr> _active;

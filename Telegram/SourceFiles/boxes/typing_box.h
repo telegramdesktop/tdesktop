@@ -40,7 +40,7 @@ private:
 	object_ptr<Ui::Checkbox> _typingGroup;
 	object_ptr<Ui::Checkbox> _typingSupergroup;
 
-	Text _about;
+	Ui::Text::String _about;
 
 	int _sectionHeight1 = 0;
 	int _sectionHeight2 = 0;

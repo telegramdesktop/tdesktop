@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/facade.h"
 
 #include "storage/localstorage.h"
-#include "messenger.h"
+#include "core/application.h"
 
 namespace MTP {
 namespace internal {
@@ -38,7 +38,7 @@ void unpause() {
 } // namespace internal
 
 Instance *MainInstance() {
-	return Messenger::Instance().mtp();
+	return Core::IsAppLaunched() ? Core::App().mtp() : nullptr;
 }
 
 } // namespace MTP

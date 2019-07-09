@@ -35,6 +35,8 @@ public:
 
 		DcId mainDcId = kNotSetMainDc;
 		AuthKeysList keys;
+		QString deviceModel;
+		QString systemVersion;
 	};
 	enum class Mode {
 		Normal,
@@ -55,6 +57,10 @@ public:
 	QString cloudLangCode() const;
 	QString langPackName() const;
 
+	// Thread safe.
+	QString deviceModel() const;
+	QString systemVersion() const;
+
 	void setKeyForWrite(DcId dcId, const AuthKeyPtr &key);
 	AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
@@ -66,7 +72,7 @@ public:
 			const Request &request,
 			RPCResponseHandler &&callbacks = {},
 			ShiftedDcId shiftedDcId = 0,
-			TimeMs msCanWait = 0,
+			crl::time msCanWait = 0,
 			mtpRequestId afterRequestId = 0) {
 		const auto requestId = GetNextRequestId();
 		sendSerialized(
@@ -85,7 +91,7 @@ public:
 			RPCDoneHandlerPtr &&onDone,
 			RPCFailHandlerPtr &&onFail = nullptr,
 			ShiftedDcId shiftedDcId = 0,
-			TimeMs msCanWait = 0,
+			crl::time msCanWait = 0,
 			mtpRequestId afterRequestId = 0) {
 		return send(
 			request,
@@ -116,7 +122,7 @@ public:
 			SecureRequest &&request,
 			RPCResponseHandler &&callbacks,
 			ShiftedDcId shiftedDcId,
-			TimeMs msCanWait,
+			crl::time msCanWait,
 			mtpRequestId afterRequestId) {
 		const auto needsLayer = true;
 		sendRequest(
@@ -129,7 +135,7 @@ public:
 			afterRequestId);
 	}
 
-	void sendAnything(ShiftedDcId shiftedDcId = 0, TimeMs msCanWait = 0);
+	void sendAnything(ShiftedDcId shiftedDcId = 0, crl::time msCanWait = 0);
 
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
@@ -199,7 +205,7 @@ private:
 		SecureRequest &&request,
 		RPCResponseHandler &&callbacks,
 		ShiftedDcId shiftedDcId,
-		TimeMs msCanWait,
+		crl::time msCanWait,
 		bool needsLayer,
 		mtpRequestId afterRequestId);
 

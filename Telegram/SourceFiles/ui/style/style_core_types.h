@@ -8,9 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <QtCore/QString>
-#include <QtGui/QColor>
 #include <QtCore/QPoint>
 #include <QtCore/QRect>
+#include <QtGui/QColor>
 #include <QtGui/QCursor>
 #include <QtGui/QFont>
 

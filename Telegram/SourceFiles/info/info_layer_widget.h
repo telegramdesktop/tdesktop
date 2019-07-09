@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_float.h"
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Info {
@@ -26,10 +26,10 @@ class LayerWidget
 	, private ::Media::Player::FloatDelegate {
 public:
 	LayerWidget(
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		not_null<Memento*> memento);
 	LayerWidget(
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		not_null<MoveMemento*> memento);
 
 	void showFinished() override;
@@ -58,7 +58,7 @@ private:
 	void restoreFloatPlayerDelegate();
 	not_null<::Media::Player::FloatDelegate*> floatPlayerDelegate();
 	not_null<Ui::RpWidget*> floatPlayerWidget() override;
-	not_null<Window::Controller*> floatPlayerController() override;
+	not_null<Window::SessionController*> floatPlayerController() override;
 	not_null<Window::AbstractSectionWidget*> floatPlayerGetSection(
 		Window::Column column) override;
 	void floatPlayerEnumerateSections(Fn<void(
@@ -68,7 +68,7 @@ private:
 
 	void setupHeightConsumers();
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 	object_ptr<WrapWidget> _content;
 
 	int _desiredHeight = 0;

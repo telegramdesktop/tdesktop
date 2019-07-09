@@ -22,7 +22,7 @@ public:
 	StartWidget(QWidget *parent, Widget::Data *data);
 
 	void submit() override;
-	QString nextButtonText() const override;
+	rpl::producer<QString> nextButtonText() const override;
 
 };
 

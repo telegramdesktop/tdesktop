@@ -23,7 +23,7 @@ namespace Passport {
 Panel::Panel(not_null<PanelController*> controller)
 : _controller(controller)
 , _widget(std::make_unique<Ui::SeparatePanel>()) {
-	_widget->setTitle(Lang::Viewer(lng_passport_title));
+	_widget->setTitle(tr::lng_passport_title());
 	_widget->setInnerSize(st::passportPanelSize);
 
 	_widget->closeRequests(
@@ -71,7 +71,6 @@ void Panel::showCriticalError(const QString &error) {
 		object_ptr<Ui::FlatLabel>(
 			_widget.get(),
 			error,
-			Ui::FlatLabel::InitType::Simple,
 			st::passportErrorLabel),
 		style::margins(0, st::passportPanelSize.height() / 3, 0, 0));
 	container->widthValue(

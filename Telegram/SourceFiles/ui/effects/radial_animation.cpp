@@ -11,27 +11,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-RadialAnimation::RadialAnimation(AnimationCallbacks &&callbacks)
-: a_arcStart(0, FullArcLength)
-, _animation(std::move(callbacks)) {
-}
-
 void RadialAnimation::start(float64 prg) {
-	_firstStart = _lastStart = _lastTime = getms();
-	int32 iprg = qRound(qMax(prg, 0.0001) * AlmostFullArcLength), iprgstrict = qRound(prg * AlmostFullArcLength);
-	a_arcEnd = anim::value(iprgstrict, iprg);
+	_firstStart = _lastStart = _lastTime = crl::now();
+	const auto iprg = qRound(qMax(prg, 0.0001) * AlmostFullArcLength);
+	const auto iprgstrict = qRound(prg * AlmostFullArcLength);
+	_arcEnd = anim::value(iprgstrict, iprg);
 	_animation.start();
 }
 
-bool RadialAnimation::update(float64 prg, bool finished, TimeMs ms) {
+bool RadialAnimation::update(float64 prg, bool finished, crl::time ms) {
 	const auto iprg = qRound(qMax(prg, 0.0001) * AlmostFullArcLength);
-	const auto result = (iprg != qRound(a_arcEnd.to()));
+	const auto result = (iprg != qRound(_arcEnd.to()));
 	if (_finished != finished) {
-		a_arcEnd.start(iprg);
+		_arcEnd.start(iprg);
 		_finished = finished;
 		_lastStart = _lastTime;
 	} else if (result) {
-		a_arcEnd.start(iprg);
+		_arcEnd.start(iprg);
 		_lastStart = _lastTime;
 	}
 	_lastTime = ms;
@@ -43,40 +39,36 @@ bool RadialAnimation::update(float64 prg, bool finished, TimeMs ms) {
 		: fulldt;
 	_opacity = qMin(opacitydt / st::radialDuration, 1.);
 	if (anim::Disabled()) {
-		a_arcEnd.update(1., anim::linear);
+		_arcEnd.update(1., anim::linear);
 		if (finished) {
 			stop();
 		}
 	} else if (!finished) {
-		a_arcEnd.update(1. - (st::radialDuration / (st::radialDuration + dt)), anim::linear);
+		_arcEnd.update(1. - (st::radialDuration / (st::radialDuration + dt)), anim::linear);
 	} else if (dt >= st::radialDuration) {
-		a_arcEnd.update(1., anim::linear);
+		_arcEnd.update(1., anim::linear);
 		stop();
 	} else {
 		auto r = dt / st::radialDuration;
-		a_arcEnd.update(r, anim::linear);
+		_arcEnd.update(r, anim::linear);
 		_opacity *= 1 - r;
 	}
 	auto fromstart = fulldt / st::radialPeriod;
-	a_arcStart.update(fromstart - std::floor(fromstart), anim::linear);
+	_arcStart.update(fromstart - std::floor(fromstart), anim::linear);
 	return result;
 }
 
 void RadialAnimation::stop() {
 	_firstStart = _lastStart = _lastTime = 0;
-	a_arcEnd = anim::value();
+	_arcEnd = anim::value();
 	_animation.stop();
-}
-
-void RadialAnimation::step(TimeMs ms) {
-	_animation.step(ms);
 }
 
 void RadialAnimation::draw(
 		Painter &p,
 		const QRect &inner,
 		int32 thickness,
-		style::color color) {
+		style::color color) const {
 	const auto state = computeState();
 
 	auto o = p.opacity();
@@ -97,11 +89,11 @@ void RadialAnimation::draw(
 	p.setOpacity(o);
 }
 
-RadialState RadialAnimation::computeState() {
-	auto length = MinArcLength + qRound(a_arcEnd.current());
+RadialState RadialAnimation::computeState() const {
+	auto length = MinArcLength + qRound(_arcEnd.current());
 	auto from = QuarterArcLength
 		- length
-		- (anim::Disabled() ? 0 : qRound(a_arcStart.current()));
+		- (anim::Disabled() ? 0 : qRound(_arcStart.current()));
 	if (rtl()) {
 		from = QuarterArcLength - (from - QuarterArcLength) - length;
 		if (from < 0) from += FullArcLength;
@@ -109,17 +101,10 @@ RadialState RadialAnimation::computeState() {
 	return { _opacity, from, length };
 }
 
-InfiniteRadialAnimation::InfiniteRadialAnimation(
-	AnimationCallbacks &&callbacks,
-	const style::InfiniteRadialAnimation &st)
-: _st(st)
-, _animation(std::move(callbacks)) {
-}
-
-void InfiniteRadialAnimation::start() {
-	const auto now = getms();
+void InfiniteRadialAnimation::start(crl::time skip) {
+	const auto now = crl::now();
 	if (_workFinished <= now && (_workFinished || !_workStarted)) {
-		_workStarted = now + _st.sineDuration;
+		_workStarted = std::max(now + _st.sineDuration - skip, crl::time(1));
 		_workFinished = 0;
 	}
 	if (!_animation.animating()) {
@@ -127,9 +112,9 @@ void InfiniteRadialAnimation::start() {
 	}
 }
 
-void InfiniteRadialAnimation::stop() {
-	const auto now = getms();
-	if (anim::Disabled()) {
+void InfiniteRadialAnimation::stop(anim::type animated) {
+	const auto now = crl::now();
+	if (anim::Disabled() || animated == anim::type::instant) {
 		_workFinished = now;
 	}
 	if (!_workFinished) {
@@ -143,10 +128,6 @@ void InfiniteRadialAnimation::stop() {
 	} else if (_workFinished <= now) {
 		_animation.stop();
 	}
-}
-
-void InfiniteRadialAnimation::step(TimeMs ms) {
-	_animation.step(ms);
 }
 
 void InfiniteRadialAnimation::draw(
@@ -196,9 +177,9 @@ void InfiniteRadialAnimation::draw(
 }
 
 RadialState InfiniteRadialAnimation::computeState() {
-	const auto now = getms();
-	const auto linear = int(((now * FullArcLength) / _st.linearPeriod)
-		% FullArcLength);
+	const auto now = crl::now();
+	const auto linear = FullArcLength
+		- int(((now * FullArcLength) / _st.linearPeriod) % FullArcLength);
 	if (!_workStarted || (_workFinished && _workFinished <= now)) {
 		const auto shown = 0.;
 		_animation.stop();
@@ -223,7 +204,7 @@ RadialState InfiniteRadialAnimation::computeState() {
 			anim::sineInOut(1., snap(shown, 0., 1.)));
 		return {
 			shown,
-			linear + (FullArcLength - length),
+			linear,
 			length };
 	} else if (!_workFinished || now <= _workFinished - _st.sineDuration) {
 		// _workStared .. _workFinished - _st.sineDuration
@@ -235,28 +216,29 @@ RadialState InfiniteRadialAnimation::computeState() {
 			- _st.sineShift
 			- _st.sineDuration;
 		const auto basic = int((linear
-			+ (FullArcLength - min)
-			+ cycles * (max - min)) % FullArcLength);
+			+ min
+			+ (cycles * (FullArcLength + min - max))) % FullArcLength);
 		if (relative <= smallDuration) {
 			// localZero .. growStart
 			return {
 				shown,
-				basic,
+				basic - min,
 				min };
 		} else if (relative <= smallDuration + _st.sineDuration) {
 			// growStart .. growEnd
 			const auto growLinear = (relative - smallDuration) /
 				float64(_st.sineDuration);
 			const auto growProgress = anim::sineInOut(1., growLinear);
+			const auto length = anim::interpolate(min, max, growProgress);
 			return {
 				shown,
-				basic,
-				anim::interpolate(min, max, growProgress) };
+				basic - length,
+				length };
 		} else if (relative <= _st.sinePeriod - _st.sineDuration) {
 			// growEnd .. shrinkStart
 			return {
 				shown,
-				basic,
+				basic - max,
 				max };
 		} else {
 			// shrinkStart .. shrinkEnd
@@ -270,7 +252,7 @@ RadialState InfiniteRadialAnimation::computeState() {
 				shrinkProgress);
 			return {
 				shown,
-				basic + shrink,
+				basic - max,
 				max - shrink }; // interpolate(max, min, shrinkProgress)
 		}
 	} else {
@@ -279,29 +261,29 @@ RadialState InfiniteRadialAnimation::computeState() {
 			/ float64(_st.sineDuration);
 		const auto cycles = (_workFinished - _workStarted) / _st.sinePeriod;
 		const auto basic = int((linear
-			+ (FullArcLength - min)
-			+ cycles * (max - min)) % FullArcLength);
+			+ min
+			+ cycles * (FullArcLength + min - max)) % FullArcLength);
 		const auto length = anim::interpolate(
 			min,
 			FullArcLength,
 			anim::sineInOut(1., snap(hidden, 0., 1.)));
 		return {
 			1. - hidden,
-			basic,
+			basic - length,
 			length };
 	}
 	//const auto frontPeriods = time / st.sinePeriod;
 	//const auto frontCurrent = time % st.sinePeriod;
 	//const auto frontProgress = anim::sineInOut(
 	//	st.arcMax - st.arcMin,
-	//	std::min(frontCurrent, TimeMs(st.sineDuration))
+	//	std::min(frontCurrent, crl::time(st.sineDuration))
 	//	/ float64(st.sineDuration));
 	//const auto backTime = std::max(time - st.sineShift, 0LL);
 	//const auto backPeriods = backTime / st.sinePeriod;
 	//const auto backCurrent = backTime % st.sinePeriod;
 	//const auto backProgress = anim::sineInOut(
 	//	st.arcMax - st.arcMin,
-	//	std::min(backCurrent, TimeMs(st.sineDuration))
+	//	std::min(backCurrent, crl::time(st.sineDuration))
 	//	/ float64(st.sineDuration));
 	//const auto front = linear + std::round((st.arcMin + frontProgress + frontPeriods * (st.arcMax - st.arcMin)) * FullArcLength);
 	//const auto from = linear + std::round((backProgress + backPeriods * (st.arcMax - st.arcMin)) * FullArcLength);

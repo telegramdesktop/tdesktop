@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "platform/platform_main_window.h"
+#include "platform/win/wrapper_windows_h.h"
 #include "base/flags.h"
-#include <windows.h>
 
 namespace Ui {
 class PopupMenu;
@@ -21,7 +21,7 @@ class MainWindow : public Window::MainWindow {
 	Q_OBJECT
 
 public:
-	MainWindow();
+	explicit MainWindow(not_null<Window::Controller*> controller);
 
 	HWND psHwnd() const;
 	HMENU psMenu() const;

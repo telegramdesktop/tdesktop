@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 
 namespace style {
 struct FlatLabel;
@@ -25,7 +26,6 @@ public:
 		_widthChangedCallback = std::move(callback);
 	}
 	void setText(const QString &text, int value);
-	void stepAnimation(TimeMs ms);
 	void finishAnimating();
 
 	void paint(Painter &p, int x, int y, int outerWidth);
@@ -51,7 +51,7 @@ private:
 	int _fromWidth = 0;
 	int _toWidth = 0;
 
-	Animation _a_ready;
+	Ui::Animations::Simple _a_ready;
 	QString _delayedText;
 	int _delayedValue = 0;
 
@@ -64,6 +64,10 @@ private:
 };
 
 struct StringWithNumbers {
+	static StringWithNumbers FromString(const QString &text) {
+		return { text };
+	}
+
 	QString text;
 	int offset = -1;
 	int length = 0;
@@ -99,7 +103,7 @@ private:
 	NumbersAnimation _numbers;
 	int _beforeWidth = 0;
 	int _afterWidth = 0;
-	Animation _beforeWidthAnimation;
+	Ui::Animations::Simple _beforeWidthAnimation;
 
 };
 

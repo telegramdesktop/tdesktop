@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_widgets.h"
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 
 namespace Ui {
 
@@ -18,7 +19,10 @@ class ScrollArea;
 
 class MultiSelect : public RpWidget {
 public:
-	MultiSelect(QWidget *parent, const style::MultiSelect &st, Fn<QString()> placeholderFactory = Fn<QString()>());
+	MultiSelect(
+		QWidget *parent,
+		const style::MultiSelect &st,
+		rpl::producer<QString> placeholder = nullptr);
 
 	QString getQuery() const;
 	void setInnerFocus();
@@ -71,7 +75,11 @@ private:
 class MultiSelect::Inner : public TWidget {
 public:
 	using ScrollCallback = Fn<void(int activeTop, int activeBottom)>;
-	Inner(QWidget *parent, const style::MultiSelect &st, Fn<QString()> placeholderFactory, ScrollCallback callback);
+	Inner(
+		QWidget *parent,
+		const style::MultiSelect &st,
+		rpl::producer<QString> placeholder,
+		ScrollCallback callback);
 
 	QString getQuery() const;
 	bool setInnerFocus();
@@ -132,7 +140,7 @@ private:
 	QMargins itemPaintMargins() const;
 
 	const style::MultiSelect &_st;
-	Animation _iconOpacity;
+	Ui::Animations::Simple _iconOpacity;
 
 	ScrollCallback _scrollCallback;
 
@@ -151,7 +159,7 @@ private:
 	object_ptr<Ui::CrossButton> _cancel;
 
 	int _newHeight = 0;
-	Animation _height;
+	Ui::Animations::Simple _height;
 
 	Fn<void(const QString &query)> _queryChangedCallback;
 	Fn<void(Qt::KeyboardModifiers)> _submittedCallback;
@@ -187,7 +195,7 @@ public:
 		_updateCallback = updateCallback;
 	}
 	void setText(const QString &text);
-	void paint(Painter &p, int outerWidth, TimeMs ms);
+	void paint(Painter &p, int outerWidth);
 
 	void mouseMoveEvent(QPoint point);
 	void leaveEvent();
@@ -205,7 +213,7 @@ public:
 
 private:
 	void setOver(bool over);
-	void paintOnce(Painter &p, int x, int y, int outerWidth, TimeMs ms);
+	void paintOnce(Painter &p, int x, int y, int outerWidth);
 	void paintDeleteButton(Painter &p, int x, int y, int outerWidth, float64 overOpacity);
 	bool paintCached(Painter &p, int x, int y, int outerWidth);
 	void prepareCache();
@@ -221,7 +229,7 @@ private:
 			, y(y) {
 			x.start(updateCallback, fromX, toX, duration);
 		}
-		Animation x;
+		Ui::Animations::Simple x;
 		int fromX, toX;
 		int y;
 	};
@@ -229,12 +237,12 @@ private:
 	int _x = -1;
 	int _y = -1;
 	int _width = 0;
-	Text _text;
+	Text::String _text;
 	style::color _color;
 	bool _over = false;
 	QPixmap _cache;
-	Animation _visibility;
-	Animation _overOpacity;
+	Ui::Animations::Simple _visibility;
+	Ui::Animations::Simple _overOpacity;
 	bool _overDelete = false;
 	bool _active = false;
 	PaintRoundImage _paintRoundImage;

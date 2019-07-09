@@ -29,6 +29,8 @@ constexpr auto kSetVersion = uint32(1);
 constexpr auto kCacheVersion = uint32(3);
 constexpr auto kMaxId = uint32(1 << 8);
 
+constexpr auto kScaleForTouchBar = 150;
+
 const auto kSets = {
 	Set{ 0,   0,         0, "Mac",      ":/gui/emoji/set0_preview.webp" },
 	Set{ 1, 246, 7'336'383, "Android",  ":/gui/emoji/set1_preview.webp" },
@@ -87,6 +89,13 @@ auto InstanceNormal = std::unique_ptr<Instance>();
 auto InstanceLarge = std::unique_ptr<Instance>();
 auto Universal = std::shared_ptr<UniversalImages>();
 auto Updates = rpl::event_stream<>();
+auto UpdatesRecent = rpl::event_stream<>();
+
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+auto TouchbarSize = -1;
+auto TouchbarInstance = std::unique_ptr<Instance>();
+auto TouchbarEmoji = (Instance*)nullptr;
+#endif
 
 auto MainEmojiMap = std::map<int, QPixmap>();
 auto OtherEmojiMap = std::map<int, std::map<int, QPixmap>>();
@@ -101,23 +110,19 @@ int RowsCount(int index) {
 		+ ((count % kImagesPerRow) ? 1 : 0);
 }
 
-QString CacheFileFolder() {
-	return cWorkingDir() + "tdata/emoji";
-}
-
 QString CacheFileNameMask(int size) {
 	return "cache_" + QString::number(size) + '_';
 }
 
 QString CacheFilePath(int size, int index) {
-	return CacheFileFolder()
+	return internal::CacheFileFolder()
 		+ '/'
 		+ CacheFileNameMask(size)
 		+ QString::number(index);
 }
 
 QString CurrentSettingPath() {
-	return CacheFileFolder() + "/current";
+	return internal::CacheFileFolder() + "/current";
 }
 
 bool IsValidSetId(int id) {
@@ -188,7 +193,7 @@ void SaveToFile(int id, const QImage &image, int size, int index) {
 
 	QFile f(CacheFilePath(size, index));
 	if (!f.open(QIODevice::WriteOnly)) {
-		if (!QDir::current().mkpath(CacheFileFolder())
+		if (!QDir::current().mkpath(internal::CacheFileFolder())
 			|| !f.open(QIODevice::WriteOnly)) {
 			LOG(("App Error: Could not open emoji cache '%1' for size %2_%3"
 				).arg(f.fileName()
@@ -500,6 +505,10 @@ void ClearUniversalChecked() {
 
 namespace internal {
 
+QString CacheFileFolder() {
+	return cWorkingDir() + "tdata/emoji";
+}
+
 QString SetDataPath(int id) {
 	Expects(IsValidSetId(id) && id != 0);
 
@@ -521,6 +530,17 @@ void Init() {
 
 	InstanceNormal = std::make_unique<Instance>(SizeNormal);
 	InstanceLarge = std::make_unique<Instance>(SizeLarge);
+
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+	if (cScale() != kScaleForTouchBar) {
+		TouchbarSize = int(ConvertScale(18 * 4 / 3.,
+			kScaleForTouchBar * cIntRetinaFactor()));
+		TouchbarInstance = std::make_unique<Instance>(TouchbarSize);
+		TouchbarEmoji = TouchbarInstance.get();
+	} else {
+		TouchbarEmoji = InstanceLarge.get();
+	}
+#endif
 }
 
 void Clear() {
@@ -529,6 +549,10 @@ void Clear() {
 
 	InstanceNormal = nullptr;
 	InstanceLarge = nullptr;
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+	TouchbarInstance = nullptr;
+	TouchbarEmoji = nullptr;
+#endif
 }
 
 void ClearIrrelevantCache() {
@@ -536,7 +560,7 @@ void ClearIrrelevantCache() {
 	Expects(SizeLarge > 0);
 
 	crl::async([] {
-		const auto folder = CacheFileFolder();
+		const auto folder = internal::CacheFileFolder();
 		const auto list = QDir(folder).entryList(QDir::Files);
 		const auto good1 = CacheFileNameMask(SizeNormal);
 		const auto good2 = CacheFileNameMask(SizeLarge);
@@ -550,6 +574,19 @@ void ClearIrrelevantCache() {
 			}
 		}
 	});
+}
+
+tr::phrase<> CategoryTitle(int index) {
+	switch (index) {
+	case 1: return tr::lng_emoji_category1;
+	case 2: return tr::lng_emoji_category2;
+	case 3: return tr::lng_emoji_category3;
+	case 4: return tr::lng_emoji_category4;
+	case 5: return tr::lng_emoji_category5;
+	case 6: return tr::lng_emoji_category6;
+	case 7: return tr::lng_emoji_category7;
+	}
+	Unexpected("Index in CategoryTitle.");
 }
 
 std::vector<Set> Sets() {
@@ -620,6 +657,14 @@ int GetSizeLarge() {
 
 	return SizeLarge;
 }
+
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+int GetSizeTouchbar() {
+	return (cScale() == kScaleForTouchBar)
+		? GetSizeLarge()
+		: TouchbarSize;
+}
+#endif
 
 int One::variantsCount() const {
 	return hasVariants() ? 5 : 0;
@@ -841,6 +886,11 @@ void AddRecent(EmojiPtr emoji) {
 			qSwap(*i, *(i - 1));
 		}
 	}
+	UpdatesRecent.fire({});
+}
+
+rpl::producer<> UpdatedRecent() {
+	return UpdatesRecent.events();
 }
 
 const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight) {
@@ -857,6 +907,7 @@ const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight) {
 		image.fill(Qt::transparent);
 		{
 			QPainter p(&image);
+			PainterHighQualityEnabler hq(p);
 			Draw(
 				p,
 				emoji,
@@ -872,6 +923,15 @@ const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight) {
 }
 
 void Draw(QPainter &p, EmojiPtr emoji, int size, int x, int y) {
+#if defined Q_OS_MAC && !defined OS_MAC_OLD
+	const auto s = (cScale() == kScaleForTouchBar)
+		? SizeLarge
+		: TouchbarSize;
+	if (size == s) {
+		TouchbarEmoji->draw(p, emoji, x, y);
+		return;
+	}
+#endif
 	if (size == SizeNormal) {
 		InstanceNormal->draw(p, emoji, x, y);
 	} else if (size == SizeLarge) {
@@ -927,7 +987,7 @@ void Instance::checkUniversalImages() {
 
 	if (_id != Universal->id()) {
 		_id = Universal->id();
-		_generating.kill();
+		_generating = nullptr;
 		_sprites.clear();
 	}
 	if (!Universal->ensureLoaded() && Universal->id() != 0) {
@@ -940,19 +1000,16 @@ void Instance::generateCache() {
 
 	const auto size = _size;
 	const auto index = _sprites.size();
-	auto [left, right] = base::make_binary_guard();
-	_generating = std::move(left);
 	crl::async([
 		=,
 		universal = Universal,
-		guard = std::move(right)
+		guard = _generating.make_guard()
 	]() mutable {
-		crl::on_main([
+		crl::on_main(std::move(guard), [
 			=,
-			image = universal->generate(size, index),
-			guard = std::move(guard)
+			image = universal->generate(size, index)
 		]() mutable {
-			if (!guard.alive() || universal != Universal) {
+			if (universal != Universal) {
 				return;
 			}
 			pushSprite(std::move(image));

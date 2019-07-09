@@ -13,6 +13,19 @@ using "intro/intro.style";
 boxDuration: 200;
 boxRadius: 3px;
 
+ServiceCheck {
+	margin: margins;
+	diameter: pixels;
+	shift: pixels;
+	thickness: pixels;
+	tip: point;
+	small: pixels;
+	large: pixels;
+	stroke: pixels;
+	color: color;
+	duration: int;
+}
+
 boxButtonFont: font(boxFontSize semibold);
 defaultBoxButton: RoundButton(defaultLightButton) {
 	width: -24px;
@@ -69,13 +82,15 @@ boxTitle: FlatLabel(defaultFlatLabel) {
 		linkFontOver: font(17px semibold underline);
 	}
 }
-boxTitlePosition: point(23px, 20px);
+boxTitlePosition: point(23px, 16px);
 boxTitleHeight: 56px;
 boxLayerTitlePosition: point(23px, 16px);
 boxLayerTitleHeight: 56px;
 boxLayerTitleAdditionalSkip: 9px;
 boxLayerTitleAdditionalFont: normalFont;
 boxLayerScroll: defaultSolidScroll;
+
+boxRowPadding: margins(23px, 0px, 23px, 0px);
 
 boxTopMargin: 6px;
 
@@ -544,6 +559,7 @@ confirmCaptionArea: InputField(defaultInputField) {
 }
 confirmBg: windowBgOver;
 confirmMaxHeight: 245px;
+confirmMaxHeightSkip: 25px;
 confirmCompressedSkip: 10px;
 
 supportInfoField: InputField(defaultInputField) {
@@ -580,6 +596,23 @@ backgroundScroll: ScrollArea(boxLayerScroll) {
 	width: 10px;
 	deltat: 10px;
 	deltab: 10px;
+}
+
+editMediaButtonSize: 29px;
+editMediaButtonSkip: 8px;
+editMediaButtonFileSkipRight: 1px;
+editMediaButtonFileSkipTop: 7px;
+
+editMediaButtonIconFile: icon {{ "settings_edit", menuIconFg }};
+editMediaButtonIconPhoto: icon {{ "settings_edit", msgServiceFg }};
+editMediaButton: IconButton {
+	width: editMediaButtonSize;
+	height: editMediaButtonSize;
+
+	icon: editMediaButtonIconPhoto;
+
+	rippleAreaSize: editMediaButtonSize;
+	ripple: defaultRippleAnimation;
 }
 
 calendarTitleHeight: boxTitleHeight;
@@ -629,6 +662,8 @@ usernameSkip: 49px;
 usernameTextStyle: TextStyle(boxTextStyle, passcodeTextStyle) {
 }
 usernameDefaultFg: windowSubTextFg;
+
+editMediaCheckboxMargins: margins(0px, 15px, 23px, 15px);
 
 downloadPathSkip: 10px;
 
@@ -686,12 +721,14 @@ adminLogFilterUserCheckbox: Checkbox(defaultBoxCheckbox) {
 	checkPosition: point(8px, 6px);
 }
 
-rightsCheckbox: Checkbox(defaultBoxCheckbox) {
+rightsCheckbox: Checkbox(defaultCheckbox) {
+	textPosition: point(10px, 1px);
 	rippleBg: attentionButtonBgOver;
 }
 rightsToggle: Toggle(defaultToggle) {
 	toggledFg: windowBgActive;
 	untoggledFg: attentionButtonFg;
+	lockIcon: icon {{ "info_rights_lock", windowBgActive }};
 	xsize: 8px;
 	vsize: 5px;
 	vshift: 1px;
@@ -699,7 +736,8 @@ rightsToggle: Toggle(defaultToggle) {
 	duration: 120;
 }
 rightsDividerHeight: 10px;
-rightsHeaderMargin: margins(23px, 20px, 23px, 8px);
+rightsDividerMargin: margins(0px, 0px, 0px, 20px);
+rightsHeaderMargin: margins(23px, 0px, 23px, 8px);
 rightsToggleMargin: margins(23px, 8px, 23px, 8px);
 rightsAboutMargin: margins(23px, 8px, 23px, 8px);
 rightsPhotoButton: UserpicButton(defaultUserpicButton) {
@@ -722,7 +760,7 @@ rightsHeaderLabel: FlatLabel(boxLabel) {
 	}
 	textFg: windowActiveTextFg;
 }
-rightsUntilMargin: margins(0px, 8px, 0px, 0px);
+rightsUntilMargin: margins(0px, 8px, 0px, 20px);
 
 mutePhotoButton: UserpicButton(defaultUserpicButton) {
 	size: size(40px, 40px);
@@ -909,3 +947,44 @@ callSettingsButton: IconButton {
 		color: windowBgOver;
 	}
 }
+
+backgroundCheckbox: Checkbox(defaultCheckbox) {
+	textFg: msgServiceFg;
+	textFgActive: msgServiceFg;
+
+	width: -50px;
+	margin: margins(0px, 0px, 0px, 0px);
+
+	textPosition: point(0px, 8px);
+	checkPosition: point(0px, 0px);
+
+	style: semiboldTextStyle;
+}
+
+backgroundCheck: ServiceCheck {
+	margin: margins(12px, 8px, 8px, 8px);
+	diameter: 18px;
+	shift: 2px;
+	thickness: 2px;
+	tip: point(7px, 13px);
+	small: 3px;
+	large: 6px;
+	stroke: 2px;
+	color: msgServiceFg;
+	duration: 200;
+}
+
+urlAuthCheckbox: Checkbox(defaultBoxCheckbox) {
+	width: 240px;
+}
+
+linkedChatAbout: membersAbout;
+linkedChatAboutPadding: margins(20px, 20px, 20px, 20px);
+
+addContactFieldMargin: margins(19px, 0px, 19px, 10px);
+addContactWarningMargin: margins(19px, 10px, 19px, 5px);
+blockUserConfirmation: FlatLabel(boxLabel) {
+	minWidth: 240px;
+}
+
+transferCheckWidth: 300px;

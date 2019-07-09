@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace ChatHelpers {
@@ -32,7 +32,7 @@ class EmojiButton;
 } // namespace Ui
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 enum class SendFilesWay {
@@ -45,7 +45,7 @@ class SendFilesBox : public BoxContent {
 public:
 	SendFilesBox(
 		QWidget*,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		Storage::PreparedList &&list,
 		const TextWithTags &caption,
 		CompressConfirm compressed);
@@ -107,7 +107,7 @@ private:
 	bool canAddUrls(const QList<QUrl> &urls) const;
 	bool addFiles(not_null<const QMimeData*> data);
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 
 	QString _titleText;
 	int _titleHeight = 0;

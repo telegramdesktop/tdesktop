@@ -11,9 +11,10 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * Windows XP - Windows 10 (**not** RT)
 * Mac OS X 10.8 - Mac OS X 10.11
 * Mac OS X 10.6 - Mac OS X 10.7 (separate build)
-* Ubuntu 12.04 - Ubuntu 18.10
-* Fedora 22 - Fedora 29
+* Ubuntu 12.04 - Ubuntu 19.04
+* Fedora 22 - Fedora 30
 * [Snappy](https://snapcraft.io/telegram-desktop)
+* [Flathub](https://flathub.org/apps/details/org.telegram.desktop)
 
 ## Third-party
 
@@ -40,7 +41,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 ## Build instructions
 
-* [Visual Studio 2017][msvc]
+* [Visual Studio 2019][msvc]
 * [Xcode 10][xcode]
 * [GYP/CMake on GNU/Linux][cmake]
 

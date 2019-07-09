@@ -67,7 +67,7 @@ private:
 	const style::RoundButton &_confirmStyle;
 	bool _informative = false;
 
-	Text _text;
+	Ui::Text::String _text;
 	int _textWidth = 0;
 	int _textHeight = 0;
 	int _maxLineCount = 16;
@@ -109,34 +109,13 @@ private:
 
 	not_null<ChannelData*> _channel;
 
-	Text _text;
+	Ui::Text::String _text;
 	int32 _textWidth, _textHeight;
 
 	QRect _invitationLink;
 	bool _linkOver = false;
 
 	QPoint _lastMousePos;
-
-};
-
-class ConvertToSupergroupBox : public BoxContent, public RPCSender {
-public:
-	ConvertToSupergroupBox(QWidget*, ChatData *chat);
-
-protected:
-	void prepare() override;
-
-	void keyPressEvent(QKeyEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	void convertToSupergroup();
-	void convertDone(const MTPUpdates &updates);
-	bool convertFail(const RPCError &error);
-
-	ChatData *_chat;
-	Text _text, _note;
-	int32 _textWidth, _textHeight;
 
 };
 
@@ -172,6 +151,7 @@ public:
 		not_null<HistoryItem*> item,
 		bool suggestModerateActions);
 	DeleteMessagesBox(QWidget*, MessageIdsList &&selected);
+	DeleteMessagesBox(QWidget*, not_null<PeerData*> peer, bool justClear);
 
 	void setDeleteConfirmedCallback(Fn<void()> callback) {
 		_deleteConfirmedCallback = std::move(callback);
@@ -184,17 +164,24 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
 private:
+	struct RevokeConfig {
+		QString checkbox;
+		TextWithEntities description;
+	};
 	void deleteAndClear();
+	PeerData *checkFromSinglePeer() const;
+	std::optional<RevokeConfig> revokeText(not_null<PeerData*> peer) const;
 
+	PeerData * const _wipeHistoryPeer = nullptr;
+	const bool _wipeHistoryJustClear = false;
 	const MessageIdsList _ids;
-	const bool _singleItem = false;
 	UserData *_moderateFrom = nullptr;
 	ChannelData *_moderateInChannel = nullptr;
 	bool _moderateBan = false;
 	bool _moderateDeleteAll = false;
 
 	object_ptr<Ui::FlatLabel> _text = { nullptr };
-	object_ptr<Ui::Checkbox> _forEveryone = { nullptr };
+	object_ptr<Ui::Checkbox> _revoke = { nullptr };
 	object_ptr<Ui::Checkbox> _banUser = { nullptr };
 	object_ptr<Ui::Checkbox> _reportSpam = { nullptr };
 	object_ptr<Ui::Checkbox> _deleteAll = { nullptr };
@@ -225,7 +212,7 @@ private:
 	Fn<void()> _submit;
 	object_ptr<Ui::FlatLabel> _title;
 	object_ptr<Ui::FlatLabel> _status;
-	ImagePtr _photo;
+	Image *_photo = nullptr;
 	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
 	std::vector<not_null<UserData*>> _participants;
 	bool _isChannel = false;
@@ -238,9 +225,9 @@ class ConfirmDontWarnBox : public BoxContent {
 public:
 	ConfirmDontWarnBox(
 		QWidget*,
-		const QString &text,
+		rpl::producer<TextWithEntities> text,
 		const QString &checkbox,
-		const QString &confirm,
+		rpl::producer<QString> confirm,
 		FnMut<void(bool)> callback);
 
 protected:
@@ -248,11 +235,11 @@ protected:
 
 private:
 	not_null<Ui::RpWidget*> setupContent(
-		const QString &text,
+		rpl::producer<TextWithEntities> text,
 		const QString &checkbox,
 		FnMut<void(bool)> callback);
 
-	QString _confirm;
+	rpl::producer<QString> _confirm;
 	FnMut<void()> _callback;
 	not_null<Ui::RpWidget*> _content;
 

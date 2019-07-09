@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/history_message.h"
 #include "lang/lang_keys.h"
+#include "data/data_session.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "styles/style_chat_helpers.h"
@@ -53,9 +54,9 @@ protected:
 private:
 	struct Row {
 		Question data;
-		Text question = { st::windowMinWidth / 2 };
-		Text keys = { st::windowMinWidth / 2 };
-		Text answer = { st::windowMinWidth / 2 };
+		Ui::Text::String question = { st::windowMinWidth / 2 };
+		Ui::Text::String keys = { st::windowMinWidth / 2 };
+		Ui::Text::String answer = { st::windowMinWidth / 2 };
 		int top = 0;
 		int height = 0;
 	};
@@ -72,7 +73,7 @@ private:
 
 };
 
-int TextHeight(const Text &text, int available, int lines) {
+int TextHeight(const Ui::Text::String &text, int available, int lines) {
 	Expects(text.style() != nullptr);
 
 	const auto st = text.style();
@@ -178,7 +179,7 @@ void Inner::paintEvent(QPaintEvent *e) {
 	const auto padding = st::autocompleteRowPadding;
 	const auto available = width() - padding.left() - padding.right();
 	auto top = padding.top();
-	const auto drawText = [&](const Text &text, int lines) {
+	const auto drawText = [&](const Ui::Text::String &text, int lines) {
 		text.drawLeftElided(
 			p,
 			padding.left(),
@@ -271,14 +272,14 @@ AdminLog::OwnedItem GenerateCommentItem(
 	const auto flags = Flag::f_entities | Flag::f_from_id | Flag::f_out;
 	const auto replyTo = 0;
 	const auto viaBotId = 0;
-	const auto item = new HistoryMessage(
+	const auto item = history->owner().makeMessage(
 		history,
 		id,
 		flags,
 		replyTo,
 		viaBotId,
 		unixtime(),
-		Auth().userId(),
+		history->session().userId(),
 		QString(),
 		TextWithEntities{ TextUtilities::Clean(data.comment) });
 	return AdminLog::OwnedItem(delegate, item);
@@ -296,26 +297,28 @@ AdminLog::OwnedItem GenerateContactItem(
 	const auto message = MTP_message(
 		MTP_flags(flags),
 		MTP_int(id),
-		MTP_int(Auth().userId()),
+		MTP_int(history->session().userId()),
 		peerToMTP(history->peer->id),
 		MTPMessageFwdHeader(),
 		MTP_int(viaBotId),
 		MTP_int(replyTo),
 		MTP_int(unixtime()),
-		MTP_string(QString()),
+		MTP_string(),
 		MTP_messageMediaContact(
 			MTP_string(data.phone),
 			MTP_string(data.firstName),
 			MTP_string(data.lastName),
-			MTP_string(QString()),
+			MTP_string(),
 			MTP_int(0)),
 		MTPReplyMarkup(),
 		MTPVector<MTPMessageEntity>(),
 		MTP_int(0),
 		MTP_int(0),
-		MTP_string(QString()),
+		MTP_string(),
 		MTP_long(0));
-	const auto item = new HistoryMessage(history, message.c_message());
+	const auto item = history->owner().makeMessage(
+		history,
+		message.c_message());
 	return AdminLog::OwnedItem(delegate, item);
 }
 
@@ -393,7 +396,7 @@ void Autocomplete::setupContent() {
 		object_ptr<Ui::InputField>(
 			this,
 			st::gifsSearchField,
-			[] { return "Search for templates"; }),
+			rpl::single(qsl("Search for templates"))), // #TODO hard_lang
 		st::autocompleteSearchPadding);
 	const auto input = inputWrap->entity();
 	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(
@@ -504,7 +507,7 @@ ConfirmContactBox::ConfirmContactBox(
 }
 
 void ConfirmContactBox::prepare() {
-	setTitle([] { return "Confirmation"; });
+	setTitle(rpl::single(qsl("Confirmation"))); // #TODO hard_lang
 
 	auto maxWidth = 0;
 	if (_comment) {
@@ -536,7 +539,7 @@ void ConfirmContactBox::prepare() {
 		}
 	};
 
-	const auto button = addButton(langFactory(lng_send_button), [] {});
+	const auto button = addButton(tr::lng_send_button(), [] {});
 	button->clicks(
 	) | rpl::start_with_next([=](Qt::MouseButton which) {
 		_submit((which == Qt::RightButton)
@@ -545,7 +548,7 @@ void ConfirmContactBox::prepare() {
 	}, button->lifetime());
 	button->setAcceptBoth(true);
 
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 }
 
 void ConfirmContactBox::keyPressEvent(QKeyEvent *e) {
@@ -561,7 +564,7 @@ void ConfirmContactBox::paintEvent(QPaintEvent *e) {
 
 	p.fillRect(e->rect(), st::boxBg);
 
-	const auto ms = getms();
+	const auto ms = crl::now();
 	p.translate(st::boxPadding.left(), 0);
 	if (_comment) {
 		_comment->draw(p, rect(), TextSelection(), ms);
@@ -572,33 +575,6 @@ void ConfirmContactBox::paintEvent(QPaintEvent *e) {
 
 HistoryView::Context ConfirmContactBox::elementContext() {
 	return HistoryView::Context::ContactPreview;
-}
-
-std::unique_ptr<HistoryView::Element> ConfirmContactBox::elementCreate(
-		not_null<HistoryMessage*> message) {
-	return std::make_unique<HistoryView::Message>(this, message);
-}
-
-std::unique_ptr<HistoryView::Element> ConfirmContactBox::elementCreate(
-		not_null<HistoryService*> message) {
-	return std::make_unique<HistoryView::Service>(this, message);
-}
-
-bool ConfirmContactBox::elementUnderCursor(not_null<const Element*> view) {
-	return false;
-}
-
-void ConfirmContactBox::elementAnimationAutoplayAsync(
-	not_null<const Element*> element) {
-}
-
-TimeMs ConfirmContactBox::elementHighlightTime(
-		not_null<const Element*> element) {
-	return TimeMs();
-}
-
-bool ConfirmContactBox::elementInSelectionMode() {
-	return false;
 }
 
 } // namespace Support

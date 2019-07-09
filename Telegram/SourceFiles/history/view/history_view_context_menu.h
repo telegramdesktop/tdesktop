@@ -26,7 +26,7 @@ struct ContextMenuRequest {
 	Element *view = nullptr;
 	HistoryItem *item = nullptr;
 	SelectedItems selectedItems;
-	TextWithEntities selectedText;
+	TextForMimeData selectedText;
 	bool overSelection = false;
 	PointState pointState = PointState();
 };
@@ -35,6 +35,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	not_null<ListWidget*> list,
 	const ContextMenuRequest &request);
 
+void CopyPostLink(FullMsgId itemId);
 void StopPoll(FullMsgId itemId);
 
 } // namespace

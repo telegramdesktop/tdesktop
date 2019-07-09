@@ -71,7 +71,7 @@
     'configurations': {
       'Debug': {
         'xcode_settings': {
-          'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.tdesktop.TelegramDebugOld',
+          'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.TelegreatDebugOld',
         },
         'library_dirs': [
           '<(libs_loc)/macold/crashpad/out/Debug',
@@ -79,7 +79,7 @@
       },
       'Release': {
         'xcode_settings': {
-          'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.tdesktop.Telegram',
+          'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.Telegreat',
         },
         'library_dirs': [
           '<(libs_loc)/macold/crashpad/out/Release',
@@ -152,12 +152,12 @@
     'configurations': {
       'Debug': {
         'xcode_settings': {
-          'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.tdesktop.TelegramDebug',
+          'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.TelegreatDebug',
         },
       },
       'Release': {
         'xcode_settings': {
-          'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.tdesktop.Telegram',
+          'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.Telegreat',
         },
       },
     },
@@ -188,7 +188,7 @@
     }],
   }], [ 'build_macstore', {
     'xcode_settings': {
-      'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.telegram.desktop',
+      'PRODUCT_BUNDLE_IDENTIFIER': 'taipei.sean.Telegreat',
       'OTHER_LDFLAGS': [
         '-framework', 'Breakpad',
       ],

@@ -25,7 +25,7 @@ namespace Cache {
 namespace details {
 namespace {
 
-constexpr auto kMaxDelayAfterFailure = 24 * 60 * 60 * crl::time_type(1000);
+constexpr auto kMaxDelayAfterFailure = 24 * 60 * 60 * crl::time(1000);
 
 uint32 CountChecksum(bytes::const_span data) {
 	const auto seed = uint32(0);
@@ -329,7 +329,7 @@ bool DatabaseObject::startDelayedPruning() {
 		const auto seconds = int64(_minimalEntryTime - before);
 		if (!_pruneTimer.isActive()) {
 			_pruneTimer.callOnce(std::min(
-				crl::time_type(seconds * 1000),
+				crl::time(seconds * 1000),
 				_settings.maxPruneCheckTimeout));
 		}
 	}
@@ -724,7 +724,7 @@ void DatabaseObject::compactorDone(
 void DatabaseObject::compactorFail() {
 	const auto delay = _compactor.delayAfterFailure;
 	_compactor = CompactorWrap();
-	_compactor.nextAttempt = crl::time() + delay;
+	_compactor.nextAttempt = crl::now() + delay;
 	_compactor.delayAfterFailure = std::min(
 		delay * 2,
 		kMaxDelayAfterFailure);
@@ -868,7 +868,7 @@ std::optional<QString> DatabaseObject::writeKeyPlace(
 	const auto writing = record.time.getRelative();
 	const auto current = _time.getRelative();
 	Assert(writing >= current);
-	if ((writing - current) * crl::time_type(1000)
+	if ((writing - current) * crl::time(1000)
 		< _settings.writeBundleDelay) {
 		// We don't want to produce a lot of unique _time.relative values.
 		// So if change in it is not large we stick to the old value.
@@ -923,7 +923,7 @@ Error DatabaseObject::writeExistingPlace(
 	const auto writing = record.time.getRelative();
 	const auto current = _time.getRelative();
 	Assert(writing >= current);
-	if ((writing - current) * crl::time_type(1000)
+	if ((writing - current) * crl::time(1000)
 		< _settings.writeBundleDelay) {
 		// We don't want to produce a lot of unique _time.relative values.
 		// So if change in it is not large we stick to the old value.
@@ -955,7 +955,28 @@ void DatabaseObject::get(
 	}
 }
 
-QByteArray DatabaseObject::readValueData(PlaceId place, size_type size) const {
+void DatabaseObject::getWithSizes(
+		const Key &key,
+		std::vector<Key> &&keys,
+		FnMut<void(QByteArray&&, std::vector<int>&&)> &&done) {
+	get(key, [&](TaggedValue &&value) {
+		if (value.bytes.isEmpty()) {
+			invokeCallback(done, QByteArray(), std::vector<int>());
+			return;
+		}
+
+		auto sizes = keys | ranges::view::transform([&](const Key &sizeKey) {
+			const auto i = _map.find(sizeKey);
+			return (i != end(_map)) ? int(i->second.size) : 0;
+		}) | ranges::to_vector;
+
+		invokeCallback(done, std::move(value.bytes), std::move(sizes));
+	});
+}
+
+QByteArray DatabaseObject::readValueData(
+		PlaceId place,
+		size_type size) const {
 	const auto path = placePath(place);
 	File data;
 	const auto result = data.open(path, File::Mode::Read, _key);
@@ -1160,8 +1181,6 @@ void DatabaseObject::writeBundles() {
 }
 
 void DatabaseObject::createCleaner() {
-	auto [left, right] = base::make_binary_guard();
-	_cleaner.guard = std::move(left);
 	auto done = [weak = _weak](Error error) {
 		weak.with([=](DatabaseObject &that) {
 			that.cleanerDone(error);
@@ -1169,7 +1188,7 @@ void DatabaseObject::createCleaner() {
 	};
 	_cleaner.object = std::make_unique<Cleaner>(
 		_base,
-		std::move(right),
+		_cleaner.guard.make_guard(),
 		std::move(done));
 	pushStatsDelayed();
 }
@@ -1189,18 +1208,16 @@ void DatabaseObject::checkCompactor() {
 		&& (_binlogExcessLength * _settings.compactAfterFullSize
 			< _settings.compactAfterExcess * _binlog.size())) {
 		return;
-	} else if (crl::time() < _compactor.nextAttempt || !_binlog.isOpen()) {
+	} else if (crl::now() < _compactor.nextAttempt || !_binlog.isOpen()) {
 		return;
 	}
 	auto info = Compactor::Info();
 	info.till = _binlog.size();
 	info.systemTime = _time.system;
 	info.keysCount = _map.size();
-	auto [first, second] = base::make_binary_guard();
-	_compactor.guard = std::move(first);
 	_compactor.object = std::make_unique<Compactor>(
 		_weak,
-		std::move(second),
+		_compactor.guard.make_guard(),
 		_path,
 		_settings,
 		base::duplicate(_key),

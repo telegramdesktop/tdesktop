@@ -14,12 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/media/history_media.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
-#include "media/media_clip_reader.h"
-#include "media/media_audio.h"
-#include "media/view/media_clip_playback.h"
+#include "media/audio/media_audio.h"
+#include "media/streaming/media_streaming_player.h"
+#include "media/view/media_view_playback_progress.h"
 #include "media/player/media_player_instance.h"
-#include "media/player/media_player_round_controller.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "window/section_widget.h"
 #include "auth_session.h"
 #include "styles/style_media_player.h"
@@ -30,7 +29,7 @@ namespace Player {
 
 Float::Float(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item,
 	Fn<void(bool visible)> toggleCallback,
 	Fn<void(bool closed)> draggedCallback)
@@ -105,9 +104,7 @@ float64 Float::outRatio() const {
 
 void Float::mouseReleaseEvent(QMouseEvent *e) {
 	if (base::take(_down) && _item) {
-		if (const auto controller = _controller->roundVideo(_item)) {
-			controller->pauseResume();
-		}
+		pauseResume();
 	}
 	if (_drag) {
 		finishDrag(outRatio() < 0.5);
@@ -124,10 +121,18 @@ void Float::finishDrag(bool closed) {
 void Float::mouseDoubleClickEvent(QMouseEvent *e) {
 	if (_item) {
 		// Handle second click.
-		if (const auto controller = _controller->roundVideo(_item)) {
-			controller->pauseResume();
-		}
+		pauseResume();
 		Ui::showPeerHistoryAtItem(_item);
+	}
+}
+
+void Float::pauseResume() {
+	if (const auto player = instance()->roundVideoPlayer(_item)) {
+		if (player->paused()) {
+			player->resume();
+		} else {
+			player->pause();
+		}
 	}
 }
 
@@ -174,7 +179,7 @@ void Float::paintEvent(QPaintEvent *e) {
 	p.drawImage(inner.topLeft(), _frame);
 
 	const auto playback = getPlayback();
-	const auto progress = playback ? playback->value(getms()) : 1.;
+	const auto progress = playback ? playback->value() : 1.;
 	if (progress > 0.) {
 		auto pen = st::historyVideoMessageProgressFg->p;
 		auto was = p.pen();
@@ -196,35 +201,16 @@ void Float::paintEvent(QPaintEvent *e) {
 	}
 }
 
-Clip::Reader *Float::getReader() const {
-	if (detached()) {
-		return nullptr;
-	}
-	if (const auto controller = _controller->roundVideo(_item)) {
-		if (const auto reader = controller->reader()) {
-			if (reader->started()) {
-				return reader;
-			}
-		}
-	}
-	return nullptr;
+Streaming::Player *Float::getPlayer() const {
+	return instance()->roundVideoPlayer(_item);
 }
 
-Clip::Playback *Float::getPlayback() const {
-	if (detached()) {
-		return nullptr;
-	}
-	if (const auto controller = _controller->roundVideo(_item)) {
-		return controller->playback();
-	}
-	return nullptr;
+View::PlaybackProgress *Float::getPlayback() const {
+	return instance()->roundVideoPlayback(_item);
 }
 
 bool Float::hasFrame() const {
-	if (const auto reader = getReader()) {
-		return !reader->current().isNull();
-	}
-	return false;
+	return (getPlayer() != nullptr);
 }
 
 bool Float::fillFrame() {
@@ -238,14 +224,17 @@ bool Float::fillFrame() {
 	auto frameInner = [&] {
 		return QRect(QPoint(), _frame.size() / cIntRetinaFactor());
 	};
-	if (const auto reader = getReader()) {
-		auto frame = reader->current();
+	if (const auto player = getPlayer()) {
+		auto request = Streaming::FrameRequest::NonStrict();
+		request.outer = request.resize = _frame.size();
+		request.radius = ImageRoundRadius::Ellipse;
+		auto frame = player->frame(request);
 		if (!frame.isNull()) {
 			_frame.fill(Qt::transparent);
 
 			Painter p(&_frame);
 			PainterHighQualityEnabler hq(p);
-			p.drawPixmap(frameInner(), frame);
+			p.drawImage(frameInner(), frame);
 			return true;
 		}
 	}
@@ -272,7 +261,7 @@ void Float::repaintItem() {
 template <typename ToggleCallback, typename DraggedCallback>
 FloatController::Item::Item(
 	not_null<QWidget*> parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item,
 	ToggleCallback toggle,
 	DraggedCallback dragged)
@@ -371,7 +360,7 @@ void FloatController::checkCurrent() {
 	if (last) {
 		last->widget->detach();
 	}
-	if (const auto item = App::histItemById(fullId)) {
+	if (const auto item = Auth().data().message(fullId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
 				if (document->isVideoMessage()) {
@@ -469,7 +458,7 @@ std::optional<bool> FloatController::filterWheelEvent(
 }
 
 void FloatController::updatePosition(not_null<Item*> instance) {
-	auto visible = instance->visibleAnimation.current(instance->visible ? 1. : 0.);
+	auto visible = instance->visibleAnimation.value(instance->visible ? 1. : 0.);
 	if (visible == 0. && !instance->visible) {
 		instance->widget->hide();
 		if (instance->widget->detached()) {
@@ -485,7 +474,7 @@ void FloatController::updatePosition(not_null<Item*> instance) {
 			instance->widget->show();
 		}
 
-		auto dragged = instance->draggedAnimation.current(1.);
+		auto dragged = instance->draggedAnimation.value(1.);
 		auto position = QPoint();
 		if (instance->hiddenByDrag) {
 			instance->widget->setOpacity(instance->widget->countOpacityByParent());
@@ -615,7 +604,7 @@ void FloatController::finishDrag(not_null<Item*> instance, bool closed) {
 	instance->column = Auth().settings().floatPlayerColumn();
 	instance->corner = Auth().settings().floatPlayerCorner();
 
-	instance->draggedAnimation.finish();
+	instance->draggedAnimation.stop();
 	instance->draggedAnimation.start(
 		[=] { updatePosition(instance); },
 		0.,

@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_details_row.h"
 #include "passport/passport_panel_edit_scans.h"
 #include "info/profile/info_profile_button.h"
-#include "info/profile/info_profile_values.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
@@ -21,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "boxes/abstract_box.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
@@ -35,7 +35,7 @@ class RequestTypeBox : public BoxContent {
 public:
 	RequestTypeBox(
 		QWidget*,
-		const QString &title,
+		rpl::producer<QString> title,
 		const QString &about,
 		std::vector<QString> labels,
 		Fn<void(int index)> submit);
@@ -49,7 +49,7 @@ private:
 		std::vector<QString> labels,
 		Fn<void(int index)> submit);
 
-	QString _title;
+	rpl::producer<QString> _title;
 	Fn<void()> _submit;
 	int _height = 0;
 
@@ -79,18 +79,18 @@ private:
 
 RequestTypeBox::RequestTypeBox(
 	QWidget*,
-	const QString &title,
+	rpl::producer<QString> title,
 	const QString &about,
 	std::vector<QString> labels,
 	Fn<void(int index)> submit)
-: _title(title) {
+: _title(std::move(title)) {
 	setupControls(about, std::move(labels), submit);
 }
 
 void RequestTypeBox::prepare() {
-	setTitle([=] { return _title; });
-	addButton(langFactory(lng_passport_upload_document), _submit);
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	setTitle(std::move(_title));
+	addButton(tr::lng_passport_upload_document(), _submit);
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	setDimensions(st::boxWidth, _height);
 }
 
@@ -100,15 +100,14 @@ void RequestTypeBox::setupControls(
 		Fn<void(int index)> submit) {
 	const auto header = Ui::CreateChild<Ui::FlatLabel>(
 		this,
-		lang(lng_passport_document_type),
-		Ui::FlatLabel::InitType::Simple,
+		tr::lng_passport_document_type(tr::now),
 		st::boxDividerLabel);
 
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>(0);
 	auto buttons = std::vector<QPointer<Ui::Radiobutton>>();
 	auto index = 0;
 	for (const auto &label : labels) {
-		buttons.push_back(Ui::CreateChild<Ui::Radiobutton>(
+		buttons.emplace_back(Ui::CreateChild<Ui::Radiobutton>(
 			this,
 			group,
 			index++,
@@ -119,7 +118,6 @@ void RequestTypeBox::setupControls(
 	const auto description = Ui::CreateChild<Ui::FlatLabel>(
 		this,
 		about,
-		Ui::FlatLabel::InitType::Simple,
 		st::boxDividerLabel);
 
 	auto y = 0;
@@ -156,8 +154,8 @@ DeleteDocumentBox::DeleteDocumentBox(
 }
 
 void DeleteDocumentBox::prepare() {
-	addButton(langFactory(lng_box_delete), _submit);
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_box_delete(), _submit);
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	setDimensions(st::boxWidth, _height);
 }
@@ -169,7 +167,6 @@ void DeleteDocumentBox::setupControls(
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		this,
 		text,
-		Ui::FlatLabel::InitType::Simple,
 		st::boxLabel);
 	const auto details = !detailsCheckbox.isEmpty()
 		? Ui::CreateChild<Ui::Checkbox>(
@@ -224,7 +221,7 @@ PanelEditDocument::PanelEditDocument(
 , _bottomShadow(this)
 , _done(
 		this,
-		langFactory(lng_passport_save_value),
+		tr::lng_passport_save_value(),
 		st::passportPanelSaveValue) {
 	setupControls(
 		&error,
@@ -252,7 +249,7 @@ PanelEditDocument::PanelEditDocument(
 , _bottomShadow(this)
 , _done(
 		this,
-		langFactory(lng_passport_save_value),
+		tr::lng_passport_save_value(),
 		st::passportPanelSaveValue) {
 	setupControls(
 		nullptr,
@@ -277,7 +274,7 @@ PanelEditDocument::PanelEditDocument(
 , _bottomShadow(this)
 , _done(
 		this,
-		langFactory(lng_passport_save_value),
+		tr::lng_passport_save_value(),
 		st::passportPanelSaveValue) {
 	setupControls(&error, &data, nullptr, nullptr, {}, {}, {});
 }
@@ -377,7 +374,6 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 					object_ptr<Ui::FlatLabel>(
 						inner,
 						*error,
-						Ui::FlatLabel::InitType::Simple,
 						st::passportVerifyErrorLabel),
 					st::passportValueErrorPadding));
 			_commonError->toggle(true, anim::type::instant);
@@ -386,7 +382,6 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 			object_ptr<Ui::FlatLabel>(
 				inner,
 				data ? _scheme.detailsHeader : _scheme.fieldsHeader,
-				Ui::FlatLabel::InitType::Simple,
 				st::passportFormHeader),
 			st::passportDetailsHeaderPadding);
 		enumerateRows([&](
@@ -491,7 +486,7 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 		inner->add(
 			object_ptr<Info::Profile::Button>(
 				inner,
-				std::move(*text) | Info::Profile::ToUpperValue(),
+				std::move(*text) | Ui::Text::ToUpper(),
 				st::passportDeleteButton),
 			st::passportUploadButtonPadding
 		)->addClickHandler([=] {
@@ -643,7 +638,7 @@ bool PanelEditDocument::validate() {
 		error = firsttop.y();
 	}
 	auto first = QPointer<PanelDetailsRow>();
-	for (const auto [i, field] : base::reversed(_details)) {
+	for (const auto [i, field] : ranges::view::reverse(_details)) {
 		const auto &row = _scheme.rows[i];
 		if (row.valueClass == Scheme::ValueClass::Additional
 			&& !_additionalShown) {
@@ -685,8 +680,8 @@ object_ptr<BoxContent> RequestIdentityType(
 		Fn<void(int index)> submit,
 		std::vector<QString> labels) {
 	return Box<RequestTypeBox>(
-		lang(lng_passport_identity_title),
-		lang(lng_passport_identity_about),
+		tr::lng_passport_identity_title(),
+		tr::lng_passport_identity_about(tr::now),
 		std::move(labels),
 		submit);
 }
@@ -695,8 +690,8 @@ object_ptr<BoxContent> RequestAddressType(
 		Fn<void(int index)> submit,
 		std::vector<QString> labels) {
 	return Box<RequestTypeBox>(
-		lang(lng_passport_address_title),
-		lang(lng_passport_address_about),
+		tr::lng_passport_address_title(),
+		tr::lng_passport_address_about(tr::now),
 		std::move(labels),
 		submit);
 }

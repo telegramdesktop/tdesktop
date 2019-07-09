@@ -9,15 +9,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "data/data_session.h"
-#include "media/media_audio.h"
-#include "media/media_audio_capture.h"
+#include "media/audio/media_audio.h"
+#include "media/audio/media_audio_capture.h"
+#include "media/streaming/media_streaming_player.h"
+#include "media/streaming/media_streaming_reader.h"
+#include "media/view/media_view_playback_progress.h"
 #include "calls/calls_instance.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "data/data_media_types.h"
-#include "window/window_controller.h"
+#include "data/data_file_origin.h"
+#include "window/window_session_controller.h"
 #include "core/shortcuts.h"
-#include "messenger.h"
+#include "core/application.h"
+#include "main/main_account.h" // Account::sessionValue.
 #include "mainwindow.h"
 #include "auth_session.h"
 
@@ -27,6 +32,8 @@ namespace {
 
 Instance *SingleInstance = nullptr;
 
+constexpr auto kVoicePlaybackSpeedMultiplier = 1.7;
+
 // Preload X message ids before and after current.
 constexpr auto kIdsLimit = 32;
 
@@ -35,19 +42,49 @@ constexpr auto kIdsPreloadAfter = 28;
 
 } // namespace
 
-void start() {
-	Audio::Start();
+void start(not_null<Audio::Instance*> instance) {
+	Audio::Start(instance);
 	Capture::Start();
 
 	SingleInstance = new Instance();
 }
 
-void finish() {
+void finish(not_null<Audio::Instance*> instance) {
 	delete base::take(SingleInstance);
 
 	Capture::Finish();
-	Audio::Finish();
+	Audio::Finish(instance);
 }
+
+struct Instance::Streamed {
+	Streamed(
+		AudioMsgId id,
+		not_null<::Data::Session*> owner,
+		std::shared_ptr<Streaming::Reader> reader);
+
+	AudioMsgId id;
+	Streaming::Player player;
+	Streaming::Information info;
+	View::PlaybackProgress progress;
+	bool clearing = false;
+};
+
+Instance::Streamed::Streamed(
+	AudioMsgId id,
+	not_null<::Data::Session*> owner,
+	std::shared_ptr<Streaming::Reader> reader)
+: id(id)
+, player(owner, std::move(reader)) {
+}
+
+Instance::Data::Data(AudioMsgId::Type type, SharedMediaType overview)
+: type(type)
+, overview(overview) {
+}
+
+Instance::Data::Data(Data &&other) = default;
+Instance::Data &Instance::Data::operator=(Data &&other) = default;
+Instance::Data::~Data() = default;
 
 Instance::Instance()
 : _songData(AudioMsgId::Type::Song, SharedMediaType::MusicFile)
@@ -57,9 +94,10 @@ Instance::Instance()
 	});
 
 	// While we have one Media::Player::Instance for all authsessions we have to do this.
-	const auto handleAuthSessionChange = [=] {
-		if (AuthSession::Exists()) {
-			subscribe(Auth().calls().currentCallChanged(), [=](Calls::Call *call) {
+	Core::App().activeAccount().sessionValue(
+	) | rpl::start_with_next([=](AuthSession *session) {
+		if (session) {
+			subscribe(session->calls().currentCallChanged(), [=](Calls::Call *call) {
 				if (call) {
 					pauseOnCall(AudioMsgId::Type::Voice);
 					pauseOnCall(AudioMsgId::Type::Song);
@@ -69,56 +107,80 @@ Instance::Instance()
 				}
 			});
 		} else {
-			handleLogout();
+			const auto reset = [&](AudioMsgId::Type type) {
+				const auto data = getData(type);
+				*data = Data(type, data->overview);
+			};
+			reset(AudioMsgId::Type::Voice);
+			reset(AudioMsgId::Type::Song);
 		}
-	};
-	subscribe(
-		Messenger::Instance().authSessionChanged(),
-		handleAuthSessionChange);
-	handleAuthSessionChange();
+	}, _lifetime);
 
 	setupShortcuts();
 }
 
+Instance::~Instance() = default;
+
 AudioMsgId::Type Instance::getActiveType() const {
-	auto voiceData = getData(AudioMsgId::Type::Voice);
-	if (voiceData->current) {
-		auto state = mixer()->currentState(voiceData->type);
-		if (voiceData->current == state.id && !IsStoppedOrStopping(state.state)) {
-			return voiceData->type;
+	if (const auto data = getData(AudioMsgId::Type::Voice)) {
+		if (data->current) {
+			const auto state = getState(data->type);
+			if (!IsStoppedOrStopping(state.state)) {
+				return data->type;
+			}
 		}
 	}
 	return AudioMsgId::Type::Song;
 }
 
 void Instance::handleSongUpdate(const AudioMsgId &audioId) {
-	emitUpdate(audioId.type(), [&audioId](const AudioMsgId &playing) {
+	emitUpdate(audioId.type(), [&](const AudioMsgId &playing) {
 		return (audioId == playing);
 	});
 }
 
 void Instance::setCurrent(const AudioMsgId &audioId) {
-	if (auto data = getData(audioId.type())) {
-		if (data->current != audioId) {
-			data->current = audioId;
-			data->isPlaying = false;
-
-			auto history = data->history;
-			auto migrated = data->migrated;
-			auto item = data->current
-				? App::histItemById(data->current.contextId())
-				: nullptr;
-			if (item) {
-				data->history = item->history()->migrateToOrMe();
-				data->migrated = data->history->migrateFrom();
-			} else {
-				data->history = nullptr;
-				data->migrated = nullptr;
-			}
-			_trackChangedNotifier.notify(data->type, true);
-			refreshPlaylist(data);
+	if (const auto data = getData(audioId.type())) {
+		if (data->current == audioId) {
+			return;
 		}
+		const auto changed = [&](const AudioMsgId & check) {
+			return (check.audio() != audioId.audio())
+				|| (check.contextId() != audioId.contextId());
+		};
+		if (changed(data->current)
+			&& data->streamed
+			&& changed(data->streamed->id)) {
+			clearStreamed(data);
+		}
+		data->current = audioId;
+		data->isPlaying = false;
+
+		const auto item = Auth().data().message(data->current.contextId());
+		if (item) {
+			data->history = item->history()->migrateToOrMe();
+			data->migrated = data->history->migrateFrom();
+		} else {
+			data->history = nullptr;
+			data->migrated = nullptr;
+		}
+		_trackChangedNotifier.notify(data->type, true);
+		refreshPlaylist(data);
 	}
+}
+
+void Instance::clearStreamed(not_null<Data*> data) {
+	if (!data->streamed || data->streamed->clearing) {
+		return;
+	}
+	data->streamed->clearing = true;
+	data->streamed->player.stop();
+	data->isPlaying = false;
+	requestRoundVideoResize();
+	emitUpdate(data->type);
+	data->streamed = nullptr;
+	App::wnd()->sessionController()->disableGifPauseReason(
+		Window::GifPauseReason::RoundPlaying);
 }
 
 void Instance::refreshPlaylist(not_null<Data*> data) {
@@ -216,7 +278,7 @@ HistoryItem *Instance::itemByIndex(not_null<Data*> data, int index) {
 		return nullptr;
 	}
 	const auto fullId = (*data->playlistSlice)[index];
-	return App::histItemById(fullId);
+	return Auth().data().message(fullId);
 }
 
 bool Instance::moveInPlaylist(
@@ -240,12 +302,6 @@ bool Instance::moveInPlaylist(
 					|| document->isVoiceMessage()
 					|| document->isVideoMessage()) {
 					play(AudioMsgId(document, item->fullId()));
-				} else {
-					//DocumentOpenClickHandler::Open(
-					//	item->fullId(),
-					//	document,
-					//	item,
-					//	ActionOnLoadPlayInline);
 				}
 				return true;
 			}
@@ -283,83 +339,141 @@ Instance *instance() {
 }
 
 void Instance::play(AudioMsgId::Type type) {
-	auto state = mixer()->currentState(type);
-	if (state.id) {
-		if (IsStopped(state.state)) {
-			play(state.id);
-		} else {
-			mixer()->resume(state.id);
-		}
-	} else if (auto data = getData(type)) {
-		if (data->current) {
-			play(data->current);
-		}
-	}
 	if (const auto data = getData(type)) {
+		if (!data->streamed || IsStopped(getState(type).state)) {
+			play(data->current);
+		} else {
+			if (data->streamed->player.active()) {
+				data->streamed->player.resume();
+			}
+			emitUpdate(type);
+		}
 		data->resumeOnCallEnd = false;
 	}
 }
 
 void Instance::play(const AudioMsgId &audioId) {
 	const auto document = audioId.audio();
-	if (!audioId || !document) {
+	if (!document) {
 		return;
 	}
-	if (document->isAudioFile() || document->isVoiceMessage()) {
-		mixer()->play(audioId);
-		setCurrent(audioId);
-		if (document->loading()) {
-			documentLoadProgress(document);
+	if (document->isAudioFile()
+		|| document->isVoiceMessage()
+		|| document->isVideoMessage()) {
+		auto reader = document->owner().documentStreamedReader(
+			document,
+			audioId.contextId());
+		if (!reader) {
+			return;
 		}
-	} else if (document->isVideoMessage()) {
-		if (const auto item = App::histItemById(audioId.contextId())) {
-			App::wnd()->controller()->startRoundVideo(item);
-		}
+		playStreamed(audioId, std::move(reader));
 	}
 	if (document->isVoiceMessage() || document->isVideoMessage()) {
-		document->session()->data().markMediaRead(document);
+		document->owner().markMediaRead(document);
 	}
 }
 
+void Instance::playPause(const AudioMsgId &audioId) {
+	const auto now = current(audioId.type());
+	if (now.audio() == audioId.audio()
+		&& now.contextId() == audioId.contextId()) {
+		playPause(audioId.type());
+	} else {
+		play(audioId);
+	}
+}
+
+void Instance::playStreamed(
+		const AudioMsgId &audioId,
+		std::shared_ptr<Streaming::Reader> reader) {
+	Expects(audioId.audio() != nullptr);
+
+	const auto data = getData(audioId.type());
+	Assert(data != nullptr);
+
+	clearStreamed(data);
+	data->streamed = std::make_unique<Streamed>(
+		audioId,
+		&audioId.audio()->owner(),
+		std::move(reader));
+
+	data->streamed->player.updates(
+	) | rpl::start_with_next_error([=](Streaming::Update &&update) {
+		handleStreamingUpdate(data, std::move(update));
+	}, [=](Streaming::Error &&error) {
+		handleStreamingError(data, std::move(error));
+	}, data->streamed->player.lifetime());
+
+	data->streamed->player.fullInCache(
+	) | rpl::start_with_next([=](bool fullInCache) {
+		const auto document = data->streamed->id.audio();
+		document->setLoadedInMediaCache(fullInCache);
+	}, data->streamed->player.lifetime());
+
+	data->streamed->player.play(streamingOptions(audioId));
+
+	emitUpdate(audioId.type());
+}
+
+Streaming::PlaybackOptions Instance::streamingOptions(
+		const AudioMsgId &audioId,
+		crl::time position) {
+	const auto document = audioId.audio();
+	auto result = Streaming::PlaybackOptions();
+	result.mode = (document && document->isVideoMessage())
+		? Streaming::Mode::Both
+		: Streaming::Mode::Audio;
+	result.speed = (document
+		&& (document->isVoiceMessage() || document->isVideoMessage())
+		&& Global::VoiceMsgPlaybackDoubled())
+		? kVoicePlaybackSpeedMultiplier
+		: 1.;
+	result.audioId = audioId;
+	result.position = position;
+	return result;
+}
+
 void Instance::pause(AudioMsgId::Type type) {
-	const auto state = mixer()->currentState(type);
-	if (state.id) {
-		mixer()->pause(state.id);
+	if (const auto data = getData(type)) {
+		if (data->streamed) {
+			if (data->streamed->player.active()) {
+				data->streamed->player.pause();
+			}
+			emitUpdate(type);
+		}
 	}
 }
 
 void Instance::stop(AudioMsgId::Type type) {
-	const auto state = mixer()->currentState(type);
-	if (state.id) {
-		mixer()->stop(state.id);
-	}
 	if (const auto data = getData(type)) {
+		if (data->streamed) {
+			clearStreamed(data);
+		}
 		data->resumeOnCallEnd = false;
 	}
 }
 
 void Instance::playPause(AudioMsgId::Type type) {
-	const auto state = mixer()->currentState(type);
-	if (state.id) {
-		if (IsStopped(state.state)) {
-			play(state.id);
-		} else if (IsPaused(state.state) || state.state == State::Pausing) {
-			mixer()->resume(state.id);
-		} else {
-			mixer()->pause(state.id);
-		}
-	} else if (auto data = getData(type)) {
-		if (data->current) {
-			play(data->current);
-		}
-	}
 	if (const auto data = getData(type)) {
+		if (!data->streamed) {
+			play(data->current);
+		} else {
+			if (!data->streamed->player.active()) {
+				data->streamed->player.play(
+					streamingOptions(data->streamed->id));
+			} else if (data->streamed->player.paused()) {
+				data->streamed->player.resume();
+			} else {
+				data->streamed->player.pause();
+			}
+			emitUpdate(type);
+		}
 		data->resumeOnCallEnd = false;
 	}
 }
 
 void Instance::pauseOnCall(AudioMsgId::Type type) {
-	const auto state = mixer()->currentState(type);
+	const auto state = getState(type);
 	if (!state.id
 		|| IsStopped(state.state)
 		|| IsPaused(state.state)
@@ -400,11 +514,15 @@ void Instance::playPauseCancelClicked(AudioMsgId::Type type) {
 		return;
 	}
 
-	auto state = mixer()->currentState(type);
-	auto stopped = IsStoppedOrStopping(state.state);
-	auto showPause = !stopped && (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
-	auto audio = state.id.audio();
-	if (audio && audio->loading()) {
+	const auto data = getData(type);
+	if (!data) {
+		return;
+	}
+	const auto state = getState(type);
+	const auto stopped = IsStoppedOrStopping(state.state);
+	const auto showPause = ShowPauseIcon(state.state);
+	const auto audio = state.id.audio();
+	if (audio && audio->loading() && !data->streamed) {
 		audio->cancel();
 	} else if (showPause) {
 		pause(type);
@@ -418,36 +536,100 @@ void Instance::startSeeking(AudioMsgId::Type type) {
 		data->seeking = data->current;
 	}
 	pause(type);
-	emitUpdate(type, [](const AudioMsgId &playing) { return true; });
+	emitUpdate(type);
 }
 
-void Instance::stopSeeking(AudioMsgId::Type type) {
-	if (auto data = getData(type)) {
+void Instance::finishSeeking(AudioMsgId::Type type, float64 progress) {
+	if (const auto data = getData(type)) {
+		if (data->streamed) {
+			const auto duration = data->streamed->info.audio.state.duration;
+			if (duration != kTimeUnknown) {
+				const auto position = crl::time(std::round(
+					std::clamp(progress, 0., 1.) * duration));
+				data->streamed->player.play(streamingOptions(
+					data->streamed->id,
+					position));
+				emitUpdate(type);
+			}
+		}
+	}
+	cancelSeeking(type);
+}
+
+void Instance::cancelSeeking(AudioMsgId::Type type) {
+	if (const auto data = getData(type)) {
 		data->seeking = AudioMsgId();
 	}
-	emitUpdate(type, [](const AudioMsgId &playing) { return true; });
+	emitUpdate(type);
+}
+
+void Instance::updateVoicePlaybackSpeed() {
+	if (const auto data = getData(AudioMsgId::Type::Voice)) {
+		if (const auto streamed = data->streamed.get()) {
+			streamed->player.setSpeed(Global::VoiceMsgPlaybackDoubled()
+				? kVoicePlaybackSpeedMultiplier
+				: 1.);
+		}
+	}
 }
 
 void Instance::documentLoadProgress(DocumentData *document) {
 	const auto type = document->isAudioFile()
 		? AudioMsgId::Type::Song
 		: AudioMsgId::Type::Voice;
-	emitUpdate(type, [document](const AudioMsgId &audioId) {
+	emitUpdate(type, [&](const AudioMsgId &audioId) {
 		return (audioId.audio() == document);
 	});
 }
 
+void Instance::emitUpdate(AudioMsgId::Type type) {
+	emitUpdate(type, [](const AudioMsgId &playing) { return true; });
+}
+
+TrackState Instance::getState(AudioMsgId::Type type) const {
+	if (const auto data = getData(type)) {
+		if (data->streamed) {
+			return data->streamed->player.prepareLegacyState();
+		}
+	}
+	return TrackState();
+}
+
+Streaming::Player *Instance::roundVideoPlayer(HistoryItem *item) const {
+	if (!item) {
+		return nullptr;
+	} else if (const auto data = getData(AudioMsgId::Type::Voice)) {
+		if (const auto streamed = data->streamed.get()) {
+			if (streamed->id.contextId() == item->fullId()) {
+				const auto player = &streamed->player;
+				if (player->ready() && !player->videoSize().isEmpty()) {
+					return player;
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
+View::PlaybackProgress *Instance::roundVideoPlayback(
+		HistoryItem *item) const {
+	return roundVideoPlayer(item)
+		? &getData(AudioMsgId::Type::Voice)->streamed->progress
+		: nullptr;
+}
+
 template <typename CheckCallback>
 void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
-	auto state = mixer()->currentState(type);
-	if (!state.id || !check(state.id)) {
-		return;
-	}
-
-	setCurrent(state.id);
-	_updatedNotifier.notify(state, true);
-
-	if (auto data = getData(type)) {
+	if (const auto data = getData(type)) {
+		const auto state = getState(type);
+		if (!state.id || !check(state.id)) {
+			return;
+		}
+		setCurrent(state.id);
+		if (data->streamed && !data->streamed->info.video.size.isEmpty()) {
+			data->streamed->progress.updateState(state);
+		}
+		_updatedNotifier.fire_copy({state});
 		if (data->isPlaying && state.state == State::StoppedAtEnd) {
 			if (data->repeatEnabled) {
 				play(data->current);
@@ -455,46 +637,8 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 				_tracksFinishedNotifier.notify(type);
 			}
 		}
-		auto isPlaying = !IsStopped(state.state);
-		if (data->isPlaying != isPlaying) {
-			data->isPlaying = isPlaying;
-			if (data->isPlaying) {
-				preloadNext(data);
-			}
-		}
+		data->isPlaying = !IsStopped(state.state);
 	}
-}
-
-void Instance::preloadNext(not_null<Data*> data) {
-	if (!data->current || !data->playlistSlice || !data->playlistIndex) {
-		return;
-	}
-	const auto nextIndex = *data->playlistIndex + 1;
-	if (const auto item = itemByIndex(data, nextIndex)) {
-		if (const auto media = item->media()) {
-			if (const auto document = media->document()) {
-				const auto isLoaded = document->loaded(
-					DocumentData::FilePathResolveSaveFromDataSilent);
-				if (!isLoaded) {
-					DocumentOpenClickHandler::Open(
-						item->fullId(),
-						document,
-						item,
-						ActionOnLoadNone);
-				}
-			}
-		}
-	}
-}
-
-void Instance::handleLogout() {
-	const auto reset = [&](AudioMsgId::Type type) {
-		const auto data = getData(type);
-		*data = Data(type, data->overview);
-	};
-	reset(AudioMsgId::Type::Voice);
-	reset(AudioMsgId::Type::Song);
-	_usePanelPlayer.notify(false, true);
 }
 
 void Instance::setupShortcuts() {
@@ -526,6 +670,95 @@ void Instance::setupShortcuts() {
 			return true;
 		});
 	}, _lifetime);
+}
+
+void Instance::handleStreamingUpdate(
+		not_null<Data*> data,
+		Streaming::Update &&update) {
+	using namespace Streaming;
+
+	update.data.match([&](Information &update) {
+		data->streamed->info = std::move(update);
+		if (!data->streamed->info.video.size.isEmpty()) {
+			data->streamed->progress.setValueChangedCallback([=](
+					float64,
+					float64) {
+				requestRoundVideoRepaint();
+			});
+			App::wnd()->sessionController()->enableGifPauseReason(
+				Window::GifPauseReason::RoundPlaying);
+			requestRoundVideoResize();
+		}
+		emitUpdate(data->type);
+	}, [&](PreloadedVideo &update) {
+		data->streamed->info.video.state.receivedTill = update.till;
+		//emitUpdate(data->type, [](AudioMsgId) { return true; });
+	}, [&](UpdateVideo &update) {
+		data->streamed->info.video.state.position = update.position;
+		emitUpdate(data->type);
+	}, [&](PreloadedAudio &update) {
+		data->streamed->info.audio.state.receivedTill = update.till;
+		//emitUpdate(data->type, [](AudioMsgId) { return true; });
+	}, [&](UpdateAudio &update) {
+		data->streamed->info.audio.state.position = update.position;
+		emitUpdate(data->type);
+	}, [&](WaitingForData) {
+	}, [&](MutedByOther) {
+	}, [&](Finished) {
+		const auto finishTrack = [](Media::Streaming::TrackState &state) {
+			state.position = state.receivedTill = state.duration;
+		};
+		finishTrack(data->streamed->info.audio.state);
+		emitUpdate(data->type);
+		if (data->streamed && data->streamed->player.finished()) {
+			clearStreamed(data);
+		}
+	});
+}
+
+HistoryItem *Instance::roundVideoItem() const {
+	const auto data = getData(AudioMsgId::Type::Voice);
+	return (data->streamed
+		&& !data->streamed->info.video.size.isEmpty())
+		? Auth().data().message(data->streamed->id.contextId())
+		: nullptr;
+}
+
+void Instance::requestRoundVideoResize() const {
+	if (const auto item = roundVideoItem()) {
+		Auth().data().requestItemResize(item);
+	}
+}
+
+void Instance::requestRoundVideoRepaint() const {
+	if (const auto item = roundVideoItem()) {
+		Auth().data().requestItemRepaint(item);
+	}
+}
+
+void Instance::handleStreamingError(
+		not_null<Data*> data,
+		Streaming::Error &&error) {
+	Expects(data->streamed != nullptr);
+
+	const auto document = data->streamed->id.audio();
+	const auto contextId = data->streamed->id.contextId();
+	if (error == Streaming::Error::NotStreamable) {
+		document->setNotSupportsStreaming();
+		DocumentSaveClickHandler::Save(
+			(contextId ? contextId : ::Data::FileOrigin()),
+			document);
+	} else if (error == Streaming::Error::OpenFailed) {
+		document->setInappPlaybackFailed();
+		DocumentSaveClickHandler::Save(
+			(contextId ? contextId : ::Data::FileOrigin()),
+			document,
+			DocumentSaveClickHandler::Mode::ToFile);
+	}
+	emitUpdate(data->type);
+	if (data->streamed && data->streamed->player.failed()) {
+		clearStreamed(data);
+	}
 }
 
 } // namespace Player

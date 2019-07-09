@@ -14,29 +14,29 @@ TG_FORCE_INLINE uint64 blurGetColors(const uchar *p) {
 	return (uint64)p[0] + ((uint64)p[1] << 16) + ((uint64)p[2] << 32) + ((uint64)p[3] << 48);
 }
 
-const QPixmap &circleMask(int width, int height) {
+const QImage &circleMask(QSize size) {
 	Assert(Global::started());
 
-	uint64 key = uint64(uint32(width)) << 32 | uint64(uint32(height));
+	uint64 key = (uint64(uint32(size.width())) << 32)
+		| uint64(uint32(size.height()));
 
-	Global::CircleMasksMap &masks(Global::RefCircleMasks());
-	auto i = masks.constFind(key);
-	if (i == masks.cend()) {
-		QImage mask(width, height, QImage::Format_ARGB32_Premultiplied);
-		{
-			Painter p(&mask);
-			PainterHighQualityEnabler hq(p);
-
-			p.setCompositionMode(QPainter::CompositionMode_Source);
-			p.fillRect(0, 0, width, height, Qt::transparent);
-			p.setBrush(Qt::white);
-			p.setPen(Qt::NoPen);
-			p.drawEllipse(0, 0, width, height);
-		}
-		mask.setDevicePixelRatio(cRetinaFactor());
-		i = masks.insert(key, App::pixmapFromImageInPlace(std::move(mask)));
+	static auto masks = base::flat_map<uint64, QImage>();
+	const auto i = masks.find(key);
+	if (i != end(masks)) {
+		return i->second;
 	}
-	return i.value();
+	auto mask = QImage(
+		size,
+		QImage::Format_ARGB32_Premultiplied);
+	mask.fill(Qt::transparent);
+	{
+		Painter p(&mask);
+		PainterHighQualityEnabler hq(p);
+		p.setBrush(Qt::white);
+		p.setPen(Qt::NoPen);
+		p.drawEllipse(QRect(QPoint(), size));
+	}
+	return masks.emplace(key, std::move(mask)).first->second;
 }
 
 } // namespace
@@ -49,12 +49,14 @@ QPixmap PixmapFast(QImage &&image) {
 }
 
 QImage prepareBlur(QImage img) {
-	auto ratio = img.devicePixelRatio();
-	auto fmt = img.format();
+	if (img.isNull()) {
+		return img;
+	}
+	const auto ratio = img.devicePixelRatio();
+	const auto fmt = img.format();
 	if (fmt != QImage::Format_RGB32 && fmt != QImage::Format_ARGB32_Premultiplied) {
-		img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+		img = std::move(img).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 		img.setDevicePixelRatio(ratio);
-		Assert(!img.isNull());
 	}
 
 	uchar *pix = img.bits();
@@ -167,17 +169,232 @@ yi += stride;
 	return img;
 }
 
+QImage BlurLargeImage(QImage image, int radius) {
+	const auto width = image.width();
+	const auto height = image.height();
+	if (width <= radius || height <= radius || radius < 1) {
+		return image;
+	}
+
+	if (image.format() != QImage::Format_RGB32
+		&& image.format() != QImage::Format_ARGB32_Premultiplied) {
+		image = std::move(image).convertToFormat(
+			QImage::Format_ARGB32_Premultiplied);
+	}
+	const auto pixels = image.bits();
+
+	const auto width_m1 = width - 1;
+	const auto height_m1 = height - 1;
+	const auto widthxheight = width * height;
+	const auto div = 2 * radius + 1;
+	const auto radius_p1 = radius + 1;
+	const auto divsum = radius_p1 * radius_p1;
+
+	const auto dvcount = 256 * divsum;
+	const auto buffers = (div * 3) // stack
+		+ std::max(width, height) // vmin
+		+ widthxheight * 3 // rgb
+		+ dvcount; // dv
+	auto storage = std::vector<int>(buffers);
+	auto taken = 0;
+	const auto take = [&](int size) {
+		const auto result = gsl::make_span(storage).subspan(taken, size);
+		taken += size;
+		return result;
+	};
+
+	// Small buffers
+	const auto stack = take(div * 3).data();
+	const auto vmin = take(std::max(width, height)).data();
+
+	// Large buffers
+	const auto rgb = take(widthxheight * 3).data();
+	const auto dvs = take(dvcount);
+
+	auto &&ints = ranges::view::ints;
+	for (auto &&[value, index] : ranges::view::zip(dvs, ints(0))) {
+		value = (index / divsum);
+	}
+	const auto dv = dvs.data();
+
+	// Variables
+	auto stackpointer = 0;
+	for (const auto x : ints(0, width)) {
+		vmin[x] = std::min(x + radius_p1, width_m1);
+	}
+	for (const auto y : ints(0, height)) {
+		auto rinsum = 0;
+		auto ginsum = 0;
+		auto binsum = 0;
+		auto routsum = 0;
+		auto goutsum = 0;
+		auto boutsum = 0;
+		auto rsum = 0;
+		auto gsum = 0;
+		auto bsum = 0;
+
+		const auto y_width = y * width;
+		for (const auto i : ints(-radius, radius + 1)) {
+			const auto sir = &stack[(i + radius) * 3];
+			const auto x = std::clamp(i, 0, width_m1);
+			const auto offset = (y_width + x) * 4;
+			sir[0] = pixels[offset];
+			sir[1] = pixels[offset + 1];
+			sir[2] = pixels[offset + 2];
+
+			const auto rbs = radius_p1 - std::abs(i);
+			rsum += sir[0] * rbs;
+			gsum += sir[1] * rbs;
+			bsum += sir[2] * rbs;
+
+			if (i > 0) {
+				rinsum += sir[0];
+				ginsum += sir[1];
+				binsum += sir[2];
+			} else {
+				routsum += sir[0];
+				goutsum += sir[1];
+				boutsum += sir[2];
+			}
+		}
+		stackpointer = radius;
+
+		for (const auto x : ints(0, width)) {
+			const auto position = (y_width + x) * 3;
+			rgb[position] = dv[rsum];
+			rgb[position + 1] = dv[gsum];
+			rgb[position + 2] = dv[bsum];
+
+			rsum -= routsum;
+			gsum -= goutsum;
+			bsum -= boutsum;
+
+			const auto stackstart = (stackpointer - radius + div) % div;
+			const auto sir = &stack[stackstart * 3];
+
+			routsum -= sir[0];
+			goutsum -= sir[1];
+			boutsum -= sir[2];
+
+			const auto offset = (y_width + vmin[x]) * 4;
+			sir[0] = pixels[offset];
+			sir[1] = pixels[offset + 1];
+			sir[2] = pixels[offset + 2];
+			rinsum += sir[0];
+			ginsum += sir[1];
+			binsum += sir[2];
+
+			rsum += rinsum;
+			gsum += ginsum;
+			bsum += binsum;
+			{
+				stackpointer = (stackpointer + 1) % div;
+				const auto sir = &stack[stackpointer * 3];
+
+				routsum += sir[0];
+				goutsum += sir[1];
+				boutsum += sir[2];
+
+				rinsum -= sir[0];
+				ginsum -= sir[1];
+				binsum -= sir[2];
+			}
+		}
+	}
+
+	for (const auto y : ints(0, height)) {
+		vmin[y] = std::min(y + radius_p1, height_m1) * width;
+	}
+	for (const auto x : ints(0, width)) {
+		auto rinsum = 0;
+		auto ginsum = 0;
+		auto binsum = 0;
+		auto routsum = 0;
+		auto goutsum = 0;
+		auto boutsum = 0;
+		auto rsum = 0;
+		auto gsum = 0;
+		auto bsum = 0;
+		for (const auto i : ints(-radius, radius + 1)) {
+			const auto y = std::clamp(i, 0, height_m1);
+			const auto position = (y * width + x) * 3;
+			const auto sir = &stack[(i + radius) * 3];
+
+			sir[0] = rgb[position];
+			sir[1] = rgb[position + 1];
+			sir[2] = rgb[position + 2];
+
+			const auto rbs = radius_p1 - std::abs(i);
+			rsum += sir[0] * rbs;
+			gsum += sir[1] * rbs;
+			bsum += sir[2] * rbs;
+			if (i > 0) {
+				rinsum += sir[0];
+				ginsum += sir[1];
+				binsum += sir[2];
+			} else {
+				routsum += sir[0];
+				goutsum += sir[1];
+				boutsum += sir[2];
+			}
+		}
+		stackpointer = radius;
+		for (const auto y : ints(0, height)) {
+			const auto offset = (y * width + x) * 4;
+			pixels[offset] = dv[rsum];
+			pixels[offset + 1] = dv[gsum];
+			pixels[offset + 2] = dv[bsum];
+			rsum -= routsum;
+			gsum -= goutsum;
+			bsum -= boutsum;
+
+			const auto stackstart = (stackpointer - radius + div) % div;
+			const auto sir = &stack[stackstart * 3];
+
+			routsum -= sir[0];
+			goutsum -= sir[1];
+			boutsum -= sir[2];
+
+			const auto position = (vmin[y] + x) * 3;
+			sir[0] = rgb[position];
+			sir[1] = rgb[position + 1];
+			sir[2] = rgb[position + 2];
+
+			rinsum += sir[0];
+			ginsum += sir[1];
+			binsum += sir[2];
+
+			rsum += rinsum;
+			gsum += ginsum;
+			bsum += binsum;
+			{
+				stackpointer = (stackpointer + 1) % div;
+				const auto sir = &stack[stackpointer * 3];
+
+				routsum += sir[0];
+				goutsum += sir[1];
+				boutsum += sir[2];
+
+				rinsum -= sir[0];
+				ginsum -= sir[1];
+				binsum -= sir[2];
+			}
+		}
+	}
+	return image;
+}
+
 void prepareCircle(QImage &img) {
 	Assert(!img.isNull());
 
-	img.setDevicePixelRatio(cRetinaFactor());
 	img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	Assert(!img.isNull());
 
-	QPixmap mask = circleMask(img.width(), img.height());
 	Painter p(&img);
 	p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
-	p.drawPixmap(0, 0, mask);
+	p.drawImage(
+		QRect(QPoint(), img.size() / img.devicePixelRatio()),
+		circleMask(img.size()));
 }
 
 void prepareRound(
@@ -246,6 +463,7 @@ void prepareRound(
 		Assert((corners & RectPart::AllCorners) == RectPart::AllCorners);
 		Assert(target.isNull());
 		prepareCircle(image);
+		return;
 	}
 	Assert(!image.isNull());
 
@@ -258,15 +476,24 @@ void prepareRound(
 }
 
 QImage prepareColored(style::color add, QImage image) {
-	auto format = image.format();
+	return prepareColored(add->c, std::move(image));
+}
+
+QImage prepareColored(QColor add, QImage image) {
+	const auto format = image.format();
 	if (format != QImage::Format_RGB32 && format != QImage::Format_ARGB32_Premultiplied) {
 		image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	}
 
-	if (auto pix = image.bits()) {
-		int ca = int(add->c.alphaF() * 0xFF), cr = int(add->c.redF() * 0xFF), cg = int(add->c.greenF() * 0xFF), cb = int(add->c.blueF() * 0xFF);
-		const int w = image.width(), h = image.height(), size = w * h * 4;
-		for (auto i = index_type(); i < size; i += 4) {
+	if (const auto pix = image.bits()) {
+		const auto ca = int(add.alphaF() * 0xFF);
+		const auto cr = int(add.redF() * 0xFF);
+		const auto cg = int(add.greenF() * 0xFF);
+		const auto cb = int(add .blueF() * 0xFF);
+		const auto w = image.width();
+		const auto h = image.height();
+		const auto size = w * h * 4;
+		for (auto i = index_type(); i != size; i += 4) {
 			int b = pix[i], g = pix[i + 1], r = pix[i + 2], a = pix[i + 3], aca = a * ca;
 			pix[i + 0] = uchar(b + ((aca * (cb - b)) >> 16));
 			pix[i + 1] = uchar(g + ((aca * (cg - g)) >> 16));
@@ -322,8 +549,10 @@ QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, in
 			}
 			{
 				QPainter p(&result);
-				if (w < outerw || h < outerh) {
-					p.fillRect(0, 0, result.width(), result.height(), st::imageBg);
+				if (!(options & Images::Option::TransparentBackground)) {
+					if (w < outerw || h < outerh) {
+						p.fillRect(0, 0, result.width(), result.height(), st::imageBg);
+					}
 				}
 				p.drawImage((result.width() - img.width()) / (2 * cIntRetinaFactor()), (result.height() - img.height()) / (2 * cIntRetinaFactor()), img);
 			}

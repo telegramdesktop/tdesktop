@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/discrete_sliders.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_cover.h"
+#include "data/data_user.h"
+#include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "auth_session.h"
@@ -32,8 +34,12 @@ void SetupLanguageButton(
 		bool icon) {
 	const auto button = AddButtonWithLabel(
 		container,
-		lng_settings_language,
-		rpl::single(Lang::Current().nativeName()),
+		tr::lng_settings_language(),
+		rpl::single(
+			Lang::Current().id()
+		) | rpl::then(
+			Lang::Current().idChanges()
+		) | rpl::map([] { return Lang::Current().nativeName(); }),
 		icon ? st::settingsSectionButton : st::settingsButton,
 		icon ? &st::settingsIconLanguage : nullptr);
 	const auto guard = Ui::CreateChild<base::binary_guard>(button.get());
@@ -54,12 +60,12 @@ void SetupSections(
 	AddSkip(container);
 
 	const auto addSection = [&](
-			LangKey label,
+			rpl::producer<QString> label,
 			Type type,
 			const style::icon *icon) {
 		AddButton(
 			container,
-			label,
+			std::move(label),
 			st::settingsSectionButton,
 			icon
 		)->addClickHandler([=] { showOther(type); });
@@ -71,24 +77,24 @@ void SetupSections(
 		AddSkip(container);
 	} else {
 		addSection(
-			lng_settings_information,
+			tr::lng_settings_information(),
 			Type::Information,
 			&st::settingsIconInformation);
 	}
 	addSection(
-		lng_settings_section_notify,
+		tr::lng_settings_section_notify(),
 		Type::Notifications,
 		&st::settingsIconNotifications);
 	addSection(
-		lng_settings_section_privacy,
+		tr::lng_settings_section_privacy(),
 		Type::PrivacySecurity,
 		&st::settingsIconPrivacySecurity);
 	addSection(
-		lng_settings_section_chat_settings,
+		tr::lng_settings_section_chat_settings(),
 		Type::Chat,
 		&st::settingsIconChat);
 	addSection(
-		lng_settings_advanced,
+		tr::lng_settings_advanced(),
 		Type::Advanced,
 		&st::settingsIconGeneral);
 
@@ -114,7 +120,7 @@ void SetupInterfaceScale(
 	const auto switched = (cConfigScale() == kInterfaceScaleAuto);
 	const auto button = AddButton(
 		container,
-		lng_settings_default_scale,
+		tr::lng_settings_default_scale(),
 		icon ? st::settingsSectionButton : st::settingsButton,
 		icon ? &st::settingsIconInterfaceScale : nullptr
 	)->toggleOn(toggled->events_starting_with_copy(switched));
@@ -123,14 +129,24 @@ void SetupInterfaceScale(
 		object_ptr<Ui::SettingsSlider>(container, st::settingsSlider),
 		icon ? st::settingsScalePadding : st::settingsBigScalePadding);
 
-	static const auto ScaleValues = (cIntRetinaFactor() > 1)
-		? std::vector<int>{ 100, 110, 120, 130, 140, 150 }
-		: std::vector<int>{ 100, 125, 150, 200, 250, 300 };
+	static const auto ScaleValues = [&] {
+		auto values = (cIntRetinaFactor() > 1)
+			? std::vector<int>{ 100, 110, 120, 130, 140, 150 }
+			: std::vector<int>{ 100, 125, 150, 200, 250, 300 };
+		if (cConfigScale() == kInterfaceScaleAuto) {
+			return values;
+		}
+		if (ranges::find(values, cConfigScale()) == end(values)) {
+			values.push_back(cConfigScale());
+		}
+		return values;
+	}();
+
 	const auto sectionFromScale = [](int scale) {
 		scale = cEvalScale(scale);
 		auto result = 0;
 		for (const auto value : ScaleValues) {
-			if (scale <= value) {
+			if (scale == value) {
 				break;
 			}
 			++result;
@@ -159,8 +175,8 @@ void SetupInterfaceScale(
 					[=] { (*setScale)(cConfigScale()); });
 			});
 			Ui::show(Box<ConfirmBox>(
-				lang(lng_settings_need_restart),
-				lang(lng_settings_restart_now),
+				tr::lng_settings_need_restart(tr::now),
+				tr::lng_settings_restart_now(tr::now),
 				confirmed,
 				cancelled));
 		} else if (scale != cConfigScale()) {
@@ -204,7 +220,7 @@ void OpenFaq() {
 void SetupFaq(not_null<Ui::VerticalLayout*> container, bool icon) {
 	AddButton(
 		container,
-		lng_settings_faq,
+		tr::lng_settings_faq(),
 		icon ? st::settingsSectionButton : st::settingsButton,
 		icon ? &st::settingsIconFaq : nullptr
 	)->addClickHandler(OpenFaq);
@@ -219,12 +235,11 @@ void SetupHelp(not_null<Ui::VerticalLayout*> container) {
 	if (AuthSession::Exists()) {
 		const auto button = AddButton(
 			container,
-			lng_settings_ask_question,
+			tr::lng_settings_ask_question(),
 			st::settingsSectionButton);
 		button->addClickHandler([=] {
 			const auto ready = crl::guard(button, [](const MTPUser &data) {
-				const auto users = MTP_vector<MTPUser>(1, data);
-				if (const auto user = App::feedUsers(users)) {
+				if (const auto user = Auth().data().processUser(data)) {
 					Ui::showPeerHistory(user, ShowAtUnreadMsgId);
 				}
 			});
@@ -232,9 +247,9 @@ void SetupHelp(not_null<Ui::VerticalLayout*> container) {
 				Auth().api().requestSupportContact(ready);
 			});
 			auto box = Box<ConfirmBox>(
-				lang(lng_settings_ask_sure),
-				lang(lng_settings_ask_ok),
-				lang(lng_settings_faq_button),
+				tr::lng_settings_ask_sure(tr::now),
+				tr::lng_settings_ask_ok(tr::now),
+				tr::lng_settings_faq_button(tr::now),
 				sure,
 				OpenFaq);
 			box->setStrictCancel(true);
@@ -247,7 +262,7 @@ void SetupHelp(not_null<Ui::VerticalLayout*> container) {
 
 Main::Main(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<UserData*> self)
 : Section(parent)
 , _self(self) {
@@ -259,7 +274,7 @@ void Main::keyPressEvent(QKeyEvent *e) {
 	return Section::keyPressEvent(e);
 }
 
-void Main::setupContent(not_null<Window::Controller*> controller) {
+void Main::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	const auto cover = content->add(object_ptr<Info::Profile::Cover>(
@@ -283,6 +298,7 @@ void Main::setupContent(not_null<Window::Controller*> controller) {
 
 	// If we load this in advance it won't jump when we open its' section.
 	Auth().api().reloadPasswordState();
+	Auth().api().reloadContactSignupSilent();
 }
 
 rpl::producer<Type> Main::sectionShowOther() {

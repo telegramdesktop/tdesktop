@@ -21,6 +21,7 @@ class VerticalLayout;
 template <typename Widget>
 class SlideWrap;
 class LabelSimple;
+class MediaSlider;
 } // namespace Ui
 
 class LocalStorageBox : public BoxContent {
@@ -30,9 +31,13 @@ class LocalStorageBox : public BoxContent {
 public:
 	using Database = Storage::Cache::Database;
 
-	LocalStorageBox(QWidget*, not_null<Database*> db, CreateTag);
+	LocalStorageBox(
+		QWidget*,
+		not_null<Database*> db,
+		not_null<Database*> dbBig,
+		CreateTag);
 
-	static void Show(not_null<Database*> db);
+	static void Show(not_null<Database*> db, not_null<Database*> dbBig);
 
 protected:
 	void prepare() override;
@@ -42,15 +47,21 @@ protected:
 private:
 	class Row;
 
-	void clearByTag(uint8 tag);
-	void update(Database::Stats &&stats);
+	void clearByTag(uint16 tag);
+	void update(Database::Stats &&stats, Database::Stats &&statsBig);
 	void updateRow(
 		not_null<Ui::SlideWrap<Row>*> row,
-		Database::TaggedSummary *data);
+		const Database::TaggedSummary *data);
 	void setupControls();
 	void setupLimits(not_null<Ui::VerticalLayout*> container);
+	void updateMediaLimit();
+	void updateTotalLimit();
+	void updateTotalLabel();
+	void updateMediaLabel();
 	void limitsChanged();
 	void save();
+
+	Database::TaggedSummary summary() const;
 
 	template <
 		typename Value,
@@ -62,7 +73,7 @@ private:
 				not_null<Ui::LabelSimple*>,
 				Value>
 			&& std::is_same_v<Value, decltype(std::declval<Convert>()(1))>>>
-	void createLimitsSlider(
+	not_null<Ui::MediaSlider*> createLimitsSlider(
 		not_null<Ui::VerticalLayout*> container,
 		int valuesCount,
 		Convert &&convert,
@@ -70,11 +81,18 @@ private:
 		Callback &&callback);
 
 	not_null<Storage::Cache::Database*> _db;
+	not_null<Storage::Cache::Database*> _dbBig;
 	Database::Stats _stats;
+	Database::Stats _statsBig;
 
-	base::flat_map<uint8, not_null<Ui::SlideWrap<Row>*>> _rows;
+	base::flat_map<uint16, not_null<Ui::SlideWrap<Row>*>> _rows;
+	Ui::MediaSlider *_totalSlider = nullptr;
+	Ui::LabelSimple *_totalLabel = nullptr;
+	Ui::MediaSlider *_mediaSlider = nullptr;
+	Ui::LabelSimple *_mediaLabel = nullptr;
 
-	int64 _sizeLimit = 0;
+	int64 _totalSizeLimit = 0;
+	int64 _mediaSizeLimit = 0;
 	size_type _timeLimit = 0;
 	bool _limitsChanged = false;
 

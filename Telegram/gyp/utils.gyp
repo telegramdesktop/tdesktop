@@ -112,10 +112,10 @@
         'conditions': [
           [ 'build_win', {
             'include_dirs': [
-              '<(libs_loc)/openssl/Debug/include',
+              '<(libs_loc)/openssl/inc32',
             ],
             'library_dirs': [
-              '<(libs_loc)/openssl/Debug/lib',
+              '<(libs_loc)/openssl/out32.dbg',
               '<(libs_loc)/lzma/C/Util/LzmaLib/Debug',
               '<(libs_loc)/zlib/contrib/vstudio/vc14/x86/ZlibStatDebug',
             ],
@@ -134,10 +134,10 @@
         'conditions': [
           [ 'build_win', {
             'include_dirs': [
-              '<(libs_loc)/openssl/Release/include',
+              '<(libs_loc)/openssl/inc32',
             ],
             'library_dirs': [
-              '<(libs_loc)/openssl/Release/lib',
+              '<(libs_loc)/openssl/out32',
               '<(libs_loc)/lzma/C/Util/LzmaLib/Release',
               '<(libs_loc)/zlib/contrib/vstudio/vc14/x86/ZlibStatReleaseWithoutAsm',
             ],

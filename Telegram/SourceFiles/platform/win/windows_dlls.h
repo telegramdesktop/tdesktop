@@ -7,7 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <windows.h>
+#include "platform/win/wrapper_windows_h.h"
+
 #include <shlobj.h>
 #include <roapi.h>
 #include <dwmapi.h>

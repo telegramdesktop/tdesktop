@@ -20,7 +20,10 @@ namespace Intro {
 
 class CodeInput final : public Ui::MaskedInputField {
 public:
-	CodeInput(QWidget *parent, const style::InputField &st, Fn<QString()> placeholderFactory);
+	CodeInput(
+		QWidget *parent,
+		const style::InputField &st,
+		rpl::producer<QString> placeholder);
 
 	void setDigitsCountMax(int digitsCount);
 
@@ -66,7 +69,7 @@ private:
 	void codeSubmitDone(const MTPauth_Authorization &result);
 	bool codeSubmitFail(const RPCError &error);
 
-	void showCodeError(Fn<QString()> textFactory);
+	void showCodeError(rpl::producer<QString> text);
 	void callDone(const MTPauth_SentCode &v);
 	void gotPassword(const MTPaccount_Password &result);
 

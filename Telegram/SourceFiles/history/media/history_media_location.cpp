@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "ui/image/image.h"
 #include "ui/text_options.h"
+#include "data/data_file_origin.h"
+#include "data/data_location.h"
 #include "styles/style_history.h"
 
 namespace {
@@ -25,14 +27,14 @@ using TextState = HistoryView::TextState;
 
 HistoryLocation::HistoryLocation(
 	not_null<Element*> parent,
-	not_null<LocationData*> location,
+	not_null<Data::LocationThumbnail*> location,
 	const QString &title,
 	const QString &description)
 : HistoryMedia(parent)
 , _data(location)
 , _title(st::msgMinWidth)
 , _description(st::msgMinWidth)
-, _link(std::make_shared<LocationClickHandler>(_data->coords)) {
+, _link(std::make_shared<LocationClickHandler>(_data->point)) {
 	if (!title.isEmpty()) {
 		_title.setText(
 			st::webPageTitleStyle,
@@ -122,7 +124,7 @@ TextSelection HistoryLocation::fromDescriptionSelection(
 	return HistoryView::ShiftItemSelection(selection, _title);
 }
 
-void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
+void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	bool bubble = _parent->hasBubble();
@@ -277,17 +279,16 @@ TextSelection HistoryLocation::adjustSelection(TextSelection selection, TextSele
 	return { titleSelection.from, fromDescriptionSelection(descriptionSelection).to };
 }
 
-TextWithEntities HistoryLocation::selectedText(TextSelection selection) const {
-	auto titleResult = _title.originalTextWithEntities(selection);
-	auto descriptionResult = _description.originalTextWithEntities(toDescriptionSelection(selection));
-	if (titleResult.text.isEmpty()) {
+TextForMimeData HistoryLocation::selectedText(TextSelection selection) const {
+	auto titleResult = _title.toTextForMimeData(selection);
+	auto descriptionResult = _description.toTextForMimeData(
+		toDescriptionSelection(selection));
+	if (titleResult.empty()) {
 		return descriptionResult;
-	} else if (descriptionResult.text.isEmpty()) {
+	} else if (descriptionResult.empty()) {
 		return titleResult;
 	}
-	titleResult.text += '\n';
-	TextUtilities::Append(titleResult, std::move(descriptionResult));
-	return titleResult;
+	return titleResult.append('\n').append(std::move(descriptionResult));
 }
 
 bool HistoryLocation::needsBubble() const {

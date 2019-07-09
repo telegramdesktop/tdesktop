@@ -20,9 +20,6 @@ extern "C" {
 #define signals public
 } // extern "C"
 
-#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
-#include <unity/unity/unity.h>
-#endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 namespace Platform {
@@ -364,17 +361,6 @@ extern f_g_error_free g_error_free;
 
 typedef void (*f_g_slist_free)(GSList *list);
 extern f_g_slist_free g_slist_free;
-
-#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
-typedef void (*f_unity_launcher_entry_set_count)(UnityLauncherEntry* self, gint64 value);
-extern f_unity_launcher_entry_set_count unity_launcher_entry_set_count;
-
-typedef void (*f_unity_launcher_entry_set_count_visible)(UnityLauncherEntry* self, gboolean value);
-extern f_unity_launcher_entry_set_count_visible unity_launcher_entry_set_count_visible;
-
-typedef UnityLauncherEntry* (*f_unity_launcher_entry_get_for_desktop_id)(const gchar* desktop_id);
-extern f_unity_launcher_entry_get_for_desktop_id unity_launcher_entry_get_for_desktop_id;
-#endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace Libs

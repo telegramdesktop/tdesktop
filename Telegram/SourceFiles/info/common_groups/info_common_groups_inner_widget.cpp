@@ -10,13 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/common_groups/info_common_groups_widget.h"
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
-#include "styles/style_info.h"
-#include "styles/style_widgets.h"
 #include "mtproto/sender.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/search_field_controller.h"
+#include "data/data_user.h"
+#include "data/data_session.h"
 #include "apiwrap.h"
+#include "styles/style_info.h"
+#include "styles/style_widgets.h"
 
 namespace Info {
 namespace CommonGroups {
@@ -79,9 +81,9 @@ std::unique_ptr<PeerListRow> ListController::createRow(
 }
 
 void ListController::prepare() {
-	setSearchNoResultsText(lang(lng_bot_groups_not_found));
+	setSearchNoResultsText(tr::lng_bot_groups_not_found(tr::now));
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
-	delegate()->peerListSetTitle(langFactory(lng_profile_common_groups_section));
+	delegate()->peerListSetTitle(tr::lng_profile_common_groups_section());
 }
 
 void ListController::loadMoreRows() {
@@ -96,21 +98,21 @@ void ListController::loadMoreRows() {
 		_preloadRequestId = 0;
 		_preloadGroupId = 0;
 		_allLoaded = true;
-		if (auto chats = Api::getChatsFromMessagesChats(result)) {
-			auto &list = chats->v;
-			if (!list.empty()) {
-				for_const (auto &chatData, list) {
-					if (auto chat = App::feedChat(chatData)) {
-						if (!chat->migrateTo()) {
-							delegate()->peerListAppendRow(
-								createRow(chat));
-						}
-						_preloadGroupId = chat->bareId();
-						_allLoaded = false;
+		const auto &chats = result.match([](const auto &data) {
+			return data.vchats().v;
+		});
+		if (!chats.empty()) {
+			for (const auto &chat : chats) {
+				if (const auto peer = _user->owner().processChat(chat)) {
+					if (!peer->migrateTo()) {
+						delegate()->peerListAppendRow(
+							createRow(peer));
 					}
+					_preloadGroupId = peer->bareId();
+					_allLoaded = false;
 				}
-				delegate()->peerListRefreshRows();
 			}
+			delegate()->peerListRefreshRows();
 		}
 		auto fullCount = delegate()->peerListFullRowsCount();
 		if (fullCount > kCommonGroupsSearchAfter) {
@@ -238,11 +240,10 @@ object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
 	return result;
 }
 
-void InnerWidget::peerListSetTitle(Fn<QString()> title) {
+void InnerWidget::peerListSetTitle(rpl::producer<QString> title) {
 }
 
-void InnerWidget::peerListSetAdditionalTitle(
-		Fn<QString()> title) {
+void InnerWidget::peerListSetAdditionalTitle(rpl::producer<QString> title) {
 }
 
 bool InnerWidget::peerListIsRowSelected(not_null<PeerData*> peer) {

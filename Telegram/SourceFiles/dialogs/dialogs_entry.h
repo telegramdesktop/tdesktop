@@ -11,6 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_key.h"
 
+class AuthSession;
+
+namespace Data {
+class Session;
+class Folder;
+} // namespace Data
+
 namespace Dialogs {
 
 class Row;
@@ -28,30 +35,93 @@ enum class Mode {
 	Important = 0x01,
 };
 
-struct PositionChange {
-	int movedFrom;
-	int movedTo;
+enum class EntryType : unsigned {
+	None = 0x00,
+	OneOnOne = 0x01,
+	Group = 0x02,
+	Channel = 0x04,
+	Feed = 0x08,
+	TypeMask = 0x0F,  // only the types, disregards favorite status
+	All = 0x0F
 };
+using EntryTypes = base::flags<EntryType>;
+inline constexpr bool is_flag_type(EntryType) { return true; }
+
+struct PositionChange {
+	int from = -1;
+	int to = -1;
+};
+
+struct UnreadState {
+	int messages = 0;
+	int messagesMuted = 0;
+	int chats = 0;
+	int chatsMuted = 0;
+	int marks = 0;
+	int marksMuted = 0;
+	bool known = false;
+
+	UnreadState &operator+=(const UnreadState &other) {
+		messages += other.messages;
+		messagesMuted += other.messagesMuted;
+		chats += other.chats;
+		chatsMuted += other.chatsMuted;
+		marks += other.marks;
+		marksMuted += other.marksMuted;
+		return *this;
+	}
+	UnreadState &operator-=(const UnreadState &other) {
+		messages -= other.messages;
+		messagesMuted -= other.messagesMuted;
+		chats -= other.chats;
+		chatsMuted -= other.chatsMuted;
+		marks -= other.marks;
+		marksMuted -= other.marksMuted;
+		return *this;
+	}
+
+	bool empty() const {
+		return !messages && !chats && !marks;
+	}
+};
+
+inline UnreadState operator+(const UnreadState &a, const UnreadState &b) {
+	auto result = a;
+	result += b;
+	return result;
+}
+
+inline UnreadState operator-(const UnreadState &a, const UnreadState &b) {
+	auto result = a;
+	result -= b;
+	return result;
+}
 
 class Entry {
 public:
-	Entry(const Key &key);
+	Entry(not_null<Data::Session*> owner, const Key &key);
+	Entry(const Entry &other) = delete;
+	Entry &operator=(const Entry &other) = delete;
+	virtual ~Entry() = default;
 
-	PositionChange adjustByPosInChatList(
-		Mode list,
-		not_null<IndexedList*> indexed);
-	bool inChatList(Mode list) const {
+	Data::Session &owner() const;
+	AuthSession &session() const;
+
+	PositionChange adjustByPosInChatList(Mode list);
+	bool inChatList(Mode list = Mode::All) const {
 		return !chatListLinks(list).empty();
 	}
 	int posInChatList(Mode list) const;
-	not_null<Row*> addToChatList(Mode list, not_null<IndexedList*> indexed);
-	void removeFromChatList(Mode list, not_null<IndexedList*> indexed);
+	not_null<Row*> addToChatList(Mode list);
+	void setRowInCurrentTab(Row *row);
+	void removeFromChatList(Mode list);
 	void removeChatListEntryByLetter(Mode list, QChar letter);
 	void addChatListEntryByLetter(
 		Mode list,
 		QChar letter,
 		not_null<Row*> row);
 	void updateChatListEntry() const;
+	void updateChatListEntry(Row *row) const;
 	bool isPinnedDialog() const {
 		return _pinnedIndex > 0;
 	}
@@ -59,25 +129,40 @@ public:
 	bool isProxyPromoted() const {
 		return _isProxyPromoted;
 	}
-	virtual bool useProxyPromotion() const = 0;
 	void cacheProxyPromoted(bool promoted);
 	uint64 sortKeyInChatList() const {
 		return _sortKeyInChatList;
 	}
 	void updateChatListSortPosition();
-	void setChatsListTimeId(TimeId date);
+	void setChatListTimeId(TimeId date);
 	virtual void updateChatListExistence();
 	bool needUpdateInChatList() const;
+	virtual TimeId adjustedChatListTimeId() const;
 
+	virtual int fixedOnTopIndex() const = 0;
+	static constexpr auto kArchiveFixOnTopIndex = 1;
+	static constexpr auto kProxyPromotionFixOnTopIndex = 2;
+
+	virtual EntryTypes getEntryType() const { return EntryType::None; }
 	virtual bool toImportant() const = 0;
 	virtual bool shouldBeInChatList() const = 0;
 	virtual int chatListUnreadCount() const = 0;
 	virtual bool chatListUnreadMark() const = 0;
 	virtual bool chatListMutedBadge() const = 0;
-	virtual HistoryItem *chatsListItem() const = 0;
-	virtual const QString &chatsListName() const = 0;
-	virtual const base::flat_set<QString> &chatsListNameWords() const = 0;
-	virtual const base::flat_set<QChar> &chatsListFirstLetters() const = 0;
+	virtual UnreadState chatListUnreadState() const = 0;
+	virtual HistoryItem *chatListMessage() const = 0;
+	virtual bool chatListMessageKnown() const = 0;
+	virtual void requestChatListMessage() = 0;
+	virtual const QString &chatListName() const = 0;
+	virtual const base::flat_set<QString> &chatListNameWords() const = 0;
+	virtual const base::flat_set<QChar> &chatListFirstLetters() const = 0;
+
+	virtual bool folderKnown() const {
+		return true;
+	}
+	virtual Data::Folder *folder() const {
+		return nullptr;
+	}
 
 	virtual void loadUserpic() = 0;
 	virtual void paintUserpic(
@@ -94,31 +179,45 @@ public:
 		paintUserpic(p, rtl() ? (w - x - size) : x, y, size);
 	}
 
-	TimeId chatsListTimeId() const {
-		return _lastMessageTimeId;
+	TimeId chatListTimeId() const {
+		return _timeId;
 	}
 
-	virtual ~Entry() = default;
-
 	mutable const HistoryItem *textCachedFor = nullptr; // cache
-	mutable Text lastItemTextCache;
+	mutable Ui::Text::String lastItemTextCache;
+
+protected:
+	auto unreadStateChangeNotifier(bool required) {
+		const auto notify = required && inChatList();
+		const auto wasState = notify ? chatListUnreadState() : UnreadState();
+		return gsl::finally([=] {
+			if (notify) {
+				notifyUnreadStateChange(wasState);
+			}
+		});
+	}
 
 private:
-	virtual TimeId adjustChatListTimeId() const;
-	virtual void changedInChatListHook(Dialogs::Mode list, bool added);
 	virtual void changedChatListPinHook();
+
+	void notifyUnreadStateChange(const UnreadState &wasState);
 
 	void setChatListExistence(bool exists);
 	RowsByLetter &chatListLinks(Mode list);
 	const RowsByLetter &chatListLinks(Mode list) const;
 	Row *mainChatListLink(Mode list) const;
+	Row *rowInCurrentTab() const;
 
+	not_null<IndexedList*> myChatsList(Mode list) const;
+
+	not_null<Data::Session*> _owner;
 	Dialogs::Key _key;
+	Row *_rowInCurrentTab = nullptr;
 	RowsByLetter _chatListLinks[2];
 	uint64 _sortKeyInChatList = 0;
 	int _pinnedIndex = 0;
 	bool _isProxyPromoted = false;
-	TimeId _lastMessageTimeId = 0;
+	TimeId _timeId = 0;
 
 };
 

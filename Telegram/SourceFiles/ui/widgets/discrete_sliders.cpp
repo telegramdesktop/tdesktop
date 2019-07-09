@@ -17,10 +17,8 @@ DiscreteSlider::DiscreteSlider(QWidget *parent) : RpWidget(parent) {
 }
 
 void DiscreteSlider::setActiveSection(int index) {
-	if (_activeIndex != index) {
-		_activeIndex = index;
-		activateCallback();
-	}
+	_activeIndex = index;
+	activateCallback();
 	setSelectedSection(index);
 }
 
@@ -29,7 +27,7 @@ void DiscreteSlider::activateCallback() {
 		killTimer(_timerId);
 		_timerId = -1;
 	}
-	auto ms = getms();
+	auto ms = crl::now();
 	if (ms >= _callbackAfterMs) {
 		_sectionActivated.fire_copy(_activeIndex);
 	} else {
@@ -47,7 +45,7 @@ void DiscreteSlider::setActiveSectionFast(int index) {
 }
 
 void DiscreteSlider::finishAnimating() {
-	_a_left.finish();
+	_a_left.stop();
 	update();
 }
 
@@ -64,7 +62,7 @@ void DiscreteSlider::setSections(const QStringList &labels) {
 	Assert(!labels.isEmpty());
 
 	_sections.clear();
-	for_const (auto &label, labels) {
+	for (const auto &label : labels) {
 		_sections.push_back(Section(label, getLabelFont()));
 	}
 	stopAnimation();
@@ -77,9 +75,9 @@ void DiscreteSlider::setSections(const QStringList &labels) {
 	resizeToWidth(width());
 }
 
-int DiscreteSlider::getCurrentActiveLeft(TimeMs ms) {
+int DiscreteSlider::getCurrentActiveLeft() {
 	const auto left = _sections.empty() ? 0 : _sections[_selected].left;
-	return _a_left.current(ms, left);
+	return _a_left.value(left);
 }
 
 template <typename Lambda>
@@ -140,7 +138,7 @@ void DiscreteSlider::setSelectedSection(int index) {
 		auto to = _sections[_selected].left;
 		auto duration = getAnimationDuration();
 		_a_left.start([this] { update(); }, from, to, duration);
-		_callbackAfterMs = getms() + duration;
+		_callbackAfterMs = crl::now() + duration;
 	}
 }
 
@@ -275,15 +273,14 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto clip = e->rect();
-	auto ms = getms();
-	auto activeLeft = getCurrentActiveLeft(ms);
+	auto activeLeft = getCurrentActiveLeft();
 
 	p.setFont(_st.labelFont);
-	enumerateSections([this, &p, activeLeft, ms, clip](Section &section) {
+	enumerateSections([&](Section &section) {
 		auto active = 1. - snap(qAbs(activeLeft - section.left) / float64(section.width), 0., 1.);
 		if (section.ripple) {
 			auto color = anim::color(_st.rippleBg, _st.rippleBgActive, active);
-			section.ripple->paint(p, section.left, 0, width(), ms, &color);
+			section.ripple->paint(p, section.left, 0, width(), &color);
 			if (section.ripple->empty()) {
 				section.ripple.reset();
 			}

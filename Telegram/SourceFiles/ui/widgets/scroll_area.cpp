@@ -165,17 +165,16 @@ void ScrollBar::paintEvent(QPaintEvent *e) {
 		hide();
 		return;
 	}
-	auto ms = getms();
-	auto opacity = _a_opacity.current(ms, _hiding ? 0. : 1.);
+	auto opacity = _a_opacity.value(_hiding ? 0. : 1.);
 	if (opacity == 0.) return;
 
 	Painter p(this);
 	auto deltal = _vertical ? _st->deltax : 0, deltar = _vertical ? _st->deltax : 0;
 	auto deltat = _vertical ? 0 : _st->deltax, deltab = _vertical ? 0 : _st->deltax;
 	p.setPen(Qt::NoPen);
-	auto bg = anim::color(_st->bg, _st->bgOver, _a_over.current(ms, (_over || _moving) ? 1. : 0.));
+	auto bg = anim::color(_st->bg, _st->bgOver, _a_over.value((_over || _moving) ? 1. : 0.));
 	bg.setAlpha(anim::interpolate(0, bg.alpha(), opacity));
-	auto bar = anim::color(_st->barBg, _st->barBgOver, _a_barOver.current(ms, (_overbar || _moving) ? 1. : 0.));
+	auto bar = anim::color(_st->barBg, _st->barBgOver, _a_barOver.value((_overbar || _moving) ? 1. : 0.));
 	bar.setAlpha(anim::interpolate(0, bar.alpha(), opacity));
 	if (_st->round) {
 		PainterHighQualityEnabler hq(p);
@@ -189,7 +188,7 @@ void ScrollBar::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void ScrollBar::hideTimeout(TimeMs dt) {
+void ScrollBar::hideTimeout(crl::time dt) {
 	if (_hiding && dt > 0) {
 		_hiding = false;
 		_a_opacity.start([this] { update(); }, 0., 1., _st->duration);
@@ -263,47 +262,6 @@ void ScrollBar::mouseReleaseEvent(QMouseEvent *e) {
 
 void ScrollBar::resizeEvent(QResizeEvent *e) {
 	updateBar();
-}
-
-void SplittedWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (rtl()) {
-		p.translate(-otherWidth(), 0);
-		paintRegion(p, e->region().translated(otherWidth(), 0), false);
-	} else {
-		paintRegion(p, e->region(), false);
-	}
-}
-
-void SplittedWidget::update(const QRect &r) {
-	if (rtl()) {
-		TWidget::update(r.translated(-otherWidth(), 0).intersected(rect()));
-		emit updateOther(r);
-	} else {
-		TWidget::update(r.intersected(rect()));
-		emit updateOther(r.translated(-width(), 0));
-	}
-}
-
-void SplittedWidget::update(const QRegion &r) {
-	if (rtl()) {
-		TWidget::update(r.translated(-otherWidth(), 0).intersected(rect()));
-		emit updateOther(r);
-	} else {
-		TWidget::update(r.intersected(rect()));
-		emit updateOther(r.translated(-width(), 0));
-	}
-}
-
-void SplittedWidgetOther::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	auto s = static_cast<SplittedWidget*>(static_cast<ScrollArea*>(parentWidget())->widget());
-	if (rtl()) {
-		s->paintRegion(p, e->region(), true);
-	} else {
-		p.translate(-s->width(), 0);
-		s->paintRegion(p, e->region().translated(s->width(), 0), true);
-	}
 }
 
 ScrollArea::ScrollArea(QWidget *parent, const style::ScrollArea &st, bool handleTouch)
@@ -419,7 +377,7 @@ void ScrollArea::onTouchTimer() {
 }
 
 void ScrollArea::onTouchScrollTimer() {
-	auto nowTime = getms();
+	auto nowTime = crl::now();
 	if (_touchScrollState == TouchScrollState::Acceleration && _touchWaitingAcceleration && (nowTime - _touchAccelerationTime) > 40) {
 		_touchScrollState = TouchScrollState::Manual;
 		touchResetSpeed();
@@ -440,7 +398,7 @@ void ScrollArea::onTouchScrollTimer() {
 }
 
 void ScrollArea::touchUpdateSpeed() {
-	const auto nowTime = getms();
+	const auto nowTime = crl::now();
 	if (_touchPrevPosValid) {
 		const int elapsed = nowTime - _touchSpeedTime;
 		if (elapsed) {
@@ -521,7 +479,7 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 		if (_touchScrollState == TouchScrollState::Auto) {
 			_touchScrollState = TouchScrollState::Acceleration;
 			_touchWaitingAcceleration = true;
-			_touchAccelerationTime = getms();
+			_touchAccelerationTime = crl::now();
 			touchUpdateSpeed();
 			_touchStart = _touchPos;
 		} else {
@@ -544,7 +502,7 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 				touchScrollUpdated(_touchPos);
 			} else if (_touchScrollState == TouchScrollState::Acceleration) {
 				touchUpdateSpeed();
-				_touchAccelerationTime = getms();
+				_touchAccelerationTime = crl::now();
 				if (_touchSpeed.isNull()) {
 					_touchScrollState = TouchScrollState::Manual;
 				}
@@ -561,7 +519,7 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 				_touchScrollState = TouchScrollState::Auto;
 				_touchPrevPosValid = false;
 				_touchScrollTimer.start(15);
-				_touchTime = getms();
+				_touchTime = crl::now();
 			} else if (_touchScrollState == TouchScrollState::Auto) {
 				_touchScrollState = TouchScrollState::Manual;
 				_touchScroll = false;
@@ -582,7 +540,7 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 				auto windowHandle = window()->windowHandle();
 				auto localPoint = windowHandle->mapFromGlobal(_touchStart);
 				QContextMenuEvent ev(QContextMenuEvent::Mouse, localPoint, _touchStart, QGuiApplication::keyboardModifiers());
-				ev.setTimestamp(getms());
+				ev.setTimestamp(crl::now());
 				QGuiApplication::sendEvent(windowHandle, &ev);
 			}
 		}
@@ -636,12 +594,6 @@ void ScrollArea::resizeEvent(QResizeEvent *e) {
 	_verticalBar->recountSize();
 	_topShadow->setGeometry(QRect(0, 0, width(), qAbs(_st.topsh)));
 	_bottomShadow->setGeometry(QRect(0, height() - qAbs(_st.bottomsh), width(), qAbs(_st.bottomsh)));
-	if (SplittedWidget *w = qobject_cast<SplittedWidget*>(widget())) {
-		w->resize(width() - w->otherWidth(), w->height());
-		if (!rtl()) {
-			_other->move(w->width(), w->y());
-		}
-	}
 	emit geometryChanged();
 }
 
@@ -720,20 +672,9 @@ void ScrollArea::scrollToY(int toTop, int toBottom) {
 }
 
 void ScrollArea::doSetOwnedWidget(object_ptr<TWidget> w) {
-	auto splitted = qobject_cast<SplittedWidget*>(w.data());
 	if (widget() && _touchEnabled) {
 		widget()->removeEventFilter(this);
 		if (!_widgetAcceptsTouch) widget()->setAttribute(Qt::WA_AcceptTouchEvents, false);
-	}
-	if (_other && !splitted) {
-		_other.destroy();
-		disconnect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
-	} else if (!_other && splitted) {
-		_other.create(this);
-		_other->resize(_verticalBar->width(), _other->height());
-		connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
-		_horizontalBar->raise();
-		_verticalBar->raise();
 	}
 	_widget = std::move(w);
 	QScrollArea::setWidget(_widget);
@@ -744,41 +685,12 @@ void ScrollArea::doSetOwnedWidget(object_ptr<TWidget> w) {
 			_widgetAcceptsTouch = _widget->testAttribute(Qt::WA_AcceptTouchEvents);
 			_widget->setAttribute(Qt::WA_AcceptTouchEvents);
 		}
-		if (splitted) {
-			splitted->setOtherWidth(_verticalBar->width());
-			_widget->setGeometry(rtl() ? splitted->otherWidth() : 0, 0, width() - splitted->otherWidth(), _widget->height());
-			connect(splitted, SIGNAL(resizeOther()), this, SLOT(onResizeOther()));
-			connect(splitted, SIGNAL(updateOther(const QRect&)), this, SLOT(onUpdateOther(const QRect&)));
-			connect(splitted, SIGNAL(updateOther(const QRegion&)), this, SLOT(onUpdateOther(const QRegion&)));
-			onResizeOther();
-			splitted->update();
-		}
 	}
 }
 
 object_ptr<TWidget> ScrollArea::doTakeWidget() {
-	if (_other) {
-		_other.destroy();
-		disconnect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
-	}
 	QScrollArea::takeWidget();
 	return std::move(_widget);
-}
-
-void ScrollArea::onResizeOther() {
-	_other->resize(_other->width(), widget()->height());
-}
-
-void ScrollArea::onUpdateOther(const QRect &r) {
-	_other->update(r.intersected(_other->rect()));
-}
-
-void ScrollArea::onUpdateOther(const QRegion &r) {
-	_other->update(r.intersected(_other->rect()));
-}
-
-void ScrollArea::onVerticalScroll() {
-	_other->move(_other->x(), widget()->y());
 }
 
 void ScrollArea::rangeChanged(int oldMax, int newMax, bool vertical) {

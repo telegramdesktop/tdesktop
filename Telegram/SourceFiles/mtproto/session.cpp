@@ -16,6 +16,20 @@ namespace MTP {
 namespace internal {
 namespace {
 
+// How much time passed from send till we resend request or check its state.
+constexpr auto kCheckResendTimeout = crl::time(10000);
+
+// How much time to wait for some more requests,
+// when resending request or checking its state.
+constexpr auto kCheckResendWaiting = crl::time(1000);
+
+// How much ints should message contain for us not to resend,
+// but instead to check its state.
+constexpr auto kResendThreshold = 1;
+
+// Container lives 10 minutes in haveSent map.
+constexpr auto kContainerLives = 600;
+
 QString LogIds(const QVector<uint64> &ids) {
 	if (!ids.size()) return "[]";
 	auto idsStr = QString("[%1").arg(*ids.cbegin());
@@ -122,13 +136,12 @@ void SessionData::clear(Instance *instance) {
 Session::Session(not_null<Instance*> instance, ShiftedDcId shiftedDcId) : QObject()
 , _instance(instance)
 , data(this)
-, dcWithShift(shiftedDcId) {
+, dcWithShift(shiftedDcId)
+, sender([=] { needToResumeAndSend(); }) {
 	connect(&timeouter, SIGNAL(timeout()), this, SLOT(checkRequestsByTimer()));
 	timeouter.start(1000);
 
 	refreshOptions();
-
-	connect(&sender, SIGNAL(timeout()), this, SLOT(needToResumeAndSend()));
 }
 
 void Session::start() {
@@ -156,8 +169,11 @@ void Session::createDcData() {
 	connect(dc.get(), SIGNAL(connectionWasInited()), this, SLOT(connectionWasInitedForDC()), Qt::QueuedConnection);
 }
 
-bool Session::rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err) { // return true if need to clean request data
-	return _instance->rpcErrorOccured(requestId, onFail, err);
+bool Session::rpcErrorOccured(
+		mtpRequestId requestId,
+		const RPCFailHandlerPtr &onFail,
+		const RPCError &error) { // return true if need to clean request data
+	return _instance->rpcErrorOccured(requestId, onFail, error);
 }
 
 void Session::restart() {
@@ -228,7 +244,7 @@ void Session::sendAnything(qint64 msCanWait) {
 		DEBUG_LOG(("Session Error: can't send anything in a killed session"));
 		return;
 	}
-	auto ms = getms(true);
+	auto ms = crl::now();
 	if (msSendCall) {
 		if (ms > msSendCall + msWait) {
 			msWait = 0;
@@ -244,10 +260,10 @@ void Session::sendAnything(qint64 msCanWait) {
 	if (msWait) {
 		DEBUG_LOG(("MTP Info: dcWithShift %1 can wait for %2ms from current %3").arg(dcWithShift).arg(msWait).arg(msSendCall));
 		msSendCall = ms;
-		sender.start(msWait);
+		sender.callOnce(msWait);
 	} else {
 		DEBUG_LOG(("MTP Info: dcWithShift %1 stopped send timer, can wait for %2ms from current %3").arg(dcWithShift).arg(msWait).arg(msSendCall));
-		sender.stop();
+		sender.cancel();
 		msSendCall = 0;
 		needToResumeAndSend();
 	}
@@ -299,12 +315,12 @@ void Session::checkRequestsByTimer() {
 		QReadLocker locker(data.haveSentMutex());
 		auto &haveSent = data.haveSentMap();
 		const auto haveSentCount = haveSent.size();
-		auto ms = getms(true);
+		auto ms = crl::now();
 		for (auto i = haveSent.begin(), e = haveSent.end(); i != e; ++i) {
 			auto &req = i.value();
 			if (req->msDate > 0) {
-				if (req->msDate + MTPCheckResendTimeout < ms) { // need to resend or check state
-					if (req.messageSize() < MTPResendThreshold) { // resend
+				if (req->msDate + kCheckResendTimeout < ms) { // need to resend or check state
+					if (req.messageSize() < kResendThreshold) { // resend
 						resendingIds.reserve(haveSentCount);
 						resendingIds.push_back(i.key());
 					} else {
@@ -313,7 +329,7 @@ void Session::checkRequestsByTimer() {
 						stateRequestIds.push_back(i.key());
 					}
 				}
-			} else if (unixtime() > (int32)(i.key() >> 32) + MTPContainerLives) {
+			} else if (unixtime() > (int32)(i.key() >> 32) + kContainerLives) {
 				removingIds.reserve(haveSentCount);
 				removingIds.push_back(i.key());
 			}
@@ -328,12 +344,12 @@ void Session::checkRequestsByTimer() {
 				data.stateRequestMap().insert(stateRequestIds[i], true);
 			}
 		}
-		sendAnything(MTPCheckResendWaiting);
+		sendAnything(kCheckResendWaiting);
 	}
 	if (!resendingIds.isEmpty()) {
 		for (uint32 i = 0, l = resendingIds.size(); i < l; ++i) {
 			DEBUG_LOG(("MTP Info: resending request %1").arg(resendingIds[i]));
-			resend(resendingIds[i], MTPCheckResendWaiting);
+			resend(resendingIds[i], kCheckResendWaiting);
 		}
 	}
 	if (!removingIds.isEmpty()) {
@@ -473,7 +489,7 @@ mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContaine
 		}
 		return 0xFFFFFFFF;
 	} else if (!request.isStateRequest()) {
-		request->msDate = forceContainer ? 0 : getms(true);
+		request->msDate = forceContainer ? 0 : crl::now();
 		sendPrepared(request, msCanWait, false);
 		{
 			QWriteLocker locker(data.toResendMutex());
@@ -510,7 +526,7 @@ void Session::resendAll() {
 
 void Session::sendPrepared(
 		const SecureRequest &request,
-		TimeMs msCanWait,
+		crl::time msCanWait,
 		bool newRequest) {
 	DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1"
 		).arg(msCanWait));
@@ -616,10 +632,6 @@ void Session::tryToReceive() {
 
 Session::~Session() {
 	Assert(_connection == nullptr);
-}
-
-MTPrpcError rpcClientError(const QString &type, const QString &description) {
-	return MTP_rpc_error(MTP_int(0), MTP_string(("CLIENT_" + type + (description.length() ? (": " + description) : "")).toUtf8().constData()));
 }
 
 } // namespace internal

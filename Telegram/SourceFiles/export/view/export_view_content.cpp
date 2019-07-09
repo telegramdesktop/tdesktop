@@ -65,38 +65,38 @@ Content ContentFromState(const ProcessingState &state) {
 	};
 	switch (state.step) {
 	case Step::Initializing:
-		pushMain(lang(lng_export_state_initializing));
+		pushMain(tr::lng_export_state_initializing(tr::now));
 		break;
 	case Step::DialogsList:
-		pushMain(lang(lng_export_state_chats_list));
+		pushMain(tr::lng_export_state_chats_list(tr::now));
 		break;
 	case Step::PersonalInfo:
-		pushMain(lang(lng_export_option_info));
+		pushMain(tr::lng_export_option_info(tr::now));
 		break;
 	case Step::Userpics:
-		pushMain(lang(lng_export_state_userpics));
+		pushMain(tr::lng_export_state_userpics(tr::now));
 		pushBytes(
 			"userpic" + QString::number(state.entityIndex),
 			state.bytesName);
 		break;
 	case Step::Contacts:
-		pushMain(lang(lng_export_option_contacts));
+		pushMain(tr::lng_export_option_contacts(tr::now));
 		break;
 	case Step::Sessions:
-		pushMain(lang(lng_export_option_sessions));
+		pushMain(tr::lng_export_option_sessions(tr::now));
 		break;
 	case Step::OtherData:
-		pushMain(lang(lng_export_option_other));
+		pushMain(tr::lng_export_option_other(tr::now));
 		break;
 	case Step::Dialogs:
-		pushMain(lang(lng_export_state_chats));
+		pushMain(tr::lng_export_state_chats(tr::now));
 		push(
 			"chat" + QString::number(state.entityIndex),
 			(state.entityName.isEmpty()
-				? lang(lng_deleted)
+				? tr::lng_deleted(tr::now)
 				: (state.entityType == ProcessingState::EntityType::Chat)
 				? state.entityName
-				: lang(lng_saved_messages)),
+				: tr::lng_saved_messages(tr::now)),
 			(state.itemCount > 0
 				? (QString::number(state.itemIndex)
 					+ " / "
@@ -115,7 +115,7 @@ Content ContentFromState(const ProcessingState &state) {
 	default: Unexpected("Step in ContentFromState.");
 	}
 	while (result.rows.size() < 3) {
-		result.rows.push_back(Content::Row());
+		result.rows.emplace_back();
 	}
 	return result;
 }
@@ -124,17 +124,23 @@ Content ContentFromState(const FinishedState &state) {
 	auto result = Content();
 	result.rows.push_back({
 		Content::kDoneId,
-		lang(lng_export_finished),
+		tr::lng_export_finished(tr::now),
 		QString(),
 		1. });
 	result.rows.push_back({
 		Content::kDoneId,
-		lng_export_total_files(lt_count, QString::number(state.filesCount)),
+		tr::lng_export_total_amount(
+			tr::now,
+			lt_amount,
+			QString::number(state.filesCount)),
 		QString(),
 		1. });
 	result.rows.push_back({
 		Content::kDoneId,
-		lng_export_total_size(lt_size, formatSizeText(state.bytesCount)),
+		tr::lng_export_total_size(
+			tr::now,
+			lt_size,
+			formatSizeText(state.bytesCount)),
 		QString(),
 		1. });
 	return result;

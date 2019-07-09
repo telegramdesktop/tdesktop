@@ -77,14 +77,9 @@ class FlatLabel : public RpWidget, public ClickHandlerHost {
 public:
 	FlatLabel(QWidget *parent, const style::FlatLabel &st = st::defaultFlatLabel);
 
-	enum class InitType {
-		Simple,
-		Rich,
-	};
 	FlatLabel(
 		QWidget *parent,
 		const QString &text,
-		InitType initType,
 		const style::FlatLabel &st = st::defaultFlatLabel);
 
 	FlatLabel(
@@ -105,13 +100,14 @@ public:
 	void setSelectable(bool selectable);
 	void setDoubleClickSelectsParagraph(bool doubleClickSelectsParagraph);
 	void setContextCopyText(const QString &copyText);
-	void setExpandLinksMode(ExpandLinksMode mode);
 	void setBreakEverywhere(bool breakEverywhere);
+	void setTryMakeSimilarLines(bool tryMakeSimilarLines);
 
 	int naturalWidth() const override;
 	QMargins getMargins() const override;
 
 	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
+	void setLinksTrusted();
 
 	using ClickHandlerFilter = Fn<bool(const ClickHandlerPtr&, Qt::MouseButton)>;
 	void setClickHandlerFilter(ClickHandlerFilter &&filter);
@@ -157,11 +153,11 @@ private:
 	void init();
 	void textUpdated();
 
-	Text::StateResult dragActionUpdate();
-	Text::StateResult dragActionStart(const QPoint &p, Qt::MouseButton button);
-	Text::StateResult dragActionFinish(const QPoint &p, Qt::MouseButton button);
-	void updateHover(const Text::StateResult &state);
-	Text::StateResult getTextState(const QPoint &m) const;
+	Ui::Text::StateResult dragActionUpdate();
+	Ui::Text::StateResult dragActionStart(const QPoint &p, Qt::MouseButton button);
+	Ui::Text::StateResult dragActionFinish(const QPoint &p, Qt::MouseButton button);
+	void updateHover(const Ui::Text::StateResult &state);
+	Ui::Text::StateResult getTextState(const QPoint &m) const;
 	void refreshCursor(bool uponSymbol);
 
 	int countTextWidth() const;
@@ -174,14 +170,16 @@ private:
 	};
 	void showContextMenu(QContextMenuEvent *e, ContextMenuReason reason);
 
-	Text _text;
+	Text::String _text;
 	const style::FlatLabel &_st;
 	std::optional<QColor> _textColorOverride;
 	float64 _opacity = 1.;
 
 	int _allowedWidth = 0;
+	int _textWidth = 0;
 	int _fullTextHeight = 0;
 	bool _breakEverywhere = false;
+	bool _tryMakeSimilarLines = false;
 
 	style::cursor _cursor = style::cur_default;
 	bool _selectable = false;
@@ -207,7 +205,6 @@ private:
 
 	Ui::PopupMenu *_contextMenu = nullptr;
 	QString _contextCopyText;
-	ExpandLinksMode _contextExpandLinksMode = ExpandLinksAll;
 
 	ClickHandlerFilter _clickHandlerFilter;
 

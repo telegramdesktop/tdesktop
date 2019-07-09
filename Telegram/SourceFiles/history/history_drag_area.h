@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/twidget.h"
+#include "ui/effects/animations.h"
 
 class DragArea : public TWidget {
 	Q_OBJECT
@@ -59,8 +60,8 @@ private:
 	QPixmap _cache;
 	Fn<void(const QMimeData *data)> _droppedCallback;
 
-	Animation _a_opacity;
-	Animation _a_in;
+	Ui::Animations::Simple _a_opacity;
+	Ui::Animations::Simple _a_in;
 
 	QString _text, _subtext;
 

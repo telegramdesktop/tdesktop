@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "passport/passport_panel_controller.h"
 #include "lang/lang_keys.h"
-#include "platform/platform_specific.h"
+#include "platform/platform_info.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/countryinput.h"
 #include "auth_session.h"
+#include "data/data_user.h"
+#include "data/data_countries.h"
 #include "styles/style_boxes.h"
 #include "styles/style_passport.h"
 
@@ -28,7 +30,7 @@ public:
 	PostcodeInput(
 		QWidget *parent,
 		const style::InputField &st,
-		Fn<QString()> placeholderFactory,
+		rpl::producer<QString> placeholder,
 		const QString &val);
 
 protected:
@@ -43,9 +45,9 @@ protected:
 PostcodeInput::PostcodeInput(
 	QWidget *parent,
 	const style::InputField &st,
-	Fn<QString()> placeholderFactory,
+	rpl::producer<QString> placeholder,
 	const QString &val)
-: MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+: MaskedInputField(parent, st, std::move(placeholder), val) {
 	if (!QRegularExpression("^[a-zA-Z0-9\\-]+$").match(val).hasMatch()) {
 		setText(QString());
 	}
@@ -123,7 +125,7 @@ private:
 	object_ptr<Ui::LinkButton> _link;
 	rpl::variable<QString> _value;
 	bool _errorShown = false;
-	Animation _errorAnimation;
+	Ui::Animations::Simple _errorAnimation;
 
 };
 
@@ -196,14 +198,14 @@ private:
 	rpl::variable<QString> _value;
 
 	style::cursor _cursor = style::cur_default;
-	Animation _a_borderShown;
+	Ui::Animations::Simple _a_borderShown;
 	int _borderAnimationStart = 0;
-	Animation _a_borderOpacity;
+	Ui::Animations::Simple _a_borderOpacity;
 	bool _borderVisible = false;
 
-	Animation _a_error;
+	Ui::Animations::Simple _a_error;
 	bool _error = false;
-	Animation _a_focused;
+	Ui::Animations::Simple _a_focused;
 	bool _focused = false;
 
 };
@@ -247,7 +249,7 @@ private:
 	rpl::variable<QString> _value;
 
 	bool _errorShown = false;
-	Animation _errorAnimation;
+	Ui::Animations::Simple _errorAnimation;
 
 };
 
@@ -300,8 +302,8 @@ void AbstractTextRow<Input>::finishInnerAnimating() {
 }
 
 QString CountryString(const QString &code) {
-	const auto name = CountrySelectBox::NameByISO(code);
-	return name.isEmpty() ? lang(lng_passport_country_choose) : name;
+	const auto name = Data::CountryNameByISO2(code);
+	return name.isEmpty() ? tr::lng_passport_country_choose(tr::now) : name;
 }
 
 CountryRow::CountryRow(
@@ -343,7 +345,7 @@ void CountryRow::showInnerError() {
 
 void CountryRow::finishInnerAnimating() {
 	if (_errorAnimation.animating()) {
-		_errorAnimation.finish();
+		_errorAnimation.stop();
 		errorAnimationCallback();
 	}
 }
@@ -364,7 +366,7 @@ void CountryRow::toggleError(bool shown) {
 }
 
 void CountryRow::errorAnimationCallback() {
-	const auto error = _errorAnimation.current(_errorShown ? 1. : 0.);
+	const auto error = _errorAnimation.value(_errorShown ? 1. : 0.);
 	if (error == 0.) {
 		_link->setColorOverride(std::nullopt);
 	} else {
@@ -377,8 +379,8 @@ void CountryRow::errorAnimationCallback() {
 
 void CountryRow::chooseCountry() {
 	const auto top = _value.current();
-	const auto name = CountrySelectBox::NameByISO(top);
-	const auto isoByPhone = CountrySelectBox::ISOByPhone(
+	const auto name = Data::CountryNameByISO2(top);
+	const auto isoByPhone = Data::CountryISO2ByPhone(
 		Auth().user()->phone());
 	const auto box = _controller->show(Box<CountrySelectBox>(!name.isEmpty()
 		? top
@@ -522,33 +524,31 @@ DateRow::DateRow(
 , _day(
 	this,
 	st::passportDetailsDateField,
-	langFactory(lng_date_input_day),
+	tr::lng_date_input_day(),
 	GetDay(value))
 , _separator1(
 	this,
 	object_ptr<Ui::FlatLabel>(
 		this,
 		QString(" / "),
-		Ui::FlatLabel::InitType::Simple,
 		st::passportDetailsSeparator),
 	st::passportDetailsSeparatorPadding)
 , _month(
 	this,
 	st::passportDetailsDateField,
-	langFactory(lng_date_input_month),
+	tr::lng_date_input_month(),
 	GetMonth(value))
 , _separator2(
 	this,
 	object_ptr<Ui::FlatLabel>(
 		this,
 		QString(" / "),
-		Ui::FlatLabel::InitType::Simple,
 		st::passportDetailsSeparator),
 	st::passportDetailsSeparatorPadding)
 , _year(
 	this,
 	st::passportDetailsDateField,
-	langFactory(lng_date_input_year),
+	tr::lng_date_input_year(),
 	GetYear(value))
 , _value(valueCurrent()) {
 	const auto focused = [=](const object_ptr<DateInput> &field) {
@@ -675,11 +675,10 @@ void DateRow::paintEvent(QPaintEvent *e) {
 	if (_st.border) {
 		p.fillRect(0, height - _st.border, width, _st.border, _st.borderFg);
 	}
-	const auto ms = getms();
-	auto errorDegree = _a_error.current(ms, _error ? 1. : 0.);
-	auto focusedDegree = _a_focused.current(ms, _focused ? 1. : 0.);
-	auto borderShownDegree = _a_borderShown.current(ms, 1.);
-	auto borderOpacity = _a_borderOpacity.current(ms, _borderVisible ? 1. : 0.);
+	auto errorDegree = _a_error.value(_error ? 1. : 0.);
+	auto focusedDegree = _a_focused.value(_focused ? 1. : 0.);
+	auto borderShownDegree = _a_borderShown.value(1.);
+	auto borderOpacity = _a_borderOpacity.value(_borderVisible ? 1. : 0.);
 	if (_st.borderActive && (borderOpacity > 0.)) {
 		auto borderStart = snap(_borderAnimationStart, 0, width);
 		auto borderFrom = qRound(borderStart * (1. - borderShownDegree));
@@ -741,13 +740,13 @@ int DateRow::resizeInner(int left, int top, int width) {
 	const auto addToWidth = st::passportDetailsSeparatorPadding.left();
 	const auto dayWidth = _st.textMargins.left()
 		+ _st.placeholderMargins.left()
-		+ font->width(lang(lng_date_input_day))
+		+ font->width(tr::lng_date_input_day(tr::now))
 		+ _st.placeholderMargins.right()
 		+ _st.textMargins.right()
 		+ addToWidth;
 	const auto monthWidth = _st.textMargins.left()
 		+ _st.placeholderMargins.left()
-		+ font->width(lang(lng_date_input_month))
+		+ font->width(tr::lng_date_input_month(tr::now))
 		+ _st.placeholderMargins.right()
 		+ _st.textMargins.right()
 		+ addToWidth;
@@ -817,9 +816,9 @@ void DateRow::finishInnerAnimating() {
 	_day->finishAnimating();
 	_month->finishAnimating();
 	_year->finishAnimating();
-	_a_borderOpacity.finish();
-	_a_borderShown.finish();
-	_a_error.finish();
+	_a_borderOpacity.stop();
+	_a_borderShown.stop();
+	_a_error.stop();
 }
 
 void DateRow::startBorderAnimation() {
@@ -852,14 +851,14 @@ GenderRow::GenderRow(
 	this,
 	_group,
 	Gender::Male,
-	lang(lng_passport_gender_male),
+	tr::lng_passport_gender_male(tr::now),
 	st::defaultCheckbox,
 	createRadioView(_maleRadio))
 , _female(
 	this,
 	_group,
 	Gender::Female,
-	lang(lng_passport_gender_female),
+	tr::lng_passport_gender_female(tr::now),
 	st::defaultCheckbox,
 	createRadioView(_femaleRadio))
 , _value(StringToGender(value) ? value : QString()) {
@@ -913,7 +912,7 @@ void GenderRow::showInnerError() {
 
 void GenderRow::finishInnerAnimating() {
 	if (_errorAnimation.animating()) {
-		_errorAnimation.finish();
+		_errorAnimation.stop();
 		errorAnimationCallback();
 	}
 }
@@ -934,7 +933,7 @@ void GenderRow::toggleError(bool shown) {
 }
 
 void GenderRow::errorAnimationCallback() {
-	const auto error = _errorAnimation.current(_errorShown ? 1. : 0.);
+	const auto error = _errorAnimation.value(_errorShown ? 1. : 0.);
 	if (error == 0.) {
 		_maleRadio->setUntoggledOverride(std::nullopt);
 		_femaleRadio->setUntoggledOverride(std::nullopt);
@@ -1066,7 +1065,6 @@ void PanelDetailsRow::showError(std::optional<QString> error) {
 				object_ptr<Ui::FlatLabel>(
 					this,
 					*error,
-					Ui::FlatLabel::InitType::Simple,
 					st::passportVerifyErrorLabel));
 		} else {
 			_error->entity()->setText(*error);
@@ -1106,7 +1104,7 @@ void PanelDetailsRow::finishAnimating() {
 		_error->finishAnimating();
 	}
 	if (_errorAnimation.animating()) {
-		_errorAnimation.finish();
+		_errorAnimation.stop();
 		update();
 	}
 }
@@ -1114,8 +1112,7 @@ void PanelDetailsRow::finishAnimating() {
 void PanelDetailsRow::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	const auto ms = getms();
-	const auto error = _errorAnimation.current(ms, _errorShown ? 1. : 0.);
+	const auto error = _errorAnimation.value(_errorShown ? 1. : 0.);
 	p.setFont(st::semiboldFont);
 	p.setPen(anim::pen(
 		st::passportDetailsField.placeholderFg,

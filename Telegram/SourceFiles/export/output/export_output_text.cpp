@@ -335,6 +335,9 @@ QByteArray SerializeMessage(
 	}, [&](const ActionContactSignUp &data) {
 		pushActor();
 		pushAction("Join Telegram");
+	}, [&](const ActionPhoneNumberRequest &data) {
+		pushActor();
+		pushAction("Request Phone Number");
 	}, [](std::nullopt_t) {});
 
 	if (!message.action.content) {
@@ -342,6 +345,8 @@ QByteArray SerializeMessage(
 		push("Author", message.signature);
 		if (message.forwardedFromId) {
 			push("Forwarded from", wrapPeerName(message.forwardedFromId));
+		} else if (!message.forwardedFromName.isEmpty()) {
+			push("Forwarded from", message.forwardedFromName);
 		}
 		if (message.savedFromChatId) {
 			push("Saved from", wrapPeerName(message.savedFromChatId));

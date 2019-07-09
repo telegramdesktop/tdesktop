@@ -9,18 +9,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/media/history_media.h"
 
-class LocationCoords;
-struct LocationData;
+namespace Data {
+struct LocationThumbnail;
+} // namespace Data
 
 class HistoryLocation : public HistoryMedia {
 public:
 	HistoryLocation(
 		not_null<Element*> parent,
-		not_null<LocationData*> location,
+		not_null<Data::LocationThumbnail*> location,
 		const QString &title = QString(),
 		const QString &description = QString());
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
@@ -40,7 +41,7 @@ public:
 		return p == _link;
 	}
 
-	TextWithEntities selectedText(TextSelection selection) const override;
+	TextForMimeData selectedText(TextSelection selection) const override;
 
 	bool needsBubble() const override;
 	bool customInfoLayout() const override {
@@ -58,8 +59,8 @@ private:
 	TextSelection toDescriptionSelection(TextSelection selection) const;
 	TextSelection fromDescriptionSelection(TextSelection selection) const;
 
-	LocationData *_data;
-	Text _title, _description;
+	const not_null<Data::LocationThumbnail*> _data;
+	Ui::Text::String _title, _description;
 	ClickHandlerPtr _link;
 
 	int fullWidth() const;

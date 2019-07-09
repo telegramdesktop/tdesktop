@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "calls/calls_instance.h"
 #include "ui/text_options.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
 #include "data/data_media_types.h"
@@ -28,38 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 using TextState = HistoryView::TextState;
-
-struct FormattedLargeNumber {
-	int rounded = 0;
-	bool shortened = false;
-	QString text;
-};
-
-FormattedLargeNumber FormatLargeNumber(int64 number) {
-	auto result = FormattedLargeNumber();
-	const auto abs = std::abs(number);
-	const auto shorten = [&](int64 divider, char multiplier) {
-		const auto sign = (number > 0) ? 1 : -1;
-		const auto rounded = abs / (divider / 10);
-		result.rounded = sign * rounded * (divider / 10);
-		result.text = QString::number(sign * rounded / 10);
-		if (rounded % 10) {
-			result.text += '.' + QString::number(rounded % 10) + multiplier;
-		} else {
-			result.text += multiplier;
-		}
-		result.shortened = true;
-	};
-	if (abs >= 1'000'000) {
-		shorten(1'000'000, 'M');
-	} else if (abs >= 10'000) {
-		shorten(1'000, 'K');
-	} else {
-		result.rounded = number;
-		result.text = QString::number(number);
-	}
-	return result;
-}
 
 struct PercentCounterItem {
 	int index = 0;
@@ -86,6 +55,12 @@ void AdjustPercentCount(gsl::span<PercentCounterItem> items, int left) {
 				|| items[j].remainder != item.remainder) {
 				break;
 			}
+		}
+		if (!items[i].remainder) {
+			// If this item has correct value in 'percent' we don't want
+			// to increment it to an incorrect one. This fixes a case with
+			// four items with three votes for three different items.
+			break;
 		}
 		const auto equal = j - i;
 		if (equal <= left) {
@@ -138,13 +113,14 @@ struct HistoryPoll::AnswerAnimation {
 
 struct HistoryPoll::AnswersAnimation {
 	std::vector<AnswerAnimation> data;
-	Animation progress;
+	Ui::Animations::Simple progress;
 };
 
 struct HistoryPoll::SendingAnimation {
+	template <typename Callback>
 	SendingAnimation(
 		const QByteArray &option,
-		AnimationCallbacks &&callbacks);
+		Callback &&callback);
 
 	QByteArray option;
 	Ui::InfiniteRadialAnimation animation;
@@ -155,7 +131,7 @@ struct HistoryPoll::Answer {
 
 	void fillText(const PollAnswer &original);
 
-	Text text;
+	Ui::Text::String text;
 	QByteArray option;
 	int votes = 0;
 	int votesPercent = 0;
@@ -167,18 +143,21 @@ struct HistoryPoll::Answer {
 	mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 };
 
+template <typename Callback>
 HistoryPoll::SendingAnimation::SendingAnimation(
 	const QByteArray &option,
-	AnimationCallbacks &&callbacks)
+	Callback &&callback)
 : option(option)
-, animation(std::move(callbacks), st::historyPollRadialAnimation) {
+, animation(
+	std::forward<Callback>(callback),
+	st::historyPollRadialAnimation) {
 }
 
 HistoryPoll::Answer::Answer() : text(st::msgMinWidth / 2) {
 }
 
 void HistoryPoll::Answer::fillText(const PollAnswer &original) {
-	if (!text.isEmpty() && text.originalText() == original.text) {
+	if (!text.isEmpty() && text.toString() == original.text) {
 		return;
 	}
 	text.setText(
@@ -193,7 +172,7 @@ HistoryPoll::HistoryPoll(
 : HistoryMedia(parent)
 , _poll(poll)
 , _question(st::msgMinWidth / 2) {
-	Auth().data().registerPollView(_poll, _parent);
+	history()->owner().registerPollView(_poll, _parent);
 }
 
 QSize HistoryPoll::countOptimalSize() {
@@ -315,7 +294,7 @@ void HistoryPoll::updateTexts() {
 
 	const auto willStartAnimation = checkAnimationStart();
 
-	if (_question.originalText() != _poll->question) {
+	if (_question.toString() != _poll->question) {
 		_question.setText(
 			st::historyPollQuestionStyle,
 			_poll->question,
@@ -325,7 +304,7 @@ void HistoryPoll::updateTexts() {
 		_closed = _poll->closed;
 		_subtitle.setText(
 			st::msgDateTextStyle,
-			lang(_closed ? lng_polls_closed : lng_polls_anonymous));
+			_closed ? tr::lng_polls_closed(tr::now) : tr::lng_polls_anonymous(tr::now));
 	}
 
 	updateAnswers();
@@ -371,7 +350,7 @@ ClickHandlerPtr HistoryPoll::createAnswerClickHandler(
 	const auto option = answer.option;
 	const auto itemId = _parent->data()->fullId();
 	return std::make_shared<LambdaClickHandler>([=] {
-		Auth().api().sendPollVotes(itemId, { option });
+		history()->session().api().sendPollVotes(itemId, { option });
 	});
 }
 
@@ -397,9 +376,7 @@ void HistoryPoll::checkSendingAnimation() const {
 	}
 	_sendingAnimation = std::make_unique<SendingAnimation>(
 		sending,
-		animation(
-			const_cast<HistoryPoll*>(this),
-			&HistoryPoll::step_radial));
+		[=] { radialAnimationCallback(); });
 	_sendingAnimation->animation.start();
 }
 
@@ -408,17 +385,9 @@ void HistoryPoll::updateTotalVotes() {
 		return;
 	}
 	_totalVotes = _poll->totalVoters;
-	const auto string = [&] {
-		if (!_totalVotes) {
-			return lang(lng_polls_votes_none);
-		}
-		const auto format = FormatLargeNumber(_totalVotes);
-		auto text = lng_polls_votes_count(lt_count, format.rounded);
-		if (format.shortened) {
-			text.replace(QString::number(format.rounded), format.text);
-		}
-		return text;
-	}();
+	const auto string = !_totalVotes
+		? tr::lng_polls_votes_none(tr::now)
+		: tr::lng_polls_votes_count(tr::now, lt_count_short, _totalVotes);
 	_totalVotesLabel.setText(st::msgDateTextStyle, string);
 }
 
@@ -483,7 +452,7 @@ void HistoryPoll::updateAnswerVotes() {
 	}
 }
 
-void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
+void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 
@@ -510,7 +479,7 @@ void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
 
 	const auto progress = _answersAnimation
-		? _answersAnimation->progress.current(ms, 1.)
+		? _answersAnimation->progress.value(1.)
 		: 1.;
 	if (progress == 1.) {
 		resetAnswersAnimation();
@@ -536,8 +505,7 @@ void HistoryPoll::draw(Painter &p, const QRect &r, TextSelection selection, Time
 			tshift,
 			paintw,
 			width(),
-			selection,
-			ms);
+			selection);
 		tshift += height;
 	}
 	if (!_totalVotesLabel.isEmpty()) {
@@ -561,9 +529,9 @@ void HistoryPoll::resetAnswersAnimation() const {
 	}
 }
 
-void HistoryPoll::step_radial(TimeMs ms, bool timer) {
-	if (timer && !anim::Disabled()) {
-		Auth().data().requestViewRepaint(_parent);
+void HistoryPoll::radialAnimationCallback() const {
+	if (!anim::Disabled()) {
+		history()->owner().requestViewRepaint(_parent);
 	}
 }
 
@@ -575,8 +543,7 @@ int HistoryPoll::paintAnswer(
 		int top,
 		int width,
 		int outerWidth,
-		TextSelection selection,
-		TimeMs ms) const {
+		TextSelection selection) const {
 	const auto height = countAnswerHeight(answer, width);
 	const auto outbg = _parent->hasOutLayout();
 	const auto aleft = left + st::historyPollAnswerPadding.left();
@@ -586,7 +553,7 @@ int HistoryPoll::paintAnswer(
 
 	if (answer.ripple) {
 		p.setOpacity(st::historyPollRippleOpacity);
-		answer.ripple->paint(p, left - st::msgPadding.left(), top, outerWidth, ms);
+		answer.ripple->paint(p, left - st::msgPadding.left(), top, outerWidth);
 		if (answer.ripple->empty()) {
 			answer.ripple.reset();
 		}
@@ -806,7 +773,7 @@ void HistoryPoll::startAnswersAnimation() const {
 		data.opacity.start(can ? 0. : 1.);
 	}
 	_answersAnimation->progress.start(
-		[=] { Auth().data().requestViewRepaint(_parent); },
+		[=] { history()->owner().requestViewRepaint(_parent); },
 		0.,
 		1.,
 		st::historyPollDuration);
@@ -840,11 +807,11 @@ TextState HistoryPoll::textState(QPoint point, StateRequest request) const {
 				result.link = answer.handler;
 			} else {
 				result.customTooltip = true;
-				using Flag = Text::StateRequest::Flag;
+				using Flag = Ui::Text::StateRequest::Flag;
 				if (request.flags & Flag::LookupCustomTooltip) {
 					result.customTooltipText = answer.votes
-						? lng_polls_votes_count(lt_count, answer.votes)
-						: lang(lng_polls_votes_none);
+						? tr::lng_polls_votes_count(tr::now, lt_count_decimal, answer.votes)
+						: tr::lng_polls_votes_none(tr::now);
 				}
 			}
 			return result;
@@ -883,7 +850,7 @@ void HistoryPoll::toggleRipple(Answer &answer, bool pressed) {
 					? st::historyPollRippleOut
 					: st::historyPollRippleIn),
 				std::move(mask),
-				[=] { Auth().data().requestViewRepaint(_parent); });
+				[=] { history()->owner().requestViewRepaint(_parent); });
 		}
 		const auto top = countAnswerTop(answer, innerWidth);
 		answer.ripple->add(_lastLinkPoint - QPoint(0, top));
@@ -895,5 +862,5 @@ void HistoryPoll::toggleRipple(Answer &answer, bool pressed) {
 }
 
 HistoryPoll::~HistoryPoll() {
-	Auth().data().unregisterPollView(_poll, _parent);
+	history()->owner().unregisterPollView(_poll, _parent);
 }

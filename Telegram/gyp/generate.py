@@ -91,13 +91,12 @@ if 'TDESKTOP_BUILD_DEFINES' in os.environ:
     print('[INFO] Set build defines to ' + buildDefines)
 
 if sys.platform == 'win32':
-    os.environ['GYP_MSVS_VERSION'] = '2017'
     gypFormats.append('ninja')
     gypFormats.append('msvs-ninja')
 elif sys.platform == 'darwin':
     # use patched gyp with Xcode project generator
     gypScript = '../../../Libraries/gyp/gyp'
-    gypArguments.append('-Gxcode_upgrade_check_project_version=1010')
+    gypArguments.append('-Gxcode_upgrade_check_project_version=1020')
     gypFormats.append('xcode')
 else:
     gypScript = '../../../Libraries/gyp/gyp'

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_peer.h"
 #include "core/click_handler_types.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_internal.h"
@@ -19,6 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace InlineBots {
 namespace Layout {
+namespace {
+
+NeverFreedPointer<DocumentItems> documentItemsMap;
+
+} // namespace
 
 void ItemBase::setPosition(int32 position) {
 	_position = position;
@@ -72,20 +78,20 @@ void ItemBase::preload() const {
 	const auto origin = fileOrigin();
 	if (_result) {
 		if (_result->_photo) {
-			_result->_photo->thumb->load(origin);
+			_result->_photo->loadThumbnail(origin);
 		} else if (_result->_document) {
-			_result->_document->thumb->load(origin);
+			_result->_document->loadThumbnail(origin);
 		} else if (!_result->_thumb->isNull()) {
 			_result->_thumb->load(origin);
 		}
 	} else if (_doc) {
-		_doc->thumb->load(origin);
+		_doc->loadThumbnail(origin);
 	} else if (_photo) {
-		_photo->medium->load(origin);
+		_photo->loadThumbnail(origin);
 	}
 }
 
-void ItemBase::update() {
+void ItemBase::update() const {
 	if (_position >= 0) {
 		context()->inlineItemRepaint(this);
 	}
@@ -139,17 +145,17 @@ PhotoData *ItemBase::getResultPhoto() const {
 	return _result ? _result->_photo : nullptr;
 }
 
-ImagePtr ItemBase::getResultThumb() const {
+Image *ItemBase::getResultThumb() const {
 	if (_result) {
-		if (_result->_photo && !_result->_photo->thumb->isNull()) {
-			return _result->_photo->thumb;
+		if (_result->_photo) {
+			return _result->_photo->thumbnail();
+		} else if (!_result->_thumb->isNull()) {
+			return _result->_thumb.get();
+		} else if (!_result->_locationThumb->isNull()) {
+			return _result->_locationThumb.get();
 		}
-		if (!_result->_thumb->isNull()) {
-			return _result->_thumb;
-		}
-		return _result->_locationThumb;
 	}
-	return ImagePtr();
+	return nullptr;
 }
 
 QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
@@ -183,7 +189,9 @@ ClickHandlerPtr ItemBase::getResultUrlHandler() const {
 
 ClickHandlerPtr ItemBase::getResultContentUrlHandler() const {
 	if (!_result->_content_url.isEmpty()) {
-		return std::make_shared<UrlClickHandler>(_result->_content_url);
+		return std::make_shared<UrlClickHandler>(
+			_result->_content_url,
+			false);
 	}
 	return ClickHandlerPtr();
 }
@@ -211,11 +219,9 @@ QString ItemBase::getResultThumbLetter() const {
 	return QString();
 }
 
-namespace {
-
-NeverFreedPointer<DocumentItems> documentItemsMap;
-
-} // namespace
+Data::FileOrigin ItemBase::fileOrigin() const {
+	return _context->inlineItemFileOrigin();
+}
 
 const DocumentItems *documentItems() {
 	return documentItemsMap.data();

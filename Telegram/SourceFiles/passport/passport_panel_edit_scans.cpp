@@ -10,17 +10,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_controller.h"
 #include "passport/passport_panel_details_row.h"
 #include "info/profile/info_profile_button.h"
-#include "info/profile/info_profile_values.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/text_options.h"
 #include "core/file_utilities.h"
 #include "lang/lang_keys.h"
 #include "boxes/abstract_box.h"
 #include "storage/storage_media_prepare.h"
+#include "storage/file_upload.h" // For Storage::kUseBigFilesFrom.
 #include "styles/style_boxes.h"
 #include "styles/style_passport.h"
 
@@ -31,7 +32,7 @@ constexpr auto kMaxDimensions = 2048;
 constexpr auto kMaxSize = 10 * 1024 * 1024;
 constexpr auto kJpegQuality = 89;
 
-static_assert(kMaxSize <= UseBigFilesFrom);
+static_assert(kMaxSize <= Storage::kUseBigFilesFrom);
 
 base::variant<ReadScanError, QByteArray> ProcessImage(QByteArray &&bytes) {
 	auto image = App::readImage(base::take(bytes));
@@ -98,8 +99,8 @@ private:
 	int countAvailableWidth() const;
 
 	const style::PassportScanRow &_st;
-	Text _name;
-	Text _status;
+	Ui::Text::String _name;
+	Ui::Text::String _status;
 	int _nameHeight = 0;
 	int _statusHeight = 0;
 	bool _error = false;
@@ -118,7 +119,7 @@ struct EditScans::SpecialScan {
 	base::unique_qptr<Ui::SlideWrap<ScanButton>> row;
 	QPointer<Info::Profile::Button> upload;
 	bool errorShown = false;
-	Animation errorAnimation;
+	Ui::Animations::Simple errorAnimation;
 	rpl::variable<bool> rowCreated;
 };
 
@@ -209,9 +210,9 @@ Ui::SlideWrap<ScanButton> *EditScans::List::nonDeletedErrorRow() const {
 }
 
 rpl::producer<QString> EditScans::List::uploadButtonText() const {
-	return Lang::Viewer(files.empty()
-		? lng_passport_upload_scans
-		: lng_passport_upload_more) | Info::Profile::ToUpperValue();
+	return (files.empty()
+		? tr::lng_passport_upload_scans
+		: tr::lng_passport_upload_more)() | Ui::Text::ToUpper();
 }
 
 void EditScans::List::hideError() {
@@ -230,7 +231,7 @@ void EditScans::List::toggleError(bool shown) {
 }
 
 void EditScans::List::errorAnimationCallback() {
-	const auto error = errorAnimation.current(errorShown ? 1. : 0.);
+	const auto error = errorAnimation.value(errorShown ? 1. : 0.);
 	if (error == 0.) {
 		upload->setColorOverride(std::nullopt);
 	} else {
@@ -271,7 +272,7 @@ void EditScans::List::pushScan(const ScanInfo &info) {
 	rows.push_back(CreateScan(
 		wrap,
 		info,
-		lng_passport_scan_index(lt_index, QString::number(index + 1))));
+		tr::lng_passport_scan_index(tr::now, lt_index, QString::number(index + 1))));
 	rows.back()->hide(anim::type::instant);
 
 	const auto scan = rows.back()->entity();
@@ -312,7 +313,7 @@ ScanButton::ScanButton(
 	this,
 	object_ptr<Ui::RoundButton>(
 		this,
-		langFactory(lng_passport_delete_scan_undo),
+		tr::lng_passport_delete_scan_undo(),
 		_st.restore)) {
 	_delete->toggle(!deleted, anim::type::instant);
 	_restore->toggle(deleted, anim::type::instant);
@@ -518,14 +519,13 @@ void EditScans::setupScans(const QString &header) {
 				object_ptr<Ui::FlatLabel>(
 					inner,
 					_error,
-					Ui::FlatLabel::InitType::Simple,
 					st::passportVerifyErrorLabel),
 				st::passportValueErrorPadding));
 		_commonError->toggle(true, anim::type::instant);
 	}
 
 	setupList(inner, FileType::Scan, header);
-	setupList(inner, FileType::Translation, lang(lng_passport_translation));
+	setupList(inner, FileType::Translation, tr::lng_passport_translation(tr::now));
 
 	init();
 }
@@ -554,7 +554,6 @@ void EditScans::setupList(
 			object_ptr<Ui::FlatLabel>(
 				container,
 				header,
-				Ui::FlatLabel::InitType::Simple,
 				st::passportFormHeader),
 			st::passportUploadHeaderPadding));
 	list.header->toggle(
@@ -567,7 +566,6 @@ void EditScans::setupList(
 				object_ptr<Ui::FlatLabel>(
 					container,
 					list.errorMissing,
-					Ui::FlatLabel::InitType::Simple,
 					st::passportVerifyErrorLabel),
 				st::passportUploadErrorPadding));
 		list.uploadMoreError->toggle(true, anim::type::instant);
@@ -603,47 +601,47 @@ void EditScans::setupSpecialScans(
 	const auto title = [&](FileType type) {
 		switch (type) {
 		case FileType::FrontSide:
-			return lang(requiresBothSides
-				? lng_passport_front_side_title
-				: lng_passport_main_page_title);
+			return requiresBothSides
+				? tr::lng_passport_front_side_title(tr::now)
+				: tr::lng_passport_main_page_title(tr::now);
 		case FileType::ReverseSide:
-			return lang(lng_passport_reverse_side_title);
+			return tr::lng_passport_reverse_side_title(tr::now);
 		case FileType::Selfie:
-			return lang(lng_passport_selfie_title);
+			return tr::lng_passport_selfie_title(tr::now);
 		}
 		Unexpected("Type in special row title.");
 	};
-	const auto uploadKey = [=](FileType type, bool hasScan) {
+	const auto uploadText = [=](FileType type, bool hasScan) {
 		switch (type) {
 		case FileType::FrontSide:
 			return requiresBothSides
 				? (hasScan
-					? lng_passport_reupload_front_side
-					: lng_passport_upload_front_side)
+					? tr::lng_passport_reupload_front_side
+					: tr::lng_passport_upload_front_side)
 				: (hasScan
-					? lng_passport_reupload_main_page
-					: lng_passport_upload_main_page);
+					? tr::lng_passport_reupload_main_page
+					: tr::lng_passport_upload_main_page);
 		case FileType::ReverseSide:
 			return hasScan
-				? lng_passport_reupload_reverse_side
-				: lng_passport_upload_reverse_side;
+				? tr::lng_passport_reupload_reverse_side
+				: tr::lng_passport_upload_reverse_side;
 		case FileType::Selfie:
 			return hasScan
-				? lng_passport_reupload_selfie
-				: lng_passport_upload_selfie;
+				? tr::lng_passport_reupload_selfie
+				: tr::lng_passport_upload_selfie;
 		}
 		Unexpected("Type in special row upload key.");
 	};
 	const auto description = [&](FileType type) {
 		switch (type) {
 		case FileType::FrontSide:
-			return lang(requiresBothSides
-				? lng_passport_front_side_description
-				: lng_passport_main_page_description);
+			return requiresBothSides
+				? tr::lng_passport_front_side_description
+				: tr::lng_passport_main_page_description;
 		case FileType::ReverseSide:
-			return lang(lng_passport_reverse_side_description);
+			return tr::lng_passport_reverse_side_description;
 		case FileType::Selfie:
-			return lang(lng_passport_selfie_description);
+			return tr::lng_passport_selfie_description;
 		}
 		Unexpected("Type in special row upload key.");
 	};
@@ -658,7 +656,6 @@ void EditScans::setupSpecialScans(
 				object_ptr<Ui::FlatLabel>(
 					inner,
 					_error,
-					Ui::FlatLabel::InitType::Simple,
 					st::passportVerifyErrorLabel),
 				st::passportValueErrorPadding));
 		_commonError->toggle(true, anim::type::instant);
@@ -677,7 +674,6 @@ void EditScans::setupSpecialScans(
 					object_ptr<Ui::FlatLabel>(
 						inner,
 						header,
-						Ui::FlatLabel::InitType::Simple,
 						st::passportFormHeader),
 					st::passportUploadHeaderPadding));
 			scan.header->toggle(scan.file.key.id != 0, anim::type::instant);
@@ -688,9 +684,9 @@ void EditScans::setupSpecialScans(
 		}
 		auto label = scan.rowCreated.value(
 		) | rpl::map([=, type = type](bool created) {
-			return Lang::Viewer(uploadKey(type, created));
+			return uploadText(type, created)();
 		}) | rpl::flatten_latest(
-		) | Info::Profile::ToUpperValue();
+		) | Ui::Text::ToUpper();
 		scan.upload = inner->add(
 			object_ptr<Info::Profile::Button>(
 				inner,
@@ -705,13 +701,12 @@ void EditScans::setupSpecialScans(
 			inner,
 			object_ptr<Ui::FlatLabel>(
 				inner,
-				description(type),
-				Ui::FlatLabel::InitType::Simple,
+				description(type)(tr::now),
 				st::boxDividerLabel),
 			st::passportFormLabelPadding));
 	}
 
-	setupList(inner, FileType::Translation, lang(lng_passport_translation));
+	setupList(inner, FileType::Translation, tr::lng_passport_translation(tr::now));
 
 	init();
 }
@@ -813,13 +808,13 @@ void EditScans::createSpecialScanRow(
 	const auto name = [&] {
 		switch (type) {
 		case FileType::FrontSide:
-			return lang(requiresBothSides
-				? lng_passport_front_side_title
-				: lng_passport_main_page_title);
+			return requiresBothSides
+				? tr::lng_passport_front_side_title(tr::now)
+				: tr::lng_passport_main_page_title(tr::now);
 		case FileType::ReverseSide:
-			return lang(lng_passport_reverse_side_title);
+			return tr::lng_passport_reverse_side_title(tr::now);
 		case FileType::Selfie:
-			return lang(lng_passport_selfie_title);
+			return tr::lng_passport_selfie_title(tr::now);
 		}
 		Unexpected("Type in special file name.");
 	}();
@@ -841,7 +836,7 @@ void EditScans::createSpecialScanRow(
 
 void EditScans::chooseScan(FileType type) {
 	if (!_controller->canAddScan(type)) {
-		_controller->showToast(lang(lng_passport_scans_limit_reached));
+		_controller->showToast(tr::lng_passport_scans_limit_reached(tr::now));
 		return;
 	}
 	ChooseScan(this, type, [=](QByteArray &&content) {
@@ -933,7 +928,7 @@ void EditScans::ChooseScan(
 		|| (type == FileType::Translation);
 	(allowMany ? FileDialog::GetOpenPaths : FileDialog::GetOpenPath)(
 		parent,
-		lang(lng_passport_choose_image),
+		tr::lng_passport_choose_image(tr::now),
 		filter,
 		processOpened,
 		nullptr);
@@ -971,7 +966,7 @@ void EditScans::toggleSpecialScanError(FileType type, bool shown) {
 
 void EditScans::specialScanErrorAnimationCallback(FileType type) {
 	auto &scan = findSpecialScan(type);
-	const auto error = scan.errorAnimation.current(
+	const auto error = scan.errorAnimation.value(
 		scan.errorShown ? 1. : 0.);
 	if (error == 0.) {
 		scan.upload->setColorOverride(std::nullopt);

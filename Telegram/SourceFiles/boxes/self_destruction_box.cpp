@@ -20,8 +20,7 @@ SelfDestructionBox::SelfDestructionBox(
 : _ttlValues{ 30, 90, 180, 365 }
 , _loading(
 		this,
-		lang(lng_contacts_loading),
-		Ui::FlatLabel::InitType::Simple,
+		tr::lng_contacts_loading(tr::now),
 		st::membersAbout) {
 	std::move(
 		preloaded
@@ -54,8 +53,7 @@ void SelfDestructionBox::showContent() {
 	auto y = st::boxOptionListPadding.top();
 	_description.create(
 		this,
-		lang(lng_self_destruct_description),
-		Ui::FlatLabel::InitType::Simple,
+		tr::lng_self_destruct_description(tr::now),
 		st::boxLabel);
 	_description->moveToLeft(st::boxPadding.left(), y);
 	y += _description->height() + st::boxMediumSkip;
@@ -74,26 +72,25 @@ void SelfDestructionBox::showContent() {
 	showChildren();
 
 	clearButtons();
-	addButton(langFactory(lng_settings_save), [=] {
+	addButton(tr::lng_settings_save(), [=] {
 		Auth().api().saveSelfDestruct(_ttlGroup->value());
 		closeBox();
 	});
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 }
 
 QString SelfDestructionBox::DaysLabel(int days) {
 	return (days > 364)
-		? lng_self_destruct_years(lt_count, days / 365)
-		: lng_self_destruct_months(lt_count, qMax(days / 30, 1));
+		? tr::lng_self_destruct_years(tr::now, lt_count, days / 365)
+		: tr::lng_self_destruct_months(tr::now, lt_count, qMax(days / 30, 1));
 }
 
 void SelfDestructionBox::prepare() {
-	setTitle(langFactory(lng_self_destruct_title));
+	setTitle(tr::lng_self_destruct_title());
 
 	auto fake = object_ptr<Ui::FlatLabel>(
 		this,
-		lang(lng_self_destruct_description),
-		Ui::FlatLabel::InitType::Simple,
+		tr::lng_self_destruct_description(tr::now),
 		st::boxLabel);
 	const auto boxHeight = st::boxOptionListPadding.top()
 		+ fake->height() + st::boxMediumSkip
@@ -105,7 +102,7 @@ void SelfDestructionBox::prepare() {
 
 	setDimensions(st::boxWidth, boxHeight);
 
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	if (_loading) {
 		_loading->moveToLeft(

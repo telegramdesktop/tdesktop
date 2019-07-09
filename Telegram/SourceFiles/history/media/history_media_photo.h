@@ -21,7 +21,7 @@ public:
 		not_null<PhotoData*> photo,
 		int width);
 
-	void draw(Painter &p, const QRect &clip, TextSelection selection, TimeMs ms) const override;
+	void draw(Painter &p, const QRect &clip, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
@@ -36,7 +36,7 @@ public:
 		return !_caption.isEmpty();
 	}
 
-	TextWithEntities selectedText(TextSelection selection) const override;
+	TextForMimeData selectedText(TextSelection selection) const override;
 
 	PhotoData *getPhoto() const override {
 		return _data;
@@ -47,7 +47,7 @@ public:
 		Painter &p,
 		const QRect &clip,
 		TextSelection selection,
-		TimeMs ms,
+		crl::time ms,
 		const QRect &geometry,
 		RectParts corners,
 		not_null<uint64*> cacheKey,
@@ -58,7 +58,7 @@ public:
 		StateRequest request) const override;
 
 	TextWithEntities getCaption() const override {
-		return _caption.originalTextWithEntities();
+		return _caption.toTextWithEntities();
 	}
 	bool needsBubble() const override;
 	bool customInfoLayout() const override {
@@ -93,6 +93,6 @@ private:
 	int _serviceWidth = 0;
 	int _pixw = 1;
 	int _pixh = 1;
-	Text _caption;
+	Ui::Text::String _caption;
 
 };

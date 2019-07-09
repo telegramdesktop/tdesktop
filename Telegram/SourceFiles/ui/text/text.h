@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "private/qfontengine_p.h"
-
 #include "core/click_handler.h"
 #include "ui/text/text_entity.h"
 #include "base/flags.h"
+
+#include <private/qfontengine_p.h>
 
 static const QChar TextCommand(0x0010);
 enum TextCommands {
@@ -21,10 +21,12 @@ enum TextCommands {
 	TextCommandNoItalic    = 0x04,
 	TextCommandUnderline   = 0x05,
 	TextCommandNoUnderline = 0x06,
-	TextCommandSemibold    = 0x07,
-	TextCommandNoSemibold  = 0x08,
-	TextCommandLinkIndex   = 0x09, // 0 - NoLink
-	TextCommandLinkText    = 0x0A,
+	TextCommandStrikeOut   = 0x07,
+	TextCommandNoStrikeOut = 0x08,
+	TextCommandSemibold    = 0x09,
+	TextCommandNoSemibold  = 0x0A,
+	TextCommandLinkIndex   = 0x0B, // 0 - NoLink
+	TextCommandLinkText    = 0x0C,
 	TextCommandSkipBlock   = 0x0D,
 
 	TextCommandLangTag     = 0x20,
@@ -64,24 +66,58 @@ inline bool operator!=(TextSelection a, TextSelection b) {
 
 static constexpr TextSelection AllTextSelection = { 0, 0xFFFF };
 
-typedef QPair<QString, QString> TextCustomTag; // open str and close str
-typedef QMap<QChar, TextCustomTag> TextCustomTagsMap;
+namespace Ui {
+namespace Text {
 
-class ITextBlock;
-class Text {
+class AbstractBlock;
+
+struct StateRequest {
+	enum class Flag {
+		BreakEverywhere = (1 << 0),
+		LookupSymbol = (1 << 1),
+		LookupLink = (1 << 2),
+		LookupCustomTooltip = (1 << 3),
+	};
+	using Flags = base::flags<Flag>;
+	friend inline constexpr auto is_flag_type(Flag) { return true; };
+
+	StateRequest() {
+	}
+
+	style::align align = style::al_left;
+	Flags flags = Flag::LookupLink;
+};
+
+struct StateResult {
+	ClickHandlerPtr link;
+	bool uponSymbol = false;
+	bool afterSymbol = false;
+	uint16 symbol = 0;
+};
+
+struct StateRequestElided : public StateRequest {
+	StateRequestElided() {
+	}
+	StateRequestElided(const StateRequest &other) : StateRequest(other) {
+	}
+	int lines = 1;
+	int removeFromEnd = 0;
+};
+
+class String {
 public:
-	Text(int32 minResizeWidth = QFIXED_MAX);
-	Text(const style::TextStyle &st, const QString &text, const TextParseOptions &options = _defaultOptions, int32 minResizeWidth = QFIXED_MAX, bool richText = false);
-	Text(const Text &other);
-	Text(Text &&other);
-	Text &operator=(const Text &other);
-	Text &operator=(Text &&other);
+	String(int32 minResizeWidth = QFIXED_MAX);
+	String(const style::TextStyle &st, const QString &text, const TextParseOptions &options = _defaultOptions, int32 minResizeWidth = QFIXED_MAX, bool richText = false);
+	String(const String &other);
+	String(String &&other);
+	String &operator=(const String &other);
+	String &operator=(String &&other);
 
 	int countWidth(int width) const;
 	int countHeight(int width) const;
 	void countLineWidths(int width, QVector<int> *lineWidths) const;
 	void setText(const style::TextStyle &st, const QString &text, const TextParseOptions &options = _defaultOptions);
-	void setRichText(const style::TextStyle &st, const QString &text, TextParseOptions options = _defaultOptions, const TextCustomTagsMap &custom = TextCustomTagsMap());
+	void setRichText(const style::TextStyle &st, const QString &text, TextParseOptions options = _defaultOptions);
 	void setMarkedText(const style::TextStyle &st, const TextWithEntities &textWithEntities, const TextParseOptions &options = _defaultOptions);
 
 	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
@@ -113,40 +149,10 @@ public:
 		drawElided(p, rtl() ? right : (outerw - right - width), top, width, lines, align, yFrom, yTo, removeFromEnd, breakEverywhere, selection);
 	}
 
-	struct StateRequest {
-		enum class Flag {
-			BreakEverywhere     = (1 << 0),
-			LookupSymbol        = (1 << 1),
-			LookupLink          = (1 << 2),
-			LookupCustomTooltip = (1 << 3),
-		};
-		using Flags = base::flags<Flag>;
-		friend inline constexpr auto is_flag_type(Flag) { return true; };
-
-		StateRequest() {
-		}
-
-		style::align align = style::al_left;
-		Flags flags = Flag::LookupLink;
-	};
-	struct StateResult {
-		ClickHandlerPtr link;
-		bool uponSymbol = false;
-		bool afterSymbol = false;
-		uint16 symbol = 0;
-	};
 	StateResult getState(QPoint point, int width, StateRequest request = StateRequest()) const;
 	StateResult getStateLeft(QPoint point, int width, int outerw, StateRequest request = StateRequest()) const {
 		return getState(rtlpoint(point, outerw), width, request);
 	}
-	struct StateRequestElided : public StateRequest {
-		StateRequestElided() {
-		}
-		StateRequestElided(const StateRequest &other) : StateRequest(other) {
-		}
-		int lines = 1;
-		int removeFromEnd = 0;
-    };
 	StateResult getStateElided(QPoint point, int width, StateRequestElided request = StateRequestElided()) const;
 	StateResult getStateElidedLeft(QPoint point, int width, int outerw, StateRequestElided request = StateRequestElided()) const {
 		return getStateElided(rtlpoint(point, outerw), width, request);
@@ -165,8 +171,11 @@ public:
 		return _text.size();
 	}
 
-	TextWithEntities originalTextWithEntities(TextSelection selection = AllTextSelection, ExpandLinksMode mode = ExpandLinksShortened) const;
-	QString originalText(TextSelection selection = AllTextSelection, ExpandLinksMode mode = ExpandLinksShortened) const;
+	QString toString(TextSelection selection = AllTextSelection) const;
+	TextWithEntities toTextWithEntities(
+		TextSelection selection = AllTextSelection) const;
+	TextForMimeData toTextForMimeData(
+		TextSelection selection = AllTextSelection) const;
 
 	bool lastDots(int32 dots, int32 maxdots = 3) { // hack for typing animation
 		if (_text.size() < maxdots) return false;
@@ -192,14 +201,14 @@ public:
 	}
 
 	void clear();
-	~Text();
+	~String();
 
 private:
-	using TextBlocks = std::vector<std::unique_ptr<ITextBlock>>;
+	using TextBlocks = std::vector<std::unique_ptr<AbstractBlock>>;
 	using TextLinks = QVector<ClickHandlerPtr>;
 
 	uint16 countBlockEnd(const TextBlocks::const_iterator &i, const TextBlocks::const_iterator &e) const;
-	uint16 countBlockLength(const Text::TextBlocks::const_iterator &i, const Text::TextBlocks::const_iterator &e) const;
+	uint16 countBlockLength(const TextBlocks::const_iterator &i, const TextBlocks::const_iterator &e) const;
 
 	// Template method for originalText(), originalTextWithEntities().
 	template <typename AppendPartCallback, typename ClickHandlerStartCallback, typename ClickHandlerFinishCallback, typename FlagsChangeCallback>
@@ -217,6 +226,11 @@ private:
 	// it is also called from move constructor / assignment operator
 	void clearFields();
 
+	TextForMimeData toText(
+		TextSelection selection,
+		bool composeExpanded,
+		bool composeEntities) const;
+
 	QFixed _minResizeWidth;
 	QFixed _maxWidth = 0;
 	int32 _minHeight = 0;
@@ -229,10 +243,14 @@ private:
 
 	Qt::LayoutDirection _startDir = Qt::LayoutDirectionAuto;
 
-	friend class TextParser;
-	friend class TextPainter;
+	friend class Parser;
+	friend class Renderer;
 
 };
+
+} // namespace Text
+} // namespace Ui
+
 inline TextSelection snapSelection(int from, int to) {
 	return { static_cast<uint16>(snap(from, 0, 0xFFFF)), static_cast<uint16>(snap(to, 0, 0xFFFF)) };
 }
@@ -242,10 +260,10 @@ inline TextSelection shiftSelection(TextSelection selection, uint16 byLength) {
 inline TextSelection unshiftSelection(TextSelection selection, uint16 byLength) {
 	return snapSelection(int(selection.from) - int(byLength), int(selection.to) - int(byLength));
 }
-inline TextSelection shiftSelection(TextSelection selection, const Text &byText) {
+inline TextSelection shiftSelection(TextSelection selection, const Ui::Text::String &byText) {
 	return shiftSelection(selection, byText.length());
 }
-inline TextSelection unshiftSelection(TextSelection selection, const Text &byText) {
+inline TextSelection unshiftSelection(TextSelection selection, const Ui::Text::String &byText) {
 	return unshiftSelection(selection, byText.length());
 }
 
@@ -261,7 +279,7 @@ QString textcmdStopSemibold();
 const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink = true);
 
 inline bool chIsSpace(QChar ch, bool rich = false) {
-	return ch.isSpace() || (ch < 32 && !(rich && ch == TextCommand)) || (ch == QChar::ParagraphSeparator) || (ch == QChar::LineSeparator) || (ch == QChar::ObjectReplacementCharacter) || (ch == QChar::CarriageReturn) || (ch == QChar::Tabulation);
+	return ch.isSpace() || (ch < 32 && !(rich && ch == TextCommand)) || (ch == QChar::ParagraphSeparator) || (ch == QChar::LineSeparator) || (ch == QChar::ObjectReplacementCharacter) || (ch == QChar::CarriageReturn) || (ch == QChar::Tabulation) || (ch == QChar(8203)/*Zero width space.*/);
 }
 inline bool chIsDiac(QChar ch) { // diac and variation selectors
 	return (ch.category() == QChar::Mark_NonSpacing) || (ch == 1652) || (ch >= 64606 && ch <= 64611);

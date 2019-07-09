@@ -175,7 +175,7 @@ void CompactorObject::fail() {
 void CompactorObject::done(int64 till) {
 	const auto path = compactPath();
 	_database.with([=, good = std::move(_guard)](DatabaseObject &database) {
-		if (good.alive()) {
+		if (good) {
 			database.compactorDone(path, till);
 		}
 	});

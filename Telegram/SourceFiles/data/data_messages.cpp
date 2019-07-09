@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "data/data_feed_messages.h"
+#include "data/data_messages.h"
 
 namespace Data {
 
@@ -83,7 +83,8 @@ int MessagesList::addRangeItemsAndCountNew(
 		std::end(messages) };
 	auto slice = _slices.emplace(
 		std::move(sliceMessages),
-		noSkipRange);
+		noSkipRange
+	).first;
 	update.messages = &slice->messages;
 	update.range = slice->range;
 	return slice->messages.size();

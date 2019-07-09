@@ -19,12 +19,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "ui/toast/toast.h"
 #include "ui/emoji_config.h"
+#include "lottie/lottie_single_player.h"
+#include "lottie/lottie_multi_player.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Stickers {
+namespace {
+
+constexpr auto kDontCacheLottieAfterArea = 512 * 512;
+
+} // namespace
 
 void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
-	auto &v = d.vsets.v;
+	auto &v = d.vsets().v;
 	auto &order = Auth().data().stickerSetsOrderRef();
 	Order archived;
 	archived.reserve(v.size());
@@ -34,14 +41,14 @@ void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 		switch (stickerSet.type()) {
 		case mtpc_stickerSetCovered: {
 			auto &d = stickerSet.c_stickerSetCovered();
-			if (d.vset.type() == mtpc_stickerSet) {
-				setData = &d.vset.c_stickerSet();
+			if (d.vset().type() == mtpc_stickerSet) {
+				setData = &d.vset().c_stickerSet();
 			}
 		} break;
 		case mtpc_stickerSetMultiCovered: {
 			auto &d = stickerSet.c_stickerSetMultiCovered();
-			if (d.vset.type() == mtpc_stickerSet) {
-				setData = &d.vset.c_stickerSet();
+			if (d.vset().type() == mtpc_stickerSet) {
+				setData = &d.vset().c_stickerSet();
 			}
 		} break;
 		}
@@ -67,7 +74,7 @@ void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	Local::writeArchivedStickers();
 
 	Ui::Toast::Config toast;
-	toast.text = lang(lng_stickers_packs_archived);
+	toast.text = tr::lng_stickers_packs_archived(tr::now);
 	toast.maxWidth = st::stickersToastMaxWidth;
 	toast.padding = st::stickersToastPadding;
 	Ui::Toast::Show(toast);
@@ -83,13 +90,15 @@ bool ApplyArchivedResultFake() {
 		if ((set.flags & MTPDstickerSet::Flag::f_installed_date)
 			&& !(set.flags & MTPDstickerSet_ClientFlag::f_special)) {
 			if (rand_value<uint32>() % 128 < 64) {
-				auto data = MTP_stickerSet(
+				const auto data = MTP_stickerSet(
 					MTP_flags(set.flags | MTPDstickerSet::Flag::f_archived),
 					MTP_int(set.installDate),
 					MTP_long(set.id),
 					MTP_long(set.access),
 					MTP_string(set.title),
 					MTP_string(set.shortName),
+					MTP_photoSizeEmpty(MTP_string()),
+					MTP_int(0),
 					MTP_int(set.count),
 					MTP_int(set.hash));
 				sets.push_back(MTP_stickerSetCovered(
@@ -173,7 +182,7 @@ void UndoInstallLocally(uint64 setId) {
 	Auth().data().notifyStickersUpdated();
 
 	Ui::show(
-		Box<InformBox>(lang(lng_stickers_not_found)),
+		Box<InformBox>(tr::lng_stickers_not_found(tr::now)),
 		LayerOption::KeepOther);
 }
 
@@ -252,7 +261,8 @@ void SetIsFaved(not_null<DocumentData*> document, std::optional<std::vector<not_
 			0, // count
 			0, // hash
 			MTPDstickerSet_ClientFlag::f_special | 0,
-			TimeId(0)));
+			TimeId(0),
+			ImagePtr()));
 	}
 	auto index = it->stickers.indexOf(document);
 	if (index == 0) {
@@ -288,13 +298,13 @@ void RequestSetToPushFaved(not_null<DocumentData*> document) {
 		Expects(result.type() == mtpc_messages_stickerSet);
 		auto list = std::vector<not_null<EmojiPtr>>();
 		auto &d = result.c_messages_stickerSet();
-		list.reserve(d.vpacks.v.size());
-		for_const (auto &mtpPack, d.vpacks.v) {
+		list.reserve(d.vpacks().v.size());
+		for_const (auto &mtpPack, d.vpacks().v) {
 			auto &pack = mtpPack.c_stickerPack();
-			for_const (auto &documentId, pack.vdocuments.v) {
+			for_const (auto &documentId, pack.vdocuments().v) {
 				if (documentId.v == document->id) {
-					if (auto emoji = Ui::Emoji::Find(qs(mtpPack.c_stickerPack().vemoticon))) {
-						list.push_back(emoji);
+					if (const auto emoji = Ui::Emoji::Find(qs(mtpPack.c_stickerPack().vemoticon()))) {
+						list.emplace_back(emoji);
 					}
 					break;
 				}
@@ -425,9 +435,9 @@ void SetPackAndEmoji(
 	for_const (auto &mtpPack, packs) {
 		Assert(mtpPack.type() == mtpc_stickerPack);
 		auto &pack = mtpPack.c_stickerPack();
-		if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
+		if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon()))) {
 			emoji = emoji->original();
-			auto &stickers = pack.vdocuments.v;
+			auto &stickers = pack.vdocuments().v;
 
 			auto p = Pack();
 			p.reserve(stickers.size());
@@ -466,7 +476,8 @@ void SpecialSetReceived(
 				0, // count
 				0, // hash
 				MTPDstickerSet_ClientFlag::f_special | 0,
-				TimeId(0)));
+				TimeId(0),
+				ImagePtr()));
 		} else {
 			it->title = setTitle;
 		}
@@ -480,9 +491,9 @@ void SpecialSetReceived(
 		auto custom = sets.find(CustomSetId);
 		auto pack = Pack();
 		pack.reserve(items.size());
-		for_const (auto &mtpDocument, items) {
+		for (const auto &item : items) {
 			++dateIndex;
-			auto document = Auth().data().document(mtpDocument);
+			const auto document = Auth().data().processDocument(item);
 			if (!document->sticker()) {
 				continue;
 			}
@@ -544,19 +555,28 @@ void SpecialSetReceived(
 	Auth().data().notifyStickersUpdated();
 }
 
-void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVector<MTPlong> &unread, int32 hash) {
-	OrderedSet<uint64> unreadMap;
-	for_const (auto &unreadSetId, unread) {
-		unreadMap.insert(unreadSetId.v);
-	}
+void FeaturedSetsReceived(
+		const QVector<MTPStickerSetCovered> &data,
+		const QVector<MTPlong> &unread,
+		int32 hash) {
+	auto &&unreadIds = ranges::view::all(
+		unread
+	) | ranges::view::transform([](const MTPlong &id) {
+		return id.v;
+	});
+	const auto unreadMap = base::flat_set<uint64>{
+		unreadIds.begin(),
+		unreadIds.end()
+	};
 
 	auto &setsOrder = Auth().data().featuredStickerSetsOrderRef();
 	setsOrder.clear();
 
 	auto &sets = Auth().data().stickerSetsRef();
-	QMap<uint64, uint64> setsToRequest;
+	auto setsToRequest = base::flat_map<uint64, uint64>();
 	for (auto &set : sets) {
-		set.flags &= ~MTPDstickerSet_ClientFlag::f_featured; // mark for removing
+		// Mark for removing.
+		set.flags &= ~MTPDstickerSet_ClientFlag::f_featured;
 	}
 	for (int i = 0, l = data.size(); i != l; ++i) {
 		auto &setData = data[i];
@@ -564,61 +584,65 @@ void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVect
 		switch (setData.type()) {
 		case mtpc_stickerSetCovered: {
 			auto &d = setData.c_stickerSetCovered();
-			if (d.vset.type() == mtpc_stickerSet) {
-				set = &d.vset.c_stickerSet();
+			if (d.vset().type() == mtpc_stickerSet) {
+				set = &d.vset().c_stickerSet();
 			}
 		} break;
 		case mtpc_stickerSetMultiCovered: {
 			auto &d = setData.c_stickerSetMultiCovered();
-			if (d.vset.type() == mtpc_stickerSet) {
-				set = &d.vset.c_stickerSet();
+			if (d.vset().type() == mtpc_stickerSet) {
+				set = &d.vset().c_stickerSet();
 			}
 		} break;
 		}
 
 		if (set) {
-			auto it = sets.find(set->vid.v);
+			auto it = sets.find(set->vid().v);
 			const auto title = GetSetTitle(*set);
-			const auto installDate = set->has_installed_date()
-				? set->vinstalled_date.v
-				: TimeId(0);
+			const auto installDate = set->vinstalled_date().value_or_empty();
+			const auto thumb = set->vthumb();
+			const auto thumbnail = thumb
+				? Images::Create(*set, *thumb)
+				: ImagePtr();
 			if (it == sets.cend()) {
 				auto setClientFlags = MTPDstickerSet_ClientFlag::f_featured
 					| MTPDstickerSet_ClientFlag::f_not_loaded;
-				if (unreadMap.contains(set->vid.v)) {
+				if (unreadMap.contains(set->vid().v)) {
 					setClientFlags |= MTPDstickerSet_ClientFlag::f_unread;
 				}
-				it = sets.insert(set->vid.v, Set(
-					set->vid.v,
-					set->vaccess_hash.v,
+				it = sets.insert(set->vid().v, Set(
+					set->vid().v,
+					set->vaccess_hash().v,
 					title,
-					qs(set->vshort_name),
-					set->vcount.v,
-					set->vhash.v,
-					set->vflags.v | setClientFlags,
-					installDate));
+					qs(set->vshort_name()),
+					set->vcount().v,
+					set->vhash().v,
+					set->vflags().v | setClientFlags,
+					installDate,
+					thumbnail));
 			} else {
-				it->access = set->vaccess_hash.v;
+				it->access = set->vaccess_hash().v;
 				it->title = title;
-				it->shortName = qs(set->vshort_name);
+				it->shortName = qs(set->vshort_name());
 				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
-				it->flags = set->vflags.v | clientFlags;
+				it->flags = set->vflags().v | clientFlags;
 				it->flags |= MTPDstickerSet_ClientFlag::f_featured;
 				it->installDate = installDate;
+				it->thumbnail = thumbnail;
 				if (unreadMap.contains(it->id)) {
 					it->flags |= MTPDstickerSet_ClientFlag::f_unread;
 				} else {
 					it->flags &= ~MTPDstickerSet_ClientFlag::f_unread;
 				}
-				if (it->count != set->vcount.v || it->hash != set->vhash.v || it->emoji.isEmpty()) {
-					it->count = set->vcount.v;
-					it->hash = set->vhash.v;
+				if (it->count != set->vcount().v || it->hash != set->vhash().v || it->emoji.isEmpty()) {
+					it->count = set->vcount().v;
+					it->hash = set->vhash().v;
 					it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded; // need to request this set
 				}
 			}
-			setsOrder.push_back(set->vid.v);
+			setsOrder.push_back(set->vid().v);
 			if (it->stickers.isEmpty() || (it->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
-				setsToRequest.insert(set->vid.v, set->vaccess_hash.v);
+				setsToRequest.emplace(set->vid().v, set->vaccess_hash().v);
 			}
 		}
 	}
@@ -644,10 +668,10 @@ void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVect
 		LOG(("API Error: received featured stickers hash %1 while counted hash is %2").arg(hash).arg(Local::countFeaturedStickersHash()));
 	}
 
-	if (!setsToRequest.isEmpty()) {
+	if (!setsToRequest.empty()) {
 		auto &api = Auth().api();
-		for (auto i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
-			api.scheduleStickerSetRequest(i.key(), i.value());
+		for (const auto [setId, accessHash] : setsToRequest) {
+			api.scheduleStickerSetRequest(setId, accessHash);
 		}
 		api.requestStickerSets();
 	}
@@ -662,10 +686,11 @@ void GifsReceived(const QVector<MTPDocument> &items, int32 hash) {
 	saved.clear();
 
 	saved.reserve(items.size());
-	for_const (auto &gif, items) {
-		auto document = Auth().data().document(gif);
+	for (const auto &item : items) {
+		const auto document = Auth().data().processDocument(item);
 		if (!document->isGifv()) {
-			LOG(("API Error: bad document returned in HistoryWidget::savedGifsGot!"));
+			LOG(("API Error: "
+				"bad document returned in HistoryWidget::savedGifsGot!"));
 			continue;
 		}
 
@@ -705,30 +730,44 @@ std::vector<not_null<DocumentData*>> GetListByEmoji(
 	const auto CreateSortKey = [&](
 			not_null<DocumentData*> document,
 			int base) {
+		if (document->sticker() && document->sticker()->animated) {
+			base += kSlice;
+		}
 		return TimeId(base + int((document->id ^ seed) % kSlice));
 	};
 	const auto CreateRecentSortKey = [&](not_null<DocumentData*> document) {
-		return CreateSortKey(document, kSlice * 4);
+		return CreateSortKey(document, kSlice * 6);
 	};
 	auto myCounter = 0;
-	const auto CreateMySortKey = [&] {
-		return (kSlice * 4 - (++myCounter));
+	const auto CreateMySortKey = [&](not_null<DocumentData*> document) {
+		auto base = kSlice * 6;
+		if (!document->sticker() || !document->sticker()->animated) {
+			base -= kSlice;
+		}
+		return (base - (++myCounter));
 	};
 	const auto CreateFeaturedSortKey = [&](not_null<DocumentData*> document) {
 		return CreateSortKey(document, kSlice * 2);
 	};
 	const auto CreateOtherSortKey = [&](not_null<DocumentData*> document) {
-		return CreateSortKey(document, kSlice);
+		return CreateSortKey(document, 0);
+	};
+	const auto InstallDateAdjusted = [&](
+			TimeId date,
+			not_null<DocumentData*> document) {
+		return (document->sticker() && document->sticker()->animated)
+			? date
+			: date / 2;
 	};
 	const auto InstallDate = [&](not_null<DocumentData*> document) {
 		Expects(document->sticker() != nullptr);
 
 		const auto sticker = document->sticker();
 		if (sticker->set.type() == mtpc_inputStickerSetID) {
-			const auto setId = sticker->set.c_inputStickerSetID().vid.v;
+			const auto setId = sticker->set.c_inputStickerSetID().vid().v;
 			const auto setIt = sets.find(setId);
 			if (setIt != sets.end()) {
-				return setIt->installDate;
+				return InstallDateAdjusted(setIt->installDate, document);
 			}
 		}
 		return TimeId(0);
@@ -780,9 +819,9 @@ std::vector<not_null<DocumentData*>> GetListByEmoji(
 			for (const auto document : *i) {
 				const auto installDate = my ? it->installDate : TimeId(0);
 				const auto date = (installDate > 1)
-					? installDate
+					? InstallDateAdjusted(installDate, document)
 					: my
-					? CreateMySortKey()
+					? CreateMySortKey(document)
 					: CreateFeaturedSortKey(document);
 				add(document, date);
 			}
@@ -797,7 +836,7 @@ std::vector<not_null<DocumentData*>> GetListByEmoji(
 	//	MTPDstickerSet::Flag::f_installed_date);
 
 	if (!setsToRequest.empty()) {
-		for (const auto [setId, accessHash] : setsToRequest) {
+		for (const auto &[setId, accessHash] : setsToRequest) {
 			Auth().api().scheduleStickerSetRequest(setId, accessHash);
 		}
 		Auth().api().requestStickerSets();
@@ -817,7 +856,7 @@ std::vector<not_null<DocumentData*>> GetListByEmoji(
 	ranges::action::sort(
 		result,
 		std::greater<>(),
-		[](const StickerWithDate &data) { return data.date; });
+		&StickerWithDate::date);
 
 	return ranges::view::all(
 		result
@@ -834,14 +873,14 @@ std::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
 			return std::nullopt;
 		}
 		auto &sets = Auth().data().stickerSets();
-		auto it = sets.constFind(inputSet.c_inputStickerSetID().vid.v);
+		auto it = sets.constFind(inputSet.c_inputStickerSetID().vid().v);
 		if (it == sets.cend()) {
 			return std::nullopt;
 		}
 		auto result = std::vector<not_null<EmojiPtr>>();
 		for (auto i = it->emoji.cbegin(), e = it->emoji.cend(); i != e; ++i) {
 			if (i->contains(document)) {
-				result.push_back(i.key());
+				result.emplace_back(i.key());
 			}
 		}
 		if (result.empty()) {
@@ -854,39 +893,45 @@ std::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
 
 Set *FeedSet(const MTPDstickerSet &set) {
 	auto &sets = Auth().data().stickerSetsRef();
-	auto it = sets.find(set.vid.v);
+	auto it = sets.find(set.vid().v);
 	auto title = GetSetTitle(set);
 	auto flags = MTPDstickerSet::Flags(0);
+	const auto thumb = set.vthumb();
+	const auto thumbnail = thumb ? Images::Create(set, *thumb) : ImagePtr();
 	if (it == sets.cend()) {
-		it = sets.insert(set.vid.v, Stickers::Set(
-			set.vid.v,
-			set.vaccess_hash.v,
+		it = sets.insert(set.vid().v, Stickers::Set(
+			set.vid().v,
+			set.vaccess_hash().v,
 			title,
-			qs(set.vshort_name),
-			set.vcount.v,
-			set.vhash.v,
-			set.vflags.v | MTPDstickerSet_ClientFlag::f_not_loaded,
-			set.has_installed_date() ? set.vinstalled_date.v : TimeId(0)));
+			qs(set.vshort_name()),
+			set.vcount().v,
+			set.vhash().v,
+			set.vflags().v | MTPDstickerSet_ClientFlag::f_not_loaded,
+			set.vinstalled_date().value_or_empty(),
+			thumbnail));
 	} else {
-		it->access = set.vaccess_hash.v;
+		it->access = set.vaccess_hash().v;
 		it->title = title;
-		it->shortName = qs(set.vshort_name);
+		it->shortName = qs(set.vshort_name());
 		flags = it->flags;
 		auto clientFlags = it->flags
 			& (MTPDstickerSet_ClientFlag::f_featured
 				| MTPDstickerSet_ClientFlag::f_unread
 				| MTPDstickerSet_ClientFlag::f_not_loaded
 				| MTPDstickerSet_ClientFlag::f_special);
-		it->flags = set.vflags.v | clientFlags;
-		it->installDate = set.has_installed_date()
-			? set.vinstalled_date.v
+		it->flags = set.vflags().v | clientFlags;
+		const auto installDate = set.vinstalled_date();
+		it->installDate = installDate
+			? (installDate->v ? installDate->v : unixtime())
 			: TimeId(0);
-		if (it->count != set.vcount.v
-			|| it->hash != set.vhash.v
+		it->thumbnail = thumbnail;
+		if (it->count != set.vcount().v
+			|| it->hash != set.vhash().v
 			|| it->emoji.isEmpty()) {
-			it->count = set.vcount.v;
-			it->hash = set.vhash.v;
-			it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded; // need to request this set
+			// Need to request this set.
+			it->count = set.vcount().v;
+			it->hash = set.vhash().v;
+			it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded;
 		}
 	}
 	auto changedFlags = (flags ^ it->flags);
@@ -905,25 +950,37 @@ Set *FeedSet(const MTPDstickerSet &set) {
 
 Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 	Expects(data.type() == mtpc_messages_stickerSet);
-	Expects(data.c_messages_stickerSet().vset.type() == mtpc_stickerSet);
-	auto &d = data.c_messages_stickerSet();
-	auto set = FeedSet(d.vset.c_stickerSet());
+	Expects(data.c_messages_stickerSet().vset().type() == mtpc_stickerSet);
+
+	const auto &d = data.c_messages_stickerSet();
+	const auto &s = d.vset().c_stickerSet();
+
+	auto &sets = Auth().data().stickerSetsRef();
+	auto it = sets.find(s.vid().v);
+	const auto wasArchived = (it->flags & MTPDstickerSet::Flag::f_archived);
+
+	auto set = FeedSet(s);
 
 	set->flags &= ~MTPDstickerSet_ClientFlag::f_not_loaded;
 
-	auto &sets = Auth().data().stickerSetsRef();
-	auto &d_docs = d.vdocuments.v;
+	auto &d_docs = d.vdocuments().v;
 	auto custom = sets.find(Stickers::CustomSetId);
+	auto inputSet = MTP_inputStickerSetID(
+		MTP_long(set->id),
+		MTP_long(set->access));
 
 	auto pack = Pack();
 	pack.reserve(d_docs.size());
-	for (auto i = 0, l = d_docs.size(); i != l; ++i) {
-		auto doc = Auth().data().document(d_docs.at(i));
-		if (!doc->sticker()) continue;
+	for (const auto &item : d_docs) {
+		const auto document = Auth().data().processDocument(item);
+		if (!document->sticker()) continue;
 
-		pack.push_back(doc);
+		pack.push_back(document);
+		if (document->sticker()->set.type() != mtpc_inputStickerSetID) {
+			document->sticker()->set = inputSet;
+		}
 		if (custom != sets.cend()) {
-			auto index = custom->stickers.indexOf(doc);
+			const auto index = custom->stickers.indexOf(document);
 			if (index >= 0) {
 				custom->stickers.removeAt(index);
 			}
@@ -953,14 +1010,14 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 	} else {
 		set->stickers = pack;
 		set->emoji.clear();
-		auto &v = d.vpacks.v;
+		auto &v = d.vpacks().v;
 		for (auto i = 0, l = v.size(); i != l; ++i) {
 			if (v[i].type() != mtpc_stickerPack) continue;
 
 			auto &pack = v[i].c_stickerPack();
-			if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
+			if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon()))) {
 				emoji = emoji->original();
-				auto &stickers = pack.vdocuments.v;
+				auto &stickers = pack.vdocuments().v;
 
 				Pack p;
 				p.reserve(stickers.size());
@@ -980,13 +1037,17 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 	}
 
 	if (set) {
+		const auto isArchived = (set->flags & MTPDstickerSet::Flag::f_archived);
 		if (set->flags & MTPDstickerSet::Flag::f_installed_date) {
-			if (!(set->flags & MTPDstickerSet::Flag::f_archived)) {
+			if (!isArchived) {
 				Local::writeInstalledStickers();
 			}
 		}
 		if (set->flags & MTPDstickerSet_ClientFlag::f_featured) {
 			Local::writeFeaturedStickers();
+		}
+		if (wasArchived != isArchived) {
+			Local::writeArchivedStickers();
 		}
 	}
 
@@ -995,10 +1056,37 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 	return set;
 }
 
+void NewSetReceived(const MTPmessages_StickerSet &data) {
+	bool writeArchived = false;
+	const auto &set = data.c_messages_stickerSet();
+	const auto &s = set.vset().c_stickerSet();
+	if (!s.vinstalled_date()) {
+		LOG(("API Error: "
+			"updateNewStickerSet without install_date flag."));
+		return;
+	} else if (s.is_archived()) {
+		LOG(("API Error: "
+			"updateNewStickerSet with archived flag."));
+		return;
+	} else if (s.is_masks()) {
+		return;
+	}
+	auto &order = Auth().data().stickerSetsOrderRef();
+	int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid().v);
+	if (currentIndex != insertAtIndex) {
+		if (currentIndex > 0) {
+			order.removeAt(currentIndex);
+		}
+		order.insert(insertAtIndex, s.vid().v);
+	}
+
+	FeedSetFull(data);
+}
+
 QString GetSetTitle(const MTPDstickerSet &s) {
-	auto title = qs(s.vtitle);
-	if ((s.vflags.v & MTPDstickerSet::Flag::f_official) && !title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
-		return lang(lng_stickers_default_set);
+	auto title = qs(s.vtitle());
+	if ((s.vflags().v & MTPDstickerSet::Flag::f_official) && !title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
+		return tr::lng_stickers_default_set(tr::now);
 	}
 	return title;
 }
@@ -1018,6 +1106,182 @@ RecentStickerPack &GetRecentPack() {
 		}
 	}
 	return cRefRecentStickers();
+}
+
+template <typename Method>
+auto LottieCachedFromContent(
+		Method &&method,
+		Storage::Cache::Key baseKey,
+		LottieSize sizeTag,
+		not_null<AuthSession*> session,
+		const QByteArray &content,
+		QSize box) {
+	const auto key = Storage::Cache::Key{
+		baseKey.high,
+		baseKey.low + int(sizeTag)
+	};
+	const auto get = [=](FnMut<void(QByteArray &&cached)> handler) {
+		session->data().cacheBigFile().get(
+			key,
+			std::move(handler));
+	};
+	const auto weak = base::make_weak(session.get());
+	const auto put = [=](QByteArray &&cached) {
+		crl::on_main(weak, [=, data = std::move(cached)]() mutable {
+			weak->data().cacheBigFile().put(key, std::move(data));
+		});
+	};
+	return method(
+		get,
+		put,
+		content,
+		Lottie::FrameRequest{ box });
+}
+
+template <typename Method>
+auto LottieFromDocument(
+		Method &&method,
+		not_null<DocumentData*> document,
+		LottieSize sizeTag,
+		QSize box) {
+	const auto data = document->data();
+	const auto filepath = document->filepath();
+	if (box.width() * box.height() > kDontCacheLottieAfterArea) {
+		// Don't use frame caching for large stickers.
+		return method(
+			Lottie::ReadContent(data, filepath),
+			Lottie::FrameRequest{ box });
+	}
+	if (const auto baseKey = document->bigFileBaseCacheKey()) {
+		return LottieCachedFromContent(
+			std::forward<Method>(method),
+			*baseKey,
+			sizeTag,
+			&document->session(),
+			Lottie::ReadContent(data, filepath),
+			box);
+	}
+	return method(
+		Lottie::ReadContent(data, filepath),
+		Lottie::FrameRequest{ box });
+}
+
+std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
+		not_null<DocumentData*> document,
+		LottieSize sizeTag,
+		QSize box,
+		Lottie::Quality quality,
+		std::shared_ptr<Lottie::FrameRenderer> renderer) {
+	const auto method = [&](auto &&...args) {
+		return std::make_unique<Lottie::SinglePlayer>(
+			std::forward<decltype(args)>(args)..., quality, std::move(renderer));
+	};
+	return LottieFromDocument(method, document, sizeTag, box);
+}
+
+not_null<Lottie::Animation*> LottieAnimationFromDocument(
+		not_null<Lottie::MultiPlayer*> player,
+		not_null<DocumentData*> document,
+		LottieSize sizeTag,
+		QSize box) {
+	const auto method = [&](auto &&...args) {
+		return player->append(std::forward<decltype(args)>(args)...);
+	};
+	return LottieFromDocument(method, document, sizeTag, box);
+}
+
+bool HasLottieThumbnail(
+		ImagePtr thumbnail,
+		not_null<DocumentData*> sticker) {
+	if (thumbnail) {
+		if (!thumbnail->loaded()) {
+			return false;
+		}
+		const auto &location = thumbnail->location();
+		const auto &bytes = thumbnail->bytesForCache();
+		return location.valid()
+			&& location.type() == StorageFileLocation::Type::StickerSetThumb
+			&& !bytes.isEmpty();
+	} else if (const auto info = sticker->sticker()) {
+		if (!info->animated) {
+			return false;
+		}
+		sticker->automaticLoad(sticker->stickerSetOrigin(), nullptr);
+		if (!sticker->loaded()) {
+			return false;
+		}
+		return sticker->bigFileBaseCacheKey().has_value();
+	}
+	return false;
+}
+
+std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
+		ImagePtr thumbnail,
+		not_null<DocumentData*> sticker,
+		LottieSize sizeTag,
+		QSize box,
+		std::shared_ptr<Lottie::FrameRenderer> renderer) {
+	const auto baseKey = thumbnail
+		? thumbnail->location().file().bigFileBaseCacheKey()
+		: sticker->bigFileBaseCacheKey();
+	if (!baseKey) {
+		return nullptr;
+	}
+	const auto content = (thumbnail
+		? thumbnail->bytesForCache()
+		: Lottie::ReadContent(sticker->data(), sticker->filepath()));
+	if (content.isEmpty()) {
+		return nullptr;
+	}
+	const auto method = [](auto &&...args) {
+		return std::make_unique<Lottie::SinglePlayer>(
+			std::forward<decltype(args)>(args)...);
+	};
+	return LottieCachedFromContent(
+		method,
+		*baseKey,
+		sizeTag,
+		&sticker->session(),
+		content,
+		box);
+}
+
+ThumbnailSource::ThumbnailSource(
+	const StorageImageLocation &location,
+	int size)
+: StorageSource(location, size) {
+}
+
+QImage ThumbnailSource::takeLoaded() {
+	if (_bytesForAnimated.isEmpty()
+		&& _loader
+		&& _loader->finished()
+		&& !_loader->cancelled()) {
+		_bytesForAnimated = _loader->bytes();
+	}
+	auto result = StorageSource::takeLoaded();
+	if (!_bytesForAnimated.isEmpty()
+		&& !result.isNull()
+		&& result.size() != Image::Empty()->original().size()) {
+		_bytesForAnimated = QByteArray();
+	}
+	return result;
+}
+
+QByteArray ThumbnailSource::bytesForCache() {
+	return _bytesForAnimated;
+}
+
+std::unique_ptr<FileLoader> ThumbnailSource::createLoader(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) {
+	auto result = StorageSource::createLoader(
+		origin,
+		fromCloud,
+		autoLoading);
+	_loader = result.get();
+	return result;
 }
 
 } // namespace Stickers

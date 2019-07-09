@@ -9,19 +9,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct FileLoadResult;
 struct SendMediaReady;
+class ApiWrap;
 
 namespace Storage {
+
+// MTP big files methods used for files greater than 10mb.
+constexpr auto kUseBigFilesFrom = 10 * 1024 * 1024;
 
 struct UploadedPhoto {
 	FullMsgId fullId;
 	bool silent = false;
 	MTPInputFile file;
+	bool edit = false;
 };
 
 struct UploadedDocument {
 	FullMsgId fullId;
 	bool silent = false;
 	MTPInputFile file;
+	bool edit = false;
 };
 
 struct UploadedThumbDocument {
@@ -29,6 +35,7 @@ struct UploadedThumbDocument {
 	bool silent = false;
 	MTPInputFile file;
 	MTPInputFile thumb;
+	bool edit = false;
 };
 
 struct UploadSecureProgress {
@@ -47,14 +54,13 @@ class Uploader : public QObject, public RPCSender {
 	Q_OBJECT
 
 public:
-	Uploader();
+	explicit Uploader(not_null<ApiWrap*> api);
+	~Uploader();
+
 	void uploadMedia(const FullMsgId &msgId, const SendMediaReady &image);
 	void upload(
 		const FullMsgId &msgId,
 		const std::shared_ptr<FileLoadResult> &file);
-
-	int32 currentOffset(const FullMsgId &msgId) const; // -1 means file not found
-	int32 fullSize(const FullMsgId &msgId) const;
 
 	void cancel(const FullMsgId &msgId);
 	void pause(const FullMsgId &msgId);
@@ -93,8 +99,6 @@ public:
 		return _secureFailed.events();
 	}
 
-	~Uploader();
-
 public slots:
 	void unpause();
 	void sendNext();
@@ -108,6 +112,7 @@ private:
 
 	void currentFailed();
 
+	not_null<ApiWrap*> _api;
 	base::flat_map<mtpRequestId, QByteArray> requestsSent;
 	base::flat_map<mtpRequestId, int32> docRequestsSent;
 	base::flat_map<mtpRequestId, int32> dcMap;

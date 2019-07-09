@@ -42,6 +42,7 @@ public:
 protected:
 	void prepare() override;
 
+	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
@@ -49,6 +50,9 @@ private:
 
 	bool isPreviousEnabled() const;
 	bool isNextEnabled() const;
+
+	void goPreviousMonth();
+	void goNextMonth();
 
 	const style::CalendarSizes &_st;
 

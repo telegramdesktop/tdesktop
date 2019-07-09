@@ -9,14 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
-enum LangKey : int;
-
 namespace Ui {
 class VerticalLayout;
 } // namespace Ui
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Info {
@@ -48,7 +46,7 @@ public:
 	using RpWidget::RpWidget;
 
 	virtual rpl::producer<Type> sectionShowOther() {
-		return rpl::never<Type>();
+		return nullptr;
 	}
 	virtual rpl::producer<bool> sectionCanSaveChanges() {
 		return rpl::single(false);
@@ -62,7 +60,7 @@ public:
 object_ptr<Section> CreateSection(
 	Type type,
 	not_null<QWidget*> parent,
-	Window::Controller *controller = nullptr,
+	Window::SessionController *controller = nullptr,
 	UserData *self = nullptr);
 
 void AddSkip(not_null<Ui::VerticalLayout*> container);
@@ -73,19 +71,13 @@ void AddDividerText(
 	rpl::producer<QString> text);
 not_null<Button*> AddButton(
 	not_null<Ui::VerticalLayout*> container,
-	LangKey text,
-	const style::InfoProfileButton &st,
-	const style::icon *leftIcon = nullptr,
-	int iconLeft = 0);
-not_null<Button*> AddButton(
-	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> text,
 	const style::InfoProfileButton &st,
 	const style::icon *leftIcon = nullptr,
 	int iconLeft = 0);
 not_null<Button*> AddButtonWithLabel(
 	not_null<Ui::VerticalLayout*> container,
-	LangKey text,
+	rpl::producer<QString> text,
 	rpl::producer<QString> label,
 	const style::InfoProfileButton &st,
 	const style::icon *leftIcon = nullptr,
@@ -94,13 +86,10 @@ void CreateRightLabel(
 	not_null<Button*> button,
 	rpl::producer<QString> label,
 	const style::InfoProfileButton &st,
-	LangKey buttonText);
+	rpl::producer<QString> buttonText);
 void AddSubsectionTitle(
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> text);
-void AddSubsectionTitle(
-	not_null<Ui::VerticalLayout*> conatiner,
-	LangKey text);
 
 using MenuCallback = Fn<QAction*(
 	const QString &text,

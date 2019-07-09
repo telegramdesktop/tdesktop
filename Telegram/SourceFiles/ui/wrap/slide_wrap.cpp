@@ -73,7 +73,7 @@ SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggle(
 }
 
 SlideWrap<RpWidget> *SlideWrap<RpWidget>::finishAnimating() {
-	_animation.finish();
+	_animation.stop();
 	animationStep();
 	return this;
 }
@@ -96,7 +96,7 @@ void SlideWrap<RpWidget>::animationStep() {
 		weak->moveToLeft(margins.left(), margins.top());
 		newWidth = weak->width();
 	}
-	auto current = _animation.current(_toggled ? 1. : 0.);
+	auto current = _animation.value(_toggled ? 1. : 0.);
 	auto newHeight = wrapped()
 		? (_animation.animating()
 		? anim::interpolate(0, wrapped()->heightNoMargins(), current)

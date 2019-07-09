@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/emoji_list_widget.h"
 
+#include "ui/effects/animations.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/emoji_config.h"
@@ -62,7 +63,7 @@ private:
 
 	bool _hiding = false;
 	QPixmap _cache;
-	Animation _a_opacity;
+	Ui::Animations::Simple _a_opacity;
 
 	rpl::event_stream<EmojiPtr> _chosen;
 	rpl::event_stream<> _hidden;
@@ -186,7 +187,7 @@ void EmojiColorPicker::updateSize() {
 void EmojiColorPicker::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto opacity = _a_opacity.current(getms(), _hiding ? 0. : 1.);
+	auto opacity = _a_opacity.value(_hiding ? 0. : 1.);
 	if (opacity < 1.) {
 		if (opacity > 0.) {
 			p.setOpacity(opacity);
@@ -272,7 +273,7 @@ void EmojiColorPicker::animationCallback() {
 
 void EmojiColorPicker::hideFast() {
 	clearSelection();
-	_a_opacity.finish();
+	_a_opacity.stop();
 	_cache = QPixmap();
 	hide();
 	_hidden.fire({});
@@ -378,7 +379,7 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 
 EmojiListWidget::EmojiListWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller)
+	not_null<Window::SessionController*> controller)
 : Inner(parent, controller)
 , _picker(this)
 , _showPickerTimer([=] { showPicker(); }) {
@@ -528,7 +529,7 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 		if (info.section > 0 && r.top() < info.rowsTop) {
 			p.setFont(st::emojiPanHeaderFont);
 			p.setPen(st::emojiPanHeaderFg);
-			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, info.top + st::emojiPanHeaderTop, width(), lang(LangKey(lng_emoji_category1 + info.section - 1)));
+			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, info.top + st::emojiPanHeaderTop, width(), Ui::Emoji::CategoryTitle(info.section)(tr::now));
 		}
 		if (r.top() + r.height() > info.rowsTop) {
 			ensureLoaded(info.section);

@@ -15,6 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP {
 
+// How much time to wait for some more requests, when sending msg acks.
+constexpr auto kAckSendWaiting = crl::time(10000);
+
 class Instance;
 
 bool IsPrimeAndGood(bytes::const_span primeBytes, int g);
@@ -37,6 +40,7 @@ class RSAPublicKey;
 struct ConnectionOptions;
 
 class Thread : public QThread {
+	// The Q_OBJECT meta info is used for qobject_cast!
 	Q_OBJECT
 
 public:
@@ -235,7 +239,7 @@ private:
 	not_null<Connection*> _owner;
 	ConnectionPointer _connection;
 	std::vector<TestConnection> _testConnections;
-	TimeMs _startedConnectingAt = 0;
+	crl::time _startedConnectingAt = 0;
 
 	base::Timer _retryTimer; // exp retry timer
 	int _retryTimeout = 1;
@@ -247,15 +251,15 @@ private:
 	base::Timer _waitForConnectedTimer;
 	base::Timer _waitForReceivedTimer;
 	base::Timer _waitForBetterTimer;
-	TimeMs _waitForReceived = 0;
-	TimeMs _waitForConnected = 0;
-	TimeMs firstSentAt = -1;
+	crl::time _waitForReceived = 0;
+	crl::time _waitForConnected = 0;
+	crl::time firstSentAt = -1;
 
 	QVector<MTPlong> ackRequestData, resendRequestData;
 
 	mtpPingId _pingId = 0;
 	mtpPingId _pingIdToSend = 0;
-	TimeMs _pingSendAt = 0;
+	crl::time _pingSendAt = 0;
 	mtpMsgId _pingMsgId = 0;
 	base::Timer _pingSender;
 

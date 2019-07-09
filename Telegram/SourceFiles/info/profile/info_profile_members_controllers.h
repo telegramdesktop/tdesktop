@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 
 namespace Window {
-class Navigation;
+class SessionNavigation;
 } // namespace Window
 
 namespace Info {
@@ -34,7 +34,6 @@ public:
 	QSize actionSize() const override;
 	void paintAction(
 		Painter &p,
-		TimeMs ms,
 		int x,
 		int y,
 		int outerWidth,
@@ -48,9 +47,7 @@ public:
 		int outerWidth,
 		bool selected) override;
 
-	not_null<UserData*> user() const {
-		return peer()->asUser();
-	}
+	not_null<UserData*> user() const;
 	bool canRemove() const {
 		return _type.canRemove;
 	}
@@ -61,7 +58,7 @@ private:
 };
 
 std::unique_ptr<PeerListController> CreateMembersController(
-	not_null<Window::Navigation*> navigation,
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer);
 
 } // namespace Profile

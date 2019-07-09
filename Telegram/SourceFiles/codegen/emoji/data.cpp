@@ -1920,9 +1920,20 @@ std::map<InputId, InputId> FlagAliases = {
  { { 0xD83CDDE8U, 0xD83CDDF5U, }, { 0xD83CDDEBU, 0xD83CDDF7U, } },
  { { 0xD83CDDE7U, 0xD83CDDFBU, }, { 0xD83CDDF3U, 0xD83CDDF4U, } },
  { { 0xD83CDDE6U, 0xD83CDDE8U, }, { 0xD83CDDF8U, 0xD83CDDEDU, } },
+
+ // This is different flag, but macOS shows that glyph :(
+ { { 0xD83CDDE9U, 0xD83CDDECU, }, { 0xD83CDDEEU, 0xD83CDDF4U, } },
+
+ { { 0xD83CDDF9U, 0xD83CDDE6U, }, { 0xD83CDDF8U, 0xD83CDDEDU, } },
+ { { 0xD83CDDF2U, 0xD83CDDEBU, }, { 0xD83CDDEBU, 0xD83CDDF7U, } },
+ { { 0xD83CDDEAU, 0xD83CDDE6U, }, { 0xD83CDDEAU, 0xD83CDDF8U, } },
 };
 
-std::map<Id, Id> Aliases;
+std::map<Id, std::vector<Id>> Aliases; // original -> list of aliased
+
+void AddAlias(const Id &original, const Id &aliased) {
+	Aliases[original].push_back(aliased);
+}
 
 constexpr auto kErrorBadData = 401;
 
@@ -1983,7 +1994,7 @@ void appendCategory(
 		const InputCategory &category,
 		const set<Id> &variatedIds,
 		const set<Id> &postfixRequiredIds) {
-	result.categories.push_back(vector<int>());
+	result.categories.emplace_back();
 	for (auto &id : category) {
 		auto emoji = Emoji();
 		auto bareId = BareIdFromInput(id);
@@ -2013,7 +2024,14 @@ void appendCategory(
 			it = result.map.emplace(bareId, index).first;
 			result.list.push_back(move(emoji));
 			if (const auto a = Aliases.find(bareId); a != end(Aliases)) {
-				result.map.emplace(a->second, index);
+				for (const auto &alias : a->second) {
+					const auto ok = result.map.emplace(alias, index).second;
+					if (!ok) {
+						logDataError() << "some emoji alias already in the map.";
+						result = Data();
+						return;
+					}
+				}
 			}
 			if (postfixRequiredIds.find(bareId) != end(postfixRequiredIds)) {
 				result.postfixRequired.emplace(index);
@@ -2055,7 +2073,14 @@ void appendCategory(
 					it = result.map.emplace(bareColoredId, index).first;
 					result.list.push_back(move(colored));
 					if (const auto a = Aliases.find(bareColoredId); a != end(Aliases)) {
-						result.map.emplace(a->second, index);
+						for (const auto &alias : a->second) {
+							const auto ok = result.map.emplace(alias, index).second;
+							if (!ok) {
+								logDataError() << "some emoji alias already in the map.";
+								result = Data();
+								return;
+							}
+						}
 					}
 					if (postfixRequiredIds.find(bareColoredId) != end(postfixRequiredIds)) {
 						result.postfixRequired.emplace(index);
@@ -2172,7 +2197,7 @@ bool CheckOldInCurrent(std::set<Id> variatedIds) {
 		key[1] = color;
 		auto value = alias;
 		value[1] = color;
-		Aliases.emplace(BareIdFromInput(key), BareIdFromInput(value));
+		AddAlias(BareIdFromInput(key), BareIdFromInput(value));
 		return true;
 	};
 	auto result = true;
@@ -2239,12 +2264,8 @@ bool CheckOldInCurrent(std::set<Id> variatedIds) {
 					<< genderIndex
 					<< ".";
 				result = false;
-			} else if (Aliases.find(bare) != end(Aliases)) {
-				common::logError(kErrorBadData, "input")
-					<< "Bad data: two aliases for a gendered emoji.";
-				result = false;
 			} else {
-				Aliases.emplace(bare, BareIdFromInput(*i));
+				AddAlias(bare, BareIdFromInput(*i));
 			}
 		}
 	}
@@ -2286,10 +2307,6 @@ bool CheckOldInCurrent(std::set<Id> variatedIds) {
 				<< ".";
 			result = false;
 			continue;
-		} else if (Aliases.find(bare) != end(Aliases)) {
-			common::logError(kErrorBadData, "input")
-				<< "Bad data: two aliases for a gendered emoji.";
-			result = false;
 		} else {
 			for (const auto color : Colors) {
 				if (!emplaceColoredAlias(real, *i, color)) {
@@ -2321,12 +2338,8 @@ bool CheckOldInCurrent(std::set<Id> variatedIds) {
 			common::logError(kErrorBadData, "input")
 				<< "Bad data: without gender alias not found with gender.";
 			result = false;
-		} else if (Aliases.find(bare) != end(Aliases)) {
-			common::logError(kErrorBadData, "input")
-				<< "Bad data: two aliases for a gendered emoji.";
-			result = false;
 		} else {
-			Aliases.emplace(bare, BareIdFromInput(inputId));
+			AddAlias(bare, BareIdFromInput(inputId));
 		}
 		if (variatedIds.find(bare) != variatedIds.end()) {
 			auto colorReal = real;
@@ -2345,16 +2358,8 @@ bool CheckOldInCurrent(std::set<Id> variatedIds) {
 		}
 	}
 
-	for (const auto [inputId, real] : FlagAliases) {
-		const auto bare = BareIdFromInput(real);
-		if (Aliases.find(bare) != end(Aliases)) {
-			common::logError(kErrorBadData, "input")
-				<< "Bad data: two aliases for a flag emoji.";
-			result = false;
-		}
-		else {
-			Aliases.emplace(bare, BareIdFromInput(inputId));
-		}
+	for (const auto &[inputId, real] : FlagAliases) {
+		AddAlias(BareIdFromInput(real), BareIdFromInput(inputId));
 	}
 
 	return result;

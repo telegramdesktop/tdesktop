@@ -21,7 +21,7 @@ public:
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
 	bool hideMessageText() const override {
@@ -45,7 +45,7 @@ public:
 		return _attach && _attach->dragItemByHandler(p);
 	}
 
-	TextWithEntities selectedText(TextSelection selection) const override;
+	TextForMimeData selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
@@ -74,6 +74,7 @@ public:
 	bool allowsFastShare() const override {
 		return true;
 	}
+	bool enforceBubbleWidth() const override;
 
 	HistoryMedia *attach() const {
 		return _attach.get();
@@ -92,6 +93,10 @@ private:
 	int bottomInfoPadding() const;
 	bool isLogEntryOriginal() const;
 
+	QString displayedSiteName() const;
+	ClickHandlerPtr replaceAttachLink(const ClickHandlerPtr &link) const;
+	bool asArticle() const;
+
 	not_null<WebPageData*> _data;
 	std::vector<std::unique_ptr<Data::Media>> _collage;
 	ClickHandlerPtr _openl;
@@ -102,7 +107,7 @@ private:
 	int _titleLines = 0;
 	int _descriptionLines = 0;
 
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 	int _siteNameWidth = 0;
 
 	QString _duration;

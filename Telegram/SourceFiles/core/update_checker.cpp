@@ -7,18 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/update_checker.h"
 
-#include "application.h"
-#include "platform/platform_specific.h"
+#include "platform/platform_info.h"
 #include "base/timer.h"
 #include "base/bytes.h"
 #include "storage/localstorage.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "mainwindow.h"
 #include "core/click_handler_types.h"
 #include "info/info_memento.h"
 #include "info/settings/info_settings_widget.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "settings/settings_intro.h"
+#include "data/data_user.h"
 
 extern "C" {
 #include <openssl/rsa.h>
@@ -36,7 +36,7 @@ extern "C" {
 namespace Core {
 namespace {
 
-constexpr auto kUpdaterTimeout = 10 * TimeMs(1000);
+constexpr auto kUpdaterTimeout = 10 * crl::time(1000);
 constexpr auto kMaxResponseSize = 1024 * 1024;
 
 #ifdef TDESKTOP_DISABLE_AUTOUPDATE
@@ -496,14 +496,19 @@ bool ParseCommonMap(
 	}
 	const auto platforms = document.object();
 	const auto platform = [&] {
-		switch (cPlatform()) {
-		case dbipWindows: return "win";
-		case dbipMac: return "mac";
-		case dbipMacOld: return "mac32";
-		case dbipLinux64: return "linux";
-		case dbipLinux32: return "linux32";
+		if (Platform::IsWindows()) {
+			return "win";
+		} else if (Platform::IsMacOldBuild()) {
+			return "mac32";
+		} else if (Platform::IsMac()) {
+			return "mac";
+		} else if (Platform::IsLinux32Bit()) {
+			return "linux32";
+		} else if (Platform::IsLinux64Bit()) {
+			return "linux";
+		} else {
+			Unexpected("Platform in ParseCommonMap.");
 		}
-		Unexpected("Platform in ParseCommonMap.");
 	}();
 	const auto it = platforms.constFind(platform);
 	if (it == platforms.constEnd()) {
@@ -620,16 +625,17 @@ void HttpChecker::start() {
 					 .arg(QString(QUrl::toPercentEncoding(value))));
 	};
 
-	switch (cPlatform()) {
-		case dbipWindows: addOne("os", "win"); break;
-		case dbipMac: addOne("os", "mac"); break;
-		case dbipLinux64: addOne("os", "linux"); break;
-		default: addOne("os", "unknown"); break;
-	}
+	if (Platform::IsWindows())
+		addOne("os", "win");
+	else if (Platform::IsMac())
+		addOne("os", "mac");
+	else if (Platform::IsLinux64Bit())
+		addOne("os", "linux");
+	else
+		addOne("os", "unknown");
 
-	if (auto s = Messenger::InstancePointer())
-		if (s != nullptr && s->authSession()->Exists())
-			addOne("uid", QString::number(s->authSession()->user()->id));
+	if (AuthSession::Exists())
+		addOne("uid", QString::number(Auth().userId()));
 
 	auto url = QUrl(Local::readAutoupdatePrefix() + qstr("/tupdates/current"));
 	url.setQuery(query);
@@ -906,8 +912,8 @@ void MtpChecker::start() {
 		_mtp.send(
 			MTPmessages_GetHistory(
 				MTP_inputPeerChannel(
-					channel.c_inputChannel().vchannel_id,
-					channel.c_inputChannel().vaccess_hash),
+					channel.c_inputChannel().vchannel_id(),
+					channel.c_inputChannel().vaccess_hash()),
 				MTP_int(0),  // offset_id
 				MTP_int(0),  // offset_date
 				MTP_int(0),  // add_offset
@@ -946,7 +952,7 @@ auto MtpChecker::parseMessage(const MTPmessages_Messages &result) const
 		LOG(("Update Error: MTP feed message not found."));
 		return std::nullopt;
 	}
-	return parseText(message->c_message().vmessage.v);
+	return parseText(message->c_message().vmessage().v);
 }
 
 auto MtpChecker::parseText(const QByteArray &text) const
@@ -1143,9 +1149,10 @@ void Updater::check() {
 void Updater::handleReady() {
 	stop();
 	_action = Action::Ready;
-
-	cSetLastUpdateCheck(unixtime());
-	Local::writeSettings();
+	if (!App::quitting()) {
+		cSetLastUpdateCheck(unixtime());
+		Local::writeSettings();
+	}
 }
 
 void Updater::handleFailed() {
@@ -1170,10 +1177,11 @@ void Updater::handleProgress() {
 
 void Updater::scheduleNext() {
 	stop();
-
-	cSetLastUpdateCheck(unixtime());
-	Local::writeSettings();
-	start(true);
+	if (!App::quitting()) {
+		cSetLastUpdateCheck(unixtime());
+		Local::writeSettings();
+		start(true);
+	}
 }
 
 auto Updater::state() const -> State {
@@ -1201,7 +1209,7 @@ void Updater::stop() {
 }
 
 void Updater::start(bool forceWait) {
-	if (!Sandbox::started() || cExeName().isEmpty()) {
+	if (cExeName().isEmpty()) {
 		return;
 	}
 
@@ -1239,7 +1247,7 @@ void Updater::start(bool forceWait) {
 
 		_checking.fire({});
 	} else {
-		_timer.callOnce((updateInSecs + 5) * TimeMs(1000));
+		_timer.callOnce((updateInSecs + 5) * crl::time(1000));
 	}
 }
 
@@ -1396,8 +1404,8 @@ Updater::~Updater() {
 
 UpdateChecker::UpdateChecker()
 : _updater(GetUpdaterInstance()) {
-	if (const auto messenger = Messenger::InstancePointer()) {
-		if (const auto mtproto = messenger->mtp()) {
+	if (IsAppLaunched()) {
+		if (const auto mtproto = Core::App().mtp()) {
 			_updater->setMtproto(mtproto);
 		}
 	}
@@ -1561,6 +1569,12 @@ bool checkReadyUpdate() {
 		return false;
 	}
 #endif // Q_OS_LINUX
+
+#ifdef Q_OS_MAC
+	Platform::RemoveQuarantine(QFileInfo(curUpdater).absolutePath());
+	Platform::RemoveQuarantine(updater.absolutePath());
+#endif // Q_OS_MAC
+
 	return true;
 }
 
@@ -1579,7 +1593,7 @@ void UpdateApplication() {
 	} else {
 		cSetAutoUpdate(true);
 		if (const auto window = App::wnd()) {
-			if (const auto controller = window->controller()) {
+			if (const auto controller = window->sessionController()) {
 				controller->showSection(
 					Info::Memento(
 						Info::Settings::Tag{ Auth().user() },

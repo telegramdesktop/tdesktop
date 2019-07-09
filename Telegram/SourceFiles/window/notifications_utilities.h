@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "window/notifications_manager.h"
-#include "core/single_timer.h"
+#include "base/timer.h"
 
 namespace Window {
 namespace Notifications {
@@ -23,7 +23,7 @@ public:
 	};
 	CachedUserpics(Type type);
 
-	QString get(const StorageKey &key, PeerData *peer);
+	QString get(const InMemoryKey &key, PeerData *peer);
 
 	~CachedUserpics();
 
@@ -32,17 +32,17 @@ private slots:
 
 private:
 	void clearInMs(int ms);
-	TimeMs clear(TimeMs ms);
+	crl::time clear(crl::time ms);
 
 	Type _type = Type::Rounded;
 	struct Image {
-		TimeMs until;
+		crl::time until;
 		QString path;
 	};
-	using Images = QMap<StorageKey, Image>;
+	using Images = QMap<InMemoryKey, Image>;
 	Images _images;
 	bool _someSavedFlag = false;
-	SingleTimer _clearTimer;
+	base::Timer _clearTimer;
 
 };
 

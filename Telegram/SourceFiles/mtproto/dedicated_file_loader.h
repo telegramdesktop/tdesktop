@@ -34,6 +34,7 @@ private:
 
 	QPointer<Instance> _instance;
 	std::map<mtpRequestId, Fn<void(const RPCError &)>> _requests;
+	rpl::lifetime _lifetime;
 
 };
 
@@ -129,7 +130,7 @@ private:
 	Fn<void(const RPCError &)> failHandler();
 
 	static constexpr auto kRequestsCount = 2;
-	static constexpr auto kNextRequestDelay = TimeMs(20);
+	static constexpr auto kNextRequestDelay = crl::time(20);
 
 	std::deque<Request> _requests;
 	int32 _size = 0;

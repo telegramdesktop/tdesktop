@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/scroll_area.h"
 #include "history/view/history_view_top_bar_widget.h"
@@ -23,10 +24,11 @@ struct TextState;
 struct StateRequest;
 enum class CursorState : char;
 enum class PointState : char;
+class EmptyPainter;
 } // namespace HistoryView
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Ui {
@@ -38,7 +40,7 @@ class HistoryInner
 	: public Ui::RpWidget
 	, public Ui::AbstractTooltipShower
 	, private base::Subscriber {
-	// The Q_OBJECT meta info is used for qobject_cast to HistoryInner!
+	// The Q_OBJECT meta info is used for qobject_cast!
 	Q_OBJECT
 
 public:
@@ -46,14 +48,14 @@ public:
 
 	HistoryInner(
 		not_null<HistoryWidget*> historyWidget,
-		not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		Ui::ScrollArea *scroll,
 		not_null<History*> history);
 
 	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
 	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
 
-	TextWithEntities getSelectedText() const;
+	TextForMimeData getSelectedText() const;
 
 	void touchScrollUpdated(const QPoint &screenPos);
 
@@ -71,6 +73,10 @@ public:
 	MessageIdsList getSelectedItems() const;
 	void selectItem(not_null<HistoryItem*> item);
 	bool inSelectionMode() const;
+	bool elementIntersectsRange(
+		not_null<const Element*> view,
+		int from,
+		int till) const;
 
 	void updateBotInfo(bool recount = true);
 
@@ -188,6 +194,8 @@ private:
 	template <typename Method>
 	void enumerateDates(Method method);
 
+	ClickHandlerPtr hiddenUserpicLink(FullMsgId id);
+
 	void scrollDateCheck();
 	void scrollDateHideByTimer();
 	bool canHaveFromUserpics() const;
@@ -198,6 +206,8 @@ private:
 	void mouseActionCancel();
 	std::unique_ptr<QMimeData> prepareDrag();
 	void performDrag();
+
+	void paintEmpty(Painter &p, int width, int height);
 
 	QPoint mapPointToItem(QPoint p, const Element *view) const;
 	QPoint mapPointToItem(QPoint p, const HistoryItem *item) const;
@@ -290,20 +300,22 @@ private:
 	// Does any of the shown histories has this flag set.
 	bool hasPendingResizedItems() const;
 
-	not_null<Window::Controller*> _controller;
+	static HistoryInner *Instance;
 
-	not_null<PeerData*> _peer;
-	not_null<History*> _history;
+	not_null<Window::SessionController*> _controller;
+
+	const not_null<PeerData*> _peer;
+	const not_null<History*> _history;
 	History *_migrated = nullptr;
 	int _contentWidth = 0;
 	int _historyPaddingTop = 0;
 
-	// with migrated history we perhaps do not need to display first _history message
-	// (if last _migrated message and first _history message are both isGroupMigrate)
-	// or at least we don't need to display first _history date (just skip it by height)
+	// With migrated history we perhaps do not need to display
+	// the first _history message date (just skip it by height).
 	int _historySkipHeight = 0;
 
 	std::unique_ptr<BotAbout> _botAbout;
+	std::unique_ptr<HistoryView::EmptyPainter> _emptyPainter;
 
 	HistoryWidget *_widget = nullptr;
 	Ui::ScrollArea *_scroll = nullptr;
@@ -345,9 +357,9 @@ private:
 	bool _touchPrevPosValid = false;
 	bool _touchWaitingAcceleration = false;
 	QPoint _touchSpeed;
-	TimeMs _touchSpeedTime = 0;
-	TimeMs _touchAccelerationTime = 0;
-	TimeMs _touchTime = 0;
+	crl::time _touchSpeedTime = 0;
+	crl::time _touchAccelerationTime = 0;
+	crl::time _touchTime = 0;
 	QTimer _touchScrollTimer;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
@@ -357,7 +369,7 @@ private:
 	int _visibleAreaBottom = 0;
 
 	bool _scrollDateShown = false;
-	Animation _scrollDateOpacity;
+	Ui::Animations::Simple _scrollDateOpacity;
 	SingleQueuedInvokation _scrollDateCheck;
 	base::Timer _scrollDateHideTimer;
 	Element *_scrollDateLastItem = nullptr;

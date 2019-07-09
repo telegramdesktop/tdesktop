@@ -8,52 +8,74 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_common.h"
 
 #include "auth_session.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
+#include "data/data_session.h"
 #include "ui/image/image.h"
 
 namespace Serialize {
+namespace {
 
-void writeStorageImageLocation(
-		QDataStream &stream,
-		const StorageImageLocation &location) {
-	stream
-		<< qint32(location.width())
-		<< qint32(location.height())
-		<< qint32(location.dc())
-		<< quint64(location.volume())
-		<< qint32(location.local())
-		<< quint64(location.secret());
-	stream << location.fileReference();
-}
+constexpr auto kModernImageLocationTag = std::numeric_limits<qint32>::min();
 
-StorageImageLocation readStorageImageLocation(
+} // namespace
+
+std::optional<StorageImageLocation> readLegacyStorageImageLocationOrTag(
 		int streamAppVersion,
 		QDataStream &stream) {
 	qint32 width, height, dc, local;
 	quint64 volume, secret;
 	QByteArray fileReference;
-	stream >> width >> height >> dc >> volume >> local >> secret;
+	stream >> width;
+	if (width == kModernImageLocationTag) {
+		return std::nullopt;
+	}
+	stream >> height >> dc >> volume >> local >> secret;
 	if (streamAppVersion >= 1003013) {
 		stream >> fileReference;
 	}
+	if (stream.status() != QDataStream::Ok) {
+		return std::nullopt;
+	}
 	return StorageImageLocation(
+		StorageFileLocation(
+			dc,
+			UserId(0),
+			MTP_inputFileLocation(
+				MTP_long(volume),
+				MTP_int(local),
+				MTP_long(secret),
+				MTP_bytes(fileReference))),
 		width,
-		height,
-		dc,
-		volume,
-		local,
-		secret,
-		fileReference);
+		height);
 }
 
 int storageImageLocationSize(const StorageImageLocation &location) {
-	// width + height + dc + volume + local + secret + fileReference
-	return sizeof(qint32)
-		+ sizeof(qint32)
-		+ sizeof(qint32)
-		+ sizeof(quint64)
-		+ sizeof(qint32)
-		+ sizeof(quint64)
-		+ bytearraySize(location.fileReference());
+	// Modern image location tag + (size + content) of the serialization.
+	return sizeof(qint32) * 2 + location.serializeSize();
+}
+
+void writeStorageImageLocation(
+		QDataStream &stream,
+		const StorageImageLocation &location) {
+	stream << kModernImageLocationTag << location.serialize();
+}
+
+std::optional<StorageImageLocation> readStorageImageLocation(
+		int streamAppVersion,
+		QDataStream &stream) {
+	const auto legacy = readLegacyStorageImageLocationOrTag(
+		streamAppVersion,
+		stream);
+	if (legacy) {
+		return legacy;
+	}
+	auto serialized = QByteArray();
+	stream >> serialized;
+	return (stream.status() == QDataStream::Ok)
+		? StorageImageLocation::FromSerialized(serialized)
+		: std::nullopt;
 }
 
 uint32 peerSize(not_null<PeerData*> peer) {
@@ -106,24 +128,16 @@ void writePeer(QDataStream &stream, PeerData *peer) {
 				: QString();
 			stream << botInlinePlaceholder;
 		}
-		const auto contactSerialized = [&] {
-			switch (user->contactStatus()) {
-			case UserData::ContactStatus::Contact: return 1;
-			case UserData::ContactStatus::CanAdd: return 0;
-			case UserData::ContactStatus::PhoneUnknown: return -1;
-			}
-			Unexpected("contactStatus in _writePeer()");
-		}();
 		stream
 			<< qint32(user->onlineTill)
-			<< qint32(contactSerialized)
+			<< qint32(user->isContact() ? 1 : 0)
 			<< qint32(user->botInfo ? user->botInfo->version : -1);
 	} else if (const auto chat = peer->asChat()) {
 		stream
 			<< chat->name
 			<< qint32(chat->count)
 			<< qint32(chat->date)
-			<< qint32(chat->version)
+			<< qint32(chat->version())
 			<< qint32(chat->creator)
 			<< qint32(0)
 			<< quint32(chat->flags())
@@ -133,7 +147,7 @@ void writePeer(QDataStream &stream, PeerData *peer) {
 			<< channel->name
 			<< quint64(channel->access)
 			<< qint32(channel->date)
-			<< qint32(channel->version)
+			<< qint32(channel->version())
 			<< qint32(0)
 			<< quint32(channel->flags())
 			<< channel->inviteLink();
@@ -147,14 +161,15 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 		return nullptr;
 	}
 
-	auto photoLoc = readStorageImageLocation(
-		streamAppVersion,
-		stream);
+	const auto userpic = readStorageImageLocation(streamAppVersion, stream);
+	auto userpicAccessHash = uint64(0);
+	if (!userpic) {
+		return nullptr;
+	}
 
-	PeerData *result = App::peerLoaded(peerId);
-	bool wasLoaded = (result != nullptr);
-	if (!wasLoaded) {
-		result = App::peer(peerId);
+	const auto loaded = Auth().data().peerLoaded(peerId);
+	const auto result = loaded ? loaded : Auth().data().peer(peerId).get();
+	if (!loaded) {
 		result->loadedStatus = PeerData::FullLoaded;
 	}
 	if (const auto user = result->asUser()) {
@@ -170,25 +185,23 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 		}
 		stream >> onlineTill >> contact >> botInfoVersion;
 
-		const auto showPhone = !isServiceUser(user->id)
+		userpicAccessHash = access;
+
+		const auto showPhone = !user->isServiceUser()
 			&& (user->id != Auth().userPeerId())
 			&& (contact <= 0);
 		const auto pname = (showPhone && !phone.isEmpty())
 			? App::formatPhone(phone)
 			: QString();
 
-		if (!wasLoaded) {
+		if (!loaded) {
 			user->setPhone(phone);
 			user->setName(first, last, pname, username);
 
 			user->setFlags(MTPDuser::Flags::from_raw(flags));
 			user->setAccessHash(access);
 			user->onlineTill = onlineTill;
-			user->setContactStatus((contact > 0)
-				? UserData::ContactStatus::Contact
-				: (contact == 0)
-				? UserData::ContactStatus::CanAdd
-				: UserData::ContactStatus::PhoneUnknown);
+			user->setIsContact(contact == 1);
 			user->setBotInfoVersion(botInfoVersion);
 			if (!inlinePlaceholder.isEmpty() && user->botInfo) {
 				user->botInfo->inlinePlaceholder = inlinePlaceholder;
@@ -219,11 +232,15 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 		if (oldForbidden) {
 			flags |= quint32(MTPDchat_ClientFlag::f_forbidden);
 		}
-		if (!wasLoaded) {
+		if (!loaded) {
 			chat->setName(name);
 			chat->count = count;
 			chat->date = date;
-			chat->version = version;
+
+			// We don't save participants, admin status and banned rights.
+			// So we don't restore the version field, info is still unknown.
+			chat->setVersion(0);
+
 			chat->creator = creator;
 			chat->setFlags(MTPDchat::Flags::from_raw(flags));
 			chat->setInviteLink(inviteLink);
@@ -237,14 +254,21 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 		qint32 date, version, oldForbidden;
 		quint32 flags;
 		stream >> name >> access >> date >> version >> oldForbidden >> flags >> inviteLink;
+
+		userpicAccessHash = access;
+
 		if (oldForbidden) {
 			flags |= quint32(MTPDchannel_ClientFlag::f_forbidden);
 		}
-		if (!wasLoaded) {
+		if (!loaded) {
 			channel->setName(name, QString());
 			channel->access = access;
 			channel->date = date;
-			channel->version = version;
+
+			// We don't save participants, admin status and banned rights.
+			// So we don't restore the version field, info is still unknown.
+			channel->setVersion(0);
+
 			channel->setFlags(MTPDchannel::Flags::from_raw(flags));
 			channel->setInviteLink(inviteLink);
 
@@ -252,11 +276,16 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 			channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 		}
 	}
-	if (!wasLoaded) {
-		result->setUserpic(
-			photoId,
-			photoLoc,
-			photoLoc.isNull() ? ImagePtr() : Images::Create(photoLoc));
+	if (!loaded) {
+		using LocationType = StorageFileLocation::Type;
+		const auto location = (userpic->valid()
+			&& userpic->type() == LocationType::Legacy)
+			? userpic->convertToModern(
+				LocationType::PeerPhoto,
+				result->id,
+				userpicAccessHash)
+			: *userpic;
+		result->setUserpic(photoId, location, Images::Create(location));
 	}
 	return result;
 }
@@ -265,13 +294,12 @@ QString peekUserPhone(int streamAppVersion, QDataStream &stream) {
 	quint64 peerId = 0, photoId = 0;
 	stream >> peerId >> photoId;
 	DEBUG_LOG(("peekUserPhone.id: %1").arg(peerId));
-	if (!peerId || !peerIsUser(peerId)) {
+	if (!peerId
+		|| !peerIsUser(peerId)
+		|| !readStorageImageLocation(streamAppVersion, stream)) {
 		return QString();
 	}
 
-	const auto photoLoc = readStorageImageLocation(
-		streamAppVersion,
-		stream);
 	QString first, last, phone;
 	stream >> first >> last >> phone;
 	DEBUG_LOG(("peekUserPhone.data: %1 %2 %3"

@@ -56,6 +56,11 @@ public:
 		const Key &to,
 		FnMut<void(Error)> &&done);
 
+	void getWithSizes(
+		const Key &key,
+		std::vector<Key> &&keys,
+		FnMut<void(QByteArray&&, std::vector<int>&&)> &&done);
+
 	rpl::producer<Stats> stats() const;
 
 	void clear(FnMut<void(Error)> &&done);
@@ -97,8 +102,8 @@ private:
 	struct CompactorWrap {
 		std::unique_ptr<Compactor> object;
 		int64 excessLength = 0;
-		crl::time_type nextAttempt = 0;
-		crl::time_type delayAfterFailure = 10 * crl::time_type(1000);
+		crl::time nextAttempt = 0;
+		crl::time delayAfterFailure = 10 * crl::time(1000);
 		base::binary_guard guard;
 	};
 	using Map = std::unordered_map<Key, Entry>;

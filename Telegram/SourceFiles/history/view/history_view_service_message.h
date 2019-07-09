@@ -26,13 +26,13 @@ public:
 		Painter &p,
 		QRect clip,
 		TextSelection selection,
-		TimeMs ms) const override;
+		crl::time ms) const override;
 	PointState pointState(QPoint point) const override;
 	TextState textState(
 		QPoint point,
 		StateRequest request) const override;
 	void updatePressed(QPoint point) override;
-	TextWithEntities selectedText(TextSelection selection) const override;
+	TextForMimeData selectedText(TextSelection selection) const override;
 	TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;
@@ -50,12 +50,12 @@ private:
 int WideChatWidth();
 
 struct PaintContext {
-	PaintContext(TimeMs ms, const QRect &clip, TextSelection selection)
+	PaintContext(crl::time ms, const QRect &clip, TextSelection selection)
 		: ms(ms)
 		, clip(clip)
 		, selection(selection) {
 	}
-	TimeMs ms;
+	crl::time ms;
 	const QRect &clip;
 	TextSelection selection;
 };
@@ -67,14 +67,28 @@ public:
 
 	static void paintBubble(Painter &p, int x, int y, int w, int h);
 
-	static void paintComplexBubble(Painter &p, int left, int width, const Text &text, const QRect &textRect);
+	static void paintComplexBubble(Painter &p, int left, int width, const Ui::Text::String &text, const QRect &textRect);
 
 private:
-	static QVector<int> countLineWidths(const Text &text, const QRect &textRect);
+	static QVector<int> countLineWidths(const Ui::Text::String &text, const QRect &textRect);
 
 };
 
-void paintEmpty(Painter &p, int width, int height);
+class EmptyPainter {
+public:
+	explicit EmptyPainter(not_null<History*> history);
+
+	void paint(Painter &p, int width, int height);
+
+private:
+	void fillAboutGroup();
+
+	not_null<History*> _history;
+	Ui::Text::String _header = { st::msgMinWidth };
+	Ui::Text::String _text = { st::msgMinWidth };
+	std::vector<Ui::Text::String> _phrases;
+
+};
 
 void serviceColorsUpdated();
 

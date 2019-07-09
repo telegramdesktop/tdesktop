@@ -1,8 +1,8 @@
 diff --git a/pylib/gyp/generator/cmake.py b/pylib/gyp/generator/cmake.py
-index a2b9629..ac59461 100644
+index 4a2041cf..e5333926 100644
 --- a/pylib/gyp/generator/cmake.py
 +++ b/pylib/gyp/generator/cmake.py
-@@ -1070,6 +1070,23 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
+@@ -1078,6 +1078,23 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
  
        output.write(')\n')
  
@@ -26,7 +26,7 @@ index a2b9629..ac59461 100644
    UnsetVariable(output, 'TOOLSET')
    UnsetVariable(output, 'TARGET')
  
-@@ -1112,6 +1129,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
+@@ -1120,6 +1137,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
    SetVariable(output, 'configuration', config_to_use)
  
    ar = None
@@ -35,7 +35,7 @@ index a2b9629..ac59461 100644
    cc = None
    cxx = None
  
-@@ -1121,17 +1140,27 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
+@@ -1129,17 +1148,27 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
    for key, value in make_global_settings:
      if key == 'AR':
        ar = os.path.join(build_to_top, value)
@@ -64,10 +64,10 @@ index a2b9629..ac59461 100644
      SetVariable(output, 'CMAKE_C_COMPILER', cc)
    if cxx:
 diff --git a/pylib/gyp/generator/xcode.py b/pylib/gyp/generator/xcode.py
-index db99d6a..8d56baf 100644
+index 8bc22bed..24bee427 100644
 --- a/pylib/gyp/generator/xcode.py
 +++ b/pylib/gyp/generator/xcode.py
-@@ -72,6 +72,10 @@ generator_additional_non_configuration_keys = [
+@@ -74,6 +74,12 @@ generator_additional_non_configuration_keys = [
    'ios_app_extension',
    'ios_watch_app',
    'ios_watchkit_extension',
@@ -75,37 +75,52 @@ index db99d6a..8d56baf 100644
 +  'mac_sandbox', # sandbox support
 +  'mac_sandbox_development_team',
 +
++  'mac_hardened_runtime', # hardened runtime support
++
    'mac_bundle',
    'mac_bundle_resources',
    'mac_framework_headers',
-@@ -772,6 +776,26 @@ def GenerateOutput(target_list, target_dicts, data, params):
+@@ -774,6 +780,39 @@ def GenerateOutput(target_list, target_dicts, data, params):
      xcode_targets[qualified_target] = xct
      xcode_target_to_target_dict[xct] = spec
  
-+    # sandbox support
++    # sandbox and hardened runtime support
 +    is_sandbox = int(spec.get('mac_sandbox', 0))
++    is_hardened_runtime = int(spec.get('mac_hardened_runtime', 0))
++    if is_sandbox or is_hardened_runtime:
++      try:
++        tmp = pbxp._properties['attributes']['TargetAttributes']
++      except KeyError:
++        pbxp._properties['attributes']['TargetAttributes'] = {}
++      try:
++        tmp = pbxp._properties['attributes']['TargetAttributes'][xct]
++      except KeyError:
++        pbxp._properties['attributes']['TargetAttributes'][xct] = {}
++      try:
++        tmp = pbxp._properties['attributes']['TargetAttributes'][xct]['SystemCapabilities']
++      except KeyError:
++        pbxp._properties['attributes']['TargetAttributes'][xct]['SystemCapabilities'] = {}
++
 +    if is_sandbox:
 +      dev_team = spec.get('mac_sandbox_development_team', '%%ERROR%%')
 +      assert dev_team != '%%ERROR%%', (
 +          'mac_sandbox must be accompanied by mac_sandbox_development_team (target "%s")' %
 +          target_name)
-+      try:
-+        tmp =  pbxp._properties['attributes']['TargetAttributes']
-+      except KeyError:
-+        pbxp._properties['attributes']['TargetAttributes'] = {}
-+      pbxp._properties['attributes']['TargetAttributes'][xct] = {
-+        'DevelopmentTeam': dev_team,
-+        'SystemCapabilities': {
-+          'com.apple.Sandbox': {
-+            'enabled': 1,
-+          },
-+        },
++      pbxp._properties['attributes']['TargetAttributes'][xct]['DevelopmentTeam'] = dev_team
++      pbxp._properties['attributes']['TargetAttributes'][xct]['SystemCapabilities']['com.apple.Sandbox'] = {
++        'enabled': 1,
++      }
++
++    # hardened runtime support
++    if is_hardened_runtime:
++      pbxp._properties['attributes']['TargetAttributes'][xct]['SystemCapabilities']['com.apple.HardenedRuntime'] = {
++        'enabled': 1,
 +      }
 +
      spec_actions = spec.get('actions', [])
      spec_rules = spec.get('rules', [])
  
-@@ -1141,7 +1165,8 @@ exit 1
+@@ -1132,7 +1171,8 @@ exit 1
          groups = [x for x in groups if not x.endswith('_excluded')]
        for group in groups:
          for item in rule.get(group, []):

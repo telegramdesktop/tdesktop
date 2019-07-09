@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/effects/animations.h"
 #include "ui/wrap/padding_wrap.h"
 
 namespace Ui {
@@ -62,7 +63,7 @@ private:
 
 	bool _toggled = true;
 	rpl::event_stream<bool> _toggledChanged;
-	Animation _animation;
+	Ui::Animations::Simple _animation;
 	int _duration = 0;
 
 };

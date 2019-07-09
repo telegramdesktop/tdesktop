@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
 
@@ -21,7 +22,7 @@ class InfiniteRadialAnimation;
 } // namespace Ui
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace HistoryView {
@@ -30,7 +31,7 @@ class TopBarWidget : public Ui::RpWidget, private base::Subscriber {
 public:
 	TopBarWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller);
+		not_null<Window::SessionController*> controller);
 
 	struct SelectedState {
 		bool textSelected = false;
@@ -84,41 +85,36 @@ private:
 	void updateConnectingState();
 	void updateAdaptiveLayout();
 	int countSelectedButtonsTop(float64 selectedShown);
-	void step_connecting(TimeMs ms, bool timer);
+	void connectingAnimationCallback();
 
-	void paintTopBar(Painter &p, TimeMs ms);
+	void paintTopBar(Painter &p);
 	void paintStatus(
 		Painter &p,
 		int left,
 		int top,
 		int availableWidth,
 		int outerWidth);
-	bool paintConnectingState(
-		Painter &p,
-		int left,
-		int top,
-		int outerWidth,
-		TimeMs ms);
+	bool paintConnectingState(Painter &p, int left, int top, int outerWidth);
 	QRect getMembersShowAreaGeometry() const;
 	void updateMembersShowArea();
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();
-	void updateOnlineDisplayIn(TimeMs timeout);
+	void updateOnlineDisplayIn(crl::time timeout);
 
 	void infoClicked();
 	void backClicked();
 
-	void createUnreadBadge();
+	void refreshUnreadBadge();
 	void updateUnreadBadge();
 
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 	Dialogs::Key _activeChat;
 
 	int _selectedCount = 0;
 	bool _canDelete = false;
 	bool _canForward = false;
 
-	Animation _selectedShown;
+	Ui::Animations::Simple _selectedShown;
 
 	object_ptr<Ui::RoundButton> _clear;
 	object_ptr<Ui::RoundButton> _forward, _delete;
@@ -136,7 +132,7 @@ private:
 	object_ptr<TWidget> _membersShowArea = { nullptr };
 	rpl::event_stream<bool> _membersShowAreaActive;
 
-	Text _titlePeerText;
+	Ui::Text::String _titlePeerText;
 	bool _titlePeerTextOnline = false;
 	int _leftTaken = 0;
 	int _rightTaken = 0;

@@ -15,8 +15,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "base/openssl_help.h"
 #include "mtproto/connection.h"
-#include "media/media_audio_track.h"
+#include "media/audio/media_audio_track.h"
+#include "platform/platform_info.h"
 #include "calls/calls_panel.h"
+#include "data/data_user.h"
+#include "data/data_session.h"
 
 #ifdef slots
 #undef slots
@@ -38,27 +41,27 @@ constexpr auto kMinLayer = 65;
 constexpr auto kHangupTimeoutMs = 5000;
 constexpr auto kSha256Size = 32;
 
-using tgvoip::Endpoint;
-
-void ConvertEndpoint(
-		std::vector<tgvoip::Endpoint> &ep,
-		const MTPDphoneConnection &mtc) {
-	if (mtc.vpeer_tag.v.length() != 16) {
-		return;
-	}
-	auto ipv4 = tgvoip::IPv4Address(std::string(
-		mtc.vip.v.constData(),
-		mtc.vip.v.size()));
-	auto ipv6 = tgvoip::IPv6Address(std::string(
-		mtc.vipv6.v.constData(),
-		mtc.vipv6.v.size()));
-	ep.push_back(Endpoint(
-		(int64_t)mtc.vid.v,
-		(uint16_t)mtc.vport.v,
-		ipv4,
-		ipv6,
-		tgvoip::Endpoint::Type::UDP_RELAY,
-		(unsigned char*)mtc.vpeer_tag.v.data()));
+void AppendEndpoint(
+		std::vector<tgvoip::Endpoint> &list,
+		const MTPPhoneConnection &connection) {
+	connection.match([&](const MTPDphoneConnection &data) {
+		if (data.vpeer_tag().v.length() != 16) {
+			return;
+		}
+		const auto ipv4 = tgvoip::IPv4Address(std::string(
+			data.vip().v.constData(),
+			data.vip().v.size()));
+		const auto ipv6 = tgvoip::IPv6Address(std::string(
+			data.vipv6().v.constData(),
+			data.vipv6().v.size()));
+		list.emplace_back(
+			(int64_t)data.vid().v,
+			(uint16_t)data.vport().v,
+			ipv4,
+			ipv6,
+			tgvoip::Endpoint::Type::UDP_RELAY,
+			(unsigned char*)data.vpeer_tag().v.data());
+	});
 }
 
 constexpr auto kFingerprintDataSize = 256;
@@ -186,6 +189,7 @@ void Call::startOutgoing() {
 	Expects(_gaHash.size() == kSha256Size);
 
 	request(MTPphone_RequestCall(
+		MTP_flags(0),
 		_user->inputUser,
 		MTP_int(rand_value<int32>()),
 		MTP_bytes(_gaHash),
@@ -194,23 +198,23 @@ void Call::startOutgoing() {
 				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
 			MTP_int(kMinLayer),
 			MTP_int(tgvoip::VoIPController::GetConnectionMaxLayer()))
-	)).done([this](const MTPphone_PhoneCall &result) {
+	)).done([=](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 
 		setState(State::Waiting);
 
 		auto &call = result.c_phone_phoneCall();
-		App::feedUsers(call.vusers);
-		if (call.vphone_call.type() != mtpc_phoneCallWaiting) {
+		Auth().data().processUsers(call.vusers());
+		if (call.vphone_call().type() != mtpc_phoneCallWaiting) {
 			LOG(("Call Error: Expected phoneCallWaiting in response to phone.requestCall()"));
 			finish(FinishType::Failed);
 			return;
 		}
 
-		auto &phoneCall = call.vphone_call;
+		auto &phoneCall = call.vphone_call();
 		auto &waitingCall = phoneCall.c_phoneCallWaiting();
-		_id = waitingCall.vid.v;
-		_accessHash = waitingCall.vaccess_hash.v;
+		_id = waitingCall.vid().v;
+		_accessHash = waitingCall.vaccess_hash().v;
 		if (_finishAfterRequestingCall != FinishType::None) {
 			if (_finishAfterRequestingCall == FinishType::Failed) {
 				finish(_finishAfterRequestingCall);
@@ -250,7 +254,8 @@ void Call::actuallyAnswer() {
 	Expects(_type == Type::Incoming);
 
 	if (_state != State::Starting && _state != State::WaitingIncoming) {
-		if (_state != State::ExchangingKeys || !_answerAfterDhConfigReceived) {
+		if (_state != State::ExchangingKeys
+			|| !_answerAfterDhConfigReceived) {
 			return;
 		}
 	}
@@ -269,18 +274,19 @@ void Call::actuallyAnswer() {
 				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
 			MTP_int(kMinLayer),
 			MTP_int(tgvoip::VoIPController::GetConnectionMaxLayer()))
-	)).done([this](const MTPphone_PhoneCall &result) {
+	)).done([=](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 		auto &call = result.c_phone_phoneCall();
-		App::feedUsers(call.vusers);
-		if (call.vphone_call.type() != mtpc_phoneCallWaiting) {
-			LOG(("Call Error: Expected phoneCallWaiting in response to phone.acceptCall()"));
+		Auth().data().processUsers(call.vusers());
+		if (call.vphone_call().type() != mtpc_phoneCallWaiting) {
+			LOG(("Call Error: "
+				"Not phoneCallWaiting in response to phone.acceptCall."));
 			finish(FinishType::Failed);
 			return;
 		}
 
-		handleUpdate(call.vphone_call);
-	}).fail([this](const RPCError &error) {
+		handleUpdate(call.vphone_call());
+	}).fail([=](const RPCError &error) {
 		handleRequestError(error);
 	}).send();
 }
@@ -293,8 +299,8 @@ void Call::setMute(bool mute) {
 	_muteChanged.notify(_mute);
 }
 
-TimeMs Call::getDurationMs() const {
-	return _startTime ? (getms(true) - _startTime) : 0;
+crl::time Call::getDurationMs() const {
+	return _startTime ? (crl::now() - _startTime) : 0;
 }
 
 void Call::hangup() {
@@ -339,7 +345,7 @@ void Call::startWaitingTrack() {
 
 float64 Call::getWaitingSoundPeakValue() const {
 	if (_waitingTrack) {
-		auto when = getms() + kSoundSampleMs / 4;
+		auto when = crl::now() + kSoundSampleMs / 4;
 		return _waitingTrack->getPeakValue(when);
 	}
 	return 0.;
@@ -365,19 +371,23 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		auto &data = call.c_phoneCallRequested();
 		if (_type != Type::Incoming
 			|| _id != 0
-			|| peerToUser(_user->id) != data.vadmin_id.v) {
+			|| peerToUser(_user->id) != data.vadmin_id().v) {
 			Unexpected("phoneCallRequested call inside an existing call handleUpdate()");
 		}
-		if (Auth().userId() != data.vparticipant_id.v) {
-			LOG(("Call Error: Wrong call participant_id %1, expected %2.").arg(data.vparticipant_id.v).arg(Auth().userId()));
+		if (Auth().userId() != data.vparticipant_id().v) {
+			LOG(("Call Error: Wrong call participant_id %1, expected %2."
+				).arg(data.vparticipant_id().v
+				).arg(Auth().userId()));
 			finish(FinishType::Failed);
 			return true;
 		}
-		_id = data.vid.v;
-		_accessHash = data.vaccess_hash.v;
-		auto gaHashBytes = bytes::make_span(data.vg_a_hash.v);
+		_id = data.vid().v;
+		_accessHash = data.vaccess_hash().v;
+		auto gaHashBytes = bytes::make_span(data.vg_a_hash().v);
 		if (gaHashBytes.size() != kSha256Size) {
-			LOG(("Call Error: Wrong g_a_hash size %1, expected %2.").arg(gaHashBytes.size()).arg(kSha256Size));
+			LOG(("Call Error: Wrong g_a_hash size %1, expected %2."
+				).arg(gaHashBytes.size()
+				).arg(kSha256Size));
 			finish(FinishType::Failed);
 			return true;
 		}
@@ -386,7 +396,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 
 	case mtpc_phoneCallEmpty: {
 		auto &data = call.c_phoneCallEmpty();
-		if (data.vid.v != _id) {
+		if (data.vid().v != _id) {
 			return false;
 		}
 		LOG(("Call Error: phoneCallEmpty received."));
@@ -395,10 +405,12 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 
 	case mtpc_phoneCallWaiting: {
 		auto &data = call.c_phoneCallWaiting();
-		if (data.vid.v != _id) {
+		if (data.vid().v != _id) {
 			return false;
 		}
-		if (_type == Type::Outgoing && _state == State::Waiting && data.vreceive_date.v != 0) {
+		if (_type == Type::Outgoing
+			&& _state == State::Waiting
+			&& data.vreceive_date().value_or_empty() != 0) {
 			_discardByTimeoutTimer.callOnce(Global::CallRingTimeoutMs());
 			setState(State::Ringing);
 			startWaitingTrack();
@@ -407,7 +419,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 
 	case mtpc_phoneCall: {
 		auto &data = call.c_phoneCall();
-		if (data.vid.v != _id) {
+		if (data.vid().v != _id) {
 			return false;
 		}
 		if (_type == Type::Incoming
@@ -419,22 +431,28 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 
 	case mtpc_phoneCallDiscarded: {
 		auto &data = call.c_phoneCallDiscarded();
-		if (data.vid.v != _id) {
+		if (data.vid().v != _id) {
 			return false;
 		}
 		if (data.is_need_debug()) {
 			auto debugLog = _controller ? _controller->GetDebugLog() : std::string();
 			if (!debugLog.empty()) {
-				MTP::send(MTPphone_SaveCallDebug(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_dataJSON(MTP_string(debugLog))));
+				MTP::send(
+					MTPphone_SaveCallDebug(
+						MTP_inputPhoneCall(
+							MTP_long(_id),
+							MTP_long(_accessHash)),
+						MTP_dataJSON(MTP_string(debugLog))));
 			}
 		}
 		if (data.is_need_rating() && _id && _accessHash) {
 			Ui::show(Box<RateCallBox>(_id, _accessHash));
 		}
-		if (data.has_reason() && data.vreason.type() == mtpc_phoneCallDiscardReasonDisconnect) {
+		const auto reason = data.vreason();
+		if (reason && reason->type() == mtpc_phoneCallDiscardReasonDisconnect) {
 			LOG(("Call Info: Discarded with DISCONNECT reason."));
 		}
-		if (data.has_reason() && data.vreason.type() == mtpc_phoneCallDiscardReasonBusy) {
+		if (reason && reason->type() == mtpc_phoneCallDiscardReasonBusy) {
 			setState(State::Busy);
 		} else if (_type == Type::Outgoing || _state == State::HangingUp) {
 			setState(State::Ended);
@@ -445,11 +463,12 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 
 	case mtpc_phoneCallAccepted: {
 		auto &data = call.c_phoneCallAccepted();
-		if (data.vid.v != _id) {
+		if (data.vid().v != _id) {
 			return false;
 		}
 		if (_type != Type::Outgoing) {
-			LOG(("Call Error: Unexpected phoneCallAccepted for an incoming call."));
+			LOG(("Call Error: "
+				"Unexpected phoneCallAccepted for an incoming call."));
 			finish(FinishType::Failed);
 		} else if (checkCallFields(data)) {
 			confirmAcceptedCall(data);
@@ -463,8 +482,17 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 	Expects(_type == Type::Outgoing);
 
-	auto firstBytes = bytes::make_span(call.vg_b.v);
-	auto computedAuthKey = MTP::CreateAuthKey(firstBytes, _randomPower, _dhConfig.p);
+	if (_state == State::ExchangingKeys
+		|| _controller) {
+		LOG(("Call Warning: Unexpected confirmAcceptedCall."));
+		return;
+	}
+
+	const auto firstBytes = bytes::make_span(call.vg_b().v);
+	const auto computedAuthKey = MTP::CreateAuthKey(
+		firstBytes,
+		_randomPower,
+		_dhConfig.p);
 	if (computedAuthKey.empty()) {
 		LOG(("Call Error: Could not compute mod-exp final."));
 		finish(FinishType::Failed);
@@ -486,15 +514,16 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 			MTP_int(tgvoip::VoIPController::GetConnectionMaxLayer()))
 	)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
+
 		auto &call = result.c_phone_phoneCall();
-		App::feedUsers(call.vusers);
-		if (call.vphone_call.type() != mtpc_phoneCall) {
+		Auth().data().processUsers(call.vusers());
+		if (call.vphone_call().type() != mtpc_phoneCall) {
 			LOG(("Call Error: Expected phoneCall in response to phone.confirmCall()"));
 			finish(FinishType::Failed);
 			return;
 		}
 
-		createAndStartController(call.vphone_call.c_phoneCall());
+		createAndStartController(call.vphone_call().c_phoneCall());
 	}).fail([this](const RPCError &error) {
 		handleRequestError(error);
 	}).send();
@@ -503,7 +532,7 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 void Call::startConfirmedCall(const MTPDphoneCall &call) {
 	Expects(_type == Type::Incoming);
 
-	auto firstBytes = bytes::make_span(call.vg_a_or_b.v);
+	auto firstBytes = bytes::make_span(call.vg_a_or_b().v);
 	if (_gaHash != openssl::Sha256(firstBytes)) {
 		LOG(("Call Error: Wrong g_a hash received."));
 		finish(FinishType::Failed);
@@ -532,11 +561,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 
 	tgvoip::VoIPController::Config config;
 	config.dataSaving = tgvoip::DATA_SAVING_NEVER;
-#ifdef Q_OS_MAC
-	config.enableAEC = (QSysInfo::macVersion() < QSysInfo::MV_10_7);
-#else // Q_OS_MAC
-	config.enableAEC = true;
-#endif // Q_OS_MAC
+	config.enableAEC = !Platform::IsMac10_7OrGreater();
 	config.enableNS = true;
 	config.enableAGC = true;
 	config.enableVolumeControl = true;
@@ -557,11 +582,10 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		QDir().mkpath(callLogFolder);
 	}
 
-	const auto &protocol = call.vprotocol.c_phoneCallProtocol();
-	auto endpoints = std::vector<Endpoint>();
-	ConvertEndpoint(endpoints, call.vconnection.c_phoneConnection());
-	for (int i = 0; i < call.valternative_connections.v.length(); i++) {
-		ConvertEndpoint(endpoints, call.valternative_connections.v[i].c_phoneConnection());
+	const auto &protocol = call.vprotocol().c_phoneCallProtocol();
+	auto endpoints = std::vector<tgvoip::Endpoint>();
+	for (const auto &connection : call.vconnections().v) {
+		AppendEndpoint(endpoints, connection);
 	}
 
 	auto callbacks = tgvoip::VoIPController::Callbacks();
@@ -586,7 +610,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	_controller->SetRemoteEndpoints(
 		endpoints,
 		call.is_p2p_allowed(),
-		protocol.vmax_layer.v);
+		protocol.vmax_layer().v);
 	_controller->SetConfig(config);
 	_controller->SetCurrentAudioOutput(Global::CallOutputDeviceID().toStdString());
 	_controller->SetCurrentAudioInput(Global::CallInputDeviceID().toStdString());
@@ -599,7 +623,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	_controller->SetCallbacks(callbacks);
 	if (Global::UseProxyForCalls()
 		&& (Global::ProxySettings() == ProxyData::Settings::Enabled)) {
-		const auto proxy = Global::SelectedProxy();
+		const auto &proxy = Global::SelectedProxy();
 		if (proxy.supportsCalls()) {
 			Assert(proxy.type == ProxyData::Type::Socks5);
 			_controller->SetProxy(
@@ -674,18 +698,18 @@ bool Call::checkCallCommonFields(const T &call) {
 		finish(FinishType::Failed);
 		return false;
 	};
-	if (call.vaccess_hash.v != _accessHash) {
+	if (call.vaccess_hash().v != _accessHash) {
 		LOG(("Call Error: Wrong call access_hash."));
 		return checkFailed();
 	}
 	auto adminId = (_type == Type::Outgoing) ? Auth().userId() : peerToUser(_user->id);
 	auto participantId = (_type == Type::Outgoing) ? peerToUser(_user->id) : Auth().userId();
-	if (call.vadmin_id.v != adminId) {
-		LOG(("Call Error: Wrong call admin_id %1, expected %2.").arg(call.vadmin_id.v).arg(adminId));
+	if (call.vadmin_id().v != adminId) {
+		LOG(("Call Error: Wrong call admin_id %1, expected %2.").arg(call.vadmin_id().v).arg(adminId));
 		return checkFailed();
 	}
-	if (call.vparticipant_id.v != participantId) {
-		LOG(("Call Error: Wrong call participant_id %1, expected %2.").arg(call.vparticipant_id.v).arg(participantId));
+	if (call.vparticipant_id().v != participantId) {
+		LOG(("Call Error: Wrong call participant_id %1, expected %2.").arg(call.vparticipant_id().v).arg(participantId));
 		return checkFailed();
 	}
 	return true;
@@ -695,7 +719,7 @@ bool Call::checkCallFields(const MTPDphoneCall &call) {
 	if (!checkCallCommonFields(call)) {
 		return false;
 	}
-	if (call.vkey_fingerprint.v != _keyFingerprint) {
+	if (call.vkey_fingerprint().v != _keyFingerprint) {
 		LOG(("Call Error: Wrong call fingerprint."));
 		finish(FinishType::Failed);
 		return false;
@@ -737,7 +761,7 @@ void Call::setState(State state) {
 		}
 		switch (_state) {
 		case State::Established:
-			_startTime = getms(true);
+			_startTime = crl::now();
 			break;
 		case State::ExchangingKeys:
 			_delegate->playSound(Delegate::Sound::Connecting);
@@ -816,6 +840,7 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	auto connectionId = _controller ? _controller->GetPreferredRelayID() : 0;
 	_finishByTimeoutTimer.call(kHangupTimeoutMs, [this, finalState] { setState(finalState); });
 	request(MTPphone_DiscardCall(
+		MTP_flags(0),
 		MTP_inputPhoneCall(
 			MTP_long(_id),
 			MTP_long(_accessHash)),
@@ -846,9 +871,9 @@ void Call::setFailedQueued(int error) {
 
 void Call::handleRequestError(const RPCError &error) {
 	if (error.type() == qstr("USER_PRIVACY_RESTRICTED")) {
-		Ui::show(Box<InformBox>(lng_call_error_not_available(lt_user, App::peerName(_user))));
+		Ui::show(Box<InformBox>(tr::lng_call_error_not_available(tr::now, lt_user, App::peerName(_user))));
 	} else if (error.type() == qstr("PARTICIPANT_VERSION_OUTDATED")) {
-		Ui::show(Box<InformBox>(lng_call_error_outdated(lt_user, App::peerName(_user))));
+		Ui::show(Box<InformBox>(tr::lng_call_error_outdated(tr::now, lt_user, App::peerName(_user))));
 	} else if (error.type() == qstr("CALL_PROTOCOL_LAYER_INVALID")) {
 		Ui::show(Box<InformBox>(Lang::Hard::CallErrorIncompatible().replace("{user}", App::peerName(_user))));
 	}
@@ -862,7 +887,7 @@ void Call::handleControllerError(int error) {
 				"{user}",
 				App::peerName(_user))));
 	} else if (error == tgvoip::ERROR_AUDIO_IO) {
-		Ui::show(Box<InformBox>(lang(lng_call_error_audio_io)));
+		Ui::show(Box<InformBox>(tr::lng_call_error_audio_io(tr::now)));
 	}
 	finish(FinishType::Failed);
 }

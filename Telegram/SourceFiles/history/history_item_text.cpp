@@ -12,53 +12,45 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_web_page.h"
 #include "data/data_groups.h"
+#include "data/data_peer.h"
 #include "lang/lang_keys.h"
 #include "ui/text_options.h"
 
-TextWithEntities WrapAsReply(
-		TextWithEntities &&text,
+TextForMimeData WrapAsReply(
+		TextForMimeData &&text,
 		not_null<HistoryItem*> to) {
 	const auto name = to->author()->name;
-	auto result = TextWithEntities();
-	result.text.reserve(
-		lang(lng_in_reply_to).size()
+	auto result = TextForMimeData();
+	result.reserve(
+		tr::lng_in_reply_to(tr::now).size()
 		+ name.size()
 		+ 4
-		+ text.text.size());
-	result.text.append('['
-	).append(lang(lng_in_reply_to)
+		+ text.expanded.size());
+	return result.append('['
+	).append(tr::lng_in_reply_to(tr::now)
 	).append(' '
 	).append(name
-	).append(qsl("]\n")
-	);
-	TextUtilities::Append(result, std::move(text));
-	return result;
+	).append(qstr("]\n")
+	).append(std::move(text));
 }
 
-TextWithEntities WrapAsForwarded(
-		TextWithEntities &&text,
+TextForMimeData WrapAsForwarded(
+		TextForMimeData &&text,
 		not_null<HistoryMessageForwarded*> forwarded) {
-	auto info = forwarded->text.originalTextWithEntities(
-		AllTextSelection,
-		ExpandLinksAll);
-	auto result = TextWithEntities();
-	result.text.reserve(
-		info.text.size()
-		+ 4
-		+ text.text.size());
-	result.entities.reserve(
-		info.entities.size()
-		+ text.entities.size());
-	result.text.append('[');
-	TextUtilities::Append(result, std::move(info));
-	result.text.append(qsl("]\n"));
-	TextUtilities::Append(result, std::move(text));
-	return result;
+	auto info = forwarded->text.toTextForMimeData();
+	auto result = TextForMimeData();
+	result.reserve(
+		info.expanded.size() + 4 + text.expanded.size(),
+		info.rich.entities.size() + text.rich.entities.size());
+	return result.append('['
+	).append(std::move(info)
+	).append(qstr("]\n")
+	).append(std::move(text));
 }
 
-TextWithEntities WrapAsItem(
+TextForMimeData WrapAsItem(
 		not_null<HistoryItem*> item,
-		TextWithEntities &&result) {
+		TextForMimeData &&result) {
 	if (const auto reply = item->Get<HistoryMessageReply>()) {
 		if (const auto message = reply->replyToMsg) {
 			result = WrapAsReply(std::move(result), message);
@@ -67,70 +59,70 @@ TextWithEntities WrapAsItem(
 	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 		result = WrapAsForwarded(std::move(result), forwarded);
 	}
-	return result;
+	return std::move(result);
 }
 
-TextWithEntities HistoryItemText(not_null<HistoryItem*> item) {
+TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
 	const auto media = item->media();
 
-	auto mediaResult = media ? media->clipboardText() : TextWithEntities();
-	auto textResult = mediaResult.text.isEmpty()
+	auto mediaResult = media ? media->clipboardText() : TextForMimeData();
+	auto textResult = mediaResult.empty()
 		? item->clipboardText()
-		: TextWithEntities();
+		: TextForMimeData();
 	auto logEntryOriginalResult = [&] {
 		const auto entry = item->Get<HistoryMessageLogEntryOriginal>();
 		if (!entry) {
-			return TextWithEntities();
+			return TextForMimeData();
 		}
 		const auto title = TextUtilities::SingleLine(entry->page->title.isEmpty()
 			? entry->page->author
 			: entry->page->title);
-		auto titleResult = TextUtilities::ParseEntities(
-			title,
-			Ui::WebpageTextTitleOptions().flags);
-		auto descriptionResult = entry->page->description;
-		if (titleResult.text.isEmpty()) {
+		auto titleResult = TextForMimeData::Rich(
+			TextUtilities::ParseEntities(
+				title,
+				Ui::WebpageTextTitleOptions().flags));
+		auto descriptionResult = TextForMimeData::Rich(
+			base::duplicate(entry->page->description));
+		if (titleResult.empty()) {
 			return descriptionResult;
-		} else if (descriptionResult.text.isEmpty()) {
+		} else if (descriptionResult.empty()) {
 			return titleResult;
 		}
-		titleResult.text += '\n';
-		TextUtilities::Append(titleResult, std::move(descriptionResult));
+		titleResult.append('\n').append(std::move(descriptionResult));
 		return titleResult;
 	}();
 	auto result = textResult;
-	if (result.text.isEmpty()) {
+	if (result.empty()) {
 		result = std::move(mediaResult);
-	} else if (!mediaResult.text.isEmpty()) {
-		result.text += qstr("\n\n");
-		TextUtilities::Append(result, std::move(mediaResult));
+	} else if (!mediaResult.empty()) {
+		result.append(qstr("\n\n")).append(std::move(mediaResult));
 	}
-	if (result.text.isEmpty()) {
+	if (result.empty()) {
 		result = std::move(logEntryOriginalResult);
-	} else if (!logEntryOriginalResult.text.isEmpty()) {
-		result.text += qstr("\n\n");
-		TextUtilities::Append(result, std::move(logEntryOriginalResult));
+	} else if (!logEntryOriginalResult.empty()) {
+		result.append(qstr("\n\n")).append(std::move(logEntryOriginalResult));
 	}
 	return WrapAsItem(item, std::move(result));
 }
 
-TextWithEntities HistoryGroupText(not_null<const Data::Group*> group) {
+TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
 	Expects(!group->items.empty());
 
 	auto caption = [&] {
-		const auto first = begin(group->items);
-		const auto result = (*first)->clipboardText();
-		if (result.text.isEmpty()) {
-			return result;
+		auto &&nonempty = ranges::view::all(
+			group->items
+		) | ranges::view::filter([](not_null<HistoryItem*> item) {
+			return !item->clipboardText().empty();
+		}) | ranges::view::take(2);
+		auto first = nonempty.begin();
+		auto end = nonempty.end();
+		if (first == end) {
+			return TextForMimeData();
 		}
-		for (auto i = first + 1; i != end(group->items); ++i) {
-			if (!(*i)->clipboardText().text.isEmpty()) {
-				return TextWithEntities();
-			}
-		}
-		return result;
+		auto result = (*first)->clipboardText();
+		return (++first == end) ? result : TextForMimeData();
 	}();
 	return WrapAsItem(group->items.back(), Data::WithCaptionClipboardText(
-		lang(lng_in_dlg_album),
+		tr::lng_in_dlg_album(tr::now),
 		std::move(caption)));
 }

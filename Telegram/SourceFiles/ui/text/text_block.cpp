@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 
 // COPIED FROM qtextlayout.cpp AND MODIFIED
+namespace Ui {
+namespace Text {
 namespace {
 
 struct ScriptLine {
@@ -154,17 +156,17 @@ public:
 	void parseWords(QFixed minResizeWidth, int32 blockFrom) {
 		LineBreakHelper lbh;
 
-// Helper for debugging crashes in text processing.
-//
-//		auto debugChars = QString();
-//		debugChars.reserve(str.size() * 7);
-//		for (const auto ch : str) {
-//			debugChars.append(
-//				"0x").append(
-//				QString::number(ch.unicode(), 16).toUpper()).append(
-//				' ');
-//		}
-//		LOG(("Text: %1, chars: %2").arg(str).arg(debugChars));
+		// Helper for debugging crashes in text processing.
+		//
+		//		auto debugChars = QString();
+		//		debugChars.reserve(str.size() * 7);
+		//		for (const auto ch : str) {
+		//			debugChars.append(
+		//				"0x").append(
+		//				QString::number(ch.unicode(), 16).toUpper()).append(
+		//				' ');
+		//		}
+		//		LOG(("Text: %1, chars: %2").arg(str).arg(debugChars));
 
 		int item = -1;
 		int newItem = eng->findItem(0);
@@ -292,11 +294,11 @@ private:
 
 };
 
-QFixed ITextBlock::f_rbearing() const {
+QFixed AbstractBlock::f_rbearing() const {
 	return (type() == TextBlockTText) ? static_cast<const TextBlock*>(this)->real_f_rbearing() : 0;
 }
 
-TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, uint16 lnkIndex) : ITextBlock(font, str, from, length, flags, lnkIndex) {
+TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, uint16 lnkIndex) : AbstractBlock(font, str, from, length, flags, lnkIndex) {
 	_flags |= ((TextBlockTText & 0x0F) << 8);
 	if (length) {
 		style::font blockFont = font;
@@ -320,6 +322,7 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 			}
 			if (flags & TextBlockFItalic) blockFont = blockFont->italic();
 			if (flags & TextBlockFUnderline) blockFont = blockFont->underline();
+			if (flags & TextBlockFStrikeOut) blockFont = blockFont->strikeout();
 			if (flags & TextBlockFTilde) { // tilde fix in OpenSans
 				blockFont = st::semiboldFont;
 			}
@@ -337,7 +340,7 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 	}
 }
 
-EmojiBlock::EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex, EmojiPtr emoji) : ITextBlock(font, str, from, length, flags, lnkIndex)
+EmojiBlock::EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex, EmojiPtr emoji) : AbstractBlock(font, str, from, length, flags, lnkIndex)
 , emoji(emoji) {
 	_flags |= ((TextBlockTEmoji & 0x0F) << 8);
 	_width = int(st::emojiSize + 2 * st::emojiPadding);
@@ -353,7 +356,10 @@ EmojiBlock::EmojiBlock(const style::font &font, const QString &str, uint16 from,
 	}
 }
 
-SkipBlock::SkipBlock(const style::font &font, const QString &str, uint16 from, int32 w, int32 h, uint16 lnkIndex) : ITextBlock(font, str, from, 1, 0, lnkIndex), _height(h) {
+SkipBlock::SkipBlock(const style::font &font, const QString &str, uint16 from, int32 w, int32 h, uint16 lnkIndex) : AbstractBlock(font, str, from, 1, 0, lnkIndex), _height(h) {
 	_flags |= ((TextBlockTSkip & 0x0F) << 8);
 	_width = w;
 }
+
+} // namespace Text
+} // namespace Ui

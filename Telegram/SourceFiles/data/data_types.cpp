@@ -8,9 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_types.h"
 
 #include "data/data_document.h"
+#include "data/data_file_origin.h"
+#include "data/data_session.h"
+#include "ui/image/image_source.h"
 #include "ui/widgets/input_fields.h"
 #include "storage/cache/storage_cache_types.h"
 #include "base/openssl_help.h"
+#include "auth_session.h"
 
 namespace Data {
 namespace {
@@ -30,6 +34,20 @@ constexpr auto kGeoPointCacheMask = 0x000000FFFFFFFFFFULL;
 
 } // namespace
 
+struct ReplyPreview::Data {
+	Data(std::unique_ptr<Images::Source> &&source, bool good);
+
+	Image image;
+	bool good = false;
+};
+
+ReplyPreview::Data::Data(
+	std::unique_ptr<Images::Source> &&source,
+	bool good)
+: image(std::move(source))
+, good(good) {
+}
+
 Storage::Cache::Key DocumentCacheKey(int32 dcId, uint64 id) {
 	return Storage::Cache::Key{
 		Data::kDocumentCacheTag | (uint64(dcId) & Data::kDocumentCacheMask),
@@ -45,17 +63,10 @@ Storage::Cache::Key DocumentThumbCacheKey(int32 dcId, uint64 id) {
 	};
 }
 
-Storage::Cache::Key StorageCacheKey(const StorageImageLocation &location) {
-	const auto dcId = uint64(location.dc()) & 0xFFULL;
-	return Storage::Cache::Key{
-		Data::kStorageCacheTag | (dcId << 32) | uint32(location.local()),
-		location.volume()
-	};
-}
-
 Storage::Cache::Key WebDocumentCacheKey(const WebFileLocation &location) {
-	const auto dcId = uint64(location.dc()) & 0xFFULL;
-	const auto url = location.url();
+	const auto CacheDcId = cTestMode() ? 2 : 4;
+	const auto dcId = uint64(CacheDcId) & 0xFFULL;
+	const auto &url = location.url();
 	const auto hash = openssl::Sha256(bytes::make_span(url));
 	const auto bytes = bytes::make_span(hash);
 	const auto bytes1 = bytes.subspan(0, sizeof(uint32));
@@ -98,7 +109,76 @@ Storage::Cache::Key GeoPointCacheKey(const GeoPointLocation &location) {
 	};
 }
 
+ReplyPreview::ReplyPreview() = default;
+
+ReplyPreview::ReplyPreview(ReplyPreview &&other) = default;
+
+ReplyPreview &ReplyPreview::operator=(ReplyPreview &&other) = default;
+
+ReplyPreview::~ReplyPreview() = default;
+
+void ReplyPreview::prepare(
+		not_null<Image*> image,
+		FileOrigin origin,
+		Images::Options options) {
+	int w = image->width(), h = image->height();
+	if (w <= 0) w = 1;
+	if (h <= 0) h = 1;
+	auto thumbSize = (w > h)
+		? QSize(
+			w * st::msgReplyBarSize.height() / h,
+			st::msgReplyBarSize.height())
+		: QSize(
+			st::msgReplyBarSize.height(),
+			h * st::msgReplyBarSize.height() / w);
+	thumbSize *= cIntRetinaFactor();
+	const auto prepareOptions = Images::Option::Smooth
+		| Images::Option::TransparentBackground
+		| options;
+	auto outerSize = st::msgReplyBarSize.height();
+	auto bitmap = image->pixNoCache(
+		origin,
+		thumbSize.width(),
+		thumbSize.height(),
+		prepareOptions,
+		outerSize,
+		outerSize);
+	_data = std::make_unique<ReplyPreview::Data>(
+		std::make_unique<Images::ImageSource>(
+			bitmap.toImage(),
+			"PNG"),
+		((options & Images::Option::Blurred) == 0));
+}
+
+void ReplyPreview::clear() {
+	_data = nullptr;
+}
+
+Image *ReplyPreview::image() const {
+	return _data ? &_data->image : nullptr;
+}
+
+bool ReplyPreview::good() const {
+	return !empty() && _data->good;
+}
+
+bool ReplyPreview::empty() const {
+	return !_data;
+}
+
 } // namespace Data
+
+uint32 AudioMsgId::CreateExternalPlayId() {
+	static auto Result = uint32(0);
+	return ++Result ? Result : ++Result;
+}
+
+AudioMsgId AudioMsgId::ForVideo() {
+	auto result = AudioMsgId();
+	result._externalPlayId = CreateExternalPlayId();
+	result._type = Type::Video;
+	return result;
+}
 
 void AudioMsgId::setTypeFromAudio() {
 	if (_audio->isVoiceMessage() || _audio->isVideoMessage()) {
@@ -129,19 +209,19 @@ void MessageCursor::applyTo(not_null<Ui::InputField*> field) {
 }
 
 HistoryItem *FileClickHandler::getActionItem() const {
-	return context()
-		? App::histItemById(context())
-		: nullptr;
+	return Auth().data().message(context());
 }
 
 PeerId PeerFromMessage(const MTPmessage &message) {
 	return message.match([](const MTPDmessageEmpty &) {
 		return PeerId(0);
 	}, [](const auto &message) {
-		auto from_id = message.has_from_id() ? peerFromUser(message.vfrom_id) : 0;
-		auto to_id = peerFromMTP(message.vto_id);
-		auto out = message.is_out();
-		return (out || !peerIsUser(to_id)) ? to_id : from_id;
+		const auto fromId = message.vfrom_id();
+		const auto toId = peerFromMTP(message.vto_id());
+		const auto out = message.is_out();
+		return (out || !fromId || !peerIsUser(toId))
+			? toId
+			: peerFromUser(*fromId);
 	});
 }
 
@@ -149,15 +229,15 @@ MTPDmessage::Flags FlagsFromMessage(const MTPmessage &message) {
 	return message.match([](const MTPDmessageEmpty &) {
 		return MTPDmessage::Flags(0);
 	}, [](const MTPDmessage &message) {
-		return message.vflags.v;
+		return message.vflags().v;
 	}, [](const MTPDmessageService &message) {
-		return mtpCastFlags(message.vflags.v);
+		return mtpCastFlags(message.vflags().v);
 	});
 }
 
 MsgId IdFromMessage(const MTPmessage &message) {
 	return message.match([](const auto &message) {
-		return message.vid.v;
+		return message.vid().v;
 	});
 }
 
@@ -165,6 +245,6 @@ TimeId DateFromMessage(const MTPmessage &message) {
 	return message.match([](const MTPDmessageEmpty &) {
 		return TimeId(0);
 	}, [](const auto &message) {
-		return message.vdate.v;
+		return message.vdate().v;
 	});
 }

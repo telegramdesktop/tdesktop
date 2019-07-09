@@ -10,9 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "dialogs/dialogs_key.h"
 
+class AuthSession;
+
 namespace Window {
 
-class Controller;
+class SessionController;
 class LayerWidget;
 class SlideAnimation;
 struct SectionShow;
@@ -30,10 +32,12 @@ class AbstractSectionWidget
 public:
 	AbstractSectionWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller)
-		: RpWidget(parent)
-		, _controller(controller) {
+		not_null<Window::SessionController*> controller)
+	: RpWidget(parent)
+	, _controller(controller) {
 	}
+
+	AuthSession &session() const;
 
 	// Float player interface.
 	virtual bool wheelEventFromFloatPlayer(QEvent *e) {
@@ -44,12 +48,12 @@ public:
 	}
 
 protected:
-	not_null<Window::Controller*> controller() const {
+	not_null<Window::SessionController*> controller() const {
 		return _controller;
 	}
 
 private:
-	not_null<Window::Controller*> _controller;
+	not_null<Window::SessionController*> _controller;
 
 };
 
@@ -68,7 +72,7 @@ struct SectionSlideParams {
 
 class SectionWidget : public AbstractSectionWidget {
 public:
-	SectionWidget(QWidget *parent, not_null<Window::Controller*> controller);
+	SectionWidget(QWidget *parent, not_null<Window::SessionController*> controller);
 
 	virtual Dialogs::RowDescriptor activeChat() const {
 		return {};
@@ -122,7 +126,7 @@ public:
 		return nullptr;
 	}
 
-	static void PaintBackground(QWidget *widget, QPaintEvent *event);
+	static void PaintBackground(not_null<QWidget*> widget, QRect clip);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

@@ -80,7 +80,7 @@ struct UserPhotosKey {
 		return !(*this == other);
 	}
 
-	PeerId userId = 0;
+	UserId userId = 0;
 	PhotoId photoId = 0;
 
 };

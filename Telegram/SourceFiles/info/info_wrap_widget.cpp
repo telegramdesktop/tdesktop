@@ -21,13 +21,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/search_field_controller.h"
 #include "calls/calls_instance.h"
-#include "window/window_controller.h"
+#include "core/shortcuts.h"
+#include "window/window_session_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_peer_menu.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/confirm_box.h"
 #include "auth_session.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
@@ -51,7 +53,7 @@ struct WrapWidget::StackItem {
 
 WrapWidget::WrapWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> window,
+	not_null<Window::SessionController*> window,
 	Wrap wrap,
 	not_null<Memento*> memento)
 : SectionWidget(parent, window)
@@ -75,6 +77,19 @@ WrapWidget::WrapWidget(
 		});
 	}, lifetime());
 	restoreHistoryStack(memento->takeStack());
+}
+
+void WrapWidget::setupShortcuts() {
+	Shortcuts::Requests(
+	) | rpl::filter([=] {
+		return requireTopBarSearch();
+	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		request->check(Command::Search) && request->handle([=] {
+			_topBar->showSearch();
+			return true;
+		});
+	}, lifetime());
 }
 
 void WrapWidget::restoreHistoryStack(
@@ -116,8 +131,8 @@ void WrapWidget::startInjectingActivePeerProfiles() {
 void WrapWidget::injectActiveProfile(Dialogs::Key key) {
 	if (const auto peer = key.peer()) {
 		injectActivePeerProfile(peer);
-	} else if (const auto feed = key.feed()) {
-		injectActiveFeedProfile(feed);
+	//} else if (const auto feed = key.feed()) { // #feed
+	//	injectActiveFeedProfile(feed);
 	}
 }
 
@@ -152,22 +167,22 @@ void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
 			Memento(peer->id, section).takeStack().front()));
 	}
 }
-
-void WrapWidget::injectActiveFeedProfile(not_null<Data::Feed*> feed) {
-	const auto firstFeed = hasStackHistory()
-		? _historyStack.front().section->feed()
-		: _controller->feed();
-	const auto firstSectionType = hasStackHistory()
-		? _historyStack.front().section->section().type()
-		: _controller->section().type();
-	const auto expectedType = Section::Type::Profile;
-	if (firstSectionType != expectedType
-		|| firstFeed != feed) {
-		auto section = Section(Section::Type::Profile);
-		injectActiveProfileMemento(std::move(
-			Memento(feed, section).takeStack().front()));
-	}
-}
+// // #feed
+//void WrapWidget::injectActiveFeedProfile(not_null<Data::Feed*> feed) {
+//	const auto firstFeed = hasStackHistory()
+//		? _historyStack.front().section->feed()
+//		: _controller->feed();
+//	const auto firstSectionType = hasStackHistory()
+//		? _historyStack.front().section->section().type()
+//		: _controller->section().type();
+//	const auto expectedType = Section::Type::Profile;
+//	if (firstSectionType != expectedType
+//		|| firstFeed != feed) {
+//		auto section = Section(Section::Type::Profile);
+//		injectActiveProfileMemento(std::move(
+//			Memento(feed, section).takeStack().front()));
+//	}
+//}
 
 void WrapWidget::injectActiveProfileMemento(
 		std::unique_ptr<ContentMemento> memento) {
@@ -183,7 +198,7 @@ void WrapWidget::injectActiveProfileMemento(
 }
 
 std::unique_ptr<Controller> WrapWidget::createController(
-		not_null<Window::Controller*> window,
+		not_null<Window::SessionController*> window,
 		not_null<ContentMemento*> memento) {
 	auto result = std::make_unique<Controller>(
 		this,
@@ -198,9 +213,9 @@ Key WrapWidget::key() const {
 
 Dialogs::RowDescriptor WrapWidget::activeChat() const {
 	if (const auto peer = key().peer()) {
-		return Dialogs::RowDescriptor(App::history(peer), FullMsgId());
-	} else if (const auto feed = key().feed()) {
-		return Dialogs::RowDescriptor(feed, FullMsgId());
+		return Dialogs::RowDescriptor(peer->owner().history(peer), FullMsgId());
+	//} else if (const auto feed = key().feed()) { // #feed
+	//	return Dialogs::RowDescriptor(feed, FullMsgId());
 	} else if (key().settingsSelf()) {
 		return Dialogs::RowDescriptor();
 	}
@@ -212,8 +227,8 @@ Dialogs::RowDescriptor WrapWidget::activeChat() const {
 //void WrapWidget::createTabs() {
 //	_topTabs.create(this, st::infoTabs);
 //	auto sections = QStringList();
-//	sections.push_back(lang(lng_profile_info_section).toUpper());
-//	sections.push_back(lang(lng_info_tab_media).toUpper());
+//	sections.push_back(tr::lng_profile_info_section(tr::now).toUpper());
+//	sections.push_back(tr::lng_info_tab_media(tr::now).toUpper());
 //	_topTabs->setSections(sections);
 //	_topTabs->setActiveSection(static_cast<int>(_tab));
 //	_topTabs->finishAnimating();
@@ -376,6 +391,7 @@ void WrapWidget::createTopBar() {
 	} else if (requireTopBarSearch()) {
 		auto search = _controller->searchFieldController();
 		Assert(search != nullptr);
+		setupShortcuts();
 		_topBar->createSearchView(
 			search,
 			_controller->searchEnabledByContent(),
@@ -408,8 +424,8 @@ void WrapWidget::checkBeforeClose(Fn<void()> close) {
 	};
 	if (_controller->canSaveChangesNow()) {
 		Ui::show(Box<ConfirmBox>(
-			lang(lng_settings_close_sure),
-			lang(lng_close),
+			tr::lng_settings_close_sure(tr::now),
+			tr::lng_close(tr::now),
 			confirmed));
 	} else {
 		confirmed();
@@ -554,12 +570,12 @@ void WrapWidget::showTopBarMenu() {
 			peer,
 			addAction,
 			Window::PeerMenuSource::Profile);
-	} else if (const auto feed = key().feed()) {
-		Window::FillFeedMenu(
-			_controller->parentController(),
-			feed,
-			addAction,
-			Window::PeerMenuSource::Profile);
+	//} else if (const auto feed = key().feed()) { // #feed
+	//	Window::FillFeedMenu(
+	//		_controller->parentController(),
+	//		feed,
+	//		addAction,
+	//		Window::PeerMenuSource::Profile);
 	} else if (const auto self = key().settingsSelf()) {
 		const auto showOther = [=](::Settings::Type type) {
 			const auto controller = _controller.get();
@@ -619,7 +635,16 @@ not_null<Ui::RpWidget*> WrapWidget::topWidget() const {
 }
 
 void WrapWidget::showContent(object_ptr<ContentWidget> content) {
-	_content = std::move(content);
+	if (auto old = std::exchange(_content, std::move(content))) {
+		old->hide();
+
+		// Content destructor may invoke closeBox() that will try to
+		// start layer animation. If we won't detach old content from
+		// its parent WrapWidget layer animation will be started with a
+		// partially destructed grand-child widget and result in a crash.
+		old->setParent(nullptr);
+		old.destroy();
+	}
 	_content->show();
 	_additionalScroll = 0;
 	//_anotherTabMemento = nullptr;

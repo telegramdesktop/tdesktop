@@ -49,30 +49,29 @@ void EmptyWidget::setType(Type type) {
 }
 
 void EmptyWidget::setSearchQuery(const QString &query) {
-	auto key = [&] {
+	_text->setText([&] {
 		switch (_type) {
 		case Type::Photo:
-			return lng_media_photo_empty;
+			return tr::lng_media_photo_empty(tr::now);
 		case Type::Video:
-			return lng_media_video_empty;
+			return tr::lng_media_video_empty(tr::now);
 		case Type::MusicFile:
 			return query.isEmpty()
-				? lng_media_song_empty
-				: lng_media_song_empty_search;
+				? tr::lng_media_song_empty(tr::now)
+				: tr::lng_media_song_empty_search(tr::now);
 		case Type::File:
 			return query.isEmpty()
-				? lng_media_file_empty
-				: lng_media_file_empty_search;
+				? tr::lng_media_file_empty(tr::now)
+				: tr::lng_media_file_empty_search(tr::now);
 		case Type::Link:
 			return query.isEmpty()
-				? lng_media_link_empty
-				: lng_media_link_empty_search;
+				? tr::lng_media_link_empty(tr::now)
+				: tr::lng_media_link_empty_search(tr::now);
 		case Type::RoundVoiceFile:
-			return lng_media_audio_empty;
+			return tr::lng_media_audio_empty(tr::now);
 		}
 		Unexpected("Bad type in EmptyWidget::setSearchQuery()");
-	}();
-	_text->setText(lang(key));
+	}());
 	resizeToWidth(width());
 }
 

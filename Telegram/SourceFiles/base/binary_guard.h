@@ -20,15 +20,17 @@ public:
 	binary_guard &operator=(binary_guard &&other);
 	~binary_guard();
 
+	binary_guard &operator=(std::nullptr_t);
+
 	bool alive() const;
-	void kill();
+	binary_guard make_guard();
+
+	explicit operator bool() const;
 
 private:
 	void destroy();
 
 	std::atomic<bool> *_bothAlive = nullptr;
-
-	friend std::pair<binary_guard, binary_guard> make_binary_guard();
 
 };
 
@@ -48,12 +50,17 @@ inline binary_guard::~binary_guard() {
 	destroy();
 }
 
-inline bool binary_guard::alive() const {
-	return _bothAlive && _bothAlive->load();
+inline binary_guard &binary_guard::operator=(std::nullptr_t) {
+	destroy();
+	return *this;
 }
 
-inline void binary_guard::kill() {
-	destroy();
+inline binary_guard::operator bool() const {
+	return alive();
+}
+
+inline bool binary_guard::alive() const {
+	return _bothAlive && _bothAlive->load();
 }
 
 inline void binary_guard::destroy() {
@@ -65,12 +72,30 @@ inline void binary_guard::destroy() {
 	}
 }
 
-inline std::pair<binary_guard, binary_guard> make_binary_guard() {
-	auto result = std::pair<binary_guard, binary_guard>();
-	result.first._bothAlive
-		= result.second._bothAlive
-		= new std::atomic<bool>(true);
+inline binary_guard binary_guard::make_guard() {
+	destroy();
+
+	auto result = binary_guard();
+	_bothAlive = result._bothAlive = new std::atomic<bool>(true);
 	return result;
 }
 
 } // namespace base
+
+namespace crl {
+
+template <typename T, typename Enable>
+struct guard_traits;
+
+template <>
+struct guard_traits<base::binary_guard, void> {
+	static base::binary_guard create(base::binary_guard value) {
+		return value;
+	}
+	static bool check(const base::binary_guard &guard) {
+		return guard.alive();
+	}
+
+};
+
+} // namespace crl

@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/rpc_sender.h"
 
 RPCError::RPCError(const MTPrpcError &error)
-: _code(error.c_rpc_error().verror_code.v) {
-	QString text = qs(error.c_rpc_error().verror_message);
+: _code(error.c_rpc_error().verror_code().v) {
+	QString text = qs(error.c_rpc_error().verror_message());
 	if (_code < 0 || _code >= 500) {
 		_type = qsl("INTERNAL_SERVER_ERROR");
 		_description = text;

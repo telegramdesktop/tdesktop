@@ -372,15 +372,15 @@ int Completer::findEqualCharsCount(int position, const utf16string *word) {
 }
 
 std::vector<Suggestion> Completer::prepareResult() {
-	auto firstCharOfQuery = _query[0];
-	auto reorder = [&](auto &&predicate) {
+	const auto firstCharOfQuery = _query[0];
+	const auto reorder = [&](auto &&predicate) {
 		std::stable_partition(
 			std::begin(_result),
 			std::end(_result),
 			std::forward<decltype(predicate)>(predicate));
 	};
-	reorder([firstCharOfQuery](Result &result) {
-		auto firstCharAfterColon = result.replacement->replacement[1];
+	reorder([&](Result &result) {
+		const auto firstCharAfterColon = result.replacement->replacement[1];
 		return (firstCharAfterColon == firstCharOfQuery);
 	});
 	reorder([](Result &result) {

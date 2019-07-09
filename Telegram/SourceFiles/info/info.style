@@ -154,6 +154,7 @@ infoNotificationsActive: icon {{
 infoTopBarCall: IconButton(infoTopBarNotifications) {
 	icon: icon {{ "top_bar_call", boxTitleCloseFg }};
 	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
+	iconPosition: point(5px, -1px);
 }
 infoTopBarSave: IconButton(infoTopBarNotifications) {
 	width: 48px;
@@ -227,9 +228,10 @@ infoLayerTopBarNotifications: IconButton(infoLayerTopBarMenu) {
 	iconOver: icon {{ "info_notifications", boxTitleCloseFgOver }};
 	iconPosition: point(5px, 11px);
 }
-infoLayerTopBarCall: IconButton(infoLayerTopBarNotifications) {
+infoLayerTopBarCall: IconButton(infoLayerTopBarMenu) {
 	icon: icon {{ "top_bar_call", boxTitleCloseFg }};
 	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
+	iconPosition: point(5px, -1px);
 }
 infoLayerTopBarSave: IconButton(infoLayerTopBarNotifications) {
 	icon: icon {{ "passport_ready", windowActiveTextFg }};
@@ -358,10 +360,10 @@ infoIconMediaLink: icon {{ "info_media_link", infoIconFg }};
 infoIconMediaGroup: icon {{ "info_common_groups", infoIconFg }};
 infoIconMediaVoice: icon {{ "info_media_voice", infoIconFg }};
 infoIconMediaRound: icon {{ "info_media_round", infoIconFg }};
-infoIconRecentActions: icon {{ "info_recent_actions", infoIconFg }};
-infoIconAdministrators: icon {{ "info_administrators", infoIconFg }};
-infoIconBlacklist: icon {{ "info_blacklist", infoIconFg }};
-infoIconRestrictedUsers: icon {{ "info_restricted_users", infoIconFg }};
+infoIconRecentActions: icon {{ "info_recent_actions", infoIconFg, point(-2px, 0px) }};
+infoIconAdministrators: icon {{ "info_administrators", infoIconFg, point(-2px, -1px) }};
+infoIconBlacklist: icon {{ "info_blacklist", infoIconFg, point(-2px, -2px) }};
+infoIconPermissions: icon {{ "info_permissions", infoIconFg }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaIconPosition: point(20px, 24px);
@@ -433,6 +435,13 @@ infoBlockButton: InfoProfileButton(infoProfileButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }
+infoCreateLinkedChatButton: InfoProfileButton(infoMainButton) {
+	padding: margins(74px, 10px, 8px, 8px);
+}
+infoUnlinkChatButton: InfoProfileButton(infoCreateLinkedChatButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
 infoBlockButtonSkip: 8px;
 
 infoMembersHeader: 56px;
@@ -449,7 +458,7 @@ infoMembersButtonIconPosition: point(3px, 3px);
 infoMembersButton: IconButton(defaultIconButton) {
 	width: 38px;
 	height: 38px;
-	iconPosition: infoMembersButtonIconPosition;
+	iconPosition: point(-1px, -1px);
 	rippleAreaPosition: point(0px, 0px);
 	rippleAreaSize: 38px;
 	ripple: defaultRippleAnimation;
@@ -578,15 +587,52 @@ infoChannelsList: PeerList(infoCommonGroupsList) {
 	}
 }
 
-managePeerButton: InfoProfileButton(infoProfileButton) {
-	padding: margins(76px, 12px, 76px, 10px);
+managePeerButton: InfoProfileCountButton {
+	button: InfoProfileButton(infoProfileButton) {
+		padding: margins(76px, 12px, 76px, 10px);
+	}
+	iconPosition: point(20px, 5px);
+	label: FlatLabel(defaultFlatLabel) {
+		textFg: windowActiveTextFg;
+	}
+	labelPosition: point(25px, 12px);
 }
-managePeerButtonIconPosition: point(20px, 5px);
-managePeerButtonLabel: FlatLabel(defaultFlatLabel) {
-	textFg: windowActiveTextFg;
-	style: semiboldTextStyle;
+
+peerPermissionsButton: InfoProfileCountButton(managePeerButton) {
+	button: InfoProfileButton(infoProfileButton) {
+		padding: margins(24px, 12px, 24px, 10px);
+	}
+	iconPosition: point(24px, 5px);
 }
-managePeerButtonLabelPosition: point(25px, 10px);
+
+manageGroupButton: InfoProfileCountButton(managePeerButton) {
+	button: InfoProfileButton(infoProfileButton) {
+		padding: margins(72px, 10px, 24px, 8px);
+	}
+	labelPosition: point(22px, 12px);
+	iconPosition: point(20px, 4px);
+}
+
+manageGroupTopButtonWithText: InfoProfileCountButton(manageGroupButton) {
+	button: InfoProfileButton(infoProfileButton) {
+		padding: margins(22px, 10px, 24px, 8px);
+	}
+	labelPosition: point(22px, 10px);
+	iconPosition: point(0px, 0px);
+}
+
+manageDeleteGroupButton: InfoProfileCountButton(manageGroupTopButtonWithText) {
+	button: InfoProfileButton(infoProfileButton) {
+		padding: margins(25px, 11px, 24px, 8px);
+		textFg: attentionButtonFg;
+		textFgOver: attentionButtonFg;
+	}
+	labelPosition: point(22px, 11px);
+	iconPosition: point(0px, 0px);
+}
+
+editPeerSkip: 7px;
+editPeerHistoryVisibilityMargins: margins(15px, 0px, 20px, 16px);
 
 terminateSessionsButton: InfoProfileButton(infoBlockButton) {
 	padding: margins(23px, 12px, 23px, 10px);
@@ -607,21 +653,38 @@ infoEmptyLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 
-editPeerDeleteButtonMargins: margins(23px, 16px, 23px, 16px);
+editPeerBottomButtonsLayoutMargins: margins(0px, 7px, 0px, 0px);
+editPeerTopButtonsLayoutMargins: margins(0px, 12px, 0px, 6px);
+
+editPeerTopButtonsLayoutSkip: 13px;
+editPeerTopButtonsLayoutSkipToBottom: 12px;
+
+editPeerTopButtonsLayoutSkipCustomTop: 14px;
+editPeerTopButtonsLayoutSkipCustomBottom: 11px;
+
+editPeerHistoryVisibilityTopSkip: 8px;
+
+editPeerDeleteButtonMargins: margins(25px, 11px, 23px, 16px);
 editPeerDeleteButton: sessionTerminateAllButton;
 editPeerPhotoMargins: margins(23px, 16px, 23px, 8px);
 editPeerTitle: defaultInputField;
 editPeerTitleMargins: margins(27px, 21px, 23px, 8px);
 editPeerDescription: newGroupDescription;
 editPeerDescriptionMargins: margins(23px, 5px, 23px, 16px);
-editPeerPrivaciesMargins: margins(23px, 10px, 23px, 0px);
+editPeerPrivaciesMargins: margins(15px, 7px, 23px, 0px);
 editPeerPrivacyTopSkip: 10px;
 editPeerPrivacyBottomSkip: 16px;
 editPeerPrivacyLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 263px;
+	minWidth: 220px;
 	textFg: windowSubTextFg;
 }
-editPeerPrivacyLabelMargins: margins(34px, 0px, 0px, 0px);
+editPeerPrivacyBoxCheckbox: Checkbox(defaultBoxCheckbox) {
+	margin: margins(0px, 8px, 0px, 8px);
+	style: boxTextStyle;
+}
+editPeerHistoryVisibilityLabelMargins: margins(34px, 0px, 48px, 0px);
+editPeerPrivacyLabelMargins: margins(42px, 0px, 34px, 0px);
+editPeerPreHistoryLabelMargins: margins(34px, 0px, 34px, 0px);
 editPeerSectionLabel: FlatLabel(boxTitle) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(15px semibold);
@@ -629,6 +692,8 @@ editPeerSectionLabel: FlatLabel(boxTitle) {
 		linkFontOver: font(15px semibold underline);
 	}
 }
+editPeerUsernameTitleLabelMargins: margins(0px, 0px, 0px, 10px);
+editPeerUsernameAboutLabelMargins: margins(0px, 15px, 34px, 15px);
 editPeerUsername: setupChannelLink;
 editPeerUsernameSkip: 8px;
 editPeerInviteLink: FlatLabel(defaultFlatLabel) {
@@ -636,7 +701,7 @@ editPeerInviteLink: FlatLabel(defaultFlatLabel) {
 	style: boxTextStyle;
 }
 editPeerInviteLinkButton: boxLinkButton;
-editPeerUsernameMargins: margins(0px, 10px, 0px, 13px);
+editPeerUsernameMargins: margins(23px, 17px, 23px, 2px);
 editPeerUsernameGood: FlatLabel(defaultFlatLabel) {
 	textFg: boxTextFgGood;
 	style: boxTextStyle;
@@ -644,13 +709,12 @@ editPeerUsernameGood: FlatLabel(defaultFlatLabel) {
 editPeerUsernameError: FlatLabel(editPeerUsernameGood) {
 	textFg: boxTextFgError;
 }
-editPeerUsernamePosition: point(0px, 10px);
+editPeerUsernamePosition: point(23px, 18px);
 editPeerInviteLinkSkip: 10px;
-editPeerInviteLinkMargins: margins(23px, 10px, 14px, 16px);
-editPeerSignaturesMargins: margins(23px, 10px, 23px, 16px);
-editPeerInvitesMargins: margins(23px, 10px, 23px, 16px);
+editPeerInvitesMargins: margins(23px, 17px, 23px, 16px);
 editPeerInvitesTopSkip: 10px;
 editPeerInvitesSkip: 10px;
+editPeerInviteLinkBoxBottomSkip: 15px;
 
 historyTopBarBack: IconButton(infoTopBarBack) {
 	width: 52px;

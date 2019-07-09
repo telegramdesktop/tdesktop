@@ -914,9 +914,44 @@ int NonZeroPartToInt(QString value) {
 		: (value.isEmpty() ? 0 : value.toInt());
 }
 
-PluralResult Plural(ushort keyBase, float64 value) {
+ShortenedCount FormatCountToShort(int64 number) {
+	auto result = ShortenedCount{ number };
+	const auto abs = std::abs(number);
+	const auto shorten = [&](int64 divider, char multiplier) {
+		const auto sign = (number > 0) ? 1 : -1;
+		const auto rounded = abs / (divider / 10);
+		result.string = QString::number(sign * rounded / 10);
+		if (rounded % 10) {
+			result.string += '.' + QString::number(rounded % 10) + multiplier;
+		} else {
+			result.string += multiplier;
+		}
+		// Update given number.
+		// E.g. 12345 will be 12000.
+		result.number = rounded * divider;
+	};
+	if (abs >= 1'000'000) {
+		shorten(1'000'000, 'M');
+	} else if (abs >= 10'000) {
+		shorten(1'000, 'K');
+	} else {
+		result.string = QString::number(number);
+	}
+	return result;
+}
+
+PluralResult Plural(
+		ushort keyBase,
+		float64 value,
+		lngtag_count type) {
+	// To correctly select a shift for PluralType::Short
+	// we must first round the number.
+	const auto shortened = (type == lt_count_short)
+		? FormatCountToShort(qRound(value))
+		: ShortenedCount();
+
 	// Simplified.
-	const auto n = qAbs(value);
+	const auto n = std::abs(shortened.number ? float64(shortened.number) : value);
 	const auto i = qFloor(n);
 	const auto integer = (qCeil(n) == i);
 	const auto formatted = integer ? QString() : FormatDouble(n);
@@ -927,21 +962,25 @@ PluralResult Plural(ushort keyBase, float64 value) {
 	const auto f = NonZeroPartToInt(fraction);
 	const auto t = f;
 
-	auto &langpack = Lang::Current();
-	auto useNonDefaultPlural = (ChoosePlural != ChoosePluralDefault)
-		&& langpack.isNonDefaultPlural(LangKey(keyBase));
-	auto shift = (useNonDefaultPlural ? ChoosePlural : ChoosePluralDefault)(
+	const auto useNonDefaultPlural = (ChoosePlural != ChoosePluralDefault)
+		&& Lang::Current().isNonDefaultPlural(keyBase);
+	const auto shift = (useNonDefaultPlural ? ChoosePlural : ChoosePluralDefault)(
 		(integer ? i : -1),
 		i,
 		v,
 		w,
 		f,
 		t);
-	auto string = langpack.getValue(LangKey(keyBase + shift));
 	if (integer) {
-		return { string, QString::number(qRound(value)) };
+		const auto round = qRound(value);
+		if (type == lt_count_short) {
+			return { shift, shortened.string };
+		} else if (type == lt_count_decimal) {
+			return { shift, QString("%L1").arg(round) };
+		}
+		return { shift, QString::number(round) };
 	}
-	return { string, FormatDouble(value) };
+	return { shift, FormatDouble(value) };
 }
 
 void UpdatePluralRules(const QString &languageId) {

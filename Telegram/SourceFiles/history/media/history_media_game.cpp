@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "layout.h"
-#include "auth_session.h"
 #include "history/history_item_components.h"
+#include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/media/history_media_common.h"
@@ -40,7 +40,7 @@ HistoryGame::HistoryGame(
 			consumed,
 			Ui::ItemTextOptions(parent->data()));
 	}
-	Auth().data().registerGameView(_data, _parent);
+	history()->owner().registerGameView(_data, _parent);
 }
 
 QSize HistoryGame::countOptimalSize() {
@@ -123,7 +123,7 @@ QSize HistoryGame::countOptimalSize() {
 	minHeight += padding.top() + padding.bottom();
 
 	if (!_gameTagWidth) {
-		_gameTagWidth = st::msgDateFont->width(lang(lng_game_tag).toUpper());
+		_gameTagWidth = st::msgDateFont->width(tr::lng_game_tag(tr::now).toUpper());
 	}
 	return { maxWidth, minHeight };
 }
@@ -196,7 +196,7 @@ TextSelection HistoryGame::fromDescriptionSelection(
 	return HistoryView::ShiftItemSelection(selection, _title);
 }
 
-void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
+void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintw = width(), painth = height();
 
@@ -262,7 +262,7 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, Time
 
 		p.setFont(st::msgDateFont);
 		p.setPen(st::msgDateImgFg);
-		p.drawTextLeft(gameX + st::msgDateImgPadding.x(), gameY + st::msgDateImgPadding.y(), pixwidth, lang(lng_game_tag).toUpper());
+		p.drawTextLeft(gameX + st::msgDateImgPadding.x(), gameY + st::msgDateImgPadding.y(), pixwidth, tr::lng_game_tag(tr::now).toUpper());
 
 		p.translate(-attachLeft, -attachTop);
 	}
@@ -290,7 +290,7 @@ TextState HistoryGame::textState(QPoint point, StateRequest request) const {
 	auto lineHeight = unitedLineHeight();
 	if (_titleLines) {
 		if (point.y() >= tshift && point.y() < tshift + _titleLines * lineHeight) {
-			Text::StateRequestElided titleRequest = request.forText();
+			Ui::Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleLines;
 			result = TextState(_parent, _title.getStateElidedLeft(
 				point - QPoint(padding.left(), tshift),
@@ -304,7 +304,7 @@ TextState HistoryGame::textState(QPoint point, StateRequest request) const {
 	}
 	if (_descriptionLines) {
 		if (point.y() >= tshift && point.y() < tshift + _descriptionLines * lineHeight) {
-			Text::StateRequestElided descriptionRequest = request.forText();
+			Ui::Text::StateRequestElided descriptionRequest = request.forText();
 			descriptionRequest.lines = _descriptionLines;
 			result = TextState(_parent, _description.getStateElidedLeft(
 				point - QPoint(padding.left(), tshift),
@@ -367,22 +367,16 @@ void HistoryGame::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pres
 	}
 }
 
-TextWithEntities HistoryGame::selectedText(TextSelection selection) const {
-	auto titleResult = _title.originalTextWithEntities(
-		selection,
-		ExpandLinksAll);
-	auto descriptionResult = _description.originalTextWithEntities(
-		toDescriptionSelection(selection),
-		ExpandLinksAll);
-	if (titleResult.text.isEmpty()) {
+TextForMimeData HistoryGame::selectedText(TextSelection selection) const {
+	auto titleResult = _title.toTextForMimeData(selection);
+	auto descriptionResult = _description.toTextForMimeData(
+		toDescriptionSelection(selection));
+	if (titleResult.empty()) {
 		return descriptionResult;
-	} else if (descriptionResult.text.isEmpty()) {
+	} else if (descriptionResult.empty()) {
 		return titleResult;
 	}
-
-	titleResult.text += '\n';
-	TextUtilities::Append(titleResult, std::move(descriptionResult));
-	return titleResult;
+	return titleResult.append('\n').append(std::move(descriptionResult));
 }
 
 void HistoryGame::playAnimation(bool autoplay) {
@@ -426,12 +420,12 @@ void HistoryGame::parentTextUpdated() {
 				consumed,
 				Ui::ItemTextOptions(_parent->data()));
 		} else {
-			_description = Text(st::msgMinWidth - st::webPageLeft);
+			_description = Ui::Text::String(st::msgMinWidth - st::webPageLeft);
 		}
-		Auth().data().requestViewResize(_parent);
+		history()->owner().requestViewResize(_parent);
 	}
 }
 
 HistoryGame::~HistoryGame() {
-	Auth().data().unregisterGameView(_data, _parent);
+	history()->owner().unregisterGameView(_data, _parent);
 }

@@ -41,7 +41,7 @@ void TopBar::updateData(Content &&content) {
 	const auto &row = content.rows[0];
 	const auto clean = &TextUtilities::Clean;
 	_info->setRichText(textcmdStartSemibold()
-		+ clean(lang(lng_export_progress_title))
+		+ clean(tr::lng_export_progress_title(tr::now))
 		+ textcmdStopSemibold()
 		+ QString::fromUtf8(" \xe2\x80\x93 ")
 		+ clean(row.label)

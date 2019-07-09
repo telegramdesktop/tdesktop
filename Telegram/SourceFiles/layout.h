@@ -71,9 +71,9 @@ RoundCorners documentCorners(int colorIndex);
 
 class PaintContextBase {
 public:
-	PaintContextBase(TimeMs ms, bool selecting) : ms(ms), selecting(selecting) {
+	PaintContextBase(crl::time ms, bool selecting) : ms(ms), selecting(selecting) {
 	}
-	TimeMs ms;
+	crl::time ms;
 	bool selecting;
 
 };

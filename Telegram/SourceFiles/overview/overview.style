@@ -74,6 +74,10 @@ overviewSongCancel: icon {{ "playlist_cancel", historyFileInIconFg }};
 overviewSongCancelSelected: icon {{ "playlist_cancel", historyFileInIconFgSelected }};
 overviewSongDownload: icon {{ "playlist_download", historyFileInIconFg }};
 overviewSongDownloadSelected: icon {{ "playlist_download", historyFileInIconFgSelected }};
+overviewSmallCancel: icon {{ "history_audio_cancel", historyFileInIconFg }};
+overviewSmallCancelSelected: icon {{ "history_audio_cancel", historyFileInIconFgSelected }};
+overviewSmallDownload: icon {{ "history_audio_download", historyFileInIconFg }};
+overviewSmallDownloadSelected: icon {{ "history_audio_download", historyFileInIconFgSelected }};
 overviewFileLayout: OverviewFileLayout {
 	maxWidth: 520px;
 	songPadding: margins(17px, 7px, 10px, 6px);
@@ -127,3 +131,12 @@ overviewFilter: FlatInput(defaultFlatInput) {
 	height: 32px;
 	textMrg: margins(32px, 3px, 32px, 3px);
 }
+
+overviewVideoStatusMargin: 3px;
+overviewVideoStatusPadding: point(6px, 0px);
+overviewVideoStatusRadius: 4px;
+overviewVideoPlay: icon {{ "overview_video_play", historyFileThumbIconFg }};
+overviewVideoPlaySelected: icon {{ "overview_video_play", historyFileThumbIconFgSelected }};
+overviewVideoDownload: icon {{ "overview_video_download", historyFileThumbIconFg }};
+overviewVideoDownloadSelected: icon {{ "overview_video_download", historyFileThumbIconFgSelected }};
+overviewVideoRadialSize: 36px;

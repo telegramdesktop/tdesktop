@@ -24,9 +24,14 @@ public:
 	QString argumentsString() const;
 	bool customWorkingDir() const;
 
-	// Thread safe.
 	QString deviceModel() const;
 	QString systemVersion() const;
+	uint64 installationTag() const;
+
+	bool checkPortableVersionFolder();
+	void workingFolderReady();
+	void writeDebugModeSetting();
+	void writeInstallBetaVersionsSetting();
 
 	virtual ~Launcher() = default;
 

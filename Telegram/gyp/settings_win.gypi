@@ -17,6 +17,7 @@
         '_SCL_SECURE_NO_WARNINGS',
         '_USING_V110_SDK71_',
       ],
+      'msbuild_toolset': 'v142',
       'msvs_cygwin_shell': 0,
       'msvs_settings': {
         'VCCLCompilerTool': {
@@ -24,7 +25,7 @@
           'DebugInformationFormat': '3',          # Program Database (/Zi)
           'WarnAsError': 'true',
           'AdditionalOptions': [
-            '/std:c++latest',
+            '/std:c++17',
             '/permissive-',
             '/Qspectre',
             '/MP',     # Enable multi process build.
@@ -32,6 +33,8 @@
             '/w14834', # [[nodiscard]]
             '/utf-8',
             '/Zm2000',
+            '/w15038', # wrong initialization order
+            '/w14265', # class has virtual functions, but destructor is not virtual
           ],
           'TreatWChar_tAsBuiltInType': 'false',
         },

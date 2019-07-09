@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 
 class BoxContentDivider;
 
@@ -102,7 +103,7 @@ private:
 		QPointer<Info::Profile::Button> upload;
 		rpl::event_stream<rpl::producer<QString>> uploadTexts;
 		bool errorShown = false;
-		Animation errorAnimation;
+		Ui::Animations::Simple errorAnimation;
 	};
 
 	List &list(FileType type);

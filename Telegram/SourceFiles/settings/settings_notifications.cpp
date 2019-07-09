@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_notifications.h"
 
 #include "settings/settings_common.h"
+#include "ui/effects/animations.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/checkbox.h"
@@ -18,9 +19,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "window/notifications_manager.h"
 #include "platform/platform_notifications_manager.h"
+#include "platform/platform_info.h"
 #include "mainwindow.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 #include "styles/style_window.h"
@@ -73,7 +76,7 @@ private:
 	QPixmap _notificationSampleSmall;
 	QPixmap _notificationSampleLarge;
 	ScreenCorner _chosenCorner;
-	std::vector<Animation> _sampleOpacities;
+	std::vector<Ui::Animations::Simple> _sampleOpacities;
 
 	bool _isOverCorner = false;
 	ScreenCorner _overCorner = ScreenCorner::TopLeft;
@@ -105,7 +108,7 @@ private:
 
 	NotificationsCount *_owner;
 	QPixmap _cache;
-	Animation _opacity;
+	Ui::Animations::Simple _opacity;
 	bool _hiding = false;
 	bool _deleted = false;
 
@@ -147,7 +150,7 @@ void NotificationsCount::paintEvent(QPaintEvent *e) {
 		if (corner == static_cast<int>(_chosenCorner)) {
 			auto count = _oldCount;
 			for (int i = 0; i != kMaxNotificationsCount; ++i) {
-				auto opacity = _sampleOpacities[i].current(getms(), (i < count) ? 1. : 0.);
+				auto opacity = _sampleOpacities[i].value((i < count) ? 1. : 0.);
 				p.setOpacity(opacity);
 				p.drawPixmapLeft(sampleLeft, sampleTop, width(), _notificationSampleSmall);
 				sampleTop += (isTop ? 1 : -1) * (st::notificationSampleSize.height() + st::notificationsSampleMargin);
@@ -238,7 +241,7 @@ void NotificationsCount::prepareNotificationSampleSmall() {
 void NotificationsCount::prepareNotificationSampleUserpic() {
 	if (_notificationSampleUserpic.isNull()) {
 		_notificationSampleUserpic = App::pixmapFromImageInPlace(
-			Messenger::Instance().logoNoMargin().scaled(
+			Core::App().logoNoMargin().scaled(
 				st::notifyPhotoSize * cIntRetinaFactor(),
 				st::notifyPhotoSize * cIntRetinaFactor(),
 				Qt::IgnoreAspectRatio,
@@ -269,7 +272,7 @@ void NotificationsCount::prepareNotificationSampleLarge() {
 
 		auto rectForName = rtlrect(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height, w);
 
-		auto notifyText = st::dialogsTextFont->elided(lang(lng_notification_sample), itemWidth);
+		auto notifyText = st::dialogsTextFont->elided(tr::lng_notification_sample(tr::now), itemWidth);
 		p.setFont(st::dialogsTextFont);
 		p.setPen(st::dialogsTextFgService);
 		p.drawText(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height + st::dialogsTextFont->ascent, notifyText);
@@ -277,7 +280,7 @@ void NotificationsCount::prepareNotificationSampleLarge() {
 		p.setPen(st::dialogsNameFg);
 		p.setFont(st::msgNameFont);
 
-		auto notifyTitle = st::msgNameFont->elided(qsl("Telegram Desktop"), rectForName.width());
+		auto notifyTitle = st::msgNameFont->elided(qsl("Telegreat Desktop"), rectForName.width());
 		p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
 
 		st::notifyClose.icon.paint(p, w - st::notifyClosePos.x() - st::notifyClose.width + st::notifyClose.iconPosition.x(), st::notifyClosePos.y() + st::notifyClose.iconPosition.y(), w);
@@ -462,7 +465,7 @@ void NotificationsCount::SampleWidget::startAnimation() {
 }
 
 void NotificationsCount::SampleWidget::animationCallback() {
-	setWindowOpacity(_opacity.current(_hiding ? 0. : 1.));
+	setWindowOpacity(_opacity.value(_hiding ? 0. : 1.));
 	if (!_opacity.animating() && _hiding) {
 		if (_owner) {
 			_owner->removeSample(this);
@@ -488,14 +491,14 @@ void SetupAdvancedNotifications(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsCheckboxesSkip);
 	AddDivider(container);
 	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(container, lng_settings_notifications_position);
+	AddSubsectionTitle(container, tr::lng_settings_notifications_position());
 	AddSkip(container, st::settingsCheckboxesSkip);
 
 	const auto position = container->add(
 		object_ptr<NotificationsCount>(container));
 
 	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(container, lng_settings_notifications_count);
+	AddSubsectionTitle(container, tr::lng_settings_notifications_count());
 
 	const auto count = container->add(
 		object_ptr<Ui::SettingsSlider>(container, st::settingsSlider),
@@ -512,19 +515,21 @@ void SetupAdvancedNotifications(not_null<Ui::VerticalLayout*> container) {
 }
 
 void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
-	const auto checkbox = [&](LangKey label, bool checked) {
+	AddSubsectionTitle(container, tr::lng_settings_notify_title());
+
+	const auto checkbox = [&](const QString &label, bool checked) {
 		return object_ptr<Ui::Checkbox>(
 			container,
-			lang(label),
+			label,
 			checked,
 			st::settingsCheckbox);
 	};
-	const auto addCheckbox = [&](LangKey label, bool checked) {
+	const auto addCheckbox = [&](const QString &label, bool checked) {
 		return container->add(
 			checkbox(label, checked),
 			st::settingsCheckboxPadding);
 	};
-	const auto addSlidingCheckbox = [&](LangKey label, bool checked) {
+	const auto addSlidingCheckbox = [&](const QString &label, bool checked) {
 		return container->add(
 			object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 				container,
@@ -532,40 +537,89 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 				st::settingsCheckboxPadding));
 	};
 	const auto desktop = addCheckbox(
-		lng_settings_desktop_notify,
+		tr::lng_settings_desktop_notify(tr::now),
 		Global::DesktopNotify());
 	const auto name = addSlidingCheckbox(
-		lng_settings_show_name,
+		tr::lng_settings_show_name(tr::now),
 		(Global::NotifyView() <= dbinvShowName));
 	const auto preview = addSlidingCheckbox(
-		lng_settings_show_preview,
+		tr::lng_settings_show_preview(tr::now),
 		(Global::NotifyView() <= dbinvShowPreview));
 	const auto sound = addCheckbox(
-		lng_settings_sound_notify,
+		tr::lng_settings_sound_notify(tr::now),
 		Global::SoundNotify());
+
+	AddSkip(container, st::settingsCheckboxesSkip);
+	AddDivider(container);
+	AddSkip(container, st::settingsCheckboxesSkip);
+	AddSubsectionTitle(container, tr::lng_settings_badge_title());
+
 	const auto muted = addCheckbox(
-		lng_settings_include_muted,
+		tr::lng_settings_include_muted(tr::now),
 		Auth().settings().includeMutedCounter());
 	const auto count = addCheckbox(
-		lng_settings_count_unread,
+		tr::lng_settings_count_unread(tr::now),
 		Auth().settings().countUnreadMessages());
 
-	const auto nativeNotificationsKey = [&] {
-		if (!Platform::Notifications::Supported()) {
-			return LangKey();
-		} else if (cPlatform() == dbipWindows) {
-			return lng_settings_use_windows;
-		} else if (cPlatform() == dbipLinux32
-			|| cPlatform() == dbipLinux64) {
-			return lng_settings_use_native_notifications;
-		}
-		return LangKey();
-	}();
-	const auto native = nativeNotificationsKey
-		? addCheckbox(nativeNotificationsKey, Global::NativeNotifications())
-		: nullptr;
 
-	const auto advancedSlide = (cPlatform() != dbipMac)
+	AddSkip(container, st::settingsCheckboxesSkip);
+	AddDivider(container);
+	AddSkip(container, st::settingsCheckboxesSkip);
+	AddSubsectionTitle(container, tr::lng_settings_events_title());
+
+	const auto joined = addCheckbox(
+		tr::lng_settings_events_joined(tr::now),
+		!Auth().api().contactSignupSilentCurrent().value_or(false));
+	Auth().api().contactSignupSilent(
+	) | rpl::start_with_next([=](bool silent) {
+		joined->setChecked(!silent);
+	}, joined->lifetime());
+	joined->checkedChanges(
+	) | rpl::filter([](bool enabled) {
+		const auto silent = Auth().api().contactSignupSilentCurrent();
+		return (enabled == silent.value_or(false));
+	}) | rpl::start_with_next([=](bool enabled) {
+		Auth().api().saveContactSignupSilent(!enabled);
+	}, joined->lifetime());
+
+	const auto pinned = addCheckbox(
+		tr::lng_settings_events_pinned(tr::now),
+		Auth().settings().notifyAboutPinned());
+	Auth().settings().notifyAboutPinnedChanges(
+	) | rpl::start_with_next([=](bool notify) {
+		pinned->setChecked(notify);
+	}, pinned->lifetime());
+	pinned->checkedChanges(
+	) | rpl::filter([](bool notify) {
+		return (notify != Auth().settings().notifyAboutPinned());
+	}) | rpl::start_with_next([=](bool notify) {
+		Auth().settings().setNotifyAboutPinned(notify);
+		Auth().saveSettingsDelayed();
+	}, joined->lifetime());
+
+	const auto nativeText = [&] {
+		if (!Platform::Notifications::Supported()) {
+			return QString();
+		} else if (Platform::IsWindows()) {
+			return tr::lng_settings_use_windows(tr::now);
+		} else if (Platform::IsLinux()) {
+			return tr::lng_settings_use_native_notifications(tr::now);
+		}
+		return QString();
+	}();
+	const auto native = [&]() -> Ui::Checkbox* {
+		if (nativeText.isEmpty()) {
+			return nullptr;
+		}
+
+		AddSkip(container, st::settingsCheckboxesSkip);
+		AddDivider(container);
+		AddSkip(container, st::settingsCheckboxesSkip);
+		AddSubsectionTitle(container, tr::lng_settings_native_title());
+		return addCheckbox(nativeText, Global::NativeNotifications());
+	}();
+
+	const auto advancedSlide = !Platform::IsMac10_8OrGreater()
 		? container->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				container,

@@ -6,7 +6,6 @@
 
 {
   'conditions': [[ 'build_win', {
-    'msbuild_toolset': 'v141',
     'library_dirs': [
       '<(libs_loc)/ffmpeg',
     ],
@@ -31,6 +30,9 @@
           'libswscale/libswscale.a',
         ],
       },
+      'VCManifestTool': {
+        'AdditionalManifestFiles': '<(res_loc)/winrc/Telegram.manifest',
+      }
     },
     'configurations': {
       'Debug': {

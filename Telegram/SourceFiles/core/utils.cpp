@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/utils.h"
 
 #include "base/qthelp_url.h"
-#include "application.h"
 #include "platform/platform_specific.h"
 
 extern "C" {
@@ -30,6 +29,10 @@ extern "C" {
 #else
 #include <time.h>
 #endif
+
+#ifdef small
+#undef small
+#endif // small
 
 uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
 
@@ -84,7 +87,7 @@ std::atomic<int> GlobalAtomicRequestId = 0;
 }
 
 TimeId LocalUnixtime() {
-	return (TimeId)time(NULL);
+	return (TimeId)time(nullptr);
 }
 
 void unixtimeInit() {
@@ -173,24 +176,24 @@ namespace {
 	int _ffmpegLockManager(void **mutex, AVLockOp op) {
 		switch (op) {
 		case AV_LOCK_CREATE: {
-			Assert(*mutex == 0);
+			Assert(*mutex == nullptr);
 			*mutex = reinterpret_cast<void*>(new QMutex());
 		} break;
 
 		case AV_LOCK_OBTAIN: {
-			Assert(*mutex != 0);
+			Assert(*mutex != nullptr);
 			reinterpret_cast<QMutex*>(*mutex)->lock();
 		} break;
 
 		case AV_LOCK_RELEASE: {
-			Assert(*mutex != 0);
+			Assert(*mutex != nullptr);
 			reinterpret_cast<QMutex*>(*mutex)->unlock();
 		}; break;
 
 		case AV_LOCK_DESTROY: {
-			Assert(*mutex != 0);
+			Assert(*mutex != nullptr);
 			delete reinterpret_cast<QMutex*>(*mutex);
-			*mutex = 0;
+			*mutex = nullptr;
 		} break;
 		}
 		return 0;
@@ -221,7 +224,7 @@ namespace {
 
 			timespec ts;
 			clock_gettime(CLOCK_MONOTONIC, &ts);
-			const auto seed = 1000LL * static_cast<TimeMs>(ts.tv_sec) + (static_cast<TimeMs>(ts.tv_nsec) / 1000000LL);
+			const auto seed = 1000LL * static_cast<crl::time>(ts.tv_sec) + (static_cast<crl::time>(ts.tv_nsec) / 1000000LL);
 #endif
 			srand((uint32)(seed & 0xFFFFFFFFL));
 		}
@@ -424,18 +427,6 @@ namespace ThirdParty {
 
 		Platform::ThirdParty::finish();
 	}
-}
-
-bool checkms() {
-	if (crl::adjust_time()) {
-		Sandbox::adjustSingleTimers();
-		return true;
-	}
-	return false;
-}
-
-TimeMs getms(bool checked) {
-	return crl::time();
 }
 
 uint64 msgid() {

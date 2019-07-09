@@ -8,7 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "styles/style_widgets.h"
+#include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
+
+namespace base {
+class Timer;
+} // namespace base
 
 namespace Ui {
 
@@ -27,6 +32,7 @@ public:
 
 	float64 value() const;
 	void setValue(float64 value);
+	void setValue(float64 value, float64 receivedTill);
 	void setFadeOpacity(float64 opacity);
 	void setDisabled(bool disabled);
 	bool isDisabled() const {
@@ -59,11 +65,14 @@ protected:
 	float64 fadeOpacity() const {
 		return _fadeOpacity;
 	}
-	float64 getCurrentValue() {
+	float64 getCurrentValue() const {
 		return _mouseDown ? _downValue : _value;
 	}
-	float64 getCurrentOverFactor(TimeMs ms) {
-		return _disabled ? 0. : _a_over.current(ms, _over ? 1. : 0.);
+	float64 getCurrentReceivedTill() const {
+		return _receivedTill;
+	}
+	float64 getCurrentOverFactor() {
+		return _disabled ? 0. : _overAnimation.value(_over ? 1. : 0.);
 	}
 	Direction getDirection() const {
 		return _direction;
@@ -71,9 +80,10 @@ protected:
 	bool isHorizontal() const {
 		return (_direction == Direction::Horizontal);
 	}
+	QRect getSeekRect() const;
+	virtual QSize getSeekDecreaseSize() const = 0;
 
 private:
-	virtual QRect getSeekRect() const = 0;
 	virtual float64 getOverDuration() const = 0;
 
 	bool moveByWheel() const {
@@ -87,16 +97,17 @@ private:
 	Direction _direction = Direction::Horizontal;
 	bool _disabled = false;
 
-	std::unique_ptr<SingleTimer> _byWheelFinished;
+	std::unique_ptr<base::Timer> _byWheelFinished;
 
 	Fn<float64(float64)> _adjustCallback;
 	Fn<void(float64)> _changeProgressCallback;
 	Fn<void(float64)> _changeFinishedCallback;
 
 	bool _over = false;
-	Animation _a_over;
+	Ui::Animations::Simple _overAnimation;
 
 	float64 _value = 0.;
+	float64 _receivedTill = 0.;
 
 	bool _mouseDown = false;
 	float64 _downValue = 0.;
@@ -113,7 +124,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	QRect getSeekRect() const override;
+	QSize getSeekDecreaseSize() const override;
 	float64 getOverDuration() const override;
 
 	const style::FilledSlider &_st;
@@ -148,6 +159,7 @@ public:
 		setDirection(Ui::ContinuousSlider::Direction::Horizontal);
 
 		const auto sectionsCount = (valuesCount - 1);
+		setValue(1.);
 		for (auto index = index_type(); index != valuesCount; ++index) {
 			if (current <= convert(index)) {
 				setValue(index / float64(sectionsCount));
@@ -171,7 +183,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	QRect getSeekRect() const override;
+	QSize getSeekDecreaseSize() const override;
 	float64 getOverDuration() const override;
 
 	const style::MediaSlider &_st;

@@ -20,7 +20,7 @@ public:
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
@@ -40,7 +40,7 @@ public:
 		return _attach && _attach->dragItemByHandler(p);
 	}
 
-	TextWithEntities selectedText(TextSelection selection) const override;
+	TextForMimeData selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
@@ -93,7 +93,7 @@ private:
 
 	int _titleLines, _descriptionLines;
 
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 
 	int _gameTagWidth = 0;
 

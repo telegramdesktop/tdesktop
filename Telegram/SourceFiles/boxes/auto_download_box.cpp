@@ -43,7 +43,7 @@ void AutoDownloadBox::setupContent() {
 	using namespace rpl::mappers;
 	using Type = Data::AutoDownload::Type;
 
-	setTitle(langFactory(lng_media_auto_title));
+	setTitle(tr::lng_media_auto_title());
 
 	const auto settings = &Auth().settings().autoDownload();
 	const auto checked = [=](Source source, Type type) {
@@ -56,12 +56,21 @@ void AutoDownloadBox::setupContent() {
 		this,
 		std::move(wrap)));
 
+	static const auto kHidden = {
+		Type::Video,
+		Type::Music,
+		Type::VoiceMessage
+	};
+
 	const auto values = Ui::CreateChild<base::flat_map<Type, int>>(content);
-	const auto add = [&](Type type, LangKey label) {
+	const auto add = [&](Type type, rpl::producer<QString> label) {
+		if (ranges::find(kHidden, type) != end(kHidden)) {
+			return;
+		}
 		const auto value = settings->bytesLimit(_source, type);
 		AddButton(
 			content,
-			label,
+			std::move(label),
 			st::settingsButton
 		)->toggleOn(
 			rpl::single(value > 0)
@@ -71,13 +80,13 @@ void AutoDownloadBox::setupContent() {
 		}, content->lifetime());
 		values->emplace(type, value);
 	};
-	add(Type::Photo, lng_media_photo_title);
-	add(Type::VoiceMessage, lng_media_audio_title);
-	add(Type::VideoMessage, lng_media_video_messages_title);
-	add(Type::Video, lng_media_video_title);
-	add(Type::File, lng_media_file_title);
-	add(Type::Music, lng_media_music_title);
-	add(Type::GIF, lng_media_animation_title);
+	add(Type::Photo, tr::lng_media_photo_title());
+	add(Type::VoiceMessage, tr::lng_media_audio_title());
+	add(Type::VideoMessage, tr::lng_media_video_messages_title());
+	add(Type::Video, tr::lng_media_video_title());
+	add(Type::File, tr::lng_media_file_title());
+	add(Type::Music, tr::lng_media_music_title());
+	add(Type::GIF, tr::lng_media_animation_title());
 
 	const auto limits = Ui::CreateChild<rpl::event_stream<int>>(content);
 	using Pair = base::flat_map<Type, int>::value_type;
@@ -89,11 +98,12 @@ void AutoDownloadBox::setupContent() {
 	const auto limit = Ui::CreateChild<int>(content, initialLimit);
 	AddButtonWithLabel(
 		content,
-		lng_media_size_limit,
+		tr::lng_media_size_limit(),
 		limits->events_starting_with_copy(
 			initialLimit
 		) | rpl::map([](int value) {
-			return lng_media_size_up_to(
+			return tr::lng_media_size_up_to(
+				tr::now,
 				lt_size,
 				QString::number(value / kMegabyte) + " MB");
 		}),
@@ -111,18 +121,8 @@ void AutoDownloadBox::setupContent() {
 			*limit = value;
 			limits->fire_copy(value);
 		});
-	const auto save = [=](
-			Type type,
-			std::pair<bool, bool> pair) {
-		const auto limit = [](bool checked) {
-			return checked ? kMaxBytesLimit : 0;
-		};
-		settings->setBytesLimit(Source::User, type, limit(pair.first));
-		settings->setBytesLimit(Source::Group, type, limit(pair.second));
-		settings->setBytesLimit(Source::Channel, type, limit(pair.second));
-	};
 
-	addButton(langFactory(lng_connection_save), [=] {
+	addButton(tr::lng_connection_save(), [=] {
 		auto allowMore = ranges::view::all(
 			*values
 		) | ranges::view::filter([&](Pair pair) {
@@ -143,11 +143,26 @@ void AutoDownloadBox::setupContent() {
 			return settings->bytesLimit(_source, type) != value;
 		}) != end(*values);
 
+		const auto hiddenChanged = ranges::find_if(kHidden, [&](Type type) {
+			const auto now = settings->bytesLimit(_source, type);
+			return (now > 0) && (now != *limit);
+		}) != end(kHidden);
+
 		if (changed) {
 			for (const auto [type, enabled] : *values) {
 				const auto value = enabled ? *limit : 0;
 				settings->setBytesLimit(_source, type, value);
 			}
+		}
+		if (hiddenChanged) {
+			for (const auto type : kHidden) {
+				const auto now = settings->bytesLimit(_source, type);
+				if (now > 0) {
+					settings->setBytesLimit(_source, type, *limit);
+				}
+			}
+		}
+		if (changed || hiddenChanged) {
 			Local::writeUserSettings();
 		}
 		if (allowMoreTypes.contains(Type::Photo)) {
@@ -159,7 +174,7 @@ void AutoDownloadBox::setupContent() {
 		}
 		closeBox();
 	});
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	setDimensionsToContent(st::boxWidth, content);
 }

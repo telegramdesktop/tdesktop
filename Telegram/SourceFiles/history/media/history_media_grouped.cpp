@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_item_components.h"
 #include "history/history_message.h"
+#include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "data/data_media_types.h"
@@ -17,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/grouped_layout.h"
 #include "ui/text_options.h"
-#include "auth_session.h"
 #include "layout.h"
 #include "styles/style_history.h"
 
@@ -169,7 +169,7 @@ void HistoryGroupedMedia::draw(
 		Painter &p,
 		const QRect &clip,
 		TextSelection selection,
-		TimeMs ms) const {
+		crl::time ms) const {
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
 		const auto partSelection = (selection == FullSelection)
@@ -304,9 +304,9 @@ TextSelection HistoryGroupedMedia::adjustSelection(
 	return _caption.adjustSelection(selection, type);
 }
 
-TextWithEntities HistoryGroupedMedia::selectedText(
+TextForMimeData HistoryGroupedMedia::selectedText(
 		TextSelection selection) const {
-	return _caption.originalTextWithEntities(selection, ExpandLinksAll);
+	return _caption.toTextForMimeData(selection);
 }
 
 void HistoryGroupedMedia::clickHandlerActiveChanged(
@@ -390,25 +390,27 @@ HistoryMessageEdited *HistoryGroupedMedia::displayedEditBadge() const {
 }
 
 void HistoryGroupedMedia::updateNeedBubbleState() {
-	const auto hasCaption = [&] {
-		if (_parts.front().item->emptyText()) {
-			return false;
-		}
-		for (auto i = 1, count = int(_parts.size()); i != count; ++i) {
-			if (!_parts[i].item->emptyText()) {
-				return false;
+	const auto captionItem = [&]() -> HistoryItem* {
+		auto result = (HistoryItem*)nullptr;
+		for (const auto &part : _parts) {
+			if (!part.item->emptyText()) {
+				if (result) {
+					return nullptr;
+				} else {
+					result = part.item;
+				}
 			}
 		}
-		return true;
+		return result;
 	}();
-	if (hasCaption) {
-		_caption = createCaption(_parts.front().item);
+	if (captionItem) {
+		_caption = createCaption(captionItem);
 	}
 	_needBubble = computeNeedBubble();
 }
 
 void HistoryGroupedMedia::parentTextUpdated() {
-	Auth().data().requestViewResize(_parent);
+	history()->owner().requestViewResize(_parent);
 }
 
 bool HistoryGroupedMedia::needsBubble() const {

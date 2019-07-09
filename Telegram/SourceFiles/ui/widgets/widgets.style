@@ -115,6 +115,7 @@ Toggle {
 	vsize: pixels;
 	vshift: pixels;
 	stroke: pixels;
+	lockIcon: icon;
 	rippleAreaPadding: pixels;
 }
 
@@ -290,6 +291,7 @@ MediaSlider {
 	inactiveFgOver: color;
 	activeFgDisabled: color;
 	inactiveFgDisabled: color;
+	receivedTillFg: color;
 	seekSize: size;
 	duration: int;
 }
@@ -525,6 +527,14 @@ InfoProfileButton {
 	toggleSkip: pixels;
 
 	ripple: RippleAnimation;
+}
+
+InfoProfileCountButton {
+	button: InfoProfileButton;
+	icon: icon;
+	iconPosition: point;
+	label: FlatLabel;
+	labelPosition: point;
 }
 
 PassportScanRow {
@@ -897,6 +907,7 @@ defaultContinuousSlider: MediaSlider {
 	inactiveFgOver: mediaPlayerInactiveFg;
 	activeFgDisabled: mediaPlayerInactiveFg;
 	inactiveFgDisabled: windowBg;
+	receivedTillFg: mediaPlayerInactiveFg;
 	seekSize: size(9px, 9px);
 	duration: 150;
 }

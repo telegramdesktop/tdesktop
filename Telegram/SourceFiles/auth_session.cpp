@@ -8,14 +8,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 
 #include "apiwrap.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "core/changelogs.h"
+#include "main/main_account.h"
 #include "storage/file_download.h"
 #include "storage/file_upload.h"
 #include "storage/localstorage.h"
 #include "storage/storage_facade.h"
 #include "storage/serialize_common.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "platform/platform_specific.h"
@@ -30,7 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kAutoLockTimeoutLateMs = TimeMs(3000);
+constexpr auto kAutoLockTimeoutLateMs = crl::time(3000);
 constexpr auto kLegacyCallsPeerToPeerNobody = 4;
 
 } // namespace
@@ -92,6 +94,10 @@ QByteArray AuthSessionSettings::serialize() const {
 		stream << qint32(_variables.exeLaunchWarning ? 1 : 0);
 		stream << autoDownload;
 		stream << qint32(_variables.supportAllSearchResults.current() ? 1 : 0);
+		stream << qint32(_variables.archiveCollapsed.current() ? 1 : 0);
+		stream << qint32(_variables.notifyAboutPinned.current() ? 1 : 0);
+		stream << qint32(_variables.archiveInMainMenu.current() ? 1 : 0);
+		stream << qint32(_variables.skipArchiveInSearch.current() ? 1 : 0);
 	}
 	return result;
 }
@@ -128,6 +134,10 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	qint32 exeLaunchWarning = _variables.exeLaunchWarning ? 1 : 0;
 	QByteArray autoDownload;
 	qint32 supportAllSearchResults = _variables.supportAllSearchResults.current() ? 1 : 0;
+	qint32 archiveCollapsed = _variables.archiveCollapsed.current() ? 1 : 0;
+	qint32 notifyAboutPinned = _variables.notifyAboutPinned.current() ? 1 : 0;
+	qint32 archiveInMainMenu = _variables.archiveInMainMenu.current() ? 1 : 0;
+	qint32 skipArchiveInSearch = _variables.skipArchiveInSearch.current() ? 1 : 0;
 
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
@@ -207,6 +217,18 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	if (!stream.atEnd()) {
 		stream >> supportAllSearchResults;
 	}
+	if (!stream.atEnd()) {
+		stream >> archiveCollapsed;
+	}
+	if (!stream.atEnd()) {
+		stream >> notifyAboutPinned;
+	}
+	if (!stream.atEnd()) {
+		stream >> archiveInMainMenu;
+	}
+	if (!stream.atEnd()) {
+		stream >> skipArchiveInSearch;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for AuthSessionSettings::constructFromSerialized()"));
@@ -276,6 +298,10 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	_variables.countUnreadMessages = (countUnreadMessages == 1);
 	_variables.exeLaunchWarning = (exeLaunchWarning == 1);
 	_variables.supportAllSearchResults = (supportAllSearchResults == 1);
+	_variables.archiveCollapsed = (archiveCollapsed == 1);
+	_variables.notifyAboutPinned = (notifyAboutPinned == 1);
+	_variables.archiveInMainMenu = (archiveInMainMenu == 1);
+	_variables.skipArchiveInSearch = (skipArchiveInSearch == 1);
 }
 
 void AuthSessionSettings::setSupportChatsTimeSlice(int slice) {
@@ -370,37 +396,81 @@ rpl::producer<int> AuthSessionSettings::thirdColumnWidthChanges() const {
 	return _variables.thirdColumnWidth.changes();
 }
 
-AuthSession &Auth() {
-	auto result = Messenger::Instance().authSession();
-	Assert(result != nullptr);
-	return *result;
+void AuthSessionSettings::setArchiveCollapsed(bool collapsed) {
+	_variables.archiveCollapsed = collapsed;
 }
 
-AuthSession::AuthSession(const MTPUser &user)
-: _user(App::user(user.match([](const auto &data) { return data.vid.v; })))
-, _autoLockTimer([this] { checkAutoLock(); })
+bool AuthSessionSettings::archiveCollapsed() const {
+	return _variables.archiveCollapsed.current();
+}
+
+rpl::producer<bool> AuthSessionSettings::archiveCollapsedChanges() const {
+	return _variables.archiveCollapsed.changes();
+}
+
+void AuthSessionSettings::setArchiveInMainMenu(bool inMainMenu) {
+	_variables.archiveInMainMenu = inMainMenu;
+}
+
+bool AuthSessionSettings::archiveInMainMenu() const {
+	return _variables.archiveInMainMenu.current();
+}
+
+rpl::producer<bool> AuthSessionSettings::archiveInMainMenuChanges() const {
+	return _variables.archiveInMainMenu.changes();
+}
+
+void AuthSessionSettings::setNotifyAboutPinned(bool notify) {
+	_variables.notifyAboutPinned = notify;
+}
+
+bool AuthSessionSettings::notifyAboutPinned() const {
+	return _variables.notifyAboutPinned.current();
+}
+
+rpl::producer<bool> AuthSessionSettings::notifyAboutPinnedChanges() const {
+	return _variables.notifyAboutPinned.changes();
+}
+
+void AuthSessionSettings::setSkipArchiveInSearch(bool skip) {
+	_variables.skipArchiveInSearch = skip;
+}
+
+bool AuthSessionSettings::skipArchiveInSearch() const {
+	return _variables.skipArchiveInSearch.current();
+}
+
+rpl::producer<bool> AuthSessionSettings::skipArchiveInSearchChanges() const {
+	return _variables.skipArchiveInSearch.changes();
+}
+
+AuthSession &Auth() {
+	return Core::App().activeAccount().session();
+}
+
+AuthSession::AuthSession(
+	not_null<Main::Account*> account,
+	const MTPUser &user)
+: _account(account)
+, _autoLockTimer([=] { checkAutoLock(); })
 , _api(std::make_unique<ApiWrap>(this))
 , _calls(std::make_unique<Calls::Instance>())
-, _downloader(std::make_unique<Storage::Downloader>())
-, _uploader(std::make_unique<Storage::Uploader>())
+, _downloader(std::make_unique<Storage::Downloader>(_api.get()))
+, _uploader(std::make_unique<Storage::Uploader>(_api.get()))
 , _storage(std::make_unique<Storage::Facade>())
 , _notifications(std::make_unique<Window::Notifications::System>(this))
 , _data(std::make_unique<Data::Session>(this))
+, _user(_data->processUser(user))
 , _changelogs(Core::Changelogs::Create(this))
-, _supportHelper(
-	((Support::ValidateAccount(user) || gTemplate)
-		? std::make_unique<Support::Helper>(this)
-		: nullptr)) {
-	App::feedUser(user);
-
+, _supportHelper(Support::Helper::Create(this)) {
 	_saveDataTimer.setCallback([=] {
 		Local::writeUserSettings();
 	});
-	Messenger::Instance().passcodeLockChanges(
+	Core::App().passcodeLockChanges(
 	) | rpl::start_with_next([=] {
 		_shouldLockAt = 0;
 	}, _lifetime);
-	Messenger::Instance().lockChanges(
+	Core::App().lockChanges(
 	) | rpl::start_with_next([=] {
 		notifications().updateAll();
 	}, _lifetime);
@@ -432,24 +502,39 @@ AuthSession::AuthSession(const MTPUser &user)
 	Window::Theme::Background()->start();
 }
 
+AuthSession::~AuthSession() {
+	ClickHandler::clearActive();
+	ClickHandler::unpressed();
+}
+
+Main::Account &AuthSession::account() const {
+	return *_account;
+}
+
 bool AuthSession::Exists() {
-	if (const auto messenger = Messenger::InstancePointer()) {
-		return (messenger->authSession() != nullptr);
-	}
-	return false;
+	return Core::IsAppLaunched()
+		&& Core::App().activeAccount().sessionExists();
 }
 
 base::Observable<void> &AuthSession::downloaderTaskFinished() {
 	return downloader().taskFinished();
 }
 
+UserId AuthSession::userId() const {
+	return _user->bareId();
+}
+
+PeerId AuthSession::userPeerId() const {
+	return _user->id;
+}
+
 bool AuthSession::validateSelf(const MTPUser &user) {
 	if (user.type() != mtpc_user || !user.c_user().is_self()) {
 		LOG(("API Error: bad self user received."));
 		return false;
-	} else if (user.c_user().vid.v != userId()) {
+	} else if (user.c_user().vid().v != userId()) {
 		LOG(("Auth Error: wrong self user received."));
-		crl::on_main(this, [] { Messenger::Instance().logOut(); });
+		crl::on_main(this, [] { Core::App().logOut(); });
 		return false;
 	}
 	return true;
@@ -467,33 +552,47 @@ void AuthSession::moveSettingsFrom(AuthSessionSettings &&other) {
 	}
 }
 
-void AuthSession::saveSettingsDelayed(TimeMs delay) {
+void AuthSession::saveSettingsDelayed(crl::time delay) {
 	Expects(this == &Auth());
 
 	_saveDataTimer.callOnce(delay);
 }
 
+void AuthSession::localPasscodeChanged() {
+	_shouldLockAt = 0;
+	_autoLockTimer.cancel();
+	checkAutoLock();
+}
+
+void AuthSession::termsDeleteNow() {
+	api().request(MTPaccount_DeleteAccount(
+		MTP_string("Decline ToS update")
+	)).send();
+}
+
 void AuthSession::checkAutoLock() {
 	if (!Global::LocalPasscode()
-		|| Messenger::Instance().passcodeLocked()) {
+		|| Core::App().passcodeLocked()) {
+		_shouldLockAt = 0;
+		_autoLockTimer.cancel();
 		return;
 	}
 
-	Messenger::Instance().checkLocalTime();
-	auto now = getms(true);
-	auto shouldLockInMs = Global::AutoLock() * 1000LL;
-	auto idleForMs = psIdleTime();
-	auto notPlayingVideoForMs = now - settings().lastTimeVideoPlayedAt();
-	auto checkTimeMs = qMin(idleForMs, notPlayingVideoForMs);
+	Core::App().checkLocalTime();
+	const auto now = crl::now();
+	const auto shouldLockInMs = Global::AutoLock() * 1000LL;
+	const auto checkTimeMs = now - Core::App().lastNonIdleTime();
 	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
-		Messenger::Instance().lockByPasscode();
+		_shouldLockAt = 0;
+		_autoLockTimer.cancel();
+		Core::App().lockByPasscode();
 	} else {
 		_shouldLockAt = now + (shouldLockInMs - checkTimeMs);
 		_autoLockTimer.callOnce(shouldLockInMs - checkTimeMs);
 	}
 }
 
-void AuthSession::checkAutoLockIn(TimeMs time) {
+void AuthSession::checkAutoLockIn(crl::time time) {
 	if (_autoLockTimer.isActive()) {
 		auto remain = _autoLockTimer.remainingTime();
 		if (remain > 0 && remain <= time) return;
@@ -502,12 +601,11 @@ void AuthSession::checkAutoLockIn(TimeMs time) {
 }
 
 bool AuthSession::supportMode() const {
-	return (_user->phone().startsWith(qstr("424"))
-			|| (_user->about().contains("@Telegreat") && _user->about().toLower().contains("support"))); // cannot check by supportHelper, copied from support_common: ValidateAccount()
+	return (_supportHelper != nullptr);
 }
 
 Support::Helper &AuthSession::supportHelper() const {
-	Expects(supportMode() || gTemplate);
+	Expects(supportMode());
 
 	return *_supportHelper;
 }
@@ -515,5 +613,3 @@ Support::Helper &AuthSession::supportHelper() const {
 Support::Templates& AuthSession::supportTemplates() const {
 	return supportHelper().templates();
 }
-
-AuthSession::~AuthSession() = default;

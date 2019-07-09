@@ -57,9 +57,18 @@ public:
 	}
 
 	~has_weak_ptr() {
-		if (auto alive = _alive.load()) {
+		if (const auto alive = _alive.load()) {
 			alive->value.store(nullptr);
 			details::decrement(alive);
+		}
+	}
+
+	friend inline void invalidate_weak_ptrs(has_weak_ptr *object) {
+		if (auto alive = object->_alive.load()) {
+			if (object->_alive.compare_exchange_strong(alive, nullptr)) {
+				alive->value.store(nullptr);
+				details::decrement(alive);
+			}
 		}
 	}
 

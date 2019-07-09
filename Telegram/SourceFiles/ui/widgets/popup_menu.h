@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "ui/rp_widget.h"
 #include "ui/widgets/menu.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
 
 namespace Ui {
@@ -19,13 +20,12 @@ public:
 	PopupMenu(QWidget *parent, const style::PopupMenu &st = st::defaultPopupMenu);
 	PopupMenu(QWidget *parent, QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);
 
-	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	QAction *addAction(const QString &text, Fn<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	QAction *addSeparator();
+	not_null<QAction*> addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
+	not_null<QAction*> addAction(const QString &text, Fn<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
+	not_null<QAction*> addSeparator();
 	void clearActions();
 
-	using Actions = Ui::Menu::Actions;
-	Actions &actions();
+	const std::vector<not_null<QAction*>> &actions() const;
 
 	void deleteOnHide(bool del);
 	void popup(const QPoint &p);
@@ -114,12 +114,12 @@ private:
 
 	PanelAnimation::Origin _origin = PanelAnimation::Origin::TopLeft;
 	std::unique_ptr<PanelAnimation> _showAnimation;
-	Animation _a_show;
+	Ui::Animations::Simple _a_show;
 
 	bool _useTransparency = true;
 	bool _hiding = false;
 	QPixmap _cache;
-	Animation _a_opacity;
+	Ui::Animations::Simple _a_opacity;
 
 	bool _deleteOnHide = true;
 	bool _triggering = false;

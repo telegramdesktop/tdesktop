@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel_admins.h"
 
 #include "history/history.h"
+#include "data/data_channel.h"
+#include "data/data_session.h"
 
 namespace Data {
 
@@ -28,7 +30,7 @@ void ChannelAdminChanges::feed(UserId userId, bool isAdmin) {
 
 ChannelAdminChanges::~ChannelAdminChanges() {
 	if (!_changes.empty()) {
-		if (auto history = App::historyLoaded(_channel)) {
+		if (const auto history = _channel->owner().historyLoaded(_channel)) {
 			history->applyGroupAdminChanges(_changes);
 		}
 	}

@@ -13,15 +13,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ConfirmBox;
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Ui {
 class PlainShadow;
 } // namespace Ui
 
 class StickerSetBox : public BoxContent, public RPCSender {
 public:
-	StickerSetBox(QWidget*, const MTPInputStickerSet &set);
+	StickerSetBox(
+		QWidget*,
+		not_null<Window::SessionController*> controller,
+		const MTPInputStickerSet &set);
 
-	static void Show(DocumentData *document);
+	static void Show(
+		not_null<Window::SessionController*> controller,
+		not_null<DocumentData*> document);
 
 protected:
 	void prepare() override;
@@ -34,6 +43,7 @@ private:
 	void addStickers();
 	void shareStickers();
 
+	not_null<Window::SessionController*> _controller;
 	MTPInputStickerSet _set;
 
 	class Inner;

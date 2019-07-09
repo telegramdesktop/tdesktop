@@ -23,10 +23,6 @@ template <typename Widget>
 class PaddingWrap;
 } // namespace Ui
 
-namespace Data {
-class Feed;
-} // namespace Data
-
 namespace Info {
 namespace Settings {
 struct Tag;
@@ -124,8 +120,8 @@ public:
 	: _peerId(peerId)
 	, _migratedPeerId(migratedPeerId) {
 	}
-	explicit ContentMemento(not_null<Data::Feed*> feed) : _feed(feed) {
-	}
+	//explicit ContentMemento(not_null<Data::Feed*> feed) : _feed(feed) { // #feed
+	//}
 	explicit ContentMemento(Settings::Tag settings);
 
 	virtual object_ptr<ContentWidget> createWidget(
@@ -139,9 +135,9 @@ public:
 	PeerId migratedPeerId() const {
 		return _migratedPeerId;
 	}
-	Data::Feed *feed() const {
-		return _feed;
-	}
+	//Data::Feed *feed() const { // #feed
+	//	return _feed;
+	//}
 	UserData *settingsSelf() const {
 		return _settingsSelf;
 	}
@@ -179,7 +175,7 @@ public:
 private:
 	const PeerId _peerId = 0;
 	const PeerId _migratedPeerId = 0;
-	Data::Feed * const _feed = nullptr;
+	//Data::Feed * const _feed = nullptr; // #feed
 	UserData * const _settingsSelf = nullptr;
 	int _scrollTop = 0;
 	QString _searchFieldQuery;

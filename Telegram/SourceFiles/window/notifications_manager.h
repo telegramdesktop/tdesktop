@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
+
 class AuthSession;
 
 namespace Platform {
@@ -53,7 +55,7 @@ class Manager;
 
 class System final : private base::Subscriber {
 public:
-	System(AuthSession *session);
+	explicit System(not_null<AuthSession*> session);
 
 	void createManager();
 
@@ -69,42 +71,47 @@ public:
 		return _settingsChanged;
 	}
 
-	AuthSession *authSession() {
-		return _authSession;
+	AuthSession &session() const {
+		return *_session;
 	}
 
 	~System();
 
 private:
 	void showNext();
+	void showGrouped();
 	void ensureSoundCreated();
 
-	AuthSession *_authSession = nullptr;
+	not_null<AuthSession*> _session;
 
-	QMap<History*, QMap<MsgId, TimeMs>> _whenMaps;
+	QMap<History*, QMap<MsgId, crl::time>> _whenMaps;
 
 	struct Waiter {
-		Waiter(MsgId msg, TimeMs when, PeerData *notifyBy)
+		Waiter(MsgId msg, crl::time when, PeerData *notifyBy)
 		: msg(msg)
 		, when(when)
 		, notifyBy(notifyBy) {
 		}
 		MsgId msg;
-		TimeMs when;
+		crl::time when;
 		PeerData *notifyBy;
 	};
 	using Waiters = QMap<History*, Waiter>;
 	Waiters _waiters;
 	Waiters _settingWaiters;
-	SingleTimer _waitTimer;
+	base::Timer _waitTimer;
+	base::Timer _waitForAllGroupedTimer;
 
-	QMap<History*, QMap<TimeMs, PeerData*>> _whenAlerts;
+	QMap<History*, QMap<crl::time, PeerData*>> _whenAlerts;
 
 	std::unique_ptr<Manager> _manager;
 
 	base::Observable<ChangeType> _settingsChanged;
 
 	std::unique_ptr<Media::Audio::Track> _soundTrack;
+
+	int _lastForwardedCount = 0;
+	FullMsgId _lastHistoryItemId;
 
 };
 

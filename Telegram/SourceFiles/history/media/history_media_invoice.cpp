@@ -45,19 +45,22 @@ void HistoryInvoice::fillFromData(not_null<Data::Invoice*> invoice) {
 	auto labelText = [&] {
 		if (invoice->receiptMsgId) {
 			if (invoice->isTest) {
-				return lang(lng_payments_receipt_label_test);
+				return tr::lng_payments_receipt_label_test(tr::now);
 			}
-			return lang(lng_payments_receipt_label);
+			return tr::lng_payments_receipt_label(tr::now);
 		} else if (invoice->isTest) {
-			return lang(lng_payments_invoice_label_test);
+			return tr::lng_payments_invoice_label_test(tr::now);
 		}
-		return lang(lng_payments_invoice_label);
+		return tr::lng_payments_invoice_label(tr::now);
 	};
 	auto statusText = TextWithEntities {
 		FillAmountAndCurrency(invoice->amount, invoice->currency),
 		EntitiesInText()
 	};
-	statusText.entities.push_back(EntityInText(EntityInTextBold, 0, statusText.text.size()));
+	statusText.entities.push_back({
+		EntityType::Bold,
+		0,
+		statusText.text.size() });
 	statusText.text += ' ' + labelText().toUpper();
 	_status.setMarkedText(
 		st::defaultTextStyle,
@@ -199,7 +202,7 @@ void HistoryInvoice::refreshParentId(not_null<HistoryItem*> realParent) {
 	}
 }
 
-void HistoryInvoice::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
+void HistoryInvoice::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto paintw = width(), painth = height();
 
@@ -293,7 +296,7 @@ TextState HistoryInvoice::textState(QPoint point, StateRequest request) const {
 	auto symbolAdd = 0;
 	if (_titleHeight) {
 		if (point.y() >= tshift && point.y() < tshift + _titleHeight) {
-			Text::StateRequestElided titleRequest = request.forText();
+			Ui::Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleHeight / lineHeight;
 			result = TextState(_parent, _title.getStateElidedLeft(
 				point - QPoint(padding.left(), tshift),
@@ -358,22 +361,16 @@ void HistoryInvoice::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool p
 	}
 }
 
-TextWithEntities HistoryInvoice::selectedText(TextSelection selection) const {
-	auto titleResult = _title.originalTextWithEntities(
-		selection,
-		ExpandLinksAll);
-	auto descriptionResult = _description.originalTextWithEntities(
-		toDescriptionSelection(selection),
-		ExpandLinksAll);
-	if (titleResult.text.isEmpty()) {
+TextForMimeData HistoryInvoice::selectedText(TextSelection selection) const {
+	auto titleResult = _title.toTextForMimeData(selection);
+	auto descriptionResult = _description.toTextForMimeData(
+		toDescriptionSelection(selection));
+	if (titleResult.empty()) {
 		return descriptionResult;
-	} else if (descriptionResult.text.isEmpty()) {
+	} else if (descriptionResult.empty()) {
 		return titleResult;
 	}
-
-	titleResult.text += '\n';
-	TextUtilities::Append(titleResult, std::move(descriptionResult));
-	return titleResult;
+	return titleResult.append('\n').append(std::move(descriptionResult));
 }
 
 QMargins HistoryInvoice::inBubblePadding() const {

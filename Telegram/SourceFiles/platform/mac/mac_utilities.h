@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "lang/lang_keys.h"
-
 #include <Cocoa/Cocoa.h>
 
 namespace Platform {
@@ -17,14 +15,9 @@ inline NSString *Q2NSString(const QString &str) {
 	return [NSString stringWithUTF8String:str.toUtf8().constData()];
 }
 
-inline NSString *NSlang(LangKey key) {
-	return Q2NSString(lang(key));
-}
-
 inline QString NS2QString(NSString *str) {
 	return QString::fromUtf8([str cStringUsingEncoding:NSUTF8StringEncoding]);
 }
-
 
 template <int Size>
 inline QString MakeFromLetters(const uint32 (&letters)[Size]) {

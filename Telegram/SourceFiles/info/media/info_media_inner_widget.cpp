@@ -140,9 +140,9 @@ void InnerWidget::createTypeButtons() {
 //		this,
 //		st::infoTabs));
 //	auto sections = QStringList();
-//	sections.push_back(lang(lng_media_type_photos).toUpper());
-//	sections.push_back(lang(lng_media_type_videos).toUpper());
-//	sections.push_back(lang(lng_media_type_files).toUpper());
+//	sections.push_back(tr::lng_media_type_photos(tr::now).toUpper());
+//	sections.push_back(tr::lng_media_type_videos(tr::now).toUpper());
+//	sections.push_back(tr::lng_media_type_files(tr::now).toUpper());
 //	_otherTabs->setSections(sections);
 //	_otherTabs->setActiveSection(*TypeToTabIndex(type()));
 //	_otherTabs->finishAnimating();

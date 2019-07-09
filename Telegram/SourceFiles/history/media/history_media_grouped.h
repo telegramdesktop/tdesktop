@@ -32,7 +32,7 @@ public:
 		Painter &p,
 		const QRect &clip,
 		TextSelection selection,
-		TimeMs ms) const override;
+		crl::time ms) const override;
 	PointState pointState(QPoint point) const override;
 	TextState textState(
 		QPoint point,
@@ -55,7 +55,7 @@ public:
 	PhotoData *getPhoto() const override;
 	DocumentData *getDocument() const override;
 
-	TextWithEntities selectedText(TextSelection selection) const override;
+	TextForMimeData selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(
 		const ClickHandlerPtr &p,
@@ -119,7 +119,7 @@ private:
 		QPoint point,
 		StateRequest request) const;
 
-	Text _caption;
+	Ui::Text::String _caption;
 	std::vector<Part> _parts;
 	bool _needBubble = false;
 

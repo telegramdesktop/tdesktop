@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace style {
@@ -58,7 +58,12 @@ public:
 	Cover(
 		QWidget *parent,
 		not_null<PeerData*> peer,
-		not_null<Window::Controller*> controller);
+		not_null<Window::SessionController*> controller);
+	Cover(
+		QWidget *parent,
+		not_null<PeerData*> peer,
+		not_null<Window::SessionController*> controller,
+		rpl::producer<QString> title);
 
 	Cover *setOnlineCount(rpl::producer<int> &&count);
 
@@ -75,12 +80,13 @@ public:
 
 private:
 	void setupChildGeometry();
-	void initViewers();
+	void initViewers(rpl::producer<QString> title);
 	void refreshStatusText();
 	void refreshNameGeometry(int newWidth);
 	void refreshStatusGeometry(int newWidth);
 	void refreshUploadPhotoOverlay();
 	void setVerified(bool verified);
+	void setScam(bool scam);
 
 	not_null<PeerData*> _peer;
 	int _onlineCount = 0;
@@ -88,6 +94,7 @@ private:
 	object_ptr<Ui::UserpicButton> _userpic;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
 	object_ptr<Ui::RpWidget> _verifiedCheck = { nullptr };
+	object_ptr<Ui::RpWidget> _scamBadge = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
 	object_ptr<Ui::FlatLabel> _id = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };

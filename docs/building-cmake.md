@@ -10,19 +10,20 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 
 ### Install software and required packages
 
-You will need GCC 7.2 and CMake 3.2 installed. To install them and all the required dependencies run
+You will need GCC 8.1 and CMake 3.2 installed. To install them and all the required dependencies run
 
-    sudo apt-get install software-properties-common
-    sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-    sudo add-apt-repository ppa:george-edison55/cmake-3.x
-    sudo apt-get update
-    sudo apt-get install gcc-7 g++-7 cmake
-    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60
-    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 60
-    sudo add-apt-repository --remove ppa:ubuntu-toolchain-r/test
-    sudo add-apt-repository --remove ppa:george-edison55/cmake-3.x
+    sudo apt-get install software-properties-common -y && \
+    sudo apt-get install git libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libicu-dev libdee-dev libdrm-dev dh-autoreconf autoconf automake build-essential libass-dev libfreetype6-dev libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev libvorbis-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libxcb-render-util0-dev libxcb-util0-dev libxrender-dev libasound-dev libpulse-dev libxcb-sync0-dev libxcb-randr0-dev libx11-xcb-dev libffi-dev libncurses5-dev pkg-config texi2html zlib1g-dev yasm cmake xutils-dev bison python-xcbgen -y && \
 
-    sudo apt-get install git libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libunity-dev libicu-dev libdee-dev libdrm-dev dh-autoreconf autoconf automake build-essential libass-dev libfreetype6-dev libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev libvorbis-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libxcb-render-util0-dev libxcb-util0-dev libxrender-dev libasound-dev libpulse-dev libxcb-sync0-dev libxcb-randr0-dev libx11-xcb-dev libffi-dev libncurses5-dev pkg-config texi2html zlib1g-dev yasm cmake xutils-dev bison python-xcbgen
+    sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
+    sudo add-apt-repository ppa:george-edison55/cmake-3.x -y && \
+    sudo apt-get update && \
+    sudo apt-get install gcc-8 g++-8 cmake -y && \
+    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 && \
+    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 60 && \
+    sudo update-alternatives --config gcc && \
+    sudo add-apt-repository --remove ppa:ubuntu-toolchain-r/test -y && \
+    sudo add-apt-repository --remove ppa:george-edison55/cmake-3.x -y
 
 You can set the multithreaded make parameter by running
 
@@ -37,7 +38,7 @@ Go to ***BuildPath*** and run
     mkdir Libraries
     cd Libraries
 
-    git clone https://github.com/ericniebler/range-v3
+    git clone --branch 0.5.0 https://github.com/ericniebler/range-v3
 
     git clone https://github.com/telegramdesktop/zlib.git
     cd zlib
@@ -64,6 +65,7 @@ Go to ***BuildPath*** and run
 
     git clone git://anongit.freedesktop.org/vdpau/libvdpau
     cd libvdpau
+    git checkout libvdpau-1.2
     ./autogen.sh --enable-static
     make $MAKE_THREADS_CNT
     sudo make install
@@ -73,7 +75,104 @@ Go to ***BuildPath*** and run
     cd ffmpeg
     git checkout release/3.4
 
-    ./configure --prefix=/usr/local --disable-programs --disable-doc --disable-everything --enable-protocol=file --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=flac --enable-decoder=gif --enable-decoder=h264 --enable-decoder=h264_vdpau --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=mpeg4 --enable-decoder=mpeg4_vdpau --enable-decoder=msmpeg4v2 --enable-decoder=msmpeg4v3 --enable-decoder=opus --enable-decoder=pcm_alaw --enable-decoder=pcm_alaw_at --enable-decoder=pcm_f32be --enable-decoder=pcm_f32le --enable-decoder=pcm_f64be --enable-decoder=pcm_f64le --enable-decoder=pcm_lxf --enable-decoder=pcm_mulaw --enable-decoder=pcm_mulaw_at --enable-decoder=pcm_s16be --enable-decoder=pcm_s16be_planar --enable-decoder=pcm_s16le --enable-decoder=pcm_s16le_planar --enable-decoder=pcm_s24be --enable-decoder=pcm_s24daud --enable-decoder=pcm_s24le --enable-decoder=pcm_s24le_planar --enable-decoder=pcm_s32be --enable-decoder=pcm_s32le --enable-decoder=pcm_s32le_planar --enable-decoder=pcm_s64be --enable-decoder=pcm_s64le --enable-decoder=pcm_s8 --enable-decoder=pcm_s8_planar --enable-decoder=pcm_u16be --enable-decoder=pcm_u16le --enable-decoder=pcm_u24be --enable-decoder=pcm_u24le --enable-decoder=pcm_u32be --enable-decoder=pcm_u32le --enable-decoder=pcm_u8 --enable-decoder=pcm_zork --enable-decoder=vorbis --enable-decoder=wavpack --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-encoder=libopus --enable-hwaccel=h264_vaapi --enable-hwaccel=h264_vdpau --enable-hwaccel=mpeg4_vaapi --enable-hwaccel=mpeg4_vdpau --enable-parser=aac --enable-parser=aac_latm --enable-parser=flac --enable-parser=h264 --enable-parser=mpeg4video --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-demuxer=aac --enable-demuxer=flac --enable-demuxer=gif --enable-demuxer=h264 --enable-demuxer=mov --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=wav --enable-muxer=ogg --enable-muxer=opus
+    ./configure --prefix=/usr/local \
+    --enable-protocol=file --enable-libopus \
+    --disable-programs \
+    --disable-doc \
+    --disable-network \
+    --disable-everything \
+    --enable-hwaccel=h264_vaapi \
+    --enable-hwaccel=h264_vdpau \
+    --enable-hwaccel=mpeg4_vaapi \
+    --enable-hwaccel=mpeg4_vdpau \
+    --enable-decoder=aac \
+    --enable-decoder=aac_at \
+    --enable-decoder=aac_fixed \
+    --enable-decoder=aac_latm \
+    --enable-decoder=aasc \
+    --enable-decoder=alac \
+    --enable-decoder=alac_at \
+    --enable-decoder=flac \
+    --enable-decoder=gif \
+    --enable-decoder=h264 \
+    --enable-decoder=h264_vdpau \
+    --enable-decoder=hevc \
+    --enable-decoder=mp1 \
+    --enable-decoder=mp1float \
+    --enable-decoder=mp2 \
+    --enable-decoder=mp2float \
+    --enable-decoder=mp3 \
+    --enable-decoder=mp3adu \
+    --enable-decoder=mp3adufloat \
+    --enable-decoder=mp3float \
+    --enable-decoder=mp3on4 \
+    --enable-decoder=mp3on4float \
+    --enable-decoder=mpeg4 \
+    --enable-decoder=mpeg4_vdpau \
+    --enable-decoder=msmpeg4v2 \
+    --enable-decoder=msmpeg4v3 \
+    --enable-decoder=opus \
+    --enable-decoder=pcm_alaw \
+    --enable-decoder=pcm_alaw_at \
+    --enable-decoder=pcm_f32be \
+    --enable-decoder=pcm_f32le \
+    --enable-decoder=pcm_f64be \
+    --enable-decoder=pcm_f64le \
+    --enable-decoder=pcm_lxf \
+    --enable-decoder=pcm_mulaw \
+    --enable-decoder=pcm_mulaw_at \
+    --enable-decoder=pcm_s16be \
+    --enable-decoder=pcm_s16be_planar \
+    --enable-decoder=pcm_s16le \
+    --enable-decoder=pcm_s16le_planar \
+    --enable-decoder=pcm_s24be \
+    --enable-decoder=pcm_s24daud \
+    --enable-decoder=pcm_s24le \
+    --enable-decoder=pcm_s24le_planar \
+    --enable-decoder=pcm_s32be \
+    --enable-decoder=pcm_s32le \
+    --enable-decoder=pcm_s32le_planar \
+    --enable-decoder=pcm_s64be \
+    --enable-decoder=pcm_s64le \
+    --enable-decoder=pcm_s8 \
+    --enable-decoder=pcm_s8_planar \
+    --enable-decoder=pcm_u16be \
+    --enable-decoder=pcm_u16le \
+    --enable-decoder=pcm_u24be \
+    --enable-decoder=pcm_u24le \
+    --enable-decoder=pcm_u32be \
+    --enable-decoder=pcm_u32le \
+    --enable-decoder=pcm_u8 \
+    --enable-decoder=pcm_zork \
+    --enable-decoder=vorbis \
+    --enable-decoder=wavpack \
+    --enable-decoder=wmalossless \
+    --enable-decoder=wmapro \
+    --enable-decoder=wmav1 \
+    --enable-decoder=wmav2 \
+    --enable-decoder=wmavoice \
+    --enable-encoder=libopus \
+    --enable-parser=aac \
+    --enable-parser=aac_latm \
+    --enable-parser=flac \
+    --enable-parser=h264 \
+    --enable-parser=hevc \
+    --enable-parser=mpeg4video \
+    --enable-parser=mpegaudio \
+    --enable-parser=opus \
+    --enable-parser=vorbis \
+    --enable-demuxer=aac \
+    --enable-demuxer=flac \
+    --enable-demuxer=gif \
+    --enable-demuxer=h264 \
+    --enable-demuxer=hevc \
+    --enable-demuxer=m4v \
+    --enable-demuxer=mov \
+    --enable-demuxer=mp3 \
+    --enable-demuxer=ogg \
+    --enable-demuxer=wav \
+    --enable-muxer=ogg \
+    --enable-muxer=opus
 
     make $MAKE_THREADS_CNT
     sudo make install

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/text/text_utilities.h"
 #include "platform/platform_specific.h"
 #include "core/file_utilities.h"
 #include "boxes/calendar_box.h"
@@ -35,11 +36,15 @@ constexpr auto kMegabyte = 1024 * 1024;
 
 PeerId ReadPeerId(const MTPInputPeer &data) {
 	return data.match([](const MTPDinputPeerUser &data) {
-		return peerFromUser(data.vuser_id.v);
+		return peerFromUser(data.vuser_id().v);
+	}, [](const MTPDinputPeerUserFromMessage &data) {
+		return peerFromUser(data.vuser_id().v);
 	}, [](const MTPDinputPeerChat &data) {
-		return peerFromChat(data.vchat_id.v);
+		return peerFromChat(data.vchat_id().v);
 	}, [](const MTPDinputPeerChannel &data) {
-		return peerFromChannel(data.vchannel_id.v);
+		return peerFromChannel(data.vchannel_id().v);
+	}, [](const MTPDinputPeerChannelFromMessage &data) {
+		return peerFromChannel(data.vchannel_id().v);
 	}, [](const MTPDinputPeerSelf &data) {
 		return Auth().userPeerId();
 	}, [](const MTPDinputPeerEmpty &data) {
@@ -130,35 +135,38 @@ void SettingsWidget::setupFullExportOptions(
 		not_null<Ui::VerticalLayout*> container) {
 	addOptionWithAbout(
 		container,
-		lng_export_option_info,
+		tr::lng_export_option_info(tr::now),
 		Type::PersonalInfo | Type::Userpics,
-		lng_export_option_info_about);
+		tr::lng_export_option_info_about(tr::now));
 	addOptionWithAbout(
 		container,
-		lng_export_option_contacts,
+		tr::lng_export_option_contacts(tr::now),
 		Type::Contacts,
-		lng_export_option_contacts_about);
-	addHeader(container, lng_export_header_chats);
+		tr::lng_export_option_contacts_about(tr::now));
+	addHeader(container, tr::lng_export_header_chats(tr::now));
 	addOption(
 		container,
-		lng_export_option_personal_chats,
+		tr::lng_export_option_personal_chats(tr::now),
 		Type::PersonalChats);
-	addOption(container, lng_export_option_bot_chats, Type::BotChats);
+	addOption(
+		container,
+		tr::lng_export_option_bot_chats(tr::now),
+		Type::BotChats);
 	addChatOption(
 		container,
-		lng_export_option_private_groups,
+		tr::lng_export_option_private_groups(tr::now),
 		Type::PrivateGroups);
 	addChatOption(
 		container,
-		lng_export_option_private_channels,
+		tr::lng_export_option_private_channels(tr::now),
 		Type::PrivateChannels);
 	addChatOption(
 		container,
-		lng_export_option_public_groups,
+		tr::lng_export_option_public_groups(tr::now),
 		Type::PublicGroups);
 	addChatOption(
 		container,
-		lng_export_option_public_channels,
+		tr::lng_export_option_public_channels(tr::now),
 		Type::PublicChannels);
 }
 
@@ -173,7 +181,7 @@ void SettingsWidget::setupMediaOptions(
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
 	const auto media = mediaWrap->entity();
-	addHeader(media, lng_export_header_media);
+	addHeader(media, tr::lng_export_header_media(tr::now));
 	addMediaOptions(media);
 
 	value() | rpl::map([](const Settings &data) {
@@ -196,17 +204,17 @@ void SettingsWidget::setupMediaOptions(
 
 void SettingsWidget::setupOtherOptions(
 		not_null<Ui::VerticalLayout*> container) {
-	addHeader(container, lng_export_header_other);
+	addHeader(container, tr::lng_export_header_other(tr::now));
 	addOptionWithAbout(
 		container,
-		lng_export_option_sessions,
+		tr::lng_export_option_sessions(tr::now),
 		Type::Sessions,
-		lng_export_option_sessions_about);
+		tr::lng_export_option_sessions_about(tr::now));
 	addOptionWithAbout(
 		container,
-		lng_export_option_other,
+		tr::lng_export_option_other(tr::now),
 		Type::OtherData,
-		lng_export_option_other_about);
+		tr::lng_export_option_other_about(tr::now));
 }
 
 void SettingsWidget::setupPathAndFormat(
@@ -223,49 +231,43 @@ void SettingsWidget::setupPathAndFormat(
 			data.format = format;
 		});
 	});
-	const auto addFormatOption = [&](LangKey key, Format format) {
+	const auto addFormatOption = [&](QString label, Format format) {
 		const auto radio = container->add(
 			object_ptr<Ui::Radioenum<Format>>(
 				container,
 				formatGroup,
 				format,
-				lang(key),
+				label,
 				st::defaultBoxCheckbox),
 			st::exportSettingPadding);
 	};
-	addHeader(container, lng_export_header_format);
+	addHeader(container, tr::lng_export_header_format(tr::now));
 	addLocationLabel(container);
-	addFormatOption(lng_export_option_html, Format::Html);
-	addFormatOption(lng_export_option_json, Format::Json);
+	addFormatOption(tr::lng_export_option_html(tr::now), Format::Html);
+	addFormatOption(tr::lng_export_option_json(tr::now), Format::Json);
 }
 
 void SettingsWidget::addLocationLabel(
 		not_null<Ui::VerticalLayout*> container) {
 #ifndef OS_MAC_STORE
-	auto pathLabel = value() | rpl::map([](const Settings &data) {
+	auto pathLink = value() | rpl::map([](const Settings &data) {
 		return data.path;
 	}) | rpl::distinct_until_changed(
 	) | rpl::map([](const QString &path) {
 		const auto text = IsDefaultPath(path)
 			? QString("Downloads/Telegreat")
 			: path;
-		auto pathLink = TextWithEntities{
+		return Ui::Text::Link(
 			QDir::toNativeSeparators(text),
-			EntitiesInText()
-		};
-		pathLink.entities.push_back(EntityInText(
-			EntityInTextCustomUrl,
-			0,
-			text.size(),
-			QString("internal:edit_export_path")));
-		return lng_export_option_location__generic<TextWithEntities>(
-			lt_path,
-			pathLink);
+			QString("internal:edit_export_path"));
 	});
 	const auto label = container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
-			std::move(pathLabel),
+			tr::lng_export_option_location(
+				lt_path,
+				std::move(pathLink),
+				Ui::Text::WithEntities),
 			st::exportLocationLabel),
 		st::exportLocationPadding);
 	label->setClickHandlerFilter([=](auto&&...) {
@@ -277,40 +279,40 @@ void SettingsWidget::addLocationLabel(
 
 void SettingsWidget::addLimitsLabel(
 		not_null<Ui::VerticalLayout*> container) {
-	auto pathLabel = value() | rpl::map([](const Settings &data) {
-		return std::make_tuple(data.singlePeerFrom, data.singlePeerTill);
+	auto fromLink = value() | rpl::map([](const Settings &data) {
+		return data.singlePeerFrom;
 	}) | rpl::distinct_until_changed(
-	) | rpl::map([](TimeId from, TimeId till) {
-		const auto begin = from
-			? langDayOfMonthFull(ParseDateTime(from).date())
-			: lang(lng_export_beginning);
-		const auto end = till
-			? langDayOfMonthFull(ParseDateTime(till).date())
-			: lang(lng_export_end);
-		auto fromLink = TextWithEntities{ begin };
-		fromLink.entities.push_back(EntityInText(
-			EntityInTextCustomUrl,
-			0,
-			begin.size(),
-			QString("internal:edit_from")));
-		auto tillLink = TextWithEntities{ end };
-		tillLink.entities.push_back(EntityInText(
-			EntityInTextCustomUrl,
-			0,
-			end.size(),
-			QString("internal:edit_till")));
-		return lng_export_limits__generic<TextWithEntities>(
-			lt_from,
-			fromLink,
-			lt_till,
-			tillLink);
-	}) | rpl::after_next([=] {
+	) | rpl::map([](TimeId from) {
+		return (from
+			? rpl::single(langDayOfMonthFull(ParseDateTime(from).date()))
+			: tr::lng_export_beginning()
+		) | Ui::Text::ToLink(qsl("internal:edit_from"));
+	}) | rpl::flatten_latest();
+
+	auto tillLink = value() | rpl::map([](const Settings &data) {
+		return data.singlePeerTill;
+	}) | rpl::distinct_until_changed(
+	) | rpl::map([](TimeId till) {
+		return (till
+			? rpl::single(langDayOfMonthFull(ParseDateTime(till).date()))
+			: tr::lng_export_end()
+		) | Ui::Text::ToLink(qsl("internal:edit_till"));
+	}) | rpl::flatten_latest();
+
+	auto datesText = tr::lng_export_limits(
+		lt_from,
+		std::move(fromLink),
+		lt_till,
+		std::move(tillLink),
+		Ui::Text::WithEntities
+	) | rpl::after_next([=] {
 		container->resizeToWidth(container->width());
 	});
+
 	const auto label = container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
-			std::move(pathLabel),
+			std::move(datesText),
 			st::exportLocationLabel),
 		st::exportLimitsPadding);
 	label->setClickHandlerFilter([=](
@@ -327,7 +329,7 @@ void SettingsWidget::addLimitsLabel(
 				readData().singlePeerFrom,
 				0,
 				readData().singlePeerTill,
-				lng_export_from_beginning,
+				tr::lng_export_from_beginning(),
 				done);
 		} else if (url == qstr("internal:edit_till")) {
 			const auto done = [=](TimeId limit) {
@@ -339,7 +341,7 @@ void SettingsWidget::addLimitsLabel(
 				readData().singlePeerTill,
 				readData().singlePeerFrom,
 				0,
-				lng_export_till_end,
+				tr::lng_export_till_end(),
 				done);
 		} else {
 			Unexpected("Click handler URL in export limits edit.");
@@ -353,7 +355,7 @@ void SettingsWidget::editDateLimit(
 		TimeId current,
 		TimeId min,
 		TimeId max,
-		LangKey resetLabel,
+		rpl::producer<QString> resetLabel,
 		Fn<void(TimeId)> done) {
 	Expects(_showBoxCallback != nullptr);
 
@@ -373,7 +375,7 @@ void SettingsWidget::editDateLimit(
 		box->setMinDate(min
 			? ParseDateTime(min).date()
 			: QDate(2013, 8, 1)); // Telegram was launched in August 2013 :)
-		box->addLeftButton(langFactory(resetLabel), crl::guard(this, [=] {
+		box->addLeftButton(std::move(resetLabel), crl::guard(this, [=] {
 			done(0);
 			if (const auto weak = shared->data()) {
 				weak->closeBox();
@@ -445,24 +447,23 @@ not_null<Ui::RpWidget*> SettingsWidget::setupButtons(
 
 void SettingsWidget::addHeader(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key) {
+		const QString &text) {
 	container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
-			lang(key),
-			Ui::FlatLabel::InitType::Simple,
+			text,
 			st::exportHeaderLabel),
 		st::exportHeaderPadding);
 }
 
 not_null<Ui::Checkbox*> SettingsWidget::addOption(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
+		const QString &text,
 		Types types) {
 	const auto checkbox = container->add(
 		object_ptr<Ui::Checkbox>(
 			container,
-			lang(key),
+			text,
 			((readData().types & types) == types),
 			st::defaultBoxCheckbox),
 		st::exportSettingPadding);
@@ -481,15 +482,14 @@ not_null<Ui::Checkbox*> SettingsWidget::addOption(
 
 not_null<Ui::Checkbox*> SettingsWidget::addOptionWithAbout(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
+		const QString &text,
 		Types types,
-		LangKey about) {
-	const auto result = addOption(container, key, types);
+		const QString &about) {
+	const auto result = addOption(container, text, types);
 	const auto label = container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
-			lang(about),
-			Ui::FlatLabel::InitType::Simple,
+			about,
 			st::exportAboutOptionLabel),
 		st::exportAboutOptionPadding);
 	return result;
@@ -497,15 +497,15 @@ not_null<Ui::Checkbox*> SettingsWidget::addOptionWithAbout(
 
 void SettingsWidget::addChatOption(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
+		const QString &text,
 		Types types) {
-	const auto checkbox = addOption(container, key, types);
+	const auto checkbox = addOption(container, text, types);
 	const auto onlyMy = container->add(
 		object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 			container,
 			object_ptr<Ui::Checkbox>(
 				container,
-				lang(lng_export_option_only_my),
+				tr::lng_export_option_only_my(tr::now),
 				((readData().fullChats & types) != types),
 				st::defaultBoxCheckbox),
 			st::exportSubSettingPadding));
@@ -531,36 +531,45 @@ void SettingsWidget::addChatOption(
 
 void SettingsWidget::addMediaOptions(
 		not_null<Ui::VerticalLayout*> container) {
-	addMediaOption(container, lng_export_option_photos, MediaType::Photo);
 	addMediaOption(
 		container,
-		lng_export_option_video_files,
+		tr::lng_export_option_photos(tr::now),
+		MediaType::Photo);
+	addMediaOption(
+		container,
+		tr::lng_export_option_video_files(tr::now),
 		MediaType::Video);
 	addMediaOption(
 		container,
-		lng_export_option_voice_messages,
+		tr::lng_export_option_voice_messages(tr::now),
 		MediaType::VoiceMessage);
 	addMediaOption(
 		container,
-		lng_export_option_video_messages,
+		tr::lng_export_option_video_messages(tr::now),
 		MediaType::VideoMessage);
 	addMediaOption(
 		container,
-		lng_export_option_stickers,
+		tr::lng_export_option_stickers(tr::now),
 		MediaType::Sticker);
-	addMediaOption(container, lng_export_option_gifs, MediaType::GIF);
-	addMediaOption(container, lng_export_option_files, MediaType::File);
+	addMediaOption(
+		container,
+		tr::lng_export_option_gifs(tr::now),
+		MediaType::GIF);
+	addMediaOption(
+		container,
+		tr::lng_export_option_files(tr::now),
+		MediaType::File);
 	addSizeSlider(container);
 }
 
 void SettingsWidget::addMediaOption(
 		not_null<Ui::VerticalLayout*> container,
-		LangKey key,
+		const QString &text,
 		MediaType type) {
 	const auto checkbox = container->add(
 		object_ptr<Ui::Checkbox>(
 			container,
-			lang(key),
+			text,
 			((readData().media.types & type) == type),
 			st::defaultBoxCheckbox),
 		st::exportSettingPadding);
@@ -602,7 +611,7 @@ void SettingsWidget::addSizeSlider(
 	}) | rpl::start_with_next([=](int sizeLimit) {
 		const auto limit = sizeLimit / kMegabyte;
 		const auto size = QString::number(limit) + " MB";
-		const auto text = lng_export_option_size_limit(lt_size, size);
+		const auto text = tr::lng_export_option_size_limit(tr::now, lt_size, size);
 		label->setText(text);
 	}, slider->lifetime());
 
@@ -630,7 +639,7 @@ void SettingsWidget::refreshButtons(
 	const auto start = canStart
 		? Ui::CreateChild<Ui::RoundButton>(
 			container.get(),
-			langFactory(lng_export_start),
+			tr::lng_export_start(),
 			st::defaultBoxButton)
 		: nullptr;
 	if (start) {
@@ -650,7 +659,7 @@ void SettingsWidget::refreshButtons(
 
 	const auto cancel = Ui::CreateChild<Ui::RoundButton>(
 		container.get(),
-		langFactory(lng_cancel),
+		tr::lng_cancel(),
 		st::defaultBoxButton);
 	cancel->show();
 	_cancelClicks = cancel->clicks(
@@ -678,7 +687,7 @@ void SettingsWidget::chooseFolder() {
 	};
 	FileDialog::GetFolder(
 		this,
-		lang(lng_export_folder),
+		tr::lng_export_folder(tr::now),
 		readData().path,
 		callback);
 }

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/peer_list_box.h"
 #include "boxes/edit_privacy_box.h"
+#include "history/view/history_view_element.h"
 #include "mtproto/sender.h"
 
 namespace Settings {
@@ -36,7 +37,7 @@ private:
 
 };
 
-class LastSeenPrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {
+class PhoneNumberPrivacyController : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
@@ -44,18 +45,17 @@ public:
 	Key key() override;
 	MTPInputPrivacyKey apiKey() override;
 
-	QString title() override;
-	LangKey optionsTitleKey() override;
+	rpl::producer<QString> title() override;
+	rpl::producer<QString> optionsTitleKey() override;
 	rpl::producer<QString> warning() override;
-	LangKey exceptionButtonTextKey(Exception exception) override;
-	QString exceptionBoxTitle(Exception exception) override;
+	rpl::producer<QString> exceptionButtonTextKey(
+		Exception exception) override;
+	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
 	rpl::producer<QString> exceptionsDescription() override;
-
-	void confirmSave(bool someAreDisallowed, FnMut<void()> saveCallback) override;
 
 };
 
-class GroupsInvitePrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {
+class LastSeenPrivacyController : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
@@ -63,16 +63,39 @@ public:
 	Key key() override;
 	MTPInputPrivacyKey apiKey() override;
 
-	QString title() override;
+	rpl::producer<QString> title() override;
+	rpl::producer<QString> optionsTitleKey() override;
+	rpl::producer<QString> warning() override;
+	rpl::producer<QString> exceptionButtonTextKey(
+		Exception exception) override;
+	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
+	rpl::producer<QString> exceptionsDescription() override;
+
+	void confirmSave(
+		bool someAreDisallowed,
+		FnMut<void()> saveCallback) override;
+
+};
+
+class GroupsInvitePrivacyController : public EditPrivacyController {
+public:
+	using Option = EditPrivacyBox::Option;
+	using Exception = EditPrivacyBox::Exception;
+
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
+
+	rpl::producer<QString> title() override;
 	bool hasOption(Option option) override;
-	LangKey optionsTitleKey() override;
-	LangKey exceptionButtonTextKey(Exception exception) override;
-	QString exceptionBoxTitle(Exception exception) override;
+	rpl::producer<QString> optionsTitleKey() override;
+	rpl::producer<QString> exceptionButtonTextKey(
+		Exception exception) override;
+	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
 	rpl::producer<QString> exceptionsDescription() override;
 
 };
 
-class CallsPrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {
+class CallsPrivacyController : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
@@ -80,15 +103,19 @@ public:
 	Key key() override;
 	MTPInputPrivacyKey apiKey() override;
 
-	QString title() override;
-	LangKey optionsTitleKey() override;
-	LangKey exceptionButtonTextKey(Exception exception) override;
-	QString exceptionBoxTitle(Exception exception) override;
+	rpl::producer<QString> title() override;
+	rpl::producer<QString> optionsTitleKey() override;
+	rpl::producer<QString> exceptionButtonTextKey(
+		Exception exception) override;
+	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
 	rpl::producer<QString> exceptionsDescription() override;
+
+	object_ptr<Ui::RpWidget> setupBelowWidget(
+		not_null<QWidget*> parent) override;
 
 };
 
-class CallsPeer2PeerPrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {
+class CallsPeer2PeerPrivacyController : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
@@ -96,12 +123,65 @@ public:
 	Key key() override;
 	MTPInputPrivacyKey apiKey() override;
 
-	QString title() override;
-	LangKey optionsTitleKey() override;
-	LangKey optionLabelKey(EditPrivacyBox::Option option) override;
+	rpl::producer<QString> title() override;
+	rpl::producer<QString> optionsTitleKey() override;
+	QString optionLabel(EditPrivacyBox::Option option) override;
 	rpl::producer<QString> warning() override;
-	LangKey exceptionButtonTextKey(Exception exception) override;
-	QString exceptionBoxTitle(Exception exception) override;
+	rpl::producer<QString> exceptionButtonTextKey(
+		Exception exception) override;
+	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
+	rpl::producer<QString> exceptionsDescription() override;
+
+};
+
+class ForwardsPrivacyController
+	: public EditPrivacyController
+	, private HistoryView::SimpleElementDelegate {
+public:
+	using Option = EditPrivacyBox::Option;
+	using Exception = EditPrivacyBox::Exception;
+
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
+
+	rpl::producer<QString> title() override;
+	rpl::producer<QString> optionsTitleKey() override;
+	rpl::producer<QString> warning() override;
+	rpl::producer<QString> exceptionButtonTextKey(
+		Exception exception) override;
+	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
+	rpl::producer<QString> exceptionsDescription() override;
+
+	object_ptr<Ui::RpWidget> setupAboveWidget(
+		not_null<QWidget*> parent,
+		rpl::producer<Option> optionValue) override;
+
+private:
+	using Element = HistoryView::Element;
+	not_null<HistoryView::ElementDelegate*> delegate();
+	HistoryView::Context elementContext() override;
+
+	static void PaintForwardedTooltip(
+		Painter &p,
+		not_null<HistoryView::Element*> view,
+		Option value);
+
+};
+
+class ProfilePhotoPrivacyController : public EditPrivacyController {
+public:
+	using Option = EditPrivacyBox::Option;
+	using Exception = EditPrivacyBox::Exception;
+
+	Key key() override;
+	MTPInputPrivacyKey apiKey() override;
+
+	rpl::producer<QString> title() override;
+	bool hasOption(Option option) override;
+	rpl::producer<QString> optionsTitleKey() override;
+	rpl::producer<QString> exceptionButtonTextKey(
+		Exception exception) override;
+	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
 	rpl::producer<QString> exceptionsDescription() override;
 
 };

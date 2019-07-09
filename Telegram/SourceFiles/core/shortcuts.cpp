@@ -9,9 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "messenger.h"
+#include "window/window_controller.h"
+#include "core/application.h"
 #include "media/player/media_player_instance.h"
-#include "platform/platform_specific.h"
+#include "platform/platform_info.h"
 #include "base/parse_helper.h"
 
 namespace Shortcuts {
@@ -66,6 +67,7 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ qsl("next_chat")        , Command::ChatNext },
 	{ qsl("first_chat")       , Command::ChatFirst },
 	{ qsl("last_chat")        , Command::ChatLast },
+	{ qsl("self_chat")        , Command::ChatSelf },
 };
 
 const auto CommandNames = base::flat_map<Command, QString>{
@@ -87,6 +89,7 @@ const auto CommandNames = base::flat_map<Command, QString>{
 	{ Command::ChatNext      , qsl("next_chat") },
 	{ Command::ChatFirst     , qsl("first_chat") },
 	{ Command::ChatLast      , qsl("last_chat") },
+	{ Command::ChatSelf      , qsl("self_chat") },
 };
 
 class Manager {
@@ -297,7 +300,7 @@ void Manager::fillDefaults() {
 	set(qsl("alt+down"), Command::ChatNext);
 	set(qsl("ctrl+pgup"), Command::ChatPrevious);
 	set(qsl("alt+up"), Command::ChatPrevious);
-	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
+	if (Platform::IsMac()) {
 		set(qsl("meta+tab"), Command::ChatNext);
 		set(qsl("meta+shift+tab"), Command::ChatPrevious);
 		set(qsl("meta+backtab"), Command::ChatPrevious);
@@ -320,6 +323,8 @@ void Manager::fillDefaults() {
 	set(qsl("ctrl+3"), Command::ChatPinned3);
 	set(qsl("ctrl+4"), Command::ChatPinned4);
 	set(qsl("ctrl+5"), Command::ChatPinned5);
+
+	set(qsl("ctrl+0"), Command::ChatSelf);
 }
 
 void Manager::writeDefaultFile() {
@@ -371,7 +376,7 @@ void Manager::set(const QString &keys, Command command) {
 	}
 	auto shortcut = base::make_unique_q<QShortcut>(
 		result,
-		Messenger::Instance().getActiveWindow(),
+		Core::App().activeWindow()->widget().get(),
 		nullptr,
 		nullptr,
 		Qt::ApplicationShortcut);
@@ -486,6 +491,7 @@ bool HandleEvent(not_null<QShortcutEvent*> event) {
 void ToggleMediaShortcuts(bool toggled) {
 	Data.toggleMedia(toggled);
 	Platform::SetWatchingMediaKeys(toggled);
+	Media::Player::instance()->playerWidgetToggledNotify(toggled);
 }
 
 void ToggleSupportShortcuts(bool toggled) {

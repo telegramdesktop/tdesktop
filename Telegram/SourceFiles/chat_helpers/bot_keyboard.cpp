@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history.h"
 #include "history/history_item_components.h"
+#include "data/data_user.h"
+#include "data/data_session.h"
+#include "auth_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
 
@@ -109,7 +112,7 @@ void BotKeyboard::paintEvent(QPaintEvent *e) {
 	if (_impl) {
 		int x = rtl() ? st::botKbScroll.width : _st->margin;
 		p.translate(x, st::botKbScroll.deltat);
-		_impl->paint(p, width(), clip.translated(-x, -st::botKbScroll.deltat), getms());
+		_impl->paint(p, width(), clip.translated(-x, -st::botKbScroll.deltat));
 	}
 }
 
@@ -144,7 +147,7 @@ void BotKeyboard::leaveEventHook(QEvent *e) {
 }
 
 bool BotKeyboard::moderateKeyActivate(int key) {
-	if (const auto item = App::histItemById(_wasForMsgId)) {
+	if (const auto item = Auth().data().message(_wasForMsgId)) {
 		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (key >= Qt::Key_1 && key <= Qt::Key_9) {
 				const auto index = int(key - Qt::Key_1);

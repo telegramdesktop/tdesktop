@@ -16,9 +16,10 @@ mediaviewPlayback: MediaSlider {
 	activeFg: mediaviewPlaybackActive;
 	inactiveFg: mediaviewPlaybackInactive;
 	activeFgOver: mediaviewPlaybackActiveOver;
-	inactiveFgOver: mediaviewPlaybackInactiveOver;
+	inactiveFgOver: mediaviewPlaybackInactive;
 	activeFgDisabled: mediaviewPlaybackActive;
 	inactiveFgDisabled: mediaviewPlaybackInactive;
+	receivedTillFg: mediaviewPlaybackInactiveOver;
 	seekSize: size(11px, 11px);
 	duration: mediaviewOverDuration;
 }
@@ -186,6 +187,11 @@ mediaviewGroupWidth: 56px;
 mediaviewGroupWidthMax: 160px;
 mediaviewGroupSkip: 3px;
 mediaviewGroupSkipCurrent: 12px;
+
+mediaviewStreamingRadial: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: radialFg;
+	thickness: radialLine;
+}
 
 themePreviewSize: size(903px, 584px);
 themePreviewBg: windowBg;

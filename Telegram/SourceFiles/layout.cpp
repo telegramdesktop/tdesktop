@@ -10,13 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
-#include "application.h"
 #include "storage/file_upload.h"
 #include "mainwindow.h"
 #include "core/file_utilities.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
-#include "media/media_audio.h"
+#include "media/audio/media_audio.h"
 #include "storage/localstorage.h"
 #include "history/view/history_view_cursor_state.h"
 
@@ -49,7 +48,7 @@ QString formatDownloadText(qint64 ready, qint64 total) {
 		totalStr = QString::number(total);
 		mb = qsl("B");
 	}
-	return lng_save_downloaded(lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
+	return tr::lng_save_downloaded(tr::now, lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
 }
 
 QString formatDurationText(qint64 duration) {
@@ -60,24 +59,24 @@ QString formatDurationText(qint64 duration) {
 QString formatDurationWords(qint64 duration) {
 	if (duration > 59) {
 		auto minutes = (duration / 60);
-		auto minutesCount = lng_duration_minsec_minutes(lt_count, minutes);
+		auto minutesCount = tr::lng_duration_minsec_minutes(tr::now, lt_count, minutes);
 		auto seconds = (duration % 60);
-		auto secondsCount = lng_duration_minsec_seconds(lt_count, seconds);
-		return lng_duration_minutes_seconds(lt_minutes_count, minutesCount, lt_seconds_count, secondsCount);
+		auto secondsCount = tr::lng_duration_minsec_seconds(tr::now, lt_count, seconds);
+		return tr::lng_duration_minutes_seconds(tr::now, lt_minutes_count, minutesCount, lt_seconds_count, secondsCount);
 	}
-	return lng_duration_seconds(lt_count, duration);
+	return tr::lng_duration_seconds(tr::now, lt_count, duration);
 }
 
 QString formatDurationAndSizeText(qint64 duration, qint64 size) {
-	return lng_duration_and_size(lt_duration, formatDurationText(duration), lt_size, formatSizeText(size));
+	return tr::lng_duration_and_size(tr::now, lt_duration, formatDurationText(duration), lt_size, formatSizeText(size));
 }
 
 QString formatGifAndSizeText(qint64 size) {
-	return lng_duration_and_size(lt_duration, qsl("GIF"), lt_size, formatSizeText(size));
+	return tr::lng_duration_and_size(tr::now, lt_duration, qsl("GIF"), lt_size, formatSizeText(size));
 }
 
 QString formatPlayedText(qint64 played, qint64 duration) {
-	return lng_duration_played(lt_played, formatDurationText(played), lt_duration, formatDurationText(duration));
+	return tr::lng_duration_played(tr::now, lt_played, formatDurationText(played), lt_duration, formatDurationText(duration));
 }
 
 int32 documentColorIndex(DocumentData *document, QString &ext) {
@@ -86,27 +85,30 @@ int32 documentColorIndex(DocumentData *document, QString &ext) {
 	auto name = document
 		? (document->filename().isEmpty()
 			? (document->sticker()
-				? lang(lng_in_dlg_sticker)
+				? tr::lng_in_dlg_sticker(tr::now)
 				: qsl("Unknown File"))
 			: document->filename())
-		: lang(lng_message_empty);
+		: tr::lng_message_empty(tr::now);
 	name = name.toLower();
 	auto lastDot = name.lastIndexOf('.');
 	auto mime = document
 		? document->mimeString().toLower()
 		: QString();
 	if (name.endsWith(qstr(".doc")) ||
+	    	name.endsWith(qstr(".docx")) ||
 		name.endsWith(qstr(".txt")) ||
 		name.endsWith(qstr(".psd")) ||
 		mime.startsWith(qstr("text/"))) {
 		colorIndex = 0;
 	} else if (
 		name.endsWith(qstr(".xls")) ||
+		name.endsWith(qstr(".xlsx")) ||
 		name.endsWith(qstr(".csv"))) {
 		colorIndex = 1;
 	} else if (
 		name.endsWith(qstr(".pdf")) ||
 		name.endsWith(qstr(".ppt")) ||
+		name.endsWith(qstr(".pptx")) ||
 		name.endsWith(qstr(".key"))) {
 		colorIndex = 2;
 	} else if (

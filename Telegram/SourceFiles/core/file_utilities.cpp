@@ -9,16 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/localstorage.h"
 #include "platform/platform_file_utilities.h"
-#include "messenger.h"
-#include "application.h"
+#include "core/application.h"
 #include "mainwindow.h"
-
-void PreventWindowActivation() {
-	Core::App().pauseDelayedWindowActivations();
-	Core::App().postponeCall([] {
-		Core::App().resumeDelayedWindowActivations();
-	});
-}
 
 bool filedialogGetSaveFile(
 		QPointer<QWidget> parent,
@@ -28,7 +20,7 @@ bool filedialogGetSaveFile(
 		const QString &initialPath) {
 	QStringList files;
 	QByteArray remoteContent;
-	PreventWindowActivation();
+	Core::App().preventWindowActivation();
 	bool result = Platform::FileDialog::Get(
 		parent,
 		files,
@@ -47,7 +39,7 @@ bool filedialogGetSaveFile(
 		const QString &filter,
 		const QString &initialPath) {
 	return filedialogGetSaveFile(
-		Messenger::Instance().getFileDialogParent(),
+		Core::App().getFileDialogParent(),
 		file,
 		caption,
 		filter,
@@ -121,7 +113,7 @@ namespace File {
 
 void OpenEmailLink(const QString &email) {
 	crl::on_main([=] {
-		PreventWindowActivation();
+		Core::App().preventWindowActivation();
 		Platform::File::UnsafeOpenEmailLink(email);
 	});
 }
@@ -129,7 +121,7 @@ void OpenEmailLink(const QString &email) {
 void OpenWith(const QString &filepath, QPoint menuPosition) {
 	InvokeQueued(QApplication::instance(), [=] {
 		if (!Platform::File::UnsafeShowOpenWithDropdown(filepath, menuPosition)) {
-			PreventWindowActivation();
+			Core::App().preventWindowActivation();
 			if (!Platform::File::UnsafeShowOpenWith(filepath)) {
 				Platform::File::UnsafeLaunch(filepath);
 			}
@@ -139,14 +131,14 @@ void OpenWith(const QString &filepath, QPoint menuPosition) {
 
 void Launch(const QString &filepath) {
 	crl::on_main([=] {
-		PreventWindowActivation();
+		Core::App().preventWindowActivation();
 		Platform::File::UnsafeLaunch(filepath);
 	});
 }
 
 void ShowInFolder(const QString &filepath) {
 	crl::on_main([=] {
-		PreventWindowActivation();
+		Core::App().preventWindowActivation();
 		Platform::File::UnsafeShowInFolder(filepath);
 	});
 }
@@ -186,7 +178,7 @@ void GetOpenPath(
 	InvokeQueued(QApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
-		PreventWindowActivation();
+		Core::App().preventWindowActivation();
 		const auto success = Platform::FileDialog::Get(
 			parent,
 			files,
@@ -220,7 +212,7 @@ void GetOpenPaths(
 	InvokeQueued(QApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
-		PreventWindowActivation();
+		Core::App().preventWindowActivation();
 		const auto success = Platform::FileDialog::Get(
 			parent,
 			files,
@@ -269,7 +261,7 @@ void GetFolder(
 	InvokeQueued(QApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
-		PreventWindowActivation();
+		Core::App().preventWindowActivation();
 		const auto success = Platform::FileDialog::Get(
 			parent,
 			files,
@@ -320,7 +312,7 @@ bool GetDefault(
 	}
 	QString file;
 	if (type == Type::ReadFiles) {
-		files = QFileDialog::getOpenFileNames(Messenger::Instance().getFileDialogParent(), caption, startFile, filter);
+		files = QFileDialog::getOpenFileNames(Core::App().getFileDialogParent(), caption, startFile, filter);
 		QString path = files.isEmpty() ? QString() : QFileInfo(files.back()).absoluteDir().absolutePath();
 		if (!path.isEmpty() && path != cDialogLastPath()) {
 			cSetDialogLastPath(path);
@@ -328,11 +320,11 @@ bool GetDefault(
 		}
 		return !files.isEmpty();
     } else if (type == Type::ReadFolder) {
-		file = QFileDialog::getExistingDirectory(Messenger::Instance().getFileDialogParent(), caption, startFile);
+		file = QFileDialog::getExistingDirectory(Core::App().getFileDialogParent(), caption, startFile);
     } else if (type == Type::WriteFile) {
-		file = QFileDialog::getSaveFileName(Messenger::Instance().getFileDialogParent(), caption, startFile, filter);
+		file = QFileDialog::getSaveFileName(Core::App().getFileDialogParent(), caption, startFile, filter);
     } else {
-		file = QFileDialog::getOpenFileName(Messenger::Instance().getFileDialogParent(), caption, startFile, filter);
+		file = QFileDialog::getOpenFileName(Core::App().getFileDialogParent(), caption, startFile, filter);
     }
     if (file.isEmpty()) {
         files = QStringList();

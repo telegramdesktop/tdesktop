@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/event_stream.h>
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
@@ -57,7 +57,7 @@ public:
 	void recountSize();
 	void updateBar(bool force = false);
 
-	void hideTimeout(TimeMs dt);
+	void hideTimeout(crl::time dt);
 
 private slots:
 	void onValueChanged();
@@ -99,74 +99,16 @@ private:
 
 	int32 _startFrom, _scrollMax;
 
-	TimeMs _hideIn = 0;
+	crl::time _hideIn = 0;
 	QTimer _hideTimer;
 
-	Animation _a_over;
-	Animation _a_barOver;
-	Animation _a_opacity;
+	Ui::Animations::Simple _a_over;
+	Ui::Animations::Simple _a_barOver;
+	Ui::Animations::Simple _a_opacity;
 
 	QRect _bar;
 };
 
-class SplittedWidget : public Ui::RpWidget {
-	Q_OBJECT
-
-public:
-	SplittedWidget(QWidget *parent) : RpWidget(parent) {
-		setAttribute(Qt::WA_OpaquePaintEvent);
-	}
-	void setHeight(int32 newHeight) {
-		resize(width(), newHeight);
-		emit resizeOther();
-	}
-	void update(int x, int y, int w, int h) {
-		update(QRect(x, y, w, h));
-	}
-	void update(const QRect&);
-	void update(const QRegion&);
-	void rtlupdate(const QRect &r) {
-		update(myrtlrect(r));
-	}
-	void rtlupdate(int x, int y, int w, int h) {
-		update(myrtlrect(x, y, w, h));
-	}
-
-public slots:
-	void update() {
-		update(0, 0, getFullWidth(), height());
-	}
-
-signals:
-	void resizeOther();
-	void updateOther(const QRect&);
-	void updateOther(const QRegion&);
-
-protected:
-	void paintEvent(QPaintEvent *e) override; // paintEvent done through paintRegion
-
-	int otherWidth() const {
-		return _otherWidth;
-	}
-	int getFullWidth() const {
-		return width() + otherWidth();
-	}
-	virtual void paintRegion(Painter &p, const QRegion &region, bool paintingOther) = 0;
-
-private:
-	int _otherWidth = 0;
-	void setOtherWidth(int otherWidth) {
-		_otherWidth = otherWidth;
-	}
-	void resize(int w, int h) {
-		TWidget::resize(w, h);
-	}
-	friend class ScrollArea;
-	friend class SplittedWidgetOther;
-
-};
-
-class SplittedWidgetOther;
 class ScrollArea : public Ui::RpWidgetWrap<QScrollArea> {
 	Q_OBJECT
 
@@ -230,11 +172,6 @@ public slots:
 	void onTouchTimer();
 	void onTouchScrollTimer();
 
-	void onResizeOther();
-	void onUpdateOther(const QRect&);
-	void onUpdateOther(const QRegion&);
-	void onVerticalScroll();
-
 signals:
 	void scrolled();
 	void innerResized();
@@ -278,30 +215,16 @@ private:
 	bool _touchPrevPosValid = false;
 	bool _touchWaitingAcceleration = false;
 	QPoint _touchSpeed;
-	TimeMs _touchSpeedTime = 0;
-	TimeMs _touchAccelerationTime = 0;
-	TimeMs _touchTime = 0;
+	crl::time _touchSpeedTime = 0;
+	crl::time _touchAccelerationTime = 0;
+	crl::time _touchTime = 0;
 	QTimer _touchScrollTimer;
 
 	bool _widgetAcceptsTouch = false;
 
-	friend class SplittedWidgetOther;
-	object_ptr<SplittedWidgetOther> _other = { nullptr };
-
 	object_ptr<TWidget> _widget = { nullptr };
 
 	rpl::event_stream<int> _scrollTopUpdated;
-
-};
-
-class SplittedWidgetOther : public TWidget {
-public:
-	SplittedWidgetOther(ScrollArea *parent) : TWidget(parent) {
-		setAttribute(Qt::WA_OpaquePaintEvent);
-	}
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
 
 };
 

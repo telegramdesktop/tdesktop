@@ -26,11 +26,11 @@ MuteSettingsBox::MuteSettingsBox(QWidget *parent, not_null<PeerData*> peer)
 }
 
 void MuteSettingsBox::prepare() {
-	setTitle(langFactory(lng_disable_notifications_from_tray));
+	setTitle(tr::lng_disable_notifications_from_tray());
 	auto y = 0;
 
 	object_ptr<Ui::FlatLabel> info(this, st::boxLabel);
-	info->setText(lang(lng_mute_box_tip));
+	info->setText(tr::lng_mute_box_tip(tr::now));
 	info->moveToLeft(st::boxPadding.left(), y);
 	y += info->height() + st::boxLittleSkip;
 
@@ -56,11 +56,11 @@ void MuteSettingsBox::prepare() {
 	for (const auto hours : { 1, 4, 18, 72, kForeverHours }) {
 		const auto text = [&] {
 			if (hours < 24) {
-				return lng_mute_duration_hours(lt_count, hours);
+				return tr::lng_mute_duration_hours(tr::now, lt_count, hours);
 			} else if (hours < kForeverHours) {
-				return lng_mute_duration_days(lt_count, hours / 24);
+				return tr::lng_mute_duration_days(tr::now, lt_count, hours / 24);
 			} else {
-				return lang(lng_mute_duration_forever);
+				return tr::lng_mute_duration_forever(tr::now);
 			}
 		}();
 		object_ptr<Ui::Radiobutton> option(this, group, hours, text);
@@ -78,8 +78,8 @@ void MuteSettingsBox::prepare() {
 			muteForSeconds);
 		closeBox();
 	};
-	addButton(langFactory(lng_box_ok), _save);
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(tr::lng_box_ok(), _save);
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	setDimensions(st::boxWidth, y);
 }

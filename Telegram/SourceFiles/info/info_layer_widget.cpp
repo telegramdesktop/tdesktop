@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/focus_persister.h"
 #include "ui/widgets/buttons.h"
 #include "window/section_widget.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "window/main_window.h"
 #include "auth_session.h"
 #include "styles/style_info.h"
@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info {
 
 LayerWidget::LayerWidget(
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<Memento*> memento)
 : _controller(controller)
 , _content(this, controller, Wrap::Layer, memento) {
@@ -33,7 +33,7 @@ LayerWidget::LayerWidget(
 }
 
 LayerWidget::LayerWidget(
-	not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<MoveMemento*> memento)
 : _controller(controller)
 , _content(memento->takeContent(this, Wrap::Layer)) {
@@ -50,7 +50,7 @@ not_null<Ui::RpWidget*> LayerWidget::floatPlayerWidget() {
 	return this;
 }
 
-not_null<Window::Controller*> LayerWidget::floatPlayerController() {
+not_null<Window::SessionController*> LayerWidget::floatPlayerController() {
 	return _controller;
 }
 

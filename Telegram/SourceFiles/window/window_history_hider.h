@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 
 namespace Ui {
 class RoundButton;
@@ -56,7 +57,7 @@ private:
 
 	QString _text;
 	Fn<bool(PeerId)> _confirm;
-	Animation _a_opacity;
+	Ui::Animations::Simple _a_opacity;
 
 	QRect _box;
 	bool _hiding = false;

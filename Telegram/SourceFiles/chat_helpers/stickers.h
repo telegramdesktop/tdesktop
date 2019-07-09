@@ -8,6 +8,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
+#include "ui/image/image_source.h"
+
+class DocumentData;
+class AuthSession;
+
+namespace Storage {
+namespace Cache {
+struct Key;
+} // namespace Cache
+} // namespace Storage
+
+namespace Lottie {
+class SinglePlayer;
+class MultiPlayer;
+class FrameRenderer;
+class Animation;
+enum class Quality : char;
+} // namespace Lottie
 
 namespace Stickers {
 
@@ -34,7 +52,8 @@ struct Set {
 		int count,
 		int32 hash,
 		MTPDstickerSet::Flags flags,
-		TimeId installDate)
+		TimeId installDate,
+		ImagePtr thumbnail)
 	: id(id)
 	, access(access)
 	, title(title)
@@ -42,7 +61,8 @@ struct Set {
 	, count(count)
 	, hash(hash)
 	, flags(flags)
-	, installDate(installDate) {
+	, installDate(installDate)
+	, thumbnail(thumbnail) {
 	}
 	uint64 id = 0;
 	uint64 access = 0;
@@ -51,6 +71,7 @@ struct Set {
 	int32 hash = 0;
 	MTPDstickerSet::Flags flags;
 	TimeId installDate = 0;
+	ImagePtr thumbnail;
 	Pack stickers;
 	std::vector<TimeId> dates;
 	Pack covers;
@@ -94,9 +115,63 @@ std::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
 
 Set *FeedSet(const MTPDstickerSet &data);
 Set *FeedSetFull(const MTPmessages_StickerSet &data);
+void NewSetReceived(const MTPmessages_StickerSet &data);
 
 QString GetSetTitle(const MTPDstickerSet &s);
 
 RecentStickerPack &GetRecentPack();
+
+enum class LottieSize : uchar {
+	MessageHistory,
+	StickerSet,
+	StickersPanel,
+	StickersFooter,
+	SetsListThumbnail,
+	InlineResults,
+};
+
+[[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
+	not_null<DocumentData*> document,
+	LottieSize sizeTag,
+	QSize box,
+	Lottie::Quality quality = Lottie::Quality(),
+	std::shared_ptr<Lottie::FrameRenderer> renderer = nullptr);
+[[nodiscard]] not_null<Lottie::Animation*> LottieAnimationFromDocument(
+	not_null<Lottie::MultiPlayer*> player,
+	not_null<DocumentData*> document,
+	LottieSize sizeTag,
+	QSize box);
+
+[[nodiscard]] bool HasLottieThumbnail(
+	ImagePtr thumbnail,
+	not_null<DocumentData*> sticker);
+[[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
+	ImagePtr thumbnail,
+	not_null<DocumentData*> sticker,
+	LottieSize sizeTag,
+	QSize box,
+	std::shared_ptr<Lottie::FrameRenderer> renderer = nullptr);
+
+class ThumbnailSource : public Images::StorageSource {
+public:
+	ThumbnailSource(
+		const StorageImageLocation &location,
+		int size);
+
+	QImage takeLoaded() override;
+
+	QByteArray bytesForCache() override;
+
+protected:
+	std::unique_ptr<FileLoader> createLoader(
+		Data::FileOrigin origin,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading) override;
+
+private:
+	QPointer<FileLoader> _loader;
+	QByteArray _bytesForAnimated;
+
+};
 
 } // namespace Stickers

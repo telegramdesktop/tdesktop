@@ -25,9 +25,11 @@ GOTO:EOF
 
 :getDependencies
     call:logInfo "Clone dependencies repository"
-    git clone -q --depth 1 --branch=master https://github.com/telegramdesktop/dependencies_windows.git %LIB_DIR%
+    git clone -q --depth 1 --branch master https://github.com/telegramdesktop/dependencies_windows.git %LIB_DIR%
     cd %LIB_DIR%
-    git clone https://github.com/ericniebler/range-v3
+
+    git clone --depth 1 --branch 0.5.0 https://github.com/ericniebler/range-v3
+
     if exist prepare.bat (
         call prepare.bat
     ) else (
@@ -40,9 +42,9 @@ GOTO:EOF
 :setupGYP
     call:logInfo "Setup GYP/Ninja and generate VS solution"
     cd %LIB_DIR%
-    git clone https://chromium.googlesource.com/external/gyp
+    git clone https://github.com/telegramdesktop/gyp.git
     cd gyp
-    git checkout a478c1ab51
+    git checkout tdesktop
     SET PATH=%PATH%;%BUILD_DIR%\Libraries\gyp;%BUILD_DIR%\Libraries\ninja;
     cd %SRC_DIR%
     git submodule init
@@ -70,10 +72,6 @@ GOTO:EOF
 
     echo %BUILD_VERSION% | findstr /C:"disable_desktop_file_generation">nul && (
         set TDESKTOP_BUILD_DEFINES=%TDESKTOP_BUILD_DEFINES%,TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
-    )
-
-    echo %BUILD_VERSION% | findstr /C:"disable_unity_integration">nul && (
-        set TDESKTOP_BUILD_DEFINES=%TDESKTOP_BUILD_DEFINES%,TDESKTOP_DISABLE_UNITY_INTEGRATION
     )
 
     echo %BUILD_VERSION% | findstr /C:"disable_gtk_integration">nul && (

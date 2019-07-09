@@ -14,7 +14,6 @@ env:
    - BUILD_VERSION="disable_crash_reports"
    - BUILD_VERSION="disable_network_proxy"
    - BUILD_VERSION="disable_desktop_file_generation"
-   - BUILD_VERSION="disable_unity_integration"
    - BUILD_VERSION="disable_gtk_integration"
 
 matrix:
@@ -32,8 +31,8 @@ addons:
       - dpatch
       - equivs
       - fakeroot
-      - g++-7
-      - gcc-7
+      - g++-8
+      - gcc-8
       - git
       - gnome-common
       - gobject-introspection
@@ -45,7 +44,7 @@ addons:
       - libopus-dev
       - libpulse-dev
       - libssl-dev
-      - libunity-dev
+      - libdee-dev
       - libva-dev
       - libvdpau-dev
       - libxcb-xkb-dev
@@ -57,8 +56,8 @@ addons:
       - yasm
 
 before_install:
-  - export CXX="g++-7" CC="gcc-7"
-  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
+  - export CXX="g++-8" CC="gcc-8"
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 --slave /usr/bin/g++ g++ /usr/bin/g++-8
   - sudo update-alternatives --config gcc
   - g++ --version
 

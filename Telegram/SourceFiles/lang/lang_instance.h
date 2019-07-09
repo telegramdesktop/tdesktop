@@ -13,18 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Lang {
 
-constexpr auto kLegacyLanguageNone = -2;
-constexpr auto kLegacyCustomLanguage = -1;
-constexpr auto kLegacyDefaultLanguage = 0;
-
-constexpr str_const kLegacyLanguages[] = {
-	"en"
-};
-
-inline QString ConvertLegacyLanguageId(const QString &languageId) {
-	return languageId.toLower().replace('_', '-');
-}
-
 struct Language {
 	QString id;
 	QString pluralId;
@@ -49,8 +37,6 @@ Language DefaultLanguage();
 
 class Instance;
 Instance &Current();
-
-rpl::producer<QString> Viewer(LangKey key);
 
 enum class Pack {
 	None,
@@ -77,6 +63,7 @@ public:
 	QString langPackName() const;
 	QString cloudLangCode(Pack pack) const;
 	QString id() const;
+	rpl::producer<QString> idChanges() const;
 	QString baseId() const;
 	QString name() const;
 	QString nativeName() const;
@@ -86,25 +73,24 @@ public:
 
 	QByteArray serialize() const;
 	void fillFromSerialized(const QByteArray &data, int dataAppVersion);
-	void fillFromLegacy(int legacyId, const QString &legacyPath);
 
 	void applyDifference(
 		Pack pack,
 		const MTPDlangPackDifference &difference);
-	static std::map<LangKey, QString> ParseStrings(
+	static std::map<ushort, QString> ParseStrings(
 		const MTPVector<MTPLangPackString> &strings);
 	base::Observable<void> &updated() {
 		return _updated;
 	}
 
-	QString getValue(LangKey key) const {
-		Expects(key >= 0 && key < _values.size());
+	QString getValue(ushort key) const {
+		Expects(key < _values.size());
 
 		return _values[key];
 	}
 	QString getNonDefaultValue(const QByteArray &key) const;
-	bool isNonDefaultPlural(LangKey key) const {
-		Expects(key >= 0 && key + 5 < _nonDefaultSet.size());
+	bool isNonDefaultPlural(ushort key) const {
+		Expects(key + 5 < _nonDefaultSet.size());
 
 		return _nonDefaultSet[key]
 			|| _nonDefaultSet[key + 1]
@@ -137,8 +123,8 @@ private:
 	Instance *_derived = nullptr;
 
 	QString _id, _pluralId;
+	rpl::event_stream<QString> _idChanges;
 	QString _name, _nativeName;
-	int _legacyId = kLegacyLanguageNone;
 	QString _customFilePathAbsolute;
 	QString _customFilePathRelative;
 	QByteArray _customFileContent;
@@ -155,4 +141,10 @@ private:
 
 };
 
+namespace details {
+
+QString Current(ushort key);
+rpl::producer<QString> Viewer(ushort key);
+
+} // namespace details
 } // namespace Lang

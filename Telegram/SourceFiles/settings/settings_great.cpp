@@ -15,7 +15,7 @@ https://git.io/TD
 #include "info/profile/info_profile_button.h"
 #include "storage/localstorage.h"
 #include "mainwindow.h"
-#include "application.h"
+#include "core/application.h"
 #include "boxes/typing_box.h"
 
 
@@ -25,49 +25,41 @@ void GreatSetting(not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
-	AddSubsectionTitle(container, lng_telegreat_setting);
+	AddSubsectionTitle(container, tr::lng_telegreat_setting());
 
-	const auto checkbox = [&](LangKey label, bool checked) {
+	const auto checkbox = [&](const QString &label, bool checked) {
 		return object_ptr<Ui::Checkbox>(
 			container,
-			lang(label),
+			label,
 			checked,
 			st::settingsCheckbox);
 	};
-	const auto addCheckbox = [&](LangKey label, bool checked) {
+	const auto addCheckbox = [&](const QString &label, bool checked) {
 		return container->add(
 			checkbox(label, checked),
 			st::settingsCheckboxPadding);
 	};
 
-	const auto callbackButton = addCheckbox(
-		lng_telegreat_setting_callback,
-		cShowCallbackData());
 	const auto usernameButton = addCheckbox(
-		lng_telegreat_setting_username,
+		tr::lng_telegreat_setting_username(tr::now),
 		cShowUsername());
 	const auto ignoreButton = addCheckbox(
-		lng_telegreat_setting_ignore,
+		tr::lng_telegreat_setting_ignore(tr::now),
 		cIgnoreBlocked());
+	const auto callbackButton = addCheckbox(
+		tr::lng_telegreat_setting_callback(tr::now),
+		cShowCallbackData());
 	const auto mentionButton = addCheckbox(
-		lng_telegreat_setting_text_mention,
+		tr::lng_telegreat_setting_text_mention(tr::now),
 		cTextMention());
 	const auto copyButton = addCheckbox(
-		lng_telegreat_setting_auto_copy,
+		tr::lng_telegreat_setting_auto_copy(tr::now),
 		cAutoCopy());
 
 	const auto typingButton = AddButton(
 		container,
-		lng_telegreat_setting_typing,
+		tr::lng_telegreat_setting_typing(),
 		st::settingsButton);
-
-	callbackButton->checkedChanges(
-	) | rpl::filter([=](bool checked) {
-		return (checked != cShowCallbackData());
-	}) | rpl::start_with_next([=](bool checked) {
-		cSetShowCallbackData(checked);
-		Local::writeUserSettings();
-	}, callbackButton->lifetime());
 
 	usernameButton->checkedChanges(
 	) | rpl::filter([=](bool checked) {
@@ -85,6 +77,14 @@ void GreatSetting(not_null<Ui::VerticalLayout*> container) {
 		Local::writeUserSettings();
 	}, ignoreButton->lifetime());
 
+	callbackButton->checkedChanges(
+	) | rpl::filter([=](bool checked) {
+		return (checked != cShowCallbackData());
+	}) | rpl::start_with_next([=](bool checked) {
+		cSetShowCallbackData(checked);
+		Local::writeUserSettings();
+	}, callbackButton->lifetime());
+
 	mentionButton->checkedChanges(
 	) | rpl::filter([=](bool checked) {
 		return (checked != cTextMention());
@@ -100,7 +100,7 @@ void GreatSetting(not_null<Ui::VerticalLayout*> container) {
 		cSetAutoCopy(checked);
 		Local::writeUserSettings();
 	}, copyButton->lifetime());
-
+	
 	typingButton->addClickHandler([=] {
 		Ui::show(Box<TypingBox>());
 	});

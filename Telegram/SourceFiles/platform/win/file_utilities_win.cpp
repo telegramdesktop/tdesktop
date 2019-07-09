@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "platform/win/windows_dlls.h"
 #include "lang/lang_keys.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "core/crash_reports.h"
 
 #include <Shlwapi.h>
@@ -203,7 +203,7 @@ bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition) {
 			menuInfo.fType = MFT_STRING;
 			menuInfo.wID = handlers.size() + 1;
 
-			QString name = lang(lng_wnd_choose_program_menu);
+			QString name = tr::lng_wnd_choose_program_menu(tr::now);
 			if (name.size() > 512) name = name.mid(0, 512);
 			WCHAR nameArr[1024];
 			name.toWCharArray(nameArr);

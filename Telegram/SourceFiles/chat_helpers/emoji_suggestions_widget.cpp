@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/emoji_suggestions_widget.h"
 
+#include "chat_helpers/emoji_keywords.h"
 #include "chat_helpers/emoji_suggestions_helper.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/shadow.h"
@@ -14,64 +15,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/emoji_config.h"
 #include "platform/platform_specific.h"
+#include "core/application.h"
 #include "core/event_filter.h"
+#include "auth_session.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Ui {
 namespace Emoji {
 namespace {
 
-constexpr auto kRowLimit = 5;
+constexpr auto kShowExactDelay = crl::time(300);
+constexpr auto kMaxNonScrolledEmoji = 7;
+constexpr auto kAnimationDuration = crl::time(120);
 
 } // namespace
 
-class SuggestionsWidget::Row {
-public:
-	Row(not_null<EmojiPtr> emoji, const QString &label, const QString &replacement);
-	Row(const Row &other) = delete;
-	Row &operator=(const Row &other) = delete;
-	Row(Row &&other) = default;
-	Row &operator=(Row &&other) = default;
-	~Row();
-
-	not_null<EmojiPtr> emoji() const {
-		return _emoji;
-	}
-	const QString &label() const {
-		return _label;
-	}
-	const QString &replacement() const {
-		return _replacement;
-	}
-	RippleAnimation *ripple() const {
-		return _ripple.get();
-	}
-	void setRipple(std::unique_ptr<RippleAnimation> ripple) {
-		_ripple = std::move(ripple);
-	}
-	void resetRipple() {
-		_ripple.reset();
-	}
-
-private:
-	not_null<EmojiPtr> _emoji;
-	QString _label;
-	QString _replacement;
-	std::unique_ptr<RippleAnimation> _ripple;
-
-};
-
-SuggestionsWidget::Row::Row(not_null<EmojiPtr> emoji, const QString &label, const QString &replacement)
-: _emoji(emoji)
-, _label(label)
-, _replacement(replacement) {
-}
-
-SuggestionsWidget::Row::~Row() = default;
-
-SuggestionsWidget::SuggestionsWidget(QWidget *parent, const style::Menu &st) : TWidget(parent)
-, _st(&st)
-, _rowHeight(_st->itemPadding.top() + _st->itemFont->height + _st->itemPadding.bottom()) {
+SuggestionsWidget::SuggestionsWidget(QWidget *parent)
+: RpWidget(parent)
+, _oneWidth(st::emojiSuggestionSize)
+, _padding(st::emojiSuggestionsPadding) {
+	resize(
+		_oneWidth + _padding.left() + _padding.right(),
+		_oneWidth + _padding.top() + _padding.bottom());
 	setMouseTracking(true);
 }
 
@@ -83,8 +48,8 @@ rpl::producer<QString> SuggestionsWidget::triggered() const {
 	return _triggered.events();
 }
 
-void SuggestionsWidget::showWithQuery(const QString &query) {
-	if (_query == query) {
+void SuggestionsWidget::showWithQuery(const QString &query, bool force) {
+	if (!force && (_query == query)) {
 		return;
 	}
 	_query = query;
@@ -93,126 +58,213 @@ void SuggestionsWidget::showWithQuery(const QString &query) {
 		_toggleAnimated.fire(false);
 	}
 	clearSelection();
+	setPressed(-1);
 	_rows = std::move(rows);
 	resizeToRows();
 	update();
-	if (!_rows.empty()) {
+
+	Ui::PostponeCall(this, [=] {
+		if (!_rows.empty()) {
+			_toggleAnimated.fire(true);
+		}
+	});
+}
+
+void SuggestionsWidget::selectFirstResult() {
+	if (!_rows.empty() && _selected < 0) {
 		setSelected(0);
-	}
-	if (!_rows.empty()) {
-		_toggleAnimated.fire(true);
 	}
 }
 
-std::vector<SuggestionsWidget::Row> SuggestionsWidget::getRowsByQuery() const {
-	auto result = std::vector<Row>();
+SuggestionsWidget::Row::Row(
+	not_null<EmojiPtr> emoji,
+	const QString &replacement)
+: emoji(emoji)
+, replacement(replacement) {
+}
+
+auto SuggestionsWidget::getRowsByQuery() const -> std::vector<Row> {
 	if (_query.isEmpty()) {
-		return result;
+		return {};
 	}
-	auto suggestions = GetSuggestions(QStringToUTF16(_query));
-	if (suggestions.empty()) {
-		return result;
+	const auto middle = (_query[0] == ':');
+	const auto real = middle ? _query.mid(1) : _query;
+	const auto simple = [&] {
+		if (!middle || _query.size() > 2) {
+			return false;
+		}
+		// Suggest :D and :-P only as exact matches.
+		return ranges::find_if(_query, [](QChar ch) { return ch.isLower(); })
+			== _query.end();
+	}();
+	const auto exact = !middle || simple;
+	const auto list = Core::App().emojiKeywords().query(real, exact);
+	if (list.empty()) {
+		return {};
 	}
-	auto count = suggestions.size();
-	auto suggestionsEmoji = std::vector<EmojiPtr>(count, nullptr);
-	for (auto i = 0; i != count; ++i) {
-		suggestionsEmoji[i] = Find(QStringFromUTF16(suggestions[i].emoji()));
-	}
-	auto recents = 0;
-	auto &recent = GetRecent();
-	for (auto &item : recent) {
-		auto emoji = item.first->original();
-		if (!emoji) emoji = item.first;
-		auto it = std::find(suggestionsEmoji.begin(), suggestionsEmoji.end(), emoji);
-		if (it != suggestionsEmoji.end()) {
-			auto index = (it - suggestionsEmoji.begin());
-			if (index >= recents) {
-				if (index > recents) {
-					auto recentEmoji = suggestionsEmoji[index];
-					auto recentSuggestion = suggestions[index];
-					for (auto i = index; i != recents; --i) {
-						suggestionsEmoji[i] = suggestionsEmoji[i - 1];
-						suggestions[i] = suggestions[i - 1];
-					}
-					suggestionsEmoji[recents] = recentEmoji;
-					suggestions[recents] = recentSuggestion;
-				}
-				++recents;
-			}
+	using Entry = ChatHelpers::EmojiKeywords::Result;
+	auto result = ranges::view::all(
+		list
+	) | ranges::view::transform([](const Entry &result) {
+		return Row(result.emoji, result.replacement);
+	}) | ranges::to_vector;
+
+	auto lastRecent = begin(result);
+	const auto &recent = GetRecent();
+	for (const auto &item : recent) {
+		const auto emoji = item.first->original()
+			? item.first->original()
+			: item.first;
+		const auto it = ranges::find(result, emoji, [](const Row &row) {
+			return row.emoji.get();
+		});
+		if (it > lastRecent && it != end(result)) {
+			std::rotate(lastRecent, it, it + 1);
+			++lastRecent;
 		}
 	}
 
-	result.reserve(kRowLimit);
-	auto index = 0;
-	for (auto &item : suggestions) {
-		if (auto emoji = suggestionsEmoji[index++]) {
-			if (emoji->hasVariants()) {
-				auto it = cEmojiVariants().constFind(emoji->nonColoredId());
-				if (it != cEmojiVariants().cend()) {
-					emoji = emoji->variant(it.value());
-				}
-			}
-			result.emplace_back(emoji, QStringFromUTF16(item.label()), QStringFromUTF16(item.replacement()));
-			if (result.size() == kRowLimit) {
-				break;
-			}
-		}
+	for (auto &item : result) {
+		item.emoji = [&] {
+			const auto result = item.emoji;
+			const auto &variants = cEmojiVariants();
+			const auto i = result->hasVariants()
+				? variants.constFind(result->nonColoredId())
+				: variants.cend();
+			return (i != variants.cend())
+				? result->variant(i.value())
+				: result.get();
+		}();
 	}
 	return result;
 }
 
 void SuggestionsWidget::resizeToRows() {
-	auto newWidth = 0;
-	for (auto &row : _rows) {
-		accumulate_max(newWidth, countWidth(row));
+	const auto count = int(_rows.size());
+	const auto scrolled = (count > kMaxNonScrolledEmoji);
+	const auto fullWidth = count * _oneWidth;
+	const auto newWidth = scrolled
+		? st::emojiSuggestionsScrolledWidth
+		: fullWidth;
+	_scrollMax = std::max(0, fullWidth - newWidth);
+	if (_scrollValue > _scrollMax || scrollCurrent() > _scrollMax) {
+		scrollTo(std::min(_scrollValue, _scrollMax));
 	}
-	newWidth = snap(newWidth, _st->widthMin, _st->widthMax);
-	auto newHeight = _st->skip + (_rows.size() * _rowHeight) + _st->skip;
-	resize(newWidth, newHeight);
+	resize(_padding.left() + newWidth + _padding.right(), height());
+	update();
 }
 
-int SuggestionsWidget::countWidth(const Row &row) {
-	auto textw = _st->itemFont->width(row.label());
-	return _st->itemPadding.left() + textw + _st->itemPadding.right();
+bool SuggestionsWidget::eventHook(QEvent *e) {
+	if (e->type() == QEvent::Wheel) {
+		selectByMouse(QCursor::pos());
+		if (_selected >= 0 && _pressed < 0) {
+			scrollByWheelEvent(static_cast<QWheelEvent*>(e));
+		}
+	}
+	return RpWidget::eventHook(e);
+}
+
+void SuggestionsWidget::scrollByWheelEvent(not_null<QWheelEvent*> e) {
+	const auto horizontal = (e->angleDelta().x() != 0)
+		|| (e->orientation() == Qt::Horizontal);
+	const auto vertical = (e->angleDelta().y() != 0)
+		|| (e->orientation() == Qt::Vertical);
+	const auto current = scrollCurrent();
+	const auto scroll = [&] {
+		if (horizontal) {
+			const auto delta = e->pixelDelta().x()
+				? e->pixelDelta().x()
+				: e->angleDelta().x();
+			return snap(current - ((rtl() ? -1 : 1) * delta), 0, _scrollMax);
+		} else if (vertical) {
+			const auto delta = e->pixelDelta().y()
+				? e->pixelDelta().y()
+				: e->angleDelta().y();
+			return snap(current - delta, 0, _scrollMax);
+		}
+		return current;
+	}();
+	if (current != scroll) {
+		scrollTo(scroll);
+		if (!_lastMousePosition) {
+			_lastMousePosition = QCursor::pos();
+		}
+		selectByMouse(*_lastMousePosition);
+		update();
+	}
 }
 
 void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto ms = getms();
-	auto clip = e->rect();
+	const auto clip = e->rect();
+	p.fillRect(clip, st::boxBg);
 
-	auto topskip = QRect(0, 0, width(), _st->skip);
-	auto bottomskip = QRect(0, height() - _st->skip, width(), _st->skip);
-	if (clip.intersects(topskip)) p.fillRect(clip.intersected(topskip), _st->itemBg);
-	if (clip.intersects(bottomskip)) p.fillRect(clip.intersected(bottomskip), _st->itemBg);
+	const auto shift = innerShift();
+	p.translate(-shift);
+	const auto paint = clip.translated(shift);
+	const auto from = std::max(paint.x(), 0) / _oneWidth;
+	const auto till = std::min(
+		(paint.x() + paint.width() + _oneWidth - 1) / _oneWidth,
+		int(_rows.size()));
 
-	const auto top = _st->skip;
-	p.setFont(_st->itemFont);
-	const auto from = floorclamp(clip.top() - top, _rowHeight, 0, _rows.size());
-	const auto to = ceilclamp(clip.top() + clip.height() - top, _rowHeight, 0, _rows.size());
-	p.translate(0, top + from * _rowHeight);
-	for (auto i = from; i != to; ++i) {
-		auto &row = _rows[i];
-		const auto selected = (i == _selected || i == _pressed);
-		p.fillRect(0, 0, width(), _rowHeight, selected ? _st->itemBgOver : _st->itemBg);
-		if (const auto ripple = row.ripple()) {
-			ripple->paint(p, 0, 0, width(), ms);
-			if (ripple->empty()) {
-				row.resetRipple();
-			}
-		}
-		const auto emoji = row.emoji();
+	const auto selected = (_pressed >= 0)
+		? _pressed
+		: _selectedAnimation.value(_selected);
+	if (selected > -1.) {
+		App::roundRect(
+			p,
+			QRect(selected * _oneWidth, 0, _oneWidth, _oneWidth),
+			st::emojiPanHover,
+			StickerHoverCorners);
+	}
+
+	for (auto i = from; i != till; ++i) {
+		const auto &row = _rows[i];
+		const auto emoji = row.emoji;
 		const auto esize = Ui::Emoji::GetSizeLarge();
+		const auto x = i * _oneWidth;
+		const auto y = 0;
 		Ui::Emoji::Draw(
 			p,
 			emoji,
 			esize,
-			(_st->itemPadding.left() - (esize / cIntRetinaFactor())) / 2,
-			(_rowHeight - (esize / cIntRetinaFactor())) / 2);
-		p.setPen(selected ? _st->itemFgOver : _st->itemFg);
-		p.drawTextLeft(_st->itemPadding.left(), _st->itemPadding.top(), width(), row.label());
-		p.translate(0, _rowHeight);
+			x + (_oneWidth - (esize / cIntRetinaFactor())) / 2,
+			y + (_oneWidth - (esize / cIntRetinaFactor())) / 2);
+	}
+	paintFadings(p);
+}
+
+void SuggestionsWidget::paintFadings(Painter &p) const {
+	const auto scroll = scrollCurrent();
+	const auto o_left = snap(
+		scroll / float64(st::emojiSuggestionsFadeAfter),
+		0.,
+		1.);
+	const auto shift = innerShift();
+	if (o_left > 0.) {
+		p.setOpacity(o_left);
+		const auto rect = myrtlrect(
+			shift.x(),
+			0,
+			st::emojiSuggestionsFadeLeft.width(),
+			height());
+		st::emojiSuggestionsFadeLeft.fill(p, rect);
+		p.setOpacity(1.);
+	}
+	const auto o_right = snap(
+		(_scrollMax - scroll) / float64(st::emojiSuggestionsFadeAfter),
+		0.,
+		1.);
+	if (o_right > 0.) {
+		p.setOpacity(o_right);
+		const auto rect = myrtlrect(
+			shift.x() + width() - st::emojiSuggestionsFadeRight.width(),
+			0,
+			st::emojiSuggestionsFadeRight.width(),
+			height());
+		st::emojiSuggestionsFadeRight.fill(p, rect);
+		p.setOpacity(1.);
 	}
 }
 
@@ -220,34 +272,66 @@ void SuggestionsWidget::keyPressEvent(QKeyEvent *e) {
 	handleKeyEvent(e->key());
 }
 
-void SuggestionsWidget::handleKeyEvent(int key) {
-	if (key == Qt::Key_Enter || key == Qt::Key_Return || key == Qt::Key_Tab) {
-		triggerSelectedRow();
-		return;
-	}
-	if ((key != Qt::Key_Up && key != Qt::Key_Down) || _rows.size() < 1) {
-		return;
+bool SuggestionsWidget::handleKeyEvent(int key) {
+	if (key == Qt::Key_Enter || key == Qt::Key_Return) {
+		return triggerSelectedRow();
+	} else if (key == Qt::Key_Tab) {
+		if (_selected < 0 || _selected >= _rows.size()) {
+			setSelected(0);
+		}
+		return triggerSelectedRow();
+	} else if (_rows.empty()
+		|| (key != Qt::Key_Up
+			&& key != Qt::Key_Down
+			&& key != Qt::Key_Left
+			&& key != Qt::Key_Right)) {
+		return false;
 	}
 
-	auto delta = (key == Qt::Key_Down ? 1 : -1), start = _selected;
+	const auto delta = (key == Qt::Key_Down || key == Qt::Key_Right)
+		? 1
+		: -1;
+	if (delta < 0 && _selected < 0) {
+		return false;
+	}
+	auto start = _selected;
 	if (start < 0 || start >= _rows.size()) {
 		start = (delta > 0) ? (_rows.size() - 1) : 0;
 	}
 	auto newSelected = start + delta;
 	if (newSelected < 0) {
-		newSelected += _rows.size();
+		newSelected = -1;
 	} else if (newSelected >= _rows.size()) {
 		newSelected -= _rows.size();
 	}
 
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
-	setSelected(newSelected);
+	setSelected(newSelected, anim::type::normal);
+	return true;
 }
 
-void SuggestionsWidget::setSelected(int selected) {
+void SuggestionsWidget::setSelected(int selected, anim::type animated) {
 	if (selected >= _rows.size()) {
 		selected = -1;
+	}
+	if (animated == anim::type::normal) {
+		_selectedAnimation.start(
+			[=] { update(); },
+			_selected,
+			selected,
+			kAnimationDuration,
+			anim::sineInOut);
+		if (_scrollMax > 0) {
+			const auto selectedMax = int(_rows.size()) - 3;
+			const auto selectedForScroll = std::min(
+				std::max(selected, 1) - 1,
+				selectedMax);
+			scrollTo((_scrollMax * selectedForScroll) / selectedMax, animated);
+		}
+	} else if (_selectedAnimation.animating()) {
+		_selectedAnimation.stop();
+		update();
 	}
 	if (_selected != selected) {
 		updateSelectedItem();
@@ -256,12 +340,39 @@ void SuggestionsWidget::setSelected(int selected) {
 	}
 }
 
+int SuggestionsWidget::scrollCurrent() const {
+	return _scrollAnimation.value(_scrollValue);
+}
+
+void SuggestionsWidget::scrollTo(int value, anim::type animated) {
+	if (animated == anim::type::instant) {
+		_scrollAnimation.stop();
+	} else {
+		_scrollAnimation.start(
+			[=] { update(); },
+			_scrollValue,
+			value,
+			kAnimationDuration,
+			anim::sineInOut);
+	}
+	_scrollValue = value;
+	update();
+}
+
+void SuggestionsWidget::stopAnimations() {
+	_scrollValue = _scrollAnimation.value(_scrollValue);
+	_scrollAnimation.stop();
+}
+
 void SuggestionsWidget::setPressed(int pressed) {
 	if (pressed >= _rows.size()) {
 		pressed = -1;
 	}
 	if (_pressed != pressed) {
 		_pressed = pressed;
+		if (_pressed >= 0) {
+			_mousePressPosition = QCursor::pos();
+		}
 	}
 }
 
@@ -277,16 +388,13 @@ void SuggestionsWidget::clearSelection() {
 	setSelected(-1);
 }
 
-int SuggestionsWidget::itemTop(int index) {
-	if (index > _rows.size()) {
-		index = _rows.size();
-	}
-	return _st->skip + (_rowHeight * index);
-}
-
 void SuggestionsWidget::updateItem(int index) {
 	if (index >= 0 && index < _rows.size()) {
-		update(0, itemTop(index), width(), _rowHeight);
+		update(
+			_padding.left() + index * _oneWidth - scrollCurrent(),
+			_padding.top(),
+			_oneWidth,
+			_oneWidth);
 	}
 }
 
@@ -294,11 +402,40 @@ void SuggestionsWidget::updateSelectedItem() {
 	updateItem(_selected);
 }
 
+QRect SuggestionsWidget::inner() const {
+	return QRect(0, 0, _rows.size() * _oneWidth, _oneWidth);
+}
+
+QPoint SuggestionsWidget::innerShift() const {
+	return QPoint(scrollCurrent() - _padding.left(), -_padding.top());
+}
+
+QPoint SuggestionsWidget::mapToInner(QPoint globalPosition) const {
+	return mapFromGlobal(globalPosition) + innerShift();
+}
+
 void SuggestionsWidget::mouseMoveEvent(QMouseEvent *e) {
-	auto inner = rect().marginsRemoved(QMargins(0, _st->skip, 0, _st->skip));
-	auto localPosition = e->pos();
-	if (inner.contains(localPosition)) {
-		const auto globalPosition = e->globalPos();
+	const auto globalPosition = e->globalPos();
+	if (_dragScrollStart >= 0) {
+		const auto delta = (_mousePressPosition.x() - globalPosition.x());
+		const auto scroll = snap(
+			_dragScrollStart + (rtl() ? -1 : 1) * delta,
+			0,
+			_scrollMax);
+		if (scrollCurrent() != scroll) {
+			scrollTo(scroll);
+			update();
+		}
+		return;
+	} else if ((_pressed >= 0)
+		&& (_scrollMax > 0)
+		&& ((_mousePressPosition - globalPosition).manhattanLength()
+			>= QApplication::startDragDistance())) {
+		_dragScrollStart = scrollCurrent();
+		_mousePressPosition = globalPosition;
+		scrollTo(_dragScrollStart);
+	}
+	if (inner().contains(mapToInner(globalPosition))) {
 		if (!_lastMousePosition) {
 			_lastMousePosition = globalPosition;
 			return;
@@ -315,51 +452,44 @@ void SuggestionsWidget::mouseMoveEvent(QMouseEvent *e) {
 void SuggestionsWidget::selectByMouse(QPoint globalPosition) {
 	_mouseSelection = true;
 	_lastMousePosition = globalPosition;
-	auto p = mapFromGlobal(globalPosition) - QPoint(0, _st->skip);
-	auto selected = (p.y() >= 0) ? (p.y() / _rowHeight) : -1;
+	const auto p = mapToInner(globalPosition);
+	const auto selected = (p.x() >= 0) ? (p.x() / _oneWidth) : -1;
 	setSelected((selected >= 0 && selected < _rows.size()) ? selected : -1);
 }
 
 void SuggestionsWidget::mousePressEvent(QMouseEvent *e) {
 	selectByMouse(e->globalPos());
-	if (_selected >= 0 && _selected < _rows.size()) {
+	if (_selected >= 0) {
 		setPressed(_selected);
-		if (!_rows[_pressed].ripple()) {
-			auto mask = RippleAnimation::rectMask(QSize(width(), _rowHeight));
-			_rows[_pressed].setRipple(std::make_unique<RippleAnimation>(_st->ripple, std::move(mask), [this, selected = _pressed] {
-				updateItem(selected);
-			}));
-		}
-		_rows[_pressed].ripple()->add(mapFromGlobal(QCursor::pos()) - QPoint(0, itemTop(_pressed)));
 	}
 }
 
 void SuggestionsWidget::mouseReleaseEvent(QMouseEvent *e) {
-	if (_pressed >= 0 && _pressed < _rows.size()) {
-		auto pressed = _pressed;
+	if (_pressed >= 0) {
+		const auto pressed = _pressed;
 		setPressed(-1);
-		if (_rows[pressed].ripple()) {
-			_rows[pressed].ripple()->lastStop();
-		}
-		if (pressed == _selected) {
+		if (_dragScrollStart >= 0) {
+			_dragScrollStart = -1;
+		} else if (pressed == _selected) {
 			triggerRow(_rows[_selected]);
 		}
 	}
 }
 
-void SuggestionsWidget::triggerSelectedRow() {
-	if (_selected >= 0 && _selected < _rows.size()) {
+bool SuggestionsWidget::triggerSelectedRow() const {
+	if (_selected >= 0) {
 		triggerRow(_rows[_selected]);
+		return true;
 	}
+	return false;
 }
 
-void SuggestionsWidget::triggerRow(const Row &row) {
-	_triggered.fire(row.emoji()->text());
+void SuggestionsWidget::triggerRow(const Row &row) const {
+	_triggered.fire(row.emoji->text());
 }
 
 void SuggestionsWidget::enterEventHook(QEvent *e) {
-	auto mouse = QCursor::pos();
-	if (!rect().marginsRemoved(QMargins(0, _st->skip, 0, _st->skip)).contains(mapFromGlobal(mouse))) {
+	if (!inner().contains(mapToInner(QCursor::pos()))) {
 		clearMouseSelection();
 	}
 	return TWidget::enterEventHook(e);
@@ -372,16 +502,17 @@ void SuggestionsWidget::leaveEventHook(QEvent *e) {
 
 SuggestionsController::SuggestionsController(
 	not_null<QWidget*> outer,
-	not_null<QTextEdit*> field)
-: _field(field) {
+	not_null<QTextEdit*> field,
+	const Options &options)
+: _field(field)
+, _showExactTimer([=] { showWithQuery(getEmojiQuery()); })
+, _options(options) {
 	_container = base::make_unique_q<InnerDropdown>(
 		outer,
 		st::emojiSuggestionsDropdown);
 	_container->setAutoHiding(false);
 	_suggestions = _container->setOwnedWidget(
-		object_ptr<Ui::Emoji::SuggestionsWidget>(
-			_container,
-			st::emojiSuggestionsMenu));
+		object_ptr<Ui::Emoji::SuggestionsWidget>(_container));
 
 	setReplaceCallback(nullptr);
 
@@ -410,6 +541,13 @@ SuggestionsController::SuggestionsController(
 	) | rpl::start_with_next([=](QString replacement) {
 		replaceCurrent(replacement);
 	}, _lifetime);
+	Core::App().emojiKeywords().refreshed(
+	) | rpl::start_with_next([=] {
+		_keywordsRefreshed = true;
+		if (!_showExactTimer.isActive()) {
+			showWithQuery(_lastShownQuery);
+		}
+	}, _lifetime);
 
 	updateForceHidden();
 
@@ -418,11 +556,13 @@ SuggestionsController::SuggestionsController(
 
 SuggestionsController *SuggestionsController::Init(
 		not_null<QWidget*> outer,
-		not_null<Ui::InputField*> field) {
+		not_null<Ui::InputField*> field,
+		const Options &options) {
 	const auto result = Ui::CreateChild<SuggestionsController>(
 		field.get(),
 		outer,
-		field->rawTextEdit());
+		field->rawTextEdit(),
+		options);
 	result->setReplaceCallback([=](
 			int from,
 			int till,
@@ -450,13 +590,32 @@ void SuggestionsController::setReplaceCallback(
 }
 
 void SuggestionsController::handleTextChange() {
+	if (Global::SuggestEmoji() && _field->textCursor().position() > 0) {
+		Core::App().emojiKeywords().refresh();
+	}
+
 	_ignoreCursorPositionChange = true;
 	InvokeQueued(_container, [=] { _ignoreCursorPositionChange = false; });
 
 	const auto query = getEmojiQuery();
 	if (query.isEmpty() || _textChangeAfterKeyPress) {
-		_suggestions->showWithQuery(query);
+		const auto exact = (!query.isEmpty() && query[0] != ':');
+		if (exact) {
+			const auto hidden = _container->isHidden()
+				|| _container->isHiding();
+			_showExactTimer.callOnce(hidden ? kShowExactDelay : 0);
+		} else {
+			showWithQuery(query);
+			_suggestions->selectFirstResult();
+		}
 	}
+}
+
+void SuggestionsController::showWithQuery(const QString &query) {
+	_showExactTimer.cancel();
+	const auto force = base::take(_keywordsRefreshed);
+	_lastShownQuery = query;
+	_suggestions->showWithQuery(_lastShownQuery, force);
 }
 
 QString SuggestionsController::getEmojiQuery() {
@@ -464,13 +623,15 @@ QString SuggestionsController::getEmojiQuery() {
 		return QString();
 	}
 
-	auto cursor = _field->textCursor();
+	const auto cursor = _field->textCursor();
 	if (cursor.hasSelection()) {
 		return QString();
 	}
 
-	auto position = cursor.position();
-	auto findTextPart = [this, &position] {
+	const auto modernLimit = Core::App().emojiKeywords().maxQueryLength();
+	const auto legacyLimit = GetSuggestionMaxLength();
+	const auto position = cursor.position();
+	const auto findTextPart = [&] {
 		auto document = _field->document();
 		auto block = document->findBlock(position);
 		for (auto i = block.begin(); !i.atEnd(); ++i) {
@@ -485,81 +646,57 @@ QString SuggestionsController::getEmojiQuery() {
 			if (fragment.charFormat().isImageFormat()) {
 				continue;
 			}
-			position -= from;
 			_queryStartPosition = from;
 			return fragment.text();
 		}
 		return QString();
 	};
 
-	auto text = findTextPart();
+	const auto text = findTextPart();
 	if (text.isEmpty()) {
 		return QString();
 	}
-
-	const auto isUpperCaseLetter = [](QChar ch) {
-		return (ch >= 'A' && ch <= 'Z');
-	};
-	const auto isLetter = [](QChar ch) {
-		return (ch >= 'a' && ch <= 'z')
-			|| (ch >= 'A' && ch <= 'Z')
-			|| (ch >= '0' && ch <= '9');
-	};
-	const auto isSuggestionChar = [](QChar ch) {
-		return (ch >= 'a' && ch <= 'z')
-			|| (ch >= 'A' && ch <= 'Z')
-			|| (ch >= '0' && ch <= '9')
-			|| (ch == '_')
-			|| (ch == '-')
-			|| (ch == '+');
-	};
-	const auto isGoodCharBeforeSuggestion = [&](QChar ch) {
-		return !isSuggestionChar(ch) || (ch == 0);
-	};
-	Assert(position > 0 && position <= text.size());
-	for (auto i = position; i != 0;) {
-		auto ch = text[--i];
-		if (ch == ':') {
-			auto beforeColon = (i < 1) ? QChar(0) : text[i - 1];
-			if (isGoodCharBeforeSuggestion(beforeColon)) {
-				// At least one letter after colon.
-				if (position > i + 1) {
-					// Skip colon and the first letter.
-					_queryStartPosition += i + 2;
-					const auto length = position - i;
-					auto result = text.mid(i, length);
-					const auto upperCaseLetters = std::count_if(
-						result.begin(),
-						result.end(),
-						isUpperCaseLetter);
-					const auto letters = std::count_if(
-						result.begin(),
-						result.end(),
-						isLetter);
-					if (letters == upperCaseLetters && letters == 1) {
-						// No upper case single letter suggestions.
-						// We don't want to suggest emoji on :D and :-P
-						return QString();
-					}
-					return result.toLower();
-				}
+	const auto length = position - _queryStartPosition;
+	for (auto i = length; i != 0;) {
+		if (text[--i] == ':') {
+			const auto previous = (i > 0) ? text[i - 1] : QChar(0);
+			if (i > 0 && (previous.isLetter() || previous.isDigit())) {
+				return QString();
+			} else if (i + 1 == length || text[i + 1].isSpace()) {
+				return QString();
 			}
-			return QString();
+			_queryStartPosition += i + 2;
+			return text.mid(i, length - i);
 		}
-		if (position - i > kSuggestionMaxLength) {
-			return QString();
-		}
-		if (!isSuggestionChar(ch)) {
+		if (length - i > legacyLimit && length - i > modernLimit) {
 			return QString();
 		}
 	}
-	return QString();
+
+	// Exact query should be full input field value.
+	const auto end = [&] {
+		auto cursor = _field->textCursor();
+		cursor.movePosition(QTextCursor::End);
+		return cursor.position();
+	}();
+	const auto is = [&](QLatin1String string) {
+		return (text.compare(string, Qt::CaseInsensitive) == 0);
+	};
+	if (!_options.suggestExactFirstWord
+		|| !length
+		|| text[0].isSpace()
+		|| (length > modernLimit)
+		|| (_queryStartPosition != 0)
+		|| (position != end)) {
+		return QString();
+	}
+	return text;
 }
 
 void SuggestionsController::replaceCurrent(const QString &replacement) {
-	auto suggestion = getEmojiQuery();
+	const auto suggestion = getEmojiQuery();
 	if (suggestion.isEmpty()) {
-		_suggestions->showWithQuery(QString());
+		showWithQuery(QString());
 	} else {
 		const auto cursor = _field->textCursor();
 		const auto position = cursor.position();
@@ -573,7 +710,7 @@ void SuggestionsController::handleCursorPositionChange() {
 		if (_ignoreCursorPositionChange) {
 			return;
 		}
-		_suggestions->showWithQuery(QString());
+		showWithQuery(QString());
 	});
 }
 
@@ -603,7 +740,9 @@ void SuggestionsController::updateGeometry() {
 	auto boundingRect = _container->parentWidget()->rect();
 	auto origin = rtl() ? PanelAnimation::Origin::BottomRight : PanelAnimation::Origin::BottomLeft;
 	auto point = rtl() ? (aroundRect.topLeft() + QPoint(aroundRect.width(), 0)) : aroundRect.topLeft();
-	point -= rtl() ? QPoint(_container->width() - st::emojiSuggestionsDropdown.padding.right(), _container->height()) : QPoint(st::emojiSuggestionsDropdown.padding.left(), _container->height());
+	const auto padding = st::emojiSuggestionsDropdown.padding;
+	const auto shift = std::min(_container->width() - padding.left() - padding.right(), st::emojiSuggestionSize) / 2;
+	point -= rtl() ? QPoint(_container->width() - padding.right() - shift, _container->height()) : QPoint(padding.left() + shift, _container->height());
 	if (rtl()) {
 		if (point.x() < boundingRect.x()) {
 			point.setX(boundingRect.x());
@@ -662,15 +801,16 @@ bool SuggestionsController::fieldFilter(not_null<QEvent*> event) {
 		case Qt::Key_Tab:
 		case Qt::Key_Up:
 		case Qt::Key_Down:
+		case Qt::Key_Left:
+		case Qt::Key_Right:
 			if (_shown && !_forceHidden) {
-				_suggestions->handleKeyEvent(key);
-				return true;
+				return _suggestions->handleKeyEvent(key);
 			}
 			break;
 
 		case Qt::Key_Escape:
 			if (_shown && !_forceHidden) {
-				_suggestions->showWithQuery(QString());
+				showWithQuery(QString());
 				return true;
 			}
 			break;

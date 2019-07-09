@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/popup_menu.h"
 #include "ui/toast/toast.h"
+#include "core/click_handler_types.h" // UrlClickHandler
+#include "chat_helpers/message_field.h" // SetClipboardText/MimeDataFromText
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
@@ -134,24 +136,19 @@ FlatLabel::FlatLabel(QWidget *parent, const style::FlatLabel &st)
 : RpWidget(parent)
 , _text(st.minWidth ? st.minWidth : QFIXED_MAX)
 , _st(st)
-, _contextCopyText(lang(lng_context_copy_text)) {
+, _contextCopyText(tr::lng_context_copy_text(tr::now)) {
 	init();
 }
 
 FlatLabel::FlatLabel(
 	QWidget *parent,
 	const QString &text,
-	InitType initType,
 	const style::FlatLabel &st)
 : RpWidget(parent)
 , _text(st.minWidth ? st.minWidth : QFIXED_MAX)
 , _st(st)
-, _contextCopyText(lang(lng_context_copy_text)) {
-	if (initType == InitType::Rich) {
-		setRichText(text);
-	} else {
-		setText(text);
-	}
+, _contextCopyText(tr::lng_context_copy_text(tr::now)) {
+	setText(text);
 	init();
 }
 
@@ -162,7 +159,7 @@ FlatLabel::FlatLabel(
 : RpWidget(parent)
 , _text(st.minWidth ? st.minWidth : QFIXED_MAX)
 , _st(st)
-, _contextCopyText(lang(lng_context_copy_text)) {
+, _contextCopyText(tr::lng_context_copy_text(tr::now)) {
 	textUpdated();
 	std::move(
 		text
@@ -178,7 +175,7 @@ FlatLabel::FlatLabel(
 : RpWidget(parent)
 , _text(st.minWidth ? st.minWidth : QFIXED_MAX)
 , _st(st)
-, _contextCopyText(lang(lng_context_copy_text)) {
+, _contextCopyText(tr::lng_context_copy_text(tr::now)) {
 	textUpdated();
 	std::move(
 		text
@@ -228,19 +225,18 @@ void FlatLabel::setContextCopyText(const QString &copyText) {
 	_contextCopyText = copyText;
 }
 
-void FlatLabel::setExpandLinksMode(ExpandLinksMode mode) {
-	_contextExpandLinksMode = mode;
-}
-
 void FlatLabel::setBreakEverywhere(bool breakEverywhere) {
 	_breakEverywhere = breakEverywhere;
 }
 
+void FlatLabel::setTryMakeSimilarLines(bool tryMakeSimilarLines) {
+	_tryMakeSimilarLines = tryMakeSimilarLines;
+}
+
 int FlatLabel::resizeGetHeight(int newWidth) {
 	_allowedWidth = newWidth;
-	int textWidth = countTextWidth();
-	int textHeight = countTextHeight(textWidth);
-	return textHeight;
+	_textWidth = countTextWidth();
+	return countTextHeight(_textWidth);
 }
 
 int FlatLabel::naturalWidth() const {
@@ -252,9 +248,26 @@ QMargins FlatLabel::getMargins() const {
 }
 
 int FlatLabel::countTextWidth() const {
-	return _allowedWidth
+	const auto available = _allowedWidth
 		? _allowedWidth
 		: (_st.minWidth ? _st.minWidth : _text.maxWidth());
+	if (_allowedWidth > 0
+		&& _allowedWidth < _text.maxWidth()
+		&& _tryMakeSimilarLines) {
+		auto large = _allowedWidth;
+		auto small = _allowedWidth / 2;
+		const auto largeHeight = _text.countHeight(large);
+		while (large - small > 1) {
+			const auto middle = (large + small) / 2;
+			if (largeHeight == _text.countHeight(middle)) {
+				large = middle;
+			} else {
+				small = middle;
+			}
+		}
+		return large;
+	}
+	return available;
 }
 
 int FlatLabel::countTextHeight(int textWidth) {
@@ -274,6 +287,20 @@ void FlatLabel::setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk) {
 	_text.setLink(lnkIndex, lnk);
 }
 
+void FlatLabel::setLinksTrusted() {
+	static const auto TrustedLinksFilter = [](
+			const ClickHandlerPtr &link,
+			Qt::MouseButton button) {
+		if (const auto url = dynamic_cast<UrlClickHandler*>(link.get())) {
+			url->UrlClickHandler::onClick({ button });
+			return false;
+		}
+		return true;
+	};
+	setClickHandlerFilter(TrustedLinksFilter);
+
+}
+
 void FlatLabel::setClickHandlerFilter(ClickHandlerFilter &&filter) {
 	_clickHandlerFilter = std::move(filter);
 }
@@ -291,7 +318,7 @@ void FlatLabel::mousePressEvent(QMouseEvent *e) {
 	dragActionStart(e->globalPos(), e->button());
 }
 
-Text::StateResult FlatLabel::dragActionStart(const QPoint &p, Qt::MouseButton button) {
+Ui::Text::StateResult FlatLabel::dragActionStart(const QPoint &p, Qt::MouseButton button) {
 	_lastMousePos = p;
 	auto state = dragActionUpdate();
 
@@ -344,7 +371,7 @@ Text::StateResult FlatLabel::dragActionStart(const QPoint &p, Qt::MouseButton bu
 	return state;
 }
 
-Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton button) {
+Ui::Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton button) {
 	_lastMousePos = p;
 	auto state = dragActionUpdate();
 
@@ -368,7 +395,7 @@ Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton b
 
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	if (!_selection.empty()) {
-		QApplication::clipboard()->setText(_text.originalText(_selection, _contextExpandLinksMode), QClipboard::Selection);
+		SetClipboardText(_text.toTextForMimeData(_selection), QClipboard::Selection);
 	}
 #endif // Q_OS_LINUX32 || Q_OS_LINUX64
 
@@ -441,7 +468,7 @@ void FlatLabel::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
 		auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
 		if (!selection.empty()) {
-			QApplication::clipboard()->setText(_text.originalText(selection, _contextExpandLinksMode), QClipboard::FindBuffer);
+			SetClipboardText(_text.toTextForMimeData(selection), QClipboard::FindBuffer);
 		}
 #endif // Q_OS_MAC
 	}
@@ -548,7 +575,7 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 	if (fullSelection && !_contextCopyText.isEmpty()) {
 		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()));
 	} else if (uponSelection && !fullSelection) {
-		_contextMenu->addAction(lang(lng_context_copy_selected), this, SLOT(onCopySelectedText()));
+		_contextMenu->addAction(tr::lng_context_copy_selected(tr::now), this, SLOT(onCopySelectedText()));
 	} else if (!hasSelection && !_contextCopyText.isEmpty()) {
 		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()));
 	}
@@ -564,7 +591,7 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 		}
 	}
 
-	if (_contextMenu->actions().isEmpty()) {
+	if (_contextMenu->actions().empty()) {
 		delete _contextMenu;
 		_contextMenu = nullptr;
 	} else {
@@ -575,14 +602,14 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 }
 
 void FlatLabel::onCopySelectedText() {
-	auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
+	const auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
 	if (!selection.empty()) {
-		QApplication::clipboard()->setText(_text.originalText(selection, _contextExpandLinksMode));
+		SetClipboardText(_text.toTextForMimeData(selection));
 	}
 }
 
 void FlatLabel::onCopyContextText() {
-	QApplication::clipboard()->setText(_text.originalText({ 0, 0xFFFF }, _contextExpandLinksMode));
+	SetClipboardText(_text.toTextForMimeData());
 	Ui::Toast::Show("Copied!");
 }
 
@@ -608,18 +635,18 @@ void FlatLabel::onExecuteDrag() {
 		}
 	}
 
-	ClickHandlerPtr pressedHandler = ClickHandler::getPressed();
-	QString selectedText;
-	if (uponSelected) {
-		selectedText = _text.originalText(_selection, ExpandLinksAll);
-	} else if (pressedHandler) {
-		selectedText = pressedHandler->dragText();
-	}
-	if (!selectedText.isEmpty()) {
-		auto mimeData = new QMimeData();
-		mimeData->setText(selectedText);
+	const auto pressedHandler = ClickHandler::getPressed();
+	const auto selectedText = [&] {
+		if (uponSelected) {
+			return _text.toTextForMimeData(_selection);
+		} else if (pressedHandler) {
+			return TextForMimeData::Simple(pressedHandler->dragText());
+		}
+		return TextForMimeData();
+	}();
+	if (auto mimeData = MimeDataFromText(selectedText)) {
 		auto drag = new QDrag(App::wnd());
-		drag->setMimeData(mimeData);
+		drag->setMimeData(mimeData.release());
 		drag->exec(Qt::CopyAction);
 
 		// We don't receive mouseReleaseEvent when drag is finished.
@@ -703,7 +730,7 @@ std::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(
 	return result;
 }
 
-Text::StateResult FlatLabel::dragActionUpdate() {
+Ui::Text::StateResult FlatLabel::dragActionUpdate() {
 	auto m = mapFromGlobal(_lastMousePos);
 	auto state = getTextState(m);
 	updateHover(state);
@@ -716,7 +743,7 @@ Text::StateResult FlatLabel::dragActionUpdate() {
 	return state;
 }
 
-void FlatLabel::updateHover(const Text::StateResult &state) {
+void FlatLabel::updateHover(const Ui::Text::StateResult &state) {
 	bool lnkChanged = ClickHandler::setActive(state.link, this);
 
 	if (!_selectable) {
@@ -779,15 +806,15 @@ void FlatLabel::refreshCursor(bool uponSymbol) {
 	}
 }
 
-Text::StateResult FlatLabel::getTextState(const QPoint &m) const {
-	Text::StateRequestElided request;
+Ui::Text::StateResult FlatLabel::getTextState(const QPoint &m) const {
+	Ui::Text::StateRequestElided request;
 	request.align = _st.align;
 	if (_selectable) {
-		request.flags |= Text::StateRequest::Flag::LookupSymbol;
+		request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
 	}
 	int textWidth = width() - _st.margin.left() - _st.margin.right();
 
-	Text::StateResult state;
+	Ui::Text::StateResult state;
 	bool heightExceeded = _st.maxHeight && (_st.maxHeight < _fullTextHeight || textWidth < _text.maxWidth());
 	bool renderElided = _breakEverywhere || heightExceeded;
 	if (renderElided) {
@@ -795,7 +822,7 @@ Text::StateResult FlatLabel::getTextState(const QPoint &m) const {
 		auto lines = _st.maxHeight ? qMax(_st.maxHeight / lineHeight, 1) : ((height() / lineHeight) + 2);
 		request.lines = lines;
 		if (_breakEverywhere) {
-			request.flags |= Text::StateRequest::Flag::BreakEverywhere;
+			request.flags |= Ui::Text::StateRequest::Flag::BreakEverywhere;
 		}
 		state = _text.getStateElided(m - QPoint(_st.margin.left(), _st.margin.top()), textWidth, request);
 	} else {
@@ -824,16 +851,25 @@ void FlatLabel::paintEvent(QPaintEvent *e) {
 		p.setPen(_st.textFg);
 	}
 	p.setTextPalette(_st.palette);
-	int textWidth = width() - _st.margin.left() - _st.margin.right();
+	const auto textWidth = _textWidth
+		? _textWidth
+		: (width() - _st.margin.left() - _st.margin.right());
+	const auto textLeft = _textWidth
+		? ((_st.align & Qt::AlignLeft)
+			? _st.margin.left()
+			: (_st.align & Qt::AlignHCenter)
+			? ((width() - _textWidth) / 2)
+			: (width() - _st.margin.right() - _textWidth))
+		: _st.margin.left();
 	auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
 	bool heightExceeded = _st.maxHeight && (_st.maxHeight < _fullTextHeight || textWidth < _text.maxWidth());
 	bool renderElided = _breakEverywhere || heightExceeded;
 	if (renderElided) {
 		auto lineHeight = qMax(_st.style.lineHeight, _st.style.font->height);
 		auto lines = _st.maxHeight ? qMax(_st.maxHeight / lineHeight, 1) : ((height() / lineHeight) + 2);
-		_text.drawElided(p, _st.margin.left(), _st.margin.top(), textWidth, lines, _st.align, e->rect().y(), e->rect().bottom(), 0, _breakEverywhere, selection);
+		_text.drawElided(p, textLeft, _st.margin.top(), textWidth, lines, _st.align, e->rect().y(), e->rect().bottom(), 0, _breakEverywhere, selection);
 	} else {
-		_text.draw(p, _st.margin.left(), _st.margin.top(), textWidth, _st.align, e->rect().y(), e->rect().bottom(), selection);
+		_text.draw(p, textLeft, _st.margin.top(), textWidth, _st.align, e->rect().y(), e->rect().bottom(), selection);
 	}
 }
 

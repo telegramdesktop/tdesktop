@@ -8,14 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/report_box.h"
 
 #include "lang/lang_keys.h"
-#include "styles/style_boxes.h"
-#include "styles/style_profile.h"
+#include "data/data_peer.h"
 #include "boxes/confirm_box.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/toast/toast.h"
 #include "mainwindow.h"
+#include "styles/style_boxes.h"
+#include "styles/style_profile.h"
 
 namespace {
 
@@ -33,38 +34,41 @@ ReportBox::ReportBox(QWidget*, not_null<PeerData*> peer, MessageIdsList ids)
 }
 
 void ReportBox::prepare() {
-	setTitle(langFactory([&] {
+	setTitle([&] {
 		if (_ids) {
-			return lng_report_message_title;
+			return tr::lng_report_message_title();
 		} else if (_peer->isUser()) {
-			return lng_report_bot_title;
+			return tr::lng_report_bot_title();
 		} else if (_peer->isMegagroup()) {
-			return lng_report_group_title;
+			return tr::lng_report_group_title();
 		} else {
-			return lng_report_title;
+			return tr::lng_report_title();
 		}
-	}()));
+	}());
 
-	addButton(langFactory(lng_report_button), [=] { report(); });
-	addButton(langFactory(lng_cancel), [=] { closeBox(); });
+	addButton(tr::lng_report_button(), [=] { report(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	_reasonGroup = std::make_shared<Ui::RadioenumGroup<Reason>>(
 		Reason::Spam);
 	const auto createButton = [&](
 			object_ptr<Ui::Radioenum<Reason>> &button,
 			Reason reason,
-			LangKey key) {
+			const QString &text) {
 		button.create(
 			this,
 			_reasonGroup,
 			reason,
-			lang(key),
+			text,
 			st::defaultBoxCheckbox);
 	};
-	createButton(_reasonSpam, Reason::Spam, lng_report_reason_spam);
-	createButton(_reasonViolence, Reason::Violence, lng_report_reason_violence);
-	createButton(_reasonPornography, Reason::Pornography, lng_report_reason_pornography);
-	createButton(_reasonOther, Reason::Other, lng_report_reason_other);
+	createButton(_reasonSpam, Reason::Spam, tr::lng_report_reason_spam(tr::now));
+	createButton(_reasonViolence, Reason::Violence, tr::lng_report_reason_violence(tr::now));
+	if (_ids) {
+		createButton(_reasonChildAbuse, Reason::ChildAbuse, tr::lng_report_reason_child_abuse(tr::now));
+	}
+	createButton(_reasonPornography, Reason::Pornography, tr::lng_report_reason_pornography(tr::now));
+	createButton(_reasonOther, Reason::Other, tr::lng_report_reason_other(tr::now));
 	_reasonGroup->setChangedCallback([=](Reason value) {
 		reasonChanged(value);
 	});
@@ -77,7 +81,13 @@ void ReportBox::resizeEvent(QResizeEvent *e) {
 
 	_reasonSpam->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top() + _reasonSpam->getMargins().top());
 	_reasonViolence->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->bottomNoMargins() + st::boxOptionListSkip);
-	_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
+	if (_ids) {
+		_reasonChildAbuse->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
+		_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonChildAbuse->bottomNoMargins() + st::boxOptionListSkip);
+	}
+	else{
+		_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
+	}
 	_reasonOther->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonPornography->bottomNoMargins() + st::boxOptionListSkip);
 
 	if (_reasonOtherText) {
@@ -92,7 +102,7 @@ void ReportBox::reasonChanged(Reason reason) {
 				this,
 				st::profileReportReasonOther,
 				Ui::InputField::Mode::MultiLine,
-				langFactory(lng_report_reason_description));
+				tr::lng_report_reason_description());
 			_reasonOtherText->show();
 			_reasonOtherText->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 			_reasonOtherText->setMaxLength(kReportReasonLengthMax);
@@ -135,6 +145,7 @@ void ReportBox::report() {
 		switch (_reasonGroup->value()) {
 		case Reason::Spam: return MTP_inputReportReasonSpam();
 		case Reason::Violence: return MTP_inputReportReasonViolence();
+		case Reason::ChildAbuse: return MTP_inputReportReasonChildAbuse();
 		case Reason::Pornography: return MTP_inputReportReasonPornography();
 		case Reason::Other: return MTP_inputReportReasonOther(MTP_string(_reasonOtherText->getLastText()));
 		}
@@ -162,7 +173,7 @@ void ReportBox::report() {
 
 void ReportBox::reportDone(const MTPBool &result) {
 	_requestId = 0;
-	Ui::Toast::Show(lang(lng_report_thanks));
+	Ui::Toast::Show(tr::lng_report_thanks(tr::now));
 	closeBox();
 }
 
@@ -179,7 +190,9 @@ bool ReportBox::reportFail(const RPCError &error) {
 }
 
 void ReportBox::updateMaxHeight() {
-	auto newHeight = st::boxOptionListPadding.top() + _reasonSpam->getMargins().top() + 4 * _reasonSpam->heightNoMargins() + 3 * st::boxOptionListSkip + _reasonSpam->getMargins().bottom() + st::boxOptionListPadding.bottom();
+	const auto buttonsCount = _ids ? 5 : 4;
+	auto newHeight = st::boxOptionListPadding.top() + _reasonSpam->getMargins().top() + buttonsCount * _reasonSpam->heightNoMargins() + (buttonsCount - 1) * st::boxOptionListSkip + _reasonSpam->getMargins().bottom() + st::boxOptionListPadding.bottom();
+
 	if (_reasonOtherText) {
 		newHeight += st::newGroupDescriptionPadding.top() + _reasonOtherText->height() + st::newGroupDescriptionPadding.bottom();
 	}

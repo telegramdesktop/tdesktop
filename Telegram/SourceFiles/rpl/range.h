@@ -12,9 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace rpl {
 
-template <typename Value>
+template <typename Value, typename Error = no_error>
 inline auto single(Value &&value) {
-	return make_producer<std::decay_t<Value>>([
+	return make_producer<std::decay_t<Value>, Error>([
 		value = std::forward<Value>(value)
 	](const auto &consumer) mutable {
 		consumer.put_next(std::move(value));
@@ -23,17 +23,18 @@ inline auto single(Value &&value) {
 	});
 }
 
+template <typename Error = no_error>
 inline auto single() {
-	return make_producer<>([](const auto &consumer) {
+	return make_producer<rpl::empty_value, Error>([](const auto &consumer) {
 		consumer.put_next({});
 		consumer.put_done();
 		return lifetime();
 	});
 }
 
-template <typename Value>
+template <typename Value, typename Error = no_error>
 inline auto vector(std::vector<Value> &&values) {
-	return make_producer<Value>([
+	return make_producer<Value, Error>([
 		values = std::move(values)
 	](const auto &consumer) mutable {
 		for (auto &value : values) {
@@ -44,8 +45,9 @@ inline auto vector(std::vector<Value> &&values) {
 	});
 }
 
+template <typename Error = no_error>
 inline auto vector(std::vector<bool> &&values) {
-	return make_producer<bool>([
+	return make_producer<bool, Error>([
 		values = std::move(values)
 	](const auto &consumer) {
 		for (auto value : values) {

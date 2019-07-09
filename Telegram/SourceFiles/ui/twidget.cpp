@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "twidget.h"
 
-#include "application.h"
 #include "mainwindow.h"
+#include "core/application.h"
+#include "platform/platform_info.h"
 
 namespace Fonts {
 namespace {
@@ -22,7 +23,7 @@ bool ValidateFont(const QString &familyName, int flags = 0) {
 	checkFont.setStyleStrategy(QFont::PreferQuality);
 	auto realFamily = QFontInfo(checkFont).family();
 	if (realFamily.trimmed().compare(familyName, Qt::CaseInsensitive)) {
-		LOG(("Font Error: could not resolve '%1' font, got '%2' after feeding '%3'.").arg(familyName).arg(realFamily));
+		LOG(("Font Error: could not resolve '%1' font, got '%2'.").arg(familyName).arg(realFamily));
 		return false;
 	}
 
@@ -75,32 +76,41 @@ void Start() {
 	auto semibold = LoadCustomFont(qsl(":/gui/fonts/OpenSans-Semibold.ttf"), qsl("Open Sans Semibold"));
 
 #ifdef Q_OS_WIN
-	if (ValidateFont(qsl("Microsoft JhengHei UI"))) {
-		OpenSansOverride = qsl("Microsoft JhengHei UI");
-		LOG(("Fonts Info: Telegreat Using Microsoft JhengHei UI instead of Open Sans."));
-	}
+	if (ValidateFont(QString::fromUtf8("微軟正黑體"))) {
+		OpenSansOverride = QString::fromUtf8("微軟正黑體");
+		OpenSansSemiboldOverride = QString::fromUtf8("微軟正黑體");
+		LOG(("Fonts Info: Telegreat Using JhengHei instead of Open Sans."));
 
-	// Attempt to workaround a strange font bug with Open Sans Semibold not loading.
-	// See https://github.com/telegramdesktop/tdesktop/issues/3276 for details.
-	// Crash happens on "options.maxh / _t->_st->font->height" with "division by zero".
-	// In that place "_t->_st->font" is "semiboldFont" is "font(13 "Open Sans Semibold").
-	if (!regular || !bold) {
-		if (ValidateFont(qsl("Segoe UI")) && ValidateFont(qsl("Segoe UI"), style::internal::FontBold)) {
-			OpenSansOverride = qsl("Segoe UI");
-			LOG(("Fonts Info: Using Segoe UI instead of Open Sans."));
+		auto list = QStringList();
+		list.append(QString::fromUtf8("微軟正黑體"));
+		list.append(qsl("Microsoft JhengHei UI"));
+		list.append(qsl("Microsoft JhengHei"));
+		QFont::insertSubstitutions(qsl("Open Sans"), list);
+		QFont::insertSubstitutions(qsl("Open Sans Semibold"), list);
+	} else {
+
+		// Attempt to workaround a strange font bug with Open Sans Semibold not loading.
+		// See https://github.com/telegramdesktop/tdesktop/issues/3276 for details.
+		// Crash happens on "options.maxh / _t->_st->font->height" with "division by zero".
+		// In that place "_t->_st->font" is "semiboldFont" is "font(13 "Open Sans Semibold").
+		if (!regular || !bold) {
+			if (ValidateFont(qsl("Segoe UI")) && ValidateFont(qsl("Segoe UI"), style::internal::FontBold)) {
+				OpenSansOverride = qsl("Segoe UI");
+				LOG(("Fonts Info: Using Segoe UI instead of Open Sans."));
+			}
 		}
-	}
-	if (!semibold) {
-		if (ValidateFont(qsl("Segoe UI Semibold"))) {
-			OpenSansSemiboldOverride = qsl("Segoe UI Semibold");
-			LOG(("Fonts Info: Using Segoe UI Semibold instead of Open Sans Semibold."));
+		if (!semibold) {
+			if (ValidateFont(qsl("Segoe UI Semibold"))) {
+				OpenSansSemiboldOverride = qsl("Segoe UI Semibold");
+				LOG(("Fonts Info: Using Segoe UI Semibold instead of Open Sans Semibold."));
+			}
 		}
+		// Disable default fallbacks to Segoe UI, see:
+		// https://github.com/telegramdesktop/tdesktop/issues/5368
+		//
+		//QFont::insertSubstitution(qsl("Open Sans"), qsl("Segoe UI"));
+		//QFont::insertSubstitution(qsl("Open Sans Semibold"), qsl("Segoe UI Semibold"));
 	}
-	// Disable default fallbacks to Segoe UI, see:
-	// https://github.com/telegramdesktop/tdesktop/issues/5368
-	//
-	//QFont::insertSubstitution(qsl("Open Sans"), qsl("Segoe UI"));
-	//QFont::insertSubstitution(qsl("Open Sans Semibold"), qsl("Segoe UI Semibold"));
 #elif defined Q_OS_MAC // Q_OS_WIN
 	auto list = QStringList();
 	list.append(qsl(".SF NS Text"));
@@ -112,6 +122,9 @@ void Start() {
 }
 
 QString GetOverride(const QString &familyName) {
+	if (ValidateFont(QString::fromUtf8("微軟正黑體"))) {
+		return qsl("Microsoft JhengHei UI");
+	}
 	if (familyName == qstr("Open Sans")) {
 		return OpenSansOverride.isEmpty() ? familyName : OpenSansOverride;
 	} else if (familyName == qstr("Open Sans Semibold")) {
@@ -139,7 +152,7 @@ void CreateWidgetStateRecursive(not_null<QWidget*> target) {
 		if (!target->isWindow()) {
 			CreateWidgetStateRecursive(target->parentWidget());
 			WidgetCreator::Create(target);
-		} else if (!cIsSnowLeopard()) {
+		} else if (!Platform::IsMac() || Platform::IsMac10_7OrGreater()) {
 			WidgetCreator::Create(target);
 		}
 	}
@@ -192,6 +205,15 @@ void SendPendingMoveResizeEvents(not_null<QWidget*> target) {
 	SendPendingEventsRecursive(target, !target->isVisible());
 }
 
+void MarkDirtyOpaqueChildrenRecursive(not_null<QWidget*> target) {
+	target->resize(target->size()); // Calls setDirtyOpaqueRegion().
+	for (const auto child : target->children()) {
+		if (const auto widget = qobject_cast<QWidget*>(child)) {
+			MarkDirtyOpaqueChildrenRecursive(widget);
+		}
+	}
+}
+
 QPixmap GrabWidget(not_null<QWidget*> target, QRect rect, QColor bg) {
 	SendPendingMoveResizeEvents(target);
 	if (rect.isNull()) {
@@ -203,16 +225,15 @@ QPixmap GrabWidget(not_null<QWidget*> target, QRect rect, QColor bg) {
 	if (!target->testAttribute(Qt::WA_OpaquePaintEvent)) {
 		result.fill(bg);
 	}
-	target->render(
-		&result,
-		QPoint(0, 0),
-		rect,
-		QWidget::DrawChildren | QWidget::IgnoreMask);
+	{
+		QPainter p(&result);
+		RenderWidget(p, target, QPoint(), rect);
+	}
 	return result;
 }
 
 QImage GrabWidgetToImage(not_null<QWidget*> target, QRect rect, QColor bg) {
-	Ui::SendPendingMoveResizeEvents(target);
+	SendPendingMoveResizeEvents(target);
 	if (rect.isNull()) {
 		rect = target->rect();
 	}
@@ -224,12 +245,24 @@ QImage GrabWidgetToImage(not_null<QWidget*> target, QRect rect, QColor bg) {
 	if (!target->testAttribute(Qt::WA_OpaquePaintEvent)) {
 		result.fill(bg);
 	}
-	target->render(
-		&result,
-		QPoint(0, 0),
-		rect,
-		QWidget::DrawChildren | QWidget::IgnoreMask);
+	{
+		QPainter p(&result);
+		RenderWidget(p, target, QPoint(), rect);
+	}
 	return result;
+}
+
+void RenderWidget(
+		QPainter &painter,
+		not_null<QWidget*> source,
+		const QPoint &targetOffset,
+		const QRegion &sourceRegion,
+		QWidget::RenderFlags renderFlags) {
+	const auto visible = source->isVisible();
+	source->render(&painter, targetOffset, sourceRegion, renderFlags);
+	if (!visible) {
+		MarkDirtyOpaqueChildrenRecursive(source);
+	}
 }
 
 void ForceFullRepaint(not_null<QWidget*> widget) {
@@ -239,8 +272,7 @@ void ForceFullRepaint(not_null<QWidget*> widget) {
 }
 
 void PostponeCall(FnMut<void()> &&callable) {
-	const auto application = static_cast<Application*>(qApp);
-	application->postponeCall(std::move(callable));
+	Core::App().postponeCall(std::move(callable));
 }
 
 } // namespace Ui
@@ -259,7 +291,7 @@ void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton 
 			, Qt::MouseEventSynthesizedByApplication
 #endif // OS_MAC_OLD
 		);
-		ev.setTimestamp(getms());
+		ev.setTimestamp(crl::now());
 		QGuiApplication::sendEvent(windowHandle, &ev);
 	}
 }

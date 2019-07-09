@@ -286,7 +286,7 @@ int CalendarBox::Inner::rowsTop() const {
 
 void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
 	p.setFont(st::calendarDaysFont);
-	auto ms = getms();
+	auto ms = crl::now();
 	auto y = rowsTop();
 	auto index = -_context->daysShift();
 	auto highlightedIndex = _context->highlightedIndex();
@@ -320,7 +320,7 @@ void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
 					}
 					return st::windowBgOver;
 				};
-				it->second->paint(p, innerLeft, innerTop, width(), ms, &(colorOverride()->c));
+				it->second->paint(p, innerLeft, innerTop, width(), &(colorOverride()->c));
 				if (it->second->empty()) {
 					_ripples.erase(it);
 				}
@@ -495,21 +495,13 @@ void CalendarBox::setMaxDate(QDate date) {
 }
 
 void CalendarBox::prepare() {
-	_previous->setClickedCallback([this] {
-		if (isPreviousEnabled()) {
-			_context->skipMonth(-1);
-		}
-	});
-	_next->setClickedCallback([this] {
-		if (isNextEnabled()) {
-			_context->skipMonth(1);
-		}
-	});
+	_previous->setClickedCallback([this] { goPreviousMonth(); });
+	_next->setClickedCallback([this] { goNextMonth(); });
 
 //	_inner = setInnerWidget(object_ptr<Inner>(this, _context.get()), st::calendarScroll, st::calendarTitleHeight);
 	_inner->setDateChosenCallback(std::move(_callback));
 
-	addButton(langFactory(lng_close), [this] { closeBox(); });
+	addButton(tr::lng_close(), [this] { closeBox(); });
 
 	subscribe(_context->month(), [this](QDate month) { monthChanged(month); });
 
@@ -526,6 +518,18 @@ bool CalendarBox::isPreviousEnabled() const {
 
 bool CalendarBox::isNextEnabled() const {
 	return (_context->maxDayIndex() >= _context->daysCount());
+}
+
+void CalendarBox::goPreviousMonth() {
+	if (isPreviousEnabled()) {
+		_context->skipMonth(-1);
+	}
+}
+
+void CalendarBox::goNextMonth() {
+	if (isNextEnabled()) {
+		_context->skipMonth(1);
+	}
 }
 
 void CalendarBox::monthChanged(QDate month) {
@@ -546,6 +550,16 @@ void CalendarBox::resizeEvent(QResizeEvent *e) {
 	_title->setGeometryToLeft(_previous->width(), 0, width() - _previous->width() - _next->width(), st::calendarTitleHeight);
 	_inner->setGeometryToLeft(0, st::calendarTitleHeight, width(), height() - st::calendarTitleHeight);
 	BoxContent::resizeEvent(e);
+}
+
+void CalendarBox::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Escape) {
+		e->ignore();
+	} else if (e->key() == Qt::Key_Left) {
+		goPreviousMonth();
+	} else if (e->key() == Qt::Key_Right) {
+		goNextMonth();
+	}
 }
 
 CalendarBox::~CalendarBox() = default;

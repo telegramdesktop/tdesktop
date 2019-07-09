@@ -179,10 +179,10 @@ bytes::vector ComputeHash(
 CloudPasswordAlgo ParseCloudPasswordAlgo(const MTPPasswordKdfAlgo &data) {
 	return data.match([](const MTPDpasswordKdfAlgoModPow &data) {
 		return CloudPasswordAlgo(CloudPasswordAlgoModPow{
-			bytes::make_vector(data.vsalt1.v),
-			bytes::make_vector(data.vsalt2.v),
-			data.vg.v,
-			bytes::make_vector(data.vp.v) });
+			bytes::make_vector(data.vsalt1().v),
+			bytes::make_vector(data.vsalt2().v),
+			data.vg().v,
+			bytes::make_vector(data.vp().v) });
 	}, [](const MTPDpasswordKdfAlgoUnknown &data) {
 		return CloudPasswordAlgo();
 	});
@@ -190,14 +190,11 @@ CloudPasswordAlgo ParseCloudPasswordAlgo(const MTPPasswordKdfAlgo &data) {
 
 CloudPasswordCheckRequest ParseCloudPasswordCheckRequest(
 		const MTPDaccount_password &data) {
+	const auto algo = data.vcurrent_algo();
 	return CloudPasswordCheckRequest{
-		(data.has_srp_id() ? data.vsrp_id.v : uint64()),
-		(data.has_srp_B()
-			? bytes::make_vector(data.vsrp_B.v)
-			: bytes::vector()),
-		(data.has_current_algo()
-			? ParseCloudPasswordAlgo(data.vcurrent_algo)
-			: CloudPasswordAlgo())
+		data.vsrp_id().value_or_empty(),
+		bytes::make_vector(data.vsrp_B().value_or_empty()),
+		(algo ? ParseCloudPasswordAlgo(*algo) : CloudPasswordAlgo())
 	};
 }
 
@@ -263,10 +260,10 @@ SecureSecretAlgo ParseSecureSecretAlgo(
 	return data.match([](
 	const MTPDsecurePasswordKdfAlgoPBKDF2HMACSHA512iter100000 &data) {
 		return SecureSecretAlgo(SecureSecretAlgoPBKDF2{
-			bytes::make_vector(data.vsalt.v) });
+			bytes::make_vector(data.vsalt().v) });
 	}, [](const MTPDsecurePasswordKdfAlgoSHA512 &data) {
 		return SecureSecretAlgo(SecureSecretAlgoSHA512{
-			bytes::make_vector(data.vsalt.v) });
+			bytes::make_vector(data.vsalt().v) });
 	}, [](const MTPDsecurePasswordKdfAlgoUnknown &data) {
 		return SecureSecretAlgo();
 	});
@@ -307,17 +304,16 @@ CloudPasswordState ParseCloudPasswordState(
 		const MTPDaccount_password &data) {
 	auto result = CloudPasswordState();
 	result.request = ParseCloudPasswordCheckRequest(data);
-	result.unknownAlgorithm = data.has_current_algo() && !result.request;
+	result.unknownAlgorithm = data.vcurrent_algo() && !result.request;
 	result.hasRecovery = data.is_has_recovery();
 	result.notEmptyPassport = data.is_has_secure_values();
-	result.hint = data.has_hint() ? qs(data.vhint) : QString();
+	result.hint = qs(data.vhint().value_or_empty());
 	result.newPassword = ValidateNewCloudPasswordAlgo(
-		ParseCloudPasswordAlgo(data.vnew_algo));
+		ParseCloudPasswordAlgo(data.vnew_algo()));
 	result.newSecureSecret = ValidateNewSecureSecretAlgo(
-		ParseSecureSecretAlgo(data.vnew_secure_algo));
-	result.unconfirmedPattern = data.has_email_unconfirmed_pattern()
-		? qs(data.vemail_unconfirmed_pattern)
-		: QString();
+		ParseSecureSecretAlgo(data.vnew_secure_algo()));
+	result.unconfirmedPattern =
+		qs(data.vemail_unconfirmed_pattern().value_or_empty());
 	return result;
 }
 

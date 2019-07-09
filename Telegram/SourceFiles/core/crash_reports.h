@@ -7,7 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Core {
+class Launcher;
+} // namespace Core
+
 namespace CrashReports {
+
+QString PlatformString();
 
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 
@@ -26,10 +32,11 @@ const dump &operator<<(const dump &stream, double num);
 
 enum Status {
 	CantOpen,
-	LastCrashed,
 	Started
 };
-Status Start();
+// Open status or crash report dump.
+using StartResult = base::variant<Status, QByteArray>;
+StartResult Start();
 Status Restart(); // can be only CantOpen or Started
 void Finish();
 
@@ -46,7 +53,7 @@ inline void ClearAnnotationRef(const std::string &key) {
 	SetAnnotationRef(key, nullptr);
 }
 
-void StartCatching();
+void StartCatching(not_null<Core::Launcher*> launcher);
 void FinishCatching();
 
 } // namespace CrashReports

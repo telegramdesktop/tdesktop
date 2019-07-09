@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_top_bar.h"
 
-#include "styles/style_calls.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
@@ -15,16 +14,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_call.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_panel.h"
-#include "styles/style_boxes.h"
+#include "data/data_user.h"
 #include "observer_peer.h"
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
 #include "layout.h"
+#include "styles/style_calls.h"
+#include "styles/style_boxes.h"
 
 namespace Calls {
 namespace {
 
-constexpr auto kUpdateDebugTimeoutMs = TimeMs(500);
+constexpr auto kUpdateDebugTimeoutMs = crl::time(500);
 
 class DebugInfoBox : public BoxContent {
 public:
@@ -47,9 +48,9 @@ DebugInfoBox::DebugInfoBox(QWidget*, base::weak_ptr<Call> call)
 }
 
 void DebugInfoBox::prepare() {
-	setTitle([] { return QString("Call Debug"); });
+	setTitle(rpl::single(qsl("Call Debug")));
 
-	addButton(langFactory(lng_close), [this] { closeBox(); });
+	addButton(tr::lng_close(), [this] { closeBox(); });
 	_text = setInnerWidget(
 		object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 			this,
@@ -79,7 +80,7 @@ TopBar::TopBar(
 , _signalBars(this, _call.get(), st::callBarSignalBars)
 , _fullInfoLabel(this, st::callBarInfoLabel)
 , _shortInfoLabel(this, st::callBarInfoLabel)
-, _hangupLabel(this, st::callBarLabel, lang(lng_call_bar_hangup).toUpper())
+, _hangupLabel(this, st::callBarLabel, tr::lng_call_bar_hangup(tr::now).toUpper())
 , _mute(this, st::callBarMuteToggle)
 , _info(this)
 , _hangup(this, st::callBarHangup) {
@@ -161,7 +162,7 @@ void TopBar::updateDurationText() {
 	}
 }
 
-void TopBar::startDurationUpdateTimer(TimeMs currentDuration) {
+void TopBar::startDurationUpdateTimer(crl::time currentDuration) {
 	auto msTillNextSecond = 1000 - (currentDuration % 1000);
 	_updateDurationTimer.callOnce(msTillNextSecond + 5);
 }

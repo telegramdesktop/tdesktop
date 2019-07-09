@@ -7,9 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "platform/platform_specific.h"
 #include "platform/mac/specific_mac_p.h"
 
-class LocationCoords;
+namespace Data {
+class LocationPoint;
+} // namespace Data
 
 namespace Platform {
 
@@ -18,6 +21,12 @@ inline bool TranslucentWindowsSupported(QPoint globalPosition) {
 }
 
 QString CurrentExecutablePath(int argc, char *argv[]);
+
+void RemoveQuarantine(const QString &path);
+
+inline constexpr bool UseMainQueueGeneric() {
+	return false;
+}
 
 namespace ThirdParty {
 
@@ -48,10 +57,6 @@ void psWriteDump();
 
 void psDeleteDir(const QString &dir);
 
-void psUserActionDone();
-bool psIdleSupported();
-TimeMs psIdleTime();
-
 QStringList psInitLogs();
 void psClearInitLogs();
 
@@ -69,8 +74,6 @@ int psCleanup();
 int psFixPrevious();
 
 bool psShowOpenWithMenu(int x, int y, const QString &file);
-
-QAbstractNativeEventFilter *psNativeEventFilter();
 
 void psNewVersion();
 
@@ -112,4 +115,4 @@ QString strStyleOfInterface();
 QString strTitleWrapClass();
 QString strTitleClass();
 
-bool psLaunchMaps(const LocationCoords &coords);
+bool psLaunchMaps(const Data::LocationPoint &point);

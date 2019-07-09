@@ -18,7 +18,7 @@ namespace Info {
 
 SectionWidget::SectionWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> window,
+	not_null<Window::SessionController*> window,
 	Wrap wrap,
 	not_null<Memento*> memento)
 : Window::SectionWidget(parent, window)
@@ -28,7 +28,7 @@ SectionWidget::SectionWidget(
 
 SectionWidget::SectionWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> window,
+	not_null<Window::SessionController*> window,
 	Wrap wrap,
 	not_null<MoveMemento*> memento)
 : Window::SectionWidget(parent, window)
@@ -37,6 +37,8 @@ SectionWidget::SectionWidget(
 }
 
 void SectionWidget::init() {
+	Expects(_connecting == nullptr);
+
 	sizeValue(
 	) | rpl::start_with_next([wrap = _content.data()](QSize size) {
 		auto wrapGeometry = QRect{ { 0, 0 }, size };
@@ -44,7 +46,7 @@ void SectionWidget::init() {
 		wrap->updateGeometry(wrapGeometry, additionalScroll);
 	}, _content->lifetime());
 
-	_connecting = Window::ConnectingWidget::CreateDefaultWidget(
+	_connecting = std::make_unique<Window::ConnectionState>(
 		_content.data(),
 		Window::AdaptiveIsOneColumn());
 

@@ -17,7 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
-#include "window/window_controller.h"
+#include "window/window_session_controller.h"
+#include "data/data_channel.h"
+#include "data/data_user.h"
 #include "styles/style_info.h"
 
 namespace Info {
@@ -25,21 +27,21 @@ namespace Media {
 
 using Type = Storage::SharedMediaType;
 
-inline auto MediaTextPhrase(Type type) {
+inline tr::phrase<lngtag_count> MediaTextPhrase(Type type) {
 	switch (type) {
-	case Type::Photo: return lng_profile_photos;
-	case Type::Video: return lng_profile_videos;
-	case Type::File: return lng_profile_files;
-	case Type::MusicFile: return lng_profile_songs;
-	case Type::Link: return lng_profile_shared_links;
-	case Type::RoundVoiceFile: return lng_profile_audios;
+	case Type::Photo: return tr::lng_profile_photos;
+	case Type::Video: return tr::lng_profile_videos;
+	case Type::File: return tr::lng_profile_files;
+	case Type::MusicFile: return tr::lng_profile_songs;
+	case Type::Link: return tr::lng_profile_shared_links;
+	case Type::RoundVoiceFile: return tr::lng_profile_audios;
 	}
 	Unexpected("Type in MediaTextPhrase()");
 };
 
 inline auto MediaText(Type type) {
 	return [phrase = MediaTextPhrase(type)](int count) {
-		return phrase(lt_count, count);
+		return phrase(tr::now, lt_count, count);
 	};
 }
 
@@ -78,7 +80,7 @@ inline auto AddCountedButton(
 
 inline auto AddButton(
 		Ui::VerticalLayout *parent,
-		not_null<Window::Navigation*> navigation,
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		PeerData *migrated,
 		Type type,
@@ -97,14 +99,14 @@ inline auto AddButton(
 
 inline auto AddCommonGroupsButton(
 		Ui::VerticalLayout *parent,
-		not_null<Window::Navigation*> navigation,
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<UserData*> user,
 		Ui::MultiSlideTracker &tracker) {
 	auto result = AddCountedButton(
 		parent,
 		Profile::CommonGroupsCountValue(user),
 		[](int count) {
-			return lng_profile_common_groups(lt_count, count);
+			return tr::lng_profile_common_groups(tr::now, lt_count, count);
 		},
 		tracker)->entity();
 	result->addClickHandler([=] {

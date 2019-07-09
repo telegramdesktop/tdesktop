@@ -8,7 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 class FileLoader;
-class LocationCoords;
+
+namespace Data {
+class LocationPoint;
+} // namespace Data
 
 namespace InlineBots {
 
@@ -55,7 +58,7 @@ public:
 	QString getErrorOnSend(History *history) const;
 
 	// interface for Layout:: usage
-	bool getLocationCoords(LocationCoords *outLocation) const;
+	std::optional<Data::LocationPoint> getLocationPoint() const;
 	QString getLayoutTitle() const;
 	QString getLayoutDescription() const;
 

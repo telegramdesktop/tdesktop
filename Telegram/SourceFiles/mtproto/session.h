@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/single_timer.h"
+#include "base/timer.h"
 #include "mtproto/rpc_sender.h"
 
 namespace MTP {
@@ -17,6 +17,9 @@ class AuthKey;
 using AuthKeyPtr = std::shared_ptr<AuthKey>;
 
 namespace internal {
+
+// Received msgIds and wereAcked msgIds count stored.
+constexpr auto kIdsBufferSize = 400;
 
 class Dcenter;
 class Connection;
@@ -44,7 +47,7 @@ public:
 	bool registerMsgId(mtpMsgId msgId, bool needAck) {
 		auto i = _idsNeedAck.constFind(msgId);
 		if (i == _idsNeedAck.cend()) {
-			if (_idsNeedAck.size() < MTPIdsBufferSize || msgId > min()) {
+			if (_idsNeedAck.size() < kIdsBufferSize || msgId > min()) {
 				_idsNeedAck.insert(msgId, needAck);
 				return true;
 			}
@@ -66,7 +69,7 @@ public:
 
 	void shrink() {
 		auto size = _idsNeedAck.size();
-		while (size-- > MTPIdsBufferSize) {
+		while (size-- > kIdsBufferSize) {
 			_idsNeedAck.erase(_idsNeedAck.begin());
 		}
 	}
@@ -342,7 +345,7 @@ public:
 	// Nulls msgId and seqNo in request, if newRequest = true.
 	void sendPrepared(
 		const SecureRequest &request,
-		TimeMs msCanWait = 0,
+		crl::time msCanWait = 0,
 		bool newRequest = true);
 
 	~Session();
@@ -388,21 +391,19 @@ private:
 	ShiftedDcId dcWithShift = 0;
 	std::shared_ptr<Dcenter> dc;
 
-	TimeMs msSendCall = 0;
-	TimeMs msWait = 0;
+	crl::time msSendCall = 0;
+	crl::time msWait = 0;
 
 	bool _ping = false;
 
 	QTimer timeouter;
-	SingleTimer sender;
+	base::Timer sender;
 
 };
 
 inline not_null<QReadWriteLock*> SessionData::keyMutex() const {
 	return _owner->keyMutex();
 }
-
-MTPrpcError rpcClientError(const QString &type, const QString &description = QString());
 
 } // namespace internal
 } // namespace MTP

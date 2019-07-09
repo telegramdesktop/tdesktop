@@ -16,12 +16,14 @@ class InputField;
 class FlatLabel;
 } // namespace Ui
 
+void ShowPhoneBannedError(const QString &phone);
+
 class SentCodeField : public Ui::InputField {
 public:
 	SentCodeField(
 		QWidget *parent,
 		const style::InputField &st,
-		Fn<QString()> placeholderFactory = nullptr,
+		rpl::producer<QString> placeholder = nullptr,
 		const QString &val = QString());
 
 	void setAutoSubmit(int length, Fn<void()> submitCallback);

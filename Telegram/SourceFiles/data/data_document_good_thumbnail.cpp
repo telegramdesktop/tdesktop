@@ -9,13 +9,58 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_session.h"
 #include "data/data_document.h"
-#include "media/media_clip_reader.h"
+#include "data/data_file_origin.h"
+#include "media/clip/media_clip_reader.h"
+#include "lottie/lottie_animation.h"
 #include "auth_session.h"
 
 namespace Data {
 namespace {
 
 constexpr auto kGoodThumbQuality = 87;
+constexpr auto kWallPaperSize = 960;
+
+enum class FileType {
+	Video,
+	AnimatedSticker,
+	WallPaper,
+};
+
+QImage Prepare(
+		const QString &path,
+		QByteArray data,
+		FileType type) {
+	if (type == FileType::Video) {
+		return Media::Clip::PrepareForSending(path, data).thumbnail;
+	} else if (type == FileType::AnimatedSticker) {
+		return Lottie::ReadThumbnail(Lottie::ReadContent(data, path));
+	}
+	const auto validateSize = [](QSize size) {
+		return (size.width() + size.height()) < 10'000;
+	};
+	auto buffer = QBuffer(&data);
+	auto file = QFile(path);
+	auto device = data.isEmpty() ? static_cast<QIODevice*>(&file) : &buffer;
+	auto reader = QImageReader(device);
+#ifndef OS_MAC_OLD
+	reader.setAutoTransform(true);
+#endif // OS_MAC_OLD
+	if (!reader.canRead() || !validateSize(reader.size())) {
+		return QImage();
+	}
+	auto result = reader.read();
+	if (!result.width() || !result.height()) {
+		return QImage();
+	}
+	return (result.width() > kWallPaperSize
+		|| result.height() > kWallPaperSize)
+		? result.scaled(
+			kWallPaperSize,
+			kWallPaperSize,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation)
+		: result;
+}
 
 } // namespace
 
@@ -24,10 +69,15 @@ GoodThumbSource::GoodThumbSource(not_null<DocumentData*> document)
 }
 
 void GoodThumbSource::generate(base::binary_guard &&guard) {
-	if (!guard.alive()) {
+	if (!guard) {
 		return;
 	}
 	const auto data = _document->data();
+	const auto type = _document->isWallPaper()
+		? FileType::WallPaper
+		: _document->sticker()
+		? FileType::AnimatedSticker
+		: FileType::Video;
 	auto location = _document->location().isEmpty()
 		? nullptr
 		: std::make_unique<FileLocation>(_document->location());
@@ -43,11 +93,16 @@ void GoodThumbSource::generate(base::binary_guard &&guard) {
 		const auto filepath = (location && location->accessEnable())
 			? location->name()
 			: QString();
-		auto result = Media::Clip::PrepareForSending(filepath, data);
+		auto result = Prepare(filepath, data, type);
 		auto bytes = QByteArray();
-		if (!result.thumbnail.isNull()) {
-			QBuffer buffer(&bytes);
-			result.thumbnail.save(&buffer, "JPG", kGoodThumbQuality);
+		if (!result.isNull()) {
+			auto buffer = QBuffer(&bytes);
+			const auto format = (type == FileType::AnimatedSticker)
+				? "WEBP"
+				: (type == FileType::WallPaper && result.hasAlphaChannel())
+				? "PNG"
+				: "JPG";
+			result.save(&buffer, format, kGoodThumbQuality);
 		}
 		if (!filepath.isEmpty()) {
 			location->accessDisable();
@@ -55,7 +110,7 @@ void GoodThumbSource::generate(base::binary_guard &&guard) {
 		const auto bytesSize = bytes.size();
 		ready(
 			std::move(guard),
-			std::move(result.thumbnail),
+			std::move(result),
 			bytesSize,
 			std::move(bytes));
 	});
@@ -67,15 +122,11 @@ void GoodThumbSource::ready(
 		QImage &&image,
 		int bytesSize,
 		QByteArray &&bytesForCache) {
-	crl::on_main([
+	crl::on_main(std::move(guard), [
 		=,
-		guard = std::move(guard),
 		image = std::move(image),
 		bytes = std::move(bytesForCache)
 	]() mutable {
-		if (!guard.alive()) {
-			return;
-		}
 		if (image.isNull()) {
 			_empty = true;
 			return;
@@ -95,17 +146,11 @@ void GoodThumbSource::ready(
 	});
 }
 
-void GoodThumbSource::load(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
+void GoodThumbSource::load(Data::FileOrigin origin) {
 	if (loading() || _empty) {
 		return;
 	}
-	auto [left, right] = base::make_binary_guard();
-	_loading = std::move(left);
-
-	auto callback = [=, guard = std::move(right)](
+	auto callback = [=, guard = _loading.make_guard()](
 			QByteArray &&value) mutable {
 		if (value.isEmpty()) {
 			crl::on_main([=, guard = std::move(guard)]() mutable {
@@ -118,7 +163,10 @@ void GoodThumbSource::load(
 			guard = std::move(guard),
 			value = std::move(value)
 		]() mutable {
-			ready(std::move(guard), App::readImage(value), value.size());
+			ready(
+				std::move(guard),
+				App::readImage(value, nullptr, false),
+				value.size());
 		});
 	};
 
@@ -127,12 +175,9 @@ void GoodThumbSource::load(
 		std::move(callback));
 }
 
-void GoodThumbSource::loadEvenCancelled(
-		Data::FileOrigin origin,
-		bool loadFirst,
-		bool prior) {
+void GoodThumbSource::loadEvenCancelled(Data::FileOrigin origin) {
 	_empty = false;
-	load(origin, loadFirst, prior);
+	load(origin);
 }
 
 QImage GoodThumbSource::takeLoaded() {
@@ -161,7 +206,7 @@ bool GoodThumbSource::displayLoading() {
 }
 
 void GoodThumbSource::cancel() {
-	_loading.kill();
+	_loading = nullptr;
 }
 
 float64 GoodThumbSource::progress() {
@@ -173,7 +218,7 @@ int GoodThumbSource::loadOffset() {
 }
 
 const StorageImageLocation &GoodThumbSource::location() {
-	return StorageImageLocation::Null;
+	return StorageImageLocation::Invalid();
 }
 
 void GoodThumbSource::refreshFileReference(const QByteArray &data) {

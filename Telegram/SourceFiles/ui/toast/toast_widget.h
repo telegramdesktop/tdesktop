@@ -35,7 +35,7 @@ private:
 
 	int _maxTextWidth = 0;
 	int _textWidth = 0;
-	Text _text;
+	Text::String _text;
 
 };
 

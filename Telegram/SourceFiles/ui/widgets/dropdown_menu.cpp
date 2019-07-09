@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/dropdown_menu.h"
 
-#include "application.h"
 #include "lang/lang_keys.h"
 
 namespace Ui {
@@ -52,15 +51,15 @@ void DropdownMenu::init() {
 	hide();
 }
 
-QAction *DropdownMenu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon, const style::icon *iconOver) {
+not_null<QAction*> DropdownMenu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon, const style::icon *iconOver) {
 	return _menu->addAction(text, receiver, member, icon, iconOver);
 }
 
-QAction *DropdownMenu::addAction(const QString &text, Fn<void()> callback, const style::icon *icon, const style::icon *iconOver) {
+not_null<QAction*> DropdownMenu::addAction(const QString &text, Fn<void()> callback, const style::icon *icon, const style::icon *iconOver) {
 	return _menu->addAction(text, std::move(callback), icon, iconOver);
 }
 
-QAction *DropdownMenu::addSeparator() {
+not_null<QAction*> DropdownMenu::addSeparator() {
 	return _menu->addSeparator();
 }
 
@@ -71,7 +70,7 @@ void DropdownMenu::clearActions() {
 	return _menu->clearActions();
 }
 
-DropdownMenu::Actions &DropdownMenu::actions() {
+const std::vector<not_null<QAction*>> &DropdownMenu::actions() const {
 	return _menu->actions();
 }
 
@@ -231,7 +230,7 @@ void DropdownMenu::hideFinish() {
 //
 //	auto menuTopLeft = mapFromGlobal(_menu->mapToGlobal(QPoint(0, 0)));
 //	auto w = p - QPoint(0, menuTopLeft.y());
-//	auto r = Sandbox::screenGeometry(p);
+//	auto r = QApplication::desktop()->screenGeometry(p);
 //	if (rtl()) {
 //		if (w.x() - width() < r.x() - _padding.left()) {
 //			if (_parent && w.x() + _parent->width() - _padding.left() - _padding.right() + width() - _padding.right() <= r.x() + r.width()) {

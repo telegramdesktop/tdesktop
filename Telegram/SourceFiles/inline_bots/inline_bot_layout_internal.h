@@ -9,8 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flags.h"
 #include "inline_bots/inline_bot_layout_item.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/text/text.h"
+
+namespace Lottie {
+class SinglePlayer;
+} // namespace Lottie
 
 namespace InlineBots {
 namespace Layout {
@@ -28,7 +33,7 @@ protected:
 	int content_width() const;
 	int content_height() const;
 	int content_duration() const;
-	ImagePtr content_thumb() const;
+	Image *content_thumb() const;
 };
 
 class DeleteSavedGifClickHandler : public LeftButtonClickHandler {
@@ -83,25 +88,31 @@ private:
 	Media::Clip::ReaderPointer _gif;
 	ClickHandlerPtr _delete;
 	mutable QPixmap _thumb;
-	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
+	mutable bool _thumbGood = false;
+	void validateThumbnail(
+		Image *image,
+		QSize size,
+		QSize frame,
+		bool good) const;
+	void prepareThumbnail(QSize size, QSize frame) const;
 
 	void ensureAnimation() const;
-	bool isRadialAnimation(TimeMs ms) const;
-	void step_radial(TimeMs ms, bool timer);
+	bool isRadialAnimation() const;
+	void radialAnimationCallback(crl::time now) const;
 
 	void clipCallback(Media::Clip::Notification notification);
 
 	struct AnimationData {
-		AnimationData(AnimationCallbacks &&callbacks)
-			: over(false)
-			, radial(std::move(callbacks)) {
+		template <typename Callback>
+		AnimationData(Callback &&callback)
+		: radial(std::forward<Callback>(callback)) {
 		}
-		bool over;
-		Animation _a_over;
+		bool over = false;
+		Ui::Animations::Simple _a_over;
 		Ui::RadialAnimation radial;
 	};
 	mutable std::unique_ptr<AnimationData> _animation;
-	mutable Animation _a_deleteOver;
+	mutable Ui::Animations::Simple _a_deleteOver;
 
 };
 
@@ -131,14 +142,20 @@ private:
 	QSize countFrameSize() const;
 
 	mutable QPixmap _thumb;
-	mutable bool _thumbLoaded = false;
-	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
+	mutable bool _thumbGood = false;
+	void prepareThumbnail(QSize size, QSize frame) const;
+	void validateThumbnail(
+		Image *image,
+		QSize size,
+		QSize frame,
+		bool good) const;
 
 };
 
 class Sticker : public FileBase {
 public:
 	Sticker(not_null<Context*> context, Result *result);
+	~Sticker();
 	// Not used anywhere currently.
 	//Sticker(not_null<Context*> context, DocumentData *document);
 
@@ -161,14 +178,18 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 
 private:
+	void setupLottie(not_null<DocumentData*> document) const;
 	QSize getThumbSize() const;
+	void prepareThumbnail() const;
 
-	mutable Animation _a_over;
+	mutable Ui::Animations::Simple _a_over;
 	mutable bool _active = false;
 
 	mutable QPixmap _thumb;
 	mutable bool _thumbLoaded = false;
-	void prepareThumb() const;
+
+	mutable std::unique_ptr<Lottie::SinglePlayer> _lottie;
+	mutable rpl::lifetime _lifetime;
 
 };
 
@@ -187,11 +208,11 @@ private:
 	ClickHandlerPtr _link;
 
 	mutable QPixmap _thumb;
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 	QString _duration;
 	int _durationWidth = 0;
 
-	void prepareThumb(int32 width, int32 height) const;
+	void prepareThumbnail(QSize size) const;
 
 };
 
@@ -239,21 +260,24 @@ public:
 
 private:
 	void thumbAnimationCallback();
-	void step_radial(TimeMs ms, bool timer);
+	void radialAnimationCallback(crl::time now) const;
 
 	void ensureAnimation() const;
 	void checkAnimationFinished() const;
 	bool updateStatusText() const;
 
-	bool isRadialAnimation(TimeMs ms) const {
-		if (!_animation || !_animation->radial.animating()) return false;
-
-		_animation->radial.step(ms);
-		return _animation && _animation->radial.animating();
-	}
-	bool isThumbAnimation(TimeMs ms) const {
+	bool isRadialAnimation() const {
 		if (_animation) {
-			if (_animation->a_thumbOver.animating(ms)) {
+			if (_animation->radial.animating()) {
+				return true;
+			}
+			checkAnimationFinished();
+		}
+		return false;
+	}
+	bool isThumbAnimation() const {
+		if (_animation) {
+			if (_animation->a_thumbOver.animating()) {
 				return true;
 			}
 			checkAnimationFinished();
@@ -262,14 +286,16 @@ private:
 	}
 
 	struct AnimationData {
-		AnimationData(AnimationCallbacks &&radialCallbacks) : radial(std::move(radialCallbacks)) {
+		template <typename Callback>
+		AnimationData(Callback &&radialCallback)
+		: radial(std::forward<Callback>(radialCallback)) {
 		}
-		Animation a_thumbOver;
+		Ui::Animations::Simple a_thumbOver;
 		Ui::RadialAnimation radial;
 	};
 	mutable std::unique_ptr<AnimationData> _animation;
 
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 	ClickHandlerPtr _open, _cancel;
 
 	// >= 0 will contain download / upload string, _statusSize = loaded bytes
@@ -300,9 +326,9 @@ public:
 
 private:
 	mutable QPixmap _thumb;
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 
-	void prepareThumb(int width, int height) const;
+	void prepareThumbnail(int width, int height) const;
 
 };
 
@@ -323,11 +349,11 @@ private:
 
 	bool _withThumb;
 	mutable QPixmap _thumb;
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 	QString _thumbLetter, _urlText;
 	int32 _urlWidth;
 
-	void prepareThumb(int width, int height) const;
+	void prepareThumbnail(int width, int height) const;
 
 };
 
@@ -346,17 +372,19 @@ public:
 private:
 	void countFrameSize();
 
-	void prepareThumb(int32 width, int32 height) const;
+	void prepareThumbnail(QSize size) const;
+	void validateThumbnail(Image *image, QSize size, bool good) const;
 
-	bool isRadialAnimation(TimeMs ms) const;
-	void step_radial(TimeMs ms, bool timer);
+	bool isRadialAnimation() const;
+	void radialAnimationCallback(crl::time now) const;
 
 	void clipCallback(Media::Clip::Notification notification);
 
 	Media::Clip::ReaderPointer _gif;
 	mutable QPixmap _thumb;
+	mutable bool _thumbGood = false;
 	mutable std::unique_ptr<Ui::RadialAnimation> _radial;
-	Text _title, _description;
+	Ui::Text::String _title, _description;
 
 	QSize _frameSize;
 

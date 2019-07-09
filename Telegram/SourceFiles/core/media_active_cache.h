@@ -80,4 +80,4 @@ void MediaActiveCache<Type>::check(Unload &&unload) {
 	}
 }
 
-} // namespace Images
+} // namespace Core

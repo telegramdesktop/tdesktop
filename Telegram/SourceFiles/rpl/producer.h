@@ -65,6 +65,13 @@ public:
 	type_erased_generator &operator=(
 		type_erased_generator &&other) = default;
 
+	type_erased_generator(std::nullptr_t = nullptr) {
+	}
+	type_erased_generator &operator=(std::nullptr_t) {
+		_implementation = nullptr;
+		return *this;
+	}
+
 	template <
 		typename Generator,
 		typename = std::enable_if_t<
@@ -96,7 +103,11 @@ public:
 
 	template <typename Handlers>
 	lifetime operator()(const consumer_type<Handlers> &consumer) {
-		return _implementation(consumer);
+		return _implementation ? _implementation(consumer) : lifetime();
+	}
+
+	bool empty() const {
+		return !_implementation;
 	}
 
 private:
@@ -166,6 +177,7 @@ public:
 			std::is_constructible_v<Generator, OtherGenerator&&>>>
 	producer_base(OtherGenerator &&generator);
 
+	producer_base() = default;
 	producer_base(const producer_base &other) = default;
 	producer_base(producer_base &&other) = default;
 	producer_base &operator=(const producer_base &other) = default;
@@ -382,8 +394,9 @@ class producer<
 		Error>;
 
 public:
-	using parent_type::parent_type;;
+	using parent_type::parent_type;
 
+	producer() = default;
 	producer(const producer &other) = default;
 	producer(producer &&other) = default;
 	producer &operator=(const producer &other) = default;
@@ -427,6 +440,10 @@ public:
 			details::producer_base<Value, Error, Generic> &&other) {
 		this->_generator = std::move(other._generator);
 		return *this;
+	}
+
+	explicit operator bool() const {
+		return !this->_generator.empty();
 	}
 
 };

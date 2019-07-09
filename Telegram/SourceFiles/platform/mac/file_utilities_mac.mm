@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/file_utilities_mac.h"
 
 #include "platform/mac/mac_utilities.h"
+#include "lang/lang_keys.h"
 #include "styles/style_window.h"
 
 #include <Cocoa/Cocoa.h>
@@ -190,7 +191,7 @@ QString strNeedToRefresh2() {
 		}
 		[menu insertItem:[NSMenuItem separatorItem] atIndex:index++];
 	}
-	NSMenuItem *item = [menu insertItemWithTitle:NSlang(lng_mac_choose_program_menu) action:@selector(itemChosen:) keyEquivalent:@"" atIndex:index++];
+	NSMenuItem *item = [menu insertItemWithTitle:Q2NSString(tr::lng_mac_choose_program_menu(tr::now)) action:@selector(itemChosen:) keyEquivalent:@"" atIndex:index++];
 	[item setTarget:self];
 
 	[menu popUpMenuPositioningItem:nil atLocation:CGPointMake(x, y) inView:nil];
@@ -273,7 +274,7 @@ QString strNeedToRefresh2() {
 - (id) init:(NSArray *)recommendedApps withPanel:(NSOpenPanel *)creator withSelector:(NSPopUpButton *)menu withGood:(NSTextField *)goodLabel withBad:(NSTextField *)badLabel withIcon:(NSImageView *)badIcon withAccessory:(NSView *)acc {
 	if (self = [super init]) {
 		onlyRecommended = YES;
-		recom = [NSlang(lng_mac_recommended_apps) copy];
+		recom = [Q2NSString(tr::lng_mac_recommended_apps(tr::now)) copy];
 		apps = recommendedApps;
 		panel = creator;
 		selector = menu;
@@ -428,13 +429,13 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 
 		NSPopUpButton *selector = [[NSPopUpButton alloc] init];
 		[accessory addSubview:selector];
-		[selector addItemWithTitle:NSlang(lng_mac_recommended_apps)];
-		[selector addItemWithTitle:NSlang(lng_mac_all_apps)];
+		[selector addItemWithTitle:Q2NSString(tr::lng_mac_recommended_apps(tr::now))];
+		[selector addItemWithTitle:Q2NSString(tr::lng_mac_all_apps(tr::now))];
 		[selector sizeToFit];
 
 		NSTextField *enableLabel = [[NSTextField alloc] init];
 		[accessory addSubview:enableLabel];
-		[enableLabel setStringValue:NSlang(lng_mac_enable_filter)];
+		[enableLabel setStringValue:Q2NSString(tr::lng_mac_enable_filter(tr::now))];
 		[enableLabel setFont:[selector font]];
 		[enableLabel setBezeled:NO];
 		[enableLabel setDrawsBackground:NO];
@@ -457,7 +458,7 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 		[accessory addSubview:button];
 		[button setButtonType:NSSwitchButton];
 		[button setFont:[selector font]];
-		[button setTitle:NSlang(lng_mac_always_open_with)];
+		[button setTitle:Q2NSString(tr::lng_mac_always_open_with(tr::now))];
 		[button sizeToFit];
 		NSRect alwaysRect = [button frame];
 		alwaysRect.origin.x = (fullRect.size.width - alwaysRect.size.width) / 2;
@@ -468,7 +469,7 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 		[button setHidden:YES];
 #endif // OS_MAC_STORE
 		NSTextField *goodLabel = [[NSTextField alloc] init];
-		[goodLabel setStringValue:Q2NSString(lng_mac_this_app_can_open(lt_file, NS2QString(name)))];
+		[goodLabel setStringValue:Q2NSString(tr::lng_mac_this_app_can_open(tr::now, lt_file, NS2QString(name)))];
 		[goodLabel setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
 		[goodLabel setBezeled:NO];
 		[goodLabel setDrawsBackground:NO];
@@ -481,7 +482,7 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 		[goodLabel setFrame:goodFrame];
 
 		NSTextField *badLabel = [[NSTextField alloc] init];
-		[badLabel setStringValue:Q2NSString(lng_mac_not_known_app(lt_file, NS2QString(name)))];
+		[badLabel setStringValue:Q2NSString(tr::lng_mac_not_known_app(tr::now, lt_file, NS2QString(name)))];
 		[badLabel setFont:[goodLabel font]];
 		[badLabel setBezeled:NO];
 		[badLabel setDrawsBackground:NO];
@@ -510,8 +511,8 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 		[openPanel setCanChooseFiles:YES];
 		[openPanel setAllowsMultipleSelection:NO];
 		[openPanel setResolvesAliases:YES];
-		[openPanel setTitle:NSlang(lng_mac_choose_app)];
-		[openPanel setMessage:Q2NSString(lng_mac_choose_text(lt_file, NS2QString(name)))];
+		[openPanel setTitle:Q2NSString(tr::lng_mac_choose_app(tr::now))];
+		[openPanel setMessage:Q2NSString(tr::lng_mac_choose_text(tr::now, lt_file, NS2QString(name)))];
 
 		NSArray *appsPaths = [[NSFileManager defaultManager] URLsForDirectory:NSApplicationDirectory inDomains:NSLocalDomainMask];
 		if ([appsPaths count]) [openPanel setDirectoryURL:[appsPaths firstObject]];

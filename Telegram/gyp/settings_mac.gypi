@@ -43,6 +43,7 @@
           '-Wno-comment',
           '-Wno-missing-field-initializers',
           '-Wno-sign-compare',
+          '-Wno-unknown-attributes',
         ],
       },
       'xcode_settings': {

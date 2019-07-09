@@ -32,5 +32,6 @@ std::unique_ptr<HistoryMedia> CreateAttach(
 	not_null<HistoryView::Element*> parent,
 	DocumentData *document,
 	PhotoData *photo,
-	const std::vector<std::unique_ptr<Data::Media>> &collage = {});
+	const std::vector<std::unique_ptr<Data::Media>> &collage = {},
+	const QString &webpageUrl = QString());
 int unitedLineHeight();

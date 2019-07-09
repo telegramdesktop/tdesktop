@@ -23,13 +23,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/search_field_controller.h"
-#include "styles/style_boxes.h"
-#include "styles/style_info.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
-#include "boxes/peer_list_controllers.h"
-#include "window/window_controller.h"
+#include "boxes/peers/add_participants_box.h"
+#include "window/window_session_controller.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
+#include "styles/style_boxes.h"
+#include "styles/style_info.h"
 
 namespace Info {
 namespace Profile {
@@ -160,11 +164,11 @@ void Members::setupHeader() {
 object_ptr<Ui::FlatLabel> Members::setupTitle() {
 	auto result = object_ptr<Ui::FlatLabel>(
 		_titleWrap,
-		MembersCountValue(
-			_peer
-		) | rpl::map([](int count) {
-			return lng_chat_status_members(lt_count, count);
-		}) | ToUpperValue(),
+		tr::lng_chat_status_members(
+			lt_count_decimal,
+			MembersCountValue(_peer) | tr::to_count(),
+			Ui::Text::Upper
+		),
 		st::infoBlockHeaderLabel);
 	result->setAttribute(Qt::WA_TransparentForMouseEvents);
 	return result;
@@ -267,7 +271,7 @@ void Members::updateHeaderControlsGeometry(int newWidth) {
 	//auto searchShownLeft = st::infoIconPosition.x()
 	//	- st::infoMembersSearch.iconPosition.x();
 	//auto searchHiddenLeft = availableWidth - _search->width();
-	//auto searchShown = _searchShownAnimation.current(_searchShown ? 1. : 0.);
+	//auto searchShown = _searchShownAnimation.value(_searchShown ? 1. : 0.);
 	//auto searchCurrentLeft = anim::interpolate(
 	//	searchHiddenLeft,
 	//	searchShownLeft,
@@ -320,11 +324,7 @@ void Members::updateHeaderControlsGeometry(int newWidth) {
 
 void Members::addMember() {
 	if (const auto chat = _peer->asChat()) {
-		if (chat->count >= Global::ChatSizeMax() && chat->amCreator()) {
-			Ui::show(Box<ConvertToSupergroupBox>(chat));
-		} else {
-			AddParticipantsBoxController::Start(chat);
-		}
+		AddParticipantsBoxController::Start(chat);
 	} else if (const auto channel = _peer->asChannel()) {
 		const auto state = _listController->saveState();
 		const auto users = ranges::view::all(
@@ -409,11 +409,10 @@ void Members::visibleTopBottomUpdated(
 	setChildVisibleTopBottom(_list, visibleTop, visibleBottom);
 }
 
-void Members::peerListSetTitle(Fn<QString()> title) {
+void Members::peerListSetTitle(rpl::producer<QString> title) {
 }
 
-void Members::peerListSetAdditionalTitle(
-		Fn<QString()> title) {
+void Members::peerListSetAdditionalTitle(rpl::producer<QString> title) {
 }
 
 bool Members::peerListIsRowSelected(not_null<PeerData*> peer) {

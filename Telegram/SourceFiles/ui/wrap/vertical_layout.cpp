@@ -36,11 +36,13 @@ QMargins VerticalLayout::getMargins() const {
 int VerticalLayout::naturalWidth() const {
 	auto result = 0;
 	for (auto &row : _rows) {
-		auto natural = row.widget->naturalWidth();
+		const auto natural = row.widget->naturalWidth();
 		if (natural < 0) {
 			return natural;
 		}
-		accumulate_max(result, natural);
+		accumulate_max(
+			result,
+			row.margin.left() + natural + row.margin.right());
 	}
 	return result;
 }

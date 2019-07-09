@@ -13,9 +13,9 @@ namespace Lang {
 
 class FileParser {
 public:
-	using Result = QMap<LangKey, QString>;
+	using Result = QMap<ushort, QString>;
 
-	FileParser(const QString &file, const std::set<LangKey> &request);
+	FileParser(const QString &file, const std::set<ushort> &request);
 	FileParser(const QByteArray &content, Fn<void(QLatin1String key, const QByteArray &value)> callback);
 
 	static QByteArray ReadFile(const QString &absolutePath, const QString &relativePath);
@@ -43,7 +43,7 @@ private:
 	mutable QString _errors, _warnings;
 
 	const QByteArray _content;
-	const std::set<LangKey> _request;
+	const std::set<ushort> _request;
 	const Fn<void(QLatin1String key, const QByteArray &value)> _callback;
 
 	Result _result;

@@ -196,14 +196,14 @@ void SendActionAnimation::Impl::paint(
 		int x,
 		int y,
 		int outerWidth,
-		TimeMs ms) {
+		crl::time ms) {
 	paintFrame(
 		p,
 		color,
 		x,
 		y,
 		outerWidth,
-		anim::Disabled() ? 0 : (qMax(ms - _started, 0LL) % _period));
+		anim::Disabled() ? 0 : (qMax(ms - _started, crl::time(0)) % _period));
 }
 
 

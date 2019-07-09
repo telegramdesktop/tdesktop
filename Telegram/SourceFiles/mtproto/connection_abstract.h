@@ -67,8 +67,8 @@ public:
 
 	virtual ConnectionPointer clone(const ProxyData &proxy) = 0;
 
-	virtual TimeMs pingTime() const = 0;
-	virtual TimeMs fullConnectTimeout() const = 0;
+	virtual crl::time pingTime() const = 0;
+	virtual crl::time fullConnectTimeout() const = 0;
 	virtual void sendData(mtpBuffer &&buffer) = 0;
 	virtual void disconnectFromServer() = 0;
 	virtual void connectToServer(

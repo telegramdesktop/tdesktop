@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
-#include "platform/platform_specific.h"
+#include "platform/platform_info.h"
 #include "auth_session.h"
 #include "data/data_session.h"
 #include "styles/style_export.h"
@@ -26,7 +26,7 @@ namespace Export {
 namespace View {
 namespace {
 
-constexpr auto kSaveSettingsTimeout = TimeMs(1000);
+constexpr auto kSaveSettingsTimeout = crl::time(1000);
 
 class SuggestBox : public BoxContent {
 public:
@@ -41,19 +41,18 @@ SuggestBox::SuggestBox(QWidget*) {
 }
 
 void SuggestBox::prepare() {
-	setTitle(langFactory(lng_export_suggest_title));
+	setTitle(tr::lng_export_suggest_title());
 
-	addButton(langFactory(lng_box_ok), [=] {
+	addButton(tr::lng_box_ok(), [=] {
 		closeBox();
 		Auth().data().startExport(Local::ReadExportSettings().singlePeer);
 	});
-	addButton(langFactory(lng_export_suggest_cancel), [=] { closeBox(); });
+	addButton(tr::lng_export_suggest_cancel(), [=] { closeBox(); });
 	setCloseByOutsideClick(false);
 
 	const auto content = Ui::CreateChild<Ui::FlatLabel>(
 		this,
-		lang(lng_export_suggest_text),
-		Ui::FlatLabel::InitType::Simple,
+		tr::lng_export_suggest_text(tr::now),
 		st::boxLabel);
 	widthValue(
 	) | rpl::start_with_next([=](int width) {
@@ -73,17 +72,14 @@ void SuggestBox::prepare() {
 
 Environment PrepareEnvironment() {
 	auto result = Environment();
-	const auto utfLang = [](LangKey key) {
-		return lang(key).toUtf8();
-	};
 	result.internalLinksDomain = Global::InternalLinksDomain();
-	result.aboutTelegram = utfLang(lng_export_about_telegram);
-	result.aboutContacts = utfLang(lng_export_about_contacts);
-	result.aboutFrequent = utfLang(lng_export_about_frequent);
-	result.aboutSessions = utfLang(lng_export_about_sessions);
-	result.aboutWebSessions = utfLang(lng_export_about_web_sessions);
-	result.aboutChats = utfLang(lng_export_about_chats);
-	result.aboutLeftChats = utfLang(lng_export_about_left_chats);
+	result.aboutTelegram = tr::lng_export_about_telegram(tr::now).toUtf8();
+	result.aboutContacts = tr::lng_export_about_contacts(tr::now).toUtf8();
+	result.aboutFrequent = tr::lng_export_about_frequent(tr::now).toUtf8();
+	result.aboutSessions = tr::lng_export_about_sessions(tr::now).toUtf8();
+	result.aboutWebSessions = tr::lng_export_about_web_sessions(tr::now).toUtf8();
+	result.aboutChats = tr::lng_export_about_chats(tr::now).toUtf8();
+	result.aboutLeftChats = tr::lng_export_about_left_chats(tr::now).toUtf8();
 	return result;
 }
 
@@ -107,7 +103,7 @@ bool IsDefaultPath(const QString &path) {
 		const auto result = value.endsWith('/')
 			? value.mid(0, value.size() - 1)
 			: value;
-		return (cPlatform() == dbipWindows) ? result.toLower() : result;
+		return Platform::IsWindows() ? result.toLower() : result;
 	};
 	return (check(path) == check(File::DefaultDownloadPath()));
 }
@@ -124,7 +120,7 @@ void ResolveSettings(Settings &settings) {
 	}
 }
 
-PanelController::PanelController(not_null<ControllerWrap*> process)
+PanelController::PanelController(not_null<Controller*> process)
 : _process(process)
 , _settings(std::make_unique<Settings>(Local::ReadExportSettings()))
 , _saveSettingsTimer([=] { saveSettings(); }) {
@@ -143,9 +139,9 @@ void PanelController::activatePanel() {
 void PanelController::createPanel() {
 	const auto singlePeer = _settings->onlySinglePeer();
 	_panel = base::make_unique_q<Ui::SeparatePanel>();
-	_panel->setTitle(Lang::Viewer(singlePeer
-		? lng_export_header_chats
-		: lng_export_title));
+	_panel->setTitle((singlePeer
+		? tr::lng_export_header_chats
+		: tr::lng_export_title)());
 	_panel->setInnerSize(st::exportPanelSize);
 	_panel->closeRequests(
 	) | rpl::start_with_next([=] {
@@ -192,7 +188,7 @@ void PanelController::showError(const ApiErrorState &error) {
 	LOG(("Export Info: API Error '%1'.").arg(error.data.type()));
 
 	if (error.data.type() == qstr("TAKEOUT_INVALID")) {
-		showError(lang(lng_export_invalid));
+		showError(tr::lng_export_invalid(tr::now));
 	} else if (error.data.type().startsWith(qstr("TAKEOUT_INIT_DELAY_"))) {
 		const auto seconds = std::max(error.data.type().mid(
 			qstr("TAKEOUT_INIT_DELAY_").size()).toInt(), 1);
@@ -201,11 +197,12 @@ void PanelController::showError(const ApiErrorState &error) {
 		const auto hours = seconds / 3600;
 		const auto hoursText = [&] {
 			if (hours <= 0) {
-				return lang(lng_export_delay_less_than_hour);
+				return tr::lng_export_delay_less_than_hour(tr::now);
 			}
-			return lng_export_delay_hours(lt_count, hours);
+			return tr::lng_export_delay_hours(tr::now, lt_count, hours);
 		}();
-		showError(lng_export_delay(
+		showError(tr::lng_export_delay(
+			tr::now,
 			lt_hours,
 			hoursText,
 			lt_date,
@@ -233,7 +230,6 @@ void PanelController::showCriticalError(const QString &text) {
 		object_ptr<Ui::FlatLabel>(
 			_panel.get(),
 			text,
-			Ui::FlatLabel::InitType::Simple,
 			st::exportErrorLabel),
 		style::margins(0, st::exportPanelSize.height() / 4, 0, 0));
 	container->widthValue(
@@ -270,7 +266,7 @@ void PanelController::showProgress() {
 	_settings->availableAt = 0;
 	ClearSuggestStart();
 
-	_panel->setTitle(Lang::Viewer(lng_export_progress_title));
+	_panel->setTitle(tr::lng_export_progress_title());
 
 	auto progress = base::make_unique_q<ProgressWidget>(
 		_panel.get(),
@@ -301,7 +297,9 @@ void PanelController::stopWithConfirmation(FnMut<void()> callback) {
 	if (!_state.is<ProcessingState>()) {
 		LOG(("Export Info: Stop Panel Without Confirmation."));
 		stopExport();
-		callback();
+		if (callback) {
+			callback();
+		}
 		return;
 	}
 	auto stop = [=, callback = std::move(callback)]() mutable {
@@ -316,8 +314,8 @@ void PanelController::stopWithConfirmation(FnMut<void()> callback) {
 	const auto hidden = _panel->isHidden();
 	const auto old = _confirmStopBox;
 	auto box = Box<ConfirmBox>(
-		lang(lng_export_sure_stop),
-		lang(lng_export_stop),
+		tr::lng_export_sure_stop(tr::now),
+		tr::lng_export_stop(tr::now),
 		st::attentionBoxButton,
 		std::move(stop));
 	_confirmStopBox = box.data();
@@ -365,7 +363,7 @@ void PanelController::updateState(State &&state) {
 	} else if (const auto error = base::get_if<OutputErrorState>(&_state)) {
 		showError(*error);
 	} else if (_state.is<FinishedState>()) {
-		_panel->setTitle(Lang::Viewer(lng_export_title));
+		_panel->setTitle(tr::lng_export_title());
 		_panel->setHideOnDeactivate(false);
 	} else if (_state.is<CancelledState>()) {
 		LOG(("Export Info: Stop Panel After Cancel."));
@@ -378,7 +376,7 @@ void PanelController::saveSettings() const {
 		const auto result = value.endsWith('/')
 			? value.mid(0, value.size() - 1)
 			: value;
-		return (cPlatform() == dbipWindows) ? result.toLower() : result;
+		return Platform::IsWindows() ? result.toLower() : result;
 	};
 	auto settings = *_settings;
 	if (check(settings.path) == check(File::DefaultDownloadPath())) {

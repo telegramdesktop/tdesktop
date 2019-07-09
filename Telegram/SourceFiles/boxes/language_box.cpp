@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
 #include "styles/style_boxes.h"
@@ -55,6 +55,7 @@ public:
 
 	void activateSelected();
 	rpl::producer<Language> activations() const;
+	void changeChosen(const QString &chosen);
 
 	Ui::ScrollToRequest rowScrollRequest(int index) const;
 
@@ -72,8 +73,8 @@ protected:
 private:
 	struct Row {
 		Language data;
-		Text title = { st::boxWideWidth / 2 };
-		Text description = { st::boxWideWidth / 2 };
+		Ui::Text::String title = { st::boxWideWidth / 2 };
+		Ui::Text::String description = { st::boxWideWidth / 2 };
 		int top = 0;
 		int height = 0;
 		mutable std::unique_ptr<Ui::RippleAnimation> ripple;
@@ -170,6 +171,7 @@ public:
 	Ui::ScrollToRequest jump(int rows);
 	void filter(const QString &query);
 	rpl::producer<Language> activations() const;
+	void changeChosen(const QString &chosen);
 	void activateBySubmit();
 
 private:
@@ -180,6 +182,7 @@ private:
 	Fn<Ui::ScrollToRequest(int rows)> _jump;
 	Fn<void(const QString &query)> _filter;
 	Fn<rpl::producer<Language>()> _activations;
+	Fn<void(const QString &chosen)> _changeChosen;
 	Fn<void()> _activateBySubmit;
 
 };
@@ -406,7 +409,7 @@ bool Rows::hasMenu(not_null<const Row*> row) const {
 void Rows::share(not_null<const Row*> row) const {
 	const auto link = qsl("https://t.me/setlanguage/") + row->data.id;
 	QApplication::clipboard()->setText(link);
-	Ui::Toast::Show(lang(lng_username_copied));
+	Ui::Toast::Show(tr::lng_username_copied(tr::now));
 }
 
 void Rows::remove(not_null<Row*> row) {
@@ -458,15 +461,15 @@ void Rows::showMenu(int index) {
 	};
 	const auto id = row->data.id;
 	if (canShare(row)) {
-		addAction(lang(lng_proxy_edit_share), [=] { share(row); });
+		addAction(tr::lng_proxy_edit_share(tr::now), [=] { share(row); });
 	}
 	if (canRemove(row)) {
 		if (row->removed) {
-			addAction(lang(lng_proxy_menu_restore), [=] {
+			addAction(tr::lng_proxy_menu_restore(tr::now), [=] {
 				restore(row);
 			});
 		} else {
-			addAction(lang(lng_proxy_menu_delete), [=] {
+			addAction(tr::lng_proxy_menu_delete(tr::now), [=] {
 				remove(row);
 			});
 		}
@@ -611,6 +614,12 @@ void Rows::activateSelected() {
 
 rpl::producer<Language> Rows::activations() const {
 	return _activations.events();
+}
+
+void Rows::changeChosen(const QString &chosen) {
+	for (const auto &row : _rows) {
+		row.check->setChecked(row.data.id == chosen, anim::type::normal);
+	}
 }
 
 void Rows::setSelected(int selected) {
@@ -772,7 +781,6 @@ int Rows::countAvailableWidth() const {
 void Rows::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	const auto ms = getms();
 	const auto clip = e->rect();
 
 	const auto checkLeft = st::passportRowPadding.left();
@@ -801,14 +809,14 @@ void Rows::paintEvent(QPaintEvent *e) {
 		}
 
 		if (row.ripple) {
-			row.ripple->paint(p, 0, 0, width(), ms);
+			row.ripple->paint(p, 0, 0, width());
 			if (row.ripple->empty()) {
 				row.ripple.reset();
 			}
 		}
 
 		const auto checkTop = (row.height - st::defaultRadio.diameter) / 2;
-		row.check->paint(p, checkLeft, checkTop, width(), ms);
+		row.check->paint(p, checkLeft, checkTop, width());
 
 		auto top = st::passportRowPadding.top();
 
@@ -829,7 +837,7 @@ void Rows::paintEvent(QPaintEvent *e) {
 				p.drawEllipse(menu);
 			}
 			if (row.menuToggleRipple) {
-				row.menuToggleRipple->paint(p, menu.x(), menu.y(), width(), ms);
+				row.menuToggleRipple->paint(p, menu.x(), menu.y(), width());
 				if (row.menuToggleRipple->empty()) {
 					row.menuToggleRipple.reset();
 				}
@@ -1004,6 +1012,14 @@ void Content::setupContent(
 			other->activations()
 		) | rpl::type_erased();
 	};
+	_changeChosen = [=](const QString &chosen) {
+		if (main) {
+			main->changeChosen(chosen);
+		}
+		if (other) {
+			other->changeChosen(chosen);
+		}
+	};
 	_activateBySubmit = [=] {
 		if (selectedIndex() < 0) {
 			_jump(1);
@@ -1025,6 +1041,10 @@ rpl::producer<Language> Content::activations() const {
 	return _activations();
 }
 
+void Content::changeChosen(const QString &chosen) {
+	_changeChosen(chosen);
+}
+
 void Content::activateBySubmit() {
 	_activateBySubmit();
 }
@@ -1036,9 +1056,9 @@ Ui::ScrollToRequest Content::jump(int rows) {
 } // namespace
 
 void LanguageBox::prepare() {
-	addButton(langFactory(lng_box_ok), [=] { closeBox(); });
+	addButton(tr::lng_box_ok(), [=] { closeBox(); });
 
-	setTitle(langFactory(lng_languages));
+	setTitle(tr::lng_languages());
 
 	const auto select = createMultiSelect();
 
@@ -1077,6 +1097,9 @@ void LanguageBox::prepare() {
 		// So we check that the language really has changed.
 		if (language.id != Lang::Current().id()) {
 			Lang::CurrentCloudManager().switchToLanguage(language);
+			if (inner) {
+				inner->changeChosen(Lang::Current().id());
+			}
 		}
 	}, inner->lifetime());
 
@@ -1123,7 +1146,7 @@ not_null<Ui::MultiSelect*> LanguageBox::createMultiSelect() {
 	const auto result = Ui::CreateChild<Ui::MultiSelect>(
 		this,
 		st::contactsMultiSelect,
-		langFactory(lng_participant_filter));
+		tr::lng_participant_filter());
 	result->resizeToWidth(st::boxWidth);
 	result->moveToLeft(0, 0);
 	return result;
@@ -1132,10 +1155,10 @@ not_null<Ui::MultiSelect*> LanguageBox::createMultiSelect() {
 base::binary_guard LanguageBox::Show() {
 	auto result = base::binary_guard();
 
-	const auto manager = Messenger::Instance().langCloudManager();
+	const auto manager = Core::App().langCloudManager();
 	if (manager->languageList().empty()) {
-		auto guard = std::make_shared<base::binary_guard>();
-		std::tie(result, *guard) = base::make_binary_guard();
+		auto guard = std::make_shared<base::binary_guard>(
+			result.make_guard());
 		auto alive = std::make_shared<std::unique_ptr<base::Subscription>>(
 			std::make_unique<base::Subscription>());
 		**alive = manager->languageListChanged().add_subscription([=] {

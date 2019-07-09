@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "layout.h"
-#include "auth_session.h"
 #include "history/history_item.h"
+#include "history/history.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "styles/style_history.h"
@@ -27,13 +27,13 @@ void HistoryFileMedia::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool 
 }
 
 void HistoryFileMedia::thumbAnimationCallback() {
-	Auth().data().requestViewRepaint(_parent);
+	history()->owner().requestViewRepaint(_parent);
 }
 
 void HistoryFileMedia::clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
 		bool pressed) {
-	Auth().data().requestViewRepaint(_parent);
+	history()->owner().requestViewRepaint(_parent);
 }
 
 void HistoryFileMedia::setLinks(
@@ -59,7 +59,7 @@ void HistoryFileMedia::setStatusSize(int newSize, int fullSize, int duration, qi
 	} else if (_statusSize == FileStatusSizeLoaded) {
 		_statusText = (duration >= 0) ? formatDurationText(duration) : (duration < -1 ? qsl("GIF") : formatSizeText(fullSize));
 	} else if (_statusSize == FileStatusSizeFailed) {
-		_statusText = lang(lng_attach_failed);
+		_statusText = tr::lng_attach_failed(tr::now);
 	} else if (_statusSize >= 0) {
 		_statusText = formatDownloadText(_statusSize, fullSize);
 	} else {
@@ -67,28 +67,26 @@ void HistoryFileMedia::setStatusSize(int newSize, int fullSize, int duration, qi
 	}
 }
 
-void HistoryFileMedia::step_radial(TimeMs ms, bool timer) {
-	const auto updateRadial = [&] {
+void HistoryFileMedia::radialAnimationCallback(crl::time now) const {
+	const auto updated = [&] {
 		return _animation->radial.update(
 			dataProgress(),
 			dataFinished(),
-			ms);
-	};
-	if (timer) {
-		if (!anim::Disabled() || updateRadial()) {
-			Auth().data().requestViewRepaint(_parent);
-		}
-	} else {
-		updateRadial();
-		if (!_animation->radial.animating()) {
-			checkAnimationFinished();
-		}
+			now);
+	}();
+	if (!anim::Disabled() || updated) {
+		history()->owner().requestViewRepaint(_parent);
+	}
+	if (!_animation->radial.animating()) {
+		checkAnimationFinished();
 	}
 }
 
 void HistoryFileMedia::ensureAnimation() const {
 	if (!_animation) {
-		_animation = std::make_unique<AnimationData>(animation(const_cast<HistoryFileMedia*>(this), &HistoryFileMedia::step_radial));
+		_animation = std::make_unique<AnimationData>([=](crl::time now) {
+			radialAnimationCallback(now);
+		});
 	}
 }
 
@@ -101,25 +99,11 @@ void HistoryFileMedia::checkAnimationFinished() const {
 }
 void HistoryFileMedia::setDocumentLinks(
 		not_null<DocumentData*> document,
-		not_null<HistoryItem*> realParent,
-		bool inlinegif) {
-	FileClickHandlerPtr open, save;
+		not_null<HistoryItem*> realParent) {
 	const auto context = realParent->fullId();
-	if (inlinegif) {
-		open = std::make_shared<GifOpenClickHandler>(document, context);
-	} else {
-		open = std::make_shared<DocumentOpenClickHandler>(document, context);
-	}
-	if (inlinegif) {
-		save = std::make_shared<GifOpenClickHandler>(document, context);
-	} else if (document->isVoiceMessage()) {
-		save = std::make_shared<DocumentOpenClickHandler>(document, context);
-	} else {
-		save = std::make_shared<DocumentSaveClickHandler>(document, context);
-	}
 	setLinks(
-		std::move(open),
-		std::move(save),
+		std::make_shared<DocumentOpenClickHandler>(document, context),
+		std::make_shared<DocumentSaveClickHandler>(document, context),
 		std::make_shared<DocumentCancelClickHandler>(document, context));
 }
 

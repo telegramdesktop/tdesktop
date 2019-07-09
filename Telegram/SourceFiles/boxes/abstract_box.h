@@ -30,21 +30,32 @@ class BoxContent;
 class BoxContentDelegate {
 public:
 	virtual void setLayerType(bool layerType) = 0;
-	virtual void setTitle(Fn<TextWithEntities()> titleFactory) = 0;
-	virtual void setAdditionalTitle(Fn<QString()> additionalFactory) = 0;
+	virtual void setTitle(rpl::producer<TextWithEntities> title) = 0;
+	virtual void setAdditionalTitle(rpl::producer<QString> additional) = 0;
 	virtual void setCloseByOutsideClick(bool close) = 0;
 
 	virtual void clearButtons() = 0;
-	virtual QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) = 0;
-	virtual QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) = 0;
-	virtual QPointer<Ui::IconButton> addTopButton(const style::IconButton &st, Fn<void()> clickCallback) = 0;
+	virtual QPointer<Ui::RoundButton> addButton(
+		rpl::producer<QString> text,
+		Fn<void()> clickCallback,
+		const style::RoundButton &st) = 0;
+	virtual QPointer<Ui::RoundButton> addLeftButton(
+		rpl::producer<QString> text,
+		Fn<void()> clickCallback,
+		const style::RoundButton &st) = 0;
+	virtual QPointer<Ui::IconButton> addTopButton(
+		const style::IconButton &st,
+		Fn<void()> clickCallback) = 0;
 	virtual void updateButtonsPositions() = 0;
 
 	virtual void showBox(
 		object_ptr<BoxContent> box,
 		LayerOptions options,
 		anim::type animated) = 0;
-	virtual void setDimensions(int newWidth, int maxHeight) = 0;
+	virtual void setDimensions(
+		int newWidth,
+		int maxHeight,
+		bool forceCenterPosition = false) = 0;
 	virtual void setNoContentMargin(bool noContentMargin) = 0;
 	virtual bool isBoxShown() const = 0;
 	virtual void closeBox() = 0;
@@ -78,17 +89,11 @@ public:
 		getDelegate()->closeBox();
 	}
 
-	void setTitle(Fn<QString()> titleFactory) {
-		if (titleFactory) {
-			getDelegate()->setTitle([titleFactory] { return TextWithEntities { titleFactory(), EntitiesInText() }; });
-		} else {
-			getDelegate()->setTitle(Fn<TextWithEntities()>());
-		}
+	void setTitle(rpl::producer<QString> title);
+	void setTitle(rpl::producer<TextWithEntities> title) {
+		getDelegate()->setTitle(std::move(title));
 	}
-	void setTitle(Fn<TextWithEntities()> titleFactory) {
-		getDelegate()->setTitle(std::move(titleFactory));
-	}
-	void setAdditionalTitle(Fn<QString()> additional) {
+	void setAdditionalTitle(rpl::producer<QString> additional) {
 		getDelegate()->setAdditionalTitle(std::move(additional));
 	}
 	void setCloseByEscape(bool close) {
@@ -103,13 +108,30 @@ public:
 	void clearButtons() {
 		getDelegate()->clearButtons();
 	}
-	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback);
-	QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback);
-	QPointer<Ui::IconButton> addTopButton(const style::IconButton &st, Fn<void()> clickCallback) {
+	QPointer<Ui::RoundButton> addButton(
+		rpl::producer<QString> text,
+		Fn<void()> clickCallback = nullptr);
+	QPointer<Ui::RoundButton> addLeftButton(
+		rpl::producer<QString> text,
+		Fn<void()> clickCallback = nullptr);
+	QPointer<Ui::IconButton> addTopButton(
+			const style::IconButton &st,
+			Fn<void()> clickCallback = nullptr) {
 		return getDelegate()->addTopButton(st, std::move(clickCallback));
 	}
-	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) {
-		return getDelegate()->addButton(std::move(textFactory), std::move(clickCallback), st);
+	QPointer<Ui::RoundButton> addButton(
+			rpl::producer<QString> text,
+			const style::RoundButton &st) {
+		return getDelegate()->addButton(std::move(text), nullptr, st);
+	}
+	QPointer<Ui::RoundButton> addButton(
+			rpl::producer<QString> text,
+			Fn<void()> clickCallback,
+			const style::RoundButton &st) {
+		return getDelegate()->addButton(
+			std::move(text),
+			std::move(clickCallback),
+			st);
 	}
 	void updateButtonsGeometry() {
 		getDelegate()->updateButtonsPositions();
@@ -155,8 +177,14 @@ protected:
 		}
 		getDelegate()->setNoContentMargin(noContentMargin);
 	}
-	void setDimensions(int newWidth, int maxHeight) {
-		getDelegate()->setDimensions(newWidth, maxHeight);
+	void setDimensions(
+			int newWidth,
+			int maxHeight,
+			bool forceCenterPosition = false) {
+		getDelegate()->setDimensions(
+			newWidth,
+			maxHeight,
+			forceCenterPosition);
 	}
 	void setDimensionsToContent(
 		int newWidth,
@@ -247,21 +275,32 @@ public:
 	void parentResized() override;
 
 	void setLayerType(bool layerType) override;
-	void setTitle(Fn<TextWithEntities()> titleFactory) override;
-	void setAdditionalTitle(Fn<QString()> additionalFactory) override;
+	void setTitle(rpl::producer<TextWithEntities> title) override;
+	void setAdditionalTitle(rpl::producer<QString> additional) override;
 	void showBox(
 		object_ptr<BoxContent> box,
 		LayerOptions options,
 		anim::type animated) override;
 
 	void clearButtons() override;
-	QPointer<Ui::RoundButton> addButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) override;
-	QPointer<Ui::RoundButton> addLeftButton(Fn<QString()> textFactory, Fn<void()> clickCallback, const style::RoundButton &st) override;
-	QPointer<Ui::IconButton> addTopButton(const style::IconButton &st, Fn<void()> clickCallback) override;
+	QPointer<Ui::RoundButton> addButton(
+		rpl::producer<QString> text,
+		Fn<void()> clickCallback,
+		const style::RoundButton &st) override;
+	QPointer<Ui::RoundButton> addLeftButton(
+		rpl::producer<QString> text,
+		Fn<void()> clickCallback,
+		const style::RoundButton &st) override;
+	QPointer<Ui::IconButton> addTopButton(
+		const style::IconButton &st,
+		Fn<void()> clickCallback) override;
 	void updateButtonsPositions() override;
 	QPointer<QWidget> outerContainer() override;
 
-	void setDimensions(int newWidth, int maxHeight) override;
+	void setDimensions(
+		int newWidth,
+		int maxHeight,
+		bool forceCenterPosition = false) override;
 
 	void setNoContentMargin(bool noContentMargin) override {
 		if (_noContentMargin != noContentMargin) {
@@ -295,8 +334,6 @@ protected:
 private:
 	void paintAdditionalTitle(Painter &p);
 	void updateTitlePosition();
-	void refreshTitle();
-	void refreshAdditionalTitle();
 	void refreshLang();
 
 	bool hasTitle() const;
@@ -317,8 +354,7 @@ private:
 
 	object_ptr<Ui::FlatLabel> _title = { nullptr };
 	Fn<TextWithEntities()> _titleFactory;
-	QString _additionalTitle;
-	Fn<QString()> _additionalTitleFactory;
+	rpl::variable<QString> _additionalTitle;
 	int _titleLeft = 0;
 	int _titleTop = 0;
 	bool _layerType = false;
@@ -340,8 +376,44 @@ protected:
 
 };
 
-enum CreatingGroupType {
-	CreatingGroupNone,
-	CreatingGroupGroup,
-	CreatingGroupChannel,
+class BoxPointer {
+public:
+	BoxPointer() = default;
+	BoxPointer(const BoxPointer &other) = default;
+	BoxPointer(BoxPointer &&other) : _value(base::take(other._value)) {
+	}
+	BoxPointer &operator=(const BoxPointer &other) {
+		if (_value != other._value) {
+			destroy();
+			_value = other._value;
+		}
+		return *this;
+	}
+	BoxPointer &operator=(BoxPointer &&other) {
+		if (_value != other._value) {
+			destroy();
+			_value = base::take(other._value);
+		}
+		return *this;
+	}
+	BoxPointer &operator=(BoxContent *other) {
+		if (_value != other) {
+			destroy();
+			_value = other;
+		}
+		return *this;
+	}
+	~BoxPointer() {
+		destroy();
+	}
+
+private:
+	void destroy() {
+		if (const auto value = base::take(_value)) {
+			value->closeBox();
+		}
+	}
+
+	QPointer<BoxContent> _value;
+
 };

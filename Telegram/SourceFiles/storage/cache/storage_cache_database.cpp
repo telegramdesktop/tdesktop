@@ -153,6 +153,19 @@ void Database::getWithTag(
 	});
 }
 
+void Database::getWithSizes(
+		const Key &key,
+		std::vector<Key> &&keys,
+		FnMut<void(QByteArray&&, std::vector<int>&&)> &&done) {
+	_wrapped.with([
+		key,
+		keys = std::move(keys),
+		done = std::move(done)
+	](Implementation &unwrapped) mutable {
+		unwrapped.getWithSizes(key, std::move(keys), std::move(done));
+	});
+}
+
 auto Database::statsOnMain() const -> rpl::producer<Stats> {
 	return _wrapped.producer_on_main([](const Implementation &unwrapped) {
 		return unwrapped.stats();
@@ -174,6 +187,14 @@ void Database::clearByTag(uint8 tag, FnMut<void(Error)> &&done) {
 	](Implementation &unwrapped) mutable {
 		unwrapped.clearByTag(tag, std::move(done));
 	});
+}
+
+void Database::sync() {
+	auto semaphore = crl::semaphore();
+	_wrapped.with([&](Implementation &) {
+		semaphore.release();
+	});
+	semaphore.acquire();
 }
 
 Database::~Database() = default;

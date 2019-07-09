@@ -84,13 +84,16 @@ inline int dateTimeSize() {
 	return (sizeof(qint64) + sizeof(quint32) + sizeof(qint8));
 }
 
+int storageImageLocationSize(const StorageImageLocation &location);
 void writeStorageImageLocation(
 	QDataStream &stream,
 	const StorageImageLocation &location);
-StorageImageLocation readStorageImageLocation(
+
+// NB! This method can return StorageFileLocation with Type::Generic!
+// The reader should discard it or convert to one of the valid modern types.
+std::optional<StorageImageLocation> readStorageImageLocation(
 	int streamAppVersion,
 	QDataStream &stream);
-int storageImageLocationSize(const StorageImageLocation &location);
 
 template <typename T>
 inline T read(QDataStream &stream) {

@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Core {
 
-constexpr auto kHandleSrpIdInvalidTimeout = 60 * TimeMs(1000);
+constexpr auto kHandleSrpIdInvalidTimeout = 60 * crl::time(1000);
 
 struct CloudPasswordAlgoModPow {
 	static constexpr auto kIterations = 100000;

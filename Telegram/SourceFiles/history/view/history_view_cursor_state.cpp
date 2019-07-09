@@ -18,7 +18,7 @@ TextState::TextState(not_null<const HistoryItem*> item)
 
 TextState::TextState(
 	not_null<const HistoryItem*> item,
-	const Text::StateResult &state)
+	const Ui::Text::StateResult &state)
 : itemId(item->fullId())
 , cursor(state.uponSymbol
 	? CursorState::Text
@@ -42,7 +42,7 @@ TextState::TextState(
 
 TextState::TextState(
 	not_null<const HistoryView::Element*> view,
-	const Text::StateResult &state)
+	const Ui::Text::StateResult &state)
 : TextState(view->data(), state) {
 }
 
@@ -54,7 +54,7 @@ TextState::TextState(
 
 TextState::TextState(
 	std::nullptr_t,
-	const Text::StateResult &state)
+	const Ui::Text::StateResult &state)
 : cursor(state.uponSymbol
 	? CursorState::Text
 	: CursorState::None)

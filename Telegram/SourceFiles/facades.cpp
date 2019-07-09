@@ -9,16 +9,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/info_memento.h"
 #include "core/click_handler_types.h"
-#include "media/media_clip_reader.h"
-#include "window/window_controller.h"
+#include "core/application.h"
+#include "media/clip/media_clip_reader.h"
+#include "window/window_session_controller.h"
 #include "history/history_item_components.h"
+#include "platform/platform_info.h"
+#include "data/data_peer.h"
+#include "data/data_user.h"
 #include "observer_peer.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
-#include "messenger.h"
 #include "auth_session.h"
 #include "boxes/confirm_box.h"
+#include "boxes/url_auth_box.h"
 #include "window/layer_widget.h"
 #include "lang/lang_keys.h"
 #include "base/observer.h"
@@ -32,7 +36,7 @@ namespace App {
 namespace internal {
 
 void CallDelayed(int duration, FnMut<void()> &&lambda) {
-	Messenger::Instance().callDelayed(duration, std::move(lambda));
+	Core::App().callDelayed(duration, std::move(lambda));
 }
 
 } // namespace internal
@@ -60,15 +64,7 @@ void activateBotCommand(
 		not_null<const HistoryItem*> msg,
 		int row,
 		int column) {
-	const HistoryMessageMarkupButton *button = nullptr;
-	if (auto markup = msg->Get<HistoryMessageReplyMarkup>()) {
-		if (row < markup->rows.size()) {
-			auto &buttonRow = markup->rows[row];
-			if (column < buttonRow.size()) {
-				button = &buttonRow[column];
-			}
-		}
-	}
+	const auto button = HistoryMessageMarkupButton::Get(msg->fullId(), row, column);
 	if (!button) return;
 
 	using ButtonType = HistoryMessageMarkupButton::Type;
@@ -88,7 +84,7 @@ void activateBotCommand(
 	} break;
 
 	case ButtonType::Buy: {
-		Ui::show(Box<InformBox>(lang(lng_payments_not_supported)));
+		Ui::show(Box<InformBox>(tr::lng_payments_not_supported(tr::now)));
 	} break;
 
 	case ButtonType::Url: {
@@ -108,18 +104,18 @@ void activateBotCommand(
 
 	case ButtonType::RequestLocation: {
 		hideSingleUseKeyboard(msg);
-		Ui::show(Box<InformBox>(lang(lng_bot_share_location_unavailable)));
+		Ui::show(Box<InformBox>(tr::lng_bot_share_location_unavailable(tr::now)));
 	} break;
 
 	case ButtonType::RequestPhone: {
 		hideSingleUseKeyboard(msg);
 		const auto msgId = msg->id;
 		const auto history = msg->history();
-		Ui::show(Box<ConfirmBox>(lang(lng_bot_share_phone), lang(lng_bot_share_phone_confirm), [=] {
+		Ui::show(Box<ConfirmBox>(tr::lng_bot_share_phone(tr::now), tr::lng_bot_share_phone_confirm(tr::now), [=] {
 			Ui::showPeerHistory(history, ShowAtTheEndMsgId);
 			auto options = ApiWrap::SendOptions(history);
 			options.replyTo = msgId;
-			Auth().api().shareContact(Auth().user(), options);
+			history->session().api().shareContact(Auth().user(), options);
 		}));
 	} break;
 
@@ -145,21 +141,22 @@ void activateBotCommand(
 			}
 		}
 	} break;
+
+	case ButtonType::Auth:
+		UrlAuthBox::Activate(msg, row, column);
+		break;
 	}
 }
 
 void searchByHashtag(const QString &tag, PeerData *inPeer) {
 	if (const auto m = App::main()) {
 		Ui::hideSettingsAndLayer();
-		Messenger::Instance().hideMediaView();
-		if (inPeer && (!inPeer->isChannel() || inPeer->isMegagroup())) {
-			inPeer = nullptr;
-		}
+		Core::App().hideMediaView();
 		m->searchMessages(
 			tag + ' ',
-			(inPeer
-				? App::history(inPeer).get()
-				: Dialogs::Key()));
+			(inPeer && !inPeer->isUser())
+				? inPeer->owner().history(inPeer).get()
+				: Dialogs::Key());
 	}
 }
 
@@ -195,20 +192,6 @@ void showBox(
 
 } // namespace internal
 
-void showMediaPreview(
-		Data::FileOrigin origin,
-		not_null<DocumentData*> document) {
-	if (auto w = App::wnd()) {
-		w->ui_showMediaPreview(origin, document);
-	}
-}
-
-void showMediaPreview(Data::FileOrigin origin, not_null<PhotoData*> photo) {
-	if (auto w = App::wnd()) {
-		w->ui_showMediaPreview(origin, photo);
-	}
-}
-
 void hideLayer(anim::type animated) {
 	if (auto w = App::wnd()) {
 		w->ui_showBox(
@@ -230,11 +213,14 @@ bool isLayerShown() {
 }
 
 void showPeerProfile(const PeerId &peer) {
-	if (auto window = App::wnd()) {
-		if (auto controller = window->controller()) {
+	if (const auto window = App::wnd()) {
+		if (const auto controller = window->sessionController()) {
 			controller->showPeerInfo(peer);
 		}
 	}
+}
+void showPeerProfile(const PeerData *peer) {
+	showPeerProfile(peer->id);
 }
 
 void showPeerProfile(not_null<const History*> history) {
@@ -244,7 +230,7 @@ void showPeerProfile(not_null<const History*> history) {
 void showPeerHistory(
 		const PeerId &peer,
 		MsgId msgId) {
-	auto ms = getms();
+	auto ms = crl::now();
 	if (auto m = App::main()) {
 		m->ui_showPeerHistory(
 			peer,
@@ -261,8 +247,12 @@ void showPeerHistory(not_null<const History*> history, MsgId msgId) {
 	showPeerHistory(history->peer->id, msgId);
 }
 
+void showPeerHistory(const PeerData *peer, MsgId msgId) {
+	showPeerHistory(peer->id, msgId);
+}
+
 PeerData *getPeerForMouseAction() {
-	return Messenger::Instance().ui_getPeerForMouseAction();
+	return Core::App().ui_getPeerForMouseAction();
 }
 
 bool skipPaintEvent(QWidget *widget, QPaintEvent *event) {
@@ -312,10 +302,6 @@ bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, 
 	return false;
 }
 
-void migrateUpdated(PeerData *peer) {
-	if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
-}
-
 void historyMuteUpdated(History *history) {
 	if (MainWidget *m = App::main()) m->notify_historyMuteUpdated(history);
 }
@@ -341,227 +327,20 @@ void Set##Name(const Type &Name) { \
 	Namespace##Data->Name = Name; \
 }
 
-namespace Sandbox {
-namespace internal {
-
-struct Data {
-	QByteArray LastCrashDump;
-	ProxyData PreLaunchProxy;
-};
-
-} // namespace internal
-} // namespace Sandbox
-
-std::unique_ptr<Sandbox::internal::Data> SandboxData;
-uint64 SandboxUserTag = 0;
-
-namespace Sandbox {
-
-bool MoveLegacyAlphaFolder(const QString &folder, const QString &file) {
-	const auto was = cExeDir() + folder;
-	const auto now = cExeDir() + qsl("TelegramForcePortable");
-	if (QDir(was).exists() && !QDir(now).exists()) {
-		const auto oldFile = was + "/tdata/" + file;
-		const auto newFile = was + "/tdata/alpha";
-		if (QFile(oldFile).exists() && !QFile(newFile).exists()) {
-			if (!QFile(oldFile).copy(newFile)) {
-				LOG(("FATAL: Could not copy '%1' to '%2'"
-					).arg(oldFile
-					).arg(newFile));
-				return false;
-			}
-		}
-		if (!QDir().rename(was, now)) {
-			LOG(("FATAL: Could not rename '%1' to '%2'"
-				).arg(was
-				).arg(now));
-			return false;
-		}
-	}
-	return true;
-}
-
-bool MoveLegacyAlphaFolder() {
-	if (!MoveLegacyAlphaFolder(qsl("TelegramAlpha_data"), qsl("alpha"))
-		|| !MoveLegacyAlphaFolder(qsl("TelegramBeta_data"), qsl("beta"))) {
-		return false;
-	}
-	return true;
-}
-
-bool CheckPortableVersionDir() {
-	if (!MoveLegacyAlphaFolder()) {
-		return false;
-	}
-
-	const auto portable = cExeDir() + qsl("TelegramForcePortable");
-	QFile key(portable + qsl("/tdata/alpha"));
-	if (cAlphaVersion()) {
-		Assert(*AlphaPrivateKey != 0);
-
-		cForceWorkingDir(portable + '/');
-		QDir().mkpath(cWorkingDir() + qstr("tdata"));
-		cSetAlphaPrivateKey(QByteArray(AlphaPrivateKey));
-		if (!key.open(QIODevice::WriteOnly)) {
-			LOG(("FATAL: Could not open '%1' for writing private key!"
-				).arg(key.fileName()));
-			return false;
-		}
-		QDataStream dataStream(&key);
-		dataStream.setVersion(QDataStream::Qt_5_3);
-		dataStream << quint64(cRealAlphaVersion()) << cAlphaPrivateKey();
-		return true;
-	}
-	if (!QDir(portable).exists()) {
-		return true;
-	}
-	cForceWorkingDir(portable + '/');
-	if (!key.exists()) {
-		return true;
-	}
-
-	if (!key.open(QIODevice::ReadOnly)) {
-		LOG(("FATAL: could not open '%1' for reading private key. "
-			"Delete it or reinstall private alpha version."
-			).arg(key.fileName()));
-		return false;
-	}
-	QDataStream dataStream(&key);
-	dataStream.setVersion(QDataStream::Qt_5_3);
-
-	quint64 v;
-	QByteArray k;
-	dataStream >> v >> k;
-	if (dataStream.status() != QDataStream::Ok || k.isEmpty()) {
-		LOG(("FATAL: '%1' is corrupted. "
-			"Delete it or reinstall private alpha version."
-			).arg(key.fileName()));
-		return false;
-	}
-	cSetAlphaVersion(AppVersion * 1000ULL);
-	cSetAlphaPrivateKey(k);
-	cSetRealAlphaVersion(v);
-	return true;
-}
-
-QString InstallBetaVersionsSettingPath() {
-	return cWorkingDir() + qsl("tdata/devversion");
-}
-
-void WriteInstallBetaVersionsSetting() {
-	QFile f(InstallBetaVersionsSettingPath());
-	if (f.open(QIODevice::WriteOnly)) {
-		f.write(cInstallBetaVersion() ? "1" : "0");
-	}
-}
-
-QString DebugModeSettingPath() {
-	return cWorkingDir() + qsl("tdata/withdebug");
-}
-
-void WriteDebugModeSetting() {
-	QFile f(DebugModeSettingPath());
-	if (f.open(QIODevice::WriteOnly)) {
-		f.write(Logs::DebugEnabled() ? "1" : "0");
-	}
-}
-
-void ComputeTestMode() {
-	if (QFile(cWorkingDir() + qsl("tdata/withtestmode")).exists()) {
-		cSetTestMode(true);
-	}
-}
-
-void ComputeDebugMode() {
-	Logs::SetDebugEnabled(cAlphaVersion() != 0);
-	const auto debugModeSettingPath = DebugModeSettingPath();
-	if (QFile(debugModeSettingPath).exists()) {
-		QFile f(debugModeSettingPath);
-		if (f.open(QIODevice::ReadOnly)) {
-			Logs::SetDebugEnabled(f.read(1) != "0");
-		}
-	}
-}
-
-void ComputeInstallBetaVersions() {
-	const auto installBetaSettingPath = InstallBetaVersionsSettingPath();
-	if (cAlphaVersion()) {
-		cSetInstallBetaVersion(false);
-	} else if (QFile(installBetaSettingPath).exists()) {
-		QFile f(installBetaSettingPath);
-		if (f.open(QIODevice::ReadOnly)) {
-			cSetInstallBetaVersion(f.read(1) != "0");
-		}
-	} else if (AppBetaVersion) {
-		WriteInstallBetaVersionsSetting();
-	}
-}
-
-void ComputeUserTag() {
-	SandboxUserTag = 0;
-	QFile usertag(cWorkingDir() + qsl("tdata/usertag"));
-	if (usertag.open(QIODevice::ReadOnly)) {
-		if (usertag.read(reinterpret_cast<char*>(&SandboxUserTag), sizeof(uint64)) != sizeof(uint64)) {
-			SandboxUserTag = 0;
-		}
-		usertag.close();
-	}
-	if (!SandboxUserTag) {
-		do {
-			memsetrnd_bad(SandboxUserTag);
-		} while (!SandboxUserTag);
-
-		if (usertag.open(QIODevice::WriteOnly)) {
-			usertag.write(reinterpret_cast<char*>(&SandboxUserTag), sizeof(uint64));
-			usertag.close();
-		}
-	}
-}
-
-void WorkingDirReady() {
-	srand((int32)time(NULL));
-
-	ComputeTestMode();
-	ComputeDebugMode();
-	ComputeInstallBetaVersions();
-	ComputeUserTag();
-}
-
-void start() {
-	SandboxData = std::make_unique<internal::Data>();
-}
-
-bool started() {
-	return (SandboxData != nullptr);
-}
-
-void finish() {
-	SandboxData.reset();
-}
-
-uint64 UserTag() {
-	return SandboxUserTag;
-}
-
-DefineVar(Sandbox, QByteArray, LastCrashDump);
-DefineVar(Sandbox, ProxyData, PreLaunchProxy);
-
-} // namespace Sandbox
-
 namespace Global {
 namespace internal {
 
 struct Data {
-	SingleQueuedInvokation HandleUnreadCounterUpdate = { [] { Messenger::Instance().call_handleUnreadCounterUpdate(); } };
-	SingleQueuedInvokation HandleDelayedPeerUpdates = { [] { Messenger::Instance().call_handleDelayedPeerUpdates(); } };
-	SingleQueuedInvokation HandleObservables = { [] { Messenger::Instance().call_handleObservables(); } };
+	SingleQueuedInvokation HandleUnreadCounterUpdate = { [] { Core::App().call_handleUnreadCounterUpdate(); } };
+	SingleQueuedInvokation HandleDelayedPeerUpdates = { [] { Core::App().call_handleDelayedPeerUpdates(); } };
+	SingleQueuedInvokation HandleObservables = { [] { Core::App().call_handleObservables(); } };
 
 	Adaptive::WindowLayout AdaptiveWindowLayout = Adaptive::WindowLayout::Normal;
 	Adaptive::ChatLayout AdaptiveChatLayout = Adaptive::ChatLayout::Normal;
 	bool AdaptiveForWide = false;
 	base::Observable<void> AdaptiveChanged;
 
-	bool DialogsModeEnabled = true;
+	bool DialogsModeEnabled = false;
 	Dialogs::Mode DialogsMode = Dialogs::Mode::All;
 	bool ModerateModeEnabled = false;
 
@@ -596,6 +375,7 @@ struct Data {
 	int32 StickersRecentLimit = 30;
 	int32 StickersFavedLimit = 5;
 	int32 PinnedDialogsCountMax = 5;
+	int32 PinnedDialogsInFolderMax = 100;
 	QString InternalLinksDomain = qsl("https://t.me/");
 	int32 ChannelsReadMediaPeriod = 86400 * 7;
 	int32 CallReceiveTimeoutMs = 20000;
@@ -615,16 +395,14 @@ struct Data {
 
 	Stickers::Sets StickerSets;
 	Stickers::Order StickerSetsOrder;
-	TimeMs LastStickersUpdate = 0;
-	TimeMs LastRecentStickersUpdate = 0;
-	TimeMs LastFavedStickersUpdate = 0;
+	crl::time LastStickersUpdate = 0;
+	crl::time LastRecentStickersUpdate = 0;
+	crl::time LastFavedStickersUpdate = 0;
 	Stickers::Order FeaturedStickerSetsOrder;
 	int FeaturedStickerSetsUnreadCount = 0;
 	base::Observable<void> FeaturedStickerSetsUnreadCountChanged;
-	TimeMs LastFeaturedStickersUpdate = 0;
+	crl::time LastFeaturedStickersUpdate = 0;
 	Stickers::Order ArchivedStickerSetsOrder;
-
-	CircleMasksMap CircleMasks;
 
 	bool AskDownloadPath = false;
 	QString DownloadPath;
@@ -645,7 +423,7 @@ struct Data {
 	Notify::ScreenCorner NotificationsCorner = Notify::ScreenCorner::BottomRight;
 	bool NotificationsDemoIsShown = false;
 
-	bool TryIPv6 = (cPlatform() == dbipWindows) ? false : true;
+	bool TryIPv6 = !Platform::IsWindows();
 	std::vector<ProxyData> ProxiesList;
 	ProxyData SelectedProxy;
 	ProxyData::Settings ProxySettings = ProxyData::Settings::System;
@@ -736,6 +514,7 @@ DefineVar(Global, bool, RevokePrivateInbox);
 DefineVar(Global, int32, StickersRecentLimit);
 DefineVar(Global, int32, StickersFavedLimit);
 DefineVar(Global, int32, PinnedDialogsCountMax);
+DefineVar(Global, int32, PinnedDialogsInFolderMax);
 DefineVar(Global, QString, InternalLinksDomain);
 DefineVar(Global, int32, ChannelsReadMediaPeriod);
 DefineVar(Global, int32, CallReceiveTimeoutMs);
@@ -753,16 +532,14 @@ DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
 
 DefineVar(Global, Stickers::Sets, StickerSets);
 DefineVar(Global, Stickers::Order, StickerSetsOrder);
-DefineVar(Global, TimeMs, LastStickersUpdate);
-DefineVar(Global, TimeMs, LastRecentStickersUpdate);
-DefineVar(Global, TimeMs, LastFavedStickersUpdate);
+DefineVar(Global, crl::time, LastStickersUpdate);
+DefineVar(Global, crl::time, LastRecentStickersUpdate);
+DefineVar(Global, crl::time, LastFavedStickersUpdate);
 DefineVar(Global, Stickers::Order, FeaturedStickerSetsOrder);
 DefineVar(Global, int, FeaturedStickerSetsUnreadCount);
 DefineRefVar(Global, base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);
-DefineVar(Global, TimeMs, LastFeaturedStickersUpdate);
+DefineVar(Global, crl::time, LastFeaturedStickersUpdate);
 DefineVar(Global, Stickers::Order, ArchivedStickerSetsOrder);
-
-DefineRefVar(Global, CircleMasksMap, CircleMasks);
 
 DefineVar(Global, bool, AskDownloadPath);
 DefineVar(Global, QString, DownloadPath);
@@ -798,7 +575,7 @@ DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 
 DefineRefVar(Global, base::Observable<void>, UnreadCounterUpdate);
 DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
-	
+
 DefineVar(Global, QString, CallOutputDeviceID);
 DefineVar(Global, QString, CallInputDeviceID);
 DefineVar(Global, int, CallOutputVolume);

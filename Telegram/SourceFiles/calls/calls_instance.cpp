@@ -8,22 +8,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 
 #include "mtproto/connection.h"
-#include "messenger.h"
+#include "core/application.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
 #include "calls/calls_call.h"
 #include "calls/calls_panel.h"
-#include "media/media_audio_track.h"
+#include "data/data_user.h"
+#include "data/data_session.h"
+#include "media/audio/media_audio_track.h"
 #include "platform/platform_specific.h"
 #include "mainwidget.h"
-
 #include "boxes/rate_call_box.h"
+
 namespace Calls {
 namespace {
 
-constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * TimeMs(1000);
+constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * crl::time(1000);
 
 } // namespace
 
@@ -37,7 +39,7 @@ void Instance::startOutgoingCall(not_null<UserData*> user) {
 	if (user->callsStatus() == UserData::CallsStatus::Private) {
 		// Request full user once more to refresh the setting in case it was changed.
 		Auth().api().requestFullPeer(user);
-		Ui::show(Box<InformBox>(lng_call_error_not_available(lt_user, App::peerName(user))));
+		Ui::show(Box<InformBox>(tr::lng_call_error_not_available(tr::now, lt_user, App::peerName(user))));
 		return;
 	}
 	requestMicrophonePermissionOrFail(crl::guard(this, [=] {
@@ -99,15 +101,18 @@ void Instance::destroyCall(not_null<Call*> call) {
 		if (App::quitting()) {
 			LOG(("Calls::Instance doesn't prevent quit any more."));
 		}
-		Messenger::Instance().quitPreventFinished();
+		Core::App().quitPreventFinished();
 	}
 }
 
 void Instance::destroyCurrentPanel() {
-	_pendingPanels.erase(std::remove_if(_pendingPanels.begin(), _pendingPanels.end(), [](auto &&panel) {
-		return !panel;
-	}), _pendingPanels.end());
-	_pendingPanels.push_back(_currentCallPanel.release());
+	_pendingPanels.erase(
+		std::remove_if(
+			_pendingPanels.begin(),
+			_pendingPanels.end(),
+			[](auto &&panel) { return !panel; }),
+		_pendingPanels.end());
+	_pendingPanels.emplace_back(_currentCallPanel.release());
 	_pendingPanels.back()->hideAndDestroy(); // Always queues the destruction.
 }
 
@@ -128,68 +133,77 @@ void Instance::createCall(not_null<UserData*> user, Call::Type type) {
 
 void Instance::refreshDhConfig() {
 	Expects(_currentCall != nullptr);
+
+	const auto weak = base::make_weak(_currentCall);
 	request(MTPmessages_GetDhConfig(
 		MTP_int(_dhConfig.version),
 		MTP_int(MTP::ModExpFirst::kRandomPowerSize)
-	)).done([this, call = base::make_weak(_currentCall)](
-			const MTPmessages_DhConfig &result) {
-		auto random = bytes::const_span();
-		switch (result.type()) {
-		case mtpc_messages_dhConfig: {
-			auto &config = result.c_messages_dhConfig();
-			if (!MTP::IsPrimeAndGood(bytes::make_span(config.vp.v), config.vg.v)) {
-				LOG(("API Error: bad p/g received in dhConfig."));
-				callFailed(call.get());
-				return;
-			}
-			_dhConfig.g = config.vg.v;
-			_dhConfig.p = bytes::make_vector(config.vp.v);
-			random = bytes::make_span(config.vrandom.v);
-		} break;
-
-		case mtpc_messages_dhConfigNotModified: {
-			auto &config = result.c_messages_dhConfigNotModified();
-			random = bytes::make_span(config.vrandom.v);
-			if (!_dhConfig.g || _dhConfig.p.empty()) {
-				LOG(("API Error: dhConfigNotModified on zero version."));
-				callFailed(call.get());
-				return;
-			}
-		} break;
-
-		default: Unexpected("Type in messages.getDhConfig");
-		}
-
-		if (random.size() != MTP::ModExpFirst::kRandomPowerSize) {
-			LOG(("API Error: dhConfig random bytes wrong size: %1").arg(random.size()));
-			callFailed(call.get());
-			return;
-		}
-		if (call) {
-			call->start(random);
-		}
-	}).fail([this, call = base::make_weak(_currentCall)](
-			const RPCError &error) {
+	)).done([=](const MTPmessages_DhConfig &result) {
+		const auto call = weak.get();
+		const auto random = updateDhConfig(result);
 		if (!call) {
-			DEBUG_LOG(("API Warning: call was destroyed before got dhConfig."));
 			return;
 		}
-		callFailed(call.get());
+		if (!random.empty()) {
+			Assert(random.size() == MTP::ModExpFirst::kRandomPowerSize);
+			call->start(random);
+		} else {
+			callFailed(call);
+		}
+	}).fail([=](const RPCError &error) {
+		const auto call = weak.get();
+		if (!call) {
+			return;
+		}
+		callFailed(call);
 	}).send();
+}
+
+bytes::const_span Instance::updateDhConfig(
+		const MTPmessages_DhConfig &data) {
+	const auto validRandom = [](const QByteArray & random) {
+		if (random.size() != MTP::ModExpFirst::kRandomPowerSize) {
+			return false;
+		}
+		return true;
+	};
+	return data.match([&](const MTPDmessages_dhConfig &data)
+	-> bytes::const_span {
+		auto primeBytes = bytes::make_vector(data.vp().v);
+		if (!MTP::IsPrimeAndGood(primeBytes, data.vg().v)) {
+			LOG(("API Error: bad p/g received in dhConfig."));
+			return {};
+		} else if (!validRandom(data.vrandom().v)) {
+			return {};
+		}
+		_dhConfig.g = data.vg().v;
+		_dhConfig.p = std::move(primeBytes);
+		_dhConfig.version = data.vversion().v;
+		return bytes::make_span(data.vrandom().v);
+	}, [&](const MTPDmessages_dhConfigNotModified &data)
+	-> bytes::const_span {
+		if (!_dhConfig.g || _dhConfig.p.empty()) {
+			LOG(("API Error: dhConfigNotModified on zero version."));
+			return {};
+		} else if (!validRandom(data.vrandom().v)) {
+			return {};
+		}
+		return bytes::make_span(data.vrandom().v);
+	});
 }
 
 void Instance::refreshServerConfig() {
 	if (_serverConfigRequestId) {
 		return;
 	}
-	if (_lastServerConfigUpdateTime && (getms(true) - _lastServerConfigUpdateTime) < kServerConfigUpdateTimeoutMs) {
+	if (_lastServerConfigUpdateTime && (crl::now() - _lastServerConfigUpdateTime) < kServerConfigUpdateTimeoutMs) {
 		return;
 	}
 	_serverConfigRequestId = request(MTPphone_GetCallConfig()).done([this](const MTPDataJSON &result) {
 		_serverConfigRequestId = 0;
-		_lastServerConfigUpdateTime = getms(true);
+		_lastServerConfigUpdateTime = crl::now();
 
-		const auto &json = result.c_dataJSON().vdata.v;
+		const auto &json = result.c_dataJSON().vdata().v;
 		UpdateConfig(std::string(json.data(), json.size()));
 	}).fail([this](const RPCError &error) {
 		_serverConfigRequestId = 0;
@@ -197,7 +211,7 @@ void Instance::refreshServerConfig() {
 }
 
 void Instance::handleUpdate(const MTPDupdatePhoneCall& update) {
-	handleCallUpdate(update.vphone_call);
+	handleCallUpdate(update.vphone_call());
 }
 
 void Instance::showInfoPanel(not_null<Call*> call) {
@@ -214,22 +228,28 @@ bool Instance::isQuitPrevent() {
 	if (!_currentCall) {
 		return false;
 	}
-	LOG(("Calls::Instance prevents quit, saving drafts..."));
+	LOG(("Calls::Instance prevents quit, hanging up a call..."));
 	return true;
 }
 
 void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 	if (call.type() == mtpc_phoneCallRequested) {
 		auto &phoneCall = call.c_phoneCallRequested();
-		auto user = App::userLoaded(phoneCall.vadmin_id.v);
+		auto user = Auth().data().userLoaded(phoneCall.vadmin_id().v);
 		if (!user) {
 			LOG(("API Error: User not loaded for phoneCallRequested."));
 		} else if (user->isSelf()) {
 			LOG(("API Error: Self found in phoneCallRequested."));
 		}
 		if (alreadyInCall() || !user || user->isSelf()) {
-			request(MTPphone_DiscardCall(MTP_inputPhoneCall(phoneCall.vid, phoneCall.vaccess_hash), MTP_int(0), MTP_phoneCallDiscardReasonBusy(), MTP_long(0))).send();
-		} else if (phoneCall.vdate.v + (Global::CallRingTimeoutMs() / 1000) < unixtime()) {
+			request(MTPphone_DiscardCall(
+				MTP_flags(0),
+				MTP_inputPhoneCall(phoneCall.vid(), phoneCall.vaccess_hash()),
+				MTP_int(0),
+				MTP_phoneCallDiscardReasonBusy(),
+				MTP_long(0)
+			)).send();
+		} else if (phoneCall.vdate().v + (Global::CallRingTimeoutMs() / 1000) < unixtime()) {
 			LOG(("Ignoring too old call."));
 		} else {
 			createCall(user, Call::Type::Incoming);
@@ -266,7 +286,7 @@ void Instance::requestMicrophonePermissionOrFail(Fn<void()> onSuccess) {
 		if (alreadyInCall()) {
 			_currentCall->hangup();
 		}
-		Ui::show(Box<ConfirmBox>(lang(lng_no_mic_permission), lang(lng_menu_settings), crl::guard(this, [] {
+		Ui::show(Box<ConfirmBox>(tr::lng_no_mic_permission(tr::now), tr::lng_menu_settings(tr::now), crl::guard(this, [] {
 			Platform::OpenSystemSettingsForPermission(Platform::PermissionType::Microphone);
 			Ui::hideLayer();
 		})));

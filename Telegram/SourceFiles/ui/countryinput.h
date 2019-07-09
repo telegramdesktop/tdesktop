@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "styles/style_widgets.h"
 
-QString findValidCode(QString fullCode);
+namespace Data {
+struct CountryInfo;
+} // namespace Data
 
 namespace Ui {
 class MultiSelect;
@@ -63,9 +65,6 @@ public:
 
 	CountrySelectBox(QWidget*);
 	CountrySelectBox(QWidget*, const QString &iso, Type type);
-
-	static QString NameByISO(const QString &iso);
-	static QString ISOByPhone(const QString &phone);
 
 signals:
 	void countryChosen(const QString &iso);
@@ -127,6 +126,7 @@ private:
 	void updateSelectedRow();
 	void updateRow(int index);
 	void setPressed(int pressed);
+	const std::vector<not_null<const Data::CountryInfo*>> &current() const;
 
 	Type _type = Type::Phones;
 	int _rowHeight = 0;
@@ -137,5 +137,10 @@ private:
 	bool _mouseSelection = false;
 
 	std::vector<std::unique_ptr<Ui::RippleAnimation>> _ripples;
+
+	std::vector<not_null<const Data::CountryInfo*>> _list;
+	std::vector<not_null<const Data::CountryInfo*>> _filtered;
+	base::flat_map<QChar, std::vector<int>> _byLetter;
+	std::vector<std::vector<QString>> _namesList;
 
 };

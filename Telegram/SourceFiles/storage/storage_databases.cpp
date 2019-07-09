@@ -72,7 +72,7 @@ DatabasePointer Databases::get(
 	if (const auto i = _map.find(path); i != end(_map)) {
 		auto &kept = i->second;
 		Assert(kept.destroying.alive());
-		kept.destroying.kill();
+		kept.destroying = nullptr;
 		kept.database->reconfigure(settings);
 		return DatabasePointer(this, kept.database);
 	}
@@ -88,14 +88,12 @@ void Databases::destroy(Cache::Database *database) {
 		auto &kept = entry.second;
 		if (kept.database.get() == database) {
 			Assert(!kept.destroying.alive());
-			auto [first, second] = base::make_binary_guard();
-			kept.destroying = std::move(first);
 			database->close();
-			database->waitForCleaner([=, guard = std::move(second)]() mutable {
-				crl::on_main([=, guard = std::move(guard)]{
-					if (!guard.alive()) {
-						return;
-					}
+			database->waitForCleaner([
+				=,
+				guard = kept.destroying.make_guard()
+			]() mutable {
+				crl::on_main(std::move(guard), [=] {
 					_map.erase(path);
 				});
 			});

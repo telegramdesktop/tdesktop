@@ -14,24 +14,24 @@ https://git.io/TD
 #include "styles/style_boxes.h"
 
 TypingBox::TypingBox(QWidget *parent)
-: _onlineContact(this, lang(lng_edit_privacy_contacts), (cTyping() & 0x1), st::defaultBoxCheckbox)
-, _onlineEveryone(this, lang(lng_edit_privacy_everyone), (cTyping() & 0x2), st::defaultBoxCheckbox)
-, _typingPrivateContact(this, lang(lng_export_option_personal_chats), (cTyping() & 0x10), st::defaultBoxCheckbox)
-, _typingGroupContact(this, lang(lng_group_status), (cTyping() & 0x20), st::defaultBoxCheckbox)
-, _typingSupergroupContact(this, lang(lng_telegreat_supergroup), (cTyping() & 0x40), st::defaultBoxCheckbox)
-, _typingPrivate(this, lang(lng_export_option_personal_chats), (cTyping() & 0x100), st::defaultBoxCheckbox)
-, _typingGroup(this, lang(lng_group_status), (cTyping() & 0x200), st::defaultBoxCheckbox)
-, _typingSupergroup(this, lang(lng_telegreat_supergroup), (cTyping() & 0x400), st::defaultBoxCheckbox)
+: _onlineContact(this, tr::lng_edit_privacy_contacts(tr::now), (cTyping() & 0x1), st::defaultBoxCheckbox)
+, _onlineEveryone(this, tr::lng_edit_privacy_everyone(tr::now), (cTyping() & 0x2), st::defaultBoxCheckbox)
+, _typingPrivateContact(this, tr::lng_export_option_personal_chats(tr::now), (cTyping() & 0x10), st::defaultBoxCheckbox)
+, _typingGroupContact(this, tr::lng_group_status(tr::now), (cTyping() & 0x20), st::defaultBoxCheckbox)
+, _typingSupergroupContact(this, tr::lng_telegreat_supergroup(tr::now), (cTyping() & 0x40), st::defaultBoxCheckbox)
+, _typingPrivate(this, tr::lng_export_option_personal_chats(tr::now), (cTyping() & 0x100), st::defaultBoxCheckbox)
+, _typingGroup(this, tr::lng_group_status(tr::now), (cTyping() & 0x200), st::defaultBoxCheckbox)
+, _typingSupergroup(this, tr::lng_telegreat_supergroup(tr::now), (cTyping() & 0x400), st::defaultBoxCheckbox)
 , _about()
 , _sectionHeight1(st::boxTitleHeight + 2 * (st::defaultCheck.diameter + st::setLittleSkip))
 , _sectionHeight2(st::boxTitleHeight + 3 * (st::defaultCheck.diameter + st::setLittleSkip)) {
 }
 
 void TypingBox::prepare() {
-	addButton(langFactory(lng_connection_save), [this] { onSave(); });
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	addButton(tr::lng_connection_save(), [this] { onSave(); });
+	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
-	_about.setRichText(st::usernameTextStyle, lang(lng_telegreat_typing_desc));
+	_about.setRichText(st::usernameTextStyle, tr::lng_telegreat_typing_desc(tr::now));
 
 	setDimensions(st::boxWidth, 3 * _sectionHeight2 - st::autoDownloadTopDelta + st::setLittleSkip + _typingSupergroup->heightNoMargins() + st::setLittleSkip);
 }
@@ -43,9 +43,9 @@ void TypingBox::paintEvent(QPaintEvent *e) {
 
 	p.setPen(st::boxTitleFg);
 	p.setFont(st::autoDownloadTitleFont);
-	p.drawTextLeft(st::autoDownloadTitlePosition.x(), st::autoDownloadTitlePosition.y(), width(), lang(lng_telegreat_online_toast));
-	p.drawTextLeft(st::autoDownloadTitlePosition.x(), _sectionHeight1 + st::autoDownloadTitlePosition.y(), width(), lang(lng_telegreat_typing_toast_contact));
-	p.drawTextLeft(st::autoDownloadTitlePosition.x(), _sectionHeight1 + _sectionHeight2 + st::autoDownloadTitlePosition.y(), width(), lang(lng_telegreat_typing_toast_all));
+	p.drawTextLeft(st::autoDownloadTitlePosition.x(), st::autoDownloadTitlePosition.y(), width(), tr::lng_telegreat_online_toast(tr::now));
+	p.drawTextLeft(st::autoDownloadTitlePosition.x(), _sectionHeight1 + st::autoDownloadTitlePosition.y(), width(), tr::lng_telegreat_typing_toast_contact(tr::now));
+	p.drawTextLeft(st::autoDownloadTitlePosition.x(), _sectionHeight1 + _sectionHeight2 + st::autoDownloadTitlePosition.y(), width(), tr::lng_telegreat_typing_toast_all(tr::now));
 
 	_about.drawLeft(p, st::autoDownloadTitlePosition.x(), _sectionHeight1 + 2 * _sectionHeight2 + st::autoDownloadTitlePosition.y(), width(), width());
 }
