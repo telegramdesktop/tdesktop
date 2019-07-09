@@ -11,7 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "logs.h"
 
 #include <QImage>
+
+#ifdef TDESKTOP_OFFICIAL_TARGET
 #include <private/qdrawhelper_p.h>
+#endif // TDESKTOP_OFFICIAL_TARGET
 
 extern "C" {
 #include <libavutil/opt.h>
@@ -42,6 +45,58 @@ void AlignedImageBufferCleanupHandler(void* data) {
 [[nodiscard]] bool IsAlignedImage(const QImage &image) {
 	return !(reinterpret_cast<uintptr_t>(image.bits()) % kAlignImageBy)
 		&& !(image.bytesPerLine() % kAlignImageBy);
+}
+
+void UnPremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
+#ifdef TDESKTOP_OFFICIAL_TARGET
+	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
+	const auto convert = layout->convertFromARGB32PM;
+#else // TDESKTOP_OFFICIAL_TARGET
+	const auto layout = nullptr;
+	const auto convert = [](
+			uint *dst,
+			const uint *src,
+			int count,
+			std::nullptr_t,
+			std::nullptr_t) {
+		for (auto i = 0; i != count; ++i) {
+			dst[i] = qUnpremultiply(src[i]);
+		}
+	};
+#endif // TDESKTOP_OFFICIAL_TARGET
+
+	convert(
+		reinterpret_cast<uint*>(dst),
+		reinterpret_cast<const uint*>(src),
+		intsCount,
+		layout,
+		nullptr);
+}
+
+void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
+#ifdef TDESKTOP_OFFICIAL_TARGET
+	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
+	const auto convert = layout->convertToARGB32PM;
+#else // TDESKTOP_OFFICIAL_TARGET
+	const auto layout = nullptr;
+	const auto convert = [](
+			uint *dst,
+			const uint *src,
+			int count,
+			std::nullptr_t,
+			std::nullptr_t) {
+		for (auto i = 0; i != count; ++i) {
+			dst[i] = qPremultiply(src[i]);
+		}
+	};
+#endif // TDESKTOP_OFFICIAL_TARGET
+
+	convert(
+		reinterpret_cast<uint*>(dst),
+		reinterpret_cast<const uint*>(src),
+		intsCount,
+		layout,
+		nullptr);
 }
 
 } // namespace
@@ -360,58 +415,35 @@ void UnPremultiply(QImage &to, const QImage &from) {
 	if (!GoodStorageForFrame(to, from.size())) {
 		to = CreateFrameStorage(from.size());
 	}
-
-	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
-	const auto convert = layout->convertFromARGB32PM;
 	const auto fromPerLine = from.bytesPerLine();
 	const auto toPerLine = to.bytesPerLine();
 	const auto width = from.width();
+	const auto height = from.height();
+	auto fromBytes = from.bits();
+	auto toBytes = to.bits();
 	if (fromPerLine != width * 4 || toPerLine != width * 4) {
-		auto fromBytes = from.bits();
-		auto toBytes = to.bits();
-		for (auto i = 0; i != to.height(); ++i) {
-			convert(
-				reinterpret_cast<uint*>(toBytes),
-				reinterpret_cast<const uint*>(fromBytes),
-				width,
-				layout,
-				nullptr);
+		for (auto i = 0; i != height; ++i) {
+			UnPremultiplyLine(toBytes, fromBytes, width);
 			fromBytes += fromPerLine;
 			toBytes += toPerLine;
 		}
 	} else {
-		convert(
-			reinterpret_cast<uint*>(to.bits()),
-			reinterpret_cast<const uint*>(from.bits()),
-			from.width() * from.height(),
-			layout,
-			nullptr);
+		UnPremultiplyLine(toBytes, fromBytes, width * height);
 	}
 }
 
 void PremultiplyInplace(QImage &image) {
-	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
-	const auto convert = layout->convertToARGB32PM;
 	const auto perLine = image.bytesPerLine();
 	const auto width = image.width();
+	const auto height = image.height();
+	auto bytes = image.bits();
 	if (perLine != width * 4) {
-		auto bytes = image.bits();
-		for (auto i = 0; i != image.height(); ++i) {
-			convert(
-				reinterpret_cast<uint*>(bytes),
-				reinterpret_cast<const uint*>(bytes),
-				width,
-				layout,
-				nullptr);
+		for (auto i = 0; i != height; ++i) {
+			PremultiplyLine(bytes, bytes, width);
 			bytes += perLine;
 		}
 	} else {
-		convert(
-			reinterpret_cast<uint*>(image.bits()),
-			reinterpret_cast<const uint*>(image.bits()),
-			image.width() * image.height(),
-			layout,
-			nullptr);
+		PremultiplyLine(bytes, bytes, width * height);
 	}
 }
 
