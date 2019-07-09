@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Lottie {
 
 inline constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
-inline constexpr auto kMaxFileSize = 1024 * 1024;
+inline constexpr auto kMaxFileSize = 2 * 1024 * 1024;
 
 class Animation;
 

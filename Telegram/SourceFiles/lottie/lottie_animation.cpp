@@ -22,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Lottie {
 namespace {
 
+const auto kIdealSize = QSize(512, 512);
+
 std::string UnpackGzip(const QByteArray &bytes) {
 	const auto original = [&] {
 		return std::string(bytes.constData(), bytes.size());
@@ -87,7 +89,7 @@ details::InitData Init(
 	return animation
 		? CheckSharedState(std::make_unique<SharedState>(
 			std::move(animation),
-			request,
+			request.empty() ? FrameRequest{ kIdealSize } : request,
 			quality))
 		: Error::ParseFailed;
 }
@@ -98,6 +100,8 @@ details::InitData Init(
 		const QByteArray &cached,
 		const FrameRequest &request,
 		Quality quality) {
+	Expects(!request.empty());
+
 	if (const auto error = ContentError(content)) {
 		return *error;
 	}

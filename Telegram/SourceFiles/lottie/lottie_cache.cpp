@@ -438,7 +438,7 @@ bool Cache::readHeader(const FrameRequest &request) {
 		|| (original.width() > kMaxSize)
 		|| (original.height() > kMaxSize)
 		|| (frameRate <= 0)
-		|| (frameRate > kMaxFrameRate)
+		|| (frameRate > kNormalFrameRate && frameRate != kMaxFrameRate)
 		|| (framesCount <= 0)
 		|| (framesCount > kMaxFramesCount)
 		|| (framesReady <= 0)
