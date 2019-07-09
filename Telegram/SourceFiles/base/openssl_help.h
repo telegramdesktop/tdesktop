@@ -450,7 +450,7 @@ inline bytes::vector HmacSha256(
 		bytes::const_span key,
 		bytes::const_span data) {
 	auto result = bytes::vector(kSha256Size);
-	auto length = unsigned int(kSha256Size);
+	auto length = (unsigned int)kSha256Size;
 
 	HMAC(
 		EVP_sha256(),

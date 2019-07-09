@@ -184,8 +184,8 @@ void _initMsgIdConstants() {
 	const auto valid = (size == 16)
 		|| (size == 17
 			&& (password[0] == '3')
-			&& ((password[1] >= 'Q') && (password[1] <= 'Z')
-				|| (password[1] >= 'a') && (password[1] <= 'f')))
+			&& ((password[1] >= 'Q' && password[1] <= 'Z')
+				|| (password[1] >= 'a' && password[1] <= 'f')))
 		|| (size >= 21
 			&& (password[0] == '7')
 			&& (password[1] >= 'g')
