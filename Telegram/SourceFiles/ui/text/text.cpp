@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "mainwindow.h"
 
+#include <private/qfontengine_p.h>
 #include <private/qharfbuzz_p.h>
 
 namespace Ui {
