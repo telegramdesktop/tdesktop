@@ -307,6 +307,10 @@ void TcpConnection::socketRead() {
 				_leftBytes -= readCount;
 				if (!_leftBytes) {
 					socketPacket(full.subspan(0, _readBytes));
+					if (!_socket || !_socket->isConnected()) {
+						return;
+					}
+
 					_usingLargeBuffer = false;
 					_largeBuffer.clear();
 					_offsetBytes = _readBytes = 0;
@@ -331,6 +335,10 @@ void TcpConnection::socketRead() {
 						return;
 					} else if (available.size() >= packetSize) {
 						socketPacket(available.subspan(0, packetSize));
+						if (!_socket || !_socket->isConnected()) {
+							return;
+						}
+
 						available = available.subspan(packetSize);
 						_offsetBytes += packetSize;
 						_readBytes -= packetSize;
