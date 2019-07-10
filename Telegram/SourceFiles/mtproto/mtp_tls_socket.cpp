@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "base/bytes.h"
 #include "base/invoke_queued.h"
+#include "base/unixtime.h"
 
 #include <QtCore/QtEndian>
 
@@ -136,8 +137,7 @@ public:
 	ClientHelloGenerator(
 		const MTPTlsClientHello &rules,
 		bytes::const_span domain,
-		bytes::const_span key,
-		Fn<int32()> unixtime);
+		bytes::const_span key);
 	[[nodiscard]] ClientHello result();
 
 private:
@@ -156,7 +156,6 @@ private:
 
 	bytes::const_span _domain;
 	bytes::const_span _key;
-	Fn<int32()> _unixtime;
 	bytes::vector _greases;
 	std::vector<int> _scopeStack;
 	QByteArray _result;
@@ -169,11 +168,9 @@ private:
 ClientHelloGenerator::ClientHelloGenerator(
 	const MTPTlsClientHello &rules,
 	bytes::const_span domain,
-	bytes::const_span key,
-	Fn<int32()> unixtime)
+	bytes::const_span key)
 : _domain(domain)
 , _key(key)
-, _unixtime(unixtime)
 , _greases(PrepareGreases()) {
 	_result.reserve(kClientHelloLength);
 	writeBlocks(rules.match([&](const MTPDtlsClientHello &data) {
@@ -304,7 +301,7 @@ void ClientHelloGenerator::writeTimestamp() {
 		sizeof(int32));
 	auto already = int32();
 	bytes::copy(bytes::object_as_span(&already), storage);
-	already ^= qToLittleEndian(_unixtime());
+	already ^= qToLittleEndian(int32(base::unixtime::http_now()));
 	bytes::copy(storage, bytes::object_as_span(&already));
 
 	_digest = QByteArray(kHelloDigestLength, Qt::Uninitialized);
@@ -318,9 +315,8 @@ void ClientHelloGenerator::writeTimestamp() {
 [[nodiscard]] ClientHello PrepareClientHello(
 		const MTPTlsClientHello &rules,
 		bytes::const_span domain,
-		bytes::const_span key,
-		Fn<int32()> unixtime) {
-	return ClientHelloGenerator(rules, domain, key, unixtime).result();
+		bytes::const_span key) {
+	return ClientHelloGenerator(rules, domain, key).result();
 }
 
 [[nodiscard]] bool CheckPart(bytes::const_span data, QLatin1String check) {
@@ -343,13 +339,10 @@ void ClientHelloGenerator::writeTimestamp() {
 TlsSocket::TlsSocket(
 	not_null<QThread*> thread,
 	const bytes::vector &secret,
-	const QNetworkProxy &proxy,
-	Fn<int32()> unixtime)
+	const QNetworkProxy &proxy)
 : AbstractSocket(thread)
-, _secret(secret)
-, _unixtime(unixtime) {
+, _secret(secret) {
 	Expects(_secret.size() >= 21 && _secret[0] == bytes::type(0xEE));
-	Expects(_unixtime != nullptr);
 
 	_socket.moveToThread(thread);
 	_socket.setProxy(proxy);
@@ -397,8 +390,7 @@ void TlsSocket::plainConnected() {
 	const auto hello = PrepareClientHello(
 		kClientHelloRules,
 		domainFromSecret(),
-		keyFromSecret(),
-		_unixtime);
+		keyFromSecret());
 	if (hello.data.isEmpty()) {
 		LOG(("TLS Error: Could not generate Client Hello!"));
 		_state = State::Error;

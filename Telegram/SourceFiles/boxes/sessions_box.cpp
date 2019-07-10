@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "auth_session.h"
 #include "data/data_session.h"
+#include "base/unixtime.h"
 #include "boxes/confirm_box.h"
 #include "info/profile/info_profile_button.h"
 #include "settings/settings_common.h"
@@ -229,7 +230,7 @@ SessionsBox::Entry SessionsBox::ParseEntry(const MTPDauthorization &data) {
 		result.activeWidth = st::sessionWhenFont->width(tr::lng_status_online(tr::now));
 	} else {
 		const auto now = QDateTime::currentDateTime();
-		const auto lastTime = ParseDateTime(result.activeTime);
+		const auto lastTime = base::unixtime::parse(result.activeTime);
 		const auto nowDate = now.date();
 		const auto lastDate = lastTime.date();
 		if (lastDate == nowDate) {

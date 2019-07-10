@@ -95,14 +95,7 @@ inline QByteArray str_const_toByteArray(const str_const &str) {
 	return QByteArray::fromRawData(str.c_str(), str.size());
 }
 
-void unixtimeInit();
-void unixtimeSet(TimeId serverTime, bool force = false);
-TimeId unixtime();
-uint64 msgid();
 int GetNextRequestId();
-
-QDateTime ParseDateTime(TimeId serverTime);
-TimeId ServerTimeFromParsed(const QDateTime &date);
 
 inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #ifdef Q_OS_WIN
@@ -181,17 +174,6 @@ T rand_value() {
 	T result;
 	memset_rand(&result, sizeof(result));
 	return result;
-}
-
-inline void memset_rand_bad(void *data, uint32 len) {
-	for (uchar *i = reinterpret_cast<uchar*>(data), *e = i + len; i != e; ++i) {
-		*i = uchar(rand() & 0xFF);
-	}
-}
-
-template <typename T>
-inline void memsetrnd_bad(T &value) {
-	memset_rand_bad(&value, sizeof(value));
 }
 
 class ReadLockerAttempt {

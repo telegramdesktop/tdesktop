@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "media/audio/media_audio_track.h"
 #include "platform/platform_specific.h"
+#include "base/unixtime.h"
 #include "mainwidget.h"
 #include "boxes/rate_call_box.h"
 
@@ -249,7 +250,8 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 				MTP_phoneCallDiscardReasonBusy(),
 				MTP_long(0)
 			)).send();
-		} else if (phoneCall.vdate().v + (Global::CallRingTimeoutMs() / 1000) < unixtime()) {
+		} else if (phoneCall.vdate().v + (Global::CallRingTimeoutMs() / 1000)
+			< base::unixtime::now()) {
 			LOG(("Ignoring too old call."));
 		} else {
 			createCall(user, Call::Type::Incoming);

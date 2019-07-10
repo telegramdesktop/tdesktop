@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_edit_scans.h"
 #include "passport/passport_panel.h"
 #include "base/openssl_help.h"
+#include "base/unixtime.h"
 #include "boxes/passcode_box.h"
 #include "boxes/confirm_box.h"
 #include "ui/toast/toast.h"
@@ -48,7 +49,8 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 				return tr::lng_passport_scan_uploaded(
 					tr::now,
 					lt_date,
-					langDateTimeFull(ParseDateTime(file.fields.date)));
+					langDateTimeFull(
+						base::unixtime::parse(file.fields.date)));
 			}
 		} else if (file.uploadData) {
 			if (file.uploadData->offset < 0) {
@@ -61,7 +63,8 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 				return tr::lng_passport_scan_uploaded(
 					tr::now,
 					lt_date,
-					langDateTimeFull(ParseDateTime(file.fields.date)));
+					langDateTimeFull(
+						base::unixtime::parse(file.fields.date)));
 			}
 		} else {
 			return formatDownloadText(0, file.fields.size);

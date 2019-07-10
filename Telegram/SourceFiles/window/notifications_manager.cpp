@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
+#include "base/unixtime.h"
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "mainwindow.h"
@@ -98,7 +99,7 @@ void System::schedule(History *history, HistoryItem *item) {
 	}
 
 	auto delay = item->Has<HistoryMessageForwarded>() ? 500 : 100;
-	auto t = unixtime();
+	auto t = base::unixtime::now();
 	auto ms = crl::now();
 	bool isOnline = App::main()->lastWasOnline(), otherNotOld = ((cOtherOnline() * 1000LL) + Global::OnlineCloudTimeout() > t * 1000LL);
 	bool otherLaterThanMe = (cOtherOnline() * 1000LL + (ms - App::main()->lastSetOnline()) > t * 1000LL);
@@ -237,7 +238,7 @@ void System::showNext() {
 
 	auto ms = crl::now(), nextAlert = crl::time(0);
 	bool alert = false;
-	int32 now = unixtime();
+	int32 now = base::unixtime::now();
 	for (auto i = _whenAlerts.begin(); i != _whenAlerts.end();) {
 		while (!i.value().isEmpty() && i.value().begin().key() <= ms) {
 			const auto peer = i.key()->peer;

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
 #include "core/crash_reports.h"
+#include "base/unixtime.h"
 #include "data/data_session.h"
 #include "data/data_messages.h"
 #include "data/data_media_types.h"
@@ -271,7 +272,7 @@ void HistoryItem::finishEditionToEmpty() {
 
 bool HistoryItem::hasUnreadMediaFlag() const {
 	if (_history->peer->isChannel()) {
-		const auto passed = unixtime() - date();
+		const auto passed = base::unixtime::now() - date();
 		if (passed >= Global::ChannelsReadMediaPeriod()) {
 			return false;
 		}
@@ -781,7 +782,7 @@ void HistoryItem::drawInDialog(
 HistoryItem::~HistoryItem() = default;
 
 QDateTime ItemDateTime(not_null<const HistoryItem*> item) {
-	return ParseDateTime(item->date());
+	return base::unixtime::parse(item->date());
 }
 
 ClickHandlerPtr goToMessageClickHandler(

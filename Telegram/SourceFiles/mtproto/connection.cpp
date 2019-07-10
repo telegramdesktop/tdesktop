@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
+#include "base/unixtime.h"
 
 extern "C" {
 #include <openssl/bn.h>
@@ -380,7 +381,9 @@ void ConnectionPrivate::appendTestConnection(
 		onDisconnected(weak);
 	});
 	connect(weak, &AbstractConnection::syncTimeRequest, [=] {
-		_instance->syncHttpUnixtime();
+		InvokeQueued(_instance, [instance = _instance] {
+			instance->syncHttpUnixtime();
+		});
 	});
 
 	InvokeQueued(_testConnections.back().data, [=] {
@@ -526,7 +529,7 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 	auto &toSend = sessionData->toSendMap();
 	auto &wereAcked = sessionData->wereAckedMap();
 
-	auto newId = msgid();
+	auto newId = base::unixtime::mtproto_msg_id();
 	auto setSeqNumbers = RequestMap();
 	auto replaces = QMap<mtpMsgId, mtpMsgId>();
 	for (auto i = haveSent.cbegin(), e = haveSent.cend(); i != e; ++i) {
@@ -539,7 +542,7 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 					if (toResend.constFind(newId) == toResend.cend() && wereAcked.constFind(newId) == wereAcked.cend() && haveSent.constFind(newId) == haveSent.cend()) {
 						break;
 					}
-					mtpMsgId m = msgid();
+					const auto m = base::unixtime::mtproto_msg_id();
 					if (m <= newId) break; // wtf
 
 					newId = m;
@@ -566,7 +569,7 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 					if (toResend.constFind(newId) == toResend.cend() && wereAcked.constFind(newId) == wereAcked.cend() && haveSent.constFind(newId) == haveSent.cend()) {
 						break;
 					}
-					mtpMsgId m = msgid();
+					const auto m = base::unixtime::mtproto_msg_id();
 					if (m <= newId) break; // wtf
 
 					newId = m;
@@ -667,7 +670,7 @@ mtpMsgId ConnectionPrivate::replaceMsgId(SecureRequest &request, mtpMsgId newId)
 				if (toResend.constFind(newId) == toResend.cend() && wereAcked.constFind(newId) == wereAcked.cend() && haveSent.constFind(newId) == haveSent.cend()) {
 					break;
 				}
-				const auto m = msgid();
+				const auto m = base::unixtime::mtproto_msg_id();
 				if (m <= newId) break; // wtf
 
 				newId = m;
@@ -714,9 +717,13 @@ mtpMsgId ConnectionPrivate::replaceMsgId(SecureRequest &request, mtpMsgId newId)
 }
 
 mtpMsgId ConnectionPrivate::placeToContainer(SecureRequest &toSendRequest, mtpMsgId &bigMsgId, mtpMsgId *&haveSentArr, SecureRequest &req) {
-	mtpMsgId msgId = prepareToSend(req, bigMsgId);
-	if (msgId > bigMsgId) msgId = replaceMsgId(req, bigMsgId);
-	if (msgId >= bigMsgId) bigMsgId = msgid();
+	auto msgId = prepareToSend(req, bigMsgId);
+	if (msgId > bigMsgId) {
+		msgId = replaceMsgId(req, bigMsgId);
+	}
+	if (msgId >= bigMsgId) {
+		bigMsgId = base::unixtime::mtproto_msg_id();
+	}
 	*(haveSentArr++) = msgId;
 
 	uint32 from = toSendRequest->size(), len = req.messageSize();
@@ -890,7 +897,9 @@ void ConnectionPrivate::tryToSend() {
 				locker1.unlock();
 			}
 
-			mtpMsgId msgId = prepareToSend(toSendRequest, msgid());
+			const auto msgId = prepareToSend(
+				toSendRequest,
+				base::unixtime::mtproto_msg_id());
 			if (pingRequest) {
 				_pingMsgId = msgId;
 				needAnyResponse = true;
@@ -965,7 +974,8 @@ void ConnectionPrivate::tryToSend() {
 			toSendRequest->push_back(mtpc_msg_container);
 			toSendRequest->push_back(toSendCount);
 
-			mtpMsgId bigMsgId = msgid(); // check for a valid container
+			// check for a valid container
+			auto bigMsgId = base::unixtime::mtproto_msg_id();
 
 			// the fact of this lock is used in replaceMsgId()
 			QWriteLocker locker2(sessionData->haveSentMutex());
@@ -990,8 +1000,12 @@ void ConnectionPrivate::tryToSend() {
 			for (auto i = toSend.begin(), e = toSend.end(); i != e; ++i) {
 				auto &req = i.value();
 				auto msgId = prepareToSend(req, bigMsgId);
-				if (msgId > bigMsgId) msgId = replaceMsgId(req, bigMsgId);
-				if (msgId >= bigMsgId) bigMsgId = msgid();
+				if (msgId > bigMsgId) {
+					msgId = replaceMsgId(req, bigMsgId);
+				}
+				if (msgId >= bigMsgId) {
+					bigMsgId = base::unixtime::mtproto_msg_id();
+				}
 				*(haveSentArr++) = msgId;
 				bool added = false;
 				if (req->requestId) {
@@ -1523,8 +1537,9 @@ void ConnectionPrivate::handleReceived() {
 			return restartOnError();
 		}
 
-		int32 serverTime((int32)(msgId >> 32)), clientTime(unixtime());
-		bool isReply = ((msgId & 0x03) == 1);
+		const auto serverTime = int32(msgId >> 32);
+		const auto clientTime = base::unixtime::now();
+		const auto isReply = ((msgId & 0x03) == 1);
 		if (!isReply && ((msgId & 0x03) != 3)) {
 			LOG(("MTP Error: bad msg_id %1 in message received").arg(msgId));
 
@@ -1768,7 +1783,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 
 			if (needResend) { // bad msg_id or bad container
 				if (serverSalt) sessionData->setSalt(serverSalt);
-				unixtimeSet(serverTime, true);
+				base::unixtime::update(serverTime, true);
 
 				DEBUG_LOG(("Message Info: unixtime updated, now %1, resending in container...").arg(serverTime));
 
@@ -1776,7 +1791,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			} else { // must create new session, because msg_id and msg_seqno are inconsistent
 				if (badTime) {
 					if (serverSalt) sessionData->setSalt(serverSalt);
-					unixtimeSet(serverTime, true);
+					base::unixtime::update(serverTime, true);
 					badTime = false;
 				}
 				LOG(("Message Info: bad message notification received, msgId %1, error_code %2").arg(data.vbad_msg_id().v).arg(errorCode));
@@ -1821,7 +1836,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 
 		uint64 serverSalt = data.vnew_server_salt().v;
 		sessionData->setSalt(serverSalt);
-		unixtimeSet(serverTime);
+		base::unixtime::update(serverTime);
 
 		if (setState(ConnectedState, ConnectingState)) { // maybe only connected
 			if (restarted) {
@@ -1908,7 +1923,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			}
 			if (badTime) {
 				if (serverSalt) sessionData->setSalt(serverSalt); // requestsFixTimeSalt with no lookup
-				unixtimeSet(serverTime, true);
+				base::unixtime::update(serverTime, true);
 
 				DEBUG_LOG(("Message Info: unixtime updated from mtpc_msgs_state_info, now %1").arg(serverTime));
 
@@ -2243,7 +2258,7 @@ bool ConnectionPrivate::requestsFixTimeSalt(const QVector<MTPlong> &ids, int32 s
 	for (uint32 i = 0; i < idsCount; ++i) {
 		if (wasSent(ids[i].v)) {// found such msg_id in recent acked requests or in recent sent requests
 			if (serverSalt) sessionData->setSalt(serverSalt);
-			unixtimeSet(serverTime, true);
+			base::unixtime::update(serverTime, true);
 			return true;
 		}
 	}
@@ -2733,7 +2748,7 @@ void ConnectionPrivate::dhParamsAnswered() {
 			DEBUG_LOG(("AuthKey Error: sha1 did not match, server_nonce: %1, new_nonce %2, encrypted data %3").arg(Logs::mb(&_authKeyData->server_nonce, 16).str()).arg(Logs::mb(&_authKeyData->new_nonce, 16).str()).arg(Logs::mb(encDHStr.constData(), encDHLen).str()));
 			return restart();
 		}
-		unixtimeSet(dh_inner_data.vserver_time().v);
+		base::unixtime::update(dh_inner_data.vserver_time().v);
 
 		// check that dhPrime and (dhPrime - 1) / 2 are really prime
 		if (!IsPrimeAndGood(bytes::make_span(dh_inner_data.vdh_prime().v), dh_inner_data.vg().v)) {
@@ -3053,7 +3068,9 @@ void ConnectionPrivate::onReadyData() {
 
 template <typename Request>
 void ConnectionPrivate::sendNotSecureRequest(const Request &request) {
-	auto packet = _connection->prepareNotSecurePacket(request);
+	auto packet = _connection->prepareNotSecurePacket(
+		request,
+		base::unixtime::mtproto_msg_id());
 
 	DEBUG_LOG(("AuthKey Info: sending request, size: %1, time: %3"
 		).arg(packet.size() - 8

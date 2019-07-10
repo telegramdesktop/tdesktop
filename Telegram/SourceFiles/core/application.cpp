@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "base/timer.h"
 #include "base/concurrent_timer.h"
+#include "base/unixtime.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
 #include "core/sandbox.h"
@@ -692,6 +693,7 @@ void Application::checkLocalTime() {
 	if (crl::adjust_time()) {
 		base::Timer::Adjust();
 		base::ConcurrentTimerEnvironment::Adjust();
+		base::unixtime::http_invalidate();
 		if (App::main()) App::main()->checkLastUpdate(true);
 	} else {
 		if (App::main()) App::main()->checkLastUpdate(false);

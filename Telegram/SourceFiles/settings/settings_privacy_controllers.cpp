@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history.h"
 #include "calls/calls_instance.h"
+#include "base/unixtime.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -125,7 +126,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 			MTP_flags(FwdFlag::f_from_id),
 			MTP_int(history->session().userId()),
 			MTPstring(), // from_name
-			MTP_int(unixtime()),
+			MTP_int(base::unixtime::now()),
 			MTPint(), // channel_id
 			MTPint(), // channel_post
 			MTPstring(), // post_author
@@ -133,7 +134,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 			MTPint()), // saved_from_msg_id
 		MTPint(), // via_bot_id
 		MTPint(), // reply_to_msg_id,
-		MTP_int(unixtime()), // date
+		MTP_int(base::unixtime::now()), // date
 		MTP_string(text),
 		MTPMessageMedia(),
 		MTPReplyMarkup(),

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_hardcoded.h"
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
+#include "base/unixtime.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "mainwindow.h"
@@ -1402,7 +1403,7 @@ void FormController::prepareFile(
 	file.fields.id = fileId;
 	file.fields.dcId = MTP::maindc();
 	file.fields.secret = GenerateSecretBytes();
-	file.fields.date = unixtime();
+	file.fields.date = base::unixtime::now();
 	file.fields.image = ReadImage(bytes::make_span(content));
 	file.fields.downloadOffset = file.fields.size;
 

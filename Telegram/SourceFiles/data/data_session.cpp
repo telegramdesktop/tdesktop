@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_game.h"
 #include "data/data_poll.h"
+#include "base/unixtime.h"
 #include "styles/style_boxes.h" // st::backgroundSize
 
 namespace Data {
@@ -915,7 +916,7 @@ void Session::suggestStartExport() {
 		return;
 	}
 
-	const auto now = unixtime();
+	const auto now = base::unixtime::now();
 	const auto left = (_exportAvailableAt <= now)
 		? 0
 		: (_exportAvailableAt - now);
@@ -2243,7 +2244,7 @@ PhotoData *Session::photoFromWeb(
 		rand_value<PhotoId>(),
 		uint64(0),
 		QByteArray(),
-		unixtime(),
+		base::unixtime::now(),
 		0,
 		false,
 		thumbnailInline,
@@ -2476,7 +2477,7 @@ DocumentData *Session::documentFromWeb(
 		rand_value<DocumentId>(),
 		uint64(0),
 		QByteArray(),
-		unixtime(),
+		base::unixtime::now(),
 		data.vattributes().v,
 		data.vmime_type().v,
 		ImagePtr(),
@@ -2497,7 +2498,7 @@ DocumentData *Session::documentFromWeb(
 		rand_value<DocumentId>(),
 		uint64(0),
 		QByteArray(),
-		unixtime(),
+		base::unixtime::now(),
 		data.vattributes().v,
 		data.vmime_type().v,
 		ImagePtr(),
@@ -2624,7 +2625,7 @@ not_null<WebPageData*> Session::processWebpage(const MTPDwebPagePending &data) {
 		QString(),
 		data.vdate().v
 			? data.vdate().v
-			: (unixtime() + kDefaultPendingTimeout));
+			: (base::unixtime::now() + kDefaultPendingTimeout));
 	return result;
 }
 
@@ -3455,7 +3456,7 @@ bool Session::notifyIsMuted(
 		not_null<const PeerData*> peer,
 		crl::time *changesIn) const {
 	const auto resultFromUntil = [&](TimeId until) {
-		const auto now = unixtime();
+		const auto now = base::unixtime::now();
 		const auto result = (until > now) ? (until - now) : 0;
 		if (changesIn) {
 			*changesIn = (result > 0)
@@ -3532,7 +3533,7 @@ rpl::producer<> Session::defaultNotifyUpdates(
 void Session::serviceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media) {
-	const auto date = unixtime();
+	const auto date = base::unixtime::now();
 	if (!peerLoaded(PeerData::kServiceNotificationsId)) {
 		processUser(MTP_user(
 			MTP_flags(

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
 #include "storage/storage_media_prepare.h"
@@ -119,7 +120,7 @@ void EditInfoBox::setInnerFocus() {
 
 QString FormatDateTime(TimeId value) {
 	const auto now = QDateTime::currentDateTime();
-	const auto date = ParseDateTime(value);
+	const auto date = base::unixtime::parse(value);
 	if (date.date() == now.date()) {
 		return tr::lng_mediaview_today(
 			tr::now,
@@ -149,7 +150,7 @@ QString NormalizeName(QString name) {
 }
 
 Data::Draft OccupiedDraft(const QString &normalizedName) {
-	const auto now = unixtime(), till = now + kOccupyFor;
+	const auto now = base::unixtime::now(), till = now + kOccupyFor;
 	return {
 		TextWithTags{ "t:"
 			+ QString::number(till)
@@ -190,7 +191,7 @@ uint32 ParseOccupationTag(History *history) {
 	auto result = uint32();
 	for (const auto &part : parts) {
 		if (part.startsWith(qstr("t:"))) {
-			if (part.mid(2).toInt() >= unixtime()) {
+			if (part.mid(2).toInt() >= base::unixtime::now()) {
 				valid = true;
 			} else {
 				return 0;
@@ -220,7 +221,7 @@ QString ParseOccupationName(History *history) {
 	auto result = QString();
 	for (const auto &part : parts) {
 		if (part.startsWith(qstr("t:"))) {
-			if (part.mid(2).toInt() >= unixtime()) {
+			if (part.mid(2).toInt() >= base::unixtime::now()) {
 				valid = true;
 			} else {
 				return 0;
@@ -254,7 +255,7 @@ TimeId OccupiedBySomeoneTill(History *history) {
 	auto result = TimeId();
 	for (const auto &part : parts) {
 		if (part.startsWith(qstr("t:"))) {
-			if (part.mid(2).toInt() >= unixtime()) {
+			if (part.mid(2).toInt() >= base::unixtime::now()) {
 				result = part.mid(2).toInt();
 			} else {
 				return 0;
@@ -330,7 +331,7 @@ void Helper::chatOccupiedUpdated(not_null<History*> history) {
 }
 
 void Helper::checkOccupiedChats() {
-	const auto now = unixtime();
+	const auto now = base::unixtime::now();
 	while (!_occupiedChats.empty()) {
 		const auto nearest = ranges::min_element(
 			_occupiedChats,

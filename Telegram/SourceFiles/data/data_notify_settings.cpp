@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_notify_settings.h"
 
+#include "base/unixtime.h"
+
 namespace Data {
 namespace {
 
@@ -71,7 +73,7 @@ bool NotifySettingsValue::change(const MTPDpeerNotifySettings &data) {
 bool NotifySettingsValue::change(
 		std::optional<int> muteForSeconds,
 		std::optional<bool> silentPosts) {
-	const auto now = unixtime();
+	const auto now = base::unixtime::now();
 	const auto notMuted = muteForSeconds
 		? !(*muteForSeconds)
 		: (!_mute || *_mute <= now);
@@ -170,13 +172,13 @@ bool NotifySettings::change(
 	const auto flags = (muteForSeconds ? Flag::f_mute_until : Flag(0))
 		| (silentPosts ? Flag::f_silent : Flag(0));
 	const auto muteUntil = muteForSeconds
-		? (unixtime() + *muteForSeconds)
+		? (base::unixtime::now() + *muteForSeconds)
 		: 0;
 	return change(MTP_peerNotifySettings(
 		MTP_flags(flags),
 		MTPBool(),
 		silentPosts ? MTP_bool(*silentPosts) : MTPBool(),
-		muteForSeconds ? MTP_int(unixtime() + *muteForSeconds) : MTPint(),
+		muteForSeconds ? MTP_int(base::unixtime::now() + *muteForSeconds) : MTPint(),
 		MTPstring()));
 }
 

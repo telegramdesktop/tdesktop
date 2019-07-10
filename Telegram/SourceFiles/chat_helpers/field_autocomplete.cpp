@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "auth_session.h"
 #include "chat_helpers/stickers.h"
+#include "base/unixtime.h"
 #include "styles/style_history.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat_helpers.h"
@@ -183,7 +184,7 @@ internal::StickerRows FieldAutocomplete::getStickerSuggestions() {
 }
 
 void FieldAutocomplete::updateFiltered(bool resetScroll) {
-	int32 now = unixtime(), recentInlineBots = 0;
+	int32 now = base::unixtime::now(), recentInlineBots = 0;
 	internal::MentionRows mrows;
 	internal::HashtagRows hrows;
 	internal::BotCommandRows brows;

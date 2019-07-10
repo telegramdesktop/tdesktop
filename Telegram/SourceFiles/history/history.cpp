@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text_options.h"
 #include "core/crash_reports.h"
+#include "base/unixtime.h"
 #include "styles/style_dialogs.h"
 #include <memory>
 
@@ -256,7 +257,7 @@ Data::Draft *History::createCloudDraft(const Data::Draft *fromDraft) {
 			existing->cursor = fromDraft->cursor;
 			existing->previewCancelled = fromDraft->previewCancelled;
 		}
-		existing->date = unixtime();
+		existing->date = base::unixtime::now();
 	}
 
 	cloudDraftTextCache.clear();
@@ -285,7 +286,7 @@ void History::clearSentDraftText(const QString &text) {
 	if (_lastSentDraftText && *_lastSentDraftText == text) {
 		_lastSentDraftText = std::nullopt;
 	}
-	accumulate_max(_lastSentDraftTime, unixtime());
+	accumulate_max(_lastSentDraftTime, base::unixtime::now());
 }
 
 void History::setEditDraft(std::unique_ptr<Data::Draft> &&draft) {

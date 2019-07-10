@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "base/unixtime.h"
 
 namespace Data {
 namespace {
@@ -37,7 +38,7 @@ int OnlinePhraseChangeInSeconds(TimeId online, TimeId now) {
 	if (hours < 12) {
 		return (hours + 1) * 3600 - (now - online);
 	}
-	const auto nowFull = ParseDateTime(now);
+	const auto nowFull = base::unixtime::parse(now);
 	const auto tomorrow = QDateTime(nowFull.date().addDays(1));
 	return std::max(static_cast<TimeId>(nowFull.secsTo(tomorrow)), 0);
 }
@@ -305,8 +306,8 @@ QString OnlineText(TimeId online, TimeId now) {
 	if (hours < 12) {
 		return tr::lng_status_lastseen_hours(tr::now, lt_count, hours);
 	}
-	const auto onlineFull = ParseDateTime(online);
-	const auto nowFull = ParseDateTime(now);
+	const auto onlineFull = base::unixtime::parse(online);
+	const auto nowFull = base::unixtime::parse(now);
 	if (onlineFull.date() == nowFull.date()) {
 		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
 		return tr::lng_status_lastseen_today(tr::now, lt_time, onlineTime);
@@ -331,8 +332,8 @@ QString OnlineTextFull(not_null<UserData*> user, TimeId now) {
 	} else if (const auto common = OnlineTextCommon(user->onlineTill, now)) {
 		return *common;
 	}
-	const auto onlineFull = ParseDateTime(user->onlineTill);
-	const auto nowFull = ParseDateTime(now);
+	const auto onlineFull = base::unixtime::parse(user->onlineTill);
+	const auto nowFull = base::unixtime::parse(now);
 	if (onlineFull.date() == nowFull.date()) {
 		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
 		return tr::lng_status_lastseen_today(tr::now, lt_time, onlineTime);
@@ -368,7 +369,7 @@ bool OnlineTextActive(not_null<UserData*> user, TimeId now) {
 
 bool IsPeerAnOnlineUser(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
-		return OnlineTextActive(user, unixtime());
+		return OnlineTextActive(user, base::unixtime::now());
 	}
 	return false;
 }

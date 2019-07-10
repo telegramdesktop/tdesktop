@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_cursor_state.h"
+#include "base/unixtime.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image.h"
 #include "ui/text_options.h"
@@ -591,7 +592,7 @@ Voice::Voice(
 	const auto dateText = textcmdLink(
 		1,
 		TextUtilities::EscapeForRichParsing(
-			langDateTime(ParseDateTime(_data->date))));
+			langDateTime(base::unixtime::parse(_data->date))));
 	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
 	_details.setText(
 		st::defaultTextStyle,
@@ -871,7 +872,7 @@ Document::Document(
 , _msgl(goToMessageClickHandler(parent))
 , _namel(std::make_shared<DocumentOpenClickHandler>(_data, parent->fullId()))
 , _st(st)
-, _date(langDateTime(ParseDateTime(_data->date)))
+, _date(langDateTime(base::unixtime::parse(_data->date)))
 , _datew(st::normalFont->width(_date))
 , _colorIndex(documentColorIndex(_data, _ext)) {
 	_name.setMarkedText(st::defaultTextStyle, ComposeNameWithEntities(_data), _documentNameOptions);

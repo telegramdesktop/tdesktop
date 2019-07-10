@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "core/application.h"
+#include "base/unixtime.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
 #include "base/timer.h"
@@ -60,10 +61,7 @@ public:
 	void requestCDNConfig();
 	void setUserPhone(const QString &phone);
 	void badConfigurationError();
-
-	// Thread safe.
 	void syncHttpUnixtime();
-	[[nodiscard]] int32 httpUnixtime() const;
 
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
@@ -168,7 +166,6 @@ private:
 	void clearCallbacks(const std::vector<RPCCallbackClear> &ids);
 
 	void checkDelayedRequests();
-	[[nodiscard]] Fn<void(TimeId)> updateHttpUnixtime();
 
 	not_null<Instance*> _instance;
 	not_null<DcOptions*> _dcOptions;
@@ -194,8 +191,6 @@ private:
 	mtpRequestId _cdnConfigLoadRequestId = 0;
 	crl::time _lastConfigLoadedTime = 0;
 	crl::time _configExpiresAt = 0;
-	std::atomic<bool> _httpUnixtimeValid = false;
-	std::atomic<TimeId> _httpUnixtimeShift = 0;
 
 	std::map<DcId, AuthKeyPtr> _keysForWrite;
 	mutable QReadWriteLock _keysForWriteLock;
@@ -250,8 +245,6 @@ void Instance::Private::start(Config &&config) {
 
 	if (isKeysDestroyer()) {
 		_instance->connect(_instance, SIGNAL(keyDestroyed(qint32)), _instance, SLOT(onKeyDestroyed(qint32)), Qt::QueuedConnection);
-	} else if (isNormal()) {
-		unixtimeInit();
 	}
 
 	for (auto &key : config.keys) {
@@ -413,8 +406,7 @@ void Instance::Private::requestConfig() {
 		_instance,
 		_userPhone,
 		rpcDone([=](const MTPConfig &result) { configLoadDone(result); }),
-		rpcFail([=](const RPCError &error) { return configLoadFail(error); }),
-		updateHttpUnixtime());
+		rpcFail([=](const RPCError &error) { return configLoadFail(error); }));
 	_configLoader->load();
 }
 
@@ -433,33 +425,15 @@ void Instance::Private::badConfigurationError() {
 	}
 }
 
-int32 Instance::Private::httpUnixtime() const {
-	return unixtime() + _httpUnixtimeShift;
-}
-
 void Instance::Private::syncHttpUnixtime() {
-	if (_httpUnixtimeValid) {
+	if (base::unixtime::http_valid() || _httpUnixtimeLoader) {
 		return;
 	}
-	InvokeQueued(_instance, [=] {
-		if (_httpUnixtimeValid || _httpUnixtimeLoader) {
-			return;
-		}
-		_httpUnixtimeLoader = std::make_unique<SpecialConfigRequest>(
-			updateHttpUnixtime());
-	});
-}
-
-Fn<void(TimeId)> Instance::Private::updateHttpUnixtime() {
-	return [=](TimeId httpUnixtime) {
-		_httpUnixtimeValid = true;
-		_httpUnixtimeShift = httpUnixtime - unixtime();
+	_httpUnixtimeLoader = std::make_unique<SpecialConfigRequest>([=] {
 		InvokeQueued(_instance, [=] {
-			if (_httpUnixtimeValid) {
-				_httpUnixtimeLoader = nullptr;
-			}
+			_httpUnixtimeLoader = nullptr;
 		});
-	};
+	});
 }
 
 void Instance::Private::requestConfigIfOld() {
@@ -842,7 +816,7 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	Local::writeSettings();
 
 	_configExpiresAt = crl::now()
-		+ (data.vexpires().v - unixtime()) * crl::time(1000);
+		+ (data.vexpires().v - base::unixtime::now()) * crl::time(1000);
 	requestConfigIfExpired();
 
 	emit _instance->configLoaded();
@@ -1613,10 +1587,6 @@ void Instance::setUserPhone(const QString &phone) {
 
 void Instance::badConfigurationError() {
 	_private->badConfigurationError();
-}
-
-int32 Instance::httpUnixtime() const {
-	return _private->httpUnixtime();
 }
 
 void Instance::syncHttpUnixtime() {

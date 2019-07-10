@@ -80,6 +80,8 @@
       '<(src_loc)/base/unique_any.h',
       '<(src_loc)/base/unique_function.h',
       '<(src_loc)/base/unique_qptr.h',
+      '<(src_loc)/base/unixtime.cpp',
+      '<(src_loc)/base/unixtime.h',
       '<(src_loc)/base/value_ordering.h',
       '<(src_loc)/base/variant.h',
       '<(src_loc)/base/virtual_method.h',

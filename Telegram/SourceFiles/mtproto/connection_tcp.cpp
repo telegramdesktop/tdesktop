@@ -558,8 +558,7 @@ void TcpConnection::connectToServer(
 	_socket = AbstractSocket::Create(
 		thread(),
 		secret,
-		ToNetworkProxy(_proxy),
-		[=] { return _instance->httpUnixtime(); });
+		ToNetworkProxy(_proxy));
 	_protocolDcId = protocolDcId;
 
 	_socket->connected(

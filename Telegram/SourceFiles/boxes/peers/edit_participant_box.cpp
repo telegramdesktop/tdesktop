@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "core/core_cloud_password.h"
+#include "base/unixtime.h"
 #include "apiwrap.h"
 #include "auth_session.h"
 #include "styles/style_boxes.h"
@@ -203,7 +204,7 @@ void EditParticipantBox::Inner::paintEvent(QPaintEvent *e) {
 				? tr::lng_status_bot_reads_all
 				: tr::lng_status_bot_not_reads_all)(tr::now);
 		}
-		return Data::OnlineText(_user->onlineTill, unixtime());
+		return Data::OnlineText(_user->onlineTill, base::unixtime::now());
 	};
 	p.setFont(st::contactsStatusFont);
 	p.setPen(st::contactsStatusFg);
@@ -678,7 +679,7 @@ void EditRestrictedBox::showRestrictUntil() {
 	auto tomorrow = QDate::currentDate().addDays(1);
 	auto highlighted = isUntilForever()
 		? tomorrow
-		: ParseDateTime(getRealUntilValue()).date();
+		: base::unixtime::parse(getRealUntilValue()).date();
 	auto month = highlighted;
 	_restrictUntilBox = Ui::show(
 		Box<CalendarBox>(
@@ -751,7 +752,8 @@ void EditRestrictedBox::createUntilVariants() {
 				tr::lng_rights_chat_banned_custom_date(
 					tr::now,
 					lt_date,
-					langDayOfMonthFull(ParseDateTime(until).date())));
+					langDayOfMonthFull(
+						base::unixtime::parse(until).date())));
 		}
 	};
 	auto addCurrentVariant = [&](TimeId from, TimeId to) {
@@ -766,7 +768,7 @@ void EditRestrictedBox::createUntilVariants() {
 	};
 	addVariant(0, tr::lng_rights_chat_banned_forever(tr::now));
 
-	auto now = unixtime();
+	auto now = base::unixtime::now();
 	auto nextDay = now + kSecondsInDay;
 	auto nextWeek = now + kSecondsInWeek;
 	addCurrentVariant(0, nextDay);
@@ -780,9 +782,9 @@ void EditRestrictedBox::createUntilVariants() {
 TimeId EditRestrictedBox::getRealUntilValue() const {
 	Expects(_until != kUntilCustom);
 	if (_until == kUntilOneDay) {
-		return unixtime() + kSecondsInDay;
+		return base::unixtime::now() + kSecondsInDay;
 	} else if (_until == kUntilOneWeek) {
-		return unixtime() + kSecondsInWeek;
+		return base::unixtime::now() + kSecondsInWeek;
 	}
 	Assert(_until >= 0);
 	return _until;

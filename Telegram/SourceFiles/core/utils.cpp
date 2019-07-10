@@ -56,34 +56,9 @@ static_assert(sizeof(MTPdouble) == 8, "Basic types size check failed");
 
 static_assert(sizeof(int) >= 4, "Basic types size check failed");
 
-// Unixtime functions
-
 namespace {
 
 std::atomic<int> GlobalAtomicRequestId = 0;
-
-QReadWriteLock unixtimeLock;
-volatile int32 unixtimeDelta = 0;
-volatile bool unixtimeWasSet = false;
-volatile uint64 _msgIdStart, _msgIdLocal = 0, _msgIdMsStart;
-
-void _initMsgIdConstants() {
-#ifdef Q_OS_WIN
-	LARGE_INTEGER li;
-	QueryPerformanceCounter(&li);
-	_msgIdMsStart = li.QuadPart;
-#elif defined Q_OS_MAC
-	_msgIdMsStart = mach_absolute_time();
-#else
-	timespec ts;
-	clock_gettime(CLOCK_REALTIME, &ts);
-	_msgIdMsStart = 1000000000 * uint64(ts.tv_sec) + uint64(ts.tv_nsec);
-#endif
-
-	uint32 msgIdRand;
-	memset_rand(&msgIdRand, sizeof(uint32));
-	_msgIdStart = (((uint64)((uint32)unixtime()) << 32) | (uint64)msgIdRand);
-}
 
 [[nodiscard]] bool IsHexMtprotoPassword(const QString &password) {
 	const auto size = password.size();
@@ -208,58 +183,6 @@ void _initMsgIdConstants() {
 
 } // namespace
 
-TimeId LocalUnixtime() {
-	return (TimeId)time(nullptr);
-}
-
-void unixtimeInit() {
-	{
-		QWriteLocker locker(&unixtimeLock);
-		unixtimeWasSet = false;
-		unixtimeDelta = 0;
-	}
-	_initMsgIdConstants();
-}
-
-void unixtimeSet(int32 serverTime, bool force) {
-	{
-		QWriteLocker locker(&unixtimeLock);
-		if (force) {
-			DEBUG_LOG(("MTP Info: forced setting client unixtime to %1").arg(serverTime));
-		} else {
-			if (unixtimeWasSet) return;
-			DEBUG_LOG(("MTP Info: setting client unixtime to %1").arg(serverTime));
-		}
-		unixtimeWasSet = true;
-		unixtimeDelta = serverTime + 1 - LocalUnixtime();
-		DEBUG_LOG(("MTP Info: now unixtimeDelta is %1").arg(unixtimeDelta));
-	}
-	_initMsgIdConstants();
-}
-
-TimeId unixtime() {
-	auto result = LocalUnixtime();
-
-	QReadLocker locker(&unixtimeLock);
-	return result + unixtimeDelta;
-}
-
-QDateTime ParseDateTime(TimeId serverTime) {
-	if (serverTime <= 0) {
-		return QDateTime();
-	}
-	QReadLocker locker(&unixtimeLock);
-	return QDateTime::fromTime_t(serverTime - unixtimeDelta);
-}
-
-TimeId ServerTimeFromParsed(const QDateTime &date) {
-	if (date.isNull()) {
-		return TimeId(0);
-	}
-	QReadLocker locker(&unixtimeLock);
-	return date.toTime_t() + unixtimeDelta;
-}
-
 // Precise timing functions / rand init
 
 struct CRYPTO_dynlock_value {
@@ -320,38 +243,6 @@ namespace {
 		}
 		return 0;
 	}
-
-	float64 _msgIdCoef;
-	class _MsStarter {
-	public:
-		_MsStarter() {
-#ifdef Q_OS_WIN
-			LARGE_INTEGER li;
-			QueryPerformanceFrequency(&li);
-
-			// 0xFFFF0000L istead of 0x100000000L to make msgId grow slightly slower, than unixtime and we had time to reconfigure
-			_msgIdCoef = float64(0xFFFF0000L) / float64(li.QuadPart);
-
-			QueryPerformanceCounter(&li);
-			const auto seed = li.QuadPart;
-#elif defined Q_OS_MAC
-            mach_timebase_info_data_t tb = { 0, 0 };
-            mach_timebase_info(&tb);
-            const auto freq = (float64(tb.numer) / tb.denom) / 1000000.;
-            _msgIdCoef = freq * (float64(0xFFFF0000L) / 1000.);
-
-            const auto seed = mach_absolute_time();
-#else
-			_msgIdCoef = float64(0xFFFF0000L) / 1000000000.;
-
-			timespec ts;
-			clock_gettime(CLOCK_MONOTONIC, &ts);
-			const auto seed = 1000LL * static_cast<crl::time>(ts.tv_sec) + (static_cast<crl::time>(ts.tv_nsec) / 1000000LL);
-#endif
-			srand((uint32)(seed & 0xFFFFFFFFL));
-		}
-	};
-	_MsStarter _msStarter;
 }
 
 bool ProxyData::valid() const {
@@ -534,26 +425,6 @@ namespace ThirdParty {
 
 		Platform::ThirdParty::finish();
 	}
-}
-
-uint64 msgid() {
-#ifdef Q_OS_WIN
-    LARGE_INTEGER li;
-    QueryPerformanceCounter(&li);
-    uint64 result = _msgIdStart + (uint64)floor((li.QuadPart - _msgIdMsStart) * _msgIdCoef);
-#elif defined Q_OS_MAC
-    uint64 msCount = mach_absolute_time();
-    uint64 result = _msgIdStart + (uint64)floor((msCount - _msgIdMsStart) * _msgIdCoef);
-#else
-    timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    uint64 msCount = 1000000000 * uint64(ts.tv_sec) + uint64(ts.tv_nsec);
-    uint64 result = _msgIdStart + (uint64)floor((msCount - _msgIdMsStart) * _msgIdCoef);
-#endif
-
-	result &= ~0x03L;
-
-	return result + (_msgIdLocal += 4);
 }
 
 int GetNextRequestId() {

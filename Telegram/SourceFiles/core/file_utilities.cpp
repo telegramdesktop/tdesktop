@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "platform/platform_file_utilities.h"
 #include "core/application.h"
+#include "base/unixtime.h"
 #include "mainwindow.h"
 
 bool filedialogGetSaveFile(
@@ -62,7 +63,7 @@ QString filedialogDefaultName(
 
 	QString base;
 	if (fileTime) {
-		const auto date = ParseDateTime(fileTime);
+		const auto date = base::unixtime::parse(fileTime);
 		base = prefix + date.toString("_yyyy-MM-dd_HH-mm-ss");
 	} else {
 		struct tm tm;

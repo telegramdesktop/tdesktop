@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_chat.h"
 #include "data/data_session.h"
+#include "base/unixtime.h"
 #include "window/themes/window_theme.h"
 
 auto PaintUserpicCallback(
@@ -57,7 +58,7 @@ void PeerListBox::createMultiSelect() {
 	Expects(_select == nullptr);
 
 	auto entity = object_ptr<Ui::MultiSelect>(
-		this, 
+		this,
 		st::contactsMultiSelect,
 		tr::lng_participant_filter());
 	_select.create(this, std::move(entity));
@@ -377,7 +378,7 @@ void PeerListRow::refreshStatus() {
 		if (_isSavedMessagesChat) {
 			setStatusText(tr::lng_saved_forward_here(tr::now));
 		} else {
-			auto time = unixtime();
+			auto time = base::unixtime::now();
 			setStatusText(Data::OnlineText(user, time));
 			if (Data::OnlineTextActive(user, time)) {
 				_statusType = StatusType::Online;

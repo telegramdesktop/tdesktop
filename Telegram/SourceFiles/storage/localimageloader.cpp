@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "base/unixtime.h"
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
 #include "lottie/lottie_animation.h"
@@ -217,7 +218,7 @@ SendMediaReady PreparePeerPhoto(PeerId peerId, QImage &&image) {
 		MTP_long(id),
 		MTP_long(0),
 		MTP_bytes(),
-		MTP_int(unixtime()),
+		MTP_int(base::unixtime::now()),
 		MTP_vector<MTPPhotoSize>(photoSizes),
 		MTP_int(MTP::maindc()));
 
@@ -280,7 +281,7 @@ SendMediaReady PrepareWallPaper(const QImage &image) {
 		MTP_long(id),
 		MTP_long(0),
 		MTP_bytes(),
-		MTP_int(unixtime()),
+		MTP_int(base::unixtime::now()),
 		MTP_string("image/jpeg"),
 		MTP_int(jpeg.size()),
 		MTP_vector<MTPPhotoSize>(sizes),
@@ -929,7 +930,7 @@ void FileLoadTask::process() {
 					MTP_long(_id),
 					MTP_long(0),
 					MTP_bytes(),
-					MTP_int(unixtime()),
+					MTP_int(base::unixtime::now()),
 					MTP_vector<MTPPhotoSize>(photoSizes),
 					MTP_int(MTP::maindc()));
 
@@ -959,7 +960,7 @@ void FileLoadTask::process() {
 			MTP_long(_id),
 			MTP_long(0),
 			MTP_bytes(),
-			MTP_int(unixtime()),
+			MTP_int(base::unixtime::now()),
 			MTP_string(filemime),
 			MTP_int(filesize),
 			MTP_vector<MTPPhotoSize>(1, thumbnail.mtpSize),
@@ -971,7 +972,7 @@ void FileLoadTask::process() {
 			MTP_long(_id),
 			MTP_long(0),
 			MTP_bytes(),
-			MTP_int(unixtime()),
+			MTP_int(base::unixtime::now()),
 			MTP_string(filemime),
 			MTP_int(filesize),
 			MTP_vector<MTPPhotoSize>(1, thumbnail.mtpSize),

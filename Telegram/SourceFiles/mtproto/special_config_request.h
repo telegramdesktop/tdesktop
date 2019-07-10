@@ -31,9 +31,8 @@ public:
 			const std::string &ip,
 			int port,
 			bytes::const_span secret)> callback,
-		Fn<void(TimeId)> timeCallback,
 		const QString &phone);
-	explicit SpecialConfigRequest(Fn<void(TimeId)> timeCallback);
+	explicit SpecialConfigRequest(Fn<void()> timeDoneCallback);
 
 private:
 	enum class Type {
@@ -44,6 +43,15 @@ private:
 		Type type;
 		QString domain;
 	};
+
+	SpecialConfigRequest(
+		Fn<void(
+			DcId dcId,
+			const std::string &ip,
+			int port,
+			bytes::const_span secret)> callback,
+		Fn<void()> timeDoneCallback,
+		const QString &phone);
 
 	void sendNextRequest();
 	void performRequest(const Attempt &attempt);
@@ -58,7 +66,7 @@ private:
 		const std::string &ip,
 		int port,
 		bytes::const_span secret)> _callback;
-	Fn<void(TimeId)> _timeCallback;
+	Fn<void()> _timeDoneCallback;
 	QString _phone;
 	MTPhelp_ConfigSimple _simpleConfig;
 

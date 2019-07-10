@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/connection_http.h"
 #include "mtproto/connection_resolving.h"
 #include "mtproto/session.h"
+#include "base/unixtime.h"
 
 namespace MTP {
 namespace internal {
@@ -111,8 +112,8 @@ gsl::span<const mtpPrime> AbstractConnection::parseNotSecureResponse(
 	if (answer[0] != 0
 		|| answer[1] != 0
 		|| (((uint32)answer[2]) & 0x03) != 1
-		//|| (unixtime() - answer[3] > 300) // We didn't sync time yet.
-		//|| (answer[3] - unixtime() > 60)
+		//|| (base::unixtime::now() - answer[3] > 300) // We didn't sync time yet.
+		//|| (answer[3] - base::unixtime::now() > 60)
 		|| false) {
 		LOG(("Not Secure Error: bad request answer start (%1 %2 %3)"
 			).arg(answer[0]
@@ -135,7 +136,9 @@ gsl::span<const mtpPrime> AbstractConnection::parseNotSecureResponse(
 }
 
 mtpBuffer AbstractConnection::preparePQFake(const MTPint128 &nonce) const {
-	return prepareNotSecurePacket(MTPReq_pq(nonce));
+	return prepareNotSecurePacket(
+		MTPReq_pq(nonce),
+		base::unixtime::mtproto_msg_id());
 }
 
 MTPResPQ AbstractConnection::readPQFakeReply(

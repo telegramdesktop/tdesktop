@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_cloud_password.h"
 #include "core/application.h"
 #include "base/openssl_help.h"
+#include "base/unixtime.h"
 #include "observer_peer.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -259,7 +260,7 @@ void ApiWrap::setupSupportMode() {
 
 	_session->settings().supportChatsTimeSliceValue(
 	) | rpl::start_with_next([=](int seconds) {
-		_dialogsLoadTill = seconds ? std::max(unixtime() - seconds, 0) : 0;
+		_dialogsLoadTill = seconds ? std::max(base::unixtime::now() - seconds, 0) : 0;
 		refreshDialogsLoadBlocked();
 	}, _session->lifetime());
 }
@@ -275,7 +276,7 @@ void ApiWrap::requestChangelog(
 }
 
 void ApiWrap::refreshProxyPromotion() {
-	const auto now = unixtime();
+	const auto now = base::unixtime::now();
 	const auto next = (_proxyPromotionNextRequestTime != 0)
 		? _proxyPromotionNextRequestTime
 		: now;
@@ -300,7 +301,7 @@ void ApiWrap::refreshProxyPromotion() {
 	_proxyPromotionKey = key;
 	if (key.first.isEmpty() || !key.second) {
 		proxyPromotionDone(MTP_help_proxyDataEmpty(
-			MTP_int(unixtime() + kProxyPromotionInterval)));
+			MTP_int(base::unixtime::now() + kProxyPromotionInterval)));
 		return;
 	}
 	_proxyPromotionRequestId = request(MTPhelp_GetProxyData(
@@ -309,7 +310,7 @@ void ApiWrap::refreshProxyPromotion() {
 		proxyPromotionDone(result);
 	}).fail([=](const RPCError &error) {
 		_proxyPromotionRequestId = 0;
-		const auto now = unixtime();
+		const auto now = base::unixtime::now();
 		const auto next = _proxyPromotionNextRequestTime = now
 			+ kProxyPromotionInterval;
 		if (!_proxyPromotionTimer.isActive()) {
@@ -328,7 +329,7 @@ void ApiWrap::proxyPromotionDone(const MTPhelp_ProxyData &proxy) {
 	_proxyPromotionNextRequestTime = proxy.match([&](const auto &data) {
 		return data.vexpires().v;
 	});
-	getProxyPromotionDelayed(unixtime(), _proxyPromotionNextRequestTime);
+	getProxyPromotionDelayed(base::unixtime::now(), _proxyPromotionNextRequestTime);
 
 	proxy.match([&](const MTPDhelp_proxyDataEmpty &data) {
 		_session->data().setProxyPromoted(nullptr);
@@ -380,7 +381,7 @@ void ApiWrap::requestTermsUpdate() {
 		_termsUpdateRequestId = 0;
 
 		const auto requestNext = [&](auto &&data) {
-			const auto timeout = (data.vexpires().v - unixtime());
+			const auto timeout = (data.vexpires().v - base::unixtime::now());
 			_termsUpdateSendAt = crl::now() + snap(
 				timeout * crl::time(1000),
 				kTermsUpdateTimeoutMin,
@@ -966,7 +967,7 @@ void ApiWrap::requestMoreBlockedByDateDialogs() {
 	const auto max = _session->settings().supportChatsTimeSlice();
 	_dialogsLoadTill = _dialogsLoadState->offsetDate
 		? (_dialogsLoadState->offsetDate - max)
-		: (unixtime() - max);
+		: (base::unixtime::now() - max);
 	refreshDialogsLoadBlocked();
 	requestDialogs();
 }
@@ -2120,7 +2121,7 @@ void ApiWrap::saveStickerSets(
 			order.push_back(setId);
 			it->flags |= MTPDstickerSet::Flag::f_installed_date;
 			if (!it->installDate) {
-				it->installDate = unixtime();
+				it->installDate = base::unixtime::now();
 			}
 		}
 	}
@@ -2215,7 +2216,7 @@ void ApiWrap::blockUser(not_null<UserData*> user) {
 			if (_blockedUsersSlice) {
 				_blockedUsersSlice->list.insert(
 					_blockedUsersSlice->list.begin(),
-					{ user, unixtime() });
+					{ user, base::unixtime::now() });
 				++_blockedUsersSlice->total;
 				_blockedUsersChanges.fire_copy(*_blockedUsersSlice);
 			}
@@ -2401,7 +2402,7 @@ void ApiWrap::handlePrivacyChange(
 }
 
 void ApiWrap::updatePrivacyLastSeens(const QVector<MTPPrivacyRule> &rules) {
-	const auto now = unixtime();
+	const auto now = base::unixtime::now();
 	_session->data().enumerateUsers([&](UserData *user) {
 		if (user->isSelf() || user->loadedStatus != PeerData::FullLoaded) {
 			return;
@@ -2734,7 +2735,7 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 void ApiWrap::requestWebPageDelayed(WebPageData *page) {
 	if (page->pendingTill <= 0) return;
 	_webPagesPending.insert(page, 0);
-	auto left = (page->pendingTill - unixtime()) * 1000;
+	auto left = (page->pendingTill - base::unixtime::now()) * 1000;
 	if (!_webPagesTimer.isActive() || left <= _webPagesTimer.remainingTime()) {
 		_webPagesTimer.callOnce((left < 0 ? 0 : left) + 1);
 	}
@@ -2759,7 +2760,7 @@ void ApiWrap::resolveWebPages() {
 	MessageIdsByChannel idsByChannel; // temp_req_id = -index - 2
 
 	ids.reserve(_webPagesPending.size());
-	int32 t = unixtime(), m = INT_MAX;
+	int32 t = base::unixtime::now(), m = INT_MAX;
 	for (auto i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
 		if (i.value() > 0) continue;
 		if (i.key()->pendingTill <= t) {
@@ -3675,7 +3676,7 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 					if (item->out()
 						&& item->history()->peer->isUser()
 						&& !App::main()->requestingDifference()) {
-						item->history()->peer->asUser()->madeAction(unixtime());
+						item->history()->peer->asUser()->madeAction(base::unixtime::now());
 					}
 				}
 			} else {
@@ -3705,7 +3706,7 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 			history->outboxRead(d.vmax_id().v);
 			if (!App::main()->requestingDifference()) {
 				if (const auto user = history->peer->asUser()) {
-					user->madeAction(unixtime());
+					user->madeAction(base::unixtime::now());
 				}
 			}
 		}
@@ -4510,7 +4511,7 @@ void ApiWrap::forwardMessages(
 				history->addNewForwarded(
 					newId.msg,
 					flags,
-					unixtime(),
+					base::unixtime::now(),
 					messageFromId,
 					messagePostAuthor,
 					message);
@@ -4599,7 +4600,7 @@ void ApiWrap::sendSharedContact(
 			MTPMessageFwdHeader(),
 			MTPint(),
 			MTP_int(options.replyTo),
-			MTP_int(unixtime()),
+			MTP_int(base::unixtime::now()),
 			MTP_string(),
 			MTP_messageMediaContact(
 				MTP_string(phone),
@@ -4981,7 +4982,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 				MTPMessageFwdHeader(),
 				MTPint(),
 				MTP_int(message.replyTo),
-				MTP_int(unixtime()),
+				MTP_int(base::unixtime::now()),
 				msgText,
 				media,
 				MTPReplyMarkup(),
@@ -5089,7 +5090,7 @@ void ApiWrap::sendInlineResult(
 	auto messagePostAuthor = channelPost
 		? App::peerName(_session->user())
 		: QString();
-	MTPint messageDate = MTP_int(unixtime());
+	MTPint messageDate = MTP_int(base::unixtime::now());
 	UserId messageViaBotId = bot ? peerToUser(bot->id) : 0;
 	MsgId messageId = newId.msg;
 
@@ -5184,7 +5185,7 @@ void ApiWrap::sendExistingDocument(
 		flags,
 		0,
 		replyTo,
-		unixtime(),
+		base::unixtime::now(),
 		messageFromId,
 		messagePostAuthor,
 		document,

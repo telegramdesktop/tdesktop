@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
+#include "base/unixtime.h"
 #include "styles/style_boxes.h"
 
 namespace AdminLog {
@@ -72,7 +73,7 @@ UserCheckbox::UserCheckbox(QWidget *parent, not_null<UserData*> user, bool check
 		if (isDisabled()) return;
 		setChecked(!this->checked());
 	});
-	auto now = unixtime();
+	auto now = base::unixtime::now();
 	_statusText = Data::OnlineText(_user, now);
 	_statusOnline = Data::OnlineTextActive(_user, now);
 	auto checkSize = _check->getSize();

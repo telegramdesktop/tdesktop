@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_document.h"
+#include "base/unixtime.h"
 #include "boxes/confirm_box.h"
 #include "boxes/background_preview_box.h"
 #include "styles/style_history.h"
@@ -291,7 +292,7 @@ AdminLog::OwnedItem GenerateTextItem(
 		flags,
 		replyTo,
 		viaBotId,
-		unixtime(),
+		base::unixtime::now(),
 		out ? history->session().userId() : peerToUser(history->peer->id),
 		QString(),
 		TextWithEntities{ TextUtilities::Clean(text) });

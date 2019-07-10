@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "history/history.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "base/unixtime.h"
 #include "auth_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -575,7 +576,7 @@ void AddSpecialBoxController::editAdminDone(
 		_editParticipantBox->closeBox();
 	}
 
-	const auto date = unixtime(); // Incorrect, but ignored.
+	const auto date = base::unixtime::now(); // Incorrect, but ignored.
 	if (rights.c_chatAdminRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
 			MTP_int(user->bareId()),
@@ -672,7 +673,7 @@ void AddSpecialBoxController::editRestrictedDone(
 		_editParticipantBox->closeBox();
 	}
 
-	const auto date = unixtime(); // Incorrect, but ignored.
+	const auto date = base::unixtime::now(); // Incorrect, but ignored.
 	if (rights.c_chatBannedRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
 			MTP_int(user->bareId()),

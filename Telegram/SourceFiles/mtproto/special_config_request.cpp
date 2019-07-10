@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/rsa_public_key.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/auth_key.h"
+#include "base/unixtime.h"
 #include "base/openssl_help.h"
 
 extern "C" {
@@ -258,11 +259,13 @@ SpecialConfigRequest::SpecialConfigRequest(
 		const std::string &ip,
 		int port,
 		bytes::const_span secret)> callback,
-	Fn<void(TimeId)> timeCallback,
+	Fn<void()> timeDoneCallback,
 	const QString &phone)
 : _callback(std::move(callback))
-, _timeCallback(std::move(timeCallback))
+, _timeDoneCallback(std::move(timeDoneCallback))
 , _phone(phone) {
+	Expects((_callback == nullptr) != (_timeDoneCallback == nullptr));
+
 	_manager.setProxy(QNetworkProxy::NoProxy);
 	_attempts = {
 		//{ Type::App, qsl("software-download.microsoft.com") },
@@ -275,8 +278,18 @@ SpecialConfigRequest::SpecialConfigRequest(
 	sendNextRequest();
 }
 
-SpecialConfigRequest::SpecialConfigRequest(Fn<void(TimeId)> timeCallback)
-: SpecialConfigRequest(nullptr, std::move(timeCallback), QString()) {
+SpecialConfigRequest::SpecialConfigRequest(
+	Fn<void(
+		DcId dcId,
+		const std::string &ip,
+		int port,
+		bytes::const_span secret)> callback,
+	const QString &phone)
+: SpecialConfigRequest(std::move(callback), nullptr, phone) {
+}
+
+SpecialConfigRequest::SpecialConfigRequest(Fn<void()> timeDoneCallback)
+: SpecialConfigRequest(nullptr, std::move(timeDoneCallback), QString()) {
 }
 
 void SpecialConfigRequest::sendNextRequest() {
@@ -326,7 +339,7 @@ void SpecialConfigRequest::performRequest(const Attempt &attempt) {
 
 void SpecialConfigRequest::handleHeaderUnixtime(
 		not_null<QNetworkReply*> reply) {
-	if (!_timeCallback || reply->error() != QNetworkReply::NoError) {
+	if (reply->error() != QNetworkReply::NoError) {
 		return;
 	}
 	const auto date = QString::fromLatin1([&] {
@@ -346,7 +359,10 @@ void SpecialConfigRequest::handleHeaderUnixtime(
 		LOG(("Config Error: Bad 'Date' header received: %1").arg(date));
 		return;
 	}
-	_timeCallback(parsed.toTime_t());
+	base::unixtime::http_update(parsed.toTime_t());
+	if (_timeDoneCallback) {
+		_timeDoneCallback();
+	}
 }
 
 void SpecialConfigRequest::requestFinished(
@@ -460,9 +476,9 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 		return;
 	}
 	Assert(_simpleConfig.type() == mtpc_help_configSimple);
-	auto &config = _simpleConfig.c_help_configSimple();
-	auto now = unixtime();
-	if (now < config.vdate().v || now > config.vexpires().v) {
+	const auto &config = _simpleConfig.c_help_configSimple();
+	const auto now = base::unixtime::now();
+	if (now > config.vexpires().v) {
 		LOG(("Config Error: Bad date frame for simple config: %1-%2, our time is %3.").arg(config.vdate().v).arg(config.vexpires().v).arg(now));
 		return;
 	}

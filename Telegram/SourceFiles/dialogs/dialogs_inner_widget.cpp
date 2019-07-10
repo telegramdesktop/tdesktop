@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_peer_values.h"
+#include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -2889,7 +2890,7 @@ void InnerWidget::userOnlineUpdated(const Notify::PeerUpdate &update) {
 		const auto visible = (top < _visibleBottom)
 			&& (top + st::dialogsRowHeight > _visibleTop);
 		row->setOnline(
-			Data::OnlineTextActive(user, unixtime()),
+			Data::OnlineTextActive(user, base::unixtime::now()),
 			visible ? Fn<void()>(crl::guard(this, repaint)) : nullptr);
 	}
 }

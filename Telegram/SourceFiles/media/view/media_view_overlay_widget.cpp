@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "window/window_controller.h"
 #include "main/main_account.h" // Account::sessionValue.
+#include "base/unixtime.h"
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "layout.h"
@@ -554,9 +555,9 @@ void OverlayWidget::updateControls() {
 		if (const auto item = Auth().data().message(_msgid)) {
 			return ItemDateTime(item);
 		} else if (_photo) {
-			return ParseDateTime(_photo->date);
+			return base::unixtime::parse(_photo->date);
 		} else if (_doc) {
-			return ParseDateTime(_doc->date);
+			return base::unixtime::parse(_doc->date);
 		}
 		return dNow;
 	}();

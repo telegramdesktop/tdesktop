@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
+#include "base/unixtime.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "styles/style_chat_helpers.h"
@@ -278,7 +279,7 @@ AdminLog::OwnedItem GenerateCommentItem(
 		flags,
 		replyTo,
 		viaBotId,
-		unixtime(),
+		base::unixtime::now(),
 		history->session().userId(),
 		QString(),
 		TextWithEntities{ TextUtilities::Clean(data.comment) });
@@ -302,7 +303,7 @@ AdminLog::OwnedItem GenerateContactItem(
 		MTPMessageFwdHeader(),
 		MTP_int(viaBotId),
 		MTP_int(replyTo),
-		MTP_int(unixtime()),
+		MTP_int(base::unixtime::now()),
 		MTP_string(),
 		MTP_messageMediaContact(
 			MTP_string(data.phone),

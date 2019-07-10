@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "base/unixtime.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_session_controller.h"
 #include "history/history.h"
@@ -671,7 +672,7 @@ void ParticipantsOnlineSorter::sort() {
 		_onlineCount = 0;
 		return;
 	}
-	const auto now = unixtime();
+	const auto now = base::unixtime::now();
 	_delegate->peerListSortRows([&](
 			const PeerListRow &a,
 			const PeerListRow &b) {
@@ -686,7 +687,7 @@ rpl::producer<int> ParticipantsOnlineSorter::onlineCountValue() const {
 }
 
 void ParticipantsOnlineSorter::refreshOnlineCount() {
-	const auto now = unixtime();
+	const auto now = base::unixtime::now();
 	auto left = 0, right = _delegate->peerListFullRowsCount();
 	while (right > left) {
 		const auto middle = (left + right) / 2;
@@ -1441,7 +1442,7 @@ void ParticipantsBoxController::editAdminDone(
 		_editParticipantBox->closeBox();
 	}
 
-	const auto date = unixtime(); // Incorrect, but ignored.
+	const auto date = base::unixtime::now(); // Incorrect, but ignored.
 	if (rights.c_chatAdminRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
 			MTP_int(user->bareId()),
@@ -1509,7 +1510,7 @@ void ParticipantsBoxController::editRestrictedDone(
 		_editParticipantBox->closeBox();
 	}
 
-	const auto date = unixtime(); // Incorrect, but ignored.
+	const auto date = base::unixtime::now(); // Incorrect, but ignored.
 	if (rights.c_chatBannedRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
 			MTP_int(user->bareId()),

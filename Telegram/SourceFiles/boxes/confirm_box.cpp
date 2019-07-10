@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "base/unixtime.h"
 #include "auth_session.h"
 #include "observer_peer.h"
 
@@ -620,7 +621,7 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 		return std::nullopt;
 	}
 
-	const auto now = unixtime();
+	const auto now = base::unixtime::now();
 	const auto canRevoke = [&](HistoryItem * item) {
 		return item->canDeleteForEveryone(now);
 	};

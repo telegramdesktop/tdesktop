@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "ui/toast/toast.h"
 #include "ui/emoji_config.h"
+#include "base/unixtime.h"
 #include "lottie/lottie_single_player.h"
 #include "lottie/lottie_multi_player.h"
 #include "styles/style_chat_helpers.h"
@@ -126,7 +127,7 @@ void InstallLocally(uint64 setId) {
 	auto flags = it->flags;
 	it->flags &= ~(MTPDstickerSet::Flag::f_archived | MTPDstickerSet_ClientFlag::f_unread);
 	it->flags |= MTPDstickerSet::Flag::f_installed_date;
-	it->installDate = unixtime();
+	it->installDate = base::unixtime::now();
 	auto changedFlags = flags ^ it->flags;
 
 	auto &order = Auth().data().stickerSetsOrderRef();
@@ -922,7 +923,7 @@ Set *FeedSet(const MTPDstickerSet &set) {
 		it->flags = set.vflags().v | clientFlags;
 		const auto installDate = set.vinstalled_date();
 		it->installDate = installDate
-			? (installDate->v ? installDate->v : unixtime())
+			? (installDate->v ? installDate->v : base::unixtime::now())
 			: TimeId(0);
 		it->thumbnail = thumbnail;
 		if (it->count != set.vcount().v

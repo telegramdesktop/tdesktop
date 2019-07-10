@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/edit_participants_box.h"
+#include "base/unixtime.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
@@ -128,7 +129,7 @@ void GroupMembersWidget::refreshUserOnline(UserData *user) {
 	auto it = _membersByUser.find(user);
 	if (it == _membersByUser.cend()) return;
 
-	_now = unixtime();
+	_now = base::unixtime::now();
 
 	auto member = getMember(it.value());
 	member->statusHasOnlineColor = !user->botInfo && Data::OnlineTextActive(user->onlineTill, _now);
@@ -180,7 +181,7 @@ void GroupMembersWidget::updateItemStatusText(Item *item) {
 }
 
 void GroupMembersWidget::refreshMembers() {
-	_now = unixtime();
+	_now = base::unixtime::now();
 	if (const auto chat = peer()->asChat()) {
 		checkSelfAdmin(chat);
 		if (chat->noParticipantInfo()) {
@@ -421,7 +422,7 @@ auto GroupMembersWidget::computeMember(not_null<UserData*> user)
 
 void GroupMembersWidget::onUpdateOnlineDisplay() {
 	if (_sortByOnline) {
-		_now = unixtime();
+		_now = base::unixtime::now();
 
 		bool changed = false;
 		for_const (auto item, items()) {

@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "base/unixtime.h"
 #include "support/support_helper.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
@@ -775,7 +776,7 @@ void TopBarWidget::updateOnlineDisplay() {
 	if (!_activeChat.peer()) return;
 
 	QString text;
-	const auto now = unixtime();
+	const auto now = base::unixtime::now();
 	bool titlePeerTextOnline = false;
 	if (const auto user = _activeChat.peer()->asUser()) {
 		if (Auth().supportMode()
@@ -861,7 +862,7 @@ void TopBarWidget::updateOnlineDisplay() {
 void TopBarWidget::updateOnlineDisplayTimer() {
 	if (!_activeChat.peer()) return;
 
-	const auto now = unixtime();
+	const auto now = base::unixtime::now();
 	auto minTimeout = crl::time(86400);
 	const auto handleUser = [&](not_null<UserData*> user) {
 		auto hisTimeout = Data::OnlineChangeTimeout(user, now);

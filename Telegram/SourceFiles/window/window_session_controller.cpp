@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "passport/passport_form_controller.h"
 #include "core/shortcuts.h"
+#include "base/unixtime.h"
 #include "boxes/calendar_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -492,13 +493,13 @@ void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 					}
 				}
 			} else if (history->chatListTimeId() != 0) {
-				return ParseDateTime(history->chatListTimeId()).date();
+				return base::unixtime::parse(history->chatListTimeId()).date();
 			}
 		//} else if (const auto feed = chat.feed()) { // #feed
 		//	if (chatScrollPosition(feed)) { // #TODO feeds save position
 
 		//	} else if (feed->chatListTimeId() != 0) {
-		//		return ParseDateTime(feed->chatListTimeId()).date();
+		//		return base::unixtime::parse(feed->chatListTimeId()).date();
 		//	}
 		}
 		return QDate();
@@ -509,11 +510,11 @@ void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 				history = channel->owner().historyLoaded(channel);
 			}
 			if (history && history->chatListTimeId() != 0) {
-				return ParseDateTime(history->chatListTimeId()).date();
+				return base::unixtime::parse(history->chatListTimeId()).date();
 			}
 		//} else if (const auto feed = chat.feed()) { // #feed
 		//	if (feed->chatListTimeId() != 0) {
-		//		return ParseDateTime(feed->chatListTimeId()).date();
+		//		return base::unixtime::parse(feed->chatListTimeId()).date();
 		//	}
 		}
 		return QDate::currentDate();

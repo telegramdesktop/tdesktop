@@ -83,6 +83,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
+#include "base/unixtime.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_top_bar.h"
 #include "export/export_settings.h"
@@ -3417,7 +3418,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	}
 	if (index) {
 		if (it->dates.size() == it->stickers.size()) {
-			it->dates.insert(it->dates.begin(), unixtime());
+			it->dates.insert(it->dates.begin(), base::unixtime::now());
 		}
 		it->stickers.push_front(sticker);
 		if (const auto emojiList = Stickers::GetEmojiListFromSet(sticker)) {
@@ -3579,7 +3580,7 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 		}
 
 		const auto self = session().user();
-		self->onlineTill = unixtime() + (isOnline ? (Global::OnlineUpdatePeriod() / 1000) : -1);
+		self->onlineTill = base::unixtime::now() + (isOnline ? (Global::OnlineUpdatePeriod() / 1000) : -1);
 		Notify::peerUpdatedDelayed(
 			self,
 			Notify::PeerUpdate::Flag::UserOnlineChanged);
@@ -4008,7 +4009,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			history->outboxRead(d.vmax_id().v);
 			if (!requestingDifference()) {
 				if (const auto user = history->peer->asUser()) {
-					user->madeAction(unixtime());
+					user->madeAction(base::unixtime::now());
 				}
 			}
 			if (_history->peer() && _history->peer()->id == peer) {
@@ -4117,7 +4118,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const auto history = session().data().historyLoaded(userId);
 		const auto user = session().data().userLoaded(d.vuser_id().v);
 		if (history && user) {
-			const auto when = requestingDifference() ? 0 : unixtime();
+			const auto when = requestingDifference() ? 0 : base::unixtime::now();
 			session().data().registerSendAction(history, user, d.vaction(), when);
 		}
 	} break;
@@ -4136,7 +4137,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			? nullptr
 			: session().data().userLoaded(d.vuser_id().v);
 		if (history && user) {
-			const auto when = requestingDifference() ? 0 : unixtime();
+			const auto when = requestingDifference() ? 0 : base::unixtime::now();
 			session().data().registerSendAction(history, user, d.vaction(), when);
 		}
 	} break;

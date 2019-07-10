@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/special_buttons.h"
 #include "ui/unread_badge.h"
+#include "base/unixtime.h"
 #include "window/window_session_controller.h"
 #include "observer_peer.h"
 #include "core/application.h"
@@ -394,7 +395,7 @@ void Cover::refreshStatusText() {
 		return false;
 	}();
 	auto statusText = [&] {
-		auto currentTime = unixtime();
+		auto currentTime = base::unixtime::now();
 		if (auto user = _peer->asUser()) {
 			const auto result = Data::OnlineTextFull(user, currentTime);
 			const auto showOnline = Data::OnlineTextActive(user, currentTime);

@@ -25,8 +25,7 @@ public:
 		not_null<Instance*> instance,
 		const QString &phone,
 		RPCDoneHandlerPtr onDone,
-		RPCFailHandlerPtr onFail,
-		Fn<void(TimeId)> updateHttpUnixtime);
+		RPCFailHandlerPtr onFail);
 	~ConfigLoader();
 
 	void load();
@@ -70,7 +69,6 @@ private:
 
 	RPCDoneHandlerPtr _doneHandler;
 	RPCFailHandlerPtr _failHandler;
-	Fn<void(TimeId)> _updateHttpUnixtime;
 
 };
 

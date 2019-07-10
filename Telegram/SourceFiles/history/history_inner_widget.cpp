@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "history/history_widget.h"
+#include "base/unixtime.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "layout.h"
@@ -1508,7 +1509,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_widget->replyToMessage(itemId);
 			});
 		}
-		if (item->allowsEdit(unixtime())) {
+		if (item->allowsEdit(base::unixtime::now())) {
 			_menu->addAction(tr::lng_context_edit_msg(tr::now), [=] {
 				_widget->editMessage(itemId);
 			});
@@ -3109,7 +3110,7 @@ QString HistoryInner::tooltipText() const {
 				dateText += '\n' + tr::lng_edited_date(
 					tr::now,
 					lt_date,
-					ParseDateTime(editedDate).toString(
+					base::unixtime::parse(editedDate).toString(
 						QLocale::system().dateTimeFormat(
 							QLocale::LongFormat)));
 			}
@@ -3117,7 +3118,7 @@ QString HistoryInner::tooltipText() const {
 				dateText += '\n' + tr::lng_forwarded_date(
 					tr::now,
 					lt_date,
-					ParseDateTime(forwarded->originalDate).toString(
+					base::unixtime::parse(forwarded->originalDate).toString(
 						QLocale::system().dateTimeFormat(
 							QLocale::LongFormat)));
 				if (const auto media = view->media()) {

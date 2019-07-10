@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/file_utilities.h"
 #include "boxes/calendar_box.h"
+#include "base/unixtime.h"
 #include "auth_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_export.h"
@@ -284,7 +285,8 @@ void SettingsWidget::addLimitsLabel(
 	}) | rpl::distinct_until_changed(
 	) | rpl::map([](TimeId from) {
 		return (from
-			? rpl::single(langDayOfMonthFull(ParseDateTime(from).date()))
+			? rpl::single(langDayOfMonthFull(
+				base::unixtime::parse(from).date()))
 			: tr::lng_export_beginning()
 		) | Ui::Text::ToLink(qsl("internal:edit_from"));
 	}) | rpl::flatten_latest();
@@ -294,7 +296,8 @@ void SettingsWidget::addLimitsLabel(
 	}) | rpl::distinct_until_changed(
 	) | rpl::map([](TimeId till) {
 		return (till
-			? rpl::single(langDayOfMonthFull(ParseDateTime(till).date()))
+			? rpl::single(langDayOfMonthFull(
+				base::unixtime::parse(till).date()))
 			: tr::lng_export_end()
 		) | Ui::Text::ToLink(qsl("internal:edit_till"));
 	}) | rpl::flatten_latest();
@@ -360,20 +363,20 @@ void SettingsWidget::editDateLimit(
 	Expects(_showBoxCallback != nullptr);
 
 	const auto highlighted = current
-		? ParseDateTime(current).date()
+		? base::unixtime::parse(current).date()
 		: max
-		? ParseDateTime(max).date()
+		? base::unixtime::parse(max).date()
 		: min
-		? ParseDateTime(min).date()
+		? base::unixtime::parse(min).date()
 		: QDate::currentDate();
 	const auto month = highlighted;
 	const auto shared = std::make_shared<QPointer<CalendarBox>>();
 	const auto finalize = [=](not_null<CalendarBox*> box) {
 		box->setMaxDate(max
-			? ParseDateTime(max).date()
+			? base::unixtime::parse(max).date()
 			: QDate::currentDate());
 		box->setMinDate(min
-			? ParseDateTime(min).date()
+			? base::unixtime::parse(min).date()
 			: QDate(2013, 8, 1)); // Telegram was launched in August 2013 :)
 		box->addLeftButton(std::move(resetLabel), crl::guard(this, [=] {
 			done(0);
@@ -383,7 +386,7 @@ void SettingsWidget::editDateLimit(
 		}));
 	};
 	const auto callback = crl::guard(this, [=](const QDate &date) {
-		done(ServerTimeFromParsed(QDateTime(date)));
+		done(base::unixtime::serialize(QDateTime(date)));
 		if (const auto weak = shared->data()) {
 			weak->closeBox();
 		}

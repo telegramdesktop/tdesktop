@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/text/text_utilities.h"
 #include "boxes/sticker_set_box.h"
+#include "base/unixtime.h"
 #include "core/application.h"
 #include "mainwindow.h" // App::wnd()->sessionController
 #include "auth_session.h"
@@ -218,7 +219,7 @@ TextWithEntities GenerateBannedChangeText(
 		: tr::lng_admin_log_restricted_until(
 			tr::now,
 			lt_date,
-			langDateTime(ParseDateTime(newUntil)));
+			langDateTime(base::unixtime::parse(newUntil)));
 	auto result = tr::lng_admin_log_restricted(
 		tr::now,
 		lt_user,

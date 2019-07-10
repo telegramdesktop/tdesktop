@@ -180,8 +180,6 @@ public:
 	void setUserPhone(const QString &phone);
 	void badConfigurationError();
 
-	// Thread safe.
-	[[nodiscard]] int32 httpUnixtime() const;
 	void syncHttpUnixtime();
 
 	~Instance();

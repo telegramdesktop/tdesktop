@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_info.h"
 #include "auth_session.h"
 #include "data/data_session.h"
+#include "base/unixtime.h"
 #include "styles/style_export.h"
 #include "styles/style_boxes.h"
 
@@ -208,7 +209,7 @@ void PanelController::showError(const ApiErrorState &error) {
 			lt_date,
 			langDateTimeFull(when)));
 
-		_settings->availableAt = unixtime() + seconds;
+		_settings->availableAt = base::unixtime::now() + seconds;
 		_saveSettingsTimer.callOnce(kSaveSettingsTimeout);
 
 		Auth().data().suggestStartExport(_settings->availableAt);
