@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "base/timer.h"
 #include "base/concurrent_timer.h"
+#include "base/invoke_queued.h"
 #include "base/qthelp_url.h"
 #include "base/qthelp_regex.h"
 #include "ui/effects/animations.h"
@@ -494,21 +495,28 @@ void Sandbox::registerEnterFromEventLoop() {
 	}
 }
 
+bool Sandbox::notifyOrInvoke(QObject *receiver, QEvent *e) {
+	if (e->type() == base::InvokeQueuedEvent::kType) {
+		static_cast<base::InvokeQueuedEvent*>(e)->invoke();
+		return true;
+	}
+	return QApplication::notify(receiver, e);
+}
+
 bool Sandbox::notify(QObject *receiver, QEvent *e) {
 	if (QThread::currentThreadId() != _mainThreadId) {
-		return QApplication::notify(receiver, e);
+		return notifyOrInvoke(receiver, e);
 	}
 
 	const auto wrap = createEventNestingLevel();
-	const auto type = e->type();
-	if (type == QEvent::UpdateRequest) {
+	if (e->type() == QEvent::UpdateRequest) {
 		const auto weak = make_weak(receiver);
 		_widgetUpdateRequests.fire({});
 		if (!weak) {
 			return true;
 		}
 	}
-	return QApplication::notify(receiver, e);
+	return notifyOrInvoke(receiver, e);
 }
 
 void Sandbox::processPostponedCalls(int level) {

@@ -14,10 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/assertion.h"
 #include "base/bytes.h"
 
+#include <crl/crl_time.h>
 #include <QtCore/QReadWriteLock>
 #include <QtCore/QRegularExpression>
 #include <QtNetwork/QNetworkProxy>
-
 #include <cmath>
 #include <set>
 
@@ -54,12 +54,6 @@ inline bool in_range(Value &&value, From &&from, Till &&till) {
 // if you have "QVector<T*> v" then "for (T * const p : v)" will still call QVector::detach(),
 // while "for_const (T *p, v)" won't and "for_const (T *&p, v)" won't compile
 #define for_const(range_declaration, range_expression) for (range_declaration : std::as_const(range_expression))
-
-template <typename Lambda>
-inline void InvokeQueued(const QObject *context, Lambda &&lambda) {
-	QObject proxy;
-	QObject::connect(&proxy, &QObject::destroyed, context, std::forward<Lambda>(lambda), Qt::QueuedConnection);
-}
 
 static const int32 ScrollMax = INT_MAX;
 
