@@ -170,6 +170,52 @@ QByteArray ConcatenateDnsTxtFields(const std::vector<DnsEntry> &response) {
 	return QStringList(entries.values()).join(QString()).toLatin1();
 }
 
+[[nodiscard]] QDateTime ParseHttpDate(const QString &date) {
+	// Wed, 10 Jul 2019 14:33:38 GMT
+	static const auto expression = QRegularExpression(
+		R"(\w\w\w, (\d\d) (\w\w\w) (\d\d\d\d) (\d\d):(\d\d):(\d\d) GMT)");
+	const auto match = expression.match(date);
+	if (!match.hasMatch()) {
+		return QDateTime();
+	}
+
+	const auto number = [&](int index) {
+		return match.capturedRef(index).toInt();
+	};
+	const auto day = number(1);
+	const auto month = [&] {
+		static const auto months = {
+			"Jan",
+			"Feb",
+			"Mar",
+			"Apr",
+			"May",
+			"Jun",
+			"Jul",
+			"Aug",
+			"Sep",
+			"Oct",
+			"Nov",
+			"Dec"
+		};
+		const auto captured = match.capturedRef(2);
+		for (auto i = begin(months); i != end(months); ++i) {
+			if (captured == (*i)) {
+				return 1 + int(i - begin(months));
+			}
+		}
+		return 0;
+	}();
+	const auto year = number(3);
+	const auto hour = number(4);
+	const auto minute = number(5);
+	const auto second = number(6);
+	return QDateTime(
+		QDate(year, month, day),
+		QTime(hour, minute, second),
+		Qt::UTC);
+}
+
 } // namespace
 
 ServiceWebRequest::ServiceWebRequest(not_null<QNetworkReply*> reply)
@@ -212,8 +258,10 @@ SpecialConfigRequest::SpecialConfigRequest(
 		const std::string &ip,
 		int port,
 		bytes::const_span secret)> callback,
+	Fn<void(TimeId)> timeCallback,
 	const QString &phone)
 : _callback(std::move(callback))
+, _timeCallback(std::move(timeCallback))
 , _phone(phone) {
 	_manager.setProxy(QNetworkProxy::NoProxy);
 	_attempts = {
@@ -225,6 +273,10 @@ SpecialConfigRequest::SpecialConfigRequest(
 	std::random_device rd;
 	ranges::shuffle(_attempts, std::mt19937(rd()));
 	sendNextRequest();
+}
+
+SpecialConfigRequest::SpecialConfigRequest(Fn<void(TimeId)> timeCallback)
+: SpecialConfigRequest(nullptr, std::move(timeCallback), QString()) {
 }
 
 void SpecialConfigRequest::sendNextRequest() {
@@ -272,10 +324,40 @@ void SpecialConfigRequest::performRequest(const Attempt &attempt) {
 	});
 }
 
+void SpecialConfigRequest::handleHeaderUnixtime(
+		not_null<QNetworkReply*> reply) {
+	if (!_timeCallback || reply->error() != QNetworkReply::NoError) {
+		return;
+	}
+	const auto date = QString::fromLatin1([&] {
+		for (const auto &pair : reply->rawHeaderPairs()) {
+			if (pair.first == "Date") {
+				return pair.second;
+			}
+		}
+		return QByteArray();
+	}());
+	if (date.isEmpty()) {
+		LOG(("Config Error: No 'Date' header received."));
+		return;
+	}
+	const auto parsed = ParseHttpDate(date);
+	if (!parsed.isValid()) {
+		LOG(("Config Error: Bad 'Date' header received: %1").arg(date));
+		return;
+	}
+	_timeCallback(parsed.toTime_t());
+}
+
 void SpecialConfigRequest::requestFinished(
 		Type type,
 		not_null<QNetworkReply*> reply) {
+	handleHeaderUnixtime(reply);
 	const auto result = finalizeRequest(reply);
+	if (!_callback) {
+		return;
+	}
+
 	switch (type) {
 	//case Type::App: handleResponse(result); break;
 	case Type::Dns: {

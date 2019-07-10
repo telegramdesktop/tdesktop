@@ -42,31 +42,36 @@ public:
 	void setGoodProxyDomain(const QString &host, const QString &ip);
 	void suggestMainDcId(DcId mainDcId);
 	void setMainDcId(DcId mainDcId);
-	DcId mainDcId() const;
+	[[nodiscard]] DcId mainDcId() const;
 
 	void setKeyForWrite(DcId dcId, const AuthKeyPtr &key);
-	AuthKeysList getKeysForWrite() const;
+	[[nodiscard]] AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
 
-	not_null<DcOptions*> dcOptions();
+	[[nodiscard]] not_null<DcOptions*> dcOptions();
 
 	// Thread safe.
-	QString deviceModel() const;
-	QString systemVersion() const;
+	[[nodiscard]] QString deviceModel() const;
+	[[nodiscard]] QString systemVersion() const;
 
+	// Main thread.
 	void requestConfig();
 	void requestConfigIfOld();
 	void requestCDNConfig();
 	void setUserPhone(const QString &phone);
 	void badConfigurationError();
 
+	// Thread safe.
+	void syncHttpUnixtime();
+	[[nodiscard]] int32 httpUnixtime() const;
+
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
-	int32 dcstate(ShiftedDcId shiftedDcId = 0);
-	QString dctransport(ShiftedDcId shiftedDcId = 0);
+	[[nodiscard]] int32 dcstate(ShiftedDcId shiftedDcId = 0);
+	[[nodiscard]] QString dctransport(ShiftedDcId shiftedDcId = 0);
 	void ping();
 	void cancel(mtpRequestId requestId);
-	int32 state(mtpRequestId requestId); // < 0 means waiting for such count of ms
+	[[nodiscard]] int32 state(mtpRequestId requestId); // < 0 means waiting for such count of ms
 	void killSession(ShiftedDcId shiftedDcId);
 	void killSession(std::unique_ptr<internal::Session> session);
 	void stopSession(ShiftedDcId shiftedDcId);
@@ -123,9 +128,6 @@ public:
 	bool isKeysDestroyer() const {
 		return (_mode == Instance::Mode::KeysDestroyer);
 	}
-	bool isSpecialConfigRequester() const {
-		return (_mode == Instance::Mode::SpecialConfigRequester);
-	}
 
 	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
 	void performKeyDestroy(ShiftedDcId shiftedDcId);
@@ -166,6 +168,7 @@ private:
 	void clearCallbacks(const std::vector<RPCCallbackClear> &ids);
 
 	void checkDelayedRequests();
+	[[nodiscard]] Fn<void(TimeId)> updateHttpUnixtime();
 
 	not_null<Instance*> _instance;
 	not_null<DcOptions*> _dcOptions;
@@ -186,10 +189,13 @@ private:
 
 	std::unique_ptr<internal::ConfigLoader> _configLoader;
 	std::unique_ptr<DomainResolver> _domainResolver;
+	std::unique_ptr<SpecialConfigRequest> _httpUnixtimeLoader;
 	QString _userPhone;
 	mtpRequestId _cdnConfigLoadRequestId = 0;
 	crl::time _lastConfigLoadedTime = 0;
 	crl::time _configExpiresAt = 0;
+	std::atomic<bool> _httpUnixtimeValid = false;
+	std::atomic<TimeId> _httpUnixtimeShift = 0;
 
 	std::map<DcId, AuthKeyPtr> _keysForWrite;
 	mutable QReadWriteLock _keysForWriteLock;
@@ -407,7 +413,8 @@ void Instance::Private::requestConfig() {
 		_instance,
 		_userPhone,
 		rpcDone([=](const MTPConfig &result) { configLoadDone(result); }),
-		rpcFail([=](const RPCError &error) { return configLoadFail(error); }));
+		rpcFail([=](const RPCError &error) { return configLoadFail(error); }),
+		updateHttpUnixtime());
 	_configLoader->load();
 }
 
@@ -424,6 +431,35 @@ void Instance::Private::badConfigurationError() {
 	if (_mode == Mode::Normal) {
 		Core::App().badMtprotoConfigurationError();
 	}
+}
+
+int32 Instance::Private::httpUnixtime() const {
+	return unixtime() + _httpUnixtimeShift;
+}
+
+void Instance::Private::syncHttpUnixtime() {
+	if (_httpUnixtimeValid) {
+		return;
+	}
+	InvokeQueued(_instance, [=] {
+		if (_httpUnixtimeValid || _httpUnixtimeLoader) {
+			return;
+		}
+		_httpUnixtimeLoader = std::make_unique<SpecialConfigRequest>(
+			updateHttpUnixtime());
+	});
+}
+
+Fn<void(TimeId)> Instance::Private::updateHttpUnixtime() {
+	return [=](TimeId httpUnixtime) {
+		_httpUnixtimeValid = true;
+		_httpUnixtimeShift = httpUnixtime - unixtime();
+		InvokeQueued(_instance, [=] {
+			if (_httpUnixtimeValid) {
+				_httpUnixtimeLoader = nullptr;
+			}
+		});
+	};
 }
 
 void Instance::Private::requestConfigIfOld() {
@@ -1577,6 +1613,14 @@ void Instance::setUserPhone(const QString &phone) {
 
 void Instance::badConfigurationError() {
 	_private->badConfigurationError();
+}
+
+int32 Instance::httpUnixtime() const {
+	return _private->httpUnixtime();
+}
+
+void Instance::syncHttpUnixtime() {
+	_private->syncHttpUnixtime();
 }
 
 void Instance::requestConfigIfOld() {

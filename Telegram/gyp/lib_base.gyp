@@ -57,6 +57,7 @@
       '<(src_loc)/base/flat_set.h',
       '<(src_loc)/base/functors.h',
       '<(src_loc)/base/index_based_iterator.h',
+      '<(src_loc)/base/invoke_queued.h',
       '<(src_loc)/base/last_used_cache.h',
       '<(src_loc)/base/match_method.h',
       '<(src_loc)/base/observer.cpp',

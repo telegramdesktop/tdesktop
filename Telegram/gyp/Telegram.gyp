@@ -83,6 +83,7 @@
       'lib_storage.gyp:lib_storage',
       'lib_lottie.gyp:lib_lottie',
       'lib_ffmpeg.gyp:lib_ffmpeg',
+      'lib_mtproto.gyp:lib_mtproto',
     ],
 
     'defines': [

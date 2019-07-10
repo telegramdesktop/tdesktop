@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/mtp_tcp_socket.h"
 
+#include "base/invoke_queued.h"
+
 namespace MTP {
 namespace internal {
 
@@ -43,6 +45,9 @@ TcpSocket::TcpSocket(not_null<QThread*> thread, const QNetworkProxy &proxy)
 
 void TcpSocket::connectToHost(const QString &address, int port) {
 	_socket.connectToHost(address, port);
+}
+
+void TcpSocket::timedOut() {
 }
 
 bool TcpSocket::isConnected() {

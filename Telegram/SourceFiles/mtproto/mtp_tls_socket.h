@@ -17,9 +17,11 @@ public:
 	TlsSocket(
 		not_null<QThread*> thread,
 		const bytes::vector &secret,
-		const QNetworkProxy &proxy);
+		const QNetworkProxy &proxy,
+		Fn<int32()> unixtime);
 
 	void connectToHost(const QString &address, int port) override;
+	void timedOut() override;
 	bool isConnected() override;
 	bool hasBytesAvailable() override;
 	int64 read(bytes::span buffer) override;
@@ -54,6 +56,7 @@ private:
 
 	const bytes::vector _secret;
 	QTcpSocket _socket;
+	Fn<int32()> _unixtime;
 	State _state = State::NotConnected;
 	QByteArray _incoming;
 	int _incomingGoodDataOffset = 0;

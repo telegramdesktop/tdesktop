@@ -16,9 +16,10 @@ namespace internal {
 std::unique_ptr<AbstractSocket> AbstractSocket::Create(
 		not_null<QThread*> thread,
 		const bytes::vector &secret,
-		const QNetworkProxy &proxy) {
+		const QNetworkProxy &proxy,
+		Fn<int32()> unixtime) {
 	if (secret.size() >= 21 && secret[0] == bytes::type(0xEE)) {
-		return std::make_unique<TlsSocket>(thread, secret, proxy);
+		return std::make_unique<TlsSocket>(thread, secret, proxy, unixtime);
 	} else {
 		return std::make_unique<TcpSocket>(thread, proxy);
 	}

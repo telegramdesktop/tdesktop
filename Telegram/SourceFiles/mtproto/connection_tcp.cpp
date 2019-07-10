@@ -237,13 +237,17 @@ auto TcpConnection::Protocol::Create(bytes::const_span secret)
 	Unexpected("Secret bytes in TcpConnection::Protocol::Create.");
 }
 
-TcpConnection::TcpConnection(QThread *thread, const ProxyData &proxy)
+TcpConnection::TcpConnection(
+	not_null<Instance*> instance,
+	QThread *thread,
+	const ProxyData &proxy)
 : AbstractConnection(thread, proxy)
+, _instance(instance)
 , _checkNonce(rand_value<MTPint128>()) {
 }
 
 ConnectionPointer TcpConnection::clone(const ProxyData &proxy) {
-	return ConnectionPointer::New<TcpConnection>(thread(), proxy);
+	return ConnectionPointer::New<TcpConnection>(_instance, thread(), proxy);
 }
 
 void TcpConnection::ensureAvailableInBuffer(int amount) {
@@ -554,7 +558,8 @@ void TcpConnection::connectToServer(
 	_socket = AbstractSocket::Create(
 		thread(),
 		secret,
-		ToNetworkProxy(_proxy));
+		ToNetworkProxy(_proxy),
+		[=] { return _instance->httpUnixtime(); });
 	_protocolDcId = protocolDcId;
 
 	_socket->connected(
@@ -575,6 +580,11 @@ void TcpConnection::connectToServer(
 	_socket->error(
 	) | rpl::start_with_next([=] {
 		socketError();
+	}, _lifetime);
+
+	_socket->syncTimeRequests(
+	) | rpl::start_with_next([=] {
+		emit syncTimeRequest();
 	}, _lifetime);
 
 	_socket->connectToHost(_address, _port);
@@ -625,6 +635,12 @@ void TcpConnection::socketPacket(bytes::const_span bytes) {
 				).arg(e.what()));
 			emit error(kErrorCodeOther);
 		}
+	}
+}
+
+void TcpConnection::timedOut() {
+	if (_socket) {
+		_socket->timedOut();
 	}
 }
 

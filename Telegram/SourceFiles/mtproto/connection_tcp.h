@@ -17,7 +17,10 @@ class AbstractSocket;
 
 class TcpConnection : public AbstractConnection {
 public:
-	TcpConnection(QThread *thread, const ProxyData &proxy);
+	TcpConnection(
+		not_null<Instance*> instance,
+		QThread *thread,
+		const ProxyData &proxy);
 
 	ConnectionPointer clone(const ProxyData &proxy) override;
 
@@ -30,6 +33,7 @@ public:
 		int port,
 		const bytes::vector &protocolSecret,
 		int16 protocolDcId) override;
+	void timedOut() override;
 	bool isConnected() const override;
 	bool requiresExtendedPadding() const override;
 
@@ -63,6 +67,7 @@ private:
 		return *reinterpret_cast<uint32*>(ch);
 	}
 
+	const not_null<Instance*> _instance;
 	std::unique_ptr<AbstractSocket> _socket;
 	bool _connectionStarted = false;
 

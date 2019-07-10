@@ -165,7 +165,10 @@ ConnectionPointer AbstractConnection::Create(
 		const ProxyData &proxy) {
 	auto result = [&] {
 		if (protocol == DcOptions::Variants::Tcp) {
-			return ConnectionPointer::New<TcpConnection>(thread, proxy);
+			return ConnectionPointer::New<TcpConnection>(
+				instance,
+				thread,
+				proxy);
 		} else {
 			return ConnectionPointer::New<HttpConnection>(thread, proxy);
 		}

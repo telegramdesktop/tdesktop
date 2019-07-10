@@ -75,6 +75,8 @@ public:
 		int port,
 		const bytes::vector &protocolSecret,
 		int16 protocolDcId) = 0;
+	virtual void timedOut() {
+	}
 	virtual bool isConnected() const = 0;
 	virtual bool usingHttpWait() {
 		return false;
@@ -121,6 +123,8 @@ signals:
 
 	void connected();
 	void disconnected();
+
+	void syncTimeRequest();
 
 protected:
 	BuffersQueue _receivedQueue; // list of received packets, not processed yet

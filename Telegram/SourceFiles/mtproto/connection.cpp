@@ -379,6 +379,9 @@ void ConnectionPrivate::appendTestConnection(
 	connect(weak, &AbstractConnection::disconnected, [=] {
 		onDisconnected(weak);
 	});
+	connect(weak, &AbstractConnection::syncTimeRequest, [=] {
+		_instance->syncHttpUnixtime();
+	});
 
 	InvokeQueued(_testConnections.back().data, [=] {
 		weak->connectToServer(ip, port, protocolSecret, getProtocolDcId());
@@ -1332,7 +1335,7 @@ void ConnectionPrivate::waitConnectedFailed() {
 		_waitForConnected = std::min(maxTimeout, 2 * _waitForConnected);
 	}
 
-	doDisconnect();
+	connectingTimedOut();
 	restarted = true;
 
 	DEBUG_LOG(("MTP Info: immediate restart!"));
@@ -1341,6 +1344,13 @@ void ConnectionPrivate::waitConnectedFailed() {
 
 void ConnectionPrivate::waitBetterFailed() {
 	confirmBestConnection();
+}
+
+void ConnectionPrivate::connectingTimedOut() {
+	for (const auto &connection : _testConnections) {
+		connection.data->timedOut();
+	}
+	doDisconnect();
 }
 
 void ConnectionPrivate::doDisconnect() {

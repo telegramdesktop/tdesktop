@@ -24,11 +24,13 @@ ConfigLoader::ConfigLoader(
 	not_null<Instance*> instance,
 	const QString &phone,
 	RPCDoneHandlerPtr onDone,
-	RPCFailHandlerPtr onFail)
+	RPCFailHandlerPtr onFail,
+	Fn<void(TimeId)> updateHttpUnixtime)
 : _instance(instance)
 , _phone(phone)
 , _doneHandler(onDone)
-, _failHandler(onFail) {
+, _failHandler(onFail)
+, _updateHttpUnixtime(updateHttpUnixtime) {
 	_enumDCTimer.setCallback([this] { enumerate(); });
 	_specialEnumTimer.setCallback([this] { sendSpecialRequest(); });
 }
@@ -129,7 +131,7 @@ void ConfigLoader::createSpecialLoader() {
 			int port,
 			bytes::const_span secret) {
 		addSpecialEndpoint(dcId, ip, port, secret);
-	}, _phone);
+	}, _updateHttpUnixtime, _phone);
 }
 
 void ConfigLoader::addSpecialEndpoint(

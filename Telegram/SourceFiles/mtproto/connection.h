@@ -152,6 +152,7 @@ private:
 		int priority = 0;
 	};
 	void connectToServer(bool afterConfig = false);
+	void connectingTimedOut();
 	void doDisconnect();
 	void restart();
 	void finishAndDestroy();

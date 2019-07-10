@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/bytes.h"
+#include "base/basic_types.h"
 
 namespace MTP {
 namespace internal {
@@ -17,7 +18,8 @@ public:
 	static std::unique_ptr<AbstractSocket> Create(
 		not_null<QThread*> thread,
 		const bytes::vector &secret,
-		const QNetworkProxy &proxy);
+		const QNetworkProxy &proxy,
+		Fn<int32()> unixtime);
 
 	explicit AbstractSocket(not_null<QThread*> thread) {
 		moveToThread(thread);
@@ -36,8 +38,12 @@ public:
 	[[nodiscard]] rpl::producer<> error() const {
 		return _error.events();
 	}
+	[[nodiscard]] rpl::producer<> syncTimeRequests() const {
+		return _syncTimeRequests.events();
+	}
 
 	virtual void connectToHost(const QString &address, int port) = 0;
+	virtual void timedOut() = 0;
 	[[nodiscard]] virtual bool isConnected() = 0;
 	[[nodiscard]] virtual bool hasBytesAvailable() = 0;
 	[[nodiscard]] virtual int64 read(bytes::span buffer) = 0;
@@ -52,6 +58,7 @@ protected:
 	rpl::event_stream<> _disconnected;
 	rpl::event_stream<> _readyRead;
 	rpl::event_stream<> _error;
+	rpl::event_stream<> _syncTimeRequests;
 
 };
 
