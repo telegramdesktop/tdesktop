@@ -594,6 +594,9 @@ void Cache::prepareBuffers() {
 }
 
 Cache::ReadResult Cache::readCompressedFrame() {
+	if (_data.size() < _offset) {
+		return { false };
+	}
 	auto length = qint32(0);
 	const auto part = bytes::make_span(_data).subspan(_offset);
 	if (part.size() < sizeof(length)) {
