@@ -361,7 +361,7 @@ void ConnectionPrivate::appendTestConnection(
 			_connectionOptions->proxy),
 		priority
 	});
-	auto weak = _testConnections.back().data.get();
+	const auto weak = _testConnections.back().data.get();
 	connect(weak, &AbstractConnection::error, [=](int errorCode) {
 		onError(weak, errorCode);
 	});

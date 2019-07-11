@@ -48,6 +48,8 @@ public:
 
 	};
 
+	[[nodiscard]] static bool ValidateSecret(bytes::const_span secret);
+
 	// construct methods don't notify "changed" subscribers.
 	void constructFromSerialized(const QByteArray &serialized);
 	void constructFromBuiltIn();
