@@ -56,7 +56,8 @@ void PeerMenuCreatePoll(not_null<PeerData*> peer);
 void PeerMenuBlockUserBox(
 	not_null<GenericBox*> box,
 	not_null<Window::Controller*> window,
-	not_null<UserData*> user);
+	not_null<UserData*> user,
+	bool suggestClearChat);
 void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user);
 
 void ToggleHistoryArchived(not_null<History*> history, bool archived);

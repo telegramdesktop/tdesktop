@@ -348,7 +348,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 		} else if (user->isBot()) {
 			user->session().api().blockUser(user);
 		} else {
-			window->show(Box(PeerMenuBlockUserBox, window, user));
+			window->show(Box(PeerMenuBlockUserBox, window, user, false));
 		}
 	});
 
@@ -710,7 +710,8 @@ void PeerMenuCreatePoll(not_null<PeerData*> peer) {
 void PeerMenuBlockUserBox(
 		not_null<GenericBox*> box,
 		not_null<Window::Controller*> window,
-		not_null<UserData*> user) {
+		not_null<UserData*> user,
+		bool suggestClearChat) {
 	using Flag = MTPDpeerSettings::Flag;
 	const auto settings = user->settings().value_or(Flag(0));
 
@@ -738,13 +739,17 @@ void PeerMenuBlockUserBox(
 		box->addSkip(st::boxMediumSkip);
 	}
 
-	const auto clear = box->addRow(object_ptr<Ui::Checkbox>(
-		box,
-		tr::lng_blocked_list_confirm_clear(tr::now),
-		true,
-		st::defaultBoxCheckbox));
+	const auto clear = suggestClearChat
+		? box->addRow(object_ptr<Ui::Checkbox>(
+			box,
+			tr::lng_blocked_list_confirm_clear(tr::now),
+			true,
+			st::defaultBoxCheckbox))
+		: nullptr;
 
-	box->addSkip(st::boxLittleSkip);
+	if (report || clear) {
+		box->addSkip(st::boxLittleSkip);
+	}
 
 	box->setTitle(tr::lng_blocked_list_confirm_title(
 		lt_name,
@@ -752,7 +757,7 @@ void PeerMenuBlockUserBox(
 
 	box->addButton(tr::lng_blocked_list_confirm_ok(), [=] {
 		const auto reportChecked = report && report->checked();
-		const auto clearChecked = clear->checked();
+		const auto clearChecked = clear && clear->checked();
 
 		box->closeBox();
 

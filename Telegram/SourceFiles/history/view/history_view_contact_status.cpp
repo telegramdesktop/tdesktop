@@ -304,7 +304,8 @@ void ContactStatus::setupAddHandler(not_null<UserData*> user) {
 void ContactStatus::setupBlockHandler(not_null<UserData*> user) {
 	_bar.entity()->blockClicks(
 	) | rpl::start_with_next([=] {
-		_window->show(Box(Window::PeerMenuBlockUserBox, _window, user));
+		_window->show(
+			Box(Window::PeerMenuBlockUserBox, _window, user, true));
 	}, _bar.lifetime());
 }
 

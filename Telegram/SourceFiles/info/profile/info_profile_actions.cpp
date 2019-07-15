@@ -619,8 +619,11 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 			if (user->botInfo) {
 				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
 			}
-		} else {
+		} else if (user->isBot()) {
 			user->session().api().blockUser(user);
+		} else {
+			window->show(
+				Box(Window::PeerMenuBlockUserBox, window, user, false));
 		}
 	};
 	AddActionButton(

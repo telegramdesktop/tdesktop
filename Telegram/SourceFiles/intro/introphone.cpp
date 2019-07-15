@@ -154,7 +154,6 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	fillSentCodeData(d);
 	getData()->phone = _sentPhone;
 	getData()->phoneHash = qba(d.vphone_code_hash());
-	getData()->phoneIsRegistered = d.is_phone_registered();
 	const auto next = d.vnext_type();
 	if (next && next->type() == mtpc_auth_codeTypeCall) {
 		getData()->callStatus = Widget::Data::CallStatus::Waiting;

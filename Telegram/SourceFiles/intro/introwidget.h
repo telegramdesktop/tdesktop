@@ -59,7 +59,6 @@ public:
 		QString country;
 		QString phone;
 		QByteArray phoneHash;
-		bool phoneIsRegistered = false;
 
 		enum class CallStatus {
 			Waiting,
