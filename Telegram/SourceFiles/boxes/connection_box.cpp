@@ -1049,55 +1049,51 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 	const auto dcId = mtproto->mainDcId();
 
 	item.state = ItemState::Checking;
-	const auto setup = [&](Checker &checker) {
+	const auto setup = [&](Checker &checker, const bytes::vector &secret) {
 		checker = MTP::internal::AbstractConnection::Create(
 			mtproto,
 			type,
 			QThread::currentThread(),
-			item.data.secretFromMtprotoPassword(),
+			secret,
 			item.data);
 		setupChecker(item.id, checker);
 	};
-	setup(item.checker);
 	if (item.data.type == Type::Mtproto) {
-		item.checkerv6 = nullptr;
+		const auto secret = item.data.secretFromMtprotoPassword();
+		setup(item.checker, secret);
 		item.checker->connectToServer(
 			item.data.host,
 			item.data.port,
-			item.data.secretFromMtprotoPassword(),
+			secret,
 			dcId);
+		item.checkerv6 = nullptr;
 	} else {
 		const auto options = mtproto->dcOptions()->lookup(
 			dcId,
 			MTP::DcType::Regular,
 			true);
-		const auto endpoint = options.data[Variants::IPv4][type];
-		const auto endpointv6 = options.data[Variants::IPv6][type];
-		if (endpoint.empty()) {
-			item.checker = nullptr;
-		}
-		if (Global::TryIPv6() && !endpointv6.empty()) {
-			setup(item.checkerv6);
-		} else {
-			item.checkerv6 = nullptr;
-		}
+		const auto connect = [&](
+				Checker &checker,
+				Variants::Address address) {
+			const auto &list = options.data[address][type];
+			if (list.empty()
+				|| (address == Variants::IPv6 && !Global::TryIPv6())) {
+				checker = nullptr;
+				return;
+			}
+			const auto &endpoint = list.front();
+			setup(checker, endpoint.secret);
+			checker->connectToServer(
+				QString::fromStdString(endpoint.ip),
+				endpoint.port,
+				endpoint.secret,
+				dcId);
+		};
+		connect(item.checker, Variants::IPv4);
+		connect(item.checkerv6, Variants::IPv6);
 		if (!item.checker && !item.checkerv6) {
 			item.state = ItemState::Unavailable;
-			return;
 		}
-		const auto connect = [&](
-				const Checker &checker,
-				const std::vector<MTP::DcOptions::Endpoint> &endpoints) {
-			if (checker) {
-				checker->connectToServer(
-					QString::fromStdString(endpoints.front().ip),
-					endpoints.front().port,
-					endpoints.front().secret,
-					dcId);
-			}
-		};
-		connect(item.checker, endpoint);
-		connect(item.checkerv6, endpointv6);
 	}
 }
 
