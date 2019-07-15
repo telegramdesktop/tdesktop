@@ -211,7 +211,6 @@ void SignupWidget::submit() {
 			MTPauth_SignUp(
 				MTP_string(getData()->phone),
 				MTP_bytes(getData()->phoneHash),
-				MTP_string(getData()->code),
 				MTP_string(_firstName),
 				MTP_string(_lastName)),
 			rpcDone(&SignupWidget::nameSubmitDone),

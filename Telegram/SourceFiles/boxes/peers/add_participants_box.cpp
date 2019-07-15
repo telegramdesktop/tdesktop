@@ -591,7 +591,8 @@ void AddSpecialBoxController::editAdminDone(
 				? alreadyPromotedBy->bareId()
 				: user->session().userId()),
 			MTP_int(date),
-			rights));
+			rights,
+			MTPstring())); // #TODO ranks
 	}
 	if (const auto callback = _adminDoneCallback) {
 		callback(user, rights);

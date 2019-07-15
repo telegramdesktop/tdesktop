@@ -228,13 +228,24 @@ void CodeWidget::onCheckRequest() {
 void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	_sentRequest = 0;
-	auto &d = result.c_auth_authorization();
-	if (d.vuser().type() != mtpc_user || !d.vuser().c_user().is_self()) { // wtf?
-		showCodeError(rpl::single(Lang::Hard::ServerError()));
-		return;
-	}
-	cSetLoggedPhoneNumber(getData()->phone);
-	finish(d.vuser());
+	result.match([&](const MTPDauth_authorization &data) {
+		if (data.vuser().type() != mtpc_user
+			|| !data.vuser().c_user().is_self()) {
+			showCodeError(rpl::single(Lang::Hard::ServerError()));
+			return;
+		}
+		cSetLoggedPhoneNumber(getData()->phone);
+		finish(data.vuser());
+	}, [&](const MTPDauth_authorizationSignUpRequired &data) {
+		if (const auto terms = data.vterms_of_service()) {
+			terms->match([&](const MTPDhelp_termsOfService &data) {
+				getData()->termsLock = Window::TermsLock::FromMTP(data);
+			});
+		} else {
+			getData()->termsLock = Window::TermsLock();
+		}
+		goReplace(new Intro::SignupWidget(parentWidget(), getData()));
+	});
 }
 
 bool CodeWidget::codeSubmitFail(const RPCError &error) {
@@ -257,14 +268,12 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 	} else if (err == qstr("PHONE_CODE_EMPTY") || err == qstr("PHONE_CODE_INVALID")) {
 		showCodeError(tr::lng_bad_code());
 		return true;
-	} else if (err == qstr("PHONE_NUMBER_UNOCCUPIED")) { // success, need to signUp
-		getData()->code = _sentCode;
-		goReplace(new Intro::SignupWidget(parentWidget(), getData()));
-		return true;
 	} else if (err == qstr("SESSION_PASSWORD_NEEDED")) {
-		getData()->code = _sentCode;
 		_checkRequest->start(1000);
-		_sentRequest = MTP::send(MTPaccount_GetPassword(), rpcDone(&CodeWidget::gotPassword), rpcFail(&CodeWidget::codeSubmitFail));
+		_sentRequest = MTP::send(
+			MTPaccount_GetPassword(),
+			rpcDone(&CodeWidget::gotPassword),
+			rpcFail(&CodeWidget::codeSubmitFail));
 		return true;
 	}
 	if (Logs::DebugEnabled()) { // internal server error
@@ -358,12 +367,25 @@ void CodeWidget::submit() {
 	getData()->hasRecovery = false;
 	getData()->pwdHint = QString();
 	getData()->pwdNotEmptyPassport = false;
-	_sentRequest = MTP::send(MTPauth_SignIn(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash), MTP_string(_sentCode)), rpcDone(&CodeWidget::codeSubmitDone), rpcFail(&CodeWidget::codeSubmitFail));
+	_sentRequest = MTP::send(
+		MTPauth_SignIn(
+			MTP_string(getData()->phone),
+			MTP_bytes(getData()->phoneHash),
+			MTP_string(_sentCode)),
+		rpcDone(&CodeWidget::codeSubmitDone),
+		rpcFail(&CodeWidget::codeSubmitFail));
 }
 
 void CodeWidget::onNoTelegramCode() {
-	if (_noTelegramCodeRequestId) return;
-	_noTelegramCodeRequestId = MTP::send(MTPauth_ResendCode(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash)), rpcDone(&CodeWidget::noTelegramCodeDone), rpcFail(&CodeWidget::noTelegramCodeFail));
+	if (_noTelegramCodeRequestId) {
+		return;
+	}
+	_noTelegramCodeRequestId = MTP::send(
+		MTPauth_ResendCode(
+			MTP_string(getData()->phone),
+			MTP_bytes(getData()->phoneHash)),
+		rpcDone(&CodeWidget::noTelegramCodeDone),
+		rpcFail(&CodeWidget::noTelegramCodeFail));
 }
 
 void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {

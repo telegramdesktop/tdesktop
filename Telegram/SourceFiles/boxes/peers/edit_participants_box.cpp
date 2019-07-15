@@ -48,7 +48,8 @@ void RemoveAdmin(
 	channel->session().api().request(MTPchannels_EditAdmin(
 		channel->inputChannel,
 		user->inputUser,
-		newRights
+		newRights,
+		MTP_string(QString()) // #TODO ranks
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
 		channel->applyEditAdmin(user, oldRights, newRights);
@@ -124,7 +125,8 @@ void SaveChannelAdmin(
 	channel->session().api().request(MTPchannels_EditAdmin(
 		channel->inputChannel,
 		user->inputUser,
-		newRights
+		newRights,
+		MTP_string(QString()) // #TODO ranks
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
 		channel->applyEditAdmin(user, oldRights, newRights);
@@ -1460,7 +1462,8 @@ void ParticipantsBoxController::editAdminDone(
 				? alreadyPromotedBy->bareId()
 				: user->session().userId()),
 			MTP_int(date),
-			rights));
+			rights,
+			MTPstring())); // #TODO ranks
 		if (_role == Role::Admins) {
 			prependRow(user);
 		} else if (_role == Role::Kicked || _role == Role::Restricted) {

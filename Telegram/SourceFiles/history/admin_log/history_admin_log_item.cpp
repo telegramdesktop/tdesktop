@@ -700,6 +700,24 @@ void GenerateItems(
 		});
 	};
 
+	auto createToggleSlowMode = [&](const MTPDchannelAdminLogEventActionToggleSlowMode &action) {
+		if (const auto seconds = action.vnew_value().v) {
+			const auto duration = (seconds >= 60)
+				? tr::lng_admin_log_slow_mode_minutes(tr::now, lt_count, seconds / 60)
+				: tr::lng_admin_log_slow_mode_seconds(tr::now, lt_count, seconds);
+			const auto text = tr::lng_admin_log_changed_slow_mode(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_duration,
+				duration);
+			addSimpleServiceMessage(text);
+		} else {
+			const auto text = tr::lng_admin_log_removed_slow_mode(tr::now, lt_from, fromLinkText);
+			addSimpleServiceMessage(text);
+		}
+	};
+
 	action.match([&](const MTPDchannelAdminLogEventActionChangeTitle &data) {
 		createChangeTitle(data);
 	}, [&](const MTPDchannelAdminLogEventActionChangeAbout &data) {
@@ -740,6 +758,8 @@ void GenerateItems(
 		createChangeLinkedChat(data);
 	}, [&](const MTPDchannelAdminLogEventActionChangeLocation &data) {
 		createChangeLocation(data);
+	}, [&](const MTPDchannelAdminLogEventActionToggleSlowMode &data) {
+		createToggleSlowMode(data);
 	});
 }
 

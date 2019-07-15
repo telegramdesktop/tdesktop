@@ -776,14 +776,6 @@ bool Widget::Step::paintAnimated(Painter &p, QRect clip) {
 }
 
 void Widget::Step::fillSentCodeData(const MTPDauth_sentCode &data) {
-	if (const auto terms = data.vterms_of_service()) {
-		terms->match([&](const MTPDhelp_termsOfService &data) {
-			getData()->termsLock = Window::TermsLock::FromMTP(data);
-		});
-	} else {
-		getData()->termsLock = Window::TermsLock();
-	}
-
 	const auto &type = data.vtype();
 	switch (type.type()) {
 	case mtpc_auth_sentCodeTypeApp: {

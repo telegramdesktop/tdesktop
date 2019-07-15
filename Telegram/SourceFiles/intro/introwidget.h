@@ -69,7 +69,6 @@ public:
 		CallStatus callStatus = CallStatus::Disabled;
 		int callTimeout = 0;
 
-		QString code;
 		int codeLength = 5;
 		bool codeByTelegram = false;
 
