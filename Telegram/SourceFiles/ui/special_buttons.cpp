@@ -288,12 +288,19 @@ SendButton::SendButton(QWidget *parent) : RippleButton(parent, st::historyReplyC
 }
 
 void SendButton::setType(Type type) {
+	Expects(isSlowmode() || type != Type::Slowmode);
+
+	if (isSlowmode() && type != Type::Slowmode) {
+		_afterSlowmodeType = type;
+		return;
+	}
 	if (_type != type) {
 		_contentFrom = grabContent();
 		_type = type;
 		_a_typeChanged.stop();
 		_contentTo = grabContent();
-		_a_typeChanged.start([this] { update(); }, 0., 1., st::historyRecordVoiceDuration);
+		_a_typeChanged.start([=] { update(); }, 0., 1., st::historyRecordVoiceDuration);
+		setPointerCursor(_type != Type::Slowmode);
 		update();
 	}
 	if (_type != Type::Record) {
@@ -308,6 +315,20 @@ void SendButton::setRecordActive(bool recordActive) {
 		_a_recordActive.start([this] { recordAnimationCallback(); }, _recordActive ? 0. : 1., _recordActive ? 1. : 0, st::historyRecordVoiceDuration);
 		update();
 	}
+}
+
+void SendButton::setSlowmodeDelay(int seconds) {
+	Expects(seconds >= 0 && seconds < kSlowmodeDelayLimit);
+
+	if (_slowmodeDelay == seconds) {
+		return;
+	}
+	_slowmodeDelay = seconds;
+	_slowmodeDelayText = isSlowmode()
+		? qsl("%1:%2").arg(seconds / 60).arg(seconds % 60, 2, 10, QChar('0'))
+		: QString();
+	setType(isSlowmode() ? Type::Slowmode : _afterSlowmodeType);
+	update();
 }
 
 void SendButton::finishAnimating() {
@@ -341,37 +362,65 @@ void SendButton::paintEvent(QPaintEvent *e) {
 		auto shownWidth = anim::interpolate((1 - kWideScale) / 2 * width(), 0, changed);
 		auto shownHeight = anim::interpolate((1 - kWideScale) / 2 * height(), 0, changed);
 		p.drawPixmap(targetRect.marginsAdded(QMargins(shownWidth, shownHeight, shownWidth, shownHeight)), _contentTo);
-	} else if (_type == Type::Record) {
-		auto recordActive = recordActiveRatio();
-		auto rippleColor = anim::color(st::historyAttachEmoji.ripple.color, st::historyRecordVoiceRippleBgActive, recordActive);
-		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), &rippleColor);
-
-		auto fastIcon = [&] {
-			if (recordActive == 1.) {
-				return &st::historyRecordVoiceActive;
-			} else if (over) {
-				return &st::historyRecordVoiceOver;
-			}
-			return &st::historyRecordVoice;
-		};
-		fastIcon()->paintInCenter(p, rect());
-		if (recordActive > 0. && recordActive < 1.) {
-			p.setOpacity(recordActive);
-			st::historyRecordVoiceActive.paintInCenter(p, rect());
-			p.setOpacity(1.);
-		}
-	} else if (_type == Type::Save) {
-		auto &saveIcon = over ? st::historyEditSaveIconOver : st::historyEditSaveIcon;
-		saveIcon.paint(p, st::historySendIconPosition, width());
-	} else if (_type == Type::Cancel) {
-		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y());
-
-		auto &cancelIcon = over ? st::historyReplyCancelIconOver : st::historyReplyCancelIcon;
-		cancelIcon.paintInCenter(p, rect());
-	} else {
-		auto &sendIcon = over ? st::historySendIconOver : st::historySendIcon;
-		sendIcon.paint(p, st::historySendIconPosition, width());
+		return;
 	}
+	switch (_type) {
+	case Type::Record: paintRecord(p, over); break;
+	case Type::Save: paintSave(p, over); break;
+	case Type::Cancel: paintCancel(p, over); break;
+	case Type::Send: paintSend(p, over); break;
+	case Type::Slowmode: paintSlowmode(p); break;
+	}
+}
+
+void SendButton::paintRecord(Painter &p, bool over) {
+	auto recordActive = recordActiveRatio();
+	auto rippleColor = anim::color(st::historyAttachEmoji.ripple.color, st::historyRecordVoiceRippleBgActive, recordActive);
+	paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), &rippleColor);
+
+	auto fastIcon = [&] {
+		if (recordActive == 1.) {
+			return &st::historyRecordVoiceActive;
+		} else if (over) {
+			return &st::historyRecordVoiceOver;
+		}
+		return &st::historyRecordVoice;
+	};
+	fastIcon()->paintInCenter(p, rect());
+	if (recordActive > 0. && recordActive < 1.) {
+		p.setOpacity(recordActive);
+		st::historyRecordVoiceActive.paintInCenter(p, rect());
+		p.setOpacity(1.);
+	}
+}
+
+void SendButton::paintSave(Painter &p, bool over) {
+	const auto &saveIcon = over
+		? st::historyEditSaveIconOver
+		: st::historyEditSaveIcon;
+	saveIcon.paint(p, st::historySendIconPosition, width());
+}
+
+void SendButton::paintCancel(Painter &p, bool over) {
+	paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y());
+
+	const auto &cancelIcon = over
+		? st::historyReplyCancelIconOver
+		: st::historyReplyCancelIcon;
+	cancelIcon.paintInCenter(p, rect());
+}
+
+void SendButton::paintSend(Painter &p, bool over) {
+	const auto &sendIcon = over
+		? st::historySendIconOver
+		: st::historySendIcon;
+	sendIcon.paint(p, st::historySendIconPosition, width());
+}
+
+void SendButton::paintSlowmode(Painter &p) {
+	p.setFont(st::normalFont);
+	p.setPen(st::windowSubTextFg);
+	p.drawText(rect(), _slowmodeDelayText, style::al_center);
 }
 
 void SendButton::onStateChanged(State was, StateChangeSource source) {
@@ -393,6 +442,10 @@ void SendButton::onStateChanged(State was, StateChangeSource source) {
 			}
 		}
 	}
+}
+
+bool SendButton::isSlowmode() const {
+	return (_slowmodeDelay > 0);
 }
 
 QPixmap SendButton::grabContent() {
