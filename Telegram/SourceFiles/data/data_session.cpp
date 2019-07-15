@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader.h" // unique_ptr<Loader>
 #include "media/streaming/media_streaming_reader.h" // make_shared<Reader>
 #include "boxes/abstract_box.h"
+#include "platform/platform_info.h"
 #include "passport/passport_form_controller.h"
 #include "window/themes/window_theme.h"
 #include "lang/lang_keys.h" // tr::lng_deleted(tr::now) in user name
@@ -204,6 +205,14 @@ Session::Session(not_null<AuthSession*> session)
 , _unmuteByFinishedTimer([=] { unmuteByFinished(); }) {
 	_cache->open(Local::cacheKey());
 	_bigFileCache->open(Local::cacheBigFileKey());
+
+	if constexpr (Platform::IsLinux()) {
+		const auto wasVersion = Local::oldMapVersion();
+		if (wasVersion >= 1007011 && wasVersion < 1007015) {
+			_bigFileCache->clear();
+			_cache->clearByTag(Data::kImageCacheTag);
+		}
+	}
 
 	setupContactViewsViewer();
 	setupChannelLeavingViewer();

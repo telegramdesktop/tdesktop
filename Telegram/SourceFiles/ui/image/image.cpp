@@ -548,17 +548,17 @@ const QPixmap &Image::pix(
 	checkSource();
 
 	if (w <= 0 || !width() || !height()) {
-        w = width();
-    } else {
-        w *= cIntRetinaFactor();
-        h *= cIntRetinaFactor();
-    }
+		w = width();
+	} else {
+		w *= cIntRetinaFactor();
+		h *= cIntRetinaFactor();
+	}
 	auto options = Option::Smooth | Option::None;
 	auto k = PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		auto p = pixNoCache(origin, w, h, options);
-        p.setDevicePixelRatio(cRetinaFactor());
+		p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
 		ActiveCache().increment(ComputeUsage(*i));
 	}
