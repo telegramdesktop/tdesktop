@@ -988,3 +988,8 @@ blockUserConfirmation: FlatLabel(boxLabel) {
 }
 
 transferCheckWidth: 300px;
+
+slowmodeLabelsMargin: margins(0px, 5px, 0px, 0px);
+slowmodeLabel: LabelSimple(defaultLabelSimple) {
+	textFg: windowSubTextFg;
+}

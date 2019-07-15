@@ -1640,6 +1640,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_user_restrictions" = "User restrictions";
 "lng_rights_user_restrictions_header" = "What can this member do?";
 "lng_rights_default_restrictions_header" = "What can members of this group do?";
+"lng_rights_slowmode_header" = "Slowmode";
+"lng_rights_slowmode_off" = "Off";
+"lng_rights_slowmode_seconds#one" = "{count}s";
+"lng_rights_slowmode_seconds#other" = "{count}s";
+"lng_rights_slowmode_minutes#one" = "{count}m";
+"lng_rights_slowmode_minutes#other" = "{count}m";
+"lng_rights_slowmode_hours#one" = "{count}h";
+"lng_rights_slowmode_hours#other" = "{count}h";
+"lng_rights_slowmode_about" = "Members will be able to send only one message per this interval.";
+"lng_rights_slowmode_about_interval" = "Members will be able to send only one message {interval}.";
+"lng_rights_slowmode_interval_seconds#one" = "every {count} second";
+"lng_rights_slowmode_interval_seconds#other" = "every {count} seconds";
+"lng_rights_slowmode_interval_minutes#one" = "every {count} minute";
+"lng_rights_slowmode_interval_minutes#other" = "every {count} minutes";
 
 "lng_rights_channel_info" = "Change channel info";
 "lng_rights_channel_post" = "Post messages";

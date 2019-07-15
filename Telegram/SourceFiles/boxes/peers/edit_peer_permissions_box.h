@@ -25,6 +25,8 @@ protected:
 	void prepare() override;
 
 private:
+	void addSlowmodeSlider(not_null<Ui::VerticalLayout*> container);
+	void addSlowmodeLabels(not_null<Ui::VerticalLayout*> container);
 	void addBannedButtons(not_null<Ui::VerticalLayout*> container);
 
 	not_null<PeerData*> _peer;
