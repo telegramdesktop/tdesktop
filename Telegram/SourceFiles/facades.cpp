@@ -384,8 +384,8 @@ struct Data {
 	int32 CallPacketTimeoutMs = 10000;
 	int32 WebFileDcId = cTestMode() ? 2 : 4;
 	QString TxtDomainString = cTestMode()
-		? qsl("testapv2.stel.com")
-		: qsl("apv2.stel.com");
+		? qsl("tapv3.stel.com")
+		: qsl("apv3.stel.com");
 	bool PhoneCallsEnabled = true;
 	bool BlockedMode = false;
 	int32 CaptionLengthMax = 1024;

@@ -477,18 +477,22 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 	}
 	Assert(_simpleConfig.type() == mtpc_help_configSimple);
 	const auto &config = _simpleConfig.c_help_configSimple();
-	const auto now = base::unixtime::now();
+	const auto now = base::unixtime::http_now();
 	if (now > config.vexpires().v) {
-		LOG(("Config Error: Bad date frame for simple config: %1-%2, our time is %3.").arg(config.vdate().v).arg(config.vexpires().v).arg(now));
+		LOG(("Config Error: "
+			"Bad date frame for simple config: %1-%2, our time is %3."
+			).arg(config.vdate().v
+			).arg(config.vexpires().v
+			).arg(now));
 		return;
 	}
 	if (config.vrules().v.empty()) {
 		LOG(("Config Error: Empty simple config received."));
 		return;
 	}
-	for (auto &rule : config.vrules().v) {
+	for (const auto &rule : config.vrules().v) {
 		Assert(rule.type() == mtpc_accessPointRule);
-		auto &data = rule.c_accessPointRule();
+		const auto &data = rule.c_accessPointRule();
 		const auto phoneRules = qs(data.vphone_prefix_rules());
 		if (!CheckPhoneByPrefixesRules(_phone, phoneRules)) {
 			continue;
