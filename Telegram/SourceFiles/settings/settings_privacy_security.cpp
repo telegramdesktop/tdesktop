@@ -105,9 +105,11 @@ void SetupPrivacy(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsPrivacySkip);
 	AddSubsectionTitle(container, tr::lng_settings_privacy_title());
 
-	auto count = BlockedUsersCount(
-	) | rpl::map([](int count) {
-		return count ? QString::number(count) : QString();
+	auto count = rpl::combine(
+		BlockedUsersCount(),
+		tr::lng_settings_no_blocked_users()
+	) | rpl::map([](int count, const QString &none) {
+		return count ? QString::number(count) : none;
 	});
 	AddButtonWithLabel(
 		container,

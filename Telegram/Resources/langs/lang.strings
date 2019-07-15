@@ -560,6 +560,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_sponsor_warning" = "This proxy may display a sponsored channel in your chat list. This doesn't reveal any of your Telegram traffic.";
 
 "lng_settings_blocked_users" = "Blocked users";
+"lng_settings_no_blocked_users" = "None";
 "lng_settings_show_sessions" = "Show all sessions";
 "lng_settings_export_data" = "Export Telegram data";
 "lng_settings_destroy_if" = "If away for...";
