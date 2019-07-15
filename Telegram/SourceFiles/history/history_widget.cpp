@@ -4740,7 +4740,7 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 		newScrollHeight -= st::historyReplyHeight;
 	}
 	if (_contactStatus) {
-		newScrollHeight -= _contactStatus->height() - st::lineWidth;
+		newScrollHeight -= _contactStatus->height();
 	}
 	if (!editingMessage() && (isBlocked() || isBotStart() || isJoinChannel() || isMuteUnmute())) {
 		newScrollHeight -= _unblock->height();
