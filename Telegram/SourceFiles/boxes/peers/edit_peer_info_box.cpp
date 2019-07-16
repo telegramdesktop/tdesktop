@@ -920,8 +920,12 @@ void Controller::fillManageSection() {
 		AddButtonWithCount(
 			_controls.buttonsLayout,
 			tr::lng_manage_peer_permissions(),
-			Info::Profile::RestrictionsCountValue(_peer)
-			| ToPositiveNumberStringRestrictions(),
+			Info::Profile::MigratedOrMeValue(
+				_peer
+			) | rpl::map(
+				Info::Profile::RestrictionsCountValue
+			) | rpl::flatten_latest(
+			) | ToPositiveNumberStringRestrictions(),
 			[=] { ShowEditPermissions(_peer); },
 			st::infoIconPermissions);
 	}
@@ -929,8 +933,12 @@ void Controller::fillManageSection() {
 		AddButtonWithCount(
 			_controls.buttonsLayout,
 			tr::lng_manage_peer_administrators(),
-			Info::Profile::AdminsCountValue(_peer)
-			| ToPositiveNumberString(),
+			Info::Profile::MigratedOrMeValue(
+				_peer
+			) | rpl::map(
+				Info::Profile::AdminsCountValue
+			) | rpl::flatten_latest(
+			) | ToPositiveNumberString(),
 			[=] {
 				ParticipantsBoxController::Start(
 					navigation,
@@ -943,8 +951,12 @@ void Controller::fillManageSection() {
 		AddButtonWithCount(
 			_controls.buttonsLayout,
 			tr::lng_manage_peer_members(),
-			Info::Profile::MembersCountValue(_peer)
-			| ToPositiveNumberString(),
+			Info::Profile::MigratedOrMeValue(
+				_peer
+			) | rpl::map(
+				Info::Profile::MembersCountValue
+			) | rpl::flatten_latest(
+			) | ToPositiveNumberString(),
 			[=] {
 				ParticipantsBoxController::Start(
 					navigation,

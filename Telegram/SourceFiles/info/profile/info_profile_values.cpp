@@ -276,6 +276,21 @@ rpl::producer<int> RestrictionsCountValue(not_null<PeerData*> peer) {
 	Unexpected("User in RestrictionsCountValue().");
 }
 
+rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
+		not_null<PeerData*> peer) {
+	using Flag = Notify::PeerUpdate::Flag;
+	if (const auto chat = peer->asChat()) {
+		return Notify::PeerUpdateValue(
+			chat,
+			Flag::MigrationChanged
+		) | rpl::map([=] {
+			return chat->migrateToOrMe();
+		});
+	} else {
+		return rpl::single(peer);
+	}
+}
+
 rpl::producer<int> RestrictedCountValue(not_null<ChannelData*> channel) {
 	using Flag = Notify::PeerUpdate::Flag;
 	return Notify::PeerUpdateValue(
