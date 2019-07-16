@@ -1769,7 +1769,7 @@ bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 	_compressConfirm = _compressConfirmInitial;
 	refreshAlbumMediaCount();
 	preparePreview();
-	updateControlsGeometry();
+	captionResized();
 	return true;
 }
 
