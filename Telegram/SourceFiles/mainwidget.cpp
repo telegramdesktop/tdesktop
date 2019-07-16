@@ -3826,6 +3826,9 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 					TextUtilities::EntitiesFromMTP(list.value_or_empty())
 				});
 				item->updateSentMedia(d.vmedia());
+				if (const auto channel = item->history()->peer->asChannel()) {
+					channel->growSlowmodeLastMessage(d.vdate().v);
+				}
 				if (!wasAlready) {
 					item->indexAsNewItem();
 				}

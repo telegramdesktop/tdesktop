@@ -110,6 +110,7 @@ constexpr auto kSaveDraftTimeout = 1000;
 constexpr auto kSaveDraftAnywayTimeout = 5000;
 constexpr auto kSaveCloudDraftIdleTimeout = 14000;
 constexpr auto kRecordingUpdateDelta = crl::time(100);
+constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
 
 ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 	return [](ChannelData *channel, MsgId msgId) {
@@ -3055,8 +3056,10 @@ void HistoryWidget::chooseAttach() {
 }
 
 void HistoryWidget::sendButtonClicked() {
-	auto type = _send->type();
-	if (type == Ui::SendButton::Type::Cancel) {
+	const auto type = _send->type();
+	if (type == Ui::SendButton::Type::Slowmode) {
+		return;
+	} else if (type == Ui::SendButton::Type::Cancel) {
 		onInlineBotCancel();
 	} else if (type != Ui::SendButton::Type::Record) {
 		send();
@@ -3522,8 +3525,8 @@ bool HistoryWidget::showInlineBotCancel() const {
 }
 
 void HistoryWidget::updateSendButtonType() {
-	auto type = [this] {
-		using Type = Ui::SendButton::Type;
+	using Type = Ui::SendButton::Type;
+	const auto type = [&] {
 		if (_editMsgId) {
 			return Type::Save;
 		} else if (_isInlineBot) {
@@ -3532,8 +3535,30 @@ void HistoryWidget::updateSendButtonType() {
 			return Type::Record;
 		}
 		return Type::Send;
-	};
-	_send->setType(type());
+	}();
+	_send->setType(type);
+
+	const auto delay = [&] {
+		if (type == Type::Cancel || type == Type::Save) {
+			return 0;
+		}
+		const auto channel = _peer ? _peer->asChannel() : nullptr;
+		const auto last = channel ? channel->slowmodeLastMessage() : 0;
+		if (!last) {
+			return 0;
+		}
+		const auto seconds = channel->slowmodeSeconds();
+		const auto now = base::unixtime::now();
+		return std::max(seconds - (now - last), 0);
+	}();
+	_send->setSlowmodeDelay(delay);
+
+	if (delay != 0) {
+		App::CallDelayed(
+			kRefreshSlowmodeLabelTimeout,
+			this,
+			[=] { updateSendButtonType(); });
+	}
 }
 
 bool HistoryWidget::updateCmdStartShown() {

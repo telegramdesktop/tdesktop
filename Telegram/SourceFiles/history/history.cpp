@@ -1235,6 +1235,11 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		if (!item->unread()) {
 			outboxRead(item);
 		}
+		if (const auto channel = peer->asChannel()) {
+			if (IsServerMsgId(item->id)) {
+				channel->growSlowmodeLastMessage(item->date());
+			}
+		}
 	} else if (item->unread()) {
 		if (!isChannel() || peer->asChannel()->amIn()) {
 			_notifications.push_back(item);

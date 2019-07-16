@@ -392,7 +392,7 @@ public:
 	[[nodiscard]] int slowmodeSeconds() const;
 	void setSlowmodeSeconds(int seconds);
 	[[nodiscard]] TimeId slowmodeLastMessage() const;
-	void setSlowmodeLastMessage(TimeId when = 0);
+	void growSlowmodeLastMessage(TimeId when);
 
 	// Still public data members.
 	uint64 access = 0;

@@ -597,12 +597,11 @@ TimeId ChannelData::slowmodeLastMessage() const {
 	return (hasAdminRights() || amCreator()) ? 0 : _slowmodeLastMessage;
 }
 
-void ChannelData::setSlowmodeLastMessage(TimeId when) {
-	const auto time = when ? when : base::unixtime::now();
-	if (_slowmodeLastMessage == time) {
+void ChannelData::growSlowmodeLastMessage(TimeId when) {
+	if (_slowmodeLastMessage >= when) {
 		return;
 	}
-	_slowmodeLastMessage = time;
+	_slowmodeLastMessage = when;
 	Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelSlowmode);
 }
 
