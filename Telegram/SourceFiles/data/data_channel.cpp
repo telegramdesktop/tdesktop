@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_folder.h"
 #include "data/data_location.h"
+#include "base/unixtime.h"
 #include "history/history.h"
 #include "observer_peer.h"
 #include "auth_session.h"
@@ -580,6 +581,31 @@ void ChannelData::setMigrateFromChat(ChatData *chat) {
 	}
 }
 
+int ChannelData::slowmodeSeconds() const {
+	return _slowmodeSeconds;
+}
+
+void ChannelData::setSlowmodeSeconds(int seconds) {
+	if (_slowmodeSeconds == seconds) {
+		return;
+	}
+	_slowmodeSeconds = seconds;
+	Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelSlowmode);
+}
+
+TimeId ChannelData::slowmodeLastMessage() const {
+	return (hasAdminRights() || amCreator()) ? 0 : _slowmodeLastMessage;
+}
+
+void ChannelData::setSlowmodeLastMessage(TimeId when) {
+	const auto time = when ? when : base::unixtime::now();
+	if (_slowmodeLastMessage == time) {
+		return;
+	}
+	_slowmodeLastMessage = time;
+	Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelSlowmode);
+}
+
 namespace Data {
 
 void ApplyMigration(
@@ -630,6 +656,13 @@ void ApplyChannelUpdate(
 	channel->setAdminsCount(update.vadmins_count().value_or_empty());
 	channel->setRestrictedCount(update.vbanned_count().value_or_empty());
 	channel->setKickedCount(update.vkicked_count().value_or_empty());
+	channel->setSlowmodeSeconds(update.vslowmode_seconds().value_or_empty());
+	if (const auto next = update.vslowmode_next_send_date()) {
+		if (next->v > base::unixtime::now()) {
+			channel->growSlowmodeLastMessage(
+				next->v - channel->slowmodeSeconds());
+		}
+	}
 	channel->setInviteLink(update.vexported_invite().match([&](
 			const MTPDchatInviteExported &data) {
 		return qs(data.vlink());

@@ -104,7 +104,9 @@ public:
 		| MTPDchannelFull::Flag::f_can_view_participants
 		| MTPDchannelFull::Flag::f_can_set_username
 		| MTPDchannelFull::Flag::f_can_set_stickers
-		| MTPDchannelFull::Flag::f_location;
+		| MTPDchannelFull::Flag::f_location
+		| MTPDchannelFull::Flag::f_slowmode_seconds
+		| MTPDchannelFull::Flag::f_slowmode_next_send_date;
 	using FullFlags = Data::Flags<
 		MTPDchannelFull::Flags,
 		kEssentialFullFlags>;
@@ -132,10 +134,10 @@ public:
 	void removeFlags(MTPDchannel::Flags which) {
 		_flags.remove(which);
 	}
-	auto flags() const {
+	[[nodiscard]] auto flags() const {
 		return _flags.current();
 	}
-	auto flagsValue() const {
+	[[nodiscard]] auto flagsValue() const {
 		return _flags.value();
 	}
 
@@ -148,58 +150,58 @@ public:
 	void removeFullFlags(MTPDchannelFull::Flags which) {
 		_fullFlags.remove(which);
 	}
-	auto fullFlags() const {
+	[[nodiscard]] auto fullFlags() const {
 		return _fullFlags.current();
 	}
-	auto fullFlagsValue() const {
+	[[nodiscard]] auto fullFlagsValue() const {
 		return _fullFlags.value();
 	}
 
-	int membersCount() const {
+	[[nodiscard]] int membersCount() const {
 		return std::max(_membersCount, 1);
 	}
 	void setMembersCount(int newMembersCount);
-	bool membersCountKnown() const {
+	[[nodiscard]] bool membersCountKnown() const {
 		return (_membersCount >= 0);
 	}
 
-	int adminsCount() const {
+	[[nodiscard]] int adminsCount() const {
 		return _adminsCount;
 	}
 	void setAdminsCount(int newAdminsCount);
 
-	int restrictedCount() const {
+	[[nodiscard]] int restrictedCount() const {
 		return _restrictedCount;
 	}
 	void setRestrictedCount(int newRestrictedCount);
 
-	int kickedCount() const {
+	[[nodiscard]] int kickedCount() const {
 		return _kickedCount;
 	}
 	void setKickedCount(int newKickedCount);
 
-	bool haveLeft() const {
+	[[nodiscard]] bool haveLeft() const {
 		return flags() & MTPDchannel::Flag::f_left;
 	}
-	bool amIn() const {
+	[[nodiscard]] bool amIn() const {
 		return !isForbidden() && !haveLeft();
 	}
-	bool addsSignature() const {
+	[[nodiscard]] bool addsSignature() const {
 		return flags() & MTPDchannel::Flag::f_signatures;
 	}
-	bool isForbidden() const {
+	[[nodiscard]] bool isForbidden() const {
 		return flags() & MTPDchannel_ClientFlag::f_forbidden;
 	}
-	bool isVerified() const {
+	[[nodiscard]] bool isVerified() const {
 		return flags() & MTPDchannel::Flag::f_verified;
 	}
-	bool isScam() const {
+	[[nodiscard]] bool isScam() const {
 		return flags() & MTPDchannel::Flag::f_scam;
 	}
 
 	static MTPChatBannedRights KickedRestrictedRights();
 	static constexpr auto kRestrictUntilForever = TimeId(INT_MAX);
-	static bool IsRestrictedForever(TimeId until) {
+	[[nodiscard]] static bool IsRestrictedForever(TimeId until) {
 		return !until || (until == kRestrictUntilForever);
 	}
 	void applyEditAdmin(
@@ -213,9 +215,9 @@ public:
 
 	void markForbidden();
 
-	bool isGroupAdmin(not_null<UserData*> user) const;
+	[[nodiscard]] bool isGroupAdmin(not_null<UserData*> user) const;
 
-	bool lastParticipantsCountOutdated() const {
+	[[nodiscard]] bool lastParticipantsCountOutdated() const {
 		if (!mgInfo
 			|| !(mgInfo->lastParticipantsStatus
 				& MegagroupInfo::LastParticipantsCountOutdated)) {
@@ -228,96 +230,96 @@ public:
 		}
 		return true;
 	}
-	bool isMegagroup() const {
+	[[nodiscard]] bool isMegagroup() const {
 		return flags() & MTPDchannel::Flag::f_megagroup;
 	}
-	bool isBroadcast() const {
+	[[nodiscard]] bool isBroadcast() const {
 		return flags() & MTPDchannel::Flag::f_broadcast;
 	}
-	bool hasUsername() const {
+	[[nodiscard]] bool hasUsername() const {
 		return flags() & MTPDchannel::Flag::f_username;
 	}
-	bool hasLocation() const {
+	[[nodiscard]] bool hasLocation() const {
 		return fullFlags() & MTPDchannelFull::Flag::f_location;
 	}
-	bool isPublic() const {
+	[[nodiscard]] bool isPublic() const {
 		return hasUsername() || hasLocation();
 	}
-	bool amCreator() const {
+	[[nodiscard]] bool amCreator() const {
 		return flags() & MTPDchannel::Flag::f_creator;
 	}
 
-	auto adminRights() const {
+	[[nodiscard]] auto adminRights() const {
 		return _adminRights.current();
 	}
-	auto adminRightsValue() const {
+	[[nodiscard]] auto adminRightsValue() const {
 		return _adminRights.value();
 	}
 	void setAdminRights(const MTPChatAdminRights &rights);
-	bool hasAdminRights() const {
+	[[nodiscard]] bool hasAdminRights() const {
 		return (adminRights() != 0);
 	}
 
-	auto restrictions() const {
+	[[nodiscard]] auto restrictions() const {
 		return _restrictions.current();
 	}
-	auto restrictionsValue() const {
+	[[nodiscard]] auto restrictionsValue() const {
 		return _restrictions.value();
 	}
-	TimeId restrictedUntil() const {
+	[[nodiscard]] TimeId restrictedUntil() const {
 		return _restrictedUntil;
 	}
 	void setRestrictions(const MTPChatBannedRights &rights);
-	bool hasRestrictions() const {
+	[[nodiscard]] bool hasRestrictions() const {
 		return (restrictions() != 0);
 	}
-	bool hasRestrictions(TimeId now) const {
+	[[nodiscard]] bool hasRestrictions(TimeId now) const {
 		return hasRestrictions()
 			&& (restrictedUntil() > now);
 	}
 
-	auto defaultRestrictions() const {
+	[[nodiscard]] auto defaultRestrictions() const {
 		return _defaultRestrictions.current();
 	}
-	auto defaultRestrictionsValue() const {
+	[[nodiscard]] auto defaultRestrictionsValue() const {
 		return _defaultRestrictions.value();
 	}
 	void setDefaultRestrictions(const MTPChatBannedRights &rights);
 
 	// Like in ChatData.
-	bool canWrite() const;
-	bool canEditInformation() const;
-	bool canEditPermissions() const;
-	bool canEditUsername() const;
-	bool canEditPreHistoryHidden() const;
-	bool canAddMembers() const;
-	bool canAddAdmins() const;
-	bool canBanMembers() const;
-	bool canSendPolls() const;
-	bool anyoneCanAddMembers() const;
+	[[nodiscard]] bool canWrite() const;
+	[[nodiscard]] bool canEditInformation() const;
+	[[nodiscard]] bool canEditPermissions() const;
+	[[nodiscard]] bool canEditUsername() const;
+	[[nodiscard]] bool canEditPreHistoryHidden() const;
+	[[nodiscard]] bool canAddMembers() const;
+	[[nodiscard]] bool canAddAdmins() const;
+	[[nodiscard]] bool canBanMembers() const;
+	[[nodiscard]] bool canSendPolls() const;
+	[[nodiscard]] bool anyoneCanAddMembers() const;
 
-	bool canEditMessages() const;
-	bool canDeleteMessages() const;
-	bool hiddenPreHistory() const;
-	bool canPublish() const;
-	bool canViewMembers() const;
-	bool canViewAdmins() const;
-	bool canViewBanned() const;
-	bool canEditSignatures() const;
-	bool canEditStickers() const;
-	bool canDelete() const;
-	bool canEditAdmin(not_null<UserData*> user) const;
-	bool canRestrictUser(not_null<UserData*> user) const;
+	[[nodiscard]] bool canEditMessages() const;
+	[[nodiscard]] bool canDeleteMessages() const;
+	[[nodiscard]] bool hiddenPreHistory() const;
+	[[nodiscard]] bool canPublish() const;
+	[[nodiscard]] bool canViewMembers() const;
+	[[nodiscard]] bool canViewAdmins() const;
+	[[nodiscard]] bool canViewBanned() const;
+	[[nodiscard]] bool canEditSignatures() const;
+	[[nodiscard]] bool canEditStickers() const;
+	[[nodiscard]] bool canDelete() const;
+	[[nodiscard]] bool canEditAdmin(not_null<UserData*> user) const;
+	[[nodiscard]] bool canRestrictUser(not_null<UserData*> user) const;
 
 	void setInviteLink(const QString &newInviteLink);
-	QString inviteLink() const;
-	bool canHaveInviteLink() const;
+	[[nodiscard]] QString inviteLink() const;
+	[[nodiscard]] bool canHaveInviteLink() const;
 
 	void setLocation(const MTPChannelLocation &data);
-	const ChannelLocation *getLocation() const;
+	[[nodiscard]] const ChannelLocation *getLocation() const;
 
 	void setLinkedChat(ChannelData *linked);
-	ChannelData *linkedChat() const;
+	[[nodiscard]] ChannelData *linkedChat() const;
 
 	void ptsInit(int32 pts) {
 		_ptsWaiter.init(pts);
@@ -335,37 +337,38 @@ public:
 		return _ptsWaiter.updateAndApply(this, pts, count, update);
 	}
 	bool ptsUpdateAndApply(
-		int32 pts,
-		int32 count,
-		const MTPUpdates &updates) {
+			int32 pts,
+			int32 count,
+			const MTPUpdates &updates) {
 		return _ptsWaiter.updateAndApply(this, pts, count, updates);
 	}
-	int32 pts() const {
+	[[nodiscard]] int32 pts() const {
 		return _ptsWaiter.current();
 	}
-	bool ptsInited() const {
+	[[nodiscard]] bool ptsInited() const {
 		return _ptsWaiter.inited();
 	}
-	bool ptsRequesting() const {
+	[[nodiscard]] bool ptsRequesting() const {
 		return _ptsWaiter.requesting();
 	}
 	void ptsSetRequesting(bool isRequesting) {
 		return _ptsWaiter.setRequesting(isRequesting);
 	}
-	void ptsWaitingForShortPoll(int32 ms) { // < 0 - not waiting
+	// < 0 - not waiting
+	void ptsWaitingForShortPoll(int32 ms) {
 		return _ptsWaiter.setWaitingForShortPoll(this, ms);
 	}
-	bool ptsWaitingForSkipped() const {
+	[[nodiscard]] bool ptsWaitingForSkipped() const {
 		return _ptsWaiter.waitingForSkipped();
 	}
-	bool ptsWaitingForShortPoll() const {
+	[[nodiscard]] bool ptsWaitingForShortPoll() const {
 		return _ptsWaiter.waitingForShortPoll();
 	}
 
-	QString unavailableReason() const override;
+	[[nodiscard]] QString unavailableReason() const override;
 	void setUnavailableReason(const QString &reason);
 
-	MsgId availableMinId() const {
+	[[nodiscard]] MsgId availableMinId() const {
 		return _availableMinId;
 	}
 	void setAvailableMinId(MsgId availableMinId);
@@ -383,8 +386,13 @@ public:
 	}
 	UpdateStatus applyUpdateVersion(int version);
 
-	ChatData *getMigrateFromChat() const;
+	[[nodiscard]] ChatData *getMigrateFromChat() const;
 	void setMigrateFromChat(ChatData *chat);
+
+	[[nodiscard]] int slowmodeSeconds() const;
+	void setSlowmodeSeconds(int seconds);
+	[[nodiscard]] TimeId slowmodeLastMessage() const;
+	void setSlowmodeLastMessage(TimeId when = 0);
 
 	// Still public data members.
 	uint64 access = 0;
@@ -396,7 +404,8 @@ public:
 	int32 date = 0;
 	std::unique_ptr<MegagroupInfo> mgInfo;
 
-	UserId inviter = 0; // > 0 - user who invited me to channel, < 0 - not in channel
+	// > 0 - user who invited me to channel, < 0 - not in channel.
+	UserId inviter = 0;
 	TimeId inviteDate = 0;
 
 private:
@@ -422,6 +431,9 @@ private:
 	QString _unavailableReason;
 	QString _inviteLink;
 	ChannelData *_linkedChat = nullptr;
+
+	int _slowmodeSeconds = 0;
+	TimeId _slowmodeLastMessage = 0;
 
 	rpl::lifetime _lifetime;
 

@@ -130,21 +130,104 @@ void AddButtonDelete(
 		nullptr));
 }
 
+void SaveDefaultRestrictions(
+		not_null<PeerData*> peer,
+		MTPChatBannedRights rights,
+		Fn<void()> done) {
+	const auto api = &peer->session().api();
+	const auto key = Api::RequestKey("default_restrictions", peer->id);
+
+	const auto requestId = api->request(
+		MTPmessages_EditChatDefaultBannedRights(
+			peer->input,
+			rights)
+	).done([=](const MTPUpdates &result) {
+		api->clearModifyRequest(key);
+		api->applyUpdates(result);
+		done();
+	}).fail([=](const RPCError &error) {
+		api->clearModifyRequest(key);
+		if (error.type() != qstr("CHAT_NOT_MODIFIED")) {
+			return;
+		}
+		if (const auto chat = peer->asChat()) {
+			chat->setDefaultRestrictions(rights);
+		} else if (const auto channel = peer->asChannel()) {
+			channel->setDefaultRestrictions(rights);
+		} else {
+			Unexpected("Peer in ApiWrap::saveDefaultRestrictions.");
+		}
+		done();
+	}).send();
+
+	api->registerModifyRequest(key, requestId);
+}
+
+void SaveSlowmodeSeconds(
+		not_null<ChannelData*> channel,
+		int seconds,
+		Fn<void()> done) {
+	const auto api = &channel->session().api();
+	const auto key = Api::RequestKey("slowmode_seconds", channel->id);
+
+	const auto requestId = api->request(MTPchannels_ToggleSlowMode(
+		channel->inputChannel,
+		MTP_int(seconds)
+	)).done([=](const MTPUpdates &result) {
+		api->clearModifyRequest(key);
+		api->applyUpdates(result);
+		channel->setSlowmodeSeconds(seconds);
+		done();
+	}).fail([=](const RPCError &error) {
+		api->clearModifyRequest(key);
+		if (error.type() != qstr("CHAT_NOT_MODIFIED")) {
+			return;
+		}
+		channel->setSlowmodeSeconds(seconds);
+		done();
+	}).send();
+
+	api->registerModifyRequest(key, requestId);
+}
+
 void ShowEditPermissions(not_null<PeerData*> peer) {
 	const auto box = Ui::show(
 		Box<EditPeerPermissionsBox>(peer),
 		LayerOption::KeepOther);
+	const auto saving = box->lifetime().make_state<int>(0);
+	const auto save = [=](
+			not_null<PeerData*> peer,
+			EditPeerPermissionsBox::Result result) {
+		Expects(result.slowmodeSeconds == 0 || peer->isChannel());
+
+		const auto close = crl::guard(box, [=] { box->closeBox(); });
+		SaveDefaultRestrictions(
+			peer,
+			MTP_chatBannedRights(MTP_flags(result.rights), MTP_int(0)),
+			close);
+		if (const auto channel = peer->asChannel()) {
+			SaveSlowmodeSeconds(channel, result.slowmodeSeconds, close);
+		}
+	};
 	box->saveEvents(
-	) | rpl::start_with_next([=](MTPDchatBannedRights::Flags restrictions) {
-		const auto callback = crl::guard(box, [=](bool success) {
-			if (success) {
-				box->closeBox();
-			}
+	) | rpl::start_with_next([=](EditPeerPermissionsBox::Result result) {
+		if (*saving) {
+			return;
+		}
+		*saving = true;
+
+		const auto saveFor = peer->migrateToOrMe();
+		const auto chat = saveFor->asChat();
+		if (!result.slowmodeSeconds || !chat) {
+			save(saveFor, result);
+			return;
+		}
+		const auto api = &peer->session().api();
+		api->migrateChat(chat, [=](not_null<ChannelData*> channel) {
+			save(channel, result);
+		}, [=](const RPCError &error) {
+			*saving = false;
 		});
-		peer->session().api().saveDefaultRestrictions(
-			peer->migrateToOrMe(),
-			MTP_chatBannedRights(MTP_flags(restrictions), MTP_int(0)),
-			callback);
 	}, box->lifetime());
 }
 

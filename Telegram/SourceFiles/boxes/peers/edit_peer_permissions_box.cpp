@@ -308,8 +308,7 @@ EditPeerPermissionsBox::EditPeerPermissionsBox(
 : _peer(peer->migrateToOrMe()) {
 }
 
-auto EditPeerPermissionsBox::saveEvents() const
--> rpl::producer<MTPDchatBannedRights::Flags> {
+auto EditPeerPermissionsBox::saveEvents() const -> rpl::producer<Result> {
 	Expects(_save != nullptr);
 
 	return _save->clicks() | rpl::map(_value);
@@ -360,28 +359,31 @@ void EditPeerPermissionsBox::prepare() {
 
 	inner->add(std::move(checkboxes));
 
-	addSlowmodeSlider(inner);
+	const auto getSlowmodeSeconds = addSlowmodeSlider(inner);
 	addBannedButtons(inner);
 
-	_value = getRestrictions;
+	_value = [=, rights = getRestrictions]() -> Result {
+		return { rights(), getSlowmodeSeconds() };
+	};
 	_save = addButton(tr::lng_settings_save());
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	setDimensionsToContent(st::boxWidth, inner);
 }
 
-void EditPeerPermissionsBox::addSlowmodeSlider(
+Fn<int()> EditPeerPermissionsBox::addSlowmodeSlider(
 		not_null<Ui::VerticalLayout*> container) {
 	using namespace rpl::mappers;
 
 	if (const auto chat = _peer->asChat()) {
 		if (!chat->amCreator()) {
-			return;
+			return [] { return 0; };
 		}
 	}
 	const auto channel = _peer->asChannel();
 	auto &lifetime = container->lifetime();
-	const auto secondsCount = lifetime.make_state<rpl::variable<int>>(0);
+	const auto secondsCount = lifetime.make_state<rpl::variable<int>>(
+		channel ? channel->slowmodeSeconds() : 0);
 
 	container->add(
 		object_ptr<BoxContentDivider>(container),
@@ -455,6 +457,8 @@ void EditPeerPermissionsBox::addSlowmodeSlider(
 				st::boxDividerLabel),
 			st::proxyAboutPadding),
 		style::margins(0, st::infoProfileSkip, 0, st::infoProfileSkip));
+
+	return [=] { return secondsCount->current(); };
 }
 
 void EditPeerPermissionsBox::addSlowmodeLabels(

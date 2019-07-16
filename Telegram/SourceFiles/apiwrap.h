@@ -46,6 +46,21 @@ struct CloudPasswordState;
 } // namespace Core
 
 namespace Api {
+namespace details {
+
+inline QString ToString(const QString &value) {
+	return value;
+}
+
+inline QString ToString(int32 value) {
+	return QString::number(value);
+}
+
+inline QString ToString(uint64 value) {
+	return QString::number(value);
+}
+
+} // namespace details
 
 template <typename IntRange>
 inline int32 CountHash(IntRange &&range) {
@@ -54,6 +69,24 @@ inline int32 CountHash(IntRange &&range) {
 		acc += (acc * 20261) + uint32(value);
 	}
 	return int32(acc & 0x7FFFFFFF);
+}
+
+template <
+	typename ...Types,
+	typename = std::enable_if_t<(sizeof...(Types) > 0)>>
+QString RequestKey(Types &&...values) {
+	const auto strings = { details::ToString(values)... };
+	if (strings.size() == 1) {
+		return *strings.begin();
+	}
+
+	auto result = QString();
+	result.reserve(
+		ranges::accumulate(strings, 0, ranges::plus(), &QString::size));
+	for (const auto &string : strings) {
+		result.append(string);
+	}
+	return result;
 }
 
 } // namespace Api
@@ -103,7 +136,13 @@ public:
 
 	AuthSession &session() const;
 
-	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
+	void applyUpdates(
+		const MTPUpdates &updates,
+		uint64 sentMessageRandomId = 0);
+
+	void registerModifyRequest(const QString &key, mtpRequestId requestId);
+	void clearModifyRequest(const QString &key);
+
 	void applyNotifySettings(
 		MTPInputNotifyPeer peer,
 		const MTPPeerNotifySettings &settings);
@@ -214,10 +253,6 @@ public:
 	void deleteAllFromUser(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> from);
-	void saveDefaultRestrictions(
-		not_null<PeerData*> peer,
-		const MTPChatBannedRights &rights,
-		Fn<void(bool)> callback = nullptr);
 
 	void requestWebPageDelayed(WebPageData *page);
 	void clearWebPageRequest(WebPageData *page);
@@ -683,6 +718,8 @@ private:
 
 	not_null<AuthSession*> _session;
 
+	base::flat_map<QString, int> _modifyRequests;
+
 	MessageDataRequests _messageDataRequests;
 	QMap<ChannelData*, MessageDataRequests> _channelMessageDataRequests;
 	SingleQueuedInvokation _messageDataResolveDelayed;
@@ -709,10 +746,6 @@ private:
 		not_null<ChannelData*>,
 		not_null<UserData*>>;
 	base::flat_map<KickRequest, mtpRequestId> _kickRequests;
-
-	base::flat_map<
-		not_null<PeerData*>,
-		mtpRequestId> _defaultRestrictionsRequests;
 
 	base::flat_set<not_null<ChannelData*>> _selfParticipantRequests;
 

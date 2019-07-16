@@ -1896,43 +1896,6 @@ void ApiWrap::unblockParticipant(
 	_kickRequests.emplace(kick, requestId);
 }
 
-void ApiWrap::saveDefaultRestrictions(
-		not_null<PeerData*> peer,
-		const MTPChatBannedRights &rights,
-		Fn<void(bool)> callback) {
-	if (_defaultRestrictionsRequests.contains(peer)) {
-		return;
-	}
-	const auto requestId = request(MTPmessages_EditChatDefaultBannedRights(
-		peer->input,
-		rights
-	)).done([=](const MTPUpdates &result) {
-		_defaultRestrictionsRequests.erase(peer);
-		applyUpdates(result);
-		if (callback) {
-			callback(true);
-		}
-	}).fail([=](const RPCError &error) {
-		_defaultRestrictionsRequests.erase(peer);
-		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
-			if (const auto chat = peer->asChat()) {
-				chat->setDefaultRestrictions(rights);
-			} else if (const auto channel = peer->asChannel()) {
-				channel->setDefaultRestrictions(rights);
-			} else {
-				Unexpected("Peer in ApiWrap::saveDefaultRestrictions.");
-			}
-			if (callback) {
-				callback(true);
-			}
-			return;
-		}
-		if (callback) {
-			callback(false);
-		}
-	}).send();
-}
-
 void ApiWrap::deleteAllFromUser(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> from) {
@@ -2681,6 +2644,22 @@ void ApiWrap::checkQuitPreventFinished() {
 		}
 		Core::App().quitPreventFinished();
 	}
+}
+
+void ApiWrap::registerModifyRequest(
+		const QString &key,
+		mtpRequestId requestId) {
+	const auto i = _modifyRequests.find(key);
+	if (i != end(_modifyRequests)) {
+		request(i->second).cancel();
+		i->second = requestId;
+	} else {
+		_modifyRequests.emplace(key, requestId);
+	}
+}
+
+void ApiWrap::clearModifyRequest(const QString &key) {
+	_modifyRequests.remove(key);
 }
 
 void ApiWrap::applyNotifySettings(
