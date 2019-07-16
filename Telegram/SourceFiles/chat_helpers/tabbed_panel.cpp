@@ -106,9 +106,15 @@ TabbedPanel::TabbedPanel(
 }
 
 void TabbedPanel::moveBottomRight(int bottom, int right) {
+	const auto isNew = (_bottom != bottom || _right != right);
 	_bottom = bottom;
 	_right = right;
-	updateContentHeight();
+	// If the panel is already shown, update the position.
+	if (!isHidden() && isNew) {
+		moveByBottom();
+	} else {
+		updateContentHeight();
+	}
 }
 
 void TabbedPanel::setDesiredHeightValues(
