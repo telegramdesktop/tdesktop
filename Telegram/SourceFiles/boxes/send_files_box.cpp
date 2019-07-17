@@ -1365,11 +1365,13 @@ SendFilesBox::SendFilesBox(
 	not_null<Window::SessionController*> controller,
 	Storage::PreparedList &&list,
 	const TextWithTags &caption,
-	CompressConfirm compressed)
+	CompressConfirm compressed,
+	SendLimit limit)
 : _controller(controller)
 , _list(std::move(list))
 , _compressConfirmInitial(compressed)
 , _compressConfirm(compressed)
+, _sendLimit(limit)
 , _caption(
 	this,
 	st::confirmCaptionArea,
@@ -1514,9 +1516,24 @@ void SendFilesBox::initSendWay() {
 }
 
 void SendFilesBox::updateCaptionPlaceholder() {
-	if (_caption) {
-		const auto sendWay = _sendWay->value();
+	if (!_caption) {
+		return;
+	}
+	const auto sendWay = _sendWay->value();
+	const auto isAlbum = (sendWay == SendFilesWay::Album);
+	const auto compressImages = (sendWay != SendFilesWay::Files);
+	if (!_list.canAddCaption(isAlbum, compressImages)
+		&& _sendLimit == SendLimit::One) {
+		_caption->hide();
+		if (_emojiToggle) {
+			_emojiToggle->hide();
+		}
+	} else {
 		_caption->setPlaceholder(FieldPlaceholder(_list, sendWay));
+		_caption->show();
+		if (_emojiToggle) {
+			_emojiToggle->show();
+		}
 	}
 }
 
@@ -1640,6 +1657,8 @@ void SendFilesBox::setupCaption() {
 }
 
 void SendFilesBox::setupEmojiPanel() {
+	Expects(_caption != nullptr);
+
 	const auto container = getDelegate()->outerContainer();
 	_emojiPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
 		container,
@@ -1663,6 +1682,7 @@ void SendFilesBox::setupEmojiPanel() {
 		[=](not_null<QEvent*> event) { return emojiFilter(event); }));
 
 	_emojiToggle.create(this, st::boxAttachEmoji);
+	_emojiToggle->setVisible(!_caption->isHidden());
 	_emojiToggle->installEventFilter(_emojiPanel);
 	_emojiToggle->addClickHandler([=] {
 		_emojiPanel->toggleAnimated();
@@ -1905,7 +1925,7 @@ void SendFilesBox::send(bool ctrlShiftEnter) {
 	applyAlbumOrder();
 	_confirmed = true;
 	if (_confirmedCallback) {
-		auto caption = _caption
+		auto caption = (_caption && !_caption->isHidden())
 			? _caption->getTextWithAppliedMarkdown()
 			: TextWithTags();
 		_confirmedCallback(

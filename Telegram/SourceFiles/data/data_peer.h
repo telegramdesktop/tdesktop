@@ -177,6 +177,8 @@ public:
 	[[nodiscard]] Data::RestrictionCheckResult amRestricted(
 		ChatRestriction right) const;
 	[[nodiscard]] bool canRevokeFullHistory() const;
+	[[nodiscard]] bool slowmodeApplied() const;
+	[[nodiscard]] int slowmodeSecondsLeft() const;
 
 	[[nodiscard]] UserData *asUser();
 	[[nodiscard]] const UserData *asUser() const;

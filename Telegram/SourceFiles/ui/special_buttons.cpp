@@ -420,7 +420,10 @@ void SendButton::paintSend(Painter &p, bool over) {
 void SendButton::paintSlowmode(Painter &p) {
 	p.setFont(st::normalFont);
 	p.setPen(st::windowSubTextFg);
-	p.drawText(rect(), _slowmodeDelayText, style::al_center);
+	p.drawText(
+		rect().marginsRemoved(st::historySlowmodeCounterMargins),
+		_slowmodeDelayText,
+		style::al_center);
 }
 
 void SendButton::onStateChanged(State was, StateChangeSource source) {

@@ -74,9 +74,10 @@ void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	Local::writeInstalledStickers();
 	Local::writeArchivedStickers();
 
-	Ui::Toast::Config toast;
+	auto toast = Ui::Toast::Config();
 	toast.text = tr::lng_stickers_packs_archived(tr::now);
-	toast.maxWidth = st::stickersToastMaxWidth;
+	toast.maxWidth = toast.minWidth = st::stickersToastMaxWidth;
+	toast.multiline = true;
 	toast.padding = st::stickersToastPadding;
 	Ui::Toast::Show(toast);
 //	Ui::show(Box<StickersBox>(archived), LayerOption::KeepOther);

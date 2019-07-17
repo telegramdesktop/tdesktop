@@ -43,12 +43,17 @@ enum class SendFilesWay {
 
 class SendFilesBox : public BoxContent {
 public:
+	enum class SendLimit {
+		One,
+		Many
+	};
 	SendFilesBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
 		Storage::PreparedList &&list,
 		const TextWithTags &caption,
-		CompressConfirm compressed);
+		CompressConfirm compressed,
+		SendLimit limit);
 
 	void setConfirmedCallback(
 		Fn<void(
@@ -116,6 +121,7 @@ private:
 
 	CompressConfirm _compressConfirmInitial = CompressConfirm::None;
 	CompressConfirm _compressConfirm = CompressConfirm::None;
+	SendLimit _sendLimit = SendLimit::Many;
 
 	Fn<void(
 		Storage::PreparedList &&list,

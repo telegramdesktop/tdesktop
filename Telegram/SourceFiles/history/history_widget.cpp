@@ -236,6 +236,21 @@ object_ptr<Ui::FlatButton> SetupDiscussButton(
 	return result;
 }
 
+void ShowSlowmodeToast(const QString &text) {
+	auto config = Ui::Toast::Config();
+	config.multiline = true;
+	config.minWidth = st::msgMinWidth;
+	config.text = text;
+	Ui::Toast::Show(config);
+}
+
+void ShowSlowmodeToast(int seconds) {
+	ShowSlowmodeToast(tr::lng_slowmode_enabled(
+		tr::now,
+		lt_left,
+		formatDurationWords(seconds)));
+}
+
 } // namespace
 
 HistoryWidget::HistoryWidget(
@@ -2800,10 +2815,13 @@ void HistoryWidget::hideSelectorControlsAnimated() {
 }
 
 void HistoryWidget::send(Qt::KeyboardModifiers modifiers) {
-	if (!_history) return;
-
-	if (_editMsgId) {
+	if (!_history) {
+		return;
+	} else if (_editMsgId) {
 		saveEditMsg();
+		return;
+	} else if (const auto left = _peer->slowmodeSecondsLeft()) {
+		ShowSlowmodeToast(left);
 		return;
 	}
 
@@ -2818,6 +2836,17 @@ void HistoryWidget::send(Qt::KeyboardModifiers modifiers) {
 	message.replyTo = replyToId();
 	message.webPageId = webPageId;
 	message.handleSupportSwitch = Support::HandleSwitch(modifiers);
+
+	if (_peer->slowmodeApplied()) {
+		if (_toForward.size() > 1
+			|| (!_toForward.empty()
+				&& !message.textWithTags.text.isEmpty())
+			|| (message.textWithTags.text.size() > MaxMessageSize)) {
+			ShowSlowmodeToast(tr::lng_slowmode_no_many(tr::now));
+			return;
+		}
+	}
+
 	session().api().sendMessage(std::move(message));
 
 	clearFieldText();
@@ -3016,13 +3045,23 @@ void HistoryWidget::chooseAttach() {
 	} else if (const auto error = Data::RestrictionError(
 			_peer,
 			ChatRestriction::f_send_media)) {
-		Ui::show(Box<InformBox>(*error));
+		Ui::Toast::Show(*error);
+		return;
+	} else if (const auto left = _peer->slowmodeSecondsLeft()) {
+		ShowSlowmodeToast(left);
 		return;
 	}
 
-	auto filter = FileDialog::AllFilesFilter() + qsl(";;Image files (*") + cImgExtensions().join(qsl(" *")) + qsl(")");
+	const auto filter = FileDialog::AllFilesFilter()
+		+ qsl(";;Image files (*")
+		+ cImgExtensions().join(qsl(" *"))
+		+ qsl(")");
 
-	FileDialog::GetOpenPaths(this, tr::lng_choose_files(tr::now), filter, crl::guard(this, [this](FileDialog::OpenResult &&result) {
+	const auto method = _peer->slowmodeApplied()
+		? &FileDialog::GetOpenPath
+		: &FileDialog::GetOpenPaths;
+	method(this, tr::lng_choose_files(tr::now), filter, crl::guard(this, [=](
+			FileDialog::OpenResult &&result) {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 			return;
 		}
@@ -3052,14 +3091,12 @@ void HistoryWidget::chooseAttach() {
 				confirmSendingFiles(std::move(list), CompressConfirm::No);
 			}
 		}
-	}));
+	}), nullptr);
 }
 
 void HistoryWidget::sendButtonClicked() {
 	const auto type = _send->type();
-	if (type == Ui::SendButton::Type::Slowmode) {
-		return;
-	} else if (type == Ui::SendButton::Type::Cancel) {
+	if (type == Ui::SendButton::Type::Cancel) {
 		onInlineBotCancel();
 	} else if (type != Ui::SendButton::Type::Record) {
 		send();
@@ -3539,17 +3576,9 @@ void HistoryWidget::updateSendButtonType() {
 	_send->setType(type);
 
 	const auto delay = [&] {
-		if (type == Type::Cancel || type == Type::Save) {
-			return 0;
-		}
-		const auto channel = _peer ? _peer->asChannel() : nullptr;
-		const auto last = channel ? channel->slowmodeLastMessage() : 0;
-		if (!last) {
-			return 0;
-		}
-		const auto seconds = channel->slowmodeSeconds();
-		const auto now = base::unixtime::now();
-		return std::max(seconds - (now - last), 0);
+		return (type != Type::Cancel && type != Type::Save && _peer)
+			? _peer->slowmodeSecondsLeft()
+			: 0;
 	}();
 	_send->setSlowmodeDelay(delay);
 
@@ -3963,6 +3992,14 @@ bool HistoryWidget::showSendingFilesError(
 		} else if (!canWriteMessage()) {
 			return tr::lng_forward_send_files_cant(tr::now);
 		}
+		if (list.files.size() > 1 && _peer->slowmodeApplied()) {
+			return tr::lng_slowmode_no_many(tr::now);
+		} else if (const auto left = _peer->slowmodeSecondsLeft()) {
+			return tr::lng_slowmode_enabled(
+				tr::now,
+				lt_left,
+				formatDurationWords(left));
+		}
 		using Error = Storage::PreparedList::Error;
 		switch (list.error) {
 		case Error::None: return QString();
@@ -3983,7 +4020,7 @@ bool HistoryWidget::showSendingFilesError(
 		return false;
 	}
 
-	Ui::show(Box<InformBox>(text));
+	ShowSlowmodeToast(text);
 	return true;
 }
 
@@ -4024,11 +4061,13 @@ bool HistoryWidget::confirmSendingFiles(
 	const auto position = cursor.position();
 	const auto anchor = cursor.anchor();
 	const auto text = _field->getTextWithTags();
+	using SendLimit = SendFilesBox::SendLimit;
 	auto box = Box<SendFilesBox>(
 		controller(),
 		std::move(list),
 		text,
-		boxCompressConfirm);
+		boxCompressConfirm,
+		_peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many);
 	_field->setTextWithTags({});
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Storage::PreparedList &&list,
@@ -4171,6 +4210,17 @@ void HistoryWidget::uploadFilesAfterConfirmation(
 		MsgId replyTo,
 		std::shared_ptr<SendingAlbum> album) {
 	Assert(canWriteMessage());
+
+	const auto isAlbum = (album != nullptr);
+	const auto compressImages = (type == SendMediaType::Photo);
+	if (_peer->slowmodeApplied()
+		&& (list.files.size() > 1
+			|| (!list.files.empty()
+				&& !caption.text.isEmpty()
+				&& !list.canAddCaption(isAlbum, compressImages)))) {
+		ShowSlowmodeToast(tr::lng_slowmode_no_many(tr::now));
+		return;
+	}
 
 	auto options = ApiWrap::SendOptions(_history);
 	options.replyTo = replyTo;
@@ -5292,6 +5342,9 @@ void HistoryWidget::sendInlineResult(
 		not_null<UserData*> bot) {
 	if (!_peer || !_peer->canWrite()) {
 		return;
+	} else if (const auto left = _peer->slowmodeSecondsLeft()) {
+		ShowSlowmodeToast(left);
+		return;
 	}
 
 	auto errorText = result->getErrorOnSend(_history);
@@ -5445,6 +5498,9 @@ bool HistoryWidget::sendExistingDocument(
 		return false;
 	} else if (!_peer || !_peer->canWrite()) {
 		return false;
+	} else if (const auto left = _peer->slowmodeSecondsLeft()) {
+		ShowSlowmodeToast(left);
+		return false;
 	}
 
 	const auto origin = document->stickerOrGifOrigin();
@@ -5479,6 +5535,9 @@ bool HistoryWidget::sendExistingPhoto(
 		Ui::show(Box<InformBox>(*error), LayerOption::KeepOther);
 		return false;
 	} else if (!_peer || !_peer->canWrite()) {
+		return false;
+	} else if (const auto left = _peer->slowmodeSecondsLeft()) {
+		ShowSlowmodeToast(left);
 		return false;
 	}
 

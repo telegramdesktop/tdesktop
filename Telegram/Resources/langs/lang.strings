@@ -1655,6 +1655,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_slowmode_interval_minutes#one" = "every {count} minute";
 "lng_rights_slowmode_interval_minutes#other" = "every {count} minutes";
 
+"lng_slowmode_enabled"= "Slowmode is enabled. You can send your next message in {left}.";
+"lng_slowmode_no_many" = "Slowmode is enabled. You can't send more than one message at once.";
+
 "lng_rights_channel_info" = "Change channel info";
 "lng_rights_channel_post" = "Post messages";
 "lng_rights_channel_edit" = "Edit messages of others";

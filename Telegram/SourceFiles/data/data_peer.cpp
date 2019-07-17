@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
+#include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
@@ -699,6 +700,26 @@ bool PeerData::canRevokeFullHistory() const {
 	return isUser()
 		&& Global::RevokePrivateInbox()
 		&& (Global::RevokePrivateTimeLimit() == 0x7FFFFFFF);
+}
+
+bool PeerData::slowmodeApplied() const {
+	if (const auto channel = asChannel()) {
+		return !channel->amCreator()
+			&& !channel->hasAdminRights()
+			&& (channel->flags() & MTPDchannel::Flag::f_slowmode_enabled);
+	}
+	return false;
+}
+
+int PeerData::slowmodeSecondsLeft() const {
+	if (const auto channel = asChannel()) {
+		if (const auto last = channel->slowmodeLastMessage()) {
+			const auto seconds = channel->slowmodeSeconds();
+			const auto now = base::unixtime::now();
+			return std::max(seconds - (now - last), 0);
+		}
+	}
+	return 0;
 }
 
 namespace Data {

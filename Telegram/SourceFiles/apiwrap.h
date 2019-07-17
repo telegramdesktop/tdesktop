@@ -662,7 +662,9 @@ private:
 		not_null<ChannelData*> channel,
 		not_null<UserData*> from);
 
-	void sendMessageFail(const RPCError &error);
+	void sendMessageFail(
+		not_null<PeerData*> peer,
+		const RPCError &error);
 	void uploadAlbumMedia(
 		not_null<HistoryItem*> item,
 		const MessageGroupId &groupId,

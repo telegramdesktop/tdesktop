@@ -575,9 +575,10 @@ void FolderFiller::addTogglesForArchive() {
 	});
 
 	_addAction(tr::lng_context_archive_to_menu(tr::now), [=] {
-		Ui::Toast::Config toast;
+		auto toast = Ui::Toast::Config();
 		toast.text = tr::lng_context_archive_to_menu_info(tr::now);
-		toast.maxWidth = st::boxWideWidth;
+		toast.minWidth = toast.maxWidth = st::boxWideWidth;
+		toast.multiline = true;
 		toast.durationMs = kArchivedToastDuration;
 		Ui::Toast::Show(toast);
 
@@ -896,11 +897,12 @@ void PeerMenuAddMuteAction(
 //
 void ToggleHistoryArchived(not_null<History*> history, bool archived) {
 	const auto callback = [=] {
-		Ui::Toast::Config toast;
+		auto toast = Ui::Toast::Config();
 		toast.text = archived
 			? tr::lng_archived_added(tr::now)
 			: tr::lng_archived_removed(tr::now);
-		toast.maxWidth = st::boxWideWidth;
+		toast.minWidth = toast.maxWidth = st::boxWideWidth;
+		toast.multiline = true;
 		if (archived) {
 			toast.durationMs = kArchivedToastDuration;
 		}

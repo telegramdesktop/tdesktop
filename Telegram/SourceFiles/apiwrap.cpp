@@ -548,7 +548,9 @@ void ApiWrap::toggleHistoryArchived(
 //	}).send();
 //}
 
-void ApiWrap::sendMessageFail(const RPCError &error) {
+void ApiWrap::sendMessageFail(
+		not_null<PeerData*> peer,
+		const RPCError &error) {
 	if (error.type() == qstr("PEER_FLOOD")) {
 		Ui::show(Box<InformBox>(
 			PeerFloodErrorText(PeerFloodType::Send)));
@@ -560,6 +562,14 @@ void ApiWrap::sendMessageFail(const RPCError &error) {
 			tr::now,
 			lt_more_info,
 			link)));
+	} else if (error.type().startsWith(qstr("SLOWMODE_WAIT_"))) {
+		const auto chop = qstr("SLOWMODE_WAIT_").size();
+		const auto left = error.type().mid(chop).toInt();
+		if (const auto channel = peer->asChannel()) {
+			const auto seconds = channel->slowmodeSeconds();
+			channel->growSlowmodeLastMessage(
+				base::unixtime::now() - (left - seconds));
+		}
 	}
 }
 
@@ -4828,9 +4838,10 @@ void ApiWrap::editUploadedFile(
 		return;
 	}
 
+	const auto peer = item->history()->peer;
 	request(MTPmessages_EditMessage(
 		MTP_flags(flagsEditMsg),
-		item->history()->peer->input,
+		peer->input,
 		MTP_int(item->id),
 		MTP_string(item->originalText().text),
 		*media,
@@ -4853,7 +4864,7 @@ void ApiWrap::editUploadedFile(
 				Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
 				LayerOption::KeepOther);
 		} else {
-			sendMessageFail(error);
+			sendMessageFail(peer, error);
 		}
 	}).send();
 }
@@ -4986,7 +4997,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			if (error.type() == qstr("MESSAGE_EMPTY")) {
 				lastMessage->destroy();
 			} else {
-				sendMessageFail(error);
+				sendMessageFail(peer, error);
 			}
 			history->clearSentDraftText(QString());
 		}).afterRequest(history->sendRequestId
@@ -5099,7 +5110,7 @@ void ApiWrap::sendInlineResult(
 		applyUpdates(result, randomId);
 		history->clearSentDraftText(QString());
 	}).fail([=](const RPCError &error) {
-		sendMessageFail(error);
+		sendMessageFail(peer, error);
 		history->clearSentDraftText(QString());
 	}).afterRequest(history->sendRequestId
 	).send();
@@ -5200,12 +5211,12 @@ void ApiWrap::sendExistingDocument(
 				if (document->fileReference() != usedFileReference) {
 					performRequest();
 				} else {
-					sendMessageFail(error);
+					sendMessageFail(peer, error);
 				}
 			};
 			refreshFileReference(origin, std::move(refreshed));
 		} else {
-			sendMessageFail(error);
+			sendMessageFail(peer, error);
 		}
 	};
 	performRequest();
@@ -5329,9 +5340,10 @@ void ApiWrap::sendMediaWithRandomId(
 			? MTPmessages_SendMedia::Flag::f_entities
 			: MTPmessages_SendMedia::Flag(0));
 
+	const auto peer = history->peer;
 	history->sendRequestId = request(MTPmessages_SendMedia(
 		MTP_flags(flags),
-		history->peer->input,
+		peer->input,
 		MTP_int(replyTo),
 		media,
 		MTP_string(caption.text),
@@ -5339,7 +5351,7 @@ void ApiWrap::sendMediaWithRandomId(
 		MTPReplyMarkup(),
 		sentEntities
 	)).done([=](const MTPUpdates &result) { applyUpdates(result);
-	}).fail([=](const RPCError &error) { sendMessageFail(error);
+	}).fail([=](const RPCError &error) { sendMessageFail(peer, error);
 	}).afterRequest(history->sendRequestId
 	).send();
 }
@@ -5416,9 +5428,10 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		| (IsSilentPost(sample, album->silent)
 			? MTPmessages_SendMultiMedia::Flag::f_silent
 			: MTPmessages_SendMultiMedia::Flag(0));
+	const auto peer = history->peer;
 	history->sendRequestId = request(MTPmessages_SendMultiMedia(
 		MTP_flags(flags),
-		history->peer->input,
+		peer->input,
 		MTP_int(replyTo),
 		MTP_vector<MTPInputSingleMedia>(medias)
 	)).done([=](const MTPUpdates &result) {
@@ -5426,7 +5439,7 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		applyUpdates(result);
 	}).fail([=](const RPCError &error) {
 		_sendingAlbums.remove(groupId);
-		sendMessageFail(error);
+		sendMessageFail(peer, error);
 	}).afterRequest(history->sendRequestId
 	).send();
 }

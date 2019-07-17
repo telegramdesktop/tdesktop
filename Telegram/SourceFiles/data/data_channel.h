@@ -95,7 +95,8 @@ public:
 		| MTPDchannel::Flag::f_megagroup
 		| MTPDchannel::Flag::f_restricted
 		| MTPDchannel::Flag::f_signatures
-		| MTPDchannel::Flag::f_username;
+		| MTPDchannel::Flag::f_username
+		| MTPDchannel::Flag::f_slowmode_enabled;
 	using Flags = Data::Flags<
 		MTPDchannel::Flags,
 		kEssentialFlags>;
