@@ -3224,7 +3224,11 @@ void HistoryWidget::stopRecording(bool send) {
 }
 
 void HistoryWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) { // replyTo != 0 from ReplyKeyboardMarkup, == 0 from cmd links
-	if (!_peer || _peer != peer) return;
+	if (!_peer || _peer != peer) {
+		return;
+	} else if (showSlowmodeError()) {
+		return;
+	}
 
 	bool lastKeyboardUsed = (_keyboard->forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard->forMsgId() == FullMsgId(_channel, replyTo));
 

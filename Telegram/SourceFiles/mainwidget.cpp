@@ -681,6 +681,13 @@ void MainWidget::cancelForwarding(not_null<History*> history) {
 void MainWidget::finishForwarding(not_null<History*> history) {
 	auto toForward = history->validateForwardDraft();
 	if (!toForward.empty()) {
+		if (history->peer->slowmodeSecondsLeft()
+			|| (history->peer->slowmodeApplied()
+				&& (toForward.size() > 1
+					|| history->latestSendingMessage() != nullptr))) {
+			return;
+		}
+
 		auto options = ApiWrap::SendOptions(history);
 		session().api().forwardMessages(std::move(toForward), options);
 		cancelForwarding(history);
