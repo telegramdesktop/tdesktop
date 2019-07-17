@@ -787,7 +787,7 @@ HistoryService::PreparedText GenerateJoinedText(
 	return { tr::lng_action_you_joined(tr::now) };
 }
 
-HistoryService *GenerateJoinedMessage(
+not_null<HistoryService*> GenerateJoinedMessage(
 		not_null<History*> history,
 		TimeId inviteDate,
 		not_null<UserData*> inviter,

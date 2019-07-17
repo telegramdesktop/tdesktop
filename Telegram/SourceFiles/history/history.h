@@ -70,8 +70,7 @@ public:
 	not_null<History*> migrateToOrMe() const;
 	History *migrateFrom() const;
 	MsgRange rangeForDifferenceRequest() const;
-	HistoryService *insertJoinedMessage(bool unread);
-	void checkJoinedMessage(bool createUnread = false);
+	void checkLocalMessages();
 	void removeJoinedMessage();
 
 	bool isEmpty() const;
@@ -153,6 +152,9 @@ public:
 	void addNewerSlice(const QVector<MTPMessage> &slice);
 
 	void newItemAdded(not_null<HistoryItem*> item);
+
+	void registerLocalMessage(not_null<HistoryItem*> item);
+	void unregisterLocalMessage(not_null<HistoryItem*> item);
 
 	MsgId readInbox();
 	void applyInboxReadUpdate(
@@ -470,6 +472,9 @@ private:
 
 	void createLocalDraftFromCloud();
 
+	HistoryService *insertJoinedMessage();
+	void insertLocalMessage(not_null<HistoryItem*> item);
+
 	void setFolderPointer(Data::Folder *folder);
 
 	Flags _flags = 0;
@@ -490,6 +495,7 @@ private:
 	std::optional<int> _unreadMentionsCount;
 	base::flat_set<MsgId> _unreadMentions;
 	std::optional<HistoryItem*> _lastMessage;
+	base::flat_set<not_null<HistoryItem*>> _localMessages;
 
 	// This almost always is equal to _lastMessage. The only difference is
 	// for a group that migrated to a supergroup. Then _lastMessage can

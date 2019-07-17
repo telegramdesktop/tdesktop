@@ -223,7 +223,6 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 				MTP_vector<MTPint>(msgIds),
 				MTP_vector<MTPlong>(generateRandom()),
 				peer->input);
-			auto callback = doneCallback;
 			history->sendRequestId = MTP::send(
 				request,
 				rpcDone(base::duplicate(doneCallback)),
@@ -262,7 +261,7 @@ Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 }
 
 MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer) {
-	MTPDmessage::Flags result = 0;
+	MTPDmessage::Flags result = MTPDmessage_ClientFlag::f_sending | 0;
 	if (!peer->isSelf()) {
 		result |= MTPDmessage::Flag::f_out;
 		//if (p->isChat() || (p->isUser() && !p->asUser()->botInfo)) {

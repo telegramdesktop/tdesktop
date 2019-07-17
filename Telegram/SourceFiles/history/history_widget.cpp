@@ -4310,7 +4310,9 @@ void HistoryWidget::sendFileConfirmed(
 	file->edit = isEditing;
 	session().uploader().upload(newId, file);
 
-	const auto itemToEdit = isEditing ? session().data().message(newId) : nullptr;
+	const auto itemToEdit = isEditing
+		? session().data().message(newId)
+		: nullptr;
 
 	const auto history = session().data().history(file->to.peer);
 	const auto peer = history->peer;
@@ -4338,7 +4340,7 @@ void HistoryWidget::sendFileConfirmed(
 		}
 	}
 
-	auto flags = NewMessageFlags(peer)
+	auto flags = (isEditing ? MTPDmessage::Flags() : NewMessageFlags(peer))
 		| MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_media;
 	if (file->to.replyTo) {
@@ -5547,8 +5549,8 @@ bool HistoryWidget::sendExistingPhoto(
 	options.generateLocal = true;
 	session().api().sendAction(options);
 
-	uint64 randomId = rand_value<uint64>();
-	FullMsgId newId(_channel, clientMsgId());
+	const auto randomId = rand_value<uint64>();
+	const auto newId = FullMsgId(_channel, clientMsgId());
 
 	auto flags = NewMessageFlags(_peer) | MTPDmessage::Flag::f_media;
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);

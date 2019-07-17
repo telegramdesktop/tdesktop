@@ -1797,7 +1797,7 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 		channel->inviteDate = inviteDate;
 		if (const auto history = _session->data().historyLoaded(channel)) {
 			if (history->lastMessageKnown()) {
-				history->checkJoinedMessage(true);
+				history->checkLocalMessages();
 				history->owner().sendHistoryChangeNotifications();
 			} else {
 				requestDialogEntry(history);

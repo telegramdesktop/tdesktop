@@ -150,7 +150,7 @@ private:
 
 };
 
-HistoryService *GenerateJoinedMessage(
+not_null<HistoryService*> GenerateJoinedMessage(
 	not_null<History*> history,
 	TimeId inviteDate,
 	not_null<UserData*> inviter,

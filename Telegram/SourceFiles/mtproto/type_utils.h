@@ -41,36 +41,27 @@ enum class MTPDmessage_ClientFlag : uint32 {
 	// message is a group / channel create or migrate service message
 	f_is_group_essential = (1U << 29),
 
-	//// message needs initDimensions() + resize() + paint()
-	//f_pending_init_dimensions = (1U << 28),
-
-	//// message needs resize() + paint()
-	//f_pending_resize = (1U << 27),
-
-	//// message needs paint()
-	//f_pending_paint = (1U << 26),
-
-	//// message is attached to previous one when displaying the history
-	//f_attach_to_previous = (1U << 25),
-
 	// message's edited media is generated on the client
 	// and should not update media from server
-	f_is_local_update_media = (1U << 24),
+	f_is_local_update_media = (1U << 28),
 
 	// message was sent from inline bot, need to re-set media when sent
-	f_from_inline_bot = (1U << 23),
+	f_from_inline_bot = (1U << 27),
 
 	// message has a switch inline keyboard button, need to return to inline
-	f_has_switch_inline_button = (1U << 22),
+	f_has_switch_inline_button = (1U << 26),
 
 	// message is generated on the client side and should be unread
-	f_clientside_unread = (1U << 21),
+	f_clientside_unread = (1U << 25),
 
 	// message has an admin badge in supergroup
-	f_has_admin_badge = (1U << 20),
+	f_has_admin_badge = (1U << 24),
+
+	// message is an outgoing message that is being sent
+	f_sending = (1U << 23),
 
 	// update this when adding new client side flags
-	MIN_FIELD = (1U << 20),
+	MIN_FIELD = (1U << 23),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
 

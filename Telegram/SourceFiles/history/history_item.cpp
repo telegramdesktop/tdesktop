@@ -172,6 +172,9 @@ HistoryItem::HistoryItem(
 , _from(from ? history->owner().user(from) : history->peer)
 , _flags(flags)
 , _date(date) {
+	if (IsClientMsgId(id)) {
+		_history->registerLocalMessage(this);
+	}
 }
 
 TimeId HistoryItem::date() const {
@@ -432,9 +435,14 @@ void HistoryItem::indexAsNewItem() {
 }
 
 void HistoryItem::setRealId(MsgId newId) {
-	Expects(!IsServerMsgId(id));
+	Expects(_flags & MTPDmessage_ClientFlag::f_sending);
+	Expects(IsClientMsgId(id));
 
 	const auto oldId = std::exchange(id, newId);
+	_flags &= ~MTPDmessage_ClientFlag::f_sending;
+	if (IsServerMsgId(id)) {
+		_history->unregisterLocalMessage(this);
+	}
 	_history->owner().notifyItemIdChange({ this, oldId });
 
 	// We don't call Notify::replyMarkupUpdated(this) and update keyboard
