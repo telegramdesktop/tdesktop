@@ -375,11 +375,15 @@ void SendButton::paintEvent(QPaintEvent *e) {
 
 void SendButton::paintRecord(Painter &p, bool over) {
 	auto recordActive = recordActiveRatio();
-	auto rippleColor = anim::color(st::historyAttachEmoji.ripple.color, st::historyRecordVoiceRippleBgActive, recordActive);
-	paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), &rippleColor);
+	if (!isDisabled()) {
+		auto rippleColor = anim::color(st::historyAttachEmoji.ripple.color, st::historyRecordVoiceRippleBgActive, recordActive);
+		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), &rippleColor);
+	}
 
 	auto fastIcon = [&] {
-		if (recordActive == 1.) {
+		if (isDisabled()) {
+			return &st::historyRecordVoice;
+		} else if (recordActive == 1.) {
 			return &st::historyRecordVoiceActive;
 		} else if (over) {
 			return &st::historyRecordVoiceOver;
@@ -387,7 +391,7 @@ void SendButton::paintRecord(Painter &p, bool over) {
 		return &st::historyRecordVoice;
 	};
 	fastIcon()->paintInCenter(p, rect());
-	if (recordActive > 0. && recordActive < 1.) {
+	if (!isDisabled() && recordActive > 0. && recordActive < 1.) {
 		p.setOpacity(recordActive);
 		st::historyRecordVoiceActive.paintInCenter(p, rect());
 		p.setOpacity(1.);
@@ -414,7 +418,12 @@ void SendButton::paintSend(Painter &p, bool over) {
 	const auto &sendIcon = over
 		? st::historySendIconOver
 		: st::historySendIcon;
-	sendIcon.paint(p, st::historySendIconPosition, width());
+	if (isDisabled()) {
+		const auto color = st::historyRecordVoiceFg->c;
+		sendIcon.paint(p, st::historySendIconPosition, width(), color);
+	} else {
+		sendIcon.paint(p, st::historySendIconPosition, width());
+	}
 }
 
 void SendButton::paintSlowmode(Painter &p) {

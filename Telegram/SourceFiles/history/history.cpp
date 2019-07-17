@@ -614,18 +614,6 @@ std::vector<not_null<HistoryItem*>> History::createItems(
 	return result;
 }
 
-not_null<HistoryItem*> History::addNewService(
-		MsgId msgId,
-		TimeId date,
-		const QString &text,
-		MTPDmessage::Flags flags,
-		bool unread) {
-	auto message = HistoryService::PreparedText { text };
-	return addNewItem(
-		new HistoryService(this, msgId, date, message, flags),
-		unread);
-}
-
 HistoryItem *History::addNewMessage(
 		const MTPMessage &msg,
 		NewMessageType type) {
@@ -696,13 +684,13 @@ HistoryItem *History::addToHistory(const MTPMessage &msg) {
 	return createItem(msg, detachExistingItem);
 }
 
-not_null<HistoryItem*> History::addNewForwarded(
+not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
 		TimeId date,
 		UserId from,
 		const QString &postAuthor,
-		not_null<HistoryMessage*> original) {
+		not_null<HistoryMessage*> forwardOriginal) {
 	return addNewItem(
 		owner().makeMessage(
 			this,
@@ -711,11 +699,11 @@ not_null<HistoryItem*> History::addNewForwarded(
 			date,
 			from,
 			postAuthor,
-			original),
+			forwardOriginal),
 		true);
 }
 
-not_null<HistoryItem*> History::addNewDocument(
+not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
 		UserId viaBotId,
@@ -742,7 +730,7 @@ not_null<HistoryItem*> History::addNewDocument(
 		true);
 }
 
-not_null<HistoryItem*> History::addNewPhoto(
+not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
 		UserId viaBotId,
@@ -769,7 +757,7 @@ not_null<HistoryItem*> History::addNewPhoto(
 		true);
 }
 
-not_null<HistoryItem*> History::addNewGame(
+not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
 		UserId viaBotId,
@@ -1260,10 +1248,33 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 
 void History::registerLocalMessage(not_null<HistoryItem*> item) {
 	_localMessages.emplace(item);
+	if (peer->isChannel()) {
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::ChannelLocalMessages);
+	}
 }
 
 void History::unregisterLocalMessage(not_null<HistoryItem*> item) {
 	_localMessages.remove(item);
+	if (peer->isChannel()) {
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::ChannelLocalMessages);
+	}
+}
+
+HistoryItem *History::latestSendingMessage() const {
+	auto sending = ranges::view::all(
+		_localMessages
+	) | ranges::view::filter([](not_null<HistoryItem*> item) {
+		return item->isSending();
+	});
+	const auto i = ranges::max_element(sending, ranges::less(), [](
+			not_null<HistoryItem*> item) {
+		return uint64(item->date()) << 32 | uint32(item->id);
+	});
+	return (i == sending.end()) ? nullptr : i->get();
 }
 
 HistoryBlock *History::prepareBlockForAddingItem() {

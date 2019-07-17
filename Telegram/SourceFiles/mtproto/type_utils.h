@@ -60,8 +60,11 @@ enum class MTPDmessage_ClientFlag : uint32 {
 	// message is an outgoing message that is being sent
 	f_sending = (1U << 23),
 
+	// message was an outgoing message and failed to be sent
+	f_failed = (1U << 22),
+
 	// update this when adding new client side flags
-	MIN_FIELD = (1U << 23),
+	MIN_FIELD = (1U << 22),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
 

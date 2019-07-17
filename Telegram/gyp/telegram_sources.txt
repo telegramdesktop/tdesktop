@@ -1,3 +1,5 @@
+<(src_loc)/api/api_sending.cpp
+<(src_loc)/api/api_sending.h
 <(src_loc)/boxes/peers/add_participants_box.cpp
 <(src_loc)/boxes/peers/add_participants_box.h
 <(src_loc)/boxes/peers/edit_contact_box.cpp

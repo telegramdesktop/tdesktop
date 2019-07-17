@@ -128,7 +128,7 @@ void SendPhoto::addToHistory(
 		MsgId replyToId,
 		const QString &postAuthor,
 		const MTPReplyMarkup &markup) const {
-	history->addNewPhoto(
+	history->addNewLocalMessage(
 		msgId,
 		flags,
 		viaBotId,
@@ -161,7 +161,7 @@ void SendFile::addToHistory(
 		MsgId replyToId,
 		const QString &postAuthor,
 		const MTPReplyMarkup &markup) const {
-	history->addNewDocument(
+	history->addNewLocalMessage(
 		msgId,
 		flags,
 		viaBotId,
@@ -208,7 +208,7 @@ void SendGame::addToHistory(
 		MsgId replyToId,
 		const QString &postAuthor,
 		const MTPReplyMarkup &markup) const {
-	history->addNewGame(
+	history->addNewLocalMessage(
 		msgId,
 		flags,
 		viaBotId,

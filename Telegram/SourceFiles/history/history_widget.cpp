@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_widget.h"
 
+#include "api/api_sending.h"
 #include "boxes/confirm_box.h"
 #include "boxes/send_files_box.h"
 #include "boxes/share_box.h"
@@ -236,19 +237,12 @@ object_ptr<Ui::FlatButton> SetupDiscussButton(
 	return result;
 }
 
-void ShowSlowmodeToast(const QString &text) {
+void ShowErrorToast(const QString &text) {
 	auto config = Ui::Toast::Config();
 	config.multiline = true;
 	config.minWidth = st::msgMinWidth;
 	config.text = text;
 	Ui::Toast::Show(config);
-}
-
-void ShowSlowmodeToast(int seconds) {
-	ShowSlowmodeToast(tr::lng_slowmode_enabled(
-		tr::now,
-		lt_left,
-		formatDurationWords(seconds)));
 }
 
 } // namespace
@@ -511,7 +505,9 @@ HistoryWidget::HistoryWidget(
 		| UpdateFlag::NotificationsEnabled
 		| UpdateFlag::ChannelAmIn
 		| UpdateFlag::ChannelPromotedChanged
-		| UpdateFlag::ChannelLinkedChat;
+		| UpdateFlag::ChannelLinkedChat
+		| UpdateFlag::ChannelSlowmode
+		| UpdateFlag::ChannelLocalMessages;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [=](const Notify::PeerUpdate &update) {
 		if (update.peer == _peer) {
 			if (update.flags & UpdateFlag::RightsChanged) {
@@ -551,6 +547,10 @@ HistoryWidget::HistoryWidget(
 				updateControlsVisibility();
 				updateControlsGeometry();
 				this->update();
+			}
+			if (update.flags & (UpdateFlag::ChannelSlowmode
+				| UpdateFlag::ChannelLocalMessages)) {
+				updateSendButtonType();
 			}
 			if (update.flags & (UpdateFlag::UserIsBlocked
 				| UpdateFlag::AdminsChanged
@@ -2820,8 +2820,7 @@ void HistoryWidget::send(Qt::KeyboardModifiers modifiers) {
 	} else if (_editMsgId) {
 		saveEditMsg();
 		return;
-	} else if (const auto left = _peer->slowmodeSecondsLeft()) {
-		ShowSlowmodeToast(left);
+	} else if (showSlowmodeError()) {
 		return;
 	}
 
@@ -2842,7 +2841,7 @@ void HistoryWidget::send(Qt::KeyboardModifiers modifiers) {
 			|| (!_toForward.empty()
 				&& !message.textWithTags.text.isEmpty())
 			|| (message.textWithTags.text.size() > MaxMessageSize)) {
-			ShowSlowmodeToast(tr::lng_slowmode_no_many(tr::now));
+			ShowErrorToast(tr::lng_slowmode_no_many(tr::now));
 			return;
 		}
 	}
@@ -3047,8 +3046,7 @@ void HistoryWidget::chooseAttach() {
 			ChatRestriction::f_send_media)) {
 		Ui::Toast::Show(*error);
 		return;
-	} else if (const auto left = _peer->slowmodeSecondsLeft()) {
-		ShowSlowmodeToast(left);
+	} else if (showSlowmodeError()) {
 		return;
 	}
 
@@ -3166,6 +3164,8 @@ void HistoryWidget::recordStartCallback() {
 		: std::nullopt;
 	if (error) {
 		Ui::show(Box<InformBox>(*error));
+		return;
+	} else if (showSlowmodeError()) {
 		return;
 	} else if (!Media::Capture::instance()->available()) {
 		return;
@@ -3581,6 +3581,10 @@ void HistoryWidget::updateSendButtonType() {
 			: 0;
 	}();
 	_send->setSlowmodeDelay(delay);
+	_send->setDisabled(_peer
+		&& _peer->slowmodeApplied()
+		&& (_history->latestSendingMessage() != nullptr)
+		&& (type == Type::Send || type == Type::Record));
 
 	if (delay != 0) {
 		App::CallDelayed(
@@ -4020,7 +4024,7 @@ bool HistoryWidget::showSendingFilesError(
 		return false;
 	}
 
-	ShowSlowmodeToast(text);
+	ShowErrorToast(text);
 	return true;
 }
 
@@ -4218,7 +4222,7 @@ void HistoryWidget::uploadFilesAfterConfirmation(
 			|| (!list.files.empty()
 				&& !caption.text.isEmpty()
 				&& !list.canAddCaption(isAlbum, compressImages)))) {
-		ShowSlowmodeToast(tr::lng_slowmode_no_many(tr::now));
+		ShowErrorToast(tr::lng_slowmode_no_many(tr::now));
 		return;
 	}
 
@@ -5331,6 +5335,31 @@ void HistoryWidget::replyToNextMessage() {
 	}
 }
 
+bool HistoryWidget::showSlowmodeError() {
+	const auto text = [&] {
+		if (const auto left = _peer->slowmodeSecondsLeft()) {
+			return tr::lng_slowmode_enabled(
+				tr::now,
+				lt_left,
+				formatDurationWords(left));
+		} else if (_peer->slowmodeApplied()) {
+			if (const auto item = _history->latestSendingMessage()) {
+				if (const auto view = item->mainView()) {
+					animatedScrollToItem(item->id);
+					enqueueMessageHighlight(view);
+				}
+				return tr::lng_slowmode_no_many(tr::now);
+			}
+		}
+		return QString();
+	}();
+	if (text.isEmpty()) {
+		return false;
+	}
+	ShowErrorToast(text);
+	return true;
+}
+
 void HistoryWidget::onFieldTabbed() {
 	if (_supportAutocomplete) {
 		_supportAutocomplete->activate(_field.data());
@@ -5344,8 +5373,7 @@ void HistoryWidget::sendInlineResult(
 		not_null<UserData*> bot) {
 	if (!_peer || !_peer->canWrite()) {
 		return;
-	} else if (const auto left = _peer->slowmodeSecondsLeft()) {
-		ShowSlowmodeToast(left);
+	} else if (showSlowmodeError()) {
 		return;
 	}
 
@@ -5500,18 +5528,11 @@ bool HistoryWidget::sendExistingDocument(
 		return false;
 	} else if (!_peer || !_peer->canWrite()) {
 		return false;
-	} else if (const auto left = _peer->slowmodeSecondsLeft()) {
-		ShowSlowmodeToast(left);
+	} else if (showSlowmodeError()) {
 		return false;
 	}
 
-	const auto origin = document->stickerOrGifOrigin();
-
-	auto options = ApiWrap::SendOptions(_history);
-	options.clearDraft = false;
-	options.replyTo = replyToId();
-	options.generateLocal = true;
-	session().api().sendExistingDocument(document, origin, caption, options);
+	Api::SendExistingDocument(_history, document, caption, replyToId());
 
 	if (_fieldAutocomplete->stickersShown()) {
 		clearFieldText();
@@ -5538,91 +5559,15 @@ bool HistoryWidget::sendExistingPhoto(
 		return false;
 	} else if (!_peer || !_peer->canWrite()) {
 		return false;
-	} else if (const auto left = _peer->slowmodeSecondsLeft()) {
-		ShowSlowmodeToast(left);
+	} else if (showSlowmodeError()) {
 		return false;
 	}
 
-	auto options = ApiWrap::SendOptions(_history);
-	options.clearDraft = false;
-	options.replyTo = replyToId();
-	options.generateLocal = true;
-	session().api().sendAction(options);
-
-	const auto randomId = rand_value<uint64>();
-	const auto newId = FullMsgId(_channel, clientMsgId());
-
-	auto flags = NewMessageFlags(_peer) | MTPDmessage::Flag::f_media;
-	auto sendFlags = MTPmessages_SendMedia::Flags(0);
-	if (options.replyTo) {
-		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
-		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
-	}
-	bool channelPost = _peer->isChannel() && !_peer->isMegagroup();
-	bool silentPost = channelPost && session().data().notifySilentPosts(_peer);
-	if (channelPost) {
-		flags |= MTPDmessage::Flag::f_views;
-		flags |= MTPDmessage::Flag::f_post;
-	}
-	if (!channelPost) {
-		flags |= MTPDmessage::Flag::f_from_id;
-	} else if (_peer->asChannel()->addsSignature()) {
-		flags |= MTPDmessage::Flag::f_post_author;
-	}
-	if (silentPost) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
-	}
-	auto messageFromId = channelPost ? 0 : session().userId();
-	auto messagePostAuthor = channelPost
-		? App::peerName(session().user())
-		: QString();
-
-	TextUtilities::Trim(caption);
-	auto sentEntities = TextUtilities::EntitiesToMTP(
-		caption.entities,
-		TextUtilities::ConvertOption::SkipLocal);
-	if (!sentEntities.v.isEmpty()) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
-	}
-
-	_history->addNewPhoto(
-		newId.msg,
-		flags,
-		0,
-		options.replyTo,
-		base::unixtime::now(),
-		messageFromId,
-		messagePostAuthor,
-		photo,
-		caption,
-		MTPReplyMarkup());
-
-	_history->sendRequestId = MTP::send(
-		MTPmessages_SendMedia(
-			MTP_flags(sendFlags),
-			_peer->input,
-			MTP_int(options.replyTo),
-			MTP_inputMediaPhoto(
-				MTP_flags(0),
-				photo->mtpInput(),
-				MTPint()),
-			MTP_string(caption.text),
-			MTP_long(randomId),
-			MTPReplyMarkup(),
-			sentEntities),
-		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-		App::main()->rpcFail(&MainWidget::sendMessageFail),
-		0,
-		0,
-		_history->sendRequestId);
-	App::main()->finishForwarding(_history);
-
-	_history->owner().registerMessageRandomId(randomId, newId);
+	Api::SendExistingPhoto(_history, photo, caption, replyToId());
 
 	hideSelectorControlsAnimated();
 
 	_field->setFocus();
-
 	return true;
 }
 

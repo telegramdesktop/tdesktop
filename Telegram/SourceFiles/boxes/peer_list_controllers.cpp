@@ -29,24 +29,27 @@ namespace {
 void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 	const auto history = chat->owner().historyLoaded(chat);
 	const auto randomId = rand_value<uint64>();
-	const auto requestId = MTP::send(
-		MTPmessages_SendMedia(
-			MTP_flags(0),
-			chat->input,
-			MTP_int(0),
-			MTP_inputMediaGame(
-				MTP_inputGameShortName(
-					bot->inputUser,
-					MTP_string(bot->botInfo->shareGameShortName))),
-			MTP_string(),
-			MTP_long(randomId),
-			MTPReplyMarkup(),
-			MTPVector<MTPMessageEntity>()),
-		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-		App::main()->rpcFail(&MainWidget::sendMessageFail),
-		0,
-		0,
-		history ? history->sendRequestId : 0);
+	const auto api = &chat->session().api();
+	const auto requestId = api->request(MTPmessages_SendMedia(
+		MTP_flags(0),
+		chat->input,
+		MTP_int(0),
+		MTP_inputMediaGame(
+			MTP_inputGameShortName(
+				bot->inputUser,
+				MTP_string(bot->botInfo->shareGameShortName))),
+		MTP_string(),
+		MTP_long(randomId),
+		MTPReplyMarkup(),
+		MTPVector<MTPMessageEntity>()
+	)).done([=](const MTPUpdates &result) {
+		api->applyUpdates(result, randomId);
+	}).fail([=](const RPCError &error) {
+		api->sendMessageFail(error, chat);
+	}).afterRequest(
+		history ? history->sendRequestId : 0
+	).send();
+
 	if (history) {
 		history->sendRequestId = requestId;
 	}

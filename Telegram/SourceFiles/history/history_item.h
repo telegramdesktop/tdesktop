@@ -122,7 +122,6 @@ public:
 	[[nodiscard]] bool hasUnreadMediaFlag() const;
 	void markMediaRead();
 
-
 	// For edit media in history_message.
 	virtual void returnSavedMedia() {};
 	void savePreviousMedia() {
@@ -174,6 +173,13 @@ public:
 	bool isSilent() const {
 		return _flags & MTPDmessage::Flag::f_silent;
 	}
+	bool isSending() const {
+		return _flags & MTPDmessage_ClientFlag::f_sending;
+	}
+	bool hasFailed() const {
+		return _flags & MTPDmessage_ClientFlag::f_failed;
+	}
+	void sendFailed();
 	virtual int viewsCount() const {
 		return hasViews() ? 1 : -1;
 	}

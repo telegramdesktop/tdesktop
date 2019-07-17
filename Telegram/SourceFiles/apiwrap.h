@@ -459,11 +459,10 @@ public:
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,
 		const SendOptions &options);
-	void sendExistingDocument(
-		not_null<DocumentData*> document,
-		Data::FileOrigin origin,
-		TextWithEntities caption,
-		const SendOptions &options);
+	void sendMessageFail(
+		const RPCError &error,
+		not_null<PeerData*> peer,
+		FullMsgId itemId = FullMsgId());
 
 	void requestSupportContact(FnMut<void(const MTPUser&)> callback);
 
@@ -662,9 +661,6 @@ private:
 		not_null<ChannelData*> channel,
 		not_null<UserData*> from);
 
-	void sendMessageFail(
-		not_null<PeerData*> peer,
-		const RPCError &error);
 	void uploadAlbumMedia(
 		not_null<HistoryItem*> item,
 		const MessageGroupId &groupId,

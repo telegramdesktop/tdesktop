@@ -195,8 +195,6 @@ public:
 
 	void deletePhotoLayer(PhotoData *photo);
 
-	bool sendMessageFail(const RPCError &error);
-
 	// While HistoryInner is not HistoryView::ListWidget.
 	crl::time highlightStartTime(not_null<const HistoryItem*> item) const;
 

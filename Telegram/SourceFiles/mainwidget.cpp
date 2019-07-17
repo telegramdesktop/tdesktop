@@ -918,23 +918,6 @@ void MainWidget::removeDialog(Dialogs::Key key) {
 	_dialogs->removeDialog(key);
 }
 
-bool MainWidget::sendMessageFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	if (error.type() == qstr("PEER_FLOOD")) {
-		Ui::show(Box<InformBox>(PeerFloodErrorText(PeerFloodType::Send)));
-		return true;
-	} else if (error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
-		const auto link = textcmdLink(
-			Core::App().createInternalLinkFull(qsl("spambot")),
-			tr::lng_cant_more_info(tr::now));
-		const auto text = tr::lng_error_public_groups_denied(tr::now, lt_more_info, link);
-		Ui::show(Box<InformBox>(text));
-		return true;
-	}
-	return false;
-}
-
 void MainWidget::cacheBackground() {
 	if (Window::Theme::Background()->colorForFill()) {
 		return;

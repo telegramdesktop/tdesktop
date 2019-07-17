@@ -95,20 +95,14 @@ public:
 
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 	HistoryItem *addToHistory(const MTPMessage &msg);
-	not_null<HistoryItem*> addNewService(
-		MsgId msgId,
-		TimeId date,
-		const QString &text,
-		MTPDmessage::Flags flags = 0,
-		bool newMsg = true);
-	not_null<HistoryItem*> addNewForwarded(
+	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
 		TimeId date,
 		UserId from,
 		const QString &postAuthor,
-		not_null<HistoryMessage*> original);
-	not_null<HistoryItem*> addNewDocument(
+		not_null<HistoryMessage*> forwardOriginal);
+	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
 		UserId viaBotId,
@@ -119,7 +113,7 @@ public:
 		not_null<DocumentData*> document,
 		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup);
-	not_null<HistoryItem*> addNewPhoto(
+	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
 		UserId viaBotId,
@@ -130,7 +124,7 @@ public:
 		not_null<PhotoData*> photo,
 		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup);
-	not_null<HistoryItem*> addNewGame(
+	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
 		UserId viaBotId,
@@ -155,6 +149,7 @@ public:
 
 	void registerLocalMessage(not_null<HistoryItem*> item);
 	void unregisterLocalMessage(not_null<HistoryItem*> item);
+	[[nodiscard]] HistoryItem *latestSendingMessage() const;
 
 	MsgId readInbox();
 	void applyInboxReadUpdate(

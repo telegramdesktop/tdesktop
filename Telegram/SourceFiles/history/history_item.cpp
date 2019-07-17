@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "observer_peer.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
 
@@ -662,6 +663,19 @@ MsgId HistoryItem::idOriginal() const {
 		return forwarded->originalId;
 	}
 	return id;
+}
+
+void HistoryItem::sendFailed() {
+	Expects(_flags & MTPDmessage_ClientFlag::f_sending);
+	Expects(!(_flags & MTPDmessage_ClientFlag::f_failed));
+
+	_flags = (_flags | MTPDmessage_ClientFlag::f_failed)
+		& ~MTPDmessage_ClientFlag::f_sending;
+	if (history()->peer->isChannel()) {
+		Notify::peerUpdatedDelayed(
+			history()->peer,
+			Notify::PeerUpdate::Flag::ChannelLocalMessages);
+	}
 }
 
 bool HistoryItem::needCheck() const {

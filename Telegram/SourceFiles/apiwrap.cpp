@@ -549,8 +549,9 @@ void ApiWrap::toggleHistoryArchived(
 //}
 
 void ApiWrap::sendMessageFail(
+		const RPCError &error,
 		not_null<PeerData*> peer,
-		const RPCError &error) {
+		FullMsgId itemId) {
 	if (error.type() == qstr("PEER_FLOOD")) {
 		Ui::show(Box<InformBox>(
 			PeerFloodErrorText(PeerFloodType::Send)));
@@ -570,6 +571,9 @@ void ApiWrap::sendMessageFail(
 			channel->growSlowmodeLastMessage(
 				base::unixtime::now() - (left - seconds));
 		}
+	}
+	if (const auto item = _session->data().message(itemId)) {
+		item->sendFailed();
 	}
 }
 
@@ -4452,6 +4456,7 @@ void ApiWrap::forwardMessages(
 	auto currentGroupId = items.front()->groupId();
 	auto ids = QVector<MTPint>();
 	auto randomIds = QVector<MTPlong>();
+	auto localIds = std::unique_ptr<std::vector<FullMsgId>>();
 
 	const auto sendAccumulated = [&] {
 		if (shared) {
@@ -4473,12 +4478,21 @@ void ApiWrap::forwardMessages(
 			if (shared && !--shared->requestsLeft) {
 				shared->callback();
 			}
+		}).fail([=, ids = std::move(localIds)](const RPCError &error) {
+			if (ids) {
+				for (const auto &itemId : *ids) {
+					sendMessageFail(error, peer, itemId);
+				}
+			} else {
+				sendMessageFail(error, peer);
+			}
 		}).afterRequest(
 			history->sendRequestId
 		).send();
 
 		ids.resize(0);
 		randomIds.resize(0);
+		localIds = nullptr;
 	};
 
 	ids.reserve(count);
@@ -4486,7 +4500,7 @@ void ApiWrap::forwardMessages(
 	for (const auto item : items) {
 		auto randomId = rand_value<uint64>();
 		if (genClientSideMessage) {
-			if (auto message = item->toHistoryMessage()) {
+			if (const auto message = item->toHistoryMessage()) {
 				const auto newId = FullMsgId(
 					peerToChannel(peer->id),
 					clientMsgId());
@@ -4497,7 +4511,7 @@ void ApiWrap::forwardMessages(
 				const auto messagePostAuthor = channelPost
 					? App::peerName(self)
 					: QString();
-				history->addNewForwarded(
+				history->addNewLocalMessage(
 					newId.msg,
 					flags,
 					base::unixtime::now(),
@@ -4505,6 +4519,10 @@ void ApiWrap::forwardMessages(
 					messagePostAuthor,
 					message);
 				_session->data().registerMessageRandomId(randomId, newId);
+				if (!localIds) {
+					localIds = std::make_unique<std::vector<FullMsgId>>();
+				}
+				localIds->push_back(newId);
 			}
 		}
 		const auto newFrom = item->history()->peer;
@@ -4864,7 +4882,7 @@ void ApiWrap::editUploadedFile(
 				Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
 				LayerOption::KeepOther);
 		} else {
-			sendMessageFail(peer, error);
+			sendMessageFail(error, peer);
 		}
 	}).send();
 }
@@ -4997,7 +5015,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			if (error.type() == qstr("MESSAGE_EMPTY")) {
 				lastMessage->destroy();
 			} else {
-				sendMessageFail(peer, error);
+				sendMessageFail(error, peer, newId);
 			}
 			history->clearSentDraftText(QString());
 		}).afterRequest(history->sendRequestId
@@ -5110,123 +5128,13 @@ void ApiWrap::sendInlineResult(
 		applyUpdates(result, randomId);
 		history->clearSentDraftText(QString());
 	}).fail([=](const RPCError &error) {
-		sendMessageFail(peer, error);
+		sendMessageFail(error, peer, newId);
 		history->clearSentDraftText(QString());
 	}).afterRequest(history->sendRequestId
 	).send();
 
 	if (const auto main = App::main()) {
 		main->finishForwarding(history);
-	}
-}
-
-void ApiWrap::sendExistingDocument(
-		not_null<DocumentData*> document,
-		Data::FileOrigin origin,
-		TextWithEntities caption,
-		const SendOptions &options) {
-	sendAction(options);
-
-	const auto history = options.history;
-	const auto peer = history->peer;
-	const auto newId = FullMsgId(peerToChannel(peer->id), clientMsgId());
-	const auto randomId = rand_value<uint64>();
-
-	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
-	auto sendFlags = MTPmessages_SendMedia::Flags(0);
-	if (options.replyTo) {
-		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
-		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
-	}
-	bool channelPost = peer->isChannel() && !peer->isMegagroup();
-	bool silentPost = channelPost
-		&& _session->data().notifySilentPosts(peer);
-	if (channelPost) {
-		flags |= MTPDmessage::Flag::f_views;
-		flags |= MTPDmessage::Flag::f_post;
-	}
-	if (!channelPost) {
-		flags |= MTPDmessage::Flag::f_from_id;
-	} else if (peer->asChannel()->addsSignature()) {
-		flags |= MTPDmessage::Flag::f_post_author;
-	}
-	if (silentPost) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
-	}
-	auto messageFromId = channelPost ? 0 : _session->userId();
-	auto messagePostAuthor = channelPost
-		? App::peerName(_session->user())
-		: QString();
-
-	TextUtilities::Trim(caption);
-	auto sentEntities = TextUtilities::EntitiesToMTP(
-		caption.entities,
-		TextUtilities::ConvertOption::SkipLocal);
-	if (!sentEntities.v.isEmpty()) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
-	}
-	const auto replyTo = options.replyTo;
-	const auto captionText = caption.text;
-
-	_session->data().registerMessageRandomId(randomId, newId);
-
-	history->addNewDocument(
-		newId.msg,
-		flags,
-		0,
-		replyTo,
-		base::unixtime::now(),
-		messageFromId,
-		messagePostAuthor,
-		document,
-		caption,
-		MTPReplyMarkup());
-
-	auto failHandler = std::make_shared<Fn<void(const RPCError&, QByteArray)>>();
-	auto performRequest = [=] {
-		const auto usedFileReference = document->fileReference();
-		history->sendRequestId = request(MTPmessages_SendMedia(
-			MTP_flags(sendFlags),
-			peer->input,
-			MTP_int(replyTo),
-			MTP_inputMediaDocument(
-				MTP_flags(0),
-				document->mtpInput(),
-				MTPint()),
-			MTP_string(captionText),
-			MTP_long(randomId),
-			MTPReplyMarkup(),
-			sentEntities
-		)).done([=](const MTPUpdates &result) {
-			applyUpdates(result, randomId);
-		}).fail([=](const RPCError &error) {
-			(*failHandler)(error, usedFileReference);
-		}).afterRequest(history->sendRequestId
-		).send();
-	};
-	*failHandler = [=](const RPCError &error, QByteArray usedFileReference) {
-		if (error.code() == 400
-			&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
-			auto refreshed = [=](const UpdatedFileReferences &data) {
-				if (document->fileReference() != usedFileReference) {
-					performRequest();
-				} else {
-					sendMessageFail(peer, error);
-				}
-			};
-			refreshFileReference(origin, std::move(refreshed));
-		} else {
-			sendMessageFail(peer, error);
-		}
-	};
-	performRequest();
-
-	if (const auto main = App::main()) {
-		main->finishForwarding(history);
-		if (document->sticker()) {
-			main->incrementSticker(document);
-			_session->data().notifyRecentStickersUpdated();
-		}
 	}
 }
 
@@ -5341,6 +5249,7 @@ void ApiWrap::sendMediaWithRandomId(
 			: MTPmessages_SendMedia::Flag(0));
 
 	const auto peer = history->peer;
+	const auto itemId = item->fullId();
 	history->sendRequestId = request(MTPmessages_SendMedia(
 		MTP_flags(flags),
 		peer->input,
@@ -5350,9 +5259,12 @@ void ApiWrap::sendMediaWithRandomId(
 		MTP_long(randomId),
 		MTPReplyMarkup(),
 		sentEntities
-	)).done([=](const MTPUpdates &result) { applyUpdates(result);
-	}).fail([=](const RPCError &error) { sendMessageFail(peer, error);
-	}).afterRequest(history->sendRequestId
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
+	}).fail([=](const RPCError &error) {
+		sendMessageFail(error, peer, itemId);
+	}).afterRequest(
+		history->sendRequestId
 	).send();
 }
 
@@ -5438,9 +5350,15 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		_sendingAlbums.remove(groupId);
 		applyUpdates(result);
 	}).fail([=](const RPCError &error) {
-		_sendingAlbums.remove(groupId);
-		sendMessageFail(peer, error);
-	}).afterRequest(history->sendRequestId
+		if (const auto album = _sendingAlbums.take(groupId)) {
+			for (const auto &item : (*album)->items) {
+				sendMessageFail(error, peer, item.msgId);
+			}
+		} else {
+			sendMessageFail(error, peer);
+		}
+	}).afterRequest(
+		history->sendRequestId
 	).send();
 }
 

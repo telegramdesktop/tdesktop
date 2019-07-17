@@ -467,6 +467,7 @@ private:
 	void cancelReplyAfterMediaSend(bool lastKeyboardUsed);
 	void replyToPreviousMessage();
 	void replyToNextMessage();
+	[[nodiscard]] bool showSlowmodeError();
 
 	void hideSelectorControlsAnimated();
 	int countMembersDropdownHeightMax() const;
