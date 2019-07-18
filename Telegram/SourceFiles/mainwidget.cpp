@@ -4437,6 +4437,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (const auto channel = session().data().channelLoaded(d.vchannel_id().v)) {
 			channel->inviter = UserId(0);
 			if (channel->amIn()) {
+				if (channel->isMegagroup()
+					&& !channel->amCreator()
+					&& !channel->hasAdminRights()) {
+					channel->updateFullForced();
+				}
 				const auto history = channel->owner().history(channel);
 				//if (const auto feed = channel->feed()) { // #feed
 				//	feed->requestChatListMessage();
