@@ -810,8 +810,8 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 					Ui::Toast::Show(tr::lng_share_done(tr::now));
 				});
 			}
-		} else {
-			App::main()->setForwardDraft(peer->id, std::move(ids));
+		} else if (!App::main()->setForwardDraft(peer->id, std::move(ids))) {
+			return;
 		}
 		if (const auto strong = *weak) {
 			strong->closeBox();

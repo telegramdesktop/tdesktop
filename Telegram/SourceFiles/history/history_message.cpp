@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 #include "boxes/confirm_box.h"
 #include "ui/toast/toast.h"
+#include "ui/text/text_utilities.h"
 #include "ui/text_options.h"
 #include "core/application.h"
 #include "layout.h"
@@ -107,6 +108,58 @@ bool HasInlineItems(const HistoryItemsList &items) {
 
 } // namespace
 
+QString GetErrorTextForForward(
+		not_null<PeerData*> peer,
+		const HistoryItemsList &items,
+		const TextWithTags &comment) {
+	if (!peer->canWrite()) {
+		return tr::lng_forward_cant(tr::now);
+	}
+
+	for (const auto item : items) {
+		if (const auto media = item->media()) {
+			const auto error = media->errorTextForForward(peer);
+			if (!error.isEmpty() && error != qstr("skip")) {
+				return error;
+			}
+		}
+	}
+	const auto error = Data::RestrictionError(
+		peer,
+		ChatRestriction::f_send_inline);
+	if (error && HasInlineItems(items)) {
+		return *error;
+	}
+
+	if (peer->slowmodeApplied() && !comment.text.isEmpty()) {
+		return tr::lng_slowmode_no_many(tr::now);
+	} else if (peer->slowmodeApplied() && items.size() > 1) {
+		const auto albumForward = [&] {
+			if (const auto groupId = items.front()->groupId()) {
+				for (const auto item : items) {
+					if (item->groupId() != groupId) {
+						return false;
+					}
+				}
+				return true;
+			}
+			return false;
+		}();
+		if (!albumForward) {
+			return tr::lng_slowmode_no_many(tr::now);
+		}
+	}
+
+	if (const auto left = peer->slowmodeSecondsLeft()) {
+		return tr::lng_slowmode_enabled(
+			tr::now,
+			lt_left,
+			formatDurationWords(left));
+	}
+
+	return QString();
+}
+
 void FastShareMessage(not_null<HistoryItem*> item) {
 	struct ShareData {
 		ShareData(not_null<PeerData*> peer, MessageIdsList &&ids)
@@ -158,23 +211,28 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			return;
 		}
 
-		auto restrictedSomewhere = false;
-		auto restrictedEverywhere = true;
-		auto firstError = QString();
-		for (const auto peer : result) {
-			const auto error = GetErrorTextForForward(peer, items);
-			if (!error.isEmpty()) {
-				if (firstError.isEmpty()) {
-					firstError = error;
+		const auto error = [&] {
+			for (const auto peer : result) {
+				const auto error = GetErrorTextForForward(
+					peer,
+					items,
+					comment);
+				if (!error.isEmpty()) {
+					return std::make_pair(error, peer);
 				}
-				restrictedSomewhere = true;
-				continue;
 			}
-			restrictedEverywhere = false;
-		}
-		if (restrictedEverywhere) {
+			return std::make_pair(QString(), result.front());
+		}();
+		if (!error.first.isEmpty()) {
+			auto text = TextWithEntities();
+			if (result.size() > 1) {
+				text.append(
+					Ui::Text::Bold(App::peerName(error.second))
+				).append("\n\n");
+			}
+			text.append(error.first);
 			Ui::show(
-				Box<InformBox>(firstError),
+				Box<InformBox>(text),
 				LayerOption::KeepOther);
 			return;
 		}
@@ -206,10 +264,6 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			return result;
 		};
 		for (const auto peer : result) {
-			if (!GetErrorTextForForward(peer, items).isEmpty()) {
-				continue;
-			}
-
 			const auto history = peer->owner().history(peer);
 			if (!comment.text.isEmpty()) {
 				auto message = ApiWrap::MessageToSend(history);
@@ -274,22 +328,7 @@ MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer) {
 QString GetErrorTextForForward(
 		not_null<PeerData*> peer,
 		const HistoryItemsList &items) {
-	if (!peer->canWrite()) {
-		return tr::lng_forward_cant(tr::now);
-	}
-
-	for (const auto item : items) {
-		if (const auto media = item->media()) {
-			const auto error = media->errorTextForForward(peer);
-			if (!error.isEmpty() && error != qstr("skip")) {
-				return error;
-			}
-		}
-	}
-	const auto error = Data::RestrictionError(
-		peer,
-		ChatRestriction::f_send_inline);
-	return (error && HasInlineItems(items)) ? *error : QString();
+	return GetErrorTextForForward(peer, items, TextWithTags());
 }
 
 struct HistoryMessage::CreateConfig {
