@@ -200,7 +200,7 @@ void ChannelData::applyEditAdmin(
 		if (!base::contains(mgInfo->lastParticipants, user)) {
 			mgInfo->lastParticipants.push_front(user);
 			setMembersCount(membersCount() + 1);
-			if (user->botInfo && !mgInfo->bots.contains(user)) {
+			if (user->isBot() && !mgInfo->bots.contains(user)) {
 				mgInfo->bots.insert(user);
 				if (mgInfo->botStatus != 0 && mgInfo->botStatus < 2) {
 					mgInfo->botStatus = 2;
@@ -242,7 +242,7 @@ void ChannelData::applyEditAdmin(
 		if (adminsCount() > 1) {
 			setAdminsCount(adminsCount() - 1);
 		}
-		if (!isMegagroup() && user->botInfo && membersCount() > 1) {
+		if (!isMegagroup() && user->isBot() && membersCount() > 1) {
 			// Removing bot admin removes it from channel.
 			setMembersCount(membersCount() - 1);
 		}

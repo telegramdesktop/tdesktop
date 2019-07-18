@@ -371,7 +371,7 @@ UserData *HistoryItem::getMessageBot() const {
 	if (!bot) {
 		bot = history()->peer->asUser();
 	}
-	return (bot && bot->botInfo) ? bot : nullptr;
+	return (bot && bot->isBot()) ? bot : nullptr;
 };
 
 void HistoryItem::destroy() {
@@ -571,7 +571,7 @@ bool HistoryItem::suggestReport() const {
 	} else if (const auto channel = history()->peer->asChannel()) {
 		return true;
 	} else if (const auto user = history()->peer->asUser()) {
-		return user->botInfo != nullptr;
+		return user->isBot();
 	}
 	return false;
 }
@@ -699,7 +699,7 @@ bool HistoryItem::unread() const {
 				return false;
 			}
 			if (const auto user = history()->peer->asUser()) {
-				if (user->botInfo) {
+				if (user->isBot()) {
 					return false;
 				}
 			} else if (const auto channel = history()->peer->asChannel()) {

@@ -128,7 +128,7 @@ void activateBotCommand(
 					if (samePeer) {
 						Notify::switchInlineBotButtonReceived(QString::fromUtf8(button->data), bot, msgId);
 						return true;
-					} else if (bot->botInfo && bot->botInfo->inlineReturnPeerId) {
+					} else if (bot->isBot() && bot->botInfo->inlineReturnPeerId) {
 						if (Notify::switchInlineBotButtonReceived(QString::fromUtf8(button->data))) {
 							return true;
 						}

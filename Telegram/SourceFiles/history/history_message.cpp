@@ -264,7 +264,7 @@ MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer) {
 	MTPDmessage::Flags result = MTPDmessage_ClientFlag::f_sending | 0;
 	if (!peer->isSelf()) {
 		result |= MTPDmessage::Flag::f_out;
-		//if (p->isChat() || (p->isUser() && !p->asUser()->botInfo)) {
+		//if (p->isChat() || (p->isUser() && !p->asUser()->isBot())) {
 		//	result |= MTPDmessage::Flag::f_unread;
 		//}
 	}

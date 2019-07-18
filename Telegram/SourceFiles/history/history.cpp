@@ -70,7 +70,7 @@ History::History(not_null<Data::Session*> owner, PeerId peerId)
 , _mute(owner->notifyIsMuted(peer))
 , _sendActionText(st::dialogsTextWidthMin) {
 	if (const auto user = peer->asUser()) {
-		if (user->botInfo) {
+		if (user->isBot()) {
 			_outboxReadBefore = std::numeric_limits<MsgId>::max();
 		}
 	}
@@ -908,7 +908,7 @@ not_null<HistoryItem*> History::addNewItem(
 				return nullptr;
 			};
 			if (auto megagroup = peer->asMegagroup()) {
-				if (user->botInfo) {
+				if (user->isBot()) {
 					auto mgInfo = megagroup->mgInfo.get();
 					Assert(mgInfo != nullptr);
 					mgInfo->bots.insert(user);
@@ -1025,7 +1025,7 @@ void History::applyServiceChanges(
 						Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
 						owner().addNewMegagroupParticipant(megagroup, user);
 					}
-					if (user->botInfo) {
+					if (user->isBot()) {
 						peer->asChannel()->mgInfo->bots.insert(user);
 						if (peer->asChannel()->mgInfo->botStatus != 0 && peer->asChannel()->mgInfo->botStatus < 2) {
 							peer->asChannel()->mgInfo->botStatus = 2;
@@ -1047,7 +1047,7 @@ void History::applyServiceChanges(
 					Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
 					owner().addNewMegagroupParticipant(megagroup, user);
 				}
-				if (user->botInfo) {
+				if (user->isBot()) {
 					mgInfo->bots.insert(user);
 					if (mgInfo->botStatus != 0 && mgInfo->botStatus < 2) {
 						mgInfo->botStatus = 2;

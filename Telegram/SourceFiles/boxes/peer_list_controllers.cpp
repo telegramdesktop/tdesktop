@@ -58,10 +58,10 @@ void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 }
 
 void AddBotToGroup(not_null<UserData*> bot, not_null<PeerData*> chat) {
-	if (bot->botInfo && !bot->botInfo->startGroupToken.isEmpty()) {
-		Auth().api().sendBotStart(bot, chat);
+	if (bot->isBot() && !bot->botInfo->startGroupToken.isEmpty()) {
+		chat->session().api().sendBotStart(bot, chat);
 	} else {
-		Auth().api().addChatParticipants(chat, { 1, bot });
+		chat->session().api().addChatParticipants(chat, { 1, bot });
 	}
 	Ui::hideLayer();
 	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
@@ -474,7 +474,7 @@ bool AddBotToGroupBoxController::needToCreateRow(
 }
 
 bool AddBotToGroupBoxController::SharingBotGame(not_null<UserData*> bot) {
-	auto &info = bot->botInfo;
+	const auto &info = bot->botInfo;
 	return (info && !info->shareGameShortName.isEmpty());
 }
 

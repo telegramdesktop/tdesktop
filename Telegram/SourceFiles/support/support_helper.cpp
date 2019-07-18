@@ -168,7 +168,7 @@ Data::Draft OccupiedDraft(const QString &normalizedName) {
 	if (!history) {
 		return false;
 	} else if (const auto user = history->peer->asUser()) {
-		return !user->botInfo;
+		return !user->isBot();
 	}
 	return false;
 }

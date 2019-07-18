@@ -152,8 +152,10 @@ void UserData::setBotInfoVersion(int version) {
 void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
 	case mtpc_botInfo: {
-		const auto &d(info.c_botInfo());
-		if (peerFromUser(d.vuser_id().v) != id || !botInfo) return;
+		const auto &d = info.c_botInfo();
+		if (peerFromUser(d.vuser_id().v) != id || !isBot()) {
+			return;
+		}
 
 		QString desc = qs(d.vdescription());
 		if (botInfo->description != desc) {

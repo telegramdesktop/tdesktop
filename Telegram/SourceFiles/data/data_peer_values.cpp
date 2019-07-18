@@ -286,7 +286,7 @@ crl::time OnlineChangeTimeout(TimeId online, TimeId now) {
 }
 
 crl::time OnlineChangeTimeout(not_null<UserData*> user, TimeId now) {
-	if (user->isServiceUser() || user->botInfo) {
+	if (user->isServiceUser() || user->isBot()) {
 		return kMaxOnlineChangeTimeout;
 	}
 	return OnlineChangeTimeout(user->onlineTill, now);
@@ -361,7 +361,7 @@ bool OnlineTextActive(TimeId online, TimeId now) {
 }
 
 bool OnlineTextActive(not_null<UserData*> user, TimeId now) {
-	if (user->isServiceUser() || user->botInfo) {
+	if (user->isServiceUser() || user->isBot()) {
 		return false;
 	}
 	return OnlineTextActive(user->onlineTill, now);

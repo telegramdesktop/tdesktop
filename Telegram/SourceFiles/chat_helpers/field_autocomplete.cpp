@@ -298,36 +298,42 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		int32 cnt = 0;
 		if (_chat) {
 			if (_chat->noParticipantInfo()) {
-				Auth().api().requestFullPeer(_chat);
+				_chat->session().api().requestFullPeer(_chat);
 			} else if (!_chat->participants.empty()) {
 				for (const auto user : _chat->participants) {
-					if (!user->botInfo) continue;
-					if (!user->botInfo->inited) {
-						Auth().api().requestFullPeer(user);
+					if (!user->isBot()) {
+						continue;
+					} else if (!user->botInfo->inited) {
+						user->session().api().requestFullPeer(user);
 					}
-					if (user->botInfo->commands.isEmpty()) continue;
+					if (user->botInfo->commands.isEmpty()) {
+						continue;
+					}
 					bots.insert(user, true);
 					cnt += user->botInfo->commands.size();
 				}
 			}
-		} else if (_user && _user->botInfo) {
+		} else if (_user && _user->isBot()) {
 			if (!_user->botInfo->inited) {
-				Auth().api().requestFullPeer(_user);
+				_user->session().api().requestFullPeer(_user);
 			}
 			cnt = _user->botInfo->commands.size();
 			bots.insert(_user, true);
 		} else if (_channel && _channel->isMegagroup()) {
 			if (_channel->mgInfo->bots.empty()) {
 				if (!_channel->mgInfo->botStatus) {
-					Auth().api().requestBots(_channel);
+					_channel->session().api().requestBots(_channel);
 				}
 			} else {
-				for_const (auto user, _channel->mgInfo->bots) {
-					if (!user->botInfo) continue;
-					if (!user->botInfo->inited) {
-						Auth().api().requestFullPeer(user);
+				for (const auto user : _channel->mgInfo->bots) {
+					if (!user->isBot()) {
+						continue;
+					} else if (!user->botInfo->inited) {
+						user->session().api().requestFullPeer(user);
 					}
-					if (user->botInfo->commands.isEmpty()) continue;
+					if (user->botInfo->commands.isEmpty()) {
+						continue;
+					}
 					bots.insert(user, true);
 					cnt += user->botInfo->commands.size();
 				}
@@ -338,12 +344,16 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			int32 botStatus = _chat ? _chat->botStatus : ((_channel && _channel->isMegagroup()) ? _channel->mgInfo->botStatus : -1);
 			if (_chat) {
 				for (const auto &user : _chat->lastAuthors) {
-					if (!user->botInfo) continue;
-					if (!bots.contains(user)) continue;
-					if (!user->botInfo->inited) {
-						Auth().api().requestFullPeer(user);
+					if (!user->isBot()) {
+						continue;
+					} else if (!bots.contains(user)) {
+						continue;
+					} else if (!user->botInfo->inited) {
+						user->session().api().requestFullPeer(user);
 					}
-					if (user->botInfo->commands.isEmpty()) continue;
+					if (user->botInfo->commands.isEmpty()) {
+						continue;
+					}
 					bots.remove(user);
 					for (auto j = 0, l = user->botInfo->commands.size(); j != l; ++j) {
 						if (!listAllSuggestions) {

@@ -732,7 +732,7 @@ void Inner::updateInlineItems() {
 }
 
 void Inner::onSwitchPm() {
-	if (_inlineBot && _inlineBot->botInfo) {
+	if (_inlineBot && _inlineBot->isBot()) {
 		_inlineBot->botInfo->startToken = _switchPmStartToken;
 		Ui::showPeerHistory(_inlineBot, ShowAndStartBotMsgId);
 	}

@@ -1417,7 +1417,7 @@ bool Message::displayFastShare() const {
 				&& forwarded->originalSender
 				&& forwarded->originalSender->isChannel()
 				&& !forwarded->originalSender->isMegagroup();
-		} else if (user->botInfo && !item->out()) {
+		} else if (user->isBot() && !item->out()) {
 			if (const auto media = this->media()) {
 				return media->allowsFastShare();
 			}
@@ -1835,7 +1835,7 @@ TimeId Message::displayedEditDate(
 	if (hasViaBotOrInlineMarkup) {
 		return TimeId(0);
 	} else if (const auto fromUser = message()->from()->asUser()) {
-		if (fromUser->botInfo) {
+		if (fromUser->isBot()) {
 			return TimeId(0);
 		}
 	}

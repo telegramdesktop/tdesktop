@@ -1608,7 +1608,7 @@ void OverlayWidget::refreshCaption(HistoryItem *item) {
 	}
 	const auto asBot = [&] {
 		if (const auto author = item->author()->asUser()) {
-			return author->botInfo != nullptr;
+			return author->isBot();
 		}
 		return false;
 	}();

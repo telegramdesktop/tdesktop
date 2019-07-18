@@ -261,7 +261,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			tr::lng_info_mobile_label(),
 			PhoneOrHiddenValue(user),
 			tr::lng_profile_copy_phone(tr::now));
-		if (user->botInfo) {
+		if (user->isBot()) {
 			addInfoLine(tr::lng_info_about_label(), AboutValue(user));
 		} else {
 			addInfoLine(tr::lng_info_bio_label(), BioValue(user));
@@ -535,7 +535,7 @@ void ActionsFiller::addDeleteConversationAction(
 
 void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 	auto findBotCommand = [user](const QString &command) {
-		if (!user->botInfo) {
+		if (!user->isBot()) {
 			return QString();
 		}
 		for_const (auto &data, user->botInfo->commands) {
@@ -616,7 +616,7 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 	auto callback = [=] {
 		if (user->isBlocked()) {
 			Window::PeerMenuUnblockUserWithBotRestart(user);
-			if (user->botInfo) {
+			if (user->isBot()) {
 				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
 			}
 		} else if (user->isBot()) {
@@ -667,7 +667,7 @@ void ActionsFiller::addJoinChannelAction(
 }
 
 void ActionsFiller::fillUserActions(not_null<UserData*> user) {
-	if (user->botInfo) {
+	if (user->isBot()) {
 		addInviteToGroupAction(user);
 	}
 	addShareContactAction(user);

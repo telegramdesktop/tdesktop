@@ -98,7 +98,7 @@ rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user) {
 
 rpl::producer<QString> PlainAboutValue(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
-		if (!user->botInfo) {
+		if (!user->isBot()) {
 			return rpl::single(QString());
 		}
 	}

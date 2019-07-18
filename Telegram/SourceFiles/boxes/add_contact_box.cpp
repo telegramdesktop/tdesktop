@@ -83,7 +83,7 @@ void ShowAddParticipantsError(
 	if (error == qstr("USER_BOT")) {
 		const auto channel = chat->asChannel();
 		if ((users.size() == 1)
-			&& (users.front()->botInfo != nullptr)
+			&& users.front()->isBot()
 			&& channel
 			&& !channel->isMegagroup()
 			&& channel->canAddAdmins()) {
@@ -117,9 +117,7 @@ void ShowAddParticipantsError(
 			return;
 		}
 	}
-	const auto bot = ranges::find_if(users, [](not_null<UserData*> user) {
-		return user->botInfo != nullptr;
-	});
+	const auto bot = ranges::find_if(users, &UserData::isBot);
 	const auto hasBot = (bot != end(users));
 	const auto text = [&] {
 		if (error == qstr("USER_BOT")) {

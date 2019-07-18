@@ -159,7 +159,7 @@ bool BotKeyboard::moderateKeyActivate(int key) {
 				}
 			} else if (key == Qt::Key_Q) {
 				if (const auto user = item->history()->peer->asUser()) {
-					if (user->botInfo && item->from() == user) {
+					if (user->isBot() && item->from() == user) {
 						App::sendBotCommand(user, user, qsl("/translate"));
 						return true;
 					}

@@ -1688,7 +1688,7 @@ void ApiWrap::applyLastParticipantsList(
 					user,
 					MegagroupInfo::Restricted{ restrictedRights });
 			}
-			if (user->botInfo) {
+			if (user->isBot()) {
 				channel->mgInfo->bots.insert(user);
 				if (channel->mgInfo->botStatus != 0 && channel->mgInfo->botStatus < 2) {
 					channel->mgInfo->botStatus = 2;
@@ -1736,7 +1736,7 @@ void ApiWrap::applyBotsList(
 		}
 
 		auto user = _session->data().user(userId);
-		if (user->botInfo) {
+		if (user->isBot()) {
 			channel->mgInfo->bots.insert(user);
 			botStatus = 2;// (botStatus > 0/* || !i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
 			if (!user->botInfo->inited) {
@@ -3983,9 +3983,7 @@ void ApiWrap::addChatParticipants(
 			}).afterDelay(crl::time(5)).send();
 		}
 	} else if (const auto channel = peer->asChannel()) {
-		const auto bot = ranges::find_if(users, [](not_null<UserData*> user) {
-			return user->botInfo != nullptr;
-		});
+		const auto bot = ranges::find_if(users, &UserData::isBot);
 		if (!peer->isMegagroup() && bot != end(users)) {
 			ShowAddParticipantsError("USER_BOT", peer, users);
 			return;
@@ -5028,7 +5026,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 }
 
 void ApiWrap::sendBotStart(not_null<UserData*> bot, PeerData *chat) {
-	Expects(bot->botInfo != nullptr);
+	Expects(bot->isBot());
 	Expects(chat == nullptr || !bot->botInfo->startGroupToken.isEmpty());
 
 	if (chat && chat->isChannel() && !chat->isMegagroup()) {

@@ -293,7 +293,7 @@ std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 			return App::formatPhone(user->phone());
 		} else if (!user->username.isEmpty()) {
 			return '@' + user->username;
-		} else if (user->botInfo) {
+		} else if (user->isBot()) {
 			return tr::lng_status_bot(tr::now);
 		}
 		return tr::lng_blocked_list_unknown_phone(tr::now);

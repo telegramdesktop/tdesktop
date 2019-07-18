@@ -3243,7 +3243,7 @@ void MainWidget::openPeerByName(
 
 	if (const auto peer = session().data().peerByUsername(username)) {
 		if (msgId == ShowAtGameShareMsgId) {
-			if (peer->isUser() && peer->asUser()->botInfo && !startToken.isEmpty()) {
+			if (peer->isUser() && peer->asUser()->isBot() && !startToken.isEmpty()) {
 				peer->asUser()->botInfo->shareGameShortName = startToken;
 				AddBotToGroupBoxController::Start(peer->asUser());
 			} else {
@@ -3254,10 +3254,10 @@ void MainWidget::openPeerByName(
 				});
 			}
 		} else if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
-			if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
+			if (peer->isUser() && peer->asUser()->isBot() && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 				peer->asUser()->botInfo->startGroupToken = startToken;
 				AddBotToGroupBoxController::Start(peer->asUser());
-			} else if (peer->isUser() && peer->asUser()->botInfo) {
+			} else if (peer->isUser() && peer->asUser()->isBot()) {
 				// Always open bot chats, even from mention links.
 				InvokeQueued(this, [this, peer] {
 					_controller->showPeerHistory(
@@ -3271,7 +3271,7 @@ void MainWidget::openPeerByName(
 			if (msgId == ShowAtProfileMsgId || !peer->isChannel()) { // show specific posts only in channels / supergroups
 				msgId = ShowAtUnreadMsgId;
 			}
-			if (peer->isUser() && peer->asUser()->botInfo) {
+			if (peer->isUser() && peer->asUser()->isBot()) {
 				peer->asUser()->botInfo->startToken = startToken;
 				if (peer == _history->peer()) {
 					_history->updateControlsVisibility();
@@ -3316,10 +3316,10 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 	MsgId msgId = msgIdAndStartToken.first;
 	QString startToken = msgIdAndStartToken.second;
 	if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
-		if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
+		if (peer->isUser() && peer->asUser()->isBot() && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 			peer->asUser()->botInfo->startGroupToken = startToken;
 			AddBotToGroupBoxController::Start(peer->asUser());
-		} else if (peer->isUser() && peer->asUser()->botInfo) {
+		} else if (peer->isUser() && peer->asUser()->isBot()) {
 			// Always open bot chats, even from mention links.
 			InvokeQueued(this, [this, peer] {
 				_controller->showPeerHistory(
@@ -3333,7 +3333,7 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 		if (msgId == ShowAtProfileMsgId || !peer->isChannel()) { // show specific posts only in channels / supergroups
 			msgId = ShowAtUnreadMsgId;
 		}
-		if (peer->isUser() && peer->asUser()->botInfo) {
+		if (peer->isUser() && peer->asUser()->isBot()) {
 			peer->asUser()->botInfo->startToken = startToken;
 			if (peer == _history->peer()) {
 				_history->updateControlsVisibility();

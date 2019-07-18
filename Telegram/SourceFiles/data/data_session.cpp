@@ -74,7 +74,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 		return;
 	}
 	if (const auto user = item->history()->peer->asUser()) {
-		if (!user->botInfo || !user->botInfo->inlineReturnPeerId) {
+		if (!user->isBot() || !user->botInfo->inlineReturnPeerId) {
 			return;
 		}
 		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
@@ -2898,7 +2898,7 @@ void Session::applyUpdate(const MTPDupdateChatParticipants &update) {
 	if (const auto chat = chatLoaded(chatId)) {
 		ApplyChatUpdate(chat, update);
 		for (const auto user : chat->participants) {
-			if (user->botInfo && !user->botInfo->inited) {
+			if (user->isBot() && !user->botInfo->inited) {
 				_session->api().requestFullPeer(user);
 			}
 		}

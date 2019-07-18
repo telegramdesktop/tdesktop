@@ -266,7 +266,7 @@ void ApplyChatUpdate(
 				history->clearLastKeyboard();
 			}
 		}
-		if (chat->botStatus > 0 && user->botInfo) {
+		if (chat->botStatus > 0 && user->isBot()) {
 			chat->refreshBotStatus();
 		}
 	}

@@ -1372,7 +1372,7 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 			return true;
 		}
 	} else if (auto bot = _peer ? _peer->asUser() : nullptr) {
-		const auto toPeerId = bot->botInfo
+		const auto toPeerId = bot->isBot()
 			? bot->botInfo->inlineReturnPeerId
 			: PeerId(0);
 		if (!toPeerId) {
@@ -2874,7 +2874,7 @@ void HistoryWidget::unblockUser() {
 void HistoryWidget::sendBotStartCommand() {
 	if (!_peer
 		|| !_peer->isUser()
-		|| !_peer->asUser()->botInfo
+		|| !_peer->asUser()->isBot()
 		|| !_canSendMessages) {
 		updateControlsVisibility();
 		return;
@@ -3233,7 +3233,7 @@ void HistoryWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString 
 	bool lastKeyboardUsed = (_keyboard->forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard->forMsgId() == FullMsgId(_channel, replyTo));
 
 	QString toSend = cmd;
-	if (bot && (!bot->isUser() || !bot->asUser()->botInfo)) {
+	if (bot && (!bot->isUser() || !bot->asUser()->isBot())) {
 		bot = nullptr;
 	}
 	QString username = bot ? bot->asUser()->username : QString();
@@ -3386,7 +3386,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd) {
 			: (App::hoveredLinkItem()
 				? App::hoveredLinkItem()->data()->fromOriginal().get()
 				: nullptr);
-		if (bot && (!bot->isUser() || !bot->asUser()->botInfo)) {
+		if (bot && (!bot->isUser() || !bot->asUser()->isBot())) {
 			bot = nullptr;
 		}
 		auto username = bot ? bot->asUser()->username : QString();
@@ -3501,7 +3501,7 @@ void HistoryWidget::inlineBotResolveDone(
 //	Notify::inlineBotRequesting(false);
 	const auto resolvedBot = [&]() -> UserData* {
 		if (const auto result = session().data().processUsers(data.vusers())) {
-			if (result->botInfo
+			if (result->isBot()
 				&& !result->botInfo->inlinePlaceholder.isEmpty()) {
 				return result;
 			}
@@ -3534,7 +3534,7 @@ bool HistoryWidget::inlineBotResolveFail(QString name, const RPCError &error) {
 bool HistoryWidget::isBotStart() const {
 	const auto user = _peer ? _peer->asUser() : nullptr;
 	if (!user
-		|| !user->botInfo
+		|| !user->isBot()
 		|| !_canSendMessages) {
 		return false;
 	} else if (!user->botInfo->startToken.isEmpty()) {
@@ -3600,7 +3600,7 @@ void HistoryWidget::updateSendButtonType() {
 
 bool HistoryWidget::updateCmdStartShown() {
 	bool cmdStartShown = false;
-	if (_history && _peer && ((_peer->isChat() && _peer->asChat()->botStatus > 0) || (_peer->isMegagroup() && _peer->asChannel()->mgInfo->botStatus > 0) || (_peer->isUser() && _peer->asUser()->botInfo))) {
+	if (_history && _peer && ((_peer->isChat() && _peer->asChat()->botStatus > 0) || (_peer->isMegagroup() && _peer->asChannel()->mgInfo->botStatus > 0) || (_peer->isUser() && _peer->asUser()->isBot()))) {
 		if (!isBotStart() && !isBlocked() && !_keyboard->hasMarkup() && !_keyboard->forceReply()) {
 			if (!HasSendText(_field)) {
 				cmdStartShown = true;
@@ -3956,7 +3956,7 @@ void HistoryWidget::onCheckFieldAutocomplete() {
 			Local::readRecentHashtagsAndBots();
 		} else if (autocomplete.query[0] == '/'
 			&& _peer->isUser()
-			&& !_peer->asUser()->botInfo) {
+			&& !_peer->asUser()->isBot()) {
 			return;
 		}
 	}

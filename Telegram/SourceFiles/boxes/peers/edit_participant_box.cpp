@@ -196,8 +196,8 @@ void EditParticipantBox::Inner::paintEvent(QPaintEvent *e) {
 		st::rightsPhotoMargin.top() + st::rightsNameTop,
 		namew,
 		width());
-	auto statusText = [this] {
-		if (_user->botInfo) {
+	const auto statusText = [&] {
+		if (_user->isBot()) {
 			const auto seesAllMessages = _user->botInfo->readsAllHistory
 				|| _hasAdminRights;
 			return (seesAllMessages
@@ -205,14 +205,14 @@ void EditParticipantBox::Inner::paintEvent(QPaintEvent *e) {
 				: tr::lng_status_bot_not_reads_all)(tr::now);
 		}
 		return Data::OnlineText(_user->onlineTill, base::unixtime::now());
-	};
+	}();
 	p.setFont(st::contactsStatusFont);
 	p.setPen(st::contactsStatusFg);
 	p.drawTextLeft(
 		namex,
 		st::rightsPhotoMargin.top() + st::rightsStatusTop,
 		width(),
-		statusText());
+		statusText);
 }
 
 EditParticipantBox::EditParticipantBox(

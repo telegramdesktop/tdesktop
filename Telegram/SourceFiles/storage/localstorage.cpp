@@ -4540,7 +4540,7 @@ void readRecentHashtagsAndBots() {
 				if (!peer) {
 					return; // Broken data.
 				} else if (peer->isUser()
-					&& peer->asUser()->botInfo
+					&& peer->asUser()->isBot()
 					&& !peer->asUser()->botInfo->inlinePlaceholder.isEmpty()
 					&& !peer->asUser()->username.isEmpty()) {
 					bots.push_back(peer->asUser());

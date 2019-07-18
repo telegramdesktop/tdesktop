@@ -445,8 +445,9 @@ InlineBotQuery ParseInlineBotQuery(not_null<const Ui::InputField*> field) {
 			if (result.lookingUpBot) {
 				result.query = QString();
 				return result;
-			} else if (result.bot && (!result.bot->botInfo
-				|| result.bot->botInfo->inlinePlaceholder.isEmpty())) {
+			} else if (result.bot
+				&& (!result.bot->isBot()
+					|| result.bot->botInfo->inlinePlaceholder.isEmpty())) {
 				result.bot = nullptr;
 			} else {
 				result.query = inlineUsernameEqualsText
