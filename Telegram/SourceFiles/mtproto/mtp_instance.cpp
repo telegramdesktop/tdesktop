@@ -1064,22 +1064,24 @@ void Instance::Private::execCallback(
 			}
 		};
 
-		try {
-			if (from >= end) throw mtpErrorInsufficient();
-			if (*from == mtpc_rpc_error) {
-				auto error = MTPRpcError();
-				error.read(from, end);
-				handleError(error);
-			} else {
-				if (h.onDone) {
-					(*h.onDone)(requestId, from, end);
-				}
-				unregisterRequest(requestId);
-			}
-		} catch (Exception &e) {
+		if (from >= end) {
 			handleError(RPCError::Local(
 				"RESPONSE_PARSE_FAILED",
-				QString("exception text: ") + e.what()));
+				"Empty response."));
+		} else if (*from == mtpc_rpc_error) {
+			auto error = MTPRpcError();
+			handleError(error.read(from, end) ? error : RPCError::Local(
+				"RESPONSE_PARSE_FAILED",
+				"Error parse failed."));
+		} else {
+			if (h.onDone) {
+				if (!(*h.onDone)(requestId, from, end)) {
+					handleError(RPCError::Local(
+						"RESPONSE_PARSE_FAILED",
+						"Response parse failed."));
+				}
+			}
+			unregisterRequest(requestId);
 		}
 	} else {
 		DEBUG_LOG(("RPC Info: parser not found for %1").arg(requestId));

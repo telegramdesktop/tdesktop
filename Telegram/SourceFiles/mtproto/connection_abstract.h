@@ -137,7 +137,7 @@ protected:
 	// first we always send fake MTPReq_pq to see if connection works at all
 	// we send them simultaneously through TCP/HTTP/IPv4/IPv6 to choose the working one
 	mtpBuffer preparePQFake(const MTPint128 &nonce) const;
-	MTPResPQ readPQFakeReply(const mtpBuffer &buffer) const;
+	std::optional<MTPResPQ> readPQFakeReply(const mtpBuffer &buffer) const;
 
 };
 

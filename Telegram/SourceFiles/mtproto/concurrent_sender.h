@@ -32,7 +32,7 @@ class ConcurrentSender : public base::has_weak_ptr {
 	auto with_instance(Method &&method)
 	-> std::enable_if_t<is_callable_v<Method, not_null<Instance*>>>;
 
-	using DoneHandler = FnMut<void(
+	using DoneHandler = FnMut<bool(
 		mtpRequestId requestId,
 		bytes::const_span result)>;
 	using FailHandler = FnMut<void(
@@ -206,8 +206,11 @@ void ConcurrentSender::RequestBuilder::setDoneHandler(
 		auto from = reinterpret_cast<const mtpPrime*>(result.data());
 		const auto end = from + result.size() / sizeof(mtpPrime);
 		Response data;
-		data.read(from, end);
+		if (!data.read(from, end)) {
+			return false;
+		}
 		std::move(handler)(requestId, std::move(data));
+		return true;
 	};
 }
 

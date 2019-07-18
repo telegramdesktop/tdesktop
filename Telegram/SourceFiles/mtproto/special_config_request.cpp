@@ -458,9 +458,7 @@ bool SpecialConfigRequest::decryptSimpleConfig(const QByteArray &bytes) {
 		return false;
 	}
 
-	try {
-		_simpleConfig.read(from, end);
-	} catch (...) {
+	if (!_simpleConfig.read(from, end)) {
 		LOG(("Config Error: Could not read configSimple."));
 		return false;
 	}

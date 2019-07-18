@@ -615,9 +615,8 @@ void TcpConnection::socketPacket(bytes::const_span bytes) {
 		_receivedQueue.push_back(data);
 		emit receivedData();
 	} else if (_status == Status::Waiting) {
-		try {
-			const auto res_pq = readPQFakeReply(data);
-			const auto &data = res_pq.c_resPQ();
+		if (const auto res_pq = readPQFakeReply(data)) {
+			const auto &data = res_pq->c_resPQ();
 			if (data.vnonce() == _checkNonce) {
 				DEBUG_LOG(("Connection Info: Valid pq response by TCP."));
 				_status = Status::Ready;
@@ -629,10 +628,9 @@ void TcpConnection::socketPacket(bytes::const_span bytes) {
 					"Wrong nonce received in TCP fake pq-responce"));
 				emit error(kErrorCodeOther);
 			}
-		} catch (Exception &e) {
+		} else {
 			DEBUG_LOG(("Connection Error: "
-				"Exception in parsing TCP fake pq-responce, %1"
-				).arg(e.what()));
+				"Could not parse TCP fake pq-responce"));
 			emit error(kErrorCodeOther);
 		}
 	}

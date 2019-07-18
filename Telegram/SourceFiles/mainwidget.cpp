@@ -3666,35 +3666,35 @@ void MainWidget::checkIdleFinish() {
 	}
 }
 
-void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
-	if (end <= from) return;
+bool MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
+	if (end <= from) {
+		return false;
+	}
 
 	session().checkAutoLock();
 
 	if (mtpTypeId(*from) == mtpc_new_session_created) {
-		try {
-			MTPNewSession newSession;
-			newSession.read(from, end);
-		} catch (mtpErrorUnexpected &) {
+		MTPNewSession newSession;
+		if (!newSession.read(from, end)) {
+			return false;
 		}
 		updSeq = 0;
 		MTP_LOG(0, ("getDifference { after new_session_created }%1").arg(cTestMode() ? " TESTMODE" : ""));
-		return getDifference();
-	} else {
-		try {
-			MTPUpdates updates;
-			updates.read(from, end);
-
-			_lastUpdateTime = crl::now();
-			_noUpdatesTimer.callOnce(kNoUpdatesTimeout);
-			if (!requestingDifference()
-				|| HasForceLogoutNotification(updates)) {
-				feedUpdates(updates);
-			}
-		} catch (mtpErrorUnexpected &) { // just some other type
-		}
+		getDifference();
+		return true;
 	}
-	update();
+	MTPUpdates updates;
+	if (!updates.read(from, end)) {
+		return false;
+	}
+
+	_lastUpdateTime = crl::now();
+	_noUpdatesTimer.callOnce(kNoUpdatesTimeout);
+	if (!requestingDifference()
+		|| HasForceLogoutNotification(updates)) {
+		feedUpdates(updates);
+	}
+	return true;
 }
 
 void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {

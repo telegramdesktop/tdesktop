@@ -121,7 +121,7 @@ public:
 	void incrementSticker(DocumentData *sticker);
 
 	void activate();
-	void updateReceived(const mtpPrime *from, const mtpPrime *end);
+	[[nodiscard]] bool updateReceived(const mtpPrime *from, const mtpPrime *end);
 
 	void refreshDialog(Dialogs::Key key);
 	void removeDialog(Dialogs::Key key);

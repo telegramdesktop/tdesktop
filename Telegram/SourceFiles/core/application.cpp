@@ -780,8 +780,9 @@ void Application::authSessionCreate(const MTPUser &user) {
 			const mtpPrime *from,
 			const mtpPrime *end) {
 		if (const auto main = App::main()) {
-			main->updateReceived(from, end);
+			return main->updateReceived(from, end);
 		}
+		return true;
 	}));
 	_mtproto->setGlobalFailHandler(::rpcFail([=](const RPCError &error) {
 		if (activeAccount().sessionExists()) {
