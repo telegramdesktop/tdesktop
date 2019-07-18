@@ -148,8 +148,9 @@ std::atomic<int> GlobalAtomicRequestId = 0;
 			&& (code != '-');
 	};
 	const auto inner = Base64UrlInner(password);
-	const auto i = std::find_if(inner.begin(), inner.end(), bad);
-	return (i == inner.end());
+	const auto begin = inner.data();
+	const auto end = begin + inner.size();
+	return (std::find_if(begin, end, bad) == end);
 }
 
 [[nodiscard]] ProxyData::Status Base64UrlMtprotoPasswordStatus(
