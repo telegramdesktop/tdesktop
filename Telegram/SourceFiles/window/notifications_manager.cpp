@@ -444,9 +444,14 @@ Manager::DisplayOptions Manager::getNotificationOptions(HistoryItem *item) {
 		|| Global::ScreenIsLocked();
 
 	DisplayOptions result;
-	result.hideNameAndPhoto = hideEverything || (Global::NotifyView() > dbinvShowName);
-	result.hideMessageText = hideEverything || (Global::NotifyView() > dbinvShowPreview);
-	result.hideReplyButton = result.hideMessageText || !item || !item->history()->peer->canWrite();
+	result.hideNameAndPhoto = hideEverything
+		|| (Global::NotifyView() > dbinvShowName);
+	result.hideMessageText = hideEverything
+		|| (Global::NotifyView() > dbinvShowPreview);
+	result.hideReplyButton = result.hideMessageText
+		|| !item
+		|| !item->history()->peer->canWrite()
+		|| (item->history()->peer->slowmodeSecondsLeft() > 0);
 	return result;
 }
 
@@ -510,11 +515,11 @@ void Manager::notificationReplied(
 	message.textWithTags = reply;
 	message.replyTo = (msgId > 0 && !history->peer->isUser()) ? msgId : 0;
 	message.clearDraft = false;
-	Auth().api().sendMessage(std::move(message));
+	history->session().api().sendMessage(std::move(message));
 
 	const auto item = history->owner().message(history->channelId(), msgId);
 	if (item && item->isUnreadMention() && !item->isUnreadMedia()) {
-		Auth().api().markMediaRead(item);
+		history->session().api().markMediaRead(item);
 	}
 }
 
