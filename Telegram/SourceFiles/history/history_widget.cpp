@@ -2836,14 +2836,13 @@ void HistoryWidget::send(Qt::KeyboardModifiers modifiers) {
 	message.webPageId = webPageId;
 	message.handleSupportSwitch = Support::HandleSwitch(modifiers);
 
-	if (_peer->slowmodeApplied()) {
-		if (_toForward.size() > 1
-			|| (!_toForward.empty()
-				&& !message.textWithTags.text.isEmpty())
-			|| (message.textWithTags.text.size() > MaxMessageSize)) {
-			ShowErrorToast(tr::lng_slowmode_no_many(tr::now));
-			return;
-		}
+	const auto error = GetErrorTextForForward(
+		_peer,
+		_toForward,
+		message.textWithTags);
+	if (!error.isEmpty()) {
+		ShowErrorToast(error);
+		return;
 	}
 
 	session().api().sendMessage(std::move(message));
@@ -3055,10 +3054,7 @@ void HistoryWidget::chooseAttach() {
 		+ cImgExtensions().join(qsl(" *"))
 		+ qsl(")");
 
-	const auto method = _peer->slowmodeApplied()
-		? &FileDialog::GetOpenPath
-		: &FileDialog::GetOpenPaths;
-	method(this, tr::lng_choose_files(tr::now), filter, crl::guard(this, [=](
+	FileDialog::GetOpenPaths(this, tr::lng_choose_files(tr::now), filter, crl::guard(this, [=](
 			FileDialog::OpenResult &&result) {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 			return;
@@ -4000,7 +3996,9 @@ bool HistoryWidget::showSendingFilesError(
 		} else if (!canWriteMessage()) {
 			return tr::lng_forward_send_files_cant(tr::now);
 		}
-		if (list.files.size() > 1 && _peer->slowmodeApplied()) {
+		if (list.files.size() > 1
+			&& _peer->slowmodeApplied()
+			&& !list.albumIsPossible) {
 			return tr::lng_slowmode_no_many(tr::now);
 		} else if (const auto left = _peer->slowmodeSecondsLeft()) {
 			return tr::lng_slowmode_enabled(
@@ -4222,7 +4220,7 @@ void HistoryWidget::uploadFilesAfterConfirmation(
 	const auto isAlbum = (album != nullptr);
 	const auto compressImages = (type == SendMediaType::Photo);
 	if (_peer->slowmodeApplied()
-		&& (list.files.size() > 1
+		&& ((list.files.size() > 1 && !album)
 			|| (!list.files.empty()
 				&& !caption.text.isEmpty()
 				&& !list.canAddCaption(isAlbum, compressImages)))) {

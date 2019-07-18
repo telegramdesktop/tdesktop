@@ -111,7 +111,8 @@ bool HasInlineItems(const HistoryItemsList &items) {
 QString GetErrorTextForForward(
 		not_null<PeerData*> peer,
 		const HistoryItemsList &items,
-		const TextWithTags &comment) {
+		const TextWithTags &comment,
+		bool ignoreSlowmodeCountdown) {
 	if (!peer->canWrite()) {
 		return tr::lng_forward_cant(tr::now);
 	}
@@ -131,30 +132,42 @@ QString GetErrorTextForForward(
 		return *error;
 	}
 
-	if (peer->slowmodeApplied() && !comment.text.isEmpty()) {
-		return tr::lng_slowmode_no_many(tr::now);
-	} else if (peer->slowmodeApplied() && items.size() > 1) {
-		const auto albumForward = [&] {
-			if (const auto groupId = items.front()->groupId()) {
-				for (const auto item : items) {
-					if (item->groupId() != groupId) {
-						return false;
-					}
-				}
-				return true;
+	if (peer->slowmodeApplied()) {
+		if (const auto history = peer->owner().historyLoaded(peer)) {
+			if (!ignoreSlowmodeCountdown
+				&& (history->latestSendingMessage() != nullptr)
+				&& (!items.empty() || !comment.text.isEmpty())) {
+				return tr::lng_slowmode_no_many(tr::now);
 			}
-			return false;
-		}();
-		if (!albumForward) {
+		}
+		if (comment.text.size() > MaxMessageSize) {
 			return tr::lng_slowmode_no_many(tr::now);
+		} else if (!items.empty() && !comment.text.isEmpty()) {
+			return tr::lng_slowmode_no_many(tr::now);
+		} else if (items.size() > 1) {
+			const auto albumForward = [&] {
+				if (const auto groupId = items.front()->groupId()) {
+					for (const auto item : items) {
+						if (item->groupId() != groupId) {
+							return false;
+						}
+					}
+					return true;
+				}
+				return false;
+			}();
+			if (!albumForward) {
+				return tr::lng_slowmode_no_many(tr::now);
+			}
 		}
 	}
-
 	if (const auto left = peer->slowmodeSecondsLeft()) {
-		return tr::lng_slowmode_enabled(
-			tr::now,
-			lt_left,
-			formatDurationWords(left));
+		if (!ignoreSlowmodeCountdown) {
+			return tr::lng_slowmode_enabled(
+				tr::now,
+				lt_left,
+				formatDurationWords(left));
+		}
 	}
 
 	return QString();
@@ -327,8 +340,9 @@ MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer) {
 
 QString GetErrorTextForForward(
 		not_null<PeerData*> peer,
-		const HistoryItemsList &items) {
-	return GetErrorTextForForward(peer, items, TextWithTags());
+		const HistoryItemsList &items,
+		bool ignoreSlowmodeCountdown) {
+	return GetErrorTextForForward(peer, items, {}, ignoreSlowmodeCountdown);
 }
 
 struct HistoryMessage::CreateConfig {

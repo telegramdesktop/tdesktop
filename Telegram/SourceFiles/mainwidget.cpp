@@ -597,7 +597,8 @@ bool MainWidget::setForwardDraft(PeerId peerId, MessageIdsList &&items) {
 	const auto peer = session().data().peer(peerId);
 	const auto error = GetErrorTextForForward(
 		peer,
-		session().data().idsToItems(items));
+		session().data().idsToItems(items),
+		true);
 	if (!error.isEmpty()) {
 		Ui::show(Box<InformBox>(error), LayerOption::KeepOther);
 		return false;
@@ -681,10 +682,8 @@ void MainWidget::cancelForwarding(not_null<History*> history) {
 void MainWidget::finishForwarding(not_null<History*> history) {
 	auto toForward = history->validateForwardDraft();
 	if (!toForward.empty()) {
-		if (history->peer->slowmodeSecondsLeft()
-			|| (history->peer->slowmodeApplied()
-				&& (toForward.size() > 1
-					|| history->latestSendingMessage() != nullptr))) {
+		const auto error = GetErrorTextForForward(history->peer, toForward);
+		if (!error.isEmpty()) {
 			return;
 		}
 

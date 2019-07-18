@@ -1483,6 +1483,11 @@ void SendFilesBox::prepare() {
 void SendFilesBox::initSendWay() {
 	refreshAlbumMediaCount();
 	const auto value = [&] {
+		if (_sendLimit == SendLimit::One
+			&& _list.albumIsPossible
+			&& _list.files.size() > 1) {
+			return SendFilesWay::Album;
+		}
 		if (_compressConfirm == CompressConfirm::None) {
 			return SendFilesWay::Files;
 		} else if (_compressConfirm == CompressConfirm::No) {
@@ -1571,7 +1576,8 @@ void SendFilesBox::setupSendWayControls() {
 	_sendAlbum.destroy();
 	_sendPhotos.destroy();
 	_sendFiles.destroy();
-	if (_compressConfirm == CompressConfirm::None) {
+	if (_compressConfirm == CompressConfirm::None
+		|| _sendLimit == SendLimit::One) {
 		return;
 	}
 	const auto addRadio = [&](

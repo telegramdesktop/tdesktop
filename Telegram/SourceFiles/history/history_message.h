@@ -20,7 +20,13 @@ Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer);
 QString GetErrorTextForForward(
 	not_null<PeerData*> peer,
-	const HistoryItemsList &items);
+	const HistoryItemsList &items,
+	bool ignoreSlowmodeCountdown = false);
+QString GetErrorTextForForward(
+	not_null<PeerData*> peer,
+	const HistoryItemsList &items,
+	const TextWithTags &comment,
+	bool ignoreSlowmodeCountdown = false);
 void FastShareMessage(not_null<HistoryItem*> item);
 
 class HistoryMessage
