@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_cache.h"
 #include "lottie/lottie_player.h"
 #include "base/algorithm.h"
+#include "core/utils.h"
 #include "zlib.h"
 #include "logs.h"
 
@@ -128,7 +129,13 @@ std::unique_ptr<rlottie::Animation> CreateFromContent(
 	const auto string = UnpackGzip(content);
 	Assert(string.size() <= kMaxFileSize);
 
-	auto result = rlottie::Animation::loadFromData(string, std::string());
+	auto cacheKey = std::string();
+#ifndef TDESKTOP_OFFICIAL_TARGET
+	cacheKey.resize(20);
+	hashSha1(string.data(), string.size(), cacheKey.data());
+#endif // TDESKTOP_OFFICIAL_TARGET
+	auto result = rlottie::Animation::loadFromData(string, cacheKey);
+
 	if (!result) {
 		LOG(("Lottie Error: Parse failed."));
 	}
