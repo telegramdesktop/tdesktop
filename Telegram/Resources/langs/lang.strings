@@ -1628,6 +1628,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_rights_edit_admin" = "Manage permissions";
 "lng_rights_edit_admin_header" = "What can this admin do?";
+"lng_rights_edit_admin_rank_name" = "Custom admin badge (optional)";
+"lng_rights_edit_admin_rank_about" = "You can specify a custom badge that will be shown in all messages from this admin.";
 "lng_rights_about_add_admins_yes" = "This admin will be able to add new admins with the same (or more limited) permissions.";
 "lng_rights_about_add_admins_no" = "This admin will not be able to add new admins.";
 

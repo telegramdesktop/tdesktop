@@ -761,6 +761,7 @@ rightsHeaderLabel: FlatLabel(boxLabel) {
 	textFg: windowActiveTextFg;
 }
 rightsUntilMargin: margins(0px, 8px, 0px, 20px);
+rightsRankMargin: margins(0px, 8px, 0px, 2px);
 
 mutePhotoButton: UserpicButton(defaultUserpicButton) {
 	size: size(40px, 40px);

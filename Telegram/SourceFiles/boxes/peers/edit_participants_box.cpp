@@ -221,7 +221,7 @@ Fn<void(
 					const MTPDchatAdminRights &data) {
 				return data.vflags().v;
 			});
-			if (flags == ChatData::DefaultAdminRights()) {
+			if (flags == ChatData::DefaultAdminRights() && rank.isEmpty()) {
 				saveChatAdmin(true);
 			} else if (!flags) {
 				saveChatAdmin(false);
@@ -318,10 +318,10 @@ bool ParticipantsAdditionalData::infoLoaded(
 
 bool ParticipantsAdditionalData::canEditAdmin(
 		not_null<UserData*> user) const {
-	if (_creator == user || user->isSelf()) {
-		return false;
-	} else if (_creator && _creator->isSelf()) {
+	if (_creator && _creator->isSelf()) {
 		return true;
+	} else if (_creator == user || user->isSelf()) {
+		return false;
 	} else if (adminRights(user).has_value()) {
 		return !_peer->isChat() && _adminCanEdit.contains(user);
 	}
@@ -1480,7 +1480,13 @@ void ParticipantsBoxController::editAdminDone(
 	}
 
 	const auto date = base::unixtime::now(); // Incorrect, but ignored.
-	if (rights.c_chatAdminRights().vflags().v == 0) {
+	if (_additional.isCreator(user) && user->isSelf()) {
+		using Flag = MTPDchannelParticipantCreator::Flag;
+		_additional.applyParticipant(MTP_channelParticipantCreator(
+			MTP_flags(rank.isEmpty() ? Flag(0) : Flag::f_rank),
+			MTP_int(user->bareId()),
+			MTP_string(rank)));
+	} else if (rights.c_chatAdminRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
 			MTP_int(user->bareId()),
 			MTP_int(date)));

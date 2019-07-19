@@ -38,12 +38,13 @@ public:
 protected:
 	void prepare() override;
 
-	not_null<UserData*> user() const {
+	[[nodiscard]] not_null<UserData*> user() const {
 		return _user;
 	}
-	not_null<PeerData*> peer() const {
+	[[nodiscard]] not_null<PeerData*> peer() const {
 		return _peer;
 	}
+	[[nodiscard]] bool amCreator() const;
 
 	template <typename Widget>
 	Widget *addControl(object_ptr<Widget> widget, QMargins margin = {});
@@ -88,6 +89,7 @@ private:
 
 	static MTPChatAdminRights Defaults(not_null<PeerData*> peer);
 
+	not_null<Ui::InputField*> addRankInput();
 	void transferOwnership();
 	void transferOwnershipChecked();
 	bool handleTransferPasswordError(const RPCError &error);

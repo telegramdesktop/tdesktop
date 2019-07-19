@@ -43,6 +43,7 @@ namespace {
 constexpr auto kMaxRestrictDelayDays = 366;
 constexpr auto kSecondsInDay = 24 * 60 * 60;
 constexpr auto kSecondsInWeek = 7 * kSecondsInDay;
+constexpr auto kAdminRoleLimit = 16;
 
 enum class PasswordErrorType {
 	None,
@@ -244,6 +245,15 @@ Widget *EditParticipantBox::addControl(
 	return _inner->addControl(std::move(widget), margin);
 }
 
+bool EditParticipantBox::amCreator() const {
+	if (const auto chat = _peer->asChat()) {
+		return chat->amCreator();
+	} else if (const auto channel = _peer->asChannel()) {
+		return channel->amCreator();
+	}
+	Unexpected("Peer type in EditParticipantBox::Inner::amCreator.");
+}
+
 EditAdminBox::EditAdminBox(
 	QWidget*,
 	not_null<PeerData*> peer,
@@ -306,7 +316,7 @@ void EditAdminBox::prepare() {
 
 	const auto disabledMessages = [&] {
 		auto result = std::map<Flags, QString>();
-		if (!canSave()) {
+		if (!canSave() || (amCreator() && user()->isSelf())) {
 			result.emplace(
 				~Flags(0),
 				tr::lng_rights_about_admin_cant_edit(tr::now));
@@ -365,17 +375,11 @@ void EditAdminBox::prepare() {
 		refreshAboutAddAdminsText(checked);
 	}, lifetime());
 
-	const auto rank = canSave()
-		? addControl(
-			object_ptr<Ui::InputField>(
-				this,
-				st::defaultInputField,
-				tr::lng_rights_edit_admin_header(),
-				_oldRank),
-			st::rightsAboutMargin)
-		: nullptr;
-
 	if (canSave()) {
+		const auto rank = (chat || channel->isMegagroup())
+			? addRankInput().get()
+			: nullptr;
+
 		addButton(tr::lng_settings_save(), [=, value = getChecked] {
 			if (!_saveCallback) {
 				return;
@@ -387,12 +391,36 @@ void EditAdminBox::prepare() {
 			_saveCallback(
 				_oldRights,
 				MTP_chatAdminRights(MTP_flags(newFlags)),
-				rank->getLastText().trimmed());
+				rank ? rank->getLastText().trimmed() : QString());
 		});
-		addButton(tr::lng_cancel(), [this] { closeBox(); });
+		addButton(tr::lng_cancel(), [=] { closeBox(); });
 	} else {
-		addButton(tr::lng_box_ok(), [this] { closeBox(); });
+		addButton(tr::lng_box_ok(), [=] { closeBox(); });
 	}
+}
+
+not_null<Ui::InputField*> EditAdminBox::addRankInput() {
+	addControl(
+		object_ptr<BoxContentDivider>(this),
+		st::rightsRankMargin);
+
+	const auto result = addControl(
+		object_ptr<Ui::InputField>(
+			this,
+			st::defaultInputField,
+			tr::lng_rights_edit_admin_rank_name(),
+			_oldRank),
+		st::rightsAboutMargin);
+	result->setMaxLength(kAdminRoleLimit);
+
+	addControl(
+		object_ptr<Ui::FlatLabel>(
+			this,
+			tr::lng_rights_edit_admin_rank_about(),
+			st::boxDividerLabel),
+		st::rightsAboutMargin);
+
+	return result;
 }
 
 bool EditAdminBox::canTransferOwnership() const {
@@ -583,7 +611,7 @@ void EditAdminBox::sendTransferRequestFrom(
 
 void EditAdminBox::refreshAboutAddAdminsText(bool canAddAdmins) {
 	_aboutAddAdmins->setText([&] {
-		if (!canSave()) {
+		if (!canSave() || (amCreator() && user()->isSelf())) {
 			return tr::lng_rights_about_admin_cant_edit(tr::now);
 		} else if (canAddAdmins) {
 			return tr::lng_rights_about_add_admins_yes(tr::now);
