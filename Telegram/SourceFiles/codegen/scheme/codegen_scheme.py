@@ -701,7 +701,7 @@ for restype in typesList:
         prmsInit.append('_' + paramName + '(' + paramName + '_)');
         if (paramName in conditions):
           readText += '\t\t&& (v' + paramName + '() ? _' + paramName + '.read(from, end) : ((_' + paramName + ' = MTP' + paramType + '()), true))\n';
-          writeText += '\tif (const auto v' + paramName + ' = v.v' + paramName + '()) v' + paramName + '->write(to);\n';
+          writeText += '\t\tif (const auto v' + paramName + ' = v.v' + paramName + '()) v' + paramName + '->write(to);\n';
           sizeList.append('(v.v' + paramName + '() ? v.v' + paramName + '()->innerLength() : 0)');
         else:
           readText += '\t\t&& _' + paramName + '.read(from, end)\n';

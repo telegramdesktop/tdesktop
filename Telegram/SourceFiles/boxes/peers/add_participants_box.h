@@ -62,7 +62,8 @@ public:
 
 	using AdminDoneCallback = Fn<void(
 		not_null<UserData*> user,
-		const MTPChatAdminRights &adminRights)>;
+		const MTPChatAdminRights &adminRights,
+		const QString &rank)>;
 	using BannedDoneCallback = Fn<void(
 		not_null<UserData*> user,
 		const MTPChatBannedRights &bannedRights)>;
@@ -89,7 +90,8 @@ private:
 	void showAdmin(not_null<UserData*> user, bool sure = false);
 	void editAdminDone(
 		not_null<UserData*> user,
-		const MTPChatAdminRights &rights);
+		const MTPChatAdminRights &rights,
+		const QString &rank);
 	void showRestricted(not_null<UserData*> user, bool sure = false);
 	void editRestrictedDone(
 		not_null<UserData*> user,

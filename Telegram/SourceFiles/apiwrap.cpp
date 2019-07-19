@@ -1623,11 +1623,7 @@ void ApiWrap::requestAdmins(not_null<ChannelData*> channel) {
 	)).done([this, channel](const MTPchannels_ChannelParticipants &result) {
 		_adminsRequests.remove(channel);
 		result.match([&](const MTPDchannels_channelParticipants &data) {
-			_session->data().processUsers(data.vusers());
-			applyAdminsList(
-				channel,
-				data.vcount().v,
-				data.vparticipants().v);
+			Data::ApplyChannelAdmins(channel, data);
 		}, [&](const MTPDchannels_channelParticipantsNotModified &) {
 			LOG(("API Error: channels.channelParticipantsNotModified received!"));
 		});
@@ -1671,10 +1667,12 @@ void ApiWrap::applyLastParticipantsList(
 
 		auto user = _session->data().user(userId);
 		if (p.type() == mtpc_channelParticipantCreator) {
+			const auto &creator = p.c_channelParticipantCreator();
+			const auto rank = qs(creator.vrank().value_or_empty());
 			channel->mgInfo->creator = user;
-			if (!channel->mgInfo->admins.empty()
-				&& !channel->mgInfo->admins.contains(userId)) {
-				Data::ChannelAdminChanges(channel).feed(userId, true);
+			channel->mgInfo->creatorRank = rank;
+			if (!channel->mgInfo->admins.empty()) {
+				Data::ChannelAdminChanges(channel).add(userId, rank);
 			}
 		}
 		if (!base::contains(channel->mgInfo->lastParticipants, user)) {
@@ -1756,39 +1754,6 @@ void ApiWrap::applyBotsList(
 
 	channel->mgInfo->botStatus = botStatus;
 	fullPeerUpdated().notify(channel);
-}
-
-void ApiWrap::applyAdminsList(
-		not_null<ChannelData*> channel,
-		int availableCount,
-		const QVector<MTPChannelParticipant> &list) {
-	auto admins = ranges::make_iterator_range(
-		list.begin(), list.end()
-	) | ranges::view::transform([](const MTPChannelParticipant &p) {
-		return p.match([](const auto &data) { return data.vuser_id().v; });
-	});
-	auto adding = base::flat_set<UserId>{ admins.begin(), admins.end() };
-	if (channel->mgInfo->creator) {
-		adding.insert(peerToUser(channel->mgInfo->creator->id));
-	}
-	auto removing = channel->mgInfo->admins;
-
-	if (removing.empty() && adding.empty()) {
-		// Add some admin-placeholder so we don't DDOS
-		// server with admins list requests.
-		LOG(("API Error: Got empty admins list from server."));
-		adding.insert(0);
-	}
-
-	Data::ChannelAdminChanges changes(channel);
-	for (const auto addingId : adding) {
-		if (!removing.remove(addingId)) {
-			changes.feed(addingId, true);
-		}
-	}
-	for (const auto removingId : removing) {
-		changes.feed(removingId, false);
-	}
 }
 
 void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
@@ -3547,9 +3512,13 @@ void ApiWrap::refreshChannelAdmins(
 		const auto userId = p.match([](const auto &data) {
 			return data.vuser_id().v;
 		});
-		const auto isAdmin = (p.type() == mtpc_channelParticipantAdmin)
-			|| (p.type() == mtpc_channelParticipantCreator);
-		changes.feed(userId, isAdmin);
+		p.match([&](const MTPDchannelParticipantAdmin &data) {
+			changes.add(userId, qs(data.vrank().value_or_empty()));
+		}, [&](const MTPDchannelParticipantCreator &data) {
+			changes.add(userId, qs(data.vrank().value_or_empty()));
+		}, [&](const auto &data) {
+			changes.remove(userId);
+		});
 	}
 }
 

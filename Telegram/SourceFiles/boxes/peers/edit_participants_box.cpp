@@ -49,10 +49,10 @@ void RemoveAdmin(
 		channel->inputChannel,
 		user->inputUser,
 		newRights,
-		MTP_string(QString()) // #TODO ranks
+		MTP_string(QString())
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
-		channel->applyEditAdmin(user, oldRights, newRights);
+		channel->applyEditAdmin(user, oldRights, newRights, QString());
 		if (onDone) {
 			onDone();
 		}
@@ -120,16 +120,17 @@ void SaveChannelAdmin(
 		not_null<UserData*> user,
 		const MTPChatAdminRights &oldRights,
 		const MTPChatAdminRights &newRights,
+		const QString &rank,
 		Fn<void()> onDone,
 		Fn<void()> onFail) {
 	channel->session().api().request(MTPchannels_EditAdmin(
 		channel->inputChannel,
 		user->inputUser,
 		newRights,
-		MTP_string(QString()) // #TODO ranks
+		MTP_string(rank)
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
-		channel->applyEditAdmin(user, oldRights, newRights);
+		channel->applyEditAdmin(user, oldRights, newRights, rank);
 		if (onDone) {
 			onDone();
 		}
@@ -189,21 +190,26 @@ void SaveChatParticipantKick(
 
 Fn<void(
 	const MTPChatAdminRights &oldRights,
-	const MTPChatAdminRights &newRights)> SaveAdminCallback(
+	const MTPChatAdminRights &newRights,
+	const QString &rank)> SaveAdminCallback(
 		not_null<PeerData*> peer,
 		not_null<UserData*> user,
-		Fn<void(const MTPChatAdminRights &newRights)> onDone,
+		Fn<void(
+			const MTPChatAdminRights &newRights,
+			const QString &rank)> onDone,
 		Fn<void()> onFail) {
 	return [=](
 			const MTPChatAdminRights &oldRights,
-			const MTPChatAdminRights &newRights) {
-		const auto done = [=] { if (onDone) onDone(newRights); };
+			const MTPChatAdminRights &newRights,
+			const QString &rank) {
+		const auto done = [=] { if (onDone) onDone(newRights, rank); };
 		const auto saveForChannel = [=](not_null<ChannelData*> channel) {
 			SaveChannelAdmin(
 				channel,
 				user,
 				oldRights,
 				newRights,
+				rank,
 				done,
 				onFail);
 		};
@@ -361,6 +367,12 @@ auto ParticipantsAdditionalData::adminRights(
 		: std::nullopt;
 }
 
+QString ParticipantsAdditionalData::adminRank(
+		not_null<UserData*> user) const {
+	const auto i = _adminRanks.find(user);
+	return (i != end(_adminRanks)) ? i->second : QString();
+}
+
 auto ParticipantsAdditionalData::restrictedRights(
 	not_null<UserData*> user) const
 -> std::optional<MTPChatBannedRights> {
@@ -455,9 +467,11 @@ void ParticipantsAdditionalData::fillFromChannel(
 	}
 	if (information->creator) {
 		_creator = information->creator;
+		_adminRanks[information->creator] = information->creatorRank;
 	}
 	for (const auto user : information->lastParticipants) {
 		const auto admin = information->lastAdmins.find(user);
+		const auto rank = information->admins.find(peerToUser(user->id));
 		const auto restricted = information->lastRestricted.find(user);
 		if (admin != information->lastAdmins.cend()) {
 			_restrictedRights.erase(user);
@@ -469,6 +483,10 @@ void ParticipantsAdditionalData::fillFromChannel(
 				_adminCanEdit.erase(user);
 			}
 			_adminRights.emplace(user, admin->second.rights);
+			if (rank != end(information->admins)
+				&& !rank->second.isEmpty()) {
+				_adminRanks[user] = rank->second;
+			}
 		} else if (restricted != information->lastRestricted.cend()) {
 			_adminRights.erase(user);
 			_adminCanEdit.erase(user);
@@ -535,6 +553,11 @@ UserData *ParticipantsAdditionalData::applyCreator(
 		const MTPDchannelParticipantCreator &data) {
 	if (const auto user = applyRegular(data.vuser_id())) {
 		_creator = user;
+		if (const auto rank = data.vrank()) {
+			_adminRanks[user] = qs(*rank);
+		} else {
+			_adminRanks.remove(user);
+		}
 		return user;
 	}
 	return nullptr;
@@ -560,6 +583,11 @@ UserData *ParticipantsAdditionalData::applyAdmin(
 		_adminCanEdit.emplace(user);
 	} else {
 		_adminCanEdit.erase(user);
+	}
+	if (const auto rank = data.vrank()) {
+		_adminRanks[user] = qs(*rank);
+	} else {
+		_adminRanks.remove(user);
 	}
 	if (const auto by = _peer->owner().userLoaded(data.vpromoted_by().v)) {
 		const auto i = _adminPromotedBy.find(user);
@@ -852,8 +880,9 @@ void ParticipantsBoxController::addNewItem() {
 	}
 	const auto adminDone = crl::guard(this, [=](
 			not_null<UserData*> user,
-			const MTPChatAdminRights &rights) {
-		editAdminDone(user, rights);
+			const MTPChatAdminRights &rights,
+			const QString &rank) {
+		editAdminDone(user, rights, rank);
 	});
 	const auto restrictedDone = crl::guard(this, [=](
 			not_null<UserData*> user,
@@ -1418,13 +1447,18 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 		: adminRights
 		? *adminRights
 		: MTPChatAdminRights(MTP_chatAdminRights(MTP_flags(0)));
-	auto box = Box<EditAdminBox>(_peer, user, currentRights);
+	auto box = Box<EditAdminBox>(
+		_peer,
+		user,
+		currentRights,
+		_additional.adminRank(user));
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
 	if (_additional.canAddOrEditAdmin(user)) {
 		const auto done = crl::guard(this, [=](
-				const MTPChatAdminRights &newRights) {
-			editAdminDone(user, newRights);
+				const MTPChatAdminRights &newRights,
+				const QString &rank) {
+			editAdminDone(user, newRights, rank);
 		});
 		const auto fail = crl::guard(this, [=] {
 			if (_editParticipantBox) {
@@ -1438,7 +1472,8 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 
 void ParticipantsBoxController::editAdminDone(
 		not_null<UserData*> user,
-		const MTPChatAdminRights &rights) {
+		const MTPChatAdminRights &rights,
+		const QString &rank) {
 	_addBox = nullptr;
 	if (_editParticipantBox) {
 		_editParticipantBox->closeBox();
@@ -1453,9 +1488,11 @@ void ParticipantsBoxController::editAdminDone(
 			removeRow(user);
 		}
 	} else {
+		using Flag = MTPDchannelParticipantAdmin::Flag;
 		const auto alreadyPromotedBy = _additional.adminPromotedBy(user);
 		_additional.applyParticipant(MTP_channelParticipantAdmin(
-			MTP_flags(MTPDchannelParticipantAdmin::Flag::f_can_edit),
+			MTP_flags(Flag::f_can_edit
+				| (rank.isEmpty() ? Flag(0) : Flag::f_rank)),
 			MTP_int(user->bareId()),
 			MTPint(), // inviter_id
 			MTP_int(alreadyPromotedBy
@@ -1463,7 +1500,7 @@ void ParticipantsBoxController::editAdminDone(
 				: user->session().userId()),
 			MTP_int(date),
 			rights,
-			MTPstring())); // #TODO ranks
+			MTP_string(rank)));
 		if (_role == Role::Admins) {
 			prependRow(user);
 		} else if (_role == Role::Kicked || _role == Role::Restricted) {
@@ -1619,7 +1656,10 @@ void ParticipantsBoxController::removeAdminSure(not_null<UserData*> user) {
 
 	if (const auto chat = _peer->asChat()) {
 		SaveChatAdmin(chat, user, false, crl::guard(this, [=] {
-			editAdminDone(user, MTP_chatAdminRights(MTP_flags(0)));
+			editAdminDone(
+				user,
+				MTP_chatAdminRights(MTP_flags(0)),
+				QString());
 		}), nullptr);
 	} else if (const auto channel = _peer->asChannel()) {
 		const auto adminRights = _additional.adminRights(user);
@@ -1627,7 +1667,10 @@ void ParticipantsBoxController::removeAdminSure(not_null<UserData*> user) {
 			return;
 		}
 		RemoveAdmin(channel, user, *adminRights, crl::guard(this, [=] {
-			editAdminDone(user, MTP_chatAdminRights(MTP_flags(0)));
+			editAdminDone(
+				user,
+				MTP_chatAdminRights(MTP_flags(0)),
+				QString());
 		}), nullptr);
 	}
 }
@@ -1819,9 +1862,9 @@ void ParticipantsBoxController::subscribeToCreatorChange(
 			MTP_int(Global::ChatSizeMax()),
 			MTP_int(0)
 		)).done([=](const MTPchannels_ChannelParticipants &result) {
-			channel->mgInfo->creator = channel->amCreator()
-				? channel->session().user().get()
-				: nullptr;
+			if (channel->amCreator()) {
+				channel->mgInfo->creator = channel->session().user().get();
+			}
 			channel->mgInfo->lastAdmins.clear();
 			channel->mgInfo->lastRestricted.clear();
 			channel->mgInfo->lastParticipants.clear();

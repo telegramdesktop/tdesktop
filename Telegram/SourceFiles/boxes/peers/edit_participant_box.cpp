@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text_options.h"
@@ -247,13 +248,15 @@ EditAdminBox::EditAdminBox(
 	QWidget*,
 	not_null<PeerData*> peer,
 	not_null<UserData*> user,
-	const MTPChatAdminRights &rights)
+	const MTPChatAdminRights &rights,
+	const QString &rank)
 : EditParticipantBox(
 	nullptr,
 	peer,
 	user,
 	(rights.c_chatAdminRights().vflags().v != 0))
-, _oldRights(rights) {
+, _oldRights(rights)
+, _oldRank(rank) {
 }
 
 MTPChatAdminRights EditAdminBox::Defaults(not_null<PeerData*> peer) {
@@ -362,6 +365,16 @@ void EditAdminBox::prepare() {
 		refreshAboutAddAdminsText(checked);
 	}, lifetime());
 
+	const auto rank = canSave()
+		? addControl(
+			object_ptr<Ui::InputField>(
+				this,
+				st::defaultInputField,
+				tr::lng_rights_edit_admin_header(),
+				_oldRank),
+			st::rightsAboutMargin)
+		: nullptr;
+
 	if (canSave()) {
 		addButton(tr::lng_settings_save(), [=, value = getChecked] {
 			if (!_saveCallback) {
@@ -373,7 +386,8 @@ void EditAdminBox::prepare() {
 					: channel->adminRights());
 			_saveCallback(
 				_oldRights,
-				MTP_chatAdminRights(MTP_flags(newFlags)));
+				MTP_chatAdminRights(MTP_flags(newFlags)),
+				rank->getLastText().trimmed());
 		});
 		addButton(tr::lng_cancel(), [this] { closeBox(); });
 	} else {

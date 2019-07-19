@@ -124,9 +124,8 @@ int KeyboardStyle::minButtonWidth(
 }
 
 QString MessageBadgeText(not_null<const HistoryMessage*> message) {
-	return message->hasAdminBadge()
-		? tr::lng_admin_badge(tr::now)
-		: tr::lng_channel_badge(tr::now);
+	const auto result = message->adminBadge();
+	return result.isEmpty() ? tr::lng_channel_badge(tr::now) : result;
 }
 
 QString FastReplyText() {

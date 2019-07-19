@@ -103,7 +103,8 @@ void ShowAddParticipantsError(
 				auto box = Box<EditAdminBox>(
 					channel,
 					user,
-					MTP_chatAdminRights(MTP_flags(0)));
+					MTP_chatAdminRights(MTP_flags(0)),
+					QString());
 				box->setSaveCallback(saveCallback);
 				*weak = Ui::show(std::move(box));
 			};

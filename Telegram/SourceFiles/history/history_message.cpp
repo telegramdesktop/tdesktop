@@ -637,30 +637,29 @@ bool HistoryMessage::updateDependencyItem() {
 }
 
 void HistoryMessage::updateAdminBadgeState() {
-	auto hasAdminBadge = [&] {
-		if (auto channel = history()->peer->asChannel()) {
-			if (auto user = author()->asUser()) {
-				return channel->isGroupAdmin(user);
-			}
+	_adminBadge = [&] {
+		const auto channel = history()->peer->asMegagroup();
+		const auto user = author()->asUser();
+		if (!channel || !user) {
+			return QString();
 		}
-		return false;
+		const auto info = channel->mgInfo.get();
+		const auto i = channel->mgInfo->admins.find(peerToUser(user->id));
+		return (i == channel->mgInfo->admins.end())
+			? (info->creator != user
+				? QString()
+				: info->creatorRank.isEmpty()
+				? tr::lng_admin_badge(tr::now)
+				: info->creatorRank)
+			: i->second.isEmpty()
+			? tr::lng_admin_badge(tr::now)
+			: i->second;
 	}();
-	if (hasAdminBadge) {
-		_flags |= MTPDmessage_ClientFlag::f_has_admin_badge;
-	} else {
-		_flags &= ~MTPDmessage_ClientFlag::f_has_admin_badge;
-	}
 }
 
 void HistoryMessage::applyGroupAdminChanges(
-		const base::flat_map<UserId, bool> &changes) {
-	auto i = changes.find(peerToUser(author()->id));
-	if (i != changes.end()) {
-		if (i->second) {
-			_flags |= MTPDmessage_ClientFlag::f_has_admin_badge;
-		} else {
-			_flags &= ~MTPDmessage_ClientFlag::f_has_admin_badge;
-		}
+		const base::flat_set<UserId> &changes) {
+	if (!out() && changes.contains(peerToUser(author()->id))) {
 		history()->owner().requestItemResize(this);
 	}
 }

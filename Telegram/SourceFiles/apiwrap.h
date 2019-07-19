@@ -570,10 +570,6 @@ private:
 		not_null<ChannelData*> channel,
 		int availableCount,
 		const QVector<MTPChannelParticipant> &list);
-	void applyAdminsList(
-		not_null<ChannelData*> channel,
-		int availableCount,
-		const QVector<MTPChannelParticipant> &list);
 	void resolveWebPages();
 	void gotWebPages(
 		ChannelData *channel,

@@ -62,10 +62,11 @@ public:
 	base::flat_set<not_null<PeerData*>> markupSenders;
 	base::flat_set<not_null<UserData*>> bots;
 
-	// For admin badges, full admins list.
-	base::flat_set<UserId> admins;
+	// For admin badges, full admins list with ranks.
+	base::flat_map<UserId, QString> admins;
 
 	UserData *creator = nullptr; // nullptr means unknown
+	QString creatorRank;
 	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 	bool joinedMessageFound = false;
 	MTPInputStickerSet stickerSet = MTP_inputStickerSetEmpty();
@@ -208,7 +209,8 @@ public:
 	void applyEditAdmin(
 		not_null<UserData*> user,
 		const MTPChatAdminRights &oldRights,
-		const MTPChatAdminRights &newRights);
+		const MTPChatAdminRights &newRights,
+		const QString &rank);
 	void applyEditBanned(
 		not_null<UserData*> user,
 		const MTPChatBannedRights &oldRights,
@@ -453,5 +455,9 @@ void ApplyChannelUpdate(
 void ApplyChannelUpdate(
 	not_null<ChannelData*> channel,
 	const MTPDchannelFull &update);
+
+void ApplyChannelAdmins(
+	not_null<ChannelData*> channel,
+	const MTPDchannels_channelParticipants &data);
 
 } // namespace Data

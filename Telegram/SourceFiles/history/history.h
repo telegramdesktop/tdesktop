@@ -90,8 +90,7 @@ public:
 	void clear(ClearType type);
 	void clearUpTill(MsgId availableMinId);
 
-	void applyGroupAdminChanges(
-		const base::flat_map<UserId, bool> &changes);
+	void applyGroupAdminChanges(const base::flat_set<UserId> &changes);
 
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 	HistoryItem *addToHistory(const MTPMessage &msg);

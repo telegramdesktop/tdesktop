@@ -553,11 +553,16 @@ void AddSpecialBoxController::showAdmin(
 		: adminRights
 		? *adminRights
 		: MTPChatAdminRights(MTP_chatAdminRights(MTP_flags(0)));
-	auto box = Box<EditAdminBox>(_peer, user, currentRights);
+	auto box = Box<EditAdminBox>(
+		_peer,
+		user,
+		currentRights,
+		_additional.adminRank(user));
 	if (_additional.canAddOrEditAdmin(user)) {
 		const auto done = crl::guard(this, [=](
-				const MTPChatAdminRights &newRights) {
-			editAdminDone(user, newRights);
+				const MTPChatAdminRights &newRights,
+				const QString &rank) {
+			editAdminDone(user, newRights, rank);
 		});
 		const auto fail = crl::guard(this, [=] {
 			if (_editParticipantBox) {
@@ -571,7 +576,8 @@ void AddSpecialBoxController::showAdmin(
 
 void AddSpecialBoxController::editAdminDone(
 		not_null<UserData*> user,
-		const MTPChatAdminRights &rights) {
+		const MTPChatAdminRights &rights,
+		const QString &rank) {
 	if (_editParticipantBox) {
 		_editParticipantBox->closeBox();
 	}
@@ -582,9 +588,11 @@ void AddSpecialBoxController::editAdminDone(
 			MTP_int(user->bareId()),
 			MTP_int(date)));
 	} else {
+		using Flag = MTPDchannelParticipantAdmin::Flag;
 		const auto alreadyPromotedBy = _additional.adminPromotedBy(user);
 		_additional.applyParticipant(MTP_channelParticipantAdmin(
-			MTP_flags(MTPDchannelParticipantAdmin::Flag::f_can_edit),
+			MTP_flags(Flag::f_can_edit
+				| (rank.isEmpty() ? Flag(0) : Flag::f_rank)),
 			MTP_int(user->bareId()),
 			MTPint(), // inviter_id
 			MTP_int(alreadyPromotedBy
@@ -592,10 +600,10 @@ void AddSpecialBoxController::editAdminDone(
 				: user->session().userId()),
 			MTP_int(date),
 			rights,
-			MTPstring())); // #TODO ranks
+			MTP_string(rank)));
 	}
 	if (const auto callback = _adminDoneCallback) {
-		callback(user, rights);
+		callback(user, rights, rank);
 	}
 }
 

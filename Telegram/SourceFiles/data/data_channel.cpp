@@ -194,7 +194,8 @@ MTPChatBannedRights ChannelData::KickedRestrictedRights() {
 void ChannelData::applyEditAdmin(
 		not_null<UserData*> user,
 		const MTPChatAdminRights &oldRights,
-		const MTPChatAdminRights &newRights) {
+		const MTPChatAdminRights &newRights,
+		const QString &rank) {
 	if (mgInfo) {
 		// If rights are empty - still add participant? TODO check
 		if (!base::contains(mgInfo->lastParticipants, user)) {
@@ -226,7 +227,7 @@ void ChannelData::applyEditAdmin(
 			} else {
 				it->second = lastAdmin;
 			}
-			Data::ChannelAdminChanges(this).feed(userId, true);
+			Data::ChannelAdminChanges(this).add(userId, rank);
 		} else {
 			if (it != mgInfo->lastAdmins.cend()) {
 				mgInfo->lastAdmins.erase(it);
@@ -234,7 +235,7 @@ void ChannelData::applyEditAdmin(
 					setAdminsCount(adminsCount() - 1);
 				}
 			}
-			Data::ChannelAdminChanges(this).feed(userId, false);
+			Data::ChannelAdminChanges(this).remove(userId);
 		}
 	}
 	if (oldRights.c_chatAdminRights().vflags().v && !newRights.c_chatAdminRights().vflags().v) {
@@ -307,7 +308,7 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChatBannedR
 				owner().removeMegagroupParticipant(this, user);
 			}
 		}
-		Data::ChannelAdminChanges(this).feed(peerToUser(user->id), false);
+		Data::ChannelAdminChanges(this).remove(peerToUser(user->id));
 	} else {
 		if (isKicked) {
 			if (membersCount() > 1) {
@@ -515,7 +516,7 @@ void ChannelData::setAdminRights(const MTPChatAdminRights &rights) {
 		}
 
 		auto amAdmin = hasAdminRights() || amCreator();
-		Data::ChannelAdminChanges(this).feed(session().userId(), amAdmin);
+		Data::ChannelAdminChanges(this).add(session().userId(), QString());
 	}
 	Notify::peerUpdatedDelayed(this, UpdateFlag::RightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BannedUsersChanged);
 }
@@ -535,7 +536,7 @@ void ChannelData::setRestrictions(const MTPChatBannedRights &rights) {
 				mgInfo->lastRestricted.emplace(self, me);
 			}
 			mgInfo->lastAdmins.remove(self);
-			Data::ChannelAdminChanges(this).feed(session().userId(), false);
+			Data::ChannelAdminChanges(this).remove(session().userId());
 		} else {
 			mgInfo->lastRestricted.remove(self);
 		}
@@ -738,6 +739,56 @@ void ApplyChannelUpdate(
 	channel->session().api().applyNotifySettings(
 		MTP_inputNotifyPeer(channel->input),
 		update.vnotify_settings());
+}
+
+void ApplyChannelAdmins(
+		not_null<ChannelData*> channel,
+		const MTPDchannels_channelParticipants &data) {
+	channel->owner().processUsers(data.vusers());
+
+	const auto &list = data.vparticipants().v;
+
+	auto adding = base::flat_map<UserId, QString>();
+	auto admins = ranges::make_iterator_range(
+		list.begin(), list.end()
+	) | ranges::view::transform([](const MTPChannelParticipant &p) {
+		const auto userId = p.match([](const auto &data) {
+			return data.vuser_id().v;
+		});
+		const auto rank = p.match([](const MTPDchannelParticipantAdmin &data) {
+			return qs(data.vrank().value_or_empty());
+		}, [](const MTPDchannelParticipantCreator &data) {
+			return qs(data.vrank().value_or_empty());
+		}, [](const auto &data) {
+			return QString();
+		});
+		return std::make_pair(userId, rank);
+	});
+	for (const auto &[userId, rank] : admins) {
+		adding.emplace(userId, rank);
+	}
+	if (channel->mgInfo->creator) {
+		adding.emplace(
+			peerToUser(channel->mgInfo->creator->id),
+			channel->mgInfo->creatorRank);
+	}
+	auto removing = channel->mgInfo->admins;
+	if (removing.empty() && adding.empty()) {
+		// Add some admin-placeholder so we don't DDOS
+		// server with admins list requests.
+		LOG(("API Error: Got empty admins list from server."));
+		adding.emplace(0, QString());
+	}
+
+	Data::ChannelAdminChanges changes(channel);
+	for (const auto &[addingId, rank] : adding) {
+		if (!removing.remove(addingId)) {
+			changes.add(addingId, rank);
+		}
+	}
+	for (const auto &[removingId, rank] : removing) {
+		changes.remove(removingId);
+	}
 }
 
 } // namespace Data

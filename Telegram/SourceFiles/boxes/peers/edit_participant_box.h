@@ -68,10 +68,14 @@ public:
 		QWidget*,
 		not_null<PeerData*> peer,
 		not_null<UserData*> user,
-		const MTPChatAdminRights &rights);
+		const MTPChatAdminRights &rights,
+		const QString &rank);
 
 	void setSaveCallback(
-			Fn<void(MTPChatAdminRights, MTPChatAdminRights)> callback) {
+			Fn<void(
+				MTPChatAdminRights,
+				MTPChatAdminRights,
+				const QString &rank)> callback) {
 		_saveCallback = std::move(callback);
 	}
 
@@ -93,14 +97,18 @@ private:
 		not_null<ChannelData*> channel,
 		const Core::CloudPasswordResult &result);
 	bool canSave() const {
-		return !!_saveCallback;
+		return _saveCallback != nullptr;
 	}
 	void refreshAboutAddAdminsText(bool canAddAdmins);
 	bool canTransferOwnership() const;
 	not_null<Ui::SlideWrap<Ui::RpWidget>*> setupTransferButton(bool isGroup);
 
 	const MTPChatAdminRights _oldRights;
-	Fn<void(MTPChatAdminRights, MTPChatAdminRights)> _saveCallback;
+	const QString _oldRank;
+	Fn<void(
+		MTPChatAdminRights,
+		MTPChatAdminRights,
+		const QString &rank)> _saveCallback;
 
 	QPointer<Ui::FlatLabel> _aboutAddAdmins;
 	mtpRequestId _checkTransferRequestId = 0;

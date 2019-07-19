@@ -80,7 +80,7 @@ public:
 		return true;
 	}
 	virtual void applyGroupAdminChanges(
-		const base::flat_map<UserId, bool> &changes) {
+		const base::flat_set<UserId> &changes) {
 	}
 
 	UserData *viaBot() const;

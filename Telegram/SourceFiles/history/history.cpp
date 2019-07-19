@@ -1100,7 +1100,7 @@ void History::applyServiceChanges(
 					mgInfo->botStatus = -1;
 				}
 			}
-			Data::ChannelAdminChanges(megagroup).feed(uid, false);
+			Data::ChannelAdminChanges(megagroup).remove(uid);
 		}
 	} break;
 
@@ -3093,8 +3093,7 @@ void History::clearUpTill(MsgId availableMinId) {
 	owner().sendHistoryChangeNotifications();
 }
 
-void History::applyGroupAdminChanges(
-		const base::flat_map<UserId, bool> &changes) {
+void History::applyGroupAdminChanges(const base::flat_set<UserId> &changes) {
 	for (const auto &block : blocks) {
 		for (const auto &message : block->messages) {
 			message->data()->applyGroupAdminChanges(changes);

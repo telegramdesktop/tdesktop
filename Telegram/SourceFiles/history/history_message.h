@@ -104,13 +104,16 @@ public:
 	[[nodiscard]] bool allowsEdit(TimeId now) const override;
 	[[nodiscard]] bool uploading() const;
 
+	[[nodiscard]] QString adminBadge() const {
+		return _adminBadge;
+	}
 	[[nodiscard]] bool hasAdminBadge() const {
-		return _flags & MTPDmessage_ClientFlag::f_has_admin_badge;
+		return !_adminBadge.isEmpty();
 	}
 	[[nodiscard]] bool hasMessageBadge() const;
 
 	void applyGroupAdminChanges(
-		const base::flat_map<UserId, bool> &changes) override;
+		const base::flat_set<UserId> &changes) override;
 
 	void setViewsCount(int32 count) override;
 	void setRealId(MsgId newId) override;
@@ -179,6 +182,7 @@ private:
 
 	void updateAdminBadgeState();
 
+	QString _adminBadge;
 	QString _timeText;
 	int _timeWidth = 0;
 
