@@ -638,6 +638,22 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 				}
 
 				document->checkStickerSmall();
+				auto w = 1;
+				auto h = 1;
+				if (sticker.animated && !document->dimensions.isEmpty()) {
+					const auto request = Lottie::FrameRequest{ stickerBoundingBox() * cIntRetinaFactor() };
+					const auto size = request.size(document->dimensions) / cIntRetinaFactor();
+					w = std::max(size.width(), 1);
+					h = std::max(size.height(), 1);
+				} else {
+					const auto coef = std::max(
+						std::min(
+							(st::stickerPanSize.width() - st::buttonRadius * 2) / float64(document->dimensions.width()),
+							(st::stickerPanSize.height() - st::buttonRadius * 2) / float64(document->dimensions.height())),
+						1.);
+					w = std::max(qRound(coef * document->dimensions.width()), 1);
+					h = std::max(qRound(coef * document->dimensions.height()), 1);
+				}
 				if (sticker.animated && sticker.animated->ready()) {
 					const auto frame = sticker.animated->frame();
 					sticker.animated->markFrameShown();
@@ -649,11 +665,6 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 						QRect(ppos, size),
 						frame);
 				} else if (const auto image = document->getStickerSmall()) {
-					float64 coef = qMin((st::stickerPanSize.width() - st::buttonRadius * 2) / float64(document->dimensions.width()), (st::stickerPanSize.height() - st::buttonRadius * 2) / float64(document->dimensions.height()));
-					if (coef > 1) coef = 1;
-					int32 w = qRound(coef * document->dimensions.width()), h = qRound(coef * document->dimensions.height());
-					if (w < 1) w = 1;
-					if (h < 1) h = 1;
 					QPoint ppos = pos + QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
 					p.drawPixmapLeft(ppos, width(), image->pix(document->stickerSetOrigin(), w, h));
 				}
@@ -978,10 +989,7 @@ void FieldAutocompleteInner::setupLottie(StickerSuggestion &suggestion) {
 	suggestion.animated = Stickers::LottiePlayerFromDocument(
 		document,
 		Stickers::LottieSize::InlineResults,
-		QSize(
-			st::stickerPanSize.width() - st::buttonRadius * 2,
-			st::stickerPanSize.height() - st::buttonRadius * 2
-		) * cIntRetinaFactor(),
+		stickerBoundingBox() * cIntRetinaFactor(),
 		Lottie::Quality::Default,
 		getLottieRenderer());
 
@@ -989,6 +997,12 @@ void FieldAutocompleteInner::setupLottie(StickerSuggestion &suggestion) {
 	) | rpl::start_with_next([=] {
 		repaintSticker(document);
 	}, _stickersLifetime);
+}
+
+QSize FieldAutocompleteInner::stickerBoundingBox() const {
+	return QSize(
+		st::stickerPanSize.width() - st::buttonRadius * 2,
+		st::stickerPanSize.height() - st::buttonRadius * 2);
 }
 
 void FieldAutocompleteInner::repaintSticker(

@@ -1660,10 +1660,19 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 
 	document->checkStickerSmall();
 
-	auto coef = qMin((_singleSize.width() - st::buttonRadius * 2) / float64(document->dimensions.width()), (_singleSize.height() - st::buttonRadius * 2) / float64(document->dimensions.height()));
-	if (coef > 1) coef = 1;
-	auto w = qMax(qRound(coef * document->dimensions.width()), 1);
-	auto h = qMax(qRound(coef * document->dimensions.height()), 1);
+	auto w = 1;
+	auto h = 1;
+	if (sticker.animated && !document->dimensions.isEmpty()) {
+		const auto request = Lottie::FrameRequest{ boundingBoxSize() * cIntRetinaFactor() };
+		const auto size = request.size(document->dimensions) / cIntRetinaFactor();
+		w = std::max(size.width(), 1);
+		h = std::max(size.height(), 1);
+	} else {
+		auto coef = qMin((_singleSize.width() - st::buttonRadius * 2) / float64(document->dimensions.width()), (_singleSize.height() - st::buttonRadius * 2) / float64(document->dimensions.height()));
+		if (coef > 1) coef = 1;
+		w = std::max(qRound(coef * document->dimensions.width()), 1);
+		h = std::max(qRound(coef * document->dimensions.height()), 1);
+	}
 	auto ppos = pos + QPoint((_singleSize.width() - w) / 2, (_singleSize.height() - h) / 2);
 	if (sticker.animated && sticker.animated->ready()) {
 		auto request = Lottie::FrameRequest();

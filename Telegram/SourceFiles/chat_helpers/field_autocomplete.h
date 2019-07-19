@@ -193,6 +193,7 @@ private:
 	void showPreview();
 	void selectByMouse(QPoint global);
 
+	QSize stickerBoundingBox() const;
 	void setupLottie(StickerSuggestion &suggestion);
 	void repaintSticker(not_null<DocumentData*> document);
 	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
