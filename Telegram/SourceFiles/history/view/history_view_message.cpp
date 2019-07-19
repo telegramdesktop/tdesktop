@@ -123,11 +123,6 @@ int KeyboardStyle::minButtonWidth(
 	return result;
 }
 
-QString MessageBadgeText(not_null<const HistoryMessage*> message) {
-	const auto result = message->adminBadge();
-	return result.isEmpty() ? tr::lng_channel_badge(tr::now) : result;
-}
-
 QString FastReplyText() {
 	return tr::lng_fast_reply(tr::now);
 }
@@ -238,9 +233,6 @@ QSize Message::performCountOptimalSize() {
 		if (reply) {
 			reply->updateName();
 		}
-		if (displayFromName()) {
-			item->updateAdminBadgeState();
-		}
 
 		auto mediaDisplayed = false;
 		if (media) {
@@ -306,8 +298,7 @@ QSize Message::performCountOptimalSize() {
 					? st::msgFont->width(FastReplyText())
 					: 0;
 				if (item->hasMessageBadge()) {
-					const auto badgeWidth = st::msgFont->width(
-						MessageBadgeText(item));
+					const auto badgeWidth = item->messageBadge().maxWidth();
 					namew += st::msgPadding.right()
 						+ std::max(badgeWidth, replyWidth);
 				} else if (replyWidth) {
@@ -525,7 +516,7 @@ void Message::paintFromName(
 	if (displayFromName()) {
 		const auto badgeWidth = [&] {
 			if (item->hasMessageBadge()) {
-				return st::msgFont->width(MessageBadgeText(item));
+				return item->messageBadge().maxWidth();
 			}
 			return 0;
 		}();
@@ -577,10 +568,18 @@ void Message::paintFromName(
 			p.setFont(ClickHandler::showAsActive(_fastReplyLink)
 				? st::msgFont->underline()
 				: st::msgFont);
-			p.drawText(
-				trect.left() + trect.width() - rightWidth,
-				trect.top() + st::msgFont->ascent,
-				replyWidth ? FastReplyText() : MessageBadgeText(item));
+			if (replyWidth) {
+				p.drawText(
+					trect.left() + trect.width() - rightWidth,
+					trect.top() + st::msgFont->ascent,
+					FastReplyText());
+			} else {
+				item->messageBadge().draw(
+					p,
+					trect.left() + trect.width() - rightWidth,
+					trect.top(),
+					rightWidth);
+			}
 		}
 		trect.setY(trect.y() + st::msgNameFont->height);
 	}
@@ -1551,7 +1550,7 @@ void Message::fromNameUpdated(int width) const {
 		? st::msgFont->width(FastReplyText())
 		: 0;
 	if (item->hasMessageBadge()) {
-		const auto badgeWidth = st::msgFont->width(MessageBadgeText(item));
+		const auto badgeWidth = item->messageBadge().maxWidth();
 		width -= st::msgPadding.right() + std::max(badgeWidth, replyWidth);
 	} else if (replyWidth) {
 		width -= st::msgPadding.right() + replyWidth;

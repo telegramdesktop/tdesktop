@@ -438,7 +438,7 @@ void GroupInfoBox::prepare() {
 		_initialTitle);
 	_title->setMaxLength(kMaxGroupChannelTitle);
 	_title->setInstantReplaces(Ui::InstantReplaces::Default());
-	_title ->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	_title->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_title);

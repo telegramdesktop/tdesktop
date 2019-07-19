@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/text_options.h"
 #include "ui/special_buttons.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
 #include "info/profile/info_profile_button.h"
 #include "settings/settings_privacy_security.h"
 #include "boxes/calendar_box.h"
@@ -412,6 +413,11 @@ not_null<Ui::InputField*> EditAdminBox::addRankInput() {
 			_oldRank),
 		st::rightsAboutMargin);
 	result->setMaxLength(kAdminRoleLimit);
+	result->setInstantReplaces(Ui::InstantReplaces::Default());
+	result->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		result);
 
 	addControl(
 		object_ptr<Ui::FlatLabel>(

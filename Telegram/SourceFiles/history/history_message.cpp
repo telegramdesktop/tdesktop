@@ -421,6 +421,8 @@ HistoryMessage::HistoryMessage(
 		setGroupId(
 			MessageGroupId::FromRaw(history->peer->id, groupedId->v));
 	}
+
+	refreshMessageBadge();
 }
 
 HistoryMessage::HistoryMessage(
@@ -636,8 +638,11 @@ bool HistoryMessage::updateDependencyItem() {
 	return true;
 }
 
-void HistoryMessage::updateAdminBadgeState() {
-	_adminBadge = [&] {
+void HistoryMessage::refreshMessageBadge() {
+	const auto text = [&] {
+		if (isDiscussionPost()) {
+			return tr::lng_channel_badge(tr::now);
+		}
 		const auto channel = history()->peer->asMegagroup();
 		const auto user = author()->asUser();
 		if (!channel || !user) {
@@ -655,11 +660,19 @@ void HistoryMessage::updateAdminBadgeState() {
 			? tr::lng_admin_badge(tr::now)
 			: i->second;
 	}();
+	if (text.isEmpty()) {
+		_messageBadge.clear();
+	} else {
+		_messageBadge.setText(
+			st::defaultTextStyle,
+			TextUtilities::SingleLine(text));
+	}
 }
 
 void HistoryMessage::applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) {
 	if (!out() && changes.contains(peerToUser(author()->id))) {
+		refreshMessageBadge();
 		history()->owner().requestItemResize(this);
 	}
 }
@@ -669,10 +682,6 @@ bool HistoryMessage::allowsForward() const {
 		return false;
 	}
 	return !_media || _media->allowsForward();
-}
-
-bool HistoryMessage::hasMessageBadge() const {
-	return hasAdminBadge() || isDiscussionPost();
 }
 
 bool HistoryMessage::isTooOldForEdit(TimeId now) const {

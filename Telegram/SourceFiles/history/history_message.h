@@ -104,13 +104,12 @@ public:
 	[[nodiscard]] bool allowsEdit(TimeId now) const override;
 	[[nodiscard]] bool uploading() const;
 
-	[[nodiscard]] QString adminBadge() const {
-		return _adminBadge;
+	[[nodiscard]] const Ui::Text::String &messageBadge() const {
+		return _messageBadge;
 	}
-	[[nodiscard]] bool hasAdminBadge() const {
-		return !_adminBadge.isEmpty();
+	[[nodiscard]] bool hasMessageBadge() const {
+		return !_messageBadge.isEmpty();
 	}
-	[[nodiscard]] bool hasMessageBadge() const;
 
 	void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) override;
@@ -180,9 +179,10 @@ private:
 		CreateConfig &config,
 		const MTPDmessageFwdHeader &data);
 
-	void updateAdminBadgeState();
+	void refreshMessageBadge();
 
-	QString _adminBadge;
+	Ui::Text::String _messageBadge;
+
 	QString _timeText;
 	int _timeWidth = 0;
 
