@@ -187,7 +187,7 @@ if composing:
     if not os.path.exists(templatePath):
         finish(1, 'Template file "' + templatePath + '" not found.')
 
-    if not re.match(r'^[a-f0-9]{40}$', lastCommit):
+    if not re.match(r'^[a-f0-9]{9,40}$', lastCommit):
         finish(1, 'Wrong last commit: ' + lastCommit)
 
     log = subprocess.check_output(['git', 'log', lastCommit+'..HEAD'])

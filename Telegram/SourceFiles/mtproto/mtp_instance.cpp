@@ -1096,9 +1096,11 @@ bool Instance::Private::hasCallbacks(mtpRequestId requestId) {
 }
 
 void Instance::Private::globalCallback(const mtpPrime *from, const mtpPrime *end) {
-	if (_globalHandler.onDone) {
-		(*_globalHandler.onDone)(0, from, end); // some updates were received
+	if (!_globalHandler.onDone) {
+		return;
 	}
+	// Handle updates.
+	[[maybe_unused]] bool result = (*_globalHandler.onDone)(0, from, end);
 }
 
 void Instance::Private::onStateChange(int32 dcWithShift, int32 state) {

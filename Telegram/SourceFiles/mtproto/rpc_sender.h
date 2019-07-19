@@ -67,7 +67,7 @@ inline bool isDefaultHandledError(const RPCError &error) {
 
 class RPCAbstractDoneHandler { // abstract done
 public:
-	virtual [[nodiscard]] bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) = 0;
+	[[nodiscard]] virtual bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) = 0;
 	virtual ~RPCAbstractDoneHandler() {
 	}
 
@@ -476,7 +476,7 @@ private:
 
 };
 
-template <typename T, typename TReturn, typename TReceiver>
+template <typename T, typename TReceiver>
 class RPCBindedDoneHandlerBareOwnedReq : public RPCOwnedDoneHandler { // done(b, from, end, req_id)
 	using CallbackType = bool (TReceiver::*)(T, const mtpPrime *, const mtpPrime *, mtpRequestId);
 
@@ -718,9 +718,9 @@ public:
 		return RPCDoneHandlerPtr(new RPCDoneHandlerBareOwned<TReturn, TReceiver>(static_cast<TReceiver*>(this), onDone));
 	}
 
-	template <typename TReturn, typename TReceiver> // done(from, end, req_id)
-	RPCDoneHandlerPtr rpcDone(TReturn (TReceiver::*onDone)(const mtpPrime *, const mtpPrime *, mtpRequestId)) {
-		return RPCDoneHandlerPtr(new RPCDoneHandlerBareOwnedReq<TReturn, TReceiver>(static_cast<TReceiver*>(this), onDone));
+	template <typename TReceiver> // done(from, end, req_id)
+	RPCDoneHandlerPtr rpcDone(bool (TReceiver::*onDone)(const mtpPrime *, const mtpPrime *, mtpRequestId)) {
+		return RPCDoneHandlerPtr(new RPCDoneHandlerBareOwnedReq<TReceiver>(static_cast<TReceiver*>(this), onDone));
 	}
 
 	template <typename TReturn, typename TReceiver, typename TResponse> // done(result)
@@ -763,14 +763,14 @@ public:
 		return RPCFailHandlerPtr(new RPCFailHandlerOwnedNo<TReceiver>(static_cast<TReceiver*>(this), onFail));
 	}
 
-	template <typename T, typename TReturn, typename TReceiver> // done(b, from, end)
-	RPCDoneHandlerPtr rpcDone(TReturn (TReceiver::*onDone)(T, const mtpPrime *, const mtpPrime *), T b) {
-		return RPCDoneHandlerPtr(new RPCBindedDoneHandlerBareOwned<T, TReturn, TReceiver>(b, static_cast<TReceiver*>(this), onDone));
+	template <typename T, typename TReceiver> // done(b, from, end)
+	RPCDoneHandlerPtr rpcDone(bool (TReceiver::*onDone)(T, const mtpPrime *, const mtpPrime *), T b) {
+		return RPCDoneHandlerPtr(new RPCBindedDoneHandlerBareOwned<T, TReceiver>(b, static_cast<TReceiver*>(this), onDone));
 	}
 
-	template <typename T, typename TReturn, typename TReceiver> // done(b, from, end, req_id)
-	RPCDoneHandlerPtr rpcDone(TReturn (TReceiver::*onDone)(T, const mtpPrime *, const mtpPrime *, mtpRequestId), T b) {
-		return RPCDoneHandlerPtr(new RPCBindedDoneHandlerBareOwnedReq<T, TReturn, TReceiver>(b, static_cast<TReceiver*>(this), onDone));
+	template <typename T, typename TReceiver> // done(b, from, end, req_id)
+	RPCDoneHandlerPtr rpcDone(bool (TReceiver::*onDone)(T, const mtpPrime *, const mtpPrime *, mtpRequestId), T b) {
+		return RPCDoneHandlerPtr(new RPCBindedDoneHandlerBareOwnedReq<T, TReceiver>(b, static_cast<TReceiver*>(this), onDone));
 	}
 
 	template <typename T, typename TReturn, typename TReceiver, typename TResponse> // done(b, result)

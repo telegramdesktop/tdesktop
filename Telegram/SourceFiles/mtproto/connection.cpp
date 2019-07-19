@@ -1637,7 +1637,7 @@ void ConnectionPrivate::handleReceived() {
 }
 
 ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPrime *from, const mtpPrime *end, uint64 msgId, int32 serverTime, uint64 serverSalt, bool badTime) {
-	const auto cons = *from;
+	const auto cons = mtpTypeId(*from);
 
 	switch (cons) {
 
