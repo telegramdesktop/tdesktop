@@ -1671,9 +1671,10 @@ hpj hta htt inf ini ins inx isp isu its jar jnlp job js jse ksh lnk local \
 mad maf mag mam manifest maq mar mas mat mau mav maw mcf mda mdb mde mdt \
 mdw mdz mht mhtml mmc mof msc msg msh msh1 msh2 msh1xml msh2xml mshxml msi \
 msp mst ops osd paf pcd pif pl plg prf prg ps1 ps2 ps1xml ps2xml psc1 psc2 \
-pst reg rgs scf scr sct search-ms settingcontent-ms shb shs slk sys tmp \
-u3p url vb vbe vbp vbs vbscript vdx vsmacros vsd vsdm vsdx vss vssm vssx \
-vst vstm vstx vsw vsx vtx website ws wsc wsf wsh xbap xll xnk");
+pst py py3 pyc pyd pyo pyw pywz pyz reg rgs scf scr sct search-ms \
+settingcontent-ms shb shs slk sys tmp u3p url vb vbe vbp vbs vbscript vdx \
+vsmacros vsd vsdm vsdx vss vssm vssx vst vstm vstx vsw vsx vtx website ws \
+wsc wsf wsh xbap xll xnk");
 #endif // !Q_OS_MAC && !Q_OS_LINUX
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());
