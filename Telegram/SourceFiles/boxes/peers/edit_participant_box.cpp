@@ -365,7 +365,7 @@ void EditAdminBox::prepare() {
 		))->setDuration(0);
 	}
 	_aboutAddAdmins = addControl(
-		object_ptr<Ui::FlatLabel>(this, st::boxLabel),
+		object_ptr<Ui::FlatLabel>(this, st::boxDividerLabel),
 		st::rightsAboutMargin);
 	std::move(
 		selectedFlags
@@ -405,11 +405,18 @@ not_null<Ui::InputField*> EditAdminBox::addRankInput() {
 		object_ptr<BoxContentDivider>(this),
 		st::rightsRankMargin);
 
+	addControl(
+		object_ptr<Ui::FlatLabel>(
+			this,
+			tr::lng_rights_edit_admin_rank_name(),
+			st::rightsHeaderLabel),
+		st::rightsHeaderMargin);
+
 	const auto result = addControl(
 		object_ptr<Ui::InputField>(
 			this,
-			st::defaultInputField,
-			tr::lng_rights_edit_admin_rank_name(),
+			st::customBadgeField,
+			(amCreator() ? tr::lng_owner_badge : tr::lng_admin_badge)(),
 			_oldRank),
 		st::rightsAboutMargin);
 	result->setMaxLength(kAdminRoleLimit);
@@ -422,7 +429,9 @@ not_null<Ui::InputField*> EditAdminBox::addRankInput() {
 	addControl(
 		object_ptr<Ui::FlatLabel>(
 			this,
-			tr::lng_rights_edit_admin_rank_about(),
+			tr::lng_rights_edit_admin_rank_about(
+				lt_title,
+				(amCreator() ? tr::lng_owner_badge : tr::lng_admin_badge)()),
 			st::boxDividerLabel),
 		st::rightsAboutMargin);
 

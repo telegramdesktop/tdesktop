@@ -650,15 +650,18 @@ void HistoryMessage::refreshMessageBadge() {
 		}
 		const auto info = channel->mgInfo.get();
 		const auto i = channel->mgInfo->admins.find(peerToUser(user->id));
-		return (i == channel->mgInfo->admins.end())
-			? (info->creator != user
-				? QString()
-				: info->creatorRank.isEmpty()
-				? tr::lng_admin_badge(tr::now)
-				: info->creatorRank)
-			: i->second.isEmpty()
+		const auto custom = (i != channel->mgInfo->admins.end())
+			? i->second
+			: (info->creator == user)
+			? info->creatorRank
+			: QString();
+		return !custom.isEmpty()
+			? custom
+			: (info->creator == user)
+			? tr::lng_owner_badge(tr::now)
+			: (i != channel->mgInfo->admins.end())
 			? tr::lng_admin_badge(tr::now)
-			: i->second;
+			: QString();
 	}();
 	if (text.isEmpty()) {
 		_messageBadge.clear();
