@@ -561,7 +561,7 @@ void MainWindow::psFirstShow() {
 				LOG(("Could not get Unity Launcher entry!"));
 			}
 		} else {
-			LOG(("SNAP Enviroment detected, setting Launcher entry to %1-telegramdesktop.desktop!").arg(snapName));
+			LOG(("SNAP Environment detected, setting Launcher entry to %1-telegramdesktop.desktop!").arg(snapName));
 			_desktopFile = snapName + "_telegramdesktop.desktop";
 			useUnityCount=true;
 		}
