@@ -24,6 +24,7 @@ struct ToUpperType {
 
 inline constexpr auto Upper = details::ToUpperType{};
 TextWithEntities Bold(const QString &text);
+TextWithEntities Italic(const QString &text);
 TextWithEntities Link(
 	const QString &text,
 	const QString &url = "internal:action");
@@ -38,6 +39,10 @@ inline auto ToUpper() {
 
 inline auto ToBold() {
 	return rpl::map(Bold);
+}
+
+inline auto ToItalic() {
+	return rpl::map(Italic);
 }
 
 inline auto ToLink(const QString &url = "internal:action") {
