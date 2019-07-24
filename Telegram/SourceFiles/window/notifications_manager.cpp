@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace Window {
 namespace Notifications {
@@ -35,7 +35,7 @@ constexpr auto kWaitingForAllGroupedDelay = crl::time(1000);
 
 } // namespace
 
-System::System(not_null<AuthSession*> session)
+System::System(not_null<Main::Session*> session)
 : _session(session)
 , _waitTimer([=] { showNext(); })
 , _waitForAllGroupedTimer([=] { showGrouped(); }) {
@@ -66,7 +66,7 @@ void System::schedule(
 		not_null<HistoryItem*> item) {
 	if (App::quitting()
 		|| !history->currentNotification()
-		|| !AuthSession::Exists()) return;
+		|| !Main::Session::Exists()) return;
 
 	const auto notifyBy = (!history->peer->isUser() && item->mentionsMe())
 		? item->from().get()

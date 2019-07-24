@@ -13,7 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "ui/special_buttons.h"
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace HistoryView {
 class TopBarWidget;

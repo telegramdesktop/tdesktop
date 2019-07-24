@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/event_filter.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Ui {

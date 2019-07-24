@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/text/text_entity.h"
 
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "lang/lang_tag.h"
 #include "base/qthelp_url.h"
 #include "ui/emoji_config.h"

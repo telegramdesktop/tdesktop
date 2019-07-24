@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace Storage {
 namespace {

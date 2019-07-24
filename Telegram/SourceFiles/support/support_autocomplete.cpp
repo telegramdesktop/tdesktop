@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "base/unixtime.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
@@ -325,7 +325,7 @@ AdminLog::OwnedItem GenerateContactItem(
 
 } // namespace
 
-Autocomplete::Autocomplete(QWidget *parent, not_null<AuthSession*> session)
+Autocomplete::Autocomplete(QWidget *parent, not_null<Main::Session*> session)
 : RpWidget(parent)
 , _session(session) {
 	setupContent();

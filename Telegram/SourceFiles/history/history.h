@@ -23,7 +23,10 @@ class HistoryItem;
 class HistoryMessage;
 class HistoryService;
 class HistoryMedia;
-class AuthSession;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Data {
 struct Draft;

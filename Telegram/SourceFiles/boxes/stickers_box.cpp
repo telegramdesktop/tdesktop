@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/image/image.h"
 #include "window/window_session_controller.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 
@@ -611,7 +611,7 @@ void StickersBox::saveChanges() {
 	if (_someArchivedLoaded) {
 		Local::writeArchivedStickers();
 	}
-	if (AuthSession::Exists()) {
+	if (Main::Session::Exists()) {
 		Auth().api().saveStickerSets(_installed.widget()->getOrder(), _installed.widget()->getRemovedSets());
 	}
 }

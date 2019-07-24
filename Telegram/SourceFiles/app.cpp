@@ -40,7 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "numbers.h"
 #include "observer_peer.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "styles/style_overview.h"
 #include "styles/style_mediaview.h"
 #include "styles/style_chat_helpers.h"
@@ -314,7 +314,7 @@ namespace App {
 	void quit() {
 		if (quitting()) {
 			return;
-		} else if (AuthSession::Exists()
+		} else if (Main::Session::Exists()
 			&& Auth().data().exportInProgress()) {
 			Auth().data().stopExportWithConfirmation([] { App::quit(); });
 			return;

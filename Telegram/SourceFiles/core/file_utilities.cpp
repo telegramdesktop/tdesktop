@@ -148,7 +148,7 @@ QString DefaultDownloadPath() {
 	return QStandardPaths::writableLocation(
 		QStandardPaths::DownloadLocation)
 		+ '/'
-		+ (AuthSession::Exists() && Auth().supportMode()
+		+ (Main::Session::Exists() && Auth().supportMode()
 			? "Tsupport Desktop"
 			: str_const_toString(AppName))
 		+ '/';

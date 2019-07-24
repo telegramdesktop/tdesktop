@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"

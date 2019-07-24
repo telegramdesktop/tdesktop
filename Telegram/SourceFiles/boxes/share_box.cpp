@@ -33,11 +33,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "core/application.h"
 #include "styles/style_boxes.h"
 #include "styles/style_history.h"
-
 
 class ShareBox::Inner
 	: public Ui::RpWidget
@@ -1106,7 +1105,7 @@ void ShareGameScoreByHash(const QString &hash) {
 	}
 
 	auto hashDataInts = reinterpret_cast<int32*>(hashData.data());
-	if (!AuthSession::Exists() || hashDataInts[0] != Auth().userId()) {
+	if (!Main::Session::Exists() || hashDataInts[0] != Auth().userId()) {
 		Ui::show(Box<InformBox>(tr::lng_share_wrong_user(tr::now)));
 		return;
 	}

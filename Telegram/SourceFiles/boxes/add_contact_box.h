@@ -13,11 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ConfirmBox;
 class PeerListBox;
-class AuthSession;
 
-constexpr auto kMaxBioLength = 70;
-
-style::InputField CreateBioFieldStyle();
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Ui {
 class FlatLabel;
@@ -33,11 +32,16 @@ class LinkButton;
 class UserpicButton;
 } // namespace Ui
 
+constexpr auto kMaxBioLength = 70;
+
 enum class PeerFloodType {
 	Send,
 	InviteGroup,
 	InviteChannel,
 };
+
+style::InputField CreateBioFieldStyle();
+
 QString PeerFloodErrorText(PeerFloodType type);
 void ShowAddParticipantsError(
 	const QString &error,
@@ -46,10 +50,10 @@ void ShowAddParticipantsError(
 
 class AddContactBox : public BoxContent {
 public:
-	AddContactBox(QWidget*, not_null<AuthSession*> session);
+	AddContactBox(QWidget*, not_null<Main::Session*> session);
 	AddContactBox(
 		QWidget*,
-		not_null<AuthSession*> session,
+		not_null<Main::Session*> session,
 		QString fname,
 		QString lname,
 		QString phone);
@@ -69,7 +73,7 @@ private:
 	void updateButtons();
 	void importDone(const MTPcontacts_ImportedContacts &result);
 
-	const not_null<AuthSession*> _session;
+	const not_null<Main::Session*> _session;
 
 	object_ptr<Ui::InputField> _first;
 	object_ptr<Ui::InputField> _last;
@@ -94,7 +98,7 @@ public:
 	};
 	GroupInfoBox(
 		QWidget*,
-		not_null<AuthSession*> session,
+		not_null<Main::Session*> session,
 		Type type,
 		const QString &title = QString(),
 		Fn<void(not_null<ChannelData*>)> channelDone = nullptr);
@@ -114,7 +118,7 @@ private:
 	void descriptionResized();
 	void updateMaxHeight();
 
-	const not_null<AuthSession*> _session;
+	const not_null<Main::Session*> _session;
 
 	Type _type = Type::Group;
 	QString _initialTitle;
@@ -227,7 +231,7 @@ class RevokePublicLinkBox : public BoxContent, public RPCSender {
 public:
 	RevokePublicLinkBox(
 		QWidget*,
-		not_null<AuthSession*> session,
+		not_null<Main::Session*> session,
 		Fn<void()> revokeCallback);
 
 protected:
@@ -236,7 +240,7 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	const not_null<AuthSession*> _session;
+	const not_null<Main::Session*> _session;
 
 	object_ptr<Ui::FlatLabel> _aboutRevoke;
 

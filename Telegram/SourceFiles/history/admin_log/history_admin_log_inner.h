@@ -16,7 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "base/timer.h"
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace HistoryView {
 class Element;
@@ -50,7 +52,7 @@ public:
 		not_null<Window::SessionController*> controller,
 		not_null<ChannelData*> channel);
 
-	AuthSession &session() const;
+	Main::Session &session() const;
 
 	base::Observable<void> showSearchSignal;
 	base::Observable<int> scrollToSignal;

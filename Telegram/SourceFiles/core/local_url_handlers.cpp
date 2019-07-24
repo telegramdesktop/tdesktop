@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 
 namespace Core {
@@ -34,7 +34,7 @@ namespace {
 using Match = qthelp::RegularExpressionMatch;
 
 bool JoinGroupByHash(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+	if (!Main::Session::Exists()) {
 		return false;
 	}
 	const auto hash = match->captured(1);
@@ -62,7 +62,7 @@ bool JoinGroupByHash(const Match &match, const QVariant &context) {
 }
 
 bool ShowStickerSet(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+	if (!Main::Session::Exists()) {
 		return false;
 	}
 	Core::App().hideMediaView();
@@ -79,7 +79,7 @@ bool SetLanguage(const Match &match, const QVariant &context) {
 }
 
 bool ShareUrl(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+	if (!Main::Session::Exists()) {
 		return false;
 	}
 	auto params = url_parse_params(
@@ -94,7 +94,7 @@ bool ShareUrl(const Match &match, const QVariant &context) {
 }
 
 bool ConfirmPhone(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+	if (!Main::Session::Exists()) {
 		return false;
 	}
 	auto params = url_parse_params(
@@ -110,7 +110,7 @@ bool ConfirmPhone(const Match &match, const QVariant &context) {
 }
 
 bool ShareGameScore(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+	if (!Main::Session::Exists()) {
 		return false;
 	}
 	const auto params = url_parse_params(
@@ -167,7 +167,7 @@ bool ShowPassport(const Match &match, const QVariant &context) {
 }
 
 bool ShowWallPaper(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+	if (!Main::Session::Exists()) {
 		return false;
 	}
 	const auto params = url_parse_params(
@@ -179,7 +179,7 @@ bool ShowWallPaper(const Match &match, const QVariant &context) {
 }
 
 bool ResolveUsername(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+	if (!Main::Session::Exists()) {
 		return false;
 	}
 	const auto params = url_parse_params(
@@ -229,7 +229,7 @@ bool ResolveUsername(const Match &match, const QVariant &context) {
 }
 
 bool ResolvePrivatePost(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+	if (!Main::Session::Exists()) {
 		return false;
 	}
 	const auto params = url_parse_params(
@@ -274,7 +274,7 @@ bool ResolvePrivatePost(const Match &match, const QVariant &context) {
 }
 
 bool HandleUnknown(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+	if (!Main::Session::Exists()) {
 		return false;
 	}
 	const auto request = match->captured(1);

@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_types.h"
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Data {
 class Session;
@@ -20,7 +22,7 @@ public:
 	PhotoData(not_null<Data::Session*> owner, PhotoId id);
 
 	[[nodiscard]] Data::Session &owner() const;
-	[[nodiscard]] AuthSession &session() const;
+	[[nodiscard]] Main::Session &session() const;
 
 	void automaticLoad(
 		Data::FileOrigin origin,

@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/text_options.h"
 #include "data/data_peer.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "styles/style_profile.h"
 #include "styles/style_widgets.h"
 

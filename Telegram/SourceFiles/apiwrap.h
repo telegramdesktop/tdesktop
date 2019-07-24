@@ -16,12 +16,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 
 class TaskQueue;
-class AuthSession;
 struct MessageGroupId;
 struct SendingAlbum;
 enum class SendMediaType;
 struct FileLoadTo;
 class mtpFileLoader;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Data {
 struct UpdatedFileReferences;
@@ -132,9 +135,9 @@ public:
 		bool operator!=(const BlockedUsersSlice &other) const;
 	};
 
-	explicit ApiWrap(not_null<AuthSession*> session);
+	explicit ApiWrap(not_null<Main::Session*> session);
 
-	AuthSession &session() const;
+	Main::Session &session() const;
 
 	void applyUpdates(
 		const MTPUpdates &updates,
@@ -710,7 +713,7 @@ private:
 
 	void sendDialogRequests();
 
-	not_null<AuthSession*> _session;
+	not_null<Main::Session*> _session;
 
 	base::flat_map<QString, int> _modifyRequests;
 

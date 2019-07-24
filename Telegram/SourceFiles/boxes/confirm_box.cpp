@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "base/unixtime.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "observer_peer.h"
 
 TextParseOptions _confirmBoxTextOptions = {

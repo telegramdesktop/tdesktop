@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/auth_key.h"
 #include "base/timer.h"
 
-class AuthSessionSettings;
 class MainWindow;
 class MainWidget;
 class FileUploader;
@@ -140,7 +139,7 @@ public:
 		return *_account;
 	}
 
-	// AuthSession component.
+	// Main::Session component.
 	int unreadBadge() const;
 	bool unreadBadgeMuted() const;
 

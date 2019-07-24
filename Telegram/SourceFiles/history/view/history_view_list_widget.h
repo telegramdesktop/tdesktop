@@ -15,7 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "history/view/history_view_element.h"
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Ui {
 class PopupMenu;
@@ -130,7 +132,7 @@ public:
 		not_null<Window::SessionController*> controller,
 		not_null<ListDelegate*> delegate);
 
-	AuthSession &session() const;
+	Main::Session &session() const;
 
 	not_null<ListDelegate*> delegate() const;
 

@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 #include "storage/localimageloader.h"
 #include "core/sandbox.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "styles/style_boxes.h"
@@ -273,7 +273,7 @@ TimeId OccupiedBySomeoneTill(History *history) {
 
 } // namespace
 
-Helper::Helper(not_null<AuthSession*> session)
+Helper::Helper(not_null<Main::Session*> session)
 : _session(session)
 , _templates(_session)
 , _reoccupyTimer([=] { reoccupy(); })
@@ -291,7 +291,7 @@ Helper::Helper(not_null<AuthSession*> session)
 	}).send();
 }
 
-std::unique_ptr<Helper> Helper::Create(not_null<AuthSession*> session) {
+std::unique_ptr<Helper> Helper::Create(not_null<Main::Session*> session) {
 	//return std::make_unique<Helper>(session); AssertIsDebug();
 	const auto valid = session->user()->phone().startsWith(qstr("424"));
 	return valid ? std::make_unique<Helper>(session) : nullptr;

@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "core/shortcuts.h"
 #include "ui/special_buttons.h"
@@ -145,7 +145,7 @@ TopBarWidget::TopBarWidget(
 
 TopBarWidget::~TopBarWidget() = default;
 
-AuthSession &TopBarWidget::session() const {
+Main::Session &TopBarWidget::session() const {
 	return _controller->session();
 }
 

@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
 #include "mtproto/sender.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace InlineBots {
 class Result;
@@ -57,7 +57,7 @@ public:
 		Mode mode = Mode::Full);
 	~TabbedSelector();
 
-	AuthSession &session() const;
+	Main::Session &session() const;
 
 	rpl::producer<EmojiPtr> emojiChosen() const;
 	rpl::producer<not_null<DocumentData*>> fileChosen() const;

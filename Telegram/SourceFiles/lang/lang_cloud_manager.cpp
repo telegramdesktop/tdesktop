@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "core/application.h"
 #include "apiwrap.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "boxes/confirm_box.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/labels.h"
@@ -238,7 +238,7 @@ void CloudManager::setSuggestedLanguage(const QString &langCode) {
 		_languageWasSuggested = true;
 		_firstLanguageSuggestion.notify();
 
-		if (AuthSession::Exists()
+		if (Main::Session::Exists()
 			&& _langpack.id().isEmpty()
 			&& !_suggestedLanguage.isEmpty()) {
 			_offerSwitchToId = _suggestedLanguage;
@@ -372,7 +372,7 @@ bool CloudManager::canApplyWithoutRestart(const QString &id) const {
 	}
 
 	// We don't support instant language switch if the auth session exists :(
-	return !AuthSession::Exists();
+	return !Main::Session::Exists();
 }
 
 void CloudManager::resetToDefault() {

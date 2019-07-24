@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "mainwidget.h"
 #include "observer_peer.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace Main {
 
@@ -95,14 +95,14 @@ void Account::createSession(const MTPUser &user) {
 		return true;
 	}));
 
-	_session = std::make_unique<AuthSession>(this, user);
+	_session = std::make_unique<Session>(this, user);
 	_sessionValue = _session.get();
 }
 
 void Account::destroySession() {
-	_storedAuthSession.reset();
-	_authSessionUserId = 0;
-	_authSessionUserSerialized = {};
+	_storedSettings.reset();
+	_sessionUserId = 0;
+	_sessionUserSerialized = {};
 	if (!sessionExists()) {
 		return;
 	}
@@ -120,23 +120,23 @@ bool Account::sessionExists() const {
 	return (_sessionValue.current() != nullptr);
 }
 
-AuthSession &Account::session() {
+Session &Account::session() {
 	Expects(sessionExists());
 
 	return *_sessionValue.current();
 }
 
-const AuthSession &Account::session() const {
+const Session &Account::session() const {
 	Expects(sessionExists());
 
 	return *_sessionValue.current();
 }
 
-rpl::producer<AuthSession*> Account::sessionValue() const {
+rpl::producer<Session*> Account::sessionValue() const {
 	return _sessionValue.value();
 }
 
-rpl::producer<AuthSession*> Account::sessionChanges() const {
+rpl::producer<Session*> Account::sessionChanges() const {
 	return _sessionValue.changes();
 }
 
@@ -214,29 +214,29 @@ QByteArray Account::serializeMtpAuthorization() const {
 	return serialize(_mtpConfig.mainDcId, keys, keysToDestroy);
 }
 
-void Account::setAuthSessionUserId(UserId userId) {
+void Account::setSessionUserId(UserId userId) {
 	Expects(!sessionExists());
 
-	_authSessionUserId = userId;
+	_sessionUserId = userId;
 }
 
-void Account::setAuthSessionFromStorage(
-		std::unique_ptr<AuthSessionSettings> data,
+void Account::setSessionFromStorage(
+		std::unique_ptr<Settings> data,
 		QByteArray &&selfSerialized,
 		int32 selfStreamVersion) {
 	Expects(!sessionExists());
 
-	DEBUG_LOG(("authSessionUserSerialized set: %1"
+	DEBUG_LOG(("sessionUserSerialized set: %1"
 		).arg(selfSerialized.size()));
 
-	_storedAuthSession = std::move(data);
-	_authSessionUserSerialized = std::move(selfSerialized);
-	_authSessionUserStreamVersion = selfStreamVersion;
+	_storedSettings = std::move(data);
+	_sessionUserSerialized = std::move(selfSerialized);
+	_sessionUserStreamVersion = selfStreamVersion;
 }
 
-AuthSessionSettings *Account::getAuthSessionSettings() {
-	if (_authSessionUserId) {
-		return _storedAuthSession ? _storedAuthSession.get() : nullptr;
+Settings *Account::getSessionSettings() {
+	if (_sessionUserId) {
+		return _storedSettings ? _storedSettings.get() : nullptr;
 	} else if (sessionExists()) {
 		return &session().settings();
 	}
@@ -257,7 +257,7 @@ void Account::setMtpAuthorization(const QByteArray &serialized) {
 		return;
 	}
 
-	setAuthSessionUserId(userId);
+	setSessionUserId(userId);
 	_mtpConfig.mainDcId = mainDcId;
 
 	const auto readKeys = [&stream](auto &keys) {
@@ -315,19 +315,19 @@ void Account::startMtp() {
 		destroyMtpKeys(base::take(_mtpKeysToDestroy));
 	}
 
-	if (_authSessionUserId) {
-		DEBUG_LOG(("authSessionUserSerialized.size: %1"
-			).arg(_authSessionUserSerialized.size()));
-		QDataStream peekStream(_authSessionUserSerialized);
+	if (_sessionUserId) {
+		DEBUG_LOG(("sessionUserSerialized.size: %1"
+			).arg(_sessionUserSerialized.size()));
+		QDataStream peekStream(_sessionUserSerialized);
 		const auto phone = Serialize::peekUserPhone(
-			_authSessionUserStreamVersion,
+			_sessionUserStreamVersion,
 			peekStream);
 		const auto flags = MTPDuser::Flag::f_self | (phone.isEmpty()
 			? MTPDuser::Flag()
 			: MTPDuser::Flag::f_phone);
 		createSession(MTP_user(
 			MTP_flags(flags),
-			MTP_int(base::take(_authSessionUserId)),
+			MTP_int(base::take(_sessionUserId)),
 			MTPlong(), // access_hash
 			MTPstring(), // first_name
 			MTPstring(), // last_name
@@ -340,14 +340,14 @@ void Account::startMtp() {
 			MTPstring(), // bot_inline_placeholder
 			MTPstring())); // lang_code
 		Local::readSelf(
-			base::take(_authSessionUserSerialized),
-			base::take(_authSessionUserStreamVersion));
+			base::take(_sessionUserSerialized),
+			base::take(_sessionUserStreamVersion));
 	}
-	if (_storedAuthSession) {
+	if (_storedSettings) {
 		if (sessionExists()) {
-			session().moveSettingsFrom(std::move(*_storedAuthSession));
+			session().moveSettingsFrom(std::move(*_storedSettings));
 		}
-		_storedAuthSession.reset();
+		_storedSettings.reset();
 	}
 
 	if (sessionExists()) {

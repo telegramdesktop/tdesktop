@@ -71,7 +71,7 @@ QString FormatVersionPrecise(int version) {
 
 } // namespace
 
-Changelogs::Changelogs(not_null<AuthSession*> session, int oldVersion)
+Changelogs::Changelogs(not_null<Main::Session*> session, int oldVersion)
 : _session(session)
 , _oldVersion(oldVersion) {
 	_session->data().chatsListChanges(
@@ -83,7 +83,7 @@ Changelogs::Changelogs(not_null<AuthSession*> session, int oldVersion)
 }
 
 std::unique_ptr<Changelogs> Changelogs::Create(
-		not_null<AuthSession*> session) {
+		not_null<Main::Session*> session) {
 	const auto oldVersion = Local::oldMapVersion();
 	return (oldVersion > 0 && oldVersion < AppVersion)
 		? std::make_unique<Changelogs>(session, oldVersion)

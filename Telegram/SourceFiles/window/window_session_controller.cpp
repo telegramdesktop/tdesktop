@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/calendar_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "support/support_helper.h"
 #include "styles/style_window.h"
@@ -52,11 +52,11 @@ void DateClickHandler::onClick(ClickContext context) const {
 	App::wnd()->sessionController()->showJumpToDate(_chat, _date);
 }
 
-SessionNavigation::SessionNavigation(not_null<AuthSession*> session)
+SessionNavigation::SessionNavigation(not_null<Main::Session*> session)
 : _session(session) {
 }
 
-AuthSession &SessionNavigation::session() const {
+Main::Session &SessionNavigation::session() const {
 	return *_session;
 }
 
@@ -98,7 +98,7 @@ void SessionNavigation::showSettings(const SectionShow &params) {
 }
 
 SessionController::SessionController(
-	not_null<AuthSession*> session,
+	not_null<Main::Session*> session,
 	not_null<MainWindow*> window)
 : SessionNavigation(session)
 , _window(window) {

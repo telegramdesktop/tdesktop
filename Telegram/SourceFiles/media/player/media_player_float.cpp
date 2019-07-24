@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "window/window_session_controller.h"
 #include "window/section_widget.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "styles/style_media_player.h"
 #include "styles/style_history.h"
 

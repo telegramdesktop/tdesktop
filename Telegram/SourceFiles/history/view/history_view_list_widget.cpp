@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/toast/toast.h"
 #include "lang/lang_keys.h"
@@ -295,7 +295,7 @@ ListWidget::ListWidget(
 	});
 }
 
-AuthSession &ListWidget::session() const {
+Main::Session &ListWidget::session() const {
 	return _controller->session();
 }
 

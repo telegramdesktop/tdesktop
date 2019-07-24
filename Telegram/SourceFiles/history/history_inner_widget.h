@@ -52,7 +52,7 @@ public:
 		Ui::ScrollArea *scroll,
 		not_null<History*> history);
 
-	AuthSession &session() const;
+	Main::Session &session() const;
 
 	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
 	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);

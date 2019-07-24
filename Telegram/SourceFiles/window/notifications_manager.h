@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Platform {
 namespace Notifications {
@@ -55,7 +57,7 @@ class Manager;
 
 class System final : private base::Subscriber {
 public:
-	explicit System(not_null<AuthSession*> session);
+	explicit System(not_null<Main::Session*> session);
 
 	void createManager();
 
@@ -71,7 +73,7 @@ public:
 		return _settingsChanged;
 	}
 
-	AuthSession &session() const {
+	Main::Session &session() const {
 		return *_session;
 	}
 
@@ -82,7 +84,7 @@ private:
 	void showGrouped();
 	void ensureSoundCreated();
 
-	not_null<AuthSession*> _session;
+	not_null<Main::Session*> _session;
 
 	QMap<History*, QMap<MsgId, crl::time>> _whenMaps;
 

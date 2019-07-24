@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/dc_options.h"
 #include "core/application.h"
 #include "apiwrap.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "base/flags.h"
 #include "data/data_session.h"
@@ -598,7 +598,7 @@ enum {
 	dbiDcOptions = 0x4a,
 	dbiMtpAuthorization = 0x4b,
 	dbiLastSeenWarningSeenOld = 0x4c,
-	dbiAuthSessionSettings = 0x4d,
+	dbiSessionSettings = 0x4d,
 	dbiLangPackKey = 0x4e,
 	dbiConnectionType = 0x4f,
 	dbiStickersFavedLimit = 0x50,
@@ -700,12 +700,12 @@ enum class WriteMapWhen {
 	Soon,
 };
 
-std::unique_ptr<AuthSessionSettings> StoredAuthSessionCache;
-AuthSessionSettings &GetStoredAuthSessionCache() {
-	if (!StoredAuthSessionCache) {
-		StoredAuthSessionCache = std::make_unique<AuthSessionSettings>();
+std::unique_ptr<Main::Settings> StoredSessionSettings;
+Main::Settings &GetStoredSessionSettings() {
+	if (!StoredSessionSettings) {
+		StoredSessionSettings = std::make_unique<Main::Settings>();
 	}
-	return *StoredAuthSessionCache;
+	return *StoredSessionSettings;
 }
 
 void _writeMap(WriteMapWhen when = WriteMapWhen::Soon);
@@ -974,7 +974,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 
 		DEBUG_LOG(("MTP Info: user found, dc %1, uid %2").arg(dcId).arg(userId));
 		Core::App().activeAccount().setMtpMainDcId(dcId);
-		Core::App().activeAccount().setAuthSessionUserId(userId);
+		Core::App().activeAccount().setSessionUserId(userId);
 	} break;
 
 	case dbiKey: {
@@ -1083,7 +1083,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		using namespace Data::AutoDownload;
-		auto &settings = GetStoredAuthSessionCache().autoDownload();
+		auto &settings = GetStoredSessionSettings().autoDownload();
 		const auto disabled = [](qint32 value, qint32 mask) {
 			return (value & mask) != 0;
 		};
@@ -1141,7 +1141,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		GetStoredAuthSessionCache().setIncludeMutedCounter(v == 1);
+		GetStoredSessionSettings().setIncludeMutedCounter(v == 1);
 	} break;
 
 	case dbiShowingSavedGifsOld: {
@@ -1194,7 +1194,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		GetStoredAuthSessionCache().setDialogsWidthRatio(v / 1000000.);
+		GetStoredSessionSettings().setDialogsWidthRatio(v / 1000000.);
 	} break;
 
 	case dbiLastSeenWarningSeenOld: {
@@ -1202,15 +1202,15 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		GetStoredAuthSessionCache().setLastSeenWarningSeen(v == 1);
+		GetStoredSessionSettings().setLastSeenWarningSeen(v == 1);
 	} break;
 
-	case dbiAuthSessionSettings: {
+	case dbiSessionSettings: {
 		QByteArray v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		GetStoredAuthSessionCache().constructFromSerialized(v);
+		GetStoredSessionSettings().constructFromSerialized(v);
 	} break;
 
 	case dbiWorkMode: {
@@ -1540,7 +1540,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 			&& unchecked != SendSettings::CtrlEnter) {
 			return false;
 		}
-		GetStoredAuthSessionCache().setSendSubmitWay(unchecked);
+		GetStoredSessionSettings().setSendSubmitWay(unchecked);
 	} break;
 
 	case dbiCatsAndDogs: { // deprecated
@@ -1671,7 +1671,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		GetStoredAuthSessionCache().setSendFilesWay((v == 1)
+		GetStoredSessionSettings().setSendFilesWay((v == 1)
 			? SendFilesWay::Album
 			: SendFilesWay::Files);
 	} break;
@@ -2033,9 +2033,9 @@ void _writeUserSettings() {
 			recentEmojiPreloadData.push_back(qMakePair(item.first->id(), item.second));
 		}
 	}
-	auto userDataInstance = StoredAuthSessionCache
-		? StoredAuthSessionCache.get()
-		: Core::App().activeAccount().getAuthSessionSettings();
+	auto userDataInstance = StoredSessionSettings
+		? StoredSessionSettings.get()
+		: Core::App().activeAccount().getSessionSettings();
 	auto userData = userDataInstance
 		? userDataInstance->serialize()
 		: QByteArray();
@@ -2091,7 +2091,7 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 	data.stream << quint32(dbiCacheSettings) << qint64(_cacheTotalSizeLimit) << qint32(_cacheTotalTimeLimit) << qint64(_cacheBigFileTotalSizeLimit) << qint32(_cacheBigFileTotalTimeLimit);
 	if (!userData.isEmpty()) {
-		data.stream << quint32(dbiAuthSessionSettings) << userData;
+		data.stream << quint32(dbiSessionSettings) << userData;
 	}
 	data.stream << quint32(dbiPlaybackSpeed) << qint32(Global::VoiceMsgPlaybackDoubled() ? 2 : 1);
 
@@ -2389,8 +2389,8 @@ ReadMapState _readMap(const QByteArray &pass) {
 	_readMtpData();
 
 	DEBUG_LOG(("selfSerialized set: %1").arg(selfSerialized.size()));
-	Core::App().activeAccount().setAuthSessionFromStorage(
-		std::move(StoredAuthSessionCache),
+	Core::App().activeAccount().setSessionFromStorage(
+		std::move(StoredSessionSettings),
 		std::move(selfSerialized),
 		_oldMapVersion);
 
@@ -2437,7 +2437,7 @@ void _writeMap(WriteMapWhen when) {
 
 	uint32 mapSize = 0;
 	const auto self = [] {
-		if (!AuthSession::Exists()) {
+		if (!Main::Session::Exists()) {
 			DEBUG_LOG(("AuthSelf Warning: Session does not exist."));
 			return QByteArray();
 		}
@@ -2791,7 +2791,7 @@ void reset() {
 	_cacheTotalTimeLimit = Database::Settings().totalTimeLimit;
 	_cacheBigFileTotalSizeLimit = Database::Settings().totalSizeLimit;
 	_cacheBigFileTotalTimeLimit = Database::Settings().totalTimeLimit;
-	StoredAuthSessionCache.reset();
+	StoredSessionSettings.reset();
 	_mapChanged = true;
 	_writeMap(WriteMapWhen::Now);
 

@@ -16,10 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ApiWrap;
 enum class SendFilesWay;
 
-namespace Main {
-class Account;
-} // namespace Main
-
 namespace Ui {
 enum class InputSubmitSettings;
 } // namespace Ui
@@ -59,9 +55,13 @@ namespace Core {
 class Changelogs;
 } // namespace Core
 
-class AuthSessionSettings final {
+namespace Main {
+
+class Account;
+
+class Settings final {
 public:
-	void moveFrom(AuthSessionSettings &&other) {
+	void moveFrom(Settings &&other) {
 		_variables = std::move(other._variables);
 	}
 	QByteArray serialize() const;
@@ -284,18 +284,15 @@ private:
 
 };
 
-class AuthSession;
-AuthSession &Auth();
-
-class AuthSession final
+class Session final
 	: public base::has_weak_ptr
 	, private base::Subscriber {
 public:
-	AuthSession(not_null<Main::Account*> account, const MTPUser &user);
-	~AuthSession();
+	Session(not_null<Main::Account*> account, const MTPUser &user);
+	~Session();
 
-	AuthSession(const AuthSession &other) = delete;
-	AuthSession &operator=(const AuthSession &other) = delete;
+	Session(const Session &other) = delete;
+	Session &operator=(const Session &other) = delete;
 
 	static bool Exists();
 
@@ -327,10 +324,10 @@ public:
 	Data::Session &data() {
 		return *_data;
 	}
-	AuthSessionSettings &settings() {
+	Settings &settings() {
 		return _settings;
 	}
-	void moveSettingsFrom(AuthSessionSettings &&other);
+	void moveSettingsFrom(Settings &&other);
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 
 	not_null<MTP::Instance*> mtp();
@@ -363,7 +360,7 @@ private:
 
 	const not_null<Main::Account*> _account;
 
-	AuthSessionSettings _settings;
+	Settings _settings;
 	base::Timer _saveDataTimer;
 
 	crl::time _shouldLockAt = 0;
@@ -388,3 +385,7 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+} // namespace Main
+
+Main::Session &Auth();

@@ -89,7 +89,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/export_settings.h"
 #include "export/view/export_view_top_bar.h"
 #include "export/view/export_view_panel_controller.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "support/support_helper.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
@@ -156,7 +156,7 @@ bool HasForceLogoutNotification(const MTPUpdates &updates) {
 }
 
 bool ForwardedInfoDataLoaded(
-		not_null<AuthSession*> session,
+		not_null<Main::Session*> session,
 		const MTPMessageFwdHeader &header) {
 	return header.match([&](const MTPDmessageFwdHeader &data) {
 		if (const auto channelId = data.vchannel_id()) {
@@ -181,7 +181,7 @@ bool ForwardedInfoDataLoaded(
 }
 
 bool MentionUsersLoaded(
-		not_null<AuthSession*> session,
+		not_null<Main::Session*> session,
 		const MTPVector<MTPMessageEntity> &entities) {
 	for (const auto &entity : entities.v) {
 		auto type = entity.type();
@@ -202,7 +202,7 @@ bool MentionUsersLoaded(
 }
 
 DataIsLoadedResult AllDataLoadedForMessage(
-		not_null<AuthSession*> session,
+		not_null<Main::Session*> session,
 		const MTPMessage &message) {
 	return message.match([&](const MTPDmessage &message) {
 		if (const auto fromId = message.vfrom_id()) {
@@ -488,7 +488,7 @@ MainWidget::MainWidget(
 	}
 }
 
-AuthSession &MainWidget::session() const {
+Main::Session &MainWidget::session() const {
 	return _controller->session();
 }
 

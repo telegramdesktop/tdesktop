@@ -40,7 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h" // Account::sessionValue.
 #include "base/unixtime.h"
 #include "observer_peer.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "layout.h"
 #include "storage/file_download.h"
 #include "calls/calls_instance.h"
@@ -236,9 +236,9 @@ OverlayWidget::OverlayWidget()
 
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 
-	// While we have one mediaview for all authsessions we have to do this.
+	// While we have one mediaview for all sessions we have to do this.
 	Core::App().activeAccount().sessionValue(
-	) | rpl::start_with_next([=](AuthSession *session) {
+	) | rpl::start_with_next([=](Main::Session *session) {
 		if (session) {
 			subscribe(session->downloaderTaskFinished(), [=] {
 				if (!isHidden()) {

@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "storage/serialize_common.h"
 #include "core/application.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace Data {
 namespace {

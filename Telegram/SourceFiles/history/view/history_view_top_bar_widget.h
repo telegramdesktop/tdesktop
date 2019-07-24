@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Ui {
 class AbstractButton;
@@ -43,7 +45,7 @@ public:
 		not_null<Window::SessionController*> controller);
 	~TopBarWidget();
 
-	AuthSession &session() const;
+	Main::Session &session() const;
 
 	void updateControlsVisibility();
 	void finishAnimating();

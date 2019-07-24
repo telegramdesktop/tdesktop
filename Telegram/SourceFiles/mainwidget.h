@@ -14,13 +14,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_float.h"
 #include "data/data_pts_waiter.h"
 
-class AuthSession;
 struct HistoryMessageMarkupButton;
 class MainWindow;
 class ConfirmBox;
 class HistoryWidget;
 class StackItem;
 struct FileLoadResult;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Notify {
 struct PeerUpdate;
@@ -99,7 +102,7 @@ public:
 
 	MainWidget(QWidget *parent, not_null<Window::SessionController*> controller);
 
-	AuthSession &session() const;
+	Main::Session &session() const;
 
 	bool isMainSectionShown() const;
 	bool isThirdSectionShown() const;

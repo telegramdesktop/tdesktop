@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "core/sandbox.h"
 #include "core/application.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "intro/introwidget.h"
 #include "main/main_account.h" // Account::sessionValue.
 #include "mainwidget.h"
@@ -83,7 +83,7 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 	setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
 
 	account().sessionValue(
-	) | rpl::start_with_next([=](AuthSession *session) {
+	) | rpl::start_with_next([=](Main::Session *session) {
 		updateGlobalMenu();
 		if (!session) {
 			_mediaPreview.destroy();

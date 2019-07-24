@@ -28,7 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/stickers_box.h"
 #include "boxes/confirm_box.h"
 #include "window/window_session_controller.h" // GifPauseReason.
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "styles/style_chat_helpers.h"
@@ -850,7 +850,7 @@ StickersListWidget::StickersListWidget(
 	}));
 }
 
-AuthSession &StickersListWidget::session() const {
+Main::Session &StickersListWidget::session() const {
 	return controller()->session();
 }
 

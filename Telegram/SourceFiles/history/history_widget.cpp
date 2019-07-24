@@ -73,7 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/text_options.h"
 #include "ui/unread_badge.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"

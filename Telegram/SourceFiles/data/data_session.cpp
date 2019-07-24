@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 
 #include "observer_peer.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "core/application.h"
@@ -157,7 +157,7 @@ MTPPhotoSize FindDocumentThumbnail(const MTPDdocument &data) {
 }
 
 rpl::producer<int> PinnedDialogsCountMaxValue(
-		not_null<AuthSession*> session) {
+		not_null<Main::Session*> session) {
 	return rpl::single(
 		rpl::empty_value()
 	) | rpl::then(
@@ -189,7 +189,7 @@ bool PruneDestroyedAndSet(
 
 } // namespace
 
-Session::Session(not_null<AuthSession*> session)
+Session::Session(not_null<Main::Session*> session)
 : _session(session)
 , _cache(Core::App().databases().get(
 	Local::cachePath(),

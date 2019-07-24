@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_service.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_context_menu.h" // For CopyPostLink().
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "boxes/share_box.h"
 #include "boxes/confirm_box.h"
 #include "ui/toast/toast.h"

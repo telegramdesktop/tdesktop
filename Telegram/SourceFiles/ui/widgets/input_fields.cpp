@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_countries.h" // Data::ValidPhoneCode
 #include "mainwindow.h"
 #include "numbers.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "core/application.h"
 
 namespace Ui {
@@ -4321,7 +4321,7 @@ void PhoneInput::focusInEvent(QFocusEvent *e) {
 
 void PhoneInput::clearText() {
 	QString phone;
-	if (AuthSession::Exists()) {
+	if (Main::Session::Exists()) {
 		const auto self = Auth().user();
 		QVector<int> newPattern = phoneNumberParse(self->phone());
 		if (!newPattern.isEmpty()) {

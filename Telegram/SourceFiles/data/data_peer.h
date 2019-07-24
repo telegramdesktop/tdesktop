@@ -11,18 +11,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_flags.h"
 #include "data/data_notify_settings.h"
 
-namespace Ui {
-class EmptyUserpic;
-} // namespace Ui
-
-class AuthSession;
 class PeerData;
 class UserData;
 class ChatData;
 class ChannelData;
 
+namespace Ui {
+class EmptyUserpic;
+} // namespace Ui
+
 namespace Main {
 class Account;
+class Session;
 } // namespace Main
 
 namespace Data {
@@ -125,7 +125,7 @@ public:
 	static constexpr auto kServiceNotificationsId = peerFromUser(777000);
 
 	[[nodiscard]] Data::Session &owner() const;
-	[[nodiscard]] AuthSession &session() const;
+	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] Main::Account &account() const;
 
 	[[nodiscard]] bool isUser() const {

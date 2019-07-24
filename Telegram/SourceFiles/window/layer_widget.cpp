@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "window/window_main_menu.h"
 #include "lottie/lottie_single_player.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "chat_helpers/stickers.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"

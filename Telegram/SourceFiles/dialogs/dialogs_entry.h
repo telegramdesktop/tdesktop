@@ -11,7 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_key.h"
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Data {
 class Session;
@@ -93,7 +95,7 @@ public:
 	virtual ~Entry() = default;
 
 	Data::Session &owner() const;
-	AuthSession &session() const;
+	Main::Session &session() const;
 
 	PositionChange adjustByPosInChatList(Mode list);
 	bool inChatList(Mode list = Mode::All) const {

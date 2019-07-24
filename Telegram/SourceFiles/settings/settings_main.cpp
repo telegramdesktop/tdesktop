@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "window/window_session_controller.h"
 #include "core/file_utilities.h"
@@ -233,7 +233,7 @@ void SetupHelp(not_null<Ui::VerticalLayout*> container) {
 
 	SetupFaq(container);
 
-	if (AuthSession::Exists()) {
+	if (::Main::Session::Exists()) {
 		const auto button = AddButton(
 			container,
 			tr::lng_settings_ask_question(),

@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/confirm_phone_box.h"
 #include "mainwindow.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "storage/localstorage.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"

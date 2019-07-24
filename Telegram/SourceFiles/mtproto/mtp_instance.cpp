@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "calls/calls_instance.h"
 #include "main/main_account.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "core/application.h"
 #include "base/unixtime.h"
@@ -1130,7 +1130,7 @@ bool Instance::Private::rpcErrorOccured(mtpRequestId requestId, const RPCFailHan
 }
 
 bool Instance::Private::hasAuthorization() {
-	return AuthSession::Exists();
+	return Main::Session::Exists();
 }
 
 void Instance::Private::importDone(const MTPauth_Authorization &result, mtpRequestId requestId) {

@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "boxes/confirm_box.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "core/application.h"
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
@@ -108,7 +108,7 @@ Data::Session &PeerData::owner() const {
 	return *_owner;
 }
 
-AuthSession &PeerData::session() const {
+Main::Session &PeerData::session() const {
 	return _owner->session();
 }
 

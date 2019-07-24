@@ -17,7 +17,8 @@ namespace Settings {
 int ExceptionUsersCount(const std::vector<not_null<PeerData*>> &exceptions);
 
 bool CheckEditCloudPassword();
-object_ptr<BoxContent> EditCloudPasswordBox(not_null<AuthSession*> session);
+object_ptr<BoxContent> EditCloudPasswordBox(
+	not_null<::Main::Session*> session);
 void RemoveCloudPassword();
 object_ptr<BoxContent> CloudPasswordAppOutdatedBox();
 

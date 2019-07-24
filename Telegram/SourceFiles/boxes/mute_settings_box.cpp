@@ -8,7 +8,7 @@ Copyright (C) 2017, Nicholas Guriev <guriev-ns@ya.ru>
 #include "boxes/mute_settings_box.h"
 
 #include "lang/lang_keys.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "data/data_session.h"
 #include "styles/style_boxes.h"
 #include "ui/special_buttons.h"

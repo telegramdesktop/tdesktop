@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "ui/image/image.h"
 #include "mainwidget.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace InlineBots {
 namespace {

@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_message.h" // NewMessageFlags.
 #include "ui/text/text_entity.h" // TextWithEntities.
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
 

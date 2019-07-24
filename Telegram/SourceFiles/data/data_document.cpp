@@ -453,7 +453,7 @@ Data::Session &DocumentData::owner() const {
 	return *_owner;
 }
 
-AuthSession &DocumentData::session() const {
+Main::Session &DocumentData::session() const {
 	return _owner->session();
 }
 

@@ -445,6 +445,8 @@
 <(src_loc)/lang/lang_values.h
 <(src_loc)/main/main_account.cpp
 <(src_loc)/main/main_account.h
+<(src_loc)/main/main_session.cpp
+<(src_loc)/main/main_session.h
 <(src_loc)/media/audio/media_audio.cpp
 <(src_loc)/media/audio/media_audio.h
 <(src_loc)/media/audio/media_audio_capture.cpp
@@ -874,8 +876,6 @@
 <(src_loc)/apiwrap.h
 <(src_loc)/app.cpp
 <(src_loc)/app.h
-<(src_loc)/auth_session.cpp
-<(src_loc)/auth_session.h
 <(src_loc)/config.h
 <(src_loc)/facades.cpp
 <(src_loc)/facades.h

@@ -28,7 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "layout.h"
 #include "window/window_session_controller.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
@@ -277,7 +277,7 @@ InnerWidget::InnerWidget(
 	requestAdmins();
 }
 
-AuthSession &InnerWidget::session() const {
+Main::Session &InnerWidget::session() const {
 	return _controller->session();
 }
 

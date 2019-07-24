@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
@@ -475,7 +475,7 @@ bool CheckEditCloudPassword() {
 	return false;
 }
 
-object_ptr<BoxContent> EditCloudPasswordBox(not_null<AuthSession*> session) {
+object_ptr<BoxContent> EditCloudPasswordBox(not_null<Main::Session*> session) {
 	const auto current = session->api().passwordStateCurrent();
 	Assert(current.has_value());
 

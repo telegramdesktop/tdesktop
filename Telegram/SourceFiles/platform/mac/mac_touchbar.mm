@@ -10,7 +10,7 @@
 #import <QuartzCore/QuartzCore.h>
 
 #include "apiwrap.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "api/api_sending.h"
 #include "boxes/confirm_box.h"
 #include "chat_helpers/emoji_list_widget.h"

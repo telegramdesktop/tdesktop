@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "auth_session.h"
+#include "main/main_session.h"
 
 #include "apiwrap.h"
 #include "core/application.h"
@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_helper.h"
 #include "observer_peer.h"
 
+namespace Main {
 namespace {
 
 constexpr auto kAutoLockTimeoutLateMs = crl::time(3000);
@@ -37,7 +38,7 @@ constexpr auto kLegacyCallsPeerToPeerNobody = 4;
 
 } // namespace
 
-AuthSessionSettings::Variables::Variables()
+Settings::Variables::Variables()
 : sendFilesWay(SendFilesWay::Album)
 , selectorTab(ChatHelpers::SelectorTab::Emoji)
 , floatPlayerColumn(Window::Column::Second)
@@ -46,7 +47,7 @@ AuthSessionSettings::Variables::Variables()
 , supportSwitch(Support::SwitchSettings::Next) {
 }
 
-QByteArray AuthSessionSettings::serialize() const {
+QByteArray Settings::serialize() const {
 	const auto autoDownload = _variables.autoDownload.serialize();
 	auto size = sizeof(qint32) * 23;
 	for (auto i = _variables.soundOverrides.cbegin(), e = _variables.soundOverrides.cend(); i != e; ++i) {
@@ -102,7 +103,7 @@ QByteArray AuthSessionSettings::serialize() const {
 	return result;
 }
 
-void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) {
+void Settings::constructFromSerialized(const QByteArray &serialized) {
 	if (serialized.isEmpty()) {
 		return;
 	}
@@ -231,7 +232,7 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
-			"Bad data for AuthSessionSettings::constructFromSerialized()"));
+			"Bad data for Settings::constructFromSerialized()"));
 		return;
 	}
 	if (!autoDownload.isEmpty()
@@ -304,31 +305,31 @@ void AuthSessionSettings::constructFromSerialized(const QByteArray &serialized) 
 	_variables.skipArchiveInSearch = (skipArchiveInSearch == 1);
 }
 
-void AuthSessionSettings::setSupportChatsTimeSlice(int slice) {
+void Settings::setSupportChatsTimeSlice(int slice) {
 	_variables.supportChatsTimeSlice = slice;
 }
 
-int AuthSessionSettings::supportChatsTimeSlice() const {
+int Settings::supportChatsTimeSlice() const {
 	return _variables.supportChatsTimeSlice.current();
 }
 
-rpl::producer<int> AuthSessionSettings::supportChatsTimeSliceValue() const {
+rpl::producer<int> Settings::supportChatsTimeSliceValue() const {
 	return _variables.supportChatsTimeSlice.value();
 }
 
-void AuthSessionSettings::setSupportAllSearchResults(bool all) {
+void Settings::setSupportAllSearchResults(bool all) {
 	_variables.supportAllSearchResults = all;
 }
 
-bool AuthSessionSettings::supportAllSearchResults() const {
+bool Settings::supportAllSearchResults() const {
 	return _variables.supportAllSearchResults.current();
 }
 
-rpl::producer<bool> AuthSessionSettings::supportAllSearchResultsValue() const {
+rpl::producer<bool> Settings::supportAllSearchResultsValue() const {
 	return _variables.supportAllSearchResults.value();
 }
 
-void AuthSessionSettings::setTabbedSelectorSectionEnabled(bool enabled) {
+void Settings::setTabbedSelectorSectionEnabled(bool enabled) {
 	_variables.tabbedSelectorSectionEnabled = enabled;
 	if (enabled) {
 		setThirdSectionInfoEnabled(false);
@@ -336,12 +337,12 @@ void AuthSessionSettings::setTabbedSelectorSectionEnabled(bool enabled) {
 	setTabbedReplacedWithInfo(false);
 }
 
-rpl::producer<bool> AuthSessionSettings::tabbedReplacedWithInfoValue() const {
+rpl::producer<bool> Settings::tabbedReplacedWithInfoValue() const {
 	return _tabbedReplacedWithInfoValue.events_starting_with(
 		tabbedReplacedWithInfo());
 }
 
-void AuthSessionSettings::setThirdSectionInfoEnabled(bool enabled) {
+void Settings::setThirdSectionInfoEnabled(bool enabled) {
 	if (_variables.thirdSectionInfoEnabled != enabled) {
 		_variables.thirdSectionInfoEnabled = enabled;
 		if (enabled) {
@@ -352,19 +353,19 @@ void AuthSessionSettings::setThirdSectionInfoEnabled(bool enabled) {
 	}
 }
 
-rpl::producer<bool> AuthSessionSettings::thirdSectionInfoEnabledValue() const {
+rpl::producer<bool> Settings::thirdSectionInfoEnabledValue() const {
 	return _thirdSectionInfoEnabledValue.events_starting_with(
 		thirdSectionInfoEnabled());
 }
 
-void AuthSessionSettings::setTabbedReplacedWithInfo(bool enabled) {
+void Settings::setTabbedReplacedWithInfo(bool enabled) {
 	if (_tabbedReplacedWithInfo != enabled) {
 		_tabbedReplacedWithInfo = enabled;
 		_tabbedReplacedWithInfoValue.fire_copy(enabled);
 	}
 }
 
-QString AuthSessionSettings::getSoundPath(const QString &key) const {
+QString Settings::getSoundPath(const QString &key) const {
 	auto it = _variables.soundOverrides.constFind(key);
 	if (it != _variables.soundOverrides.end()) {
 		return it.value();
@@ -372,83 +373,79 @@ QString AuthSessionSettings::getSoundPath(const QString &key) const {
 	return qsl(":/sounds/") + key + qsl(".mp3");
 }
 
-void AuthSessionSettings::setDialogsWidthRatio(float64 ratio) {
+void Settings::setDialogsWidthRatio(float64 ratio) {
 	_variables.dialogsWidthRatio = ratio;
 }
 
-float64 AuthSessionSettings::dialogsWidthRatio() const {
+float64 Settings::dialogsWidthRatio() const {
 	return _variables.dialogsWidthRatio.current();
 }
 
-rpl::producer<float64> AuthSessionSettings::dialogsWidthRatioChanges() const {
+rpl::producer<float64> Settings::dialogsWidthRatioChanges() const {
 	return _variables.dialogsWidthRatio.changes();
 }
 
-void AuthSessionSettings::setThirdColumnWidth(int width) {
+void Settings::setThirdColumnWidth(int width) {
 	_variables.thirdColumnWidth = width;
 }
 
-int AuthSessionSettings::thirdColumnWidth() const {
+int Settings::thirdColumnWidth() const {
 	return _variables.thirdColumnWidth.current();
 }
 
-rpl::producer<int> AuthSessionSettings::thirdColumnWidthChanges() const {
+rpl::producer<int> Settings::thirdColumnWidthChanges() const {
 	return _variables.thirdColumnWidth.changes();
 }
 
-void AuthSessionSettings::setArchiveCollapsed(bool collapsed) {
+void Settings::setArchiveCollapsed(bool collapsed) {
 	_variables.archiveCollapsed = collapsed;
 }
 
-bool AuthSessionSettings::archiveCollapsed() const {
+bool Settings::archiveCollapsed() const {
 	return _variables.archiveCollapsed.current();
 }
 
-rpl::producer<bool> AuthSessionSettings::archiveCollapsedChanges() const {
+rpl::producer<bool> Settings::archiveCollapsedChanges() const {
 	return _variables.archiveCollapsed.changes();
 }
 
-void AuthSessionSettings::setArchiveInMainMenu(bool inMainMenu) {
+void Settings::setArchiveInMainMenu(bool inMainMenu) {
 	_variables.archiveInMainMenu = inMainMenu;
 }
 
-bool AuthSessionSettings::archiveInMainMenu() const {
+bool Settings::archiveInMainMenu() const {
 	return _variables.archiveInMainMenu.current();
 }
 
-rpl::producer<bool> AuthSessionSettings::archiveInMainMenuChanges() const {
+rpl::producer<bool> Settings::archiveInMainMenuChanges() const {
 	return _variables.archiveInMainMenu.changes();
 }
 
-void AuthSessionSettings::setNotifyAboutPinned(bool notify) {
+void Settings::setNotifyAboutPinned(bool notify) {
 	_variables.notifyAboutPinned = notify;
 }
 
-bool AuthSessionSettings::notifyAboutPinned() const {
+bool Settings::notifyAboutPinned() const {
 	return _variables.notifyAboutPinned.current();
 }
 
-rpl::producer<bool> AuthSessionSettings::notifyAboutPinnedChanges() const {
+rpl::producer<bool> Settings::notifyAboutPinnedChanges() const {
 	return _variables.notifyAboutPinned.changes();
 }
 
-void AuthSessionSettings::setSkipArchiveInSearch(bool skip) {
+void Settings::setSkipArchiveInSearch(bool skip) {
 	_variables.skipArchiveInSearch = skip;
 }
 
-bool AuthSessionSettings::skipArchiveInSearch() const {
+bool Settings::skipArchiveInSearch() const {
 	return _variables.skipArchiveInSearch.current();
 }
 
-rpl::producer<bool> AuthSessionSettings::skipArchiveInSearchChanges() const {
+rpl::producer<bool> Settings::skipArchiveInSearchChanges() const {
 	return _variables.skipArchiveInSearch.changes();
 }
 
-AuthSession &Auth() {
-	return Core::App().activeAccount().session();
-}
-
-AuthSession::AuthSession(
+Session::Session(
 	not_null<Main::Account*> account,
 	const MTPUser &user)
 : _account(account)
@@ -502,33 +499,33 @@ AuthSession::AuthSession(
 	Window::Theme::Background()->start();
 }
 
-AuthSession::~AuthSession() {
+Session::~Session() {
 	ClickHandler::clearActive();
 	ClickHandler::unpressed();
 }
 
-Main::Account &AuthSession::account() const {
+Main::Account &Session::account() const {
 	return *_account;
 }
 
-bool AuthSession::Exists() {
+bool Session::Exists() {
 	return Core::IsAppLaunched()
 		&& Core::App().activeAccount().sessionExists();
 }
 
-base::Observable<void> &AuthSession::downloaderTaskFinished() {
+base::Observable<void> &Session::downloaderTaskFinished() {
 	return downloader().taskFinished();
 }
 
-UserId AuthSession::userId() const {
+UserId Session::userId() const {
 	return _user->bareId();
 }
 
-PeerId AuthSession::userPeerId() const {
+PeerId Session::userPeerId() const {
 	return _user->id;
 }
 
-bool AuthSession::validateSelf(const MTPUser &user) {
+bool Session::validateSelf(const MTPUser &user) {
 	if (user.type() != mtpc_user || !user.c_user().is_self()) {
 		LOG(("API Error: bad self user received."));
 		return false;
@@ -540,7 +537,7 @@ bool AuthSession::validateSelf(const MTPUser &user) {
 	return true;
 }
 
-void AuthSession::moveSettingsFrom(AuthSessionSettings &&other) {
+void Session::moveSettingsFrom(Settings &&other) {
 	_settings.moveFrom(std::move(other));
 	if (_settings.hadLegacyCallsPeerToPeerNobody()) {
 		api().savePrivacy(
@@ -552,29 +549,29 @@ void AuthSession::moveSettingsFrom(AuthSessionSettings &&other) {
 	}
 }
 
-void AuthSession::saveSettingsDelayed(crl::time delay) {
+void Session::saveSettingsDelayed(crl::time delay) {
 	Expects(this == &Auth());
 
 	_saveDataTimer.callOnce(delay);
 }
 
-not_null<MTP::Instance*> AuthSession::mtp() {
+not_null<MTP::Instance*> Session::mtp() {
 	return _account->mtp();
 }
 
-void AuthSession::localPasscodeChanged() {
+void Session::localPasscodeChanged() {
 	_shouldLockAt = 0;
 	_autoLockTimer.cancel();
 	checkAutoLock();
 }
 
-void AuthSession::termsDeleteNow() {
+void Session::termsDeleteNow() {
 	api().request(MTPaccount_DeleteAccount(
 		MTP_string("Decline ToS update")
 	)).send();
 }
 
-void AuthSession::checkAutoLock() {
+void Session::checkAutoLock() {
 	if (!Global::LocalPasscode()
 		|| Core::App().passcodeLocked()) {
 		_shouldLockAt = 0;
@@ -596,7 +593,7 @@ void AuthSession::checkAutoLock() {
 	}
 }
 
-void AuthSession::checkAutoLockIn(crl::time time) {
+void Session::checkAutoLockIn(crl::time time) {
 	if (_autoLockTimer.isActive()) {
 		auto remain = _autoLockTimer.remainingTime();
 		if (remain > 0 && remain <= time) return;
@@ -604,16 +601,22 @@ void AuthSession::checkAutoLockIn(crl::time time) {
 	_autoLockTimer.callOnce(time);
 }
 
-bool AuthSession::supportMode() const {
+bool Session::supportMode() const {
 	return (_supportHelper != nullptr);
 }
 
-Support::Helper &AuthSession::supportHelper() const {
+Support::Helper &Session::supportHelper() const {
 	Expects(supportMode());
 
 	return *_supportHelper;
 }
 
-Support::Templates& AuthSession::supportTemplates() const {
+Support::Templates& Session::supportTemplates() const {
 	return supportHelper().templates();
+}
+
+} // namespace Main
+
+Main::Session &Auth() {
+	return Core::App().activeAccount().session();
 }

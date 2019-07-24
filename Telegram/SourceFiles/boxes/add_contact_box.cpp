@@ -37,7 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace {
 
@@ -156,7 +156,7 @@ class RevokePublicLinkBox::Inner : public TWidget, private MTP::Sender {
 public:
 	Inner(
 		QWidget *parent,
-		not_null<AuthSession*> session,
+		not_null<Main::Session*> session,
 		Fn<void()> revokeCallback);
 
 protected:
@@ -176,7 +176,7 @@ private:
 	void paintChat(Painter &p, const ChatRow &row, bool selected) const;
 	void updateSelected();
 
-	const not_null<AuthSession*> _session;
+	const not_null<Main::Session*> _session;
 
 	PeerData *_selected = nullptr;
 	PeerData *_pressed = nullptr;
@@ -195,13 +195,13 @@ private:
 
 AddContactBox::AddContactBox(
 	QWidget*,
-	not_null<AuthSession*> session)
+	not_null<Main::Session*> session)
 : AddContactBox(nullptr, session, QString(), QString(), QString()) {
 }
 
 AddContactBox::AddContactBox(
 	QWidget*,
-	not_null<AuthSession*> session,
+	not_null<Main::Session*> session,
 	QString fname,
 	QString lname,
 	QString phone)
@@ -389,7 +389,7 @@ void AddContactBox::updateButtons() {
 
 GroupInfoBox::GroupInfoBox(
 	QWidget*,
-	not_null<AuthSession*> session,
+	not_null<Main::Session*> session,
 	Type type,
 	const QString &title,
 	Fn<void(not_null<ChannelData*>)> channelDone)
@@ -1251,7 +1251,7 @@ bool EditNameBox::saveSelfFail(const RPCError &error) {
 
 RevokePublicLinkBox::Inner::Inner(
 	QWidget *parent,
-	not_null<AuthSession*> session,
+	not_null<Main::Session*> session,
 	Fn<void()> revokeCallback)
 : TWidget(parent)
 , _session(session)
@@ -1295,7 +1295,7 @@ RevokePublicLinkBox::Inner::Inner(
 
 RevokePublicLinkBox::RevokePublicLinkBox(
 	QWidget*,
-	not_null<AuthSession*> session,
+	not_null<Main::Session*> session,
 	Fn<void()> revokeCallback)
 : _session(session)
 , _aboutRevoke(

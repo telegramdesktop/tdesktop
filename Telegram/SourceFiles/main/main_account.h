@@ -10,10 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/auth_key.h"
 #include "base/weak_ptr.h"
 
-class AuthSession;
-class AuthSessionSettings;
-
 namespace Main {
+
+class Session;
+class Settings;
 
 class Account final : public base::has_weak_ptr {
 public:
@@ -30,10 +30,10 @@ public:
 	void forcedLogOut();
 
 	[[nodiscard]] bool sessionExists() const;
-	[[nodiscard]] AuthSession &session();
-	[[nodiscard]] const AuthSession &session() const;
-	[[nodiscard]] rpl::producer<AuthSession*> sessionValue() const;
-	[[nodiscard]] rpl::producer<AuthSession*> sessionChanges() const;
+	[[nodiscard]] Session &session();
+	[[nodiscard]] const Session &session() const;
+	[[nodiscard]] rpl::producer<Session*> sessionValue() const;
+	[[nodiscard]] rpl::producer<Session*> sessionChanges() const;
 
 	[[nodiscard]] MTP::Instance *mtp() {
 		return _mtp.get();
@@ -44,12 +44,12 @@ public:
 	// Set from legacy storage.
 	void setMtpMainDcId(MTP::DcId mainDcId);
 	void setMtpKey(MTP::DcId dcId, const MTP::AuthKey::Data &keyData);
-	void setAuthSessionUserId(UserId userId);
-	void setAuthSessionFromStorage(
-		std::unique_ptr<AuthSessionSettings> data,
+	void setSessionUserId(UserId userId);
+	void setSessionFromStorage(
+		std::unique_ptr<Settings> data,
 		QByteArray &&selfSerialized,
 		int32 selfStreamVersion);
-	[[nodiscard]] AuthSessionSettings *getAuthSessionSettings();
+	[[nodiscard]] Settings *getSessionSettings();
 
 	// Serialization.
 	[[nodiscard]] QByteArray serializeMtpAuthorization() const;
@@ -77,13 +77,13 @@ private:
 	std::unique_ptr<MTP::Instance> _mtpForKeysDestroy;
 	rpl::event_stream<> _configUpdates;
 
-	std::unique_ptr<AuthSession> _session;
-	rpl::variable<AuthSession*> _sessionValue;
+	std::unique_ptr<Session> _session;
+	rpl::variable<Session*> _sessionValue;
 
-	UserId _authSessionUserId = 0;
-	QByteArray _authSessionUserSerialized;
-	int32 _authSessionUserStreamVersion = 0;
-	std::unique_ptr<AuthSessionSettings> _storedAuthSession;
+	UserId _sessionUserId = 0;
+	QByteArray _sessionUserSerialized;
+	int32 _sessionUserStreamVersion = 0;
+	std::unique_ptr<Settings> _storedSettings;
 	MTP::Instance::Config _mtpConfig;
 	MTP::AuthKeysList _mtpKeysToDestroy;
 

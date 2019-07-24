@@ -372,7 +372,7 @@ TabbedSelector::TabbedSelector(
 
 TabbedSelector::~TabbedSelector() = default;
 
-AuthSession &TabbedSelector::session() const {
+Main::Session &TabbedSelector::session() const {
 	return _controller->session();
 }
 

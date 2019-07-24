@@ -52,7 +52,7 @@ private:
 	ApiWrap *api() override;
 	void langPackRefreshed() override;
 
-	void handleAuthSessionChanges();
+	void handleSessionChanges();
 	void apiChanged(ApiWrap *api);
 	void refreshInputLanguages();
 	[[nodiscard]] std::vector<QString> languages();

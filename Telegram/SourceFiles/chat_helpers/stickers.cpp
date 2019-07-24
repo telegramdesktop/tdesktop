@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "storage/localstorage.h"
 #include "mainwidget.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "mainwindow.h"
 #include "ui/toast/toast.h"
 #include "ui/emoji_config.h"
@@ -1115,7 +1115,7 @@ auto LottieCachedFromContent(
 		Method &&method,
 		Storage::Cache::Key baseKey,
 		LottieSize sizeTag,
-		not_null<AuthSession*> session,
+		not_null<Main::Session*> session,
 		const QByteArray &content,
 		QSize box) {
 	const auto key = Storage::Cache::Key{

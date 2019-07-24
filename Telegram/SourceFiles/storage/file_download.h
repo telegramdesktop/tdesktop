@@ -13,7 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 
 class ApiWrap;
-class AuthSession;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Storage {
 namespace Cache {
@@ -110,7 +113,7 @@ public:
 		bool autoLoading,
 		uint8 cacheTag);
 
-	AuthSession &session() const;
+	Main::Session &session() const;
 
 	bool finished() const {
 		return _finished;

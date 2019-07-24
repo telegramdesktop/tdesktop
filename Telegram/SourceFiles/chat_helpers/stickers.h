@@ -11,7 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_source.h"
 
 class DocumentData;
-class AuthSession;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Storage {
 namespace Cache {

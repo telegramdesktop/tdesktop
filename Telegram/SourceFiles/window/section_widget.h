@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "dialogs/dialogs_key.h"
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Window {
 
@@ -37,7 +39,7 @@ public:
 	, _controller(controller) {
 	}
 
-	AuthSession &session() const;
+	Main::Session &session() const;
 
 	// Float player interface.
 	virtual bool wheelEventFromFloatPlayer(QEvent *e) {

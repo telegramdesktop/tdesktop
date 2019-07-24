@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "observer_peer.h"
 #include "core/application.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"

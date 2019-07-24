@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 
-AuthSession &AbstractSectionWidget::session() const {
+Main::Session &AbstractSectionWidget::session() const {
 	return _controller->session();
 }
 

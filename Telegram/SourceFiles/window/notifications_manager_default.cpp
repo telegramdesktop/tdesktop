@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_window.h"
 #include "storage/file_download.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "platform/platform_specific.h"

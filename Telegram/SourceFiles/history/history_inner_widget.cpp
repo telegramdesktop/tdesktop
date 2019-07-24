@@ -38,7 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "layout.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "core/application.h"
 #include "apiwrap.h"
 #include "platform/platform_info.h"
@@ -185,7 +185,7 @@ HistoryInner::HistoryInner(
 	}, lifetime());
 }
 
-AuthSession &HistoryInner::session() const {
+Main::Session &HistoryInner::session() const {
 	return _controller->session();
 }
 

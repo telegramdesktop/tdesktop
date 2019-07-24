@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 #include "base/openssl_help.h"
 #include "base/parse_helper.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace Ui {
 namespace Emoji {

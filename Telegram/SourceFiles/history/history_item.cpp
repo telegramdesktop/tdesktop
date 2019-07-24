@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 //#include "storage/storage_feed_messages.h" // #feed
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "media/audio/media_audio.h"
 #include "core/application.h"

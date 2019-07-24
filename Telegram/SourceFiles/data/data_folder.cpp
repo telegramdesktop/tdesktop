@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "main/main_account.h"
 //#include "storage/storage_feed_messages.h" // #feed
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
@@ -30,7 +30,7 @@ constexpr auto kLoadedChatsMinCount = 20;
 constexpr auto kShowChatNamesCount = 8;
 
 rpl::producer<int> PinnedDialogsInFolderMaxValue(
-		not_null<AuthSession*> session) {
+		not_null<Main::Session*> session) {
 	return rpl::single(
 		rpl::empty_value()
 	) | rpl::then(

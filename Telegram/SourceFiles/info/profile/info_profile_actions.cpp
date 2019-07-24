@@ -41,7 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "mainwidget.h"
 #include "mainwindow.h" // MainWindow::controller.
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "core/application.h"
 #include "apiwrap.h"
 #include "styles/style_info.h"

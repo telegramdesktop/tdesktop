@@ -133,12 +133,12 @@ auto GenerateCodes() {
 	};
 	for (auto &key : audioKeys) {
 		codes.emplace(key, [audioFilters, key] {
-			if (!AuthSession::Exists()) {
+			if (!Main::Session::Exists()) {
 				return;
 			}
 
 			FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open audio file", audioFilters, [key](const FileDialog::OpenResult &result) {
-				if (AuthSession::Exists() && !result.paths.isEmpty()) {
+				if (Main::Session::Exists() && !result.paths.isEmpty()) {
 					auto track = Media::Audio::Current().createTrack();
 					track->fillFromFile(result.paths.front());
 					if (track->failed()) {
@@ -152,7 +152,7 @@ auto GenerateCodes() {
 		});
 	}
 	codes.emplace(qsl("sounds_reset"), [] {
-		if (AuthSession::Exists()) {
+		if (Main::Session::Exists()) {
 			Auth().settings().clearSoundOverrides();
 			Local::writeUserSettings();
 			Ui::show(Box<InformBox>("All sound overrides were reset."));

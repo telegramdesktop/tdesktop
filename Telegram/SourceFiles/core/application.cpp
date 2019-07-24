@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "calls/calls_instance.h"
 #include "lang/lang_file_parser.h"
@@ -116,8 +116,8 @@ Application::~Application() {
 	_window.reset();
 	_mediaView.reset();
 
-	// This can call writeMap() that serializes AuthSession.
-	// In case it gets called after authSessionDestroy() we get missing data.
+	// This can call writeMap() that serializes Main::Session.
+	// In case it gets called after destroySession() we get missing data.
 	Local::finish();
 
 	// Some MTP requests can be cancelled from data clearing.

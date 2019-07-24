@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_common.h"
 #include "data/data_file_origin.h"
 #include "base/overload.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace {
 

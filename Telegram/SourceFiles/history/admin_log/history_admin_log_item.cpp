@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "mainwindow.h" // App::wnd()->sessionController
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace AdminLog {
 namespace {
