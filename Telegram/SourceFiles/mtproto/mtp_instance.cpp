@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/rsa_public_key.h"
 #include "storage/localstorage.h"
 #include "calls/calls_instance.h"
+#include "main/main_account.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "core/application.h"
@@ -167,9 +168,9 @@ private:
 
 	void checkDelayedRequests();
 
-	not_null<Instance*> _instance;
-	not_null<DcOptions*> _dcOptions;
-	Instance::Mode _mode = Instance::Mode::Normal;
+	const not_null<Instance*> _instance;
+	const not_null<DcOptions*> _dcOptions;
+	const Instance::Mode _mode = Instance::Mode::Normal;
 
 	DcId _mainDcId = Config::kDefaultMainDc;
 	bool _mainDcIdForced = false;
@@ -808,7 +809,7 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 		data.vlang_pack_version().value_or_empty(),
 		data.vbase_lang_pack_version().value_or_empty());
 
-	Core::App().configUpdated();
+	Core::App().activeAccount().configUpdated();
 
 	if (const auto prefix = data.vautoupdate_url_prefix()) {
 		Local::writeAutoupdatePrefix(qs(*prefix));

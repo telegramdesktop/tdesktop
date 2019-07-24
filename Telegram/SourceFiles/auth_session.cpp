@@ -534,7 +534,7 @@ bool AuthSession::validateSelf(const MTPUser &user) {
 		return false;
 	} else if (user.c_user().vid().v != userId()) {
 		LOG(("Auth Error: wrong self user received."));
-		crl::on_main(this, [] { Core::App().logOut(); });
+		crl::on_main(this, [=] { _account->logOut(); });
 		return false;
 	}
 	return true;
@@ -556,6 +556,10 @@ void AuthSession::saveSettingsDelayed(crl::time delay) {
 	Expects(this == &Auth());
 
 	_saveDataTimer.callOnce(delay);
+}
+
+not_null<MTP::Instance*> AuthSession::mtp() {
+	return _account->mtp();
 }
 
 void AuthSession::localPasscodeChanged() {

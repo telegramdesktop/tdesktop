@@ -39,7 +39,10 @@ class CodeWidget : public Widget::Step {
 	Q_OBJECT
 
 public:
-	CodeWidget(QWidget *parent, Widget::Data *data);
+	CodeWidget(
+		QWidget *parent,
+		not_null<Main::Account*> account,
+		not_null<Widget::Data*> data);
 
 	bool hasBack() const override {
 		return true;

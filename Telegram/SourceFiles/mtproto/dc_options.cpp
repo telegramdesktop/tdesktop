@@ -88,6 +88,10 @@ private:
 
 };
 
+DcOptions::DcOptions() {
+	constructFromBuiltIn();
+}
+
 bool DcOptions::ValidateSecret(bytes::const_span secret) {
 	// See also TcpConnection::Protocol::Create.
 	return (secret.size() >= 21 && secret[0] == bytes::type(0xEE))

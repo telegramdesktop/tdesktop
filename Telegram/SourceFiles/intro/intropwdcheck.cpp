@@ -23,8 +23,9 @@ namespace Intro {
 
 PwdCheckWidget::PwdCheckWidget(
 	QWidget *parent,
-	Widget::Data *data)
-: Step(parent, data)
+	not_null<Main::Account*> account,
+	not_null<Widget::Data*> data)
+: Step(parent, account, data)
 , _request(getData()->pwdRequest)
 , _hasRecovery(getData()->hasRecovery)
 , _notEmptyPassport(getData()->pwdNotEmptyPassport)

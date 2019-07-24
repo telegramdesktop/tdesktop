@@ -19,7 +19,10 @@ namespace Intro {
 
 class StartWidget : public Widget::Step {
 public:
-	StartWidget(QWidget *parent, Widget::Data *data);
+	StartWidget(
+		QWidget *parent,
+		not_null<Main::Account*> account,
+		not_null<Widget::Data*> data);
 
 	void submit() override;
 	rpl::producer<QString> nextButtonText() const override;

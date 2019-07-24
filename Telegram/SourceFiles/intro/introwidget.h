@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_lock_widgets.h"
 #include "core/core_cloud_password.h"
 
+namespace Main {
+class Account;
+} // namespace Main
+
 namespace Ui {
 class IconButton;
 class RoundButton;
@@ -34,7 +38,7 @@ class Widget : public Ui::RpWidget, private MTP::Sender, private base::Subscribe
 	Q_OBJECT
 
 public:
-	Widget(QWidget *parent);
+	Widget(QWidget *parent, not_null<Main::Account*> account);
 
 	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
 
@@ -90,7 +94,15 @@ public:
 	};
 	class Step : public Ui::RpWidget, public RPCSender, protected base::Subscriber {
 	public:
-		Step(QWidget *parent, Data *data, bool hasCover = false);
+		Step(
+			QWidget *parent,
+			not_null<Main::Account*> account,
+			not_null<Data*> data,
+			bool hasCover = false);
+
+		Main::Account &account() const {
+			return *_account;
+		}
 
 		virtual void finishInit() {
 		}
@@ -147,19 +159,33 @@ public:
 		void showDescription();
 		void hideDescription();
 
-		Data *getData() const {
+		not_null<Data*> getData() const {
 			return _data;
 		}
 		void finish(const MTPUser &user, QImage &&photo = QImage());
 
 		void goBack() {
-			if (_goCallback) _goCallback(nullptr, Direction::Back);
+			if (_goCallback) {
+				_goCallback(nullptr, Direction::Back);
+			}
 		}
-		void goNext(Step *step) {
-			if (_goCallback) _goCallback(step, Direction::Forward);
+
+		template <typename StepType>
+		void goNext() {
+			if (_goCallback) {
+				_goCallback(
+					new StepType(parentWidget(), _account, _data),
+					Direction::Forward);
+			}
 		}
-		void goReplace(Step *step) {
-			if (_goCallback) _goCallback(step, Direction::Replace);
+
+		template <typename StepType>
+		void goReplace() {
+			if (_goCallback) {
+				_goCallback(
+					new StepType(parentWidget(), _account, _data),
+					Direction::Replace);
+			}
 		}
 		void showResetButton() {
 			if (_showResetCallback) _showResetCallback();
@@ -190,9 +216,6 @@ public:
 		void updateLabelsPosition();
 		void paintContentSnapshot(Painter &p, const QPixmap &snapshot, float64 alpha, float64 howMuchHidden);
 		void refreshError(const QString &text);
-		void refreshTitle();
-		void refreshDescription();
-		void refreshLang();
 
 		CoverAnimation prepareCoverAnimation(Step *step);
 		QPixmap prepareContentSnapshot();
@@ -202,7 +225,9 @@ public:
 		void prepareCoverMask();
 		void paintCover(Painter &p, int top);
 
-		Data *_data = nullptr;
+		const not_null<Main::Account*> _account;
+		const not_null<Data*> _data;
+
 		bool _hasCover = false;
 		Fn<void(Step *step, Direction direction)> _goCallback;
 		Fn<void()> _showResetCallback;
@@ -233,7 +258,7 @@ private:
 	void createLanguageLink();
 
 	void updateControlsGeometry();
-	Data *getData() {
+	not_null<Data*> getData() {
 		return &_data;
 	}
 
@@ -259,6 +284,8 @@ private:
 
 	void getNearestDC();
 	void showTerms(Fn<void()> callback);
+
+	not_null<Main::Account*> _account;
 
 	Ui::Animations::Simple _a_show;
 	bool _showBack = false;

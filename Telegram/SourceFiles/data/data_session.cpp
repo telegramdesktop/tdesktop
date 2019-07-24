@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_layout_item.h"
 #include "storage/localstorage.h"
 #include "storage/storage_encrypted_file.h"
+#include "main/main_account.h"
 #include "media/player/media_player_instance.h" // instance()->play()
 #include "media/streaming/media_streaming_loader.h" // unique_ptr<Loader>
 #include "media/streaming/media_streaming_reader.h" // make_shared<Reader>
@@ -155,11 +156,12 @@ MTPPhotoSize FindDocumentThumbnail(const MTPDdocument &data) {
 		: MTPPhotoSize(MTP_photoSizeEmpty(MTP_string()));
 }
 
-rpl::producer<int> PinnedDialogsCountMaxValue() {
+rpl::producer<int> PinnedDialogsCountMaxValue(
+		not_null<AuthSession*> session) {
 	return rpl::single(
 		rpl::empty_value()
 	) | rpl::then(
-		Core::App().configUpdates()
+		session->account().configUpdates()
 	) | rpl::map([=] {
 		return Global::PinnedDialogsCountMax();
 	});
@@ -195,7 +197,7 @@ Session::Session(not_null<AuthSession*> session)
 , _bigFileCache(Core::App().databases().get(
 	Local::cacheBigFilePath(),
 	Local::cacheBigFileSettings()))
-, _chatsList(PinnedDialogsCountMaxValue())
+, _chatsList(PinnedDialogsCountMaxValue(session))
 , _contactsList(Dialogs::SortMode::Name)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
 , _selfDestructTimer([=] { checkSelfDestructItems(); })

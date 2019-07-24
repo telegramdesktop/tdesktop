@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
+#include "main/main_account.h"
 #include "boxes/confirm_phone_box.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h"
@@ -29,7 +30,11 @@ bool AllowPhoneAttempt(const QString &phone) {
 
 } // namespace
 
-PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
+PhoneWidget::PhoneWidget(
+	QWidget *parent,
+	not_null<Main::Account*> account,
+	not_null<Widget::Data*> data)
+: Step(parent, account, data)
 , _country(this, st::introCountry)
 , _code(this, st::introCountryCode)
 , _phone(this, st::introPhone)
@@ -54,7 +59,7 @@ PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, dat
 	}
 	_changed = false;
 
-	Core::App().destroyStaleAuthorizationKeys();
+	account->destroyStaleAuthorizationKeys();
 }
 
 void PhoneWidget::resizeEvent(QResizeEvent *e) {
@@ -111,7 +116,7 @@ void PhoneWidget::submit() {
 	_checkRequest->start(1000);
 
 	_sentPhone = phone;
-	Core::App().mtp()->setUserPhone(_sentPhone);
+	account().mtp()->setUserPhone(_sentPhone);
 	_sentRequest = MTP::send(
 		MTPauth_SendCode(
 			MTP_string(_sentPhone),
@@ -162,7 +167,7 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 		getData()->callStatus = Widget::Data::CallStatus::Disabled;
 		getData()->callTimeout = 0;
 	}
-	goNext(new Intro::CodeWidget(parentWidget(), getData()));
+	goNext<CodeWidget>();
 }
 
 bool PhoneWidget::phoneSubmitFail(const RPCError &error) {

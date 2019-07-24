@@ -4244,7 +4244,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateConfig: {
-		Core::App().mtp()->requestConfig();
+		session().mtp()->requestConfig();
 	} break;
 
 	case mtpc_updateUserPhone: {

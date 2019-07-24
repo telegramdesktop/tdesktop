@@ -14,7 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Intro {
 
-StartWidget::StartWidget(QWidget *parent, Widget::Data *data) : Step(parent, data, true) {
+StartWidget::StartWidget(
+	QWidget *parent,
+	not_null<Main::Account*> account,
+	not_null<Widget::Data*> data)
+: Step(parent, account, data, true) {
 	setMouseTracking(true);
 	setTitleText(rpl::single(qsl("Telegram Desktop")));
 	setDescriptionText(tr::lng_intro_about());
@@ -22,7 +26,7 @@ StartWidget::StartWidget(QWidget *parent, Widget::Data *data) : Step(parent, dat
 }
 
 void StartWidget::submit() {
-	goNext(new Intro::PhoneWidget(parentWidget(), getData()));
+	goNext<PhoneWidget>();
 }
 
 rpl::producer<QString> StartWidget::nextButtonText() const {

@@ -200,7 +200,7 @@ void MainWindow::clearPasscodeLock() {
 		_main->showAnimated(bg, true);
 		Core::App().checkStartUrl();
 	} else {
-		Core::App().startMtp();
+		account().startMtp();
 		if (account().sessionExists()) {
 			setupMain();
 		} else {
@@ -216,7 +216,7 @@ void MainWindow::setupIntro() {
 	auto bg = animated ? grabInner() : QPixmap();
 
 	clearWidgets();
-	_intro.create(bodyWidget());
+	_intro.create(bodyWidget(), &account());
 	updateControlsGeometry();
 
 	if (animated) {
@@ -619,16 +619,15 @@ void MainWindow::onLogout() {
 		showFromTray();
 	}
 
-	const auto logout = [] {
-		Core::App().logOut();
-	};
 	const auto callback = [=] {
 		if (account().sessionExists()
 			&& account().session().data().exportInProgress()) {
 			Ui::hideLayer();
-			account().session().data().stopExportWithConfirmation(logout);
+			account().session().data().stopExportWithConfirmation([=] {
+				account().logOut();
+			});
 		} else {
-			logout();
+			account().logOut();
 		}
 	};
 	Ui::show(Box<ConfirmBox>(

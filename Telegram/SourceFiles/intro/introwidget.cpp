@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/introcode.h"
 #include "intro/introsignup.h"
 #include "intro/intropwdcheck.h"
+#include "main/main_account.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
@@ -59,7 +60,9 @@ void PrepareSupportMode() {
 
 } // namespace
 
-Widget::Widget(QWidget *parent) : RpWidget(parent)
+Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
+: RpWidget(parent)
+, _account(account)
 , _back(this, object_ptr<Ui::IconButton>(this, st::introBackButton))
 , _settings(
 	this,
@@ -84,7 +87,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	getNearestDC();
 	setupConnectingWidget();
 
-	appendStep(new StartWidget(this, getData()));
+	appendStep(new StartWidget(this, _account, getData()));
 	fixOrder();
 
 	subscribe(Lang::CurrentCloudManager().firstLanguageSuggestion(), [this] { createLanguageLink(); });
@@ -367,11 +370,13 @@ void Widget::resetAccount() {
 			_resetRequest = 0;
 
 			Ui::hideLayer();
-			moveToStep(new SignupWidget(this, getData()), Direction::Replace);
+			moveToStep(
+				new SignupWidget(this, _account, getData()),
+				Direction::Replace);
 		}).fail([this](const RPCError &error) {
 			_resetRequest = 0;
 
-			auto type = error.type();
+			const auto &type = error.type();
 			if (type.startsWith(qstr("2FA_CONFIRM_WAIT_"))) {
 				const auto seconds = type.mid(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
 				const auto days = (seconds + 59) / 86400;
@@ -434,7 +439,7 @@ void Widget::getNearestDC() {
 			).arg(qs(nearest.vcountry())
 			).arg(nearest.vnearest_dc().v
 			).arg(nearest.vthis_dc().v));
-		Core::App().suggestMainDcId(nearest.vnearest_dc().v);
+		_account->suggestMainDcId(nearest.vnearest_dc().v);
 		auto nearestCountry = qs(nearest.vcountry());
 		if (getData()->country != nearestCountry) {
 			getData()->country = nearestCountry;
@@ -664,16 +669,19 @@ void Widget::Step::finish(const MTPUser &user, QImage &&photo) {
 		Local::writeLangPack();
 	}
 
-	Core::App().authSessionCreate(user);
+	const auto account = _account;
+	const auto weak = base::make_weak(account.get());
+	account->createSession(user);
 	Local::writeMtpData();
 	App::wnd()->setupMain();
 
 	// "this" is already deleted here by creating the main widget.
-	if (AuthSession::Exists()) {
+	if (weak && account->sessionExists()) {
+		auto &session = account->session();
 		if (!photo.isNull()) {
-			Auth().api().uploadPeerPhoto(Auth().user(), std::move(photo));
+			session.api().uploadPeerPhoto(session.user(), std::move(photo));
 		}
-		if (Auth().supportMode()) {
+		if (session.supportMode()) {
 			PrepareSupportMode();
 		}
 	}
@@ -919,8 +927,13 @@ void Widget::Step::refreshError(const QString &text) {
 	}
 }
 
-Widget::Step::Step(QWidget *parent, Data *data, bool hasCover)
+Widget::Step::Step(
+	QWidget *parent,
+	not_null<Main::Account*> account,
+	not_null<Data*> data,
+	bool hasCover)
 : RpWidget(parent)
+, _account(account)
 , _data(data)
 , _hasCover(hasCover)
 , _title(this, _hasCover ? st::introCoverTitle : st::introTitle)

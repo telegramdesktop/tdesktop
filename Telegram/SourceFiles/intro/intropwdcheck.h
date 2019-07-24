@@ -23,7 +23,10 @@ class PwdCheckWidget : public Widget::Step, private MTP::Sender {
 	Q_OBJECT
 
 public:
-	PwdCheckWidget(QWidget *parent, Widget::Data *data);
+	PwdCheckWidget(
+		QWidget *parent,
+		not_null<Main::Account*> account,
+		not_null<Widget::Data*> data);
 
 	void setInnerFocus() override;
 	void activate() override;

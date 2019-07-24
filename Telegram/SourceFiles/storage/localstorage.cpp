@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
+#include "main/main_account.h"
 #include "media/audio/media_audio.h"
 #include "mtproto/dc_options.h"
 #include "core/application.h"
@@ -972,8 +973,8 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		DEBUG_LOG(("MTP Info: user found, dc %1, uid %2").arg(dcId).arg(userId));
-		Core::App().setMtpMainDcId(dcId);
-		Core::App().setAuthSessionUserId(userId);
+		Core::App().activeAccount().setMtpMainDcId(dcId);
+		Core::App().activeAccount().setAuthSessionUserId(userId);
 	} break;
 
 	case dbiKey: {
@@ -982,7 +983,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		auto key = Serialize::read<MTP::AuthKey::Data>(stream);
 		if (!_checkStreamStatus(stream)) return false;
 
-		Core::App().setMtpKey(dcId, key);
+		Core::App().activeAccount().setMtpKey(dcId, key);
 	} break;
 
 	case dbiMtpAuthorization: {
@@ -990,7 +991,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> serialized;
 		if (!_checkStreamStatus(stream)) return false;
 
-		Core::App().setMtpAuthorization(serialized);
+		Core::App().activeAccount().setMtpAuthorization(serialized);
 	} break;
 
 	case dbiAutoStart: {
@@ -2034,7 +2035,7 @@ void _writeUserSettings() {
 	}
 	auto userDataInstance = StoredAuthSessionCache
 		? StoredAuthSessionCache.get()
-		: Core::App().getAuthSessionSettings();
+		: Core::App().activeAccount().getAuthSessionSettings();
 	auto userData = userDataInstance
 		? userDataInstance->serialize()
 		: QByteArray();
@@ -2157,7 +2158,7 @@ void _writeMtpData() {
 		return;
 	}
 
-	auto mtpAuthorizationSerialized = Core::App().serializeMtpAuthorization();
+	auto mtpAuthorizationSerialized = Core::App().activeAccount().serializeMtpAuthorization();
 
 	quint32 size = sizeof(quint32) + Serialize::bytearraySize(mtpAuthorizationSerialized);
 
@@ -2388,7 +2389,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 	_readMtpData();
 
 	DEBUG_LOG(("selfSerialized set: %1").arg(selfSerialized.size()));
-	Core::App().setAuthSessionFromStorage(
+	Core::App().activeAccount().setAuthSessionFromStorage(
 		std::move(StoredAuthSessionCache),
 		std::move(selfSerialized),
 		_oldMapVersion);

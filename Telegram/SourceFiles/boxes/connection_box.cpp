@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "base/qthelp_url.h"
 #include "core/application.h"
+#include "main/main_account.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -1045,7 +1046,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 	const auto type = (item.data.type == Type::Http)
 		? Variants::Http
 		: Variants::Tcp;
-	const auto mtproto = Core::App().mtp();
+	const auto mtproto = Core::App().activeAccount().mtp();
 	const auto dcId = mtproto->mainDcId();
 
 	item.state = ItemState::Checking;

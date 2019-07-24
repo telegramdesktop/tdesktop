@@ -333,6 +333,7 @@ public:
 	void moveSettingsFrom(AuthSessionSettings &&other);
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 
+	not_null<MTP::Instance*> mtp();
 	ApiWrap &api() {
 		return *_api;
 	}

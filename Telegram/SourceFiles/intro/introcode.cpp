@@ -73,7 +73,11 @@ void CodeInput::correctValue(const QString &was, int wasCursor, QString &now, in
 	}
 }
 
-CodeWidget::CodeWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
+CodeWidget::CodeWidget(
+	QWidget *parent,
+	not_null<Main::Account*> account,
+	not_null<Widget::Data*> data)
+: Step(parent, account, data)
 , _noTelegramCode(this, tr::lng_code_no_telegram(tr::now), st::introLink)
 , _code(this, st::introCode, tr::lng_code_ph())
 , _callTimer(this)
@@ -244,7 +248,7 @@ void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 		} else {
 			getData()->termsLock = Window::TermsLock();
 		}
-		goReplace(new Intro::SignupWidget(parentWidget(), getData()));
+		goReplace<SignupWidget>();
 	});
 }
 
@@ -342,7 +346,7 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 	getData()->hasRecovery = d.is_has_recovery();
 	getData()->pwdHint = qs(d.vhint().value_or_empty());
 	getData()->pwdNotEmptyPassport = d.is_has_secure_values();
-	goReplace(new Intro::PwdCheckWidget(parentWidget(), getData()));
+	goReplace<PwdCheckWidget>();
 }
 
 void CodeWidget::submit() {

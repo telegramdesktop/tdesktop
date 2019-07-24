@@ -20,7 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Intro {
 
-SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
+SignupWidget::SignupWidget(
+	QWidget *parent,
+	not_null<Main::Account*> account,
+	not_null<Widget::Data*> data)
+: Step(parent, account, data)
 , _photo(
 	this,
 	tr::lng_settings_crop_profile(tr::now),
