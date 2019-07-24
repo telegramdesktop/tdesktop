@@ -57,7 +57,7 @@ void SetCloudPassword(not_null<GenericBox*> box, not_null<UserData*> user) {
 	) | rpl::start_with_next([=] {
 		using namespace Settings;
 		const auto weak = make_weak(box);
-		if (CheckEditCloudPassword()) {
+		if (CheckEditCloudPassword(&user->session())) {
 			box->getDelegate()->show(
 				EditCloudPasswordBox(&user->session()));
 		} else {
@@ -566,7 +566,9 @@ void EditAdminBox::requestTransferPassword(not_null<ChannelData*> channel) {
 				const Core::CloudPasswordResult &result) {
 			sendTransferRequestFrom(*box, channel, result);
 		});
-		*box = getDelegate()->show(Box<PasscodeBox>(fields));
+		*box = getDelegate()->show(Box<PasscodeBox>(
+			&channel->session(),
+			fields));
 	}, lifetime());
 }
 

@@ -387,20 +387,24 @@ QImage PrepareScaledFromFull(
 
 BackgroundPreviewBox::BackgroundPreviewBox(
 	QWidget*,
+	not_null<Main::Session*> session,
 	const Data::WallPaper &paper)
-: _text1(GenerateTextItem(
+: _session(session)
+, _text1(GenerateTextItem(
 	delegate(),
-	Auth().data().history(peerFromUser(PeerData::kServiceNotificationsId)),
+	_session->data().history(
+		peerFromUser(PeerData::kServiceNotificationsId)),
 	tr::lng_background_text1(tr::now),
 	false))
 , _text2(GenerateTextItem(
 	delegate(),
-	Auth().data().history(peerFromUser(PeerData::kServiceNotificationsId)),
+	_session->data().history(
+		peerFromUser(PeerData::kServiceNotificationsId)),
 	tr::lng_background_text2(tr::now),
 	true))
 , _paper(paper)
 , _radial([=](crl::time now) { radialAnimationCallback(now); }) {
-	subscribe(Auth().downloaderTaskFinished(), [=] { update(); });
+	subscribe(_session->downloaderTaskFinished(), [=] { update(); });
 }
 
 not_null<HistoryView::ElementDelegate*> BackgroundPreviewBox::delegate() {
@@ -483,7 +487,7 @@ void BackgroundPreviewBox::apply() {
 		&& Data::IsCloudWallPaper(_paper);
 	App::main()->setChatBackground(_paper, std::move(_full));
 	if (install) {
-		Auth().api().request(MTPaccount_InstallWallPaper(
+		_session->api().request(MTPaccount_InstallWallPaper(
 			_paper.mtpInput(),
 			_paper.mtpSettings()
 		)).send();
@@ -736,18 +740,23 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 }
 
 bool BackgroundPreviewBox::Start(
+		not_null<Main::Session*> session,
 		const QString &slug,
 		const QMap<QString, QString> &params) {
 	if (const auto paper = Data::WallPaper::FromColorSlug(slug)) {
-		Ui::show(Box<BackgroundPreviewBox>(paper->withUrlParams(params)));
+		Ui::show(Box<BackgroundPreviewBox>(
+			session,
+			paper->withUrlParams(params)));
 		return true;
 	}
 	if (!IsValidWallPaperSlug(slug)) {
 		Ui::show(Box<InformBox>(tr::lng_background_bad_link(tr::now)));
 		return false;
 	}
-	Auth().api().requestWallPaper(slug, [=](const Data::WallPaper &result) {
-		Ui::show(Box<BackgroundPreviewBox>(result.withUrlParams(params)));
+	session->api().requestWallPaper(slug, [=](const Data::WallPaper &result) {
+		Ui::show(Box<BackgroundPreviewBox>(
+			session,
+			result.withUrlParams(params)));
 	}, [](const RPCError &error) {
 		Ui::show(Box<InformBox>(tr::lng_background_bad_link(tr::now)));
 	});

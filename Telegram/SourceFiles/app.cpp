@@ -314,9 +314,8 @@ namespace App {
 	void quit() {
 		if (quitting()) {
 			return;
-		} else if (Main::Session::Exists()
-			&& Auth().data().exportInProgress()) {
-			Auth().data().stopExportWithConfirmation([] { App::quit(); });
+		} else if (Core::IsAppLaunched()
+			&& Core::App().exportPreventsQuit()) {
 			return;
 		}
 		setLaunchState(QuitRequested);

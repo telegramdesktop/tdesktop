@@ -130,17 +130,18 @@ public:
 	void badMtprotoConfigurationError();
 
 	// Databases.
-	Storage::Databases &databases() {
+	[[nodiscard]] Storage::Databases &databases() {
 		return *_databases;
 	}
 
 	// Account component.
-	Main::Account &activeAccount() const {
+	[[nodiscard]] Main::Account &activeAccount() const {
 		return *_account;
 	}
+	[[nodiscard]] bool exportPreventsQuit();
 
 	// Main::Session component.
-	int unreadBadge() const;
+	[[nodiscard]] int unreadBadge() const;
 	bool unreadBadgeMuted() const;
 
 	// Media component.

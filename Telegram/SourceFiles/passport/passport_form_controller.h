@@ -325,6 +325,10 @@ public:
 		not_null<Window::SessionController*> controller,
 		const FormRequest &request);
 
+	not_null<Window::SessionController*> window() const {
+		return _controller;
+	}
+
 	void show();
 	UserData *bot() const;
 	QString privacyPolicyUrl() const;

@@ -11,11 +11,16 @@ namespace qthelp {
 class RegularExpressionMatch;
 } // namespace qthelp
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Core {
 
 struct LocalUrlHandler {
 	QString expression;
 	Fn<bool(
+		Main::Session *session,
 		const qthelp::RegularExpressionMatch &match,
 		const QVariant &context)> handler;
 };

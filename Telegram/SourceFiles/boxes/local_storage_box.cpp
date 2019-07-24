@@ -265,11 +265,11 @@ QString LocalStorageBox::Row::sizeText(const Database::TaggedSummary &data) cons
 
 LocalStorageBox::LocalStorageBox(
 	QWidget*,
-	not_null<Database*> db,
-	not_null<Database*> dbBig,
+	not_null<Main::Session*> session,
 	CreateTag)
-: _db(db)
-, _dbBig(dbBig) {
+: _session(session)
+, _db(&session->data().cache())
+, _dbBig(&session->data().cacheBigFile()) {
 	const auto &settings = Local::cacheSettings();
 	const auto &settingsBig = Local::cacheBigFileSettings();
 	_totalSizeLimit = settings.totalSizeLimit + settingsBig.totalSizeLimit;
@@ -277,15 +277,13 @@ LocalStorageBox::LocalStorageBox(
 	_timeLimit = settings.totalTimeLimit;
 }
 
-void LocalStorageBox::Show(
-		not_null<Database*> db,
-		not_null<Database*> dbBig) {
+void LocalStorageBox::Show(not_null<::Main::Session*> session) {
 	auto shared = std::make_shared<object_ptr<LocalStorageBox>>(
-		Box<LocalStorageBox>(db, dbBig, CreateTag()));
+		Box<LocalStorageBox>(session, CreateTag()));
 	const auto weak = shared->data();
 	rpl::combine(
-		db->statsOnMain(),
-		dbBig->statsOnMain()
+		session->data().cache().statsOnMain(),
+		session->data().cacheBigFile().statsOnMain()
 	) | rpl::start_with_next([=](
 			Database::Stats &&stats,
 			Database::Stats &&statsBig) {
@@ -592,7 +590,7 @@ void LocalStorageBox::save() {
 	updateBig.totalSizeLimit = _mediaSizeLimit;
 	updateBig.totalTimeLimit = _timeLimit;
 	Local::updateCacheSettings(update, updateBig);
-	Auth().data().cache().updateSettings(update);
+	_session->data().cache().updateSettings(update);
 	closeBox();
 }
 

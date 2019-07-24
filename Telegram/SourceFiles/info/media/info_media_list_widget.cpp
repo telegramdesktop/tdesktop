@@ -1422,7 +1422,9 @@ void ListWidget::deleteItem(UniversalMsgId universalId) {
 DeleteMessagesBox *ListWidget::deleteItems(MessageIdsList &&items) {
 	if (!items.empty()) {
 		const auto box = Ui::show(
-			Box<DeleteMessagesBox>(std::move(items))).data();
+			Box<DeleteMessagesBox>(
+				&_controller->session(),
+				std::move(items))).data();
 		setActionBoxWeak(box);
 		return box;
 	}

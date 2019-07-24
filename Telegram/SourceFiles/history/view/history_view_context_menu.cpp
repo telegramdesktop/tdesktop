@@ -298,10 +298,13 @@ bool AddDeleteSelectedAction(
 		return false;
 	}
 
+	const auto session = request.session;
 	menu->addAction(tr::lng_context_delete_selected(tr::now), [=] {
 		const auto weak = make_weak(list);
 		auto items = ExtractIdsList(request.selectedItems);
-		const auto box = Ui::show(Box<DeleteMessagesBox>(std::move(items)));
+		const auto box = Ui::show(Box<DeleteMessagesBox>(
+			session,
+			std::move(items)));
 		box->setDeleteConfirmedCallback([=] {
 			if (const auto strong = weak.data()) {
 				strong->cancelSelection();
@@ -338,6 +341,7 @@ bool AddDeleteMessageAction(
 			if (asGroup) {
 				if (const auto group = owner->groups().find(item)) {
 					Ui::show(Box<DeleteMessagesBox>(
+						&owner->session(),
 						owner->itemsToIds(group->items)));
 					return;
 				}
@@ -438,6 +442,10 @@ void AddCopyLinkAction(
 }
 
 } // namespace
+
+ContextMenuRequest::ContextMenuRequest(not_null<Main::Session*> session)
+: session(session) {
+}
 
 base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		not_null<ListWidget*> list,

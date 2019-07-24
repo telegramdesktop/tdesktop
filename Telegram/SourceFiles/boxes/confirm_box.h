@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Ui {
 class Checkbox;
 class FlatLabel;
@@ -150,7 +154,10 @@ public:
 		QWidget*,
 		not_null<HistoryItem*> item,
 		bool suggestModerateActions);
-	DeleteMessagesBox(QWidget*, MessageIdsList &&selected);
+	DeleteMessagesBox(
+		QWidget*,
+		not_null<Main::Session*> session,
+		MessageIdsList &&selected);
 	DeleteMessagesBox(QWidget*, not_null<PeerData*> peer, bool justClear);
 
 	void setDeleteConfirmedCallback(Fn<void()> callback) {
@@ -171,6 +178,8 @@ private:
 	void deleteAndClear();
 	PeerData *checkFromSinglePeer() const;
 	std::optional<RevokeConfig> revokeText(not_null<PeerData*> peer) const;
+
+	const not_null<Main::Session*> _session;
 
 	PeerData * const _wipeHistoryPeer = nullptr;
 	const bool _wipeHistoryJustClear = false;
@@ -194,6 +203,7 @@ class ConfirmInviteBox : public BoxContent, public RPCSender {
 public:
 	ConfirmInviteBox(
 		QWidget*,
+		not_null<Main::Session*> session,
 		const MTPDchatInvite &data,
 		Fn<void()> submit);
 	~ConfirmInviteBox();
@@ -206,7 +216,10 @@ protected:
 
 private:
 	static std::vector<not_null<UserData*>> GetParticipants(
+		not_null<Main::Session*> session,
 		const MTPDchatInvite &data);
+
+	const not_null<Main::Session*> _session;
 
 	Fn<void()> _submit;
 	object_ptr<Ui::FlatLabel> _title;

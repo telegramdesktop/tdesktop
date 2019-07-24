@@ -30,23 +30,22 @@ namespace Settings {
 object_ptr<Section> CreateSection(
 		Type type,
 		not_null<QWidget*> parent,
-		Window::SessionController *controller,
-		UserData *self) {
+		not_null<Window::SessionController*> controller) {
 	switch (type) {
 	case Type::Main:
-		return object_ptr<Main>(parent, controller, self);
+		return object_ptr<Main>(parent, controller);
 	case Type::Information:
-		return object_ptr<Information>(parent, controller, self);
+		return object_ptr<Information>(parent, controller);
 	case Type::Notifications:
-		return object_ptr<Notifications>(parent, self);
+		return object_ptr<Notifications>(parent, controller);
 	case Type::PrivacySecurity:
-		return object_ptr<PrivacySecurity>(parent, self);
+		return object_ptr<PrivacySecurity>(parent, controller);
 	case Type::Advanced:
-		return object_ptr<Advanced>(parent, self);
+		return object_ptr<Advanced>(parent, controller);
 	case Type::Chat:
-		return object_ptr<Chat>(parent, self);
+		return object_ptr<Chat>(parent, controller);
 	case Type::Calls:
-		return object_ptr<Calls>(parent, self);
+		return object_ptr<Calls>(parent, controller);
 	}
 	Unexpected("Settings section type in Widget::createInnerWidget.");
 }
@@ -170,8 +169,11 @@ void AddSubsectionTitle(
 		st::settingsSubsectionTitlePadding);
 }
 
-void FillMenu(Fn<void(Type)> showOther, MenuCallback addAction) {
-	if (!Auth().supportMode()) {
+void FillMenu(
+		not_null<::Main::Session*> session,
+		Fn<void(Type)> showOther,
+		MenuCallback addAction) {
+	if (!session->supportMode()) {
 		addAction(
 			tr::lng_settings_information(tr::now),
 			[=] { showOther(Type::Information); });

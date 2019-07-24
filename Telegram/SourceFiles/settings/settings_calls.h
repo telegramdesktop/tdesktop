@@ -11,27 +11,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 namespace Calls {
-	class Call;
+class Call;
 } // namespace Calls
 
 namespace Ui {
-	class LevelMeter;
-}
+class LevelMeter;
+} // namespace Ui
 
 namespace tgvoip {
-	class AudioInputTester;
-}
+class AudioInputTester;
+} // namespace tgvoip
 
 namespace Settings {
 
 class Calls : public Section {
 public:
-	explicit Calls(QWidget *parent, UserData *self = nullptr);
-	virtual ~Calls();
-	virtual void sectionSaveChanges(FnMut<void()> done) override;
+	Calls(QWidget *parent, not_null<Window::SessionController*> controller);
+	~Calls();
+
+	void sectionSaveChanges(FnMut<void()> done) override;
 
 private:
-	void setupContent();
+	void setupContent(not_null<Window::SessionController*> controller);
 	void requestPermissionAndStartTestingMicrophone();
 	void startTestingMicrophone();
 	void stopTestingMicrophone();
@@ -43,6 +44,7 @@ private:
 	std::unique_ptr<tgvoip::AudioInputTester> _micTester;
 	Ui::LevelMeter *_micTestLevel = nullptr;
 	base::Timer _levelUpdateTimer;
+
 };
 
 } // namespace Settings

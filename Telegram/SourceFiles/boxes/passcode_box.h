@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "core/core_cloud_password.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Ui {
 class InputField;
 class PasswordInput;
@@ -23,7 +27,7 @@ struct CloudPasswordState;
 
 class PasscodeBox : public BoxContent, private MTP::Sender {
 public:
-	PasscodeBox(QWidget*, bool turningOff);
+	PasscodeBox(QWidget*, not_null<Main::Session*> session, bool turningOff);
 
 	struct CloudFields {
 		static CloudFields From(const Core::CloudPasswordState &current);
@@ -42,7 +46,10 @@ public:
 		std::optional<QString> customDescription;
 		rpl::producer<QString> customSubmitButton;
 	};
-	PasscodeBox(QWidget*, const CloudFields &fields);
+	PasscodeBox(
+		QWidget*,
+		not_null<Main::Session*> session,
+		const CloudFields &fields);
 
 	rpl::producer<QByteArray> newPasswordSet() const;
 	rpl::producer<> passwordReloadNeeded() const;
@@ -121,6 +128,8 @@ private:
 	void requestPasswordData();
 	void passwordChecked();
 	void serverError();
+
+	const not_null<Main::Session*> _session;
 
 	QString _pattern;
 

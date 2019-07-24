@@ -59,6 +59,7 @@ public:
 		return { nullptr };
 	}
 	[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupBelowWidget(
+			not_null<Window::SessionController*> controller,
 			not_null<QWidget*> parent) {
 		return { nullptr };
 	}
@@ -95,6 +96,7 @@ public:
 
 	EditPrivacyBox(
 		QWidget*,
+		not_null<Window::SessionController*> window,
 		std::unique_ptr<EditPrivacyController> controller,
 		const Value &value);
 
@@ -117,6 +119,7 @@ private:
 	void editExceptions(Exception exception, Fn<void()> done);
 	std::vector<not_null<PeerData*>> &exceptions(Exception exception);
 
+	const not_null<Window::SessionController*> _window;
 	std::unique_ptr<EditPrivacyController> _controller;
 	Value _value;
 

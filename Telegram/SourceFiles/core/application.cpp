@@ -480,6 +480,17 @@ void Application::writeInstallBetaVersionsSetting() {
 	_launcher->writeInstallBetaVersionsSetting();
 }
 
+bool Application::exportPreventsQuit() {
+	if (!activeAccount().sessionExists()
+		|| !activeAccount().session().data().exportInProgress()) {
+		return false;
+	}
+	activeAccount().session().data().stopExportWithConfirmation([] {
+		App::quit();
+	});
+	return true;
+}
+
 int Application::unreadBadge() const {
 	return activeAccount().sessionExists()
 		? activeAccount().session().data().unreadBadge()
@@ -551,12 +562,15 @@ bool Application::openLocalUrl(const QString &url, QVariant context) {
 	}
 	auto command = urlTrimmed.midRef(protocol.size());
 
+	const auto session = activeAccount().sessionExists()
+		? &activeAccount().session()
+		: nullptr;
 	using namespace qthelp;
 	const auto options = RegExOption::CaseInsensitive;
 	for (const auto &[expression, handler] : LocalUrlHandlers()) {
 		const auto match = regex_match(expression, command, options);
 		if (match) {
-			return handler(match, context);
+			return handler(session, match, context);
 		}
 	}
 	return false;

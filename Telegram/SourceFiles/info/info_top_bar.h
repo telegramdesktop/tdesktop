@@ -39,6 +39,7 @@ class TopBar : public Ui::RpWidget {
 public:
 	TopBar(
 		QWidget *parent,
+		not_null<Main::Session*> session,
 		const style::InfoTopBar &st,
 		SelectedItems &&items);
 
@@ -129,6 +130,8 @@ private:
 
 	template <typename Widget, typename IsVisible>
 	void registerToggleControlCallback(Widget *widget, IsVisible &&callback);
+
+	const not_null<Main::Session*> _session;
 
 	const style::InfoTopBar &_st;
 	Ui::Animations::Simple _a_highlight;

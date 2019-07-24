@@ -15,13 +15,11 @@ class Information : public Section {
 public:
 	Information(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		not_null<UserData*> self);
+		not_null<Window::SessionController*> controller);
 
 private:
 	void setupContent(not_null<Window::SessionController*> controller);
 
-	not_null<UserData*> _self;
 	//rpl::variable<bool> _canSaveChanges;
 	//Fn<void(FnMut<void()> done)> _save;
 

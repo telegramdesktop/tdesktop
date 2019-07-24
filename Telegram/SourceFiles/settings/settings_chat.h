@@ -11,19 +11,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 
-void SetupDataStorage(not_null<Ui::VerticalLayout*> container);
-void SetupAutoDownload(not_null<Ui::VerticalLayout*> container);
+void SetupDataStorage(
+	not_null<Window::SessionController*> controller,
+	not_null<Ui::VerticalLayout*> container);
+void SetupAutoDownload(
+	not_null<Window::SessionController*> controller,
+	not_null<Ui::VerticalLayout*> container);
 void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container);
-void SetupSupport(not_null<Ui::VerticalLayout*> container);
+void SetupSupport(
+	not_null<Window::SessionController*> controller,
+	not_null<Ui::VerticalLayout*> container);
 
 class Chat : public Section {
 public:
-	Chat(QWidget *parent, not_null<UserData*> self);
+	Chat(QWidget *parent, not_null<Window::SessionController*> controller);
 
 private:
-	void setupContent();
-
-	not_null<UserData*> _self;
+	void setupContent(not_null<Window::SessionController*> controller);
 
 };
 

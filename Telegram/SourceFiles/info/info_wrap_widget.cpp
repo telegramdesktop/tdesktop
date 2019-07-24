@@ -353,7 +353,11 @@ void WrapWidget::createTopBar() {
 	auto selectedItems = _topBar
 		? _topBar->takeSelectedItems()
 		: SelectedItems(Section::MediaType::kCount);
-	_topBar.create(this, TopBarStyle(wrapValue), std::move(selectedItems));
+	_topBar.create(
+		this,
+		&session(),
+		TopBarStyle(wrapValue),
+		std::move(selectedItems));
 	_topBar->cancelSelectionRequests(
 	) | rpl::start_with_next([this] {
 		_content->cancelSelection();
@@ -582,7 +586,7 @@ void WrapWidget::showTopBarMenu() {
 			_topBarMenu = nullptr;
 			controller->showSettings(type);
 		};
-		::Settings::FillMenu(showOther, addAction);
+		::Settings::FillMenu(&self->session(), showOther, addAction);
 	} else {
 		_topBarMenu = nullptr;
 		return;

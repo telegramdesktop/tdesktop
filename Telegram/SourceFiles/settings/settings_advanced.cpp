@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_button.h"
 #include "platform/platform_specific.h"
 #include "platform/platform_info.h"
+#include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "core/update_checker.h"
 #include "core/application.h"
@@ -418,7 +419,9 @@ void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
 	}, container->lifetime());
 }
 
-void SetupPerformance(not_null<Ui::VerticalLayout*> container) {
+void SetupPerformance(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
 	SetupAnimations(container);
 
 	AddButton(
@@ -430,10 +433,10 @@ void SetupPerformance(not_null<Ui::VerticalLayout*> container) {
 	)->toggledValue(
 	) | rpl::filter([](bool enabled) {
 		return (enabled != cAutoPlayGif());
-	}) | rpl::start_with_next([](bool enabled) {
+	}) | rpl::start_with_next([=](bool enabled) {
 		cSetAutoPlayGif(enabled);
 		if (!cAutoPlayGif()) {
-			Auth().data().stopAutoplayAnimations();
+			controller->session().data().stopAutoplayAnimations();
 		}
 		Local::writeUserSettings();
 	}, container->lifetime());
@@ -456,16 +459,18 @@ void SetupSystemIntegration(
 	AddSkip(container);
 }
 
-Advanced::Advanced(QWidget *parent, UserData *self)
+Advanced::Advanced(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
 : Section(parent) {
-	setupContent();
+	setupContent(controller);
 }
 
 rpl::producer<Type> Advanced::sectionShowOther() {
 	return _showOther.events();
 }
 
-void Advanced::setupContent() {
+void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	auto empty = true;
@@ -495,8 +500,8 @@ void Advanced::setupContent() {
 		SetupConnectionType(content);
 		AddSkip(content);
 	}
-	SetupDataStorage(content);
-	SetupAutoDownload(content);
+	SetupDataStorage(controller, content);
+	SetupAutoDownload(controller, content);
 	SetupSystemIntegration(content, [=](Type type) {
 		_showOther.fire_copy(type);
 	});
@@ -504,7 +509,7 @@ void Advanced::setupContent() {
 	AddDivider(content);
 	AddSkip(content);
 	AddSubsectionTitle(content, tr::lng_settings_performance());
-	SetupPerformance(content);
+	SetupPerformance(controller, content);
 	AddSkip(content);
 
 	if (cAutoUpdate()) {

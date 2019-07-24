@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/passcode_box.h"
 #include "boxes/confirm_box.h"
+#include "window/window_session_controller.h"
 #include "ui/toast/toast.h"
 #include "ui/rp_widget.h"
 #include "ui/countryinput.h"
@@ -723,7 +724,7 @@ void PanelController::setupPassword() {
 	auto fields = PasscodeBox::CloudFields();
 	fields.newAlgo = settings.newAlgo;
 	fields.newSecureSecretAlgo = settings.newSecureAlgo;
-	auto box = show(Box<PasscodeBox>(fields));
+	auto box = show(Box<PasscodeBox>(&_form->window()->session(), fields));
 	box->newPasswordSet(
 	) | rpl::filter([=](const QByteArray &password) {
 		return !password.isEmpty();

@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_button.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "core/file_utilities.h"
 #include "styles/style_boxes.h"
@@ -79,7 +80,9 @@ void SetupPhoto(
 				Box<PhotoCropBox>(image, tr::lng_settings_crop_profile(tr::now)));
 			box->ready(
 			) | rpl::start_with_next([=](QImage &&image) {
-				Auth().api().uploadPeerPhoto(self, std::move(image));
+				self->session().api().uploadPeerPhoto(
+					self,
+					std::move(image));
 			}, box->lifetime());
 		};
 		FileDialog::GetOpenPath(
@@ -229,7 +232,7 @@ void SetupRows(
 		tr::lng_settings_phone_label(),
 		Info::Profile::PhoneValue(self),
 		tr::lng_profile_copy_phone(tr::now),
-		[] { Ui::show(Box<ChangePhoneBox>()); },
+		[=] { Ui::show(Box<ChangePhoneBox>(&self->session())); },
 		st::settingsInfoPhone);
 
 	auto username = Info::Profile::UsernameValue(self);
@@ -333,7 +336,7 @@ BioManager SetupBio(
 		countdown->setText(QString::number(countLeft));
 	};
 	const auto save = [=](FnMut<void()> done) {
-		Auth().api().saveSelfBio(
+		self->session().api().saveSelfBio(
 			TextUtilities::PrepareForSending(bio->getLastText()),
 			std::move(done));
 	};
@@ -408,10 +411,8 @@ BioManager SetupBio(
 
 Information::Information(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller,
-	not_null<UserData*> self)
-: Section(parent)
-, _self(self) {
+	not_null<Window::SessionController*> controller)
+: Section(parent) {
 	setupContent(controller);
 }
 
@@ -423,13 +424,15 @@ Information::Information(
 //	_save(std::move(done));
 //}
 
-void Information::setupContent(not_null<Window::SessionController*> controller) {
+void Information::setupContent(
+		not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	SetupPhoto(content, controller, _self);
-	SetupRows(content, _self);
-	SetupBio(content, _self);
-	//auto manager = SetupBio(content, _self);
+	const auto self = controller->session().user();
+	SetupPhoto(content, controller, self);
+	SetupRows(content, self);
+	SetupBio(content, self);
+	//auto manager = SetupBio(content, self);
 	//_canSaveChanges = std::move(manager.canSave);
 	//_save = std::move(manager.save);
 

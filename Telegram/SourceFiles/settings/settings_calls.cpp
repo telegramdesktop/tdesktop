@@ -38,9 +38,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 
-Calls::Calls(QWidget *parent, UserData *self)
+Calls::Calls(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
 : Section(parent) {
-	setupContent();
+	setupContent(controller);
 }
 
 Calls::~Calls() {
@@ -56,7 +58,7 @@ void Calls::sectionSaveChanges(FnMut<void()> done) {
 	done();
 }
 
-void Calls::setupContent() {
+void Calls::setupContent(not_null<Window::SessionController*> controller) {
 	using namespace tgvoip;
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "window/window_session_controller.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 
@@ -113,9 +114,11 @@ QString EditPrivacyController::optionLabel(Option option) {
 
 EditPrivacyBox::EditPrivacyBox(
 	QWidget*,
+	not_null<Window::SessionController*> window,
 	std::unique_ptr<EditPrivacyController> controller,
 	const Value &value)
-: _controller(std::move(controller))
+: _window(window)
+, _controller(std::move(controller))
 , _value(value) {
 }
 
@@ -350,7 +353,7 @@ void EditPrivacyBox::setupContent() {
 	addLabel(content, _controller->exceptionsDescription());
 	AddSkip(content);
 
-	if (auto below = _controller->setupBelowWidget(content)) {
+	if (auto below = _controller->setupBelowWidget(_window, content)) {
 		content->add(std::move(below));
 	}
 
@@ -358,7 +361,7 @@ void EditPrivacyBox::setupContent() {
 		const auto someAreDisallowed = (_value.option != Option::Everyone)
 			|| !_value.never.empty();
 		_controller->confirmSave(someAreDisallowed, crl::guard(this, [=] {
-			Auth().api().savePrivacy(
+			_window->session().api().savePrivacy(
 				_controller->apiKey(),
 				collectResult());
 			closeBox();

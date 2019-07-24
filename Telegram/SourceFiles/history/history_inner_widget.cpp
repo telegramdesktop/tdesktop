@@ -3012,6 +3012,7 @@ void HistoryInner::deleteAsGroup(FullMsgId itemId) {
 			return deleteItem(item);
 		}
 		Ui::show(Box<DeleteMessagesBox>(
+			&session(),
 			session().data().itemsToIds(group->items)));
 	}
 }

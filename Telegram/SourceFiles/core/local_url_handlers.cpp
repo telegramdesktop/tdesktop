@@ -33,19 +33,22 @@ namespace {
 
 using Match = qthelp::RegularExpressionMatch;
 
-bool JoinGroupByHash(const Match &match, const QVariant &context) {
-	if (!Main::Session::Exists()) {
+bool JoinGroupByHash(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	const auto hash = match->captured(1);
-	Auth().api().checkChatInvite(hash, [=](const MTPChatInvite &result) {
+	session->api().checkChatInvite(hash, [=](const MTPChatInvite &result) {
 		Core::App().hideMediaView();
 		result.match([=](const MTPDchatInvite &data) {
-			Ui::show(Box<ConfirmInviteBox>(data, [=] {
-				Auth().api().importChatInvite(hash);
+			Ui::show(Box<ConfirmInviteBox>(session, data, [=] {
+				session->api().importChatInvite(hash);
 			}));
 		}, [=](const MTPDchatInviteAlready &data) {
-			if (const auto chat = Auth().data().processChat(data.vchat())) {
+			if (const auto chat = session->data().processChat(data.vchat())) {
 				App::wnd()->sessionController()->showPeerHistory(
 					chat,
 					Window::SectionShow::Way::Forward);
@@ -61,8 +64,11 @@ bool JoinGroupByHash(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool ShowStickerSet(const Match &match, const QVariant &context) {
-	if (!Main::Session::Exists()) {
+bool ShowStickerSet(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	Core::App().hideMediaView();
@@ -72,14 +78,20 @@ bool ShowStickerSet(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool SetLanguage(const Match &match, const QVariant &context) {
+bool SetLanguage(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
 	const auto languageId = match->captured(1);
 	Lang::CurrentCloudManager().switchWithWarning(languageId);
 	return true;
 }
 
-bool ShareUrl(const Match &match, const QVariant &context) {
-	if (!Main::Session::Exists()) {
+bool ShareUrl(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	auto params = url_parse_params(
@@ -93,8 +105,11 @@ bool ShareUrl(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool ConfirmPhone(const Match &match, const QVariant &context) {
-	if (!Main::Session::Exists()) {
+bool ConfirmPhone(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	auto params = url_parse_params(
@@ -109,8 +124,11 @@ bool ConfirmPhone(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool ShareGameScore(const Match &match, const QVariant &context) {
-	if (!Main::Session::Exists()) {
+bool ShareGameScore(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	const auto params = url_parse_params(
@@ -120,7 +138,10 @@ bool ShareGameScore(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool ApplySocksProxy(const Match &match, const QVariant &context) {
+bool ApplySocksProxy(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
 	auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
@@ -128,7 +149,10 @@ bool ApplySocksProxy(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool ApplyMtprotoProxy(const Match &match, const QVariant &context) {
+bool ApplyMtprotoProxy(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
 	auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
@@ -160,26 +184,36 @@ bool ShowPassportForm(const QMap<QString, QString> &params) {
 	return false;
 }
 
-bool ShowPassport(const Match &match, const QVariant &context) {
+bool ShowPassport(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
 	return ShowPassportForm(url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower));
 }
 
-bool ShowWallPaper(const Match &match, const QVariant &context) {
-	if (!Main::Session::Exists()) {
+bool ShowWallPaper(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	return BackgroundPreviewBox::Start(
+		session,
 		params.value(qsl("slug")),
 		params);
 }
 
-bool ResolveUsername(const Match &match, const QVariant &context) {
-	if (!Main::Session::Exists()) {
+bool ResolveUsername(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	const auto params = url_parse_params(
@@ -228,8 +262,11 @@ bool ResolveUsername(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool ResolvePrivatePost(const Match &match, const QVariant &context) {
-	if (!Main::Session::Exists()) {
+bool ResolvePrivatePost(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	const auto params = url_parse_params(
@@ -249,18 +286,17 @@ bool ResolvePrivatePost(const Match &match, const QVariant &context) {
 	const auto fail = [=] {
 		Ui::show(Box<InformBox>(tr::lng_error_post_link_invalid(tr::now)));
 	};
-	const auto auth = &Auth();
-	if (const auto channel = auth->data().channelLoaded(channelId)) {
+	if (const auto channel = session->data().channelLoaded(channelId)) {
 		done(channel);
 		return true;
 	}
-	auth->api().request(MTPchannels_GetChannels(
+	session->api().request(MTPchannels_GetChannels(
 		MTP_vector<MTPInputChannel>(
 			1,
 			MTP_inputChannel(MTP_int(channelId), MTP_long(0)))
 	)).done([=](const MTPmessages_Chats &result) {
 		result.match([&](const auto &data) {
-			const auto peer = auth->data().processChats(data.vchats());
+			const auto peer = session->data().processChats(data.vchats());
 			if (peer && peer->id == peerFromChannel(channelId)) {
 				done(peer);
 			} else {
@@ -273,8 +309,11 @@ bool ResolvePrivatePost(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool HandleUnknown(const Match &match, const QVariant &context) {
-	if (!Main::Session::Exists()) {
+bool HandleUnknown(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	const auto request = match->captured(1);
@@ -298,7 +337,7 @@ bool HandleUnknown(const Match &match, const QVariant &context) {
 			Ui::show(Box<InformBox>(text));
 		}
 	};
-	Auth().api().requestDeepLinkInfo(request, callback);
+	session->api().requestDeepLinkInfo(request, callback);
 	return true;
 }
 

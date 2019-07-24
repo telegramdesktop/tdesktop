@@ -21,12 +21,14 @@ void SetupAnimations(not_null<Ui::VerticalLayout*> container);
 
 class Advanced : public Section {
 public:
-	explicit Advanced(QWidget *parent, UserData *self = nullptr);
+	Advanced(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
 
 	rpl::producer<Type> sectionShowOther() override;
 
 private:
-	void setupContent();
+	void setupContent(not_null<Window::SessionController*> controller);
 
 	rpl::event_stream<Type> _showOther;
 

@@ -6131,7 +6131,9 @@ void HistoryWidget::confirmDeleteSelected() {
 		return;
 	}
 	const auto weak = make_weak(this);
-	const auto box = Ui::show(Box<DeleteMessagesBox>(std::move(items)));
+	const auto box = Ui::show(Box<DeleteMessagesBox>(
+		&session(),
+		std::move(items)));
 	box->setDeleteConfirmedCallback([=] {
 		if (const auto strong = weak.data()) {
 			strong->clearSelected();
