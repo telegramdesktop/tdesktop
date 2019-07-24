@@ -590,7 +590,9 @@ void MainWindow::onShowAddContact() {
 	if (isHidden()) showFromTray();
 
 	if (account().sessionExists()) {
-		Ui::show(Box<AddContactBox>(), LayerOption::KeepOther);
+		Ui::show(
+			Box<AddContactBox>(&account().session()),
+			LayerOption::KeepOther);
 	}
 }
 
@@ -599,7 +601,9 @@ void MainWindow::onShowNewGroup() {
 
 	if (account().sessionExists()) {
 		Ui::show(
-			Box<GroupInfoBox>(GroupInfoBox::Type::Group),
+			Box<GroupInfoBox>(
+				&account().session(),
+				GroupInfoBox::Type::Group),
 			LayerOption::KeepOther);
 	}
 }
@@ -609,7 +613,9 @@ void MainWindow::onShowNewChannel() {
 
 	if (_main) {
 		Ui::show(
-			Box<GroupInfoBox>(GroupInfoBox::Type::Channel),
+			Box<GroupInfoBox>(
+				&account().session(),
+				GroupInfoBox::Type::Channel),
 			LayerOption::KeepOther);
 	}
 }

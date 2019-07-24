@@ -3270,7 +3270,7 @@ void ApiWrap::toggleSavedGif(
 		)).done([=](const MTPBool &result) {
 			if (mtpIsTrue(result)) {
 				if (saved) {
-					App::addSavedGif(document);
+					session().data().addSavedGif(document);
 				}
 			}
 		}).fail([=](const RPCError &error) {

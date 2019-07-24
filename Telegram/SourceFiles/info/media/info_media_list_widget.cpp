@@ -554,6 +554,10 @@ ListWidget::ListWidget(
 	start();
 }
 
+AuthSession &ListWidget::session() const {
+	return _controller->session();
+}
+
 void ListWidget::start() {
 	_controller->setSearchEnabledByContent(false);
 	ObservableViewer(
@@ -564,17 +568,17 @@ void ListWidget::start() {
 		}
 	}, lifetime());
 	ObservableViewer(
-		Auth().downloader().taskFinished()
+		session().downloader().taskFinished()
 	) | rpl::start_with_next([this] { update(); }, lifetime());
-	Auth().data().itemLayoutChanged(
+	session().data().itemLayoutChanged(
 	) | rpl::start_with_next([this](auto item) {
 		itemLayoutChanged(item);
 	}, lifetime());
-	Auth().data().itemRemoved(
+	session().data().itemRemoved(
 	) | rpl::start_with_next([this](auto item) {
 		itemRemoved(item);
 	}, lifetime());
-	Auth().data().itemRepaintRequest(
+	session().data().itemRepaintRequest(
 	) | rpl::start_with_next([this](auto item) {
 		repaintItem(item);
 	}, lifetime());
@@ -839,7 +843,7 @@ BaseLayout *ListWidget::getExistingLayout(
 std::unique_ptr<BaseLayout> ListWidget::createLayout(
 		UniversalMsgId universalId,
 		Type type) {
-	auto item = Auth().data().message(computeFullId(universalId));
+	auto item = session().data().message(computeFullId(universalId));
 	if (!item) {
 		return nullptr;
 	}
@@ -1180,7 +1184,7 @@ void ListWidget::showContextMenu(
 		mouseActionUpdate(e->globalPos());
 	}
 
-	auto item = Auth().data().message(computeFullId(_overState.itemId));
+	auto item = session().data().message(computeFullId(_overState.itemId));
 	if (!item || !_overState.inside) {
 		return;
 	}
@@ -1225,11 +1229,12 @@ void ListWidget::showContextMenu(
 	auto link = ClickHandler::getActive();
 
 	const auto itemFullId = item->fullId();
+	const auto owner = &session().data();
 	_contextMenu = base::make_unique_q<Ui::PopupMenu>(this);
 	_contextMenu->addAction(
 		tr::lng_context_to_msg(tr::now),
-		[itemFullId] {
-			if (auto item = Auth().data().message(itemFullId)) {
+		[=] {
+			if (const auto item = owner->message(itemFullId)) {
 				Ui::showPeerHistoryAtItem(item);
 			}
 		});
@@ -1381,7 +1386,7 @@ void ListWidget::forwardSelected() {
 }
 
 void ListWidget::forwardItem(UniversalMsgId universalId) {
-	if (const auto item = Auth().data().message(computeFullId(universalId))) {
+	if (const auto item = session().data().message(computeFullId(universalId))) {
 		forwardItems({ 1, item->fullId() });
 	}
 }
@@ -1409,7 +1414,7 @@ void ListWidget::deleteSelected() {
 }
 
 void ListWidget::deleteItem(UniversalMsgId universalId) {
-	if (const auto item = Auth().data().message(computeFullId(universalId))) {
+	if (const auto item = session().data().message(computeFullId(universalId))) {
 		deleteItems({ 1, item->fullId() });
 	}
 }
@@ -1513,7 +1518,7 @@ bool ListWidget::changeItemSelection(
 			universalId,
 			selection);
 		if (ok) {
-			auto item = Auth().data().message(computeFullId(universalId));
+			auto item = session().data().message(computeFullId(universalId));
 			if (!item) {
 				selected.erase(iterator);
 				return false;
@@ -1932,7 +1937,7 @@ void ListWidget::performDrag() {
 	//	if (uponSelected && !Adaptive::OneColumn()) {
 	//		auto selectedState = getSelectionState();
 	//		if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
-	//			Auth().data().setMimeForwardIds(collectSelectedIds());
+	//			session().data().setMimeForwardIds(collectSelectedIds());
 	//			mimeData->setData(qsl("application/x-td-forward"), "1");
 	//		}
 	//	}
@@ -1944,14 +1949,14 @@ void ListWidget::performDrag() {
 	//	if (auto pressedItem = _pressState.layout) {
 	//		pressedMedia = pressedItem->getMedia();
 	//		if (_mouseCursorState == CursorState::Date || (pressedMedia && pressedMedia->dragItem())) {
-	//			Auth().data().setMimeForwardIds(Auth().data().itemOrItsGroup(pressedItem));
+	//			session().data().setMimeForwardIds(session().data().itemOrItsGroup(pressedItem));
 	//			forwardMimeType = qsl("application/x-td-forward");
 	//		}
 	//	}
 	//	if (auto pressedLnkItem = App::pressedLinkItem()) {
 	//		if ((pressedMedia = pressedLnkItem->getMedia())) {
 	//			if (forwardMimeType.isEmpty() && pressedMedia->dragItemByHandler(pressedHandler)) {
-	//				Auth().data().setMimeForwardIds({ 1, pressedLnkItem->fullId() });
+	//				session().data().setMimeForwardIds({ 1, pressedLnkItem->fullId() });
 	//				forwardMimeType = qsl("application/x-td-forward");
 	//			}
 	//		}

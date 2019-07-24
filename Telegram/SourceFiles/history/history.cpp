@@ -1005,7 +1005,7 @@ void History::applyMessageChanges(
 	if (data.type() == mtpc_messageService) {
 		applyServiceChanges(item, data.c_messageService());
 	}
-	App::checkSavedGif(item);
+	owner().checkSavedGif(item);
 }
 
 void History::applyServiceChanges(

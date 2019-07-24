@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_shared_media.h"
 
 class DeleteMessagesBox;
+class AuthSession;
 
 namespace HistoryView {
 struct TextState;
@@ -48,6 +49,8 @@ public:
 	ListWidget(
 		QWidget *parent,
 		not_null<AbstractController*> controller);
+
+	AuthSession &session() const;
 
 	void restart();
 

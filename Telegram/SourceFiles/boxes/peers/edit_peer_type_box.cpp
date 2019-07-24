@@ -464,7 +464,9 @@ void Controller::askUsernameRevoke() {
 		checkUsernameAvailability();
 	});
 	Ui::show(
-		Box<RevokePublicLinkBox>(std::move(revokeCallback)),
+		Box<RevokePublicLinkBox>(
+			&_peer->session(),
+			std::move(revokeCallback)),
 		LayerOption::KeepOther);
 }
 

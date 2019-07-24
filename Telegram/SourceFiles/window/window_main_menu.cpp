@@ -128,17 +128,22 @@ MainMenu::MainMenu(
 , _version(this, st::mainMenuVersionLabel) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	const auto showSelfChat = [] {
-		App::main()->choosePeer(Auth().userPeerId(), ShowAtUnreadMsgId);
+	const auto showSelfChat = [=] {
+		App::main()->choosePeer(
+			_controller->session().userPeerId(),
+			ShowAtUnreadMsgId);
 	};
 	const auto showArchive = [=] {
-		if (const auto folder = Auth().data().folderLoaded(Data::Folder::kId)) {
+		const auto folder = _controller->session().data().folderLoaded(
+			Data::Folder::kId);
+		if (folder) {
 			App::wnd()->sessionController()->openFolder(folder);
 			Ui::hideSettingsAndLayer();
 		}
 	};
 	const auto checkArchive = [=] {
-		const auto folder = Auth().data().folderLoaded(Data::Folder::kId);
+		const auto folder = _controller->session().data().folderLoaded(
+			Data::Folder::kId);
 		return folder
 			&& !folder->chatsList()->empty()
 			&& _controller->session().settings().archiveInMainMenu();
@@ -146,7 +151,7 @@ MainMenu::MainMenu(
 	_userpicButton.create(
 		this,
 		_controller,
-		Auth().user(),
+		_controller->session().user(),
 		Ui::UserpicButton::Role::Custom,
 		st::mainMenuUserpic);
 	_userpicButton->setClickedCallback(showSelfChat);
@@ -201,8 +206,7 @@ MainMenu::MainMenu(
 	_version->setLink(1, std::make_shared<UrlClickHandler>(qsl("https://desktop.telegram.org/changelog")));
 	_version->setLink(2, std::make_shared<LambdaClickHandler>([] { Ui::show(Box<AboutBox>()); }));
 
-	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
-	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
+	subscribe(_controller->session().downloaderTaskFinished(), [=] { update(); });
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserPhoneChanged, [this](const Notify::PeerUpdate &update) {
 		if (update.peer->isSelf()) {
 			updatePhone();
@@ -217,7 +221,7 @@ MainMenu::MainMenu(
 			refreshBackground();
 		}
 	});
-	Auth().data().chatsListChanges(
+	_controller->session().data().chatsListChanges(
 	) | rpl::filter([](Data::Folder *folder) {
 		return folder && (folder->id() == Data::Folder::kId);
 	}) | rpl::start_with_next([=](Data::Folder *folder) {
@@ -230,7 +234,7 @@ MainMenu::MainMenu(
 
 void MainMenu::refreshMenu() {
 	_menu->clearActions();
-	if (!Auth().supportMode()) {
+	if (!_controller->session().supportMode()) {
 		_menu->addAction(tr::lng_create_group_title(tr::now), [] {
 			App::wnd()->onShowNewGroup();
 		}, &st::mainMenuNewGroup, &st::mainMenuNewGroupOver);
@@ -265,14 +269,16 @@ void MainMenu::refreshMenu() {
 		const auto fix = std::make_shared<QPointer<QAction>>();
 		*fix = _menu->addAction(qsl("Fix chats order"), [=] {
 			(*fix)->setChecked(!(*fix)->isChecked());
-			Auth().settings().setSupportFixChatsOrder((*fix)->isChecked());
+			_controller->session().settings().setSupportFixChatsOrder(
+				(*fix)->isChecked());
 			Local::writeUserSettings();
 		}, &st::mainMenuFixOrder, &st::mainMenuFixOrderOver);
 		(*fix)->setCheckable(true);
-		(*fix)->setChecked(Auth().settings().supportFixChatsOrder());
+		(*fix)->setChecked(
+			_controller->session().settings().supportFixChatsOrder());
 
 		_menu->addAction(qsl("Reload templates"), [=] {
-			Auth().supportTemplates().reload();
+			_controller->session().supportTemplates().reload();
 		}, &st::mainMenuReload, &st::mainMenuReloadOver);
 	}
 	_menu->addAction(tr::lng_menu_settings(tr::now), [] {
@@ -335,7 +341,8 @@ void MainMenu::refreshBackground() {
 		st::mainMenuCoverTextLeft,
 		st::mainMenuCoverNameTop,
 		std::max(
-			st::semiboldFont->width(Auth().user()->nameText().toString()),
+			st::semiboldFont->width(
+				_controller->session().user()->nameText().toString()),
 			st::normalFont->width(_phoneText)),
 		st::semiboldFont->height * 2);
 
@@ -376,7 +383,7 @@ void MainMenu::updateControlsGeometry() {
 }
 
 void MainMenu::updatePhone() {
-	_phoneText = App::formatPhone(Auth().user()->phone());
+	_phoneText = App::formatPhone(_controller->session().user()->phone());
 	update();
 }
 
@@ -408,7 +415,7 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 		}
 		p.setPen(st::mainMenuCoverFg);
 		p.setFont(st::semiboldFont);
-		Auth().user()->nameText().drawLeftElided(
+		_controller->session().user()->nameText().drawLeftElided(
 			p,
 			st::mainMenuCoverTextLeft,
 			st::mainMenuCoverNameTop,
@@ -429,7 +436,9 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 
 		// Draw Archive button.
 		if (!_archiveButton->isHidden()) {
-			if (const auto folder = Auth().data().folderLoaded(Data::Folder::kId)) {
+			const auto folder = _controller->session().data().folderLoaded(
+				Data::Folder::kId);
+			if (folder) {
 				folder->paintUserpic(
 					p,
 					_archiveButton->x() + (_archiveButton->width() - st::mainMenuCloudSize) / 2,

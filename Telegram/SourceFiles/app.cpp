@@ -115,33 +115,6 @@ namespace App {
 		return nullptr;
 	}
 
-	void addSavedGif(DocumentData *doc) {
-		auto &saved = Auth().data().savedGifsRef();
-		int32 index = saved.indexOf(doc);
-		if (index) {
-			if (index > 0) saved.remove(index);
-			saved.push_front(doc);
-			if (saved.size() > Global::SavedGifsLimit()) saved.pop_back();
-			Local::writeSavedGifs();
-
-			Auth().data().notifySavedGifsUpdated();
-			Auth().data().setLastSavedGifsUpdate(0);
-			Auth().api().updateStickers();
-		}
-	}
-
-	void checkSavedGif(HistoryItem *item) {
-		if (!item->Has<HistoryMessageForwarded>() && (item->out() || item->history()->peer == Auth().user())) {
-			if (const auto media = item->media()) {
-				if (const auto document = media->document()) {
-					if (document->isGifv()) {
-						addSavedGif(document);
-					}
-				}
-			}
-		}
-	}
-
 	QString peerName(const PeerData *peer, bool forDialogs) {
 		return peer ? ((forDialogs && peer->isUser() && !peer->asUser()->nameOrPhone.isEmpty()) ? peer->asUser()->nameOrPhone : peer->name) : tr::lng_deleted(tr::now);
 	}

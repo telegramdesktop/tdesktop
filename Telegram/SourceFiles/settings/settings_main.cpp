@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "window/window_session_controller.h"
 #include "core/file_utilities.h"
 #include "styles/style_settings.h"
 
@@ -297,8 +298,8 @@ void Main::setupContent(not_null<Window::SessionController*> controller) {
 	Ui::ResizeFitChild(this, content);
 
 	// If we load this in advance it won't jump when we open its' section.
-	Auth().api().reloadPasswordState();
-	Auth().api().reloadContactSignupSilent();
+	controller->session().api().reloadPasswordState();
+	controller->session().api().reloadContactSignupSilent();
 }
 
 rpl::producer<Type> Main::sectionShowOther() {

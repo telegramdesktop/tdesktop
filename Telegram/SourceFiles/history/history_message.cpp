@@ -184,17 +184,18 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		base::flat_set<mtpRequestId> requests;
 	};
 	const auto history = item->history();
+	const auto owner = &history->owner();
 	const auto data = std::make_shared<ShareData>(
 		history->peer,
-		history->owner().itemOrItsGroup(item));
-	const auto isGroup = (history->owner().groups().find(item) != nullptr);
+		owner->itemOrItsGroup(item));
+	const auto isGroup = (owner->groups().find(item) != nullptr);
 	const auto isGame = item->getMessageBot()
 		&& item->media()
 		&& (item->media()->game() != nullptr);
 	const auto canCopyLink = item->hasDirectLink() || isGame;
 
 	auto copyCallback = [=]() {
-		if (auto item = Auth().data().message(data->msgIds[0])) {
+		if (const auto item = owner->message(data->msgIds[0])) {
 			if (item->hasDirectLink()) {
 				HistoryView::CopyPostLink(item->fullId());
 			} else if (const auto bot = item->getMessageBot()) {
@@ -321,7 +322,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 		const FullMsgId &msgId) {
 	return [dependent = msgId](ChannelData *channel, MsgId msgId) {
-		if (auto item = Auth().data().message(dependent)) {
+		if (const auto item = Auth().data().message(dependent)) {
 			item->updateDependencyItem();
 		}
 	};

@@ -60,7 +60,7 @@ public:
 	void createManager();
 
 	void checkDelayed();
-	void schedule(History *history, HistoryItem *item);
+	void schedule(not_null<History*> history, not_null<HistoryItem*> item);
 	void clearFromHistory(History *history);
 	void clearFromItem(HistoryItem *item);
 	void clearAll();
@@ -117,7 +117,7 @@ private:
 
 class Manager {
 public:
-	Manager(System *system) : _system(system) {
+	explicit Manager(not_null<System*> system) : _system(system) {
 	}
 
 	void showNotification(HistoryItem *item, int forwardedCount) {
@@ -155,7 +155,7 @@ public:
 	virtual ~Manager() = default;
 
 protected:
-	System *system() const {
+	not_null<System*> system() const {
 		return _system;
 	}
 
@@ -175,7 +175,7 @@ private:
 		not_null<History*> history,
 		MsgId messageId);
 
-	System *_system = nullptr;
+	const not_null<System*> _system;
 
 };
 

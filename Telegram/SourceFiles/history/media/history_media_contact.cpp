@@ -42,11 +42,14 @@ ClickHandlerPtr sendMessageClickHandler(PeerData *peer) {
 }
 
 ClickHandlerPtr addContactClickHandler(not_null<HistoryItem*> item) {
-	return std::make_shared<LambdaClickHandler>([fullId = item->fullId()] {
-		if (const auto item = Auth().data().message(fullId)) {
+	const auto session = &item->history()->session();
+	const auto fullId = item->fullId();
+	return std::make_shared<LambdaClickHandler>([=] {
+		if (const auto item = session->data().message(fullId)) {
 			if (const auto media = item->media()) {
 				if (const auto contact = media->sharedContact()) {
 					Ui::show(Box<AddContactBox>(
+						session,
 						contact->firstName,
 						contact->lastName,
 						contact->phoneNumber));

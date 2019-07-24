@@ -1457,12 +1457,13 @@ void Message::drawRightAction(
 
 ClickHandlerPtr Message::rightActionLink() const {
 	if (!_rightActionLink) {
+		const auto owner = &data()->history()->owner();
 		const auto itemId = data()->fullId();
 		const auto forwarded = data()->Get<HistoryMessageForwarded>();
 		const auto savedFromPeer = forwarded ? forwarded->savedFromPeer : nullptr;
 		const auto savedFromMsgId = forwarded ? forwarded->savedFromMsgId : 0;
 		_rightActionLink = std::make_shared<LambdaClickHandler>([=] {
-			if (const auto item = Auth().data().message(itemId)) {
+			if (const auto item = owner->message(itemId)) {
 				if (savedFromPeer && savedFromMsgId) {
 					App::wnd()->sessionController()->showPeerHistory(
 						savedFromPeer,
@@ -1479,9 +1480,10 @@ ClickHandlerPtr Message::rightActionLink() const {
 
 ClickHandlerPtr Message::fastReplyLink() const {
 	if (!_fastReplyLink) {
+		const auto owner = &data()->history()->owner();
 		const auto itemId = data()->fullId();
 		_fastReplyLink = std::make_shared<LambdaClickHandler>([=] {
-			if (const auto item = Auth().data().message(itemId)) {
+			if (const auto item = owner->message(itemId)) {
 				if (const auto main = App::main()) {
 					main->replyToItem(item);
 				}

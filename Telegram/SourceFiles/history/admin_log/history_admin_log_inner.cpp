@@ -227,25 +227,25 @@ InnerWidget::InnerWidget(
 , _idManager(_history->adminLogIdManager()) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
-	Auth().data().viewRepaintRequest(
+	session().data().viewRepaintRequest(
 	) | rpl::start_with_next([this](auto view) {
 		if (view->delegate() == this) {
 			repaintItem(view);
 		}
 	}, lifetime());
-	Auth().data().viewResizeRequest(
+	session().data().viewResizeRequest(
 	) | rpl::start_with_next([this](auto view) {
 		if (view->delegate() == this) {
 			resizeItem(view);
 		}
 	}, lifetime());
-	Auth().data().itemViewRefreshRequest(
+	session().data().itemViewRefreshRequest(
 	) | rpl::start_with_next([this](auto item) {
 		if (const auto view = viewForItem(item)) {
 			refreshItem(view);
 		}
 	}, lifetime());
-	Auth().data().viewLayoutChanged(
+	session().data().viewLayoutChanged(
 	) | rpl::start_with_next([this](auto view) {
 		if (view->delegate() == this) {
 			if (view->isUnderCursor()) {
@@ -253,7 +253,7 @@ InnerWidget::InnerWidget(
 			}
 		}
 	}, lifetime());
-	Auth().data().animationPlayInlineRequest(
+	session().data().animationPlayInlineRequest(
 	) | rpl::start_with_next([this](auto item) {
 		if (const auto view = viewForItem(item)) {
 			if (const auto media = view->media()) {
@@ -261,7 +261,7 @@ InnerWidget::InnerWidget(
 			}
 		}
 	}, lifetime());
-	subscribe(Auth().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
+	subscribe(session().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
 		if (_history != query.item->history() || !query.item->isLogEntry() || !isVisible()) {
 			return;
 		}
@@ -275,6 +275,10 @@ InnerWidget::InnerWidget(
 	updateEmptyText();
 
 	requestAdmins();
+}
+
+AuthSession &InnerWidget::session() const {
+	return _controller->session();
 }
 
 void InnerWidget::visibleTopBottomUpdated(
@@ -389,7 +393,7 @@ void InnerWidget::requestAdmins() {
 		MTP_int(kMaxChannelAdmins),
 		MTP_int(participantsHash)
 	)).done([this](const MTPchannels_ChannelParticipants &result) {
-		Auth().api().parseChannelParticipants(_channel, result, [&](
+		session().api().parseChannelParticipants(_channel, result, [&](
 				int availableCount,
 				const QVector<MTPChannelParticipant> &list) {
 			auto filtered = (
@@ -407,7 +411,7 @@ void InnerWidget::requestAdmins() {
 				return std::make_pair(userId, canEdit);
 			}) | ranges::view::transform([&](auto &&pair) {
 				return std::make_pair(
-					Auth().data().userLoaded(pair.first),
+					session().data().userLoaded(pair.first),
 					pair.second);
 			}) | ranges::view::filter([&](auto &&pair) {
 				return (pair.first != nullptr);
@@ -421,7 +425,7 @@ void InnerWidget::requestAdmins() {
 			}
 		});
 		if (_admins.empty()) {
-			_admins.push_back(Auth().user());
+			_admins.push_back(session().user());
 		}
 		if (_showFilterCallback) {
 			showFilter(std::move(_showFilterCallback));
@@ -514,7 +518,7 @@ bool InnerWidget::elementUnderCursor(
 void InnerWidget::elementAnimationAutoplayAsync(
 		not_null<const HistoryView::Element*> view) {
 	crl::on_main(this, [this, msgId = view->data()->fullId()] {
-		if (const auto item = Auth().data().message(msgId)) {
+		if (const auto item = session().data().message(msgId)) {
 			if (const auto view = viewForItem(item)) {
 				if (const auto media = view->media()) {
 					media->autoplayAnimation();
@@ -1144,7 +1148,7 @@ void InnerWidget::showContextInFolder(not_null<DocumentData*> document) {
 }
 
 void InnerWidget::openContextGif(FullMsgId itemId) {
-	if (const auto item = Auth().data().message(itemId)) {
+	if (const auto item = session().data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
 				Core::App().showDocument(document, item);
@@ -1154,7 +1158,7 @@ void InnerWidget::openContextGif(FullMsgId itemId) {
 }
 
 void InnerWidget::copyContextText(FullMsgId itemId) {
-	if (const auto item = Auth().data().message(itemId)) {
+	if (const auto item = session().data().message(itemId)) {
 		SetClipboardText(HistoryItemText(item));
 	}
 }
@@ -1612,7 +1616,7 @@ void InnerWidget::performDrag() {
 	//	if (uponSelected && !Adaptive::OneColumn()) {
 	//		auto selectedState = getSelectionState();
 	//		if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
-	//			Auth().data().setMimeForwardIds(getSelectedItems());
+	//			session().data().setMimeForwardIds(getSelectedItems());
 	//			mimeData->setData(qsl("application/x-td-forward"), "1");
 	//		}
 	//	}
@@ -1626,8 +1630,8 @@ void InnerWidget::performDrag() {
 	//		if (_mouseCursorState == CursorState::Date
 	//			|| (pressedMedia && pressedMedia->dragItem())) {
 	//			forwardMimeType = qsl("application/x-td-forward");
-	//			Auth().data().setMimeForwardIds(
-	//				Auth().data().itemOrItsGroup(pressedItem->data()));
+	//			session().data().setMimeForwardIds(
+	//				session().data().itemOrItsGroup(pressedItem->data()));
 	//		}
 	//	}
 	//	if (auto pressedLnkItem = App::pressedLinkItem()) {
@@ -1635,7 +1639,7 @@ void InnerWidget::performDrag() {
 	//			if (forwardMimeType.isEmpty()
 	//				&& pressedMedia->dragItemByHandler(pressedHandler)) {
 	//				forwardMimeType = qsl("application/x-td-forward");
-	//				Auth().data().setMimeForwardIds(
+	//				session().data().setMimeForwardIds(
 	//					{ 1, pressedLnkItem->fullId() });
 	//			}
 	//		}

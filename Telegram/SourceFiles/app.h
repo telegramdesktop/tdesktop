@@ -65,8 +65,6 @@ namespace App {
 
 	QString formatPhone(QString phone);
 
-	void addSavedGif(DocumentData *doc);
-	void checkSavedGif(HistoryItem *item);
 	[[nodiscard]] QString peerName(const PeerData *peer, bool forDialogs = false);
 
 	void hoveredItem(HistoryView::Element *item);

@@ -737,11 +737,11 @@ void DocumentData::automaticLoad(
 	const auto shouldLoadFromCloud = !Data::IsExecutableName(filename)
 		&& (item
 			? Data::AutoDownload::Should(
-				Auth().settings().autoDownload(),
+				session().settings().autoDownload(),
 				item->history()->peer,
 				this)
 			: Data::AutoDownload::Should(
-				Auth().settings().autoDownload(),
+				session().settings().autoDownload(),
 				this));
 	const auto loadFromCloud = shouldLoadFromCloud
 		? LoadFromCloudOrLocal

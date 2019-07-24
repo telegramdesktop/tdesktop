@@ -245,6 +245,7 @@ object_ptr<Ui::RpWidget> SetupCreateGroup(
 		const auto guarded = crl::guard(parent, callback);
 		Ui::show(
 			Box<GroupInfoBox>(
+				&channel->session(),
 				GroupInfoBox::Type::Megagroup,
 				channel->name + " Chat",
 				guarded),

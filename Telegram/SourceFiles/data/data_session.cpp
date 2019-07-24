@@ -1645,12 +1645,46 @@ bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
 		}
 		requestItemTextRefresh(existing);
 		if (existing->mainView()) {
-			App::checkSavedGif(existing);
+			checkSavedGif(existing);
 			return true;
 		}
 		return false;
 	}
 	return false;
+}
+
+void Session::addSavedGif(not_null<DocumentData*> document) {
+	const auto index = _savedGifs.indexOf(document);
+	if (!index) {
+		return;
+	}
+	if (index > 0) {
+		_savedGifs.remove(index);
+	}
+	_savedGifs.push_front(document);
+	if (_savedGifs.size() > Global::SavedGifsLimit()) {
+		_savedGifs.pop_back();
+	}
+	Local::writeSavedGifs();
+
+	notifySavedGifsUpdated();
+	setLastSavedGifsUpdate(0);
+	session().api().updateStickers();
+}
+
+void Session::checkSavedGif(not_null<HistoryItem*> item) {
+	if (item->Has<HistoryMessageForwarded>()
+		|| (!item->out()
+			&& item->history()->peer != session().user())) {
+		return;
+	}
+	if (const auto media = item->media()) {
+		if (const auto document = media->document()) {
+			if (document->isGifv()) {
+				addSavedGif(document);
+			}
+		}
+	}
 }
 
 void Session::updateEditedMessage(const MTPMessage &data) {

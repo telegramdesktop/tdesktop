@@ -64,7 +64,7 @@ void SavePhotoToFile(not_null<PhotoData*> photo) {
 		tr::lng_save_photo(tr::now),
 		qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter(),
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
-		crl::guard(&Auth(), [=](const QString &result) {
+		crl::guard(&photo->session(), [=](const QString &result) {
 			if (!result.isEmpty()) {
 				photo->large()->original().save(result, "JPG");
 			}
@@ -86,7 +86,7 @@ void ShowStickerPackInfo(not_null<DocumentData*> document) {
 void ToggleFavedSticker(
 		not_null<DocumentData*> document,
 		FullMsgId contextId) {
-	Auth().api().toggleFavedSticker(
+	document->session().api().toggleFavedSticker(
 		document,
 		contextId,
 		!Stickers::IsFaved(document));
@@ -99,7 +99,7 @@ void AddPhotoActions(
 		tr::lng_context_save_image(tr::now),
 		App::LambdaDelayed(
 			st::defaultDropdownMenu.menu.ripple.hideDuration,
-			&Auth(),
+			&photo->session(),
 			[=] { SavePhotoToFile(photo); }));
 	menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
 		CopyImage(photo);
@@ -147,7 +147,7 @@ void AddSaveDocumentAction(
 						: tr::lng_context_save_file(tr::now))))),
 		App::LambdaDelayed(
 			st::defaultDropdownMenu.menu.ripple.hideDuration,
-			&Auth(),
+			&document->session(),
 			save));
 }
 
@@ -255,9 +255,10 @@ bool AddForwardMessageAction(
 	} else if (!item || !item->allowsForward()) {
 		return false;
 	}
+	const auto owner = &item->history()->owner();
 	const auto asGroup = (request.pointState != PointState::GroupPart);
 	if (asGroup) {
-		if (const auto group = Auth().data().groups().find(item)) {
+		if (const auto group = owner->groups().find(item)) {
 			if (ranges::find_if(group->items, [](auto item) {
 				return !item->allowsForward();
 			}) != end(group->items)) {
@@ -267,9 +268,9 @@ bool AddForwardMessageAction(
 	}
 	const auto itemId = item->fullId();
 	menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
-		if (const auto item = Auth().data().message(itemId)) {
+		if (const auto item = owner->message(itemId)) {
 			Window::ShowForwardMessagesBox(asGroup
-				? Auth().data().itemOrItsGroup(item)
+				? owner->itemOrItsGroup(item)
 				: MessageIdsList{ 1, itemId });
 		}
 	});
@@ -320,9 +321,10 @@ bool AddDeleteMessageAction(
 	} else if (!item || !item->canDelete()) {
 		return false;
 	}
+	const auto owner = &item->history()->owner();
 	const auto asGroup = (request.pointState != PointState::GroupPart);
 	if (asGroup) {
-		if (const auto group = Auth().data().groups().find(item)) {
+		if (const auto group = owner->groups().find(item)) {
 			if (ranges::find_if(group->items, [](auto item) {
 				return !IsServerMsgId(item->id) || !item->canDelete();
 			}) != end(group->items)) {
@@ -332,11 +334,11 @@ bool AddDeleteMessageAction(
 	}
 	const auto itemId = item->fullId();
 	menu->addAction(tr::lng_context_delete_msg(tr::now), [=] {
-		if (const auto item = Auth().data().message(itemId)) {
+		if (const auto item = owner->message(itemId)) {
 			if (asGroup) {
-				if (const auto group = Auth().data().groups().find(item)) {
+				if (const auto group = owner->groups().find(item)) {
 					Ui::show(Box<DeleteMessagesBox>(
-						Auth().data().itemsToIds(group->items)));
+						owner->itemsToIds(group->items)));
 					return;
 				}
 			}
@@ -385,10 +387,11 @@ bool AddSelectMessageAction(
 	} else if (!item || !IsServerMsgId(item->id) || item->serviceMsg()) {
 		return false;
 	}
+	const auto owner = &item->history()->owner();
 	const auto itemId = item->fullId();
 	const auto asGroup = (request.pointState != PointState::GroupPart);
 	menu->addAction(tr::lng_context_select_msg(tr::now), [=] {
-		if (const auto item = Auth().data().message(itemId)) {
+		if (const auto item = owner->message(itemId)) {
 			if (asGroup) {
 				list->selectItemAsGroup(item);
 			} else {
@@ -485,6 +488,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	//		AddToggleGroupingAction(result, linkPeer->peer());
 	//	}
 	} else if (!request.overSelection && view && !hasSelection) {
+		const auto owner = &view->data()->history()->owner();
 		const auto media = view->media();
 		const auto mediaHasTextForCopy = media && media->hasTextForCopy();
 		if (const auto document = media ? media->getDocument() : nullptr) {
@@ -493,9 +497,9 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		if (!link && (view->hasVisibleText() || mediaHasTextForCopy)) {
 			const auto asGroup = (request.pointState != PointState::GroupPart);
 			result->addAction(tr::lng_context_copy_text(tr::now), [=] {
-				if (const auto item = Auth().data().message(itemId)) {
+				if (const auto item = owner->message(itemId)) {
 					if (asGroup) {
-						if (const auto group = Auth().data().groups().find(item)) {
+						if (const auto group = owner->groups().find(item)) {
 							SetClipboardText(HistoryGroupText(group));
 							return;
 						}

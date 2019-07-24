@@ -309,6 +309,9 @@ public:
 		return _savedGifs;
 	}
 
+	void addSavedGif(not_null<DocumentData*> document);
+	void checkSavedGif(not_null<HistoryItem*> item);
+
 	HistoryItemsList idsToItems(const MessageIdsList &ids) const;
 	MessageIdsList itemsToIds(const HistoryItemsList &items) const;
 	MessageIdsList itemOrItsGroup(not_null<HistoryItem*> item) const;

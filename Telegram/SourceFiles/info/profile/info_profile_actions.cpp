@@ -351,10 +351,10 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 	result->toggleOn(
 		NotificationsEnabledValue(peer)
 	)->addClickHandler([=] {
-		const auto muteForSeconds = Auth().data().notifyIsMuted(peer)
+		const auto muteForSeconds = peer->owner().notifyIsMuted(peer)
 			? 0
 			: Data::NotifySettings::kDefaultMutePeriod;
-		Auth().data().updateNotifySettings(peer, muteForSeconds);
+		peer->owner().updateNotifySettings(peer, muteForSeconds);
 	});
 	object_ptr<FloatingIcon>(
 		result,
@@ -653,7 +653,7 @@ void ActionsFiller::addJoinChannelAction(
 		_wrap,
 		tr::lng_profile_join_channel(),
 		rpl::duplicate(joinVisible),
-		[channel] { Auth().api().joinChannel(channel); });
+		[=] { channel->session().api().joinChannel(channel); });
 	_wrap->add(object_ptr<Ui::SlideWrap<Ui::FixedHeightWidget>>(
 		_wrap,
 		CreateSkipWidget(
@@ -749,19 +749,20 @@ object_ptr<Ui::RpWidget> ActionsFiller::fill() {
 //
 //object_ptr<Ui::RpWidget> FeedDetailsFiller::setupDefaultToggle() {
 //	using namespace rpl::mappers;
-//	const auto feedId = _feed->id();
+//	const auto feed = _feed;
+//	const auto feedId = feed->id();
 //	auto result = object_ptr<Button>(
 //		_wrap,
 //		tr::lng_info_feed_is_default(),
 //		st::infoNotificationsButton);
 //	result->toggleOn(
-//		Auth().data().defaultFeedIdValue(
+//		feed->owner().defaultFeedIdValue(
 //		) | rpl::map(_1 == feedId)
 //	)->addClickHandler([=] {
-//		const auto makeDefault = (Auth().data().defaultFeedId() != feedId);
+//		const auto makeDefault = (feed->owner().defaultFeedId() != feedId);
 //		const auto defaultFeedId = makeDefault ? feedId : 0;
-//		Auth().data().setDefaultFeedId(defaultFeedId);
-////		Auth().api().saveDefaultFeedId(feedId, makeDefault); // #feed
+//		feed->owner().setDefaultFeedId(defaultFeedId);
+////		feed->session().api().saveDefaultFeedId(feedId, makeDefault); // #feed
 //	});
 //	object_ptr<FloatingIcon>(
 //		result,

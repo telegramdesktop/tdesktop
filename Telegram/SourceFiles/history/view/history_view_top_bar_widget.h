@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
 
+class AuthSession;
+
 namespace Ui {
 class AbstractButton;
 class RoundButton;
@@ -29,10 +31,6 @@ namespace HistoryView {
 
 class TopBarWidget : public Ui::RpWidget, private base::Subscriber {
 public:
-	TopBarWidget(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller);
-
 	struct SelectedState {
 		bool textSelected = false;
 		int count = 0;
@@ -40,7 +38,12 @@ public:
 		int canForwardCount = 0;
 	};
 
+	TopBarWidget(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
 	~TopBarWidget();
+
+	AuthSession &session() const;
 
 	void updateControlsVisibility();
 	void finishAnimating();

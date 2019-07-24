@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "history/view/history_view_element.h"
 
+class AuthSession;
+
 namespace Ui {
 class PopupMenu;
 } // namespace Ui
@@ -127,6 +129,8 @@ public:
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		not_null<ListDelegate*> delegate);
+
+	AuthSession &session() const;
 
 	not_null<ListDelegate*> delegate() const;
 

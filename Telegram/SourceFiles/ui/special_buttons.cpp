@@ -584,7 +584,7 @@ void UserpicButton::changePhotoLazy() {
 
 void UserpicButton::uploadNewPeerPhoto() {
 	auto callback = crl::guard(this, [=](QImage &&image) {
-		Auth().api().uploadPeerPhoto(_peer, std::move(image));
+		_peer->session().api().uploadPeerPhoto(_peer, std::move(image));
 	});
 	ShowChoosePhotoBox(this, _cropTitle, std::move(callback));
 }
@@ -602,7 +602,7 @@ void UserpicButton::openPeerPhoto() {
 	if (!id) {
 		return;
 	}
-	const auto photo = Auth().data().photo(id);
+	const auto photo = _peer->owner().photo(id);
 	if (photo->date) {
 		Core::App().showPhoto(photo, _peer);
 	}
@@ -616,8 +616,9 @@ void UserpicButton::setupPeerViewers() {
 		processNewPeerPhoto();
 		update();
 	}, lifetime());
+
 	base::ObservableViewer(
-		Auth().downloaderTaskFinished()
+		_peer->session().downloaderTaskFinished()
 	) | rpl::start_with_next([this] {
 		if (_waiting && _peer->userpicLoaded()) {
 			_waiting = false;
@@ -958,7 +959,7 @@ void UserpicButton::prepareUserpicPixmap() {
 //void FeedUserpicButton::prepare() {
 //	resize(_st.size);
 //
-//	Auth().data().feedUpdated(
+//	_feed->owner().feedUpdated(
 //	) | rpl::filter([=](const Data::FeedUpdate &update) {
 //		return (update.feed == _feed)
 //			&& (update.flag == Data::FeedUpdateFlag::Channels);
@@ -1035,8 +1036,8 @@ void UserpicButton::prepareUserpicPixmap() {
 SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
 : IconButton(parent, st::historySilentToggle)
 , _channel(channel)
-, _checked(Auth().data().notifySilentPosts(_channel)) {
-	Expects(!Auth().data().notifySilentPostsUnknown(_channel));
+, _checked(channel->owner().notifySilentPosts(_channel)) {
+	Expects(!channel->owner().notifySilentPostsUnknown(_channel));
 
 	if (_checked) {
 		refreshIconOverrides();
@@ -1079,7 +1080,7 @@ void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
 	setChecked(!_checked);
 	IconButton::mouseReleaseEvent(e);
 	Ui::Tooltip::Show(0, this);
-	Auth().data().updateNotifySettings(
+	_channel->owner().updateNotifySettings(
 		_channel,
 		std::nullopt,
 		_checked);
