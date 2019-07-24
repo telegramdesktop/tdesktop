@@ -514,9 +514,6 @@ void ChannelData::setAdminRights(const MTPChatAdminRights &rights) {
 		} else {
 			mgInfo->lastAdmins.remove(self);
 		}
-
-		auto amAdmin = hasAdminRights() || amCreator();
-		Data::ChannelAdminChanges(this).add(session().userId(), QString());
 	}
 	Notify::peerUpdatedDelayed(this, UpdateFlag::RightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BannedUsersChanged);
 }
@@ -741,12 +738,27 @@ void ApplyChannelUpdate(
 		update.vnotify_settings());
 }
 
-void ApplyChannelAdmins(
+void ApplyMegagroupAdmins(
 		not_null<ChannelData*> channel,
 		const MTPDchannels_channelParticipants &data) {
+	Expects(channel->isMegagroup());
+
 	channel->owner().processUsers(data.vusers());
 
 	const auto &list = data.vparticipants().v;
+	const auto i = ranges::find(
+		list,
+		mtpc_channelParticipantCreator,
+		&MTPChannelParticipant::type);
+	if (i != list.end()) {
+		const auto &data = i->c_channelParticipantCreator();
+		const auto userId = data.vuser_id().v;
+		channel->mgInfo->creator = channel->owner().userLoaded(userId);
+		channel->mgInfo->creatorRank = qs(data.vrank().value_or_empty());
+	} else {
+		channel->mgInfo->creator = nullptr;
+		channel->mgInfo->creatorRank = QString();
+	}
 
 	auto adding = base::flat_map<UserId, QString>();
 	auto admins = ranges::make_iterator_range(

@@ -1623,7 +1623,7 @@ void ApiWrap::requestAdmins(not_null<ChannelData*> channel) {
 	)).done([this, channel](const MTPchannels_ChannelParticipants &result) {
 		_adminsRequests.remove(channel);
 		result.match([&](const MTPDchannels_channelParticipants &data) {
-			Data::ApplyChannelAdmins(channel, data);
+			Data::ApplyMegagroupAdmins(channel, data);
 		}, [&](const MTPDchannels_channelParticipantsNotModified &) {
 			LOG(("API Error: channels.channelParticipantsNotModified received!"));
 		});
@@ -3515,7 +3515,12 @@ void ApiWrap::refreshChannelAdmins(
 		p.match([&](const MTPDchannelParticipantAdmin &data) {
 			changes.add(userId, qs(data.vrank().value_or_empty()));
 		}, [&](const MTPDchannelParticipantCreator &data) {
-			changes.add(userId, qs(data.vrank().value_or_empty()));
+			const auto rank = qs(data.vrank().value_or_empty());
+			if (const auto info = channel->mgInfo.get()) {
+				info->creator = channel->owner().userLoaded(userId);
+				info->creatorRank = rank;
+			}
+			changes.add(userId, rank);
 		}, [&](const auto &data) {
 			changes.remove(userId);
 		});

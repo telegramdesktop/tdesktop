@@ -412,11 +412,21 @@ not_null<Ui::InputField*> EditAdminBox::addRankInput() {
 			st::rightsHeaderLabel),
 		st::rightsHeaderMargin);
 
+	const auto isOwner = [&] {
+		if (user()->isSelf() && amCreator()) {
+			return true;
+		} else if (const auto chat = peer()->asChat()) {
+			return chat->creator == peerToUser(user()->id);
+		} else if (const auto channel = peer()->asChannel()) {
+			return channel->mgInfo && channel->mgInfo->creator == user();
+		}
+		Unexpected("Peer type in EditAdminBox::addRankInput.");
+	}();
 	const auto result = addControl(
 		object_ptr<Ui::InputField>(
 			this,
 			st::customBadgeField,
-			(amCreator() ? tr::lng_owner_badge : tr::lng_admin_badge)(),
+			(isOwner ? tr::lng_owner_badge : tr::lng_admin_badge)(),
 			_oldRank),
 		st::rightsAboutMargin);
 	result->setMaxLength(kAdminRoleLimit);
@@ -431,7 +441,7 @@ not_null<Ui::InputField*> EditAdminBox::addRankInput() {
 			this,
 			tr::lng_rights_edit_admin_rank_about(
 				lt_title,
-				(amCreator() ? tr::lng_owner_badge : tr::lng_admin_badge)()),
+				(isOwner ? tr::lng_owner_badge : tr::lng_admin_badge)()),
 			st::boxDividerLabel),
 		st::rightsAboutMargin);
 
