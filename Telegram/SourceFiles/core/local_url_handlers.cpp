@@ -134,7 +134,7 @@ bool ShareGameScore(
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	ShareGameScoreByHash(params.value(qsl("hash")));
+	ShareGameScoreByHash(session, params.value(qsl("hash")));
 	return true;
 }
 

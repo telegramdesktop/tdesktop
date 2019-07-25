@@ -13,6 +13,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/round_checkbox.h"
 
+namespace Window {
+class SessionNavigation;
+} // namespace Window
+
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Dialogs {
 class Row;
 class IndexedList;
@@ -30,16 +38,23 @@ template <typename Widget>
 class SlideWrap;
 } // namespace Ui
 
-QString AppendShareGameScoreUrl(const QString &url, const FullMsgId &fullId);
-void ShareGameScoreByHash(const QString &hash);
+QString AppendShareGameScoreUrl(
+	not_null<Main::Session*> session,
+	const QString &url,
+	const FullMsgId &fullId);
+void ShareGameScoreByHash(
+	not_null<Main::Session*> session,
+	const QString &hash);
 
 class ShareBox : public BoxContent, public RPCSender {
 public:
 	using CopyCallback = Fn<void()>;
 	using SubmitCallback = Fn<void(QVector<PeerData*>&&, TextWithTags&&)>;
 	using FilterCallback = Fn<bool(PeerData*)>;
+
 	ShareBox(
 		QWidget*,
+		not_null<Window::SessionNavigation*> navigation,
 		CopyCallback &&copyCallback,
 		SubmitCallback &&submitCallback,
 		FilterCallback &&filterCallback);
@@ -76,6 +91,8 @@ private:
 		const MTPcontacts_Found &result,
 		mtpRequestId requestId);
 	bool peopleFailed(const RPCError &error, mtpRequestId requestId);
+
+	const not_null<Window::SessionNavigation*> _navigation;
 
 	CopyCallback _copyCallback;
 	SubmitCallback _submitCallback;

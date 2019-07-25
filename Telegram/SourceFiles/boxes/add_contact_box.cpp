@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/application.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "window/window_session_controller.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -389,11 +390,11 @@ void AddContactBox::updateButtons() {
 
 GroupInfoBox::GroupInfoBox(
 	QWidget*,
-	not_null<Main::Session*> session,
+	not_null<Window::SessionNavigation*> navigation,
 	Type type,
 	const QString &title,
 	Fn<void(not_null<ChannelData*>)> channelDone)
-: _session(session)
+: _navigation(navigation)
 , _type(type)
 , _initialTitle(title)
 , _channelDone(std::move(channelDone)) {
@@ -517,7 +518,7 @@ void GroupInfoBox::createGroup(
 		auto image = _photo->takeResultImage();
 		Ui::hideLayer();
 
-		_session->api().applyUpdates(result);
+		_navigation->session().api().applyUpdates(result);
 
 		auto success = base::make_optional(&result)
 			| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
@@ -538,7 +539,8 @@ void GroupInfoBox::createGroup(
 					: std::nullopt;
 			}
 			| [&](auto chats) {
-				return _session->data().chat(chats->front().c_chat().vid().v);
+				return _navigation->session().data().chat(
+					chats->front().c_chat().vid().v);
 			}
 			| [&](not_null<ChatData*> chat) {
 				if (!image.isNull()) {
@@ -609,7 +611,7 @@ void GroupInfoBox::submit() {
 		};
 		Ui::show(
 			Box<PeerListBox>(
-				std::make_unique<AddParticipantsBoxController>(),
+				std::make_unique<AddParticipantsBoxController>(_navigation),
 				std::move(initBox)),
 			LayerOption::KeepOther);
 	}
@@ -626,7 +628,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 		MTPInputGeoPoint(), // geo_point
 		MTPstring() // address
 	)).done([=](const MTPUpdates &result) {
-		_session->api().applyUpdates(result);
+		_navigation->session().api().applyUpdates(result);
 
 		const auto success = base::make_optional(&result)
 			| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
@@ -645,7 +647,8 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 					: std::nullopt;
 			}
 			| [&](auto chats) {
-				return _session->data().channel(chats->front().c_channel().vid().v);
+				return _navigation->session().data().channel(
+					chats->front().c_channel().vid().v);
 			}
 			| [&](not_null<ChannelData*> channel) {
 				auto image = _photo->takeResultImage();
@@ -669,7 +672,9 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 						closeBox();
 						callback(argument);
 					} else {
-						Ui::show(Box<SetupChannelBox>(_createdChannel));
+						Ui::show(Box<SetupChannelBox>(
+							_navigation,
+							_createdChannel));
 					}
 				}).send();
 			};
@@ -711,9 +716,11 @@ void GroupInfoBox::updateMaxHeight() {
 
 SetupChannelBox::SetupChannelBox(
 	QWidget*,
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel,
 	bool existing)
-: _channel(channel)
+: _navigation(navigation)
+, _channel(channel)
 , _existing(existing)
 , _privacyGroup(
 	std::make_shared<Ui::RadioenumGroup<Privacy>>(Privacy::Public))
@@ -788,7 +795,7 @@ void SetupChannelBox::prepare() {
 
 	boxClosing() | rpl::start_with_next([=] {
 		if (!_existing) {
-			AddParticipantsBoxController::Start(_channel);
+			AddParticipantsBoxController::Start(_navigation, _channel);
 		}
 	}, lifetime());
 
@@ -1092,9 +1099,10 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
 	const auto channel = _channel;
 	const auto existing = _existing;
+	const auto navigation = _navigation;
 	const auto callback = [=] {
 		Ui::show(
-			Box<SetupChannelBox>(channel, existing),
+			Box<SetupChannelBox>(navigation, channel, existing),
 			LayerOption::KeepOther);
 	};
 	closeBox();

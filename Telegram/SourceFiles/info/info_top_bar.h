@@ -17,6 +17,10 @@ namespace style {
 struct InfoTopBar;
 } // namespace style
 
+namespace Window {
+class SessionNavigation;
+} // namespace Window
+
 namespace Ui {
 class IconButton;
 class FlatLabel;
@@ -39,7 +43,7 @@ class TopBar : public Ui::RpWidget {
 public:
 	TopBar(
 		QWidget *parent,
-		not_null<Main::Session*> session,
+		not_null<Window::SessionNavigation*> navigation,
 		const style::InfoTopBar &st,
 		SelectedItems &&items);
 
@@ -131,7 +135,7 @@ private:
 	template <typename Widget, typename IsVisible>
 	void registerToggleControlCallback(Widget *widget, IsVisible &&callback);
 
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionNavigation*> _navigation;
 
 	const style::InfoTopBar &_st;
 	Ui::Animations::Simple _a_highlight;

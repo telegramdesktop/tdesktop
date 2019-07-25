@@ -355,7 +355,7 @@ void WrapWidget::createTopBar() {
 		: SelectedItems(Section::MediaType::kCount);
 	_topBar.create(
 		this,
-		&session(),
+		_controller.get(),
 		TopBarStyle(wrapValue),
 		std::move(selectedItems));
 	_topBar->cancelSelectionRequests(

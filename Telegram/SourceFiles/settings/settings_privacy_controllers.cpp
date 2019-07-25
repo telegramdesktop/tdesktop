@@ -46,6 +46,10 @@ class BlockUserBoxController
 	: public ChatsListBoxController
 	, private base::Subscriber {
 public:
+	explicit BlockUserBoxController(
+		not_null<Window::SessionNavigation*> navigation);
+
+	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
 	void setBlockUserCallback(Fn<void(not_null<UserData*> user)> callback) {
@@ -63,9 +67,20 @@ protected:
 private:
 	void updateIsBlocked(not_null<PeerListRow*> row, UserData *user) const;
 
+	const not_null<Window::SessionNavigation*> _navigation;
 	Fn<void(not_null<UserData*> user)> _blockUserCallback;
 
 };
+
+BlockUserBoxController::BlockUserBoxController(
+	not_null<Window::SessionNavigation*> navigation)
+: ChatsListBoxController(navigation)
+, _navigation(navigation) {
+}
+
+Main::Session &BlockUserBoxController::session() const {
+	return _navigation->session();
+}
 
 void BlockUserBoxController::prepareViewHook() {
 	delegate()->peerListSetTitle(tr::lng_blocked_list_add_title());
@@ -158,6 +173,10 @@ AdminLog::OwnedItem GenerateForwardedItem(
 BlockedBoxController::BlockedBoxController(
 	not_null<Window::SessionController*> window)
 : _window(window) {
+}
+
+Main::Session &BlockedBoxController::session() const {
+	return _window->session();
 }
 
 void BlockedBoxController::prepare() {
@@ -262,7 +281,7 @@ void BlockedBoxController::handleBlockedEvent(not_null<UserData*> user) {
 
 void BlockedBoxController::BlockNewUser(
 		not_null<Window::SessionController*> window) {
-	auto controller = std::make_unique<BlockUserBoxController>();
+	auto controller = std::make_unique<BlockUserBoxController>(window);
 	auto initBox = [=, controller = controller.get()](
 			not_null<PeerListBox*> box) {
 		controller->setBlockUserCallback([=](not_null<UserData*> user) {

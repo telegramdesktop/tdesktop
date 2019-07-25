@@ -150,7 +150,7 @@ void StickerSetBox::prepare() {
 	_inner = setInnerWidget(
 		object_ptr<Inner>(this, _controller, _set),
 		st::stickersScroll);
-	Auth().data().stickersUpdated(
+	_controller->session().data().stickersUpdated(
 	) | rpl::start_with_next([=] {
 		updateButtons();
 	}, lifetime());
@@ -166,7 +166,7 @@ void StickerSetBox::prepare() {
 
 	_inner->setInstalled(
 	) | rpl::start_with_next([=](uint64 setId) {
-		Auth().api().stickerSetInstalled(setId);
+		_controller->session().api().stickerSetInstalled(setId);
 		closeBox();
 	}, lifetime());
 }
@@ -234,9 +234,9 @@ StickerSetBox::Inner::Inner(
 		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 	}).send();
 
-	Auth().api().updateStickers();
+	_controller->session().api().updateStickers();
 
-	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
+	subscribe(_controller->session().downloaderTaskFinished(), [this] { update(); });
 
 	setMouseTracking(true);
 }
@@ -252,7 +252,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 		_pack.reserve(v.size());
 		_elements.reserve(v.size());
 		for (const auto &item : v) {
-			const auto document = Auth().data().processDocument(item);
+			const auto document = _controller->session().data().processDocument(item);
 			const auto sticker = document->sticker();
 			if (!sticker) {
 				continue;
@@ -269,7 +269,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 					auto p = Stickers::Pack();
 					p.reserve(stickers.size());
 					for (auto j = 0, c = stickers.size(); j != c; ++j) {
-						auto doc = Auth().data().document(stickers[j].v);
+						auto doc = _controller->session().data().document(stickers[j].v);
 						if (!doc || !doc->sticker()) continue;
 
 						p.push_back(doc);
@@ -292,7 +292,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			} else {
 				_setThumbnail = ImagePtr();
 			}
-			auto &sets = Auth().data().stickerSetsRef();
+			auto &sets = _controller->session().data().stickerSetsRef();
 			const auto it = sets.find(_setId);
 			if (it != sets.cend()) {
 				using ClientFlag = MTPDstickerSet_ClientFlag;
@@ -334,13 +334,13 @@ rpl::producer<> StickerSetBox::Inner::updateControls() const {
 
 void StickerSetBox::Inner::installDone(
 		const MTPmessages_StickerSetInstallResult &result) {
-	auto &sets = Auth().data().stickerSetsRef();
+	auto &sets = _controller->session().data().stickerSetsRef();
 
 	bool wasArchived = (_setFlags & MTPDstickerSet::Flag::f_archived);
 	if (wasArchived) {
-		auto index = Auth().data().archivedStickerSetsOrderRef().indexOf(_setId);
+		auto index = _controller->session().data().archivedStickerSetsOrderRef().indexOf(_setId);
 		if (index >= 0) {
-			Auth().data().archivedStickerSetsOrderRef().removeAt(index);
+			_controller->session().data().archivedStickerSetsOrderRef().removeAt(index);
 		}
 	}
 	_setInstallDate = base::unixtime::now();
@@ -367,7 +367,7 @@ void StickerSetBox::Inner::installDone(
 	it->stickers = _pack;
 	it->emoji = _emoji;
 
-	auto &order = Auth().data().stickerSetsOrderRef();
+	auto &order = _controller->session().data().stickerSetsOrderRef();
 	int insertAtIndex = 0, currentIndex = order.indexOf(_setId);
 	if (currentIndex != insertAtIndex) {
 		if (currentIndex > 0) {
@@ -394,7 +394,7 @@ void StickerSetBox::Inner::installDone(
 			Local::writeArchivedStickers();
 		}
 		Local::writeInstalledStickers();
-		Auth().data().notifyStickersUpdated();
+		_controller->session().data().notifyStickersUpdated();
 	}
 	_setInstalled.fire_copy(_setId);
 }
@@ -657,8 +657,8 @@ bool StickerSetBox::Inner::notInstalled() const {
 	if (!_loaded) {
 		return false;
 	}
-	const auto it = Auth().data().stickerSets().constFind(_setId);
-	if ((it == Auth().data().stickerSets().cend())
+	const auto it = _controller->session().data().stickerSets().constFind(_setId);
+	if ((it == _controller->session().data().stickerSets().cend())
 		|| !(it->flags & MTPDstickerSet::Flag::f_installed_date)
 		|| (it->flags & MTPDstickerSet::Flag::f_archived)) {
 		return !_pack.empty();

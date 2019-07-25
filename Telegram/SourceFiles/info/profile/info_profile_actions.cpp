@@ -483,19 +483,21 @@ ActionsFiller::ActionsFiller(
 
 void ActionsFiller::addInviteToGroupAction(
 		not_null<UserData*> user) {
+	const auto controller = _controller;
 	AddActionButton(
 		_wrap,
 		tr::lng_profile_invite_to_group(),
 		CanInviteBotToGroupValue(user),
-		[user] { AddBotToGroupBoxController::Start(user); });
+		[=] { AddBotToGroupBoxController::Start(controller, user); });
 }
 
 void ActionsFiller::addShareContactAction(not_null<UserData*> user) {
+	const auto controller = _controller;
 	AddActionButton(
 		_wrap,
 		tr::lng_info_share_contact(),
 		CanShareContactValue(user),
-		[user] { Window::PeerMenuShareContactBox(user); });
+		[=] { Window::PeerMenuShareContactBox(controller, user); });
 }
 
 void ActionsFiller::addEditContactAction(not_null<UserData*> user) {
@@ -790,14 +792,15 @@ object_ptr<Ui::RpWidget> SetupActions(
 }
 
 void SetupAddChannelMember(
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<Ui::RpWidget*> parent,
 		not_null<ChannelData*> channel) {
 	auto add = Ui::CreateChild<Ui::IconButton>(
 		parent.get(),
 		st::infoMembersAddMember);
 	add->showOn(CanAddMemberValue(channel));
-	add->addClickHandler([channel] {
-		Window::PeerMenuAddChannelMembers(channel);
+	add->addClickHandler([=] {
+		Window::PeerMenuAddChannelMembers(navigation, channel);
 	});
 	parent->widthValue(
 	) | rpl::start_with_next([add](int newWidth) {
@@ -854,7 +857,7 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 		rpl::single(true),
 		std::move(membersCallback))->entity();
 
-	SetupAddChannelMember(button, channel);
+	SetupAddChannelMember(controller, button, channel);
 
 	object_ptr<FloatingIcon>(
 		members,

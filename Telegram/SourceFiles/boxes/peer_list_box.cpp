@@ -66,11 +66,15 @@ void PeerListBox::createMultiSelect() {
 	) | rpl::start_with_next(
 		[this] { updateScrollSkips(); },
 		lifetime());
-	_select->entity()->setSubmittedCallback([this](Qt::KeyboardModifiers) { content()->submitted(); });
-	_select->entity()->setQueryChangedCallback([this](const QString &query) { searchQueryChanged(query); });
-	_select->entity()->setItemRemovedCallback([this](uint64 itemId) {
-		if (auto peer = Auth().data().peerLoaded(itemId)) {
-			if (auto row = peerListFindRow(peer->id)) {
+	_select->entity()->setSubmittedCallback([=](Qt::KeyboardModifiers) {
+		content()->submitted();
+	});
+	_select->entity()->setQueryChangedCallback([=](const QString &query) {
+		searchQueryChanged(query);
+	});
+	_select->entity()->setItemRemovedCallback([=](uint64 itemId) {
+		if (const auto peer = _controller->session().data().peerLoaded(itemId)) {
+			if (const auto row = peerListFindRow(peer->id)) {
 				content()->changeCheckState(row, false, PeerListRow::SetStyle::Animated);
 				update();
 			}
@@ -336,7 +340,7 @@ auto PeerListBox::peerListCollectSelectedRows()
 	if (!items.empty()) {
 		result.reserve(items.size());
 		for (const auto itemId : items) {
-			result.push_back(Auth().data().peer(itemId));
+			result.push_back(_controller->session().data().peer(itemId));
 		}
 	}
 	return result;
@@ -574,7 +578,9 @@ PeerListContent::PeerListContent(
 , _st(st)
 , _controller(controller)
 , _rowHeight(_st.item.height) {
-	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
+	subscribe(_controller->session().downloaderTaskFinished(), [=] {
+		update();
+	});
 
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	auto changes = UpdateFlag::NameChanged | UpdateFlag::PhotoChanged;
@@ -1279,7 +1285,7 @@ void PeerListContent::loadProfilePhotos() {
 
 	auto yFrom = _visibleTop;
 	auto yTo = _visibleBottom + (_visibleBottom - _visibleTop) * PreloadHeightsCount;
-	Auth().downloader().clearPriorities();
+	_controller->session().downloader().clearPriorities();
 
 	if (yTo < 0) return;
 	if (yFrom < 0) yFrom = 0;

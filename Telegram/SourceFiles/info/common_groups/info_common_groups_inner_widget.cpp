@@ -36,6 +36,7 @@ public:
 		not_null<Controller*> controller,
 		not_null<UserData*> user);
 
+	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
@@ -71,6 +72,10 @@ ListController::ListController(
 , _controller(controller)
 , _user(user) {
 	_controller->setSearchEnabledByContent(false);
+}
+
+Main::Session &ListController::session() const {
+	return _user->session();
 }
 
 std::unique_ptr<PeerListRow> ListController::createRow(

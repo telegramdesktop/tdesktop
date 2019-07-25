@@ -18,9 +18,13 @@ class IconButton;
 class LinkButton;
 } // namespace Ui
 
+namespace Main {
+class Session;
+} // namespace Main
+
 class SessionsBox : public BoxContent, private MTP::Sender {
 public:
-	SessionsBox(QWidget*);
+	SessionsBox(QWidget*, not_null<Main::Session*> session);
 
 protected:
 	void prepare() override;
@@ -54,6 +58,8 @@ private:
 
 	void terminateOne(uint64 hash);
 	void terminateAll();
+
+	const not_null<Main::Session*> _session;
 
 	bool _loading = false;
 	Full _data;

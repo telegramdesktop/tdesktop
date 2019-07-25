@@ -1497,10 +1497,10 @@ void SendFilesBox::initSendWay() {
 				? SendFilesWay::Album
 				: SendFilesWay::Photos;
 		}
-		const auto currentWay = Auth().settings().sendFilesWay();
-		if (currentWay == SendFilesWay::Files) {
-			return currentWay;
-		} else if (currentWay == SendFilesWay::Album) {
+		const auto way = _controller->session().settings().sendFilesWay();
+		if (way == SendFilesWay::Files) {
+			return way;
+		} else if (way == SendFilesWay::Album) {
 			return _list.albumIsPossible
 				? SendFilesWay::Album
 				: SendFilesWay::Photos;
@@ -1914,7 +1914,7 @@ void SendFilesBox::send(bool ctrlShiftEnter) {
 	const auto way = _sendWay ? _sendWay->value() : Way::Files;
 
 	if (_compressConfirm == CompressConfirm::Auto) {
-		const auto oldWay = Auth().settings().sendFilesWay();
+		const auto oldWay = _controller->session().settings().sendFilesWay();
 		if (way != oldWay) {
 			// Check if the user _could_ use the old value, but didn't.
 			if ((oldWay == Way::Album && _sendAlbum)
@@ -1922,8 +1922,8 @@ void SendFilesBox::send(bool ctrlShiftEnter) {
 				|| (oldWay == Way::Files && _sendFiles)
 				|| (way == Way::Files && (_sendAlbum || _sendPhotos))) {
 				// And in that case save it to settings.
-				Auth().settings().setSendFilesWay(way);
-				Auth().saveSettingsDelayed();
+				_controller->session().settings().setSendFilesWay(way);
+				_controller->session().saveSettingsDelayed();
 			}
 		}
 	}

@@ -1611,7 +1611,7 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		mouseActionUpdate(e->globalPos());
 	}
 
-	auto request = ContextMenuRequest(&_controller->session());
+	auto request = ContextMenuRequest(_controller);
 
 	request.link = ClickHandler::getActive();
 	request.view = _overElement;

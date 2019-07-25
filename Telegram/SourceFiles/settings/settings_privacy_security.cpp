@@ -448,7 +448,9 @@ void SetupSelfDestruction(
 		label(),
 		st::settingsButton
 	)->addClickHandler([=] {
-		Ui::show(Box<SelfDestructionBox>(session->api().selfDestructValue()));
+		Ui::show(Box<SelfDestructionBox>(
+			session,
+			session->api().selfDestructValue()));
 	});
 
 	AddSkip(container);
@@ -464,8 +466,8 @@ void SetupSessionsList(
 		container,
 		tr::lng_settings_show_sessions(),
 		st::settingsButton
-	)->addClickHandler([] {
-		Ui::show(Box<SessionsBox>());
+	)->addClickHandler([=] {
+		Ui::show(Box<SessionsBox>(&controller->session()));
 	});
 	AddSkip(container, st::settingsPrivacySecurityPadding);
 	AddDividerText(container, tr::lng_settings_sessions_about());

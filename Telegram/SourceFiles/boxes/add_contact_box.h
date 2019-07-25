@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ConfirmBox;
 class PeerListBox;
 
+namespace Window {
+class SessionNavigation;
+} // namespace Window
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -98,7 +102,7 @@ public:
 	};
 	GroupInfoBox(
 		QWidget*,
-		not_null<Main::Session*> session,
+		not_null<Window::SessionNavigation*> navigation,
 		Type type,
 		const QString &title = QString(),
 		Fn<void(not_null<ChannelData*>)> channelDone = nullptr);
@@ -118,7 +122,7 @@ private:
 	void descriptionResized();
 	void updateMaxHeight();
 
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionNavigation*> _navigation;
 
 	Type _type = Type::Group;
 	QString _initialTitle;
@@ -138,6 +142,7 @@ class SetupChannelBox : public BoxContent, public RPCSender {
 public:
 	SetupChannelBox(
 		QWidget*,
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		bool existing = false);
 
@@ -175,6 +180,7 @@ private:
 
 	void showRevokePublicLinkBoxForEdit();
 
+	const not_null<Window::SessionNavigation*> _navigation;
 	const not_null<ChannelData*> _channel;
 
 	bool _existing = false;

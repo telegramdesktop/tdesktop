@@ -3345,7 +3345,7 @@ void HistoryWidget::botCallbackDone(
 		} else if (const auto url = data.vurl()) {
 			auto link = qs(*url);
 			if (info.game) {
-				link = AppendShareGameScoreUrl(link, info.msgId);
+				link = AppendShareGameScoreUrl(&session(), link, info.msgId);
 				BotGameUrlClickHandler(info.bot, link).onClick({});
 				if (item) {
 					updateSendAction(item->history(), SendAction::Type::PlayGame);
@@ -5200,11 +5200,12 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		if (readyToForward()) {
 			const auto items = std::move(_toForward);
 			App::main()->cancelForwarding(_history);
-			Window::ShowForwardMessagesBox(ranges::view::all(
+			auto list = ranges::view::all(
 				items
-			) | ranges::view::transform([](not_null<HistoryItem*> item) {
-				return item->fullId();
-			}) | ranges::to_vector);
+			) | ranges::view::transform(
+				&HistoryItem::fullId
+			) | ranges::to_vector;
+			Window::ShowForwardMessagesBox(controller(), std::move(list));
 		} else {
 			Ui::showPeerHistory(_peer, _editMsgId ? _editMsgId : replyToId());
 		}
@@ -6116,7 +6117,7 @@ void HistoryWidget::forwardSelected() {
 		return;
 	}
 	const auto weak = make_weak(this);
-	Window::ShowForwardMessagesBox(getSelectedItems(), [=] {
+	Window::ShowForwardMessagesBox(controller(), getSelectedItems(), [=] {
 		if (const auto strong = weak.data()) {
 			strong->clearSelected();
 		}

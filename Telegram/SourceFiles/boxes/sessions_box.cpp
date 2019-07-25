@@ -75,8 +75,9 @@ private:
 
 };
 
-SessionsBox::SessionsBox(QWidget*)
-: _shortPollTimer([=] { shortPollSessions(); }) {
+SessionsBox::SessionsBox(QWidget*, not_null<Main::Session*> session)
+: _session(session)
+, _shortPollTimer([=] { shortPollSessions(); }) {
 }
 
 void SessionsBox::prepare() {
@@ -99,7 +100,7 @@ void SessionsBox::prepare() {
 		terminateAll();
 	}, lifetime());
 
-	Auth().data().newAuthorizationChecks(
+	_session->data().newAuthorizationChecks(
 	) | rpl::start_with_next([=] {
 		shortPollSessions();
 	}, lifetime());

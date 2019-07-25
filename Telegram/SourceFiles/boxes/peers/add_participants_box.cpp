@@ -47,20 +47,29 @@ base::flat_set<not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
 
 } // namespace
 
-AddParticipantsBoxController::AddParticipantsBoxController()
+AddParticipantsBoxController::AddParticipantsBoxController(
+	not_null<Window::SessionNavigation*> navigation)
 : ContactsBoxController(
-	std::make_unique<PeerListGlobalSearchController>()) {
+	navigation,
+	std::make_unique<PeerListGlobalSearchController>(navigation)) {
 }
 
 AddParticipantsBoxController::AddParticipantsBoxController(
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer)
-: AddParticipantsBoxController(peer, GetAlreadyInFromPeer(peer)) {
+: AddParticipantsBoxController(
+	navigation,
+	peer,
+	GetAlreadyInFromPeer(peer)) {
 }
 
 AddParticipantsBoxController::AddParticipantsBoxController(
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer,
 	base::flat_set<not_null<UserData*>> &&alreadyIn)
-: ContactsBoxController(std::make_unique<PeerListGlobalSearchController>())
+: ContactsBoxController(
+	navigation,
+	std::make_unique<PeerListGlobalSearchController>(navigation))
 , _peer(peer)
 , _alreadyIn(std::move(alreadyIn)) {
 	subscribeToMigration();
@@ -180,8 +189,12 @@ bool AddParticipantsBoxController::inviteSelectedUsers(
 	return true;
 }
 
-void AddParticipantsBoxController::Start(not_null<ChatData*> chat) {
-	auto controller = std::make_unique<AddParticipantsBoxController>(chat);
+void AddParticipantsBoxController::Start(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<ChatData*> chat) {
+	auto controller = std::make_unique<AddParticipantsBoxController>(
+		navigation,
+		chat);
 	const auto weak = controller.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_participant_invite(), [=] {
@@ -199,10 +212,12 @@ void AddParticipantsBoxController::Start(not_null<ChatData*> chat) {
 }
 
 void AddParticipantsBoxController::Start(
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		base::flat_set<not_null<UserData*>> &&alreadyIn,
 		bool justCreated) {
 	auto controller = std::make_unique<AddParticipantsBoxController>(
+		navigation,
 		channel,
 		std::move(alreadyIn));
 	const auto weak = controller.get();
@@ -238,13 +253,16 @@ void AddParticipantsBoxController::Start(
 }
 
 void AddParticipantsBoxController::Start(
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		base::flat_set<not_null<UserData*>> &&alreadyIn) {
-	Start(channel, std::move(alreadyIn), false);
+	Start(navigation, channel, std::move(alreadyIn), false);
 }
 
-void AddParticipantsBoxController::Start(not_null<ChannelData*> channel) {
-	Start(channel, {}, true);
+void AddParticipantsBoxController::Start(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<ChannelData*> channel) {
+	Start(navigation, channel, {}, true);
 }
 
 AddSpecialBoxController::AddSpecialBoxController(
@@ -261,6 +279,10 @@ AddSpecialBoxController::AddSpecialBoxController(
 , _adminDoneCallback(std::move(adminDoneCallback))
 , _bannedDoneCallback(std::move(bannedDoneCallback)) {
 	subscribeToMigration();
+}
+
+Main::Session &AddSpecialBoxController::session() const {
+	return _peer->session();
 }
 
 void AddSpecialBoxController::subscribeToMigration() {

@@ -3244,7 +3244,9 @@ void MainWidget::openPeerByName(
 		if (msgId == ShowAtGameShareMsgId) {
 			if (peer->isUser() && peer->asUser()->isBot() && !startToken.isEmpty()) {
 				peer->asUser()->botInfo->shareGameShortName = startToken;
-				AddBotToGroupBoxController::Start(peer->asUser());
+				AddBotToGroupBoxController::Start(
+					_controller,
+					peer->asUser());
 			} else {
 				InvokeQueued(this, [this, peer] {
 					_controller->showPeerHistory(
@@ -3255,7 +3257,9 @@ void MainWidget::openPeerByName(
 		} else if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
 			if (peer->isUser() && peer->asUser()->isBot() && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 				peer->asUser()->botInfo->startGroupToken = startToken;
-				AddBotToGroupBoxController::Start(peer->asUser());
+				AddBotToGroupBoxController::Start(
+					_controller,
+					peer->asUser());
 			} else if (peer->isUser() && peer->asUser()->isBot()) {
 				// Always open bot chats, even from mention links.
 				InvokeQueued(this, [this, peer] {
@@ -3317,7 +3321,9 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 	if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
 		if (peer->isUser() && peer->asUser()->isBot() && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 			peer->asUser()->botInfo->startGroupToken = startToken;
-			AddBotToGroupBoxController::Start(peer->asUser());
+			AddBotToGroupBoxController::Start(
+				_controller,
+				peer->asUser());
 		} else if (peer->isUser() && peer->asUser()->isBot()) {
 			// Always open bot chats, even from mention links.
 			InvokeQueued(this, [this, peer] {

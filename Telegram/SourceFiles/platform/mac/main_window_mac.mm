@@ -673,7 +673,7 @@ void MainWindow::createGlobalMenu() {
 		if (!account().sessionExists()) {
 			return;
 		}
-		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](not_null<PeerListBox*> box) {
+		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(sessionController()), [](not_null<PeerListBox*> box) {
 			box->addButton(tr::lng_close(), [box] { box->closeBox(); });
 			box->addLeftButton(tr::lng_profile_add_contact(), [] { App::wnd()->onShowAddContact(); });
 		}));

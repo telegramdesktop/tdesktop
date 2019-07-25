@@ -13,8 +13,8 @@ namespace Ui {
 class PopupMenu;
 } // namespace Ui
 
-namespace Main {
-class Session;
+namespace Window {
+class SessionNavigation;
 } // namespace Main
 
 namespace HistoryView {
@@ -26,9 +26,10 @@ struct SelectedItem;
 using SelectedItems = std::vector<SelectedItem>;
 
 struct ContextMenuRequest {
-	explicit ContextMenuRequest(not_null<Main::Session*> session);
+	explicit ContextMenuRequest(
+		not_null<Window::SessionNavigation*> navigation);
 
-	const not_null<Main::Session*> session;
+	const not_null<Window::SessionNavigation*> navigation;
 	ClickHandlerPtr link;
 	Element *view = nullptr;
 	HistoryItem *item = nullptr;

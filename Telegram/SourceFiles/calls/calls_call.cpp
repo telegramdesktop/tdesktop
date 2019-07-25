@@ -446,7 +446,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			}
 		}
 		if (data.is_need_rating() && _id && _accessHash) {
-			Ui::show(Box<RateCallBox>(_id, _accessHash));
+			Ui::show(Box<RateCallBox>(&Auth(), _id, _accessHash));
 		}
 		const auto reason = data.vreason();
 		if (reason && reason->type() == mtpc_phoneCallDiscardReasonDisconnect) {

@@ -14,6 +14,10 @@ namespace style {
 struct InfoProfileCountButton;
 } // namespace style
 
+namespace Window {
+class SessionNavigation;
+} // namespace Window
+
 namespace Ui {
 class VerticalLayout;
 } // namespace Ui
@@ -26,7 +30,10 @@ class Button;
 
 class EditPeerInfoBox : public BoxContent {
 public:
-	EditPeerInfoBox(QWidget*, not_null<PeerData*> peer);
+	EditPeerInfoBox(
+		QWidget*,
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer);
 
 	void setInnerFocus() override {
 		_focusRequests.fire({});
@@ -47,6 +54,7 @@ protected:
 
 private:
 	rpl::event_stream<> _focusRequests;
+	not_null<Window::SessionNavigation*> _navigation;
 	not_null<PeerData*> _peer;
 
 };

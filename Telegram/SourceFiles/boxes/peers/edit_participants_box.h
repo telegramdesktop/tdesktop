@@ -149,6 +149,7 @@ public:
 		not_null<PeerData*> peer,
 		Role role);
 
+	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void rowActionClicked(not_null<PeerListRow*> row) override;

@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
+#include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "main/main_account.h" // Account::sessionValue.
 #include "base/unixtime.h"
@@ -1260,7 +1261,9 @@ void OverlayWidget::onForward() {
 	}
 
 	close();
-	Window::ShowForwardMessagesBox({ 1, item->fullId() });
+	Window::ShowForwardMessagesBox(
+		App::wnd()->sessionController(),
+		{ 1, item->fullId() });
 }
 
 void OverlayWidget::onDelete() {

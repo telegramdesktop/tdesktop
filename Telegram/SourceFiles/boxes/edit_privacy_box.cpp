@@ -34,8 +34,11 @@ namespace {
 class PrivacyExceptionsBoxController : public ChatsListBoxController {
 public:
 	PrivacyExceptionsBoxController(
+		not_null<Window::SessionNavigation*> navigation,
 		rpl::producer<QString> title,
 		const std::vector<not_null<PeerData*>> &selected);
+
+	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
 	std::vector<not_null<PeerData*>> getResult() const;
@@ -45,16 +48,24 @@ protected:
 	std::unique_ptr<Row> createRow(not_null<History*> history) override;
 
 private:
+	not_null<Window::SessionNavigation*> _navigation;
 	rpl::producer<QString> _title;
 	std::vector<not_null<PeerData*>> _selected;
 
 };
 
 PrivacyExceptionsBoxController::PrivacyExceptionsBoxController(
+	not_null<Window::SessionNavigation*> navigation,
 	rpl::producer<QString> title,
 	const std::vector<not_null<PeerData*>> &selected)
-: _title(std::move(title))
+: ChatsListBoxController(navigation)
+, _navigation(navigation)
+, _title(std::move(title))
 , _selected(selected) {
+}
+
+Main::Session &PrivacyExceptionsBoxController::session() const {
+	return _navigation->session();
 }
 
 void PrivacyExceptionsBoxController::prepareViewHook() {
@@ -132,6 +143,7 @@ void EditPrivacyBox::editExceptions(
 		Exception exception,
 		Fn<void()> done) {
 	auto controller = std::make_unique<PrivacyExceptionsBoxController>(
+		_window,
 		_controller->exceptionBoxTitle(exception),
 		exceptions(exception));
 	auto initBox = [=, controller = controller.get()](

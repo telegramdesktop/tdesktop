@@ -19,6 +19,10 @@ struct PeerList;
 struct PeerListItem;
 } // namespace style
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Ui {
 class RippleAnimation;
 class RoundImageCheckbox;
@@ -334,6 +338,7 @@ public:
 
 	virtual void prepare() = 0;
 	virtual void rowClicked(not_null<PeerListRow*> row) = 0;
+	virtual Main::Session &session() const = 0;
 	virtual void rowActionClicked(not_null<PeerListRow*> row) {
 	}
 	virtual void loadMoreRows() {

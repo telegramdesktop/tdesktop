@@ -1398,6 +1398,7 @@ void ListWidget::forwardItems(MessageIdsList &&items) {
 		}
 	};
 	setActionBoxWeak(Window::ShowForwardMessagesBox(
+		_controller,
 		std::move(items),
 		std::move(callback)));
 }

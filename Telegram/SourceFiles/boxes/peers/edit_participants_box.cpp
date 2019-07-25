@@ -754,6 +754,10 @@ ParticipantsBoxController::ParticipantsBoxController(
 	}
 }
 
+Main::Session &ParticipantsBoxController::session() const {
+	return _peer->session();
+}
+
 void ParticipantsBoxController::setupListChangeViewers() {
 	const auto channel = _peer->asChannel();
 	if (!channel || !channel->isMegagroup()) {
@@ -908,7 +912,7 @@ void ParticipantsBoxController::addNewParticipants() {
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
 	if (chat) {
-		AddParticipantsBoxController::Start(chat);
+		AddParticipantsBoxController::Start(_navigation, chat);
 	} else if (channel->isMegagroup()
 		|| channel->membersCount() < Global::ChatSizeMax()) {
 		const auto count = delegate()->peerListFullRowsCount();
@@ -919,6 +923,7 @@ void ParticipantsBoxController::addNewParticipants() {
 				delegate()->peerListRowAt(i)->peer()->asUser());
 		}
 		AddParticipantsBoxController::Start(
+			_navigation,
 			channel,
 			{ already.begin(), already.end() });
 	} else {

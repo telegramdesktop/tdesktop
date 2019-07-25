@@ -107,7 +107,7 @@ SessionController::SessionController(
 	subscribe(session->api().fullPeerUpdated(), [=](PeerData *peer) {
 		if (peer == _showEditPeer) {
 			_showEditPeer = nullptr;
-			Ui::show(Box<EditPeerInfoBox>(peer));
+			Ui::show(Box<EditPeerInfoBox>(this, peer));
 		}
 	});
 

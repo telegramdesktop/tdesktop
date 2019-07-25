@@ -35,11 +35,11 @@ namespace Info {
 
 TopBar::TopBar(
 	QWidget *parent,
-	not_null<Main::Session*> session,
+	not_null<Window::SessionNavigation*> navigation,
 	const style::InfoTopBar &st,
 	SelectedItems &&selectedItems)
 : RpWidget(parent)
-, _session(session)
+, _navigation(navigation)
 , _st(st)
 , _selectedItems(Section::MediaType::kCount) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -519,7 +519,7 @@ MessageIdsList TopBar::collectItems() const {
 	) | ranges::view::transform([](auto &&item) {
 		return item.msgId;
 	}) | ranges::view::filter([&](FullMsgId msgId) {
-		return _session->data().message(msgId) != nullptr;
+		return _navigation->session().data().message(msgId) != nullptr;
 	}) | ranges::to_vector;
 }
 
@@ -530,6 +530,7 @@ void TopBar::performForward() {
 		return;
 	}
 	Window::ShowForwardMessagesBox(
+		_navigation,
 		std::move(items),
 		[weak = make_weak(this)] {
 			if (weak) {
@@ -544,7 +545,7 @@ void TopBar::performDelete() {
 		_cancelSelectionClicks.fire({});
 	} else {
 		const auto box = Ui::show(Box<DeleteMessagesBox>(
-			_session,
+			&_navigation->session(),
 			std::move(items)));
 		box->setDeleteConfirmedCallback([weak = make_weak(this)] {
 			if (weak) {

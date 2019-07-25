@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "mainwidget.h"
+#include "window/window_session_controller.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
@@ -211,8 +212,16 @@ void BoxController::Row::stopLastActionRipple() {
 	}
 }
 
+BoxController::BoxController(not_null<Window::SessionController*> window)
+: _window(window) {
+}
+
+Main::Session &BoxController::session() const {
+	return _window->session();
+}
+
 void BoxController::prepare() {
-	Auth().data().itemRemoved(
+	session().data().itemRemoved(
 	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
 		if (const auto row = rowForItem(item)) {
 			row->itemRemoved(item);
@@ -226,7 +235,7 @@ void BoxController::prepare() {
 		}
 	}, lifetime());
 	subscribe(Current().newServiceMessage(), [=](FullMsgId msgId) {
-		if (const auto item = Auth().data().message(msgId)) {
+		if (const auto item = session().data().message(msgId)) {
 			insertRow(item, InsertWay::Prepend);
 		}
 	});
@@ -261,8 +270,8 @@ void BoxController::loadMoreRows() {
 		_loadRequestId = 0;
 
 		auto handleResult = [&](auto &data) {
-			Auth().data().processUsers(data.vusers());
-			Auth().data().processChats(data.vchats());
+			session().data().processUsers(data.vusers());
+			session().data().processChats(data.vchats());
 			receivedCalls(data.vmessages().v);
 		};
 
@@ -310,8 +319,8 @@ void BoxController::receivedCalls(const QVector<MTPMessage> &result) {
 	for (const auto &message : result) {
 		const auto msgId = IdFromMessage(message);
 		const auto peerId = PeerFromMessage(message);
-		if (const auto peer = Auth().data().peerLoaded(peerId)) {
-			const auto item = Auth().data().addNewMessage(
+		if (const auto peer = session().data().peerLoaded(peerId)) {
+			const auto item = session().data().addNewMessage(
 				message,
 				NewMessageType::Existing);
 			insertRow(item, InsertWay::Append);

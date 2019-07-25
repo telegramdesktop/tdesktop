@@ -14,11 +14,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 
-class BlockedBoxController : public PeerListController, private base::Subscriber, private MTP::Sender {
+class BlockedBoxController
+	: public PeerListController
+	, private base::Subscriber
+	, private MTP::Sender {
 public:
 	explicit BlockedBoxController(
 		not_null<Window::SessionController*> window);
 
+	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void rowActionClicked(not_null<PeerListRow*> row) override;

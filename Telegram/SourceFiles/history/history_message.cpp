@@ -314,6 +314,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		? Fn<void()>(std::move(copyCallback))
 		: Fn<void()>();
 	Ui::show(Box<ShareBox>(
+		App::wnd()->sessionController(),
 		std::move(copyLinkCallback),
 		std::move(submitCallback),
 		std::move(filterCallback)));

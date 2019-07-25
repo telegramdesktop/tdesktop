@@ -10,17 +10,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h"
 
+namespace Window {
+class SessionNavigation;
+} // namespace Window
+
 class AddParticipantsBoxController : public ContactsBoxController {
 public:
-	static void Start(not_null<ChatData*> chat);
-	static void Start(not_null<ChannelData*> channel);
 	static void Start(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<ChatData*> chat);
+	static void Start(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<ChannelData*> channel);
+	static void Start(
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		base::flat_set<not_null<UserData*>> &&alreadyIn);
 
-	AddParticipantsBoxController();
-	AddParticipantsBoxController(not_null<PeerData*> peer);
+	explicit AddParticipantsBoxController(
+		not_null<Window::SessionNavigation*> navigation);
 	AddParticipantsBoxController(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer);
+	AddParticipantsBoxController(
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		base::flat_set<not_null<UserData*>> &&alreadyIn);
 
@@ -34,6 +47,7 @@ protected:
 
 private:
 	static void Start(
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		base::flat_set<not_null<UserData*>> &&alreadyIn,
 		bool justCreated);
@@ -73,6 +87,7 @@ public:
 		AdminDoneCallback adminDoneCallback,
 		BannedDoneCallback bannedDoneCallback);
 
+	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;

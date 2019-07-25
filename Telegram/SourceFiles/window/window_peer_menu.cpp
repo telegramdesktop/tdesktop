@@ -119,8 +119,10 @@ History *FindWastedPin(not_null<Data::Session*> data, Data::Folder *folder) {
 	return nullptr;
 }
 
-void AddChatMembers(not_null<ChatData*> chat) {
-	AddParticipantsBoxController::Start(chat);
+void AddChatMembers(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<ChatData*> chat) {
+	AddParticipantsBoxController::Start(navigation, chat);
 }
 
 bool PinnedLimitReached(Dialogs::Key key) {
@@ -371,6 +373,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 }
 
 void Filler::addUserActions(not_null<UserData*> user) {
+	const auto controller = _controller;
 	const auto window = &_controller->window()->controller();
 	if (_source != PeerMenuSource::ChatsList) {
 		if (user->session().supportMode()) {
@@ -386,7 +389,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 		if (user->canShareThisContact()) {
 			_addAction(
 				tr::lng_info_share_contact(tr::now),
-				[=] { PeerMenuShareContactBox(user); });
+				[=] { PeerMenuShareContactBox(controller, user); });
 		}
 		if (user->isContact() && !user->isSelf()) {
 			_addAction(
@@ -397,9 +400,10 @@ void Filler::addUserActions(not_null<UserData*> user) {
 				[=] { PeerMenuDeleteContact(user); });
 		}
 		if (user->isBot() && !user->botInfo->cantJoinGroups) {
+			using AddBotToGroup = AddBotToGroupBoxController;
 			_addAction(
 				tr::lng_profile_invite_to_group(tr::now),
-				[=] { AddBotToGroupBoxController::Start(user); });
+				[=] { AddBotToGroup::Start(controller, user); });
 		}
 		if (user->canExportChatHistory()) {
 			_addAction(
@@ -432,7 +436,7 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 		if (chat->canAddMembers()) {
 			_addAction(
 				tr::lng_profile_add_participant(tr::now),
-				[chat] { AddChatMembers(chat); });
+				[=] { AddChatMembers(controller, chat); });
 		}
 		if (chat->canSendPolls()) {
 			_addAction(
@@ -454,7 +458,8 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 }
 
 void Filler::addChannelActions(not_null<ChannelData*> channel) {
-	auto isGroup = channel->isMegagroup();
+	const auto isGroup = channel->isMegagroup();
+	const auto navigation = _controller;
 	//if (!isGroup) { // #feed
 	//	const auto feed = channel->feed();
 	//	const auto grouped = (feed != nullptr);
@@ -477,7 +482,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 		if (channel->canAddMembers()) {
 			_addAction(
 				tr::lng_channel_add_members(tr::now),
-				[channel] { PeerMenuAddChannelMembers(channel); });
+				[=] { PeerMenuAddChannelMembers(navigation, channel); });
 		}
 		if (channel->canSendPolls()) {
 			_addAction(
@@ -649,7 +654,9 @@ void PeerMenuDeleteContact(not_null<UserData*> user) {
 		deleteSure));
 }
 
-void PeerMenuShareContactBox(not_null<UserData*> user) {
+void PeerMenuShareContactBox(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<UserData*> user) {
 	const auto weak = std::make_shared<QPointer<PeerListBox>>();
 	auto callback = [=](not_null<PeerData*> peer) {
 		if (!peer->canWrite()) {
@@ -680,9 +687,11 @@ void PeerMenuShareContactBox(not_null<UserData*> user) {
 			}), LayerOption::KeepOther);
 	};
 	*weak = Ui::show(Box<PeerListBox>(
-		std::make_unique<ChooseRecipientBoxController>(std::move(callback)),
+		std::make_unique<ChooseRecipientBoxController>(
+			navigation,
+			std::move(callback)),
 		[](not_null<PeerListBox*> box) {
-			box->addButton(tr::lng_cancel(), [box] {
+			box->addButton(tr::lng_cancel(), [=] {
 				box->closeBox();
 			});
 		}));
@@ -798,6 +807,7 @@ void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user) {
 }
 
 QPointer<Ui::RpWidget> ShowForwardMessagesBox(
+		not_null<Window::SessionNavigation*> navigation,
 		MessageIdsList &&items,
 		FnMut<void()> &&successCallback) {
 	const auto weak = std::make_shared<QPointer<PeerListBox>>();
@@ -832,12 +842,16 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 		});
 	};
 	*weak = Ui::show(Box<PeerListBox>(
-		std::make_unique<ChooseRecipientBoxController>(std::move(callback)),
+		std::make_unique<ChooseRecipientBoxController>(
+			navigation,
+			std::move(callback)),
 		std::move(initBox)), LayerOption::KeepOther);
 	return weak->data();
 }
 
-void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
+void PeerMenuAddChannelMembers(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<ChannelData*> channel) {
 	if (!channel->isMegagroup()
 		&& channel->membersCount() >= Global::ChatSizeMax()) {
 		Ui::show(
@@ -864,6 +878,7 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
 			}) | ranges::to_vector;
 
 			AddParticipantsBoxController::Start(
+				navigation,
 				channel,
 				{ already.begin(), already.end() });
 		});

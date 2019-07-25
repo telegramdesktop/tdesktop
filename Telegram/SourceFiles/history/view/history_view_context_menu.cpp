@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "platform/platform_info.h"
 #include "window/window_peer_menu.h"
+#include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "mainwidget.h"
@@ -235,12 +236,15 @@ bool AddForwardSelectedAction(
 
 	menu->addAction(tr::lng_context_forward_selected(tr::now), [=] {
 		const auto weak = make_weak(list);
-		auto items = ExtractIdsList(request.selectedItems);
-		Window::ShowForwardMessagesBox(std::move(items), [=] {
+		const auto callback = [=] {
 			if (const auto strong = weak.data()) {
 				strong->cancelSelection();
 			}
-		});
+		};
+		Window::ShowForwardMessagesBox(
+			request.navigation,
+			ExtractIdsList(request.selectedItems),
+			callback);
 	});
 	return true;
 }
@@ -269,9 +273,11 @@ bool AddForwardMessageAction(
 	const auto itemId = item->fullId();
 	menu->addAction(tr::lng_context_forward_msg(tr::now), [=] {
 		if (const auto item = owner->message(itemId)) {
-			Window::ShowForwardMessagesBox(asGroup
-				? owner->itemOrItsGroup(item)
-				: MessageIdsList{ 1, itemId });
+			Window::ShowForwardMessagesBox(
+				request.navigation,
+				(asGroup
+					? owner->itemOrItsGroup(item)
+					: MessageIdsList{ 1, itemId }));
 		}
 	});
 	return true;
@@ -298,12 +304,11 @@ bool AddDeleteSelectedAction(
 		return false;
 	}
 
-	const auto session = request.session;
 	menu->addAction(tr::lng_context_delete_selected(tr::now), [=] {
 		const auto weak = make_weak(list);
 		auto items = ExtractIdsList(request.selectedItems);
 		const auto box = Ui::show(Box<DeleteMessagesBox>(
-			session,
+			&request.navigation->session(),
 			std::move(items)));
 		box->setDeleteConfirmedCallback([=] {
 			if (const auto strong = weak.data()) {
@@ -443,8 +448,9 @@ void AddCopyLinkAction(
 
 } // namespace
 
-ContextMenuRequest::ContextMenuRequest(not_null<Main::Session*> session)
-: session(session) {
+ContextMenuRequest::ContextMenuRequest(
+	not_null<Window::SessionNavigation*> navigation)
+: navigation(navigation) {
 }
 
 base::unique_qptr<Ui::PopupMenu> FillContextMenu(

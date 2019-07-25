@@ -602,7 +602,7 @@ void MainWindow::onShowNewGroup() {
 	if (account().sessionExists()) {
 		Ui::show(
 			Box<GroupInfoBox>(
-				&account().session(),
+				sessionController(),
 				GroupInfoBox::Type::Group),
 			LayerOption::KeepOther);
 	}
@@ -611,10 +611,10 @@ void MainWindow::onShowNewGroup() {
 void MainWindow::onShowNewChannel() {
 	if (isHidden()) showFromTray();
 
-	if (_main) {
+	if (account().sessionExists()) {
 		Ui::show(
 			Box<GroupInfoBox>(
-				&account().session(),
+				sessionController(),
 				GroupInfoBox::Type::Channel),
 			LayerOption::KeepOther);
 	}

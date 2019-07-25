@@ -16,9 +16,17 @@ class FlatLabel;
 class IconButton;
 } // namespace Ui
 
+namespace Main {
+class Session;
+} // namespace Main
+
 class RateCallBox : public BoxContent, private MTP::Sender {
 public:
-	RateCallBox(QWidget*, uint64 callId, uint64 callAccessHash);
+	RateCallBox(
+		QWidget*,
+		not_null<Main::Session*> session,
+		uint64 callId,
+		uint64 callAccessHash);
 
 protected:
 	void prepare() override;
@@ -31,6 +39,8 @@ private:
 	void ratingChanged(int value);
 	void send();
 	void commentResized();
+
+	const not_null<Main::Session*> _session;
 
 	uint64 _callId = 0;
 	uint64 _callAccessHash = 0;

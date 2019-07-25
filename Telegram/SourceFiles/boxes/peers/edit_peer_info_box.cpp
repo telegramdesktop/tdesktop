@@ -243,6 +243,7 @@ class Controller
 	, private MTP::Sender {
 public:
 	Controller(
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<BoxContent*> box,
 		not_null<PeerData*> peer);
 
@@ -328,9 +329,10 @@ private:
 	std::optional<QString> _usernameSavedValue;
 	std::optional<bool> _signaturesSavedValue;
 
-	not_null<BoxContent*> _box;
+	const not_null<Window::SessionNavigation*> _navigation;
+	const not_null<BoxContent*> _box;
 	not_null<PeerData*> _peer;
-	bool _isGroup = false;
+	const bool _isGroup = false;
 
 	base::unique_qptr<Ui::VerticalLayout> _wrap;
 	Controls _controls;
@@ -348,18 +350,20 @@ private:
 };
 
 Controller::Controller(
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<BoxContent*> box,
 	not_null<PeerData*> peer)
-: _box(box)
+: _navigation(navigation)
+, _box(box)
 , _peer(peer)
 , _isGroup(_peer->isChat() || _peer->isMegagroup()) {
 	_box->setTitle(_isGroup
 		? tr::lng_edit_group()
 		: tr::lng_edit_channel_title());
-	_box->addButton(tr::lng_settings_save(), [this] {
+	_box->addButton(tr::lng_settings_save(), [=] {
 		save();
 	});
-	_box->addButton(tr::lng_cancel(), [this] {
+	_box->addButton(tr::lng_cancel(), [=] {
 		_box->closeBox();
 	});
 	subscribeToMigration();
@@ -621,7 +625,12 @@ void Controller::showEditLinkedChatBox() {
 
 	if (const auto chat = *_linkedChatSavedValue) {
 		*box = Ui::show(
-			EditLinkedChatBox(channel, chat, canEdit, callback),
+			EditLinkedChatBox(
+				_navigation,
+				channel,
+				chat,
+				canEdit,
+				callback),
 			LayerOption::KeepOther);
 		return;
 	} else if (!canEdit || _linkedChatsRequestId) {
@@ -644,7 +653,11 @@ void Controller::showEditLinkedChatBox() {
 			chats.emplace_back(_peer->owner().processChat(item));
 		}
 		*box = Ui::show(
-			EditLinkedChatBox(channel, std::move(chats), callback),
+			EditLinkedChatBox(
+				_navigation,
+				channel,
+				std::move(chats),
+				callback),
 			LayerOption::KeepOther);
 	}).fail([=](const RPCError &error) {
 		_linkedChatsRequestId = 0;
@@ -1438,12 +1451,18 @@ void Controller::deleteChannel() {
 
 EditPeerInfoBox::EditPeerInfoBox(
 	QWidget*,
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer)
-: _peer(peer->migrateToOrMe()) {
+: _navigation(navigation)
+, _peer(peer->migrateToOrMe()) {
 }
 
 void EditPeerInfoBox::prepare() {
-	const auto controller = Ui::CreateChild<Controller>(this, this, _peer);
+	const auto controller = Ui::CreateChild<Controller>(
+		this,
+		_navigation,
+		this,
+		_peer);
 	_focusRequests.events(
 	) | rpl::start_with_next(
 		[=] { controller->setFocus(); },
