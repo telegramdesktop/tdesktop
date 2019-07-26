@@ -72,11 +72,6 @@ void System::schedule(
 		? item->from().get()
 		: nullptr;
 
-	if (item->isSilent()) {
-		history->popNotification(item);
-		return;
-	}
-
 	history->owner().requestNotifySettings(history->peer);
 	if (notifyBy) {
 		history->owner().requestNotifySettings(notifyBy);
@@ -112,7 +107,9 @@ void System::schedule(
 	}
 
 	auto when = ms + delay;
-	_whenAlerts[history].insert(when, notifyBy);
+	if (!item->isSilent()) {
+		_whenAlerts[history].insert(when, notifyBy);
+	}
 	if (Global::DesktopNotify() && !Platform::Notifications::SkipToast()) {
 		auto &whenMap = _whenMaps[history];
 		if (whenMap.constFind(item->id) == whenMap.cend()) {
