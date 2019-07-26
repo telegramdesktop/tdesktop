@@ -92,6 +92,67 @@ index bcd29b6fe1..bcb0672f69 100644
          if (QPlatformCursor *platformCursor = q->screen()->handle()->cursor()) {
              QCursor *c = QGuiApplication::overrideCursor();
              if (!c && hasCursor)
+diff --git a/src/gui/painting/qbezier.cpp b/src/gui/painting/qbezier.cpp
+index 8e0e76f787..a61bd62834 100644
+--- a/src/gui/painting/qbezier.cpp
++++ b/src/gui/painting/qbezier.cpp
+@@ -45,6 +45,34 @@ QT_BEGIN_NAMESPACE
+ 
+ //#define QDEBUG_BEZIER
+ 
++// Patch: Workaround VS2019 compiler bug, see QTBUG-75280.
++#ifdef Q_OS_WIN
++Q_NEVER_INLINE void QBezier::split(QBezier *firstHalf, QBezier *secondHalf) const
++{
++    Q_ASSERT(firstHalf);
++    Q_ASSERT(secondHalf);
++
++    qreal c = (x2 + x3)*.5;
++    firstHalf->x2 = (x1 + x2)*.5;
++    secondHalf->x3 = (x3 + x4)*.5;
++    firstHalf->x1 = x1;
++    secondHalf->x4 = x4;
++    firstHalf->x3 = (firstHalf->x2 + c)*.5;
++    secondHalf->x2 = (secondHalf->x3 + c)*.5;
++    firstHalf->x4 = secondHalf->x1 = (firstHalf->x3 + secondHalf->x2)*.5;
++
++    c = (y2 + y3)/2;
++    firstHalf->y2 = (y1 + y2)*.5;
++    secondHalf->y3 = (y3 + y4)*.5;
++    firstHalf->y1 = y1;
++    secondHalf->y4 = y4;
++    firstHalf->y3 = (firstHalf->y2 + c)*.5;
++    secondHalf->y2 = (secondHalf->y3 + c)*.5;
++    firstHalf->y4 = secondHalf->y1 = (firstHalf->y3 + secondHalf->y2)*.5;
++}
++// Patch: Workaround VS2019 compiler bug, see QTBUG-75280.
++#endif // Q_OS_WIN
++
+ /*!
+   \internal
+ */
+diff --git a/src/gui/painting/qbezier_p.h b/src/gui/painting/qbezier_p.h
+index dd1cd94acf..aedc8b6a4b 100644
+--- a/src/gui/painting/qbezier_p.h
++++ b/src/gui/painting/qbezier_p.h
+@@ -215,6 +215,8 @@ inline QPointF QBezier::secondDerivedAt(qreal t) const
+                        a * y1 + b * y2 + c * y3 + d * y4);
+ }
+ 
++// Patch: Workaround VS2019 compiler bug, see QTBUG-75280.
++#ifndef Q_OS_WIN
+ inline void QBezier::split(QBezier *firstHalf, QBezier *secondHalf) const
+ {
+     Q_ASSERT(firstHalf);
+@@ -238,6 +240,8 @@ inline void QBezier::split(QBezier *firstHalf, QBezier *secondHalf) const
+     secondHalf->y2 = (secondHalf->y3 + c)*.5;
+     firstHalf->y4 = secondHalf->y1 = (firstHalf->y3 + secondHalf->y2)*.5;
+ }
++// Patch: Workaround VS2019 compiler bug, see QTBUG-75280.
++#endif // Q_OS_WIN
+ 
+ inline void QBezier::parameterSplitLeft(qreal t, QBezier *left)
+ {
 diff --git a/src/gui/painting/qpaintengine_p.h b/src/gui/painting/qpaintengine_p.h
 index 918c98997b..4158259743 100644
 --- a/src/gui/painting/qpaintengine_p.h
@@ -253,7 +314,7 @@ index 41834b21ae..8cdf4ab145 100644
                              setError(QAbstractSocket::NetworkError, AddressNotAvailableErrorString);
                              socketState = QAbstractSocket::UnconnectedState;
 diff --git a/src/platformsupport/cglconvenience/cglconvenience.mm b/src/platformsupport/cglconvenience/cglconvenience.mm
-index fb609ae485..7cca45ded4 100644
+index fb609ae485..ef1c638d91 100644
 --- a/src/platformsupport/cglconvenience/cglconvenience.mm
 +++ b/src/platformsupport/cglconvenience/cglconvenience.mm
 @@ -128,7 +128,12 @@ void *qcgl_createNSOpenGLPixelFormat(const QSurfaceFormat &format)

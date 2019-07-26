@@ -369,7 +369,9 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     fi
     if [ "$BuildTarget" == "mac" ]; then
       echo "Beginning notarization process."
+      set +e
       xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.Telegram" --username "$AC_USERNAME" --password "@keychain:AC_PASSWORD" --file "$SetupFile" 2> request_uuid.txt
+      set -e
       while IFS='' read -r line || [[ -n "$line" ]]; do
         Prefix=$(echo $line | cut -d' ' -f 1)
         Value=$(echo $line | cut -d' ' -f 3)
@@ -378,7 +380,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
         fi
       done < "request_uuid.txt"
       if [ "$RequestUUID" == "" ]; then
-        Error "Could not extract Request UUID. See request_uuid.txt for more information."
+        cat request_uuid.txt
+        Error "Could not extract Request UUID."
       fi
       echo "Request UUID: $RequestUUID"
       rm request_uuid.txt
