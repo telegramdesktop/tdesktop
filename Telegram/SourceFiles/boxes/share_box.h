@@ -49,7 +49,10 @@ void ShareGameScoreByHash(
 class ShareBox : public BoxContent, public RPCSender {
 public:
 	using CopyCallback = Fn<void()>;
-	using SubmitCallback = Fn<void(QVector<PeerData*>&&, TextWithTags&&)>;
+	using SubmitCallback = Fn<void(
+		QVector<PeerData*>&&,
+		TextWithTags&&,
+		bool)>;
 	using FilterCallback = Fn<bool(PeerData*)>;
 
 	ShareBox(
@@ -70,7 +73,7 @@ private:
 	void prepareCommentField();
 	void scrollAnimationCallback();
 
-	void submit();
+	void submit(bool silent = false);
 	void copyLink();
 	bool searchByUsername(bool useCache = false);
 

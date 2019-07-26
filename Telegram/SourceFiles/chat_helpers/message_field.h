@@ -102,3 +102,8 @@ private:
 	QtConnectionOwner _connection;
 
 };
+
+void SetupSendWithoutSound(
+	not_null<Ui::RpWidget*> button,
+	Fn<bool()> enabled,
+	Fn<void()> send);

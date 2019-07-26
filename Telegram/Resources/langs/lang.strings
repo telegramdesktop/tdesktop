@@ -1233,6 +1233,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cant_invite_make_admin" = "Make admin";
 
 "lng_send_button" = "Send";
+"lng_send_silent_message" = "Send without sound";
 "lng_message_ph" = "Write a message...";
 "lng_broadcast_ph" = "Broadcast a message...";
 "lng_broadcast_silent_ph" = "Silent broadcast...";

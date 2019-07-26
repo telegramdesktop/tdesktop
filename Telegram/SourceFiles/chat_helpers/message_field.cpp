@@ -14,8 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "boxes/abstract_box.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/widgets/popup_menu.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "core/event_filter.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
@@ -771,4 +773,20 @@ void MessageLinksParser::apply(
 		parsed.push_back(computeLink(range).toString());
 	}
 	_list = std::move(parsed);
+}
+
+void SetupSendWithoutSound(
+		not_null<Ui::RpWidget*> button,
+		Fn<bool()> enabled,
+		Fn<void()> send) {
+	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
+	Core::InstallEventFilter(button, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::ContextMenu && enabled()) {
+			*menu = base::make_unique_q<Ui::PopupMenu>(button);
+			(*menu)->addAction(tr::lng_send_silent_message(tr::now), send);
+			(*menu)->popup(QCursor::pos());
+			return true;
+		}
+		return false;
+	});
 }

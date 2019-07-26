@@ -60,6 +60,7 @@ public:
 			Storage::PreparedList &&list,
 			SendFilesWay way,
 			TextWithTags &&caption,
+			bool silent,
 			bool ctrlShiftEnter)> callback) {
 		_confirmedCallback = std::move(callback);
 	}
@@ -100,7 +101,7 @@ private:
 	void prepareAlbumPreview();
 	void applyAlbumOrder();
 
-	void send(bool ctrlShiftEnter = false);
+	void send(bool silent = false, bool ctrlShiftEnter = false);
 	void captionResized();
 
 	void setupTitleText();
@@ -127,6 +128,7 @@ private:
 		Storage::PreparedList &&list,
 		SendFilesWay way,
 		TextWithTags &&caption,
+		bool silent,
 		bool ctrlShiftEnter)> _confirmedCallback;
 	Fn<void()> _cancelledCallback;
 	bool _confirmed = false;

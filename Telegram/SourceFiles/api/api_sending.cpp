@@ -31,7 +31,8 @@ void SendExistingMedia(
 		const MTPInputMedia &inputMedia,
 		Data::FileOrigin origin,
 		TextWithEntities caption,
-		MsgId replyToId) {
+		MsgId replyToId,
+		bool silent) {
 	const auto peer = history->peer;
 	const auto session = &history->session();
 	const auto api = &session->api();
@@ -40,6 +41,7 @@ void SendExistingMedia(
 	options.clearDraft = false;
 	options.replyTo = replyToId;
 	options.generateLocal = true;
+	options.silent = silent;
 
 	api->sendAction(options);
 
@@ -52,8 +54,9 @@ void SendExistingMedia(
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
-	bool channelPost = peer->isChannel() && !peer->isMegagroup();
-	bool silentPost = channelPost && session->data().notifySilentPosts(peer);
+	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	const auto silentPost = options.silent
+		|| (channelPost && session->data().notifySilentPosts(peer));
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
@@ -131,7 +134,7 @@ void SendExistingMedia(
 	performRequest();
 
 	if (const auto main = App::main()) {
-		main->finishForwarding(history);
+		main->finishForwarding(history, options.silent);
 	}
 }
 
@@ -139,15 +142,17 @@ void SendExistingMedia(
 
 void SendExistingDocument(
 		not_null<History*> history,
-		not_null<DocumentData*> document) {
-	SendExistingDocument(history, document, {});
+		not_null<DocumentData*> document,
+		bool silent) {
+	SendExistingDocument(history, document, {}, 0, silent);
 }
 
 void SendExistingDocument(
 		not_null<History*> history,
 		not_null<DocumentData*> document,
 		TextWithEntities caption,
-		MsgId replyToId) {
+		MsgId replyToId,
+		bool silent) {
 	SendExistingMedia(
 		history,
 		document,
@@ -157,7 +162,8 @@ void SendExistingDocument(
 			MTPint()),
 		document->stickerOrGifOrigin(),
 		caption,
-		replyToId);
+		replyToId,
+		silent);
 
 	if (document->sticker()) {
 		if (const auto main = App::main()) {
@@ -169,15 +175,17 @@ void SendExistingDocument(
 
 void SendExistingPhoto(
 		not_null<History*> history,
-		not_null<PhotoData*> photo) {
-	SendExistingPhoto(history, photo, {});
+		not_null<PhotoData*> photo,
+		bool silent) {
+	SendExistingPhoto(history, photo, {}, 0, silent);
 }
 
 void SendExistingPhoto(
 		not_null<History*> history,
 		not_null<PhotoData*> photo,
 		TextWithEntities caption,
-		MsgId replyToId) {
+		MsgId replyToId,
+		bool silent) {
 	SendExistingMedia(
 		history,
 		photo,
@@ -187,7 +195,8 @@ void SendExistingPhoto(
 			MTPint()),
 		Data::FileOrigin(),
 		caption,
-		replyToId);
+		replyToId,
+		silent);
 }
 
 } // namespace Api

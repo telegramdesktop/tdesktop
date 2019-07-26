@@ -1469,6 +1469,7 @@ void SendFilesBox::setupShadows(
 
 void SendFilesBox::prepare() {
 	_send = addButton(tr::lng_send_button(), [=] { send(); });
+	SetupSendWithoutSound(_send, [=] { return true; }, [=] { send(true); });
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	initSendWay();
 	setupCaption();
@@ -1637,7 +1638,7 @@ void SendFilesBox::setupCaption() {
 		const auto ctrlShiftEnter = modifiers.testFlag(Qt::ShiftModifier)
 			&& (modifiers.testFlag(Qt::ControlModifier)
 				|| modifiers.testFlag(Qt::MetaModifier));
-		send(ctrlShiftEnter);
+		send(false, ctrlShiftEnter);
 	});
 	connect(_caption, &Ui::InputField::cancelled, [=] { closeBox(); });
 	_caption->setMimeDataHook([=](
@@ -1838,7 +1839,7 @@ void SendFilesBox::keyPressEvent(QKeyEvent *e) {
 		const auto ctrl = modifiers.testFlag(Qt::ControlModifier)
 			|| modifiers.testFlag(Qt::MetaModifier);
 		const auto shift = modifiers.testFlag(Qt::ShiftModifier);
-		send(ctrl && shift);
+		send(false, ctrl && shift);
 	} else {
 		BoxContent::keyPressEvent(e);
 	}
@@ -1909,7 +1910,7 @@ void SendFilesBox::setInnerFocus() {
 	}
 }
 
-void SendFilesBox::send(bool ctrlShiftEnter) {
+void SendFilesBox::send(bool silent, bool ctrlShiftEnter) {
 	using Way = SendFilesWay;
 	const auto way = _sendWay ? _sendWay->value() : Way::Files;
 
@@ -1938,6 +1939,7 @@ void SendFilesBox::send(bool ctrlShiftEnter) {
 			std::move(_list),
 			way,
 			std::move(caption),
+			silent,
 			ctrlShiftEnter);
 	}
 	closeBox();

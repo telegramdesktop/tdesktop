@@ -381,6 +381,7 @@ public:
 		not_null<History*> history;
 		MsgId replyTo = 0;
 		WebPageId webPageId = 0;
+		bool silent = false;
 		bool clearDraft = false;
 		bool generateLocal = true;
 		bool handleSupportSwitch = false;
@@ -453,6 +454,7 @@ public:
 		TextWithTags textWithTags;
 		MsgId replyTo = 0;
 		WebPageId webPageId = 0;
+		bool silent = false;
 		bool clearDraft = true;
 		bool handleSupportSwitch = false;
 	};

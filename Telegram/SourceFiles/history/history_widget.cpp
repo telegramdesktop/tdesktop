@@ -304,6 +304,10 @@ HistoryWidget::HistoryWidget(
 	_unreadMentions->addClickHandler([=] { showNextUnreadMention(); });
 	_fieldBarCancel->addClickHandler([=] { cancelFieldAreaState(); });
 	_send->addClickHandler([=] { sendButtonClicked(); });
+	SetupSendWithoutSound(_send, [=] {
+		return (_send->type() == Ui::SendButton::Type::Send)
+			&& !_send->isDisabled();
+	}, [=] { send(true); });
 	_unblock->addClickHandler([=] { unblockUser(); });
 	_botStart->addClickHandler([=] { sendBotStartCommand(); });
 	_joinChannel->addClickHandler([=] { joinChannel(); });
@@ -954,7 +958,7 @@ void HistoryWidget::onHashtagOrBotCommandInsert(
 	// Send bot command at once, if it was not inserted by pressing Tab.
 	if (str.at(0) == '/' && method != FieldAutocomplete::ChooseMethod::ByTab) {
 		App::sendBotCommand(_peer, nullptr, str, replyToId());
-		App::main()->finishForwarding(_history);
+		App::main()->finishForwarding(_history, false);
 		setFieldText(_field->getTextWithTagsPart(_field->textCursor().position()));
 	} else {
 		_field->insertTag(str);
@@ -2814,7 +2818,7 @@ void HistoryWidget::hideSelectorControlsAnimated() {
 	}
 }
 
-void HistoryWidget::send(Qt::KeyboardModifiers modifiers) {
+void HistoryWidget::send(bool silent, Qt::KeyboardModifiers modifiers) {
 	if (!_history) {
 		return;
 	} else if (_editMsgId) {
@@ -2834,6 +2838,7 @@ void HistoryWidget::send(Qt::KeyboardModifiers modifiers) {
 	message.textWithTags = _field->getTextWithAppliedMarkdown();
 	message.replyTo = replyToId();
 	message.webPageId = webPageId;
+	message.silent = silent;
 	message.handleSupportSwitch = Support::HandleSwitch(modifiers);
 
 	const auto error = GetErrorTextForForward(
@@ -4079,6 +4084,7 @@ bool HistoryWidget::confirmSendingFiles(
 			Storage::PreparedList &&list,
 			SendFilesWay way,
 			TextWithTags &&caption,
+			bool silent,
 			bool ctrlShiftEnter) {
 		if (showSendingFilesError(list)) {
 			return;
@@ -4094,6 +4100,7 @@ bool HistoryWidget::confirmSendingFiles(
 			type,
 			std::move(caption),
 			replyToId(),
+			silent,
 			album);
 	}));
 	box->setCancelledCallback(crl::guard(this, [=] {
@@ -4197,23 +4204,12 @@ bool HistoryWidget::confirmSendingFiles(
 	return false;
 }
 
-void HistoryWidget::uploadFiles(
-		Storage::PreparedList &&list,
-		SendMediaType type) {
-	ActivateWindow(controller());
-
-	uploadFilesAfterConfirmation(
-		std::move(list),
-		type,
-		TextWithTags(),
-		replyToId());
-}
-
 void HistoryWidget::uploadFilesAfterConfirmation(
 		Storage::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
 		MsgId replyTo,
+		bool silent,
 		std::shared_ptr<SendingAlbum> album) {
 	Assert(canWriteMessage());
 
@@ -4230,6 +4226,7 @@ void HistoryWidget::uploadFilesAfterConfirmation(
 
 	auto options = ApiWrap::SendOptions(_history);
 	options.replyTo = replyTo;
+	options.silent = silent;
 	session().api().sendFiles(
 		std::move(list),
 		type,
@@ -4353,7 +4350,7 @@ void HistoryWidget::sendFileConfirmed(
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 	}
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
-	const auto silentPost = channelPost && file->to.silent;
+	const auto silentPost = file->to.silent;
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;

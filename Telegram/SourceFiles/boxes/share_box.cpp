@@ -408,7 +408,13 @@ void ShareBox::keyPressEvent(QKeyEvent *e) {
 void ShareBox::createButtons() {
 	clearButtons();
 	if (_hasSelected) {
-		addButton(tr::lng_share_confirm(), [=] { submit(); });
+		const auto send = addButton(tr::lng_share_confirm(), [=] {
+			submit();
+		});
+		SetupSendWithoutSound(
+			send,
+			[=] { return true; },
+			[=] { submit(true); });
 	} else if (_copyCallback) {
 		addButton(tr::lng_share_copy_link(), [=] { copyLink(); });
 	}
@@ -442,11 +448,12 @@ void ShareBox::innerSelectedChanged(PeerData *peer, bool checked) {
 	update();
 }
 
-void ShareBox::submit() {
+void ShareBox::submit(bool silent) {
 	if (_submitCallback) {
 		_submitCallback(
 			_inner->selected(),
-			_comment->entity()->getTextWithAppliedMarkdown());
+			_comment->entity()->getTextWithAppliedMarkdown(),
+			silent);
 	}
 }
 

@@ -216,7 +216,8 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 	};
 	auto submitCallback = [=](
 			QVector<PeerData*> &&result,
-			TextWithTags &&comment) {
+			TextWithTags &&comment,
+			bool silent) {
 		if (!data->requests.empty()) {
 			return; // Share clicked already.
 		}
@@ -264,6 +265,9 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			| MTPmessages_ForwardMessages::Flag::f_with_my_score
 			| (isGroup
 				? MTPmessages_ForwardMessages::Flag::f_grouped
+				: MTPmessages_ForwardMessages::Flag(0))
+			| (silent
+				? MTPmessages_ForwardMessages::Flag::f_silent
 				: MTPmessages_ForwardMessages::Flag(0));
 		auto msgIds = QVector<MTPint>();
 		msgIds.reserve(data->msgIds.size());

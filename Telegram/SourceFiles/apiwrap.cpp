@@ -97,13 +97,6 @@ using PhotoFileLocationId = Data::PhotoFileLocationId;
 using DocumentFileLocationId = Data::DocumentFileLocationId;
 using UpdatedFileReferences = Data::UpdatedFileReferences;
 
-bool IsSilentPost(not_null<HistoryItem*> item, bool silent) {
-	const auto history = item->history();
-	return silent
-		&& history->peer->isChannel()
-		&& !history->peer->isMegagroup();
-}
-
 MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 		not_null<DocumentData*> document) {
 	const auto filenameAttribute = MTP_documentAttributeFilename(
@@ -4406,8 +4399,8 @@ void ApiWrap::forwardMessages(
 	readServerHistory(history);
 
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
-	const auto silentPost = channelPost
-		&& _session->data().notifySilentPosts(peer);
+	const auto silentPost = options.silent
+		|| (channelPost && _session->data().notifySilentPosts(peer));
 
 	auto flags = MTPDmessage::Flags(0);
 	auto sendFlags = MTPmessages_ForwardMessages::Flags(0);
@@ -4875,6 +4868,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	auto options = ApiWrap::SendOptions(history);
 	options.clearDraft = message.clearDraft;
 	options.replyTo = message.replyTo;
+	options.silent = message.silent;
 	options.generateLocal = true;
 	options.webPageId = message.webPageId;
 	options.handleSupportSwitch = message.handleSupportSwitch;
@@ -4924,9 +4918,9 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					MTP_int(page->pendingTill)));
 			flags |= MTPDmessage::Flag::f_media;
 		}
-		bool channelPost = peer->isChannel() && !peer->isMegagroup();
-		bool silentPost = channelPost
-			&& _session->data().notifySilentPosts(peer);
+		const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+		const auto silentPost = message.silent
+			|| (channelPost && _session->data().notifySilentPosts(peer));
 		if (channelPost) {
 			flags |= MTPDmessage::Flag::f_views;
 			flags |= MTPDmessage::Flag::f_post;
@@ -4995,7 +4989,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	}
 
 	if (const auto main = App::main()) {
-		main->finishForwarding(history);
+		main->finishForwarding(history, message.silent);
 	}
 }
 
@@ -5049,7 +5043,8 @@ void ApiWrap::sendInlineResult(
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_reply_to_msg_id;
 	}
 	bool channelPost = peer->isChannel() && !peer->isMegagroup();
-	bool silentPost = channelPost && _session->data().notifySilentPosts(peer);
+	bool silentPost = options.silent
+		|| (channelPost && _session->data().notifySilentPosts(peer));
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
@@ -5106,7 +5101,7 @@ void ApiWrap::sendInlineResult(
 	).send();
 
 	if (const auto main = App::main()) {
-		main->finishForwarding(history);
+		main->finishForwarding(history, options.silent);
 	}
 }
 
@@ -5213,7 +5208,7 @@ void ApiWrap::sendMediaWithRandomId(
 		| (replyTo
 			? MTPmessages_SendMedia::Flag::f_reply_to_msg_id
 			: MTPmessages_SendMedia::Flag(0))
-		| (IsSilentPost(item, silent)
+		| (silent
 			? MTPmessages_SendMedia::Flag::f_silent
 			: MTPmessages_SendMedia::Flag(0))
 		| (!sentEntities.v.isEmpty()
@@ -5309,7 +5304,7 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		| (replyTo
 			? MTPmessages_SendMultiMedia::Flag::f_reply_to_msg_id
 			: MTPmessages_SendMultiMedia::Flag(0))
-		| (IsSilentPost(sample, album->silent)
+		| (album->silent
 			? MTPmessages_SendMultiMedia::Flag::f_silent
 			: MTPmessages_SendMultiMedia::Flag(0));
 	const auto peer = history->peer;
@@ -5338,7 +5333,7 @@ FileLoadTo ApiWrap::fileLoadTaskOptions(const SendOptions &options) const {
 	const auto peer = options.history->peer;
 	return FileLoadTo(
 		peer->id,
-		_session->data().notifySilentPosts(peer),
+		options.silent || _session->data().notifySilentPosts(peer),
 		options.replyTo);
 }
 
@@ -5788,8 +5783,8 @@ void ApiWrap::createPoll(
 		history->clearCloudDraft();
 	}
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
-	const auto silentPost = channelPost
-		&& _session->data().notifySilentPosts(peer);
+	const auto silentPost = options.silent
+		|| (channelPost && _session->data().notifySilentPosts(peer));
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}

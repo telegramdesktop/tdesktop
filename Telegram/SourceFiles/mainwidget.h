@@ -231,7 +231,7 @@ public:
 	void pushReplyReturn(not_null<HistoryItem*> item);
 
 	void cancelForwarding(not_null<History*> history);
-	void finishForwarding(not_null<History*> history);
+	void finishForwarding(not_null<History*> history, bool silent);
 
 	// Does offerPeer or showPeerHistory.
 	void choosePeer(PeerId peerId, MsgId showAtMsgId);
