@@ -343,15 +343,17 @@ protected:
 
 };
 
-template <typename TReturn, typename TReceiver>
+template <typename TReceiver>
 class RPCDoneHandlerBareOwned : public RPCOwnedDoneHandler { // done(from, end)
-	using CallbackType = TReturn (TReceiver::*)(const mtpPrime *, const mtpPrime *);
+	using CallbackType = bool (TReceiver::*)(const mtpPrime *, const mtpPrime *);
 
 public:
     RPCDoneHandlerBareOwned(TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
-		if (_owner) (static_cast<TReceiver*>(_owner)->*_onDone)(from, end);
+		return _owner
+			? (static_cast<TReceiver*>(_owner)->*_onDone)(from, end)
+			: true;
 	}
 
 private:
@@ -713,9 +715,9 @@ private:
 
 class RPCSender {
 public:
-	template <typename TReturn, typename TReceiver> // done(from, end)
-	RPCDoneHandlerPtr rpcDone(TReturn (TReceiver::*onDone)(const mtpPrime *, const mtpPrime *)) {
-		return RPCDoneHandlerPtr(new RPCDoneHandlerBareOwned<TReturn, TReceiver>(static_cast<TReceiver*>(this), onDone));
+	template <typename TReceiver> // done(from, end)
+	RPCDoneHandlerPtr rpcDone(bool (TReceiver::*onDone)(const mtpPrime *, const mtpPrime *)) {
+		return RPCDoneHandlerPtr(new RPCDoneHandlerBareOwned<TReceiver>(static_cast<TReceiver*>(this), onDone));
 	}
 
 	template <typename TReceiver> // done(from, end, req_id)
