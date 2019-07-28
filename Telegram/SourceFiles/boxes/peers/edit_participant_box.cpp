@@ -427,14 +427,17 @@ not_null<Ui::InputField*> EditAdminBox::addRankInput() {
 			this,
 			st::customBadgeField,
 			(isOwner ? tr::lng_owner_badge : tr::lng_admin_badge)(),
-			_oldRank),
+			TextUtilities::RemoveEmoji(_oldRank)),
 		st::rightsAboutMargin);
 	result->setMaxLength(kAdminRoleLimit);
-	result->setInstantReplaces(Ui::InstantReplaces::Default());
-	result->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
-	Ui::Emoji::SuggestionsController::Init(
-		getDelegate()->outerContainer(),
-		result);
+	result->setInstantReplaces(Ui::InstantReplaces::TextOnly());
+	connect(result, &Ui::InputField::changed, [=] {
+		const auto text = result->getLastText();
+		const auto removed = TextUtilities::RemoveEmoji(text);
+		if (removed != text) {
+			result->setText(removed);
+		}
+	});
 
 	addControl(
 		object_ptr<Ui::FlatLabel>(

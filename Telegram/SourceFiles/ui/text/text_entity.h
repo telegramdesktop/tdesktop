@@ -281,6 +281,7 @@ QString Clean(const QString &text);
 QString EscapeForRichParsing(const QString &text);
 QString SingleLine(const QString &text);
 QString RemoveAccents(const QString &text);
+QString RemoveEmoji(const QString &text);
 QStringList PrepareSearchWords(const QString &query, const QRegularExpression *SplitterOverride = nullptr);
 bool CutPart(TextWithEntities &sending, TextWithEntities &left, int limit);
 

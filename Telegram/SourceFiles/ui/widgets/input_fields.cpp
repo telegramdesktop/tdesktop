@@ -936,6 +936,20 @@ const InstantReplaces &InstantReplaces::Default() {
 	return result;
 }
 
+const InstantReplaces &InstantReplaces::TextOnly() {
+	static const auto result = [] {
+		auto result = InstantReplaces();
+		result.add("--", QString(1, QChar(8212)));
+		result.add("<<", QString(1, QChar(171)));
+		result.add(">>", QString(1, QChar(187)));
+		result.add(
+			":shrug:",
+			QChar(175) + QString("\\_(") + QChar(12484) + ")_/" + QChar(175));
+		return result;
+	}();
+	return result;
+}
+
 FlatInput::FlatInput(
 	QWidget *parent,
 	const style::FlatInput &st,

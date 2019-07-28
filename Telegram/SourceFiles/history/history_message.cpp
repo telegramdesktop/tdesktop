@@ -674,7 +674,7 @@ void HistoryMessage::refreshMessageBadge() {
 	} else {
 		_messageBadge.setText(
 			st::defaultTextStyle,
-			TextUtilities::SingleLine(text));
+			TextUtilities::RemoveEmoji(TextUtilities::SingleLine(text)));
 	}
 }
 

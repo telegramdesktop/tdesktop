@@ -28,6 +28,7 @@ struct InstantReplaces {
 	void add(const QString &what, const QString &with);
 
 	static const InstantReplaces &Default();
+	static const InstantReplaces &TextOnly();
 
 	int maxLength = 0;
 	Node reverseMap;

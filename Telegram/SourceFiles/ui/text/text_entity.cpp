@@ -1302,6 +1302,23 @@ QString RemoveAccents(const QString &text) {
 	return (i < result.size()) ? result.mid(0, i) : result;
 }
 
+QString RemoveEmoji(const QString &text) {
+	auto result = QString();
+	result.reserve(text.size());
+
+	auto begin = text.data();
+	const auto end = begin + text.size();
+	while (begin != end) {
+		auto length = 0;
+		if (Ui::Emoji::Find(begin, end, &length)) {
+			begin += length;
+		} else {
+			result.append(*begin++);
+		}
+	}
+	return result;
+}
+
 QStringList PrepareSearchWords(const QString &query, const QRegularExpression *SplitterOverride) {
 	auto clean = RemoveAccents(query.trimmed().toLower());
 	auto result = QStringList();
