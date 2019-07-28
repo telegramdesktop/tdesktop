@@ -646,7 +646,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					w = std::max(size.width(), 1);
 					h = std::max(size.height(), 1);
 				} else {
-					const auto coef = std::max(
+					const auto coef = std::min(
 						std::min(
 							(st::stickerPanSize.width() - st::buttonRadius * 2) / float64(document->dimensions.width()),
 							(st::stickerPanSize.height() - st::buttonRadius * 2) / float64(document->dimensions.height())),
