@@ -575,6 +575,10 @@ void TlsSocket::connectToHost(const QString &address, int port) {
 	_socket.connectToHost(address, port);
 }
 
+bool TlsSocket::isGoodStartNonce(bytes::const_span nonce) {
+	return true;
+}
+
 void TlsSocket::timedOut() {
 	_syncTimeRequests.fire({});
 }

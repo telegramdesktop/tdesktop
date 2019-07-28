@@ -47,6 +47,31 @@ void TcpSocket::connectToHost(const QString &address, int port) {
 	_socket.connectToHost(address, port);
 }
 
+bool TcpSocket::isGoodStartNonce(bytes::const_span nonce) {
+	Expects(nonce.size() >= 2 * sizeof(uint32));
+
+	const auto bytes = nonce.data();
+	const auto zero = *reinterpret_cast<const uchar*>(bytes);
+	const auto first = *reinterpret_cast<const uint32*>(bytes);
+	const auto second = *(reinterpret_cast<const uint32*>(bytes) + 1);
+	const auto reserved01 = 0x000000EFU;
+	const auto reserved11 = 0x44414548U;
+	const auto reserved12 = 0x54534F50U;
+	const auto reserved13 = 0x20544547U;
+	const auto reserved14 = 0xEEEEEEEEU;
+	const auto reserved15 = 0xDDDDDDDDU;
+	const auto reserved16 = 0x02010316U;
+	const auto reserved21 = 0x00000000U;
+	return (zero != reserved01)
+		&& (first != reserved11)
+		&& (first != reserved12)
+		&& (first != reserved13)
+		&& (first != reserved14)
+		&& (first != reserved15)
+		&& (first != reserved16)
+		&& (second != reserved21);
+}
+
 void TcpSocket::timedOut() {
 }
 

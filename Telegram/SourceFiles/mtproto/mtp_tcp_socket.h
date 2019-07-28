@@ -17,6 +17,7 @@ public:
 	TcpSocket(not_null<QThread*> thread, const QNetworkProxy &proxy);
 
 	void connectToHost(const QString &address, int port) override;
+	bool isGoodStartNonce(bytes::const_span nonce) override;
 	void timedOut() override;
 	bool isConnected() override;
 	bool hasBytesAvailable() override;

@@ -450,6 +450,7 @@ void TcpConnection::sendData(mtpBuffer &&buffer) {
 
 bytes::const_span TcpConnection::prepareConnectionStartPrefix(
 		bytes::span buffer) {
+	Expects(_socket != nullptr);
 	Expects(_protocol != nullptr);
 
 	if (_connectionStarted) {
@@ -460,26 +461,9 @@ bytes::const_span TcpConnection::prepareConnectionStartPrefix(
 	// prepare random part
 	char nonceBytes[64];
 	const auto nonce = bytes::make_span(nonceBytes);
-
-	const auto zero = reinterpret_cast<uchar*>(nonce.data());
-	const auto first = reinterpret_cast<uint32*>(nonce.data());
-	const auto second = first + 1;
-	const auto reserved01 = 0x000000EFU;
-	const auto reserved11 = 0x44414548U;
-	const auto reserved12 = 0x54534F50U;
-	const auto reserved13 = 0x20544547U;
-	const auto reserved14 = 0xEEEEEEEEU;
-	const auto reserved15 = 0xDDDDDDDDU;
-	const auto reserved21 = 0x00000000U;
 	do {
 		bytes::set_random(nonce);
-	} while (*zero == reserved01
-		|| *first == reserved11
-		|| *first == reserved12
-		|| *first == reserved13
-		|| *first == reserved14
-		|| *first == reserved15
-		|| *second == reserved21);
+	} while (!_socket->isGoodStartNonce(nonce));
 
 	// prepare encryption key/iv
 	_protocol->prepareKey(

@@ -42,6 +42,7 @@ public:
 	}
 
 	virtual void connectToHost(const QString &address, int port) = 0;
+	[[nodiscard]] virtual bool isGoodStartNonce(bytes::const_span nonce) = 0;
 	virtual void timedOut() = 0;
 	[[nodiscard]] virtual bool isConnected() = 0;
 	[[nodiscard]] virtual bool hasBytesAvailable() = 0;
