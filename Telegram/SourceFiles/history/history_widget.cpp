@@ -316,7 +316,7 @@ HistoryWidget::HistoryWidget(
 	connect(
 		_field,
 		&Ui::InputField::submitted,
-		[=](Qt::KeyboardModifiers modifiers) { send(modifiers); });
+		[=](Qt::KeyboardModifiers modifiers) { send(false, modifiers); });
 	connect(_field, &Ui::InputField::cancelled, [=] {
 		escape();
 	});
@@ -685,7 +685,7 @@ void HistoryWidget::supportShareContact(Support::Contact contact) {
 		if (!history) {
 			return;
 		}
-		send(Support::SkipSwitchModifiers());
+		send(false, Support::SkipSwitchModifiers());
 		auto options = ApiWrap::SendOptions(history);
 		options.handleSupportSwitch = Support::HandleSwitch(modifiers);
 		session().api().shareContact(
@@ -5255,7 +5255,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			const auto submitting = Ui::InputField::ShouldSubmit(
 				session().settings().sendSubmitWay(),
 				e->modifiers());
-			send(e->modifiers());
+			send(false, e->modifiers());
 		}
 	} else if (e->key() == Qt::Key_O && e->modifiers() == Qt::ControlModifier) {
 		chooseAttach();
