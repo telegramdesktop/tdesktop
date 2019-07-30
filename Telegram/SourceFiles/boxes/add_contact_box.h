@@ -75,7 +75,6 @@ private:
 	void retry();
 	void save();
 	void updateButtons();
-	void importDone(const MTPcontacts_ImportedContacts &result);
 
 	const not_null<Main::Session*> _session;
 

@@ -298,7 +298,9 @@ void AddContactBox::submit() {
 }
 
 void AddContactBox::save() {
-	if (_addRequest) return;
+	if (_addRequest) {
+		return;
+	}
 
 	auto firstName = TextUtilities::PrepareForSending(_first->getLastText());
 	auto lastName = TextUtilities::PrepareForSending(_last->getLastText());
@@ -331,37 +333,35 @@ void AddContactBox::save() {
 				MTP_string(phone),
 				MTP_string(firstName),
 				MTP_string(lastName)))
-	)).done(crl::guard(this, [=](const MTPcontacts_ImportedContacts &res) {
-	})).send();
-}
+	)).done(crl::guard(this, [=](
+			const MTPcontacts_ImportedContacts &result) {
+		result.match([&](const MTPDcontacts_importedContacts &data) {
+			_session->data().processUsers(data.vusers());
 
-void AddContactBox::importDone(const MTPcontacts_ImportedContacts &result) {
-	if (!isBoxShown() || !App::main()) return;
-
-	const auto &d = result.c_contacts_importedContacts();
-	_session->data().processUsers(d.vusers());
-
-	const auto &v = d.vimported().v;
-	const auto user = [&]() -> UserData* {
-		if (!v.isEmpty()) {
-			auto &c = v.front().c_importedContact();
-			if (c.vclient_id().v == _contactId) {
-				return _session->data().userLoaded(c.vuser_id().v);
+			const auto extractUser = [&](const MTPImportedContact &data) {
+				return data.match([&](const MTPDimportedContact &data) {
+					return (data.vclient_id().v == _contactId)
+						? _session->data().userLoaded(data.vuser_id().v)
+						: nullptr;
+				});
+			};
+			const auto &list = data.vimported().v;
+			const auto user = list.isEmpty()
+				? nullptr
+				: extractUser(list.front());
+			if (user) {
+				if (user->isContact() || user->session().supportMode()) {
+					Ui::showPeerHistory(user, ShowAtTheEndMsgId);
+				}
+				Ui::hideLayer();
+			} else if (isBoxShown()) {
+				hideChildren();
+				_retrying = true;
+				updateButtons();
+				update();
 			}
-		}
-		return nullptr;
-	}();
-	if (user) {
-		if (user->isContact() || user->session().supportMode()) {
-			Ui::showPeerHistory(user, ShowAtTheEndMsgId);
-		}
-		Ui::hideLayer();
-	} else {
-		hideChildren();
-		_retrying = true;
-		updateButtons();
-		update();
-	}
+		});
+	})).send();
 }
 
 void AddContactBox::retry() {
