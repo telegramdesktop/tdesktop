@@ -23,16 +23,20 @@ class PlaybackProgress;
 namespace Media {
 namespace Streaming {
 class Player;
+struct Update;
+struct Information;
+enum class Error;
 } // namespace Streaming
 } // namespace Media
 
 namespace HistoryView {
 
-class Gif : public File {
+class Gif final : public File {
 public:
 	Gif(
 		not_null<Element*> parent,
 		not_null<DocumentData*> document);
+	~Gif();
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
@@ -58,6 +62,7 @@ public:
 	}
 
 	void stopAnimation() override;
+	void checkAnimation() override;
 
 	TextWithEntities getCaption() const override {
 		return _caption.toTextWithEntities();
@@ -75,28 +80,29 @@ public:
 
 	void parentTextUpdated() override;
 
-	~Gif();
+private:
+	struct Streamed;
 
-protected:
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
 	bool dataLoaded() const override;
 
-	void setClipReader(::Media::Clip::ReaderPointer gif);
-	void clearClipReader() {
-		setClipReader(::Media::Clip::ReaderPointer());
-	}
-
-private:
 	[[nodiscard]] bool autoplayEnabled() const;
+
 	void playAnimation(bool autoplay) override;
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 	QSize videoSize() const;
 	::Media::Streaming::Player *activeRoundPlayer() const;
-	::Media::Clip::Reader *currentReader() const;
+	::Media::Streaming::Player *activeOwnPlayer() const;
+	::Media::Streaming::Player *activeCurrentPlayer() const;
 	::Media::View::PlaybackProgress *videoPlayback() const;
-	void clipCallback(::Media::Clip::Notification notification);
+
+	void createStreamedPlayer();
+	void setStreamed(std::unique_ptr<Streamed> value);
+	void handleStreamingUpdate(::Media::Streaming::Update &&update);
+	void handleStreamingError(::Media::Streaming::Error &&error);
+	void streamingReady(::Media::Streaming::Information &&info);
 
 	bool needInfoDisplay() const;
 	int additionalWidth(
@@ -111,7 +117,7 @@ private:
 	int _thumbw = 1;
 	int _thumbh = 1;
 	Ui::Text::String _caption;
-	::Media::Clip::ReaderPointer _gif;
+	std::unique_ptr<Streamed> _streamed;
 
 	void setStatusSize(int newSize) const;
 	void updateStatusText() const;

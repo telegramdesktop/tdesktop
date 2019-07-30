@@ -3199,21 +3199,26 @@ void Session::unregisterContactItem(
 	}
 }
 
-void Session::registerAutoplayAnimation(
-		not_null<::Media::Clip::Reader*> reader,
-		not_null<ViewElement*> view) {
-	_autoplayAnimations.emplace(reader, view);
+void Session::registerPlayingVideoFile(not_null<ViewElement*> view) {
+	_playingVideoFiles.emplace(view);
 }
 
-void Session::unregisterAutoplayAnimation(
-		not_null<::Media::Clip::Reader*> reader) {
-	_autoplayAnimations.remove(reader);
+void Session::unregisterPlayingVideoFile(not_null<ViewElement*> view) {
+	_playingVideoFiles.remove(view);
 }
 
-void Session::stopAutoplayAnimations() {
-	for (const auto [reader, view] : base::take(_autoplayAnimations)) {
+void Session::stopPlayingVideoFiles() {
+	for (const auto view : base::take(_playingVideoFiles)) {
 		if (const auto media = view->media()) {
 			media->stopAnimation();
+		}
+	}
+}
+
+void Session::checkPlayingVideoFiles() {
+	for (const auto view : base::take(_playingVideoFiles)) {
+		if (const auto media = view->media()) {
+			media->checkAnimation();
 		}
 	}
 }

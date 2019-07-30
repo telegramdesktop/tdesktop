@@ -610,11 +610,11 @@ public:
 	void unregisterContactItem(
 		UserId contactId,
 		not_null<HistoryItem*> item);
-	void registerAutoplayAnimation(
-		not_null<::Media::Clip::Reader*> reader,
-		not_null<ViewElement*> view);
-	void unregisterAutoplayAnimation(
-		not_null<::Media::Clip::Reader*> reader);
+
+	void registerPlayingVideoFile(not_null<ViewElement*> view);
+	void unregisterPlayingVideoFile(not_null<ViewElement*> view);
+	void checkPlayingVideoFiles();
+	void stopPlayingVideoFiles();
 
 	HistoryItem *findWebPageItem(not_null<WebPageData*> page) const;
 	QString findContactPhone(not_null<UserData*> contact) const;
@@ -625,8 +625,6 @@ public:
 	void notifyPollUpdateDelayed(not_null<PollData*> poll);
 	bool hasPendingWebPageGamePollNotification() const;
 	void sendWebPageGamePollNotifications();
-
-	void stopAutoplayAnimations();
 
 	void registerItemView(not_null<ViewElement*> view);
 	void unregisterItemView(not_null<ViewElement*> view);
@@ -949,9 +947,7 @@ private:
 	std::unordered_map<
 		UserId,
 		base::flat_set<not_null<ViewElement*>>> _contactViews;
-	base::flat_map<
-		not_null<::Media::Clip::Reader*>,
-		not_null<ViewElement*>> _autoplayAnimations;
+	base::flat_set<not_null<ViewElement*>> _playingVideoFiles;
 
 	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
 	base::flat_set<not_null<GameData*>> _gamesUpdated;

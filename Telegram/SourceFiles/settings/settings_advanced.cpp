@@ -466,7 +466,7 @@ void SetupPerformance(
 	}) | rpl::start_with_next([=](bool enabled) {
 		session->settings().setAutoplayGifs(enabled);
 		if (!enabled) {
-			session->data().stopAutoplayAnimations();
+			session->data().checkPlayingVideoFiles();
 		}
 		session->saveSettingsDelayed();
 	}, container->lifetime());

@@ -1707,7 +1707,7 @@ void HistoryWidget::showHistory(
 	}
 
 	if (!session().settings().autoplayGifs()) {
-		session().data().stopAutoplayAnimations();
+		session().data().stopPlayingVideoFiles();
 	}
 	clearReplyReturns();
 	clearAllLoadRequests();
