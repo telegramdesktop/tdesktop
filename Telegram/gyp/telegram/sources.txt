@@ -512,6 +512,8 @@
 <(src_loc)/media/streaming/media_streaming_audio_track.cpp
 <(src_loc)/media/streaming/media_streaming_audio_track.h
 <(src_loc)/media/streaming/media_streaming_common.h
+<(src_loc)/media/streaming/media_streaming_document.cpp
+<(src_loc)/media/streaming/media_streaming_document.h
 <(src_loc)/media/streaming/media_streaming_file.cpp
 <(src_loc)/media/streaming/media_streaming_file.h
 <(src_loc)/media/streaming/media_streaming_file_delegate.h

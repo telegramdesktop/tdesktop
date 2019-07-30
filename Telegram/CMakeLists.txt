@@ -617,6 +617,8 @@ PRIVATE
     media/streaming/media_streaming_audio_track.cpp
     media/streaming/media_streaming_audio_track.h
     media/streaming/media_streaming_common.h
+    media/streaming/media_streaming_document.cpp
+    media/streaming/media_streaming_document.h
     media/streaming/media_streaming_file.cpp
     media/streaming/media_streaming_file.h
     media/streaming/media_streaming_file_delegate.h

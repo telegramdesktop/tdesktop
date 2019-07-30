@@ -178,7 +178,6 @@ private:
 	void playbackPauseOnCall();
 	void playbackResumeOnCall();
 	void playbackPauseMusic();
-	void playbackWaitingChange(bool waiting);
 
 	void updateOver(QPoint mpos);
 	void moveToScreen(bool force = false);
@@ -265,7 +264,6 @@ private:
 	void createStreamingObjects();
 	void handleStreamingUpdate(Streaming::Update &&update);
 	void handleStreamingError(Streaming::Error &&error);
-	void validateStreamedGoodThumbnail();
 
 	void initThemePreview();
 	void destroyThemePreview();
