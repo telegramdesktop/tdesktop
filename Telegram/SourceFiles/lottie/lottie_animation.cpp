@@ -128,7 +128,11 @@ std::unique_ptr<rlottie::Animation> CreateFromContent(
 	const auto string = UnpackGzip(content);
 	Assert(string.size() <= kMaxFileSize);
 
-	auto result = rlottie::Animation::loadFromData(string, std::string());
+	auto result = rlottie::Animation::loadFromData(
+		string,
+		std::string(),
+		std::string(),
+		false);
 	if (!result) {
 		LOG(("Lottie Error: Parse failed."));
 	}
