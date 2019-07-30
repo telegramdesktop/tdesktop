@@ -34,11 +34,11 @@ int SlowmodeDelayByIndex(int index) {
 
 	switch (index) {
 	case 0: return 0;
-	case 1: return 30;
-	case 2: return 60;
-	case 3: return 5 * 60;
-	case 4: return 15 * 60;
-	case 5: return 30 * 60;
+	case 1: return 10;
+	case 2: return 30;
+	case 3: return 60;
+	case 4: return 5 * 60;
+	case 5: return 15 * 60;
 	case 6: return 60 * 60;
 	}
 	Unexpected("Index in SlowmodeDelayByIndex.");
