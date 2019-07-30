@@ -22,7 +22,7 @@ Widget::Widget(QWidget *parent, const Config &config) : TWidget(parent)
 	st::toastTextStyle.font->height * (_multiline ? config.maxLines : 1))
 , _text(_multiline ? config.minWidth : QFIXED_MAX) {
 	const auto toastOptions = TextParseOptions{
-		0,
+		TextParseMultiline,
 		_maxTextWidth,
 		_maxTextHeight,
 		Qt::LayoutDirectionAuto

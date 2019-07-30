@@ -1644,7 +1644,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_user_restrictions" = "User restrictions";
 "lng_rights_user_restrictions_header" = "What can this member do?";
 "lng_rights_default_restrictions_header" = "What can members of this group do?";
-"lng_rights_slowmode_header" = "Slowmode";
+"lng_rights_slowmode_header" = "Slow mode";
 "lng_rights_slowmode_off" = "Off";
 "lng_rights_slowmode_seconds#one" = "{count}s";
 "lng_rights_slowmode_seconds#other" = "{count}s";
@@ -1659,8 +1659,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_slowmode_interval_minutes#one" = "every {count} minute";
 "lng_rights_slowmode_interval_minutes#other" = "every {count} minutes";
 
-"lng_slowmode_enabled"= "Slowmode is enabled. You can send your next message in {left}.";
-"lng_slowmode_no_many" = "Slowmode is enabled. You can't send more than one message at once.";
+"lng_slowmode_enabled"= "Slow mode is enabled. You can send your next message in {left}.";
+"lng_slowmode_no_many" = "Slow mode is enabled. You can't send more than one message at a time.";
+"lng_slowmode_too_long" = "Sorry, this text is too long to send as one message.\n\nSlow mode is enabled. You can't send more than one message at a time.";
 
 "lng_rights_channel_info" = "Change channel info";
 "lng_rights_channel_post" = "Post messages";

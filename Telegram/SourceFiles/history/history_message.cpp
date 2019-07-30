@@ -141,7 +141,7 @@ QString GetErrorTextForForward(
 			}
 		}
 		if (comment.text.size() > MaxMessageSize) {
-			return tr::lng_slowmode_no_many(tr::now);
+			return tr::lng_slowmode_too_long(tr::now);
 		} else if (!items.empty() && !comment.text.isEmpty()) {
 			return tr::lng_slowmode_no_many(tr::now);
 		} else if (items.size() > 1) {
