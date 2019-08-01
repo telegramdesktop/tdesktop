@@ -782,6 +782,7 @@ mtpRequestId mtpFileLoader::sendRequest(const RequestData &requestData) {
 	}, [&](const StorageFileLocation &location) {
 		return MTP::send(
 			MTPupload_GetFile(
+				MTP_flags(0),
 				location.tl(session().userId()),
 				MTP_int(offset),
 				MTP_int(limit)),

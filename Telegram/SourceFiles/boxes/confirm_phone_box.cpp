@@ -219,9 +219,7 @@ void ConfirmPhoneBox::checkPhoneAndHash() {
 	_sendCodeRequestId = MTP::send(
 		MTPaccount_SendConfirmPhoneCode(
 			MTP_string(_hash),
-			MTP_codeSettings(
-				MTP_flags(0),
-				MTPstring())),
+			MTP_codeSettings(MTP_flags(0))),
 		rpcDone(&ConfirmPhoneBox::sendCodeDone),
 		rpcFail(&ConfirmPhoneBox::sendCodeFail));
 }

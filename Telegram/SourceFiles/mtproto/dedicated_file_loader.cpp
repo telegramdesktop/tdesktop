@@ -309,7 +309,11 @@ void DedicatedLoader::sendRequest() {
 	const auto offset = _offset;
 	_requests.push_back({ offset });
 	_mtp.send(
-		MTPupload_GetFile(_location, MTP_int(offset), MTP_int(kChunkSize)),
+		MTPupload_GetFile(
+			MTP_flags(0),
+			_location,
+			MTP_int(offset),
+			MTP_int(kChunkSize)),
 		[=](const MTPupload_File &result) { gotPart(offset, result); },
 		failHandler(),
 		MTP::updaterDcId(_dcId));

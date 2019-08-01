@@ -122,9 +122,7 @@ void PhoneWidget::submit() {
 			MTP_string(_sentPhone),
 			MTP_int(ApiId),
 			MTP_string(ApiHash),
-			MTP_codeSettings(
-				MTP_flags(0),
-				MTPstring())),
+			MTP_codeSettings(MTP_flags(0))),
 		rpcDone(&PhoneWidget::phoneSubmitDone),
 		rpcFail(&PhoneWidget::phoneSubmitFail));
 }

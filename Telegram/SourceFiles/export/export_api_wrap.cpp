@@ -380,6 +380,7 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
 	return std::move(_mtp.request(MTPInvokeWithTakeout<MTPupload_GetFile>(
 		MTP_long(*_takeoutId),
 		MTPupload_GetFile(
+			MTP_flags(0),
 			location.data,
 			MTP_int(offset),
 			MTP_int(kFileChunkSize))

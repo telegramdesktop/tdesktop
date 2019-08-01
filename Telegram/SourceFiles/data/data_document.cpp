@@ -1134,6 +1134,8 @@ bool DocumentData::isStickerSetInstalled() const {
 		return false;
 	}, [&](const MTPDinputStickerSetEmpty &) {
 		return false;
+	}, [&](const MTPDinputStickerSetAnimatedEmoji &) {
+		return false;
 	});
 }
 

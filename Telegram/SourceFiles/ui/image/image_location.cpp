@@ -157,7 +157,10 @@ StorageFileLocation::StorageFileLocation(
 			_id = data.vid().v;
 			_accessHash = data.vaccess_hash().v;
 		}, [&](const MTPDinputStickerSetShortName &data) {
-			Unexpected("inputStickerSetShortName in StorageFileLocation().");
+			Unexpected("inputStickerSetShortName in StorageFileLocation.");
+		}, [&](const MTPDinputStickerSetAnimatedEmoji &data) {
+			Unexpected(
+				"inputStickerSetAnimatedEmoji in StorageFileLocation.");
 		});
 		_volumeId = data.vvolume_id().v;
 		_localId = data.vlocal_id().v;

@@ -223,6 +223,7 @@ StickerSetBox::Inner::Inner(
 	}, [&](const MTPDinputStickerSetShortName &data) {
 		_setShortName = qs(data.vshort_name());
 	}, [&](const MTPDinputStickerSetEmpty &) {
+	}, [&](const MTPDinputStickerSetAnimatedEmoji &) {
 	});
 
 	_mtp.request(MTPmessages_GetStickerSet(

@@ -163,9 +163,7 @@ void ChangePhoneBox::EnterPhone::submit() {
 	_requestId = MTP::send(
 		MTPaccount_SendChangePhoneCode(
 			MTP_string(phoneNumber),
-			MTP_codeSettings(
-				MTP_flags(0),
-				MTPstring())),
+			MTP_codeSettings(MTP_flags(0))),
 		rpcDone(crl::guard(this, [=](
 				const MTPauth_SentCode &result) {
 			return sendPhoneDone(phoneNumber, result);
