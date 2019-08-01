@@ -230,6 +230,18 @@ public:
 	void setExeLaunchWarning(bool warning) {
 		_variables.exeLaunchWarning = warning;
 	}
+	bool autoplayGifs() const {
+		return _variables.autoplayGifs;
+	}
+	void setAutoplayGifs(bool value) {
+		_variables.autoplayGifs = value;
+	}
+	bool loopAnimatedStickers() const {
+		return _variables.loopAnimatedStickers;
+	}
+	void setLoopAnimatedStickers(bool value) {
+		_variables.loopAnimatedStickers = value;
+	}
 
 private:
 	struct Variables {
@@ -264,6 +276,8 @@ private:
 		rpl::variable<bool> archiveInMainMenu = false;
 		rpl::variable<bool> notifyAboutPinned = true;
 		rpl::variable<bool> skipArchiveInSearch = false;
+		bool autoplayGifs = true;
+		bool loopAnimatedStickers = true;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;

@@ -580,7 +580,7 @@ enum {
 	dbiAutoDownloadOld = 0x34,
 	dbiSavedGifsLimit = 0x35,
 	dbiShowingSavedGifsOld = 0x36,
-	dbiAutoPlay = 0x37,
+	dbiAutoPlayOld = 0x37,
 	dbiAdaptiveForWide = 0x38,
 	dbiHiddenPinnedMessages = 0x39,
 	dbiRecentEmoji = 0x3a,
@@ -1104,12 +1104,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		set(Type::VideoMessage, gif);
 	} break;
 
-	case dbiAutoPlay: {
+	case dbiAutoPlayOld: {
 		qint32 gif;
 		stream >> gif;
 		if (!_checkStreamStatus(stream)) return false;
 
-		cSetAutoPlayGif(gif == 1);
+		GetStoredSessionSettings().setAutoplayGifs(gif == 1);
 	} break;
 
 	case dbiDialogsMode: {
@@ -2087,7 +2087,6 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiVideoVolume) << qint32(qRound(Global::VideoVolume() * 1e6));
 	data.stream << quint32(dbiDialogsMode) << qint32(Global::DialogsModeEnabled() ? 1 : 0) << static_cast<qint32>(Global::DialogsMode());
 	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
-	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 	data.stream << quint32(dbiCacheSettings) << qint64(_cacheTotalSizeLimit) << qint32(_cacheTotalTimeLimit) << qint64(_cacheBigFileTotalSizeLimit) << qint32(_cacheBigFileTotalTimeLimit);
 	if (!userData.isEmpty()) {

@@ -158,7 +158,6 @@ DeclareSetting(float64, RetinaFactor);
 DeclareSetting(int32, IntRetinaFactor);
 
 DeclareSetting(int, OtherOnline);
-DeclareSetting(bool, AutoPlayGif);
 
 constexpr auto kInterfaceScaleAuto = 0;
 constexpr auto kInterfaceScaleMin = 100;

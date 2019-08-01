@@ -49,7 +49,7 @@ Settings::Variables::Variables()
 
 QByteArray Settings::serialize() const {
 	const auto autoDownload = _variables.autoDownload.serialize();
-	auto size = sizeof(qint32) * 23;
+	auto size = sizeof(qint32) * 30;
 	for (auto i = _variables.soundOverrides.cbegin(), e = _variables.soundOverrides.cend(); i != e; ++i) {
 		size += Serialize::stringSize(i.key()) + Serialize::stringSize(i.value());
 	}
@@ -99,6 +99,8 @@ QByteArray Settings::serialize() const {
 		stream << qint32(_variables.notifyAboutPinned.current() ? 1 : 0);
 		stream << qint32(_variables.archiveInMainMenu.current() ? 1 : 0);
 		stream << qint32(_variables.skipArchiveInSearch.current() ? 1 : 0);
+		stream << qint32(_variables.autoplayGifs ? 1 : 0);
+		stream << qint32(_variables.loopAnimatedStickers ? 1 : 0);
 	}
 	return result;
 }
@@ -139,6 +141,8 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	qint32 notifyAboutPinned = _variables.notifyAboutPinned.current() ? 1 : 0;
 	qint32 archiveInMainMenu = _variables.archiveInMainMenu.current() ? 1 : 0;
 	qint32 skipArchiveInSearch = _variables.skipArchiveInSearch.current() ? 1 : 0;
+	qint32 autoplayGifs = _variables.autoplayGifs ? 1 : 0;
+	qint32 loopAnimatedStickers = _variables.loopAnimatedStickers ? 1 : 0;
 
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
@@ -230,6 +234,10 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> skipArchiveInSearch;
 	}
+	if (!stream.atEnd()) {
+		stream >> autoplayGifs;
+		stream >> loopAnimatedStickers;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Settings::constructFromSerialized()"));
@@ -303,6 +311,8 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	_variables.notifyAboutPinned = (notifyAboutPinned == 1);
 	_variables.archiveInMainMenu = (archiveInMainMenu == 1);
 	_variables.skipArchiveInSearch = (skipArchiveInSearch == 1);
+	_variables.autoplayGifs = (autoplayGifs == 1);
+	_variables.loopAnimatedStickers = (loopAnimatedStickers == 1);
 }
 
 void Settings::setSupportChatsTimeSlice(int slice) {

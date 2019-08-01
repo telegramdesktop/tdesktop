@@ -1639,7 +1639,7 @@ void HistoryWidget::showHistory(
 		cancelTypingAction();
 	}
 
-	if (!cAutoPlayGif()) {
+	if (!session().settings().autoplayGifs()) {
 		session().data().stopAutoplayAnimations();
 	}
 	clearReplyReturns();

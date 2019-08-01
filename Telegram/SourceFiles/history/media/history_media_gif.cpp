@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "layout.h"
 #include "mainwindow.h"
+#include "main/main_session.h"
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
@@ -228,6 +229,10 @@ QSize HistoryGif::videoSize() const {
 	}
 }
 
+bool HistoryGif::autoplayEnabled() const {
+	return history()->session().settings().autoplayGifs();
+}
+
 void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
@@ -238,7 +243,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, crl::
 	auto selected = (selection == FullSelection);
 
 	if (loaded
-		&& cAutoPlayGif()
+		&& autoplayEnabled()
 		&& !_gif
 		&& !_gif.isBad()
 		&& !activeRoundPlayer()) {
@@ -370,7 +375,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, crl::
 		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
 
-	if (radial || (!reader && !player && (_gif.isBad() || (!loaded && !_data->loading()) || !cAutoPlayGif()))) {
+	if (radial || (!reader && !player && (_gif.isBad() || (!loaded && !_data->loading()) || !autoplayEnabled()))) {
 		auto radialOpacity = (radial && loaded && item->id > 0) ? _animation->radial.opacity() : 1.;
 		auto inner = QRect(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		p.setPen(Qt::NoPen);
@@ -852,7 +857,7 @@ void HistoryGif::playAnimation(bool autoplay) {
 		return;
 	} else if (_gif && autoplay) {
 		return;
-	} else if (_gif && cAutoPlayGif()) {
+	} else if (_gif && autoplayEnabled()) {
 		Core::App().showDocument(_data, _parent->data());
 		return;
 	}
@@ -860,7 +865,7 @@ void HistoryGif::playAnimation(bool autoplay) {
 	if (_gif) {
 		stopAnimation();
 	} else if (_data->loaded(DocumentData::FilePathResolve::Checked)) {
-		if (!cAutoPlayGif()) {
+		if (!autoplayEnabled()) {
 			history()->owner().stopAutoplayAnimations();
 		}
 		setClipReader(Media::Clip::MakeReader(

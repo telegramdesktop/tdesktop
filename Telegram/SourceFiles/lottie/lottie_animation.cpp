@@ -228,4 +228,19 @@ QImage Animation::frame(const FrameRequest &request) const {
 	return PrepareFrameByRequest(frame, !changed);
 }
 
+auto Animation::frameInfo(const FrameRequest &request) const -> FrameInfo {
+	Expects(_state != nullptr);
+
+	const auto frame = _state->frameForPaint();
+	const auto changed = (frame->request != request);
+	if (changed) {
+		frame->request = request;
+		_player->updateFrameRequest(this, request);
+	}
+	return {
+		PrepareFrameByRequest(frame, !changed),
+		frame->index % _state->framesCount()
+	};
+}
+
 } // namespace Lottie

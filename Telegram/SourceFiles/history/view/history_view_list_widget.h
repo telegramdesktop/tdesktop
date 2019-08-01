@@ -184,12 +184,15 @@ public:
 	bool elementUnderCursor(not_null<const Element*> view) override;
 	void elementAnimationAutoplayAsync(
 		not_null<const Element*> view) override;
-	crl::time elementHighlightTime(not_null<const Element*> element) override;
+	crl::time elementHighlightTime(
+		not_null<const Element*> element) override;
 	bool elementInSelectionMode() override;
 	bool elementIntersectsRange(
 		not_null<const Element*> view,
 		int from,
 		int till) override;
+	bool elementStartStickerLoop(not_null<const Element*> view) override;
+	void elementStickerLoopStarted(not_null<const Element*> view) override;
 
 	~ListWidget();
 
@@ -441,6 +444,7 @@ private:
 	int _itemsWidth = 0;
 	int _itemsHeight = 0;
 	int _itemAverageHeight = 0;
+	base::flat_set<FullMsgId> _animatedStickersPlayed;
 
 	int _minHeight = 0;
 	int _visibleTop = 0;

@@ -1555,7 +1555,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto lnkIsVoice = document->isVoiceMessage();
 		const auto lnkIsAudio = document->isAudioFile();
 		if (document->loaded() && document->isGifv()) {
-			if (!cAutoPlayGif()) {
+			if (!document->session().settings().autoplayGifs()) {
 				_menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
 					openContextGif(itemId);
 				});
@@ -2382,6 +2382,18 @@ bool HistoryInner::elementIntersectsRange(
 	}
 	const auto bottom = top + view->height();
 	return (top < till && bottom > from);
+}
+
+bool HistoryInner::elementStartStickerLoop(
+		not_null<const Element*> view) const {
+	return _controller->session().settings().loopAnimatedStickers()
+		|| !_animatedStickersPlayed.contains(view->data()->fullId());
+}
+
+void HistoryInner::elementStickerLoopStarted(not_null<const Element*> view) {
+	if (!_controller->session().settings().loopAnimatedStickers()) {
+		_animatedStickersPlayed.emplace(view->data()->fullId());
+	}
 }
 
 auto HistoryInner::getSelectionState() const
@@ -3233,6 +3245,18 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 			return Instance
 				? Instance->elementIntersectsRange(view, from, till)
 				: false;
+		}
+		bool elementStartStickerLoop(
+				not_null<const Element*> view) override {
+			return Instance
+				? Instance->elementStartStickerLoop(view)
+				: true;
+		}
+		void elementStickerLoopStarted(
+				not_null<const Element*> view) override {
+			if (Instance) {
+				Instance->elementStickerLoopStarted(view);
+			}
 		}
 
 	};

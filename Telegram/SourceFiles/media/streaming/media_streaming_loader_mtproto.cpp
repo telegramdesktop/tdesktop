@@ -123,6 +123,7 @@ void LoaderMtproto::sendNext() {
 
 	const auto usedFileReference = _location.fileReference();
 	const auto id = _sender.request(MTPupload_GetFile(
+		MTP_flags(0),
 		_location.tl(Auth().userId()),
 		MTP_int(offset),
 		MTP_int(kPartSize)

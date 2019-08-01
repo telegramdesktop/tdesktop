@@ -85,6 +85,7 @@ protected:
 	}
 
 private:
+	[[nodiscard]] bool autoplayEnabled() const;
 	void playAnimation(bool autoplay) override;
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;

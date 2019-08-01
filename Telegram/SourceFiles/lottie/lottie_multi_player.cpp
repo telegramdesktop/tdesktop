@@ -369,7 +369,7 @@ void MultiPlayer::addTimelineDelay(crl::time delayed) {
 	_delay += delayed;
 }
 
-void MultiPlayer::markFrameShown() {
+bool MultiPlayer::markFrameShown() {
 	if (_nextFrameTime == kFrameDisplayTimeAlreadyDone) {
 		_nextFrameTime = kTimeUnknown;
 	}
@@ -381,7 +381,9 @@ void MultiPlayer::markFrameShown() {
 	}
 	if (count) {
 		_renderer->frameShown();
+		return true;
 	}
+	return false;
 }
 
 } // namespace Lottie

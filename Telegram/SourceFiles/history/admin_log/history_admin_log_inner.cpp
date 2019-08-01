@@ -548,6 +548,17 @@ bool InnerWidget::elementIntersectsRange(
 	return (top < till && bottom > from);
 }
 
+bool InnerWidget::elementStartStickerLoop(not_null<const Element*> view) {
+	if (_controller->session().settings().loopAnimatedStickers()) {
+		return true;
+	}
+	return !_animatedStickersPlayed.contains(view->data()->fullId());
+}
+
+void InnerWidget::elementStickerLoopStarted(not_null<const Element*> view) {
+	_animatedStickersPlayed.emplace(view->data()->fullId());
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));
@@ -1024,15 +1035,15 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					cancelContextDownload(document);
 				});
 			} else {
-				if (document->loaded() && document->isGifv()) {
-					if (!cAutoPlayGif()) {
-						const auto itemId = view
-							? view->data()->fullId()
-							: FullMsgId();
-						_menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
-							openContextGif(itemId);
-						});
-					}
+				if (document->loaded()
+					&& document->isGifv()
+					&& !document->session().settings().autoplayGifs()) {
+					const auto itemId = view
+						? view->data()->fullId()
+						: FullMsgId();
+					_menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
+						openContextGif(itemId);
+					});
 				}
 				if (!document->filepath(DocumentData::FilePathResolve::Checked).isEmpty()) {
 					_menu->addAction(Platform::IsMac() ? tr::lng_context_show_in_finder(tr::now) : tr::lng_context_show_in_folder(tr::now), [=] {

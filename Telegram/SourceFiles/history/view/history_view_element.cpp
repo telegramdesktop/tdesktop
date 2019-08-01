@@ -84,6 +84,15 @@ bool SimpleElementDelegate::elementIntersectsRange(
 	return true;
 }
 
+bool SimpleElementDelegate::elementStartStickerLoop(
+		not_null<const Element*> view) {
+	return true;
+}
+
+void SimpleElementDelegate::elementStickerLoopStarted(
+	not_null<const Element*> view) {
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {

@@ -1141,6 +1141,17 @@ bool ListWidget::elementIntersectsRange(
 	return (top < till && bottom > from);
 }
 
+bool ListWidget::elementStartStickerLoop(not_null<const Element*> view) {
+	return _controller->session().settings().loopAnimatedStickers()
+		|| !_animatedStickersPlayed.contains(view->data()->fullId());
+}
+
+void ListWidget::elementStickerLoopStarted(not_null<const Element*> view) {
+	if (!_controller->session().settings().loopAnimatedStickers()) {
+		_animatedStickersPlayed.emplace(view->data()->fullId());
+	}
+}
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();

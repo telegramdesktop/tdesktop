@@ -50,6 +50,9 @@ public:
 		not_null<const Element*> view,
 		int from,
 		int till) = 0;
+	virtual bool elementStartStickerLoop(not_null<const Element*> view) = 0;
+	virtual void elementStickerLoopStarted(
+		not_null<const Element*> view) = 0;
 
 };
 
@@ -69,6 +72,10 @@ public:
 		not_null<const Element*> view,
 		int from,
 		int till) override;
+	bool elementStartStickerLoop(
+		not_null<const Element*> view) override;
+	void elementStickerLoopStarted(not_null<const Element*> view) override;
+
 };
 
 TextSelection UnshiftItemSelection(

@@ -99,6 +99,10 @@ public:
 		not_null<const HistoryView::Element*> view,
 		int from,
 		int till) override;
+	bool elementStartStickerLoop(
+		not_null<const HistoryView::Element*> view) override;
+	void elementStickerLoopStarted(
+		not_null<const HistoryView::Element*> view) override;
 
 	~InnerWidget();
 
@@ -219,6 +223,7 @@ private:
 	std::vector<OwnedItem> _items;
 	std::set<uint64> _eventIds;
 	std::map<not_null<const HistoryItem*>, not_null<Element*>> _itemsByData;
+	base::flat_set<FullMsgId> _animatedStickersPlayed;
 	int _itemsTop = 0;
 	int _itemsWidth = 0;
 	int _itemsHeight = 0;

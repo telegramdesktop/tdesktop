@@ -49,7 +49,7 @@ public:
 	void updateFrameRequest(
 		not_null<const Animation*> animation,
 		const FrameRequest &request) override;
-	void markFrameShown() override;
+	bool markFrameShown() override;
 	void checkStep() override;
 
 	rpl::producer<Update, Error> updates() const;
@@ -57,6 +57,8 @@ public:
 	[[nodiscard]] bool ready() const;
 	[[nodiscard]] QImage frame() const;
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
+	[[nodiscard]] Animation::FrameInfo frameInfo(
+		const FrameRequest &request) const;
 
 private:
 	void checkNextFrameAvailability();

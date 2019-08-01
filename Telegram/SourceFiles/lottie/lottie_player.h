@@ -25,7 +25,7 @@ public:
 	virtual void updateFrameRequest(
 		not_null<const Animation*> animation,
 		const FrameRequest &request) = 0;
-	virtual void markFrameShown() = 0;
+	virtual bool markFrameShown() = 0;
 	virtual void checkStep() = 0;
 
 	virtual ~Player() = default;

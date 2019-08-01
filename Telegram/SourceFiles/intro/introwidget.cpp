@@ -54,7 +54,6 @@ void PrepareSupportMode() {
 	Global::SetDesktopNotify(false);
 	Global::SetSoundNotify(false);
 	Auth().settings().autoDownload() = Full::FullDisabled();
-	cSetAutoPlayGif(false);
 	Local::writeUserSettings();
 }
 

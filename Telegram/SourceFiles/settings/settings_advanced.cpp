@@ -424,21 +424,36 @@ void SetupPerformance(
 		not_null<Ui::VerticalLayout*> container) {
 	SetupAnimations(container);
 
+	const auto session = &controller->session();
 	AddButton(
 		container,
 		tr::lng_settings_autoplay_gifs(),
 		st::settingsButton
 	)->toggleOn(
-		rpl::single(cAutoPlayGif())
+		rpl::single(session->settings().autoplayGifs())
 	)->toggledValue(
-	) | rpl::filter([](bool enabled) {
-		return (enabled != cAutoPlayGif());
+	) | rpl::filter([=](bool enabled) {
+		return (enabled != session->settings().autoplayGifs());
 	}) | rpl::start_with_next([=](bool enabled) {
-		cSetAutoPlayGif(enabled);
-		if (!cAutoPlayGif()) {
-			controller->session().data().stopAutoplayAnimations();
+		session->settings().setAutoplayGifs(enabled);
+		if (!enabled) {
+			session->data().stopAutoplayAnimations();
 		}
-		Local::writeUserSettings();
+		session->saveSettingsDelayed();
+	}, container->lifetime());
+
+	AddButton(
+		container,
+		tr::lng_settings_loop_stickers(),
+		st::settingsButton
+	)->toggleOn(
+		rpl::single(session->settings().loopAnimatedStickers())
+	)->toggledValue(
+	) | rpl::filter([=](bool enabled) {
+		return enabled != session->settings().loopAnimatedStickers();
+	}) | rpl::start_with_next([=](bool enabled) {
+		session->settings().setLoopAnimatedStickers(enabled);
+		session->saveSettingsDelayed();
 	}, container->lifetime());
 }
 

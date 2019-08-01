@@ -79,6 +79,11 @@ QImage SinglePlayer::frame(const FrameRequest &request) const {
 	return _animation.frame(request);
 }
 
+Animation::FrameInfo SinglePlayer::frameInfo(
+		const FrameRequest &request) const {
+	return _animation.frameInfo(request);
+}
+
 void SinglePlayer::checkStep() {
 	if (_nextFrameTime == kFrameDisplayTimeAlreadyDone) {
 		return;
@@ -128,7 +133,7 @@ void SinglePlayer::updateFrameRequest(
 	_renderer->updateFrameRequest(_state, request);
 }
 
-void SinglePlayer::markFrameShown() {
+bool SinglePlayer::markFrameShown() {
 	Expects(_state != nullptr);
 
 	if (_nextFrameTime == kFrameDisplayTimeAlreadyDone) {
@@ -136,7 +141,9 @@ void SinglePlayer::markFrameShown() {
 	}
 	if (_state->markFrameShown()) {
 		_renderer->frameShown();
+		return true;
 	}
+	return false;
 }
 
 } // namespace Lottie

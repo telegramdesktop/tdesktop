@@ -122,7 +122,11 @@ void HistorySticker::unloadLottie() {
 	_parent->data()->history()->owner().unregisterHeavyViewPart(_parent);
 }
 
-void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
+void HistorySticker::draw(
+		Painter &p,
+		const QRect &r,
+		TextSelection selection,
+		crl::time ms) const {
 	auto sticker = _data->sticker();
 	if (!sticker) return;
 
@@ -197,19 +201,24 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, c
 		if (selected) {
 			request.colored = st::msgStickerOverlay->c;
 		}
-		const auto paused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
-		if (!paused) {
-			_lottie->markFrameShown();
-		}
-		const auto frame = _lottie->frame(request);
-		const auto size = frame.size() / cIntRetinaFactor();
+		const auto frame = _lottie->frameInfo(request);
+		const auto size = frame.image.size() / cIntRetinaFactor();
 		p.drawImage(
 			QRect(
 				QPoint(
 					usex + (usew - size.width()) / 2,
 					(minHeight() - size.height()) / 2),
 				size),
-			frame);
+			frame.image);
+
+		const auto paused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
+		if (!paused
+			&& (frame.index != 0
+				|| _parent->delegate()->elementStartStickerLoop(_parent))
+			&& _lottie->markFrameShown()
+			&& !frame.index) {
+			_parent->delegate()->elementStickerLoopStarted(_parent);
+		}
 	}
 	if (!inWebPage) {
 		auto fullRight = usex + usew;

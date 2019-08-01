@@ -79,6 +79,8 @@ public:
 		not_null<const Element*> view,
 		int from,
 		int till) const;
+	bool elementStartStickerLoop(not_null<const Element*> view) const;
+	void elementStickerLoopStarted(not_null<const Element*> view);
 
 	void updateBotInfo(bool recount = true);
 
@@ -329,6 +331,8 @@ private:
 
 	style::cursor _cursor = style::cur_default;
 	SelectedItems _selected;
+
+	base::flat_set<FullMsgId> _animatedStickersPlayed;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;

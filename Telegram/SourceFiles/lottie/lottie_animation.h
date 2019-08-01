@@ -10,7 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_common.h"
 #include "base/weak_ptr.h"
 
-class QImage;
+#include <QtGui/QImage>
+
 class QString;
 class QByteArray;
 
@@ -39,6 +40,11 @@ std::unique_ptr<rlottie::Animation> CreateFromContent(
 
 class Animation final : public base::has_weak_ptr {
 public:
+	struct FrameInfo {
+		QImage image;
+		int index = 0;
+	};
+
 	Animation(
 		not_null<Player*> player,
 		const QByteArray &content,
@@ -55,6 +61,7 @@ public:
 	[[nodiscard]] bool ready() const;
 	[[nodiscard]] QImage frame() const;
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
+	[[nodiscard]] FrameInfo frameInfo(const FrameRequest &request) const;
 
 private:
 	void initDone(details::InitData &&data);

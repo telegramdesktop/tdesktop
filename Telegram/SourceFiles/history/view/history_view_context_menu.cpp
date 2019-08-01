@@ -162,12 +162,12 @@ void AddDocumentActions(
 		});
 		return;
 	}
-	if (document->loaded() && document->isGifv()) {
-		if (!cAutoPlayGif()) {
-			menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
-				OpenGif(contextId);
-			});
-		}
+	if (document->loaded()
+		&& document->isGifv()
+		&& !document->session().settings().autoplayGifs()) {
+		menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
+			OpenGif(contextId);
+		});
 	}
 	if (document->sticker()
 		&& document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
