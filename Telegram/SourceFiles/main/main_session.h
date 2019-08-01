@@ -62,6 +62,7 @@ class Changelogs;
 namespace Main {
 
 class Account;
+class AppConfig;
 
 class Settings final {
 public:
@@ -335,6 +336,9 @@ public:
 	Stickers::EmojiPack &emojiStickersPack() {
 		return *_emojiStickersPack;
 	}
+	AppConfig &appConfig() {
+		return *_appConfig;
+	}
 
 	base::Observable<void> &downloaderTaskFinished();
 
@@ -388,6 +392,7 @@ private:
 	base::Timer _autoLockTimer;
 
 	const std::unique_ptr<ApiWrap> _api;
+	const std::unique_ptr<AppConfig> _appConfig;
 	const std::unique_ptr<Calls::Instance> _calls;
 	const std::unique_ptr<Storage::Downloader> _downloader;
 	const std::unique_ptr<Storage::Uploader> _uploader;

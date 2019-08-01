@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/emoji_config.h"
 #include "main/main_session.h"
+#include "main/main_app_config.h"
 #include "mainwindow.h" // App::wnd()->sessionController.
 #include "window/window_session_controller.h" // isGifPausedAtLeastFor.
 #include "data/data_session.h"
@@ -27,6 +28,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 using TextState = HistoryView::TextState;
+
+double GetEmojiStickerZoom(not_null<Main::Session*> session) {
+	return session->appConfig().get<double>("emojies_animated_zoom", 0.625);
+}
 
 } // namespace
 
@@ -73,13 +78,23 @@ QSize HistorySticker::countOptimalSize() {
 	}
 	_pixw = _data->dimensions.width();
 	_pixh = _data->dimensions.height();
-	if (_pixw > st::maxStickerSize) {
-		_pixh = (st::maxStickerSize * _pixh) / _pixw;
-		_pixw = st::maxStickerSize;
-	}
-	if (_pixh > st::maxStickerSize) {
-		_pixw = (st::maxStickerSize * _pixw) / _pixh;
-		_pixh = st::maxStickerSize;
+	if (isEmojiSticker()) {
+		constexpr auto kIdealStickerSize = 512;
+		const auto zoom = GetEmojiStickerZoom(&history()->session());
+		const auto convert = [&](int size) {
+			return int(size * st::maxStickerSize * zoom / kIdealStickerSize);
+		};
+		_pixw = convert(_pixw);
+		_pixh = convert(_pixh);
+	} else {
+		if (_pixw > st::maxStickerSize) {
+			_pixh = (st::maxStickerSize * _pixh) / _pixw;
+			_pixw = st::maxStickerSize;
+		}
+		if (_pixh > st::maxStickerSize) {
+			_pixw = (st::maxStickerSize * _pixw) / _pixh;
+			_pixh = st::maxStickerSize;
+		}
 	}
 	if (_pixw < 1) _pixw = 1;
 	if (_pixh < 1) _pixh = 1;

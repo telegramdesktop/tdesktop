@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/changelogs.h"
 #include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "storage/file_download.h"
 #include "storage/file_upload.h"
 #include "storage/localstorage.h"
@@ -462,6 +463,7 @@ Session::Session(
 : _account(account)
 , _autoLockTimer([=] { checkAutoLock(); })
 , _api(std::make_unique<ApiWrap>(this))
+, _appConfig(std::make_unique<AppConfig>(this))
 , _calls(std::make_unique<Calls::Instance>())
 , _downloader(std::make_unique<Storage::Downloader>(_api.get()))
 , _uploader(std::make_unique<Storage::Uploader>(_api.get()))
