@@ -99,9 +99,7 @@ public:
 		not_null<const HistoryView::Element*> view,
 		int from,
 		int till) override;
-	bool elementStartStickerLoop(
-		not_null<const HistoryView::Element*> view) override;
-	void elementStickerLoopStarted(
+	void elementStartStickerLoop(
 		not_null<const HistoryView::Element*> view) override;
 
 	~InnerWidget();

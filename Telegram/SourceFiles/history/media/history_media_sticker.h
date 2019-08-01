@@ -54,6 +54,9 @@ public:
 	bool hidesForwardedInfo() const override {
 		return true;
 	}
+	void clearStickerLoopPlayed() override {
+		_lottieOncePlayed = false;
+	}
 
 	void unloadHeavyPart() override {
 		unloadLottie();
@@ -76,6 +79,8 @@ private:
 	not_null<DocumentData*> _data;
 	QString _emoji;
 	std::unique_ptr<Lottie::SinglePlayer> _lottie;
+	mutable bool _lottieOncePlayed = false;
+
 	rpl::lifetime _lifetime;
 
 };

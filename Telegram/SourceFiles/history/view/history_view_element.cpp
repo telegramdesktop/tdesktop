@@ -84,12 +84,7 @@ bool SimpleElementDelegate::elementIntersectsRange(
 	return true;
 }
 
-bool SimpleElementDelegate::elementStartStickerLoop(
-		not_null<const Element*> view) {
-	return true;
-}
-
-void SimpleElementDelegate::elementStickerLoopStarted(
+void SimpleElementDelegate::elementStartStickerLoop(
 	not_null<const Element*> view) {
 }
 

@@ -133,6 +133,8 @@ public:
 	}
 	virtual void stopAnimation() {
 	}
+	virtual void clearStickerLoopPlayed() {
+	}
 
 	[[nodiscard]] virtual QSize sizeForGrouping() const {
 		Unexpected("Grouping method call.");

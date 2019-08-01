@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "ui/image/image.h"
 #include "ui/emoji_config.h"
+#include "main/main_session.h"
 #include "mainwindow.h" // App::wnd()->sessionController.
 #include "window/window_session_controller.h" // isGifPausedAtLeastFor.
 #include "data/data_session.h"
@@ -212,12 +213,14 @@ void HistorySticker::draw(
 			frame.image);
 
 		const auto paused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
+		const auto playOnce = !_data->session().settings().loopAnimatedStickers();
 		if (!paused
-			&& (frame.index != 0
-				|| _parent->delegate()->elementStartStickerLoop(_parent))
+			&& (!playOnce || frame.index != 0 || !_lottieOncePlayed)
 			&& _lottie->markFrameShown()
-			&& !frame.index) {
-			_parent->delegate()->elementStickerLoopStarted(_parent);
+			&& playOnce
+			&& !_lottieOncePlayed) {
+			_lottieOncePlayed = true;
+			_parent->delegate()->elementStartStickerLoop(_parent);
 		}
 	}
 	if (!inWebPage) {

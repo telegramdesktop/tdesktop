@@ -1245,6 +1245,8 @@ void HistoryInner::itemRemoved(not_null<const HistoryItem*> item) {
 		return;
 	}
 
+	_animatedStickersPlayed.remove(item);
+
 	auto i = _selected.find(item);
 	if (i != _selected.cend()) {
 		_selected.erase(i);
@@ -2267,6 +2269,13 @@ void HistoryInner::leaveEventHook(QEvent *e) {
 }
 
 HistoryInner::~HistoryInner() {
+	for (const auto &item : _animatedStickersPlayed) {
+		if (const auto view = item->mainView()) {
+			if (const auto media = view->media()) {
+				media->clearStickerLoopPlayed();
+			}
+		}
+	}
 	if (Instance == this) {
 		Instance = nullptr;
 	}
@@ -2384,16 +2393,9 @@ bool HistoryInner::elementIntersectsRange(
 	return (top < till && bottom > from);
 }
 
-bool HistoryInner::elementStartStickerLoop(
-		not_null<const Element*> view) const {
-	return _controller->session().settings().loopAnimatedStickers()
-		|| !_animatedStickersPlayed.contains(view->data()->fullId());
-}
-
-void HistoryInner::elementStickerLoopStarted(not_null<const Element*> view) {
-	if (!_controller->session().settings().loopAnimatedStickers()) {
-		_animatedStickersPlayed.emplace(view->data()->fullId());
-	}
+void HistoryInner::elementStartStickerLoop(
+		not_null<const Element*> view) {
+	_animatedStickersPlayed.emplace(view->data());
 }
 
 auto HistoryInner::getSelectionState() const
@@ -3246,16 +3248,10 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 				? Instance->elementIntersectsRange(view, from, till)
 				: false;
 		}
-		bool elementStartStickerLoop(
-				not_null<const Element*> view) override {
-			return Instance
-				? Instance->elementStartStickerLoop(view)
-				: true;
-		}
-		void elementStickerLoopStarted(
+		void elementStartStickerLoop(
 				not_null<const Element*> view) override {
 			if (Instance) {
-				Instance->elementStickerLoopStarted(view);
+				Instance->elementStartStickerLoop(view);
 			}
 		}
 

@@ -548,15 +548,7 @@ bool InnerWidget::elementIntersectsRange(
 	return (top < till && bottom > from);
 }
 
-bool InnerWidget::elementStartStickerLoop(not_null<const Element*> view) {
-	if (_controller->session().settings().loopAnimatedStickers()) {
-		return true;
-	}
-	return !_animatedStickersPlayed.contains(view->data()->fullId());
-}
-
-void InnerWidget::elementStickerLoopStarted(not_null<const Element*> view) {
-	_animatedStickersPlayed.emplace(view->data()->fullId());
+void InnerWidget::elementStartStickerLoop(not_null<const Element*> view) {
 }
 
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {

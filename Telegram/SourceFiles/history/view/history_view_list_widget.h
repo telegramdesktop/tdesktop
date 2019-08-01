@@ -191,8 +191,7 @@ public:
 		not_null<const Element*> view,
 		int from,
 		int till) override;
-	bool elementStartStickerLoop(not_null<const Element*> view) override;
-	void elementStickerLoopStarted(not_null<const Element*> view) override;
+	void elementStartStickerLoop(not_null<const Element*> view) override;
 
 	~ListWidget();
 
