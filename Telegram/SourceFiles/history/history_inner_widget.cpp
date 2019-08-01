@@ -1680,7 +1680,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				const auto media = (view ? view->media() : nullptr);
 				const auto mediaHasTextForCopy = media && media->hasTextForCopy();
 				if (const auto document = media ? media->getDocument() : nullptr) {
-					if (document->sticker()) {
+					if (!item->isSingleEmoji() && document->sticker()) {
 						if (document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
 							_menu->addAction(document->isStickerSetInstalled() ? tr::lng_context_pack_info(tr::now) : tr::lng_context_pack_add(tr::now), [=] {
 								showStickerPackInfo(document);

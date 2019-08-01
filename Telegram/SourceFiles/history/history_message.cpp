@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_service.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_context_menu.h" // For CopyPostLink().
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "main/main_session.h"
 #include "boxes/share_box.h"
 #include "boxes/confirm_box.h"
@@ -1083,6 +1084,7 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 		}
 	}
 
+	clearSingleEmoji();
 	if (_media && _media->consumeMessageText(textWithEntities)) {
 		setEmptyText();
 	} else {
@@ -1095,8 +1097,10 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 			// just replace it with something so that UI won't look buggy.
 			_text.setMarkedText(
 				st::messageTextStyle,
-				{ QString::fromUtf8("\xF0\x9F\x98\x94"), EntitiesInText() },
+				{ QString::fromUtf8(":-("), EntitiesInText() },
 				Ui::ItemTextOptions(this));
+		} else if (!_media) {
+			checkSingleEmoji(textWithEntities.text);
 		}
 		_textWidth = -1;
 		_textHeight = 0;
@@ -1111,6 +1115,20 @@ void HistoryMessage::setEmptyText() {
 
 	_textWidth = -1;
 	_textHeight = 0;
+}
+
+void HistoryMessage::clearSingleEmoji() {
+	if (!(_flags & MTPDmessage_ClientFlag::f_single_emoji)) {
+		return;
+	}
+	history()->session().emojiStickersPack().remove(this);
+	_flags &= ~MTPDmessage_ClientFlag::f_single_emoji;
+}
+
+void HistoryMessage::checkSingleEmoji(const QString &text) {
+	if (history()->session().emojiStickersPack().add(this, text)) {
+		_flags |= MTPDmessage_ClientFlag::f_single_emoji;
+	}
 }
 
 void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
@@ -1153,6 +1171,10 @@ void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
 		history()->owner().requestItemResize(this);
 		Notify::replyMarkupUpdated(this);
 	}
+}
+
+QString HistoryMessage::originalString() const {
+	return emptyText() ? QString() : _text.toString();
 }
 
 TextWithEntities HistoryMessage::originalText() const {

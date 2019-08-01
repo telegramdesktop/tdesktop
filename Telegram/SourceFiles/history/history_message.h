@@ -29,8 +29,7 @@ QString GetErrorTextForForward(
 	bool ignoreSlowmodeCountdown = false);
 void FastShareMessage(not_null<HistoryItem*> item);
 
-class HistoryMessage
-	: public HistoryItem {
+class HistoryMessage : public HistoryItem {
 public:
 	HistoryMessage(
 		not_null<History*> history,
@@ -134,6 +133,7 @@ public:
 	[[nodiscard]] Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	void setText(const TextWithEntities &textWithEntities) override;
+	[[nodiscard]] QString originalString() const override;
 	[[nodiscard]] TextWithEntities originalText() const override;
 	[[nodiscard]] TextForMimeData clipboardText() const override;
 	[[nodiscard]] bool textHasLinks() const override;
@@ -163,6 +163,9 @@ private:
 	[[nodiscard]] bool isLegacyMessage() const {
 		return _flags & MTPDmessage::Flag::f_legacy;
 	}
+
+	void clearSingleEmoji();
+	void checkSingleEmoji(const QString &text);
 
 	// For an invoice button we replace the button text with a "Receipt" key.
 	// It should show the receipt for the payed invoice. Still let mobile apps do that.
