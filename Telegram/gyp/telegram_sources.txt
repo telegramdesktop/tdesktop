@@ -121,6 +121,8 @@
 <(src_loc)/chat_helpers/message_field.h
 <(src_loc)/chat_helpers/stickers.cpp
 <(src_loc)/chat_helpers/stickers.h
+<(src_loc)/chat_helpers/stickers_emoji_pack.cpp
+<(src_loc)/chat_helpers/stickers_emoji_pack.h
 <(src_loc)/chat_helpers/stickers_list_widget.cpp
 <(src_loc)/chat_helpers/stickers_list_widget.h
 <(src_loc)/chat_helpers/tabbed_panel.cpp

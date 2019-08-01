@@ -51,6 +51,10 @@ namespace ChatHelpers {
 enum class SelectorTab;
 } // namespace ChatHelpers
 
+namespace Stickers {
+class EmojiPack;
+} // namespace Stickers;
+
 namespace Core {
 class Changelogs;
 } // namespace Core
@@ -328,6 +332,9 @@ public:
 	Storage::Facade &storage() {
 		return *_storage;
 	}
+	Stickers::EmojiPack &emojiStickersPack() {
+		return *_emojiStickersPack;
+	}
 
 	base::Observable<void> &downloaderTaskFinished();
 
@@ -390,6 +397,9 @@ private:
 	// _data depends on _downloader / _uploader / _notifications.
 	const std::unique_ptr<Data::Session> _data;
 	const not_null<UserData*> _user;
+
+	// _emojiStickersPack depends on _data.
+	const std::unique_ptr<Stickers::EmojiPack> _emojiStickersPack;
 
 	// _changelogs depends on _data, subscribes on chats loading event.
 	const std::unique_ptr<Core::Changelogs> _changelogs;

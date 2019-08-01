@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "window/section_widget.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "boxes/send_files_box.h"
 #include "ui/widgets/input_fields.h"
 #include "support/support_common.h"
@@ -468,6 +469,7 @@ Session::Session(
 , _notifications(std::make_unique<Window::Notifications::System>(this))
 , _data(std::make_unique<Data::Session>(this))
 , _user(_data->processUser(user))
+, _emojiStickersPack(std::make_unique<Stickers::EmojiPack>(this))
 , _changelogs(Core::Changelogs::Create(this))
 , _supportHelper(Support::Helper::Create(this)) {
 	_saveDataTimer.setCallback([=] {

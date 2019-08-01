@@ -46,13 +46,30 @@ HistorySticker::~HistorySticker() {
 	unloadLottie();
 }
 
+bool HistorySticker::isEmojiSticker() const {
+	return (_parent->data()->media() == nullptr);
+}
+
 QSize HistorySticker::countOptimalSize() {
 	auto sticker = _data->sticker();
 
-	if (!_packLink && sticker && sticker->set.type() != mtpc_inputStickerSetEmpty) {
-		_packLink = std::make_shared<LambdaClickHandler>([document = _data] {
-			StickerSetBox::Show(App::wnd()->sessionController(), document);
-		});
+	if (!_packLink) {
+		if (isEmojiSticker()) {
+			const auto weak = base::make_weak(this);
+			_packLink = std::make_shared<LambdaClickHandler>([weak] {
+				const auto that = weak.get();
+				if (!that) {
+					return;
+				}
+				that->_lottieOncePlayed = false;
+				that->_parent->data()->history()->owner().requestViewRepaint(
+					that->_parent);
+			});
+		} else if (sticker && sticker->set.type() != mtpc_inputStickerSetEmpty) {
+			_packLink = std::make_shared<LambdaClickHandler>([document = _data] {
+				StickerSetBox::Show(App::wnd()->sessionController(), document);
+			});
+		}
 	}
 	_pixw = _data->dimensions.width();
 	_pixh = _data->dimensions.height();
@@ -213,7 +230,8 @@ void HistorySticker::draw(
 			frame.image);
 
 		const auto paused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
-		const auto playOnce = !_data->session().settings().loopAnimatedStickers();
+		const auto playOnce = isEmojiSticker()
+			|| !_data->session().settings().loopAnimatedStickers();
 		if (!paused
 			&& (!playOnce || frame.index != 0 || !_lottieOncePlayed)
 			&& _lottie->markFrameShown()

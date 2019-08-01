@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/media/history_media.h"
+#include "base/weak_ptr.h"
 #include "base/timer.h"
 
 struct HistoryMessageVia;
@@ -18,7 +19,7 @@ namespace Lottie {
 class SinglePlayer;
 } // namespace Lottie
 
-class HistorySticker : public HistoryMedia {
+class HistorySticker : public HistoryMedia, public base::has_weak_ptr {
 public:
 	HistorySticker(
 		not_null<Element*> parent,
@@ -63,6 +64,8 @@ public:
 	}
 
 private:
+	[[nodiscard]] bool isEmojiSticker() const;
+
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 

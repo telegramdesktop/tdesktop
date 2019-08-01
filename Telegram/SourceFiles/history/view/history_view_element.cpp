@@ -13,7 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/media/history_media.h"
 #include "history/media/history_media_grouped.h"
+#include "history/media/history_media_sticker.h"
 #include "history/history.h"
+#include "main/main_session.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "data/data_session.h"
 #include "data/data_groups.h"
 #include "data/data_media_types.h"
@@ -338,8 +341,11 @@ void Element::refreshMedia() {
 			return;
 		}
 	}
+	const auto emojiStickers = &history()->session().emojiStickersPack();
 	if (_data->media()) {
 		_media = _data->media()->createView(this);
+	} else if (const auto document = emojiStickers->stickerForEmoji(_data)) {
+		_media = std::make_unique<HistorySticker>(this, document);
 	} else {
 		_media = nullptr;
 	}
