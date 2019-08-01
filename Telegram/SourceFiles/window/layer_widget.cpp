@@ -480,7 +480,7 @@ void LayerStackWidget::closeLayer(not_null<LayerWidget*> layer) {
 		if (_layers.size() == 1) {
 			hideCurrent(anim::type::normal);
 		} else {
-			auto taken = std::move(_layers.back());
+			const auto taken = std::move(_layers.back());
 			_layers.pop_back();
 
 			layer = currentLayer();
@@ -493,6 +493,7 @@ void LayerStackWidget::closeLayer(not_null<LayerWidget*> layer) {
 	} else {
 		for (auto i = _layers.begin(), e = _layers.end(); i != e; ++i) {
 			if (layer == i->get()) {
+				const auto taken = std::move(*i);
 				_layers.erase(i);
 				break;
 			}
