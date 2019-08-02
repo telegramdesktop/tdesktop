@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "media/clip/media_clip_reader.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/text/text_isolated_emoji.h"
 #include "ui/text_options.h"
 #include "storage/file_upload.h"
 #include "storage/storage_facade.h"
@@ -777,6 +778,10 @@ QString HistoryItem::inDialogsText(DrawInDialog way) const {
 		return tr::lng_dialogs_text_with_from(tr::now, lt_from_part, fromWrapped, lt_message, plainText);
 	}
 	return plainText;
+}
+
+Ui::Text::IsolatedEmoji HistoryItem::isolatedEmoji() const {
+	return Ui::Text::IsolatedEmoji();
 }
 
 void HistoryItem::drawInDialog(

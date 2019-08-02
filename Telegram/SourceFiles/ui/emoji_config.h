@@ -167,5 +167,25 @@ rpl::producer<> UpdatedRecent();
 const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight);
 void Draw(QPainter &p, EmojiPtr emoji, int size, int x, int y);
 
+class UniversalImages {
+public:
+	explicit UniversalImages(int id);
+
+	int id() const;
+	bool ensureLoaded();
+	void clear();
+
+	void draw(QPainter &p, EmojiPtr emoji, int size, int x, int y) const;
+
+	// This method must be thread safe and so it is called after
+	// the _id value is fixed and all _sprites are loaded.
+	QImage generate(int size, int index) const;
+
+private:
+	int _id = 0;
+	std::vector<QImage> _sprites;
+
+};
+
 } // namespace Emoji
 } // namespace Ui

@@ -63,8 +63,8 @@ enum class MTPDmessage_ClientFlag : uint32 {
 	// message was an outgoing message and failed to be sent
 	f_failed = (1U << 22),
 
-	// message has no media and only a single emoji text
-	f_single_emoji = (1U << 21),
+	// message has no media and only a several emoji text
+	f_isolated_emoji = (1U << 21),
 
 	// update this when adding new client side flags
 	MIN_FIELD = (1U << 21),

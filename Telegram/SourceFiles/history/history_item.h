@@ -163,8 +163,8 @@ public:
 	[[nodiscard]] bool isGroupMigrate() const {
 		return isGroupEssential() && isEmpty();
 	}
-	[[nodiscard]] bool isSingleEmoji() const {
-		return _flags & MTPDmessage_ClientFlag::f_single_emoji;
+	[[nodiscard]] bool isIsolatedEmoji() const {
+		return _flags & MTPDmessage_ClientFlag::f_isolated_emoji;
 	}
 	[[nodiscard]] bool hasViews() const {
 		return _flags & MTPDmessage::Flag::f_views;
@@ -226,9 +226,7 @@ public:
 	virtual QString inReplyText() const {
 		return inDialogsText(DrawInDialog::WithoutSender);
 	}
-	virtual QString originalString() const {
-		return QString();
-	}
+	virtual Ui::Text::IsolatedEmoji isolatedEmoji() const;
 	virtual TextWithEntities originalText() const {
 		return TextWithEntities();
 	}

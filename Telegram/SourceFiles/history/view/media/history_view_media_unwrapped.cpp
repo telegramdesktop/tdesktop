@@ -31,8 +31,9 @@ QSize UnwrappedMedia::countOptimalSize() {
 	_contentSize = NonEmptySize(DownscaledSize(
 		_content->size(),
 		{ st::maxStickerSize, st::maxStickerSize }));
+	const auto minimal = st::largeEmojiSize;
 	auto maxWidth = std::max(_contentSize.width(), st::minPhotoSize);
-	auto minHeight = std::max(_contentSize.height(), st::minPhotoSize);
+	auto minHeight = std::max(_contentSize.height(), minimal);
 	accumulate_max(
 		maxWidth,
 		_parent->infoWidth() + 2 * st::msgDateImgPadding.x());

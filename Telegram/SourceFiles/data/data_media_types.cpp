@@ -771,9 +771,7 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 	if (_document->sticker()) {
 		return std::make_unique<HistoryView::UnwrappedMedia>(
 			message,
-			std::make_unique<HistoryView::StickerContent>(
-				message,
-				_document));
+			std::make_unique<HistoryView::Sticker>(message, _document));
 	} else if (_document->isAnimation()) {
 		return std::make_unique<HistoryView::Gif>(message, _document);
 	} else if (_document->isVideoFile()) {

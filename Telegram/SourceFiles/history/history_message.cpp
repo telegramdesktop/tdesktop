@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
+#include "ui/text/text_isolated_emoji.h"
 #include "ui/text_options.h"
 #include "core/application.h"
 #include "layout.h"
@@ -1084,7 +1085,7 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 		}
 	}
 
-	clearSingleEmoji();
+	clearIsolatedEmoji();
 	if (_media && _media->consumeMessageText(textWithEntities)) {
 		setEmptyText();
 	} else {
@@ -1100,7 +1101,7 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 				{ QString::fromUtf8(":-("), EntitiesInText() },
 				Ui::ItemTextOptions(this));
 		} else if (!_media) {
-			checkSingleEmoji(textWithEntities.text);
+			checkIsolatedEmoji();
 		}
 		_textWidth = -1;
 		_textHeight = 0;
@@ -1117,17 +1118,17 @@ void HistoryMessage::setEmptyText() {
 	_textHeight = 0;
 }
 
-void HistoryMessage::clearSingleEmoji() {
-	if (!(_flags & MTPDmessage_ClientFlag::f_single_emoji)) {
+void HistoryMessage::clearIsolatedEmoji() {
+	if (!(_flags & MTPDmessage_ClientFlag::f_isolated_emoji)) {
 		return;
 	}
 	history()->session().emojiStickersPack().remove(this);
-	_flags &= ~MTPDmessage_ClientFlag::f_single_emoji;
+	_flags &= ~MTPDmessage_ClientFlag::f_isolated_emoji;
 }
 
-void HistoryMessage::checkSingleEmoji(const QString &text) {
-	if (history()->session().emojiStickersPack().add(this, text)) {
-		_flags |= MTPDmessage_ClientFlag::f_single_emoji;
+void HistoryMessage::checkIsolatedEmoji() {
+	if (history()->session().emojiStickersPack().add(this)) {
+		_flags |= MTPDmessage_ClientFlag::f_isolated_emoji;
 	}
 }
 
@@ -1173,8 +1174,8 @@ void HistoryMessage::setReplyMarkup(const MTPReplyMarkup *markup) {
 	}
 }
 
-QString HistoryMessage::originalString() const {
-	return emptyText() ? QString() : _text.toString();
+Ui::Text::IsolatedEmoji HistoryMessage::isolatedEmoji() const {
+	return _text.toIsolatedEmoji();
 }
 
 TextWithEntities HistoryMessage::originalText() const {

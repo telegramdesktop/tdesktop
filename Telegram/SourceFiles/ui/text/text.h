@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/click_handler.h"
 #include "ui/text/text_entity.h"
+#include "core/click_handler.h"
 #include "base/flags.h"
 
 #include <private/qfixed_p.h>
@@ -70,6 +70,7 @@ namespace Ui {
 namespace Text {
 
 class AbstractBlock;
+struct IsolatedEmoji;
 
 struct StateRequest {
 	enum class Flag {
@@ -176,6 +177,7 @@ public:
 		TextSelection selection = AllTextSelection) const;
 	TextForMimeData toTextForMimeData(
 		TextSelection selection = AllTextSelection) const;
+	IsolatedEmoji toIsolatedEmoji() const;
 
 	bool lastDots(int32 dots, int32 maxdots = 3) { // hack for typing animation
 		if (_text.size() < maxdots) return false;

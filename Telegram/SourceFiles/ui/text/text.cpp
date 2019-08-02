@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "core/crash_reports.h"
 #include "ui/text/text_block.h"
+#include "ui/text/text_isolated_emoji.h"
 #include "ui/emoji_config.h"
 #include "lang/lang_keys.h"
 #include "platform/platform_info.h"
@@ -3308,6 +3309,25 @@ TextForMimeData String::toText(
 		clickHandlerFinishCallback,
 		flagsChangeCallback);
 
+	return result;
+}
+
+IsolatedEmoji String::toIsolatedEmoji() const {
+	auto result = IsolatedEmoji();
+	const auto skip = (_blocks.empty()
+		|| _blocks.back()->type() != TextBlockTSkip) ? 0 : 1;
+	if (_blocks.size() > kIsolatedEmojiLimit + skip) {
+		return IsolatedEmoji();
+	}
+	auto index = 0;
+	for (const auto &block : _blocks) {
+		const auto type = block->type();
+		if (type == TextBlockTEmoji) {
+			result.items[index++] = static_cast<EmojiBlock*>(block.get())->emoji;
+		} else if (type != TextBlockTSkip) {
+			return IsolatedEmoji();
+		}
+	}
 	return result;
 }
 

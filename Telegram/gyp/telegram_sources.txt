@@ -288,6 +288,8 @@
 <(src_loc)/history/view/media/history_view_gif.cpp
 <(src_loc)/history/view/media/history_view_invoice.h
 <(src_loc)/history/view/media/history_view_invoice.cpp
+<(src_loc)/history/view/media/history_view_large_emoji.h
+<(src_loc)/history/view/media/history_view_large_emoji.cpp
 <(src_loc)/history/view/media/history_view_location.h
 <(src_loc)/history/view/media/history_view_location.cpp
 <(src_loc)/history/view/media/history_view_media.h
@@ -760,6 +762,7 @@
 <(src_loc)/ui/text/text_block.h
 <(src_loc)/ui/text/text_entity.cpp
 <(src_loc)/ui/text/text_entity.h
+<(src_loc)/ui/text/text_isolated_emoji.h
 <(src_loc)/ui/text/text_utilities.cpp
 <(src_loc)/ui/text/text_utilities.h
 <(src_loc)/ui/toast/toast.cpp

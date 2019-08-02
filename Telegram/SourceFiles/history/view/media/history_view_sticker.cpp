@@ -34,7 +34,7 @@ double GetEmojiStickerZoom(not_null<Main::Session*> session) {
 
 } // namespace
 
-StickerContent::StickerContent(
+Sticker::Sticker(
 	not_null<Element*> parent,
 	not_null<DocumentData*> document)
 : _parent(parent)
@@ -42,15 +42,15 @@ StickerContent::StickerContent(
 	_document->loadThumbnail(parent->data()->fullId());
 }
 
-StickerContent::~StickerContent() {
+Sticker::~Sticker() {
 	unloadLottie();
 }
 
-bool StickerContent::isEmojiSticker() const {
+bool Sticker::isEmojiSticker() const {
 	return (_parent->data()->media() == nullptr);
 }
 
-QSize StickerContent::size() {
+QSize Sticker::size() {
 	_size = _document->dimensions;
 	if (isEmojiSticker()) {
 		constexpr auto kIdealStickerSize = 512;
@@ -63,10 +63,7 @@ QSize StickerContent::size() {
 	return _size;
 }
 
-void StickerContent::draw(
-		Painter &p,
-		const QRect &r,
-		bool selected) {
+void Sticker::draw(Painter &p, const QRect &r, bool selected) {
 	const auto sticker = _document->sticker();
 	if (!sticker) {
 		return;
@@ -85,7 +82,7 @@ void StickerContent::draw(
 	}
 }
 
-void StickerContent::paintLottie(Painter &p, const QRect &r, bool selected) {
+void Sticker::paintLottie(Painter &p, const QRect &r, bool selected) {
 	auto request = Lottie::FrameRequest();
 	request.box = _size * cIntRetinaFactor();
 	if (selected) {
@@ -114,7 +111,7 @@ void StickerContent::paintLottie(Painter &p, const QRect &r, bool selected) {
 	}
 }
 
-void StickerContent::paintPixmap(Painter &p, const QRect &r, bool selected) {
+void Sticker::paintPixmap(Painter &p, const QRect &r, bool selected) {
 	const auto pixmap = paintedPixmap(selected);
 	if (!pixmap.isNull()) {
 		p.drawPixmap(
@@ -125,7 +122,7 @@ void StickerContent::paintPixmap(Painter &p, const QRect &r, bool selected) {
 	}
 }
 
-QPixmap StickerContent::paintedPixmap(bool selected) const {
+QPixmap Sticker::paintedPixmap(bool selected) const {
 	const auto o = _parent->data()->fullId();
 	const auto w = _size.width();
 	const auto h = _size.height();
@@ -157,7 +154,7 @@ QPixmap StickerContent::paintedPixmap(bool selected) const {
 	return QPixmap();
 }
 
-void StickerContent::refreshLink() {
+void Sticker::refreshLink() {
 	if (_link) {
 		return;
 	}
@@ -180,7 +177,7 @@ void StickerContent::refreshLink() {
 	}
 }
 
-void StickerContent::setupLottie() {
+void Sticker::setupLottie() {
 	_lottie = Stickers::LottiePlayerFromDocument(
 		_document,
 		Stickers::LottieSize::MessageHistory,
@@ -198,7 +195,7 @@ void StickerContent::setupLottie() {
 	}, _lifetime);
 }
 
-void StickerContent::unloadLottie() {
+void Sticker::unloadLottie() {
 	if (!_lottie) {
 		return;
 	}

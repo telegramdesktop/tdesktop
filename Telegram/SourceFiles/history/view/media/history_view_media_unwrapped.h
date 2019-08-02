@@ -22,8 +22,12 @@ public:
 	class Content {
 	public:
 		[[nodiscard]] virtual QSize size() = 0;
+
 		virtual void draw(Painter &p, const QRect &r, bool selected) = 0;
-		[[nodiscard]] virtual ClickHandlerPtr link() = 0;
+
+		[[nodiscard]] virtual ClickHandlerPtr link() {
+			return nullptr;
+		}
 
 		[[nodiscard]] virtual DocumentData *document() {
 			return nullptr;

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_sticker.h"
+#include "history/view/media/history_view_large_emoji.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "chat_helpers/stickers_emoji_pack.h"
@@ -341,13 +342,22 @@ void Element::refreshMedia() {
 			return;
 		}
 	}
-	const auto emojiStickers = &history()->session().emojiStickersPack();
-	if (_data->media()) {
-		_media = _data->media()->createView(this);
-	} else if (const auto document = emojiStickers->stickerForEmoji(_data)) {
-		_media = std::make_unique<UnwrappedMedia>(
-			this,
-			std::make_unique<StickerContent>(this, document));
+	const auto session = &history()->session();
+	if (const auto media = _data->media()) {
+		_media = media->createView(this);
+	} else if (_data->isIsolatedEmoji()
+		&& session->settings().largeEmoji()) {
+		const auto emoji = _data->isolatedEmoji();
+		const auto emojiStickers = &session->emojiStickersPack();
+		if (const auto document = emojiStickers->stickerForEmoji(emoji)) {
+			_media = std::make_unique<UnwrappedMedia>(
+				this,
+				std::make_unique<Sticker>(this, document));
+		} else {
+			_media = std::make_unique<UnwrappedMedia>(
+				this,
+				std::make_unique<LargeEmoji>(this, emoji));
+		}
 	} else {
 		_media = nullptr;
 	}

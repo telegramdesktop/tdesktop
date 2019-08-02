@@ -582,3 +582,8 @@ historyAudioOutDownload: icon {{ "history_audio_download", historyFileOutIconFg 
 historyAudioOutDownloadSelected: icon {{ "history_audio_download", historyFileOutIconFgSelected }};
 
 historySlowmodeCounterMargins: margins(0px, 0px, 10px, 0px);
+
+largeEmojiSize: 36px;
+largeEmojiOutline: 1px;
+largeEmojiPadding: margins(0px, 0px, 0px, 20px);
+largeEmojiSkip: 4px;

@@ -133,7 +133,7 @@ public:
 	[[nodiscard]] Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	void setText(const TextWithEntities &textWithEntities) override;
-	[[nodiscard]] QString originalString() const override;
+	[[nodiscard]] Ui::Text::IsolatedEmoji isolatedEmoji() const override;
 	[[nodiscard]] TextWithEntities originalText() const override;
 	[[nodiscard]] TextForMimeData clipboardText() const override;
 	[[nodiscard]] bool textHasLinks() const override;
@@ -164,8 +164,8 @@ private:
 		return _flags & MTPDmessage::Flag::f_legacy;
 	}
 
-	void clearSingleEmoji();
-	void checkSingleEmoji(const QString &text);
+	void clearIsolatedEmoji();
+	void checkIsolatedEmoji();
 
 	// For an invoice button we replace the button text with a "Receipt" key.
 	// It should show the receipt for the payed invoice. Still let mobile apps do that.

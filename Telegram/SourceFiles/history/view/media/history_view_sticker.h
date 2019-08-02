@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/media/history_view_media_unwrapped.h"
 #include "base/weak_ptr.h"
-#include "base/timer.h"
 
 namespace Data {
 struct FileOrigin;
@@ -21,14 +20,14 @@ class SinglePlayer;
 
 namespace HistoryView {
 
-class StickerContent final
+class Sticker final
 	: public UnwrappedMedia::Content
 	, public base::has_weak_ptr {
 public:
-	StickerContent(
+	Sticker(
 		not_null<Element*> parent,
 		not_null<DocumentData*> document);
-	~StickerContent();
+	~Sticker();
 
 	QSize size() override;
 	void draw(Painter &p, const QRect &r, bool selected) override;
