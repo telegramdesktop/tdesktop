@@ -426,11 +426,15 @@ QString DownloadPathText() {
 	return QDir::toNativeSeparators(Global::DownloadPath());
 }
 
-void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
+void SetupStickersEmoji(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
 	AddSubsectionTitle(container, tr::lng_settings_stickers_emoji());
+
+	const auto session = &controller->session();
 
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
 	const auto inner = wrap.data();
@@ -455,29 +459,45 @@ void SetupStickersEmoji(not_null<Ui::VerticalLayout*> container) {
 			std::move(handle),
 			inner->lifetime());
 	};
+
+	add(
+		tr::lng_settings_large_emoji(tr::now),
+		session->settings().largeEmoji(),
+		[=](bool checked) {
+			session->settings().setLargeEmoji(checked);
+			session->saveSettingsDelayed();
+		});
+
 	add(
 		tr::lng_settings_replace_emojis(tr::now),
-		Global::ReplaceEmoji(),
-		[](bool checked) {
-			Global::SetReplaceEmoji(checked);
-			Global::RefReplaceEmojiChanged().notify();
-			Local::writeUserSettings();
+		session->settings().replaceEmoji(),
+		[=](bool checked) {
+			session->settings().setReplaceEmoji(checked);
+			session->saveSettingsDelayed();
 		});
 
 	add(
 		tr::lng_settings_suggest_emoji(tr::now),
-		Global::SuggestEmoji(),
-		[](bool checked) {
-			Global::SetSuggestEmoji(checked);
-			Local::writeUserSettings();
+		session->settings().suggestEmoji(),
+		[=](bool checked) {
+			session->settings().setSuggestEmoji(checked);
+			session->saveSettingsDelayed();
 		});
 
 	add(
 		tr::lng_settings_suggest_by_emoji(tr::now),
-		Global::SuggestStickersByEmoji(),
-		[](bool checked) {
-			Global::SetSuggestStickersByEmoji(checked);
-			Local::writeUserSettings();
+		session->settings().suggestStickersByEmoji(),
+		[=](bool checked) {
+			session->settings().setSuggestStickersByEmoji(checked);
+			session->saveSettingsDelayed();
+		});
+
+	add(
+		tr::lng_settings_loop_stickers(tr::now),
+		session->settings().loopAnimatedStickers(),
+		[=](bool checked) {
+			session->settings().setLoopAnimatedStickers(checked);
+			session->saveSettingsDelayed();
 		});
 
 	AddButton(
@@ -1069,7 +1089,7 @@ void Chat::setupContent(not_null<Window::SessionController*> controller) {
 
 	SetupThemeOptions(content);
 	SetupChatBackground(controller, content);
-	SetupStickersEmoji(content);
+	SetupStickersEmoji(controller, content);
 	SetupMessages(controller, content);
 
 	Ui::ResizeFitChild(this, content);

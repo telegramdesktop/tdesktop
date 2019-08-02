@@ -69,83 +69,83 @@ public:
 	void moveFrom(Settings &&other) {
 		_variables = std::move(other._variables);
 	}
-	QByteArray serialize() const;
+	[[nodiscard]] QByteArray serialize() const;
 	void constructFromSerialized(const QByteArray &serialized);
 
 	void setLastSeenWarningSeen(bool lastSeenWarningSeen) {
 		_variables.lastSeenWarningSeen = lastSeenWarningSeen;
 	}
-	bool lastSeenWarningSeen() const {
+	[[nodiscard]] bool lastSeenWarningSeen() const {
 		return _variables.lastSeenWarningSeen;
 	}
 	void setSendFilesWay(SendFilesWay way) {
 		_variables.sendFilesWay = way;
 	}
-	SendFilesWay sendFilesWay() const {
+	[[nodiscard]] SendFilesWay sendFilesWay() const {
 		return _variables.sendFilesWay;
 	}
 	void setSendSubmitWay(Ui::InputSubmitSettings value) {
 		_variables.sendSubmitWay = value;
 	}
-	Ui::InputSubmitSettings sendSubmitWay() const {
+	[[nodiscard]] Ui::InputSubmitSettings sendSubmitWay() const {
 		return _variables.sendSubmitWay;
 	}
 
 	void setSupportSwitch(Support::SwitchSettings value) {
 		_variables.supportSwitch = value;
 	}
-	Support::SwitchSettings supportSwitch() const {
+	[[nodiscard]] Support::SwitchSettings supportSwitch() const {
 		return _variables.supportSwitch;
 	}
 	void setSupportFixChatsOrder(bool fix) {
 		_variables.supportFixChatsOrder = fix;
 	}
-	bool supportFixChatsOrder() const {
+	[[nodiscard]] bool supportFixChatsOrder() const {
 		return _variables.supportFixChatsOrder;
 	}
 	void setSupportTemplatesAutocomplete(bool enabled) {
 		_variables.supportTemplatesAutocomplete = enabled;
 	}
-	bool supportTemplatesAutocomplete() const {
+	[[nodiscard]] bool supportTemplatesAutocomplete() const {
 		return _variables.supportTemplatesAutocomplete;
 	}
 	void setSupportChatsTimeSlice(int slice);
-	int supportChatsTimeSlice() const;
-	rpl::producer<int> supportChatsTimeSliceValue() const;
+	[[nodiscard]] int supportChatsTimeSlice() const;
+	[[nodiscard]] rpl::producer<int> supportChatsTimeSliceValue() const;
 	void setSupportAllSearchResults(bool all);
-	bool supportAllSearchResults() const;
-	rpl::producer<bool> supportAllSearchResultsValue() const;
+	[[nodiscard]] bool supportAllSearchResults() const;
+	[[nodiscard]] rpl::producer<bool> supportAllSearchResultsValue() const;
 
-	ChatHelpers::SelectorTab selectorTab() const {
+	[[nodiscard]] ChatHelpers::SelectorTab selectorTab() const {
 		return _variables.selectorTab;
 	}
 	void setSelectorTab(ChatHelpers::SelectorTab tab) {
 		_variables.selectorTab = tab;
 	}
-	bool tabbedSelectorSectionEnabled() const {
+	[[nodiscard]] bool tabbedSelectorSectionEnabled() const {
 		return _variables.tabbedSelectorSectionEnabled;
 	}
 	void setTabbedSelectorSectionEnabled(bool enabled);
-	bool thirdSectionInfoEnabled() const {
+	[[nodiscard]] bool thirdSectionInfoEnabled() const {
 		return _variables.thirdSectionInfoEnabled;
 	}
 	void setThirdSectionInfoEnabled(bool enabled);
-	rpl::producer<bool> thirdSectionInfoEnabledValue() const;
-	int thirdSectionExtendedBy() const {
+	[[nodiscard]] rpl::producer<bool> thirdSectionInfoEnabledValue() const;
+	[[nodiscard]] int thirdSectionExtendedBy() const {
 		return _variables.thirdSectionExtendedBy;
 	}
 	void setThirdSectionExtendedBy(int savedValue) {
 		_variables.thirdSectionExtendedBy = savedValue;
 	}
-	bool tabbedReplacedWithInfo() const {
+	[[nodiscard]] bool tabbedReplacedWithInfo() const {
 		return _tabbedReplacedWithInfo;
 	}
 	void setTabbedReplacedWithInfo(bool enabled);
-	rpl::producer<bool> tabbedReplacedWithInfoValue() const;
+	[[nodiscard]] rpl::producer<bool> tabbedReplacedWithInfoValue() const;
 	void setSmallDialogsList(bool enabled) {
 		_variables.smallDialogsList = enabled;
 	}
-	bool smallDialogsList() const {
+	[[nodiscard]] bool smallDialogsList() const {
 		return _variables.smallDialogsList;
 	}
 	void setSoundOverride(const QString &key, const QString &path) {
@@ -154,98 +154,117 @@ public:
 	void clearSoundOverrides() {
 		_variables.soundOverrides.clear();
 	}
-	QString getSoundPath(const QString &key) const;
+	[[nodiscard]] QString getSoundPath(const QString &key) const;
 	void setTabbedSelectorSectionTooltipShown(int shown) {
 		_variables.tabbedSelectorSectionTooltipShown = shown;
 	}
-	int tabbedSelectorSectionTooltipShown() const {
+	[[nodiscard]] int tabbedSelectorSectionTooltipShown() const {
 		return _variables.tabbedSelectorSectionTooltipShown;
 	}
 	void setFloatPlayerColumn(Window::Column column) {
 		_variables.floatPlayerColumn = column;
 	}
-	Window::Column floatPlayerColumn() const {
+	[[nodiscard]] Window::Column floatPlayerColumn() const {
 		return _variables.floatPlayerColumn;
 	}
 	void setFloatPlayerCorner(RectPart corner) {
 		_variables.floatPlayerCorner = corner;
 	}
-	RectPart floatPlayerCorner() const {
+	[[nodiscard]] RectPart floatPlayerCorner() const {
 		return _variables.floatPlayerCorner;
 	}
 	void setDialogsWidthRatio(float64 ratio);
-	float64 dialogsWidthRatio() const;
-	rpl::producer<float64> dialogsWidthRatioChanges() const;
+	[[nodiscard]] float64 dialogsWidthRatio() const;
+	[[nodiscard]] rpl::producer<float64> dialogsWidthRatioChanges() const;
 	void setThirdColumnWidth(int width);
-	int thirdColumnWidth() const;
-	rpl::producer<int> thirdColumnWidthChanges() const;
+	[[nodiscard]] int thirdColumnWidth() const;
+	[[nodiscard]] rpl::producer<int> thirdColumnWidthChanges() const;
 
 	void setGroupStickersSectionHidden(PeerId peerId) {
 		_variables.groupStickersSectionHidden.insert(peerId);
 	}
-	bool isGroupStickersSectionHidden(PeerId peerId) const {
+	[[nodiscard]] bool isGroupStickersSectionHidden(PeerId peerId) const {
 		return _variables.groupStickersSectionHidden.contains(peerId);
 	}
 	void removeGroupStickersSectionHidden(PeerId peerId) {
 		_variables.groupStickersSectionHidden.remove(peerId);
 	}
 
-	Data::AutoDownload::Full &autoDownload() {
+	[[nodiscard]] Data::AutoDownload::Full &autoDownload() {
 		return _variables.autoDownload;
 	}
-	const Data::AutoDownload::Full &autoDownload() const {
+	[[nodiscard]] const Data::AutoDownload::Full &autoDownload() const {
 		return _variables.autoDownload;
 	}
 
 	void setArchiveCollapsed(bool collapsed);
-	bool archiveCollapsed() const;
-	rpl::producer<bool> archiveCollapsedChanges() const;
+	[[nodiscard]] bool archiveCollapsed() const;
+	[[nodiscard]] rpl::producer<bool> archiveCollapsedChanges() const;
 
 	void setArchiveInMainMenu(bool inMainMenu);
-	bool archiveInMainMenu() const;
-	rpl::producer<bool> archiveInMainMenuChanges() const;
+	[[nodiscard]] bool archiveInMainMenu() const;
+	[[nodiscard]] rpl::producer<bool> archiveInMainMenuChanges() const;
 
 	void setNotifyAboutPinned(bool notify);
-	bool notifyAboutPinned() const;
-	rpl::producer<bool> notifyAboutPinnedChanges() const;
+	[[nodiscard]] bool notifyAboutPinned() const;
+	[[nodiscard]] rpl::producer<bool> notifyAboutPinnedChanges() const;
 
 	void setSkipArchiveInSearch(bool skip);
-	bool skipArchiveInSearch() const;
-	rpl::producer<bool> skipArchiveInSearchChanges() const;
+	[[nodiscard]] bool skipArchiveInSearch() const;
+	[[nodiscard]] rpl::producer<bool> skipArchiveInSearchChanges() const;
 
-	bool hadLegacyCallsPeerToPeerNobody() const {
+	[[nodiscard]] bool hadLegacyCallsPeerToPeerNobody() const {
 		return _variables.hadLegacyCallsPeerToPeerNobody;
 	}
 
-	bool includeMutedCounter() const {
+	[[nodiscard]] bool includeMutedCounter() const {
 		return _variables.includeMutedCounter;
 	}
 	void setIncludeMutedCounter(bool value) {
 		_variables.includeMutedCounter = value;
 	}
-	bool countUnreadMessages() const {
+	[[nodiscard]] bool countUnreadMessages() const {
 		return _variables.countUnreadMessages;
 	}
 	void setCountUnreadMessages(bool value) {
 		_variables.countUnreadMessages = value;
 	}
-	bool exeLaunchWarning() const {
+	[[nodiscard]] bool exeLaunchWarning() const {
 		return _variables.exeLaunchWarning;
 	}
 	void setExeLaunchWarning(bool warning) {
 		_variables.exeLaunchWarning = warning;
 	}
-	bool autoplayGifs() const {
+	[[nodiscard]] bool autoplayGifs() const {
 		return _variables.autoplayGifs;
 	}
 	void setAutoplayGifs(bool value) {
 		_variables.autoplayGifs = value;
 	}
-	bool loopAnimatedStickers() const {
+	[[nodiscard]] bool loopAnimatedStickers() const {
 		return _variables.loopAnimatedStickers;
 	}
 	void setLoopAnimatedStickers(bool value) {
 		_variables.loopAnimatedStickers = value;
+	}
+	void setLargeEmoji(bool value);
+	[[nodiscard]] bool largeEmoji() const;
+	[[nodiscard]] rpl::producer<bool> largeEmojiChanges() const;
+	void setReplaceEmoji(bool value);
+	[[nodiscard]] bool replaceEmoji() const;
+	[[nodiscard]] rpl::producer<bool> replaceEmojiValue() const;
+	[[nodiscard]] rpl::producer<bool> replaceEmojiChanges() const;
+	[[nodiscard]] bool suggestEmoji() const {
+		return _variables.suggestEmoji;
+	}
+	void setSuggestEmoji(bool value) {
+		_variables.suggestEmoji = value;
+	}
+	[[nodiscard]] bool suggestStickersByEmoji() const {
+		return _variables.suggestStickersByEmoji;
+	}
+	void setSuggestStickersByEmoji(bool value) {
+		_variables.suggestStickersByEmoji = value;
 	}
 
 private:
@@ -283,6 +302,10 @@ private:
 		rpl::variable<bool> skipArchiveInSearch = false;
 		bool autoplayGifs = true;
 		bool loopAnimatedStickers = true;
+		rpl::variable<bool> largeEmoji = true;
+		rpl::variable<bool> replaceEmoji = true;
+		bool suggestEmoji = true;
+		bool suggestStickersByEmoji = true;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;

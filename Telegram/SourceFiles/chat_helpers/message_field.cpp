@@ -63,6 +63,7 @@ class EditLinkBox : public BoxContent {
 public:
 	EditLinkBox(
 		QWidget*,
+		not_null<Main::Session*> session,
 		const QString &text,
 		const QString &link,
 		Fn<void(QString, QString)> callback);
@@ -73,6 +74,7 @@ protected:
 	void prepare() override;
 
 private:
+	const not_null<Main::Session*> _session;
 	QString _startText;
 	QString _startLink;
 	Fn<void(QString, QString)> _callback;
@@ -92,10 +94,12 @@ private:
 
 EditLinkBox::EditLinkBox(
 	QWidget*,
+	not_null<Main::Session*> session,
 	const QString &text,
 	const QString &link,
 	Fn<void(QString, QString)> callback)
-: _startText(text)
+: _session(session)
+, _startText(text)
 , _startLink(link)
 , _callback(std::move(callback)) {
 	Expects(_callback != nullptr);
@@ -118,10 +122,12 @@ void EditLinkBox::prepare() {
 			_startText),
 		st::markdownLinkFieldPadding);
 	text->setInstantReplaces(Ui::InstantReplaces::Default());
-	text->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	text->setInstantReplacesEnabled(
+		_session->settings().replaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
-		text);
+		text,
+		_session);
 
 	const auto url = content->add(
 		object_ptr<Ui::InputField>(
@@ -340,6 +346,7 @@ Fn<bool(
 	QString text,
 	QString link,
 	EditLinkAction action)> DefaultEditLinkCallback(
+		not_null<Main::Session*> session,
 		not_null<Ui::InputField*> field) {
 	const auto weak = make_weak(field);
 	return [=](
@@ -351,7 +358,7 @@ Fn<bool(
 			return Ui::InputField::IsValidMarkdownLink(link)
 				&& !IsMentionLink(link);
 		}
-		Ui::show(Box<EditLinkBox>(text, link, [=](
+		Ui::show(Box<EditLinkBox>(session, text, link, [=](
 				const QString &text,
 				const QString &link) {
 			if (const auto strong = weak.data()) {
@@ -375,9 +382,11 @@ void InitMessageField(
 
 	field->customTab(true);
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
-	field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	field->setInstantReplacesEnabled(
+		controller->session().settings().replaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
-	field->setEditLinkCallback(DefaultEditLinkCallback(field));
+	field->setEditLinkCallback(
+		DefaultEditLinkCallback(&controller->session(), field));
 }
 
 bool HasSendText(not_null<const Ui::InputField*> field) {

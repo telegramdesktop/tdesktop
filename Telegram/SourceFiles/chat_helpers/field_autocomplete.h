@@ -21,6 +21,10 @@ class SinglePlayer;
 class FrameRenderer;
 } // namespace Lottie;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace internal {
 
 struct StickerSuggestion {
@@ -41,7 +45,7 @@ class FieldAutocomplete final : public Ui::RpWidget {
 	Q_OBJECT
 
 public:
-	FieldAutocomplete(QWidget *parent);
+	FieldAutocomplete(QWidget *parent, not_null<Main::Session*> session);
 	~FieldAutocomplete();
 
 	bool clearFilteredBotCommands();
@@ -104,6 +108,7 @@ private:
 	void recount(bool resetScroll = false);
 	internal::StickerRows getStickerSuggestions();
 
+	const not_null<Main::Session*> _session;
 	QPixmap _cache;
 	internal::MentionRows _mrows;
 	internal::HashtagRows _hrows;

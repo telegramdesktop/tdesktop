@@ -388,8 +388,12 @@ BioManager SetupBio(
 	});
 	QObject::connect(bio, &Ui::InputField::changed, updated);
 	bio->setInstantReplaces(Ui::InstantReplaces::Default());
-	bio->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
-	Ui::Emoji::SuggestionsController::Init(container->window(), bio);
+	bio->setInstantReplacesEnabled(
+		self->session().settings().replaceEmojiValue());
+	Ui::Emoji::SuggestionsController::Init(
+		container->window(),
+		bio,
+		&self->session());
 	updated();
 
 	container->add(

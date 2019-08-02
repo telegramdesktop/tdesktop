@@ -411,10 +411,6 @@ struct Data {
 	QByteArray DownloadPathBookmark;
 	base::Observable<void> DownloadPathChanged;
 
-	bool ReplaceEmoji = true;
-	bool SuggestEmoji = true;
-	bool SuggestStickersByEmoji = true;
-	base::Observable<void> ReplaceEmojiChanged;
 	bool VoiceMsgPlaybackDoubled = false;
 	bool SoundNotify = true;
 	bool DesktopNotify = true;
@@ -544,10 +540,6 @@ DefineVar(Global, QString, DownloadPath);
 DefineVar(Global, QByteArray, DownloadPathBookmark);
 DefineRefVar(Global, base::Observable<void>, DownloadPathChanged);
 
-DefineVar(Global, bool, ReplaceEmoji);
-DefineVar(Global, bool, SuggestEmoji);
-DefineVar(Global, bool, SuggestStickersByEmoji);
-DefineRefVar(Global, base::Observable<void>, ReplaceEmojiChanged);
 DefineVar(Global, bool, VoiceMsgPlaybackDoubled);
 DefineVar(Global, bool, SoundNotify);
 DefineVar(Global, bool, DesktopNotify);
@@ -579,15 +571,5 @@ DefineVar(Global, QString, CallInputDeviceID);
 DefineVar(Global, int, CallOutputVolume);
 DefineVar(Global, int, CallInputVolume);
 DefineVar(Global, bool, CallAudioDuckingEnabled);
-
-rpl::producer<bool> ReplaceEmojiValue() {
-	return rpl::single(
-		Global::ReplaceEmoji()
-	) | rpl::then(base::ObservableViewer(
-		Global::RefReplaceEmojiChanged()
-	) | rpl::map([] {
-		return Global::ReplaceEmoji();
-	}));
-}
 
 } // namespace Global

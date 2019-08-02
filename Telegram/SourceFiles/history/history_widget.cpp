@@ -258,7 +258,7 @@ HistoryWidget::HistoryWidget(
 , _scroll(this, st::historyScroll, false)
 , _historyDown(_scroll, st::historyToDown)
 , _unreadMentions(_scroll, st::historyUnreadMentions)
-, _fieldAutocomplete(this)
+, _fieldAutocomplete(this, &session())
 , _supportAutocomplete(session().supportMode()
 	? object_ptr<Support::Autocomplete>(this, &session())
 	: nullptr)
@@ -407,7 +407,8 @@ HistoryWidget::HistoryWidget(
 
 	const auto suggestions = Ui::Emoji::SuggestionsController::Init(
 		this,
-		_field);
+		_field,
+		&controller->session());
 	_raiseEmojiSuggestions = [=] { suggestions->raise(); };
 	updateFieldSubmitSettings();
 

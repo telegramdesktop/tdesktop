@@ -25,8 +25,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "styles/style_chat_helpers.h"
 
-FieldAutocomplete::FieldAutocomplete(QWidget *parent)
+FieldAutocomplete::FieldAutocomplete(
+	QWidget *parent,
+	not_null<Main::Session*> session)
 : RpWidget(parent)
+, _session(session)
 , _scroll(this, st::mentionScroll) {
 	_scroll->setGeometry(rect());
 
@@ -160,6 +163,7 @@ inline int indexOfInFirstN(const T &v, const U &elem, int last) {
 
 internal::StickerRows FieldAutocomplete::getStickerSuggestions() {
 	const auto list = Stickers::GetListByEmoji(
+		_session,
 		_emoji,
 		_stickersSeed
 	);

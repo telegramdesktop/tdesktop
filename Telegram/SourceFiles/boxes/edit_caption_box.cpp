@@ -254,9 +254,11 @@ EditCaptionBox::EditCaptionBox(
 	_field->setMaxLength(Global::CaptionLengthMax());
 	_field->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
-	_field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	_field->setInstantReplacesEnabled(
+		_controller->session().settings().replaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
-	_field->setEditLinkCallback(DefaultEditLinkCallback(_field));
+	_field->setEditLinkCallback(
+		DefaultEditLinkCallback(&_controller->session(), _field));
 
 	auto r = object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 		this,
@@ -627,7 +629,8 @@ void EditCaptionBox::prepare() {
 	});
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
-		_field);
+		_field,
+		&_controller->session());
 
 	setupEmojiPanel();
 

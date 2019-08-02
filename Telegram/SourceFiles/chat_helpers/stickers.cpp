@@ -708,6 +708,7 @@ void GifsReceived(const QVector<MTPDocument> &items, int32 hash) {
 }
 
 std::vector<not_null<DocumentData*>> GetListByEmoji(
+		not_null<Main::Session*> session,
 		not_null<EmojiPtr> emoji,
 		uint64 seed) {
 	const auto original = emoji->original();
@@ -717,7 +718,7 @@ std::vector<not_null<DocumentData*>> GetListByEmoji(
 		TimeId date = 0;
 	};
 	auto result = std::vector<StickerWithDate>();
-	auto &sets = Auth().data().stickerSetsRef();
+	auto &sets = session->data().stickerSetsRef();
 	auto setsToRequest = base::flat_map<uint64, uint64>();
 
 	const auto add = [&](not_null<DocumentData*> document, TimeId date) {
@@ -831,21 +832,21 @@ std::vector<not_null<DocumentData*>> GetListByEmoji(
 	};
 
 	addList(
-		Auth().data().stickerSetsOrder(),
+		session->data().stickerSetsOrder(),
 		MTPDstickerSet::Flag::f_archived);
 	//addList(
-	//	Auth().data().featuredStickerSetsOrder(),
+	//	session->data().featuredStickerSetsOrder(),
 	//	MTPDstickerSet::Flag::f_installed_date);
 
 	if (!setsToRequest.empty()) {
 		for (const auto &[setId, accessHash] : setsToRequest) {
-			Auth().api().scheduleStickerSetRequest(setId, accessHash);
+			session->api().scheduleStickerSetRequest(setId, accessHash);
 		}
-		Auth().api().requestStickerSets();
+		session->api().requestStickerSets();
 	}
 
-	if (Global::SuggestStickersByEmoji()) {
-		const auto others = Auth().api().stickersByEmoji(original);
+	if (session->settings().suggestStickersByEmoji()) {
+		const auto others = session->api().stickersByEmoji(original);
 		if (!others) {
 			return {};
 		}

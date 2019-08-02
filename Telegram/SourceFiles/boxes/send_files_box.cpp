@@ -1652,12 +1652,15 @@ void SendFilesBox::setupCaption() {
 		Unexpected("action in MimeData hook.");
 	});
 	_caption->setInstantReplaces(Ui::InstantReplaces::Default());
-	_caption->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	_caption->setInstantReplacesEnabled(
+		_controller->session().settings().replaceEmojiValue());
 	_caption->setMarkdownReplacesEnabled(rpl::single(true));
-	_caption->setEditLinkCallback(DefaultEditLinkCallback(_caption));
+	_caption->setEditLinkCallback(
+		DefaultEditLinkCallback(&_controller->session(), _caption));
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
-		_caption);
+		_caption,
+		&_controller->session());
 
 	updateCaptionPlaceholder();
 	setupEmojiPanel();

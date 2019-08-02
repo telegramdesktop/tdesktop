@@ -464,10 +464,11 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 	result->entity()->setMaxLength(kMaxGroupChannelTitle);
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
 	result->entity()->setInstantReplacesEnabled(
-		Global::ReplaceEmojiValue());
+		_peer->session().settings().replaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(
 		_wrap->window(),
-		result->entity());
+		result->entity(),
+		&_peer->session());
 
 	QObject::connect(
 		result->entity(),
@@ -497,10 +498,11 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 	result->entity()->setMaxLength(kMaxChannelDescription);
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
 	result->entity()->setInstantReplacesEnabled(
-		Global::ReplaceEmojiValue());
+		_peer->session().settings().replaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(
 		_wrap->window(),
-		result->entity());
+		result->entity(),
+		&_peer->session());
 
 	QObject::connect(
 		result->entity(),

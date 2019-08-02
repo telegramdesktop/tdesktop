@@ -167,7 +167,16 @@ protected:
 
 class Notification : public Widget {
 public:
-	Notification(Manager *manager, History *history, PeerData *peer, PeerData *author, HistoryItem *item, int forwardedCount, QPoint startPosition, int shift, Direction shiftDirection);
+	Notification(
+		Manager *manager,
+		History *history,
+		PeerData *peer,
+		PeerData *author,
+		HistoryItem *item,
+		int forwardedCount,
+		QPoint startPosition,
+		int shift,
+		Direction shiftDirection);
 
 	void startHiding();
 	void stopHiding();

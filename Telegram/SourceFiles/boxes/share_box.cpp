@@ -199,9 +199,11 @@ void ShareBox::prepareCommentField() {
 	});
 
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
-	field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	field->setInstantReplacesEnabled(
+		_navigation->session().settings().replaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
-	field->setEditLinkCallback(DefaultEditLinkCallback(field));
+	field->setEditLinkCallback(
+		DefaultEditLinkCallback(&_navigation->session(), field));
 
 	Ui::SendPendingMoveResizeEvents(_comment);
 }
@@ -266,7 +268,8 @@ void ShareBox::prepare() {
 
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
-		_comment->entity());
+		_comment->entity(),
+		&_navigation->session());
 
 	_select->raise();
 }

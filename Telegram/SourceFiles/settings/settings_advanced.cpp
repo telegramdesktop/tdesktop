@@ -441,20 +441,6 @@ void SetupPerformance(
 		}
 		session->saveSettingsDelayed();
 	}, container->lifetime());
-
-	AddButton(
-		container,
-		tr::lng_settings_loop_stickers(),
-		st::settingsButton
-	)->toggleOn(
-		rpl::single(session->settings().loopAnimatedStickers())
-	)->toggledValue(
-	) | rpl::filter([=](bool enabled) {
-		return enabled != session->settings().loopAnimatedStickers();
-	}) | rpl::start_with_next([=](bool enabled) {
-		session->settings().setLoopAnimatedStickers(enabled);
-		session->saveSettingsDelayed();
-	}, container->lifetime());
 }
 
 void SetupSystemIntegration(

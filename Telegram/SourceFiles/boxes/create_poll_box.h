@@ -9,15 +9,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
+struct PollData;
+
 namespace Ui {
 class VerticalLayout;
 } // namespace Ui
 
-struct PollData;
+namespace Main {
+class Session;
+} // namespace Main
 
 class CreatePollBox : public BoxContent {
 public:
-	CreatePollBox(QWidget*);
+	CreatePollBox(QWidget*, not_null<Main::Session*> session);
 
 	rpl::producer<PollData> submitRequests() const;
 	void submitFailed(const QString &error);
@@ -32,6 +36,7 @@ private:
 	not_null<Ui::InputField*> setupQuestion(
 		not_null<Ui::VerticalLayout*> container);
 
+	const not_null<Main::Session*> _session;
 	Fn<void()> _setInnerFocus;
 	Fn<rpl::producer<bool>()> _dataIsValidValue;
 	rpl::event_stream<PollData> _submitRequests;

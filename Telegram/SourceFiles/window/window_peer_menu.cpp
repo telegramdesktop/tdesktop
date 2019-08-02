@@ -698,7 +698,7 @@ void PeerMenuShareContactBox(
 }
 
 void PeerMenuCreatePoll(not_null<PeerData*> peer) {
-	const auto box = Ui::show(Box<CreatePollBox>());
+	const auto box = Ui::show(Box<CreatePollBox>(&peer->session()));
 	const auto lock = box->lifetime().make_state<bool>(false);
 	box->submitRequests(
 	) | rpl::start_with_next([=](const PollData &result) {

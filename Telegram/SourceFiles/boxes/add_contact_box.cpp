@@ -419,10 +419,12 @@ void GroupInfoBox::prepare() {
 		_initialTitle);
 	_title->setMaxLength(kMaxGroupChannelTitle);
 	_title->setInstantReplaces(Ui::InstantReplaces::Default());
-	_title->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	_title->setInstantReplacesEnabled(
+		_navigation->session().settings().replaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
-		_title);
+		_title,
+		&_navigation->session());
 
 	if (_type != Type::Group) {
 		_description.create(
@@ -434,7 +436,7 @@ void GroupInfoBox::prepare() {
 		_description->setMaxLength(kMaxChannelDescription);
 		_description->setInstantReplaces(Ui::InstantReplaces::Default());
 		_description->setInstantReplacesEnabled(
-			Global::ReplaceEmojiValue());
+			_navigation->session().settings().replaceEmojiValue());
 
 		connect(_description, &Ui::InputField::resized, [=] { descriptionResized(); });
 		connect(_description, &Ui::InputField::submitted, [=] { submit(); });
@@ -442,7 +444,8 @@ void GroupInfoBox::prepare() {
 
 		Ui::Emoji::SuggestionsController::Init(
 			getDelegate()->outerContainer(),
-			_description);
+			_description,
+			&_navigation->session());
 	}
 
 	connect(_title, &Ui::InputField::submitted, [=] { submitName(); });

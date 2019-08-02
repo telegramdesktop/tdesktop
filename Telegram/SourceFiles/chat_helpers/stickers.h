@@ -111,6 +111,7 @@ void FeaturedSetsReceived(
 void GifsReceived(const QVector<MTPDocument> &items, int32 hash);
 
 std::vector<not_null<DocumentData*>> GetListByEmoji(
+	not_null<Main::Session*> session,
 	not_null<EmojiPtr> emoji,
 	uint64 seed);
 std::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(

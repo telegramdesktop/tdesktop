@@ -325,6 +325,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_replace_emojis" = "Replace emoji";
 "lng_settings_suggest_emoji" = "Suggest emoji replacements";
 "lng_settings_suggest_by_emoji" = "Suggest popular stickers by emoji";
+"lng_settings_loop_stickers" = "Loop animated stickers";
+"lng_settings_large_emoji" = "Large emoji";
 "lng_settings_view_emojis" = "View list";
 "lng_settings_send_enter" = "Send by Enter";
 "lng_settings_send_ctrlenter" = "Send by Ctrl+Enter";
@@ -395,7 +397,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_performance" = "Performance";
 "lng_settings_enable_animations" = "Enable animations";
 "lng_settings_autoplay_gifs" = "Autoplay GIFs";
-"lng_settings_loop_stickers" = "Loop animated stickers";
 
 "lng_backgrounds_header" = "Choose your new chat background";
 "lng_theme_sure_keep" = "Keep this theme?";

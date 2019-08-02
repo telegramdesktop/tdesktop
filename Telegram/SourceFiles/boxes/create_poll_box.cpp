@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "main/main_session.h"
 #include "core/event_filter.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "settings/settings_common.h"
@@ -36,7 +37,8 @@ class Options {
 public:
 	Options(
 		not_null<QWidget*> outer,
-		not_null<Ui::VerticalLayout*> container);
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Main::Session*> session);
 
 	[[nodiscard]] bool isValid() const;
 	[[nodiscard]] rpl::producer<bool> isValidChanged() const;
@@ -53,6 +55,7 @@ private:
 		static Option Create(
 			not_null<QWidget*> outer,
 			not_null<Ui::VerticalLayout*> container,
+			not_null<Main::Session*> session,
 			int position);
 
 		void toggleRemoveAlways(bool toggled);
@@ -122,6 +125,7 @@ private:
 
 	not_null<QWidget*> _outer;
 	not_null<Ui::VerticalLayout*> _container;
+	const not_null<Main::Session*> _session;
 	int _position = 0;
 	std::vector<Option> _list;
 	std::set<Option, std::less<>> _destroyed;
@@ -134,12 +138,18 @@ private:
 
 void InitField(
 		not_null<QWidget*> container,
-		not_null<Ui::InputField*> field) {
+		not_null<Ui::InputField*> field,
+		not_null<Main::Session*> session) {
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
-	field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	field->setInstantReplacesEnabled(
+		session->settings().replaceEmojiValue());
 	auto options = Ui::Emoji::SuggestionsController::Options();
 	options.suggestExactFirstWord = false;
-	Ui::Emoji::SuggestionsController::Init(container, field, options);
+	Ui::Emoji::SuggestionsController::Init(
+		container,
+		field,
+		session,
+		options);
 }
 
 not_null<Ui::FlatLabel*> CreateWarningLabel(
@@ -176,6 +186,7 @@ void FocusAtEnd(not_null<Ui::InputField*> field) {
 Options::Option Options::Option::Create(
 		not_null<QWidget*> outer,
 		not_null<Ui::VerticalLayout*> container,
+		not_null<Main::Session*> session,
 		int position) {
 	auto result = Option();
 	const auto field = container->insert(
@@ -187,7 +198,7 @@ Options::Option Options::Option::Create(
 				st::createPollOptionField,
 				Ui::InputField::Mode::NoNewlines,
 				tr::lng_polls_create_option_add())));
-	InitField(outer, field->entity());
+	InitField(outer, field->entity(), session);
 	field->entity()->setMaxLength(kOptionLimit + kErrorLimit);
 	result._field.reset(field);
 
@@ -341,9 +352,11 @@ rpl::producer<Qt::MouseButton> Options::Option::removeClicks() const {
 
 Options::Options(
 	not_null<QWidget*> outer,
-	not_null<Ui::VerticalLayout*> container)
+	not_null<Ui::VerticalLayout*> container,
+	not_null<Main::Session*> session)
 : _outer(outer)
 , _container(container)
+, _session(session)
 , _position(_container->count()) {
 	checkLastOption();
 }
@@ -488,6 +501,7 @@ void Options::addEmptyOption() {
 	_list.push_back(Option::Create(
 		_outer,
 		_container,
+		_session,
 		_position + _list.size() + _destroyed.size()));
 	const auto field = _list.back().field();
 	QObject::connect(field, &Ui::InputField::submitted, [=] {
@@ -578,7 +592,8 @@ void Options::checkLastOption() {
 
 } // namespace
 
-CreatePollBox::CreatePollBox(QWidget*) {
+CreatePollBox::CreatePollBox(QWidget*, not_null<Main::Session*> session)
+: _session(session) {
 }
 
 rpl::producer<PollData> CreatePollBox::submitRequests() const {
@@ -605,7 +620,7 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 			Ui::InputField::Mode::MultiLine,
 			tr::lng_polls_create_question_placeholder()),
 		st::createPollFieldPadding);
-	InitField(getDelegate()->outerContainer(), question);
+	InitField(getDelegate()->outerContainer(), question, _session);
 	question->setMaxLength(kQuestionLimit + kErrorLimit);
 
 	const auto warning = CreateWarningLabel(
@@ -648,7 +663,8 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	AddSubsectionTitle(container, tr::lng_polls_create_options());
 	const auto options = lifetime().make_state<Options>(
 		getDelegate()->outerContainer(),
-		container);
+		container,
+		_session);
 	auto limit = options->usedCount() | rpl::after_next([=](int count) {
 		setCloseByEscape(!count);
 		setCloseByOutsideClick(!count);
