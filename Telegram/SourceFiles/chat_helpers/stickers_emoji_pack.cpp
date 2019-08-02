@@ -42,7 +42,7 @@ private:
 namespace {
 
 constexpr auto kRefreshTimeout = TimeId(7200);
-constexpr auto kUnloadTimeout = 5 * crl::time(1000);
+constexpr auto kUnloadTimeout = 86400 * crl::time(1000);
 
 [[nodiscard]] QSize CalculateSize(const IsolatedEmoji &emoji) {
 	using namespace rpl::mappers;
