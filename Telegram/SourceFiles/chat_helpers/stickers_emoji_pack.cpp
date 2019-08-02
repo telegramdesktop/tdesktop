@@ -30,6 +30,13 @@ EmojiPack::EmojiPack(not_null<Main::Session*> session) : _session(session) {
 	}) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
 		remove(item);
 	}, _lifetime);
+
+	session->settings().largeEmojiChanges(
+	) | rpl::start_with_next([=] {
+		for (const auto &[emoji, document] : _map) {
+			refreshItems(emoji);
+		}
+	}, _lifetime);
 }
 
 bool EmojiPack::add(not_null<HistoryItem*> item, const QString &text) {
@@ -65,7 +72,7 @@ bool EmojiPack::remove(not_null<const HistoryItem*> item) {
 }
 
 DocumentData *EmojiPack::stickerForEmoji(not_null<HistoryItem*> item) {
-	if (!item->isSingleEmoji()) {
+	if (!item->isSingleEmoji() || !_session->settings().largeEmoji()) {
 		return nullptr;
 	}
 	auto length = 0;
