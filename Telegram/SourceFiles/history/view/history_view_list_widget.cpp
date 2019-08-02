@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
-#include "history/media/history_media.h"
-#include "history/media/history_media_sticker.h"
+#include "history/view/media/history_view_media.h"
+#include "history/view/media/history_view_sticker.h"
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_message.h"
@@ -888,7 +888,7 @@ bool ListWidget::requiredToStartDragging(
 		not_null<Element*> view) const {
 	if (_mouseCursorState == CursorState::Date) {
 		return true;
-	} else if (dynamic_cast<HistorySticker*>(view->media()) != nullptr) {
+	} else if (dynamic_cast<Sticker*>(view->media()) != nullptr) {
 		return true;
 	}
 	return false;

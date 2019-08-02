@@ -22,7 +22,6 @@ class HistoryBlock;
 class HistoryItem;
 class HistoryMessage;
 class HistoryService;
-class HistoryMedia;
 
 namespace Main {
 class Session;

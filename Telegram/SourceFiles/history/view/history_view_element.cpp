@@ -11,9 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
-#include "history/media/history_media.h"
-#include "history/media/history_media_grouped.h"
-#include "history/media/history_media_sticker.h"
+#include "history/view/media/history_view_media.h"
+#include "history/view/media/history_view_media_grouped.h"
+#include "history/view/media/history_view_sticker.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "chat_helpers/stickers_emoji_pack.h"
@@ -224,7 +224,7 @@ QDateTime Element::dateTime() const {
 	return _dateTime;
 }
 
-HistoryMedia *Element::media() const {
+Media *Element::media() const {
 	return _media.get();
 }
 
@@ -331,7 +331,7 @@ void Element::refreshMedia() {
 				_media = nullptr;
 				_flags |= Flag::HiddenByGroup;
 			} else {
-				_media = std::make_unique<HistoryGroupedMedia>(
+				_media = std::make_unique<GroupedMedia>(
 					this,
 					group->items);
 				if (!pendingResize()) {
@@ -345,7 +345,7 @@ void Element::refreshMedia() {
 	if (_data->media()) {
 		_media = _data->media()->createView(this);
 	} else if (const auto document = emojiStickers->stickerForEmoji(_data)) {
-		_media = std::make_unique<HistorySticker>(this, document);
+		_media = std::make_unique<Sticker>(this, document);
 	} else {
 		_media = nullptr;
 	}

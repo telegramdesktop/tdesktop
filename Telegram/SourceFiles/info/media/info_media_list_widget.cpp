@@ -1557,7 +1557,7 @@ bool ListWidget::requiredToStartDragging(
 	if (_mouseCursorState == CursorState::Date) {
 		return true;
 	}
-//	return dynamic_cast<HistorySticker*>(layout->getMedia());
+//	return dynamic_cast<Sticker*>(layout->getMedia());
 	return false;
 }
 
@@ -1948,7 +1948,7 @@ void ListWidget::performDrag() {
 	//	return;
 	//} else {
 	//	auto forwardMimeType = QString();
-	//	auto pressedMedia = static_cast<HistoryMedia*>(nullptr);
+	//	auto pressedMedia = static_cast<HistoryView::Media*>(nullptr);
 	//	if (auto pressedItem = _pressState.layout) {
 	//		pressedMedia = pressedItem->getMedia();
 	//		if (_mouseCursorState == CursorState::Date || (pressedMedia && pressedMedia->dragItem())) {

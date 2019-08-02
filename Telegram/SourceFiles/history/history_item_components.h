@@ -11,11 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/effects/animations.h"
 
-class HistoryDocument;
 struct WebPageData;
 
 namespace HistoryView {
 class Element;
+class Document;
 } // namespace HistoryView
 
 struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryItem> {
@@ -375,7 +375,7 @@ struct HistoryMessageLogEntryOriginal
 };
 
 class FileClickHandler;
-struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed, HistoryDocument> {
+struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed, HistoryView::Document> {
 	std::shared_ptr<FileClickHandler> _linksavel;
 	std::shared_ptr<FileClickHandler> _linkopenwithl;
 	std::shared_ptr<FileClickHandler> _linkcancell;
@@ -385,31 +385,31 @@ struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed, 
 	mutable QString _link;
 };
 
-struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned, HistoryDocument> {
+struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned, HistoryView::Document> {
 	HistoryDocumentCaptioned();
 
 	Ui::Text::String _caption;
 };
 
-struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed, HistoryDocument> {
+struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed, HistoryView::Document> {
 	QString _name;
 	int _namew = 0;
 };
 
 struct HistoryDocumentVoicePlayback {
-	HistoryDocumentVoicePlayback(const HistoryDocument *that);
+	HistoryDocumentVoicePlayback(const HistoryView::Document *that);
 
 	int32 position = 0;
 	anim::value progress;
 	Ui::Animations::Basic progressAnimation;
 };
 
-class HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice, HistoryDocument> {
+class HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice, HistoryView::Document> {
 	// We don't use float64 because components should align to pointer even on 32bit systems.
 	static constexpr float64 kFloatToIntMultiplier = 65536.;
 
 public:
-	void ensurePlayback(const HistoryDocument *interfaces) const;
+	void ensurePlayback(const HistoryView::Document *interfaces) const;
 	void checkPlaybackFinished() const;
 
 	mutable std::unique_ptr<HistoryDocumentVoicePlayback> _playback;

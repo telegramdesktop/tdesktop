@@ -16,7 +16,6 @@ enum class UnreadMentionType;
 struct HistoryMessageReplyMarkup;
 class ReplyKeyboard;
 class HistoryMessage;
-class HistoryMedia;
 
 namespace base {
 template <typename Enum>

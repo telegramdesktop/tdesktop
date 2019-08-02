@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/history_item_components.h"
 #include "history/history_message.h"
-#include "history/media/history_media.h"
-#include "history/media/history_media_web_page.h"
+#include "history/view/media/history_view_media.h"
+#include "history/view/media/history_view_web_page.h"
 #include "history/history.h"
 #include "ui/toast/toast.h"
 #include "data/data_session.h"
@@ -1301,11 +1301,11 @@ void Message::initLogEntryOriginal() {
 	if (const auto log = message()->Get<HistoryMessageLogEntryOriginal>()) {
 		AddComponents(LogEntryOriginal::Bit());
 		const auto entry = Get<LogEntryOriginal>();
-		entry->page = std::make_unique<HistoryWebPage>(this, log->page);
+		entry->page = std::make_unique<WebPage>(this, log->page);
 	}
 }
 
-HistoryWebPage *Message::logEntryOriginal() const {
+WebPage *Message::logEntryOriginal() const {
 	if (const auto entry = Get<LogEntryOriginal>()) {
 		return entry->page.get();
 	}

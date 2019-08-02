@@ -15,8 +15,6 @@ class HistoryBlock;
 class HistoryItem;
 class HistoryMessage;
 class HistoryService;
-class HistoryMedia;
-class HistoryWebPage;
 
 namespace HistoryView {
 
@@ -24,6 +22,7 @@ enum class PointState : char;
 enum class InfoDisplayType : char;
 struct StateRequest;
 struct TextState;
+class Media;
 
 enum class Context : char {
 	History,
@@ -147,7 +146,7 @@ public:
 	not_null<ElementDelegate*> delegate() const;
 	not_null<HistoryItem*> data() const;
 	not_null<History*> history() const;
-	HistoryMedia *media() const;
+	Media *media() const;
 	Context context() const;
 	void refreshDataId();
 
@@ -303,7 +302,7 @@ private:
 
 	const not_null<ElementDelegate*> _delegate;
 	const not_null<HistoryItem*> _data;
-	std::unique_ptr<HistoryMedia> _media;
+	std::unique_ptr<Media> _media;
 	const QDateTime _dateTime;
 
 	int _y = 0;

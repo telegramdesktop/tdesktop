@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_message.h"
 #include "history/view/history_view_service_message.h"
-#include "history/media/history_media_document.h"
+#include "history/view/media/history_view_document.h"
 #include "mainwindow.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
@@ -922,16 +922,16 @@ HistoryDocumentCaptioned::HistoryDocumentCaptioned()
 }
 
 HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(
-	const HistoryDocument *that)
+	const HistoryView::Document *that)
 : progress(0., 0.)
 , progressAnimation([=](crl::time now) {
-	const auto nonconst = const_cast<HistoryDocument*>(that);
+	const auto nonconst = const_cast<HistoryView::Document*>(that);
 	return nonconst->voiceProgressAnimationCallback(now);
 }) {
 }
 
 void HistoryDocumentVoice::ensurePlayback(
-		const HistoryDocument *that) const {
+		const HistoryView::Document *that) const {
 	if (!_playback) {
 		_playback = std::make_unique<HistoryDocumentVoicePlayback>(that);
 	}

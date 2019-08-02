@@ -14,6 +14,8 @@ struct HistoryMessageEdited;
 
 namespace HistoryView {
 
+class WebPage;
+
 // Special type of Component for the channel actions log.
 struct LogEntryOriginal
 	: public RuntimeComponent<LogEntryOriginal, Element> {
@@ -22,7 +24,7 @@ struct LogEntryOriginal
 	LogEntryOriginal &operator=(LogEntryOriginal &&other);
 	~LogEntryOriginal();
 
-	std::unique_ptr<HistoryWebPage> page;
+	std::unique_ptr<WebPage> page;
 
 };
 
@@ -147,7 +149,7 @@ private:
 	int timeLeft() const;
 	int plainMaxWidth() const;
 
-	HistoryWebPage *logEntryOriginal() const;
+	WebPage *logEntryOriginal() const;
 
 	mutable ClickHandlerPtr _rightActionLink;
 	mutable ClickHandlerPtr _fastReplyLink;
