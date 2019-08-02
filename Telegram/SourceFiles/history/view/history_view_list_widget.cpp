@@ -888,8 +888,10 @@ bool ListWidget::requiredToStartDragging(
 		not_null<Element*> view) const {
 	if (_mouseCursorState == CursorState::Date) {
 		return true;
-	} else if (dynamic_cast<Sticker*>(view->media()) != nullptr) {
-		return true;
+	} else if (const auto media = view->media()) {
+		if (media->dragItem()) {
+			return true;
+		}
 	}
 	return false;
 }

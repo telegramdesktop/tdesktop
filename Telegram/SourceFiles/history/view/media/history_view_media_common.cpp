@@ -70,7 +70,9 @@ std::unique_ptr<Media> CreateAttach(
 		return std::make_unique<GroupedMedia>(parent, collage);
 	} else if (document) {
 		if (document->sticker()) {
-			return std::make_unique<Sticker>(parent, document);
+			return std::make_unique<UnwrappedMedia>(
+				parent,
+				std::make_unique<StickerContent>(parent, document));
 		} else if (document->isAnimation()) {
 			return std::make_unique<Gif>(parent, document);
 		} else if (document->isVideoFile()) {

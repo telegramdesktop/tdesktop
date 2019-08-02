@@ -296,6 +296,8 @@
 <(src_loc)/history/view/media/history_view_media_common.cpp
 <(src_loc)/history/view/media/history_view_media_grouped.h
 <(src_loc)/history/view/media/history_view_media_grouped.cpp
+<(src_loc)/history/view/media/history_view_media_unwrapped.h
+<(src_loc)/history/view/media/history_view_media_unwrapped.cpp
 <(src_loc)/history/view/media/history_view_photo.h
 <(src_loc)/history/view/media/history_view_photo.cpp
 <(src_loc)/history/view/media/history_view_poll.h

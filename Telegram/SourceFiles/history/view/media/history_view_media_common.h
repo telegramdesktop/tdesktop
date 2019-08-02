@@ -39,4 +39,14 @@ std::unique_ptr<Media> CreateAttach(
 	const QString &webpageUrl = QString());
 int unitedLineHeight();
 
+[[nodiscard]] inline QSize NonEmptySize(QSize size) {
+	return QSize(std::max(size.width(), 1), std::max(size.height(), 1));
+}
+
+[[nodiscard]] inline QSize DownscaledSize(QSize size, QSize box) {
+	return (size.width() > box.width() || size.height() > box.height())
+		? size.scaled(box, Qt::IgnoreAspectRatio)
+		: size;
+}
+
 } // namespace HistoryView

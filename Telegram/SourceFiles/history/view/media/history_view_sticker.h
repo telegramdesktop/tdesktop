@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/view/media/history_view_media.h"
+#include "history/view/media/history_view_media_unwrapped.h"
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 
-struct HistoryMessageVia;
-struct HistoryMessageReply;
-struct HistoryMessageForwarded;
+namespace Data {
+struct FileOrigin;
+} // namespace Data
 
 namespace Lottie {
 class SinglePlayer;
@@ -21,65 +21,46 @@ class SinglePlayer;
 
 namespace HistoryView {
 
-class Sticker : public Media, public base::has_weak_ptr {
+class StickerContent final
+	: public UnwrappedMedia::Content
+	, public base::has_weak_ptr {
 public:
-	Sticker(
+	StickerContent(
 		not_null<Element*> parent,
 		not_null<DocumentData*> document);
-	~Sticker();
+	~StickerContent();
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
-	TextState textState(QPoint point, StateRequest request) const override;
-
-	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
-		return true;
-	}
-	bool dragItem() const override {
-		return true;
-	}
-	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
-		return true;
+	QSize size() override;
+	void draw(Painter &p, const QRect &r, bool selected) override;
+	ClickHandlerPtr link() override {
+		return _link;
 	}
 
-	DocumentData *getDocument() const override {
-		return _data;
-	}
-
-	bool needsBubble() const override {
-		return false;
-	}
-	bool customInfoLayout() const override {
-		return true;
-	}
-	bool hidesForwardedInfo() const override {
-		return true;
+	DocumentData *document() override {
+		return _document;
 	}
 	void clearStickerLoopPlayed() override {
 		_lottieOncePlayed = false;
 	}
-
 	void unloadHeavyPart() override {
 		unloadLottie();
 	}
+	void refreshLink() override;
 
 private:
 	[[nodiscard]] bool isEmojiSticker() const;
-
-	QSize countOptimalSize() override;
-	QSize countCurrentSize(int newWidth) override;
-
-	bool needInfoDisplay() const;
-	int additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const;
-	int additionalWidth() const;
+	void paintLottie(Painter &p, const QRect &r, bool selected);
+	void paintPixmap(Painter &p, const QRect &r, bool selected);
+	[[nodiscard]] QPixmap paintedPixmap(bool selected) const;
 
 	void setupLottie();
 	void unloadLottie();
 
-	int _pixw = 1;
-	int _pixh = 1;
-	ClickHandlerPtr _packLink;
-	DocumentData *_data = nullptr;
+	const not_null<Element*> _parent;
+	const not_null<DocumentData*> _document;
 	std::unique_ptr<Lottie::SinglePlayer> _lottie;
+	ClickHandlerPtr _link;
+	QSize _size;
 	mutable bool _lottieOncePlayed = false;
 
 	rpl::lifetime _lifetime;

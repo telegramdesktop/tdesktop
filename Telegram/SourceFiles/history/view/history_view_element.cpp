@@ -345,7 +345,9 @@ void Element::refreshMedia() {
 	if (_data->media()) {
 		_media = _data->media()->createView(this);
 	} else if (const auto document = emojiStickers->stickerForEmoji(_data)) {
-		_media = std::make_unique<Sticker>(this, document);
+		_media = std::make_unique<UnwrappedMedia>(
+			this,
+			std::make_unique<StickerContent>(this, document));
 	} else {
 		_media = nullptr;
 	}

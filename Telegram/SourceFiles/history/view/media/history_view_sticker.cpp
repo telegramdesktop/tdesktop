@@ -34,99 +34,155 @@ double GetEmojiStickerZoom(not_null<Main::Session*> session) {
 
 } // namespace
 
-Sticker::Sticker(
+StickerContent::StickerContent(
 	not_null<Element*> parent,
 	not_null<DocumentData*> document)
-: Media(parent)
-, _data(document) {
-	_data->loadThumbnail(parent->data()->fullId());
+: _parent(parent)
+, _document(document) {
+	_document->loadThumbnail(parent->data()->fullId());
 }
 
-Sticker::~Sticker() {
+StickerContent::~StickerContent() {
 	unloadLottie();
 }
 
-bool Sticker::isEmojiSticker() const {
+bool StickerContent::isEmojiSticker() const {
 	return (_parent->data()->media() == nullptr);
 }
 
-QSize Sticker::countOptimalSize() {
-	auto sticker = _data->sticker();
-
-	if (!_packLink) {
-		if (isEmojiSticker()) {
-			const auto weak = base::make_weak(this);
-			_packLink = std::make_shared<LambdaClickHandler>([weak] {
-				const auto that = weak.get();
-				if (!that) {
-					return;
-				}
-				that->_lottieOncePlayed = false;
-				that->_parent->data()->history()->owner().requestViewRepaint(
-					that->_parent);
-			});
-		} else if (sticker && sticker->set.type() != mtpc_inputStickerSetEmpty) {
-			_packLink = std::make_shared<LambdaClickHandler>([document = _data] {
-				StickerSetBox::Show(App::wnd()->sessionController(), document);
-			});
-		}
-	}
-	_pixw = _data->dimensions.width();
-	_pixh = _data->dimensions.height();
+QSize StickerContent::size() {
+	_size = _document->dimensions;
 	if (isEmojiSticker()) {
 		constexpr auto kIdealStickerSize = 512;
-		const auto zoom = GetEmojiStickerZoom(&history()->session());
+		const auto zoom = GetEmojiStickerZoom(&_document->session());
 		const auto convert = [&](int size) {
 			return int(size * st::maxStickerSize * zoom / kIdealStickerSize);
 		};
-		_pixw = convert(_pixw);
-		_pixh = convert(_pixh);
+		_size = QSize(convert(_size.width()), convert(_size.height()));
+	}
+	return _size;
+}
+
+void StickerContent::draw(
+		Painter &p,
+		const QRect &r,
+		bool selected) {
+	const auto sticker = _document->sticker();
+	if (!sticker) {
+		return;
+	}
+
+	_document->checkStickerLarge();
+	const auto loaded = _document->loaded();
+	if (sticker->animated && !_lottie && loaded) {
+		setupLottie();
+	}
+
+	if (_lottie && _lottie->ready()) {
+		paintLottie(p, r, selected);
 	} else {
-		if (_pixw > st::maxStickerSize) {
-			_pixh = (st::maxStickerSize * _pixh) / _pixw;
-			_pixw = st::maxStickerSize;
-		}
-		if (_pixh > st::maxStickerSize) {
-			_pixw = (st::maxStickerSize * _pixw) / _pixh;
-			_pixh = st::maxStickerSize;
-		}
+		paintPixmap(p, r, selected);
 	}
-	if (_pixw < 1) _pixw = 1;
-	if (_pixh < 1) _pixh = 1;
-	auto maxWidth = qMax(_pixw, st::minPhotoSize);
-	auto minHeight = qMax(_pixh, st::minPhotoSize);
-	accumulate_max(
-		maxWidth,
-		_parent->infoWidth() + 2 * st::msgDateImgPadding.x());
-	if (_parent->media() == this) {
-		maxWidth += additionalWidth();
-	}
-	return { maxWidth, minHeight };
 }
 
-QSize Sticker::countCurrentSize(int newWidth) {
-	const auto item = _parent->data();
-	accumulate_min(newWidth, maxWidth());
-	if (_parent->media() == this) {
-		auto via = item->Get<HistoryMessageVia>();
-		auto reply = item->Get<HistoryMessageReply>();
-		if (via || reply) {
-			int usew = maxWidth() - additionalWidth(via, reply);
-			int availw = newWidth - usew - st::msgReplyPadding.left() - st::msgReplyPadding.left() - st::msgReplyPadding.left();
-			if (via) {
-				via->resize(availw);
-			}
-			if (reply) {
-				reply->resize(availw);
-			}
-		}
+void StickerContent::paintLottie(Painter &p, const QRect &r, bool selected) {
+	auto request = Lottie::FrameRequest();
+	request.box = _size * cIntRetinaFactor();
+	if (selected) {
+		request.colored = st::msgStickerOverlay->c;
 	}
-	return { newWidth, minHeight() };
+	const auto frame = _lottie->frameInfo(request);
+	const auto size = frame.image.size() / cIntRetinaFactor();
+	p.drawImage(
+		QRect(
+			QPoint(
+				r.x() + (r.width() - size.width()) / 2,
+				r.y() + (r.height() - size.height()) / 2),
+			size),
+		frame.image);
+
+	const auto paused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
+	const auto playOnce = isEmojiSticker()
+		|| !_document->session().settings().loopAnimatedStickers();
+	if (!paused
+		&& (!playOnce || frame.index != 0 || !_lottieOncePlayed)
+		&& _lottie->markFrameShown()
+		&& playOnce
+		&& !_lottieOncePlayed) {
+		_lottieOncePlayed = true;
+		_parent->delegate()->elementStartStickerLoop(_parent);
+	}
 }
 
-void Sticker::setupLottie() {
+void StickerContent::paintPixmap(Painter &p, const QRect &r, bool selected) {
+	const auto pixmap = paintedPixmap(selected);
+	if (!pixmap.isNull()) {
+		p.drawPixmap(
+			QPoint(
+				r.x() + (r.width() - _size.width()) / 2,
+				r.y() + (r.height() - _size.height()) / 2),
+			pixmap);
+	}
+}
+
+QPixmap StickerContent::paintedPixmap(bool selected) const {
+	const auto o = _parent->data()->fullId();
+	const auto w = _size.width();
+	const auto h = _size.height();
+	const auto &c = st::msgStickerOverlay;
+	const auto good = _document->goodThumbnail();
+	if (good && !good->loaded()) {
+		good->load({});
+	}
+	if (const auto image = _document->getStickerLarge()) {
+		return selected
+			? image->pixColored(o, c, w, h)
+			: image->pix(o, w, h);
+	//
+	// Inline thumbnails can't have alpha channel.
+	//
+	//} else if (const auto blurred = _document->thumbnailInline()) {
+	//	return selected
+	//		? blurred->pixBlurredColored(o, c, w, h)
+	//		: blurred->pixBlurred(o, w, h);
+	} else if (good && good->loaded()) {
+		return selected
+			? good->pixColored(o, c, w, h)
+			: good->pix(o, w, h);
+	} else if (const auto thumbnail = _document->thumbnail()) {
+		return selected
+			? thumbnail->pixBlurredColored(o, c, w, h)
+			: thumbnail->pixBlurred(o, w, h);
+	}
+	return QPixmap();
+}
+
+void StickerContent::refreshLink() {
+	if (_link) {
+		return;
+	}
+	const auto sticker = _document->sticker();
+	if (isEmojiSticker()) {
+		const auto weak = base::make_weak(this);
+		_link = std::make_shared<LambdaClickHandler>([weak] {
+			const auto that = weak.get();
+			if (!that) {
+				return;
+			}
+			that->_lottieOncePlayed = false;
+			that->_parent->data()->history()->owner().requestViewRepaint(
+				that->_parent);
+		});
+	} else if (sticker && sticker->set.type() != mtpc_inputStickerSetEmpty) {
+		_link = std::make_shared<LambdaClickHandler>([document = _document] {
+			StickerSetBox::Show(App::wnd()->sessionController(), document);
+		});
+	}
+}
+
+void StickerContent::setupLottie() {
 	_lottie = Stickers::LottiePlayerFromDocument(
-		_data,
+		_document,
 		Stickers::LottieSize::MessageHistory,
 		QSize(st::maxStickerSize, st::maxStickerSize) * cIntRetinaFactor(),
 		Lottie::Quality::High);
@@ -142,255 +198,12 @@ void Sticker::setupLottie() {
 	}, _lifetime);
 }
 
-void Sticker::unloadLottie() {
+void StickerContent::unloadLottie() {
 	if (!_lottie) {
 		return;
 	}
 	_lottie = nullptr;
 	_parent->data()->history()->owner().unregisterHeavyViewPart(_parent);
-}
-
-void Sticker::draw(
-		Painter &p,
-		const QRect &r,
-		TextSelection selection,
-		crl::time ms) const {
-	auto sticker = _data->sticker();
-	if (!sticker) return;
-
-	if (sticker->animated && !_lottie && _data->loaded()) {
-		const_cast<Sticker*>(this)->setupLottie();
-	}
-
-	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
-
-	_data->checkStickerLarge();
-	bool loaded = _data->loaded();
-	bool selected = (selection == FullSelection);
-
-	auto outbg = _parent->hasOutLayout();
-	auto inWebPage = (_parent->media() != this);
-
-	const auto item = _parent->data();
-	int usew = maxWidth(), usex = 0;
-	auto via = inWebPage ? nullptr : item->Get<HistoryMessageVia>();
-	auto reply = inWebPage ? nullptr : item->Get<HistoryMessageReply>();
-	if (via || reply) {
-		usew -= additionalWidth(via, reply);
-		if (outbg) {
-			usex = width() - usew;
-		}
-	}
-	if (rtl()) usex = width() - usex - usew;
-
-	const auto lottieReady = (_lottie && _lottie->ready());
-	const auto &pixmap = [&]() -> const QPixmap & {
-		const auto o = item->fullId();
-		const auto w = _pixw;
-		const auto h = _pixh;
-		const auto &c = st::msgStickerOverlay;
-		const auto good = _data->goodThumbnail();
-		if (!lottieReady && good && !good->loaded()) {
-			good->load({});
-		}
-		static QPixmap empty;
-		if (lottieReady) {
-			return empty;
-		} else if (const auto image = _data->getStickerLarge()) {
-			return selected
-				? image->pixColored(o, c, w, h)
-				: image->pix(o, w, h);
-		//
-		// Inline thumbnails can't have alpha channel.
-		//
-		//} else if (const auto blurred = _data->thumbnailInline()) {
-		//	return selected
-		//		? blurred->pixBlurredColored(o, c, w, h)
-		//		: blurred->pixBlurred(o, w, h);
-		} else if (good && good->loaded()) {
-			return selected
-				? good->pixColored(o, c, w, h)
-				: good->pix(o, w, h);
-		} else if (const auto thumbnail = _data->thumbnail()) {
-			return selected
-				? thumbnail->pixBlurredColored(o, c, w, h)
-				: thumbnail->pixBlurred(o, w, h);
-		} else {
-			return empty;
-		}
-	}();
-	if (!pixmap.isNull()) {
-		p.drawPixmap(
-			QPoint{ usex + (usew - _pixw) / 2, (minHeight() - _pixh) / 2 },
-			pixmap);
-	} else if (lottieReady) {
-		auto request = Lottie::FrameRequest();
-		request.box = QSize(_pixw, _pixh) * cIntRetinaFactor();
-		if (selected) {
-			request.colored = st::msgStickerOverlay->c;
-		}
-		const auto frame = _lottie->frameInfo(request);
-		const auto size = frame.image.size() / cIntRetinaFactor();
-		p.drawImage(
-			QRect(
-				QPoint(
-					usex + (usew - size.width()) / 2,
-					(minHeight() - size.height()) / 2),
-				size),
-			frame.image);
-
-		const auto paused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
-		const auto playOnce = isEmojiSticker()
-			|| !_data->session().settings().loopAnimatedStickers();
-		if (!paused
-			&& (!playOnce || frame.index != 0 || !_lottieOncePlayed)
-			&& _lottie->markFrameShown()
-			&& playOnce
-			&& !_lottieOncePlayed) {
-			_lottieOncePlayed = true;
-			_parent->delegate()->elementStartStickerLoop(_parent);
-		}
-	}
-	if (!inWebPage) {
-		auto fullRight = usex + usew;
-		auto fullBottom = height();
-		if (needInfoDisplay()) {
-			_parent->drawInfo(p, fullRight, fullBottom, usex * 2 + usew, selected, InfoDisplayType::Background);
-		}
-		if (via || reply) {
-			int rectw = width() - usew - st::msgReplyPadding.left();
-			int recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
-			if (via) {
-				recth += st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
-			}
-			if (reply) {
-				recth += st::msgReplyBarSize.height();
-			}
-			int rectx = outbg ? 0 : (usew + st::msgReplyPadding.left());
-			int recty = st::msgDateImgDelta;
-			if (rtl()) rectx = width() - rectx - rectw;
-
-			App::roundRect(p, rectx, recty, rectw, recth, selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? StickerSelectedCorners : StickerCorners);
-			p.setPen(st::msgServiceFg);
-			rectx += st::msgReplyPadding.left();
-			rectw -= st::msgReplyPadding.left() + st::msgReplyPadding.right();
-			if (via) {
-				p.setFont(st::msgDateFont);
-				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->text);
-				int skip = st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
-				recty += skip;
-			}
-			if (reply) {
-				HistoryMessageReply::PaintFlags flags = 0;
-				if (selected) {
-					flags |= HistoryMessageReply::PaintFlag::Selected;
-				}
-				reply->paint(p, _parent, rectx, recty, rectw, flags);
-			}
-		}
-		if (_parent->displayRightAction()) {
-			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
-			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
-			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * usex + usew);
-		}
-	}
-}
-
-TextState Sticker::textState(QPoint point, StateRequest request) const {
-	auto result = TextState(_parent);
-	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
-		return result;
-	}
-
-	auto outbg = _parent->hasOutLayout();
-	auto inWebPage = (_parent->media() != this);
-
-	const auto item = _parent->data();
-	int usew = maxWidth(), usex = 0;
-	auto via = inWebPage ? nullptr : item->Get<HistoryMessageVia>();
-	auto reply = inWebPage ? nullptr : item->Get<HistoryMessageReply>();
-	if (via || reply) {
-		usew -= additionalWidth(via, reply);
-		if (outbg) {
-			usex = width() - usew;
-		}
-	}
-	if (rtl()) usex = width() - usex - usew;
-
-	if (via || reply) {
-		int rectw = width() - usew - st::msgReplyPadding.left();
-		int recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
-		if (via) {
-			recth += st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
-		}
-		if (reply) {
-			recth += st::msgReplyBarSize.height();
-		}
-		int rectx = outbg ? 0 : (usew + st::msgReplyPadding.left());
-		int recty = st::msgDateImgDelta;
-		if (rtl()) rectx = width() - rectx - rectw;
-
-		if (via) {
-			int viah = st::msgReplyPadding.top() + st::msgServiceNameFont->height + (reply ? 0 : st::msgReplyPadding.bottom());
-			if (QRect(rectx, recty, rectw, viah).contains(point)) {
-				result.link = via->link;
-				return result;
-			}
-			int skip = st::msgServiceNameFont->height + (reply ? 2 * st::msgReplyPadding.top() : 0);
-			recty += skip;
-			recth -= skip;
-		}
-		if (reply) {
-			if (QRect(rectx, recty, rectw, recth).contains(point)) {
-				result.link = reply->replyToLink();
-				return result;
-			}
-		}
-	}
-	if (_parent->media() == this) {
-		auto fullRight = usex + usew;
-		auto fullBottom = height();
-		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayType::Image)) {
-			result.cursor = CursorState::Date;
-		}
-		if (_parent->displayRightAction()) {
-			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
-			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
-			if (QRect(fastShareLeft, fastShareTop, st::historyFastShareSize, st::historyFastShareSize).contains(point)) {
-				result.link = _parent->rightActionLink();
-			}
-		}
-	}
-
-	auto pixLeft = usex + (usew - _pixw) / 2;
-	auto pixTop = (minHeight() - _pixh) / 2;
-	if (QRect(pixLeft, pixTop, _pixw, _pixh).contains(point)) {
-		result.link = _packLink;
-		return result;
-	}
-	return result;
-}
-
-bool Sticker::needInfoDisplay() const {
-	return (_parent->data()->id < 0 || _parent->isUnderCursor());
-}
-
-int Sticker::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const {
-	int result = 0;
-	if (via) {
-		accumulate_max(result, st::msgReplyPadding.left() + st::msgReplyPadding.left() + via->maxWidth + st::msgReplyPadding.left());
-	}
-	if (reply) {
-		accumulate_max(result, st::msgReplyPadding.left() + reply->replyToWidth());
-	}
-	return result;
-}
-
-int Sticker::additionalWidth() const {
-	const auto item = _parent->data();
-	return additionalWidth(
-		item->Get<HistoryMessageVia>(),
-		item->Get<HistoryMessageReply>());
 }
 
 } // namespace HistoryView
