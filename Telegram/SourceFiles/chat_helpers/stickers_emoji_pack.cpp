@@ -263,6 +263,7 @@ QImage EmojiImageLoader::prepare(const IsolatedEmoji &emoji) {
 	auto result = QImage(
 		CalculateSize(emoji),
 		QImage::Format_ARGB32_Premultiplied);
+	const auto factor = cIntRetinaFactor();
 	result.fill(Qt::transparent);
 	{
 		QPainter p(&result);
@@ -275,9 +276,9 @@ QImage EmojiImageLoader::prepare(const IsolatedEmoji &emoji) {
 			_images->draw(
 				p,
 				single,
-				st::largeEmojiSize * cIntRetinaFactor(),
-				x,
-				y);
+				st::largeEmojiSize * factor,
+				x * factor,
+				y * factor);
 			x += st::largeEmojiSize + st::largeEmojiSkip;
 		}
 	}

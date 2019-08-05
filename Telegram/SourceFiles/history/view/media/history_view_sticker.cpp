@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/media/history_view_media_common.h"
 #include "ui/image/image.h"
 #include "ui/emoji_config.h"
 #include "main/main_session.h"
@@ -59,6 +60,10 @@ QSize Sticker::size() {
 			return int(size * st::maxStickerSize * zoom / kIdealStickerSize);
 		};
 		_size = QSize(convert(_size.width()), convert(_size.height()));
+	} else {
+		_size = DownscaledSize(
+			_size,
+			{ st::maxStickerSize, st::maxStickerSize });
 	}
 	return _size;
 }
