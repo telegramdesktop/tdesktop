@@ -249,6 +249,7 @@ public:
 	}
 	void setLargeEmoji(bool value);
 	[[nodiscard]] bool largeEmoji() const;
+	[[nodiscard]] rpl::producer<bool> largeEmojiValue() const;
 	[[nodiscard]] rpl::producer<bool> largeEmojiChanges() const;
 	void setReplaceEmoji(bool value);
 	[[nodiscard]] bool replaceEmoji() const;

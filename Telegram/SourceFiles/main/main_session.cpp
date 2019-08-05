@@ -481,6 +481,10 @@ bool Settings::largeEmoji() const {
 	return _variables.largeEmoji.current();
 }
 
+rpl::producer<bool> Settings::largeEmojiValue() const {
+	return _variables.largeEmoji.value();
+}
+
 rpl::producer<bool> Settings::largeEmojiChanges() const {
 	return _variables.largeEmoji.changes();
 }

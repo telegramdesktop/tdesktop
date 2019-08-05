@@ -15,34 +15,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
-#include "base/concurrent_timer.h"
 #include "apiwrap.h"
 #include "styles/style_history.h"
 
 namespace Stickers {
 namespace details {
 
+using UniversalImages = Ui::Emoji::UniversalImages;
+
 class EmojiImageLoader {
 public:
 	EmojiImageLoader(
 		crl::weak_on_queue<EmojiImageLoader> weak,
-		int id);
+		std::shared_ptr<UniversalImages> images,
+		bool largeEnabled);
 
 	[[nodiscard]] QImage prepare(EmojiPtr emoji);
-	void switchTo(int id);
+	void switchTo(std::shared_ptr<UniversalImages> images);
+	std::shared_ptr<UniversalImages> releaseImages();
 
 private:
 	crl::weak_on_queue<EmojiImageLoader> _weak;
-	std::optional<Ui::Emoji::UniversalImages> _images;
-
-	base::ConcurrentTimer _unloadTimer;
+	std::shared_ptr<UniversalImages> _images;
 
 };
 
 namespace {
 
 constexpr auto kRefreshTimeout = TimeId(7200);
-constexpr auto kUnloadTimeout = 86400 * crl::time(1000);
+constexpr auto kClearSourceTimeout = 10 * crl::time(1000);
 
 [[nodiscard]] QSize SingleSize() {
 	const auto single = st::largeEmojiSize;
@@ -245,15 +246,18 @@ QByteArray ImageSource::bytesForCache() {
 
 EmojiImageLoader::EmojiImageLoader(
 	crl::weak_on_queue<EmojiImageLoader> weak,
-	int id)
+	std::shared_ptr<UniversalImages> images,
+	bool largeEnabled)
 : _weak(std::move(weak))
-, _images(std::in_place, id)
-, _unloadTimer(_weak.runner(), [=] { _images->clear(); }) {
+, _images(std::move(images)) {
+	Expects(_images != nullptr);
+
+	if (largeEnabled) {
+		_images->ensureLoaded();
+	}
 }
 
 QImage EmojiImageLoader::prepare(EmojiPtr emoji) {
-	Expects(_images.has_value());
-
 	_images->ensureLoaded();
 	const auto factor = cIntRetinaFactor();
 	const auto side = st::largeEmojiSize + 2 * st::largeEmojiOutline;
@@ -300,19 +304,25 @@ QImage EmojiImageLoader::prepare(EmojiPtr emoji) {
 			delta,
 			delta);
 	}
-	_unloadTimer.callOnce(kUnloadTimeout);
 	return result;
 }
 
-void EmojiImageLoader::switchTo(int id) {
-	_images.emplace(id);
+void EmojiImageLoader::switchTo(std::shared_ptr<UniversalImages> images) {
+	_images = std::move(images);
+}
+
+std::shared_ptr<UniversalImages> EmojiImageLoader::releaseImages() {
+	return std::exchange(
+		_images,
+		std::make_shared<UniversalImages>(_images->id()));
 }
 
 } // namespace details
 
 EmojiPack::EmojiPack(not_null<Main::Session*> session)
 : _session(session)
-, _imageLoader(Ui::Emoji::CurrentSetId()) {
+, _imageLoader(prepareSourceImages(), session->settings().largeEmoji())
+, _clearTimer([=] { clearSourceImages(); }) {
 	refresh();
 
 	session->data().itemRemoved(
@@ -322,17 +332,23 @@ EmojiPack::EmojiPack(not_null<Main::Session*> session)
 		remove(item);
 	}, _lifetime);
 
-	session->settings().largeEmojiChanges(
-	) | rpl::start_with_next([=] {
+	_session->settings().largeEmojiChanges(
+	) | rpl::start_with_next([=](bool large) {
+		if (large) {
+			_clearTimer.cancel();
+		} else {
+			_clearTimer.callOnce(details::kClearSourceTimeout);
+		}
 		refreshAll();
 	}, _lifetime);
 
 	Ui::Emoji::Updated(
 	) | rpl::start_with_next([=] {
-		const auto id = Ui::Emoji::CurrentSetId();
 		_images.clear();
-		_imageLoader.with([=](details::EmojiImageLoader &loader) {
-			loader.switchTo(id);
+		_imageLoader.with([
+			source = prepareSourceImages()
+		](details::EmojiImageLoader &loader) mutable {
+			loader.switchTo(std::move(source));
 		});
 		refreshAll();
 	}, _lifetime);
@@ -448,6 +464,24 @@ void EmojiPack::refreshItems(
 	for (const auto &item : list) {
 		_session->data().requestItemViewRefresh(item);
 	}
+}
+
+auto EmojiPack::prepareSourceImages()
+-> std::shared_ptr<Ui::Emoji::UniversalImages> {
+	const auto &images = Ui::Emoji::SourceImages();
+	if (_session->settings().largeEmoji()) {
+		return images;
+	}
+	Ui::Emoji::ClearSourceImages(images);
+	return std::make_shared<Ui::Emoji::UniversalImages>(images->id());
+}
+
+void EmojiPack::clearSourceImages() {
+	_imageLoader.with([](details::EmojiImageLoader &loader) {
+		crl::on_main([images = loader.releaseImages()]{
+			Ui::Emoji::ClearSourceImages(images);
+		});
+	});
 }
 
 void EmojiPack::applyPack(

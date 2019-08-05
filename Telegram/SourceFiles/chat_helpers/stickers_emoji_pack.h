@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/text/text_isolated_emoji.h"
+#include "base/timer.h"
 
 #include <crl/crl_object_on_queue.h>
 
@@ -22,6 +23,9 @@ namespace Ui {
 namespace Text {
 class String;
 } // namespace Text
+namespace Emoji {
+class UniversalImages;
+} // namespace Emoji
 } // namespace Ui
 
 namespace Stickers {
@@ -56,6 +60,8 @@ private:
 	void refreshAll();
 	void refreshItems(EmojiPtr emoji);
 	void refreshItems(const base::flat_set<not_null<HistoryItem*>> &list);
+	std::shared_ptr<Ui::Emoji::UniversalImages> prepareSourceImages();
+	void clearSourceImages();
 
 	not_null<Main::Session*> _session;
 	base::flat_map<EmojiPtr, not_null<DocumentData*>> _map;
@@ -66,6 +72,7 @@ private:
 	mtpRequestId _requestId = 0;
 
 	crl::object_on_queue<details::EmojiImageLoader> _imageLoader;
+	base::Timer _clearTimer;
 
 	rpl::lifetime _lifetime;
 

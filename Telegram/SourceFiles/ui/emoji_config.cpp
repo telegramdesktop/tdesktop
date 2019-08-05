@@ -68,6 +68,7 @@ auto SpritesCount = -1;
 auto InstanceNormal = std::unique_ptr<Instance>();
 auto InstanceLarge = std::unique_ptr<Instance>();
 auto Universal = std::shared_ptr<UniversalImages>();
+auto CanClearUniversal = false;
 auto Updates = rpl::event_stream<>();
 auto UpdatesRecent = rpl::event_stream<>();
 
@@ -148,6 +149,7 @@ void SwitchToSetPrepared(int id, std::shared_ptr<UniversalImages> images) {
 		stream << qint32(id);
 	}
 	Universal = std::move(images);
+	CanClearUniversal = false;
 	MainEmojiMap.clear();
 	OtherEmojiMap.clear();
 	Updates.fire({});
@@ -383,7 +385,10 @@ EmojiPtr FindReplacement(const QChar *start, const QChar *end, int *outLength) {
 void ClearUniversalChecked() {
 	Expects(InstanceNormal != nullptr && InstanceLarge != nullptr);
 
-	if (InstanceNormal->cached() && InstanceLarge->cached() && Universal) {
+	if (CanClearUniversal
+		&& Universal
+		&& InstanceNormal->cached()
+		&& InstanceLarge->cached()) {
 		Universal->clear();
 	}
 }
@@ -507,6 +512,7 @@ void Init() {
 	SizeNormal = ConvertScale(18, cScale() * cIntRetinaFactor());
 	SizeLarge = int(ConvertScale(18 * 4 / 3., cScale() * cIntRetinaFactor()));
 	Universal = std::make_shared<UniversalImages>(ReadCurrentSetId());
+	CanClearUniversal = false;
 
 	InstanceNormal = std::make_unique<Instance>(SizeNormal);
 	InstanceLarge = std::make_unique<Instance>(SizeLarge);
@@ -1005,6 +1011,25 @@ void Instance::generateCache() {
 void Instance::pushSprite(QImage &&data) {
 	_sprites.push_back(App::pixmapFromImageInPlace(std::move(data)));
 	_sprites.back().setDevicePixelRatio(cRetinaFactor());
+}
+
+const std::shared_ptr<UniversalImages> &SourceImages() {
+	return Universal;
+}
+
+void ClearSourceImages(const std::shared_ptr<UniversalImages> &images) {
+	if (images == Universal) {
+		CanClearUniversal = true;
+		ClearUniversalChecked();
+	}
+}
+
+void ReplaceSourceImages(std::shared_ptr<UniversalImages> images) {
+	Expects(images != nullptr);
+
+	if (Universal->id() == images->id()) {
+		Universal = std::move(images);
+	}
 }
 
 } // namespace Emoji

@@ -182,10 +182,13 @@ public:
 	QImage generate(int size, int index) const;
 
 private:
-	int _id = 0;
+	const int _id = 0;
 	std::vector<QImage> _sprites;
 
 };
+
+const std::shared_ptr<UniversalImages> &SourceImages();
+void ClearSourceImages(const std::shared_ptr<UniversalImages> &images);
 
 } // namespace Emoji
 } // namespace Ui
