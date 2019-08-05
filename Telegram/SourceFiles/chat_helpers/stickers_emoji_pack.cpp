@@ -28,7 +28,7 @@ public:
 		crl::weak_on_queue<EmojiImageLoader> weak,
 		int id);
 
-	[[nodiscard]] QImage prepare(const IsolatedEmoji &emoji);
+	[[nodiscard]] QImage prepare(EmojiPtr emoji);
 	void switchTo(int id);
 
 private:
@@ -44,16 +44,11 @@ namespace {
 constexpr auto kRefreshTimeout = TimeId(7200);
 constexpr auto kUnloadTimeout = 86400 * crl::time(1000);
 
-[[nodiscard]] QSize CalculateSize(const IsolatedEmoji &emoji) {
-	using namespace rpl::mappers;
-
+[[nodiscard]] QSize SingleSize() {
 	const auto single = st::largeEmojiSize;
-	const auto skip = st::largeEmojiSkip;
 	const auto outline = st::largeEmojiOutline;
-	const auto count = ranges::count_if(emoji.items, _1 != nullptr);
-	const auto items = single * count + skip * (count - 1);
 	return QSize(
-		2 * outline + items,
+		2 * outline + single,
 		2 * outline + single
 	) * cIntRetinaFactor();
 }
@@ -61,7 +56,7 @@ constexpr auto kUnloadTimeout = 86400 * crl::time(1000);
 class ImageSource : public Images::Source {
 public:
 	explicit ImageSource(
-		const IsolatedEmoji &emoji,
+		EmojiPtr emoji,
 		not_null<crl::object_on_queue<EmojiImageLoader>*> loader);
 
 	void load(Data::FileOrigin origin) override;
@@ -100,7 +95,7 @@ private:
 	// While HistoryView::Element-s are almost never destroyed
 	// we make loading of the image lazy.
 	not_null<crl::object_on_queue<EmojiImageLoader>*> _loader;
-	IsolatedEmoji _emoji;
+	EmojiPtr _emoji = nullptr;
 	QImage _data;
 	QByteArray _format;
 	QByteArray _bytes;
@@ -110,11 +105,11 @@ private:
 };
 
 ImageSource::ImageSource(
-	const IsolatedEmoji &emoji,
+	EmojiPtr emoji,
 	not_null<crl::object_on_queue<EmojiImageLoader>*> loader)
 : _loader(loader)
 , _emoji(emoji)
-, _size(CalculateSize(emoji)) {
+, _size(SingleSize()) {
 }
 
 void ImageSource::load(Data::FileOrigin origin) {
@@ -256,31 +251,54 @@ EmojiImageLoader::EmojiImageLoader(
 , _unloadTimer(_weak.runner(), [=] { _images->clear(); }) {
 }
 
-QImage EmojiImageLoader::prepare(const IsolatedEmoji &emoji) {
+QImage EmojiImageLoader::prepare(EmojiPtr emoji) {
 	Expects(_images.has_value());
 
 	_images->ensureLoaded();
-	auto result = QImage(
-		CalculateSize(emoji),
-		QImage::Format_ARGB32_Premultiplied);
 	const auto factor = cIntRetinaFactor();
+	const auto side = st::largeEmojiSize + 2 * st::largeEmojiOutline;
+	auto tinted = QImage(
+		QSize(st::largeEmojiSize, st::largeEmojiSize) * factor,
+		QImage::Format_ARGB32_Premultiplied);
+	tinted.fill(Qt::white);
+	{
+		QPainter p(&tinted);
+		p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+		_images->draw(
+			p,
+			emoji,
+			st::largeEmojiSize * factor,
+			0,
+			0);
+	}
+	auto result = QImage(
+		QSize(side, side) * factor,
+		QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::transparent);
 	{
 		QPainter p(&result);
-		auto x = st::largeEmojiOutline;
-		const auto y = st::largeEmojiOutline;
-		for (const auto &single : emoji.items) {
-			if (!single) {
-				break;
+		const auto delta = st::largeEmojiOutline * factor;
+		const auto shifts = std::array<QPoint, 8>{ {
+			{ -1, -1 },
+			{ 0, -1 },
+			{ 1, -1 },
+			{ -1, 0 },
+			{ 1, 0 },
+			{ -1, 1 },
+			{ 0, 1 },
+			{ 1, 1 },
+		} };
+		for (const auto &shift : shifts) {
+			for (auto i = 0; i != delta; ++i) {
+				p.drawImage(QPoint(delta, delta) + shift * (i + 1), tinted);
 			}
-			_images->draw(
-				p,
-				single,
-				st::largeEmojiSize * factor,
-				x * factor,
-				y * factor);
-			x += st::largeEmojiSize + st::largeEmojiSkip;
 		}
+		_images->draw(
+			p,
+			emoji,
+			st::largeEmojiSize * factor,
+			delta,
+			delta);
 	}
 	_unloadTimer.callOnce(kUnloadTimeout);
 	return result;
@@ -356,7 +374,7 @@ DocumentData *EmojiPack::stickerForEmoji(const IsolatedEmoji &emoji) {
 	return (i != end(_map)) ? i->second.get() : nullptr;
 }
 
-std::shared_ptr<Image> EmojiPack::image(const IsolatedEmoji &emoji) {
+std::shared_ptr<Image> EmojiPack::image(EmojiPtr emoji) {
 	const auto i = _images.emplace(emoji, std::weak_ptr<Image>()).first;
 	if (const auto result = i->second.lock()) {
 		return result;

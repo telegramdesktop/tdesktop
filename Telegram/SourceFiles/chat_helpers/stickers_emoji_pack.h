@@ -40,7 +40,7 @@ public:
 	void remove(not_null<const HistoryItem*> item);
 
 	[[nodiscard]] DocumentData *stickerForEmoji(const IsolatedEmoji &emoji);
-	[[nodiscard]] std::shared_ptr<Image> image(const IsolatedEmoji &emoji);
+	[[nodiscard]] std::shared_ptr<Image> image(EmojiPtr emoji);
 
 private:
 	class ImageLoader;
@@ -62,7 +62,7 @@ private:
 	base::flat_map<
 		IsolatedEmoji,
 		base::flat_set<not_null<HistoryItem*>>> _items;
-	base::flat_map<IsolatedEmoji, std::weak_ptr<Image>> _images;
+	base::flat_map<EmojiPtr, std::weak_ptr<Image>> _images;
 	mtpRequestId _requestId = 0;
 
 	crl::object_on_queue<details::EmojiImageLoader> _imageLoader;

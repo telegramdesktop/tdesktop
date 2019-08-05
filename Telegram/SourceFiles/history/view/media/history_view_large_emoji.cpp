@@ -20,49 +20,70 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-std::shared_ptr<Image> ResolveImage(
-		not_null<Main::Session*> session,
-		const Ui::Text::IsolatedEmoji &emoji) {
-	return session->emojiStickersPack().image(emoji);
+auto ResolveImages(
+	not_null<Main::Session*> session,
+	const Ui::Text::IsolatedEmoji &emoji)
+-> std::array<std::shared_ptr<Image>, Ui::Text::kIsolatedEmojiLimit> {
+	const auto single = [&](EmojiPtr emoji) {
+		return emoji ? session->emojiStickersPack().image(emoji) : nullptr;
+	};
+	return { {
+		single(emoji.items[0]),
+		single(emoji.items[1]),
+		single(emoji.items[2]) } };
+}
+
+auto NonEmpty(const std::array<std::shared_ptr<Image>, Ui::Text::kIsolatedEmojiLimit> &images) {
+	using namespace rpl::mappers;
+
+	return images | ranges::view::filter(_1 != nullptr);
 }
 
 } // namespace
 
 LargeEmoji::LargeEmoji(
 	not_null<Element*> parent,
-	Ui::Text::IsolatedEmoji emoji)
+	const Ui::Text::IsolatedEmoji &emoji)
 : _parent(parent)
-, _emoji(emoji)
-, _image(ResolveImage(&parent->data()->history()->session(), emoji)) {
+, _images(ResolveImages(&parent->data()->history()->session(), emoji)) {
 }
 
 QSize LargeEmoji::size() {
-	const auto size = _image->size() / cIntRetinaFactor();
+	using namespace rpl::mappers;
+
+	const auto count = ranges::distance(NonEmpty(_images));
+	Assert(count > 0);
+
+	const auto single = _images[0]->size() / cIntRetinaFactor();
+	const auto skip = st::largeEmojiSkip - 2 * st::largeEmojiOutline;
+	const auto inner = count * single.width() + (count - 1) * skip;
 	const auto &padding = st::largeEmojiPadding;
 	_size = QSize(
-		padding.left() + size.width() + padding.right(),
-		padding.top() + size.height() + padding.bottom());
+		padding.left() + inner + padding.right(),
+		padding.top() + single.height() + padding.bottom());
 	return _size;
 }
 
 void LargeEmoji::draw(Painter &p, const QRect &r, bool selected) {
-	_image->load(Data::FileOrigin());
-	if (!_image->loaded()) {
-		return;
-	}
+	auto &&images = NonEmpty(_images);
 	const auto &padding = st::largeEmojiPadding;
+	auto x = r.x() + (r.width() - _size.width()) / 2 + padding.left();
+	const auto y = r.y() + (r.height() - _size.height()) / 2 + padding.top();
 	const auto o = Data::FileOrigin();
-	const auto w = _size.width() - padding.left() - padding.right();
-	const auto h = _size.height() - padding.top() - padding.bottom();
-	const auto &c = st::msgStickerOverlay;
-	const auto pixmap = selected
-		? _image->pixColored(o, c, w, h)
-		: _image->pix(o, w, h);
-	p.drawPixmap(
-		QPoint(
-			r.x() + (r.width() - _size.width()) / 2,
-			r.y() + (r.height() - _size.height()) / 2),
-		pixmap);
+	const auto skip = st::largeEmojiSkip - 2 * st::largeEmojiOutline;
+	for (const auto &image : images) {
+		image->load(Data::FileOrigin());
+		const auto w = image->width() / cIntRetinaFactor();
+		if (image->loaded()) {
+			const auto h = image->height() / cIntRetinaFactor();
+			const auto &c = st::msgStickerOverlay;
+			const auto pixmap = selected
+				? image->pixColored(o, c, w, h)
+				: image->pix(o, w, h);
+			p.drawPixmap(x, y, pixmap);
+		}
+		x += w + skip;
+	}
 }
 
 } // namespace HistoryView

@@ -24,15 +24,16 @@ class LargeEmoji final : public UnwrappedMedia::Content {
 public:
 	LargeEmoji(
 		not_null<Element*> parent,
-		Ui::Text::IsolatedEmoji emoji);
+		const Ui::Text::IsolatedEmoji &emoji);
 
 	QSize size() override;
 	void draw(Painter &p, const QRect &r, bool selected) override;
 
 private:
 	const not_null<Element*> _parent;
-	const Ui::Text::IsolatedEmoji _emoji;
-	std::shared_ptr<Image> _image;
+	const std::array<
+		std::shared_ptr<Image>,
+		Ui::Text::kIsolatedEmojiLimit> _images;
 	QSize _size;
 
 };
