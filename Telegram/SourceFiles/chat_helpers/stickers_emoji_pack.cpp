@@ -282,18 +282,26 @@ QImage EmojiImageLoader::prepare(EmojiPtr emoji) {
 	{
 		QPainter p(&result);
 		const auto delta = st::largeEmojiOutline * factor;
-		const auto shifts = std::array<QPoint, 8>{ {
-			{ -1, -1 },
+		const auto planar = std::array<QPoint, 4>{ {
 			{ 0, -1 },
-			{ 1, -1 },
 			{ -1, 0 },
 			{ 1, 0 },
-			{ -1, 1 },
 			{ 0, 1 },
+		} };
+		for (const auto &shift : planar) {
+			for (auto i = 0; i != delta; ++i) {
+				p.drawImage(QPoint(delta, delta) + shift * (i + 1), tinted);
+			}
+		}
+		const auto diagonal = std::array<QPoint, 4>{ {
+			{ -1, -1 },
+			{ 1, -1 },
+			{ -1, 1 },
 			{ 1, 1 },
 		} };
-		for (const auto &shift : shifts) {
-			for (auto i = 0; i != delta; ++i) {
+		const auto corrected = int(std::round(delta / sqrt(2.)));
+		for (const auto &shift : diagonal) {
+			for (auto i = 0; i != corrected; ++i) {
 				p.drawImage(QPoint(delta, delta) + shift * (i + 1), tinted);
 			}
 		}
