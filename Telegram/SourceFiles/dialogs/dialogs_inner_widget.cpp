@@ -2000,6 +2000,7 @@ bool InnerWidget::hasHistoryInResults(not_null<History*> history) const {
 
 bool InnerWidget::searchReceived(
 		const QVector<MTPMessage> &messages,
+		HistoryItem *inject,
 		SearchRequestType type,
 		int fullCount) {
 	const auto uniquePeers = uniqueSearchResults();
@@ -2010,6 +2011,16 @@ bool InnerWidget::searchReceived(
 	auto isMigratedSearch = (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset);
 
 	TimeId lastDateFound = 0;
+	if (inject
+		&& (!_searchInChat
+			|| inject->history() == _searchInChat.history())) {
+		Assert(_searchResults.empty());
+		_searchResults.push_back(
+			std::make_unique<FakeRow>(
+				_searchInChat,
+				inject));
+		++fullCount;
+	}
 	for (const auto &message : messages) {
 		auto msgId = IdFromMessage(message);
 		auto peerId = PeerFromMessage(message);

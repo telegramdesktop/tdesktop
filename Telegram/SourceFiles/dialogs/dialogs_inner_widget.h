@@ -70,6 +70,7 @@ public:
 
 	bool searchReceived(
 		const QVector<MTPMessage> &result,
+		HistoryItem *inject,
 		SearchRequestType type,
 		int fullCount);
 	void peerSearchReceived(

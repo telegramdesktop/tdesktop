@@ -25,10 +25,12 @@ struct LocalUrlHandler {
 		const QVariant &context)> handler;
 };
 
-const std::vector<LocalUrlHandler> &LocalUrlHandlers();
+[[nodiscard]] const std::vector<LocalUrlHandler> &LocalUrlHandlers();
 
-bool InternalPassportLink(const QString &url);
+[[nodiscard]] QString TryConvertUrlToLocal(QString url);
 
-bool StartUrlRequiresActivate(const QString &url);
+[[nodiscard]] bool InternalPassportLink(const QString &url);
+
+[[nodiscard]] bool StartUrlRequiresActivate(const QString &url);
 
 } // namespace Core

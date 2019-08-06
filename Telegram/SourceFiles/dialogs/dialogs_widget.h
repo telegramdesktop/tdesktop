@@ -7,11 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "dialogs/dialogs_key.h"
 #include "window/section_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/scroll_area.h"
-#include "dialogs/dialogs_key.h"
 #include "ui/special_buttons.h"
+#include "api/api_single_message_search.h"
 
 namespace Main {
 class Session;
@@ -218,17 +219,11 @@ private:
 	bool _searchFullMigrated = false;
 	mtpRequestId _searchRequest = 0;
 
-	using SearchCache = QMap<QString, MTPmessages_Messages>;
-	SearchCache _searchCache;
-
-	using SearchQueries = QMap<mtpRequestId, QString>;
-	SearchQueries _searchQueries;
-
-	using PeerSearchCache = QMap<QString, MTPcontacts_Found>;
-	PeerSearchCache _peerSearchCache;
-
-	using PeerSearchQueries = QMap<mtpRequestId, QString>;
-	PeerSearchQueries _peerSearchQueries;
+	QMap<QString, MTPmessages_Messages> _searchCache;
+	Api::SingleMessageSearch _singleMessageSearch;
+	QMap<mtpRequestId, QString> _searchQueries;
+	QMap<QString, MTPcontacts_Found> _peerSearchCache;
+	QMap<mtpRequestId, QString> _peerSearchQueries;
 
 	QPixmap _widthAnimationCache;
 

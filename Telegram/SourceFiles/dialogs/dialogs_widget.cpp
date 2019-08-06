@@ -166,7 +166,8 @@ Widget::Widget(
 , _cancelSearch(_searchControls, st::dialogsCancelSearch)
 , _lockUnlock(_searchControls, st::dialogsLock)
 , _scroll(this, st::dialogsScroll)
-, _scrollToTop(_scroll, st::dialogsToUp) {
+, _scrollToTop(_scroll, st::dialogsToUp)
+, _singleMessageSearch(&controller->session()) {
 	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller));
 
 	rpl::combine(
@@ -380,6 +381,7 @@ void Widget::fullSearchRefreshOn(rpl::producer<> events) {
 	}) | rpl::start_with_next([=] {
 		_searchTimer.stop();
 		_searchCache.clear();
+		_singleMessageSearch.clear();
 		_searchQueries.clear();
 		_searchQuery = QString();
 		_scroll->scrollToY(0);
@@ -730,6 +732,12 @@ bool Widget::onSearchMessages(bool searchCache) {
 		return true;
 	}
 	if (searchCache) {
+		const auto success = _singleMessageSearch.lookup(q, [=] {
+			onNeedSearchMessages();
+		});
+		if (!success) {
+			return false;
+		}
 		const auto i = _searchCache.constFind(q);
 		if (i != _searchCache.cend()) {
 			_searchQuery = q;
@@ -992,6 +1000,10 @@ void Widget::searchReceived(
 			}
 		}
 	}
+	const auto inject = (type == SearchRequestType::FromStart
+		|| type == SearchRequestType::PeerFromStart)
+		? *_singleMessageSearch.lookup(_searchQuery)
+		: nullptr;
 
 	if (_searchRequest == requestId) {
 		switch (result.type()) {
@@ -1003,7 +1015,7 @@ void Widget::searchReceived(
 				session().data().processChats(d.vchats());
 			}
 			auto &msgs = d.vmessages().v;
-			_inner->searchReceived(msgs, type, msgs.size());
+			_inner->searchReceived(msgs, inject, type, msgs.size());
 			if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
 				_searchFullMigrated = true;
 			} else {
@@ -1019,7 +1031,7 @@ void Widget::searchReceived(
 				session().data().processChats(d.vchats());
 			}
 			auto &msgs = d.vmessages().v;
-			const auto someAdded = _inner->searchReceived(msgs, type, d.vcount().v);
+			const auto someAdded = _inner->searchReceived(msgs, inject, type, d.vcount().v);
 			const auto nextRate = d.vnext_rate();
 			const auto rateUpdated = nextRate && (nextRate->v != _searchNextRate);
 			const auto finished = (type == SearchRequestType::FromStart || type == SearchRequestType::FromOffset)
@@ -1058,7 +1070,7 @@ void Widget::searchReceived(
 				session().data().processChats(d.vchats());
 			}
 			auto &msgs = d.vmessages().v;
-			if (!_inner->searchReceived(msgs, type, d.vcount().v)) {
+			if (!_inner->searchReceived(msgs, inject, type, d.vcount().v)) {
 				if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
 					_searchFullMigrated = true;
 				} else {
@@ -1292,6 +1304,7 @@ void Widget::setSearchInChat(Key chat, UserData *from) {
 
 void Widget::clearSearchCache() {
 	_searchCache.clear();
+	_singleMessageSearch.clear();
 	_searchQueries.clear();
 	_searchQuery = QString();
 	_searchQueryFrom = nullptr;
