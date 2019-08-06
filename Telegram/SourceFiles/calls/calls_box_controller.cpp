@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
+#include "data/data_user.h"
 
 namespace Calls {
 namespace {
@@ -234,7 +235,8 @@ void BoxController::prepare() {
 			delegate()->peerListRefreshRows();
 		}
 	}, lifetime());
-	subscribe(Current().newServiceMessage(), [=](FullMsgId msgId) {
+
+	subscribe(session().calls().newServiceMessage(), [=](FullMsgId msgId) {
 		if (const auto item = session().data().message(msgId)) {
 			insertRow(item, InsertWay::Prepend);
 		}
@@ -308,7 +310,7 @@ void BoxController::rowActionClicked(not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	Assert(user != nullptr);
 
-	Current().startOutgoingCall(user);
+	user->session().calls().startOutgoingCall(user);
 }
 
 void BoxController::receivedCalls(const QVector<MTPMessage> &result) {

@@ -80,7 +80,7 @@ void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	toast.multiline = true;
 	toast.padding = st::stickersToastPadding;
 	Ui::Toast::Show(toast);
-//	Ui::show(Box<StickersBox>(archived), LayerOption::KeepOther);
+//	Ui::show(Box<StickersBox>(archived, &Auth()), LayerOption::KeepOther);
 
 	Auth().data().notifyStickersUpdated();
 }

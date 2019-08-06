@@ -227,7 +227,9 @@ void Panel::refreshList() {
 	const auto current = instance()->current(AudioMsgId::Type::Song);
 	const auto contextId = current.contextId();
 	const auto peer = [&]() -> PeerData* {
-		const auto item = contextId ? Auth().data().message(contextId) : nullptr;
+		const auto item = contextId
+			? session().data().message(contextId)
+			: nullptr;
 		const auto media = item ? item->media() : nullptr;
 		const auto document = media ? media->document() : nullptr;
 		if (!document || !document->isSharedMediaMusic()) {

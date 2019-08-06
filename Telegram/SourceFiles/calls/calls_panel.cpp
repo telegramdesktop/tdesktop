@@ -430,7 +430,8 @@ void Panel::initLayout() {
 	) | rpl::start_with_next(
 		[this] { processUserPhoto(); },
 		lifetime());
-	subscribe(Auth().downloaderTaskFinished(), [this] {
+
+	subscribe(_user->session().downloaderTaskFinished(), [=] {
 		refreshUserPhoto();
 	});
 	createDefaultCacheImage();

@@ -2787,7 +2787,7 @@ void ApiWrap::requestAttachedStickerSets(not_null<PhotoData*> photo) {
 			Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 			return;
 		} else if (result.v.size() > 1) {
-			Ui::show(Box<StickersBox>(result));
+			Ui::show(Box<StickersBox>(&session(), result));
 			return;
 		}
 		// Single attached sticker pack.

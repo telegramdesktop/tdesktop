@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout.h"
 #include "styles/style_settings.h"
 #include "ui/widgets/continuous_sliders.h"
+#include "window/window_session_controller.h"
 #include "calls/calls_instance.h"
 
 #ifdef slots
@@ -128,7 +129,7 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 				: "default";
 			Global::SetCallOutputDeviceID(QString::fromStdString(deviceId));
 			Local::writeUserSettings();
-			if (const auto call = ::Calls::Current().currentCall()) {
+			if (const auto call = controller->session().calls().currentCall()) {
 				call->setCurrentAudioDevice(false, deviceId);
 			}
 		});
@@ -158,7 +159,7 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 		_needWriteSettings = true;
 		updateOutputLabel(value);
 		Global::SetCallOutputVolume(value);
-		if (const auto call = ::Calls::Current().currentCall()) {
+		if (const auto call = controller->session().calls().currentCall()) {
 			call->setAudioVolume(false, value / 100.0f);
 		}
 	};
@@ -206,7 +207,7 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 			if (_micTester) {
 				stopTestingMicrophone();
 			}
-			if (const auto call = ::Calls::Current().currentCall()) {
+			if (const auto call = controller->session().calls().currentCall()) {
 				call->setCurrentAudioDevice(true, deviceId);
 			}
 		});
@@ -236,9 +237,8 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 		_needWriteSettings = true;
 		updateInputLabel(value);
 		Global::SetCallInputVolume(value);
-		::Calls::Call *currentCall = ::Calls::Current().currentCall();
-		if (currentCall) {
-			currentCall->setAudioVolume(true, value / 100.0f);
+		if (const auto call = controller->session().calls().currentCall()) {
+			call->setAudioVolume(true, value / 100.0f);
 		}
 	};
 	inputSlider->resize(st::settingsAudioVolumeSlider.seekSize);
@@ -289,10 +289,10 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 		rpl::single(Global::CallAudioDuckingEnabled())
 	)->toggledValue() | rpl::filter([](bool enabled) {
 		return (enabled != Global::CallAudioDuckingEnabled());
-	}) | rpl::start_with_next([](bool enabled) {
+	}) | rpl::start_with_next([=](bool enabled) {
 		Global::SetCallAudioDuckingEnabled(enabled);
 		Local::writeUserSettings();
-		if (const auto call = ::Calls::Current().currentCall()) {
+		if (const auto call = controller->session().calls().currentCall()) {
 			call->setAudioDuckingEnabled(enabled);
 		}
 	}, content->lifetime());

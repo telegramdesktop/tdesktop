@@ -144,7 +144,7 @@ private:
 	void resizeSearchControls();
 	void scrollByWheelEvent(not_null<QWheelEvent*> e);
 
-	not_null<StickersListWidget*> _pan;
+	const not_null<StickersListWidget*> _pan;
 
 	static constexpr auto kVisibleIconsCount = 8;
 
@@ -501,9 +501,11 @@ void StickersListWidget::Footer::mousePressEvent(QMouseEvent *e) {
 	updateSelected();
 
 	if (_iconOver == SpecialOver::Settings) {
-		Ui::show(Box<StickersBox>(hasOnlyFeaturedSets()
-			? StickersBox::Section::Featured
-			: StickersBox::Section::Installed));
+		Ui::show(Box<StickersBox>(
+			&_pan->controller()->session(),
+			(hasOnlyFeaturedSets()
+				? StickersBox::Section::Featured
+				: StickersBox::Section::Installed)));
 	} else if (_iconOver == SpecialOver::Search) {
 		toggleSearch(true);
 	} else {
@@ -833,8 +835,10 @@ StickersListWidget::StickersListWidget(
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	_settings->addClickHandler([] {
-		Ui::show(Box<StickersBox>(StickersBox::Section::Installed));
+	_settings->addClickHandler([=] {
+		Ui::show(Box<StickersBox>(
+			&controller->session(),
+			StickersBox::Section::Installed));
 	});
 
 	subscribe(session().downloaderTaskFinished(), [=] {

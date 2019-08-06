@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class HistoryItem;
 struct HistoryMessageMarkupButton;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 class UrlAuthBox : public BoxContent {
 public:
 	static void Activate(
@@ -38,6 +42,7 @@ private:
 public:
 	UrlAuthBox(
 		QWidget*,
+		not_null<Main::Session*> session,
 		const QString &url,
 		const QString &domain,
 		UserData *bot,
@@ -45,6 +50,7 @@ public:
 
 private:
 	not_null<Ui::RpWidget*> setupContent(
+		not_null<Main::Session*> session,
 		const QString &url,
 		const QString &domain,
 		UserData *bot,

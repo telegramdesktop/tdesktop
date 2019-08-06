@@ -1177,7 +1177,8 @@ void History::applyServiceChanges(
 	} break;
 
 	case mtpc_messageActionPhoneCall: {
-		Calls::Current().newServiceMessage().notify(item->fullId());
+		item->history()->session().calls().newServiceMessage().notify(
+			item->fullId());
 	} break;
 	}
 }

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "styles/style_boxes.h"
 
 namespace {
@@ -79,6 +80,7 @@ private:
 	}
 
 	const not_null<Main::Session*> _session;
+
 	object_ptr<Ui::PhoneInput> _phone = { nullptr };
 	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _error = { nullptr };
 	mtpRequestId _requestId = 0;
@@ -137,7 +139,12 @@ void ChangePhoneBox::EnterPhone::prepare() {
 	setTitle(tr::lng_change_phone_title());
 
 	auto phoneValue = QString();
-	_phone.create(this, st::defaultInputField, tr::lng_change_phone_new_title(), phoneValue);
+	_phone.create(
+		this,
+		st::defaultInputField,
+		tr::lng_change_phone_new_title(),
+		ExtractPhonePrefix(_session->user()->phone()),
+		phoneValue);
 
 	_phone->resize(st::boxWidth - 2 * st::boxPadding.left(), _phone->height());
 	_phone->moveToLeft(st::boxPadding.left(), st::boxLittleSkip);

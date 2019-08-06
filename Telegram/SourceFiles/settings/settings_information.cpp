@@ -217,6 +217,8 @@ void AddRow(
 void SetupRows(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<UserData*> self) {
+	const auto session = &self->session();
+
 	AddSkip(container);
 
 	AddRow(
@@ -232,7 +234,7 @@ void SetupRows(
 		tr::lng_settings_phone_label(),
 		Info::Profile::PhoneValue(self),
 		tr::lng_profile_copy_phone(tr::now),
-		[=] { Ui::show(Box<ChangePhoneBox>(&self->session())); },
+		[=] { Ui::show(Box<ChangePhoneBox>(session)); },
 		st::settingsInfoPhone);
 
 	auto username = Info::Profile::UsernameValue(self);
@@ -267,7 +269,7 @@ void SetupRows(
 		std::move(label),
 		std::move(value),
 		tr::lng_context_copy_mention(tr::now),
-		[=] { Ui::show(Box<UsernameBox>()); },
+		[=] { Ui::show(Box<UsernameBox>(session)); },
 		st::settingsInfoUsername);
 
 	AddSkip(container, st::settingsInfoAfterSkip);

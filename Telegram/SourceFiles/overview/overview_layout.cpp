@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "storage/localstorage.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_cursor_state.h"
@@ -138,7 +139,7 @@ QDateTime ItemBase::dateTime() const {
 void ItemBase::clickHandlerActiveChanged(
 		const ClickHandlerPtr &action,
 		bool active) {
-	Auth().data().requestItemRepaint(_parent);
+	_parent->history()->session().data().requestItemRepaint(_parent);
 	if (_check) {
 		_check->setActive(active);
 	}
@@ -147,7 +148,7 @@ void ItemBase::clickHandlerActiveChanged(
 void ItemBase::clickHandlerPressedChanged(
 		const ClickHandlerPtr &action,
 		bool pressed) {
-	Auth().data().requestItemRepaint(_parent);
+	_parent->history()->session().data().requestItemRepaint(_parent);
 	if (_check) {
 		_check->setPressed(pressed);
 	}
@@ -178,9 +179,10 @@ const style::RoundCheckbox &ItemBase::checkboxStyle() const {
 
 void ItemBase::ensureCheckboxCreated() {
 	if (!_check) {
-		_check = std::make_unique<Checkbox>(
-			[=] { Auth().data().requestItemRepaint(_parent); },
-			checkboxStyle());
+		const auto repaint = [=] {
+			_parent->history()->session().data().requestItemRepaint(_parent);
+		};
+		_check = std::make_unique<Checkbox>(repaint, checkboxStyle());
 	}
 }
 
@@ -201,8 +203,12 @@ void RadialProgressItem::clickHandlerActiveChanged(
 	ItemBase::clickHandlerActiveChanged(action, active);
 	if (action == _openl || action == _savel || action == _cancell) {
 		if (iconAnimated()) {
+			const auto repaint = [=] {
+				parent()->history()->session().data().requestItemRepaint(
+					parent());
+			};
 			_a_iconOver.start(
-				[=] { Auth().data().requestItemRepaint(parent()); },
+				repaint,
 				active ? 0. : 1.,
 				active ? 1. : 0.,
 				st::msgFileOverDuration);
@@ -224,7 +230,7 @@ void RadialProgressItem::radialAnimationCallback(crl::time now) const {
 		return _radial->update(dataProgress(), dataFinished(), now);
 	}();
 	if (!anim::Disabled() || updated) {
-		Auth().data().requestItemRepaint(parent());
+		parent()->history()->session().data().requestItemRepaint(parent());
 	}
 	if (!_radial->animating()) {
 		checkRadialFinished();

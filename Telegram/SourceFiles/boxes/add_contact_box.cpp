@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "base/flat_set.h"
 #include "boxes/confirm_box.h"
+#include "boxes/confirm_phone_box.h" // ExtractPhonePrefix.
 #include "boxes/photo_crop_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/add_participants_box.h"
@@ -209,7 +210,12 @@ AddContactBox::AddContactBox(
 : _session(session)
 , _first(this, st::defaultInputField, tr::lng_signup_firstname(), fname)
 , _last(this, st::defaultInputField, tr::lng_signup_lastname(), lname)
-, _phone(this, st::defaultInputField, tr::lng_contact_phone(), phone)
+, _phone(
+	this,
+	st::defaultInputField,
+	tr::lng_contact_phone(),
+	ExtractPhonePrefix(session->user()->phone()),
+	phone)
 , _invertOrder(langFirstNameGoesSecond()) {
 	if (!phone.isEmpty()) {
 		_phone->setDisabled(true);

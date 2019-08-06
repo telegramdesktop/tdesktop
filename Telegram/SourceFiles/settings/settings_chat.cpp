@@ -506,8 +506,8 @@ void SetupStickersEmoji(
 		st::settingsChatButton,
 		&st::settingsIconStickers,
 		st::settingsChatIconLeft
-	)->addClickHandler([] {
-		Ui::show(Box<StickersBox>(StickersBox::Section::Installed));
+	)->addClickHandler([=] {
+		Ui::show(Box<StickersBox>(session, StickersBox::Section::Installed));
 	});
 
 	AddButton(

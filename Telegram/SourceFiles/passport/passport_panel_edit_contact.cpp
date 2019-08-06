@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "boxes/abstract_box.h"
 #include "boxes/confirm_phone_box.h"
+#include "data/data_user.h"
+#include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "styles/style_passport.h"
 #include "styles/style_boxes.h"
@@ -274,6 +276,7 @@ void PanelEditContact::setupControls(
 			wrap.data(),
 			fieldStyle,
 			std::move(fieldPlaceholder),
+			ExtractPhonePrefix(_controller->bot()->session().user()->phone()),
 			data);
 	} else {
 		_field = Ui::CreateChild<Ui::MaskedInputField>(

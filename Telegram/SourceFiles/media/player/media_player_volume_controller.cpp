@@ -23,10 +23,10 @@ VolumeController::VolumeController(QWidget *parent)
 : TWidget(parent)
 , _slider(this, st::mediaPlayerPanelPlayback) {
 	_slider->setMoveByWheel(true);
-	_slider->setChangeProgressCallback([this](float64 volume) {
+	_slider->setChangeProgressCallback([=](float64 volume) {
 		applyVolumeChange(volume);
 	});
-	_slider->setChangeFinishedCallback([this](float64 volume) {
+	_slider->setChangeFinishedCallback([=](float64 volume) {
 		if (volume > 0) {
 			Global::SetRememberedSongVolume(volume);
 		}

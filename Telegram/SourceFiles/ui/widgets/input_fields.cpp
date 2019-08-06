@@ -4317,14 +4317,15 @@ PhoneInput::PhoneInput(
 	QWidget *parent,
 	const style::InputField &st,
 	rpl::producer<QString> placeholder,
-	const QString &val)
-: MaskedInputField(parent, st, std::move(placeholder), val) {
-	QString phone(val);
-	if (phone.isEmpty()) {
+	const QString &defaultValue,
+	QString value)
+: MaskedInputField(parent, st, std::move(placeholder), value)
+, _defaultValue(defaultValue) {
+	if (value.isEmpty()) {
 		clearText();
 	} else {
-		int32 pos = phone.size();
-		correctValue(QString(), 0, phone, pos);
+		auto pos = value.size();
+		correctValue(QString(), 0, value, pos);
 	}
 }
 
@@ -4334,17 +4335,10 @@ void PhoneInput::focusInEvent(QFocusEvent *e) {
 }
 
 void PhoneInput::clearText() {
-	QString phone;
-	if (Main::Session::Exists()) {
-		const auto self = Auth().user();
-		QVector<int> newPattern = phoneNumberParse(self->phone());
-		if (!newPattern.isEmpty()) {
-			phone = self->phone().mid(0, newPattern.at(0));
-		}
-	}
-	setText(phone);
-	int32 pos = phone.size();
-	correctValue(QString(), 0, phone, pos);
+	auto value = _defaultValue;
+	setText(value);
+	auto pos = value.size();
+	correctValue(QString(), 0, value, pos);
 }
 
 void PhoneInput::paintAdditionalPlaceholder(Painter &p) {
