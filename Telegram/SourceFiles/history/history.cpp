@@ -2759,6 +2759,11 @@ void History::resizeToWidth(int newWidth) {
 	_height = y;
 }
 
+void History::forceFullResize() {
+	_width = 0;
+	_flags |= Flag::f_has_pending_resized_items;
+}
+
 ChannelId History::channelId() const {
 	return peerToChannel(peer->id);
 }

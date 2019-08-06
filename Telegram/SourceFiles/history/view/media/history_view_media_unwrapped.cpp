@@ -32,12 +32,7 @@ QSize UnwrappedMedia::countOptimalSize() {
 		_content->size(),
 		{ st::maxStickerSize, st::maxStickerSize }));
 	auto maxWidth = _contentSize.width();
-	const auto infoHeight = st::msgDateImgPadding.y() * 2
-		+ st::msgDateFont->height;
-	const auto minimal = st::largeEmojiSize
-		+ 2 * st::largeEmojiOutline
-		+ st::msgDateImgDelta
-		+ infoHeight;
+	const auto minimal = st::largeEmojiSize + 2 * st::largeEmojiOutline;
 	auto minHeight = std::max(_contentSize.height(), minimal);
 	if (_parent->media() == this) {
 		const auto item = _parent->data();
@@ -45,6 +40,8 @@ QSize UnwrappedMedia::countOptimalSize() {
 		const auto reply = item->Get<HistoryMessageReply>();
 		maxWidth += additionalWidth(via, reply);
 		if (const auto surrounding = surroundingHeight(via, reply)) {
+			const auto infoHeight = st::msgDateImgPadding.y() * 2
+				+ st::msgDateFont->height;
 			const auto minimal = surrounding
 				+ st::msgDateImgDelta
 				+ infoHeight;
@@ -72,7 +69,17 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 			}
 		}
 	}
-	return { newWidth, minHeight() };
+	auto newHeight = minHeight();
+	if (_parent->hasOutLayout() && !Adaptive::ChatWide()) {
+		// Add some height to isolated emoji for the timestamp info.
+		const auto infoHeight = st::msgDateImgPadding.y() * 2
+			+ st::msgDateFont->height;
+		const auto minimal = st::largeEmojiSize
+			+ 2 * st::largeEmojiOutline
+			+ (st::msgDateImgDelta + infoHeight);
+		accumulate_max(newHeight, minimal);
+	}
+	return { newWidth, newHeight };
 }
 
 void UnwrappedMedia::draw(
@@ -285,7 +292,11 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 }
 
 bool UnwrappedMedia::needInfoDisplay() const {
-	return (_parent->data()->id < 0 || _parent->isUnderCursor());
+	return (_parent->data()->id < 0)
+		|| (_parent->isUnderCursor())
+		|| (_parent->hasOutLayout()
+			&& !Adaptive::ChatWide()
+			&& _content->alwaysShowOutTimestamp());
 }
 
 int UnwrappedMedia::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const {

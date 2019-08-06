@@ -455,7 +455,16 @@ HistoryWidget::HistoryWidget(
 		ActivateWindow(controller);
 	});
 
-	subscribe(Adaptive::Changed(), [=] { update(); });
+	subscribe(Adaptive::Changed(), [=] {
+		if (_history) {
+			_history->forceFullResize();
+			if (_migrated) {
+				_migrated->forceFullResize();
+			}
+			updateHistoryGeometry();
+			update();
+		}
+	});
 	session().data().itemRemoved(
 	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
 		itemRemoved(item);

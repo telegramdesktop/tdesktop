@@ -29,6 +29,10 @@ public:
 	QSize size() override;
 	void draw(Painter &p, const QRect &r, bool selected) override;
 
+	bool alwaysShowOutTimestamp() override {
+		return true;
+	}
+
 private:
 	const not_null<Element*> _parent;
 	const std::array<

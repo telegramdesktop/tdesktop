@@ -38,6 +38,9 @@ public:
 		}
 		virtual void refreshLink() {
 		}
+		[[nodiscard]] virtual bool alwaysShowOutTimestamp() {
+			return false;
+		}
 		virtual ~Content() = 0;
 	};
 

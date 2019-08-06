@@ -207,6 +207,7 @@ public:
 	HistoryItem *lastSentMessage() const;
 
 	void resizeToWidth(int newWidth);
+	void forceFullResize();
 	int height() const;
 
 	void itemRemoved(not_null<HistoryItem*> item);
