@@ -1160,8 +1160,8 @@ void Message::drawInfo(
 		p.setPen(st::msgDateImgFg);
 	break;
 	case InfoDisplayType::Background:
-		infoRight -= st::msgDateImgDelta + st::msgDateImgPadding.x();
-		infoBottom -= st::msgDateImgDelta + st::msgDateImgPadding.y();
+		infoRight -= st::msgDateImgPadding.x();
+		infoBottom -= st::msgDateImgPadding.y();
 		p.setPen(st::msgServiceFg);
 	break;
 	}
@@ -1239,6 +1239,10 @@ bool Message::pointInTime(
 	case InfoDisplayType::Image:
 		infoRight -= st::msgDateImgDelta + st::msgDateImgPadding.x();
 		infoBottom -= st::msgDateImgDelta + st::msgDateImgPadding.y();
+		break;
+	case InfoDisplayType::Background:
+		infoRight -= st::msgDateImgPadding.x();
+		infoBottom -= st::msgDateImgPadding.y();
 		break;
 	}
 	const auto item = message();

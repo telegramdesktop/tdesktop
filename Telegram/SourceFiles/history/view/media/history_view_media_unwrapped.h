@@ -80,6 +80,9 @@ public:
 	}
 
 private:
+	int surroundingHeight(
+		const HistoryMessageVia *via,
+		const HistoryMessageReply *reply) const;
 	void drawSurrounding(
 		Painter &p,
 		const QRect &inner,
@@ -94,7 +97,6 @@ private:
 	int additionalWidth(
 		const HistoryMessageVia *via,
 		const HistoryMessageReply *reply) const;
-	int additionalWidth() const;
 
 	std::unique_ptr<Content> _content;
 	QSize _contentSize;
