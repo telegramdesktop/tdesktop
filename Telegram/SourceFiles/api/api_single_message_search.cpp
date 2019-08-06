@@ -23,7 +23,7 @@ using Key = details::SingleMessageSearchKey;
 
 Key ExtractKey(const QString &query) {
 	const auto trimmed = query.trimmed();
-	const auto local = Core::TryConvertUrlToLocal(query);
+	const auto local = Core::TryConvertUrlToLocal(trimmed);
 	const auto check = local.isEmpty() ? trimmed : local;
 	const auto parse = [&] {
 		const auto delimeter = check.indexOf('?');
@@ -214,6 +214,22 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookup(
 	}
 	const auto channelId = _requestKey.domainOrId.toInt();
 	return performLookupById(channelId, ready);
+}
+
+QString ConvertPeerSearchQuery(const QString &query) {
+	const auto trimmed = query.trimmed();
+	const auto local = Core::TryConvertUrlToLocal(trimmed);
+	const auto check = local.isEmpty() ? trimmed : local;
+	if (!check.startsWith(qstr("tg://resolve"), Qt::CaseInsensitive)) {
+		return query;
+	}
+	const auto delimeter = check.indexOf('?');
+	const auto params = (delimeter > 0)
+		? qthelp::url_parse_params(
+			check.mid(delimeter + 1),
+			qthelp::UrlParamNameTransform::ToLower)
+		: QMap<QString, QString>();
+	return params.value("domain", query);
 }
 
 } // namespace Api

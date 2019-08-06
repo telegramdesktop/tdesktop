@@ -71,4 +71,6 @@ private:
 
 };
 
+[[nodiscard]] QString ConvertPeerSearchQuery(const QString &query);
+
 } // namespace Api

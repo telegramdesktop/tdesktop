@@ -812,17 +812,18 @@ bool Widget::onSearchMessages(bool searchCache) {
 		}
 		_searchQueries.insert(_searchRequest, _searchQuery);
 	}
-	if (searchForPeersRequired(q)) {
+	const auto query = Api::ConvertPeerSearchQuery(q);
+	if (searchForPeersRequired(query)) {
 		if (searchCache) {
-			auto i = _peerSearchCache.constFind(q);
+			auto i = _peerSearchCache.constFind(query);
 			if (i != _peerSearchCache.cend()) {
-				_peerSearchQuery = q;
+				_peerSearchQuery = query;
 				_peerSearchRequest = 0;
 				peerSearchReceived(i.value(), 0);
 				result = true;
 			}
-		} else if (_peerSearchQuery != q) {
-			_peerSearchQuery = q;
+		} else if (_peerSearchQuery != query) {
+			_peerSearchQuery = query;
 			_peerSearchFull = false;
 			_peerSearchRequest = MTP::send(
 				MTPcontacts_Search(
@@ -833,7 +834,7 @@ bool Widget::onSearchMessages(bool searchCache) {
 			_peerSearchQueries.insert(_peerSearchRequest, _peerSearchQuery);
 		}
 	} else {
-		_peerSearchQuery = q;
+		_peerSearchQuery = query;
 		_peerSearchFull = true;
 		peerSearchReceived(
 			MTP_contacts_found(
