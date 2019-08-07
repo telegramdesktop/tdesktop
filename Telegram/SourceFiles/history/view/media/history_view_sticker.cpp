@@ -37,9 +37,11 @@ double GetEmojiStickerZoom(not_null<Main::Session*> session) {
 
 Sticker::Sticker(
 	not_null<Element*> parent,
-	not_null<DocumentData*> document)
+	not_null<DocumentData*> document,
+	const Lottie::ColorReplacements *replacements)
 : _parent(parent)
-, _document(document) {
+, _document(document)
+, _replacements(replacements) {
 	_document->loadThumbnail(parent->data()->fullId());
 }
 
@@ -82,7 +84,7 @@ void Sticker::draw(Painter &p, const QRect &r, bool selected) {
 
 	if (_lottie && _lottie->ready()) {
 		paintLottie(p, r, selected);
-	} else {
+	} else if (!_lottie || !_replacements) {
 		paintPixmap(p, r, selected);
 	}
 }
@@ -185,8 +187,9 @@ void Sticker::refreshLink() {
 void Sticker::setupLottie() {
 	_lottie = Stickers::LottiePlayerFromDocument(
 		_document,
+		_replacements,
 		Stickers::LottieSize::MessageHistory,
-		QSize(st::maxStickerSize, st::maxStickerSize) * cIntRetinaFactor(),
+		_size * cIntRetinaFactor(),
 		Lottie::Quality::High);
 	_parent->data()->history()->owner().registerHeavyViewPart(_parent);
 

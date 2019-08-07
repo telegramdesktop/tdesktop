@@ -349,10 +349,13 @@ void Element::refreshMedia() {
 		&& session->settings().largeEmoji()) {
 		const auto emoji = _data->isolatedEmoji();
 		const auto emojiStickers = &session->emojiStickersPack();
-		if (const auto document = emojiStickers->stickerForEmoji(emoji)) {
+		if (const auto sticker = emojiStickers->stickerForEmoji(emoji)) {
 			_media = std::make_unique<UnwrappedMedia>(
 				this,
-				std::make_unique<Sticker>(this, document));
+				std::make_unique<Sticker>(
+					this,
+					sticker.document,
+					sticker.replacements));
 		} else {
 			_media = std::make_unique<UnwrappedMedia>(
 				this,

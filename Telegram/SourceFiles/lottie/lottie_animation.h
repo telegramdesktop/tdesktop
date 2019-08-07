@@ -34,7 +34,8 @@ namespace details {
 using InitData = base::variant<std::unique_ptr<SharedState>, Error>;
 
 std::unique_ptr<rlottie::Animation> CreateFromContent(
-	const QByteArray &content);
+	const QByteArray &content,
+	const ColorReplacements *replacements);
 
 } // namespace details
 
@@ -49,14 +50,16 @@ public:
 		not_null<Player*> player,
 		const QByteArray &content,
 		const FrameRequest &request,
-		Quality quality);
+		Quality quality,
+		const ColorReplacements *replacements = nullptr);
 	Animation(
 		not_null<Player*> player,
 		FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
 		FnMut<void(QByteArray &&cached)> put, // Unknown thread.
 		const QByteArray &content,
 		const FrameRequest &request,
-		Quality quality);
+		Quality quality,
+		const ColorReplacements *replacements = nullptr);
 
 	[[nodiscard]] bool ready() const;
 	[[nodiscard]] QImage frame() const;

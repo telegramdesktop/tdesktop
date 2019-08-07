@@ -1115,13 +1115,13 @@ template <typename Method>
 auto LottieCachedFromContent(
 		Method &&method,
 		Storage::Cache::Key baseKey,
-		LottieSize sizeTag,
+		uint8 keyShift,
 		not_null<Main::Session*> session,
 		const QByteArray &content,
 		QSize box) {
 	const auto key = Storage::Cache::Key{
 		baseKey.high,
-		baseKey.low + int(sizeTag)
+		baseKey.low + keyShift
 	};
 	const auto get = [=](FnMut<void(QByteArray &&cached)> handler) {
 		session->data().cacheBigFile().get(
@@ -1145,7 +1145,7 @@ template <typename Method>
 auto LottieFromDocument(
 		Method &&method,
 		not_null<DocumentData*> document,
-		LottieSize sizeTag,
+		uint8 keyShift,
 		QSize box) {
 	const auto data = document->data();
 	const auto filepath = document->filepath();
@@ -1159,7 +1159,7 @@ auto LottieFromDocument(
 		return LottieCachedFromContent(
 			std::forward<Method>(method),
 			*baseKey,
-			sizeTag,
+			keyShift,
 			&document->session(),
 			Lottie::ReadContent(data, filepath),
 			box);
@@ -1175,11 +1175,32 @@ std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
 		QSize box,
 		Lottie::Quality quality,
 		std::shared_ptr<Lottie::FrameRenderer> renderer) {
+	return LottiePlayerFromDocument(
+		document,
+		nullptr,
+		sizeTag,
+		box,
+		quality,
+		std::move(renderer));
+}
+
+std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
+		not_null<DocumentData*> document,
+		const Lottie::ColorReplacements *replacements,
+		LottieSize sizeTag,
+		QSize box,
+		Lottie::Quality quality,
+		std::shared_ptr<Lottie::FrameRenderer> renderer) {
 	const auto method = [&](auto &&...args) {
 		return std::make_unique<Lottie::SinglePlayer>(
-			std::forward<decltype(args)>(args)..., quality, std::move(renderer));
+			std::forward<decltype(args)>(args)...,
+			quality,
+			replacements,
+			std::move(renderer));
 	};
-	return LottieFromDocument(method, document, sizeTag, box);
+	const auto tag = replacements ? replacements->tag : uint8(0);
+	const auto keyShift = ((tag << 4) & 0xF0) | (uint8(sizeTag) & 0x0F);
+	return LottieFromDocument(method, document, uint8(keyShift), box);
 }
 
 not_null<Lottie::Animation*> LottieAnimationFromDocument(
@@ -1190,7 +1211,7 @@ not_null<Lottie::Animation*> LottieAnimationFromDocument(
 	const auto method = [&](auto &&...args) {
 		return player->append(std::forward<decltype(args)>(args)...);
 	};
-	return LottieFromDocument(method, document, sizeTag, box);
+	return LottieFromDocument(method, document, uint8(sizeTag), box);
 }
 
 bool HasLottieThumbnail(
@@ -1243,7 +1264,7 @@ std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
 	return LottieCachedFromContent(
 		method,
 		*baseKey,
-		sizeTag,
+		uint8(sizeTag),
 		&sticker->session(),
 		content,
 		box);

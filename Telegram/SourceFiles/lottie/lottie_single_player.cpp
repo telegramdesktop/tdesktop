@@ -15,8 +15,9 @@ SinglePlayer::SinglePlayer(
 	const QByteArray &content,
 	const FrameRequest &request,
 	Quality quality,
+	const ColorReplacements *replacements,
 	std::shared_ptr<FrameRenderer> renderer)
-: _animation(this, content, request, quality)
+: _animation(this, content, request, quality, replacements)
 , _timer([=] { checkNextFrameRender(); })
 , _renderer(renderer ? renderer : FrameRenderer::Instance()) {
 }
@@ -27,8 +28,16 @@ SinglePlayer::SinglePlayer(
 	const QByteArray &content,
 	const FrameRequest &request,
 	Quality quality,
+	const ColorReplacements *replacements,
 	std::shared_ptr<FrameRenderer> renderer)
-: _animation(this, std::move(get), std::move(put), content, request, quality)
+: _animation(
+	this,
+	std::move(get),
+	std::move(put),
+	content,
+	request,
+	quality,
+	replacements)
 , _timer([=] { checkNextFrameRender(); })
 , _renderer(renderer ? renderer : FrameRenderer::Instance()) {
 }

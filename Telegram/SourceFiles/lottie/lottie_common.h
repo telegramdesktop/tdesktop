@@ -55,6 +55,11 @@ enum class Quality : char {
 	High,
 };
 
+struct ColorReplacements {
+	std::vector<std::pair<std::uint32_t, std::uint32_t>> replacements;
+	uint8 tag = 0;
+};
+
 QByteArray ReadContent(const QByteArray &data, const QString &filepath);
 
 } // namespace Lottie

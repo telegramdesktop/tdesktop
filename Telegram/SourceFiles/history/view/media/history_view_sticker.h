@@ -16,6 +16,7 @@ struct FileOrigin;
 
 namespace Lottie {
 class SinglePlayer;
+struct ColorReplacements;
 } // namespace Lottie
 
 namespace HistoryView {
@@ -26,7 +27,8 @@ class Sticker final
 public:
 	Sticker(
 		not_null<Element*> parent,
-		not_null<DocumentData*> document);
+		not_null<DocumentData*> document,
+		const Lottie::ColorReplacements *replacements = nullptr);
 	~Sticker();
 
 	QSize size() override;
@@ -57,6 +59,7 @@ private:
 
 	const not_null<Element*> _parent;
 	const not_null<DocumentData*> _document;
+	const Lottie::ColorReplacements *_replacements = nullptr;
 	std::unique_ptr<Lottie::SinglePlayer> _lottie;
 	ClickHandlerPtr _link;
 	QSize _size;

@@ -81,11 +81,12 @@ details::InitData CheckSharedState(std::unique_ptr<SharedState> state) {
 details::InitData Init(
 		const QByteArray &content,
 		const FrameRequest &request,
-		Quality quality) {
+		Quality quality,
+		const ColorReplacements *replacements) {
 	if (const auto error = ContentError(content)) {
 		return *error;
 	}
-	auto animation = details::CreateFromContent(content);
+	auto animation = details::CreateFromContent(content, replacements);
 	return animation
 		? CheckSharedState(std::make_unique<SharedState>(
 			std::move(animation),
@@ -99,7 +100,8 @@ details::InitData Init(
 		FnMut<void(QByteArray &&cached)> put,
 		const QByteArray &cached,
 		const FrameRequest &request,
-		Quality quality) {
+		Quality quality,
+		const ColorReplacements *replacements) {
 	Expects(!request.empty());
 
 	if (const auto error = ContentError(content)) {
@@ -108,10 +110,13 @@ details::InitData Init(
 	auto cache = std::make_unique<Cache>(cached, request, std::move(put));
 	const auto prepare = !cache->framesCount()
 		|| (cache->framesReady() < cache->framesCount());
-	auto animation = prepare ? details::CreateFromContent(content) : nullptr;
+	auto animation = prepare
+		? details::CreateFromContent(content, replacements)
+		: nullptr;
 	return (!prepare || animation)
 		? CheckSharedState(std::make_unique<SharedState>(
 			content,
+			replacements,
 			std::move(animation),
 			std::move(cache),
 			request,
@@ -124,7 +129,8 @@ details::InitData Init(
 namespace details {
 
 std::unique_ptr<rlottie::Animation> CreateFromContent(
-		const QByteArray &content) {
+		const QByteArray &content,
+		const ColorReplacements *replacements) {
 	const auto string = UnpackGzip(content);
 	Assert(string.size() <= kMaxFileSize);
 
@@ -132,7 +138,10 @@ std::unique_ptr<rlottie::Animation> CreateFromContent(
 		string,
 		std::string(),
 		std::string(),
-		false);
+		false,
+		(replacements
+			? replacements->replacements
+			: std::vector<std::pair<std::uint32_t, std::uint32_t>>()));
 	if (!result) {
 		LOG(("Lottie Error: Parse failed."));
 	}
@@ -146,8 +155,8 @@ std::shared_ptr<FrameRenderer> MakeFrameRenderer() {
 }
 
 QImage ReadThumbnail(const QByteArray &content) {
-	return Init(content, FrameRequest(), Quality::High).match([](
-		const std::unique_ptr<SharedState> &state) {
+	return Init(content, FrameRequest(), Quality::High, nullptr).match([](
+			const std::unique_ptr<SharedState> &state) {
 		return state->frameForPaint()->original;
 	}, [](Error) {
 		return QImage();
@@ -158,11 +167,13 @@ Animation::Animation(
 	not_null<Player*> player,
 	const QByteArray &content,
 	const FrameRequest &request,
-	Quality quality)
+	Quality quality,
+	const ColorReplacements *replacements)
 : _player(player) {
 	const auto weak = base::make_weak(this);
 	crl::async([=] {
-		crl::on_main(weak, [=, data = Init(content, request, quality)]() mutable {
+		auto result = Init(content, request, quality, replacements);
+		crl::on_main(weak, [=, data = std::move(result)]() mutable {
 			initDone(std::move(data));
 		});
 	});
@@ -174,12 +185,19 @@ Animation::Animation(
 	FnMut<void(QByteArray &&cached)> put, // Unknown thread.
 	const QByteArray &content,
 	const FrameRequest &request,
-	Quality quality)
+	Quality quality,
+	const ColorReplacements *replacements)
 : _player(player) {
 	const auto weak = base::make_weak(this);
 	get([=, put = std::move(put)](QByteArray &&cached) mutable {
 		crl::async([=, put = std::move(put)]() mutable {
-			auto result = Init(content, std::move(put), cached, request, quality);
+			auto result = Init(
+				content,
+				std::move(put),
+				cached,
+				request,
+				quality,
+				replacements);
 			crl::on_main(weak, [=, data = std::move(result)]() mutable {
 				initDone(std::move(data));
 			});

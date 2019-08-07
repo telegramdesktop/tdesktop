@@ -32,6 +32,7 @@ public:
 		const QByteArray &content,
 		const FrameRequest &request,
 		Quality quality = Quality::Default,
+		const ColorReplacements *replacements = nullptr,
 		std::shared_ptr<FrameRenderer> renderer = nullptr);
 	SinglePlayer(
 		FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
@@ -39,6 +40,7 @@ public:
 		const QByteArray &content,
 		const FrameRequest &request,
 		Quality quality = Quality::Default,
+		const ColorReplacements *replacements = nullptr,
 		std::shared_ptr<FrameRenderer> renderer = nullptr);
 	~SinglePlayer();
 

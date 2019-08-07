@@ -12,12 +12,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <crl/crl_object_on_queue.h>
 
+class HistoryItem;
+class DocumentData;
+
 namespace Main {
 class Session;
 } // namespace Main
 
-class HistoryItem;
-class DocumentData;
+namespace Lottie {
+struct ColorReplacements;
+} // namespace Lottie
 
 namespace Ui {
 namespace Text {
@@ -37,13 +41,25 @@ using IsolatedEmoji = Ui::Text::IsolatedEmoji;
 
 class EmojiPack final {
 public:
+	struct Sticker {
+		DocumentData *document = nullptr;
+		const Lottie::ColorReplacements *replacements = nullptr;
+
+		[[nodiscard]] bool empty() const {
+			return (document == nullptr);
+		}
+		[[nodiscard]] explicit operator bool() const {
+			return !empty();
+		}
+	};
+
 	explicit EmojiPack(not_null<Main::Session*> session);
 	~EmojiPack();
 
 	bool add(not_null<HistoryItem*> item);
 	void remove(not_null<const HistoryItem*> item);
 
-	[[nodiscard]] DocumentData *stickerForEmoji(const IsolatedEmoji &emoji);
+	[[nodiscard]] Sticker stickerForEmoji(const IsolatedEmoji &emoji);
 	[[nodiscard]] std::shared_ptr<Image> image(EmojiPtr emoji);
 
 private:

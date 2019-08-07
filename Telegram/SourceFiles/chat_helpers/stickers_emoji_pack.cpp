@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_emoji_pack.h"
 
 #include "history/history_item.h"
+#include "lottie/lottie_common.h"
 #include "ui/emoji_config.h"
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/image/image_source.h"
@@ -52,6 +53,64 @@ constexpr auto kClearSourceTimeout = 10 * crl::time(1000);
 		2 * outline + single,
 		2 * outline + single
 	) * cIntRetinaFactor();
+}
+
+[[nodiscard]] const Lottie::ColorReplacements *ColorReplacements(int index) {
+	Expects(index >= 1 && index <= 5);
+
+	static const auto color1 = Lottie::ColorReplacements{
+		{
+			{ 0xf77e41U, 0xca907aU },
+			{ 0xffb139U, 0xedc5a5U },
+			{ 0xffd140U, 0xf7e3c3U },
+			{ 0xffdf79U, 0xfbefd6U },
+		},
+		1,
+	};
+	static const auto color2 = Lottie::ColorReplacements{
+		{
+			{ 0xf77e41U, 0xaa7c60U },
+			{ 0xffb139U, 0xc8a987U },
+			{ 0xffd140U, 0xddc89fU },
+			{ 0xffdf79U, 0xe6d6b2U },
+		},
+		2,
+	};
+	static const auto color3 = Lottie::ColorReplacements{
+		{
+			{ 0xf77e41U, 0x8c6148U },
+			{ 0xffb139U, 0xad8562U },
+			{ 0xffd140U, 0xc49e76U },
+			{ 0xffdf79U, 0xd4b188U },
+		},
+		3,
+	};
+	static const auto color4 = Lottie::ColorReplacements{
+		{
+			{ 0xf77e41U, 0x6e3c2cU },
+			{ 0xffb139U, 0x925a34U },
+			{ 0xffd140U, 0xa16e46U },
+			{ 0xffdf79U, 0xac7a52U },
+		},
+		4,
+	};
+	static const auto color5 = Lottie::ColorReplacements{
+		{
+			{ 0xf77e41U, 0x291c12U },
+			{ 0xffb139U, 0x472a22U },
+			{ 0xffd140U, 0x573b30U },
+			{ 0xffdf79U, 0x68493cU },
+		},
+		5,
+	};
+	static const auto list = std::array{
+		&color1,
+		&color2,
+		&color3,
+		&color4,
+		&color5,
+	};
+	return list[index - 1];
 }
 
 class ImageSource : public Images::Source {
@@ -388,14 +447,26 @@ void EmojiPack::remove(not_null<const HistoryItem*> item) {
 	}
 }
 
-DocumentData *EmojiPack::stickerForEmoji(const IsolatedEmoji &emoji) {
+auto EmojiPack::stickerForEmoji(const IsolatedEmoji &emoji) -> Sticker {
 	Expects(!emoji.empty());
 
 	if (emoji.items[1] != nullptr) {
-		return nullptr;
+		return Sticker();
 	}
-	const auto i = _map.find(emoji.items[0]);
-	return (i != end(_map)) ? i->second.get() : nullptr;
+	const auto first = emoji.items[0];
+	const auto i = _map.find(first);
+	if (i != end(_map)) {
+		return { i->second.get(), nullptr };
+	}
+	if (!first->colored()) {
+		return Sticker();
+	}
+	const auto j = _map.find(first->original());
+	if (j != end(_map)) {
+		const auto index = first->variantIndex(first);
+		return { j->second.get(), details::ColorReplacements(index) };
+	}
+	return Sticker();
 }
 
 std::shared_ptr<Image> EmojiPack::image(EmojiPtr emoji) {

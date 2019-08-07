@@ -57,6 +57,7 @@ public:
 		Quality quality);
 	SharedState(
 		const QByteArray &content,
+		const ColorReplacements *replacements,
 		std::unique_ptr<rlottie::Animation> animation,
 		std::unique_ptr<Cache> cache,
 		const FrameRequest &request,
@@ -129,6 +130,7 @@ private:
 
 	std::unique_ptr<rlottie::Animation> _animation;
 	const QByteArray _content;
+	const ColorReplacements *_replacements = nullptr;
 
 };
 

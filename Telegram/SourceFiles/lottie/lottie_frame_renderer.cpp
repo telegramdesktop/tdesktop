@@ -255,6 +255,7 @@ SharedState::SharedState(
 
 SharedState::SharedState(
 	const QByteArray &content,
+	const ColorReplacements *replacements,
 	std::unique_ptr<rlottie::Animation> animation,
 	std::unique_ptr<Cache> cache,
 	const FrameRequest &request,
@@ -263,7 +264,8 @@ SharedState::SharedState(
 , _quality(quality)
 , _cache(std::move(cache))
 , _animation(std::move(animation))
-, _content(content) {
+, _content(content)
+, _replacements(replacements) {
 	construct(request);
 }
 
@@ -310,7 +312,7 @@ void SharedState::renderFrame(
 	if (_cache && _cache->renderFrame(image, request, index)) {
 		return;
 	} else if (!_animation) {
-		_animation = details::CreateFromContent(_content);
+		_animation = details::CreateFromContent(_content, _replacements);
 	}
 
 	image.fill(Qt::transparent);
