@@ -1629,11 +1629,10 @@ bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
 		return result;
 	}();
 	if (const auto existing = message(peerToChannel(peer), data.vid().v)) {
-		existing->setText({
+		existing->updateSentContent({
 			qs(data.vmessage()),
 			TextUtilities::EntitiesFromMTP(data.ventities().value_or_empty())
-		});
-		existing->updateSentMedia(data.vmedia());
+		}, data.vmedia());
 		existing->updateReplyMarkup(data.vreply_markup());
 		existing->updateForwardedInfo(data.vfwd_from());
 		existing->setViewsCount(data.vviews().value_or(-1));

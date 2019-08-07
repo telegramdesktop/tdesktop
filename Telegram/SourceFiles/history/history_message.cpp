@@ -1014,13 +1014,17 @@ void HistoryMessage::applyEdition(const MTPDmessageService &message) {
 	}
 }
 
-void HistoryMessage::updateSentMedia(const MTPMessageMedia *media) {
+void HistoryMessage::updateSentContent(
+		const TextWithEntities &textWithEntities,
+		const MTPMessageMedia *media) {
+	const auto isolated = isolatedEmoji();
+	setText(textWithEntities);
 	if (_flags & MTPDmessage_ClientFlag::f_from_inline_bot) {
 		if (!media || !_media || !_media->updateInlineResultMedia(*media)) {
 			refreshSentMedia(media);
 		}
 		_flags &= ~MTPDmessage_ClientFlag::f_from_inline_bot;
-	} else {
+	} else if (media || _media || !isolated || isolated != isolatedEmoji()) {
 		if (!media || !_media || !_media->updateSentMedia(*media)) {
 			refreshSentMedia(media);
 		}

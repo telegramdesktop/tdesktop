@@ -594,7 +594,9 @@ HistoryItem *History::createItem(
 			result->removeMainView();
 		}
 		if (message.type() == mtpc_message) {
-			result->updateSentMedia(message.c_message().vmedia());
+			result->updateSentContent(
+				result->originalText(),
+				message.c_message().vmedia());
 		}
 		return result;
 	}

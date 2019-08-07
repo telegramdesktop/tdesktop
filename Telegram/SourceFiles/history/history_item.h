@@ -196,7 +196,9 @@ public:
 	virtual void applyEdition(const MTPDmessageService &message) {
 	}
 	void applyEditionToHistoryCleared();
-	virtual void updateSentMedia(const MTPMessageMedia *media) {
+	virtual void updateSentContent(
+		const TextWithEntities &textWithEntities,
+		const MTPMessageMedia *media) {
 	}
 	virtual void updateReplyMarkup(const MTPReplyMarkup *markup) {
 	}

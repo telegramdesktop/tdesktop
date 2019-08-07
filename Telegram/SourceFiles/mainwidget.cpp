@@ -3817,11 +3817,10 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 						item->id,
 						ApiWrap::RequestMessageDataCallback());
 				}
-				item->setText({
+				item->updateSentContent({
 					sent.text,
 					TextUtilities::EntitiesFromMTP(list.value_or_empty())
-				});
-				item->updateSentMedia(d.vmedia());
+				}, d.vmedia());
 				if (const auto channel = item->history()->peer->asChannel()) {
 					channel->growSlowmodeLastMessage(d.vdate().v);
 				}

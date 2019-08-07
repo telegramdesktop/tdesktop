@@ -122,7 +122,9 @@ public:
 
 	void applyEdition(const MTPDmessage &message) override;
 	void applyEdition(const MTPDmessageService &message) override;
-	void updateSentMedia(const MTPMessageMedia *media) override;
+	void updateSentContent(
+		const TextWithEntities &textWithEntities,
+		const MTPMessageMedia *media) override;
 	void updateReplyMarkup(const MTPReplyMarkup *markup) override {
 		setReplyMarkup(markup);
 	}
