@@ -42,10 +42,6 @@ namespace HistoryView {
 class Element;
 } // namespace HistoryView
 
-namespace AdminLog {
-class LocalIdManager;
-} // namespace AdminLog
-
 enum class NewMessageType {
 	Unread,
 	Last,
@@ -337,7 +333,7 @@ public:
 	// of the displayed window relative to the history start coordinate
 	void countScrollState(int top);
 
-	std::shared_ptr<AdminLog::LocalIdManager> adminLogIdManager();
+	MsgId nextNonHistoryEntryId();
 
 	bool folderKnown() const override;
 	Data::Folder *folder() const override;
@@ -538,7 +534,7 @@ private:
 
 	std::deque<not_null<HistoryItem*>> _notifications;
 
-	std::weak_ptr<AdminLog::LocalIdManager> _adminLogIdManager;
+	MsgId _nonHistoryEntryId = ServerMaxMsgId;
 
  };
 

@@ -85,8 +85,16 @@ public:
 	UserData *viaBot() const;
 	UserData *getMessageBot() const;
 
-	bool isLogEntry() const {
-		return (id > ServerMaxMsgId);
+	[[nodiscard]] bool isHistoryEntry() const {
+		return (id < ServerMaxMsgId);
+	}
+	[[nodiscard]] bool isFromScheduled() const {
+		return isHistoryEntry()
+			&& (_flags & MTPDmessage::Flag::f_from_scheduled);
+	}
+	[[nodiscard]] bool isScheduled() const {
+		return !isHistoryEntry()
+			&& (_flags & MTPDmessage::Flag::f_from_scheduled);
 	}
 	void addLogEntryOriginal(
 		WebPageId localId,

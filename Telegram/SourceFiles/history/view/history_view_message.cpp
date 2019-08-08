@@ -846,7 +846,7 @@ TextState Message::textState(
 		result.symbol += item->_text.length();
 	}
 
-	if (keyboard && !item->isLogEntry()) {
+	if (keyboard && item->isHistoryEntry()) {
 		auto keyboardTop = g.top() + g.height() + st::msgBotKbButton.margin;
 		if (QRect(g.left(), keyboardTop, g.width(), keyboardHeight).contains(point)) {
 			result.link = keyboard->getLink(point - QPoint(g.left(), keyboardTop));

@@ -313,7 +313,7 @@ TextState Game::textState(QPoint point, StateRequest request) const {
 		tshift += _descriptionLines * lineHeight;
 	}
 	if (inThumb) {
-		if (!_parent->data()->isLogEntry()) {
+		if (_parent->data()->isHistoryEntry()) {
 			result.link = _openl;
 		}
 	} else if (_attach) {
@@ -326,7 +326,7 @@ TextState Game::textState(QPoint point, StateRequest request) const {
 
 		if (QRect(attachLeft, tshift, _attach->width(), height() - tshift - bshift).contains(point)) {
 			if (_attach->isReadyForOpen()) {
-				if (!_parent->data()->isLogEntry()) {
+				if (_parent->data()->isHistoryEntry()) {
 					result.link = _openl;
 				}
 			} else {

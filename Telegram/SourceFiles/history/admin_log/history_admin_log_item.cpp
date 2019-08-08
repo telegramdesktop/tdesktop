@@ -369,7 +369,6 @@ void OwnedItem::refreshView(
 void GenerateItems(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		not_null<History*> history,
-		not_null<LocalIdManager*> idManager,
 		const MTPDchannelAdminLogEvent &event,
 		Fn<void(OwnedItem item)> callback) {
 	Expects(history->peer->isChannel());
@@ -394,7 +393,7 @@ void GenerateItems(
 		addPart(history->owner().makeServiceMessage(
 			history,
 			MTPDmessage_ClientFlags(),
-			idManager->next(),
+			history->nextNonHistoryEntryId(),
 			date,
 			message,
 			MTPDmessage::Flags(0),
@@ -434,7 +433,7 @@ void GenerateItems(
 		auto newDescription = PrepareText(newValue, QString());
 		auto body = history->owner().makeMessage(
 			history,
-			idManager->next(),
+			history->nextNonHistoryEntryId(),
 			bodyFlags,
 			bodyClientFlags,
 			bodyReplyTo,
@@ -470,7 +469,7 @@ void GenerateItems(
 		auto newLink = newValue.isEmpty() ? TextWithEntities() : PrepareText(Core::App().createInternalLinkFull(newValue), QString());
 		auto body = history->owner().makeMessage(
 			history,
-			idManager->next(),
+			history->nextNonHistoryEntryId(),
 			bodyFlags,
 			bodyClientFlags,
 			bodyReplyTo,
@@ -535,7 +534,7 @@ void GenerateItems(
 			addPart(history->createItem(
 				PrepareLogMessage(
 					action.vmessage(),
-					idManager->next(),
+					history->nextNonHistoryEntryId(),
 					date),
 				MTPDmessage_ClientFlags(),
 				detachExistingItem));
@@ -560,7 +559,7 @@ void GenerateItems(
 		auto body = history->createItem(
 			PrepareLogMessage(
 				action.vnew_message(),
-				idManager->next(),
+				history->nextNonHistoryEntryId(),
 				date),
 			MTPDmessage_ClientFlags(),
 			detachExistingItem);
@@ -583,7 +582,7 @@ void GenerateItems(
 
 		auto detachExistingItem = false;
 		addPart(history->createItem(
-			PrepareLogMessage(action.vmessage(), idManager->next(), date),
+			PrepareLogMessage(action.vmessage(), history->nextNonHistoryEntryId(), date),
 			MTPDmessage_ClientFlags(),
 			detachExistingItem));
 	};
@@ -610,7 +609,7 @@ void GenerateItems(
 		auto bodyText = GenerateParticipantChangeText(channel, action.vparticipant());
 		addPart(history->owner().makeMessage(
 			history,
-			idManager->next(),
+			history->nextNonHistoryEntryId(),
 			bodyFlags,
 			bodyClientFlags,
 			bodyReplyTo,
@@ -629,7 +628,7 @@ void GenerateItems(
 		auto bodyText = GenerateParticipantChangeText(channel, action.vnew_participant(), &action.vprev_participant());
 		addPart(history->owner().makeMessage(
 			history,
-			idManager->next(),
+			history->nextNonHistoryEntryId(),
 			bodyFlags,
 			bodyClientFlags,
 			bodyReplyTo,
@@ -654,7 +653,7 @@ void GenerateItems(
 		auto bodyText = GenerateParticipantChangeText(channel, action.vnew_participant(), &action.vprev_participant());
 		addPart(history->owner().makeMessage(
 			history,
-			idManager->next(),
+			history->nextNonHistoryEntryId(),
 			bodyFlags,
 			bodyClientFlags,
 			bodyReplyTo,
@@ -689,7 +688,7 @@ void GenerateItems(
 			addPart(history->owner().makeServiceMessage(
 				history,
 				MTPDmessage_ClientFlags(),
-				idManager->next(),
+				history->nextNonHistoryEntryId(),
 				date,
 				message,
 				MTPDmessage::Flags(0),
@@ -713,7 +712,7 @@ void GenerateItems(
 		auto bodyText = GenerateDefaultBannedRightsChangeText(channel, action.vnew_banned_rights(), action.vprev_banned_rights());
 		addPart(history->owner().makeMessage(
 			history,
-			idManager->next(),
+			history->nextNonHistoryEntryId(),
 			bodyFlags,
 			bodyClientFlags,
 			bodyReplyTo,
@@ -730,7 +729,7 @@ void GenerateItems(
 
 		auto detachExistingItem = false;
 		addPart(history->createItem(
-			PrepareLogMessage(action.vmessage(), idManager->next(), date),
+			PrepareLogMessage(action.vmessage(), history->nextNonHistoryEntryId(), date),
 			MTPDmessage_ClientFlags(),
 			detachExistingItem));
 	};
@@ -765,7 +764,7 @@ void GenerateItems(
 			addPart(history->owner().makeServiceMessage(
 				history,
 				MTPDmessage_ClientFlags(),
-				idManager->next(),
+				history->nextNonHistoryEntryId(),
 				date,
 				message,
 				MTPDmessage::Flags(0),

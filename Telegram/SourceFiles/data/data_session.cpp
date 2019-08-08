@@ -205,8 +205,9 @@ Session::Session(not_null<Main::Session*> session)
 , _sendActionsAnimation([=](crl::time now) {
 	return sendActionsAnimationCallback(now);
 })
+, _unmuteByFinishedTimer([=] { unmuteByFinished(); })
 , _groups(this)
-, _unmuteByFinishedTimer([=] { unmuteByFinished(); }) {
+, _scheduledMessages(this) {
 	_cache->open(Local::cacheKey());
 	_bigFileCache->open(Local::cacheBigFileKey());
 
@@ -1814,10 +1815,10 @@ void Session::removeDependencyMessage(not_null<HistoryItem*> item) {
 }
 
 void Session::destroyMessage(not_null<HistoryItem*> item) {
-	Expects(!item->isLogEntry() || !item->mainView());
+	Expects(item->isHistoryEntry() || !item->mainView());
 
 	const auto peerId = item->history()->peer->id;
-	if (!item->isLogEntry()) {
+	if (item->isHistoryEntry()) {
 		// All this must be done for all items manually in History::clear()!
 		item->eraseFromUnreadMentions();
 		if (IsServerMsgId(item->id)) {

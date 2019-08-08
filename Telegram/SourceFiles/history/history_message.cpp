@@ -736,7 +736,7 @@ void HistoryMessage::applyGroupAdminChanges(
 }
 
 bool HistoryMessage::allowsForward() const {
-	if (id < 0 || isLogEntry()) {
+	if (id < 0 || !isHistoryEntry()) {
 		return false;
 	}
 	return !_media || _media->allowsForward();

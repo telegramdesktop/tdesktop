@@ -65,15 +65,6 @@ inline QString ToString(uint64 value) {
 
 } // namespace details
 
-template <typename IntRange>
-inline int32 CountHash(IntRange &&range) {
-	uint32 acc = 0;
-	for (auto value : range) {
-		acc += (acc * 20261) + uint32(value);
-	}
-	return int32(acc & 0x7FFFFFFF);
-}
-
 template <
 	typename ...Types,
 	typename = std::enable_if_t<(sizeof...(Types) > 0)>>

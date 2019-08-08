@@ -47,20 +47,6 @@ inline bool operator!=(const FilterValue &a, const FilterValue &b) {
 	return !(a == b);
 }
 
-class LocalIdManager {
-public:
-	LocalIdManager() = default;
-	LocalIdManager(const LocalIdManager &other) = delete;
-	LocalIdManager &operator=(const LocalIdManager &other) = delete;
-	MsgId next() {
-		return ++_counter;
-	}
-
-private:
-	MsgId _counter = ServerMaxMsgId;
-
-};
-
 class Widget final : public Window::SectionWidget {
 public:
 	Widget(QWidget *parent, not_null<Window::SessionController*> controller, not_null<ChannelData*> channel);
@@ -164,17 +150,11 @@ public:
 	void setSearchQuery(QString &&query) {
 		_searchQuery = std::move(query);
 	}
-	void setIdManager(std::shared_ptr<LocalIdManager> &&manager) {
-		_idManager = std::move(manager);
-	}
 	std::vector<OwnedItem> takeItems() {
 		return std::move(_items);
 	}
 	std::set<uint64> takeEventIds() {
 		return std::move(_eventIds);
-	}
-	std::shared_ptr<LocalIdManager> takeIdManager() {
-		return std::move(_idManager);
 	}
 	bool upLoaded() const {
 		return _upLoaded;
@@ -198,7 +178,6 @@ private:
 	std::set<uint64> _eventIds;
 	bool _upLoaded = false;
 	bool _downLoaded = true;
-	std::shared_ptr<LocalIdManager> _idManager;
 	FilterValue _filter;
 	QString _searchQuery;
 

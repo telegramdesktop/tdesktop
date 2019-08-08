@@ -276,8 +276,6 @@ private:
 	std::vector<not_null<UserData*>> _adminsCanEdit;
 	Fn<void(FilterValue &&filter)> _showFilterCallback;
 
-	std::shared_ptr<LocalIdManager> _idManager;
-
 };
 
 } // namespace AdminLog

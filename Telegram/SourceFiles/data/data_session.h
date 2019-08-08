@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_main_list.h"
 #include "data/data_groups.h"
 #include "data/data_notify_settings.h"
+#include "data/data_scheduled_messages.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
 #include "base/flags.h"
@@ -63,6 +64,7 @@ namespace Data {
 class Folder;
 class LocationPoint;
 class WallPaper;
+class ScheduledMessages;
 
 class Session final {
 public:
@@ -78,6 +80,20 @@ public:
 
 	[[nodiscard]] Main::Session &session() const {
 		return *_session;
+	}
+
+	[[nodiscard]] Groups &groups() {
+		return _groups;
+	}
+	[[nodiscard]] const Groups &groups() const {
+		return _groups;
+	}
+
+	[[nodiscard]] ScheduledMessages &scheduledMessages() {
+		return _scheduledMessages;
+	}
+	[[nodiscard]] const ScheduledMessages &scheduledMessages() const {
+		return _scheduledMessages;
 	}
 
 	void clear();
@@ -670,13 +686,6 @@ public:
 	void setProxyPromoted(PeerData *promoted);
 	PeerData *proxyPromoted() const;
 
-	Groups &groups() {
-		return _groups;
-	}
-	const Groups &groups() const {
-		return _groups;
-	}
-
 	bool updateWallpapers(const MTPaccount_WallPapers &data);
 	void removeWallpaper(const WallPaper &paper);
 	const std::vector<WallPaper> &wallpapers() const;
@@ -945,7 +954,6 @@ private:
 	base::flat_map<FolderId, std::unique_ptr<Folder>> _folders;
 	//rpl::variable<FeedId> _defaultFeedId = FeedId(); // #feed
 
-	Groups _groups;
 	std::unordered_map<
 		not_null<const HistoryItem*>,
 		std::vector<not_null<ViewElement*>>> _views;
@@ -979,6 +987,9 @@ private:
 
 	std::vector<WallPaper> _wallpapers;
 	int32 _wallpapersHash = 0;
+
+	Groups _groups;
+	ScheduledMessages _scheduledMessages;
 
 	rpl::lifetime _lifetime;
 

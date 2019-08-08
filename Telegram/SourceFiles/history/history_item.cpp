@@ -352,7 +352,8 @@ void HistoryItem::addLogEntryOriginal(
 		WebPageId localId,
 		const QString &label,
 		const TextWithEntities &content) {
-	Expects(isLogEntry());
+	Expects(!isHistoryEntry());
+	Expects(!isScheduled());
 
 	AddComponents(HistoryMessageLogEntryOriginal::Bit());
 	Get<HistoryMessageLogEntryOriginal>()->page = _history->owner().webpage(
@@ -505,7 +506,9 @@ bool HistoryItem::canStopPoll() const {
 }
 
 bool HistoryItem::canDelete() const {
-	if (isLogEntry() || (!IsServerMsgId(id) && serviceMsg())) {
+	if (!IsServerMsgId(id) && serviceMsg()) {
+		return false;
+	} else if (!isHistoryEntry() && !isScheduled()) {
 		return false;
 	}
 	auto channel = _history->peer->asChannel();

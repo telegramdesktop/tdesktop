@@ -4073,6 +4073,16 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateNewScheduledMessage: {
+		const auto &d = update.c_updateNewScheduledMessage();
+		session().data().scheduledMessages().apply(d);
+	} break;
+
+	case mtpc_updateDeleteScheduledMessages: {
+		const auto &d = update.c_updateDeleteScheduledMessages();
+		session().data().scheduledMessages().apply(d);
+	} break;
+
 	case mtpc_updateWebPage: {
 		auto &d = update.c_updateWebPage();
 

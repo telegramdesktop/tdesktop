@@ -1,3 +1,4 @@
+<(src_loc)/api/api_hash.h
 <(src_loc)/api/api_sending.cpp
 <(src_loc)/api/api_sending.h
 <(src_loc)/api/api_single_message_search.cpp
@@ -220,6 +221,8 @@
 <(src_loc)/data/data_search_controller.h
 <(src_loc)/data/data_session.cpp
 <(src_loc)/data/data_session.h
+<(src_loc)/data/data_scheduled_messages.cpp
+<(src_loc)/data/data_scheduled_messages.h
 <(src_loc)/data/data_shared_media.cpp
 <(src_loc)/data/data_shared_media.h
 <(src_loc)/data/data_sparse_ids.cpp

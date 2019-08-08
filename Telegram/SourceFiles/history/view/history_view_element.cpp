@@ -608,7 +608,7 @@ const HistoryBlock *Element::block() const {
 }
 
 void Element::attachToBlock(not_null<HistoryBlock*> block, int index) {
-	Expects(!_data->isLogEntry());
+	Expects(_data->isHistoryEntry());
 	Expects(_block == nullptr);
 	Expects(_indexInBlock < 0);
 	Expects(index >= 0);
