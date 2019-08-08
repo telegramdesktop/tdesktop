@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "window/window_session_controller.h"
 #include "storage/localstorage.h"
+#include "data/data_scheduled_messages.h"
 #include "data/data_session.h"
 #include "data/data_photo.h"
 #include "data/data_channel.h"
@@ -765,9 +766,15 @@ void DeleteMessagesBox::deleteAndClear() {
 	}
 
 	base::flat_map<not_null<PeerData*>, QVector<MTPint>> idsByPeer;
+	base::flat_map<not_null<PeerData*>, QVector<MTPint>> scheduledIdsByPeer;
 	for (const auto itemId : _ids) {
 		if (const auto item = _session->data().message(itemId)) {
 			const auto history = item->history();
+			if (item->isScheduled()) {
+				scheduledIdsByPeer[history->peer].push_back(MTP_int(
+					_session->data().scheduledMessages().lookupId(item)));
+				continue;
+			}
 			const auto wasOnServer = IsServerMsgId(item->id);
 			const auto wasLast = (history->lastMessage() == item);
 			const auto wasInChats = (history->chatListMessage() == item);
@@ -784,6 +791,15 @@ void DeleteMessagesBox::deleteAndClear() {
 	for (const auto &[peer, ids] : idsByPeer) {
 		peer->session().api().deleteMessages(peer, ids, revoke);
 	}
+	for (const auto &[peer, ids] : scheduledIdsByPeer) {
+		peer->session().api().request(MTPmessages_DeleteScheduledMessages(
+			peer->input,
+			MTP_vector<MTPint>(ids)
+		)).done([=, peer=peer](const MTPUpdates &updates) {
+			peer->session().api().applyUpdates(updates);
+		}).send();
+	}
+
 	const auto session = _session;
 	Ui::hideLayer();
 	session->data().sendHistoryChangeNotifications();

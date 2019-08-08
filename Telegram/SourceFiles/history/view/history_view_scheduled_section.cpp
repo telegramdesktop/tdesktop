@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/special_buttons.h"
+#include "boxes/confirm_box.h"
 #include "window/window_session_controller.h"
 #include "core/event_filter.h"
 #include "main/main_session.h"
@@ -367,6 +368,11 @@ bool ScheduledWidget::listAllowsMultiSelect() {
 	return true;
 }
 
+bool ScheduledWidget::listIsItemGoodForSelection(
+		not_null<HistoryItem*> item) {
+	return !item->isSending() && !item->hasFailed();
+}
+
 bool ScheduledWidget::listIsLessInOrder(
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) {
@@ -407,13 +413,15 @@ void ScheduledWidget::confirmDeleteSelected() {
 	if (items.empty()) {
 		return;
 	}
-	//const auto weak = make_weak(this);
-	//const auto box = Ui::show(Box<DeleteMessagesBox>(std::move(items)));
-	//box->setDeleteConfirmedCallback([=] {
-	//	if (const auto strong = weak.data()) {
-	//		strong->clearSelected();
-	//	}
-	//});
+	const auto weak = make_weak(this);
+	const auto box = Ui::show(Box<DeleteMessagesBox>(
+		&_history->session(),
+		std::move(items)));
+	box->setDeleteConfirmedCallback([=] {
+		if (const auto strong = weak.data()) {
+			strong->clearSelected();
+		}
+	});
 }
 
 void ScheduledWidget::clearSelected() {

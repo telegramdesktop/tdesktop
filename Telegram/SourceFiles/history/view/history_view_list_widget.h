@@ -62,6 +62,7 @@ public:
 		int limitBefore,
 		int limitAfter) = 0;
 	virtual bool listAllowsMultiSelect() = 0;
+	virtual bool listIsItemGoodForSelection(not_null<HistoryItem*> item) = 0;
 	virtual bool listIsLessInOrder(
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) = 0;
@@ -338,7 +339,6 @@ private:
 		TextSelection selection);
 	int itemMinimalHeight() const;
 
-	bool isGoodForSelection(not_null<HistoryItem*> item) const;
 	bool isGoodForSelection(
 		SelectedMap &applyTo,
 		not_null<HistoryItem*> item,

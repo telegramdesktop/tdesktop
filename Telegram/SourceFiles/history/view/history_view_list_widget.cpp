@@ -746,15 +746,11 @@ bool ListWidget::isSelectedAsGroup(
 	return applyTo.contains(item->fullId());
 }
 
-bool ListWidget::isGoodForSelection(not_null<HistoryItem*> item) const {
-	return IsServerMsgId(item->id) && !item->serviceMsg();
-}
-
 bool ListWidget::isGoodForSelection(
 		SelectedMap &applyTo,
 		not_null<HistoryItem*> item,
 		int &totalCount) const {
-	if (!isGoodForSelection(item)) {
+	if (!_delegate->listIsItemGoodForSelection(item)) {
 		return false;
 	} else if (!applyTo.contains(item->fullId())) {
 		++totalCount;
@@ -1814,14 +1810,14 @@ void ListWidget::updateDragSelection(
 	const auto changeGroup = [&](not_null<HistoryItem*> item, bool add) {
 		if (const auto group = groups.find(item)) {
 			for (const auto item : group->items) {
-				if (!isGoodForSelection(item)) {
+				if (!_delegate->listIsItemGoodForSelection(item)) {
 					return;
 				}
 			}
 			for (const auto item : group->items) {
 				changeItem(item, add);
 			}
-		} else if (isGoodForSelection(item)) {
+		} else if (_delegate->listIsItemGoodForSelection(item)) {
 			changeItem(item, add);
 		}
 	};
