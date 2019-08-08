@@ -55,7 +55,6 @@ set "PortableFile=tportable.%AppVersionStrFull%.zip"
 set "ReleasePath=%HomePath%\..\out\Release"
 set "DeployPath=%ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStrFull%"
 set "SignPath=%HomePath%\..\..\TelegramPrivate\Sign.bat"
-set "SignAppxPath=%HomePath%\..\..\TelegramPrivate\AppxSign.bat"
 set "BinaryName=Telegram"
 set "DropboxSymbolsPath=Y:\Telegram\symbols"
 set "FinalReleasePath=Z:\Telegram\backup"
@@ -131,20 +130,32 @@ echo Done!
 set "PATH=%PATH%;C:\Program Files\7-Zip;C:\Program Files (x86)\Inno Setup 5"
 
 cd "%ReleasePath%"
+
+:sign1
 call "%SignPath%" "%BinaryName%.exe"
-if %errorlevel% neq 0 goto error
+if %errorlevel% neq 0 (
+  timeout /t 3
+  goto sign1
+)
 
 if %BuildUWP% equ 0 (
+:sign2
   call "%SignPath%" "Updater.exe"
-  if %errorlevel% neq 0 goto error
+  if %errorlevel% neq 0 (
+    timeout /t 3
+    goto sign2
+  )
 
   if %AlphaVersion% equ 0 (
     iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "/dReleasePath=%ReleasePath%" "%FullScriptPath%setup.iss"
     if %errorlevel% neq 0 goto error
     if not exist "tsetup.%AppVersionStrFull%.exe" goto error
-
+:sign3
     call "%SignPath%" "tsetup.%AppVersionStrFull%.exe"
-    if %errorlevel% neq 0 goto error
+    if %errorlevel% neq 0 (
+      timeout /t 3
+      goto sign3
+    )
   )
 
   call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe %AlphaBetaParam%
