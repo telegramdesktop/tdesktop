@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Main {
 namespace {
 
-constexpr auto kRefreshTimeout = TimeId(3600);
+constexpr auto kRefreshTimeout = 3600 * crl::time(1000);
 
 } // namespace
 
