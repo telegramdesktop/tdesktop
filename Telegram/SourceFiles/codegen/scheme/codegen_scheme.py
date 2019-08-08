@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 '''
 import glob, re, binascii, os, sys
 
-input_file = ''
+input_files = []
 output_path = ''
 next_output_path = False
 for arg in sys.argv[1:]:
@@ -19,9 +19,9 @@ for arg in sys.argv[1:]:
   elif re.match(r'^-o(.+)', arg):
     output_path = arg[2:]
   else:
-    input_file = arg
+    input_files.append(arg)
 
-if input_file == '':
+if len(input_files) == 0:
   print('Input file required.')
   sys.exit(1)
 if output_path == '':
@@ -92,14 +92,16 @@ textSerializeMethods = '';
 forwards = '';
 forwTypedefs = '';
 
-with open(input_file) as f:
-  for line in f:
-    layerline = re.match(r'// LAYER (\d+)', line)
-    if (layerline):
-      layerIndex = 	int(layerline.group(1));
-      layer = 'inline constexpr mtpPrime CurrentLayer = mtpPrime(' + str(layerIndex) + ');';
-    else:
-      lines.append(line);
+for input_file in input_files:
+  lines.append('---types---')
+  with open(input_file) as f:
+    for line in f:
+      layerline = re.match(r'// LAYER (\d+)', line)
+      if (layerline):
+        layerIndex = int(layerline.group(1));
+        layer = 'inline constexpr mtpPrime CurrentLayer = mtpPrime(' + str(layerIndex) + ');';
+      else:
+        lines.append(line);
 
 for line in lines:
     nocomment = re.match(r'^(.*?)//', line)
