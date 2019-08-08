@@ -318,7 +318,9 @@ AdminLog::OwnedItem GenerateContactItem(
 		MTP_int(0),
 		MTP_int(0),
 		MTP_string(),
-		MTP_long(0));
+		MTP_long(0),
+		//MTPMessageReactions(),
+		MTPVector<MTPRestrictionReason>());
 	const auto item = history->owner().makeMessage(
 		history,
 		message.c_message(),

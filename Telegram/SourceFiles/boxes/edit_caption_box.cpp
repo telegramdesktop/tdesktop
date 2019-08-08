@@ -934,7 +934,8 @@ void EditCaptionBox::save() {
 			MTP_string(sending.text),
 			MTPInputMedia(),
 			MTPReplyMarkup(),
-			sentEntities),
+			sentEntities,
+			MTP_int(0)), // schedule_date
 		rpcDone(&EditCaptionBox::saveDone),
 		rpcFail(&EditCaptionBox::saveFail));
 }

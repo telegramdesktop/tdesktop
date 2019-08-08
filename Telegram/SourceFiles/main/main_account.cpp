@@ -335,7 +335,7 @@ void Account::startMtp() {
 			MTPUserProfilePhoto(),
 			MTPUserStatus(),
 			MTPint(), // bot_info_version
-			MTPstring(), // restriction_reason
+			MTPVector<MTPRestrictionReason>(),
 			MTPstring(), // bot_inline_placeholder
 			MTPstring())); // lang_code
 		Local::readSelf(

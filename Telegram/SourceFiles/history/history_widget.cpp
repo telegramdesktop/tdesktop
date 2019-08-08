@@ -2777,7 +2777,8 @@ void HistoryWidget::saveEditMsg() {
 			MTP_string(sending.text),
 			MTPInputMedia(),
 			MTPReplyMarkup(),
-			sentEntities),
+			sentEntities,
+			MTP_int(0)), // schedule_date
 		rpcDone(&HistoryWidget::saveEditMsgDone, _history),
 		rpcFail(&HistoryWidget::saveEditMsgFail, _history));
 }
@@ -4414,7 +4415,9 @@ void HistoryWidget::sendFileConfirmed(
 			MTP_int(1),
 			MTPint(),
 			MTP_string(messagePostAuthor),
-			MTP_long(groupId));
+			MTP_long(groupId),
+			//MTPMessageReactions(),
+			MTPVector<MTPRestrictionReason>());
 
 		if (itemToEdit) {
 			itemToEdit->savePreviousMedia();
@@ -4448,7 +4451,9 @@ void HistoryWidget::sendFileConfirmed(
 			MTP_int(1),
 			MTPint(),
 			MTP_string(messagePostAuthor),
-			MTP_long(groupId));
+			MTP_long(groupId),
+			//MTPMessageReactions(),
+			MTPVector<MTPRestrictionReason>());
 
 		if (itemToEdit) {
 			itemToEdit->savePreviousMedia();
@@ -4485,7 +4490,9 @@ void HistoryWidget::sendFileConfirmed(
 				MTP_int(1),
 				MTPint(),
 				MTP_string(messagePostAuthor),
-				MTP_long(groupId)),
+				MTP_long(groupId),
+				//MTPMessageReactions(),
+				MTPVector<MTPRestrictionReason>()),
 			clientFlags,
 			NewMessageType::Unread);
 		// Voices can't be edited.

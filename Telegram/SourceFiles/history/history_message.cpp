@@ -295,14 +295,14 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 				message.clearDraft = false;
 				history->session().api().sendMessage(std::move(message));
 			}
-			auto request = MTPmessages_ForwardMessages(
-				MTP_flags(sendFlags),
-				data->peer->input,
-				MTP_vector<MTPint>(msgIds),
-				MTP_vector<MTPlong>(generateRandom()),
-				peer->input);
 			history->sendRequestId = MTP::send(
-				request,
+				MTPmessages_ForwardMessages(
+					MTP_flags(sendFlags),
+					data->peer->input,
+					MTP_vector<MTPint>(msgIds),
+					MTP_vector<MTPlong>(generateRandom()),
+					peer->input,
+					MTP_int(0)),
 				rpcDone(base::duplicate(doneCallback)),
 				nullptr,
 				0,

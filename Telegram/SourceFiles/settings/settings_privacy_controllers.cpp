@@ -158,7 +158,9 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		MTPint(), // views
 		MTPint(), // edit_date
 		MTPstring(), // post_author
-		MTPlong() // grouped_id
+		MTPlong(), // grouped_id
+		//MTPMessageReactions(),
+		MTPVector<MTPRestrictionReason>()
 	).match([&](const MTPDmessage &data) {
 		return history->owner().makeMessage(
 			history,

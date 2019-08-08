@@ -3553,7 +3553,8 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 	switch (updates.type()) {
 	case mtpc_updateShortMessage: {
 		const auto &d = updates.c_updateShortMessage();
-		const auto flags = mtpCastFlags(d.vflags().v) | MTPDmessage::Flag::f_from_id;
+		const auto flags = mtpCastFlags(d.vflags().v)
+			| MTPDmessage::Flag::f_from_id;
 		const auto peerUserId = d.is_out()
 			? d.vuser_id()
 			: MTP_int(_session->userId());
@@ -3575,7 +3576,9 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPint(),
 				MTPint(),
 				MTPstring(),
-				MTPlong()),
+				MTPlong(),
+				//MTPMessageReactions(),
+				MTPVector<MTPRestrictionReason>()),
 			MTPDmessage_ClientFlags(),
 			NewMessageType::Unread);
 	} break;
@@ -3601,7 +3604,9 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPint(),
 				MTPint(),
 				MTPstring(),
-				MTPlong()),
+				MTPlong(),
+				//MTPMessageReactions(),
+				MTPVector<MTPRestrictionReason>()),
 			MTPDmessage_ClientFlags(),
 			NewMessageType::Unread);
 	} break;
@@ -4450,7 +4455,8 @@ void ApiWrap::forwardMessages(
 			forwardFrom->input,
 			MTP_vector<MTPint>(ids),
 			MTP_vector<MTPlong>(randomIds),
-			peer->input
+			peer->input,
+			MTP_int(0) // schedule_date
 		)).done([=, callback = std::move(successCallback)](
 				const MTPUpdates &updates) {
 			applyUpdates(updates);
@@ -4601,7 +4607,9 @@ void ApiWrap::sendSharedContact(
 			MTP_int(views),
 			MTPint(),
 			MTP_string(messagePostAuthor),
-			MTPlong()),
+			MTPlong(),
+			//MTPMessageReactions(),
+			MTPVector<MTPRestrictionReason>()),
 		clientFlags,
 		NewMessageType::Unread);
 
@@ -4846,7 +4854,8 @@ void ApiWrap::editUploadedFile(
 		MTP_string(item->originalText().text),
 		*media,
 		MTPReplyMarkup(),
-		sentEntities
+		sentEntities,
+		MTP_int(0) // schedule_date
 	)).done([=](const MTPUpdates &result) {
 		item->clearSavedMedia();
 		item->setIsLocalUpdateMedia(true);
@@ -4982,7 +4991,9 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 				MTP_int(1),
 				MTPint(),
 				MTP_string(messagePostAuthor),
-				MTPlong()),
+				MTPlong(),
+				//MTPMessageReactions(),
+				MTPVector<MTPRestrictionReason>()),
 			clientFlags,
 			NewMessageType::Unread);
 		history->sendRequestId = request(MTPmessages_SendMessage(
@@ -4992,7 +5003,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			msgText,
 			MTP_long(randomId),
 			MTPReplyMarkup(),
-			sentEntities
+			sentEntities,
+			MTP_int(0) // schedule_date
 		)).done([=](const MTPUpdates &result) {
 			applyUpdates(result, randomId);
 			history->clearSentDraftText(QString());
@@ -5111,7 +5123,8 @@ void ApiWrap::sendInlineResult(
 		MTP_int(options.replyTo),
 		MTP_long(randomId),
 		MTP_long(data->getQueryId()),
-		MTP_string(data->getId())
+		MTP_string(data->getId()),
+		MTP_int(0) // schedule_date
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result, randomId);
 		history->clearSentDraftText(QString());
@@ -5246,7 +5259,8 @@ void ApiWrap::sendMediaWithRandomId(
 		MTP_string(caption.text),
 		MTP_long(randomId),
 		MTPReplyMarkup(),
-		sentEntities
+		sentEntities,
+		MTP_int(0) // schedule_date
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
 	}).fail([=](const RPCError &error) {
@@ -5333,7 +5347,8 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		MTP_flags(flags),
 		peer->input,
 		MTP_int(replyTo),
-		MTP_vector<MTPInputSingleMedia>(medias)
+		MTP_vector<MTPInputSingleMedia>(medias),
+		MTP_int(0) // schedule_date
 	)).done([=](const MTPUpdates &result) {
 		_sendingAlbums.remove(groupId);
 		applyUpdates(result);
@@ -5819,7 +5834,8 @@ void ApiWrap::createPoll(
 		MTP_string(),
 		MTP_long(rand_value<uint64>()),
 		MTPReplyMarkup(),
-		MTPVector<MTPMessageEntity>()
+		MTPVector<MTPMessageEntity>(),
+		MTP_int(0) // schedule_date
 	)).done([=, done = std::move(done)](const MTPUpdates &result) mutable {
 		applyUpdates(result);
 		done();
@@ -5895,7 +5911,8 @@ void ApiWrap::closePoll(not_null<HistoryItem*> item) {
 		MTPstring(),
 		MTP_inputMediaPoll(PollDataToMTP(poll)),
 		MTPReplyMarkup(),
-		MTPVector<MTPMessageEntity>()
+		MTPVector<MTPMessageEntity>(),
+		MTP_int(0) // schedule_date
 	)).done([=](const MTPUpdates &result) {
 		_pollCloseRequestIds.erase(itemId);
 		applyUpdates(result);

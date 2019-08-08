@@ -111,7 +111,8 @@ void SendExistingMedia(
 			MTP_string(captionText),
 			MTP_long(randomId),
 			MTPReplyMarkup(),
-			sentEntities
+			sentEntities,
+			MTP_int(0) // schedule_date
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result, randomId);
 		}).fail([=](const RPCError &error) {

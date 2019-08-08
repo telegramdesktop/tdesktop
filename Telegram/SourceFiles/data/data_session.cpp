@@ -95,27 +95,28 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 
 // We should get a full restriction in "{full}: {reason}" format and we
 // need to find an "-all" tag in {full}, otherwise ignore this restriction.
-QString ExtractUnavailableReason(const QString &restriction) {
-	const auto fullEnd = restriction.indexOf(':');
-	if (fullEnd <= 0) {
-		return QString();
-	}
-
-	// {full} is in "{type}-{tag}-{tag}-{tag}" format
-	// if we find "all" tag we return the restriction string
-	const auto typeTags = restriction.mid(0, fullEnd).split('-').mid(1);
-#ifdef OS_MAC_STORE
-	const auto restrictionApplies = typeTags.contains(qsl("all"))
-		|| typeTags.contains(qsl("ios"));
-#elif defined OS_WIN_STORE // OS_MAC_STORE
-	const auto restrictionApplies = typeTags.contains(qsl("all"))
-		|| typeTags.contains(qsl("ms"));
-#else
-	const auto restrictionApplies = typeTags.contains(qsl("all"));
-#endif // OS_MAC_STORE || OS_WIN_STORE
-	if (restrictionApplies) {
-		return restriction.midRef(fullEnd + 1).trimmed().toString();
-	}
+QString ExtractUnavailableReason(
+		const QVector<MTPRestrictionReason> &restriction) {
+//	const auto fullEnd = restriction.indexOf(':');
+//	if (fullEnd <= 0) {
+//		return QString();
+//	}
+//
+//	// {full} is in "{type}-{tag}-{tag}-{tag}" format
+//	// if we find "all" tag we return the restriction string
+//	const auto typeTags = restriction.mid(0, fullEnd).split('-').mid(1);
+//#ifdef OS_MAC_STORE
+//	const auto restrictionApplies = typeTags.contains(qsl("all"))
+//		|| typeTags.contains(qsl("ios"));
+//#elif defined OS_WIN_STORE // OS_MAC_STORE
+//	const auto restrictionApplies = typeTags.contains(qsl("all"))
+//		|| typeTags.contains(qsl("ms"));
+//#else
+//	const auto restrictionApplies = typeTags.contains(qsl("all"));
+//#endif // OS_MAC_STORE || OS_WIN_STORE
+//	if (restrictionApplies) {
+//		return restriction.midRef(fullEnd + 1).trimmed().toString();
+//	}
 	return QString();
 }
 
@@ -355,7 +356,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			}
 			if (const auto restriction = data.vrestriction_reason()) {
 				result->setUnavailableReason(
-					ExtractUnavailableReason(qs(*restriction)));
+					ExtractUnavailableReason(restriction->v));
 			} else {
 				result->setUnavailableReason(QString());
 			}
@@ -626,7 +627,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			}
 			if (const auto restriction = data.vrestriction_reason()) {
 				channel->setUnavailableReason(
-					ExtractUnavailableReason(qs(*restriction)));
+					ExtractUnavailableReason(restriction->v));
 			} else {
 				channel->setUnavailableReason(QString());
 			}
@@ -3585,17 +3586,17 @@ void Session::serviceNotification(
 				| MTPDuser::Flag::f_status
 				| MTPDuser::Flag::f_verified),
 			MTP_int(peerToUser(PeerData::kServiceNotificationsId)),
-			MTPlong(),
+			MTPlong(), // access_hash
 			MTP_string("Telegram"),
-			MTPstring(),
-			MTPstring(),
+			MTPstring(), // last_name
+			MTPstring(), // username
 			MTP_string("42777"),
 			MTP_userProfilePhotoEmpty(),
 			MTP_userStatusRecently(),
-			MTPint(),
-			MTPstring(),
-			MTPstring(),
-			MTPstring()));
+			MTPint(), // bot_info_version
+			MTPVector<MTPRestrictionReason>(),
+			MTPstring(), // bot_inline_placeholder
+			MTPstring())); // lang_code
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
 	if (!history->folderKnown()) {
@@ -3643,7 +3644,9 @@ void Session::insertCheckedServiceNotification(
 				MTPint(),
 				MTPint(),
 				MTPstring(),
-				MTPlong()),
+				MTPlong(),
+				//MTPMessageReactions(),
+				MTPVector<MTPRestrictionReason>()),
 			clientFlags,
 			NewMessageType::Unread);
 	}

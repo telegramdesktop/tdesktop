@@ -68,7 +68,9 @@ MTPMessage PrepareLogMessage(
 			| MTPDmessage::Flag::f_post
 			| MTPDmessage::Flag::f_reply_to_msg_id
 			| MTPDmessage::Flag::f_edit_date
-			| MTPDmessage::Flag::f_grouped_id;
+			| MTPDmessage::Flag::f_grouped_id
+			//| MTPDmessage::Flag::f_reactions
+			| MTPDmessage::Flag::f_restriction_reason;
 		const auto flags = message.vflags().v & ~removeFlags;
 		const auto fwdFrom = message.vfwd_from();
 		const auto media = message.vmedia();
@@ -90,7 +92,9 @@ MTPMessage PrepareLogMessage(
 			MTP_int(message.vviews().value_or_empty()),
 			MTP_int(0), // edit_date
 			MTP_string(),
-			MTP_long(0)); // grouped_id
+			MTP_long(0), // grouped_id
+			//MTPMessageReactions(),
+			MTPVector<MTPRestrictionReason>());
 	});
 }
 
