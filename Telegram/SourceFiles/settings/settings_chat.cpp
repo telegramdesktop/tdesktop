@@ -87,7 +87,7 @@ public:
 		QColor received;
 		QColor radiobuttonInactive;
 		QColor radiobuttonActive;
-		QString name;
+		tr::phrase<> name;
 		QString path;
 	};
 	DefaultTheme(Scheme scheme, bool checked);
@@ -800,7 +800,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			color("ffffff"),
 			color("d7f0ff"),
 			color("ffffff"),
-			"Blue",
+			tr::lng_settings_theme_blue,
 			":/gui/day-blue.tdesktop-theme"
 		},
 		Scheme{
@@ -810,7 +810,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			color("ffffff"),
 			color("eaffdc"),
 			color("ffffff"),
-			"Classic",
+			tr::lng_settings_theme_classic,
 			QString()
 		},
 		Scheme{
@@ -820,7 +820,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			color("6b808d"),
 			color("6b808d"),
 			color("5ca7d4"),
-			"Midnight",
+			tr::lng_settings_theme_midnight,
 			":/gui/night.tdesktop-theme"
 		},
 		Scheme{
@@ -830,7 +830,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			color("6b808d"),
 			color("6b808d"),
 			color("74bf93"),
-			"Matrix",
+			tr::lng_settings_theme_matrix,
 			":/gui/night-green.tdesktop-theme"
 		},
 	};
@@ -856,7 +856,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			block,
 			group,
 			scheme.type,
-			scheme.name,
+			scheme.name(tr::now),
 			st::settingsTheme,
 			std::move(check));
 		weak->setUpdateCallback([=] { result->update(); });
