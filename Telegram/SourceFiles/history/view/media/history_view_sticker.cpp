@@ -84,7 +84,7 @@ void Sticker::draw(Painter &p, const QRect &r, bool selected) {
 
 	if (_lottie && _lottie->ready()) {
 		paintLottie(p, r, selected);
-	} else if (!_lottie || !_replacements) {
+	} else if (!sticker->animated || !_replacements) {
 		paintPixmap(p, r, selected);
 	}
 }
