@@ -92,7 +92,8 @@ public:
 		int shift = 0;
 	};
 
-	explicit ListMemento(Data::MessagePosition position)
+	explicit ListMemento(
+		Data::MessagePosition position = Data::UnreadMessagePosition)
 	: _aroundPosition(position) {
 	}
 	void setAroundPosition(Data::MessagePosition position) {

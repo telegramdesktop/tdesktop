@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_scheduled_messages.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_message.h"
@@ -46,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //#include "history/feed/history_feed_section.h" // #feed
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_scheduled_section.h"
 #include "profile/profile_block_group_members.h"
 #include "info/info_memento.h"
 #include "core/click_handler_types.h"
@@ -644,6 +646,7 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
+	setupScheduledToggle();
 	orderWidgets();
 	setupShortcuts();
 }
@@ -1766,6 +1769,7 @@ void HistoryWidget::showHistory(
 			session().data().requestNotifySettings(_peer);
 			refreshSilentToggle();
 		}
+		refreshScheduledToggle();
 
 		if (_showAtMsgId == ShowAtUnreadMsgId) {
 			if (_history->scrollTopItem) {
@@ -1902,6 +1906,37 @@ void HistoryWidget::refreshSilentToggle() {
 	}
 }
 
+void HistoryWidget::setupScheduledToggle() {
+	controller()->activeChatValue(
+	) | rpl::map([=](const Dialogs::Key &key) -> rpl::producer<> {
+		if (const auto history = key.history()) {
+			return session().data().scheduledMessages().updates(history);
+		}
+		return rpl::never<rpl::empty_value>();
+	}) | rpl::flatten_latest(
+	) | rpl::start_with_next([=] {
+		refreshScheduledToggle();
+		updateControlsVisibility();
+		updateControlsGeometry();
+	}, lifetime());
+}
+
+void HistoryWidget::refreshScheduledToggle() {
+	const auto has = _history
+		&& _peer->canWrite()
+		&& (session().data().scheduledMessages().count(_history) > 0);
+	if (!_scheduled && has) {
+		_scheduled.create(this, st::historyScheduledToggle);
+		_scheduled->show();
+		_scheduled->addClickHandler([=] {
+			controller()->showSection(
+				HistoryView::ScheduledMemento(_history));
+		});
+	} else if (_scheduled && !has) {
+		_scheduled.destroy();
+	}
+}
+
 bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
 	return (_attachDragDocument->overlaps(globalRect)
 			|| _attachDragPhoto->overlaps(globalRect)
@@ -2004,6 +2039,9 @@ void HistoryWidget::updateControlsVisibility() {
 		if (_silent) {
 			_silent->hide();
 		}
+		if (_scheduled) {
+			_scheduled->hide();
+		}
 		_kbScroll->hide();
 		_fieldBarCancel->hide();
 		_attachToggle->hide();
@@ -2040,6 +2078,9 @@ void HistoryWidget::updateControlsVisibility() {
 			_attachToggle->hide();
 			if (_silent) {
 				_silent->hide();
+			}
+			if (_scheduled) {
+				_scheduled->hide();
 			}
 			if (_kbShown) {
 				_kbScroll->show();
@@ -2080,6 +2121,9 @@ void HistoryWidget::updateControlsVisibility() {
 			if (_silent) {
 				_silent->show();
 			}
+			if (_scheduled) {
+				_scheduled->show();
+			}
 			updateFieldPlaceholder();
 		}
 		if (_editMsgId || _replyToId || readyToForward() || (_previewData && _previewData->pendingTill >= 0) || _kbReplyTo) {
@@ -2105,6 +2149,9 @@ void HistoryWidget::updateControlsVisibility() {
 		_attachToggle->hide();
 		if (_silent) {
 			_silent->hide();
+		}
+		if (_scheduled) {
+			_scheduled->hide();
 		}
 		_kbScroll->hide();
 		_fieldBarCancel->hide();
@@ -3841,7 +3888,7 @@ void HistoryWidget::moveFieldControls() {
 	}
 
 // _attachToggle --------- _inlineResults -------------------------------------- _tabbedPanel --------- _fieldBarCancel
-// (_attachDocument|_attachPhoto) _field (_silent|_cmdStart|_kbShow) (_kbHide|_tabbedSelectorToggle) [_broadcast] _send
+// (_attachDocument|_attachPhoto) _field (_scheduled) (_silent|_cmdStart|_kbShow) (_kbHide|_tabbedSelectorToggle) [_broadcast] _send
 // (_botStart|_unblock|_joinChannel|{_muteUnmute&_discuss})
 
 	auto buttonsBottom = bottom - _attachToggle->height();
@@ -3857,6 +3904,13 @@ void HistoryWidget::moveFieldControls() {
 	_botCommandStart->moveToRight(right, buttonsBottom);
 	if (_silent) {
 		_silent->moveToRight(right, buttonsBottom);
+	}
+	const auto kbShowShown = _history && !_kbShown && _keyboard->hasMarkup();
+	if (kbShowShown || _cmdStartShown || _silent) {
+		right += _botCommandStart->width();
+	}
+	if (_scheduled) {
+		_scheduled->moveToRight(right, buttonsBottom);
 	}
 
 	_fieldBarCancel->moveToRight(0, _field->y() - st::historySendPadding - _fieldBarCancel->height());
@@ -3915,6 +3969,7 @@ void HistoryWidget::updateFieldSize() {
 	if (kbShowShown) fieldWidth -= _botKeyboardShow->width();
 	if (_cmdStartShown) fieldWidth -= _botCommandStart->width();
 	if (_silent) fieldWidth -= _silent->width();
+	if (_scheduled) fieldWidth -= _scheduled->width();
 
 	if (_field->width() != fieldWidth) {
 		_field->resize(fieldWidth, _field->height());
@@ -6089,6 +6144,7 @@ void HistoryWidget::fullPeerUpdated(PeerData *peer) {
 			if (!_canSendMessages) {
 				cancelReply();
 			}
+			refreshScheduledToggle();
 			refreshSilentToggle();
 			refresh = true;
 		}
@@ -6135,6 +6191,7 @@ void HistoryWidget::handlePeerUpdate() {
 			if (!_canSendMessages) {
 				cancelReply();
 			}
+			refreshScheduledToggle();
 			refreshSilentToggle();
 			resize = true;
 		}

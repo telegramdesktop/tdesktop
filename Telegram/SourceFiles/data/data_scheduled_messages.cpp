@@ -77,7 +77,7 @@ ScheduledMessages::~ScheduledMessages() {
 	}
 }
 
-MsgId ScheduledMessages::scheduledId(not_null<HistoryItem*> item) {
+MsgId ScheduledMessages::lookupId(not_null<HistoryItem*> item) const {
 	if (const auto i = _data.find(item->history()); i != end(_data)) {
 		const auto &list = i->second.idByItem;
 		if (const auto j = list.find(item); j != end(list)) {
@@ -87,16 +87,9 @@ MsgId ScheduledMessages::scheduledId(not_null<HistoryItem*> item) {
 	return MsgId(0);
 }
 
-HistoryItem *ScheduledMessages::scheduledMessage(
-		not_null<History*> history,
-		MsgId id) {
-	if (const auto i = _data.find(history); i != end(_data)) {
-		const auto &list = i->second.itemById;
-		if (const auto j = list.find(id); j != end(list)) {
-			return j->second;
-		}
-	}
-	return nullptr;
+int ScheduledMessages::count(not_null<History*> history) const {
+	const auto i = _data.find(history);
+	return (i != end(_data)) ? i->second.items.size() : 0;
 }
 
 void ScheduledMessages::apply(const MTPDupdateNewScheduledMessage &update) {
@@ -150,6 +143,28 @@ rpl::producer<> ScheduledMessages::updates(not_null<History*> history) {
 	}) | rpl::map([] {
 		return rpl::empty_value();
 	});
+}
+
+Data::MessagesSlice ScheduledMessages::list(not_null<History*> history) {
+	auto result = Data::MessagesSlice();
+	const auto i = _data.find(history);
+	if (i == end(_data)) {
+		const auto i = _requests.find(history);
+		if (i == end(_requests)) {
+			return result;
+		}
+		result.fullCount = result.skippedAfter = result.skippedBefore = 0;
+		return result;
+	}
+	const auto &list = i->second.items;
+	result.skippedAfter = result.skippedBefore = 0;
+	result.fullCount = int(list.size());
+	result.ids = ranges::view::all(
+		list
+	) | ranges::view::transform(
+		&HistoryItem::fullId
+	) | ranges::view::reverse | ranges::to_vector;
+	return result;
 }
 
 void ScheduledMessages::request(not_null<History*> history) {

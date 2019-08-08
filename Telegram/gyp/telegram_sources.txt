@@ -330,6 +330,8 @@
 <(src_loc)/history/view/history_view_message.cpp
 <(src_loc)/history/view/history_view_message.h
 <(src_loc)/history/view/history_view_object.h
+<(src_loc)/history/view/history_view_scheduled_section.cpp
+<(src_loc)/history/view/history_view_scheduled_section.h
 <(src_loc)/history/view/history_view_service_message.cpp
 <(src_loc)/history/view/history_view_service_message.h
 <(src_loc)/history/view/history_view_top_bar_widget.cpp

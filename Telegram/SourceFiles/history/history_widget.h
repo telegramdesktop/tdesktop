@@ -711,6 +711,9 @@ private:
 	bool showInlineBotCancel() const;
 	void refreshSilentToggle();
 
+	void setupScheduledToggle();
+	void refreshScheduledToggle();
+
 	std::unique_ptr<HistoryView::ContactStatus> _contactStatus;
 
 	object_ptr<Ui::SendButton> _send;
@@ -728,6 +731,7 @@ private:
 	object_ptr<Ui::IconButton> _botKeyboardHide;
 	object_ptr<Ui::IconButton> _botCommandStart;
 	object_ptr<Ui::SilentToggle> _silent = { nullptr };
+	object_ptr<Ui::IconButton> _scheduled = { nullptr };
 	bool _cmdStartShown = false;
 	object_ptr<Ui::InputField> _field;
 	bool _recording = false;

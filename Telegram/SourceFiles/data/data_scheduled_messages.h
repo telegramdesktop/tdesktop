@@ -18,6 +18,7 @@ class Session;
 namespace Data {
 
 class Session;
+struct MessagesSlice;
 
 class ScheduledMessages final {
 public:
@@ -26,15 +27,14 @@ public:
 	ScheduledMessages &operator=(const ScheduledMessages &other) = delete;
 	~ScheduledMessages();
 
-	[[nodiscard]] MsgId scheduledId(not_null<HistoryItem*> item);
-	[[nodiscard]] HistoryItem *scheduledMessage(
-		not_null<History*> history,
-		MsgId id);
+	[[nodiscard]] MsgId lookupId(not_null<HistoryItem*> item) const;
+	[[nodiscard]] int count(not_null<History*> history) const;
 
 	void apply(const MTPDupdateNewScheduledMessage &update);
 	void apply(const MTPDupdateDeleteScheduledMessages &update);
 
 	[[nodiscard]] rpl::producer<> updates(not_null<History*> history);
+	[[nodiscard]] Data::MessagesSlice list(not_null<History*> history);
 
 private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;

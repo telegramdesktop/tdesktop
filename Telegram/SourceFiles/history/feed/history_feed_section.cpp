@@ -82,6 +82,7 @@ Widget::Widget(
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
 	_topBar->show();
+
 	_topBar->forwardSelectionRequest(
 	) | rpl::start_with_next([=] {
 		forwardSelected();

@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_main_list.h"
 #include "data/data_groups.h"
 #include "data/data_notify_settings.h"
-#include "data/data_scheduled_messages.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
 #include "base/flags.h"
@@ -89,11 +88,8 @@ public:
 		return _groups;
 	}
 
-	[[nodiscard]] ScheduledMessages &scheduledMessages() {
-		return _scheduledMessages;
-	}
-	[[nodiscard]] const ScheduledMessages &scheduledMessages() const {
-		return _scheduledMessages;
+	[[nodiscard]] ScheduledMessages &scheduledMessages() const {
+		return *_scheduledMessages;
 	}
 
 	void clear();
@@ -989,7 +985,7 @@ private:
 	int32 _wallpapersHash = 0;
 
 	Groups _groups;
-	ScheduledMessages _scheduledMessages;
+	std::unique_ptr<ScheduledMessages> _scheduledMessages;
 
 	rpl::lifetime _lifetime;
 
