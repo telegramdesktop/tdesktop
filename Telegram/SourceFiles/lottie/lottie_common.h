@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QSize>
 #include <QColor>
 #include <crl/crl_time.h>
+#include <vector>
 
 namespace Lottie {
 
