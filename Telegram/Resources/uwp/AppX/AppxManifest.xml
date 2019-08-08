@@ -12,7 +12,7 @@
     Version="1.7.15.6" />
   <Properties>
     <DisplayName>Telegram Desktop</DisplayName>
-    <PublisherDisplayName>Telegram Messenger LLP</PublisherDisplayName>
+    <PublisherDisplayName>Telegram FZ-LLC</PublisherDisplayName>
     <Description>Telegram Desktop official messenger</Description>
     <Logo>Assets\logo\logo.png</Logo>
   </Properties>

@@ -39,7 +39,7 @@ mkdir "%ReleasePath%\AppX"
 xcopy "Resources\uwp\AppX\*" "%ReleasePath%\AppX\" /E
 
 set "ResourcePath=%ReleasePath%\AppX\AppxManifest.xml"
-call :repl "Argument= (Publisher=)&quot;CN=536BC709-8EE1-4478-AF22-F0F0F26FF64A&quot;/ $1&quot;CN=Telegram Messenger LLP, O=Telegram Messenger LLP, L=London, C=GB&quot;" "Filename=%ResourcePath%" || goto :error
+call :repl "Argument= (Publisher=)&quot;CN=536BC709-8EE1-4478-AF22-F0F0F26FF64A&quot;/ $1&quot;CN=Telegram FZ-LLC, O=Telegram FZ-LLC, L=Dubai, C=AE&quot;" "Filename=%ResourcePath%" || goto :error
 call :repl "Argument= (ProcessorArchitecture=)&quot;ARCHITECTURE&quot;/ $1&quot;x64&quot;" "Filename=%ResourcePath%" || goto :error
 
 makepri new /pr Resources\uwp\AppX\ /cf Resources\uwp\priconfig.xml /mn %ReleasePath%\AppX\AppxManifest.xml /of %ReleasePath%\AppX\resources.pri

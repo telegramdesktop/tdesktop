@@ -1,6 +1,6 @@
 #define MyAppShortName "Telegram"
 #define MyAppName "Telegram Desktop"
-#define MyAppPublisher "Telegram Messenger LLP"
+#define MyAppPublisher "Telegram FZ-LLC"
 #define MyAppURL "https://tdesktop.com"
 #define MyAppExeName "Telegram.exe"
 #define MyAppId "53F49750-6209-4FBF-9CA8-7A333C87D1ED"
