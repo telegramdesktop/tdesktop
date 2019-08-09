@@ -27,13 +27,15 @@ QString SystemVersionPretty() {
 }
 
 QString SystemCountry() {
-	QLocale locale;
-	return locale.name().split('_').last();
+	return QLocale::system().name().split('_').last();
 }
 
 QString SystemLanguage() {
-	QLocale locale;
-	return locale.name().split('_').first();
+	const auto system = QLocale::system();
+	const auto languages = system.uiLanguages();
+	return languages.isEmpty()
+		? system.name().split('_').first()
+		: languages.front();
 }
 
 QDate WhenSystemBecomesOutdated() {

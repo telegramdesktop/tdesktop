@@ -202,8 +202,8 @@ QString PhoneWidget::fullNumber() const {
 	return _code->getLastText() + _phone->getLastText();
 }
 
-void PhoneWidget::selectCountry(const QString &c) {
-	_country->onChooseCountry(c);
+void PhoneWidget::selectCountry(const QString &country) {
+	_country->onChooseCountry(country);
 }
 
 void PhoneWidget::setInnerFocus() {

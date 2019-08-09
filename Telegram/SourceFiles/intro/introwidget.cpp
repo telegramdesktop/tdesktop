@@ -43,8 +43,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Intro {
 namespace {
 
-constexpr str_const kDefaultCountry = "US";
-
 void PrepareSupportMode() {
 	using Data::AutoDownload::Full;
 
@@ -70,11 +68,7 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 		tr::lng_menu_settings(),
 		st::defaultBoxButton))
 , _next(this, nullptr, st::introNextButton) {
-	auto country = Platform::SystemCountry();
-	if (country.isEmpty()) {
-		country = str_const_toString(kDefaultCountry);
-	}
-	getData()->country = country;
+	getData()->country = Platform::SystemCountry();
 
 	_back->entity()->setClickedCallback([this] { historyMove(Direction::Back); });
 	_back->hide(anim::type::instant);
@@ -439,7 +433,7 @@ void Widget::getNearestDC() {
 			).arg(nearest.vnearest_dc().v
 			).arg(nearest.vthis_dc().v));
 		_account->suggestMainDcId(nearest.vnearest_dc().v);
-		auto nearestCountry = qs(nearest.vcountry());
+		const auto nearestCountry = qs(nearest.vcountry());
 		if (getData()->country != nearestCountry) {
 			getData()->country = nearestCountry;
 			getData()->updated.notify();
