@@ -1,3 +1,7 @@
+1.8.1 (09.08.19)
+
+- Bug fixes and other minor improvements.
+
 1.8 (09.08.19)
 
 - Right click the Send button to send any message without sound - in case the recipient is sleeping.
