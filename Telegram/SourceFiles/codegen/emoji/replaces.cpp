@@ -300,6 +300,9 @@ Replaces PrepareReplaces(const QString &filename) {
 	if (!AddReplacement(result, ComposeString({ 0xD83E, 0xDD14 }), ":hmm:", "thinking")) {
 		return Replaces(filename);
 	}
+	if (!AddReplacement(result, ComposeString({ 0xD83E, 0xDD73 }), ":party:", "celebration")) {
+		return Replaces(filename);
+	}
 	return result;
 }
 
