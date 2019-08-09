@@ -99,7 +99,7 @@ struct TaggedValue {
 
 struct TaggedSummary {
 	size_type count = 0;
-	size_type totalSize = 0;
+	int64 totalSize = 0;
 };
 struct Stats {
 	TaggedSummary full;
