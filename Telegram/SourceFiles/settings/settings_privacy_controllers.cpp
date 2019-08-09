@@ -160,7 +160,10 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		MTPstring(), // post_author
 		MTPlong() // grouped_id
 	).match([&](const MTPDmessage &data) {
-		return history->owner().makeMessage(history, data);
+		return history->owner().makeMessage(
+			history,
+			data,
+			MTPDmessage_ClientFlags());
 	}, [](auto &&) -> not_null<HistoryMessage*> {
 		Unexpected("Type in GenerateForwardedItem.");
 	});

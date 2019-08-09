@@ -3103,6 +3103,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 	for (const auto &[position, index] : indices) {
 		const auto item = _session->data().addNewMessage(
 			v->at(index),
+			MTPDmessage_ClientFlags(),
 			NewMessageType::Existing);
 		if (item) {
 			_session->data().requestItemResize(item);
@@ -3571,6 +3572,7 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPint(),
 				MTPstring(),
 				MTPlong()),
+			MTPDmessage_ClientFlags(),
 			NewMessageType::Unread);
 	} break;
 
@@ -3596,6 +3598,7 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPint(),
 				MTPstring(),
 				MTPlong()),
+			MTPDmessage_ClientFlags(),
 			NewMessageType::Unread);
 	} break;
 
@@ -3620,7 +3623,10 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 			}
 		}
 		if (needToAdd) {
-			_session->data().addNewMessage(d.vmessage(), NewMessageType::Unread);
+			_session->data().addNewMessage(
+				d.vmessage(),
+				MTPDmessage_ClientFlags(),
+				NewMessageType::Unread);
 		}
 	} break;
 
@@ -3709,7 +3715,10 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 			}
 		}
 		if (needToAdd) {
-			_session->data().addNewMessage(d.vmessage(), NewMessageType::Unread);
+			_session->data().addNewMessage(
+				d.vmessage(),
+				MTPDmessage_ClientFlags(),
+				NewMessageType::Unread);
 		}
 	} break;
 
@@ -4403,6 +4412,7 @@ void ApiWrap::forwardMessages(
 		|| (channelPost && _session->data().notifySilentPosts(peer));
 
 	auto flags = MTPDmessage::Flags(0);
+	auto clientFlags = MTPDmessage_ClientFlags();
 	auto sendFlags = MTPmessages_ForwardMessages::Flags(0);
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
@@ -4479,6 +4489,7 @@ void ApiWrap::forwardMessages(
 				history->addNewLocalMessage(
 					newId.msg,
 					flags,
+					clientFlags,
 					base::unixtime::now(),
 					messageFromId,
 					messagePostAuthor,
@@ -4545,6 +4556,7 @@ void ApiWrap::sendSharedContact(
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
 
 	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
+	auto clientFlags = NewMessageClientFlags();
 	if (options.replyTo) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 	}
@@ -4586,6 +4598,7 @@ void ApiWrap::sendSharedContact(
 			MTPint(),
 			MTP_string(messagePostAuthor),
 			MTPlong()),
+		clientFlags,
 		NewMessageType::Unread);
 
 	const auto media = MTP_inputMediaContact(
@@ -4902,6 +4915,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 
 		MTPstring msgText(MTP_string(sending.text));
 		auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_entities;
+		auto clientFlags = NewMessageClientFlags();
 		auto sendFlags = MTPmessages_SendMessage::Flags(0);
 		if (message.replyTo) {
 			flags |= MTPDmessage::Flag::f_reply_to_msg_id;
@@ -4965,6 +4979,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 				MTPint(),
 				MTP_string(messagePostAuthor),
 				MTPlong()),
+			clientFlags,
 			NewMessageType::Unread);
 		history->sendRequestId = request(MTPmessages_SendMessage(
 			MTP_flags(sendFlags),
@@ -5037,6 +5052,7 @@ void ApiWrap::sendInlineResult(
 	const auto randomId = rand_value<uint64>();
 
 	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
+	auto clientFlags = NewMessageClientFlags();
 	auto sendFlags = MTPmessages_SendInlineBotResult::Flag::f_clear_draft | 0;
 	if (options.replyTo) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
@@ -5074,6 +5090,7 @@ void ApiWrap::sendInlineResult(
 	data->addToHistory(
 		history,
 		flags,
+		clientFlags,
 		messageId,
 		messageFromId,
 		messageDate,

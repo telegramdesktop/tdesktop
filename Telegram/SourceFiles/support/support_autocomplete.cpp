@@ -271,12 +271,14 @@ AdminLog::OwnedItem GenerateCommentItem(
 	using Flag = MTPDmessage::Flag;
 	const auto id = ServerMaxMsgId + (ServerMaxMsgId / 2);
 	const auto flags = Flag::f_entities | Flag::f_from_id | Flag::f_out;
+	const auto clientFlags = MTPDmessage_ClientFlags();
 	const auto replyTo = 0;
 	const auto viaBotId = 0;
 	const auto item = history->owner().makeMessage(
 		history,
 		id,
 		flags,
+		clientFlags,
 		replyTo,
 		viaBotId,
 		base::unixtime::now(),
@@ -319,7 +321,8 @@ AdminLog::OwnedItem GenerateContactItem(
 		MTP_long(0));
 	const auto item = history->owner().makeMessage(
 		history,
-		message.c_message());
+		message.c_message(),
+		MTPDmessage_ClientFlags());
 	return AdminLog::OwnedItem(delegate, item);
 }
 

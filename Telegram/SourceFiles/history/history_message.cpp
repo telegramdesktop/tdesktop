@@ -74,6 +74,10 @@ MTPDmessage::Flags NewForwardedFlags(
 	return result;
 }
 
+MTPDmessage_ClientFlags NewForwardedClientFlags() {
+	return NewMessageClientFlags();
+}
+
 bool CopyMarkupToForward(not_null<const HistoryItem*> item) {
 	auto mediaOriginal = item->media();
 	if (mediaOriginal && mediaOriginal->game()) {
@@ -336,7 +340,7 @@ Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 }
 
 MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer) {
-	MTPDmessage::Flags result = MTPDmessage_ClientFlag::f_sending | 0;
+	MTPDmessage::Flags result = 0;
 	if (!peer->isSelf()) {
 		result |= MTPDmessage::Flag::f_out;
 		//if (p->isChat() || (p->isUser() && !p->asUser()->isBot())) {
@@ -344,6 +348,10 @@ MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer) {
 		//}
 	}
 	return result;
+}
+
+MTPDmessage_ClientFlags NewMessageClientFlags() {
+	return MTPDmessage_ClientFlag::f_sending;
 }
 
 QString GetErrorTextForForward(
@@ -396,11 +404,13 @@ void HistoryMessage::FillForwardedInfo(
 
 HistoryMessage::HistoryMessage(
 	not_null<History*> history,
-	const MTPDmessage &data)
+	const MTPDmessage &data,
+	MTPDmessage_ClientFlags clientFlags)
 : HistoryItem(
 		history,
 		data.vid().v,
 		data.vflags().v,
+		clientFlags,
 		data.vdate().v,
 		data.vfrom_id().value_or_empty()) {
 	auto config = CreateConfig();
@@ -435,11 +445,13 @@ HistoryMessage::HistoryMessage(
 
 HistoryMessage::HistoryMessage(
 	not_null<History*> history,
-	const MTPDmessageService &data)
+	const MTPDmessageService &data,
+	MTPDmessage_ClientFlags clientFlags)
 : HistoryItem(
 		history,
 		data.vid().v,
 		mtpCastFlags(data.vflags().v),
+		clientFlags,
 		data.vdate().v,
 		data.vfrom_id().value_or_empty()) {
 	auto config = CreateConfig();
@@ -465,6 +477,7 @@ HistoryMessage::HistoryMessage(
 	not_null<History*> history,
 	MsgId id,
 	MTPDmessage::Flags flags,
+	MTPDmessage_ClientFlags clientFlags,
 	TimeId date,
 	UserId from,
 	const QString &postAuthor,
@@ -473,6 +486,7 @@ HistoryMessage::HistoryMessage(
 		history,
 		id,
 		NewForwardedFlags(history->peer, from, original) | flags,
+		NewForwardedClientFlags() | clientFlags,
 		date,
 		from) {
 	const auto peer = history->peer;
@@ -547,14 +561,26 @@ HistoryMessage::HistoryMessage(
 	not_null<History*> history,
 	MsgId id,
 	MTPDmessage::Flags flags,
+	MTPDmessage_ClientFlags clientFlags,
 	MsgId replyTo,
 	UserId viaBotId,
 	TimeId date,
 	UserId from,
 	const QString &postAuthor,
 	const TextWithEntities &textWithEntities)
-: HistoryItem(history, id, flags & ~MTPDmessage::Flag::f_reply_markup, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
-	createComponentsHelper(flags & ~MTPDmessage::Flag::f_reply_markup, replyTo, viaBotId, postAuthor, MTPReplyMarkup());
+: HistoryItem(
+		history,
+		id,
+		flags & ~MTPDmessage::Flag::f_reply_markup,
+		clientFlags,
+		date,
+		(flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
+	createComponentsHelper(
+		flags & ~MTPDmessage::Flag::f_reply_markup,
+		replyTo,
+		viaBotId,
+		postAuthor,
+		MTPReplyMarkup());
 
 	setText(textWithEntities);
 }
@@ -563,6 +589,7 @@ HistoryMessage::HistoryMessage(
 	not_null<History*> history,
 	MsgId id,
 	MTPDmessage::Flags flags,
+	MTPDmessage_ClientFlags clientFlags,
 	MsgId replyTo,
 	UserId viaBotId,
 	TimeId date,
@@ -571,7 +598,13 @@ HistoryMessage::HistoryMessage(
 	not_null<DocumentData*> document,
 	const TextWithEntities &caption,
 	const MTPReplyMarkup &markup)
-: HistoryItem(history, id, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
+: HistoryItem(
+		history,
+		id,
+		flags,
+		clientFlags,
+		date,
+		(flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createComponentsHelper(flags, replyTo, viaBotId, postAuthor, markup);
 
 	_media = std::make_unique<Data::MediaFile>(this, document);
@@ -582,6 +615,7 @@ HistoryMessage::HistoryMessage(
 	not_null<History*> history,
 	MsgId id,
 	MTPDmessage::Flags flags,
+	MTPDmessage_ClientFlags clientFlags,
 	MsgId replyTo,
 	UserId viaBotId,
 	TimeId date,
@@ -590,7 +624,13 @@ HistoryMessage::HistoryMessage(
 	not_null<PhotoData*> photo,
 	const TextWithEntities &caption,
 	const MTPReplyMarkup &markup)
-: HistoryItem(history, id, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
+: HistoryItem(
+		history,
+		id,
+		flags,
+		clientFlags,
+		date,
+		(flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createComponentsHelper(flags, replyTo, viaBotId, postAuthor, markup);
 
 	_media = std::make_unique<Data::MediaPhoto>(this, photo);
@@ -601,6 +641,7 @@ HistoryMessage::HistoryMessage(
 	not_null<History*> history,
 	MsgId id,
 	MTPDmessage::Flags flags,
+	MTPDmessage_ClientFlags clientFlags,
 	MsgId replyTo,
 	UserId viaBotId,
 	TimeId date,
@@ -608,7 +649,13 @@ HistoryMessage::HistoryMessage(
 	const QString &postAuthor,
 	not_null<GameData*> game,
 	const MTPReplyMarkup &markup)
-: HistoryItem(history, id, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
+: HistoryItem(
+		history,
+		id,
+		flags,
+		clientFlags,
+		date,
+		(flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createComponentsHelper(flags, replyTo, viaBotId, postAuthor, markup);
 
 	_media = std::make_unique<Data::MediaGame>(this, game);
@@ -780,7 +827,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 			markup->create(*config.inlineMarkup);
 		}
 		if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_has_switch_inline_button) {
-			_flags |= MTPDmessage_ClientFlag::f_has_switch_inline_button;
+			_clientFlags |= MTPDmessage_ClientFlag::f_has_switch_inline_button;
 		}
 	}
 	const auto from = displayFrom();
@@ -1019,11 +1066,11 @@ void HistoryMessage::updateSentContent(
 		const MTPMessageMedia *media) {
 	const auto isolated = isolatedEmoji();
 	setText(textWithEntities);
-	if (_flags & MTPDmessage_ClientFlag::f_from_inline_bot) {
+	if (_clientFlags & MTPDmessage_ClientFlag::f_from_inline_bot) {
 		if (!media || !_media || !_media->updateInlineResultMedia(*media)) {
 			refreshSentMedia(media);
 		}
-		_flags &= ~MTPDmessage_ClientFlag::f_from_inline_bot;
+		_clientFlags &= ~MTPDmessage_ClientFlag::f_from_inline_bot;
 	} else if (media || _media || !isolated || isolated != isolatedEmoji()) {
 		if (!media || !_media || !_media->updateSentMedia(*media)) {
 			refreshSentMedia(media);
@@ -1084,7 +1131,7 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 		if (type == EntityType::Url
 			|| type == EntityType::CustomUrl
 			|| type == EntityType::Email) {
-			_flags |= MTPDmessage_ClientFlag::f_has_text_links;
+			_clientFlags |= MTPDmessage_ClientFlag::f_has_text_links;
 			break;
 		}
 	}
@@ -1123,16 +1170,16 @@ void HistoryMessage::setEmptyText() {
 }
 
 void HistoryMessage::clearIsolatedEmoji() {
-	if (!(_flags & MTPDmessage_ClientFlag::f_isolated_emoji)) {
+	if (!(_clientFlags & MTPDmessage_ClientFlag::f_isolated_emoji)) {
 		return;
 	}
 	history()->session().emojiStickersPack().remove(this);
-	_flags &= ~MTPDmessage_ClientFlag::f_isolated_emoji;
+	_clientFlags &= ~MTPDmessage_ClientFlag::f_isolated_emoji;
 }
 
 void HistoryMessage::checkIsolatedEmoji() {
 	if (history()->session().emojiStickersPack().add(this)) {
-		_flags |= MTPDmessage_ClientFlag::f_isolated_emoji;
+		_clientFlags |= MTPDmessage_ClientFlag::f_isolated_emoji;
 	}
 }
 

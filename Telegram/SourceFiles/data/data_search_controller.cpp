@@ -154,8 +154,12 @@ SearchResult ParseSearchResult(
 	const auto addType = NewMessageType::Existing;
 	result.messageIds.reserve(messages->size());
 	for (const auto &message : *messages) {
-		if (auto item = peer->owner().addNewMessage(message, addType)) {
-			auto itemId = item->id;
+		const auto item = peer->owner().addNewMessage(
+			message,
+			MTPDmessage_ClientFlags(),
+			addType);
+		if (item) {
+			const auto itemId = item->id;
 			if ((type == Storage::SharedMediaType::kCount)
 				|| item->sharedMediaTypes().test(type)) {
 				result.messageIds.push_back(itemId);

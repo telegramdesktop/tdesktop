@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_notify_settings.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
+#include "base/flags.h"
 #include "ui/effects/animations.h"
 
 class Image;
@@ -415,7 +416,10 @@ public:
 		FileOrigin origin,
 		bool forceRemoteLoader = false);
 
-	HistoryItem *addNewMessage(const MTPMessage &data, NewMessageType type);
+	HistoryItem *addNewMessage(
+		const MTPMessage &data,
+		MTPDmessage_ClientFlags flags,
+		NewMessageType type);
 
 	struct SendActionAnimationUpdate {
 		not_null<History*> history;

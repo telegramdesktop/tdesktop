@@ -29,6 +29,7 @@ void SendDataCommon::addToHistory(
 		const Result *owner,
 		not_null<History*> history,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		MsgId msgId,
 		UserId fromId,
 		MTPint mtpDate,
@@ -58,6 +59,7 @@ void SendDataCommon::addToHistory(
 			MTPint(),
 			MTP_string(postAuthor),
 			MTPlong()),
+		clientFlags,
 		NewMessageType::Unread);
 }
 
@@ -121,6 +123,7 @@ void SendPhoto::addToHistory(
 		const Result *owner,
 		not_null<History*> history,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		MsgId msgId,
 		UserId fromId,
 		MTPint mtpDate,
@@ -131,6 +134,7 @@ void SendPhoto::addToHistory(
 	history->addNewLocalMessage(
 		msgId,
 		flags,
+		clientFlags,
 		viaBotId,
 		replyToId,
 		mtpDate.v,
@@ -154,6 +158,7 @@ void SendFile::addToHistory(
 		const Result *owner,
 		not_null<History*> history,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		MsgId msgId,
 		UserId fromId,
 		MTPint mtpDate,
@@ -164,6 +169,7 @@ void SendFile::addToHistory(
 	history->addNewLocalMessage(
 		msgId,
 		flags,
+		clientFlags,
 		viaBotId,
 		replyToId,
 		mtpDate.v,
@@ -201,6 +207,7 @@ void SendGame::addToHistory(
 		const Result *owner,
 		not_null<History*> history,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		MsgId msgId,
 		UserId fromId,
 		MTPint mtpDate,
@@ -211,6 +218,7 @@ void SendGame::addToHistory(
 	history->addNewLocalMessage(
 		msgId,
 		flags,
+		clientFlags,
 		viaBotId,
 		replyToId,
 		mtpDate.v,

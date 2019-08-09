@@ -1732,7 +1732,10 @@ void Session::processMessages(
 		indices.emplace((uint64(uint32(id)) << 32) | uint64(i), i);
 	}
 	for (const auto [position, index] : indices) {
-		addNewMessage(data[index], type);
+		addNewMessage(
+			data[index],
+			MTPDmessage_ClientFlags(),
+			type);
 	}
 }
 
@@ -2000,13 +2003,17 @@ void Session::unmuteByFinished() {
 
 HistoryItem *Session::addNewMessage(
 		const MTPMessage &data,
+		MTPDmessage_ClientFlags clientFlags,
 		NewMessageType type) {
 	const auto peerId = PeerFromMessage(data);
 	if (!peerId) {
 		return nullptr;
 	}
 
-	const auto result = history(peerId)->addNewMessage(data, type);
+	const auto result = history(peerId)->addNewMessage(
+		data,
+		clientFlags,
+		type);
 	if (result && type == NewMessageType::Unread) {
 		CheckForSwitchInlineButton(result);
 	}
@@ -3619,8 +3626,8 @@ void Session::insertCheckedServiceNotification(
 	const auto history = this->history(PeerData::kServiceNotificationsId);
 	const auto flags = MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_from_id
-		| MTPDmessage_ClientFlag::f_clientside_unread
 		| MTPDmessage::Flag::f_media;
+	const auto clientFlags = MTPDmessage_ClientFlag::f_clientside_unread;
 	auto sending = TextWithEntities(), left = message;
 	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
 		addNewMessage(
@@ -3641,6 +3648,7 @@ void Session::insertCheckedServiceNotification(
 				MTPint(),
 				MTPstring(),
 				MTPlong()),
+			clientFlags,
 			NewMessageType::Unread);
 	}
 	sendHistoryChangeNotifications();

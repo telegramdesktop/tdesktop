@@ -18,6 +18,7 @@ struct HistoryMessageEdited;
 Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 	const FullMsgId &msgId);
 MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer);
+MTPDmessage_ClientFlags NewMessageClientFlags();
 QString GetErrorTextForForward(
 	not_null<PeerData*> peer,
 	const HistoryItemsList &items,
@@ -33,14 +34,17 @@ class HistoryMessage : public HistoryItem {
 public:
 	HistoryMessage(
 		not_null<History*> history,
-		const MTPDmessage &data);
+		const MTPDmessage &data,
+		MTPDmessage_ClientFlags clientFlags);
 	HistoryMessage(
 		not_null<History*> history,
-		const MTPDmessageService &data);
+		const MTPDmessageService &data,
+		MTPDmessage_ClientFlags clientFlags);
 	HistoryMessage(
 		not_null<History*> history,
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		TimeId date,
 		UserId from,
 		const QString &postAuthor,
@@ -49,6 +53,7 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
@@ -59,6 +64,7 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
@@ -71,6 +77,7 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
@@ -83,6 +90,7 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,

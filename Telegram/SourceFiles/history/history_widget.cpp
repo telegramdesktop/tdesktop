@@ -4363,6 +4363,7 @@ void HistoryWidget::sendFileConfirmed(
 	auto flags = (isEditing ? MTPDmessage::Flags() : NewMessageFlags(peer))
 		| MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_media;
+	auto clientFlags = NewMessageClientFlags();
 	if (file->to.replyTo) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 	}
@@ -4417,7 +4418,10 @@ void HistoryWidget::sendFileConfirmed(
 			itemToEdit->savePreviousMedia();
 			itemToEdit->applyEdition(mtpMessage.c_message());
 		} else {
-			history->addNewMessage(mtpMessage, NewMessageType::Unread);
+			history->addNewMessage(
+				mtpMessage,
+				clientFlags,
+				NewMessageType::Unread);
 		}
 	} else if (file->type == SendMediaType::File) {
 		const auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
@@ -4448,7 +4452,10 @@ void HistoryWidget::sendFileConfirmed(
 			itemToEdit->savePreviousMedia();
 			itemToEdit->applyEdition(mtpMessage.c_message());
 		} else {
-			history->addNewMessage(mtpMessage, NewMessageType::Unread);
+			history->addNewMessage(
+				mtpMessage,
+				clientFlags,
+				NewMessageType::Unread);
 		}
 	} else if (file->type == SendMediaType::Audio) {
 		if (!peer->isChannel() || peer->isMegagroup()) {
@@ -4477,6 +4484,7 @@ void HistoryWidget::sendFileConfirmed(
 				MTPint(),
 				MTP_string(messagePostAuthor),
 				MTP_long(groupId)),
+			clientFlags,
 			NewMessageType::Unread);
 		// Voices can't be edited.
 	} else {

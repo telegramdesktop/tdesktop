@@ -94,11 +94,17 @@ public:
 
 	void applyGroupAdminChanges(const base::flat_set<UserId> &changes);
 
-	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
-	HistoryItem *addToHistory(const MTPMessage &msg);
+	HistoryItem *addNewMessage(
+		const MTPMessage &msg,
+		MTPDmessage_ClientFlags clientFlags,
+		NewMessageType type);
+	HistoryItem *addToHistory(
+		const MTPMessage &msg,
+		MTPDmessage_ClientFlags clientFlags);
 	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		TimeId date,
 		UserId from,
 		const QString &postAuthor,
@@ -106,6 +112,7 @@ public:
 	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -117,6 +124,7 @@ public:
 	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -128,6 +136,7 @@ public:
 	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -139,6 +148,7 @@ public:
 	// Used only internally and for channel admin log.
 	HistoryItem *createItem(
 		const MTPMessage &message,
+		MTPDmessage_ClientFlags clientFlags,
 		bool detachExistingItem);
 	std::vector<not_null<HistoryItem*>> createItems(
 		const QVector<MTPMessage> &data);
@@ -381,7 +391,10 @@ private:
 	// helper method for countScrollState(int top)
 	void countScrollTopItem(int top);
 
-	HistoryItem *addNewToLastBlock(const MTPMessage &msg, NewMessageType type);
+	HistoryItem *addNewToLastBlock(
+		const MTPMessage &msg,
+		MTPDmessage_ClientFlags clientFlags,
+		NewMessageType type);
 
 	// this method just removes a block from the blocks list
 	// when the last item from this block was detached and

@@ -59,6 +59,7 @@ not_null<HistoryItem*> CreateUnsupportedMessage(
 		not_null<History*> history,
 		MsgId msgId,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
@@ -76,6 +77,7 @@ not_null<HistoryItem*> CreateUnsupportedMessage(
 		history,
 		msgId,
 		flags,
+		clientFlags,
 		replyTo,
 		viaBotId,
 		date,
@@ -167,12 +169,14 @@ HistoryItem::HistoryItem(
 	not_null<History*> history,
 	MsgId id,
 	MTPDmessage::Flags flags,
+	MTPDmessage_ClientFlags clientFlags,
 	TimeId date,
 	UserId from)
 : id(id)
 , _history(history)
 , _from(from ? history->owner().user(from) : history->peer)
 , _flags(flags)
+, _clientFlags(clientFlags)
 , _date(date) {
 	if (IsClientMsgId(id)) {
 		_history->registerLocalMessage(this);
@@ -437,11 +441,11 @@ void HistoryItem::indexAsNewItem() {
 }
 
 void HistoryItem::setRealId(MsgId newId) {
-	Expects(_flags & MTPDmessage_ClientFlag::f_sending);
+	Expects(_clientFlags & MTPDmessage_ClientFlag::f_sending);
 	Expects(IsClientMsgId(id));
 
 	const auto oldId = std::exchange(id, newId);
-	_flags &= ~MTPDmessage_ClientFlag::f_sending;
+	_clientFlags &= ~MTPDmessage_ClientFlag::f_sending;
 	if (IsServerMsgId(id)) {
 		_history->unregisterLocalMessage(this);
 	}
@@ -667,10 +671,10 @@ MsgId HistoryItem::idOriginal() const {
 }
 
 void HistoryItem::sendFailed() {
-	Expects(_flags & MTPDmessage_ClientFlag::f_sending);
-	Expects(!(_flags & MTPDmessage_ClientFlag::f_failed));
+	Expects(_clientFlags & MTPDmessage_ClientFlag::f_sending);
+	Expects(!(_clientFlags & MTPDmessage_ClientFlag::f_failed));
 
-	_flags = (_flags | MTPDmessage_ClientFlag::f_failed)
+	_clientFlags = (_clientFlags | MTPDmessage_ClientFlag::f_failed)
 		& ~MTPDmessage_ClientFlag::f_sending;
 	if (history()->peer->isChannel()) {
 		Notify::peerUpdatedDelayed(
@@ -718,11 +722,11 @@ bool HistoryItem::unread() const {
 		}
 		return true;
 	}
-	return (_flags & MTPDmessage_ClientFlag::f_clientside_unread);
+	return (_clientFlags & MTPDmessage_ClientFlag::f_clientside_unread);
 }
 
 void HistoryItem::markClientSideAsRead() {
-	_flags &= ~MTPDmessage_ClientFlag::f_clientside_unread;
+	_clientFlags &= ~MTPDmessage_ClientFlag::f_clientside_unread;
 }
 
 MessageGroupId HistoryItem::groupId() const {
@@ -842,7 +846,8 @@ ClickHandlerPtr goToMessageClickHandler(
 
 not_null<HistoryItem*> HistoryItem::Create(
 		not_null<History*> history,
-		const MTPMessage &message) {
+		const MTPMessage &message,
+		MTPDmessage_ClientFlags clientFlags) {
 	return message.match([&](const MTPDmessage &data) -> HistoryItem* {
 		const auto media = data.vmedia();
 		const auto checked = media
@@ -853,6 +858,7 @@ not_null<HistoryItem*> HistoryItem::Create(
 				history,
 				data.vid().v,
 				data.vflags().v,
+				clientFlags,
 				data.vreply_to_msg_id().value_or_empty(),
 				data.vvia_bot_id().value_or_empty(),
 				data.vdate().v,
@@ -863,24 +869,36 @@ not_null<HistoryItem*> HistoryItem::Create(
 			};
 			return history->owner().makeServiceMessage(
 				history,
+				clientFlags,
 				data.vid().v,
 				data.vdate().v,
 				text,
 				data.vflags().v,
 				data.vfrom_id().value_or_empty());
 		} else if (checked == MediaCheckResult::HasTimeToLive) {
-			return history->owner().makeServiceMessage(history, data);
+			return history->owner().makeServiceMessage(
+				history,
+				data,
+				clientFlags);
 		}
-		return history->owner().makeMessage(history, data);
+		return history->owner().makeMessage(history, data, clientFlags);
 	}, [&](const MTPDmessageService &data) -> HistoryItem* {
 		if (data.vaction().type() == mtpc_messageActionPhoneCall) {
-			return history->owner().makeMessage(history, data);
+			return history->owner().makeMessage(history, data, clientFlags);
 		}
-		return history->owner().makeServiceMessage(history, data);
+		return history->owner().makeServiceMessage(
+			history,
+			data,
+			clientFlags);
 	}, [&](const MTPDmessageEmpty &data) -> HistoryItem* {
 		const auto text = HistoryService::PreparedText{
 			tr::lng_message_empty(tr::now)
 		};
-		return history->owner().makeServiceMessage(history, data.vid().v, TimeId(0), text);
+		return history->owner().makeServiceMessage(
+			history,
+			clientFlags,
+			data.vid().v,
+			TimeId(0),
+			text);
 	});
 }

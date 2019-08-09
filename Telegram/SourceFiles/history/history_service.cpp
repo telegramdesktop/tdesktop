@@ -299,13 +299,13 @@ void HistoryService::applyAction(const MTPMessageAction &action) {
 		}, [](const MTPDphotoEmpty &) {
 		});
 	}, [&](const MTPDmessageActionChatCreate &) {
-		_flags |= MTPDmessage_ClientFlag::f_is_group_essential;
+		_clientFlags |= MTPDmessage_ClientFlag::f_is_group_essential;
 	}, [&](const MTPDmessageActionChannelCreate &) {
-		_flags |= MTPDmessage_ClientFlag::f_is_group_essential;
+		_clientFlags |= MTPDmessage_ClientFlag::f_is_group_essential;
 	}, [&](const MTPDmessageActionChatMigrateTo &) {
-		_flags |= MTPDmessage_ClientFlag::f_is_group_essential;
+		_clientFlags |= MTPDmessage_ClientFlag::f_is_group_essential;
 	}, [&](const MTPDmessageActionChannelMigrateFrom &) {
-		_flags |= MTPDmessage_ClientFlag::f_is_group_essential;
+		_clientFlags |= MTPDmessage_ClientFlag::f_is_group_essential;
 	}, [](const auto &) {
 	});
 }
@@ -497,11 +497,13 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 
 HistoryService::HistoryService(
 	not_null<History*> history,
-	const MTPDmessage &data)
-	: HistoryItem(
+	const MTPDmessage &data,
+	MTPDmessage_ClientFlags clientFlags)
+: HistoryItem(
 		history,
 		data.vid().v,
 		data.vflags().v,
+		clientFlags,
 		data.vdate().v,
 		data.vfrom_id().value_or_empty()) {
 	createFromMtp(data);
@@ -509,11 +511,13 @@ HistoryService::HistoryService(
 
 HistoryService::HistoryService(
 	not_null<History*> history,
-	const MTPDmessageService &data)
+	const MTPDmessageService &data,
+	MTPDmessage_ClientFlags clientFlags)
 : HistoryItem(
 		history,
 		data.vid().v,
 		mtpCastFlags(data.vflags().v),
+		clientFlags,
 		data.vdate().v,
 		data.vfrom_id().value_or_empty()) {
 	createFromMtp(data);
@@ -521,13 +525,14 @@ HistoryService::HistoryService(
 
 HistoryService::HistoryService(
 	not_null<History*> history,
+	MTPDmessage_ClientFlags clientFlags,
 	MsgId id,
 	TimeId date,
 	const PreparedText &message,
 	MTPDmessage::Flags flags,
 	UserId from,
 	PhotoData *photo)
-: HistoryItem(history, id, flags, date, from) {
+: HistoryItem(history, id, flags, clientFlags, date, from) {
 	setServiceText(message);
 	if (photo) {
 		_media = std::make_unique<Data::MediaPhoto>(
@@ -794,6 +799,7 @@ not_null<HistoryService*> GenerateJoinedMessage(
 		MTPDmessage::Flags flags) {
 	return new HistoryService(
 		history,
+		MTPDmessage_ClientFlags(),
 		clientMsgId(),
 		inviteDate,
 		GenerateJoinedText(history, inviter),

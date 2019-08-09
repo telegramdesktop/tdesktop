@@ -284,12 +284,14 @@ AdminLog::OwnedItem GenerateTextItem(
 	const auto flags = Flag::f_entities
 		| Flag::f_from_id
 		| (out ? Flag::f_out : Flag(0));
+	const auto clientFlags = MTPDmessage_ClientFlags();
 	const auto replyTo = 0;
 	const auto viaBotId = 0;
 	const auto item = history->owner().makeMessage(
 		history,
 		++id,
 		flags,
+		clientFlags,
 		replyTo,
 		viaBotId,
 		base::unixtime::now(),

@@ -49,6 +49,7 @@ void SendExistingMedia(
 	const auto randomId = rand_value<uint64>();
 
 	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
+	auto clientFlags = NewMessageClientFlags();
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (options.replyTo) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
@@ -89,6 +90,7 @@ void SendExistingMedia(
 	history->addNewLocalMessage(
 		newId.msg,
 		flags,
+		clientFlags,
 		0,
 		replyTo,
 		base::unixtime::now(),

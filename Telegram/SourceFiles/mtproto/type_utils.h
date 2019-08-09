@@ -69,7 +69,8 @@ enum class MTPDmessage_ClientFlag : uint32 {
 	// update this when adding new client side flags
 	MIN_FIELD = (1U << 21),
 };
-DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
+inline constexpr bool is_flag_type(MTPDmessage_ClientFlag) { return true; }
+using MTPDmessage_ClientFlags = base::flags<MTPDmessage_ClientFlag>;
 
 enum class MTPDreplyKeyboardMarkup_ClientFlag : uint32 {
 	// none (zero) markup

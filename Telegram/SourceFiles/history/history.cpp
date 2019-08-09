@@ -583,6 +583,7 @@ bool History::updateSendActionNeedsAnimating(crl::time now, bool force) {
 
 HistoryItem *History::createItem(
 		const MTPMessage &message,
+		MTPDmessage_ClientFlags clientFlags,
 		bool detachExistingItem) {
 	const auto messageId = IdFromMessage(message);
 	if (!messageId) {
@@ -600,16 +601,18 @@ HistoryItem *History::createItem(
 		}
 		return result;
 	}
-	return HistoryItem::Create(this, message);
+	return HistoryItem::Create(this, message, clientFlags);
 }
 
 std::vector<not_null<HistoryItem*>> History::createItems(
 		const QVector<MTPMessage> &data) {
 	auto result = std::vector<not_null<HistoryItem*>>();
 	result.reserve(data.size());
+	const auto clientFlags = MTPDmessage_ClientFlags();
 	for (auto i = data.cend(), e = data.cbegin(); i != e;) {
 		const auto detachExistingItem = true;
-		if (const auto item = createItem(*--i, detachExistingItem)) {
+		const auto item = createItem(*--i, clientFlags, detachExistingItem);
+		if (item) {
 			result.emplace_back(item);
 		}
 	}
@@ -618,12 +621,13 @@ std::vector<not_null<HistoryItem*>> History::createItems(
 
 HistoryItem *History::addNewMessage(
 		const MTPMessage &msg,
+		MTPDmessage_ClientFlags clientFlags,
 		NewMessageType type) {
 	if (type == NewMessageType::Existing) {
-		return addToHistory(msg);
+		return addToHistory(msg, clientFlags);
 	}
 	if (!loadedAtBottom() || peer->migrateTo()) {
-		if (const auto item = addToHistory(msg)) {
+		if (const auto item = addToHistory(msg, clientFlags)) {
 			setLastMessage(item);
 			if (type == NewMessageType::Unread) {
 				newItemAdded(item);
@@ -633,16 +637,17 @@ HistoryItem *History::addNewMessage(
 		return nullptr;
 	}
 
-	return addNewToLastBlock(msg, type);
+	return addNewToLastBlock(msg, clientFlags, type);
 }
 
 HistoryItem *History::addNewToLastBlock(
 		const MTPMessage &msg,
+		MTPDmessage_ClientFlags clientFlags,
 		NewMessageType type) {
 	Expects(type != NewMessageType::Existing);
 
 	const auto detachExistingItem = (type != NewMessageType::Last);
-	const auto item = createItem(msg, detachExistingItem);
+	const auto item = createItem(msg, clientFlags, detachExistingItem);
 	if (!item || item->mainView()) {
 		return item;
 	}
@@ -681,14 +686,17 @@ void History::checkForLoadedAtTop(not_null<HistoryItem*> added) {
 	}
 }
 
-HistoryItem *History::addToHistory(const MTPMessage &msg) {
+HistoryItem *History::addToHistory(
+		const MTPMessage &msg,
+		MTPDmessage_ClientFlags clientFlags) {
 	const auto detachExistingItem = false;
-	return createItem(msg, detachExistingItem);
+	return createItem(msg, clientFlags, detachExistingItem);
 }
 
 not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		TimeId date,
 		UserId from,
 		const QString &postAuthor,
@@ -698,6 +706,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 			this,
 			id,
 			flags,
+			clientFlags,
 			date,
 			from,
 			postAuthor,
@@ -708,6 +717,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -721,6 +731,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 			this,
 			id,
 			flags,
+			clientFlags,
 			replyTo,
 			viaBotId,
 			date,
@@ -735,6 +746,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -748,6 +760,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 			this,
 			id,
 			flags,
+			clientFlags,
 			replyTo,
 			viaBotId,
 			date,
@@ -762,6 +775,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -774,6 +788,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 			this,
 			id,
 			flags,
+			clientFlags,
 			replyTo,
 			viaBotId,
 			date,
@@ -865,8 +880,9 @@ void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
 
 	auto added = false;
 	if (messages) {
+		const auto clientFlags = MTPDmessage_ClientFlags();
 		for (auto &message : *messages) {
-			if (auto item = addToHistory(message)) {
+			if (auto item = addToHistory(message, clientFlags)) {
 				if (item->isUnreadMention()) {
 					_unreadMentions.insert(item->id);
 					added = true;
@@ -2450,6 +2466,7 @@ void History::setFakeChatListMessageFrom(const MTPmessages_Messages &data) {
 	}
 	const auto item = owner().addNewMessage(
 		*other,
+		MTPDmessage_ClientFlags(),
 		NewMessageType::Existing);
 	if (!item || item->isGroupMigrate()) {
 		// Not better than the last one.
