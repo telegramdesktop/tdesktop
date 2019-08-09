@@ -50,7 +50,7 @@ ScheduledWidget::ScheduledWidget(
 , _topBar(this, controller)
 , _topBarShadow(this)
 , _scrollDown(_scroll, st::historyToDown) {
-	_topBar->setActiveChat(_history);
+	_topBar->setActiveChat(_history, TopBarWidget::Section::Scheduled);
 
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
@@ -200,6 +200,7 @@ Dialogs::RowDescriptor ScheduledWidget::activeChat() const {
 }
 
 QPixmap ScheduledWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
+	_topBar->updateControlsVisibility();
 	if (params.withTopBarShadow) _topBarShadow->hide();
 	auto result = Ui::GrabWidget(this);
 	if (params.withTopBarShadow) _topBarShadow->show();
@@ -315,7 +316,9 @@ void ScheduledWidget::updateInnerVisibleArea() {
 void ScheduledWidget::showAnimatedHook(
 		const Window::SectionSlideParams &params) {
 	_topBar->setAnimatingMode(true);
-	if (params.withTopBarShadow) _topBarShadow->show();
+	if (params.withTopBarShadow) {
+		_topBarShadow->show();
+	}
 }
 
 void ScheduledWidget::showFinishedHook() {

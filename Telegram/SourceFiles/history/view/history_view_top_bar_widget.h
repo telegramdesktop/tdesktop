@@ -39,6 +39,10 @@ public:
 		int canDeleteCount = 0;
 		int canForwardCount = 0;
 	};
+	enum class Section {
+		History,
+		Scheduled,
+	};
 
 	TopBarWidget(
 		QWidget *parent,
@@ -55,7 +59,7 @@ public:
 	}
 	void setAnimatingMode(bool enabled);
 
-	void setActiveChat(Dialogs::Key chat);
+	void setActiveChat(Dialogs::Key chat, Section section);
 
 	rpl::producer<> forwardSelectionRequest() const {
 		return _forwardSelection.events();
@@ -112,8 +116,9 @@ private:
 	void refreshUnreadBadge();
 	void updateUnreadBadge();
 
-	not_null<Window::SessionController*> _controller;
+	const not_null<Window::SessionController*> _controller;
 	Dialogs::Key _activeChat;
+	Section _section = Section::History;
 
 	int _selectedCount = 0;
 	bool _canDelete = false;

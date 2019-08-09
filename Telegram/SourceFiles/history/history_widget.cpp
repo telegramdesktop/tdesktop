@@ -1761,7 +1761,9 @@ void HistoryWidget::showHistory(
 			_migrated->clear(History::ClearType::Unload);
 		}
 
-		_topBar->setActiveChat(_history);
+		_topBar->setActiveChat(
+			_history,
+			HistoryView::TopBarWidget::Section::History);
 		updateTopBarSelection();
 
 		if (_channel) {
@@ -1837,7 +1839,9 @@ void HistoryWidget::showHistory(
 		}
 		unreadCountUpdated(); // set _historyDown badge.
 	} else {
-		_topBar->setActiveChat(Dialogs::Key());
+		_topBar->setActiveChat(
+			Dialogs::Key(),
+			HistoryView::TopBarWidget::Section::History);
 		updateTopBarSelection();
 
 		clearFieldText();

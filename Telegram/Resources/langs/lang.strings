@@ -1259,6 +1259,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_saved_short" = "Save";
 "lng_saved_forward_here" = "Forward messages here for quick access";
 
+"lng_scheduled_messages" = "Scheduled Messages";
+
 "lng_archived_name" = "Archived chats";
 "lng_archived_add" = "Archive";
 "lng_archived_remove" = "Unarchive";

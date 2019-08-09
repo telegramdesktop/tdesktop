@@ -313,23 +313,17 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	auto statustop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
 	auto availableWidth = width() - _rightTaken - nameleft;
 
-	auto history = _activeChat.history();
-
-	if (const auto folder = _activeChat.folder()) {
-		auto text = folder->chatListName(); // TODO feed name emoji
-		const auto textWidth = st::historySavedFont->width(text);
-		if (availableWidth < textWidth) {
-			text = st::historySavedFont->elided(text, availableWidth);
-		}
-		p.setPen(st::dialogsNameFg);
-		p.setFont(st::historySavedFont);
-		p.drawTextLeft(
-			nameleft,
-			(height() - st::historySavedFont->height) / 2,
-			width(),
-			text);
-	} else if (_activeChat.peer()->isSelf()) {
-		auto text = tr::lng_saved_messages(tr::now);
+	const auto history = _activeChat.history();
+	const auto folder = _activeChat.folder();
+	if (folder
+		|| history->peer->isSelf()
+		|| (_section == Section::Scheduled)) {
+		// #TODO feed name emoji.
+		auto text = (_section == Section::Scheduled)
+			? tr::lng_scheduled_messages(tr::now)
+			: folder
+			? folder->chatListName()
+			: tr::lng_saved_messages(tr::now);
 		const auto textWidth = st::historySavedFont->width(text);
 		if (availableWidth < textWidth) {
 			text = st::historySavedFont->elided(text, availableWidth);
@@ -468,11 +462,12 @@ void TopBarWidget::backClicked() {
 	}
 }
 
-void TopBarWidget::setActiveChat(Dialogs::Key chat) {
-	if (_activeChat == chat) {
+void TopBarWidget::setActiveChat(Dialogs::Key chat, Section section) {
+	if (_activeChat == chat && _section == section) {
 		return;
 	}
 	_activeChat = chat;
+	_section = section;
 	_back->clearState();
 	update();
 
@@ -611,11 +606,13 @@ void TopBarWidget::updateControlsVisibility() {
 	if (_unreadBadge) {
 		_unreadBadge->show();
 	}
+	const auto historyMode = (_section == Section::History);
 	const auto smallDialogsColumn = _activeChat.folder()
 		&& (width() < _back->width() + _search->width());
-	_search->setVisible(!smallDialogsColumn);
-	_menuToggle->setVisible(!_activeChat.folder());
-	_infoToggle->setVisible(!_activeChat.folder()
+	_search->setVisible(historyMode && !smallDialogsColumn);
+	_menuToggle->setVisible(historyMode && !_activeChat.folder());
+	_infoToggle->setVisible(historyMode
+		&& !_activeChat.folder()
 		&& !Adaptive::OneColumn()
 		&& _controller->canShowThirdSection());
 	const auto callsEnabled = [&] {
@@ -626,7 +623,7 @@ void TopBarWidget::updateControlsVisibility() {
 		}
 		return false;
 	}();
-	_call->setVisible(callsEnabled);
+	_call->setVisible(historyMode && callsEnabled);
 
 	if (_membersShowArea) {
 		_membersShowArea->show();
