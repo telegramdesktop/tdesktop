@@ -56,6 +56,7 @@ private:
 		not_null<History*> history,
 		List &list,
 		const MTPMessage &message);
+	void sort(List &list);
 	void remove(not_null<const HistoryItem*> item);
 	[[nodiscard]] int32 countListHash(const List &list) const;
 

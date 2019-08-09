@@ -102,7 +102,9 @@ void ScheduledMessages::apply(const MTPDupdateNewScheduledMessage &update) {
 	if (!history) {
 		return;
 	}
-	append(history, _data[history], message);
+	auto &list = _data[history];
+	append(history, list, message);
+	sort(list);
 	_updates.fire_copy(history);
 }
 
@@ -163,7 +165,7 @@ Data::MessagesSlice ScheduledMessages::list(not_null<History*> history) {
 		list
 	) | ranges::view::transform(
 		&HistoryItem::fullId
-	) | ranges::view::reverse | ranges::to_vector;
+	) | ranges::to_vector;
 	return result;
 }
 
@@ -203,7 +205,9 @@ void ScheduledMessages::parse(
 		for (const auto &message : messages) {
 			append(history, list, message);
 		}
-		if (list.items.empty()) {
+		if (!list.items.empty()) {
+			sort(list);
+		} else {
 			_data.erase(element);
 			element = end(_data);
 		}
@@ -225,17 +229,7 @@ void ScheduledMessages::append(
 	const auto id = message.match([&](const auto &data) {
 		return data.vid().v;
 	});
-	const auto i = list.itemById.find(id);
-	if (i != end(list.itemById)) {
-		const auto j = ranges::find(
-			list.items,
-			i->second.get(),
-			&OwnedItem::get);
-		const auto e = end(list.items);
-		Assert(j != e);
-		if (j + 1 != e) {
-			std::rotate(j, j + 1, e);
-		}
+	if (list.itemById.find(id) != end(list.itemById)) {
 		return;
 	}
 
@@ -250,6 +244,10 @@ void ScheduledMessages::append(
 	list.items.emplace_back(item);
 	list.itemById.emplace(id, item);
 	list.idByItem.emplace(item, id);
+}
+
+void ScheduledMessages::sort(List &list) {
+	ranges::sort(list.items, ranges::less(), &HistoryItem::position);
 }
 
 void ScheduledMessages::remove(not_null<const HistoryItem*> item) {
@@ -278,7 +276,7 @@ int32 ScheduledMessages::countListHash(const List &list) const {
 	using namespace Api;
 
 	auto hash = HashInit();
-	for (const auto &item : list.items) {
+	for (const auto &item : list.items | ranges::view::reverse) {
 		const auto j = list.idByItem.find(item.get());
 		HashUpdate(hash, j->second);
 		if (const auto edited = item->Get<HistoryMessageEdited>()) {
