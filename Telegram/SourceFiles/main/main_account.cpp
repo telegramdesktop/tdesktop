@@ -106,8 +106,7 @@ void Account::destroySession() {
 	if (!sessionExists()) {
 		return;
 	}
-	session().data().clearLocalStorage();
-
+	session().data().clear();
 	_mtp->clearGlobalHandlers();
 
 	_sessionValue = nullptr;
@@ -394,6 +393,9 @@ void Account::loggedOut() {
 	if (const auto window = Core::App().activeWindow()) {
 		window->tempDirDelete(Local::ClearManagerAll);
 		window->setupIntro();
+	}
+	if (sessionExists()) {
+		session().data().clearLocalStorage();
 	}
 	destroySession();
 	Local::reset();
