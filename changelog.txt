@@ -1,3 +1,11 @@
+1.8 (09.08.19)
+
+- Right click the Send button to send any message without sound - in case the recipient is sleeping.
+- Enable Slow Mode in Group Permissions to control how frequently members can post.
+- Set custom titles for group admins - like 'Founder', 'CFO' or 'Spam Fighter'.
+- Toggle looped playback for animated stickers in Chat Settings.
+- Send a single :heart:, :like:, :unamused:, :flushed: or :party: to add a mighty animated emoji to the chat.
+
 1.7.15 beta (18.07.19)
 
 - Bug fixes and other minor improvements.
