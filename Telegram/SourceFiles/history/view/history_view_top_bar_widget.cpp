@@ -52,6 +52,7 @@ TopBarWidget::TopBarWidget(
 , _controller(controller)
 , _clear(this, tr::lng_selected_clear(), st::topBarClearButton)
 , _forward(this, tr::lng_selected_forward(), st::defaultActiveButton)
+, _sendNow(this, tr::lng_selected_send_now(), st::defaultActiveButton)
 , _delete(this, tr::lng_selected_delete(), st::defaultActiveButton)
 , _back(this, st::historyTopBarBack)
 , _call(this, st::topBarCall)
@@ -60,19 +61,21 @@ TopBarWidget::TopBarWidget(
 , _menuToggle(this, st::topBarMenuToggle)
 , _titlePeerText(st::windowMinWidth / 3)
 , _onlineUpdater([=] { updateOnlineDisplay(); }) {
-	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+	subscribe(Lang::Current().updated(), [=] { refreshLang(); });
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	_forward->setClickedCallback([this] { _forwardSelection.fire({}); });
-	_forward->setWidthChangedCallback([this] { updateControlsGeometry(); });
-	_delete->setClickedCallback([this] { _deleteSelection.fire({}); });
-	_delete->setWidthChangedCallback([this] { updateControlsGeometry(); });
-	_clear->setClickedCallback([this] { _clearSelection.fire({}); });
-	_call->setClickedCallback([this] { onCall(); });
-	_search->setClickedCallback([this] { onSearch(); });
-	_menuToggle->setClickedCallback([this] { showMenu(); });
-	_infoToggle->setClickedCallback([this] { toggleInfoSection(); });
-	_back->addClickHandler([this] { backClicked(); });
+	_forward->setClickedCallback([=] { _forwardSelection.fire({}); });
+	_forward->setWidthChangedCallback([=] { updateControlsGeometry(); });
+	_sendNow->setClickedCallback([=] { _sendNowSelection.fire({}); });
+	_sendNow->setWidthChangedCallback([=] { updateControlsGeometry(); });
+	_delete->setClickedCallback([=] { _deleteSelection.fire({}); });
+	_delete->setWidthChangedCallback([=] { updateControlsGeometry(); });
+	_clear->setClickedCallback([=] { _clearSelection.fire({}); });
+	_call->setClickedCallback([=] { onCall(); });
+	_search->setClickedCallback([=] { onSearch(); });
+	_menuToggle->setClickedCallback([=] { showMenu(); });
+	_infoToggle->setClickedCallback([=] { toggleInfoSection(); });
+	_back->addClickHandler([=] { backClicked(); });
 
 	rpl::combine(
 		_controller->activeChatValue(),
@@ -522,12 +525,16 @@ void TopBarWidget::updateControlsGeometry() {
 	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.value(hasSelected ? 1. : 0.));
 	auto otherButtonsTop = selectedButtonsTop + st::topBarHeight;
 	auto buttonsLeft = st::topBarActionSkip + (Adaptive::OneColumn() ? 0 : st::lineWidth);
-	auto buttonsWidth = _forward->contentWidth() + _delete->contentWidth() + _clear->width();
+	auto buttonsWidth = (_forward->isHidden() ? 0 : _forward->contentWidth())
+		+ (_sendNow->isHidden() ? 0 : _sendNow->contentWidth())
+		+ (_delete->isHidden() ? 0 : _delete->contentWidth())
+		+ _clear->width();
 	buttonsWidth += buttonsLeft + st::topBarActionSkip * 3;
 
 	auto widthLeft = qMin(width() - buttonsWidth, -2 * st::defaultActiveButton.width);
 	auto buttonFullWidth = qMin(-(widthLeft / 2), 0);
 	_forward->setFullWidth(buttonFullWidth);
+	_sendNow->setFullWidth(buttonFullWidth);
 	_delete->setFullWidth(buttonFullWidth);
 
 	selectedButtonsTop += (height() - _forward->height()) / 2;
@@ -535,6 +542,11 @@ void TopBarWidget::updateControlsGeometry() {
 	_forward->moveToLeft(buttonsLeft, selectedButtonsTop);
 	if (!_forward->isHidden()) {
 		buttonsLeft += _forward->width() + st::topBarActionSkip;
+	}
+
+	_sendNow->moveToLeft(buttonsLeft, selectedButtonsTop);
+	if (!_sendNow->isHidden()) {
+		buttonsLeft += _sendNow->width() + st::topBarActionSkip;
 	}
 
 	_delete->moveToLeft(buttonsLeft, selectedButtonsTop);
@@ -595,6 +607,7 @@ void TopBarWidget::updateControlsVisibility() {
 	_clear->show();
 	_delete->setVisible(_canDelete);
 	_forward->setVisible(_canForward);
+	_sendNow->setVisible(_canSendNow);
 
 	auto backVisible = Adaptive::OneColumn()
 		|| (App::main() && !App::main()->stackIsEmpty())
@@ -665,29 +678,34 @@ void TopBarWidget::updateMembersShowArea() {
 void TopBarWidget::showSelected(SelectedState state) {
 	auto canDelete = (state.count > 0 && state.count == state.canDeleteCount);
 	auto canForward = (state.count > 0 && state.count == state.canForwardCount);
-	if (_selectedCount == state.count && _canDelete == canDelete && _canForward == canForward) {
+	auto canSendNow = (state.count > 0 && state.count == state.canSendNowCount);
+	if (_selectedCount == state.count && _canDelete == canDelete && _canForward == canForward && _canSendNow == canSendNow) {
 		return;
 	}
 	if (state.count == 0) {
 		// Don't change the visible buttons if the selection is cancelled.
 		canDelete = _canDelete;
 		canForward = _canForward;
+		canSendNow = _canSendNow;
 	}
 
 	auto wasSelected = (_selectedCount > 0);
 	_selectedCount = state.count;
 	if (_selectedCount > 0) {
 		_forward->setNumbersText(_selectedCount);
+		_sendNow->setNumbersText(_selectedCount);
 		_delete->setNumbersText(_selectedCount);
 		if (!wasSelected) {
 			_forward->finishNumbersAnimation();
+			_sendNow->finishNumbersAnimation();
 			_delete->finishNumbersAnimation();
 		}
 	}
 	auto hasSelected = (_selectedCount > 0);
-	if (_canDelete != canDelete || _canForward != canForward) {
+	if (_canDelete != canDelete || _canForward != canForward || _canSendNow != canSendNow) {
 		_canDelete = canDelete;
 		_canForward = canForward;
+		_canSendNow = canSendNow;
 		updateControlsVisibility();
 	}
 	if (wasSelected != hasSelected) {

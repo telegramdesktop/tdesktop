@@ -742,6 +742,10 @@ bool HistoryMessage::allowsForward() const {
 	return !_media || _media->allowsForward();
 }
 
+bool HistoryMessage::allowsSendNow() const {
+	return isScheduled();
+}
+
 bool HistoryMessage::isTooOldForEdit(TimeId now) const {
 	const auto peer = _history->peer;
 	if (peer->isSelf()) {

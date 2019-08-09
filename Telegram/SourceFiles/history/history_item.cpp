@@ -475,6 +475,10 @@ bool HistoryItem::canPin() const {
 	return _history->peer->canPinMessages();
 }
 
+bool HistoryItem::allowsSendNow() const {
+	return false;
+}
+
 bool HistoryItem::allowsForward() const {
 	return false;
 }

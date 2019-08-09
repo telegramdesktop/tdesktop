@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "observer_peer.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "support/support_helper.h"
@@ -40,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_drafts.h"
 #include "data/data_user.h"
+#include "data/data_scheduled_messages.h"
 #include "dialogs/dialogs_key.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "styles/style_boxes.h"
@@ -847,6 +849,47 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 			std::move(callback)),
 		std::move(initBox)), LayerOption::KeepOther);
 	return weak->data();
+}
+
+QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<History*> history,
+		MessageIdsList &&items,
+		FnMut<void()> &&successCallback) {
+	const auto session = &navigation->session();
+	const auto text = "Send now?";
+	const auto box = std::make_shared<QPointer<BoxContent>>();
+	auto done = [
+		=,
+		list = std::move(items),
+		callback = std::move(successCallback)
+	]() mutable {
+		if (*box) {
+			(*box)->closeBox();
+		}
+		auto ids = QVector<MTPint>();
+		for (const auto &itemId : list) {
+			if (const auto item = session->data().message(itemId)) {
+				if (item->allowsSendNow()) {
+					ids.push_back(MTP_int(
+						session->data().scheduledMessages().lookupId(item)));
+				}
+			}
+		}
+		session->api().request(MTPmessages_SendScheduledMessages(
+			history->peer->input,
+			MTP_vector<MTPint>(ids)
+		)).done([=](const MTPUpdates &result) {
+			session->api().applyUpdates(result);
+		}).send();
+		if (callback) {
+			callback();
+		}
+	};
+	*box = Ui::show(
+		Box<ConfirmBox>(text, tr::lng_send_button(tr::now), std::move(done)),
+		LayerOption::KeepOther);
+	return box->data();
 }
 
 void PeerMenuAddChannelMembers(

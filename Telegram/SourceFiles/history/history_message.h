@@ -108,6 +108,7 @@ public:
 		const MTPMessageMedia &media);
 
 	[[nodiscard]] bool allowsForward() const override;
+	[[nodiscard]] bool allowsSendNow() const override;
 	[[nodiscard]] bool allowsEdit(TimeId now) const override;
 	[[nodiscard]] bool uploading() const;
 

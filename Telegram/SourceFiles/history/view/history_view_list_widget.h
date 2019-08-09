@@ -46,6 +46,7 @@ struct SelectedItem {
 	FullMsgId msgId;
 	bool canDelete = false;
 	bool canForward = false;
+	bool canSendNow = false;
 
 };
 
@@ -78,6 +79,7 @@ public:
 struct SelectionData {
 	bool canDelete = false;
 	bool canForward = false;
+	bool canSendNow = false;
 
 };
 

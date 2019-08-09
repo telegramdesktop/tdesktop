@@ -266,6 +266,7 @@ public:
 	bool isPinned() const;
 	bool canPin() const;
 	bool canStopPoll() const;
+	virtual bool allowsSendNow() const;
 	virtual bool allowsForward() const;
 	virtual bool allowsEdit(TimeId now) const;
 	bool canDelete() const;

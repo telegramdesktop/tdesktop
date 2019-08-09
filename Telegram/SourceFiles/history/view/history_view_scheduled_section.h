@@ -112,6 +112,7 @@ private:
 	void updateScrollDownVisibility();
 	void updateScrollDownPosition();
 
+	void confirmSendNowSelected();
 	void confirmDeleteSelected();
 	void clearSelected();
 

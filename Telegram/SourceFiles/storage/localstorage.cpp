@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/emoji_config.h"
 #include "export/export_settings.h"
+#include "api/api_hash.h"
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
 #include "observer_peer.h"
@@ -3854,13 +3855,11 @@ void readArchivedStickers() {
 }
 
 int32 countDocumentVectorHash(const QVector<DocumentData*> vector) {
-	uint32 acc = 0;
-	for_const (auto doc, vector) {
-		auto docId = doc->id;
-		acc = (acc * 20261) + uint32(docId >> 32);
-		acc = (acc * 20261) + uint32(docId & 0xFFFFFFFF);
+	auto result = Api::HashInit();
+	for (const auto document : vector) {
+		Api::HashUpdate(result, document->id);
 	}
-	return int32(acc & 0x7FFFFFFF);
+	return Api::HashFinalize(result);
 }
 
 int32 countSpecialStickerSetHash(uint64 setId) {
@@ -3873,7 +3872,7 @@ int32 countSpecialStickerSetHash(uint64 setId) {
 }
 
 int32 countStickersHash(bool checkOutdatedInfo) {
-	uint32 acc = 0;
+	auto result = Api::HashInit();
 	bool foundOutdated = false;
 	auto &sets = Auth().data().stickerSets();
 	auto &order = Auth().data().stickerSetsOrder();
@@ -3884,11 +3883,13 @@ int32 countStickersHash(bool checkOutdatedInfo) {
 				foundOutdated = true;
 			} else if (!(j->flags & MTPDstickerSet_ClientFlag::f_special)
 				&& !(j->flags & MTPDstickerSet::Flag::f_archived)) {
-				acc = (acc * 20261) + j->hash;
+				Api::HashUpdate(result, j->hash);
 			}
 		}
 	}
-	return (!checkOutdatedInfo || !foundOutdated) ? int32(acc & 0x7FFFFFFF) : 0;
+	return (!checkOutdatedInfo || !foundOutdated)
+		? Api::HashFinalize(result)
+		: 0;
 }
 
 int32 countRecentStickersHash() {
@@ -3900,19 +3901,18 @@ int32 countFavedStickersHash() {
 }
 
 int32 countFeaturedStickersHash() {
-	uint32 acc = 0;
-	auto &sets = Auth().data().stickerSets();
-	auto &featured = Auth().data().featuredStickerSetsOrder();
-	for_const (auto setId, featured) {
-		acc = (acc * 20261) + uint32(setId >> 32);
-		acc = (acc * 20261) + uint32(setId & 0xFFFFFFFF);
+	auto result = Api::HashInit();
+	const auto &sets = Auth().data().stickerSets();
+	const auto &featured = Auth().data().featuredStickerSetsOrder();
+	for (const auto setId : featured) {
+		Api::HashUpdate(result, setId);
 
 		auto it = sets.constFind(setId);
 		if (it != sets.cend() && (it->flags & MTPDstickerSet_ClientFlag::f_unread)) {
-			acc = (acc * 20261) + 1U;
+			Api::HashUpdate(result, 1);
 		}
 	}
-	return int32(acc & 0x7FFFFFFF);
+	return Api::HashFinalize(result);
 }
 
 int32 countSavedGifsHash() {

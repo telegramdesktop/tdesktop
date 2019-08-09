@@ -38,6 +38,7 @@ public:
 		int count = 0;
 		int canDeleteCount = 0;
 		int canForwardCount = 0;
+		int canSendNowCount = 0;
 	};
 	enum class Section {
 		History,
@@ -63,6 +64,9 @@ public:
 
 	rpl::producer<> forwardSelectionRequest() const {
 		return _forwardSelection.events();
+	}
+	rpl::producer<> sendNowSelectionRequest() const {
+		return _sendNowSelection.events();
 	}
 	rpl::producer<> deleteSelectionRequest() const {
 		return _deleteSelection.events();
@@ -123,11 +127,12 @@ private:
 	int _selectedCount = 0;
 	bool _canDelete = false;
 	bool _canForward = false;
+	bool _canSendNow = false;
 
 	Ui::Animations::Simple _selectedShown;
 
 	object_ptr<Ui::RoundButton> _clear;
-	object_ptr<Ui::RoundButton> _forward, _delete;
+	object_ptr<Ui::RoundButton> _forward, _sendNow, _delete;
 
 	object_ptr<Ui::IconButton> _back;
 	object_ptr<Ui::UnreadBadge> _unreadBadge = { nullptr };
@@ -153,6 +158,7 @@ private:
 	base::Timer _onlineUpdater;
 
 	rpl::event_stream<> _forwardSelection;
+	rpl::event_stream<> _sendNowSelection;
 	rpl::event_stream<> _deleteSelection;
 	rpl::event_stream<> _clearSelection;
 

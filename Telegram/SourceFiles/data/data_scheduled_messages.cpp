@@ -78,13 +78,14 @@ ScheduledMessages::~ScheduledMessages() {
 }
 
 MsgId ScheduledMessages::lookupId(not_null<HistoryItem*> item) const {
-	if (const auto i = _data.find(item->history()); i != end(_data)) {
-		const auto &list = i->second.idByItem;
-		if (const auto j = list.find(item); j != end(list)) {
-			return j->second;
-		}
-	}
-	return MsgId(0);
+	Expects(item->isScheduled());
+
+	const auto i = _data.find(item->history());
+	Assert(i != end(_data));
+	const auto &list = i->second;
+	const auto j = list.idByItem.find(item);
+	Assert(j != end(list.idByItem));
+	return j->second;
 }
 
 int ScheduledMessages::count(not_null<History*> history) const {

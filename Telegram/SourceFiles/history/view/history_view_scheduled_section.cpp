@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "boxes/confirm_box.h"
 #include "window/window_session_controller.h"
+#include "window/window_peer_menu.h"
 #include "core/event_filter.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
@@ -56,6 +57,10 @@ ScheduledWidget::ScheduledWidget(
 	_topBar->resizeToWidth(width());
 	_topBar->show();
 
+	_topBar->sendNowSelectionRequest(
+	) | rpl::start_with_next([=] {
+		confirmSendNowSelected();
+	}, _topBar->lifetime());
 	_topBar->deleteSelectionRequest(
 	) | rpl::start_with_next([=] {
 		confirmDeleteSelected();
@@ -386,11 +391,11 @@ void ScheduledWidget::listSelectionChanged(SelectedItems &&items) {
 	HistoryView::TopBarWidget::SelectedState state;
 	state.count = items.size();
 	for (const auto item : items) {
-		if (item.canForward) {
-			++state.canForwardCount;
-		}
 		if (item.canDelete) {
 			++state.canDeleteCount;
+		}
+		if (item.canSendNow) {
+			++state.canSendNowCount;
 		}
 	}
 	_topBar->showSelected(state);
@@ -409,6 +414,19 @@ void ScheduledWidget::listContentRefreshed() {
 
 ClickHandlerPtr ScheduledWidget::listDateLink(not_null<Element*> view) {
 	return nullptr;
+}
+
+void ScheduledWidget::confirmSendNowSelected() {
+	auto items = _inner->getSelectedItems();
+	if (items.empty()) {
+		return;
+	}
+	const auto navigation = controller();
+	Window::ShowSendNowMessagesBox(
+		navigation,
+		_history,
+		std::move(items),
+		[=] { navigation->showBackFromStack(); });
 }
 
 void ScheduledWidget::confirmDeleteSelected() {
