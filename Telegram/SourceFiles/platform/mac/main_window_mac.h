@@ -114,6 +114,13 @@ private:
 	QAction *psNewChannel = nullptr;
 	QAction *psShowTelegram = nullptr;
 
+	QAction *psBold = nullptr;
+	QAction *psItalic = nullptr;
+	QAction *psUnderline = nullptr;
+	QAction *psStrikeOut = nullptr;
+	QAction *psMonospace = nullptr;
+	QAction *psClearFormat = nullptr;
+
 	int _customTitleHeight = 0;
 
 };

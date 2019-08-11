@@ -15,6 +15,11 @@ class UserData;
 
 namespace Ui {
 
+const auto kClearFormatSequence = QKeySequence("ctrl+shift+n");
+const auto kStrikeOutSequence = QKeySequence("ctrl+shift+x");
+const auto kMonospaceSequence = QKeySequence("ctrl+shift+m");
+const auto kEditLinkSequence = QKeySequence("ctrl+k");
+
 class PopupMenu;
 
 void InsertEmojiAtCursor(QTextCursor cursor, EmojiPtr emoji);

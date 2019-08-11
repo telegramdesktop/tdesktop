@@ -47,10 +47,6 @@ const auto kNewlineChars = QString("\r\n")
 	+ QChar(0xfdd1) // QTextEndOfFrame
 	+ QChar(QChar::ParagraphSeparator)
 	+ QChar(QChar::LineSeparator);
-const auto kClearFormatSequence = QKeySequence("ctrl+shift+n");
-const auto kStrikeOutSequence = QKeySequence("ctrl+shift+x");
-const auto kMonospaceSequence = QKeySequence("ctrl+shift+m");
-const auto kEditLinkSequence = QKeySequence("ctrl+k");
 
 class InputDocument : public QTextDocument {
 public:

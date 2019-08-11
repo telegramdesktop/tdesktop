@@ -638,6 +638,23 @@ void MainWindow::psFirstShow() {
 	createGlobalMenu();
 }
 
+namespace {
+	void _sendKeySequence(Qt::Key key, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
+		QWidget *focused = QApplication::focusWidget();
+		if (qobject_cast<QLineEdit*>(focused) || qobject_cast<QTextEdit*>(focused) || qobject_cast<HistoryInner*>(focused)) {
+			QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyPress, key, modifiers));
+			QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyRelease, key, modifiers));
+		}
+	}
+	void _forceDisabled(QAction *action, bool disabled) {
+		if (action->isEnabled()) {
+			if (disabled) action->setDisabled(true);
+		} else if (!disabled) {
+			action->setDisabled(false);
+		}
+	}
+}
+
 void MainWindow::createGlobalMenu() {
 	auto main = psMainMenu.addMenu(qsl("Telegram"));
 	auto about = main->addAction(tr::lng_mac_menu_about_telegram(tr::now, lt_telegram, qsl("Telegram")));
@@ -662,6 +679,51 @@ void MainWindow::createGlobalMenu() {
 	psCopy = edit->addAction(tr::lng_mac_menu_copy(tr::now), this, SLOT(psMacCopy()), QKeySequence::Copy);
 	psPaste = edit->addAction(tr::lng_mac_menu_paste(tr::now), this, SLOT(psMacPaste()), QKeySequence::Paste);
 	psDelete = edit->addAction(tr::lng_mac_menu_delete(tr::now), this, SLOT(psMacDelete()), QKeySequence(Qt::ControlModifier | Qt::Key_Backspace));
+
+	edit->addSeparator();
+	psBold = edit->addAction(
+		tr::lng_menu_formatting_bold(tr::now),
+		this,
+		[=] {
+			_sendKeySequence(Qt::Key_B, Qt::ControlModifier);
+		},
+		QKeySequence::Bold);
+	psItalic = edit->addAction(
+		tr::lng_menu_formatting_italic(tr::now),
+		this,
+		[=] {
+			_sendKeySequence(Qt::Key_I, Qt::ControlModifier);
+		},
+		QKeySequence::Italic);
+	psUnderline = edit->addAction(
+		tr::lng_menu_formatting_underline(tr::now),
+		this,
+		[=] {
+			_sendKeySequence(Qt::Key_U, Qt::ControlModifier);
+		},
+		QKeySequence::Underline);
+	psStrikeOut = edit->addAction(
+		tr::lng_menu_formatting_strike_out(tr::now),
+		this,
+		[=] {
+			_sendKeySequence(Qt::Key_X, Qt::ControlModifier | Qt::ShiftModifier);
+		},
+		Ui::kStrikeOutSequence);
+	psMonospace = edit->addAction(
+		tr::lng_menu_formatting_monospace(tr::now),
+		this,
+		[=] {
+			_sendKeySequence(Qt::Key_M, Qt::ControlModifier | Qt::ShiftModifier);
+		},
+		Ui::kMonospaceSequence);
+	psClearFormat = edit->addAction(
+		tr::lng_menu_formatting_clear(tr::now),
+		this,
+		[=] {
+			_sendKeySequence(Qt::Key_N, Qt::ControlModifier | Qt::ShiftModifier);
+		},
+		Ui::kClearFormatSequence);
+
 	edit->addSeparator();
 	psSelectAll = edit->addAction(tr::lng_mac_menu_select_all(tr::now), this, SLOT(psMacSelectAll()), QKeySequence::SelectAll);
 
@@ -687,23 +749,6 @@ void MainWindow::createGlobalMenu() {
 	psShowTelegram = window->addAction(tr::lng_mac_menu_show(tr::now), App::wnd(), SLOT(showFromTray()));
 
 	updateGlobalMenu();
-}
-
-namespace {
-	void _sendKeySequence(Qt::Key key, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
-		QWidget *focused = QApplication::focusWidget();
-		if (qobject_cast<QLineEdit*>(focused) || qobject_cast<QTextEdit*>(focused) || qobject_cast<HistoryInner*>(focused)) {
-			QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyPress, key, modifiers));
-			QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyRelease, key, modifiers));
-		}
-	}
-	void _forceDisabled(QAction *action, bool disabled) {
-		if (action->isEnabled()) {
-			if (disabled) action->setDisabled(true);
-		} else if (!disabled) {
-			action->setDisabled(false);
-		}
-	}
 }
 
 void MainWindow::psMacUndo() {
@@ -789,6 +834,13 @@ void MainWindow::updateGlobalMenuHook() {
 	_forceDisabled(psNewGroup, inactive || support);
 	_forceDisabled(psNewChannel, inactive || support);
 	_forceDisabled(psShowTelegram, App::wnd()->isActive());
+
+	_forceDisabled(psBold, !showTouchBarItem);
+	_forceDisabled(psItalic, !showTouchBarItem);
+	_forceDisabled(psUnderline, !showTouchBarItem);
+	_forceDisabled(psStrikeOut, !showTouchBarItem);
+	_forceDisabled(psMonospace, !showTouchBarItem);
+	_forceDisabled(psClearFormat, !showTouchBarItem);
 }
 
 bool MainWindow::psFilterNativeEvent(void *event) {
