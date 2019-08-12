@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_sparse_ids.h"
 #include "data/data_search_controller.h"
+#include "data/data_scheduled_messages.h"
 #include "data/data_channel_admins.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
@@ -4427,6 +4428,12 @@ void ApiWrap::forwardMessages(
 	if (silentPost) {
 		sendFlags |= MTPmessages_ForwardMessages::Flag::f_silent;
 	}
+	if (action.options.scheduled) {
+		flags |= MTPDmessage::Flag::f_from_scheduled;
+		sendFlags |= MTPmessages_ForwardMessages::Flag::f_schedule_date;
+	} else {
+		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
+	}
 
 	auto forwardFrom = items.front()->history()->peer;
 	auto currentGroupId = items.front()->groupId();
@@ -4448,7 +4455,7 @@ void ApiWrap::forwardMessages(
 			MTP_vector<MTPint>(ids),
 			MTP_vector<MTPlong>(randomIds),
 			peer->input,
-			MTP_int(0) // schedule_date
+			MTP_int(action.options.scheduled)
 		)).done([=, callback = std::move(successCallback)](
 				const MTPUpdates &updates) {
 			applyUpdates(updates);
@@ -4480,7 +4487,7 @@ void ApiWrap::forwardMessages(
 			if (const auto message = item->toHistoryMessage()) {
 				const auto newId = FullMsgId(
 					peerToChannel(peer->id),
-					clientMsgId());
+					session().data().nextLocalMessageId());
 				const auto self = _session->user();
 				const auto messageFromId = channelPost
 					? UserId(0)
@@ -4492,7 +4499,7 @@ void ApiWrap::forwardMessages(
 					newId.msg,
 					flags,
 					clientFlags,
-					base::unixtime::now(),
+					HistoryItem::NewMessageDate(action.options.scheduled),
 					messageFromId,
 					messagePostAuthor,
 					message);
@@ -4554,7 +4561,9 @@ void ApiWrap::sendSharedContact(
 	const auto history = action.history;
 	const auto peer = history->peer;
 
-	const auto newId = FullMsgId(history->channelId(), clientMsgId());
+	const auto newId = FullMsgId(
+		history->channelId(),
+		session().data().nextLocalMessageId());
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
 
 	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
@@ -4571,6 +4580,11 @@ void ApiWrap::sendSharedContact(
 	} else {
 		flags |= MTPDmessage::Flag::f_from_id;
 	}
+	if (action.options.scheduled) {
+		flags |= MTPDmessage::Flag::f_from_scheduled;
+	} else {
+		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
+	}
 	const auto messageFromId = channelPost ? 0 : _session->userId();
 	const auto messagePostAuthor = channelPost
 		? App::peerName(_session->user())
@@ -4586,7 +4600,7 @@ void ApiWrap::sendSharedContact(
 			MTPMessageFwdHeader(),
 			MTPint(),
 			MTP_int(action.replyTo),
-			MTP_int(base::unixtime::now()),
+			MTP_int(HistoryItem::NewMessageDate(action.options.scheduled)),
 			MTP_string(),
 			MTP_messageMediaContact(
 				MTP_string(phone),
@@ -4907,7 +4921,9 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	HistoryItem *lastMessage = nullptr;
 
 	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
-		auto newId = FullMsgId(peerToChannel(peer->id), clientMsgId());
+		auto newId = FullMsgId(
+			peerToChannel(peer->id),
+			session().data().nextLocalMessageId());
 		auto randomId = rand_value<uint64>();
 
 		TextUtilities::Trim(sending);
@@ -4963,6 +4979,12 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		auto messagePostAuthor = channelPost
 			? App::peerName(_session->user())
 			: QString();
+		if (action.options.scheduled) {
+			flags |= MTPDmessage::Flag::f_from_scheduled;
+			sendFlags |= MTPmessages_SendMessage::Flag::f_schedule_date;
+		} else {
+			clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
+		}
 		lastMessage = history->addNewMessage(
 			MTP_message(
 				MTP_flags(flags),
@@ -4972,7 +4994,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 				MTPMessageFwdHeader(),
 				MTPint(),
 				MTP_int(action.replyTo),
-				MTP_int(base::unixtime::now()),
+				MTP_int(
+					HistoryItem::NewMessageDate(action.options.scheduled)),
 				msgText,
 				media,
 				MTPReplyMarkup(),
@@ -4993,7 +5016,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			MTP_long(randomId),
 			MTPReplyMarkup(),
 			sentEntities,
-			MTP_int(0) // schedule_date
+			MTP_int(action.options.scheduled)
 		)).done([=](const MTPUpdates &result) {
 			applyUpdates(result, randomId);
 			history->clearSentDraftText(QString());
@@ -5053,7 +5076,9 @@ void ApiWrap::sendInlineResult(
 
 	const auto history = action.history;
 	const auto peer = history->peer;
-	const auto newId = FullMsgId(peerToChannel(peer->id), clientMsgId());
+	const auto newId = FullMsgId(
+		peerToChannel(peer->id),
+		session().data().nextLocalMessageId());
 	const auto randomId = rand_value<uint64>();
 
 	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
@@ -5081,14 +5106,17 @@ void ApiWrap::sendInlineResult(
 	if (bot) {
 		flags |= MTPDmessage::Flag::f_via_bot_id;
 	}
+	if (action.options.scheduled) {
+		flags |= MTPDmessage::Flag::f_from_scheduled;
+		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_schedule_date;
+	} else {
+		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
+	}
 
-	auto messageFromId = channelPost ? 0 : _session->userId();
-	auto messagePostAuthor = channelPost
+	const auto messageFromId = channelPost ? 0 : _session->userId();
+	const auto messagePostAuthor = channelPost
 		? App::peerName(_session->user())
 		: QString();
-	MTPint messageDate = MTP_int(base::unixtime::now());
-	UserId messageViaBotId = bot ? peerToUser(bot->id) : 0;
-	MsgId messageId = newId.msg;
 
 	_session->data().registerMessageRandomId(randomId, newId);
 
@@ -5096,10 +5124,10 @@ void ApiWrap::sendInlineResult(
 		history,
 		flags,
 		clientFlags,
-		messageId,
+		newId.msg,
 		messageFromId,
-		messageDate,
-		messageViaBotId,
+		MTP_int(HistoryItem::NewMessageDate(action.options.scheduled)),
+		bot ? peerToUser(bot->id) : 0,
 		action.replyTo,
 		messagePostAuthor);
 
@@ -5113,7 +5141,7 @@ void ApiWrap::sendInlineResult(
 		MTP_long(randomId),
 		MTP_long(data->getQueryId()),
 		MTP_string(data->getId()),
-		MTP_int(0) // schedule_date
+		MTP_int(action.options.scheduled)
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result, randomId);
 		history->clearSentDraftText(QString());
@@ -5236,6 +5264,9 @@ void ApiWrap::sendMediaWithRandomId(
 			: MTPmessages_SendMedia::Flag(0))
 		| (!sentEntities.v.isEmpty()
 			? MTPmessages_SendMedia::Flag::f_entities
+			: MTPmessages_SendMedia::Flag(0))
+		| (options.scheduled
+			? MTPmessages_SendMedia::Flag::f_schedule_date
 			: MTPmessages_SendMedia::Flag(0));
 
 	const auto peer = history->peer;
@@ -5249,7 +5280,7 @@ void ApiWrap::sendMediaWithRandomId(
 		MTP_long(randomId),
 		MTPReplyMarkup(),
 		sentEntities,
-		MTP_int(0) // schedule_date
+		MTP_int(options.scheduled)
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
 	}).fail([=](const RPCError &error) {
@@ -5330,6 +5361,9 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 			: MTPmessages_SendMultiMedia::Flag(0))
 		| (album->options.silent
 			? MTPmessages_SendMultiMedia::Flag::f_silent
+			: MTPmessages_SendMultiMedia::Flag(0))
+		| (album->options.scheduled
+			? MTPmessages_SendMultiMedia::Flag::f_schedule_date
 			: MTPmessages_SendMultiMedia::Flag(0));
 	const auto peer = history->peer;
 	history->sendRequestId = request(MTPmessages_SendMultiMedia(
@@ -5337,7 +5371,7 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		peer->input,
 		MTP_int(replyTo),
 		MTP_vector<MTPInputSingleMedia>(medias),
-		MTP_int(0) // schedule_date
+		MTP_int(album->options.scheduled)
 	)).done([=](const MTPUpdates &result) {
 		_sendingAlbums.remove(groupId);
 		applyUpdates(result);
@@ -5360,10 +5394,7 @@ FileLoadTo ApiWrap::fileLoadTaskOptions(const SendAction &action) const {
 	if (_session->data().notifySilentPosts(peer)) {
 		options.silent = true;
 	}
-	return FileLoadTo(
-		peer->id,
-		action.options,
-		action.replyTo);
+	return FileLoadTo(peer->id, action.options, action.replyTo);
 }
 
 void ApiWrap::requestSupportContact(FnMut<void(const MTPUser &)> callback) {
@@ -5387,7 +5418,9 @@ void ApiWrap::uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image) {
 	peer = peer->migrateToOrMe();
 	const auto ready = PreparePeerPhoto(peer->id, std::move(image));
 
-	const auto fakeId = FullMsgId(peerToChannel(peer->id), clientMsgId());
+	const auto fakeId = FullMsgId(
+		peerToChannel(peer->id),
+		session().data().nextLocalMessageId());
 	const auto already = ranges::find(
 		_peerPhotoUploads,
 		peer,
@@ -5817,6 +5850,9 @@ void ApiWrap::createPoll(
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
+	if (action.options.scheduled) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
+	}
 
 	const auto replyTo = action.replyTo;
 	history->sendRequestId = request(MTPmessages_SendMedia(
@@ -5828,7 +5864,7 @@ void ApiWrap::createPoll(
 		MTP_long(rand_value<uint64>()),
 		MTPReplyMarkup(),
 		MTPVector<MTPMessageEntity>(),
-		MTP_int(0) // schedule_date
+		MTP_int(action.options.scheduled)
 	)).done([=, done = std::move(done)](const MTPUpdates &result) mutable {
 		applyUpdates(result);
 		done();

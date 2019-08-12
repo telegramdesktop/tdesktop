@@ -86,7 +86,8 @@ public:
 	UserData *getMessageBot() const;
 
 	[[nodiscard]] bool isHistoryEntry() const {
-		return (id < ServerMaxMsgId);
+		return IsServerMsgId(id)
+			|| (_clientFlags & MTPDmessage_ClientFlag::f_local_history_entry);
 	}
 	[[nodiscard]] bool isFromScheduled() const {
 		return isHistoryEntry()
@@ -190,13 +191,13 @@ public:
 		return _clientFlags & MTPDmessage_ClientFlag::f_failed;
 	}
 	void sendFailed();
-	virtual int viewsCount() const {
+	[[nodiscard]] virtual int viewsCount() const {
 		return hasViews() ? 1 : -1;
 	}
 
-	virtual bool needCheck() const;
+	[[nodiscard]] virtual bool needCheck() const;
 
-	virtual bool serviceMsg() const {
+	[[nodiscard]] virtual bool serviceMsg() const {
 		return false;
 	}
 	virtual void applyEdition(const MTPDmessage &message) {
@@ -218,14 +219,14 @@ public:
 	virtual void addToUnreadMentions(UnreadMentionType type);
 	virtual void eraseFromUnreadMentions() {
 	}
-	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const = 0;
+	[[nodiscard]] virtual Storage::SharedMediaTypesMask sharedMediaTypes() const = 0;
 
 	void indexAsNewItem();
 
-	virtual QString notificationHeader() const {
+	[[nodiscard]] virtual QString notificationHeader() const {
 		return QString();
 	}
-	virtual QString notificationText() const;
+	[[nodiscard]] virtual QString notificationText() const;
 
 	enum class DrawInDialog {
 		Normal,
@@ -234,15 +235,15 @@ public:
 
 	// Returns text with link-start and link-end commands for service-color highlighting.
 	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
-	virtual QString inDialogsText(DrawInDialog way) const;
-	virtual QString inReplyText() const {
+	[[nodiscard]] virtual QString inDialogsText(DrawInDialog way) const;
+	[[nodiscard]] virtual QString inReplyText() const {
 		return inDialogsText(DrawInDialog::WithoutSender);
 	}
-	virtual Ui::Text::IsolatedEmoji isolatedEmoji() const;
-	virtual TextWithEntities originalText() const {
+	[[nodiscard]] virtual Ui::Text::IsolatedEmoji isolatedEmoji() const;
+	[[nodiscard]] virtual TextWithEntities originalText() const {
 		return TextWithEntities();
 	}
-	virtual TextForMimeData clipboardText() const {
+	[[nodiscard]] virtual TextForMimeData clipboardText() const {
 		return TextForMimeData();
 	}
 
@@ -259,80 +260,82 @@ public:
 		const HistoryItem *&cacheFor,
 		Ui::Text::String &cache) const;
 
-	bool emptyText() const {
+	[[nodiscard]] bool emptyText() const {
 		return _text.isEmpty();
 	}
 
-	bool isPinned() const;
-	bool canPin() const;
-	bool canStopPoll() const;
-	virtual bool allowsSendNow() const;
-	virtual bool allowsForward() const;
-	virtual bool allowsEdit(TimeId now) const;
-	bool canDelete() const;
-	bool canDeleteForEveryone(TimeId now) const;
-	bool suggestReport() const;
-	bool suggestBanReport() const;
-	bool suggestDeleteAllReport() const;
+	[[nodiscard]] bool isPinned() const;
+	[[nodiscard]] bool canPin() const;
+	[[nodiscard]] bool canStopPoll() const;
+	[[nodiscard]] virtual bool allowsSendNow() const;
+	[[nodiscard]] virtual bool allowsForward() const;
+	[[nodiscard]] virtual bool allowsEdit(TimeId now) const;
+	[[nodiscard]] bool canDelete() const;
+	[[nodiscard]] bool canDeleteForEveryone(TimeId now) const;
+	[[nodiscard]] bool suggestReport() const;
+	[[nodiscard]] bool suggestBanReport() const;
+	[[nodiscard]] bool suggestDeleteAllReport() const;
 
-	bool hasDirectLink() const;
+	[[nodiscard]] bool hasDirectLink() const;
 
-	MsgId id;
-
-	ChannelId channelId() const;
-	FullMsgId fullId() const {
+	[[nodiscard]] ChannelId channelId() const;
+	[[nodiscard]] FullMsgId fullId() const {
 		return FullMsgId(channelId(), id);
 	}
-	Data::MessagePosition position() const;
-	TimeId date() const;
+	[[nodiscard]] Data::MessagePosition position() const;
+	[[nodiscard]] TimeId date() const;
 
-	Data::Media *media() const {
+	[[nodiscard]] static TimeId NewMessageDate(TimeId scheduled);
+
+	[[nodiscard]] Data::Media *media() const {
 		return _media.get();
 	}
 	virtual void setText(const TextWithEntities &textWithEntities) {
 	}
-	virtual bool textHasLinks() const {
+	[[nodiscard]] virtual bool textHasLinks() const {
 		return false;
 	}
 
-	virtual HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
+	[[nodiscard]] virtual HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
 		return nullptr;
 	}
-	virtual const HistoryMessage *toHistoryMessage() const { // dynamic_cast optimize
+	[[nodiscard]] virtual const HistoryMessage *toHistoryMessage() const { // dynamic_cast optimize
 		return nullptr;
 	}
-	MsgId replyToId() const;
+	[[nodiscard]] MsgId replyToId() const;
 
-	not_null<PeerData*> author() const;
+	[[nodiscard]] not_null<PeerData*> author() const;
 
-	TimeId dateOriginal() const;
-	PeerData *senderOriginal() const;
-	const HiddenSenderInfo *hiddenForwardedInfo() const;
-	not_null<PeerData*> fromOriginal() const;
-	QString authorOriginal() const;
-	MsgId idOriginal() const;
+	[[nodiscard]] TimeId dateOriginal() const;
+	[[nodiscard]] PeerData *senderOriginal() const;
+	[[nodiscard]] const HiddenSenderInfo *hiddenForwardedInfo() const;
+	[[nodiscard]] not_null<PeerData*> fromOriginal() const;
+	[[nodiscard]] QString authorOriginal() const;
+	[[nodiscard]] MsgId idOriginal() const;
 
-	bool isEmpty() const;
+	[[nodiscard]] bool isEmpty() const;
 
-	MessageGroupId groupId() const;
+	[[nodiscard]] MessageGroupId groupId() const;
 
-	const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
+	[[nodiscard]] const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
 		return const_cast<HistoryItem*>(this)->inlineReplyMarkup();
 	}
-	const ReplyKeyboard *inlineReplyKeyboard() const {
+	[[nodiscard]] const ReplyKeyboard *inlineReplyKeyboard() const {
 		return const_cast<HistoryItem*>(this)->inlineReplyKeyboard();
 	}
-	HistoryMessageReplyMarkup *inlineReplyMarkup();
-	ReplyKeyboard *inlineReplyKeyboard();
+	[[nodiscard]] HistoryMessageReplyMarkup *inlineReplyMarkup();
+	[[nodiscard]] ReplyKeyboard *inlineReplyKeyboard();
 
 	[[nodiscard]] ChannelData *discussionPostOriginalSender() const;
 	[[nodiscard]] bool isDiscussionPost() const;
 	[[nodiscard]] PeerData *displayFrom() const;
 
-	virtual std::unique_ptr<HistoryView::Element> createView(
+	[[nodiscard]] virtual std::unique_ptr<HistoryView::Element> createView(
 		not_null<HistoryView::ElementDelegate*> delegate) = 0;
 
 	virtual ~HistoryItem();
+
+	MsgId id;
 
 protected:
 	HistoryItem(

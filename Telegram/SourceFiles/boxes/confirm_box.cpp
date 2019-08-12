@@ -771,8 +771,14 @@ void DeleteMessagesBox::deleteAndClear() {
 		if (const auto item = _session->data().message(itemId)) {
 			const auto history = item->history();
 			if (item->isScheduled()) {
-				scheduledIdsByPeer[history->peer].push_back(MTP_int(
-					_session->data().scheduledMessages().lookupId(item)));
+				const auto wasOnServer = !item->isSending()
+					&& !item->hasFailed();
+				if (wasOnServer) {
+					scheduledIdsByPeer[history->peer].push_back(MTP_int(
+						_session->data().scheduledMessages().lookupId(item)));
+				} else {
+					_session->data().scheduledMessages().removeSending(item);
+				}
 				continue;
 			}
 			const auto wasOnServer = IsServerMsgId(item->id);

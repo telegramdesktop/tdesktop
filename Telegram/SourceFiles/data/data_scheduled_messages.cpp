@@ -137,6 +137,49 @@ void ScheduledMessages::apply(
 	_updates.fire_copy(history);
 }
 
+void ScheduledMessages::apply(
+		const MTPDupdateMessageID &update,
+		not_null<HistoryItem*> local) {
+	const auto id = update.vid().v;
+	const auto i = _data.find(local->history());
+	Assert(i != end(_data));
+	auto &list = i->second;
+	const auto j = list.itemById.find(id);
+	if (j != end(list.itemById)) {
+		local->destroy();
+	} else {
+		Assert(!list.itemById.contains(local->id));
+		Assert(!list.idByItem.contains(local));
+		local->setRealId(local->history()->nextNonHistoryEntryId());
+		list.idByItem.emplace(local, id);
+		list.itemById.emplace(id, local);
+	}
+}
+
+void ScheduledMessages::appendSending(not_null<HistoryItem*> item) {
+	Expects(item->isSending());
+	Expects(item->isScheduled());
+
+	const auto history = item->history();
+	auto &list = _data[history];
+	list.items.emplace_back(item);
+	sort(list);
+	_updates.fire_copy(history);
+}
+
+void ScheduledMessages::removeSending(not_null<HistoryItem*> item) {
+	Expects(item->isSending() || item->hasFailed());
+	Expects(item->isScheduled());
+
+	const auto history = item->history();
+	auto &list = _data[history];
+	Assert(!list.itemById.contains(item->id));
+	Assert(!list.idByItem.contains(item));
+	list.items.erase(
+		ranges::remove(list.items, item.get(), &OwnedItem::get),
+		end(list.items));
+}
+
 rpl::producer<> ScheduledMessages::updates(not_null<History*> history) {
 	request(history);
 
@@ -175,10 +218,12 @@ void ScheduledMessages::request(not_null<History*> history) {
 	if (request.requestId) {
 		return;
 	}
+	const auto i = _data.find(history);
+	const auto hash = (i != end(_data)) ? countListHash(i->second) : 0;
 	request.requestId = _session->api().request(
 		MTPmessages_GetScheduledHistory(
 			history->peer->input,
-			MTP_int(request.hash))
+			MTP_int(hash))
 	).done([=](const MTPmessages_Messages &result) {
 		parse(history, result);
 	}).fail([=](const RPCError &error) {
@@ -197,14 +242,33 @@ void ScheduledMessages::parse(
 	}, [&](const auto &data) {
 		_session->data().processUsers(data.vusers());
 		_session->data().processChats(data.vchats());
+
 		const auto &messages = data.vmessages().v;
 		if (messages.isEmpty()) {
+			if (element != end(_data)) {
+				_data.erase(element);
+				element = end(_data);
+				_updates.fire_copy(history);
+			}
 			return;
 		}
 		element = _data.emplace(history, List()).first;
+		auto received = base::flat_set<not_null<HistoryItem*>>();
 		auto &list = element->second;
 		for (const auto &message : messages) {
-			append(history, list, message);
+			if (const auto item = append(history, list, message)) {
+				received.emplace(item);
+			}
+		}
+		auto clear = base::flat_set<not_null<HistoryItem*>>();
+		for (const auto &owned : list.items) {
+			const auto item = owned.get();
+			if (!item->isSending() && !received.contains(item)) {
+				clear.emplace(item);
+			}
+		}
+		for (const auto item : clear) {
+			item->destroy();
 		}
 		if (!list.items.empty()) {
 			sort(list);
@@ -214,24 +278,21 @@ void ScheduledMessages::parse(
 		}
 		_updates.fire_copy(history);
 	});
-
-	request.hash = (element != end(_data))
-		? countListHash(element->second)
-		: 0;
-	if (!request.requestId && !request.hash) {
+	if (!request.requestId) {
 		_requests.remove(history);
 	}
 }
 
-void ScheduledMessages::append(
+HistoryItem *ScheduledMessages::append(
 		not_null<History*> history,
 		List &list,
 		const MTPMessage &message) {
 	const auto id = message.match([&](const auto &data) {
 		return data.vid().v;
 	});
-	if (list.itemById.find(id) != end(list.itemById)) {
-		return;
+	const auto i = list.itemById.find(id);
+	if (i != end(list.itemById)) {
+		return i->second;
 	}
 
 	const auto item = _session->data().addNewMessage(
@@ -240,11 +301,12 @@ void ScheduledMessages::append(
 		NewMessageType::Existing);
 	if (!item || item->history() != history) {
 		LOG(("API Error: Bad data received in scheduled messages."));
-		return;
+		return nullptr;
 	}
 	list.items.emplace_back(item);
 	list.itemById.emplace(id, item);
 	list.idByItem.emplace(item, id);
+	return item;
 }
 
 void ScheduledMessages::sort(List &list) {
@@ -277,7 +339,12 @@ int32 ScheduledMessages::countListHash(const List &list) const {
 	using namespace Api;
 
 	auto hash = HashInit();
-	for (const auto &item : list.items | ranges::view::reverse) {
+	auto &&serverside = ranges::view::all(
+		list.items
+	) | ranges::view::filter([](const OwnedItem &item) {
+		return !item->isSending() && !item->hasFailed();
+	}) | ranges::view::reverse;
+	for (const auto &item : serverside) {
 		const auto j = list.idByItem.find(item.get());
 		HashUpdate(hash, j->second);
 		if (const auto edited = item->Get<HistoryMessageEdited>()) {

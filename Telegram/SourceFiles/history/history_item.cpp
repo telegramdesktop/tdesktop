@@ -187,6 +187,11 @@ TimeId HistoryItem::date() const {
 	return _date;
 }
 
+TimeId HistoryItem::NewMessageDate(TimeId scheduled) {
+	const auto now = base::unixtime::now();
+	return scheduled ? std::max(scheduled, now + 60) : now;
+}
+
 void HistoryItem::finishEdition(int oldKeyboardTop) {
 	_history->owner().requestItemViewRefresh(this);
 	invalidateChatListEntry();

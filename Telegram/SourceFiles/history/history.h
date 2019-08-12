@@ -387,11 +387,6 @@ private:
 	// helper method for countScrollState(int top)
 	void countScrollTopItem(int top);
 
-	HistoryItem *addNewToLastBlock(
-		const MTPMessage &msg,
-		MTPDmessage_ClientFlags clientFlags,
-		NewMessageType type);
-
 	// this method just removes a block from the blocks list
 	// when the last item from this block was detached and
 	// calls the required previousItemChanged()
@@ -399,6 +394,9 @@ private:
 	void clearSharedMedia();
 
 	not_null<HistoryItem*> addNewItem(
+		not_null<HistoryItem*> item,
+		bool unread);
+	not_null<HistoryItem*> addNewToBack(
 		not_null<HistoryItem*> item,
 		bool unread);
 	not_null<HistoryItem*> addNewInTheMiddle(

@@ -40,7 +40,9 @@ void SendExistingMedia(
 	message.action.generateLocal = true;
 	api->sendAction(message.action);
 
-	const auto newId = FullMsgId(peerToChannel(peer->id), clientMsgId());
+	const auto newId = FullMsgId(
+		peerToChannel(peer->id),
+		session->data().nextLocalMessageId());
 	const auto randomId = rand_value<uint64>();
 
 	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
@@ -84,6 +86,13 @@ void SendExistingMedia(
 	const auto replyTo = message.action.replyTo;
 	const auto captionText = caption.text;
 
+	if (message.action.options.scheduled) {
+		flags |= MTPDmessage::Flag::f_from_scheduled;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
+	} else {
+		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
+	}
+
 	session->data().registerMessageRandomId(randomId, newId);
 
 	history->addNewLocalMessage(
@@ -92,7 +101,7 @@ void SendExistingMedia(
 		clientFlags,
 		0,
 		replyTo,
-		base::unixtime::now(),
+		HistoryItem::NewMessageDate(message.action.options.scheduled),
 		messageFromId,
 		messagePostAuthor,
 		media,
@@ -111,7 +120,7 @@ void SendExistingMedia(
 			MTP_long(randomId),
 			MTPReplyMarkup(),
 			sentEntities,
-			MTP_int(0) // schedule_date
+			MTP_int(message.action.options.scheduled)
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result, randomId);
 		}).fail([=](const RPCError &error) {

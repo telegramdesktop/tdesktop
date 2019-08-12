@@ -66,8 +66,8 @@ enum class MTPDmessage_ClientFlag : uint32 {
 	// message has no media and only a several emoji text
 	f_isolated_emoji = (1U << 21),
 
-	// update this when adding new client side flags
-	MIN_FIELD = (1U << 21),
+	// message is local message existing in the message history
+	f_local_history_entry = (1U << 20),
 };
 inline constexpr bool is_flag_type(MTPDmessage_ClientFlag) { return true; }
 using MTPDmessage_ClientFlags = base::flags<MTPDmessage_ClientFlag>;

@@ -429,7 +429,7 @@ void ChatBackground::checkUploadWallPaper() {
 
 	const auto ready = PrepareWallPaper(_original);
 	const auto documentId = ready.id;
-	_wallPaperUploadId = FullMsgId(0, clientMsgId());
+	_wallPaperUploadId = FullMsgId(0, _session->data().nextLocalMessageId());
 	_session->uploader().uploadMedia(_wallPaperUploadId, ready);
 	if (_wallPaperUploadLifetime) {
 		return;

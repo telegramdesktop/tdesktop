@@ -1844,6 +1844,12 @@ void Session::destroyMessage(not_null<HistoryItem*> item) {
 	list->erase(item->id);
 }
 
+MsgId Session::nextLocalMessageId() {
+	Expects(_localMessageIdCounter < EndClientMsgId);
+
+	return _localMessageIdCounter++;
+}
+
 HistoryItem *Session::message(ChannelId channelId, MsgId itemId) const {
 	if (!itemId) {
 		return nullptr;
@@ -3627,13 +3633,14 @@ void Session::insertCheckedServiceNotification(
 	const auto flags = MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_from_id
 		| MTPDmessage::Flag::f_media;
-	const auto clientFlags = MTPDmessage_ClientFlag::f_clientside_unread;
+	const auto clientFlags = MTPDmessage_ClientFlag::f_clientside_unread
+		| MTPDmessage_ClientFlag::f_local_history_entry;
 	auto sending = TextWithEntities(), left = message;
 	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
 		addNewMessage(
 			MTP_message(
 				MTP_flags(flags),
-				MTP_int(clientMsgId()),
+				MTP_int(nextLocalMessageId()),
 				MTP_int(peerToUser(PeerData::kServiceNotificationsId)),
 				MTP_peerUser(MTP_int(_session->userId())),
 				MTPMessageFwdHeader(),

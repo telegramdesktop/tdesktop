@@ -387,6 +387,7 @@ public:
 		ChannelId channelId,
 		const QVector<MTPint> &data);
 
+	[[nodiscard]] MsgId nextLocalMessageId();
 	[[nodiscard]] HistoryItem *message(
 		ChannelId channelId,
 		MsgId itemId) const;
@@ -877,6 +878,7 @@ private:
 	Dialogs::IndexedList _contactsList;
 	Dialogs::IndexedList _contactsNoChatsList;
 
+	MsgId _localMessageIdCounter = StartClientMsgId;
 	Messages _messages;
 	std::map<ChannelId, Messages> _channelMessages;
 	std::map<

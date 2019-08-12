@@ -1520,7 +1520,9 @@ void FormController::uploadEncryptedFile(
 	prepared->setFileData(prepared->content);
 	prepared->filemd5 = file.uploadData->md5checksum;
 
-	file.uploadData->fullId = FullMsgId(0, clientMsgId());
+	file.uploadData->fullId = FullMsgId(
+		0,
+		Auth().data().nextLocalMessageId());
 	Auth().uploader().upload(file.uploadData->fullId, std::move(prepared));
 }
 

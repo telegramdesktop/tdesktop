@@ -415,12 +415,6 @@ inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {
 	return !(a == b);
 }
 
-inline MsgId clientMsgId() {
-	static MsgId CurrentClientMsgId = StartClientMsgId;
-	Assert(CurrentClientMsgId < EndClientMsgId);
-	return CurrentClientMsgId++;
-}
-
 struct MessageCursor {
 	MessageCursor() = default;
 	MessageCursor(int position, int anchor, int scroll)

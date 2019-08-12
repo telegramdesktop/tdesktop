@@ -32,6 +32,12 @@ public:
 
 	void apply(const MTPDupdateNewScheduledMessage &update);
 	void apply(const MTPDupdateDeleteScheduledMessages &update);
+	void apply(
+		const MTPDupdateMessageID &update,
+		not_null<HistoryItem*> local);
+
+	void appendSending(not_null<HistoryItem*> item);
+	void removeSending(not_null<HistoryItem*> item);
 
 	[[nodiscard]] rpl::producer<> updates(not_null<History*> history);
 	[[nodiscard]] Data::MessagesSlice list(not_null<History*> history);
@@ -44,7 +50,6 @@ private:
 		base::flat_map<not_null<HistoryItem*>, MsgId> idByItem;
 	};
 	struct Request {
-		int32 hash = 0;
 		mtpRequestId requestId = 0;
 	};
 
@@ -52,7 +57,7 @@ private:
 	void parse(
 		not_null<History*> history,
 		const MTPmessages_Messages &list);
-	void append(
+	HistoryItem *append(
 		not_null<History*> history,
 		List &list,
 		const MTPMessage &message);

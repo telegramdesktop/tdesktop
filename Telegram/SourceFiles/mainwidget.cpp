@@ -3899,19 +3899,25 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const auto &d = update.c_updateMessageID();
 		const auto randomId = d.vrandom_id().v;
 		if (const auto id = session().data().messageIdByRandomId(randomId)) {
-			const auto channel = id.channel;
 			const auto newId = d.vid().v;
 			if (const auto local = session().data().message(id)) {
-				const auto existing = session().data().message(channel, newId);
-				if (existing && !local->mainView()) {
-					const auto history = local->history();
-					local->destroy();
-					history->requestChatListMessage();
+				if (local->isScheduled()) {
+					session().data().scheduledMessages().apply(d, local);
 				} else {
-					if (existing) {
-						existing->destroy();
+					const auto channel = id.channel;
+					const auto existing = session().data().message(
+						channel,
+						newId);
+					if (existing && !local->mainView()) {
+						const auto history = local->history();
+						local->destroy();
+						history->requestChatListMessage();
+					} else {
+						if (existing) {
+							existing->destroy();
+						}
+						local->setRealId(d.vid().v);
 					}
-					local->setRealId(d.vid().v);
 				}
 			}
 			session().data().unregisterMessageRandomId(randomId);

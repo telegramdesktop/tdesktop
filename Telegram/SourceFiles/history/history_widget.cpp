@@ -634,12 +634,19 @@ HistoryWidget::HistoryWidget(
 	) | rpl::filter([=](const Api::SendAction &action) {
 		return (action.history == _history);
 	}) | rpl::start_with_next([=](const Api::SendAction &action) {
-		fastShowAtEnd(action.history);
-		const auto lastKeyboardUsed = lastForceReplyReplied(FullMsgId(
-			action.history->channelId(),
-			action.replyTo));
-		if (cancelReply(lastKeyboardUsed) && !action.clearDraft) {
-			onCloudDraftSave();
+		if (action.options.scheduled) {
+			crl::on_main(this, [=, history = action.history]{
+				controller->showSection(
+					HistoryView::ScheduledMemento(action.history));
+			});
+		} else {
+			fastShowAtEnd(action.history);
+			const auto lastKeyboardUsed = lastForceReplyReplied(FullMsgId(
+				action.history->channelId(),
+				action.replyTo));
+			if (cancelReply(lastKeyboardUsed) && !action.clearDraft) {
+				onCloudDraftSave();
+			}
 		}
 		if (action.options.handleSupportSwitch) {
 			handleSupportSwitch(action.history);
@@ -2953,7 +2960,7 @@ void HistoryWidget::sendSilent() {
 
 void HistoryWidget::sendScheduled() {
 	auto options = Api::SendOptions();
-	options.scheduled = INT_MAX;
+	options.scheduled = base::unixtime::now() + 86400;
 	send(options);
 }
 
@@ -4400,7 +4407,8 @@ void HistoryWidget::sendFileConfirmed(
 		channelId,
 		file->to.replyTo));
 
-	const auto newId = oldId.value_or(FullMsgId(channelId, clientMsgId()));
+	const auto newId = oldId.value_or(
+		FullMsgId(channelId, session().data().nextLocalMessageId()));
 	auto groupId = file->album ? file->album->groupId : uint64(0);
 	if (file->album) {
 		const auto proj = [](const SendingAlbum::Item &item) {
@@ -4423,6 +4431,7 @@ void HistoryWidget::sendFileConfirmed(
 	const auto peer = history->peer;
 
 	auto action = Api::SendAction(history);
+	action.options = file->to.options;
 	action.clearDraft = false;
 	action.replyTo = file->to.replyTo;
 	action.generateLocal = true;
@@ -4469,6 +4478,12 @@ void HistoryWidget::sendFileConfirmed(
 	if (groupId) {
 		flags |= MTPDmessage::Flag::f_grouped_id;
 	}
+	if (file->to.options.scheduled) {
+		flags |= MTPDmessage::Flag::f_from_scheduled;
+	} else {
+		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
+	}
+
 	const auto messageFromId = channelPost ? 0 : session().userId();
 	const auto messagePostAuthor = channelPost
 		? App::peerName(session().user())
@@ -4489,7 +4504,7 @@ void HistoryWidget::sendFileConfirmed(
 			MTPMessageFwdHeader(),
 			MTPint(),
 			MTP_int(file->to.replyTo),
-			MTP_int(base::unixtime::now()),
+			MTP_int(HistoryItem::NewMessageDate(file->to.options.scheduled)),
 			MTP_string(caption.text),
 			photo,
 			MTPReplyMarkup(),
@@ -4525,7 +4540,7 @@ void HistoryWidget::sendFileConfirmed(
 			MTPMessageFwdHeader(),
 			MTPint(),
 			MTP_int(file->to.replyTo),
-			MTP_int(base::unixtime::now()),
+			MTP_int(HistoryItem::NewMessageDate(file->to.options.scheduled)),
 			MTP_string(caption.text),
 			document,
 			MTPReplyMarkup(),
@@ -4564,7 +4579,8 @@ void HistoryWidget::sendFileConfirmed(
 				MTPMessageFwdHeader(),
 				MTPint(),
 				MTP_int(file->to.replyTo),
-				MTP_int(base::unixtime::now()),
+				MTP_int(
+					HistoryItem::NewMessageDate(file->to.options.scheduled)),
 				MTP_string(caption.text),
 				document,
 				MTPReplyMarkup(),

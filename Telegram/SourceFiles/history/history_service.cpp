@@ -799,8 +799,8 @@ not_null<HistoryService*> GenerateJoinedMessage(
 		MTPDmessage::Flags flags) {
 	return new HistoryService(
 		history,
-		MTPDmessage_ClientFlags(),
-		clientMsgId(),
+		MTPDmessage_ClientFlag::f_local_history_entry,
+		history->owner().nextLocalMessageId(),
 		inviteDate,
 		GenerateJoinedText(history, inviter),
 		flags);
