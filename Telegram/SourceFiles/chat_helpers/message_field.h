@@ -109,4 +109,5 @@ private:
 void SetupSendWithoutSound(
 	not_null<Ui::RpWidget*> button,
 	Fn<bool()> enabled,
-	Fn<void()> send);
+	Fn<void()> send,
+	Fn<void()> schedule);

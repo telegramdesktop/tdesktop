@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/event_stream.h>
+#include "api/api_common.h"
 #include "base/timer.h"
 #include "base/flat_map.h"
 #include "base/flat_set.h"
@@ -87,6 +87,9 @@ QString RequestKey(Types &&...values) {
 
 class ApiWrap : public MTP::Sender, private base::Subscriber {
 public:
+	using SendAction = Api::SendAction;
+	using MessageToSend = Api::MessageToSend;
+
 	struct Privacy {
 		enum class Key {
 			PhoneNumber,
@@ -366,31 +369,21 @@ public:
 		not_null<PeerData*> peer,
 		const std::vector<not_null<UserData*>> &users);
 
-	struct SendOptions {
-		SendOptions(not_null<History*> history);
 
-		not_null<History*> history;
-		MsgId replyTo = 0;
-		WebPageId webPageId = 0;
-		bool silent = false;
-		bool clearDraft = false;
-		bool generateLocal = true;
-		bool handleSupportSwitch = false;
-	};
-	rpl::producer<SendOptions> sendActions() const {
+	rpl::producer<SendAction> sendActions() const {
 		return _sendActions.events();
 	}
-	void sendAction(const SendOptions &options);
+	void sendAction(const SendAction &action);
 	void forwardMessages(
 		HistoryItemsList &&items,
-		const SendOptions &options,
+		const SendAction &action,
 		FnMut<void()> &&successCallback = nullptr);
 	void shareContact(
 		const QString &phone,
 		const QString &firstName,
 		const QString &lastName,
-		const SendOptions &options);
-	void shareContact(not_null<UserData*> user, const SendOptions &options);
+		const SendAction &action);
+	void shareContact(not_null<UserData*> user, const SendAction &action);
 	void readServerHistory(not_null<History*> history);
 	void readServerHistoryForce(not_null<History*> history);
 	//void readFeed( // #feed
@@ -401,60 +394,49 @@ public:
 		QByteArray result,
 		VoiceWaveform waveform,
 		int duration,
-		const SendOptions &options);
+		const SendAction &action);
 	void sendFiles(
 		Storage::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
 		std::shared_ptr<SendingAlbum> album,
-		const SendOptions &options);
+		const SendAction &action);
 	void sendFile(
 		const QByteArray &fileContent,
 		SendMediaType type,
-		const SendOptions &options);
+		const SendAction &action);
 
 	void editMedia(
 		Storage::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
-		const SendOptions &options,
+		const SendAction &action,
 		MsgId msgIdToEdit);
 
 	void sendUploadedPhoto(
 		FullMsgId localId,
 		const MTPInputFile &file,
-		bool silent);
+		Api::SendOptions options);
 	void sendUploadedDocument(
 		FullMsgId localId,
 		const MTPInputFile &file,
 		const std::optional<MTPInputFile> &thumb,
-		bool silent);
+		Api::SendOptions options);
 	void editUploadedFile(
 		FullMsgId localId,
 		const MTPInputFile &file,
 		const std::optional<MTPInputFile> &thumb,
-		bool silent,
+		Api::SendOptions options,
 		bool isDocument);
 
 	void cancelLocalItem(not_null<HistoryItem*> item);
 
-	struct MessageToSend {
-		MessageToSend(not_null<History*> history);
-
-		not_null<History*> history;
-		TextWithTags textWithTags;
-		MsgId replyTo = 0;
-		WebPageId webPageId = 0;
-		bool silent = false;
-		bool clearDraft = true;
-		bool handleSupportSwitch = false;
-	};
 	void sendMessage(MessageToSend &&message);
 	void sendBotStart(not_null<UserData*> bot, PeerData *chat = nullptr);
 	void sendInlineResult(
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,
-		const SendOptions &options);
+		const SendAction &action);
 	void sendMessageFail(
 		const RPCError &error,
 		not_null<PeerData*> peer,
@@ -489,7 +471,7 @@ public:
 
 	void createPoll(
 		const PollData &data,
-		const SendOptions &options,
+		const SendAction &action,
 		FnMut<void()> done,
 		FnMut<void(const RPCError &error)> fail);
 	void sendPollVotes(
@@ -634,7 +616,7 @@ private:
 		const QString &firstName,
 		const QString &lastName,
 		UserId userId,
-		const SendOptions &options);
+		const SendAction &action);
 
 	void deleteHistory(
 		not_null<PeerData*> peer,
@@ -668,13 +650,13 @@ private:
 	void sendMedia(
 		not_null<HistoryItem*> item,
 		const MTPInputMedia &media,
-		bool silent);
+		Api::SendOptions options);
 	void sendMediaWithRandomId(
 		not_null<HistoryItem*> item,
 		const MTPInputMedia &media,
-		bool silent,
+		Api::SendOptions options,
 		uint64 randomId);
-	FileLoadTo fileLoadTaskOptions(const SendOptions &options) const;
+	FileLoadTo fileLoadTaskOptions(const SendAction &action) const;
 
 	//void readFeeds(); // #feed
 
@@ -817,7 +799,7 @@ private:
 		not_null<Data::Folder*>,
 		DialogsLoadState> _foldersLoadState;
 
-	rpl::event_stream<SendOptions> _sendActions;
+	rpl::event_stream<SendAction> _sendActions;
 
 	struct ReadRequest {
 		ReadRequest(mtpRequestId requestId, MsgId upTo)

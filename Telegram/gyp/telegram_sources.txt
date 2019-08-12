@@ -1,3 +1,4 @@
+<(src_loc)/api/api_common.h
 <(src_loc)/api/api_hash.h
 <(src_loc)/api/api_sending.cpp
 <(src_loc)/api/api_sending.h

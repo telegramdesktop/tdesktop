@@ -195,7 +195,7 @@ void ShareBox::prepareCommentField() {
 	const auto field = _comment->entity();
 
 	connect(field, &Ui::InputField::submitted, [=] {
-		submit();
+		submit({});
 	});
 
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
@@ -242,7 +242,7 @@ void ShareBox::prepare() {
 	_select->setSubmittedCallback([=](Qt::KeyboardModifiers modifiers) {
 		if (modifiers.testFlag(Qt::ControlModifier)
 			|| modifiers.testFlag(Qt::MetaModifier)) {
-			submit();
+			submit({});
 		} else {
 			_inner->selectActive();
 		}
@@ -412,12 +412,13 @@ void ShareBox::createButtons() {
 	clearButtons();
 	if (_hasSelected) {
 		const auto send = addButton(tr::lng_share_confirm(), [=] {
-			submit();
+			submit({});
 		});
 		SetupSendWithoutSound(
 			send,
 			[=] { return true; },
-			[=] { submit(true); });
+			[=] { submitSilent(); },
+			[=] { submitScheduled(); });
 	} else if (_copyCallback) {
 		addButton(tr::lng_share_copy_link(), [=] { copyLink(); });
 	}
@@ -451,13 +452,25 @@ void ShareBox::innerSelectedChanged(PeerData *peer, bool checked) {
 	update();
 }
 
-void ShareBox::submit(bool silent) {
+void ShareBox::submit(Api::SendOptions options) {
 	if (_submitCallback) {
 		_submitCallback(
 			_inner->selected(),
 			_comment->entity()->getTextWithAppliedMarkdown(),
-			silent);
+			options);
 	}
+}
+
+void ShareBox::submitSilent() {
+	auto options = Api::SendOptions();
+	options.silent = true;
+	submit(options);
+}
+
+void ShareBox::submitScheduled() {
+	auto options = Api::SendOptions();
+	options.scheduled = INT_MAX;
+	submit(options);
 }
 
 void ShareBox::copyLink() {

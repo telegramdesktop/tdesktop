@@ -920,7 +920,7 @@ void EditCaptionBox::save() {
 			std::move(_preparedList),
 			(!_asFile && _photo) ? SendMediaType::Photo : SendMediaType::File,
 			_field->getTextWithAppliedMarkdown(),
-			ApiWrap::SendOptions(item->history()),
+			Api::SendAction(item->history()),
 			item->fullId().msg);
 		closeBox();
 		return;

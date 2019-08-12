@@ -312,8 +312,9 @@ void Uploader::sendNext() {
 	if (parts.isEmpty()) {
 		if (uploadingData.docSentParts >= uploadingData.docPartsCount) {
 			if (requestsSent.empty() && docRequestsSent.empty()) {
-				const auto silent = uploadingData.file
-					&& uploadingData.file->to.silent;
+				const auto options = uploadingData.file
+					? uploadingData.file->to.options
+					: Api::SendOptions();
 				const auto edit = uploadingData.file &&
 					uploadingData.file->edit;
 				if (uploadingData.type() == SendMediaType::Photo) {
@@ -332,7 +333,7 @@ void Uploader::sendNext() {
 						MTP_int(uploadingData.partsCount),
 						MTP_string(photoFilename),
 						MTP_bytes(md5));
-					_photoReady.fire({ uploadingId, silent, file, edit });
+					_photoReady.fire({ uploadingId, options, file, edit });
 				} else if (uploadingData.type() == SendMediaType::File
 					|| uploadingData.type() == SendMediaType::WallPaper
 					|| uploadingData.type() == SendMediaType::Audio) {
@@ -363,14 +364,14 @@ void Uploader::sendNext() {
 							MTP_bytes(thumbMd5));
 						_thumbDocumentReady.fire({
 							uploadingId,
-							silent,
+							options,
 							file,
 							thumb,
 							edit });
 					} else {
 						_documentReady.fire({
 							uploadingId,
-							silent,
+							options,
 							file,
 							edit });
 					}

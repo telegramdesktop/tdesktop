@@ -21,6 +21,10 @@ class HistoryWidget;
 class StackItem;
 struct FileLoadResult;
 
+namespace Api {
+struct SendAction;
+} // namespace Api
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -231,7 +235,7 @@ public:
 	void pushReplyReturn(not_null<HistoryItem*> item);
 
 	void cancelForwarding(not_null<History*> history);
-	void finishForwarding(not_null<History*> history, bool silent);
+	void finishForwarding(Api::SendAction action);
 
 	// Does offerPeer or showPeerHistory.
 	void choosePeer(PeerId peerId, MsgId showAtMsgId);

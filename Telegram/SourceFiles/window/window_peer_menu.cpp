@@ -667,8 +667,8 @@ void PeerMenuShareContactBox(
 				LayerOption::KeepOther);
 			return;
 		} else if (peer->isSelf()) {
-			auto options = ApiWrap::SendOptions(peer->owner().history(peer));
-			user->session().api().shareContact(user, options);
+			auto action = Api::SendAction(peer->owner().history(peer));
+			user->session().api().shareContact(user, action);
 			Ui::Toast::Show(tr::lng_share_done(tr::now));
 			if (auto strong = *weak) {
 				strong->closeBox();
@@ -684,8 +684,8 @@ void PeerMenuShareContactBox(
 			[peer, user] {
 				const auto history = peer->owner().history(peer);
 				Ui::showPeerHistory(history, ShowAtTheEndMsgId);
-				auto options = ApiWrap::SendOptions(history);
-				user->session().api().shareContact(user, options);
+				auto action = Api::SendAction(history);
+				user->session().api().shareContact(user, action);
 			}), LayerOption::KeepOther);
 	};
 	*weak = Ui::show(Box<PeerListBox>(
@@ -707,15 +707,15 @@ void PeerMenuCreatePoll(not_null<PeerData*> peer) {
 		if (std::exchange(*lock, true)) {
 			return;
 		}
-		auto options = ApiWrap::SendOptions(peer->owner().history(peer));
-		if (const auto id = App::main()->currentReplyToIdFor(options.history)) {
-			options.replyTo = id;
+		auto action = Api::SendAction(peer->owner().history(peer));
+		if (const auto id = App::main()->currentReplyToIdFor(action.history)) {
+			action.replyTo = id;
 		}
-		if (const auto localDraft = options.history->localDraft()) {
-			options.clearDraft = localDraft->textWithTags.text.isEmpty();
+		if (const auto localDraft = action.history->localDraft()) {
+			action.clearDraft = localDraft->textWithTags.text.isEmpty();
 		}
 		const auto api = &peer->session().api();
-		api->createPoll(result, options, crl::guard(box, [=] {
+		api->createPoll(result, action, crl::guard(box, [=] {
 			box->closeBox();
 		}), crl::guard(box, [=](const RPCError &error) {
 			*lock = false;
@@ -822,9 +822,9 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 			auto items = peer->owner().idsToItems(ids);
 			if (!items.empty()) {
 				const auto api = &peer->session().api();
-				auto options = ApiWrap::SendOptions(peer->owner().history(peer));
-				options.generateLocal = false;
-				api->forwardMessages(std::move(items), options, [] {
+				auto action = Api::SendAction(peer->owner().history(peer));
+				action.generateLocal = false;
+				api->forwardMessages(std::move(items), action, [] {
 					Ui::Toast::Show(tr::lng_share_done(tr::now));
 				});
 			}

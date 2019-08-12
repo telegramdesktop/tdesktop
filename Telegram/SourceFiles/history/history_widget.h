@@ -24,6 +24,10 @@ enum class SendMediaType;
 enum class CompressConfirm;
 class MessageLinksParser;
 
+namespace Api {
+struct SendOptions;
+} // namespace Api
+
 namespace InlineBots {
 namespace Layout {
 class ItemBase;
@@ -237,12 +241,8 @@ public:
 	void confirmDeleteSelected();
 	void clearSelected();
 
-	bool sendExistingDocument(
-		not_null<DocumentData*> document,
-		TextWithEntities caption = TextWithEntities());
-	bool sendExistingPhoto(
-		not_null<PhotoData*> photo,
-		TextWithEntities caption = TextWithEntities());
+	bool sendExistingDocument(not_null<DocumentData*> document);
+	bool sendExistingPhoto(not_null<PhotoData*> photo);
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e) override;
@@ -324,9 +324,10 @@ private:
 	void initTabbedSelector();
 	void updateField();
 
-	void send(
-		bool silent = false,
-		Qt::KeyboardModifiers modifiers = Qt::KeyboardModifiers());
+	void send(Api::SendOptions options);
+	void sendWithModifiers(Qt::KeyboardModifiers modifiers);
+	void sendSilent();
+	void sendScheduled();
 	void handlePendingHistoryUpdate();
 	void fullPeerUpdated(PeerData *peer);
 	void toggleTabbedSelectorMode();
@@ -410,24 +411,24 @@ private:
 		SendMediaType type,
 		TextWithTags &&caption,
 		MsgId replyTo,
-		bool silent,
+		Api::SendOptions options,
 		std::shared_ptr<SendingAlbum> album = nullptr);
 
 	void subscribeToUploader();
 
 	void photoUploaded(
 		const FullMsgId &msgId,
-		bool silent,
+		Api::SendOptions options,
 		const MTPInputFile &file);
 	void photoProgress(const FullMsgId &msgId);
 	void photoFailed(const FullMsgId &msgId);
 	void documentUploaded(
 		const FullMsgId &msgId,
-		bool silent,
+		Api::SendOptions options,
 		const MTPInputFile &file);
 	void thumbDocumentUploaded(
 		const FullMsgId &msgId,
-		bool silent,
+		Api::SendOptions options,
 		const MTPInputFile &file,
 		const MTPInputFile &thumb,
 		bool edit = false);
@@ -436,12 +437,12 @@ private:
 
 	void documentEdited(
 		const FullMsgId &msgId,
-		bool silent,
+		Api::SendOptions options,
 		const MTPInputFile &file);
 
 	void photoEdited(
 		const FullMsgId &msgId,
-		bool silent,
+		Api::SendOptions options,
 		const MTPInputFile &file);
 
 	void itemRemoved(not_null<const HistoryItem*> item);

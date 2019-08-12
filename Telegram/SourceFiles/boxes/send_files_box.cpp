@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "data/data_document.h"
 #include "media/clip/media_clip_reader.h"
+#include "api/api_common.h"
 #include "window/window_session_controller.h"
 #include "layout.h"
 #include "styles/style_history.h"
@@ -1468,8 +1469,12 @@ void SendFilesBox::setupShadows(
 }
 
 void SendFilesBox::prepare() {
-	_send = addButton(tr::lng_send_button(), [=] { send(); });
-	SetupSendWithoutSound(_send, [=] { return true; }, [=] { send(true); });
+	_send = addButton(tr::lng_send_button(), [=] { send({}); });
+	SetupSendWithoutSound(
+		_send,
+		[=] { return true; },
+		[=] { sendSilent(); },
+		[=] { sendScheduled(); });
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	initSendWay();
 	setupCaption();
@@ -1638,7 +1643,7 @@ void SendFilesBox::setupCaption() {
 		const auto ctrlShiftEnter = modifiers.testFlag(Qt::ShiftModifier)
 			&& (modifiers.testFlag(Qt::ControlModifier)
 				|| modifiers.testFlag(Qt::MetaModifier));
-		send(false, ctrlShiftEnter);
+		send({}, ctrlShiftEnter);
 	});
 	connect(_caption, &Ui::InputField::cancelled, [=] { closeBox(); });
 	_caption->setMimeDataHook([=](
@@ -1842,7 +1847,7 @@ void SendFilesBox::keyPressEvent(QKeyEvent *e) {
 		const auto ctrl = modifiers.testFlag(Qt::ControlModifier)
 			|| modifiers.testFlag(Qt::MetaModifier);
 		const auto shift = modifiers.testFlag(Qt::ShiftModifier);
-		send(false, ctrl && shift);
+		send({}, ctrl && shift);
 	} else {
 		BoxContent::keyPressEvent(e);
 	}
@@ -1913,7 +1918,9 @@ void SendFilesBox::setInnerFocus() {
 	}
 }
 
-void SendFilesBox::send(bool silent, bool ctrlShiftEnter) {
+void SendFilesBox::send(
+		Api::SendOptions options,
+		bool ctrlShiftEnter) {
 	using Way = SendFilesWay;
 	const auto way = _sendWay ? _sendWay->value() : Way::Files;
 
@@ -1942,10 +1949,22 @@ void SendFilesBox::send(bool silent, bool ctrlShiftEnter) {
 			std::move(_list),
 			way,
 			std::move(caption),
-			silent,
+			options,
 			ctrlShiftEnter);
 	}
 	closeBox();
+}
+
+void SendFilesBox::sendSilent() {
+	auto options = Api::SendOptions();
+	options.silent = true;
+	send(options);
+}
+
+void SendFilesBox::sendScheduled() {
+	auto options = Api::SendOptions();
+	options.scheduled = INT_MAX;
+	send(options);
 }
 
 SendFilesBox::~SendFilesBox() = default;

@@ -309,7 +309,7 @@ HistoryWidget::HistoryWidget(
 	SetupSendWithoutSound(_send, [=] {
 		return (_send->type() == Ui::SendButton::Type::Send)
 			&& !_send->isDisabled();
-	}, [=] { send(true); });
+	}, [=] { sendSilent(); }, [=] { sendScheduled(); });
 	_unblock->addClickHandler([=] { unblockUser(); });
 	_botStart->addClickHandler([=] { sendBotStartCommand(); });
 	_joinChannel->addClickHandler([=] { joinChannel(); });
@@ -318,7 +318,7 @@ HistoryWidget::HistoryWidget(
 	connect(
 		_field,
 		&Ui::InputField::submitted,
-		[=](Qt::KeyboardModifiers modifiers) { send(false, modifiers); });
+		[=](Qt::KeyboardModifiers modifiers) { sendWithModifiers(modifiers); });
 	connect(_field, &Ui::InputField::cancelled, [=] {
 		escape();
 	});
@@ -631,18 +631,18 @@ HistoryWidget::HistoryWidget(
 	}, _topBar->lifetime());
 
 	session().api().sendActions(
-	) | rpl::filter([=](const ApiWrap::SendOptions &options) {
-		return (options.history == _history);
-	}) | rpl::start_with_next([=](const ApiWrap::SendOptions &options) {
-		fastShowAtEnd(options.history);
+	) | rpl::filter([=](const Api::SendAction &action) {
+		return (action.history == _history);
+	}) | rpl::start_with_next([=](const Api::SendAction &action) {
+		fastShowAtEnd(action.history);
 		const auto lastKeyboardUsed = lastForceReplyReplied(FullMsgId(
-			options.history->channelId(),
-			options.replyTo));
-		if (cancelReply(lastKeyboardUsed) && !options.clearDraft) {
+			action.history->channelId(),
+			action.replyTo));
+		if (cancelReply(lastKeyboardUsed) && !action.clearDraft) {
 			onCloudDraftSave();
 		}
-		if (options.handleSupportSwitch) {
-			handleSupportSwitch(options.history);
+		if (action.options.handleSupportSwitch) {
+			handleSupportSwitch(action.history);
 		}
 	}, lifetime());
 
@@ -705,14 +705,16 @@ void HistoryWidget::supportShareContact(Support::Contact contact) {
 		if (!history) {
 			return;
 		}
-		send(false, Support::SkipSwitchModifiers());
-		auto options = ApiWrap::SendOptions(history);
+		auto options = Api::SendOptions();
+		auto action = Api::SendAction(history);
+		send(options);
 		options.handleSupportSwitch = Support::HandleSwitch(modifiers);
+		action.options = options;
 		session().api().shareContact(
 			contact.phone,
 			contact.firstName,
 			contact.lastName,
-			options);
+			action);
 	};
 	const auto box = Ui::show(Box<Support::ConfirmContactBox>(
 		_history,
@@ -978,7 +980,7 @@ void HistoryWidget::onHashtagOrBotCommandInsert(
 	// Send bot command at once, if it was not inserted by pressing Tab.
 	if (str.at(0) == '/' && method != FieldAutocomplete::ChooseMethod::ByTab) {
 		App::sendBotCommand(_peer, nullptr, str, replyToId());
-		App::main()->finishForwarding(_history, false);
+		App::main()->finishForwarding(Api::SendAction(_history));
 		setFieldText(_field->getTextWithTagsPart(_field->textCursor().position()));
 	} else {
 		_field->insertTag(str);
@@ -1336,9 +1338,9 @@ void HistoryWidget::onRecordDone(
 
 	ActivateWindow(controller());
 	const auto duration = samples / Media::Player::kDefaultFrequency;
-	auto options = ApiWrap::SendOptions(_history);
-	options.replyTo = replyToId();
-	session().api().sendVoiceMessage(result, waveform, duration, options);
+	auto action = Api::SendAction(_history);
+	action.replyTo = replyToId();
+	session().api().sendVoiceMessage(result, waveform, duration, action);
 }
 
 void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
@@ -2887,7 +2889,7 @@ void HistoryWidget::hideSelectorControlsAnimated() {
 	}
 }
 
-void HistoryWidget::send(bool silent, Qt::KeyboardModifiers modifiers) {
+void HistoryWidget::send(Api::SendOptions options) {
 	if (!_history) {
 		return;
 	} else if (_editMsgId) {
@@ -2905,10 +2907,9 @@ void HistoryWidget::send(bool silent, Qt::KeyboardModifiers modifiers) {
 
 	auto message = ApiWrap::MessageToSend(_history);
 	message.textWithTags = _field->getTextWithAppliedMarkdown();
-	message.replyTo = replyToId();
+	message.action.options = options;
+	message.action.replyTo = replyToId();
 	message.webPageId = webPageId;
-	message.silent = silent;
-	message.handleSupportSwitch = Support::HandleSwitch(modifiers);
 
 	if (_canSendMessages) {
 		const auto error = GetErrorTextForForward(
@@ -2936,6 +2937,24 @@ void HistoryWidget::send(bool silent, Qt::KeyboardModifiers modifiers) {
 	if (!_keyboard->hasMarkup() && _keyboard->forceReply() && !_kbReplyTo) {
 		toggleKeyboard();
 	}
+}
+
+void HistoryWidget::sendWithModifiers(Qt::KeyboardModifiers modifiers) {
+	auto options = Api::SendOptions();
+	options.handleSupportSwitch = Support::HandleSwitch(modifiers);
+	send(options);
+}
+
+void HistoryWidget::sendSilent() {
+	auto options = Api::SendOptions();
+	options.silent = true;
+	send(options);
+}
+
+void HistoryWidget::sendScheduled() {
+	auto options = Api::SendOptions();
+	options.scheduled = INT_MAX;
+	send(options);
 }
 
 void HistoryWidget::unblockUser() {
@@ -3169,7 +3188,7 @@ void HistoryWidget::sendButtonClicked() {
 	if (type == Ui::SendButton::Type::Cancel) {
 		onInlineBotCancel();
 	} else if (type != Ui::SendButton::Type::Record) {
-		send();
+		send({});
 	}
 }
 
@@ -3316,7 +3335,7 @@ void HistoryWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString 
 
 	auto message = ApiWrap::MessageToSend(_history);
 	message.textWithTags = { toSend, TextWithTags::Tags() };
-	message.replyTo = replyTo
+	message.action.replyTo = replyTo
 		? ((!_peer->isUser()/* && (botStatus == 0 || botStatus == 2)*/)
 			? replyTo
 			: replyToId())
@@ -4163,7 +4182,7 @@ bool HistoryWidget::confirmSendingFiles(
 			Storage::PreparedList &&list,
 			SendFilesWay way,
 			TextWithTags &&caption,
-			bool silent,
+			Api::SendOptions options,
 			bool ctrlShiftEnter) {
 		if (showSendingFilesError(list)) {
 			return;
@@ -4179,7 +4198,7 @@ bool HistoryWidget::confirmSendingFiles(
 			type,
 			std::move(caption),
 			replyToId(),
-			silent,
+			options,
 			album);
 	}));
 	box->setCancelledCallback(crl::guard(this, [=] {
@@ -4288,7 +4307,7 @@ void HistoryWidget::uploadFilesAfterConfirmation(
 		SendMediaType type,
 		TextWithTags &&caption,
 		MsgId replyTo,
-		bool silent,
+		Api::SendOptions options,
 		std::shared_ptr<SendingAlbum> album) {
 	Assert(canWriteMessage());
 
@@ -4303,15 +4322,15 @@ void HistoryWidget::uploadFilesAfterConfirmation(
 		return;
 	}
 
-	auto options = ApiWrap::SendOptions(_history);
-	options.replyTo = replyTo;
-	options.silent = silent;
+	auto action = Api::SendAction(_history);
+	action.replyTo = replyTo;
+	action.options = options;
 	session().api().sendFiles(
 		std::move(list),
 		type,
 		std::move(caption),
 		album,
-		options);
+		action);
 }
 
 void HistoryWidget::uploadFile(
@@ -4319,9 +4338,9 @@ void HistoryWidget::uploadFile(
 		SendMediaType type) {
 	if (!canWriteMessage()) return;
 
-	auto options = ApiWrap::SendOptions(_history);
-	options.replyTo = replyToId();
-	session().api().sendFile(fileContent, type, options);
+	auto action = Api::SendAction(_history);
+	action.replyTo = replyToId();
+	session().api().sendFile(fileContent, type, action);
 }
 
 void HistoryWidget::subscribeToUploader() {
@@ -4331,9 +4350,11 @@ void HistoryWidget::subscribeToUploader() {
 	using namespace Storage;
 	session().uploader().photoReady(
 	) | rpl::start_with_next([=](const UploadedPhoto &data) {
-		data.edit
-		? photoEdited(data.fullId, data.silent, data.file)
-		: photoUploaded(data.fullId, data.silent, data.file);
+		if (data.edit) {
+			photoEdited(data.fullId, data.options, data.file);
+		} else {
+			photoUploaded(data.fullId, data.options, data.file);
+		}
 	}, _uploaderSubscriptions);
 	session().uploader().photoProgress(
 	) | rpl::start_with_next([=](const FullMsgId &fullId) {
@@ -4345,15 +4366,17 @@ void HistoryWidget::subscribeToUploader() {
 	}, _uploaderSubscriptions);
 	session().uploader().documentReady(
 	) | rpl::start_with_next([=](const UploadedDocument &data) {
-		data.edit
-		? documentEdited(data.fullId, data.silent, data.file)
-		: documentUploaded(data.fullId, data.silent, data.file);
+		if (data.edit) {
+			documentEdited(data.fullId, data.options, data.file);
+		} else {
+			documentUploaded(data.fullId, data.options, data.file);
+		}
 	}, _uploaderSubscriptions);
 	session().uploader().thumbDocumentReady(
 	) | rpl::start_with_next([=](const UploadedThumbDocument &data) {
 		thumbDocumentUploaded(
 			data.fullId,
-			data.silent,
+			data.options,
 			data.file,
 			data.thumb,
 			data.edit);
@@ -4399,11 +4422,11 @@ void HistoryWidget::sendFileConfirmed(
 	const auto history = session().data().history(file->to.peer);
 	const auto peer = history->peer;
 
-	auto options = ApiWrap::SendOptions(history);
-	options.clearDraft = false;
-	options.replyTo = file->to.replyTo;
-	options.generateLocal = true;
-	session().api().sendAction(options);
+	auto action = Api::SendAction(history);
+	action.clearDraft = false;
+	action.replyTo = file->to.replyTo;
+	action.generateLocal = true;
+	session().api().sendAction(action);
 
 	auto caption = TextWithEntities{
 		file->caption.text,
@@ -4430,7 +4453,7 @@ void HistoryWidget::sendFileConfirmed(
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 	}
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
-	const auto silentPost = file->to.silent;
+	const auto silentPost = file->to.options.silent;
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
@@ -4572,41 +4595,43 @@ void HistoryWidget::sendFileConfirmed(
 
 void HistoryWidget::photoUploaded(
 		const FullMsgId &newId,
-		bool silent,
+		Api::SendOptions options,
 		const MTPInputFile &file) {
-	session().api().sendUploadedPhoto(newId, file, silent);
+	session().api().sendUploadedPhoto(newId, file, options);
 }
 
 void HistoryWidget::documentUploaded(
 		const FullMsgId &newId,
-		bool silent,
+		Api::SendOptions options,
 		const MTPInputFile &file) {
-	session().api().sendUploadedDocument(newId, file, std::nullopt, silent);
+	session().api().sendUploadedDocument(newId, file, std::nullopt, options);
 }
 
 void HistoryWidget::documentEdited(
 		const FullMsgId &newId,
-		bool silent,
+		Api::SendOptions options,
 		const MTPInputFile &file) {
-	session().api().editUploadedFile(newId, file, std::nullopt, silent, true);
+	session().api().editUploadedFile(newId, file, std::nullopt, options, true);
 }
 
 void HistoryWidget::photoEdited(
 		const FullMsgId &newId,
-		bool silent,
+		Api::SendOptions options,
 		const MTPInputFile &file) {
-	session().api().editUploadedFile(newId, file, std::nullopt, silent, false);
+	session().api().editUploadedFile(newId, file, std::nullopt, options, false);
 }
 
 void HistoryWidget::thumbDocumentUploaded(
 		const FullMsgId &newId,
-		bool silent,
+		Api::SendOptions options,
 		const MTPInputFile &file,
 		const MTPInputFile &thumb,
 		bool edit) {
-	edit
-	? session().api().editUploadedFile(newId, file, thumb, silent, true)
-	: session().api().sendUploadedDocument(newId, file, thumb, silent);
+	if (edit) {
+		session().api().editUploadedFile(newId, file, thumb, options, true);
+	} else {
+		session().api().sendUploadedDocument(newId, file, thumb, options);
+	}
 }
 
 void HistoryWidget::photoProgress(const FullMsgId &newId) {
@@ -5349,7 +5374,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 				session().settings().sendSubmitWay(),
 				e->modifiers());
 			if (submitting) {
-				send(false, e->modifiers());
+				sendWithModifiers(e->modifiers());
 			}
 		}
 	} else if (e->key() == Qt::Key_O && e->modifiers() == Qt::ControlModifier) {
@@ -5478,11 +5503,11 @@ void HistoryWidget::sendInlineResult(
 		return;
 	}
 
-	auto options = ApiWrap::SendOptions(_history);
-	options.clearDraft = true;
-	options.replyTo = replyToId();
-	options.generateLocal = true;
-	session().api().sendInlineResult(bot, result, options);
+	auto action = Api::SendAction(_history);
+	action.clearDraft = true;
+	action.replyTo = replyToId();
+	action.generateLocal = true;
+	session().api().sendInlineResult(bot, result, action);
 
 	clearFieldText();
 	_saveDraftText = true;
@@ -5612,9 +5637,7 @@ void HistoryWidget::destroyPinnedBar() {
 	_inPinnedMsg = false;
 }
 
-bool HistoryWidget::sendExistingDocument(
-		not_null<DocumentData*> document,
-		TextWithEntities caption) {
+bool HistoryWidget::sendExistingDocument(not_null<DocumentData*> document) {
 	const auto error = _peer
 		? Data::RestrictionError(_peer, ChatRestriction::f_send_stickers)
 		: std::nullopt;
@@ -5627,7 +5650,9 @@ bool HistoryWidget::sendExistingDocument(
 		return false;
 	}
 
-	Api::SendExistingDocument(_history, document, caption, replyToId());
+	auto message = Api::MessageToSend(_history);
+	message.action.replyTo = replyToId();
+	Api::SendExistingDocument(std::move(message), document);
 
 	if (_fieldAutocomplete->stickersShown()) {
 		clearFieldText();
@@ -5643,9 +5668,7 @@ bool HistoryWidget::sendExistingDocument(
 	return true;
 }
 
-bool HistoryWidget::sendExistingPhoto(
-		not_null<PhotoData*> photo,
-		TextWithEntities caption) {
+bool HistoryWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
 	const auto error = _peer
 		? Data::RestrictionError(_peer, ChatRestriction::f_send_media)
 		: std::nullopt;
@@ -5658,7 +5681,9 @@ bool HistoryWidget::sendExistingPhoto(
 		return false;
 	}
 
-	Api::SendExistingPhoto(_history, photo, caption, replyToId());
+	auto message = Api::MessageToSend(_history);
+	message.action.replyTo = replyToId();
+	Api::SendExistingPhoto(std::move(message), photo);
 
 	hideSelectorControlsAnimated();
 

@@ -16,6 +16,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Api {
+struct SendOptions;
+} // namespace Api
+
 namespace ChatHelpers {
 class TabbedPanel;
 } // namespace ChatHelpers
@@ -60,7 +64,7 @@ public:
 			Storage::PreparedList &&list,
 			SendFilesWay way,
 			TextWithTags &&caption,
-			bool silent,
+			Api::SendOptions options,
 			bool ctrlShiftEnter)> callback) {
 		_confirmedCallback = std::move(callback);
 	}
@@ -101,7 +105,9 @@ private:
 	void prepareAlbumPreview();
 	void applyAlbumOrder();
 
-	void send(bool silent = false, bool ctrlShiftEnter = false);
+	void send(Api::SendOptions options, bool ctrlShiftEnter = false);
+	void sendSilent();
+	void sendScheduled();
 	void captionResized();
 
 	void setupTitleText();
@@ -128,7 +134,7 @@ private:
 		Storage::PreparedList &&list,
 		SendFilesWay way,
 		TextWithTags &&caption,
-		bool silent,
+		Api::SendOptions options,
 		bool ctrlShiftEnter)> _confirmedCallback;
 	Fn<void()> _cancelledCallback;
 	bool _confirmed = false;

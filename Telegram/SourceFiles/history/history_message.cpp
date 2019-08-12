@@ -223,7 +223,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 	auto submitCallback = [=](
 			QVector<PeerData*> &&result,
 			TextWithTags &&comment,
-			bool silent) {
+			Api::SendOptions options) {
 		if (!data->requests.empty()) {
 			return; // Share clicked already.
 		}
@@ -272,7 +272,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			| (isGroup
 				? MTPmessages_ForwardMessages::Flag::f_grouped
 				: MTPmessages_ForwardMessages::Flag(0))
-			| (silent
+			| (options.silent
 				? MTPmessages_ForwardMessages::Flag::f_silent
 				: MTPmessages_ForwardMessages::Flag(0));
 		auto msgIds = QVector<MTPint>();
@@ -292,7 +292,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			if (!comment.text.isEmpty()) {
 				auto message = ApiWrap::MessageToSend(history);
 				message.textWithTags = comment;
-				message.clearDraft = false;
+				message.action.clearDraft = false;
 				history->session().api().sendMessage(std::move(message));
 			}
 			history->sendRequestId = MTP::send(

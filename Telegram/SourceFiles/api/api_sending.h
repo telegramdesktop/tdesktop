@@ -9,32 +9,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 class DocumentData;
-struct TextWithEntities;
 
 namespace Api {
 
-void SendExistingDocument(
-	not_null<History*> history,
-	not_null<DocumentData*> document,
-	bool silent = false);
+struct MessageToSend;
 
 void SendExistingDocument(
-	not_null<History*> history,
-	not_null<DocumentData*> document,
-	TextWithEntities caption,
-	MsgId replyToId = 0,
-	bool silent = false);
+	Api::MessageToSend &&message,
+	not_null<DocumentData*> document);
 
 void SendExistingPhoto(
-	not_null<History*> history,
-	not_null<PhotoData*> photo,
-	bool silent = false);
-
-void SendExistingPhoto(
-	not_null<History*> history,
-	not_null<PhotoData*> photo,
-	TextWithEntities caption,
-	MsgId replyToId = 0,
-	bool silent = false);
+	Api::MessageToSend &&message,
+	not_null<PhotoData*> photo);
 
 } // namespace Api

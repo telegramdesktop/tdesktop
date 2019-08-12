@@ -787,13 +787,25 @@ void MessageLinksParser::apply(
 void SetupSendWithoutSound(
 		not_null<Ui::RpWidget*> button,
 		Fn<bool()> enabled,
-		Fn<void()> send) {
+		Fn<void()> send,
+		Fn<void()> schedule) {
+	if (!send && !schedule) {
+		return;
+	}
 	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
+	const auto showMenu = [=] {
+		*menu = base::make_unique_q<Ui::PopupMenu>(button);
+		if (send) {
+			(*menu)->addAction(tr::lng_send_silent_message(tr::now), send);
+		}
+		if (schedule) {
+			(*menu)->addAction(tr::lng_schedule_message(tr::now), schedule);
+		}
+		(*menu)->popup(QCursor::pos());
+	};
 	Core::InstallEventFilter(button, [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::ContextMenu && enabled()) {
-			*menu = base::make_unique_q<Ui::PopupMenu>(button);
-			(*menu)->addAction(tr::lng_send_silent_message(tr::now), send);
-			(*menu)->popup(QCursor::pos());
+			showMenu();
 			return true;
 		}
 		return false;

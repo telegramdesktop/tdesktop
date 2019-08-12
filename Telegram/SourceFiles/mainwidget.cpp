@@ -680,7 +680,8 @@ void MainWidget::cancelForwarding(not_null<History*> history) {
 	_history->updateForwarding();
 }
 
-void MainWidget::finishForwarding(not_null<History*> history, bool silent) {
+void MainWidget::finishForwarding(Api::SendAction action) {
+	const auto history = action.history;
 	auto toForward = history->validateForwardDraft();
 	if (!toForward.empty()) {
 		const auto error = GetErrorTextForForward(history->peer, toForward);
@@ -688,9 +689,7 @@ void MainWidget::finishForwarding(not_null<History*> history, bool silent) {
 			return;
 		}
 
-		auto options = ApiWrap::SendOptions(history);
-		options.silent = silent;
-		session().api().forwardMessages(std::move(toForward), options);
+		session().api().forwardMessages(std::move(toForward), action);
 		cancelForwarding(history);
 	}
 

@@ -512,10 +512,10 @@ void Manager::notificationReplied(
 
 	const auto history = system()->session().data().history(peerId);
 
-	auto message = ApiWrap::MessageToSend(history);
+	auto message = Api::MessageToSend(history);
 	message.textWithTags = reply;
-	message.replyTo = (msgId > 0 && !history->peer->isUser()) ? msgId : 0;
-	message.clearDraft = false;
+	message.action.replyTo = (msgId > 0 && !history->peer->isUser()) ? msgId : 0;
+	message.action.clearDraft = false;
 	history->session().api().sendMessage(std::move(message));
 
 	const auto item = history->owner().message(history->channelId(), msgId);

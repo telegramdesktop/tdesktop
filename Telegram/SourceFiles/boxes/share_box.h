@@ -17,6 +17,10 @@ namespace Window {
 class SessionNavigation;
 } // namespace Window
 
+namespace Api {
+struct SendOptions;
+} // namespace Api
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -52,7 +56,7 @@ public:
 	using SubmitCallback = Fn<void(
 		QVector<PeerData*>&&,
 		TextWithTags&&,
-		bool)>;
+		Api::SendOptions)>;
 	using FilterCallback = Fn<bool(PeerData*)>;
 
 	ShareBox(
@@ -73,7 +77,9 @@ private:
 	void prepareCommentField();
 	void scrollAnimationCallback();
 
-	void submit(bool silent = false);
+	void submit(Api::SendOptions options);
+	void submitSilent();
+	void submitScheduled();
 	void copyLink();
 	bool searchByUsername(bool useCache = false);
 

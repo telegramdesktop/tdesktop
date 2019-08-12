@@ -609,7 +609,7 @@ QString InterpretSendPath(const QString &path) {
 		SendMediaType::File,
 		{ caption },
 		nullptr,
-		ApiWrap::SendOptions(history));
+		Api::SendAction(history));
 	return QString();
 }
 
