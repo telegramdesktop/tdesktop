@@ -1136,30 +1136,31 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 		}
 	}
 
-	clearIsolatedEmoji();
 	if (_media && _media->consumeMessageText(textWithEntities)) {
 		setEmptyText();
-	} else {
+		return;
+	}
+	clearIsolatedEmoji();
+	_text.setMarkedText(
+		st::messageTextStyle,
+		textWithEntities,
+		Ui::ItemTextOptions(this));
+	if (!textWithEntities.text.isEmpty() && _text.isEmpty()) {
+		// If server has allowed some text that we've trim-ed entirely,
+		// just replace it with something so that UI won't look buggy.
 		_text.setMarkedText(
 			st::messageTextStyle,
-			textWithEntities,
+			{ QString::fromUtf8(":-("), EntitiesInText() },
 			Ui::ItemTextOptions(this));
-		if (!textWithEntities.text.isEmpty() && _text.isEmpty()) {
-			// If server has allowed some text that we've trim-ed entirely,
-			// just replace it with something so that UI won't look buggy.
-			_text.setMarkedText(
-				st::messageTextStyle,
-				{ QString::fromUtf8(":-("), EntitiesInText() },
-				Ui::ItemTextOptions(this));
-		} else if (!_media) {
-			checkIsolatedEmoji();
-		}
-		_textWidth = -1;
-		_textHeight = 0;
+	} else if (!_media) {
+		checkIsolatedEmoji();
 	}
+	_textWidth = -1;
+	_textHeight = 0;
 }
 
 void HistoryMessage::setEmptyText() {
+	clearIsolatedEmoji();
 	_text.setMarkedText(
 		st::messageTextStyle,
 		{ QString(), EntitiesInText() },
