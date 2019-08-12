@@ -281,10 +281,11 @@ int32 ScheduledMessages::countListHash(const List &list) const {
 		const auto j = list.idByItem.find(item.get());
 		HashUpdate(hash, j->second);
 		if (const auto edited = item->Get<HistoryMessageEdited>()) {
-			HashUpdate(hash, std::max(item->date(), edited->date));
+			HashUpdate(hash, edited->date);
 		} else {
-			HashUpdate(hash, item->date());
+			HashUpdate(hash, int32(0));
 		}
+		HashUpdate(hash, item->date());
 	}
 	return HashFinalize(hash);
 }
