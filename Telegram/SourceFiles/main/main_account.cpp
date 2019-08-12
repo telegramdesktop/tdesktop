@@ -368,8 +368,6 @@ void Account::logOut() {
 		}));
 	} else {
 		// We log out because we've forgotten passcode.
-		// So we just start mtproto from scratch.
-		startMtp();
 		loggedOut();
 	}
 }

@@ -583,6 +583,10 @@ void Application::lockByPasscode() {
 
 void Application::unlockPasscode() {
 	clearPasscodeLock();
+	if (!activeAccount().mtp()) {
+		// We unlocked initial passcode, so we just start mtproto.
+		activeAccount().startMtp();
+	}
 	if (_window) {
 		_window->clearPasscodeLock();
 	}
