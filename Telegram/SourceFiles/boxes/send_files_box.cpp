@@ -1963,10 +1963,15 @@ void SendFilesBox::sendSilent() {
 }
 
 void SendFilesBox::sendScheduled() {
-	Ui::show(Box(HistoryView::ScheduleBox, crl::guard(this, [=](
-			Api::SendOptions options) {
+	const auto callback = crl::guard(this, [=](Api::SendOptions options) {
 		send(options);
-	})), LayerOption::KeepOther);
+	});
+	Ui::show(
+		Box(
+			HistoryView::ScheduleBox,
+			callback,
+			HistoryView::DefaultScheduleTime()),
+		LayerOption::KeepOther);
 }
 
 SendFilesBox::~SendFilesBox() = default;

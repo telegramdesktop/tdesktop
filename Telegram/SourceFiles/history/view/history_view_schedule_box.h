@@ -15,6 +15,10 @@ struct SendOptions;
 
 namespace HistoryView {
 
-void ScheduleBox(not_null<GenericBox*> box, Fn<void(Api::SendOptions)> done);
+[[nodiscard]] TimeId DefaultScheduleTime();
+void ScheduleBox(
+	not_null<GenericBox*> box,
+	Fn<void(Api::SendOptions)> done,
+	TimeId time);
 
 } // namespace HistoryView

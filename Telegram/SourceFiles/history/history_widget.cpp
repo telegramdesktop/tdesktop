@@ -2960,9 +2960,18 @@ void HistoryWidget::sendSilent() {
 }
 
 void HistoryWidget::sendScheduled() {
-	Ui::show(Box(HistoryView::ScheduleBox, [=](Api::SendOptions options) {
+	if (!_list) {
+		return;
+	}
+	const auto callback = crl::guard(_list, [=](Api::SendOptions options) {
 		send(options);
-	}));
+	});
+	Ui::show(
+		Box(
+			HistoryView::ScheduleBox,
+			callback,
+			HistoryView::DefaultScheduleTime()),
+		LayerOption::KeepOther);
 }
 
 void HistoryWidget::unblockUser() {
