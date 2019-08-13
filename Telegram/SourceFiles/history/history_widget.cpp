@@ -40,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_message.h"
-#include "history/view/media/history_view_media.h"
 #include "history/history_drag_area.h"
 #include "history/history_inner_widget.h"
 #include "history/history_item_components.h"
@@ -48,6 +47,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_scheduled_section.h"
+#include "history/view/history_view_schedule_box.h"
+#include "history/view/media/history_view_media.h"
 #include "profile/profile_block_group_members.h"
 #include "info/info_memento.h"
 #include "core/click_handler_types.h"
@@ -2959,9 +2960,9 @@ void HistoryWidget::sendSilent() {
 }
 
 void HistoryWidget::sendScheduled() {
-	auto options = Api::SendOptions();
-	options.scheduled = base::unixtime::now() + 86400;
-	send(options);
+	Ui::show(Box(HistoryView::ScheduleBox, [=](Api::SendOptions options) {
+		send(options);
+	}));
 }
 
 void HistoryWidget::unblockUser() {

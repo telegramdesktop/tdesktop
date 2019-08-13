@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "history/view/history_view_schedule_box.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "core/event_filter.h"
@@ -1962,9 +1963,10 @@ void SendFilesBox::sendSilent() {
 }
 
 void SendFilesBox::sendScheduled() {
-	auto options = Api::SendOptions();
-	options.scheduled = INT_MAX;
-	send(options);
+	Ui::show(Box(HistoryView::ScheduleBox, crl::guard(this, [=](
+			Api::SendOptions options) {
+		send(options);
+	})), LayerOption::KeepOther);
 }
 
 SendFilesBox::~SendFilesBox() = default;

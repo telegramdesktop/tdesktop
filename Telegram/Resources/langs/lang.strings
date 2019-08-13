@@ -1241,6 +1241,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_send_button" = "Send";
 "lng_send_silent_message" = "Send without sound";
 "lng_schedule_message" = "Schedule message";
+"lng_schedule_title" = "Send this message on...";
+"lng_schedule_at" = "at";
 "lng_message_ph" = "Write a message...";
 "lng_broadcast_ph" = "Broadcast a message...";
 "lng_broadcast_silent_ph" = "Silent broadcast...";

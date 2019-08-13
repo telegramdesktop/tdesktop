@@ -591,3 +591,18 @@ largeEmojiSize: 36px;
 largeEmojiOutline: 1px;
 largeEmojiPadding: margins(0px, 0px, 0px, 0px);
 largeEmojiSkip: 4px;
+
+scheduleHeight: 120px;
+scheduleDateTop: 44px;
+scheduleDateField: InputField(defaultInputField) {
+	textMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	heightMin: 24px;
+	font: normalFont;
+}
+scheduleDateWidth: 96px;
+scheduleAtSkip: 24px;
+scheduleAtTop: 48px;
+scheduleAtLabel: FlatLabel(defaultFlatLabel) {
+}

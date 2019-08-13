@@ -292,7 +292,18 @@ HistoryItem *ScheduledMessages::append(
 	});
 	const auto i = list.itemById.find(id);
 	if (i != end(list.itemById)) {
-		return i->second;
+		const auto existing = i->second;
+		message.match([&](const MTPDmessage &data) {
+			existing->updateSentContent({
+				qs(data.vmessage()),
+				TextUtilities::EntitiesFromMTP(
+					data.ventities().value_or_empty())
+			}, data.vmedia());
+			existing->updateReplyMarkup(data.vreply_markup());
+			existing->updateForwardedInfo(data.vfwd_from());
+			history->owner().requestItemTextRefresh(existing);
+		}, [&](const auto &data) {});
+		return existing;
 	}
 
 	const auto item = _session->data().addNewMessage(

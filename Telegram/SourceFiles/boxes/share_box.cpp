@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "history/history.h"
 #include "history/history_message.h"
+#include "history/view/history_view_schedule_box.h"
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
 #include "boxes/peer_list_box.h"
@@ -468,9 +469,10 @@ void ShareBox::submitSilent() {
 }
 
 void ShareBox::submitScheduled() {
-	auto options = Api::SendOptions();
-	options.scheduled = INT_MAX;
-	submit(options);
+	Ui::show(Box(HistoryView::ScheduleBox, crl::guard(this, [=](
+			Api::SendOptions options) {
+		submit(options);
+	})), LayerOption::KeepOther);
 }
 
 void ShareBox::copyLink() {
