@@ -101,6 +101,12 @@ private:
 		const HistoryMessageVia *via,
 		const HistoryMessageReply *reply) const;
 
+	inline int calculateFullRight(const QRect &inner) const;
+	inline QPoint calculateFastActionPosition(
+		int fullBottom,
+		int replyRight,
+		int fullRight) const;
+
 	std::unique_ptr<Content> _content;
 	QSize _contentSize;
 

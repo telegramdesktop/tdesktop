@@ -147,19 +147,8 @@ void UnwrappedMedia::drawSurrounding(
 		const HistoryMessageVia *via,
 		const HistoryMessageReply *reply) const {
 	const auto rightAligned = _parent->hasOutLayout() && !Adaptive::ChatWide();
-	const auto infoWidth = _parent->infoWidth()
-		+ st::msgDateImgPadding.x() * 2
-		+ st::msgReplyPadding.left();
 	const auto rightAction = _parent->displayRightAction();
-	const auto rightActionWidth = rightAction
-		? (st::historyFastShareLeft + st::historyFastShareSize)
-		: 0;
-	auto fullRight = inner.x()
-		+ inner.width()
-		+ (rightAligned ? 0 : infoWidth);
-	if (fullRight + rightActionWidth > width()) {
-		fullRight = width() - rightActionWidth;
-	}
+	const auto fullRight = calculateFullRight(inner);
 	auto fullBottom = height();
 	if (needInfoDisplay()) {
 		_parent->drawInfo(
@@ -197,17 +186,12 @@ void UnwrappedMedia::drawSurrounding(
 		replyRight = rectx + rectw;
 	}
 	if (rightAction) {
-		const auto fastShareTop = (fullBottom
-			- st::historyFastShareBottom
-			- st::historyFastShareSize);
-		const auto doesRightActionHitReply = replyRight && (fastShareTop <
-			st::msgReplyBarSize.height()
-			+ st::msgReplyPadding.top()
-			+ st::msgReplyPadding.bottom());
-		const auto fastShareLeft = ((doesRightActionHitReply
-			? replyRight
-			: fullRight) + st::historyFastShareLeft);
-		_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * inner.x() + inner.width());
+		const auto position = calculateFastActionPosition(
+			fullBottom,
+			replyRight,
+			fullRight);
+		const auto outer = 2 * inner.x() + inner.width();
+		_parent->drawRightAction(p, position.x(), position.y(), outer);
 	}
 }
 
@@ -268,36 +252,19 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 			}
 			replyRight = rectx + rectw - st::msgReplyPadding.right();
 		}
-		const auto infoWidth = _parent->infoWidth()
-			+ st::msgDateImgPadding.x() * 2
-			+ st::msgReplyPadding.left();
+		const auto fullRight = calculateFullRight(inner);
 		const auto rightAction = _parent->displayRightAction();
-		const auto rightActionWidth = rightAction
-			? (st::historyFastShareLeft + st::historyFastShareSize)
-			: 0;
-		auto fullRight = inner.x()
-			+ inner.width()
-			+ (rightAligned ? 0 : infoWidth);
-		if (fullRight + rightActionWidth > width()) {
-			fullRight = width() - rightActionWidth;
-		}
 		auto fullBottom = height();
 		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayType::Background)) {
 			result.cursor = CursorState::Date;
 		}
 		if (rightAction) {
 			const auto size = st::historyFastShareSize;
-			const auto fastShareTop = (fullBottom
-				- st::historyFastShareBottom
-				- size);
-			const auto doesRightActionHitReply = replyRight && (fastShareTop <
-				st::msgReplyBarSize.height()
-				+ st::msgReplyPadding.top()
-				+ st::msgReplyPadding.bottom());
-			const auto fastShareLeft = ((doesRightActionHitReply
-				? replyRight
-				: fullRight) + st::historyFastShareLeft) - size / 2;
-			if (QRect(fastShareLeft, fastShareTop, size, size).contains(point)) {
+			const auto position = calculateFastActionPosition(
+				fullBottom,
+				replyRight,
+				fullRight);
+			if (QRect(position.x(), position.y(), size, size).contains(point)) {
 				result.link = _parent->rightActionLink();
 				return result;
 			}
@@ -314,6 +281,46 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 		return result;
 	}
 	return result;
+}
+
+int UnwrappedMedia::calculateFullRight(const QRect &inner) const {
+	const auto rightAligned = _parent->hasOutLayout() && !Adaptive::ChatWide();
+	const auto infoWidth = _parent->infoWidth()
+		+ st::msgDateImgPadding.x() * 2
+		+ st::msgReplyPadding.left();
+	const auto rightActionWidth = _parent->displayRightAction()
+		? (st::historyFastShareLeft * 2
+			+ st::historyFastShareSize
+			+ st::msgPadding.left()
+			+ (_parent->hasFromPhoto()
+				? st::msgMargin.right()
+				: st::msgPadding.right()))
+		: 0;
+	auto fullRight = inner.x()
+		+ inner.width()
+		+ (rightAligned ? 0 : infoWidth);
+	if (fullRight + rightActionWidth > _parent->width()) {
+		fullRight = _parent->width() - rightActionWidth;
+	}
+	return fullRight;
+}
+
+QPoint UnwrappedMedia::calculateFastActionPosition(
+	int fullBottom,
+	int replyRight,
+	int fullRight) const {
+	const auto size = st::historyFastShareSize;
+	const auto fastShareTop = (fullBottom
+		- st::historyFastShareBottom
+		- size);
+	const auto doesRightActionHitReply = replyRight && (fastShareTop <
+		st::msgReplyBarSize.height()
+		+ st::msgReplyPadding.top()
+		+ st::msgReplyPadding.bottom());
+	const auto fastShareLeft = ((doesRightActionHitReply
+		? replyRight
+		: fullRight) + st::historyFastShareLeft);
+	return QPoint(fastShareLeft, fastShareTop);
 }
 
 bool UnwrappedMedia::needInfoDisplay() const {
