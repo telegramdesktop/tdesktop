@@ -83,6 +83,26 @@ rpl::producer<> ComposeControls::sendRequests() const {
 	return _send->clicks() | rpl::map([] { return rpl::empty_value(); });
 }
 
+rpl::producer<> ComposeControls::attachRequests() const {
+	return _attachToggle->clicks(
+	) | rpl::map([] {
+		return rpl::empty_value();
+	});
+}
+
+rpl::producer<not_null<DocumentData*>> ComposeControls::fileChosen() const {
+	return _fileChosen.events();
+}
+
+rpl::producer<not_null<PhotoData*>> ComposeControls::photoChosen() const {
+	return _photoChosen.events();
+}
+
+auto ComposeControls::inlineResultChosen() const
+->rpl::producer<ChatHelpers::TabbedSelector::InlineChosen> {
+	return _inlineResultChosen.events();
+}
+
 void ComposeControls::showStarted() {
 	if (_inlineResults) {
 		_inlineResults->hideFast();
@@ -202,20 +222,13 @@ void ComposeControls::initTabbedSelector() {
 	}, wrap->lifetime());
 
 	selector->fileChosen(
-	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
-		//sendExistingDocument(document);
-	}, wrap->lifetime());
+	) | rpl::start_to_stream(_fileChosen, wrap->lifetime());
 
 	selector->photoChosen(
-	) | rpl::start_with_next([=](not_null<PhotoData*> photo) {
-		//sendExistingPhoto(photo);
-	}, wrap->lifetime());
+	) | rpl::start_to_stream(_photoChosen, wrap->lifetime());
 
 	selector->inlineResultChosen(
-	) | rpl::start_with_next([=](
-			ChatHelpers::TabbedSelector::InlineChosen data) {
-		//sendInlineResult(data.result, data.bot);
-	}, wrap->lifetime());
+	) | rpl::start_to_stream(_inlineResultChosen, wrap->lifetime());
 }
 
 void ComposeControls::initSendButton() {

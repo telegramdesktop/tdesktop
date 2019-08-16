@@ -15,22 +15,42 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
+#include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
 #include "api/api_common.h"
+#include "api/api_sending.h"
 #include "apiwrap.h"
 #include "boxes/confirm_box.h"
+#include "boxes/send_files_box.h"
+#include "boxes/generic_box.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "core/event_filter.h"
+#include "core/file_utilities.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_scheduled_messages.h"
+#include "storage/storage_media_prepare.h"
+#include "storage/localstorage.h"
+#include "inline_bots/inline_bot_result.h"
 #include "lang/lang_keys.h"
 #include "styles/style_history.h"
 #include "styles/style_window.h"
 #include "styles/style_info.h"
+#include "styles/style_boxes.h"
 
 namespace HistoryView {
+namespace {
+
+void ShowErrorToast(const QString &text) {
+	auto config = Ui::Toast::Config();
+	config.multiline = true;
+	config.minWidth = st::msgMinWidth;
+	config.text = text;
+	Ui::Toast::Show(config);
+}
+
+} // namespace
 
 object_ptr<Window::SectionWidget> ScheduledMemento::createWidget(
 		QWidget *parent,
@@ -111,6 +131,256 @@ void ScheduledWidget::setupComposeControls() {
 	) | rpl::start_with_next([=] {
 		send();
 	}, lifetime());
+
+	_composeControls->attachRequests(
+	) | rpl::filter([=] {
+		return !_choosingAttach;
+	}) | rpl::start_with_next([=] {
+		_choosingAttach = true;
+		App::CallDelayed(
+			st::historyAttach.ripple.hideDuration,
+			this,
+			[=] { _choosingAttach = false; chooseAttach(); });
+	}, lifetime());
+
+	_composeControls->fileChosen(
+	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		sendExistingDocument(document);
+	}, lifetime());
+
+	_composeControls->photoChosen(
+	) | rpl::start_with_next([=](not_null<PhotoData*> photo) {
+		sendExistingPhoto(photo);
+	}, lifetime());
+
+	_composeControls->inlineResultChosen(
+	) | rpl::start_with_next([=](
+			ChatHelpers::TabbedSelector::InlineChosen chosen) {
+		sendInlineResult(chosen.result, chosen.bot);
+	}, lifetime());
+}
+
+void ScheduledWidget::chooseAttach() {
+	if (const auto error = Data::RestrictionError(
+		_history->peer,
+		ChatRestriction::f_send_media)) {
+		Ui::Toast::Show(*error);
+		return;
+	}
+
+	const auto filter = FileDialog::AllFilesFilter()
+		+ qsl(";;Image files (*")
+		+ cImgExtensions().join(qsl(" *"))
+		+ qsl(")");
+
+	FileDialog::GetOpenPaths(this, tr::lng_choose_files(tr::now), filter, crl::guard(this, [=](
+			FileDialog::OpenResult &&result) {
+		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+			return;
+		}
+
+		if (!result.remoteContent.isEmpty()) {
+			auto animated = false;
+			auto image = App::readImage(
+				result.remoteContent,
+				nullptr,
+				false,
+				&animated);
+			if (!image.isNull() && !animated) {
+				confirmSendingFiles(
+					std::move(image),
+					std::move(result.remoteContent),
+					CompressConfirm::Auto);
+			} else {
+				uploadFile(result.remoteContent, SendMediaType::File);
+			}
+		} else {
+			auto list = Storage::PrepareMediaList(
+				result.paths,
+				st::sendMediaPreviewSize);
+			if (list.allFilesForCompress || list.albumIsPossible) {
+				confirmSendingFiles(std::move(list), CompressConfirm::Auto);
+			} else if (!showSendingFilesError(list)) {
+				confirmSendingFiles(std::move(list), CompressConfirm::No);
+			}
+		}
+	}), nullptr);
+}
+
+bool ScheduledWidget::confirmSendingFiles(
+		Storage::PreparedList &&list,
+		CompressConfirm compressed,
+		const QString &insertTextOnCancel) {
+	if (showSendingFilesError(list)) {
+		return false;
+	}
+
+	const auto noCompressOption = (list.files.size() > 1)
+		&& !list.allFilesForCompress
+		&& !list.albumIsPossible;
+	const auto boxCompressConfirm = noCompressOption
+		? CompressConfirm::None
+		: compressed;
+
+	//const auto cursor = _field->textCursor();
+	//const auto position = cursor.position();
+	//const auto anchor = cursor.anchor();
+	const auto text = _composeControls->getTextWithAppliedMarkdown();//_field->getTextWithTags();
+	using SendLimit = SendFilesBox::SendLimit;
+	auto box = Box<SendFilesBox>(
+		controller(),
+		std::move(list),
+		text,
+		boxCompressConfirm,
+		_history->peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many);
+	//_field->setTextWithTags({});
+
+	box->setConfirmedCallback(crl::guard(this, [=](
+			Storage::PreparedList &&list,
+			SendFilesWay way,
+			TextWithTags &&caption,
+			Api::SendOptions options,
+			bool ctrlShiftEnter) {
+		if (showSendingFilesError(list)) {
+			return;
+		}
+		const auto type = (way == SendFilesWay::Files)
+			? SendMediaType::File
+			: SendMediaType::Photo;
+		const auto album = (way == SendFilesWay::Album)
+			? std::make_shared<SendingAlbum>()
+			: nullptr;
+		uploadFilesAfterConfirmation(
+			std::move(list),
+			type,
+			std::move(caption),
+			MsgId(0),//replyToId(),
+			options,
+			album);
+	}));
+	//box->setCancelledCallback(crl::guard(this, [=] {
+	//	_field->setTextWithTags(text);
+	//	auto cursor = _field->textCursor();
+	//	cursor.setPosition(anchor);
+	//	if (position != anchor) {
+	//		cursor.setPosition(position, QTextCursor::KeepAnchor);
+	//	}
+	//	_field->setTextCursor(cursor);
+	//	if (!insertTextOnCancel.isEmpty()) {
+	//		_field->textCursor().insertText(insertTextOnCancel);
+	//	}
+	//}));
+
+	//ActivateWindow(controller());
+	const auto shown = Ui::show(std::move(box));
+	shown->setCloseByOutsideClick(false);
+
+	return true;
+}
+
+bool ScheduledWidget::confirmSendingFiles(
+		QImage &&image,
+		QByteArray &&content,
+		CompressConfirm compressed,
+		const QString &insertTextOnCancel) {
+	if (image.isNull()) {
+		return false;
+	}
+
+	auto list = Storage::PrepareMediaFromImage(
+		std::move(image),
+		std::move(content),
+		st::sendMediaPreviewSize);
+	return confirmSendingFiles(
+		std::move(list),
+		compressed,
+		insertTextOnCancel);
+}
+
+void ScheduledWidget::uploadFilesAfterConfirmation(
+		Storage::PreparedList &&list,
+		SendMediaType type,
+		TextWithTags &&caption,
+		MsgId replyTo,
+		Api::SendOptions options,
+		std::shared_ptr<SendingAlbum> album) {
+	const auto isAlbum = (album != nullptr);
+	const auto compressImages = (type == SendMediaType::Photo);
+	if (_history->peer->slowmodeApplied()
+		&& ((list.files.size() > 1 && !album)
+			|| (!list.files.empty()
+				&& !caption.text.isEmpty()
+				&& !list.canAddCaption(isAlbum, compressImages)))) {
+		ShowErrorToast(tr::lng_slowmode_no_many(tr::now));
+		return;
+	}
+	auto callback = crl::guard(this, [
+		=,
+		list = std::move(list),
+		caption = std::move(caption),
+		// Strange thing, otherwise std::is_copy_constructible is true. O_o
+		msvc_bug_workaround = std::make_unique<int>()
+	](Api::SendOptions options) mutable {
+		auto action = Api::SendAction(_history);
+		action.replyTo = replyTo;
+		action.options = options;
+		session().api().sendFiles(
+			std::move(list),
+			type,
+			std::move(caption),
+			album,
+			action);
+	});
+	Ui::show(
+		Box(ScheduleBox, std::move(callback), DefaultScheduleTime()),
+		LayerOption::KeepOther);
+}
+
+void ScheduledWidget::uploadFile(
+		const QByteArray &fileContent,
+		SendMediaType type) {
+	const auto callback = crl::guard(this, [=](Api::SendOptions options) {
+		auto action = Api::SendAction(_history);
+		//action.replyTo = replyToId();
+		action.options = options;
+		session().api().sendFile(fileContent, type, action);
+	});
+	Ui::show(
+		Box(ScheduleBox, callback, DefaultScheduleTime()),
+		LayerOption::KeepOther);
+}
+
+bool ScheduledWidget::showSendingFilesError(
+		const Storage::PreparedList &list) const {
+	const auto text = [&] {
+		const auto error = Data::RestrictionError(
+			_history->peer,
+			ChatRestriction::f_send_media);
+		if (error) {
+			return *error;
+		}
+		using Error = Storage::PreparedList::Error;
+		switch (list.error) {
+		case Error::None: return QString();
+		case Error::EmptyFile:
+		case Error::Directory:
+		case Error::NonLocalUrl: return tr::lng_send_image_empty(
+			tr::now,
+			lt_name,
+			list.errorData);
+		case Error::TooLargeFile: return tr::lng_send_image_too_large(
+			tr::now,
+			lt_name,
+			list.errorData);
+		}
+		return tr::lng_forward_send_files_cant(tr::now);
+	}();
+	if (text.isEmpty()) {
+		return false;
+	}
+
+	ShowErrorToast(text);
+	return true;
 }
 
 void ScheduledWidget::send() {
@@ -157,6 +427,123 @@ void ScheduledWidget::send(Api::SendOptions options) {
 	_composeControls->hidePanelsAnimated();
 
 	//if (_previewData && _previewData->pendingTill) previewCancel();
+	_composeControls->focus();
+}
+
+void ScheduledWidget::sendExistingDocument(
+		not_null<DocumentData*> document) {
+	const auto callback = crl::guard(this, [=](Api::SendOptions options) {
+		sendExistingDocument(document, options);
+	});
+	Ui::show(
+		Box(ScheduleBox, callback, DefaultScheduleTime()),
+		LayerOption::KeepOther);
+}
+
+bool ScheduledWidget::sendExistingDocument(
+		not_null<DocumentData*> document,
+		Api::SendOptions options) {
+	const auto error = Data::RestrictionError(
+		_history->peer,
+		ChatRestriction::f_send_stickers);
+	if (error) {
+		Ui::show(Box<InformBox>(*error), LayerOption::KeepOther);
+		return false;
+	}
+
+	auto message = Api::MessageToSend(_history);
+	//message.action.replyTo = replyToId();
+	message.action.options = options;
+	Api::SendExistingDocument(std::move(message), document);
+
+	//if (_fieldAutocomplete->stickersShown()) {
+	//	clearFieldText();
+	//	//_saveDraftText = true;
+	//	//_saveDraftStart = crl::now();
+	//	//onDraftSave();
+	//	onCloudDraftSave(); // won't be needed if SendInlineBotResult will clear the cloud draft
+	//}
+
+	_composeControls->hidePanelsAnimated();
+	_composeControls->focus();
+	return true;
+}
+
+void ScheduledWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
+	const auto callback = crl::guard(this, [=](Api::SendOptions options) {
+		sendExistingPhoto(photo, options);
+	});
+	Ui::show(
+		Box(ScheduleBox, callback, DefaultScheduleTime()),
+		LayerOption::KeepOther);
+}
+
+bool ScheduledWidget::sendExistingPhoto(
+		not_null<PhotoData*> photo,
+		Api::SendOptions options) {
+	const auto error = Data::RestrictionError(
+		_history->peer,
+		ChatRestriction::f_send_media);
+	if (error) {
+		Ui::show(Box<InformBox>(*error), LayerOption::KeepOther);
+		return false;
+	}
+
+	auto message = Api::MessageToSend(_history);
+	//message.action.replyTo = replyToId();
+	message.action.options = options;
+	Api::SendExistingPhoto(std::move(message), photo);
+
+	_composeControls->hidePanelsAnimated();
+	_composeControls->focus();
+	return true;
+}
+
+void ScheduledWidget::sendInlineResult(
+		not_null<InlineBots::Result*> result,
+		not_null<UserData*> bot) {
+	const auto errorText = result->getErrorOnSend(_history);
+	if (!errorText.isEmpty()) {
+		Ui::show(Box<InformBox>(errorText));
+		return;
+	}
+	const auto callback = crl::guard(this, [=](Api::SendOptions options) {
+		sendInlineResult(result, bot, options);
+	});
+	Ui::show(
+		Box(ScheduleBox, callback, DefaultScheduleTime()),
+		LayerOption::KeepOther);
+}
+
+void ScheduledWidget::sendInlineResult(
+		not_null<InlineBots::Result*> result,
+		not_null<UserData*> bot,
+		Api::SendOptions options) {
+	auto action = Api::SendAction(_history);
+	action.clearDraft = true;
+	//action.replyTo = replyToId();
+	action.options = options;
+	action.generateLocal = true;
+	session().api().sendInlineResult(bot, result, action);
+
+	_composeControls->clear();
+	//_saveDraftText = true;
+	//_saveDraftStart = crl::now();
+	//onDraftSave();
+
+	auto &bots = cRefRecentInlineBots();
+	const auto index = bots.indexOf(bot);
+	if (index) {
+		if (index > 0) {
+			bots.removeAt(index);
+		} else if (bots.size() >= RecentInlineBotsLimit) {
+			bots.resize(RecentInlineBotsLimit - 1);
+		}
+		bots.push_front(bot);
+		Local::writeRecentHashtagsAndBots();
+	}
+
+	_composeControls->hidePanelsAnimated();
 	_composeControls->focus();
 }
 
@@ -470,14 +857,14 @@ void ScheduledWidget::highlightSingleNewMessage(
 		return;
 	}
 	auto firstDifferent = 0;
-	for (; firstDifferent != _lastSlice.ids.size(); ++firstDifferent) {
+	while (firstDifferent != _lastSlice.ids.size()) {
 		if (slice.ids[firstDifferent] != _lastSlice.ids[firstDifferent]) {
 			break;
 		}
 		++firstDifferent;
 	}
 	auto lastDifferent = slice.ids.size() - 1;
-	for (; lastDifferent != firstDifferent;) {
+	while (lastDifferent != firstDifferent) {
 		if (slice.ids[lastDifferent] != _lastSlice.ids[lastDifferent - 1]) {
 			break;
 		}

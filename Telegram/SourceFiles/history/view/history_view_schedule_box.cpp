@@ -512,7 +512,7 @@ TimeId DefaultScheduleTime() {
 
 void ScheduleBox(
 		not_null<GenericBox*> box,
-		Fn<void(Api::SendOptions)> done,
+		FnMut<void(Api::SendOptions)> done,
 		TimeId time) {
 	box->setTitle(tr::lng_schedule_title());
 	box->setWidth(st::boxWideWidth);
@@ -582,6 +582,8 @@ void ScheduleBox(
 		}), (*calendar)->lifetime());
 	});
 
+	const auto shared = std::make_shared<FnMut<void(Api::SendOptions)>>(
+		std::move(done));
 	const auto save = [=] {
 		auto result = Api::SendOptions();
 
@@ -602,9 +604,9 @@ void ScheduleBox(
 			return;
 		}
 
-		auto copy = done;
+		auto copy = shared;
 		box->closeBox();
-		copy(result);
+		(*copy)(result);
 	};
 
 	box->setFocusCallback([=] { timeInput->setFocusFast(); });

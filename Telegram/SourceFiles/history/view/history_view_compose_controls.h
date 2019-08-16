@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+#include "chat_helpers/tabbed_selector.h"
 
 namespace ChatHelpers {
 class TabbedPanel;
@@ -65,6 +66,11 @@ public:
 	void focus();
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
 	[[nodiscard]] rpl::producer<> sendRequests() const;
+	[[nodiscard]] rpl::producer<> attachRequests() const;
+	[[nodiscard]] rpl::producer<not_null<DocumentData*>> fileChosen() const;
+	[[nodiscard]] rpl::producer<not_null<PhotoData*>> photoChosen() const;
+	[[nodiscard]] auto inlineResultChosen() const
+		-> rpl::producer<ChatHelpers::TabbedSelector::InlineChosen>;
 
 	void pushTabbedSelectorToThirdSection(const Window::SectionShow &params);
 	bool returnTabbedSelector();
@@ -108,6 +114,9 @@ private:
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
 
 	rpl::event_stream<> _cancelRequests;
+	rpl::event_stream<not_null<DocumentData*>> _fileChosen;
+	rpl::event_stream<not_null<PhotoData*>> _photoChosen;
+	rpl::event_stream<ChatHelpers::TabbedSelector::InlineChosen> _inlineResultChosen;
 
 	bool _recording = false;
 	bool _inField = false;

@@ -18,7 +18,7 @@ namespace HistoryView {
 [[nodiscard]] TimeId DefaultScheduleTime();
 void ScheduleBox(
 	not_null<GenericBox*> box,
-	Fn<void(Api::SendOptions)> done,
+	FnMut<void(Api::SendOptions)> done,
 	TimeId time);
 
 } // namespace HistoryView

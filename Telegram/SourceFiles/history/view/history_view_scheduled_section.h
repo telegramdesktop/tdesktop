@@ -13,6 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 
 class History;
+enum class CompressConfirm;
+enum class SendMediaType;
+struct SendingAlbum;
 
 namespace Api {
 struct SendOptions;
@@ -21,6 +24,10 @@ struct SendOptions;
 namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
+
+namespace Storage {
+struct PreparedList;
+} // namespace Storage
 
 namespace Ui {
 class ScrollArea;
@@ -32,6 +39,10 @@ class HistoryDownButton;
 namespace Profile {
 class BackButton;
 } // namespace Profile
+
+namespace InlineBots {
+class Result;
+} // namespace InlineBots
 
 namespace HistoryView {
 
@@ -133,6 +144,42 @@ private:
 	void send();
 	void send(Api::SendOptions options);
 	void highlightSingleNewMessage(const Data::MessagesSlice &slice);
+	void chooseAttach();
+
+	void uploadFile(const QByteArray &fileContent, SendMediaType type);
+	bool confirmSendingFiles(
+		QImage &&image,
+		QByteArray &&content,
+		CompressConfirm compressed,
+		const QString &insertTextOnCancel = QString());
+	bool confirmSendingFiles(
+		Storage::PreparedList &&list,
+		CompressConfirm compressed,
+		const QString &insertTextOnCancel = QString());
+	bool showSendingFilesError(const Storage::PreparedList &list) const;
+	void uploadFilesAfterConfirmation(
+		Storage::PreparedList &&list,
+		SendMediaType type,
+		TextWithTags &&caption,
+		MsgId replyTo,
+		Api::SendOptions options,
+		std::shared_ptr<SendingAlbum> album);
+
+	void sendExistingDocument(not_null<DocumentData*> document);
+	bool sendExistingDocument(
+		not_null<DocumentData*> document,
+		Api::SendOptions options);
+	void sendExistingPhoto(not_null<PhotoData*> photo);
+	bool sendExistingPhoto(
+		not_null<PhotoData*> photo,
+		Api::SendOptions options);
+	void sendInlineResult(
+		not_null<InlineBots::Result*> result,
+		not_null<UserData*> bot);
+	void sendInlineResult(
+		not_null<InlineBots::Result*> result,
+		not_null<UserData*> bot,
+		Api::SendOptions options);
 
 	const not_null<History*> _history;
 	object_ptr<Ui::ScrollArea> _scroll;
@@ -151,6 +198,7 @@ private:
 	object_ptr<Ui::HistoryDownButton> _scrollDown;
 
 	Data::MessagesSlice _lastSlice;
+	bool _choosingAttach = false;
 
 };
 
