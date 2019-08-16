@@ -170,6 +170,7 @@ void UnwrappedMedia::drawSurrounding(
 			selected,
 			InfoDisplayType::Background);
 	}
+	auto replyRight = 0;
 	if (const auto recth = surroundingHeight(via, reply)) {
 		int rectw = width() - inner.width() - st::msgReplyPadding.left();
 		int rectx = rightAligned ? 0 : (inner.width() + st::msgReplyPadding.left());
@@ -193,10 +194,19 @@ void UnwrappedMedia::drawSurrounding(
 			}
 			reply->paint(p, _parent, rectx, recty, rectw, flags);
 		}
+		replyRight = rectx + rectw;
 	}
 	if (rightAction) {
-		auto fastShareLeft = (fullRight + st::historyFastShareLeft);
-		auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
+		const auto fastShareTop = (fullBottom
+			- st::historyFastShareBottom
+			- st::historyFastShareSize);
+		const auto doesRightActionHitReply = replyRight && (fastShareTop <
+			st::msgReplyBarSize.height()
+			+ st::msgReplyPadding.top()
+			+ st::msgReplyPadding.bottom());
+		const auto fastShareLeft = ((doesRightActionHitReply
+			? replyRight
+			: fullRight) + st::historyFastShareLeft);
 		_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * inner.x() + inner.width());
 	}
 }
@@ -233,6 +243,7 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 	const auto inner = QRect(usex, usey, usew, useh);
 
 	if (_parent->media() == this) {
+		auto replyRight = 0;
 		if (auto recth = surroundingHeight(via, reply)) {
 			int rectw = width() - inner.width() - st::msgReplyPadding.left();
 			int rectx = rightAligned ? 0 : (inner.width() + st::msgReplyPadding.left());
@@ -255,6 +266,7 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 					return result;
 				}
 			}
+			replyRight = rectx + rectw - st::msgReplyPadding.right();
 		}
 		const auto infoWidth = _parent->infoWidth()
 			+ st::msgDateImgPadding.x() * 2
@@ -274,9 +286,18 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 			result.cursor = CursorState::Date;
 		}
 		if (rightAction) {
-			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
-			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
-			if (QRect(fastShareLeft, fastShareTop, st::historyFastShareSize, st::historyFastShareSize).contains(point)) {
+			const auto size = st::historyFastShareSize;
+			const auto fastShareTop = (fullBottom
+				- st::historyFastShareBottom
+				- size);
+			const auto doesRightActionHitReply = replyRight && (fastShareTop <
+				st::msgReplyBarSize.height()
+				+ st::msgReplyPadding.top()
+				+ st::msgReplyPadding.bottom());
+			const auto fastShareLeft = ((doesRightActionHitReply
+				? replyRight
+				: fullRight) + st::historyFastShareLeft) - size / 2;
+			if (QRect(fastShareLeft, fastShareTop, size, size).contains(point)) {
 				result.link = _parent->rightActionLink();
 				return result;
 			}
