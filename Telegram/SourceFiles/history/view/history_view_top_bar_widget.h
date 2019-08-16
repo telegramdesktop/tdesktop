@@ -86,6 +86,7 @@ protected:
 private:
 	void refreshInfoButton();
 	void refreshLang();
+	void updateSearchVisibility();
 	void updateControlsGeometry();
 	void selectedShowCallback();
 	void updateInfoToggleActive();

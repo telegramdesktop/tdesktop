@@ -25,7 +25,9 @@ class TabbedSelector;
 
 class TabbedPanel : public Ui::RpWidget {
 public:
-	TabbedPanel(QWidget *parent, not_null<Window::SessionController*> controller);
+	TabbedPanel(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
 	TabbedPanel(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,

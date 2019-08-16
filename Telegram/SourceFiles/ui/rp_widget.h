@@ -77,6 +77,11 @@ inline void DestroyChild(QWidget *child) {
 	delete child;
 }
 
+template <typename ...Args>
+inline auto Connect(Args &&...args) {
+	return QObject::connect(std::forward<Args>(args)...);
+}
+
 void ResizeFitChild(
 	not_null<RpWidget*> parent,
 	not_null<RpWidget*> child);

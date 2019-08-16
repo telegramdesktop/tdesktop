@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_scheduled_section.h"
 
+#include "history/view/history_view_compose_controls.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/history.h"
@@ -50,6 +51,10 @@ ScheduledWidget::ScheduledWidget(
 , _scroll(this, st::historyScroll, false)
 , _topBar(this, controller)
 , _topBarShadow(this)
+, _composeControls(std::make_unique<ComposeControls>(
+	this,
+	controller,
+	ComposeControls::Mode::Scheduled))
 , _scrollDown(_scroll, st::historyToDown) {
 	_topBar->setActiveChat(_history, TopBarWidget::Section::Scheduled);
 
@@ -83,6 +88,21 @@ ScheduledWidget::ScheduledWidget(
 	connect(_scroll, &Ui::ScrollArea::scrolled, [=] { onScroll(); });
 
 	setupScrollDownButton();
+	setupComposeControls();
+}
+
+ScheduledWidget::~ScheduledWidget() = default;
+
+void ScheduledWidget::setupComposeControls() {
+	_composeControls->height(
+	) | rpl::start_with_next([=] {
+		updateControlsGeometry();
+	}, lifetime());
+
+	_composeControls->cancelRequests(
+	) | rpl::start_with_next([=] {
+		controller()->showBackFromStack();
+	}, lifetime());
 }
 
 void ScheduledWidget::setupScrollDownButton() {
@@ -207,13 +227,14 @@ Dialogs::RowDescriptor ScheduledWidget::activeChat() const {
 QPixmap ScheduledWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	_topBar->updateControlsVisibility();
 	if (params.withTopBarShadow) _topBarShadow->hide();
+	_composeControls->showForGrab();
 	auto result = Ui::GrabWidget(this);
 	if (params.withTopBarShadow) _topBarShadow->show();
 	return result;
 }
 
 void ScheduledWidget::doSetInnerFocus() {
-	_inner->setFocus();
+	_composeControls->focus();
 }
 
 bool ScheduledWidget::showInternal(
@@ -254,6 +275,7 @@ void ScheduledWidget::resizeEvent(QResizeEvent *e) {
 	if (!width() || !height()) {
 		return;
 	}
+	_composeControls->resizeToWidth(width());
 	updateControlsGeometry();
 }
 
@@ -267,9 +289,8 @@ void ScheduledWidget::updateControlsGeometry() {
 	_topBarShadow->resize(contentWidth, st::lineWidth);
 
 	const auto bottom = height();
-	const auto scrollHeight = bottom
-		- _topBar->height();
-//		- _showNext->height();
+	const auto controlsHeight = _composeControls->heightCurrent();
+	const auto scrollHeight = bottom - _topBar->height() - controlsHeight;
 	const auto scrollSize = QSize(contentWidth, scrollHeight);
 	if (_scroll->size() != scrollSize) {
 		_skipScrollEvent = true;
@@ -283,6 +304,7 @@ void ScheduledWidget::updateControlsGeometry() {
 		}
 		updateInnerVisibleArea();
 	}
+	_composeControls->move(0, bottom - controlsHeight);
 
 	updateScrollDownPosition();
 }
@@ -324,10 +346,12 @@ void ScheduledWidget::showAnimatedHook(
 	if (params.withTopBarShadow) {
 		_topBarShadow->show();
 	}
+	_composeControls->showStarted();
 }
 
 void ScheduledWidget::showFinishedHook() {
 	_topBar->setAnimatingMode(false);
+	_composeControls->showFinished();
 }
 
 bool ScheduledWidget::wheelEventFromFloatPlayer(QEvent *e) {

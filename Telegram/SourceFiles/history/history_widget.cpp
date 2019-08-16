@@ -443,7 +443,6 @@ HistoryWidget::HistoryWidget(
 	_botKeyboardHide->addClickHandler([=] { toggleKeyboard(); });
 	_botCommandStart->addClickHandler([=] { startBotCommand(); });
 
-	_tabbedPanel->hide();
 	_attachDragDocument->hide();
 	_attachDragPhoto->hide();
 
@@ -3879,8 +3878,7 @@ void HistoryWidget::pushTabbedSelectorToThirdSection(
 
 void HistoryWidget::toggleTabbedSelectorMode() {
 	if (_tabbedPanel) {
-		if (controller()->canShowThirdSection()
-			&& !Adaptive::OneColumn()) {
+		if (controller()->canShowThirdSection() && !Adaptive::OneColumn()) {
 			session().settings().setTabbedSelectorSectionEnabled(true);
 			session().saveSettingsDelayed();
 			pushTabbedSelectorToThirdSection(
@@ -3899,7 +3897,6 @@ void HistoryWidget::returnTabbedSelector(
 		this,
 		controller(),
 		std::move(selector));
-	_tabbedPanel->hide();
 	_tabbedSelectorToggle->installEventFilter(_tabbedPanel);
 	_tabbedSelectorToggle->setColorOverrides(nullptr, nullptr, nullptr);
 	_tabbedSelectorToggleTooltipShown = false;
@@ -3928,7 +3925,7 @@ void HistoryWidget::moveFieldControls() {
 	}
 
 // _attachToggle --------- _inlineResults -------------------------------------- _tabbedPanel --------- _fieldBarCancel
-// (_attachDocument|_attachPhoto) _field (_scheduled) (_silent|_cmdStart|_kbShow) (_kbHide|_tabbedSelectorToggle) [_broadcast] _send
+// (_attachDocument|_attachPhoto) _field (_scheduled) (_silent|_cmdStart|_kbShow) (_kbHide|_tabbedSelectorToggle) _send
 // (_botStart|_unblock|_joinChannel|{_muteUnmute&_discuss})
 
 	auto buttonsBottom = bottom - _attachToggle->height();

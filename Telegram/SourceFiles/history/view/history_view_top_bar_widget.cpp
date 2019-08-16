@@ -510,14 +510,19 @@ void TopBarWidget::refreshInfoButton() {
 }
 
 void TopBarWidget::resizeEvent(QResizeEvent *e) {
+	updateSearchVisibility();
 	updateControlsGeometry();
-	const auto smallDialogsColumn = _activeChat.folder()
-		&& (width() < _back->width() + _search->width());
-	_search->setVisible(!smallDialogsColumn);
 }
 
 int TopBarWidget::countSelectedButtonsTop(float64 selectedShown) {
 	return (1. - selectedShown) * (-st::topBarHeight);
+}
+
+void TopBarWidget::updateSearchVisibility() {
+	const auto historyMode = (_section == Section::History);
+	const auto smallDialogsColumn = _activeChat.folder()
+		&& (width() < _back->width() + _search->width());
+	_search->setVisible(historyMode && !smallDialogsColumn);
 }
 
 void TopBarWidget::updateControlsGeometry() {
@@ -620,9 +625,7 @@ void TopBarWidget::updateControlsVisibility() {
 		_unreadBadge->show();
 	}
 	const auto historyMode = (_section == Section::History);
-	const auto smallDialogsColumn = _activeChat.folder()
-		&& (width() < _back->width() + _search->width());
-	_search->setVisible(historyMode && !smallDialogsColumn);
+	updateSearchVisibility();
 	_menuToggle->setVisible(historyMode && !_activeChat.folder());
 	_infoToggle->setVisible(historyMode
 		&& !_activeChat.folder()

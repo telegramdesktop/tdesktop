@@ -103,6 +103,7 @@ TabbedPanel::TabbedPanel(
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 
 	hideChildren();
+	hide();
 }
 
 void TabbedPanel::moveBottomRight(int bottom, int right) {

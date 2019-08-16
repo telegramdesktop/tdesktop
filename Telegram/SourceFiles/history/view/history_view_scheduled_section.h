@@ -33,6 +33,7 @@ namespace HistoryView {
 class Element;
 class TopBarWidget;
 class ScheduledMemento;
+class ComposeControls;
 
 class ScheduledWidget final
 	: public Window::SectionWidget
@@ -42,6 +43,7 @@ public:
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		not_null<History*> history);
+	~ScheduledWidget();
 
 	not_null<History*> history() const;
 	Dialogs::RowDescriptor activeChat() const override;
@@ -106,6 +108,8 @@ private:
 	void showAtPosition(Data::MessagePosition position);
 	bool showAtPositionNow(Data::MessagePosition position);
 
+	void setupComposeControls();
+
 	void setupScrollDownButton();
 	void scrollDownClicked();
 	void scrollDownAnimationFinish();
@@ -121,6 +125,7 @@ private:
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;
 	object_ptr<Ui::PlainShadow> _topBarShadow;
+	std::unique_ptr<ComposeControls> _composeControls;
 	bool _skipScrollEvent = false;
 
 	FullMsgId _highlightMessageId;

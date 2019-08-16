@@ -318,6 +318,8 @@
 <(src_loc)/history/view/media/history_view_wall_paper.cpp
 <(src_loc)/history/view/media/history_view_web_page.h
 <(src_loc)/history/view/media/history_view_web_page.cpp
+<(src_loc)/history/view/history_view_compose_controls.cpp
+<(src_loc)/history/view/history_view_compose_controls.h
 <(src_loc)/history/view/history_view_contact_status.cpp
 <(src_loc)/history/view/history_view_contact_status.h
 <(src_loc)/history/view/history_view_context_menu.cpp

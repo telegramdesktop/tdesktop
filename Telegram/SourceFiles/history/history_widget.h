@@ -320,6 +320,41 @@ private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
 	using DragState = Storage::MimeDataState;
+	struct BotCallbackInfo {
+		UserData *bot;
+		FullMsgId msgId;
+		int row, col;
+		bool game;
+	};
+	struct PinnedBar {
+		PinnedBar(MsgId msgId, HistoryWidget *parent);
+		~PinnedBar();
+
+		MsgId msgId = 0;
+		HistoryItem *msg = nullptr;
+		Ui::Text::String text;
+		object_ptr<Ui::IconButton> cancel;
+		object_ptr<Ui::PlainShadow> shadow;
+	};
+	enum ScrollChangeType {
+		ScrollChangeNone,
+
+		// When we toggle a pinned message.
+		ScrollChangeAdd,
+
+		// When loading a history part while scrolling down.
+		ScrollChangeNoJumpToBottom,
+	};
+	struct ScrollChange {
+		ScrollChangeType type;
+		int value;
+	};
+	enum class TextUpdateEvent {
+		SaveDraft = (1 << 0),
+		SendTyping = (1 << 1),
+	};
+	using TextUpdateEvents = base::flags<TextUpdateEvent>;
+	friend inline constexpr bool is_flag_type(TextUpdateEvent) { return true; };
 
 	void initTabbedSelector();
 	void updateField();
@@ -488,35 +523,9 @@ private:
 
 	void handlePeerMigration();
 
-	MsgId _replyToId = 0;
-	Ui::Text::String _replyToName;
-	int _replyToNameVersion = 0;
-
-	HistoryItemsList _toForward;
-	Ui::Text::String _toForwardFrom, _toForwardText;
-	int _toForwardNameVersion = 0;
-
-	MsgId _editMsgId = 0;
-
-	HistoryItem *_replyEditMsg = nullptr;
-	Ui::Text::String _replyEditMsgText;
-	mutable base::Timer _updateEditTimeLeftDisplay;
-
-	object_ptr<Ui::IconButton> _fieldBarCancel;
 	void updateReplyEditTexts(bool force = false);
 	void updateReplyEditText(not_null<HistoryItem*> item);
 
-	struct PinnedBar {
-		PinnedBar(MsgId msgId, HistoryWidget *parent);
-		~PinnedBar();
-
-		MsgId msgId = 0;
-		HistoryItem *msg = nullptr;
-		Ui::Text::String text;
-		object_ptr<Ui::IconButton> cancel;
-		object_ptr<Ui::PlainShadow> shadow;
-	};
-	std::unique_ptr<PinnedBar> _pinnedBar;
 	void updatePinnedBar(bool force = false);
 	bool pinnedMsgVisibilityUpdated();
 	void destroyPinnedBar();
@@ -542,7 +551,6 @@ private:
 	// destroys _history and _migrated unread bars
 	void destroyUnreadBar();
 
-	mtpRequestId _saveEditMsgRequestId = 0;
 	void saveEditMsg();
 	void saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req);
 	bool saveEditMsgFail(History *history, const RPCError &error, mtpRequestId req);
@@ -550,49 +558,13 @@ private:
 	void checkPreview();
 	void requestPreview();
 	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
-
-	QStringList _parsedLinks;
-	QString _previewLinks;
-	WebPageData *_previewData = nullptr;
-	typedef QMap<QString, WebPageId> PreviewCache;
-	PreviewCache _previewCache;
-	mtpRequestId _previewRequest = 0;
-	Ui::Text::String _previewTitle;
-	Ui::Text::String _previewDescription;
-	base::Timer _previewTimer;
-	bool _previewCancelled = false;
-
-	bool _replyForwardPressed = false;
-
-	HistoryItem *_replyReturn = nullptr;
-	QList<MsgId> _replyReturns;
-
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
 
-	struct BotCallbackInfo {
-		UserData *bot;
-		FullMsgId msgId;
-		int row, col;
-		bool game;
-	};
 	void botCallbackDone(BotCallbackInfo info, const MTPmessages_BotCallbackAnswer &answer, mtpRequestId req);
 	bool botCallbackFail(BotCallbackInfo info, const RPCError &error, mtpRequestId req);
 
-	enum ScrollChangeType {
-		ScrollChangeNone,
-
-		// When we toggle a pinned message.
-		ScrollChangeAdd,
-
-		// When loading a history part while scrolling down.
-		ScrollChangeNoJumpToBottom,
-	};
-	struct ScrollChange {
-		ScrollChangeType type;
-		int value;
-	};
 	void updateHistoryGeometry(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
 	void updateListSize();
 
@@ -612,13 +584,6 @@ private:
 	void synteticScrollToY(int y);
 
 	void countHistoryShowFrom();
-
-	enum class TextUpdateEvent {
-		SaveDraft  = (1 << 0),
-		SendTyping = (1 << 1),
-	};
-	using TextUpdateEvents = base::flags<TextUpdateEvent>;
-	friend inline constexpr bool is_flag_type(TextUpdateEvent) { return true; };
 
 	void writeDrafts(Data::Draft **localDraft, Data::Draft **editDraft);
 	void writeDrafts(History *history);
@@ -649,6 +614,58 @@ private:
 	bool hasSilentToggle() const;
 
 	void handleSupportSwitch(not_null<History*> updated);
+
+	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
+	bool inlineBotResolveFail(QString name, const RPCError &error);
+
+	bool isBotStart() const;
+	bool isBlocked() const;
+	bool isJoinChannel() const;
+	bool isMuteUnmute() const;
+	bool updateCmdStartShown();
+	void updateSendButtonType();
+	bool showRecordButton() const;
+	bool showInlineBotCancel() const;
+	void refreshSilentToggle();
+
+	void setupScheduledToggle();
+	void refreshScheduledToggle();
+
+	MsgId _replyToId = 0;
+	Ui::Text::String _replyToName;
+	int _replyToNameVersion = 0;
+
+	HistoryItemsList _toForward;
+	Ui::Text::String _toForwardFrom, _toForwardText;
+	int _toForwardNameVersion = 0;
+
+	MsgId _editMsgId = 0;
+
+	HistoryItem *_replyEditMsg = nullptr;
+	Ui::Text::String _replyEditMsgText;
+	mutable base::Timer _updateEditTimeLeftDisplay;
+
+	object_ptr<Ui::IconButton> _fieldBarCancel;
+
+	std::unique_ptr<PinnedBar> _pinnedBar;
+
+	mtpRequestId _saveEditMsgRequestId = 0;
+
+	QStringList _parsedLinks;
+	QString _previewLinks;
+	WebPageData *_previewData = nullptr;
+	typedef QMap<QString, WebPageId> PreviewCache;
+	PreviewCache _previewCache;
+	mtpRequestId _previewRequest = 0;
+	Ui::Text::String _previewTitle;
+	Ui::Text::String _previewDescription;
+	base::Timer _previewTimer;
+	bool _previewCancelled = false;
+
+	bool _replyForwardPressed = false;
+
+	HistoryItem *_replyReturn = nullptr;
+	QList<MsgId> _replyReturns;
 
 	PeerData *_peer = nullptr;
 
@@ -699,21 +716,6 @@ private:
 	bool _inlineLookingUpBot = false;
 	mtpRequestId _inlineBotResolveRequestId = 0;
 	bool _isInlineBot = false;
-	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
-	bool inlineBotResolveFail(QString name, const RPCError &error);
-
-	bool isBotStart() const;
-	bool isBlocked() const;
-	bool isJoinChannel() const;
-	bool isMuteUnmute() const;
-	bool updateCmdStartShown();
-	void updateSendButtonType();
-	bool showRecordButton() const;
-	bool showInlineBotCancel() const;
-	void refreshSilentToggle();
-
-	void setupScheduledToggle();
-	void refreshScheduledToggle();
 
 	std::unique_ptr<HistoryView::ContactStatus> _contactStatus;
 
