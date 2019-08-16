@@ -150,7 +150,7 @@ void UnwrappedMedia::drawSurrounding(
 	const auto rightAction = _parent->displayRightAction();
 	const auto fullRight = calculateFullRight(inner);
 	auto fullBottom = height();
-	if (needInfoDisplay()) {
+	if (rightAction ? true : needInfoDisplay()) {
 		_parent->drawInfo(
 			p,
 			fullRight,
