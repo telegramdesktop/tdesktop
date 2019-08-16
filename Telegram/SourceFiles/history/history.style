@@ -268,8 +268,15 @@ historyBotCommandStart: IconButton(historyAttach) {
 	iconOver: icon {{ "send_control_bot_command", historyComposeIconFgOver }};
 }
 historyScheduledToggle: IconButton(historyAttach) {
-	icon: icon {{ "dialogs_calendar", historyComposeIconFg }};
-	iconOver: icon {{ "dialogs_calendar", historyComposeIconFgOver }};
+	icon: icon {
+		{ "send_control_scheduled", historyComposeIconFg },
+		{ "send_control_scheduled_dot", attentionButtonFg }
+	};
+	iconOver: icon {
+		{ "send_control_scheduled", historyComposeIconFgOver },
+		{ "send_control_scheduled_dot", attentionButtonFg }
+	};
+	iconPosition: point(-1px, -1px);
 }
 historyRecordVoiceFg: historyComposeIconFg;
 historyRecordVoiceFgOver: historyComposeIconFgOver;

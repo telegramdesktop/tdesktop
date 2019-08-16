@@ -638,7 +638,7 @@ HistoryWidget::HistoryWidget(
 		if (action.options.scheduled) {
 			crl::on_main(this, [=, history = action.history]{
 				controller->showSection(
-					HistoryView::ScheduledMemento(action.history));
+					HistoryView::ScheduledMemento(history));
 			});
 		} else {
 			fastShowAtEnd(action.history);
