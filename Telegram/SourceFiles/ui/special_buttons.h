@@ -82,6 +82,7 @@ public:
 
 	enum class Type {
 		Send,
+		Schedule,
 		Save,
 		Record,
 		Cancel,
@@ -129,6 +130,7 @@ private:
 	void paintSave(Painter &p, bool over);
 	void paintCancel(Painter &p, bool over);
 	void paintSend(Painter &p, bool over);
+	void paintSchedule(Painter &p, bool over);
 	void paintSlowmode(Painter &p);
 
 	Type _type = Type::Send;

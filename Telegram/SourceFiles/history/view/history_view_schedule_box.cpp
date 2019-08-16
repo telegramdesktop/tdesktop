@@ -507,9 +507,7 @@ void TimeInput::startBorderAnimation() {
 } // namespace
 
 TimeId DefaultScheduleTime() {
-	const auto result = base::unixtime::now() + 3600;
-	const auto time = base::unixtime::parse(result).time();
-	return result - (time.minute() % 5) * 60 - time.second();
+	return base::unixtime::now() + 600;
 }
 
 void ScheduleBox(
@@ -597,7 +595,8 @@ void ScheduleBox(
 			timeInput->showError();
 			return;
 		}
-		result.scheduled = QDateTime(date->current(), time).toTime_t();
+		result.scheduled = base::unixtime::serialize(
+			QDateTime(date->current(), time));
 		if (result.scheduled <= base::unixtime::now() + kMinimalSchedule) {
 			timeInput->showError();
 			return;

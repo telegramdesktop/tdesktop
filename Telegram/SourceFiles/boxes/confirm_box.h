@@ -176,8 +176,10 @@ private:
 		TextWithEntities description;
 	};
 	void deleteAndClear();
-	PeerData *checkFromSinglePeer() const;
-	std::optional<RevokeConfig> revokeText(not_null<PeerData*> peer) const;
+	[[nodiscard]] PeerData *checkFromSinglePeer() const;
+	[[nodiscard]] bool hasScheduledMessages() const;
+	[[nodiscard]] std::optional<RevokeConfig> revokeText(
+		not_null<PeerData*> peer) const;
 
 	const not_null<Main::Session*> _session;
 

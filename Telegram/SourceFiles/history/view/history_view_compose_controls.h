@@ -64,6 +64,7 @@ public:
 
 	void focus();
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
+	[[nodiscard]] rpl::producer<> sendRequests() const;
 
 	void pushTabbedSelectorToThirdSection(const Window::SectionShow &params);
 	bool returnTabbedSelector();
@@ -72,10 +73,16 @@ public:
 	void showStarted();
 	void showFinished();
 
+	[[nodiscard]] TextWithTags getTextWithAppliedMarkdown() const;
+	void clear();
+	void hidePanelsAnimated();
+
 private:
 	void init();
 	void initField();
 	void initTabbedSelector();
+	void initSendButton();
+	void updateSendButtonType();
 	void updateHeight();
 	void updateControlsGeometry(QSize size);
 	void updateOuterGeometry(QRect rect);
@@ -85,6 +92,7 @@ private:
 	void toggleTabbedSelectorMode();
 	void createTabbedPanel();
 	void setTabbedPanel(std::unique_ptr<ChatHelpers::TabbedPanel> panel);
+	void setText(const TextWithTags &text);
 
 	const not_null<QWidget*> _parent;
 	const not_null<Window::SessionController*> _window;

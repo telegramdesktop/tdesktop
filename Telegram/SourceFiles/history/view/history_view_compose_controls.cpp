@@ -79,6 +79,10 @@ rpl::producer<> ComposeControls::cancelRequests() const {
 	return _cancelRequests.events();
 }
 
+rpl::producer<> ComposeControls::sendRequests() const {
+	return _send->clicks() | rpl::map([] { return rpl::empty_value(); });
+}
+
 void ComposeControls::showStarted() {
 	if (_inlineResults) {
 		_inlineResults->hideFast();
@@ -103,9 +107,41 @@ void ComposeControls::showForGrab() {
 	showFinished();
 }
 
+TextWithTags ComposeControls::getTextWithAppliedMarkdown() const {
+	return _field->getTextWithAppliedMarkdown();
+}
+
+void ComposeControls::clear() {
+	setText(TextWithTags());
+}
+
+void ComposeControls::setText(const TextWithTags &textWithTags) {
+	//_textUpdateEvents = events;
+	_field->setTextWithTags(textWithTags, Ui::InputField::HistoryAction::Clear/*fieldHistoryAction*/);
+	auto cursor = _field->textCursor();
+	cursor.movePosition(QTextCursor::End);
+	_field->setTextCursor(cursor);
+	//_textUpdateEvents = TextUpdateEvent::SaveDraft
+	//	| TextUpdateEvent::SendTyping;
+
+	//previewCancel();
+	//_previewCancelled = false;
+}
+
+void ComposeControls::hidePanelsAnimated() {
+	//_fieldAutocomplete->hideAnimated();
+	if (_tabbedPanel) {
+		_tabbedPanel->hideAnimated();
+	}
+	if (_inlineResults) {
+		_inlineResults->hideAnimated();
+	}
+}
+
 void ComposeControls::init() {
 	initField();
 	initTabbedSelector();
+	initSendButton();
 
 	_wrap->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
@@ -180,6 +216,44 @@ void ComposeControls::initTabbedSelector() {
 			ChatHelpers::TabbedSelector::InlineChosen data) {
 		//sendInlineResult(data.result, data.bot);
 	}, wrap->lifetime());
+}
+
+void ComposeControls::initSendButton() {
+	updateSendButtonType();
+	_send->finishAnimating();
+}
+
+void ComposeControls::updateSendButtonType() {
+	using Type = Ui::SendButton::Type;
+	const auto type = [&] {
+		//if (_editMsgId) {
+		//	return Type::Save;
+		//} else if (_isInlineBot) {
+		//	return Type::Cancel;
+		//} else if (showRecordButton()) {
+		//	return Type::Record;
+		//}
+		return Type::Schedule;
+	}();
+	_send->setType(type);
+
+	const auto delay = [&] {
+		return /*(type != Type::Cancel && type != Type::Save && _peer)
+			? _peer->slowmodeSecondsLeft()
+			: */0;
+	}();
+	_send->setSlowmodeDelay(delay);
+	//_send->setDisabled(_peer
+	//	&& _peer->slowmodeApplied()
+	//	&& (_history->latestSendingMessage() != nullptr)
+	//	&& (type == Type::Send || type == Type::Record));
+
+	//if (delay != 0) {
+	//	App::CallDelayed(
+	//		kRefreshSlowmodeLabelTimeout,
+	//		this,
+	//		[=] { updateSendButtonType(); });
+	//}
 }
 
 void ComposeControls::updateControlsGeometry(QSize size) {

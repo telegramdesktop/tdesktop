@@ -220,6 +220,8 @@ historySendIcon: icon {{ "send_control_send", historySendIconFg }};
 historySendIconOver: icon {{ "send_control_send", historySendIconFgOver }};
 historySendIconPosition: point(11px, 11px);
 historySendSize: size(46px, 46px);
+historyScheduleIcon: icon {{ "send_control_schedule", historyComposeAreaBg }};
+historyScheduleIconPosition: point(8px, 8px);
 historyEditSaveIcon: icon {{ "send_control_save", historySendIconFg, point(3px, 7px) }};
 historyEditSaveIconOver: icon {{ "send_control_save", historySendIconFgOver, point(3px, 7px) }};
 

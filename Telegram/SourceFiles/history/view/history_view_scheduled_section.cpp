@@ -10,11 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_compose_controls.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_list_widget.h"
+#include "history/view/history_view_schedule_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/special_buttons.h"
+#include "api/api_common.h"
+#include "apiwrap.h"
 #include "boxes/confirm_box.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
@@ -103,6 +106,58 @@ void ScheduledWidget::setupComposeControls() {
 	) | rpl::start_with_next([=] {
 		controller()->showBackFromStack();
 	}, lifetime());
+
+	_composeControls->sendRequests(
+	) | rpl::start_with_next([=] {
+		send();
+	}, lifetime());
+}
+
+void ScheduledWidget::send() {
+	if (_composeControls->getTextWithAppliedMarkdown().text.isEmpty()) {
+		return;
+	}
+	const auto callback = crl::guard(this, [=](Api::SendOptions options) {
+		send(options);
+	});
+	Ui::show(
+		Box(ScheduleBox, callback, DefaultScheduleTime()),
+		LayerOption::KeepOther);
+}
+
+void ScheduledWidget::send(Api::SendOptions options) {
+	const auto webPageId = 0;/* _previewCancelled
+		? CancelledWebPageId
+		: ((_previewData && _previewData->pendingTill >= 0)
+			? _previewData->id
+			: WebPageId(0));*/
+
+	auto message = ApiWrap::MessageToSend(_history);
+	message.textWithTags = _composeControls->getTextWithAppliedMarkdown();
+	message.action.options = options;
+	//message.action.replyTo = replyToId();
+	message.webPageId = webPageId;
+
+	//const auto error = GetErrorTextForForward(
+	//	_peer,
+	//	_toForward,
+	//	message.textWithTags);
+	//if (!error.isEmpty()) {
+	//	ShowErrorToast(error);
+	//	return;
+	//}
+
+	session().api().sendMessage(std::move(message));
+
+	_composeControls->clear();
+	//_saveDraftText = true;
+	//_saveDraftStart = crl::now();
+	//onDraftSave();
+
+	_composeControls->hidePanelsAnimated();
+
+	//if (_previewData && _previewData->pendingTill) previewCancel();
+	_composeControls->focus();
 }
 
 void ScheduledWidget::setupScrollDownButton() {
@@ -402,7 +457,40 @@ rpl::producer<Data::MessagesSlice> ScheduledWidget::listSource(
 		data->scheduledMessages().updates(_history)
 	) | rpl::map([=] {
 		return data->scheduledMessages().list(_history);
+	}) | rpl::after_next([=](const Data::MessagesSlice &slice) {
+		highlightSingleNewMessage(slice);
 	});
+}
+
+void ScheduledWidget::highlightSingleNewMessage(
+		const Data::MessagesSlice &slice) {
+	const auto guard = gsl::finally([&] { _lastSlice = slice; });
+	if (_lastSlice.ids.empty()
+		|| (slice.ids.size() != _lastSlice.ids.size() + 1)) {
+		return;
+	}
+	auto firstDifferent = 0;
+	for (; firstDifferent != _lastSlice.ids.size(); ++firstDifferent) {
+		if (slice.ids[firstDifferent] != _lastSlice.ids[firstDifferent]) {
+			break;
+		}
+		++firstDifferent;
+	}
+	auto lastDifferent = slice.ids.size() - 1;
+	for (; lastDifferent != firstDifferent;) {
+		if (slice.ids[lastDifferent] != _lastSlice.ids[lastDifferent - 1]) {
+			break;
+		}
+		--lastDifferent;
+	}
+	if (firstDifferent != lastDifferent) {
+		return;
+	}
+	const auto newId = slice.ids[firstDifferent];
+	if (const auto item = session().data().message(newId)) {
+	//	_highlightMessageId = newId;
+		showAtPosition(item->position());
+	}
 }
 
 bool ScheduledWidget::listAllowsMultiSelect() {

@@ -543,10 +543,11 @@ void DeleteMessagesBox::prepare() {
 			: tr::lng_selected_delete_sure(tr::now, lt_count, _ids.size());
 		if (const auto peer = checkFromSinglePeer()) {
 			auto count = int(_ids.size());
-			if (auto revoke = revokeText(peer)) {
+			if (hasScheduledMessages()) {
+			} else if (auto revoke = revokeText(peer)) {
 				_revoke.create(this, revoke->checkbox, false, st::defaultBoxCheckbox);
 				appendDetails(std::move(revoke->description));
-			} else if (peer && peer->isChannel()) {
+			} else if (peer->isChannel()) {
 				if (peer->isMegagroup()) {
 					appendDetails({ tr::lng_delete_for_everyone_hint(tr::now, lt_count, count) });
 				}
@@ -579,6 +580,17 @@ void DeleteMessagesBox::prepare() {
 		fullHeight += st::boxMediumSkip + _revoke->heightNoMargins();
 	}
 	setDimensions(st::boxWidth, fullHeight);
+}
+
+bool DeleteMessagesBox::hasScheduledMessages() const {
+	for (const auto fullId : std::as_const(_ids)) {
+		if (const auto item = _session->data().message(fullId)) {
+			if (item->isScheduled()) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 PeerData *DeleteMessagesBox::checkFromSinglePeer() const {

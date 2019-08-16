@@ -369,6 +369,7 @@ void SendButton::paintEvent(QPaintEvent *e) {
 	case Type::Save: paintSave(p, over); break;
 	case Type::Cancel: paintCancel(p, over); break;
 	case Type::Send: paintSend(p, over); break;
+	case Type::Schedule: paintSchedule(p, over); break;
 	case Type::Slowmode: paintSlowmode(p); break;
 	}
 }
@@ -424,6 +425,23 @@ void SendButton::paintSend(Painter &p, bool over) {
 	} else {
 		sendIcon.paint(p, st::historySendIconPosition, width());
 	}
+}
+
+void SendButton::paintSchedule(Painter &p, bool over) {
+	{
+		PainterHighQualityEnabler hq(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(over ? st::historySendIconFgOver : st::historySendIconFg);
+		p.drawEllipse(
+			st::historyScheduleIconPosition.x(),
+			st::historyScheduleIconPosition.y(),
+			st::historyScheduleIcon.width(),
+			st::historyScheduleIcon.height());
+	}
+	st::historyScheduleIcon.paint(
+		p,
+		st::historyScheduleIconPosition,
+		width());
 }
 
 void SendButton::paintSlowmode(Painter &p) {

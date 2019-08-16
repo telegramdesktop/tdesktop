@@ -10,8 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "window/section_memento.h"
 #include "history/view/history_view_list_widget.h"
+#include "data/data_messages.h"
 
 class History;
+
+namespace Api {
+struct SendOptions;
+} // namespace Api
 
 namespace Notify {
 struct PeerUpdate;
@@ -125,6 +130,10 @@ private:
 	void confirmDeleteSelected();
 	void clearSelected();
 
+	void send();
+	void send(Api::SendOptions options);
+	void highlightSingleNewMessage(const Data::MessagesSlice &slice);
+
 	const not_null<History*> _history;
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<ListWidget> _inner;
@@ -140,6 +149,8 @@ private:
 	Ui::Animations::Simple _scrollDownShown;
 	bool _scrollDownIsShown = false;
 	object_ptr<Ui::HistoryDownButton> _scrollDown;
+
+	Data::MessagesSlice _lastSlice;
 
 };
 
