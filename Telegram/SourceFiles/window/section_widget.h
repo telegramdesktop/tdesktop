@@ -39,23 +39,31 @@ public:
 	, _controller(controller) {
 	}
 
-	Main::Session &session() const;
+	[[nodiscard]] Main::Session &session() const;
+
+	// Tabbed selector management.
+	virtual void pushTabbedSelectorToThirdSection(
+		const Window::SectionShow &params) {
+	}
+	virtual bool returnTabbedSelector() {
+		return false;
+	}
 
 	// Float player interface.
 	virtual bool wheelEventFromFloatPlayer(QEvent *e) {
 		return false;
 	}
-	virtual QRect rectForFloatPlayer() const {
+	[[nodiscard]] virtual QRect rectForFloatPlayer() const {
 		return mapToGlobal(rect());
 	}
 
 protected:
-	not_null<Window::SessionController*> controller() const {
+	[[nodiscard]] not_null<Window::SessionController*> controller() const {
 		return _controller;
 	}
 
 private:
-	not_null<Window::SessionController*> _controller;
+	const not_null<Window::SessionController*> _controller;
 
 };
 

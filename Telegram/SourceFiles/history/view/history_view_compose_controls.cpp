@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/special_buttons.h"
 #include "lang/lang_keys.h"
+#include "core/event_filter.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_section.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -36,17 +37,18 @@ ComposeControls::ComposeControls(
 , _tabbedSelectorToggle(Ui::CreateChild<Ui::EmojiButton>(
 	_wrap.get(),
 	st::historyAttachEmoji))
-, _field(Ui::CreateChild<Ui::InputField>(
-	_wrap.get(),
-	st::historyComposeField,
-	Ui::InputField::Mode::MultiLine,
-	tr::lng_message_ph()))
-, _tabbedPanel(std::make_unique<ChatHelpers::TabbedPanel>(parent, window))
-, _tabbedSelector(_tabbedPanel->getSelector()) {
+, _field(
+	Ui::CreateChild<Ui::InputField>(
+		_wrap.get(),
+		st::historyComposeField,
+		Ui::InputField::Mode::MultiLine,
+		tr::lng_message_ph())) {
 	init();
 }
 
-ComposeControls::~ComposeControls() = default;
+ComposeControls::~ComposeControls() {
+	setTabbedPanel(nullptr);
+}
 
 Main::Session &ComposeControls::session() const {
 	return _window->session();
@@ -138,10 +140,46 @@ void ComposeControls::initField() {
 }
 
 void ComposeControls::initTabbedSelector() {
-	_tabbedSelectorToggle->installEventFilter(_tabbedPanel.get());
+	if (_window->hasTabbedSelectorOwnership()) {
+		createTabbedPanel();
+	} else {
+		setTabbedPanel(nullptr);
+	}
+
 	_tabbedSelectorToggle->addClickHandler([=] {
 		toggleTabbedSelectorMode();
 	});
+
+	const auto selector = _window->tabbedSelector();
+	const auto wrap = _wrap.get();
+
+	Core::InstallEventFilter(wrap, selector, [=](not_null<QEvent*> e) {
+		if (_tabbedPanel && e->type() == QEvent::ParentChange) {
+			setTabbedPanel(nullptr);
+		}
+		return false;
+	});
+
+	selector->emojiChosen(
+	) | rpl::start_with_next([=](EmojiPtr emoji) {
+		Ui::InsertEmojiAtCursor(_field->textCursor(), emoji);
+	}, wrap->lifetime());
+
+	selector->fileChosen(
+	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		//sendExistingDocument(document);
+	}, wrap->lifetime());
+
+	selector->photoChosen(
+	) | rpl::start_with_next([=](not_null<PhotoData*> photo) {
+		//sendExistingPhoto(photo);
+	}, wrap->lifetime());
+
+	selector->inlineResultChosen(
+	) | rpl::start_with_next([=](
+			ChatHelpers::TabbedSelector::InlineChosen data) {
+		//sendInlineResult(data.result, data.bot);
+	}, wrap->lifetime());
 }
 
 void ComposeControls::updateControlsGeometry(QSize size) {
@@ -205,15 +243,37 @@ void ComposeControls::pushTabbedSelectorToThirdSection(
 		&st::historyAttachEmojiActive,
 		&st::historyRecordVoiceFgActive,
 		&st::historyRecordVoiceRippleBgActive);
-	auto destroyingPanel = std::move(_tabbedPanel);
-	auto memento = ChatHelpers::TabbedMemento(
-		destroyingPanel->takeSelector(),
-		crl::guard(_wrap.get(), [=](
-				object_ptr<ChatHelpers::TabbedSelector> selector) {
-			returnTabbedSelector(std::move(selector));
-		}));
 	_window->resizeForThirdSection();
-	_window->showSection(std::move(memento), params.withThirdColumn());
+	_window->showSection(
+		ChatHelpers::TabbedMemento(),
+		params.withThirdColumn());
+}
+
+bool ComposeControls::returnTabbedSelector() {
+	createTabbedPanel();
+	updateOuterGeometry(_wrap->geometry());
+	return true;
+}
+
+void ComposeControls::createTabbedPanel() {
+	setTabbedPanel(std::make_unique<ChatHelpers::TabbedPanel>(
+		_parent,
+		_window,
+		_window->tabbedSelector()));
+}
+
+void ComposeControls::setTabbedPanel(
+		std::unique_ptr<ChatHelpers::TabbedPanel> panel) {
+	_tabbedPanel = std::move(panel);
+	if (const auto raw = _tabbedPanel.get()) {
+		_tabbedSelectorToggle->installEventFilter(raw);
+		_tabbedSelectorToggle->setColorOverrides(nullptr, nullptr, nullptr);
+	} else {
+		_tabbedSelectorToggle->setColorOverrides(
+			&st::historyAttachEmojiActive,
+			&st::historyRecordVoiceFgActive,
+			&st::historyRecordVoiceRippleBgActive);
+	}
 }
 
 void ComposeControls::toggleTabbedSelectorMode() {
@@ -229,18 +289,6 @@ void ComposeControls::toggleTabbedSelectorMode() {
 	} else {
 		_window->closeThirdSection();
 	}
-}
-
-void ComposeControls::returnTabbedSelector(
-		object_ptr<ChatHelpers::TabbedSelector> selector) {
-	_tabbedPanel = std::make_unique<ChatHelpers::TabbedPanel>(
-		_parent,
-		_window,
-		std::move(selector));
-	_tabbedPanel->hide();
-	_tabbedSelectorToggle->installEventFilter(_tabbedPanel.get());
-	_tabbedSelectorToggle->setColorOverrides(nullptr, nullptr, nullptr);
-	updateOuterGeometry(_wrap->geometry());
 }
 
 void ComposeControls::updateHeight() {

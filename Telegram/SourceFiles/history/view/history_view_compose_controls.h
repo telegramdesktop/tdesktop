@@ -65,6 +65,9 @@ public:
 	void focus();
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
 
+	void pushTabbedSelectorToThirdSection(const Window::SectionShow &params);
+	bool returnTabbedSelector();
+
 	void showForGrab();
 	void showStarted();
 	void showFinished();
@@ -80,9 +83,8 @@ private:
 
 	void escape();
 	void toggleTabbedSelectorMode();
-	void pushTabbedSelectorToThirdSection(const Window::SectionShow &params);
-	void returnTabbedSelector(
-		object_ptr<ChatHelpers::TabbedSelector> selector);
+	void createTabbedPanel();
+	void setTabbedPanel(std::unique_ptr<ChatHelpers::TabbedPanel> panel);
 
 	const not_null<QWidget*> _parent;
 	const not_null<Window::SessionController*> _window;
@@ -96,7 +98,6 @@ private:
 	const not_null<Ui::InputField*> _field;
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
-	const not_null<ChatHelpers::TabbedSelector*> _tabbedSelector;
 
 	rpl::event_stream<> _cancelRequests;
 

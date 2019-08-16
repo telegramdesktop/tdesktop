@@ -64,6 +64,11 @@ public:
 		const QRect &geometry,
 		not_null<ScheduledMemento*> memento);
 
+	// Tabbed selector management.
+	void pushTabbedSelectorToThirdSection(
+		const Window::SectionShow &params) override;
+	bool returnTabbedSelector() override;
+
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e) override;
 	QRect rectForFloatPlayer() const override;

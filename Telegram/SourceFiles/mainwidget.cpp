@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_memento.h"
 #include "window/section_widget.h"
 #include "window/window_connecting_widget.h"
+#include "chat_helpers/tabbed_selector.h" // TabbedSelector::refreshStickers
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "info/info_memento.h"
@@ -1667,11 +1668,7 @@ void MainWidget::ui_showPeerHistory(
 
 	auto noPeer = !_history->peer();
 	auto onlyDialogs = noPeer && Adaptive::OneColumn();
-	if (_mainSection) {
-		_mainSection->hide();
-		_mainSection->deleteLater();
-		_mainSection = nullptr;
-	}
+	_mainSection.destroy();
 
 	updateControlsGeometry();
 
@@ -1969,11 +1966,6 @@ void MainWidget::showNewSection(
 		}
 		updateControlsGeometry();
 	} else {
-		if (_mainSection) {
-			_mainSection->hide();
-			_mainSection->deleteLater();
-			_mainSection = nullptr;
-		}
 		_mainSection = std::move(newMainSection);
 		updateControlsGeometry();
 		_history->finishAnimating();
@@ -2686,6 +2678,12 @@ void MainWidget::updateMediaPlaylistPosition(int x) {
 
 int MainWidget::contentScrollAddToY() const {
 	return _contentScrollAddToY;
+}
+
+void MainWidget::returnTabbedSelector() {
+	if (!_mainSection || !_mainSection->returnTabbedSelector()) {
+		_history->returnTabbedSelector();
+	}
 }
 
 void MainWidget::keyPressEvent(QKeyEvent *e) {
@@ -3471,7 +3469,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	if (writeRecentStickers) {
 		Local::writeRecentStickers();
 	}
-	_history->updateRecentStickers();
+	_controller->tabbedSelector()->refreshStickers();
 }
 
 void MainWidget::activate() {

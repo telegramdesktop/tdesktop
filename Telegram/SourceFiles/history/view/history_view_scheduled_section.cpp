@@ -257,6 +257,15 @@ void ScheduledWidget::setInternalState(
 	restoreState(memento);
 }
 
+void ScheduledWidget::pushTabbedSelectorToThirdSection(
+		const Window::SectionShow &params) {
+	_composeControls->pushTabbedSelectorToThirdSection(params);
+}
+
+bool ScheduledWidget::returnTabbedSelector() {
+	return _composeControls->returnTabbedSelector();
+}
+
 std::unique_ptr<Window::SectionMemento> ScheduledWidget::createMemento() {
 	auto result = std::make_unique<ScheduledMemento>(history());
 	saveState(result.get());

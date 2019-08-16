@@ -91,7 +91,9 @@ class MessageField;
 class HistoryInner;
 struct HistoryMessageMarkupButton;
 
-class HistoryWidget final : public Window::AbstractSectionWidget, public RPCSender {
+class HistoryWidget final
+	: public Window::AbstractSectionWidget
+	, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -128,10 +130,6 @@ public:
 	void historyToDown(History *history);
 
 	QRect historyRect() const;
-	void pushTabbedSelectorToThirdSection(
-		const Window::SectionShow &params);
-
-	void updateRecentStickers();
 
 	void updateFieldPlaceholder();
 	void updateStickersByEmoji();
@@ -243,6 +241,11 @@ public:
 
 	bool sendExistingDocument(not_null<DocumentData*> document);
 	bool sendExistingPhoto(not_null<PhotoData*> photo);
+
+	// Tabbed selector management.
+	void pushTabbedSelectorToThirdSection(
+		const Window::SectionShow &params) override;
+	bool returnTabbedSelector() override;
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e) override;
@@ -357,6 +360,9 @@ private:
 	friend inline constexpr bool is_flag_type(TextUpdateEvent) { return true; };
 
 	void initTabbedSelector();
+	void refreshTabbedPanel();
+	void createTabbedPanel();
+	void setTabbedPanel(std::unique_ptr<TabbedPanel> panel);
 	void updateField();
 
 	void send(Api::SendOptions options);
@@ -366,7 +372,6 @@ private:
 	void handlePendingHistoryUpdate();
 	void fullPeerUpdated(PeerData *peer);
 	void toggleTabbedSelectorMode();
-	void returnTabbedSelector(object_ptr<TabbedSelector> selector);
 	void recountChatWidth();
 	void historyDownClicked();
 	void showNextUnreadMention();
@@ -486,8 +491,6 @@ private:
 	// like send button, emoji button and others.
 	void moveFieldControls();
 	void updateFieldSize();
-	void updateTabbedSelectorToggleTooltipGeometry();
-	void checkTabbedSelectorToggleTooltip();
 
 	bool canWriteMessage() const;
 	std::optional<QString> writeRestriction() const;
@@ -728,8 +731,6 @@ private:
 	object_ptr<Ui::RpWidget> _aboutProxyPromotion = { nullptr };
 	object_ptr<Ui::IconButton> _attachToggle;
 	object_ptr<Ui::EmojiButton> _tabbedSelectorToggle;
-	object_ptr<Ui::ImportantTooltip> _tabbedSelectorToggleTooltip = { nullptr };
-	bool _tabbedSelectorToggleTooltipShown = false;
 	object_ptr<Ui::IconButton> _botKeyboardShow;
 	object_ptr<Ui::IconButton> _botKeyboardHide;
 	object_ptr<Ui::IconButton> _botCommandStart;
@@ -763,8 +764,7 @@ private:
 	QTimer _membersDropdownShowTimer;
 
 	object_ptr<InlineBots::Layout::Widget> _inlineResults = { nullptr };
-	object_ptr<TabbedPanel> _tabbedPanel;
-	QPointer<TabbedSelector> _tabbedSelector;
+	std::unique_ptr<TabbedPanel> _tabbedPanel;
 	DragState _attachDragState;
 	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;
 

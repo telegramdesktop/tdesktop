@@ -70,7 +70,6 @@ public:
 
 	void setRoundRadius(int radius);
 	void refreshStickers();
-	void showMegagroupSet(ChannelData *megagroup);
 	void setCurrentPeer(PeerData *peer);
 
 	void hideFinished();

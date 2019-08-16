@@ -13,6 +13,7 @@ class EventFilter : public QObject {
 public:
 	EventFilter(
 		not_null<QObject*> parent,
+		not_null<QObject*> object,
 		Fn<bool(not_null<QEvent*>)> filter);
 
 protected:
@@ -24,6 +25,11 @@ private:
 };
 
 not_null<QObject*> InstallEventFilter(
+	not_null<QObject*> object,
+	Fn<bool(not_null<QEvent*>)> filter);
+
+not_null<QObject*> InstallEventFilter(
+	not_null<QObject*> context,
 	not_null<QObject*> object,
 	Fn<bool(not_null<QEvent*>)> filter);
 

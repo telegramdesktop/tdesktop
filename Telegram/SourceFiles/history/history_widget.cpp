@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 #include "boxes/edit_caption_box.h"
 #include "core/file_utilities.h"
+#include "core/event_filter.h"
 #include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
 #include "ui/emoji_config.h"
@@ -128,12 +129,6 @@ void ActivateWindow(not_null<Window::SessionController*> controller) {
 	const auto window = controller->window();
 	window->activateWindow();
 	Core::App().activateWindowDelayed(window);
-}
-
-void InsertEmojiToField(not_null<Ui::InputField*> field, EmojiPtr emoji) {
-	if (!field->isHidden()) {
-		Ui::InsertEmojiAtCursor(field->textCursor(), emoji);
-	}
 }
 
 bool ShowHistoryEndInsteadOfUnread(
@@ -292,8 +287,6 @@ HistoryWidget::HistoryWidget(
 	return recordingAnimationCallback(now);
 })
 , _kbScroll(this, st::botKbScroll)
-, _tabbedPanel(this, controller)
-, _tabbedSelector(_tabbedPanel->getSelector())
 , _attachDragState(DragState::None)
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
@@ -433,11 +426,6 @@ HistoryWidget::HistoryWidget(
 	_botKeyboardShow->hide();
 	_botKeyboardHide->hide();
 	_botCommandStart->hide();
-
-	_tabbedSelectorToggle->installEventFilter(_tabbedPanel);
-	_tabbedSelectorToggle->addClickHandler([=] {
-		toggleTabbedSelectorMode();
-	});
 
 	_botKeyboardShow->addClickHandler([=] { toggleKeyboard(); });
 	_botKeyboardHide->addClickHandler([=] { toggleKeyboard(); });
@@ -658,24 +646,55 @@ HistoryWidget::HistoryWidget(
 	setupShortcuts();
 }
 
+void HistoryWidget::refreshTabbedPanel() {
+	if (_peer && controller()->hasTabbedSelectorOwnership()) {
+		createTabbedPanel();
+	} else {
+		setTabbedPanel(nullptr);
+	}
+}
+
 void HistoryWidget::initTabbedSelector() {
-	_tabbedSelector->emojiChosen(
-	) | rpl::start_with_next([=](EmojiPtr emoji) {
-		InsertEmojiToField(_field, emoji);
+	refreshTabbedPanel();
+
+	_tabbedSelectorToggle->addClickHandler([=] {
+		toggleTabbedSelectorMode();
+	});
+
+	const auto selector = controller()->tabbedSelector();
+
+	Core::InstallEventFilter(this, selector, [=](not_null<QEvent*> e) {
+		if (_tabbedPanel && e->type() == QEvent::ParentChange) {
+			setTabbedPanel(nullptr);
+		}
+		return false;
+	});
+
+	selector->emojiChosen(
+	) | rpl::filter([=] {
+		return !isHidden() && !_field->isHidden();
+	}) | rpl::start_with_next([=](EmojiPtr emoji) {
+		Ui::InsertEmojiAtCursor(_field->textCursor(), emoji);
 	}, lifetime());
 
-	_tabbedSelector->fileChosen(
-	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+	selector->fileChosen(
+	) | rpl::filter([=] {
+		return !isHidden();
+	}) | rpl::start_with_next([=](not_null<DocumentData*> document) {
 		sendExistingDocument(document);
 	}, lifetime());
 
-	_tabbedSelector->photoChosen(
-	) | rpl::start_with_next([=](not_null<PhotoData*> photo) {
+	selector->photoChosen(
+	) | rpl::filter([=] {
+		return !isHidden();
+	}) | rpl::start_with_next([=](not_null<PhotoData*> photo) {
 		sendExistingPhoto(photo);
 	}, lifetime());
 
-	_tabbedSelector->inlineResultChosen(
-	) | rpl::start_with_next([=](TabbedSelector::InlineChosen data) {
+	selector->inlineResultChosen(
+	) | rpl::filter([=] {
+		return !isHidden();
+	}) | rpl::start_with_next([=](TabbedSelector::InlineChosen data) {
 		sendInlineResult(data.result, data.bot);
 	}, lifetime());
 }
@@ -952,11 +971,9 @@ int HistoryWidget::itemTopForHighlight(
 
 void HistoryWidget::start() {
 	session().data().stickersUpdated(
-	) | rpl::start_with_next([this] {
-		_tabbedSelector->refreshStickers();
+	) | rpl::start_with_next([=] {
 		updateStickersByEmoji();
 	}, lifetime());
-	updateRecentStickers();
 	session().data().notifySavedGifsUpdated();
 	subscribe(session().api().fullPeerUpdated(), [this](PeerData *peer) {
 		fullPeerUpdated(peer);
@@ -1072,9 +1089,6 @@ void HistoryWidget::orderWidgets() {
 		_tabbedPanel->raise();
 	}
 	_raiseEmojiSuggestions();
-	if (_tabbedSelectorToggleTooltip) {
-		_tabbedSelectorToggleTooltip->raise();
-	}
 	_attachDragDocument->raise();
 	_attachDragPhoto->raise();
 }
@@ -1295,10 +1309,6 @@ void HistoryWidget::updateSendAction(
 			}
 		}
 	}
-}
-
-void HistoryWidget::updateRecentStickers() {
-	_tabbedSelector->refreshStickers();
 }
 
 void HistoryWidget::sendActionDone(const MTPBool &result, mtpRequestId req) {
@@ -1729,7 +1739,6 @@ void HistoryWidget::showHistory(
 		_peer = session().data().peer(peerId);
 		_channel = peerToChannel(_peer->id);
 		_canSendMessages = _peer->canWrite();
-		_tabbedSelector->setCurrentPeer(_peer);
 		_contactStatus = std::make_unique<HistoryView::ContactStatus>(
 			&controller()->window()->controller(),
 			this,
@@ -1741,6 +1750,8 @@ void HistoryWidget::showHistory(
 	} else {
 		_contactStatus = nullptr;
 	}
+	refreshTabbedPanel();
+	controller()->tabbedSelector()->setCurrentPeer(_peer);
 
 	if (_peer) {
 		_unblock->setText(((_peer->isUser()
@@ -1818,8 +1829,6 @@ void HistoryWidget::showHistory(
 		applyDraft();
 		_send->finishAnimating();
 
-		_tabbedSelector->showMegagroupSet(_peer->asMegagroup());
-
 		updateControlsGeometry();
 
 		connect(_scroll, SIGNAL(geometryChanged()), _list, SLOT(onParentGeometryChanged()));
@@ -1854,7 +1863,6 @@ void HistoryWidget::showHistory(
 		updateTopBarSelection();
 
 		clearFieldText();
-		_tabbedSelector->showMegagroupSet(nullptr);
 		doneShow();
 	}
 	updateForwarding();
@@ -3860,20 +3868,36 @@ void HistoryWidget::pushTabbedSelectorToThirdSection(
 		return;
 	}
 	session().settings().setTabbedReplacedWithInfo(false);
-	_tabbedSelectorToggle->setColorOverrides(
-		&st::historyAttachEmojiActive,
-		&st::historyRecordVoiceFgActive,
-		&st::historyRecordVoiceRippleBgActive);
-	auto destroyingPanel = std::move(_tabbedPanel);
-	auto memento = ChatHelpers::TabbedMemento(
-		destroyingPanel->takeSelector(),
-		crl::guard(this, [this](
-				object_ptr<TabbedSelector> selector) {
-			returnTabbedSelector(std::move(selector));
-		}));
 	controller()->resizeForThirdSection();
-	controller()->showSection(std::move(memento), params.withThirdColumn());
-	destroyingPanel.destroy();
+	controller()->showSection(
+		ChatHelpers::TabbedMemento(),
+		params.withThirdColumn());
+}
+
+bool HistoryWidget::returnTabbedSelector() {
+	createTabbedPanel();
+	moveFieldControls();
+	return true;
+}
+
+void HistoryWidget::createTabbedPanel() {
+	setTabbedPanel(std::make_unique<TabbedPanel>(
+		this,
+		controller(),
+		controller()->tabbedSelector()));
+}
+
+void HistoryWidget::setTabbedPanel(std::unique_ptr<TabbedPanel> panel) {
+	_tabbedPanel = std::move(panel);
+	if (const auto raw = _tabbedPanel.get()) {
+		_tabbedSelectorToggle->installEventFilter(raw);
+		_tabbedSelectorToggle->setColorOverrides(nullptr, nullptr, nullptr);
+	} else {
+		_tabbedSelectorToggle->setColorOverrides(
+			&st::historyAttachEmojiActive,
+			&st::historyRecordVoiceFgActive,
+			&st::historyRecordVoiceRippleBgActive);
+	}
 }
 
 void HistoryWidget::toggleTabbedSelectorMode() {
@@ -3889,18 +3913,6 @@ void HistoryWidget::toggleTabbedSelectorMode() {
 	} else {
 		controller()->closeThirdSection();
 	}
-}
-
-void HistoryWidget::returnTabbedSelector(
-		object_ptr<TabbedSelector> selector) {
-	_tabbedPanel.create(
-		this,
-		controller(),
-		std::move(selector));
-	_tabbedSelectorToggle->installEventFilter(_tabbedPanel);
-	_tabbedSelectorToggle->setColorOverrides(nullptr, nullptr, nullptr);
-	_tabbedSelectorToggleTooltipShown = false;
-	moveFieldControls();
 }
 
 void HistoryWidget::recountChatWidth() {
@@ -3935,7 +3947,6 @@ void HistoryWidget::moveFieldControls() {
 	auto right = st::historySendRight;
 	_send->moveToRight(right, buttonsBottom); right += _send->width();
 	_tabbedSelectorToggle->moveToRight(right, buttonsBottom);
-	updateTabbedSelectorToggleTooltipGeometry();
 	_botKeyboardHide->moveToRight(right, buttonsBottom); right += _botKeyboardHide->width();
 	_botKeyboardShow->moveToRight(right, buttonsBottom);
 	_botCommandStart->moveToRight(right, buttonsBottom);
@@ -3986,15 +3997,6 @@ void HistoryWidget::moveFieldControls() {
 		_aboutProxyPromotion->moveToLeft(
 			0,
 			fullWidthButtonRect.y() - _aboutProxyPromotion->height());
-	}
-}
-
-void HistoryWidget::updateTabbedSelectorToggleTooltipGeometry() {
-	if (_tabbedSelectorToggleTooltip) {
-		auto toggle = _tabbedSelectorToggle->geometry();
-		auto margin = st::historyAttachEmojiTooltipDelta;
-		auto margins = QMargins(margin, margin, margin, margin);
-		_tabbedSelectorToggleTooltip->pointAt(toggle.marginsRemoved(margins));
 	}
 }
 
@@ -6861,4 +6863,6 @@ void HistoryWidget::synteticScrollToY(int y) {
 	_synteticScrollEvent = false;
 }
 
-HistoryWidget::~HistoryWidget() = default;
+HistoryWidget::~HistoryWidget() {
+	setTabbedPanel(nullptr);
+}

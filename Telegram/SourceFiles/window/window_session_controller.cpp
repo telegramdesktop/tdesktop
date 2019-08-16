@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "passport/passport_form_controller.h"
+#include "chat_helpers/tabbed_selector.h"
 #include "core/shortcuts.h"
 #include "base/unixtime.h"
 #include "boxes/calendar_box.h"
@@ -99,9 +100,11 @@ void SessionNavigation::showSettings(const SectionShow &params) {
 
 SessionController::SessionController(
 	not_null<Main::Session*> session,
-	not_null<MainWindow*> window)
+	not_null<::MainWindow*> window)
 : SessionNavigation(session)
-, _window(window) {
+, _window(window)
+, _tabbedSelector(
+		std::make_unique<ChatHelpers::TabbedSelector>(window, this)) {
 	init();
 
 	subscribe(session->api().fullPeerUpdated(), [=](PeerData *peer) {
@@ -120,6 +123,28 @@ SessionController::SessionController(
 		folder->updateChatListSortPosition();
 		closeFolder();
 	}, lifetime());
+}
+
+auto SessionController::tabbedSelector() const
+-> not_null<ChatHelpers::TabbedSelector*> {
+	return _tabbedSelector.get();
+}
+
+void SessionController::takeTabbedSelectorOwnershipFrom(
+		not_null<QWidget*> parent) {
+	if (_tabbedSelector->parent() == parent) {
+		if (const auto chats = _window->chatsWidget()) {
+			chats->returnTabbedSelector();
+		}
+		if (_tabbedSelector->parent() == parent) {
+			_tabbedSelector->hide();
+			_tabbedSelector->setParent(window());
+		}
+	}
+}
+
+bool SessionController::hasTabbedSelectorOwnership() const {
+	return (_tabbedSelector->parent() == window());
 }
 
 void SessionController::showEditPeerBox(PeerData *peer) {

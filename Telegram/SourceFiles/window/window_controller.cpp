@@ -28,7 +28,10 @@ Controller::Controller(not_null<Main::Account*> account)
 	_widget.init();
 }
 
-Controller::~Controller() = default;
+Controller::~Controller() {
+	// We want to delete all widgets before the _sessionController.
+	_widget.clearWidgets();
+}
 
 void Controller::firstShow() {
 	_widget.firstShow();

@@ -656,9 +656,6 @@ void MainWindow::setInactivePress(bool inactive) {
 	}
 }
 
-MainWindow::~MainWindow() {
-	// We want to delete all widgets before the _controller.
-	_body.destroy();
-}
+MainWindow::~MainWindow() = default;
 
 } // namespace Window

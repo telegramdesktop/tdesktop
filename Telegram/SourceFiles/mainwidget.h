@@ -106,12 +106,14 @@ public:
 
 	MainWidget(QWidget *parent, not_null<Window::SessionController*> controller);
 
-	Main::Session &session() const;
+	[[nodiscard]] Main::Session &session() const;
 
-	bool isMainSectionShown() const;
-	bool isThirdSectionShown() const;
+	[[nodiscard]] bool isMainSectionShown() const;
+	[[nodiscard]] bool isThirdSectionShown() const;
 
-	int contentScrollAddToY() const;
+	[[nodiscard]] int contentScrollAddToY() const;
+
+	void returnTabbedSelector();
 
 	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
 
