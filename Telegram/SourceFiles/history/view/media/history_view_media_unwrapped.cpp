@@ -278,13 +278,17 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
 			if (QRect(fastShareLeft, fastShareTop, st::historyFastShareSize, st::historyFastShareSize).contains(point)) {
 				result.link = _parent->rightActionLink();
+				return result;
 			}
 		}
 	}
 
 	auto pixLeft = usex + (usew - _contentSize.width()) / 2;
 	auto pixTop = (minHeight() - _contentSize.height()) / 2;
-	if (QRect({ pixLeft, pixTop }, _contentSize).contains(point)) {
+	// Link of content can be nullptr (e.g. sticker without stickerpack).
+	// So we have to process it to avoid overriding the previous result.
+	if (_content->link()
+		&& QRect({ pixLeft, pixTop }, _contentSize).contains(point)) {
 		result.link = _content->link();
 		return result;
 	}
