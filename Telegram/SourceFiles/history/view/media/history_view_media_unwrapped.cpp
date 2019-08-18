@@ -195,6 +195,38 @@ void UnwrappedMedia::drawSurrounding(
 	}
 }
 
+PointState UnwrappedMedia::pointState(QPoint point) const {
+	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
+		return PointState::Outside;
+	}
+
+	const auto rightAligned = _parent->hasOutLayout() && !Adaptive::ChatWide();
+	const auto inWebPage = (_parent->media() != this);
+	const auto item = _parent->data();
+	const auto via = inWebPage ? nullptr : item->Get<HistoryMessageVia>();
+	const auto reply = inWebPage ? nullptr : item->Get<HistoryMessageReply>();
+	auto usex = 0;
+	auto usew = maxWidth();
+	if (!inWebPage) {
+		usew -= additionalWidth(via, reply);
+		if (rightAligned) {
+			usex = width() - usew;
+		}
+	}
+	if (rtl()) {
+		usex = width() - usex - usew;
+	}
+
+	const auto usey = rightAligned ? 0 : (height() - _contentSize.height());
+	const auto useh = rightAligned
+		? std::max(
+			_contentSize.height(),
+			height() - st::msgDateImgPadding.y() * 2 - st::msgDateFont->height)
+		: _contentSize.height();
+	const auto inner = QRect(usex, usey, usew, useh);
+	return inner.contains(point) ? PointState::Inside : PointState::Outside;
+}
+
 TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {

@@ -49,6 +49,7 @@ public:
 		std::unique_ptr<Content> content);
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const override;
+	PointState pointState(QPoint point) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
