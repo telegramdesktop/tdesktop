@@ -299,7 +299,7 @@ void AddSpecialBoxController::migrate(not_null<ChannelData*> channel) {
 
 std::unique_ptr<PeerListRow> AddSpecialBoxController::createSearchRow(
 		not_null<PeerData*> peer) {
-	if (peer->isSelf()) {
+	if (_excludeSelf && peer->isSelf()) {
 		return nullptr;
 	}
 	if (const auto user = peer->asUser()) {
@@ -802,7 +802,8 @@ void AddSpecialBoxController::kickUser(
 }
 
 bool AddSpecialBoxController::appendRow(not_null<UserData*> user) {
-	if (delegate()->peerListFindRow(user->id) || user->isSelf()) {
+	if (delegate()->peerListFindRow(user->id)
+		|| (_excludeSelf && user->isSelf())) {
 		return false;
 	}
 	delegate()->peerListAppendRow(createRow(user));

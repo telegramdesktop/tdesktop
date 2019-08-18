@@ -54,7 +54,9 @@ SearchFromController::SearchFromController(
 	ParticipantsBoxController::Role::Members,
 	AdminDoneCallback(),
 	BannedDoneCallback())
-, _callback(std::move(callback)) {
+, _callback(std::move(callback))
+{
+	_excludeSelf = false;
 }
 
 void SearchFromController::prepare() {
