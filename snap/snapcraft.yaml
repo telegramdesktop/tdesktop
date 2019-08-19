@@ -302,6 +302,7 @@ parts:
   libxkbcommon:
     source: https://github.com/xkbcommon/libxkbcommon.git
     source-depth: 1
+    source-tag: xkbcommon-0.8.4
     plugin: autotools
     build-packages:
       - xutils-dev
