@@ -21,4 +21,14 @@ void ScheduleBox(
 	FnMut<void(Api::SendOptions)> done,
 	TimeId time);
 
+template <typename Guard, typename Submit>
+[[nodiscard]] object_ptr<GenericBox> PrepareScheduleBox(
+		Guard &&guard,
+		Submit &&submit) {
+	return Box(
+		ScheduleBox,
+		crl::guard(std::forward<Guard>(guard), std::forward<Submit>(submit)),
+		DefaultScheduleTime());
+}
+
 } // namespace HistoryView

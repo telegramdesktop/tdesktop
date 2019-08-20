@@ -415,7 +415,7 @@ void ShareBox::createButtons() {
 		const auto send = addButton(tr::lng_share_confirm(), [=] {
 			submit({});
 		});
-		SetupSendWithoutSound(
+		SetupSendMenu(
 			send,
 			[=] { return true; },
 			[=] { submitSilent(); },
@@ -469,14 +469,9 @@ void ShareBox::submitSilent() {
 }
 
 void ShareBox::submitScheduled() {
-	const auto callback = crl::guard(this, [=](Api::SendOptions options) {
-		submit(options);
-	});
+	const auto callback = [=](Api::SendOptions options) { submit(options); };
 	Ui::show(
-		Box(
-			HistoryView::ScheduleBox,
-			callback,
-			HistoryView::DefaultScheduleTime()),
+		HistoryView::PrepareScheduleBox(this, callback),
 		LayerOption::KeepOther);
 }
 

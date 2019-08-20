@@ -1368,8 +1368,10 @@ SendFilesBox::SendFilesBox(
 	Storage::PreparedList &&list,
 	const TextWithTags &caption,
 	CompressConfirm compressed,
-	SendLimit limit)
+	SendLimit limit,
+	Api::SendType sendType)
 : _controller(controller)
+, _sendType(sendType)
 , _list(std::move(list))
 , _compressConfirmInitial(compressed)
 , _compressConfirm(compressed)
@@ -1471,11 +1473,13 @@ void SendFilesBox::setupShadows(
 
 void SendFilesBox::prepare() {
 	_send = addButton(tr::lng_send_button(), [=] { send({}); });
-	SetupSendWithoutSound(
-		_send,
-		[=] { return true; },
-		[=] { sendSilent(); },
-		[=] { sendScheduled(); });
+	if (_sendType == Api::SendType::Normal) {
+		SetupSendMenu(
+			_send,
+			[=] { return true; },
+			[=] { sendSilent(); },
+			[=] { sendScheduled(); });
+	}
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	initSendWay();
 	setupCaption();
@@ -1922,6 +1926,10 @@ void SendFilesBox::setInnerFocus() {
 void SendFilesBox::send(
 		Api::SendOptions options,
 		bool ctrlShiftEnter) {
+	if (_sendType == Api::SendType::Scheduled && !options.scheduled) {
+		return sendScheduled();
+	}
+
 	using Way = SendFilesWay;
 	const auto way = _sendWay ? _sendWay->value() : Way::Files;
 
@@ -1963,14 +1971,9 @@ void SendFilesBox::sendSilent() {
 }
 
 void SendFilesBox::sendScheduled() {
-	const auto callback = crl::guard(this, [=](Api::SendOptions options) {
-		send(options);
-	});
+	const auto callback = [=](Api::SendOptions options) { send(options); };
 	Ui::show(
-		Box(
-			HistoryView::ScheduleBox,
-			callback,
-			HistoryView::DefaultScheduleTime()),
+		HistoryView::PrepareScheduleBox(this, callback),
 		LayerOption::KeepOther);
 }
 

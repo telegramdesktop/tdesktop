@@ -106,7 +106,7 @@ private:
 
 };
 
-void SetupSendWithoutSound(
+void SetupSendMenu(
 	not_null<Ui::RpWidget*> button,
 	Fn<bool()> enabled,
 	Fn<void()> send,

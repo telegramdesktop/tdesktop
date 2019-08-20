@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "observer_peer.h"
+#include "api/api_common.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "window/window_session_controller.h"
@@ -700,14 +701,17 @@ void PeerMenuShareContactBox(
 }
 
 void PeerMenuCreatePoll(not_null<PeerData*> peer) {
-	const auto box = Ui::show(Box<CreatePollBox>(&peer->session()));
+	const auto box = Ui::show(Box<CreatePollBox>(
+		&peer->session(),
+		Api::SendType::Normal));
 	const auto lock = box->lifetime().make_state<bool>(false);
 	box->submitRequests(
-	) | rpl::start_with_next([=](const PollData &result) {
+	) | rpl::start_with_next([=](const CreatePollBox::Result &result) {
 		if (std::exchange(*lock, true)) {
 			return;
 		}
 		auto action = Api::SendAction(peer->owner().history(peer));
+		action.options = result.options;
 		if (const auto id = App::main()->currentReplyToIdFor(action.history)) {
 			action.replyTo = id;
 		}
@@ -715,7 +719,7 @@ void PeerMenuCreatePoll(not_null<PeerData*> peer) {
 			action.clearDraft = localDraft->textWithTags.text.isEmpty();
 		}
 		const auto api = &peer->session().api();
-		api->createPoll(result, action, crl::guard(box, [=] {
+		api->createPoll(result.poll, action, crl::guard(box, [=] {
 			box->closeBox();
 		}), crl::guard(box, [=](const RPCError &error) {
 			*lock = false;

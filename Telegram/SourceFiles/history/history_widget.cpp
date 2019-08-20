@@ -300,7 +300,7 @@ HistoryWidget::HistoryWidget(
 	_unreadMentions->addClickHandler([=] { showNextUnreadMention(); });
 	_fieldBarCancel->addClickHandler([=] { cancelFieldAreaState(); });
 	_send->addClickHandler([=] { sendButtonClicked(); });
-	SetupSendWithoutSound(_send, [=] {
+	SetupSendMenu(_send, [=] {
 		return (_send->type() == Ui::SendButton::Type::Send)
 			&& !_send->isDisabled();
 	}, [=] { sendSilent(); }, [=] { sendScheduled(); });
@@ -1747,11 +1747,11 @@ void HistoryWidget::showHistory(
 			updateControlsGeometry();
 		}, _contactStatus->lifetime());
 		orderWidgets();
+		controller()->tabbedSelector()->setCurrentPeer(_peer);
 	} else {
 		_contactStatus = nullptr;
 	}
 	refreshTabbedPanel();
-	controller()->tabbedSelector()->setCurrentPeer(_peer);
 
 	if (_peer) {
 		_unblock->setText(((_peer->isUser()
@@ -2970,14 +2970,9 @@ void HistoryWidget::sendScheduled() {
 	if (!_list) {
 		return;
 	}
-	const auto callback = crl::guard(_list, [=](Api::SendOptions options) {
-		send(options);
-	});
+	const auto callback = [=](Api::SendOptions options) { send(options); };
 	Ui::show(
-		Box(
-			HistoryView::ScheduleBox,
-			callback,
-			HistoryView::DefaultScheduleTime()),
+		HistoryView::PrepareScheduleBox(_list, callback),
 		LayerOption::KeepOther);
 }
 
@@ -4192,7 +4187,8 @@ bool HistoryWidget::confirmSendingFiles(
 		std::move(list),
 		text,
 		boxCompressConfirm,
-		_peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many);
+		_peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
+		Api::SendType::Normal);
 	_field->setTextWithTags({});
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Storage::PreparedList &&list,

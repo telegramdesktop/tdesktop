@@ -237,7 +237,6 @@ void ScheduledMessages::parse(
 	auto &request = _requests[history];
 	request.requestId = 0;
 
-	auto element = _data.find(history);
 	list.match([&](const MTPDmessages_messagesNotModified &data) {
 	}, [&](const auto &data) {
 		_session->data().processUsers(data.vusers());
@@ -245,38 +244,24 @@ void ScheduledMessages::parse(
 
 		const auto &messages = data.vmessages().v;
 		if (messages.isEmpty()) {
-			if (element != end(_data)) {
-				_data.erase(element);
-				element = end(_data);
-				_updates.fire_copy(history);
-			}
+			clearNotSending(history);
 			return;
 		}
-		element = _data.emplace(history, List()).first;
 		auto received = base::flat_set<not_null<HistoryItem*>>();
-		auto &list = element->second;
+		auto clear = base::flat_set<not_null<HistoryItem*>>();
+		auto &list = _data.emplace(history, List()).first->second;
 		for (const auto &message : messages) {
 			if (const auto item = append(history, list, message)) {
 				received.emplace(item);
 			}
 		}
-		auto clear = base::flat_set<not_null<HistoryItem*>>();
 		for (const auto &owned : list.items) {
 			const auto item = owned.get();
 			if (!item->isSending() && !received.contains(item)) {
 				clear.emplace(item);
 			}
 		}
-		for (const auto item : clear) {
-			item->destroy();
-		}
-		if (!list.items.empty()) {
-			sort(list);
-		} else {
-			_data.erase(element);
-			element = end(_data);
-		}
-		_updates.fire_copy(history);
+		updated(history, received, clear);
 	});
 	if (!request.requestId) {
 		_requests.remove(history);
@@ -320,6 +305,38 @@ HistoryItem *ScheduledMessages::append(
 	return item;
 }
 
+void ScheduledMessages::clearNotSending(not_null<History*> history) {
+	const auto i = _data.find(history);
+	if (i == end(_data)) {
+		return;
+	}
+	auto clear = base::flat_set<not_null<HistoryItem*>>();
+	for (const auto &owned : i->second.items) {
+		if (!owned->isSending()) {
+			clear.emplace(owned.get());
+		}
+	}
+	updated(history, {}, clear);
+}
+
+void ScheduledMessages::updated(
+		not_null<History*> history,
+		const base::flat_set<not_null<HistoryItem*>> &added,
+		const base::flat_set<not_null<HistoryItem*>> &clear) {
+	if (!clear.empty()) {
+		for (const auto item : clear) {
+			item->destroy();
+		}
+	}
+	const auto i = _data.find(history);
+	if (i != end(_data)) {
+		sort(i->second);
+	}
+	if (!added.empty() || !clear.empty()) {
+		_updates.fire_copy(history);
+	}
+}
+
 void ScheduledMessages::sort(List &list) {
 	ranges::sort(list.items, ranges::less(), &HistoryItem::position);
 }
@@ -330,11 +347,12 @@ void ScheduledMessages::remove(not_null<const HistoryItem*> item) {
 	Assert(i != end(_data));
 	auto &list = i->second;
 
-	const auto j = list.idByItem.find(item);
-	Assert(j != end(list.idByItem));
-	list.itemById.remove(j->second);
-	list.idByItem.erase(j);
-
+	if (!item->isSending()) {
+		const auto j = list.idByItem.find(item);
+		Assert(j != end(list.idByItem));
+		list.itemById.remove(j->second);
+		list.idByItem.erase(j);
+	}
 	const auto k = ranges::find(list.items, item, &OwnedItem::get);
 	Assert(k != list.items.end());
 	k->release();

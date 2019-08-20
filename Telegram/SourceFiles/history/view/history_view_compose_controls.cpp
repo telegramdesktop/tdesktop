@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "lang/lang_keys.h"
 #include "core/event_filter.h"
+#include "history/history.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_section.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -52,6 +53,15 @@ ComposeControls::~ComposeControls() {
 
 Main::Session &ComposeControls::session() const {
 	return _window->session();
+}
+
+void ComposeControls::setHistory(History *history) {
+	if (_history == history) {
+		return;
+	}
+	_history = history;
+	_window->tabbedSelector()->setCurrentPeer(
+		history ? history->peer.get() : nullptr);
 }
 
 void ComposeControls::move(int x, int y) {

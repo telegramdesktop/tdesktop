@@ -58,6 +58,8 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 
+	void setHistory(History *history);
+
 	void move(int x, int y);
 	void resizeToWidth(int width);
 	[[nodiscard]] rpl::producer<int> height() const;
@@ -102,6 +104,7 @@ private:
 
 	const not_null<QWidget*> _parent;
 	const not_null<Window::SessionController*> _window;
+	History *_history = nullptr;
 	Mode _mode = Mode::Normal;
 
 	const std::unique_ptr<Ui::RpWidget> _wrap;

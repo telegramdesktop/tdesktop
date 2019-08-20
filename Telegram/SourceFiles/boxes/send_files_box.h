@@ -18,6 +18,7 @@ class SessionController;
 
 namespace Api {
 struct SendOptions;
+enum class SendType;
 } // namespace Api
 
 namespace ChatHelpers {
@@ -57,7 +58,8 @@ public:
 		Storage::PreparedList &&list,
 		const TextWithTags &caption,
 		CompressConfirm compressed,
-		SendLimit limit);
+		SendLimit limit,
+		Api::SendType sendType);
 
 	void setConfirmedCallback(
 		Fn<void(
@@ -119,7 +121,8 @@ private:
 	bool canAddUrls(const QList<QUrl> &urls) const;
 	bool addFiles(not_null<const QMimeData*> data);
 
-	not_null<Window::SessionController*> _controller;
+	const not_null<Window::SessionController*> _controller;
+	const Api::SendType _sendType = Api::SendType();
 
 	QString _titleText;
 	int _titleHeight = 0;

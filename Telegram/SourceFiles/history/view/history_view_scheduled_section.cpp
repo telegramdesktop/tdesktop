@@ -117,6 +117,8 @@ ScheduledWidget::ScheduledWidget(
 ScheduledWidget::~ScheduledWidget() = default;
 
 void ScheduledWidget::setupComposeControls() {
+	_composeControls->setHistory(_history);
+
 	_composeControls->height(
 	) | rpl::start_with_next([=] {
 		updateControlsGeometry();
@@ -232,7 +234,8 @@ bool ScheduledWidget::confirmSendingFiles(
 		std::move(list),
 		text,
 		boxCompressConfirm,
-		_history->peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many);
+		_history->peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
+		Api::SendType::Scheduled);
 	//_field->setTextWithTags({});
 
 	box->setConfirmedCallback(crl::guard(this, [=](
@@ -314,39 +317,28 @@ void ScheduledWidget::uploadFilesAfterConfirmation(
 		ShowErrorToast(tr::lng_slowmode_no_many(tr::now));
 		return;
 	}
-	auto callback = crl::guard(this, [
-		=,
-		list = std::move(list),
-		caption = std::move(caption),
-		// Strange thing, otherwise std::is_copy_constructible is true. O_o
-		msvc_bug_workaround = std::make_unique<int>()
-	](Api::SendOptions options) mutable {
-		auto action = Api::SendAction(_history);
-		action.replyTo = replyTo;
-		action.options = options;
-		session().api().sendFiles(
-			std::move(list),
-			type,
-			std::move(caption),
-			album,
-			action);
-	});
-	Ui::show(
-		Box(ScheduleBox, std::move(callback), DefaultScheduleTime()),
-		LayerOption::KeepOther);
+	auto action = Api::SendAction(_history);
+	action.replyTo = replyTo;
+	action.options = options;
+	session().api().sendFiles(
+		std::move(list),
+		type,
+		std::move(caption),
+		album,
+		action);
 }
 
 void ScheduledWidget::uploadFile(
 		const QByteArray &fileContent,
 		SendMediaType type) {
-	const auto callback = crl::guard(this, [=](Api::SendOptions options) {
+	const auto callback = [=](Api::SendOptions options) {
 		auto action = Api::SendAction(_history);
 		//action.replyTo = replyToId();
 		action.options = options;
 		session().api().sendFile(fileContent, type, action);
-	});
+	};
 	Ui::show(
-		Box(ScheduleBox, callback, DefaultScheduleTime()),
+		PrepareScheduleBox(this, callback),
 		LayerOption::KeepOther);
 }
 
@@ -387,11 +379,9 @@ void ScheduledWidget::send() {
 	if (_composeControls->getTextWithAppliedMarkdown().text.isEmpty()) {
 		return;
 	}
-	const auto callback = crl::guard(this, [=](Api::SendOptions options) {
-		send(options);
-	});
+	const auto callback = [=](Api::SendOptions options) { send(options); };
 	Ui::show(
-		Box(ScheduleBox, callback, DefaultScheduleTime()),
+		PrepareScheduleBox(this, callback),
 		LayerOption::KeepOther);
 }
 
@@ -432,11 +422,11 @@ void ScheduledWidget::send(Api::SendOptions options) {
 
 void ScheduledWidget::sendExistingDocument(
 		not_null<DocumentData*> document) {
-	const auto callback = crl::guard(this, [=](Api::SendOptions options) {
+	const auto callback = [=](Api::SendOptions options) {
 		sendExistingDocument(document, options);
-	});
+	};
 	Ui::show(
-		Box(ScheduleBox, callback, DefaultScheduleTime()),
+		PrepareScheduleBox(this, callback),
 		LayerOption::KeepOther);
 }
 
@@ -470,11 +460,11 @@ bool ScheduledWidget::sendExistingDocument(
 }
 
 void ScheduledWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
-	const auto callback = crl::guard(this, [=](Api::SendOptions options) {
+	const auto callback = [=](Api::SendOptions options) {
 		sendExistingPhoto(photo, options);
-	});
+	};
 	Ui::show(
-		Box(ScheduleBox, callback, DefaultScheduleTime()),
+		PrepareScheduleBox(this, callback),
 		LayerOption::KeepOther);
 }
 
@@ -507,11 +497,11 @@ void ScheduledWidget::sendInlineResult(
 		Ui::show(Box<InformBox>(errorText));
 		return;
 	}
-	const auto callback = crl::guard(this, [=](Api::SendOptions options) {
+	const auto callback = [=](Api::SendOptions options) {
 		sendInlineResult(result, bot, options);
-	});
+	};
 	Ui::show(
-		Box(ScheduleBox, callback, DefaultScheduleTime()),
+		PrepareScheduleBox(this, callback),
 		LayerOption::KeepOther);
 }
 

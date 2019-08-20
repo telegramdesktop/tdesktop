@@ -13,7 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/calendar_box.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/buttons.h"
 #include "ui/wrap/padding_wrap.h"
+#include "chat_helpers/message_field.h"
 #include "styles/style_boxes.h"
 #include "styles/style_history.h"
 
@@ -88,6 +90,7 @@ public:
 
 	bool setFocusFast();
 	rpl::producer<QString> value() const;
+	rpl::producer<> submitRequests() const;
 	QString valueCurrent() const;
 	void showError();
 
@@ -117,6 +120,7 @@ private:
 	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _separator1;
 	object_ptr<TimePart> _minute;
 	rpl::variable<QString> _value;
+	rpl::event_stream<> _submitRequests;
 
 	style::cursor _cursor = style::cur_default;
 	Ui::Animations::Simple _a_borderShown;
@@ -293,6 +297,29 @@ TimeInput::TimeInput(QWidget *parent, const QString &value)
 	) | rpl::start_with_next([=] {
 		setErrorShown(false);
 	}, lifetime());
+
+	const auto submitHour = [=] {
+		if (hour()) {
+			_minute->setFocus();
+		}
+	};
+	const auto submitMinute = [=] {
+		if (minute()) {
+			if (hour()) {
+				_submitRequests.fire({});
+			} else {
+				_hour->setFocus();
+			}
+		}
+	};
+	connect(
+		_hour,
+		&Ui::MaskedInputField::submitted,
+		submitHour);
+	connect(
+		_minute,
+		&Ui::MaskedInputField::submitted,
+		submitMinute);
 }
 
 void TimeInput::putNext(const object_ptr<TimePart> &field, QChar ch) {
@@ -348,6 +375,10 @@ QString TimeInput::valueCurrent() const {
 
 rpl::producer<QString> TimeInput::value() const {
 	return _value.value();
+}
+
+rpl::producer<> TimeInput::submitRequests() const {
+	return _submitRequests.events();
 }
 
 void TimeInput::paintEvent(QPaintEvent *e) {
@@ -584,23 +615,30 @@ void ScheduleBox(
 
 	const auto shared = std::make_shared<FnMut<void(Api::SendOptions)>>(
 		std::move(done));
-	const auto save = [=] {
-		auto result = Api::SendOptions();
-
+	const auto collect = [=] {
 		const auto timeValue = timeInput->valueCurrent().split(':');
 		if (timeValue.size() != 2) {
 			timeInput->showError();
-			return;
+			return 0;
 		}
 		const auto time = QTime(timeValue[0].toInt(), timeValue[1].toInt());
 		if (!time.isValid()) {
 			timeInput->showError();
-			return;
+			return 0;
 		}
-		result.scheduled = base::unixtime::serialize(
+		const auto result = base::unixtime::serialize(
 			QDateTime(date->current(), time));
-		if (result.scheduled <= base::unixtime::now() + kMinimalSchedule) {
+		if (result <= base::unixtime::now() + kMinimalSchedule) {
 			timeInput->showError();
+			return 0;
+		}
+		return result;
+	};
+	const auto save = [=](bool silent) {
+		auto result = Api::SendOptions();
+		result.silent = silent;
+		result.scheduled = collect();
+		if (!result.scheduled) {
 			return;
 		}
 
@@ -608,9 +646,20 @@ void ScheduleBox(
 		box->closeBox();
 		(*copy)(result);
 	};
+	timeInput->submitRequests(
+	) | rpl::start_with_next([=] {
+		save(false);
+	}, timeInput->lifetime());
 
 	box->setFocusCallback([=] { timeInput->setFocusFast(); });
-	box->addButton(tr::lng_settings_save(), save);
+	const auto submit = box->addButton(tr::lng_settings_save(), [=] {
+		save(false);
+	});
+	SetupSendMenu(
+		submit.data(),
+		[=] { return true; },
+		[=] { save(true); },
+		nullptr);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 

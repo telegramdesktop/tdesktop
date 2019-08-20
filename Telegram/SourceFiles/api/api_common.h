@@ -16,6 +16,11 @@ struct SendOptions {
 	bool removeWebPageId = false;
 };
 
+enum class SendType {
+	Normal,
+	Scheduled,
+};
+
 struct SendAction {
 	explicit SendAction(not_null<History*> history) : history(history) {
 	}
