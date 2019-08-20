@@ -394,6 +394,20 @@ bool EditorBlock::feedDescription(const QString &name, const QString &descriptio
 	return false;
 }
 
+void EditorBlock::sortByDistance(const QColor &to) {
+	auto toHue = qreal();
+	auto toSaturation = qreal();
+	auto toLightness = qreal();
+	to.getHsvF(&toHue, &toSaturation, &toLightness);
+	ranges::sort(_data, ranges::less(), [&](const Row &row) {
+		auto fromHue = qreal();
+		auto fromSaturation = qreal();
+		auto fromLightness = qreal();
+		row.value().getHsvF(&fromHue, &fromSaturation, &fromLightness);
+		return (toSaturation > 0.01) ? std::abs(fromHue - toHue) : 1.;
+	});
+}
+
 template <typename Callback>
 void EditorBlock::enumerateRows(Callback callback) {
 	if (isSearch()) {

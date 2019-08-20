@@ -234,6 +234,8 @@ private:
 	}
 	void applyEditing(const QString &name, const QString &copyOf, QColor value);
 
+	void sortByAccentDistance();
+
 	EditorBlock::Context _context;
 
 	QString _path;
@@ -332,6 +334,11 @@ Fn<void()> Editor::Inner::exportCallback() {
 }
 
 void Editor::Inner::filterRows(const QString &query) {
+	if (query == ":sort-by-accent-distance") {
+		sortByAccentDistance();
+		filterRows(QString());
+		return;
+	}
 	_existingRows->filterRows(query);
 	_newRows->filterRows(query);
 }
@@ -416,8 +423,8 @@ bool Editor::Inner::readData() {
 		return false;
 	}
 
-	auto rows = style::main_palette::data();
-	for_const (auto &row, rows) {
+	const auto rows = style::main_palette::data();
+	for (const auto &row : rows) {
 		auto name = bytesToUtf8(row.name);
 		auto description = bytesToUtf8(row.description);
 		if (!_existingRows->feedDescription(name, description)) {
@@ -442,7 +449,14 @@ bool Editor::Inner::readData() {
 			}
 		}
 	}
+
 	return true;
+}
+
+void Editor::Inner::sortByAccentDistance() {
+	const auto accent = *_existingRows->find("windowBgActive");
+	_existingRows->sortByDistance(accent);
+	_newRows->sortByDistance(accent);
 }
 
 bool Editor::Inner::readExistingRows() {

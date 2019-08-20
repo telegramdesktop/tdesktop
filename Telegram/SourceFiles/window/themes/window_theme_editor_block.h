@@ -72,6 +72,8 @@ public:
 
 	bool feedDescription(const QString &name, const QString &description);
 
+	void sortByDistance(const QColor &to);
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	int resizeGetHeight(int newWidth) override;
