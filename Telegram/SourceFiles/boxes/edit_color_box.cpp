@@ -704,11 +704,14 @@ void EditColorBox::fieldSubmitted() {
 }
 
 void EditColorBox::saveColor() {
-	_cancelCallback = Fn<void()>();
+	const auto weak = make_weak(this);
+	_cancelCallback = nullptr;
 	if (_saveCallback) {
 		_saveCallback(_new.toRgb());
 	}
-	closeBox();
+	if (weak) {
+		closeBox();
+	}
 }
 
 void EditColorBox::updateHSVFields() {
