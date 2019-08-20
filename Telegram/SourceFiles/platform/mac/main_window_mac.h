@@ -52,6 +52,13 @@ public slots:
 	void psMacDelete();
 	void psMacSelectAll();
 
+	void psMacBold();
+	void psMacItalic();
+	void psMacUnderline();
+	void psMacStrikeOut();
+	void psMacMonospace();
+	void psMacClearFormat();
+
 protected:
 	bool eventFilter(QObject *obj, QEvent *evt) override;
 
