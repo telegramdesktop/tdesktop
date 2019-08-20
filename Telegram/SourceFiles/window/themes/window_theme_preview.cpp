@@ -908,7 +908,9 @@ void Generator::restoreTextPalette() {
 
 } // namespace
 
-std::unique_ptr<Preview> PreviewFromFile(const QString &filepath) {
+std::unique_ptr<Preview> PreviewFromFile(
+		const QString &filepath,
+		const Colorizer *colorizer) {
 	auto result = std::make_unique<Preview>();
 	result->pathRelative = filepath.isEmpty()
 		? QString()
@@ -916,7 +918,11 @@ std::unique_ptr<Preview> PreviewFromFile(const QString &filepath) {
 	result->pathAbsolute = filepath.isEmpty()
 		? QString()
 		: QFileInfo(filepath).absoluteFilePath();
-	if (!LoadFromFile(filepath, &result->instance, &result->content)) {
+	if (!LoadFromFile(
+			filepath,
+			&result->instance,
+			&result->content,
+			colorizer)) {
 		return nullptr;
 	}
 	return result;

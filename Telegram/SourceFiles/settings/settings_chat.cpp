@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_preview_box.h"
 #include "boxes/download_path_box.h"
 #include "boxes/local_storage_box.h"
+#include "boxes/edit_color_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/input_fields.h"
@@ -89,6 +90,7 @@ public:
 		QColor radiobuttonActive;
 		tr::phrase<> name;
 		QString path;
+		QColor accentColor;
 	};
 	DefaultTheme(Scheme scheme, bool checked);
 
@@ -801,7 +803,8 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			color("d7f0ff"),
 			color("ffffff"),
 			tr::lng_settings_theme_blue,
-			":/gui/day-blue.tdesktop-theme"
+			":/gui/day-blue.tdesktop-theme",
+			color("40a7e3")
 		},
 		Scheme{
 			Type::Default,
@@ -821,7 +824,8 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			color("6b808d"),
 			color("5ca7d4"),
 			tr::lng_settings_theme_midnight,
-			":/gui/night.tdesktop-theme"
+			":/gui/night.tdesktop-theme",
+			color("5288c1")
 		},
 		Scheme{
 			Type::NightGreen,
@@ -831,7 +835,8 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			color("6b808d"),
 			color("74bf93"),
 			tr::lng_settings_theme_matrix,
-			":/gui/night-green.tdesktop-theme"
+			":/gui/night-green.tdesktop-theme",
+			color("3fc1b0")
 		},
 	};
 	const auto chosen = [&] {
@@ -847,6 +852,47 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		return Type(-1);
 	};
 	const auto group = std::make_shared<Ui::RadioenumGroup<Type>>(chosen());
+
+	const auto apply = [=](
+			const Scheme &scheme,
+			const Window::Theme::Colorizer *colorizer = nullptr) {
+		const auto isNight = [](const Scheme &scheme) {
+			const auto type = scheme.type;
+			return (type != Type::DayBlue) && (type != Type::Default);
+		};
+		const auto currentlyIsCustom = (chosen() == Type(-1));
+		if (Window::Theme::IsNightMode() == isNight(scheme)) {
+			Window::Theme::ApplyDefaultWithPath(scheme.path, colorizer);
+		} else {
+			Window::Theme::ToggleNightMode(scheme.path, colorizer);
+		}
+		if (!currentlyIsCustom) {
+			Window::Theme::KeepApplied();
+		}
+	};
+	const auto applyWithColorize = [=](const Scheme &scheme) {
+		const auto box = Ui::show(Box<EditColorBox>(
+			"Choose accent color",
+			scheme.accentColor));
+		box->setSaveCallback([=](QColor result) {
+			auto colorizer = Window::Theme::Colorizer();
+			colorizer.hueThreshold = 10;
+			colorizer.saturationThreshold = 10;
+			colorizer.wasHue = scheme.accentColor.hue();
+			colorizer.nowHue = result.hue();
+			apply(scheme, &colorizer);
+		});
+	};
+	const auto schemeClicked = [=](
+			const Scheme &scheme,
+			Qt::KeyboardModifiers modifiers) {
+		if (scheme.accentColor.hue() && (modifiers & Qt::ControlModifier)) {
+			applyWithColorize(scheme);
+		} else {
+			apply(scheme);
+		}
+	};
+
 	auto buttons = ranges::view::all(
 		schemes
 	) | ranges::view::transform([&](const Scheme &scheme) {
@@ -859,34 +905,14 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			scheme.name(tr::now),
 			st::settingsTheme,
 			std::move(check));
+		result->addClickHandler([=] {
+			schemeClicked(scheme, result->clickModifiers());
+		});
 		weak->setUpdateCallback([=] { result->update(); });
 		return result;
 	}) | ranges::to_vector;
 
 	using Update = const Window::Theme::BackgroundUpdate;
-	const auto apply = [=](const Scheme &scheme) {
-		const auto isNight = [](const Scheme &scheme) {
-			const auto type = scheme.type;
-			return (type != Type::DayBlue) && (type != Type::Default);
-		};
-		const auto currentlyIsCustom = (chosen() == Type(-1));
-		if (Window::Theme::IsNightMode() == isNight(scheme)) {
-			Window::Theme::ApplyDefaultWithPath(scheme.path);
-		} else {
-			Window::Theme::ToggleNightMode(scheme.path);
-		}
-		if (!currentlyIsCustom) {
-			Window::Theme::KeepApplied();
-		}
-	};
-	group->setChangedCallback([=](Type type) {
-		const auto i = ranges::find_if(schemes, [&](const Scheme &scheme) {
-			return (type == scheme.type && type != chosen());
-		});
-		if (i != end(schemes)) {
-			apply(*i);
-		}
-	});
 	base::ObservableViewer(
 		*Window::Theme::Background()
 	) | rpl::filter([](const Update &update) {

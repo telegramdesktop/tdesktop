@@ -49,20 +49,35 @@ struct Preview {
 	QImage preview;
 };
 
+struct Colorizer {
+	int wasHue = 0;
+	int nowHue = 0;
+	int hueThreshold = 0;
+	int saturationThreshold = 0;
+};
+
 bool Apply(const QString &filepath);
 bool Apply(std::unique_ptr<Preview> preview);
-void ApplyDefaultWithPath(const QString &themePath);
+void ApplyDefaultWithPath(
+	const QString &themePath,
+	const Colorizer *colorizer = nullptr);
 bool ApplyEditedPalette(const QString &path, const QByteArray &content);
 void KeepApplied();
 QString NightThemePath();
 [[nodiscard]] bool IsNightMode();
 void SetNightModeValue(bool nightMode);
 void ToggleNightMode();
-void ToggleNightMode(const QString &themePath);
+void ToggleNightMode(
+	const QString &themePath,
+	const Colorizer *colorizer = nullptr);
 [[nodiscard]] bool IsNonDefaultBackground();
 void Revert();
 
-bool LoadFromFile(const QString &file, Instance *out, QByteArray *outContent);
+bool LoadFromFile(
+	const QString &file,
+	Instance *out,
+	QByteArray *outContent,
+	const Colorizer *colorizer = nullptr);
 bool IsPaletteTestingPath(const QString &path);
 QColor CountAverageColor(const QImage &image);
 QColor AdjustedColor(QColor original, QColor background);
@@ -152,7 +167,9 @@ private:
 
 	void setNightModeValue(bool nightMode);
 	[[nodiscard]] bool nightMode() const;
-	void toggleNightMode(std::optional<QString> themePath);
+	void toggleNightMode(
+		std::optional<QString> themePath,
+		const Colorizer *colorizer);
 	void keepApplied(const QString &path, bool write);
 	[[nodiscard]] bool isNonDefaultThemeOrBackground();
 	[[nodiscard]] bool isNonDefaultBackground();
@@ -162,7 +179,9 @@ private:
 	friend bool IsNightMode();
 	friend void SetNightModeValue(bool nightMode);
 	friend void ToggleNightMode();
-	friend void ToggleNightMode(const QString &themePath);
+	friend void ToggleNightMode(
+		const QString &themePath,
+		const Colorizer *colorizer);
 	friend void KeepApplied();
 	friend bool IsNonDefaultBackground();
 
