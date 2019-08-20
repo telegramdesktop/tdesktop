@@ -663,7 +663,6 @@ void ApplyChannelUpdate(
 		channel->growSlowmodeLastMessage(
 			next->v - channel->slowmodeSeconds());
 	}
-	channel->checkSlowmodeLastMessage();
 	channel->setInviteLink(update.vexported_invite().match([&](
 			const MTPDchatInviteExported &data) {
 		return qs(data.vlink());
