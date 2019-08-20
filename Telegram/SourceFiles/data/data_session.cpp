@@ -1637,11 +1637,7 @@ bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
 		existing->updateForwardedInfo(data.vfwd_from());
 		existing->setViewsCount(data.vviews().value_or(-1));
 		existing->indexAsNewItem();
-		if (const auto channel = existing->history()->peer->asChannel()) {
-			if (existing->out()) {
-				channel->growSlowmodeLastMessage(data.vdate().v);
-			}
-		}
+		existing->contributeToSlowmode(data.vdate().v);
 		requestItemTextRefresh(existing);
 		if (existing->mainView()) {
 			checkSavedGif(existing);

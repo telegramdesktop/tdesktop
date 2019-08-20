@@ -1098,6 +1098,14 @@ void HistoryMessage::updateForwardedInfo(const MTPMessageFwdHeader *fwd) {
 	});
 }
 
+void HistoryMessage::contributeToSlowmode(TimeId realDate) {
+	if (const auto channel = history()->peer->asChannel()) {
+		if (out() && IsServerMsgId(id)) {
+			channel->growSlowmodeLastMessage(realDate ? realDate : date());
+		}
+	}
+}
+
 void HistoryMessage::addToUnreadMentions(UnreadMentionType type) {
 	if (IsServerMsgId(id) && isUnreadMention()) {
 		if (history()->addToUnreadMentions(id, type)) {

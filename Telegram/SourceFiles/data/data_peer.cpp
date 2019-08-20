@@ -713,10 +713,11 @@ bool PeerData::slowmodeApplied() const {
 
 int PeerData::slowmodeSecondsLeft() const {
 	if (const auto channel = asChannel()) {
-		if (const auto last = channel->slowmodeLastMessage()) {
-			const auto seconds = channel->slowmodeSeconds();
-			const auto now = base::unixtime::now();
-			return std::max(seconds - (now - last), 0);
+		if (const auto seconds = channel->slowmodeSeconds()) {
+			if (const auto last = channel->slowmodeLastMessage()) {
+				const auto now = base::unixtime::now();
+				return std::max(seconds - (now - last), 0);
+			}
 		}
 	}
 	return 0;

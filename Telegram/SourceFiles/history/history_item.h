@@ -204,6 +204,8 @@ public:
 	}
 	virtual void updateForwardedInfo(const MTPMessageFwdHeader *fwd) {
 	}
+	virtual void contributeToSlowmode(TimeId realDate = 0) {
+	}
 
 	virtual void addToUnreadMentions(UnreadMentionType type);
 	virtual void eraseFromUnreadMentions() {

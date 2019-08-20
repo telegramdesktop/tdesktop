@@ -137,6 +137,7 @@ public:
 		setReplyMarkup(markup);
 	}
 	void updateForwardedInfo(const MTPMessageFwdHeader *fwd) override;
+	void contributeToSlowmode(TimeId realDate = 0) override;
 
 	void addToUnreadMentions(UnreadMentionType type) override;
 	void eraseFromUnreadMentions() override;

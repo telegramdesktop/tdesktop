@@ -561,8 +561,12 @@ void ApiWrap::sendMessageFail(
 		const auto left = error.type().mid(chop).toInt();
 		if (const auto channel = peer->asChannel()) {
 			const auto seconds = channel->slowmodeSeconds();
-			channel->growSlowmodeLastMessage(
-				base::unixtime::now() - (left - seconds));
+			if (seconds >= left) {
+				channel->growSlowmodeLastMessage(
+					base::unixtime::now() - (left - seconds));
+			} else {
+				requestFullPeer(peer);
+			}
 		}
 	}
 	if (const auto item = _session->data().message(itemId)) {

@@ -596,10 +596,15 @@ TimeId ChannelData::slowmodeLastMessage() const {
 }
 
 void ChannelData::growSlowmodeLastMessage(TimeId when) {
-	if (_slowmodeLastMessage >= when) {
+	const auto now = base::unixtime::now();
+	accumulate_min(when, now);
+	if (_slowmodeLastMessage > now) {
+		_slowmodeLastMessage = when;
+	} else if (_slowmodeLastMessage >= when) {
 		return;
+	} else {
+		_slowmodeLastMessage = when;
 	}
-	_slowmodeLastMessage = when;
 	Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelSlowmode);
 }
 
@@ -655,11 +660,10 @@ void ApplyChannelUpdate(
 	channel->setKickedCount(update.vkicked_count().value_or_empty());
 	channel->setSlowmodeSeconds(update.vslowmode_seconds().value_or_empty());
 	if (const auto next = update.vslowmode_next_send_date()) {
-		if (next->v > base::unixtime::now()) {
-			channel->growSlowmodeLastMessage(
-				next->v - channel->slowmodeSeconds());
-		}
+		channel->growSlowmodeLastMessage(
+			next->v - channel->slowmodeSeconds());
 	}
+	channel->checkSlowmodeLastMessage();
 	channel->setInviteLink(update.vexported_invite().match([&](
 			const MTPDchatInviteExported &data) {
 		return qs(data.vlink());
