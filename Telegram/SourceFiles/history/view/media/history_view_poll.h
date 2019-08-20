@@ -51,7 +51,8 @@ private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
-	bool canVote() const;
+	[[nodiscard]] bool showVotes() const;
+	[[nodiscard]] bool canVote() const;
 
 	[[nodiscard]] int countAnswerTop(
 		const Answer &answer,
