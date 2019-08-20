@@ -199,13 +199,10 @@ void MainWindow::clearPasscodeLock() {
 	} else if (_main) {
 		_main->showAnimated(bg, true);
 		Core::App().checkStartUrl();
+	} else if (account().sessionExists()) {
+		setupMain();
 	} else {
-		account().startMtp();
-		if (account().sessionExists()) {
-			setupMain();
-		} else {
-			setupIntro();
-		}
+		setupIntro();
 	}
 }
 
