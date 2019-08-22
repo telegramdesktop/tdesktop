@@ -51,9 +51,13 @@ struct Preview {
 
 struct Colorizer {
 	int wasHue = 0;
+	int wasSaturation = 0;
+	int wasValue = 0;
 	int nowHue = 0;
+	int nowSaturation = 0;
+	int nowValue = 0;
 	int hueThreshold = 0;
-	int saturationThreshold = 0;
+	base::flat_set<QLatin1String> ignoreKeys;
 };
 
 bool Apply(const QString &filepath);

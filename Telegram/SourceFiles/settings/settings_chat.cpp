@@ -43,6 +43,58 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 
 namespace Settings {
+namespace {
+
+const auto kColorizeIgnoredKeys = base::flat_set<QLatin1String>{ {
+	qstr("boxTextFgGood"),
+	qstr("boxTextFgError"),
+	qstr("historyPeer1NameFg"),
+	qstr("historyPeer1NameFgSelected"),
+	qstr("historyPeer1UserpicBg"),
+	qstr("historyPeer2NameFg"),
+	qstr("historyPeer2NameFgSelected"),
+	qstr("historyPeer2UserpicBg"),
+	qstr("historyPeer3NameFg"),
+	qstr("historyPeer3NameFgSelected"),
+	qstr("historyPeer3UserpicBg"),
+	qstr("historyPeer4NameFg"),
+	qstr("historyPeer4NameFgSelected"),
+	qstr("historyPeer4UserpicBg"),
+	qstr("historyPeer5NameFg"),
+	qstr("historyPeer5NameFgSelected"),
+	qstr("historyPeer5UserpicBg"),
+	qstr("historyPeer6NameFg"),
+	qstr("historyPeer6NameFgSelected"),
+	qstr("historyPeer6UserpicBg"),
+	qstr("historyPeer7NameFg"),
+	qstr("historyPeer7NameFgSelected"),
+	qstr("historyPeer7UserpicBg"),
+	qstr("historyPeer8NameFg"),
+	qstr("historyPeer8NameFgSelected"),
+	qstr("historyPeer8UserpicBg"),
+	qstr("msgFile1Bg"),
+	qstr("msgFile1BgDark"),
+	qstr("msgFile1BgOver"),
+	qstr("msgFile1BgSelected"),
+	qstr("msgFile2Bg"),
+	qstr("msgFile2BgDark"),
+	qstr("msgFile2BgOver"),
+	qstr("msgFile2BgSelected"),
+	qstr("msgFile3Bg"),
+	qstr("msgFile3BgDark"),
+	qstr("msgFile3BgOver"),
+	qstr("msgFile3BgSelected"),
+	qstr("msgFile4Bg"),
+	qstr("msgFile4BgDark"),
+	qstr("msgFile4BgOver"),
+	qstr("msgFile4BgSelected"),
+	qstr("mediaviewFileRedCornerFg"),
+	qstr("mediaviewFileYellowCornerFg"),
+	qstr("mediaviewFileGreenCornerFg"),
+	qstr("mediaviewFileBlueCornerFg"),
+} };
+
+} // namespace
 
 class BackgroundRow : public Ui::RpWidget {
 public:
@@ -876,10 +928,16 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			scheme.accentColor));
 		box->setSaveCallback([=](QColor result) {
 			auto colorizer = Window::Theme::Colorizer();
+			colorizer.ignoreKeys = kColorizeIgnoredKeys;
 			colorizer.hueThreshold = 10;
-			colorizer.saturationThreshold = 10;
-			colorizer.wasHue = scheme.accentColor.hue();
-			colorizer.nowHue = result.hue();
+			scheme.accentColor.getHsv(
+				&colorizer.wasHue,
+				&colorizer.wasSaturation,
+				&colorizer.wasValue);
+			result.getHsv(
+				&colorizer.nowHue,
+				&colorizer.nowSaturation,
+				&colorizer.nowValue);
 			apply(scheme, &colorizer);
 		});
 	};

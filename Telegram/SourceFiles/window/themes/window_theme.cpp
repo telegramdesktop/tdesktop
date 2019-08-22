@@ -153,22 +153,63 @@ void Colorize(
 	auto saturation = 0;
 	auto value = 0;
 	color.getHsv(&hue, &saturation, &value);
-	if ((saturation < colorizer->saturationThreshold)
-		|| (std::abs(hue - colorizer->wasHue) > colorizer->hueThreshold)) {
-		return;
-	}
-	const auto changed = hue + (colorizer->nowHue - colorizer->wasHue);
+	const auto changeColor = std::abs(hue - colorizer->wasHue)
+		<= colorizer->hueThreshold;
+	const auto nowHue = hue + (colorizer->nowHue - colorizer->wasHue);
+	const auto nowSaturation = ((saturation > colorizer->wasSaturation)
+		&& (colorizer->nowSaturation > colorizer->wasSaturation))
+		? (((colorizer->nowSaturation * (255 - colorizer->wasSaturation))
+			+ ((saturation - colorizer->wasSaturation)
+				* (255 - colorizer->nowSaturation)))
+			/ (255 - colorizer->wasSaturation))
+		: ((saturation != colorizer->wasSaturation)
+			&& (colorizer->wasSaturation != 0))
+		? ((saturation * colorizer->nowSaturation)
+			/ colorizer->wasSaturation)
+		: colorizer->nowSaturation;
+	const auto nowValue = (value > colorizer->wasValue)
+		? (((colorizer->nowValue * (255 - colorizer->wasValue))
+			+ ((value - colorizer->wasValue)
+				* (255 - colorizer->nowValue)))
+			/ (255 - colorizer->wasValue))
+		: (value < colorizer->wasValue)
+		? ((value * colorizer->nowValue)
+			/ colorizer->wasValue)
+		: colorizer->nowValue;
 	auto nowR = 0;
 	auto nowG = 0;
 	auto nowB = 0;
 	QColor::fromHsv(
-		(changed + 360) % 360,
-		saturation,
-		value
+		changeColor ? ((nowHue + 360) % 360) : hue,
+		changeColor ? nowSaturation : saturation,
+		nowValue
 	).getRgb(&nowR, &nowG, &nowB);
 	r = uchar(nowR);
 	g = uchar(nowG);
 	b = uchar(nowB);
+}
+
+void Colorize(uint32 &pixel, not_null<const Colorizer*> colorizer) {
+	const auto chars = reinterpret_cast<uchar*>(&pixel);
+	Colorize(
+		chars[2],
+		chars[1],
+		chars[0],
+		colorizer);
+}
+
+void Colorize(QImage &image, not_null<const Colorizer*> colorizer) {
+	image = std::move(image).convertToFormat(QImage::Format_ARGB32);
+	const auto bytes = image.bits();
+	const auto bytesPerLine = image.bytesPerLine();
+	for (auto line = 0; line != image.height(); ++line) {
+		const auto ints = reinterpret_cast<uint32*>(
+			bytes + line * bytesPerLine);
+		const auto end = ints + image.width();
+		for (auto p = ints; p != end; ++p) {
+			Colorize(*p, colorizer);
+		}
+	}
 }
 
 enum class SetResult {
@@ -190,7 +231,7 @@ SetResult setColorSchemeValue(
 		auto g = readHexUchar(data[3], data[4], error);
 		auto b = readHexUchar(data[5], data[6], error);
 		auto a = (size == 9) ? readHexUchar(data[7], data[8], error) : uchar(255);
-		if (colorizer) {
+		if (colorizer && !colorizer->ignoreKeys.contains(name)) {
 			Colorize(r, g, b, colorizer);
 		}
 		if (error) {
@@ -361,6 +402,9 @@ bool loadTheme(
 			if (background.isNull()) {
 				LOG(("Theme Error: could not read background image in the theme file."));
 				return false;
+			}
+			if (colorizer) {
+				Colorize(background, colorizer);
 			}
 			auto buffer = QBuffer(&cache.background);
 			if (!background.save(&buffer, "BMP")) {
