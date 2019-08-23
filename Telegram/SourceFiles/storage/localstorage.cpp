@@ -616,6 +616,7 @@ enum {
 	dbiCallSettings = 0x5b,
 	dbiCacheSettings = 0x5c,
 	dbiTxtDomainString = 0x5d,
+	dbiApplicationSettings = 0x5e,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -925,6 +926,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		context.dcOptions.constructFromSerialized(serialized);
+	} break;
+
+	case dbiApplicationSettings: {
+		auto serialized = QByteArray();
+		stream >> serialized;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Core::App().settings().constructFromSerialized(serialized);
 	} break;
 
 	case dbiChatSizeMax: {
@@ -2618,10 +2627,12 @@ void writeSettings() {
 	}
 	settings.writeData(_settingsSalt);
 
-	auto dcOptionsSerialized = Core::App().dcOptions()->serialize();
+	const auto dcOptionsSerialized = Core::App().dcOptions()->serialize();
+	const auto applicationSettings = Core::App().settings().serialize();
 
 	quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::bytearraySize(dcOptionsSerialized);
+	size += sizeof(quint32) + Serialize::bytearraySize(applicationSettings);
 	size += sizeof(quint32) + Serialize::stringSize(cLoggedPhoneNumber());
 	size += sizeof(quint32) + Serialize::stringSize(Global::TxtDomainString());
 
@@ -2660,6 +2671,7 @@ void writeSettings() {
 	data.stream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
 	data.stream << quint32(dbiScalePercent) << qint32(cConfigScale());
 	data.stream << quint32(dbiDcOptions) << dcOptionsSerialized;
+	data.stream << quint32(dbiApplicationSettings) << applicationSettings;
 	data.stream << quint32(dbiLoggedPhoneNumber) << cLoggedPhoneNumber();
 	data.stream << quint32(dbiTxtDomainString) << Global::TxtDomainString();
 	data.stream << quint32(dbiAnimationsDisabled) << qint32(anim::Disabled() ? 1 : 0);

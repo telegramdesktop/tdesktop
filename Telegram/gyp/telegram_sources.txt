@@ -145,6 +145,8 @@
 <(src_loc)/core/click_handler_types.h
 <(src_loc)/core/core_cloud_password.cpp
 <(src_loc)/core/core_cloud_password.h
+<(src_loc)/core/core_settings.cpp
+<(src_loc)/core/core_settings.h
 <(src_loc)/core/crash_report_window.cpp
 <(src_loc)/core/crash_report_window.h
 <(src_loc)/core/crash_reports.cpp
@@ -467,6 +469,8 @@
 <(src_loc)/main/main_app_config.h
 <(src_loc)/main/main_session.cpp
 <(src_loc)/main/main_session.h
+<(src_loc)/main/main_settings.cpp
+<(src_loc)/main/main_settings.h
 <(src_loc)/media/audio/media_audio.cpp
 <(src_loc)/media/audio/media_audio.h
 <(src_loc)/media/audio/media_audio_capture.cpp
@@ -893,6 +897,8 @@
 <(src_loc)/window/themes/window_theme_preview.h
 <(src_loc)/window/themes/window_theme_warning.cpp
 <(src_loc)/window/themes/window_theme_warning.h
+<(src_loc)/window/themes/window_themes_embedded.cpp
+<(src_loc)/window/themes/window_themes_embedded.h
 <(src_loc)/apiwrap.cpp
 <(src_loc)/apiwrap.h
 <(src_loc)/app.cpp

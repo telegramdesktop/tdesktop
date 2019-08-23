@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 
 #include "window/themes/window_theme_preview.h"
+#include "window/themes/window_themes_embedded.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -33,6 +34,7 @@ constexpr auto kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
 constexpr auto kBackgroundSizeLimit = 25 * 1024 * 1024;
 constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
 constexpr auto kNightThemeFile = str_const(":/gui/night.tdesktop-theme");
+constexpr auto kMinimumTiledSize = 512;
 
 struct Applying {
 	QString pathRelative;
@@ -141,75 +143,6 @@ bool readNameAndValue(const char *&from, const char *end, QLatin1String *outName
 	}
 	++from;
 	return true;
-}
-
-void Colorize(
-		uchar &r,
-		uchar &g,
-		uchar &b,
-		not_null<const Colorizer*> colorizer) {
-	auto color = QColor(int(r), int(g), int(b));
-	auto hue = 0;
-	auto saturation = 0;
-	auto value = 0;
-	color.getHsv(&hue, &saturation, &value);
-	const auto changeColor = std::abs(hue - colorizer->wasHue)
-		<= colorizer->hueThreshold;
-	const auto nowHue = hue + (colorizer->nowHue - colorizer->wasHue);
-	const auto nowSaturation = ((saturation > colorizer->wasSaturation)
-		&& (colorizer->nowSaturation > colorizer->wasSaturation))
-		? (((colorizer->nowSaturation * (255 - colorizer->wasSaturation))
-			+ ((saturation - colorizer->wasSaturation)
-				* (255 - colorizer->nowSaturation)))
-			/ (255 - colorizer->wasSaturation))
-		: ((saturation != colorizer->wasSaturation)
-			&& (colorizer->wasSaturation != 0))
-		? ((saturation * colorizer->nowSaturation)
-			/ colorizer->wasSaturation)
-		: colorizer->nowSaturation;
-	const auto nowValue = (value > colorizer->wasValue)
-		? (((colorizer->nowValue * (255 - colorizer->wasValue))
-			+ ((value - colorizer->wasValue)
-				* (255 - colorizer->nowValue)))
-			/ (255 - colorizer->wasValue))
-		: (value < colorizer->wasValue)
-		? ((value * colorizer->nowValue)
-			/ colorizer->wasValue)
-		: colorizer->nowValue;
-	auto nowR = 0;
-	auto nowG = 0;
-	auto nowB = 0;
-	QColor::fromHsv(
-		changeColor ? ((nowHue + 360) % 360) : hue,
-		changeColor ? nowSaturation : saturation,
-		nowValue
-	).getRgb(&nowR, &nowG, &nowB);
-	r = uchar(nowR);
-	g = uchar(nowG);
-	b = uchar(nowB);
-}
-
-void Colorize(uint32 &pixel, not_null<const Colorizer*> colorizer) {
-	const auto chars = reinterpret_cast<uchar*>(&pixel);
-	Colorize(
-		chars[2],
-		chars[1],
-		chars[0],
-		colorizer);
-}
-
-void Colorize(QImage &image, not_null<const Colorizer*> colorizer) {
-	image = std::move(image).convertToFormat(QImage::Format_ARGB32);
-	const auto bytes = image.bits();
-	const auto bytesPerLine = image.bytesPerLine();
-	for (auto line = 0; line != image.height(); ++line) {
-		const auto ints = reinterpret_cast<uint32*>(
-			bytes + line * bytesPerLine);
-		const auto end = ints + image.width();
-		for (auto p = ints; p != end; ++p) {
-			Colorize(*p, colorizer);
-		}
-	}
 }
 
 enum class SetResult {

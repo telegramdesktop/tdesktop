@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/observer.h"
+#include "core/core_settings.h"
 #include "mtproto/auth_key.h"
+#include "base/observer.h"
 #include "base/timer.h"
 
 class MainWindow;
@@ -94,9 +95,6 @@ public:
 	bool closeActiveWindow();
 	bool minimizeActiveWindow();
 	QWidget *getFileDialogParent();
-	QWidget *getGlobalShortcutParent() {
-		return &_globalShortcutParent;
-	}
 
 	// Media view interface.
 	void checkMediaViewActivation();
@@ -115,7 +113,13 @@ public:
 		return _logoNoMargin;
 	}
 
-	// MTProto components.
+	[[nodiscard]] Settings &settings() {
+		return _settings;
+	}
+	void moveSettingsFrom(Settings &&other);
+	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
+
+	// Dc options and proxy.
 	MTP::DcOptions *dcOptions() {
 		return _dcOptions.get();
 	}
@@ -221,6 +225,8 @@ protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
 
 private:
+	static constexpr auto kDefaultSaveDelay = crl::time(1000);
+
 	friend bool IsAppLaunched();
 	friend Application &App();
 
@@ -251,8 +257,7 @@ private:
 	// Some fields are just moved from the declaration.
 	struct Private;
 	const std::unique_ptr<Private> _private;
-
-	QWidget _globalShortcutParent;
+	Settings _settings;
 
 	const std::unique_ptr<Storage::Databases> _databases;
 	const std::unique_ptr<Ui::Animations::Manager> _animationsManager;
@@ -276,6 +281,7 @@ private:
 	std::unique_ptr<Window::TermsLock> _termsLock;
 
 	base::DelayedCallTimer _callDelayedTimer;
+	base::Timer _saveSettingsTimer;
 
 	struct LeaveSubscription {
 		LeaveSubscription(

@@ -1587,7 +1587,7 @@ void UpdateApplication() {
 					Window::SectionShow());
 			} else {
 				window->showSpecialLayer(
-					Box<Settings::LayerWidget>(),
+					Box<::Settings::LayerWidget>(),
 					anim::type::normal);
 			}
 			window->showFromTray();

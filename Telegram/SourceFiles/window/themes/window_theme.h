@@ -16,7 +16,7 @@ class Session;
 namespace Window {
 namespace Theme {
 
-constexpr auto kMinimumTiledSize = 512;
+struct Colorizer;
 
 struct Cached {
 	QByteArray colors;
@@ -47,17 +47,6 @@ struct Preview {
 	Instance instance;
 	QByteArray content;
 	QImage preview;
-};
-
-struct Colorizer {
-	int wasHue = 0;
-	int wasSaturation = 0;
-	int wasValue = 0;
-	int nowHue = 0;
-	int nowSaturation = 0;
-	int nowValue = 0;
-	int hueThreshold = 0;
-	base::flat_set<QLatin1String> ignoreKeys;
 };
 
 bool Apply(const QString &filepath);

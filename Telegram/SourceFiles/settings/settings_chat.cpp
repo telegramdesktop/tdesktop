@@ -28,10 +28,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "window/themes/window_theme_editor.h"
 #include "window/themes/window_theme.h"
+#include "window/themes/window_themes_embedded.h"
 #include "window/window_session_controller.h"
 #include "info/profile/info_profile_button.h"
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
+#include "core/application.h"
 #include "data/data_session.h"
 #include "chat_helpers/emoji_sets_manager.h"
 #include "platform/platform_info.h"
@@ -43,58 +45,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 
 namespace Settings {
-namespace {
-
-const auto kColorizeIgnoredKeys = base::flat_set<QLatin1String>{ {
-	qstr("boxTextFgGood"),
-	qstr("boxTextFgError"),
-	qstr("historyPeer1NameFg"),
-	qstr("historyPeer1NameFgSelected"),
-	qstr("historyPeer1UserpicBg"),
-	qstr("historyPeer2NameFg"),
-	qstr("historyPeer2NameFgSelected"),
-	qstr("historyPeer2UserpicBg"),
-	qstr("historyPeer3NameFg"),
-	qstr("historyPeer3NameFgSelected"),
-	qstr("historyPeer3UserpicBg"),
-	qstr("historyPeer4NameFg"),
-	qstr("historyPeer4NameFgSelected"),
-	qstr("historyPeer4UserpicBg"),
-	qstr("historyPeer5NameFg"),
-	qstr("historyPeer5NameFgSelected"),
-	qstr("historyPeer5UserpicBg"),
-	qstr("historyPeer6NameFg"),
-	qstr("historyPeer6NameFgSelected"),
-	qstr("historyPeer6UserpicBg"),
-	qstr("historyPeer7NameFg"),
-	qstr("historyPeer7NameFgSelected"),
-	qstr("historyPeer7UserpicBg"),
-	qstr("historyPeer8NameFg"),
-	qstr("historyPeer8NameFgSelected"),
-	qstr("historyPeer8UserpicBg"),
-	qstr("msgFile1Bg"),
-	qstr("msgFile1BgDark"),
-	qstr("msgFile1BgOver"),
-	qstr("msgFile1BgSelected"),
-	qstr("msgFile2Bg"),
-	qstr("msgFile2BgDark"),
-	qstr("msgFile2BgOver"),
-	qstr("msgFile2BgSelected"),
-	qstr("msgFile3Bg"),
-	qstr("msgFile3BgDark"),
-	qstr("msgFile3BgOver"),
-	qstr("msgFile3BgSelected"),
-	qstr("msgFile4Bg"),
-	qstr("msgFile4BgDark"),
-	qstr("msgFile4BgOver"),
-	qstr("msgFile4BgSelected"),
-	qstr("mediaviewFileRedCornerFg"),
-	qstr("mediaviewFileYellowCornerFg"),
-	qstr("mediaviewFileGreenCornerFg"),
-	qstr("mediaviewFileBlueCornerFg"),
-} };
-
-} // namespace
 
 class BackgroundRow : public Ui::RpWidget {
 public:
@@ -127,23 +77,9 @@ private:
 
 class DefaultTheme final : public Ui::AbstractCheckView {
 public:
-	enum class Type {
-		DayBlue,
-		Default,
-		Night,
-		NightGreen,
-	};
-	struct Scheme {
-		Type type = Type();
-		QColor background;
-		QColor sent;
-		QColor received;
-		QColor radiobuttonInactive;
-		QColor radiobuttonActive;
-		tr::phrase<> name;
-		QString path;
-		QColor accentColor;
-	};
+	using Type = Window::Theme::EmbeddedType;
+	using Scheme = Window::Theme::EmbeddedScheme;
+
 	DefaultTheme(Scheme scheme, bool checked);
 
 	QSize getSize() const override;
@@ -155,10 +91,13 @@ public:
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 
+	void setColorizer(const Window::Theme::Colorizer *colorizer);
+
 private:
 	void checkedChangedHook(anim::type animated) override;
 
 	Scheme _scheme;
+	Scheme _colorized;
 	Ui::RadioView _radio;
 
 };
@@ -369,8 +308,17 @@ DefaultTheme::DefaultTheme(Scheme scheme, bool checked)
 : AbstractCheckView(st::defaultRadio.duration, checked, nullptr)
 , _scheme(scheme)
 , _radio(st::defaultRadio, checked, [=] { update(); }) {
-	_radio.setToggledOverride(_scheme.radiobuttonActive);
-	_radio.setUntoggledOverride(_scheme.radiobuttonInactive);
+	setColorizer(nullptr);
+}
+
+void DefaultTheme::setColorizer(const Window::Theme::Colorizer *colorizer) {
+	_colorized = _scheme;
+	if (colorizer) {
+		Window::Theme::Colorize(_colorized, colorizer);
+	}
+	_radio.setToggledOverride(_colorized.radiobuttonActive);
+	_radio.setUntoggledOverride(_colorized.radiobuttonInactive);
+	update();
 }
 
 QSize DefaultTheme::getSize() const {
@@ -394,13 +342,13 @@ void DefaultTheme::paint(
 
 	p.fillRect(
 		QRect(QPoint(), st::settingsThemePreviewSize),
-		_scheme.background);
+		_colorized.background);
 
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
-	p.setBrush(_scheme.received);
+	p.setBrush(_colorized.received);
 	p.drawRoundedRect(rtlrect(received, outerWidth), radius, radius);
-	p.setBrush(_scheme.sent);
+	p.setBrush(_colorized.sent);
 	p.drawRoundedRect(rtlrect(sent, outerWidth), radius, radius);
 
 	const auto radio = _radio.getSize();
@@ -824,79 +772,13 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	using Scheme = DefaultTheme::Scheme;
 	const auto block = container->add(object_ptr<Ui::FixedHeightWidget>(
 		container));
-	const auto scheme = DefaultTheme::Scheme();
-	const auto color = [](str_const hex) {
-		Expects(hex.size() == 6);
-
-		const auto component = [](char a, char b) {
-			const auto convert = [](char ch) {
-				Expects((ch >= '0' && ch <= '9')
-					|| (ch >= 'A' && ch <= 'F')
-					|| (ch >= 'a' && ch <= 'f'));
-
-				return (ch >= '0' && ch <= '9')
-					? int(ch - '0')
-					: int(ch - ((ch >= 'A' && ch <= 'F') ? 'A' : 'a') + 10);
-			};
-			return convert(a) * 16 + convert(b);
-		};
-
-		return QColor(
-			component(hex[0], hex[1]),
-			component(hex[2], hex[3]),
-			component(hex[4], hex[5]));
-	};
-	static const auto schemes = {
-		Scheme{
-			Type::DayBlue,
-			color("7ec4ea"),
-			color("d7f0ff"),
-			color("ffffff"),
-			color("d7f0ff"),
-			color("ffffff"),
-			tr::lng_settings_theme_blue,
-			":/gui/day-blue.tdesktop-theme",
-			color("40a7e3")
-		},
-		Scheme{
-			Type::Default,
-			color("90ce89"),
-			color("eaffdc"),
-			color("ffffff"),
-			color("eaffdc"),
-			color("ffffff"),
-			tr::lng_settings_theme_classic,
-			QString()
-		},
-		Scheme{
-			Type::Night,
-			color("485761"),
-			color("5ca7d4"),
-			color("6b808d"),
-			color("6b808d"),
-			color("5ca7d4"),
-			tr::lng_settings_theme_midnight,
-			":/gui/night.tdesktop-theme",
-			color("5288c1")
-		},
-		Scheme{
-			Type::NightGreen,
-			color("485761"),
-			color("74bf93"),
-			color("6b808d"),
-			color("6b808d"),
-			color("74bf93"),
-			tr::lng_settings_theme_matrix,
-			":/gui/night-green.tdesktop-theme",
-			color("3fc1b0")
-		},
-	};
-	const auto chosen = [&] {
+	static const auto SchemesList = Window::Theme::EmbeddedThemes();
+	const auto chosen = [] {
 		if (Window::Theme::IsNonDefaultBackground()) {
 			return Type(-1);
 		}
 		const auto path = Window::Theme::Background()->themeAbsolutePath();
-		for (const auto &scheme : schemes) {
+		for (const auto &scheme : SchemesList) {
 			if (path == scheme.path) {
 				return scheme.type;
 			}
@@ -922,23 +804,26 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			Window::Theme::KeepApplied();
 		}
 	};
+	const auto applyWithColor = [=](
+			const Scheme &scheme,
+			const QColor &color) {
+		const auto colorizer = Window::Theme::ColorizerFrom(
+			scheme,
+			color);
+		apply(scheme, &colorizer);
+	};
 	const auto applyWithColorize = [=](const Scheme &scheme) {
+		const auto &colors = Core::App().settings().themesAccentColors();
+		const auto color = colors.get(scheme.type);
 		const auto box = Ui::show(Box<EditColorBox>(
 			"Choose accent color",
-			scheme.accentColor));
+			color.value_or(scheme.accentColor)));
 		box->setSaveCallback([=](QColor result) {
-			auto colorizer = Window::Theme::Colorizer();
-			colorizer.ignoreKeys = kColorizeIgnoredKeys;
-			colorizer.hueThreshold = 10;
-			scheme.accentColor.getHsv(
-				&colorizer.wasHue,
-				&colorizer.wasSaturation,
-				&colorizer.wasValue);
-			result.getHsv(
-				&colorizer.nowHue,
-				&colorizer.nowSaturation,
-				&colorizer.nowValue);
-			apply(scheme, &colorizer);
+			Core::App().settings().themesAccentColors().set(
+				scheme.type,
+				result);
+			Core::App().saveSettingsDelayed();
+			applyWithColor(scheme, result);
 		});
 	};
 	const auto schemeClicked = [=](
@@ -947,12 +832,18 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		if (scheme.accentColor.hue() && (modifiers & Qt::ControlModifier)) {
 			applyWithColorize(scheme);
 		} else {
-			apply(scheme);
+			const auto &colors = Core::App().settings().themesAccentColors();
+			if (const auto color = colors.get(scheme.type)) {
+				applyWithColor(scheme, *color);
+			} else {
+				apply(scheme);
+			}
 		}
 	};
 
+	auto checks = base::flat_map<Type,not_null<DefaultTheme*>>();
 	auto buttons = ranges::view::all(
-		schemes
+		SchemesList
 	) | ranges::view::transform([&](const Scheme &scheme) {
 		auto check = std::make_unique<DefaultTheme>(scheme, false);
 		const auto weak = check.get();
@@ -967,8 +858,29 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			schemeClicked(scheme, result->clickModifiers());
 		});
 		weak->setUpdateCallback([=] { result->update(); });
+		checks.emplace(scheme.type, weak);
 		return result;
 	}) | ranges::to_vector;
+
+	const auto refreshColorizer = [=](Type type) {
+		const auto &colors = Core::App().settings().themesAccentColors();
+		const auto i = checks.find(type);
+		const auto scheme = ranges::find(SchemesList, type, &Scheme::type);
+		if (i != end(checks) && scheme != end(SchemesList)) {
+			if (const auto color = colors.get(type)) {
+				const auto colorizer = Window::Theme::ColorizerFrom(
+					*scheme,
+					*color);
+				i->second->setColorizer(&colorizer);
+			} else {
+				i->second->setColorizer(nullptr);
+			}
+		}
+	};
+
+	for (const auto &scheme : SchemesList) {
+		refreshColorizer(scheme.type);
+	}
 
 	using Update = const Window::Theme::BackgroundUpdate;
 	base::ObservableViewer(
@@ -979,6 +891,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	}) | rpl::map([=] {
 		return chosen();
 	}) | rpl::start_with_next([=](Type type) {
+		refreshColorizer(type);
 		group->setValue(type);
 	}, container->lifetime());
 
@@ -1024,6 +937,12 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			left += button->width() + ((index++ % 2) ? bigSkip : smallSkip);
 		}
 	}, block->lifetime());
+
+	const auto colors = container->add(
+		object_ptr<Ui::SlideWrap<>>(
+			container,
+			object_ptr<Ui::FixedHeightWidget>(
+				container)));
 
 	AddSkip(container);
 }
