@@ -45,6 +45,193 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 
 namespace Settings {
+namespace {
+
+const auto kSchemesList = Window::Theme::EmbeddedThemes();
+constexpr auto kColorsPerRow = 5;
+
+class ColorsPalette final {
+public:
+	using Type = Window::Theme::EmbeddedType;
+	using Scheme = Window::Theme::EmbeddedScheme;
+
+	explicit ColorsPalette(not_null<Ui::VerticalLayout*> container);
+
+	void show(Type type);
+
+	rpl::producer<QColor> selected() const;
+
+private:
+	void updateInnerGeometry();
+
+	not_null<Ui::SlideWrap<>*> _outer;
+	std::vector<std::vector<std::unique_ptr<Ui::RpWidget>>> _buttons;
+
+	rpl::event_stream<QColor> _selected;
+
+};
+
+not_null<Ui::AbstractButton*> CreateColorButton(
+		not_null<Ui::RpWidget*> parent,
+		const QColor &color,
+		bool selected) {
+	const auto result = Ui::CreateChild<Ui::AbstractButton>(parent.get());
+	result->show();
+	result->resize(st::settingsAccentColorSize, st::settingsAccentColorSize);
+	result->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		Painter p(result);
+		PainterHighQualityEnabler hq(p);
+
+		const auto rect = result->rect();
+		p.setBrush(color);
+		p.setPen(Qt::NoPen);
+		p.drawEllipse(result->rect());
+		if (selected) {
+			const auto skip = st::settingsAccentColorSkip;
+			auto pen = st::boxBg->p;
+			pen.setWidth(st::settingsAccentColorLine);
+			p.setBrush(Qt::NoBrush);
+			p.setPen(pen);
+			p.drawEllipse(rect.marginsRemoved({ skip, skip, skip, skip }));
+		}
+	}, result->lifetime());
+	return result;
+}
+
+not_null<Ui::AbstractButton*> CreateCustomButton(
+		not_null<Ui::RpWidget*> parent,
+		std::vector<QColor> colors) {
+	const auto shared = std::make_shared<std::vector<QColor>>(
+		std::move(colors));
+	const auto result = Ui::CreateChild<Ui::AbstractButton>(parent.get());
+	result->show();
+	const auto size = st::settingsAccentColorSize;
+	result->resize(size, size);
+	result->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		Painter p(result);
+		PainterHighQualityEnabler hq(p);
+
+		p.setPen(Qt::NoPen);
+
+		const auto smallSize = size / 8.;
+		const auto &list = *shared;
+		const auto drawAround = [&](QPointF center, int index) {
+			const auto where = QPointF{
+				size * (1. + center.x()) / 2,
+				size * (1. + center.y()) / 2
+			};
+			p.setBrush(list[index]);
+			p.drawEllipse(
+				where.x() - smallSize,
+				where.y() - smallSize,
+				2 * smallSize,
+				2 * smallSize);
+		};
+		drawAround(QPointF(), 0);
+		for (auto i = 0; i != 6; ++i) {
+			const auto angle = i * M_PI / 3.;
+			const auto point = QPointF{ cos(angle), sin(angle) };
+			const auto adjusted = point * (1. - (2 * smallSize / size));
+			drawAround(adjusted, i + 1);
+		}
+	}, result->lifetime());
+	return result;
+}
+
+ColorsPalette::ColorsPalette(not_null<Ui::VerticalLayout*> container)
+: _outer(container->add(
+	object_ptr<Ui::SlideWrap<>>(
+		container,
+		object_ptr<Ui::RpWidget>(container)))) {
+	_outer->hide(anim::type::instant);
+
+	const auto inner = _outer->entity();
+	inner->widthValue(
+	) | rpl::start_with_next([=] {
+		updateInnerGeometry();
+	}, inner->lifetime());
+}
+
+void ColorsPalette::show(Type type) {
+	const auto scheme = ranges::find(kSchemesList, type, &Scheme::type);
+	if (scheme == end(kSchemesList)) {
+		_outer->hide(anim::type::instant);
+		return;
+	}
+	auto list = Window::Theme::DefaultAccentColors(type);
+	if (list.empty()) {
+		_outer->hide(anim::type::instant);
+		return;
+	}
+	list.insert(list.begin(), scheme->accentColor);
+	const auto color = Core::App().settings().themesAccentColors().get(type);
+	const auto current = color.value_or(scheme->accentColor);
+	const auto i = ranges::find(list, current);
+	if (i == end(list)) {
+		list.back() = current;
+	}
+	_outer->show(anim::type::instant);
+	_buttons.clear();
+	const auto pushButton = [&](not_null<Ui::RpWidget*> button) {
+		if (_buttons.empty() || _buttons.back().size() == kColorsPerRow) {
+			_buttons.emplace_back();
+		}
+		_buttons.back().emplace_back(button.get());
+	};
+	const auto inner = _outer->entity();
+	const auto size = st::settingsAccentColorSize;
+	for (const auto &color : list) {
+		const auto selected = color == current;
+		const auto button = CreateColorButton(inner, color, selected);
+		button->clicks(
+		) | rpl::map([=] {
+			return color;
+		}) | rpl::start_with_next([=](QColor color) {
+			_selected.fire_copy(color);
+		}, button->lifetime());
+		pushButton(button);
+	}
+	const auto custom = CreateCustomButton(inner, std::move(list));
+	custom->clicks(
+	) | rpl::start_with_next([=] {
+		const auto box = Ui::show(Box<EditColorBox>(
+			"Choose accent color",
+			current));
+		box->setSaveCallback(crl::guard(custom, [=](QColor result) {
+			_selected.fire_copy(result);
+		}));
+	}, custom->lifetime());
+	pushButton(custom);
+	inner->resize(_outer->width(), inner->height());
+	updateInnerGeometry();
+}
+
+rpl::producer<QColor> ColorsPalette::selected() const {
+	return _selected.events();
+}
+
+void ColorsPalette::updateInnerGeometry() {
+	const auto inner = _outer->entity();
+	const auto size = st::settingsAccentColorSize;
+	const auto padding = st::settingsButton.padding;
+	const auto width = inner->width() - padding.left() - padding.right();
+	const auto skip = (width - size * kColorsPerRow)
+		/ float64(kColorsPerRow - 1);
+	auto y = st::settingsSectionSkip * 2;
+	for (const auto &row : _buttons) {
+		auto x = float64(padding.left());
+		for (const auto &button : row) {
+			button->moveToLeft(int(std::round(x)), y);
+			x += size + skip;
+		}
+		y += size + int(std::round(skip));
+	}
+	inner->resize(inner->width(), y - int(std::round(skip)));
+}
+
+} // namespace
 
 class BackgroundRow : public Ui::RpWidget {
 public:
@@ -770,15 +957,19 @@ void SetupChatBackground(
 void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	using Type = DefaultTheme::Type;
 	using Scheme = DefaultTheme::Scheme;
+
 	const auto block = container->add(object_ptr<Ui::FixedHeightWidget>(
 		container));
-	static const auto SchemesList = Window::Theme::EmbeddedThemes();
+	const auto palette = Ui::CreateChild<ColorsPalette>(
+		container.get(),
+		container.get());
+
 	const auto chosen = [] {
 		if (Window::Theme::IsNonDefaultBackground()) {
 			return Type(-1);
 		}
 		const auto path = Window::Theme::Background()->themeAbsolutePath();
-		for (const auto &scheme : SchemesList) {
+		for (const auto &scheme : kSchemesList) {
 			if (path == scheme.path) {
 				return scheme.type;
 			}
@@ -807,9 +998,12 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	const auto applyWithColor = [=](
 			const Scheme &scheme,
 			const QColor &color) {
-		const auto colorizer = Window::Theme::ColorizerFrom(
-			scheme,
-			color);
+		auto &colors = Core::App().settings().themesAccentColors();
+		if (colors.get(scheme.type) != color) {
+			colors.set(scheme.type, color);
+			Local::writeSettings();
+		}
+		const auto colorizer = Window::Theme::ColorizerFrom(scheme, color);
 		apply(scheme, &colorizer);
 	};
 	const auto applyWithColorize = [=](const Scheme &scheme) {
@@ -819,10 +1013,6 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			"Choose accent color",
 			color.value_or(scheme.accentColor)));
 		box->setSaveCallback([=](QColor result) {
-			Core::App().settings().themesAccentColors().set(
-				scheme.type,
-				result);
-			Core::App().saveSettingsDelayed();
 			applyWithColor(scheme, result);
 		});
 	};
@@ -843,7 +1033,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 
 	auto checks = base::flat_map<Type,not_null<DefaultTheme*>>();
 	auto buttons = ranges::view::all(
-		SchemesList
+		kSchemesList
 	) | ranges::view::transform([&](const Scheme &scheme) {
 		auto check = std::make_unique<DefaultTheme>(scheme, false);
 		const auto weak = check.get();
@@ -863,10 +1053,17 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	}) | ranges::to_vector;
 
 	const auto refreshColorizer = [=](Type type) {
+		if (type == chosen()) {
+			palette->show(type);
+		}
+
 		const auto &colors = Core::App().settings().themesAccentColors();
 		const auto i = checks.find(type);
-		const auto scheme = ranges::find(SchemesList, type, &Scheme::type);
-		if (i != end(checks) && scheme != end(SchemesList)) {
+		const auto scheme = ranges::find(kSchemesList, type, &Scheme::type);
+		if (scheme == end(kSchemesList)) {
+			return;
+		}
+		if (i != end(checks)) {
 			if (const auto color = colors.get(type)) {
 				const auto colorizer = Window::Theme::ColorizerFrom(
 					*scheme,
@@ -878,7 +1075,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		}
 	};
 
-	for (const auto &scheme : SchemesList) {
+	for (const auto &scheme : kSchemesList) {
 		refreshColorizer(scheme.type);
 	}
 
@@ -938,11 +1135,15 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		}
 	}, block->lifetime());
 
-	const auto colors = container->add(
-		object_ptr<Ui::SlideWrap<>>(
-			container,
-			object_ptr<Ui::FixedHeightWidget>(
-				container)));
+	palette->selected(
+	) | rpl::start_with_next([=](QColor color) {
+		const auto type = chosen();
+		const auto scheme = ranges::find(kSchemesList, type, &Scheme::type);
+		if (scheme == end(kSchemesList)) {
+			return;
+		}
+		applyWithColor(*scheme, color);
+	}, container->lifetime());
 
 	AddSkip(container);
 }

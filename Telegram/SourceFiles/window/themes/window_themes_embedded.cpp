@@ -231,10 +231,10 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 		EmbeddedScheme{
 			EmbeddedType::NightGreen,
 			Color("485761"),
-			Color("75bfab"),
+			Color("75bfb5"),
 			Color("6b808d"),
 			Color("6b808d"),
-			Color("75bfab"),
+			Color("75bfb5"),
 			tr::lng_settings_theme_matrix,
 			":/gui/night-green.tdesktop-theme",
 			Color("3fc1b0")
@@ -242,7 +242,7 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 	};
 }
 
-std::vector<QColor> AccentColors(EmbeddedType type) {
+std::vector<QColor> DefaultAccentColors(EmbeddedType type) {
 	switch (type) {
 	case EmbeddedType::DayBlue:
 		return {
@@ -252,9 +252,9 @@ std::vector<QColor> AccentColors(EmbeddedType type) {
 			Color("da73a2"),
 			Color("e28830"),
 			Color("9073e7"),
-			Color("9073e7"),
+			Color("c14126"),
+			Color("71829c"),
 			Color("e3b63e"),
-			Color("71829c")
 		};
 	case EmbeddedType::Default:
 		return {};
@@ -266,9 +266,9 @@ std::vector<QColor> AccentColors(EmbeddedType type) {
 			Color("da73a2"),
 			Color("e28830"),
 			Color("9073e7"),
-			Color("9073e7"),
+			Color("c14126"),
+			Color("71829c"),
 			Color("e3b63e"),
-			Color("71829c")
 		};
 	case EmbeddedType::NightGreen:
 		return {
@@ -278,9 +278,9 @@ std::vector<QColor> AccentColors(EmbeddedType type) {
 			Color("da73a2"),
 			Color("e28830"),
 			Color("9073e7"),
-			Color("9073e7"),
+			Color("c14126"),
+			Color("71829c"),
 			Color("e3b63e"),
-			Color("71829c")
 		};
 	}
 	Unexpected("Type in Window::Theme::AccentColors.");

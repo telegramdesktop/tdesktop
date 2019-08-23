@@ -208,3 +208,7 @@ settingsForwardPrivacyPadding: 8px;
 settingsForwardPrivacyArrowSkip: 32px;
 settingsForwardPrivacyArrowSize: 6px;
 settingsForwardPrivacyTooltipPadding: margins(8px, 6px, 8px, 6px);
+
+settingsAccentColorSize: 48px;
+settingsAccentColorSkip: 3px;
+settingsAccentColorLine: 2px;
