@@ -20,16 +20,24 @@ constexpr auto kAckSendWaiting = crl::time(10000);
 
 class Instance;
 
-bool IsPrimeAndGood(bytes::const_span primeBytes, int g);
+[[nodiscard]] bool IsPrimeAndGood(bytes::const_span primeBytes, int g);
 struct ModExpFirst {
 	static constexpr auto kRandomPowerSize = 256;
 
 	bytes::vector modexp;
 	bytes::vector randomPower;
 };
-bool IsGoodModExpFirst(const openssl::BigNum &modexp, const openssl::BigNum &prime);
-ModExpFirst CreateModExp(int g, bytes::const_span primeBytes, bytes::const_span randomSeed);
-bytes::vector CreateAuthKey(bytes::const_span firstBytes, bytes::const_span randomBytes, bytes::const_span primeBytes);
+[[nodiscard]] bool IsGoodModExpFirst(
+	const openssl::BigNum &modexp,
+	const openssl::BigNum &prime);
+[[nodiscard]] ModExpFirst CreateModExp(
+	int g,
+	bytes::const_span primeBytes,
+	bytes::const_span randomSeed);
+[[nodiscard]] bytes::vector CreateAuthKey(
+	bytes::const_span firstBytes,
+	bytes::const_span randomBytes,
+	bytes::const_span primeBytes);
 
 namespace internal {
 

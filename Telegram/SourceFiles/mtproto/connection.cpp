@@ -86,12 +86,16 @@ bool IsGoodModExpFirst(
 bool IsPrimeAndGoodCheck(const openssl::BigNum &prime, int g) {
 	constexpr auto kGoodPrimeBitsCount = 2048;
 
-	if (prime.failed() || prime.isNegative() || prime.bitsSize() != kGoodPrimeBitsCount) {
-		LOG(("MTP Error: Bad prime bits count %1, expected %2.").arg(prime.bitsSize()).arg(kGoodPrimeBitsCount));
+	if (prime.failed()
+		|| prime.isNegative()
+		|| prime.bitsSize() != kGoodPrimeBitsCount) {
+		LOG(("MTP Error: Bad prime bits count %1, expected %2."
+			).arg(prime.bitsSize()
+			).arg(kGoodPrimeBitsCount));
 		return false;
 	}
 
-	openssl::Context context;
+	const auto context = openssl::Context();
 	if (!prime.isPrime(context)) {
 		LOG(("MTP Error: Bad prime."));
 		return false;
@@ -99,14 +103,14 @@ bool IsPrimeAndGoodCheck(const openssl::BigNum &prime, int g) {
 
 	switch (g) {
 	case 2: {
-		auto mod8 = prime.modWord(8);
+		const auto mod8 = prime.countModWord(8);
 		if (mod8 != 7) {
 			LOG(("BigNum PT Error: bad g value: %1, mod8: %2").arg(g).arg(mod8));
 			return false;
 		}
 	} break;
 	case 3: {
-		auto mod3 = prime.modWord(3);
+		const auto mod3 = prime.countModWord(3);
 		if (mod3 != 2) {
 			LOG(("BigNum PT Error: bad g value: %1, mod3: %2").arg(g).arg(mod3));
 			return false;
@@ -114,21 +118,21 @@ bool IsPrimeAndGoodCheck(const openssl::BigNum &prime, int g) {
 	} break;
 	case 4: break;
 	case 5: {
-		auto mod5 = prime.modWord(5);
+		const auto mod5 = prime.countModWord(5);
 		if (mod5 != 1 && mod5 != 4) {
 			LOG(("BigNum PT Error: bad g value: %1, mod5: %2").arg(g).arg(mod5));
 			return false;
 		}
 	} break;
 	case 6: {
-		auto mod24 = prime.modWord(24);
+		const auto mod24 = prime.countModWord(24);
 		if (mod24 != 19 && mod24 != 23) {
 			LOG(("BigNum PT Error: bad g value: %1, mod24: %2").arg(g).arg(mod24));
 			return false;
 		}
 	} break;
 	case 7: {
-		auto mod7 = prime.modWord(7);
+		const auto mod7 = prime.countModWord(7);
 		if (mod7 != 3 && mod7 != 5 && mod7 != 6) {
 			LOG(("BigNum PT Error: bad g value: %1, mod7: %2").arg(g).arg(mod7));
 			return false;
@@ -140,10 +144,7 @@ bool IsPrimeAndGoodCheck(const openssl::BigNum &prime, int g) {
 	} break;
 	}
 
-	auto primeSubOneDivTwo = prime;
-	primeSubOneDivTwo.setSubWord(1);
-	primeSubOneDivTwo.setDivWord(2);
-	if (!primeSubOneDivTwo.isPrime(context)) {
+	if (!openssl::BigNum(prime).subWord(1).divWord(2).isPrime(context)) {
 		LOG(("MTP Error: Bad (prime - 1) / 2."));
 		return false;
 	}
@@ -184,8 +185,9 @@ bytes::vector CreateAuthKey(
 		bytes::const_span randomBytes,
 		bytes::const_span primeBytes) {
 	using openssl::BigNum;
-	BigNum first(firstBytes);
-	BigNum prime(primeBytes);
+
+	const auto first = BigNum(firstBytes);
+	const auto prime = BigNum(primeBytes);
 	if (!IsGoodModExpFirst(first, prime)) {
 		LOG(("AuthKey Error: Bad first prime in CreateAuthKey()."));
 		return {};
@@ -3304,15 +3306,23 @@ bool IsPrimeAndGood(bytes::const_span primeBytes, int g) {
 	return internal::IsPrimeAndGood(primeBytes, g);
 }
 
-bool IsGoodModExpFirst(const openssl::BigNum &modexp, const openssl::BigNum &prime) {
+bool IsGoodModExpFirst(
+		const openssl::BigNum &modexp,
+		const openssl::BigNum &prime) {
 	return internal::IsGoodModExpFirst(modexp, prime);
 }
 
-ModExpFirst CreateModExp(int g, bytes::const_span primeBytes, bytes::const_span randomSeed) {
+ModExpFirst CreateModExp(
+		int g,
+		bytes::const_span primeBytes,
+		bytes::const_span randomSeed) {
 	return internal::CreateModExp(g, primeBytes, randomSeed);
 }
 
-bytes::vector CreateAuthKey(bytes::const_span firstBytes, bytes::const_span randomBytes, bytes::const_span primeBytes) {
+bytes::vector CreateAuthKey(
+		bytes::const_span firstBytes,
+		bytes::const_span randomBytes,
+		bytes::const_span primeBytes) {
 	return internal::CreateAuthKey(firstBytes, randomBytes, primeBytes);
 }
 

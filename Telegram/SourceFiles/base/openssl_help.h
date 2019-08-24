@@ -57,19 +57,38 @@ private:
 
 class BigNum {
 public:
-	BigNum() : _data(BN_new()) {
+	BigNum() = default;
+	BigNum(const BigNum &other)
+	: _data((other.failed() || other.isZero())
+		? nullptr
+		: BN_dup(other.raw()))
+	, _failed(other._failed) {
 	}
-	BigNum(const BigNum &other) : BigNum() {
-		*this = other;
+	BigNum(BigNum &&other)
+	: _data(std::exchange(other._data, nullptr))
+	, _failed(std::exchange(other._failed, false)) {
 	}
 	BigNum &operator=(const BigNum &other) {
-		if (other.failed() || !BN_copy(raw(), other.raw())) {
+		if (other.failed()) {
 			_failed = true;
+		} else if (other.isZero()) {
+			clear();
+			_failed = false;
+		} else if (!_data) {
+			_data = BN_dup(other.raw());
+			_failed = false;
+		} else {
+			_failed = !BN_copy(raw(), other.raw());
 		}
 		return *this;
 	}
+	BigNum &operator=(BigNum &&other) {
+		std::swap(_data, other._data);
+		std::swap(_failed, other._failed);
+		return *this;
+	}
 	~BigNum() {
-		BN_clear_free(raw());
+		clear();
 	}
 
 	explicit BigNum(unsigned int word) : BigNum() {
@@ -79,64 +98,74 @@ public:
 		setBytes(bytes);
 	}
 
-	void setWord(unsigned int word) {
-		if (!BN_set_word(raw(), word)) {
-			_failed = true;
+	BigNum &setWord(unsigned int word) {
+		if (!word) {
+			clear();
+			_failed = false;
+		} else {
+			_failed = !BN_set_word(raw(), word);
 		}
+		return *this;
 	}
-	void setBytes(bytes::const_span bytes) {
-		if (!BN_bin2bn(
+	BigNum &setBytes(bytes::const_span bytes) {
+		if (bytes.empty()) {
+			clear();
+			_failed = false;
+		} else {
+			_failed = !BN_bin2bn(
 				reinterpret_cast<const unsigned char*>(bytes.data()),
 				bytes.size(),
-				raw())) {
-			_failed = true;
+				raw());
 		}
+		return *this;
 	}
 
-	void setAdd(const BigNum &a, const BigNum &b) {
+	BigNum &setAdd(const BigNum &a, const BigNum &b) {
 		if (a.failed() || b.failed()) {
 			_failed = true;
-		} else if (!BN_add(raw(), a.raw(), b.raw())) {
-			_failed = true;
+		} else {
+			_failed = !BN_add(raw(), a.raw(), b.raw());
 		}
+		return *this;
 	}
-	void setSub(const BigNum &a, const BigNum &b) {
+	BigNum &setSub(const BigNum &a, const BigNum &b) {
 		if (a.failed() || b.failed()) {
 			_failed = true;
-		} else if (!BN_sub(raw(), a.raw(), b.raw())) {
-			_failed = true;
+		} else {
+			_failed = !BN_sub(raw(), a.raw(), b.raw());
 		}
+		return *this;
 	}
-	void setSubWord(unsigned int word) {
-		if (failed()) {
-			return;
-		} else if (!BN_sub_word(raw(), word)) {
-			_failed = true;
-		}
-	}
-	void setMul(
+	BigNum &setMul(
 			const BigNum &a,
 			const BigNum &b,
 			const Context &context = Context()) {
 		if (a.failed() || b.failed()) {
 			_failed = true;
-		} else if (!BN_mul(raw(), a.raw(), b.raw(), context.raw())) {
-			_failed = true;
+		} else {
+			_failed = !BN_mul(raw(), a.raw(), b.raw(), context.raw());
 		}
+		return *this;
 	}
-	BN_ULONG setDivWord(BN_ULONG word) {
-		Expects(word != 0);
-		if (failed()) {
-			return (BN_ULONG)-1;
-		}
-
-		auto result = BN_div_word(raw(), word);
-		if (result == (BN_ULONG)-1) {
+	BigNum &setModAdd(
+			const BigNum &a,
+			const BigNum &b,
+			const BigNum &m,
+			const Context &context = Context()) {
+		if (a.failed() || b.failed() || m.failed()) {
 			_failed = true;
+		} else if (a.isNegative() || b.isNegative() || m.isNegative()) {
+			_failed = true;
+		} else if (!BN_mod_add(raw(), a.raw(), b.raw(), m.raw(), context.raw())) {
+			_failed = true;
+		} else if (isNegative()) {
+			_failed = true;
+		} else {
+			_failed = false;
 		}
-		return result;
+		return *this;
 	}
-	void setModSub(
+	BigNum &setModSub(
 			const BigNum &a,
 			const BigNum &b,
 			const BigNum &m,
@@ -149,9 +178,12 @@ public:
 			_failed = true;
 		} else if (isNegative()) {
 			_failed = true;
+		} else {
+			_failed = false;
 		}
+		return *this;
 	}
-	void setModMul(
+	BigNum &setModMul(
 			const BigNum &a,
 			const BigNum &b,
 			const BigNum &m,
@@ -164,9 +196,29 @@ public:
 			_failed = true;
 		} else if (isNegative()) {
 			_failed = true;
+		} else {
+			_failed = false;
 		}
+		return *this;
 	}
-	void setModExp(
+	BigNum &setModInverse(
+			const BigNum &a,
+			const BigNum &m,
+			const Context &context = Context()) {
+		if (a.failed() || m.failed()) {
+			_failed = true;
+		} else if (a.isNegative() || m.isNegative()) {
+			_failed = true;
+		} else if (!BN_mod_inverse(raw(), a.raw(), m.raw(), context.raw())) {
+			_failed = true;
+		} else if (isNegative()) {
+			_failed = true;
+		} else {
+			_failed = false;
+		}
+		return *this;
+	}
+	BigNum &setModExp(
 			const BigNum &base,
 			const BigNum &power,
 			const BigNum &m,
@@ -179,23 +231,34 @@ public:
 			_failed = true;
 		} else if (isNegative()) {
 			_failed = true;
+		} else {
+			_failed = false;
 		}
+		return *this;
 	}
 
-	bool isNegative() const {
-		return failed() ? false : BN_is_negative(raw());
+	[[nodiscard]] bool isZero() const {
+		return !failed() && (!_data || BN_is_zero(raw()));
 	}
 
-	bool isPrime(const Context &context = Context()) const {
-		if (failed()) {
+	[[nodiscard]] bool isOne() const {
+		return !failed() && _data && BN_is_one(raw());
+	}
+
+	[[nodiscard]] bool isNegative() const {
+		return !failed() && _data && BN_is_negative(raw());
+	}
+
+	[[nodiscard]] bool isPrime(const Context &context = Context()) const {
+		if (failed() || !_data) {
 			return false;
 		}
 		constexpr auto kMillerRabinIterationCount = 30;
-		auto result = BN_is_prime_ex(
+		const auto result = BN_is_prime_ex(
 			raw(),
 			kMillerRabinIterationCount,
 			context.raw(),
-			NULL);
+			nullptr);
 		if (result == 1) {
 			return true;
 		} else if (result != 0) {
@@ -204,27 +267,42 @@ public:
 		return false;
 	}
 
-	BN_ULONG modWord(BN_ULONG word) const {
-		Expects(word != 0);
+	BigNum &subWord(unsigned int word) {
 		if (failed()) {
-			return (BN_ULONG)-1;
+			return *this;
+		} else if (!BN_sub_word(raw(), word)) {
+			_failed = true;
 		}
+		return *this;
+	}
+	BigNum &divWord(BN_ULONG word, BN_ULONG *mod = nullptr) {
+		Expects(word != 0);
 
-		auto result = BN_mod_word(raw(), word);
+		const auto result = failed()
+			? (BN_ULONG)-1
+			: BN_div_word(raw(), word);
 		if (result == (BN_ULONG)-1) {
 			_failed = true;
 		}
-		return result;
+		if (mod) {
+			*mod = result;
+		}
+		return *this;
+	}
+	[[nodiscard]] BN_ULONG countModWord(BN_ULONG word) const {
+		Expects(word != 0);
+
+		return failed() ? (BN_ULONG)-1 : BN_mod_word(raw(), word);
 	}
 
-	int bitsSize() const {
+	[[nodiscard]] int bitsSize() const {
 		return failed() ? 0 : BN_num_bits(raw());
 	}
-	int bytesSize() const {
+	[[nodiscard]] int bytesSize() const {
 		return failed() ? 0 : BN_num_bytes(raw());
 	}
 
-	bytes::vector getBytes() const {
+	[[nodiscard]] bytes::vector getBytes() const {
 		if (failed()) {
 			return {};
 		}
@@ -237,73 +315,84 @@ public:
 		return result;
 	}
 
-	BIGNUM *raw() {
+	[[nodiscard]] BIGNUM *raw() {
+		if (!_data) _data = BN_new();
 		return _data;
 	}
-	const BIGNUM *raw() const {
+	[[nodiscard]] const BIGNUM *raw() const {
+		if (!_data) _data = BN_new();
 		return _data;
 	}
-	BIGNUM *takeRaw() {
-		return base::take(_data);
+	[[nodiscard]] BIGNUM *takeRaw() {
+		return _failed
+			? nullptr
+			: _data
+			? std::exchange(_data, nullptr)
+			: BN_new();
 	}
 
-	bool failed() const {
+	[[nodiscard]] bool failed() const {
 		return _failed;
 	}
 
-	static BigNum Add(const BigNum &a, const BigNum &b) {
-		BigNum result;
-		result.setAdd(a, b);
-		return result;
+	[[nodiscard]] static BigNum Add(const BigNum &a, const BigNum &b) {
+		return BigNum().setAdd(a, b);
 	}
-	static BigNum Sub(const BigNum &a, const BigNum &b) {
-		BigNum result;
-		result.setSub(a, b);
-		return result;
+	[[nodiscard]] static BigNum Sub(const BigNum &a, const BigNum &b) {
+		return BigNum().setSub(a, b);
 	}
-	static BigNum Mul(
+	[[nodiscard]] static BigNum Mul(
 			const BigNum &a,
 			const BigNum &b,
 			const Context &context = Context()) {
-		BigNum result;
-		result.setMul(a, b, context);
-		return result;
+		return BigNum().setMul(a, b, context);
 	}
-	static BigNum ModSub(
+	[[nodiscard]] static BigNum ModAdd(
 			const BigNum &a,
 			const BigNum &b,
 			const BigNum &mod,
 			const Context &context = Context()) {
-		BigNum result;
-		result.setModSub(a, b, mod, context);
-		return result;
+		return BigNum().setModAdd(a, b, mod, context);
 	}
-	static BigNum ModMul(
+	[[nodiscard]] static BigNum ModSub(
 			const BigNum &a,
 			const BigNum &b,
 			const BigNum &mod,
 			const Context &context = Context()) {
-		BigNum result;
-		result.setModMul(a, b, mod, context);
-		return result;
+		return BigNum().setModSub(a, b, mod, context);
 	}
-	static BigNum ModExp(
+	[[nodiscard]] static BigNum ModMul(
+			const BigNum &a,
+			const BigNum &b,
+			const BigNum &mod,
+			const Context &context = Context()) {
+		return BigNum().setModMul(a, b, mod, context);
+	}
+	[[nodiscard]] static BigNum ModInverse(
+			const BigNum &a,
+			const BigNum &mod,
+			const Context &context = Context()) {
+		return BigNum().setModInverse(a, mod, context);
+	}
+	[[nodiscard]] static BigNum ModExp(
 			const BigNum &base,
 			const BigNum &power,
 			const BigNum &mod,
 			const Context &context = Context()) {
-		BigNum result;
-		result.setModExp(base, power, mod, context);
-		return result;
+		return BigNum().setModExp(base, power, mod, context);
 	}
-	static BigNum Failed() {
-		BigNum result;
+	[[nodiscard]] static BigNum Failed() {
+		auto result = BigNum();
 		result._failed = true;
 		return result;
 	}
 
 private:
-	BIGNUM *_data = nullptr;
+	void clear() {
+		BN_clear_free(std::exchange(_data, nullptr));
+	}
+
+	mutable BIGNUM *_data = nullptr;
 	mutable bool _failed = false;
 
 };

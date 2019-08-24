@@ -99,6 +99,7 @@ tlsBlockRandom length:int = TlsBlock;
 tlsBlockZero length:int = TlsBlock;
 tlsBlockDomain = TlsBlock;
 tlsBlockGrease seed:int = TlsBlock;
+tlsBlockPublicKey = TlsBlock;
 tlsBlockScope entries:Vector<TlsBlock> = TlsBlock;
 
 ---functions---

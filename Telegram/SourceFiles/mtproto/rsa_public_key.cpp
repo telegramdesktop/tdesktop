@@ -101,9 +101,9 @@ public:
 	Private(bytes::const_span nBytes, bytes::const_span eBytes)
 	: _rsa(RSA_new()) {
 		if (_rsa) {
-			auto n = openssl::BigNum(nBytes).takeRaw();
-			auto e = openssl::BigNum(eBytes).takeRaw();
-			auto valid = (n != nullptr) && (e != nullptr);
+			const auto n = openssl::BigNum(nBytes).takeRaw();
+			const auto e = openssl::BigNum(eBytes).takeRaw();
+			const auto valid = (n != nullptr) && (e != nullptr);
 			// We still pass both values to RSA_set0_key() so that even
 			// if only one of them is valid RSA would take ownership of it.
 			if (!RSA_set0_key(_rsa, n, e, nullptr) || !valid) {
