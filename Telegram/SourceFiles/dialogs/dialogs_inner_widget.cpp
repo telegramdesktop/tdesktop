@@ -2993,11 +2993,16 @@ RowDescriptor InnerWidget::computeJump(
 		const RowDescriptor &to,
 		JumpSkip skip) {
 	auto result = to;
-	if (session().supportMode() && result.key) {
+	if (result.key) {
 		const auto down = (skip == JumpSkip::NextOrEnd)
 			|| (skip == JumpSkip::NextOrOriginal);
-		while (!result.key.entry()->chatListUnreadCount()
-			&& !result.key.entry()->chatListUnreadMark()) {
+		const auto needSkip = [&] {
+			return (result.key.folder() != nullptr)
+				|| (session().supportMode()
+					&& !result.key.entry()->chatListUnreadCount()
+					&& !result.key.entry()->chatListUnreadMark());
+		};
+		while (needSkip()) {
 			const auto next = down
 				? chatListEntryAfter(result)
 				: chatListEntryBefore(result);
