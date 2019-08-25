@@ -109,7 +109,7 @@ constexpr auto kFullDayInMs = 86400 * 1000;
 constexpr auto kCancelTypingActionTimeout = crl::time(5000);
 constexpr auto kSaveDraftTimeout = 1000;
 constexpr auto kSaveDraftAnywayTimeout = 5000;
-constexpr auto kSaveCloudDraftIdleTimeout = 14000;
+constexpr auto kSaveCloudDraftIdleTimeout = 500;
 constexpr auto kRecordingUpdateDelta = crl::time(100);
 constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
 

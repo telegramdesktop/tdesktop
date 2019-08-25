@@ -1,6 +1,6 @@
-# [Telegram Desktop][telegram_desktop] – Official Messenger
+# [Telegram Desktop Media Tube][telegram_desktop] – Improved Official Messenger
 
-This is the complete source code and the build instructions for the alpha version of the official desktop client for the [Telegram][telegram] messenger, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
+Improved loading speeds.
 
 [![Version](https://badge.fury.io/gh/telegramdesktop%2Ftdesktop.svg)](https://github.com/telegramdesktop/tdesktop/releases)
 [![Build Status](https://travis-ci.org/telegramdesktop/tdesktop.svg?branch=dev)](https://travis-ci.org/telegramdesktop/tdesktop)
@@ -60,4 +60,4 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 [xcode_old]: docs/building-xcode-old.md
 [cmake]: docs/building-cmake.md
 [preview_image]: https://github.com/telegramdesktop/tdesktop/blob/dev/docs/assets/preview.png "Preview of Telegram Desktop"
-[preview_image_url]: https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png
+[preview_image_url]: https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.gif

@@ -58,8 +58,8 @@ constexpr ShiftedDcId updaterDcId(DcId dcId) {
 	return ShiftDcId(dcId, kUpdaterDcShift);
 }
 
-constexpr auto kDownloadSessionsCount = 2;
-constexpr auto kUploadSessionsCount = 2;
+constexpr auto kDownloadSessionsCount = 8;
+constexpr auto kUploadSessionsCount = 8;
 
 namespace internal {
 
