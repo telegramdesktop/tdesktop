@@ -29,7 +29,7 @@ ComposeControls::ComposeControls(
 	Mode mode)
 : _parent(parent)
 , _window(window)
-, _mode(mode)
+//, _mode(mode)
 , _wrap(std::make_unique<Ui::RpWidget>(parent))
 , _send(Ui::CreateChild<Ui::SendButton>(_wrap.get()))
 , _attachToggle(Ui::CreateChild<Ui::IconButton>(

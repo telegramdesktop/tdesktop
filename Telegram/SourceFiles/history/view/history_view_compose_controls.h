@@ -105,7 +105,7 @@ private:
 	const not_null<QWidget*> _parent;
 	const not_null<Window::SessionController*> _window;
 	History *_history = nullptr;
-	Mode _mode = Mode::Normal;
+	//Mode _mode = Mode::Normal;
 
 	const std::unique_ptr<Ui::RpWidget> _wrap;
 
@@ -121,12 +121,12 @@ private:
 	rpl::event_stream<not_null<PhotoData*>> _photoChosen;
 	rpl::event_stream<ChatHelpers::TabbedSelector::InlineChosen> _inlineResultChosen;
 
-	bool _recording = false;
-	bool _inField = false;
-	bool _inReplyEditForward = false;
-	bool _inClickable = false;
-	int _recordingSamples = 0;
-	int _recordCancelWidth;
+	//bool _recording = false;
+	//bool _inField = false;
+	//bool _inReplyEditForward = false;
+	//bool _inClickable = false;
+	//int _recordingSamples = 0;
+	//int _recordCancelWidth;
 
 	rpl::lifetime _uploaderSubscriptions;
 
