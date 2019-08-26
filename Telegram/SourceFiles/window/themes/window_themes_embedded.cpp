@@ -114,11 +114,32 @@ Colorizer ColorizerFrom(const EmbeddedScheme &scheme, const QColor &color) {
 		&result.now.lightness);
 	switch (scheme.type) {
 	case EmbeddedType::DayBlue:
-		//result.keepContrast = base::flat_map<QLatin1String, Color>{ {
-		//	{ qstr("test"), cColor("aaaaaa") },
-		//} };
+		result.lightnessMax = 191;
+		break;
+	case EmbeddedType::Night:
+		result.keepContrast = base::flat_map<QLatin1String, Color>{ {
+			{ qstr("windowFgActive"), cColor("5288c1") }, // windowBgActive
+			{ qstr("activeButtonFg"), cColor("2f6ea5") }, // activeButtonBg
+			{ qstr("profileVerifiedCheckFg"), cColor("5288c1") }, // profileVerifiedCheckBg
+			{ qstr("overviewCheckFgActive"), cColor("5288c1") }, // overviewCheckBgActive
+		} };
+		result.lightnessMin = 64;
+		break;
+	case EmbeddedType::NightGreen:
+		result.keepContrast = base::flat_map<QLatin1String, Color>{ {
+			{ qstr("windowFgActive"), cColor("3fc1b0") }, // windowBgActive
+			{ qstr("activeButtonFg"), cColor("2da192") }, // activeButtonBg
+			{ qstr("profileVerifiedCheckFg"), cColor("3fc1b0") }, // profileVerifiedCheckBg
+			{ qstr("overviewCheckFgActive"), cColor("3fc1b0") }, // overviewCheckBgActive
+			{ qstr("callIconFg"), cColor("5ad1c1") }, // callAnswerBg
+		} };
+		result.lightnessMin = 64;
 		break;
 	}
+	result.now.lightness = std::clamp(
+		result.now.lightness,
+		result.lightnessMin,
+		result.lightnessMax);
 	return result;
 }
 

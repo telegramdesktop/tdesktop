@@ -293,7 +293,7 @@ void EditorBlock::activateRow(const Row &row) {
 		}
 	} else {
 		_editing = findRowIndex(&row);
-		if (auto box = Ui::show(Box<EditColorBox>(row.name(), row.value()))) {
+		if (auto box = Ui::show(Box<EditColorBox>(row.name(), EditColorBox::Mode::RGBA, row.value()))) {
 			box->setSaveCallback(crl::guard(this, [this](QColor value) {
 				saveEditing(value);
 			}));

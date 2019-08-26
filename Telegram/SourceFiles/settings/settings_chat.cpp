@@ -183,7 +183,7 @@ void ColorsPalette::show(Type type) {
 	const auto inner = _outer->entity();
 	const auto size = st::settingsAccentColorSize;
 	for (const auto &color : list) {
-		const auto selected = color == current;
+		const auto selected = (color == current);
 		const auto button = CreateColorButton(inner, color, selected);
 		button->clicks(
 		) | rpl::map([=] {
@@ -196,9 +196,16 @@ void ColorsPalette::show(Type type) {
 	const auto custom = CreateCustomButton(inner, std::move(list));
 	custom->clicks(
 	) | rpl::start_with_next([=] {
+		const auto colorizer = Window::Theme::ColorizerFrom(
+			*scheme,
+			scheme->accentColor);
 		const auto box = Ui::show(Box<EditColorBox>(
-			"Choose accent color",
+			tr::lng_settings_theme_accent_title(tr::now),
+			EditColorBox::Mode::HSL,
 			current));
+		box->setLightnessLimits(
+			colorizer.lightnessMin,
+			colorizer.lightnessMax);
 		box->setSaveCallback(crl::guard(custom, [=](QColor result) {
 			_selected.fire_copy(result);
 		}));
@@ -1006,28 +1013,14 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		const auto colorizer = Window::Theme::ColorizerFrom(scheme, color);
 		apply(scheme, &colorizer);
 	};
-	const auto applyWithColorize = [=](const Scheme &scheme) {
-		const auto &colors = Core::App().settings().themesAccentColors();
-		const auto color = colors.get(scheme.type);
-		const auto box = Ui::show(Box<EditColorBox>(
-			"Choose accent color",
-			color.value_or(scheme.accentColor)));
-		box->setSaveCallback([=](QColor result) {
-			applyWithColor(scheme, result);
-		});
-	};
 	const auto schemeClicked = [=](
 			const Scheme &scheme,
 			Qt::KeyboardModifiers modifiers) {
-		if (scheme.accentColor.hue() && (modifiers & Qt::ControlModifier)) {
-			applyWithColorize(scheme);
+		const auto &colors = Core::App().settings().themesAccentColors();
+		if (const auto color = colors.get(scheme.type)) {
+			applyWithColor(scheme, *color);
 		} else {
-			const auto &colors = Core::App().settings().themesAccentColors();
-			if (const auto color = colors.get(scheme.type)) {
-				applyWithColor(scheme, *color);
-			} else {
-				apply(scheme);
-			}
+			apply(scheme);
 		}
 	};
 

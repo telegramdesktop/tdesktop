@@ -54,6 +54,8 @@ struct Colorizer {
 		int lightness = 0;
 	};
 	int hueThreshold = 0;
+	int lightnessMin = 0;
+	int lightnessMax = 255;
 	Color was;
 	Color now;
 	base::flat_set<QLatin1String> ignoreKeys;
