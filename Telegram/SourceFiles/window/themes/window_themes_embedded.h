@@ -71,6 +71,9 @@ void Colorize(
 	not_null<const Colorizer*> colorizer);
 void Colorize(QImage &image, not_null<const Colorizer*> colorizer);
 void Colorize(EmbeddedScheme &scheme, not_null<const Colorizer*> colorizer);
+[[nodiscard]] QByteArray Colorize(
+	QLatin1String hexColor,
+	not_null<const Colorizer*> colorizer);
 
 [[nodiscard]] std::vector<EmbeddedScheme> EmbeddedThemes();
 [[nodiscard]] std::vector<QColor> DefaultAccentColors(EmbeddedType type);

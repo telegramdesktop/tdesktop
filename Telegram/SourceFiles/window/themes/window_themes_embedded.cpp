@@ -215,6 +215,38 @@ void Colorize(EmbeddedScheme &scheme, not_null<const Colorizer*> colorizer) {
 	}
 }
 
+QByteArray Colorize(
+		QLatin1String hexColor,
+		not_null<const Colorizer*> colorizer) {
+	Expects(hexColor.size() == 7 || hexColor.size() == 9);
+
+	auto color = qColor(str_const(hexColor.data() + 1, 6));
+	Colorize(color, colorizer);
+
+	auto result = QByteArray();
+	result.reserve(hexColor.size());
+	result.append(hexColor.data()[0]);
+	const auto addHex = [&](int code) {
+		if (code >= 0 && code < 10) {
+			result.append('0' + code);
+		} else if (code >= 10 && code < 16) {
+			result.append('a' + (code - 10));
+		}
+	};
+	const auto addValue = [&](int code) {
+		addHex(code / 16);
+		addHex(code % 16);
+	};
+	addValue(color.red());
+	addValue(color.green());
+	addValue(color.blue());
+	if (hexColor.size() == 9) {
+		result.append(hexColor.data()[7]);
+		result.append(hexColor.data()[8]);
+	}
+	return result;
+}
+
 std::vector<EmbeddedScheme> EmbeddedThemes() {
 	return {
 		EmbeddedScheme{

@@ -16,6 +16,8 @@ class Session;
 namespace Window {
 namespace Theme {
 
+constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
+
 struct Colorizer;
 
 struct Cached {
@@ -212,7 +214,10 @@ ChatBackground *Background();
 
 void ComputeBackgroundRects(QRect wholeFill, QSize imageSize, QRect &to, QRect &from);
 
-bool CopyColorsToPalette(const QString &path, const QByteArray &themeContent);
+bool CopyColorsToPalette(
+	const QString &destination,
+	const QString &themePath,
+	const QByteArray &themeContent);
 
 bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QLatin1String value)> callback);
 

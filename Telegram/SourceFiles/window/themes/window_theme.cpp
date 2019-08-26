@@ -32,7 +32,6 @@ namespace {
 constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 constexpr auto kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
 constexpr auto kBackgroundSizeLimit = 25 * 1024 * 1024;
-constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
 constexpr auto kNightThemeFile = str_const(":/gui/night.tdesktop-theme");
 constexpr auto kMinimumTiledSize = 512;
 
@@ -1227,38 +1226,6 @@ void ComputeBackgroundRects(QRect wholeFill, QSize imageSize, QRect &to, QRect &
 		to = QRect(0, int((wholeFill.height() - takeheight * pxsize) / 2.), wholeFill.width(), qCeil(takeheight * pxsize));
 		from = QRect(0, (imageSize.height() - takeheight) / 2, imageSize.width(), takeheight);
 	}
-}
-
-bool CopyColorsToPalette(const QString &path, const QByteArray &themeContent) {
-	auto paletteContent = themeContent;
-
-	zlib::FileToRead file(themeContent);
-
-	unz_global_info globalInfo = { 0 };
-	file.getGlobalInfo(&globalInfo);
-	if (file.error() == UNZ_OK) {
-		paletteContent = file.readFileContent("colors.tdesktop-theme", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
-		if (file.error() == UNZ_END_OF_LIST_OF_FILE) {
-			file.clearError();
-			paletteContent = file.readFileContent("colors.tdesktop-palette", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
-		}
-		if (file.error() != UNZ_OK) {
-			LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file, while copying to '%1'.").arg(path));
-			return false;
-		}
-	}
-
-	QFile f(path);
-	if (!f.open(QIODevice::WriteOnly)) {
-		LOG(("Theme Error: could not open file for write '%1'").arg(path));
-		return false;
-	}
-
-	if (f.write(paletteContent) != paletteContent.size()) {
-		LOG(("Theme Error: could not write palette to '%1'").arg(path));
-		return false;
-	}
-	return true;
 }
 
 bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QLatin1String value)> callback) {

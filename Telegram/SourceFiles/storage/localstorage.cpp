@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_user.h"
 #include "boxes/send_files_box.h"
-#include "window/themes/window_theme.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/emoji_config.h"
 #include "export/export_settings.h"
@@ -33,7 +32,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
+#include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
+#include "window/themes/window_theme_editor.h"
 #include "base/flags.h"
 #include "data/data_session.h"
 #include "history/history.h"
@@ -4424,7 +4425,7 @@ std::vector<Lang::Language> readRecentLanguages() {
 	return result;
 }
 
-bool copyThemeColorsToPalette(const QString &path) {
+bool copyThemeColorsToPalette(const QString &destination) {
 	auto &themeKey = Window::Theme::IsNightMode()
 		? _themeKeyNight
 		: _themeKeyDay;
@@ -4438,12 +4439,16 @@ bool copyThemeColorsToPalette(const QString &path) {
 	}
 
 	QByteArray themeContent;
-	theme.stream >> themeContent;
+	QString pathRelative, pathAbsolute;
+	theme.stream >> themeContent >> pathRelative >> pathAbsolute;
 	if (theme.stream.status() != QDataStream::Ok) {
 		return false;
 	}
 
-	return Window::Theme::CopyColorsToPalette(path, themeContent);
+	return Window::Theme::CopyColorsToPalette(
+		destination,
+		pathAbsolute,
+		themeContent);
 }
 
 void writeRecentHashtagsAndBots() {
