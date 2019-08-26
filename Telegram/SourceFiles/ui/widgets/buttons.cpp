@@ -497,49 +497,6 @@ QImage IconButton::prepareRippleMask() const {
 	return RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
 }
 
-LeftOutlineButton::LeftOutlineButton(QWidget *parent, const QString &text, const style::OutlineButton &st) : RippleButton(parent, st.ripple)
-, _text(text)
-, _fullText(text)
-, _textWidth(st.font->width(_text))
-, _fullTextWidth(_textWidth)
-, _st(st) {
-	resizeToWidth(_textWidth + _st.padding.left() + _st.padding.right());
-
-	setCursor(style::cur_pointer);
-}
-
-void LeftOutlineButton::setText(const QString &text) {
-	_text = text;
-	_fullText = text;
-	_fullTextWidth = _textWidth = _st.font->width(_text);
-	resizeToWidth(width());
-	update();
-}
-
-int LeftOutlineButton::resizeGetHeight(int newWidth) {
-	int availableWidth = qMax(newWidth - _st.padding.left() - _st.padding.right(), 1);
-	if ((availableWidth < _fullTextWidth) || (_textWidth < availableWidth)) {
-		_text = _st.font->elided(_fullText, availableWidth);
-		_textWidth = _st.font->width(_text);
-	}
-	return _st.padding.top() + _st.font->height + _st.padding.bottom();
-}
-
-void LeftOutlineButton::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	auto over = isOver();
-	auto down = isDown();
-	if (width() > _st.outlineWidth) {
-		p.fillRect(rtlrect(_st.outlineWidth, 0, width() - _st.outlineWidth, height(), width()), (over || down) ? _st.textBgOver : _st.textBg);
-		paintRipple(p, 0, 0);
-		p.fillRect(rtlrect(0, 0, _st.outlineWidth, height(), width()), (over || down) ? _st.outlineFgOver : _st.outlineFg);
-	}
-	p.setFont(_st.font);
-	p.setPen((over || down) ? _st.textFgOver : _st.textFg);
-	p.drawTextLeft(_st.padding.left(), _st.padding.top(), width(), _text, _textWidth);
-}
-
 CrossButton::CrossButton(QWidget *parent, const style::CrossButton &st) : RippleButton(parent, st.ripple)
 , _st(st)
 , _loadingAnimation([=](crl::time now) { return loadingCallback(now); }) {

@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class FlatLabel;
-class LeftOutlineButton;
 } // namespace Ui
 
 namespace Notify {

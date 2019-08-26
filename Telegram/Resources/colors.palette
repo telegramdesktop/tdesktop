@@ -51,11 +51,6 @@ attentionButtonFgOver: #d14e4e; // default attention button text with mouse over
 attentionButtonBgOver: #fcdfde; // default attention button background with mouse over
 attentionButtonBgRipple: #f4c3c2; // default attention button ripple effect
 
-outlineButtonBg: windowBg; // default left outlined button background (like shared media links in profiles)
-outlineButtonBgOver: lightButtonBgOver; // default left outlined button background with mouse over
-outlineButtonOutlineFg: windowBgActive; // default left outlined button left outline border
-outlineButtonBgRipple: lightButtonBgRipple; // default left outlined button ripple effect
-
 menuBg: windowBg; // default popup menu background
 menuBgOver: windowBgOver; // default popup menu item background with mouse over
 menuBgRipple: windowBgRipple; // default popup menu item ripple effect

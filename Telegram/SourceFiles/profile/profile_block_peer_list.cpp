@@ -74,10 +74,10 @@ void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool select
 
 	auto memberRowWidth = rowWidth();
 	if (selected) {
-		paintOutlinedRect(p, x, y, memberRowWidth, _st.height);
+		paintItemRect(p, x, y, memberRowWidth, _st.height);
 	}
 	if (auto &ripple = item->ripple) {
-		ripple->paint(p, x + _st.button.outlineWidth, y, width());
+		ripple->paint(p, x, y, width());
 		if (ripple->empty()) {
 			ripple.reset();
 		}
@@ -121,12 +121,8 @@ void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool select
 	p.drawTextLeft(x + _st.statusPosition.x(), y + _st.statusPosition.y(), width(), item->statusText);
 }
 
-void PeerListWidget::paintOutlinedRect(Painter &p, int x, int y, int w, int h) const {
-	auto outlineWidth = _st.button.outlineWidth;
-	if (outlineWidth) {
-		p.fillRect(rtlrect(x, y, outlineWidth, h, width()), _st.button.outlineFgOver);
-	}
-	p.fillRect(rtlrect(x + outlineWidth, y, w - outlineWidth, h, width()), _st.button.textBgOver);
+void PeerListWidget::paintItemRect(Painter &p, int x, int y, int w, int h) const {
+	p.fillRect(rtlrect(x, y, w, h, width()), _st.button.textBgOver);
 }
 
 void PeerListWidget::mouseMoveEvent(QMouseEvent *e) {
@@ -145,12 +141,12 @@ void PeerListWidget::mousePressEvent(QMouseEvent *e) {
 		auto item = _items[_pressed];
 		if (!item->ripple) {
 			auto memberRowWidth = rowWidth();
-			auto mask = Ui::RippleAnimation::rectMask(QSize(memberRowWidth - _st.button.outlineWidth, _st.height));
+			auto mask = Ui::RippleAnimation::rectMask(QSize(memberRowWidth, _st.height));
 			item->ripple = std::make_unique<Ui::RippleAnimation>(_st.button.ripple, std::move(mask), [this, index = _pressed] {
 				repaintRow(index);
 			});
 		}
-		auto left = getListLeft() + _st.button.outlineWidth;
+		auto left = getListLeft();
 		auto top = getListTop() + _st.height * _pressed;
 		item->ripple->add(e->pos() - QPoint(left, top));
 	}

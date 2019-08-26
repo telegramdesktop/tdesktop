@@ -239,10 +239,6 @@ InputField {
 }
 
 OutlineButton {
-	outlineWidth: pixels;
-	outlineFg: color;
-	outlineFgOver: color;
-
 	textBg: color;
 	textBgOver: color;
 
@@ -673,37 +669,6 @@ defaultFlatInput: FlatInput {
 	phPos: point(2px, 0px);
 	phShift: 50px;
 	phDuration: 100;
-}
-
-defaultLeftOutlineButton: OutlineButton {
-	outlineWidth: 3px;
-	outlineFg: outlineButtonBg;
-	outlineFgOver: outlineButtonOutlineFg;
-
-	textBg: outlineButtonBg;
-	textBgOver: outlineButtonBgOver;
-
-	textFg: windowActiveTextFg;
-	textFgOver: windowActiveTextFg;
-
-	font: normalFont;
-	padding: margins(11px, 5px, 11px, 5px);
-
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: outlineButtonBgRipple;
-	}
-}
-attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
-	outlineFgOver: attentionButtonFg;
-
-	textBgOver: attentionButtonBgOver;
-
-	textFg: attentionButtonFg;
-	textFgOver: attentionButtonFgOver;
-
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: attentionButtonBgRipple;
-	}
 }
 
 defaultInputField: InputField {
@@ -1147,8 +1112,6 @@ PeerList {
 }
 
 defaultPeerListButton: OutlineButton {
-	outlineWidth: 0px;
-
 	textBg: windowBg;
 	textBgOver: windowBgOver;
 
