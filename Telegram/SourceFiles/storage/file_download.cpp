@@ -29,7 +29,7 @@ namespace {
 constexpr auto kKillSessionTimeout = crl::time(5000);
 
 // Max 16 file parts downloaded at the same time, 128 KB each.
-constexpr auto kMaxFileQueries = 16;
+constexpr auto kMaxFileQueries = 64;
 
 // Max 8 http[s] files downloaded at the same time.
 constexpr auto kMaxWebFileQueries = 8;
