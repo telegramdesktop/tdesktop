@@ -65,7 +65,7 @@ const auto kColorizeIgnoredKeys = base::flat_set<QLatin1String>{ {
 	qstr("mediaviewFileBlueCornerFg"),
 } };
 
-QColor Color(str_const hex) {
+QColor qColor(str_const hex) {
 	Expects(hex.size() == 6);
 
 	const auto component = [](char a, char b) {
@@ -87,20 +87,38 @@ QColor Color(str_const hex) {
 		component(hex[4], hex[5]));
 };
 
+Colorizer::Color cColor(str_const hex) {
+	const auto q = qColor(hex);
+	auto hue = int();
+	auto saturation = int();
+	auto lightness = int();
+	q.getHsl(&hue, &saturation, &lightness);
+	return Colorizer::Color{ hue, saturation, lightness };
+}
+
 } // namespace
 
 Colorizer ColorizerFrom(const EmbeddedScheme &scheme, const QColor &color) {
+	using Color = Colorizer::Color;
+
 	auto result = Colorizer();
 	result.ignoreKeys = kColorizeIgnoredKeys;
-	result.hueThreshold = 10;
-	scheme.accentColor.getHsv(
-		&result.wasHue,
-		&result.wasSaturation,
-		&result.wasValue);
-	color.getHsv(
-		&result.nowHue,
-		&result.nowSaturation,
-		&result.nowValue);
+	result.hueThreshold = 15;
+	scheme.accentColor.getHsl(
+		&result.was.hue,
+		&result.was.saturation,
+		&result.was.lightness);
+	color.getHsl(
+		&result.now.hue,
+		&result.now.saturation,
+		&result.now.lightness);
+	switch (scheme.type) {
+	case EmbeddedType::DayBlue:
+		//result.keepContrast = base::flat_map<QLatin1String, Color>{ {
+		//	{ qstr("test"), cColor("aaaaaa") },
+		//} };
+		break;
+	}
 	return result;
 }
 
@@ -112,38 +130,41 @@ void Colorize(
 	auto color = QColor(int(r), int(g), int(b));
 	auto hue = 0;
 	auto saturation = 0;
-	auto value = 0;
-	color.getHsv(&hue, &saturation, &value);
-	const auto changeColor = std::abs(hue - colorizer->wasHue)
+	auto lightness = 0;
+	color.getHsl(&hue, &saturation, &lightness);
+	const auto changeColor = std::abs(hue - colorizer->was.hue)
 		<= colorizer->hueThreshold;
-	const auto nowHue = hue + (colorizer->nowHue - colorizer->wasHue);
-	const auto nowSaturation = ((saturation > colorizer->wasSaturation)
-		&& (colorizer->nowSaturation > colorizer->wasSaturation))
-		? (((colorizer->nowSaturation * (255 - colorizer->wasSaturation))
-			+ ((saturation - colorizer->wasSaturation)
-				* (255 - colorizer->nowSaturation)))
-			/ (255 - colorizer->wasSaturation))
-		: ((saturation != colorizer->wasSaturation)
-			&& (colorizer->wasSaturation != 0))
-		? ((saturation * colorizer->nowSaturation)
-			/ colorizer->wasSaturation)
-		: colorizer->nowSaturation;
-	const auto nowValue = (value > colorizer->wasValue)
-		? (((colorizer->nowValue * (255 - colorizer->wasValue))
-			+ ((value - colorizer->wasValue)
-				* (255 - colorizer->nowValue)))
-			/ (255 - colorizer->wasValue))
-		: (value < colorizer->wasValue)
-		? ((value * colorizer->nowValue)
-			/ colorizer->wasValue)
-		: colorizer->nowValue;
+	if (!changeColor) {
+		return;
+	}
+	const auto nowHue = hue + (colorizer->now.hue - colorizer->was.hue);
+	const auto nowSaturation = ((saturation > colorizer->was.saturation)
+		&& (colorizer->now.saturation > colorizer->was.saturation))
+		? (((colorizer->now.saturation * (255 - colorizer->was.saturation))
+			+ ((saturation - colorizer->was.saturation)
+				* (255 - colorizer->now.saturation)))
+			/ (255 - colorizer->was.saturation))
+		: ((saturation != colorizer->was.saturation)
+			&& (colorizer->was.saturation != 0))
+		? ((saturation * colorizer->now.saturation)
+			/ colorizer->was.saturation)
+		: colorizer->now.saturation;
+	const auto nowLightness = (lightness > colorizer->was.lightness)
+		? (((colorizer->now.lightness * (255 - colorizer->was.lightness))
+			+ ((lightness - colorizer->was.lightness)
+				* (255 - colorizer->now.lightness)))
+			/ (255 - colorizer->was.lightness))
+		: (lightness < colorizer->was.lightness)
+		? ((lightness * colorizer->now.lightness)
+			/ colorizer->was.lightness)
+		: colorizer->now.lightness;
 	auto nowR = 0;
 	auto nowG = 0;
 	auto nowB = 0;
-	QColor::fromHsv(
-		changeColor ? ((nowHue + 360) % 360) : hue,
-		changeColor ? nowSaturation : saturation,
-		nowValue
+	QColor::fromHsl(
+		((nowHue + 360) % 360),
+		nowSaturation,
+		nowLightness
 	).getRgb(&nowR, &nowG, &nowB);
 	r = uchar(nowR);
 	g = uchar(nowG);
@@ -198,46 +219,46 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 	return {
 		EmbeddedScheme{
 			EmbeddedType::DayBlue,
-			Color("7ec4ea"),
-			Color("d7f0ff"),
-			Color("ffffff"),
-			Color("d7f0ff"),
-			Color("ffffff"),
+			qColor("7ec4ea"),
+			qColor("d7f0ff"),
+			qColor("ffffff"),
+			qColor("d7f0ff"),
+			qColor("ffffff"),
 			tr::lng_settings_theme_blue,
 			":/gui/day-blue.tdesktop-theme",
-			Color("40a7e3")
+			qColor("40a7e3")
 		},
 		EmbeddedScheme{
 			EmbeddedType::Default,
-			Color("90ce89"),
-			Color("eaffdc"),
-			Color("ffffff"),
-			Color("eaffdc"),
-			Color("ffffff"),
+			qColor("90ce89"),
+			qColor("eaffdc"),
+			qColor("ffffff"),
+			qColor("eaffdc"),
+			qColor("ffffff"),
 			tr::lng_settings_theme_classic,
 			QString()
 		},
 		EmbeddedScheme{
 			EmbeddedType::Night,
-			Color("485761"),
-			Color("5ca7d4"),
-			Color("6b808d"),
-			Color("6b808d"),
-			Color("5ca7d4"),
+			qColor("485761"),
+			qColor("5ca7d4"),
+			qColor("6b808d"),
+			qColor("6b808d"),
+			qColor("5ca7d4"),
 			tr::lng_settings_theme_midnight,
 			":/gui/night.tdesktop-theme",
-			Color("5288c1")
+			qColor("5288c1")
 		},
 		EmbeddedScheme{
 			EmbeddedType::NightGreen,
-			Color("485761"),
-			Color("75bfb5"),
-			Color("6b808d"),
-			Color("6b808d"),
-			Color("75bfb5"),
+			qColor("485761"),
+			qColor("75bfb5"),
+			qColor("6b808d"),
+			qColor("6b808d"),
+			qColor("75bfb5"),
 			tr::lng_settings_theme_matrix,
 			":/gui/night-green.tdesktop-theme",
-			Color("3fc1b0")
+			qColor("3fc1b0")
 		},
 	};
 }
@@ -246,41 +267,41 @@ std::vector<QColor> DefaultAccentColors(EmbeddedType type) {
 	switch (type) {
 	case EmbeddedType::DayBlue:
 		return {
-			//Color("3478f5"),
-			Color("58bfe8"),
-			Color("58b040"),
-			Color("da73a2"),
-			Color("e28830"),
-			Color("9073e7"),
-			Color("c14126"),
-			Color("71829c"),
-			Color("e3b63e"),
+			//qColor("3478f5"),
+			qColor("58bfe8"),
+			qColor("58b040"),
+			qColor("da73a2"),
+			qColor("e28830"),
+			qColor("9073e7"),
+			qColor("c14126"),
+			qColor("71829c"),
+			qColor("e3b63e"),
 		};
 	case EmbeddedType::Default:
 		return {};
 	case EmbeddedType::Night:
 		return {
-			//Color("3478f5"),
-			Color("58bfe8"),
-			Color("58b040"),
-			Color("da73a2"),
-			Color("e28830"),
-			Color("9073e7"),
-			Color("c14126"),
-			Color("71829c"),
-			Color("e3b63e"),
+			//qColor("3478f5"),
+			qColor("58bfe8"),
+			qColor("58b040"),
+			qColor("da73a2"),
+			qColor("e28830"),
+			qColor("9073e7"),
+			qColor("c14126"),
+			qColor("71829c"),
+			qColor("e3b63e"),
 		};
 	case EmbeddedType::NightGreen:
 		return {
-			Color("3478f5"),
-			//Color("58bfe8"),
-			Color("58b040"),
-			Color("da73a2"),
-			Color("e28830"),
-			Color("9073e7"),
-			Color("c14126"),
-			Color("71829c"),
-			Color("e3b63e"),
+			qColor("3478f5"),
+			//qColor("58bfe8"),
+			qColor("58b040"),
+			qColor("da73a2"),
+			qColor("e28830"),
+			qColor("9073e7"),
+			qColor("c14126"),
+			qColor("71829c"),
+			qColor("e3b63e"),
 		};
 	}
 	Unexpected("Type in Window::Theme::AccentColors.");

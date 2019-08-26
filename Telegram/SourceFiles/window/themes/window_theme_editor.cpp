@@ -334,7 +334,7 @@ Fn<void()> Editor::Inner::exportCallback() {
 }
 
 void Editor::Inner::filterRows(const QString &query) {
-	if (query == ":sort-by-accent-distance") {
+	if (query == ":sort-for-accent") {
 		sortByAccentDistance();
 		filterRows(QString());
 		return;

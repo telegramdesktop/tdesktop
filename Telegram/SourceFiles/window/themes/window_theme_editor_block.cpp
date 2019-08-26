@@ -395,16 +395,22 @@ bool EditorBlock::feedDescription(const QString &name, const QString &descriptio
 }
 
 void EditorBlock::sortByDistance(const QColor &to) {
-	auto toHue = qreal();
-	auto toSaturation = qreal();
-	auto toLightness = qreal();
-	to.getHsvF(&toHue, &toSaturation, &toLightness);
+	auto toHue = int();
+	auto toSaturation = int();
+	auto toLightness = int();
+	to.getHsl(&toHue, &toSaturation, &toLightness);
 	ranges::sort(_data, ranges::less(), [&](const Row &row) {
-		auto fromHue = qreal();
-		auto fromSaturation = qreal();
-		auto fromLightness = qreal();
-		row.value().getHsvF(&fromHue, &fromSaturation, &fromLightness);
-		return (toSaturation > 0.01) ? std::abs(fromHue - toHue) : 1.;
+		auto fromHue = int();
+		auto fromSaturation = int();
+		auto fromLightness = int();
+		row.value().getHsl(&fromHue, &fromSaturation, &fromLightness);
+		if (!row.copyOf().isEmpty() && row.copyOf() != "windowBgActive") {
+			return 365;
+		}
+		const auto a = std::abs(fromHue - toHue);
+		const auto b = 360 + fromHue - toHue;
+		const auto c = 360 + toHue - fromHue;
+		return std::min(a, std::min(b, c));
 	});
 }
 

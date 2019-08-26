@@ -48,14 +48,16 @@ private:
 };
 
 struct Colorizer {
-	int wasHue = 0;
-	int wasSaturation = 0;
-	int wasValue = 0;
-	int nowHue = 0;
-	int nowSaturation = 0;
-	int nowValue = 0;
+	struct Color {
+		int hue = 0;
+		int saturation = 0;
+		int lightness = 0;
+	};
 	int hueThreshold = 0;
+	Color was;
+	Color now;
 	base::flat_set<QLatin1String> ignoreKeys;
+	base::flat_map<QLatin1String, Color> keepContrast;
 };
 
 [[nodiscard]] Colorizer ColorizerFrom(
