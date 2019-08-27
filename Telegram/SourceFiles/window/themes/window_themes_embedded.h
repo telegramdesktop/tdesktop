@@ -51,7 +51,7 @@ struct Colorizer {
 	struct Color {
 		int hue = 0;
 		int saturation = 0;
-		int lightness = 0;
+		int value = 0;
 	};
 	int hueThreshold = 0;
 	int lightnessMin = 0;

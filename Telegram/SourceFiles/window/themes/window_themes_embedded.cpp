@@ -94,9 +94,9 @@ Colorizer::Color cColor(str_const hex) {
 	const auto q = qColor(hex);
 	auto hue = int();
 	auto saturation = int();
-	auto lightness = int();
-	q.getHsl(&hue, &saturation, &lightness);
-	return Colorizer::Color{ hue, saturation, lightness };
+	auto value = int();
+	q.getHsv(&hue, &saturation, &value);
+	return Colorizer::Color{ hue, saturation, value };
 }
 
 } // namespace
@@ -108,14 +108,14 @@ Colorizer ColorizerFrom(const EmbeddedScheme &scheme, const QColor &color) {
 	auto result = Colorizer();
 	result.ignoreKeys = kColorizeIgnoredKeys;
 	result.hueThreshold = 15;
-	scheme.accentColor.getHsl(
+	scheme.accentColor.getHsv(
 		&result.was.hue,
 		&result.was.saturation,
-		&result.was.lightness);
-	color.getHsl(
+		&result.was.value);
+	color.getHsv(
 		&result.now.hue,
 		&result.now.saturation,
-		&result.now.lightness);
+		&result.now.value);
 	switch (scheme.type) {
 	case EmbeddedType::DayBlue:
 		result.lightnessMax = 160;
@@ -148,10 +148,20 @@ Colorizer ColorizerFrom(const EmbeddedScheme &scheme, const QColor &color) {
 		result.lightnessMin = 96;
 		break;
 	}
-	result.now.lightness = std::clamp(
-		result.now.lightness,
+	const auto nowLightness = color.lightness();
+	const auto limitedLightness = std::clamp(
+		nowLightness,
 		result.lightnessMin,
 		result.lightnessMax);
+	if (limitedLightness != nowLightness) {
+		QColor::fromHsl(
+			color.hslHue(),
+			color.hslSaturation(),
+			limitedLightness).getHsv(
+				&result.now.hue,
+				&result.now.saturation,
+				&result.now.value);
+	}
 	return result;
 }
 
@@ -194,19 +204,19 @@ Colorizer ColorizerForTheme(const QString &absolutePath) {
 		? ((color.saturation * colorizer.now.saturation)
 			/ colorizer.was.saturation)
 		: colorizer.now.saturation;
-	const auto nowLightness = (color.lightness > colorizer.was.lightness)
-		? (((colorizer.now.lightness * (255 - colorizer.was.lightness))
-			+ ((color.lightness - colorizer.was.lightness)
-				* (255 - colorizer.now.lightness)))
-			/ (255 - colorizer.was.lightness))
-		: (color.lightness < colorizer.was.lightness)
-		? ((color.lightness * colorizer.now.lightness)
-			/ colorizer.was.lightness)
-		: colorizer.now.lightness;
+	const auto nowValue = (color.value > colorizer.was.value)
+		? (((colorizer.now.value * (255 - colorizer.was.value))
+			+ ((color.value - colorizer.was.value)
+				* (255 - colorizer.now.value)))
+			/ (255 - colorizer.was.value))
+		: (color.value < colorizer.was.value)
+		? ((color.value * colorizer.now.value)
+			/ colorizer.was.value)
+		: colorizer.now.value;
 	return Colorizer::Color{
 		((nowHue + 360) % 360),
 		nowSaturation,
-		nowLightness
+		nowValue
 	};
 }
 
@@ -216,7 +226,7 @@ Colorizer ColorizerForTheme(const QString &absolutePath) {
 	auto hue = 0;
 	auto saturation = 0;
 	auto lightness = 0;
-	color.getHsl(&hue, &saturation, &lightness);
+	color.getHsv(&hue, &saturation, &lightness);
 	const auto result = Colorize(
 		Colorizer::Color{ hue, saturation, lightness },
 		colorizer);
@@ -224,7 +234,7 @@ Colorizer ColorizerForTheme(const QString &absolutePath) {
 		return std::nullopt;
 	}
 	const auto &fields = *result;
-	return QColor::fromHsl(fields.hue, fields.saturation, fields.lightness);
+	return QColor::fromHsv(fields.hue, fields.saturation, fields.value);
 }
 
 void FillColorizeResult(uchar &r, uchar &g, uchar &b, const QColor &color) {
@@ -263,7 +273,13 @@ void Colorize(
 	const auto rgb = QColor(int(r), int(g), int(b));
 	const auto changed = Colorize(rgb, colorizer);
 	const auto checked = Colorize(check, colorizer).value_or(check);
-	const auto delta = std::abs(changed.value_or(rgb).lightness() - checked.lightness);
+	const auto lightness = [](QColor hsv) {
+		return hsv.value() - (hsv.value() * hsv.saturation()) / 511;
+	};
+	const auto changedLightness = lightness(changed.value_or(rgb).toHsv());
+	const auto checkedLightness = lightness(
+		QColor::fromHsv(checked.hue, checked.saturation, checked.value));
+	const auto delta = std::abs(changedLightness - checkedLightness);
 	if (delta >= kEnoughLightnessForContrast) {
 		if (changed) {
 			FillColorizeResult(r, g, b, *changed);
@@ -276,7 +292,7 @@ void Colorize(
 		r,
 		g,
 		b,
-		QColor::fromHsl(result.hue, result.saturation, result.lightness));
+		QColor::fromHsv(result.hue, result.saturation, result.value));
 }
 
 void Colorize(uint32 &pixel, const Colorizer &colorizer) {
@@ -392,7 +408,7 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 			qColor("75bfb5"),
 			tr::lng_settings_theme_matrix,
 			":/gui/night-green.tdesktop-theme",
-			qColor("01ffdd")
+			qColor("3fc1b0")
 		},
 	};
 }
