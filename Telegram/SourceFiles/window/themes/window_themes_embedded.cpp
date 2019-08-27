@@ -135,7 +135,7 @@ Colorizer ColorizerFrom(const EmbeddedScheme &scheme, const QColor &color) {
 			{ qstr("historyFileOutRadialFg"), Pair{ cColor("4c9ce2"), cColor("2b5278") } }, // msgFileOutBg, msgOutBg
 			{ qstr("historyFileOutRadialFgSelected"), Pair{ cColor("58abf3"), cColor("2e70a5") } }, // msgFileOutBgSelected, msgOutBgSelected
 		} };
-		result.lightnessMin = 96;
+		result.lightnessMin = 64;
 		break;
 	case EmbeddedType::NightGreen:
 		result.keepContrast = base::flat_map<QLatin1String, Pair>{ {
@@ -145,7 +145,7 @@ Colorizer ColorizerFrom(const EmbeddedScheme &scheme, const QColor &color) {
 			{ qstr("overviewCheckFgActive"), Pair{ cColor("3fc1b0"), cColor("282e33") } }, // overviewCheckBgActive
 			{ qstr("callIconFg"), Pair{ cColor("5ad1c1"), cColor("26282c") } }, // callAnswerBg, callBg
 		} };
-		result.lightnessMin = 96;
+		result.lightnessMin = 64;
 		break;
 	}
 	const auto nowLightness = color.lightness();
@@ -374,7 +374,7 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 			qColor("ffffff"),
 			qColor("d7f0ff"),
 			qColor("ffffff"),
-			tr::lng_settings_theme_blue,
+			tr::lng_settings_theme_day,
 			":/gui/day-blue.tdesktop-theme",
 			qColor("40a7e3")
 		},
@@ -395,18 +395,18 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 			qColor("6b808d"),
 			qColor("6b808d"),
 			qColor("5ca7d4"),
-			tr::lng_settings_theme_midnight,
+			tr::lng_settings_theme_tinted,
 			":/gui/night.tdesktop-theme",
 			qColor("5288c1")
 		},
 		EmbeddedScheme{
 			EmbeddedType::NightGreen,
 			qColor("485761"),
-			qColor("75bfb5"),
 			qColor("6b808d"),
 			qColor("6b808d"),
+			qColor("6b808d"),
 			qColor("75bfb5"),
-			tr::lng_settings_theme_matrix,
+			tr::lng_settings_theme_night,
 			":/gui/night-green.tdesktop-theme",
 			qColor("3fc1b0")
 		},

@@ -385,10 +385,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_stickers_emoji" = "Stickers and emoji";
 "lng_settings_messages" = "Messages";
 "lng_settings_themes" = "Themes";
-"lng_settings_theme_blue" = "Blue";
+"lng_settings_theme_day" = "Day";
 "lng_settings_theme_classic" = "Classic";
-"lng_settings_theme_midnight" = "Midnight";
-"lng_settings_theme_matrix" = "Matrix";
+"lng_settings_theme_tinted" = "Tinted";
+"lng_settings_theme_night" = "Night";
 "lng_settings_theme_accent_title" = "Choose accent color";
 "lng_settings_data_storage" = "Data and storage";
 "lng_settings_information" = "Edit profile";

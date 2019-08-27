@@ -48,7 +48,7 @@ namespace Settings {
 namespace {
 
 const auto kSchemesList = Window::Theme::EmbeddedThemes();
-constexpr auto kColorsPerRow = 5;
+constexpr auto kColorsPerRow = 10;
 
 class ColorsPalette final {
 public:
@@ -535,12 +535,15 @@ void DefaultTheme::paint(
 		received.height());
 	const auto radius = st::settingsThemeBubbleRadius;
 
-	p.fillRect(
-		QRect(QPoint(), st::settingsThemePreviewSize),
-		_colorized.background);
-
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
+
+	p.setBrush(_colorized.background);
+	p.drawRoundedRect(
+		QRect(QPoint(), st::settingsThemePreviewSize),
+		radius,
+		radius);
+
 	p.setBrush(_colorized.received);
 	p.drawRoundedRect(rtlrect(received, outerWidth), radius, radius);
 	p.setBrush(_colorized.sent);
