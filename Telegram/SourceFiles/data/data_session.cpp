@@ -97,28 +97,29 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 // We should get a full restriction in "{full}: {reason}" format and we
 // need to find an "-all" tag in {full}, otherwise ignore this restriction.
 QString ExtractUnavailableReason(
-		const QVector<MTPRestrictionReason> &restriction) {
-//	const auto fullEnd = restriction.indexOf(':');
-//	if (fullEnd <= 0) {
-//		return QString();
-//	}
-//
-//	// {full} is in "{type}-{tag}-{tag}-{tag}" format
-//	// if we find "all" tag we return the restriction string
-//	const auto typeTags = restriction.mid(0, fullEnd).split('-').mid(1);
-//#ifdef OS_MAC_STORE
-//	const auto restrictionApplies = typeTags.contains(qsl("all"))
-//		|| typeTags.contains(qsl("ios"));
-//#elif defined OS_WIN_STORE // OS_MAC_STORE
-//	const auto restrictionApplies = typeTags.contains(qsl("all"))
-//		|| typeTags.contains(qsl("ms"));
-//#else
-//	const auto restrictionApplies = typeTags.contains(qsl("all"));
-//#endif // OS_MAC_STORE || OS_WIN_STORE
-//	if (restrictionApplies) {
-//		return restriction.midRef(fullEnd + 1).trimmed().toString();
-//	}
-	return QString();
+		const QVector<MTPRestrictionReason> &restrictions) {
+	auto &&texts = ranges::view::all(
+		restrictions
+	) | ranges::view::transform([](const MTPRestrictionReason &restriction) {
+		return restriction.match([&](const MTPDrestrictionReason &data) {
+			const auto platform = qs(data.vplatform());
+			return (false
+#ifdef OS_MAC_STORE
+				|| (platform == qstr("ios"))
+#elif defined OS_WIN_STORE // OS_MAC_STORE
+				|| (platform == qstr("ms"))
+#endif // OS_MAC_STORE || OS_WIN_STORE
+				|| (platform == qstr("all")))
+				? std::make_optional(qs(data.vtext()))
+				: std::nullopt;
+		});
+	}) | ranges::view::filter([](const std::optional<QString> &value) {
+		return value.has_value();
+	}) | ranges::view::transform([](const std::optional<QString> &value) {
+		return *value;
+	});
+	const auto begin = texts.begin();
+	return (begin != texts.end()) ? *begin : nullptr;
 }
 
 MTPPhotoSize FindDocumentInlineThumbnail(const MTPDdocument &data) {
