@@ -404,13 +404,16 @@ void EditorBlock::sortByDistance(const QColor &to) {
 		auto fromSaturation = int();
 		auto fromLightness = int();
 		row.value().getHsl(&fromHue, &fromSaturation, &fromLightness);
-		if (!row.copyOf().isEmpty() && row.copyOf() != "windowBgActive") {
+		if (!row.copyOf().isEmpty()) {
 			return 365;
 		}
 		const auto a = std::abs(fromHue - toHue);
 		const auto b = 360 + fromHue - toHue;
 		const auto c = 360 + toHue - fromHue;
-		return std::min(a, std::min(b, c));
+		if (std::min(a, std::min(b, c)) > 15) {
+			return 363;
+		}
+		return 255 - fromSaturation;
 	});
 }
 

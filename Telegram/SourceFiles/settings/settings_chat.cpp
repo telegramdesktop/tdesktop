@@ -286,7 +286,7 @@ public:
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 
-	void setColorizer(const Window::Theme::Colorizer *colorizer);
+	void setColorizer(const Window::Theme::Colorizer &colorizer);
 
 private:
 	void checkedChangedHook(anim::type animated) override;
@@ -503,10 +503,10 @@ DefaultTheme::DefaultTheme(Scheme scheme, bool checked)
 : AbstractCheckView(st::defaultRadio.duration, checked, nullptr)
 , _scheme(scheme)
 , _radio(st::defaultRadio, checked, [=] { update(); }) {
-	setColorizer(nullptr);
+	setColorizer({});
 }
 
-void DefaultTheme::setColorizer(const Window::Theme::Colorizer *colorizer) {
+void DefaultTheme::setColorizer(const Window::Theme::Colorizer &colorizer) {
 	_colorized = _scheme;
 	if (colorizer) {
 		Window::Theme::Colorize(_colorized, colorizer);
@@ -986,43 +986,25 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	};
 	const auto group = std::make_shared<Ui::RadioenumGroup<Type>>(chosen());
 
-	const auto apply = [=](
-			const Scheme &scheme,
-			const Window::Theme::Colorizer *colorizer = nullptr) {
+	const auto apply = [=](const Scheme &scheme) {
 		const auto isNight = [](const Scheme &scheme) {
 			const auto type = scheme.type;
 			return (type != Type::DayBlue) && (type != Type::Default);
 		};
 		const auto currentlyIsCustom = (chosen() == Type(-1));
 		if (Window::Theme::IsNightMode() == isNight(scheme)) {
-			Window::Theme::ApplyDefaultWithPath(scheme.path, colorizer);
+			Window::Theme::ApplyDefaultWithPath(scheme.path);
 		} else {
-			Window::Theme::ToggleNightMode(scheme.path, colorizer);
+			Window::Theme::ToggleNightMode(scheme.path);
 		}
 		if (!currentlyIsCustom) {
 			Window::Theme::KeepApplied();
 		}
 	};
-	const auto applyWithColor = [=](
-			const Scheme &scheme,
-			const QColor &color) {
-		auto &colors = Core::App().settings().themesAccentColors();
-		if (colors.get(scheme.type) != color) {
-			colors.set(scheme.type, color);
-			Local::writeSettings();
-		}
-		const auto colorizer = Window::Theme::ColorizerFrom(scheme, color);
-		apply(scheme, &colorizer);
-	};
 	const auto schemeClicked = [=](
 			const Scheme &scheme,
 			Qt::KeyboardModifiers modifiers) {
-		const auto &colors = Core::App().settings().themesAccentColors();
-		if (const auto color = colors.get(scheme.type)) {
-			applyWithColor(scheme, *color);
-		} else {
-			apply(scheme);
-		}
+		apply(scheme);
 	};
 
 	auto checks = base::flat_map<Type,not_null<DefaultTheme*>>();
@@ -1062,9 +1044,9 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 				const auto colorizer = Window::Theme::ColorizerFrom(
 					*scheme,
 					*color);
-				i->second->setColorizer(&colorizer);
+				i->second->setColorizer(colorizer);
 			} else {
-				i->second->setColorizer(nullptr);
+				i->second->setColorizer({});
 			}
 		}
 	};
@@ -1136,7 +1118,12 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		if (scheme == end(kSchemesList)) {
 			return;
 		}
-		applyWithColor(*scheme, color);
+		auto &colors = Core::App().settings().themesAccentColors();
+		if (colors.get(type) != color) {
+			colors.set(type, color);
+			Local::writeSettings();
+		}
+		apply(*scheme);
 	}, container->lifetime());
 
 	AddSkip(container);

@@ -152,8 +152,8 @@ enum class SetResult {
 SetResult setColorSchemeValue(
 		QLatin1String name,
 		QLatin1String value,
-		Instance *out,
-		const Colorizer *colorizer) {
+		const Colorizer &colorizer,
+		Instance *out) {
 	auto result = style::palette::SetResult::Ok;
 	auto size = value.size();
 	auto data = value.data();
@@ -163,8 +163,8 @@ SetResult setColorSchemeValue(
 		auto g = readHexUchar(data[3], data[4], error);
 		auto b = readHexUchar(data[5], data[6], error);
 		auto a = (size == 9) ? readHexUchar(data[7], data[8], error) : uchar(255);
-		if (colorizer && !colorizer->ignoreKeys.contains(name)) {
-			Colorize(r, g, b, colorizer);
+		if (colorizer) {
+			Colorize(name, r, g, b, colorizer);
 		}
 		if (error) {
 			LOG(("Theme Warning: Skipping value '%1: %2' (expected a color value in #rrggbb or #rrggbbaa or a previously defined key in the color scheme)").arg(name).arg(value));
@@ -199,14 +199,14 @@ SetResult setColorSchemeValue(
 
 bool loadColorScheme(
 		const QByteArray &content,
-		Instance *out,
-		const Colorizer *colorizer = nullptr) {
+		const Colorizer &colorizer,
+		Instance *out) {
 	auto unsupported = QMap<QLatin1String, QLatin1String>();
 	return ReadPaletteValues(content, [&](QLatin1String name, QLatin1String value) {
 		// Find the named value in the already read unsupported list.
 		value = unsupported.value(value, value);
 
-		auto result = setColorSchemeValue(name, value, out, colorizer);
+		auto result = setColorSchemeValue(name, value, colorizer, out);
 		if (result == SetResult::Bad) {
 			return false;
 		} else if (result == SetResult::NotFound) {
@@ -293,8 +293,8 @@ bool loadBackground(zlib::FileToRead &file, QByteArray *outBackground, bool *out
 bool loadTheme(
 		const QByteArray &content,
 		Cached &cache,
-		Instance *out = nullptr,
-		const Colorizer *colorizer = nullptr) {
+		const Colorizer &colorizer,
+		Instance *out = nullptr) {
 	cache = Cached();
 	zlib::FileToRead file(content);
 
@@ -310,7 +310,7 @@ bool loadTheme(
 			LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file."));
 			return false;
 		}
-		if (!loadColorScheme(schemeContent, out, colorizer)) {
+		if (!loadColorScheme(schemeContent, colorizer, out)) {
 			return false;
 		}
 		Background()->saveAdjustableColors();
@@ -349,7 +349,7 @@ bool loadTheme(
 		}
 	} else {
 		// Looks like it is not a .zip theme.
-		if (!loadColorScheme(content, out, colorizer)) {
+		if (!loadColorScheme(content, colorizer, out)) {
 			return false;
 		}
 		Background()->saveAdjustableColors();
@@ -911,9 +911,7 @@ bool ChatBackground::nightMode() const {
 	return _nightMode;
 }
 
-void ChatBackground::toggleNightMode(
-		std::optional<QString> themePath,
-		const Colorizer *colorizer) {
+void ChatBackground::toggleNightMode(std::optional<QString> themePath) {
 	const auto settingDefault = themePath.has_value();
 	const auto oldNightMode = _nightMode;
 	const auto newNightMode = !_nightMode;
@@ -935,6 +933,7 @@ void ChatBackground::toggleNightMode(
 		const auto loaded = loadTheme(
 			preview->content,
 			preview->instance.cached,
+			ColorizerForTheme(path),
 			&preview->instance);
 		if (!loaded) {
 			return false;
@@ -946,7 +945,7 @@ void ChatBackground::toggleNightMode(
 		path = themePath
 			? *themePath
 			: (newNightMode ? NightThemePath() : QString());
-		ApplyDefaultWithPath(path, colorizer);
+		ApplyDefaultWithPath(path);
 	}
 
 	// Theme editor could have already reverted the testing of this toggle.
@@ -993,7 +992,8 @@ bool Load(Saved &&saved) {
 		return true;
 	}
 
-	if (!loadTheme(saved.content, saved.cache)) {
+	const auto colorizer = ColorizerForTheme(saved.pathAbsolute);
+	if (!loadTheme(saved.content, saved.cache, colorizer)) {
 		return false;
 	}
 	Local::writeTheme(saved);
@@ -1025,11 +1025,9 @@ bool Apply(std::unique_ptr<Preview> preview) {
 	return true;
 }
 
-void ApplyDefaultWithPath(
-		const QString &themePath,
-		const Colorizer *colorizer) {
+void ApplyDefaultWithPath(const QString &themePath) {
 	if (!themePath.isEmpty()) {
-		if (auto preview = PreviewFromFile(themePath, colorizer)) {
+		if (auto preview = PreviewFromFile(themePath)) {
 			Apply(std::move(preview));
 		}
 	} else {
@@ -1046,12 +1044,14 @@ void ApplyDefaultWithPath(
 
 bool ApplyEditedPalette(const QString &path, const QByteArray &content) {
 	Instance out;
-	if (!loadColorScheme(content, &out)) {
+	if (!loadColorScheme(content, Colorizer(), &out)) {
 		return false;
 	}
 	out.cached.colors = out.palette.save();
 	out.cached.paletteChecksum = style::palette::Checksum();
-	out.cached.contentChecksum = hashCrc32(content.constData(), content.size());
+	out.cached.contentChecksum = hashCrc32(
+		content.constData(),
+		content.size());
 
 	GlobalApplying.pathRelative = path.isEmpty()
 		? QString()
@@ -1116,27 +1116,25 @@ void SetNightModeValue(bool nightMode) {
 }
 
 void ToggleNightMode() {
-	Background()->toggleNightMode(std::nullopt, nullptr);
+	Background()->toggleNightMode(std::nullopt);
 }
 
-void ToggleNightMode(
-		const QString &path,
-		const Colorizer *colorizer) {
-	Background()->toggleNightMode(path, colorizer);
+void ToggleNightMode(const QString &path) {
+	Background()->toggleNightMode(path);
 }
 
 bool LoadFromFile(
 		const QString &path,
 		Instance *out,
-		QByteArray *outContent,
-		const Colorizer *colorizer) {
+		QByteArray *outContent) {
 	*outContent = readThemeContent(path);
 	if (outContent->size() < 4) {
 		LOG(("Theme Error: Could not load theme from %1").arg(path));
 		return false;
 	}
 
-	return loadTheme(*outContent,  out->cached, out, colorizer);
+	const auto colorizer = ColorizerForTheme(path);
+	return loadTheme(*outContent,  out->cached, colorizer, out);
 }
 
 bool IsPaletteTestingPath(const QString &path) {

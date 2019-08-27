@@ -9,12 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/themes/window_theme.h"
 #include "storage/serialize_common.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 
 namespace Window {
 namespace Theme {
 namespace {
 
 constexpr auto kMaxAccentColors = 3;
+constexpr auto kEnoughLightnessForContrast = 64;
 
 const auto kColorizeIgnoredKeys = base::flat_set<QLatin1String>{ {
 	qstr("boxTextFgGood"),
@@ -100,6 +103,7 @@ Colorizer::Color cColor(str_const hex) {
 
 Colorizer ColorizerFrom(const EmbeddedScheme &scheme, const QColor &color) {
 	using Color = Colorizer::Color;
+	using Pair = std::pair<Color, Color>;
 
 	auto result = Colorizer();
 	result.ignoreKeys = kColorizeIgnoredKeys;
@@ -114,26 +118,34 @@ Colorizer ColorizerFrom(const EmbeddedScheme &scheme, const QColor &color) {
 		&result.now.lightness);
 	switch (scheme.type) {
 	case EmbeddedType::DayBlue:
-		result.lightnessMax = 191;
+		result.lightnessMax = 160;
 		break;
 	case EmbeddedType::Night:
-		result.keepContrast = base::flat_map<QLatin1String, Color>{ {
-			{ qstr("windowFgActive"), cColor("5288c1") }, // windowBgActive
-			{ qstr("activeButtonFg"), cColor("2f6ea5") }, // activeButtonBg
-			{ qstr("profileVerifiedCheckFg"), cColor("5288c1") }, // profileVerifiedCheckBg
-			{ qstr("overviewCheckFgActive"), cColor("5288c1") }, // overviewCheckBgActive
+		result.keepContrast = base::flat_map<QLatin1String, Pair>{ {
+			//{ qstr("windowFgActive"), Pair{ cColor("5288c1"), cColor("17212b") } }, // windowBgActive
+			{ qstr("activeButtonFg"), Pair{ cColor("2f6ea5"), cColor("17212b") } }, // activeButtonBg
+			{ qstr("profileVerifiedCheckFg"), Pair{ cColor("5288c1"), cColor("17212b") } }, // profileVerifiedCheckBg
+			{ qstr("overviewCheckFgActive"), Pair{ cColor("5288c1"), cColor("17212b") } }, // overviewCheckBgActive
+			{ qstr("historyFileInIconFg"), Pair{ cColor("3f96d0"), cColor("182533") } }, // msgFileInBg, msgInBg
+			{ qstr("historyFileInIconFgSelected"), Pair{ cColor("6ab4f4"), cColor("2e70a5") } }, // msgFileInBgSelected, msgInBgSelected
+			{ qstr("historyFileInRadialFg"), Pair{ cColor("3f96d0"), cColor("182533") } }, // msgFileInBg, msgInBg
+			{ qstr("historyFileInRadialFgSelected"), Pair{ cColor("6ab4f4"), cColor("2e70a5") } }, // msgFileInBgSelected, msgInBgSelected
+			{ qstr("historyFileOutIconFg"), Pair{ cColor("4c9ce2"), cColor("2b5278") } }, // msgFileOutBg, msgOutBg
+			{ qstr("historyFileOutIconFgSelected"), Pair{ cColor("58abf3"), cColor("2e70a5") } }, // msgFileOutBgSelected, msgOutBgSelected
+			{ qstr("historyFileOutRadialFg"), Pair{ cColor("4c9ce2"), cColor("2b5278") } }, // msgFileOutBg, msgOutBg
+			{ qstr("historyFileOutRadialFgSelected"), Pair{ cColor("58abf3"), cColor("2e70a5") } }, // msgFileOutBgSelected, msgOutBgSelected
 		} };
-		result.lightnessMin = 64;
+		result.lightnessMin = 96;
 		break;
 	case EmbeddedType::NightGreen:
-		result.keepContrast = base::flat_map<QLatin1String, Color>{ {
-			{ qstr("windowFgActive"), cColor("3fc1b0") }, // windowBgActive
-			{ qstr("activeButtonFg"), cColor("2da192") }, // activeButtonBg
-			{ qstr("profileVerifiedCheckFg"), cColor("3fc1b0") }, // profileVerifiedCheckBg
-			{ qstr("overviewCheckFgActive"), cColor("3fc1b0") }, // overviewCheckBgActive
-			{ qstr("callIconFg"), cColor("5ad1c1") }, // callAnswerBg
+		result.keepContrast = base::flat_map<QLatin1String, Pair>{ {
+			//{ qstr("windowFgActive"), Pair{ cColor("3fc1b0"), cColor("282e33") } }, // windowBgActive, windowBg
+			{ qstr("activeButtonFg"), Pair{ cColor("2da192"), cColor("282e33") } }, // activeButtonBg, windowBg
+			{ qstr("profileVerifiedCheckFg"), Pair{ cColor("3fc1b0"), cColor("282e33") } }, // profileVerifiedCheckBg, windowBg
+			{ qstr("overviewCheckFgActive"), Pair{ cColor("3fc1b0"), cColor("282e33") } }, // overviewCheckBgActive
+			{ qstr("callIconFg"), Pair{ cColor("5ad1c1"), cColor("26282c") } }, // callAnswerBg, callBg
 		} };
-		result.lightnessMin = 64;
+		result.lightnessMin = 96;
 		break;
 	}
 	result.now.lightness = std::clamp(
@@ -143,56 +155,131 @@ Colorizer ColorizerFrom(const EmbeddedScheme &scheme, const QColor &color) {
 	return result;
 }
 
-void Colorize(
-		uchar &r,
-		uchar &g,
-		uchar &b,
-		not_null<const Colorizer*> colorizer) {
-	auto color = QColor(int(r), int(g), int(b));
+Colorizer ColorizerForTheme(const QString &absolutePath) {
+	if (!absolutePath.startsWith(qstr(":/gui"))) {
+		return Colorizer();
+	}
+	const auto schemes = EmbeddedThemes();
+	const auto i = ranges::find(
+		schemes,
+		absolutePath,
+		&EmbeddedScheme::path);
+	if (i == end(schemes)) {
+		return Colorizer();
+	}
+	const auto &colors = Core::App().settings().themesAccentColors();
+	if (const auto accent = colors.get(i->type)) {
+		return ColorizerFrom(*i, *accent);
+	}
+	return Colorizer();
+}
+
+[[nodiscard]] std::optional<Colorizer::Color> Colorize(
+		const Colorizer::Color &color,
+		const Colorizer &colorizer) {
+	const auto changeColor = std::abs(color.hue - colorizer.was.hue)
+		< colorizer.hueThreshold;
+	if (!changeColor) {
+		return std::nullopt;
+	}
+	const auto nowHue = color.hue + (colorizer.now.hue - colorizer.was.hue);
+	const auto nowSaturation = ((color.saturation > colorizer.was.saturation)
+		&& (colorizer.now.saturation > colorizer.was.saturation))
+		? (((colorizer.now.saturation * (255 - colorizer.was.saturation))
+			+ ((color.saturation - colorizer.was.saturation)
+				* (255 - colorizer.now.saturation)))
+			/ (255 - colorizer.was.saturation))
+		: ((color.saturation != colorizer.was.saturation)
+			&& (colorizer.was.saturation != 0))
+		? ((color.saturation * colorizer.now.saturation)
+			/ colorizer.was.saturation)
+		: colorizer.now.saturation;
+	const auto nowLightness = (color.lightness > colorizer.was.lightness)
+		? (((colorizer.now.lightness * (255 - colorizer.was.lightness))
+			+ ((color.lightness - colorizer.was.lightness)
+				* (255 - colorizer.now.lightness)))
+			/ (255 - colorizer.was.lightness))
+		: (color.lightness < colorizer.was.lightness)
+		? ((color.lightness * colorizer.now.lightness)
+			/ colorizer.was.lightness)
+		: colorizer.now.lightness;
+	return Colorizer::Color{
+		((nowHue + 360) % 360),
+		nowSaturation,
+		nowLightness
+	};
+}
+
+[[nodiscard]] std::optional<QColor> Colorize(
+		const QColor &color,
+		const Colorizer &colorizer) {
 	auto hue = 0;
 	auto saturation = 0;
 	auto lightness = 0;
 	color.getHsl(&hue, &saturation, &lightness);
-	const auto changeColor = std::abs(hue - colorizer->was.hue)
-		<= colorizer->hueThreshold;
-	if (!changeColor) {
-		return;
+	const auto result = Colorize(
+		Colorizer::Color{ hue, saturation, lightness },
+		colorizer);
+	if (!result) {
+		return std::nullopt;
 	}
-	const auto nowHue = hue + (colorizer->now.hue - colorizer->was.hue);
-	const auto nowSaturation = ((saturation > colorizer->was.saturation)
-		&& (colorizer->now.saturation > colorizer->was.saturation))
-		? (((colorizer->now.saturation * (255 - colorizer->was.saturation))
-			+ ((saturation - colorizer->was.saturation)
-				* (255 - colorizer->now.saturation)))
-			/ (255 - colorizer->was.saturation))
-		: ((saturation != colorizer->was.saturation)
-			&& (colorizer->was.saturation != 0))
-		? ((saturation * colorizer->now.saturation)
-			/ colorizer->was.saturation)
-		: colorizer->now.saturation;
-	const auto nowLightness = (lightness > colorizer->was.lightness)
-		? (((colorizer->now.lightness * (255 - colorizer->was.lightness))
-			+ ((lightness - colorizer->was.lightness)
-				* (255 - colorizer->now.lightness)))
-			/ (255 - colorizer->was.lightness))
-		: (lightness < colorizer->was.lightness)
-		? ((lightness * colorizer->now.lightness)
-			/ colorizer->was.lightness)
-		: colorizer->now.lightness;
+	const auto &fields = *result;
+	return QColor::fromHsl(fields.hue, fields.saturation, fields.lightness);
+}
+
+void FillColorizeResult(uchar &r, uchar &g, uchar &b, const QColor &color) {
 	auto nowR = 0;
 	auto nowG = 0;
 	auto nowB = 0;
-	QColor::fromHsl(
-		((nowHue + 360) % 360),
-		nowSaturation,
-		nowLightness
-	).getRgb(&nowR, &nowG, &nowB);
+	color.getRgb(&nowR, &nowG, &nowB);
 	r = uchar(nowR);
 	g = uchar(nowG);
 	b = uchar(nowB);
 }
 
-void Colorize(uint32 &pixel, not_null<const Colorizer*> colorizer) {
+void Colorize(uchar &r, uchar &g, uchar &b, const Colorizer &colorizer) {
+	const auto changed = Colorize(QColor(int(r), int(g), int(b)), colorizer);
+	if (changed) {
+		FillColorizeResult(r, g, b, *changed);
+	}
+}
+
+void Colorize(
+		QLatin1String name,
+		uchar &r,
+		uchar &g,
+		uchar &b,
+		const Colorizer &colorizer) {
+	if (colorizer.ignoreKeys.contains(name)) {
+		return;
+	}
+
+	const auto i = colorizer.keepContrast.find(name);
+	if (i == end(colorizer.keepContrast)) {
+		Colorize(r, g, b, colorizer);
+		return;
+	}
+	const auto check = i->second.first;
+	const auto rgb = QColor(int(r), int(g), int(b));
+	const auto changed = Colorize(rgb, colorizer);
+	const auto checked = Colorize(check, colorizer).value_or(check);
+	const auto delta = std::abs(changed.value_or(rgb).lightness() - checked.lightness);
+	if (delta >= kEnoughLightnessForContrast) {
+		if (changed) {
+			FillColorizeResult(r, g, b, *changed);
+		}
+		return;
+	}
+	const auto replace = i->second.second;
+	const auto result = Colorize(replace, colorizer).value_or(replace);
+	FillColorizeResult(
+		r,
+		g,
+		b,
+		QColor::fromHsl(result.hue, result.saturation, result.lightness));
+}
+
+void Colorize(uint32 &pixel, const Colorizer &colorizer) {
 	const auto chars = reinterpret_cast<uchar*>(&pixel);
 	Colorize(
 		chars[2],
@@ -201,15 +288,7 @@ void Colorize(uint32 &pixel, not_null<const Colorizer*> colorizer) {
 		colorizer);
 }
 
-void Colorize(QColor &color, not_null<const Colorizer*> colorizer) {
-	auto r = uchar(color.red());
-	auto g = uchar(color.green());
-	auto b = uchar(color.blue());
-	Colorize(r, g, b, colorizer);
-	color = QColor(r, g, b, color.alpha());
-}
-
-void Colorize(QImage &image, not_null<const Colorizer*> colorizer) {
+void Colorize(QImage &image, const Colorizer &colorizer) {
 	image = std::move(image).convertToFormat(QImage::Format_ARGB32);
 	const auto bytes = image.bits();
 	const auto bytesPerLine = image.bytesPerLine();
@@ -223,7 +302,7 @@ void Colorize(QImage &image, not_null<const Colorizer*> colorizer) {
 	}
 }
 
-void Colorize(EmbeddedScheme &scheme, not_null<const Colorizer*> colorizer) {
+void Colorize(EmbeddedScheme &scheme, const Colorizer &colorizer) {
 	const auto colors = {
 		&EmbeddedScheme::background,
 		&EmbeddedScheme::sent,
@@ -232,17 +311,19 @@ void Colorize(EmbeddedScheme &scheme, not_null<const Colorizer*> colorizer) {
 		&EmbeddedScheme::radiobuttonInactive
 	};
 	for (const auto color : colors) {
-		Colorize(scheme.*color, colorizer);
+		if (const auto changed = Colorize(scheme.*color, colorizer)) {
+			scheme.*color = changed->toRgb();
+		}
 	}
 }
 
 QByteArray Colorize(
 		QLatin1String hexColor,
-		not_null<const Colorizer*> colorizer) {
+		const Colorizer &colorizer) {
 	Expects(hexColor.size() == 7 || hexColor.size() == 9);
 
 	auto color = qColor(str_const(hexColor.data() + 1, 6));
-	Colorize(color, colorizer);
+	const auto changed = Colorize(color, colorizer).value_or(color).toRgb();
 
 	auto result = QByteArray();
 	result.reserve(hexColor.size());
@@ -258,9 +339,9 @@ QByteArray Colorize(
 		addHex(code / 16);
 		addHex(code % 16);
 	};
-	addValue(color.red());
-	addValue(color.green());
-	addValue(color.blue());
+	addValue(changed.red());
+	addValue(changed.green());
+	addValue(changed.blue());
 	if (hexColor.size() == 9) {
 		result.append(hexColor.data()[7]);
 		result.append(hexColor.data()[8]);
@@ -311,7 +392,7 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 			qColor("75bfb5"),
 			tr::lng_settings_theme_matrix,
 			":/gui/night-green.tdesktop-theme",
-			qColor("3fc1b0")
+			qColor("01ffdd")
 		},
 	};
 }

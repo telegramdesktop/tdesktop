@@ -188,7 +188,7 @@ QByteArray replaceValueInContent(const QByteArray &content, const QByteArray &na
 
 QByteArray ColorizeInContent(
 		QByteArray content,
-		not_null<const Colorizer*> colorizer) {
+		const Colorizer &colorizer) {
 	auto validNames = OrderedSet<QLatin1String>();
 	content.detach();
 	auto start = content.constBegin(), data = start, end = data + content.size();
@@ -349,21 +349,10 @@ bool CopyColorsToPalette(
 		return false;
 	}
 
-	if (themePath.startsWith(qstr(":/gui"))) {
-		const auto schemes = EmbeddedThemes();
-		const auto i = ranges::find(
-			schemes,
-			themePath,
-			&EmbeddedScheme::path);
-		if (i != end(schemes)) {
-			const auto &colors = Core::App().settings().themesAccentColors();
-			if (const auto accent = colors.get(i->type)) {
-				const auto colorizer = ColorizerFrom(*i, *accent);
-				paletteContent = ColorizeInContent(
-					std::move(paletteContent),
-					&colorizer);
-			}
-		}
+	if (const auto colorizer = ColorizerForTheme(themePath)) {
+		paletteContent = ColorizeInContent(
+			std::move(paletteContent),
+			colorizer);
 	}
 	if (f.write(paletteContent) != paletteContent.size()) {
 		LOG(("Theme Error: could not write palette to '%1'").arg(destination));

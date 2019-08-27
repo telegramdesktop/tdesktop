@@ -700,7 +700,7 @@ defaultInputField: InputField {
 	heightMax: 148px;
 }
 
-defaultCheckboxIcon: icon {{ "default_checkbox_check", windowFgActive, point(4px, 7px) }};
+defaultCheckboxIcon: icon {{ "default_checkbox_check", overviewCheckFgActive, point(4px, 7px) }};
 
 defaultCheck: Check {
 	bg: transparent;
