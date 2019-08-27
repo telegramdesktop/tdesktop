@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "observer_peer.h"
@@ -288,12 +288,19 @@ SendButton::SendButton(QWidget *parent) : RippleButton(parent, st::historyReplyC
 }
 
 void SendButton::setType(Type type) {
+	Expects(isSlowmode() || type != Type::Slowmode);
+
+	if (isSlowmode() && type != Type::Slowmode) {
+		_afterSlowmodeType = type;
+		return;
+	}
 	if (_type != type) {
 		_contentFrom = grabContent();
 		_type = type;
 		_a_typeChanged.stop();
 		_contentTo = grabContent();
-		_a_typeChanged.start([this] { update(); }, 0., 1., st::historyRecordVoiceDuration);
+		_a_typeChanged.start([=] { update(); }, 0., 1., st::historyRecordVoiceDuration);
+		setPointerCursor(_type != Type::Slowmode);
 		update();
 	}
 	if (_type != Type::Record) {
@@ -308,6 +315,20 @@ void SendButton::setRecordActive(bool recordActive) {
 		_a_recordActive.start([this] { recordAnimationCallback(); }, _recordActive ? 0. : 1., _recordActive ? 1. : 0, st::historyRecordVoiceDuration);
 		update();
 	}
+}
+
+void SendButton::setSlowmodeDelay(int seconds) {
+	Expects(seconds >= 0 && seconds < kSlowmodeDelayLimit);
+
+	if (_slowmodeDelay == seconds) {
+		return;
+	}
+	_slowmodeDelay = seconds;
+	_slowmodeDelayText = isSlowmode()
+		? qsl("%1:%2").arg(seconds / 60).arg(seconds % 60, 2, 10, QChar('0'))
+		: QString();
+	setType(isSlowmode() ? Type::Slowmode : _afterSlowmodeType);
+	update();
 }
 
 void SendButton::finishAnimating() {
@@ -341,37 +362,77 @@ void SendButton::paintEvent(QPaintEvent *e) {
 		auto shownWidth = anim::interpolate((1 - kWideScale) / 2 * width(), 0, changed);
 		auto shownHeight = anim::interpolate((1 - kWideScale) / 2 * height(), 0, changed);
 		p.drawPixmap(targetRect.marginsAdded(QMargins(shownWidth, shownHeight, shownWidth, shownHeight)), _contentTo);
-	} else if (_type == Type::Record) {
-		auto recordActive = recordActiveRatio();
+		return;
+	}
+	switch (_type) {
+	case Type::Record: paintRecord(p, over); break;
+	case Type::Save: paintSave(p, over); break;
+	case Type::Cancel: paintCancel(p, over); break;
+	case Type::Send: paintSend(p, over); break;
+	case Type::Slowmode: paintSlowmode(p); break;
+	}
+}
+
+void SendButton::paintRecord(Painter &p, bool over) {
+	auto recordActive = recordActiveRatio();
+	if (!isDisabled()) {
 		auto rippleColor = anim::color(st::historyAttachEmoji.ripple.color, st::historyRecordVoiceRippleBgActive, recordActive);
 		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), &rippleColor);
+	}
 
-		auto fastIcon = [&] {
-			if (recordActive == 1.) {
-				return &st::historyRecordVoiceActive;
-			} else if (over) {
-				return &st::historyRecordVoiceOver;
-			}
+	auto fastIcon = [&] {
+		if (isDisabled()) {
 			return &st::historyRecordVoice;
-		};
-		fastIcon()->paintInCenter(p, rect());
-		if (recordActive > 0. && recordActive < 1.) {
-			p.setOpacity(recordActive);
-			st::historyRecordVoiceActive.paintInCenter(p, rect());
-			p.setOpacity(1.);
+		} else if (recordActive == 1.) {
+			return &st::historyRecordVoiceActive;
+		} else if (over) {
+			return &st::historyRecordVoiceOver;
 		}
-	} else if (_type == Type::Save) {
-		auto &saveIcon = over ? st::historyEditSaveIconOver : st::historyEditSaveIcon;
-		saveIcon.paint(p, st::historySendIconPosition, width());
-	} else if (_type == Type::Cancel) {
-		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y());
+		return &st::historyRecordVoice;
+	};
+	fastIcon()->paintInCenter(p, rect());
+	if (!isDisabled() && recordActive > 0. && recordActive < 1.) {
+		p.setOpacity(recordActive);
+		st::historyRecordVoiceActive.paintInCenter(p, rect());
+		p.setOpacity(1.);
+	}
+}
 
-		auto &cancelIcon = over ? st::historyReplyCancelIconOver : st::historyReplyCancelIcon;
-		cancelIcon.paintInCenter(p, rect());
+void SendButton::paintSave(Painter &p, bool over) {
+	const auto &saveIcon = over
+		? st::historyEditSaveIconOver
+		: st::historyEditSaveIcon;
+	saveIcon.paint(p, st::historySendIconPosition, width());
+}
+
+void SendButton::paintCancel(Painter &p, bool over) {
+	paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y());
+
+	const auto &cancelIcon = over
+		? st::historyReplyCancelIconOver
+		: st::historyReplyCancelIcon;
+	cancelIcon.paintInCenter(p, rect());
+}
+
+void SendButton::paintSend(Painter &p, bool over) {
+	const auto &sendIcon = over
+		? st::historySendIconOver
+		: st::historySendIcon;
+	if (isDisabled()) {
+		const auto color = st::historyRecordVoiceFg->c;
+		sendIcon.paint(p, st::historySendIconPosition, width(), color);
 	} else {
-		auto &sendIcon = over ? st::historySendIconOver : st::historySendIcon;
 		sendIcon.paint(p, st::historySendIconPosition, width());
 	}
+}
+
+void SendButton::paintSlowmode(Painter &p) {
+	p.setFont(st::normalFont);
+	p.setPen(st::windowSubTextFg);
+	p.drawText(
+		rect().marginsRemoved(st::historySlowmodeCounterMargins),
+		_slowmodeDelayText,
+		style::al_center);
 }
 
 void SendButton::onStateChanged(State was, StateChangeSource source) {
@@ -393,6 +454,10 @@ void SendButton::onStateChanged(State was, StateChangeSource source) {
 			}
 		}
 	}
+}
+
+bool SendButton::isSlowmode() const {
+	return (_slowmodeDelay > 0);
 }
 
 QPixmap SendButton::grabContent() {
@@ -519,7 +584,7 @@ void UserpicButton::changePhotoLazy() {
 
 void UserpicButton::uploadNewPeerPhoto() {
 	auto callback = crl::guard(this, [=](QImage &&image) {
-		Auth().api().uploadPeerPhoto(_peer, std::move(image));
+		_peer->session().api().uploadPeerPhoto(_peer, std::move(image));
 	});
 	ShowChoosePhotoBox(this, _cropTitle, std::move(callback));
 }
@@ -537,7 +602,7 @@ void UserpicButton::openPeerPhoto() {
 	if (!id) {
 		return;
 	}
-	const auto photo = Auth().data().photo(id);
+	const auto photo = _peer->owner().photo(id);
 	if (photo->date) {
 		Core::App().showPhoto(photo, _peer);
 	}
@@ -551,8 +616,9 @@ void UserpicButton::setupPeerViewers() {
 		processNewPeerPhoto();
 		update();
 	}, lifetime());
+
 	base::ObservableViewer(
-		Auth().downloaderTaskFinished()
+		_peer->session().downloaderTaskFinished()
 	) | rpl::start_with_next([this] {
 		if (_waiting && _peer->userpicLoaded()) {
 			_waiting = false;
@@ -893,7 +959,7 @@ void UserpicButton::prepareUserpicPixmap() {
 //void FeedUserpicButton::prepare() {
 //	resize(_st.size);
 //
-//	Auth().data().feedUpdated(
+//	_feed->owner().feedUpdated(
 //	) | rpl::filter([=](const Data::FeedUpdate &update) {
 //		return (update.feed == _feed)
 //			&& (update.flag == Data::FeedUpdateFlag::Channels);
@@ -970,8 +1036,8 @@ void UserpicButton::prepareUserpicPixmap() {
 SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
 : IconButton(parent, st::historySilentToggle)
 , _channel(channel)
-, _checked(Auth().data().notifySilentPosts(_channel)) {
-	Expects(!Auth().data().notifySilentPostsUnknown(_channel));
+, _checked(channel->owner().notifySilentPosts(_channel)) {
+	Expects(!channel->owner().notifySilentPostsUnknown(_channel));
 
 	if (_checked) {
 		refreshIconOverrides();
@@ -1014,7 +1080,7 @@ void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
 	setChecked(!_checked);
 	IconButton::mouseReleaseEvent(e);
 	Ui::Tooltip::Show(0, this);
-	Auth().data().updateNotifySettings(
+	_channel->owner().updateNotifySettings(
 		_channel,
 		std::nullopt,
 		_checked);

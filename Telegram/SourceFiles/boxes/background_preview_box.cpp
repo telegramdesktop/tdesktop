@@ -16,11 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_message.h"
 #include "history/view/history_view_message.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_document.h"
+#include "base/unixtime.h"
 #include "boxes/confirm_box.h"
 #include "boxes/background_preview_box.h"
 #include "styles/style_history.h"
@@ -283,15 +284,17 @@ AdminLog::OwnedItem GenerateTextItem(
 	const auto flags = Flag::f_entities
 		| Flag::f_from_id
 		| (out ? Flag::f_out : Flag(0));
+	const auto clientFlags = MTPDmessage_ClientFlags();
 	const auto replyTo = 0;
 	const auto viaBotId = 0;
 	const auto item = history->owner().makeMessage(
 		history,
 		++id,
 		flags,
+		clientFlags,
 		replyTo,
 		viaBotId,
-		unixtime(),
+		base::unixtime::now(),
 		out ? history->session().userId() : peerToUser(history->peer->id),
 		QString(),
 		TextWithEntities{ TextUtilities::Clean(text) });
@@ -386,20 +389,24 @@ QImage PrepareScaledFromFull(
 
 BackgroundPreviewBox::BackgroundPreviewBox(
 	QWidget*,
+	not_null<Main::Session*> session,
 	const Data::WallPaper &paper)
-: _text1(GenerateTextItem(
+: _session(session)
+, _text1(GenerateTextItem(
 	delegate(),
-	Auth().data().history(peerFromUser(PeerData::kServiceNotificationsId)),
+	_session->data().history(
+		peerFromUser(PeerData::kServiceNotificationsId)),
 	tr::lng_background_text1(tr::now),
 	false))
 , _text2(GenerateTextItem(
 	delegate(),
-	Auth().data().history(peerFromUser(PeerData::kServiceNotificationsId)),
+	_session->data().history(
+		peerFromUser(PeerData::kServiceNotificationsId)),
 	tr::lng_background_text2(tr::now),
 	true))
 , _paper(paper)
 , _radial([=](crl::time now) { radialAnimationCallback(now); }) {
-	subscribe(Auth().downloaderTaskFinished(), [=] { update(); });
+	subscribe(_session->downloaderTaskFinished(), [=] { update(); });
 }
 
 not_null<HistoryView::ElementDelegate*> BackgroundPreviewBox::delegate() {
@@ -482,7 +489,7 @@ void BackgroundPreviewBox::apply() {
 		&& Data::IsCloudWallPaper(_paper);
 	App::main()->setChatBackground(_paper, std::move(_full));
 	if (install) {
-		Auth().api().request(MTPaccount_InstallWallPaper(
+		_session->api().request(MTPaccount_InstallWallPaper(
 			_paper.mtpInput(),
 			_paper.mtpSettings()
 		)).send();
@@ -735,18 +742,23 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 }
 
 bool BackgroundPreviewBox::Start(
+		not_null<Main::Session*> session,
 		const QString &slug,
 		const QMap<QString, QString> &params) {
 	if (const auto paper = Data::WallPaper::FromColorSlug(slug)) {
-		Ui::show(Box<BackgroundPreviewBox>(paper->withUrlParams(params)));
+		Ui::show(Box<BackgroundPreviewBox>(
+			session,
+			paper->withUrlParams(params)));
 		return true;
 	}
 	if (!IsValidWallPaperSlug(slug)) {
 		Ui::show(Box<InformBox>(tr::lng_background_bad_link(tr::now)));
 		return false;
 	}
-	Auth().api().requestWallPaper(slug, [=](const Data::WallPaper &result) {
-		Ui::show(Box<BackgroundPreviewBox>(result.withUrlParams(params)));
+	session->api().requestWallPaper(slug, [=](const Data::WallPaper &result) {
+		Ui::show(Box<BackgroundPreviewBox>(
+			session,
+			result.withUrlParams(params)));
 	}, [](const RPCError &error) {
 		Ui::show(Box<InformBox>(tr::lng_background_bad_link(tr::now)));
 	});

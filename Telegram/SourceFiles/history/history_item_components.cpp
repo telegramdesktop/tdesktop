@@ -15,22 +15,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_message.h"
 #include "history/view/history_view_service_message.h"
-#include "history/media/history_media_document.h"
+#include "history/view/media/history_view_document.h"
+#include "mainwindow.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
+#include "window/window_session_controller.h"
 
 void HistoryMessageVia::create(UserId userId) {
 	bot = Auth().data().user(userId);
 	maxWidth = st::msgServiceNameFont->width(
 		tr::lng_inline_bot_via(tr::now, lt_inline_bot, '@' + bot->username));
 	link = std::make_shared<LambdaClickHandler>([bot = this->bot] {
+		if (QGuiApplication::keyboardModifiers() == Qt::ControlModifier) {
+			if (const auto window = App::wnd()) {
+				if (const auto controller = window->sessionController()) {
+					controller->showPeerInfo(bot);
+					return;
+				}
+			}
+		}
 		App::insertBotCommand('@' + bot->username);
 	});
 }
@@ -915,16 +925,16 @@ HistoryDocumentCaptioned::HistoryDocumentCaptioned()
 }
 
 HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(
-	const HistoryDocument *that)
+	const HistoryView::Document *that)
 : progress(0., 0.)
 , progressAnimation([=](crl::time now) {
-	const auto nonconst = const_cast<HistoryDocument*>(that);
+	const auto nonconst = const_cast<HistoryView::Document*>(that);
 	return nonconst->voiceProgressAnimationCallback(now);
 }) {
 }
 
 void HistoryDocumentVoice::ensurePlayback(
-		const HistoryDocument *that) const {
+		const HistoryView::Document *that) const {
 	if (!_playback) {
 		_playback = std::make_unique<HistoryDocumentVoicePlayback>(that);
 	}

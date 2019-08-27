@@ -438,7 +438,7 @@ bool Cache::readHeader(const FrameRequest &request) {
 		|| (original.width() > kMaxSize)
 		|| (original.height() > kMaxSize)
 		|| (frameRate <= 0)
-		|| (frameRate > kMaxFrameRate)
+		|| (frameRate > kNormalFrameRate && frameRate != kMaxFrameRate)
 		|| (framesCount <= 0)
 		|| (framesCount > kMaxFramesCount)
 		|| (framesReady <= 0)
@@ -594,6 +594,9 @@ void Cache::prepareBuffers() {
 }
 
 Cache::ReadResult Cache::readCompressedFrame() {
+	if (_data.size() < _offset) {
+		return { false };
+	}
 	auto length = qint32(0);
 	const auto part = bytes::make_span(_data).subspan(_offset);
 	if (part.size() < sizeof(length)) {

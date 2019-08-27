@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/crash_reports.h"
 
+#include <private/qfontengine_p.h>
+
 // COPIED FROM qtextlayout.cpp AND MODIFIED
 namespace Ui {
 namespace Text {

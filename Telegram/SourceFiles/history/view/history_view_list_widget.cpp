@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
-#include "history/media/history_media.h"
-#include "history/media/history_media_sticker.h"
+#include "history/view/media/history_view_media.h"
+#include "history/view/media/history_view_sticker.h"
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_message.h"
@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/toast/toast.h"
 #include "lang/lang_keys.h"
@@ -245,25 +245,25 @@ ListWidget::ListWidget(
 , _highlightTimer([this] { updateHighlightedMessage(); }) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
-	Auth().data().viewRepaintRequest(
+	session().data().viewRepaintRequest(
 	) | rpl::start_with_next([this](auto view) {
 		if (view->delegate() == this) {
 			repaintItem(view);
 		}
 	}, lifetime());
-	Auth().data().viewResizeRequest(
+	session().data().viewResizeRequest(
 	) | rpl::start_with_next([this](auto view) {
 		if (view->delegate() == this) {
 			resizeItem(view);
 		}
 	}, lifetime());
-	Auth().data().itemViewRefreshRequest(
+	session().data().itemViewRefreshRequest(
 	) | rpl::start_with_next([this](auto item) {
 		if (const auto view = viewForItem(item)) {
 			refreshItem(view);
 		}
 	}, lifetime());
-	Auth().data().viewLayoutChanged(
+	session().data().viewLayoutChanged(
 	) | rpl::start_with_next([this](auto view) {
 		if (view->delegate() == this) {
 			if (view->isUnderCursor()) {
@@ -271,7 +271,7 @@ ListWidget::ListWidget(
 			}
 		}
 	}, lifetime());
-	Auth().data().animationPlayInlineRequest(
+	session().data().animationPlayInlineRequest(
 	) | rpl::start_with_next([this](auto item) {
 		if (const auto view = viewForItem(item)) {
 			if (const auto media = view->media()) {
@@ -279,11 +279,11 @@ ListWidget::ListWidget(
 			}
 		}
 	}, lifetime());
-	Auth().data().itemRemoved(
+	session().data().itemRemoved(
 	) | rpl::start_with_next(
 		[this](auto item) { itemRemoved(item); },
 		lifetime());
-	subscribe(Auth().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
+	subscribe(session().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
 		if (const auto view = viewForItem(query.item)) {
 			const auto top = itemTop(view);
 			if (top >= 0
@@ -293,6 +293,10 @@ ListWidget::ListWidget(
 			}
 		}
 	});
+}
+
+Main::Session &ListWidget::session() const {
+	return _controller->session();
 }
 
 not_null<ListDelegate*> ListWidget::delegate() const {
@@ -317,7 +321,7 @@ void ListWidget::refreshRows() {
 	_items.clear();
 	_items.reserve(_slice.ids.size());
 	for (const auto &fullId : _slice.ids) {
-		if (const auto item = Auth().data().message(fullId)) {
+		if (const auto item = session().data().message(fullId)) {
 			_items.push_back(enforceViewForItem(item));
 		}
 	}
@@ -350,7 +354,7 @@ std::optional<int> ListWidget::scrollTopForPosition(
 std::optional<int> ListWidget::scrollTopForView(
 		not_null<Element*> view) const {
 	if (view->isHiddenByGroup()) {
-		if (const auto group = Auth().data().groups().find(view->data())) {
+		if (const auto group = session().data().groups().find(view->data())) {
 			if (const auto leader = viewForItem(group->items.back())) {
 				if (!leader->isHiddenByGroup()) {
 					return scrollTopForView(leader);
@@ -398,7 +402,7 @@ void ListWidget::animatedScrollTo(
 void ListWidget::scrollToAnimationCallback(
 		FullMsgId attachToId,
 		int relativeTo) {
-	const auto attachTo = Auth().data().message(attachToId);
+	const auto attachTo = session().data().message(attachToId);
 	const auto attachToView = viewForItem(attachTo);
 	if (!attachToView) {
 		_scrollToAnimation.stop();
@@ -424,7 +428,7 @@ bool ListWidget::isBelowPosition(Data::MessagePosition position) const {
 }
 
 void ListWidget::highlightMessage(FullMsgId itemId) {
-	if (const auto item = Auth().data().message(itemId)) {
+	if (const auto item = session().data().message(itemId)) {
 		if (const auto view = viewForItem(item)) {
 			_highlightStart = crl::now();
 			_highlightedMessageId = itemId;
@@ -436,7 +440,7 @@ void ListWidget::highlightMessage(FullMsgId itemId) {
 }
 
 void ListWidget::updateHighlightedMessage() {
-	if (const auto item = Auth().data().message(_highlightedMessageId)) {
+	if (const auto item = session().data().message(_highlightedMessageId)) {
 		if (const auto view = viewForItem(item)) {
 			repaintItem(view);
 			auto duration = st::activeFadeInDuration + st::activeFadeOutDuration;
@@ -488,7 +492,7 @@ void ListWidget::restoreScrollState() {
 }
 
 Element *ListWidget::viewForItem(FullMsgId itemId) const {
-	if (const auto item = Auth().data().message(itemId)) {
+	if (const auto item = session().data().message(itemId)) {
 		return viewForItem(item);
 	}
 	return nullptr;
@@ -736,7 +740,7 @@ bool ListWidget::isSelectedGroup(
 bool ListWidget::isSelectedAsGroup(
 		const SelectedMap &applyTo,
 		not_null<HistoryItem*> item) const {
-	if (const auto group = Auth().data().groups().find(item)) {
+	if (const auto group = session().data().groups().find(item)) {
 		return isSelectedGroup(applyTo, group);
 	}
 	return applyTo.contains(item->fullId());
@@ -803,7 +807,7 @@ void ListWidget::changeSelectionAsGroup(
 		SelectedMap &applyTo,
 		not_null<HistoryItem*> item,
 		SelectAction action) const {
-	const auto group = Auth().data().groups().find(item);
+	const auto group = session().data().groups().find(item);
 	if (!group) {
 		return changeSelection(applyTo, item, action);
 	}
@@ -884,8 +888,10 @@ bool ListWidget::requiredToStartDragging(
 		not_null<Element*> view) const {
 	if (_mouseCursorState == CursorState::Date) {
 		return true;
-	} else if (dynamic_cast<HistorySticker*>(view->media()) != nullptr) {
-		return true;
+	} else if (const auto media = view->media()) {
+		if (media->dragItem()) {
+			return true;
+		}
 	}
 	return false;
 }
@@ -1137,6 +1143,9 @@ bool ListWidget::elementIntersectsRange(
 	return (top < till && bottom > from);
 }
 
+void ListWidget::elementStartStickerLoop(not_null<const Element*> view) {
+}
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();
@@ -1228,7 +1237,7 @@ TextSelection ListWidget::computeRenderSelection(
 		return TextSelection();
 	};
 	const auto item = view->data();
-	if (const auto group = Auth().data().groups().find(item)) {
+	if (const auto group = session().data().groups().find(item)) {
 		if (group->items.back() != item) {
 			return TextSelection();
 		}
@@ -1393,7 +1402,7 @@ void ListWidget::applyDragSelection(SelectedMap &applyTo) const {
 			if (applyTo.size() >= MaxSelectedItems) {
 				break;
 			} else if (!applyTo.contains(itemId)) {
-				if (const auto item = Auth().data().message(itemId)) {
+				if (const auto item = session().data().message(itemId)) {
 					addToSelection(applyTo, item);
 				}
 			}
@@ -1451,8 +1460,8 @@ TextForMimeData ListWidget::getSelectedText() const {
 	};
 
 	for (const auto [itemId, data] : selected) {
-		if (const auto item = Auth().data().message(itemId)) {
-			if (const auto group = Auth().data().groups().find(item)) {
+		if (const auto item = session().data().message(itemId)) {
+			if (const auto group = session().data().groups().find(item)) {
 				if (groups.contains(group)) {
 					continue;
 				}
@@ -1607,7 +1616,8 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		mouseActionUpdate(e->globalPos());
 	}
 
-	ContextMenuRequest request;
+	auto request = ContextMenuRequest(_controller);
+
 	request.link = ClickHandler::getActive();
 	request.view = _overElement;
 	request.item = _overItemExact
@@ -1694,7 +1704,7 @@ void ListWidget::updateDragSelection() {
 	} else if (_items.empty() || !_overElement || !_selectEnabled) {
 		return;
 	}
-	const auto pressItem = Auth().data().message(_pressState.itemId);
+	const auto pressItem = session().data().message(_pressState.itemId);
 	if (!pressItem) {
 		return;
 	}
@@ -1792,7 +1802,7 @@ void ListWidget::updateDragSelection(
 		std::vector<not_null<Element*>>::const_iterator till) {
 	Expects(from < till);
 
-	const auto &groups = Auth().data().groups();
+	const auto &groups = session().data().groups();
 	const auto changeItem = [&](not_null<HistoryItem*> item, bool add) {
 		const auto itemId = item->fullId();
 		if (add) {
@@ -2011,7 +2021,7 @@ void ListWidget::mouseActionFinish(
 		return;
 	}
 	if (needItemSelectionToggle) {
-		if (const auto item = Auth().data().message(pressState.itemId)) {
+		if (const auto item = session().data().message(pressState.itemId)) {
 			clearTextSelection();
 			if (pressState.pointState == PointState::GroupPart) {
 				changeSelection(
@@ -2144,7 +2154,7 @@ void ListWidget::mouseActionUpdate() {
 						dragState = TextState(
 							nullptr,
 							_scrollDateLink);
-						_overItemExact = Auth().data().message(dragState.itemId);
+						_overItemExact = session().data().message(dragState.itemId);
 						lnkhost = view;
 					}
 				}
@@ -2154,7 +2164,7 @@ void ListWidget::mouseActionUpdate() {
 		});
 		if (!dragState.link) {
 			dragState = view->textState(itemPoint, request);
-			_overItemExact = Auth().data().message(dragState.itemId);
+			_overItemExact = session().data().message(dragState.itemId);
 			lnkhost = view;
 			if (!dragState.link
 				&& itemPoint.x() >= st::historyPhotoLeft
@@ -2175,7 +2185,7 @@ void ListWidget::mouseActionUpdate() {
 							dragState = TextState(nullptr, from
 								? from->openLink()
 								: hiddenUserpicLink(message->fullId()));
-							_overItemExact = Auth().data().message(dragState.itemId);
+							_overItemExact = session().data().message(dragState.itemId);
 							lnkhost = view;
 							return false;
 						}
@@ -2231,7 +2241,7 @@ void ListWidget::mouseActionUpdate() {
 	// Voice message seek support.
 	if (_pressState.pointState != PointState::Outside
 		&& ClickHandler::getPressed()) {
-		if (const auto item = Auth().data().message(_pressState.itemId)) {
+		if (const auto item = session().data().message(_pressState.itemId)) {
 			if (const auto view = viewForItem(item)) {
 				auto adjustedPoint = mapPointToItem(point, view);
 				view->updatePressed(adjustedPoint);
@@ -2272,7 +2282,7 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 		return nullptr;
 	}
 
-	const auto pressedItem = Auth().data().message(_pressState.itemId);
+	const auto pressedItem = session().data().message(_pressState.itemId);
 	const auto pressedView = viewForItem(pressedItem);
 	const auto uponSelected = pressedView && isInsideSelection(
 		pressedView,
@@ -2311,7 +2321,7 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 				? getSelectedItems()
 				: MessageIdsList();
 			if (!items.empty()) {
-				Auth().data().setMimeForwardIds(std::move(items));
+				session().data().setMimeForwardIds(std::move(items));
 				mimeData->setData(qsl("application/x-td-forward"), "1");
 			}
 		}
@@ -2322,7 +2332,7 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 			? _pressItemExact
 			: pressedItem;
 		if (_mouseCursorState == CursorState::Date) {
-			forwardIds = Auth().data().itemOrItsGroup(_overElement->data());
+			forwardIds = session().data().itemOrItsGroup(_overElement->data());
 		} else if (_pressState.pointState == PointState::GroupPart) {
 			forwardIds = MessageIdsList(1, exactItem->fullId());
 		} else if (const auto media = pressedView->media()) {
@@ -2334,7 +2344,7 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 		if (forwardIds.empty()) {
 			return nullptr;
 		}
-		Auth().data().setMimeForwardIds(std::move(forwardIds));
+		session().data().setMimeForwardIds(std::move(forwardIds));
 		auto result = std::make_unique<QMimeData>();
 		result->setData(qsl("application/x-td-forward"), "1");
 		if (const auto media = pressedView->media()) {

@@ -36,10 +36,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
+#include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "main/main_account.h" // Account::sessionValue.
+#include "base/unixtime.h"
 #include "observer_peer.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "layout.h"
 #include "storage/file_download.h"
 #include "calls/calls_instance.h"
@@ -235,9 +237,9 @@ OverlayWidget::OverlayWidget()
 
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 
-	// While we have one mediaview for all authsessions we have to do this.
+	// While we have one mediaview for all sessions we have to do this.
 	Core::App().activeAccount().sessionValue(
-	) | rpl::start_with_next([=](AuthSession *session) {
+	) | rpl::start_with_next([=](Main::Session *session) {
 		if (session) {
 			subscribe(session->downloaderTaskFinished(), [=] {
 				if (!isHidden()) {
@@ -554,9 +556,9 @@ void OverlayWidget::updateControls() {
 		if (const auto item = Auth().data().message(_msgid)) {
 			return ItemDateTime(item);
 		} else if (_photo) {
-			return ParseDateTime(_photo->date);
+			return base::unixtime::parse(_photo->date);
 		} else if (_doc) {
-			return ParseDateTime(_doc->date);
+			return base::unixtime::parse(_doc->date);
 		}
 		return dNow;
 	}();
@@ -1259,7 +1261,9 @@ void OverlayWidget::onForward() {
 	}
 
 	close();
-	Window::ShowForwardMessagesBox({ 1, item->fullId() });
+	Window::ShowForwardMessagesBox(
+		App::wnd()->sessionController(),
+		{ 1, item->fullId() });
 }
 
 void OverlayWidget::onDelete() {
@@ -1607,7 +1611,7 @@ void OverlayWidget::refreshCaption(HistoryItem *item) {
 	}
 	const auto asBot = [&] {
 		if (const auto author = item->author()->asUser()) {
-			return author->botInfo != nullptr;
+			return author->isBot();
 		}
 		return false;
 	}();

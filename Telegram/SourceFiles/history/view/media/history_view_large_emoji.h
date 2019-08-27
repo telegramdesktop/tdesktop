@@ -1,0 +1,45 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+#pragma once
+
+#include "history/view/media/history_view_media_unwrapped.h"
+#include "ui/text/text_isolated_emoji.h"
+
+namespace Data {
+struct FileOrigin;
+} // namespace Data
+
+namespace Lottie {
+class SinglePlayer;
+} // namespace Lottie
+
+namespace HistoryView {
+
+class LargeEmoji final : public UnwrappedMedia::Content {
+public:
+	LargeEmoji(
+		not_null<Element*> parent,
+		const Ui::Text::IsolatedEmoji &emoji);
+
+	QSize size() override;
+	void draw(Painter &p, const QRect &r, bool selected) override;
+
+	bool alwaysShowOutTimestamp() override {
+		return true;
+	}
+
+private:
+	const not_null<Element*> _parent;
+	const std::array<
+		std::shared_ptr<Image>,
+		Ui::Text::kIsolatedEmojiLimit> _images;
+	QSize _size;
+
+};
+
+} // namespace HistoryView

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "ui/toast/toast.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_icon.h"
@@ -25,6 +26,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 
 namespace {
+
+constexpr auto kSlowmodeValues = 7;
+
+int SlowmodeDelayByIndex(int index) {
+	Expects(index >= 0 && index < kSlowmodeValues);
+
+	switch (index) {
+	case 0: return 0;
+	case 1: return 10;
+	case 2: return 30;
+	case 3: return 60;
+	case 4: return 5 * 60;
+	case 5: return 15 * 60;
+	case 6: return 60 * 60;
+	}
+	Unexpected("Index in SlowmodeDelayByIndex.");
+}
 
 template <typename CheckboxesMap, typename DependenciesMap>
 void ApplyDependencies(
@@ -290,8 +308,7 @@ EditPeerPermissionsBox::EditPeerPermissionsBox(
 : _peer(peer->migrateToOrMe()) {
 }
 
-auto EditPeerPermissionsBox::saveEvents() const
--> rpl::producer<MTPDchatBannedRights::Flags> {
+auto EditPeerPermissionsBox::saveEvents() const -> rpl::producer<Result> {
 	Expects(_save != nullptr);
 
 	return _save->clicks() | rpl::map(_value);
@@ -342,13 +359,156 @@ void EditPeerPermissionsBox::prepare() {
 
 	inner->add(std::move(checkboxes));
 
+	const auto getSlowmodeSeconds = addSlowmodeSlider(inner);
 	addBannedButtons(inner);
 
-	_value = getRestrictions;
+	_value = [=, rights = getRestrictions]() -> Result {
+		return { rights(), getSlowmodeSeconds() };
+	};
 	_save = addButton(tr::lng_settings_save());
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	setDimensionsToContent(st::boxWidth, inner);
+}
+
+Fn<int()> EditPeerPermissionsBox::addSlowmodeSlider(
+		not_null<Ui::VerticalLayout*> container) {
+	using namespace rpl::mappers;
+
+	if (const auto chat = _peer->asChat()) {
+		if (!chat->amCreator()) {
+			return [] { return 0; };
+		}
+	}
+	const auto channel = _peer->asChannel();
+	auto &lifetime = container->lifetime();
+	const auto secondsCount = lifetime.make_state<rpl::variable<int>>(
+		channel ? channel->slowmodeSeconds() : 0);
+
+	container->add(
+		object_ptr<BoxContentDivider>(container),
+		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
+
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			tr::lng_rights_slowmode_header(),
+			st::rightsHeaderLabel),
+		st::rightsHeaderMargin);
+
+	addSlowmodeLabels(container);
+
+	const auto slider = container->add(
+		object_ptr<Ui::MediaSlider>(container, st::localStorageLimitSlider),
+		st::localStorageLimitMargin);
+	slider->resize(st::localStorageLimitSlider.seekSize);
+	slider->setPseudoDiscrete(
+		kSlowmodeValues,
+		SlowmodeDelayByIndex,
+		secondsCount->current(),
+		[=](int seconds) {
+			(*secondsCount) = seconds;
+		});
+
+	auto hasSlowMode = secondsCount->value(
+	) | rpl::map(
+		_1 != 0
+	) | rpl::distinct_until_changed();
+
+	auto useSeconds = secondsCount->value(
+	) | rpl::map(
+		_1 < 60
+	) | rpl::distinct_until_changed();
+
+	auto interval = rpl::combine(
+		std::move(useSeconds),
+		tr::lng_rights_slowmode_interval_seconds(
+			lt_count,
+			secondsCount->value() | tr::to_count()),
+		tr::lng_rights_slowmode_interval_minutes(
+			lt_count,
+			secondsCount->value() | rpl::map(_1 / 60.))
+	) | rpl::map([](
+			bool use,
+			const QString &seconds,
+			const QString &minutes) {
+		return use ? seconds : minutes;
+	});
+
+	auto aboutText = rpl::combine(
+		std::move(hasSlowMode),
+		tr::lng_rights_slowmode_about(),
+		tr::lng_rights_slowmode_about_interval(
+			lt_interval,
+			std::move(interval))
+	) | rpl::map([](
+			bool has,
+			const QString &about,
+			const QString &aboutInterval) {
+		return has ? aboutInterval : about;
+	});
+
+	const auto about = container->add(
+		object_ptr<Ui::DividerLabel>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				std::move(aboutText),
+				st::boxDividerLabel),
+			st::proxyAboutPadding),
+		style::margins(0, st::infoProfileSkip, 0, st::infoProfileSkip));
+
+	return [=] { return secondsCount->current(); };
+}
+
+void EditPeerPermissionsBox::addSlowmodeLabels(
+		not_null<Ui::VerticalLayout*> container) {
+	const auto labels = container->add(
+		object_ptr<Ui::FixedHeightWidget>(container, st::normalFont->height),
+		st::slowmodeLabelsMargin);
+	for (auto i = 0; i != kSlowmodeValues; ++i) {
+		const auto seconds = SlowmodeDelayByIndex(i);
+		const auto label = Ui::CreateChild<Ui::LabelSimple>(
+			labels,
+			st::slowmodeLabel,
+			(!seconds
+				? tr::lng_rights_slowmode_off(tr::now)
+				: (seconds < 60)
+				? tr::lng_rights_slowmode_seconds(
+					tr::now,
+					lt_count,
+					seconds)
+				: (seconds < 3600)
+				? tr::lng_rights_slowmode_minutes(
+					tr::now,
+					lt_count,
+					seconds / 60)
+				: tr::lng_rights_slowmode_hours(
+					tr::now,
+					lt_count,
+					seconds / 3600)));
+		rpl::combine(
+			labels->widthValue(),
+			label->widthValue()
+		) | rpl::start_with_next([=](int outer, int inner) {
+			const auto skip = st::localStorageLimitMargin;
+			const auto size = st::localStorageLimitSlider.seekSize;
+			const auto available = outer
+				- skip.left()
+				- skip.right()
+				- size.width();
+			const auto shift = (i == 0)
+				? -(size.width() / 2)
+				: (i + 1 == kSlowmodeValues)
+				? (size.width() - (size.width() / 2) - inner)
+				: (-inner / 2);
+			const auto left = skip.left()
+				+ (size.width() / 2)
+				+ (i * available) / (kSlowmodeValues - 1)
+				+ shift;
+			label->moveToLeft(left, 0, outer);
+		}, label->lifetime());
+	}
 }
 
 void EditPeerPermissionsBox::addBannedButtons(
@@ -359,10 +519,6 @@ void EditPeerPermissionsBox::addBannedButtons(
 		}
 	}
 	const auto channel = _peer->asChannel();
-
-	container->add(
-		object_ptr<BoxContentDivider>(container),
-		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
 
 	const auto navigation = App::wnd()->sessionController();
 	container->add(EditPeerInfoBox::CreateButton(

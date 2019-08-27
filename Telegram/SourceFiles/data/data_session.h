@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_notify_settings.h"
 #include "history/history_location_manager.h"
 #include "base/timer.h"
+#include "base/flags.h"
 #include "ui/effects/animations.h"
 
 class Image;
@@ -33,7 +34,9 @@ class Element;
 class ElementDelegate;
 } // namespace HistoryView
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Media {
 namespace Clip {
@@ -70,10 +73,10 @@ public:
 		QString text;
 	};
 
-	explicit Session(not_null<AuthSession*> session);
+	explicit Session(not_null<Main::Session*> session);
 	~Session();
 
-	[[nodiscard]] AuthSession &session() const {
+	[[nodiscard]] Main::Session &session() const {
 		return *_session;
 	}
 
@@ -310,6 +313,9 @@ public:
 		return _savedGifs;
 	}
 
+	void addSavedGif(not_null<DocumentData*> document);
+	void checkSavedGif(not_null<HistoryItem*> item);
+
 	HistoryItemsList idsToItems(const MessageIdsList &ids) const;
 	MessageIdsList itemsToIds(const HistoryItemsList &items) const;
 	MessageIdsList itemOrItsGroup(not_null<HistoryItem*> item) const;
@@ -411,7 +417,10 @@ public:
 		FileOrigin origin,
 		bool forceRemoteLoader = false);
 
-	HistoryItem *addNewMessage(const MTPMessage &data, NewMessageType type);
+	HistoryItem *addNewMessage(
+		const MTPMessage &data,
+		MTPDmessage_ClientFlags flags,
+		NewMessageType type);
 
 	struct SendActionAnimationUpdate {
 		not_null<History*> history;
@@ -809,7 +818,7 @@ private:
 
 	void setWallpapers(const QVector<MTPWallPaper> &data, int32 hash);
 
-	not_null<AuthSession*> _session;
+	not_null<Main::Session*> _session;
 
 	Storage::DatabasePointer _cache;
 	Storage::DatabasePointer _bigFileCache;

@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "storage/localstorage.h"
 #include "layout.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace Media {
 namespace Player {

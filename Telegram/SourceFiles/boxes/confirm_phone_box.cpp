@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h" // qthelp::url_encode
 #include "platform/platform_info.h" // Platform::SystemVersionPretty
 #include "mainwidget.h"
+#include "numbers.h"
 #include "lang/lang_keys.h"
 
 namespace {
@@ -64,7 +65,14 @@ void ShowPhoneBannedError(const QString &phone) {
 		tr::lng_signin_banned_help(tr::now),
 		close,
 		[=] { SendToBannedHelp(phone); close(); }));
+}
 
+QString ExtractPhonePrefix(const QString &phone) {
+	const auto pattern = phoneNumberParse(phone);
+	if (!pattern.isEmpty()) {
+		return phone.mid(0, pattern[0]);
+	}
+	return QString();
 }
 
 SentCodeField::SentCodeField(
@@ -219,9 +227,7 @@ void ConfirmPhoneBox::checkPhoneAndHash() {
 	_sendCodeRequestId = MTP::send(
 		MTPaccount_SendConfirmPhoneCode(
 			MTP_string(_hash),
-			MTP_codeSettings(
-				MTP_flags(0),
-				MTPstring())),
+			MTP_codeSettings(MTP_flags(0))),
 		rpcDone(&ConfirmPhoneBox::sendCodeDone),
 		rpcFail(&ConfirmPhoneBox::sendCodeFail));
 }

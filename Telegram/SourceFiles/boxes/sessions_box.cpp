@@ -11,8 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "data/data_session.h"
+#include "base/unixtime.h"
 #include "boxes/confirm_box.h"
 #include "info/profile/info_profile_button.h"
 #include "settings/settings_common.h"
@@ -74,8 +75,9 @@ private:
 
 };
 
-SessionsBox::SessionsBox(QWidget*)
-: _shortPollTimer([=] { shortPollSessions(); }) {
+SessionsBox::SessionsBox(QWidget*, not_null<Main::Session*> session)
+: _session(session)
+, _shortPollTimer([=] { shortPollSessions(); }) {
 }
 
 void SessionsBox::prepare() {
@@ -98,7 +100,7 @@ void SessionsBox::prepare() {
 		terminateAll();
 	}, lifetime());
 
-	Auth().data().newAuthorizationChecks(
+	_session->data().newAuthorizationChecks(
 	) | rpl::start_with_next([=] {
 		shortPollSessions();
 	}, lifetime());
@@ -229,7 +231,7 @@ SessionsBox::Entry SessionsBox::ParseEntry(const MTPDauthorization &data) {
 		result.activeWidth = st::sessionWhenFont->width(tr::lng_status_online(tr::now));
 	} else {
 		const auto now = QDateTime::currentDateTime();
-		const auto lastTime = ParseDateTime(result.activeTime);
+		const auto lastTime = base::unixtime::parse(result.activeTime);
 		const auto nowDate = now.date();
 		const auto lastDate = lastTime.date();
 		if (lastDate == nowDate) {

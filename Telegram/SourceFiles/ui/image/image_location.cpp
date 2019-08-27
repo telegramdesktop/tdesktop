@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_common.h"
 #include "data/data_file_origin.h"
 #include "base/overload.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace {
 
@@ -157,7 +157,10 @@ StorageFileLocation::StorageFileLocation(
 			_id = data.vid().v;
 			_accessHash = data.vaccess_hash().v;
 		}, [&](const MTPDinputStickerSetShortName &data) {
-			Unexpected("inputStickerSetShortName in StorageFileLocation().");
+			Unexpected("inputStickerSetShortName in StorageFileLocation.");
+		}, [&](const MTPDinputStickerSetAnimatedEmoji &data) {
+			Unexpected(
+				"inputStickerSetAnimatedEmoji in StorageFileLocation.");
 		});
 		_volumeId = data.vvolume_id().v;
 		_localId = data.vlocal_id().v;

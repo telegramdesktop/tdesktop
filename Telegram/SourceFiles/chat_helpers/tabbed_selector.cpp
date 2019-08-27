@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/image/image_prepare.h"
+#include "window/window_session_controller.h"
 #include "storage/localstorage.h"
 #include "data/data_channel.h"
 #include "lang/lang_keys.h"
@@ -279,17 +280,18 @@ TabbedSelector::TabbedSelector(
 	not_null<Window::SessionController*> controller,
 	Mode mode)
 : RpWidget(parent)
+, _controller(controller)
 , _mode(mode)
 , _topShadow(full() ? object_ptr<Ui::PlainShadow>(this) : nullptr)
 , _bottomShadow(this)
 , _scroll(this, st::emojiScroll)
 , _tabs { {
-	createTab(SelectorTab::Emoji, controller),
-	createTab(SelectorTab::Stickers, controller),
-	createTab(SelectorTab::Gifs, controller),
+	createTab(SelectorTab::Emoji),
+	createTab(SelectorTab::Stickers),
+	createTab(SelectorTab::Gifs),
 } }
 , _currentTabType(full()
-	? Auth().settings().selectorTab()
+	? session().settings().selectorTab()
 	: SelectorTab::Emoji) {
 	resize(st::emojiPanWidth, st::emojiPanMaxHeight);
 
@@ -355,7 +357,7 @@ TabbedSelector::TabbedSelector(
 				Notify::PeerUpdate::Flag::RightsChanged,
 				handleUpdate));
 
-		Auth().api().stickerSetInstalled(
+		session().api().stickerSetInstalled(
 		) | rpl::start_with_next([this](uint64 setId) {
 			_tabsSlider->setActiveSection(
 				static_cast<int>(SelectorTab::Stickers));
@@ -368,22 +370,28 @@ TabbedSelector::TabbedSelector(
 	showAll();
 }
 
-TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, not_null<Window::SessionController*> controller) {
-auto createWidget = [&]() -> object_ptr<Inner> {
-	if (!full() && type != SelectorTab::Emoji) {
-		return { nullptr };
-	}
-	switch (type) {
-	case SelectorTab::Emoji:
-		return object_ptr<EmojiListWidget>(this, controller);
-	case SelectorTab::Stickers:
-		return object_ptr<StickersListWidget>(this, controller);
-	case SelectorTab::Gifs:
-		return object_ptr<GifsListWidget>(this, controller);
-	}
-	Unexpected("Type in TabbedSelector::createTab.");
-};
-return Tab{ type, createWidget() };
+TabbedSelector::~TabbedSelector() = default;
+
+Main::Session &TabbedSelector::session() const {
+	return _controller->session();
+}
+
+TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type) {
+	auto createWidget = [&]() -> object_ptr<Inner> {
+		if (!full() && type != SelectorTab::Emoji) {
+			return { nullptr };
+		}
+		switch (type) {
+		case SelectorTab::Emoji:
+			return object_ptr<EmojiListWidget>(this, _controller);
+		case SelectorTab::Stickers:
+			return object_ptr<StickersListWidget>(this, _controller);
+		case SelectorTab::Gifs:
+			return object_ptr<GifsListWidget>(this, _controller);
+		}
+		Unexpected("Type in TabbedSelector::createTab.");
+	};
+	return Tab{ type, createWidget() };
 }
 
 bool TabbedSelector::full() const {
@@ -602,8 +610,6 @@ QRect TabbedSelector::rectForFloatPlayer() const {
 	return mapToGlobal(_scroll->geometry());
 }
 
-TabbedSelector::~TabbedSelector() = default;
-
 void TabbedSelector::hideFinished() {
 	for (auto &tab : _tabs) {
 		if (!tab.widget()) {
@@ -617,7 +623,7 @@ void TabbedSelector::hideFinished() {
 
 void TabbedSelector::showStarted() {
 	if (full()) {
-		Auth().api().updateStickers();
+		session().api().updateStickers();
 	}
 	currentTab()->widget()->refreshRecent();
 	currentTab()->widget()->preloadImages();
@@ -818,8 +824,8 @@ void TabbedSelector::switchTab() {
 	update();
 
 	if (full()) {
-		Auth().settings().setSelectorTab(_currentTabType);
-		Auth().saveSettingsDelayed();
+		session().settings().setSelectorTab(_currentTabType);
+		session().saveSettingsDelayed();
 	}
 }
 

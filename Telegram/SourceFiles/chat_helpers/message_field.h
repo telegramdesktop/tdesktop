@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "base/timer.h"
 
-class HistoryWidget;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Window {
 class SessionController;
@@ -33,6 +35,7 @@ Fn<bool(
 	QString text,
 	QString link,
 	Ui::InputField::EditLinkAction action)> DefaultEditLinkCallback(
+		not_null<Main::Session*> session,
 		not_null<Ui::InputField*> field);
 void InitMessageField(
 	not_null<Window::SessionController*> controller,
@@ -102,3 +105,8 @@ private:
 	QtConnectionOwner _connection;
 
 };
+
+void SetupSendWithoutSound(
+	not_null<Ui::RpWidget*> button,
+	Fn<bool()> enabled,
+	Fn<void()> send);

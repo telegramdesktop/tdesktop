@@ -18,24 +18,33 @@ struct HistoryMessageEdited;
 Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 	const FullMsgId &msgId);
 MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer);
+MTPDmessage_ClientFlags NewMessageClientFlags();
 QString GetErrorTextForForward(
 	not_null<PeerData*> peer,
-	const HistoryItemsList &items);
+	const HistoryItemsList &items,
+	bool ignoreSlowmodeCountdown = false);
+QString GetErrorTextForForward(
+	not_null<PeerData*> peer,
+	const HistoryItemsList &items,
+	const TextWithTags &comment,
+	bool ignoreSlowmodeCountdown = false);
 void FastShareMessage(not_null<HistoryItem*> item);
 
-class HistoryMessage
-	: public HistoryItem {
+class HistoryMessage : public HistoryItem {
 public:
 	HistoryMessage(
 		not_null<History*> history,
-		const MTPDmessage &data);
+		const MTPDmessage &data,
+		MTPDmessage_ClientFlags clientFlags);
 	HistoryMessage(
 		not_null<History*> history,
-		const MTPDmessageService &data);
+		const MTPDmessageService &data,
+		MTPDmessage_ClientFlags clientFlags);
 	HistoryMessage(
 		not_null<History*> history,
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		TimeId date,
 		UserId from,
 		const QString &postAuthor,
@@ -44,6 +53,7 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
@@ -54,6 +64,7 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
@@ -66,6 +77,7 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
@@ -78,6 +90,7 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
@@ -98,13 +111,15 @@ public:
 	[[nodiscard]] bool allowsEdit(TimeId now) const override;
 	[[nodiscard]] bool uploading() const;
 
-	[[nodiscard]] bool hasAdminBadge() const {
-		return _flags & MTPDmessage_ClientFlag::f_has_admin_badge;
+	[[nodiscard]] const Ui::Text::String &messageBadge() const {
+		return _messageBadge;
 	}
-	[[nodiscard]] bool hasMessageBadge() const;
+	[[nodiscard]] bool hasMessageBadge() const {
+		return !_messageBadge.isEmpty();
+	}
 
 	void applyGroupAdminChanges(
-		const base::flat_map<UserId, bool> &changes) override;
+		const base::flat_set<UserId> &changes) override;
 
 	void setViewsCount(int32 count) override;
 	void setRealId(MsgId newId) override;
@@ -115,17 +130,21 @@ public:
 
 	void applyEdition(const MTPDmessage &message) override;
 	void applyEdition(const MTPDmessageService &message) override;
-	void updateSentMedia(const MTPMessageMedia *media) override;
+	void updateSentContent(
+		const TextWithEntities &textWithEntities,
+		const MTPMessageMedia *media) override;
 	void updateReplyMarkup(const MTPReplyMarkup *markup) override {
 		setReplyMarkup(markup);
 	}
 	void updateForwardedInfo(const MTPMessageFwdHeader *fwd) override;
+	void contributeToSlowmode(TimeId realDate = 0) override;
 
 	void addToUnreadMentions(UnreadMentionType type) override;
 	void eraseFromUnreadMentions() override;
 	[[nodiscard]] Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	void setText(const TextWithEntities &textWithEntities) override;
+	[[nodiscard]] Ui::Text::IsolatedEmoji isolatedEmoji() const override;
 	[[nodiscard]] TextWithEntities originalText() const override;
 	[[nodiscard]] TextForMimeData clipboardText() const override;
 	[[nodiscard]] bool textHasLinks() const override;
@@ -156,6 +175,9 @@ private:
 		return _flags & MTPDmessage::Flag::f_legacy;
 	}
 
+	void clearIsolatedEmoji();
+	void checkIsolatedEmoji();
+
 	// For an invoice button we replace the button text with a "Receipt" key.
 	// It should show the receipt for the payed invoice. Still let mobile apps do that.
 	void replaceBuyWithReceiptInMarkup();
@@ -171,7 +193,9 @@ private:
 		CreateConfig &config,
 		const MTPDmessageFwdHeader &data);
 
-	void updateAdminBadgeState();
+	void refreshMessageBadge();
+
+	Ui::Text::String _messageBadge;
 
 	QString _timeText;
 	int _timeWidth = 0;

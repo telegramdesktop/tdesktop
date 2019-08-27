@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers.h"
 #include "data/data_session.h"
 #include "ui/image/image.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace {
 

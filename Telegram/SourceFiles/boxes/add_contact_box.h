@@ -14,9 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ConfirmBox;
 class PeerListBox;
 
-constexpr auto kMaxBioLength = 70;
+namespace Window {
+class SessionNavigation;
+} // namespace Window
 
-style::InputField CreateBioFieldStyle();
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Ui {
 class FlatLabel;
@@ -32,21 +36,31 @@ class LinkButton;
 class UserpicButton;
 } // namespace Ui
 
+constexpr auto kMaxBioLength = 70;
+
 enum class PeerFloodType {
 	Send,
 	InviteGroup,
 	InviteChannel,
 };
+
+style::InputField CreateBioFieldStyle();
+
 QString PeerFloodErrorText(PeerFloodType type);
 void ShowAddParticipantsError(
 	const QString &error,
 	not_null<PeerData*> chat,
 	const std::vector<not_null<UserData*>> &users);
 
-class AddContactBox : public BoxContent, public RPCSender {
+class AddContactBox : public BoxContent {
 public:
-	AddContactBox(QWidget*, QString fname = QString(), QString lname = QString(), QString phone = QString());
-	AddContactBox(QWidget*, UserData *user);
+	AddContactBox(QWidget*, not_null<Main::Session*> session);
+	AddContactBox(
+		QWidget*,
+		not_null<Main::Session*> session,
+		QString fname,
+		QString lname,
+		QString phone);
 
 protected:
 	void prepare() override;
@@ -61,12 +75,8 @@ private:
 	void retry();
 	void save();
 	void updateButtons();
-	void onImportDone(const MTPcontacts_ImportedContacts &res);
 
-	void onSaveUserDone(const MTPcontacts_ImportedContacts &res);
-	bool onSaveUserFail(const RPCError &e);
-
-	UserData *_user = nullptr;
+	const not_null<Main::Session*> _session;
 
 	object_ptr<Ui::InputField> _first;
 	object_ptr<Ui::InputField> _last;
@@ -91,6 +101,7 @@ public:
 	};
 	GroupInfoBox(
 		QWidget*,
+		not_null<Window::SessionNavigation*> navigation,
 		Type type,
 		const QString &title = QString(),
 		Fn<void(not_null<ChannelData*>)> channelDone = nullptr);
@@ -110,6 +121,8 @@ private:
 	void descriptionResized();
 	void updateMaxHeight();
 
+	const not_null<Window::SessionNavigation*> _navigation;
+
 	Type _type = Type::Group;
 	QString _initialTitle;
 	Fn<void(not_null<ChannelData*>)> _channelDone;
@@ -126,7 +139,11 @@ private:
 
 class SetupChannelBox : public BoxContent, public RPCSender {
 public:
-	SetupChannelBox(QWidget*, ChannelData *channel, bool existing = false);
+	SetupChannelBox(
+		QWidget*,
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<ChannelData*> channel,
+		bool existing = false);
 
 	void setInnerFocus() override;
 
@@ -162,7 +179,9 @@ private:
 
 	void showRevokePublicLinkBoxForEdit();
 
-	ChannelData *_channel = nullptr;
+	const not_null<Window::SessionNavigation*> _navigation;
+	const not_null<ChannelData*> _channel;
+
 	bool _existing = false;
 
 	std::shared_ptr<Ui::RadioenumGroup<Privacy>> _privacyGroup;
@@ -215,7 +234,10 @@ private:
 
 class RevokePublicLinkBox : public BoxContent, public RPCSender {
 public:
-	RevokePublicLinkBox(QWidget*, Fn<void()> revokeCallback);
+	RevokePublicLinkBox(
+		QWidget*,
+		not_null<Main::Session*> session,
+		Fn<void()> revokeCallback);
 
 protected:
 	void prepare() override;
@@ -223,6 +245,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	const not_null<Main::Session*> _session;
+
 	object_ptr<Ui::FlatLabel> _aboutRevoke;
 
 	class Inner;

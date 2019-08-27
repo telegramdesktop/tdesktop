@@ -40,7 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "numbers.h"
 #include "observer_peer.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "styles/style_overview.h"
 #include "styles/style_mediaview.h"
 #include "styles/style_chat_helpers.h"
@@ -136,33 +136,6 @@ namespace App {
 					history->updateChatListExistence();
 				else
 					App::main()->removeDialog(history);
-			}
-		}
-	}
-
-	void addSavedGif(DocumentData *doc) {
-		auto &saved = Auth().data().savedGifsRef();
-		int32 index = saved.indexOf(doc);
-		if (index) {
-			if (index > 0) saved.remove(index);
-			saved.push_front(doc);
-			if (saved.size() > Global::SavedGifsLimit()) saved.pop_back();
-			Local::writeSavedGifs();
-
-			Auth().data().notifySavedGifsUpdated();
-			Auth().data().setLastSavedGifsUpdate(0);
-			Auth().api().updateStickers();
-		}
-	}
-
-	void checkSavedGif(HistoryItem *item) {
-		if (!item->Has<HistoryMessageForwarded>() && (item->out() || item->history()->peer == Auth().user())) {
-			if (const auto media = item->media()) {
-				if (const auto document = media->document()) {
-					if (document->isGifv()) {
-						addSavedGif(document);
-					}
-				}
 			}
 		}
 	}
@@ -366,9 +339,8 @@ namespace App {
 	void quit() {
 		if (quitting()) {
 			return;
-		} else if (AuthSession::Exists()
-			&& Auth().data().exportInProgress()) {
-			Auth().data().stopExportWithConfirmation([] { App::quit(); });
+		} else if (Core::IsAppLaunched()
+			&& Core::App().exportPreventsQuit()) {
 			return;
 		}
 		setLaunchState(QuitRequested);

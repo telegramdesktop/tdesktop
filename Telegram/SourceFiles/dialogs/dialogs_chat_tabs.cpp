@@ -15,16 +15,19 @@ namespace Dialogs {
 ChatTabs::ChatTabs(QWidget *parent) : TWidget(parent)
 , _type(EntryType::None)
 ,_oneOnOneButton(EntryType::OneOnOne, this, st::dialogsChatTabsOneOnOneButton)
+,_botButton(EntryType::Bot, this, st::dialogsChatTabsBotButton)
 ,_groupButton(EntryType::Group, this, st::dialogsChatTabsGroupButton)
-,_announcementButton(EntryType::Channel | EntryType::Feed, this, st::dialogsChatTabsAnnouncementButton) {
+,_announcementButton(EntryType::Channel, this, st::dialogsChatTabsAnnouncementButton) {
 
 	_listButtons.push_back(_oneOnOneButton);
+	_listButtons.push_back(_botButton);
 	_listButtons.push_back(_groupButton);
 	_listButtons.push_back(_announcementButton);
 
 	setGeometryToLeft(0, 0, width(), _listButtons.first()->height());
 
 	_oneOnOneButton->setClickedCallback([this] { onTabClicked(_oneOnOneButton->type()); });
+	_botButton->setClickedCallback([this] { onTabClicked(_botButton->type()); });
 	_groupButton->setClickedCallback([this] { onTabClicked(_groupButton->type()); });
 	_announcementButton->setClickedCallback([this] { onTabClicked(_announcementButton->type()); });
 
@@ -41,8 +44,9 @@ void ChatTabs::selectTab(const EntryTypes &type) {
 	_type = type;
 
 	// Set default icons to tab buttons
-	_groupButton->unselect();
 	_oneOnOneButton->unselect();
+	_botButton->unselect();
+	_groupButton->unselect();
 	_announcementButton->unselect();
 
 	cSetLastTab(type);
@@ -53,12 +57,13 @@ void ChatTabs::selectTab(const EntryTypes &type) {
 	case static_cast<unsigned>(EntryType::OneOnOne):
 		_oneOnOneButton->select();
 		break;
+	case static_cast<unsigned>(EntryType::Bot):
+		_botButton->select();
+		break;
 	case static_cast<unsigned>(EntryType::Group):
 		_groupButton->select();
 		break;
 	case static_cast<unsigned>(EntryType::Channel):
-	case static_cast<unsigned>(EntryType::Feed):
-	case (EntryType::Channel | EntryType::Feed).value():
 		_announcementButton->select();
 		break;
 	case static_cast<unsigned>(EntryType::None):

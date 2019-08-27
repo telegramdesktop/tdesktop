@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/binary_guard.h"
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Support {
 namespace details {
@@ -42,7 +44,7 @@ struct TemplatesIndex {
 
 class Templates : public base::has_weak_ptr {
 public:
-	explicit Templates(not_null<AuthSession*> session);
+	explicit Templates(not_null<Main::Session*> session);
 
 	void reload();
 
@@ -75,7 +77,7 @@ private:
 	void checkUpdateFinished();
 	void setData(details::TemplatesData &&data);
 
-	not_null<AuthSession*> _session;
+	not_null<Main::Session*> _session;
 
 	details::TemplatesData _data;
 	details::TemplatesIndex _index;

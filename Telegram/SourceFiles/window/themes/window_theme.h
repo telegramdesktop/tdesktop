@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_wall_paper.h"
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Window {
 namespace Theme {
@@ -164,7 +166,7 @@ private:
 	friend void KeepApplied();
 	friend bool IsNonDefaultBackground();
 
-	AuthSession *_session = nullptr;
+	Main::Session *_session = nullptr;
 	Data::WallPaper _paper = Data::details::UninitializedWallPaper();
 	std::optional<QColor> _paperColor;
 	QImage _original;

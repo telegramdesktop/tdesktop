@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/event_filter.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Ui {
@@ -503,8 +503,10 @@ void SuggestionsWidget::leaveEventHook(QEvent *e) {
 SuggestionsController::SuggestionsController(
 	not_null<QWidget*> outer,
 	not_null<QTextEdit*> field,
+	not_null<Main::Session*> session,
 	const Options &options)
 : _field(field)
+, _session(session)
 , _showExactTimer([=] { showWithQuery(getEmojiQuery()); })
 , _options(options) {
 	_container = base::make_unique_q<InnerDropdown>(
@@ -557,11 +559,13 @@ SuggestionsController::SuggestionsController(
 SuggestionsController *SuggestionsController::Init(
 		not_null<QWidget*> outer,
 		not_null<Ui::InputField*> field,
+		not_null<Main::Session*> session,
 		const Options &options) {
 	const auto result = Ui::CreateChild<SuggestionsController>(
 		field.get(),
 		outer,
 		field->rawTextEdit(),
+		session,
 		options);
 	result->setReplaceCallback([=](
 			int from,
@@ -590,7 +594,8 @@ void SuggestionsController::setReplaceCallback(
 }
 
 void SuggestionsController::handleTextChange() {
-	if (Global::SuggestEmoji() && _field->textCursor().position() > 0) {
+	if (_session->settings().suggestEmoji()
+		&& _field->textCursor().position() > 0) {
 		Core::App().emojiKeywords().refresh();
 	}
 
@@ -619,7 +624,7 @@ void SuggestionsController::showWithQuery(const QString &query) {
 }
 
 QString SuggestionsController::getEmojiQuery() {
-	if (!Global::SuggestEmoji()) {
+	if (!_session->settings().suggestEmoji()) {
 		return QString();
 	}
 

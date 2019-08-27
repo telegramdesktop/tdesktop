@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "mainwidget.h"
 #include "observer_peer.h"
 #include "data/data_channel.h"

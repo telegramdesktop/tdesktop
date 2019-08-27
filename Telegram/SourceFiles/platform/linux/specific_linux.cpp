@@ -282,7 +282,7 @@ void RegisterCustomScheme() {
 		QDir().mkpath(path);
 		QFile f(file);
 		if (f.open(QIODevice::WriteOnly)) {
-			QString icon = icons + qsl("telegram.png");
+			QString icon = icons + qsl("telegreat.png");
 			auto iconExists = QFile(icon).exists();
 			if (Local::oldSettingsVersion() < 10021 && iconExists) {
 				// Icon was changed.
@@ -304,7 +304,7 @@ void RegisterCustomScheme() {
 			s << "Comment=Unofficial desktop application for the Telegram messaging service\n";
 			s << "TryExec=" << EscapeShell(QFile::encodeName(cExeDir() + cExeName())) << "\n";
 			s << "Exec=" << EscapeShell(QFile::encodeName(cExeDir() + cExeName())) << " -- %u\n";
-			s << "Icon=telegram\n";
+			s << "Icon=telegreat\n";
 			s << "Terminal=false\n";
 			s << "StartupWMClass=Telegreat\n";
 			s << "Type=Application\n";

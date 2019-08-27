@@ -209,6 +209,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/xkbcommon/libxkbcommon.git
     cd libxkbcommon
+    git checkout xkbcommon-0.8.4
     ./autogen.sh --disable-x11
     make $MAKE_THREADS_CNT
     sudo make install

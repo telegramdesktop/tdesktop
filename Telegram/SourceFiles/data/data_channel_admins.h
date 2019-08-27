@@ -13,14 +13,15 @@ class ChannelAdminChanges {
 public:
 	ChannelAdminChanges(not_null<ChannelData*> channel);
 
-	void feed(UserId userId, bool isAdmin);
+	void add(UserId userId, const QString &rank);
+	void remove(UserId userId);
 
 	~ChannelAdminChanges();
 
 private:
 	not_null<ChannelData*> _channel;
-	base::flat_set<UserId> &_admins;
-	base::flat_map<UserId, bool> _changes;
+	base::flat_map<UserId, QString> &_admins;
+	base::flat_set<UserId> _changes;
 
 };
 

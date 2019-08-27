@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_info.h"
 #include "ui/emoji_config.h"
 #include "main/main_account.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 
 namespace ChatHelpers {
@@ -468,7 +468,7 @@ int EmojiKeywords::LangPack::maxQueryLength() const {
 
 EmojiKeywords::EmojiKeywords() {
 	crl::on_main(&_guard, [=] {
-		handleAuthSessionChanges();
+		handleSessionChanges();
 	});
 }
 
@@ -486,9 +486,9 @@ void EmojiKeywords::langPackRefreshed() {
 	_refreshed.fire({});
 }
 
-void EmojiKeywords::handleAuthSessionChanges() {
+void EmojiKeywords::handleSessionChanges() {
 	Core::App().activeAccount().sessionValue(
-	) | rpl::map([](AuthSession *session) {
+	) | rpl::map([](Main::Session *session) {
 		return session ? &session->api() : nullptr;
 	}) | rpl::start_with_next([=](ApiWrap *api) {
 		apiChanged(api);
@@ -528,7 +528,7 @@ void EmojiKeywords::refresh() {
 }
 
 std::vector<QString> EmojiKeywords::languages() {
-	if (!AuthSession::Exists()) {
+	if (!Main::Session::Exists()) {
 		return {};
 	}
 	refreshInputLanguages();

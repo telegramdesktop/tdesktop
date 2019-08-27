@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class DeleteMessagesBox;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace HistoryView {
 struct TextState;
 struct StateRequest;
@@ -48,6 +52,8 @@ public:
 	ListWidget(
 		QWidget *parent,
 		not_null<AbstractController*> controller);
+
+	Main::Session &session() const;
 
 	void restart();
 

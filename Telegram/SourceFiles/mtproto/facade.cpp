@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/localstorage.h"
 #include "core/application.h"
+#include "main/main_account.h"
 
 namespace MTP {
 namespace internal {
@@ -38,7 +39,9 @@ void unpause() {
 } // namespace internal
 
 Instance *MainInstance() {
-	return Core::IsAppLaunched() ? Core::App().mtp() : nullptr;
+	return Core::IsAppLaunched()
+		? Core::App().activeAccount().mtp()
+		: nullptr;
 }
 
 } // namespace MTP

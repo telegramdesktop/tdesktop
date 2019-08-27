@@ -11,19 +11,26 @@ namespace qthelp {
 class RegularExpressionMatch;
 } // namespace qthelp
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Core {
 
 struct LocalUrlHandler {
 	QString expression;
 	Fn<bool(
+		Main::Session *session,
 		const qthelp::RegularExpressionMatch &match,
 		const QVariant &context)> handler;
 };
 
-const std::vector<LocalUrlHandler> &LocalUrlHandlers();
+[[nodiscard]] const std::vector<LocalUrlHandler> &LocalUrlHandlers();
 
-bool InternalPassportLink(const QString &url);
+[[nodiscard]] QString TryConvertUrlToLocal(QString url);
 
-bool StartUrlRequiresActivate(const QString &url);
+[[nodiscard]] bool InternalPassportLink(const QString &url);
+
+[[nodiscard]] bool StartUrlRequiresActivate(const QString &url);
 
 } // namespace Core

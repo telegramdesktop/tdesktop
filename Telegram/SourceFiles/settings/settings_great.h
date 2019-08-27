@@ -12,6 +12,8 @@ https://git.io/TD
 
 namespace Settings {
 
-void GreatSetting(not_null<Ui::VerticalLayout*> container);
+void GreatSetting(
+	not_null<Window::SessionController*> controller,
+	not_null<Ui::VerticalLayout*> container);
 
 } // namespace Settings

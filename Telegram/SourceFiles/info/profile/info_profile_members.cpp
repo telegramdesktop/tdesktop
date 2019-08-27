@@ -324,7 +324,7 @@ void Members::updateHeaderControlsGeometry(int newWidth) {
 
 void Members::addMember() {
 	if (const auto chat = _peer->asChat()) {
-		AddParticipantsBoxController::Start(chat);
+		AddParticipantsBoxController::Start(_controller, chat);
 	} else if (const auto channel = _peer->asChannel()) {
 		const auto state = _listController->saveState();
 		const auto users = ranges::view::all(
@@ -333,6 +333,7 @@ void Members::addMember() {
 			return peer->asUser();
 		}) | ranges::to_vector;
 		AddParticipantsBoxController::Start(
+			_controller,
 			channel,
 			{ users.begin(), users.end() });
 	}

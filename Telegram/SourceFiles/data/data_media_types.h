@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 class HistoryItem;
-class HistoryMedia;
 
 namespace base {
 template <typename Enum>
@@ -23,6 +22,7 @@ using SharedMediaTypesMask = base::enum_mask<SharedMediaType>;
 namespace HistoryView {
 enum class Context : char;
 class Element;
+class Media;
 } // namespace HistoryView
 
 namespace Data {
@@ -107,10 +107,10 @@ public:
 	// the media (all media that was generated on client side, for example).
 	virtual bool updateInlineResultMedia(const MTPMessageMedia &media) = 0;
 	virtual bool updateSentMedia(const MTPMessageMedia &media) = 0;
-	virtual std::unique_ptr<HistoryMedia> createView(
+	virtual std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) = 0;
-	std::unique_ptr<HistoryMedia> createView(
+	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message);
 
 private:
@@ -148,7 +148,7 @@ public:
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
-	std::unique_ptr<HistoryMedia> createView(
+	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) override;
 
@@ -185,7 +185,7 @@ public:
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
-	std::unique_ptr<HistoryMedia> createView(
+	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) override;
 
@@ -214,7 +214,7 @@ public:
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
-	std::unique_ptr<HistoryMedia> createView(
+	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) override;
 
@@ -244,7 +244,7 @@ public:
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
-	std::unique_ptr<HistoryMedia> createView(
+	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) override;
 
@@ -271,7 +271,7 @@ public:
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
-	std::unique_ptr<HistoryMedia> createView(
+	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) override;
 
@@ -307,7 +307,7 @@ public:
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
-	std::unique_ptr<HistoryMedia> createView(
+	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) override;
 
@@ -338,7 +338,7 @@ public:
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
-	std::unique_ptr<HistoryMedia> createView(
+	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) override;
 
@@ -369,7 +369,7 @@ public:
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
-	std::unique_ptr<HistoryMedia> createView(
+	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) override;
 
@@ -396,7 +396,7 @@ public:
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
-	std::unique_ptr<HistoryMedia> createView(
+	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent) override;
 

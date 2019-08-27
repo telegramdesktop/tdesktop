@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader_mtproto.h"
 
 #include "apiwrap.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "storage/streamed_file_downloader.h"
 #include "storage/cache/storage_cache_types.h"
 
@@ -123,6 +123,7 @@ void LoaderMtproto::sendNext() {
 
 	const auto usedFileReference = _location.fileReference();
 	const auto id = _sender.request(MTPupload_GetFile(
+		MTP_flags(0),
 		_location.tl(Auth().userId()),
 		MTP_int(offset),
 		MTP_int(kPartSize)

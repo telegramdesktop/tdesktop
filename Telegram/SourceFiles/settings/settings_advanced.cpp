@@ -21,12 +21,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_button.h"
 #include "platform/platform_specific.h"
 #include "platform/platform_info.h"
+#include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "core/update_checker.h"
 #include "core/application.h"
 #include "storage/localstorage.h"
 #include "data/data_session.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "layout.h"
 #include "styles/style_settings.h"
 
@@ -419,24 +420,27 @@ void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
 	}, container->lifetime());
 }
 
-void SetupPerformance(not_null<Ui::VerticalLayout*> container) {
+void SetupPerformance(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
 	SetupAnimations(container);
 
+	const auto session = &controller->session();
 	AddButton(
 		container,
 		tr::lng_settings_autoplay_gifs(),
 		st::settingsButton
 	)->toggleOn(
-		rpl::single(cAutoPlayGif())
+		rpl::single(session->settings().autoplayGifs())
 	)->toggledValue(
-	) | rpl::filter([](bool enabled) {
-		return (enabled != cAutoPlayGif());
-	}) | rpl::start_with_next([](bool enabled) {
-		cSetAutoPlayGif(enabled);
-		if (!cAutoPlayGif()) {
-			Auth().data().stopAutoplayAnimations();
+	) | rpl::filter([=](bool enabled) {
+		return (enabled != session->settings().autoplayGifs());
+	}) | rpl::start_with_next([=](bool enabled) {
+		session->settings().setAutoplayGifs(enabled);
+		if (!enabled) {
+			session->data().stopAutoplayAnimations();
 		}
-		Local::writeUserSettings();
+		session->saveSettingsDelayed();
 	}, container->lifetime());
 }
 
@@ -457,16 +461,18 @@ void SetupSystemIntegration(
 	AddSkip(container);
 }
 
-Advanced::Advanced(QWidget *parent, UserData *self)
+Advanced::Advanced(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
 : Section(parent) {
-	setupContent();
+	setupContent(controller);
 }
 
 rpl::producer<Type> Advanced::sectionShowOther() {
 	return _showOther.events();
 }
 
-void Advanced::setupContent() {
+void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	auto empty = true;
@@ -496,9 +502,9 @@ void Advanced::setupContent() {
 		SetupConnectionType(content);
 		AddSkip(content);
 	}
-	SetupDataStorage(content);
-	GreatSetting(content);
-	SetupAutoDownload(content);
+	SetupDataStorage(controller, content);
+	GreatSetting(controller, content);
+	SetupAutoDownload(controller, content);
 	SetupSystemIntegration(content, [=](Type type) {
 		_showOther.fire_copy(type);
 	});
@@ -506,7 +512,7 @@ void Advanced::setupContent() {
 	AddDivider(content);
 	AddSkip(content);
 	AddSubsectionTitle(content, tr::lng_settings_performance());
-	SetupPerformance(content);
+	SetupPerformance(controller, content);
 	AddSkip(content);
 
 	if (cAutoUpdate()) {

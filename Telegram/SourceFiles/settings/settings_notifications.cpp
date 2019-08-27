@@ -18,11 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_button.h"
 #include "storage/localstorage.h"
 #include "window/notifications_manager.h"
+#include "window/window_session_controller.h"
 #include "platform/platform_notifications_manager.h"
 #include "platform/platform_info.h"
 #include "mainwindow.h"
 #include "core/application.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
@@ -42,7 +43,9 @@ using ChangeType = Window::Notifications::ChangeType;
 
 class NotificationsCount : public Ui::RpWidget {
 public:
-	NotificationsCount(QWidget *parent);
+	NotificationsCount(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
 
 	void setCount(int count);
 
@@ -71,6 +74,8 @@ private:
 	void prepareNotificationSampleSmall();
 	void prepareNotificationSampleLarge();
 	void prepareNotificationSampleUserpic();
+
+	const not_null<Window::SessionController*> _controller;
 
 	QPixmap _notificationSampleUserpic;
 	QPixmap _notificationSampleSmall;
@@ -114,8 +119,11 @@ private:
 
 };
 
-NotificationsCount::NotificationsCount(QWidget *parent)
-: _chosenCorner(Global::NotificationsCorner())
+NotificationsCount::NotificationsCount(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
+: _controller(controller)
+, _chosenCorner(Global::NotificationsCorner())
 , _oldCount(CurrentCount()) {
 	setMouseTracking(true);
 
@@ -176,7 +184,8 @@ void NotificationsCount::setCount(int count) {
 
 	if (count != Global::NotificationsCount()) {
 		Global::SetNotificationsCount(count);
-		Auth().notifications().settingsChanged().notify(ChangeType::MaxCount);
+		_controller->session().notifications().settingsChanged().notify(
+			ChangeType::MaxCount);
 		Local::writeUserSettings();
 	}
 }
@@ -340,7 +349,8 @@ void NotificationsCount::setOverCorner(Notify::ScreenCorner corner) {
 		_isOverCorner = true;
 		setCursor(style::cur_pointer);
 		Global::SetNotificationsDemoIsShown(true);
-		Auth().notifications().settingsChanged().notify(ChangeType::DemoIsShown);
+		_controller->session().notifications().settingsChanged().notify(
+			ChangeType::DemoIsShown);
 	}
 	_overCorner = corner;
 
@@ -375,10 +385,10 @@ void NotificationsCount::clearOverCorner() {
 		_isOverCorner = false;
 		setCursor(style::cur_default);
 		Global::SetNotificationsDemoIsShown(false);
-		Auth().notifications().settingsChanged().notify(ChangeType::DemoIsShown);
+		_controller->session().notifications().settingsChanged().notify(ChangeType::DemoIsShown);
 
-		for_const (auto &samples, _cornerSamples) {
-			for_const (auto widget, samples) {
+		for_const (const auto &samples, _cornerSamples) {
+			for_const (const auto widget, samples) {
 				widget->hideFast();
 			}
 		}
@@ -392,13 +402,17 @@ void NotificationsCount::mousePressEvent(QMouseEvent *e) {
 
 void NotificationsCount::mouseReleaseEvent(QMouseEvent *e) {
 	auto isDownCorner = base::take(_isDownCorner);
-	if (isDownCorner && _isOverCorner && _downCorner == _overCorner && _downCorner != _chosenCorner) {
+	if (isDownCorner
+		&& _isOverCorner
+		&& _downCorner == _overCorner
+		&& _downCorner != _chosenCorner) {
 		_chosenCorner = _downCorner;
 		update();
 
 		if (_chosenCorner != Global::NotificationsCorner()) {
 			Global::SetNotificationsCorner(_chosenCorner);
-			Auth().notifications().settingsChanged().notify(ChangeType::Corner);
+			_controller->session().notifications().settingsChanged().notify(
+				ChangeType::Corner);
 			Local::writeUserSettings();
 		}
 	}
@@ -487,7 +501,9 @@ void NotificationsCount::SampleWidget::destroyDelayed() {
 #endif // Q_OS_LINUX32 || Q_OS_LINUX64
 }
 
-void SetupAdvancedNotifications(not_null<Ui::VerticalLayout*> container) {
+void SetupAdvancedNotifications(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsCheckboxesSkip);
 	AddDivider(container);
 	AddSkip(container, st::settingsCheckboxesSkip);
@@ -495,7 +511,7 @@ void SetupAdvancedNotifications(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsCheckboxesSkip);
 
 	const auto position = container->add(
-		object_ptr<NotificationsCount>(container));
+		object_ptr<NotificationsCount>(container, controller));
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 	AddSubsectionTitle(container, tr::lng_settings_notifications_count());
@@ -514,9 +530,12 @@ void SetupAdvancedNotifications(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsCheckboxesSkip);
 }
 
-void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
+void SetupNotificationsContent(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
 	AddSubsectionTitle(container, tr::lng_settings_notify_title());
 
+	const auto session = &controller->session();
 	const auto checkbox = [&](const QString &label, bool checked) {
 		return object_ptr<Ui::Checkbox>(
 			container,
@@ -556,10 +575,10 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 
 	const auto muted = addCheckbox(
 		tr::lng_settings_include_muted(tr::now),
-		Auth().settings().includeMutedCounter());
+		session->settings().includeMutedCounter());
 	const auto count = addCheckbox(
 		tr::lng_settings_count_unread(tr::now),
-		Auth().settings().countUnreadMessages());
+		session->settings().countUnreadMessages());
 
 
 	AddSkip(container, st::settingsCheckboxesSkip);
@@ -569,32 +588,32 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 
 	const auto joined = addCheckbox(
 		tr::lng_settings_events_joined(tr::now),
-		!Auth().api().contactSignupSilentCurrent().value_or(false));
-	Auth().api().contactSignupSilent(
+		!session->api().contactSignupSilentCurrent().value_or(false));
+	session->api().contactSignupSilent(
 	) | rpl::start_with_next([=](bool silent) {
 		joined->setChecked(!silent);
 	}, joined->lifetime());
 	joined->checkedChanges(
-	) | rpl::filter([](bool enabled) {
-		const auto silent = Auth().api().contactSignupSilentCurrent();
+	) | rpl::filter([=](bool enabled) {
+		const auto silent = session->api().contactSignupSilentCurrent();
 		return (enabled == silent.value_or(false));
 	}) | rpl::start_with_next([=](bool enabled) {
-		Auth().api().saveContactSignupSilent(!enabled);
+		session->api().saveContactSignupSilent(!enabled);
 	}, joined->lifetime());
 
 	const auto pinned = addCheckbox(
 		tr::lng_settings_events_pinned(tr::now),
-		Auth().settings().notifyAboutPinned());
-	Auth().settings().notifyAboutPinnedChanges(
+		session->settings().notifyAboutPinned());
+	session->settings().notifyAboutPinnedChanges(
 	) | rpl::start_with_next([=](bool notify) {
 		pinned->setChecked(notify);
 	}, pinned->lifetime());
 	pinned->checkedChanges(
-	) | rpl::filter([](bool notify) {
-		return (notify != Auth().settings().notifyAboutPinned());
+	) | rpl::filter([=](bool notify) {
+		return (notify != session->settings().notifyAboutPinned());
 	}) | rpl::start_with_next([=](bool notify) {
-		Auth().settings().setNotifyAboutPinned(notify);
-		Auth().saveSettingsDelayed();
+		session->settings().setNotifyAboutPinned(notify);
+		session->saveSettingsDelayed();
 	}, joined->lifetime());
 
 	const auto nativeText = [&] {
@@ -629,7 +648,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 		? advancedSlide->entity()
 		: nullptr;
 	if (advancedWrap) {
-		SetupAdvancedNotifications(advancedWrap);
+		SetupAdvancedNotifications(controller, advancedWrap);
 	}
 
 	if (!name->entity()->checked()) {
@@ -644,9 +663,9 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	}
 
 	using Change = Window::Notifications::ChangeType;
-	const auto changed = [](Change change) {
+	const auto changed = [=](Change change) {
 		Local::writeUserSettings();
-		Auth().notifications().settingsChanged().notify(change);
+		session->notifications().settingsChanged().notify(change);
 	};
 	desktop->checkedChanges(
 	) | rpl::filter([](bool checked) {
@@ -695,23 +714,23 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	}, sound->lifetime());
 
 	muted->checkedChanges(
-	) | rpl::filter([](bool checked) {
-		return (checked != Auth().settings().includeMutedCounter());
+	) | rpl::filter([=](bool checked) {
+		return (checked != session->settings().includeMutedCounter());
 	}) | rpl::start_with_next([=](bool checked) {
-		Auth().settings().setIncludeMutedCounter(checked);
+		session->settings().setIncludeMutedCounter(checked);
 		changed(Change::IncludeMuted);
 	}, muted->lifetime());
 
 	count->checkedChanges(
-	) | rpl::filter([](bool checked) {
-		return (checked != Auth().settings().countUnreadMessages());
+	) | rpl::filter([=](bool checked) {
+		return (checked != session->settings().countUnreadMessages());
 	}) | rpl::start_with_next([=](bool checked) {
-		Auth().settings().setCountUnreadMessages(checked);
+		session->settings().setCountUnreadMessages(checked);
 		changed(Change::CountMessages);
 	}, count->lifetime());
 
 	base::ObservableViewer(
-		Auth().notifications().settingsChanged()
+		session->notifications().settingsChanged()
 	) | rpl::start_with_next([=](Change change) {
 		if (change == Change::DesktopEnabled) {
 			desktop->setChecked(Global::DesktopNotify());
@@ -734,7 +753,7 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 			Global::SetNativeNotifications(checked);
 			Local::writeUserSettings();
 
-			Auth().notifications().createManager();
+			session->notifications().createManager();
 
 			if (advancedSlide) {
 				advancedSlide->toggle(
@@ -745,11 +764,13 @@ void SetupNotificationsContent(not_null<Ui::VerticalLayout*> container) {
 	}
 }
 
-void SetupNotifications(not_null<Ui::VerticalLayout*> container) {
+void SetupNotifications(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsCheckboxesSkip);
 
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
-	SetupNotificationsContent(wrap.data());
+	SetupNotificationsContent(controller, wrap.data());
 
 	container->add(object_ptr<Ui::OverrideMargins>(
 		container,
@@ -760,16 +781,18 @@ void SetupNotifications(not_null<Ui::VerticalLayout*> container) {
 
 } // namespace
 
-Notifications::Notifications(QWidget *parent, not_null<UserData*> self)
-: Section(parent)
-, _self(self) {
-	setupContent();
+Notifications::Notifications(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
+: Section(parent) {
+	setupContent(controller);
 }
 
-void Notifications::setupContent() {
+void Notifications::setupContent(
+		not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	SetupNotifications(content);
+	SetupNotifications(controller, content);
 
 	Ui::ResizeFitChild(this, content);
 }

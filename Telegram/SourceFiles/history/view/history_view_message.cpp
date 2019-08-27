@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/history_item_components.h"
 #include "history/history_message.h"
-#include "history/media/history_media.h"
-#include "history/media/history_media_web_page.h"
+#include "history/view/media/history_view_media.h"
+#include "history/view/media/history_view_web_page.h"
 #include "history/history.h"
 #include "ui/toast/toast.h"
 #include "data/data_session.h"
@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 #include "layout.h"
@@ -122,12 +122,6 @@ int KeyboardStyle::minButtonWidth(
 		result = std::max(result, 2 * iconWidth + 4 * int(st::msgBotKbIconPadding));
 	}
 	return result;
-}
-
-QString MessageBadgeText(not_null<const HistoryMessage*> message) {
-	return message->hasAdminBadge()
-		? tr::lng_admin_badge(tr::now)
-		: tr::lng_channel_badge(tr::now);
 }
 
 QString FastReplyText() {
@@ -240,9 +234,6 @@ QSize Message::performCountOptimalSize() {
 		if (reply) {
 			reply->updateName();
 		}
-		if (displayFromName()) {
-			item->updateAdminBadgeState();
-		}
 
 		auto mediaDisplayed = false;
 		if (media) {
@@ -308,8 +299,7 @@ QSize Message::performCountOptimalSize() {
 					? st::msgFont->width(FastReplyText())
 					: 0;
 				if (item->hasMessageBadge()) {
-					const auto badgeWidth = st::msgFont->width(
-						MessageBadgeText(item));
+					const auto badgeWidth = item->messageBadge().maxWidth();
 					namew += st::msgPadding.right()
 						+ std::max(badgeWidth, replyWidth);
 				} else if (replyWidth) {
@@ -527,7 +517,7 @@ void Message::paintFromName(
 	if (displayFromName()) {
 		const auto badgeWidth = [&] {
 			if (item->hasMessageBadge()) {
-				return st::msgFont->width(MessageBadgeText(item));
+				return item->messageBadge().maxWidth();
 			}
 			return 0;
 		}();
@@ -589,10 +579,18 @@ void Message::paintFromName(
 			p.setFont(ClickHandler::showAsActive(_fastReplyLink)
 				? st::msgFont->underline()
 				: st::msgFont);
-			p.drawText(
-				trect.left() + trect.width() - rightWidth,
-				trect.top() + st::msgFont->ascent,
-				replyWidth ? FastReplyText() : MessageBadgeText(item));
+			if (replyWidth) {
+				p.drawText(
+					trect.left() + trect.width() - rightWidth,
+					trect.top() + st::msgFont->ascent,
+					FastReplyText());
+			} else {
+				item->messageBadge().draw(
+					p,
+					trect.left() + trect.width() - rightWidth,
+					trect.top(),
+					rightWidth);
+			}
 		}
 		trect.setY(trect.y() + st::msgNameFont->height);
 	}
@@ -1202,8 +1200,8 @@ void Message::drawInfo(
 		p.setPen(st::msgDateImgFg);
 	break;
 	case InfoDisplayType::Background:
-		infoRight -= st::msgDateImgDelta + st::msgDateImgPadding.x();
-		infoBottom -= st::msgDateImgDelta + st::msgDateImgPadding.y();
+		infoRight -= st::msgDateImgPadding.x();
+		infoBottom -= st::msgDateImgPadding.y();
 		p.setPen(st::msgServiceFg);
 	break;
 	}
@@ -1282,6 +1280,10 @@ bool Message::pointInTime(
 		infoRight -= st::msgDateImgDelta + st::msgDateImgPadding.x();
 		infoBottom -= st::msgDateImgDelta + st::msgDateImgPadding.y();
 		break;
+	case InfoDisplayType::Background:
+		infoRight -= st::msgDateImgPadding.x();
+		infoBottom -= st::msgDateImgPadding.y();
+		break;
 	}
 	const auto item = message();
 	auto dateX = infoRight - infoWidth() + timeLeft();
@@ -1343,11 +1345,11 @@ void Message::initLogEntryOriginal() {
 	if (const auto log = message()->Get<HistoryMessageLogEntryOriginal>()) {
 		AddComponents(LogEntryOriginal::Bit());
 		const auto entry = Get<LogEntryOriginal>();
-		entry->page = std::make_unique<HistoryWebPage>(this, log->page);
+		entry->page = std::make_unique<WebPage>(this, log->page);
 	}
 }
 
-HistoryWebPage *Message::logEntryOriginal() const {
+WebPage *Message::logEntryOriginal() const {
 	if (const auto entry = Get<LogEntryOriginal>()) {
 		return entry->page.get();
 	}
@@ -1457,7 +1459,7 @@ bool Message::displayFastShare() const {
 				&& forwarded->originalSender
 				&& forwarded->originalSender->isChannel()
 				&& !forwarded->originalSender->isMegagroup();
-		} else if (user->botInfo && !item->out()) {
+		} else if (user->isBot() && !item->out()) {
 			if (const auto media = this->media()) {
 				return media->allowsFastShare();
 			}
@@ -1499,12 +1501,13 @@ void Message::drawRightAction(
 
 ClickHandlerPtr Message::rightActionLink() const {
 	if (!_rightActionLink) {
+		const auto owner = &data()->history()->owner();
 		const auto itemId = data()->fullId();
 		const auto forwarded = data()->Get<HistoryMessageForwarded>();
 		const auto savedFromPeer = forwarded ? forwarded->savedFromPeer : nullptr;
 		const auto savedFromMsgId = forwarded ? forwarded->savedFromMsgId : 0;
 		_rightActionLink = std::make_shared<LambdaClickHandler>([=] {
-			if (const auto item = Auth().data().message(itemId)) {
+			if (const auto item = owner->message(itemId)) {
 				if (savedFromPeer && savedFromMsgId) {
 					App::wnd()->sessionController()->showPeerHistory(
 						savedFromPeer,
@@ -1521,9 +1524,10 @@ ClickHandlerPtr Message::rightActionLink() const {
 
 ClickHandlerPtr Message::fastReplyLink() const {
 	if (!_fastReplyLink) {
+		const auto owner = &data()->history()->owner();
 		const auto itemId = data()->fullId();
 		_fastReplyLink = std::make_shared<LambdaClickHandler>([=] {
-			if (const auto item = Auth().data().message(itemId)) {
+			if (const auto item = owner->message(itemId)) {
 				if (const auto main = App::main()) {
 					main->replyToItem(item);
 				}
@@ -1592,7 +1596,7 @@ void Message::fromNameUpdated(int width) const {
 		? st::msgFont->width(FastReplyText())
 		: 0;
 	if (item->hasMessageBadge()) {
-		const auto badgeWidth = st::msgFont->width(MessageBadgeText(item));
+		const auto badgeWidth = item->messageBadge().maxWidth();
 		width -= st::msgPadding.right() + std::max(badgeWidth, replyWidth);
 	} else if (replyWidth) {
 		width -= st::msgPadding.right() + replyWidth;
@@ -1875,7 +1879,7 @@ TimeId Message::displayedEditDate(
 	if (hasViaBotOrInlineMarkup) {
 		return TimeId(0);
 	} else if (const auto fromUser = message()->from()->asUser()) {
-		if (fromUser->botInfo) {
+		if (fromUser->isBot()) {
 			return TimeId(0);
 		}
 	}

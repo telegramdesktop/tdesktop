@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/peer_list_box.h"
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Calls {
 
 class BoxController
@@ -16,6 +20,9 @@ class BoxController
 	, private base::Subscriber
 	, private MTP::Sender {
 public:
+	explicit BoxController(not_null<Window::SessionController*> window);
+
+	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void rowActionClicked(not_null<PeerListRow*> row) override;
@@ -35,6 +42,8 @@ private:
 	bool insertRow(not_null<HistoryItem*> item, InsertWay way);
 	std::unique_ptr<PeerListRow> createRow(
 		not_null<HistoryItem*> item) const;
+
+	const not_null<Window::SessionController*> _window;
 
 	MsgId _offsetId = 0;
 	mtpRequestId _loadRequestId = 0;

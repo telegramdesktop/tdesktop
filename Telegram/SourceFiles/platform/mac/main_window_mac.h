@@ -52,6 +52,13 @@ public slots:
 	void psMacDelete();
 	void psMacSelectAll();
 
+	void psMacBold();
+	void psMacItalic();
+	void psMacUnderline();
+	void psMacStrikeOut();
+	void psMacMonospace();
+	void psMacClearFormat();
+
 protected:
 	bool eventFilter(QObject *obj, QEvent *evt) override;
 
@@ -113,6 +120,13 @@ private:
 	QAction *psNewGroup = nullptr;
 	QAction *psNewChannel = nullptr;
 	QAction *psShowTelegram = nullptr;
+
+	QAction *psBold = nullptr;
+	QAction *psItalic = nullptr;
+	QAction *psUnderline = nullptr;
+	QAction *psStrikeOut = nullptr;
+	QAction *psMonospace = nullptr;
+	QAction *psClearFormat = nullptr;
 
 	int _customTitleHeight = 0;
 

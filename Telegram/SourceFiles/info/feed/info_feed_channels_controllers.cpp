@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/toast/toast.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "styles/style_widgets.h"

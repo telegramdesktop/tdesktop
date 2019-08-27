@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "platform/platform_file_utilities.h"
 #include "mtproto/connection.h" // for MTP::kAckSendWaiting
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "core/crash_reports.h"
 #include "base/bytes.h"
@@ -171,7 +171,7 @@ FileLoader::FileLoader(
 	Expects(!_filename.isEmpty() || (_size <= Storage::kMaxFileInMemory));
 }
 
-AuthSession &FileLoader::session() const {
+Main::Session &FileLoader::session() const {
 	return _downloader->api().session();
 }
 
@@ -494,7 +494,7 @@ void FileLoader::cancel(bool fail) {
 		_file.setFileName(_filename);
 	}
 
-	// Current cancel() call could be made from ~AuthSession().
+	// Current cancel() call could be made from ~Main::Session().
 	crl::on_main(sessionGuard, [=] { LoadNextFromQueue(queue); });
 }
 
@@ -782,6 +782,7 @@ mtpRequestId mtpFileLoader::sendRequest(const RequestData &requestData) {
 	}, [&](const StorageFileLocation &location) {
 		return MTP::send(
 			MTPupload_GetFile(
+				MTP_flags(0),
 				location.tl(session().userId()),
 				MTP_int(offset),
 				MTP_int(limit)),

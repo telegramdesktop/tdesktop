@@ -140,7 +140,7 @@ bool UseBotTextOptions(
 		not_null<History*> history,
 		not_null<PeerData*> author) {
 	if (const auto user = history->peer->asUser()) {
-		if (user->botInfo) {
+		if (user->isBot()) {
 			return true;
 		}
 	} else if (const auto chat = history->peer->asChat()) {
@@ -153,7 +153,7 @@ bool UseBotTextOptions(
 		}
 	}
 	if (const auto user = author->asUser()) {
-		if (user->botInfo) {
+		if (user->isBot()) {
 			return true;
 		}
 	}

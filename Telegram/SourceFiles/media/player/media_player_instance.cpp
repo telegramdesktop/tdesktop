@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "main/main_account.h" // Account::sessionValue.
 #include "mainwindow.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace Media {
 namespace Player {
@@ -93,9 +93,9 @@ Instance::Instance()
 		handleSongUpdate(audioId);
 	});
 
-	// While we have one Media::Player::Instance for all authsessions we have to do this.
+	// While we have one Media::Player::Instance for all sessions we have to do this.
 	Core::App().activeAccount().sessionValue(
-	) | rpl::start_with_next([=](AuthSession *session) {
+	) | rpl::start_with_next([=](Main::Session *session) {
 		if (session) {
 			subscribe(session->calls().currentCallChanged(), [=](Calls::Call *call) {
 				if (call) {

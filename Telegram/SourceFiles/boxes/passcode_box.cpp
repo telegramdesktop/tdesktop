@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/confirm_phone_box.h"
 #include "mainwindow.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "storage/localstorage.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -40,8 +40,12 @@ PasscodeBox::CloudFields PasscodeBox::CloudFields::From(
 	return result;
 }
 
-PasscodeBox::PasscodeBox(QWidget*, bool turningOff)
-: _turningOff(turningOff)
+PasscodeBox::PasscodeBox(
+	QWidget*,
+	not_null<Main::Session*> session,
+	bool turningOff)
+: _session(session)
+, _turningOff(turningOff)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
 , _oldPasscode(this, st::defaultInputField, tr::lng_passcode_enter_old())
 , _newPasscode(this, st::defaultInputField, Global::LocalPasscode() ? tr::lng_passcode_enter_new() : tr::lng_passcode_enter_first())
@@ -51,8 +55,12 @@ PasscodeBox::PasscodeBox(QWidget*, bool turningOff)
 , _recover(this, tr::lng_signin_recover(tr::now)) {
 }
 
-PasscodeBox::PasscodeBox(QWidget*, const CloudFields &fields)
-: _turningOff(fields.turningOff)
+PasscodeBox::PasscodeBox(
+	QWidget*,
+	not_null<Main::Session*> session,
+	const CloudFields &fields)
+: _session(session)
+, _turningOff(fields.turningOff)
 , _cloudPwd(true)
 , _cloudFields(fields)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
@@ -506,7 +514,7 @@ void PasscodeBox::save(bool force) {
 		const auto weak = make_weak(this);
 		cSetPasscodeBadTries(0);
 		Local::setPasscode(pwd.toUtf8());
-		Auth().localPasscodeChanged();
+		_session->localPasscodeChanged();
 		if (weak) {
 			closeBox();
 		}

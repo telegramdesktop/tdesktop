@@ -1365,11 +1365,13 @@ SendFilesBox::SendFilesBox(
 	not_null<Window::SessionController*> controller,
 	Storage::PreparedList &&list,
 	const TextWithTags &caption,
-	CompressConfirm compressed)
+	CompressConfirm compressed,
+	SendLimit limit)
 : _controller(controller)
 , _list(std::move(list))
 , _compressConfirmInitial(compressed)
 , _compressConfirm(compressed)
+, _sendLimit(limit)
 , _caption(
 	this,
 	st::confirmCaptionArea,
@@ -1467,6 +1469,7 @@ void SendFilesBox::setupShadows(
 
 void SendFilesBox::prepare() {
 	_send = addButton(tr::lng_send_button(), [=] { send(); });
+	SetupSendWithoutSound(_send, [=] { return true; }, [=] { send(true); });
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	initSendWay();
 	setupCaption();
@@ -1481,6 +1484,11 @@ void SendFilesBox::prepare() {
 void SendFilesBox::initSendWay() {
 	refreshAlbumMediaCount();
 	const auto value = [&] {
+		if (_sendLimit == SendLimit::One
+			&& _list.albumIsPossible
+			&& _list.files.size() > 1) {
+			return SendFilesWay::Album;
+		}
 		if (_compressConfirm == CompressConfirm::None) {
 			return SendFilesWay::Files;
 		} else if (_compressConfirm == CompressConfirm::No) {
@@ -1490,10 +1498,10 @@ void SendFilesBox::initSendWay() {
 				? SendFilesWay::Album
 				: SendFilesWay::Photos;
 		}
-		const auto currentWay = Auth().settings().sendFilesWay();
-		if (currentWay == SendFilesWay::Files) {
-			return currentWay;
-		} else if (currentWay == SendFilesWay::Album) {
+		const auto way = _controller->session().settings().sendFilesWay();
+		if (way == SendFilesWay::Files) {
+			return way;
+		} else if (way == SendFilesWay::Album) {
 			return _list.albumIsPossible
 				? SendFilesWay::Album
 				: SendFilesWay::Photos;
@@ -1514,9 +1522,24 @@ void SendFilesBox::initSendWay() {
 }
 
 void SendFilesBox::updateCaptionPlaceholder() {
-	if (_caption) {
-		const auto sendWay = _sendWay->value();
+	if (!_caption) {
+		return;
+	}
+	const auto sendWay = _sendWay->value();
+	const auto isAlbum = (sendWay == SendFilesWay::Album);
+	const auto compressImages = (sendWay != SendFilesWay::Files);
+	if (!_list.canAddCaption(isAlbum, compressImages)
+		&& _sendLimit == SendLimit::One) {
+		_caption->hide();
+		if (_emojiToggle) {
+			_emojiToggle->hide();
+		}
+	} else {
 		_caption->setPlaceholder(FieldPlaceholder(_list, sendWay));
+		_caption->show();
+		if (_emojiToggle) {
+			_emojiToggle->show();
+		}
 	}
 }
 
@@ -1554,7 +1577,8 @@ void SendFilesBox::setupSendWayControls() {
 	_sendAlbum.destroy();
 	_sendPhotos.destroy();
 	_sendFiles.destroy();
-	if (_compressConfirm == CompressConfirm::None) {
+	if (_compressConfirm == CompressConfirm::None
+		|| _sendLimit == SendLimit::One) {
 		return;
 	}
 	const auto addRadio = [&](
@@ -1614,7 +1638,7 @@ void SendFilesBox::setupCaption() {
 		const auto ctrlShiftEnter = modifiers.testFlag(Qt::ShiftModifier)
 			&& (modifiers.testFlag(Qt::ControlModifier)
 				|| modifiers.testFlag(Qt::MetaModifier));
-		send(ctrlShiftEnter);
+		send(false, ctrlShiftEnter);
 	});
 	connect(_caption, &Ui::InputField::cancelled, [=] { closeBox(); });
 	_caption->setMimeDataHook([=](
@@ -1628,18 +1652,23 @@ void SendFilesBox::setupCaption() {
 		Unexpected("action in MimeData hook.");
 	});
 	_caption->setInstantReplaces(Ui::InstantReplaces::Default());
-	_caption->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	_caption->setInstantReplacesEnabled(
+		_controller->session().settings().replaceEmojiValue());
 	_caption->setMarkdownReplacesEnabled(rpl::single(true));
-	_caption->setEditLinkCallback(DefaultEditLinkCallback(_caption));
+	_caption->setEditLinkCallback(
+		DefaultEditLinkCallback(&_controller->session(), _caption));
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
-		_caption);
+		_caption,
+		&_controller->session());
 
 	updateCaptionPlaceholder();
 	setupEmojiPanel();
 }
 
 void SendFilesBox::setupEmojiPanel() {
+	Expects(_caption != nullptr);
+
 	const auto container = getDelegate()->outerContainer();
 	_emojiPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
 		container,
@@ -1663,6 +1692,7 @@ void SendFilesBox::setupEmojiPanel() {
 		[=](not_null<QEvent*> event) { return emojiFilter(event); }));
 
 	_emojiToggle.create(this, st::boxAttachEmoji);
+	_emojiToggle->setVisible(!_caption->isHidden());
 	_emojiToggle->installEventFilter(_emojiPanel);
 	_emojiToggle->addClickHandler([=] {
 		_emojiPanel->toggleAnimated();
@@ -1769,7 +1799,7 @@ bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 	_compressConfirm = _compressConfirmInitial;
 	refreshAlbumMediaCount();
 	preparePreview();
-	updateControlsGeometry();
+	captionResized();
 	return true;
 }
 
@@ -1812,7 +1842,7 @@ void SendFilesBox::keyPressEvent(QKeyEvent *e) {
 		const auto ctrl = modifiers.testFlag(Qt::ControlModifier)
 			|| modifiers.testFlag(Qt::MetaModifier);
 		const auto shift = modifiers.testFlag(Qt::ShiftModifier);
-		send(ctrl && shift);
+		send(false, ctrl && shift);
 	} else {
 		BoxContent::keyPressEvent(e);
 	}
@@ -1883,12 +1913,12 @@ void SendFilesBox::setInnerFocus() {
 	}
 }
 
-void SendFilesBox::send(bool ctrlShiftEnter) {
+void SendFilesBox::send(bool silent, bool ctrlShiftEnter) {
 	using Way = SendFilesWay;
 	const auto way = _sendWay ? _sendWay->value() : Way::Files;
 
 	if (_compressConfirm == CompressConfirm::Auto) {
-		const auto oldWay = Auth().settings().sendFilesWay();
+		const auto oldWay = _controller->session().settings().sendFilesWay();
 		if (way != oldWay) {
 			// Check if the user _could_ use the old value, but didn't.
 			if ((oldWay == Way::Album && _sendAlbum)
@@ -1896,8 +1926,8 @@ void SendFilesBox::send(bool ctrlShiftEnter) {
 				|| (oldWay == Way::Files && _sendFiles)
 				|| (way == Way::Files && (_sendAlbum || _sendPhotos))) {
 				// And in that case save it to settings.
-				Auth().settings().setSendFilesWay(way);
-				Auth().saveSettingsDelayed();
+				_controller->session().settings().setSendFilesWay(way);
+				_controller->session().saveSettingsDelayed();
 			}
 		}
 	}
@@ -1905,13 +1935,14 @@ void SendFilesBox::send(bool ctrlShiftEnter) {
 	applyAlbumOrder();
 	_confirmed = true;
 	if (_confirmedCallback) {
-		auto caption = _caption
+		auto caption = (_caption && !_caption->isHidden())
 			? _caption->getTextWithAppliedMarkdown()
 			: TextWithTags();
 		_confirmedCallback(
 			std::move(_list),
 			way,
 			std::move(caption),
+			silent,
 			ctrlShiftEnter);
 	}
 	closeBox();

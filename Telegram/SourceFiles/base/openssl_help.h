@@ -19,6 +19,7 @@ extern "C" {
 #include <openssl/modes.h>
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
+#include <openssl/hmac.h>
 } // extern "C"
 
 #ifdef small
@@ -443,6 +444,24 @@ inline bytes::vector Pbkdf2Sha512(
 		salt,
 		iterations,
 		EVP_sha512());
+}
+
+inline bytes::vector HmacSha256(
+		bytes::const_span key,
+		bytes::const_span data) {
+	auto result = bytes::vector(kSha256Size);
+	auto length = (unsigned int)kSha256Size;
+
+	HMAC(
+		EVP_sha256(),
+		key.data(),
+		key.size(),
+		reinterpret_cast<const unsigned char*>(data.data()),
+		data.size(),
+		reinterpret_cast<unsigned char*>(result.data()),
+		&length);
+
+	return result;
 }
 
 } // namespace openssl

@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "lang/lang_keys.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "styles/style_boxes.h"
 
@@ -120,17 +120,18 @@ void UrlAuthBox::Request(
 		}
 	};
 	*box = Ui::show(
-		Box<UrlAuthBox>(url, qs(request.vdomain()), bot, callback),
+		Box<UrlAuthBox>(session, url, qs(request.vdomain()), bot, callback),
 		LayerOption::KeepOther);
 }
 
 UrlAuthBox::UrlAuthBox(
 	QWidget*,
+	not_null<Main::Session*> session,
 	const QString &url,
 	const QString &domain,
 	UserData *bot,
 	Fn<void(Result)> callback)
-: _content(setupContent(url, domain, bot, std::move(callback))) {
+: _content(setupContent(session, url, domain, bot, std::move(callback))) {
 }
 
 void UrlAuthBox::prepare() {
@@ -140,6 +141,7 @@ void UrlAuthBox::prepare() {
 }
 
 not_null<Ui::RpWidget*> UrlAuthBox::setupContent(
+		not_null<Main::Session*> session,
 		const QString &url,
 		const QString &domain,
 		UserData *bot,
@@ -174,7 +176,7 @@ not_null<Ui::RpWidget*> UrlAuthBox::setupContent(
 			textcmdStartSemibold() + domain + textcmdStopSemibold(),
 			lt_user,
 			(textcmdStartSemibold()
-				+ App::peerName(Auth().user())
+				+ App::peerName(session->user())
 				+ textcmdStopSemibold())));
 	const auto allow = bot
 		? addCheckbox(tr::lng_url_auth_allow_messages(

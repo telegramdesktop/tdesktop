@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/text/text_entity.h"
 
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "lang/lang_tag.h"
 #include "base/qthelp_url.h"
 #include "ui/emoji_config.h"
@@ -1300,6 +1300,23 @@ QString RemoveAccents(const QString &text) {
 		}
 	}
 	return (i < result.size()) ? result.mid(0, i) : result;
+}
+
+QString RemoveEmoji(const QString &text) {
+	auto result = QString();
+	result.reserve(text.size());
+
+	auto begin = text.data();
+	const auto end = begin + text.size();
+	while (begin != end) {
+		auto length = 0;
+		if (Ui::Emoji::Find(begin, end, &length)) {
+			begin += length;
+		} else {
+			result.append(*begin++);
+		}
+	}
+	return result;
 }
 
 QStringList PrepareSearchWords(const QString &query, const QRegularExpression *SplitterOverride) {

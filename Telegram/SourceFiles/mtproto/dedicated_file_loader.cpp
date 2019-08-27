@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/dedicated_file_loader.h"
 
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "core/application.h"
 #include "main/main_account.h" // Account::sessionChanges.
 
@@ -91,7 +91,7 @@ WeakInstance::WeakInstance(QPointer<MTP::Instance> instance)
 		die();
 	});
 	Core::App().activeAccount().sessionChanges(
-	) | rpl::filter([](AuthSession *session) {
+	) | rpl::filter([](Main::Session *session) {
 		return !session;
 	}) | rpl::start_with_next([=] {
 		die();
@@ -99,7 +99,7 @@ WeakInstance::WeakInstance(QPointer<MTP::Instance> instance)
 }
 
 bool WeakInstance::valid() const {
-	return (_instance != nullptr) && AuthSession::Exists();
+	return (_instance != nullptr) && Main::Session::Exists();
 }
 
 QPointer<MTP::Instance> WeakInstance::instance() const {
@@ -309,7 +309,11 @@ void DedicatedLoader::sendRequest() {
 	const auto offset = _offset;
 	_requests.push_back({ offset });
 	_mtp.send(
-		MTPupload_GetFile(_location, MTP_int(offset), MTP_int(kChunkSize)),
+		MTPupload_GetFile(
+			MTP_flags(0),
+			_location,
+			MTP_int(offset),
+			MTP_int(kChunkSize)),
 		[=](const MTPupload_File &result) { gotPart(offset, result); },
 		failHandler(),
 		MTP::updaterDcId(_dcId));
@@ -367,13 +371,13 @@ void ResolveChannel(
 			).arg(username));
 		fail();
 	};
-	if (!AuthSession::Exists()) {
+	if (!Main::Session::Exists()) {
 		failed();
 		return;
 	}
 
 	struct ResolveResult {
-		base::weak_ptr<AuthSession> auth;
+		base::weak_ptr<Main::Session> auth;
 		MTPInputChannel channel;
 	};
 	static std::map<QString, ResolveResult> ResolveCache;

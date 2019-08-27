@@ -9,7 +9,7 @@
   <Identity Name="Sean.Telegreat"
     ProcessorArchitecture="ARCHITECTURE"
     Publisher="CN=536BC709-8EE1-4478-AF22-F0F0F26FF64A"
-    Version="1.7.14.0" />
+    Version="1.8.2.0" />
   <Properties>
     <DisplayName>Telegreat</DisplayName>
     <PublisherDisplayName>Sean</PublisherDisplayName>

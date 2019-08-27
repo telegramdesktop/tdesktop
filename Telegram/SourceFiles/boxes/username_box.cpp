@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/toast/toast.h"
 #include "core/application.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "styles/style_boxes.h"
@@ -25,12 +25,13 @@ constexpr auto kMinUsernameLength = 5;
 
 } // namespace
 
-UsernameBox::UsernameBox(QWidget*)
-: _username(
+UsernameBox::UsernameBox(QWidget*, not_null<Main::Session*> session)
+: _session(session)
+, _username(
 	this,
 	st::defaultInputField,
 	rpl::single(qsl("@username")),
-	Auth().user()->username,
+	session->user()->username,
 	false)
 , _link(this, QString(), st::boxLinkButton)
 , _about(st::boxWidth - st::usernamePadding.left())
@@ -38,7 +39,7 @@ UsernameBox::UsernameBox(QWidget*)
 }
 
 void UsernameBox::prepare() {
-	_goodText = Auth().user()->username.isEmpty()
+	_goodText = _session->user()->username.isEmpty()
 		? QString()
 		: tr::lng_username_available(tr::now);
 
@@ -171,7 +172,7 @@ void UsernameBox::linkClick() {
 }
 
 void UsernameBox::onUpdateDone(const MTPUser &user) {
-	Auth().data().processUser(user);
+	_session->data().processUser(user);
 	closeBox();
 }
 
@@ -179,7 +180,7 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	_saveRequestId = 0;
-	const auto self = Auth().user();
+	const auto self = _session->user();
 	const auto &err = error.type();
 	if (err == qstr("USERNAME_NOT_MODIFIED") || _sentUsername == self->username) {
 		self->setName(
@@ -209,7 +210,7 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 void UsernameBox::onCheckDone(const MTPBool &result) {
 	_checkRequestId = 0;
 	const auto newError = (mtpIsTrue(result)
-		|| _checkUsername == Auth().user()->username)
+		|| _checkUsername == _session->user()->username)
 		? QString()
 		: tr::lng_username_occupied(tr::now);
 	const auto newGood = newError.isEmpty()
@@ -231,7 +232,7 @@ bool UsernameBox::onCheckFail(const RPCError &error) {
 		_errorText = tr::lng_username_invalid(tr::now);
 		update();
 		return true;
-	} else if (err == qstr("USERNAME_OCCUPIED") && _checkUsername != Auth().user()->username) {
+	} else if (err == qstr("USERNAME_OCCUPIED") && _checkUsername != _session->user()->username) {
 		_errorText = tr::lng_username_occupied(tr::now);
 		update();
 		return true;

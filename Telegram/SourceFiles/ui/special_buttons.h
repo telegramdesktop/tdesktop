@@ -78,17 +78,21 @@ class SendButton : public RippleButton {
 public:
 	SendButton(QWidget *parent);
 
+	static constexpr auto kSlowmodeDelayLimit = 100 * 60;
+
 	enum class Type {
 		Send,
 		Save,
 		Record,
 		Cancel,
+		Slowmode,
 	};
 	Type type() const {
 		return _type;
 	}
 	void setType(Type state);
 	void setRecordActive(bool recordActive);
+	void setSlowmodeDelay(int seconds);
 	void finishAnimating();
 
 	void setRecordStartCallback(Fn<void()> callback) {
@@ -119,8 +123,16 @@ protected:
 private:
 	void recordAnimationCallback();
 	QPixmap grabContent();
+	bool isSlowmode() const;
+
+	void paintRecord(Painter &p, bool over);
+	void paintSave(Painter &p, bool over);
+	void paintCancel(Painter &p, bool over);
+	void paintSend(Painter &p, bool over);
+	void paintSlowmode(Painter &p);
 
 	Type _type = Type::Send;
+	Type _afterSlowmodeType = Type::Send;
 	bool _recordActive = false;
 	QPixmap _contentFrom, _contentTo;
 
@@ -132,6 +144,9 @@ private:
 	Fn<void(bool active)> _recordStopCallback;
 	Fn<void(QPoint globalPos)> _recordUpdateCallback;
 	Fn<void()> _recordAnimationCallback;
+
+	int _slowmodeDelay = 0;
+	QString _slowmodeDelayText;
 
 };
 

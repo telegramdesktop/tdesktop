@@ -71,6 +71,8 @@ private:
 		FnMut<void()> callable;
 	};
 
+	bool notifyOrInvoke(QObject *receiver, QEvent *e);
+
 	void closeApplication(); // will be done in aboutToQuit()
 	void checkForQuit(); // will be done in exec()
 	void registerEnterFromEventLoop();

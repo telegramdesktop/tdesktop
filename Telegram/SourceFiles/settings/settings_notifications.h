@@ -13,12 +13,12 @@ namespace Settings {
 
 class Notifications : public Section {
 public:
-	Notifications(QWidget *parent, not_null<UserData*> self);
+	Notifications(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
 
 private:
-	void setupContent();
-
-	not_null<UserData*> _self;
+	void setupContent(not_null<Window::SessionController*> controller);
 
 };
 

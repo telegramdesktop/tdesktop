@@ -17,7 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "history/history.h"
 #include "dialogs/dialogs_indexed_list.h"
-#include "auth_session.h"
+#include "base/unixtime.h"
+#include "main/main_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
@@ -46,20 +47,29 @@ base::flat_set<not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
 
 } // namespace
 
-AddParticipantsBoxController::AddParticipantsBoxController()
+AddParticipantsBoxController::AddParticipantsBoxController(
+	not_null<Window::SessionNavigation*> navigation)
 : ContactsBoxController(
-	std::make_unique<PeerListGlobalSearchController>()) {
+	navigation,
+	std::make_unique<PeerListGlobalSearchController>(navigation)) {
 }
 
 AddParticipantsBoxController::AddParticipantsBoxController(
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer)
-: AddParticipantsBoxController(peer, GetAlreadyInFromPeer(peer)) {
+: AddParticipantsBoxController(
+	navigation,
+	peer,
+	GetAlreadyInFromPeer(peer)) {
 }
 
 AddParticipantsBoxController::AddParticipantsBoxController(
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer,
 	base::flat_set<not_null<UserData*>> &&alreadyIn)
-: ContactsBoxController(std::make_unique<PeerListGlobalSearchController>())
+: ContactsBoxController(
+	navigation,
+	std::make_unique<PeerListGlobalSearchController>(navigation))
 , _peer(peer)
 , _alreadyIn(std::move(alreadyIn)) {
 	subscribeToMigration();
@@ -179,8 +189,12 @@ bool AddParticipantsBoxController::inviteSelectedUsers(
 	return true;
 }
 
-void AddParticipantsBoxController::Start(not_null<ChatData*> chat) {
-	auto controller = std::make_unique<AddParticipantsBoxController>(chat);
+void AddParticipantsBoxController::Start(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<ChatData*> chat) {
+	auto controller = std::make_unique<AddParticipantsBoxController>(
+		navigation,
+		chat);
 	const auto weak = controller.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_participant_invite(), [=] {
@@ -198,10 +212,12 @@ void AddParticipantsBoxController::Start(not_null<ChatData*> chat) {
 }
 
 void AddParticipantsBoxController::Start(
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		base::flat_set<not_null<UserData*>> &&alreadyIn,
 		bool justCreated) {
 	auto controller = std::make_unique<AddParticipantsBoxController>(
+		navigation,
 		channel,
 		std::move(alreadyIn));
 	const auto weak = controller.get();
@@ -237,13 +253,16 @@ void AddParticipantsBoxController::Start(
 }
 
 void AddParticipantsBoxController::Start(
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		base::flat_set<not_null<UserData*>> &&alreadyIn) {
-	Start(channel, std::move(alreadyIn), false);
+	Start(navigation, channel, std::move(alreadyIn), false);
 }
 
-void AddParticipantsBoxController::Start(not_null<ChannelData*> channel) {
-	Start(channel, {}, true);
+void AddParticipantsBoxController::Start(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<ChannelData*> channel) {
+	Start(navigation, channel, {}, true);
 }
 
 AddSpecialBoxController::AddSpecialBoxController(
@@ -260,6 +279,10 @@ AddSpecialBoxController::AddSpecialBoxController(
 , _adminDoneCallback(std::move(adminDoneCallback))
 , _bannedDoneCallback(std::move(bannedDoneCallback)) {
 	subscribeToMigration();
+}
+
+Main::Session &AddSpecialBoxController::session() const {
+	return _peer->session();
 }
 
 void AddSpecialBoxController::subscribeToMigration() {
@@ -552,11 +575,16 @@ void AddSpecialBoxController::showAdmin(
 		: adminRights
 		? *adminRights
 		: MTPChatAdminRights(MTP_chatAdminRights(MTP_flags(0)));
-	auto box = Box<EditAdminBox>(_peer, user, currentRights);
+	auto box = Box<EditAdminBox>(
+		_peer,
+		user,
+		currentRights,
+		_additional.adminRank(user));
 	if (_additional.canAddOrEditAdmin(user)) {
 		const auto done = crl::guard(this, [=](
-				const MTPChatAdminRights &newRights) {
-			editAdminDone(user, newRights);
+				const MTPChatAdminRights &newRights,
+				const QString &rank) {
+			editAdminDone(user, newRights, rank);
 		});
 		const auto fail = crl::guard(this, [=] {
 			if (_editParticipantBox) {
@@ -570,30 +598,40 @@ void AddSpecialBoxController::showAdmin(
 
 void AddSpecialBoxController::editAdminDone(
 		not_null<UserData*> user,
-		const MTPChatAdminRights &rights) {
+		const MTPChatAdminRights &rights,
+		const QString &rank) {
 	if (_editParticipantBox) {
 		_editParticipantBox->closeBox();
 	}
 
-	const auto date = unixtime(); // Incorrect, but ignored.
-	if (rights.c_chatAdminRights().vflags().v == 0) {
+	const auto date = base::unixtime::now(); // Incorrect, but ignored.
+	if (_additional.isCreator(user) && user->isSelf()) {
+		using Flag = MTPDchannelParticipantCreator::Flag;
+		_additional.applyParticipant(MTP_channelParticipantCreator(
+			MTP_flags(rank.isEmpty() ? Flag(0) : Flag::f_rank),
+			MTP_int(user->bareId()),
+			MTP_string(rank)));
+	} else if (rights.c_chatAdminRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
 			MTP_int(user->bareId()),
 			MTP_int(date)));
 	} else {
+		using Flag = MTPDchannelParticipantAdmin::Flag;
 		const auto alreadyPromotedBy = _additional.adminPromotedBy(user);
 		_additional.applyParticipant(MTP_channelParticipantAdmin(
-			MTP_flags(MTPDchannelParticipantAdmin::Flag::f_can_edit),
+			MTP_flags(Flag::f_can_edit
+				| (rank.isEmpty() ? Flag(0) : Flag::f_rank)),
 			MTP_int(user->bareId()),
 			MTPint(), // inviter_id
 			MTP_int(alreadyPromotedBy
 				? alreadyPromotedBy->bareId()
 				: user->session().userId()),
 			MTP_int(date),
-			rights));
+			rights,
+			MTP_string(rank)));
 	}
 	if (const auto callback = _adminDoneCallback) {
-		callback(user, rights);
+		callback(user, rights, rank);
 	}
 }
 
@@ -672,7 +710,7 @@ void AddSpecialBoxController::editRestrictedDone(
 		_editParticipantBox->closeBox();
 	}
 
-	const auto date = unixtime(); // Incorrect, but ignored.
+	const auto date = base::unixtime::now(); // Incorrect, but ignored.
 	if (rights.c_chatBannedRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
 			MTP_int(user->bareId()),

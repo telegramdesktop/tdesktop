@@ -34,6 +34,7 @@ private:
 	QMargins _padding;
 
 	int _maxTextWidth = 0;
+	int _maxTextHeight = 0;
 	int _textWidth = 0;
 	Text::String _text;
 

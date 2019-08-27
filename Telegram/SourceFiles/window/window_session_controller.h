@@ -12,10 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/observer.h"
 #include "dialogs/dialogs_key.h"
 
-class AuthSession;
 class MainWidget;
 class HistoryMessage;
 class HistoryService;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Settings {
 enum class Type;
@@ -104,9 +107,9 @@ class SessionController;
 
 class SessionNavigation {
 public:
-	explicit SessionNavigation(not_null<AuthSession*> session);
+	explicit SessionNavigation(not_null<Main::Session*> session);
 
-	AuthSession &session() const;
+	Main::Session &session() const;
 
 	virtual void showSection(
 		SectionMemento &&memento,
@@ -133,7 +136,7 @@ public:
 	virtual ~SessionNavigation() = default;
 
 private:
-	const not_null<AuthSession*> _session;
+	const not_null<Main::Session*> _session;
 
 };
 
@@ -142,7 +145,7 @@ class SessionController
 	, private base::Subscriber {
 public:
 	SessionController(
-		not_null<AuthSession*> session,
+		not_null<Main::Session*> session,
 		not_null<MainWindow*> window);
 
 	not_null<MainWindow*> window() const {

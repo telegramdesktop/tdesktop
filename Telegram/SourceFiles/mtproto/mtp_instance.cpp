@@ -17,9 +17,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/rsa_public_key.h"
 #include "storage/localstorage.h"
 #include "calls/calls_instance.h"
-#include "auth_session.h"
+#include "main/main_account.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "core/application.h"
+#include "base/unixtime.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
 #include "base/timer.h"
@@ -42,31 +44,33 @@ public:
 	void setGoodProxyDomain(const QString &host, const QString &ip);
 	void suggestMainDcId(DcId mainDcId);
 	void setMainDcId(DcId mainDcId);
-	DcId mainDcId() const;
+	[[nodiscard]] DcId mainDcId() const;
 
 	void setKeyForWrite(DcId dcId, const AuthKeyPtr &key);
-	AuthKeysList getKeysForWrite() const;
+	[[nodiscard]] AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
 
-	not_null<DcOptions*> dcOptions();
+	[[nodiscard]] not_null<DcOptions*> dcOptions();
 
 	// Thread safe.
-	QString deviceModel() const;
-	QString systemVersion() const;
+	[[nodiscard]] QString deviceModel() const;
+	[[nodiscard]] QString systemVersion() const;
 
+	// Main thread.
 	void requestConfig();
 	void requestConfigIfOld();
 	void requestCDNConfig();
 	void setUserPhone(const QString &phone);
 	void badConfigurationError();
+	void syncHttpUnixtime();
 
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
-	int32 dcstate(ShiftedDcId shiftedDcId = 0);
-	QString dctransport(ShiftedDcId shiftedDcId = 0);
+	[[nodiscard]] int32 dcstate(ShiftedDcId shiftedDcId = 0);
+	[[nodiscard]] QString dctransport(ShiftedDcId shiftedDcId = 0);
 	void ping();
 	void cancel(mtpRequestId requestId);
-	int32 state(mtpRequestId requestId); // < 0 means waiting for such count of ms
+	[[nodiscard]] int32 state(mtpRequestId requestId); // < 0 means waiting for such count of ms
 	void killSession(ShiftedDcId shiftedDcId);
 	void killSession(std::unique_ptr<internal::Session> session);
 	void stopSession(ShiftedDcId shiftedDcId);
@@ -123,9 +127,6 @@ public:
 	bool isKeysDestroyer() const {
 		return (_mode == Instance::Mode::KeysDestroyer);
 	}
-	bool isSpecialConfigRequester() const {
-		return (_mode == Instance::Mode::SpecialConfigRequester);
-	}
 
 	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
 	void performKeyDestroy(ShiftedDcId shiftedDcId);
@@ -167,9 +168,9 @@ private:
 
 	void checkDelayedRequests();
 
-	not_null<Instance*> _instance;
-	not_null<DcOptions*> _dcOptions;
-	Instance::Mode _mode = Instance::Mode::Normal;
+	const not_null<Instance*> _instance;
+	const not_null<DcOptions*> _dcOptions;
+	const Instance::Mode _mode = Instance::Mode::Normal;
 
 	DcId _mainDcId = Config::kDefaultMainDc;
 	bool _mainDcIdForced = false;
@@ -186,6 +187,7 @@ private:
 
 	std::unique_ptr<internal::ConfigLoader> _configLoader;
 	std::unique_ptr<DomainResolver> _domainResolver;
+	std::unique_ptr<SpecialConfigRequest> _httpUnixtimeLoader;
 	QString _userPhone;
 	mtpRequestId _cdnConfigLoadRequestId = 0;
 	crl::time _lastConfigLoadedTime = 0;
@@ -244,8 +246,6 @@ void Instance::Private::start(Config &&config) {
 
 	if (isKeysDestroyer()) {
 		_instance->connect(_instance, SIGNAL(keyDestroyed(qint32)), _instance, SLOT(onKeyDestroyed(qint32)), Qt::QueuedConnection);
-	} else if (isNormal()) {
-		unixtimeInit();
 	}
 
 	for (auto &key : config.keys) {
@@ -424,6 +424,17 @@ void Instance::Private::badConfigurationError() {
 	if (_mode == Mode::Normal) {
 		Core::App().badMtprotoConfigurationError();
 	}
+}
+
+void Instance::Private::syncHttpUnixtime() {
+	if (base::unixtime::http_valid() || _httpUnixtimeLoader) {
+		return;
+	}
+	_httpUnixtimeLoader = std::make_unique<SpecialConfigRequest>([=] {
+		InvokeQueued(_instance, [=] {
+			_httpUnixtimeLoader = nullptr;
+		});
+	});
 }
 
 void Instance::Private::requestConfigIfOld() {
@@ -798,7 +809,7 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 		data.vlang_pack_version().value_or_empty(),
 		data.vbase_lang_pack_version().value_or_empty());
 
-	Core::App().configUpdated();
+	Core::App().activeAccount().configUpdated();
 
 	if (const auto prefix = data.vautoupdate_url_prefix()) {
 		Local::writeAutoupdatePrefix(qs(*prefix));
@@ -806,7 +817,7 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	Local::writeSettings();
 
 	_configExpiresAt = crl::now()
-		+ (data.vexpires().v - unixtime()) * crl::time(1000);
+		+ (data.vexpires().v - base::unixtime::now()) * crl::time(1000);
 	requestConfigIfExpired();
 
 	emit _instance->configLoaded();
@@ -1054,22 +1065,24 @@ void Instance::Private::execCallback(
 			}
 		};
 
-		try {
-			if (from >= end) throw mtpErrorInsufficient();
-			if (*from == mtpc_rpc_error) {
-				auto error = MTPRpcError();
-				error.read(from, end);
-				handleError(error);
-			} else {
-				if (h.onDone) {
-					(*h.onDone)(requestId, from, end);
-				}
-				unregisterRequest(requestId);
-			}
-		} catch (Exception &e) {
+		if (from >= end) {
 			handleError(RPCError::Local(
 				"RESPONSE_PARSE_FAILED",
-				QString("exception text: ") + e.what()));
+				"Empty response."));
+		} else if (*from == mtpc_rpc_error) {
+			auto error = MTPRpcError();
+			handleError(error.read(from, end) ? error : RPCError::Local(
+				"RESPONSE_PARSE_FAILED",
+				"Error parse failed."));
+		} else {
+			if (h.onDone) {
+				if (!(*h.onDone)(requestId, from, end)) {
+					handleError(RPCError::Local(
+						"RESPONSE_PARSE_FAILED",
+						"Response parse failed."));
+				}
+			}
+			unregisterRequest(requestId);
 		}
 	} else {
 		DEBUG_LOG(("RPC Info: parser not found for %1").arg(requestId));
@@ -1084,9 +1097,11 @@ bool Instance::Private::hasCallbacks(mtpRequestId requestId) {
 }
 
 void Instance::Private::globalCallback(const mtpPrime *from, const mtpPrime *end) {
-	if (_globalHandler.onDone) {
-		(*_globalHandler.onDone)(0, from, end); // some updates were received
+	if (!_globalHandler.onDone) {
+		return;
 	}
+	// Handle updates.
+	[[maybe_unused]] bool result = (*_globalHandler.onDone)(0, from, end);
 }
 
 void Instance::Private::onStateChange(int32 dcWithShift, int32 state) {
@@ -1115,7 +1130,7 @@ bool Instance::Private::rpcErrorOccured(mtpRequestId requestId, const RPCFailHan
 }
 
 bool Instance::Private::hasAuthorization() {
-	return AuthSession::Exists();
+	return Main::Session::Exists();
 }
 
 void Instance::Private::importDone(const MTPauth_Authorization &result, mtpRequestId requestId) {
@@ -1577,6 +1592,10 @@ void Instance::setUserPhone(const QString &phone) {
 
 void Instance::badConfigurationError() {
 	_private->badConfigurationError();
+}
+
+void Instance::syncHttpUnixtime() {
+	_private->syncHttpUnixtime();
 }
 
 void Instance::requestConfigIfOld() {

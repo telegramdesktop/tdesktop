@@ -32,10 +32,7 @@ void SetupFaq(
 
 class Main : public Section {
 public:
-	Main(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		not_null<UserData*> self);
+	Main(QWidget *parent, not_null<Window::SessionController*> controller);
 
 	rpl::producer<Type> sectionShowOther() override;
 
@@ -45,7 +42,7 @@ protected:
 private:
 	void setupContent(not_null<Window::SessionController*> controller);
 
-	not_null<UserData*> _self;
+	const not_null<Window::SessionController*> _controller;
 	rpl::event_stream<Type> _showOther;
 
 };

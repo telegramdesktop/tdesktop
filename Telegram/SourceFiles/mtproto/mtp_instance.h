@@ -40,7 +40,6 @@ public:
 	};
 	enum class Mode {
 		Normal,
-		SpecialConfigRequester,
 		KeysDestroyer,
 	};
 	Instance(not_null<DcOptions*> options, Mode mode, Config &&config);
@@ -52,20 +51,20 @@ public:
 	void setGoodProxyDomain(const QString &host, const QString &ip);
 	void suggestMainDcId(DcId mainDcId);
 	void setMainDcId(DcId mainDcId);
-	DcId mainDcId() const;
-	QString systemLangCode() const;
-	QString cloudLangCode() const;
-	QString langPackName() const;
+	[[nodiscard]] DcId mainDcId() const;
+	[[nodiscard]] QString systemLangCode() const;
+	[[nodiscard]] QString cloudLangCode() const;
+	[[nodiscard]] QString langPackName() const;
 
 	// Thread safe.
-	QString deviceModel() const;
-	QString systemVersion() const;
+	[[nodiscard]] QString deviceModel() const;
+	[[nodiscard]] QString systemVersion() const;
 
 	void setKeyForWrite(DcId dcId, const AuthKeyPtr &key);
-	AuthKeysList getKeysForWrite() const;
+	[[nodiscard]] AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
 
-	not_null<DcOptions*> dcOptions();
+	[[nodiscard]] not_null<DcOptions*> dcOptions();
 
 	template <typename Request>
 	mtpRequestId send(
@@ -180,6 +179,8 @@ public:
 	void requestCDNConfig();
 	void setUserPhone(const QString &phone);
 	void badConfigurationError();
+
+	void syncHttpUnixtime();
 
 	~Instance();
 

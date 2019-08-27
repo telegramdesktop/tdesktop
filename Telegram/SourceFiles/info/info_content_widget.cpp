@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "boxes/peer_list_box.h"
 #include "data/data_session.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
 

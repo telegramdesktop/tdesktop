@@ -27,8 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 
 auto GenerateCodes() {
-	auto codes = std::map<QString, Fn<void()>>();
-	codes.emplace(qsl("debugmode"), [] {
+	auto codes = std::map<QString, Fn<void(::Main::Session*)>>();
+	codes.emplace(qsl("debugmode"), [](::Main::Session *session) {
 		QString text = Logs::DebugEnabled()
 			? qsl("Do you want to disable DEBUG logs?")
 			: qsl("Do you want to enable DEBUG logs?\n\n"
@@ -37,24 +37,24 @@ auto GenerateCodes() {
 			Core::App().switchDebugMode();
 		}));
 	});
-	codes.emplace(qsl("viewlogs"), [] {
+	codes.emplace(qsl("viewlogs"), [](::Main::Session *session) {
 		File::ShowInFolder(cWorkingDir() + "log.txt");
 	});
-	codes.emplace(qsl("testmode"), [] {
+	codes.emplace(qsl("testmode"), [](::Main::Session *session) {
 		auto text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
 		Ui::show(Box<ConfirmBox>(text, [] {
 			Core::App().switchTestMode();
 		}));
 	});
 	if (!Core::UpdaterDisabled()) {
-		codes.emplace(qsl("testupdate"), [] {
+		codes.emplace(qsl("testupdate"), [](::Main::Session *session) {
 			Core::UpdateChecker().test();
 		});
 	}
-	codes.emplace(qsl("loadlang"), [] {
+	codes.emplace(qsl("loadlang"), [](::Main::Session *session) {
 		Lang::CurrentCloudManager().switchToLanguage({ qsl("#custom") });
 	});
-	codes.emplace(qsl("debugfiles"), [] {
+	codes.emplace(qsl("debugfiles"), [](::Main::Session *session) {
 		if (!Logs::DebugEnabled()) {
 			return;
 		}
@@ -65,39 +65,39 @@ auto GenerateCodes() {
 		}
 		Ui::show(Box<InformBox>(DebugLogging::FileLoader() ? qsl("Enabled file download logging") : qsl("Disabled file download logging")));
 	});
-	codes.emplace(qsl("crashplease"), [] {
+	codes.emplace(qsl("crashplease"), [](::Main::Session *session) {
 		Unexpected("Crashed in Settings!");
 	});
-	codes.emplace(qsl("workmode"), [] {
+	codes.emplace(qsl("workmode"), [](::Main::Session *session) {
 		auto text = Global::DialogsModeEnabled() ? qsl("Disable work mode?") : qsl("Enable work mode?");
 		Ui::show(Box<ConfirmBox>(text, [] {
 			Core::App().switchWorkMode();
 		}));
 	});
-	codes.emplace(qsl("moderate"), [] {
+	codes.emplace(qsl("moderate"), [](::Main::Session *session) {
 		auto text = Global::ModerateModeEnabled() ? qsl("Disable moderate mode?") : qsl("Enable moderate mode?");
-		Ui::show(Box<ConfirmBox>(text, []() {
+		Ui::show(Box<ConfirmBox>(text, [] {
 			Global::SetModerateModeEnabled(!Global::ModerateModeEnabled());
 			Local::writeUserSettings();
 			Ui::hideLayer();
 		}));
 	});
-	codes.emplace(qsl("getdifference"), [] {
+	codes.emplace(qsl("getdifference"), [](::Main::Session *session) {
 		if (auto main = App::main()) {
 			main->getDifference();
 		}
 	});
-	codes.emplace(qsl("loadcolors"), [] {
+	codes.emplace(qsl("loadcolors"), [](::Main::Session *session) {
 		FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
 				Window::Theme::Apply(result.paths.front());
 			}
 		});
 	});
-	codes.emplace(qsl("edittheme"), [] {
+	codes.emplace(qsl("edittheme"), [](::Main::Session *session) {
 		Window::Theme::Editor::Start();
 	});
-	codes.emplace(qsl("videoplayer"), [] {
+	codes.emplace(qsl("videoplayer"), [](::Main::Session *session) {
 		auto text = cUseExternalVideoPlayer() ? qsl("Use internal video player?") : qsl("Use external video player?");
 		Ui::show(Box<ConfirmBox>(text, [] {
 			cSetUseExternalVideoPlayer(!cUseExternalVideoPlayer());
@@ -105,21 +105,21 @@ auto GenerateCodes() {
 			Ui::hideLayer();
 		}));
 	});
-	codes.emplace(qsl("endpoints"), [] {
+	codes.emplace(qsl("endpoints"), [](::Main::Session *session) {
 		FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open DC endpoints", "DC Endpoints (*.tdesktop-endpoints)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
-				if (!Core::App().mtp()->dcOptions()->loadFromFile(result.paths.front())) {
+				if (!Core::App().dcOptions()->loadFromFile(result.paths.front())) {
 					Ui::show(Box<InformBox>("Could not load endpoints :( Errors in 'log.txt'."));
 				}
 			}
 		});
 	});
-	codes.emplace(qsl("registertg"), [] {
+	codes.emplace(qsl("registertg"), [](::Main::Session *session) {
 		Platform::RegisterCustomScheme();
 		Ui::Toast::Show("Forced custom scheme register.");
 	});
-	codes.emplace(qsl("export"), [] {
-		Auth().data().startExport();
+	codes.emplace(qsl("export"), [](::Main::Session *session) {
+		session->data().startExport();
 	});
 
 	auto audioFilters = qsl("Audio files (*.wav *.mp3);;") + FileDialog::AllFilesFilter();
@@ -132,28 +132,28 @@ auto GenerateCodes() {
 		qsl("call_end"),
 	};
 	for (auto &key : audioKeys) {
-		codes.emplace(key, [audioFilters, key] {
-			if (!AuthSession::Exists()) {
+		codes.emplace(key, [=](::Main::Session *session) {
+			if (!session) {
 				return;
 			}
 
-			FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open audio file", audioFilters, [key](const FileDialog::OpenResult &result) {
-				if (AuthSession::Exists() && !result.paths.isEmpty()) {
+			FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open audio file", audioFilters, crl::guard(session, [=](const FileDialog::OpenResult &result) {
+				if (Main::Session::Exists() && !result.paths.isEmpty()) {
 					auto track = Media::Audio::Current().createTrack();
 					track->fillFromFile(result.paths.front());
 					if (track->failed()) {
 						Ui::show(Box<InformBox>("Could not audio :( Errors in 'log.txt'."));
 					} else {
-						Auth().settings().setSoundOverride(key, result.paths.front());
+						session->settings().setSoundOverride(key, result.paths.front());
 						Local::writeUserSettings();
 					}
 				}
-			});
+			}));
 		});
 	}
-	codes.emplace(qsl("sounds_reset"), [] {
-		if (AuthSession::Exists()) {
-			Auth().settings().clearSoundOverrides();
+	codes.emplace(qsl("sounds_reset"), [](::Main::Session *session) {
+		if (session) {
+			session->settings().clearSoundOverrides();
 			Local::writeUserSettings();
 			Ui::show(Box<InformBox>("All sound overrides were reset."));
 		}
@@ -161,7 +161,7 @@ auto GenerateCodes() {
 	return codes;
 }
 
-void CodesFeedString(const QString &text) {
+void CodesFeedString(::Main::Session *session, const QString &text) {
 	static const auto codes = GenerateCodes();
 	static auto secret = QString();
 
@@ -172,7 +172,7 @@ void CodesFeedString(const QString &text) {
 		auto found = false;
 		for (const auto &[key, method] : codes) {
 			if (piece == key) {
-				method();
+				method(session);
 				from = size;
 				found = true;
 				break;

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/dc_options.h"
 
 #include "storage/serialize_common.h"
+#include "mtproto/connection_tcp.h"
 
 namespace MTP {
 namespace {
@@ -86,6 +87,18 @@ private:
 	QReadLocker _lock;
 
 };
+
+DcOptions::DcOptions() {
+	constructFromBuiltIn();
+}
+
+bool DcOptions::ValidateSecret(bytes::const_span secret) {
+	// See also TcpConnection::Protocol::Create.
+	return (secret.size() >= 21 && secret[0] == bytes::type(0xEE))
+		|| (secret.size() == 17 && secret[0] == bytes::type(0xDD))
+		|| (secret.size() == 16)
+		|| secret.empty();
+}
 
 void DcOptions::readBuiltInPublicKeys() {
 	for (const auto key : PublicRSAKeys) {
@@ -257,7 +270,7 @@ bool DcOptions::ApplyOneOption(
 				return false;
 			}
 		}
-		i->second.push_back(Endpoint(dcId, flags, ip, port, secret));
+		i->second.emplace_back(dcId, flags, ip, port, secret);
 	} else {
 		data.emplace(dcId, std::vector<Endpoint>(
 			1,
@@ -595,6 +608,8 @@ auto DcOptions::lookup(
 				continue;
 			} else if (type != DcType::MediaDownload
 				&& (flags & Flag::f_media_only)) {
+				continue;
+			} else if (!ValidateSecret(endpoint.secret)) {
 				continue;
 			}
 			const auto address = (flags & Flag::f_ipv6)

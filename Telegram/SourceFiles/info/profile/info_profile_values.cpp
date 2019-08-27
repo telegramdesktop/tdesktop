@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "observer_peer.h"
 #include "core/application.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
@@ -98,7 +98,7 @@ rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user) {
 
 rpl::producer<QString> PlainAboutValue(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
-		if (!user->botInfo) {
+		if (!user->isBot()) {
 			return rpl::single(QString());
 		}
 	}
@@ -274,6 +274,21 @@ rpl::producer<int> RestrictionsCountValue(not_null<PeerData*> peer) {
 		});
 	}
 	Unexpected("User in RestrictionsCountValue().");
+}
+
+rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
+		not_null<PeerData*> peer) {
+	using Flag = Notify::PeerUpdate::Flag;
+	if (const auto chat = peer->asChat()) {
+		return Notify::PeerUpdateValue(
+			chat,
+			Flag::MigrationChanged
+		) | rpl::map([=] {
+			return chat->migrateToOrMe();
+		});
+	} else {
+		return rpl::single(peer);
+	}
 }
 
 rpl::producer<int> RestrictedCountValue(not_null<ChannelData*> channel) {

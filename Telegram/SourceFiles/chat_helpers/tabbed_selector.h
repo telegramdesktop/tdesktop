@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
 #include "mtproto/sender.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace InlineBots {
 class Result;
@@ -55,6 +55,9 @@ public:
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		Mode mode = Mode::Full);
+	~TabbedSelector();
+
+	Main::Session &session() const;
 
 	rpl::producer<EmojiPtr> emojiChosen() const;
 	rpl::producer<not_null<DocumentData*>> fileChosen() const;
@@ -98,8 +101,6 @@ public:
 	auto showRequests() const {
 		return _showRequests.events();
 	}
-
-	~TabbedSelector();
 
 	class Inner;
 	class InnerFooter;
@@ -146,9 +147,7 @@ private:
 	};
 
 	bool full() const;
-	Tab createTab(
-		SelectorTab type,
-		not_null<Window::SessionController*> controller);
+	Tab createTab(SelectorTab type);
 
 	void paintSlideFrame(Painter &p);
 	void paintContent(Painter &p);
@@ -184,6 +183,8 @@ private:
 	not_null<EmojiListWidget*> emoji() const;
 	not_null<StickersListWidget*> stickers() const;
 	not_null<GifsListWidget*> gifs() const;
+
+	const not_null<Window::SessionController*> _controller;
 
 	Mode _mode = Mode::Full;
 	int _roundRadius = 0;

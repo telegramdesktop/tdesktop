@@ -25,7 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_button.h"
 #include "lang/lang_keys.h"
-#include "auth_session.h"
+#include "main/main_session.h"
+#include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "core/file_utilities.h"
 #include "styles/style_boxes.h"
@@ -79,7 +80,9 @@ void SetupPhoto(
 				Box<PhotoCropBox>(image, tr::lng_settings_crop_profile(tr::now)));
 			box->ready(
 			) | rpl::start_with_next([=](QImage &&image) {
-				Auth().api().uploadPeerPhoto(self, std::move(image));
+				self->session().api().uploadPeerPhoto(
+					self,
+					std::move(image));
 			}, box->lifetime());
 		};
 		FileDialog::GetOpenPath(
@@ -214,6 +217,8 @@ void AddRow(
 void SetupRows(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<UserData*> self) {
+	const auto session = &self->session();
+
 	AddSkip(container);
 
 	AddRow(
@@ -229,7 +234,7 @@ void SetupRows(
 		tr::lng_settings_phone_label(),
 		Info::Profile::PhoneValue(self),
 		tr::lng_profile_copy_phone(tr::now),
-		[] { Ui::show(Box<ChangePhoneBox>()); },
+		[=] { Ui::show(Box<ChangePhoneBox>(session)); },
 		st::settingsInfoPhone);
 
 	auto username = Info::Profile::UsernameValue(self);
@@ -264,7 +269,7 @@ void SetupRows(
 		std::move(label),
 		std::move(value),
 		tr::lng_context_copy_mention(tr::now),
-		[=] { Ui::show(Box<UsernameBox>()); },
+		[=] { Ui::show(Box<UsernameBox>(session)); },
 		st::settingsInfoUsername);
 
 	AddSkip(container, st::settingsInfoAfterSkip);
@@ -333,7 +338,7 @@ BioManager SetupBio(
 		countdown->setText(QString::number(countLeft));
 	};
 	const auto save = [=](FnMut<void()> done) {
-		Auth().api().saveSelfBio(
+		self->session().api().saveSelfBio(
 			TextUtilities::PrepareForSending(bio->getLastText()),
 			std::move(done));
 	};
@@ -385,8 +390,12 @@ BioManager SetupBio(
 	});
 	QObject::connect(bio, &Ui::InputField::changed, updated);
 	bio->setInstantReplaces(Ui::InstantReplaces::Default());
-	bio->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
-	Ui::Emoji::SuggestionsController::Init(container->window(), bio);
+	bio->setInstantReplacesEnabled(
+		self->session().settings().replaceEmojiValue());
+	Ui::Emoji::SuggestionsController::Init(
+		container->window(),
+		bio,
+		&self->session());
 	updated();
 
 	container->add(
@@ -408,10 +417,8 @@ BioManager SetupBio(
 
 Information::Information(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller,
-	not_null<UserData*> self)
-: Section(parent)
-, _self(self) {
+	not_null<Window::SessionController*> controller)
+: Section(parent) {
 	setupContent(controller);
 }
 
@@ -423,13 +430,15 @@ Information::Information(
 //	_save(std::move(done));
 //}
 
-void Information::setupContent(not_null<Window::SessionController*> controller) {
+void Information::setupContent(
+		not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	SetupPhoto(content, controller, _self);
-	SetupRows(content, _self);
-	SetupBio(content, _self);
-	//auto manager = SetupBio(content, _self);
+	const auto self = controller->session().user();
+	SetupPhoto(content, controller, self);
+	SetupRows(content, self);
+	SetupBio(content, self);
+	//auto manager = SetupBio(content, self);
 	//_canSaveChanges = std::move(manager.canSave);
 	//_save = std::move(manager.save);
 

@@ -68,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/variant.h"
 #include "base/optional.h"
 #include "base/algorithm.h"
+#include "base/invoke_queued.h"
 #include "base/flat_set.h"
 #include "base/flat_map.h"
 #include "base/weak_ptr.h"

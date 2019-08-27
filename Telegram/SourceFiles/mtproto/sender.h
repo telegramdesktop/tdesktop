@@ -54,15 +54,18 @@ class Sender {
 			DoneHandler(not_null<Sender*> sender, Callback handler) : _sender(sender), _handler(std::move(handler)) {
 			}
 
-			void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
+			bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 				auto handler = std::move(_handler);
 				_sender->senderRequestHandled(requestId);
 
+				auto result = Response();
+				if (!result.read(from, end)) {
+					return false;
+				}
 				if (handler) {
-					auto result = Response();
-					result.read(from, end);
 					Policy::handle(std::move(handler), requestId, std::move(result));
 				}
+				return true;
 			}
 
 		private:

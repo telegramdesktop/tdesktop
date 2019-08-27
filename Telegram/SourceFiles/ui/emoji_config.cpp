@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 #include "base/openssl_help.h"
 #include "base/parse_helper.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace Ui {
 namespace Emoji {
@@ -61,26 +61,6 @@ private:
 
 };
 
-class UniversalImages {
-public:
-	explicit UniversalImages(int id);
-
-	int id() const;
-	bool ensureLoaded();
-	void clear();
-
-	void draw(QPainter &p, EmojiPtr emoji, int size, int x, int y) const;
-
-	// This method must be thread safe and so it is called after
-	// the _id value is fixed and all _sprites are loaded.
-	QImage generate(int size, int index) const;
-
-private:
-	int _id = 0;
-	std::vector<QImage> _sprites;
-
-};
-
 auto SizeNormal = -1;
 auto SizeLarge = -1;
 auto SpritesCount = -1;
@@ -88,6 +68,7 @@ auto SpritesCount = -1;
 auto InstanceNormal = std::unique_ptr<Instance>();
 auto InstanceLarge = std::unique_ptr<Instance>();
 auto Universal = std::shared_ptr<UniversalImages>();
+auto CanClearUniversal = false;
 auto Updates = rpl::event_stream<>();
 auto UpdatesRecent = rpl::event_stream<>();
 
@@ -168,6 +149,7 @@ void SwitchToSetPrepared(int id, std::shared_ptr<UniversalImages> images) {
 		stream << qint32(id);
 	}
 	Universal = std::move(images);
+	CanClearUniversal = false;
 	MainEmojiMap.clear();
 	OtherEmojiMap.clear();
 	Updates.fire({});
@@ -359,6 +341,74 @@ std::vector<QImage> LoadAndValidateSprites(int id) {
 	return result;
 }
 
+void AppendPartToResult(TextWithEntities &result, const QChar *start, const QChar *from, const QChar *to) {
+	if (to <= from) {
+		return;
+	}
+	for (auto &entity : result.entities) {
+		if (entity.offset() >= to - start) break;
+		if (entity.offset() + entity.length() < from - start) continue;
+		if (entity.offset() >= from - start) {
+			entity.extendToLeft(from - start - result.text.size());
+		}
+		if (entity.offset() + entity.length() <= to - start) {
+			entity.shrinkFromRight(from - start - result.text.size());
+		}
+	}
+	result.text.append(from, to - from);
+}
+
+bool IsReplacementPart(ushort ch) {
+	return (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || (ch == '-') || (ch == '+') || (ch == '_');
+}
+
+EmojiPtr FindReplacement(const QChar *start, const QChar *end, int *outLength) {
+	if (start != end && *start == ':') {
+		auto maxLength = GetSuggestionMaxLength();
+		for (auto till = start + 1; till != end; ++till) {
+			if (*till == ':') {
+				auto text = QString::fromRawData(start, till + 1 - start);
+				auto emoji = GetSuggestionEmoji(QStringToUTF16(text));
+				auto result = Find(QStringFromUTF16(emoji));
+				if (result) {
+					if (outLength) *outLength = (till + 1 - start);
+				}
+				return result;
+			} else if (!IsReplacementPart(till->unicode()) || (till - start) > maxLength) {
+				break;
+			}
+		}
+	}
+	return internal::FindReplace(start, end, outLength);
+}
+
+void ClearUniversalChecked() {
+	Expects(InstanceNormal != nullptr && InstanceLarge != nullptr);
+
+	if (CanClearUniversal
+		&& Universal
+		&& InstanceNormal->cached()
+		&& InstanceLarge->cached()) {
+		Universal->clear();
+	}
+}
+
+} // namespace
+
+namespace internal {
+
+QString CacheFileFolder() {
+	return cWorkingDir() + "tdata/emoji";
+}
+
+QString SetDataPath(int id) {
+	Expects(IsValidSetId(id) && id != 0);
+
+	return CacheFileFolder() + "/set" + QString::number(id);
+}
+
+} // namespace internal
+
 UniversalImages::UniversalImages(int id) : _id(id) {
 	Expects(IsValidSetId(id));
 }
@@ -452,71 +502,6 @@ QImage UniversalImages::generate(int size, int index) const {
 	return result;
 }
 
-void AppendPartToResult(TextWithEntities &result, const QChar *start, const QChar *from, const QChar *to) {
-	if (to <= from) {
-		return;
-	}
-	for (auto &entity : result.entities) {
-		if (entity.offset() >= to - start) break;
-		if (entity.offset() + entity.length() < from - start) continue;
-		if (entity.offset() >= from - start) {
-			entity.extendToLeft(from - start - result.text.size());
-		}
-		if (entity.offset() + entity.length() <= to - start) {
-			entity.shrinkFromRight(from - start - result.text.size());
-		}
-	}
-	result.text.append(from, to - from);
-}
-
-bool IsReplacementPart(ushort ch) {
-	return (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || (ch == '-') || (ch == '+') || (ch == '_');
-}
-
-EmojiPtr FindReplacement(const QChar *start, const QChar *end, int *outLength) {
-	if (start != end && *start == ':') {
-		auto maxLength = GetSuggestionMaxLength();
-		for (auto till = start + 1; till != end; ++till) {
-			if (*till == ':') {
-				auto text = QString::fromRawData(start, till + 1 - start);
-				auto emoji = GetSuggestionEmoji(QStringToUTF16(text));
-				auto result = Find(QStringFromUTF16(emoji));
-				if (result) {
-					if (outLength) *outLength = (till + 1 - start);
-				}
-				return result;
-			} else if (!IsReplacementPart(till->unicode()) || (till - start) > maxLength) {
-				break;
-			}
-		}
-	}
-	return internal::FindReplace(start, end, outLength);
-}
-
-void ClearUniversalChecked() {
-	Expects(InstanceNormal != nullptr && InstanceLarge != nullptr);
-
-	if (InstanceNormal->cached() && InstanceLarge->cached() && Universal) {
-		Universal->clear();
-	}
-}
-
-} // namespace
-
-namespace internal {
-
-QString CacheFileFolder() {
-	return cWorkingDir() + "tdata/emoji";
-}
-
-QString SetDataPath(int id) {
-	Expects(IsValidSetId(id) && id != 0);
-
-	return CacheFileFolder() + "/set" + QString::number(id);
-}
-
-} // namespace internal
-
 void Init() {
 	internal::Init();
 
@@ -527,6 +512,7 @@ void Init() {
 	SizeNormal = ConvertScale(18, cScale() * cIntRetinaFactor());
 	SizeLarge = int(ConvertScale(18 * 4 / 3., cScale() * cIntRetinaFactor()));
 	Universal = std::make_shared<UniversalImages>(ReadCurrentSetId());
+	CanClearUniversal = false;
 
 	InstanceNormal = std::make_unique<Instance>(SizeNormal);
 	InstanceLarge = std::make_unique<Instance>(SizeLarge);
@@ -1025,6 +1011,25 @@ void Instance::generateCache() {
 void Instance::pushSprite(QImage &&data) {
 	_sprites.push_back(App::pixmapFromImageInPlace(std::move(data)));
 	_sprites.back().setDevicePixelRatio(cRetinaFactor());
+}
+
+const std::shared_ptr<UniversalImages> &SourceImages() {
+	return Universal;
+}
+
+void ClearSourceImages(const std::shared_ptr<UniversalImages> &images) {
+	if (images == Universal) {
+		CanClearUniversal = true;
+		ClearUniversalChecked();
+	}
+}
+
+void ReplaceSourceImages(std::shared_ptr<UniversalImages> images) {
+	Expects(images != nullptr);
+
+	if (Universal->id() == images->id()) {
+		Universal = std::move(images);
+	}
 }
 
 } // namespace Emoji

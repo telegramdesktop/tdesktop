@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
 #include "platform/platform_specific.h"
@@ -430,7 +430,8 @@ void Panel::initLayout() {
 	) | rpl::start_with_next(
 		[this] { processUserPhoto(); },
 		lifetime());
-	subscribe(Auth().downloaderTaskFinished(), [this] {
+
+	subscribe(_user->session().downloaderTaskFinished(), [=] {
 		refreshUserPhoto();
 	});
 	createDefaultCacheImage();

@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/info_linux.h"
 
+#include <QLocale>
+
 namespace Platform {
 
 QString DeviceModelPretty() {
@@ -25,11 +27,15 @@ QString SystemVersionPretty() {
 }
 
 QString SystemCountry() {
-	return QString();
+	return QLocale::system().name().split('_').last();
 }
 
 QString SystemLanguage() {
-	return QString();
+	const auto system = QLocale::system();
+	const auto languages = system.uiLanguages();
+	return languages.isEmpty()
+		? system.name().split('_').first()
+		: languages.front();
 }
 
 QDate WhenSystemBecomesOutdated() {

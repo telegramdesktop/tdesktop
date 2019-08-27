@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Data {
 namespace AutoDownload {
 enum class Source;
@@ -17,13 +21,18 @@ enum class Source;
 
 class AutoDownloadBox : public BoxContent {
 public:
-	AutoDownloadBox(QWidget*, Data::AutoDownload::Source source);
+	AutoDownloadBox(
+		QWidget*,
+		not_null<Main::Session*> session,
+		Data::AutoDownload::Source source);
 
 protected:
 	void prepare() override;
 
 private:
 	void setupContent();
+
+	const not_null<Main::Session*> _session;
 
 	Data::AutoDownload::Source _source;
 

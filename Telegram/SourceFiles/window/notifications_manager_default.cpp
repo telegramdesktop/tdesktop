@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_window.h"
 #include "storage/file_download.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "platform/platform_specific.h"
@@ -800,7 +800,8 @@ void Notification::showReplyField() {
 	_replyArea->setMaxLength(MaxMessageSize);
 	_replyArea->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	_replyArea->setInstantReplaces(Ui::InstantReplaces::Default());
-	_replyArea->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	_replyArea->setInstantReplacesEnabled(
+		_item->history()->session().settings().replaceEmojiValue());
 	_replyArea->setMarkdownReplacesEnabled(rpl::single(true));
 
 	// Catch mouse press event to activate the window.

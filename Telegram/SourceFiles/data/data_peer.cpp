@@ -13,11 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
+#include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "boxes/confirm_box.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "core/application.h"
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
@@ -107,7 +108,7 @@ Data::Session &PeerData::owner() const {
 	return *_owner;
 }
 
-AuthSession &PeerData::session() const {
+Main::Session &PeerData::session() const {
 	return _owner->session();
 }
 
@@ -699,6 +700,27 @@ bool PeerData::canRevokeFullHistory() const {
 	return isUser()
 		&& Global::RevokePrivateInbox()
 		&& (Global::RevokePrivateTimeLimit() == 0x7FFFFFFF);
+}
+
+bool PeerData::slowmodeApplied() const {
+	if (const auto channel = asChannel()) {
+		return !channel->amCreator()
+			&& !channel->hasAdminRights()
+			&& (channel->flags() & MTPDchannel::Flag::f_slowmode_enabled);
+	}
+	return false;
+}
+
+int PeerData::slowmodeSecondsLeft() const {
+	if (const auto channel = asChannel()) {
+		if (const auto seconds = channel->slowmodeSeconds()) {
+			if (const auto last = channel->slowmodeLastMessage()) {
+				const auto now = base::unixtime::now();
+				return std::max(seconds - (now - last), 0);
+			}
+		}
+	}
+	return 0;
 }
 
 namespace Data {

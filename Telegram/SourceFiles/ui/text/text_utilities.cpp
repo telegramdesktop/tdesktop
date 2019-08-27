@@ -26,6 +26,10 @@ TextWithEntities Bold(const QString &text) {
 	return WithSingleEntity(text, EntityType::Bold);
 }
 
+TextWithEntities Italic(const QString &text) {
+	return WithSingleEntity(text, EntityType::Italic);
+}
+
 TextWithEntities Link(const QString &text, const QString &url) {
 	return WithSingleEntity(text, EntityType::CustomUrl, url);
 }

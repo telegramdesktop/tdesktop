@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/connection_tcp.h"
 
+#include "mtproto/mtp_abstract_socket.h"
 #include "base/bytes.h"
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
@@ -23,15 +24,13 @@ constexpr auto kPacketSizeMax = int(0x01000000 * sizeof(mtpPrime));
 constexpr auto kFullConnectionTimeout = 8 * crl::time(1000);
 constexpr auto kSmallBufferSize = 256 * 1024;
 constexpr auto kMinPacketBuffer = 256;
-
-using ErrorSignal = void(QTcpSocket::*)(QAbstractSocket::SocketError);
-const auto QTcpSocket_error = ErrorSignal(&QAbstractSocket::error);
+constexpr auto kConnectionStartPrefixSize = 64;
 
 } // namespace
 
 class TcpConnection::Protocol {
 public:
-	static std::unique_ptr<Protocol> Create(bytes::vector &&secret);
+	static std::unique_ptr<Protocol> Create(bytes::const_span secret);
 
 	virtual uint32 id() const = 0;
 	virtual bool supportsArbitraryLength() const = 0;
@@ -224,48 +223,32 @@ bytes::const_span TcpConnection::Protocol::VersionD::readPacket(
 	return bytes.subspan(sizeLength, size - sizeLength);
 }
 
-auto TcpConnection::Protocol::Create(bytes::vector &&secret)
+auto TcpConnection::Protocol::Create(bytes::const_span secret)
 -> std::unique_ptr<Protocol> {
-	if (secret.size() == 17 && static_cast<uchar>(secret[0]) == 0xDD) {
+	// See also DcOptions::ValidateSecret.
+	if ((secret.size() >= 21 && secret[0] == bytes::type(0xEE))
+		|| (secret.size() == 17 && secret[0] == bytes::type(0xDD))) {
 		return std::make_unique<VersionD>(
-			bytes::make_vector(bytes::make_span(secret).subspan(1)));
+			bytes::make_vector(secret.subspan(1, 16)));
 	} else if (secret.size() == 16) {
-		return std::make_unique<Version1>(std::move(secret));
+		return std::make_unique<Version1>(bytes::make_vector(secret));
 	} else if (secret.empty()) {
 		return std::make_unique<Version0>();
 	}
 	Unexpected("Secret bytes in TcpConnection::Protocol::Create.");
 }
 
-TcpConnection::TcpConnection(QThread *thread, const ProxyData &proxy)
+TcpConnection::TcpConnection(
+	not_null<Instance*> instance,
+	QThread *thread,
+	const ProxyData &proxy)
 : AbstractConnection(thread, proxy)
+, _instance(instance)
 , _checkNonce(rand_value<MTPint128>()) {
-	_socket.moveToThread(thread);
-	_socket.setProxy(ToNetworkProxy(proxy));
-	connect(
-		&_socket,
-		&QTcpSocket::connected,
-		this,
-		&TcpConnection::socketConnected);
-	connect(
-		&_socket,
-		&QTcpSocket::disconnected,
-		this,
-		&TcpConnection::socketDisconnected);
-	connect(
-		&_socket,
-		&QTcpSocket::readyRead,
-		this,
-		&TcpConnection::socketRead);
-	connect(
-		&_socket,
-		QTcpSocket_error,
-		this,
-		&TcpConnection::socketError);
 }
 
 ConnectionPointer TcpConnection::clone(const ProxyData &proxy) {
-	return ConnectionPointer::New<TcpConnection>(thread(), proxy);
+	return ConnectionPointer::New<TcpConnection>(_instance, thread(), proxy);
 }
 
 void TcpConnection::ensureAvailableInBuffer(int amount) {
@@ -299,10 +282,8 @@ void TcpConnection::ensureAvailableInBuffer(int amount) {
 void TcpConnection::socketRead() {
 	Expects(_leftBytes > 0 || !_usingLargeBuffer);
 
-	if (_socket.state() != QAbstractSocket::ConnectedState) {
-		LOG(("MTP error: "
-			"socket not connected in socketRead(), state: %1"
-			).arg(_socket.state()));
+	if (!_socket || !_socket->isConnected()) {
+		LOG(("MTP Error: Socket not connected in socketRead()"));
 		emit error(kErrorCodeOther);
 		return;
 	}
@@ -319,11 +300,7 @@ void TcpConnection::socketRead() {
 		auto &buffer = _usingLargeBuffer ? _largeBuffer : _smallBuffer;
 		const auto full = bytes::make_span(buffer).subspan(_offsetBytes);
 		const auto free = full.subspan(_readBytes);
-		Assert(free.size() >= readLimit);
-
-		const auto readCount = _socket.read(
-			reinterpret_cast<char*>(free.data()),
-			readLimit);
+		const auto readCount = _socket->read(free.subspan(0, readLimit));
 		if (readCount > 0) {
 			const auto read = free.subspan(0, readCount);
 			aesCtrEncrypt(read, _receiveKey, &_receiveState);
@@ -335,6 +312,10 @@ void TcpConnection::socketRead() {
 				_leftBytes -= readCount;
 				if (!_leftBytes) {
 					socketPacket(full.subspan(0, _readBytes));
+					if (!_socket || !_socket->isConnected()) {
+						return;
+					}
+
 					_usingLargeBuffer = false;
 					_largeBuffer.clear();
 					_offsetBytes = _readBytes = 0;
@@ -359,6 +340,10 @@ void TcpConnection::socketRead() {
 						return;
 					} else if (available.size() >= packetSize) {
 						socketPacket(available.subspan(0, packetSize));
+						if (!_socket || !_socket->isConnected()) {
+							return;
+						}
+
 						available = available.subspan(packetSize);
 						_offsetBytes += packetSize;
 						_readBytes -= packetSize;
@@ -389,7 +374,9 @@ void TcpConnection::socketRead() {
 			TCP_LOG(("TCP Info: no bytes read, but bytes available was true..."));
 			break;
 		}
-	} while (_socket.state() == QAbstractSocket::ConnectedState && _socket.bytesAvailable());
+	} while (_socket
+		&& _socket->isConnected()
+		&& _socket->hasBytesAvailable());
 }
 
 mtpBuffer TcpConnection::parsePacket(bytes::const_span bytes) {
@@ -416,45 +403,6 @@ mtpBuffer TcpConnection::parsePacket(bytes::const_span bytes) {
 	auto result = mtpBuffer(ints.size());
 	memcpy(result.data(), ints.data(), ints.size() * sizeof(mtpPrime));
 	return result;
-}
-
-void TcpConnection::handleError(QAbstractSocket::SocketError e, QTcpSocket &socket) {
-	switch (e) {
-	case QAbstractSocket::ConnectionRefusedError:
-	LOG(("TCP Error: socket connection refused - %1").arg(socket.errorString()));
-	break;
-
-	case QAbstractSocket::RemoteHostClosedError:
-	TCP_LOG(("TCP Info: remote host closed socket connection - %1").arg(socket.errorString()));
-	break;
-
-	case QAbstractSocket::HostNotFoundError:
-	LOG(("TCP Error: host not found - %1").arg(socket.errorString()));
-	break;
-
-	case QAbstractSocket::SocketTimeoutError:
-	LOG(("TCP Error: socket timeout - %1").arg(socket.errorString()));
-	break;
-
-	case QAbstractSocket::NetworkError:
-	LOG(("TCP Error: network - %1").arg(socket.errorString()));
-	break;
-
-	case QAbstractSocket::ProxyAuthenticationRequiredError:
-	case QAbstractSocket::ProxyConnectionRefusedError:
-	case QAbstractSocket::ProxyConnectionClosedError:
-	case QAbstractSocket::ProxyConnectionTimeoutError:
-	case QAbstractSocket::ProxyNotFoundError:
-	case QAbstractSocket::ProxyProtocolError:
-	LOG(("TCP Error: proxy (%1) - %2").arg(e).arg(socket.errorString()));
-	break;
-
-	default:
-	LOG(("TCP Error: other (%1) - %2").arg(e).arg(socket.errorString()));
-	break;
-	}
-
-	TCP_LOG(("TCP Error %1, restarting! - %2").arg(e).arg(socket.errorString()));
 }
 
 void TcpConnection::socketConnected() {
@@ -486,37 +434,36 @@ bool TcpConnection::requiresExtendedPadding() const {
 void TcpConnection::sendData(mtpBuffer &&buffer) {
 	Expects(buffer.size() > 2);
 
-	if (_status != Status::Finished) {
-		sendBuffer(std::move(buffer));
+	if (!_socket) {
+		return;
 	}
+	char connectionStartPrefixBytes[kConnectionStartPrefixSize];
+	const auto connectionStartPrefix = prepareConnectionStartPrefix(
+		bytes::make_span(connectionStartPrefixBytes));
+
+	// buffer: 2 available int-s + data + available int.
+	const auto bytes = _protocol->finalizePacket(buffer);
+	TCP_LOG(("TCP Info: write packet %1 bytes").arg(bytes.size()));
+	aesCtrEncrypt(bytes, _sendKey, &_sendState);
+	_socket->write(connectionStartPrefix, bytes);
 }
 
-void TcpConnection::writeConnectionStart() {
+bytes::const_span TcpConnection::prepareConnectionStartPrefix(
+		bytes::span buffer) {
+	Expects(_socket != nullptr);
 	Expects(_protocol != nullptr);
 
-	// prepare random part
-	auto nonceBytes = bytes::vector(64);
-	const auto nonce = bytes::make_span(nonceBytes);
+	if (_connectionStarted) {
+		return {};
+	}
+	_connectionStarted = true;
 
-	const auto zero = reinterpret_cast<uchar*>(nonce.data());
-	const auto first = reinterpret_cast<uint32*>(nonce.data());
-	const auto second = first + 1;
-	const auto reserved01 = 0x000000EFU;
-	const auto reserved11 = 0x44414548U;
-	const auto reserved12 = 0x54534F50U;
-	const auto reserved13 = 0x20544547U;
-	const auto reserved14 = 0xEEEEEEEEU;
-	const auto reserved15 = 0xDDDDDDDDU;
-	const auto reserved21 = 0x00000000U;
+	// prepare random part
+	char nonceBytes[64];
+	const auto nonce = bytes::make_span(nonceBytes);
 	do {
 		bytes::set_random(nonce);
-	} while (*zero == reserved01
-		|| *first == reserved11
-		|| *first == reserved12
-		|| *first == reserved13
-		|| *first == reserved14
-		|| *first == reserved15
-		|| *second == reserved21);
+	} while (!_socket->isGoodStartNonce(nonce));
 
 	// prepare encryption key/iv
 	_protocol->prepareKey(
@@ -544,36 +491,21 @@ void TcpConnection::writeConnectionStart() {
 	const auto dcId = reinterpret_cast<int16*>(nonce.data() + 60);
 	*dcId = _protocolDcId;
 
-	_socket.write(reinterpret_cast<const char*>(nonce.data()), 56);
+	bytes::copy(buffer, nonce.subspan(0, 56));
 	aesCtrEncrypt(nonce, _sendKey, &_sendState);
-	_socket.write(reinterpret_cast<const char*>(nonce.subspan(56).data()), 8);
+	bytes::copy(buffer.subspan(56), nonce.subspan(56));
+
+	return buffer;
 }
-
-void TcpConnection::sendBuffer(mtpBuffer &&buffer) {
-	if (!_connectionStarted) {
-		writeConnectionStart();
-		_connectionStarted = true;
-	}
-
-	// buffer: 2 available int-s + data + available int.
-	const auto bytes = _protocol->finalizePacket(buffer);
-	TCP_LOG(("TCP Info: write packet %1 bytes").arg(bytes.size()));
-	aesCtrEncrypt(bytes, _sendKey, &_sendState);
-	_socket.write(
-		reinterpret_cast<const char*>(bytes.data()),
-		bytes.size());
-}
-
 
 void TcpConnection::disconnectFromServer() {
-	if (_status == Status::Finished) return;
+	if (_status == Status::Finished) {
+		return;
+	}
 	_status = Status::Finished;
-
-	disconnect(&_socket, &QTcpSocket::connected, nullptr, nullptr);
-	disconnect(&_socket, &QTcpSocket::disconnected, nullptr, nullptr);
-	disconnect(&_socket, &QTcpSocket::readyRead, nullptr, nullptr);
-	disconnect(&_socket, QTcpSocket_error, nullptr, nullptr);
-	_socket.close();
+	_connectedLifetime.destroy();
+	_lifetime.destroy();
+	_socket = nullptr;
 }
 
 void TcpConnection::connectToServer(
@@ -586,10 +518,13 @@ void TcpConnection::connectToServer(
 	Expects(_protocol == nullptr);
 	Expects(_protocolDcId == 0);
 
+	const auto secret = (_proxy.type == ProxyData::Type::Mtproto)
+		? _proxy.secretFromMtprotoPassword()
+		: protocolSecret;
 	if (_proxy.type == ProxyData::Type::Mtproto) {
 		_address = _proxy.host;
 		_port = _proxy.port;
-		_protocol = Protocol::Create(_proxy.secretFromMtprotoPassword());
+		_protocol = Protocol::Create(secret);
 
 		DEBUG_LOG(("TCP Info: "
 			"dc:%1 - Connecting to proxy '%2'"
@@ -598,16 +533,45 @@ void TcpConnection::connectToServer(
 	} else {
 		_address = address;
 		_port = port;
-		_protocol = Protocol::Create(base::duplicate(protocolSecret));
+		_protocol = Protocol::Create(secret);
 
 		DEBUG_LOG(("TCP Info: "
 			"dc:%1 - Connecting to '%2'"
 			).arg(protocolDcId
 			).arg(_address + ':' + QString::number(_port)));
 	}
+	_socket = AbstractSocket::Create(
+		thread(),
+		secret,
+		ToNetworkProxy(_proxy));
 	_protocolDcId = protocolDcId;
 
-	_socket.connectToHost(_address, _port);
+	_socket->connected(
+	) | rpl::start_with_next([=] {
+		socketConnected();
+	}, _connectedLifetime);
+
+	_socket->disconnected(
+	) | rpl::start_with_next([=] {
+		socketDisconnected();
+	}, _lifetime);
+
+	_socket->readyRead(
+	) | rpl::start_with_next([=] {
+		socketRead();
+	}, _lifetime);
+
+	_socket->error(
+	) | rpl::start_with_next([=] {
+		socketError();
+	}, _lifetime);
+
+	_socket->syncTimeRequests(
+	) | rpl::start_with_next([=] {
+		emit syncTimeRequest();
+	}, _lifetime);
+
+	_socket->connectToHost(_address, _port);
 }
 
 crl::time TcpConnection::pingTime() const {
@@ -619,7 +583,7 @@ crl::time TcpConnection::fullConnectTimeout() const {
 }
 
 void TcpConnection::socketPacket(bytes::const_span bytes) {
-	if (_status == Status::Finished) return;
+	Expects(_socket != nullptr);
 
 	// old quickack?..
 	const auto data = parsePacket(bytes);
@@ -635,17 +599,12 @@ void TcpConnection::socketPacket(bytes::const_span bytes) {
 		_receivedQueue.push_back(data);
 		emit receivedData();
 	} else if (_status == Status::Waiting) {
-		try {
-			const auto res_pq = readPQFakeReply(data);
-			const auto &data = res_pq.c_resPQ();
+		if (const auto res_pq = readPQFakeReply(data)) {
+			const auto &data = res_pq->c_resPQ();
 			if (data.vnonce() == _checkNonce) {
 				DEBUG_LOG(("Connection Info: Valid pq response by TCP."));
 				_status = Status::Ready;
-				disconnect(
-					&_socket,
-					&QTcpSocket::connected,
-					nullptr,
-					nullptr);
+				_connectedLifetime.destroy();
 				_pingTime = (crl::now() - _pingTime);
 				emit connected();
 			} else {
@@ -653,12 +612,17 @@ void TcpConnection::socketPacket(bytes::const_span bytes) {
 					"Wrong nonce received in TCP fake pq-responce"));
 				emit error(kErrorCodeOther);
 			}
-		} catch (Exception &e) {
+		} else {
 			DEBUG_LOG(("Connection Error: "
-				"Exception in parsing TCP fake pq-responce, %1"
-				).arg(e.what()));
+				"Could not parse TCP fake pq-responce"));
 			emit error(kErrorCodeOther);
 		}
+	}
+}
+
+void TcpConnection::timedOut() {
+	if (_socket) {
+		_socket->timedOut();
 	}
 }
 
@@ -667,7 +631,7 @@ bool TcpConnection::isConnected() const {
 }
 
 int32 TcpConnection::debugState() const {
-	return _socket.state();
+	return _socket ? _socket->debugState() : -1;
 }
 
 QString TcpConnection::transport() const {
@@ -691,10 +655,11 @@ QString TcpConnection::tag() const {
 	return result;
 }
 
-void TcpConnection::socketError(QAbstractSocket::SocketError e) {
-	if (_status == Status::Finished) return;
+void TcpConnection::socketError() {
+	if (!_socket) {
+		return;
+	}
 
-	handleError(e, _socket);
 	emit error(kErrorCodeOther);
 }
 

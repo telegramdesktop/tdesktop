@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "mainwindow.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 
 namespace {
@@ -25,8 +25,13 @@ constexpr auto kRateCallCommentLengthMax = 200;
 
 } // namespace
 
-RateCallBox::RateCallBox(QWidget*, uint64 callId, uint64 callAccessHash)
-: _callId(callId)
+RateCallBox::RateCallBox(
+	QWidget*,
+	not_null<Main::Session*> session,
+	uint64 callId,
+	uint64 callAccessHash)
+: _session(session)
+, _callId(callId)
 , _callAccessHash(callAccessHash) {
 }
 
@@ -35,7 +40,7 @@ void RateCallBox::prepare() {
 	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
 	for (auto i = 0; i < kMaxRating; ++i) {
-		_stars.push_back(object_ptr<Ui::IconButton>(this, st::callRatingStar));
+		_stars.emplace_back(this, st::callRatingStar);
 		_stars.back()->setClickedCallback([this, value = i + 1] { ratingChanged(value); });
 		_stars.back()->show();
 	}
@@ -121,7 +126,7 @@ void RateCallBox::send() {
 		MTP_int(_rating),
 		MTP_string(comment)
 	)).done([=](const MTPUpdates &updates) {
-		Auth().api().applyUpdates(updates);
+		_session->api().applyUpdates(updates);
 		closeBox();
 	}).fail([=](const RPCError &error) { closeBox(); }).send();
 }

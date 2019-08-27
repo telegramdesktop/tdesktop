@@ -118,8 +118,10 @@ void ComputeInstallationTag() {
 		file.close();
 	}
 	if (!InstallationTag) {
+		auto generator = std::mt19937(std::random_device()());
+		auto distribution = std::uniform_int_distribution<uint64>();
 		do {
-			memsetrnd_bad(InstallationTag);
+			InstallationTag = distribution(generator);
 		} while (!InstallationTag);
 
 		if (file.open(QIODevice::WriteOnly)) {

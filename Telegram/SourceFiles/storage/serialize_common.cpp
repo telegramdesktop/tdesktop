@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/serialize_common.h"
 
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -123,7 +123,7 @@ void writePeer(QDataStream &stream, PeerData *peer) {
 			stream << qint32(user->flags());
 		}
 		if (AppVersion >= 9016) {
-			const auto botInlinePlaceholder = user->botInfo
+			const auto botInlinePlaceholder = user->isBot()
 				? user->botInfo->inlinePlaceholder
 				: QString();
 			stream << botInlinePlaceholder;
@@ -131,7 +131,7 @@ void writePeer(QDataStream &stream, PeerData *peer) {
 		stream
 			<< qint32(user->onlineTill)
 			<< qint32(user->isContact() ? 1 : 0)
-			<< qint32(user->botInfo ? user->botInfo->version : -1);
+			<< qint32(user->isBot() ? user->botInfo->version : -1);
 	} else if (const auto chat = peer->asChat()) {
 		stream
 			<< chat->name
@@ -203,7 +203,7 @@ PeerData *readPeer(int streamAppVersion, QDataStream &stream) {
 			user->onlineTill = onlineTill;
 			user->setIsContact(contact == 1);
 			user->setBotInfoVersion(botInfoVersion);
-			if (!inlinePlaceholder.isEmpty() && user->botInfo) {
+			if (!inlinePlaceholder.isEmpty() && user->isBot()) {
 				user->botInfo->inlinePlaceholder = inlinePlaceholder;
 			}
 

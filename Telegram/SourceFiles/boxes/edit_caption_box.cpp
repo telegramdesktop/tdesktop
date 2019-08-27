@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/edit_caption_box.h"
 
 #include "apiwrap.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_panel.h"
@@ -232,7 +232,7 @@ EditCaptionBox::EditCaptionBox(
 	_thumbnailImageLoaded = _thumbnailImage
 		? _thumbnailImage->loaded()
 		: true;
-	subscribe(Auth().downloaderTaskFinished(), [=] {
+	subscribe(_controller->session().downloaderTaskFinished(), [=] {
 		if (!_thumbnailImageLoaded
 			&& _thumbnailImage
 			&& _thumbnailImage->loaded()) {
@@ -254,9 +254,11 @@ EditCaptionBox::EditCaptionBox(
 	_field->setMaxLength(Global::CaptionLengthMax());
 	_field->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
-	_field->setInstantReplacesEnabled(Global::ReplaceEmojiValue());
+	_field->setInstantReplacesEnabled(
+		_controller->session().settings().replaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
-	_field->setEditLinkCallback(DefaultEditLinkCallback(_field));
+	_field->setEditLinkCallback(
+		DefaultEditLinkCallback(&_controller->session(), _field));
 
 	auto r = object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 		this,
@@ -627,7 +629,8 @@ void EditCaptionBox::prepare() {
 	});
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
-		_field);
+		_field,
+		&_controller->session());
 
 	setupEmojiPanel();
 
@@ -876,7 +879,7 @@ void EditCaptionBox::setInnerFocus() {
 void EditCaptionBox::save() {
 	if (_saveRequestId) return;
 
-	const auto item = Auth().data().message(_msgId);
+	const auto item = _controller->session().data().message(_msgId);
 	if (!item) {
 		_error = tr::lng_edit_deleted(tr::now);
 		update();
@@ -894,7 +897,7 @@ void EditCaptionBox::save() {
 	};
 	const auto prepareFlags = Ui::ItemTextOptions(
 		item->history(),
-		Auth().user()).flags;
+		_controller->session().user()).flags;
 	TextUtilities::PrepareForSending(sending, prepareFlags);
 	TextUtilities::Trim(sending);
 
@@ -913,7 +916,7 @@ void EditCaptionBox::save() {
 		};
 		item->setText(sending);
 
-		Auth().api().editMedia(
+		_controller->session().api().editMedia(
 			std::move(_preparedList),
 			(!_asFile && _photo) ? SendMediaType::Photo : SendMediaType::File,
 			_field->getTextWithAppliedMarkdown(),
@@ -938,21 +941,24 @@ void EditCaptionBox::save() {
 
 void EditCaptionBox::saveDone(const MTPUpdates &updates) {
 	_saveRequestId = 0;
+	const auto controller = _controller;
 	closeBox();
-	Auth().api().applyUpdates(updates);
+	controller->session().api().applyUpdates(updates);
 }
 
 bool EditCaptionBox::saveFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	_saveRequestId = 0;
-	QString err = error.type();
-	if (err == qstr("MESSAGE_ID_INVALID") || err == qstr("CHAT_ADMIN_REQUIRED") || err == qstr("MESSAGE_EDIT_TIME_EXPIRED")) {
+	const auto &type = error.type();
+	if (type == qstr("MESSAGE_ID_INVALID")
+		|| type == qstr("CHAT_ADMIN_REQUIRED")
+		|| type == qstr("MESSAGE_EDIT_TIME_EXPIRED")) {
 		_error = tr::lng_edit_error(tr::now);
-	} else if (err == qstr("MESSAGE_NOT_MODIFIED")) {
+	} else if (type == qstr("MESSAGE_NOT_MODIFIED")) {
 		closeBox();
 		return true;
-	} else if (err == qstr("MESSAGE_EMPTY")) {
+	} else if (type == qstr("MESSAGE_EMPTY")) {
 		_field->setFocus();
 		_field->showError();
 	} else {

@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "observer_peer.h"
 #include "ui/widgets/checkbox.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "history/history.h"
 #include "dialogs/dialogs_main_list.h"
+#include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
 
@@ -29,24 +30,27 @@ namespace {
 void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 	const auto history = chat->owner().historyLoaded(chat);
 	const auto randomId = rand_value<uint64>();
-	const auto requestId = MTP::send(
-		MTPmessages_SendMedia(
-			MTP_flags(0),
-			chat->input,
-			MTP_int(0),
-			MTP_inputMediaGame(
-				MTP_inputGameShortName(
-					bot->inputUser,
-					MTP_string(bot->botInfo->shareGameShortName))),
-			MTP_string(),
-			MTP_long(randomId),
-			MTPReplyMarkup(),
-			MTPVector<MTPMessageEntity>()),
-		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-		App::main()->rpcFail(&MainWidget::sendMessageFail),
-		0,
-		0,
-		history ? history->sendRequestId : 0);
+	const auto api = &chat->session().api();
+	const auto requestId = api->request(MTPmessages_SendMedia(
+		MTP_flags(0),
+		chat->input,
+		MTP_int(0),
+		MTP_inputMediaGame(
+			MTP_inputGameShortName(
+				bot->inputUser,
+				MTP_string(bot->botInfo->shareGameShortName))),
+		MTP_string(),
+		MTP_long(randomId),
+		MTPReplyMarkup(),
+		MTPVector<MTPMessageEntity>()
+	)).done([=](const MTPUpdates &result) {
+		api->applyUpdates(result, randomId);
+	}).fail([=](const RPCError &error) {
+		api->sendMessageFail(error, chat);
+	}).afterRequest(
+		history ? history->sendRequestId : 0
+	).send();
+
 	if (history) {
 		history->sendRequestId = requestId;
 	}
@@ -55,10 +59,10 @@ void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 }
 
 void AddBotToGroup(not_null<UserData*> bot, not_null<PeerData*> chat) {
-	if (bot->botInfo && !bot->botInfo->startGroupToken.isEmpty()) {
-		Auth().api().sendBotStart(bot, chat);
+	if (bot->isBot() && !bot->botInfo->startGroupToken.isEmpty()) {
+		chat->session().api().sendBotStart(bot, chat);
 	} else {
-		Auth().api().addChatParticipants(chat, { 1, bot });
+		chat->session().api().addChatParticipants(chat, { 1, bot });
 	}
 	Ui::hideLayer();
 	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
@@ -133,7 +137,9 @@ void PeerListRowWithLink::paintAction(
 	p.drawTextLeft(x, y, outerWidth, _action, _actionWidth);
 }
 
-PeerListGlobalSearchController::PeerListGlobalSearchController() {
+PeerListGlobalSearchController::PeerListGlobalSearchController(
+	not_null<Window::SessionNavigation*> navigation)
+: _navigation(navigation) {
 	_timer.setCallback([this] { searchOnServer(); });
 }
 
@@ -182,8 +188,8 @@ void PeerListGlobalSearchController::searchDone(
 	auto &contacts = result.c_contacts_found();
 	auto query = _query;
 	if (requestId) {
-		Auth().data().processUsers(contacts.vusers());
-		Auth().data().processChats(contacts.vchats());
+		_navigation->session().data().processUsers(contacts.vusers());
+		_navigation->session().data().processChats(contacts.vchats());
 		auto it = _queries.find(requestId);
 		if (it != _queries.cend()) {
 			query = it->second;
@@ -193,7 +199,9 @@ void PeerListGlobalSearchController::searchDone(
 	}
 	const auto feedList = [&](const MTPVector<MTPPeer> &list) {
 		for (const auto &mtpPeer : list.v) {
-			if (const auto peer = Auth().data().peerLoaded(peerFromMTP(mtpPeer))) {
+			const auto peer = _navigation->session().data().peerLoaded(
+				peerFromMTP(mtpPeer));
+			if (peer) {
 				delegate()->peerListSearchAddRow(peer);
 			}
 		}
@@ -216,6 +224,12 @@ ChatsListBoxController::Row::Row(not_null<History*> history)
 }
 
 ChatsListBoxController::ChatsListBoxController(
+	not_null<Window::SessionNavigation*> navigation)
+: ChatsListBoxController(
+	std::make_unique<PeerListGlobalSearchController>(navigation)) {
+}
+
+ChatsListBoxController::ChatsListBoxController(
 	std::unique_ptr<PeerListSearchController> searchController)
 : PeerListController(std::move(searchController)) {
 }
@@ -226,8 +240,8 @@ void ChatsListBoxController::prepare() {
 
 	prepareViewHook();
 
-	if (!Auth().data().chatsListLoaded()) {
-		Auth().data().chatsListLoadedEvents(
+	if (!session().data().chatsListLoaded()) {
+		session().data().chatsListLoadedEvents(
 		) | rpl::filter([=](Data::Folder *folder) {
 			return !folder;
 		}) | rpl::start_with_next([=] {
@@ -235,12 +249,12 @@ void ChatsListBoxController::prepare() {
 		}, lifetime());
 	}
 
-	Auth().data().chatsListChanges(
+	session().data().chatsListChanges(
 	) | rpl::start_with_next([=] {
 		rebuildRows();
 	}, lifetime());
 
-	Auth().data().contactsLoaded().value(
+	session().data().contactsLoaded().value(
 	) | rpl::start_with_next([=] {
 		rebuildRows();
 	}, lifetime());
@@ -261,16 +275,16 @@ void ChatsListBoxController::rebuildRows() {
 	};
 	auto added = 0;
 	if (respectSavedMessagesChat()) {
-		if (appendRow(Auth().data().history(Auth().user()))) {
+		if (appendRow(session().data().history(session().user()))) {
 			++added;
 		}
 	}
-	added += appendList(Auth().data().chatsList()->indexed());
+	added += appendList(session().data().chatsList()->indexed());
 	const auto id = Data::Folder::kId;
-	if (const auto folder = Auth().data().folderLoaded(id)) {
+	if (const auto folder = session().data().folderLoaded(id)) {
 		added += appendList(folder->chatsList()->indexed());
 	}
-	added += appendList(Auth().data().contactsNoChatsList());
+	added += appendList(session().data().contactsNoChatsList());
 	if (!wasEmpty && added > 0) {
 		// Place dialogs list before contactsNoDialogs list.
 		delegate()->peerListPartitionRows([](const PeerListRow &a) {
@@ -291,8 +305,8 @@ void ChatsListBoxController::checkForEmptyRows() {
 	if (delegate()->peerListFullRowsCount()) {
 		setDescriptionText(QString());
 	} else {
-		const auto loaded = Auth().data().contactsLoaded().current()
-			&& Auth().data().chatsListLoaded();
+		const auto loaded = session().data().contactsLoaded().current()
+			&& session().data().chatsListLoaded();
 		setDescriptionText(loaded ? emptyBoxText() : tr::lng_contacts_loading(tr::now));
 	}
 }
@@ -318,8 +332,21 @@ bool ChatsListBoxController::appendRow(not_null<History*> history) {
 }
 
 ContactsBoxController::ContactsBoxController(
+	not_null<Window::SessionNavigation*> navigation)
+: PeerListController(
+	std::make_unique<PeerListGlobalSearchController>(navigation))
+, _navigation(navigation) {
+}
+
+ContactsBoxController::ContactsBoxController(
+	not_null<Window::SessionNavigation*> navigation,
 	std::unique_ptr<PeerListSearchController> searchController)
-: PeerListController(std::move(searchController)) {
+: PeerListController(std::move(searchController))
+, _navigation(navigation) {
+}
+
+Main::Session &ContactsBoxController::session() const {
+	return _navigation->session();
 }
 
 void ContactsBoxController::prepare() {
@@ -329,7 +356,7 @@ void ContactsBoxController::prepare() {
 
 	prepareViewHook();
 
-	Auth().data().contactsLoaded().value(
+	session().data().contactsLoaded().value(
 	) | rpl::start_with_next([=] {
 		rebuildRows();
 	}, lifetime());
@@ -349,7 +376,7 @@ void ContactsBoxController::rebuildRows() {
 		}
 		return count;
 	};
-	appendList(Auth().data().contactsList());
+	appendList(session().data().contactsList());
 	checkForEmptyRows();
 	delegate()->peerListRefreshRows();
 }
@@ -357,7 +384,7 @@ void ContactsBoxController::rebuildRows() {
 void ContactsBoxController::checkForEmptyRows() {
 	setDescriptionText(delegate()->peerListFullRowsCount()
 		? QString()
-		: Auth().data().contactsLoaded().current()
+		: session().data().contactsLoaded().current()
 		? tr::lng_contacts_not_found(tr::now)
 		: tr::lng_contacts_loading(tr::now));
 }
@@ -390,18 +417,28 @@ std::unique_ptr<PeerListRow> ContactsBoxController::createRow(not_null<UserData*
 	return std::make_unique<PeerListRow>(user);
 }
 
-void AddBotToGroupBoxController::Start(not_null<UserData*> bot) {
+void AddBotToGroupBoxController::Start(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<UserData*> bot) {
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_cancel(), [box] { box->closeBox(); });
 	};
-	Ui::show(Box<PeerListBox>(std::make_unique<AddBotToGroupBoxController>(bot), std::move(initBox)));
+	Ui::show(Box<PeerListBox>(
+		std::make_unique<AddBotToGroupBoxController>(navigation, bot),
+		std::move(initBox)));
 }
 
-AddBotToGroupBoxController::AddBotToGroupBoxController(not_null<UserData*> bot)
+AddBotToGroupBoxController::AddBotToGroupBoxController(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<UserData*> bot)
 : ChatsListBoxController(SharingBotGame(bot)
-	? std::make_unique<PeerListGlobalSearchController>()
+	? std::make_unique<PeerListGlobalSearchController>(navigation)
 	: nullptr)
 , _bot(bot) {
+}
+
+Main::Session &AddBotToGroupBoxController::session() const {
+	return _bot->session();
 }
 
 void AddBotToGroupBoxController::rowClicked(not_null<PeerListRow*> row) {
@@ -471,7 +508,7 @@ bool AddBotToGroupBoxController::needToCreateRow(
 }
 
 bool AddBotToGroupBoxController::SharingBotGame(not_null<UserData*> bot) {
-	auto &info = bot->botInfo;
+	const auto &info = bot->botInfo;
 	return (info && !info->shareGameShortName.isEmpty());
 }
 
@@ -480,7 +517,7 @@ bool AddBotToGroupBoxController::sharingBotGame() const {
 }
 
 QString AddBotToGroupBoxController::emptyBoxText() const {
-	return !Auth().data().chatsListLoaded()
+	return !session().data().chatsListLoaded()
 		? tr::lng_contacts_loading(tr::now)
 		: sharingBotGame()
 		? tr::lng_bot_no_chats(tr::now)
@@ -488,7 +525,7 @@ QString AddBotToGroupBoxController::emptyBoxText() const {
 }
 
 QString AddBotToGroupBoxController::noResultsText() const {
-	return !Auth().data().chatsListLoaded()
+	return !session().data().chatsListLoaded()
 		? tr::lng_contacts_loading(tr::now)
 		: sharingBotGame()
 		? tr::lng_bot_chats_not_found(tr::now)
@@ -504,7 +541,7 @@ void AddBotToGroupBoxController::prepareViewHook() {
 		? tr::lng_bot_choose_chat()
 		: tr::lng_bot_choose_group());
 	updateLabels();
-	Auth().data().chatsListLoadedEvents(
+	session().data().chatsListLoadedEvents(
 	) | rpl::filter([=](Data::Folder *folder) {
 		return !folder;
 	}) | rpl::start_with_next([=] {
@@ -513,8 +550,15 @@ void AddBotToGroupBoxController::prepareViewHook() {
 }
 
 ChooseRecipientBoxController::ChooseRecipientBoxController(
+	not_null<Window::SessionNavigation*> navigation,
 	FnMut<void(not_null<PeerData*>)> callback)
-: _callback(std::move(callback)) {
+: ChatsListBoxController(navigation)
+, _navigation(navigation)
+, _callback(std::move(callback)) {
+}
+
+Main::Session &ChooseRecipientBoxController::session() const {
+	return _navigation->session();
 }
 
 void ChooseRecipientBoxController::prepareViewHook() {

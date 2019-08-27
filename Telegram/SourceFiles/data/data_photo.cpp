@@ -23,7 +23,7 @@ Data::Session &PhotoData::owner() const {
 	return *_owner;
 }
 
-AuthSession &PhotoData::session() const {
+Main::Session &PhotoData::session() const {
 	return _owner->session();
 }
 

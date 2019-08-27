@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_feed_messages.h"
 
 #include "apiwrap.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "data/data_session.h"
 #include "storage/storage_feed_messages.h"
 

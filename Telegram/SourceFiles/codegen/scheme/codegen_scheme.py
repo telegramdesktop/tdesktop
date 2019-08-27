@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 '''
 import glob, re, binascii, os, sys
 
-input_file = ''
+input_files = []
 output_path = ''
 next_output_path = False
 for arg in sys.argv[1:]:
@@ -19,9 +19,9 @@ for arg in sys.argv[1:]:
   elif re.match(r'^-o(.+)', arg):
     output_path = arg[2:]
   else:
-    input_file = arg
+    input_files.append(arg)
 
-if input_file == '':
+if len(input_files) == 0:
   print('Input file required.')
   sys.exit(1)
 if output_path == '':
@@ -92,14 +92,16 @@ textSerializeMethods = '';
 forwards = '';
 forwTypedefs = '';
 
-with open(input_file) as f:
-  for line in f:
-    layerline = re.match(r'// LAYER (\d+)', line)
-    if (layerline):
-      layerIndex = 	int(layerline.group(1));
-      layer = 'inline constexpr mtpPrime CurrentLayer = mtpPrime(' + str(layerIndex) + ');';
-    else:
-      lines.append(line);
+for input_file in input_files:
+  lines.append('---types---')
+  with open(input_file) as f:
+    for line in f:
+      layerline = re.match(r'// LAYER (\d+)', line)
+      if (layerline):
+        layerIndex = int(layerline.group(1));
+        layer = 'inline constexpr mtpPrime CurrentLayer = mtpPrime(' + str(layerIndex) + ');';
+      else:
+        lines.append(line);
 
 for line in lines:
     nocomment = re.match(r'^(.*?)//', line)
@@ -391,19 +393,24 @@ for line in lines:
 
       funcsText += '\tmtpTypeId type() const {\n\t\treturn mtpc_' + name + ';\n\t}\n'; # type id
 
-      funcsText += '\tvoid read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_' + name + ');\n'; # read method
+      funcsText += '\t[[nodiscard]] bool read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_' + name + ');\n'; # read method
       if (isTemplate != ''):
         methodBodies += 'template <typename TQueryType>\n'
-        methodBodies += 'void MTP' + name + '<TQueryType>::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {\n';
+        methodBodies += 'bool MTP' + name + '<TQueryType>::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {\n';
       else:
-        methodBodies += 'void MTP' + name + '::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {\n';
+        methodBodies += 'bool MTP' + name + '::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {\n';
+      readFunc = ''
       for k in prmsList:
         v = prms[k];
         if (k in conditionsList):
           if (not k in trivialConditions):
-            methodBodies += '\tif (_' + hasFlags + '.v & Flag::f_' + k + ') { _' + k + '.read(from, end); } else { _' + k + ' = MTP' + v + '(); }\n';
+            readFunc += '\t\t&& ((_' + hasFlags + '.v & Flag::f_' + k + ') ? _' + k + '.read(from, end) : ((_' + k + ' = MTP' + v + '()), true))\n';
         else:
-          methodBodies += '\t_' + k + '.read(from, end);\n';
+          readFunc += '\t\t&& _' + k + '.read(from, end)\n';
+      if readFunc != '':
+        methodBodies += '\treturn' + readFunc[4:len(readFunc)-1] + ';\n';
+      else:
+        methodBodies += '\treturn true;\n';
       methodBodies += '}\n';
 
       funcsText += '\tvoid write(mtpBuffer &to) const;\n'; # write method
@@ -485,7 +492,7 @@ def addTextSerialize(lst, dct, dataLetter):
       if (isTemplate != ''):
           templateArgument = '<MTP::SecureRequest>'
 
-      result += 'void Serialize_' + name + '(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag) {\n';
+      result += 'bool Serialize_' + name + '(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag) {\n';
       if (len(conditions)):
         result += '\tauto flag = MTP' + dataLetter + name + templateArgument + '::Flags::from_raw(iflag);\n\n';
       if (len(prms)):
@@ -501,7 +508,7 @@ def addTextSerialize(lst, dct, dataLetter):
           v = prms[k];
           result += '\tcase ' + str(stage) + ': to.add("  ' + k + ': "); ++stages.back(); ';
           if (k == hasFlags):
-            result += 'if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; ';
+            result += 'if (start >= end) return false; else flags.back() = *start; ';
           if (k in trivialConditions):
             result += 'if (flag & MTP' + dataLetter + name + templateArgument + '::Flag::f_' + k + ') { ';
             result += 'to.add("YES [ BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); ';
@@ -564,6 +571,7 @@ def addTextSerialize(lst, dct, dataLetter):
         result += '\t}\n';
       else:
         result += '\tto.add("{ ' + name + ' }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();\n';
+      result += '\treturn true;\n';
       result += '}\n\n';
   return result;
 
@@ -693,29 +701,30 @@ for restype in typesList:
           creatorParams.append('const MTP' + paramType + ' &' + paramName + '_');
         creatorParamsList.append(paramName + '_');
         prmsInit.append('_' + paramName + '(' + paramName + '_)');
-        if (withType):
-          readText += '\t';
-          writeText += '\t';
         if (paramName in conditions):
-          readText += '\tif (v' + paramName + '()) { _' + paramName + '.read(from, end); } else { _' + paramName + ' = MTP' + paramType + '(); }\n';
-          writeText += '\tif (const auto v' + paramName + ' = v.v' + paramName + '()) v' + paramName + '->write(to);\n';
+          readText += '\t\t&& (v' + paramName + '() ? _' + paramName + '.read(from, end) : ((_' + paramName + ' = MTP' + paramType + '()), true))\n';
+          writeText += '\t\tif (const auto v' + paramName + ' = v.v' + paramName + '()) v' + paramName + '->write(to);\n';
           sizeList.append('(v.v' + paramName + '() ? v.v' + paramName + '()->innerLength() : 0)');
         else:
-          readText += '\t_' + paramName + '.read(from, end);\n';
-          writeText += '\tv.v' + paramName + '().write(to);\n';
+          readText += '\t\t&& _' + paramName + '.read(from, end)\n';
+          writeText += '\t\tv.v' + paramName + '().write(to);\n';
           sizeList.append('v.v' + paramName + '().innerLength()');
 
       dataText += ', '.join(prmsStr) + ');\n';
 
       constructsBodies += 'MTPD' + name + '::MTPD' + name + '(' + ', '.join(prmsStr) + ') : ' + ', '.join(prmsInit) + ' {\n}\n';
 
-      dataText += '\tMTPD' + name + '(const mtpPrime *&from, const mtpPrime *end);\n'; # reading constructor
+      dataText += '\n';
+      dataText += '\t[[nodiscard]] bool read(const mtpPrime *&from, const mtpPrime *end);\n';
+      dataText += '\n';
 
-      constructsBodies += 'MTPD' + name + '::MTPD' + name + '(const mtpPrime *&from, const mtpPrime *end) {\n';
-      constructsBodies += readText;
+      constructsBodies += 'bool MTPD' + name + '::read(const mtpPrime *&from, const mtpPrime *end) {\n';
+      if readText != '':
+        constructsBodies += '\treturn' + readText[4:len(readText)-1] + ';\n';
+      else:
+        constructsBodies += '\treturn true;\n';
       constructsBodies += '}\n';
 
-      dataText += '\n';
       if len(prmsList) > 0:
         for paramName in prmsList: # getters
           if (paramName in trivialConditions):
@@ -780,7 +789,12 @@ for restype in typesList:
       reader += '\tcase mtpc_' + name + ': _type = cons; '; # read switch line
       if (len(prms) > len(trivialConditions)):
         reader += '{\n';
-        reader += '\t\tsetData(new MTPD' + name + '(from, end));\n';
+        reader += '\t\tif (const auto data = new MTPD' + name + '(); data->read(from, end)) {\n';
+        reader += '\t\t\tsetData(data);\n';
+        reader += '\t\t} else {\n';
+        reader += '\t\t\tdelete data;\n';
+        reader += '\t\t\treturn false;\n';
+        reader += '\t\t}\n';
         reader += '\t} break;\n';
 
         writer += '\tcase mtpc_' + name + ': {\n'; # write switch line
@@ -791,7 +805,12 @@ for restype in typesList:
         reader += 'break;\n';
     else:
       if (len(prms) > len(trivialConditions)):
-        reader += '\tsetData(new MTPD' + name + '(from, end));\n';
+        reader += '\tif (const auto data = new MTPD' + name + '(); data->read(from, end)) {\n';
+        reader += '\t\tsetData(data);\n';
+        reader += '\t} else {\n';
+        reader += '\t\tdelete data;\n';
+        reader += '\t\treturn false;\n';
+        reader += '\t}\n';
 
         writer += '\tconst MTPD' + name + ' &v = c_' + name + '();\n';
         writer += writeText;
@@ -844,21 +863,22 @@ for restype in typesList:
     methods += '\treturn mtpc_' + v[0][0] + ';\n';
   methods += '}\n';
 
-  typesText += '\tvoid read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons'; # read method
+  typesText += '\t[[nodiscard]] bool read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons'; # read method
   if (not withType):
     typesText += ' = mtpc_' + name;
   typesText += ');\n';
-  methods += 'void MTP' + restype + '::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {\n';
+  methods += 'bool MTP' + restype + '::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {\n';
   if (withData):
     if not (withType):
-      methods += '\tif (cons != mtpc_' + v[0][0] + ') throw mtpErrorUnexpected(cons, "MTP' + restype + '");\n';
+      methods += '\tif (cons != mtpc_' + v[0][0] + ') return false;\n';
   if (withType):
     methods += '\tswitch (cons) {\n'
     methods += reader;
-    methods += '\tdefault: throw mtpErrorUnexpected(cons, "MTP' + restype + '");\n';
+    methods += '\tdefault: return false;\n';
     methods += '\t}\n';
   else:
     methods += reader;
+  methods += '\treturn true;\n';
   methods += '}\n';
 
   typesText += '\tvoid write(mtpBuffer &to) const;\n'; # write method
@@ -881,7 +901,8 @@ for restype in typesList:
     methods += ' {\n';
     methods += '\tswitch (type) {\n'; # type id check
     methods += switchLines;
-    methods += '\tdefault: throw mtpErrorBadTypeId(type, "MTP' + restype + '");\n\t}\n';
+    methods += '\tdefault: Unexpected("Type in MTP' + restype + '::MTP' + restype + '.");\n';
+    methods += '\t}\n';
     methods += '}\n'; # by-type-id constructor end
 
   if (withData):
@@ -925,7 +946,7 @@ for childName in parentFlagsList:
 
 # manual types added here
 textSerializeMethods += '\
-void _serialize_rpc_result(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag) {\n\
+bool _serialize_rpc_result(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag) {\n\
 	if (stage) {\n\
 		to.add(",\\n").addSpaces(lev);\n\
 	} else {\n\
@@ -937,9 +958,10 @@ void _serialize_rpc_result(MTPStringLogger &to, int32 stage, int32 lev, Types &t
 	case 1: to.add("  result: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n\
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n\
 	}\n\
+	return true;\n\
 }\n\
 \n\
-void _serialize_msg_container(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag) {\n\
+bool _serialize_msg_container(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag) {\n\
 	if (stage) {\n\
 		to.add(",\\n").addSpaces(lev);\n\
 	} else {\n\
@@ -950,9 +972,10 @@ void _serialize_msg_container(MTPStringLogger &to, int32 stage, int32 lev, Types
 	case 0: to.add("  messages: "); ++stages.back(); types.push_back(mtpc_vector); vtypes.push_back(mtpc_core_message); stages.push_back(0); flags.push_back(0); break;\n\
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n\
 	}\n\
+	return true;\n\
 }\n\
 \n\
-void _serialize_core_message(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag) {\n\
+bool _serialize_core_message(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag) {\n\
 	if (stage) {\n\
 		to.add(",\\n").addSpaces(lev);\n\
 	} else {\n\
@@ -966,6 +989,7 @@ void _serialize_core_message(MTPStringLogger &to, int32 stage, int32 lev, Types 
 	case 3: to.add("  body: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n\
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n\
 	}\n\
+	return true;\n\
 }\n\
 \n';
 
@@ -1027,7 +1051,7 @@ enum {\n\
 // Factory methods declaration\n\
 ' + factories + '\n\
 // Human-readable text serialization\n\
-void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons);\n'
+[[nodiscard]] bool mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons);\n'
 
 source = '\
 /*\n\
@@ -1063,20 +1087,19 @@ using StagesFlags = QVector<int32>;\n\
 ' + textSerializeMethods + '\n\
 namespace {\n\
 \n\
-using TextSerializer = void (*)(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag);\n\
+using TextSerializer = bool (*)(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag);\n\
 using TextSerializers = QMap<mtpTypeId, TextSerializer>;\n\
 \n\
 QMap<mtpTypeId, TextSerializer> createTextSerializers() {\n\
 	auto result = QMap<mtpTypeId, TextSerializer>();\n\
 \n\
 ' + textSerializeInit + '\n\
-\n\
 	return result;\n\
 }\n\
 \n\
 } // namespace\n\
 \n\
-void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons) {\n\
+bool mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons) {\n\
 	static auto serializers = createTextSerializers();\n\
 \n\
 	QVector<mtpTypeId> types, vtypes;\n\
@@ -1094,9 +1117,11 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 		flag = flags.back();\n\
 		if (!type) {\n\
 			if (from >= end) {\n\
-				throw Exception("from >= end");\n\
+				to.error("insufficient data");\n\
+				return false;\n\
 			} else if (stage) {\n\
-				throw Exception("unknown type on stage > 0");\n\
+				to.error("unknown type on stage > 0");\n\
+				return false;\n\
 			}\n\
 			types.back() = type = *from;\n\
 			++from;\n\
@@ -1105,12 +1130,18 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 		int32 lev = level + types.size() - 1;\n\
 		auto it = serializers.constFind(type);\n\
 		if (it != serializers.cend()) {\n\
-			(*it.value())(to, stage, lev, types, vtypes, stages, flags, from, end, flag);\n\
-		} else {\n\
-			mtpTextSerializeCore(to, from, end, type, lev, vtype);\n\
+			if (!(*it.value())(to, stage, lev, types, vtypes, stages, flags, from, end, flag)) {\n\
+				to.error();\n\
+				return false;\n\
+			}\n\
+		} else if (mtpTextSerializeCore(to, from, end, type, lev, vtype)) {\n\
 			types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();\n\
+		} else {\n\
+			to.error();\n\
+			return false;\n\
 		}\n\
 	}\n\
+	return true;\n\
 }\n';
 
 already_header = ''

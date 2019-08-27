@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/themes/window_theme_preview.h"
 #include "mainwidget.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "storage/localstorage.h"
 #include "storage/localimageloader.h"
@@ -400,9 +400,9 @@ void ChatBackground::start() {
 	}
 
 	Core::App().activeAccount().sessionValue(
-	) | rpl::filter([=](AuthSession *session) {
+	) | rpl::filter([=](Main::Session *session) {
 		return session != _session;
-	}) | rpl::start_with_next([=](AuthSession *session) {
+	}) | rpl::start_with_next([=](Main::Session *session) {
 		_session = session;
 		checkUploadWallPaper();
 	}, _lifetime);

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/connection_http.h"
 #include "mtproto/connection_resolving.h"
 #include "mtproto/session.h"
+#include "base/unixtime.h"
 
 namespace MTP {
 namespace internal {
@@ -111,8 +112,8 @@ gsl::span<const mtpPrime> AbstractConnection::parseNotSecureResponse(
 	if (answer[0] != 0
 		|| answer[1] != 0
 		|| (((uint32)answer[2]) & 0x03) != 1
-		//|| (unixtime() - answer[3] > 300) // We didn't sync time yet.
-		//|| (answer[3] - unixtime() > 60)
+		//|| (base::unixtime::now() - answer[3] > 300) // We didn't sync time yet.
+		//|| (answer[3] - base::unixtime::now() > 60)
 		|| false) {
 		LOG(("Not Secure Error: bad request answer start (%1 %2 %3)"
 			).arg(answer[0]
@@ -135,19 +136,22 @@ gsl::span<const mtpPrime> AbstractConnection::parseNotSecureResponse(
 }
 
 mtpBuffer AbstractConnection::preparePQFake(const MTPint128 &nonce) const {
-	return prepareNotSecurePacket(MTPReq_pq(nonce));
+	return prepareNotSecurePacket(
+		MTPReq_pq(nonce),
+		base::unixtime::mtproto_msg_id());
 }
 
-MTPResPQ AbstractConnection::readPQFakeReply(
+std::optional<MTPResPQ> AbstractConnection::readPQFakeReply(
 		const mtpBuffer &buffer) const {
 	const auto answer = parseNotSecureResponse(buffer);
 	if (answer.empty()) {
-		throw Exception("bad pq reply");
+		return std::nullopt;
 	}
 	auto from = answer.data();
 	MTPResPQ response;
-	response.read(from, from + answer.size());
-	return response;
+	return response.read(from, from + answer.size())
+		? std::make_optional(response)
+		: std::nullopt;
 }
 
 AbstractConnection::AbstractConnection(
@@ -161,10 +165,14 @@ ConnectionPointer AbstractConnection::Create(
 		not_null<Instance*> instance,
 		DcOptions::Variants::Protocol protocol,
 		QThread *thread,
+		const bytes::vector &secret,
 		const ProxyData &proxy) {
 	auto result = [&] {
 		if (protocol == DcOptions::Variants::Tcp) {
-			return ConnectionPointer::New<TcpConnection>(thread, proxy);
+			return ConnectionPointer::New<TcpConnection>(
+				instance,
+				thread,
+				proxy);
 		} else {
 			return ConnectionPointer::New<HttpConnection>(thread, proxy);
 		}

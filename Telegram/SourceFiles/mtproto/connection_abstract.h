@@ -51,9 +51,7 @@ class AbstractConnection : public QObject {
 	Q_OBJECT
 
 public:
-	AbstractConnection(
-		QThread *thread,
-		const ProxyData &proxy);
+	AbstractConnection(QThread *thread, const ProxyData &proxy);
 	AbstractConnection(const AbstractConnection &other) = delete;
 	AbstractConnection &operator=(const AbstractConnection &other) = delete;
 	virtual ~AbstractConnection() = default;
@@ -63,6 +61,7 @@ public:
 		not_null<Instance*> instance,
 		DcOptions::Variants::Protocol protocol,
 		QThread *thread,
+		const bytes::vector &secret,
 		const ProxyData &proxy);
 
 	virtual ConnectionPointer clone(const ProxyData &proxy) = 0;
@@ -76,6 +75,8 @@ public:
 		int port,
 		const bytes::vector &protocolSecret,
 		int16 protocolDcId) = 0;
+	virtual void timedOut() {
+	}
 	virtual bool isConnected() const = 0;
 	virtual bool usingHttpWait() {
 		return false;
@@ -102,7 +103,9 @@ public:
 	}
 
 	template <typename Request>
-	mtpBuffer prepareNotSecurePacket(const Request &request) const;
+	mtpBuffer prepareNotSecurePacket(
+		const Request &request,
+		mtpMsgId newId) const;
 	mtpBuffer prepareSecurePacket(
 		uint64 keyId,
 		MTPint128 msgKey,
@@ -123,6 +126,8 @@ signals:
 	void connected();
 	void disconnected();
 
+	void syncTimeRequest();
+
 protected:
 	BuffersQueue _receivedQueue; // list of received packets, not processed yet
 	bool _sentEncrypted = false;
@@ -132,12 +137,14 @@ protected:
 	// first we always send fake MTPReq_pq to see if connection works at all
 	// we send them simultaneously through TCP/HTTP/IPv4/IPv6 to choose the working one
 	mtpBuffer preparePQFake(const MTPint128 &nonce) const;
-	MTPResPQ readPQFakeReply(const mtpBuffer &buffer) const;
+	std::optional<MTPResPQ> readPQFakeReply(const mtpBuffer &buffer) const;
 
 };
 
 template <typename Request>
-mtpBuffer AbstractConnection::prepareNotSecurePacket(const Request &request) const {
+mtpBuffer AbstractConnection::prepareNotSecurePacket(
+		const Request &request,
+		mtpMsgId newId) const {
 	const auto intsSize = request.innerLength() >> 2;
 	const auto intsPadding = requiresExtendedPadding()
 		? uint32(rand_value<uchar>() & 0x3F)
@@ -158,7 +165,7 @@ mtpBuffer AbstractConnection::prepareNotSecurePacket(const Request &request) con
 	result.resize(kPrefixInts);
 
 	const auto messageId = &result[kTcpPrefixInts + kAuthKeyIdInts];
-	*reinterpret_cast<mtpMsgId*>(messageId) = msgid();
+	*reinterpret_cast<mtpMsgId*>(messageId) = newId;
 
 	request.write(result);
 

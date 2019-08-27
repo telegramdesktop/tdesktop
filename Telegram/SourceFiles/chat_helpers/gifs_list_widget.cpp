@@ -139,13 +139,15 @@ GifsListWidget::GifsListWidget(
 		this,
 		[=] { sendInlineRequest(); });
 
-	Auth().data().savedGifsUpdated(
+	controller->session().data().savedGifsUpdated(
 	) | rpl::start_with_next([this] {
 		refreshSavedGifs();
 	}, lifetime());
-	subscribe(Auth().downloaderTaskFinished(), [this] {
+
+	subscribe(controller->session().downloaderTaskFinished(), [this] {
 		update();
 	});
+
 	subscribe(controller->gifPauseLevelChanged(), [=] {
 		if (!controller->isGifPausedAtLeastFor(
 				Window::GifPauseReason::SavedGifs)) {
@@ -228,7 +230,7 @@ void GifsListWidget::inlineResultsDone(const MTPmessages_BotResults &result) {
 	auto adding = (it != _inlineCache.cend());
 	if (result.type() == mtpc_messages_botResults) {
 		auto &d = result.c_messages_botResults();
-		Auth().data().processUsers(d.vusers());
+		controller()->session().data().processUsers(d.vusers());
 
 		auto &v = d.vresults().v;
 		auto queryId = d.vquery_id().v;
@@ -492,7 +494,7 @@ void GifsListWidget::refreshSavedGifs() {
 	if (_section == Section::Gifs) {
 		clearInlineRows(false);
 
-		auto &saved = Auth().data().savedGifs();
+		auto &saved = controller()->session().data().savedGifs();
 		if (!saved.isEmpty()) {
 			_rows.reserve(saved.size());
 			auto row = Row();
@@ -855,12 +857,12 @@ void GifsListWidget::searchForGifs(const QString &query) {
 			Expects(result.type() == mtpc_contacts_resolvedPeer);
 
 			auto &data = result.c_contacts_resolvedPeer();
-			Auth().data().processUsers(data.vusers());
-			Auth().data().processChats(data.vchats());
-			if (auto peer = Auth().data().peerLoaded(peerFromMTP(data.vpeer()))) {
-				if (auto user = peer->asUser()) {
-					_searchBot = user;
-				}
+			controller()->session().data().processUsers(data.vusers());
+			controller()->session().data().processChats(data.vchats());
+			const auto peer = controller()->session().data().peerLoaded(
+				peerFromMTP(data.vpeer()));
+			if (const auto user = peer ? peer->asUser() : nullptr) {
+				_searchBot = user;
 			}
 		}).send();
 	}

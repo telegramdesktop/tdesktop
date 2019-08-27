@@ -1155,13 +1155,13 @@ not_null<Ui::MultiSelect*> LanguageBox::createMultiSelect() {
 base::binary_guard LanguageBox::Show() {
 	auto result = base::binary_guard();
 
-	const auto manager = Core::App().langCloudManager();
-	if (manager->languageList().empty()) {
+	auto &manager = Lang::CurrentCloudManager();
+	if (manager.languageList().empty()) {
 		auto guard = std::make_shared<base::binary_guard>(
 			result.make_guard());
 		auto alive = std::make_shared<std::unique_ptr<base::Subscription>>(
 			std::make_unique<base::Subscription>());
-		**alive = manager->languageListChanged().add_subscription([=] {
+		**alive = manager.languageListChanged().add_subscription([=] {
 			const auto show = guard->alive();
 			*alive = nullptr;
 			if (show) {
@@ -1171,7 +1171,7 @@ base::binary_guard LanguageBox::Show() {
 	} else {
 		Ui::show(Box<LanguageBox>());
 	}
-	manager->requestLanguageList();
+	manager.requestLanguageList();
 
 	return result;
 }

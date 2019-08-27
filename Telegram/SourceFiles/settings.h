@@ -158,7 +158,6 @@ DeclareSetting(float64, RetinaFactor);
 DeclareSetting(int32, IntRetinaFactor);
 
 DeclareSetting(int, OtherOnline);
-DeclareSetting(bool, AutoPlayGif);
 
 DeclareSetting(bool, ShowUsername);
 DeclareSetting(bool, IgnoreBlocked);

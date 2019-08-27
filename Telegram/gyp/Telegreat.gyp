@@ -77,6 +77,7 @@
       'lib_storage.gyp:lib_storage',
       'lib_lottie.gyp:lib_lottie',
       'lib_ffmpeg.gyp:lib_ffmpeg',
+      'lib_mtproto.gyp:lib_mtproto',
     ],
 
     'defines': [
@@ -112,7 +113,7 @@
       '<@(style_files)',
       '<!@(<(list_sources_command) <(qt_moc_list_sources_arg))',
       'telegram_sources.txt',
-	  '<(res_loc)/langs/cloud_lang.strings',
+      '<(res_loc)/langs/cloud_lang.strings',
       '<(res_loc)/export_html/css/style.css',
       '<(res_loc)/export_html/js/script.js',
       '<(res_loc)/export_html/images/back.png',

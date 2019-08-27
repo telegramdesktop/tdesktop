@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_countries.h" // Data::ValidPhoneCode
 #include "mainwindow.h"
 #include "numbers.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "core/application.h"
 
 namespace Ui {
@@ -47,10 +47,6 @@ const auto kNewlineChars = QString("\r\n")
 	+ QChar(0xfdd1) // QTextEndOfFrame
 	+ QChar(QChar::ParagraphSeparator)
 	+ QChar(QChar::LineSeparator);
-const auto kClearFormatSequence = QKeySequence("ctrl+shift+n");
-const auto kStrikeOutSequence = QKeySequence("ctrl+shift+x");
-const auto kMonospaceSequence = QKeySequence("ctrl+shift+m");
-const auto kEditLinkSequence = QKeySequence("ctrl+k");
 
 class InputDocument : public QTextDocument {
 public:
@@ -931,6 +927,20 @@ const InstantReplaces &InstantReplaces::Default() {
 			Assert(emoji != nullptr);
 			result.add(what, emoji->text());
 		}
+		return result;
+	}();
+	return result;
+}
+
+const InstantReplaces &InstantReplaces::TextOnly() {
+	static const auto result = [] {
+		auto result = InstantReplaces();
+		result.add("--", QString(1, QChar(8212)));
+		result.add("<<", QString(1, QChar(171)));
+		result.add(">>", QString(1, QChar(187)));
+		result.add(
+			":shrug:",
+			QChar(175) + QString("\\_(") + QChar(12484) + ")_/" + QChar(175));
 		return result;
 	}();
 	return result;
@@ -4303,14 +4313,15 @@ PhoneInput::PhoneInput(
 	QWidget *parent,
 	const style::InputField &st,
 	rpl::producer<QString> placeholder,
-	const QString &val)
-: MaskedInputField(parent, st, std::move(placeholder), val) {
-	QString phone(val);
-	if (phone.isEmpty()) {
+	const QString &defaultValue,
+	QString value)
+: MaskedInputField(parent, st, std::move(placeholder), value)
+, _defaultValue(defaultValue) {
+	if (value.isEmpty()) {
 		clearText();
 	} else {
-		int32 pos = phone.size();
-		correctValue(QString(), 0, phone, pos);
+		auto pos = value.size();
+		correctValue(QString(), 0, value, pos);
 	}
 }
 
@@ -4320,17 +4331,10 @@ void PhoneInput::focusInEvent(QFocusEvent *e) {
 }
 
 void PhoneInput::clearText() {
-	QString phone;
-	if (AuthSession::Exists()) {
-		const auto self = Auth().user();
-		QVector<int> newPattern = phoneNumberParse(self->phone());
-		if (!newPattern.isEmpty()) {
-			phone = self->phone().mid(0, newPattern.at(0));
-		}
-	}
-	setText(phone);
-	int32 pos = phone.size();
-	correctValue(QString(), 0, phone, pos);
+	auto value = _defaultValue;
+	setText(value);
+	auto pos = value.size();
+	correctValue(QString(), 0, value, pos);
 }
 
 void PhoneInput::paintAdditionalPlaceholder(Painter &p) {

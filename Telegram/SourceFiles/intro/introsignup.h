@@ -21,7 +21,10 @@ class SignupWidget : public Widget::Step {
 	Q_OBJECT
 
 public:
-	SignupWidget(QWidget *parent, Widget::Data *data);
+	SignupWidget(
+		QWidget *parent,
+		not_null<Main::Account*> account,
+		not_null<Widget::Data*> data);
 
 	void finishInit() override;
 	void setInnerFocus() override;

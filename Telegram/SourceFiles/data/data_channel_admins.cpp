@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
+#include "main/main_session.h"
 
 namespace Data {
 
@@ -18,18 +19,25 @@ ChannelAdminChanges::ChannelAdminChanges(not_null<ChannelData*> channel)
 , _admins(_channel->mgInfo->admins) {
 }
 
-void ChannelAdminChanges::feed(UserId userId, bool isAdmin) {
-	if (isAdmin && !_admins.contains(userId)) {
-		_admins.insert(userId);
-		_changes.emplace(userId, true);
-	} else if (!isAdmin && _admins.contains(userId)) {
+void ChannelAdminChanges::add(UserId userId, const QString &rank) {
+	const auto i = _admins.find(userId);
+	if (i == end(_admins) || i->second != rank) {
+		_admins[userId] = rank;
+		_changes.emplace(userId);
+	}
+}
+
+void ChannelAdminChanges::remove(UserId userId) {
+	if (_admins.contains(userId)) {
 		_admins.remove(userId);
-		_changes.emplace(userId, false);
+		_changes.emplace(userId);
 	}
 }
 
 ChannelAdminChanges::~ChannelAdminChanges() {
-	if (!_changes.empty()) {
+	if (_changes.size() > 1
+		|| (!_changes.empty()
+			&& _changes.front() != _channel->session().userId())) {
 		if (const auto history = _channel->owner().historyLoaded(_channel)) {
 			history->applyGroupAdminChanges(_changes);
 		}

@@ -174,7 +174,7 @@ parts:
     prime: [-./*]
 
   libvdpau:
-    source: git://anongit.freedesktop.org/vdpau/libvdpau
+    source: https://gitlab.freedesktop.org/vdpau/libvdpau.git
     source-depth: 1
     source-branch: libvdpau-1.2
     plugin: autotools
@@ -302,6 +302,7 @@ parts:
   libxkbcommon:
     source: https://github.com/xkbcommon/libxkbcommon.git
     source-depth: 1
+    source-tag: xkbcommon-0.8.4
     plugin: autotools
     build-packages:
       - xutils-dev

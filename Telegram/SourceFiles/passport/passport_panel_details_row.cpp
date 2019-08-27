@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/countryinput.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "data/data_user.h"
 #include "data/data_countries.h"
 #include "styles/style_boxes.h"

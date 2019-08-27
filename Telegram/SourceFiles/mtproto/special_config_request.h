@@ -12,14 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP {
 
 struct ServiceWebRequest {
-        ServiceWebRequest(not_null<QNetworkReply*> reply);
-        ServiceWebRequest(ServiceWebRequest &&other);
-        ServiceWebRequest &operator=(ServiceWebRequest &&other);
-        ~ServiceWebRequest();
+    ServiceWebRequest(not_null<QNetworkReply*> reply);
+    ServiceWebRequest(ServiceWebRequest &&other);
+    ServiceWebRequest &operator=(ServiceWebRequest &&other);
+    ~ServiceWebRequest();
 
-        void destroy();
+    void destroy();
 
-        QPointer<QNetworkReply> reply;
+    QPointer<QNetworkReply> reply;
 
 };
 
@@ -32,6 +32,7 @@ public:
 			int port,
 			bytes::const_span secret)> callback,
 		const QString &phone);
+	explicit SpecialConfigRequest(Fn<void()> timeDoneCallback);
 
 private:
 	enum class Type {
@@ -43,9 +44,19 @@ private:
 		QString domain;
 	};
 
+	SpecialConfigRequest(
+		Fn<void(
+			DcId dcId,
+			const std::string &ip,
+			int port,
+			bytes::const_span secret)> callback,
+		Fn<void()> timeDoneCallback,
+		const QString &phone);
+
 	void sendNextRequest();
 	void performRequest(const Attempt &attempt);
 	void requestFinished(Type type, not_null<QNetworkReply*> reply);
+	void handleHeaderUnixtime(not_null<QNetworkReply*> reply);
 	QByteArray finalizeRequest(not_null<QNetworkReply*> reply);
 	void handleResponse(const QByteArray &bytes);
 	bool decryptSimpleConfig(const QByteArray &bytes);
@@ -55,6 +66,7 @@ private:
 		const std::string &ip,
 		int port,
 		bytes::const_span secret)> _callback;
+	Fn<void()> _timeDoneCallback;
 	QString _phone;
 	MTPhelp_ConfigSimple _simpleConfig;
 

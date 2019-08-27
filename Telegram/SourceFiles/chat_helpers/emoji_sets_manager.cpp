@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/zlib_help.h"
 #include "layout.h"
 #include "core/application.h"
+#include "main/main_account.h"
 #include "mainwidget.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
@@ -245,7 +246,7 @@ Loader::Loader(QObject *parent, int id)
 , _id(id)
 , _size(GetDownloadSize(_id))
 , _state(Loading{ 0, _size })
-, _mtproto(Core::App().mtp()) {
+, _mtproto(Core::App().activeAccount().mtp()) {
 	const auto ready = [=](std::unique_ptr<MTP::DedicatedLoader> loader) {
 		if (loader) {
 			setImplementation(std::move(loader));

@@ -15,6 +15,11 @@ class UserData;
 
 namespace Ui {
 
+const auto kClearFormatSequence = QKeySequence("ctrl+shift+n");
+const auto kStrikeOutSequence = QKeySequence("ctrl+shift+x");
+const auto kMonospaceSequence = QKeySequence("ctrl+shift+m");
+const auto kEditLinkSequence = QKeySequence("ctrl+k");
+
 class PopupMenu;
 
 void InsertEmojiAtCursor(QTextCursor cursor, EmojiPtr emoji);
@@ -28,6 +33,7 @@ struct InstantReplaces {
 	void add(const QString &what, const QString &with);
 
 	static const InstantReplaces &Default();
+	static const InstantReplaces &TextOnly();
 
 	int maxLength = 0;
 	Node reverseMap;
@@ -769,7 +775,8 @@ public:
 		QWidget *parent,
 		const style::InputField &st,
 		rpl::producer<QString> placeholder,
-		const QString &val);
+		const QString &defaultValue,
+		QString value);
 
 	void clearText();
 
@@ -784,6 +791,7 @@ protected:
 	void paintAdditionalPlaceholder(Painter &p) override;
 
 private:
+	QString _defaultValue;
 	QVector<int> _pattern;
 	QString _additionalPlaceholder;
 

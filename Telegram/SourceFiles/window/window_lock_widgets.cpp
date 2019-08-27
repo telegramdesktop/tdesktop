@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace Window {
 

@@ -22,7 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace App { // Hackish..
 QString formatPhone(QString phone);
 } // namespace App
+namespace HistoryView {
 QString FillAmountAndCurrency(uint64 amount, const QString &currency);
+} // namespace HistoryView
 QString formatSizeText(qint64 size);
 QString formatDurationText(qint64 duration);
 
@@ -1725,7 +1727,7 @@ Utf8String FormatDateTime(
 }
 
 Utf8String FormatMoneyAmount(uint64 amount, const Utf8String &currency) {
-	return FillAmountAndCurrency(
+	return HistoryView::FillAmountAndCurrency(
 		amount,
 		QString::fromUtf8(currency)).toUtf8();
 }

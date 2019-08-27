@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "storage/cache/storage_cache_database.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Storage {
 namespace Cache {
 class Database;
@@ -33,11 +37,10 @@ public:
 
 	LocalStorageBox(
 		QWidget*,
-		not_null<Database*> db,
-		not_null<Database*> dbBig,
+		not_null<Main::Session*> session,
 		CreateTag);
 
-	static void Show(not_null<Database*> db, not_null<Database*> dbBig);
+	static void Show(not_null<Main::Session*> session);
 
 protected:
 	void prepare() override;
@@ -80,8 +83,10 @@ private:
 		Value currentValue,
 		Callback &&callback);
 
-	not_null<Storage::Cache::Database*> _db;
-	not_null<Storage::Cache::Database*> _dbBig;
+	const not_null<Main::Session*> _session;
+	const not_null<Storage::Cache::Database*> _db;
+	const not_null<Storage::Cache::Database*> _dbBig;
+
 	Database::Stats _stats;
 	Database::Stats _statsBig;
 

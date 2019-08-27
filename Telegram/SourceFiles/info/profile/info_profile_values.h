@@ -32,6 +32,9 @@ inline auto ToSingleLine() {
 	});
 }
 
+rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
+	not_null<PeerData*> peer);
+
 rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer);
 rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user);
 rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user);

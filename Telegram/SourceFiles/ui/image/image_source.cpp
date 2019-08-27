@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/cache/storage_cache_database.h"
 #include "history/history_item.h"
 #include "history/history.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace Images {
 

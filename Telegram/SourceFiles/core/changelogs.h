@@ -9,16 +9,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Core {
 
 class Changelogs : public base::has_weak_ptr, private base::Subscriber {
 public:
-	Changelogs(not_null<AuthSession*> session, int oldVersion);
+	Changelogs(not_null<Main::Session*> session, int oldVersion);
 
 	static std::unique_ptr<Changelogs> Create(
-		not_null<AuthSession*> session);
+		not_null<Main::Session*> session);
 
 private:
 	void requestCloudLogs();
@@ -27,7 +29,7 @@ private:
 	void addBetaLogs();
 	void addBetaLog(int changeVersion, const char *changes);
 
-	const not_null<AuthSession*> _session;
+	const not_null<Main::Session*> _session;
 	const int _oldVersion = 0;
 	rpl::lifetime _chatsSubscription;
 	bool _addedSomeLocal = false;

@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
 #include "ui/special_buttons.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "styles/style_info.h"
 
 namespace Info {

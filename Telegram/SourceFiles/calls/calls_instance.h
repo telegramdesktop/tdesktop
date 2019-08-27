@@ -16,13 +16,21 @@ class Track;
 } // namespace Audio
 } // namespace Media
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Calls {
 
 class Panel;
 
-class Instance : private MTP::Sender, private Call::Delegate, private base::Subscriber, public base::has_weak_ptr {
+class Instance
+	: private MTP::Sender
+	, private Call::Delegate
+	, private base::Subscriber
+	, public base::has_weak_ptr {
 public:
-	Instance();
+	explicit Instance(not_null<Main::Session*> session);
 
 	void startOutgoingCall(not_null<UserData*> user);
 	void handleUpdate(const MTPDupdatePhoneCall &update);
@@ -65,6 +73,8 @@ private:
 	bool alreadyInCall();
 	void handleCallUpdate(const MTPPhoneCall &call);
 
+	const not_null<Main::Session*> _session;
+
 	DhConfig _dhConfig;
 
 	crl::time _lastServerConfigUpdateTime = 0;
@@ -81,7 +91,5 @@ private:
 	std::unique_ptr<Media::Audio::Track> _callBusyTrack;
 
 };
-
-Instance &Current();
 
 } // namespace Calls

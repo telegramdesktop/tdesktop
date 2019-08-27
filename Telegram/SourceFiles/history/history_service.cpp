@@ -9,11 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "layout.h"
 #include "history/history.h"
-#include "history/media/history_media_invoice.h"
+#include "history/view/media/history_view_invoice.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_service_message.h"
@@ -299,13 +299,13 @@ void HistoryService::applyAction(const MTPMessageAction &action) {
 		}, [](const MTPDphotoEmpty &) {
 		});
 	}, [&](const MTPDmessageActionChatCreate &) {
-		_flags |= MTPDmessage_ClientFlag::f_is_group_essential;
+		_clientFlags |= MTPDmessage_ClientFlag::f_is_group_essential;
 	}, [&](const MTPDmessageActionChannelCreate &) {
-		_flags |= MTPDmessage_ClientFlag::f_is_group_essential;
+		_clientFlags |= MTPDmessage_ClientFlag::f_is_group_essential;
 	}, [&](const MTPDmessageActionChatMigrateTo &) {
-		_flags |= MTPDmessage_ClientFlag::f_is_group_essential;
+		_clientFlags |= MTPDmessage_ClientFlag::f_is_group_essential;
 	}, [&](const MTPDmessageActionChannelMigrateFrom &) {
-		_flags |= MTPDmessage_ClientFlag::f_is_group_essential;
+		_clientFlags |= MTPDmessage_ClientFlag::f_is_group_essential;
 	}, [](const auto &) {
 	});
 }
@@ -497,11 +497,13 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 
 HistoryService::HistoryService(
 	not_null<History*> history,
-	const MTPDmessage &data)
-	: HistoryItem(
+	const MTPDmessage &data,
+	MTPDmessage_ClientFlags clientFlags)
+: HistoryItem(
 		history,
 		data.vid().v,
 		data.vflags().v,
+		clientFlags,
 		data.vdate().v,
 		data.vfrom_id().value_or_empty()) {
 	createFromMtp(data);
@@ -509,11 +511,13 @@ HistoryService::HistoryService(
 
 HistoryService::HistoryService(
 	not_null<History*> history,
-	const MTPDmessageService &data)
+	const MTPDmessageService &data,
+	MTPDmessage_ClientFlags clientFlags)
 : HistoryItem(
 		history,
 		data.vid().v,
 		mtpCastFlags(data.vflags().v),
+		clientFlags,
 		data.vdate().v,
 		data.vfrom_id().value_or_empty()) {
 	createFromMtp(data);
@@ -521,13 +525,14 @@ HistoryService::HistoryService(
 
 HistoryService::HistoryService(
 	not_null<History*> history,
+	MTPDmessage_ClientFlags clientFlags,
 	MsgId id,
 	TimeId date,
 	const PreparedText &message,
 	MTPDmessage::Flags flags,
 	UserId from,
 	PhotoData *photo)
-: HistoryItem(history, id, flags, date, from) {
+: HistoryItem(history, id, flags, clientFlags, date, from) {
 	setServiceText(message);
 	if (photo) {
 		_media = std::make_unique<Data::MediaPhoto>(
@@ -669,7 +674,7 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		UpdateComponents(HistoryServicePayment::Bit());
 		auto amount = message.vaction().c_messageActionPaymentSent().vtotal_amount().v;
 		auto currency = qs(message.vaction().c_messageActionPaymentSent().vcurrency());
-		Get<HistoryServicePayment>()->amount = FillAmountAndCurrency(amount, currency);
+		Get<HistoryServicePayment>()->amount = HistoryView::FillAmountAndCurrency(amount, currency);
 	}
 	if (const auto replyToMsgId = message.vreply_to_msg_id()) {
 		if (message.vaction().type() == mtpc_messageActionPinMessage) {
@@ -787,13 +792,14 @@ HistoryService::PreparedText GenerateJoinedText(
 	return { tr::lng_action_you_joined(tr::now) };
 }
 
-HistoryService *GenerateJoinedMessage(
+not_null<HistoryService*> GenerateJoinedMessage(
 		not_null<History*> history,
 		TimeId inviteDate,
 		not_null<UserData*> inviter,
 		MTPDmessage::Flags flags) {
 	return new HistoryService(
 		history,
+		MTPDmessage_ClientFlags(),
 		clientMsgId(),
 		inviteDate,
 		GenerateJoinedText(history, inviter),

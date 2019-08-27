@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "platform/platform_audio.h"
 #include "core/application.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 #include <AL/al.h>
 #include <AL/alc.h>

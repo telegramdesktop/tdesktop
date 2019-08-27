@@ -38,6 +38,7 @@ private:
 	EntryTypes _type;
 
 	object_ptr<ChatTabButton> _oneOnOneButton;
+	object_ptr<ChatTabButton> _botButton;
 	object_ptr<ChatTabButton> _groupButton;
 	object_ptr<ChatTabButton> _announcementButton;
 

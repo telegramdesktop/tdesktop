@@ -761,6 +761,7 @@ rightsHeaderLabel: FlatLabel(boxLabel) {
 	textFg: windowActiveTextFg;
 }
 rightsUntilMargin: margins(0px, 8px, 0px, 20px);
+rightsRankMargin: margins(0px, 16px, 0px, 20px);
 
 mutePhotoButton: UserpicButton(defaultUserpicButton) {
 	size: size(40px, 40px);
@@ -988,3 +989,21 @@ blockUserConfirmation: FlatLabel(boxLabel) {
 }
 
 transferCheckWidth: 300px;
+
+slowmodeLabelsMargin: margins(0px, 5px, 0px, 0px);
+slowmodeLabel: LabelSimple(defaultLabelSimple) {
+	textFg: windowSubTextFg;
+}
+
+customBadgeField: InputField(defaultInputField) {
+	textMargins: margins(2px, 7px, 2px, 0px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(0px, 0px, 0px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	heightMin: 32px;
+}

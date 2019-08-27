@@ -14,13 +14,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_float.h"
 #include "data/data_pts_waiter.h"
 
-class AuthSession;
 struct HistoryMessageMarkupButton;
 class MainWindow;
 class ConfirmBox;
 class HistoryWidget;
 class StackItem;
 struct FileLoadResult;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Notify {
 struct PeerUpdate;
@@ -99,7 +102,7 @@ public:
 
 	MainWidget(QWidget *parent, not_null<Window::SessionController*> controller);
 
-	AuthSession &session() const;
+	Main::Session &session() const;
 
 	bool isMainSectionShown() const;
 	bool isThirdSectionShown() const;
@@ -121,7 +124,7 @@ public:
 	void incrementSticker(DocumentData *sticker);
 
 	void activate();
-	void updateReceived(const mtpPrime *from, const mtpPrime *end);
+	[[nodiscard]] bool updateReceived(const mtpPrime *from, const mtpPrime *end);
 
 	void refreshDialog(Dialogs::Key key);
 	void removeDialog(Dialogs::Key key);
@@ -195,8 +198,6 @@ public:
 
 	void deletePhotoLayer(PhotoData *photo);
 
-	bool sendMessageFail(const RPCError &error);
-
 	// While HistoryInner is not HistoryView::ListWidget.
 	crl::time highlightStartTime(not_null<const HistoryItem*> item) const;
 
@@ -230,7 +231,7 @@ public:
 	void pushReplyReturn(not_null<HistoryItem*> item);
 
 	void cancelForwarding(not_null<History*> history);
-	void finishForwarding(not_null<History*> history);
+	void finishForwarding(not_null<History*> history, bool silent);
 
 	// Does offerPeer or showPeerHistory.
 	void choosePeer(PeerId peerId, MsgId showAtMsgId);

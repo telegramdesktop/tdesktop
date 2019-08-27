@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/auto_download_box.h"
 
 #include "lang/lang_keys.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "data/data_session.h"
 #include "info/profile/info_profile_button.h"
 #include "ui/widgets/continuous_sliders.h"
@@ -29,8 +29,10 @@ constexpr auto kDefaultLimit = 10 * kMegabyte;
 
 AutoDownloadBox::AutoDownloadBox(
 	QWidget*,
+	not_null<Main::Session*> session,
 	Data::AutoDownload::Source source)
-: _source(source) {
+: _session(session)
+, _source(source) {
 }
 
 void AutoDownloadBox::prepare() {
@@ -45,7 +47,7 @@ void AutoDownloadBox::setupContent() {
 
 	setTitle(tr::lng_media_auto_title());
 
-	const auto settings = &Auth().settings().autoDownload();
+	const auto settings = &_session->settings().autoDownload();
 	const auto checked = [=](Source source, Type type) {
 		return (settings->bytesLimit(source, type) > 0);
 	};
@@ -166,11 +168,11 @@ void AutoDownloadBox::setupContent() {
 			Local::writeUserSettings();
 		}
 		if (allowMoreTypes.contains(Type::Photo)) {
-			Auth().data().photoLoadSettingsChanged();
+			_session->data().photoLoadSettingsChanged();
 		}
 		if (ranges::find_if(allowMoreTypes, _1 != Type::Photo)
 			!= allowMoreTypes.end()) {
-			Auth().data().documentLoadSettingsChanged();
+			_session->data().documentLoadSettingsChanged();
 		}
 		closeBox();
 	});

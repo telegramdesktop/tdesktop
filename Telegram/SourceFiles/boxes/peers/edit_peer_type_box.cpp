@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_type_box.h"
 
 #include "apiwrap.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
@@ -464,7 +464,9 @@ void Controller::askUsernameRevoke() {
 		checkUsernameAvailability();
 	});
 	Ui::show(
-		Box<RevokePublicLinkBox>(std::move(revokeCallback)),
+		Box<RevokePublicLinkBox>(
+			&_peer->session(),
+			std::move(revokeCallback)),
 		LayerOption::KeepOther);
 }
 

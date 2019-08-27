@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/connection.h"
 #include "mtproto/dcenter.h"
 #include "mtproto/auth_key.h"
+#include "base/unixtime.h"
 #include "core/crash_reports.h"
 
 namespace MTP {
@@ -329,7 +330,8 @@ void Session::checkRequestsByTimer() {
 						stateRequestIds.push_back(i.key());
 					}
 				}
-			} else if (unixtime() > (int32)(i.key() >> 32) + kContainerLives) {
+			} else if (base::unixtime::now()
+					> int32(i.key() >> 32) + kContainerLives) {
 				removingIds.reserve(haveSentCount);
 				removingIds.push_back(i.key());
 			}

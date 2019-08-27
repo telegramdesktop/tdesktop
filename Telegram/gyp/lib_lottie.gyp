@@ -60,7 +60,7 @@
       '<(src_loc)/lottie/lottie_animation.h',
       '<(src_loc)/lottie/lottie_cache.cpp',
       '<(src_loc)/lottie/lottie_cache.h',
-	  '<(src_loc)/lottie/lottie_common.cpp',
+      '<(src_loc)/lottie/lottie_common.cpp',
       '<(src_loc)/lottie/lottie_common.h',
       '<(src_loc)/lottie/lottie_frame_renderer.cpp',
       '<(src_loc)/lottie/lottie_frame_renderer.h',

@@ -20,7 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Intro {
 
-SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
+SignupWidget::SignupWidget(
+	QWidget *parent,
+	not_null<Main::Account*> account,
+	not_null<Widget::Data*> data)
+: Step(parent, account, data)
 , _photo(
 	this,
 	tr::lng_settings_crop_profile(tr::now),
@@ -211,7 +215,6 @@ void SignupWidget::submit() {
 			MTPauth_SignUp(
 				MTP_string(getData()->phone),
 				MTP_bytes(getData()->phoneHash),
-				MTP_string(getData()->code),
 				MTP_string(_firstName),
 				MTP_string(_lastName)),
 			rpcDone(&SignupWidget::nameSubmitDone),

@@ -16,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "base/timer.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace HistoryView {
 class Element;
 struct TextState;
@@ -47,6 +51,8 @@ public:
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		not_null<ChannelData*> channel);
+
+	Main::Session &session() const;
 
 	base::Observable<void> showSearchSignal;
 	base::Observable<int> scrollToSignal;
@@ -93,6 +99,8 @@ public:
 		not_null<const HistoryView::Element*> view,
 		int from,
 		int till) override;
+	void elementStartStickerLoop(
+		not_null<const HistoryView::Element*> view) override;
 
 	~InnerWidget();
 
@@ -213,6 +221,7 @@ private:
 	std::vector<OwnedItem> _items;
 	std::set<uint64> _eventIds;
 	std::map<not_null<const HistoryItem*>, not_null<Element*>> _itemsByData;
+	base::flat_set<FullMsgId> _animatedStickersPlayed;
 	int _itemsTop = 0;
 	int _itemsWidth = 0;
 	int _itemsHeight = 0;

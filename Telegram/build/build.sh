@@ -124,15 +124,15 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
 #   Error "Dropbox path not found!"
 # fi
 
-  BackupPath="/home/sean/TBuild/backup/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
-  if [ ! -d "/home/sean/TBuild/backup" ]; then
+  BackupPath="/root/TBuild/backup/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
+  if [ ! -d "/root/TBuild/backup" ]; then
     Error "Backup folder not found!"
   fi
 
   gyp/refresh.sh
 
   cd $ReleasePath
-  make -j4
+  make -j2
   echo "$BinaryName build complete!"
 
   if [ ! -f "$ReleasePath/$BinaryName" ]; then
@@ -294,7 +294,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
 
   echo "Signing the application.."
   if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
-:#  codesign --force --deep --timestamp --options runtime --sign "Mac Developer: Sean Wei (Sean Wei)" "$ReleasePath/$BinaryName.app" --entitlements "$HomePath/Telegram/Telegreat.entitlements"
+:#  codesign --force --deep --timestamp --options runtime --sign "Developer ID Application: John Preston" "$ReleasePath/$BinaryName.app" --entitlements "$HomePath/Telegram/Telegram.entitlements"
   elif [ "$BuildTarget" == "macstore" ]; then
     codesign --force --deep --sign "3rd Party Mac Developer Application: TELEGRAM MESSENGER LLP (6N38VWS5BX)" "$ReleasePath/$BinaryName.app" --entitlements "$HomePath/Telegreat/Telegreat Desktop.entitlements"
     echo "Making an installer.."
@@ -374,7 +374,9 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     fi
     if [ "$BuildTarget" == "mac" ]; then
       echo "Beginning notarization process."
+      set +e
       xcrun altool --notarize-app --primary-bundle-id "taipei.sean.Telegreat" --username "$AC_USERNAME" --password "@keychain:AC_PASSWORD" --file "$SetupFile" 2> request_uuid.txt
+      set -e
       while IFS='' read -r line || [[ -n "$line" ]]; do
         Prefix=$(echo $line | cut -d' ' -f 1)
         Value=$(echo $line | cut -d' ' -f 3)
@@ -383,7 +385,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
         fi
       done < "request_uuid.txt"
       if [ "$RequestUUID" == "" ]; then
-        Error "Could not extract Request UUID. See request_uuid.txt for more information."
+        cat request_uuid.txt
+        Error "Could not extract Request UUID."
       fi
       echo "Request UUID: $RequestUUID"
       rm request_uuid.txt

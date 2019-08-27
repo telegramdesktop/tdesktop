@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
+#include <vector>
 #include <QtDBus>
 
 namespace Platform {
@@ -549,19 +550,29 @@ void MainWindow::psFirstShow() {
 	if (QDBusInterface("com.canonical.Unity", "/").isValid()) {
 		auto snapName = QString::fromLatin1(qgetenv("SNAP_NAME"));
 		if(snapName.isEmpty()) {
-			if(!QStandardPaths::locate(QStandardPaths::ApplicationsLocation, "telegramdesktop.desktop").isEmpty()) {
-				_desktopFile = "telegramdesktop.desktop";
-				LOG(("Found Unity Launcher entry telegramdesktop.desktop!"));
-				useUnityCount=true;
-			} else if(!QStandardPaths::locate(QStandardPaths::ApplicationsLocation, "Telegram.desktop").isEmpty()) {
-				_desktopFile = "Telegram.desktop";
-				LOG(("Found Unity Launcher entry Telegram.desktop!"));
-				useUnityCount=true;
-			} else {
+			std::vector<QString> possibleDesktopFiles = {
+#ifdef TDESKTOP_LAUNCHER_FILENAME
+#define TDESKTOP_LAUNCHER_FILENAME_TO_STRING_HELPER(V) #V
+#define TDESKTOP_LAUNCHER_FILENAME_TO_STRING(V) TDESKTOP_LAUNCHER_FILENAME_TO_STRING_HELPER(V)
+				TDESKTOP_LAUNCHER_FILENAME_TO_STRING(TDESKTOP_LAUNCHER_FILENAME),
+#endif // TDESKTOP_LAUNCHER_FILENAME
+				"telegramdesktop.desktop",
+				"Telegram.desktop"
+			};
+			
+			for (auto it = possibleDesktopFiles.begin(); it != possibleDesktopFiles.end(); it++) {
+				if (!QStandardPaths::locate(QStandardPaths::ApplicationsLocation, *it).isEmpty()) {
+					_desktopFile = *it;
+					LOG(("Found Unity Launcher entry %1!").arg(_desktopFile));
+					useUnityCount = true;
+					break;
+				}
+			}
+			if (!useUnityCount) {
 				LOG(("Could not get Unity Launcher entry!"));
 			}
 		} else {
-			LOG(("SNAP Enviroment detected, setting Launcher entry to %1-telegramdesktop.desktop!").arg(snapName));
+			LOG(("SNAP Environment detected, setting Launcher entry to %1-telegramdesktop.desktop!").arg(snapName));
 			_desktopFile = snapName + "_telegramdesktop.desktop";
 			useUnityCount=true;
 		}

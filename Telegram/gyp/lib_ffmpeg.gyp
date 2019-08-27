@@ -46,7 +46,11 @@
       '<(src_loc)/ffmpeg/ffmpeg_utility.cpp',
       '<(src_loc)/ffmpeg/ffmpeg_utility.h',
     ],
-    'conditions': [[ 'build_macold', {
+    'conditions': [[ '"<(official_build_target)" != ""', {
+      'defines': [
+        'TDESKTOP_OFFICIAL_TARGET=<(official_build_target)',
+      ],
+    }], [ 'build_macold', {
       'xcode_settings': {
         'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
       },

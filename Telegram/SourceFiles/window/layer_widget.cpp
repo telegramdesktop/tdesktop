@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "window/window_main_menu.h"
 #include "lottie/lottie_single_player.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "chat_helpers/stickers.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
@@ -480,7 +480,7 @@ void LayerStackWidget::closeLayer(not_null<LayerWidget*> layer) {
 		if (_layers.size() == 1) {
 			hideCurrent(anim::type::normal);
 		} else {
-			auto taken = std::move(_layers.back());
+			const auto taken = std::move(_layers.back());
 			_layers.pop_back();
 
 			layer = currentLayer();
@@ -493,6 +493,7 @@ void LayerStackWidget::closeLayer(not_null<LayerWidget*> layer) {
 	} else {
 		for (auto i = _layers.begin(), e = _layers.end(); i != e; ++i) {
 			if (layer == i->get()) {
+				const auto taken = std::move(*i);
 				_layers.erase(i);
 				break;
 			}
@@ -861,7 +862,9 @@ MediaPreviewWidget::MediaPreviewWidget(
 , _controller(controller)
 , _emojiSize(Ui::Emoji::GetSizeLarge() / cIntRetinaFactor()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
-	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
+	subscribe(_controller->session().downloaderTaskFinished(), [=] {
+		update();
+	});
 }
 
 QRect MediaPreviewWidget::updateArea() const {

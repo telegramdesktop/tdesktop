@@ -33,7 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_feed_messages.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
 

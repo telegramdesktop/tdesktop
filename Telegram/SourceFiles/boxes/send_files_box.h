@@ -43,18 +43,24 @@ enum class SendFilesWay {
 
 class SendFilesBox : public BoxContent {
 public:
+	enum class SendLimit {
+		One,
+		Many
+	};
 	SendFilesBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
 		Storage::PreparedList &&list,
 		const TextWithTags &caption,
-		CompressConfirm compressed);
+		CompressConfirm compressed,
+		SendLimit limit);
 
 	void setConfirmedCallback(
 		Fn<void(
 			Storage::PreparedList &&list,
 			SendFilesWay way,
 			TextWithTags &&caption,
+			bool silent,
 			bool ctrlShiftEnter)> callback) {
 		_confirmedCallback = std::move(callback);
 	}
@@ -95,7 +101,7 @@ private:
 	void prepareAlbumPreview();
 	void applyAlbumOrder();
 
-	void send(bool ctrlShiftEnter = false);
+	void send(bool silent = false, bool ctrlShiftEnter = false);
 	void captionResized();
 
 	void setupTitleText();
@@ -116,11 +122,13 @@ private:
 
 	CompressConfirm _compressConfirmInitial = CompressConfirm::None;
 	CompressConfirm _compressConfirm = CompressConfirm::None;
+	SendLimit _sendLimit = SendLimit::Many;
 
 	Fn<void(
 		Storage::PreparedList &&list,
 		SendFilesWay way,
 		TextWithTags &&caption,
+		bool silent,
 		bool ctrlShiftEnter)> _confirmedCallback;
 	Fn<void()> _cancelledCallback;
 	bool _confirmed = false;

@@ -284,6 +284,21 @@ dialogsChatTabsOneOnOneButton: IconButton {
         }
 }
 
+dialogsChatTabsBotButton: IconButton {
+        width: 40px;
+        height: 40px;
+
+        icon: icon {{ "bot_icon", dialogsMenuIconFg }};
+        iconOver: icon {{ "bot_icon", windowBgActive }};
+        iconPosition: point(10px, 5px);
+
+        rippleAreaPosition: point(0px, 0px);
+        rippleAreaSize: 40px;
+        ripple: RippleAnimation(defaultRippleAnimation) {
+                color: windowBgOver;
+        }
+}
+
 dialogsChatTabsGroupButton: IconButton {
         width: 40px;
         height: 40px;

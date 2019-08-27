@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "observer_peer.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "window/notifications_manager.h"
 #include "calls/calls_instance.h"
 #include "storage/localstorage.h"
@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text_options.h"
 #include "core/crash_reports.h"
+#include "base/unixtime.h"
 #include "styles/style_dialogs.h"
 #include <memory>
 
@@ -69,7 +70,7 @@ History::History(not_null<Data::Session*> owner, PeerId peerId)
 , _mute(owner->notifyIsMuted(peer))
 , _sendActionText(st::dialogsTextWidthMin) {
 	if (const auto user = peer->asUser()) {
-		if (user->botInfo) {
+		if (user->isBot()) {
 			_outboxReadBefore = std::numeric_limits<MsgId>::max();
 		}
 	}
@@ -130,6 +131,9 @@ void History::setHasPendingResizedItems() {
 }
 
 void History::itemRemoved(not_null<HistoryItem*> item) {
+	if (item == _joinedMessage) {
+		_joinedMessage = nullptr;
+	}
 	item->removeMainView();
 	if (lastMessage() == item) {
 		_lastMessage = std::nullopt;
@@ -141,6 +145,9 @@ void History::itemRemoved(not_null<HistoryItem*> item) {
 	}
 	checkChatListMessageRemoved(item);
 	itemVanished(item);
+	if (IsClientMsgId(item->id)) {
+		unregisterLocalMessage(item);
+	}
 	if (const auto chat = peer->asChat()) {
 		if (const auto to = chat->getMigrateToChannel()) {
 			if (const auto history = owner().historyLoaded(to)) {
@@ -256,7 +263,7 @@ Data::Draft *History::createCloudDraft(const Data::Draft *fromDraft) {
 			existing->cursor = fromDraft->cursor;
 			existing->previewCancelled = fromDraft->previewCancelled;
 		}
-		existing->date = unixtime();
+		existing->date = base::unixtime::now();
 	}
 
 	cloudDraftTextCache.clear();
@@ -285,7 +292,7 @@ void History::clearSentDraftText(const QString &text) {
 	if (_lastSentDraftText && *_lastSentDraftText == text) {
 		_lastSentDraftText = std::nullopt;
 	}
-	accumulate_max(_lastSentDraftTime, unixtime());
+	accumulate_max(_lastSentDraftTime, base::unixtime::now());
 }
 
 void History::setEditDraft(std::unique_ptr<Data::Draft> &&draft) {
@@ -576,6 +583,7 @@ bool History::updateSendActionNeedsAnimating(crl::time now, bool force) {
 
 HistoryItem *History::createItem(
 		const MTPMessage &message,
+		MTPDmessage_ClientFlags clientFlags,
 		bool detachExistingItem) {
 	const auto messageId = IdFromMessage(message);
 	if (!messageId) {
@@ -587,46 +595,39 @@ HistoryItem *History::createItem(
 			result->removeMainView();
 		}
 		if (message.type() == mtpc_message) {
-			result->updateSentMedia(message.c_message().vmedia());
+			result->updateSentContent(
+				result->originalText(),
+				message.c_message().vmedia());
 		}
 		return result;
 	}
-	return HistoryItem::Create(this, message);
+	return HistoryItem::Create(this, message, clientFlags);
 }
 
 std::vector<not_null<HistoryItem*>> History::createItems(
 		const QVector<MTPMessage> &data) {
 	auto result = std::vector<not_null<HistoryItem*>>();
 	result.reserve(data.size());
+	const auto clientFlags = MTPDmessage_ClientFlags();
 	for (auto i = data.cend(), e = data.cbegin(); i != e;) {
 		const auto detachExistingItem = true;
-		if (const auto item = createItem(*--i, detachExistingItem)) {
+		const auto item = createItem(*--i, clientFlags, detachExistingItem);
+		if (item) {
 			result.emplace_back(item);
 		}
 	}
 	return result;
 }
 
-not_null<HistoryItem*> History::addNewService(
-		MsgId msgId,
-		TimeId date,
-		const QString &text,
-		MTPDmessage::Flags flags,
-		bool unread) {
-	auto message = HistoryService::PreparedText { text };
-	return addNewItem(
-		new HistoryService(this, msgId, date, message, flags),
-		unread);
-}
-
 HistoryItem *History::addNewMessage(
 		const MTPMessage &msg,
+		MTPDmessage_ClientFlags clientFlags,
 		NewMessageType type) {
 	if (type == NewMessageType::Existing) {
-		return addToHistory(msg);
+		return addToHistory(msg, clientFlags);
 	}
 	if (!loadedAtBottom() || peer->migrateTo()) {
-		if (const auto item = addToHistory(msg)) {
+		if (const auto item = addToHistory(msg, clientFlags)) {
 			setLastMessage(item);
 			if (type == NewMessageType::Unread) {
 				newItemAdded(item);
@@ -636,16 +637,17 @@ HistoryItem *History::addNewMessage(
 		return nullptr;
 	}
 
-	return addNewToLastBlock(msg, type);
+	return addNewToLastBlock(msg, clientFlags, type);
 }
 
 HistoryItem *History::addNewToLastBlock(
 		const MTPMessage &msg,
+		MTPDmessage_ClientFlags clientFlags,
 		NewMessageType type) {
 	Expects(type != NewMessageType::Existing);
 
 	const auto detachExistingItem = (type != NewMessageType::Last);
-	const auto item = createItem(msg, detachExistingItem);
+	const auto item = createItem(msg, clientFlags, detachExistingItem);
 	if (!item || item->mainView()) {
 		return item;
 	}
@@ -678,39 +680,44 @@ void History::checkForLoadedAtTop(not_null<HistoryItem*> added) {
 	} else if (peer->isChannel()) {
 		if (added->id == 1) {
 			_loadedAtTop = true;
-			checkJoinedMessage();
+			checkLocalMessages();
 			addEdgesToSharedMedia();
 		}
 	}
 }
 
-HistoryItem *History::addToHistory(const MTPMessage &msg) {
+HistoryItem *History::addToHistory(
+		const MTPMessage &msg,
+		MTPDmessage_ClientFlags clientFlags) {
 	const auto detachExistingItem = false;
-	return createItem(msg, detachExistingItem);
+	return createItem(msg, clientFlags, detachExistingItem);
 }
 
-not_null<HistoryItem*> History::addNewForwarded(
+not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		TimeId date,
 		UserId from,
 		const QString &postAuthor,
-		not_null<HistoryMessage*> original) {
+		not_null<HistoryMessage*> forwardOriginal) {
 	return addNewItem(
 		owner().makeMessage(
 			this,
 			id,
 			flags,
+			clientFlags,
 			date,
 			from,
 			postAuthor,
-			original),
+			forwardOriginal),
 		true);
 }
 
-not_null<HistoryItem*> History::addNewDocument(
+not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -724,6 +731,7 @@ not_null<HistoryItem*> History::addNewDocument(
 			this,
 			id,
 			flags,
+			clientFlags,
 			replyTo,
 			viaBotId,
 			date,
@@ -735,9 +743,10 @@ not_null<HistoryItem*> History::addNewDocument(
 		true);
 }
 
-not_null<HistoryItem*> History::addNewPhoto(
+not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -751,6 +760,7 @@ not_null<HistoryItem*> History::addNewPhoto(
 			this,
 			id,
 			flags,
+			clientFlags,
 			replyTo,
 			viaBotId,
 			date,
@@ -762,9 +772,10 @@ not_null<HistoryItem*> History::addNewPhoto(
 		true);
 }
 
-not_null<HistoryItem*> History::addNewGame(
+not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -777,6 +788,7 @@ not_null<HistoryItem*> History::addNewGame(
 			this,
 			id,
 			flags,
+			clientFlags,
 			replyTo,
 			viaBotId,
 			date,
@@ -868,8 +880,9 @@ void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
 
 	auto added = false;
 	if (messages) {
+		const auto clientFlags = MTPDmessage_ClientFlags();
 		for (auto &message : *messages) {
-			if (auto item = addToHistory(message)) {
+			if (auto item = addToHistory(message, clientFlags)) {
 				if (item->isUnreadMention()) {
 					_unreadMentions.insert(item->id);
 					added = true;
@@ -913,7 +926,7 @@ not_null<HistoryItem*> History::addNewItem(
 				return nullptr;
 			};
 			if (auto megagroup = peer->asMegagroup()) {
-				if (user->botInfo) {
+				if (user->isBot()) {
 					auto mgInfo = megagroup->mgInfo.get();
 					Assert(mgInfo != nullptr);
 					mgInfo->bots.insert(user);
@@ -1010,7 +1023,7 @@ void History::applyMessageChanges(
 	if (data.type() == mtpc_messageService) {
 		applyServiceChanges(item, data.c_messageService());
 	}
-	App::checkSavedGif(item);
+	owner().checkSavedGif(item);
 }
 
 void History::applyServiceChanges(
@@ -1030,7 +1043,7 @@ void History::applyServiceChanges(
 						Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
 						owner().addNewMegagroupParticipant(megagroup, user);
 					}
-					if (user->botInfo) {
+					if (user->isBot()) {
 						peer->asChannel()->mgInfo->bots.insert(user);
 						if (peer->asChannel()->mgInfo->botStatus != 0 && peer->asChannel()->mgInfo->botStatus < 2) {
 							peer->asChannel()->mgInfo->botStatus = 2;
@@ -1052,7 +1065,7 @@ void History::applyServiceChanges(
 					Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
 					owner().addNewMegagroupParticipant(megagroup, user);
 				}
-				if (user->botInfo) {
+				if (user->isBot()) {
 					mgInfo->bots.insert(user);
 					if (mgInfo->botStatus != 0 && mgInfo->botStatus < 2) {
 						mgInfo->botStatus = 2;
@@ -1105,7 +1118,7 @@ void History::applyServiceChanges(
 					mgInfo->botStatus = -1;
 				}
 			}
-			Data::ChannelAdminChanges(megagroup).feed(uid, false);
+			Data::ChannelAdminChanges(megagroup).remove(uid);
 		}
 	} break;
 
@@ -1182,7 +1195,8 @@ void History::applyServiceChanges(
 	} break;
 
 	case mtpc_messageActionPhoneCall: {
-		Calls::Current().newServiceMessage().notify(item->fullId());
+		item->history()->session().calls().newServiceMessage().notify(
+			item->fullId());
 	} break;
 	}
 }
@@ -1207,9 +1221,8 @@ void History::clearSendAction(not_null<UserData*> from) {
 void History::mainViewRemoved(
 		not_null<HistoryBlock*> block,
 		not_null<HistoryView::Element*> view) {
-	if (_joinedMessage == view->data()) {
-		_joinedMessage = nullptr;
-	}
+	Expects(_joinedMessage != view->data());
+
 	if (_firstUnreadView == view) {
 		getNextFirstUnreadMessage();
 	}
@@ -1229,6 +1242,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		}
 		from->madeAction(item->date());
 	}
+	item->contributeToSlowmode();
 	if (item->out()) {
 		destroyUnreadBar();
 		if (!item->unread()) {
@@ -1245,6 +1259,37 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	if (!folderKnown()) {
 		session().api().requestDialogEntry(this);
 	}
+}
+
+void History::registerLocalMessage(not_null<HistoryItem*> item) {
+	_localMessages.emplace(item);
+	if (peer->isChannel()) {
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::ChannelLocalMessages);
+	}
+}
+
+void History::unregisterLocalMessage(not_null<HistoryItem*> item) {
+	_localMessages.remove(item);
+	if (peer->isChannel()) {
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::ChannelLocalMessages);
+	}
+}
+
+HistoryItem *History::latestSendingMessage() const {
+	auto sending = ranges::view::all(
+		_localMessages
+	) | ranges::view::filter([](not_null<HistoryItem*> item) {
+		return item->isSending();
+	});
+	const auto i = ranges::max_element(sending, ranges::less(), [](
+			not_null<HistoryItem*> item) {
+		return uint64(item->date()) << 32 | uint32(item->id);
+	});
+	return (i == sending.end()) ? nullptr : i->get();
 }
 
 HistoryBlock *History::prepareBlockForAddingItem() {
@@ -1312,7 +1357,7 @@ void History::addEdgesToSharedMedia() {
 void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	if (slice.isEmpty()) {
 		_loadedAtTop = true;
-		checkJoinedMessage();
+		checkLocalMessages();
 		return;
 	}
 
@@ -1334,7 +1379,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 		addEdgesToSharedMedia();
 	}
 
-	checkJoinedMessage();
+	checkLocalMessages();
 	checkLastMessage();
 }
 
@@ -1366,7 +1411,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 		checkAddAllToUnreadMentions();
 	}
 
-	checkJoinedMessage();
+	checkLocalMessages();
 	checkLastMessage();
 }
 
@@ -2189,7 +2234,8 @@ void History::getReadyFor(MsgId msgId) {
 				migrated->clear(ClearType::Unload);
 			}
 		}
-		if (msgId == ShowAtTheEndMsgId) {
+		if ((msgId == ShowAtTheEndMsgId)
+			|| (msgId == ShowAtUnreadMsgId && !unreadCount())) {
 			_loadedAtBottom = true;
 		}
 	}
@@ -2416,6 +2462,7 @@ void History::setFakeChatListMessageFrom(const MTPmessages_Messages &data) {
 	}
 	const auto item = owner().addNewMessage(
 		*other,
+		MTPDmessage_ClientFlags(),
 		NewMessageType::Existing);
 	if (!item || item->isGroupMigrate()) {
 		// Not better than the last one.
@@ -2556,7 +2603,7 @@ void History::dialogEntryApplied() {
 				if (const auto from = owner().userLoaded(inviter)) {
 					clear(ClearType::Unload);
 					addNewerSlice(QVector<MTPMessage>());
-					insertJoinedMessage(true);
+					insertJoinedMessage();
 				}
 			}
 		} else {
@@ -2572,7 +2619,7 @@ void History::dialogEntryApplied() {
 				&& chatListTimeId() <= channel->inviteDate
 				&& channel->amIn()) {
 				if (const auto from = owner().userLoaded(inviter)) {
-					insertJoinedMessage(true);
+					insertJoinedMessage();
 				}
 			}
 		}
@@ -2728,6 +2775,11 @@ void History::resizeToWidth(int newWidth) {
 	_height = y;
 }
 
+void History::forceFullResize() {
+	_width = 0;
+	_flags |= Flag::f_has_pending_resized_items;
+}
+
 ChannelId History::channelId() const {
 	return peerToChannel(peer->id);
 }
@@ -2745,9 +2797,9 @@ Dialogs::EntryTypes History::getEntryType() const {
 	?  Dialogs::EntryType::Group
 	:  isChannel()
 	?  Dialogs::EntryType::Channel
-	:  peer->isUser()
-	?  Dialogs::EntryType::OneOnOne
-	:  Dialogs::EntryType::All;
+	:  peer->asUser()->isBot()
+	?  Dialogs::EntryType::Bot
+	:  Dialogs::EntryType::OneOnOne;
 	
 	return ret;
 }
@@ -2797,7 +2849,7 @@ MsgRange History::rangeForDifferenceRequest() const {
 	return MsgRange();
 }
 
-HistoryService *History::insertJoinedMessage(bool unread) {
+HistoryService *History::insertJoinedMessage() {
 	if (!isChannel()
 		|| _joinedMessage
 		|| !peer->asChannel()->amIn()
@@ -2813,109 +2865,79 @@ HistoryService *History::insertJoinedMessage(bool unread) {
 		return nullptr;
 	}
 
-	MTPDmessage::Flags flags = 0;
-	if (inviter->id == session().userPeerId()) {
-		unread = false;
-	//} else if (unread) {
-	//	flags |= MTPDmessage::Flag::f_unread;
+	if (peer->isMegagroup()
+		&& peer->migrateFrom()
+		&& !blocks.empty()
+		&& blocks.front()->messages.front()->data()->id == 1) {
+		peer->asChannel()->mgInfo->joinedMessageFound = true;
+		return nullptr;
 	}
 
+	const auto flags = MTPDmessage::Flags();
 	const auto inviteDate = peer->asChannel()->inviteDate;
+	_joinedMessage = GenerateJoinedMessage(this, inviteDate, inviter, flags);
+	insertLocalMessage(_joinedMessage);
+	return _joinedMessage;
+}
+
+void History::insertLocalMessage(not_null<HistoryItem*> item) {
+	Expects(item->mainView() == nullptr);
+
 	if (isEmpty()) {
-		_joinedMessage = GenerateJoinedMessage(
-			this,
-			inviteDate,
-			inviter,
-			flags);
-		addNewItem(_joinedMessage, unread);
-		return _joinedMessage;
+		addNewItem(item, false);
+		return;
 	}
 
+	const auto itemDate = item->date();
 	for (auto blockIndex = blocks.size(); blockIndex > 0;) {
 		const auto &block = blocks[--blockIndex];
 		for (auto itemIndex = block->messages.size(); itemIndex > 0;) {
-			const auto item = block->messages[--itemIndex]->data();
-
-			// Due to a server bug sometimes inviteDate is less (before) than the
-			// first message in the megagroup (message about migration), let us
-			// ignore that and think, that the inviteDate is always greater-or-equal.
-			if ((item->id == 1)
-				&& peer->isMegagroup()
-				&& peer->migrateFrom()) {
-				peer->asChannel()->mgInfo->joinedMessageFound = true;
-				return nullptr;
-			}
-			if (item->date() <= inviteDate) {
+			if (block->messages[--itemIndex]->data()->date() <= itemDate) {
 				++itemIndex;
-				_joinedMessage = GenerateJoinedMessage(
-					this,
-					inviteDate,
-					inviter,
-					flags);
-				addNewInTheMiddle(_joinedMessage, blockIndex, itemIndex);
+				addNewInTheMiddle(item, blockIndex, itemIndex);
 				const auto lastDate = chatListTimeId();
-				if (!lastDate || inviteDate >= lastDate) {
-					setLastMessage(_joinedMessage);
-					if (unread) {
-						newItemAdded(_joinedMessage);
-					}
+				if (!lastDate || itemDate >= lastDate) {
+					setLastMessage(item);
 				}
-				return _joinedMessage;
+				return;
 			}
 		}
 	}
 
 	startBuildingFrontBlock();
-	_joinedMessage = GenerateJoinedMessage(
-		this,
-		inviteDate,
-		inviter,
-		flags);
-	addItemToBlock(_joinedMessage);
+	addItemToBlock(item);
 	finishBuildingFrontBlock();
-
-	return _joinedMessage;
 }
 
-void History::checkJoinedMessage(bool createUnread) {
-	if (!isChannel() || _joinedMessage || peer->asChannel()->inviter <= 0) {
+void History::checkLocalMessages() {
+	if (isEmpty() && (!loadedAtTop() || !loadedAtBottom())) {
 		return;
 	}
-	if (isEmpty()) {
-		if (loadedAtTop() && loadedAtBottom()) {
-			if (insertJoinedMessage(createUnread)) {
-				if (_joinedMessage->mainView()) {
-					setLastMessage(_joinedMessage);
-				}
-			}
-			return;
+	const auto firstDate = loadedAtTop()
+		? 0
+		: blocks.front()->messages.front()->data()->date();
+	const auto lastDate = loadedAtBottom()
+		? std::numeric_limits<TimeId>::max()
+		: blocks.back()->messages.back()->data()->date();
+	const auto goodDate = [&](TimeId date) {
+		return (date >= firstDate && date < lastDate);
+	};
+	for (const auto &item : _localMessages) {
+		if (!item->mainView() && goodDate(item->date())) {
+			insertLocalMessage(item);
 		}
 	}
-
-	const auto inviteDate = peer->asChannel()->inviteDate;
-	auto firstDate = TimeId(0);
-	auto lastDate = TimeId(0);
-	if (!blocks.empty()) {
-		firstDate = blocks.front()->messages.front()->data()->date();
-		lastDate = blocks.back()->messages.back()->data()->date();
-	}
-	if (firstDate
-		&& lastDate
-		&& (firstDate <= inviteDate || loadedAtTop())
-		&& (lastDate > inviteDate || loadedAtBottom())) {
-		const auto willBeLastMsg = (inviteDate >= lastDate);
-		if (insertJoinedMessage(createUnread && willBeLastMsg)
-			&& willBeLastMsg) {
-			if (_joinedMessage->mainView()) {
-				setLastMessage(_joinedMessage);
-			}
-		}
+	if (isChannel()
+		&& !_joinedMessage
+		&& (peer->asChannel()->inviter > 0)
+		&& goodDate(peer->asChannel()->inviteDate)) {
+		insertJoinedMessage();
 	}
 }
 
 void History::removeJoinedMessage() {
 	if (_joinedMessage) {
-		base::take(_joinedMessage)->destroy();
+		_joinedMessage->destroy();
 	}
 }
 
@@ -3031,7 +3053,7 @@ QVector<MsgId> History::collectMessagesFromUserToDelete(
 void History::clear(ClearType type) {
 	_unreadBarView = nullptr;
 	_firstUnreadView = nullptr;
-	_joinedMessage = nullptr;
+	removeJoinedMessage();
 
 	forgetScrollState();
 	if (type == ClearType::Unload) {
@@ -3041,6 +3063,7 @@ void History::clear(ClearType type) {
 		_loadedAtTop = _loadedAtBottom = false;
 	} else {
 		_notifications.clear();
+		_localMessages.clear();
 		owner().notifyHistoryCleared(this);
 		if (unreadCountKnown()) {
 			setUnreadCount(0);
@@ -3103,8 +3126,7 @@ void History::clearUpTill(MsgId availableMinId) {
 	owner().sendHistoryChangeNotifications();
 }
 
-void History::applyGroupAdminChanges(
-		const base::flat_map<UserId, bool> &changes) {
+void History::applyGroupAdminChanges(const base::flat_set<UserId> &changes) {
 	for (const auto &block : blocks) {
 		for (const auto &message : block->messages) {
 			message->data()->applyGroupAdminChanges(changes);

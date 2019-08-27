@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Platform {
 namespace Notifications {
@@ -55,12 +57,12 @@ class Manager;
 
 class System final : private base::Subscriber {
 public:
-	explicit System(not_null<AuthSession*> session);
+	explicit System(not_null<Main::Session*> session);
 
 	void createManager();
 
 	void checkDelayed();
-	void schedule(History *history, HistoryItem *item);
+	void schedule(not_null<History*> history, not_null<HistoryItem*> item);
 	void clearFromHistory(History *history);
 	void clearFromItem(HistoryItem *item);
 	void clearAll();
@@ -71,7 +73,7 @@ public:
 		return _settingsChanged;
 	}
 
-	AuthSession &session() const {
+	Main::Session &session() const {
 		return *_session;
 	}
 
@@ -82,7 +84,7 @@ private:
 	void showGrouped();
 	void ensureSoundCreated();
 
-	not_null<AuthSession*> _session;
+	not_null<Main::Session*> _session;
 
 	QMap<History*, QMap<MsgId, crl::time>> _whenMaps;
 
@@ -117,7 +119,7 @@ private:
 
 class Manager {
 public:
-	Manager(System *system) : _system(system) {
+	explicit Manager(not_null<System*> system) : _system(system) {
 	}
 
 	void showNotification(HistoryItem *item, int forwardedCount) {
@@ -155,7 +157,7 @@ public:
 	virtual ~Manager() = default;
 
 protected:
-	System *system() const {
+	not_null<System*> system() const {
 		return _system;
 	}
 
@@ -175,7 +177,7 @@ private:
 		not_null<History*> history,
 		MsgId messageId);
 
-	System *_system = nullptr;
+	const not_null<System*> _system;
 
 };
 

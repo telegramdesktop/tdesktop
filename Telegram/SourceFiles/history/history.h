@@ -22,8 +22,10 @@ class HistoryBlock;
 class HistoryItem;
 class HistoryMessage;
 class HistoryService;
-class HistoryMedia;
-class AuthSession;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Data {
 struct Draft;
@@ -70,8 +72,7 @@ public:
 	not_null<History*> migrateToOrMe() const;
 	History *migrateFrom() const;
 	MsgRange rangeForDifferenceRequest() const;
-	HistoryService *insertJoinedMessage(bool unread);
-	void checkJoinedMessage(bool createUnread = false);
+	void checkLocalMessages();
 	void removeJoinedMessage();
 
 	bool isEmpty() const;
@@ -91,27 +92,27 @@ public:
 	void clear(ClearType type);
 	void clearUpTill(MsgId availableMinId);
 
-	void applyGroupAdminChanges(
-		const base::flat_map<UserId, bool> &changes);
+	void applyGroupAdminChanges(const base::flat_set<UserId> &changes);
 
-	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
-	HistoryItem *addToHistory(const MTPMessage &msg);
-	not_null<HistoryItem*> addNewService(
-		MsgId msgId,
-		TimeId date,
-		const QString &text,
-		MTPDmessage::Flags flags = 0,
-		bool newMsg = true);
-	not_null<HistoryItem*> addNewForwarded(
+	HistoryItem *addNewMessage(
+		const MTPMessage &msg,
+		MTPDmessage_ClientFlags clientFlags,
+		NewMessageType type);
+	HistoryItem *addToHistory(
+		const MTPMessage &msg,
+		MTPDmessage_ClientFlags clientFlags);
+	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		TimeId date,
 		UserId from,
 		const QString &postAuthor,
-		not_null<HistoryMessage*> original);
-	not_null<HistoryItem*> addNewDocument(
+		not_null<HistoryMessage*> forwardOriginal);
+	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -120,9 +121,10 @@ public:
 		not_null<DocumentData*> document,
 		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup);
-	not_null<HistoryItem*> addNewPhoto(
+	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -131,9 +133,10 @@ public:
 		not_null<PhotoData*> photo,
 		const TextWithEntities &caption,
 		const MTPReplyMarkup &markup);
-	not_null<HistoryItem*> addNewGame(
+	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
+		MTPDmessage_ClientFlags clientFlags,
 		UserId viaBotId,
 		MsgId replyTo,
 		TimeId date,
@@ -145,6 +148,7 @@ public:
 	// Used only internally and for channel admin log.
 	HistoryItem *createItem(
 		const MTPMessage &message,
+		MTPDmessage_ClientFlags clientFlags,
 		bool detachExistingItem);
 	std::vector<not_null<HistoryItem*>> createItems(
 		const QVector<MTPMessage> &data);
@@ -153,6 +157,10 @@ public:
 	void addNewerSlice(const QVector<MTPMessage> &slice);
 
 	void newItemAdded(not_null<HistoryItem*> item);
+
+	void registerLocalMessage(not_null<HistoryItem*> item);
+	void unregisterLocalMessage(not_null<HistoryItem*> item);
+	[[nodiscard]] HistoryItem *latestSendingMessage() const;
 
 	MsgId readInbox();
 	void applyInboxReadUpdate(
@@ -209,6 +217,7 @@ public:
 	HistoryItem *lastSentMessage() const;
 
 	void resizeToWidth(int newWidth);
+	void forceFullResize();
 	int height() const;
 
 	void itemRemoved(not_null<HistoryItem*> item);
@@ -383,7 +392,10 @@ private:
 	// helper method for countScrollState(int top)
 	void countScrollTopItem(int top);
 
-	HistoryItem *addNewToLastBlock(const MTPMessage &msg, NewMessageType type);
+	HistoryItem *addNewToLastBlock(
+		const MTPMessage &msg,
+		MTPDmessage_ClientFlags clientFlags,
+		NewMessageType type);
 
 	// this method just removes a block from the blocks list
 	// when the last item from this block was detached and
@@ -471,6 +483,9 @@ private:
 
 	void createLocalDraftFromCloud();
 
+	HistoryService *insertJoinedMessage();
+	void insertLocalMessage(not_null<HistoryItem*> item);
+
 	void setFolderPointer(Data::Folder *folder);
 
 	Flags _flags = 0;
@@ -491,6 +506,7 @@ private:
 	std::optional<int> _unreadMentionsCount;
 	base::flat_set<MsgId> _unreadMentions;
 	std::optional<HistoryItem*> _lastMessage;
+	base::flat_set<not_null<HistoryItem*>> _localMessages;
 
 	// This almost always is equal to _lastMessage. The only difference is
 	// for a group that migrated to a supergroup. Then _lastMessage can

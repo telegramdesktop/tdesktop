@@ -19,17 +19,24 @@ class EditPeerPermissionsBox : public BoxContent {
 public:
 	EditPeerPermissionsBox(QWidget*, not_null<PeerData*> peer);
 
-	rpl::producer<MTPDchatBannedRights::Flags> saveEvents() const;
+	struct Result {
+		MTPDchatBannedRights::Flags rights;
+		int slowmodeSeconds = 0;
+	};
+
+	rpl::producer<Result> saveEvents() const;
 
 protected:
 	void prepare() override;
 
 private:
+	Fn<int()> addSlowmodeSlider(not_null<Ui::VerticalLayout*> container);
+	void addSlowmodeLabels(not_null<Ui::VerticalLayout*> container);
 	void addBannedButtons(not_null<Ui::VerticalLayout*> container);
 
 	not_null<PeerData*> _peer;
 	Ui::RoundButton *_save = nullptr;
-	Fn<MTPDchatBannedRights::Flags()> _value;
+	Fn<Result()> _value;
 
 };
 

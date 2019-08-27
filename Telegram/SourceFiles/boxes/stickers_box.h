@@ -28,6 +28,10 @@ class SlideAnimation;
 class CrossButton;
 } // namespace Ui
 
+namespace Main {
+class Session;
+} // namespace Main
+
 class StickersBox : public BoxContent, public RPCSender {
 public:
 	enum class Section {
@@ -36,9 +40,16 @@ public:
 		Archived,
 		Attached,
 	};
-	StickersBox(QWidget*, Section section);
+
+	StickersBox(
+		QWidget*,
+		not_null<Main::Session*> session,
+		Section section);
 	StickersBox(QWidget*, not_null<ChannelData*> megagroup);
-	StickersBox(QWidget*, const MTPVector<MTPStickerSetCovered> &attachedSets);
+	StickersBox(
+		QWidget*,
+		not_null<Main::Session*> session,
+		const MTPVector<MTPStickerSetCovered> &attachedSets);
 
 	void setInnerFocus() override;
 
@@ -103,6 +114,8 @@ private:
 	void getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedStickers &result);
 	void showAttachedStickers();
 
+	const not_null<Main::Session*> _session;
+
 	object_ptr<Ui::SettingsSlider> _tabs = { nullptr };
 	QList<Section> _tabIndices;
 
@@ -145,7 +158,11 @@ class StickersBox::Inner
 
 public:
 	using Section = StickersBox::Section;
-	Inner(QWidget *parent, Section section);
+
+	Inner(
+		QWidget *parent,
+		not_null<Main::Session*> session,
+		Section section);
 	Inner(QWidget *parent, not_null<ChannelData*> megagroup);
 
 	base::Observable<int> scrollToY;
@@ -300,6 +317,8 @@ private:
 	void setMegagroupSelectedSet(const MTPInputStickerSet &set);
 
 	int countMaxNameWidth() const;
+
+	const not_null<Main::Session*> _session;
 
 	Section _section;
 

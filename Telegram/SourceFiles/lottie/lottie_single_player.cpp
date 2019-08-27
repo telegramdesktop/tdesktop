@@ -15,8 +15,9 @@ SinglePlayer::SinglePlayer(
 	const QByteArray &content,
 	const FrameRequest &request,
 	Quality quality,
+	const ColorReplacements *replacements,
 	std::shared_ptr<FrameRenderer> renderer)
-: _animation(this, content, request, quality)
+: _animation(this, content, request, quality, replacements)
 , _timer([=] { checkNextFrameRender(); })
 , _renderer(renderer ? renderer : FrameRenderer::Instance()) {
 }
@@ -27,8 +28,16 @@ SinglePlayer::SinglePlayer(
 	const QByteArray &content,
 	const FrameRequest &request,
 	Quality quality,
+	const ColorReplacements *replacements,
 	std::shared_ptr<FrameRenderer> renderer)
-: _animation(this, std::move(get), std::move(put), content, request, quality)
+: _animation(
+	this,
+	std::move(get),
+	std::move(put),
+	content,
+	request,
+	quality,
+	replacements)
 , _timer([=] { checkNextFrameRender(); })
 , _renderer(renderer ? renderer : FrameRenderer::Instance()) {
 }
@@ -77,6 +86,11 @@ QImage SinglePlayer::frame() const {
 
 QImage SinglePlayer::frame(const FrameRequest &request) const {
 	return _animation.frame(request);
+}
+
+Animation::FrameInfo SinglePlayer::frameInfo(
+		const FrameRequest &request) const {
+	return _animation.frameInfo(request);
 }
 
 void SinglePlayer::checkStep() {
@@ -128,7 +142,7 @@ void SinglePlayer::updateFrameRequest(
 	_renderer->updateFrameRequest(_state, request);
 }
 
-void SinglePlayer::markFrameShown() {
+bool SinglePlayer::markFrameShown() {
 	Expects(_state != nullptr);
 
 	if (_nextFrameTime == kFrameDisplayTimeAlreadyDone) {
@@ -136,7 +150,9 @@ void SinglePlayer::markFrameShown() {
 	}
 	if (_state->markFrameShown()) {
 		_renderer->frameShown();
+		return true;
 	}
+	return false;
 }
 
 } // namespace Lottie

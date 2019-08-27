@@ -10,7 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_common.h"
 #include "base/weak_ptr.h"
 
-class QImage;
+#include <QtGui/QImage>
+
 class QString;
 class QByteArray;
 
@@ -33,28 +34,37 @@ namespace details {
 using InitData = base::variant<std::unique_ptr<SharedState>, Error>;
 
 std::unique_ptr<rlottie::Animation> CreateFromContent(
-	const QByteArray &content);
+	const QByteArray &content,
+	const ColorReplacements *replacements);
 
 } // namespace details
 
 class Animation final : public base::has_weak_ptr {
 public:
+	struct FrameInfo {
+		QImage image;
+		int index = 0;
+	};
+
 	Animation(
 		not_null<Player*> player,
 		const QByteArray &content,
 		const FrameRequest &request,
-		Quality quality);
+		Quality quality,
+		const ColorReplacements *replacements = nullptr);
 	Animation(
 		not_null<Player*> player,
 		FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
 		FnMut<void(QByteArray &&cached)> put, // Unknown thread.
 		const QByteArray &content,
 		const FrameRequest &request,
-		Quality quality);
+		Quality quality,
+		const ColorReplacements *replacements = nullptr);
 
 	[[nodiscard]] bool ready() const;
 	[[nodiscard]] QImage frame() const;
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
+	[[nodiscard]] FrameInfo frameInfo(const FrameRequest &request) const;
 
 private:
 	void initDone(details::InitData &&data);

@@ -15,8 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "boxes/confirm_phone_box.h"
 #include "boxes/confirm_box.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "styles/style_boxes.h"
 
 namespace {
@@ -60,8 +61,7 @@ void createErrorLabel(
 
 class ChangePhoneBox::EnterPhone : public BoxContent {
 public:
-	EnterPhone(QWidget*) {
-	}
+	EnterPhone(QWidget*, not_null<Main::Session*> session);
 
 	void setInnerFocus() override {
 		_phone->setFocusFast();
@@ -79,6 +79,8 @@ private:
 		showError(QString());
 	}
 
+	const not_null<Main::Session*> _session;
+
 	object_ptr<Ui::PhoneInput> _phone = { nullptr };
 	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _error = { nullptr };
 	mtpRequestId _requestId = 0;
@@ -87,7 +89,13 @@ private:
 
 class ChangePhoneBox::EnterCode : public BoxContent {
 public:
-	EnterCode(QWidget*, const QString &phone, const QString &hash, int codeLength, int callTimeout);
+	EnterCode(
+		QWidget*,
+		not_null<Main::Session*> session,
+		const QString &phone,
+		const QString &hash,
+		int codeLength,
+		int callTimeout);
 
 	void setInnerFocus() override {
 		_code->setFocusFast();
@@ -107,6 +115,8 @@ private:
 	}
 	int countHeight();
 
+	const not_null<Main::Session*> _session;
+
 	QString _phone;
 	QString _hash;
 	int _codeLength = 0;
@@ -119,11 +129,22 @@ private:
 
 };
 
+ChangePhoneBox::EnterPhone::EnterPhone(
+	QWidget*,
+	not_null<Main::Session*> session)
+: _session(session) {
+}
+
 void ChangePhoneBox::EnterPhone::prepare() {
 	setTitle(tr::lng_change_phone_title());
 
 	auto phoneValue = QString();
-	_phone.create(this, st::defaultInputField, tr::lng_change_phone_new_title(), phoneValue);
+	_phone.create(
+		this,
+		st::defaultInputField,
+		tr::lng_change_phone_new_title(),
+		ExtractPhonePrefix(_session->user()->phone()),
+		phoneValue);
 
 	_phone->resize(st::boxWidth - 2 * st::boxPadding.left(), _phone->height());
 	_phone->moveToLeft(st::boxPadding.left(), st::boxLittleSkip);
@@ -149,9 +170,7 @@ void ChangePhoneBox::EnterPhone::submit() {
 	_requestId = MTP::send(
 		MTPaccount_SendChangePhoneCode(
 			MTP_string(phoneNumber),
-			MTP_codeSettings(
-				MTP_flags(0),
-				MTPstring())),
+			MTP_codeSettings(MTP_flags(0))),
 		rpcDone(crl::guard(this, [=](
 				const MTPauth_SentCode &result) {
 			return sendPhoneDone(phoneNumber, result);
@@ -188,6 +207,7 @@ void ChangePhoneBox::EnterPhone::sendPhoneDone(const QString &phoneNumber, const
 	}
 	Ui::show(
 		Box<EnterCode>(
+			_session,
 			phoneNumber,
 			phoneCodeHash,
 			codeLength,
@@ -229,8 +249,15 @@ void ChangePhoneBox::EnterPhone::showError(const QString &text) {
 	}
 }
 
-ChangePhoneBox::EnterCode::EnterCode(QWidget*, const QString &phone, const QString &hash, int codeLength, int callTimeout)
-: _phone(phone)
+ChangePhoneBox::EnterCode::EnterCode(
+	QWidget*,
+	not_null<Main::Session*> session,
+	const QString &phone,
+	const QString &hash,
+	int codeLength,
+	int callTimeout)
+: _session(session)
+, _phone(phone)
 , _hash(hash)
 , _codeLength(codeLength)
 , _callTimeout(callTimeout)
@@ -279,13 +306,15 @@ void ChangePhoneBox::EnterCode::submit() {
 	}
 	hideError();
 
+	const auto session = _session;
 	const auto code = _code->getDigitsOnly();
+	const auto weak = make_weak(this);
 	_requestId = MTP::send(MTPaccount_ChangePhone(
 		MTP_string(_phone),
 		MTP_string(_hash),
 		MTP_string(code)
-	), rpcDone([weak = make_weak(this)](const MTPUser &result) {
-		Auth().data().processUser(result);
+	), rpcDone([=](const MTPUser &result) {
+		session->data().processUser(result);
 		if (weak) {
 			Ui::hideLayer();
 		}
@@ -342,11 +371,17 @@ bool ChangePhoneBox::EnterCode::sendCodeFail(const RPCError &error) {
 	return true;
 }
 
+ChangePhoneBox::ChangePhoneBox(QWidget*, not_null<Main::Session*> session)
+: _session(session) {
+}
+
 void ChangePhoneBox::prepare() {
+	const auto session = _session;
+
 	setTitle(tr::lng_change_phone_title());
-	addButton(tr::lng_change_phone_button(), [] {
-		Ui::show(Box<ConfirmBox>(tr::lng_change_phone_warning(tr::now), [] {
-			Ui::show(Box<EnterPhone>());
+	addButton(tr::lng_change_phone_button(), [=] {
+		Ui::show(Box<ConfirmBox>(tr::lng_change_phone_warning(tr::now), [=] {
+			Ui::show(Box<EnterPhone>(session));
 		}));
 	});
 	addButton(tr::lng_cancel(), [this] {

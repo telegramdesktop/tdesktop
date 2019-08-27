@@ -152,6 +152,7 @@ private:
 		int priority = 0;
 	};
 	void connectToServer(bool afterConfig = false);
+	void connectingTimedOut();
 	void doDisconnect();
 	void restart();
 	void finishAndDestroy();
@@ -194,8 +195,9 @@ private:
 		Ignored,
 		RestartConnection,
 		ResetSession,
+		ParseError,
 	};
-	HandleResult handleOneReceived(const mtpPrime *from, const mtpPrime *end, uint64 msgId, int32 serverTime, uint64 serverSalt, bool badTime);
+	[[nodiscard]] HandleResult handleOneReceived(const mtpPrime *from, const mtpPrime *end, uint64 msgId, int32 serverTime, uint64 serverSalt, bool badTime);
 	mtpBuffer ungzip(const mtpPrime *from, const mtpPrime *end) const;
 	void handleMsgsStates(const QVector<MTPlong> &ids, const QByteArray &states, QVector<MTPlong> &acked);
 
@@ -224,7 +226,7 @@ private:
 	void sendNotSecureRequest(const Request &request);
 
 	template <typename Response>
-	bool readNotSecureResponse(Response &response);
+	[[nodiscard]] bool readNotSecureResponse(Response &response);
 
 	not_null<Instance*> _instance;
 	DcType _dcType = DcType::Regular;

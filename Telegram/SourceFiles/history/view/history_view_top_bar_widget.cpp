@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "core/shortcuts.h"
 #include "ui/special_buttons.h"
@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "base/unixtime.h"
 #include "support/support_helper.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
@@ -58,7 +59,7 @@ TopBarWidget::TopBarWidget(
 , _infoToggle(this, st::topBarInfo)
 , _menuToggle(this, st::topBarMenuToggle)
 , _titlePeerText(st::windowMinWidth / 3)
-, _onlineUpdater([this] { updateOnlineDisplay(); }) {
+, _onlineUpdater([=] { updateOnlineDisplay(); }) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
@@ -99,7 +100,7 @@ TopBarWidget::TopBarWidget(
 	refreshUnreadBadge();
 	{
 		using AnimationUpdate = Data::Session::SendActionAnimationUpdate;
-		Auth().data().sendActionAnimationUpdated(
+		session().data().sendActionAnimationUpdated(
 		) | rpl::filter([=](const AnimationUpdate &update) {
 			return (update.history == _activeChat.history());
 		}) | rpl::start_with_next([=] {
@@ -126,8 +127,8 @@ TopBarWidget::TopBarWidget(
 	});
 
 	rpl::combine(
-		Auth().settings().thirdSectionInfoEnabledValue(),
-		Auth().settings().tabbedReplacedWithInfoValue()
+		session().settings().thirdSectionInfoEnabledValue(),
+		session().settings().tabbedReplacedWithInfoValue()
 	) | rpl::start_with_next(
 		[this] { updateInfoToggleActive(); },
 		lifetime());
@@ -140,6 +141,12 @@ TopBarWidget::TopBarWidget(
 
 	setCursor(style::cur_pointer);
 	updateControlsVisibility();
+}
+
+TopBarWidget::~TopBarWidget() = default;
+
+Main::Session &TopBarWidget::session() const {
+	return _controller->session();
 }
 
 void TopBarWidget::updateConnectingState() {
@@ -177,7 +184,7 @@ void TopBarWidget::onSearch() {
 void TopBarWidget::onCall() {
 	if (const auto peer = _activeChat.peer()) {
 		if (const auto user = peer->asUser()) {
-			Calls::Current().startOutgoingCall(user);
+			user->session().calls().startOutgoingCall(user);
 		}
 	}
 }
@@ -235,13 +242,13 @@ void TopBarWidget::showMenu() {
 
 void TopBarWidget::toggleInfoSection() {
 	if (Adaptive::ThreeColumn()
-		&& (Auth().settings().thirdSectionInfoEnabled()
-			|| Auth().settings().tabbedReplacedWithInfo())) {
+		&& (session().settings().thirdSectionInfoEnabled()
+			|| session().settings().tabbedReplacedWithInfo())) {
 		_controller->closeThirdSection();
 	} else if (_activeChat.peer()) {
 		if (_controller->canShowThirdSection()) {
-			Auth().settings().setThirdSectionInfoEnabled(true);
-			Auth().saveSettingsDelayed();
+			session().settings().setThirdSectionInfoEnabled(true);
+			session().saveSettingsDelayed();
 			if (Adaptive::ThreeColumn()) {
 				_controller->showSection(
 					Info::Memento::Default(_activeChat.peer()),
@@ -744,8 +751,8 @@ void TopBarWidget::refreshUnreadBadge() {
 void TopBarWidget::updateUnreadBadge() {
 	if (!_unreadBadge) return;
 
-	const auto muted = Auth().data().unreadBadgeMutedIgnoreOne(_activeChat);
-	const auto counter = Auth().data().unreadBadgeIgnoreOne(_activeChat);
+	const auto muted = session().data().unreadBadgeMutedIgnoreOne(_activeChat);
+	const auto counter = session().data().unreadBadgeIgnoreOne(_activeChat);
 	const auto text = [&] {
 		if (!counter) {
 			return QString();
@@ -759,8 +766,8 @@ void TopBarWidget::updateUnreadBadge() {
 
 void TopBarWidget::updateInfoToggleActive() {
 	auto infoThirdActive = Adaptive::ThreeColumn()
-		&& (Auth().settings().thirdSectionInfoEnabled()
-			|| Auth().settings().tabbedReplacedWithInfo());
+		&& (session().settings().thirdSectionInfoEnabled()
+			|| session().settings().tabbedReplacedWithInfo());
 	auto iconOverride = infoThirdActive
 		? &st::topBarInfoActive
 		: nullptr;
@@ -775,11 +782,11 @@ void TopBarWidget::updateOnlineDisplay() {
 	if (!_activeChat.peer()) return;
 
 	QString text;
-	const auto now = unixtime();
+	const auto now = base::unixtime::now();
 	bool titlePeerTextOnline = false;
 	if (const auto user = _activeChat.peer()->asUser()) {
-		if (Auth().supportMode()
-			&& !Auth().supportHelper().infoCurrent(user).text.empty()) {
+		if (session().supportMode()
+			&& !session().supportHelper().infoCurrent(user).text.empty()) {
 			text = QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f check info");
 			titlePeerTextOnline = false;
 		} else {
@@ -798,7 +805,7 @@ void TopBarWidget::updateOnlineDisplay() {
 				text = tr::lng_chat_status_members(tr::now, lt_count_decimal, chat->count);
 			}
 		} else {
-			const auto self = Auth().user();
+			const auto self = session().user();
 			auto online = 0;
 			auto onlyMe = true;
 			for (const auto user : chat->participants) {
@@ -820,9 +827,9 @@ void TopBarWidget::updateOnlineDisplay() {
 	} else if (const auto channel = _activeChat.peer()->asChannel()) {
 		if (channel->isMegagroup() && channel->membersCount() > 0 && channel->membersCount() <= Global::ChatSizeMax()) {
 			if (channel->mgInfo->lastParticipants.empty() || channel->lastParticipantsCountOutdated()) {
-				Auth().api().requestLastParticipants(channel);
+				session().api().requestLastParticipants(channel);
 			}
-			const auto self = Auth().user();
+			const auto self = session().user();
 			auto online = 0;
 			auto onlyMe = true;
 			for (auto &participant : std::as_const(channel->mgInfo->lastParticipants)) {
@@ -861,7 +868,7 @@ void TopBarWidget::updateOnlineDisplay() {
 void TopBarWidget::updateOnlineDisplayTimer() {
 	if (!_activeChat.peer()) return;
 
-	const auto now = unixtime();
+	const auto now = base::unixtime::now();
 	auto minTimeout = crl::time(86400);
 	const auto handleUser = [&](not_null<UserData*> user) {
 		auto hisTimeout = Data::OnlineChangeTimeout(user, now);
@@ -881,7 +888,5 @@ void TopBarWidget::updateOnlineDisplayTimer() {
 void TopBarWidget::updateOnlineDisplayIn(crl::time timeout) {
 	_onlineUpdater.callOnce(timeout);
 }
-
-TopBarWidget::~TopBarWidget() = default;
 
 } // namespace HistoryView

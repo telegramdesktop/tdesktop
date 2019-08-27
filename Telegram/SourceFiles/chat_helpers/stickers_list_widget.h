@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/variant.h"
 #include "base/timer.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -39,6 +43,8 @@ public:
 	StickersListWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
+
+	Main::Session &session() const;
 
 	rpl::producer<not_null<DocumentData*>> chosen() const;
 	rpl::producer<> scrollUpdated() const;

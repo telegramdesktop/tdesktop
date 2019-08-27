@@ -13,11 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QSize>
 #include <QColor>
 #include <crl/crl_time.h>
+#include <vector>
 
 namespace Lottie {
 
 inline constexpr auto kTimeUnknown = std::numeric_limits<crl::time>::min();
-inline constexpr auto kMaxFileSize = 1024 * 1024;
+inline constexpr auto kMaxFileSize = 2 * 1024 * 1024;
 
 class Animation;
 
@@ -53,6 +54,11 @@ struct FrameRequest {
 enum class Quality : char {
 	Default,
 	High,
+};
+
+struct ColorReplacements {
+	std::vector<std::pair<std::uint32_t, std::uint32_t>> replacements;
+	uint8 tag = 0;
 };
 
 QByteArray ReadContent(const QByteArray &data, const QString &filepath);

@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 
 namespace Core {
@@ -33,19 +33,22 @@ namespace {
 
 using Match = qthelp::RegularExpressionMatch;
 
-bool JoinGroupByHash(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+bool JoinGroupByHash(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	const auto hash = match->captured(1);
-	Auth().api().checkChatInvite(hash, [=](const MTPChatInvite &result) {
+	session->api().checkChatInvite(hash, [=](const MTPChatInvite &result) {
 		Core::App().hideMediaView();
 		result.match([=](const MTPDchatInvite &data) {
-			Ui::show(Box<ConfirmInviteBox>(data, [=] {
-				Auth().api().importChatInvite(hash);
+			Ui::show(Box<ConfirmInviteBox>(session, data, [=] {
+				session->api().importChatInvite(hash);
 			}));
 		}, [=](const MTPDchatInviteAlready &data) {
-			if (const auto chat = Auth().data().processChat(data.vchat())) {
+			if (const auto chat = session->data().processChat(data.vchat())) {
 				App::wnd()->sessionController()->showPeerHistory(
 					chat,
 					Window::SectionShow::Way::Forward);
@@ -61,8 +64,11 @@ bool JoinGroupByHash(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool ShowStickerSet(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+bool ShowStickerSet(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	Core::App().hideMediaView();
@@ -72,14 +78,20 @@ bool ShowStickerSet(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool SetLanguage(const Match &match, const QVariant &context) {
+bool SetLanguage(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
 	const auto languageId = match->captured(1);
 	Lang::CurrentCloudManager().switchWithWarning(languageId);
 	return true;
 }
 
-bool ShareUrl(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+bool ShareUrl(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	auto params = url_parse_params(
@@ -93,8 +105,11 @@ bool ShareUrl(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool ConfirmPhone(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+bool ConfirmPhone(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	auto params = url_parse_params(
@@ -109,18 +124,24 @@ bool ConfirmPhone(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool ShareGameScore(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+bool ShareGameScore(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	ShareGameScoreByHash(params.value(qsl("hash")));
+	ShareGameScoreByHash(session, params.value(qsl("hash")));
 	return true;
 }
 
-bool ApplySocksProxy(const Match &match, const QVariant &context) {
+bool ApplySocksProxy(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
 	auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
@@ -128,7 +149,10 @@ bool ApplySocksProxy(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool ApplyMtprotoProxy(const Match &match, const QVariant &context) {
+bool ApplyMtprotoProxy(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
 	auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
@@ -160,14 +184,21 @@ bool ShowPassportForm(const QMap<QString, QString> &params) {
 	return false;
 }
 
-bool ShowPassport(const Match &match, const QVariant &context) {
+bool ShowPassport(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
 	return ShowPassportForm(url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower));
 }
 
-bool ResolveId(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+
+bool ResolveId(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	PeerId id = match->captured(1).toULongLong();
@@ -175,20 +206,27 @@ bool ResolveId(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool ShowWallPaper(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+bool ShowWallPaper(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	return BackgroundPreviewBox::Start(
+		session,
 		params.value(qsl("slug")),
 		params);
 }
 
-bool ResolveUsername(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+bool ResolveUsername(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	const auto params = url_parse_params(
@@ -242,8 +280,11 @@ bool ResolveUsername(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool ResolvePrivatePost(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+bool ResolvePrivatePost(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	const auto params = url_parse_params(
@@ -263,18 +304,17 @@ bool ResolvePrivatePost(const Match &match, const QVariant &context) {
 	const auto fail = [=] {
 		Ui::show(Box<InformBox>(tr::lng_error_post_link_invalid(tr::now)));
 	};
-	const auto auth = &Auth();
-	if (const auto channel = auth->data().channelLoaded(channelId)) {
+	if (const auto channel = session->data().channelLoaded(channelId)) {
 		done(channel);
 		return true;
 	}
-	auth->api().request(MTPchannels_GetChannels(
+	session->api().request(MTPchannels_GetChannels(
 		MTP_vector<MTPInputChannel>(
 			1,
 			MTP_inputChannel(MTP_int(channelId), MTP_long(0)))
 	)).done([=](const MTPmessages_Chats &result) {
 		result.match([&](const auto &data) {
-			const auto peer = auth->data().processChats(data.vchats());
+			const auto peer = session->data().processChats(data.vchats());
 			if (peer && peer->id == peerFromChannel(channelId)) {
 				done(peer);
 			} else {
@@ -287,8 +327,11 @@ bool ResolvePrivatePost(const Match &match, const QVariant &context) {
 	return true;
 }
 
-bool HandleUnknown(const Match &match, const QVariant &context) {
-	if (!AuthSession::Exists()) {
+bool HandleUnknown(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
 		return false;
 	}
 	const auto request = match->captured(1);
@@ -312,7 +355,7 @@ bool HandleUnknown(const Match &match, const QVariant &context) {
 			Ui::show(Box<InformBox>(text));
 		}
 	};
-	Auth().api().requestDeepLinkInfo(request, callback);
+	session->api().requestDeepLinkInfo(request, callback);
 	return true;
 }
 
@@ -378,6 +421,58 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		}
 	};
 	return Result;
+}
+
+QString TryConvertUrlToLocal(QString url) {
+	if (url.size() > 8192) {
+		url = url.mid(0, 8192);
+	}
+
+	using namespace qthelp;
+	auto matchOptions = RegExOption::CaseInsensitive;
+	auto telegramMeMatch = regex_match(qsl("^(https?://)?(www\\.)?(telegram\\.(me|dog)|t\\.me)/(.+)$"), url, matchOptions);
+	if (telegramMeMatch) {
+		auto query = telegramMeMatch->capturedRef(5);
+		if (auto joinChatMatch = regex_match(qsl("^joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
+			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(1));
+		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
+			return qsl("tg://addstickers?set=") + url_encode(stickerSetMatch->captured(1));
+		} else if (auto languageMatch = regex_match(qsl("^setlanguage/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
+			return qsl("tg://setlanguage?lang=") + url_encode(languageMatch->captured(1));
+		} else if (auto shareUrlMatch = regex_match(qsl("^share/url/?\\?(.+)$"), query, matchOptions)) {
+			return qsl("tg://msg_url?") + shareUrlMatch->captured(1);
+		} else if (auto confirmPhoneMatch = regex_match(qsl("^confirmphone/?\\?(.+)"), query, matchOptions)) {
+			return qsl("tg://confirmphone?") + confirmPhoneMatch->captured(1);
+		} else if (auto ivMatch = regex_match(qsl("^iv/?\\?(.+)(#|$)"), query, matchOptions)) {
+			//
+			// We need to show our t.me page, not the url directly.
+			//
+			//auto params = url_parse_params(ivMatch->captured(1), UrlParamNameTransform::ToLower);
+			//auto previewedUrl = params.value(qsl("url"));
+			//if (previewedUrl.startsWith(qstr("http://"), Qt::CaseInsensitive)
+			//	|| previewedUrl.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
+			//	return previewedUrl;
+			//}
+			return url;
+		} else if (auto socksMatch = regex_match(qsl("^socks/?\\?(.+)(#|$)"), query, matchOptions)) {
+			return qsl("tg://socks?") + socksMatch->captured(1);
+		} else if (auto proxyMatch = regex_match(qsl("^proxy/?\\?(.+)(#|$)"), query, matchOptions)) {
+			return qsl("tg://proxy?") + proxyMatch->captured(1);
+		} else if (auto bgMatch = regex_match(qsl("^bg/([a-zA-Z0-9\\.\\_\\-]+)(\\?(.+)?)?$"), query, matchOptions)) {
+			const auto params = bgMatch->captured(3);
+			return qsl("tg://bg?slug=") + bgMatch->captured(1) + (params.isEmpty() ? QString() : '&' + params);
+		} else if (auto postMatch = regex_match(qsl("^c/(\\-?\\d+)/(\\d+)(#|$)"), query, matchOptions)) {
+			return qsl("tg://privatepost?channel=%1&post=%2").arg(postMatch->captured(1)).arg(postMatch->captured(2));
+		} else if (auto usernameMatch = regex_match(qsl("^([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), query, matchOptions)) {
+			auto params = query.mid(usernameMatch->captured(0).size()).toString();
+			auto postParam = QString();
+			if (auto postMatch = regex_match(qsl("^/\\d+/?(?:\\?|$)"), usernameMatch->captured(2))) {
+				postParam = qsl("&post=") + usernameMatch->captured(3);
+			}
+			return qsl("tg://resolve/?domain=") + url_encode(usernameMatch->captured(1)) + postParam + (params.isEmpty() ? QString() : '&' + params);
+		}
+	}
+	return url;
 }
 
 bool InternalPassportLink(const QString &url) {

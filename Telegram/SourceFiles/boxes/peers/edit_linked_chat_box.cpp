@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
 #include "apiwrap.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
@@ -34,6 +34,7 @@ public:
 		const std::vector<not_null<PeerData*>> &chats,
 		Fn<void(ChannelData*)> callback);
 
+	Main::Session &session() const override;
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 	int contentWidth() const override;
@@ -67,6 +68,10 @@ Controller::Controller(
 			choose(std::exchange(_waitForFull, nullptr));
 		}
 	}, lifetime());
+}
+
+Main::Session &Controller::session() const {
+	return _channel->session();
 }
 
 int Controller::contentWidth() const {
@@ -232,6 +237,7 @@ object_ptr<Ui::RpWidget> SetupFooter(
 
 object_ptr<Ui::RpWidget> SetupCreateGroup(
 		not_null<QWidget*> parent,
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		Fn<void(ChannelData*)> callback) {
 	Expects(channel->isBroadcast());
@@ -245,6 +251,7 @@ object_ptr<Ui::RpWidget> SetupCreateGroup(
 		const auto guarded = crl::guard(parent, callback);
 		Ui::show(
 			Box<GroupInfoBox>(
+				navigation,
 				GroupInfoBox::Type::Megagroup,
 				channel->name + " Chat",
 				guarded),
@@ -270,6 +277,7 @@ object_ptr<Ui::RpWidget> SetupUnlink(
 }
 
 object_ptr<BoxContent> EditLinkedChatBox(
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		ChannelData *chat,
 		std::vector<not_null<PeerData*>> &&chats,
@@ -283,7 +291,11 @@ object_ptr<BoxContent> EditLinkedChatBox(
 			SetupAbout(above, channel, chat),
 			st::linkedChatAboutPadding);
 		if (!chat) {
-			above->add(SetupCreateGroup(above, channel, callback));
+			above->add(SetupCreateGroup(
+				above,
+				navigation,
+				channel,
+				callback));
 		}
 		box->peerListSetAboveWidget(std::move(above));
 
@@ -312,10 +324,12 @@ object_ptr<BoxContent> EditLinkedChatBox(
 } // namespace
 
 object_ptr<BoxContent> EditLinkedChatBox(
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		std::vector<not_null<PeerData*>> &&chats,
 		Fn<void(ChannelData*)> callback) {
 	return EditLinkedChatBox(
+		navigation,
 		channel,
 		nullptr,
 		std::move(chats),
@@ -324,9 +338,16 @@ object_ptr<BoxContent> EditLinkedChatBox(
 }
 
 object_ptr<BoxContent> EditLinkedChatBox(
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		not_null<ChannelData*> chat,
 		bool canEdit,
 		Fn<void(ChannelData*)> callback) {
-	return EditLinkedChatBox(channel, chat, {}, canEdit, callback);
+	return EditLinkedChatBox(
+		navigation,
+		channel,
+		chat,
+		{},
+		canEdit,
+		callback);
 }

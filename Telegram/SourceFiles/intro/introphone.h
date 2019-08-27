@@ -23,7 +23,10 @@ class PhoneWidget : public Widget::Step {
 	Q_OBJECT
 
 public:
-	PhoneWidget(QWidget *parent, Widget::Data *data);
+	PhoneWidget(
+		QWidget *parent,
+		not_null<Main::Account*> account,
+		not_null<Widget::Data*> data);
 
 	void selectCountry(const QString &country);
 

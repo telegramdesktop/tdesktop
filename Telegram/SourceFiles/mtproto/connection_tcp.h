@@ -7,16 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/auth_key.h"
 #include "mtproto/connection_abstract.h"
-#include "base/timer.h"
+#include "mtproto/auth_key.h"
 
 namespace MTP {
 namespace internal {
 
+class AbstractSocket;
+
 class TcpConnection : public AbstractConnection {
 public:
 	TcpConnection(
+		not_null<Instance*> instance,
 		QThread *thread,
 		const ProxyData &proxy);
 
@@ -31,6 +33,7 @@ public:
 		int port,
 		const bytes::vector &protocolSecret,
 		int16 protocolDcId) override;
+	void timedOut() override;
 	bool isConnected() const override;
 	bool requiresExtendedPadding() const override;
 
@@ -49,25 +52,23 @@ private:
 	};
 
 	void socketRead();
-	void writeConnectionStart();
+	bytes::const_span prepareConnectionStartPrefix(bytes::span buffer);
 
 	void socketPacket(bytes::const_span bytes);
 
 	void socketConnected();
 	void socketDisconnected();
-	void socketError(QAbstractSocket::SocketError e);
+	void socketError();
 
 	mtpBuffer parsePacket(bytes::const_span bytes);
 	void ensureAvailableInBuffer(int amount);
-	static void handleError(QAbstractSocket::SocketError e, QTcpSocket &sock);
 	static uint32 fourCharsToUInt(char ch1, char ch2, char ch3, char ch4) {
 		char ch[4] = { ch1, ch2, ch3, ch4 };
 		return *reinterpret_cast<uint32*>(ch);
 	}
 
-	void sendBuffer(mtpBuffer &&buffer);
-
-	QTcpSocket _socket;
+	const not_null<Instance*> _instance;
+	std::unique_ptr<AbstractSocket> _socket;
 	bool _connectionStarted = false;
 
 	int _offsetBytes = 0;
@@ -91,6 +92,9 @@ private:
 	QString _address;
 	int32 _port = 0;
 	crl::time _pingTime = 0;
+
+	rpl::lifetime _connectedLifetime;
+	rpl::lifetime _lifetime;
 
 };
 

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/introcode.h"
 #include "intro/introsignup.h"
 #include "intro/intropwdcheck.h"
+#include "main/main_account.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
@@ -34,15 +35,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "window/themes/window_theme.h"
 #include "lang/lang_cloud_manager.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
 #include "styles/style_window.h"
 
 namespace Intro {
 namespace {
-
-constexpr str_const kDefaultCountry = "US";
 
 void PrepareSupportMode() {
 	using Data::AutoDownload::Full;
@@ -53,13 +52,14 @@ void PrepareSupportMode() {
 	Global::SetDesktopNotify(false);
 	Global::SetSoundNotify(false);
 	Auth().settings().autoDownload() = Full::FullDisabled();
-	cSetAutoPlayGif(false);
 	Local::writeUserSettings();
 }
 
 } // namespace
 
-Widget::Widget(QWidget *parent) : RpWidget(parent)
+Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
+: RpWidget(parent)
+, _account(account)
 , _back(this, object_ptr<Ui::IconButton>(this, st::introBackButton))
 , _settings(
 	this,
@@ -68,11 +68,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 		tr::lng_menu_settings(),
 		st::defaultBoxButton))
 , _next(this, nullptr, st::introNextButton) {
-	auto country = Platform::SystemCountry();
-	if (country.isEmpty()) {
-		country = str_const_toString(kDefaultCountry);
-	}
-	getData()->country = country;
+	getData()->country = Platform::SystemCountry();
 
 	_back->entity()->setClickedCallback([this] { historyMove(Direction::Back); });
 	_back->hide(anim::type::instant);
@@ -84,7 +80,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 	getNearestDC();
 	setupConnectingWidget();
 
-	appendStep(new StartWidget(this, getData()));
+	appendStep(new StartWidget(this, _account, getData()));
 	fixOrder();
 
 	subscribe(Lang::CurrentCloudManager().firstLanguageSuggestion(), [this] { createLanguageLink(); });
@@ -367,11 +363,13 @@ void Widget::resetAccount() {
 			_resetRequest = 0;
 
 			Ui::hideLayer();
-			moveToStep(new SignupWidget(this, getData()), Direction::Replace);
+			moveToStep(
+				new SignupWidget(this, _account, getData()),
+				Direction::Replace);
 		}).fail([this](const RPCError &error) {
 			_resetRequest = 0;
 
-			auto type = error.type();
+			const auto &type = error.type();
 			if (type.startsWith(qstr("2FA_CONFIRM_WAIT_"))) {
 				const auto seconds = type.mid(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
 				const auto days = (seconds + 59) / 86400;
@@ -434,8 +432,8 @@ void Widget::getNearestDC() {
 			).arg(qs(nearest.vcountry())
 			).arg(nearest.vnearest_dc().v
 			).arg(nearest.vthis_dc().v));
-		Core::App().suggestMainDcId(nearest.vnearest_dc().v);
-		auto nearestCountry = qs(nearest.vcountry());
+		_account->suggestMainDcId(nearest.vnearest_dc().v);
+		const auto nearestCountry = qs(nearest.vcountry());
 		if (getData()->country != nearestCountry) {
 			getData()->country = nearestCountry;
 			getData()->updated.notify();
@@ -664,16 +662,19 @@ void Widget::Step::finish(const MTPUser &user, QImage &&photo) {
 		Local::writeLangPack();
 	}
 
-	Core::App().authSessionCreate(user);
+	const auto account = _account;
+	const auto weak = base::make_weak(account.get());
+	account->createSession(user);
 	Local::writeMtpData();
 	App::wnd()->setupMain();
 
 	// "this" is already deleted here by creating the main widget.
-	if (AuthSession::Exists()) {
+	if (weak && account->sessionExists()) {
+		auto &session = account->session();
 		if (!photo.isNull()) {
-			Auth().api().uploadPeerPhoto(Auth().user(), std::move(photo));
+			session.api().uploadPeerPhoto(session.user(), std::move(photo));
 		}
-		if (Auth().supportMode()) {
+		if (session.supportMode()) {
 			PrepareSupportMode();
 		}
 	}
@@ -776,14 +777,6 @@ bool Widget::Step::paintAnimated(Painter &p, QRect clip) {
 }
 
 void Widget::Step::fillSentCodeData(const MTPDauth_sentCode &data) {
-	if (const auto terms = data.vterms_of_service()) {
-		terms->match([&](const MTPDhelp_termsOfService &data) {
-			getData()->termsLock = Window::TermsLock::FromMTP(data);
-		});
-	} else {
-		getData()->termsLock = Window::TermsLock();
-	}
-
 	const auto &type = data.vtype();
 	switch (type.type()) {
 	case mtpc_auth_sentCodeTypeApp: {
@@ -927,8 +920,13 @@ void Widget::Step::refreshError(const QString &text) {
 	}
 }
 
-Widget::Step::Step(QWidget *parent, Data *data, bool hasCover)
+Widget::Step::Step(
+	QWidget *parent,
+	not_null<Main::Account*> account,
+	not_null<Data*> data,
+	bool hasCover)
 : RpWidget(parent)
+, _account(account)
 , _data(data)
 , _hasCover(hasCover)
 , _title(this, _hasCover ? st::introCoverTitle : st::introTitle)

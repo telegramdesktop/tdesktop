@@ -152,7 +152,9 @@ CountrySelectBox::CountrySelectBox(QWidget*)
 CountrySelectBox::CountrySelectBox(QWidget*, const QString &iso, Type type)
 : _type(type)
 , _select(this, st::contactsMultiSelect, tr::lng_country_ph()) {
-	LastValidISO = iso;
+	if (Data::CountriesByISO2().contains(iso)) {
+		LastValidISO = iso;
+	}
 }
 
 void CountrySelectBox::prepare() {

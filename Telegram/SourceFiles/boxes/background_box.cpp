@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "mtproto/sender.h"
 #include "data/data_session.h"
@@ -54,7 +54,9 @@ class BackgroundBox::Inner
 	, private MTP::Sender
 	, private base::Subscriber {
 public:
-	Inner(QWidget *parent);
+	Inner(
+		QWidget *parent,
+		not_null<Main::Session*> session);
 
 	rpl::producer<Data::WallPaper> chooseEvents() const;
 	rpl::producer<Data::WallPaper> removeRequests() const;
@@ -107,6 +109,8 @@ private:
 		int row) const;
 	void validatePaperThumbnail(const Paper &paper) const;
 
+	const not_null<Main::Session*> _session;
+
 	std::vector<Paper> _papers;
 
 	Selection _over;
@@ -118,7 +122,8 @@ private:
 
 };
 
-BackgroundBox::BackgroundBox(QWidget*) {
+BackgroundBox::BackgroundBox(QWidget*, not_null<Main::Session*> session)
+: _session(session) {
 }
 
 void BackgroundBox::prepare() {
@@ -128,11 +133,15 @@ void BackgroundBox::prepare() {
 
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 
-	_inner = setInnerWidget(object_ptr<Inner>(this), st::backgroundScroll);
+	_inner = setInnerWidget(
+		object_ptr<Inner>(this, _session),
+		st::backgroundScroll);
 
 	_inner->chooseEvents(
-	) | rpl::start_with_next([](const Data::WallPaper &paper) {
-		Ui::show(Box<BackgroundPreviewBox>(paper), LayerOption::KeepOther);
+	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
+		Ui::show(
+			Box<BackgroundPreviewBox>(_session, paper),
+			LayerOption::KeepOther);
 	}, _inner->lifetime());
 
 	_inner->removeRequests(
@@ -143,6 +152,7 @@ void BackgroundBox::prepare() {
 
 void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto session = _session;
 	const auto remove = [=, weak = make_weak(this)]{
 		if (*box) {
 			(*box)->closeBox();
@@ -150,8 +160,8 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 		if (weak) {
 			weak->_inner->removePaper(paper);
 		}
-		Auth().data().removeWallpaper(paper);
-		Auth().api().request(MTPaccount_SaveWallPaper(
+		session->data().removeWallpaper(paper);
+		session->api().request(MTPaccount_SaveWallPaper(
 			paper.mtpInput(),
 			MTP_bool(true),
 			paper.mtpSettings()
@@ -166,17 +176,21 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 		LayerOption::KeepOther);
 }
 
-BackgroundBox::Inner::Inner(QWidget *parent) : RpWidget(parent)
+BackgroundBox::Inner::Inner(
+	QWidget *parent,
+	not_null<Main::Session*> session)
+: RpWidget(parent)
+, _session(session)
 , _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [=] { update(); })) {
 	_check->setChecked(true, Ui::RoundCheckbox::SetStyle::Fast);
-	if (Auth().data().wallpapers().empty()) {
+	if (_session->data().wallpapers().empty()) {
 		resize(st::boxWideWidth, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
 	} else {
 		updatePapers();
 	}
 	requestPapers();
 
-	subscribe(Auth().downloaderTaskFinished(), [=] { update(); });
+	subscribe(_session->downloaderTaskFinished(), [=] { update(); });
 	using Update = Window::Theme::BackgroundUpdate;
 	subscribe(Window::Theme::Background(), [=](const Update &update) {
 		if (update.paletteChanged()) {
@@ -192,9 +206,9 @@ BackgroundBox::Inner::Inner(QWidget *parent) : RpWidget(parent)
 
 void BackgroundBox::Inner::requestPapers() {
 	request(MTPaccount_GetWallPapers(
-		MTP_int(Auth().data().wallpapersHash())
+		MTP_int(_session->data().wallpapersHash())
 	)).done([=](const MTPaccount_WallPapers &result) {
-		if (Auth().data().updateWallpapers(result)) {
+		if (_session->data().updateWallpapers(result)) {
 			updatePapers();
 		}
 	}).send();
@@ -220,7 +234,7 @@ void BackgroundBox::Inner::sortPapers() {
 void BackgroundBox::Inner::updatePapers() {
 	_over = _overDown = Selection();
 
-	_papers = Auth().data().wallpapers(
+	_papers = _session->data().wallpapers(
 	) | ranges::view::filter([](const Data::WallPaper &paper) {
 		return !paper.isPattern() || paper.backgroundColor().has_value();
 	}) | ranges::view::transform([](const Data::WallPaper &paper) {

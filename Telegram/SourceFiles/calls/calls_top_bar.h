@@ -18,6 +18,10 @@ class LabelSimple;
 class FlatLabel;
 } // namespace Ui
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Calls {
 
 class Call;
@@ -42,7 +46,7 @@ private:
 	void startDurationUpdateTimer(crl::time currentDuration);
 	void setMuted(bool mute);
 
-	base::weak_ptr<Call> _call;
+	const base::weak_ptr<Call> _call;
 
 	bool _muted = false;
 	object_ptr<Ui::LabelSimple> _durationLabel;

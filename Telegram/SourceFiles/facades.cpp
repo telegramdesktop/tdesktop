@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "boxes/confirm_box.h"
 #include "boxes/url_auth_box.h"
 #include "window/layer_widget.h"
@@ -28,7 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/observer.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/media/history_media.h"
+#include "history/view/media/history_view_media.h"
 #include "styles/style_history.h"
 #include "data/data_session.h"
 
@@ -115,7 +115,9 @@ void activateBotCommand(
 			Ui::showPeerHistory(history, ShowAtTheEndMsgId);
 			auto options = ApiWrap::SendOptions(history);
 			options.replyTo = msgId;
-			history->session().api().shareContact(Auth().user(), options);
+			history->session().api().shareContact(
+				history->session().user(),
+				options);
 		}));
 	} break;
 
@@ -128,7 +130,7 @@ void activateBotCommand(
 					if (samePeer) {
 						Notify::switchInlineBotButtonReceived(QString::fromUtf8(button->data), bot, msgId);
 						return true;
-					} else if (bot->botInfo && bot->botInfo->inlineReturnPeerId) {
+					} else if (bot->isBot() && bot->botInfo->inlineReturnPeerId) {
 						if (Notify::switchInlineBotButtonReceived(QString::fromUtf8(button->data))) {
 							return true;
 						}
@@ -384,8 +386,8 @@ struct Data {
 	int32 CallPacketTimeoutMs = 10000;
 	int32 WebFileDcId = cTestMode() ? 2 : 4;
 	QString TxtDomainString = cTestMode()
-		? qsl("testapv2.stel.com")
-		: qsl("apv2.stel.com");
+		? qsl("tapv3.stel.com")
+		: qsl("apv3.stel.com");
 	bool PhoneCallsEnabled = true;
 	bool BlockedMode = false;
 	int32 CaptionLengthMax = 1024;
@@ -409,10 +411,6 @@ struct Data {
 	QByteArray DownloadPathBookmark;
 	base::Observable<void> DownloadPathChanged;
 
-	bool ReplaceEmoji = true;
-	bool SuggestEmoji = true;
-	bool SuggestStickersByEmoji = true;
-	base::Observable<void> ReplaceEmojiChanged;
 	bool VoiceMsgPlaybackDoubled = false;
 	bool SoundNotify = true;
 	bool DesktopNotify = true;
@@ -546,10 +544,6 @@ DefineVar(Global, QString, DownloadPath);
 DefineVar(Global, QByteArray, DownloadPathBookmark);
 DefineRefVar(Global, base::Observable<void>, DownloadPathChanged);
 
-DefineVar(Global, bool, ReplaceEmoji);
-DefineVar(Global, bool, SuggestEmoji);
-DefineVar(Global, bool, SuggestStickersByEmoji);
-DefineRefVar(Global, base::Observable<void>, ReplaceEmojiChanged);
 DefineVar(Global, bool, VoiceMsgPlaybackDoubled);
 DefineVar(Global, bool, SoundNotify);
 DefineVar(Global, bool, DesktopNotify);
@@ -581,15 +575,5 @@ DefineVar(Global, QString, CallInputDeviceID);
 DefineVar(Global, int, CallOutputVolume);
 DefineVar(Global, int, CallInputVolume);
 DefineVar(Global, bool, CallAudioDuckingEnabled);
-
-rpl::producer<bool> ReplaceEmojiValue() {
-	return rpl::single(
-		Global::ReplaceEmoji()
-	) | rpl::then(base::ObservableViewer(
-		Global::RefReplaceEmojiChanged()
-	) | rpl::map([] {
-		return Global::ReplaceEmoji();
-	}));
-}
 
 } // namespace Global

@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/win/windows_dlls.h"
 #include "mainwindow.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 
 namespace Platform {
 namespace {
@@ -87,7 +87,7 @@ bool EventFilter::mainWindowEvent(
 	switch (msg) {
 
 	case WM_TIMECHANGE: {
-		if (AuthSession::Exists()) {
+		if (Main::Session::Exists()) {
 			Auth().checkAutoLockIn(100);
 		}
 	} return false;

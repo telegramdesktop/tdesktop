@@ -41,7 +41,7 @@ public:
 	void updateFrameRequest(
 		not_null<const Animation*> animation,
 		const FrameRequest &request) override;
-	void markFrameShown() override;
+	bool markFrameShown() override;
 	void checkStep() override;
 
 	not_null<Animation*> append(

@@ -14,8 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_edit_scans.h"
 #include "passport/passport_panel.h"
 #include "base/openssl_help.h"
+#include "base/unixtime.h"
 #include "boxes/passcode_box.h"
 #include "boxes/confirm_box.h"
+#include "window/window_session_controller.h"
 #include "ui/toast/toast.h"
 #include "ui/rp_widget.h"
 #include "ui/countryinput.h"
@@ -48,7 +50,8 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 				return tr::lng_passport_scan_uploaded(
 					tr::now,
 					lt_date,
-					langDateTimeFull(ParseDateTime(file.fields.date)));
+					langDateTimeFull(
+						base::unixtime::parse(file.fields.date)));
 			}
 		} else if (file.uploadData) {
 			if (file.uploadData->offset < 0) {
@@ -61,7 +64,8 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 				return tr::lng_passport_scan_uploaded(
 					tr::now,
 					lt_date,
-					langDateTimeFull(ParseDateTime(file.fields.date)));
+					langDateTimeFull(
+						base::unixtime::parse(file.fields.date)));
 			}
 		} else {
 			return formatDownloadText(0, file.fields.size);
@@ -720,7 +724,7 @@ void PanelController::setupPassword() {
 	auto fields = PasscodeBox::CloudFields();
 	fields.newAlgo = settings.newAlgo;
 	fields.newSecureSecretAlgo = settings.newSecureAlgo;
-	auto box = show(Box<PasscodeBox>(fields));
+	auto box = show(Box<PasscodeBox>(&_form->window()->session(), fields));
 	box->newPasswordSet(
 	) | rpl::filter([=](const QByteArray &password) {
 		return !password.isEmpty();

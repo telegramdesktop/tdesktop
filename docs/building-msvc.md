@@ -141,7 +141,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff
     cd ..
 
-    configure -debug-and-release -force-debug-info -opensource -confirm-license -static -I "%cd%\..\openssl\Release\include" -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="%cd%\..\openssl\Debug\lib\ssleay32.lib %cd%\..\openssl\Debug\lib\libeay32.lib" OPENSSL_LIBS_RELEASE="%cd%\..\openssl\Release\lib\ssleay32.lib %cd%\..\openssl\Release\lib\libeay32.lib" -mp -nomake examples -nomake tests -platform win32-msvc2015
+    configure -debug-and-release -force-debug-info -opensource -confirm-license -static -I "%cd%\..\openssl\inc32" -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="%cd%\..\openssl\out32.dbg\ssleay32.lib %cd%\..\openssl\out32.dbg\libeay32.lib" OPENSSL_LIBS_RELEASE="%cd%\..\openssl\out32\ssleay32.lib %cd%\..\openssl\out32\libeay32.lib" -mp -nomake examples -nomake tests -platform win32-msvc2015
 
     jom -j4
     jom -j4 install

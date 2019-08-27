@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "emoji_suggestions_data.h"
 #include "emoji_suggestions_helper.h"
+#include "window/window_session_controller.h"
 #include "facades.h"
 #include "styles/style_chat_helpers.h"
 
@@ -822,7 +823,8 @@ void EmojiListWidget::setSelected(int newSelected) {
 	_selected = newSelected;
 	updateSelected();
 
-	if (_selected >= 0 && Global::SuggestEmoji()) {
+	if (_selected >= 0
+		&& controller()->session().settings().suggestEmoji()) {
 		Ui::Tooltip::Show(1000, this);
 	}
 

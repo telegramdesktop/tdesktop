@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_call.h"
 
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
@@ -204,7 +204,7 @@ void Call::startOutgoing() {
 		setState(State::Waiting);
 
 		auto &call = result.c_phone_phoneCall();
-		Auth().data().processUsers(call.vusers());
+		_user->session().data().processUsers(call.vusers());
 		if (call.vphone_call().type() != mtpc_phoneCallWaiting) {
 			LOG(("Call Error: Expected phoneCallWaiting in response to phone.requestCall()"));
 			finish(FinishType::Failed);
@@ -277,7 +277,7 @@ void Call::actuallyAnswer() {
 	)).done([=](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 		auto &call = result.c_phone_phoneCall();
-		Auth().data().processUsers(call.vusers());
+		_user->session().data().processUsers(call.vusers());
 		if (call.vphone_call().type() != mtpc_phoneCallWaiting) {
 			LOG(("Call Error: "
 				"Not phoneCallWaiting in response to phone.acceptCall."));
@@ -334,7 +334,7 @@ QString Call::getDebugLog() const {
 
 void Call::startWaitingTrack() {
 	_waitingTrack = Media::Audio::Current().createTrack();
-	auto trackFileName = Auth().settings().getSoundPath(
+	auto trackFileName = _user->session().settings().getSoundPath(
 		(_type == Type::Outgoing)
 		? qsl("call_outgoing")
 		: qsl("call_incoming"));
@@ -374,10 +374,10 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			|| peerToUser(_user->id) != data.vadmin_id().v) {
 			Unexpected("phoneCallRequested call inside an existing call handleUpdate()");
 		}
-		if (Auth().userId() != data.vparticipant_id().v) {
+		if (_user->session().userId() != data.vparticipant_id().v) {
 			LOG(("Call Error: Wrong call participant_id %1, expected %2."
 				).arg(data.vparticipant_id().v
-				).arg(Auth().userId()));
+				).arg(_user->session().userId()));
 			finish(FinishType::Failed);
 			return true;
 		}
@@ -446,7 +446,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			}
 		}
 		if (data.is_need_rating() && _id && _accessHash) {
-			Ui::show(Box<RateCallBox>(_id, _accessHash));
+			Ui::show(Box<RateCallBox>(&_user->session(), _id, _accessHash));
 		}
 		const auto reason = data.vreason();
 		if (reason && reason->type() == mtpc_phoneCallDiscardReasonDisconnect) {
@@ -516,7 +516,7 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 
 		auto &call = result.c_phone_phoneCall();
-		Auth().data().processUsers(call.vusers());
+		_user->session().data().processUsers(call.vusers());
 		if (call.vphone_call().type() != mtpc_phoneCall) {
 			LOG(("Call Error: Expected phoneCall in response to phone.confirmCall()"));
 			finish(FinishType::Failed);
@@ -702,8 +702,8 @@ bool Call::checkCallCommonFields(const T &call) {
 		LOG(("Call Error: Wrong call access_hash."));
 		return checkFailed();
 	}
-	auto adminId = (_type == Type::Outgoing) ? Auth().userId() : peerToUser(_user->id);
-	auto participantId = (_type == Type::Outgoing) ? peerToUser(_user->id) : Auth().userId();
+	auto adminId = (_type == Type::Outgoing) ? _user->session().userId() : peerToUser(_user->id);
+	auto participantId = (_type == Type::Outgoing) ? peerToUser(_user->id) : _user->session().userId();
 	if (call.vadmin_id().v != adminId) {
 		LOG(("Call Error: Wrong call admin_id %1, expected %2.").arg(call.vadmin_id().v).arg(adminId));
 		return checkFailed();
@@ -848,10 +848,10 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 		reason,
 		MTP_long(connectionId)
 	)).done([=](const MTPUpdates &result) {
-		// This could be destroyed by updates, so we set Ended after
+		// Here 'this' could be destroyed by updates, so we set Ended after
 		// updates being handled, but in a guarded way.
 		crl::on_main(this, [=] { setState(finalState); });
-		Auth().api().applyUpdates(result);
+		_user->session().api().applyUpdates(result);
 	}).fail([this, finalState](const RPCError &error) {
 		setState(finalState);
 	}).send();

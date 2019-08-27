@@ -32,6 +32,7 @@ public:
 		const QByteArray &content,
 		const FrameRequest &request,
 		Quality quality = Quality::Default,
+		const ColorReplacements *replacements = nullptr,
 		std::shared_ptr<FrameRenderer> renderer = nullptr);
 	SinglePlayer(
 		FnMut<void(FnMut<void(QByteArray &&cached)>)> get, // Main thread.
@@ -39,6 +40,7 @@ public:
 		const QByteArray &content,
 		const FrameRequest &request,
 		Quality quality = Quality::Default,
+		const ColorReplacements *replacements = nullptr,
 		std::shared_ptr<FrameRenderer> renderer = nullptr);
 	~SinglePlayer();
 
@@ -49,7 +51,7 @@ public:
 	void updateFrameRequest(
 		not_null<const Animation*> animation,
 		const FrameRequest &request) override;
-	void markFrameShown() override;
+	bool markFrameShown() override;
 	void checkStep() override;
 
 	rpl::producer<Update, Error> updates() const;
@@ -57,6 +59,8 @@ public:
 	[[nodiscard]] bool ready() const;
 	[[nodiscard]] QImage frame() const;
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
+	[[nodiscard]] Animation::FrameInfo frameInfo(
+		const FrameRequest &request) const;
 
 private:
 	void checkNextFrameAvailability();

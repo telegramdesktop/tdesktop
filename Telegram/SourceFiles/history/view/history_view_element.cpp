@@ -11,9 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
-#include "history/media/history_media.h"
-#include "history/media/history_media_grouped.h"
+#include "history/view/media/history_view_media.h"
+#include "history/view/media/history_view_media_grouped.h"
+#include "history/view/media/history_view_sticker.h"
+#include "history/view/media/history_view_large_emoji.h"
 #include "history/history.h"
+#include "main/main_session.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "data/data_session.h"
 #include "data/data_groups.h"
 #include "data/data_user.h"
@@ -83,6 +87,10 @@ bool SimpleElementDelegate::elementIntersectsRange(
 		int from,
 		int till) {
 	return true;
+}
+
+void SimpleElementDelegate::elementStartStickerLoop(
+	not_null<const Element*> view) {
 }
 
 TextSelection UnshiftItemSelection(
@@ -218,7 +226,7 @@ QDateTime Element::dateTime() const {
 	return _dateTime;
 }
 
-HistoryMedia *Element::media() const {
+Media *Element::media() const {
 	return _media.get();
 }
 
@@ -328,7 +336,7 @@ void Element::refreshMedia() {
 				_media = nullptr;
 				_flags |= Flag::HiddenByGroup;
 			} else {
-				_media = std::make_unique<HistoryGroupedMedia>(
+				_media = std::make_unique<GroupedMedia>(
 					this,
 					group->items);
 				if (!pendingResize()) {
@@ -338,11 +346,28 @@ void Element::refreshMedia() {
 			return;
 		}
 	}
-	if (_data->media()) {
-		if (cIgnoreBlocked() && item->author()->isUser() && item->author()->asUser()->isBlocked()) {
-			return;
+	if (cIgnoreBlocked() && item->author()->isUser() && item->author()->asUser()->isBlocked()) {
+		return;
+	}
+	const auto session = &history()->session();
+	if (const auto media = _data->media()) {
+		_media = media->createView(this);
+	} else if (_data->isIsolatedEmoji()
+		&& session->settings().largeEmoji()) {
+		const auto emoji = _data->isolatedEmoji();
+		const auto emojiStickers = &session->emojiStickersPack();
+		if (const auto sticker = emojiStickers->stickerForEmoji(emoji)) {
+			_media = std::make_unique<UnwrappedMedia>(
+				this,
+				std::make_unique<Sticker>(
+					this,
+					sticker.document,
+					sticker.replacements));
+		} else {
+			_media = std::make_unique<UnwrappedMedia>(
+				this,
+				std::make_unique<LargeEmoji>(this, emoji));
 		}
-		_media = _data->media()->createView(this);
 	} else {
 		_media = nullptr;
 	}

@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "mainwidget.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/input_fields.h"
@@ -35,9 +35,11 @@ namespace Info {
 
 TopBar::TopBar(
 	QWidget *parent,
+	not_null<Window::SessionNavigation*> navigation,
 	const style::InfoTopBar &st,
 	SelectedItems &&selectedItems)
 : RpWidget(parent)
+, _navigation(navigation)
 , _st(st)
 , _selectedItems(Section::MediaType::kCount) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -516,8 +518,8 @@ MessageIdsList TopBar::collectItems() const {
 		_selectedItems.list
 	) | ranges::view::transform([](auto &&item) {
 		return item.msgId;
-	}) | ranges::view::filter([](FullMsgId msgId) {
-		return Auth().data().message(msgId) != nullptr;
+	}) | ranges::view::filter([&](FullMsgId msgId) {
+		return _navigation->session().data().message(msgId) != nullptr;
 	}) | ranges::to_vector;
 }
 
@@ -528,6 +530,7 @@ void TopBar::performForward() {
 		return;
 	}
 	Window::ShowForwardMessagesBox(
+		_navigation,
 		std::move(items),
 		[weak = make_weak(this)] {
 			if (weak) {
@@ -541,7 +544,9 @@ void TopBar::performDelete() {
 	if (items.empty()) {
 		_cancelSelectionClicks.fire({});
 	} else {
-		const auto box = Ui::show(Box<DeleteMessagesBox>(std::move(items)));
+		const auto box = Ui::show(Box<DeleteMessagesBox>(
+			&_navigation->session(),
+			std::move(items)));
 		box->setDeleteConfirmedCallback([weak = make_weak(this)] {
 			if (weak) {
 				weak->_cancelSelectionClicks.fire({});

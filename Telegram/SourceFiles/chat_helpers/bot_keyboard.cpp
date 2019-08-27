@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
 
@@ -159,7 +159,7 @@ bool BotKeyboard::moderateKeyActivate(int key) {
 				}
 			} else if (key == Qt::Key_Q) {
 				if (const auto user = item->history()->peer->asUser()) {
-					if (user->botInfo && item->from() == user) {
+					if (user->isBot() && item->from() == user) {
 						App::sendBotCommand(user, user, qsl("/translate"));
 						return true;
 					}

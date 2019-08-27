@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Ui {
 class VerticalLayout;
 } // namespace Ui
@@ -60,8 +64,7 @@ public:
 object_ptr<Section> CreateSection(
 	Type type,
 	not_null<QWidget*> parent,
-	Window::SessionController *controller = nullptr,
-	UserData *self = nullptr);
+	not_null<Window::SessionController*> controller);
 
 void AddSkip(not_null<Ui::VerticalLayout*> container);
 void AddSkip(not_null<Ui::VerticalLayout*> container, int skip);
@@ -96,6 +99,7 @@ using MenuCallback = Fn<QAction*(
 	Fn<void()> handler)>;
 
 void FillMenu(
+	not_null<::Main::Session*> session,
 	Fn<void(Type)> showOther,
 	MenuCallback addAction);
 

@@ -18,7 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
-#include "auth_session.h"
+#include "base/unixtime.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
@@ -270,15 +271,17 @@ AdminLog::OwnedItem GenerateCommentItem(
 	using Flag = MTPDmessage::Flag;
 	const auto id = ServerMaxMsgId + (ServerMaxMsgId / 2);
 	const auto flags = Flag::f_entities | Flag::f_from_id | Flag::f_out;
+	const auto clientFlags = MTPDmessage_ClientFlags();
 	const auto replyTo = 0;
 	const auto viaBotId = 0;
 	const auto item = history->owner().makeMessage(
 		history,
 		id,
 		flags,
+		clientFlags,
 		replyTo,
 		viaBotId,
-		unixtime(),
+		base::unixtime::now(),
 		history->session().userId(),
 		QString(),
 		TextWithEntities{ TextUtilities::Clean(data.comment) });
@@ -302,7 +305,7 @@ AdminLog::OwnedItem GenerateContactItem(
 		MTPMessageFwdHeader(),
 		MTP_int(viaBotId),
 		MTP_int(replyTo),
-		MTP_int(unixtime()),
+		MTP_int(base::unixtime::now()),
 		MTP_string(),
 		MTP_messageMediaContact(
 			MTP_string(data.phone),
@@ -318,13 +321,14 @@ AdminLog::OwnedItem GenerateContactItem(
 		MTP_long(0));
 	const auto item = history->owner().makeMessage(
 		history,
-		message.c_message());
+		message.c_message(),
+		MTPDmessage_ClientFlags());
 	return AdminLog::OwnedItem(delegate, item);
 }
 
 } // namespace
 
-Autocomplete::Autocomplete(QWidget *parent, not_null<AuthSession*> session)
+Autocomplete::Autocomplete(QWidget *parent, not_null<Main::Session*> session)
 : RpWidget(parent)
 , _session(session) {
 	setupContent();

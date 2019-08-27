@@ -145,6 +145,8 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_sure_ban_admin" = "This user is an admin. Are you sure you want to go ahead and restrict them?";
 "lng_sure_enable_socks" = "Are you sure you want to enable this proxy?\n\nServer: {server}\nPort: {port}\n\nYou can change your proxy server later in the Settings (Connection Type).";
 "lng_sure_enable" = "Enable";
+"lng_proxy_invalid" = "The proxy link is invalid.";
+"lng_proxy_unsupported" = "Your Telegram Desktop version doesn't support this proxy type or the proxy link is invalid. Please update Telegram Desktop to the latest version.";
 
 "lng_edit_deleted" = "This message was deleted";
 "lng_edit_too_long" = "Your message text is too long";
@@ -323,6 +325,8 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_settings_replace_emojis" = "Replace emoji";
 "lng_settings_suggest_emoji" = "Suggest emoji replacements";
 "lng_settings_suggest_by_emoji" = "Suggest popular stickers by emoji";
+"lng_settings_loop_stickers" = "Loop animated stickers";
+"lng_settings_large_emoji" = "Large emoji";
 "lng_settings_view_emojis" = "View list";
 "lng_settings_send_enter" = "Send by Enter";
 "lng_settings_send_ctrlenter" = "Send by Ctrl+Enter";
@@ -381,6 +385,10 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_settings_stickers_emoji" = "Stickers and emoji";
 "lng_settings_messages" = "Messages";
 "lng_settings_themes" = "Themes";
+"lng_settings_theme_blue" = "Blue";
+"lng_settings_theme_classic" = "Classic";
+"lng_settings_theme_midnight" = "Midnight";
+"lng_settings_theme_matrix" = "Matrix";
 "lng_settings_data_storage" = "Data and storage";
 "lng_settings_information" = "Edit profile";
 "lng_settings_passcode_title" = "Local passcode";
@@ -560,6 +568,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_proxy_sponsor_warning" = "This proxy may display a sponsored channel in your chat list. This doesn't reveal any of your Telegram traffic.";
 
 "lng_settings_blocked_users" = "Blocked users";
+"lng_settings_no_blocked_users" = "None";
 "lng_settings_show_sessions" = "Show all sessions";
 "lng_settings_export_data" = "Export Telegram data";
 "lng_settings_destroy_if" = "If away for...";
@@ -1089,6 +1098,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_edited" = "edited";
 "lng_edited_date" = "Edited: {date}";
 "lng_admin_badge" = "admin";
+"lng_owner_badge" = "owner";
 "lng_channel_badge" = "channel";
 "lng_fast_reply" = "Reply";
 "lng_cancel_edit_post_sure" = "Cancel editing?";
@@ -1229,6 +1239,7 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_cant_invite_make_admin" = "Make admin";
 
 "lng_send_button" = "Send";
+"lng_send_silent_message" = "Send without sound";
 "lng_message_ph" = "Write a message...";
 "lng_broadcast_ph" = "Broadcast a message...";
 "lng_broadcast_silent_ph" = "Silent broadcast...";
@@ -1625,6 +1636,8 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 
 "lng_rights_edit_admin" = "Manage permissions";
 "lng_rights_edit_admin_header" = "What can this admin do?";
+"lng_rights_edit_admin_rank_name" = "Custom title";
+"lng_rights_edit_admin_rank_about" = "A custom title that will be shown to all members instead of '{title}'.";
 "lng_rights_about_add_admins_yes" = "This admin will be able to add new admins with the same (or more limited) permissions.";
 "lng_rights_about_add_admins_no" = "This admin will not be able to add new admins.";
 
@@ -1637,6 +1650,24 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_rights_user_restrictions" = "User restrictions";
 "lng_rights_user_restrictions_header" = "What can this member do?";
 "lng_rights_default_restrictions_header" = "What can members of this group do?";
+"lng_rights_slowmode_header" = "Slow mode";
+"lng_rights_slowmode_off" = "Off";
+"lng_rights_slowmode_seconds#one" = "{count}s";
+"lng_rights_slowmode_seconds#other" = "{count}s";
+"lng_rights_slowmode_minutes#one" = "{count}m";
+"lng_rights_slowmode_minutes#other" = "{count}m";
+"lng_rights_slowmode_hours#one" = "{count}h";
+"lng_rights_slowmode_hours#other" = "{count}h";
+"lng_rights_slowmode_about" = "Members will be able to send only one message per this interval.";
+"lng_rights_slowmode_about_interval" = "Members will be able to send only one message {interval}.";
+"lng_rights_slowmode_interval_seconds#one" = "every {count} second";
+"lng_rights_slowmode_interval_seconds#other" = "every {count} seconds";
+"lng_rights_slowmode_interval_minutes#one" = "every {count} minute";
+"lng_rights_slowmode_interval_minutes#other" = "every {count} minutes";
+
+"lng_slowmode_enabled"= "Slow mode is enabled. You can send your next message in {left}.";
+"lng_slowmode_no_many" = "Slow mode is enabled. You can't send more than one message at a time.";
+"lng_slowmode_too_long" = "Sorry, this text is too long to send as one message.\n\nSlow mode is enabled. You can't send more than one message at a time.";
 
 "lng_rights_channel_info" = "Change channel info";
 "lng_rights_channel_post" = "Post messages";
@@ -1696,6 +1727,11 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 
 "lng_exceptions_list_title" = "Exceptions";
 "lng_removed_list_title" = "Removed users";
+
+"lng_admin_log_slow_mode_seconds#one" = "{count} second";
+"lng_admin_log_slow_mode_seconds#other" = "{count} seconds";
+"lng_admin_log_slow_mode_minutes#one" = "{count} minute";
+"lng_admin_log_slow_mode_minutes#other" = "{count} minutes";
 
 "lng_admin_log_title_all" = "All actions";
 "lng_admin_log_title_selected" = "Selected actions";
@@ -1771,6 +1807,8 @@ https://github.com/Sea-n/tdesktop/blob/master/LEGAL
 "lng_admin_log_removed_linked_channel" = "{from} removed the linked channel";
 "lng_admin_log_changed_location_chat" = "{from} changed the group location to {address}";
 "lng_admin_log_removed_location_chat" = "{from} removed the group location";
+"lng_admin_log_changed_slow_mode" = "{from} changed slow mode to {duration}";
+"lng_admin_log_removed_slow_mode" = "{from} disabled slow mode";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_restricted_forever" = "indefinitely";
 "lng_admin_log_restricted_until" = "until {date}";

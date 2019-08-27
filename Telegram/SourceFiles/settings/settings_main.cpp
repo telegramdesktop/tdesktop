@@ -22,8 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
+#include "window/window_session_controller.h"
 #include "core/file_utilities.h"
 #include "styles/style_settings.h"
 
@@ -54,6 +55,7 @@ void SetupLanguageButton(
 }
 
 void SetupSections(
+		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(Type)> showOther) {
 	AddDivider(container);
@@ -70,8 +72,8 @@ void SetupSections(
 			icon
 		)->addClickHandler([=] { showOther(type); });
 	};
-	if (Auth().supportMode()) {
-		SetupSupport(container);
+	if (controller->session().supportMode()) {
+		SetupSupport(controller, container);
 
 		AddDivider(container);
 		AddSkip(container);
@@ -226,51 +228,50 @@ void SetupFaq(not_null<Ui::VerticalLayout*> container, bool icon) {
 	)->addClickHandler(OpenFaq);
 }
 
-void SetupHelp(not_null<Ui::VerticalLayout*> container) {
+void SetupHelp(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 
 	SetupFaq(container);
 
-	if (AuthSession::Exists()) {
-		const auto button = AddButton(
-			container,
-			tr::lng_settings_ask_question(),
-			st::settingsSectionButton);
-		button->addClickHandler([=] {
-			const auto ready = crl::guard(button, [](const MTPUser &data) {
-				if (const auto user = Auth().data().processUser(data)) {
-					Ui::showPeerHistory(user, ShowAtUnreadMsgId);
-				}
-			});
-			const auto sure = crl::guard(button, [=] {
-				Auth().api().requestSupportContact(ready);
-			});
-			auto box = Box<ConfirmBox>(
-				tr::lng_settings_ask_sure(tr::now),
-				tr::lng_settings_ask_ok(tr::now),
-				tr::lng_settings_faq_button(tr::now),
-				sure,
-				OpenFaq);
-			box->setStrictCancel(true);
-			Ui::show(std::move(box));
+	const auto button = AddButton(
+		container,
+		tr::lng_settings_ask_question(),
+		st::settingsSectionButton);
+	button->addClickHandler([=] {
+		const auto ready = crl::guard(button, [=](const MTPUser &data) {
+			if (const auto user = controller->session().data().processUser(data)) {
+				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
+			}
 		});
-	}
+		const auto sure = crl::guard(button, [=] {
+			controller->session().api().requestSupportContact(ready);
+		});
+		auto box = Box<ConfirmBox>(
+			tr::lng_settings_ask_sure(tr::now),
+			tr::lng_settings_ask_ok(tr::now),
+			tr::lng_settings_faq_button(tr::now),
+			sure,
+			OpenFaq);
+		box->setStrictCancel(true);
+		Ui::show(std::move(box));
+	});
 
 	AddSkip(container);
 }
 
 Main::Main(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller,
-	not_null<UserData*> self)
+	not_null<Window::SessionController*> controller)
 : Section(parent)
-, _self(self) {
+, _controller(controller) {
 	setupContent(controller);
 }
 
 void Main::keyPressEvent(QKeyEvent *e) {
-	CodesFeedString(e->text());
+	CodesFeedString(&_controller->session(), e->text());
 	return Section::keyPressEvent(e);
 }
 
@@ -279,11 +280,11 @@ void Main::setupContent(not_null<Window::SessionController*> controller) {
 
 	const auto cover = content->add(object_ptr<Info::Profile::Cover>(
 		content,
-		_self,
+		controller->session().user(),
 		controller));
 	cover->setOnlineCount(rpl::single(0));
 
-	SetupSections(content, [=](Type type) {
+	SetupSections(controller, content, [=](Type type) {
 		_showOther.fire_copy(type);
 	});
 	if (HasInterfaceScale()) {
@@ -292,13 +293,13 @@ void Main::setupContent(not_null<Window::SessionController*> controller) {
 		SetupInterfaceScale(content);
 		AddSkip(content);
 	}
-	SetupHelp(content);
+	SetupHelp(controller, content);
 
 	Ui::ResizeFitChild(this, content);
 
 	// If we load this in advance it won't jump when we open its' section.
-	Auth().api().reloadPasswordState();
-	Auth().api().reloadContactSignupSilent();
+	controller->session().api().reloadPasswordState();
+	controller->session().api().reloadContactSignupSilent();
 }
 
 rpl::producer<Type> Main::sectionShowOther() {

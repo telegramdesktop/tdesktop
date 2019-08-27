@@ -41,7 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "mainwidget.h"
 #include "mainwindow.h" // MainWindow::controller.
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "core/application.h"
 #include "apiwrap.h"
 #include "styles/style_info.h"
@@ -262,7 +262,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			tr::lng_info_mobile_label(),
 			PhoneOrHiddenValue(user),
 			tr::lng_profile_copy_phone(tr::now));
-		if (user->botInfo) {
+		if (user->isBot()) {
 			addInfoLine(tr::lng_info_about_label(), AboutValue(user));
 		} else {
 			addInfoLine(tr::lng_info_bio_label(), BioValue(user));
@@ -352,10 +352,10 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 	result->toggleOn(
 		NotificationsEnabledValue(peer)
 	)->addClickHandler([=] {
-		const auto muteForSeconds = Auth().data().notifyIsMuted(peer)
+		const auto muteForSeconds = peer->owner().notifyIsMuted(peer)
 			? 0
 			: Data::NotifySettings::kDefaultMutePeriod;
-		Auth().data().updateNotifySettings(peer, muteForSeconds);
+		peer->owner().updateNotifySettings(peer, muteForSeconds);
 	});
 	object_ptr<FloatingIcon>(
 		result,
@@ -484,19 +484,21 @@ ActionsFiller::ActionsFiller(
 
 void ActionsFiller::addInviteToGroupAction(
 		not_null<UserData*> user) {
+	const auto controller = _controller;
 	AddActionButton(
 		_wrap,
 		tr::lng_profile_invite_to_group(),
 		CanInviteBotToGroupValue(user),
-		[user] { AddBotToGroupBoxController::Start(user); });
+		[=] { AddBotToGroupBoxController::Start(controller, user); });
 }
 
 void ActionsFiller::addShareContactAction(not_null<UserData*> user) {
+	const auto controller = _controller;
 	AddActionButton(
 		_wrap,
 		tr::lng_info_share_contact(),
 		CanShareContactValue(user),
-		[user] { Window::PeerMenuShareContactBox(user); });
+		[=] { Window::PeerMenuShareContactBox(controller, user); });
 }
 
 void ActionsFiller::addEditContactAction(not_null<UserData*> user) {
@@ -536,7 +538,7 @@ void ActionsFiller::addDeleteConversationAction(
 
 void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 	auto findBotCommand = [user](const QString &command) {
-		if (!user->botInfo) {
+		if (!user->isBot()) {
 			return QString();
 		}
 		for_const (auto &data, user->botInfo->commands) {
@@ -617,11 +619,14 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 	auto callback = [=] {
 		if (user->isBlocked()) {
 			Window::PeerMenuUnblockUserWithBotRestart(user);
-			if (user->botInfo) {
+			if (user->isBot()) {
 				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
 			}
-		} else {
+		} else if (user->isBot()) {
 			user->session().api().blockUser(user);
+		} else {
+			window->show(
+				Box(Window::PeerMenuBlockUserBox, window, user, false));
 		}
 	};
 	AddActionButton(
@@ -651,7 +656,7 @@ void ActionsFiller::addJoinChannelAction(
 		_wrap,
 		tr::lng_profile_join_channel(),
 		rpl::duplicate(joinVisible),
-		[channel] { Auth().api().joinChannel(channel); });
+		[=] { channel->session().api().joinChannel(channel); });
 	_wrap->add(object_ptr<Ui::SlideWrap<Ui::FixedHeightWidget>>(
 		_wrap,
 		CreateSkipWidget(
@@ -665,7 +670,7 @@ void ActionsFiller::addJoinChannelAction(
 }
 
 void ActionsFiller::fillUserActions(not_null<UserData*> user) {
-	if (user->botInfo) {
+	if (user->isBot()) {
 		addInviteToGroupAction(user);
 	}
 	addShareContactAction(user);
@@ -747,19 +752,20 @@ object_ptr<Ui::RpWidget> ActionsFiller::fill() {
 //
 //object_ptr<Ui::RpWidget> FeedDetailsFiller::setupDefaultToggle() {
 //	using namespace rpl::mappers;
-//	const auto feedId = _feed->id();
+//	const auto feed = _feed;
+//	const auto feedId = feed->id();
 //	auto result = object_ptr<Button>(
 //		_wrap,
 //		tr::lng_info_feed_is_default(),
 //		st::infoNotificationsButton);
 //	result->toggleOn(
-//		Auth().data().defaultFeedIdValue(
+//		feed->owner().defaultFeedIdValue(
 //		) | rpl::map(_1 == feedId)
 //	)->addClickHandler([=] {
-//		const auto makeDefault = (Auth().data().defaultFeedId() != feedId);
+//		const auto makeDefault = (feed->owner().defaultFeedId() != feedId);
 //		const auto defaultFeedId = makeDefault ? feedId : 0;
-//		Auth().data().setDefaultFeedId(defaultFeedId);
-////		Auth().api().saveDefaultFeedId(feedId, makeDefault); // #feed
+//		feed->owner().setDefaultFeedId(defaultFeedId);
+////		feed->session().api().saveDefaultFeedId(feedId, makeDefault); // #feed
 //	});
 //	object_ptr<FloatingIcon>(
 //		result,
@@ -787,14 +793,15 @@ object_ptr<Ui::RpWidget> SetupActions(
 }
 
 void SetupAddChannelMember(
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<Ui::RpWidget*> parent,
 		not_null<ChannelData*> channel) {
 	auto add = Ui::CreateChild<Ui::IconButton>(
 		parent.get(),
 		st::infoMembersAddMember);
 	add->showOn(CanAddMemberValue(channel));
-	add->addClickHandler([channel] {
-		Window::PeerMenuAddChannelMembers(channel);
+	add->addClickHandler([=] {
+		Window::PeerMenuAddChannelMembers(navigation, channel);
 	});
 	parent->widthValue(
 	) | rpl::start_with_next([add](int newWidth) {
@@ -851,7 +858,7 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 		rpl::single(true),
 		std::move(membersCallback))->entity();
 
-	SetupAddChannelMember(button, channel);
+	SetupAddChannelMember(controller, button, channel);
 
 	object_ptr<FloatingIcon>(
 		members,

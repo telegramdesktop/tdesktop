@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "history/history.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
 
@@ -266,7 +266,7 @@ void ApplyChatUpdate(
 				history->clearLastKeyboard();
 			}
 		}
-		if (chat->botStatus > 0 && user->botInfo) {
+		if (chat->botStatus > 0 && user->isBot()) {
 			chat->refreshBotStatus();
 		}
 	}

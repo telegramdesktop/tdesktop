@@ -13,7 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/history.h"
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Ui {
 class ScrollArea;
@@ -31,7 +33,7 @@ struct Contact {
 
 class Autocomplete : public Ui::RpWidget {
 public:
-	Autocomplete(QWidget *parent, not_null<AuthSession*> session);
+	Autocomplete(QWidget *parent, not_null<Main::Session*> session);
 
 	void activate(not_null<Ui::InputField*> field);
 	void deactivate();
@@ -47,7 +49,7 @@ private:
 	void setupContent();
 	void submitValue(const QString &value);
 
-	not_null<AuthSession*> _session;
+	not_null<Main::Session*> _session;
 	Fn<void()> _activate;
 	Fn<void()> _deactivate;
 	Fn<void(int delta)> _moveSelection;

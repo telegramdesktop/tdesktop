@@ -324,7 +324,9 @@ private:
 	void initTabbedSelector();
 	void updateField();
 
-	void send(Qt::KeyboardModifiers modifiers = Qt::KeyboardModifiers());
+	void send(
+		bool silent = false,
+		Qt::KeyboardModifiers modifiers = Qt::KeyboardModifiers());
 	void handlePendingHistoryUpdate();
 	void fullPeerUpdated(PeerData *peer);
 	void toggleTabbedSelectorMode();
@@ -401,7 +403,6 @@ private:
 		const QString &insertTextOnCancel = QString());
 	bool showSendingFilesError(const Storage::PreparedList &list) const;
 
-	void uploadFiles(Storage::PreparedList &&list, SendMediaType type);
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 
 	void uploadFilesAfterConfirmation(
@@ -409,6 +410,7 @@ private:
 		SendMediaType type,
 		TextWithTags &&caption,
 		MsgId replyTo,
+		bool silent,
 		std::shared_ptr<SendingAlbum> album = nullptr);
 
 	void subscribeToUploader();
@@ -467,6 +469,7 @@ private:
 	void cancelReplyAfterMediaSend(bool lastKeyboardUsed);
 	void replyToPreviousMessage();
 	void replyToNextMessage();
+	[[nodiscard]] bool showSlowmodeError();
 
 	void hideSelectorControlsAnimated();
 	int countMembersDropdownHeightMax() const;

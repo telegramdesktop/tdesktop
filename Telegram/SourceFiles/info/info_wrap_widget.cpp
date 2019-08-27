@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/confirm_box.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "mainwidget.h"
@@ -353,7 +353,11 @@ void WrapWidget::createTopBar() {
 	auto selectedItems = _topBar
 		? _topBar->takeSelectedItems()
 		: SelectedItems(Section::MediaType::kCount);
-	_topBar.create(this, TopBarStyle(wrapValue), std::move(selectedItems));
+	_topBar.create(
+		this,
+		_controller.get(),
+		TopBarStyle(wrapValue),
+		std::move(selectedItems));
 	_topBar->cancelSelectionRequests(
 	) | rpl::start_with_next([this] {
 		_content->cancelSelection();
@@ -491,7 +495,7 @@ void WrapWidget::addProfileCallsButton() {
 					? st::infoLayerTopBarCall
 					: st::infoTopBarCall))
 		)->addClickHandler([=] {
-			Calls::Current().startOutgoingCall(user);
+			user->session().calls().startOutgoingCall(user);
 		});
 	}, _topBar->lifetime());
 
@@ -582,7 +586,7 @@ void WrapWidget::showTopBarMenu() {
 			_topBarMenu = nullptr;
 			controller->showSettings(type);
 		};
-		::Settings::FillMenu(showOther, addAction);
+		::Settings::FillMenu(&self->session(), showOther, addAction);
 	} else {
 		_topBarMenu = nullptr;
 		return;

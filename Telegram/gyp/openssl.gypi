@@ -7,11 +7,11 @@
 {
   'conditions': [
     [ 'build_win', {
-	  'libraries': [
+      'libraries': [
         '-llibeay32',
         '-lssleay32',
         '-lCrypt32',
-	  ],
+      ],
       'configurations': {
         'Debug': {
           'include_dirs': [
@@ -30,7 +30,7 @@
           ],
         },
       },
-	}], [ 'build_macold', {
+    }], [ 'build_macold', {
       'xcode_settings': {
         'OTHER_LDFLAGS': [
           '<(libs_loc)/macold/openssl/libssl.a',

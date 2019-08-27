@@ -12,7 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 
 class ChannelData;
-class AuthSession;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Data {
 

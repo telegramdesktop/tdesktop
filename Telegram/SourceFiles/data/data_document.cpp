@@ -453,7 +453,7 @@ Data::Session &DocumentData::owner() const {
 	return *_owner;
 }
 
-AuthSession &DocumentData::session() const {
+Main::Session &DocumentData::session() const {
 	return _owner->session();
 }
 
@@ -737,11 +737,11 @@ void DocumentData::automaticLoad(
 	const auto shouldLoadFromCloud = !Data::IsExecutableName(filename)
 		&& (item
 			? Data::AutoDownload::Should(
-				Auth().settings().autoDownload(),
+				session().settings().autoDownload(),
 				item->history()->peer,
 				this)
 			: Data::AutoDownload::Should(
-				Auth().settings().autoDownload(),
+				session().settings().autoDownload(),
 				this));
 	const auto loadFromCloud = shouldLoadFromCloud
 		? LoadFromCloudOrLocal
@@ -1133,6 +1133,8 @@ bool DocumentData::isStickerSetInstalled() const {
 		}
 		return false;
 	}, [&](const MTPDinputStickerSetEmpty &) {
+		return false;
+	}, [&](const MTPDinputStickerSetAnimatedEmoji &) {
 		return false;
 	});
 }
@@ -1671,9 +1673,10 @@ hpj hta htt inf ini ins inx isp isu its jar jnlp job js jse ksh lnk local \
 mad maf mag mam manifest maq mar mas mat mau mav maw mcf mda mdb mde mdt \
 mdw mdz mht mhtml mmc mof msc msg msh msh1 msh2 msh1xml msh2xml mshxml msi \
 msp mst ops osd paf pcd pif pl plg prf prg ps1 ps2 ps1xml ps2xml psc1 psc2 \
-pst reg rgs scf scr sct search-ms settingcontent-ms shb shs slk sys tmp \
-u3p url vb vbe vbp vbs vbscript vdx vsmacros vsd vsdm vsdx vss vssm vssx \
-vst vstm vstx vsw vsx vtx website ws wsc wsf wsh xbap xll xnk");
+pst py py3 pyc pyd pyo pyw pywz pyz reg rgs scf scr sct search-ms \
+settingcontent-ms shb shs slk sys tmp u3p url vb vbe vbp vbs vbscript vdx \
+vsmacros vsd vsdm vsdx vss vssm vssx vst vstm vstx vsw vsx vtx website ws \
+wsc wsf wsh xbap xll xnk");
 #endif // !Q_OS_MAC && !Q_OS_LINUX
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());

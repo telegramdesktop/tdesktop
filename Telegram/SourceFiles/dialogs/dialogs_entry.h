@@ -11,7 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_key.h"
 
-class AuthSession;
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Data {
 class Session;
@@ -38,9 +40,9 @@ enum class Mode {
 enum class EntryType : unsigned {
 	None = 0x00,
 	OneOnOne = 0x01,
-	Group = 0x02,
-	Channel = 0x04,
-	Feed = 0x08,
+	Bot = 0x02,
+	Group = 0x04,
+	Channel = 0x08,
 	TypeMask = 0x0F,  // only the types, disregards favorite status
 	All = 0x0F
 };
@@ -105,7 +107,7 @@ public:
 	virtual ~Entry() = default;
 
 	Data::Session &owner() const;
-	AuthSession &session() const;
+	Main::Session &session() const;
 
 	PositionChange adjustByPosInChatList(Mode list);
 	bool inChatList(Mode list = Mode::All) const {

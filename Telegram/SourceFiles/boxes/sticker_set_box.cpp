@@ -24,7 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_multi_player.h"
 #include "lottie/lottie_animation.h"
 #include "window/window_session_controller.h"
-#include "auth_session.h"
+#include "base/unixtime.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -149,7 +150,7 @@ void StickerSetBox::prepare() {
 	_inner = setInnerWidget(
 		object_ptr<Inner>(this, _controller, _set),
 		st::stickersScroll);
-	Auth().data().stickersUpdated(
+	_controller->session().data().stickersUpdated(
 	) | rpl::start_with_next([=] {
 		updateButtons();
 	}, lifetime());
@@ -165,7 +166,7 @@ void StickerSetBox::prepare() {
 
 	_inner->setInstalled(
 	) | rpl::start_with_next([=](uint64 setId) {
-		Auth().api().stickerSetInstalled(setId);
+		_controller->session().api().stickerSetInstalled(setId);
 		closeBox();
 	}, lifetime());
 }
@@ -222,6 +223,7 @@ StickerSetBox::Inner::Inner(
 	}, [&](const MTPDinputStickerSetShortName &data) {
 		_setShortName = qs(data.vshort_name());
 	}, [&](const MTPDinputStickerSetEmpty &) {
+	}, [&](const MTPDinputStickerSetAnimatedEmoji &) {
 	});
 
 	_mtp.request(MTPmessages_GetStickerSet(
@@ -233,9 +235,9 @@ StickerSetBox::Inner::Inner(
 		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 	}).send();
 
-	Auth().api().updateStickers();
+	_controller->session().api().updateStickers();
 
-	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
+	subscribe(_controller->session().downloaderTaskFinished(), [this] { update(); });
 
 	setMouseTracking(true);
 }
@@ -251,7 +253,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 		_pack.reserve(v.size());
 		_elements.reserve(v.size());
 		for (const auto &item : v) {
-			const auto document = Auth().data().processDocument(item);
+			const auto document = _controller->session().data().processDocument(item);
 			const auto sticker = document->sticker();
 			if (!sticker) {
 				continue;
@@ -268,7 +270,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 					auto p = Stickers::Pack();
 					p.reserve(stickers.size());
 					for (auto j = 0, c = stickers.size(); j != c; ++j) {
-						auto doc = Auth().data().document(stickers[j].v);
+						auto doc = _controller->session().data().document(stickers[j].v);
 						if (!doc || !doc->sticker()) continue;
 
 						p.push_back(doc);
@@ -291,7 +293,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			} else {
 				_setThumbnail = ImagePtr();
 			}
-			auto &sets = Auth().data().stickerSetsRef();
+			auto &sets = _controller->session().data().stickerSetsRef();
 			const auto it = sets.find(_setId);
 			if (it != sets.cend()) {
 				using ClientFlag = MTPDstickerSet_ClientFlag;
@@ -333,16 +335,16 @@ rpl::producer<> StickerSetBox::Inner::updateControls() const {
 
 void StickerSetBox::Inner::installDone(
 		const MTPmessages_StickerSetInstallResult &result) {
-	auto &sets = Auth().data().stickerSetsRef();
+	auto &sets = _controller->session().data().stickerSetsRef();
 
 	bool wasArchived = (_setFlags & MTPDstickerSet::Flag::f_archived);
 	if (wasArchived) {
-		auto index = Auth().data().archivedStickerSetsOrderRef().indexOf(_setId);
+		auto index = _controller->session().data().archivedStickerSetsOrderRef().indexOf(_setId);
 		if (index >= 0) {
-			Auth().data().archivedStickerSetsOrderRef().removeAt(index);
+			_controller->session().data().archivedStickerSetsOrderRef().removeAt(index);
 		}
 	}
-	_setInstallDate = unixtime();
+	_setInstallDate = base::unixtime::now();
 	_setFlags &= ~MTPDstickerSet::Flag::f_archived;
 	_setFlags |= MTPDstickerSet::Flag::f_installed_date;
 	auto it = sets.find(_setId);
@@ -366,7 +368,7 @@ void StickerSetBox::Inner::installDone(
 	it->stickers = _pack;
 	it->emoji = _emoji;
 
-	auto &order = Auth().data().stickerSetsOrderRef();
+	auto &order = _controller->session().data().stickerSetsOrderRef();
 	int insertAtIndex = 0, currentIndex = order.indexOf(_setId);
 	if (currentIndex != insertAtIndex) {
 		if (currentIndex > 0) {
@@ -393,7 +395,7 @@ void StickerSetBox::Inner::installDone(
 			Local::writeArchivedStickers();
 		}
 		Local::writeInstalledStickers();
-		Auth().data().notifyStickersUpdated();
+		_controller->session().data().notifyStickersUpdated();
 	}
 	_setInstalled.fire_copy(_setId);
 }
@@ -619,11 +621,19 @@ void StickerSetBox::Inner::paintSticker(
 		const_cast<Inner*>(this)->setupLottie(index);
 	}
 
-	float64 coef = qMin((st::stickersSize.width() - st::buttonRadius * 2) / float64(document->dimensions.width()), (st::stickersSize.height() - st::buttonRadius * 2) / float64(document->dimensions.height()));
-	if (coef > 1) coef = 1;
-	int32 w = qRound(coef * document->dimensions.width()), h = qRound(coef * document->dimensions.height());
-	if (w < 1) w = 1;
-	if (h < 1) h = 1;
+	auto w = 1;
+	auto h = 1;
+	if (element.animated && !document->dimensions.isEmpty()) {
+		const auto request = Lottie::FrameRequest{ boundingBoxSize() * cIntRetinaFactor() };
+		const auto size = request.size(document->dimensions) / cIntRetinaFactor();
+		w = std::max(size.width(), 1);
+		h = std::max(size.height(), 1);
+	} else {
+		auto coef = qMin((st::stickersSize.width() - st::buttonRadius * 2) / float64(document->dimensions.width()), (st::stickersSize.height() - st::buttonRadius * 2) / float64(document->dimensions.height()));
+		if (coef > 1) coef = 1;
+		w = std::max(qRound(coef * document->dimensions.width()), 1);
+		h = std::max(qRound(coef * document->dimensions.height()), 1);
+	}
 	QPoint ppos = position + QPoint((st::stickersSize.width() - w) / 2, (st::stickersSize.height() - h) / 2);
 	if (element.animated && element.animated->ready()) {
 		const auto frame = element.animated->frame();
@@ -648,8 +658,8 @@ bool StickerSetBox::Inner::notInstalled() const {
 	if (!_loaded) {
 		return false;
 	}
-	const auto it = Auth().data().stickerSets().constFind(_setId);
-	if ((it == Auth().data().stickerSets().cend())
+	const auto it = _controller->session().data().stickerSets().constFind(_setId);
+	if ((it == _controller->session().data().stickerSets().cend())
 		|| !(it->flags & MTPDstickerSet::Flag::f_installed_date)
 		|| (it->flags & MTPDstickerSet::Flag::f_archived)) {
 		return !_pack.empty();

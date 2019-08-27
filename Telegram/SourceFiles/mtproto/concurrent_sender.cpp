@@ -18,7 +18,7 @@ public:
 		not_null<ConcurrentSender*> sender,
 		Fn<void(FnMut<void()>)> runner);
 
-	void operator()(
+	bool operator()(
 		mtpRequestId requestId,
 		const mtpPrime *from,
 		const mtpPrime *end) override;
@@ -54,7 +54,7 @@ ConcurrentSender::RPCDoneHandler::RPCDoneHandler(
 , _runner(std::move(runner)) {
 }
 
-void ConcurrentSender::RPCDoneHandler::operator()(
+bool ConcurrentSender::RPCDoneHandler::operator()(
 		mtpRequestId requestId,
 		const mtpPrime *from,
 		const mtpPrime *end) {
@@ -66,6 +66,7 @@ void ConcurrentSender::RPCDoneHandler::operator()(
 			strong->senderRequestDone(requestId, std::move(moved));
 		}
 	});
+	return true;
 }
 
 ConcurrentSender::RPCFailHandler::RPCFailHandler(
@@ -178,14 +179,12 @@ void ConcurrentSender::senderRequestDone(
 		mtpRequestId requestId,
 		bytes::const_span result) {
 	if (auto handlers = _requests.take(requestId)) {
-		try {
-			handlers->done(requestId, result);
-		} catch (Exception &e) {
+		if (!handlers->done(requestId, result)) {
 			handlers->fail(
 				requestId,
 				RPCError::Local(
 					"RESPONSE_PARSE_FAILED",
-					QString("exception text: ") + e.what()));
+					"ConcurrentSender::senderRequestDone"));
 		}
 	}
 }

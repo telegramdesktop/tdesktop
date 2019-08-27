@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/connection.h"
 #include "core/application.h"
-#include "auth_session.h"
+#include "main/main_session.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "media/audio/media_audio_track.h"
 #include "platform/platform_specific.h"
+#include "base/unixtime.h"
 #include "mainwidget.h"
 #include "boxes/rate_call_box.h"
 
@@ -29,7 +30,8 @@ constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * crl::time(1000);
 
 } // namespace
 
-Instance::Instance() = default;
+Instance::Instance(not_null<Main::Session*> session) : _session(session) {
+}
 
 void Instance::startOutgoingCall(not_null<UserData*> user) {
 	if (alreadyInCall()) { // Already in a call.
@@ -38,7 +40,7 @@ void Instance::startOutgoingCall(not_null<UserData*> user) {
 	}
 	if (user->callsStatus() == UserData::CallsStatus::Private) {
 		// Request full user once more to refresh the setting in case it was changed.
-		Auth().api().requestFullPeer(user);
+		_session->api().requestFullPeer(user);
 		Ui::show(Box<InformBox>(tr::lng_call_error_not_available(tr::now, lt_user, App::peerName(user))));
 		return;
 	}
@@ -67,7 +69,7 @@ void Instance::playSound(Sound sound) {
 		if (!_callBusyTrack) {
 			_callBusyTrack = Media::Audio::Current().createTrack();
 			_callBusyTrack->fillFromFile(
-				Auth().settings().getSoundPath(qsl("call_busy")));
+				_session->settings().getSoundPath(qsl("call_busy")));
 		}
 		_callBusyTrack->playOnce();
 	} break;
@@ -76,7 +78,7 @@ void Instance::playSound(Sound sound) {
 		if (!_callEndedTrack) {
 			_callEndedTrack = Media::Audio::Current().createTrack();
 			_callEndedTrack->fillFromFile(
-				Auth().settings().getSoundPath(qsl("call_end")));
+				_session->settings().getSoundPath(qsl("call_end")));
 		}
 		_callEndedTrack->playOnce();
 	} break;
@@ -85,7 +87,7 @@ void Instance::playSound(Sound sound) {
 		if (!_callConnectingTrack) {
 			_callConnectingTrack = Media::Audio::Current().createTrack();
 			_callConnectingTrack->fillFromFile(
-				Auth().settings().getSoundPath(qsl("call_connect")));
+				_session->settings().getSoundPath(qsl("call_connect")));
 		}
 		_callConnectingTrack->playOnce();
 	} break;
@@ -235,7 +237,7 @@ bool Instance::isQuitPrevent() {
 void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 	if (call.type() == mtpc_phoneCallRequested) {
 		auto &phoneCall = call.c_phoneCallRequested();
-		auto user = Auth().data().userLoaded(phoneCall.vadmin_id().v);
+		auto user = _session->data().userLoaded(phoneCall.vadmin_id().v);
 		if (!user) {
 			LOG(("API Error: User not loaded for phoneCallRequested."));
 		} else if (user->isSelf()) {
@@ -249,7 +251,8 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 				MTP_phoneCallDiscardReasonBusy(),
 				MTP_long(0)
 			)).send();
-		} else if (phoneCall.vdate().v + (Global::CallRingTimeoutMs() / 1000) < unixtime()) {
+		} else if (phoneCall.vdate().v + (Global::CallRingTimeoutMs() / 1000)
+			< base::unixtime::now()) {
 			LOG(("Ignoring too old call."));
 		} else {
 			createCall(user, Call::Type::Incoming);
@@ -299,10 +302,6 @@ Instance::~Instance() {
 			delete panel;
 		}
 	}
-}
-
-Instance &Current() {
-	return Auth().calls();
 }
 
 } // namespace Calls

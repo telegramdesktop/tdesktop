@@ -9,13 +9,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
+namespace Window {
+class SessionNavigation;
+} // namespace Window
+
 object_ptr<BoxContent> EditLinkedChatBox(
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel,
 	not_null<ChannelData*> chat,
 	bool canEdit,
 	Fn<void(ChannelData*)> callback);
 
 object_ptr<BoxContent> EditLinkedChatBox(
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel,
 	std::vector<not_null<PeerData*>> &&chats,
 	Fn<void(ChannelData*)> callback);

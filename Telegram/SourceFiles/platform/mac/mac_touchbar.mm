@@ -10,7 +10,8 @@
 #import <QuartzCore/QuartzCore.h>
 
 #include "apiwrap.h"
-#include "auth_session.h"
+#include "main/main_session.h"
+#include "api/api_sending.h"
 #include "boxes/confirm_box.h"
 #include "chat_helpers/emoji_list_widget.h"
 #include "core/application.h"
@@ -809,11 +810,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			if (const auto error = RestrictionToSendStickers()) {
 				Ui::show(Box<InformBox>(*error));
 			}
-			Auth().api().sendExistingDocument(
-				document,
-				document->stickerSetOrigin(),
-				{},
-				ApiWrap::SendOptions(chat.history()));
+			Api::SendExistingDocument(chat.history(), document);
 			return true;
 		} else if (const auto emoji = _stickers[index].emoji) {
 			if (const auto inputField = qobject_cast<QTextEdit*>(

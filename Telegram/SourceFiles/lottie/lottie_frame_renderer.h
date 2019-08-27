@@ -23,9 +23,11 @@ class Animation;
 
 namespace Lottie {
 
+// Frame rate can be 1, 2, ... , 29, 30 or 60.
+inline constexpr auto kNormalFrameRate = 30;
 inline constexpr auto kMaxFrameRate = 60;
-inline constexpr auto kMaxSize = 512;
-inline constexpr auto kMaxFramesCount = 180;
+inline constexpr auto kMaxSize = 4096;
+inline constexpr auto kMaxFramesCount = 210;
 inline constexpr auto kFrameDisplayTimeAlreadyDone
 	= std::numeric_limits<crl::time>::max();
 inline constexpr auto kDisplayedInitial = crl::time(-1);
@@ -55,6 +57,7 @@ public:
 		Quality quality);
 	SharedState(
 		const QByteArray &content,
+		const ColorReplacements *replacements,
 		std::unique_ptr<rlottie::Animation> animation,
 		std::unique_ptr<Cache> cache,
 		const FrameRequest &request,
@@ -70,6 +73,7 @@ public:
 	[[nodiscard]] bool initialized() const;
 
 	[[nodiscard]] not_null<Frame*> frameForPaint();
+	[[nodiscard]] int framesCount() const;
 	[[nodiscard]] crl::time nextFrameDisplayTime() const;
 	void addTimelineDelay(crl::time delayed, int skippedFrames = 0);
 	void markFrameDisplayed(crl::time now);
@@ -86,8 +90,12 @@ public:
 	~SharedState();
 
 private:
+	static Information CalculateInformation(
+		Quality quality,
+		rlottie::Animation *animation,
+		Cache *cache);
+
 	void construct(const FrameRequest &request);
-	void calculateProperties();
 	bool isValid() const;
 	void init(QImage cover, const FrameRequest &request);
 	void renderNextFrame(
@@ -97,10 +105,6 @@ private:
 	[[nodiscard]] not_null<Frame*> getFrame(int index);
 	[[nodiscard]] not_null<const Frame*> getFrame(int index) const;
 	[[nodiscard]] int counter() const;
-
-	QByteArray _content;
-	std::unique_ptr<rlottie::Animation> _animation;
-	Quality _quality = Quality::Default;
 
 	// crl::queue changes 0,2,4,6 to 1,3,5,7.
 	// main thread changes 1,3,5,7 to 2,4,6,0.
@@ -119,11 +123,14 @@ private:
 
 	int _frameIndex = 0;
 	int _skippedFrames = 0;
-	int _framesCount = 0;
-	int _frameRate = 0;
-	QSize _size;
+	const Information _info;
+	const Quality _quality = Quality::Default;
 
-	std::unique_ptr<Cache> _cache;
+	const std::unique_ptr<Cache> _cache;
+
+	std::unique_ptr<rlottie::Animation> _animation;
+	const QByteArray _content;
+	const ColorReplacements *_replacements = nullptr;
 
 };
 
