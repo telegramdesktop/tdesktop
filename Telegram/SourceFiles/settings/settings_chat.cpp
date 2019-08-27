@@ -199,16 +199,17 @@ void ColorsPalette::show(Type type) {
 		const auto colorizer = Window::Theme::ColorizerFrom(
 			*scheme,
 			scheme->accentColor);
-		const auto box = Ui::show(Box<EditColorBox>(
+		auto box = Box<EditColorBox>(
 			tr::lng_settings_theme_accent_title(tr::now),
 			EditColorBox::Mode::HSL,
-			current));
+			current);
 		box->setLightnessLimits(
 			colorizer.lightnessMin,
 			colorizer.lightnessMax);
 		box->setSaveCallback(crl::guard(custom, [=](QColor result) {
 			_selected.fire_copy(result);
 		}));
+		Ui::show(std::move(box));
 	}, custom->lifetime());
 	pushButton(custom);
 	inner->resize(_outer->width(), inner->height());

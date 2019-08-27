@@ -63,6 +63,7 @@ private:
 	void updateFromResultField();
 	void setHSB(HSB hsb, int alpha);
 	void setRGB(int red, int green, int blue, int alpha);
+	[[nodiscard]] QColor applyLimits(QColor color) const;
 
 	int percentFromByte(int byte) {
 		return snap(qRound(byte * 100 / 255.), 0, 100);
@@ -98,6 +99,9 @@ private:
 
 	QRect _currentRect;
 	QRect _newRect;
+
+	int _lightnessMin = 0;
+	int _lightnessMax = 255;
 
 	Fn<void(QColor)> _saveCallback;
 	Fn<void()> _cancelCallback;

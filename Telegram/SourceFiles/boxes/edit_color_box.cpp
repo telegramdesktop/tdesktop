@@ -296,6 +296,8 @@ public:
 	void setRGB(int red, int green, int blue);
 	void setAlpha(int alpha);
 
+	void setLightnessLimits(int min, int max);
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -315,9 +317,13 @@ private:
 	void generatePixmap();
 	void updatePixmapFromMask();
 	void updateCurrentPoint(QPoint localPosition);
+	[[nodiscard]] QColor applyLimits(QColor color) const;
 
 	Direction _direction = Direction::Horizontal;
 	Type _type = Type::Hue;
+
+	int _lightnessMin = 0;
+	int _lightnessMax = 255;
 
 	QColor _color;
 	float64 _value = 0;
@@ -331,7 +337,12 @@ private:
 
 };
 
-EditColorBox::Slider::Slider(QWidget *parent, Direction direction, Type type, QColor color) : TWidget(parent)
+EditColorBox::Slider::Slider(
+	QWidget *parent,
+	Direction direction,
+	Type type,
+	QColor color)
+: TWidget(parent)
 , _direction(direction)
 , _type(type)
 , _color(color.red(), color.green(), color.blue())
@@ -429,10 +440,13 @@ void EditColorBox::Slider::generatePixmap() {
 		_mask = std::move(image);
 		updatePixmapFromMask();
 	} else {
-		QColor color;
+		const auto range = _lightnessMax - _lightnessMin;
 		for (auto x = 0; x != size; ++x) {
-			color.setHsl(_color.hslHue(), _color.hslSaturation(), x * 255 / size);
-			auto value = anim::getPremultiplied(color.toRgb());
+			const auto color = QColor::fromHsl(
+				_color.hslHue(),
+				_color.hslSaturation(),
+				_lightnessMin + x * range / size);
+			const auto value = anim::getPremultiplied(color.toRgb());
 			for (auto y = 0; y != cIntRetinaFactor(); ++y) {
 				ints[y * intsPerLine] = value;
 			}
@@ -454,13 +468,16 @@ void EditColorBox::Slider::setHSB(HSB hsb) {
 		_color.setHsv(hsb.hue, hsb.saturation, hsb.brightness);
 		colorUpdated();
 	} else {
-		_color.setHsl(hsb.hue, hsb.saturation, hsb.brightness);
+		_color.setHsl(
+			hsb.hue,
+			hsb.saturation,
+			std::clamp(hsb.brightness, _lightnessMin, _lightnessMax));
 		colorUpdated();
 	}
 }
 
 void EditColorBox::Slider::setRGB(int red, int green, int blue) {
-	_color.setRgb(red, green, blue);
+	_color = applyLimits(QColor(red, green, blue));
 	colorUpdated();
 }
 
@@ -470,6 +487,7 @@ void EditColorBox::Slider::colorUpdated() {
 	} else if (!_mask.isNull()) {
 		updatePixmapFromMask();
 	} else {
+		_value = valueFromColor(_color);
 		generatePixmap();
 	}
 	update();
@@ -480,7 +498,11 @@ float64 EditColorBox::Slider::valueFromColor(QColor color) const {
 		? valueFromHue(color.hsvHue())
 		: (_type == Type::Opacity)
 		? color.alphaF()
-		: color.lightnessF();
+		: std::clamp(
+			((color.lightness() - _lightnessMin)
+				/ float64(_lightnessMax - _lightnessMin)),
+			0.,
+			1.);
 }
 
 float64 EditColorBox::Slider::valueFromHue(int hue) const {
@@ -492,6 +514,15 @@ void EditColorBox::Slider::setAlpha(int alpha) {
 		_value = snap(alpha, 0, 255) / 255.;
 		update();
 	}
+}
+
+void EditColorBox::Slider::setLightnessLimits(int min, int max) {
+	Expects(max > min);
+
+	_lightnessMin = min;
+	_lightnessMax = max;
+	_color = applyLimits(_color);
+	colorUpdated();
 }
 
 void EditColorBox::Slider::updatePixmapFromMask() {
@@ -507,6 +538,19 @@ void EditColorBox::Slider::updateCurrentPoint(QPoint localPosition) {
 		update();
 		_changed.notify();
 	}
+}
+
+QColor EditColorBox::Slider::applyLimits(QColor color) const {
+	if (_type != Type::Lightness) {
+		return color;
+	}
+
+	const auto lightness = color.lightness();
+	const auto clamped = std::clamp(lightness, _lightnessMin, _lightnessMax);
+	if (clamped == lightness) {
+		return color;
+	}
+	return QColor::fromHsl(color.hslHue(), color.hslSaturation(), clamped);
 }
 
 class EditColorBox::Field : public Ui::MaskedInputField {
@@ -736,7 +780,16 @@ EditColorBox::EditColorBox(
 }
 
 void EditColorBox::setLightnessLimits(int min, int max) {
+	Expects(_mode == Mode::HSL);
 
+	_lightnessMin = min;
+	_lightnessMax = max;
+	_lightnessSlider->setLightnessLimits(min, max);
+
+	const auto adjusted = applyLimits(_new);
+	if (_new != adjusted) {
+		updateFromColor(adjusted);
+	}
 }
 
 void EditColorBox::prepare() {
@@ -937,12 +990,27 @@ EditColorBox::HSB EditColorBox::hsbFromControls() const {
 		: qRound((1. - _picker->valueY()) * 255);
 	const auto brightness = (_mode == Mode::RGBA)
 		? qRound((1. - _picker->valueY()) * 255)
-		: qRound(_lightnessSlider->value() * 255);
+		: (_lightnessMin
+			+ qRound(_lightnessSlider->value()
+				* (_lightnessMax - _lightnessMin)));
 	return { hue, saturation, brightness };
 }
 
+QColor EditColorBox::applyLimits(QColor color) const {
+	if (_mode != Mode::HSL) {
+		return color;
+	}
+
+	const auto lightness = color.lightness();
+	const auto clamped = std::clamp(lightness, _lightnessMin, _lightnessMax);
+	if (clamped == lightness) {
+		return color;
+	}
+	return QColor::fromHsl(color.hslHue(), color.hslSaturation(), clamped);
+}
+
 void EditColorBox::updateFromColor(QColor color) {
-	_new = color;
+	_new = applyLimits(color);
 	updateControlsFromColor();
 	updateRGBFields();
 	updateHSBFields();
@@ -961,10 +1029,13 @@ void EditColorBox::updateFromControls() {
 }
 
 void EditColorBox::updateFromHSBFields() {
-	auto hue = _hueField->value();
-	auto saturation = percentToByte(_saturationField->value());
-	auto brightness = percentToByte(_brightnessField->value());
-	auto alpha = _opacitySlider
+	const auto hue = _hueField->value();
+	const auto saturation = percentToByte(_saturationField->value());
+	const auto brightness = std::clamp(
+		percentToByte(_brightnessField->value()),
+		_lightnessMin,
+		_lightnessMax);
+	const auto alpha = _opacitySlider
 		? qRound(_opacitySlider->value() * 255)
 		: 255;
 	setHSB({ hue, saturation, brightness }, alpha);
@@ -972,10 +1043,10 @@ void EditColorBox::updateFromHSBFields() {
 }
 
 void EditColorBox::updateFromRGBFields() {
-	auto red = _redField->value();
-	auto blue = _blueField->value();
-	auto green = _greenField->value();
-	auto alpha = _opacitySlider
+	const auto red = _redField->value();
+	const auto blue = _blueField->value();
+	const auto green = _greenField->value();
+	const auto alpha = _opacitySlider
 		? qRound(_opacitySlider->value() * 255)
 		: 255;
 	setRGB(red, green, blue, alpha);
@@ -1051,7 +1122,7 @@ void EditColorBox::setHSB(HSB hsb, int alpha) {
 }
 
 void EditColorBox::setRGB(int red, int green, int blue, int alpha) {
-	_new.setRgb(red, green, blue, alpha);
+	_new = applyLimits(QColor(red, green, blue, alpha));
 	updateControlsFromColor();
 	updateHSBFields();
 	update();
