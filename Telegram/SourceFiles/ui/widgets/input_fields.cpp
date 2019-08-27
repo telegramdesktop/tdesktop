@@ -82,7 +82,9 @@ QVariant InputDocument::loadResource(int type, const QUrl &name) {
 	}
 	auto result = [&] {
 		if (const auto emoji = Ui::Emoji::FromUrl(name.toDisplayString())) {
-			const auto height = _st.font->height;
+			const auto height = std::max(
+				_st.font->height * cIntRetinaFactor(),
+				Ui::Emoji::GetSizeNormal());
 			return QVariant(Ui::Emoji::SinglePixmap(emoji, height));
 		}
 		return QVariant();
@@ -614,9 +616,9 @@ QString AccumulateText(Iterator begin, Iterator end) {
 
 QTextImageFormat PrepareEmojiFormat(EmojiPtr emoji, const QFont &font) {
 	const auto factor = cIntRetinaFactor();
-	const auto width = Ui::Emoji::GetSizeNormal()
-		+ st::emojiPadding * factor * 2;
-	const auto height = QFontMetrics(font).height() * factor;
+	const auto size = Ui::Emoji::GetSizeNormal();
+	const auto width = size + st::emojiPadding * factor * 2;
+	const auto height = std::max(QFontMetrics(font).height() * factor, size);
 	auto result = QTextImageFormat();
 	result.setWidth(width / factor);
 	result.setHeight(height / factor);
@@ -641,7 +643,7 @@ void RemoveDocumentTags(
 	auto cursor = QTextCursor(document->docHandle(), from);
 	cursor.setPosition(end, QTextCursor::KeepAnchor);
 
-	QTextCharFormat format;
+	auto format = QTextCharFormat();
 	format.setProperty(kTagProperty, QString());
 	format.setProperty(kReplaceTagId, QString());
 	format.setForeground(st.textFg);

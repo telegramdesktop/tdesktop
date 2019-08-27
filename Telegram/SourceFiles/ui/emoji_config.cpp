@@ -79,7 +79,7 @@ auto TouchbarEmoji = (Instance*)nullptr;
 #endif
 
 auto MainEmojiMap = std::map<int, QPixmap>();
-auto OtherEmojiMap = std::map<int, std::map<int, QPixmap>>();
+auto OtherEmojiMap = base::flat_map<int, std::map<int, QPixmap>>();
 
 int RowsCount(int index) {
 	if (index + 1 < SpritesCount) {
@@ -880,32 +880,33 @@ rpl::producer<> UpdatedRecent() {
 }
 
 const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight) {
-	auto &map = (fontHeight == st::msgFont->height)
+	auto &map = (fontHeight == st::msgFont->height * cIntRetinaFactor())
 		? MainEmojiMap
 		: OtherEmojiMap[fontHeight];
 	auto i = map.find(emoji->index());
-	if (i == end(map)) {
-		auto image = QImage(
-			SizeNormal + st::emojiPadding * cIntRetinaFactor() * 2,
-			fontHeight * cIntRetinaFactor(),
-			QImage::Format_ARGB32_Premultiplied);
-		image.setDevicePixelRatio(cRetinaFactor());
-		image.fill(Qt::transparent);
-		{
-			QPainter p(&image);
-			PainterHighQualityEnabler hq(p);
-			Draw(
-				p,
-				emoji,
-				SizeNormal,
-				st::emojiPadding * cIntRetinaFactor(),
-				(fontHeight * cIntRetinaFactor() - SizeNormal) / 2);
-		}
-		i = map.emplace(
-			emoji->index(),
-			App::pixmapFromImageInPlace(std::move(image))).first;
+	if (i != end(map)) {
+		return i->second;
 	}
-	return i->second;
+	auto image = QImage(
+		SizeNormal + st::emojiPadding * 2,
+		fontHeight,
+		QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(cRetinaFactor());
+	image.fill(Qt::transparent);
+	{
+		QPainter p(&image);
+		PainterHighQualityEnabler hq(p);
+		Draw(
+			p,
+			emoji,
+			SizeNormal,
+			st::emojiPadding * cIntRetinaFactor(),
+			(fontHeight - SizeNormal) / 2);
+	}
+	return map.emplace(
+		emoji->index(),
+		App::pixmapFromImageInPlace(std::move(image))
+	).first->second;
 }
 
 void Draw(QPainter &p, EmojiPtr emoji, int size, int x, int y) {
