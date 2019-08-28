@@ -23,7 +23,14 @@ public:
 	~Manager();
 
 protected:
-	void doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) override;
+	void doShowNativeNotification(
+		not_null<PeerData*> peer,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton) override;
 	void doClearAllFast() override;
 	void doClearFromHistory(History *history) override;
 	void onBeforeNotificationActivated(PeerId peerId, MsgId msgId) override;

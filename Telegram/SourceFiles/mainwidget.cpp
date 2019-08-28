@@ -2198,12 +2198,6 @@ void MainWidget::dialogsToUp() {
 	_dialogs->jumpToTop();
 }
 
-void MainWidget::newUnreadMsg(
-		not_null<History*> history,
-		not_null<HistoryItem*> item) {
-	_history->newUnreadMsg(history, item);
-}
-
 void MainWidget::markActiveHistoryAsRead() {
 	if (const auto activeHistory = _history->history()) {
 		session().api().readServerHistory(activeHistory);

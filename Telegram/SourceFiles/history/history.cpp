@@ -1242,18 +1242,27 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		from->madeAction(item->date());
 	}
 	item->contributeToSlowmode();
-	if (item->out()) {
+	if (item->showNotification()) {
+		_notifications.push_back(item);
+		owner().notifyUnreadItemAdded(item);
+		const auto stillShow = item->showNotification();
+		if (stillShow) {
+			session().notifications().schedule(item);
+			if (!item->out() && item->unread()) {
+				if (unreadCountKnown()) {
+					setUnreadCount(unreadCount() + 1);
+				} else {
+					session().api().requestDialogEntry(this);
+				}
+			}
+		}
+	} else if (item->out()) {
 		destroyUnreadBar();
-		if (!item->unread()) {
-			outboxRead(item);
-		}
-	} else if (item->unread()) {
-		if (!isChannel() || peer->asChannel()->amIn()) {
-			_notifications.push_back(item);
-			App::main()->newUnreadMsg(this, item);
-		}
 	} else {
 		inboxRead(item);
+	}
+	if (item->out() && !item->unread()) {
+		outboxRead(item);
 	}
 	if (!folderKnown()) {
 		session().api().requestDialogEntry(this);

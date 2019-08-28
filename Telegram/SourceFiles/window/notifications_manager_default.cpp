@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/text_options.h"
 #include "dialogs/dialogs_layout.h"
 #include "window/themes/window_theme.h"
 #include "styles/style_dialogs.h"
@@ -66,13 +67,14 @@ Manager::Manager(System *system)
 }
 
 Manager::QueuedNotification::QueuedNotification(
-	not_null<HistoryItem*> item
-	, int forwardedCount)
+	not_null<HistoryItem*> item,
+	int forwardedCount)
 : history(item->history())
 , peer(history->peer)
-, author((!peer->isUser() && !item->isPost()) ? item->author().get() : nullptr)
+, author(item->notificationHeader())
 , item((forwardedCount < 2) ? item.get() : nullptr)
-, forwardedCount(forwardedCount) {
+, forwardedCount(forwardedCount)
+, fromScheduled(item->out() && item->isFromScheduled()) {
 }
 
 QPixmap Manager::hiddenUserpicPlaceholder() const {
@@ -206,7 +208,10 @@ void Manager::showNextFromQueue() {
 			queued.author,
 			queued.item,
 			queued.forwardedCount,
-			startPosition, startShift, shiftDirection);
+			queued.fromScheduled,
+			startPosition,
+			startShift,
+			shiftDirection);
 		_notifications.push_back(std::move(notification));
 		--count;
 	} while (count > 0 && !_queuedNotifications.empty());
@@ -289,7 +294,9 @@ void Manager::removeWidget(internal::Widget *remove) {
 	showNextFromQueue();
 }
 
-void Manager::doShowNotification(HistoryItem *item, int forwardedCount) {
+void Manager::doShowNotification(
+		not_null<HistoryItem*> item,
+		int forwardedCount) {
 	_queuedNotifications.emplace_back(item, forwardedCount);
 	showNextFromQueue();
 }
@@ -353,7 +360,12 @@ Manager::~Manager() {
 
 namespace internal {
 
-Widget::Widget(Manager *manager, QPoint startPosition, int shift, Direction shiftDirection) : TWidget(nullptr)
+Widget::Widget(
+	not_null<Manager*> manager,
+	QPoint startPosition,
+	int shift,
+	Direction shiftDirection)
+: TWidget(nullptr)
 , _manager(manager)
 , _startPosition(startPosition)
 , _direction(shiftDirection)
@@ -501,12 +513,13 @@ void Background::paintEvent(QPaintEvent *e) {
 }
 
 Notification::Notification(
-	Manager *manager,
-	History *history,
-	PeerData *peer,
-	PeerData *author,
-	HistoryItem *msg,
+	not_null<Manager*> manager,
+	not_null<History*> history,
+	not_null<PeerData*> peer,
+	const QString &author,
+	HistoryItem *item,
 	int forwardedCount,
+	bool fromScheduled,
 	QPoint startPosition,
 	int shift,
 	Direction shiftDirection)
@@ -515,8 +528,9 @@ Notification::Notification(
 , _history(history)
 , _peer(peer)
 , _author(author)
-, _item(msg)
+, _item(item)
 , _forwardedCount(forwardedCount)
+, _fromScheduled(fromScheduled)
 , _close(this, st::notifyClose)
 , _reply(this, tr::lng_notification_reply(), st::defaultBoxButton) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
@@ -683,35 +697,53 @@ void Notification::updateNotifyDisplay() {
 		}
 
 		if (!options.hideMessageText) {
-			const HistoryItem *textCachedFor = nullptr;
-			Ui::Text::String itemTextCache(itemWidth);
-			QRect r(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dialogsTextFont->height);
-			if (_item) {
-				auto active = false, selected = false;
-				_item->drawInDialog(
-					p,
-					r,
-					active,
-					selected,
-					HistoryItem::DrawInDialog::Normal,
-					textCachedFor,
-					itemTextCache);
-			} else if (_forwardedCount > 1) {
-				p.setFont(st::dialogsTextFont);
-				if (_author) {
-					itemTextCache.setText(st::dialogsTextStyle, _author->name);
-					p.setPen(st::dialogsTextFgService);
-					itemTextCache.drawElided(p, r.left(), r.top(), r.width());
-					r.setTop(r.top() + st::dialogsTextFont->height);
-				}
-				p.setPen(st::dialogsTextFg);
-				p.drawText(r.left(), r.top() + st::dialogsTextFont->ascent, tr::lng_forward_messages(tr::now, lt_count, _forwardedCount));
-			}
+			auto itemTextCache = Ui::Text::String(itemWidth);
+			auto r = QRect(
+				st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft,
+				st::notifyItemTop + st::msgNameFont->height,
+				itemWidth,
+				2 * st::dialogsTextFont->height);
+			p.setTextPalette(st::dialogsTextPalette);
+			p.setPen(st::dialogsTextFg);
+			p.setFont(st::dialogsTextFont);
+			const auto text = _item
+				? _item->inDialogsText(HistoryItem::DrawInDialog::Normal)
+				: ((!_author.isEmpty()
+					? textcmdLink(1, _author)
+					: QString())
+					+ (_forwardedCount > 1
+						? ('\n' + tr::lng_forward_messages(
+							tr::now,
+							lt_count,
+							_forwardedCount))
+						: QString()));
+			const auto Options = TextParseOptions{
+				TextParseRichText
+				| (_forwardedCount > 1 ? TextParseMultiline : 0),
+				0,
+				0,
+				Qt::LayoutDirectionAuto,
+			};
+			itemTextCache.setText(
+				st::dialogsTextStyle,
+				_fromScheduled ? WrapFromScheduled(text) : text,
+				Options);
+			itemTextCache.drawElided(
+				p,
+				r.left(),
+				r.top(),
+				r.width(),
+				r.height() / st::dialogsTextFont->height);
+			p.restoreTextPalette();
 		} else {
-			static QString notifyText = st::dialogsTextFont->elided(tr::lng_notification_preview(tr::now), itemWidth);
 			p.setFont(st::dialogsTextFont);
 			p.setPen(st::dialogsTextFgService);
-			p.drawText(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height + st::dialogsTextFont->ascent, notifyText);
+			p.drawText(
+				st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft,
+				st::notifyItemTop + st::msgNameFont->height + st::dialogsTextFont->ascent,
+				st::dialogsTextFont->elided(
+					tr::lng_notification_preview(tr::now),
+					itemWidth));
 		}
 
 		p.setPen(st::dialogsNameFg);
@@ -839,7 +871,7 @@ void Notification::changeHeight(int newHeight) {
 }
 
 bool Notification::unlinkHistory(History *history) {
-	auto unlink = _history && (history == _history || !history);
+	const auto unlink = _history && (history == _history || !history);
 	if (unlink) {
 		hideFast();
 		_history = nullptr;
@@ -897,7 +929,12 @@ void Notification::stopHiding() {
 	Widget::hideStop();
 }
 
-HideAllButton::HideAllButton(Manager *manager, QPoint startPosition, int shift, Direction shiftDirection) : Widget(manager, startPosition, shift, shiftDirection) {
+HideAllButton::HideAllButton(
+	not_null<Manager*> manager,
+	QPoint startPosition,
+	int shift,
+	Direction shiftDirection)
+: Widget(manager, startPosition, shift, shiftDirection) {
 	setCursor(style::cur_pointer);
 
 	auto position = computePosition(st::notifyHideAllHeight);

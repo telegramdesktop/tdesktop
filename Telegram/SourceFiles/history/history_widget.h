@@ -124,9 +124,6 @@ public:
 	void firstLoadMessages();
 	void delayedShowAt(MsgId showAtMsgId);
 
-	void newUnreadMsg(
-		not_null<History*> history,
-		not_null<HistoryItem*> item);
 	void historyToDown(History *history);
 
 	QRect historyRect() const;
@@ -423,6 +420,7 @@ private:
 	void historyDownAnimationFinish();
 	void unreadMentionsAnimationFinish();
 	void sendButtonClicked();
+	void unreadMessageAdded(not_null<HistoryItem*> item);
 
 	bool canSendFiles(not_null<const QMimeData*> data) const;
 	bool confirmSendingFiles(

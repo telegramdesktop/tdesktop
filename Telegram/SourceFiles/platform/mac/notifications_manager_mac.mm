@@ -160,7 +160,14 @@ class Manager::Private : public QObject, private base::Subscriber {
 public:
 	Private(Manager *manager);
 
-	void showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton);
+	void showNotification(
+		not_null<PeerData*> peer,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton);
 	void clearAll();
 	void clearFromHistory(History *history);
 	void updateDelegate();
@@ -208,7 +215,14 @@ Manager::Private::Private(Manager *manager)
 	});
 }
 
-void Manager::Private::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
+void Manager::Private::showNotification(
+		not_null<PeerData*> peer,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton) {
 	@autoreleasepool {
 
 	NSUserNotification *notification = [[[NSUserNotification alloc] init] autorelease];
@@ -329,8 +343,22 @@ Manager::Manager(Window::Notifications::System *system) : NativeManager(system)
 
 Manager::~Manager() = default;
 
-void Manager::doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
-	_private->showNotification(peer, msgId, title, subtitle, msg, hideNameAndPhoto, hideReplyButton);
+void Manager::doShowNativeNotification(
+		not_null<PeerData*> peer,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton) {
+	_private->showNotification(
+		peer,
+		msgId,
+		title,
+		subtitle,
+		msg,
+		hideNameAndPhoto,
+		hideReplyButton);
 }
 
 void Manager::doClearAllFast() {

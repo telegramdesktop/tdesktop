@@ -455,6 +455,12 @@ HistoryWidget::HistoryWidget(
 			update();
 		}
 	});
+
+	session().data().unreadItemAdded(
+	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+		unreadMessageAdded(item);
+	}, lifetime());
+
 	session().data().itemRemoved(
 	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
 		itemRemoved(item);
@@ -2225,34 +2231,28 @@ void HistoryWidget::destroyUnreadBar() {
 	if (_migrated) _migrated->destroyUnreadBar();
 }
 
-void HistoryWidget::newUnreadMsg(
-		not_null<History*> history,
-		not_null<HistoryItem*> item) {
-	if (_history == history) {
-		// If we get here in non-resized state we can't rely on results of
-		// doWeReadServerHistory() and mark chat as read.
-		// If we receive N messages being not at bottom:
-		// - on first message we set unreadcount += 1, firstUnreadMessage.
-		// - on second we get wrong doWeReadServerHistory() and read both.
-		session().data().sendHistoryChangeNotifications();
+void HistoryWidget::unreadMessageAdded(not_null<HistoryItem*> item) {
+	if (_history != item->history()) {
+		return;
+	}
 
-		if (_scroll->scrollTop() + 1 > _scroll->scrollTopMax()) {
-			destroyUnreadBar();
-		}
-		if (App::wnd()->doWeReadServerHistory()) {
-			if (item->isUnreadMention() && !item->isUnreadMedia()) {
-				session().api().markMediaRead(item);
-			}
-			session().api().readServerHistoryForce(history);
-			return;
-		}
+	// If we get here in non-resized state we can't rely on results of
+	// doWeReadServerHistory() and mark chat as read.
+	// If we receive N messages being not at bottom:
+	// - on first message we set unreadcount += 1, firstUnreadMessage.
+	// - on second we get wrong doWeReadServerHistory() and read both.
+	session().data().sendHistoryChangeNotifications();
+
+	if (_scroll->scrollTop() + 1 > _scroll->scrollTopMax()) {
+		destroyUnreadBar();
 	}
-	session().notifications().schedule(history, item);
-	if (history->unreadCountKnown()) {
-		history->setUnreadCount(history->unreadCount() + 1);
-	} else {
-		session().api().requestDialogEntry(history);
+	if (!App::wnd()->doWeReadServerHistory()) {
+		return;
 	}
+	if (item->isUnreadMention() && !item->isUnreadMedia()) {
+		session().api().markMediaRead(item);
+	}
+	session().api().readServerHistoryForce(_history);
 }
 
 void HistoryWidget::historyToDown(History *history) {

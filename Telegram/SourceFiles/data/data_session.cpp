@@ -1188,6 +1188,14 @@ rpl::producer<not_null<const ViewElement*>> Session::viewLayoutChanged() const {
 	return _viewLayoutChanges.events();
 }
 
+void Session::notifyUnreadItemAdded(not_null<HistoryItem*> item) {
+	_unreadItemAdded.fire_copy(item);
+}
+
+rpl::producer<not_null<HistoryItem*>> Session::unreadItemAdded() const {
+	return _unreadItemAdded.events();
+}
+
 void Session::changeMessageId(ChannelId channel, MsgId wasId, MsgId nowId) {
 	const auto list = messagesListForInsert(channel);
 	auto i = list->find(wasId);

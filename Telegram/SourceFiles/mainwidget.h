@@ -146,9 +146,6 @@ public:
 	bool deleteChannelFailed(const RPCError &error);
 	void historyToDown(History *hist);
 	void dialogsToUp();
-	void newUnreadMsg(
-		not_null<History*> history,
-		not_null<HistoryItem*> item);
 	void markActiveHistoryAsRead();
 
 	PeerData *peer();

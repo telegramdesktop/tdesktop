@@ -62,7 +62,7 @@ public:
 	void createManager();
 
 	void checkDelayed();
-	void schedule(not_null<History*> history, not_null<HistoryItem*> item);
+	void schedule(not_null<HistoryItem*> item);
 	void clearFromHistory(History *history);
 	void clearFromItem(HistoryItem *item);
 	void clearAll();
@@ -80,6 +80,18 @@ public:
 	~System();
 
 private:
+	struct SkipState {
+		enum Value {
+			Unknown,
+			Skip,
+			DontSkip
+		};
+		Value value = Value::Unknown;
+		bool silent = false;
+	};
+
+	SkipState skipNotification(not_null<HistoryItem*> item) const;
+
 	void showNext();
 	void showGrouped();
 	void ensureSoundCreated();
@@ -122,7 +134,9 @@ public:
 	explicit Manager(not_null<System*> system) : _system(system) {
 	}
 
-	void showNotification(HistoryItem *item, int forwardedCount) {
+	void showNotification(
+			not_null<HistoryItem*> item,
+			int forwardedCount) {
 		doShowNotification(item, forwardedCount);
 	}
 	void updateAll() {
@@ -162,7 +176,9 @@ protected:
 	}
 
 	virtual void doUpdateAll() = 0;
-	virtual void doShowNotification(HistoryItem *item, int forwardedCount) = 0;
+	virtual void doShowNotification(
+		not_null<HistoryItem*> item,
+		int forwardedCount) = 0;
 	virtual void doClearAll() = 0;
 	virtual void doClearAllFast() = 0;
 	virtual void doClearFromItem(HistoryItem *item) = 0;
@@ -193,11 +209,22 @@ protected:
 	}
 	void doClearFromItem(HistoryItem *item) override {
 	}
-	void doShowNotification(HistoryItem *item, int forwardedCount) override;
+	void doShowNotification(
+		not_null<HistoryItem*> item,
+		int forwardedCount) override;
 
-	virtual void doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) = 0;
+	virtual void doShowNativeNotification(
+		not_null<PeerData*> peer,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton) = 0;
 
 };
+
+QString WrapFromScheduled(const QString &text);
 
 } // namespace Notifications
 } // namespace Window

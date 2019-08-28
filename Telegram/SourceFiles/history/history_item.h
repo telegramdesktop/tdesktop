@@ -75,28 +75,20 @@ public:
 	virtual MsgId dependencyMsgId() const {
 		return 0;
 	}
-	virtual bool notificationReady() const {
+	[[nodiscard]] virtual bool notificationReady() const {
 		return true;
 	}
+	[[nodiscard]] PeerData *specialNotificationPeer() const;
 	virtual void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) {
 	}
 
-	UserData *viaBot() const;
-	UserData *getMessageBot() const;
+	[[nodiscard]] UserData *viaBot() const;
+	[[nodiscard]] UserData *getMessageBot() const;
+	[[nodiscard]] bool isHistoryEntry() const;
+	[[nodiscard]] bool isFromScheduled() const;
+	[[nodiscard]] bool isScheduled() const;
 
-	[[nodiscard]] bool isHistoryEntry() const {
-		return IsServerMsgId(id)
-			|| (_clientFlags & MTPDmessage_ClientFlag::f_local_history_entry);
-	}
-	[[nodiscard]] bool isFromScheduled() const {
-		return isHistoryEntry()
-			&& (_flags & MTPDmessage::Flag::f_from_scheduled);
-	}
-	[[nodiscard]] bool isScheduled() const {
-		return !isHistoryEntry()
-			&& (_flags & MTPDmessage::Flag::f_from_scheduled);
-	}
 	void addLogEntryOriginal(
 		WebPageId localId,
 		const QString &label,
@@ -123,6 +115,7 @@ public:
 		return _flags & MTPDmessage::Flag::f_out;
 	}
 	[[nodiscard]] bool unread() const;
+	[[nodiscard]] bool showNotification() const;
 	void markClientSideAsRead();
 	[[nodiscard]] bool mentionsMe() const;
 	[[nodiscard]] bool isUnreadMention() const;

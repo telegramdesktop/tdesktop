@@ -1302,7 +1302,12 @@ void HistoryMessage::dependencyItemRemoved(HistoryItem *dependency) {
 }
 
 QString HistoryMessage::notificationHeader() const {
-	return (!_history->peer->isUser() && !isPost()) ? from()->name : QString();
+	if (out() && isFromScheduled()) {
+		return tr::lng_from_you(tr::now);
+	} else if (!_history->peer->isUser() && !isPost()) {
+		return App::peerName(from());
+	}
+	return QString();
 }
 
 std::unique_ptr<HistoryView::Element> HistoryMessage::createView(

@@ -3322,7 +3322,9 @@ IsolatedEmoji String::toIsolatedEmoji() const {
 	auto index = 0;
 	for (const auto &block : _blocks) {
 		const auto type = block->type();
-		if (type == TextBlockTEmoji) {
+		if (block->lnkIndex()) {
+			return IsolatedEmoji();
+		} else if (type == TextBlockTEmoji) {
 			result.items[index++] = static_cast<EmojiBlock*>(block.get())->emoji;
 		} else if (type != TextBlockTSkip) {
 			return IsolatedEmoji();

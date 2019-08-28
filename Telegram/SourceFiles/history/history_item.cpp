@@ -367,6 +367,12 @@ void HistoryItem::addLogEntryOriginal(
 		content);
 }
 
+PeerData *HistoryItem::specialNotificationPeer() const {
+	return (mentionsMe() && !_history->peer->isUser())
+		? from().get()
+		: nullptr;
+}
+
 UserData *HistoryItem::viaBot() const {
 	if (const auto via = Get<HistoryMessageVia>()) {
 		return via->bot;
@@ -383,7 +389,22 @@ UserData *HistoryItem::getMessageBot() const {
 		bot = history()->peer->asUser();
 	}
 	return (bot && bot->isBot()) ? bot : nullptr;
-};
+}
+
+bool HistoryItem::isHistoryEntry() const {
+	return IsServerMsgId(id)
+		|| (_clientFlags & MTPDmessage_ClientFlag::f_local_history_entry);
+}
+
+bool HistoryItem::isFromScheduled() const {
+	return isHistoryEntry()
+		&& (_flags & MTPDmessage::Flag::f_from_scheduled);
+}
+
+bool HistoryItem::isScheduled() const {
+	return !isHistoryEntry()
+		&& (_flags & MTPDmessage::Flag::f_from_scheduled);
+}
 
 void HistoryItem::destroy() {
 	_history->owner().destroyMessage(this);
@@ -735,6 +756,14 @@ bool HistoryItem::unread() const {
 		return true;
 	}
 	return (_clientFlags & MTPDmessage_ClientFlag::f_clientside_unread);
+}
+
+bool HistoryItem::showNotification() const {
+	const auto channel = _history->peer->asChannel();
+	if (channel && !channel->amIn()) {
+		return false;
+	}
+	return out() ? isFromScheduled() : unread();
 }
 
 void HistoryItem::markClientSideAsRead() {
