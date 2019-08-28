@@ -543,9 +543,12 @@ TimeId DefaultScheduleTime() {
 
 void ScheduleBox(
 		not_null<GenericBox*> box,
+		SendMenuType type,
 		FnMut<void(Api::SendOptions)> done,
 		TimeId time) {
-	box->setTitle(tr::lng_schedule_title());
+	box->setTitle((type == SendMenuType::Scheduled)
+		? tr::lng_schedule_title()
+		: tr::lng_remind_title());
 	box->setWidth(st::boxWideWidth);
 
 	const auto date = Ui::CreateChild<rpl::variable<QDate>>(
@@ -657,7 +660,7 @@ void ScheduleBox(
 	});
 	SetupSendMenu(
 		submit.data(),
-		[=] { return true; },
+		[=] { return SendMenuType::SilentOnly; },
 		[=] { save(true); },
 		nullptr);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });

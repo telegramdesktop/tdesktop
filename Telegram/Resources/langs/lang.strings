@@ -1242,7 +1242,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_send_button" = "Send";
 "lng_send_silent_message" = "Send without sound";
 "lng_schedule_message" = "Schedule message";
+"lng_reminder_message" = "Set a reminder";
 "lng_schedule_title" = "Send this message on...";
+"lng_remind_title" = "Remind me on...";
 "lng_schedule_at" = "at";
 "lng_message_ph" = "Write a message...";
 "lng_broadcast_ph" = "Broadcast a message...";
@@ -1264,6 +1266,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_saved_forward_here" = "Forward messages here for quick access";
 
 "lng_scheduled_messages" = "Scheduled Messages";
+"lng_reminder_messages" = "Reminders";
 
 "lng_archived_name" = "Archived chats";
 "lng_archived_add" = "Archive";

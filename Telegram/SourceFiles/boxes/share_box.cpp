@@ -409,6 +409,13 @@ void ShareBox::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
+SendMenuType ShareBox::sendMenuType() const {
+	const auto selected = _inner->selected();
+	return (selected.size() == 1 && selected.front()->isSelf())
+		? SendMenuType::Reminder
+		: SendMenuType::Scheduled;
+}
+
 void ShareBox::createButtons() {
 	clearButtons();
 	if (_hasSelected) {
@@ -417,7 +424,7 @@ void ShareBox::createButtons() {
 		});
 		SetupSendMenu(
 			send,
-			[=] { return true; },
+			[=] { return sendMenuType(); },
 			[=] { submitSilent(); },
 			[=] { submitScheduled(); });
 	} else if (_copyCallback) {
@@ -471,7 +478,7 @@ void ShareBox::submitSilent() {
 void ShareBox::submitScheduled() {
 	const auto callback = [=](Api::SendOptions options) { submit(options); };
 	Ui::show(
-		HistoryView::PrepareScheduleBox(this, callback),
+		HistoryView::PrepareScheduleBox(this, sendMenuType(), callback),
 		LayerOption::KeepOther);
 }
 

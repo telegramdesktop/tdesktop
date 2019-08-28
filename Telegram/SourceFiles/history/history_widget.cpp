@@ -300,10 +300,13 @@ HistoryWidget::HistoryWidget(
 	_unreadMentions->addClickHandler([=] { showNextUnreadMention(); });
 	_fieldBarCancel->addClickHandler([=] { cancelFieldAreaState(); });
 	_send->addClickHandler([=] { sendButtonClicked(); });
-	SetupSendMenu(_send, [=] {
-		return (_send->type() == Ui::SendButton::Type::Send)
-			&& !_send->isDisabled();
-	}, [=] { sendSilent(); }, [=] { sendScheduled(); });
+
+	SetupSendMenu(
+		_send,
+		[=] { return sendMenuType(); },
+		[=] { sendSilent(); },
+		[=] { sendScheduled(); });
+
 	_unblock->addClickHandler([=] { unblockUser(); });
 	_botStart->addClickHandler([=] { sendBotStartCommand(); });
 	_joinChannel->addClickHandler([=] { joinChannel(); });
@@ -2972,8 +2975,19 @@ void HistoryWidget::sendScheduled() {
 	}
 	const auto callback = [=](Api::SendOptions options) { send(options); };
 	Ui::show(
-		HistoryView::PrepareScheduleBox(_list, callback),
+		HistoryView::PrepareScheduleBox(_list, sendMenuType(), callback),
 		LayerOption::KeepOther);
+}
+
+SendMenuType HistoryWidget::sendMenuType() const {
+	if (_send->type() != Ui::SendButton::Type::Send
+		|| _send->isDisabled()
+		|| !_peer) {
+		return SendMenuType::Disabled;
+	}
+	return _peer->isSelf()
+		? SendMenuType::Reminder
+		: SendMenuType::Scheduled;
 }
 
 void HistoryWidget::unblockUser() {
@@ -4188,7 +4202,8 @@ bool HistoryWidget::confirmSendingFiles(
 		text,
 		boxCompressConfirm,
 		_peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
-		Api::SendType::Normal);
+		Api::SendType::Normal,
+		sendMenuType());
 	_field->setTextWithTags({});
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Storage::PreparedList &&list,

@@ -786,26 +786,36 @@ void MessageLinksParser::apply(
 
 void SetupSendMenu(
 		not_null<Ui::RpWidget*> button,
-		Fn<bool()> enabled,
-		Fn<void()> send,
+		Fn<SendMenuType()> type,
+		Fn<void()> silent,
 		Fn<void()> schedule) {
-	if (!send && !schedule) {
+	if (!silent && !schedule) {
 		return;
 	}
 	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
 	const auto showMenu = [=] {
-		*menu = base::make_unique_q<Ui::PopupMenu>(button);
-		if (send) {
-			(*menu)->addAction(tr::lng_send_silent_message(tr::now), send);
+		const auto now = type();
+		if (now == SendMenuType::Disabled
+			|| (!silent && now == SendMenuType::SilentOnly)) {
+			return false;
 		}
-		if (schedule) {
-			(*menu)->addAction(tr::lng_schedule_message(tr::now), schedule);
+
+		*menu = base::make_unique_q<Ui::PopupMenu>(button);
+		if (silent) {
+			(*menu)->addAction(tr::lng_send_silent_message(tr::now), silent);
+		}
+		if (schedule && now != SendMenuType::SilentOnly) {
+			(*menu)->addAction(
+				(now == SendMenuType::Scheduled
+					? tr::lng_schedule_message(tr::now)
+					: tr::lng_reminder_message(tr::now)),
+				schedule);
 		}
 		(*menu)->popup(QCursor::pos());
+		return true;
 	};
 	Core::InstallEventFilter(button, [=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::ContextMenu && enabled()) {
-			showMenu();
+		if (e->type() == QEvent::ContextMenu && showMenu()) {
 			return true;
 		}
 		return false;

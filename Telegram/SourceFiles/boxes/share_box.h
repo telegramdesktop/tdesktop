@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/round_checkbox.h"
 
+enum class SendMenuType;
+
 namespace Window {
 class SessionNavigation;
 } // namespace Window
@@ -82,6 +84,8 @@ private:
 	void submitScheduled();
 	void copyLink();
 	bool searchByUsername(bool useCache = false);
+
+	SendMenuType sendMenuType() const;
 
 	void scrollTo(Ui::ScrollToRequest request);
 	void needSearchByUsername();

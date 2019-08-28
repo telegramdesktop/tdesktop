@@ -719,7 +719,10 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	};
 	const auto sendScheduled = [=] {
 		Ui::show(
-			HistoryView::PrepareScheduleBox(this, send),
+			HistoryView::PrepareScheduleBox(
+				this,
+				SendMenuType::Scheduled,
+				send),
 			LayerOption::KeepOther);
 	};
 	const auto updateValid = [=] {
@@ -740,7 +743,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			if (_sendType == Api::SendType::Normal) {
 				SetupSendMenu(
 					submit.data(),
-					[=] { return true; },
+					[=] { return SendMenuType::Scheduled; },
 					sendSilent,
 					sendScheduled);
 			}

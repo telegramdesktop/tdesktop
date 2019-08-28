@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_schedule_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "chat_helpers/message_field.h" // SendMenuType.
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/toast/toast.h"
@@ -235,7 +236,8 @@ bool ScheduledWidget::confirmSendingFiles(
 		text,
 		boxCompressConfirm,
 		_history->peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
-		Api::SendType::Scheduled);
+		Api::SendType::Scheduled,
+		SendMenuType::Disabled);
 	//_field->setTextWithTags({});
 
 	box->setConfirmedCallback(crl::guard(this, [=](
@@ -338,7 +340,7 @@ void ScheduledWidget::uploadFile(
 		session().api().sendFile(fileContent, type, action);
 	};
 	Ui::show(
-		PrepareScheduleBox(this, callback),
+		PrepareScheduleBox(this, sendMenuType(), callback),
 		LayerOption::KeepOther);
 }
 
@@ -381,7 +383,7 @@ void ScheduledWidget::send() {
 	}
 	const auto callback = [=](Api::SendOptions options) { send(options); };
 	Ui::show(
-		PrepareScheduleBox(this, callback),
+		PrepareScheduleBox(this, sendMenuType(), callback),
 		LayerOption::KeepOther);
 }
 
@@ -426,7 +428,7 @@ void ScheduledWidget::sendExistingDocument(
 		sendExistingDocument(document, options);
 	};
 	Ui::show(
-		PrepareScheduleBox(this, callback),
+		PrepareScheduleBox(this, sendMenuType(), callback),
 		LayerOption::KeepOther);
 }
 
@@ -464,7 +466,7 @@ void ScheduledWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
 		sendExistingPhoto(photo, options);
 	};
 	Ui::show(
-		PrepareScheduleBox(this, callback),
+		PrepareScheduleBox(this, sendMenuType(), callback),
 		LayerOption::KeepOther);
 }
 
@@ -501,7 +503,7 @@ void ScheduledWidget::sendInlineResult(
 		sendInlineResult(result, bot, options);
 	};
 	Ui::show(
-		PrepareScheduleBox(this, callback),
+		PrepareScheduleBox(this, sendMenuType(), callback),
 		LayerOption::KeepOther);
 }
 
@@ -535,6 +537,12 @@ void ScheduledWidget::sendInlineResult(
 
 	_composeControls->hidePanelsAnimated();
 	_composeControls->focus();
+}
+
+SendMenuType ScheduledWidget::sendMenuType() const {
+	return _history->peer->isSelf()
+		? SendMenuType::Reminder
+		: SendMenuType::Scheduled;
 }
 
 void ScheduledWidget::setupScrollDownButton() {

@@ -16,6 +16,7 @@ class History;
 enum class CompressConfirm;
 enum class SendMediaType;
 struct SendingAlbum;
+enum class SendMenuType;
 
 namespace Api {
 struct SendOptions;
@@ -145,6 +146,7 @@ private:
 	void send(Api::SendOptions options);
 	void highlightSingleNewMessage(const Data::MessagesSlice &slice);
 	void chooseAttach();
+	[[nodiscard]] SendMenuType sendMenuType() const;
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(

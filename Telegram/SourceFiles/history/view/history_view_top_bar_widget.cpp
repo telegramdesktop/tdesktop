@@ -323,7 +323,9 @@ void TopBarWidget::paintTopBar(Painter &p) {
 		|| (_section == Section::Scheduled)) {
 		// #TODO feed name emoji.
 		auto text = (_section == Section::Scheduled)
-			? tr::lng_scheduled_messages(tr::now)
+			? ((history && history->peer->isSelf())
+				? tr::lng_reminder_messages(tr::now)
+				: tr::lng_scheduled_messages(tr::now))
 			: folder
 			? folder->chatListName()
 			: tr::lng_saved_messages(tr::now);

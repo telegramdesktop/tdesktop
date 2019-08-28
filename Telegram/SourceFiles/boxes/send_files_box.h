@@ -40,6 +40,8 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+enum class SendMenuType;
+
 enum class SendFilesWay {
 	Album,
 	Photos,
@@ -59,7 +61,8 @@ public:
 		const TextWithTags &caption,
 		CompressConfirm compressed,
 		SendLimit limit,
-		Api::SendType sendType);
+		Api::SendType sendType,
+		SendMenuType sendMenuType);
 
 	void setConfirmedCallback(
 		Fn<void(
@@ -132,6 +135,7 @@ private:
 	CompressConfirm _compressConfirmInitial = CompressConfirm::None;
 	CompressConfirm _compressConfirm = CompressConfirm::None;
 	SendLimit _sendLimit = SendLimit::Many;
+	SendMenuType _sendMenuType = SendMenuType();
 
 	Fn<void(
 		Storage::PreparedList &&list,

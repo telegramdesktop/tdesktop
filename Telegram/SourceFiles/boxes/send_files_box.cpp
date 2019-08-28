@@ -1369,13 +1369,15 @@ SendFilesBox::SendFilesBox(
 	const TextWithTags &caption,
 	CompressConfirm compressed,
 	SendLimit limit,
-	Api::SendType sendType)
+	Api::SendType sendType,
+	SendMenuType sendMenuType)
 : _controller(controller)
 , _sendType(sendType)
 , _list(std::move(list))
 , _compressConfirmInitial(compressed)
 , _compressConfirm(compressed)
 , _sendLimit(limit)
+, _sendMenuType(sendMenuType)
 , _caption(
 	this,
 	st::confirmCaptionArea,
@@ -1476,7 +1478,7 @@ void SendFilesBox::prepare() {
 	if (_sendType == Api::SendType::Normal) {
 		SetupSendMenu(
 			_send,
-			[=] { return true; },
+			[=] { return _sendMenuType; },
 			[=] { sendSilent(); },
 			[=] { sendScheduled(); });
 	}
@@ -1973,7 +1975,7 @@ void SendFilesBox::sendSilent() {
 void SendFilesBox::sendScheduled() {
 	const auto callback = [=](Api::SendOptions options) { send(options); };
 	Ui::show(
-		HistoryView::PrepareScheduleBox(this, callback),
+		HistoryView::PrepareScheduleBox(this, _sendMenuType, callback),
 		LayerOption::KeepOther);
 }
 
