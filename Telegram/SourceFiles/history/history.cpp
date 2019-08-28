@@ -1658,7 +1658,10 @@ void History::inboxRead(MsgId upTo, std::optional<int> stillUnread) {
 	}
 
 	_firstUnreadView = nullptr;
-	session().notifications().clearFromHistory(this);
+	if (!peer->isSelf()) {
+		// Only reminders generate notifications in Saved Messages.
+		session().notifications().clearFromHistory(this);
+	}
 }
 
 void History::inboxRead(not_null<const HistoryItem*> wasRead) {
@@ -1832,7 +1835,7 @@ void History::getNextFirstUnreadMessage() {
 }
 
 MsgId History::nextNonHistoryEntryId() {
-	return ++_nonHistoryEntryId;
+	return owner().nextNonHistoryEntryId();
 }
 
 bool History::folderKnown() const {

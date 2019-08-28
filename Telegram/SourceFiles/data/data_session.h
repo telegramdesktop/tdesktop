@@ -91,6 +91,9 @@ public:
 	[[nodiscard]] ScheduledMessages &scheduledMessages() const {
 		return *_scheduledMessages;
 	}
+	[[nodiscard]] MsgId nextNonHistoryEntryId() {
+		return ++_nonHistoryEntryId;
+	}
 
 	void clear();
 
@@ -991,6 +994,7 @@ private:
 
 	Groups _groups;
 	std::unique_ptr<ScheduledMessages> _scheduledMessages;
+	MsgId _nonHistoryEntryId = ServerMaxMsgId;
 
 	rpl::lifetime _lifetime;
 

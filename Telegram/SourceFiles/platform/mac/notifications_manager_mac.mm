@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_info.h"
 #include "platform/mac/mac_utilities.h"
 #include "history/history.h"
+#include "ui/empty_userpic.h"
 #include "mainwindow.h"
 #include "styles/style_window.h"
 
@@ -237,7 +238,9 @@ void Manager::Private::showNotification(
 	[notification setSubtitle:Q2NSString(subtitle)];
 	[notification setInformativeText:Q2NSString(msg)];
 	if (!hideNameAndPhoto && [notification respondsToSelector:@selector(setContentImage:)]) {
-		auto userpic = peer->genUserpic(st::notifyMacPhotoSize);
+		auto userpic = peer->isSelf()
+			? Ui::EmptyUserpic::GenerateSavedMessages(st::notifyMacPhotoSize)
+			: peer->genUserpic(st::notifyMacPhotoSize);
 		NSImage *img = [qt_mac_create_nsimage(userpic) autorelease];
 		[notification setContentImage:img];
 	}

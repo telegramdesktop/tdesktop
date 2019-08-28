@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "data/data_peer.h"
+#include "ui/empty_userpic.h"
 #include "styles/style_window.h"
 
 namespace Window {
@@ -45,7 +46,12 @@ QString CachedUserpics::get(const InMemoryKey &key, PeerData *peer) {
 		}
 		v.path = cWorkingDir() + qsl("tdata/temp/") + QString::number(rand_value<uint64>(), 16) + qsl(".png");
 		if (key.first || key.second) {
-			if (_type == Type::Rounded) {
+			if (peer->isSelf()) {
+				const auto method = _type == Type::Rounded
+					? Ui::EmptyUserpic::GenerateSavedMessagesRounded
+					: Ui::EmptyUserpic::GenerateSavedMessages;
+				method(st::notifyMacPhotoSize).save(v.path, "PNG");
+			} else if (_type == Type::Rounded) {
 				peer->saveUserpicRounded(v.path, st::notifyMacPhotoSize);
 			} else {
 				peer->saveUserpic(v.path, st::notifyMacPhotoSize);

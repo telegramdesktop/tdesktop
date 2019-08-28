@@ -763,7 +763,7 @@ bool HistoryItem::showNotification() const {
 	if (channel && !channel->amIn()) {
 		return false;
 	}
-	return out() ? isFromScheduled() : unread();
+	return (out() || _history->peer->isSelf()) ? isFromScheduled() : unread();
 }
 
 void HistoryItem::markClientSideAsRead() {

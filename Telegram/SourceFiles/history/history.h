@@ -532,8 +532,6 @@ private:
 
 	std::deque<not_null<HistoryItem*>> _notifications;
 
-	MsgId _nonHistoryEntryId = ServerMaxMsgId;
-
  };
 
 class HistoryBlock {

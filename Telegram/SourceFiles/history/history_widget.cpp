@@ -2256,6 +2256,9 @@ void HistoryWidget::unreadMessageAdded(not_null<HistoryItem*> item) {
 		session().api().markMediaRead(item);
 	}
 	session().api().readServerHistoryForce(_history);
+
+	// Also clear possible scheduled messages notifications.
+	session().notifications().clearFromHistory(_history);
 }
 
 void HistoryWidget::historyToDown(History *history) {
@@ -2688,18 +2691,22 @@ bool HistoryWidget::isItemCompletelyHidden(HistoryItem *item) const {
 
 void HistoryWidget::visibleAreaUpdated() {
 	if (_list && !_scroll->isHidden()) {
-		auto scrollTop = _scroll->scrollTop();
-		auto scrollBottom = scrollTop + _scroll->height();
+		const auto scrollTop = _scroll->scrollTop();
+		const auto scrollBottom = scrollTop + _scroll->height();
 		_list->visibleAreaUpdated(scrollTop, scrollBottom);
+		const auto atBottom = (scrollTop >= _scroll->scrollTopMax());
 		if (_history->loadedAtBottom() && (_history->unreadCount() > 0 || (_migrated && _migrated->unreadCount() > 0))) {
 			const auto unread = firstUnreadMessage();
 			const auto unreadVisible = unread
 				&& (scrollBottom > _list->itemTop(unread));
-			const auto atBottom = (scrollTop >= _scroll->scrollTopMax());
 			if ((unreadVisible || atBottom)
 				 && App::wnd()->doWeReadServerHistory()) {
 				session().api().readServerHistory(_history);
 			}
+		}
+		if (_history->loadedAtBottom() && atBottom) {
+			// Clear possible scheduled messages notifications.
+			session().notifications().clearFromHistory(_history);
 		}
 		controller()->floatPlayerAreaUpdated().notify(true);
 	}

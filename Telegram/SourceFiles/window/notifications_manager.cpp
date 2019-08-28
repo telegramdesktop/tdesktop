@@ -464,6 +464,8 @@ Manager::DisplayOptions Manager::getNotificationOptions(HistoryItem *item) {
 		|| (Global::NotifyView() > dbinvShowPreview);
 	result.hideReplyButton = result.hideMessageText
 		|| !item
+		|| ((item->out() || item->history()->peer->isSelf())
+			&& item->isFromScheduled())
 		|| !item->history()->peer->canWrite()
 		|| (item->history()->peer->slowmodeSecondsLeft() > 0);
 	return result;
@@ -542,20 +544,31 @@ void NativeManager::doShowNotification(
 		int forwardedCount) {
 	const auto options = getNotificationOptions(item);
 
-	const auto scheduled = (item->out() && item->isFromScheduled());
-	const auto title = options.hideNameAndPhoto ? qsl("Telegram Desktop") : item->history()->peer->name;
-	const auto subtitle = options.hideNameAndPhoto ? QString() : item->notificationHeader();
+	const auto peer = item->history()->peer;
+	const auto scheduled = !options.hideNameAndPhoto
+		&& (item->out() || peer->isSelf())
+		&& item->isFromScheduled();
+	const auto title = options.hideNameAndPhoto
+		? qsl("Telegram Desktop")
+		: (scheduled && peer->isSelf())
+		? tr::lng_notification_reminder(tr::now)
+		: App::peerName(peer);
+	const auto subtitle = options.hideNameAndPhoto
+		? QString()
+		: item->notificationHeader();
 	const auto text = options.hideMessageText
 		? tr::lng_notification_preview(tr::now)
 		: (forwardedCount < 2
-			? (item->groupId() ? tr::lng_in_dlg_album(tr::now) : item->notificationText())
+			? (item->groupId()
+				? tr::lng_in_dlg_album(tr::now)
+				: item->notificationText())
 			: tr::lng_forward_messages(tr::now, lt_count, forwardedCount));
 
 	doShowNativeNotification(
 		item->history()->peer,
 		item->id,
-		title,
-		scheduled ? WrapFromScheduled(subtitle) : subtitle,
+		scheduled ? WrapFromScheduled(title) : title,
+		subtitle,
 		text,
 		options.hideNameAndPhoto,
 		options.hideReplyButton);

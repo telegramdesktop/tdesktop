@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/text_options.h"
+#include "ui/emoji_config.h"
+#include "ui/empty_userpic.h"
 #include "dialogs/dialogs_layout.h"
 #include "window/themes/window_theme.h"
 #include "styles/style_dialogs.h"
@@ -74,7 +76,7 @@ Manager::QueuedNotification::QueuedNotification(
 , author(item->notificationHeader())
 , item((forwardedCount < 2) ? item.get() : nullptr)
 , forwardedCount(forwardedCount)
-, fromScheduled(item->out() && item->isFromScheduled()) {
+, fromScheduled((item->out() || peer->isSelf()) && item->isFromScheduled()) {
 }
 
 QPixmap Manager::hiddenUserpicPlaceholder() const {
@@ -680,8 +682,12 @@ void Notification::updateNotifyDisplay() {
 		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder);
 
 		if (!options.hideNameAndPhoto) {
-			_history->peer->loadUserpic();
-			_history->peer->paintUserpicLeft(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
+			if (_fromScheduled && _history->peer->isSelf()) {
+				Ui::EmptyUserpic::PaintSavedMessages(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
+			} else {
+				_history->peer->loadUserpic();
+				_history->peer->paintUserpicLeft(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
+			}
 		} else {
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), manager()->hiddenUserpicPlaceholder());
 		}
@@ -689,7 +695,15 @@ void Notification::updateNotifyDisplay() {
 		int32 itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;
 
 		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
+		const auto reminder = _fromScheduled && _history->peer->isSelf();
 		if (!options.hideNameAndPhoto) {
+			if (_fromScheduled) {
+				static const auto emoji = Ui::Emoji::Find(QString::fromUtf8("\xF0\x9F\x93\x85"));
+				const auto size = Ui::Emoji::GetSizeNormal() / cIntRetinaFactor();
+				const auto top = rectForName.top() + (st::msgNameFont->height - size) / 2;
+				Ui::Emoji::Draw(p, emoji, Ui::Emoji::GetSizeNormal(), rectForName.left(), top);
+				rectForName.setLeft(rectForName.left() + size + st::msgNameFont->spacew);
+			}
 			if (const auto chatTypeIcon = Dialogs::Layout::ChatTypeIcon(_history->peer, false, false)) {
 				chatTypeIcon->paint(p, rectForName.topLeft(), w);
 				rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
@@ -707,7 +721,9 @@ void Notification::updateNotifyDisplay() {
 			p.setPen(st::dialogsTextFg);
 			p.setFont(st::dialogsTextFont);
 			const auto text = _item
-				? _item->inDialogsText(HistoryItem::DrawInDialog::Normal)
+				? _item->inDialogsText(reminder
+					? HistoryItem::DrawInDialog::WithoutSender
+					: HistoryItem::DrawInDialog::Normal)
 				: ((!_author.isEmpty()
 					? textcmdLink(1, _author)
 					: QString())
@@ -724,10 +740,7 @@ void Notification::updateNotifyDisplay() {
 				0,
 				Qt::LayoutDirectionAuto,
 			};
-			itemTextCache.setText(
-				st::dialogsTextStyle,
-				_fromScheduled ? WrapFromScheduled(text) : text,
-				Options);
+			itemTextCache.setText(st::dialogsTextStyle, text, Options);
 			itemTextCache.drawElided(
 				p,
 				r.left(),
@@ -747,12 +760,15 @@ void Notification::updateNotifyDisplay() {
 		}
 
 		p.setPen(st::dialogsNameFg);
-		if (!options.hideNameAndPhoto) {
-			_history->peer->nameText().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
-		} else {
+		if (options.hideNameAndPhoto) {
 			p.setFont(st::msgNameFont);
 			static QString notifyTitle = st::msgNameFont->elided(qsl("Telegram Desktop"), rectForName.width());
 			p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
+		} else if (reminder) {
+			p.setFont(st::msgNameFont);
+			p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, tr::lng_notification_reminder(tr::now));
+		} else {
+			_history->peer->nameText().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 		}
 	}
 

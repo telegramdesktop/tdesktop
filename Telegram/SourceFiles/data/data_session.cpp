@@ -1202,7 +1202,9 @@ void Session::changeMessageId(ChannelId channel, MsgId wasId, MsgId nowId) {
 	Assert(i != list->end());
 	auto owned = std::move(i->second);
 	list->erase(i);
-	list->emplace(nowId, std::move(owned));
+	const auto [j, ok] = list->emplace(nowId, std::move(owned));
+
+	Ensures(ok);
 }
 
 void Session::notifyItemIdChange(IdChange event) {

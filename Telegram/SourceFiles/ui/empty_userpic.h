@@ -40,6 +40,12 @@ public:
 		int y,
 		int outerWidth,
 		int size);
+	static void PaintSavedMessagesRounded(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size);
 	static void PaintSavedMessages(
 		Painter &p,
 		int x,
@@ -48,6 +54,16 @@ public:
 		int size,
 		const style::color &bg,
 		const style::color &fg);
+	static void PaintSavedMessagesRounded(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		const style::color &bg,
+		const style::color &fg);
+	static QPixmap GenerateSavedMessages(int size);
+	static QPixmap GenerateSavedMessagesRounded(int size);
 
 	~EmptyUserpic();
 
