@@ -18,6 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
+constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
+
+[[nodiscard]] bool TooEarlyForRequest(crl::time received) {
+	return (received > 0) && (received + kRequestTimeLimit > crl::now());
+}
+
 MTPMessage PrepareMessage(const MTPMessage &message, MsgId id) {
 	return message.match([&](const MTPDmessageEmpty &) {
 		return MTP_messageEmpty(MTP_int(id));
@@ -62,7 +68,8 @@ MTPMessage PrepareMessage(const MTPMessage &message, MsgId id) {
 } // namespace
 
 ScheduledMessages::ScheduledMessages(not_null<Session*> owner)
-: _session(&owner->session()) {
+: _session(&owner->session())
+, _clearTimer([=] { clearOldRequests(); }) {
 	owner->itemRemoved(
 	) | rpl::filter([](not_null<const HistoryItem*> item) {
 		return item->isScheduled();
@@ -74,6 +81,21 @@ ScheduledMessages::ScheduledMessages(not_null<Session*> owner)
 ScheduledMessages::~ScheduledMessages() {
 	for (const auto &request : _requests) {
 		_session->api().request(request.second.requestId).cancel();
+	}
+}
+
+void ScheduledMessages::clearOldRequests() {
+	const auto now = crl::now();
+	while (true) {
+		const auto i = ranges::find_if(_requests, [&](const auto &value) {
+			const auto &request = value.second;
+			return !request.requestId
+				&& (request.lastReceived + kRequestTimeLimit <= now);
+		});
+		if (i == end(_requests)) {
+			break;
+		}
+		_requests.erase(i);
 	}
 }
 
@@ -215,7 +237,7 @@ Data::MessagesSlice ScheduledMessages::list(not_null<History*> history) {
 
 void ScheduledMessages::request(not_null<History*> history) {
 	auto &request = _requests[history];
-	if (request.requestId) {
+	if (request.requestId || TooEarlyForRequest(request.lastReceived)) {
 		return;
 	}
 	const auto i = _data.find(history);
@@ -235,7 +257,11 @@ void ScheduledMessages::parse(
 		not_null<History*> history,
 		const MTPmessages_Messages &list) {
 	auto &request = _requests[history];
+	request.lastReceived = crl::now();
 	request.requestId = 0;
+	if (!_clearTimer.isActive()) {
+		_clearTimer.callOnce(kRequestTimeLimit * 2);
+	}
 
 	list.match([&](const MTPDmessages_messagesNotModified &data) {
 	}, [&](const auto &data) {
@@ -263,9 +289,6 @@ void ScheduledMessages::parse(
 		}
 		updated(history, received, clear);
 	});
-	if (!request.requestId) {
-		_requests.remove(history);
-	}
 }
 
 HistoryItem *ScheduledMessages::append(

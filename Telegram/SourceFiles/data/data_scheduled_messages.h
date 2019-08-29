@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/history_item.h"
+#include "base/timer.h"
 
 class History;
 
@@ -51,6 +52,7 @@ private:
 	};
 	struct Request {
 		mtpRequestId requestId = 0;
+		crl::time lastReceived = 0;
 	};
 
 	void request(not_null<History*> history);
@@ -69,9 +71,11 @@ private:
 	void sort(List &list);
 	void remove(not_null<const HistoryItem*> item);
 	[[nodiscard]] int32 countListHash(const List &list) const;
+	void clearOldRequests();
 
 	const not_null<Main::Session*> _session;
 
+	base::Timer _clearTimer;
 	base::flat_map<not_null<History*>, List> _data;
 	base::flat_map<not_null<History*>, Request> _requests;
 	rpl::event_stream<not_null<History*>> _updates;
