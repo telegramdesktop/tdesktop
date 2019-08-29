@@ -192,6 +192,7 @@ public:
 
 	int countHeight();
 	void setDateChosenCallback(Fn<void(QDate)> callback);
+	void selectBeginning();
 
 	~Inner();
 
@@ -420,6 +421,10 @@ void CalendarBox::Inner::setDateChosenCallback(Fn<void(QDate)> callback) {
 	_dateChosenCallback = std::move(callback);
 }
 
+void CalendarBox::Inner::selectBeginning() {
+	_dateChosenCallback(_context->dateFromIndex(_context->minDayIndex()));
+}
+
 CalendarBox::Inner::~Inner() = default;
 
 class CalendarBox::Title : public TWidget, private base::Subscriber {
@@ -504,6 +509,7 @@ void CalendarBox::prepare() {
 //	_inner = setInnerWidget(object_ptr<Inner>(this, _context.get()), st::calendarScroll, st::calendarTitleHeight);
 	_inner->setDateChosenCallback(std::move(_callback));
 
+	addLeftButton(tr::lng_calendar_beginning(), [this] { _inner->selectBeginning(); });
 	addButton(tr::lng_close(), [this] { closeBox(); });
 
 	subscribe(_context->month(), [this](QDate month) { monthChanged(month); });
@@ -558,6 +564,8 @@ void CalendarBox::resizeEvent(QResizeEvent *e) {
 void CalendarBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		e->ignore();
+	} else if (e->key() == Qt::Key_Home) {
+		_inner->selectBeginning();
 	} else if (e->key() == Qt::Key_Left) {
 		goPreviousMonth();
 	} else if (e->key() == Qt::Key_Right) {
