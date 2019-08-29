@@ -147,6 +147,7 @@ void EditColorBox::Picker::preparePalette() {
 	} else {
 		preparePaletteHSL();
 	}
+	_palette.setDevicePixelRatio(cRetinaFactor());
 }
 
 void EditColorBox::Picker::preparePaletteRGBA() {
@@ -169,7 +170,7 @@ void EditColorBox::Picker::preparePaletteRGBA() {
 		// 0 <= y_accumulated < Large
 		// 0 <= y_ratio < 256
 
-		const auto top_ratio = 255 - y_ratio;
+		const auto top_ratio = 256 - y_ratio;
 		const auto bottom_ratio = y_ratio;
 
 		const auto left = anim::reshifted(bottomleft * bottom_ratio + topleft * top_ratio);
@@ -181,7 +182,7 @@ void EditColorBox::Picker::preparePaletteRGBA() {
 			// 0 <= x_accumulated < Large
 			// 0 <= x_ratio < 256
 
-			auto left_ratio = 255 - x_ratio;
+			auto left_ratio = 256 - x_ratio;
 			auto right_ratio = x_ratio;
 
 			*ints++ = anim::unshifted(left * left_ratio + right * right_ratio);
@@ -213,9 +214,8 @@ void EditColorBox::Picker::preparePaletteHSL() {
 			// 0 <= x_accumulated < Large
 			// 0 <= x_ratio < 256
 
-			auto left_ratio = 255 - x_ratio;
+			auto left_ratio = 256 - x_ratio;
 			auto right_ratio = x_ratio;
-
 			*ints++ = anim::unshifted(left * left_ratio + right * right_ratio);
 		}
 		ints += intsAddPerLine;
@@ -430,7 +430,7 @@ void EditColorBox::Slider::generatePixmap() {
 				// 0 <= x_accumulated < Large
 				// 0 <= x_ratio < 256
 
-				*ints++ = anim::unshifted(color * x_ratio + transparent * (255 - x_ratio));
+				*ints++ = anim::unshifted(color * x_ratio + transparent * (256 - x_ratio));
 			}
 			ints += intsPerLineAdded;
 		}
