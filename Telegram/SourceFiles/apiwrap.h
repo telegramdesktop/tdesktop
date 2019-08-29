@@ -93,6 +93,7 @@ public:
 	struct Privacy {
 		enum class Key {
 			PhoneNumber,
+			AddedByPhone,
 			LastSeen,
 			Calls,
 			Invites,

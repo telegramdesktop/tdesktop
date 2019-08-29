@@ -58,6 +58,12 @@ public:
 			rpl::producer<Option> option) {
 		return { nullptr };
 	}
+	[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupMiddleWidget(
+			not_null<Window::SessionController*> controller,
+			not_null<QWidget*> parent,
+			rpl::producer<Option> option) {
+		return { nullptr };
+	}
 	[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupBelowWidget(
 			not_null<Window::SessionController*> controller,
 			not_null<QWidget*> parent) {
@@ -68,6 +74,8 @@ public:
 			bool someAreDisallowed,
 			FnMut<void()> saveCallback) {
 		saveCallback();
+	}
+	virtual void saveAdditional() {
 	}
 
 	virtual ~EditPrivacyController() = default;
@@ -100,6 +108,12 @@ public:
 		std::unique_ptr<EditPrivacyController> controller,
 		const Value &value);
 
+	static Ui::Radioenum<Option> *AddOption(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<EditPrivacyController*> controller,
+		const std::shared_ptr<Ui::RadioenumGroup<Option>> &group,
+		Option option);
+
 protected:
 	void prepare() override;
 
@@ -108,10 +122,6 @@ private:
 	void setupContent();
 	QVector<MTPInputPrivacyRule> collectResult();
 
-	Ui::Radioenum<Option> *addOption(
-		not_null<Ui::VerticalLayout*> container,
-		const std::shared_ptr<Ui::RadioenumGroup<Option>> &group,
-		Option option);
 	Ui::FlatLabel *addLabel(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> text);

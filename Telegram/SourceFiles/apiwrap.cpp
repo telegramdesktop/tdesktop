@@ -162,6 +162,8 @@ MTPInputPrivacyKey ApiWrap::Privacy::Input(Key key) {
 	case Privacy::Key::Calls: return MTP_inputPrivacyKeyPhoneCall();
 	case Privacy::Key::Invites: return MTP_inputPrivacyKeyChatInvite();
 	case Privacy::Key::PhoneNumber: return MTP_inputPrivacyKeyPhoneNumber();
+	case Privacy::Key::AddedByPhone:
+		return MTP_inputPrivacyKeyAddedByPhone();
 	case Privacy::Key::LastSeen:
 		return MTP_inputPrivacyKeyStatusTimestamp();
 	case Privacy::Key::CallsPeer2Peer:
@@ -180,6 +182,8 @@ std::optional<ApiWrap::Privacy::Key> ApiWrap::Privacy::KeyFromMTP(
 	switch (type) {
 	case mtpc_privacyKeyPhoneNumber:
 	case mtpc_inputPrivacyKeyPhoneNumber: return Key::PhoneNumber;
+	case mtpc_privacyKeyAddedByPhone:
+	case mtpc_inputPrivacyKeyAddedByPhone: return Key::AddedByPhone;
 	case mtpc_privacyKeyStatusTimestamp:
 	case mtpc_inputPrivacyKeyStatusTimestamp: return Key::LastSeen;
 	case mtpc_privacyKeyChatInvite:

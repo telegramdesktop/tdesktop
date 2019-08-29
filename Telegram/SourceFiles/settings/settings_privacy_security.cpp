@@ -173,6 +173,8 @@ void SetupPrivacy(
 		Key::Invites,
 		[] { return std::make_unique<GroupsInvitePrivacyController>(); });
 
+	session->api().reloadPrivacy(ApiWrap::Privacy::Key::AddedByPhone);
+
 	AddSkip(container, st::settingsPrivacySecurityPadding);
 	AddDividerText(container, tr::lng_settings_group_privacy_about());
 }

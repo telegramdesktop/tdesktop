@@ -62,6 +62,18 @@ public:
 	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
 	rpl::producer<QString> exceptionsDescription() override;
 
+	object_ptr<Ui::RpWidget> setupMiddleWidget(
+		not_null<Window::SessionController*> controller,
+		not_null<QWidget*> parent,
+		rpl::producer<Option> optionValue) override;
+
+	void saveAdditional() override;
+
+private:
+	rpl::variable<Option> _phoneNumberOption = { Option::Contacts };
+	rpl::variable<Option> _addedByPhone = { Option::Everyone };
+	Fn<void()> _saveAdditional;
+
 };
 
 class LastSeenPrivacyController : public EditPrivacyController {

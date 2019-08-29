@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-constexpr auto kMinimalSchedule = TimeId(30);
+constexpr auto kMinimalSchedule = TimeId(10);
 
 tr::phrase<> MonthDay(int index) {
 	switch (index) {

@@ -631,6 +631,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_phone_number_always_title" = "Always share with";
 "lng_edit_privacy_phone_number_never_title" = "Never share with";
 
+"lng_edit_privacy_phone_number_find" = "Who can find me by my number";
+"lng_edit_privacy_phone_number_contacts" = "Users who add your number to their contacts will see it on Telegram only if they are your contacts.";
+
 "lng_edit_privacy_lastseen_title" = "Last seen privacy";
 "lng_edit_privacy_lastseen_header" = "Who can see your last seen time";
 "lng_edit_privacy_lastseen_warning" = "Important: you won't be able to see Last Seen times for people with whom you don't share your Last Seen time. Approximate last seen will be shown instead (recently, within a week, within a month).";
