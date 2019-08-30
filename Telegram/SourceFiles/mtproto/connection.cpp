@@ -541,7 +541,9 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 			mtpMsgId id = i.key();
 			if (id > newId) {
 				while (true) {
-					if (toResend.constFind(newId) == toResend.cend() && wereAcked.constFind(newId) == wereAcked.cend() && haveSent.constFind(newId) == haveSent.cend()) {
+					if (toResend.constFind(newId) == toResend.cend()
+						&& wereAcked.constFind(newId) == wereAcked.cend()
+						&& haveSent.constFind(newId) == haveSent.cend()) {
 						break;
 					}
 					const auto m = base::unixtime::mtproto_msg_id();
@@ -550,7 +552,9 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 					newId = m;
 				}
 
-				MTP_LOG(_shiftedDcId, ("Replacing msgId %1 to %2!").arg(id).arg(newId));
+				MTP_LOG(_shiftedDcId, ("Replacing msgId %1 to %2!"
+					).arg(id
+					).arg(newId));
 				replaces.insert(id, newId);
 				id = newId;
 				*(mtpMsgId*)(i.value()->data() + 4) = id;
@@ -558,7 +562,8 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 			setSeqNumbers.insert(id, i.value());
 		}
 	}
-	for (auto i = toResend.cbegin(), e = toResend.cend(); i != e; ++i) { // collect all non-container requests
+	// Collect all non-container requests.
+	for (auto i = toResend.cbegin(), e = toResend.cend(); i != e; ++i) {
 		const auto j = toSend.constFind(i.value());
 		if (j == toSend.cend()) continue;
 
@@ -568,7 +573,9 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 			mtpMsgId id = i.key();
 			if (id > newId) {
 				while (true) {
-					if (toResend.constFind(newId) == toResend.cend() && wereAcked.constFind(newId) == wereAcked.cend() && haveSent.constFind(newId) == haveSent.cend()) {
+					if (toResend.constFind(newId) == toResend.cend()
+						&& wereAcked.constFind(newId) == wereAcked.cend()
+						&& haveSent.constFind(newId) == haveSent.cend()) {
 						break;
 					}
 					const auto m = base::unixtime::mtproto_msg_id();
@@ -577,7 +584,9 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 					newId = m;
 				}
 
-				MTP_LOG(_shiftedDcId, ("Replacing msgId %1 to %2!").arg(id).arg(newId));
+				MTP_LOG(_shiftedDcId, ("Replacing msgId %1 to %2!"
+					).arg(id
+					).arg(newId));
 				replaces.insert(id, newId);
 				id = newId;
 				*(mtpMsgId*)(j.value()->data() + 4) = id;
@@ -610,6 +619,10 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 			}
 			const auto l = wereAcked.find(i.key());
 			if (l != wereAcked.cend()) {
+				DEBUG_LOG(("MTP Info: Replaced %1 with %2 in wereAcked."
+					).arg(i.key()
+					).arg(i.value()));
+
 				const auto req = l.value();
 				wereAcked.erase(l);
 				wereAcked.insert(i.value(), req);
