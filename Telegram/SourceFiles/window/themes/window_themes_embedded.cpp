@@ -417,41 +417,38 @@ std::vector<QColor> DefaultAccentColors(EmbeddedType type) {
 	switch (type) {
 	case EmbeddedType::DayBlue:
 		return {
-			//qColor("3478f5"),
-			qColor("58bfe8"),
-			qColor("58b040"),
-			qColor("da73a2"),
-			qColor("e28830"),
-			qColor("9073e7"),
-			qColor("c14126"),
-			qColor("71829c"),
-			qColor("e3b63e"),
+			qColor("45bce7"),
+			qColor("52b440"),
+			qColor("d46c99"),
+			qColor("df8a49"),
+			qColor("9978c8"),
+			qColor("c55245"),
+			qColor("687b98"),
+			qColor("dea922"),
 		};
 	case EmbeddedType::Default:
 		return {};
 	case EmbeddedType::Night:
 		return {
-			//qColor("3478f5"),
 			qColor("58bfe8"),
-			qColor("58b040"),
-			qColor("da73a2"),
-			qColor("e28830"),
-			qColor("9073e7"),
-			qColor("c14126"),
-			qColor("71829c"),
-			qColor("e3b63e"),
+			qColor("466f42"),
+			qColor("aa6084"),
+			qColor("a46d3c"),
+			qColor("917bbd"),
+			qColor("ab5149"),
+			qColor("697b97"),
+			qColor("9b834b"),
 		};
 	case EmbeddedType::NightGreen:
 		return {
-			qColor("3478f5"),
-			//qColor("58bfe8"),
-			qColor("58b040"),
-			qColor("da73a2"),
-			qColor("e28830"),
-			qColor("9073e7"),
-			qColor("c14126"),
-			qColor("71829c"),
-			qColor("e3b63e"),
+			qColor("60a8e7"),
+			qColor("4e9c57"),
+			qColor("ca7896"),
+			qColor("cc925c"),
+			qColor("a58ed2"),
+			qColor("d27570"),
+			qColor("7b8799"),
+			qColor("cbac67"),
 		};
 	}
 	Unexpected("Type in Window::Theme::AccentColors.");
