@@ -57,8 +57,8 @@ private:
 		int forwardedCount) override;
 	void doClearAll() override;
 	void doClearAllFast() override;
-	void doClearFromHistory(History *history) override;
-	void doClearFromItem(HistoryItem *item) override;
+	void doClearFromHistory(not_null<History*> history) override;
+	void doClearFromItem(not_null<HistoryItem*> item) override;
 
 	void showNextFromQueue();
 	void unlinkFromShown(Notification *remove);

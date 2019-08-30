@@ -1977,7 +1977,7 @@ void Session::updateNotifySettingsLocal(not_null<PeerData*> peer) {
 		_mutedPeers.emplace(peer);
 		unmuteByFinishedDelayed(changesIn);
 		if (history) {
-			_session->notifications().clearFromHistory(history);
+			_session->notifications().clearIncomingFromHistory(history);
 		}
 	} else {
 		_mutedPeers.erase(peer);

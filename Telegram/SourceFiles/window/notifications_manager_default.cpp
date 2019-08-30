@@ -317,7 +317,7 @@ void Manager::doClearAllFast() {
 	base::take(_hideAll);
 }
 
-void Manager::doClearFromHistory(History *history) {
+void Manager::doClearFromHistory(not_null<History*> history) {
 	for (auto i = _queuedNotifications.begin(); i != _queuedNotifications.cend();) {
 		if (i->history == history) {
 			i = _queuedNotifications.erase(i);
@@ -333,8 +333,8 @@ void Manager::doClearFromHistory(History *history) {
 	showNextFromQueue();
 }
 
-void Manager::doClearFromItem(HistoryItem *item) {
-	_queuedNotifications.erase(std::remove_if(_queuedNotifications.begin(), _queuedNotifications.end(), [item](auto &queued) {
+void Manager::doClearFromItem(not_null<HistoryItem*> item) {
+	_queuedNotifications.erase(std::remove_if(_queuedNotifications.begin(), _queuedNotifications.end(), [&](auto &queued) {
 		return (queued.item == item);
 	}), _queuedNotifications.cend());
 

@@ -351,7 +351,7 @@ public:
 		bool hideNameAndPhoto,
 		bool hideReplyButton);
 	void clearAll();
-	void clearFromHistory(History *history);
+	void clearFromHistory(not_null<History*> history);
 	void beforeNotificationActivated(PeerId peerId, MsgId msgId);
 	void afterNotificationActivated(PeerId peerId, MsgId msgId);
 	void clearNotification(PeerId peerId, MsgId msgId);
@@ -420,7 +420,7 @@ void Manager::Private::clearAll() {
 	}
 }
 
-void Manager::Private::clearFromHistory(History *history) {
+void Manager::Private::clearFromHistory(not_null<History*> history) {
 	if (!_notifier) return;
 
 	auto i = _notifications.find(history->peer->id);
@@ -600,7 +600,7 @@ void Manager::doClearAllFast() {
 	_private->clearAll();
 }
 
-void Manager::doClearFromHistory(History *history) {
+void Manager::doClearFromHistory(not_null<History*> history) {
 	_private->clearFromHistory(history);
 }
 

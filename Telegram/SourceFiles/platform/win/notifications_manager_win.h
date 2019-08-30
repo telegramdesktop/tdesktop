@@ -32,7 +32,7 @@ protected:
 		bool hideNameAndPhoto,
 		bool hideReplyButton) override;
 	void doClearAllFast() override;
-	void doClearFromHistory(History *history) override;
+	void doClearFromHistory(not_null<History*> history) override;
 	void onBeforeNotificationActivated(PeerId peerId, MsgId msgId) override;
 	void onAfterNotificationActivated(PeerId peerId, MsgId msgId) override;
 

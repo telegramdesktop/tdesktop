@@ -313,7 +313,7 @@ public:
 		bool hideNameAndPhoto,
 		bool hideReplyButton);
 	void clearAll();
-	void clearFromHistory(History *history);
+	void clearFromHistory(not_null<History*> history);
 	void clearNotification(PeerId peerId, MsgId msgId);
 
 	bool hasPoorSupport() const {
@@ -494,7 +494,7 @@ void Manager::Private::clearAll() {
 	}
 }
 
-void Manager::Private::clearFromHistory(History *history) {
+void Manager::Private::clearFromHistory(not_null<History*> history) {
 	for (auto i = _queuedNotifications.begin(); i != _queuedNotifications.end();) {
 		if (i->peer == history->peer) {
 			i = _queuedNotifications.erase(i);
@@ -573,7 +573,7 @@ void Manager::doClearAllFast() {
 	_private->clearAll();
 }
 
-void Manager::doClearFromHistory(History *history) {
+void Manager::doClearFromHistory(not_null<History*> history) {
 	_private->clearFromHistory(history);
 }
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION

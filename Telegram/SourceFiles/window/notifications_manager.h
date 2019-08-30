@@ -63,8 +63,9 @@ public:
 
 	void checkDelayed();
 	void schedule(not_null<HistoryItem*> item);
-	void clearFromHistory(History *history);
-	void clearFromItem(HistoryItem *item);
+	void clearFromHistory(not_null<History*> history);
+	void clearIncomingFromHistory(not_null<History*> history);
+	void clearFromItem(not_null<HistoryItem*> item);
 	void clearAll();
 	void clearAllFast();
 	void updateAll();
@@ -148,10 +149,10 @@ public:
 	void clearAllFast() {
 		doClearAllFast();
 	}
-	void clearFromItem(HistoryItem *item) {
+	void clearFromItem(not_null<HistoryItem*> item) {
 		doClearFromItem(item);
 	}
-	void clearFromHistory(History *history) {
+	void clearFromHistory(not_null<History*> history) {
 		doClearFromHistory(history);
 	}
 
@@ -181,8 +182,8 @@ protected:
 		int forwardedCount) = 0;
 	virtual void doClearAll() = 0;
 	virtual void doClearAllFast() = 0;
-	virtual void doClearFromItem(HistoryItem *item) = 0;
-	virtual void doClearFromHistory(History *history) = 0;
+	virtual void doClearFromItem(not_null<HistoryItem*> item) = 0;
+	virtual void doClearFromHistory(not_null<History*> history) = 0;
 	virtual void onBeforeNotificationActivated(PeerId peerId, MsgId msgId) {
 	}
 	virtual void onAfterNotificationActivated(PeerId peerId, MsgId msgId) {
@@ -207,7 +208,7 @@ protected:
 	void doClearAll() override {
 		doClearAllFast();
 	}
-	void doClearFromItem(HistoryItem *item) override {
+	void doClearFromItem(not_null<HistoryItem*> item) override {
 	}
 	void doShowNotification(
 		not_null<HistoryItem*> item,

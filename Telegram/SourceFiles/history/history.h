@@ -168,34 +168,36 @@ public:
 	void inboxRead(not_null<const HistoryItem*> wasRead);
 	void outboxRead(MsgId upTo);
 	void outboxRead(not_null<const HistoryItem*> wasRead);
-	bool isServerSideUnread(not_null<const HistoryItem*> item) const;
-	MsgId loadAroundId() const;
+	[[nodiscard]] bool isServerSideUnread(
+		not_null<const HistoryItem*> item) const;
+	[[nodiscard]] MsgId loadAroundId() const;
 
-	int unreadCount() const;
-	bool unreadCountKnown() const;
+	[[nodiscard]] int unreadCount() const;
+	[[nodiscard]] bool unreadCountKnown() const;
 	void setUnreadCount(int newUnreadCount);
 	void setUnreadMark(bool unread);
-	bool unreadMark() const;
-	int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
-	bool mute() const;
+	[[nodiscard]] bool unreadMark() const;
+	[[nodiscard]] int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
+	[[nodiscard]] bool mute() const;
 	bool changeMute(bool newMute);
 	void addUnreadBar();
 	void destroyUnreadBar();
-	bool hasNotFreezedUnreadBar() const;
-	Element *unreadBar() const;
+	[[nodiscard]] bool hasNotFreezedUnreadBar() const;
+	[[nodiscard]] Element *unreadBar() const;
 	void calculateFirstUnreadMessage();
 	void unsetFirstUnreadMessage();
-	Element *firstUnreadMessage() const;
+	[[nodiscard]] Element *firstUnreadMessage() const;
 	void clearNotifications();
+	void clearIncomingNotifications();
 
-	bool loadedAtBottom() const; // last message is in the list
+	[[nodiscard]] bool loadedAtBottom() const; // last message is in the list
 	void setNotLoadedAtBottom();
-	bool loadedAtTop() const; // nothing was added after loading history back
-	bool isReadyFor(MsgId msgId); // has messages for showing history at msgId
+	[[nodiscard]] bool loadedAtTop() const; // nothing was added after loading history back
+	[[nodiscard]] bool isReadyFor(MsgId msgId); // has messages for showing history at msgId
 	void getReadyFor(MsgId msgId);
 
-	HistoryItem *lastMessage() const;
-	bool lastMessageKnown() const;
+	[[nodiscard]] HistoryItem *lastMessage() const;
+	[[nodiscard]] bool lastMessageKnown() const;
 	void unknownMessageDeleted(MsgId messageId);
 	void applyDialogTopMessage(MsgId topMessageId);
 	void applyDialog(Data::Folder *requestFolder, const MTPDdialog &data);

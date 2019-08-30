@@ -170,7 +170,7 @@ public:
 		bool hideNameAndPhoto,
 		bool hideReplyButton);
 	void clearAll();
-	void clearFromHistory(History *history);
+	void clearFromHistory(not_null<History*> history);
 	void updateDelegate();
 
 	~Private();
@@ -321,7 +321,7 @@ void Manager::Private::clearAll() {
 	putClearTask(ClearAll());
 }
 
-void Manager::Private::clearFromHistory(History *history) {
+void Manager::Private::clearFromHistory(not_null<History*> history) {
 	putClearTask(ClearFromHistory { history->peer->id });
 }
 
@@ -368,7 +368,7 @@ void Manager::doClearAllFast() {
 	_private->clearAll();
 }
 
-void Manager::doClearFromHistory(History *history) {
+void Manager::doClearFromHistory(not_null<History*> history) {
 	_private->clearFromHistory(history);
 }
 

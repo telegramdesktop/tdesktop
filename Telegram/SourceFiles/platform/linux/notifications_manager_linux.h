@@ -45,7 +45,7 @@ protected:
 		bool hideNameAndPhoto,
 		bool hideReplyButton) override;
 	void doClearAllFast() override;
-	void doClearFromHistory(History *history) override;
+	void doClearFromHistory(not_null<History*> history) override;
 
 private:
 	class Private;

@@ -154,7 +154,7 @@ void System::clearAll() {
 	_settingWaiters.clear();
 }
 
-void System::clearFromHistory(History *history) {
+void System::clearFromHistory(not_null<History*> history) {
 	_manager->clearFromHistory(history);
 
 	history->clearNotifications();
@@ -167,7 +167,13 @@ void System::clearFromHistory(History *history) {
 	showNext();
 }
 
-void System::clearFromItem(HistoryItem *item) {
+void System::clearIncomingFromHistory(not_null<History*> history) {
+	_manager->clearFromHistory(history);
+	history->clearIncomingNotifications();
+	_whenAlerts.remove(history);
+}
+
+void System::clearFromItem(not_null<HistoryItem*> item) {
 	_manager->clearFromItem(item);
 }
 
