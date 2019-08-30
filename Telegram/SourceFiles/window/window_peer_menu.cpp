@@ -865,7 +865,9 @@ QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 		MessageIdsList &&items,
 		FnMut<void()> &&successCallback) {
 	const auto session = &navigation->session();
-	const auto text = "Send now?";
+	const auto text = (items.size() > 1)
+		? tr::lng_scheduled_send_now_many(tr::now, lt_count, items.size())
+		: tr::lng_scheduled_send_now(tr::now);
 	const auto box = std::make_shared<QPointer<BoxContent>>();
 	auto done = [
 		=,

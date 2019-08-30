@@ -1271,6 +1271,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_scheduled_messages" = "Scheduled Messages";
 "lng_reminder_messages" = "Reminders";
+"lng_scheduled_send_now" = "Send message now?";
+"lng_scheduled_send_now_many#one" = "Send {count} message now?";
+"lng_scheduled_send_now_many#other" = "Send {count} messages now?";
 
 "lng_archived_name" = "Archived chats";
 "lng_archived_add" = "Archive";
