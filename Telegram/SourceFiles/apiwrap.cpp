@@ -2997,7 +2997,13 @@ void ApiWrap::refreshFileReference(
 	};
 	origin.data.match([&](Data::FileOriginMessage data) {
 		if (const auto item = _session->data().message(data)) {
-			if (const auto channel = item->history()->peer->asChannel()) {
+			if (item->isScheduled()) {
+				const auto &scheduled = session().data().scheduledMessages();
+				const auto realId = scheduled.lookupId(item);
+				request(MTPmessages_GetScheduledMessages(
+					item->history()->peer->input,
+					MTP_vector<MTPint>(1, MTP_int(realId))));
+			} else if (const auto channel = item->history()->peer->asChannel()) {
 				request(MTPchannels_GetMessages(
 					channel->inputChannel,
 					MTP_vector<MTPInputMessage>(
