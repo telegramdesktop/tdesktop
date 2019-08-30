@@ -669,6 +669,7 @@ void PeerMenuShareContactBox(
 			return;
 		} else if (peer->isSelf()) {
 			auto action = Api::SendAction(peer->owner().history(peer));
+			action.clearDraft = false;
 			user->session().api().shareContact(user, action);
 			Ui::Toast::Show(tr::lng_share_done(tr::now));
 			if (auto strong = *weak) {
@@ -686,6 +687,7 @@ void PeerMenuShareContactBox(
 				const auto history = peer->owner().history(peer);
 				Ui::showPeerHistory(history, ShowAtTheEndMsgId);
 				auto action = Api::SendAction(history);
+				action.clearDraft = false;
 				user->session().api().shareContact(user, action);
 			}), LayerOption::KeepOther);
 	};
@@ -711,6 +713,7 @@ void PeerMenuCreatePoll(not_null<PeerData*> peer) {
 			return;
 		}
 		auto action = Api::SendAction(peer->owner().history(peer));
+		action.clearDraft = false;
 		action.options = result.options;
 		if (const auto id = App::main()->currentReplyToIdFor(action.history)) {
 			action.replyTo = id;
@@ -827,6 +830,7 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 			if (!items.empty()) {
 				const auto api = &peer->session().api();
 				auto action = Api::SendAction(peer->owner().history(peer));
+				action.clearDraft = false;
 				action.generateLocal = false;
 				api->forwardMessages(std::move(items), action, [] {
 					Ui::Toast::Show(tr::lng_share_done(tr::now));

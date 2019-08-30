@@ -114,6 +114,7 @@ void activateBotCommand(
 		Ui::show(Box<ConfirmBox>(tr::lng_bot_share_phone(tr::now), tr::lng_bot_share_phone_confirm(tr::now), [=] {
 			Ui::showPeerHistory(history, ShowAtTheEndMsgId);
 			auto action = Api::SendAction(history);
+			action.clearDraft = false;
 			action.replyTo = msgId;
 			history->session().api().shareContact(
 				history->session().user(),

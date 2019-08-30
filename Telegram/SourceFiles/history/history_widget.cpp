@@ -5547,7 +5547,6 @@ void HistoryWidget::sendInlineResult(
 	}
 
 	auto action = Api::SendAction(_history);
-	action.clearDraft = true;
 	action.replyTo = replyToId();
 	action.generateLocal = true;
 	session().api().sendInlineResult(bot, result, action);

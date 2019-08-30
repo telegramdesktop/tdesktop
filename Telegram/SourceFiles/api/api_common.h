@@ -28,7 +28,7 @@ struct SendAction {
 	not_null<History*> history;
 	SendOptions options;
 	MsgId replyTo = 0;
-	bool clearDraft = false;
+	bool clearDraft = true;
 	bool generateLocal = true;
 };
 

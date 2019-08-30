@@ -512,7 +512,6 @@ void ScheduledWidget::sendInlineResult(
 		not_null<UserData*> bot,
 		Api::SendOptions options) {
 	auto action = Api::SendAction(_history);
-	action.clearDraft = true;
 	//action.replyTo = replyToId();
 	action.options = options;
 	action.generateLocal = true;
