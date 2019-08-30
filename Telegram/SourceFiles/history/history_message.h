@@ -118,6 +118,9 @@ public:
 	[[nodiscard]] bool hasMessageBadge() const {
 		return !_messageBadge.isEmpty();
 	}
+	[[nodiscard]] bool hideEditedBadge() const {
+		return (_flags & MTPDmessage::Flag::f_edit_hide);
+	}
 
 	void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) override;

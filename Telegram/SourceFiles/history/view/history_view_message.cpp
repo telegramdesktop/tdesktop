@@ -1829,21 +1829,9 @@ bool Message::displayEditedBadge() const {
 
 TimeId Message::displayedEditDate() const {
 	const auto item = message();
-	auto hasViaBotId = item->Has<HistoryMessageVia>();
-	auto hasInlineMarkup = (item->inlineReplyMarkup() != nullptr);
-	return displayedEditDate(hasViaBotId || hasInlineMarkup);
-}
-
-TimeId Message::displayedEditDate(
-		bool hasViaBotOrInlineMarkup) const {
-	if (hasViaBotOrInlineMarkup) {
+	if (item->hideEditedBadge()) {
 		return TimeId(0);
-	} else if (const auto fromUser = message()->from()->asUser()) {
-		if (fromUser->isBot()) {
-			return TimeId(0);
-		}
-	}
-	if (const auto edited = displayedEditBadge()) {
+	} else if (const auto edited = displayedEditBadge()) {
 		return edited->date;
 	}
 	return TimeId(0);
