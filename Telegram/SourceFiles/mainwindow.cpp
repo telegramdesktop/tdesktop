@@ -149,8 +149,6 @@ void MainWindow::firstShow() {
 }
 
 void MainWindow::clearWidgetsHook() {
-	Expects(_passcodeLock == nullptr || !Global::LocalPasscode());
-
 	destroyLayer();
 	_main.destroy();
 	_passcodeLock.destroy();
