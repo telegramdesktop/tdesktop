@@ -19,11 +19,11 @@ Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 	const FullMsgId &msgId);
 MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer);
 MTPDmessage_ClientFlags NewMessageClientFlags();
-QString GetErrorTextForForward(
+QString GetErrorTextForSending(
 	not_null<PeerData*> peer,
 	const HistoryItemsList &items,
 	bool ignoreSlowmodeCountdown = false);
-QString GetErrorTextForForward(
+QString GetErrorTextForSending(
 	not_null<PeerData*> peer,
 	const HistoryItemsList &items,
 	const TextWithTags &comment,

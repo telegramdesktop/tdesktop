@@ -597,7 +597,7 @@ bool MainWidget::setForwardDraft(PeerId peerId, MessageIdsList &&items) {
 	Expects(peerId != 0);
 
 	const auto peer = session().data().peer(peerId);
-	const auto error = GetErrorTextForForward(
+	const auto error = GetErrorTextForSending(
 		peer,
 		session().data().idsToItems(items),
 		true);
@@ -685,7 +685,7 @@ void MainWidget::finishForwarding(Api::SendAction action) {
 	const auto history = action.history;
 	auto toForward = history->validateForwardDraft();
 	if (!toForward.empty()) {
-		const auto error = GetErrorTextForForward(history->peer, toForward);
+		const auto error = GetErrorTextForSending(history->peer, toForward);
 		if (!error.isEmpty()) {
 			return;
 		}

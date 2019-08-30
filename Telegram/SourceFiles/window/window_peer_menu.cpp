@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_common.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_message.h" // GetErrorTextForSending.
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "support/support_helper.h"
@@ -868,6 +869,19 @@ QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 	const auto text = (items.size() > 1)
 		? tr::lng_scheduled_send_now_many(tr::now, lt_count, items.size())
 		: tr::lng_scheduled_send_now(tr::now);
+
+	const auto error = GetErrorTextForSending(
+		history->peer,
+		session->data().idsToItems(items),
+		TextWithTags());
+	if (!error.isEmpty()) {
+		auto config = Ui::Toast::Config();
+		config.multiline = true;
+		config.minWidth = st::msgMinWidth;
+		config.text = error;
+		Ui::Toast::Show(config);
+		return { nullptr };
+	}
 	const auto box = std::make_shared<QPointer<BoxContent>>();
 	auto done = [
 		=,
@@ -878,12 +892,10 @@ QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 			(*box)->closeBox();
 		}
 		auto ids = QVector<MTPint>();
-		for (const auto &itemId : list) {
-			if (const auto item = session->data().message(itemId)) {
-				if (item->allowsSendNow()) {
-					ids.push_back(MTP_int(
-						session->data().scheduledMessages().lookupId(item)));
-				}
+		for (const auto item : session->data().idsToItems(list)) {
+			if (item->allowsSendNow()) {
+				ids.push_back(MTP_int(
+					session->data().scheduledMessages().lookupId(item)));
 			}
 		}
 		session->api().request(MTPmessages_SendScheduledMessages(
@@ -891,6 +903,8 @@ QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 			MTP_vector<MTPint>(ids)
 		)).done([=](const MTPUpdates &result) {
 			session->api().applyUpdates(result);
+		}).fail([=](const RPCError &error) {
+			session->api().sendMessageFail(error, history->peer);
 		}).send();
 		if (callback) {
 			callback();

@@ -114,7 +114,7 @@ bool HasInlineItems(const HistoryItemsList &items) {
 
 } // namespace
 
-QString GetErrorTextForForward(
+QString GetErrorTextForSending(
 		not_null<PeerData*> peer,
 		const HistoryItemsList &items,
 		const TextWithTags &comment,
@@ -234,7 +234,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 
 		const auto error = [&] {
 			for (const auto peer : result) {
-				const auto error = GetErrorTextForForward(
+				const auto error = GetErrorTextForSending(
 					peer,
 					items,
 					comment);
@@ -354,11 +354,11 @@ MTPDmessage_ClientFlags NewMessageClientFlags() {
 	return MTPDmessage_ClientFlag::f_sending;
 }
 
-QString GetErrorTextForForward(
+QString GetErrorTextForSending(
 		not_null<PeerData*> peer,
 		const HistoryItemsList &items,
 		bool ignoreSlowmodeCountdown) {
-	return GetErrorTextForForward(peer, items, {}, ignoreSlowmodeCountdown);
+	return GetErrorTextForSending(peer, items, {}, ignoreSlowmodeCountdown);
 }
 
 struct HistoryMessage::CreateConfig {

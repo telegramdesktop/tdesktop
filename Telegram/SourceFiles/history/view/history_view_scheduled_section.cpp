@@ -400,7 +400,7 @@ void ScheduledWidget::send(Api::SendOptions options) {
 	//message.action.replyTo = replyToId();
 	message.webPageId = webPageId;
 
-	//const auto error = GetErrorTextForForward(
+	//const auto error = GetErrorTextForSending(
 	//	_peer,
 	//	_toForward,
 	//	message.textWithTags);

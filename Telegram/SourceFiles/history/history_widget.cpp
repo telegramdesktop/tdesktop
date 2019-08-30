@@ -2937,7 +2937,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 	message.webPageId = webPageId;
 
 	if (_canSendMessages) {
-		const auto error = GetErrorTextForForward(
+		const auto error = GetErrorTextForSending(
 			_peer,
 			_toForward,
 			message.textWithTags);

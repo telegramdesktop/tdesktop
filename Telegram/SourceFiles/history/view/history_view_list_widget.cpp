@@ -2330,12 +2330,18 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 			? _pressItemExact
 			: pressedItem;
 		if (_mouseCursorState == CursorState::Date) {
-			forwardIds = session().data().itemOrItsGroup(_overElement->data());
+			if (_overElement->data()->allowsForward()) {
+				forwardIds = session().data().itemOrItsGroup(
+					_overElement->data());
+			}
 		} else if (_pressState.pointState == PointState::GroupPart) {
-			forwardIds = MessageIdsList(1, exactItem->fullId());
+			if (exactItem->allowsForward()) {
+				forwardIds = MessageIdsList(1, exactItem->fullId());
+			}
 		} else if (const auto media = pressedView->media()) {
-			if (media->dragItemByHandler(pressedHandler)
-				|| media->dragItem()) {
+			if (pressedView->data()->allowsForward()
+				&& (media->dragItemByHandler(pressedHandler)
+					|| media->dragItem())) {
 				forwardIds = MessageIdsList(1, exactItem->fullId());
 			}
 		}
