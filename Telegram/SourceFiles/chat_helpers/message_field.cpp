@@ -801,7 +801,7 @@ void SetupSendMenu(
 		}
 
 		*menu = base::make_unique_q<Ui::PopupMenu>(button);
-		if (silent) {
+		if (silent && now != SendMenuType::Reminder) {
 			(*menu)->addAction(tr::lng_send_silent_message(tr::now), silent);
 		}
 		if (schedule && now != SendMenuType::SilentOnly) {

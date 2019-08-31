@@ -303,7 +303,7 @@ HistoryWidget::HistoryWidget(
 
 	SetupSendMenu(
 		_send,
-		[=] { return sendMenuType(); },
+		[=] { return sendButtonMenuType(); },
 		[=] { sendSilent(); },
 		[=] { sendScheduled(); });
 
@@ -2987,14 +2987,18 @@ void HistoryWidget::sendScheduled() {
 }
 
 SendMenuType HistoryWidget::sendMenuType() const {
-	if (_send->type() != Ui::SendButton::Type::Send
-		|| _send->isDisabled()
-		|| !_peer) {
-		return SendMenuType::Disabled;
-	}
-	return _peer->isSelf()
+	return !_peer
+		? SendMenuType::Disabled
+		: _peer->isSelf()
 		? SendMenuType::Reminder
 		: SendMenuType::Scheduled;
+}
+
+SendMenuType HistoryWidget::sendButtonMenuType() const {
+	return ((_send->type() != Ui::SendButton::Type::Send)
+		|| _send->isDisabled())
+		? SendMenuType::Disabled
+		: sendMenuType();
 }
 
 void HistoryWidget::unblockUser() {

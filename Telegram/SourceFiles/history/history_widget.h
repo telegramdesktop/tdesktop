@@ -368,6 +368,7 @@ private:
 	void sendSilent();
 	void sendScheduled();
 	[[nodiscard]] SendMenuType sendMenuType() const;
+	[[nodiscard]] SendMenuType sendButtonMenuType() const;
 	void handlePendingHistoryUpdate();
 	void fullPeerUpdated(PeerData *peer);
 	void toggleTabbedSelectorMode();
