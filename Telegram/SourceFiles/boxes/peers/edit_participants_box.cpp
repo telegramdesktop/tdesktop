@@ -342,7 +342,7 @@ bool ParticipantsAdditionalData::canAddOrEditAdmin(
 
 bool ParticipantsAdditionalData::canRestrictUser(
 		not_null<UserData*> user) const {
-	if (!canEditAdmin(user)) {
+	if (!canEditAdmin(user) || user->isSelf()) {
 		return false;
 	} else if (const auto chat = _peer->asChat()) {
 		return chat->canBanMembers();
