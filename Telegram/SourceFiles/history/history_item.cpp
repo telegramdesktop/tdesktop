@@ -178,7 +178,7 @@ HistoryItem::HistoryItem(
 , _flags(flags)
 , _clientFlags(clientFlags)
 , _date(date) {
-	if (IsClientMsgId(id)) {
+	if (isHistoryEntry() && IsClientMsgId(id)) {
 		_history->registerLocalMessage(this);
 	}
 }

@@ -1270,6 +1270,9 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 }
 
 void History::registerLocalMessage(not_null<HistoryItem*> item) {
+	Expects(item->isHistoryEntry());
+	Expects(IsClientMsgId(item->id));
+
 	_localMessages.emplace(item);
 	if (peer->isChannel()) {
 		Notify::peerUpdatedDelayed(
@@ -1279,7 +1282,9 @@ void History::registerLocalMessage(not_null<HistoryItem*> item) {
 }
 
 void History::unregisterLocalMessage(not_null<HistoryItem*> item) {
-	_localMessages.remove(item);
+	const auto removed = _localMessages.remove(item);
+	Assert(removed);
+
 	if (peer->isChannel()) {
 		Notify::peerUpdatedDelayed(
 			peer,
