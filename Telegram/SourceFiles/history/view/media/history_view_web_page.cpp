@@ -73,6 +73,7 @@ WebPage::WebPage(
 	not_null<WebPageData*> data)
 : Media(parent)
 , _data(data)
+, _siteName(st::msgMinWidth - st::webPageLeft)
 , _title(st::msgMinWidth - st::webPageLeft)
 , _description(st::msgMinWidth - st::webPageLeft) {
 	history()->owner().registerWebPageView(_data, _parent);
@@ -88,9 +89,9 @@ QSize WebPage::countOptimalSize() {
 		_openl = nullptr;
 		_attach = nullptr;
 		_collage = PrepareCollageMedia(_parent->data(), _data->collage);
+		_siteName = Ui::Text::String(st::msgMinWidth - st::webPageLeft);
 		_title = Ui::Text::String(st::msgMinWidth - st::webPageLeft);
 		_description = Ui::Text::String(st::msgMinWidth - st::webPageLeft);
-		_siteNameWidth = 0;
 	}
 	auto lineHeight = unitedLineHeight();
 
@@ -196,17 +197,29 @@ QSize WebPage::countOptimalSize() {
 			text,
 			Ui::WebpageTextDescriptionOptions(_data->siteName));
 	}
+	if (!displayedSiteName().isEmpty()) {
+		_siteNameLines = 1;
+		_siteName.setRichText(
+			st::webPageTitleStyle,
+			textcmdLink(_data->url, displayedSiteName()),
+			Ui::WebpageTextTitleOptions());
+	}
 	if (_title.isEmpty() && !title.isEmpty()) {
 		if (textFloatsAroundInfo && _description.isEmpty()) {
 			title += _parent->skipBlock();
 		}
-		_title.setText(
-			st::webPageTitleStyle,
-			title,
-			Ui::WebpageTextTitleOptions());
-	}
-	if (!_siteNameWidth && !displayedSiteName().isEmpty()) {
-		_siteNameWidth = st::webPageTitleFont->width(displayedSiteName());
+		if (!_siteNameLines && !_data->url.isEmpty()) {
+			_title.setRichText(
+				st::webPageTitleStyle,
+				textcmdLink(_data->url, title),
+				Ui::WebpageTextTitleOptions());
+
+		} else {
+			_title.setText(
+				st::webPageTitleStyle,
+				title,
+				Ui::WebpageTextTitleOptions());
+		}
 	}
 
 	// init dimensions
@@ -215,7 +228,7 @@ QSize WebPage::countOptimalSize() {
 	auto maxWidth = skipBlockWidth;
 	auto minHeight = 0;
 
-	auto siteNameHeight = _siteNameWidth ? lineHeight : 0;
+	auto siteNameHeight = _siteName.isEmpty() ? 0 : lineHeight;
 	auto titleMinHeight = _title.isEmpty() ? 0 : lineHeight;
 	auto descMaxLines = isLogEntryOriginal() ? kMaxOriginalEntryLines : (3 + (siteNameHeight ? 0 : 1) + (titleMinHeight ? 0 : 1));
 	auto descriptionMinHeight = _description.isEmpty() ? 0 : qMin(_description.minHeight(), descMaxLines * lineHeight);
@@ -225,11 +238,11 @@ QSize WebPage::countOptimalSize() {
 		articlePhotoMaxWidth = st::webPagePhotoDelta + qMax(articleThumbWidth(_data->photo, articleMinHeight), lineHeight);
 	}
 
-	if (_siteNameWidth) {
+	if (!_siteName.isEmpty()) {
 		if (_title.isEmpty() && _description.isEmpty() && textFloatsAroundInfo) {
-			accumulate_max(maxWidth, _siteNameWidth + _parent->skipBlockWidth());
+			accumulate_max(maxWidth, _siteName.maxWidth() + _parent->skipBlockWidth());
 		} else {
-			accumulate_max(maxWidth, _siteNameWidth + articlePhotoMaxWidth);
+			accumulate_max(maxWidth, _siteName.maxWidth() + articlePhotoMaxWidth);
 		}
 		minHeight += lineHeight;
 	}
@@ -242,7 +255,7 @@ QSize WebPage::countOptimalSize() {
 		minHeight += descriptionMinHeight;
 	}
 	if (_attach) {
-		auto attachAtTop = !_siteNameWidth && _title.isEmpty() && _description.isEmpty();
+		auto attachAtTop = _siteName.isEmpty() && _title.isEmpty() && _description.isEmpty();
 		if (!attachAtTop) minHeight += st::mediaInBubbleSkip;
 
 		_attach->initDimensions();
@@ -281,8 +294,7 @@ QSize WebPage::countCurrentSize(int newWidth) {
 
 	auto lineHeight = unitedLineHeight();
 	auto linesMax = isLogEntryOriginal() ? kMaxOriginalEntryLines : 5;
-	auto siteNameLines = _siteNameWidth ? 1 : 0;
-	auto siteNameHeight = _siteNameWidth ? lineHeight : 0;
+	auto siteNameHeight = _siteNameLines ? lineHeight : 0;
 	if (asArticle()) {
 		_pixh = linesMax * lineHeight;
 		do {
@@ -303,12 +315,12 @@ QSize WebPage::countCurrentSize(int newWidth) {
 			}
 
 			auto descriptionHeight = _description.countHeight(wleft);
-			if (descriptionHeight < (linesMax - siteNameLines - _titleLines) * st::webPageDescriptionFont->height) {
+			if (descriptionHeight < (linesMax - _siteNameLines - _titleLines) * st::webPageDescriptionFont->height) {
 				// We have height for all the lines.
 				_descriptionLines = -1;
 				newHeight += descriptionHeight;
 			} else {
-				_descriptionLines = (linesMax - siteNameLines - _titleLines);
+				_descriptionLines = (linesMax - _siteNameLines - _titleLines);
 				newHeight += _descriptionLines * lineHeight;
 			}
 
@@ -337,18 +349,18 @@ QSize WebPage::countCurrentSize(int newWidth) {
 			_descriptionLines = 0;
 		} else {
 			auto descriptionHeight = _description.countHeight(innerWidth);
-			if (descriptionHeight < (linesMax - siteNameLines - _titleLines) * st::webPageDescriptionFont->height) {
+			if (descriptionHeight < (linesMax - _siteNameLines - _titleLines) * st::webPageDescriptionFont->height) {
 				// We have height for all the lines.
 				_descriptionLines = -1;
 				newHeight += descriptionHeight;
 			} else {
-				_descriptionLines = (linesMax - siteNameLines - _titleLines);
+				_descriptionLines = (linesMax - _siteNameLines - _titleLines);
 				newHeight += _descriptionLines * lineHeight;
 			}
 		}
 
 		if (_attach) {
-			auto attachAtTop = !_siteNameWidth && !_titleLines && !_descriptionLines;
+			auto attachAtTop = !_siteNameLines && !_titleLines && !_descriptionLines;
 			if (!attachAtTop) newHeight += st::mediaInBubbleSkip;
 
 			auto bubble = _attach->bubbleMargins();
@@ -368,14 +380,24 @@ QSize WebPage::countCurrentSize(int newWidth) {
 	return { newWidth, newHeight };
 }
 
+TextSelection WebPage::toTitleSelection(
+		TextSelection selection) const {
+	return UnshiftItemSelection(selection, _siteName);
+}
+
+TextSelection WebPage::fromTitleSelection(
+		TextSelection selection) const {
+	return ShiftItemSelection(selection, _siteName);
+}
+
 TextSelection WebPage::toDescriptionSelection(
 		TextSelection selection) const {
-	return UnshiftItemSelection(selection, _title);
+	return UnshiftItemSelection(toTitleSelection(selection), _title);
 }
 
 TextSelection WebPage::fromDescriptionSelection(
 		TextSelection selection) const {
-	return ShiftItemSelection(selection, _title);
+	return ShiftItemSelection(fromTitleSelection(selection), _title);
 }
 
 void WebPage::refreshParentId(not_null<HistoryItem*> realParent) {
@@ -441,10 +463,13 @@ void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		}
 		paintw -= pw + st::webPagePhotoDelta;
 	}
-	if (_siteNameWidth) {
-		p.setFont(st::webPageTitleFont);
+	if (_siteNameLines) {
 		p.setPen(semibold);
-		p.drawTextLeft(padding.left(), tshift, width(), (paintw >= _siteNameWidth) ? displayedSiteName() : st::webPageTitleFont->elided(displayedSiteName(), paintw));
+		auto endskip = 0;
+		if (_siteName.hasSkipBlock()) {
+			endskip = _parent->skipBlockWidth();
+		}
+		_siteName.drawLeftElided(p, padding.left(), tshift, paintw, width(), _siteNameLines, style::al_left, 0, -1, endskip, false, selection);
 		tshift += lineHeight;
 	}
 	if (_titleLines) {
@@ -453,7 +478,7 @@ void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		if (_title.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
-		_title.drawLeftElided(p, padding.left(), tshift, paintw, width(), _titleLines, style::al_left, 0, -1, endskip, false, selection);
+		_title.drawLeftElided(p, padding.left(), tshift, paintw, width(), _titleLines, style::al_left, 0, -1, endskip, false, toTitleSelection(selection));
 		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
@@ -471,7 +496,7 @@ void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		}
 	}
 	if (_attach) {
-		auto attachAtTop = !_siteNameWidth && !_titleLines && !_descriptionLines;
+		auto attachAtTop = !_siteNameLines && !_titleLines && !_descriptionLines;
 		if (!attachAtTop) tshift += st::mediaInBubbleSkip;
 
 		auto attachLeft = padding.left() - bubble.left();
@@ -551,7 +576,18 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 		paintw -= pw + st::webPagePhotoDelta;
 	}
 	int symbolAdd = 0;
-	if (_siteNameWidth) {
+	if (_siteNameLines) {
+		if (point.y() >= tshift && point.y() < tshift + lineHeight) {
+			Ui::Text::StateRequestElided siteNameRequest = request.forText();
+			siteNameRequest.lines = _siteNameLines;
+			result = TextState(_parent, _siteName.getStateElidedLeft(
+				point - QPoint(padding.left(), tshift),
+				paintw,
+				width(),
+				siteNameRequest));
+		} else if (point.y() >= tshift + lineHeight) {
+			symbolAdd += _siteName.length();
+		}
 		tshift += lineHeight;
 	}
 	if (_titleLines) {
@@ -594,7 +630,7 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 	if (inThumb) {
 		result.link = _openl;
 	} else if (_attach) {
-		auto attachAtTop = !_siteNameWidth && !_titleLines && !_descriptionLines;
+		auto attachAtTop = !_siteNameLines && !_titleLines && !_descriptionLines;
 		if (!attachAtTop) tshift += st::mediaInBubbleSkip;
 
 		if (QRect(padding.left(), tshift, paintw, height() - tshift - bshift).contains(point)) {
@@ -635,15 +671,26 @@ ClickHandlerPtr WebPage::replaceAttachLink(
 }
 
 TextSelection WebPage::adjustSelection(TextSelection selection, TextSelectType type) const {
-	if (!_descriptionLines || selection.to <= _title.length()) {
-		return _title.adjustSelection(selection, type);
+	if ((!_titleLines && !_descriptionLines) || selection.to <= _siteName.length()) {
+		return _siteName.adjustSelection(selection, type);
 	}
+	
+	auto titleSelection = _title.adjustSelection(toTitleSelection(selection), type);
+	if ((!_siteNameLines && !_descriptionLines) || (selection.from >= _siteName.length() && selection.to <= _description.length())) {
+		return fromTitleSelection(titleSelection);
+	}
+
+	auto titlesLength = _siteName.length() + _title.length();
 	auto descriptionSelection = _description.adjustSelection(toDescriptionSelection(selection), type);
-	if (selection.from >= _title.length()) {
+	if ((!_siteNameLines && !_titleLines) || selection.from >= titlesLength) {
 		return fromDescriptionSelection(descriptionSelection);
 	}
-	auto titleSelection = _title.adjustSelection(selection, type);
-	return { titleSelection.from, fromDescriptionSelection(descriptionSelection).to };
+
+	auto siteNameSelection = _siteName.adjustSelection(selection, type);
+	if (!_descriptionLines || selection.to <= titlesLength) {
+		return { siteNameSelection.from, fromTitleSelection(titleSelection).to };
+	}
+	return { siteNameSelection.from, fromDescriptionSelection(descriptionSelection).to };
 }
 
 void WebPage::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
@@ -681,16 +728,26 @@ bool WebPage::isDisplayed() const {
 }
 
 TextForMimeData WebPage::selectedText(TextSelection selection) const {
-	auto titleResult = _title.toTextForMimeData(selection);
+	auto siteNameResult = _siteName.toTextForMimeData(selection);
+	auto titleResult = _title.toTextForMimeData(
+		toTitleSelection(selection));
 	auto descriptionResult = _description.toTextForMimeData(
 		toDescriptionSelection(selection));
-	if (titleResult.empty()) {
-		return descriptionResult;
-	} else if (descriptionResult.empty()) {
+	if (titleResult.empty() && descriptionResult.empty()) {
+		return siteNameResult;
+	} else if (siteNameResult.empty() && descriptionResult.empty()) {
 		return titleResult;
+	} else if (siteNameResult.empty() && titleResult.empty()) {
+		return descriptionResult;
+	} else if (siteNameResult.empty()) {
+		return titleResult.append('\n').append(std::move(descriptionResult));
+	} else if (titleResult.empty()) {
+		return siteNameResult.append('\n').append(std::move(descriptionResult));
+	} else if (descriptionResult.empty()) {
+		return siteNameResult.append('\n').append(std::move(titleResult));
 	}
 
-	return titleResult.append('\n').append(std::move(descriptionResult));
+	return siteNameResult.append('\n').append(std::move(titleResult)).append('\n').append(std::move(descriptionResult));
 }
 
 QMargins WebPage::inBubblePadding() const {
