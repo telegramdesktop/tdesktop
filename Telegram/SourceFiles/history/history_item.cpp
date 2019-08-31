@@ -721,8 +721,8 @@ bool HistoryItem::needCheck() const {
 }
 
 bool HistoryItem::unread() const {
-	// Messages from myself are always read.
-	if (history()->peer->isSelf()) {
+	// Messages from myself are always read, unless scheduled.
+	if (history()->peer->isSelf() && !isFromScheduled()) {
 		return false;
 	}
 
