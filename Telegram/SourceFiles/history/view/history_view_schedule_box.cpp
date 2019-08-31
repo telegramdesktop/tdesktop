@@ -137,7 +137,7 @@ private:
 
 QTime ValidateTime(const QString &value) {
 	const auto match = QRegularExpression(
-		"^(\\d\\d)\\:(\\d\\d)$").match(value);
+		"^(\\d{1,2})\\:(\\d\\d)$").match(value);
 	if (!match.hasMatch()) {
 		return QTime();
 	}
