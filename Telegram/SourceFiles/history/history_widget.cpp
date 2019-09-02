@@ -2694,21 +2694,25 @@ void HistoryWidget::visibleAreaUpdated() {
 		const auto scrollTop = _scroll->scrollTop();
 		const auto scrollBottom = scrollTop + _scroll->height();
 		_list->visibleAreaUpdated(scrollTop, scrollBottom);
+		controller()->floatPlayerAreaUpdated().notify(true);
+
 		const auto atBottom = (scrollTop >= _scroll->scrollTopMax());
-		if (_history->loadedAtBottom() && (_history->unreadCount() > 0 || (_migrated && _migrated->unreadCount() > 0))) {
+		if (_history->loadedAtBottom()
+			&& atBottom
+			&& App::wnd()->doWeReadServerHistory()) {
+			// Clear possible scheduled messages notifications.
+			session().api().readServerHistory(_history);
+			session().notifications().clearFromHistory(_history);
+		} else if (_history->loadedAtBottom()
+			&& (_history->unreadCount() > 0
+				|| (_migrated && _migrated->unreadCount() > 0))) {
 			const auto unread = firstUnreadMessage();
 			const auto unreadVisible = unread
 				&& (scrollBottom > _list->itemTop(unread));
-			if ((unreadVisible || atBottom)
-				 && App::wnd()->doWeReadServerHistory()) {
+			if (unreadVisible && App::wnd()->doWeReadServerHistory()) {
 				session().api().readServerHistory(_history);
 			}
 		}
-		if (_history->loadedAtBottom() && atBottom) {
-			// Clear possible scheduled messages notifications.
-			session().notifications().clearFromHistory(_history);
-		}
-		controller()->floatPlayerAreaUpdated().notify(true);
 	}
 }
 
