@@ -1089,9 +1089,6 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		container.get());
 
 	const auto chosen = [] {
-		if (Window::Theme::IsNonDefaultBackground()) {
-			return Type(-1);
-		}
 		const auto path = Window::Theme::Background()->themeAbsolutePath();
 		for (const auto &scheme : kSchemesList) {
 			if (path == scheme.path) {
