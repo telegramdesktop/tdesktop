@@ -329,7 +329,7 @@ void BackgroundBox::Inner::paintPaper(
 	if (paper.data.id() == Window::Theme::Background()->id()) {
 		const auto checkLeft = x + st::backgroundSize.width() - st::overviewCheckSkip - st::overviewCheck.size;
 		const auto checkTop = y + st::backgroundSize.height() - st::overviewCheckSkip - st::overviewCheck.size;
-		_check->paint(p, crl::now(), checkLeft, checkTop, width());
+		_check->paint(p, checkLeft, checkTop, width());
 	} else if (Data::IsCloudWallPaper(paper.data)
 		&& !Data::IsDefaultWallPaper(paper.data)
 		&& over.has_value()
