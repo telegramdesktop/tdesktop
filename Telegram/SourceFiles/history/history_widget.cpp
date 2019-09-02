@@ -2920,7 +2920,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 	} else if (_editMsgId) {
 		saveEditMsg();
 		return;
-	} else if (showSlowmodeError()) {
+	} else if (!options.scheduled && showSlowmodeError()) {
 		return;
 	}
 
@@ -2940,7 +2940,8 @@ void HistoryWidget::send(Api::SendOptions options) {
 		const auto error = GetErrorTextForSending(
 			_peer,
 			_toForward,
-			message.textWithTags);
+			message.textWithTags,
+			options.scheduled);
 		if (!error.isEmpty()) {
 			ShowErrorToast(error);
 			return;
@@ -2994,11 +2995,23 @@ SendMenuType HistoryWidget::sendMenuType() const {
 		: SendMenuType::Scheduled;
 }
 
+auto HistoryWidget::computeSendButtonType() const {
+	using Type = Ui::SendButton::Type;
+
+	if (_editMsgId) {
+		return Type::Save;
+	} else if (_isInlineBot) {
+		return Type::Cancel;
+	} else if (showRecordButton()) {
+		return Type::Record;
+	}
+	return Type::Send;
+}
+
 SendMenuType HistoryWidget::sendButtonMenuType() const {
-	return ((_send->type() != Ui::SendButton::Type::Send)
-		|| _send->isDisabled())
-		? SendMenuType::Disabled
-		: sendMenuType();
+	return (computeSendButtonType() == Ui::SendButton::Type::Send)
+		? sendMenuType()
+		: SendMenuType::Disabled;
 }
 
 void HistoryWidget::unblockUser() {
@@ -3702,16 +3715,8 @@ bool HistoryWidget::showInlineBotCancel() const {
 
 void HistoryWidget::updateSendButtonType() {
 	using Type = Ui::SendButton::Type;
-	const auto type = [&] {
-		if (_editMsgId) {
-			return Type::Save;
-		} else if (_isInlineBot) {
-			return Type::Cancel;
-		} else if (showRecordButton()) {
-			return Type::Record;
-		}
-		return Type::Send;
-	}();
+
+	const auto type = computeSendButtonType();
 	_send->setType(type);
 
 	const auto delay = [&] {

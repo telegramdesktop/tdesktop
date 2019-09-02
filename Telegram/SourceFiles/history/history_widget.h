@@ -404,6 +404,7 @@ private:
 	void clearHighlightMessages();
 	void stopMessageHighlight();
 
+	auto computeSendButtonType() const;
 	void updateSendAction(
 		not_null<History*> history,
 		SendAction::Type type,
