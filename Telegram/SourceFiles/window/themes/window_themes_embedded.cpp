@@ -368,6 +368,16 @@ QByteArray Colorize(
 std::vector<EmbeddedScheme> EmbeddedThemes() {
 	return {
 		EmbeddedScheme{
+			EmbeddedType::Default,
+			qColor("90ce89"),
+			qColor("eaffdc"),
+			qColor("ffffff"),
+			qColor("eaffdc"),
+			qColor("ffffff"),
+			tr::lng_settings_theme_classic,
+			QString()
+		},
+		EmbeddedScheme{
 			EmbeddedType::DayBlue,
 			qColor("7ec4ea"),
 			qColor("d7f0ff"),
@@ -377,16 +387,6 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 			tr::lng_settings_theme_day,
 			":/gui/day-blue.tdesktop-theme",
 			qColor("40a7e3")
-		},
-		EmbeddedScheme{
-			EmbeddedType::Default,
-			qColor("90ce89"),
-			qColor("eaffdc"),
-			qColor("ffffff"),
-			qColor("eaffdc"),
-			qColor("ffffff"),
-			tr::lng_settings_theme_classic,
-			QString()
 		},
 		EmbeddedScheme{
 			EmbeddedType::Night,
