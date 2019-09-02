@@ -51,6 +51,14 @@ inline bool AreTestingTheme() {
 	return !GlobalApplying.paletteForRevert.isEmpty();
 };
 
+[[nodiscard]] bool IsEditingTheme(const QString &path) {
+	static const auto kEditingPath = QFileInfo(
+		EditingPalettePath()
+	).absoluteFilePath();
+	return !path.compare(kEditingPath, Qt::CaseInsensitive)
+		&& QFileInfo(path).exists();
+}
+
 bool CalculateIsMonoColorImage(const QImage &image) {
 	if (!image.isNull()) {
 		const auto bits = reinterpret_cast<const uint32*>(image.constBits());
@@ -441,7 +449,7 @@ void ChatBackground::checkUploadWallPaper() {
 	}
 	if (!Data::IsCustomWallPaper(_paper)
 		|| _original.isNull()
-		|| testingPalette()) {
+		|| isEditingTheme()) {
 		return;
 	}
 
@@ -631,7 +639,7 @@ bool ChatBackground::adjustPaletteRequired() {
 			|| Data::details::IsTestingDefaultWallPaper(_paper);
 	};
 
-	if (testingPalette()) {
+	if (isEditingTheme()) {
 		return false;
 	} else if (isNonDefaultThemeOrBackground() || nightMode()) {
 		return !usingThemeBackground();
@@ -639,11 +647,11 @@ bool ChatBackground::adjustPaletteRequired() {
 	return !usingDefaultBackground();
 }
 
-bool ChatBackground::testingPalette() const {
+bool ChatBackground::isEditingTheme() const {
 	const auto path = AreTestingTheme()
 		? GlobalApplying.pathAbsolute
 		: _themeAbsolutePath;
-	return IsPaletteTestingPath(path);
+	return IsEditingTheme(path);
 }
 
 void ChatBackground::adjustPaletteUsingBackground(const QImage &image) {
@@ -801,8 +809,7 @@ void ChatBackground::setTestingTheme(Instance &&theme) {
 		|| (Data::IsDefaultWallPaper(_paper)
 			&& !nightMode()
 			&& _themeAbsolutePath.isEmpty());
-	if (AreTestingTheme()
-		&& IsPaletteTestingPath(GlobalApplying.pathAbsolute)) {
+	if (AreTestingTheme() && isEditingTheme()) {
 		// Grab current background image if it is not already custom
 		// Use prepared pixmap, not original image, because we're
 		// for sure switching to a non-pattern wall-paper (testing editor).
@@ -1137,11 +1144,8 @@ bool LoadFromFile(
 	return loadTheme(*outContent,  out->cached, colorizer, out);
 }
 
-bool IsPaletteTestingPath(const QString &path) {
-	if (path.endsWith(qstr(".tdesktop-palette"), Qt::CaseInsensitive)) {
-		return QFileInfo(path).exists();
-	}
-	return false;
+QString EditingPalettePath() {
+	return cWorkingDir() + "tdata/editing-theme.tdesktop-palette";
 }
 
 QColor CountAverageColor(const QImage &image) {

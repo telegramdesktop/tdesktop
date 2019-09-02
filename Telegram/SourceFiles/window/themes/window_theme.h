@@ -62,11 +62,12 @@ void ToggleNightMode(const QString &themePath);
 [[nodiscard]] bool IsNonDefaultBackground();
 void Revert();
 
+[[nodiscard]] QString EditingPalettePath();
+
 bool LoadFromFile(
 	const QString &file,
 	Instance *out,
 	QByteArray *outContent);
-bool IsPaletteTestingPath(const QString &path);
 QColor CountAverageColor(const QImage &image);
 QColor AdjustedColor(QColor original, QColor background);
 QImage ProcessBackgroundImage(QImage image);
@@ -83,7 +84,7 @@ struct BackgroundUpdate {
 
 	BackgroundUpdate(Type type, bool tiled) : type(type), tiled(tiled) {
 	}
-	bool paletteChanged() const {
+	[[nodiscard]] bool paletteChanged() const {
 		return (type == Type::TestingTheme || type == Type::RevertingTheme);
 	}
 	Type type;
@@ -107,6 +108,7 @@ public:
 	void setTileNightValue(bool tile);
 	void setThemeAbsolutePath(const QString &path);
 	[[nodiscard]] QString themeAbsolutePath() const;
+	[[nodiscard]] bool isEditingTheme() const;
 	void reset();
 
 	void setTestingTheme(Instance &&theme);
@@ -160,7 +162,6 @@ private:
 	[[nodiscard]] bool isNonDefaultThemeOrBackground();
 	[[nodiscard]] bool isNonDefaultBackground();
 	void checkUploadWallPaper();
-	[[nodiscard]] bool testingPalette() const;
 
 	friend bool IsNightMode();
 	friend void SetNightModeValue(bool nightMode);

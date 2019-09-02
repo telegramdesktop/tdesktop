@@ -93,6 +93,7 @@
       '<(src_loc)/rpl/combine.h',
       '<(src_loc)/rpl/combine_previous.h',
       '<(src_loc)/rpl/complete.h',
+      '<(src_loc)/rpl/conditional.h',
       '<(src_loc)/rpl/consumer.h',
       '<(src_loc)/rpl/deferred.h',
       '<(src_loc)/rpl/distinct_until_changed.h',

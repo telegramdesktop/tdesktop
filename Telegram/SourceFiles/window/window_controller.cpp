@@ -9,7 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "main/main_account.h"
+#include "window/layer_widget.h"
 #include "window/window_session_controller.h"
+#include "window/themes/window_theme.h"
+#include "window/themes/window_theme_editor.h"
 #include "mainwindow.h"
 
 namespace Window {
@@ -35,6 +38,13 @@ Controller::~Controller() {
 
 void Controller::firstShow() {
 	_widget.firstShow();
+	checkThemeEditor();
+}
+
+void Controller::checkThemeEditor() {
+	if (Window::Theme::Background()->isEditingTheme()) {
+		_widget.showRightColumn(Box<Window::Theme::Editor>());
+	}
 }
 
 void Controller::setupPasscodeLock() {

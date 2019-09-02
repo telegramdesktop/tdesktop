@@ -67,6 +67,7 @@ private:
 		object_ptr<BoxContent> content,
 		LayerOptions options,
 		anim::type animated);
+	void checkThemeEditor();
 
 	not_null<Main::Account*> _account;
 	::MainWindow _widget;

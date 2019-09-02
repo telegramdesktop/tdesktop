@@ -889,6 +889,8 @@
 <(src_loc)/window/window_top_bar_wrap.h
 <(src_loc)/window/themes/window_theme.cpp
 <(src_loc)/window/themes/window_theme.h
+<(src_loc)/window/themes/window_theme_create_box.cpp
+<(src_loc)/window/themes/window_theme_create_box.h
 <(src_loc)/window/themes/window_theme_editor.cpp
 <(src_loc)/window/themes/window_theme_editor.h
 <(src_loc)/window/themes/window_theme_editor_block.cpp

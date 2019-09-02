@@ -338,6 +338,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_bg_from_gallery" = "Choose from gallery";
 "lng_settings_bg_from_file" = "Choose from file";
 "lng_settings_bg_edit_theme" = "Launch theme editor";
+"lng_settings_bg_create_theme" = "Create new theme";
 "lng_settings_bg_tile" = "Tile background";
 "lng_settings_adaptive_wide" = "Adaptive layout for wide screens";
 
@@ -1602,6 +1603,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_done" = "Theme exported successfully!";
 "lng_theme_editor_title" = "Edit color palette";
 "lng_theme_editor_export_button" = "Export theme";
+
+"lng_theme_editor_create_title" = "Create theme";
+"lng_theme_editor_name" = "Theme name";
+"lng_theme_editor_create_description" = "New theme will be based on your currently selected colors and wallpaper. Alternatively, you can import existing theme or color palette from file.";
+"lng_theme_editor_import_existing" = "Import existing theme";
+"lng_theme_editor_save_title" = "Save theme";
+"lng_theme_editor_link_about" = "Your theme will be updated for all users each time you change it. Anyone can install it using this link.\n\nTheme links must be longer than 5 characters and use a-z, 0-9 and underscores.";
 
 "lng_payments_not_supported" = "Sorry, Telegram Desktop doesn't support payments yet. Please use one of our mobile apps to do this.";
 "lng_payments_receipt_label" = "Receipt";

@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/flatten_latest.h>
 #include <rpl/combine.h>
 #include <rpl/combine_previous.h>
+#include <rpl/conditional.h>
 #include <rpl/variable.h>
 
 #include <rpl/before_next.h>

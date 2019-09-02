@@ -296,6 +296,20 @@ windowOutdatedClose: IconButton(defaultIconButton) {
 	iconPosition: point(-1px, -1px);
 }
 
+createThemeImportButton: InfoProfileButton {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	font: semiboldFont;
+
+	height: 20px;
+	padding: margins(23px, 10px, 23px, 8px);
+
+	ripple: defaultRippleAnimation;
+}
+
 // Mac specific
 
 macAccessoryWidth: 450.;

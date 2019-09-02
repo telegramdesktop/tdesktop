@@ -25,9 +25,7 @@ bool CopyColorsToPalette(
 
 class Editor : public TWidget {
 public:
-	Editor(QWidget*, const QString &path);
-
-	static void Start();
+	explicit Editor(QWidget*);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

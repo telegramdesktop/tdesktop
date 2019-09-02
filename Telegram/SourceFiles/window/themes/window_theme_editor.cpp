@@ -637,22 +637,6 @@ void Editor::Inner::applyEditing(const QString &name, const QString &copyOf, QCo
 	_paletteContent = newContent;
 }
 
-void writeDefaultPalette(const QString &path) {
-	QFile f(path);
-	if (!f.open(QIODevice::WriteOnly)) {
-		LOG(("Theme Error: could not open '%1' for writing.").arg(path));
-		return;
-	}
-
-	QTextStream stream(&f);
-	stream.setCodec("UTF-8");
-
-	auto rows = style::main_palette::data();
-	for_const (auto &row, rows) {
-		stream << bytesToUtf8(row.name) << ": " << bytesToUtf8(row.value) << "; // " << bytesToUtf8(row.description).replace('\n', ' ').replace('\r', ' ') << "\n";
-	}
-}
-
 ThemeExportBox::ThemeExportBox(QWidget*, const QByteArray &paletteContent, const QImage &background, const QByteArray &backgroundContent, bool tileBackground) : BoxContent()
 , _paletteContent(paletteContent)
 , _background(background)
@@ -785,13 +769,15 @@ void ThemeExportBox::exportTheme() {
 	});
 }
 
-Editor::Editor(QWidget*, const QString &path)
+Editor::Editor(QWidget*)
 : _scroll(this, st::themesScroll)
 , _close(this, st::contactsMultiSelect.fieldCancel)
 , _select(this, st::contactsMultiSelect, tr::lng_country_ph())
 , _leftShadow(this)
 , _topShadow(this)
 , _export(this, tr::lng_theme_editor_export_button(tr::now).toUpper(), st::dialogsUpdateButton) {
+	const auto path = EditingPalettePath();
+
 	_inner = _scroll->setOwnedWidget(object_ptr<Inner>(this, path));
 
 	_export->setClickedCallback(_inner->exportCallback());
@@ -880,32 +866,32 @@ void Editor::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft(st::themeEditorMargin.left(), st::themeEditorMargin.top(), width(), tr::lng_theme_editor_title(tr::now));
 }
 
-void Editor::Start() {
-	const auto path = Background()->themeAbsolutePath();
-	if (path.isEmpty() || !Window::Theme::IsPaletteTestingPath(path)) {
-		const auto start = [](const QString &path) {
-			if (!Local::copyThemeColorsToPalette(path)) {
-				writeDefaultPalette(path);
-			}
-			if (!Apply(path)) {
-				Ui::show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
-				return;
-			}
-			KeepApplied();
-			if (auto window = App::wnd()) {
-				window->showRightColumn(Box<Editor>(path));
-			}
-		};
-		FileDialog::GetWritePath(
-			App::wnd(),
-			tr::lng_theme_editor_save_palette(tr::now),
-			"Palette (*.tdesktop-palette)",
-			"colors.tdesktop-palette",
-			start);
-	} else if (auto window = App::wnd()) {
-		window->showRightColumn(Box<Editor>(path));
-	}
-}
+//void Editor::Start() {
+//	const auto path = Background()->themeAbsolutePath();
+//	if (!Window::Theme::IsPaletteTestingPath(path)) {
+//		const auto start = [](const QString &path) {
+//			if (!Local::copyThemeColorsToPalette(path)) {
+//				writeDefaultPalette(path);
+//			}
+//			if (!Apply(path)) {
+//				Ui::show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
+//				return;
+//			}
+//			KeepApplied();
+//			if (auto window = App::wnd()) {
+//				window->showRightColumn(Box<Editor>(path));
+//			}
+//		};
+//		FileDialog::GetWritePath(
+//			App::wnd(),
+//			tr::lng_theme_editor_save_palette(tr::now),
+//			"Palette (*.tdesktop-palette)",
+//			"colors.tdesktop-palette",
+//			start);
+//	} else if (auto window = App::wnd()) {
+//		window->showRightColumn(Box<Editor>(path));
+//	}
+//}
 
 void Editor::closeEditor() {
 	if (auto window = App::wnd()) {

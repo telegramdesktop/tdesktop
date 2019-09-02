@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/auto_download_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/background_box.h"
+#include "boxes/generic_box.h"
 #include "boxes/background_preview_box.h"
 #include "boxes/download_path_box.h"
 #include "boxes/local_storage_box.h"
@@ -29,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme_editor.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_themes_embedded.h"
+#include "window/themes/window_theme_create_box.h"
 #include "window/window_session_controller.h"
 #include "info/profile/info_profile_button.h"
 #include "storage/localstorage.h"
@@ -727,7 +729,6 @@ void ChooseFromFile(
 		tr::lng_choose_image(tr::now),
 		filters.join(qsl(";;")),
 		crl::guard(parent, callback));
-
 }
 
 QString DownloadPathText() {
@@ -1242,7 +1243,9 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container);
 }
 
-void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
+void SetupThemeOptions(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsPrivacySkip);
 
 	AddSubsectionTitle(container, tr::lng_settings_themes());
@@ -1250,17 +1253,19 @@ void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container, st::settingsThemesTopSkip);
 	SetupDefaultThemes(container);
 	AddSkip(container, st::settingsThemesBottomSkip);
-
+	auto canEdit = rpl::single(false);
 	AddButton(
 		container,
-		tr::lng_settings_bg_edit_theme(),
+		rpl::conditional(
+			std::move(canEdit),
+			tr::lng_settings_bg_edit_theme(),
+			tr::lng_settings_bg_create_theme()),
 		st::settingsChatButton,
 		&st::settingsIconThemes,
 		st::settingsChatIconLeft
-	)->addClickHandler(App::LambdaDelayed(
-		st::settingsChatButton.ripple.hideDuration,
-		container,
-		[] { Window::Theme::Editor::Start(); }));
+	)->addClickHandler([=] {
+		Ui::show(Box(Window::Theme::CreateBox, &controller->session()));
+	});
 
 	AddSkip(container);
 }
@@ -1385,7 +1390,7 @@ Chat::Chat(QWidget *parent, not_null<Window::SessionController*> controller)
 void Chat::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	SetupThemeOptions(content);
+	SetupThemeOptions(controller, content);
 	SetupChatBackground(controller, content);
 	SetupStickersEmoji(controller, content);
 	SetupMessages(controller, content);
