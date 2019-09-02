@@ -283,6 +283,18 @@ Main::Session &InnerWidget::session() const {
 	return _controller->session();
 }
 
+rpl::producer<> InnerWidget::showSearchSignal() const {
+	return _showSearchSignal.events();
+}
+
+rpl::producer<int> InnerWidget::scrollToSignal() const {
+	return _scrollToSignal.events();
+}
+
+rpl::producer<> InnerWidget::cancelSignal() const {
+	return _cancelSignal.events();
+}
+
 void InnerWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
@@ -765,10 +777,10 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 }
 
 void InnerWidget::restoreScrollPosition() {
-	auto newVisibleTop = _visibleTopItem
+	const auto newVisibleTop = _visibleTopItem
 		? (itemTop(_visibleTopItem) + _visibleTopFromItem)
 		: ScrollMax;
-	scrollToSignal.notify(newVisibleTop, true);
+	_scrollToSignal.fire_copy(newVisibleTop);
 }
 
 void InnerWidget::paintEvent(QPaintEvent *e) {
@@ -919,7 +931,7 @@ TextForMimeData InnerWidget::getSelectedText() const {
 
 void InnerWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
-		cancelledSignal.notify(true);
+		_cancelSignal.fire({});
 	} else if (e == QKeySequence::Copy && _selectedItem != nullptr) {
 		copySelectedText();
 #ifdef Q_OS_MAC
