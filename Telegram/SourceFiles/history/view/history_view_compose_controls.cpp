@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "lang/lang_keys.h"
 #include "core/event_filter.h"
+#include "core/qt_signal_producer.h"
 #include "history/history.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_section.h"
@@ -90,7 +91,13 @@ rpl::producer<> ComposeControls::cancelRequests() const {
 }
 
 rpl::producer<> ComposeControls::sendRequests() const {
-	return _send->clicks() | rpl::map([] { return rpl::empty_value(); });
+	auto toEmpty = rpl::map([] { return rpl::empty_value(); });
+	auto submits = Core::QtSignalProducer(
+		_field.get(),
+		&Ui::InputField::submitted);
+	return rpl::merge(
+		_send->clicks() | toEmpty,
+		std::move(submits) | toEmpty);
 }
 
 rpl::producer<> ComposeControls::attachRequests() const {
