@@ -207,8 +207,7 @@ private:
 class ScheduledMemento : public Window::SectionMemento {
 public:
 	ScheduledMemento(not_null<History*> history)
-	: _history(history)
-	, _list({}) {
+	: _history(history) {
 	}
 
 	object_ptr<Window::SectionWidget> createWidget(
