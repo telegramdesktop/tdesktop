@@ -48,7 +48,7 @@ namespace Settings {
 namespace {
 
 const auto kSchemesList = Window::Theme::EmbeddedThemes();
-constexpr auto kColorsPerRow = 10;
+constexpr auto kCustomColorButtonParts = 7;
 
 class ColorsPalette final {
 public:
@@ -62,82 +62,155 @@ public:
 	rpl::producer<QColor> selected() const;
 
 private:
+	class Button {
+	public:
+		Button(
+			not_null<QWidget*> parent,
+			std::vector<QColor> &&colors,
+			bool selected);
+
+		void moveToLeft(int x, int y);
+		void update(std::vector<QColor> &&colors, bool selected);
+		rpl::producer<> clicks() const;
+		bool selected() const;
+		QColor color() const;
+
+	private:
+		void paint();
+
+		Ui::AbstractButton _widget;
+		std::vector<QColor> _colors;
+		Ui::Animations::Simple _selectedAnimation;
+		bool _selected = false;
+
+	};
+
+	void show(
+		not_null<const Scheme*> scheme,
+		std::vector<QColor> &&colors,
+		int selected);
+	void selectCustom(not_null<const Scheme*> scheme);
 	void updateInnerGeometry();
 
 	not_null<Ui::SlideWrap<>*> _outer;
-	std::vector<std::vector<std::unique_ptr<Ui::RpWidget>>> _buttons;
+	std::vector<std::unique_ptr<Button>> _buttons;
 
 	rpl::event_stream<QColor> _selected;
 
 };
 
-not_null<Ui::AbstractButton*> CreateColorButton(
-		not_null<Ui::RpWidget*> parent,
-		const QColor &color,
-		bool selected) {
-	const auto result = Ui::CreateChild<Ui::AbstractButton>(parent.get());
-	result->show();
-	result->resize(st::settingsAccentColorSize, st::settingsAccentColorSize);
-	result->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
-		Painter p(result);
-		PainterHighQualityEnabler hq(p);
+void PaintColorButton(Painter &p, QColor color, float64 selected) {
+	const auto size = st::settingsAccentColorSize;
+	const auto rect = QRect(0, 0, size, size);
 
-		const auto rect = result->rect();
-		p.setBrush(color);
-		p.setPen(Qt::NoPen);
-		p.drawEllipse(result->rect());
-		if (selected) {
-			const auto skip = st::settingsAccentColorSkip;
-			auto pen = st::boxBg->p;
-			pen.setWidth(st::settingsAccentColorLine);
-			p.setBrush(Qt::NoBrush);
-			p.setPen(pen);
-			p.drawEllipse(rect.marginsRemoved({ skip, skip, skip, skip }));
-		}
-	}, result->lifetime());
-	return result;
+	p.setBrush(color);
+	p.setPen(Qt::NoPen);
+	p.drawEllipse(rect);
+
+	if (selected > 0.) {
+		const auto startSkip = -st::settingsAccentColorLine / 2.;
+		const auto endSkip = float64(st::settingsAccentColorSkip);
+		const auto skip = startSkip + (endSkip - startSkip) * selected;
+		auto pen = st::boxBg->p;
+		pen.setWidth(st::settingsAccentColorLine);
+		p.setBrush(Qt::NoBrush);
+		p.setPen(pen);
+		p.setOpacity(selected);
+		p.drawEllipse(QRectF(rect).marginsRemoved({ skip, skip, skip, skip }));
+	}
 }
 
-not_null<Ui::AbstractButton*> CreateCustomButton(
-		not_null<Ui::RpWidget*> parent,
-		std::vector<QColor> colors) {
-	const auto shared = std::make_shared<std::vector<QColor>>(
-		std::move(colors));
-	const auto result = Ui::CreateChild<Ui::AbstractButton>(parent.get());
-	result->show();
+void PaintCustomButton(Painter &p, const std::vector<QColor> &colors) {
+	Expects(colors.size() >= kCustomColorButtonParts);
+
+	p.setPen(Qt::NoPen);
+
 	const auto size = st::settingsAccentColorSize;
-	result->resize(size, size);
-	result->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
-		Painter p(result);
-		PainterHighQualityEnabler hq(p);
-
-		p.setPen(Qt::NoPen);
-
-		const auto smallSize = size / 8.;
-		const auto &list = *shared;
-		const auto drawAround = [&](QPointF center, int index) {
-			const auto where = QPointF{
-				size * (1. + center.x()) / 2,
-				size * (1. + center.y()) / 2
-			};
-			p.setBrush(list[index]);
-			p.drawEllipse(
-				where.x() - smallSize,
-				where.y() - smallSize,
-				2 * smallSize,
-				2 * smallSize);
+	const auto smallSize = size / 8.;
+	const auto drawAround = [&](QPointF center, int index) {
+		const auto where = QPointF{
+			size * (1. + center.x()) / 2,
+			size * (1. + center.y()) / 2
 		};
-		drawAround(QPointF(), 0);
-		for (auto i = 0; i != 6; ++i) {
-			const auto angle = i * M_PI / 3.;
-			const auto point = QPointF{ cos(angle), sin(angle) };
-			const auto adjusted = point * (1. - (2 * smallSize / size));
-			drawAround(adjusted, i + 1);
-		}
-	}, result->lifetime());
-	return result;
+		p.setBrush(colors[index]);
+		p.drawEllipse(
+			where.x() - smallSize,
+			where.y() - smallSize,
+			2 * smallSize,
+			2 * smallSize);
+	};
+	drawAround(QPointF(), 0);
+	for (auto i = 0; i != 6; ++i) {
+		const auto angle = i * M_PI / 3.;
+		const auto point = QPointF{ cos(angle), sin(angle) };
+		const auto adjusted = point * (1. - (2 * smallSize / size));
+		drawAround(adjusted, i + 1);
+	}
+
+}
+
+ColorsPalette::Button::Button(
+	not_null<QWidget*> parent,
+	std::vector<QColor> &&colors,
+	bool selected)
+: _widget(parent.get())
+, _colors(std::move(colors))
+, _selected(selected) {
+	_widget.show();
+	_widget.resize(st::settingsAccentColorSize, st::settingsAccentColorSize);
+	_widget.paintRequest(
+	) | rpl::start_with_next([=] {
+		paint();
+	}, _widget.lifetime());
+}
+
+void ColorsPalette::Button::moveToLeft(int x, int y) {
+	_widget.moveToLeft(x, y);
+}
+
+void ColorsPalette::Button::update(
+		std::vector<QColor> &&colors,
+		bool selected) {
+	if (_colors != colors) {
+		_colors = std::move(colors);
+		_widget.update();
+	}
+	if (_selected != selected) {
+		_selected = selected;
+		_selectedAnimation.start(
+			[=] { _widget.update(); },
+			_selected ? 0. : 1.,
+			_selected ? 1. : 0.,
+			st::defaultRadio.duration * 2);
+	}
+}
+
+rpl::producer<> ColorsPalette::Button::clicks() const {
+	return _widget.clicks() | rpl::map([] { return rpl::empty_value(); });
+}
+
+bool ColorsPalette::Button::selected() const {
+	return _selected;
+}
+
+QColor ColorsPalette::Button::color() const {
+	Expects(_colors.size() == 1);
+
+	return _colors.front();
+}
+
+void ColorsPalette::Button::paint() {
+	Painter p(&_widget);
+	PainterHighQualityEnabler hq(p);
+
+	if (_colors.size() == 1) {
+		PaintColorButton(
+			p,
+			_colors.front(),
+			_selectedAnimation.value(_selected ? 1. : 0.));
+	} else if (_colors.size() >= kCustomColorButtonParts) {
+		PaintCustomButton(p, _colors);
+	}
 }
 
 ColorsPalette::ColorsPalette(not_null<Ui::VerticalLayout*> container)
@@ -172,48 +245,88 @@ void ColorsPalette::show(Type type) {
 	if (i == end(list)) {
 		list.back() = current;
 	}
+	const auto selected = std::clamp(
+		int(i - begin(list)),
+		0,
+		int(list.size()) - 1);
+
 	_outer->show(anim::type::instant);
-	_buttons.clear();
-	const auto pushButton = [&](not_null<Ui::RpWidget*> button) {
-		if (_buttons.empty() || _buttons.back().size() == kColorsPerRow) {
-			_buttons.emplace_back();
-		}
-		_buttons.back().emplace_back(button.get());
-	};
+
+	show(&*scheme, std::move(list), selected);
+
 	const auto inner = _outer->entity();
-	const auto size = st::settingsAccentColorSize;
-	for (const auto &color : list) {
-		const auto selected = (color == current);
-		const auto button = CreateColorButton(inner, color, selected);
-		button->clicks(
-		) | rpl::map([=] {
-			return color;
-		}) | rpl::start_with_next([=](QColor color) {
-			_selected.fire_copy(color);
-		}, button->lifetime());
-		pushButton(button);
-	}
-	const auto custom = CreateCustomButton(inner, std::move(list));
-	custom->clicks(
-	) | rpl::start_with_next([=] {
-		const auto colorizer = Window::Theme::ColorizerFrom(
-			*scheme,
-			scheme->accentColor);
-		auto box = Box<EditColorBox>(
-			tr::lng_settings_theme_accent_title(tr::now),
-			EditColorBox::Mode::HSL,
-			current);
-		box->setLightnessLimits(
-			colorizer.lightnessMin,
-			colorizer.lightnessMax);
-		box->setSaveCallback(crl::guard(custom, [=](QColor result) {
-			_selected.fire_copy(result);
-		}));
-		Ui::show(std::move(box));
-	}, custom->lifetime());
-	pushButton(custom);
 	inner->resize(_outer->width(), inner->height());
 	updateInnerGeometry();
+}
+
+void ColorsPalette::show(
+		not_null<const Scheme*> scheme,
+		std::vector<QColor> &&colors,
+		int selected) {
+	Expects(selected >= 0 && selected < colors.size());
+
+	while (_buttons.size() > colors.size()) {
+		_buttons.pop_back();
+	}
+
+	auto index = 0;
+	const auto inner = _outer->entity();
+	const auto pushButton = [&](std::vector<QColor> &&colors) {
+		auto result = rpl::producer<>();
+		const auto chosen = (index == selected);
+		if (_buttons.size() > index) {
+			_buttons[index]->update(std::move(colors), chosen);
+		} else {
+			_buttons.push_back(std::make_unique<Button>(
+				inner,
+				std::move(colors),
+				chosen));
+			result = _buttons.back()->clicks();
+		}
+		++index;
+		return result;
+	};
+	for (const auto &color : colors) {
+		auto clicks = pushButton({ color });
+		if (clicks) {
+			std::move(
+				clicks
+			) | rpl::map([=] {
+				return _buttons[index - 1]->color();
+			}) | rpl::start_with_next([=](QColor color) {
+				_selected.fire_copy(color);
+			}, inner->lifetime());
+		}
+	}
+
+	auto clicks = pushButton(std::move(colors));
+	if (clicks) {
+		std::move(
+			clicks
+		) | rpl::start_with_next([=] {
+			selectCustom(scheme);
+		}, inner->lifetime());
+	}
+}
+
+void ColorsPalette::selectCustom(not_null<const Scheme*> scheme) {
+	const auto selected = ranges::find(_buttons, true, &Button::selected);
+	Assert(selected != end(_buttons));
+
+	const auto colorizer = Window::Theme::ColorizerFrom(
+		*scheme,
+		scheme->accentColor);
+	auto box = Box<EditColorBox>(
+		tr::lng_settings_theme_accent_title(tr::now),
+		EditColorBox::Mode::HSL,
+		(*selected)->color());
+	box->setLightnessLimits(
+		colorizer.lightnessMin,
+		colorizer.lightnessMax);
+	box->setSaveCallback(crl::guard(_outer, [=](QColor result) {
+		_selected.fire_copy(result);
+	}));
+	Ui::show(std::move(box));
 }
 
 rpl::producer<QColor> ColorsPalette::selected() const {
@@ -221,22 +334,22 @@ rpl::producer<QColor> ColorsPalette::selected() const {
 }
 
 void ColorsPalette::updateInnerGeometry() {
+	if (_buttons.size() < 2) {
+		return;
+	}
 	const auto inner = _outer->entity();
 	const auto size = st::settingsAccentColorSize;
 	const auto padding = st::settingsButton.padding;
 	const auto width = inner->width() - padding.left() - padding.right();
-	const auto skip = (width - size * kColorsPerRow)
-		/ float64(kColorsPerRow - 1);
-	auto y = st::settingsSectionSkip * 2;
-	for (const auto &row : _buttons) {
-		auto x = float64(padding.left());
-		for (const auto &button : row) {
-			button->moveToLeft(int(std::round(x)), y);
-			x += size + skip;
-		}
-		y += size + int(std::round(skip));
+	const auto skip = (width - size * _buttons.size())
+		/ float64(_buttons.size() - 1);
+	const auto y = st::settingsSectionSkip * 2;
+	auto x = float64(padding.left());
+	for (const auto &button : _buttons) {
+		button->moveToLeft(int(std::round(x)), y);
+		x += size + skip;
 	}
-	inner->resize(inner->width(), y - int(std::round(skip)));
+	inner->resize(inner->width(), y + size);
 }
 
 } // namespace
