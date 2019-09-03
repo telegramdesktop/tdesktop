@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 
 #include "boxes/peers/edit_peer_info_box.h"
+#include "window/window_controller.h"
 #include "window/main_window.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
@@ -100,11 +101,13 @@ void SessionNavigation::showSettings(const SectionShow &params) {
 
 SessionController::SessionController(
 	not_null<Main::Session*> session,
-	not_null<::MainWindow*> window)
+	not_null<Controller*> window)
 : SessionNavigation(session)
 , _window(window)
 , _tabbedSelector(
-		std::make_unique<ChatHelpers::TabbedSelector>(window, this)) {
+	std::make_unique<ChatHelpers::TabbedSelector>(
+		_window->widget(),
+		this)) {
 	init();
 
 	subscribe(session->api().fullPeerUpdated(), [=](PeerData *peer) {
@@ -125,6 +128,10 @@ SessionController::SessionController(
 	}, lifetime());
 }
 
+not_null<::MainWindow*> SessionController::widget() const {
+	return _window->widget();
+}
+
 auto SessionController::tabbedSelector() const
 -> not_null<ChatHelpers::TabbedSelector*> {
 	return _tabbedSelector.get();
@@ -133,18 +140,18 @@ auto SessionController::tabbedSelector() const
 void SessionController::takeTabbedSelectorOwnershipFrom(
 		not_null<QWidget*> parent) {
 	if (_tabbedSelector->parent() == parent) {
-		if (const auto chats = _window->chatsWidget()) {
+		if (const auto chats = widget()->chatsWidget()) {
 			chats->returnTabbedSelector();
 		}
 		if (_tabbedSelector->parent() == parent) {
 			_tabbedSelector->hide();
-			_tabbedSelector->setParent(window());
+			_tabbedSelector->setParent(widget());
 		}
 	}
 }
 
 bool SessionController::hasTabbedSelectorOwnership() const {
-	return (_tabbedSelector->parent() == window());
+	return (_tabbedSelector->parent() == widget());
 }
 
 void SessionController::showEditPeerBox(PeerData *peer) {
@@ -295,9 +302,9 @@ void SessionController::disableGifPauseReason(GifPauseReason reason) {
 
 bool SessionController::isGifPausedAtLeastFor(GifPauseReason reason) const {
 	if (reason == GifPauseReason::Any) {
-		return (_gifPauseReasons != 0) || !window()->isActive();
+		return (_gifPauseReasons != 0) || !widget()->isActive();
 	}
-	return (static_cast<int>(_gifPauseReasons) >= 2 * static_cast<int>(reason)) || !window()->isActive();
+	return (static_cast<int>(_gifPauseReasons) >= 2 * static_cast<int>(reason)) || !widget()->isActive();
 }
 
 int SessionController::dialogsSmallColumnWidth() const {
@@ -322,7 +329,7 @@ bool SessionController::forceWideDialogs() const {
 SessionController::ColumnLayout SessionController::computeColumnLayout() const {
 	auto layout = Adaptive::WindowLayout::OneColumn;
 
-	auto bodyWidth = window()->bodyWidget()->width();
+	auto bodyWidth = widget()->bodyWidget()->width();
 	auto dialogsWidth = 0, chatWidth = 0, thirdWidth = 0;
 
 	auto useOneColumnLayout = [&] {
@@ -411,7 +418,7 @@ bool SessionController::canShowThirdSection() const {
 	auto currentLayout = computeColumnLayout();
 	auto minimalExtendBy = minimalThreeColumnWidth()
 		- currentLayout.bodyWidth;
-	return (minimalExtendBy <= window()->maximalExtendBy());
+	return (minimalExtendBy <= widget()->maximalExtendBy());
 }
 
 bool SessionController::canShowThirdSectionWithoutResize() const {
@@ -444,15 +451,15 @@ void SessionController::resizeForThirdSection() {
 		// Next - extend by minimal third column without moving.
 		// Next - show third column inside the window without moving.
 		// Last - extend with moving.
-		if (window()->canExtendNoMove(wanted)) {
-			return window()->tryToExtendWidthBy(wanted);
-		} else if (window()->canExtendNoMove(minimal)) {
+		if (widget()->canExtendNoMove(wanted)) {
+			return widget()->tryToExtendWidthBy(wanted);
+		} else if (widget()->canExtendNoMove(minimal)) {
 			extendBy = minimal;
-			return window()->tryToExtendWidthBy(minimal);
+			return widget()->tryToExtendWidthBy(minimal);
 		} else if (layout.bodyWidth >= minimalThreeColumnWidth()) {
 			return 0;
 		}
-		return window()->tryToExtendWidthBy(minimal);
+		return widget()->tryToExtendWidthBy(minimal);
 	}();
 	if (extendedBy) {
 		if (extendBy != session().settings().thirdColumnWidth()) {
@@ -473,11 +480,11 @@ void SessionController::resizeForThirdSection() {
 }
 
 void SessionController::closeThirdSection() {
-	auto newWindowSize = window()->size();
+	auto newWindowSize = widget()->size();
 	auto layout = computeColumnLayout();
 	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
-		auto noResize = window()->isFullScreen()
-			|| window()->isMaximized();
+		auto noResize = widget()->isFullScreen()
+			|| widget()->isMaximized();
 		auto savedValue = session().settings().thirdSectionExtendedBy();
 		auto extendedBy = (savedValue == -1)
 			? layout.thirdWidth
@@ -489,14 +496,14 @@ void SessionController::closeThirdSection() {
 		session().settings().setDialogsWidthRatio(
 			(currentRatio * layout.bodyWidth) / newBodyWidth);
 		newWindowSize = QSize(
-			window()->width() + (newBodyWidth - layout.bodyWidth),
-			window()->height());
+			widget()->width() + (newBodyWidth - layout.bodyWidth),
+			widget()->height());
 	}
 	session().settings().setTabbedSelectorSectionEnabled(false);
 	session().settings().setThirdSectionInfoEnabled(false);
 	session().saveSettingsDelayed();
-	if (window()->size() != newWindowSize) {
-		window()->resize(newWindowSize);
+	if (widget()->size() != newWindowSize) {
+		widget()->resize(newWindowSize);
 	} else {
 		updateColumnLayout();
 	}

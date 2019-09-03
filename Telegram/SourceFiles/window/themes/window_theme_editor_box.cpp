@@ -533,7 +533,7 @@ void CreateBox(
 
 	box->setFocusCallback([=] { name->setFocusFast(); });
 
-	box->addButton(tr::lng_box_done(), [=] {
+	const auto done = [=] {
 		const auto title = name->getLastText().trimmed();
 		if (title.isEmpty()) {
 			name->showError();
@@ -541,7 +541,9 @@ void CreateBox(
 		}
 		box->closeBox();
 		StartEditor(window, title);
-	});
+	};
+	Ui::Connect(name, &Ui::InputField::submitted, done);
+	box->addButton(tr::lng_box_done(), done);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 

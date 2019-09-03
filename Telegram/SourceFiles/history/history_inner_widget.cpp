@@ -150,7 +150,7 @@ HistoryInner::HistoryInner(
 			update();
 		}
 	});
-	subscribe(_controller->window()->dragFinished(), [this] {
+	subscribe(_controller->widget()->dragFinished(), [this] {
 		mouseActionUpdate(QCursor::pos());
 	});
 	session().data().itemRemoved(
@@ -1026,8 +1026,8 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 		? mouseActionView->data().get()
 		: nullptr;
 	_dragStartPosition = mapPointToItem(mapFromGlobal(screenPos), mouseActionView);
-	_pressWasInactive = _controller->window()->wasInactivePress();
-	if (_pressWasInactive) _controller->window()->setInactivePress(false);
+	_pressWasInactive = _controller->widget()->wasInactivePress();
+	if (_pressWasInactive) _controller->widget()->setInactivePress(false);
 
 	if (ClickHandler::getPressed()) {
 		_mouseAction = MouseAction::PrepareDrag;
@@ -1234,7 +1234,7 @@ std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
 void HistoryInner::performDrag() {
 	if (auto mimeData = prepareDrag()) {
 		// This call enters event loop and can destroy any QObject.
-		_controller->window()->launchDrag(std::move(mimeData));
+		_controller->widget()->launchDrag(std::move(mimeData));
 	}
 }
 

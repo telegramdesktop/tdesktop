@@ -1319,8 +1319,8 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 	_dragStartPosition = mapPointToItem(
 		mapFromGlobal(screenPos),
 		_mouseActionItem);
-	_pressWasInactive = _controller->window()->wasInactivePress();
-	if (_pressWasInactive) _controller->window()->setInactivePress(false);
+	_pressWasInactive = _controller->widget()->wasInactivePress();
+	if (_pressWasInactive) _controller->widget()->setInactivePress(false);
 
 	if (ClickHandler::getPressed()) {
 		_mouseAction = MouseAction::PrepareDrag;

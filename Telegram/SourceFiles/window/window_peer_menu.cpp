@@ -343,7 +343,7 @@ void Filler::addToggleArchive() {
 }
 
 void Filler::addBlockUser(not_null<UserData*> user) {
-	const auto window = &_controller->window()->controller();
+	const auto window = &_controller->window();
 	const auto blockText = [](not_null<UserData*> user) {
 		return user->isBlocked()
 			? ((user->isBot() && !user->isSupport())
@@ -378,7 +378,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 
 void Filler::addUserActions(not_null<UserData*> user) {
 	const auto controller = _controller;
-	const auto window = &_controller->window()->controller();
+	const auto window = &_controller->window();
 	if (_source != PeerMenuSource::ChatsList) {
 		if (user->session().supportMode()) {
 			_addAction("Edit support info", [=] {

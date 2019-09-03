@@ -1818,8 +1818,8 @@ void ListWidget::mouseActionStart(
 	auto pressLayout = _overLayout;
 
 	_mouseAction = MouseAction::None;
-	_pressWasInactive = _controller->parentController()->window()->wasInactivePress();
-	if (_pressWasInactive) _controller->parentController()->window()->setInactivePress(false);
+	_pressWasInactive = _controller->parentController()->widget()->wasInactivePress();
+	if (_pressWasInactive) _controller->parentController()->widget()->setInactivePress(false);
 
 	if (ClickHandler::getPressed() && !hasSelected()) {
 		_mouseAction = MouseAction::PrepareDrag;

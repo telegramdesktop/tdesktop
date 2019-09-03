@@ -443,8 +443,6 @@ public:
 		not_null<PeerData*> peer,
 		FullMsgId itemId = FullMsgId());
 
-	void requestSupportContact(FnMut<void(const MTPUser&)> callback);
-
 	void uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image);
 	void clearPeerPhoto(not_null<PhotoData*> photo);
 

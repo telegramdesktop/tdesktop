@@ -271,7 +271,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			UsernameValue(user),
 			tr::lng_context_copy_mention(tr::now));
 
-		const auto window = &_controller->parentController()->window()->controller();
+		const auto window = &_controller->parentController()->window();
 		AddMainButton(
 			result,
 			tr::lng_info_add_as_contact(),
@@ -501,7 +501,7 @@ void ActionsFiller::addShareContactAction(not_null<UserData*> user) {
 }
 
 void ActionsFiller::addEditContactAction(not_null<UserData*> user) {
-	const auto window = &_controller->parentController()->window()->controller();
+	const auto window = &_controller->parentController()->window();
 	AddActionButton(
 		_wrap,
 		tr::lng_info_edit_contact(),
@@ -590,7 +590,7 @@ void ActionsFiller::addReportAction() {
 }
 
 void ActionsFiller::addBlockAction(not_null<UserData*> user) {
-	const auto window = &_controller->parentController()->window()->controller();
+	const auto window = &_controller->parentController()->window();
 
 	auto text = Notify::PeerUpdateValue(
 		user,

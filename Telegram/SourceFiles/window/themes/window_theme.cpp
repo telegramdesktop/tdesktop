@@ -1193,18 +1193,28 @@ void ToggleNightMode(const QString &path) {
 	Background()->toggleNightMode(path);
 }
 
-bool LoadFromFile(
-		const QString &path,
-		Instance *out,
-		QByteArray *outContent) {
-	*outContent = readThemeContent(path);
-	if (outContent->size() < 4) {
-		LOG(("Theme Error: Could not load theme from %1").arg(path));
+bool LoadFromContent(
+		const QByteArray &content,
+		not_null<Instance*> out,
+		const Colorizer &colorizer) {
+	if (content.size() < 4) {
+		LOG(("Theme Error: Bad theme content size: %1").arg(content.size()));
 		return false;
 	}
 
-	const auto colorizer = ColorizerForTheme(path);
-	return loadTheme(*outContent,  out->cached, colorizer, out);
+	return loadTheme(content, out->cached, colorizer, out);
+}
+
+bool LoadFromFile(
+		const QString &path,
+		not_null<Instance*> out,
+		not_null<QByteArray*> outContent) {
+	*outContent = readThemeContent(path);
+	return LoadFromContent(*outContent, out, ColorizerForTheme(path));
+}
+
+bool LoadFromContent(const QByteArray &content, not_null<Instance*> out) {
+	return LoadFromContent(content, out, {});
 }
 
 QString EditingPalettePath() {

@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_game.h"
 #include "data/data_poll.h"
 #include "data/data_scheduled_messages.h"
+#include "data/data_cloud_themes.h"
 #include "base/unixtime.h"
 #include "styles/style_boxes.h" // st::backgroundSize
 
@@ -209,7 +210,8 @@ Session::Session(not_null<Main::Session*> session)
 })
 , _unmuteByFinishedTimer([=] { unmuteByFinished(); })
 , _groups(this)
-, _scheduledMessages(std::make_unique<ScheduledMessages>(this)) {
+, _scheduledMessages(std::make_unique<ScheduledMessages>(this))
+, _cloudThemes(std::make_unique<CloudThemes>(session)) {
 	_cache->open(Local::cacheKey());
 	_bigFileCache->open(Local::cacheBigFileKey());
 

@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_cover.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_cloud_themes.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "main/main_session.h"
@@ -240,14 +241,30 @@ void SetupHelp(
 		container,
 		tr::lng_settings_ask_question(),
 		st::settingsSectionButton);
+	const auto requestId = button->lifetime().make_state<mtpRequestId>();
+	button->lifetime().add([=] {
+		if (*requestId) {
+			controller->session().api().request(*requestId).cancel();
+		}
+	});
 	button->addClickHandler([=] {
-		const auto ready = crl::guard(button, [=](const MTPUser &data) {
-			if (const auto user = controller->session().data().processUser(data)) {
-				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
-			}
-		});
 		const auto sure = crl::guard(button, [=] {
-			controller->session().api().requestSupportContact(ready);
+			if (*requestId) {
+				return;
+			}
+			*requestId = controller->session().api().request(
+				MTPhelp_GetSupport()
+			).done([=](const MTPhelp_Support &result) {
+				*requestId = 0;
+				result.match([&](const MTPDhelp_support &data) {
+					auto &owner = controller->session().data();
+					if (const auto user = owner.processUser(data.vuser())) {
+						Ui::showPeerHistory(user, ShowAtUnreadMsgId);
+					}
+				});
+			}).fail([=](const RPCError &error) {
+				*requestId = 0;
+			}).send();
 		});
 		auto box = Box<ConfirmBox>(
 			tr::lng_settings_ask_sure(tr::now),
@@ -300,6 +317,7 @@ void Main::setupContent(not_null<Window::SessionController*> controller) {
 	// If we load this in advance it won't jump when we open its' section.
 	controller->session().api().reloadPasswordState();
 	controller->session().api().reloadContactSignupSilent();
+	controller->session().data().cloudThemes().refresh();
 }
 
 rpl::producer<Type> Main::sectionShowOther() {

@@ -30,12 +30,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/themes/window_themes_embedded.h"
 #include "window/themes/window_theme_editor_box.h"
+#include "window/themes/window_themes_cloud_list.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "info/profile/info_profile_button.h"
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
 #include "data/data_session.h"
+#include "data/data_cloud_themes.h"
 #include "chat_helpers/emoji_sets_manager.h"
 #include "platform/platform_info.h"
 #include "support/support_common.h"
@@ -385,33 +388,6 @@ private:
 
 };
 
-class DefaultTheme final : public Ui::AbstractCheckView {
-public:
-	using Type = Window::Theme::EmbeddedType;
-	using Scheme = Window::Theme::EmbeddedScheme;
-
-	DefaultTheme(Scheme scheme, bool checked);
-
-	QSize getSize() const override;
-	void paint(
-		Painter &p,
-		int left,
-		int top,
-		int outerWidth) override;
-	QImage prepareRippleMask() const override;
-	bool checkRippleStartPosition(QPoint position) const override;
-
-	void setColorizer(const Window::Theme::Colorizer &colorizer);
-
-private:
-	void checkedChangedHook(anim::type animated) override;
-
-	Scheme _scheme;
-	Scheme _colorized;
-	Ui::RadioView _radio;
-
-};
-
 void ChooseFromFile(
 	not_null<::Main::Session*> session,
 	not_null<QWidget*> parent);
@@ -612,76 +588,6 @@ void BackgroundRow::updateImage() {
 	if (radialLoading()) {
 		radialStart();
 	}
-}
-
-DefaultTheme::DefaultTheme(Scheme scheme, bool checked)
-: AbstractCheckView(st::defaultRadio.duration, checked, nullptr)
-, _scheme(scheme)
-, _radio(st::defaultRadio, checked, [=] { update(); }) {
-	setColorizer({});
-}
-
-void DefaultTheme::setColorizer(const Window::Theme::Colorizer &colorizer) {
-	_colorized = _scheme;
-	if (colorizer) {
-		Window::Theme::Colorize(_colorized, colorizer);
-	}
-	_radio.setToggledOverride(_colorized.radiobuttonActive);
-	_radio.setUntoggledOverride(_colorized.radiobuttonInactive);
-	update();
-}
-
-QSize DefaultTheme::getSize() const {
-	return st::settingsThemePreviewSize;
-}
-
-void DefaultTheme::paint(
-		Painter &p,
-		int left,
-		int top,
-		int outerWidth) {
-	const auto received = QRect(
-		st::settingsThemeBubblePosition,
-		st::settingsThemeBubbleSize);
-	const auto sent = QRect(
-		outerWidth - received.width() - st::settingsThemeBubblePosition.x(),
-		received.y() + received.height() + st::settingsThemeBubbleSkip,
-		received.width(),
-		received.height());
-	const auto radius = st::settingsThemeBubbleRadius;
-
-	PainterHighQualityEnabler hq(p);
-	p.setPen(Qt::NoPen);
-
-	p.setBrush(_colorized.background);
-	p.drawRoundedRect(
-		QRect(QPoint(), st::settingsThemePreviewSize),
-		radius,
-		radius);
-
-	p.setBrush(_colorized.received);
-	p.drawRoundedRect(rtlrect(received, outerWidth), radius, radius);
-	p.setBrush(_colorized.sent);
-	p.drawRoundedRect(rtlrect(sent, outerWidth), radius, radius);
-
-	const auto radio = _radio.getSize();
-	_radio.paint(
-		p,
-		(outerWidth - radio.width()) / 2,
-		getSize().height() - radio.height() - st::settingsThemeRadioBottom,
-		outerWidth);
-}
-
-QImage DefaultTheme::prepareRippleMask() const {
-	return QImage();
-}
-
-bool DefaultTheme::checkRippleStartPosition(QPoint position) const {
-	return false;
-}
-
-void DefaultTheme::checkedChangedHook(anim::type animated) {
-	_radio.setChecked(checked(), animated);
 }
 
 void ChooseFromFile(
@@ -1080,8 +986,10 @@ void SetupChatBackground(
 }
 
 void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
-	using Type = DefaultTheme::Type;
-	using Scheme = DefaultTheme::Scheme;
+	using Type = Window::Theme::EmbeddedType;
+	using Scheme = Window::Theme::EmbeddedScheme;
+	using Check = Window::Theme::CloudListCheck;
+	using Window::Theme::ColorsFromScheme;
 
 	const auto block = container->add(object_ptr<Ui::FixedHeightWidget>(
 		container));
@@ -1121,11 +1029,13 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		apply(scheme);
 	};
 
-	auto checks = base::flat_map<Type,not_null<DefaultTheme*>>();
+	auto checks = base::flat_map<Type,not_null<Check*>>();
 	auto buttons = ranges::view::all(
 		kSchemesList
 	) | ranges::view::transform([&](const Scheme &scheme) {
-		auto check = std::make_unique<DefaultTheme>(scheme, false);
+		auto check = std::make_unique<Check>(
+			ColorsFromScheme(scheme),
+			false);
 		const auto weak = check.get();
 		const auto result = Ui::CreateChild<Ui::Radioenum<Type>>(
 			block,
@@ -1158,9 +1068,9 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 				const auto colorizer = Window::Theme::ColorizerFrom(
 					*scheme,
 					*color);
-				i->second->setColorizer(colorizer);
+				i->second->setColors(ColorsFromScheme(*scheme, colorizer));
 			} else {
-				i->second->setColorizer({});
+				i->second->setColors(ColorsFromScheme(*scheme));
 			}
 		}
 	};
@@ -1264,10 +1174,37 @@ void SetupThemeOptions(
 		&st::settingsIconThemes,
 		st::settingsChatIconLeft
 	)->addClickHandler([=] {
-		Ui::show(Box(
+		controller->window().show(Box(
 			Window::Theme::CreateBox,
-			&controller->window()->controller()));
+			&controller->window()));
 	});
+
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto list = std::make_shared<std::vector<Data::CloudTheme>>();
+	AddButton(
+		wrap->entity(),
+		tr::lng_settings_bg_cloud_themes(),
+		st::settingsChatButton,
+		&st::settingsIconThemes,
+		st::settingsChatIconLeft
+	)->addClickHandler([=] {
+		controller->window().show(Box(
+			Window::Theme::CloudListBox,
+			controller,
+			*list));
+	});
+	auto shown = rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		controller->session().data().cloudThemes().updated()
+	) | rpl::map([=] {
+		*list = controller->session().data().cloudThemes().list();
+		return !list->empty();
+	});
+	wrap->setDuration(0)->toggleOn(std::move(shown));
 
 	AddSkip(container);
 }

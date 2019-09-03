@@ -184,6 +184,8 @@
 <(src_loc)/data/data_channel.h
 <(src_loc)/data/data_channel_admins.cpp
 <(src_loc)/data/data_channel_admins.h
+<(src_loc)/data/data_cloud_themes.cpp
+<(src_loc)/data/data_cloud_themes.h
 <(src_loc)/data/data_countries.cpp
 <(src_loc)/data/data_countries.h
 <(src_loc)/data/data_document.cpp
@@ -899,6 +901,8 @@
 <(src_loc)/window/themes/window_theme_preview.h
 <(src_loc)/window/themes/window_theme_warning.cpp
 <(src_loc)/window/themes/window_theme_warning.h
+<(src_loc)/window/themes/window_themes_cloud_list.cpp
+<(src_loc)/window/themes/window_themes_cloud_list.h
 <(src_loc)/window/themes/window_themes_embedded.cpp
 <(src_loc)/window/themes/window_themes_embedded.h
 <(src_loc)/apiwrap.cpp

@@ -5407,23 +5407,6 @@ FileLoadTo ApiWrap::fileLoadTaskOptions(const SendAction &action) const {
 	return FileLoadTo(peer->id, action.options, action.replyTo);
 }
 
-void ApiWrap::requestSupportContact(FnMut<void(const MTPUser &)> callback) {
-	_supportContactCallbacks.push_back(std::move(callback));
-	if (_supportContactCallbacks.size() > 1) {
-		return;
-	}
-	request(MTPhelp_GetSupport(
-	)).done([=](const MTPhelp_Support &result) {
-		result.match([&](const MTPDhelp_support &data) {
-			for (auto &handler : base::take(_supportContactCallbacks)) {
-				handler(data.vuser());
-			}
-		});
-	}).fail([=](const RPCError &error) {
-		_supportContactCallbacks.clear();
-	}).send();
-}
-
 void ApiWrap::uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image) {
 	peer = peer->migrateToOrMe();
 	const auto ready = PreparePeerPhoto(peer->id, std::move(image));

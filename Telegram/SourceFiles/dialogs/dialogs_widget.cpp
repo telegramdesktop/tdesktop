@@ -1221,7 +1221,7 @@ void Widget::dropEvent(QDropEvent *e) {
 		if (auto peer = _inner->updateFromParentDrag(mapToGlobal(e->pos()))) {
 			e->acceptProposedAction();
 			App::main()->onFilesOrForwardDrop(peer->id, e->mimeData());
-			controller()->window()->activateWindow();
+			controller()->widget()->activateWindow();
 		}
 	}
 }

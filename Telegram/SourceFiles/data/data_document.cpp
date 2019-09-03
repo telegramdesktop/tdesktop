@@ -693,7 +693,8 @@ bool DocumentData::saveToCache() const {
 	return (type == StickerDocument && size < Storage::kMaxStickerInMemory)
 		|| (isAnimation() && size < Storage::kMaxAnimationInMemory)
 		|| (isVoiceMessage() && size < Storage::kMaxVoiceInMemory)
-		|| (type == WallPaperDocument);
+		|| (type == WallPaperDocument)
+		|| (isTheme() && size < Storage::kMaxFileInMemory);
 }
 
 void DocumentData::unload() {

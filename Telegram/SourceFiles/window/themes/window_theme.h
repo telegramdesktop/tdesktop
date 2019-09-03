@@ -66,8 +66,9 @@ void Revert();
 
 bool LoadFromFile(
 	const QString &file,
-	Instance *out,
-	QByteArray *outContent);
+	not_null<Instance*> out,
+	not_null<QByteArray*> outContent);
+bool LoadFromContent(const QByteArray &content, not_null<Instance*> out);
 QColor CountAverageColor(const QImage &image);
 QColor AdjustedColor(QColor original, QColor background);
 QImage ProcessBackgroundImage(QImage image);
