@@ -369,7 +369,7 @@ SendMediaReady PrepareThemeMedia(
 	//};
 	//push("s", scaled(320));
 
-	const auto filename = QString(name).replace(' ', '_')
+	const auto filename = File::NameFromUserString(name)
 		+ qsl(".tdesktop-theme"); // #TODO themes
 	auto attributes = QVector<MTPDocumentAttribute>(
 		1,
