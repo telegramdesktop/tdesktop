@@ -2192,8 +2192,10 @@ void OverlayWidget::playbackWaitingChange(bool waiting) {
 void OverlayWidget::initThemePreview() {
 	Assert(_doc && _doc->isTheme());
 
+	const auto bytes = _doc->data();
 	auto &location = _doc->location();
-	if (location.isEmpty() || !location.accessEnable()) {
+	if (bytes.isEmpty()
+		&& (location.isEmpty() || !location.accessEnable())) {
 		return;
 	}
 	_themePreviewShown = true;
@@ -2203,12 +2205,21 @@ void OverlayWidget::initThemePreview() {
 	current.backgroundImage = Window::Theme::Background()->createCurrentImage();
 	current.backgroundTiled = Window::Theme::Background()->tile();
 
+	const auto &cloudList = _doc->session().data().cloudThemes().list();
+	const auto i = ranges::find(
+		cloudList,
+		_doc->id,
+		&Data::CloudTheme::documentId);
+	const auto cloud = (i != end(cloudList)) ? *i : Data::CloudTheme();
+
 	const auto path = _doc->location().name();
 	const auto id = _themePreviewId = rand_value<uint64>();
 	const auto weak = make_weak(this);
 	crl::async([=, data = std::move(current)]() mutable {
 		auto preview = Window::Theme::GeneratePreview(
 			path,
+			bytes,
+			cloud,
 			std::move(data));
 		crl::on_main(weak, [=, result = std::move(preview)]() mutable {
 			if (id != _themePreviewId) {

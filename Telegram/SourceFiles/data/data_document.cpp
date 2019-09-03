@@ -318,7 +318,7 @@ void DocumentOpenClickHandler::Open(
 		LaunchWithWarning(location.name(), context);
 	};
 	const auto &location = data->location(true);
-	if (data->isTheme() && !location.isEmpty() && location.accessEnable()) {
+	if (data->isTheme() && data->loaded(DocumentData::FilePathResolve::Checked)) {
 		Core::App().showDocument(data, context);
 		location.accessDisable();
 	} else if (data->canBePlayed()) {

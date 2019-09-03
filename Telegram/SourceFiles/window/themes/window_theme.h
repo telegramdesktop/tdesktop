@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_wall_paper.h"
+#include "data/data_cloud_themes.h"
 
 namespace Main {
 class Session;
@@ -16,8 +17,15 @@ class Session;
 namespace Window {
 namespace Theme {
 
-constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
+inline constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
+inline const auto kThemePathAbsoluteCloud = qstr("special://cloud");
 
+struct Object {
+	QString pathRelative;
+	QString pathAbsolute;
+	QByteArray content;
+	Data::CloudTheme cloud;
+};
 struct Cached {
 	QByteArray colors;
 	QByteArray background;
@@ -26,9 +34,7 @@ struct Cached {
 	int32 contentChecksum = 0;
 };
 struct Saved {
-	QString pathRelative;
-	QString pathAbsolute;
-	QByteArray content;
+	Object object;
 	Cached cache;
 };
 bool Load(Saved &&saved);
@@ -42,10 +48,8 @@ struct Instance {
 };
 
 struct Preview {
-	QString pathRelative;
-	QString pathAbsolute;
+	Object object;
 	Instance instance;
-	QByteArray content;
 	QImage preview;
 };
 
@@ -107,8 +111,8 @@ public:
 	void setTile(bool tile);
 	void setTileDayValue(bool tile);
 	void setTileNightValue(bool tile);
-	void setThemeAbsolutePath(const QString &path);
-	[[nodiscard]] QString themeAbsolutePath() const;
+	void setThemeObject(const Object &object);
+	[[nodiscard]] const Object &themeObject() const;
 	[[nodiscard]] bool isEditingTheme() const;
 	void reset();
 
@@ -159,7 +163,7 @@ private:
 	void setNightModeValue(bool nightMode);
 	[[nodiscard]] bool nightMode() const;
 	void toggleNightMode(std::optional<QString> themePath);
-	void keepApplied(const QString &path, bool write);
+	void keepApplied(const Object &object, bool write);
 	[[nodiscard]] bool isNonDefaultThemeOrBackground();
 	[[nodiscard]] bool isNonDefaultBackground();
 	void checkUploadWallPaper();
@@ -183,7 +187,7 @@ private:
 
 	bool _isMonoColorImage = false;
 
-	QString _themeAbsolutePath;
+	Object _themeObject;
 	QImage _themeImage;
 	bool _themeTile = false;
 

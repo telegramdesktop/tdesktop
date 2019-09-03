@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/themes/window_theme.h"
 
+namespace Data {
+struct CloudTheme;
+} // namespace Data
+
 namespace Window {
 namespace Theme {
 
@@ -18,9 +22,14 @@ struct CurrentData {
 	bool backgroundTiled = false;
 };
 
-std::unique_ptr<Preview> PreviewFromFile(const QString &filepath);
+std::unique_ptr<Preview> PreviewFromFile(
+	const QString &filepath,
+	const QByteArray &bytes,
+	const Data::CloudTheme &cloud);
 std::unique_ptr<Preview> GeneratePreview(
 	const QString &filepath,
+	const QByteArray &bytes,
+	const Data::CloudTheme &cloud,
 	CurrentData &&data);
 
 int DefaultPreviewTitleHeight();

@@ -67,6 +67,8 @@ constexpr auto kStickersVersionTag = quint32(-1);
 constexpr auto kStickersSerializeVersion = 1;
 constexpr auto kMaxSavedStickerSetsCount = 1000;
 
+const auto kThemeNewPathRelativeTag = qstr("special://new_tag");
+
 using Database = Storage::Cache::Database;
 using FileKey = quint64;
 
@@ -4182,50 +4184,74 @@ bool readBackground() {
 }
 
 Window::Theme::Saved readThemeUsingKey(FileKey key) {
+	using namespace Window::Theme;
+
 	FileReadDescriptor theme;
 	if (!readEncryptedFile(theme, key, FileOption::Safe, SettingsKey)) {
 		return {};
 	}
 
-	auto result = Window::Theme::Saved();
-	theme.stream >> result.content;
-	theme.stream >> result.pathRelative >> result.pathAbsolute;
+	auto tag = QString();
+	auto result = Saved();
+	auto &object = result.object;
+	auto &cache = result.cache;
+	theme.stream >> object.content;
+	theme.stream >> tag >> object.pathAbsolute;
+	const auto isCloud = (object.pathAbsolute == kThemePathAbsoluteCloud);
+	if (tag == kThemeNewPathRelativeTag) {
+		if (isCloud) {
+			auto creator = qint32();
+			theme.stream
+				>> object.cloud.id
+				>> object.cloud.accessHash
+				>> object.cloud.slug
+				>> object.cloud.title
+				>> object.cloud.documentId
+				>> creator;
+			object.cloud.createdBy = creator;
+		} else {
+			theme.stream >> object.pathRelative;
+		}
+	} else {
+		object.pathRelative = tag;
+	}
 	if (theme.stream.status() != QDataStream::Ok) {
 		return {};
 	}
 
-	QFile file(result.pathRelative);
-	if (result.pathRelative.isEmpty() || !file.exists()) {
-		file.setFileName(result.pathAbsolute);
-	}
-
-	auto changed = false;
-	if (!file.fileName().isEmpty()
-		&& file.exists()
-		&& file.open(QIODevice::ReadOnly)) {
-		if (file.size() > kThemeFileSizeLimit) {
-			LOG(("Error: theme file too large: %1 "
-				"(should be less than 5 MB, got %2)"
-				).arg(file.fileName()
-				).arg(file.size()));
-			return {};
+	auto ignoreCache = false;
+	if (!isCloud) {
+		QFile file(object.pathRelative);
+		if (object.pathRelative.isEmpty() || !file.exists()) {
+			file.setFileName(object.pathAbsolute);
 		}
-		auto fileContent = file.readAll();
-		file.close();
-		if (result.content != fileContent) {
-			result.content = fileContent;
-			changed = true;
+		if (!file.fileName().isEmpty()
+			&& file.exists()
+			&& file.open(QIODevice::ReadOnly)) {
+			if (file.size() > kThemeFileSizeLimit) {
+				LOG(("Error: theme file too large: %1 "
+					"(should be less than 5 MB, got %2)"
+					).arg(file.fileName()
+					).arg(file.size()));
+				return {};
+			}
+			auto fileContent = file.readAll();
+			file.close();
+			if (object.content != fileContent) {
+				object.content = fileContent;
+				ignoreCache = true;
+			}
 		}
 	}
-	if (!changed) {
+	if (!ignoreCache) {
 		quint32 backgroundIsTiled = 0;
 		theme.stream
-			>> result.cache.paletteChecksum
-			>> result.cache.contentChecksum
-			>> result.cache.colors
-			>> result.cache.background
+			>> cache.paletteChecksum
+			>> cache.contentChecksum
+			>> cache.colors
+			>> cache.background
 			>> backgroundIsTiled;
-		result.cache.tiled = (backgroundIsTiled == 1);
+		cache.tiled = (backgroundIsTiled == 1);
 		if (theme.stream.status() != QDataStream::Ok) {
 			return {};
 		}
@@ -4235,20 +4261,24 @@ Window::Theme::Saved readThemeUsingKey(FileKey key) {
 
 QString loadThemeUsingKey(FileKey key) {
 	auto read = readThemeUsingKey(key);
-	const auto result = read.pathAbsolute;
-	return (!read.content.isEmpty() && Window::Theme::Load(std::move(read)))
-		? result
-		: QString();
+	const auto result = read.object.pathAbsolute;
+	if (read.object.content.isEmpty()
+		|| !Window::Theme::Load(std::move(read))) {
+		return QString();
+	}
+	return result;
 }
 
 void writeTheme(const Window::Theme::Saved &saved) {
+	using namespace Window::Theme;
+
 	if (_themeKeyLegacy) {
 		return;
 	}
-	auto &themeKey = Window::Theme::IsNightMode()
+	auto &themeKey = IsNightMode()
 		? _themeKeyNight
 		: _themeKeyDay;
-	if (saved.content.isEmpty()) {
+	if (saved.object.content.isEmpty()) {
 		if (themeKey) {
 			clearKey(themeKey);
 			themeKey = 0;
@@ -4262,14 +4292,41 @@ void writeTheme(const Window::Theme::Saved &saved) {
 		writeSettings();
 	}
 
-	auto backgroundTiled = static_cast<quint32>(saved.cache.tiled ? 1 : 0);
-	quint32 size = Serialize::bytearraySize(saved.content);
-	size += Serialize::stringSize(saved.pathRelative) + Serialize::stringSize(saved.pathAbsolute);
-	size += sizeof(int32) * 2 + Serialize::bytearraySize(saved.cache.colors) + Serialize::bytearraySize(saved.cache.background) + sizeof(quint32);
+	const auto &object = saved.object;
+	const auto &cache = saved.cache;
+	const auto tag = QString(kThemeNewPathRelativeTag);
+	const auto isCloud = (saved.object.pathAbsolute == kThemePathAbsoluteCloud);
+	quint32 size = Serialize::bytearraySize(object.content);
+	size += Serialize::stringSize(tag) + Serialize::stringSize(object.pathAbsolute);
+	if (isCloud) {
+		size += sizeof(uint64) * 3
+			+ Serialize::stringSize(object.cloud.slug)
+			+ Serialize::stringSize(object.cloud.title)
+			+ sizeof(qint32);
+	} else {
+		size += Serialize::stringSize(object.pathRelative);
+	}
+	size += sizeof(int32) * 2 + Serialize::bytearraySize(cache.colors) + Serialize::bytearraySize(cache.background) + sizeof(quint32);
 	EncryptedDescriptor data(size);
-	data.stream << saved.content;
-	data.stream << saved.pathRelative << saved.pathAbsolute;
-	data.stream << saved.cache.paletteChecksum << saved.cache.contentChecksum << saved.cache.colors << saved.cache.background << backgroundTiled;
+	data.stream << object.content;
+	data.stream << tag << object.pathAbsolute;
+	if (isCloud) {
+		data.stream
+			<< object.cloud.id
+			<< object.cloud.accessHash
+			<< object.cloud.slug
+			<< object.cloud.title
+			<< object.cloud.documentId
+			<< qint32(object.cloud.createdBy);
+	} else {
+		data.stream << object.pathRelative;
+	}
+	data.stream
+		<< cache.paletteChecksum
+		<< cache.contentChecksum
+		<< cache.colors
+		<< cache.background
+		<< quint32(cache.tiled ? 1 : 0);
 
 	FileWriteDescriptor file(themeKey, FileOption::Safe);
 	file.writeEncrypted(data, SettingsKey);

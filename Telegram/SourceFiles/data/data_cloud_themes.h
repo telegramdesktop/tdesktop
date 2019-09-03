@@ -18,8 +18,12 @@ struct CloudTheme {
 	uint64 accessHash = 0;
 	QString slug;
 	QString title;
-	DocumentData *document = nullptr;
-	bool creator = false;
+	DocumentId documentId = 0;
+	UserId createdBy = 0;
+
+	static CloudTheme Parse(
+		not_null<Main::Session*> session,
+		const MTPDtheme &data);
 };
 
 class CloudThemes final {

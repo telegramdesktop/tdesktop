@@ -50,8 +50,8 @@ void AbstractCheckView::setChecked(bool checked, anim::type animated) {
 			_checked ? 1. : 0.,
 			_duration);
 	}
+	checkedChangedHook(animated);
 	if (changed) {
-		checkedChangedHook(animated);
 		_checks.fire_copy(_checked);
 	}
 }
@@ -575,7 +575,7 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 					availableTextWidth,
 					width());
 			}
-		} else {
+		} else if (_allowMultiline || _text.countHeight(width() - _st.margin.left() - _st.margin.right()) < 2 * _st.style.font->height) {
 			_text.drawLeft(
 				p,
 				_st.margin.left(),
@@ -583,6 +583,13 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 				width() - _st.margin.left() - _st.margin.right(),
 				width(),
 				style::al_top);
+		} else {
+			_text.drawLeftElided(
+				p,
+				_st.margin.left(),
+				textTop,
+				width() - _st.margin.left() - _st.margin.right(),
+				width());
 		}
 	}
 }
@@ -636,7 +643,9 @@ int Checkbox::resizeGetHeight(int newWidth) {
 		? (newWidth - _st.margin.left() - _st.margin.right())
 		: qMax(width() - leftSkip, 1);
 	const auto textBottom = _st.textPosition.y()
-		+ _text.countHeight(availableTextWidth);
+		+ ((centered && !_allowMultiline)
+			? _st.style.font->height
+			: _text.countHeight(availableTextWidth));
 	return std::max(result, textBottom);
 }
 

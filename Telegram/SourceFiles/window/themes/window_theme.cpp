@@ -37,11 +37,8 @@ constexpr auto kNightThemeFile = str_const(":/gui/night.tdesktop-theme");
 constexpr auto kMinimumTiledSize = 512;
 
 struct Applying {
-	QString pathRelative;
-	QString pathAbsolute;
-	QByteArray content;
+	Saved data;
 	QByteArray paletteForRevert;
-	Cached cached;
 	Fn<void()> overrideKeep;
 };
 
@@ -383,15 +380,6 @@ QImage validateBackgroundImage(QImage image) {
 	return image;
 }
 
-void WriteAppliedTheme() {
-	auto saved = Saved();
-	saved.pathRelative = GlobalApplying.pathRelative;
-	saved.pathAbsolute = GlobalApplying.pathAbsolute;
-	saved.content = std::move(GlobalApplying.content);
-	saved.cache = std::move(GlobalApplying.cached);
-	Local::writeTheme(saved);
-}
-
 void ClearApplying() {
 	GlobalApplying = Applying();
 }
@@ -556,7 +544,7 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 	const auto needResetAdjustable = Data::IsDefaultWallPaper(paper)
 		&& !Data::IsDefaultWallPaper(_paper)
 		&& !nightMode()
-		&& _themeAbsolutePath.isEmpty();
+		&& _themeObject.pathAbsolute.isEmpty();
 	if (Data::IsThemeWallPaper(paper) && _themeImage.isNull()) {
 		setPaper(Data::DefaultWallPaper());
 	} else {
@@ -711,10 +699,10 @@ bool ChatBackground::adjustPaletteRequired() {
 }
 
 bool ChatBackground::isEditingTheme() const {
-	const auto path = AreTestingTheme()
-		? GlobalApplying.pathAbsolute
-		: _themeAbsolutePath;
-	return IsEditingTheme(path);
+	const auto &object = AreTestingTheme()
+		? GlobalApplying.data.object
+		: _themeObject;
+	return IsEditingTheme(object.pathAbsolute);
 }
 
 void ChatBackground::adjustPaletteUsingBackground(const QImage &image) {
@@ -812,12 +800,12 @@ void ChatBackground::setTileNightValue(bool tile) {
 	_tileNightValue = tile;
 }
 
-void ChatBackground::setThemeAbsolutePath(const QString &path) {
-	_themeAbsolutePath = path;
+void ChatBackground::setThemeObject(const Object &object) {
+	_themeObject = object;
 }
 
-QString ChatBackground::themeAbsolutePath() const {
-	return _themeAbsolutePath;
+const Object &ChatBackground::themeObject() const {
+	return _themeObject;
 }
 
 void ChatBackground::reset() {
@@ -871,7 +859,7 @@ void ChatBackground::setTestingTheme(Instance &&theme) {
 		|| Data::IsThemeWallPaper(_paper)
 		|| (Data::IsDefaultWallPaper(_paper)
 			&& !nightMode()
-			&& _themeAbsolutePath.isEmpty());
+			&& _themeObject.pathAbsolute.isEmpty());
 	if (AreTestingTheme() && isEditingTheme()) {
 		// Grab current background image if it is not already custom
 		// Use prepared pixmap, not original image, because we're
@@ -905,8 +893,8 @@ void ChatBackground::setTestingDefaultTheme() {
 	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
 }
 
-void ChatBackground::keepApplied(const QString &path, bool write) {
-	setThemeAbsolutePath(path);
+void ChatBackground::keepApplied(const Object &object, bool write) {
+	setThemeObject(object);
 	if (Data::details::IsTestingEditorWallPaper(_paper)) {
 		setPaper(Data::CustomWallPaper());
 		_themeImage = QImage();
@@ -935,15 +923,15 @@ void ChatBackground::keepApplied(const QString &path, bool write) {
 bool ChatBackground::isNonDefaultThemeOrBackground() {
 	start();
 	return nightMode()
-		? (_themeAbsolutePath != NightThemePath()
+		? (_themeObject.pathAbsolute != NightThemePath()
 			|| !Data::IsThemeWallPaper(_paper))
-		: (!_themeAbsolutePath.isEmpty()
+		: (!_themeObject.pathAbsolute.isEmpty()
 			|| !Data::IsDefaultWallPaper(_paper));
 }
 
 bool ChatBackground::isNonDefaultBackground() {
 	start();
-	return _themeAbsolutePath.isEmpty()
+	return _themeObject.pathAbsolute.isEmpty()
 		? !Data::IsDefaultWallPaper(_paper)
 		: !Data::IsThemeWallPaper(_paper);
 }
@@ -987,21 +975,19 @@ void ChatBackground::toggleNightMode(std::optional<QString> themePath) {
 	const auto newNightMode = !_nightMode;
 	_nightMode = newNightMode;
 	auto read = settingDefault ? Saved() : Local::readThemeAfterSwitch();
-	auto path = read.pathAbsolute;
+	auto path = read.object.pathAbsolute;
 
 	_nightMode = oldNightMode;
 	auto oldTileValue = (_nightMode ? _tileNightValue : _tileDayValue);
 	const auto alreadyOnDisk = [&] {
-		if (read.content.isEmpty()) {
+		if (read.object.content.isEmpty()) {
 			return false;
 		}
 		auto preview = std::make_unique<Preview>();
-		preview->pathAbsolute = std::move(read.pathAbsolute);
-		preview->pathRelative = std::move(read.pathRelative);
-		preview->content = std::move(read.content);
+		preview->object = std::move(read.object);
 		preview->instance.cached = std::move(read.cache);
 		const auto loaded = loadTheme(
-			preview->content,
+			preview->object.content,
 			preview->instance.cached,
 			ColorizerForTheme(path),
 			&preview->instance);
@@ -1026,12 +1012,13 @@ void ChatBackground::toggleNightMode(std::optional<QString> themePath) {
 			// Restore the value, it was set inside theme testing.
 			(oldNightMode ? _tileNightValue : _tileDayValue) = oldTileValue;
 
+			const auto saved = std::move(GlobalApplying.data);
 			if (!alreadyOnDisk) {
 				// First-time switch to default night mode should write it.
-				WriteAppliedTheme();
+				Local::writeTheme(saved);
 			}
 			ClearApplying();
-			keepApplied(path, settingDefault);
+			keepApplied(saved.object, settingDefault);
 			if (tile() != _tileForRevert) {
 				Local::writeUserSettings();
 			}
@@ -1049,25 +1036,25 @@ ChatBackground *Background() {
 }
 
 bool Load(Saved &&saved) {
-	if (saved.content.size() < 4) {
+	if (saved.object.content.size() < 4) {
 		LOG(("Theme Error: Could not load theme from '%1' (%2)"
-			).arg(saved.pathRelative
-			).arg(saved.pathAbsolute));
+			).arg(saved.object.pathRelative
+			).arg(saved.object.pathAbsolute));
 		return false;
 	}
 
 	GlobalBackground.createIfNull();
-	if (loadThemeFromCache(saved.content, saved.cache)) {
-		Background()->setThemeAbsolutePath(saved.pathAbsolute);
+	if (loadThemeFromCache(saved.object.content, saved.cache)) {
+		Background()->setThemeObject(saved.object);
 		return true;
 	}
 
-	const auto colorizer = ColorizerForTheme(saved.pathAbsolute);
-	if (!loadTheme(saved.content, saved.cache, colorizer)) {
+	const auto colorizer = ColorizerForTheme(saved.object.pathAbsolute);
+	if (!loadTheme(saved.object.content, saved.cache, colorizer)) {
 		return false;
 	}
 	Local::writeTheme(saved);
-	Background()->setThemeAbsolutePath(saved.pathAbsolute);
+	Background()->setThemeObject(saved.object);
 	return true;
 }
 
@@ -1077,17 +1064,15 @@ void Unload() {
 }
 
 bool Apply(const QString &filepath) {
-	if (auto preview = PreviewFromFile(filepath)) {
+	if (auto preview = PreviewFromFile(filepath, {}, {})) {
 		return Apply(std::move(preview));
 	}
 	return false;
 }
 
 bool Apply(std::unique_ptr<Preview> preview) {
-	GlobalApplying.pathRelative = std::move(preview->pathRelative);
-	GlobalApplying.pathAbsolute = std::move(preview->pathAbsolute);
-	GlobalApplying.content = std::move(preview->content);
-	GlobalApplying.cached = std::move(preview->instance.cached);
+	GlobalApplying.data.object = std::move(preview->object);
+	GlobalApplying.data.cache = std::move(preview->instance.cached);
 	if (GlobalApplying.paletteForRevert.isEmpty()) {
 		GlobalApplying.paletteForRevert = style::main_palette::save();
 	}
@@ -1097,14 +1082,11 @@ bool Apply(std::unique_ptr<Preview> preview) {
 
 void ApplyDefaultWithPath(const QString &themePath) {
 	if (!themePath.isEmpty()) {
-		if (auto preview = PreviewFromFile(themePath)) {
+		if (auto preview = PreviewFromFile(themePath, {}, {})) {
 			Apply(std::move(preview));
 		}
 	} else {
-		GlobalApplying.pathRelative = QString();
-		GlobalApplying.pathAbsolute = QString();
-		GlobalApplying.content = QByteArray();
-		GlobalApplying.cached = Cached();
+		GlobalApplying.data = Saved();
 		if (GlobalApplying.paletteForRevert.isEmpty()) {
 			GlobalApplying.paletteForRevert = style::main_palette::save();
 		}
@@ -1123,14 +1105,14 @@ bool ApplyEditedPalette(const QString &path, const QByteArray &content) {
 		content.constData(),
 		content.size());
 
-	GlobalApplying.pathRelative = path.isEmpty()
+	GlobalApplying.data.object.pathRelative = path.isEmpty()
 		? QString()
 		: QDir().relativeFilePath(path);
-	GlobalApplying.pathAbsolute = path.isEmpty()
+	GlobalApplying.data.object.pathAbsolute = path.isEmpty()
 		? QString()
 		: QFileInfo(path).absoluteFilePath();
-	GlobalApplying.content = content;
-	GlobalApplying.cached = out.cached;
+	GlobalApplying.data.object.content = content;
+	GlobalApplying.data.cache = out.cached;
 	if (GlobalApplying.paletteForRevert.isEmpty()) {
 		GlobalApplying.paletteForRevert = style::main_palette::save();
 	}
@@ -1150,10 +1132,10 @@ void KeepApplied() {
 		onstack();
 		return;
 	}
-	const auto path = GlobalApplying.pathAbsolute;
-	WriteAppliedTheme();
+	const auto saved = std::move(GlobalApplying.data);
+	Local::writeTheme(saved);
 	ClearApplying();
-	Background()->keepApplied(path, true);
+	Background()->keepApplied(saved.object, true);
 }
 
 void Revert() {

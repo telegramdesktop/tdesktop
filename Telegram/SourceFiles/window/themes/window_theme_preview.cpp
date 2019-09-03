@@ -908,24 +908,42 @@ void Generator::restoreTextPalette() {
 
 } // namespace
 
-std::unique_ptr<Preview> PreviewFromFile(const QString &filepath) {
+std::unique_ptr<Preview> PreviewFromFile(
+		const QString &filepath,
+		const QByteArray &bytes,
+		const Data::CloudTheme &cloud) {
 	auto result = std::make_unique<Preview>();
-	result->pathRelative = filepath.isEmpty()
-		? QString()
-		: QDir().relativeFilePath(filepath);
-	result->pathAbsolute = filepath.isEmpty()
-		? QString()
-		: QFileInfo(filepath).absoluteFilePath();
-	if (!LoadFromFile(filepath, &result->instance, &result->content)) {
-		return nullptr;
+	auto &object = result->object;
+	object.cloud = cloud;
+	if (cloud.documentId || filepath.isEmpty()) {
+		object.pathRelative = QString();
+		object.pathAbsolute = QString(kThemePathAbsoluteCloud);
+	} else {
+		object.pathRelative = filepath.isEmpty()
+			? QString()
+			: QDir().relativeFilePath(filepath);
+		object.pathAbsolute = filepath.isEmpty()
+			? QString()
+			: QFileInfo(filepath).absoluteFilePath();
+	}
+	if (bytes.isEmpty()) {
+		if (!LoadFromFile(filepath, &result->instance, &object.content)) {
+			return nullptr;
+		}
+	} else {
+		if (!LoadFromContent(bytes, &result->instance)) {
+			return nullptr;
+		}
 	}
 	return result;
 }
 
 std::unique_ptr<Preview> GeneratePreview(
 		const QString &filepath,
+		const QByteArray &bytes,
+		const Data::CloudTheme &cloud,
 		CurrentData &&data) {
-	auto result = PreviewFromFile(filepath);
+	auto result = PreviewFromFile(filepath, bytes, cloud);
 	if (!result) {
 		return nullptr;
 	}

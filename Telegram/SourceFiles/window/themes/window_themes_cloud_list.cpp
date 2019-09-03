@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "data/data_file_origin.h"
 #include "data/data_document.h"
+#include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "styles/style_settings.h"
@@ -222,6 +223,11 @@ void CloudListBox(
 	box->setTitle(tr::lng_settings_bg_cloud_themes());
 	box->setWidth(st::boxWideWidth);
 
+	const auto currentId = Background()->themeObject().cloud.documentId;
+	ranges::stable_sort(list, std::less<>(), [&](const Data::CloudTheme &t) {
+		return !t.documentId ? 2 : (t.documentId == currentId) ? 0 : 1;
+	});
+
 	const auto content = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
 		style::margins(
@@ -229,7 +235,27 @@ void CloudListBox(
 			0,
 			st::settingsSubsectionTitlePadding.right(),
 			0));
-	const auto group = std::make_shared<Ui::RadiobuttonGroup>(-1);
+	const auto group = std::make_shared<Ui::RadiobuttonGroup>();
+	const auto resolveCurrent = [=] {
+		const auto currentId = Background()->themeObject().cloud.id;
+		const auto i = currentId
+			? ranges::find(list, currentId, &Data::CloudTheme::id)
+			: end(list);
+		group->setValue(i - begin(list));
+	};
+
+	resolveCurrent();
+	auto checker = Background()->add_subscription([=](const BackgroundUpdate &update) {
+		if (update.type == BackgroundUpdate::Type::ApplyingTheme
+			|| update.type == BackgroundUpdate::Type::New) {
+			resolveCurrent();
+		}
+	});
+	group->setChangedCallback([=](int selected) {
+		resolveCurrent();
+	});
+	Ui::AttachAsChild(box, std::move(checker));
+
 	const auto waiting = std::make_shared<std::vector<WaitingPair>>();
 	const auto fallback = std::make_shared<QImage>();
 	const auto buttonsMap = std::make_shared<base::flat_map<
@@ -248,13 +274,13 @@ void CloudListBox(
 		list
 	) | ranges::view::transform([&](const Data::CloudTheme &theme)
 		-> not_null<Ui::RpWidget*> {
-		const auto document = theme.document;
-		if (!document) {
+		if (!theme.documentId) {
+			index++;
 			return Ui::CreateChild<Ui::RpWidget>(content);
 		}
-		if (document) {
-			document->save(Data::FileOrigin(), QString()); // #TODO themes
-		}
+		const auto document = window->session().data().document(
+			theme.documentId);
+		document->save(Data::FileOrigin(), QString()); // #TODO themes
 		auto colors = ColorsFromTheme(
 			document->filepath(),
 			document->data());

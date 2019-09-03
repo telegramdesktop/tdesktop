@@ -998,9 +998,9 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		container.get());
 
 	const auto chosen = [] {
-		const auto path = Window::Theme::Background()->themeAbsolutePath();
+		const auto &object = Window::Theme::Background()->themeObject();
 		for (const auto &scheme : kSchemesList) {
-			if (path == scheme.path) {
+			if (object.pathAbsolute == scheme.path) {
 				return scheme.type;
 			}
 		}
@@ -1013,7 +1013,8 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			const auto type = scheme.type;
 			return (type != Type::DayBlue) && (type != Type::Default);
 		};
-		const auto currentlyIsCustom = (chosen() == Type(-1));
+		const auto currentlyIsCustom = (chosen() == Type(-1))
+			&& !Window::Theme::Background()->themeObject().cloud.id;
 		if (Window::Theme::IsNightMode() == isNight(scheme)) {
 			Window::Theme::ApplyDefaultWithPath(scheme.path);
 		} else {
