@@ -1073,7 +1073,7 @@ inputTheme#3c5693e9 id:long access_hash:long = InputTheme;
 inputThemeSlug#f5890df1 slug:string = InputTheme;
 
 themeDocumentNotModified#483d270c = Theme;
-theme#574e4de9 flags:# creator:flags.0?true default:flags.1?true id:long access_hash:long slug:string title:string document:Document = Theme;
+theme#f7d90ce0 flags:# creator:flags.0?true default:flags.1?true id:long access_hash:long slug:string title:string document:flags.2?Document installs_count:int = Theme;
 
 account.themesNotModified#f41eb622 = account.Themes;
 account.themes#7f676421 hash:int themes:Vector<Theme> = account.Themes;
@@ -1161,9 +1161,9 @@ account.getAutoDownloadSettings#56da0b3f = account.AutoDownloadSettings;
 account.saveAutoDownloadSettings#76f36233 flags:# low:flags.0?true high:flags.1?true settings:AutoDownloadSettings = Bool;
 account.uploadTheme#1c3db333 flags:# file:InputFile thumb:flags.0?InputFile file_name:string mime_type:string = Document;
 account.createTheme#2b7ffd7f slug:string title:string document:InputDocument = Theme;
-account.updateTheme#f8997176 flags:# theme:InputTheme slug:flags.0?string title:flags.1?string document:flags.2?InputDocument = Theme;
+account.updateTheme#3b8ea202 flags:# format:string theme:InputTheme slug:flags.0?string title:flags.1?string document:flags.2?InputDocument = Theme;
 account.saveTheme#f257106c theme:InputTheme unsave:Bool = Bool;
-account.installTheme#e0f8439c format:string theme:InputTheme = Bool;
+account.installTheme#7ae43737 flags:# dark:flags.0?true format:flags.1?string theme:flags.1?InputTheme = Bool;
 account.getTheme#8d9d742b format:string theme:InputTheme document_id:long = Theme;
 account.getThemes#285946f8 format:string hash:int = account.Themes;
 
