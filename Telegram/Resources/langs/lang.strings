@@ -1603,6 +1603,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_done" = "Theme exported successfully!";
 "lng_theme_editor_title" = "Edit color palette";
 "lng_theme_editor_export_button" = "Export theme";
+"lng_theme_editor_save_button" = "Save theme";
 
 "lng_theme_editor_create_title" = "Create theme";
 "lng_theme_editor_name" = "Theme name";

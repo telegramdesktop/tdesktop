@@ -9,9 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor_block.h"
+#include "window/themes/window_theme_editor_box.h"
 #include "window/themes/window_themes_embedded.h"
+#include "window/window_controller.h"
+#include "main/main_account.h"
 #include "mainwindow.h"
-#include "layout.h"
 #include "storage/localstorage.h"
 #include "boxes/confirm_box.h"
 #include "styles/style_window.h"
@@ -20,9 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/checkbox.h"
 #include "ui/widgets/multi_select.h"
-#include "ui/image/image_prepare.h"
 #include "ui/toast/toast.h"
 #include "base/parse_helper.h"
 #include "base/zlib_help.h"
@@ -247,8 +247,9 @@ public:
 	}
 
 	void prepare();
-
-	Fn<void()> exportCallback();
+	[[nodiscard]] QByteArray paletteContent() const {
+		return _paletteContent;
+	}
 
 	void filterRows(const QString &query);
 	void chooseRow();
@@ -290,34 +291,6 @@ private:
 	object_ptr<EditorBlock> _newRows;
 
 	bool _applyingUpdate = false;
-
-};
-
-class ThemeExportBox : public BoxContent {
-public:
-	ThemeExportBox(QWidget*, const QByteArray &paletteContent, const QImage &background, const QByteArray &backgroundContent, bool tileBackground);
-
-protected:
-	void prepare() override;
-
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-private:
-	void updateThumbnail();
-	void chooseBackgroundFromFile();
-	void exportTheme();
-
-	QByteArray _paletteContent;
-
-	QImage _background;
-	QByteArray _backgroundContent;
-	bool _isPng = false;
-	QString _imageText;
-	QPixmap _thumbnail;
-
-	object_ptr<Ui::LinkButton> _chooseFromFile;
-	object_ptr<Ui::Checkbox> _tileBackground;
 
 };
 
@@ -400,19 +373,6 @@ void Editor::Inner::prepare() {
 	if (!readData()) {
 		error();
 	}
-}
-
-Fn<void()> Editor::Inner::exportCallback() {
-	return App::LambdaDelayed(st::defaultRippleAnimation.hideDuration, this, [=] {
-		auto background = Background()->createCurrentImage();
-		auto backgroundContent = QByteArray();
-		auto tiled = Background()->tile();
-		{
-			QBuffer buffer(&backgroundContent);
-			background.save(&buffer, "JPG", 87);
-		}
-		Ui::show(Box<ThemeExportBox>(_paletteContent, background, backgroundContent, tiled));
-	});
 }
 
 void Editor::Inner::filterRows(const QString &query) {
@@ -637,150 +597,45 @@ void Editor::Inner::applyEditing(const QString &name, const QString &copyOf, QCo
 	_paletteContent = newContent;
 }
 
-ThemeExportBox::ThemeExportBox(QWidget*, const QByteArray &paletteContent, const QImage &background, const QByteArray &backgroundContent, bool tileBackground) : BoxContent()
-, _paletteContent(paletteContent)
-, _background(background)
-, _backgroundContent(backgroundContent)
-, _chooseFromFile(this, tr::lng_settings_bg_from_file(tr::now), st::boxLinkButton)
-, _tileBackground(this, tr::lng_settings_bg_tile(tr::now), tileBackground, st::defaultBoxCheckbox) {
-	_imageText = tr::lng_theme_editor_saved_to_jpg(tr::now, lt_size, formatSizeText(_backgroundContent.size()));
-	_chooseFromFile->setClickedCallback([this] { chooseBackgroundFromFile(); });
-}
+//void ThemeExportBox::exportTheme() {
+//	App::CallDelayed(st::defaultRippleAnimation.hideDuration, this, [this] {
+//		auto caption = tr::lng_theme_editor_choose_name(tr::now);
+//		auto filter = "Themes (*.tdesktop-theme)";
+//		auto name = "awesome.tdesktop-theme";
+//		FileDialog::GetWritePath(this, caption, filter, name, crl::guard(this, [this](const QString &path) {
+//			QFile f(path);
+//			if (!f.open(QIODevice::WriteOnly)) {
+//				LOG(("Theme Error: could not open zip-ed theme file '%1' for writing").arg(path));
+//				Ui::show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
+//				return;
+//			}
+//			if (f.write(result) != result.size()) {
+//				LOG(("Theme Error: could not write zip-ed theme to file '%1'").arg(path));
+//				Ui::show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
+//				return;
+//			}
+//			Ui::hideLayer();
+//			Ui::Toast::Show(tr::lng_theme_editor_done(tr::now));
+//		}));
+//	});
+//}
 
-void ThemeExportBox::prepare() {
-	setTitle(tr::lng_theme_editor_background_image());
-
-	addButton(tr::lng_theme_editor_export(), [this] { exportTheme(); });
-	addButton(tr::lng_cancel(), [this] { closeBox(); });
-
-	auto height = st::themesSmallSkip + st::themesBackgroundSize + st::themesSmallSkip + _tileBackground->height();
-
-	setDimensions(st::boxWideWidth, height);
-
-	updateThumbnail();
-}
-
-void ThemeExportBox::paintEvent(QPaintEvent *e) {
-	BoxContent::paintEvent(e);
-
-	Painter p(this);
-
-	auto linkLeft = st::boxPadding.left() + st::themesBackgroundSize + st::themesSmallSkip;
-
-	p.setPen(st::boxTextFg);
-	p.setFont(st::boxTextFont);
-	p.drawTextLeft(linkLeft, st::themesSmallSkip, width(), _imageText);
-
-	p.drawPixmapLeft(st::boxPadding.left(), st::themesSmallSkip, width(), _thumbnail);
-}
-
-void ThemeExportBox::resizeEvent(QResizeEvent *e) {
-	auto linkLeft = st::boxPadding.left() + st::themesBackgroundSize + st::themesSmallSkip;
-	_chooseFromFile->moveToLeft(linkLeft, st::themesSmallSkip + st::boxTextFont->height + st::themesSmallSkip);
-	_tileBackground->moveToLeft(st::boxPadding.left(), st::themesSmallSkip + st::themesBackgroundSize + 2 * st::themesSmallSkip);
-}
-
-void ThemeExportBox::updateThumbnail() {
-	int32 size = st::themesBackgroundSize * cIntRetinaFactor();
-	QImage back(size, size, QImage::Format_ARGB32_Premultiplied);
-	back.setDevicePixelRatio(cRetinaFactor());
-	{
-		Painter p(&back);
-		PainterHighQualityEnabler hq(p);
-
-		auto &pix = _background;
-		int sx = (pix.width() > pix.height()) ? ((pix.width() - pix.height()) / 2) : 0;
-		int sy = (pix.height() > pix.width()) ? ((pix.height() - pix.width()) / 2) : 0;
-		int s = (pix.width() > pix.height()) ? pix.height() : pix.width();
-		p.drawImage(QRect(0, 0, st::themesBackgroundSize, st::themesBackgroundSize), pix, QRect(sx, sy, s, s));
-	}
-	Images::prepareRound(back, ImageRoundRadius::Small);
-	_thumbnail = App::pixmapFromImageInPlace(std::move(back));
-	_thumbnail.setDevicePixelRatio(cRetinaFactor());
-	update();
-}
-
-void ThemeExportBox::chooseBackgroundFromFile() {
-	FileDialog::GetOpenPath(this, tr::lng_theme_editor_choose_image(tr::now), "Image files (*.jpeg *.jpg *.png)", crl::guard(this, [this](const FileDialog::OpenResult &result) {
-		auto content = result.remoteContent;
-		if (!result.paths.isEmpty()) {
-			QFile f(result.paths.front());
-			if (f.open(QIODevice::ReadOnly)) {
-				content = f.readAll();
-				f.close();
-			}
-		}
-		if (!content.isEmpty()) {
-			auto format = QByteArray();
-			auto image = App::readImage(content, &format);
-			if (!image.isNull() && (format == "jpeg" || format == "jpg" || format == "png")) {
-				_background = image;
-				_backgroundContent = content;
-				_isPng = (format == "png");
-				auto sizeText = formatSizeText(_backgroundContent.size());
-				_imageText = _isPng ? tr::lng_theme_editor_read_from_png(tr::now, lt_size, sizeText) : tr::lng_theme_editor_read_from_jpg(tr::now, lt_size, sizeText);
-				_tileBackground->setChecked(false);
-				updateThumbnail();
-			}
-		}
-	}));
-}
-
-void ThemeExportBox::exportTheme() {
-	App::CallDelayed(st::defaultRippleAnimation.hideDuration, this, [this] {
-		auto caption = tr::lng_theme_editor_choose_name(tr::now);
-		auto filter = "Themes (*.tdesktop-theme)";
-		auto name = "awesome.tdesktop-theme";
-		FileDialog::GetWritePath(this, caption, filter, name, crl::guard(this, [this](const QString &path) {
-			zlib::FileToWrite zip;
-
-			zip_fileinfo zfi = { { 0, 0, 0, 0, 0, 0 }, 0, 0, 0 };
-			auto background = std::string(_tileBackground->checked() ? "tiled" : "background") + (_isPng ? ".png" : ".jpg");
-			zip.openNewFile(background.c_str(), &zfi, nullptr, 0, nullptr, 0, nullptr, Z_DEFLATED, Z_DEFAULT_COMPRESSION);
-			zip.writeInFile(_backgroundContent.constData(), _backgroundContent.size());
-			zip.closeFile();
-			auto scheme = "colors.tdesktop-theme";
-			zip.openNewFile(scheme, &zfi, nullptr, 0, nullptr, 0, nullptr, Z_DEFLATED, Z_DEFAULT_COMPRESSION);
-			zip.writeInFile(_paletteContent.constData(), _paletteContent.size());
-			zip.closeFile();
-			zip.close();
-
-			if (zip.error() != ZIP_OK) {
-				LOG(("Theme Error: could not export zip-ed theme, status: %1").arg(zip.error()));
-				Ui::show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
-				return;
-			}
-			auto result = zip.result();
-
-			QFile f(path);
-			if (!f.open(QIODevice::WriteOnly)) {
-				LOG(("Theme Error: could not open zip-ed theme file '%1' for writing").arg(path));
-				Ui::show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
-				return;
-			}
-			if (f.write(result) != result.size()) {
-				LOG(("Theme Error: could not write zip-ed theme to file '%1'").arg(path));
-				Ui::show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
-				return;
-			}
-			Ui::hideLayer();
-			Ui::Toast::Show(tr::lng_theme_editor_done(tr::now));
-		}));
-	});
-}
-
-Editor::Editor(QWidget*)
-: _scroll(this, st::themesScroll)
+Editor::Editor(QWidget*, not_null<Window::Controller*> window)
+: _window(window)
+, _scroll(this, st::themesScroll)
 , _close(this, st::contactsMultiSelect.fieldCancel)
 , _select(this, st::contactsMultiSelect, tr::lng_country_ph())
 , _leftShadow(this)
 , _topShadow(this)
-, _export(this, tr::lng_theme_editor_export_button(tr::now).toUpper(), st::dialogsUpdateButton) {
+, _save(this, tr::lng_theme_editor_save_button(tr::now).toUpper(), st::dialogsUpdateButton) {
 	const auto path = EditingPalettePath();
 
 	_inner = _scroll->setOwnedWidget(object_ptr<Inner>(this, path));
 
-	_export->setClickedCallback(_inner->exportCallback());
+	_save->setClickedCallback(App::LambdaDelayed(
+		st::defaultRippleAnimation.hideDuration,
+		this,
+		[=] { save(); }));
 
 	_inner->setErrorCallback([this] {
 		Ui::show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
@@ -808,8 +663,16 @@ Editor::Editor(QWidget*)
 	resizeToWidth(st::windowMinWidth);
 }
 
+void Editor::save() {
+	if (!_window->account().sessionExists()) {
+		//_window->show(Box<InformBox>())
+		return;
+	}
+	Ui::show(Box(SaveThemeBox, _window, _inner->paletteContent()));
+}
+
 void Editor::resizeEvent(QResizeEvent *e) {
-	_export->resizeToWidth(width());
+	_save->resizeToWidth(width());
 	_close->moveToRight(0, 0);
 
 	_select->resizeToWidth(width());
@@ -821,7 +684,7 @@ void Editor::resizeEvent(QResizeEvent *e) {
 	_topShadow->moveToLeft(st::lineWidth, shadowTop);
 	_leftShadow->resize(st::lineWidth, height());
 	_leftShadow->moveToLeft(0, 0);
-	auto scrollSize = QSize(width(), height() - shadowTop - _export->height());
+	auto scrollSize = QSize(width(), height() - shadowTop - _save->height());
 	if (_scroll->size() != scrollSize) {
 		_scroll->resize(scrollSize);
 	}
@@ -831,7 +694,7 @@ void Editor::resizeEvent(QResizeEvent *e) {
 		auto scrollTop = _scroll->scrollTop();
 		_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 	}
-	_export->moveToLeft(0, _scroll->y() + _scroll->height());
+	_save->moveToLeft(0, _scroll->y() + _scroll->height());
 }
 
 void Editor::keyPressEvent(QKeyEvent *e) {
@@ -894,7 +757,7 @@ void Editor::paintEvent(QPaintEvent *e) {
 //}
 
 void Editor::closeEditor() {
-	if (auto window = App::wnd()) {
+	if (const auto window = App::wnd()) {
 		window->showRightColumn(nullptr);
 	}
 }

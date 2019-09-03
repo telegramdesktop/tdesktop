@@ -7,16 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-class GenericBox;
-
-namespace Main {
-class Session;
-} // namespace Main
+#include "boxes/generic_box.h"
 
 namespace Window {
+
+class Controller;
+
 namespace Theme {
 
-void CreateBox(not_null<GenericBox*> box, not_null<Main::Session*> session);
+void CreateBox(
+	not_null<GenericBox*> box,
+	not_null<Window::Controller*> window);
+void SaveThemeBox(
+	not_null<GenericBox*> box,
+	not_null<Window::Controller*> window,
+	const QByteArray &palette);
 
 } // namespace Theme
 } // namespace Window

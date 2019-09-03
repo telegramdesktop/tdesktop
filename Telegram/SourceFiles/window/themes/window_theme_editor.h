@@ -16,6 +16,9 @@ class PlainShadow;
 } // namespace Ui
 
 namespace Window {
+
+class Controller;
+
 namespace Theme {
 
 bool CopyColorsToPalette(
@@ -25,7 +28,7 @@ bool CopyColorsToPalette(
 
 class Editor : public TWidget {
 public:
-	explicit Editor(QWidget*);
+	Editor(QWidget*, not_null<Window::Controller*> window);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -35,8 +38,10 @@ protected:
 	void focusInEvent(QFocusEvent *e) override;
 
 private:
+	void save();
 	void closeEditor();
 
+	not_null<Window::Controller*> _window;
 	object_ptr<Ui::ScrollArea> _scroll;
 	class Inner;
 	QPointer<Inner> _inner;
@@ -44,7 +49,7 @@ private:
 	object_ptr<Ui::MultiSelect> _select;
 	object_ptr<Ui::PlainShadow> _leftShadow;
 	object_ptr<Ui::PlainShadow> _topShadow;
-	object_ptr<Ui::FlatButton> _export;
+	object_ptr<Ui::FlatButton> _save;
 
 };
 

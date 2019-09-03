@@ -21,7 +21,7 @@ enum class SendMediaType {
 	Photo,
 	Audio,
 	File,
-	WallPaper,
+	ThemeFile,
 	Secure,
 };
 
@@ -85,7 +85,6 @@ struct SendMediaReady {
 };
 
 SendMediaReady PreparePeerPhoto(PeerId peerId, QImage &&image);
-SendMediaReady PrepareWallPaper(const QImage &image);
 
 using TaskId = void*; // no interface, just id
 

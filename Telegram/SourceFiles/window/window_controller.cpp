@@ -43,7 +43,7 @@ void Controller::firstShow() {
 
 void Controller::checkThemeEditor() {
 	if (Window::Theme::Background()->isEditingTheme()) {
-		_widget.showRightColumn(Box<Window::Theme::Editor>());
+		showRightColumn(Box<Window::Theme::Editor>(this));
 	}
 }
 
@@ -72,6 +72,10 @@ void Controller::showBox(
 		LayerOptions options,
 		anim::type animated) {
 	_widget.ui_showBox(std::move(content), options, animated);
+}
+
+void Controller::showRightColumn(object_ptr<TWidget> widget) {
+	_widget.showRightColumn(std::move(widget));
 }
 
 void Controller::activate() {

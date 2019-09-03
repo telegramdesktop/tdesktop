@@ -52,6 +52,8 @@ public:
 		return result;
 	}
 
+	void showRightColumn(object_ptr<TWidget> widget);
+
 	void activate();
 	void reActivate();
 	void updateIsActive(int timeout);

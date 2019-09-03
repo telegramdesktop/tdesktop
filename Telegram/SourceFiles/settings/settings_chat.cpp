@@ -27,10 +27,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/image/image_source.h"
 #include "lang/lang_keys.h"
-#include "window/themes/window_theme_editor.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_themes_embedded.h"
-#include "window/themes/window_theme_create_box.h"
+#include "window/themes/window_theme_editor_box.h"
 #include "window/window_session_controller.h"
 #include "info/profile/info_profile_button.h"
 #include "storage/localstorage.h"
@@ -43,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_templates.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 
@@ -1264,7 +1264,9 @@ void SetupThemeOptions(
 		&st::settingsIconThemes,
 		st::settingsChatIconLeft
 	)->addClickHandler([=] {
-		Ui::show(Box(Window::Theme::CreateBox, &controller->session()));
+		Ui::show(Box(
+			Window::Theme::CreateBox,
+			&controller->window()->controller()));
 	});
 
 	AddSkip(container);

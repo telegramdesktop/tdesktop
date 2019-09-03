@@ -309,6 +309,21 @@ createThemeImportButton: InfoProfileButton {
 
 	ripple: defaultRippleAnimation;
 }
+createThemeLink: InputField(defaultInputField) {
+	textMargins: margins(0px, 7px, 0px, 0px);
+	textBg: boxBg;
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(0px, 0px, 0px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: boxTextFont;
+
+	heightMin: 34px;
+
+	font: boxTextFont;
+}
 
 // Mac specific
 
