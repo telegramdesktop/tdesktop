@@ -15,6 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme_editor.h"
 #include "mainwindow.h"
 
+#include <QtGui/QWindow>
+#include <QtGui/QScreen>
+
 namespace Window {
 
 Controller::Controller(not_null<Main::Account*> account)

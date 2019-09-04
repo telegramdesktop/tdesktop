@@ -100,6 +100,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 
+#include <QtCore/QCoreApplication>
+#include <QtCore/QMimeData>
+
 namespace {
 
 constexpr auto kChannelGetDifferenceLimit = 100;

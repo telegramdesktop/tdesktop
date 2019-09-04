@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/binary_guard.h"
 #include "data/data_file_origin.h"
 
+#include <QtNetwork/QNetworkReply>
+
 class ApiWrap;
 
 namespace Main {

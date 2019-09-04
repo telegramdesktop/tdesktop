@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 
+#include <QtCore/QBuffer>
+
 namespace {
 
 constexpr auto kThumbnailQuality = 87;

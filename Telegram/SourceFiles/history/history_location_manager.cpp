@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "platform/platform_specific.h"
 
+#include <QtGui/QDesktopServices>
+
 namespace {
 
 constexpr auto kCoordPrecision = 8;

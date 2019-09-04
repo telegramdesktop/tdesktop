@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "ui/rp_widget.h"
 
+#include <QtCore/QCoreApplication>
+
 namespace Ui {
 namespace {
 
@@ -243,7 +245,7 @@ CheckCaches *FrameCaches() {
 	if (const auto instance = Instance.data()) {
 		return instance;
 	}
-	const auto result = new CheckCaches(QGuiApplication::instance());
+	const auto result = new CheckCaches(QCoreApplication::instance());
 	Instance = result;
 	const auto subscription = Ui::CreateChild<base::Subscription>(result);
 	*subscription = Window::Theme::Background()->add_subscription([=](

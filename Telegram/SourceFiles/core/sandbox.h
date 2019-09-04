@@ -7,6 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtWidgets/QApplication>
+#include <QtNetwork/QLocalServer>
+#include <QtNetwork/QLocalSocket>
+#include <QtCore/QAbstractNativeEventFilter>
+
 namespace Core {
 
 class Launcher;
@@ -52,9 +57,9 @@ public:
 	ProxyData sandboxProxy() const;
 
 	static Sandbox &Instance() {
-		Expects(QApplication::instance() != nullptr);
+		Expects(QCoreApplication::instance() != nullptr);
 
-		return *static_cast<Sandbox*>(QApplication::instance());
+		return *static_cast<Sandbox*>(QCoreApplication::instance());
 	}
 
 	~Sandbox();

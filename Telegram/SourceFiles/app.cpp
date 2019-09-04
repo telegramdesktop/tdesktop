@@ -47,6 +47,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 
+#include <QtCore/QBuffer>
+#include <QtGui/QFontDatabase>
+
 #ifdef OS_MAC_OLD
 #include <libexif/exif-data.h>
 #endif // OS_MAC_OLD

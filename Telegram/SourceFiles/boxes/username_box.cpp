@@ -19,6 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "styles/style_boxes.h"
 
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 namespace {
 
 constexpr auto kMinUsernameLength = 5;
@@ -167,7 +170,7 @@ void UsernameBox::changed() {
 }
 
 void UsernameBox::linkClick() {
-	QApplication::clipboard()->setText(Core::App().createInternalLinkFull(getName()));
+	QGuiApplication::clipboard()->setText(Core::App().createInternalLinkFull(getName()));
 	Ui::Toast::Show(tr::lng_username_copied(tr::now));
 }
 

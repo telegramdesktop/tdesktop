@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/crash_reports.h"
 
+#include <QtWidgets/QFileDialog>
+#include <QtGui/QDesktopServices>
+#include <QtCore/QSettings>
+
 #include <Shlwapi.h>
 #include <Windowsx.h>
 

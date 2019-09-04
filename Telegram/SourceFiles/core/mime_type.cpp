@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/mime_type.h"
 
+#include <QtCore/QMimeDatabase>
+
 namespace Core {
 
 MimeType::MimeType(const QMimeType &type) : _typeStruct(type) {

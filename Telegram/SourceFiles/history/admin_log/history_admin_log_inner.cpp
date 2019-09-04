@@ -43,6 +43,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 
+#include <QtWidgets/QApplication>
+#include <QtGui/QClipboard>
+
 namespace AdminLog {
 namespace {
 
@@ -1093,7 +1096,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(
 				actionText,
 				[text = link->copyToClipboardText()] {
-					QApplication::clipboard()->setText(text);
+					QGuiApplication::clipboard()->setText(text);
 				});
 		}
 	}
@@ -1134,7 +1137,7 @@ void InnerWidget::saveDocumentToFile(DocumentData *document) {
 void InnerWidget::copyContextImage(PhotoData *photo) {
 	if (!photo || photo->isNull() || !photo->loaded()) return;
 
-	QApplication::clipboard()->setImage(photo->large()->original());
+	QGuiApplication::clipboard()->setImage(photo->large()->original());
 }
 
 void InnerWidget::copySelectedText() {

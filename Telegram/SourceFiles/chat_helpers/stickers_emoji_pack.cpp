@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_history.h"
 
+#include <QtCore/QBuffer>
+
 namespace Stickers {
 namespace details {
 

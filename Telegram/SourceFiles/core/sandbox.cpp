@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "ui/effects/animations.h"
 
+#include <QtGui/QScreen>
+
 namespace Core {
 namespace {
 

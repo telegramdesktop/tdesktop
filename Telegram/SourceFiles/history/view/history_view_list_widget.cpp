@@ -37,6 +37,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "styles/style_history.h"
 
+#include <QtWidgets/QApplication>
+#include <QtCore/QMimeData>
+
 namespace HistoryView {
 namespace {
 

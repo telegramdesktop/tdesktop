@@ -29,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "styles/style_settings.h"
 
+#include <QtGui/QDesktopServices>
+
 namespace Settings {
 
 void SetupLanguageButton(

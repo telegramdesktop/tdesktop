@@ -48,6 +48,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_mediaview.h"
 #include "styles/style_history.h"
 
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QDesktopWidget>
+#include <QtCore/QBuffer>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+#include <QtGui/QWindow>
+#include <QtGui/QScreen>
+
 namespace Media {
 namespace View {
 namespace {
@@ -1301,13 +1309,13 @@ void OverlayWidget::onCopy() {
 	_dropdown->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
 	if (_doc) {
 		if (videoShown()) {
-			QApplication::clipboard()->setImage(
+			QGuiApplication::clipboard()->setImage(
 				transformVideoFrame(videoFrame()));
 		} else if (!_current.isNull()) {
-			QApplication::clipboard()->setPixmap(_current);
+			QGuiApplication::clipboard()->setPixmap(_current);
 		}
 	} else if (_photo && _photo->loaded()) {
-		QApplication::clipboard()->setPixmap(_photo->large()->pix(fileOrigin()));
+		QGuiApplication::clipboard()->setPixmap(_photo->large()->pix(fileOrigin()));
 	}
 }
 

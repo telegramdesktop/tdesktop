@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_source.h"
 #include "ui/image/image.h"
 
+#include <QtCore/QBuffer>
+
 namespace Data {
 namespace AutoDownload {
 namespace {

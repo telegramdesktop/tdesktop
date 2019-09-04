@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "base/timer.h"
 
+#include <QtWidgets/QSystemTrayIcon>
+
 class BoxContent;
 
 namespace Main {

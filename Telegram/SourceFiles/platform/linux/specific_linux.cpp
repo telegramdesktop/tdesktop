@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
 
+#include <QtGui/QGuiApplication>
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <cstdlib>

@@ -24,6 +24,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 
+#include <QtGui/QDesktopServices>
+#include <QtGui/QGuiApplication>
+
 namespace {
 
 bool UrlRequiresConfirmation(const QUrl &url) {

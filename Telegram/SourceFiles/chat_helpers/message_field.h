@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "base/timer.h"
 
+#include <QtGui/QClipboard>
+
 namespace Main {
 class Session;
 } // namespace Main

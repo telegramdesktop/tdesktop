@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 
+#include <QtCore/QBuffer>
+#include <QtCore/QAbstractEventDispatcher>
+#include <QtCore/QCoreApplication>
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>

@@ -98,6 +98,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 
+#include <QtGui/QWindow>
+#include <QtCore/QMimeData>
+
 namespace {
 
 constexpr auto kMessagesPerPageFirst = 30;

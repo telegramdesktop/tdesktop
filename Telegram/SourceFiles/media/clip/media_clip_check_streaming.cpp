@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/clip/media_clip_check_streaming.h"
 
+#include <QtCore/QBuffer>
+#include <QtCore/QtEndian>
 
 namespace Media {
 namespace Clip {

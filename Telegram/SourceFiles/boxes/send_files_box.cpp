@@ -38,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 
+#include <QtCore/QMimeData>
+
 namespace {
 
 constexpr auto kMinPreviewWidth = 20;

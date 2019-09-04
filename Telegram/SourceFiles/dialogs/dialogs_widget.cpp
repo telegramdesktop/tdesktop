@@ -43,6 +43,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_window.h"
 
+#include <QtCore/QMimeData>
+
 namespace Dialogs {
 namespace {
 

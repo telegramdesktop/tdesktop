@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/binary_guard.h"
 
+#include <QtNetwork/QNetworkReply>
+
 namespace Main {
 class Session;
 } // namespace Main

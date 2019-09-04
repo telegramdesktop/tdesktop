@@ -20,6 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "styles/style_chat_helpers.h"
 
+#include <QtWidgets/QApplication>
+#include <QtGui/QTextBlock>
+
 namespace Ui {
 namespace Emoji {
 namespace {

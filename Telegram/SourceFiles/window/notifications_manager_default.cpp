@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "platform/platform_specific.h"
 
+#include <QtCore/QCoreApplication>
+
 namespace Window {
 namespace Notifications {
 namespace Default {

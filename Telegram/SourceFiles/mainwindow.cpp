@@ -45,6 +45,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu.h"
 #include "window/window_session_controller.h"
 
+#include <QtGui/QWindow>
+#include <QtCore/QCoreApplication>
+
 namespace {
 
 // Code for testing languages is F7-F6-F7-F8

@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "styles/style_widgets.h"
 
+#include <QtWidgets/QScrollArea>
+
 namespace Ui {
 
 enum class TouchScrollState {

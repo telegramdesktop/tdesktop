@@ -21,6 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "settings/settings_intro.h"
 
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
+
 extern "C" {
 #include <openssl/rsa.h>
 #include <openssl/pem.h>

@@ -33,6 +33,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "core/file_utilities.h"
 
+#include <QtWidgets/QApplication>
+#include <QtGui/QClipboard>
+
 namespace Layout = Overview::Layout;
 
 namespace Info {
@@ -1305,7 +1308,7 @@ void ListWidget::showContextMenu(
 			_contextMenu->addAction(
 				actionText,
 				[text = link->copyToClipboardText()] {
-					QApplication::clipboard()->setText(text);
+					QGuiApplication::clipboard()->setText(text);
 				});
 		}
 	}

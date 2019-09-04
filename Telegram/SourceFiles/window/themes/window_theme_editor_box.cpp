@@ -37,6 +37,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 
+#include <QtCore/QBuffer>
+
 namespace Window {
 namespace Theme {
 namespace {

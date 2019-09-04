@@ -29,6 +29,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 
+#include <QtWidgets/QDesktopWidget>
+#include <QtCore/QMimeData>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QWindow>
+#include <QtGui/QScreen>
+#include <QtGui/QDrag>
+
 namespace Window {
 namespace {
 

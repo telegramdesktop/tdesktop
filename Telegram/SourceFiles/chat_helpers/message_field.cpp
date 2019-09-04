@@ -26,6 +26,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_history.h"
 
+#include <QtCore/QMimeData>
+#include <QtCore/QStack>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QTextBlock>
+#include <QtGui/QClipboard>
+
 namespace {
 
 using EditLinkAction = Ui::InputField::EditLinkAction;
@@ -327,7 +333,7 @@ void SetClipboardText(
 		const TextForMimeData &text,
 		QClipboard::Mode mode) {
 	if (auto data = MimeDataFromText(text)) {
-		QApplication::clipboard()->setMimeData(data.release(), mode);
+		QGuiApplication::clipboard()->setMimeData(data.release(), mode);
 	}
 }
 

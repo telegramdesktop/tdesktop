@@ -70,18 +70,6 @@ enum {
 	ChoosePeerByDragTimeout = 1000, // 1 second mouse not moved to choose dialog when dragging a file
 };
 
-#ifdef Q_OS_WIN
-inline const GUID &cGUID() {
-#ifndef OS_MAC_STORE
-	static const GUID gGuid = { 0x87a94ab0, 0xe370, 0x4cde, { 0x98, 0xd3, 0xac, 0xc1, 0x10, 0xc5, 0x96, 0x7d } };
-#else // OS_MAC_STORE
-	static const GUID gGuid = { 0xe51fb841, 0x8c0b, 0x4ef9, { 0x9e, 0x9e, 0x5a, 0x0, 0x78, 0x56, 0x76, 0x27 } };
-#endif // OS_MAC_STORE
-
-	return gGuid;
-}
-#endif
-
 inline const char *cGUIDStr() {
 #ifndef OS_MAC_STORE
 	static const char *gGuidStr = "{87A94AB0-E370-4cde-98D3-ACC110C5967D}";

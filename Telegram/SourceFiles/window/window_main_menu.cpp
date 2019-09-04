@@ -37,6 +37,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 
+#include <QtGui/QWindow>
+#include <QtGui/QScreen>
+
 namespace {
 
 constexpr auto kMinDiffIntensity = 0.25;

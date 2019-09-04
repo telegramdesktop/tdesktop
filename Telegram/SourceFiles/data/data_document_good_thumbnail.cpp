@@ -14,6 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 #include "main/main_session.h"
 
+#include <QtCore/QBuffer>
+#include <QtGui/QImageReader>
+
 namespace Data {
 namespace {
 

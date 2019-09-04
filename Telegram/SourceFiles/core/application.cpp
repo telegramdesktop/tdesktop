@@ -62,6 +62,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/share_box.h"
 
+#include <QtWidgets/QDesktopWidget>
+#include <QtCore/QMimeDatabase>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QDesktopServices>
+
 namespace Core {
 namespace {
 

@@ -30,6 +30,8 @@ extern "C" {
 #include <time.h>
 #endif
 
+#include <QtNetwork/QSslSocket>
+
 #ifdef small
 #undef small
 #endif // small

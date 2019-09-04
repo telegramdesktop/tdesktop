@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 
+#include <QtGui/QWindow>
+
 namespace Platform {
 namespace {
 

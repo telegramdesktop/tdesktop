@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "base/timer.h"
 
+#include <QtWidgets/QTextEdit>
+
 namespace Main {
 class Session;
 } // namespace Main

@@ -13,6 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "mainwindow.h"
 
+#include <QtWidgets/QFileDialog>
+#include <QtCore/QCoreApplication>
+#include <QtCore/QStandardPaths>
+#include <QtGui/QDesktopServices>
+
 bool filedialogGetSaveFile(
 		QPointer<QWidget> parent,
 		QString &file,
@@ -120,7 +125,7 @@ void OpenEmailLink(const QString &email) {
 }
 
 void OpenWith(const QString &filepath, QPoint menuPosition) {
-	InvokeQueued(QApplication::instance(), [=] {
+	InvokeQueued(QCoreApplication::instance(), [=] {
 		if (!Platform::File::UnsafeShowOpenWithDropdown(filepath, menuPosition)) {
 			Core::App().preventWindowActivation();
 			if (!Platform::File::UnsafeShowOpenWith(filepath)) {
@@ -223,7 +228,7 @@ void GetOpenPath(
 		const QString &filter,
 		Fn<void(OpenResult &&result)> callback,
 		Fn<void()> failed) {
-	InvokeQueued(QApplication::instance(), [=] {
+	InvokeQueued(QCoreApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		Core::App().preventWindowActivation();
@@ -257,7 +262,7 @@ void GetOpenPaths(
 		const QString &filter,
 		Fn<void(OpenResult &&result)> callback,
 		Fn<void()> failed) {
-	InvokeQueued(QApplication::instance(), [=] {
+	InvokeQueued(QCoreApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		Core::App().preventWindowActivation();
@@ -288,7 +293,7 @@ void GetWritePath(
 		const QString &initialPath,
 		Fn<void(QString &&result)> callback,
 		Fn<void()> failed) {
-	InvokeQueued(QApplication::instance(), [=] {
+	InvokeQueued(QCoreApplication::instance(), [=] {
 		auto file = QString();
 		if (filedialogGetSaveFile(parent, file, caption, filter, initialPath)) {
 			if (callback) {
@@ -306,7 +311,7 @@ void GetFolder(
 		const QString &initialPath,
 		Fn<void(QString &&result)> callback,
 		Fn<void()> failed) {
-	InvokeQueued(QApplication::instance(), [=] {
+	InvokeQueued(QCoreApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
 		Core::App().preventWindowActivation();

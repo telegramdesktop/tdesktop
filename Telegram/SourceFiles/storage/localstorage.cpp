@@ -39,6 +39,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/history.h"
 
+#include <QtCore/QBuffer>
+#include <QtCore/QtEndian>
+#include <QtCore/QDirIterator>
+
 extern "C" {
 #include <openssl/evp.h>
 } // extern "C"

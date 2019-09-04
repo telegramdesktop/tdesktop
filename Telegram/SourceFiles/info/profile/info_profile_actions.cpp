@@ -47,6 +47,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_boxes.h"
 
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 namespace Info {
 namespace Profile {
 namespace {
@@ -298,7 +301,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			const auto link = Core::App().createInternalLinkFull(
 				peer->userName());
 			if (!link.isEmpty()) {
-				QApplication::clipboard()->setText(link);
+				QGuiApplication::clipboard()->setText(link);
 				Ui::Toast::Show(tr::lng_username_copied(tr::now));
 			}
 			return false;
