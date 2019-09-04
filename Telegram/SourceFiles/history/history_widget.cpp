@@ -5251,6 +5251,11 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		_scroll->keyPressEvent(e);
 	} else if (e->key() == Qt::Key_PageUp) {
 		_scroll->keyPressEvent(e);
+	// This is not recommended at this step, may be increased crash in the program.
+	// } else if (e->key() == Qt::Key_Home) { //0x01000010
+	// 	_scroll->keyPressEvent(e);
+	} else if (e->key() == Qt::Key_End) { //0x01000011
+		_scroll->keyPressEvent(e);
 	} else if (e->key() == Qt::Key_Down) {
 		if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
 			_scroll->keyPressEvent(e);
