@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "ui/image/image_prepare.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "styles/style_settings.h"
@@ -121,11 +122,35 @@ void CloudListCheck::setColors(const Colors &colors) {
 	_colors = colors;
 	_radio.setToggledOverride(_colors.radiobuttonActive);
 	_radio.setUntoggledOverride(_colors.radiobuttonInactive);
+	const auto size = st::settingsThemePreviewSize * cIntRetinaFactor();
+	_backgroundFull = (_colors.background.size() == size)
+		? _colors.background
+		: _colors.background.scaled(
+			size,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+	_backgroundCacheWidth = -1;
 	update();
 }
 
 QSize CloudListCheck::getSize() const {
 	return st::settingsThemePreviewSize;
+}
+
+void CloudListCheck::validateBackgroundCache(int width) {
+	if (_backgroundCacheWidth == width || width <= 0) {
+		return;
+	}
+	_backgroundCacheWidth = width;
+	const auto imageWidth = width * cIntRetinaFactor();
+	_backgroundCache = (width == st::settingsThemePreviewSize.width())
+		? _backgroundFull
+		: _backgroundFull.copy(
+			(_backgroundFull.width() - imageWidth) / 2,
+			0,
+			imageWidth,
+			_backgroundFull.height());
+	Images::prepareRound(_backgroundCache, ImageRoundRadius::Large);
 }
 
 void CloudListCheck::paint(
@@ -150,9 +175,10 @@ void CloudListCheck::paint(
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
 
+	validateBackgroundCache(outerWidth);
 	p.drawImage(
-		QRect(QPoint(), st::settingsThemePreviewSize),
-		_colors.background);
+		QRect(0, 0, outerWidth, st::settingsThemePreviewSize.height()),
+		_backgroundCache);
 
 	p.setBrush(_colors.received);
 	p.drawRoundedRect(rtlrect(received, outerWidth), radius, radius);

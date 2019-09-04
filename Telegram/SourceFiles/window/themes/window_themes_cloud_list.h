@@ -55,9 +55,13 @@ public:
 
 private:
 	void checkedChangedHook(anim::type animated) override;
+	void validateBackgroundCache(int width);
 
 	Colors _colors;
 	Ui::RadioView _radio;
+	QImage _backgroundFull;
+	QImage _backgroundCache;
+	int _backgroundCacheWidth = -1;
 
 };
 

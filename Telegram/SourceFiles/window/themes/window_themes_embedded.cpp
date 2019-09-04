@@ -369,7 +369,7 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 	return {
 		EmbeddedScheme{
 			EmbeddedType::Default,
-			qColor("90ce89"),
+			qColor("9bd494"),
 			qColor("eaffdc"),
 			qColor("ffffff"),
 			qColor("eaffdc"),

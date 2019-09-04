@@ -1102,37 +1102,29 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	) | rpl::start_with_next([buttons = std::move(buttons)](int width) {
 		Expects(!buttons.empty());
 
-		//     |------|      |---------|        |-------|      |-------|
-		// pad | blue | skip | classic | 3*skip | night | skip | night | pad
-		//     |------|      |---------|        |-------|      |-------|
 		const auto padding = st::settingsButton.padding;
 		width -= padding.left() + padding.right();
 		const auto desired = st::settingsThemePreviewSize.width();
 		const auto count = int(buttons.size());
-		const auto smallSkips = (count / 2);
-		const auto bigSkips = ((count - 1) / 2);
-		const auto skipRatio = 3;
-		const auto skipSegments = smallSkips + bigSkips * skipRatio;
+		const auto skips = count - 1;
 		const auto minSkip = st::settingsThemeMinSkip;
 		const auto single = [&] {
-			if (width >= skipSegments * minSkip + count * desired) {
+			if (width >= skips * minSkip + count * desired) {
 				return desired;
 			}
-			return (width - skipSegments * minSkip) / count;
+			return (width - skips * minSkip) / count;
 		}();
 		if (single <= 0) {
 			return;
 		}
 		const auto fullSkips = width - count * single;
-		const auto segment = fullSkips / float64(skipSegments);
-		const auto smallSkip = segment;
-		const auto bigSkip = segment * skipRatio;
+		const auto skip = fullSkips / float64(skips);
 		auto left = padding.left() + 0.;
 		auto index = 0;
 		for (const auto button : buttons) {
 			button->resizeToWidth(single);
 			button->moveToLeft(int(std::round(left)), 0);
-			left += button->width() + ((index++ % 2) ? bigSkip : smallSkip);
+			left += button->width() + skip;
 		}
 	}, block->lifetime());
 
@@ -1180,10 +1172,25 @@ void SetupThemeOptions(
 			&controller->window()));
 	});
 
+	AddSkip(container);
+}
+
+void SetupCloudThemes(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
 	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
+	const auto inner = wrap->entity();
+
+	AddDivider(inner);
+	AddSkip(inner, st::settingsPrivacySkip);
+
+	AddSubsectionTitle(inner, tr::lng_settings_bg_cloud_themes());
+
+	AddSkip(inner, st::settingsThemesTopSkip);
+
 	const auto list = std::make_shared<std::vector<Data::CloudTheme>>();
 	AddButton(
 		wrap->entity(),
@@ -1197,6 +1204,9 @@ void SetupThemeOptions(
 			controller,
 			*list));
 	});
+
+	AddSkip(inner, st::settingsThemesTopSkip);
+
 	auto shown = rpl::single(
 		rpl::empty_value()
 	) | rpl::then(
@@ -1206,8 +1216,6 @@ void SetupThemeOptions(
 		return !list->empty();
 	});
 	wrap->setDuration(0)->toggleOn(std::move(shown));
-
-	AddSkip(container);
 }
 
 void SetupSupportSwitchSettings(
@@ -1331,6 +1339,7 @@ void Chat::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	SetupThemeOptions(controller, content);
+	SetupCloudThemes(controller, content);
 	SetupChatBackground(controller, content);
 	SetupStickersEmoji(controller, content);
 	SetupMessages(controller, content);
