@@ -1178,6 +1178,8 @@ void SetupThemeOptions(
 void SetupCloudThemes(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
+	using namespace rpl::mappers;
+
 	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
@@ -1187,35 +1189,49 @@ void SetupCloudThemes(
 	AddDivider(inner);
 	AddSkip(inner, st::settingsPrivacySkip);
 
-	AddSubsectionTitle(inner, tr::lng_settings_bg_cloud_themes());
+	const auto title = AddSubsectionTitle(
+		inner,
+		tr::lng_settings_bg_cloud_themes());
+	const auto showAll = Ui::CreateChild<Ui::LinkButton>(
+		inner,
+		tr::lng_settings_bg_show_all(tr::now));
+
+	rpl::combine(
+		title->topValue(),
+		inner->widthValue(),
+		showAll->widthValue()
+	) | rpl::start_with_next([=](int top, int outerWidth, int width) {
+		showAll->moveToRight(
+			st::settingsSubsectionTitlePadding.left(),
+			top,
+			outerWidth);
+	}, showAll->lifetime());
 
 	AddSkip(inner, st::settingsThemesTopSkip);
 
-	const auto list = std::make_shared<std::vector<Data::CloudTheme>>();
-	AddButton(
-		wrap->entity(),
-		tr::lng_settings_bg_cloud_themes(),
-		st::settingsChatButton,
-		&st::settingsIconThemes,
-		st::settingsChatIconLeft
-	)->addClickHandler([=] {
-		controller->window().show(Box(
-			Window::Theme::CloudListBox,
-			controller,
-			*list));
+	const auto list = inner->lifetime().make_state<Window::Theme::CloudList>(
+		inner,
+		controller);
+	inner->add(
+		list->takeWidget(),
+		style::margins(
+			st::settingsButton.padding.left(),
+			0,
+			st::settingsButton.padding.right(),
+			0));
+
+	list->allShown(
+	) | rpl::start_with_next([=](bool shown) {
+		showAll->setVisible(!shown);
+	}, showAll->lifetime());
+
+	showAll->addClickHandler([=] {
+		list->showAll();
 	});
 
 	AddSkip(inner, st::settingsThemesTopSkip);
 
-	auto shown = rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		controller->session().data().cloudThemes().updated()
-	) | rpl::map([=] {
-		*list = controller->session().data().cloudThemes().list();
-		return !list->empty();
-	});
-	wrap->setDuration(0)->toggleOn(std::move(shown));
+	wrap->setDuration(0)->toggleOn(list->empty() | rpl::map(!_1));
 }
 
 void SetupSupportSwitchSettings(

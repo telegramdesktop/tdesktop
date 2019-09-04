@@ -339,7 +339,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_bg_from_file" = "Choose from file";
 "lng_settings_bg_edit_theme" = "Launch theme editor";
 "lng_settings_bg_create_theme" = "Create new theme";
-"lng_settings_bg_cloud_themes" = "Cloud themes";
+"lng_settings_bg_cloud_themes" = "Custom themes";
+"lng_settings_bg_show_all" = "Show all themes";
 "lng_settings_bg_tile" = "Tile background";
 "lng_settings_adaptive_wide" = "Adaptive layout for wide screens";
 

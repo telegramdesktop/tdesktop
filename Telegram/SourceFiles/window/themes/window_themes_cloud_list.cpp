@@ -19,10 +19,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
+#include "styles/style_history.h"
 
 namespace Window {
 namespace Theme {
 namespace {
+
+constexpr auto kFakeCloudThemeId = 0xFFFFFFFFFFFFFFFAULL;
+constexpr auto kShowPerRow = 4;
+
+[[nodiscard]] Data::CloudTheme FakeCloudTheme(const Object &object) {
+	auto result = Data::CloudTheme();
+	result.id = result.documentId = kFakeCloudThemeId;
+	result.slug = object.pathAbsolute;
+	return result;
+}
 
 [[nodiscard]] QImage ColorsBackgroundFromImage(const QImage &source) {
 	if (source.isNull()) {
@@ -78,14 +89,396 @@ namespace {
 	result.background = ColorsBackgroundFromImage(instance.background);
 	result.sent = st::msgOutBg[instance.palette]->c;
 	result.received = st::msgInBg[instance.palette]->c;
-	result.radiobuttonBg = st::msgServiceBg[instance.palette]->c;
 	result.radiobuttonActive
 		= result.radiobuttonInactive
 		= st::msgServiceFg[instance.palette]->c;
 	return result;
 }
 
+[[nodiscard]] CloudListColors ColorsFromCurrentTheme() {
+	auto result = CloudListColors();
+	auto background = Background()->createCurrentImage();
+	result.background = ColorsBackgroundFromImage(background);
+	result.sent = st::msgOutBg->c;
+	result.received = st::msgInBg->c;
+	result.radiobuttonActive
+		= result.radiobuttonInactive
+		= st::msgServiceFg->c;
+	return result;
+}
+
 } // namespace
+
+CloudList::CloudList(
+	not_null<QWidget*> parent,
+	not_null<Window::SessionController*> window)
+: _window(window)
+, _owned(parent)
+, _outer(_owned.data())
+, _group(std::make_shared<Ui::RadiobuttonGroup>()) {
+	setup();
+}
+
+void CloudList::showAll() {
+	_showAll = true;
+}
+
+object_ptr<Ui::RpWidget> CloudList::takeWidget() {
+	return std::move(_owned);
+}
+
+rpl::producer<bool> CloudList::empty() const {
+	using namespace rpl::mappers;
+	return _count.value() | rpl::map(_1 == 0);
+}
+
+rpl::producer<bool> CloudList::allShown() const {
+	using namespace rpl::mappers;
+
+	return rpl::combine(
+		_showAll.value(),
+		_count.value(),
+		_1 || (_2 <= kShowPerRow));
+}
+
+void CloudList::setup() {
+	_group->setChangedCallback([=](int selected) {
+		const auto &object = Background()->themeObject();
+		_group->setValue(groupValueForId(
+			object.cloud.id ? object.cloud.id : kFakeCloudThemeId));
+	});
+
+	auto cloudListChanges = rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		_window->session().data().cloudThemes().updated()
+	);
+
+	auto themeChanges = rpl::single(
+		BackgroundUpdate(BackgroundUpdate::Type::New, Background()->tile())
+	) | rpl::then(base::ObservableViewer(
+		*Background()
+	)) | rpl::filter([](const BackgroundUpdate &update) {
+		return (update.type == BackgroundUpdate::Type::ApplyingTheme)
+			|| (update.type == BackgroundUpdate::Type::New);
+	});
+
+	rpl::combine(
+		std::move(cloudListChanges),
+		std::move(themeChanges),
+		allShown()
+	) | rpl::map([=] {
+		return collectAll();
+	}) | rpl::start_with_next([=](std::vector<Data::CloudTheme> &&list) {
+		rebuildUsing(std::move(list));
+	}, _outer->lifetime());
+
+	_outer->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		updateGeometry();
+	}, _outer->lifetime());
+}
+
+std::vector<Data::CloudTheme> CloudList::collectAll() const {
+	const auto &object = Background()->themeObject();
+	const auto isDefault = object.pathAbsolute.isEmpty()
+		|| object.pathAbsolute.startsWith(qstr(":/gui/"));
+	auto result = _window->session().data().cloudThemes().list();
+	if (!isDefault) {
+		const auto i = ranges::find(
+			result,
+			object.cloud.id,
+			&Data::CloudTheme::id);
+		if (i == end(result)) {
+			if (object.cloud.id) {
+				result.push_back(object.cloud);
+			} else {
+				result.push_back(FakeCloudTheme(object));
+			}
+		}
+	}
+	return result;
+}
+
+void CloudList::rebuildUsing(std::vector<Data::CloudTheme> &&list) {
+	const auto fullCount = int(list.size());
+	const auto changed = applyChangesFrom(std::move(list));
+	_count = fullCount;
+	if (changed) {
+		updateGeometry();
+	}
+}
+
+bool CloudList::applyChangesFrom(std::vector<Data::CloudTheme> &&list) {
+	if (list.empty()) {
+		if (_elements.empty()) {
+			return false;
+		}
+		_elements.clear();
+		return true;
+	}
+	auto changed = false;
+	const auto limit = _showAll.current() ? list.size() : kShowPerRow;
+	const auto &object = Background()->themeObject();
+	const auto id = object.cloud.id ? object.cloud.id : kFakeCloudThemeId;
+	ranges::stable_sort(list, std::less<>(), [&](const Data::CloudTheme &t) {
+		if (t.id == id) {
+			return 0;
+		} else if (t.documentId) {
+			return 1;
+		} else {
+			return 2;
+		}
+	});
+	if (list.front().id == id) {
+		const auto j = ranges::find(_elements, id, &Element::id);
+		if (j == end(_elements)) {
+			insert(0, list.front());
+			changed = true;
+		} else if (j - begin(_elements) >= limit) {
+			std::rotate(
+				begin(_elements) + limit - 1,
+				j,
+				j + 1);
+			changed = true;
+		}
+	}
+	if (removeStaleUsing(list)) {
+		changed = true;
+	}
+	if (insertTillLimit(list, limit)) {
+		changed = true;
+	}
+	_group->setValue(groupValueForId(id));
+	return changed;
+}
+
+bool CloudList::removeStaleUsing(const std::vector<Data::CloudTheme> &list) {
+	const auto check = [&](Element &element) {
+		const auto j = ranges::find(
+			list,
+			element.theme.id,
+			&Data::CloudTheme::id);
+		if (j == end(list)) {
+			return true;
+		}
+		refreshElementUsing(element, *j);
+		return false;
+	};
+	const auto from = ranges::remove_if(_elements, check);
+	if (from == end(_elements)) {
+		return false;
+	}
+	_elements.erase(from, end(_elements));
+	return true;
+}
+
+bool CloudList::insertTillLimit(
+		const std::vector<Data::CloudTheme> &list,
+		int limit) {
+	const auto insertCount = (limit - int(_elements.size()));
+	if (insertCount < 0) {
+		_elements.erase(end(_elements) + insertCount, end(_elements));
+		return true;
+	} else if (!insertCount) {
+		return false;
+	}
+	const auto isGood = [](const Data::CloudTheme &theme) {
+		return (theme.documentId != 0);
+	};
+	auto positionForGood = ranges::find_if(_elements, [&](const Element &e) {
+		return !isGood(e.theme);
+	}) - begin(_elements);
+	auto positionForBad = end(_elements) - begin(_elements);
+
+	auto insertElements = ranges::view::all(
+		list
+	) | ranges::view::filter([&](const Data::CloudTheme &theme) {
+		const auto i = ranges::find(_elements, theme.id, &Element::id);
+		return (i == end(_elements));
+	}) | ranges::view::take(insertCount);
+
+	for (const auto &theme : insertElements) {
+		auto &index = isGood(theme) ? positionForGood : positionForBad;
+		insert(index, theme);
+		++index;
+	}
+	return true;
+}
+
+void CloudList::insert(int index, const Data::CloudTheme &theme) {
+	const auto id = theme.id;
+	const auto value = groupValueForId(id);
+	const auto checked = _group->hasValue() && (_group->value() == value);
+	auto check = std::make_unique<CloudListCheck>(checked);
+	const auto raw = check.get();
+	auto button = std::make_unique<Ui::Radiobutton>(
+		_outer,
+		_group,
+		value,
+		theme.title,
+		st::settingsTheme,
+		std::move(check));
+	button->setCheckAlignment(style::al_top);
+	button->setAllowTextLines(2);
+	button->setTextBreakEverywhere();
+	button->show();
+	button->setClickedCallback([=] {
+		const auto i = ranges::find(_elements, id, &Element::id);
+		if (i == end(_elements)
+			|| id == kFakeCloudThemeId
+			|| i->waiting) {
+			return;
+		}
+		const auto documentId = i->theme.documentId;
+		if (!documentId) {
+			// #TODO themes
+			return;
+		}
+		const auto document = _window->session().data().document(documentId);
+		DocumentOpenClickHandler::Open(
+			Data::FileOrigin(),
+			document,
+			nullptr);
+	});
+	auto &element = *_elements.insert(
+		begin(_elements) + index,
+		Element{ theme, raw, std::move(button) });
+	refreshColors(element);
+}
+
+void CloudList::refreshElementUsing(
+		Element &element,
+		const Data::CloudTheme &data) {
+	const auto colorsChanged = (element.theme.documentId != data.documentId)
+		|| ((element.id() == kFakeCloudThemeId)
+			&& (element.theme.slug != data.slug));
+	const auto titleChanged = (element.theme.title != data.title);
+	element.theme = data;
+	if (colorsChanged) {
+		setWaiting(element, false);
+		refreshColors(element);
+	}
+	if (titleChanged) {
+		element.button->setText(data.title);
+	}
+}
+
+void CloudList::refreshColors(Element &element) {
+	if (element.id() == kFakeCloudThemeId) {
+		element.check->setColors(ColorsFromCurrentTheme());
+	} else if (const auto documentId = element.theme.documentId) {
+		const auto document = _window->session().data().document(documentId);
+		document->save(Data::FileOrigin(), QString()); // #TODO themes
+		if (document->loaded()) {
+			refreshColorsFromDocument(element, document);
+		} else {
+			setWaiting(element, true);
+			subscribeToDownloadFinished();
+		}
+	} else {
+		element.check->setColors(CloudListColors());
+	}
+}
+
+void CloudList::setWaiting(Element &element, bool waiting) {
+	element.waiting = waiting;
+	element.button->setPointerCursor(!waiting);
+}
+
+void CloudList::refreshColorsFromDocument(
+		Element &element,
+		not_null<DocumentData*> document) {
+	auto colors = ColorsFromTheme(
+		document->filepath(),
+		document->data());
+	if (!colors) {
+		return;
+	}
+	if (colors->background.isNull()) {
+		colors->background = ColorsFromCurrentTheme().background;
+	}
+	element.check->setColors(*colors);
+}
+
+void CloudList::subscribeToDownloadFinished() {
+	if (_downloadFinishedLifetime) {
+		return;
+	}
+	base::ObservableViewer(
+		_window->session().downloaderTaskFinished()
+	) | rpl::start_with_next([=] {
+		auto &&waiting = _elements | ranges::view::filter(&Element::waiting);
+		const auto still = ranges::count_if(waiting, [&](Element &element) {
+			const auto id = element.theme.documentId;
+			const auto document = _window->session().data().document(id);
+			if (!document->loaded()) {
+				return true;
+			}
+			refreshColorsFromDocument(element, document);
+			element.waiting = false;
+			return false;
+		});
+		if (!still) {
+			_downloadFinishedLifetime.destroy();
+		}
+	}, _downloadFinishedLifetime);
+}
+
+int CloudList::groupValueForId(uint64 id) {
+	const auto i = _groupValueById.find(id);
+	if (i != end(_groupValueById)) {
+		return i->second;
+	}
+	const auto result = int(_idByGroupValue.size());
+	_groupValueById.emplace(id, result);
+	_idByGroupValue.push_back(id);
+	return result;
+}
+
+void CloudList::updateGeometry() {
+	const auto width = _outer->width();
+	if (!width) {
+		return;
+	}
+	const auto height = resizeGetHeight(width);
+	if (height != _outer->height()) {
+		_outer->resize(width, height);
+	}
+}
+
+int CloudList::resizeGetHeight(int newWidth) {
+	const auto desired = st::settingsThemePreviewSize.width();
+	const auto minSkip = st::settingsThemeMinSkip;
+	const auto single = std::min(
+		st::settingsThemePreviewSize.width(),
+		(newWidth - minSkip * (kShowPerRow - 1)) / kShowPerRow);
+	const auto skip = (newWidth - kShowPerRow * single)
+		/ float64(kShowPerRow - 1);
+
+	auto x = 0.;
+	auto y = 0;
+
+	auto index = 0;
+	auto rowHeight = 0;
+	for (const auto &element : _elements) {
+		const auto button = element.button.get();
+		button->moveToLeft(int(std::round(x)), y);
+		accumulate_max(rowHeight, button->height());
+		x += single + skip;
+		if (++index == kShowPerRow) {
+			x = 0.;
+			index = 0;
+			y += rowHeight + st::themesSmallSkip;
+			rowHeight = 0;
+		}
+	}
+	return rowHeight
+		? (y + rowHeight)
+		: (y > 0)
+		? (y - st::themesSmallSkip)
+		: 0;
+}
 
 CloudListColors ColorsFromScheme(const EmbeddedScheme &scheme) {
 	auto result = CloudListColors();
@@ -93,7 +486,6 @@ CloudListColors ColorsFromScheme(const EmbeddedScheme &scheme) {
 	result.received = scheme.received;
 	result.radiobuttonActive = scheme.radiobuttonActive;
 	result.radiobuttonInactive = scheme.radiobuttonInactive;
-	result.radiobuttonBg = QColor(255, 255, 255, 0);
 	result.background = QImage(
 		QSize(1, 1) * cIntRetinaFactor(),
 		QImage::Format_ARGB32_Premultiplied);
@@ -113,19 +505,23 @@ CloudListColors ColorsFromScheme(
 }
 
 CloudListCheck::CloudListCheck(const Colors &colors, bool checked)
+: CloudListCheck(checked) {
+	setColors(colors);
+}
+
+CloudListCheck::CloudListCheck(bool checked)
 : AbstractCheckView(st::defaultRadio.duration, checked, nullptr)
 , _radio(st::defaultRadio, checked, [=] { update(); }) {
-	setColors(colors);
 }
 
 void CloudListCheck::setColors(const Colors &colors) {
 	_colors = colors;
-	_radio.setToggledOverride(_colors.radiobuttonActive);
-	_radio.setUntoggledOverride(_colors.radiobuttonInactive);
+	_radio.setToggledOverride(_colors->radiobuttonActive);
+	_radio.setUntoggledOverride(_colors->radiobuttonInactive);
 	const auto size = st::settingsThemePreviewSize * cIntRetinaFactor();
-	_backgroundFull = (_colors.background.size() == size)
-		? _colors.background
-		: _colors.background.scaled(
+	_backgroundFull = (_colors->background.size() == size)
+		? _colors->background
+		: _colors->background.scaled(
 			size,
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
@@ -153,14 +549,42 @@ void CloudListCheck::validateBackgroundCache(int width) {
 	Images::prepareRound(_backgroundCache, ImageRoundRadius::Large);
 }
 
-void CloudListCheck::paint(
+void CloudListCheck::paint(Painter &p, int left, int top, int outerWidth) {
+	if (!_colors) {
+		return;
+	} else if (_colors->background.isNull()) {
+		paintNotSupported(p, left, top, outerWidth);
+	} else {
+		paintWithColors(p, left, top, outerWidth);
+	}
+}
+
+void CloudListCheck::paintNotSupported(
 		Painter &p,
 		int left,
 		int top,
 		int outerWidth) {
-	if (_colors.background.isNull()) {
-		return;
-	}
+	PainterHighQualityEnabler hq(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::windowBgOver);
+
+	p.drawRoundedRect(
+		QRect(0, 0, outerWidth, st::settingsThemePreviewSize.height()),
+		st::historyMessageRadius,
+		st::historyMessageRadius);
+}
+
+void CloudListCheck::paintWithColors(
+		Painter &p,
+		int left,
+		int top,
+		int outerWidth) {
+	Expects(_colors.has_value());
+
+	validateBackgroundCache(outerWidth);
+	p.drawImage(
+		QRect(0, 0, outerWidth, st::settingsThemePreviewSize.height()),
+		_backgroundCache);
 
 	const auto received = QRect(
 		st::settingsThemeBubblePosition,
@@ -175,14 +599,9 @@ void CloudListCheck::paint(
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
 
-	validateBackgroundCache(outerWidth);
-	p.drawImage(
-		QRect(0, 0, outerWidth, st::settingsThemePreviewSize.height()),
-		_backgroundCache);
-
-	p.setBrush(_colors.received);
+	p.setBrush(_colors->received);
 	p.drawRoundedRect(rtlrect(received, outerWidth), radius, radius);
-	p.setBrush(_colors.sent);
+	p.setBrush(_colors->sent);
 	p.drawRoundedRect(rtlrect(sent, outerWidth), radius, radius);
 
 	const auto skip = st::settingsThemeRadioBottom / 2;
@@ -205,179 +624,6 @@ bool CloudListCheck::checkRippleStartPosition(QPoint position) const {
 
 void CloudListCheck::checkedChangedHook(anim::type animated) {
 	_radio.setChecked(checked(), animated);
-}
-
-int CountButtonsHeight(const std::vector<not_null<Ui::RpWidget*>> &buttons) {
-	constexpr auto kPerRow = 4;
-	const auto skip = (st::boxWideWidth
-		- st::settingsSubsectionTitlePadding.left()
-		- st::settingsSubsectionTitlePadding.right()
-		- kPerRow * st::settingsThemePreviewSize.width())
-		/ float64(kPerRow - 1);
-	auto x = 0.;
-	auto y = 0;
-
-	auto index = 0;
-	for (const auto button : buttons) {
-		button->moveToLeft(int(std::round(x)), y);
-		x += st::settingsThemePreviewSize.width() + skip;
-		if (++index == kPerRow) {
-			x = 0.;
-			index = 0;
-			y += st::settingsTheme.textPosition.y()
-				+ st::settingsTheme.style.font->height
-				+ st::themesSmallSkip;
-		}
-	}
-	if (index) {
-		return y
-			+ st::settingsTheme.textPosition.y()
-			+ st::settingsTheme.style.font->height;
-	} else if (y) {
-		return y - st::themesSmallSkip;
-	}
-	return 0;
-}
-
-void CloudListBox(
-		not_null<GenericBox*> box,
-		not_null<Window::SessionController*> window,
-		std::vector<Data::CloudTheme> list) {
-	using WaitingPair = std::pair<
-		not_null<DocumentData*>,
-		not_null<CloudListCheck*>>;
-	box->setTitle(tr::lng_settings_bg_cloud_themes());
-	box->setWidth(st::boxWideWidth);
-
-	const auto currentId = Background()->themeObject().cloud.documentId;
-	ranges::stable_sort(list, std::less<>(), [&](const Data::CloudTheme &t) {
-		return !t.documentId ? 2 : (t.documentId == currentId) ? 0 : 1;
-	});
-
-	const auto content = box->addRow(
-		object_ptr<Ui::RpWidget>(box),
-		style::margins(
-			st::settingsSubsectionTitlePadding.left(),
-			0,
-			st::settingsSubsectionTitlePadding.right(),
-			0));
-	const auto group = std::make_shared<Ui::RadiobuttonGroup>();
-	const auto resolveCurrent = [=] {
-		const auto currentId = Background()->themeObject().cloud.id;
-		const auto i = currentId
-			? ranges::find(list, currentId, &Data::CloudTheme::id)
-			: end(list);
-		group->setValue(i - begin(list));
-	};
-
-	resolveCurrent();
-	auto checker = Background()->add_subscription([=](const BackgroundUpdate &update) {
-		if (update.type == BackgroundUpdate::Type::ApplyingTheme
-			|| update.type == BackgroundUpdate::Type::New) {
-			resolveCurrent();
-		}
-	});
-	group->setChangedCallback([=](int selected) {
-		resolveCurrent();
-	});
-	Ui::AttachAsChild(box, std::move(checker));
-
-	const auto waiting = std::make_shared<std::vector<WaitingPair>>();
-	const auto fallback = std::make_shared<QImage>();
-	const auto buttonsMap = std::make_shared<base::flat_map<
-		not_null<CloudListCheck*>,
-		not_null<Ui::Radiobutton*>>>();
-	const auto getFallbackImage = [=] {
-		if (fallback->isNull()) {
-			*fallback = ColorsBackgroundFromImage(
-				Background()->createCurrentImage());
-		}
-		return *fallback;
-	};
-
-	auto index = 0;
-	auto buttons = ranges::view::all(
-		list
-	) | ranges::view::transform([&](const Data::CloudTheme &theme)
-		-> not_null<Ui::RpWidget*> {
-		if (!theme.documentId) {
-			index++;
-			return Ui::CreateChild<Ui::RpWidget>(content);
-		}
-		const auto document = window->session().data().document(
-			theme.documentId);
-		document->save(Data::FileOrigin(), QString()); // #TODO themes
-		auto colors = ColorsFromTheme(
-			document->filepath(),
-			document->data());
-		if (colors && colors->background.isNull()) {
-			colors->background = getFallbackImage();
-		}
-
-		auto check = std::make_unique<CloudListCheck>(
-			colors.value_or(CloudListColors()),
-			false);
-		const auto weak = check.get();
-		const auto result = Ui::CreateChild<Ui::Radiobutton>(
-			content,
-			group,
-			index++,
-			theme.title,
-			st::settingsTheme,
-			std::move(check));
-		result->addClickHandler([=] {
-			if (result->isDisabled()) {
-				return;
-			}
-			DocumentOpenClickHandler::Open(
-				Data::FileOrigin(),
-				document,
-				nullptr);
-		});
-		if (!document->loaded()) {
-			waiting->emplace_back(document, weak);
-			buttonsMap->emplace(weak, result);
-		}
-		if (!colors) {
-			result->setDisabled(true);
-			result->setPointerCursor(false);
-		}
-		result->setCheckAlignment(style::al_top);
-		result->resizeToWidth(st::settingsThemePreviewSize.width());
-		weak->setUpdateCallback([=] { result->update(); });
-		return result;
-	}) | ranges::to_vector;
-
-	const auto check = [=](WaitingPair pair) {
-		const auto &[document, check] = pair;
-		if (!document->loaded()) {
-			return false;
-		}
-		auto colors = ColorsFromTheme(
-			document->filepath(),
-			document->data());
-		if (colors) {
-			if (colors->background.isNull()) {
-				colors->background = getFallbackImage();
-			}
-			check->setColors(*colors);
-			const auto i = buttonsMap->find(check);
-			Assert(i != end(*buttonsMap));
-			i->second->setDisabled(false);
-			i->second->setPointerCursor(true);
-		}
-		return true;
-	};
-	auto &finished = window->session().downloaderTaskFinished();
-	auto subscription = finished.add_subscription([=] {
-		waiting->erase(ranges::remove_if(*waiting, check), end(*waiting));
-	});
-	Ui::AttachAsChild(box, std::move(subscription));
-
-	const auto height = CountButtonsHeight(buttons);
-	content->resize(content->width(), height);
-
-	box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 }
 
 } // namespace Theme

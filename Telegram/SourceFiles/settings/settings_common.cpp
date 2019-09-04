@@ -158,10 +158,10 @@ not_null<Button*> AddButtonWithLabel(
 	return button;
 }
 
-void AddSubsectionTitle(
+not_null<Ui::FlatLabel*> AddSubsectionTitle(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> text) {
-	container->add(
+	return container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			std::move(text),

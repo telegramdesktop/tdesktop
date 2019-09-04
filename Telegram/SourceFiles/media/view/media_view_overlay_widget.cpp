@@ -2219,6 +2219,7 @@ void OverlayWidget::initThemePreview() {
 		_doc->id,
 		&Data::CloudTheme::documentId);
 	const auto cloud = (i != end(cloudList)) ? *i : Data::CloudTheme();
+	const auto isTrusted = (cloud.documentId != 0);
 
 	const auto path = _doc->location().name();
 	const auto id = _themePreviewId = rand_value<uint64>();
@@ -2241,10 +2242,17 @@ void OverlayWidget::initThemePreview() {
 					tr::lng_theme_preview_apply(),
 					st::themePreviewApplyButton);
 				_themeApply->show();
-				_themeApply->setClickedCallback([this] {
+				_themeApply->setClickedCallback([=] {
+					const auto &object = Window::Theme::Background()->themeObject();
+					const auto currentlyIsCustom = !object.pathAbsolute.isEmpty()
+						&& !object.pathAbsolute.startsWith(qstr(":/gui/"))
+						&& !object.cloud.id;
 					auto preview = std::move(_themePreview);
 					close();
 					Window::Theme::Apply(std::move(preview));
+					if (isTrusted && !currentlyIsCustom) {
+						Window::Theme::KeepApplied();
+					}
 				});
 				_themeCancel.create(
 					this,

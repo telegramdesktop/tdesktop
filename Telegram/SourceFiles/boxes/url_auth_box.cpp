@@ -165,7 +165,7 @@ not_null<Ui::RpWidget*> UrlAuthBox::setupContent(
 				st::boxPadding.bottom(),
 				st::boxPadding.right(),
 				st::boxPadding.bottom()));
-		checkbox->setAllowMultiline(true);
+		checkbox->setAllowTextLines();
 		checkbox->setText(text, true);
 		return checkbox;
 	};

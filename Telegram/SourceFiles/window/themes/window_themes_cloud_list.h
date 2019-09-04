@@ -8,11 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/generic_box.h"
+#include "data/data_cloud_themes.h"
 #include "ui/widgets/checkbox.h"
-
-namespace Data {
-struct CloudTheme;
-} // namespace Data
 
 namespace Window {
 
@@ -27,7 +24,6 @@ struct CloudListColors {
 	QImage background;
 	QColor sent;
 	QColor received;
-	QColor radiobuttonBg;
 	QColor radiobuttonInactive;
 	QColor radiobuttonActive;
 };
@@ -40,6 +36,8 @@ struct CloudListColors {
 class CloudListCheck final : public Ui::AbstractCheckView {
 public:
 	using Colors = CloudListColors;
+
+	explicit CloudListCheck(bool checked);
 	CloudListCheck(const Colors &colors, bool checked);
 
 	QSize getSize() const override;
@@ -54,10 +52,12 @@ public:
 	void setColors(const Colors &colors);
 
 private:
+	void paintNotSupported(Painter &p, int left, int top, int outerWidth);
+	void paintWithColors(Painter &p, int left, int top, int outerWidth);
 	void checkedChangedHook(anim::type animated) override;
 	void validateBackgroundCache(int width);
 
-	Colors _colors;
+	std::optional<Colors> _colors;
 	Ui::RadioView _radio;
 	QImage _backgroundFull;
 	QImage _backgroundCache;
@@ -65,10 +65,61 @@ private:
 
 };
 
-void CloudListBox(
-	not_null<GenericBox*> box,
-	not_null<Window::SessionController*> window,
-	std::vector<Data::CloudTheme> list);
+class CloudList final {
+public:
+	CloudList(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> window);
+
+	void showAll();
+	[[nodiscard]] rpl::producer<bool> empty() const;
+	[[nodiscard]] rpl::producer<bool> allShown() const;
+	[[nodiscard]] object_ptr<Ui::RpWidget> takeWidget();
+
+private:
+	struct Element {
+		Data::CloudTheme theme;
+		not_null<CloudListCheck*> check;
+		std::unique_ptr<Ui::Radiobutton> button;
+		bool waiting = false;
+
+		uint64 id() const {
+			return theme.id;
+		}
+	};
+	void setup();
+	[[nodiscard]] std::vector<Data::CloudTheme> collectAll() const;
+	void rebuildUsing(std::vector<Data::CloudTheme> &&list);
+	bool applyChangesFrom(std::vector<Data::CloudTheme> &&list);
+	bool removeStaleUsing(const std::vector<Data::CloudTheme> &list);
+	bool insertTillLimit(
+		const std::vector<Data::CloudTheme> &list,
+		int limit);
+	void refreshElementUsing(Element &element, const Data::CloudTheme &data);
+	void insert(int index, const Data::CloudTheme &theme);
+	void refreshColors(Element &element);
+	void refreshColorsFromDocument(
+		Element &element,
+		not_null<DocumentData*> document);
+	void setWaiting(Element &element, bool waiting);
+	void subscribeToDownloadFinished();
+	int resizeGetHeight(int newWidth);
+	void updateGeometry();
+
+	[[nodiscard]] int groupValueForId(uint64 id);
+
+	const not_null<Window::SessionController*> _window;
+	object_ptr<Ui::RpWidget> _owned;
+	const not_null<Ui::RpWidget*> _outer;
+	const std::shared_ptr<Ui::RadiobuttonGroup> _group;
+	rpl::variable<bool> _showAll = false;
+	rpl::variable<int> _count = 0;
+	std::vector<Element> _elements;
+	std::vector<uint64> _idByGroupValue;
+	base::flat_map<uint64, int> _groupValueById;
+	rpl::lifetime _downloadFinishedLifetime;
+
+};
 
 } // namespace Theme
 } // namespace Window
