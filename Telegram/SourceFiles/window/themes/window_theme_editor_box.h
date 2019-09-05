@@ -9,12 +9,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/generic_box.h"
 
+namespace Data {
+struct CloudTheme;
+} // namespace Data
+
 namespace Window {
 
 class Controller;
 
 namespace Theme {
 
+void StartEditor(
+	not_null<Window::Controller*> window,
+	const Data::CloudTheme &cloud);
 void CreateBox(
 	not_null<GenericBox*> box,
 	not_null<Window::Controller*> window);

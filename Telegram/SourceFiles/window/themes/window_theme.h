@@ -18,7 +18,6 @@ namespace Window {
 namespace Theme {
 
 inline constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
-inline const auto kThemePathAbsoluteCloud = qstr("special://cloud");
 
 struct Object {
 	QString pathRelative;
@@ -53,7 +52,9 @@ struct Preview {
 	QImage preview;
 };
 
-bool Apply(const QString &filepath);
+bool Apply(
+	const QString &filepath,
+	const Data::CloudTheme &cloud = Data::CloudTheme());
 bool Apply(std::unique_ptr<Preview> preview);
 void ApplyDefaultWithPath(const QString &themePath);
 bool ApplyEditedPalette(const QString &path, const QByteArray &content);

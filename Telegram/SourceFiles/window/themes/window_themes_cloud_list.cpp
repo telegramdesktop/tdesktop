@@ -154,13 +154,13 @@ void CloudList::setup() {
 		_window->session().data().cloudThemes().updated()
 	);
 
-	auto themeChanges = rpl::single(
-		BackgroundUpdate(BackgroundUpdate::Type::New, Background()->tile())
-	) | rpl::then(base::ObservableViewer(
+	auto themeChanges = rpl::single(BackgroundUpdate(
+		BackgroundUpdate::Type::ApplyingTheme,
+		Background()->tile()
+	)) | rpl::then(base::ObservableViewer(
 		*Background()
 	)) | rpl::filter([](const BackgroundUpdate &update) {
-		return (update.type == BackgroundUpdate::Type::ApplyingTheme)
-			|| (update.type == BackgroundUpdate::Type::New);
+		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
 	});
 
 	rpl::combine(

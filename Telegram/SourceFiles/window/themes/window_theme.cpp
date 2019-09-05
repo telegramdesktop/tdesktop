@@ -1065,8 +1065,10 @@ void Unload() {
 	GlobalApplying = Applying();
 }
 
-bool Apply(const QString &filepath) {
-	if (auto preview = PreviewFromFile(filepath, {}, {})) {
+bool Apply(
+		const QString &filepath,
+		const Data::CloudTheme &cloud) {
+	if (auto preview = PreviewFromFile(filepath, {}, cloud)) {
 		return Apply(std::move(preview));
 	}
 	return false;

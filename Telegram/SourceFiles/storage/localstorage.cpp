@@ -4201,21 +4201,17 @@ Window::Theme::Saved readThemeUsingKey(FileKey key) {
 	auto &cache = result.cache;
 	theme.stream >> object.content;
 	theme.stream >> tag >> object.pathAbsolute;
-	const auto isCloud = (object.pathAbsolute == kThemePathAbsoluteCloud);
 	if (tag == kThemeNewPathRelativeTag) {
-		if (isCloud) {
-			auto creator = qint32();
-			theme.stream
-				>> object.cloud.id
-				>> object.cloud.accessHash
-				>> object.cloud.slug
-				>> object.cloud.title
-				>> object.cloud.documentId
-				>> creator;
-			object.cloud.createdBy = creator;
-		} else {
-			theme.stream >> object.pathRelative;
-		}
+		auto creator = qint32();
+		theme.stream
+			>> object.pathRelative
+			>> object.cloud.id
+			>> object.cloud.accessHash
+			>> object.cloud.slug
+			>> object.cloud.title
+			>> object.cloud.documentId
+			>> creator;
+		object.cloud.createdBy = creator;
 	} else {
 		object.pathRelative = tag;
 	}
@@ -4224,7 +4220,7 @@ Window::Theme::Saved readThemeUsingKey(FileKey key) {
 	}
 
 	auto ignoreCache = false;
-	if (!isCloud) {
+	if (!object.cloud.id) {
 		QFile file(object.pathRelative);
 		if (object.pathRelative.isEmpty() || !file.exists()) {
 			file.setFileName(object.pathAbsolute);
@@ -4299,33 +4295,30 @@ void writeTheme(const Window::Theme::Saved &saved) {
 	const auto &object = saved.object;
 	const auto &cache = saved.cache;
 	const auto tag = QString(kThemeNewPathRelativeTag);
-	const auto isCloud = (saved.object.pathAbsolute == kThemePathAbsoluteCloud);
-	quint32 size = Serialize::bytearraySize(object.content);
-	size += Serialize::stringSize(tag) + Serialize::stringSize(object.pathAbsolute);
-	if (isCloud) {
-		size += sizeof(uint64) * 3
-			+ Serialize::stringSize(object.cloud.slug)
-			+ Serialize::stringSize(object.cloud.title)
-			+ sizeof(qint32);
-	} else {
-		size += Serialize::stringSize(object.pathRelative);
-	}
-	size += sizeof(int32) * 2 + Serialize::bytearraySize(cache.colors) + Serialize::bytearraySize(cache.background) + sizeof(quint32);
+	quint32 size = Serialize::bytearraySize(object.content)
+		+ Serialize::stringSize(tag)
+		+ Serialize::stringSize(object.pathAbsolute)
+		+ Serialize::stringSize(object.pathRelative)
+		+ sizeof(uint64) * 3
+		+ Serialize::stringSize(object.cloud.slug)
+		+ Serialize::stringSize(object.cloud.title)
+		+ sizeof(qint32)
+		+ sizeof(qint32) * 2
+		+ Serialize::bytearraySize(cache.colors)
+		+ Serialize::bytearraySize(cache.background)
+		+ sizeof(quint32);
 	EncryptedDescriptor data(size);
-	data.stream << object.content;
-	data.stream << tag << object.pathAbsolute;
-	if (isCloud) {
-		data.stream
-			<< object.cloud.id
-			<< object.cloud.accessHash
-			<< object.cloud.slug
-			<< object.cloud.title
-			<< object.cloud.documentId
-			<< qint32(object.cloud.createdBy);
-	} else {
-		data.stream << object.pathRelative;
-	}
 	data.stream
+		<< object.content
+		<< tag
+		<< object.pathAbsolute
+		<< object.pathRelative
+		<< object.cloud.id
+		<< object.cloud.accessHash
+		<< object.cloud.slug
+		<< object.cloud.title
+		<< object.cloud.documentId
+		<< qint32(object.cloud.createdBy)
 		<< cache.paletteChecksum
 		<< cache.contentChecksum
 		<< cache.colors

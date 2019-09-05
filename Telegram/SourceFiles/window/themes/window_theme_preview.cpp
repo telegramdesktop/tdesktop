@@ -915,17 +915,12 @@ std::unique_ptr<Preview> PreviewFromFile(
 	auto result = std::make_unique<Preview>();
 	auto &object = result->object;
 	object.cloud = cloud;
-	if (cloud.documentId || filepath.isEmpty()) {
-		object.pathRelative = QString();
-		object.pathAbsolute = QString(kThemePathAbsoluteCloud);
-	} else {
-		object.pathRelative = filepath.isEmpty()
-			? QString()
-			: QDir().relativeFilePath(filepath);
-		object.pathAbsolute = filepath.isEmpty()
-			? QString()
-			: QFileInfo(filepath).absoluteFilePath();
-	}
+	object.pathRelative = filepath.isEmpty()
+		? QString()
+		: QDir().relativeFilePath(filepath);
+	object.pathAbsolute = filepath.isEmpty()
+		? QString()
+		: QFileInfo(filepath).absoluteFilePath();
 	if (bytes.isEmpty()) {
 		if (!LoadFromFile(filepath, &result->instance, &object.content)) {
 			return nullptr;

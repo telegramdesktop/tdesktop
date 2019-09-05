@@ -1084,8 +1084,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	base::ObservableViewer(
 		*Window::Theme::Background()
 	) | rpl::filter([](const Update &update) {
-		return (update.type == Update::Type::ApplyingTheme
-			|| update.type == Update::Type::New);
+		return (update.type == Update::Type::ApplyingTheme);
 	}) | rpl::map([=] {
 		return chosen();
 	}) | rpl::start_with_next([=](Type type) {
@@ -1149,6 +1148,8 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 void SetupThemeOptions(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
+	using namespace Window::Theme;
+
 	AddSkip(container, st::settingsPrivacySkip);
 
 	AddSubsectionTitle(container, tr::lng_settings_themes());
@@ -1156,20 +1157,38 @@ void SetupThemeOptions(
 	AddSkip(container, st::settingsThemesTopSkip);
 	SetupDefaultThemes(container);
 	AddSkip(container, st::settingsThemesBottomSkip);
-	auto canEdit = rpl::single(false);
+
+	const auto canEditCurrent = [=] {
+		const auto userId = controller->session().userId();
+		return (Background()->themeObject().cloud.createdBy == userId);
+	};
+	auto canEdit = rpl::single(BackgroundUpdate(
+		BackgroundUpdate::Type::ApplyingTheme,
+		Background()->tile()
+	)) | rpl::then(base::ObservableViewer(
+		*Background()
+	)) | rpl::filter([](const BackgroundUpdate &update) {
+		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
+	}) | rpl::map([=] {
+		return canEditCurrent();
+	});
 	AddButton(
 		container,
 		rpl::conditional(
 			std::move(canEdit),
-			tr::lng_settings_bg_edit_theme(),
-			tr::lng_settings_bg_create_theme()),
+			tr::lng_settings_bg_theme_edit(),
+			tr::lng_settings_bg_theme_create()),
 		st::settingsChatButton,
 		&st::settingsIconThemes,
 		st::settingsChatIconLeft
 	)->addClickHandler([=] {
-		controller->window().show(Box(
-			Window::Theme::CreateBox,
-			&controller->window()));
+		if (canEditCurrent()) {
+			StartEditor(
+				&controller->window(),
+				Background()->themeObject().cloud);
+		} else {
+			controller->window().show(Box(CreateBox, &controller->window()));
+		}
 	});
 
 	AddSkip(container);

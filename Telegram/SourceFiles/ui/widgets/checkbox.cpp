@@ -413,7 +413,7 @@ Checkbox::Checkbox(
 		text,
 		_checkboxOptions,
 		countTextMinWidth()) {
-	_check->setUpdateCallback([=] { updateCheck(); });
+	_check->setUpdateCallback([=] { update(); });
 	resizeToText();
 	setCursor(style::cur_pointer);
 }

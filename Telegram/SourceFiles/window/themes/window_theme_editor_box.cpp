@@ -262,21 +262,6 @@ void WriteDefaultPalette(const QString &path) {
 	}
 }
 
-void StartEditor(
-		not_null<Window::Controller*> window,
-		const QString &title) {
-	const auto path = EditingPalettePath();
-	if (!Local::copyThemeColorsToPalette(path)) {
-		WriteDefaultPalette(path);
-	}
-	if (!Apply(path)) {
-		window->show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
-		return;
-	}
-	KeepApplied();
-	window->showRightColumn(Box<Editor>(window));
-}
-
 [[nodiscard]] QString GenerateSlug() {
 	const auto letters = uint8('Z' + 1 - 'A');
 	const auto digits = uint8('9' + 1 - '0');
@@ -500,6 +485,21 @@ Fn<void()> SaveTheme(
 
 } // namespace
 
+void StartEditor(
+		not_null<Window::Controller*> window,
+		const Data::CloudTheme &cloud) {
+	const auto path = EditingPalettePath();
+	if (!Local::copyThemeColorsToPalette(path)) {
+		WriteDefaultPalette(path);
+	}
+	if (!Apply(path, cloud)) {
+		window->show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
+		return;
+	}
+	KeepApplied();
+	window->showRightColumn(Box<Editor>(window));
+}
+
 void CreateBox(
 		not_null<GenericBox*> box,
 		not_null<Window::Controller*> window) {
@@ -542,7 +542,9 @@ void CreateBox(
 			return;
 		}
 		box->closeBox();
-		StartEditor(window, title);
+		auto cloud = Data::CloudTheme();
+		cloud.title = title;
+		StartEditor(window, cloud);
 	};
 	Ui::Connect(name, &Ui::InputField::submitted, done);
 	box->addButton(tr::lng_box_done(), done);
