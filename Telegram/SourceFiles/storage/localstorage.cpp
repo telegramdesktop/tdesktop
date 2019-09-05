@@ -34,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
-#include "window/themes/window_theme_editor.h"
 #include "base/flags.h"
 #include "data/data_session.h"
 #include "history/history.h"
@@ -4479,26 +4478,30 @@ std::vector<Lang::Language> readRecentLanguages() {
 	return result;
 }
 
-bool copyThemeColorsToPalette(const QString &destination) {
+Window::Theme::Object ReadThemeContent() {
 	using namespace Window::Theme;
+
 	auto &themeKey = IsNightMode() ? _themeKeyNight : _themeKeyDay;
 	if (!themeKey) {
-		return false;
+		return Object();
 	}
 
 	FileReadDescriptor theme;
 	if (!readEncryptedFile(theme, themeKey, FileOption::Safe, SettingsKey)) {
-		return false;
+		return Object();
 	}
 
-	QByteArray themeContent;
+	QByteArray content;
 	QString pathRelative, pathAbsolute;
-	theme.stream >> themeContent >> pathRelative >> pathAbsolute;
+	theme.stream >> content >> pathRelative >> pathAbsolute;
 	if (theme.stream.status() != QDataStream::Ok) {
-		return false;
+		return Object();
 	}
 
-	return CopyColorsToPalette(destination, pathAbsolute, themeContent);
+	auto result = Object();
+	result.pathAbsolute = pathAbsolute;
+	result.content = content;
+	return result;
 }
 
 void writeRecentHashtagsAndBots() {

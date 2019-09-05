@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/themes/window_theme_preview.h"
 #include "window/themes/window_themes_embedded.h"
+#include "window/themes/window_theme_editor.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -49,14 +50,6 @@ Applying GlobalApplying;
 
 inline bool AreTestingTheme() {
 	return !GlobalApplying.paletteForRevert.isEmpty();
-};
-
-[[nodiscard]] bool IsEditingTheme(const QString &path) {
-	static const auto kEditingPath = QFileInfo(
-		EditingPalettePath()
-	).absoluteFilePath();
-	return !path.compare(kEditingPath, Qt::CaseInsensitive)
-		&& QFileInfo(path).exists();
 }
 
 bool CalculateIsMonoColorImage(const QImage &image) {
@@ -408,7 +401,7 @@ bool InitializeFromSaved(Saved &&saved) {
 		return false;
 	}
 	if (editing) {
-		Background()->setIsEditingTheme(true);
+		Background()->setEditingTheme(ReadCloudFromText(*editing));
 	} else {
 		Local::writeTheme(saved);
 	}
@@ -544,7 +537,7 @@ void ChatBackground::checkUploadWallPaper() {
 	}
 	if (!Data::IsCustomWallPaper(_paper)
 		|| _original.isNull()
-		|| isEditingTheme()) {
+		|| _editingTheme.has_value()) {
 		return;
 	}
 
@@ -734,7 +727,7 @@ bool ChatBackground::adjustPaletteRequired() {
 			|| Data::details::IsTestingDefaultWallPaper(_paper);
 	};
 
-	if (isEditingTheme()) {
+	if (_editingTheme.has_value()) {
 		return false;
 	} else if (isNonDefaultThemeOrBackground() || nightMode()) {
 		return !usingThemeBackground();
@@ -742,12 +735,13 @@ bool ChatBackground::adjustPaletteRequired() {
 	return !usingDefaultBackground();
 }
 
-bool ChatBackground::isEditingTheme() const {
+std::optional<Data::CloudTheme> ChatBackground::editingTheme() const {
 	return _editingTheme;
 }
 
-void ChatBackground::setIsEditingTheme(bool editing) {
-	if (_editingTheme == editing) {
+void ChatBackground::setEditingTheme(
+		std::optional<Data::CloudTheme> editing) {
+	if (!_editingTheme && !editing) {
 		return;
 	}
 	_editingTheme = editing;
@@ -913,7 +907,7 @@ void ChatBackground::setTestingTheme(Instance &&theme) {
 		|| (Data::IsDefaultWallPaper(_paper)
 			&& !nightMode()
 			&& _themeObject.pathAbsolute.isEmpty());
-	if (AreTestingTheme() && isEditingTheme()) {
+	if (AreTestingTheme() && _editingTheme.has_value()) {
 		// Grab current background image if it is not already custom
 		// Use prepared pixmap, not original image, because we're
 		// for sure switching to a non-pattern wall-paper (testing editor).

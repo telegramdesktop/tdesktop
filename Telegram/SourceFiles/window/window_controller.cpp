@@ -46,9 +46,9 @@ void Controller::firstShow() {
 
 void Controller::checkThemeEditor() {
 	using namespace Window::Theme;
-	if (Background()->isEditingTheme()) {
-		showRightColumn(
-			Box<Editor>(this, Background()->themeObject().cloud));
+
+	if (const auto editing = Background()->editingTheme()) {
+		showRightColumn(Box<Editor>(this, *editing));
 	}
 }
 

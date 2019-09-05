@@ -23,10 +23,10 @@ class Controller;
 
 namespace Theme {
 
-bool CopyColorsToPalette(
-	const QString &destination,
-	const QString &themePath,
-	const QByteArray &themeContent);
+struct Colorizer;
+
+[[nodiscard]] QByteArray WriteCloudToText(const Data::CloudTheme &cloud);
+[[nodiscard]] Data::CloudTheme ReadCloudFromText(const QByteArray &text);
 
 class Editor : public TWidget {
 public:
@@ -34,6 +34,10 @@ public:
 		QWidget*,
 		not_null<Window::Controller*> window,
 		const Data::CloudTheme &cloud);
+
+	[[nodiscard]] static QByteArray ColorizeInContent(
+		QByteArray content,
+		const Colorizer &colorizer);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -57,6 +61,7 @@ private:
 	object_ptr<Ui::PlainShadow> _leftShadow;
 	object_ptr<Ui::PlainShadow> _topShadow;
 	object_ptr<Ui::FlatButton> _save;
+	bool _saving = false;
 
 };
 

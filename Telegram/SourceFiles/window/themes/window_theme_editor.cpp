@@ -35,6 +35,14 @@ namespace Window {
 namespace Theme {
 namespace {
 
+template <size_t Size>
+QByteArray qba(const char(&string)[Size]) {
+	return QByteArray::fromRawData(string, Size - 1);
+}
+
+const auto kCloudInTextStart = qba("// THEME EDITOR SERVICE INFO START\n");
+const auto kCloudInTextEnd = qba("// THEME EDITOR SERVICE INFO END\n\n");
+
 struct ReadColorResult {
 	ReadColorResult(QColor color, bool error = false) : color(color), error(error) {
 	}
@@ -186,7 +194,7 @@ QByteArray replaceValueInContent(const QByteArray &content, const QByteArray &na
 	return QByteArray();
 }
 
-QByteArray ColorizeInContent(
+[[nodiscard]] QByteArray ColorizeInContent(
 		QByteArray content,
 		const Colorizer &colorizer) {
 	auto validNames = OrderedSet<QLatin1String>();
@@ -294,44 +302,41 @@ private:
 
 };
 
-bool CopyColorsToPalette(
-		const QString &destination,
-		const QString &themePath,
-		const QByteArray &themeContent) {
-	auto paletteContent = themeContent;
+[[nodiscard]] QByteArray WriteCloudToText(const Data::CloudTheme &cloud) {
+	auto result = QByteArray();
+	const auto add = [&](const QByteArray &key, const QString &value) {
+		result.append("// " + key + ": " + value.toLatin1() + "\n");
+	};
+	result.append(kCloudInTextStart);
+	add("ID", QString::number(cloud.id));
+	add("ACCESS", QString::number(cloud.accessHash));
+	result.append(kCloudInTextEnd);
+	return result;
+}
 
-	zlib::FileToRead file(themeContent);
-
-	unz_global_info globalInfo = { 0 };
-	file.getGlobalInfo(&globalInfo);
-	if (file.error() == UNZ_OK) {
-		paletteContent = file.readFileContent("colors.tdesktop-theme", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
-		if (file.error() == UNZ_END_OF_LIST_OF_FILE) {
-			file.clearError();
-			paletteContent = file.readFileContent("colors.tdesktop-palette", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
-		}
-		if (file.error() != UNZ_OK) {
-			LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file, while copying to '%1'.").arg(destination));
+[[nodiscard]] Data::CloudTheme ReadCloudFromText(const QByteArray &text) {
+	const auto index = text.indexOf(kCloudInTextEnd);
+	if (index <= 1) {
+		return Data::CloudTheme();
+	}
+	auto result = Data::CloudTheme();
+	const auto list = text.mid(0, index - 1).split('\n');
+	const auto take = [&](uint64 &value, int index) {
+		if (list.size() <= index) {
 			return false;
 		}
+		const auto &entry = list[index];
+		const auto position = entry.indexOf(": ");
+		if (position < 0) {
+			return false;
+		}
+		value = QString::fromLatin1(entry.mid(position + 2)).toULongLong();
+		return true;
+	};
+	if (!take(result.id, 1) || !take(result.accessHash, 2)) {
+		return Data::CloudTheme();
 	}
-
-	QFile f(destination);
-	if (!f.open(QIODevice::WriteOnly)) {
-		LOG(("Theme Error: could not open file for write '%1'").arg(destination));
-		return false;
-	}
-
-	if (const auto colorizer = ColorizerForTheme(themePath)) {
-		paletteContent = ColorizeInContent(
-			std::move(paletteContent),
-			colorizer);
-	}
-	if (f.write(paletteContent) != paletteContent.size()) {
-		LOG(("Theme Error: could not write palette to '%1'").arg(destination));
-		return false;
-	}
-	return true;
+	return result;
 }
 
 Editor::Inner::Inner(QWidget *parent, const QString &path) : TWidget(parent)
@@ -680,12 +685,22 @@ Editor::Editor(
 	resizeToWidth(st::windowMinWidth);
 }
 
+QByteArray Editor::ColorizeInContent(
+		QByteArray content,
+		const Colorizer &colorizer) {
+	return Window::Theme::ColorizeInContent(content, colorizer);
+}
+
 void Editor::save() {
 	if (!_window->account().sessionExists()) {
 		Ui::Toast::Show(tr::lng_theme_editor_need_auth(tr::now));
 		return;
+	} else if (_saving) {
+		return;
 	}
-	Ui::show(Box(SaveThemeBox, _window, _cloud, _inner->paletteContent()));
+	_saving = true;
+	const auto unlock = crl::guard(this, [=] { _saving = false; });
+	SaveTheme(_window, _cloud, _inner->paletteContent(), unlock);
 }
 
 void Editor::resizeEvent(QResizeEvent *e) {
@@ -776,7 +791,7 @@ void Editor::paintEvent(QPaintEvent *e) {
 void Editor::closeEditor() {
 	if (const auto window = App::wnd()) {
 		window->showRightColumn(nullptr);
-		Background()->setIsEditingTheme(false);
+		Background()->setEditingTheme(std::nullopt);
 	}
 }
 

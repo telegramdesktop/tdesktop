@@ -120,8 +120,8 @@ public:
 	void setTileNightValue(bool tile);
 	void setThemeObject(const Object &object);
 	[[nodiscard]] const Object &themeObject() const;
-	[[nodiscard]] bool isEditingTheme() const;
-	void setIsEditingTheme(bool editing);
+	[[nodiscard]] std::optional<Data::CloudTheme> editingTheme() const;
+	void setEditingTheme(std::optional<Data::CloudTheme> editing);
 	void reset();
 
 	void setTestingTheme(Instance &&theme);
@@ -201,7 +201,7 @@ private:
 	Object _themeObject;
 	QImage _themeImage;
 	bool _themeTile = false;
-	bool _editingTheme = false;
+	std::optional<Data::CloudTheme> _editingTheme;
 
 	Data::WallPaper _paperForRevert
 		= Data::details::UninitializedWallPaper();
@@ -220,11 +220,6 @@ private:
 ChatBackground *Background();
 
 void ComputeBackgroundRects(QRect wholeFill, QSize imageSize, QRect &to, QRect &from);
-
-bool CopyColorsToPalette(
-	const QString &destination,
-	const QString &themePath,
-	const QByteArray &themeContent);
 
 bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QLatin1String value)> callback);
 

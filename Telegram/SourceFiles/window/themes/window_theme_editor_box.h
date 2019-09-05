@@ -29,6 +29,11 @@ void CreateForExistingBox(
 	not_null<GenericBox*> box,
 	not_null<Window::Controller*> window,
 	const Data::CloudTheme &cloud);
+void SaveTheme(
+	not_null<Window::Controller*> window,
+	const Data::CloudTheme &cloud,
+	const QByteArray &palette,
+	Fn<void()> unlock);
 void SaveThemeBox(
 	not_null<GenericBox*> box,
 	not_null<Window::Controller*> window,

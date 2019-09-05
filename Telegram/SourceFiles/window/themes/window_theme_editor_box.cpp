@@ -86,6 +86,7 @@ private:
 	QByteArray _backgroundContent;
 	bool _isPng = false;
 	QString _imageText;
+	int _thumbnailSize = 0;
 	QPixmap _thumbnail;
 
 };
@@ -112,12 +113,12 @@ BackgroundSelector::BackgroundSelector(
 		formatSizeText(_backgroundContent.size()));
 	_chooseFromFile->setClickedCallback([=] { chooseBackgroundFromFile(); });
 
-	const auto height = st::boxTextFont->height
+	_thumbnailSize = st::boxTextFont->height
 		+ st::themesSmallSkip
 		+ _chooseFromFile->heightNoMargins()
 		+ st::themesSmallSkip
 		+ _tileBackground->heightNoMargins();
-	resize(width(), height);
+	resize(width(), _thumbnailSize + st::themesSmallSkip);
 
 	updateThumbnail();
 }
@@ -125,7 +126,7 @@ BackgroundSelector::BackgroundSelector(
 void BackgroundSelector::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	const auto left = height() + st::themesSmallSkip;
+	const auto left = _thumbnailSize + st::themesSmallSkip;
 
 	p.setPen(st::boxTextFg);
 	p.setFont(st::boxTextFont);
@@ -135,14 +136,14 @@ void BackgroundSelector::paintEvent(QPaintEvent *e) {
 }
 
 int BackgroundSelector::resizeGetHeight(int newWidth) {
-	const auto left = height() + st::themesSmallSkip;
+	const auto left = _thumbnailSize + st::themesSmallSkip;
 	_chooseFromFile->moveToLeft(left, st::boxTextFont->height + st::themesSmallSkip);
 	_tileBackground->moveToLeft(left, st::boxTextFont->height + st::themesSmallSkip + _chooseFromFile->height() + st::themesSmallSkip);
 	return height();
 }
 
 void BackgroundSelector::updateThumbnail() {
-	const auto size = height();
+	const auto size = _thumbnailSize;
 	auto back = QImage(
 		QSize(size, size) * cIntRetinaFactor(),
 		QImage::Format_ARGB32_Premultiplied);
@@ -233,11 +234,55 @@ void ImportFromFile(
 		crl::guard(parent, callback));
 }
 
-QString BytesToUTF8(QLatin1String string) {
+[[nodiscard]] QString BytesToUTF8(QLatin1String string) {
 	return QString::fromUtf8(string.data(), string.size());
 }
 
-bool WriteDefaultPalette(const QString &path) {
+[[nodiscard]] bool CopyColorsToPalette(
+		const QString &destination,
+		const QString &themePath,
+		const QByteArray &themeContent,
+		const Data::CloudTheme &cloud) {
+	auto paletteContent = themeContent;
+
+	zlib::FileToRead file(themeContent);
+
+	unz_global_info globalInfo = { 0 };
+	file.getGlobalInfo(&globalInfo);
+	if (file.error() == UNZ_OK) {
+		paletteContent = file.readFileContent("colors.tdesktop-theme", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
+		if (file.error() == UNZ_END_OF_LIST_OF_FILE) {
+			file.clearError();
+			paletteContent = file.readFileContent("colors.tdesktop-palette", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
+		}
+		if (file.error() != UNZ_OK) {
+			LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file, while copying to '%1'.").arg(destination));
+			return false;
+		}
+	}
+
+	QFile f(destination);
+	if (!f.open(QIODevice::WriteOnly)) {
+		LOG(("Theme Error: could not open file for write '%1'").arg(destination));
+		return false;
+	}
+
+	if (const auto colorizer = ColorizerForTheme(themePath)) {
+		paletteContent = Editor::ColorizeInContent(
+			std::move(paletteContent),
+			colorizer);
+	}
+	paletteContent = WriteCloudToText(cloud) + paletteContent;
+	if (f.write(paletteContent) != paletteContent.size()) {
+		LOG(("Theme Error: could not write palette to '%1'").arg(destination));
+		return false;
+	}
+	return true;
+}
+
+bool WriteDefaultPalette(
+		const QString &path,
+		const Data::CloudTheme &cloud) {
 	QFile f(path);
 	if (!f.open(QIODevice::WriteOnly)) {
 		LOG(("Theme Error: could not open '%1' for writing.").arg(path));
@@ -246,6 +291,8 @@ bool WriteDefaultPalette(const QString &path) {
 
 	QTextStream stream(&f);
 	stream.setCodec("UTF-8");
+
+	stream << QString::fromLatin1(WriteCloudToText(cloud));
 
 	auto rows = style::main_palette::data();
 	for (const auto &row : std::as_const(rows)) {
@@ -396,7 +443,7 @@ SendMediaReady PrepareThemeMedia(
 		0);
 }
 
-Fn<void()> SaveTheme(
+Fn<void()> SavePreparedTheme(
 		not_null<Window::Controller*> window,
 		const QByteArray &palette,
 		const PreparedBackground &background,
@@ -494,12 +541,15 @@ void StartEditor(
 		not_null<Window::Controller*> window,
 		const Data::CloudTheme &cloud) {
 	const auto path = EditingPalettePath();
-	if (!Local::copyThemeColorsToPalette(path)
-		&& !WriteDefaultPalette(path)) {
+	auto object = Local::ReadThemeContent();
+	const auto written = object.content.isEmpty()
+		? WriteDefaultPalette(path, cloud)
+		: CopyColorsToPalette(path, object.pathAbsolute, object.content, cloud);
+	if (!written) {
 		window->show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
 		return;
 	}
-	Background()->setIsEditingTheme(true);
+	Background()->setEditingTheme(cloud);
 	window->showRightColumn(Box<Editor>(window, cloud));
 }
 
@@ -561,6 +611,40 @@ void CreateForExistingBox(
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
+void SaveTheme(
+		not_null<Window::Controller*> window,
+		const Data::CloudTheme &cloud,
+		const QByteArray &palette,
+		Fn<void()> unlock) {
+	Expects(window->account().sessionExists());
+
+	using Data::CloudTheme;
+
+	const auto save = [=](const CloudTheme &fields) {
+		window->show(Box(SaveThemeBox, window, fields, palette));
+	};
+	if (cloud.id) {
+		window->account().session().api().request(MTPaccount_GetTheme(
+			MTP_string(Data::CloudThemes::Format()),
+			MTP_inputTheme(MTP_long(cloud.id), MTP_long(cloud.accessHash)),
+			MTP_long(0)
+		)).done([=](const MTPTheme &result) {
+			unlock();
+			result.match([&](const MTPDtheme &data) {
+				save(CloudTheme::Parse(&window->account().session(), data));
+			}, [&](const MTPDthemeDocumentNotModified &data) {
+				LOG(("API Error: Unexpected themeDocumentNotModified."));
+				save(CloudTheme());
+			});
+		}).fail([=](const RPCError &error) {
+			unlock();
+			save(CloudTheme());
+		}).send();
+	} else {
+		save(CloudTheme());
+	}
+}
+
 void SaveThemeBox(
 		not_null<GenericBox*> box,
 		not_null<Window::Controller*> window,
@@ -594,7 +678,7 @@ void SaveThemeBox(
 		linkWrap,
 		st::createThemeLink,
 		rpl::single(qsl("link")),
-		cloud.slug,
+		cloud.slug.isEmpty() ? GenerateSlug() : cloud.slug,
 		true);
 	linkWrap->widthValue(
 	) | rpl::start_with_next([=](int width) {
@@ -657,6 +741,7 @@ void SaveThemeBox(
 		const auto fail = crl::guard(box, [=](
 				SaveErrorType type,
 				const QString &text) {
+			*saving = false;
 			if (!text.isEmpty()) {
 				Ui::Toast::Show(text);
 			}
@@ -666,7 +751,7 @@ void SaveThemeBox(
 				link->showError();
 			}
 		});
-		*cancel = SaveTheme(
+		*cancel = SavePreparedTheme(
 			window,
 			palette,
 			back->result(),
