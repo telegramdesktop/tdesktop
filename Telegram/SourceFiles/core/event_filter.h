@@ -11,26 +11,31 @@ namespace Core {
 
 class EventFilter : public QObject {
 public:
+	enum Result {
+		Continue,
+		Cancel,
+	};
+
 	EventFilter(
 		not_null<QObject*> parent,
 		not_null<QObject*> object,
-		Fn<bool(not_null<QEvent*>)> filter);
+		Fn<Result(not_null<QEvent*>)> filter);
 
 protected:
 	bool eventFilter(QObject *watched, QEvent *event);
 
 private:
-	Fn<bool(not_null<QEvent*>)> _filter;
+	Fn<Result(not_null<QEvent*>)> _filter;
 
 };
 
 not_null<QObject*> InstallEventFilter(
 	not_null<QObject*> object,
-	Fn<bool(not_null<QEvent*>)> filter);
+	Fn<EventFilter::Result(not_null<QEvent*>)> filter);
 
 not_null<QObject*> InstallEventFilter(
 	not_null<QObject*> context,
 	not_null<QObject*> object,
-	Fn<bool(not_null<QEvent*>)> filter);
+	Fn<EventFilter::Result(not_null<QEvent*>)> filter);
 
 } // namespace Core

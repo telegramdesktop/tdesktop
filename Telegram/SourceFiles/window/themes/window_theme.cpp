@@ -277,7 +277,7 @@ bool loadTheme(
 	zlib::FileToRead file(content);
 
 	const auto emptyColorizer = Colorizer();
-	const auto &applyColorizer = editedPalette ? emptyColorizer : colorizer;
+	const auto &paletteColorizer = editedPalette ? emptyColorizer : colorizer;
 
 	unz_global_info globalInfo = { 0 };
 	file.getGlobalInfo(&globalInfo);
@@ -294,7 +294,7 @@ bool loadTheme(
 			LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file."));
 			return false;
 		}
-		if (!loadColorScheme(schemeContent, applyColorizer, out)) {
+		if (!loadColorScheme(schemeContent, paletteColorizer, out)) {
 			return false;
 		}
 		Background()->saveAdjustableColors();
@@ -333,7 +333,7 @@ bool loadTheme(
 		}
 	} else {
 		// Looks like it is not a .zip theme.
-		if (!loadColorScheme(editedPalette.value_or(content), applyColorizer, out)) {
+		if (!loadColorScheme(editedPalette.value_or(content), paletteColorizer, out)) {
 			return false;
 		}
 		Background()->saveAdjustableColors();
@@ -403,9 +403,7 @@ bool InitializeFromSaved(Saved &&saved) {
 		return true;
 	}
 
-	const auto colorizer = editing
-		? Colorizer()
-		: ColorizerForTheme(saved.object.pathAbsolute);
+	const auto colorizer = ColorizerForTheme(saved.object.pathAbsolute);
 	if (!loadTheme(saved.object.content, editing, saved.cache, colorizer)) {
 		return false;
 	}

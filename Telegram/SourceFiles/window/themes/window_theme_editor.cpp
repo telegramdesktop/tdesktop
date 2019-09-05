@@ -620,8 +620,12 @@ void Editor::Inner::applyEditing(const QString &name, const QString &copyOf, QCo
 //	});
 //}
 
-Editor::Editor(QWidget*, not_null<Window::Controller*> window)
+Editor::Editor(
+	QWidget*,
+	not_null<Window::Controller*> window,
+	const Data::CloudTheme &cloud)
 : _window(window)
+, _cloud(cloud)
 , _scroll(this, st::themesScroll)
 , _close(this, st::contactsMultiSelect.fieldCancel)
 , _select(this, st::contactsMultiSelect, tr::lng_country_ph())
@@ -678,10 +682,10 @@ Editor::Editor(QWidget*, not_null<Window::Controller*> window)
 
 void Editor::save() {
 	if (!_window->account().sessionExists()) {
-		//_window->show(Box<InformBox>())
+		Ui::Toast::Show(tr::lng_theme_editor_need_auth(tr::now));
 		return;
 	}
-	Ui::show(Box(SaveThemeBox, _window, _inner->paletteContent()));
+	Ui::show(Box(SaveThemeBox, _window, _cloud, _inner->paletteContent()));
 }
 
 void Editor::resizeEvent(QResizeEvent *e) {

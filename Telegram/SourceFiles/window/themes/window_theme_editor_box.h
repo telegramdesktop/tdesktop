@@ -25,9 +25,14 @@ void StartEditor(
 void CreateBox(
 	not_null<GenericBox*> box,
 	not_null<Window::Controller*> window);
+void CreateForExistingBox(
+	not_null<GenericBox*> box,
+	not_null<Window::Controller*> window,
+	const Data::CloudTheme &cloud);
 void SaveThemeBox(
 	not_null<GenericBox*> box,
 	not_null<Window::Controller*> window,
+	const Data::CloudTheme &cloud,
 	const QByteArray &palette);
 
 } // namespace Theme

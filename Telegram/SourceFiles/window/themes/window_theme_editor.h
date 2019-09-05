@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_cloud_themes.h"
+
 namespace Ui {
 class FlatButton;
 class ScrollArea;
@@ -28,7 +30,10 @@ bool CopyColorsToPalette(
 
 class Editor : public TWidget {
 public:
-	Editor(QWidget*, not_null<Window::Controller*> window);
+	Editor(
+		QWidget*,
+		not_null<Window::Controller*> window,
+		const Data::CloudTheme &cloud);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -41,7 +46,9 @@ private:
 	void save();
 	void closeEditor();
 
-	not_null<Window::Controller*> _window;
+	const not_null<Window::Controller*> _window;
+	const Data::CloudTheme _cloud;
+
 	object_ptr<Ui::ScrollArea> _scroll;
 	class Inner;
 	QPointer<Inner> _inner;

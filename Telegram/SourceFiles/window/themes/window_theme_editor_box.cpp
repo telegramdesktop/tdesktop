@@ -23,11 +23,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
+#include "core/event_filter.h"
 #include "lang/lang_keys.h"
 #include "base/zlib_help.h"
 #include "base/unixtime.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
+#include "data/data_cloud_themes.h"
 #include "storage/file_upload.h"
 #include "mainwindow.h"
 #include "layout.h"
@@ -498,63 +500,71 @@ void StartEditor(
 		return;
 	}
 	Background()->setIsEditingTheme(true);
-	window->showRightColumn(Box<Editor>(window));
+	window->showRightColumn(Box<Editor>(window, cloud));
 }
 
 void CreateBox(
 		not_null<GenericBox*> box,
 		not_null<Window::Controller*> window) {
-	Expects(window->account().sessionExists());
+	CreateForExistingBox(box, window, Data::CloudTheme());
+}
 
-	box->setTitle(tr::lng_theme_editor_create_title(Ui::Text::WithEntities));
+void CreateForExistingBox(
+		not_null<GenericBox*> box,
+		not_null<Window::Controller*> window,
+		const Data::CloudTheme &cloud) {
+	const auto userId = window->account().sessionExists()
+		? window->account().session().userId()
+		: UserId(-1);
+	const auto amCreator = window->account().sessionExists()
+		&& (window->account().session().userId() == cloud.createdBy);
+	box->setTitle(amCreator
+		? (rpl::single(cloud.title) | Ui::Text::ToWithEntities())
+		: tr::lng_theme_editor_create_title(Ui::Text::WithEntities));
 
-	const auto name = box->addRow(object_ptr<Ui::InputField>(
+	box->addRow(object_ptr<Ui::FlatLabel>(
 		box,
-		st::defaultInputField,
-		tr::lng_theme_editor_name()));
-
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			tr::lng_theme_editor_create_description(),
-			st::boxDividerLabel),
-		style::margins(
-			st::boxRowPadding.left(),
-			st::boxRowPadding.left(),
-			st::boxRowPadding.right(),
-			st::boxRowPadding.right()));
+		(amCreator
+			? tr::lng_theme_editor_attach_description
+			: tr::lng_theme_editor_create_description)(),
+		st::boxDividerLabel));
 
 	box->addRow(
 		object_ptr<Info::Profile::Button>(
 			box,
 			tr::lng_theme_editor_import_existing() | Ui::Text::ToUpper(),
 			st::createThemeImportButton),
-		style::margins()
+		style::margins(
+			0,
+			st::boxRowPadding.left(),
+			0,
+			0)
 	)->addClickHandler([=] {
 		ImportFromFile(&window->account().session(), box);
 	});
 
-	box->setFocusCallback([=] { name->setFocusFast(); });
-
 	const auto done = [=] {
-		const auto title = name->getLastText().trimmed();
-		if (title.isEmpty()) {
-			name->showError();
-			return;
-		}
 		box->closeBox();
-		auto cloud = Data::CloudTheme();
-		cloud.title = title;
 		StartEditor(window, cloud);
 	};
-	Ui::Connect(name, &Ui::InputField::submitted, done);
-	box->addButton(tr::lng_box_done(), done);
+	Core::InstallEventFilter(box, box, [=](not_null<QEvent*> event) {
+		if (event->type() == QEvent::KeyPress) {
+			const auto key = static_cast<QKeyEvent*>(event.get())->key();
+			if (key == Qt::Key_Enter || key == Qt::Key_Return) {
+				done();
+				return Core::EventFilter::Result::Cancel;
+			}
+		}
+		return Core::EventFilter::Result::Continue;
+	});
+	box->addButton(tr::lng_theme_editor_create(), done);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
 void SaveThemeBox(
 		not_null<GenericBox*> box,
 		not_null<Window::Controller*> window,
+		const Data::CloudTheme &cloud,
 		const QByteArray &palette) {
 	Expects(window->account().sessionExists());
 
@@ -571,7 +581,8 @@ void SaveThemeBox(
 	const auto name = box->addRow(object_ptr<Ui::InputField>(
 		box,
 		st::defaultInputField,
-		tr::lng_theme_editor_name()));
+		tr::lng_theme_editor_name(),
+		cloud.title));
 	const auto linkWrap = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
 		style::margins(
@@ -583,7 +594,7 @@ void SaveThemeBox(
 		linkWrap,
 		st::createThemeLink,
 		rpl::single(qsl("link")),
-		GenerateSlug(),
+		cloud.slug,
 		true);
 	linkWrap->widthValue(
 	) | rpl::start_with_next([=](int width) {

@@ -523,11 +523,11 @@ void Options::addEmptyOption() {
 	Core::InstallEventFilter(field, [=](not_null<QEvent*> event) {
 		if (event->type() != QEvent::KeyPress
 			|| !field->getLastText().isEmpty()) {
-			return false;
+			return Core::EventFilter::Result::Continue;
 		}
 		const auto key = static_cast<QKeyEvent*>(event.get())->key();
 		if (key != Qt::Key_Backspace) {
-			return false;
+			return Core::EventFilter::Result::Continue;
 		}
 
 		const auto index = findField(field);
@@ -536,7 +536,7 @@ void Options::addEmptyOption() {
 		} else {
 			_backspaceInFront.fire({});
 		}
-		return true;
+		return Core::EventFilter::Result::Cancel;
 	});
 
 	_list.back().removeClicks(

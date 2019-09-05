@@ -822,8 +822,8 @@ void SetupSendMenu(
 	};
 	Core::InstallEventFilter(button, [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::ContextMenu && showMenu()) {
-			return true;
+			return Core::EventFilter::Result::Cancel;
 		}
-		return false;
+		return Core::EventFilter::Result::Continue;
 	});
 }

@@ -106,6 +106,7 @@ private:
 	int resizeGetHeight(int newWidth);
 	void updateGeometry();
 
+	[[nodiscard]] bool amCreator(const Data::CloudTheme &theme) const;
 	[[nodiscard]] int groupValueForId(uint64 id);
 
 	const not_null<Window::SessionController*> _window;

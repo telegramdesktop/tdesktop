@@ -1078,7 +1078,9 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			}
 		}
 	};
-
+	group->setChangedCallback([=](Type type) {
+		group->setValue(chosen());
+	});
 	for (const auto &scheme : kSchemesList) {
 		refreshColorizer(scheme.type);
 	}

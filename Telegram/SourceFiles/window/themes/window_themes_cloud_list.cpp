@@ -8,8 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_themes_cloud_list.h"
 
 #include "window/themes/window_themes_embedded.h"
+#include "window/themes/window_theme_editor_box.h"
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_file_origin.h"
 #include "data/data_document.h"
@@ -108,6 +110,153 @@ constexpr auto kShowPerRow = 4;
 }
 
 } // namespace
+
+CloudListColors ColorsFromScheme(const EmbeddedScheme &scheme) {
+	auto result = CloudListColors();
+	result.sent = scheme.sent;
+	result.received = scheme.received;
+	result.radiobuttonActive = scheme.radiobuttonActive;
+	result.radiobuttonInactive = scheme.radiobuttonInactive;
+	result.background = QImage(
+		QSize(1, 1) * cIntRetinaFactor(),
+		QImage::Format_ARGB32_Premultiplied);
+	result.background.fill(scheme.background);
+	return result;
+}
+
+CloudListColors ColorsFromScheme(
+		const EmbeddedScheme &scheme,
+		const Colorizer &colorizer) {
+	if (!colorizer) {
+		return ColorsFromScheme(scheme);
+	}
+	auto copy = scheme;
+	Colorize(copy, colorizer);
+	return ColorsFromScheme(copy);
+}
+
+CloudListCheck::CloudListCheck(const Colors &colors, bool checked)
+: CloudListCheck(checked) {
+	setColors(colors);
+}
+
+CloudListCheck::CloudListCheck(bool checked)
+: AbstractCheckView(st::defaultRadio.duration, checked, nullptr)
+, _radio(st::defaultRadio, checked, [=] { update(); }) {
+}
+
+void CloudListCheck::setColors(const Colors &colors) {
+	_colors = colors;
+	_radio.setToggledOverride(_colors->radiobuttonActive);
+	_radio.setUntoggledOverride(_colors->radiobuttonInactive);
+	const auto size = st::settingsThemePreviewSize * cIntRetinaFactor();
+	_backgroundFull = (_colors->background.size() == size)
+		? _colors->background
+		: _colors->background.scaled(
+			size,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+	_backgroundCacheWidth = -1;
+	update();
+}
+
+QSize CloudListCheck::getSize() const {
+	return st::settingsThemePreviewSize;
+}
+
+void CloudListCheck::validateBackgroundCache(int width) {
+	if (_backgroundCacheWidth == width || width <= 0) {
+		return;
+	}
+	_backgroundCacheWidth = width;
+	const auto imageWidth = width * cIntRetinaFactor();
+	_backgroundCache = (width == st::settingsThemePreviewSize.width())
+		? _backgroundFull
+		: _backgroundFull.copy(
+			(_backgroundFull.width() - imageWidth) / 2,
+			0,
+			imageWidth,
+			_backgroundFull.height());
+	Images::prepareRound(_backgroundCache, ImageRoundRadius::Large);
+}
+
+void CloudListCheck::paint(Painter &p, int left, int top, int outerWidth) {
+	if (!_colors) {
+		return;
+	} else if (_colors->background.isNull()) {
+		paintNotSupported(p, left, top, outerWidth);
+	} else {
+		paintWithColors(p, left, top, outerWidth);
+	}
+}
+
+void CloudListCheck::paintNotSupported(
+		Painter &p,
+		int left,
+		int top,
+		int outerWidth) {
+	PainterHighQualityEnabler hq(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::settingsThemeNotSupportedBg);
+
+	const auto height = st::settingsThemePreviewSize.height();
+	const auto rect = QRect(0, 0, outerWidth, height);
+	const auto radius = st::historyMessageRadius;
+	p.drawRoundedRect(rect, radius, radius);
+	st::settingsThemeNotSupportedIcon.paintInCenter(p, rect);
+}
+
+void CloudListCheck::paintWithColors(
+		Painter &p,
+		int left,
+		int top,
+		int outerWidth) {
+	Expects(_colors.has_value());
+
+	validateBackgroundCache(outerWidth);
+	p.drawImage(
+		QRect(0, 0, outerWidth, st::settingsThemePreviewSize.height()),
+		_backgroundCache);
+
+	const auto received = QRect(
+		st::settingsThemeBubblePosition,
+		st::settingsThemeBubbleSize);
+	const auto sent = QRect(
+		outerWidth - received.width() - st::settingsThemeBubblePosition.x(),
+		received.y() + received.height() + st::settingsThemeBubbleSkip,
+		received.width(),
+		received.height());
+	const auto radius = st::settingsThemeBubbleRadius;
+
+	PainterHighQualityEnabler hq(p);
+	p.setPen(Qt::NoPen);
+
+	p.setBrush(_colors->received);
+	p.drawRoundedRect(rtlrect(received, outerWidth), radius, radius);
+	p.setBrush(_colors->sent);
+	p.drawRoundedRect(rtlrect(sent, outerWidth), radius, radius);
+
+	const auto skip = st::settingsThemeRadioBottom / 2;
+
+	const auto radio = _radio.getSize();
+	_radio.paint(
+		p,
+		(outerWidth - radio.width()) / 2,
+		getSize().height() - radio.height() - st::settingsThemeRadioBottom,
+		outerWidth);
+}
+
+QImage CloudListCheck::prepareRippleMask() const {
+	return QImage();
+}
+
+bool CloudListCheck::checkRippleStartPosition(QPoint position) const {
+	return false;
+}
+
+void CloudListCheck::checkedChangedHook(anim::type animated) {
+	_radio.setChecked(checked(), animated);
+}
 
 CloudList::CloudList(
 	not_null<QWidget*> parent,
@@ -322,7 +471,7 @@ void CloudList::insert(int index, const Data::CloudTheme &theme) {
 	button->setAllowTextLines(2);
 	button->setTextBreakEverywhere();
 	button->show();
-	button->setClickedCallback([=] {
+	button->addClickHandler([=] {
 		const auto i = ranges::find(_elements, id, &Element::id);
 		if (i == end(_elements)
 			|| id == kFakeCloudThemeId
@@ -331,7 +480,10 @@ void CloudList::insert(int index, const Data::CloudTheme &theme) {
 		}
 		const auto documentId = i->theme.documentId;
 		if (!documentId) {
-			// #TODO themes
+			if (amCreator(i->theme)) {
+				_window->window().show(
+					Box(CreateForExistingBox, &_window->window(), i->theme));
+			}
 			return;
 		}
 		const auto document = _window->session().data().document(documentId);
@@ -382,7 +534,12 @@ void CloudList::refreshColors(Element &element) {
 
 void CloudList::setWaiting(Element &element, bool waiting) {
 	element.waiting = waiting;
-	element.button->setPointerCursor(!waiting);
+	element.button->setPointerCursor(
+		!waiting && (element.theme.documentId || amCreator(element.theme)));
+}
+
+bool CloudList::amCreator(const Data::CloudTheme &theme) const {
+	return (_window->session().userId() == theme.createdBy);
 }
 
 void CloudList::refreshColorsFromDocument(
@@ -477,152 +634,6 @@ int CloudList::resizeGetHeight(int newWidth) {
 		: (y > 0)
 		? (y - st::themesSmallSkip)
 		: 0;
-}
-
-CloudListColors ColorsFromScheme(const EmbeddedScheme &scheme) {
-	auto result = CloudListColors();
-	result.sent = scheme.sent;
-	result.received = scheme.received;
-	result.radiobuttonActive = scheme.radiobuttonActive;
-	result.radiobuttonInactive = scheme.radiobuttonInactive;
-	result.background = QImage(
-		QSize(1, 1) * cIntRetinaFactor(),
-		QImage::Format_ARGB32_Premultiplied);
-	result.background.fill(scheme.background);
-	return result;
-}
-
-CloudListColors ColorsFromScheme(
-		const EmbeddedScheme &scheme,
-		const Colorizer &colorizer) {
-	if (!colorizer) {
-		return ColorsFromScheme(scheme);
-	}
-	auto copy = scheme;
-	Colorize(copy, colorizer);
-	return ColorsFromScheme(copy);
-}
-
-CloudListCheck::CloudListCheck(const Colors &colors, bool checked)
-: CloudListCheck(checked) {
-	setColors(colors);
-}
-
-CloudListCheck::CloudListCheck(bool checked)
-: AbstractCheckView(st::defaultRadio.duration, checked, nullptr)
-, _radio(st::defaultRadio, checked, [=] { update(); }) {
-}
-
-void CloudListCheck::setColors(const Colors &colors) {
-	_colors = colors;
-	_radio.setToggledOverride(_colors->radiobuttonActive);
-	_radio.setUntoggledOverride(_colors->radiobuttonInactive);
-	const auto size = st::settingsThemePreviewSize * cIntRetinaFactor();
-	_backgroundFull = (_colors->background.size() == size)
-		? _colors->background
-		: _colors->background.scaled(
-			size,
-			Qt::IgnoreAspectRatio,
-			Qt::SmoothTransformation);
-	_backgroundCacheWidth = -1;
-	update();
-}
-
-QSize CloudListCheck::getSize() const {
-	return st::settingsThemePreviewSize;
-}
-
-void CloudListCheck::validateBackgroundCache(int width) {
-	if (_backgroundCacheWidth == width || width <= 0) {
-		return;
-	}
-	_backgroundCacheWidth = width;
-	const auto imageWidth = width * cIntRetinaFactor();
-	_backgroundCache = (width == st::settingsThemePreviewSize.width())
-		? _backgroundFull
-		: _backgroundFull.copy(
-			(_backgroundFull.width() - imageWidth) / 2,
-			0,
-			imageWidth,
-			_backgroundFull.height());
-	Images::prepareRound(_backgroundCache, ImageRoundRadius::Large);
-}
-
-void CloudListCheck::paint(Painter &p, int left, int top, int outerWidth) {
-	if (!_colors) {
-		return;
-	} else if (_colors->background.isNull()) {
-		paintNotSupported(p, left, top, outerWidth);
-	} else {
-		paintWithColors(p, left, top, outerWidth);
-	}
-}
-
-void CloudListCheck::paintNotSupported(
-		Painter &p,
-		int left,
-		int top,
-		int outerWidth) {
-	PainterHighQualityEnabler hq(p);
-	p.setPen(Qt::NoPen);
-	p.setBrush(st::windowBgOver);
-
-	p.drawRoundedRect(
-		QRect(0, 0, outerWidth, st::settingsThemePreviewSize.height()),
-		st::historyMessageRadius,
-		st::historyMessageRadius);
-}
-
-void CloudListCheck::paintWithColors(
-		Painter &p,
-		int left,
-		int top,
-		int outerWidth) {
-	Expects(_colors.has_value());
-
-	validateBackgroundCache(outerWidth);
-	p.drawImage(
-		QRect(0, 0, outerWidth, st::settingsThemePreviewSize.height()),
-		_backgroundCache);
-
-	const auto received = QRect(
-		st::settingsThemeBubblePosition,
-		st::settingsThemeBubbleSize);
-	const auto sent = QRect(
-		outerWidth - received.width() - st::settingsThemeBubblePosition.x(),
-		received.y() + received.height() + st::settingsThemeBubbleSkip,
-		received.width(),
-		received.height());
-	const auto radius = st::settingsThemeBubbleRadius;
-
-	PainterHighQualityEnabler hq(p);
-	p.setPen(Qt::NoPen);
-
-	p.setBrush(_colors->received);
-	p.drawRoundedRect(rtlrect(received, outerWidth), radius, radius);
-	p.setBrush(_colors->sent);
-	p.drawRoundedRect(rtlrect(sent, outerWidth), radius, radius);
-
-	const auto skip = st::settingsThemeRadioBottom / 2;
-
-	const auto radio = _radio.getSize();
-	_radio.paint(
-		p,
-		(outerWidth - radio.width()) / 2,
-		getSize().height() - radio.height() - st::settingsThemeRadioBottom,
-		outerWidth);
-}
-
-QImage CloudListCheck::prepareRippleMask() const {
-	return QImage();
-}
-
-bool CloudListCheck::checkRippleStartPosition(QPoint position) const {
-	return false;
-}
-
-void CloudListCheck::checkedChangedHook(anim::type animated) {
-	_radio.setChecked(checked(), animated);
 }
 
 } // namespace Theme

@@ -1603,14 +1603,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_choose_name" = "Save theme file";
 "lng_theme_editor_error" = "The editor encountered an error :( See 'log.txt' for details.";
 "lng_theme_editor_sure_close" = "Are you sure you want to close the editor? Your changes won't be saved.";
+"lng_theme_editor_need_auth" = "You need to log in to save your theme.";
 "lng_theme_editor_done" = "Theme exported successfully!";
 "lng_theme_editor_title" = "Edit color palette";
 "lng_theme_editor_export_button" = "Export theme";
 "lng_theme_editor_save_button" = "Save theme";
 
 "lng_theme_editor_create_title" = "Create theme";
+"lng_theme_editor_attach_title" = "Attach desktop theme";
+"lng_theme_editor_create" = "Create";
 "lng_theme_editor_name" = "Theme name";
 "lng_theme_editor_create_description" = "New theme will be based on your currently selected colors and wallpaper. Alternatively, you can import existing theme or color palette from file.";
+"lng_theme_editor_attach_description" = "You can create desktop part of your theme based on your currently selected colors and wallpaper. Alternatively, you can import existing theme or color palette from file.";
 "lng_theme_editor_import_existing" = "Import existing theme";
 "lng_theme_editor_save_title" = "Save theme";
 "lng_theme_editor_link_about" = "Your theme will be updated for all users each time you change it. Anyone can install it using this link.\n\nTheme links must be longer than 5 characters and use a-z, 0-9 and underscores.";
