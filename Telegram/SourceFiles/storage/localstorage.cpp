@@ -674,7 +674,7 @@ FileKey _themeKeyDay = 0;
 FileKey _themeKeyNight = 0;
 
 // Theme key legacy may be read in start() with settings.
-// But it should be moved to keyDay or keyNight inside loadTheme()
+// But it should be moved to keyDay or keyNight inside InitialLoadTheme()
 // and never used after.
 FileKey _themeKeyLegacy = 0;
 
@@ -2554,7 +2554,7 @@ void finish() {
 	}
 }
 
-void loadTheme();
+void InitialLoadTheme();
 void readLangPack();
 
 void start() {
@@ -2612,7 +2612,7 @@ void start() {
 	_oldSettingsVersion = settingsData.version;
 	_settingsSalt = salt;
 
-	loadTheme();
+	InitialLoadTheme();
 	readLangPack();
 
 	applyReadContext(std::move(context));
@@ -4259,12 +4259,12 @@ Window::Theme::Saved readThemeUsingKey(FileKey key) {
 	return result;
 }
 
-QString loadThemeUsingKey(FileKey key) {
+std::optional<QString> InitialLoadThemeUsingKey(FileKey key) {
 	auto read = readThemeUsingKey(key);
 	const auto result = read.object.pathAbsolute;
 	if (read.object.content.isEmpty()
-		|| !Window::Theme::Load(std::move(read))) {
-		return QString();
+		|| !Window::Theme::Initialize(std::move(read))) {
+		return std::nullopt;
 	}
 	return result;
 }
@@ -4333,7 +4333,7 @@ void clearTheme() {
 	writeTheme(Window::Theme::Saved());
 }
 
-void loadTheme() {
+void InitialLoadTheme() {
 	const auto key = (_themeKeyLegacy != 0)
 		? _themeKeyLegacy
 		: (Window::Theme::IsNightMode()
@@ -4341,9 +4341,9 @@ void loadTheme() {
 			: _themeKeyDay);
 	if (!key) {
 		return;
-	} else if (const auto path = loadThemeUsingKey(key); !path.isEmpty()) {
+	} else if (const auto path = InitialLoadThemeUsingKey(key)) {
 		if (_themeKeyLegacy) {
-			Window::Theme::SetNightModeValue(path
+			Window::Theme::SetNightModeValue(*path
 				== Window::Theme::NightThemePath());
 			(Window::Theme::IsNightMode()
 				? _themeKeyNight

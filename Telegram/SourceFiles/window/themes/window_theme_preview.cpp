@@ -926,6 +926,7 @@ std::unique_ptr<Preview> PreviewFromFile(
 			return nullptr;
 		}
 	} else {
+		object.content = bytes;
 		if (!LoadFromContent(bytes, &result->instance)) {
 			return nullptr;
 		}

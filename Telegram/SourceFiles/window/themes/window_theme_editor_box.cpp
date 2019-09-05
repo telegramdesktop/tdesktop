@@ -233,11 +233,11 @@ QString BytesToUTF8(QLatin1String string) {
 	return QString::fromUtf8(string.data(), string.size());
 }
 
-void WriteDefaultPalette(const QString &path) {
+bool WriteDefaultPalette(const QString &path) {
 	QFile f(path);
 	if (!f.open(QIODevice::WriteOnly)) {
 		LOG(("Theme Error: could not open '%1' for writing.").arg(path));
-		return;
+		return false;
 	}
 
 	QTextStream stream(&f);
@@ -260,6 +260,7 @@ void WriteDefaultPalette(const QString &path) {
 				' ')
 			<< "\n";
 	}
+	return true;
 }
 
 [[nodiscard]] QString GenerateSlug() {
@@ -489,14 +490,12 @@ void StartEditor(
 		not_null<Window::Controller*> window,
 		const Data::CloudTheme &cloud) {
 	const auto path = EditingPalettePath();
-	if (!Local::copyThemeColorsToPalette(path)) {
-		WriteDefaultPalette(path);
-	}
-	if (!Apply(path, cloud)) {
+	if (!Local::copyThemeColorsToPalette(path)
+		&& !WriteDefaultPalette(path)) {
 		window->show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
 		return;
 	}
-	KeepApplied();
+	Background()->setIsEditingTheme(true);
 	window->showRightColumn(Box<Editor>(window));
 }
 

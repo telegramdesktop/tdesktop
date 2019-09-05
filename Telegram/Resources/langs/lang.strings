@@ -1602,6 +1602,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_save_palette" = "Save palette file";
 "lng_theme_editor_choose_name" = "Save theme file";
 "lng_theme_editor_error" = "The editor encountered an error :( See 'log.txt' for details.";
+"lng_theme_editor_sure_close" = "Are you sure you want to close the editor? Your changes won't be saved.";
 "lng_theme_editor_done" = "Theme exported successfully!";
 "lng_theme_editor_title" = "Edit color palette";
 "lng_theme_editor_export_button" = "Export theme";

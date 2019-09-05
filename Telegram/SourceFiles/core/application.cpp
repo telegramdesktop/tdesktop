@@ -143,7 +143,7 @@ Application::~Application() {
 	stopWebLoadManager();
 	App::deinitMedia();
 
-	Window::Theme::Unload();
+	Window::Theme::Uninitialize();
 
 	Media::Player::finish(_audio.get());
 	style::stopManager();

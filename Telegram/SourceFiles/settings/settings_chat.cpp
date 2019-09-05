@@ -999,6 +999,9 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 
 	const auto chosen = [] {
 		const auto &object = Window::Theme::Background()->themeObject();
+		if (object.cloud.id) {
+			return Type(-1);
+		}
 		for (const auto &scheme : kSchemesList) {
 			if (object.pathAbsolute == scheme.path) {
 				return scheme.type;

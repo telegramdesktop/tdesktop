@@ -587,7 +587,7 @@ void Editor::Inner::applyEditing(const QString &name, const QString &copyOf, QCo
 	f.close();
 
 	_applyingUpdate = true;
-	if (!ApplyEditedPalette(_path, newContent)) {
+	if (!ApplyEditedPalette(newContent)) {
 		LOG(("Theme Error: could not apply newly composed content :("));
 		error();
 		return;
@@ -652,7 +652,20 @@ Editor::Editor(QWidget*, not_null<Window::Controller*> window)
 	_inner->setScrollCallback([this](int top, int bottom) {
 		_scroll->scrollToY(top, bottom);
 	});
-	_close->setClickedCallback([this] { closeEditor(); });
+	_close->setClickedCallback([=] {
+		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto close = crl::guard(this, [=] {
+			ClearEditingPalette();
+			closeEditor();
+			if (*box) {
+				(*box)->closeBox();
+			}
+		});
+		*box = _window->show(Box<ConfirmBox>(
+			tr::lng_theme_editor_sure_close(tr::now),
+			tr::lng_close(tr::now),
+			close));
+	});
 	_close->show(anim::type::instant);
 
 	_select->resizeToWidth(st::windowMinWidth);
@@ -759,6 +772,7 @@ void Editor::paintEvent(QPaintEvent *e) {
 void Editor::closeEditor() {
 	if (const auto window = App::wnd()) {
 		window->showRightColumn(nullptr);
+		Background()->setIsEditingTheme(false);
 	}
 }
 

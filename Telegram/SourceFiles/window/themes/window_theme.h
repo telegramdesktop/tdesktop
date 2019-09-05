@@ -36,8 +36,8 @@ struct Saved {
 	Object object;
 	Cached cache;
 };
-bool Load(Saved &&saved);
-void Unload();
+bool Initialize(Saved &&saved);
+void Uninitialize();
 
 struct Instance {
 	style::palette palette;
@@ -57,7 +57,7 @@ bool Apply(
 	const Data::CloudTheme &cloud = Data::CloudTheme());
 bool Apply(std::unique_ptr<Preview> preview);
 void ApplyDefaultWithPath(const QString &themePath);
-bool ApplyEditedPalette(const QString &path, const QByteArray &content);
+bool ApplyEditedPalette(const QByteArray &content);
 void KeepApplied();
 QString NightThemePath();
 [[nodiscard]] bool IsNightMode();
@@ -68,6 +68,7 @@ void ToggleNightMode(const QString &themePath);
 void Revert();
 
 [[nodiscard]] QString EditingPalettePath();
+void ClearEditingPalette();
 
 bool LoadFromFile(
 	const QString &file,
@@ -86,12 +87,15 @@ struct BackgroundUpdate {
 		TestingTheme,
 		RevertingTheme,
 		ApplyingTheme,
+		ApplyingEdit,
 	};
 
 	BackgroundUpdate(Type type, bool tiled) : type(type), tiled(tiled) {
 	}
 	[[nodiscard]] bool paletteChanged() const {
-		return (type == Type::TestingTheme || type == Type::RevertingTheme);
+		return (type == Type::TestingTheme)
+			|| (type == Type::RevertingTheme)
+			|| (type == Type::ApplyingEdit);
 	}
 	Type type;
 	bool tiled;
@@ -115,6 +119,7 @@ public:
 	void setThemeObject(const Object &object);
 	[[nodiscard]] const Object &themeObject() const;
 	[[nodiscard]] bool isEditingTheme() const;
+	void setIsEditingTheme(bool editing);
 	void reset();
 
 	void setTestingTheme(Instance &&theme);
@@ -164,6 +169,9 @@ private:
 	void setNightModeValue(bool nightMode);
 	[[nodiscard]] bool nightMode() const;
 	void toggleNightMode(std::optional<QString> themePath);
+	void reapplyWithNightMode(
+		std::optional<QString> themePath,
+		bool newNightMode);
 	void keepApplied(const Object &object, bool write);
 	[[nodiscard]] bool isNonDefaultThemeOrBackground();
 	[[nodiscard]] bool isNonDefaultBackground();
@@ -191,6 +199,7 @@ private:
 	Object _themeObject;
 	QImage _themeImage;
 	bool _themeTile = false;
+	bool _editingTheme = false;
 
 	Data::WallPaper _paperForRevert
 		= Data::details::UninitializedWallPaper();
