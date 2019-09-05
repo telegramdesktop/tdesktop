@@ -166,7 +166,7 @@ Colorizer ColorizerFrom(const EmbeddedScheme &scheme, const QColor &color) {
 }
 
 Colorizer ColorizerForTheme(const QString &absolutePath) {
-	if (!absolutePath.startsWith(qstr(":/gui"))) {
+	if (absolutePath.isEmpty() || !IsEmbeddedTheme(absolutePath)) {
 		return Colorizer();
 	}
 	const auto schemes = EmbeddedThemes();

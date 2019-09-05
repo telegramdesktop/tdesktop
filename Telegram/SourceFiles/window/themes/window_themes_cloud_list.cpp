@@ -61,7 +61,7 @@ constexpr auto kShowPerRow = 4;
 			takeh * to.width() / to.height(),
 			1);
 		return (small.width() != takew)
-			? small.copy(0, (small.width() - takew) / 2, takew, takeh)
+			? small.copy((small.width() - takew) / 2, 0, takew, takeh)
 			: small;
 	}
 }
@@ -181,8 +181,7 @@ void CloudList::setup() {
 
 std::vector<Data::CloudTheme> CloudList::collectAll() const {
 	const auto &object = Background()->themeObject();
-	const auto isDefault = object.pathAbsolute.isEmpty()
-		|| object.pathAbsolute.startsWith(qstr(":/gui/"));
+	const auto isDefault = IsEmbeddedTheme(object.pathAbsolute);
 	auto result = _window->session().data().cloudThemes().list();
 	if (!isDefault) {
 		const auto i = ranges::find(

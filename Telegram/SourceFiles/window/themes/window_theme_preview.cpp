@@ -909,9 +909,11 @@ void Generator::restoreTextPalette() {
 } // namespace
 
 std::unique_ptr<Preview> PreviewFromFile(
-		const QString &filepath,
 		const QByteArray &bytes,
+		const QString &filepath,
 		const Data::CloudTheme &cloud) {
+	Expects(!filepath.isEmpty()); // Use 
+
 	auto result = std::make_unique<Preview>();
 	auto &object = result->object;
 	object.cloud = cloud;
@@ -935,11 +937,11 @@ std::unique_ptr<Preview> PreviewFromFile(
 }
 
 std::unique_ptr<Preview> GeneratePreview(
-		const QString &filepath,
 		const QByteArray &bytes,
+		const QString &filepath,
 		const Data::CloudTheme &cloud,
 		CurrentData &&data) {
-	auto result = PreviewFromFile(filepath, bytes, cloud);
+	auto result = PreviewFromFile(bytes, filepath, cloud);
 	if (!result) {
 		return nullptr;
 	}

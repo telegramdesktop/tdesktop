@@ -4221,7 +4221,7 @@ Window::Theme::Saved readThemeUsingKey(FileKey key) {
 
 	auto ignoreCache = false;
 	if (!object.cloud.id) {
-		QFile file(object.pathRelative);
+		auto file = QFile(object.pathRelative);
 		if (object.pathRelative.isEmpty() || !file.exists()) {
 			file.setFileName(object.pathAbsolute);
 		}
@@ -4480,9 +4480,8 @@ std::vector<Lang::Language> readRecentLanguages() {
 }
 
 bool copyThemeColorsToPalette(const QString &destination) {
-	auto &themeKey = Window::Theme::IsNightMode()
-		? _themeKeyNight
-		: _themeKeyDay;
+	using namespace Window::Theme;
+	auto &themeKey = IsNightMode() ? _themeKeyNight : _themeKeyDay;
 	if (!themeKey) {
 		return false;
 	}
@@ -4499,10 +4498,7 @@ bool copyThemeColorsToPalette(const QString &destination) {
 		return false;
 	}
 
-	return Window::Theme::CopyColorsToPalette(
-		destination,
-		pathAbsolute,
-		themeContent);
+	return CopyColorsToPalette(destination, pathAbsolute, themeContent);
 }
 
 void writeRecentHashtagsAndBots() {

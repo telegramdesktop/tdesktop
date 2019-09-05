@@ -216,11 +216,13 @@ void ImportFromFile(
 		qsl("Theme files (*.tdesktop-theme *.tdesktop-palette)"));
 	filters.push_back(FileDialog::AllFilesFilter());
 	const auto callback = crl::guard(session, [=](
-			const FileDialog::OpenResult &result) {
-		if (result.paths.isEmpty()) {
-			return;
+		const FileDialog::OpenResult &result) {
+		const auto path = result.paths.isEmpty()
+			? QString()
+			: result.paths.front();
+		if (!path.isEmpty()) {
+			Window::Theme::Apply(path);
 		}
-		Window::Theme::Apply(result.paths.front());
 	});
 	FileDialog::GetOpenPath(
 		parent.get(),

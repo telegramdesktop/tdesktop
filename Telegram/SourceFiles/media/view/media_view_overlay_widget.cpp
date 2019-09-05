@@ -154,6 +154,10 @@ QPixmap PrepareStaticImage(const QString &path) {
 	return App::pixmapFromImageInPlace(std::move(image));
 }
 
+[[nodiscard]] QString CachedThemePath(uint64 documentId) {
+	return QString::fromLatin1("special://cached-%1").arg(documentId);
+}
+
 } // namespace
 
 struct OverlayWidget::SharedMedia {
@@ -2198,6 +2202,8 @@ void OverlayWidget::playbackWaitingChange(bool waiting) {
 }
 
 void OverlayWidget::initThemePreview() {
+	using namespace Window::Theme;
+
 	Assert(_doc && _doc->isTheme());
 
 	const auto bytes = _doc->data();
@@ -2208,10 +2214,10 @@ void OverlayWidget::initThemePreview() {
 	}
 	_themePreviewShown = true;
 
-	Window::Theme::CurrentData current;
-	current.backgroundId = Window::Theme::Background()->id();
-	current.backgroundImage = Window::Theme::Background()->createCurrentImage();
-	current.backgroundTiled = Window::Theme::Background()->tile();
+	auto current = CurrentData();
+	current.backgroundId = Background()->id();
+	current.backgroundImage = Background()->createCurrentImage();
+	current.backgroundTiled = Background()->tile();
 
 	const auto &cloudList = _doc->session().data().cloudThemes().list();
 	const auto i = ranges::find(
@@ -2221,15 +2227,14 @@ void OverlayWidget::initThemePreview() {
 	const auto cloud = (i != end(cloudList)) ? *i : Data::CloudTheme();
 	const auto isTrusted = (cloud.documentId != 0);
 
-	const auto path = _doc->location().name();
+	const auto realPath = _doc->location().name();
+	const auto path = realPath.isEmpty()
+		? CachedThemePath(_doc->id)
+		: realPath;
 	const auto id = _themePreviewId = rand_value<uint64>();
 	const auto weak = make_weak(this);
 	crl::async([=, data = std::move(current)]() mutable {
-		auto preview = Window::Theme::GeneratePreview(
-			path,
-			bytes,
-			cloud,
-			std::move(data));
+		auto preview = GeneratePreview(bytes, path, cloud, std::move(data));
 		crl::on_main(weak, [=, result = std::move(preview)]() mutable {
 			if (id != _themePreviewId) {
 				return;
@@ -2243,15 +2248,14 @@ void OverlayWidget::initThemePreview() {
 					st::themePreviewApplyButton);
 				_themeApply->show();
 				_themeApply->setClickedCallback([=] {
-					const auto &object = Window::Theme::Background()->themeObject();
-					const auto currentlyIsCustom = !object.pathAbsolute.isEmpty()
-						&& !object.pathAbsolute.startsWith(qstr(":/gui/"))
-						&& !object.cloud.id;
+					const auto &object = Background()->themeObject();
+					const auto currentlyIsCustom = !object.cloud.id
+						&& !IsEmbeddedTheme(object.pathAbsolute);
 					auto preview = std::move(_themePreview);
 					close();
-					Window::Theme::Apply(std::move(preview));
+					Apply(std::move(preview));
 					if (isTrusted && !currentlyIsCustom) {
-						Window::Theme::KeepApplied();
+						KeepApplied();
 					}
 				});
 				_themeCancel.create(

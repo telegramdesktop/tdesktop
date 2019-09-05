@@ -23,12 +23,12 @@ struct CurrentData {
 };
 
 std::unique_ptr<Preview> PreviewFromFile(
-	const QString &filepath,
 	const QByteArray &bytes,
+	const QString &filepath,
 	const Data::CloudTheme &cloud);
 std::unique_ptr<Preview> GeneratePreview(
-	const QString &filepath,
 	const QByteArray &bytes,
+	const QString &filepath,
 	const Data::CloudTheme &cloud,
 	CurrentData &&data);
 

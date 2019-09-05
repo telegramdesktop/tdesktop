@@ -856,6 +856,7 @@ void ChatBackground::setTileNightValue(bool tile) {
 
 void ChatBackground::setThemeObject(const Object &object) {
 	_themeObject = object;
+	_themeObject.content = QByteArray();
 }
 
 const Object &ChatBackground::themeObject() const {
@@ -1100,6 +1101,10 @@ ChatBackground *Background() {
 	return GlobalBackground.data();
 }
 
+bool IsEmbeddedTheme(const QString &path) {
+	return path.isEmpty() || path.startsWith(qstr(":/gui/"));
+}
+
 bool Initialize(Saved &&saved) {
 	if (InitializeFromSaved(std::move(saved))) {
 		Background()->setThemeObject(saved.object);
@@ -1116,7 +1121,7 @@ void Uninitialize() {
 bool Apply(
 		const QString &filepath,
 		const Data::CloudTheme &cloud) {
-	if (auto preview = PreviewFromFile(filepath, {}, cloud)) {
+	if (auto preview = PreviewFromFile(QByteArray(), filepath, cloud)) {
 		return Apply(std::move(preview));
 	}
 	return false;
@@ -1134,7 +1139,7 @@ bool Apply(std::unique_ptr<Preview> preview) {
 
 void ApplyDefaultWithPath(const QString &themePath) {
 	if (!themePath.isEmpty()) {
-		if (auto preview = PreviewFromFile(themePath, {}, {})) {
+		if (auto preview = PreviewFromFile(QByteArray(), themePath, {})) {
 			Apply(std::move(preview));
 		}
 	} else {
