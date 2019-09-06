@@ -9,11 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_preview.h"
+#include "window/themes/window_theme_editor_box.h"
+#include "window/window_controller.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "main/main_session.h"
+#include "boxes/confirm_box.h"
+#include "lang/lang_keys.h"
 #include "apiwrap.h"
+#include "mainwindow.h"
 
 namespace Data {
 namespace {
@@ -121,17 +126,53 @@ void CloudThemes::applyUpdate(const MTPTheme &theme) {
 		const auto cloud = CloudTheme::Parse(_session, data);
 		const auto &object = Window::Theme::Background()->themeObject();
 		if ((cloud.id != object.cloud.id)
-			|| (cloud.documentId == object.cloud.documentId)) {
+			|| (cloud.documentId == object.cloud.documentId)
+			|| !cloud.documentId) {
 			return;
 		}
-		if (const auto updated = data.vdocument()) {
-			updateFromDocument(
-				cloud,
-				_session->data().processDocument(*updated));
-		}
+		updateFromDocument(
+			cloud,
+			_session->data().document(cloud.documentId));
 	}, [&](const MTPDthemeDocumentNotModified &data) {
 	});
 	scheduleReload();
+}
+
+void CloudThemes::resolve(
+		const QString &slug,
+		const FullMsgId &clickFromMessageId) {
+	_session->api().request(_resolveRequestId).cancel();
+	_resolveRequestId = _session->api().request(MTPaccount_GetTheme(
+		MTP_string(Format()),
+		MTP_inputThemeSlug(MTP_string(slug)),
+		MTP_long(0)
+	)).done([=](const MTPTheme &result) {
+		result.match([&](const MTPDtheme &data) {
+			const auto cloud = CloudTheme::Parse(_session, data);
+			if (cloud.documentId) {
+				const auto document = _session->data().document(
+					cloud.documentId);
+				DocumentOpenClickHandler::Open(
+					Data::FileOrigin(),
+					document,
+					_session->data().message(clickFromMessageId));
+			} else if (cloud.createdBy == _session->userId()) {
+				Ui::show(Box(
+					Window::Theme::CreateForExistingBox,
+					&App::wnd()->controller(),
+					cloud));
+			} else {
+				Ui::show(Box<InformBox>(
+					tr::lng_theme_no_desktop(tr::now)));
+			}
+		}, [&](const MTPDthemeDocumentNotModified &data) {
+		});
+	}).fail([=](const RPCError &error) {
+		if (error.type() == qstr("THEME_FORMAT_INVALID")) {
+			Ui::show(Box<InformBox>(
+				tr::lng_theme_no_desktop(tr::now)));
+		}
+	}).send();
 }
 
 void CloudThemes::updateFromDocument(
@@ -169,13 +210,14 @@ void CloudThemes::scheduleReload() {
 }
 
 void CloudThemes::refresh() {
-	if (_requestId) {
+	if (_refreshRquestId) {
 		return;
 	}
-	_requestId = _session->api().request(MTPaccount_GetThemes(
+	_refreshRquestId = _session->api().request(MTPaccount_GetThemes(
 		MTP_string(Format()),
 		MTP_int(_hash)
 	)).done([=](const MTPaccount_Themes &result) {
+		_refreshRquestId = 0;
 		result.match([&](const MTPDaccount_themes &data) {
 			_hash = data.vhash().v;
 			parseThemes(data.vthemes().v);
@@ -183,7 +225,7 @@ void CloudThemes::refresh() {
 		}, [](const MTPDaccount_themesNotModified &) {
 		});
 	}).fail([=](const RPCError &error) {
-		_requestId = 0;
+		_refreshRquestId = 0;
 	}).send();
 }
 

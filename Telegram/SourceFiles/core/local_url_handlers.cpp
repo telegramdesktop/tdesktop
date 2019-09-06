@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_form_controller.h"
 #include "window/window_session_controller.h"
 #include "data/data_session.h"
+#include "data/data_cloud_themes.h"
 #include "data/data_channel.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -85,8 +86,11 @@ bool ShowTheme(
 	if (!session) {
 		return false;
 	}
+	const auto clickFromMessageId = context.value<FullMsgId>();
 	Core::App().hideMediaView();
-	Ui::show(Box<InformBox>(tr::lng_theme_no_desktop_version(tr::now)));
+	session->data().cloudThemes().resolve(
+		match->captured(1),
+		clickFromMessageId);
 	return true;
 }
 

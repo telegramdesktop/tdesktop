@@ -413,7 +413,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_reverting#other" = "Reverting to the old theme in {count} seconds.";
 "lng_theme_keep_changes" = "Keep changes";
 "lng_theme_revert" = "Revert";
-"lng_theme_no_desktop_version" = "Sorry, this theme doesn't include a version for Telegram Desktop.\n\n(Also, Telegram Desktop doesn't support cloud themes yet.)";
+"lng_theme_no_desktop" = "Sorry, this theme doesn't include a version for Telegram Desktop.";
 "lng_background_header" = "Background preview";
 "lng_background_text1" = "Ah, you kids today with techno music! You should enjoy the classics, like Hasselhoff!";
 "lng_background_text2" = "I can't even take you seriously right now.";

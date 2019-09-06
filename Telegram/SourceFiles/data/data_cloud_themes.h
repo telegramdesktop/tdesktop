@@ -43,6 +43,8 @@ public:
 
 	void applyUpdate(const MTPTheme &theme);
 
+	void resolve(const QString &slug, const FullMsgId &clickFromMessageId);
+
 private:
 	void parseThemes(const QVector<MTPTheme> &list);
 
@@ -57,7 +59,8 @@ private:
 
 	const not_null<Main::Session*> _session;
 	int32 _hash = 0;
-	mtpRequestId _requestId = 0;
+	mtpRequestId _refreshRquestId = 0;
+	mtpRequestId _resolveRequestId = 0;
 	std::vector<CloudTheme> _list;
 	rpl::event_stream<> _updates;
 
