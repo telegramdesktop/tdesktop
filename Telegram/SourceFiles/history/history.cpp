@@ -2607,17 +2607,16 @@ void History::dialogEntryApplied() {
 		return;
 	}
 	if (!chatListMessage()) {
+		clear(ClearType::Unload);
+		addNewerSlice(QVector<MTPMessage>());
+		addOlderSlice(QVector<MTPMessage>());
 		if (const auto channel = peer->asChannel()) {
 			const auto inviter = channel->inviter;
 			if (inviter > 0 && channel->amIn()) {
 				if (const auto from = owner().userLoaded(inviter)) {
-					clear(ClearType::Unload);
-					addNewerSlice(QVector<MTPMessage>());
 					insertJoinedMessage();
 				}
 			}
-		} else {
-			clear(ClearType::DeleteChat);
 		}
 		return;
 	}
