@@ -1,0 +1,342 @@
+name: Windows.
+
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+
+jobs:
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        defines:
+          - ""
+    env:
+      SDK: "10.0.18362.0"
+      VC: "call vcvars32.bat && cd Libraries"
+      PY2: 'C:\hostedtoolcache\windows\Python\2.7.16\x64'
+      GIT: "https://github.com"
+      QT: "5_12_5"
+      OPENSSL_VER: "1_1_1"
+      UPLOAD_ARTIFACT: "false"
+      MANUAL_CACHING: "1"
+      DOC_PATH: "docs/building-msvc.md"
+    steps:
+      - name: Get repository name.
+        shell: bash
+        run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
+
+      - name: Clone.
+        uses: actions/checkout@v1
+        with:
+          submodules: recursive
+
+      - name: Set up environment variables.
+        shell: cmd
+        run: |
+          cd ..
+          move %REPO_NAME% temp
+          mkdir %REPO_NAME%
+          move temp %REPO_NAME%/%REPO_NAME%
+          cd %REPO_NAME%
+
+          echo ::add-path::C:\Strawberry\perl\bin\
+          echo ::add-path::"%programfiles%\NASM"
+
+          C:
+          cd "%programfiles(x86)%\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\"
+          echo ::add-path::%cd%
+
+          call vcvars32.bat
+          D:
+          cd %GITHUB_WORKSPACE%
+          msbuild -version > CACHE_KEY.txt
+          echo %MANUAL_CACHING% >> CACHE_KEY.txt
+
+          mkdir Libraries
+          cd Libraries
+          echo ::set-env name=LibrariesPath::%cd%
+
+      - name: Generate cache key.
+        shell: bash
+        run: |
+          echo ::set-env name=CACHE_KEY::`md5sum CACHE_KEY.txt | awk '{ print $1 }'`
+
+      - name: Choco installs.
+        run: |
+          choco install --no-progress -y nasm yasm jom ninja
+
+      - name: Range-v3.
+        shell: bash
+        run: |
+          echo "Find necessary branch from doc."
+          cloneRange=$(grep -A 1 "range-v3" $REPO_NAME/$DOC_PATH | sed -n 1p)
+          cd $LibrariesPath
+          echo $cloneRange
+          eval $cloneRange
+
+      - name: Patches.
+        shell: bash
+        run: |
+          echo "Find necessary commit from doc."
+          checkoutCommit=$(grep -A 1 "cd patches" $REPO_NAME/$DOC_PATH | sed -n 2p)
+          cd $LibrariesPath
+          git clone $GIT/desktop-app/patches.git
+          cd Patches
+          eval $checkoutCommit
+
+      - name: LZMA.
+        shell: cmd
+        run: |
+          %VC%
+
+          git clone %GIT%/telegramdesktop/lzma.git
+          cd lzma
+          cd C\Util\LzmaLib
+          msbuild -m LzmaLib.sln /property:Configuration=Debug
+
+      - name: OpenSSL cache.
+        id: cache-openssl
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.LibrariesPath }}/openssl_${{ env.OPENSSL_VER }}
+          key: ${{ runner.OS }}-${{ env.CACHE_KEY }}-${{ env.OPENSSL_VER }}
+      - name: OpenSSL.
+        if: steps.cache-openssl.outputs.cache-hit != 'true'
+        shell: cmd
+        run: |
+          %VC%
+
+          git clone %GIT%/openssl/openssl.git openssl_%OPENSSL_VER%
+          cd openssl_%OPENSSL_VER%
+          git checkout OpenSSL_%OPENSSL_VER%-stable
+          perl Configure no-shared debug-VC-WIN32
+          nmake
+          mkdir out32.dbg
+          move libcrypto.lib out32.dbg
+          move libssl.lib out32.dbg
+          move ossl_static.pdb out32.dbg\ossl_static
+          nmake clean
+          move out32.dbg\ossl_static out32.dbg\ossl_static.pdb
+          perl Configure no-shared VC-WIN32
+          nmake
+          mkdir out32
+          move libcrypto.lib out32
+          move libssl.lib out32
+          move ossl_static.pdb out32
+
+          rmdir /S /Q test
+
+      - name: Zlib.
+        shell: cmd
+        run: |
+          %VC%
+
+          git clone %GIT%/telegramdesktop/zlib.git
+          cd zlib
+          git checkout tdesktop
+          cd contrib\vstudio\vc14
+          msbuild -m zlibstat.vcxproj /property:Configuration=Debug
+
+      - name: OpenAL Soft cache.
+        id: cache-openal
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.LibrariesPath }}/openal-soft
+          key: ${{ runner.OS }}-openal-soft-${{ env.CACHE_KEY }}
+      - name: OpenAL Soft.
+        shell: cmd
+        if: steps.cache-openal.outputs.cache-hit != 'true'
+        run: |
+          %VC%
+
+          git clone %GIT%/telegramdesktop/openal-soft.git
+          cd openal-soft
+          git checkout fix_capture
+          cd build
+          cmake ^
+          -G "Visual Studio 16 2019" ^
+          -A Win32 ^
+          -D LIBTYPE:STRING=STATIC ^
+          -D FORCE_STATIC_VCRT:STRING=ON ..
+
+          msbuild -m OpenAL.vcxproj /property:Configuration=Debug
+
+      - name: Breakpad cache.
+        id: cache-breakpad
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.LibrariesPath }}/breakpad
+          key: ${{ runner.OS }}-breakpad-${{ env.CACHE_KEY }}-${{ hashFiles('**/breakpad.diff') }}
+      - name: Breakpad.
+        env:
+          GYP_MSVS_OVERRIDE_PATH: 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\'
+          GYP_MSVS_VERSION: 2019
+        shell: cmd
+        if: steps.cache-breakpad.outputs.cache-hit != 'true'
+        run: |
+          cd %LibrariesPath%
+
+          git clone %GIT%/telegramdesktop/gyp.git
+          cd gyp
+          SET PATH=%PY2%;%cd%;%PATH%
+          git checkout tdesktop
+
+          cd %LibrariesPath%
+
+          git clone %GIT%/google/breakpad
+          cd breakpad
+          git checkout a1dbcdcb43
+          git apply ../patches/breakpad.diff
+          cd src
+          git clone %GIT%/google/googletest testing
+          cd client\windows
+          call gyp --no-circular-check breakpad_client.gyp --format=ninja
+          cd ..\..
+          ninja -C out/Debug common crash_generation_client exception_handler
+          ninja -C out/Release common crash_generation_client exception_handler
+          cd tools\windows\dump_syms
+          call gyp dump_syms.gyp
+
+          call vcvars32.bat
+          msbuild -m dump_syms.vcxproj /property:Configuration=Release
+
+      - name: Opus cache.
+        id: cache-opus
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.LibrariesPath }}/opus
+          key: ${{ runner.OS }}-opus-${{ env.CACHE_KEY }}
+      - name: Opus.
+        shell: cmd
+        run: |
+          %VC%
+
+          git clone %GIT%/telegramdesktop/opus.git
+          cd opus
+          git checkout tdesktop
+          cd win32\VS2015
+          msbuild -m opus.sln /property:Configuration=Debug /property:Platform="Win32"
+          msbuild -m opus.sln /property:Configuration=Release /property:Platform="Win32"
+
+      - name: FFmpeg cache.
+        id: cache-ffmpeg
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.LibrariesPath }}/ffmpeg
+          key: ${{ runner.OS }}-ffmpeg-${{ env.CACHE_KEY }}-${{ hashFiles('**/build_ffmpeg_win.sh') }}
+      - name: FFmpeg.
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        shell: cmd
+        run: |
+          %VC%
+          choco install --no-progress -y msys2
+
+          git clone %GIT%/FFmpeg/FFmpeg.git ffmpeg
+          cd ffmpeg
+          git checkout release/3.4
+          set CHERE_INVOKING=enabled_from_arguments
+          set MSYS2_PATH_TYPE=inherit
+          call c:\tools\msys64\usr\bin\bash --login ../../%REPO_NAME%/Telegram/Patches/build_ffmpeg_win.sh
+
+      - name: Qt 5.12.5 cache.
+        id: cache-qt
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.LibrariesPath }}/Qt-5.12.5
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_5.diff') }}
+      - name: Configure Qt 5.12.5.
+        if: steps.cache-qt.outputs.cache-hit != 'true'
+        shell: cmd
+        run: |
+          %VC%
+
+          git clone git://code.qt.io/qt/qt5.git qt_%QT%
+          cd qt_%QT%
+          perl init-repository --module-subset=qtbase,qtimageformats
+          git checkout v5.12.5
+          git submodule update qtbase
+          git submodule update qtimageformats
+          cd qtbase
+          git apply ../../patches/qtbase_%QT%.diff
+          cd ..
+
+          SET SSL=%LibrariesPath%\openssl_1_1_1
+          SET LIBS=libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib
+
+          configure ^
+          -prefix "%LibrariesPath%\Qt-5.12.5" ^
+          -debug ^
+          -force-debug-info ^
+          -opensource ^
+          -confirm-license ^
+          -static ^
+          -static-runtime -I "%SSL%\include" ^
+          -no-opengl ^
+          -openssl-linked ^
+          OPENSSL_LIBS_DEBUG="%SSL%\out32.dbg\libssl.lib %SSL%\out32.dbg\%LIBS%" ^
+          OPENSSL_LIBS_RELEASE="%SSL%\out32\libssl.lib %SSL%\out32\%LIBS%" ^
+          -mp ^
+          -nomake examples ^
+          -nomake tests ^
+          -platform win32-msvc
+      - name: Build Qt 5.12.5.
+        if: steps.cache-qt.outputs.cache-hit != 'true'
+        shell: cmd
+        run: |
+          %VC%
+          cd qt_%QT%
+
+          jom -j%NUMBER_OF_PROCESSORS%
+          jom -j%NUMBER_OF_PROCESSORS% install
+
+          cd ..
+          rmdir /S /Q qt_%QT%
+
+      - name: Read defines.
+        shell: bash
+        run: |
+          DEFINE=""
+          if [ -n "${{ matrix.defines }}" ]; then
+            DEFINE="-D ${{ matrix.defines }}=ON"
+            echo Define from matrix: $DEFINE
+          fi
+          echo "::set-env name=TDESKTOP_BUILD_DEFINE::$DEFINE"
+
+      - name: Build Telegram Desktop.
+        shell: cmd
+        run: |
+          cd %REPO_NAME%\Telegram
+
+          call configure.bat ^
+          -D TDESKTOP_API_TEST=ON ^
+          -D DESKTOP_APP_USE_PACKAGED=OFF ^
+          %TDESKTOP_BUILD_DEFINE% ^
+          -DCMAKE_SYSTEM_VERSION=%SDK%
+
+          call vcvars32.bat
+          cd ..\out
+          msbuild -m Telegram.sln /nologo /p:Configuration=Debug,Platform=Win32
+
+      - name: Move artifact.
+        if: env.UPLOAD_ARTIFACT == 'true'
+        run: |
+          cd %REPO_NAME%\out\Debug
+          mkdir artifact
+          move Telegram.exe artifact/
+          move Updater.exe artifact/
+      - uses: actions/upload-artifact@master
+        name: Upload artifact.
+        if: env.UPLOAD_ARTIFACT == 'true'
+        with:
+          name: Telegram
+          path: ${{ env.REPO_NAME }}\out\Debug\artifact\

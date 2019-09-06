@@ -1,0 +1,432 @@
+name: MacOS.
+
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+
+jobs:
+
+  macos:
+    name: MacOS
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        defines:
+          - ""
+    env:
+      MIN_MAC: "-mmacosx-version-min=10.12"
+      UNGUARDED: "-Werror=unguarded-availability-new"
+      GIT: "https://github.com"
+      PREFIX: "/usr/local/macos"
+      MACOSX_DEPLOYMENT_TARGET: "10.12"
+      XZ: "xz-5.0.5"
+      QT: "5_12_5"
+      OPENSSL_VER: "1_1_1"
+      QT_PREFIX: "/usr/local/desktop-app/Qt-5.12.5"
+      LIBICONV_VER: "libiconv-1.15"
+      UPLOAD_ARTIFACT: "false"
+      MANUAL_CACHING: "1"
+      DOC_PATH: "docs/building-xcode.md"
+    steps:
+      - name: Get repository name.
+        run: echo ::set-env name=REPO_NAME::${GITHUB_REPOSITORY##*/}
+
+      - name: Clone.
+        uses: actions/checkout@v1
+        with:
+          submodules: recursive
+
+      - name: First set up.
+        run: |
+          cd ..
+          mv $REPO_NAME temp
+          mkdir $REPO_NAME
+          mv temp $REPO_NAME/$REPO_NAME
+          cd $REPO_NAME
+
+          brew install automake fdk-aac lame libass libtool libvorbis libvpx \
+          ninja opus sdl shtool texi2html theora x264 xvid yasm pkg-config
+
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+          xcodebuild -version > CACHE_KEY.txt
+          echo $MIN_MAC >> CACHE_KEY.txt
+          echo $PREFIX >> CACHE_KEY.txt
+          echo $MANUAL_CACHING >> CACHE_KEY.txt
+          echo ::set-env name=CACHE_KEY::`md5 -q CACHE_KEY.txt`
+
+          echo ::add-path::$PWD/Libraries/depot_tools
+
+          mkdir -p Libraries/macos
+          cd Libraries/macos
+          echo ::set-env name=LibrariesPath::`pwd`
+
+      - name: Range-v3.
+        run: |
+          echo "Find necessary branch from doc."
+          cloneRange=$(grep -A 1 "range-v3" $REPO_NAME/$DOC_PATH | sed -n 1p)
+          cd $LibrariesPath
+          echo $cloneRange
+          eval $cloneRange
+
+      - name: Patches.
+        run: |
+          echo "Find necessary commit from doc."
+          checkoutCommit=$(grep -A 1 "cd patches" $REPO_NAME/$DOC_PATH | sed -n 2p)
+          cd $LibrariesPath
+          git clone $GIT/desktop-app/patches.git
+          cd Patches
+          eval $checkoutCommit
+
+      - name: XZ.
+        run: |
+          cd $LibrariesPath
+
+          wget https://tukaani.org/xz/$XZ.tar.gz
+          tar -xvzf $XZ.tar.gz
+          cd $XZ
+          CFLAGS="$MIN_MAC" LDFLAGS="$MIN_MAC" ./configure --prefix=$PREFIX
+          make -j$(nproc)
+          sudo make install
+
+      - name: Zlib.
+        run: |
+          cd $LibrariesPath
+
+          git clone $GIT/desktop-app/zlib.git
+          cd zlib
+          CFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure
+          make -j$(nproc)
+          sudo make install
+
+      - name: OpenSSL cache.
+        id: cache-openssl
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.LibrariesPath }}/openssl_${{ env.OPENSSL_VER }}
+          key: ${{ runner.OS }}-${{ env.OPENSSL_VER }}-${{ env.CACHE_KEY }}
+      - name: OpenSSL.
+        if: steps.cache-openssl.outputs.cache-hit != 'true'
+        run: |
+          cd $LibrariesPath
+
+          git clone $GIT/openssl/openssl openssl_$OPENSSL_VER
+          cd openssl_$OPENSSL_VER
+          git checkout OpenSSL_"$OPENSSL_VER"-stable
+          ./Configure \
+          --prefix=$PREFIX \
+          darwin64-x86_64-cc \
+          -static \
+          $MIN_MAC
+          make build_libs -j$(nproc)
+
+      - name: Opus cache.
+        id: cache-opus
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.LibrariesPath }}/opus
+          key: ${{ runner.OS }}-opus-${{ env.CACHE_KEY }}
+      - name: Opus.
+        if: steps.cache-opus.outputs.cache-hit != 'true'
+        run: |
+          cd $LibrariesPath
+
+          git clone $GIT/xiph/opus
+          cd opus
+          git checkout v1.3
+          ./autogen.sh
+          CFLAGS="$MIN_MAC $UNGUARDED" CPPFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure --prefix=$PREFIX
+          make -j$(nproc)
+      - name: Opus install.
+        run: |
+          cd $LibrariesPath/opus
+          sudo make install
+
+      - name: Libiconv cache.
+        id: cache-libiconv
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.LibrariesPath }}/${{ env.LIBICONV_VER }}
+          key: ${{ runner.OS }}-${{ env.LIBICONV_VER }}-${{ env.CACHE_KEY }}
+      - name: Libiconv.
+        if: steps.cache-libiconv.outputs.cache-hit != 'true'
+        run: |
+          cd $LibrariesPath
+
+          wget https://ftp.gnu.org/pub/gnu/libiconv/"$LIBICONV_VER".tar.gz
+          tar -xvzf "$LIBICONV_VER".tar.gz
+          cd $LIBICONV_VER
+          CFLAGS="$MIN_MAC $UNGUARDED" CPPFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure --enable-static --prefix=$PREFIX
+          make -j$(nproc)
+      - name: Libiconv install.
+        run: |
+          cd $LibrariesPath/$LIBICONV_VER
+          sudo make install
+
+      - name: FFmpeg cache.
+        id: cache-ffmpeg
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.LibrariesPath }}/ffmpeg
+          key: ${{ runner.OS }}-ffmpeg-${{ env.CACHE_KEY }}
+      - name: FFmpeg.
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          cd $LibrariesPath
+
+          git clone $GIT/FFmpeg/FFmpeg.git ffmpeg
+          cd ffmpeg
+          git checkout release/3.4
+          CFLAGS=`freetype-config --cflags`
+          LDFLAGS=`freetype-config --libs`
+          PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
+
+          ./configure --prefix=/usr/local \
+          --extra-cflags="$MIN_MAC $UNGUARDED" \
+          --extra-cxxflags="$MIN_MAC $UNGUARDED" \
+          --extra-ldflags="$MIN_MAC" \
+          --enable-protocol=file --enable-libopus \
+          --disable-programs \
+          --disable-doc \
+          --disable-network \
+          --disable-everything \
+          --enable-hwaccel=h264_videotoolbox \
+          --enable-hwaccel=hevc_videotoolbox \
+          --enable-hwaccel=mpeg1_videotoolbox \
+          --enable-hwaccel=mpeg2_videotoolbox \
+          --enable-hwaccel=mpeg4_videotoolbox \
+          --enable-decoder=aac \
+          --enable-decoder=aac_at \
+          --enable-decoder=aac_fixed \
+          --enable-decoder=aac_latm \
+          --enable-decoder=aasc \
+          --enable-decoder=alac \
+          --enable-decoder=alac_at \
+          --enable-decoder=flac \
+          --enable-decoder=gif \
+          --enable-decoder=h264 \
+          --enable-decoder=hevc \
+          --enable-decoder=mp1 \
+          --enable-decoder=mp1float \
+          --enable-decoder=mp2 \
+          --enable-decoder=mp2float \
+          --enable-decoder=mp3 \
+          --enable-decoder=mp3adu \
+          --enable-decoder=mp3adufloat \
+          --enable-decoder=mp3float \
+          --enable-decoder=mp3on4 \
+          --enable-decoder=mp3on4float \
+          --enable-decoder=mpeg4 \
+          --enable-decoder=msmpeg4v2 \
+          --enable-decoder=msmpeg4v3 \
+          --enable-decoder=opus \
+          --enable-decoder=pcm_alaw \
+          --enable-decoder=pcm_alaw_at \
+          --enable-decoder=pcm_f32be \
+          --enable-decoder=pcm_f32le \
+          --enable-decoder=pcm_f64be \
+          --enable-decoder=pcm_f64le \
+          --enable-decoder=pcm_lxf \
+          --enable-decoder=pcm_mulaw \
+          --enable-decoder=pcm_mulaw_at \
+          --enable-decoder=pcm_s16be \
+          --enable-decoder=pcm_s16be_planar \
+          --enable-decoder=pcm_s16le \
+          --enable-decoder=pcm_s16le_planar \
+          --enable-decoder=pcm_s24be \
+          --enable-decoder=pcm_s24daud \
+          --enable-decoder=pcm_s24le \
+          --enable-decoder=pcm_s24le_planar \
+          --enable-decoder=pcm_s32be \
+          --enable-decoder=pcm_s32le \
+          --enable-decoder=pcm_s32le_planar \
+          --enable-decoder=pcm_s64be \
+          --enable-decoder=pcm_s64le \
+          --enable-decoder=pcm_s8 \
+          --enable-decoder=pcm_s8_planar \
+          --enable-decoder=pcm_u16be \
+          --enable-decoder=pcm_u16le \
+          --enable-decoder=pcm_u24be \
+          --enable-decoder=pcm_u24le \
+          --enable-decoder=pcm_u32be \
+          --enable-decoder=pcm_u32le \
+          --enable-decoder=pcm_u8 \
+          --enable-decoder=pcm_zork \
+          --enable-decoder=vorbis \
+          --enable-decoder=wavpack \
+          --enable-decoder=wmalossless \
+          --enable-decoder=wmapro \
+          --enable-decoder=wmav1 \
+          --enable-decoder=wmav2 \
+          --enable-decoder=wmavoice \
+          --enable-encoder=libopus \
+          --enable-parser=aac \
+          --enable-parser=aac_latm \
+          --enable-parser=flac \
+          --enable-parser=h264 \
+          --enable-parser=hevc \
+          --enable-parser=mpeg4video \
+          --enable-parser=mpegaudio \
+          --enable-parser=opus \
+          --enable-parser=vorbis \
+          --enable-demuxer=aac \
+          --enable-demuxer=flac \
+          --enable-demuxer=gif \
+          --enable-demuxer=h264 \
+          --enable-demuxer=hevc \
+          --enable-demuxer=m4v \
+          --enable-demuxer=mov \
+          --enable-demuxer=mp3 \
+          --enable-demuxer=ogg \
+          --enable-demuxer=wav \
+          --enable-muxer=ogg \
+          --enable-muxer=opus
+
+          make -j$(nproc)
+      - name: FFmpeg install.
+        run: |
+          cd $LibrariesPath/ffmpeg
+          sudo make install
+
+      - name: OpenAL Soft.
+        run: |
+          cd $LibrariesPath
+
+          git clone $GIT/kcat/openal-soft.git
+          cd openal-soft
+          git checkout openal-soft-1.19.1
+          cd build
+
+          CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake \
+          -D CMAKE_INSTALL_PREFIX:PATH=$PREFIX \
+          -D ALSOFT_EXAMPLES=OFF \
+          -D LIBTYPE:STRING=STATIC \
+          -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET ..
+
+          make -j$(nproc)
+          sudo make install
+
+      - name: Crashpad cache.
+        id: cache-crashpad
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.LibrariesPath }}/crashpad
+          key: ${{ runner.OS }}-crashpad-${{ env.CACHE_KEY }}-${{ hashFiles('**/crashpad.diff') }}-${{ hashFiles('**/mini_chromium.diff') }}
+      - name: Crashpad.
+        if: steps.cache-crashpad.outputs.cache-hit != 'true'
+        run: |
+          cd Libraries
+          echo Install GYP for Crashpad.
+          git clone https://chromium.googlesource.com/external/gyp
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+          cd gyp
+          git checkout 9f2a7bb1
+          git apply $LibrariesPath/patches/gyp.diff
+          ./setup.py build
+          sudo ./setup.py install
+
+          cd $LibrariesPath
+
+          git clone https://chromium.googlesource.com/crashpad/crashpad.git
+          cd crashpad
+          git checkout feb3aa3923
+          git apply ../patches/crashpad.diff
+          cd third_party/mini_chromium
+          git clone https://chromium.googlesource.com/chromium/mini_chromium
+          cd mini_chromium
+          git checkout 7c5b0c1ab4
+          git apply ../../../../patches/mini_chromium.diff
+          cd ../../gtest
+          git clone https://chromium.googlesource.com/external/github.com/google/googletest gtest
+          cd gtest
+          git checkout d62d6c6556
+          cd ../../..
+
+          build/gyp_crashpad.py -Dmac_deployment_target=10.10
+          ninja -C out/Debug
+
+      - name: Qt 5.12.5 cache.
+        id: cache-qt
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.LibrariesPath }}/qt-cache
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_5.diff') }}
+      - name: Use cached Qt 5.12.5.
+        if: steps.cache-qt.outputs.cache-hit == 'true'
+        run: |
+          cd $LibrariesPath
+          mv qt-cache Qt-5.12.5
+          sudo mkdir -p $QT_PREFIX
+          sudo mv -f Qt-5.12.5 /usr/local/desktop-app/
+      - name: Build Qt 5.12.5.
+        if: steps.cache-qt.outputs.cache-hit != 'true'
+        run: |
+          cd $LibrariesPath
+
+          git clone git://code.qt.io/qt/qt5.git qt$QT
+          cd qt$QT
+          perl init-repository --module-subset=qtbase,qtimageformats
+          git checkout v5.12.5
+          git submodule update qtbase
+          git submodule update qtimageformats
+          cd qtbase
+          git apply ../../patches/qtbase_$QT.diff
+          cd ..
+
+          ./configure \
+          -prefix "$QT_PREFIX" \
+          -debug \
+          -force-debug-info \
+          -opensource \
+          -confirm-license \
+          -static \
+          -opengl desktop \
+          -no-openssl \
+          -securetransport \
+          -nomake examples \
+          -nomake tests \
+          -platform macx-clang
+
+          make -j$(nproc)
+          sudo make install
+
+          make clean
+          cp -r $QT_PREFIX $LibrariesPath/qt-cache
+
+      - name: Build Telegram Desktop.
+        run: |
+          cd $REPO_NAME/Telegram
+
+          DEFINE=""
+          if [ -n "${{ matrix.defines }}" ]; then
+            DEFINE="-D ${{ matrix.defines }}=ON"
+            echo Define from matrix: $DEFINE
+          fi
+
+          ./configure.sh -D TDESKTOP_API_TEST=ON -D DESKTOP_APP_USE_PACKAGED=OFF $DEFINE
+
+          cd ../out
+
+          xcoderun='xcodebuild build -project Telegram.xcodeproj -scheme Telegram -destination "platform=macOS,arch=x86_64" -configuration Debug'
+          bash -c "$xcoderun" || bash -c "$xcoderun" || bash -c "$xcoderun"
+
+      - name: Move artifact.
+        if: env.UPLOAD_ARTIFACT == 'true'
+        run: |
+          cd $REPO_NAME/out/Debug
+          mkdir artifact
+          mv Telegram.app artifact/
+          mv Updater artifact/
+      - uses: actions/upload-artifact@master
+        if: env.UPLOAD_ARTIFACT == 'true'
+        name: Upload artifact.
+        with:
+          name: Telegram
+          path: $REPO_NAME\out\Debug\artifact\
