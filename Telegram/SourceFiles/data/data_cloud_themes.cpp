@@ -63,6 +63,7 @@ void CloudThemes::setupReload() {
 	}) | rpl::map([=] {
 		return needReload();
 	}) | rpl::start_with_next([=](bool need) {
+		install();
 		if (need) {
 			scheduleReload();
 		} else {
@@ -74,6 +75,29 @@ void CloudThemes::setupReload() {
 bool CloudThemes::needReload() const {
 	const auto &fields = Window::Theme::Background()->themeObject().cloud;
 	return fields.id && fields.documentId;
+}
+
+void CloudThemes::install() {
+	using namespace Window::Theme;
+
+	const auto &fields = Background()->themeObject().cloud;
+	auto &themeId = IsNightMode()
+		? _installedNightThemeId
+		: _installedDayThemeId;
+	const auto cloudId = fields.documentId ? fields.id : uint64(0);
+	if (themeId == cloudId) {
+		return;
+	}
+	themeId = cloudId;
+	using Flag = MTPaccount_InstallTheme::Flag;
+	const auto flags = (IsNightMode() ? Flag::f_dark : Flag(0))
+		| Flag::f_format
+		| (themeId ? Flag::f_theme : Flag(0));
+	_session->api().request(MTPaccount_InstallTheme(
+		MTP_flags(flags),
+		MTP_string(Format()),
+		MTP_inputTheme(MTP_long(cloudId), MTP_long(fields.accessHash))
+	)).send();
 }
 
 void CloudThemes::reloadCurrent() {

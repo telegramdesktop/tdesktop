@@ -46,6 +46,7 @@ public:
 private:
 	void parseThemes(const QVector<MTPTheme> &list);
 
+	void install();
 	void setupReload();
 	[[nodiscard]] bool needReload() const;
 	void scheduleReload();
@@ -63,6 +64,8 @@ private:
 	base::Timer _reloadCurrentTimer;
 	DocumentData *_updatingFrom = nullptr;
 	rpl::lifetime _updatingFromLifetime;
+	uint64 _installedDayThemeId = 0;
+	uint64 _installedNightThemeId = 0;
 
 	rpl::lifetime _lifetime;
 
