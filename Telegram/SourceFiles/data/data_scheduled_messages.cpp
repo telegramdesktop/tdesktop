@@ -335,7 +335,7 @@ void ScheduledMessages::clearNotSending(not_null<History*> history) {
 	}
 	auto clear = base::flat_set<not_null<HistoryItem*>>();
 	for (const auto &owned : i->second.items) {
-		if (!owned->isSending()) {
+		if (!owned->isSending() && !owned->hasFailed()) {
 			clear.emplace(owned.get());
 		}
 	}
@@ -370,7 +370,7 @@ void ScheduledMessages::remove(not_null<const HistoryItem*> item) {
 	Assert(i != end(_data));
 	auto &list = i->second;
 
-	if (!item->isSending()) {
+	if (!item->isSending() && !item->hasFailed()) {
 		const auto j = list.idByItem.find(item);
 		Assert(j != end(list.idByItem));
 		list.itemById.remove(j->second);
