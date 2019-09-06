@@ -546,6 +546,7 @@ void CloudList::refreshColorsFromDocument(
 		colors->background = ColorsFromCurrentTheme().background;
 	}
 	element.check->setColors(*colors);
+	setWaiting(element, false);
 }
 
 void CloudList::subscribeToDownloadFinished() {

@@ -363,12 +363,15 @@ Editor::Inner::Inner(QWidget *parent, const QString &path) : TWidget(parent)
 		}
 	});
 	subscribe(Background(), [this](const BackgroundUpdate &update) {
-		if (_applyingUpdate) return;
+		if (_applyingUpdate || !Background()->editingTheme()) {
+			return;
+		}
 
 		if (update.type == BackgroundUpdate::Type::TestingTheme) {
 			Revert();
 			App::CallDelayed(st::slideDuration, this, [] {
-				Ui::show(Box<InformBox>(tr::lng_theme_editor_cant_change_theme(tr::now)));
+				Ui::show(Box<InformBox>(
+					tr::lng_theme_editor_cant_change_theme(tr::now)));
 			});
 		}
 	});
