@@ -482,6 +482,7 @@ Fn<void()> SavePreparedTheme(
 
 	const auto finish = [=](const MTPTheme &result) {
 		done();
+		Background()->clearEditingTheme(ClearEditing::KeepChanges);
 
 		const auto cloud = result.match([&](const MTPDtheme &data) {
 			const auto result = Data::CloudTheme::Parse(session, data);
@@ -503,7 +504,6 @@ Fn<void()> SavePreparedTheme(
 			Apply(std::move(preview));
 			KeepApplied();
 		}
-		Background()->setEditingTheme(std::nullopt);
 	};
 
 	const auto createTheme = [=](const MTPDocument &data) {

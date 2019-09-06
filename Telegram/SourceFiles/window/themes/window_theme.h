@@ -70,7 +70,6 @@ void ToggleNightMode(const QString &themePath);
 void Revert();
 
 [[nodiscard]] QString EditingPalettePath();
-void ClearEditingPalette();
 
 bool LoadFromFile(
 	const QString &file,
@@ -103,6 +102,12 @@ struct BackgroundUpdate {
 	bool tiled;
 };
 
+enum class ClearEditing {
+	Temporary,
+	RevertChanges,
+	KeepChanges,
+};
+
 class ChatBackground
 	: public base::Observable<BackgroundUpdate>
 	, private base::Subscriber {
@@ -121,7 +126,8 @@ public:
 	void setThemeObject(const Object &object);
 	[[nodiscard]] const Object &themeObject() const;
 	[[nodiscard]] std::optional<Data::CloudTheme> editingTheme() const;
-	void setEditingTheme(std::optional<Data::CloudTheme> editing);
+	void setEditingTheme(const Data::CloudTheme &editing);
+	void clearEditingTheme(ClearEditing clear = ClearEditing::Temporary);
 	void reset();
 
 	void setTestingTheme(Instance &&theme);

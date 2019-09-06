@@ -664,7 +664,7 @@ Editor::Editor(
 	_close->setClickedCallback([=] {
 		const auto box = std::make_shared<QPointer<BoxContent>>();
 		const auto close = crl::guard(this, [=] {
-			ClearEditingPalette();
+			Background()->clearEditingTheme(ClearEditing::RevertChanges);
 			closeEditor();
 			if (*box) {
 				(*box)->closeBox();
@@ -791,7 +791,7 @@ void Editor::paintEvent(QPaintEvent *e) {
 void Editor::closeEditor() {
 	if (const auto window = App::wnd()) {
 		window->showRightColumn(nullptr);
-		Background()->setEditingTheme(std::nullopt);
+		Background()->clearEditingTheme();
 	}
 }
 

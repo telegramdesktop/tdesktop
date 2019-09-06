@@ -483,6 +483,10 @@ SendMediaReady PrepareWallPaper(const QImage &image) {
 		0);
 }
 
+void ClearEditingPalette() {
+	QFile(EditingPalettePath()).remove();
+}
+
 } // namespace
 
 ChatBackground::AdjustableColor::AdjustableColor(style::color data)
@@ -739,13 +743,20 @@ std::optional<Data::CloudTheme> ChatBackground::editingTheme() const {
 	return _editingTheme;
 }
 
-void ChatBackground::setEditingTheme(
-		std::optional<Data::CloudTheme> editing) {
-	if (!_editingTheme && !editing) {
+void ChatBackground::setEditingTheme(const Data::CloudTheme &editing) {
+	_editingTheme = editing;
+}
+
+void ChatBackground::clearEditingTheme(ClearEditing clear) {
+	if (!_editingTheme) {
 		return;
 	}
-	_editingTheme = editing;
-	if (!_editingTheme) {
+	_editingTheme = std::nullopt;
+	if (clear == ClearEditing::Temporary) {
+		return;
+	}
+	ClearEditingPalette();
+	if (clear == ClearEditing::RevertChanges) {
 		reapplyWithNightMode(std::nullopt, _nightMode);
 		KeepApplied();
 	}
@@ -1233,10 +1244,6 @@ bool LoadFromContent(const QByteArray &content, not_null<Instance*> out) {
 
 QString EditingPalettePath() {
 	return cWorkingDir() + "tdata/editing-theme.tdesktop-palette";
-}
-
-void ClearEditingPalette() {
-	QFile(EditingPalettePath()).remove();
 }
 
 QColor CountAverageColor(const QImage &image) {
