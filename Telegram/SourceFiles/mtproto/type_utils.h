@@ -68,6 +68,12 @@ enum class MTPDmessage_ClientFlag : uint32 {
 
 	// message is local message existing in the message history
 	f_local_history_entry = (1U << 20),
+
+	// message is an admin log entry
+	f_admin_log_entry = (1U << 19),
+
+	// message is a fake message for some ui
+	f_fake_history_item = (1U << 18),
 };
 inline constexpr bool is_flag_type(MTPDmessage_ClientFlag) { return true; }
 using MTPDmessage_ClientFlags = base::flags<MTPDmessage_ClientFlag>;

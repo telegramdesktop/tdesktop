@@ -166,7 +166,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		return history->owner().makeMessage(
 			history,
 			data,
-			MTPDmessage_ClientFlags());
+			MTPDmessage_ClientFlag::f_fake_history_item);
 	}, [](auto &&) -> not_null<HistoryMessage*> {
 		Unexpected("Type in GenerateForwardedItem.");
 	});

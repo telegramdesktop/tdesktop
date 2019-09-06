@@ -685,13 +685,6 @@ void History::checkForLoadedAtTop(not_null<HistoryItem*> added) {
 	}
 }
 
-HistoryItem *History::addToHistory(
-		const MTPMessage &msg,
-		MTPDmessage_ClientFlags clientFlags) {
-	const auto detachExistingItem = false;
-	return createItem(msg, clientFlags, detachExistingItem);
-}
-
 not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MTPDmessage::Flags flags,
@@ -880,8 +873,9 @@ void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
 	auto added = false;
 	if (messages) {
 		const auto clientFlags = MTPDmessage_ClientFlags();
-		for (auto &message : *messages) {
-			if (auto item = addToHistory(message, clientFlags)) {
+		const auto type = NewMessageType::Existing;
+		for (const auto &message : *messages) {
+			if (const auto item = addNewMessage(message, clientFlags, type)) {
 				if (item->isUnreadMention()) {
 					_unreadMentions.insert(item->id);
 					added = true;

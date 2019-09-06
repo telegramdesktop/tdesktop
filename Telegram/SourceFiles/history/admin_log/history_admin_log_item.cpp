@@ -392,7 +392,7 @@ void GenerateItems(
 		message.links.push_back(fromLink);
 		addPart(history->owner().makeServiceMessage(
 			history,
-			MTPDmessage_ClientFlags(),
+			MTPDmessage_ClientFlag::f_admin_log_entry,
 			history->nextNonHistoryEntryId(),
 			date,
 			message,
@@ -427,7 +427,7 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
-		auto bodyClientFlags = MTPDmessage_ClientFlags();
+		auto bodyClientFlags = MTPDmessage_ClientFlag::f_admin_log_entry;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto newDescription = PrepareText(newValue, QString());
@@ -463,7 +463,7 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
-		auto bodyClientFlags = MTPDmessage_ClientFlags();
+		auto bodyClientFlags = MTPDmessage_ClientFlag::f_admin_log_entry;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto newLink = newValue.isEmpty() ? TextWithEntities() : PrepareText(Core::App().createInternalLinkFull(newValue), QString());
@@ -536,7 +536,7 @@ void GenerateItems(
 					action.vmessage(),
 					history->nextNonHistoryEntryId(),
 					date),
-				MTPDmessage_ClientFlags(),
+				MTPDmessage_ClientFlag::f_admin_log_entry,
 				detachExistingItem));
 		}
 	};
@@ -561,7 +561,7 @@ void GenerateItems(
 				action.vnew_message(),
 				history->nextNonHistoryEntryId(),
 				date),
-			MTPDmessage_ClientFlags(),
+			MTPDmessage_ClientFlag::f_admin_log_entry,
 			detachExistingItem);
 		if (oldValue.text.isEmpty()) {
 			oldValue = PrepareText(QString(), tr::lng_admin_log_empty_text(tr::now));
@@ -583,7 +583,7 @@ void GenerateItems(
 		auto detachExistingItem = false;
 		addPart(history->createItem(
 			PrepareLogMessage(action.vmessage(), history->nextNonHistoryEntryId(), date),
-			MTPDmessage_ClientFlags(),
+			MTPDmessage_ClientFlag::f_admin_log_entry,
 			detachExistingItem));
 	};
 
@@ -603,7 +603,7 @@ void GenerateItems(
 
 	auto createParticipantInvite = [&](const MTPDchannelAdminLogEventActionParticipantInvite &action) {
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
-		auto bodyClientFlags = MTPDmessage_ClientFlags();
+		auto bodyClientFlags = MTPDmessage_ClientFlag::f_admin_log_entry;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto bodyText = GenerateParticipantChangeText(channel, action.vparticipant());
@@ -622,7 +622,7 @@ void GenerateItems(
 
 	auto createParticipantToggleBan = [&](const MTPDchannelAdminLogEventActionParticipantToggleBan &action) {
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
-		auto bodyClientFlags = MTPDmessage_ClientFlags();
+		auto bodyClientFlags = MTPDmessage_ClientFlag::f_admin_log_entry;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto bodyText = GenerateParticipantChangeText(channel, action.vnew_participant(), &action.vprev_participant());
@@ -647,7 +647,7 @@ void GenerateItems(
 			return;
 		}
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
-		auto bodyClientFlags = MTPDmessage_ClientFlags();
+		auto bodyClientFlags = MTPDmessage_ClientFlag::f_admin_log_entry;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto bodyText = GenerateParticipantChangeText(channel, action.vnew_participant(), &action.vprev_participant());
@@ -687,7 +687,7 @@ void GenerateItems(
 			message.links.push_back(setLink);
 			addPart(history->owner().makeServiceMessage(
 				history,
-				MTPDmessage_ClientFlags(),
+				MTPDmessage_ClientFlag::f_admin_log_entry,
 				history->nextNonHistoryEntryId(),
 				date,
 				message,
@@ -706,7 +706,7 @@ void GenerateItems(
 
 	auto createDefaultBannedRights = [&](const MTPDchannelAdminLogEventActionDefaultBannedRights &action) {
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
-		auto bodyClientFlags = MTPDmessage_ClientFlags();
+		auto bodyClientFlags = MTPDmessage_ClientFlag::f_admin_log_entry;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto bodyText = GenerateDefaultBannedRightsChangeText(channel, action.vnew_banned_rights(), action.vprev_banned_rights());
@@ -730,7 +730,7 @@ void GenerateItems(
 		auto detachExistingItem = false;
 		addPart(history->createItem(
 			PrepareLogMessage(action.vmessage(), history->nextNonHistoryEntryId(), date),
-			MTPDmessage_ClientFlags(),
+			MTPDmessage_ClientFlag::f_admin_log_entry,
 			detachExistingItem));
 	};
 
@@ -763,7 +763,7 @@ void GenerateItems(
 			message.links.push_back(chatLink);
 			addPart(history->owner().makeServiceMessage(
 				history,
-				MTPDmessage_ClientFlags(),
+				MTPDmessage_ClientFlag::f_admin_log_entry,
 				history->nextNonHistoryEntryId(),
 				date,
 				message,
