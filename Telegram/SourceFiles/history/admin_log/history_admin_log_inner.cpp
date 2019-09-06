@@ -263,7 +263,7 @@ InnerWidget::InnerWidget(
 	subscribe(session().data().queryItemVisibility(), [=](
 			const Data::Session::ItemVisibilityQuery &query) {
 		if (_history != query.item->history()
-			|| query.item->isHistoryEntry()
+			|| !query.item->isAdminLogEntry()
 			|| !isVisible()) {
 			return;
 		}

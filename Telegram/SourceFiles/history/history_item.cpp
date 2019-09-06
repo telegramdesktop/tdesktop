@@ -357,8 +357,7 @@ void HistoryItem::addLogEntryOriginal(
 		WebPageId localId,
 		const QString &label,
 		const TextWithEntities &content) {
-	Expects(!isHistoryEntry());
-	Expects(!isScheduled());
+	Expects(isAdminLogEntry());
 
 	AddComponents(HistoryMessageLogEntryOriginal::Bit());
 	Get<HistoryMessageLogEntryOriginal>()->page = _history->owner().webpage(
@@ -396,6 +395,10 @@ bool HistoryItem::isHistoryEntry() const {
 		|| (_clientFlags & MTPDmessage_ClientFlag::f_local_history_entry);
 }
 
+bool HistoryItem::isAdminLogEntry() const {
+	return (_clientFlags & MTPDmessage_ClientFlag::f_admin_log_entry);
+}
+
 bool HistoryItem::isFromScheduled() const {
 	return isHistoryEntry()
 		&& (_flags & MTPDmessage::Flag::f_from_scheduled);
@@ -403,6 +406,7 @@ bool HistoryItem::isFromScheduled() const {
 
 bool HistoryItem::isScheduled() const {
 	return !isHistoryEntry()
+		&& !isAdminLogEntry()
 		&& (_flags & MTPDmessage::Flag::f_from_scheduled);
 }
 
