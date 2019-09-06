@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
-constexpr auto kFirstReloadTimeout = 60 * crl::time(1000);
+constexpr auto kFirstReloadTimeout = 10 * crl::time(1000);
 constexpr auto kReloadTimeout = 3600 * crl::time(1000);
 
 } // namespace
@@ -189,6 +189,7 @@ void CloudThemes::updateFromDocument(
 			cloud);
 		if (preview) {
 			Window::Theme::Apply(std::move(preview));
+			Window::Theme::KeepApplied();
 		}
 	});
 }
