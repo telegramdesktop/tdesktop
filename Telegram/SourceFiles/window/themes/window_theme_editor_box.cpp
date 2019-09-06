@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
+#include "window/themes/window_theme_preview.h"
 #include "window/window_controller.h"
 #include "boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
@@ -409,7 +410,7 @@ SendMediaReady PrepareThemeMedia(
 	//push("s", scaled(320));
 
 	const auto filename = File::NameFromUserString(name)
-		+ qsl(".tdesktop-theme"); // #TODO themes
+		+ qsl(".tdesktop-theme");
 	auto attributes = QVector<MTPDocumentAttribute>(
 		1,
 		MTP_documentAttributeFilename(MTP_string(filename)));
@@ -447,22 +448,25 @@ Fn<void()> SavePreparedTheme(
 		not_null<Window::Controller*> window,
 		const QByteArray &palette,
 		const PreparedBackground &background,
-		const QString &name,
-		const QString &link,
+		const Data::CloudTheme &fields,
 		Fn<void()> done,
 		Fn<void(SaveErrorType,QString)> fail) {
+	Expects(window->account().sessionExists());
+
 	using Storage::UploadedDocument;
 	struct State {
 		FullMsgId id;
 		bool generating = false;
 		mtpRequestId requestId = 0;
+		QByteArray themeContent;
+		QString filename;
 		rpl::lifetime lifetime;
 	};
 
-	if (name.isEmpty()) {
+	if (fields.title.isEmpty()) {
 		fail(SaveErrorType::Name, {});
 		return nullptr;
-	} else if (!IsGoodSlug(link)) {
+	} else if (!IsGoodSlug(fields.slug)) {
 		fail(SaveErrorType::Link, {});
 		return nullptr;
 	}
@@ -473,14 +477,62 @@ Fn<void()> SavePreparedTheme(
 		0,
 		session->data().nextLocalMessageId());
 
+	const auto creating = !fields.id
+		|| (fields.createdBy != session->userId());
+
+	const auto finish = [=](const MTPTheme &result) {
+		done();
+
+		const auto cloud = result.match([&](const MTPDtheme &data) {
+			const auto result = Data::CloudTheme::Parse(session, data);
+			session->data().cloudThemes().apply(result);
+			return result;
+		}, [&](const MTPDthemeDocumentNotModified &data) {
+			LOG(("API Error: Unexpected themeDocumentNotModified."));
+			return fields;
+		});
+		if (cloud.documentId) {
+			const auto document = session->data().document(cloud.documentId);
+			document->setDataAndCache(state->themeContent);
+		}
+		auto preview = PreviewFromFile(
+			state->themeContent,
+			QString(),
+			cloud);
+		if (preview) {
+			Apply(std::move(preview));
+			KeepApplied();
+		}
+		Background()->setEditingTheme(std::nullopt);
+	};
+
 	const auto createTheme = [=](const MTPDocument &data) {
 		const auto document = session->data().processDocument(data);
 		state->requestId = api->request(MTPaccount_CreateTheme(
-			MTP_string(link),
-			MTP_string(name),
+			MTP_string(fields.slug),
+			MTP_string(fields.title),
 			document->mtpInput()
 		)).done([=](const MTPTheme &result) {
-			done();
+			finish(result);
+		}).fail([=](const RPCError &error) {
+			fail(SaveErrorType::Other, error.type());
+		}).send();
+	};
+
+	const auto updateTheme = [=](const MTPDocument &data) {
+		const auto document = session->data().processDocument(data);
+		const auto flags = MTPaccount_UpdateTheme::Flag::f_title
+			| MTPaccount_UpdateTheme::Flag::f_slug
+			| MTPaccount_UpdateTheme::Flag::f_document;
+		state->requestId = api->request(MTPaccount_UpdateTheme(
+			MTP_flags(flags),
+			MTP_string(Data::CloudThemes::Format()),
+			MTP_inputTheme(MTP_long(fields.id), MTP_long(fields.accessHash)),
+			MTP_string(fields.slug),
+			MTP_string(fields.title),
+			document->mtpInput()
+		)).done([=](const MTPTheme &result) {
+			finish(result);
 		}).fail([=](const RPCError &error) {
 			fail(SaveErrorType::Other, error.type());
 		}).send();
@@ -491,16 +543,24 @@ Fn<void()> SavePreparedTheme(
 			MTP_flags(0),
 			data.file,
 			MTPInputFile(), // thumb
-			MTP_string(name + ".tdesktop-theme"), // #TODO themes
+			MTP_string(state->filename),
 			MTP_string("application/x-tgtheme-tdesktop")
 		)).done([=](const MTPDocument &result) {
-			createTheme(result);
+			if (creating) {
+				createTheme(result);
+			} else {
+				updateTheme(result);
+			}
 		}).fail([=](const RPCError &error) {
 			fail(SaveErrorType::Other, error.type());
 		}).send();
 	};
 
 	const auto uploadFile = [=](const QByteArray &theme) {
+		const auto media = PrepareThemeMedia(fields.title, theme);
+		state->filename = media.filename;
+		state->themeContent = theme;
+
 		session->uploader().documentReady(
 		) | rpl::filter([=](const UploadedDocument &data) {
 			return data.fullId == state->id;
@@ -508,9 +568,7 @@ Fn<void()> SavePreparedTheme(
 			uploadTheme(data);
 		}, state->lifetime);
 
-		session->uploader().uploadMedia(
-			state->id,
-			PrepareThemeMedia(name, theme));
+		session->uploader().uploadMedia(state->id, media);
 	};
 
 	state->generating = true;
@@ -621,6 +679,7 @@ void SaveTheme(
 	using Data::CloudTheme;
 
 	const auto save = [=](const CloudTheme &fields) {
+		unlock();
 		window->show(Box(SaveThemeBox, window, fields, palette));
 	};
 	if (cloud.id) {
@@ -629,7 +688,6 @@ void SaveTheme(
 			MTP_inputTheme(MTP_long(cloud.id), MTP_long(cloud.accessHash)),
 			MTP_long(0)
 		)).done([=](const MTPTheme &result) {
-			unlock();
 			result.match([&](const MTPDtheme &data) {
 				save(CloudTheme::Parse(&window->account().session(), data));
 			}, [&](const MTPDthemeDocumentNotModified &data) {
@@ -637,7 +695,6 @@ void SaveTheme(
 				save(CloudTheme());
 			});
 		}).fail([=](const RPCError &error) {
-			unlock();
 			save(CloudTheme());
 		}).send();
 	} else {
@@ -751,12 +808,14 @@ void SaveThemeBox(
 				link->showError();
 			}
 		});
+		auto fields = cloud;
+		fields.title = name->getLastText().trimmed();
+		fields.slug = link->getLastText().trimmed();
 		*cancel = SavePreparedTheme(
 			window,
 			palette,
 			back->result(),
-			name->getLastText().trimmed(),
-			link->getLastText().trimmed(),
+			fields,
 			done,
 			fail);
 	});

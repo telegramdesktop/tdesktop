@@ -162,17 +162,9 @@ void Uploader::uploadMedia(
 				media.document,
 				base::duplicate(media.photoThumbs.front().second));
 		if (!media.data.isEmpty()) {
-			document->setData(media.data);
+			document->setDataAndCache(media.data);
 			if (media.type == SendMediaType::ThemeFile) {
 				document->checkWallPaperProperties();
-			}
-			if (document->saveToCache()
-				&& media.data.size() <= Storage::kMaxFileInMemory) {
-				Auth().data().cache().put(
-					document->cacheKey(),
-					Storage::Cache::Database::TaggedValue(
-						base::duplicate(media.data),
-						document->cacheTag()));
 			}
 		}
 		if (!media.file.isEmpty()) {
@@ -206,17 +198,9 @@ void Uploader::upload(
 			std::move(file->goodThumbnail),
 			std::move(file->goodThumbnailBytes));
 		if (!file->content.isEmpty()) {
-			document->setData(file->content);
+			document->setDataAndCache(file->content);
 			if (file->type == SendMediaType::ThemeFile) {
 				document->checkWallPaperProperties();
-			}
-			if (document->saveToCache()
-				&& file->content.size() <= Storage::kMaxFileInMemory) {
-				Auth().data().cache().put(
-					document->cacheKey(),
-					Storage::Cache::Database::TaggedValue(
-						base::duplicate(file->content),
-						document->cacheTag()));
 			}
 		}
 		if (!file->filepath.isEmpty()) {

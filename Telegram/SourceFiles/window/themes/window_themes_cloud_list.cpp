@@ -447,9 +447,12 @@ bool CloudList::insertTillLimit(
 	}) | ranges::view::take(insertCount);
 
 	for (const auto &theme : insertElements) {
-		auto &index = isGood(theme) ? positionForGood : positionForBad;
-		insert(index, theme);
-		++index;
+		const auto good = isGood(theme);
+		insert(good ? positionForGood : positionForBad, theme);
+		if (good) {
+			++positionForGood;
+		}
+		++positionForBad;
 	}
 	return true;
 }

@@ -35,6 +35,7 @@ public:
 	void refresh();
 	[[nodiscard]] rpl::producer<> updated() const;
 	[[nodiscard]] const std::vector<CloudTheme> &list() const;
+	void apply(const CloudTheme &data);
 
 private:
 	void parseThemes(const QVector<MTPTheme> &list);

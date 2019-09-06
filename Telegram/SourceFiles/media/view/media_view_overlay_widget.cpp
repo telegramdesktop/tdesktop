@@ -154,10 +154,6 @@ QPixmap PrepareStaticImage(const QString &path) {
 	return App::pixmapFromImageInPlace(std::move(image));
 }
 
-[[nodiscard]] QString CachedThemePath(uint64 documentId) {
-	return QString::fromLatin1("special://cached-%1").arg(documentId);
-}
-
 } // namespace
 
 struct OverlayWidget::SharedMedia {
@@ -2226,15 +2222,19 @@ void OverlayWidget::initThemePreview() {
 		&Data::CloudTheme::documentId);
 	const auto cloud = (i != end(cloudList)) ? *i : Data::CloudTheme();
 	const auto isTrusted = (cloud.documentId != 0);
+	const auto fields = [&] {
+		auto result = cloud;
+		if (!result.documentId) {
+			result.documentId = _doc->id;
+		}
+		return result;
+	}();
 
-	const auto realPath = _doc->location().name();
-	const auto path = realPath.isEmpty()
-		? CachedThemePath(_doc->id)
-		: realPath;
+	const auto path = _doc->location().name();
 	const auto id = _themePreviewId = rand_value<uint64>();
 	const auto weak = make_weak(this);
 	crl::async([=, data = std::move(current)]() mutable {
-		auto preview = GeneratePreview(bytes, path, cloud, std::move(data));
+		auto preview = GeneratePreview(bytes, path, fields, std::move(data));
 		crl::on_main(weak, [=, result = std::move(preview)]() mutable {
 			if (id != _themePreviewId) {
 				return;

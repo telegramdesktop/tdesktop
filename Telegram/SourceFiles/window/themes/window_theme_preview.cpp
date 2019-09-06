@@ -906,23 +906,25 @@ void Generator::restoreTextPalette() {
 	_p->restoreTextPalette();
 }
 
+[[nodiscard]] QString CachedThemePath(uint64 documentId) {
+	return QString::fromLatin1("special://cached-%1").arg(documentId);
+}
+
 } // namespace
 
 std::unique_ptr<Preview> PreviewFromFile(
 		const QByteArray &bytes,
 		const QString &filepath,
 		const Data::CloudTheme &cloud) {
-	Expects(!filepath.isEmpty()); // Use 
-
 	auto result = std::make_unique<Preview>();
 	auto &object = result->object;
 	object.cloud = cloud;
-	object.pathRelative = filepath.isEmpty()
-		? QString()
-		: QDir().relativeFilePath(filepath);
 	object.pathAbsolute = filepath.isEmpty()
-		? QString()
+		? CachedThemePath(cloud.documentId)
 		: QFileInfo(filepath).absoluteFilePath();
+	object.pathRelative = filepath.isEmpty()
+		? object.pathAbsolute
+		: QDir().relativeFilePath(filepath);
 	if (bytes.isEmpty()) {
 		if (!LoadFromFile(filepath, &result->instance, &object.content)) {
 			return nullptr;

@@ -78,4 +78,12 @@ const std::vector<CloudTheme> &CloudThemes::list() const {
 	return _list;
 }
 
+void CloudThemes::apply(const CloudTheme &theme) {
+	const auto i = ranges::find(_list, theme.id, &CloudTheme::id);
+	if (i != end(_list)) {
+		*i = theme;
+		_updates.fire({});
+	}
+}
+
 } // namespace Data

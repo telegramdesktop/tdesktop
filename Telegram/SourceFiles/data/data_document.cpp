@@ -568,6 +568,17 @@ void DocumentData::validateLottieSticker() {
 	}
 }
 
+void DocumentData::setDataAndCache(const QByteArray &data) {
+	setData(data);
+	if (saveToCache() && data.size() <= Storage::kMaxFileInMemory) {
+		session().data().cache().put(
+			cacheKey(),
+			Storage::Cache::Database::TaggedValue(
+				base::duplicate(data),
+				cacheTag()));
+	}
+}
+
 bool DocumentData::checkWallPaperProperties() {
 	if (type == WallPaperDocument) {
 		return true;
