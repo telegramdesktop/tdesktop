@@ -571,25 +571,46 @@ Fn<void()> SavePreparedTheme(
 		session->uploader().uploadMedia(state->id, media);
 	};
 
-	state->generating = true;
-	crl::async([=] {
-		crl::on_main([=, ready = PrepareTheme(palette, background)]{
-			if (!state->generating) {
-				return;
-			}
-			state->generating = false;
-			uploadFile(ready);
+	const auto save = [=] {
+		state->generating = true;
+		crl::async([=] {
+			crl::on_main([=, ready = PrepareTheme(palette, background)]{
+				if (!state->generating) {
+					return;
+				}
+				state->generating = false;
+				uploadFile(ready);
+			});
 		});
-	});
+	};
+
+	const auto checkFields = [=] {
+		state->requestId = api->request(MTPaccount_CreateTheme(
+			MTP_string(fields.slug),
+			MTP_string(fields.title),
+			MTP_inputDocumentEmpty()
+		)).done([=](const MTPTheme &result) {
+			save();
+		}).fail([=](const RPCError &error) {
+			if (error.type() == qstr("THEME_FILE_INVALID")) {
+				save();
+			} else {
+				fail(SaveErrorType::Other, error.type());
+			}
+		}).send();
+	};
+
+	if (creating) {
+		checkFields();
+	} else {
+		save();
+	}
 
 	return [=] {
-		if (state->generating) {
-			state->generating = false;
-		} else {
-			api->request(base::take(state->requestId)).cancel();
-			session->uploader().cancel(state->id);
-			state->lifetime.destroy();
-		}
+		state->generating = false;
+		api->request(base::take(state->requestId)).cancel();
+		session->uploader().cancel(state->id);
+		state->lifetime.destroy();
 	};
 }
 
@@ -797,10 +818,18 @@ void SaveThemeBox(
 		});
 		const auto fail = crl::guard(box, [=](
 				SaveErrorType type,
-				const QString &text) {
+				const QString &error) {
 			*saving = false;
-			if (!text.isEmpty()) {
-				Ui::Toast::Show(text);
+			if (error == qstr("THEME_TITLE_INVALID")) {
+				type = SaveErrorType::Name;
+			} else if (error == qstr("THEME_SLUG_INVALID")) {
+				type = SaveErrorType::Link;
+			} else if (error == qstr("THEME_SLUG_OCCUPIED")) {
+				Ui::Toast::Show(
+					tr::lng_create_channel_link_occupied(tr::now));
+				type = SaveErrorType::Link;
+			} else {
+				Ui::Toast::Show(error);
 			}
 			if (type == SaveErrorType::Name) {
 				name->showError();
