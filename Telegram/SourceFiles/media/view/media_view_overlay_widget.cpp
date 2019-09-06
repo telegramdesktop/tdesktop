@@ -1744,6 +1744,19 @@ void OverlayWidget::showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> co
 }
 
 void OverlayWidget::showDocument(not_null<DocumentData*> document, HistoryItem *context) {
+	showDocument(document, context, Data::CloudTheme());
+}
+
+void OverlayWidget::showTheme(
+		not_null<DocumentData*> document,
+		const Data::CloudTheme &cloud) {
+	showDocument(document, nullptr, cloud);
+}
+
+void OverlayWidget::showDocument(
+		not_null<DocumentData*> document,
+		HistoryItem *context,
+		const Data::CloudTheme &cloud) {
 	if (context) {
 		setContext(context);
 	} else {
@@ -1754,7 +1767,7 @@ void OverlayWidget::showDocument(not_null<DocumentData*> document, HistoryItem *
 	_photo = nullptr;
 
 	_streamingStartPaused = false;
-	displayDocument(document, context);
+	displayDocument(document, context, cloud);
 	preloadData(0);
 	activateControls();
 }
@@ -1813,7 +1826,10 @@ void OverlayWidget::redisplayContent() {
 }
 
 // Empty messages shown as docs: doc can be nullptr.
-void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
+void OverlayWidget::displayDocument(
+		DocumentData *doc,
+		HistoryItem *item,
+		const Data::CloudTheme &cloud) {
 	if (isHidden()) {
 		moveToScreen();
 	}
@@ -1822,6 +1838,7 @@ void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
 	clearStreaming();
 	destroyThemePreview();
 	_doc = doc;
+	_themeCloudData = cloud;
 	_photo = nullptr;
 	_radial.stop();
 
@@ -2223,7 +2240,7 @@ void OverlayWidget::initThemePreview() {
 	const auto cloud = (i != end(cloudList)) ? *i : Data::CloudTheme();
 	const auto isTrusted = (cloud.documentId != 0);
 	const auto fields = [&] {
-		auto result = cloud;
+		auto result = _themeCloudData.id ? _themeCloudData : cloud;
 		if (!result.documentId) {
 			result.documentId = _doc->id;
 		}

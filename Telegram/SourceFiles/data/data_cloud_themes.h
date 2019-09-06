@@ -44,8 +44,16 @@ public:
 	void applyUpdate(const MTPTheme &theme);
 
 	void resolve(const QString &slug, const FullMsgId &clickFromMessageId);
+	void showPreview(const MTPTheme &data);
+	void showPreview(const CloudTheme &cloud);
 
 private:
+	struct LoadingDocument {
+		DocumentData *document = nullptr;
+		rpl::lifetime subscription;
+		Fn<void()> callback;
+	};
+
 	void parseThemes(const QVector<MTPTheme> &list);
 
 	void install();
@@ -56,6 +64,14 @@ private:
 	void updateFromDocument(
 		const CloudTheme &cloud,
 		not_null<DocumentData*> document);
+	void previewFromDocument(
+		const CloudTheme &cloud,
+		not_null<DocumentData*> document);
+	void loadDocumentAndInvoke(
+		LoadingDocument &value,
+		not_null<DocumentData*> document,
+		Fn<void()> callback);
+	void invokeForLoaded(LoadingDocument &value);
 
 	const not_null<Main::Session*> _session;
 	int32 _hash = 0;
@@ -65,8 +81,8 @@ private:
 	rpl::event_stream<> _updates;
 
 	base::Timer _reloadCurrentTimer;
-	DocumentData *_updatingFrom = nullptr;
-	rpl::lifetime _updatingFromLifetime;
+	LoadingDocument _updatingFrom;
+	LoadingDocument _previewFrom;
 	uint64 _installedDayThemeId = 0;
 	uint64 _installedNightThemeId = 0;
 

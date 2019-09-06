@@ -284,6 +284,14 @@ void Application::showDocument(not_null<DocumentData*> document, HistoryItem *it
 	}
 }
 
+void Application::showTheme(
+		not_null<DocumentData*> document,
+		const Data::CloudTheme &cloud) {
+	_mediaView->showTheme(document, cloud);
+	_mediaView->activateWindow();
+	_mediaView->setFocus();
+}
+
 PeerData *Application::ui_getPeerForMouseAction() {
 	if (_mediaView && !_mediaView->isHidden()) {
 		return _mediaView->ui_getPeerForMouseAction();

@@ -481,19 +481,7 @@ void CloudList::insert(int index, const Data::CloudTheme &theme) {
 			|| i->waiting) {
 			return;
 		}
-		const auto documentId = i->theme.documentId;
-		if (!documentId) {
-			if (amCreator(i->theme)) {
-				_window->window().show(
-					Box(CreateForExistingBox, &_window->window(), i->theme));
-			}
-			return;
-		}
-		const auto document = _window->session().data().document(documentId);
-		DocumentOpenClickHandler::Open(
-			Data::FileOrigin(),
-			document,
-			nullptr);
+		_window->session().data().cloudThemes().showPreview(i->theme);
 	});
 	auto &element = *_elements.insert(
 		begin(_elements) + index,

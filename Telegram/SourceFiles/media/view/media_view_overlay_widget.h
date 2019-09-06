@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_shared_media.h"
 #include "data/data_user_photos.h"
 #include "data/data_web_page.h"
+#include "data/data_cloud_themes.h" // Data::CloudTheme.
 #include "media/view/media_view_playback_controls.h"
 
 namespace Ui {
@@ -70,7 +71,12 @@ public:
 
 	void showPhoto(not_null<PhotoData*> photo, HistoryItem *context);
 	void showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> context);
-	void showDocument(not_null<DocumentData*> document, HistoryItem *context);
+	void showDocument(
+		not_null<DocumentData*> document,
+		HistoryItem *context);
+	void showTheme(
+		not_null<DocumentData*> document,
+		const Data::CloudTheme &cloud);
 
 	void leaveToChildEvent(QEvent *e, QWidget *child) override { // e -- from enterEvent() of child TWidget
 		updateOverState(OverNone);
@@ -229,8 +235,15 @@ private:
 	void resizeCenteredControls();
 	void resizeContentByScreenSize();
 
+	void showDocument(
+		not_null<DocumentData*> document,
+		HistoryItem *context,
+		const Data::CloudTheme &cloud);
 	void displayPhoto(not_null<PhotoData*> photo, HistoryItem *item);
-	void displayDocument(DocumentData *document, HistoryItem *item);
+	void displayDocument(
+		DocumentData *document,
+		HistoryItem *item,
+		const Data::CloudTheme &cloud = Data::CloudTheme());
 	void displayFinished();
 	void redisplayContent();
 	void findCurrent();
@@ -455,6 +468,7 @@ private:
 	std::unique_ptr<Window::Theme::Preview> _themePreview;
 	object_ptr<Ui::RoundButton> _themeApply = { nullptr };
 	object_ptr<Ui::RoundButton> _themeCancel = { nullptr };
+	Data::CloudTheme _themeCloudData;
 
 	bool _wasRepainted = false;
 

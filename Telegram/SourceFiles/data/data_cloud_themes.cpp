@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "main/main_session.h"
 #include "boxes/confirm_box.h"
+#include "core/application.h" // Core::App().showTheme.
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
@@ -147,26 +148,7 @@ void CloudThemes::resolve(
 		MTP_inputThemeSlug(MTP_string(slug)),
 		MTP_long(0)
 	)).done([=](const MTPTheme &result) {
-		result.match([&](const MTPDtheme &data) {
-			const auto cloud = CloudTheme::Parse(_session, data);
-			if (cloud.documentId) {
-				const auto document = _session->data().document(
-					cloud.documentId);
-				DocumentOpenClickHandler::Open(
-					Data::FileOrigin(),
-					document,
-					_session->data().message(clickFromMessageId));
-			} else if (cloud.createdBy == _session->userId()) {
-				Ui::show(Box(
-					Window::Theme::CreateForExistingBox,
-					&App::wnd()->controller(),
-					cloud));
-			} else {
-				Ui::show(Box<InformBox>(
-					tr::lng_theme_no_desktop(tr::now)));
-			}
-		}, [&](const MTPDthemeDocumentNotModified &data) {
-		});
+		showPreview(result);
 	}).fail([=](const RPCError &error) {
 		if (error.type() == qstr("THEME_FORMAT_INVALID")) {
 			Ui::show(Box<InformBox>(
@@ -175,30 +157,80 @@ void CloudThemes::resolve(
 	}).send();
 }
 
+void CloudThemes::showPreview(const MTPTheme &data) {
+	data.match([&](const MTPDtheme &data) {
+		showPreview(CloudTheme::Parse(_session, data));
+	}, [&](const MTPDthemeDocumentNotModified &data) {
+		LOG(("API Error: Unexpected themeDocumentNotModified."));
+	});
+}
+
+void CloudThemes::showPreview(const CloudTheme &cloud) {
+	if (const auto documentId = cloud.documentId) {
+		previewFromDocument(cloud, _session->data().document(documentId));
+	} else if (cloud.createdBy == _session->userId()) {
+		Ui::show(Box(
+			Window::Theme::CreateForExistingBox,
+			&App::wnd()->controller(),
+			cloud));
+	} else {
+		Ui::show(Box<InformBox>(
+			tr::lng_theme_no_desktop(tr::now)));
+	}
+}
+
 void CloudThemes::updateFromDocument(
 		const CloudTheme &cloud,
 		not_null<DocumentData*> document) {
-	if (_updatingFrom) {
-		_updatingFrom->cancel();
-	} else {
+	loadDocumentAndInvoke(_updatingFrom, document, [=] {
+		auto preview = Window::Theme::PreviewFromFile(
+			document->data(),
+			document->location().name(),
+			cloud);
+		if (preview) {
+			Window::Theme::Apply(std::move(preview));
+		}
+	});
+}
+
+void CloudThemes::previewFromDocument(
+		const CloudTheme &cloud,
+		not_null<DocumentData*> document) {
+	loadDocumentAndInvoke(_previewFrom, document, [=] {
+		Core::App().showTheme(document, cloud);
+	});
+}
+
+void CloudThemes::loadDocumentAndInvoke(
+		LoadingDocument &value,
+		not_null<DocumentData*> document,
+		Fn<void()> callback) {
+	const auto alreadyWaiting = (value.document != nullptr);
+	if (alreadyWaiting) {
+		value.document->cancel();
+	}
+	value.document = document;
+	value.document->save(Data::FileOrigin(), QString()); // #TODO themes
+	value.callback = std::move(callback);
+	if (document->loaded()) {
+		invokeForLoaded(value);
+		return;
+	}
+	if (!alreadyWaiting) {
 		base::ObservableViewer(
 			_session->downloaderTaskFinished()
 		) | rpl::filter([=] {
-			return _updatingFrom->loaded();
-		}) | rpl::start_with_next([=] {
-			_updatingFromLifetime.destroy();
-			auto preview = Window::Theme::PreviewFromFile(
-				document->data(),
-				document->location().name(),
-				cloud);
-			if (preview) {
-				Window::Theme::Apply(std::move(preview));
-			}
-		}, _updatingFromLifetime);
+			return document->loaded();
+		}) | rpl::start_with_next([=, &value] {
+			invokeForLoaded(value);
+		}, value.subscription);
 	}
+}
 
-	_updatingFrom = document;
-	_updatingFrom->save(Data::FileOrigin(), QString()); // #TODO themes
+void CloudThemes::invokeForLoaded(LoadingDocument &value) {
+	const auto onstack = std::move(value.callback);
+	value = LoadingDocument();
+	onstack();
 }
 
 void CloudThemes::scheduleReload() {
