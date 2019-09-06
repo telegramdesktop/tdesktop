@@ -3060,13 +3060,14 @@ void History::clear(ClearType type) {
 		_loadedAtTop = _loadedAtBottom = false;
 	} else {
 		// Leave the 'sending' messages in local messages.
-		for (auto i = begin(_localMessages); i != end(_localMessages);) {
-			const auto item = *i;
+		auto local = base::flat_set<not_null<HistoryItem*>>();
+		for (const auto item : _localMessages) {
 			if (!item->isSending()) {
-				i = _localMessages.erase(i);
-			} else {
-				++i;
+				local.emplace(item);
 			}
+		}
+		for (const auto item : local) {
+			item->destroy();
 		}
 		_notifications.clear();
 		owner().notifyHistoryCleared(this);
