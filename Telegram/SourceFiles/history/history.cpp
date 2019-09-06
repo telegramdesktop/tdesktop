@@ -3060,8 +3060,16 @@ void History::clear(ClearType type) {
 		lastKeyboardInited = false;
 		_loadedAtTop = _loadedAtBottom = false;
 	} else {
+		// Leave the 'sending' messages in local messages.
+		for (auto i = begin(_localMessages); i != end(_localMessages);) {
+			const auto item = *i;
+			if (!item->isSending()) {
+				i = _localMessages.erase(i);
+			} else {
+				++i;
+			}
+		}
 		_notifications.clear();
-		_localMessages.clear();
 		owner().notifyHistoryCleared(this);
 		if (unreadCountKnown()) {
 			setUnreadCount(0);
