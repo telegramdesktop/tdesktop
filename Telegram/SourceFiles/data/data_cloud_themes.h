@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
+
+class DocumentData;
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -37,14 +41,30 @@ public:
 	[[nodiscard]] const std::vector<CloudTheme> &list() const;
 	void apply(const CloudTheme &data);
 
+	void applyUpdate(const MTPTheme &theme);
+
 private:
 	void parseThemes(const QVector<MTPTheme> &list);
+
+	void setupReload();
+	[[nodiscard]] bool needReload() const;
+	void scheduleReload();
+	void reloadCurrent();
+	void updateFromDocument(
+		const CloudTheme &cloud,
+		not_null<DocumentData*> document);
 
 	const not_null<Main::Session*> _session;
 	int32 _hash = 0;
 	mtpRequestId _requestId = 0;
 	std::vector<CloudTheme> _list;
 	rpl::event_stream<> _updates;
+
+	base::Timer _reloadCurrentTimer;
+	DocumentData *_updatingFrom = nullptr;
+	rpl::lifetime _updatingFromLifetime;
+
+	rpl::lifetime _lifetime;
 
 };
 

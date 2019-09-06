@@ -4612,5 +4612,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	////// Cloud themes
+	case mtpc_updateTheme: {
+		const auto &data = update.c_updateTheme();
+		session().data().cloudThemes().applyUpdate(data.vtheme());
+	} break;
+
 	}
 }
