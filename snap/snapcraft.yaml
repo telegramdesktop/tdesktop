@@ -393,7 +393,6 @@ parts:
   range-v3:
     source: https://github.com/ericniebler/range-v3.git
     source-depth: 1
-    source-tag: 0.5.0
     plugin: nil
     override-build: |
       set -x
