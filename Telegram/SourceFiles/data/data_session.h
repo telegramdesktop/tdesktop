@@ -63,6 +63,7 @@ namespace Data {
 class Folder;
 class LocationPoint;
 class WallPaper;
+class ScheduledMessages;
 
 class Session final {
 public:
@@ -78,6 +79,20 @@ public:
 
 	[[nodiscard]] Main::Session &session() const {
 		return *_session;
+	}
+
+	[[nodiscard]] Groups &groups() {
+		return _groups;
+	}
+	[[nodiscard]] const Groups &groups() const {
+		return _groups;
+	}
+
+	[[nodiscard]] ScheduledMessages &scheduledMessages() const {
+		return *_scheduledMessages;
+	}
+	[[nodiscard]] MsgId nextNonHistoryEntryId() {
+		return ++_nonHistoryEntryId;
 	}
 
 	void clear();
@@ -180,6 +195,8 @@ public:
 	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemLayoutChanged() const;
 	void notifyViewLayoutChange(not_null<const ViewElement*> view);
 	[[nodiscard]] rpl::producer<not_null<const ViewElement*>> viewLayoutChanged() const;
+	void notifyUnreadItemAdded(not_null<HistoryItem*> item);
+	[[nodiscard]] rpl::producer<not_null<HistoryItem*>> unreadItemAdded() const;
 	void requestItemRepaint(not_null<const HistoryItem*> item);
 	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemRepaintRequest() const;
 	void requestViewRepaint(not_null<const ViewElement*> view);
@@ -375,6 +392,7 @@ public:
 		ChannelId channelId,
 		const QVector<MTPint> &data);
 
+	[[nodiscard]] MsgId nextLocalMessageId();
 	[[nodiscard]] HistoryItem *message(
 		ChannelId channelId,
 		MsgId itemId) const;
@@ -670,13 +688,6 @@ public:
 	void setProxyPromoted(PeerData *promoted);
 	PeerData *proxyPromoted() const;
 
-	Groups &groups() {
-		return _groups;
-	}
-	const Groups &groups() const {
-		return _groups;
-	}
-
 	bool updateWallpapers(const MTPaccount_WallPapers &data);
 	void removeWallpaper(const WallPaper &paper);
 	const std::vector<WallPaper> &wallpapers() const;
@@ -835,6 +846,7 @@ private:
 	rpl::event_stream<IdChange> _itemIdChanges;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanges;
 	rpl::event_stream<not_null<const ViewElement*>> _viewLayoutChanges;
+	rpl::event_stream<not_null<HistoryItem*>> _unreadItemAdded;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRepaintRequest;
 	rpl::event_stream<not_null<const ViewElement*>> _viewRepaintRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemResizeRequest;
@@ -872,6 +884,7 @@ private:
 	Dialogs::IndexedList _contactsList;
 	Dialogs::IndexedList _contactsNoChatsList;
 
+	MsgId _localMessageIdCounter = StartClientMsgId;
 	Messages _messages;
 	std::map<ChannelId, Messages> _channelMessages;
 	std::map<
@@ -945,7 +958,6 @@ private:
 	base::flat_map<FolderId, std::unique_ptr<Folder>> _folders;
 	//rpl::variable<FeedId> _defaultFeedId = FeedId(); // #feed
 
-	Groups _groups;
 	std::unordered_map<
 		not_null<const HistoryItem*>,
 		std::vector<not_null<ViewElement*>>> _views;
@@ -979,6 +991,10 @@ private:
 
 	std::vector<WallPaper> _wallpapers;
 	int32 _wallpapersHash = 0;
+
+	Groups _groups;
+	std::unique_ptr<ScheduledMessages> _scheduledMessages;
+	MsgId _nonHistoryEntryId = ServerMaxMsgId;
 
 	rpl::lifetime _lifetime;
 

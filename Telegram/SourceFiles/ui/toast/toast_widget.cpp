@@ -17,10 +17,10 @@ Widget::Widget(QWidget *parent, const Config &config) : TWidget(parent)
 , _multiline(config.multiline)
 , _maxWidth((config.maxWidth > 0) ? config.maxWidth : st::toastMaxWidth)
 , _padding((config.padding.left() > 0) ? config.padding : st::toastPadding)
-, _maxTextWidth(_maxWidth - _padding.left() - _padding.right())
+, _maxTextWidth(widthWithoutPadding(_maxWidth))
 , _maxTextHeight(
 	st::toastTextStyle.font->height * (_multiline ? config.maxLines : 1))
-, _text(_multiline ? config.minWidth : QFIXED_MAX) {
+, _text(_multiline ? widthWithoutPadding(config.minWidth) : QFIXED_MAX) {
 	const auto toastOptions = TextParseOptions{
 		TextParseMultiline,
 		_maxTextWidth,
@@ -42,7 +42,7 @@ void Widget::onParentResized() {
 	auto newWidth = _maxWidth;
 	accumulate_min(newWidth, _padding.left() + _text.maxWidth() + _padding.right());
 	accumulate_min(newWidth, parentWidget()->width() - 2 * st::toastMinMargin);
-	_textWidth = newWidth - _padding.left() - _padding.right();
+	_textWidth = widthWithoutPadding(newWidth);
 	const auto textHeight = _multiline
 		? qMin(_text.countHeight(_textWidth), _maxTextHeight)
 		: _text.minHeight();

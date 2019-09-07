@@ -184,25 +184,6 @@ private:
 
 };
 
-class LeftOutlineButton : public RippleButton {
-public:
-	LeftOutlineButton(QWidget *parent, const QString &text, const style::OutlineButton &st = st::defaultLeftOutlineButton);
-
-	void setText(const QString &text);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	int resizeGetHeight(int newWidth) override;
-
-private:
-	QString _text, _fullText;
-	int _textWidth, _fullTextWidth;
-
-	const style::OutlineButton &_st;
-
-};
-
 class CrossButton : public RippleButton {
 public:
 	CrossButton(QWidget *parent, const style::CrossButton &st);

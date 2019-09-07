@@ -59,6 +59,4 @@ private:
 
 };
 
-int defaultOutlineButtonLeft();
-
 } // namespace Profile

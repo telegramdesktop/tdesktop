@@ -250,8 +250,9 @@ bool EditPrivacyBox::showExceptionLink(Exception exception) const {
 	Unexpected("Invalid exception value.");
 }
 
-Ui::Radioenum<EditPrivacyBox::Option> *EditPrivacyBox::addOption(
+Ui::Radioenum<EditPrivacyBox::Option> *EditPrivacyBox::AddOption(
 		not_null<Ui::VerticalLayout*> container,
+		not_null<EditPrivacyController*> controller,
 		const std::shared_ptr<Ui::RadioenumGroup<Option>> &group,
 		Option option) {
 	return container->add(
@@ -259,7 +260,7 @@ Ui::Radioenum<EditPrivacyBox::Option> *EditPrivacyBox::addOption(
 			container,
 			group,
 			option,
-			_controller->optionLabel(option),
+			controller->optionLabel(option),
 			st::settingsSendType),
 		st::settingsSendTypePadding);
 }
@@ -306,7 +307,7 @@ void EditPrivacyBox::setupContent() {
 
 	const auto addOptionRow = [&](Option option) {
 		return (_controller->hasOption(option) || (_value.option == option))
-			? addOption(content, group, option)
+			? AddOption(content, _controller.get(), group, option)
 			: nullptr;
 	};
 	const auto addExceptionLink = [=](Exception exception) {
@@ -345,7 +346,7 @@ void EditPrivacyBox::setupContent() {
 
 	auto above = _controller->setupAboveWidget(
 		content,
-		std::move(optionValue));
+		rpl::duplicate(optionValue));
 	if (above) {
 		content->add(std::move(above));
 	}
@@ -356,6 +357,14 @@ void EditPrivacyBox::setupContent() {
 	addOptionRow(Option::Nobody);
 	addLabel(content, _controller->warning());
 	AddSkip(content);
+
+	auto middle = _controller->setupMiddleWidget(
+		_window,
+		content,
+		std::move(optionValue));
+	if (middle) {
+		content->add(std::move(middle));
+	}
 
 	AddDivider(content);
 	AddSkip(content);
@@ -373,6 +382,7 @@ void EditPrivacyBox::setupContent() {
 		const auto someAreDisallowed = (_value.option != Option::Everyone)
 			|| !_value.never.empty();
 		_controller->confirmSave(someAreDisallowed, crl::guard(this, [=] {
+			_controller->saveAdditional();
 			_window->session().api().savePrivacy(
 				_controller->apiKey(),
 				collectResult());

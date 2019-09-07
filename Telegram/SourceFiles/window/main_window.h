@@ -92,6 +92,8 @@ public:
 
 	virtual void updateWindowIcon();
 
+	void clearWidgets();
+
 public slots:
 	bool minimizeToTray();
 	void updateGlobalMenu() {
@@ -115,7 +117,6 @@ protected:
 	virtual void handleActiveChangedHook() {
 	}
 
-	void clearWidgets();
 	virtual void clearWidgetsHook() {
 	}
 

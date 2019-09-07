@@ -321,12 +321,14 @@ contactsMultiSelect: MultiSelect {
 }
 contactsPhotoCheckIcon: icon {{
 	"default_checkbox_check",
-	windowFgActive,
+	overviewCheckFgActive,
 	point(3px, 6px)
 }};
 contactsPhotoCheck: RoundCheckbox(defaultRoundCheckbox) {
 	size: 20px;
 	sizeSmall: 0.3;
+	bgInactive: overviewCheckBg;
+	bgActive: overviewCheckBgActive;
 	check: contactsPhotoCheckIcon;
 }
 contactsPhotoCheckbox: RoundImageCheckbox {

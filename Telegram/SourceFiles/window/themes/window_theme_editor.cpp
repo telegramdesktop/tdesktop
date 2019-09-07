@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor_block.h"
+#include "window/themes/window_themes_embedded.h"
 #include "mainwindow.h"
 #include "layout.h"
 #include "storage/localstorage.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/parse_helper.h"
 #include "base/zlib_help.h"
 #include "core/file_utilities.h"
+#include "core/application.h"
 #include "boxes/edit_color_box.h"
 #include "lang/lang_keys.h"
 
@@ -184,6 +186,46 @@ QByteArray replaceValueInContent(const QByteArray &content, const QByteArray &na
 	return QByteArray();
 }
 
+QByteArray ColorizeInContent(
+		QByteArray content,
+		const Colorizer &colorizer) {
+	auto validNames = OrderedSet<QLatin1String>();
+	content.detach();
+	auto start = content.constBegin(), data = start, end = data + content.size();
+	while (data != end) {
+		skipWhitespacesAndComments(data, end);
+		if (data == end) break;
+
+		auto foundName = base::parse::readName(data, end);
+		skipWhitespacesAndComments(data, end);
+		if (data == end || *data != ':') {
+			return "error";
+		}
+		++data;
+		skipWhitespacesAndComments(data, end);
+		auto valueStart = data;
+		auto value = readValue(data, end);
+		auto valueEnd = data;
+		if (value.size() == 0) {
+			return "error";
+		}
+		if (isValidColorValue(value)) {
+			const auto colorized = Colorize(value, colorizer);
+			Assert(colorized.size() == value.size());
+			memcpy(
+				content.data() + (data - start) - value.size(),
+				colorized.data(),
+				value.size());
+		}
+		skipWhitespacesAndComments(data, end);
+		if (data == end || *data != ';') {
+			return "error";
+		}
+		++data;
+	}
+	return content;
+}
+
 QString bytesToUtf8(QLatin1String bytes) {
 	return QString::fromUtf8(bytes.data(), bytes.size());
 }
@@ -234,6 +276,8 @@ private:
 	}
 	void applyEditing(const QString &name, const QString &copyOf, QColor value);
 
+	void sortByAccentDistance();
+
 	EditorBlock::Context _context;
 
 	QString _path;
@@ -276,6 +320,46 @@ private:
 	object_ptr<Ui::Checkbox> _tileBackground;
 
 };
+
+bool CopyColorsToPalette(
+		const QString &destination,
+		const QString &themePath,
+		const QByteArray &themeContent) {
+	auto paletteContent = themeContent;
+
+	zlib::FileToRead file(themeContent);
+
+	unz_global_info globalInfo = { 0 };
+	file.getGlobalInfo(&globalInfo);
+	if (file.error() == UNZ_OK) {
+		paletteContent = file.readFileContent("colors.tdesktop-theme", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
+		if (file.error() == UNZ_END_OF_LIST_OF_FILE) {
+			file.clearError();
+			paletteContent = file.readFileContent("colors.tdesktop-palette", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
+		}
+		if (file.error() != UNZ_OK) {
+			LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file, while copying to '%1'.").arg(destination));
+			return false;
+		}
+	}
+
+	QFile f(destination);
+	if (!f.open(QIODevice::WriteOnly)) {
+		LOG(("Theme Error: could not open file for write '%1'").arg(destination));
+		return false;
+	}
+
+	if (const auto colorizer = ColorizerForTheme(themePath)) {
+		paletteContent = ColorizeInContent(
+			std::move(paletteContent),
+			colorizer);
+	}
+	if (f.write(paletteContent) != paletteContent.size()) {
+		LOG(("Theme Error: could not write palette to '%1'").arg(destination));
+		return false;
+	}
+	return true;
+}
 
 Editor::Inner::Inner(QWidget *parent, const QString &path) : TWidget(parent)
 , _path(path)
@@ -332,6 +416,11 @@ Fn<void()> Editor::Inner::exportCallback() {
 }
 
 void Editor::Inner::filterRows(const QString &query) {
+	if (query == ":sort-for-accent") {
+		sortByAccentDistance();
+		filterRows(QString());
+		return;
+	}
 	_existingRows->filterRows(query);
 	_newRows->filterRows(query);
 }
@@ -416,8 +505,8 @@ bool Editor::Inner::readData() {
 		return false;
 	}
 
-	auto rows = style::main_palette::data();
-	for_const (auto &row, rows) {
+	const auto rows = style::main_palette::data();
+	for (const auto &row : rows) {
 		auto name = bytesToUtf8(row.name);
 		auto description = bytesToUtf8(row.description);
 		if (!_existingRows->feedDescription(name, description)) {
@@ -442,7 +531,14 @@ bool Editor::Inner::readData() {
 			}
 		}
 	}
+
 	return true;
+}
+
+void Editor::Inner::sortByAccentDistance() {
+	const auto accent = *_existingRows->find("windowBgActive");
+	_existingRows->sortByDistance(accent);
+	_newRows->sortByDistance(accent);
 }
 
 bool Editor::Inner::readExistingRows() {
@@ -483,14 +579,14 @@ QString colorString(QColor color) {
 	auto result = QString();
 	result.reserve(9);
 	result.append('#');
-	auto addHex = [&result](int code) {
+	const auto addHex = [&](int code) {
 		if (code >= 0 && code < 10) {
 			result.append('0' + code);
 		} else if (code >= 10 && code < 16) {
 			result.append('a' + (code - 10));
 		}
 	};
-	auto addValue = [addHex](int code) {
+	const auto addValue = [&](int code) {
 		addHex(code / 16);
 		addHex(code % 16);
 	};

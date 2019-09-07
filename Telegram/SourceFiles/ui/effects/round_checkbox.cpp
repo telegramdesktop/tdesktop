@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/round_checkbox.h"
 
+#include "window/themes/window_theme.h"
+#include "ui/rp_widget.h"
+
 namespace Ui {
 namespace {
 
@@ -237,11 +240,18 @@ QPixmap CheckCaches::paintFrame(
 CheckCaches *FrameCaches() {
 	static QPointer<CheckCaches> Instance;
 
-	if (auto instance = Instance.data()) {
+	if (const auto instance = Instance.data()) {
 		return instance;
 	}
-	auto result = new CheckCaches(QGuiApplication::instance());
+	const auto result = new CheckCaches(QGuiApplication::instance());
 	Instance = result;
+	const auto subscription = Ui::CreateChild<base::Subscription>(result);
+	*subscription = Window::Theme::Background()->add_subscription([=](
+			const Window::Theme::BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			FrameCaches()->clear();
+		}
+	});
 	return result;
 }
 
@@ -330,7 +340,6 @@ void RoundCheckbox::setChecked(bool newChecked, SetStyle speed) {
 }
 
 void RoundCheckbox::invalidateCache() {
-	FrameCaches()->clear();
 	if (!_inactiveCacheBg.isNull() || !_inactiveCacheFg.isNull()) {
 		prepareInactiveCache();
 	}

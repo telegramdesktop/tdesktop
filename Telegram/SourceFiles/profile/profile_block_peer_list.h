@@ -93,7 +93,7 @@ protected:
 		int visibleTop,
 		int visibleBottom) override;
 
-	void paintOutlinedRect(Painter &p, int x, int y, int w, int h) const;
+	void paintItemRect(Painter &p, int x, int y, int w, int h) const;
 	void refreshVisibility();
 
 	void paintContents(Painter &p) override;

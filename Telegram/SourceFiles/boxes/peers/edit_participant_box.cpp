@@ -354,16 +354,6 @@ void EditAdminBox::prepare() {
 	) | rpl::then(std::move(
 		changes
 	));
-	if (canTransferOwnership()) {
-		const auto allFlags = FullAdminRights(isGroup);
-		setupTransferButton(
-			isGroup
-		)->toggleOn(rpl::duplicate(
-			selectedFlags
-		) | rpl::map(
-			((_1 & allFlags) == allFlags)
-		))->setDuration(0);
-	}
 	_aboutAddAdmins = addControl(
 		object_ptr<Ui::FlatLabel>(this, st::boxDividerLabel),
 		st::rightsAboutMargin);
@@ -375,6 +365,17 @@ void EditAdminBox::prepare() {
 	) | rpl::start_with_next([=](bool checked) {
 		refreshAboutAddAdminsText(checked);
 	}, lifetime());
+
+	if (canTransferOwnership()) {
+		const auto allFlags = FullAdminRights(isGroup);
+		setupTransferButton(
+			isGroup
+		)->toggleOn(rpl::duplicate(
+			selectedFlags
+		) | rpl::map(
+			((_1 & allFlags) == allFlags)
+		))->setDuration(0);
+	}
 
 	if (canSave()) {
 		const auto rank = (chat || channel->isMegagroup())
@@ -470,13 +471,10 @@ not_null<Ui::SlideWrap<Ui::RpWidget>*> EditAdminBox::setupTransferButton(
 			object_ptr<Ui::VerticalLayout>(this)));
 
 	const auto container = wrap->entity();
-	const auto addDivider = [&] {
-		container->add(
-			object_ptr<BoxContentDivider>(container),
-			{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
-	};
 
-	addDivider();
+	container->add(
+		object_ptr<BoxContentDivider>(container),
+		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
 	container->add(EditPeerInfoBox::CreateButton(
 		this,
 		(isGroup
@@ -485,7 +483,6 @@ not_null<Ui::SlideWrap<Ui::RpWidget>*> EditAdminBox::setupTransferButton(
 		rpl::single(QString()),
 		[=] { transferOwnership(); },
 		st::peerPermissionsButton));
-	addDivider();
 
 	return wrap;
 }

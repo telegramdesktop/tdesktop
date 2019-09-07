@@ -47,12 +47,14 @@
       'build_linux%': '<(build_linux)',
 
       'official_build_target%': '',
+      'build_standard_win%': 'c++17',
     },
     'build_os%': '<(build_os)',
     'build_win%': '<(build_win)',
     'build_mac%': '<(build_mac)',
     'build_linux%': '<(build_linux)',
     'official_build_target%': '<(official_build_target)',
+    'build_standard_win%': '<(build_standard_win)',
 
     # GYP does not support per-configuration libraries :(
     # So they will be emulated through additional link flags,

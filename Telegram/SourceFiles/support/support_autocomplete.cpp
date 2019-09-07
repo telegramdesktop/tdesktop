@@ -271,7 +271,7 @@ AdminLog::OwnedItem GenerateCommentItem(
 	using Flag = MTPDmessage::Flag;
 	const auto id = ServerMaxMsgId + (ServerMaxMsgId / 2);
 	const auto flags = Flag::f_entities | Flag::f_from_id | Flag::f_out;
-	const auto clientFlags = MTPDmessage_ClientFlags();
+	const auto clientFlags = MTPDmessage_ClientFlag::f_fake_history_item;
 	const auto replyTo = 0;
 	const auto viaBotId = 0;
 	const auto item = history->owner().makeMessage(
@@ -318,11 +318,13 @@ AdminLog::OwnedItem GenerateContactItem(
 		MTP_int(0),
 		MTP_int(0),
 		MTP_string(),
-		MTP_long(0));
+		MTP_long(0),
+		//MTPMessageReactions(),
+		MTPVector<MTPRestrictionReason>());
 	const auto item = history->owner().makeMessage(
 		history,
 		message.c_message(),
-		MTPDmessage_ClientFlags());
+		MTPDmessage_ClientFlag::f_fake_history_item);
 	return AdminLog::OwnedItem(delegate, item);
 }
 

@@ -213,8 +213,12 @@ QSize Poll::countOptimalSize() {
 	return { maxWidth, minHeight };
 }
 
+bool Poll::showVotes() const {
+	return _voted || _closed;
+}
+
 bool Poll::canVote() const {
-	return !_voted && !_closed;
+	return !showVotes() && IsServerMsgId(_parent->data()->id);
 }
 
 int Poll::countAnswerTop(
@@ -395,7 +399,7 @@ void Poll::updateAnswerVotesFromOriginal(
 		const PollAnswer &original,
 		int percent,
 		int maxVotes) {
-	if (canVote()) {
+	if (!showVotes()) {
 		answer.votesPercent = 0;
 		answer.votesPercentString.clear();
 		answer.votesPercentWidth = 0;
@@ -590,7 +594,7 @@ int Poll::paintAnswer(
 				selection);
 			p.setOpacity(1.);
 		}
-	} else if (canVote()) {
+	} else if (!showVotes()) {
 		paintRadio(p, answer, left, top, selection);
 	} else {
 		paintPercent(
@@ -730,14 +734,14 @@ void Poll::saveStateInAnimation() const {
 	if (_answersAnimation) {
 		return;
 	}
-	const auto can = canVote();
+	const auto show = showVotes();
 	_answersAnimation = std::make_unique<AnswersAnimation>();
 	_answersAnimation->data.reserve(_answers.size());
 	const auto convert = [&](const Answer &answer) {
 		auto result = AnswerAnimation();
-		result.percent = can ? 0. : float64(answer.votesPercent);
-		result.filling = can ? 0. : answer.filling;
-		result.opacity = can ? 0. : 1.;
+		result.percent = show ? float64(answer.votesPercent) : 0.;
+		result.filling = show ? answer.filling : 0.;
+		result.opacity = show ? 1. : 0.;
 		return result;
 	};
 	ranges::transform(
@@ -751,7 +755,7 @@ bool Poll::checkAnimationStart() const {
 		// Skip initial changes.
 		return false;
 	}
-	const auto result = (canVote() != (!_poll->voted() && !_poll->closed))
+	const auto result = (showVotes() != (_poll->voted() || _poll->closed))
 		|| answerVotesChanged();
 	if (result) {
 		saveStateInAnimation();
@@ -764,12 +768,12 @@ void Poll::startAnswersAnimation() const {
 		return;
 	}
 
-	const auto can = canVote();
+	const auto show = showVotes();
 	auto &&both = ranges::view::zip(_answers, _answersAnimation->data);
 	for (auto &&[answer, data] : both) {
-		data.percent.start(can ? 0. : float64(answer.votesPercent));
-		data.filling.start(can ? 0. : answer.filling);
-		data.opacity.start(can ? 0. : 1.);
+		data.percent.start(show ? float64(answer.votesPercent) : 0.);
+		data.filling.start(show ? answer.filling : 0.);
+		data.opacity.start(show ? 1. : 0.);
 	}
 	_answersAnimation->progress.start(
 		[=] { history()->owner().requestViewRepaint(_parent); },
@@ -785,6 +789,7 @@ TextState Poll::textState(QPoint point, StateRequest request) const {
 	}
 
 	const auto can = canVote();
+	const auto show = showVotes();
 	const auto padding = st::msgPadding;
 	auto paintw = width();
 	auto tshift = st::historyPollQuestionTop;
@@ -804,7 +809,7 @@ TextState Poll::textState(QPoint point, StateRequest request) const {
 			if (can) {
 				_lastLinkPoint = point;
 				result.link = answer.handler;
-			} else {
+			} else if (show) {
 				result.customTooltip = true;
 				using Flag = Ui::Text::StateRequest::Flag;
 				if (request.flags & Flag::LookupCustomTooltip) {

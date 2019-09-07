@@ -52,13 +52,13 @@ public:
 		not_null<Window::SessionController*> controller,
 		not_null<ChannelData*> channel);
 
-	Main::Session &session() const;
+	[[nodiscard]] Main::Session &session() const;
 
-	base::Observable<void> showSearchSignal;
-	base::Observable<int> scrollToSignal;
-	base::Observable<void> cancelledSignal;
+	[[nodiscard]] rpl::producer<> showSearchSignal() const;
+	[[nodiscard]] rpl::producer<int> scrollToSignal() const;
+	[[nodiscard]] rpl::producer<> cancelSignal() const;
 
-	not_null<ChannelData*> channel() const {
+	[[nodiscard]] not_null<ChannelData*> channel() const {
 		return _channel;
 	}
 
@@ -276,7 +276,9 @@ private:
 	std::vector<not_null<UserData*>> _adminsCanEdit;
 	Fn<void(FilterValue &&filter)> _showFilterCallback;
 
-	std::shared_ptr<LocalIdManager> _idManager;
+	rpl::event_stream<> _showSearchSignal;
+	rpl::event_stream<int> _scrollToSignal;
+	rpl::event_stream<> _cancelSignal;
 
 };
 

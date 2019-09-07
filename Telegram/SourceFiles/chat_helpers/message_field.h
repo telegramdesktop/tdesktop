@@ -57,7 +57,7 @@ struct AutocompleteQuery {
 AutocompleteQuery ParseMentionHashtagBotCommandQuery(
 	not_null<const Ui::InputField*> field);
 
-class QtConnectionOwner {
+class QtConnectionOwner final {
 public:
 	QtConnectionOwner(QMetaObject::Connection connection = {});
 	QtConnectionOwner(QtConnectionOwner &&other);
@@ -106,7 +106,15 @@ private:
 
 };
 
-void SetupSendWithoutSound(
+enum class SendMenuType {
+	Disabled,
+	SilentOnly,
+	Scheduled,
+	Reminder,
+};
+
+void SetupSendMenu(
 	not_null<Ui::RpWidget*> button,
-	Fn<bool()> enabled,
-	Fn<void()> send);
+	Fn<SendMenuType()> type,
+	Fn<void()> silent,
+	Fn<void()> schedule);

@@ -178,13 +178,18 @@ HistoryItem::HistoryItem(
 , _flags(flags)
 , _clientFlags(clientFlags)
 , _date(date) {
-	if (IsClientMsgId(id)) {
+	if (isHistoryEntry() && IsClientMsgId(id)) {
 		_history->registerLocalMessage(this);
 	}
 }
 
 TimeId HistoryItem::date() const {
 	return _date;
+}
+
+TimeId HistoryItem::NewMessageDate(TimeId scheduled) {
+	const auto now = base::unixtime::now();
+	return scheduled ? std::max(scheduled, now + 60) : now;
 }
 
 void HistoryItem::finishEdition(int oldKeyboardTop) {
@@ -352,13 +357,19 @@ void HistoryItem::addLogEntryOriginal(
 		WebPageId localId,
 		const QString &label,
 		const TextWithEntities &content) {
-	Expects(isLogEntry());
+	Expects(isAdminLogEntry());
 
 	AddComponents(HistoryMessageLogEntryOriginal::Bit());
 	Get<HistoryMessageLogEntryOriginal>()->page = _history->owner().webpage(
 		localId,
 		label,
 		content);
+}
+
+PeerData *HistoryItem::specialNotificationPeer() const {
+	return (mentionsMe() && !_history->peer->isUser())
+		? from().get()
+		: nullptr;
 }
 
 UserData *HistoryItem::viaBot() const {
@@ -377,7 +388,27 @@ UserData *HistoryItem::getMessageBot() const {
 		bot = history()->peer->asUser();
 	}
 	return (bot && bot->isBot()) ? bot : nullptr;
-};
+}
+
+bool HistoryItem::isHistoryEntry() const {
+	return IsServerMsgId(id)
+		|| (_clientFlags & MTPDmessage_ClientFlag::f_local_history_entry);
+}
+
+bool HistoryItem::isAdminLogEntry() const {
+	return (_clientFlags & MTPDmessage_ClientFlag::f_admin_log_entry);
+}
+
+bool HistoryItem::isFromScheduled() const {
+	return isHistoryEntry()
+		&& (_flags & MTPDmessage::Flag::f_from_scheduled);
+}
+
+bool HistoryItem::isScheduled() const {
+	return !isHistoryEntry()
+		&& !isAdminLogEntry()
+		&& (_flags & MTPDmessage::Flag::f_from_scheduled);
+}
 
 void HistoryItem::destroy() {
 	_history->owner().destroyMessage(this);
@@ -474,6 +505,10 @@ bool HistoryItem::canPin() const {
 	return _history->peer->canPinMessages();
 }
 
+bool HistoryItem::allowsSendNow() const {
+	return false;
+}
+
 bool HistoryItem::allowsForward() const {
 	return false;
 }
@@ -505,7 +540,9 @@ bool HistoryItem::canStopPoll() const {
 }
 
 bool HistoryItem::canDelete() const {
-	if (isLogEntry() || (!IsServerMsgId(id) && serviceMsg())) {
+	if (!IsServerMsgId(id) && serviceMsg()) {
+		return false;
+	} else if (!isHistoryEntry() && !isScheduled()) {
 		return false;
 	}
 	auto channel = _history->peer->asChannel();
@@ -688,8 +725,8 @@ bool HistoryItem::needCheck() const {
 }
 
 bool HistoryItem::unread() const {
-	// Messages from myself are always read.
-	if (history()->peer->isSelf()) {
+	// Messages from myself are always read, unless scheduled.
+	if (history()->peer->isSelf() && !isFromScheduled()) {
 		return false;
 	}
 
@@ -723,6 +760,14 @@ bool HistoryItem::unread() const {
 		return true;
 	}
 	return (_clientFlags & MTPDmessage_ClientFlag::f_clientside_unread);
+}
+
+bool HistoryItem::showNotification() const {
+	const auto channel = _history->peer->asChannel();
+	if (channel && !channel->amIn()) {
+		return false;
+	}
+	return (out() || _history->peer->isSelf()) ? isFromScheduled() : unread();
 }
 
 void HistoryItem::markClientSideAsRead() {

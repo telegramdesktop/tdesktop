@@ -1510,7 +1510,7 @@ void FormController::uploadEncryptedFile(
 	auto prepared = std::make_shared<FileLoadResult>(
 		TaskId(),
 		file.uploadData->fileId,
-		FileLoadTo(PeerId(0), false, MsgId(0)),
+		FileLoadTo(PeerId(0), Api::SendOptions(), MsgId(0)),
 		TextWithTags(),
 		std::shared_ptr<SendingAlbum>(nullptr));
 	prepared->type = SendMediaType::Secure;
@@ -1520,7 +1520,9 @@ void FormController::uploadEncryptedFile(
 	prepared->setFileData(prepared->content);
 	prepared->filemd5 = file.uploadData->md5checksum;
 
-	file.uploadData->fullId = FullMsgId(0, clientMsgId());
+	file.uploadData->fullId = FullMsgId(
+		0,
+		Auth().data().nextLocalMessageId());
 	Auth().uploader().upload(file.uploadData->fullId, std::move(prepared));
 }
 

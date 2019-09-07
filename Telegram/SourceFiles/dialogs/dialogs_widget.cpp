@@ -444,7 +444,9 @@ void Widget::refreshFolderTopBar() {
 			_folderTopBar.create(this, controller());
 			updateControlsGeometry();
 		}
-		_folderTopBar->setActiveChat(_openedFolder);
+		_folderTopBar->setActiveChat(
+			_openedFolder,
+			HistoryView::TopBarWidget::Section::History);
 	} else {
 		_folderTopBar.destroy();
 	}

@@ -669,6 +669,7 @@ auto ListWidget::collectSelectedItems() const -> SelectedItems {
 		auto result = SelectedItem(itemId);
 		result.canDelete = selection.canDelete;
 		result.canForward = selection.canForward;
+		result.canSendNow = selection.canSendNow;
 		return result;
 	};
 	auto items = SelectedItems();
@@ -746,15 +747,11 @@ bool ListWidget::isSelectedAsGroup(
 	return applyTo.contains(item->fullId());
 }
 
-bool ListWidget::isGoodForSelection(not_null<HistoryItem*> item) const {
-	return IsServerMsgId(item->id) && !item->serviceMsg();
-}
-
 bool ListWidget::isGoodForSelection(
 		SelectedMap &applyTo,
 		not_null<HistoryItem*> item,
 		int &totalCount) const {
-	if (!isGoodForSelection(item)) {
+	if (!_delegate->listIsItemGoodForSelection(item)) {
 		return false;
 	} else if (!applyTo.contains(item->fullId())) {
 		++totalCount;
@@ -774,6 +771,7 @@ bool ListWidget::addToSelection(
 	}
 	iterator->second.canDelete = item->canDelete();
 	iterator->second.canForward = item->allowsForward();
+	iterator->second.canSendNow = item->allowsSendNow();
 	return true;
 }
 
@@ -1814,14 +1812,14 @@ void ListWidget::updateDragSelection(
 	const auto changeGroup = [&](not_null<HistoryItem*> item, bool add) {
 		if (const auto group = groups.find(item)) {
 			for (const auto item : group->items) {
-				if (!isGoodForSelection(item)) {
+				if (!_delegate->listIsItemGoodForSelection(item)) {
 					return;
 				}
 			}
 			for (const auto item : group->items) {
 				changeItem(item, add);
 			}
-		} else if (isGoodForSelection(item)) {
+		} else if (_delegate->listIsItemGoodForSelection(item)) {
 			changeItem(item, add);
 		}
 	};
@@ -2332,12 +2330,18 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 			? _pressItemExact
 			: pressedItem;
 		if (_mouseCursorState == CursorState::Date) {
-			forwardIds = session().data().itemOrItsGroup(_overElement->data());
+			if (_overElement->data()->allowsForward()) {
+				forwardIds = session().data().itemOrItsGroup(
+					_overElement->data());
+			}
 		} else if (_pressState.pointState == PointState::GroupPart) {
-			forwardIds = MessageIdsList(1, exactItem->fullId());
+			if (exactItem->allowsForward()) {
+				forwardIds = MessageIdsList(1, exactItem->fullId());
+			}
 		} else if (const auto media = pressedView->media()) {
-			if (media->dragItemByHandler(pressedHandler)
-				|| media->dragItem()) {
+			if (pressedView->data()->allowsForward()
+				&& (media->dragItemByHandler(pressedHandler)
+					|| media->dragItem())) {
 				forwardIds = MessageIdsList(1, exactItem->fullId());
 			}
 		}

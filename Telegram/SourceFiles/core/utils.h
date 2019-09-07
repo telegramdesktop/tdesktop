@@ -67,8 +67,12 @@ T *SharedMemoryLocation() {
 // see https://github.com/boostcon/cppnow_presentations_2012/blob/master/wed/schurr_cpp11_tools_for_class_authors.pdf
 class str_const { // constexpr string
 public:
-	template<std::size_t N>
-	constexpr str_const(const char(&a)[N]) : _str(a), _size(N - 1) {
+	constexpr str_const(const char *str, std::size_t size)
+	: _str(str)
+	, _size(size) {
+	}
+	template <std::size_t N>
+	constexpr str_const(const char(&a)[N]) : str_const(a, N - 1) {
 	}
 	constexpr char operator[](std::size_t n) const {
 		return (n < _size) ? _str[n] :
@@ -79,7 +83,7 @@ public:
 #endif // OS_MAC_OLD
 	}
 	constexpr std::size_t size() const { return _size; }
-	const char *c_str() const { return _str; }
+	constexpr const char *c_str() const { return _str; }
 
 private:
 	const char* const _str;

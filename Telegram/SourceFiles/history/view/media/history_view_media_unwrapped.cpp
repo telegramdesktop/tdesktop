@@ -150,7 +150,7 @@ void UnwrappedMedia::drawSurrounding(
 	const auto rightAction = _parent->displayRightAction();
 	const auto fullRight = calculateFullRight(inner);
 	auto fullBottom = height();
-	if (rightAction ? true : needInfoDisplay()) {
+	if (needInfoDisplay()) {
 		_parent->drawInfo(
 			p,
 			fullRight,
@@ -217,13 +217,19 @@ PointState UnwrappedMedia::pointState(QPoint point) const {
 		usex = width() - usex - usew;
 	}
 
+	const auto datey = height() - st::msgDateImgPadding.y() * 2
+		- st::msgDateFont->height;
 	const auto usey = rightAligned ? 0 : (height() - _contentSize.height());
 	const auto useh = rightAligned
-		? std::max(
-			_contentSize.height(),
-			height() - st::msgDateImgPadding.y() * 2 - st::msgDateFont->height)
+		? std::max(_contentSize.height(), datey)
 		: _contentSize.height();
 	const auto inner = QRect(usex, usey, usew, useh);
+
+	// Rectangle of date bubble.
+	if (point.x() < calculateFullRight(inner) && point.y() > datey) {
+		return PointState::Inside;
+	}
+
 	return inner.contains(point) ? PointState::Inside : PointState::Outside;
 }
 
@@ -358,6 +364,7 @@ QPoint UnwrappedMedia::calculateFastActionPosition(
 bool UnwrappedMedia::needInfoDisplay() const {
 	return (_parent->data()->id < 0)
 		|| (_parent->isUnderCursor())
+		|| (_parent->displayRightAction())
 		|| (_parent->hasOutLayout()
 			&& !Adaptive::ChatWide()
 			&& _content->alwaysShowOutTimestamp());

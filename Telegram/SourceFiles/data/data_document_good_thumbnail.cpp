@@ -31,7 +31,7 @@ QImage Prepare(
 		QByteArray data,
 		FileType type) {
 	if (type == FileType::Video) {
-		return Media::Clip::PrepareForSending(path, data).thumbnail;
+		return ::Media::Clip::PrepareForSending(path, data).thumbnail;
 	} else if (type == FileType::AnimatedSticker) {
 		return Lottie::ReadThumbnail(Lottie::ReadContent(data, path));
 	}

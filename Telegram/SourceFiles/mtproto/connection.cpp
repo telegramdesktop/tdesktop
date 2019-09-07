@@ -86,12 +86,16 @@ bool IsGoodModExpFirst(
 bool IsPrimeAndGoodCheck(const openssl::BigNum &prime, int g) {
 	constexpr auto kGoodPrimeBitsCount = 2048;
 
-	if (prime.failed() || prime.isNegative() || prime.bitsSize() != kGoodPrimeBitsCount) {
-		LOG(("MTP Error: Bad prime bits count %1, expected %2.").arg(prime.bitsSize()).arg(kGoodPrimeBitsCount));
+	if (prime.failed()
+		|| prime.isNegative()
+		|| prime.bitsSize() != kGoodPrimeBitsCount) {
+		LOG(("MTP Error: Bad prime bits count %1, expected %2."
+			).arg(prime.bitsSize()
+			).arg(kGoodPrimeBitsCount));
 		return false;
 	}
 
-	openssl::Context context;
+	const auto context = openssl::Context();
 	if (!prime.isPrime(context)) {
 		LOG(("MTP Error: Bad prime."));
 		return false;
@@ -99,14 +103,14 @@ bool IsPrimeAndGoodCheck(const openssl::BigNum &prime, int g) {
 
 	switch (g) {
 	case 2: {
-		auto mod8 = prime.modWord(8);
+		const auto mod8 = prime.countModWord(8);
 		if (mod8 != 7) {
 			LOG(("BigNum PT Error: bad g value: %1, mod8: %2").arg(g).arg(mod8));
 			return false;
 		}
 	} break;
 	case 3: {
-		auto mod3 = prime.modWord(3);
+		const auto mod3 = prime.countModWord(3);
 		if (mod3 != 2) {
 			LOG(("BigNum PT Error: bad g value: %1, mod3: %2").arg(g).arg(mod3));
 			return false;
@@ -114,21 +118,21 @@ bool IsPrimeAndGoodCheck(const openssl::BigNum &prime, int g) {
 	} break;
 	case 4: break;
 	case 5: {
-		auto mod5 = prime.modWord(5);
+		const auto mod5 = prime.countModWord(5);
 		if (mod5 != 1 && mod5 != 4) {
 			LOG(("BigNum PT Error: bad g value: %1, mod5: %2").arg(g).arg(mod5));
 			return false;
 		}
 	} break;
 	case 6: {
-		auto mod24 = prime.modWord(24);
+		const auto mod24 = prime.countModWord(24);
 		if (mod24 != 19 && mod24 != 23) {
 			LOG(("BigNum PT Error: bad g value: %1, mod24: %2").arg(g).arg(mod24));
 			return false;
 		}
 	} break;
 	case 7: {
-		auto mod7 = prime.modWord(7);
+		const auto mod7 = prime.countModWord(7);
 		if (mod7 != 3 && mod7 != 5 && mod7 != 6) {
 			LOG(("BigNum PT Error: bad g value: %1, mod7: %2").arg(g).arg(mod7));
 			return false;
@@ -140,10 +144,7 @@ bool IsPrimeAndGoodCheck(const openssl::BigNum &prime, int g) {
 	} break;
 	}
 
-	auto primeSubOneDivTwo = prime;
-	primeSubOneDivTwo.setSubWord(1);
-	primeSubOneDivTwo.setDivWord(2);
-	if (!primeSubOneDivTwo.isPrime(context)) {
+	if (!openssl::BigNum(prime).subWord(1).divWord(2).isPrime(context)) {
 		LOG(("MTP Error: Bad (prime - 1) / 2."));
 		return false;
 	}
@@ -184,8 +185,9 @@ bytes::vector CreateAuthKey(
 		bytes::const_span randomBytes,
 		bytes::const_span primeBytes) {
 	using openssl::BigNum;
-	BigNum first(firstBytes);
-	BigNum prime(primeBytes);
+
+	const auto first = BigNum(firstBytes);
+	const auto prime = BigNum(primeBytes);
 	if (!IsGoodModExpFirst(first, prime)) {
 		LOG(("AuthKey Error: Bad first prime in CreateAuthKey()."));
 		return {};
@@ -539,7 +541,9 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 			mtpMsgId id = i.key();
 			if (id > newId) {
 				while (true) {
-					if (toResend.constFind(newId) == toResend.cend() && wereAcked.constFind(newId) == wereAcked.cend() && haveSent.constFind(newId) == haveSent.cend()) {
+					if (toResend.constFind(newId) == toResend.cend()
+						&& wereAcked.constFind(newId) == wereAcked.cend()
+						&& haveSent.constFind(newId) == haveSent.cend()) {
 						break;
 					}
 					const auto m = base::unixtime::mtproto_msg_id();
@@ -548,7 +552,9 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 					newId = m;
 				}
 
-				MTP_LOG(_shiftedDcId, ("Replacing msgId %1 to %2!").arg(id).arg(newId));
+				MTP_LOG(_shiftedDcId, ("Replacing msgId %1 to %2!"
+					).arg(id
+					).arg(newId));
 				replaces.insert(id, newId);
 				id = newId;
 				*(mtpMsgId*)(i.value()->data() + 4) = id;
@@ -556,7 +562,8 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 			setSeqNumbers.insert(id, i.value());
 		}
 	}
-	for (auto i = toResend.cbegin(), e = toResend.cend(); i != e; ++i) { // collect all non-container requests
+	// Collect all non-container requests.
+	for (auto i = toResend.cbegin(), e = toResend.cend(); i != e; ++i) {
 		const auto j = toSend.constFind(i.value());
 		if (j == toSend.cend()) continue;
 
@@ -566,7 +573,9 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 			mtpMsgId id = i.key();
 			if (id > newId) {
 				while (true) {
-					if (toResend.constFind(newId) == toResend.cend() && wereAcked.constFind(newId) == wereAcked.cend() && haveSent.constFind(newId) == haveSent.cend()) {
+					if (toResend.constFind(newId) == toResend.cend()
+						&& wereAcked.constFind(newId) == wereAcked.cend()
+						&& haveSent.constFind(newId) == haveSent.cend()) {
 						break;
 					}
 					const auto m = base::unixtime::mtproto_msg_id();
@@ -575,7 +584,9 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 					newId = m;
 				}
 
-				MTP_LOG(_shiftedDcId, ("Replacing msgId %1 to %2!").arg(id).arg(newId));
+				MTP_LOG(_shiftedDcId, ("Replacing msgId %1 to %2!"
+					).arg(id
+					).arg(newId));
 				replaces.insert(id, newId);
 				id = newId;
 				*(mtpMsgId*)(j.value()->data() + 4) = id;
@@ -608,6 +619,10 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 			}
 			const auto l = wereAcked.find(i.key());
 			if (l != wereAcked.cend()) {
+				DEBUG_LOG(("MTP Info: Replaced %1 with %2 in wereAcked."
+					).arg(i.key()
+					).arg(i.value()));
+
 				const auto req = l.value();
 				wereAcked.erase(l);
 				wereAcked.insert(i.value(), req);
@@ -3304,15 +3319,23 @@ bool IsPrimeAndGood(bytes::const_span primeBytes, int g) {
 	return internal::IsPrimeAndGood(primeBytes, g);
 }
 
-bool IsGoodModExpFirst(const openssl::BigNum &modexp, const openssl::BigNum &prime) {
+bool IsGoodModExpFirst(
+		const openssl::BigNum &modexp,
+		const openssl::BigNum &prime) {
 	return internal::IsGoodModExpFirst(modexp, prime);
 }
 
-ModExpFirst CreateModExp(int g, bytes::const_span primeBytes, bytes::const_span randomSeed) {
+ModExpFirst CreateModExp(
+		int g,
+		bytes::const_span primeBytes,
+		bytes::const_span randomSeed) {
 	return internal::CreateModExp(g, primeBytes, randomSeed);
 }
 
-bytes::vector CreateAuthKey(bytes::const_span firstBytes, bytes::const_span randomBytes, bytes::const_span primeBytes) {
+bytes::vector CreateAuthKey(
+		bytes::const_span firstBytes,
+		bytes::const_span randomBytes,
+		bytes::const_span primeBytes) {
 	return internal::CreateAuthKey(firstBytes, randomBytes, primeBytes);
 }
 

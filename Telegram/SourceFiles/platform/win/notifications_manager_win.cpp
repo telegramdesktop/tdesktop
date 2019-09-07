@@ -342,9 +342,16 @@ public:
 	explicit Private(Manager *instance, Type type);
 	bool init();
 
-	bool showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton);
+	bool showNotification(
+		not_null<PeerData*> peer,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton);
 	void clearAll();
-	void clearFromHistory(History *history);
+	void clearFromHistory(not_null<History*> history);
 	void beforeNotificationActivated(PeerId peerId, MsgId msgId);
 	void afterNotificationActivated(PeerId peerId, MsgId msgId);
 	void clearNotification(PeerId peerId, MsgId msgId);
@@ -413,7 +420,7 @@ void Manager::Private::clearAll() {
 	}
 }
 
-void Manager::Private::clearFromHistory(History *history) {
+void Manager::Private::clearFromHistory(not_null<History*> history) {
 	if (!_notifier) return;
 
 	auto i = _notifications.find(history->peer->id);
@@ -447,13 +454,24 @@ void Manager::Private::clearNotification(PeerId peerId, MsgId msgId) {
 	}
 }
 
-bool Manager::Private::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
+bool Manager::Private::showNotification(
+		not_null<PeerData*> peer,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton) {
 	if (!_notificationManager || !_notifier || !_notificationFactory) return false;
 
 	ComPtr<IXmlDocument> toastXml;
 	bool withSubtitle = !subtitle.isEmpty();
 
-	HRESULT hr = _notificationManager->GetTemplateContent(withSubtitle ? ToastTemplateType_ToastImageAndText04 : ToastTemplateType_ToastImageAndText02, &toastXml);
+	HRESULT hr = _notificationManager->GetTemplateContent(
+		(withSubtitle
+			? ToastTemplateType_ToastImageAndText04
+			: ToastTemplateType_ToastImageAndText02),
+		&toastXml);
 	if (!SUCCEEDED(hr)) return false;
 
 	hr = SetAudioSilent(toastXml.Get());
@@ -560,15 +578,29 @@ void Manager::clearNotification(PeerId peerId, MsgId msgId) {
 
 Manager::~Manager() = default;
 
-void Manager::doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
-	_private->showNotification(peer, msgId, title, subtitle, msg, hideNameAndPhoto, hideReplyButton);
+void Manager::doShowNativeNotification(
+		not_null<PeerData*> peer,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton) {
+	_private->showNotification(
+		peer,
+		msgId,
+		title,
+		subtitle,
+		msg,
+		hideNameAndPhoto,
+		hideReplyButton);
 }
 
 void Manager::doClearAllFast() {
 	_private->clearAll();
 }
 
-void Manager::doClearFromHistory(History *history) {
+void Manager::doClearFromHistory(not_null<History*> history) {
 	_private->clearFromHistory(history);
 }
 

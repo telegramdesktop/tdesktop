@@ -25,7 +25,7 @@
           'DebugInformationFormat': '3',          # Program Database (/Zi)
           'WarnAsError': 'true',
           'AdditionalOptions': [
-            '/std:c++17',
+            '/std:<(build_standard_win)',
             '/permissive-',
             '/Qspectre',
             '/MP',     # Enable multi process build.

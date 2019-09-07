@@ -42,7 +42,8 @@ void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 		MTP_string(),
 		MTP_long(randomId),
 		MTPReplyMarkup(),
-		MTPVector<MTPMessageEntity>()
+		MTPVector<MTPMessageEntity>(),
+		MTP_int(0) // schedule_date
 	)).done([=](const MTPUpdates &result) {
 		api->applyUpdates(result, randomId);
 	}).fail([=](const RPCError &error) {

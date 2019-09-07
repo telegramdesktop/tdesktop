@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/variant.h"
+#include "api/api_common.h"
 
 enum class CompressConfirm {
 	Auto,
@@ -175,18 +176,18 @@ struct SendingAlbum {
 
 	uint64 groupId = 0;
 	std::vector<Item> items;
-	bool silent = false;
+	Api::SendOptions options;
 
 };
 
 struct FileLoadTo {
-	FileLoadTo(const PeerId &peer, bool silent, MsgId replyTo)
-		: peer(peer)
-		, silent(silent)
-		, replyTo(replyTo) {
+	FileLoadTo(const PeerId &peer, Api::SendOptions options, MsgId replyTo)
+	: peer(peer)
+	, options(options)
+	, replyTo(replyTo) {
 	}
 	PeerId peer;
-	bool silent;
+	Api::SendOptions options;
 	MsgId replyTo;
 };
 

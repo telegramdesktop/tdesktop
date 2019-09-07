@@ -297,6 +297,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_notification_reply" = "Reply";
 "lng_notification_hide_all" = "Hide all";
 "lng_notification_sample" = "This is a sample notification";
+"lng_notification_reminder" = "Reminder";
 
 "lng_settings_section_general" = "General";
 "lng_settings_change_lang" = "Change language";
@@ -385,10 +386,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_stickers_emoji" = "Stickers and emoji";
 "lng_settings_messages" = "Messages";
 "lng_settings_themes" = "Themes";
-"lng_settings_theme_blue" = "Blue";
+"lng_settings_theme_day" = "Day";
 "lng_settings_theme_classic" = "Classic";
-"lng_settings_theme_midnight" = "Midnight";
-"lng_settings_theme_matrix" = "Matrix";
+"lng_settings_theme_tinted" = "Tinted";
+"lng_settings_theme_night" = "Night";
+"lng_settings_theme_accent_title" = "Choose accent color";
 "lng_settings_data_storage" = "Data and storage";
 "lng_settings_information" = "Edit profile";
 "lng_settings_passcode_title" = "Local passcode";
@@ -408,6 +410,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_reverting#other" = "Reverting to the old theme in {count} seconds.";
 "lng_theme_keep_changes" = "Keep changes";
 "lng_theme_revert" = "Revert";
+"lng_theme_no_desktop_version" = "Sorry, this theme doesn't include a version for Telegram Desktop.\n\n(Also, Telegram Desktop doesn't support cloud themes yet.)";
 "lng_background_header" = "Background preview";
 "lng_background_text1" = "Ah, you kids today with techno music! You should enjoy the classics, like Hasselhoff!";
 "lng_background_text2" = "I can't even take you seriously right now.";
@@ -628,6 +631,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_phone_number_exceptions" = "These settings will override the values above.";
 "lng_edit_privacy_phone_number_always_title" = "Always share with";
 "lng_edit_privacy_phone_number_never_title" = "Never share with";
+
+"lng_edit_privacy_phone_number_find" = "Who can find me by my number";
+"lng_edit_privacy_phone_number_contacts" = "Users who add your number to their contacts will see it on Telegram only if they are your contacts.";
 
 "lng_edit_privacy_lastseen_title" = "Last seen privacy";
 "lng_edit_privacy_lastseen_header" = "Who can see your last seen time";
@@ -1240,6 +1246,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_send_button" = "Send";
 "lng_send_silent_message" = "Send without sound";
+"lng_schedule_message" = "Schedule message";
+"lng_reminder_message" = "Set a reminder";
+"lng_schedule_title" = "Send this message on...";
+"lng_remind_title" = "Remind me on...";
+"lng_schedule_at" = "at";
 "lng_message_ph" = "Write a message...";
 "lng_broadcast_ph" = "Broadcast a message...";
 "lng_broadcast_silent_ph" = "Silent broadcast...";
@@ -1258,6 +1269,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_saved_messages" = "Saved Messages";
 "lng_saved_short" = "Save";
 "lng_saved_forward_here" = "Forward messages here for quick access";
+
+"lng_scheduled_messages" = "Scheduled Messages";
+"lng_reminder_messages" = "Reminders";
+"lng_scheduled_send_now" = "Send message now?";
+"lng_scheduled_send_now_many#one" = "Send {count} message now?";
+"lng_scheduled_send_now_many#other" = "Send {count} messages now?";
 
 "lng_archived_name" = "Archived chats";
 "lng_archived_add" = "Archive";
@@ -1386,6 +1403,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_reply_msg" = "Reply";
 "lng_context_edit_msg" = "Edit";
 "lng_context_forward_msg" = "Forward Message";
+"lng_context_send_now_msg" = "Send now";
 "lng_context_delete_msg" = "Delete Message";
 "lng_context_select_msg" = "Select Message";
 "lng_context_report_msg" = "Report Message";
@@ -1395,6 +1413,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_copy_selected" = "Copy Selected Text";
 "lng_context_copy_selected_items" = "Copy Selected as Text";
 "lng_context_forward_selected" = "Forward Selected";
+"lng_context_send_now_selected" = "Send selected now";
 "lng_context_delete_selected" = "Delete Selected";
 "lng_context_clear_selection" = "Clear Selection";
 "lng_send_image_empty" = "Could not send an empty file: {name}";
@@ -1472,6 +1491,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_selected_clear" = "Cancel";
 "lng_selected_delete" = "Delete";
 "lng_selected_forward" = "Forward";
+"lng_selected_send_now" = "Send now";
 "lng_selected_cancel_sure_this" = "Cancel uploading?";
 "lng_selected_upload_stop" = "Stop";
 "lng_selected_delete_sure_this" = "Do you want to delete this message?";

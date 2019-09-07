@@ -58,7 +58,9 @@ void SendDataCommon::addToHistory(
 			MTP_int(1),
 			MTPint(),
 			MTP_string(postAuthor),
-			MTPlong()),
+			MTPlong(),
+			//MTPMessageReactions(),
+			MTPVector<MTPRestrictionReason>()),
 		clientFlags,
 		NewMessageType::Unread);
 }

@@ -58,6 +58,48 @@ bool IsValidPhone(QString phone) {
 				|| phone == qsl("4242")));
 }
 
+void ChatCreateDone(
+		not_null<Window::SessionNavigation*> navigation,
+		QImage image,
+		const MTPUpdates &updates) {
+	navigation->session().api().applyUpdates(updates);
+
+	auto success = base::make_optional(&updates)
+		| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
+			switch (updates->type()) {
+			case mtpc_updates:
+				return &updates->c_updates().vchats().v;
+			case mtpc_updatesCombined:
+				return &updates->c_updatesCombined().vchats().v;
+			}
+			LOG(("API Error: unexpected update cons %1 "
+				"(GroupInfoBox::creationDone)").arg(updates->type()));
+			return std::nullopt;
+		}
+		| [](auto chats) {
+			return (!chats->empty()
+				&& chats->front().type() == mtpc_chat)
+				? base::make_optional(chats)
+				: std::nullopt;
+		}
+		| [&](auto chats) {
+			return navigation->session().data().chat(
+				chats->front().c_chat().vid().v);
+		}
+		| [&](not_null<ChatData*> chat) {
+			if (!image.isNull()) {
+				chat->session().api().uploadPeerPhoto(
+					chat,
+					std::move(image));
+			}
+			Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+		};
+	if (!success) {
+		LOG(("API Error: chat not found in updates "
+			"(ContactsBox::creationDone)"));
+	}
+}
+
 } // namespace
 
 style::InputField CreateBioFieldStyle() {
@@ -525,44 +567,10 @@ void GroupInfoBox::createGroup(
 		MTP_string(title)
 	)).done([=](const MTPUpdates &result) {
 		auto image = _photo->takeResultImage();
-		Ui::hideLayer();
+		const auto navigation = _navigation;
 
-		_navigation->session().api().applyUpdates(result);
-
-		auto success = base::make_optional(&result)
-			| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
-				switch (updates->type()) {
-				case mtpc_updates:
-					return &updates->c_updates().vchats().v;
-				case mtpc_updatesCombined:
-					return &updates->c_updatesCombined().vchats().v;
-				}
-				LOG(("API Error: unexpected update cons %1 "
-					"(GroupInfoBox::creationDone)").arg(updates->type()));
-				return std::nullopt;
-			}
-			| [](auto chats) {
-				return (!chats->empty()
-					&& chats->front().type() == mtpc_chat)
-					? base::make_optional(chats)
-					: std::nullopt;
-			}
-			| [&](auto chats) {
-				return _navigation->session().data().chat(
-					chats->front().c_chat().vid().v);
-			}
-			| [&](not_null<ChatData*> chat) {
-				if (!image.isNull()) {
-					chat->session().api().uploadPeerPhoto(
-						chat,
-						std::move(image));
-				}
-				Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
-			};
-		if (!success) {
-			LOG(("API Error: chat not found in updates "
-				"(ContactsBox::creationDone)"));
-		}
+		Ui::hideLayer(); // Destroys 'this'.
+		ChatCreateDone(navigation, std::move(image), result);
 	}).fail([=](const RPCError &error) {
 		_creationRequestId = 0;
 		if (error.type() == qstr("NO_CHAT_TITLE")) {

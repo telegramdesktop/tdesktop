@@ -389,7 +389,10 @@ void CalendarBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	auto pressed = _pressed;
 	setPressed(kEmptySelection);
 	if (pressed != kEmptySelection && pressed == _selected) {
-		_dateChosenCallback(_context->dateFromIndex(pressed));
+		crl::on_main(this, [=] {
+			const auto onstack = _dateChosenCallback;
+			onstack(_context->dateFromIndex(pressed));
+		});
 	}
 }
 

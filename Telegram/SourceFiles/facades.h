@@ -50,7 +50,7 @@ inline void CallDelayed(int duration, Guard &&object, Lambda &&lambda) {
 }
 
 template <typename Guard, typename Lambda>
-inline auto LambdaDelayed(int duration, Guard &&object, Lambda &&lambda) {
+[[nodiscard]] inline auto LambdaDelayed(int duration, Guard &&object, Lambda &&lambda) {
 	auto guarded = crl::guard(
 		std::forward<Guard>(object),
 		std::forward<Lambda>(lambda));

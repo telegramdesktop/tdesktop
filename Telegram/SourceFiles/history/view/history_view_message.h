@@ -142,7 +142,6 @@ private:
 	bool displayFastShare() const;
 	bool displayGoToOriginal() const;
 	ClickHandlerPtr fastReplyLink() const;
-	TimeId displayedEditDate(bool hasViaBotOrInlineMarkup) const;
 	const HistoryMessageEdited *displayedEditBadge() const;
 	HistoryMessageEdited *displayedEditBadge();
 	void initTime();

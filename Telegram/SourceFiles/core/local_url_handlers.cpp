@@ -78,6 +78,18 @@ bool ShowStickerSet(
 	return true;
 }
 
+bool ShowTheme(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
+		return false;
+	}
+	Core::App().hideMediaView();
+	Ui::show(Box<InformBox>(tr::lng_theme_no_desktop_version(tr::now)));
+	return true;
+}
+
 bool SetLanguage(
 		Main::Session *session,
 		const Match &match,
@@ -354,6 +366,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ShowStickerSet
 		},
 		{
+			qsl("^addtheme/?\\?slug=([a-zA-Z0-9\\.\\_]+)(&|$)"),
+			ShowTheme
+		},
+		{
 			qsl("^setlanguage/?\\?lang=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"),
 			SetLanguage
 		},
@@ -415,6 +431,8 @@ QString TryConvertUrlToLocal(QString url) {
 			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(1));
 		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://addstickers?set=") + url_encode(stickerSetMatch->captured(1));
+		} else if (auto themeMatch = regex_match(qsl("^addtheme/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
+			return qsl("tg://addtheme?slug=") + url_encode(themeMatch->captured(1));
 		} else if (auto languageMatch = regex_match(qsl("^setlanguage/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://setlanguage?lang=") + url_encode(languageMatch->captured(1));
 		} else if (auto shareUrlMatch = regex_match(qsl("^share/url/?\\?(.+)$"), query, matchOptions)) {

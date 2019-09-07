@@ -604,12 +604,12 @@ QString InterpretSendPath(const QString &path) {
 		return "App Error: Could not find channel with id: " + QString::number(peerToChannel(toId));
 	}
 	Ui::showPeerHistory(history, ShowAtUnreadMsgId);
-	Auth().api().sendFiles(
+	history->session().api().sendFiles(
 		Storage::PrepareMediaList(QStringList(filePath), st::sendMediaPreviewSize),
 		SendMediaType::File,
 		{ caption },
 		nullptr,
-		ApiWrap::SendOptions(history));
+		Api::SendAction(history));
 	return QString();
 }
 

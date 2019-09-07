@@ -129,7 +129,7 @@ template <std::size_t... I>
 inline void GenericBox::Initer<InitMethod, InitArgs...>::call(
 		not_null<GenericBox*> box,
 		std::index_sequence<I...>) {
-	std::invoke(method, box, std::get<I>(args)...);
+	std::invoke(method, box, std::get<I>(std::move(args))...);
 }
 
 template <typename InitMethod, typename ...InitArgs>

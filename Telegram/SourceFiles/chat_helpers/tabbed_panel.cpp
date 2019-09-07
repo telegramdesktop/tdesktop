@@ -26,20 +26,27 @@ constexpr auto kDelayedHideTimeoutMs = 3000;
 
 TabbedPanel::TabbedPanel(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller)
-: TabbedPanel(
-	parent,
-	controller,
-	object_ptr<TabbedSelector>(nullptr, controller)) {
+	not_null<Window::SessionController*> controller,
+	not_null<TabbedSelector*> selector)
+: TabbedPanel(parent, controller, { nullptr }, selector) {
 }
 
 TabbedPanel::TabbedPanel(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	object_ptr<TabbedSelector> selector)
+: TabbedPanel(parent, controller, std::move(selector), nullptr) {
+}
+
+TabbedPanel::TabbedPanel(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	object_ptr<TabbedSelector> ownedSelector,
+	TabbedSelector *nonOwnedSelector)
 : RpWidget(parent)
 , _controller(controller)
-, _selector(std::move(selector))
+, _ownedSelector(std::move(ownedSelector))
+, _selector(nonOwnedSelector ? nonOwnedSelector : _ownedSelector.data())
 , _heightRatio(st::emojiPanHeightRatio)
 , _minContentHeight(st::emojiPanMinHeight)
 , _maxContentHeight(st::emojiPanMaxHeight) {
@@ -103,6 +110,15 @@ TabbedPanel::TabbedPanel(
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 
 	hideChildren();
+	hide();
+}
+
+not_null<TabbedSelector*> TabbedPanel::selector() const {
+	return _selector;
+}
+
+bool TabbedPanel::isSelectorStolen() const {
+	return (_selector->parent() != this);
 }
 
 void TabbedPanel::moveBottomRight(int bottom, int right) {
@@ -365,17 +381,6 @@ void TabbedPanel::toggleAnimated() {
 	}
 }
 
-object_ptr<TabbedSelector> TabbedPanel::takeSelector() {
-	if (!isHidden() && !_hiding) {
-		startOpacityAnimation(true);
-	}
-	return std::move(_selector);
-}
-
-QPointer<TabbedSelector> TabbedPanel::getSelector() const {
-	return _selector.data();
-}
-
 void TabbedPanel::hideFinished() {
 	hide();
 	_a_show.stop();
@@ -449,6 +454,10 @@ bool TabbedPanel::overlaps(const QRect &globalRect) const {
 		|| inner.marginsRemoved(QMargins(0, st::buttonRadius, 0, st::buttonRadius)).contains(testRect);
 }
 
-TabbedPanel::~TabbedPanel() = default;
+TabbedPanel::~TabbedPanel() {
+	if (!_ownedSelector) {
+		_controller->takeTabbedSelectorOwnershipFrom(this);
+	}
+}
 
 } // namespace ChatHelpers

@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_scheduled_messages.h"
 #include "ui/special_buttons.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -36,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_memento.h"
 #include "window/section_widget.h"
 #include "window/window_connecting_widget.h"
+#include "chat_helpers/tabbed_selector.h" // TabbedSelector::refreshStickers
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "info/info_memento.h"
@@ -595,7 +597,7 @@ bool MainWidget::setForwardDraft(PeerId peerId, MessageIdsList &&items) {
 	Expects(peerId != 0);
 
 	const auto peer = session().data().peer(peerId);
-	const auto error = GetErrorTextForForward(
+	const auto error = GetErrorTextForSending(
 		peer,
 		session().data().idsToItems(items),
 		true);
@@ -679,17 +681,16 @@ void MainWidget::cancelForwarding(not_null<History*> history) {
 	_history->updateForwarding();
 }
 
-void MainWidget::finishForwarding(not_null<History*> history, bool silent) {
+void MainWidget::finishForwarding(Api::SendAction action) {
+	const auto history = action.history;
 	auto toForward = history->validateForwardDraft();
 	if (!toForward.empty()) {
-		const auto error = GetErrorTextForForward(history->peer, toForward);
+		const auto error = GetErrorTextForSending(history->peer, toForward);
 		if (!error.isEmpty()) {
 			return;
 		}
 
-		auto options = ApiWrap::SendOptions(history);
-		options.silent = silent;
-		session().api().forwardMessages(std::move(toForward), options);
+		session().api().forwardMessages(std::move(toForward), action);
 		cancelForwarding(history);
 	}
 
@@ -1667,11 +1668,7 @@ void MainWidget::ui_showPeerHistory(
 
 	auto noPeer = !_history->peer();
 	auto onlyDialogs = noPeer && Adaptive::OneColumn();
-	if (_mainSection) {
-		_mainSection->hide();
-		_mainSection->deleteLater();
-		_mainSection = nullptr;
-	}
+	_mainSection.destroy();
 
 	updateControlsGeometry();
 
@@ -1969,11 +1966,6 @@ void MainWidget::showNewSection(
 		}
 		updateControlsGeometry();
 	} else {
-		if (_mainSection) {
-			_mainSection->hide();
-			_mainSection->deleteLater();
-			_mainSection = nullptr;
-		}
 		_mainSection = std::move(newMainSection);
 		updateControlsGeometry();
 		_history->finishAnimating();
@@ -2204,12 +2196,6 @@ void MainWidget::historyToDown(History *history) {
 
 void MainWidget::dialogsToUp() {
 	_dialogs->jumpToTop();
-}
-
-void MainWidget::newUnreadMsg(
-		not_null<History*> history,
-		not_null<HistoryItem*> item) {
-	_history->newUnreadMsg(history, item);
 }
 
 void MainWidget::markActiveHistoryAsRead() {
@@ -2686,6 +2672,12 @@ void MainWidget::updateMediaPlaylistPosition(int x) {
 
 int MainWidget::contentScrollAddToY() const {
 	return _contentScrollAddToY;
+}
+
+void MainWidget::returnTabbedSelector() {
+	if (!_mainSection || !_mainSection->returnTabbedSelector()) {
+		_history->returnTabbedSelector();
+	}
 }
 
 void MainWidget::keyPressEvent(QKeyEvent *e) {
@@ -3471,7 +3463,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	if (writeRecentStickers) {
 		Local::writeRecentStickers();
 	}
-	_history->updateRecentStickers();
+	_controller->tabbedSelector()->refreshStickers();
 }
 
 void MainWidget::activate() {
@@ -3899,19 +3891,25 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const auto &d = update.c_updateMessageID();
 		const auto randomId = d.vrandom_id().v;
 		if (const auto id = session().data().messageIdByRandomId(randomId)) {
-			const auto channel = id.channel;
 			const auto newId = d.vid().v;
 			if (const auto local = session().data().message(id)) {
-				const auto existing = session().data().message(channel, newId);
-				if (existing && !local->mainView()) {
-					const auto history = local->history();
-					local->destroy();
-					history->requestChatListMessage();
+				if (local->isScheduled()) {
+					session().data().scheduledMessages().apply(d, local);
 				} else {
-					if (existing) {
-						existing->destroy();
+					const auto channel = id.channel;
+					const auto existing = session().data().message(
+						channel,
+						newId);
+					if (existing && !local->mainView()) {
+						const auto history = local->history();
+						local->destroy();
+						history->requestChatListMessage();
+					} else {
+						if (existing) {
+							existing->destroy();
+						}
+						local->setRealId(d.vid().v);
 					}
-					local->setRealId(d.vid().v);
 				}
 			}
 			session().data().unregisterMessageRandomId(randomId);
@@ -4071,6 +4069,16 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		} else {
 			session().api().applyUpdateNoPtsCheck(update);
 		}
+	} break;
+
+	case mtpc_updateNewScheduledMessage: {
+		const auto &d = update.c_updateNewScheduledMessage();
+		session().data().scheduledMessages().apply(d);
+	} break;
+
+	case mtpc_updateDeleteScheduledMessages: {
+		const auto &d = update.c_updateDeleteScheduledMessages();
+		session().data().scheduledMessages().apply(d);
 	} break;
 
 	case mtpc_updateWebPage: {

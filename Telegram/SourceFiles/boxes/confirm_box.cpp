@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "window/window_session_controller.h"
 #include "storage/localstorage.h"
+#include "data/data_scheduled_messages.h"
 #include "data/data_session.h"
 #include "data/data_photo.h"
 #include "data/data_channel.h"
@@ -542,10 +543,11 @@ void DeleteMessagesBox::prepare() {
 			: tr::lng_selected_delete_sure(tr::now, lt_count, _ids.size());
 		if (const auto peer = checkFromSinglePeer()) {
 			auto count = int(_ids.size());
-			if (auto revoke = revokeText(peer)) {
+			if (hasScheduledMessages()) {
+			} else if (auto revoke = revokeText(peer)) {
 				_revoke.create(this, revoke->checkbox, false, st::defaultBoxCheckbox);
 				appendDetails(std::move(revoke->description));
-			} else if (peer && peer->isChannel()) {
+			} else if (peer->isChannel()) {
 				if (peer->isMegagroup()) {
 					appendDetails({ tr::lng_delete_for_everyone_hint(tr::now, lt_count, count) });
 				}
@@ -578,6 +580,17 @@ void DeleteMessagesBox::prepare() {
 		fullHeight += st::boxMediumSkip + _revoke->heightNoMargins();
 	}
 	setDimensions(st::boxWidth, fullHeight);
+}
+
+bool DeleteMessagesBox::hasScheduledMessages() const {
+	for (const auto fullId : std::as_const(_ids)) {
+		if (const auto item = _session->data().message(fullId)) {
+			if (item->isScheduled()) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 PeerData *DeleteMessagesBox::checkFromSinglePeer() const {
@@ -765,9 +778,21 @@ void DeleteMessagesBox::deleteAndClear() {
 	}
 
 	base::flat_map<not_null<PeerData*>, QVector<MTPint>> idsByPeer;
+	base::flat_map<not_null<PeerData*>, QVector<MTPint>> scheduledIdsByPeer;
 	for (const auto itemId : _ids) {
 		if (const auto item = _session->data().message(itemId)) {
 			const auto history = item->history();
+			if (item->isScheduled()) {
+				const auto wasOnServer = !item->isSending()
+					&& !item->hasFailed();
+				if (wasOnServer) {
+					scheduledIdsByPeer[history->peer].push_back(MTP_int(
+						_session->data().scheduledMessages().lookupId(item)));
+				} else {
+					_session->data().scheduledMessages().removeSending(item);
+				}
+				continue;
+			}
 			const auto wasOnServer = IsServerMsgId(item->id);
 			const auto wasLast = (history->lastMessage() == item);
 			const auto wasInChats = (history->chatListMessage() == item);
@@ -784,6 +809,15 @@ void DeleteMessagesBox::deleteAndClear() {
 	for (const auto &[peer, ids] : idsByPeer) {
 		peer->session().api().deleteMessages(peer, ids, revoke);
 	}
+	for (const auto &[peer, ids] : scheduledIdsByPeer) {
+		peer->session().api().request(MTPmessages_DeleteScheduledMessages(
+			peer->input,
+			MTP_vector<MTPint>(ids)
+		)).done([=, peer=peer](const MTPUpdates &updates) {
+			peer->session().api().applyUpdates(updates);
+		}).send();
+	}
+
 	const auto session = _session;
 	Ui::hideLayer();
 	session->data().sendHistoryChangeNotifications();

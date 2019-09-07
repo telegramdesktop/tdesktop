@@ -52,11 +52,13 @@ private:
 	QPixmap hiddenUserpicPlaceholder() const;
 
 	void doUpdateAll() override;
-	void doShowNotification(HistoryItem *item, int forwardedCount) override;
+	void doShowNotification(
+		not_null<HistoryItem*> item,
+		int forwardedCount) override;
 	void doClearAll() override;
 	void doClearAllFast() override;
-	void doClearFromHistory(History *history) override;
-	void doClearFromItem(HistoryItem *item) override;
+	void doClearFromHistory(not_null<History*> history) override;
+	void doClearFromItem(not_null<HistoryItem*> item) override;
 
 	void showNextFromQueue();
 	void unlinkFromShown(Notification *remove);
@@ -87,9 +89,10 @@ private:
 
 		not_null<History*> history;
 		not_null<PeerData*> peer;
-		PeerData *author;
-		HistoryItem *item;
-		int forwardedCount;
+		QString author;
+		HistoryItem *item = nullptr;
+		int forwardedCount = 0;
+		bool fromScheduled = false;
 	};
 	std::deque<QueuedNotification> _queuedNotifications;
 
@@ -107,7 +110,11 @@ public:
 		Up,
 		Down,
 	};
-	Widget(Manager *manager, QPoint startPosition, int shift, Direction shiftDirection);
+	Widget(
+		not_null<Manager*> manager,
+		QPoint startPosition,
+		int shift,
+		Direction shiftDirection);
 
 	bool isShowing() const {
 		return _a_opacity.animating() && !_hiding;
@@ -131,7 +138,7 @@ protected:
 	virtual void updateGeometry(int x, int y, int width, int height);
 
 protected:
-	Manager *manager() const {
+	not_null<Manager*> manager() const {
 		return _manager;
 	}
 
@@ -142,7 +149,7 @@ private:
 	void hideAnimated(float64 duration, const anim::transition &func);
 	bool shiftAnimationCallback(crl::time now);
 
-	Manager *_manager = nullptr;
+	const not_null<Manager*> _manager;
 
 	bool _hiding = false;
 	bool _deleted = false;
@@ -168,12 +175,13 @@ protected:
 class Notification : public Widget {
 public:
 	Notification(
-		Manager *manager,
-		History *history,
-		PeerData *peer,
-		PeerData *author,
+		not_null<Manager*> manager,
+		not_null<History*> history,
+		not_null<PeerData*> peer,
+		const QString &author,
 		HistoryItem *item,
 		int forwardedCount,
+		bool fromScheduled,
 		QPoint startPosition,
 		int shift,
 		Direction shiftDirection);
@@ -228,11 +236,12 @@ private:
 
 	crl::time _started;
 
-	History *_history;
-	PeerData *_peer;
-	PeerData *_author;
-	HistoryItem *_item;
-	int _forwardedCount;
+	History *_history = nullptr;
+	PeerData *_peer = nullptr;
+	QString _author;
+	HistoryItem *_item = nullptr;
+	int _forwardedCount = 0;
+	bool _fromScheduled = false;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::RoundButton> _reply;
 	object_ptr<Background> _background = { nullptr };
@@ -250,7 +259,11 @@ private:
 
 class HideAllButton : public Widget {
 public:
-	HideAllButton(Manager *manager, QPoint startPosition, int shift, Direction shiftDirection);
+	HideAllButton(
+		not_null<Manager*> manager,
+		QPoint startPosition,
+		int shift,
+		Direction shiftDirection);
 
 	void startHiding();
 	void startHidingFast();

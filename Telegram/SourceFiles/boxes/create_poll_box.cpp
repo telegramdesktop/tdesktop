@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "core/event_filter.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "chat_helpers/message_field.h"
+#include "history/view/history_view_schedule_box.h"
 #include "settings/settings_common.h"
 #include "base/unique_qptr.h"
 #include "styles/style_boxes.h"
@@ -592,11 +594,15 @@ void Options::checkLastOption() {
 
 } // namespace
 
-CreatePollBox::CreatePollBox(QWidget*, not_null<Main::Session*> session)
-: _session(session) {
+CreatePollBox::CreatePollBox(
+	QWidget*,
+	not_null<Main::Session*> session,
+	Api::SendType sendType)
+: _session(session)
+, _sendType(sendType) {
 }
 
-rpl::producer<PollData> CreatePollBox::submitRequests() const {
+rpl::producer<CreatePollBox::Result> CreatePollBox::submitRequests() const {
 	return _submitRequests.events();
 }
 
@@ -703,6 +709,22 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		result.answers = options->toPollAnswers();
 		return result;
 	};
+	const auto send = [=](Api::SendOptions options) {
+		_submitRequests.fire({ collectResult(), options });
+	};
+	const auto sendSilent = [=] {
+		auto options = Api::SendOptions();
+		options.silent = true;
+		send(options);
+	};
+	const auto sendScheduled = [=] {
+		Ui::show(
+			HistoryView::PrepareScheduleBox(
+				this,
+				SendMenuType::Scheduled,
+				send),
+			LayerOption::KeepOther);
+	};
 	const auto updateValid = [=] {
 		valid->fire(isValidQuestion() && options->isValid());
 	};
@@ -715,9 +737,16 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	) | rpl::start_with_next([=](bool valid) {
 		clearButtons();
 		if (valid) {
-			addButton(
+			const auto submit = addButton(
 				tr::lng_polls_create_button(),
-				[=] { _submitRequests.fire(collectResult()); });
+				[=] { send({}); });
+			if (_sendType == Api::SendType::Normal) {
+				SetupSendMenu(
+					submit.data(),
+					[=] { return SendMenuType::Scheduled; },
+					sendSilent,
+					sendScheduled);
+			}
 		}
 		addButton(tr::lng_cancel(), [=] { closeBox(); });
 	}, lifetime());

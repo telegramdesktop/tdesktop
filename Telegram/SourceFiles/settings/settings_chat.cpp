@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_preview_box.h"
 #include "boxes/download_path_box.h"
 #include "boxes/local_storage_box.h"
+#include "boxes/edit_color_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/input_fields.h"
@@ -27,10 +28,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "window/themes/window_theme_editor.h"
 #include "window/themes/window_theme.h"
+#include "window/themes/window_themes_embedded.h"
 #include "window/window_session_controller.h"
 #include "info/profile/info_profile_button.h"
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
+#include "core/application.h"
 #include "data/data_session.h"
 #include "chat_helpers/emoji_sets_manager.h"
 #include "platform/platform_info.h"
@@ -42,6 +45,314 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 
 namespace Settings {
+namespace {
+
+const auto kSchemesList = Window::Theme::EmbeddedThemes();
+constexpr auto kCustomColorButtonParts = 7;
+
+class ColorsPalette final {
+public:
+	using Type = Window::Theme::EmbeddedType;
+	using Scheme = Window::Theme::EmbeddedScheme;
+
+	explicit ColorsPalette(not_null<Ui::VerticalLayout*> container);
+
+	void show(Type type);
+
+	rpl::producer<QColor> selected() const;
+
+private:
+	class Button {
+	public:
+		Button(
+			not_null<QWidget*> parent,
+			std::vector<QColor> &&colors,
+			bool selected);
+
+		void moveToLeft(int x, int y);
+		void update(std::vector<QColor> &&colors, bool selected);
+		rpl::producer<> clicks() const;
+		bool selected() const;
+		QColor color() const;
+
+	private:
+		void paint();
+
+		Ui::AbstractButton _widget;
+		std::vector<QColor> _colors;
+		Ui::Animations::Simple _selectedAnimation;
+		bool _selected = false;
+
+	};
+
+	void show(
+		not_null<const Scheme*> scheme,
+		std::vector<QColor> &&colors,
+		int selected);
+	void selectCustom(not_null<const Scheme*> scheme);
+	void updateInnerGeometry();
+
+	not_null<Ui::SlideWrap<>*> _outer;
+	std::vector<std::unique_ptr<Button>> _buttons;
+
+	rpl::event_stream<QColor> _selected;
+
+};
+
+void PaintColorButton(Painter &p, QColor color, float64 selected) {
+	const auto size = st::settingsAccentColorSize;
+	const auto rect = QRect(0, 0, size, size);
+
+	p.setBrush(color);
+	p.setPen(Qt::NoPen);
+	p.drawEllipse(rect);
+
+	if (selected > 0.) {
+		const auto startSkip = -st::settingsAccentColorLine / 2.;
+		const auto endSkip = float64(st::settingsAccentColorSkip);
+		const auto skip = startSkip + (endSkip - startSkip) * selected;
+		auto pen = st::boxBg->p;
+		pen.setWidth(st::settingsAccentColorLine);
+		p.setBrush(Qt::NoBrush);
+		p.setPen(pen);
+		p.setOpacity(selected);
+		p.drawEllipse(QRectF(rect).marginsRemoved({ skip, skip, skip, skip }));
+	}
+}
+
+void PaintCustomButton(Painter &p, const std::vector<QColor> &colors) {
+	Expects(colors.size() >= kCustomColorButtonParts);
+
+	p.setPen(Qt::NoPen);
+
+	const auto size = st::settingsAccentColorSize;
+	const auto smallSize = size / 8.;
+	const auto drawAround = [&](QPointF center, int index) {
+		const auto where = QPointF{
+			size * (1. + center.x()) / 2,
+			size * (1. + center.y()) / 2
+		};
+		p.setBrush(colors[index]);
+		p.drawEllipse(
+			where.x() - smallSize,
+			where.y() - smallSize,
+			2 * smallSize,
+			2 * smallSize);
+	};
+	drawAround(QPointF(), 0);
+	for (auto i = 0; i != 6; ++i) {
+		const auto angle = i * M_PI / 3.;
+		const auto point = QPointF{ cos(angle), sin(angle) };
+		const auto adjusted = point * (1. - (2 * smallSize / size));
+		drawAround(adjusted, i + 1);
+	}
+
+}
+
+ColorsPalette::Button::Button(
+	not_null<QWidget*> parent,
+	std::vector<QColor> &&colors,
+	bool selected)
+: _widget(parent.get())
+, _colors(std::move(colors))
+, _selected(selected) {
+	_widget.show();
+	_widget.resize(st::settingsAccentColorSize, st::settingsAccentColorSize);
+	_widget.paintRequest(
+	) | rpl::start_with_next([=] {
+		paint();
+	}, _widget.lifetime());
+}
+
+void ColorsPalette::Button::moveToLeft(int x, int y) {
+	_widget.moveToLeft(x, y);
+}
+
+void ColorsPalette::Button::update(
+		std::vector<QColor> &&colors,
+		bool selected) {
+	if (_colors != colors) {
+		_colors = std::move(colors);
+		_widget.update();
+	}
+	if (_selected != selected) {
+		_selected = selected;
+		_selectedAnimation.start(
+			[=] { _widget.update(); },
+			_selected ? 0. : 1.,
+			_selected ? 1. : 0.,
+			st::defaultRadio.duration * 2);
+	}
+}
+
+rpl::producer<> ColorsPalette::Button::clicks() const {
+	return _widget.clicks() | rpl::map([] { return rpl::empty_value(); });
+}
+
+bool ColorsPalette::Button::selected() const {
+	return _selected;
+}
+
+QColor ColorsPalette::Button::color() const {
+	Expects(_colors.size() == 1);
+
+	return _colors.front();
+}
+
+void ColorsPalette::Button::paint() {
+	Painter p(&_widget);
+	PainterHighQualityEnabler hq(p);
+
+	if (_colors.size() == 1) {
+		PaintColorButton(
+			p,
+			_colors.front(),
+			_selectedAnimation.value(_selected ? 1. : 0.));
+	} else if (_colors.size() >= kCustomColorButtonParts) {
+		PaintCustomButton(p, _colors);
+	}
+}
+
+ColorsPalette::ColorsPalette(not_null<Ui::VerticalLayout*> container)
+: _outer(container->add(
+	object_ptr<Ui::SlideWrap<>>(
+		container,
+		object_ptr<Ui::RpWidget>(container)))) {
+	_outer->hide(anim::type::instant);
+
+	const auto inner = _outer->entity();
+	inner->widthValue(
+	) | rpl::start_with_next([=] {
+		updateInnerGeometry();
+	}, inner->lifetime());
+}
+
+void ColorsPalette::show(Type type) {
+	const auto scheme = ranges::find(kSchemesList, type, &Scheme::type);
+	if (scheme == end(kSchemesList)) {
+		_outer->hide(anim::type::instant);
+		return;
+	}
+	auto list = Window::Theme::DefaultAccentColors(type);
+	if (list.empty()) {
+		_outer->hide(anim::type::instant);
+		return;
+	}
+	list.insert(list.begin(), scheme->accentColor);
+	const auto color = Core::App().settings().themesAccentColors().get(type);
+	const auto current = color.value_or(scheme->accentColor);
+	const auto i = ranges::find(list, current);
+	if (i == end(list)) {
+		list.back() = current;
+	}
+	const auto selected = std::clamp(
+		int(i - begin(list)),
+		0,
+		int(list.size()) - 1);
+
+	_outer->show(anim::type::instant);
+
+	show(&*scheme, std::move(list), selected);
+
+	const auto inner = _outer->entity();
+	inner->resize(_outer->width(), inner->height());
+	updateInnerGeometry();
+}
+
+void ColorsPalette::show(
+		not_null<const Scheme*> scheme,
+		std::vector<QColor> &&colors,
+		int selected) {
+	Expects(selected >= 0 && selected < colors.size());
+
+	while (_buttons.size() > colors.size()) {
+		_buttons.pop_back();
+	}
+
+	auto index = 0;
+	const auto inner = _outer->entity();
+	const auto pushButton = [&](std::vector<QColor> &&colors) {
+		auto result = rpl::producer<>();
+		const auto chosen = (index == selected);
+		if (_buttons.size() > index) {
+			_buttons[index]->update(std::move(colors), chosen);
+		} else {
+			_buttons.push_back(std::make_unique<Button>(
+				inner,
+				std::move(colors),
+				chosen));
+			result = _buttons.back()->clicks();
+		}
+		++index;
+		return result;
+	};
+	for (const auto &color : colors) {
+		auto clicks = pushButton({ color });
+		if (clicks) {
+			std::move(
+				clicks
+			) | rpl::map([=] {
+				return _buttons[index - 1]->color();
+			}) | rpl::start_with_next([=](QColor color) {
+				_selected.fire_copy(color);
+			}, inner->lifetime());
+		}
+	}
+
+	auto clicks = pushButton(std::move(colors));
+	if (clicks) {
+		std::move(
+			clicks
+		) | rpl::start_with_next([=] {
+			selectCustom(scheme);
+		}, inner->lifetime());
+	}
+}
+
+void ColorsPalette::selectCustom(not_null<const Scheme*> scheme) {
+	const auto selected = ranges::find(_buttons, true, &Button::selected);
+	Assert(selected != end(_buttons));
+
+	const auto colorizer = Window::Theme::ColorizerFrom(
+		*scheme,
+		scheme->accentColor);
+	auto box = Box<EditColorBox>(
+		tr::lng_settings_theme_accent_title(tr::now),
+		EditColorBox::Mode::HSL,
+		(*selected)->color());
+	box->setLightnessLimits(
+		colorizer.lightnessMin,
+		colorizer.lightnessMax);
+	box->setSaveCallback(crl::guard(_outer, [=](QColor result) {
+		_selected.fire_copy(result);
+	}));
+	Ui::show(std::move(box));
+}
+
+rpl::producer<QColor> ColorsPalette::selected() const {
+	return _selected.events();
+}
+
+void ColorsPalette::updateInnerGeometry() {
+	if (_buttons.size() < 2) {
+		return;
+	}
+	const auto inner = _outer->entity();
+	const auto size = st::settingsAccentColorSize;
+	const auto padding = st::settingsButton.padding;
+	const auto width = inner->width() - padding.left() - padding.right();
+	const auto skip = (width - size * _buttons.size())
+		/ float64(_buttons.size() - 1);
+	const auto y = st::settingsSectionSkip * 2;
+	auto x = float64(padding.left());
+	for (const auto &button : _buttons) {
+		button->moveToLeft(int(std::round(x)), y);
+		x += size + skip;
+	}
+	inner->resize(inner->width(), y + size);
+}
+
+} // namespace
 
 class BackgroundRow : public Ui::RpWidget {
 public:
@@ -74,22 +385,9 @@ private:
 
 class DefaultTheme final : public Ui::AbstractCheckView {
 public:
-	enum class Type {
-		DayBlue,
-		Default,
-		Night,
-		NightGreen,
-	};
-	struct Scheme {
-		Type type = Type();
-		QColor background;
-		QColor sent;
-		QColor received;
-		QColor radiobuttonInactive;
-		QColor radiobuttonActive;
-		tr::phrase<> name;
-		QString path;
-	};
+	using Type = Window::Theme::EmbeddedType;
+	using Scheme = Window::Theme::EmbeddedScheme;
+
 	DefaultTheme(Scheme scheme, bool checked);
 
 	QSize getSize() const override;
@@ -101,10 +399,13 @@ public:
 	QImage prepareRippleMask() const override;
 	bool checkRippleStartPosition(QPoint position) const override;
 
+	void setColorizer(const Window::Theme::Colorizer &colorizer);
+
 private:
 	void checkedChangedHook(anim::type animated) override;
 
 	Scheme _scheme;
+	Scheme _colorized;
 	Ui::RadioView _radio;
 
 };
@@ -315,8 +616,17 @@ DefaultTheme::DefaultTheme(Scheme scheme, bool checked)
 : AbstractCheckView(st::defaultRadio.duration, checked, nullptr)
 , _scheme(scheme)
 , _radio(st::defaultRadio, checked, [=] { update(); }) {
-	_radio.setToggledOverride(_scheme.radiobuttonActive);
-	_radio.setUntoggledOverride(_scheme.radiobuttonInactive);
+	setColorizer({});
+}
+
+void DefaultTheme::setColorizer(const Window::Theme::Colorizer &colorizer) {
+	_colorized = _scheme;
+	if (colorizer) {
+		Window::Theme::Colorize(_colorized, colorizer);
+	}
+	_radio.setToggledOverride(_colorized.radiobuttonActive);
+	_radio.setUntoggledOverride(_colorized.radiobuttonInactive);
+	update();
 }
 
 QSize DefaultTheme::getSize() const {
@@ -338,15 +648,18 @@ void DefaultTheme::paint(
 		received.height());
 	const auto radius = st::settingsThemeBubbleRadius;
 
-	p.fillRect(
-		QRect(QPoint(), st::settingsThemePreviewSize),
-		_scheme.background);
-
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
-	p.setBrush(_scheme.received);
+
+	p.setBrush(_colorized.background);
+	p.drawRoundedRect(
+		QRect(QPoint(), st::settingsThemePreviewSize),
+		radius,
+		radius);
+
+	p.setBrush(_colorized.received);
 	p.drawRoundedRect(rtlrect(received, outerWidth), radius, radius);
-	p.setBrush(_scheme.sent);
+	p.setBrush(_colorized.sent);
 	p.drawRoundedRect(rtlrect(sent, outerWidth), radius, radius);
 
 	const auto radio = _radio.getSize();
@@ -768,78 +1081,19 @@ void SetupChatBackground(
 void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	using Type = DefaultTheme::Type;
 	using Scheme = DefaultTheme::Scheme;
+
 	const auto block = container->add(object_ptr<Ui::FixedHeightWidget>(
 		container));
-	const auto scheme = DefaultTheme::Scheme();
-	const auto color = [](str_const hex) {
-		Expects(hex.size() == 6);
+	const auto palette = Ui::CreateChild<ColorsPalette>(
+		container.get(),
+		container.get());
 
-		const auto component = [](char a, char b) {
-			const auto convert = [](char ch) {
-				Expects((ch >= '0' && ch <= '9')
-					|| (ch >= 'A' && ch <= 'F')
-					|| (ch >= 'a' && ch <= 'f'));
-
-				return (ch >= '0' && ch <= '9')
-					? int(ch - '0')
-					: int(ch - ((ch >= 'A' && ch <= 'F') ? 'A' : 'a') + 10);
-			};
-			return convert(a) * 16 + convert(b);
-		};
-
-		return QColor(
-			component(hex[0], hex[1]),
-			component(hex[2], hex[3]),
-			component(hex[4], hex[5]));
-	};
-	static const auto schemes = {
-		Scheme{
-			Type::DayBlue,
-			color("7ec4ea"),
-			color("d7f0ff"),
-			color("ffffff"),
-			color("d7f0ff"),
-			color("ffffff"),
-			tr::lng_settings_theme_blue,
-			":/gui/day-blue.tdesktop-theme"
-		},
-		Scheme{
-			Type::Default,
-			color("90ce89"),
-			color("eaffdc"),
-			color("ffffff"),
-			color("eaffdc"),
-			color("ffffff"),
-			tr::lng_settings_theme_classic,
-			QString()
-		},
-		Scheme{
-			Type::Night,
-			color("485761"),
-			color("5ca7d4"),
-			color("6b808d"),
-			color("6b808d"),
-			color("5ca7d4"),
-			tr::lng_settings_theme_midnight,
-			":/gui/night.tdesktop-theme"
-		},
-		Scheme{
-			Type::NightGreen,
-			color("485761"),
-			color("74bf93"),
-			color("6b808d"),
-			color("6b808d"),
-			color("74bf93"),
-			tr::lng_settings_theme_matrix,
-			":/gui/night-green.tdesktop-theme"
-		},
-	};
-	const auto chosen = [&] {
+	const auto chosen = [] {
 		if (Window::Theme::IsNonDefaultBackground()) {
 			return Type(-1);
 		}
 		const auto path = Window::Theme::Background()->themeAbsolutePath();
-		for (const auto &scheme : schemes) {
+		for (const auto &scheme : kSchemesList) {
 			if (path == scheme.path) {
 				return scheme.type;
 			}
@@ -847,23 +1101,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		return Type(-1);
 	};
 	const auto group = std::make_shared<Ui::RadioenumGroup<Type>>(chosen());
-	auto buttons = ranges::view::all(
-		schemes
-	) | ranges::view::transform([&](const Scheme &scheme) {
-		auto check = std::make_unique<DefaultTheme>(scheme, false);
-		const auto weak = check.get();
-		const auto result = Ui::CreateChild<Ui::Radioenum<Type>>(
-			block,
-			group,
-			scheme.type,
-			scheme.name(tr::now),
-			st::settingsTheme,
-			std::move(check));
-		weak->setUpdateCallback([=] { result->update(); });
-		return result;
-	}) | ranges::to_vector;
 
-	using Update = const Window::Theme::BackgroundUpdate;
 	const auto apply = [=](const Scheme &scheme) {
 		const auto isNight = [](const Scheme &scheme) {
 			const auto type = scheme.type;
@@ -879,14 +1117,61 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			Window::Theme::KeepApplied();
 		}
 	};
-	group->setChangedCallback([=](Type type) {
-		const auto i = ranges::find_if(schemes, [&](const Scheme &scheme) {
-			return (type == scheme.type && type != chosen());
+	const auto schemeClicked = [=](
+			const Scheme &scheme,
+			Qt::KeyboardModifiers modifiers) {
+		apply(scheme);
+	};
+
+	auto checks = base::flat_map<Type,not_null<DefaultTheme*>>();
+	auto buttons = ranges::view::all(
+		kSchemesList
+	) | ranges::view::transform([&](const Scheme &scheme) {
+		auto check = std::make_unique<DefaultTheme>(scheme, false);
+		const auto weak = check.get();
+		const auto result = Ui::CreateChild<Ui::Radioenum<Type>>(
+			block,
+			group,
+			scheme.type,
+			scheme.name(tr::now),
+			st::settingsTheme,
+			std::move(check));
+		result->addClickHandler([=] {
+			schemeClicked(scheme, result->clickModifiers());
 		});
-		if (i != end(schemes)) {
-			apply(*i);
+		weak->setUpdateCallback([=] { result->update(); });
+		checks.emplace(scheme.type, weak);
+		return result;
+	}) | ranges::to_vector;
+
+	const auto refreshColorizer = [=](Type type) {
+		if (type == chosen()) {
+			palette->show(type);
 		}
-	});
+
+		const auto &colors = Core::App().settings().themesAccentColors();
+		const auto i = checks.find(type);
+		const auto scheme = ranges::find(kSchemesList, type, &Scheme::type);
+		if (scheme == end(kSchemesList)) {
+			return;
+		}
+		if (i != end(checks)) {
+			if (const auto color = colors.get(type)) {
+				const auto colorizer = Window::Theme::ColorizerFrom(
+					*scheme,
+					*color);
+				i->second->setColorizer(colorizer);
+			} else {
+				i->second->setColorizer({});
+			}
+		}
+	};
+
+	for (const auto &scheme : kSchemesList) {
+		refreshColorizer(scheme.type);
+	}
+
+	using Update = const Window::Theme::BackgroundUpdate;
 	base::ObservableViewer(
 		*Window::Theme::Background()
 	) | rpl::filter([](const Update &update) {
@@ -895,6 +1180,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	}) | rpl::map([=] {
 		return chosen();
 	}) | rpl::start_with_next([=](Type type) {
+		refreshColorizer(type);
 		group->setValue(type);
 	}, container->lifetime());
 
@@ -940,6 +1226,21 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			left += button->width() + ((index++ % 2) ? bigSkip : smallSkip);
 		}
 	}, block->lifetime());
+
+	palette->selected(
+	) | rpl::start_with_next([=](QColor color) {
+		const auto type = chosen();
+		const auto scheme = ranges::find(kSchemesList, type, &Scheme::type);
+		if (scheme == end(kSchemesList)) {
+			return;
+		}
+		auto &colors = Core::App().settings().themesAccentColors();
+		if (colors.get(type) != color) {
+			colors.set(type, color);
+			Local::writeSettings();
+		}
+		apply(*scheme);
+	}, container->lifetime());
 
 	AddSkip(container);
 }

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 
 #include <QtCore/QtEndian>
+#include <range/v3/algorithm/reverse.hpp>
 
 namespace MTP {
 namespace internal {
@@ -30,6 +31,9 @@ const auto kServerHeader = qstr("\x17\x03\x03");
 constexpr auto kClientPartSize = 2878;
 const auto kClientPrefix = qstr("\x14\x03\x03\x00\x01\x01");
 const auto kClientHeader = qstr("\x17\x03\x03");
+
+using BigNum = openssl::BigNum;
+using BigNumContext = openssl::Context;
 
 [[nodiscard]] MTPTlsClientHello PrepareClientHelloRules() {
 	auto stack = std::vector<QVector<MTPTlsBlock>>();
@@ -53,6 +57,9 @@ const auto kClientHeader = qstr("\x17\x03\x03");
 	};
 	const auto D = [&] {
 		pushToBack(MTP_tlsBlockDomain());
+	};
+	const auto K = [&] {
+		pushToBack(MTP_tlsBlockPublicKey());
 	};
 	const auto Open = [&] {
 		stack.emplace_back();
@@ -102,7 +109,7 @@ const auto kClientHeader = qstr("\x17\x03\x03");
 		"\x01\x02\x01\x00\x12\x00\x00\x00\x33\x00\x2b\x00\x29"));
 	G(4);
 	S(qstr("\x00\x01\x00\x00\x1d\x00\x20"));
-	R(32);
+	K();
 	S(qstr("\x00\x2d\x00\x02\x01\x01\x00\x2b\x00\x0b\x0a"));
 	G(6);
 	S(qstr("\x03\x04\x03\x03\x03\x02\x03\x01\x00\x1b\x00\x03\x02\x00\x02"));
@@ -124,6 +131,96 @@ const auto kClientHeader = qstr("\x17\x03\x03");
 			result[i + 1] = bytes::type(uchar(result[i + 1]) ^ 0x10);
 		}
 	}
+	return result;
+}
+
+// Returns y^2 = x^3 + 486662 * x^2 + x.
+[[nodiscard]] BigNum GenerateY2(
+		const BigNum &x,
+		const BigNum &mod,
+		const BigNumContext &context) {
+	auto coef = BigNum(486662);
+	auto y = BigNum::ModAdd(x, coef, mod, context);
+	y.setModMul(y, x, mod, context);
+	coef.setWord(1);
+	y.setModAdd(y, coef, mod, context);
+	return BigNum::ModMul(y, x, mod, context);
+}
+
+// Returns x_2 = (x^2 - 1)^2/(4*y^2).
+[[nodiscard]] BigNum GenerateX2(
+		const BigNum &x,
+		const BigNum &mod,
+		const BigNumContext &context) {
+	auto denominator = GenerateY2(x, mod, context);
+	auto coef = BigNum(4);
+	denominator.setModMul(denominator, coef, mod, context);
+
+	auto numerator = BigNum::ModMul(x, x, mod, context);
+	coef.setWord(1);
+	numerator.setModSub(numerator, coef, mod, context);
+	numerator.setModMul(numerator, numerator, mod, context);
+
+	denominator.setModInverse(denominator, mod, context);
+	return BigNum::ModMul(numerator, denominator, mod, context);
+}
+
+[[nodiscard]] bytes::vector GeneratePublicKey() {
+	const auto context = BigNumContext();
+	const char modBytes[] = ""
+		"\x7f\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xed";
+	const char powBytes[] = ""
+		"\x3f\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xf6";
+	const auto mod = BigNum(bytes::make_span(modBytes).subspan(0, 32));
+	const auto pow = BigNum(bytes::make_span(powBytes).subspan(0, 32));
+
+	auto x = BigNum();
+	do {
+		while (true) {
+			auto random = bytes::vector(32);
+			bytes::set_random(random);
+			random[31] &= bytes::type(0x7FU);
+			x.setBytes(random);
+			x.setModMul(x, x, mod, context);
+
+			auto y = GenerateY2(x, mod, context);
+			if (BigNum::ModExp(y, pow, mod, context).isOne()) {
+				break;
+			}
+		}
+		for (auto i = 0; i != 3; ++i) {
+			x = GenerateX2(x, mod, context);
+		}
+		const auto xBytes = x.getBytes();
+		Assert(!xBytes.empty());
+		Assert(xBytes.size() <= 32);
+	} while (x.bytesSize() == 32);
+
+	const auto xBytes = x.getBytes();
+	auto result = bytes::vector(32, bytes::type());
+	bytes::copy(
+		bytes::make_span(result).subspan(32 - xBytes.size()),
+		xBytes);
+	ranges::reverse(result);
+
+	//auto string = QString();
+	//string.reserve(64);
+	//for (const auto byte : result) {
+	//	const auto code = uchar(byte);
+	//	const auto hex = [](uchar value) -> char {
+	//		if (value >= 0 && value <= 9) {
+	//			return '0' + value;
+	//		} else if (value >= 10 && value <= 15) {
+	//			return 'a' + (value - 10);
+	//		}
+	//		return '-';
+	//	};
+	//	string.append(hex(code / 16)).append(hex(code % 16));
+	//}
+	//LOG(("KEY: %1").arg(string));
+
 	return result;
 }
 
@@ -149,6 +246,7 @@ private:
 	void writeBlock(const MTPDtlsBlockGrease &data);
 	void writeBlock(const MTPDtlsBlockRandom &data);
 	void writeBlock(const MTPDtlsBlockDomain &data);
+	void writeBlock(const MTPDtlsBlockPublicKey &data);
 	void writeBlock(const MTPDtlsBlockScope &data);
 	void writePadding();
 	void writeDigest();
@@ -262,6 +360,15 @@ void ClientHelloGenerator::writeBlock(const MTPDtlsBlockDomain &data) {
 		return;
 	}
 	bytes::copy(storage, _domain);
+}
+
+void ClientHelloGenerator::writeBlock(const MTPDtlsBlockPublicKey &data) {
+	const auto key = GeneratePublicKey();
+	const auto storage = grow(key.size());
+	if (storage.empty()) {
+		return;
+	}
+	bytes::copy(storage, key);
 }
 
 void ClientHelloGenerator::writeBlock(const MTPDtlsBlockScope &data) {

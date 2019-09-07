@@ -152,7 +152,7 @@ bool readBackground();
 
 void writeTheme(const Window::Theme::Saved &saved);
 void clearTheme();
-bool copyThemeColorsToPalette(const QString &file);
+bool copyThemeColorsToPalette(const QString &destination);
 Window::Theme::Saved readThemeAfterSwitch();
 
 void writeLangPack();

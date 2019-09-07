@@ -42,10 +42,6 @@ namespace HistoryView {
 class Element;
 } // namespace HistoryView
 
-namespace AdminLog {
-class LocalIdManager;
-} // namespace AdminLog
-
 enum class NewMessageType {
 	Unread,
 	Last,
@@ -172,34 +168,36 @@ public:
 	void inboxRead(not_null<const HistoryItem*> wasRead);
 	void outboxRead(MsgId upTo);
 	void outboxRead(not_null<const HistoryItem*> wasRead);
-	bool isServerSideUnread(not_null<const HistoryItem*> item) const;
-	MsgId loadAroundId() const;
+	[[nodiscard]] bool isServerSideUnread(
+		not_null<const HistoryItem*> item) const;
+	[[nodiscard]] MsgId loadAroundId() const;
 
-	int unreadCount() const;
-	bool unreadCountKnown() const;
+	[[nodiscard]] int unreadCount() const;
+	[[nodiscard]] bool unreadCountKnown() const;
 	void setUnreadCount(int newUnreadCount);
 	void setUnreadMark(bool unread);
-	bool unreadMark() const;
-	int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
-	bool mute() const;
+	[[nodiscard]] bool unreadMark() const;
+	[[nodiscard]] int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
+	[[nodiscard]] bool mute() const;
 	bool changeMute(bool newMute);
 	void addUnreadBar();
 	void destroyUnreadBar();
-	bool hasNotFreezedUnreadBar() const;
-	Element *unreadBar() const;
+	[[nodiscard]] bool hasNotFreezedUnreadBar() const;
+	[[nodiscard]] Element *unreadBar() const;
 	void calculateFirstUnreadMessage();
 	void unsetFirstUnreadMessage();
-	Element *firstUnreadMessage() const;
+	[[nodiscard]] Element *firstUnreadMessage() const;
 	void clearNotifications();
+	void clearIncomingNotifications();
 
-	bool loadedAtBottom() const; // last message is in the list
+	[[nodiscard]] bool loadedAtBottom() const; // last message is in the list
 	void setNotLoadedAtBottom();
-	bool loadedAtTop() const; // nothing was added after loading history back
-	bool isReadyFor(MsgId msgId); // has messages for showing history at msgId
+	[[nodiscard]] bool loadedAtTop() const; // nothing was added after loading history back
+	[[nodiscard]] bool isReadyFor(MsgId msgId); // has messages for showing history at msgId
 	void getReadyFor(MsgId msgId);
 
-	HistoryItem *lastMessage() const;
-	bool lastMessageKnown() const;
+	[[nodiscard]] HistoryItem *lastMessage() const;
+	[[nodiscard]] bool lastMessageKnown() const;
 	void unknownMessageDeleted(MsgId messageId);
 	void applyDialogTopMessage(MsgId topMessageId);
 	void applyDialog(Data::Folder *requestFolder, const MTPDdialog &data);
@@ -337,7 +335,7 @@ public:
 	// of the displayed window relative to the history start coordinate
 	void countScrollState(int top);
 
-	std::shared_ptr<AdminLog::LocalIdManager> adminLogIdManager();
+	MsgId nextNonHistoryEntryId();
 
 	bool folderKnown() const override;
 	Data::Folder *folder() const override;
@@ -391,11 +389,6 @@ private:
 	// helper method for countScrollState(int top)
 	void countScrollTopItem(int top);
 
-	HistoryItem *addNewToLastBlock(
-		const MTPMessage &msg,
-		MTPDmessage_ClientFlags clientFlags,
-		NewMessageType type);
-
 	// this method just removes a block from the blocks list
 	// when the last item from this block was detached and
 	// calls the required previousItemChanged()
@@ -403,6 +396,9 @@ private:
 	void clearSharedMedia();
 
 	not_null<HistoryItem*> addNewItem(
+		not_null<HistoryItem*> item,
+		bool unread);
+	not_null<HistoryItem*> addNewToBack(
 		not_null<HistoryItem*> item,
 		bool unread);
 	not_null<HistoryItem*> addNewInTheMiddle(
@@ -537,8 +533,6 @@ private:
 	base::flat_map<SendAction::Type, crl::time> _mySendActions;
 
 	std::deque<not_null<HistoryItem*>> _notifications;
-
-	std::weak_ptr<AdminLog::LocalIdManager> _adminLogIdManager;
 
  };
 

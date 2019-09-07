@@ -69,8 +69,8 @@ private:
 		anim::type animated);
 
 	not_null<Main::Account*> _account;
-	std::unique_ptr<SessionController> _sessionController;
 	::MainWindow _widget;
+	std::unique_ptr<SessionController> _sessionController;
 
 	rpl::lifetime _lifetime;
 

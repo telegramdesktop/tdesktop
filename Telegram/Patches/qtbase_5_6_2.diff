@@ -295,6 +295,40 @@ index c4cb8e65c0..45793e364f 100644
              channels[i].socket->close();
              delete channels[i].socket;
          }
+diff --git a/src/network/access/qnetworkreplyhttpimpl.cpp b/src/network/access/qnetworkreplyhttpimpl.cpp
+index 94235a48dd..9abd2cc0a1 100644
+--- a/src/network/access/qnetworkreplyhttpimpl.cpp
++++ b/src/network/access/qnetworkreplyhttpimpl.cpp
+@@ -2045,6 +2045,9 @@ void QNetworkReplyHttpImplPrivate::finished()
+ {
+     Q_Q(QNetworkReplyHttpImpl);
+ 
++    // Patch: Fix crash in Linux (by crashreports).
++    QPointer<QNetworkReplyHttpImpl> guard = q;
++
+     if (state == Finished || state == Aborted || state == WaitingForSession)
+         return;
+ 
+@@ -2075,6 +2078,9 @@ void QNetworkReplyHttpImplPrivate::finished()
+ #endif
+     }
+ 
++    // Patch: Fix crash in Linux (by crashreports).
++    if (!guard) return;
++
+     // if we don't know the total size of or we received everything save the cache
+     if (totalSize.isNull() || totalSize == -1 || bytesDownloaded == totalSize)
+         completeCacheSave();
+@@ -2084,6 +2090,9 @@ void QNetworkReplyHttpImplPrivate::finished()
+     if (isHttpRedirectResponse() && errorCode == QNetworkReply::NoError)
+         return;
+ 
++    // Patch: Fix crash in Linux (by crashreports).
++    if (!guard) return;
++
+     state = Finished;
+     q->setFinished(true);
+ 
 diff --git a/src/network/socket/qnativesocketengine_win.cpp b/src/network/socket/qnativesocketengine_win.cpp
 index 41834b21ae..8cdf4ab145 100644
 --- a/src/network/socket/qnativesocketengine_win.cpp

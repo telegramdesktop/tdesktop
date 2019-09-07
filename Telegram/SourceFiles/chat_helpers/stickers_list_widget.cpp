@@ -1574,6 +1574,8 @@ int StickersListWidget::megagroupSetInfoLeft() const {
 }
 
 void StickersListWidget::paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected) {
+	p.setPen(st::emojiPanHeaderFg);
+
 	auto infoLeft = megagroupSetInfoLeft();
 	_megagroupSetAbout.drawLeft(p, infoLeft, y, width() - infoLeft, width());
 

@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_list_widget.h"
 #include "chat_helpers/gifs_list_widget.h"
 #include "chat_helpers/stickers.h"
-#include "styles/style_chat_helpers.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
@@ -21,10 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "storage/localstorage.h"
 #include "data/data_channel.h"
+#include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
+#include "styles/style_chat_helpers.h"
 
 namespace ChatHelpers {
 
@@ -291,8 +292,8 @@ TabbedSelector::TabbedSelector(
 	createTab(SelectorTab::Gifs),
 } }
 , _currentTabType(full()
-	? session().settings().selectorTab()
-	: SelectorTab::Emoji) {
+		? session().settings().selectorTab()
+		: SelectorTab::Emoji) {
 	resize(st::emojiPanWidth, st::emojiPanMaxHeight);
 
 	for (auto &tab : _tabs) {
@@ -364,10 +365,16 @@ TabbedSelector::TabbedSelector(
 			stickers()->showStickerSet(setId);
 			_showRequests.fire({});
 		}, lifetime());
+
+		session().data().stickersUpdated(
+		) | rpl::start_with_next([=] {
+			refreshStickers();
+		}, lifetime());
 	}
 	//setAttribute(Qt::WA_AcceptTouchEvents);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 	showAll();
+	hide();
 }
 
 TabbedSelector::~TabbedSelector() = default;
@@ -651,13 +658,6 @@ void TabbedSelector::afterShown() {
 	}
 }
 
-void TabbedSelector::showMegagroupSet(ChannelData *megagroup) {
-	if (!full()) {
-		return;
-	}
-	stickers()->showMegagroupSet(megagroup);
-}
-
 void TabbedSelector::setCurrentPeer(PeerData *peer) {
 	if (!full()) {
 		return;
@@ -665,6 +665,7 @@ void TabbedSelector::setCurrentPeer(PeerData *peer) {
 	gifs()->setInlineQueryPeer(peer);
 	_currentPeer = peer;
 	checkRestrictedPeer();
+	stickers()->showMegagroupSet(peer ? peer->asMegagroup() : nullptr);
 }
 
 void TabbedSelector::checkRestrictedPeer() {

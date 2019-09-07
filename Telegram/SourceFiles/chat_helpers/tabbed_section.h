@@ -16,9 +16,7 @@ class TabbedSelector;
 
 class TabbedMemento : public Window::SectionMemento {
 public:
-	TabbedMemento(
-		object_ptr<TabbedSelector> selector,
-		Fn<void(object_ptr<TabbedSelector>)> returnMethod);
+	TabbedMemento() = default;
 	TabbedMemento(TabbedMemento &&other) = default;
 	TabbedMemento &operator=(TabbedMemento &&other) = default;
 
@@ -28,12 +26,6 @@ public:
 		Window::Column column,
 		const QRect &geometry) override;
 
-	~TabbedMemento();
-
-private:
-	object_ptr<TabbedSelector> _selector;
-	Fn<void(object_ptr<TabbedSelector>)> _returnMethod;
-
 };
 
 class TabbedSection : public Window::SectionWidget {
@@ -41,17 +33,9 @@ public:
 	TabbedSection(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
-	TabbedSection(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		object_ptr<TabbedSelector> selector,
-		Fn<void(object_ptr<TabbedSelector>)> returnMethod);
 
 	void beforeHiding();
 	void afterShown();
-
-	object_ptr<TabbedSelector> takeSelector();
-	QPointer<TabbedSelector> getSelector() const;
 
 	bool showInternal(
 		not_null<Window::SectionMemento*> memento,
@@ -73,8 +57,7 @@ protected:
 	}
 
 private:
-	object_ptr<TabbedSelector> _selector;
-	Fn<void(object_ptr<TabbedSelector>)> _returnMethod;
+	const not_null<TabbedSelector*> _selector;
 
 };
 

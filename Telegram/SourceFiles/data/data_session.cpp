@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_game.h"
 #include "data/data_poll.h"
+#include "data/data_scheduled_messages.h"
 #include "base/unixtime.h"
 #include "styles/style_boxes.h" // st::backgroundSize
 
@@ -95,28 +96,30 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 
 // We should get a full restriction in "{full}: {reason}" format and we
 // need to find an "-all" tag in {full}, otherwise ignore this restriction.
-QString ExtractUnavailableReason(const QString &restriction) {
-	const auto fullEnd = restriction.indexOf(':');
-	if (fullEnd <= 0) {
-		return QString();
-	}
-
-	// {full} is in "{type}-{tag}-{tag}-{tag}" format
-	// if we find "all" tag we return the restriction string
-	const auto typeTags = restriction.mid(0, fullEnd).split('-').mid(1);
+QString ExtractUnavailableReason(
+		const QVector<MTPRestrictionReason> &restrictions) {
+	auto &&texts = ranges::view::all(
+		restrictions
+	) | ranges::view::transform([](const MTPRestrictionReason &restriction) {
+		return restriction.match([&](const MTPDrestrictionReason &data) {
+			const auto platform = qs(data.vplatform());
+			return (false
 #ifdef OS_MAC_STORE
-	const auto restrictionApplies = typeTags.contains(qsl("all"))
-		|| typeTags.contains(qsl("ios"));
+				|| (platform == qstr("ios"))
 #elif defined OS_WIN_STORE // OS_MAC_STORE
-	const auto restrictionApplies = typeTags.contains(qsl("all"))
-		|| typeTags.contains(qsl("ms"));
-#else
-	const auto restrictionApplies = typeTags.contains(qsl("all"));
+				|| (platform == qstr("ms"))
 #endif // OS_MAC_STORE || OS_WIN_STORE
-	if (restrictionApplies) {
-		return restriction.midRef(fullEnd + 1).trimmed().toString();
-	}
-	return QString();
+				|| (platform == qstr("all")))
+				? std::make_optional(qs(data.vtext()))
+				: std::nullopt;
+		});
+	}) | ranges::view::filter([](const std::optional<QString> &value) {
+		return value.has_value();
+	}) | ranges::view::transform([](const std::optional<QString> &value) {
+		return *value;
+	});
+	const auto begin = texts.begin();
+	return (begin != texts.end()) ? *begin : nullptr;
 }
 
 MTPPhotoSize FindDocumentInlineThumbnail(const MTPDdocument &data) {
@@ -204,8 +207,9 @@ Session::Session(not_null<Main::Session*> session)
 , _sendActionsAnimation([=](crl::time now) {
 	return sendActionsAnimationCallback(now);
 })
+, _unmuteByFinishedTimer([=] { unmuteByFinished(); })
 , _groups(this)
-, _unmuteByFinishedTimer([=] { unmuteByFinished(); }) {
+, _scheduledMessages(std::make_unique<ScheduledMessages>(this)) {
 	_cache->open(Local::cacheKey());
 	_bigFileCache->open(Local::cacheBigFileKey());
 
@@ -229,6 +233,7 @@ void Session::clear() {
 	for (const auto &[peerId, history] : _histories) {
 		history->clear(History::ClearType::Unload);
 	}
+	_scheduledMessages = nullptr;
 	_dependentMessages.clear();
 	base::take(_messages);
 	base::take(_channelMessages);
@@ -355,7 +360,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			}
 			if (const auto restriction = data.vrestriction_reason()) {
 				result->setUnavailableReason(
-					ExtractUnavailableReason(qs(*restriction)));
+					ExtractUnavailableReason(restriction->v));
 			} else {
 				result->setUnavailableReason(QString());
 			}
@@ -626,7 +631,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			}
 			if (const auto restriction = data.vrestriction_reason()) {
 				channel->setUnavailableReason(
-					ExtractUnavailableReason(qs(*restriction)));
+					ExtractUnavailableReason(restriction->v));
 			} else {
 				channel->setUnavailableReason(QString());
 			}
@@ -1183,13 +1188,23 @@ rpl::producer<not_null<const ViewElement*>> Session::viewLayoutChanged() const {
 	return _viewLayoutChanges.events();
 }
 
+void Session::notifyUnreadItemAdded(not_null<HistoryItem*> item) {
+	_unreadItemAdded.fire_copy(item);
+}
+
+rpl::producer<not_null<HistoryItem*>> Session::unreadItemAdded() const {
+	return _unreadItemAdded.events();
+}
+
 void Session::changeMessageId(ChannelId channel, MsgId wasId, MsgId nowId) {
 	const auto list = messagesListForInsert(channel);
 	auto i = list->find(wasId);
 	Assert(i != list->end());
 	auto owned = std::move(i->second);
 	list->erase(i);
-	list->emplace(nowId, std::move(owned));
+	const auto [j, ok] = list->emplace(nowId, std::move(owned));
+
+	Ensures(ok);
 }
 
 void Session::notifyItemIdChange(IdChange event) {
@@ -1813,10 +1828,10 @@ void Session::removeDependencyMessage(not_null<HistoryItem*> item) {
 }
 
 void Session::destroyMessage(not_null<HistoryItem*> item) {
-	Expects(!item->isLogEntry() || !item->mainView());
+	Expects(item->isHistoryEntry() || !item->mainView());
 
 	const auto peerId = item->history()->peer->id;
-	if (!item->isLogEntry()) {
+	if (item->isHistoryEntry()) {
 		// All this must be done for all items manually in History::clear()!
 		item->eraseFromUnreadMentions();
 		if (IsServerMsgId(item->id)) {
@@ -1838,6 +1853,12 @@ void Session::destroyMessage(not_null<HistoryItem*> item) {
 
 	const auto list = messagesListForInsert(peerToChannel(peerId));
 	list->erase(item->id);
+}
+
+MsgId Session::nextLocalMessageId() {
+	Expects(_localMessageIdCounter < EndClientMsgId);
+
+	return _localMessageIdCounter++;
 }
 
 HistoryItem *Session::message(ChannelId channelId, MsgId itemId) const {
@@ -1956,7 +1977,7 @@ void Session::updateNotifySettingsLocal(not_null<PeerData*> peer) {
 		_mutedPeers.emplace(peer);
 		unmuteByFinishedDelayed(changesIn);
 		if (history) {
-			_session->notifications().clearFromHistory(history);
+			_session->notifications().clearIncomingFromHistory(history);
 		}
 	} else {
 		_mutedPeers.erase(peer);
@@ -3585,17 +3606,17 @@ void Session::serviceNotification(
 				| MTPDuser::Flag::f_status
 				| MTPDuser::Flag::f_verified),
 			MTP_int(peerToUser(PeerData::kServiceNotificationsId)),
-			MTPlong(),
+			MTPlong(), // access_hash
 			MTP_string("Telegram"),
-			MTPstring(),
-			MTPstring(),
+			MTPstring(), // last_name
+			MTPstring(), // username
 			MTP_string("42777"),
 			MTP_userProfilePhotoEmpty(),
 			MTP_userStatusRecently(),
-			MTPint(),
-			MTPstring(),
-			MTPstring(),
-			MTPstring()));
+			MTPint(), // bot_info_version
+			MTPVector<MTPRestrictionReason>(),
+			MTPstring(), // bot_inline_placeholder
+			MTPstring())); // lang_code
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
 	if (!history->folderKnown()) {
@@ -3623,13 +3644,14 @@ void Session::insertCheckedServiceNotification(
 	const auto flags = MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_from_id
 		| MTPDmessage::Flag::f_media;
-	const auto clientFlags = MTPDmessage_ClientFlag::f_clientside_unread;
+	const auto clientFlags = MTPDmessage_ClientFlag::f_clientside_unread
+		| MTPDmessage_ClientFlag::f_local_history_entry;
 	auto sending = TextWithEntities(), left = message;
 	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
 		addNewMessage(
 			MTP_message(
 				MTP_flags(flags),
-				MTP_int(clientMsgId()),
+				MTP_int(nextLocalMessageId()),
 				MTP_int(peerToUser(PeerData::kServiceNotificationsId)),
 				MTP_peerUser(MTP_int(_session->userId())),
 				MTPMessageFwdHeader(),
@@ -3643,7 +3665,9 @@ void Session::insertCheckedServiceNotification(
 				MTPint(),
 				MTPint(),
 				MTPstring(),
-				MTPlong()),
+				MTPlong(),
+				//MTPMessageReactions(),
+				MTPVector<MTPRestrictionReason>()),
 			clientFlags,
 			NewMessageType::Unread);
 	}

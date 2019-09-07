@@ -15,12 +15,10 @@ class Element;
 namespace AdminLog {
 
 class OwnedItem;
-class LocalIdManager;
 
 void GenerateItems(
 	not_null<HistoryView::ElementDelegate*> delegate,
 	not_null<History*> history,
-	not_null<LocalIdManager*> idManager,
 	const MTPDchannelAdminLogEvent &event,
 	Fn<void(OwnedItem item)> callback);
 

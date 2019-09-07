@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_common.h"
+
+class ApiWrap;
 struct FileLoadResult;
 struct SendMediaReady;
-class ApiWrap;
 
 namespace Storage {
 
@@ -18,21 +20,21 @@ constexpr auto kUseBigFilesFrom = 10 * 1024 * 1024;
 
 struct UploadedPhoto {
 	FullMsgId fullId;
-	bool silent = false;
+	Api::SendOptions options;
 	MTPInputFile file;
 	bool edit = false;
 };
 
 struct UploadedDocument {
 	FullMsgId fullId;
-	bool silent = false;
+	Api::SendOptions options;
 	MTPInputFile file;
 	bool edit = false;
 };
 
 struct UploadedThumbDocument {
 	FullMsgId fullId;
-	bool silent = false;
+	Api::SendOptions options;
 	MTPInputFile file;
 	MTPInputFile thumb;
 	bool edit = false;

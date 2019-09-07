@@ -239,10 +239,6 @@ InputField {
 }
 
 OutlineButton {
-	outlineWidth: pixels;
-	outlineFg: color;
-	outlineFgOver: color;
-
 	textBg: color;
 	textBgOver: color;
 
@@ -675,37 +671,6 @@ defaultFlatInput: FlatInput {
 	phDuration: 100;
 }
 
-defaultLeftOutlineButton: OutlineButton {
-	outlineWidth: 3px;
-	outlineFg: outlineButtonBg;
-	outlineFgOver: outlineButtonOutlineFg;
-
-	textBg: outlineButtonBg;
-	textBgOver: outlineButtonBgOver;
-
-	textFg: windowActiveTextFg;
-	textFgOver: windowActiveTextFg;
-
-	font: normalFont;
-	padding: margins(11px, 5px, 11px, 5px);
-
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: outlineButtonBgRipple;
-	}
-}
-attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
-	outlineFgOver: attentionButtonFg;
-
-	textBgOver: attentionButtonBgOver;
-
-	textFg: attentionButtonFg;
-	textFgOver: attentionButtonFgOver;
-
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: attentionButtonBgRipple;
-	}
-}
-
 defaultInputField: InputField {
 	textBg: windowBg;
 	textFg: windowFg;
@@ -735,7 +700,7 @@ defaultInputField: InputField {
 	heightMax: 148px;
 }
 
-defaultCheckboxIcon: icon {{ "default_checkbox_check", windowFgActive, point(4px, 7px) }};
+defaultCheckboxIcon: icon {{ "default_checkbox_check", overviewCheckFgActive, point(4px, 7px) }};
 
 defaultCheck: Check {
 	bg: transparent;
@@ -1147,8 +1112,6 @@ PeerList {
 }
 
 defaultPeerListButton: OutlineButton {
-	outlineWidth: 0px;
-
 	textBg: windowBg;
 	textBgOver: windowBgOver;
 

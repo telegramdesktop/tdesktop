@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QReadWriteLock>
 
 #ifdef Q_OS_WIN
+#include <windows.h>
 #elif defined Q_OS_MAC
 #include <mach/mach_time.h>
 #else

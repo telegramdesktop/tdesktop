@@ -1,3 +1,5 @@
+<(src_loc)/api/api_common.h
+<(src_loc)/api/api_hash.h
 <(src_loc)/api/api_sending.cpp
 <(src_loc)/api/api_sending.h
 <(src_loc)/api/api_single_message_search.cpp
@@ -143,6 +145,8 @@
 <(src_loc)/core/click_handler_types.h
 <(src_loc)/core/core_cloud_password.cpp
 <(src_loc)/core/core_cloud_password.h
+<(src_loc)/core/core_settings.cpp
+<(src_loc)/core/core_settings.h
 <(src_loc)/core/crash_report_window.cpp
 <(src_loc)/core/crash_report_window.h
 <(src_loc)/core/crash_reports.cpp
@@ -220,6 +224,8 @@
 <(src_loc)/data/data_search_controller.h
 <(src_loc)/data/data_session.cpp
 <(src_loc)/data/data_session.h
+<(src_loc)/data/data_scheduled_messages.cpp
+<(src_loc)/data/data_scheduled_messages.h
 <(src_loc)/data/data_shared_media.cpp
 <(src_loc)/data/data_shared_media.h
 <(src_loc)/data/data_sparse_ids.cpp
@@ -314,6 +320,8 @@
 <(src_loc)/history/view/media/history_view_wall_paper.cpp
 <(src_loc)/history/view/media/history_view_web_page.h
 <(src_loc)/history/view/media/history_view_web_page.cpp
+<(src_loc)/history/view/history_view_compose_controls.cpp
+<(src_loc)/history/view/history_view_compose_controls.h
 <(src_loc)/history/view/history_view_contact_status.cpp
 <(src_loc)/history/view/history_view_contact_status.h
 <(src_loc)/history/view/history_view_context_menu.cpp
@@ -327,6 +335,10 @@
 <(src_loc)/history/view/history_view_message.cpp
 <(src_loc)/history/view/history_view_message.h
 <(src_loc)/history/view/history_view_object.h
+<(src_loc)/history/view/history_view_schedule_box.cpp
+<(src_loc)/history/view/history_view_schedule_box.h
+<(src_loc)/history/view/history_view_scheduled_section.cpp
+<(src_loc)/history/view/history_view_scheduled_section.h
 <(src_loc)/history/view/history_view_service_message.cpp
 <(src_loc)/history/view/history_view_service_message.h
 <(src_loc)/history/view/history_view_top_bar_widget.cpp
@@ -457,6 +469,8 @@
 <(src_loc)/main/main_app_config.h
 <(src_loc)/main/main_session.cpp
 <(src_loc)/main/main_session.h
+<(src_loc)/main/main_settings.cpp
+<(src_loc)/main/main_settings.h
 <(src_loc)/media/audio/media_audio.cpp
 <(src_loc)/media/audio/media_audio.h
 <(src_loc)/media/audio/media_audio_capture.cpp
@@ -883,6 +897,8 @@
 <(src_loc)/window/themes/window_theme_preview.h
 <(src_loc)/window/themes/window_theme_warning.cpp
 <(src_loc)/window/themes/window_theme_warning.h
+<(src_loc)/window/themes/window_themes_embedded.cpp
+<(src_loc)/window/themes/window_themes_embedded.h
 <(src_loc)/apiwrap.cpp
 <(src_loc)/apiwrap.h
 <(src_loc)/app.cpp

@@ -21,6 +21,10 @@ class HistoryWidget;
 class StackItem;
 struct FileLoadResult;
 
+namespace Api {
+struct SendAction;
+} // namespace Api
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -102,12 +106,14 @@ public:
 
 	MainWidget(QWidget *parent, not_null<Window::SessionController*> controller);
 
-	Main::Session &session() const;
+	[[nodiscard]] Main::Session &session() const;
 
-	bool isMainSectionShown() const;
-	bool isThirdSectionShown() const;
+	[[nodiscard]] bool isMainSectionShown() const;
+	[[nodiscard]] bool isThirdSectionShown() const;
 
-	int contentScrollAddToY() const;
+	[[nodiscard]] int contentScrollAddToY() const;
+
+	void returnTabbedSelector();
 
 	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
 
@@ -140,9 +146,6 @@ public:
 	bool deleteChannelFailed(const RPCError &error);
 	void historyToDown(History *hist);
 	void dialogsToUp();
-	void newUnreadMsg(
-		not_null<History*> history,
-		not_null<HistoryItem*> item);
 	void markActiveHistoryAsRead();
 
 	PeerData *peer();
@@ -231,7 +234,7 @@ public:
 	void pushReplyReturn(not_null<HistoryItem*> item);
 
 	void cancelForwarding(not_null<History*> history);
-	void finishForwarding(not_null<History*> history, bool silent);
+	void finishForwarding(Api::SendAction action);
 
 	// Does offerPeer or showPeerHistory.
 	void choosePeer(PeerId peerId, MsgId showAtMsgId);

@@ -291,6 +291,95 @@ void AddForwardAction(
 	AddForwardMessageAction(menu, request, list);
 }
 
+bool AddSendNowSelectedAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	if (!request.overSelection || request.selectedItems.empty()) {
+		return false;
+	}
+	if (ranges::find_if(request.selectedItems, [](const auto &item) {
+		return !item.canSendNow;
+	}) != end(request.selectedItems)) {
+		return false;
+	}
+
+	const auto session = &request.navigation->session();
+	auto histories = ranges::view::all(
+		request.selectedItems
+	) | ranges::view::transform([&](const SelectedItem &item) {
+		return session->data().message(item.msgId);
+	}) | ranges::view::filter([](HistoryItem *item) {
+		return item != nullptr;
+	}) | ranges::view::transform([](not_null<HistoryItem*> item) {
+		return item->history();
+	});
+	if (histories.begin() == histories.end()) {
+		return false;
+	}
+	const auto history = *histories.begin();
+
+	menu->addAction(tr::lng_context_send_now_selected(tr::now), [=] {
+		const auto weak = make_weak(list);
+		const auto callback = [=] {
+			request.navigation->showBackFromStack();
+		};
+		Window::ShowSendNowMessagesBox(
+			request.navigation,
+			history,
+			ExtractIdsList(request.selectedItems),
+			callback);
+	});
+	return true;
+}
+
+bool AddSendNowMessageAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	const auto item = request.item;
+	if (!request.selectedItems.empty()) {
+		return false;
+	} else if (!item || !item->allowsSendNow()) {
+		return false;
+	}
+	const auto owner = &item->history()->owner();
+	const auto asGroup = (request.pointState != PointState::GroupPart);
+	if (asGroup) {
+		if (const auto group = owner->groups().find(item)) {
+			if (ranges::find_if(group->items, [](auto item) {
+				return !item->allowsSendNow();
+			}) != end(group->items)) {
+				return false;
+			}
+		}
+	}
+	const auto itemId = item->fullId();
+	menu->addAction(tr::lng_context_send_now_msg(tr::now), [=] {
+		if (const auto item = owner->message(itemId)) {
+			const auto callback = [=] {
+				request.navigation->showBackFromStack();
+			};
+			Window::ShowSendNowMessagesBox(
+				request.navigation,
+				item->history(),
+				(asGroup
+					? owner->itemOrItsGroup(item)
+					: MessageIdsList{ 1, itemId }),
+				callback);
+		}
+	});
+	return true;
+}
+
+void AddSendNowAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	AddSendNowSelectedAction(menu, request, list);
+	AddSendNowMessageAction(menu, request, list);
+}
+
 bool AddDeleteSelectedAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
@@ -426,6 +515,7 @@ void AddMessageActions(
 		not_null<ListWidget*> list) {
 	AddPostLinkAction(menu, request);
 	AddForwardAction(menu, request, list);
+	AddSendNowAction(menu, request, list);
 	AddDeleteAction(menu, request, list);
 	AddSelectionAction(menu, request, list);
 }

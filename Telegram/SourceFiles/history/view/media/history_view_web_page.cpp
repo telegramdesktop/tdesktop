@@ -702,7 +702,7 @@ QMargins WebPage::inBubblePadding() const {
 }
 
 bool WebPage::isLogEntryOriginal() const {
-	return _parent->data()->isLogEntry() && _parent->media() != this;
+	return _parent->data()->isAdminLogEntry() && _parent->media() != this;
 }
 
 int WebPage::bottomInfoPadding() const {

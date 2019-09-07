@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 
 #include "window/themes/window_theme_preview.h"
+#include "window/themes/window_themes_embedded.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -31,8 +32,8 @@ namespace {
 constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 constexpr auto kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
 constexpr auto kBackgroundSizeLimit = 25 * 1024 * 1024;
-constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
 constexpr auto kNightThemeFile = str_const(":/gui/night.tdesktop-theme");
+constexpr auto kMinimumTiledSize = 512;
 
 struct Applying {
 	QString pathRelative;
@@ -148,7 +149,11 @@ enum class SetResult {
 	Bad,
 	NotFound,
 };
-SetResult setColorSchemeValue(QLatin1String name, QLatin1String value, Instance *out) {
+SetResult setColorSchemeValue(
+		QLatin1String name,
+		QLatin1String value,
+		const Colorizer &colorizer,
+		Instance *out) {
 	auto result = style::palette::SetResult::Ok;
 	auto size = value.size();
 	auto data = value.data();
@@ -158,6 +163,9 @@ SetResult setColorSchemeValue(QLatin1String name, QLatin1String value, Instance 
 		auto g = readHexUchar(data[3], data[4], error);
 		auto b = readHexUchar(data[5], data[6], error);
 		auto a = (size == 9) ? readHexUchar(data[7], data[8], error) : uchar(255);
+		if (colorizer) {
+			Colorize(name, r, g, b, colorizer);
+		}
 		if (error) {
 			LOG(("Theme Warning: Skipping value '%1: %2' (expected a color value in #rrggbb or #rrggbbaa or a previously defined key in the color scheme)").arg(name).arg(value));
 			return SetResult::Ok;
@@ -189,13 +197,16 @@ SetResult setColorSchemeValue(QLatin1String name, QLatin1String value, Instance 
 	return SetResult::Bad;
 }
 
-bool loadColorScheme(const QByteArray &content, Instance *out) {
+bool loadColorScheme(
+		const QByteArray &content,
+		const Colorizer &colorizer,
+		Instance *out) {
 	auto unsupported = QMap<QLatin1String, QLatin1String>();
-	return ReadPaletteValues(content, [&unsupported, out](QLatin1String name, QLatin1String value) {
+	return ReadPaletteValues(content, [&](QLatin1String name, QLatin1String value) {
 		// Find the named value in the already read unsupported list.
 		value = unsupported.value(value, value);
 
-		auto result = setColorSchemeValue(name, value, out);
+		auto result = setColorSchemeValue(name, value, colorizer, out);
 		if (result == SetResult::Bad) {
 			return false;
 		} else if (result == SetResult::NotFound) {
@@ -279,7 +290,11 @@ bool loadBackground(zlib::FileToRead &file, QByteArray *outBackground, bool *out
 	return true;
 }
 
-bool loadTheme(const QByteArray &content, Cached &cache, Instance *out = nullptr) {
+bool loadTheme(
+		const QByteArray &content,
+		Cached &cache,
+		const Colorizer &colorizer,
+		Instance *out = nullptr) {
 	cache = Cached();
 	zlib::FileToRead file(content);
 
@@ -295,7 +310,7 @@ bool loadTheme(const QByteArray &content, Cached &cache, Instance *out = nullptr
 			LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file."));
 			return false;
 		}
-		if (!loadColorScheme(schemeContent, out)) {
+		if (!loadColorScheme(schemeContent, colorizer, out)) {
 			return false;
 		}
 		Background()->saveAdjustableColors();
@@ -320,6 +335,9 @@ bool loadTheme(const QByteArray &content, Cached &cache, Instance *out = nullptr
 				LOG(("Theme Error: could not read background image in the theme file."));
 				return false;
 			}
+			if (colorizer) {
+				Colorize(background, colorizer);
+			}
 			auto buffer = QBuffer(&cache.background);
 			if (!background.save(&buffer, "BMP")) {
 				LOG(("Theme Error: could not write background image as a BMP to cache."));
@@ -331,7 +349,7 @@ bool loadTheme(const QByteArray &content, Cached &cache, Instance *out = nullptr
 		}
 	} else {
 		// Looks like it is not a .zip theme.
-		if (!loadColorScheme(content, out)) {
+		if (!loadColorScheme(content, colorizer, out)) {
 			return false;
 		}
 		Background()->saveAdjustableColors();
@@ -429,7 +447,7 @@ void ChatBackground::checkUploadWallPaper() {
 
 	const auto ready = PrepareWallPaper(_original);
 	const auto documentId = ready.id;
-	_wallPaperUploadId = FullMsgId(0, clientMsgId());
+	_wallPaperUploadId = FullMsgId(0, _session->data().nextLocalMessageId());
 	_session->uploader().uploadMedia(_wallPaperUploadId, ready);
 	if (_wallPaperUploadLifetime) {
 		return;
@@ -915,6 +933,7 @@ void ChatBackground::toggleNightMode(std::optional<QString> themePath) {
 		const auto loaded = loadTheme(
 			preview->content,
 			preview->instance.cached,
+			ColorizerForTheme(path),
 			&preview->instance);
 		if (!loaded) {
 			return false;
@@ -973,7 +992,8 @@ bool Load(Saved &&saved) {
 		return true;
 	}
 
-	if (!loadTheme(saved.content, saved.cache)) {
+	const auto colorizer = ColorizerForTheme(saved.pathAbsolute);
+	if (!loadTheme(saved.content, saved.cache, colorizer)) {
 		return false;
 	}
 	Local::writeTheme(saved);
@@ -1024,12 +1044,14 @@ void ApplyDefaultWithPath(const QString &themePath) {
 
 bool ApplyEditedPalette(const QString &path, const QByteArray &content) {
 	Instance out;
-	if (!loadColorScheme(content, &out)) {
+	if (!loadColorScheme(content, Colorizer(), &out)) {
 		return false;
 	}
 	out.cached.colors = out.palette.save();
 	out.cached.paletteChecksum = style::palette::Checksum();
-	out.cached.contentChecksum = hashCrc32(content.constData(), content.size());
+	out.cached.contentChecksum = hashCrc32(
+		content.constData(),
+		content.size());
 
 	GlobalApplying.pathRelative = path.isEmpty()
 		? QString()
@@ -1101,14 +1123,18 @@ void ToggleNightMode(const QString &path) {
 	Background()->toggleNightMode(path);
 }
 
-bool LoadFromFile(const QString &path, Instance *out, QByteArray *outContent) {
+bool LoadFromFile(
+		const QString &path,
+		Instance *out,
+		QByteArray *outContent) {
 	*outContent = readThemeContent(path);
 	if (outContent->size() < 4) {
 		LOG(("Theme Error: Could not load theme from %1").arg(path));
 		return false;
 	}
 
-	return loadTheme(*outContent,  out->cached, out);
+	const auto colorizer = ColorizerForTheme(path);
+	return loadTheme(*outContent,  out->cached, colorizer, out);
 }
 
 bool IsPaletteTestingPath(const QString &path) {
@@ -1198,38 +1224,6 @@ void ComputeBackgroundRects(QRect wholeFill, QSize imageSize, QRect &to, QRect &
 		to = QRect(0, int((wholeFill.height() - takeheight * pxsize) / 2.), wholeFill.width(), qCeil(takeheight * pxsize));
 		from = QRect(0, (imageSize.height() - takeheight) / 2, imageSize.width(), takeheight);
 	}
-}
-
-bool CopyColorsToPalette(const QString &path, const QByteArray &themeContent) {
-	auto paletteContent = themeContent;
-
-	zlib::FileToRead file(themeContent);
-
-	unz_global_info globalInfo = { 0 };
-	file.getGlobalInfo(&globalInfo);
-	if (file.error() == UNZ_OK) {
-		paletteContent = file.readFileContent("colors.tdesktop-theme", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
-		if (file.error() == UNZ_END_OF_LIST_OF_FILE) {
-			file.clearError();
-			paletteContent = file.readFileContent("colors.tdesktop-palette", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
-		}
-		if (file.error() != UNZ_OK) {
-			LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file, while copying to '%1'.").arg(path));
-			return false;
-		}
-	}
-
-	QFile f(path);
-	if (!f.open(QIODevice::WriteOnly)) {
-		LOG(("Theme Error: could not open file for write '%1'").arg(path));
-		return false;
-	}
-
-	if (f.write(paletteContent) != paletteContent.size()) {
-		LOG(("Theme Error: could not write palette to '%1'").arg(path));
-		return false;
-	}
-	return true;
 }
 
 bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QLatin1String value)> callback) {

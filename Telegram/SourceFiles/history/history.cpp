@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 
 #include "history/view/history_view_element.h"
-#include "history/admin_log/history_admin_log_section.h"
 #include "history/history_message.h"
 #include "history/history_service.h"
 #include "history/history_item_components.h"
@@ -17,6 +16,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
+#include "data/data_channel_admins.h"
+#include "data/data_scheduled_messages.h"
+#include "data/data_folder.h"
+#include "data/data_photo.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
+#include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
@@ -30,12 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 //#include "storage/storage_feed_messages.h" // #feed
 #include "support/support_helper.h"
-#include "data/data_channel_admins.h"
-#include "data/data_folder.h"
-#include "data/data_photo.h"
-#include "data/data_channel.h"
-#include "data/data_chat.h"
-#include "data/data_user.h"
 #include "ui/image/image.h"
 #include "ui/text_options.h"
 #include "core/crash_reports.h"
@@ -623,51 +623,50 @@ HistoryItem *History::addNewMessage(
 		const MTPMessage &msg,
 		MTPDmessage_ClientFlags clientFlags,
 		NewMessageType type) {
-	if (type == NewMessageType::Existing) {
-		return addToHistory(msg, clientFlags);
-	}
-	if (!loadedAtBottom() || peer->migrateTo()) {
-		if (const auto item = addToHistory(msg, clientFlags)) {
-			setLastMessage(item);
-			if (type == NewMessageType::Unread) {
-				newItemAdded(item);
-			}
-			return item;
-		}
+	const auto detachExistingItem = (type == NewMessageType::Unread);
+	const auto item = createItem(msg, clientFlags, detachExistingItem);
+	if (!item) {
 		return nullptr;
 	}
-
-	return addNewToLastBlock(msg, clientFlags, type);
-}
-
-HistoryItem *History::addNewToLastBlock(
-		const MTPMessage &msg,
-		MTPDmessage_ClientFlags clientFlags,
-		NewMessageType type) {
-	Expects(type != NewMessageType::Existing);
-
-	const auto detachExistingItem = (type != NewMessageType::Last);
-	const auto item = createItem(msg, clientFlags, detachExistingItem);
-	if (!item || item->mainView()) {
+	if (type == NewMessageType::Existing || item->mainView()) {
 		return item;
 	}
-	const auto newUnreadMessage = (type == NewMessageType::Unread);
-	if (newUnreadMessage) {
+	const auto unread = (type == NewMessageType::Unread);
+	if (unread && item->isHistoryEntry()) {
 		applyMessageChanges(item, msg);
 	}
-	const auto result = addNewItem(item, newUnreadMessage);
-	checkForLoadedAtTop(result);
-	if (type == NewMessageType::Last) {
-		// When we add just one last item, like we do while loading dialogs,
-		// we want to remove a single added grouped media, otherwise it will
-		// jump once we open the message history (first we show only that
-		// media, then we load the rest of the group and show the group).
-		//
-		// That way when we open the message history we show nothing until a
-		// whole history part is loaded, it certainly will contain the group.
-		removeOrphanMediaGroupPart();
+	return addNewItem(item, unread);
+}
+
+not_null<HistoryItem*> History::addNewItem(
+		not_null<HistoryItem*> item,
+		bool unread) {
+	if (item->isScheduled()) {
+		session().data().scheduledMessages().appendSending(item);
+		return item;
+	} else if (!item->isHistoryEntry()) {
+		return item;
 	}
-	return result;
+	if (!loadedAtBottom() || peer->migrateTo()) {
+		setLastMessage(item);
+		if (unread) {
+			newItemAdded(item);
+		}
+	} else {
+		addNewToBack(item, unread);
+		checkForLoadedAtTop(item);
+		if (!unread) {
+			// When we add just one last item, like we do while loading dialogs,
+			// we want to remove a single added grouped media, otherwise it will
+			// jump once we open the message history (first we show only that
+			// media, then we load the rest of the group and show the group).
+			//
+			// That way when we open the message history we show nothing until a
+			// whole history part is loaded, it certainly will contain the group.
+			removeOrphanMediaGroupPart();
+		}
+	}
+	return item;
 }
 
 void History::checkForLoadedAtTop(not_null<HistoryItem*> added) {
@@ -684,13 +683,6 @@ void History::checkForLoadedAtTop(not_null<HistoryItem*> added) {
 			addEdgesToSharedMedia();
 		}
 	}
-}
-
-HistoryItem *History::addToHistory(
-		const MTPMessage &msg,
-		MTPDmessage_ClientFlags clientFlags) {
-	const auto detachExistingItem = false;
-	return createItem(msg, clientFlags, detachExistingItem);
 }
 
 not_null<HistoryItem*> History::addNewLocalMessage(
@@ -881,8 +873,9 @@ void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
 	auto added = false;
 	if (messages) {
 		const auto clientFlags = MTPDmessage_ClientFlags();
-		for (auto &message : *messages) {
-			if (auto item = addToHistory(message, clientFlags)) {
+		const auto type = NewMessageType::Existing;
+		for (const auto &message : *messages) {
+			if (const auto item = addNewMessage(message, clientFlags, type)) {
 				if (item->isUnreadMention()) {
 					_unreadMentions.insert(item->id);
 					added = true;
@@ -897,7 +890,7 @@ void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
 	Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::UnreadMentionsChanged);
 }
 
-not_null<HistoryItem*> History::addNewItem(
+not_null<HistoryItem*> History::addNewToBack(
 		not_null<HistoryItem*> item,
 		bool unread) {
 	Expects(!isBuildingFrontBlock());
@@ -1243,18 +1236,27 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		from->madeAction(item->date());
 	}
 	item->contributeToSlowmode();
-	if (item->out()) {
+	if (item->showNotification()) {
+		_notifications.push_back(item);
+		owner().notifyUnreadItemAdded(item);
+		const auto stillShow = item->showNotification();
+		if (stillShow) {
+			session().notifications().schedule(item);
+			if (!item->out() && item->unread()) {
+				if (unreadCountKnown()) {
+					setUnreadCount(unreadCount() + 1);
+				} else {
+					session().api().requestDialogEntry(this);
+				}
+			}
+		}
+	} else if (item->out()) {
 		destroyUnreadBar();
-		if (!item->unread()) {
-			outboxRead(item);
-		}
-	} else if (item->unread()) {
-		if (!isChannel() || peer->asChannel()->amIn()) {
-			_notifications.push_back(item);
-			App::main()->newUnreadMsg(this, item);
-		}
 	} else {
 		inboxRead(item);
+	}
+	if (item->out() && !item->unread()) {
+		outboxRead(item);
 	}
 	if (!folderKnown()) {
 		session().api().requestDialogEntry(this);
@@ -1262,6 +1264,9 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 }
 
 void History::registerLocalMessage(not_null<HistoryItem*> item) {
+	Expects(item->isHistoryEntry());
+	Expects(IsClientMsgId(item->id));
+
 	_localMessages.emplace(item);
 	if (peer->isChannel()) {
 		Notify::peerUpdatedDelayed(
@@ -1271,7 +1276,9 @@ void History::registerLocalMessage(not_null<HistoryItem*> item) {
 }
 
 void History::unregisterLocalMessage(not_null<HistoryItem*> item) {
-	_localMessages.remove(item);
+	const auto removed = _localMessages.remove(item);
+	Assert(removed);
+
 	if (peer->isChannel()) {
 		Notify::peerUpdatedDelayed(
 			peer,
@@ -1650,7 +1657,7 @@ void History::inboxRead(MsgId upTo, std::optional<int> stillUnread) {
 	}
 
 	_firstUnreadView = nullptr;
-	session().notifications().clearFromHistory(this);
+	session().notifications().clearIncomingFromHistory(this);
 }
 
 void History::inboxRead(not_null<const HistoryItem*> wasRead) {
@@ -1823,13 +1830,8 @@ void History::getNextFirstUnreadMessage() {
 	_firstUnreadView = nullptr;
 }
 
-std::shared_ptr<AdminLog::LocalIdManager> History::adminLogIdManager() {
-	if (const auto strong = _adminLogIdManager.lock()) {
-		return strong;
-	}
-	auto result = std::make_shared<AdminLog::LocalIdManager>();
-	_adminLogIdManager = result;
-	return result;
+MsgId History::nextNonHistoryEntryId() {
+	return owner().nextNonHistoryEntryId();
 }
 
 bool History::folderKnown() const {
@@ -2167,6 +2169,14 @@ void History::finishBuildingFrontBlock() {
 
 void History::clearNotifications() {
 	_notifications.clear();
+}
+
+void History::clearIncomingNotifications() {
+	if (!peer->isSelf()) {
+		_notifications.erase(
+			ranges::remove(_notifications, false, &HistoryItem::out),
+			end(_notifications));
+	}
 }
 
 bool History::loadedAtBottom() const {
@@ -2597,17 +2607,16 @@ void History::dialogEntryApplied() {
 		return;
 	}
 	if (!chatListMessage()) {
+		clear(ClearType::Unload);
+		addNewerSlice(QVector<MTPMessage>());
+		addOlderSlice(QVector<MTPMessage>());
 		if (const auto channel = peer->asChannel()) {
 			const auto inviter = channel->inviter;
 			if (inviter > 0 && channel->amIn()) {
 				if (const auto from = owner().userLoaded(inviter)) {
-					clear(ClearType::Unload);
-					addNewerSlice(QVector<MTPMessage>());
 					insertJoinedMessage();
 				}
 			}
-		} else {
-			clear(ClearType::DeleteChat);
 		}
 		return;
 	}
@@ -2872,7 +2881,7 @@ void History::insertLocalMessage(not_null<HistoryItem*> item) {
 	Expects(item->mainView() == nullptr);
 
 	if (isEmpty()) {
-		addNewItem(item, false);
+		addNewToBack(item, false);
 		return;
 	}
 
@@ -3050,8 +3059,17 @@ void History::clear(ClearType type) {
 		lastKeyboardInited = false;
 		_loadedAtTop = _loadedAtBottom = false;
 	} else {
+		// Leave the 'sending' messages in local messages.
+		auto local = base::flat_set<not_null<HistoryItem*>>();
+		for (const auto item : _localMessages) {
+			if (!item->isSending()) {
+				local.emplace(item);
+			}
+		}
+		for (const auto item : local) {
+			item->destroy();
+		}
 		_notifications.clear();
-		_localMessages.clear();
 		owner().notifyHistoryCleared(this);
 		if (unreadCountKnown()) {
 			setUnreadCount(0);

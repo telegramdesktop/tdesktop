@@ -293,7 +293,7 @@ void EditorBlock::activateRow(const Row &row) {
 		}
 	} else {
 		_editing = findRowIndex(&row);
-		if (auto box = Ui::show(Box<EditColorBox>(row.name(), row.value()))) {
+		if (auto box = Ui::show(Box<EditColorBox>(row.name(), EditColorBox::Mode::RGBA, row.value()))) {
 			box->setSaveCallback(crl::guard(this, [this](QColor value) {
 				saveEditing(value);
 			}));
@@ -392,6 +392,29 @@ bool EditorBlock::feedDescription(const QString &name, const QString &descriptio
 		return true;
 	}
 	return false;
+}
+
+void EditorBlock::sortByDistance(const QColor &to) {
+	auto toHue = int();
+	auto toSaturation = int();
+	auto toLightness = int();
+	to.getHsl(&toHue, &toSaturation, &toLightness);
+	ranges::sort(_data, ranges::less(), [&](const Row &row) {
+		auto fromHue = int();
+		auto fromSaturation = int();
+		auto fromLightness = int();
+		row.value().getHsl(&fromHue, &fromSaturation, &fromLightness);
+		if (!row.copyOf().isEmpty()) {
+			return 365;
+		}
+		const auto a = std::abs(fromHue - toHue);
+		const auto b = 360 + fromHue - toHue;
+		const auto c = 360 + toHue - fromHue;
+		if (std::min(a, std::min(b, c)) > 15) {
+			return 363;
+		}
+		return 255 - fromSaturation;
+	});
 }
 
 template <typename Callback>

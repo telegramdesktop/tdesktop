@@ -13,9 +13,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/round_checkbox.h"
 
+enum class SendMenuType;
+
 namespace Window {
 class SessionNavigation;
 } // namespace Window
+
+namespace Api {
+struct SendOptions;
+} // namespace Api
 
 namespace Main {
 class Session;
@@ -52,7 +58,7 @@ public:
 	using SubmitCallback = Fn<void(
 		QVector<PeerData*>&&,
 		TextWithTags&&,
-		bool)>;
+		Api::SendOptions)>;
 	using FilterCallback = Fn<bool(PeerData*)>;
 
 	ShareBox(
@@ -73,9 +79,13 @@ private:
 	void prepareCommentField();
 	void scrollAnimationCallback();
 
-	void submit(bool silent = false);
+	void submit(Api::SendOptions options);
+	void submitSilent();
+	void submitScheduled();
 	void copyLink();
 	bool searchByUsername(bool useCache = false);
+
+	SendMenuType sendMenuType() const;
 
 	void scrollTo(Ui::ScrollToRequest request);
 	void needSearchByUsername();

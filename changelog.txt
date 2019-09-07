@@ -1,3 +1,16 @@
+1.8.4 (06.09.19)
+
+- Bug fixes and other minor improvements.
+
+1.8.3 (05.09.19)
+
+- Right click the 'Send' button and select 'Schedule Message' to automatically send something at a specified time.
+- Schedule reminders for yourself in the 'Saved Messages' chat.
+- Get a notification when any of your scheduled messages are sent.
+- Customize your app's appearance by choosing accent colors for the 'Day', 'Night' and 'Tinted' themes.
+- Choose who can find you on Telegram when they add your number to their phone contacts.
+- Send a single :grin:, :anguished:, :rage:, :poo:, :cry: or :open_mouth: to check out what's new in the animated emoji department.
+
 1.8.2 (20.08.19)
 
 - Bug fixes and other minor improvements.

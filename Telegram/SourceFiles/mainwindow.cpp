@@ -149,8 +149,7 @@ void MainWindow::firstShow() {
 }
 
 void MainWindow::clearWidgetsHook() {
-	Expects(_passcodeLock == nullptr || !Global::LocalPasscode());
-
+	destroyLayer();
 	_main.destroy();
 	_passcodeLock.destroy();
 	_intro.destroy();
@@ -207,8 +206,6 @@ void MainWindow::clearPasscodeLock() {
 }
 
 void MainWindow::setupIntro() {
-	Ui::hideSettingsAndLayer(anim::type::instant);
-
 	auto animated = (_main || _passcodeLock);
 	auto bg = animated ? grabInner() : QPixmap();
 

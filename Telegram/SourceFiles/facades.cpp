@@ -113,11 +113,12 @@ void activateBotCommand(
 		const auto history = msg->history();
 		Ui::show(Box<ConfirmBox>(tr::lng_bot_share_phone(tr::now), tr::lng_bot_share_phone_confirm(tr::now), [=] {
 			Ui::showPeerHistory(history, ShowAtTheEndMsgId);
-			auto options = ApiWrap::SendOptions(history);
-			options.replyTo = msgId;
+			auto action = Api::SendAction(history);
+			action.clearDraft = false;
+			action.replyTo = msgId;
 			history->session().api().shareContact(
 				history->session().user(),
-				options);
+				action);
 		}));
 	} break;
 

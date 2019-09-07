@@ -19,11 +19,11 @@ Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 	const FullMsgId &msgId);
 MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer);
 MTPDmessage_ClientFlags NewMessageClientFlags();
-QString GetErrorTextForForward(
+QString GetErrorTextForSending(
 	not_null<PeerData*> peer,
 	const HistoryItemsList &items,
 	bool ignoreSlowmodeCountdown = false);
-QString GetErrorTextForForward(
+QString GetErrorTextForSending(
 	not_null<PeerData*> peer,
 	const HistoryItemsList &items,
 	const TextWithTags &comment,
@@ -108,6 +108,7 @@ public:
 		const MTPMessageMedia &media);
 
 	[[nodiscard]] bool allowsForward() const override;
+	[[nodiscard]] bool allowsSendNow() const override;
 	[[nodiscard]] bool allowsEdit(TimeId now) const override;
 	[[nodiscard]] bool uploading() const;
 
@@ -116,6 +117,9 @@ public:
 	}
 	[[nodiscard]] bool hasMessageBadge() const {
 		return !_messageBadge.isEmpty();
+	}
+	[[nodiscard]] bool hideEditedBadge() const {
+		return (_flags & MTPDmessage::Flag::f_edit_hide);
 	}
 
 	void applyGroupAdminChanges(

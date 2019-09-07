@@ -810,7 +810,9 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			if (const auto error = RestrictionToSendStickers()) {
 				Ui::show(Box<InformBox>(*error));
 			}
-			Api::SendExistingDocument(chat.history(), document);
+			Api::SendExistingDocument(
+				Api::MessageToSend(chat.history()),
+				document);
 			return true;
 		} else if (const auto emoji = _stickers[index].emoji) {
 			if (const auto inputField = qobject_cast<QTextEdit*>(

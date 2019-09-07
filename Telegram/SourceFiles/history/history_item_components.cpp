@@ -80,7 +80,9 @@ int HistoryMessageSigned::maxWidth() const {
 }
 
 void HistoryMessageEdited::refresh(const QString &date, bool displayed) {
-	const auto prefix = displayed ? (tr::lng_edited(tr::now) + ' ') : QString();
+	const auto prefix = displayed
+		? (tr::lng_edited(tr::now) + ' ')
+		: QString();
 	text.setText(st::msgDateTextStyle, prefix + date, Ui::NameTextOptions());
 }
 

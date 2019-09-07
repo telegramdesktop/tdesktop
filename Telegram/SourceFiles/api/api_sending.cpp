@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "history/history.h"
 #include "history/history_message.h" // NewMessageFlags.
+#include "chat_helpers/message_field.h" // ConvertTextTagsToEntities.
 #include "ui/text/text_entity.h" // TextWithEntities.
 #include "main/main_session.h"
 #include "mainwidget.h"
@@ -26,37 +27,33 @@ namespace {
 
 template <typename MediaData>
 void SendExistingMedia(
-		not_null<History*> history,
+		Api::MessageToSend &&message,
 		not_null<MediaData*> media,
 		const MTPInputMedia &inputMedia,
-		Data::FileOrigin origin,
-		TextWithEntities caption,
-		MsgId replyToId,
-		bool silent) {
+		Data::FileOrigin origin) {
+	const auto history = message.action.history;
 	const auto peer = history->peer;
 	const auto session = &history->session();
 	const auto api = &session->api();
 
-	auto options = ApiWrap::SendOptions(history);
-	options.clearDraft = false;
-	options.replyTo = replyToId;
-	options.generateLocal = true;
-	options.silent = silent;
+	message.action.clearDraft = false;
+	message.action.generateLocal = true;
+	api->sendAction(message.action);
 
-	api->sendAction(options);
-
-	const auto newId = FullMsgId(peerToChannel(peer->id), clientMsgId());
+	const auto newId = FullMsgId(
+		peerToChannel(peer->id),
+		session->data().nextLocalMessageId());
 	const auto randomId = rand_value<uint64>();
 
 	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
 	auto clientFlags = NewMessageClientFlags();
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
-	if (options.replyTo) {
+	if (message.action.replyTo) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
-	const auto silentPost = options.silent
+	const auto silentPost = message.action.options.silent
 		|| (channelPost && session->data().notifySilentPosts(peer));
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
@@ -75,6 +72,10 @@ void SendExistingMedia(
 		? App::peerName(session->user())
 		: QString();
 
+	auto caption = TextWithEntities{
+		message.textWithTags.text,
+		ConvertTextTagsToEntities(message.textWithTags.tags)
+	};
 	TextUtilities::Trim(caption);
 	auto sentEntities = TextUtilities::EntitiesToMTP(
 		caption.entities,
@@ -82,8 +83,15 @@ void SendExistingMedia(
 	if (!sentEntities.v.isEmpty()) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
 	}
-	const auto replyTo = options.replyTo;
+	const auto replyTo = message.action.replyTo;
 	const auto captionText = caption.text;
+
+	if (message.action.options.scheduled) {
+		flags |= MTPDmessage::Flag::f_from_scheduled;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
+	} else {
+		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
+	}
 
 	session->data().registerMessageRandomId(randomId, newId);
 
@@ -93,7 +101,7 @@ void SendExistingMedia(
 		clientFlags,
 		0,
 		replyTo,
-		base::unixtime::now(),
+		HistoryItem::NewMessageDate(message.action.options.scheduled),
 		messageFromId,
 		messagePostAuthor,
 		media,
@@ -111,7 +119,8 @@ void SendExistingMedia(
 			MTP_string(captionText),
 			MTP_long(randomId),
 			MTPReplyMarkup(),
-			sentEntities
+			sentEntities,
+			MTP_int(message.action.options.scheduled)
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result, randomId);
 		}).fail([=](const RPCError &error) {
@@ -136,36 +145,23 @@ void SendExistingMedia(
 	performRequest();
 
 	if (const auto main = App::main()) {
-		main->finishForwarding(history, options.silent);
+		main->finishForwarding(message.action);
 	}
 }
 
 } // namespace
 
 void SendExistingDocument(
-		not_null<History*> history,
-		not_null<DocumentData*> document,
-		bool silent) {
-	SendExistingDocument(history, document, {}, 0, silent);
-}
-
-void SendExistingDocument(
-		not_null<History*> history,
-		not_null<DocumentData*> document,
-		TextWithEntities caption,
-		MsgId replyToId,
-		bool silent) {
+		Api::MessageToSend &&message,
+		not_null<DocumentData*> document) {
 	SendExistingMedia(
-		history,
+		std::move(message),
 		document,
 		MTP_inputMediaDocument(
 			MTP_flags(0),
 			document->mtpInput(),
 			MTPint()),
-		document->stickerOrGifOrigin(),
-		caption,
-		replyToId,
-		silent);
+		document->stickerOrGifOrigin());
 
 	if (document->sticker()) {
 		if (const auto main = App::main()) {
@@ -176,29 +172,16 @@ void SendExistingDocument(
 }
 
 void SendExistingPhoto(
-		not_null<History*> history,
-		not_null<PhotoData*> photo,
-		bool silent) {
-	SendExistingPhoto(history, photo, {}, 0, silent);
-}
-
-void SendExistingPhoto(
-		not_null<History*> history,
-		not_null<PhotoData*> photo,
-		TextWithEntities caption,
-		MsgId replyToId,
-		bool silent) {
+		Api::MessageToSend &&message,
+		not_null<PhotoData*> photo) {
 	SendExistingMedia(
-		history,
+		std::move(message),
 		photo,
 		MTP_inputMediaPhoto(
 			MTP_flags(0),
 			photo->mtpInput(),
 			MTPint()),
-		Data::FileOrigin(),
-		caption,
-		replyToId,
-		silent);
+		Data::FileOrigin());
 }
 
 } // namespace Api

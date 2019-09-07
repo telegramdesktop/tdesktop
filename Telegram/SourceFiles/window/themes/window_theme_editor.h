@@ -18,6 +18,11 @@ class PlainShadow;
 namespace Window {
 namespace Theme {
 
+bool CopyColorsToPalette(
+	const QString &destination,
+	const QString &themePath,
+	const QByteArray &themeContent);
+
 class Editor : public TWidget {
 public:
 	Editor(QWidget*, const QString &path);

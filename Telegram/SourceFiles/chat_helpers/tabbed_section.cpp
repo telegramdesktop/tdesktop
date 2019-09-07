@@ -7,56 +7,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/tabbed_section.h"
 
-#include "styles/style_chat_helpers.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "window/window_session_controller.h"
+#include "styles/style_chat_helpers.h"
 
 namespace ChatHelpers {
-
-TabbedMemento::TabbedMemento(
-	object_ptr<TabbedSelector> selector,
-	Fn<void(object_ptr<TabbedSelector>)> returnMethod)
-: _selector(std::move(selector))
-, _returnMethod(std::move(returnMethod)) {
-}
 
 object_ptr<Window::SectionWidget> TabbedMemento::createWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		Window::Column column,
 		const QRect &geometry) {
-	auto result = object_ptr<TabbedSection>(
-		parent,
-		controller,
-		std::move(_selector),
-		std::move(_returnMethod));
+	auto result = object_ptr<TabbedSection>(parent, controller);
 	result->setGeometry(geometry);
 	return std::move(result);
-}
-
-TabbedMemento::~TabbedMemento() {
-	if (_returnMethod && _selector) {
-		_returnMethod(std::move(_selector));
-	}
 }
 
 TabbedSection::TabbedSection(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: TabbedSection(
-	parent,
-	controller,
-	object_ptr<TabbedSelector>(this, controller),
-	Fn<void(object_ptr<TabbedSelector>)>()) {
-}
-
-TabbedSection::TabbedSection(
-	QWidget *parent,
-	not_null<Window::SessionController*> controller,
-	object_ptr<TabbedSelector> selector,
-	Fn<void(object_ptr<TabbedSelector>)> returnMethod)
 : Window::SectionWidget(parent, controller)
-, _selector(std::move(selector))
-, _returnMethod(std::move(returnMethod)) {
+, _selector(controller->tabbedSelector()) {
 	_selector->setParent(this);
 	_selector->setRoundRadius(0);
 	_selector->setGeometry(rect());
@@ -80,14 +51,6 @@ void TabbedSection::resizeEvent(QResizeEvent *e) {
 	_selector->setGeometry(rect());
 }
 
-object_ptr<TabbedSelector> TabbedSection::takeSelector() {
-	_selector->beforeHiding();
-	return std::move(_selector);
-}
-
-QPointer<TabbedSelector> TabbedSection::getSelector() const {
-	return _selector.data();
-}
 bool TabbedSection::showInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {
@@ -104,9 +67,7 @@ QRect TabbedSection::rectForFloatPlayer() const {
 
 TabbedSection::~TabbedSection() {
 	beforeHiding();
-	if (_returnMethod) {
-		_returnMethod(takeSelector());
-	}
+	controller()->takeTabbedSelectorOwnershipFrom(this);
 }
 
 } // namespace ChatHelpers

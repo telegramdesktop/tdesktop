@@ -13,8 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 
 class MainWidget;
+class MainWindow;
 class HistoryMessage;
 class HistoryService;
+
+namespace ChatHelpers {
+class TabbedSelector;
+} // namespace ChatHelpers
 
 namespace Main {
 class Session;
@@ -146,11 +151,16 @@ class SessionController
 public:
 	SessionController(
 		not_null<Main::Session*> session,
-		not_null<MainWindow*> window);
+		not_null<::MainWindow*> window);
 
-	not_null<MainWindow*> window() const {
+	[[nodiscard]] not_null<::MainWindow*> window() const {
 		return _window;
 	}
+
+	[[nodiscard]] auto tabbedSelector() const
+	-> not_null<ChatHelpers::TabbedSelector*>;
+	void takeTabbedSelectorOwnershipFrom(not_null<QWidget*> parent);
+	[[nodiscard]] bool hasTabbedSelectorOwnership() const;
 
 	// This is needed for History TopBar updating when searchInChat
 	// is changed in the Dialogs::Widget of the current window.
@@ -292,13 +302,16 @@ private:
 	void pushToChatEntryHistory(Dialogs::RowDescriptor row);
 	bool chatEntryHistoryMove(int steps);
 
-	const not_null<MainWindow*> _window;
+	const not_null<::MainWindow*> _window;
 
 	std::unique_ptr<Passport::FormController> _passportForm;
 
 	GifPauseReasons _gifPauseReasons = 0;
 	base::Observable<void> _gifPauseLevelChanged;
 	base::Observable<void> _floatPlayerAreaUpdated;
+
+	// Depends on _gifPause*.
+	const std::unique_ptr<ChatHelpers::TabbedSelector> _tabbedSelector;
 
 	rpl::variable<Dialogs::RowDescriptor> _activeChatEntry;
 	base::Variable<bool> _dialogsListFocused = { false };

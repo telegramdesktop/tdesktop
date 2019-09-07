@@ -16,6 +16,11 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Api {
+struct SendOptions;
+enum class SendType;
+} // namespace Api
+
 namespace ChatHelpers {
 class TabbedPanel;
 } // namespace ChatHelpers
@@ -35,6 +40,8 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+enum class SendMenuType;
+
 enum class SendFilesWay {
 	Album,
 	Photos,
@@ -53,14 +60,16 @@ public:
 		Storage::PreparedList &&list,
 		const TextWithTags &caption,
 		CompressConfirm compressed,
-		SendLimit limit);
+		SendLimit limit,
+		Api::SendType sendType,
+		SendMenuType sendMenuType);
 
 	void setConfirmedCallback(
 		Fn<void(
 			Storage::PreparedList &&list,
 			SendFilesWay way,
 			TextWithTags &&caption,
-			bool silent,
+			Api::SendOptions options,
 			bool ctrlShiftEnter)> callback) {
 		_confirmedCallback = std::move(callback);
 	}
@@ -101,7 +110,9 @@ private:
 	void prepareAlbumPreview();
 	void applyAlbumOrder();
 
-	void send(bool silent = false, bool ctrlShiftEnter = false);
+	void send(Api::SendOptions options, bool ctrlShiftEnter = false);
+	void sendSilent();
+	void sendScheduled();
 	void captionResized();
 
 	void setupTitleText();
@@ -113,7 +124,8 @@ private:
 	bool canAddUrls(const QList<QUrl> &urls) const;
 	bool addFiles(not_null<const QMimeData*> data);
 
-	not_null<Window::SessionController*> _controller;
+	const not_null<Window::SessionController*> _controller;
+	const Api::SendType _sendType = Api::SendType();
 
 	QString _titleText;
 	int _titleHeight = 0;
@@ -123,12 +135,13 @@ private:
 	CompressConfirm _compressConfirmInitial = CompressConfirm::None;
 	CompressConfirm _compressConfirm = CompressConfirm::None;
 	SendLimit _sendLimit = SendLimit::Many;
+	SendMenuType _sendMenuType = SendMenuType();
 
 	Fn<void(
 		Storage::PreparedList &&list,
 		SendFilesWay way,
 		TextWithTags &&caption,
-		bool silent,
+		Api::SendOptions options,
 		bool ctrlShiftEnter)> _confirmedCallback;
 	Fn<void()> _cancelledCallback;
 	bool _confirmed = false;

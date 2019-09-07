@@ -48,8 +48,6 @@ overviewCheck: RoundCheckbox(defaultRoundCheckbox) {
 	check: icon {{ "overview_photo_check", overviewCheckFgActive, point(4px, 8px) }};
 }
 overviewSmallCheck: RoundCheckbox(contactsPhotoCheck) {
-	bgInactive: overviewCheckBg;
-	bgActive: overviewCheckBgActive;
 	border: overviewCheckBorder;
 }
 overviewCheckSkip: 5px;
