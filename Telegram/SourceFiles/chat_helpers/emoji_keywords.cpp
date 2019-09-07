@@ -449,7 +449,7 @@ std::vector<Result> EmojiKeywords::LangPack::query(
 	}
 
 	const auto from = _data.emoji.lower_bound(normalized);
-	auto &&chosen = ranges::make_iterator_range(
+	auto &&chosen = ranges::subrange(
 		from,
 		end(_data.emoji)
 	) | ranges::view::take_while([&](const auto &pair) {

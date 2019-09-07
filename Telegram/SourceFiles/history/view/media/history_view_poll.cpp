@@ -34,6 +34,10 @@ struct PercentCounterItem {
 	int percent = 0;
 	int remainder = 0;
 
+	inline bool operator==(const PercentCounterItem &o) const {
+		return remainder == o.remainder && percent == o.percent;
+	}
+
 	inline bool operator<(const PercentCounterItem &other) const {
 		if (remainder > other.remainder) {
 			return true;

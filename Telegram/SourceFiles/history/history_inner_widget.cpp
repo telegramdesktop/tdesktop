@@ -2444,7 +2444,7 @@ MessageIdsList HistoryInner::getSelectedItems() const {
 		return {};
 	}
 
-	auto result = make_iterator_range(
+	auto result = ranges::subrange(
 		_selected.begin(),
 		_selected.end()
 	) | view::filter([](const auto &selected) {
