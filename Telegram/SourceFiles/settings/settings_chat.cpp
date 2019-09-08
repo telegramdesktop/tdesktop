@@ -1161,53 +1161,20 @@ void SetupThemeOptions(
 
 	AddSkip(container, st::settingsThemesTopSkip);
 	SetupDefaultThemes(container);
-	AddSkip(container, st::settingsThemesBottomSkip);
-
-	const auto canEditCurrent = [=] {
-		const auto userId = controller->session().userId();
-		return (Background()->themeObject().cloud.createdBy == userId);
-	};
-	auto canEdit = rpl::single(BackgroundUpdate(
-		BackgroundUpdate::Type::ApplyingTheme,
-		Background()->tile()
-	)) | rpl::then(base::ObservableViewer(
-		*Background()
-	)) | rpl::filter([](const BackgroundUpdate &update) {
-		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
-	}) | rpl::map([=] {
-		return canEditCurrent();
-	});
-	AddButton(
-		container,
-		rpl::conditional(
-			std::move(canEdit),
-			tr::lng_settings_bg_theme_edit(),
-			tr::lng_settings_bg_theme_create()),
-		st::settingsChatButton,
-		&st::settingsIconThemes,
-		st::settingsChatIconLeft
-	)->addClickHandler([=] {
-		if (canEditCurrent()) {
-			StartEditor(
-				&controller->window(),
-				Background()->themeObject().cloud);
-		} else {
-			controller->window().show(Box(CreateBox, &controller->window()));
-		}
-	});
-
 	AddSkip(container);
 }
 
 void SetupCloudThemes(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
+	using namespace Window::Theme;
 	using namespace rpl::mappers;
 
 	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
-			object_ptr<Ui::VerticalLayout>(container)));
+			object_ptr<Ui::VerticalLayout>(container))
+	)->setDuration(0);
 	const auto inner = wrap->entity();
 
 	AddDivider(inner);
@@ -1233,7 +1200,7 @@ void SetupCloudThemes(
 
 	AddSkip(inner, st::settingsThemesTopSkip);
 
-	const auto list = inner->lifetime().make_state<Window::Theme::CloudList>(
+	const auto list = inner->lifetime().make_state<CloudList>(
 		inner,
 		controller);
 	inner->add(
@@ -1253,7 +1220,39 @@ void SetupCloudThemes(
 		list->showAll();
 	});
 
-	AddSkip(inner, st::settingsThemesTopSkip);
+	const auto editWrap = inner->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			inner,
+			object_ptr<Ui::VerticalLayout>(inner))
+	)->setDuration(0);
+	const auto edit = editWrap->entity();
+
+	AddSkip(edit, st::settingsThemesBottomSkip);
+	AddButton(
+		edit,
+		tr::lng_settings_bg_theme_edit(),
+		st::settingsChatButton,
+		&st::settingsIconThemes,
+		st::settingsChatIconLeft
+	)->addClickHandler([=] {
+		StartEditor(
+			&controller->window(),
+			Background()->themeObject().cloud);
+	});
+
+	editWrap->toggleOn(rpl::single(BackgroundUpdate(
+		BackgroundUpdate::Type::ApplyingTheme,
+		Background()->tile()
+	)) | rpl::then(base::ObservableViewer(
+		*Background()
+	)) | rpl::filter([](const BackgroundUpdate &update) {
+		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
+	}) | rpl::map([=] {
+		const auto userId = controller->session().userId();
+		return (Background()->themeObject().cloud.createdBy == userId);
+	}));
+
+	AddSkip(inner, 2 * st::settingsSectionSkip);
 
 	wrap->setDuration(0)->toggleOn(list->empty() | rpl::map(!_1));
 }

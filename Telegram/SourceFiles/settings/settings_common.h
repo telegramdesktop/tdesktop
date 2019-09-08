@@ -100,7 +100,8 @@ using MenuCallback = Fn<QAction*(
 	Fn<void()> handler)>;
 
 void FillMenu(
-	not_null<::Main::Session*> session,
+	not_null<Window::SessionController*> controller,
+	Type type,
 	Fn<void(Type)> showOther,
 	MenuCallback addAction);
 
