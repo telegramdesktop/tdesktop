@@ -1,3 +1,9 @@
+1.8.5 (08.09.19)
+
+- Create new themes based on your color and wallpaper choices.
+- Share your themes with other users via links.
+- Update your theme for all its users when you change something.
+
 1.8.4 (06.09.19)
 
 - Bug fixes and other minor improvements.
