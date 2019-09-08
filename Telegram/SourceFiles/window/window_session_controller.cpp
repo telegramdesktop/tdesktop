@@ -594,6 +594,7 @@ void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 		std::move(callback));
 	box->setMinDate(minPeerDate(chat));
 	box->setMaxDate(maxPeerDate(chat));
+	box->setBeginningButton(true);
 	Ui::show(std::move(box));
 }
 
