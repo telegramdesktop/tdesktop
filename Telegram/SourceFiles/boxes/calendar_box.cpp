@@ -27,6 +27,11 @@ public:
 		_month.setForced(_month.value(), true);
 	}
 
+	void setBeginningButton(bool enabled);
+	bool hasBeginningButton() const {
+		return _beginningButton;
+	}
+
 	void setMinDate(QDate date);
 	void setMaxDate(QDate date);
 
@@ -55,6 +60,9 @@ public:
 	bool isEnabled(int index) const {
 		return (index >= _minDayIndex) && (index <= _maxDayIndex);
 	}
+	bool atBeginning() const {
+		return _highlighted == _min;
+	}
 
 	const base::Variable<QDate> &month() {
 		return _month;
@@ -68,6 +76,8 @@ private:
 
 	static int daysShiftForMonth(QDate month);
 	static int rowsCountForMonth(QDate month);
+
+	bool _beginningButton = false;
 
 	base::Variable<QDate> _month;
 	QDate _min, _max;
@@ -84,6 +94,10 @@ private:
 
 CalendarBox::Context::Context(QDate month, QDate highlighted) : _highlighted(highlighted) {
 	showMonth(month);
+}
+
+void CalendarBox::Context::setBeginningButton(bool enabled) {
+	_beginningButton = enabled;
 }
 
 void CalendarBox::Context::setMinDate(QDate date) {
@@ -502,6 +516,14 @@ void CalendarBox::setMaxDate(QDate date) {
 	_context->setMaxDate(date);
 }
 
+bool CalendarBox::hasBeginningButton() const {
+	return _context->hasBeginningButton();
+}
+
+void CalendarBox::setBeginningButton(bool enabled) {
+	_context->setBeginningButton(enabled);
+}
+
 void CalendarBox::prepare() {
 	_previous->setClickedCallback([this] { goPreviousMonth(); });
 	_next->setClickedCallback([this] { goNextMonth(); });
@@ -509,7 +531,6 @@ void CalendarBox::prepare() {
 //	_inner = setInnerWidget(object_ptr<Inner>(this, _context.get()), st::calendarScroll, st::calendarTitleHeight);
 	_inner->setDateChosenCallback(std::move(_callback));
 
-	addLeftButton(tr::lng_calendar_beginning(), [this] { _inner->selectBeginning(); });
 	addButton(tr::lng_close(), [this] { closeBox(); });
 
 	subscribe(_context->month(), [this](QDate month) { monthChanged(month); });
@@ -518,6 +539,9 @@ void CalendarBox::prepare() {
 
 	if (_finalize) {
 		_finalize(this);
+	}
+	if (!_context->atBeginning() && hasBeginningButton()) {
+		addLeftButton(tr::lng_calendar_beginning(), [this] { _inner->selectBeginning(); });
 	}
 }
 
