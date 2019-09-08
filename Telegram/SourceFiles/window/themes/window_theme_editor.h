@@ -32,6 +32,11 @@ struct ParsedTheme {
 	bool tiled = false;
 };
 
+[[nodiscard]] QByteArray ColorHexString(const QColor &color);
+[[nodiscard]] QByteArray ReplaceValueInPaletteContent(
+	const QByteArray &content,
+	const QByteArray &name,
+	const QByteArray &value);
 [[nodiscard]] QByteArray WriteCloudToText(const Data::CloudTheme &cloud);
 [[nodiscard]] Data::CloudTheme ReadCloudFromText(const QByteArray &text);
 

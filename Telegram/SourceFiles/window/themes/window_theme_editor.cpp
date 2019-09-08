@@ -148,52 +148,6 @@ bool isValidColorValue(QLatin1String value) {
 	return true;
 }
 
-QByteArray replaceValueInContent(const QByteArray &content, const QByteArray &name, const QByteArray &value) {
-	auto validNames = OrderedSet<QLatin1String>();
-	auto start = content.constBegin(), data = start, end = data + content.size();
-	auto lastValidValueStart = end, lastValidValueEnd = end;
-	while (data != end) {
-		skipWhitespacesAndComments(data, end);
-		if (data == end) break;
-
-		auto foundName = base::parse::readName(data, end);
-		skipWhitespacesAndComments(data, end);
-		if (data == end || *data != ':') {
-			return "error";
-		}
-		++data;
-		skipWhitespacesAndComments(data, end);
-		auto valueStart = data;
-		auto value = readValue(data, end);
-		auto valueEnd = data;
-		if (value.size() == 0) {
-			return "error";
-		}
-		auto validValue = validNames.contains(value) || isValidColorValue(value);
-		if (validValue) {
-			validNames.insert(foundName);
-			if (foundName == name) {
-				lastValidValueStart = valueStart;
-				lastValidValueEnd = valueEnd;
-			}
-		}
-		skipWhitespacesAndComments(data, end);
-		if (data == end || *data != ';') {
-			return "error";
-		}
-		++data;
-	}
-	if (lastValidValueStart != end) {
-		auto result = QByteArray();
-		result.reserve((lastValidValueStart - start) + value.size() + (end - lastValidValueEnd));
-		result.append(start, lastValidValueStart - start);
-		result.append(value);
-		if (end - lastValidValueEnd > 0) result.append(lastValidValueEnd, end - lastValidValueEnd);
-		return result;
-	}
-	return QByteArray();
-}
-
 [[nodiscard]] QByteArray ColorizeInContent(
 		QByteArray content,
 		const Colorizer &colorizer) {
@@ -301,6 +255,79 @@ private:
 	bool _applyingUpdate = false;
 
 };
+
+QByteArray ColorHexString(const QColor &color) {
+	auto result = QByteArray();
+	result.reserve(9);
+	result.append('#');
+	const auto addHex = [&](int code) {
+		if (code >= 0 && code < 10) {
+			result.append('0' + code);
+		} else if (code >= 10 && code < 16) {
+			result.append('a' + (code - 10));
+		}
+	};
+	const auto addValue = [&](int code) {
+		addHex(code / 16);
+		addHex(code % 16);
+	};
+	addValue(color.red());
+	addValue(color.green());
+	addValue(color.blue());
+	if (color.alpha() != 255) {
+		addValue(color.alpha());
+	}
+	return result;
+}
+
+QByteArray ReplaceValueInPaletteContent(
+		const QByteArray &content,
+		const QByteArray &name,
+		const QByteArray &value) {
+	auto validNames = OrderedSet<QLatin1String>();
+	auto start = content.constBegin(), data = start, end = data + content.size();
+	auto lastValidValueStart = end, lastValidValueEnd = end;
+	while (data != end) {
+		skipWhitespacesAndComments(data, end);
+		if (data == end) break;
+
+		auto foundName = base::parse::readName(data, end);
+		skipWhitespacesAndComments(data, end);
+		if (data == end || *data != ':') {
+			return "error";
+		}
+		++data;
+		skipWhitespacesAndComments(data, end);
+		auto valueStart = data;
+		auto value = readValue(data, end);
+		auto valueEnd = data;
+		if (value.size() == 0) {
+			return "error";
+		}
+		auto validValue = validNames.contains(value) || isValidColorValue(value);
+		if (validValue) {
+			validNames.insert(foundName);
+			if (foundName == name) {
+				lastValidValueStart = valueStart;
+				lastValidValueEnd = valueEnd;
+			}
+		}
+		skipWhitespacesAndComments(data, end);
+		if (data == end || *data != ';') {
+			return "error";
+		}
+		++data;
+	}
+	if (lastValidValueStart != end) {
+		auto result = QByteArray();
+		result.reserve((lastValidValueStart - start) + value.size() + (end - lastValidValueEnd));
+		result.append(start, lastValidValueStart - start);
+		result.append(value);
+		if (end - lastValidValueEnd > 0) result.append(lastValidValueEnd, end - lastValidValueEnd);
+		return result;
+	}
+	return QByteArray();
+}
 
 [[nodiscard]] QByteArray WriteCloudToText(const Data::CloudTheme &cloud) {
 	auto result = QByteArray();
@@ -543,36 +570,12 @@ bool Editor::Inner::feedExistingRow(const QString &name, QLatin1String value) {
 	return true;
 }
 
-QString colorString(QColor color) {
-	auto result = QString();
-	result.reserve(9);
-	result.append('#');
-	const auto addHex = [&](int code) {
-		if (code >= 0 && code < 10) {
-			result.append('0' + code);
-		} else if (code >= 10 && code < 16) {
-			result.append('a' + (code - 10));
-		}
-	};
-	const auto addValue = [&](int code) {
-		addHex(code / 16);
-		addHex(code % 16);
-	};
-	addValue(color.red());
-	addValue(color.green());
-	addValue(color.blue());
-	if (color.alpha() != 255) {
-		addValue(color.alpha());
-	}
-	return result;
-}
-
 void Editor::Inner::applyEditing(const QString &name, const QString &copyOf, QColor value) {
 	auto plainName = name.toLatin1();
-	auto plainValue = (copyOf.isEmpty() ? colorString(value) : copyOf).toLatin1();
-	auto newContent = replaceValueInContent(_paletteContent, plainName, plainValue);
+	auto plainValue = copyOf.isEmpty() ? ColorHexString(value) : copyOf.toLatin1();
+	auto newContent = ReplaceValueInPaletteContent(_paletteContent, plainName, plainValue);
 	if (newContent == "error") {
-		LOG(("Theme Error: could not replace '%1: %2' in content").arg(name).arg(copyOf.isEmpty() ? colorString(value) : copyOf));
+		LOG(("Theme Error: could not replace '%1: %2' in content").arg(name).arg(copyOf.isEmpty() ? QString::fromLatin1(ColorHexString(value)) : copyOf));
 		error();
 		return;
 	}

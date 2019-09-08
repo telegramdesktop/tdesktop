@@ -247,6 +247,37 @@ void ImportFromFile(
 	return QString::fromUtf8(string.data(), string.size());
 }
 
+// They're duplicated in window_theme.cpp:ChatBackground::ChatBackground.
+[[nodiscard]] QByteArray ReplaceAdjustableColors(QByteArray data) {
+	const auto &themeObject = Background()->themeObject();
+	const auto &paper = Background()->paper();
+	const auto usingDefaultTheme = themeObject.pathAbsolute.isEmpty();
+	const auto usingThemeBackground = usingDefaultTheme
+		? Data::IsDefaultWallPaper(paper)
+		: Data::IsThemeWallPaper(paper);
+
+	if (usingThemeBackground) {
+		return data;
+	}
+
+	const auto adjustables = base::flat_map<QByteArray, style::color>{
+		{ qba(qstr("msgServiceBg")), st::msgServiceBg },
+		{ qba(qstr("msgServiceBgSelected")), st::msgServiceBgSelected },
+		{ qba(qstr("historyScrollBg")), st::historyScrollBg },
+		{ qba(qstr("historyScrollBgOver")), st::historyScrollBgOver },
+		{ qba(qstr("historyScrollBarBg")), st::historyScrollBarBg },
+		{ qba(qstr("historyScrollBarBgOver")), st::historyScrollBarBgOver }
+	};
+	for (const auto &[name, color] : adjustables) {
+		data = ReplaceValueInPaletteContent(
+			data,
+			name,
+			ColorHexString(color->c));
+	}
+	return data;
+}
+
+// Only is valid for current theme, pass Local::ReadThemeContent() here.
 [[nodiscard]] ParsedTheme ParseTheme(
 		const Object &theme,
 		bool onlyPalette = false) {
@@ -258,6 +289,7 @@ void ImportFromFile(
 				std::move(raw.palette),
 				colorizer);
 		}
+		raw.palette = ReplaceAdjustableColors(std::move(raw.palette));
 		return raw;
 	};
 
@@ -310,29 +342,6 @@ void ImportFromFile(
 	return result();
 }
 
-[[nodiscard]] bool CopyColorsToPalette(
-		const QString &destination,
-		const Object &theme,
-		const Data::CloudTheme &cloud) {
-	auto parsed = ParseTheme(theme, true);
-	if (parsed.palette.isEmpty()) {
-		return false;
-	}
-
-	QFile f(destination);
-	if (!f.open(QIODevice::WriteOnly)) {
-		LOG(("Theme Error: could not open file for write '%1'").arg(destination));
-		return false;
-	}
-
-	const auto content = WriteCloudToText(cloud) + parsed.palette;
-	if (f.write(content) != content.size()) {
-		LOG(("Theme Error: could not write palette to '%1'").arg(destination));
-		return false;
-	}
-	return true;
-}
-
 QByteArray GenerateDefaultPalette() {
 	auto result = QByteArray();
 	const auto rows = style::main_palette::data();
@@ -355,8 +364,9 @@ QByteArray GenerateDefaultPalette() {
 	return result;
 }
 
-bool WriteDefaultPalette(
+bool CopyColorsToPalette(
 		const QString &path,
+		const QByteArray &palette,
 		const Data::CloudTheme &cloud) {
 	QFile f(path);
 	if (!f.open(QIODevice::WriteOnly)) {
@@ -364,8 +374,9 @@ bool WriteDefaultPalette(
 		return false;
 	}
 
-	const auto content = WriteCloudToText(cloud) + GenerateDefaultPalette();
-	if (f.write(content) != content.size()) {
+	const auto prefix = WriteCloudToText(cloud);
+	if (f.write(prefix) != prefix.size()
+		|| f.write(palette) != palette.size()) {
 		LOG(("Theme Error: could not write palette to '%1'").arg(path));
 		return false;
 	}
@@ -688,10 +699,11 @@ void StartEditor(
 		const Data::CloudTheme &cloud) {
 	const auto path = EditingPalettePath();
 	auto object = Local::ReadThemeContent();
-	const auto written = object.content.isEmpty()
-		? WriteDefaultPalette(path, cloud)
-		: CopyColorsToPalette(path, object, cloud);
-	if (!written) {
+
+	const auto palette = object.content.isEmpty()
+		? GenerateDefaultPalette()
+		: ParseTheme(object, true).palette;
+	if (palette.isEmpty() || !CopyColorsToPalette(path, palette, cloud)) {
 		window->show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
 		return;
 	}

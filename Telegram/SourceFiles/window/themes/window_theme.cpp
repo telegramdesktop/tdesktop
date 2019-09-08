@@ -493,6 +493,7 @@ ChatBackground::AdjustableColor::AdjustableColor(style::color data)
 , original(data->c) {
 }
 
+// They're duplicated in window_theme_editor_box.cpp:ReplaceAdjustableColors.
 ChatBackground::ChatBackground() : _adjustableColors({
 		st::msgServiceBg,
 		st::msgServiceBgSelected,
