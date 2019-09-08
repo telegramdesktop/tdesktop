@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"
+#include "core/sandbox.h"
 #include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_widget.h"
@@ -32,7 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/mac_utilities.h"
 #include "ui/widgets/input_fields.h"
 
-#include <QtGui/QGuiApplication>
+#include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
 
 #include <Cocoa/Cocoa.h>

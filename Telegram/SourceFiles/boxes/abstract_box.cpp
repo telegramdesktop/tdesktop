@@ -286,6 +286,8 @@ AbstractBox::AbstractBox(
 	}, lifetime());
 }
 
+AbstractBox::~AbstractBox() = default;
+
 void AbstractBox::setLayerType(bool layerType) {
 	_layerType = layerType;
 	updateTitlePosition();

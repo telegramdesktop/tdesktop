@@ -275,6 +275,7 @@ public:
 	AbstractBox(
 		not_null<Window::LayerStackWidget*> layer,
 		object_ptr<BoxContent> content);
+	~AbstractBox();
 
 	void parentResized() override;
 
