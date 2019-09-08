@@ -22,6 +22,8 @@ struct CurrentData {
 	bool backgroundTiled = false;
 };
 
+[[nodiscard]] QString CachedThemePath(uint64 documentId);
+
 std::unique_ptr<Preview> PreviewFromFile(
 	const QByteArray &bytes,
 	const QString &filepath,

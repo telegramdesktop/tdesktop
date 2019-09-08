@@ -25,6 +25,13 @@ namespace Theme {
 
 struct Colorizer;
 
+struct ParsedTheme {
+	QByteArray palette;
+	QByteArray background;
+	bool isPng = false;
+	bool tiled = false;
+};
+
 [[nodiscard]] QByteArray WriteCloudToText(const Data::CloudTheme &cloud);
 [[nodiscard]] Data::CloudTheme ReadCloudFromText(const QByteArray &text);
 

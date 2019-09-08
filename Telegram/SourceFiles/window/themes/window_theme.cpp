@@ -1180,6 +1180,34 @@ void KeepApplied() {
 	Background()->keepApplied(saved.object, true);
 }
 
+void KeepFromEditor(
+		const QByteArray &originalContent,
+		const ParsedTheme &originalParsed,
+		const Data::CloudTheme &cloud,
+		const QByteArray &themeContent,
+		const ParsedTheme &themeParsed) {
+	ClearApplying();
+	const auto content = themeContent.isEmpty()
+		? originalContent
+		: themeContent;
+	auto saved = Saved();
+	auto &cache = saved.cache;
+	auto &object = saved.object;
+	cache.colors = style::main_palette::save();
+	cache.paletteChecksum = style::palette::Checksum();
+	cache.contentChecksum = hashCrc32(content.constData(), content.size());
+	cache.background = themeParsed.background;
+	cache.tiled = themeParsed.tiled;
+	object.cloud = cloud;
+	object.content = themeContent.isEmpty()
+		? originalContent
+		: themeContent;
+	object.pathAbsolute = object.pathRelative = CachedThemePath(
+		cloud.documentId);
+	Local::writeTheme(saved);
+	Background()->keepApplied(saved.object, true);
+}
+
 void Revert() {
 	if (!AreTestingTheme()) {
 		return;

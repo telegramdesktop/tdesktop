@@ -906,11 +906,11 @@ void Generator::restoreTextPalette() {
 	_p->restoreTextPalette();
 }
 
-[[nodiscard]] QString CachedThemePath(uint64 documentId) {
+} // namespace
+
+QString CachedThemePath(uint64 documentId) {
 	return QString::fromLatin1("special://cached-%1").arg(documentId);
 }
-
-} // namespace
 
 std::unique_ptr<Preview> PreviewFromFile(
 		const QByteArray &bytes,

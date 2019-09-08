@@ -20,6 +20,8 @@ namespace Theme {
 inline constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
 inline constexpr auto kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
 
+struct ParsedTheme;
+
 [[nodiscard]] bool IsEmbeddedTheme(const QString &path);
 
 struct Object {
@@ -62,6 +64,12 @@ bool Apply(std::unique_ptr<Preview> preview);
 void ApplyDefaultWithPath(const QString &themePath);
 bool ApplyEditedPalette(const QByteArray &content);
 void KeepApplied();
+void KeepFromEditor(
+	const QByteArray &originalContent,
+	const ParsedTheme &originalParsed,
+	const Data::CloudTheme &cloud,
+	const QByteArray &themeContent,
+	const ParsedTheme &themeParsed);
 QString NightThemePath();
 [[nodiscard]] bool IsNightMode();
 void SetNightModeValue(bool nightMode);
@@ -191,6 +199,12 @@ private:
 	friend void ToggleNightMode();
 	friend void ToggleNightMode(const QString &themePath);
 	friend void KeepApplied();
+	friend void KeepFromEditor(
+		const QByteArray &originalContent,
+		const ParsedTheme &originalParsed,
+		const Data::CloudTheme &cloud,
+		const QByteArray &themeContent,
+		const ParsedTheme &themeParsed);
 	friend bool IsNonDefaultBackground();
 
 	Main::Session *_session = nullptr;
