@@ -18,6 +18,7 @@ namespace Window {
 namespace Theme {
 
 inline constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
+inline constexpr auto kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
 
 [[nodiscard]] bool IsEmbeddedTheme(const QString &path);
 

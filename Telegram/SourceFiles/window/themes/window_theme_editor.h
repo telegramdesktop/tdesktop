@@ -49,6 +49,7 @@ protected:
 private:
 	void save();
 	void closeEditor();
+	void closeWithConfirmation();
 
 	const not_null<Window::Controller*> _window;
 	const Data::CloudTheme _cloud;

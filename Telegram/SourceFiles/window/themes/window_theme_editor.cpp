@@ -665,18 +665,7 @@ Editor::Editor(
 		_scroll->scrollToY(top, bottom);
 	});
 	_close->setClickedCallback([=] {
-		const auto box = std::make_shared<QPointer<BoxContent>>();
-		const auto close = crl::guard(this, [=] {
-			Background()->clearEditingTheme(ClearEditing::RevertChanges);
-			closeEditor();
-			if (*box) {
-				(*box)->closeBox();
-			}
-		});
-		*box = _window->show(Box<ConfirmBox>(
-			tr::lng_theme_editor_sure_close(tr::now),
-			tr::lng_close(tr::now),
-			close));
+		closeWithConfirmation();
 	});
 	_close->show(anim::type::instant);
 
@@ -790,6 +779,26 @@ void Editor::paintEvent(QPaintEvent *e) {
 //		window->showRightColumn(Box<Editor>(path));
 //	}
 //}
+
+void Editor::closeWithConfirmation() {
+	if (!PaletteChanged(_inner->paletteContent(), _cloud)) {
+		Background()->clearEditingTheme(ClearEditing::KeepChanges);
+		closeEditor();
+		return;
+	}
+	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto close = crl::guard(this, [=] {
+		Background()->clearEditingTheme(ClearEditing::RevertChanges);
+		closeEditor();
+		if (*box) {
+			(*box)->closeBox();
+		}
+	});
+	*box = _window->show(Box<ConfirmBox>(
+		tr::lng_theme_editor_sure_close(tr::now),
+		tr::lng_close(tr::now),
+		close));
+}
 
 void Editor::closeEditor() {
 	if (const auto window = App::wnd()) {

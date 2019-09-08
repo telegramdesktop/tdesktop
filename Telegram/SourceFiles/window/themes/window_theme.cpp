@@ -34,7 +34,6 @@ namespace Theme {
 namespace {
 
 constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
-constexpr auto kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
 constexpr auto kBackgroundSizeLimit = 25 * 1024 * 1024;
 constexpr auto kNightThemeFile = str_const(":/gui/night.tdesktop-theme");
 constexpr auto kMinimumTiledSize = 512;

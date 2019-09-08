@@ -56,11 +56,28 @@ enum class SaveErrorType {
 	Link,
 };
 
+struct ParsedTheme {
+	QByteArray palette;
+	QByteArray background;
+	bool isPng = false;
+	bool tiled = false;
+};
+
 struct PreparedBackground {
 	QByteArray content;
 	bool tile = false;
 	bool isPng = false;
+	bool changed = false;
 };
+
+template <size_t Size>
+QByteArray qba(const char(&string)[Size]) {
+	return QByteArray::fromRawData(string, Size - 1);
+}
+
+QByteArray qba(QLatin1String string) {
+	return QByteArray::fromRawData(string.data(), string.size());
+}
 
 class BackgroundSelector : public Ui::RpWidget {
 public:
@@ -86,6 +103,7 @@ private:
 	QImage _background;
 	QByteArray _backgroundContent;
 	bool _isPng = false;
+	bool _changed = false;
 	QString _imageText;
 	int _thumbnailSize = 0;
 	QPixmap _thumbnail;
@@ -185,6 +203,7 @@ void BackgroundSelector::chooseBackgroundFromFile() {
 				_background = image;
 				_backgroundContent = content;
 				_isPng = (format == "png");
+				_changed = true;
 				const auto phrase = _isPng
 					? tr::lng_theme_editor_read_from_png
 					: tr::lng_theme_editor_read_from_jpg;
@@ -209,6 +228,7 @@ PreparedBackground BackgroundSelector::result() const {
 		_backgroundContent,
 		_tileBackground->checked(),
 		_isPng,
+		_changed,
 	};
 }
 
@@ -239,27 +259,69 @@ void ImportFromFile(
 	return QString::fromUtf8(string.data(), string.size());
 }
 
-[[nodiscard]] bool CopyColorsToPalette(
-		const QString &destination,
-		const QString &themePath,
+[[nodiscard]] ParsedTheme ParseTheme(
 		const QByteArray &themeContent,
-		const Data::CloudTheme &cloud) {
-	auto paletteContent = themeContent;
+		bool onlyPalette) {
+	auto result = ParsedTheme();
+	result.palette = themeContent;
 
 	zlib::FileToRead file(themeContent);
 
 	unz_global_info globalInfo = { 0 };
 	file.getGlobalInfo(&globalInfo);
-	if (file.error() == UNZ_OK) {
-		paletteContent = file.readFileContent("colors.tdesktop-theme", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
-		if (file.error() == UNZ_END_OF_LIST_OF_FILE) {
+	if (file.error() != UNZ_OK) {
+		return result;
+	}
+	result.palette = file.readFileContent("colors.tdesktop-theme", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
+	if (file.error() == UNZ_END_OF_LIST_OF_FILE) {
+		file.clearError();
+		result.palette = file.readFileContent("colors.tdesktop-palette", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
+	}
+	if (file.error() != UNZ_OK) {
+		LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file."));
+		return ParsedTheme();
+	} else if (onlyPalette) {
+		return result;
+	}
+
+	const auto fromFile = [&](const char *filename) {
+		result.background = file.readFileContent(filename, zlib::kCaseInsensitive, kThemeBackgroundSizeLimit);
+		if (file.error() == UNZ_OK) {
+			return true;
+		} else if (file.error() == UNZ_END_OF_LIST_OF_FILE) {
 			file.clearError();
-			paletteContent = file.readFileContent("colors.tdesktop-palette", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
+			return true;
 		}
-		if (file.error() != UNZ_OK) {
-			LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file, while copying to '%1'.").arg(destination));
-			return false;
-		}
+		LOG(("Theme Error: could not read '%1' in the theme file.").arg(filename));
+		return false;
+	};
+
+	if (!fromFile("background.jpg") || !result.background.isEmpty()) {
+		return result.background.isEmpty() ? ParsedTheme() : result;
+	}
+	result.isPng = true;
+	if (!fromFile("background.png") || !result.background.isEmpty()) {
+		return result.background.isEmpty() ? ParsedTheme() : result;
+	}
+	result.tiled = true;
+	if (!fromFile("tiled.png") || !result.background.isEmpty()) {
+		return result.background.isEmpty() ? ParsedTheme() : result;
+	}
+	result.isPng = false;
+	if (!fromFile("background.jpg") || !result.background.isEmpty()) {
+		return result.background.isEmpty() ? ParsedTheme() : result;
+	}
+	return result;
+}
+
+[[nodiscard]] bool CopyColorsToPalette(
+		const QString &destination,
+		const QString &themePath,
+		const QByteArray &themeContent,
+		const Data::CloudTheme &cloud) {
+	auto parsed = ParseTheme(themeContent, true);
+	if (parsed.palette.isEmpty()) {
+		return false;
 	}
 
 	QFile f(destination);
@@ -269,16 +331,38 @@ void ImportFromFile(
 	}
 
 	if (const auto colorizer = ColorizerForTheme(themePath)) {
-		paletteContent = Editor::ColorizeInContent(
-			std::move(paletteContent),
+		parsed.palette = Editor::ColorizeInContent(
+			std::move(parsed.palette),
 			colorizer);
 	}
-	paletteContent = WriteCloudToText(cloud) + paletteContent;
-	if (f.write(paletteContent) != paletteContent.size()) {
+	const auto content = WriteCloudToText(cloud) + parsed.palette;
+	if (f.write(content) != content.size()) {
 		LOG(("Theme Error: could not write palette to '%1'").arg(destination));
 		return false;
 	}
 	return true;
+}
+
+QByteArray GenerateDefaultPalette() {
+	auto result = QByteArray();
+	const auto rows = style::main_palette::data();
+	for (const auto &row : std::as_const(rows)) {
+		result.append(qba(row.name)
+		).append(": "
+		).append(qba(row.value)
+		).append("; // "
+		).append(
+			qba(
+				row.description
+			).replace(
+				'\n',
+				' '
+			).replace(
+				'\r',
+				' ')
+		).append('\n');
+	}
+	return result;
 }
 
 bool WriteDefaultPalette(
@@ -290,27 +374,10 @@ bool WriteDefaultPalette(
 		return false;
 	}
 
-	QTextStream stream(&f);
-	stream.setCodec("UTF-8");
-
-	stream << QString::fromLatin1(WriteCloudToText(cloud));
-
-	auto rows = style::main_palette::data();
-	for (const auto &row : std::as_const(rows)) {
-		stream
-			<< BytesToUTF8(row.name)
-			<< ": "
-			<< BytesToUTF8(row.value)
-			<< "; // "
-			<< BytesToUTF8(
-				row.description
-			).replace(
-				'\n',
-				' '
-			).replace(
-				'\r',
-				' ')
-			<< "\n";
+	const auto content = WriteCloudToText(cloud) + GenerateDefaultPalette();
+	if (f.write(content) != content.size()) {
+		LOG(("Theme Error: could not write palette to '%1'").arg(path));
+		return false;
 	}
 	return true;
 }
@@ -623,7 +690,11 @@ void StartEditor(
 	auto object = Local::ReadThemeContent();
 	const auto written = object.content.isEmpty()
 		? WriteDefaultPalette(path, cloud)
-		: CopyColorsToPalette(path, object.pathAbsolute, object.content, cloud);
+		: CopyColorsToPalette(
+			path,
+			object.pathAbsolute,
+			object.content,
+			cloud);
 	if (!written) {
 		window->show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
 		return;
@@ -730,7 +801,11 @@ void SaveThemeBox(
 		const QByteArray &palette) {
 	Expects(window->account().sessionExists());
 
+	//Local::ReadThemeContent()
 	const auto background = Background()->createCurrentImage();
+	//if (Data::IsThemeWallPaper(Background()->paper())) {
+
+	//}
 	auto backgroundContent = QByteArray();
 	const auto tiled = Background()->tile();
 	{
@@ -852,6 +927,16 @@ void SaveThemeBox(
 	};
 	box->addButton(tr::lng_settings_save(), save);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
+bool PaletteChanged(
+		const QByteArray &editorPalette,
+		const Data::CloudTheme &cloud) {
+	auto object = Local::ReadThemeContent();
+	const auto real = object.content.isEmpty()
+		? GenerateDefaultPalette()
+		: ParseTheme(object.content, true).palette;
+	return (editorPalette != WriteCloudToText(cloud) + real);
 }
 
 } // namespace Theme

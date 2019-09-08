@@ -40,5 +40,9 @@ void SaveThemeBox(
 	const Data::CloudTheme &cloud,
 	const QByteArray &palette);
 
+[[nodiscard]] bool PaletteChanged(
+	const QByteArray &editorPalette,
+	const Data::CloudTheme &cloud);
+
 } // namespace Theme
 } // namespace Window
