@@ -277,6 +277,9 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 				: MTPmessages_ForwardMessages::Flag(0))
 			| (options.silent
 				? MTPmessages_ForwardMessages::Flag::f_silent
+				: MTPmessages_ForwardMessages::Flag(0))
+			| (options.scheduled
+				? MTPmessages_ForwardMessages::Flag::f_schedule_date
 				: MTPmessages_ForwardMessages::Flag(0));
 		auto msgIds = QVector<MTPint>();
 		msgIds.reserve(data->msgIds.size());
@@ -295,6 +298,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			if (!comment.text.isEmpty()) {
 				auto message = ApiWrap::MessageToSend(history);
 				message.textWithTags = comment;
+				message.action.options = options;
 				message.action.clearDraft = false;
 				history->session().api().sendMessage(std::move(message));
 			}
@@ -305,7 +309,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 					MTP_vector<MTPint>(msgIds),
 					MTP_vector<MTPlong>(generateRandom()),
 					peer->input,
-					MTP_int(0)),
+					MTP_int(options.scheduled)),
 				rpcDone(base::duplicate(doneCallback)),
 				nullptr,
 				0,
