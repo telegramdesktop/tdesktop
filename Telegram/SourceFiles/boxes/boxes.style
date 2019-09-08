@@ -161,6 +161,12 @@ boxPhotoCompressedSkip: 20px;
 boxPhotoCaptionSkip: 8px;
 boxPhotoTextFg: windowSubTextFg;
 
+boxLoadingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: windowSubTextFg;
+	thickness: 2px;
+}
+boxLoadingSize: 20px;
+
 cropPointSize: 10px;
 cropSkip: 13px;
 cropMinSize: 20px;

@@ -481,8 +481,8 @@ Fn<void()> SavePreparedTheme(
 		|| (fields.createdBy != session->userId());
 
 	const auto finish = [=](const MTPTheme &result) {
-		done();
 		Background()->clearEditingTheme(ClearEditing::KeepChanges);
+		done();
 
 		const auto cloud = result.match([&](const MTPDtheme &data) {
 			const auto result = Data::CloudTheme::Parse(session, data);
@@ -807,11 +807,12 @@ void SaveThemeBox(
 	const auto saving = box->lifetime().make_state<bool>();
 	const auto cancel = std::make_shared<Fn<void()>>(nullptr);
 	box->lifetime().add([=] { if (*cancel) (*cancel)(); });
-	box->addButton(tr::lng_settings_save(), [=] {
+	const auto save = [=] {
 		if (*saving) {
 			return;
 		}
 		*saving = true;
+		box->showLoading(true);
 		const auto done = crl::guard(box, [=] {
 			box->closeBox();
 			window->showRightColumn(nullptr);
@@ -820,6 +821,7 @@ void SaveThemeBox(
 				SaveErrorType type,
 				const QString &error) {
 			*saving = false;
+			box->showLoading(false);
 			if (error == qstr("THEME_TITLE_INVALID")) {
 				type = SaveErrorType::Name;
 			} else if (error == qstr("THEME_SLUG_INVALID")) {
@@ -847,7 +849,8 @@ void SaveThemeBox(
 			fields,
 			done,
 			fail);
-	});
+	};
+	box->addButton(tr::lng_settings_save(), save);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
