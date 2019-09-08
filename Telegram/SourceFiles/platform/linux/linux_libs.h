@@ -7,7 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QLibrary>
+
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+
 extern "C" {
 #undef signals
 #ifdef TDESKTOP_USE_AYATANA_INDICATORS

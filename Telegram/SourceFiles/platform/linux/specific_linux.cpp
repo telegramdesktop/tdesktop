@@ -18,7 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
 
-#include <QtGui/QGuiApplication>
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QDesktopWidget>
+#include <QtCore/QStandardPaths>
+#include <QtCore/QProcess>
+#include <QtCore/QVersionNumber>
+#include <qpa/qplatformnativeinterface.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -28,10 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <pwd.h>
 
 #include <iostream>
-#include <QProcess>
-#include <QVersionNumber>
-
-#include <qpa/qplatformnativeinterface.h>
 
 using namespace Platform;
 using Platform::File::internal::EscapeShell;
