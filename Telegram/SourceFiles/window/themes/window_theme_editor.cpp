@@ -366,6 +366,19 @@ QByteArray ReplaceValueInPaletteContent(
 	return result;
 }
 
+QByteArray StripCloudTextFields(const QByteArray &text) {
+	const auto firstValue = text.indexOf(": #");
+	auto start = 0;
+	while (true) {
+		const auto index = text.indexOf(kCloudInTextEnd, start);
+		if (index < 0 || index > firstValue) {
+			break;
+		}
+		start = index + kCloudInTextEnd.size();
+	}
+	return (start > 0) ? text.mid(start) : text;
+}
+
 Editor::Inner::Inner(QWidget *parent, const QString &path) : TWidget(parent)
 , _path(path)
 , _existingRows(this, EditorBlock::Type::Existing, &_context)

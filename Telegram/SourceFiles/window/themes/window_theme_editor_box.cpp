@@ -824,7 +824,7 @@ void SaveThemeBox(
 		|| originalParsed.background.isEmpty();
 
 	auto parsed = ParsedTheme();
-	parsed.palette = palette;
+	parsed.palette = StripCloudTextFields(palette);
 	parsed.isPng = false;
 	if (changed) {
 		QBuffer buffer(&parsed.background);
