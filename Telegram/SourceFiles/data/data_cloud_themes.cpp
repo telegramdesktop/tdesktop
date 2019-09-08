@@ -282,10 +282,13 @@ const std::vector<CloudTheme> &CloudThemes::list() const {
 	return _list;
 }
 
-void CloudThemes::apply(const CloudTheme &theme) {
+void CloudThemes::savedFromEditor(const CloudTheme &theme) {
 	const auto i = ranges::find(_list, theme.id, &CloudTheme::id);
 	if (i != end(_list)) {
 		*i = theme;
+		_updates.fire({});
+	} else {
+		_list.insert(begin(_list), theme);
 		_updates.fire({});
 	}
 }

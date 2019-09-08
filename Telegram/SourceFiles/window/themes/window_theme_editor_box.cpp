@@ -549,7 +549,7 @@ Fn<void()> SavePreparedTheme(
 
 		const auto cloud = result.match([&](const MTPDtheme &data) {
 			const auto result = Data::CloudTheme::Parse(session, data);
-			session->data().cloudThemes().apply(result);
+			session->data().cloudThemes().savedFromEditor(result);
 			return result;
 		}, [&](const MTPDthemeDocumentNotModified &data) {
 			LOG(("API Error: Unexpected themeDocumentNotModified."));
