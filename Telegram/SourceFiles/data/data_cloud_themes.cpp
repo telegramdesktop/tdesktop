@@ -290,4 +290,19 @@ void CloudThemes::apply(const CloudTheme &theme) {
 	}
 }
 
+void CloudThemes::remove(uint64 cloudThemeId) {
+	const auto i = ranges::find(_list, cloudThemeId, &CloudTheme::id);
+	if (i == end(_list)) {
+		return;
+	}
+	_session->api().request(MTPaccount_SaveTheme(
+		MTP_inputTheme(
+			MTP_long(i->id),
+			MTP_long(i->accessHash)),
+		MTP_bool(true)
+	)).send();
+	_list.erase(i);
+	_updates.fire({});
+}
+
 } // namespace Data

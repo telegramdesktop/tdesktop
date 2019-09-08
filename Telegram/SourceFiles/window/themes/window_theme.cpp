@@ -1245,6 +1245,12 @@ void ToggleNightMode(const QString &path) {
 	Background()->toggleNightMode(path);
 }
 
+void ResetToSomeDefault() {
+	Background()->reapplyWithNightMode(
+		IsNightMode() ? NightThemePath() : QString(),
+		IsNightMode());
+}
+
 bool LoadFromContent(
 		const QByteArray &content,
 		not_null<Instance*> out,

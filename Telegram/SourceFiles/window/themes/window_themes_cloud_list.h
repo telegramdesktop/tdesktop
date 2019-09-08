@@ -10,6 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/generic_box.h"
 #include "data/data_cloud_themes.h"
 #include "ui/widgets/checkbox.h"
+#include "base/unique_qptr.h"
+
+namespace Ui {
+class PopupMenu;
+} // namespace Ui
 
 namespace Window {
 
@@ -98,6 +103,7 @@ private:
 	void refreshElementUsing(Element &element, const Data::CloudTheme &data);
 	void insert(int index, const Data::CloudTheme &theme);
 	void refreshColors(Element &element);
+	void showMenu(Element &element);
 	void refreshColorsFromDocument(
 		Element &element,
 		not_null<DocumentData*> document);
@@ -119,6 +125,7 @@ private:
 	std::vector<uint64> _idByGroupValue;
 	base::flat_map<uint64, int> _groupValueById;
 	rpl::lifetime _downloadFinishedLifetime;
+	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 
 };
 

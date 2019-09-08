@@ -40,6 +40,7 @@ public:
 	[[nodiscard]] rpl::producer<> updated() const;
 	[[nodiscard]] const std::vector<CloudTheme> &list() const;
 	void apply(const CloudTheme &data);
+	void remove(uint64 cloudThemeId);
 
 	void applyUpdate(const MTPTheme &theme);
 

@@ -17,11 +17,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "ui/image/image_prepare.h"
+#include "ui/widgets/popup_menu.h"
+#include "ui/toast/toast.h"
+#include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "core/application.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 #include "styles/style_history.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
 
 namespace Window {
 namespace Theme {
@@ -474,14 +481,19 @@ void CloudList::insert(int index, const Data::CloudTheme &theme) {
 	button->setAllowTextLines(2);
 	button->setTextBreakEverywhere();
 	button->show();
-	button->addClickHandler([=] {
+	button->setAcceptBoth(true);
+	button->addClickHandler([=](Qt::MouseButton button) {
 		const auto i = ranges::find(_elements, id, &Element::id);
 		if (i == end(_elements)
 			|| id == kFakeCloudThemeId
 			|| i->waiting) {
 			return;
 		}
-		_window->session().data().cloudThemes().showPreview(i->theme);
+		if (button == Qt::RightButton) {
+			showMenu(*i);
+		} else {
+			_window->session().data().cloudThemes().showPreview(i->theme);
+		}
 	});
 	auto &element = *_elements.insert(
 		begin(_elements) + index,
@@ -521,6 +533,56 @@ void CloudList::refreshColors(Element &element) {
 	} else {
 		element.check->setColors(CloudListColors());
 	}
+}
+
+void CloudList::showMenu(Element &element) {
+	if (_contextMenu) {
+		_contextMenu = nullptr;
+		return;
+	}
+	_contextMenu = base::make_unique_q<Ui::PopupMenu>(element.button.get());
+	const auto cloud = element.theme;
+	if (const auto slug = element.theme.slug; !slug.isEmpty()) {
+		_contextMenu->addAction(tr::lng_theme_share(tr::now), [=] {
+			QGuiApplication::clipboard()->setText(
+				Core::App().createInternalLinkFull("addtheme/" + slug));
+			Ui::Toast::Show(tr::lng_background_link_copied(tr::now));
+		});
+	}
+	if (cloud.documentId
+		&& cloud.createdBy == _window->session().userId()
+		&& Background()->themeObject().cloud.id == cloud.id) {
+		_contextMenu->addAction(tr::lng_theme_edit(tr::now), [=] {
+			StartEditor(&_window->window(), cloud);
+		});
+	}
+	const auto id = cloud.id;
+	_contextMenu->addAction(tr::lng_theme_delete(tr::now), [=] {
+		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto remove = [=] {
+			if (Background()->themeObject().cloud.id == id
+				|| id == kFakeCloudThemeId) {
+				if (*box) {
+					(*box)->closeBox();
+				}
+				if (Background()->editingTheme().has_value()) {
+					Background()->clearEditingTheme(
+						ClearEditing::KeepChanges);
+					_window->window().showRightColumn(nullptr);
+				}
+				ResetToSomeDefault();
+				KeepApplied();
+			}
+			if (id != kFakeCloudThemeId) {
+				_window->session().data().cloudThemes().remove(id);
+			}
+		};
+		*box = _window->window().show(Box<ConfirmBox>(
+			tr::lng_theme_delete_sure(tr::now),
+			tr::lng_theme_delete(tr::now),
+			remove));
+	});
+	_contextMenu->popup(QCursor::pos());
 }
 
 void CloudList::setWaiting(Element &element, bool waiting) {

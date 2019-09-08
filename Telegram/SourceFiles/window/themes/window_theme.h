@@ -75,6 +75,7 @@ QString NightThemePath();
 void SetNightModeValue(bool nightMode);
 void ToggleNightMode();
 void ToggleNightMode(const QString &themePath);
+void ResetToSomeDefault();
 [[nodiscard]] bool IsNonDefaultBackground();
 void Revert();
 
@@ -198,6 +199,7 @@ private:
 	friend void SetNightModeValue(bool nightMode);
 	friend void ToggleNightMode();
 	friend void ToggleNightMode(const QString &themePath);
+	friend void ResetToSomeDefault();
 	friend void KeepApplied();
 	friend void KeepFromEditor(
 		const QByteArray &originalContent,

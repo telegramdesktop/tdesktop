@@ -414,6 +414,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_keep_changes" = "Keep changes";
 "lng_theme_revert" = "Revert";
 "lng_theme_no_desktop" = "Sorry, this theme doesn't include a version for Telegram Desktop.";
+"lng_theme_share" = "Share";
+"lng_theme_edit" = "Edit";
+"lng_theme_delete" = "Delete";
+"lng_theme_delete_sure" = "Are you sure you want to delete this theme?";
 "lng_background_header" = "Background preview";
 "lng_background_text1" = "Ah, you kids today with techno music! You should enjoy the classics, like Hasselhoff!";
 "lng_background_text2" = "I can't even take you seriously right now.";
