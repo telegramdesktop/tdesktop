@@ -11,6 +11,10 @@ namespace style {
 namespace internal {
 namespace {
 
+constexpr auto kMinContrastAlpha = 64;
+constexpr auto kMinContrastDistance = 64 * 64 * 4;
+constexpr auto kContrastDeltaL = 64;
+
 using ModulesList = QList<internal::ModuleBase*>;
 NeverFreedPointer<ModulesList> styleModules;
 
@@ -140,6 +144,52 @@ QImage createCircleMask(int size, QColor bg, QColor fg) {
 	}
 	result.setDevicePixelRatio(cRetinaFactor());
 	return result;
+}
+
+[[nodiscard]] bool GoodForContrast(const QColor &c1, const QColor &c2) {
+	auto r1 = 0;
+	auto g1 = 0;
+	auto b1 = 0;
+	auto r2 = 0;
+	auto g2 = 0;
+	auto b2 = 0;
+	c1.getRgb(&r1, &g1, &b1);
+	c2.getRgb(&r2, &g2, &b2);
+	const auto rMean = (r1 + r2) / 2;
+	const auto r = r1 - r2;
+	const auto g = g1 - g2;
+	const auto b = b1 - b2;
+	const auto distance = (((512 + rMean) * r * r) >> 8)
+		+ (4 * g * g)
+		+ (((767 - rMean) * b * b) >> 8);
+	return (distance > kMinContrastDistance);
+}
+
+void EnsureContrast(ColorData &over, const ColorData &under) {
+	auto overH = 0;
+	auto overS = 0;
+	auto overL = 0;
+	auto overA = 0;
+	auto underH = 0;
+	auto underS = 0;
+	auto underL = 0;
+	over.c.getHsl(&overH, &overS, &overL, &overA);
+	under.c.getHsl(&underH, &underS, &underL);
+	const auto good = GoodForContrast(over.c, under.c);
+	if (overA >= kMinContrastAlpha && good) {
+		return;
+	}
+	const auto newA = std::max(overA, kMinContrastAlpha);
+	const auto newL = (overL > underL && overL + kContrastDeltaL <= 255)
+		? (overL + kContrastDeltaL)
+		: (overL < underL && overL - kContrastDeltaL >= 0)
+		? (overL - kContrastDeltaL)
+		: (underL > 128)
+		? (underL - kContrastDeltaL)
+		: (underL + kContrastDeltaL);
+	over.c = QColor::fromHsl(overH, overS, newL, newA).toRgb();
+	over.p = QPen(over.c);
+	over.b = QBrush(over.c);
 }
 
 } // namespace internal
