@@ -534,9 +534,9 @@ void Sandbox::processPostponedCalls(int level) {
 }
 
 bool Sandbox::nativeEventFilter(
-	const QByteArray &eventType,
-	void *message,
-	long *result) {
+		const QByteArray &eventType,
+		void *message,
+		long *result) {
 	registerEnterFromEventLoop();
 	return false;
 }

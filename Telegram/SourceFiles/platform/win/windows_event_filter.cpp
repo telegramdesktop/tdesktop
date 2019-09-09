@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_event_filter.h"
 
 #include "platform/win/windows_dlls.h"
+#include "core/sandbox.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
 
@@ -55,21 +56,23 @@ bool EventFilter::nativeEventFilter(
 		const QByteArray &eventType,
 		void *message,
 		long *result) {
-	const auto msg = static_cast<MSG*>(message);
-	if (msg->message == WM_ENDSESSION) {
-		App::quit();
+	return Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+		const auto msg = static_cast<MSG*>(message);
+		if (msg->message == WM_ENDSESSION) {
+			App::quit();
+			return false;
+		}
+		if (msg->hwnd == _window->psHwnd()
+			|| msg->hwnd && !_window->psHwnd()) {
+			return mainWindowEvent(
+				msg->hwnd,
+				msg->message,
+				msg->wParam,
+				msg->lParam,
+				(LRESULT*)result);
+		}
 		return false;
-	}
-	if (msg->hwnd == _window->psHwnd()
-		|| msg->hwnd && !_window->psHwnd()) {
-		return mainWindowEvent(
-			msg->hwnd,
-			msg->message,
-			msg->wParam,
-			msg->lParam,
-			(LRESULT*)result);
-	}
-	return false;
+	});
 }
 
 bool EventFilter::mainWindowEvent(
