@@ -18,7 +18,7 @@ maxVideoMessageSize: 240px;
 maxSignatureSize: 144px;
 maxWallPaperWidth: 160px;
 maxWallPaperHeight: 240px;
-historyThemeSize: size(309px, 200px);
+historyThemeSize: size(272px, 176px);
 
 historyMinimalWidth: 380px;
 
