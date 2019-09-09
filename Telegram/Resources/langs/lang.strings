@@ -1566,6 +1566,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_preview_generating" = "Generating color theme preview...";
 "lng_theme_preview_invalid" = "Invalid data in this theme file.";
 "lng_theme_preview_apply" = "Apply this theme";
+"lng_theme_preview_users#one" = "{count} person is using this theme";
+"lng_theme_preview_users#other" = "{count} people are using this theme";
 
 "lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Show all sessions and terminate that session.\n\nIf you think that somebody logged in to your account against your will, you can enable two-step verification in Settings.\n\nSincerely,\nThe Telegram Team";
 

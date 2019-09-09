@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/text_options.h"
 #include "boxes/confirm_box.h"
 #include "media/audio/media_audio.h"
@@ -1811,6 +1812,7 @@ void OverlayWidget::destroyThemePreview() {
 	_themePreview.reset();
 	_themeApply.destroy();
 	_themeCancel.destroy();
+	_themeShare.destroy();
 }
 
 void OverlayWidget::redisplayContent() {
@@ -1956,6 +1958,9 @@ void OverlayWidget::updateThemePreviewGeometry() {
 			_themeApply->moveToRight(right, bottom - st::themePreviewMargin.bottom() + (st::themePreviewMargin.bottom() - _themeApply->height()) / 2);
 			right += _themeApply->width() + st::themePreviewButtonsSkip;
 			_themeCancel->moveToRight(right, _themeApply->y());
+			if (_themeShare) {
+				_themeShare->moveToLeft(previewRect.x(), _themeApply->y());
+			}
 		}
 
 		// For context menu event.
@@ -2286,6 +2291,22 @@ void OverlayWidget::initThemePreview() {
 					st::themePreviewCancelButton);
 				_themeCancel->show();
 				_themeCancel->setClickedCallback([this] { close(); });
+				if (const auto slug = _themeCloudData.slug; !slug.isEmpty()) {
+					_themeShare.create(
+						this,
+						tr::lng_theme_share(),
+						st::themePreviewCancelButton);
+					_themeShare->show();
+					_themeShare->setClickedCallback([=] {
+						QGuiApplication::clipboard()->setText(
+							Core::App().createInternalLinkFull("addtheme/" + slug));
+						auto config = Ui::Toast::Config();
+						config.text = tr::lng_background_link_copied(tr::now);
+						Ui::Toast::Show(this, config);
+					});
+				} else {
+					_themeShare.destroy();
+				}
 				updateControls();
 			}
 			update();
@@ -2946,13 +2967,24 @@ void OverlayWidget::paintThemePreview(Painter &p, QRect clip) {
 	if (titleRect.intersects(clip)) {
 		p.setFont(st::themePreviewTitleFont);
 		p.setPen(st::themePreviewTitleFg);
-		p.drawTextLeft(titleRect.x(), titleRect.y(), width(), tr::lng_theme_preview_title(tr::now));
+		const auto title = _themeCloudData.title.isEmpty()
+			? tr::lng_theme_preview_title(tr::now)
+			: _themeCloudData.title;
+		const auto elided = st::themePreviewTitleFont->elided(title, titleRect.width());
+		p.drawTextLeft(titleRect.x(), titleRect.y(), width(), elided);
 	}
 
 	auto buttonsRect = QRect(_themePreviewRect.x(), _themePreviewRect.y() + _themePreviewRect.height() - st::themePreviewMargin.bottom(), _themePreviewRect.width(), st::themePreviewMargin.bottom());
 	if (auto fillButtonsRect = (buttonsRect.y() + buttonsRect.height() > height())) {
 		buttonsRect.moveTop(height() - buttonsRect.height());
 		fillOverlay(buttonsRect);
+	}
+	if (_themeShare && _themeCloudData.usersCount > 0) {
+		p.setFont(st::boxTextFont);
+		p.setPen(st::windowSubTextFg);
+		const auto left = _themeShare->x() + _themeShare->width() - (st::themePreviewCancelButton.width / 2);
+		const auto baseline = _themeShare->y() + st::themePreviewCancelButton.padding.top() + +st::themePreviewCancelButton.textTop + st::themePreviewCancelButton.font->ascent;
+		p.drawText(left, baseline, tr::lng_theme_preview_users(tr::now, lt_count, _themeCloudData.usersCount));
 	}
 }
 
@@ -3703,6 +3735,7 @@ void OverlayWidget::setVisibleHook(bool visible) {
 		_themePreview = nullptr;
 		_themeApply.destroyDelayed();
 		_themeCancel.destroyDelayed();
+		_themeShare.destroyDelayed();
 	}
 }
 

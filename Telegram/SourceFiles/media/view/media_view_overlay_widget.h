@@ -468,6 +468,7 @@ private:
 	std::unique_ptr<Window::Theme::Preview> _themePreview;
 	object_ptr<Ui::RoundButton> _themeApply = { nullptr };
 	object_ptr<Ui::RoundButton> _themeCancel = { nullptr };
+	object_ptr<Ui::RoundButton> _themeShare = { nullptr };
 	Data::CloudTheme _themeCloudData;
 
 	bool _wasRepainted = false;

@@ -24,6 +24,7 @@ struct CloudTheme {
 	QString title;
 	DocumentId documentId = 0;
 	UserId createdBy = 0;
+	int usersCount = 0;
 
 	static CloudTheme Parse(
 		not_null<Main::Session*> session,

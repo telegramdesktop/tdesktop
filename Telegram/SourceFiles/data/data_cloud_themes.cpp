@@ -41,7 +41,8 @@ CloudTheme CloudTheme::Parse(
 		(document
 			? session->data().processDocument(*document)->id
 			: DocumentId(0)),
-		data.is_creator() ? session->userId() : UserId(0)
+		data.is_creator() ? session->userId() : UserId(0),
+		data.vinstalls_count().v
 	};
 }
 
