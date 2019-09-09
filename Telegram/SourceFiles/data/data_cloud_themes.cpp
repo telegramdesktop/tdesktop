@@ -131,9 +131,7 @@ void CloudThemes::applyUpdate(const MTPTheme &theme) {
 			|| !cloud.documentId) {
 			return;
 		}
-		updateFromDocument(
-			cloud,
-			_session->data().document(cloud.documentId));
+		applyFromDocument(cloud);
 	}, [&](const MTPDthemeDocumentNotModified &data) {
 	});
 	scheduleReload();
@@ -167,7 +165,7 @@ void CloudThemes::showPreview(const MTPTheme &data) {
 
 void CloudThemes::showPreview(const CloudTheme &cloud) {
 	if (const auto documentId = cloud.documentId) {
-		previewFromDocument(cloud, _session->data().document(documentId));
+		previewFromDocument(cloud);
 	} else if (cloud.createdBy == _session->userId()) {
 		Ui::show(Box(
 			Window::Theme::CreateForExistingBox,
@@ -179,9 +177,8 @@ void CloudThemes::showPreview(const CloudTheme &cloud) {
 	}
 }
 
-void CloudThemes::updateFromDocument(
-		const CloudTheme &cloud,
-		not_null<DocumentData*> document) {
+void CloudThemes::applyFromDocument(const CloudTheme &cloud) {
+	const auto document = _session->data().document(cloud.documentId);
 	loadDocumentAndInvoke(_updatingFrom, cloud, document, [=] {
 		auto preview = Window::Theme::PreviewFromFile(
 			document->data(),
@@ -194,9 +191,8 @@ void CloudThemes::updateFromDocument(
 	});
 }
 
-void CloudThemes::previewFromDocument(
-		const CloudTheme &cloud,
-		not_null<DocumentData*> document) {
+void CloudThemes::previewFromDocument(const CloudTheme &cloud) {
+	const auto document = _session->data().document(cloud.documentId);
 	loadDocumentAndInvoke(_previewFrom, cloud, document, [=] {
 		Core::App().showTheme(document, cloud);
 	});

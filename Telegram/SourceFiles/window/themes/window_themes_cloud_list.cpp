@@ -489,10 +489,13 @@ void CloudList::insert(int index, const Data::CloudTheme &theme) {
 			|| i->waiting) {
 			return;
 		}
+		const auto &cloud = i->theme;
 		if (button == Qt::RightButton) {
 			showMenu(*i);
+		} else if (cloud.documentId) {
+			_window->session().data().cloudThemes().applyFromDocument(cloud);
 		} else {
-			_window->session().data().cloudThemes().showPreview(i->theme);
+			_window->session().data().cloudThemes().showPreview(cloud);
 		}
 	});
 	auto &element = *_elements.insert(

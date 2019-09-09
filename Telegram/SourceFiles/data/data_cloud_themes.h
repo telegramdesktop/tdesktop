@@ -47,6 +47,7 @@ public:
 	void resolve(const QString &slug, const FullMsgId &clickFromMessageId);
 	void showPreview(const MTPTheme &data);
 	void showPreview(const CloudTheme &cloud);
+	void applyFromDocument(const CloudTheme &cloud);
 
 private:
 	struct LoadingDocument {
@@ -64,12 +65,7 @@ private:
 	[[nodiscard]] bool needReload() const;
 	void scheduleReload();
 	void reloadCurrent();
-	void updateFromDocument(
-		const CloudTheme &cloud,
-		not_null<DocumentData*> document);
-	void previewFromDocument(
-		const CloudTheme &cloud,
-		not_null<DocumentData*> document);
+	void previewFromDocument(const CloudTheme &cloud);
 	void loadDocumentAndInvoke(
 		LoadingDocument &value,
 		const CloudTheme &cloud,
