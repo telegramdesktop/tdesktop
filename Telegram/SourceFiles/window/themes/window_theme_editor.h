@@ -65,8 +65,10 @@ private:
 	void save();
 	void showMenu();
 	void exportTheme();
+	void importTheme();
 	void closeEditor();
 	void closeWithConfirmation();
+	void updateControlsGeometry();
 
 	const not_null<Window::Controller*> _window;
 	const Data::CloudTheme _cloud;

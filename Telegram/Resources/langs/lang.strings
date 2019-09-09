@@ -1616,7 +1616,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_need_unlock" = "You need to unlock Telegram to save your theme.";
 "lng_theme_editor_done" = "Theme exported successfully!";
 "lng_theme_editor_title" = "Edit color palette";
-"lng_theme_editor_export_button" = "Export theme";
 "lng_theme_editor_save_button" = "Save theme";
 
 "lng_theme_editor_create_title" = "Create theme";
@@ -1630,6 +1629,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_link_about" = "Your theme will be updated for all users each time you change it. Anyone can install it using this link.\n\nTheme links must be longer than 5 characters and use a-z, 0-9 and underscores.";
 
 "lng_theme_editor_menu_export" = "Export theme";
+"lng_theme_editor_menu_import" = "Import theme";
 "lng_theme_editor_menu_show" = "Show palette file";
 
 "lng_payments_not_supported" = "Sorry, Telegram Desktop doesn't support payments yet. Please use one of our mobile apps to do this.";

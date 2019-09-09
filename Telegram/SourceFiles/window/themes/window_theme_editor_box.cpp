@@ -224,7 +224,6 @@ bool PaletteChanged(
 void ImportFromFile(
 		not_null<Main::Session*> session,
 		not_null<QWidget*> parent) {
-	const auto &imgExtensions = cImgExtensions();
 	auto filters = QStringList(
 		qsl("Theme files (*.tdesktop-theme *.tdesktop-palette)"));
 	filters.push_back(FileDialog::AllFilesFilter());
@@ -239,7 +238,7 @@ void ImportFromFile(
 	});
 	FileDialog::GetOpenPath(
 		parent.get(),
-		tr::lng_choose_image(tr::now),
+		tr::lng_theme_editor_menu_import(tr::now),
 		filters.join(qsl(";;")),
 		crl::guard(parent, callback));
 }
@@ -276,71 +275,6 @@ void ImportFromFile(
 			ColorHexString(color->c));
 	}
 	return data;
-}
-
-// Only is valid for current theme, pass Local::ReadThemeContent() here.
-[[nodiscard]] ParsedTheme ParseTheme(
-		const Object &theme,
-		bool onlyPalette = false) {
-	auto raw = ParsedTheme();
-	raw.palette = theme.content;
-	const auto result = [&] {
-		if (const auto colorizer = ColorizerForTheme(theme.pathAbsolute)) {
-			raw.palette = Editor::ColorizeInContent(
-				std::move(raw.palette),
-				colorizer);
-		}
-		raw.palette = ReplaceAdjustableColors(std::move(raw.palette));
-		return raw;
-	};
-
-	zlib::FileToRead file(theme.content);
-
-	unz_global_info globalInfo = { 0 };
-	file.getGlobalInfo(&globalInfo);
-	if (file.error() != UNZ_OK) {
-		return result();
-	}
-	raw.palette = file.readFileContent("colors.tdesktop-theme", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
-	if (file.error() == UNZ_END_OF_LIST_OF_FILE) {
-		file.clearError();
-		raw.palette = file.readFileContent("colors.tdesktop-palette", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
-	}
-	if (file.error() != UNZ_OK) {
-		LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file."));
-		return ParsedTheme();
-	} else if (onlyPalette) {
-		return result();
-	}
-
-	const auto fromFile = [&](const char *filename) {
-		raw.background = file.readFileContent(filename, zlib::kCaseInsensitive, kThemeBackgroundSizeLimit);
-		if (file.error() == UNZ_OK) {
-			return true;
-		} else if (file.error() == UNZ_END_OF_LIST_OF_FILE) {
-			file.clearError();
-			return true;
-		}
-		LOG(("Theme Error: could not read '%1' in the theme file.").arg(filename));
-		return false;
-	};
-
-	if (!fromFile("background.jpg") || !raw.background.isEmpty()) {
-		return raw.background.isEmpty() ? ParsedTheme() : result();
-	}
-	raw.isPng = true;
-	if (!fromFile("background.png") || !raw.background.isEmpty()) {
-		return raw.background.isEmpty() ? ParsedTheme() : result();
-	}
-	raw.tiled = true;
-	if (!fromFile("tiled.png") || !raw.background.isEmpty()) {
-		return raw.background.isEmpty() ? ParsedTheme() : result();
-	}
-	raw.isPng = false;
-	if (!fromFile("background.jpg") || !raw.background.isEmpty()) {
-		return raw.background.isEmpty() ? ParsedTheme() : result();
-	}
-	return result();
 }
 
 QByteArray GenerateDefaultPalette() {
@@ -992,6 +926,73 @@ void SaveThemeBox(
 	};
 	box->addButton(tr::lng_settings_save(), save);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
+ParsedTheme ParseTheme(
+		const Object &theme,
+		bool onlyPalette,
+		bool parseCurrent) {
+	auto raw = ParsedTheme();
+	raw.palette = theme.content;
+	const auto result = [&] {
+		if (const auto colorizer = ColorizerForTheme(theme.pathAbsolute)) {
+			raw.palette = Editor::ColorizeInContent(
+				std::move(raw.palette),
+				colorizer);
+		}
+		if (parseCurrent) {
+			raw.palette = ReplaceAdjustableColors(std::move(raw.palette));
+		}
+		return raw;
+	};
+
+	zlib::FileToRead file(theme.content);
+
+	unz_global_info globalInfo = { 0 };
+	file.getGlobalInfo(&globalInfo);
+	if (file.error() != UNZ_OK) {
+		return result();
+	}
+	raw.palette = file.readFileContent("colors.tdesktop-theme", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
+	if (file.error() == UNZ_END_OF_LIST_OF_FILE) {
+		file.clearError();
+		raw.palette = file.readFileContent("colors.tdesktop-palette", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
+	}
+	if (file.error() != UNZ_OK) {
+		LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file."));
+		return ParsedTheme();
+	} else if (onlyPalette) {
+		return result();
+	}
+
+	const auto fromFile = [&](const char *filename) {
+		raw.background = file.readFileContent(filename, zlib::kCaseInsensitive, kThemeBackgroundSizeLimit);
+		if (file.error() == UNZ_OK) {
+			return true;
+		} else if (file.error() == UNZ_END_OF_LIST_OF_FILE) {
+			file.clearError();
+			return true;
+		}
+		LOG(("Theme Error: could not read '%1' in the theme file.").arg(filename));
+		return false;
+	};
+
+	if (!fromFile("background.jpg") || !raw.background.isEmpty()) {
+		return raw.background.isEmpty() ? ParsedTheme() : result();
+	}
+	raw.isPng = true;
+	if (!fromFile("background.png") || !raw.background.isEmpty()) {
+		return raw.background.isEmpty() ? ParsedTheme() : result();
+	}
+	raw.tiled = true;
+	if (!fromFile("tiled.png") || !raw.background.isEmpty()) {
+		return raw.background.isEmpty() ? ParsedTheme() : result();
+	}
+	raw.isPng = false;
+	if (!fromFile("background.jpg") || !raw.background.isEmpty()) {
+		return raw.background.isEmpty() ? ParsedTheme() : result();
+	}
+	return result();
 }
 
 } // namespace Theme

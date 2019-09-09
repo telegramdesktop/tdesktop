@@ -220,6 +220,9 @@ public:
 	void selectSkip(int direction);
 	void selectSkipPage(int delta, int direction);
 
+	void applyNewPalette(const QByteArray &newContent);
+	void recreateRows();
+
 	~Inner() {
 		if (_context.box) _context.box->closeBox();
 	}
@@ -418,7 +421,32 @@ Editor::Inner::Inner(QWidget *parent, const QString &path) : TWidget(parent)
 	});
 }
 
+void Editor::Inner::recreateRows() {
+	_existingRows.create(this, EditorBlock::Type::Existing, &_context);
+	_existingRows->show();
+	_newRows.create(this, EditorBlock::Type::New, &_context);
+	_newRows->show();
+	if (!readData()) {
+		error();
+	}
+}
+
 void Editor::Inner::prepare() {
+	QFile f(_path);
+	if (!f.open(QIODevice::ReadOnly)) {
+		LOG(("Theme Error: could not open color palette file '%1'").arg(_path));
+		error();
+		return;
+	}
+
+	_paletteContent = f.readAll();
+	if (f.error() != QFileDevice::NoError) {
+		LOG(("Theme Error: could not read content from palette file '%1'").arg(_path));
+		error();
+		return;
+	}
+	f.close();
+
 	if (!readData()) {
 		error();
 	}
@@ -551,19 +579,6 @@ void Editor::Inner::sortByAccentDistance() {
 }
 
 bool Editor::Inner::readExistingRows() {
-	QFile f(_path);
-	if (!f.open(QIODevice::ReadOnly)) {
-		LOG(("Theme Error: could not open color palette file '%1'").arg(_path));
-		return false;
-	}
-
-	_paletteContent = f.readAll();
-	if (f.error() != QFileDevice::NoError) {
-		LOG(("Theme Error: could not read content from palette file '%1'").arg(_path));
-		return false;
-	}
-	f.close();
-
 	return ReadPaletteValues(_paletteContent, [this](QLatin1String name, QLatin1String value) {
 		return feedExistingRow(name, value);
 	});
@@ -598,6 +613,10 @@ void Editor::Inner::applyEditing(const QString &name, const QString &copyOf, QCo
 		auto addedline = (_paletteContent.endsWith('\n') ? "" : newline);
 		newContent = _paletteContent + addedline + plainName + ": " + plainValue + ";" + newline;
 	}
+	applyNewPalette(newContent);
+}
+
+void Editor::Inner::applyNewPalette(const QByteArray &newContent) {
 	QFile f(_path);
 	if (!f.open(QIODevice::WriteOnly)) {
 		LOG(("Theme Error: could not open '%1' for writing a palette update.").arg(_path));
@@ -704,6 +723,11 @@ void Editor::showMenu() {
 			exportTheme();
 		});
 	});
+	_menu->addAction(tr::lng_theme_editor_menu_import(tr::now), [=] {
+		App::CallDelayed(st::defaultRippleAnimation.hideDuration, this, [=] {
+			importTheme();
+		});
+	});
 	_menu->addAction(tr::lng_theme_editor_menu_show(tr::now), [=] {
 		File::ShowInFolder(EditingPalettePath());
 	});
@@ -732,6 +756,48 @@ void Editor::exportTheme() {
 	}));
 }
 
+void Editor::importTheme() {
+	auto filters = QStringList(
+		qsl("Theme files (*.tdesktop-theme *.tdesktop-palette)"));
+	filters.push_back(FileDialog::AllFilesFilter());
+	const auto callback = crl::guard(this, [=](
+		const FileDialog::OpenResult &result) {
+		const auto path = result.paths.isEmpty()
+			? QString()
+			: result.paths.front();
+		if (path.isEmpty()) {
+			return;
+		}
+		auto f = QFile(path);
+		if (!f.open(QIODevice::ReadOnly)) {
+			return;
+		}
+		auto object = Object();
+		object.pathAbsolute = QFileInfo(path).absoluteFilePath();
+		object.pathRelative = QDir().relativeFilePath(path);
+		object.content = f.readAll();
+		if (object.content.isEmpty()) {
+			return;
+		}
+		_select->clearQuery();
+		const auto parsed = ParseTheme(object, false, false);
+		_inner->applyNewPalette(parsed.palette);
+		_inner->recreateRows();
+		updateControlsGeometry();
+		auto image = App::readImage(parsed.background);
+		if (!image.isNull() && !image.size().isEmpty()) {
+			Background()->set(Data::CustomWallPaper(), std::move(image));
+			Background()->setTile(parsed.tiled);
+			Ui::ForceFullRepaint(_window->widget());
+		}
+	});
+	FileDialog::GetOpenPath(
+		this,
+		tr::lng_theme_editor_menu_import(tr::now),
+		filters.join(qsl(";;")),
+		crl::guard(this, callback));
+}
+
 QByteArray Editor::ColorizeInContent(
 		QByteArray content,
 		const Colorizer &colorizer) {
@@ -754,6 +820,10 @@ void Editor::save() {
 }
 
 void Editor::resizeEvent(QResizeEvent *e) {
+	updateControlsGeometry();
+}
+
+void Editor::updateControlsGeometry() {
 	_save->resizeToWidth(width());
 	_close->moveToRight(0, 0);
 	_menuToggle->moveToRight(_close->width(), 0);

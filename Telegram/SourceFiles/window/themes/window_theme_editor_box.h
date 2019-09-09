@@ -19,6 +19,9 @@ class Controller;
 
 namespace Theme {
 
+struct Object;
+struct ParsedTheme;
+
 void StartEditor(
 	not_null<Window::Controller*> window,
 	const Data::CloudTheme &cloud);
@@ -45,6 +48,11 @@ void SaveThemeBox(
 	const Data::CloudTheme &cloud);
 
 [[nodiscard]] QByteArray CollectForExport(const QByteArray &palette);
+
+[[nodiscard]] ParsedTheme ParseTheme(
+	const Object &theme,
+	bool onlyPalette = false,
+	bool parseCurrent = true);
 
 } // namespace Theme
 } // namespace Window
