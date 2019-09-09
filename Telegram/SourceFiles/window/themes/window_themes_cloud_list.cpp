@@ -154,17 +154,43 @@ CloudListCheck::CloudListCheck(bool checked)
 
 void CloudListCheck::setColors(const Colors &colors) {
 	_colors = colors;
-	_radio.setToggledOverride(_colors->radiobuttonActive);
-	_radio.setUntoggledOverride(_colors->radiobuttonInactive);
-	const auto size = st::settingsThemePreviewSize * cIntRetinaFactor();
-	_backgroundFull = (_colors->background.size() == size)
-		? _colors->background
-		: _colors->background.scaled(
-			size,
-			Qt::IgnoreAspectRatio,
-			Qt::SmoothTransformation);
-	_backgroundCacheWidth = -1;
+	if (!_colors->background.isNull()) {
+		const auto size = st::settingsThemePreviewSize * cIntRetinaFactor();
+		_backgroundFull = (_colors->background.size() == size)
+			? _colors->background
+			: _colors->background.scaled(
+				size,
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
+		_backgroundCacheWidth = -1;
+
+		ensureContrast();
+		_radio.setToggledOverride(_colors->radiobuttonActive);
+		_radio.setUntoggledOverride(_colors->radiobuttonInactive);
+	}
 	update();
+}
+
+void CloudListCheck::ensureContrast() {
+	const auto radio = _radio.getSize();
+	const auto x = (getSize().width() - radio.width()) / 2;
+	const auto y = getSize().height()
+		- radio.height()
+		- st::settingsThemeRadioBottom;
+	const auto under = QRect(
+		QPoint(x, y) * cIntRetinaFactor(),
+		radio * cIntRetinaFactor());
+	const auto image = _backgroundFull.copy(under).convertToFormat(
+		QImage::Format_ARGB32_Premultiplied);
+	const auto active = style::internal::EnsureContrast(
+		_colors->radiobuttonActive,
+		CountAverageColor(image));
+	_colors->radiobuttonInactive = _colors->radiobuttonActive = QColor(
+		active.red(),
+		active.green(),
+		active.blue(),
+		255);
+	_colors->radiobuttonInactive.setAlpha(192);
 }
 
 QSize CloudListCheck::getSize() const {

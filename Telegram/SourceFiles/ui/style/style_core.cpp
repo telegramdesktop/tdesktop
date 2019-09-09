@@ -165,7 +165,7 @@ QImage createCircleMask(int size, QColor bg, QColor fg) {
 	return (distance > kMinContrastDistance);
 }
 
-void EnsureContrast(ColorData &over, const ColorData &under) {
+QColor EnsureContrast(const QColor &over, const QColor &under) {
 	auto overH = 0;
 	auto overS = 0;
 	auto overL = 0;
@@ -173,11 +173,11 @@ void EnsureContrast(ColorData &over, const ColorData &under) {
 	auto underH = 0;
 	auto underS = 0;
 	auto underL = 0;
-	over.c.getHsl(&overH, &overS, &overL, &overA);
-	under.c.getHsl(&underH, &underS, &underL);
-	const auto good = GoodForContrast(over.c, under.c);
+	over.getHsl(&overH, &overS, &overL, &overA);
+	under.getHsl(&underH, &underS, &underL);
+	const auto good = GoodForContrast(over, under);
 	if (overA >= kMinContrastAlpha && good) {
-		return;
+		return over;
 	}
 	const auto newA = std::max(overA, kMinContrastAlpha);
 	const auto newL = (overL > underL && overL + kContrastDeltaL <= 255)
@@ -187,9 +187,16 @@ void EnsureContrast(ColorData &over, const ColorData &under) {
 		: (underL > 128)
 		? (underL - kContrastDeltaL)
 		: (underL + kContrastDeltaL);
-	over.c = QColor::fromHsl(overH, overS, newL, newA).toRgb();
-	over.p = QPen(over.c);
-	over.b = QBrush(over.c);
+	return QColor::fromHsl(overH, overS, newL, newA).toRgb();
+}
+
+void EnsureContrast(ColorData &over, const ColorData &under) {
+	const auto good = EnsureContrast(over.c, under.c);
+	if (over.c != good) {
+		over.c = good;
+		over.p = QPen(good);
+		over.b = QBrush(good);
+	}
 }
 
 } // namespace internal

@@ -61,6 +61,7 @@ private:
 	void paintWithColors(Painter &p, int left, int top, int outerWidth);
 	void checkedChangedHook(anim::type animated) override;
 	void validateBackgroundCache(int width);
+	void ensureContrast();
 
 	std::optional<Colors> _colors;
 	Ui::RadioView _radio;
