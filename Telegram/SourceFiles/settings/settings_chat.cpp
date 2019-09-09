@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/connection_box.h"
 #include "boxes/auto_download_box.h"
 #include "boxes/stickers_box.h"
+#include "boxes/confirm_box.h"
 #include "boxes/background_box.h"
 #include "boxes/generic_box.h"
 #include "boxes/background_preview_box.h"
@@ -989,7 +990,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	using Type = Window::Theme::EmbeddedType;
 	using Scheme = Window::Theme::EmbeddedScheme;
 	using Check = Window::Theme::CloudListCheck;
-	using Window::Theme::ColorsFromScheme;
+	using namespace Window::Theme;
 
 	const auto block = container->add(object_ptr<Ui::FixedHeightWidget>(
 		container));
@@ -998,7 +999,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		container.get());
 
 	const auto chosen = [] {
-		const auto &object = Window::Theme::Background()->themeObject();
+		const auto &object = Background()->themeObject();
 		if (object.cloud.id) {
 			return Type(-1);
 		}
@@ -1017,14 +1018,14 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			return (type != Type::DayBlue) && (type != Type::Default);
 		};
 		const auto currentlyIsCustom = (chosen() == Type(-1))
-			&& !Window::Theme::Background()->themeObject().cloud.id;
-		if (Window::Theme::IsNightMode() == isNight(scheme)) {
-			Window::Theme::ApplyDefaultWithPath(scheme.path);
+			&& !Background()->themeObject().cloud.id;
+		if (IsNightMode() == isNight(scheme)) {
+			ApplyDefaultWithPath(scheme.path);
 		} else {
-			Window::Theme::ToggleNightMode(scheme.path);
+			ToggleNightMode(scheme.path);
 		}
 		if (!currentlyIsCustom) {
-			Window::Theme::KeepApplied();
+			KeepApplied();
 		}
 	};
 	const auto schemeClicked = [=](
@@ -1069,9 +1070,7 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		}
 		if (i != end(checks)) {
 			if (const auto color = colors.get(type)) {
-				const auto colorizer = Window::Theme::ColorizerFrom(
-					*scheme,
-					*color);
+				const auto colorizer = ColorizerFrom(*scheme, *color);
 				i->second->setColors(ColorsFromScheme(*scheme, colorizer));
 			} else {
 				i->second->setColors(ColorsFromScheme(*scheme));
@@ -1085,11 +1084,10 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		refreshColorizer(scheme.type);
 	}
 
-	using Update = const Window::Theme::BackgroundUpdate;
 	base::ObservableViewer(
-		*Window::Theme::Background()
-	) | rpl::filter([](const Update &update) {
-		return (update.type == Update::Type::ApplyingTheme);
+		*Background()
+	) | rpl::filter([](const BackgroundUpdate &update) {
+		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
 	}) | rpl::map([=] {
 		return chosen();
 	}) | rpl::start_with_next([=](Type type) {
@@ -1134,6 +1132,15 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 
 	palette->selected(
 	) | rpl::start_with_next([=](QColor color) {
+		if (Background()->editingTheme()) {
+			// We don't remember old accent color to revert it properly
+			// in Window::Theme::Revert which is called by Editor.
+			//
+			// So we check here, before we change the saved accent color.
+			Ui::show(Box<InformBox>(
+				tr::lng_theme_editor_cant_change_theme(tr::now)));
+			return;
+		}
 		const auto type = chosen();
 		const auto scheme = ranges::find(kSchemesList, type, &Scheme::type);
 		if (scheme == end(kSchemesList)) {
