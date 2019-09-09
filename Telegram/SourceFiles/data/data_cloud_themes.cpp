@@ -182,7 +182,7 @@ void CloudThemes::showPreview(const CloudTheme &cloud) {
 void CloudThemes::updateFromDocument(
 		const CloudTheme &cloud,
 		not_null<DocumentData*> document) {
-	loadDocumentAndInvoke(_updatingFrom, document, [=] {
+	loadDocumentAndInvoke(_updatingFrom, cloud, document, [=] {
 		auto preview = Window::Theme::PreviewFromFile(
 			document->data(),
 			document->location().name(),
@@ -197,13 +197,14 @@ void CloudThemes::updateFromDocument(
 void CloudThemes::previewFromDocument(
 		const CloudTheme &cloud,
 		not_null<DocumentData*> document) {
-	loadDocumentAndInvoke(_previewFrom, document, [=] {
+	loadDocumentAndInvoke(_previewFrom, cloud, document, [=] {
 		Core::App().showTheme(document, cloud);
 	});
 }
 
 void CloudThemes::loadDocumentAndInvoke(
 		LoadingDocument &value,
+		const CloudTheme &cloud,
 		not_null<DocumentData*> document,
 		Fn<void()> callback) {
 	const auto alreadyWaiting = (value.document != nullptr);
@@ -211,7 +212,9 @@ void CloudThemes::loadDocumentAndInvoke(
 		value.document->cancel();
 	}
 	value.document = document;
-	value.document->save(Data::FileOrigin(), QString()); // #TODO themes
+	value.document->save(
+		Data::FileOriginTheme(cloud.id, cloud.accessHash),
+		QString());
 	value.callback = std::move(callback);
 	if (document->loaded()) {
 		invokeForLoaded(value);

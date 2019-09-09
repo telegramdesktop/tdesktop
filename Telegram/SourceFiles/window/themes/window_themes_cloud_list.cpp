@@ -520,16 +520,18 @@ void CloudList::refreshElementUsing(
 
 void CloudList::refreshColors(Element &element) {
 	const auto currentId = Background()->themeObject().cloud.id;
-	const auto documentId = element.theme.documentId;
-	const auto document = documentId
-		? _window->session().data().document(documentId).get()
+	const auto &theme = element.theme;
+	const auto document = theme.documentId
+		? _window->session().data().document(theme.documentId).get()
 		: nullptr;
 	if (element.id() == kFakeCloudThemeId
 		|| ((element.id() == currentId)
 			&& (!document || !document->isTheme()))) {
 		element.check->setColors(ColorsFromCurrentTheme());
 	} else if (document) {
-		document->save(Data::FileOrigin(), QString()); // #TODO themes
+		document->save(
+			Data::FileOriginTheme(theme.id, theme.accessHash),
+			QString());
 		if (document->loaded()) {
 			refreshColorsFromDocument(element, document);
 		} else {

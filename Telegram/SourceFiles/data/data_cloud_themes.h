@@ -50,6 +50,7 @@ public:
 
 private:
 	struct LoadingDocument {
+		CloudTheme theme;
 		DocumentData *document = nullptr;
 		rpl::lifetime subscription;
 		Fn<void()> callback;
@@ -71,6 +72,7 @@ private:
 		not_null<DocumentData*> document);
 	void loadDocumentAndInvoke(
 		LoadingDocument &value,
+		const CloudTheme &cloud,
 		not_null<DocumentData*> document,
 		Fn<void()> callback);
 	void invokeForLoaded(LoadingDocument &value);

@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_cloud_themes.h"
 #include "dialogs/dialogs_key.h"
 #include "core/core_cloud_password.h"
 #include "core/application.h"
@@ -3063,6 +3064,13 @@ void ApiWrap::refreshFileReference(
 			MTP_inputWallPaper(
 				MTP_long(data.paperId),
 				MTP_long(data.accessHash))));
+	}, [&](Data::FileOriginTheme data) {
+		request(MTPaccount_GetTheme(
+			MTP_string(Data::CloudThemes::Format()),
+			MTP_inputTheme(
+				MTP_long(data.themeId),
+				MTP_long(data.accessHash)),
+			MTP_long(0)));
 	}, [&](std::nullopt_t) {
 		fail();
 	});

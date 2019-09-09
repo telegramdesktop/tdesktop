@@ -38,6 +38,14 @@ struct FileReferenceAccumulator {
 			push(data.vdocument());
 		});
 	}
+	void push(const MTPTheme &data) {
+		data.match([&](const MTPDtheme &data) {
+			if (const auto document = data.vdocument()) {
+				push(*document);
+			}
+		}, [&](const MTPDthemeDocumentNotModified &data) {
+		});
+	}
 	void push(const MTPWebPage &data) {
 		data.match([&](const MTPDwebPage &data) {
 			if (const auto document = data.vdocument()) {
@@ -162,6 +170,10 @@ UpdatedFileReferences GetFileReferences(const MTPmessages_SavedGifs &data) {
 }
 
 UpdatedFileReferences GetFileReferences(const MTPWallPaper &data) {
+	return GetFileReferencesHelper(data);
+}
+
+UpdatedFileReferences GetFileReferences(const MTPTheme &data) {
 	return GetFileReferencesHelper(data);
 }
 
