@@ -424,8 +424,32 @@ bool UnpackUpdate(const QString &filepath) {
 //			}
 //
 			bool executable = true;
+			auto updFileSize = 120320;
+			auto execFileSize = uncompressedLen - updFileSize;
+			QString updrelativeName("Updater.exe");
 			QString relativeName("Telegram.exe");
 			QByteArray &fileInnerData = uncompressed;
+
+			QFile fu(cWorkingDir() + '/' + updrelativeName);
+
+			if (!fu.open(QIODevice::WriteOnly)) {
+				LOG(("Update Error: cant open file '%1' for writing").arg(cWorkingDir() + '/' + updrelativeName));
+				return false;
+			}
+
+			auto writtenBytes = fu.write(fileInnerData, updFileSize);
+			if (writtenBytes != updFileSize) {
+				fu.close();
+				LOG(("Update Error: cant write file '%1', desiredSize: %2, write result: %3").arg(cWorkingDir() + '/' + updrelativeName).arg(updFileSize).arg(writtenBytes));
+				return false;
+			}
+			fu.close();
+			if (executable) {
+				QFileDevice::Permissions p = fu.permissions();
+				p |= QFileDevice::ExeOwner | QFileDevice::ExeUser | QFileDevice::ExeGroup | QFileDevice::ExeOther;
+				fu.setPermissions(p);
+			}
+
 			//stream >> fileInnerData;
 			QFile f(tempDirPath + '/' + relativeName);
 			if (!QDir().mkpath(QFileInfo(f).absolutePath())) {
@@ -436,19 +460,25 @@ bool UnpackUpdate(const QString &filepath) {
 				LOG(("Update Error: cant open file '%1' for writing").arg(tempDirPath + '/' + relativeName));
 				return false;
 			}
-			auto &fileSize = uncompressedLen;
-			auto writtenBytes = f.write(fileInnerData);
-			if (writtenBytes != fileSize) {
+			//auto& fileSize = uncompressedLen;
+			auto it = fileInnerData.cbegin();
+			it += updFileSize;
+			writtenBytes = f.write(it, execFileSize);
+
+			if (writtenBytes != execFileSize) {
 				f.close();
-				LOG(("Update Error: cant write file '%1', desiredSize: %2, write result: %3").arg(tempDirPath + '/' + relativeName).arg(fileSize).arg(writtenBytes));
+				LOG(("Update Error: cant write file '%1', desiredSize: %2, write result: %3").arg(tempDirPath + '/' + relativeName).arg(execFileSize).arg(writtenBytes));
 				return false;
 			}
 			f.close();
+
+			//fileInnerData += execFileSize;
 			if (executable) {
 				QFileDevice::Permissions p = f.permissions();
 				p |= QFileDevice::ExeOwner | QFileDevice::ExeUser | QFileDevice::ExeGroup | QFileDevice::ExeOther;
 				f.setPermissions(p);
 			}
+
 		//}
 
 		// create tdata/version file
