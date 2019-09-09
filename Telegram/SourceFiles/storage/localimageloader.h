@@ -160,6 +160,7 @@ struct SendingAlbum {
 		}
 
 		TaskId taskId;
+		uint64 randomId = 0;
 		FullMsgId msgId;
 		std::optional<MTPInputSingleMedia> media;
 	};

@@ -403,6 +403,7 @@ void SendingAlbum::fillMedia(
 	const auto i = FindAlbumItem(items, item);
 	Assert(!i->media);
 
+	i->randomId = randomId;
 	i->media = PrepareAlbumItemMedia(item, media, randomId);
 }
 

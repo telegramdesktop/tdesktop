@@ -441,6 +441,7 @@ public:
 	void sendMessageFail(
 		const RPCError &error,
 		not_null<PeerData*> peer,
+		uint64 randomId = 0,
 		FullMsgId itemId = FullMsgId());
 
 	void uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image);
