@@ -172,7 +172,7 @@ QPixmap MainWindow::grabInner() {
 void MainWindow::setupPasscodeLock() {
 	auto animated = (_main || _intro);
 	auto bg = animated ? grabInner() : QPixmap();
-	_passcodeLock.create(bodyWidget());
+	_passcodeLock.create(bodyWidget(), &controller());
 	updateControlsGeometry();
 
 	Core::App().hideMediaView();
