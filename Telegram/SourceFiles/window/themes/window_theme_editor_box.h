@@ -44,5 +44,7 @@ void SaveThemeBox(
 	const QByteArray &editorPalette,
 	const Data::CloudTheme &cloud);
 
+[[nodiscard]] QByteArray CollectForExport(const QByteArray &palette);
+
 } // namespace Theme
 } // namespace Window

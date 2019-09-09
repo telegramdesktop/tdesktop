@@ -15,6 +15,8 @@ class ScrollArea;
 class CrossButton;
 class MultiSelect;
 class PlainShadow;
+class DropdownMenu;
+class IconButton;
 } // namespace Ui
 
 namespace Window {
@@ -61,6 +63,8 @@ protected:
 
 private:
 	void save();
+	void showMenu();
+	void exportTheme();
 	void closeEditor();
 	void closeWithConfirmation();
 
@@ -71,6 +75,8 @@ private:
 	class Inner;
 	QPointer<Inner> _inner;
 	object_ptr<Ui::CrossButton> _close;
+	object_ptr<Ui::IconButton> _menuToggle;
+	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	object_ptr<Ui::MultiSelect> _select;
 	object_ptr<Ui::PlainShadow> _leftShadow;
 	object_ptr<Ui::PlainShadow> _topShadow;

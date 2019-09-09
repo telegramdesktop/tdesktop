@@ -550,7 +550,6 @@ Fn<void()> SavePreparedTheme(
 
 	const auto creating = !fields.id
 		|| (fields.createdBy != session->userId());
-	const auto oldDocumentId = creating ? 0 : fields.documentId;
 	const auto changed = (parsed.background != originalParsed.background)
 		|| (parsed.tiled != originalParsed.tiled)
 		|| PaletteChanged(parsed.palette, originalParsed.palette, fields);
@@ -814,13 +813,14 @@ void SaveTheme(
 	}
 }
 
-void SaveThemeBox(
-		not_null<GenericBox*> box,
-		not_null<Window::Controller*> window,
-		const Data::CloudTheme &cloud,
-		const QByteArray &palette) {
-	Expects(window->account().sessionExists());
+struct CollectedData {
+	QByteArray originalContent;
+	ParsedTheme originalParsed;
+	ParsedTheme parsed;
+	QImage background;
+};
 
+[[nodiscard]] CollectedData CollectData(const QByteArray &palette) {
 	const auto original = Local::ReadThemeContent();
 	const auto originalContent = original.content;
 
@@ -847,6 +847,21 @@ void SaveThemeBox(
 		parsed.background = originalParsed.background;
 		parsed.isPng = originalParsed.isPng;
 	}
+	return { originalContent, originalParsed, parsed, background };
+}
+
+QByteArray CollectForExport(const QByteArray &palette) {
+	return PackTheme(CollectData(palette).parsed);
+}
+
+void SaveThemeBox(
+		not_null<GenericBox*> box,
+		not_null<Window::Controller*> window,
+		const Data::CloudTheme &cloud,
+		const QByteArray &palette) {
+	Expects(window->account().sessionExists());
+
+	const auto collected = CollectData(palette);
 
 	box->setTitle(tr::lng_theme_editor_save_title(Ui::Text::WithEntities));
 
@@ -902,8 +917,8 @@ void SaveThemeBox(
 	const auto back = box->addRow(
 		object_ptr<BackgroundSelector>(
 			box,
-			background,
-			parsed),
+			collected.background,
+			collected.parsed),
 		style::margins(
 			st::boxRowPadding.left(),
 			st::themesSmallSkip,
@@ -963,8 +978,8 @@ void SaveThemeBox(
 		*cancel = SavePreparedTheme(
 			window,
 			back->result(),
-			originalContent,
-			originalParsed,
+			collected.originalContent,
+			collected.originalParsed,
 			fields,
 			done,
 			fail);
