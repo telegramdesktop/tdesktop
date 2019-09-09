@@ -905,6 +905,8 @@
 <(src_loc)/window/themes/window_themes_cloud_list.h
 <(src_loc)/window/themes/window_themes_embedded.cpp
 <(src_loc)/window/themes/window_themes_embedded.h
+<(src_loc)/window/themes/window_themes_generate_name.cpp
+<(src_loc)/window/themes/window_themes_generate_name.h
 <(src_loc)/apiwrap.cpp
 <(src_loc)/apiwrap.h
 <(src_loc)/app.cpp

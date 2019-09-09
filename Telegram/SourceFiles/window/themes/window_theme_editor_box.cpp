@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
 #include "window/themes/window_theme_preview.h"
+#include "window/themes/window_themes_generate_name.h"
 #include "window/window_controller.h"
 #include "boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
@@ -818,6 +819,7 @@ struct CollectedData {
 	ParsedTheme originalParsed;
 	ParsedTheme parsed;
 	QImage background;
+	QColor accent;
 };
 
 [[nodiscard]] CollectedData CollectData(const QByteArray &palette) {
@@ -847,7 +849,8 @@ struct CollectedData {
 		parsed.background = originalParsed.background;
 		parsed.isPng = originalParsed.isPng;
 	}
-	return { originalContent, originalParsed, parsed, background };
+	const auto accent = st::windowActiveTextFg->c;
+	return { originalContent, originalParsed, parsed, background, accent };
 }
 
 QByteArray CollectForExport(const QByteArray &palette) {
@@ -862,6 +865,9 @@ void SaveThemeBox(
 	Expects(window->account().sessionExists());
 
 	const auto collected = CollectData(palette);
+	const auto title = cloud.title.isEmpty()
+		? GenerateName(collected.accent)
+		: cloud.title;
 
 	box->setTitle(tr::lng_theme_editor_save_title(Ui::Text::WithEntities));
 
@@ -869,7 +875,7 @@ void SaveThemeBox(
 		box,
 		st::defaultInputField,
 		tr::lng_theme_editor_name(),
-		cloud.title));
+		title));
 	const auto linkWrap = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
 		style::margins(
