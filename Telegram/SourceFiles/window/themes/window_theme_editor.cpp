@@ -739,7 +739,10 @@ QByteArray Editor::ColorizeInContent(
 }
 
 void Editor::save() {
-	if (!_window->account().sessionExists()) {
+	if (Core::App().passcodeLocked()) {
+		Ui::Toast::Show(tr::lng_theme_editor_need_unlock(tr::now));
+		return;
+	} else if (!_window->account().sessionExists()) {
 		Ui::Toast::Show(tr::lng_theme_editor_need_auth(tr::now));
 		return;
 	} else if (_saving) {
