@@ -42,4 +42,18 @@ QDate WhenSystemBecomesOutdated() {
 	return QDate();
 }
 
+int AutoUpdateVersion() {
+	return 2;
+}
+
+QString AutoUpdateKey() {
+	if (IsLinux32Bit()) {
+		return "linux32";
+	} else if (IsLinux64Bit()) {
+		return "linux";
+	} else {
+		Unexpected("Platform in AutoUpdateKey.");
+	}
+}
+
 } // namespace Platform

@@ -218,6 +218,17 @@ QDate WhenSystemBecomesOutdated() {
 	return QDate();
 }
 
+int AutoUpdateVersion() {
+	if (!IsWindows7OrGreater()) {
+		return 1;
+	}
+	return 2;
+}
+
+QString AutoUpdateKey() {
+	return "win";
+}
+
 bool IsWindowsXPOrGreater() {
 	static const auto result = ::IsWindowsXPOrGreater();
 	return result;
