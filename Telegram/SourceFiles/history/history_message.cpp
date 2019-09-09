@@ -750,7 +750,7 @@ bool HistoryMessage::allowsForward() const {
 }
 
 bool HistoryMessage::allowsSendNow() const {
-	return isScheduled();
+	return isScheduled() && !isSending() && !hasFailed();
 }
 
 bool HistoryMessage::isTooOldForEdit(TimeId now) const {
