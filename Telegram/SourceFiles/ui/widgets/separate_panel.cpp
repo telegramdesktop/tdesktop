@@ -291,11 +291,21 @@ void SeparatePanel::ensureLayerCreated() {
 	) | rpl::filter([=] {
 		return _layer != nullptr; // Last hide finish is sent from destructor.
 	}) | rpl::start_with_next([=] {
-		if (Ui::InFocusChain(_layer)) {
-			setFocus();
-		}
-		_layer = nullptr;
+		destroyLayer();
 	}, _layer->lifetime());
+}
+
+void SeparatePanel::destroyLayer() {
+	if (!_layer) {
+		return;
+	}
+
+	auto layer = base::take(_layer);
+	const auto resetFocus = Ui::InFocusChain(layer);
+	if (resetFocus) {
+		setFocus();
+	}
+	layer = nullptr;
 }
 
 void SeparatePanel::showInner(base::unique_qptr<Ui::RpWidget> inner) {

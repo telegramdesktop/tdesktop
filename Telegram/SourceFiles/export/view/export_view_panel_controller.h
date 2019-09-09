@@ -35,6 +35,7 @@ class Panel;
 class PanelController {
 public:
 	PanelController(not_null<Controller*> process);
+	~PanelController();
 
 	void activatePanel();
 	void stopWithConfirmation(FnMut<void()> callback = nullptr);
@@ -48,8 +49,6 @@ public:
 	auto progressState() const {
 		return ContentFromState(_process->state());
 	}
-
-	~PanelController();
 
 private:
 	void fillParams(const PasswordCheckState &state);
