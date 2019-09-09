@@ -809,33 +809,6 @@ void Editor::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft(st::themeEditorMargin.left(), st::themeEditorMargin.top(), width(), tr::lng_theme_editor_title(tr::now));
 }
 
-//void Editor::Start() {
-//	const auto path = Background()->themeAbsolutePath();
-//	if (!Window::Theme::IsPaletteTestingPath(path)) {
-//		const auto start = [](const QString &path) {
-//			if (!Local::copyThemeColorsToPalette(path)) {
-//				writeDefaultPalette(path);
-//			}
-//			if (!Apply(path)) {
-//				Ui::show(Box<InformBox>(tr::lng_theme_editor_error(tr::now)));
-//				return;
-//			}
-//			KeepApplied();
-//			if (auto window = App::wnd()) {
-//				window->showRightColumn(Box<Editor>(path));
-//			}
-//		};
-//		FileDialog::GetWritePath(
-//			App::wnd(),
-//			tr::lng_theme_editor_save_palette(tr::now),
-//			"Palette (*.tdesktop-palette)",
-//			"colors.tdesktop-palette",
-//			start);
-//	} else if (auto window = App::wnd()) {
-//		window->showRightColumn(Box<Editor>(path));
-//	}
-//}
-
 void Editor::closeWithConfirmation() {
 	if (!PaletteChanged(_inner->paletteContent(), _cloud)) {
 		Background()->clearEditingTheme(ClearEditing::KeepChanges);

@@ -602,12 +602,20 @@ void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 	}
 	const auto nowRightWidth = _rightColumn ? _rightColumn->width() : 0;
 	const auto wasMaximized = isMaximized();
+	const auto wasMinimumWidth = minimumWidth();
+	const auto nowMinimumWidth = st::windowMinWidth + nowRightWidth;
+	const auto firstResize = (nowMinimumWidth < wasMinimumWidth);
+	if (firstResize) {
+		setMinimumWidth(nowMinimumWidth);
+	}
 	if (!isMaximized()) {
 		tryToExtendWidthBy(wasWidth + nowRightWidth - wasRightWidth - width());
 	} else {
 		updateControlsGeometry();
 	}
-	setMinimumWidth(st::windowMinWidth + nowRightWidth);
+	if (!firstResize) {
+		setMinimumWidth(nowMinimumWidth);
+	}
 }
 
 int MainWindow::maximalExtendBy() const {
