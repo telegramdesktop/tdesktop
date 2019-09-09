@@ -65,6 +65,7 @@ public:
 		const ParsedTheme &parsed);
 
 	[[nodiscard]] ParsedTheme result() const;
+	[[nodiscard]] QImage image() const;
 
 	int resizeGetHeight(int newWidth) override;
 
@@ -213,6 +214,10 @@ ParsedTheme BackgroundSelector::result() const {
 	return result;
 }
 
+QImage BackgroundSelector::image() const {
+	return _background;
+}
+
 bool PaletteChanged(
 		const QByteArray &editorPalette,
 		const QByteArray &originalPalette,
@@ -273,6 +278,12 @@ void ImportFromFile(
 			data,
 			name,
 			ColorHexString(color->c));
+		if (data == "error") {
+			LOG(("Theme Error: could not adjust '%1: %2' in content"
+				).arg(QString::fromLatin1(name)
+				).arg(QString::fromLatin1(ColorHexString(color->c))));
+			return QByteArray();
+		}
 	}
 	return data;
 }
@@ -459,6 +470,7 @@ SendMediaReady PrepareThemeMedia(
 Fn<void()> SavePreparedTheme(
 		not_null<Window::Controller*> window,
 		const ParsedTheme &parsed,
+		const QImage &background,
 		const QByteArray &originalContent,
 		const ParsedTheme &originalParsed,
 		const Data::CloudTheme &fields,
@@ -510,7 +522,8 @@ Fn<void()> SavePreparedTheme(
 			originalParsed,
 			cloud,
 			state->themeContent,
-			parsed);
+			parsed,
+			background);
 	};
 
 	const auto createTheme = [=](const MTPDocument &data) {
@@ -918,6 +931,7 @@ void SaveThemeBox(
 		*cancel = SavePreparedTheme(
 			window,
 			back->result(),
+			back->image(),
 			collected.originalContent,
 			collected.originalParsed,
 			fields,

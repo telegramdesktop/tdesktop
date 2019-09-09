@@ -330,7 +330,9 @@ QByteArray ReplaceValueInPaletteContent(
 		if (end - lastValidValueEnd > 0) result.append(lastValidValueEnd, end - lastValidValueEnd);
 		return result;
 	}
-	return QByteArray();
+	auto newline = (content.indexOf("\r\n") >= 0 ? "\r\n" : "\n");
+	auto addedline = (content.endsWith('\n') ? "" : newline);
+	return content + addedline + name + ": " + value + ";" + newline;
 }
 
 [[nodiscard]] QByteArray WriteCloudToText(const Data::CloudTheme &cloud) {
@@ -607,11 +609,6 @@ void Editor::Inner::applyEditing(const QString &name, const QString &copyOf, QCo
 		LOG(("Theme Error: could not replace '%1: %2' in content").arg(name).arg(copyOf.isEmpty() ? QString::fromLatin1(ColorHexString(value)) : copyOf));
 		error();
 		return;
-	}
-	if (newContent.isEmpty()) {
-		auto newline = (_paletteContent.indexOf("\r\n") >= 0 ? "\r\n" : "\n");
-		auto addedline = (_paletteContent.endsWith('\n') ? "" : newline);
-		newContent = _paletteContent + addedline + plainName + ": " + plainValue + ";" + newline;
 	}
 	applyNewPalette(newContent);
 }

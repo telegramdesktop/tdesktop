@@ -69,7 +69,8 @@ void KeepFromEditor(
 	const ParsedTheme &originalParsed,
 	const Data::CloudTheme &cloud,
 	const QByteArray &themeContent,
-	const ParsedTheme &themeParsed);
+	const ParsedTheme &themeParsed,
+	const QImage &background);
 QString NightThemePath();
 [[nodiscard]] bool IsNightMode();
 void SetNightModeValue(bool nightMode);
@@ -210,7 +211,8 @@ private:
 		const ParsedTheme &originalParsed,
 		const Data::CloudTheme &cloud,
 		const QByteArray &themeContent,
-		const ParsedTheme &themeParsed);
+		const ParsedTheme &themeParsed,
+		const QImage &background);
 	friend bool IsNonDefaultBackground();
 
 	Main::Session *_session = nullptr;

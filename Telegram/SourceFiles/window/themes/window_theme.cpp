@@ -1202,7 +1202,8 @@ void KeepFromEditor(
 		const ParsedTheme &originalParsed,
 		const Data::CloudTheme &cloud,
 		const QByteArray &themeContent,
-		const ParsedTheme &themeParsed) {
+		const ParsedTheme &themeParsed,
+		const QImage &background) {
 	ClearApplying();
 	const auto content = themeContent.isEmpty()
 		? originalContent
@@ -1223,6 +1224,11 @@ void KeepFromEditor(
 		cloud.documentId);
 	Local::writeTheme(saved);
 	Background()->keepApplied(saved.object, true);
+	Background()->setThemeData(
+		base::duplicate(background),
+		themeParsed.tiled);
+	Background()->set(Data::ThemeWallPaper());
+	Background()->writeNewBackgroundSettings();
 }
 
 void Revert() {
