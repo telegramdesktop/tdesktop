@@ -650,6 +650,7 @@ void DocumentData::validateGoodThumbnail() {
 	if (!isVideoFile()
 		&& !isAnimation()
 		&& !isWallPaper()
+		&& !isTheme()
 		&& (!sticker() || !sticker()->animated)) {
 		_goodThumbnail = nullptr;
 	} else if (!_goodThumbnail && hasRemoteLocation()) {
@@ -1470,7 +1471,8 @@ bool DocumentData::isGifv() const {
 
 bool DocumentData::isTheme() const {
 	return
-		_filename.endsWith(
+		_mimeString == qstr("application/x-tgtheme-tdesktop")
+		|| _filename.endsWith(
 			qstr(".tdesktop-theme"),
 			Qt::CaseInsensitive)
 		|| _filename.endsWith(

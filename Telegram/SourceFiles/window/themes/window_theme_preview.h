@@ -17,9 +17,14 @@ namespace Window {
 namespace Theme {
 
 struct CurrentData {
-	int32 backgroundId = 0;
+	WallPaperId backgroundId = 0;
 	QImage backgroundImage;
 	bool backgroundTiled = false;
+};
+
+enum class PreviewType {
+	Normal,
+	Extended,
 };
 
 [[nodiscard]] QString CachedThemePath(uint64 documentId);
@@ -32,7 +37,11 @@ std::unique_ptr<Preview> GeneratePreview(
 	const QByteArray &bytes,
 	const QString &filepath,
 	const Data::CloudTheme &cloud,
-	CurrentData &&data);
+	CurrentData &&data,
+	PreviewType type);
+QImage GeneratePreview(
+	const QByteArray &bytes,
+	const QString &filepath);
 
 int DefaultPreviewTitleHeight();
 void DefaultPreviewWindowFramePaint(

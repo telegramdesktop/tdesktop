@@ -51,6 +51,9 @@ struct FileReferenceAccumulator {
 			if (const auto document = data.vdocument()) {
 				push(*document);
 			}
+			if (const auto documents = data.vdocuments()) {
+				push(*documents);
+			}
 			if (const auto photo = data.vphoto()) {
 				push(*photo);
 			}

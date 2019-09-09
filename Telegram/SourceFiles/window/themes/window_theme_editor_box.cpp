@@ -465,15 +465,26 @@ SendMediaReady PrepareThemeMedia(
 	PreparedPhotoThumbs thumbnails;
 	QVector<MTPPhotoSize> sizes;
 
-	//const auto push = [&](const char *type, QImage &&image) {
-	//	sizes.push_back(MTP_photoSize(
-	//		MTP_string(type),
-	//		MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)),
-	//		MTP_int(image.width()),
-	//		MTP_int(image.height()), MTP_int(0)));
-	//	thumbnails.emplace(type[0], std::move(image));
-	//};
-	//push("s", scaled(320));
+	auto thumbnail = GeneratePreview(content, QString()).scaled(
+		320,
+		320,
+		Qt::KeepAspectRatio,
+		Qt::SmoothTransformation);
+	auto thumbnailBytes = QByteArray();
+	{
+		QBuffer buffer(&thumbnailBytes);
+		thumbnail.save(&buffer, "JPG", 87);
+	}
+
+	const auto push = [&](const char *type, QImage &&image) {
+		sizes.push_back(MTP_photoSize(
+			MTP_string(type),
+			MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)),
+			MTP_int(image.width()),
+			MTP_int(image.height()), MTP_int(0)));
+		thumbnails.emplace(type[0], std::move(image));
+	};
+	push("s", std::move(thumbnail));
 
 	const auto filename = File::NameFromUserString(name)
 		+ qsl(".tdesktop-theme");
@@ -506,7 +517,7 @@ SendMediaReady PrepareThemeMedia(
 		MTP_photoEmpty(MTP_long(0)),
 		thumbnails,
 		document,
-		QByteArray(),
+		thumbnailBytes,
 		0);
 }
 
@@ -520,7 +531,7 @@ Fn<void()> SavePreparedTheme(
 		Fn<void(SaveErrorType,QString)> fail) {
 	Expects(window->account().sessionExists());
 
-	using Storage::UploadedDocument;
+	using Storage::UploadedThumbDocument;
 	struct State {
 		FullMsgId id;
 		bool generating = false;
@@ -539,6 +550,7 @@ Fn<void()> SavePreparedTheme(
 
 	const auto creating = !fields.id
 		|| (fields.createdBy != session->userId());
+	const auto oldDocumentId = creating ? 0 : fields.documentId;
 	const auto changed = (parsed.background != originalParsed.background)
 		|| (parsed.tiled != originalParsed.tiled)
 		|| PaletteChanged(parsed.palette, originalParsed.palette, fields);
@@ -602,11 +614,11 @@ Fn<void()> SavePreparedTheme(
 		}).send();
 	};
 
-	const auto uploadTheme = [=](const UploadedDocument &data) {
+	const auto uploadTheme = [=](const UploadedThumbDocument &data) {
 		state->requestId = api->request(MTPaccount_UploadTheme(
-			MTP_flags(0),
+			MTP_flags(MTPaccount_UploadTheme::Flag::f_thumb),
 			data.file,
-			MTPInputFile(), // thumb
+			data.thumb,
 			MTP_string(state->filename),
 			MTP_string("application/x-tgtheme-tdesktop")
 		)).done([=](const MTPDocument &result) {
@@ -625,10 +637,10 @@ Fn<void()> SavePreparedTheme(
 		state->filename = media.filename;
 		state->themeContent = theme;
 
-		session->uploader().documentReady(
-		) | rpl::filter([=](const UploadedDocument &data) {
+		session->uploader().thumbDocumentReady(
+		) | rpl::filter([=](const UploadedThumbDocument &data) {
 			return data.fullId == state->id;
-		}) | rpl::start_with_next([=](const UploadedDocument &data) {
+		}) | rpl::start_with_next([=](const UploadedThumbDocument &data) {
 			uploadTheme(data);
 		}, state->lifetime);
 

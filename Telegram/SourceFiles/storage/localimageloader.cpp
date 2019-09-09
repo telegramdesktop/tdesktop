@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "storage/file_download.h"
 #include "storage/storage_media_prepare.h"
+#include "window/themes/window_theme_preview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
@@ -76,13 +77,6 @@ PreparedFileThumbnail PrepareFileThumbnail(QImage &&original) {
 		MTP_int(result.image.height()),
 		MTP_int(0));
 	return result;
-}
-
-PreparedFileThumbnail PrepareAnimatedStickerThumbnail(
-		const QString &file,
-		const QByteArray &bytes) {
-	return PrepareFileThumbnail(
-		Lottie::ReadThumbnail(Lottie::ReadContent(bytes, file)));
 }
 
 bool FileThumbnailUploadRequired(const QString &filemime, int32 filesize) {
@@ -818,6 +812,15 @@ void FileLoadTask::process() {
 			}
 
 			thumbnail = PrepareFileThumbnail(std::move(video->thumbnail));
+		} else if (filemime == qstr("application/x-tdesktop-theme")
+			|| filemime == qstr("application/x-tgtheme-tdesktop")) {
+			goodThumbnail = Window::Theme::GeneratePreview(_content, _filepath);
+			if (!goodThumbnail.isNull()) {
+				QBuffer buffer(&goodThumbnailBytes);
+				goodThumbnail.save(&buffer, "JPG", kThumbnailQuality);
+
+				thumbnail = PrepareFileThumbnail(base::duplicate(goodThumbnail));
+			}
 		}
 	}
 

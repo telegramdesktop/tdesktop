@@ -139,6 +139,8 @@ WebPageType ParseWebPageType(const MTPDwebPage &page) {
 		return WebPageType::Profile;
 	} else if (type == qstr("telegram_background")) {
 		return WebPageType::WallPaper;
+	} else if (type == qstr("telegram_theme")) {
+		return WebPageType::Theme;
 	} else if (page.vcached_page()) {
 		return WebPageType::ArticleWithIV;
 	} else {

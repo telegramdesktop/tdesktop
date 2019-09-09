@@ -129,7 +129,9 @@ QSize WebPage::countOptimalSize() {
 		_openl = previewOfHiddenUrl
 			? std::make_shared<HiddenUrlClickHandler>(_data->url)
 			: std::make_shared<UrlClickHandler>(_data->url, true);
-		if (_data->document && _data->document->isWallPaper()) {
+		if (_data->document
+			&& (_data->document->isWallPaper()
+				|| _data->document->isTheme())) {
 			_openl = std::make_shared<DocumentWrappedClickHandler>(
 				std::move(_openl),
 				_data->document,
@@ -652,7 +654,7 @@ ClickHandlerPtr WebPage::replaceAttachLink(
 		return link;
 	}
 	if (_data->document) {
-		if (_data->document->isWallPaper()) {
+		if (_data->document->isWallPaper() || _data->document->isTheme()) {
 			return _openl;
 		}
 	} else if (_data->photo) {
@@ -674,7 +676,7 @@ TextSelection WebPage::adjustSelection(TextSelection selection, TextSelectType t
 	if ((!_titleLines && !_descriptionLines) || selection.to <= _siteName.length()) {
 		return _siteName.adjustSelection(selection, type);
 	}
-	
+
 	auto titleSelection = _title.adjustSelection(toTitleSelection(selection), type);
 	if ((!_siteNameLines && !_descriptionLines) || (selection.from >= _siteName.length() && selection.to <= _description.length())) {
 		return fromTitleSelection(titleSelection);
@@ -708,7 +710,7 @@ void WebPage::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed)
 bool WebPage::enforceBubbleWidth() const {
 	return (_attach != nullptr)
 		&& (_data->document != nullptr)
-		&& _data->document->isWallPaper();
+		&& (_data->document->isWallPaper() || _data->document->isTheme());
 }
 
 void WebPage::playAnimation(bool autoplay) {
@@ -779,6 +781,8 @@ int WebPage::bottomInfoPadding() const {
 QString WebPage::displayedSiteName() const {
 	return (_data->document && _data->document->isWallPaper())
 		? tr::lng_media_chat_background(tr::now)
+		: (_data->document && _data->document->isWallPaper())
+		? tr::lng_media_color_theme(tr::now)
 		: _data->siteName;
 }
 

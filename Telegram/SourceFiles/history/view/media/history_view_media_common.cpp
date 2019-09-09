@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_document.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_video.h"
-#include "history/view/media/history_view_wall_paper.h"
+#include "history/view/media/history_view_theme_document.h"
 #include "styles/style_history.h"
 
 namespace HistoryView {
@@ -80,8 +80,8 @@ std::unique_ptr<Media> CreateAttach(
 				parent,
 				parent->data(),
 				document);
-		} else if (document->isWallPaper()) {
-			return std::make_unique<WallPaper>(
+		} else if (document->isWallPaper() || document->isTheme()) {
+			return std::make_unique<ThemeDocument>(
 				parent,
 				document,
 				webpageUrl);

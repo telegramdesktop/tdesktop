@@ -11,9 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
-class WallPaper : public File {
+class ThemeDocument : public File {
 public:
-	WallPaper(
+	ThemeDocument(
 		not_null<Element*> parent,
 		not_null<DocumentData*> document,
 		const QString &url = QString());
@@ -59,6 +59,8 @@ private:
 	int _pixh = 1;
 	mutable QPixmap _thumbnail;
 	mutable int _thumbnailGood = -1; // -1 inline, 0 thumbnail, 1 good
+
+	// For wallpaper documents.
 	QColor _background;
 	int _intensity = 0;
 

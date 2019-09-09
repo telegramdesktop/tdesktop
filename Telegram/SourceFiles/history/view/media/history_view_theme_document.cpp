@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/view/media/history_view_wall_paper.h"
+#include "history/view/media/history_view_theme_document.h"
 
 #include "layout.h"
 #include "history/history_item.h"
@@ -19,22 +19,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
-WallPaper::WallPaper(
+ThemeDocument::ThemeDocument(
 	not_null<Element*> parent,
 	not_null<DocumentData*> document,
 	const QString &url)
 : File(parent, parent->data())
 , _data(document) {
-	Expects(_data->hasThumbnail());
+	Expects(_data->hasThumbnail() || _data->isTheme());
 
-	fillPatternFieldsFrom(url);
+	if (_data->isWallPaper()) {
+		fillPatternFieldsFrom(url);
+	}
 
-	_data->thumbnail()->load(parent->data()->fullId());
+	_data->loadThumbnail(_parent->data()->fullId());
 	setDocumentLinks(_data, parent->data());
 	setStatusSize(FileStatusSizeReady, _data->size, -1, 0);
 }
 
-void WallPaper::fillPatternFieldsFrom(const QString &url) {
+void ThemeDocument::fillPatternFieldsFrom(const QString &url) {
 	const auto paramsPosition = url.indexOf('?');
 	if (paramsPosition < 0) {
 		return;
@@ -49,7 +51,10 @@ void WallPaper::fillPatternFieldsFrom(const QString &url) {
 	_background = paper.backgroundColor().value_or(kDefaultBackground);
 }
 
-QSize WallPaper::countOptimalSize() {
+QSize ThemeDocument::countOptimalSize() {
+	if (_data->isTheme()) {
+		return st::historyThemeSize;
+	}
 	auto tw = ConvertScale(_data->thumbnail()->width());
 	auto th = ConvertScale(_data->thumbnail()->height());
 	if (!tw || !th) {
@@ -66,7 +71,12 @@ QSize WallPaper::countOptimalSize() {
 	return { maxWidth, minHeight };
 }
 
-QSize WallPaper::countCurrentSize(int newWidth) {
+QSize ThemeDocument::countCurrentSize(int newWidth) {
+	if (_data->isTheme()) {
+		_pixw = st::historyThemeSize.width();
+		_pixh = st::historyThemeSize.height();
+		return st::historyThemeSize;
+	}
 	auto tw = ConvertScale(_data->thumbnail()->width());
 	auto th = ConvertScale(_data->thumbnail()->height());
 	if (!tw || !th) {
@@ -86,7 +96,7 @@ QSize WallPaper::countCurrentSize(int newWidth) {
 	return { newWidth, newHeight };
 }
 
-void WallPaper::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
+void ThemeDocument::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	_data->automaticLoad(_realParent->fullId(), _parent->data());
@@ -166,7 +176,7 @@ void WallPaper::draw(Painter &p, const QRect &r, TextSelection selection, crl::t
 	}
 }
 
-void WallPaper::validateThumbnail() const {
+void ThemeDocument::validateThumbnail() const {
 	if (_thumbnailGood > 0) {
 		return;
 	}
@@ -179,7 +189,7 @@ void WallPaper::validateThumbnail() const {
 			good->load({});
 		}
 	}
-	if (_thumbnailGood >= 0) {
+	if (_thumbnailGood >= 0 || !_data->thumbnail()) {
 		return;
 	}
 	if (_data->thumbnail()->loaded()) {
@@ -191,11 +201,12 @@ void WallPaper::validateThumbnail() const {
 	}
 }
 
-void WallPaper::prepareThumbnailFrom(
+void ThemeDocument::prepareThumbnailFrom(
 		not_null<Image*> image,
 		int good) const {
 	Expects(_thumbnailGood <= good);
 
+	const auto isTheme = _data->isTheme();
 	const auto isPattern = _data->isPatternWallPaper();
 	auto options = Images::Option::Smooth
 		| (good >= 0 ? Images::Option(0) : Images::Option::Blurred)
@@ -203,8 +214,8 @@ void WallPaper::prepareThumbnailFrom(
 			? Images::Option::TransparentBackground
 			: Images::Option(0));
 	auto original = image->original();
-	auto tw = ConvertScale(_data->thumbnail()->width());
-	auto th = ConvertScale(_data->thumbnail()->height());
+	auto tw = isTheme ? _pixw : ConvertScale(_data->thumbnail()->width());
+	auto th = isTheme ? _pixh : ConvertScale(_data->thumbnail()->height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}
@@ -226,7 +237,7 @@ void WallPaper::prepareThumbnailFrom(
 	_thumbnailGood = good;
 }
 
-TextState WallPaper::textState(QPoint point, StateRequest request) const {
+TextState ThemeDocument::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
 
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
@@ -248,24 +259,24 @@ TextState WallPaper::textState(QPoint point, StateRequest request) const {
 	return result;
 }
 
-float64 WallPaper::dataProgress() const {
+float64 ThemeDocument::dataProgress() const {
 	return _data->progress();
 }
 
-bool WallPaper::dataFinished() const {
+bool ThemeDocument::dataFinished() const {
 	return !_data->loading()
 		&& (!_data->uploading() || _data->waitingForAlbum());
 }
 
-bool WallPaper::dataLoaded() const {
+bool ThemeDocument::dataLoaded() const {
 	return _data->loaded();
 }
 
-bool WallPaper::isReadyForOpen() const {
+bool ThemeDocument::isReadyForOpen() const {
 	return _data->loaded();
 }
 
-QString WallPaper::additionalInfoString() const {
+QString ThemeDocument::additionalInfoString() const {
 	// This will force message info (time) to be displayed below
 	// this attachment in WebPage media.
 	static auto result = QString(" ");

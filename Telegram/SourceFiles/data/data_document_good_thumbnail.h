@@ -17,13 +17,13 @@ class GoodThumbSource : public Images::Source {
 public:
 	explicit GoodThumbSource(not_null<DocumentData*> document);
 
-	void load(Data::FileOrigin origin) override;
-	void loadEvenCancelled(Data::FileOrigin origin) override;
+	void load(FileOrigin origin) override;
+	void loadEvenCancelled(FileOrigin origin) override;
 	QImage takeLoaded() override;
 	void unload() override;
 
 	void automaticLoad(
-		Data::FileOrigin origin,
+		FileOrigin origin,
 		const HistoryItem *item) override;
 	void automaticLoadSettingsChanged() override;
 
@@ -38,7 +38,7 @@ public:
 	std::optional<Storage::Cache::Key> cacheKey() override;
 	void setDelayedStorageLocation(
 		const StorageImageLocation &location) override;
-	void performDelayedLoad(Data::FileOrigin origin) override;
+	void performDelayedLoad(FileOrigin origin) override;
 	bool isDelayedStorageImage() const override;
 	void setImageBytes(const QByteArray &bytes) override;
 

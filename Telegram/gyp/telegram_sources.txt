@@ -316,10 +316,10 @@
 <(src_loc)/history/view/media/history_view_poll.cpp
 <(src_loc)/history/view/media/history_view_sticker.h
 <(src_loc)/history/view/media/history_view_sticker.cpp
+<(src_loc)/history/view/media/history_view_theme_document.h
+<(src_loc)/history/view/media/history_view_theme_document.cpp
 <(src_loc)/history/view/media/history_view_video.h
 <(src_loc)/history/view/media/history_view_video.cpp
-<(src_loc)/history/view/media/history_view_wall_paper.h
-<(src_loc)/history/view/media/history_view_wall_paper.cpp
 <(src_loc)/history/view/media/history_view_web_page.h
 <(src_loc)/history/view/media/history_view_web_page.cpp
 <(src_loc)/history/view/history_view_compose_controls.cpp
