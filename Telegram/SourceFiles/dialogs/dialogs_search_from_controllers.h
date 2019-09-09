@@ -8,20 +8,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/peer_list_box.h"
-#include "boxes/peers/edit_participants_box.h"
+#include "boxes/peers/add_participants_box.h"
 
 namespace Dialogs {
 
 void ShowSearchFromBox(
-	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer,
 	Fn<void(not_null<UserData*>)> callback,
 	Fn<void()> closedCallback);
 
-class SearchFromController : public ParticipantsBoxController {
+class SearchFromController : public AddSpecialBoxController {
 public:
 	SearchFromController(
-		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		Fn<void(not_null<UserData*>)> callback);
 
@@ -29,7 +27,7 @@ public:
 	void rowClicked(not_null<PeerListRow*> row) override;
 
 protected:
-	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const override;
+	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
 
 private:
 	Fn<void(not_null<UserData*>)> _callback;

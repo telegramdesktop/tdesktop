@@ -19,18 +19,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Dialogs {
 
 void ShowSearchFromBox(
-		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		Fn<void(not_null<UserData*>)> callback,
 		Fn<void()> closedCallback) {
 	auto createController = [
-		navigation,
 		peer,
 		callback = std::move(callback)
 	]() -> std::unique_ptr<PeerListController> {
 		if (peer && (peer->isChat() || peer->isMegagroup())) {
 			return std::make_unique<Dialogs::SearchFromController>(
-				navigation,
 				peer,
 				std::move(callback));
 		}
@@ -50,18 +47,20 @@ void ShowSearchFromBox(
 }
 
 SearchFromController::SearchFromController(
-	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer,
 	Fn<void(not_null<UserData*>)> callback)
-: ParticipantsBoxController(
-	navigation,
+: AddSpecialBoxController(
 	peer,
-	ParticipantsBoxController::Role::Members)
-, _callback(std::move(callback)) {
+	ParticipantsBoxController::Role::Members,
+	AdminDoneCallback(),
+	BannedDoneCallback())
+, _callback(std::move(callback))
+{
+	_excludeSelf = false;
 }
 
 void SearchFromController::prepare() {
-	ParticipantsBoxController::prepare();
+	AddSpecialBoxController::prepare();
 	delegate()->peerListSetTitle(tr::lng_search_messages_from());
 }
 
