@@ -1894,7 +1894,18 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 				}
 				return;
 			}
-			_chosen.fire_copy(set.stickers[sticker->index].document);
+			const auto document = set.stickers[sticker->index].document;
+			if (e->modifiers() & Qt::ControlModifier) {
+				if (document->sticker()
+					&& document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+					_displayingSet = true;
+					checkHideWithBox(StickerSetBox::Show(
+						controller(),
+						document));
+				}
+			} else {
+				_chosen.fire_copy(document);
+			}
 		} else if (auto set = base::get_if<OverSet>(&pressed)) {
 			Assert(set->section >= 0 && set->section < sets.size());
 			displaySet(sets[set->section].id);
@@ -2529,7 +2540,7 @@ void StickersListWidget::fillIcons(QList<StickerIcon> &icons) {
 }
 
 bool StickersListWidget::preventAutoHide() {
-	return _removingSetId != 0 || _displayingSetId != 0;
+	return _removingSetId != 0 || _displayingSet != 0;
 }
 
 void StickersListWidget::updateSelected() {
@@ -2760,12 +2771,10 @@ void StickersListWidget::beforeHiding() {
 void StickersListWidget::displaySet(uint64 setId) {
 	if (setId == Stickers::MegagroupSetId) {
 		if (_megagroupSet->canEditStickers()) {
-			_displayingSetId = setId;
-			auto box = Ui::show(Box<StickersBox>(_megagroupSet));
-			connect(box, &QObject::destroyed, this, [this] {
-				_displayingSetId = 0;
-				_checkForHide.fire({});
-			});
+			_displayingSet = true;
+			checkHideWithBox(Ui::show(
+				Box<StickersBox>(_megagroupSet),
+				LayerOption::KeepOther).data());
 			return;
 		} else if (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetID) {
 			setId = _megagroupSet->mgInfo->stickerSet.c_inputStickerSetID().vid().v;
@@ -2776,15 +2785,21 @@ void StickersListWidget::displaySet(uint64 setId) {
 	auto &sets = session().data().stickerSets();
 	auto it = sets.constFind(setId);
 	if (it != sets.cend()) {
-		_displayingSetId = setId;
-		auto box = Ui::show(
+		_displayingSet = true;
+		checkHideWithBox(Ui::show(
 			Box<StickerSetBox>(controller(), Stickers::inputSetId(*it)),
-			LayerOption::KeepOther);
-		connect(box, &QObject::destroyed, this, [this] {
-			_displayingSetId = 0;
-			_checkForHide.fire({});
-		});
+			LayerOption::KeepOther).data());
 	}
+}
+
+void StickersListWidget::checkHideWithBox(QPointer<BoxContent> box) {
+	if (!box) {
+		return;
+	}
+	connect(box, &QObject::destroyed, this, [=] {
+		_displayingSet = false;
+		_checkForHide.fire({});
+	});
 }
 
 void StickersListWidget::installSet(uint64 setId) {

@@ -135,16 +135,17 @@ StickerSetBox::StickerSetBox(
 , _set(set) {
 }
 
-void StickerSetBox::Show(
+QPointer<BoxContent> StickerSetBox::Show(
 		not_null<Window::SessionController*> controller,
 		not_null<DocumentData*> document) {
 	if (const auto sticker = document->sticker()) {
 		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-			Ui::show(
+			return Ui::show(
 				Box<StickerSetBox>(controller, sticker->set),
-				LayerOption::KeepOther);
+				LayerOption::KeepOther).data();
 		}
 	}
+	return nullptr;
 }
 
 void StickerSetBox::prepare() {

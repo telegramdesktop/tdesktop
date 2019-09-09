@@ -28,7 +28,7 @@ public:
 		not_null<Window::SessionController*> controller,
 		const MTPInputStickerSet &set);
 
-	static void Show(
+	static QPointer<BoxContent> Show(
 		not_null<Window::SessionController*> controller,
 		not_null<DocumentData*> document);
 

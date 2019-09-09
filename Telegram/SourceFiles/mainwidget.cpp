@@ -3219,6 +3219,8 @@ void MainWidget::start() {
 	if (const auto availableAt = Local::ReadExportSettings().availableAt) {
 		session().data().suggestStartExport(availableAt);
 	}
+	session().data().notifyStickersUpdated();
+	session().data().notifySavedGifsUpdated();
 
 	_history->start();
 
