@@ -259,13 +259,20 @@ bool loadBackground(zlib::FileToRead &file, QByteArray *outBackground, bool *out
 	return true;
 }
 
-bool loadTheme(
+bool LoadTheme(
 		const QByteArray &content,
-		const std::optional<QByteArray> &editedPalette,
-		Cached &cache,
 		const Colorizer &colorizer,
+		const std::optional<QByteArray> &editedPalette,
+		Cached *cache = nullptr,
 		Instance *out = nullptr) {
-	cache = Cached();
+	if (content.size() < 4) {
+		LOG(("Theme Error: Bad theme content size: %1").arg(content.size()));
+		return false;
+	}
+
+	if (cache) {
+		*cache = Cached();
+	}
 	zlib::FileToRead file(content);
 
 	const auto emptyColorizer = Colorizer();
@@ -289,7 +296,9 @@ bool loadTheme(
 		if (!loadColorScheme(schemeContent, paletteColorizer, out)) {
 			return false;
 		}
-		Background()->saveAdjustableColors();
+		if (!out) {
+			Background()->saveAdjustableColors();
+		}
 
 		auto backgroundTiled = false;
 		auto backgroundContent = QByteArray();
@@ -314,30 +323,37 @@ bool loadTheme(
 			if (colorizer) {
 				Colorize(background, colorizer);
 			}
-			auto buffer = QBuffer(&cache.background);
-			if (!background.save(&buffer, "BMP")) {
-				LOG(("Theme Error: could not write background image as a BMP to cache."));
-				return false;
+			if (cache) {
+				auto buffer = QBuffer(&cache->background);
+				if (!background.save(&buffer, "BMP")) {
+					LOG(("Theme Error: could not write background image as a BMP to cache."));
+					return false;
+				}
+				cache->tiled = backgroundTiled;
 			}
-			cache.tiled = backgroundTiled;
-
-			applyBackground(std::move(background), cache.tiled, out);
+			applyBackground(std::move(background), backgroundTiled, out);
 		}
 	} else {
 		// Looks like it is not a .zip theme.
 		if (!loadColorScheme(editedPalette.value_or(content), paletteColorizer, out)) {
 			return false;
 		}
-		Background()->saveAdjustableColors();
+		if (!out) {
+			Background()->saveAdjustableColors();
+		}
 	}
 	if (out) {
-		cache.colors = out->palette.save();
-	} else {
-		cache.colors = style::main_palette::save();
+		out->palette.finalize();
 	}
-	cache.paletteChecksum = style::palette::Checksum();
-	cache.contentChecksum = hashCrc32(content.constData(), content.size());
-
+	if (cache) {
+		if (out) {
+			cache->colors = out->palette.save();
+		} else {
+			cache->colors = style::main_palette::save();
+		}
+		cache->paletteChecksum = style::palette::Checksum();
+		cache->contentChecksum = hashCrc32(content.constData(), content.size());
+	}
 	return true;
 }
 
@@ -396,7 +412,7 @@ bool InitializeFromSaved(Saved &&saved) {
 	}
 
 	const auto colorizer = ColorizerForTheme(saved.object.pathAbsolute);
-	if (!loadTheme(saved.object.content, editing, saved.cache, colorizer)) {
+	if (!LoadTheme(saved.object.content, colorizer, editing, &saved.cache)) {
 		return false;
 	}
 	if (editing) {
@@ -1046,11 +1062,11 @@ void ChatBackground::reapplyWithNightMode(
 		auto preview = std::make_unique<Preview>();
 		preview->object = std::move(read.object);
 		preview->instance.cached = std::move(read.cache);
-		const auto loaded = loadTheme(
+		const auto loaded = LoadTheme(
 			preview->object.content,
-			std::nullopt,
-			preview->instance.cached,
 			ColorizerForTheme(path),
+			std::nullopt,
+			&preview->instance.cached,
 			&preview->instance);
 		if (!loaded) {
 			return false;
@@ -1252,28 +1268,21 @@ void ResetToSomeDefault() {
 		IsNightMode());
 }
 
-bool LoadFromContent(
-		const QByteArray &content,
-		not_null<Instance*> out,
-		const Colorizer &colorizer) {
-	if (content.size() < 4) {
-		LOG(("Theme Error: Bad theme content size: %1").arg(content.size()));
-		return false;
-	}
-
-	return loadTheme(content, std::nullopt, out->cached, colorizer, out);
-}
-
 bool LoadFromFile(
 		const QString &path,
 		not_null<Instance*> out,
+		Cached *outCache,
 		not_null<QByteArray*> outContent) {
 	*outContent = readThemeContent(path);
-	return LoadFromContent(*outContent, out, ColorizerForTheme(path));
+	const auto colorizer = ColorizerForTheme(path);
+	return LoadTheme(*outContent, colorizer, std::nullopt, outCache, out);
 }
 
-bool LoadFromContent(const QByteArray &content, not_null<Instance*> out) {
-	return LoadFromContent(content, out, {});
+bool LoadFromContent(
+		const QByteArray &content,
+		not_null<Instance*> out,
+		Cached *outCache) {
+	return LoadTheme(content, Colorizer(), std::nullopt, outCache, out);
 }
 
 QString EditingPalettePath() {

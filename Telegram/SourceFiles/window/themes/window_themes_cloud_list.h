@@ -86,6 +86,7 @@ private:
 		Data::CloudTheme theme;
 		not_null<CloudListCheck*> check;
 		std::unique_ptr<Ui::Radiobutton> button;
+		base::binary_guard generating;
 		bool waiting = false;
 
 		uint64 id() const {

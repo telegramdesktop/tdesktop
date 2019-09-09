@@ -925,13 +925,15 @@ std::unique_ptr<Preview> PreviewFromFile(
 	object.pathRelative = filepath.isEmpty()
 		? object.pathAbsolute
 		: QDir().relativeFilePath(filepath);
+	const auto instance = &result->instance;
+	const auto cache = &result->instance.cached;
 	if (bytes.isEmpty()) {
-		if (!LoadFromFile(filepath, &result->instance, &object.content)) {
+		if (!LoadFromFile(filepath, instance, cache, &object.content)) {
 			return nullptr;
 		}
 	} else {
 		object.content = bytes;
-		if (!LoadFromContent(bytes, &result->instance)) {
+		if (!LoadFromContent(bytes, instance, cache)) {
 			return nullptr;
 		}
 	}

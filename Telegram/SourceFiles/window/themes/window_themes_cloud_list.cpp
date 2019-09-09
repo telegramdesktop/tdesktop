@@ -91,7 +91,7 @@ constexpr auto kShowPerRow = 4;
 		return std::nullopt;
 	}
 	auto instance = Instance();
-	if (!LoadFromContent(content, &instance)) {
+	if (!LoadFromContent(content, &instance, nullptr)) {
 		return std::nullopt;
 	}
 	auto result = CloudListColors();
@@ -519,10 +519,16 @@ void CloudList::refreshElementUsing(
 }
 
 void CloudList::refreshColors(Element &element) {
-	if (element.id() == kFakeCloudThemeId) {
+	const auto currentId = Background()->themeObject().cloud.id;
+	const auto documentId = element.theme.documentId;
+	const auto document = documentId
+		? _window->session().data().document(documentId).get()
+		: nullptr;
+	if (element.id() == kFakeCloudThemeId
+		|| ((element.id() == currentId)
+			&& (!document || !document->isTheme()))) {
 		element.check->setColors(ColorsFromCurrentTheme());
-	} else if (const auto documentId = element.theme.documentId) {
-		const auto document = _window->session().data().document(documentId);
+	} else if (document) {
 		document->save(Data::FileOrigin(), QString()); // #TODO themes
 		if (document->loaded()) {
 			refreshColorsFromDocument(element, document);
@@ -598,17 +604,26 @@ bool CloudList::amCreator(const Data::CloudTheme &theme) const {
 void CloudList::refreshColorsFromDocument(
 		Element &element,
 		not_null<DocumentData*> document) {
-	auto colors = ColorsFromTheme(
-		document->filepath(),
-		document->data());
-	if (!colors) {
-		return;
-	}
-	if (colors->background.isNull()) {
-		colors->background = ColorsFromCurrentTheme().background;
-	}
-	element.check->setColors(*colors);
-	setWaiting(element, false);
+	const auto id = element.id();
+	const auto path = document->filepath();
+	const auto data = document->data();
+	crl::async([=, guard = element.generating.make_guard()]() mutable {
+		crl::on_main(std::move(guard), [
+			=,
+			result = ColorsFromTheme(path, data)
+		]() mutable {
+			const auto i = ranges::find(_elements, id, &Element::id);
+			if (i == end(_elements) || !result) {
+				return;
+			}
+			auto &element = *i;
+			if (result->background.isNull()) {
+				result->background = ColorsFromCurrentTheme().background;
+			}
+			element.check->setColors(*result);
+			setWaiting(element, false);
+		});
+	});
 }
 
 void CloudList::subscribeToDownloadFinished() {

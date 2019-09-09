@@ -272,6 +272,18 @@ void CloudThemes::parseThemes(const QVector<MTPTheme> &list) {
 			LOG(("API Error: Unexpected themeDocumentNotModified."));
 		});
 	}
+	checkCurrentTheme();
+}
+
+void CloudThemes::checkCurrentTheme() {
+	const auto &object = Window::Theme::Background()->themeObject();
+	if (!object.cloud.id || !object.cloud.documentId) {
+		return;
+	}
+	const auto i = ranges::find(_list, object.cloud.id, &CloudTheme::id);
+	if (i == end(_list)) {
+		install();
+	}
 }
 
 rpl::producer<> CloudThemes::updated() const {

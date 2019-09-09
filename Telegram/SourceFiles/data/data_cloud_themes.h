@@ -56,6 +56,7 @@ private:
 	};
 
 	void parseThemes(const QVector<MTPTheme> &list);
+	void checkCurrentTheme();
 
 	void install();
 	void setupReload();
