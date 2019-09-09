@@ -821,7 +821,8 @@ void SaveThemeBox(
 	const auto background = Background()->createCurrentImage();
 	const auto backgroundIsTiled = Background()->tile();
 	const auto changed = !Data::IsThemeWallPaper(Background()->paper())
-		|| originalParsed.background.isEmpty();
+		|| originalParsed.background.isEmpty()
+		|| ColorizerForTheme(original.pathAbsolute);
 
 	auto parsed = ParsedTheme();
 	parsed.palette = StripCloudTextFields(palette);
