@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_libnotify.h"
 #include "platform/linux/linux_desktop_environment.h"
 
+#include <QtGui/QGuiApplication>
+
 namespace Platform {
 namespace Libs {
 namespace {
@@ -106,10 +108,10 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 		// Otherwise we get segfault in Ubuntu 17.04 in gtk_init_check() call.
 		// See https://github.com/telegramdesktop/tdesktop/issues/3176
 		// See https://github.com/telegramdesktop/tdesktop/issues/3162
-		if(QApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive)) {
+		if(QGuiApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive)) {
 			DEBUG_LOG(("Limit allowed GDK backends to wayland"));
 			gdk_set_allowed_backends("wayland");
-		} else if (QApplication::platformName() == qsl("xcb")) {
+		} else if (QGuiApplication::platformName() == qsl("xcb")) {
 			DEBUG_LOG(("Limit allowed GDK backends to x11"));
 			gdk_set_allowed_backends("x11");
 		}
@@ -233,7 +235,7 @@ void start() {
 
 	bool gtkLoaded = false;
 	bool indicatorLoaded = false;
-	bool isWayland = QApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive);
+	bool isWayland = QGuiApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive);
 	QLibrary lib_gtk, lib_indicator;
 	if (loadLibrary(lib_indicator, "ayatana-appindicator3", 1) || loadLibrary(lib_indicator, "appindicator3", 1)) {
 		if (loadLibrary(lib_gtk, "gtk-3", 0)) {
