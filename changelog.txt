@@ -1,4 +1,8 @@
-1.8.6 beta (09.09.09)
+1.8.7 beta (10.09.19)
+
+- Bug fixes and other minor improvements.
+
+1.8.6 beta (09.09.19)
 
 - Bug fixes and other minor improvements.
 
