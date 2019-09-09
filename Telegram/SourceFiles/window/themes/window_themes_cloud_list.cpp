@@ -560,11 +560,11 @@ void CloudList::showMenu(Element &element) {
 	_contextMenu->addAction(tr::lng_theme_delete(tr::now), [=] {
 		const auto box = std::make_shared<QPointer<BoxContent>>();
 		const auto remove = [=] {
+			if (*box) {
+				(*box)->closeBox();
+			}
 			if (Background()->themeObject().cloud.id == id
 				|| id == kFakeCloudThemeId) {
-				if (*box) {
-					(*box)->closeBox();
-				}
 				if (Background()->editingTheme().has_value()) {
 					Background()->clearEditingTheme(
 						ClearEditing::KeepChanges);
