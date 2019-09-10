@@ -91,7 +91,7 @@ void CountNicePercent(
 	auto &&zipped = ranges::view::zip(
 		votes,
 		items,
-		ranges::view::ints(0));
+		ranges::view::ints(0, int(items.size())));
 	for (auto &&[votes, item, index] : zipped) {
 		item.index = index;
 		item.percent = (votes * 100) / total;

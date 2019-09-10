@@ -367,7 +367,7 @@ void Row::paintPreview(Painter &p) const {
 	const auto y = st::manageEmojiPreviewPadding.top();
 	const auto width = st::manageEmojiPreviewWidth;
 	const auto height = st::manageEmojiPreviewWidth;
-	auto &&preview = ranges::view::zip(_preview, ranges::view::ints(0));
+	auto &&preview = ranges::view::zip(_preview, ranges::view::ints(0, int(_preview.size())));
 	for (const auto &[pixmap, index] : preview) {
 		const auto row = (index / 2);
 		const auto column = (index % 2);
@@ -570,7 +570,7 @@ void Row::setupPreview(const Set &set) {
 	const auto size = st::manageEmojiPreview * cIntRetinaFactor();
 	const auto original = QImage(set.previewPath);
 	const auto full = original.height();
-	auto &&preview = ranges::view::zip(_preview, ranges::view::ints(0));
+	auto &&preview = ranges::view::zip(_preview, ranges::view::ints(0, int(_preview.size())));
 	for (auto &&[pixmap, index] : preview) {
 		pixmap = App::pixmapFromImageInPlace(original.copy(
 			{ full * index, 0, full, full }

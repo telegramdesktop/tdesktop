@@ -262,7 +262,7 @@ QImage BlurLargeImage(QImage image, int radius) {
 	const auto dvs = take(dvcount);
 
 	auto &&ints = ranges::view::ints;
-	for (auto &&[value, index] : ranges::view::zip(dvs, ints(0))) {
+	for (auto &&[value, index] : ranges::view::zip(dvs, ints(0, ranges::unreachable))) {
 		value = (index / divsum);
 	}
 	const auto dv = dvs.data();
