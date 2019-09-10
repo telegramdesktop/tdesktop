@@ -32,6 +32,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_passport.h"
 #include "styles/style_chat_helpers.h"
 
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 namespace {
 
 using Language = Lang::Language;
@@ -408,7 +411,7 @@ bool Rows::hasMenu(not_null<const Row*> row) const {
 
 void Rows::share(not_null<const Row*> row) const {
 	const auto link = qsl("https://t.me/setlanguage/") + row->data.id;
-	QApplication::clipboard()->setText(link);
+	QGuiApplication::clipboard()->setText(link);
 	Ui::Toast::Show(tr::lng_username_copied(tr::now));
 }
 

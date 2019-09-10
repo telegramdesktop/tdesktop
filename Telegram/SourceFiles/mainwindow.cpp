@@ -45,6 +45,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu.h"
 #include "window/window_session_controller.h"
 
+#include <QtGui/QWindow>
+#include <QtCore/QCoreApplication>
+
 namespace {
 
 // Code for testing languages is F7-F6-F7-F8
@@ -169,7 +172,7 @@ QPixmap MainWindow::grabInner() {
 void MainWindow::setupPasscodeLock() {
 	auto animated = (_main || _intro);
 	auto bg = animated ? grabInner() : QPixmap();
-	_passcodeLock.create(bodyWidget());
+	_passcodeLock.create(bodyWidget(), &controller());
 	updateControlsGeometry();
 
 	Core::App().hideMediaView();

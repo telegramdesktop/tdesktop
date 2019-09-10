@@ -46,6 +46,7 @@ public:
 	virtual QPointer<Ui::IconButton> addTopButton(
 		const style::IconButton &st,
 		Fn<void()> clickCallback) = 0;
+	virtual void showLoading(bool show) = 0;
 	virtual void updateButtonsPositions() = 0;
 
 	virtual void showBox(
@@ -132,6 +133,9 @@ public:
 			std::move(text),
 			std::move(clickCallback),
 			st);
+	}
+	void showLoading(bool show) {
+		getDelegate()->showLoading(show);
 	}
 	void updateButtonsGeometry() {
 		getDelegate()->updateButtonsPositions();
@@ -271,6 +275,7 @@ public:
 	AbstractBox(
 		not_null<Window::LayerStackWidget*> layer,
 		object_ptr<BoxContent> content);
+	~AbstractBox();
 
 	void parentResized() override;
 
@@ -294,6 +299,7 @@ public:
 	QPointer<Ui::IconButton> addTopButton(
 		const style::IconButton &st,
 		Fn<void()> clickCallback) override;
+	void showLoading(bool show) override;
 	void updateButtonsPositions() override;
 	QPointer<QWidget> outerContainer() override;
 
@@ -332,17 +338,20 @@ protected:
 	}
 
 private:
+	struct LoadingProgress;
+
 	void paintAdditionalTitle(Painter &p);
 	void updateTitlePosition();
 	void refreshLang();
 
-	bool hasTitle() const;
-	int titleHeight() const;
-	int buttonsHeight() const;
-	int buttonsTop() const;
-	int contentTop() const;
-	int countFullHeight() const;
-	int countRealHeight() const;
+	[[nodiscard]] bool hasTitle() const;
+	[[nodiscard]] int titleHeight() const;
+	[[nodiscard]] int buttonsHeight() const;
+	[[nodiscard]] int buttonsTop() const;
+	[[nodiscard]] int contentTop() const;
+	[[nodiscard]] int countFullHeight() const;
+	[[nodiscard]] int countRealHeight() const;
+	[[nodiscard]] QRect loadingRect() const;
 	void updateSize();
 
 	not_null<Window::LayerStackWidget*> _layer;
@@ -363,6 +372,7 @@ private:
 	std::vector<object_ptr<Ui::RoundButton>> _buttons;
 	object_ptr<Ui::RoundButton> _leftButton = { nullptr };
 	base::unique_qptr<Ui::IconButton> _topButton = { nullptr };
+	std::unique_ptr<LoadingProgress> _loadingProgress;
 
 };
 

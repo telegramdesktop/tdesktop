@@ -408,7 +408,8 @@ void WrapWidget::createTopBar() {
 		addProfileCallsButton();
 //		addProfileNotificationsButton();
 	} else if (section.type() == Section::Type::Settings
-		&& section.settingsType() == Section::SettingsType::Main) {
+		&& (section.settingsType() == Section::SettingsType::Main
+			|| section.settingsType() == Section::SettingsType::Chat)) {
 		addTopBarMenuButton();
 	} else if (section.type() == Section::Type::Settings
 		&& section.settingsType() == Section::SettingsType::Information) {
@@ -586,7 +587,11 @@ void WrapWidget::showTopBarMenu() {
 			_topBarMenu = nullptr;
 			controller->showSettings(type);
 		};
-		::Settings::FillMenu(&self->session(), showOther, addAction);
+		::Settings::FillMenu(
+			_controller->parentController(),
+			_controller->section().settingsType(),
+			showOther,
+			addAction);
 	} else {
 		_topBarMenu = nullptr;
 		return;

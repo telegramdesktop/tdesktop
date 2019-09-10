@@ -29,6 +29,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 
+#include <QtWidgets/QDesktopWidget>
+#include <QtCore/QMimeData>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QWindow>
+#include <QtGui/QScreen>
+#include <QtGui/QDrag>
+
 namespace Window {
 namespace {
 
@@ -583,8 +590,8 @@ void MainWindow::reActivateWindow() {
 }
 
 void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
-	auto wasWidth = width();
-	auto wasRightWidth = _rightColumn ? _rightColumn->width() : 0;
+	const auto wasWidth = width();
+	const auto wasRightWidth = _rightColumn ? _rightColumn->width() : 0;
 	_rightColumn = std::move(widget);
 	if (_rightColumn) {
 		_rightColumn->setParent(this);
@@ -593,12 +600,21 @@ void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 	} else if (App::wnd()) {
 		App::wnd()->setInnerFocus();
 	}
-	auto nowRightWidth = _rightColumn ? _rightColumn->width() : 0;
-	setMinimumWidth(st::windowMinWidth + nowRightWidth);
+	const auto nowRightWidth = _rightColumn ? _rightColumn->width() : 0;
+	const auto wasMaximized = isMaximized();
+	const auto wasMinimumWidth = minimumWidth();
+	const auto nowMinimumWidth = st::windowMinWidth + nowRightWidth;
+	const auto firstResize = (nowMinimumWidth < wasMinimumWidth);
+	if (firstResize) {
+		setMinimumWidth(nowMinimumWidth);
+	}
 	if (!isMaximized()) {
 		tryToExtendWidthBy(wasWidth + nowRightWidth - wasRightWidth - width());
 	} else {
 		updateControlsGeometry();
+	}
+	if (!firstResize) {
+		setMinimumWidth(nowMinimumWidth);
 	}
 }
 

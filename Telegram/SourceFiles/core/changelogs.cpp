@@ -51,7 +51,15 @@ std::map<int, const char*> BetaLogs() {
 		"\xE2\x80\xA2 Use strikethrough and underline formatting.\n"
 
 		"\xE2\x80\xA2 Bug fixes and other minor improvements."
-	}
+	},
+	{
+		1008005,
+		"\xE2\x80\xA2 Create new themes based on your color and wallpaper choices.\n"
+
+		"\xE2\x80\xA2 Share your themes with other users via links.\n"
+
+		"\xE2\x80\xA2 Update your theme for all its users when you change something.\n"
+	},
 	};
 };
 

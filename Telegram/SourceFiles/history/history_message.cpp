@@ -41,6 +41,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "styles/style_window.h"
 
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 namespace {
 
 constexpr auto kPinnedMessageTextLimit = 16;
@@ -212,7 +215,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 							+ qsl("?game=")
 							+ game->shortName);
 
-						QApplication::clipboard()->setText(link);
+						QGuiApplication::clipboard()->setText(link);
 
 						Ui::Toast::Show(tr::lng_share_game_link_copied(tr::now));
 					}
@@ -274,6 +277,9 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 				: MTPmessages_ForwardMessages::Flag(0))
 			| (options.silent
 				? MTPmessages_ForwardMessages::Flag::f_silent
+				: MTPmessages_ForwardMessages::Flag(0))
+			| (options.scheduled
+				? MTPmessages_ForwardMessages::Flag::f_schedule_date
 				: MTPmessages_ForwardMessages::Flag(0));
 		auto msgIds = QVector<MTPint>();
 		msgIds.reserve(data->msgIds.size());
@@ -292,6 +298,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			if (!comment.text.isEmpty()) {
 				auto message = ApiWrap::MessageToSend(history);
 				message.textWithTags = comment;
+				message.action.options = options;
 				message.action.clearDraft = false;
 				history->session().api().sendMessage(std::move(message));
 			}
@@ -302,7 +309,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 					MTP_vector<MTPint>(msgIds),
 					MTP_vector<MTPlong>(generateRandom()),
 					peer->input,
-					MTP_int(0)),
+					MTP_int(options.scheduled)),
 				rpcDone(base::duplicate(doneCallback)),
 				nullptr,
 				0,
@@ -743,7 +750,7 @@ bool HistoryMessage::allowsForward() const {
 }
 
 bool HistoryMessage::allowsSendNow() const {
-	return isScheduled();
+	return isScheduled() && !isSending() && !hasFailed();
 }
 
 bool HistoryMessage::isTooOldForEdit(TimeId now) const {

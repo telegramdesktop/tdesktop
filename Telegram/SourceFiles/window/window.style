@@ -296,6 +296,35 @@ windowOutdatedClose: IconButton(defaultIconButton) {
 	iconPosition: point(-1px, -1px);
 }
 
+createThemeImportButton: InfoProfileButton {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	font: semiboldFont;
+
+	height: 20px;
+	padding: margins(23px, 10px, 23px, 8px);
+
+	ripple: defaultRippleAnimation;
+}
+createThemeLink: InputField(defaultInputField) {
+	textMargins: margins(0px, 7px, 0px, 0px);
+	textBg: boxBg;
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(0px, 0px, 0px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: boxTextFont;
+
+	heightMin: 34px;
+
+	font: boxTextFont;
+}
+
 // Mac specific
 
 macAccessoryWidth: 450.;

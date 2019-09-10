@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/specific_mac_p.h"
 #include "base/timer.h"
 
+#include <QtWidgets/QMenuBar>
+
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {

@@ -43,6 +43,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_window.h"
 
+#include <QtCore/QMimeData>
+
 namespace Dialogs {
 namespace {
 
@@ -311,10 +313,12 @@ void Widget::setupScrollUpButton() {
 		scrollToTop();
 	});
 	Core::InstallEventFilter(_scrollToTop, [=](not_null<QEvent*> event) {
-		if (event->type() == QEvent::Wheel) {
-			return _scroll->viewportEvent(event);
+		if (event->type() != QEvent::Wheel) {
+			return Core::EventFilter::Result::Continue;
 		}
-		return false;
+		return _scroll->viewportEvent(event)
+			? Core::EventFilter::Result::Cancel
+			: Core::EventFilter::Result::Continue;
 	});
 	updateScrollUpVisibility();
 }
@@ -1221,7 +1225,7 @@ void Widget::dropEvent(QDropEvent *e) {
 		if (auto peer = _inner->updateFromParentDrag(mapToGlobal(e->pos()))) {
 			e->acceptProposedAction();
 			App::main()->onFilesOrForwardDrop(peer->id, e->mimeData());
-			controller()->window()->activateWindow();
+			controller()->widget()->activateWindow();
 		}
 	}
 }
@@ -1324,7 +1328,6 @@ void Widget::showSearchFrom() {
 	if (const auto peer = _searchInChat.peer()) {
 		const auto chat = _searchInChat;
 		ShowSearchFromBox(
-			controller(),
 			peer,
 			crl::guard(this, [=](not_null<UserData*> user) {
 				Ui::hideLayer();

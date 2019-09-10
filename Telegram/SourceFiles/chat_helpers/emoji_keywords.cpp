@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 
+#include <QtGui/QGuiApplication>
+
 namespace ChatHelpers {
 namespace {
 

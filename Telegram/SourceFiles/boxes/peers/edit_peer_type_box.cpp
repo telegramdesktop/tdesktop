@@ -39,6 +39,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include <rpl/flatten_latest.h>
 
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 namespace {
 
 constexpr auto kUsernameCheckTimeout = crl::time(200);
@@ -607,7 +610,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 	_controls.inviteLink->setContextCopyText(QString());
 	_controls.inviteLink->setBreakEverywhere(true);
 	_controls.inviteLink->setClickHandlerFilter([=](auto&&...) {
-		QApplication::clipboard()->setText(inviteLinkText());
+		QGuiApplication::clipboard()->setText(inviteLinkText());
 		Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
 		return false;
 	});

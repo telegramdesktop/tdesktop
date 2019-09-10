@@ -52,6 +52,8 @@ public:
 		return result;
 	}
 
+	void showRightColumn(object_ptr<TWidget> widget);
+
 	void activate();
 	void reActivate();
 	void updateIsActive(int timeout);
@@ -67,6 +69,7 @@ private:
 		object_ptr<BoxContent> content,
 		LayerOptions options,
 		anim::type animated);
+	void checkThemeEditor();
 
 	not_null<Main::Account*> _account;
 	::MainWindow _widget;

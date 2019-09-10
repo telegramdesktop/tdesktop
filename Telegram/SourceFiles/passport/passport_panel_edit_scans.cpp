@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_passport.h"
 
+#include <QtCore/QBuffer>
+
 namespace Passport {
 namespace {
 

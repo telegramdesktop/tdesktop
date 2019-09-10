@@ -83,9 +83,12 @@ QString fillLetters(const QString &name) {
 
 class Generator {
 public:
-	Generator(const Instance &theme, CurrentData &&current);
+	Generator(
+		const Instance &theme,
+		CurrentData &&current,
+		PreviewType type);
 
-	QImage generate();
+	[[nodiscard]] QImage generate();
 
 private:
 	enum class Status {
@@ -131,6 +134,7 @@ private:
 		Ui::Text::String replyText = { st::msgMinWidth };
 	};
 
+	[[nodiscard]] bool extended() const;
 	void prepare();
 
 	void addRow(QString name, int peerIndex, QString date, QString text);
@@ -162,7 +166,8 @@ private:
 
 	const Instance &_theme;
 	const style::palette &_palette;
-	CurrentData _current;
+	const CurrentData _current;
+	const PreviewType _type;
 	Painter *_p = nullptr;
 
 	QRect _rect;
@@ -188,10 +193,19 @@ private:
 
 };
 
+bool Generator::extended() const {
+	return (_type == PreviewType::Extended);
+}
+
 void Generator::prepare() {
-	_rect = QRect(0, 0, st::themePreviewMargin.left() + st::themePreviewSize.width() + st::themePreviewMargin.right(), st::themePreviewMargin.top() + st::themePreviewSize.height() + st::themePreviewMargin.bottom());
-	_inner = _rect.marginsRemoved(st::themePreviewMargin);
-	_body = _inner.marginsRemoved(QMargins(0, Platform::PreviewTitleHeight(), 0, 0));
+	const auto size = extended()
+		? QRect(
+			QPoint(),
+			st::themePreviewSize).marginsAdded(st::themePreviewMargin).size()
+		: st::themePreviewSize;
+	_rect = QRect(QPoint(), size);
+	_inner = extended() ? _rect.marginsRemoved(st::themePreviewMargin) : _rect;
+	_body = extended() ? _inner.marginsRemoved(QMargins(0, Platform::PreviewTitleHeight(), 0, 0)) : _inner;
 	_dialogs = QRect(_body.x(), _body.y(), st::themePreviewDialogsWidth, _body.height());
 	_dialogsList = _dialogs.marginsRemoved(QMargins(0, st::dialogsFilterPadding.y() + st::dialogsMenuToggle.height + st::dialogsFilterPadding.y(), 0, st::dialogsPadding.y()));
 	_topBar = QRect(_dialogs.x() + _dialogs.width(), _dialogs.y(), _body.width() - _dialogs.width(), st::topBarHeight);
@@ -339,10 +353,14 @@ void Generator::generateData() {
 	_bubbles.back().replyText.setText(st::messageTextStyle, "Mark Twain said that " + QString() + QChar(9757) + QChar(55356) + QChar(57339), Ui::DialogTextOptions());
 }
 
-Generator::Generator(const Instance &theme, CurrentData &&current)
+Generator::Generator(
+	const Instance &theme,
+	CurrentData &&current,
+	PreviewType type)
 : _theme(theme)
 , _palette(_theme.palette)
-, _current(std::move(current)) {
+, _current(std::move(current))
+, _type(type) {
 }
 
 QImage Generator::generate() {
@@ -368,7 +386,9 @@ QImage Generator::generate() {
 		paintDialogs();
 		paintHistoryShadows();
 	}
-	Platform::PreviewWindowFramePaint(result, _palette, _body, _rect.width());
+	if (extended()) {
+		Platform::PreviewWindowFramePaint(result, _palette, _body, _rect.width());
+	}
 
 	return result;
 }
@@ -378,6 +398,7 @@ void Generator::paintHistoryList() {
 
 	_historyBottom = _history.y() + _history.height();
 	_historyBottom -= st::historyPaddingBottom;
+	_p->setClipping(true);
 	for (auto i = _bubbles.size(); i != 0;) {
 		auto &bubble = _bubbles[--i];
 		if (bubble.width > 0) {
@@ -908,32 +929,66 @@ void Generator::restoreTextPalette() {
 
 } // namespace
 
-std::unique_ptr<Preview> PreviewFromFile(const QString &filepath) {
+QString CachedThemePath(uint64 documentId) {
+	return QString::fromLatin1("special://cached-%1").arg(documentId);
+}
+
+std::unique_ptr<Preview> PreviewFromFile(
+		const QByteArray &bytes,
+		const QString &filepath,
+		const Data::CloudTheme &cloud) {
 	auto result = std::make_unique<Preview>();
-	result->pathRelative = filepath.isEmpty()
-		? QString()
-		: QDir().relativeFilePath(filepath);
-	result->pathAbsolute = filepath.isEmpty()
-		? QString()
+	auto &object = result->object;
+	object.cloud = cloud;
+	object.pathAbsolute = filepath.isEmpty()
+		? CachedThemePath(cloud.documentId)
 		: QFileInfo(filepath).absoluteFilePath();
-	if (!LoadFromFile(filepath, &result->instance, &result->content)) {
-		return nullptr;
+	object.pathRelative = filepath.isEmpty()
+		? object.pathAbsolute
+		: QDir().relativeFilePath(filepath);
+	const auto instance = &result->instance;
+	const auto cache = &result->instance.cached;
+	if (bytes.isEmpty()) {
+		if (!LoadFromFile(filepath, instance, cache, &object.content)) {
+			return nullptr;
+		}
+	} else {
+		object.content = bytes;
+		if (!LoadFromContent(bytes, instance, cache)) {
+			return nullptr;
+		}
 	}
 	return result;
 }
 
 std::unique_ptr<Preview> GeneratePreview(
+		const QByteArray &bytes,
 		const QString &filepath,
-		CurrentData &&data) {
-	auto result = PreviewFromFile(filepath);
+		const Data::CloudTheme &cloud,
+		CurrentData &&data,
+		PreviewType type) {
+	auto result = PreviewFromFile(bytes, filepath, cloud);
 	if (!result) {
 		return nullptr;
 	}
 	result->preview = Generator(
 		result->instance,
-		std::move(data)
+		std::move(data),
+		type
 	).generate();
 	return result;
+}
+
+QImage GeneratePreview(
+		const QByteArray &bytes,
+		const QString &filepath) {
+	const auto preview = GeneratePreview(
+		bytes,
+		filepath,
+		Data::CloudTheme(),
+		CurrentData{ Data::ThemeWallPaper().id() },
+		PreviewType::Normal);
+	return preview ? preview->preview : QImage();
 }
 
 int DefaultPreviewTitleHeight() {

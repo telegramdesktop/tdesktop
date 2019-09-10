@@ -31,6 +31,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/main_window.h"
 #include "layout.h"
 
+#include <QtWidgets/QDesktopWidget>
+#include <QtWidgets/QApplication>
+
 namespace Calls {
 namespace {
 

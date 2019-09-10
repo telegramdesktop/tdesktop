@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_game.h"
 #include "data/data_poll.h"
 #include "data/data_scheduled_messages.h"
+#include "data/data_cloud_themes.h"
 #include "base/unixtime.h"
 #include "styles/style_boxes.h" // st::backgroundSize
 
@@ -209,7 +210,8 @@ Session::Session(not_null<Main::Session*> session)
 })
 , _unmuteByFinishedTimer([=] { unmuteByFinished(); })
 , _groups(this)
-, _scheduledMessages(std::make_unique<ScheduledMessages>(this)) {
+, _scheduledMessages(std::make_unique<ScheduledMessages>(this))
+, _cloudThemes(std::make_unique<CloudThemes>(session)) {
 	_cache->open(Local::cacheKey());
 	_bigFileCache->open(Local::cacheBigFileKey());
 
@@ -2760,6 +2762,17 @@ void Session::webpageApplyFields(
 	const auto pendingTill = TimeId(0);
 	const auto photo = data.vphoto();
 	const auto document = data.vdocument();
+	const auto lookupThemeDocument = [&]() -> DocumentData* {
+		if (const auto documents = data.vdocuments()) {
+			for (const auto &document : documents->v) {
+				const auto processed = processDocument(document);
+				if (processed->isTheme()) {
+					return processed;
+				}
+			}
+		}
+		return nullptr;
+	};
 	webpageApplyFields(
 		page,
 		ParseWebPageType(data),
@@ -2769,7 +2782,7 @@ void Session::webpageApplyFields(
 		qs(data.vtitle().value_or_empty()),
 		description,
 		photo ? processPhoto(*photo).get() : nullptr,
-		document ? processDocument(*document).get() : nullptr,
+		document ? processDocument(*document).get() : lookupThemeDocument(),
 		WebPageCollage(data),
 		data.vduration().value_or_empty(),
 		qs(data.vauthor().value_or_empty()),

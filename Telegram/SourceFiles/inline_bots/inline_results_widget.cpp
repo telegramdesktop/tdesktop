@@ -33,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "history/view/history_view_cursor_state.h"
 
+#include <QtWidgets/QApplication>
+
 namespace InlineBots {
 namespace Layout {
 namespace internal {

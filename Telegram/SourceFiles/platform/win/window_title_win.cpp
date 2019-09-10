@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "styles/style_window.h"
 
+#include <QtGui/QWindow>
+
 namespace Platform {
 
 TitleWidget::TitleWidget(QWidget *parent) : Window::TitleWidget(parent)

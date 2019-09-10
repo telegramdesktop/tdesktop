@@ -357,7 +357,7 @@ void EditAdminBox::prepare() {
 	_aboutAddAdmins = addControl(
 		object_ptr<Ui::FlatLabel>(this, st::boxDividerLabel),
 		st::rightsAboutMargin);
-	std::move(
+	rpl::duplicate(
 		selectedFlags
 	) | rpl::map(
 		(_1 & Flag::f_add_admins) != 0

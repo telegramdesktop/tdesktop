@@ -28,6 +28,11 @@ namespace {
 
 constexpr int kErrorBadIconSize     = 861;
 
+const auto kMustBeContrast = std::map<QString, QString>{
+	{ "dialogsMenuIconFg", "dialogsBg" },
+	{ "windowBoldFg", "windowBg" },
+};
+
 // crc32 hash, taken somewhere from the internet
 
 class Crc32Table {
@@ -797,6 +802,15 @@ void palette::finalize() {\n\
 	auto count = indexInPalette;
 	auto checksum = hashCrc32(checksumString.constData(), checksumString.size());
 
+	source_->stream() << "\n\n";
+	for (const auto &[over, under] : kMustBeContrast) {
+		const auto overIndex = paletteIndices_.find(over);
+		const auto underIndex = paletteIndices_.find(under);
+		if (overIndex == paletteIndices_.end() || underIndex == paletteIndices_.end()) {
+			return false;
+		}
+		source_->stream() << "\tinternal::EnsureContrast(*data(" << overIndex->second << "), *data(" << underIndex->second << "));\n";
+	}
 	source_->stream() << "\
 }\n\
 \n\

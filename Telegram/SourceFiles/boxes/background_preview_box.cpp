@@ -27,6 +27,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 
+#include <QtGui/QClipboard>
+#include <QtGui/QGuiApplication>
+
 namespace {
 
 constexpr auto kMaxWallPaperSlugLength = 255;
@@ -221,7 +224,7 @@ void ServiceCheck::Generator::invalidate() {
 
 ServiceCheck::Generator &ServiceCheck::Frames() {
 	static const auto Instance = Ui::CreateChild<Generator>(
-		QApplication::instance());
+		QCoreApplication::instance());
 	return *Instance;
 }
 
@@ -498,7 +501,7 @@ void BackgroundPreviewBox::apply() {
 }
 
 void BackgroundPreviewBox::share() {
-	QApplication::clipboard()->setText(_paper.shareUrl());
+	QGuiApplication::clipboard()->setText(_paper.shareUrl());
 	Ui::Toast::Show(tr::lng_background_link_copied(tr::now));
 }
 

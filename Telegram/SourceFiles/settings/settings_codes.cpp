@@ -94,9 +94,6 @@ auto GenerateCodes() {
 			}
 		});
 	});
-	codes.emplace(qsl("edittheme"), [](::Main::Session *session) {
-		Window::Theme::Editor::Start();
-	});
 	codes.emplace(qsl("videoplayer"), [](::Main::Session *session) {
 		auto text = cUseExternalVideoPlayer() ? qsl("Use internal video player?") : qsl("Use external video player?");
 		Ui::show(Box<ConfirmBox>(text, [] {

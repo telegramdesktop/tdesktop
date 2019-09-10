@@ -23,6 +23,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "core/application.h"
 
+#include <QtWidgets/QCommonStyle>
+#include <QtWidgets/QScrollBar>
+#include <QtWidgets/QApplication>
+#include <QtGui/QClipboard>
+#include <QtGui/QTextBlock>
+#include <QtGui/QTextDocumentFragment>
+#include <QtCore/QMimeData>
+
 namespace Ui {
 namespace {
 
@@ -1234,7 +1242,7 @@ void FlatInput::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
 		auto selected = selectedText();
 		if (!selected.isEmpty() && echoMode() == QLineEdit::Normal) {
-			QApplication::clipboard()->setText(selected, QClipboard::FindBuffer);
+			QGuiApplication::clipboard()->setText(selected, QClipboard::FindBuffer);
 		}
 #endif // Q_OS_MAC
 	}
@@ -2696,7 +2704,7 @@ void InputField::keyPressEventInner(QKeyEvent *e) {
 		const auto start = cursor.selectionStart();
 		const auto end = cursor.selectionEnd();
 		if (end > start) {
-			QApplication::clipboard()->setText(
+			QGuiApplication::clipboard()->setText(
 				getTextWithTagsPart(start, end).text,
 				QClipboard::FindBuffer);
 		}
@@ -3957,7 +3965,7 @@ void MaskedInputField::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
 		auto selected = selectedText();
 		if (!selected.isEmpty() && echoMode() == QLineEdit::Normal) {
-			QApplication::clipboard()->setText(selected, QClipboard::FindBuffer);
+			QGuiApplication::clipboard()->setText(selected, QClipboard::FindBuffer);
 		}
 #endif // Q_OS_MAC
 	}

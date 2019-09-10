@@ -161,6 +161,12 @@ boxPhotoCompressedSkip: 20px;
 boxPhotoCaptionSkip: 8px;
 boxPhotoTextFg: windowSubTextFg;
 
+boxLoadingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: windowSubTextFg;
+	thickness: 2px;
+}
+boxLoadingSize: 20px;
+
 cropPointSize: 10px;
 cropSkip: 13px;
 cropMinSize: 20px;
@@ -879,6 +885,21 @@ themesScroll: ScrollArea(defaultScrollArea) {
 	bottomsh: 0px;
 	topsh: 0px;
 }
+themesMenuToggle: IconButton(defaultIconButton) {
+	width: 44px;
+	height: 44px;
+
+	icon: icon {{ "title_menu_dots", menuIconFg }};
+	iconOver: icon {{ "title_menu_dots", menuIconFgOver }};
+	iconPosition: point(-1px, -1px);
+
+	rippleAreaPosition: point(4px, 4px);
+	rippleAreaSize: 36px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+themesMenuPosition: point(-2px, 25px);
 
 createPollField: InputField(defaultInputField) {
 	font: boxTextFont;

@@ -166,7 +166,7 @@ Colorizer ColorizerFrom(const EmbeddedScheme &scheme, const QColor &color) {
 }
 
 Colorizer ColorizerForTheme(const QString &absolutePath) {
-	if (!absolutePath.startsWith(qstr(":/gui"))) {
+	if (absolutePath.isEmpty() || !IsEmbeddedTheme(absolutePath)) {
 		return Colorizer();
 	}
 	const auto schemes = EmbeddedThemes();
@@ -369,7 +369,7 @@ std::vector<EmbeddedScheme> EmbeddedThemes() {
 	return {
 		EmbeddedScheme{
 			EmbeddedType::Default,
-			qColor("90ce89"),
+			qColor("9bd494"),
 			qColor("eaffdc"),
 			qColor("ffffff"),
 			qColor("eaffdc"),

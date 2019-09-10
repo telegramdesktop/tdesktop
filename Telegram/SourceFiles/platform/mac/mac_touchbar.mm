@@ -498,28 +498,19 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	button.action = @selector(buttonActionPin:);
 	self.view = button;
 
-	using Update = const Window::Theme::BackgroundUpdate;
-	auto themeChanged = base::ObservableViewer(
+	base::ObservableViewer(
 		*Window::Theme::Background()
-	) | rpl::start_spawning(_lifetime);
-
-	rpl::duplicate(
-		themeChanged
-	) | rpl::filter([=](const Update &update) {
-		return update.paletteChanged()
-			&& (_number <= kSavedMessagesId || UseEmptyUserpic(_peer));
+	) | rpl::filter([](const Window::Theme::BackgroundUpdate &update) {
+		return update.paletteChanged();
 	}) | rpl::start_with_next([=] {
-		[self updateUserpic];
-	}, _lifetime);
-
-	std::move(
-		themeChanged
-	) | rpl::filter([=](const Update &update) {
-		return (update.type == Update::Type::ApplyingTheme)
-			&& (_peer != nullptr)
-			&& (UnreadCount(_peer) || Data::IsPeerAnOnlineUser(_peer));
-	}) | rpl::start_with_next([=] {
-		[self updateBadge];
+		crl::on_main([=] {
+			if (_number <= kSavedMessagesId || UseEmptyUserpic(_peer)) {
+				[self updateUserpic];
+			} else if (_peer
+				&& (UnreadCount(_peer) || Data::IsPeerAnOnlineUser(_peer))) {
+				[self updateBadge];
+			}
+		});
 	}, _lifetime);
 
 	if (num <= kSavedMessagesId) {
@@ -613,9 +604,8 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		return;
 	}
 	isWaitingUserpicLoad = !self.peer->userpicLoaded();
-	auto pixmap = self.peer->genUserpic(kIdealIconSize);
-	pixmap.setDevicePixelRatio(cRetinaFactor());
-	_userpic = pixmap;
+	_userpic = self.peer->genUserpic(kIdealIconSize);
+	_userpic.setDevicePixelRatio(cRetinaFactor());
 	[self updateBadge];
 }
 

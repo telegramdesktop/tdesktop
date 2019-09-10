@@ -11,14 +11,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_profile.h"
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
+#include "ui/effects/radial_animation.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/text/text_utilities.h"
+#include "base/timer.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+
+struct AbstractBox::LoadingProgress {
+	LoadingProgress(
+		Fn<void()> &&callback,
+		const style::InfiniteRadialAnimation &st);
+
+	Ui::InfiniteRadialAnimation animation;
+	base::Timer removeTimer;
+};
+
+AbstractBox::LoadingProgress::LoadingProgress(
+	Fn<void()> &&callback,
+	const style::InfiniteRadialAnimation &st)
+: animation(std::move(callback), st) {
+}
 
 void BoxContent::setTitle(rpl::producer<QString> title) {
 	getDelegate()->setTitle(std::move(title) | Ui::Text::ToWithEntities());
@@ -269,6 +286,8 @@ AbstractBox::AbstractBox(
 	}, lifetime());
 }
 
+AbstractBox::~AbstractBox() = default;
+
 void AbstractBox::setLayerType(bool layerType) {
 	_layerType = layerType;
 	updateTitlePosition();
@@ -279,13 +298,33 @@ int AbstractBox::titleHeight() const {
 }
 
 int AbstractBox::buttonsHeight() const {
-	auto padding = _layerType ? st::boxLayerButtonPadding : st::boxButtonPadding;
+	const auto padding = _layerType
+		? st::boxLayerButtonPadding
+		: st::boxButtonPadding;
 	return padding.top() + st::defaultBoxButton.height + padding.bottom();
 }
 
 int AbstractBox::buttonsTop() const {
-	auto padding = _layerType ? st::boxLayerButtonPadding : st::boxButtonPadding;
+	const auto padding = _layerType
+		? st::boxLayerButtonPadding
+		: st::boxButtonPadding;
 	return height() - padding.bottom() - st::defaultBoxButton.height;
+}
+
+QRect AbstractBox::loadingRect() const {
+	const auto padding = _layerType
+		? st::boxLayerButtonPadding
+		: st::boxButtonPadding;
+	const auto size = st::boxLoadingSize;
+	const auto skipx = _layerType
+		? st::boxLayerTitlePosition.x()
+		: st::boxTitlePosition.x();
+	const auto skipy = (st::defaultBoxButton.height - size) / 2;
+	return QRect(
+		skipx,
+		height() - padding.bottom() - skipy - size,
+		size,
+		size);
 }
 
 void AbstractBox::paintEvent(QPaintEvent *e) {
@@ -308,6 +347,14 @@ void AbstractBox::paintEvent(QPaintEvent *e) {
 	if (!_additionalTitle.current().isEmpty()
 		&& clip.intersects(QRect(0, 0, width(), titleHeight()))) {
 		paintAdditionalTitle(p);
+	}
+	if (_loadingProgress) {
+		const auto rect = loadingRect();
+		_loadingProgress->animation.draw(
+			p,
+			rect.topLeft(),
+			rect.size(),
+			width());
 	}
 }
 
@@ -440,6 +487,36 @@ QPointer<Ui::IconButton> AbstractBox::addTopButton(const style::IconButton &st, 
 	updateButtonsPositions();
 	return result;
 }
+
+void AbstractBox::showLoading(bool show) {
+	const auto &st = st::boxLoadingAnimation;
+	if (!show) {
+		if (_loadingProgress && !_loadingProgress->removeTimer.isActive()) {
+			_loadingProgress->removeTimer.callOnce(
+				st.sineDuration + st.sinePeriod);
+			_loadingProgress->animation.stop();
+		}
+		return;
+	}
+	if (!_loadingProgress) {
+		const auto callback = [=] {
+			if (!anim::Disabled()) {
+				const auto t = st::boxLoadingAnimation.thickness;
+				update(loadingRect().marginsAdded({ t, t, t, t }));
+			}
+		};
+		_loadingProgress = std::make_unique<LoadingProgress>(
+			callback,
+			st::boxLoadingAnimation);
+		_loadingProgress->removeTimer.setCallback([=] {
+			_loadingProgress = nullptr;
+		});
+	} else {
+		_loadingProgress->removeTimer.cancel();
+	}
+	_loadingProgress->animation.start();
+}
+
 
 void AbstractBox::setDimensions(int newWidth, int maxHeight, bool forceCenterPosition) {
 	_maxContentHeight = maxHeight;

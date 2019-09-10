@@ -32,6 +32,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 
+#include <QtWidgets/QApplication>
+#include <QtGui/QClipboard>
+
 namespace {
 
 constexpr auto kStickersPanelPerRow = 5;
@@ -132,16 +135,17 @@ StickerSetBox::StickerSetBox(
 , _set(set) {
 }
 
-void StickerSetBox::Show(
+QPointer<BoxContent> StickerSetBox::Show(
 		not_null<Window::SessionController*> controller,
 		not_null<DocumentData*> document) {
 	if (const auto sticker = document->sticker()) {
 		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-			Ui::show(
+			return Ui::show(
 				Box<StickerSetBox>(controller, sticker->set),
-				LayerOption::KeepOther);
+				LayerOption::KeepOther).data();
 		}
 	}
+	return nullptr;
 }
 
 void StickerSetBox::prepare() {
@@ -177,7 +181,7 @@ void StickerSetBox::addStickers() {
 
 void StickerSetBox::shareStickers() {
 	auto url = Core::App().createInternalLinkFull(qsl("addstickers/") + _inner->shortName());
-	QApplication::clipboard()->setText(url);
+	QGuiApplication::clipboard()->setText(url);
 	Ui::show(Box<InformBox>(tr::lng_stickers_copied(tr::now)));
 }
 

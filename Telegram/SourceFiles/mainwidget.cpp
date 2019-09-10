@@ -100,6 +100,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 
+#include <QtCore/QCoreApplication>
+#include <QtCore/QMimeData>
+
 namespace {
 
 constexpr auto kChannelGetDifferenceLimit = 100;
@@ -2759,7 +2762,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 	// dialogs widget to provide a wide enough chat history column.
 	// Don't shrink the column on the first call, when window is inited.
 	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn
-		&& _started && _controller->window()->positionInited()) {
+		&& _started && _controller->widget()->positionInited()) {
 		//auto chatWidth = layout.chatWidth;
 		//if (_history->willSwitchToTabbedSelectorWithWidth(chatWidth)) {
 		//	auto thirdColumnWidth = _history->tabbedSelectorSectionWidth();
@@ -3216,6 +3219,8 @@ void MainWidget::start() {
 	if (const auto availableAt = Local::ReadExportSettings().availableAt) {
 		session().data().suggestStartExport(availableAt);
 	}
+	session().data().notifyStickersUpdated();
+	session().data().notifySavedGifsUpdated();
 
 	_history->start();
 
@@ -4607,6 +4612,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (!code.isEmpty()) {
 			Lang::CurrentCloudManager().requestLangPackDifference(code);
 		}
+	} break;
+
+	////// Cloud themes
+	case mtpc_updateTheme: {
+		const auto &data = update.c_updateTheme();
+		session().data().cloudThemes().applyUpdate(data.vtheme());
 	} break;
 
 	}

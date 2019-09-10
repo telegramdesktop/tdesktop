@@ -38,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 
+#include <QtCore/QMimeData>
+
 namespace {
 
 constexpr auto kMinPreviewWidth = 20;
@@ -1699,9 +1701,11 @@ void SendFilesBox::setupEmojiPanel() {
 		Ui::InsertEmojiAtCursor(_caption->textCursor(), emoji);
 	}, lifetime());
 
-	_emojiFilter.reset(Core::InstallEventFilter(
-		container,
-		[=](not_null<QEvent*> event) { return emojiFilter(event); }));
+	const auto filterCallback = [=](not_null<QEvent*> event) {
+		emojiFilterForGeometry(event);
+		return Core::EventFilter::Result::Continue;
+	};
+	_emojiFilter.reset(Core::InstallEventFilter(container, filterCallback));
 
 	_emojiToggle.create(this, st::boxAttachEmoji);
 	_emojiToggle->setVisible(!_caption->isHidden());
@@ -1711,14 +1715,13 @@ void SendFilesBox::setupEmojiPanel() {
 	});
 }
 
-bool SendFilesBox::emojiFilter(not_null<QEvent*> event) {
+void SendFilesBox::emojiFilterForGeometry(not_null<QEvent*> event) {
 	const auto type = event->type();
 	if (type == QEvent::Move || type == QEvent::Resize) {
 		// updateEmojiPanelGeometry uses not only container geometry, but
 		// also container children geometries that will be updated later.
 		crl::on_main(this, [=] { updateEmojiPanelGeometry(); });
 	}
-	return false;
 }
 
 void SendFilesBox::updateEmojiPanelGeometry() {

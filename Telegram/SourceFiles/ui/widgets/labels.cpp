@@ -13,6 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
 
+#include <QtWidgets/QApplication>
+#include <QtGui/QClipboard>
+#include <QtGui/QDrag>
+#include <QtCore/QMimeData>
+
 namespace Ui {
 namespace {
 
@@ -582,7 +587,7 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 			_contextMenu->addAction(
 				actionText,
 				[text = link->copyToClipboardText()] {
-					QApplication::clipboard()->setText(text);
+					QGuiApplication::clipboard()->setText(text);
 				});
 		}
 	}

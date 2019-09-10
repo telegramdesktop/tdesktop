@@ -16,6 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/parse_helper.h"
 #include "main/main_session.h"
 
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
+
 namespace Ui {
 namespace Emoji {
 namespace {

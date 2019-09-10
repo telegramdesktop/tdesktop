@@ -441,9 +441,8 @@ public:
 	void sendMessageFail(
 		const RPCError &error,
 		not_null<PeerData*> peer,
+		uint64 randomId = 0,
 		FullMsgId itemId = FullMsgId());
-
-	void requestSupportContact(FnMut<void(const MTPUser&)> callback);
 
 	void uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image);
 	void clearPeerPhoto(not_null<PhotoData*> photo);

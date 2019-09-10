@@ -196,8 +196,8 @@ mediaviewStreamingRadial: InfiniteRadialAnimation(defaultInfiniteRadialAnimation
 themePreviewSize: size(903px, 584px);
 themePreviewBg: windowBg;
 themePreviewOverlayOpacity: 0.8;
-themePreviewMargin: margins(36px, 52px, 36px, 88px);
-themePreviewTitleTop: 14px;
+themePreviewMargin: margins(36px, 72px, 36px, 88px);
+themePreviewTitleTop: 24px;
 themePreviewTitleFg: windowBoldFg;
 themePreviewTitleFont: font(17px semibold);
 themePreviewLoadingFont: font(16px);

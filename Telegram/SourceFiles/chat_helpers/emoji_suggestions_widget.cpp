@@ -20,6 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "styles/style_chat_helpers.h"
 
+#include <QtWidgets/QApplication>
+#include <QtGui/QTextBlock>
+
 namespace Ui {
 namespace Emoji {
 namespace {
@@ -518,12 +521,20 @@ SuggestionsController::SuggestionsController(
 
 	setReplaceCallback(nullptr);
 
-	_fieldFilter.reset(Core::InstallEventFilter(
-		_field,
-		[=](not_null<QEvent*> event) { return fieldFilter(event); }));
-	_outerFilter.reset(Core::InstallEventFilter(
-		outer,
-		[=](not_null<QEvent*> event) { return outerFilter(event); }));
+	const auto fieldCallback = [=](not_null<QEvent*> event) {
+		return fieldFilter(event)
+			? Core::EventFilter::Result::Cancel
+			: Core::EventFilter::Result::Continue;
+	};
+	_fieldFilter.reset(Core::InstallEventFilter(_field, fieldCallback));
+
+	const auto outerCallback = [=](not_null<QEvent*> event) {
+		return outerFilter(event)
+			? Core::EventFilter::Result::Cancel
+			: Core::EventFilter::Result::Continue;
+	};
+	_outerFilter.reset(Core::InstallEventFilter(outer, outerCallback));
+
 	QObject::connect(
 		_field,
 		&QTextEdit::textChanged,

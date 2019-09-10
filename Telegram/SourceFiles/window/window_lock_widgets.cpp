@@ -19,18 +19,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/toast/toast.h"
 #include "styles/style_boxes.h"
+#include "window/window_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
 
 namespace Window {
 
-LockWidget::LockWidget(QWidget *parent) : RpWidget(parent) {
+LockWidget::LockWidget(QWidget *parent, not_null<Controller*> window)
+: RpWidget(parent)
+, _window(window) {
 	show();
 }
 
 void LockWidget::setInnerFocus() {
-	if (const auto controller = App::wnd()->sessionController()) {
+	if (const auto controller = _window->sessionController()) {
 		controller->dialogsListFocused().set(false, true);
 	}
 	setFocus();
@@ -60,7 +63,7 @@ void LockWidget::animationCallback() {
 	update();
 	if (!_a_show.animating()) {
 		showChildren();
-		if (App::wnd()) App::wnd()->setInnerFocus();
+		_window->widget()->setInnerFocus();
 
 		Ui::showChatsList();
 
@@ -94,8 +97,10 @@ void LockWidget::paintContent(Painter &p) {
 	p.fillRect(rect(), st::windowBg);
 }
 
-PasscodeLockWidget::PasscodeLockWidget(QWidget *parent)
-: LockWidget(parent)
+PasscodeLockWidget::PasscodeLockWidget(
+	QWidget *parent,
+	not_null<Controller*> window)
+: LockWidget(parent, window)
 , _passcode(this, st::passcodeInput, tr::lng_passcode_ph())
 , _submit(this, tr::lng_passcode_submit(), st::passcodeSubmit)
 , _logout(this, tr::lng_passcode_logout(tr::now)) {
@@ -103,7 +108,7 @@ PasscodeLockWidget::PasscodeLockWidget(QWidget *parent)
 	connect(_passcode, &Ui::MaskedInputField::submitted, [=] { submit(); });
 
 	_submit->setClickedCallback([=] { submit(); });
-	_logout->setClickedCallback([] { App::wnd()->onLogout(); });
+	_logout->setClickedCallback([=] { window->widget()->onLogout(); });
 }
 
 void PasscodeLockWidget::paintContent(Painter &p) {

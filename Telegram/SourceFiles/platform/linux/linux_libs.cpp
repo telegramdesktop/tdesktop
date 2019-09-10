@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_libnotify.h"
 #include "platform/linux/linux_desktop_environment.h"
 
+#include <QtGui/QGuiApplication>
+
 namespace Platform {
 namespace Libs {
 namespace {
@@ -106,8 +108,13 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 		// Otherwise we get segfault in Ubuntu 17.04 in gtk_init_check() call.
 		// See https://github.com/telegramdesktop/tdesktop/issues/3176
 		// See https://github.com/telegramdesktop/tdesktop/issues/3162
-		DEBUG_LOG(("Limit allowed GDK backends to x11"));
-		gdk_set_allowed_backends("x11");
+		if(QGuiApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive)) {
+			DEBUG_LOG(("Limit allowed GDK backends to wayland"));
+			gdk_set_allowed_backends("wayland");
+		} else if (QGuiApplication::platformName() == qsl("xcb")) {
+			DEBUG_LOG(("Limit allowed GDK backends to x11"));
+			gdk_set_allowed_backends("x11");
+		}
 	}
 
 	DEBUG_LOG(("Library gtk functions loaded!"));
@@ -228,6 +235,7 @@ void start() {
 
 	bool gtkLoaded = false;
 	bool indicatorLoaded = false;
+	bool isWayland = QGuiApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive);
 	QLibrary lib_gtk, lib_indicator;
 	if (loadLibrary(lib_indicator, "ayatana-appindicator3", 1) || loadLibrary(lib_indicator, "appindicator3", 1)) {
 		if (loadLibrary(lib_gtk, "gtk-3", 0)) {
@@ -235,7 +243,7 @@ void start() {
 			indicatorLoaded = setupAppIndicator(lib_indicator);
 		}
 	}
-	if (!gtkLoaded || !indicatorLoaded) {
+	if ((!gtkLoaded || !indicatorLoaded) && !isWayland) {
 		if (loadLibrary(lib_indicator, "ayatana-appindicator", 1) || loadLibrary(lib_indicator, "appindicator", 1)) {
 			if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
 				gtkLoaded = indicatorLoaded = false;
@@ -250,7 +258,7 @@ void start() {
 		if (loadLibrary(lib_gtk, "gtk-3", 0)) {
 			gtkLoaded = setupGtkBase(lib_gtk);
 		}
-		if (!gtkLoaded && loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
+		if (!gtkLoaded && !isWayland && loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
 			gtkLoaded = setupGtkBase(lib_gtk);
 		}
 	}

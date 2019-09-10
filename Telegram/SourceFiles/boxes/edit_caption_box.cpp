@@ -38,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "confirm_box.h"
 
+#include <QtCore/QMimeData>
+
 EditCaptionBox::EditCaptionBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
@@ -277,14 +279,13 @@ EditCaptionBox::EditCaptionBox(
 	}, _wayWrap->lifetime());
 }
 
-bool EditCaptionBox::emojiFilter(not_null<QEvent*> event) {
+void EditCaptionBox::emojiFilterForGeometry(not_null<QEvent*> event) {
 	const auto type = event->type();
 	if (type == QEvent::Move || type == QEvent::Resize) {
 		// updateEmojiPanelGeometry uses not only container geometry, but
 		// also container children geometries that will be updated later.
 		crl::on_main(this, [=] { updateEmojiPanelGeometry(); });
 	}
-	return false;
 }
 
 void EditCaptionBox::updateEmojiPanelGeometry() {
@@ -716,9 +717,11 @@ void EditCaptionBox::setupEmojiPanel() {
 		Ui::InsertEmojiAtCursor(_field->textCursor(), emoji);
 	}, lifetime());
 
-	_emojiFilter.reset(Core::InstallEventFilter(
-		container,
-		[=](not_null<QEvent*> event) { return emojiFilter(event); }));
+	const auto filterCallback = [=](not_null<QEvent*> event) {
+		emojiFilterForGeometry(event);
+		return Core::EventFilter::Result::Continue;
+	};
+	_emojiFilter.reset(Core::InstallEventFilter(container, filterCallback));
 
 	_emojiToggle.create(this, st::boxAttachEmoji);
 	_emojiToggle->installEventFilter(_emojiPanel);

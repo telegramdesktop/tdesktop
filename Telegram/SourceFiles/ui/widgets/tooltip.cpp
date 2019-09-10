@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/qt_signal_producer.h"
 #include "styles/style_widgets.h"
 
+#include <QtCore/QCoreApplication>
+#include <QtWidgets/QDesktopWidget>
+
 namespace Ui {
 
 Tooltip *TooltipInstance = nullptr;

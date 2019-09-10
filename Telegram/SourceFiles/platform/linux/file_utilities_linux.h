@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_file_utilities.h"
 
+#include <QtGui/QWindow>
+#include <QtWidgets/QFileDialog>
+
 extern "C" {
 #undef signals
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION

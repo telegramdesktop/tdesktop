@@ -20,6 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "styles/style_boxes.h"
 
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+#include <QtGui/QDesktopServices>
+
 namespace {
 
 rpl::producer<TextWithEntities> Text1() {
@@ -100,7 +104,7 @@ void AboutBox::showVersionHistory() {
 		}
 		url = url.arg(qsl("talpha%1_%2").arg(cRealAlphaVersion()).arg(Core::countAlphaVersionSignature(cRealAlphaVersion())));
 
-		QApplication::clipboard()->setText(url);
+		QGuiApplication::clipboard()->setText(url);
 
 		Ui::show(Box<InformBox>("The link to the current private alpha version of Telegram Desktop was copied to the clipboard."));
 	} else {

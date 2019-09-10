@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "platform/platform_info.h"
 
+#include <QtGui/QWindow>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QFontDatabase>
+
 namespace Fonts {
 namespace {
 
@@ -149,12 +153,12 @@ void SendPendingEventsRecursive(QWidget *target, bool parentHiddenFlag) {
 	if (target->testAttribute(Qt::WA_PendingMoveEvent)) {
 		target->setAttribute(Qt::WA_PendingMoveEvent, false);
 		QMoveEvent e(target->pos(), QPoint());
-		QApplication::sendEvent(target, &e);
+		QCoreApplication::sendEvent(target, &e);
 	}
 	if (target->testAttribute(Qt::WA_PendingResizeEvent)) {
 		target->setAttribute(Qt::WA_PendingResizeEvent, false);
 		QResizeEvent e(target->size(), QSize());
-		QApplication::sendEvent(target, &e);
+		QCoreApplication::sendEvent(target, &e);
 	}
 
 	auto removeVisibleFlag = [&] {

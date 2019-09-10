@@ -35,6 +35,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "observer_peer.h"
 
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 TextParseOptions _confirmBoxTextOptions = {
 	TextParseLinks | TextParseMultiline | TextParseMarkdown | TextParseRichText, // flags
 	0, // maxw

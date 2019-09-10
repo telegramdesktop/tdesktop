@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 
+#include <QtCore/QProcess>
+
 QStringList qt_make_filter_list(const QString &filter);
 
 namespace Platform {

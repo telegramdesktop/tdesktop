@@ -18,6 +18,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "core/crash_reports.h"
 
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QDesktopWidget>
+#include <QtGui/QDesktopServices>
+#include <qpa/qplatformnativeinterface.h>
+
 #include <Shobjidl.h>
 #include <shellapi.h>
 
@@ -47,8 +52,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <functiondiscoverykeys.h>
 #include <intsafe.h>
 #include <guiddef.h>
-
-#include <qpa/qplatformnativeinterface.h>
 
 #ifndef DCX_USESTYLE
 #define DCX_USESTYLE 0x00010000

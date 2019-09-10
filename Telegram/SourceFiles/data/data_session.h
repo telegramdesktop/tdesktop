@@ -64,6 +64,7 @@ class Folder;
 class LocationPoint;
 class WallPaper;
 class ScheduledMessages;
+class CloudThemes;
 
 class Session final {
 public:
@@ -87,9 +88,11 @@ public:
 	[[nodiscard]] const Groups &groups() const {
 		return _groups;
 	}
-
 	[[nodiscard]] ScheduledMessages &scheduledMessages() const {
 		return *_scheduledMessages;
+	}
+	[[nodiscard]] CloudThemes &cloudThemes() const {
+		return *_cloudThemes;
 	}
 	[[nodiscard]] MsgId nextNonHistoryEntryId() {
 		return ++_nonHistoryEntryId;
@@ -994,6 +997,7 @@ private:
 
 	Groups _groups;
 	std::unique_ptr<ScheduledMessages> _scheduledMessages;
+	std::unique_ptr<CloudThemes> _cloudThemes;
 	MsgId _nonHistoryEntryId = ServerMaxMsgId;
 
 	rpl::lifetime _lifetime;

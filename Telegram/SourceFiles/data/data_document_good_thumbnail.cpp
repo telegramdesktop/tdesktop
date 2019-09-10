@@ -10,9 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
+#include "data/data_cloud_themes.h"
 #include "media/clip/media_clip_reader.h"
 #include "lottie/lottie_animation.h"
+#include "window/themes/window_theme_preview.h"
 #include "main/main_session.h"
+
+#include <QtCore/QBuffer>
+#include <QtGui/QImageReader>
 
 namespace Data {
 namespace {
@@ -24,6 +29,7 @@ enum class FileType {
 	Video,
 	AnimatedSticker,
 	WallPaper,
+	Theme,
 };
 
 QImage Prepare(
@@ -34,6 +40,8 @@ QImage Prepare(
 		return ::Media::Clip::PrepareForSending(path, data).thumbnail;
 	} else if (type == FileType::AnimatedSticker) {
 		return Lottie::ReadThumbnail(Lottie::ReadContent(data, path));
+	} else if (type == FileType::Theme) {
+		return Window::Theme::GeneratePreview(data, path);
 	}
 	const auto validateSize = [](QSize size) {
 		return (size.width() + size.height()) < 10'000;
@@ -75,6 +83,8 @@ void GoodThumbSource::generate(base::binary_guard &&guard) {
 	const auto data = _document->data();
 	const auto type = _document->isWallPaper()
 		? FileType::WallPaper
+		: _document->isTheme()
+		? FileType::Theme
 		: _document->sticker()
 		? FileType::AnimatedSticker
 		: FileType::Video;
@@ -140,13 +150,13 @@ void GoodThumbSource::ready(
 				_document->goodThumbnailCacheKey(),
 				Storage::Cache::Database::TaggedValue{
 					std::move(bytes),
-					Data::kImageCacheTag });
+					kImageCacheTag });
 		}
 		Auth().downloaderTaskFinished().notify();
 	});
 }
 
-void GoodThumbSource::load(Data::FileOrigin origin) {
+void GoodThumbSource::load(FileOrigin origin) {
 	if (loading() || _empty) {
 		return;
 	}
@@ -175,7 +185,7 @@ void GoodThumbSource::load(Data::FileOrigin origin) {
 		std::move(callback));
 }
 
-void GoodThumbSource::loadEvenCancelled(Data::FileOrigin origin) {
+void GoodThumbSource::loadEvenCancelled(FileOrigin origin) {
 	_empty = false;
 	load(origin);
 }
@@ -190,7 +200,7 @@ void GoodThumbSource::unload() {
 }
 
 void GoodThumbSource::automaticLoad(
-	Data::FileOrigin origin,
+	FileOrigin origin,
 	const HistoryItem *item) {
 }
 
@@ -232,7 +242,7 @@ void GoodThumbSource::setDelayedStorageLocation(
 	const StorageImageLocation &location) {
 }
 
-void GoodThumbSource::performDelayedLoad(Data::FileOrigin origin) {
+void GoodThumbSource::performDelayedLoad(FileOrigin origin) {
 }
 
 bool GoodThumbSource::isDelayedStorageImage() const {

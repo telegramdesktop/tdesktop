@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "styles/style_chat_helpers.h"
 
+#include <QtWidgets/QApplication>
+
 FieldAutocomplete::FieldAutocomplete(
 	QWidget *parent,
 	not_null<Main::Session*> session)

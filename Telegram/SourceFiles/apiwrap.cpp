@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_cloud_themes.h"
 #include "dialogs/dialogs_key.h"
 #include "core/core_cloud_password.h"
 #include "core/application.h"
@@ -541,6 +542,7 @@ void ApiWrap::toggleHistoryArchived(
 void ApiWrap::sendMessageFail(
 		const RPCError &error,
 		not_null<PeerData*> peer,
+		uint64 randomId,
 		FullMsgId itemId) {
 	if (error.type() == qstr("PEER_FLOOD")) {
 		Ui::show(Box<InformBox>(
@@ -567,6 +569,8 @@ void ApiWrap::sendMessageFail(
 		}
 	}
 	if (const auto item = _session->data().message(itemId)) {
+		Assert(randomId != 0);
+		session().data().unregisterMessageRandomId(randomId);
 		item->sendFailed();
 	}
 }
@@ -3060,6 +3064,13 @@ void ApiWrap::refreshFileReference(
 			MTP_inputWallPaper(
 				MTP_long(data.paperId),
 				MTP_long(data.accessHash))));
+	}, [&](Data::FileOriginTheme data) {
+		request(MTPaccount_GetTheme(
+			MTP_string(Data::CloudThemes::Format()),
+			MTP_inputTheme(
+				MTP_long(data.themeId),
+				MTP_long(data.accessHash)),
+			MTP_long(0)));
 	}, [&](std::nullopt_t) {
 		fail();
 	});
@@ -4449,7 +4460,7 @@ void ApiWrap::forwardMessages(
 	auto currentGroupId = items.front()->groupId();
 	auto ids = QVector<MTPint>();
 	auto randomIds = QVector<MTPlong>();
-	auto localIds = std::unique_ptr<std::vector<FullMsgId>>();
+	auto localIds = std::unique_ptr<base::flat_map<uint64, FullMsgId>>();
 
 	const auto sendAccumulated = [&] {
 		if (shared) {
@@ -4474,8 +4485,8 @@ void ApiWrap::forwardMessages(
 			}
 		}).fail([=, ids = std::move(localIds)](const RPCError &error) {
 			if (ids) {
-				for (const auto &itemId : *ids) {
-					sendMessageFail(error, peer, itemId);
+				for (const auto &[randomId, itemId] : *ids) {
+					sendMessageFail(error, peer, randomId, itemId);
 				}
 			} else {
 				sendMessageFail(error, peer);
@@ -4492,7 +4503,7 @@ void ApiWrap::forwardMessages(
 	ids.reserve(count);
 	randomIds.reserve(count);
 	for (const auto item : items) {
-		auto randomId = rand_value<uint64>();
+		const auto randomId = rand_value<uint64>();
 		if (genClientSideMessage) {
 			if (const auto message = item->toHistoryMessage()) {
 				const auto newId = FullMsgId(
@@ -4515,9 +4526,9 @@ void ApiWrap::forwardMessages(
 					message);
 				_session->data().registerMessageRandomId(randomId, newId);
 				if (!localIds) {
-					localIds = std::make_unique<std::vector<FullMsgId>>();
+					localIds = std::make_unique<base::flat_map<uint64, FullMsgId>>();
 				}
-				localIds->push_back(newId);
+				localIds->emplace(randomId, newId);
 			}
 		}
 		const auto newFrom = item->history()->peer;
@@ -5034,7 +5045,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			if (error.type() == qstr("MESSAGE_EMPTY")) {
 				lastMessage->destroy();
 			} else {
-				sendMessageFail(error, peer, newId);
+				sendMessageFail(error, peer, randomId, newId);
 			}
 			history->clearSentDraftText(QString());
 		}).afterRequest(history->sendRequestId
@@ -5156,7 +5167,7 @@ void ApiWrap::sendInlineResult(
 		applyUpdates(result, randomId);
 		history->clearSentDraftText(QString());
 	}).fail([=](const RPCError &error) {
-		sendMessageFail(error, peer, newId);
+		sendMessageFail(error, peer, randomId, newId);
 		history->clearSentDraftText(QString());
 	}).afterRequest(history->sendRequestId
 	).send();
@@ -5294,7 +5305,7 @@ void ApiWrap::sendMediaWithRandomId(
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
 	}).fail([=](const RPCError &error) {
-		sendMessageFail(error, peer, itemId);
+		sendMessageFail(error, peer, randomId, itemId);
 	}).afterRequest(
 		history->sendRequestId
 	).send();
@@ -5388,7 +5399,7 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 	}).fail([=](const RPCError &error) {
 		if (const auto album = _sendingAlbums.take(groupId)) {
 			for (const auto &item : (*album)->items) {
-				sendMessageFail(error, peer, item.msgId);
+				sendMessageFail(error, peer, item.randomId, item.msgId);
 			}
 		} else {
 			sendMessageFail(error, peer);
@@ -5405,23 +5416,6 @@ FileLoadTo ApiWrap::fileLoadTaskOptions(const SendAction &action) const {
 		options.silent = true;
 	}
 	return FileLoadTo(peer->id, action.options, action.replyTo);
-}
-
-void ApiWrap::requestSupportContact(FnMut<void(const MTPUser &)> callback) {
-	_supportContactCallbacks.push_back(std::move(callback));
-	if (_supportContactCallbacks.size() > 1) {
-		return;
-	}
-	request(MTPhelp_GetSupport(
-	)).done([=](const MTPhelp_Support &result) {
-		result.match([&](const MTPDhelp_support &data) {
-			for (auto &handler : base::take(_supportContactCallbacks)) {
-				handler(data.vuser());
-			}
-		});
-	}).fail([=](const RPCError &error) {
-		_supportContactCallbacks.clear();
-	}).send();
 }
 
 void ApiWrap::uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image) {

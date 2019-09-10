@@ -7,27 +7,52 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_cloud_themes.h"
+
 namespace Ui {
 class FlatButton;
 class ScrollArea;
 class CrossButton;
 class MultiSelect;
 class PlainShadow;
+class DropdownMenu;
+class IconButton;
 } // namespace Ui
 
 namespace Window {
+
+class Controller;
+
 namespace Theme {
 
-bool CopyColorsToPalette(
-	const QString &destination,
-	const QString &themePath,
-	const QByteArray &themeContent);
+struct Colorizer;
+
+struct ParsedTheme {
+	QByteArray palette;
+	QByteArray background;
+	bool isPng = false;
+	bool tiled = false;
+};
+
+[[nodiscard]] QByteArray ColorHexString(const QColor &color);
+[[nodiscard]] QByteArray ReplaceValueInPaletteContent(
+	const QByteArray &content,
+	const QByteArray &name,
+	const QByteArray &value);
+[[nodiscard]] QByteArray WriteCloudToText(const Data::CloudTheme &cloud);
+[[nodiscard]] Data::CloudTheme ReadCloudFromText(const QByteArray &text);
+[[nodisacrd]] QByteArray StripCloudTextFields(const QByteArray &text);
 
 class Editor : public TWidget {
 public:
-	Editor(QWidget*, const QString &path);
+	Editor(
+		QWidget*,
+		not_null<Window::Controller*> window,
+		const Data::CloudTheme &cloud);
 
-	static void Start();
+	[[nodiscard]] static QByteArray ColorizeInContent(
+		QByteArray content,
+		const Colorizer &colorizer);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -37,16 +62,28 @@ protected:
 	void focusInEvent(QFocusEvent *e) override;
 
 private:
+	void save();
+	void showMenu();
+	void exportTheme();
+	void importTheme();
 	void closeEditor();
+	void closeWithConfirmation();
+	void updateControlsGeometry();
+
+	const not_null<Window::Controller*> _window;
+	const Data::CloudTheme _cloud;
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	class Inner;
 	QPointer<Inner> _inner;
 	object_ptr<Ui::CrossButton> _close;
+	object_ptr<Ui::IconButton> _menuToggle;
+	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	object_ptr<Ui::MultiSelect> _select;
 	object_ptr<Ui::PlainShadow> _leftShadow;
 	object_ptr<Ui::PlainShadow> _topShadow;
-	object_ptr<Ui::FlatButton> _export;
+	object_ptr<Ui::FlatButton> _save;
+	bool _saving = false;
 
 };
 

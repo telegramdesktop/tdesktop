@@ -28,6 +28,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 namespace {
 
 constexpr auto kSaveSettingsDelayedTimeout = crl::time(1000);
@@ -1426,7 +1429,7 @@ void ProxiesBoxController::share(const ProxyData &proxy) {
 			? "&pass=" + qthelp::url_encode(proxy.password) : "")
 		+ ((proxy.type == Type::Mtproto && !proxy.password.isEmpty())
 			? "&secret=" + proxy.password : "");
-	QApplication::clipboard()->setText(link);
+	QGuiApplication::clipboard()->setText(link);
 	Ui::Toast::Show(tr::lng_username_copied(tr::now));
 }
 
@@ -1434,7 +1437,7 @@ ProxiesBoxController::~ProxiesBoxController() {
 	if (_saveTimer.isActive()) {
 		App::CallDelayed(
 			kSaveSettingsDelayedTimeout,
-			QApplication::instance(),
+			QCoreApplication::instance(),
 			[] { Local::writeSettings(); });
 	}
 }

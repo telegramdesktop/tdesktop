@@ -549,10 +549,12 @@ void ScheduledWidget::setupScrollDownButton() {
 		scrollDownClicked();
 	});
 	Core::InstallEventFilter(_scrollDown, [=](not_null<QEvent*> event) {
-		if (event->type() == QEvent::Wheel) {
-			return _scroll->viewportEvent(event);
+		if (event->type() != QEvent::Wheel) {
+			return Core::EventFilter::Result::Continue;
 		}
-		return false;
+		return _scroll->viewportEvent(event)
+			? Core::EventFilter::Result::Cancel
+			: Core::EventFilter::Result::Continue;
 	});
 	updateScrollDownVisibility();
 }

@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "history/view/history_view_cursor_state.h"
 
+#include <QtWidgets/QApplication>
+
 namespace ChatHelpers {
 namespace {
 

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"
+#include "core/sandbox.h"
 #include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_widget.h"
@@ -31,6 +32,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "platform/mac/mac_utilities.h"
 #include "ui/widgets/input_fields.h"
+
+#include <QtWidgets/QApplication>
+#include <QtGui/QClipboard>
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
@@ -77,7 +81,7 @@ public:
 	LayerCreationChecker(NSView * __weak view, Fn<void()> callback)
 	: _weakView(view)
 	, _callback(std::move(callback)) {
-		QApplication::instance()->installEventFilter(this);
+		QCoreApplication::instance()->installEventFilter(this);
 	}
 
 protected:
@@ -384,7 +388,7 @@ bool MainWindow::Private::clipboardHasText() {
 	auto currentChangeCount = static_cast<int>([_generalPasteboard changeCount]);
 	if (_generalPasteboardChangeCount != currentChangeCount) {
 		_generalPasteboardChangeCount = currentChangeCount;
-		_generalPasteboardHasText = !QApplication::clipboard()->text().isEmpty();
+		_generalPasteboardHasText = !QGuiApplication::clipboard()->text().isEmpty();
 	}
 	return _generalPasteboardHasText;
 }

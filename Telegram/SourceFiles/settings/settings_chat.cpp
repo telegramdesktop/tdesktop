@@ -11,7 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/connection_box.h"
 #include "boxes/auto_download_box.h"
 #include "boxes/stickers_box.h"
+#include "boxes/confirm_box.h"
 #include "boxes/background_box.h"
+#include "boxes/generic_box.h"
 #include "boxes/background_preview_box.h"
 #include "boxes/download_path_box.h"
 #include "boxes/local_storage_box.h"
@@ -26,21 +28,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/image/image_source.h"
 #include "lang/lang_keys.h"
-#include "window/themes/window_theme_editor.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_themes_embedded.h"
+#include "window/themes/window_theme_editor_box.h"
+#include "window/themes/window_themes_cloud_list.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "info/profile/info_profile_button.h"
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
 #include "data/data_session.h"
+#include "data/data_cloud_themes.h"
 #include "chat_helpers/emoji_sets_manager.h"
 #include "platform/platform_info.h"
 #include "support/support_common.h"
 #include "support/support_templates.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 
@@ -383,33 +389,6 @@ private:
 
 };
 
-class DefaultTheme final : public Ui::AbstractCheckView {
-public:
-	using Type = Window::Theme::EmbeddedType;
-	using Scheme = Window::Theme::EmbeddedScheme;
-
-	DefaultTheme(Scheme scheme, bool checked);
-
-	QSize getSize() const override;
-	void paint(
-		Painter &p,
-		int left,
-		int top,
-		int outerWidth) override;
-	QImage prepareRippleMask() const override;
-	bool checkRippleStartPosition(QPoint position) const override;
-
-	void setColorizer(const Window::Theme::Colorizer &colorizer);
-
-private:
-	void checkedChangedHook(anim::type animated) override;
-
-	Scheme _scheme;
-	Scheme _colorized;
-	Ui::RadioView _radio;
-
-};
-
 void ChooseFromFile(
 	not_null<::Main::Session*> session,
 	not_null<QWidget*> parent);
@@ -612,76 +591,6 @@ void BackgroundRow::updateImage() {
 	}
 }
 
-DefaultTheme::DefaultTheme(Scheme scheme, bool checked)
-: AbstractCheckView(st::defaultRadio.duration, checked, nullptr)
-, _scheme(scheme)
-, _radio(st::defaultRadio, checked, [=] { update(); }) {
-	setColorizer({});
-}
-
-void DefaultTheme::setColorizer(const Window::Theme::Colorizer &colorizer) {
-	_colorized = _scheme;
-	if (colorizer) {
-		Window::Theme::Colorize(_colorized, colorizer);
-	}
-	_radio.setToggledOverride(_colorized.radiobuttonActive);
-	_radio.setUntoggledOverride(_colorized.radiobuttonInactive);
-	update();
-}
-
-QSize DefaultTheme::getSize() const {
-	return st::settingsThemePreviewSize;
-}
-
-void DefaultTheme::paint(
-		Painter &p,
-		int left,
-		int top,
-		int outerWidth) {
-	const auto received = QRect(
-		st::settingsThemeBubblePosition,
-		st::settingsThemeBubbleSize);
-	const auto sent = QRect(
-		outerWidth - received.width() - st::settingsThemeBubblePosition.x(),
-		received.y() + received.height() + st::settingsThemeBubbleSkip,
-		received.width(),
-		received.height());
-	const auto radius = st::settingsThemeBubbleRadius;
-
-	PainterHighQualityEnabler hq(p);
-	p.setPen(Qt::NoPen);
-
-	p.setBrush(_colorized.background);
-	p.drawRoundedRect(
-		QRect(QPoint(), st::settingsThemePreviewSize),
-		radius,
-		radius);
-
-	p.setBrush(_colorized.received);
-	p.drawRoundedRect(rtlrect(received, outerWidth), radius, radius);
-	p.setBrush(_colorized.sent);
-	p.drawRoundedRect(rtlrect(sent, outerWidth), radius, radius);
-
-	const auto radio = _radio.getSize();
-	_radio.paint(
-		p,
-		(outerWidth - radio.width()) / 2,
-		getSize().height() - radio.height() - st::settingsThemeRadioBottom,
-		outerWidth);
-}
-
-QImage DefaultTheme::prepareRippleMask() const {
-	return QImage();
-}
-
-bool DefaultTheme::checkRippleStartPosition(QPoint position) const {
-	return false;
-}
-
-void DefaultTheme::checkedChangedHook(anim::type animated) {
-	_radio.setChecked(checked(), animated);
-}
-
 void ChooseFromFile(
 		not_null<::Main::Session*> session,
 		not_null<QWidget*> parent) {
@@ -727,7 +636,6 @@ void ChooseFromFile(
 		tr::lng_choose_image(tr::now),
 		filters.join(qsl(";;")),
 		crl::guard(parent, callback));
-
 }
 
 QString DownloadPathText() {
@@ -1079,8 +987,10 @@ void SetupChatBackground(
 }
 
 void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
-	using Type = DefaultTheme::Type;
-	using Scheme = DefaultTheme::Scheme;
+	using Type = Window::Theme::EmbeddedType;
+	using Scheme = Window::Theme::EmbeddedScheme;
+	using Check = Window::Theme::CloudListCheck;
+	using namespace Window::Theme;
 
 	const auto block = container->add(object_ptr<Ui::FixedHeightWidget>(
 		container));
@@ -1089,12 +999,12 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		container.get());
 
 	const auto chosen = [] {
-		if (Window::Theme::IsNonDefaultBackground()) {
+		const auto &object = Background()->themeObject();
+		if (object.cloud.id) {
 			return Type(-1);
 		}
-		const auto path = Window::Theme::Background()->themeAbsolutePath();
 		for (const auto &scheme : kSchemesList) {
-			if (path == scheme.path) {
+			if (object.pathAbsolute == scheme.path) {
 				return scheme.type;
 			}
 		}
@@ -1107,14 +1017,15 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 			const auto type = scheme.type;
 			return (type != Type::DayBlue) && (type != Type::Default);
 		};
-		const auto currentlyIsCustom = (chosen() == Type(-1));
-		if (Window::Theme::IsNightMode() == isNight(scheme)) {
-			Window::Theme::ApplyDefaultWithPath(scheme.path);
+		const auto currentlyIsCustom = (chosen() == Type(-1))
+			&& !Background()->themeObject().cloud.id;
+		if (IsNightMode() == isNight(scheme)) {
+			ApplyDefaultWithPath(scheme.path);
 		} else {
-			Window::Theme::ToggleNightMode(scheme.path);
+			ToggleNightMode(scheme.path);
 		}
 		if (!currentlyIsCustom) {
-			Window::Theme::KeepApplied();
+			KeepApplied();
 		}
 	};
 	const auto schemeClicked = [=](
@@ -1123,11 +1034,13 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		apply(scheme);
 	};
 
-	auto checks = base::flat_map<Type,not_null<DefaultTheme*>>();
+	auto checks = base::flat_map<Type,not_null<Check*>>();
 	auto buttons = ranges::view::all(
 		kSchemesList
 	) | ranges::view::transform([&](const Scheme &scheme) {
-		auto check = std::make_unique<DefaultTheme>(scheme, false);
+		auto check = std::make_unique<Check>(
+			ColorsFromScheme(scheme),
+			false);
 		const auto weak = check.get();
 		const auto result = Ui::CreateChild<Ui::Radioenum<Type>>(
 			block,
@@ -1157,26 +1070,24 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 		}
 		if (i != end(checks)) {
 			if (const auto color = colors.get(type)) {
-				const auto colorizer = Window::Theme::ColorizerFrom(
-					*scheme,
-					*color);
-				i->second->setColorizer(colorizer);
+				const auto colorizer = ColorizerFrom(*scheme, *color);
+				i->second->setColors(ColorsFromScheme(*scheme, colorizer));
 			} else {
-				i->second->setColorizer({});
+				i->second->setColors(ColorsFromScheme(*scheme));
 			}
 		}
 	};
-
+	group->setChangedCallback([=](Type type) {
+		group->setValue(chosen());
+	});
 	for (const auto &scheme : kSchemesList) {
 		refreshColorizer(scheme.type);
 	}
 
-	using Update = const Window::Theme::BackgroundUpdate;
 	base::ObservableViewer(
-		*Window::Theme::Background()
-	) | rpl::filter([](const Update &update) {
-		return (update.type == Update::Type::ApplyingTheme
-			|| update.type == Update::Type::New);
+		*Background()
+	) | rpl::filter([](const BackgroundUpdate &update) {
+		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
 	}) | rpl::map([=] {
 		return chosen();
 	}) | rpl::start_with_next([=](Type type) {
@@ -1193,42 +1104,43 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	) | rpl::start_with_next([buttons = std::move(buttons)](int width) {
 		Expects(!buttons.empty());
 
-		//     |------|      |---------|        |-------|      |-------|
-		// pad | blue | skip | classic | 3*skip | night | skip | night | pad
-		//     |------|      |---------|        |-------|      |-------|
 		const auto padding = st::settingsButton.padding;
 		width -= padding.left() + padding.right();
 		const auto desired = st::settingsThemePreviewSize.width();
 		const auto count = int(buttons.size());
-		const auto smallSkips = (count / 2);
-		const auto bigSkips = ((count - 1) / 2);
-		const auto skipRatio = 3;
-		const auto skipSegments = smallSkips + bigSkips * skipRatio;
+		const auto skips = count - 1;
 		const auto minSkip = st::settingsThemeMinSkip;
 		const auto single = [&] {
-			if (width >= skipSegments * minSkip + count * desired) {
+			if (width >= skips * minSkip + count * desired) {
 				return desired;
 			}
-			return (width - skipSegments * minSkip) / count;
+			return (width - skips * minSkip) / count;
 		}();
 		if (single <= 0) {
 			return;
 		}
 		const auto fullSkips = width - count * single;
-		const auto segment = fullSkips / float64(skipSegments);
-		const auto smallSkip = segment;
-		const auto bigSkip = segment * skipRatio;
+		const auto skip = fullSkips / float64(skips);
 		auto left = padding.left() + 0.;
 		auto index = 0;
 		for (const auto button : buttons) {
 			button->resizeToWidth(single);
 			button->moveToLeft(int(std::round(left)), 0);
-			left += button->width() + ((index++ % 2) ? bigSkip : smallSkip);
+			left += button->width() + skip;
 		}
 	}, block->lifetime());
 
 	palette->selected(
 	) | rpl::start_with_next([=](QColor color) {
+		if (Background()->editingTheme()) {
+			// We don't remember old accent color to revert it properly
+			// in Window::Theme::Revert which is called by Editor.
+			//
+			// So we check here, before we change the saved accent color.
+			Ui::show(Box<InformBox>(
+				tr::lng_theme_editor_cant_change_theme(tr::now)));
+			return;
+		}
 		const auto type = chosen();
 		const auto scheme = ranges::find(kSchemesList, type, &Scheme::type);
 		if (scheme == end(kSchemesList)) {
@@ -1245,27 +1157,111 @@ void SetupDefaultThemes(not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container);
 }
 
-void SetupThemeOptions(not_null<Ui::VerticalLayout*> container) {
+void SetupThemeOptions(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	using namespace Window::Theme;
+
 	AddSkip(container, st::settingsPrivacySkip);
 
 	AddSubsectionTitle(container, tr::lng_settings_themes());
 
 	AddSkip(container, st::settingsThemesTopSkip);
 	SetupDefaultThemes(container);
-	AddSkip(container, st::settingsThemesBottomSkip);
+	AddSkip(container);
+}
 
+void SetupCloudThemes(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	using namespace Window::Theme;
+	using namespace rpl::mappers;
+
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container))
+	)->setDuration(0);
+	const auto inner = wrap->entity();
+
+	AddDivider(inner);
+	AddSkip(inner, st::settingsPrivacySkip);
+
+	const auto title = AddSubsectionTitle(
+		inner,
+		tr::lng_settings_bg_cloud_themes());
+	const auto showAll = Ui::CreateChild<Ui::LinkButton>(
+		inner,
+		tr::lng_settings_bg_show_all(tr::now));
+
+	rpl::combine(
+		title->topValue(),
+		inner->widthValue(),
+		showAll->widthValue()
+	) | rpl::start_with_next([=](int top, int outerWidth, int width) {
+		showAll->moveToRight(
+			st::settingsSubsectionTitlePadding.left(),
+			top,
+			outerWidth);
+	}, showAll->lifetime());
+
+	AddSkip(inner, st::settingsThemesTopSkip);
+
+	const auto list = inner->lifetime().make_state<CloudList>(
+		inner,
+		controller);
+	inner->add(
+		list->takeWidget(),
+		style::margins(
+			st::settingsButton.padding.left(),
+			0,
+			st::settingsButton.padding.right(),
+			0));
+
+	list->allShown(
+	) | rpl::start_with_next([=](bool shown) {
+		showAll->setVisible(!shown);
+	}, showAll->lifetime());
+
+	showAll->addClickHandler([=] {
+		list->showAll();
+	});
+
+	const auto editWrap = inner->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			inner,
+			object_ptr<Ui::VerticalLayout>(inner))
+	)->setDuration(0);
+	const auto edit = editWrap->entity();
+
+	AddSkip(edit, st::settingsThemesBottomSkip);
 	AddButton(
-		container,
-		tr::lng_settings_bg_edit_theme(),
+		edit,
+		tr::lng_settings_bg_theme_edit(),
 		st::settingsChatButton,
 		&st::settingsIconThemes,
 		st::settingsChatIconLeft
-	)->addClickHandler(App::LambdaDelayed(
-		st::settingsChatButton.ripple.hideDuration,
-		container,
-		[] { Window::Theme::Editor::Start(); }));
+	)->addClickHandler([=] {
+		StartEditor(
+			&controller->window(),
+			Background()->themeObject().cloud);
+	});
 
-	AddSkip(container);
+	editWrap->toggleOn(rpl::single(BackgroundUpdate(
+		BackgroundUpdate::Type::ApplyingTheme,
+		Background()->tile()
+	)) | rpl::then(base::ObservableViewer(
+		*Background()
+	)) | rpl::filter([](const BackgroundUpdate &update) {
+		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
+	}) | rpl::map([=] {
+		const auto userId = controller->session().userId();
+		return (Background()->themeObject().cloud.createdBy == userId);
+	}));
+
+	AddSkip(inner, 2 * st::settingsSectionSkip);
+
+	wrap->setDuration(0)->toggleOn(list->empty() | rpl::map(!_1));
 }
 
 void SetupSupportSwitchSettings(
@@ -1388,7 +1384,8 @@ Chat::Chat(QWidget *parent, not_null<Window::SessionController*> controller)
 void Chat::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	SetupThemeOptions(content);
+	SetupThemeOptions(controller, content);
+	SetupCloudThemes(controller, content);
 	SetupChatBackground(controller, content);
 	SetupStickersEmoji(controller, content);
 	SetupMessages(controller, content);

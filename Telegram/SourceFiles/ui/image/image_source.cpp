@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "main/main_session.h"
 
+#include <QtCore/QBuffer>
+
 namespace Images {
 
 ImageSource::ImageSource(QImage &&data, const QByteArray &format)

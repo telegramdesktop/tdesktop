@@ -135,11 +135,11 @@ void SendExistingMedia(
 				if (media->fileReference() != usedFileReference) {
 					performRequest();
 				} else {
-					api->sendMessageFail(error, peer, newId);
+					api->sendMessageFail(error, peer, randomId, newId);
 				}
 			});
 		} else {
-			api->sendMessageFail(error, peer, newId);
+			api->sendMessageFail(error, peer, randomId, newId);
 		}
 	};
 	performRequest();

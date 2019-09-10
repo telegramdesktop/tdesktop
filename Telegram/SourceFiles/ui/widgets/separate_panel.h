@@ -41,6 +41,7 @@ public:
 		LayerOptions options,
 		anim::type animated);
 	void showToast(const QString &text);
+	void destroyLayer();
 
 	rpl::producer<> backRequests() const;
 	rpl::producer<> closeRequests() const;

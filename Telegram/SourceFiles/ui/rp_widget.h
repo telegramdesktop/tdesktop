@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/map.h>
 #include <rpl/distinct_until_changed.h>
 #include "base/unique_qptr.h"
-#include "core/qt_signal_producer.h"
 
 namespace Ui {
 namespace details {
@@ -118,6 +117,8 @@ public:
 	rpl::producer<bool> shownValue() const;
 	rpl::producer<QRect> paintRequest() const;
 	rpl::producer<> alive() const;
+	rpl::producer<> windowDeactivateEvents() const;
+	rpl::producer<> macWindowDeactivateEvents() const;
 
 	template <typename Error, typename Generator>
 	void showOn(rpl::producer<bool, Error, Generator> &&shown) {
@@ -127,6 +128,7 @@ public:
 			callSetVisible(visible);
 		}, lifetime());
 	}
+
 
 	rpl::lifetime &lifetime();
 
@@ -151,6 +153,8 @@ private:
 	};
 
 	virtual void callSetVisible(bool visible) = 0;
+	virtual QWidget *callGetWidget() = 0;
+	virtual const QWidget *callGetWidget() const = 0;
 	virtual QPointer<QObject> callCreateWeak() = 0;
 	virtual QRect callGetGeometry() const = 0;
 	virtual bool callIsHidden() const = 0;
@@ -179,25 +183,6 @@ public:
 		visibilityChangedHook(wasVisible, !this->isHidden());
 	}
 
-	auto windowDeactivateEvents() const {
-		Expects(Widget::window()->windowHandle() != nullptr);
-
-		const auto window = Widget::window()->windowHandle();
-		return Core::QtSignalProducer(
-			window,
-			&QWindow::activeChanged
-		) | rpl::filter([=] {
-			return !window->isActive();
-		});
-	}
-	auto macWindowDeactivateEvents() const {
-#ifdef Q_OS_MAC
-		return windowDeactivateEvents();
-#else // Q_OS_MAC
-		return rpl::never<rpl::empty_value>();
-#endif // Q_OS_MAC
-	}
-
 	~RpWidgetWrap() {
 		base::take(_lifetime);
 		base::take(_eventStreams);
@@ -217,6 +202,12 @@ protected:
 private:
 	void callSetVisible(bool visible) override {
 		Self::setVisible(visible);
+	}
+	QWidget *callGetWidget() override {
+		return this;
+	}
+	const QWidget *callGetWidget() const override {
+		return this;
 	}
 	QPointer<QObject> callCreateWeak() override {
 		return QPointer<QObject>((QObject*)this);

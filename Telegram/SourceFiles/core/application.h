@@ -68,6 +68,10 @@ class Translator;
 class CloudManager;
 } // namespace Lang
 
+namespace Data {
+struct CloudTheme;
+} // namespace Data
+
 namespace Core {
 
 class Launcher;
@@ -103,6 +107,9 @@ public:
 	void showPhoto(not_null<PhotoData*> photo, HistoryItem *item);
 	void showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> item);
 	void showDocument(not_null<DocumentData*> document, HistoryItem *item);
+	void showTheme(
+		not_null<DocumentData*> document,
+		const Data::CloudTheme &cloud);
 	PeerData *ui_getPeerForMouseAction();
 
 	QPoint getPointForCallPanelCenter() const;

@@ -32,6 +32,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 namespace Settings {
 namespace {
 
@@ -114,7 +117,7 @@ void ShowMenu(
 	const auto menu = new Ui::PopupMenu(parent);
 
 	menu->addAction(copyButton, [=] {
-		QApplication::clipboard()->setText(text);
+		QGuiApplication::clipboard()->setText(text);
 	});
 	menu->popup(QCursor::pos());
 }

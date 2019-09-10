@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "ui/effects/animations.h"
 
+#include <QtGui/QScreen>
+
 namespace Core {
 namespace {
 
@@ -532,9 +534,9 @@ void Sandbox::processPostponedCalls(int level) {
 }
 
 bool Sandbox::nativeEventFilter(
-	const QByteArray &eventType,
-	void *message,
-	long *result) {
+		const QByteArray &eventType,
+		void *message,
+		long *result) {
 	registerEnterFromEventLoop();
 	return false;
 }

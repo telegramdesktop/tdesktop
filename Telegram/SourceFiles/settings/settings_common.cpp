@@ -19,6 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "info/profile/info_profile_button.h"
 #include "boxes/abstract_box.h"
+#include "window/themes/window_theme_editor_box.h"
+#include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
@@ -158,10 +161,10 @@ not_null<Button*> AddButtonWithLabel(
 	return button;
 }
 
-void AddSubsectionTitle(
+not_null<Ui::FlatLabel*> AddSubsectionTitle(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> text) {
-	container->add(
+	return container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			std::move(text),
@@ -170,17 +173,25 @@ void AddSubsectionTitle(
 }
 
 void FillMenu(
-		not_null<::Main::Session*> session,
+		not_null<Window::SessionController*> controller,
+		Type type,
 		Fn<void(Type)> showOther,
 		MenuCallback addAction) {
-	if (!session->supportMode()) {
+	const auto window = &controller->window();
+	if (type == Type::Chat) {
 		addAction(
-			tr::lng_settings_information(tr::now),
-			[=] { showOther(Type::Information); });
+			tr::lng_settings_bg_theme_create(tr::now),
+			[=] { window->show(Box(Window::Theme::CreateBox, window)); });
+	} else {
+		if (!controller->session().supportMode()) {
+			addAction(
+				tr::lng_settings_information(tr::now),
+				[=] { showOther(Type::Information); });
+		}
+		addAction(
+			tr::lng_settings_logout(tr::now),
+			[=] { window->widget()->onLogout(); });
 	}
-	addAction(
-		tr::lng_settings_logout(tr::now),
-		[=] { App::wnd()->onLogout(); });
 }
 
 } // namespace Settings

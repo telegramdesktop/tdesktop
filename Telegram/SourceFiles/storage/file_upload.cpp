@@ -76,7 +76,7 @@ struct Uploader::File {
 Uploader::File::File(const SendMediaReady &media) : media(media) {
 	partsCount = media.parts.size();
 	if (type() == SendMediaType::File
-		|| type() == SendMediaType::WallPaper
+		|| type() == SendMediaType::ThemeFile
 		|| type() == SendMediaType::Audio) {
 		setDocSize(media.file.isEmpty()
 			? media.data.size()
@@ -92,7 +92,7 @@ Uploader::File::File(const std::shared_ptr<FileLoadResult> &file)
 		? file->fileparts.size()
 		: file->thumbparts.size();
 	if (type() == SendMediaType::File
-		|| type() == SendMediaType::WallPaper
+		|| type() == SendMediaType::ThemeFile
 		|| type() == SendMediaType::Audio) {
 		setDocSize(file->filesize);
 	} else {
@@ -154,7 +154,7 @@ void Uploader::uploadMedia(
 	if (media.type == SendMediaType::Photo) {
 		Auth().data().processPhoto(media.photo, media.photoThumbs);
 	} else if (media.type == SendMediaType::File
-		|| media.type == SendMediaType::WallPaper
+		|| media.type == SendMediaType::ThemeFile
 		|| media.type == SendMediaType::Audio) {
 		const auto document = media.photoThumbs.empty()
 			? Auth().data().processDocument(media.document)
@@ -162,17 +162,9 @@ void Uploader::uploadMedia(
 				media.document,
 				base::duplicate(media.photoThumbs.front().second));
 		if (!media.data.isEmpty()) {
-			document->setData(media.data);
-			if (media.type == SendMediaType::WallPaper) {
+			document->setDataAndCache(media.data);
+			if (media.type == SendMediaType::ThemeFile) {
 				document->checkWallPaperProperties();
-			}
-			if (document->saveToCache()
-				&& media.data.size() <= Storage::kMaxFileInMemory) {
-				Auth().data().cache().put(
-					document->cacheKey(),
-					Storage::Cache::Database::TaggedValue(
-						base::duplicate(media.data),
-						document->cacheTag()));
 			}
 		}
 		if (!media.file.isEmpty()) {
@@ -193,7 +185,7 @@ void Uploader::upload(
 		photo->uploadingData = std::make_unique<Data::UploadState>(
 			file->partssize);
 	} else if (file->type == SendMediaType::File
-		|| file->type == SendMediaType::WallPaper
+		|| file->type == SendMediaType::ThemeFile
 		|| file->type == SendMediaType::Audio) {
 		const auto document = file->thumb.isNull()
 			? Auth().data().processDocument(file->document)
@@ -206,17 +198,9 @@ void Uploader::upload(
 			std::move(file->goodThumbnail),
 			std::move(file->goodThumbnailBytes));
 		if (!file->content.isEmpty()) {
-			document->setData(file->content);
-			if (file->type == SendMediaType::WallPaper) {
+			document->setDataAndCache(file->content);
+			if (file->type == SendMediaType::ThemeFile) {
 				document->checkWallPaperProperties();
-			}
-			if (document->saveToCache()
-				&& file->content.size() <= Storage::kMaxFileInMemory) {
-				Auth().data().cache().put(
-					document->cacheKey(),
-					Storage::Cache::Database::TaggedValue(
-						base::duplicate(file->content),
-						document->cacheTag()));
 			}
 		}
 		if (!file->filepath.isEmpty()) {
@@ -233,7 +217,7 @@ void Uploader::currentFailed() {
 		if (j->second.type() == SendMediaType::Photo) {
 			_photoFailed.fire_copy(j->first);
 		} else if (j->second.type() == SendMediaType::File
-			|| j->second.type() == SendMediaType::WallPaper
+			|| j->second.type() == SendMediaType::ThemeFile
 			|| j->second.type() == SendMediaType::Audio) {
 			const auto document = Auth().data().document(j->second.id());
 			if (document->uploading()) {
@@ -335,7 +319,7 @@ void Uploader::sendNext() {
 						MTP_bytes(md5));
 					_photoReady.fire({ uploadingId, options, file, edit });
 				} else if (uploadingData.type() == SendMediaType::File
-					|| uploadingData.type() == SendMediaType::WallPaper
+					|| uploadingData.type() == SendMediaType::ThemeFile
 					|| uploadingData.type() == SendMediaType::Audio) {
 					QByteArray docMd5(32, Qt::Uninitialized);
 					hashMd5Hex(uploadingData.md5Hash.result(), docMd5.data());
@@ -412,7 +396,7 @@ void Uploader::sendNext() {
 				* uploadingData.docPartSize;
 			toSend = content.mid(offset, uploadingData.docPartSize);
 			if ((uploadingData.type() == SendMediaType::File
-				|| uploadingData.type() == SendMediaType::WallPaper
+				|| uploadingData.type() == SendMediaType::ThemeFile
 				|| uploadingData.type() == SendMediaType::Audio)
 				&& uploadingData.docSentParts <= kUseBigFilesFrom) {
 				uploadingData.md5Hash.feed(toSend.constData(), toSend.size());
@@ -554,7 +538,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 				}
 				_photoProgress.fire_copy(fullId);
 			} else if (file.type() == SendMediaType::File
-				|| file.type() == SendMediaType::WallPaper
+				|| file.type() == SendMediaType::ThemeFile
 				|| file.type() == SendMediaType::Audio) {
 				const auto document = Auth().data().document(file.id());
 				if (document->uploading()) {

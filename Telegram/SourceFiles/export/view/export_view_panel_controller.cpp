@@ -133,6 +133,13 @@ PanelController::PanelController(not_null<Controller*> process)
 	}, _lifetime);
 }
 
+PanelController::~PanelController() {
+	if (_saveSettingsTimer.isActive()) {
+		saveSettings();
+	}
+	_panel->destroyLayer();
+}
+
 void PanelController::activatePanel() {
 	_panel->showAndActivate();
 }
@@ -384,12 +391,6 @@ void PanelController::saveSettings() const {
 		settings.path = QString();
 	}
 	Local::WriteExportSettings(settings);
-}
-
-PanelController::~PanelController() {
-	if (_saveSettingsTimer.isActive()) {
-		saveSettings();
-	}
 }
 
 } // namespace View

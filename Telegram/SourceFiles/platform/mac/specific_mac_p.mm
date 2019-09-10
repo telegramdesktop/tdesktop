@@ -22,6 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "styles/style_window.h"
 
+#include <QtGui/QWindow>
+#include <QtWidgets/QApplication>
+
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
 #include <IOKit/IOKitLib.h>
@@ -207,7 +210,7 @@ void SetWatchingMediaKeys(bool watching) {
 bool IsApplicationActive() {
 	return ApplicationIsActive
 		? *ApplicationIsActive
-		: (static_cast<QApplication*>(QApplication::instance())->activeWindow() != nullptr);
+		: (static_cast<QApplication*>(QCoreApplication::instance())->activeWindow() != nullptr);
 }
 
 void SetApplicationIcon(const QIcon &icon) {

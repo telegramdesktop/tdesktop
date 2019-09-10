@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/mime_type.h"
 
+#include <QtCore/QMimeDatabase>
+
 namespace Core {
 
 MimeType::MimeType(const QMimeType &type) : _typeStruct(type) {
@@ -53,7 +55,8 @@ MimeType MimeTypeForName(const QString &mime) {
 		return MimeType(MimeType::Known::WebP);
 	} else if (mime == qstr("application/x-tgsticker")) {
 		return MimeType(MimeType::Known::Tgs);
-	} else if (mime == qstr("application/x-tdesktop-theme")) {
+	} else if (mime == qstr("application/x-tdesktop-theme")
+		|| mime == qstr("application/x-tgtheme-tdesktop")) {
 		return MimeType(MimeType::Known::TDesktopTheme);
 	} else if (mime == qstr("application/x-tdesktop-palette")) {
 		return MimeType(MimeType::Known::TDesktopPalette);

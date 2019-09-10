@@ -166,6 +166,7 @@ public:
 	void setData(const QByteArray &data) {
 		_data = data;
 	}
+	void setDataAndCache(const QByteArray &data);
 	bool checkWallPaperProperties();
 	[[nodiscard]] bool isWallPaper() const;
 	[[nodiscard]] bool isPatternWallPaper() const;

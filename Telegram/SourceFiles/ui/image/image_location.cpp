@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/overload.h"
 #include "main/main_session.h"
 
+#include <QtCore/QBuffer>
+
 namespace {
 
 constexpr auto kDocumentBaseCacheTag = 0x0000000000010000ULL;

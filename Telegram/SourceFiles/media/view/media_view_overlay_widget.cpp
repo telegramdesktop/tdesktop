@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/text_options.h"
 #include "boxes/confirm_box.h"
 #include "media/audio/media_audio.h"
@@ -47,6 +48,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "styles/style_mediaview.h"
 #include "styles/style_history.h"
+
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QDesktopWidget>
+#include <QtCore/QBuffer>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+#include <QtGui/QWindow>
+#include <QtGui/QScreen>
 
 namespace Media {
 namespace View {
@@ -1301,13 +1310,13 @@ void OverlayWidget::onCopy() {
 	_dropdown->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
 	if (_doc) {
 		if (videoShown()) {
-			QApplication::clipboard()->setImage(
+			QGuiApplication::clipboard()->setImage(
 				transformVideoFrame(videoFrame()));
 		} else if (!_current.isNull()) {
-			QApplication::clipboard()->setPixmap(_current);
+			QGuiApplication::clipboard()->setPixmap(_current);
 		}
 	} else if (_photo && _photo->loaded()) {
-		QApplication::clipboard()->setPixmap(_photo->large()->pix(fileOrigin()));
+		QGuiApplication::clipboard()->setPixmap(_photo->large()->pix(fileOrigin()));
 	}
 }
 
@@ -1736,6 +1745,19 @@ void OverlayWidget::showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> co
 }
 
 void OverlayWidget::showDocument(not_null<DocumentData*> document, HistoryItem *context) {
+	showDocument(document, context, Data::CloudTheme());
+}
+
+void OverlayWidget::showTheme(
+		not_null<DocumentData*> document,
+		const Data::CloudTheme &cloud) {
+	showDocument(document, nullptr, cloud);
+}
+
+void OverlayWidget::showDocument(
+		not_null<DocumentData*> document,
+		HistoryItem *context,
+		const Data::CloudTheme &cloud) {
 	if (context) {
 		setContext(context);
 	} else {
@@ -1746,7 +1768,7 @@ void OverlayWidget::showDocument(not_null<DocumentData*> document, HistoryItem *
 	_photo = nullptr;
 
 	_streamingStartPaused = false;
-	displayDocument(document, context);
+	displayDocument(document, context, cloud);
 	preloadData(0);
 	activateControls();
 }
@@ -1790,6 +1812,7 @@ void OverlayWidget::destroyThemePreview() {
 	_themePreview.reset();
 	_themeApply.destroy();
 	_themeCancel.destroy();
+	_themeShare.destroy();
 }
 
 void OverlayWidget::redisplayContent() {
@@ -1805,7 +1828,10 @@ void OverlayWidget::redisplayContent() {
 }
 
 // Empty messages shown as docs: doc can be nullptr.
-void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
+void OverlayWidget::displayDocument(
+		DocumentData *doc,
+		HistoryItem *item,
+		const Data::CloudTheme &cloud) {
 	if (isHidden()) {
 		moveToScreen();
 	}
@@ -1814,6 +1840,7 @@ void OverlayWidget::displayDocument(DocumentData *doc, HistoryItem *item) {
 	clearStreaming();
 	destroyThemePreview();
 	_doc = doc;
+	_themeCloudData = cloud;
 	_photo = nullptr;
 	_radial.stop();
 
@@ -1931,6 +1958,9 @@ void OverlayWidget::updateThemePreviewGeometry() {
 			_themeApply->moveToRight(right, bottom - st::themePreviewMargin.bottom() + (st::themePreviewMargin.bottom() - _themeApply->height()) / 2);
 			right += _themeApply->width() + st::themePreviewButtonsSkip;
 			_themeCancel->moveToRight(right, _themeApply->y());
+			if (_themeShare) {
+				_themeShare->moveToLeft(previewRect.x(), _themeApply->y());
+			}
 		}
 
 		// For context menu event.
@@ -2190,26 +2220,48 @@ void OverlayWidget::playbackWaitingChange(bool waiting) {
 }
 
 void OverlayWidget::initThemePreview() {
+	using namespace Window::Theme;
+
 	Assert(_doc && _doc->isTheme());
 
+	const auto bytes = _doc->data();
 	auto &location = _doc->location();
-	if (location.isEmpty() || !location.accessEnable()) {
+	if (bytes.isEmpty()
+		&& (location.isEmpty() || !location.accessEnable())) {
 		return;
 	}
 	_themePreviewShown = true;
 
-	Window::Theme::CurrentData current;
-	current.backgroundId = Window::Theme::Background()->id();
-	current.backgroundImage = Window::Theme::Background()->createCurrentImage();
-	current.backgroundTiled = Window::Theme::Background()->tile();
+	auto current = CurrentData();
+	current.backgroundId = Background()->id();
+	current.backgroundImage = Background()->createCurrentImage();
+	current.backgroundTiled = Background()->tile();
+
+	const auto &cloudList = _doc->session().data().cloudThemes().list();
+	const auto i = ranges::find(
+		cloudList,
+		_doc->id,
+		&Data::CloudTheme::documentId);
+	const auto cloud = (i != end(cloudList)) ? *i : Data::CloudTheme();
+	const auto isTrusted = (cloud.documentId != 0);
+	const auto fields = [&] {
+		auto result = _themeCloudData.id ? _themeCloudData : cloud;
+		if (!result.documentId) {
+			result.documentId = _doc->id;
+		}
+		return result;
+	}();
 
 	const auto path = _doc->location().name();
 	const auto id = _themePreviewId = rand_value<uint64>();
 	const auto weak = make_weak(this);
 	crl::async([=, data = std::move(current)]() mutable {
-		auto preview = Window::Theme::GeneratePreview(
+		auto preview = GeneratePreview(
+			bytes,
 			path,
-			std::move(data));
+			fields,
+			std::move(data),
+			Window::Theme::PreviewType::Extended);
 		crl::on_main(weak, [=, result = std::move(preview)]() mutable {
 			if (id != _themePreviewId) {
 				return;
@@ -2222,10 +2274,16 @@ void OverlayWidget::initThemePreview() {
 					tr::lng_theme_preview_apply(),
 					st::themePreviewApplyButton);
 				_themeApply->show();
-				_themeApply->setClickedCallback([this] {
+				_themeApply->setClickedCallback([=] {
+					const auto &object = Background()->themeObject();
+					const auto currentlyIsCustom = !object.cloud.id
+						&& !IsEmbeddedTheme(object.pathAbsolute);
 					auto preview = std::move(_themePreview);
 					close();
-					Window::Theme::Apply(std::move(preview));
+					Apply(std::move(preview));
+					if (isTrusted && !currentlyIsCustom) {
+						KeepApplied();
+					}
 				});
 				_themeCancel.create(
 					this,
@@ -2233,6 +2291,22 @@ void OverlayWidget::initThemePreview() {
 					st::themePreviewCancelButton);
 				_themeCancel->show();
 				_themeCancel->setClickedCallback([this] { close(); });
+				if (const auto slug = _themeCloudData.slug; !slug.isEmpty()) {
+					_themeShare.create(
+						this,
+						tr::lng_theme_share(),
+						st::themePreviewCancelButton);
+					_themeShare->show();
+					_themeShare->setClickedCallback([=] {
+						QGuiApplication::clipboard()->setText(
+							Core::App().createInternalLinkFull("addtheme/" + slug));
+						auto config = Ui::Toast::Config();
+						config.text = tr::lng_background_link_copied(tr::now);
+						Ui::Toast::Show(this, config);
+					});
+				} else {
+					_themeShare.destroy();
+				}
 				updateControls();
 			}
 			update();
@@ -2893,13 +2967,24 @@ void OverlayWidget::paintThemePreview(Painter &p, QRect clip) {
 	if (titleRect.intersects(clip)) {
 		p.setFont(st::themePreviewTitleFont);
 		p.setPen(st::themePreviewTitleFg);
-		p.drawTextLeft(titleRect.x(), titleRect.y(), width(), tr::lng_theme_preview_title(tr::now));
+		const auto title = _themeCloudData.title.isEmpty()
+			? tr::lng_theme_preview_title(tr::now)
+			: _themeCloudData.title;
+		const auto elided = st::themePreviewTitleFont->elided(title, titleRect.width());
+		p.drawTextLeft(titleRect.x(), titleRect.y(), width(), elided);
 	}
 
 	auto buttonsRect = QRect(_themePreviewRect.x(), _themePreviewRect.y() + _themePreviewRect.height() - st::themePreviewMargin.bottom(), _themePreviewRect.width(), st::themePreviewMargin.bottom());
 	if (auto fillButtonsRect = (buttonsRect.y() + buttonsRect.height() > height())) {
 		buttonsRect.moveTop(height() - buttonsRect.height());
 		fillOverlay(buttonsRect);
+	}
+	if (_themeShare && _themeCloudData.usersCount > 0) {
+		p.setFont(st::boxTextFont);
+		p.setPen(st::windowSubTextFg);
+		const auto left = _themeShare->x() + _themeShare->width() - (st::themePreviewCancelButton.width / 2);
+		const auto baseline = _themeShare->y() + st::themePreviewCancelButton.padding.top() + +st::themePreviewCancelButton.textTop + st::themePreviewCancelButton.font->ascent;
+		p.drawText(left, baseline, tr::lng_theme_preview_users(tr::now, lt_count, _themeCloudData.usersCount));
 	}
 }
 
@@ -3650,6 +3735,7 @@ void OverlayWidget::setVisibleHook(bool visible) {
 		_themePreview = nullptr;
 		_themeApply.destroyDelayed();
 		_themeCancel.destroyDelayed();
+		_themeShare.destroyDelayed();
 	}
 }
 

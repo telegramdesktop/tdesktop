@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
 
+#include <QtCore/QCoreApplication>
+
 namespace Info {
 
 ContentWidget::ContentWidget(
@@ -113,7 +115,7 @@ void ContentWidget::setGeometryWithTopMoved(
 	}
 	if (!willBeResized) {
 		QResizeEvent fake(size(), size());
-		QApplication::sendEvent(this, &fake);
+		QCoreApplication::sendEvent(this, &fake);
 	}
 	_topDelta = 0;
 }

@@ -9,8 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "main/main_account.h"
+#include "window/layer_widget.h"
 #include "window/window_session_controller.h"
+#include "window/themes/window_theme.h"
+#include "window/themes/window_theme_editor.h"
 #include "mainwindow.h"
+
+#include <QtGui/QWindow>
+#include <QtGui/QScreen>
 
 namespace Window {
 
@@ -20,7 +26,7 @@ Controller::Controller(not_null<Main::Account*> account)
 	_account->sessionValue(
 	) | rpl::start_with_next([=](Main::Session *session) {
 		_sessionController = session
-			? std::make_unique<SessionController>(session, &_widget)
+			? std::make_unique<SessionController>(session, this)
 			: nullptr;
 		_widget.updateWindowIcon();
 	}, _lifetime);
@@ -35,6 +41,15 @@ Controller::~Controller() {
 
 void Controller::firstShow() {
 	_widget.firstShow();
+	checkThemeEditor();
+}
+
+void Controller::checkThemeEditor() {
+	using namespace Window::Theme;
+
+	if (const auto editing = Background()->editingTheme()) {
+		showRightColumn(Box<Editor>(this, *editing));
+	}
 }
 
 void Controller::setupPasscodeLock() {
@@ -62,6 +77,10 @@ void Controller::showBox(
 		LayerOptions options,
 		anim::type animated) {
 	_widget.ui_showBox(std::move(content), options, animated);
+}
+
+void Controller::showRightColumn(object_ptr<TWidget> widget) {
+	_widget.showRightColumn(std::move(widget));
 }
 
 void Controller::activate() {

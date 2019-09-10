@@ -76,6 +76,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_month_day_year" = "{month} {day}, {year}";
 "lng_month_year" = "{month} {year}";
 
+"lng_calendar_beginning" = "Beginning";
+
 "lng_box_ok" = "OK";
 "lng_box_done" = "Done";
 
@@ -337,7 +339,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_bg_use_default" = "Use default color theme";
 "lng_settings_bg_from_gallery" = "Choose from gallery";
 "lng_settings_bg_from_file" = "Choose from file";
-"lng_settings_bg_edit_theme" = "Launch theme editor";
+"lng_settings_bg_theme_edit" = "Edit theme";
+"lng_settings_bg_theme_create" = "Create new theme";
+"lng_settings_bg_cloud_themes" = "Custom themes";
+"lng_settings_bg_show_all" = "Show all themes";
 "lng_settings_bg_tile" = "Tile background";
 "lng_settings_adaptive_wide" = "Adaptive layout for wide screens";
 
@@ -410,7 +415,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_reverting#other" = "Reverting to the old theme in {count} seconds.";
 "lng_theme_keep_changes" = "Keep changes";
 "lng_theme_revert" = "Revert";
-"lng_theme_no_desktop_version" = "Sorry, this theme doesn't include a version for Telegram Desktop.\n\n(Also, Telegram Desktop doesn't support cloud themes yet.)";
+"lng_theme_no_desktop" = "Sorry, this theme doesn't include a version for Telegram Desktop.";
+"lng_theme_share" = "Share";
+"lng_theme_edit" = "Edit";
+"lng_theme_delete" = "Delete";
+"lng_theme_delete_sure" = "Are you sure you want to delete this theme?";
 "lng_background_header" = "Background preview";
 "lng_background_text1" = "Ah, you kids today with techno music! You should enjoy the classics, like Hasselhoff!";
 "lng_background_text2" = "I can't even take you seriously right now.";
@@ -1140,6 +1149,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_size_limit" = "Limit by size";
 "lng_media_size_up_to" = "up to {size}";
 "lng_media_chat_background" = "Chat background";
+"lng_media_color_theme" = "Color theme";
 
 "lng_emoji_category1" = "People";
 "lng_emoji_category2" = "Nature";
@@ -1556,6 +1566,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_preview_generating" = "Generating color theme preview...";
 "lng_theme_preview_invalid" = "Invalid data in this theme file.";
 "lng_theme_preview_apply" = "Apply this theme";
+"lng_theme_preview_users#one" = "{count} person is using this theme";
+"lng_theme_preview_users#other" = "{count} people are using this theme";
 
 "lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Show all sessions and terminate that session.\n\nIf you think that somebody logged in to your account against your will, you can enable two-step verification in Settings.\n\nSincerely,\nThe Telegram Team";
 
@@ -1599,9 +1611,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_save_palette" = "Save palette file";
 "lng_theme_editor_choose_name" = "Save theme file";
 "lng_theme_editor_error" = "The editor encountered an error :( See 'log.txt' for details.";
+"lng_theme_editor_sure_close" = "Are you sure you want to close the editor? Your changes won't be saved.";
+"lng_theme_editor_need_auth" = "You need to log in to save your theme.";
+"lng_theme_editor_need_unlock" = "You need to unlock Telegram to save your theme.";
 "lng_theme_editor_done" = "Theme exported successfully!";
 "lng_theme_editor_title" = "Edit color palette";
-"lng_theme_editor_export_button" = "Export theme";
+"lng_theme_editor_save_button" = "Save theme";
+
+"lng_theme_editor_create_title" = "Create theme";
+"lng_theme_editor_attach_title" = "Attach desktop theme";
+"lng_theme_editor_create" = "Create";
+"lng_theme_editor_name" = "Theme name";
+"lng_theme_editor_create_description" = "New theme will be based on your currently selected colors and wallpaper. Alternatively, you can import existing theme or color palette from file.";
+"lng_theme_editor_attach_description" = "You can create desktop part of your theme based on your currently selected colors and wallpaper. Alternatively, you can import existing theme or color palette from file.";
+"lng_theme_editor_import_existing" = "Import existing theme";
+"lng_theme_editor_save_title" = "Save theme";
+"lng_theme_editor_link_about" = "Your theme will be updated for all users each time you change it. Anyone can install it using this link.\n\nTheme links must be longer than 5 characters and use a-z, 0-9 and underscores.";
+
+"lng_theme_editor_menu_export" = "Export theme";
+"lng_theme_editor_menu_import" = "Import theme";
+"lng_theme_editor_menu_show" = "Show palette file";
 
 "lng_payments_not_supported" = "Sorry, Telegram Desktop doesn't support payments yet. Please use one of our mobile apps to do this.";
 "lng_payments_receipt_label" = "Receipt";

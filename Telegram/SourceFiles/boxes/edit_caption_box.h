@@ -57,7 +57,7 @@ private:
 
 	void setupEmojiPanel();
 	void updateEmojiPanelGeometry();
-	bool emojiFilter(not_null<QEvent*> event);
+	void emojiFilterForGeometry(not_null<QEvent*> event);
 
 	void save();
 	void captionResized();

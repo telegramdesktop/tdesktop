@@ -230,7 +230,7 @@ void ComposeControls::initTabbedSelector() {
 		if (_tabbedPanel && e->type() == QEvent::ParentChange) {
 			setTabbedPanel(nullptr);
 		}
-		return false;
+		return Core::EventFilter::Result::Continue;
 	});
 
 	selector->emojiChosen(

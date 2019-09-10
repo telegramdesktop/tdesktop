@@ -299,7 +299,7 @@ void AddSpecialBoxController::migrate(not_null<ChannelData*> channel) {
 
 std::unique_ptr<PeerListRow> AddSpecialBoxController::createSearchRow(
 		not_null<PeerData*> peer) {
-	if (peer->isSelf()) {
+	if (_excludeSelf && peer->isSelf()) {
 		return nullptr;
 	}
 	if (const auto user = peer->asUser()) {
@@ -312,6 +312,8 @@ void AddSpecialBoxController::prepare() {
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	auto title = [&] {
 		switch (_role) {
+		case Role::Members:
+			return tr::lng_profile_participants_section();
 		case Role::Admins:
 			return tr::lng_channel_add_admin();
 		case Role::Restricted:
@@ -799,7 +801,8 @@ void AddSpecialBoxController::kickUser(
 }
 
 bool AddSpecialBoxController::appendRow(not_null<UserData*> user) {
-	if (delegate()->peerListFindRow(user->id) || user->isSelf()) {
+	if (delegate()->peerListFindRow(user->id)
+		|| (_excludeSelf && user->isSelf())) {
 		return false;
 	}
 	delegate()->peerListAppendRow(createRow(user));

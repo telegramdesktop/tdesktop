@@ -46,6 +46,7 @@ namespace Window {
 class LayerWidget;
 class MainWindow;
 class SectionMemento;
+class Controller;
 
 enum class GifPauseReason {
 	Any           = 0,
@@ -151,11 +152,12 @@ class SessionController
 public:
 	SessionController(
 		not_null<Main::Session*> session,
-		not_null<::MainWindow*> window);
+		not_null<Controller*> window);
 
-	[[nodiscard]] not_null<::MainWindow*> window() const {
-		return _window;
+	[[nodiscard]] Controller &window() const {
+		return *_window;
 	}
+	[[nodiscard]] not_null<::MainWindow*> widget() const;
 
 	[[nodiscard]] auto tabbedSelector() const
 	-> not_null<ChatHelpers::TabbedSelector*>;
@@ -302,7 +304,7 @@ private:
 	void pushToChatEntryHistory(Dialogs::RowDescriptor row);
 	bool chatEntryHistoryMove(int steps);
 
-	const not_null<::MainWindow*> _window;
+	const not_null<Controller*> _window;
 
 	std::unique_ptr<Passport::FormController> _passportForm;
 

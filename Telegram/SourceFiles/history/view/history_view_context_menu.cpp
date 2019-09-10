@@ -38,6 +38,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 namespace HistoryView {
 namespace {
 
@@ -77,7 +80,7 @@ void CopyImage(not_null<PhotoData*> photo) {
 		return;
 	}
 
-	QApplication::clipboard()->setImage(photo->large()->original());
+	QGuiApplication::clipboard()->setImage(photo->large()->original());
 }
 
 void ShowStickerPackInfo(not_null<DocumentData*> document) {
@@ -533,7 +536,7 @@ void AddCopyLinkAction(
 	const auto text = link->copyToClipboardText();
 	menu->addAction(
 		action,
-		[=] { QApplication::clipboard()->setText(text); });
+		[=] { QGuiApplication::clipboard()->setText(text); });
 }
 
 } // namespace
@@ -624,7 +627,7 @@ void CopyPostLink(FullMsgId itemId) {
 	if (!item || !item->hasDirectLink()) {
 		return;
 	}
-	QApplication::clipboard()->setText(
+	QGuiApplication::clipboard()->setText(
 		item->history()->session().api().exportDirectMessageLink(item));
 
 	const auto channel = item->history()->peer->asChannel();

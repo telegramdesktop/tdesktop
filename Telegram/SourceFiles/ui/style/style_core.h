@@ -54,6 +54,9 @@ void unregisterModule(ModuleBase *module);
 // This method is implemented in palette.cpp (codegen).
 bool setPaletteColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);
 
+[[nodiscard]] QColor EnsureContrast(const QColor &over, const QColor &under);
+void EnsureContrast(ColorData &over, const ColorData &under);
+
 } // namespace internal
 
 void startManager();

@@ -131,6 +131,9 @@ private:
 	AdminDoneCallback _adminDoneCallback;
 	BannedDoneCallback _bannedDoneCallback;
 
+protected:
+	bool _excludeSelf = true;
+
 };
 
 // Finds chat/channel members, then contacts, then global search results.

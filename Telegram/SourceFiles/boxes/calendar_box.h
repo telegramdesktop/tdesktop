@@ -33,6 +33,8 @@ public:
 		FnMut<void(not_null<CalendarBox*>)> finalize,
 		const style::CalendarSizes &st);
 
+	void setBeginningButton(bool enabled);
+	bool hasBeginningButton() const;
 
 	void setMinDate(QDate date);
 	void setMaxDate(QDate date);

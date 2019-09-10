@@ -49,6 +49,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_window.h" // st::windowMinWidth
 
+#include <QtWidgets/QAction>
+
 namespace Window {
 namespace {
 
@@ -343,7 +345,7 @@ void Filler::addToggleArchive() {
 }
 
 void Filler::addBlockUser(not_null<UserData*> user) {
-	const auto window = &_controller->window()->controller();
+	const auto window = &_controller->window();
 	const auto blockText = [](not_null<UserData*> user) {
 		return user->isBlocked()
 			? ((user->isBot() && !user->isSupport())
@@ -378,7 +380,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 
 void Filler::addUserActions(not_null<UserData*> user) {
 	const auto controller = _controller;
-	const auto window = &_controller->window()->controller();
+	const auto window = &_controller->window();
 	if (_source != PeerMenuSource::ChatsList) {
 		if (user->session().supportMode()) {
 			_addAction("Edit support info", [=] {

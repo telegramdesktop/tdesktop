@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "ui/image/image_prepare.h"
 
+#include <QtCore/QSemaphore>
+#include <QtCore/QMimeData>
+
 namespace Storage {
 namespace {
 

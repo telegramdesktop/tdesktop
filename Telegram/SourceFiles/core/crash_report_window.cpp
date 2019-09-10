@@ -15,6 +15,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "base/zlib_help.h"
 
+#include <QtWidgets/QFileDialog>
+#include <QtGui/QScreen>
+#include <QtGui/QDesktopServices>
+#include <QtCore/QStandardPaths>
+
 namespace {
 
 constexpr auto kDefaultProxyPort = 80;

@@ -15,6 +15,7 @@ class Session;
 
 namespace Ui {
 class VerticalLayout;
+class FlatLabel;
 } // namespace Ui
 
 namespace Window {
@@ -90,7 +91,7 @@ void CreateRightLabel(
 	rpl::producer<QString> label,
 	const style::InfoProfileButton &st,
 	rpl::producer<QString> buttonText);
-void AddSubsectionTitle(
+not_null<Ui::FlatLabel*> AddSubsectionTitle(
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> text);
 
@@ -99,7 +100,8 @@ using MenuCallback = Fn<QAction*(
 	Fn<void()> handler)>;
 
 void FillMenu(
-	not_null<::Main::Session*> session,
+	not_null<Window::SessionController*> controller,
+	Type type,
 	Fn<void(Type)> showOther,
 	MenuCallback addAction);
 

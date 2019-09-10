@@ -7,6 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/scroll_area.h"
 
+#include <QtWidgets/QScrollBar>
+#include <QtWidgets/QApplication>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QWindow>
+
 namespace Ui {
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html

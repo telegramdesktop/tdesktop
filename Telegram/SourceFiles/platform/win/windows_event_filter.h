@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/win/wrapper_windows_h.h"
 
+#include <QtCore/QAbstractNativeEventFilter>
+
 namespace Platform {
 
 class MainWindow;
