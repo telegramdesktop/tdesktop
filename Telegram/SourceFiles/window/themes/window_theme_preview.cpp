@@ -398,6 +398,7 @@ void Generator::paintHistoryList() {
 
 	_historyBottom = _history.y() + _history.height();
 	_historyBottom -= st::historyPaddingBottom;
+	_p->setClipping(true);
 	for (auto i = _bubbles.size(); i != 0;) {
 		auto &bubble = _bubbles[--i];
 		if (bubble.width > 0) {
