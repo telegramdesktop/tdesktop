@@ -39,7 +39,7 @@ constexpr auto kDocumentUploadPartSize3 = 256 * 1024;
 constexpr auto kDocumentUploadPartSize4 = 512 * 1024;
 
 // One part each half second, if not uploaded faster.
-constexpr auto kUploadRequestInterval = crl::time(500);
+constexpr auto kUploadRequestInterval = crl::time(200);
 
 // How much time without upload causes additional session kill.
 constexpr auto kKillSessionTimeout = crl::time(5000);
