@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <range/v3/algorithm/max_element.hpp>
 #include <range/v3/view/all.hpp>
 #include <range/v3/view/transform.hpp>
-#include <range/v3/to_container.hpp>
+#include <range/v3/range/conversion.hpp>
 
 namespace App { // Hackish..
 QString formatPhone(QString phone);
