@@ -22,6 +22,7 @@ class Menu : public TWidget {
 public:
 	Menu(QWidget *parent, const style::Menu &st = st::defaultMenu);
 	Menu(QWidget *parent, QMenu *menu, const style::Menu &st = st::defaultMenu);
+	~Menu();
 
 	not_null<QAction*> addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 	not_null<QAction*> addAction(const QString &text, Fn<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
@@ -87,22 +88,7 @@ private slots:
 	void actionChanged();
 
 private:
-	struct ActionData {
-		ActionData() = default;
-		ActionData(const ActionData &other) = delete;
-		ActionData &operator=(const ActionData &other) = delete;
-		ActionData(ActionData &&other) = default;
-		ActionData &operator=(ActionData &&other) = default;
-		~ActionData();
-
-		bool hasSubmenu = false;
-		QString text;
-		QString shortcut;
-		const style::icon *icon = nullptr;
-		const style::icon *iconOver = nullptr;
-		std::unique_ptr<RippleAnimation> ripple;
-		std::unique_ptr<ToggleView> toggle;
-	};
+	struct ActionData;
 
 	void updateSelected(QPoint globalPosition);
 	void init();

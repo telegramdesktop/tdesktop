@@ -117,7 +117,7 @@ mainMenuSkip: 13px;
 mainMenu: Menu(defaultMenu) {
 	itemFg: windowBoldFg;
 	itemFgOver: windowBoldFgOver;
-	itemFont: semiboldFont;
+	itemStyle: semiboldTextStyle;
 	itemIconPosition: point(26px, 8px);
 	itemPadding: margins(76px, 13px, 28px, 13px);
 	itemToggle: Toggle(defaultMenuToggle) {

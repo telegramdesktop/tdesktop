@@ -398,7 +398,7 @@ Menu {
 	itemFgShortcutDisabled: color;
 	itemPadding: margins;
 	itemIconPosition: point;
-	itemFont: font;
+	itemStyle: TextStyle;
 	itemToggle: Toggle;
 	itemToggleOver: Toggle;
 	itemToggleShift: pixels;
@@ -906,7 +906,7 @@ defaultMenu: Menu {
 	itemFgShortcutDisabled: menuFgDisabled;
 	itemIconPosition: point(0px, 0px);
 	itemPadding: margins(17px, 8px, 17px, 7px);
-	itemFont: normalFont;
+	itemStyle: defaultTextStyle;
 	itemToggle: defaultMenuToggle;
 	itemToggleOver: defaultMenuToggleOver;
 	itemToggleShift: 0px;
