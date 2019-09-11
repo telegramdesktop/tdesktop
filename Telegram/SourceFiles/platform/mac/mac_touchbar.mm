@@ -74,6 +74,17 @@ constexpr auto kArchiveId = -1;
 
 constexpr auto kMaxStickerSets = 5;
 
+constexpr auto kGestureStateProcessed = {
+	NSGestureRecognizerStateChanged,
+	NSGestureRecognizerStateBegan,
+};
+
+constexpr auto kGestureStateFinished = {
+	NSGestureRecognizerStateEnded,
+	NSGestureRecognizerStateCancelled,
+	NSGestureRecognizerStateFailed,
+};
+
 NSString *const kTypePinned = @"pinned";
 NSString *const kTypeSlider = @"slider";
 NSString *const kTypeButton = @"button";
@@ -641,9 +652,11 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 @end // @interface PickerScrubberItemView
 @implementation PickerScrubberItemView {
 	rpl::lifetime _lifetime;
-	Data::FileOrigin _origin;
 	QSize _dimensions;
 	Image *_image;
+	@public
+	Data::FileOrigin fileOrigin;
+	DocumentData *documentData;
 }
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
@@ -667,9 +680,10 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	if (!_image) {
 		return;
 	}
+	fileOrigin = document->stickerSetOrigin();
+	documentData = std::move(document);
 	_dimensions = document->dimensions;
-	_origin = document->stickerSetOrigin();
-	_image->load(_origin);
+	_image->load(fileOrigin);
 	if (_image->loaded()) {
 		[self updateImage];
 		return;
@@ -689,7 +703,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			.scaled(kCircleDiameter, kCircleDiameter, Qt::KeepAspectRatio);
 	_imageView.image = [qt_mac_create_nsimage(
 			_image->pixSingle(
-				_origin,
+				fileOrigin,
 				size.width(),
 				size.height(),
 				kCircleDiameter,
@@ -711,9 +725,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 @implementation PickerCustomTouchBarItem {
 	std::vector<PickerScrubberItem> _stickers;
 	NSPopoverTouchBarItem *_parentPopover;
-	std::unique_ptr<base::Timer> _previewTimer;
-	int _highlightedIndex;
-	bool _previewShown;
+	DocumentId _lastPreviewedSticker;
 }
 
 - (id) init:(ScrubberItemType)type popover:(NSPopoverTouchBarItem *)popover {
@@ -739,16 +751,63 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	[scrubber registerClass:[NSScrubberTextItemView class] forItemIdentifier:kPickerTitleItemIdentifier];
 	[scrubber registerClass:[NSScrubberImageItemView class] forItemIdentifier:kEmojiItemIdentifier];
 
-	_previewShown = false;
-	_highlightedIndex = 0;
-	_previewTimer = !IsSticker(type)
-		? nullptr
-		: std::make_unique<base::Timer>([=] {
-			[self showPreview];
-		});
+	if (IsSticker(type)) {
+		auto *gesture = [[NSPressGestureRecognizer alloc]
+			initWithTarget:self
+			action:@selector(gesturePreviewHandler:)];
+		gesture.allowedTouchTypes = NSTouchTypeMaskDirect;
+		gesture.minimumPressDuration = QApplication::startDragTime() / 1000.;
+		gesture.allowableMovement = 0;
+		[scrubber addGestureRecognizer:gesture];
+	}
+	_lastPreviewedSticker = 0;
 
 	self.view = scrubber;
 	return self;
+}
+
+- (void)gesturePreviewHandler:(NSPressGestureRecognizer *)gesture {
+	const auto customEnter = [](const auto callback) {
+		Core::Sandbox::Instance().customEnterFromEventLoop([=] {
+			if (App::wnd()) {
+				callback();
+			}
+		});
+	};
+
+	const auto checkState = [&](const auto &states) {
+		return ranges::find(states, gesture.state) != end(states);
+	};
+
+	if (checkState(kGestureStateProcessed)) {
+		NSScrollView *scrollView = self.view;
+		auto *container = scrollView.documentView.subviews.firstObject;
+		if (!container) {
+			return;
+		}
+		const auto point = [gesture locationInView:(std::move(container))];
+
+		for (PickerScrubberItemView *item in container.subviews) {
+			const auto &doc = item->documentData;
+			const auto &origin = item->fileOrigin
+				? item->fileOrigin
+				: Data::FileOrigin();
+			if (![item isMemberOfClass:[PickerScrubberItemView class]]
+				|| !doc
+				|| (doc->id == _lastPreviewedSticker)
+				|| !NSPointInRect(point, item.frame)) {
+				continue;
+			}
+			_lastPreviewedSticker = doc->id;
+			customEnter([origin = std::move(origin), doc = std::move(doc)] {
+				App::wnd()->showMediaPreview(origin, doc);
+			});
+			break;
+		}
+	} else if (checkState(kGestureStateFinished)) {
+		customEnter([] { App::wnd()->hideMediaPreview(); });
+		_lastPreviewedSticker = 0;
+	}
 }
 
 - (void)encodeWithCoder:(nonnull NSCoder *)aCoder {
@@ -765,7 +824,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	const auto item = _stickers[index];
 	if (const auto document = item.document) {
 		PickerScrubberItemView *itemView = [scrubber makeItemWithIdentifier:kStickerItemIdentifier owner:nil];
-		[itemView addDocument:document];
+		[itemView addDocument:(std::move(document))];
 		return itemView;
 	} else if (const auto emoji = item.emoji) {
 		NSScrubberImageItemView *itemView = [scrubber makeItemWithIdentifier:kEmojiItemIdentifier owner:nil];
@@ -791,12 +850,6 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		return;
 	}
 	scrubber.selectedIndex = -1;
-	if (_previewShown && [self hidePreview]) {
-		return;
-	}
-	if (_previewTimer) {
-		_previewTimer->cancel();
-	}
 	const auto chat = GetActiveChat();
 
 	const auto callback = [&]() -> bool {
@@ -826,47 +879,6 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	if (_parentPopover) {
 		[_parentPopover dismissPopover:nil];
 	}
-}
-
-- (void)scrubber:(NSScrubber *)scrubber didHighlightItemAtIndex:(NSInteger)index {
-	if (_previewTimer) {
-		_previewTimer->callOnce(QApplication::startDragTime());
-		_highlightedIndex = index;
-	}
-}
-
-- (void)scrubber:(NSScrubber *)scrubber didChangeVisibleRange:(NSRange)visibleRange {
-	[self didCancelInteractingWithScrubber:scrubber];
-}
-
-- (void)didCancelInteractingWithScrubber:(NSScrubber *)scrubber {
-	if (_previewTimer) {
-		_previewTimer->cancel();
-	}
-	if (_previewShown) {
-		[self hidePreview];
-	}
-}
-
-- (void)showPreview {
-	if (const auto document = _stickers[_highlightedIndex].document) {
-		if (const auto w = App::wnd()) {
-			w->showMediaPreview(document->stickerSetOrigin(), document);
-			_previewShown = true;
-		}
-	}
-}
-
-- (bool)hidePreview {
-	if (const auto w = App::wnd()) {
-		Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-			w->hideMediaPreview();
-		});
-		_previewShown = false;
-		_highlightedIndex = 0;
-		return true;
-	}
-	return false;
 }
 
 - (void)updateStickers {
