@@ -781,7 +781,7 @@ int WebPage::bottomInfoPadding() const {
 QString WebPage::displayedSiteName() const {
 	return (_data->document && _data->document->isWallPaper())
 		? tr::lng_media_chat_background(tr::now)
-		: (_data->document && _data->document->isWallPaper())
+		: (_data->document && _data->document->isTheme())
 		? tr::lng_media_color_theme(tr::now)
 		: _data->siteName;
 }

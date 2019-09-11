@@ -122,6 +122,23 @@ QDate WhenSystemBecomesOutdated() {
 	return QDate();
 }
 
+int AutoUpdateVersion() {
+	if (!IsMac10_10OrGreater()) {
+		return 1;
+	}
+	return 2;
+}
+
+QString AutoUpdateKey() {
+	if (IsMacOldBuild()) {
+		return "mac32";
+	} else if (!IsMac10_12OrGreater()) {
+		return "osx";
+	} else {
+		return "mac";
+	}
+}
+
 bool IsMac10_6OrGreater() {
 	return IsMacThatOrGreater<6>();
 }
