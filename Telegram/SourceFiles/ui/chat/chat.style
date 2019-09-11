@@ -209,6 +209,8 @@ historyPinOutIcon: icon {{ "history_pin", historyOutIconFg }};
 historyPinOutSelectedIcon: icon {{ "history_pin", historyOutIconFgSelected }};
 historyPinInvertedIcon: icon {{ "history_pin", historySendingInvertedIconFg }};
 
+historyReactionsSkip: 8px;
+
 historyComposeField: InputField(defaultInputField) {
 	font: msgFont;
 	textMargins: margins(0px, 0px, 0px, 0px);

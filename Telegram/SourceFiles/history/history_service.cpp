@@ -1064,6 +1064,10 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 
 	default: Unexpected("Media type in HistoryService::createFromMtp()");
 	}
+
+	if (const auto reactions = message.vreactions()) {
+		updateReactions(*reactions);
+	}
 }
 
 void HistoryService::createFromMtp(const MTPDmessageService &message) {

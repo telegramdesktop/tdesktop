@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
+#include "data/data_session.h"
 #include "apiwrap.h"
 
 namespace Data {
@@ -48,6 +49,7 @@ void MessageReactions::add(const QString &reaction) {
 		++_list[reaction];
 	}
 	sendRequest();
+	_item->history()->owner().requestItemResize(_item);
 }
 
 void MessageReactions::set(
@@ -80,6 +82,7 @@ void MessageReactions::set(
 			_chosen = QString();
 		}
 	}
+	_item->history()->owner().requestItemResize(_item);
 }
 
 const base::flat_map<QString, int> &MessageReactions::list() const {

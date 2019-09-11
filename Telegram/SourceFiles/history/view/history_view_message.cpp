@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
+#include "ui/text/text_options.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 
@@ -236,6 +237,25 @@ LogEntryOriginal &LogEntryOriginal::operator=(LogEntryOriginal &&other) {
 
 LogEntryOriginal::~LogEntryOriginal() = default;
 
+void Reactions::update(const base::flat_map<QString, int> &list) {
+	auto sorted = ranges::view::all(
+		list
+	) | ranges::view::transform([](const auto &pair) {
+		return std::make_pair(pair.first, pair.second);
+	}) | ranges::to_vector;
+	ranges::sort(sorted, std::greater<>(), &std::pair<QString, int>::second);
+
+	auto fullCount = 0;
+	auto composed = QString();
+	for (const auto &[string, count] : sorted) {
+		composed.append(string);
+		fullCount += count;
+	}
+	composed += QString::number(fullCount);
+
+	text.setText(st::msgDateTextStyle, composed, Ui::NameTextOptions());
+}
+
 Message::Message(
 	not_null<ElementDelegate*> delegate,
 	not_null<HistoryMessage*> data,
@@ -316,6 +336,14 @@ QSize Message::performCountOptimalSize() {
 	updateMediaInBubbleState();
 	refreshEditedBadge();
 	refreshRightBadge();
+
+	if (const auto list = item->reactions(); !list.empty()) {
+		AddComponents(Reactions::Bit());
+		const auto reactions = Get<Reactions>();
+		reactions->update(list);
+	} else {
+		RemoveComponents(Reactions::Bit());
+	}
 
 	if (drawBubble()) {
 		const auto forwarded = item->Get<HistoryMessageForwarded>();
@@ -1778,7 +1806,11 @@ void Message::drawInfo(
 	const auto viewIconTop = infoBottom + st::historyViewsTop;
 	const auto pinIconTop = infoBottom + st::historyPinTop;
 	auto left = infoRight - infoW;
-	if (auto views = item->Get<HistoryMessageViews>()) {
+	if (const auto reactions = Get<Reactions>()) {
+		reactions->text.draw(p, left, dateY, reactions->text.maxWidth());
+		left += reactions->text.maxWidth() + st::historyReactionsSkip;
+	}
+	if (const auto views = item->Get<HistoryMessageViews>()) {
 		const auto textTop = infoBottom - st::msgDateFont->descent;
 		if (views->replies.count > 0
 			&& !views->commentsMegagroupId
@@ -1885,7 +1917,7 @@ bool Message::pointInTime(
 int Message::infoWidth() const {
 	const auto item = message();
 	auto result = item->_timeWidth;
-	if (auto views = item->Get<HistoryMessageViews>()) {
+	if (const auto views = item->Get<HistoryMessageViews>()) {
 		if (views->views.count >= 0) {
 			result += st::historyViewsSpace
 				+ views->views.textWidth
@@ -1914,6 +1946,9 @@ int Message::infoWidth() const {
 		result += st::historyScheduledUntilOnlineStateSpace;
 	} else if (hasOutLayout()) {
 		result += st::historySendStateSpace;
+	}
+	if (const auto reactions = Get<Reactions>()) {
+		result += st::historyReactionsSkip + reactions->text.maxWidth();
 	}
 	return result;
 }
@@ -1959,6 +1994,10 @@ int Message::timeLeft() const {
 	}
 	if (displayPinIcon()) {
 		result += st::historyPinWidth;
+	}
+
+	if (const auto reactions = Get<Reactions>()) {
+		result += st::historyReactionsSkip + reactions->text.maxWidth();
 	}
 	return result;
 }

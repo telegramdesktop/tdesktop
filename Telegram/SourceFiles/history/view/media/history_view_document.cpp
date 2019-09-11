@@ -273,6 +273,7 @@ QSize Document::countOptimalSize() {
 	if (!captioned && ((msgsigned && !msgsigned->isAnonymousRank)
 		|| (views
 			&& (views->views.count >= 0 || views->replies.count > 0))
+		|| !item->reactions().empty()
 		|| _parent->displayEditedBadge())) {
 		minHeight += st::msgDateFont->height - st::msgDateDelta.y();
 	}

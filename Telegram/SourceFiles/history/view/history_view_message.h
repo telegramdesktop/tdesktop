@@ -39,6 +39,12 @@ struct PsaTooltipState : public RuntimeComponent<PsaTooltipState, Element> {
 	mutable bool buttonVisible = true;
 };
 
+struct Reactions : public RuntimeComponent<Reactions, Element> {
+	void update(const base::flat_map<QString, int> &list);
+
+	Ui::Text::String text;
+};
+
 class Message : public Element, public base::has_weak_ptr {
 public:
 	Message(
