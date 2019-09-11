@@ -45,7 +45,7 @@ private:
 
 namespace {
 
-constexpr auto kRefreshTimeout = TimeId(7200);
+constexpr auto kRefreshTimeout = 7200 * crl::time(1000);
 constexpr auto kClearSourceTimeout = 10 * crl::time(1000);
 
 [[nodiscard]] QSize SingleSize() {
