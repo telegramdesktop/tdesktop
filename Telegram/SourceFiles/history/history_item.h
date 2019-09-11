@@ -43,6 +43,7 @@ struct RippleAnimation;
 namespace Data {
 struct MessagePosition;
 class Media;
+class MessageReactions;
 } // namespace Data
 
 namespace Window {
@@ -389,6 +390,12 @@ public:
 	[[nodiscard]] bool suggestBanReport() const;
 	[[nodiscard]] bool suggestDeleteAllReport() const;
 
+	[[nodiscard]] bool canReact() const;
+	void addReaction(const QString &reaction);
+	void updateReactions(const MTPMessageReactions &reactions);
+	[[nodiscard]] const base::flat_map<QString, int> &reactions() const;
+	[[nodiscard]] QString chosenReaction() const;
+
 	[[nodiscard]] bool hasDirectLink() const;
 
 	[[nodiscard]] FullMsgId fullId() const;
@@ -489,6 +496,7 @@ protected:
 
 	SavedMediaData _savedLocalEditMediaData;
 	std::unique_ptr<Data::Media> _media;
+	std::unique_ptr<Data::MessageReactions> _reactions;
 
 private:
 

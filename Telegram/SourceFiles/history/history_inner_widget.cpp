@@ -61,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
+#include "data/data_message_reactions.h"
 #include "data/data_document.h"
 #include "data/data_channel.h"
 #include "data/data_poll.h"
@@ -1683,6 +1684,17 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			return;
 		}
 		const auto itemId = item->fullId();
+		if (item->canReact()) {
+			auto reactionMenu = std::make_unique<Ui::PopupMenu>(
+				this,
+				st::reactionMenu);
+			for (const auto &text : Data::MessageReactions::SuggestList()) {
+				reactionMenu->addAction(text, [=] {
+					item->addReaction(text);
+				});
+			}
+			_menu->addAction("Reaction", std::move(reactionMenu));
+		}
 		if (canSendMessages) {
 			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {
 				_widget->replyToMessage(itemId);

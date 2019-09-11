@@ -1617,6 +1617,19 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateMessageReactions: {
+		const auto &d = update.c_updateMessageReactions();
+		const auto peer = peerFromMTP(d.vpeer());
+		if (const auto history = session().data().historyLoaded(peer)) {
+			const auto item = session().data().message(
+				peer,
+				d.vmsg_id().v);
+			if (item) {
+				item->updateReactions(d.vreactions());
+			}
+		}
+	} break;
+
 	// Messages being read.
 	case mtpc_updateReadHistoryInbox: {
 		auto &d = update.c_updateReadHistoryInbox();

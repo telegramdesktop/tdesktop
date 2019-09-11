@@ -445,6 +445,8 @@ PRIVATE
     data/data_media_types.h
     data/data_messages.cpp
     data/data_messages.h
+    data/data_message_reactions.cpp
+    data/data_message_reactions.h
     data/data_msg_id.h
     data/data_notify_settings.cpp
     data/data_notify_settings.h

@@ -48,6 +48,12 @@ historyThemeSize: size(272px, 176px);
 
 historyMinimalWidth: 380px;
 
+reactionMenu: PopupMenu(defaultPopupMenu) {
+	menu: Menu(defaultMenu) {
+		widthMin: 30px;
+	}
+}
+
 historyScroll: ScrollArea(defaultScrollArea) {
 	bg: historyScrollBg;
 	bgOver: historyScrollBgOver;

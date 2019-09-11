@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_scheduled_messages.h" // kScheduledUntilOnlineTimestamp
 #include "data/data_changes.h"
 #include "data/data_session.h"
+#include "data/data_message_reactions.h"
 #include "data/data_messages.h"
 #include "data/data_media_types.h"
 #include "data/data_folder.h"
@@ -739,6 +740,38 @@ bool HistoryItem::suggestDeleteAllReport() const {
 		return false;
 	}
 	return !isPost() && !out();
+}
+
+bool HistoryItem::canReact() const {
+	return IsServerMsgId(id) && !out() && !_history->peer->isSelf();
+}
+
+void HistoryItem::addReaction(const QString &reaction) {
+	if (!_reactions) {
+		_reactions = std::make_unique<Data::MessageReactions>(this);
+	}
+	_reactions->add(reaction);
+}
+
+void HistoryItem::updateReactions(const MTPMessageReactions &reactions) {
+	reactions.match([&](const MTPDmessageReactions &data) {
+		if (data.vresults().v.isEmpty()) {
+			_reactions = nullptr;
+			return;
+		} else if (!_reactions) {
+			_reactions = std::make_unique<Data::MessageReactions>(this);
+		}
+		_reactions->set(data.vresults().v, data.is_min());
+	});
+}
+
+const base::flat_map<QString, int> &HistoryItem::reactions() const {
+	static const auto kEmpty = base::flat_map<QString, int>();
+	return _reactions ? _reactions->list() : kEmpty;
+}
+
+QString HistoryItem::chosenReaction() const {
+	return _reactions ? _reactions->chosen() : QString();
 }
 
 bool HistoryItem::hasDirectLink() const {
