@@ -507,6 +507,13 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
+	session().data().itemDataChanges(
+	) | rpl::filter([=](not_null<HistoryItem*> item) {
+		return !_list && (item->mainView() != nullptr);
+	}) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+		item->mainView()->itemDataChanged();
+	}, lifetime());
+
 	Core::App().settings().largeEmojiChanges(
 	) | rpl::start_with_next([=] {
 		crl::on_main(this, [=] {

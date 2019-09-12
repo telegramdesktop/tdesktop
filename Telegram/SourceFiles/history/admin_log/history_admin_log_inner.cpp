@@ -285,6 +285,12 @@ InnerWidget::InnerWidget(
 			}
 		}
 	}, lifetime());
+	session().data().itemDataChanges(
+	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+		if (const auto view = viewForItem(item)) {
+			view->itemDataChanged();
+		}
+	}, lifetime());
 	session().data().animationPlayInlineRequest(
 	) | rpl::start_with_next([=](auto item) {
 		if (const auto view = viewForItem(item)) {

@@ -129,7 +129,7 @@ public:
 	[[nodiscard]] bool allowsSendNow() const override;
 	[[nodiscard]] bool allowsEdit(TimeId now) const override;
 
-	void setViewsCount(int count) override;
+	bool changeViewsCount(int count) override;
 	void setForwardsCount(int count) override;
 	void setReplies(HistoryMessageRepliesData &&data) override;
 	void clearReplies() override;
@@ -263,10 +263,7 @@ private:
 	[[nodiscard]] bool checkRepliesPts(
 		const HistoryMessageRepliesData &data) const;
 
-	QString _timeText;
-	int _timeWidth = 0;
-
-	mutable int32 _fromNameVersion = 0;
+	mutable int _fromNameVersion = 0;
 
 	friend class HistoryView::Element;
 	friend class HistoryView::Message;

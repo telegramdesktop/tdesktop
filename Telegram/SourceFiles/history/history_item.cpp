@@ -524,7 +524,7 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	}, data.vmedia());
 	updateReplyMarkup(HistoryMessageMarkupData(data.vreply_markup()));
 	updateForwardedInfo(data.vfwd_from());
-	setViewsCount(data.vviews().value_or(-1));
+	changeViewsCount(data.vviews().value_or(-1));
 	if (const auto replies = data.vreplies()) {
 		setReplies(HistoryMessageRepliesData(replies));
 	} else {
@@ -541,6 +541,7 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	setPostAuthor(data.vpost_author().value_or_empty());
 	contributeToSlowmode(data.vdate().v);
 	indexAsNewItem();
+	history()->owner().notifyItemDataChange(this);
 	history()->owner().requestItemTextRefresh(this);
 	history()->owner().updateDependentMessages(this);
 }
@@ -596,6 +597,7 @@ void HistoryItem::setRealId(MsgId newId) {
 		}
 	}
 
+	_history->owner().notifyItemDataChange(this);
 	_history->owner().requestItemRepaint(this);
 }
 
@@ -914,6 +916,7 @@ void HistoryItem::sendFailed() {
 	Expects(!(_flags & MessageFlag::SendingFailed));
 
 	_flags = (_flags | MessageFlag::SendingFailed) & ~MessageFlag::BeingSent;
+	_history->owner().notifyItemDataChange(this);
 	history()->session().changes().historyUpdated(
 		history(),
 		Data::HistoryUpdate::Flag::ClientSideMessages);

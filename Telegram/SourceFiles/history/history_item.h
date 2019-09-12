@@ -352,7 +352,8 @@ public:
 		return TextForMimeData();
 	}
 
-	virtual void setViewsCount(int count) {
+	virtual bool changeViewsCount(int count) {
+		return false;
 	}
 	virtual void setForwardsCount(int count) {
 	}

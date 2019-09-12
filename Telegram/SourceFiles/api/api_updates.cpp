@@ -1163,7 +1163,7 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 		auto needToAdd = true;
 		if (d.vmessage().type() == mtpc_message) { // index forwarded messages to links _overview
 			const auto &data = d.vmessage().c_message();
-			if (_session->data().checkEntitiesAndViewsUpdate(data)) { // already in blocks
+			if (_session->data().updateExistingMessage(data)) { // already in blocks
 				LOG(("Skipping message, because it is already in blocks!"));
 				needToAdd = false;
 			}
@@ -1257,7 +1257,7 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 		auto needToAdd = true;
 		if (d.vmessage().type() == mtpc_message) { // index forwarded messages to links _overview
 			const auto &data = d.vmessage().c_message();
-			if (_session->data().checkEntitiesAndViewsUpdate(data)) { // already in blocks
+			if (_session->data().updateExistingMessage(data)) { // already in blocks
 				LOG(("Skipping message, because it is already in blocks!"));
 				needToAdd = false;
 			}
@@ -2163,7 +2163,9 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto &d = update.c_updateChannelMessageViews();
 		const auto peerId = peerFromChannel(d.vchannel_id());
 		if (const auto item = session().data().message(peerId, d.vid().v)) {
-			item->setViewsCount(d.vviews().v);
+			if (item->changeViewsCount(d.vviews().v)) {
+				session().data().notifyItemDataChange(item);
+			}
 		}
 	} break;
 

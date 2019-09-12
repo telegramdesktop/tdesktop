@@ -82,7 +82,10 @@ QSize Location::countOptimalSize() {
 		th = (st::maxMediaSize * th) / tw;
 		tw = st::maxMediaSize;
 	}
-	auto minWidth = qMax(st::minPhotoSize, _parent->minWidthForMedia());
+	auto minWidth = std::clamp(
+		_parent->minWidthForMedia(),
+		st::minPhotoSize,
+		st::maxMediaSize);
 	auto maxWidth = qMax(tw, minWidth);
 	auto minHeight = qMax(th, st::minPhotoSize);
 
@@ -118,7 +121,10 @@ QSize Location::countCurrentSize(int newWidth) {
 	} else {
 		newWidth = tw;
 	}
-	auto minWidth = qMax(st::minPhotoSize, _parent->minWidthForMedia());
+	auto minWidth = std::clamp(
+		_parent->minWidthForMedia(),
+		st::minPhotoSize,
+		st::maxMediaSize);
 	accumulate_max(newWidth, minWidth);
 	accumulate_max(newHeight, st::minPhotoSize);
 	if (_parent->hasBubble()) {

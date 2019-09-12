@@ -84,38 +84,6 @@ void HistoryMessageVia::resize(int32 availw) const {
 	}
 }
 
-void HistoryMessageSigned::refresh(const QString &date) {
-	Expects(!isAnonymousRank);
-
-	auto name = author;
-	const auto time = qsl(", ") + date;
-	const auto timew = st::msgDateFont->width(time);
-	const auto namew = st::msgDateFont->width(name);
-	isElided = (timew + namew > st::maxSignatureSize);
-	if (isElided) {
-		name = st::msgDateFont->elided(author, st::maxSignatureSize - timew);
-	}
-	signature.setText(
-		st::msgDateTextStyle,
-		name + time,
-		Ui::NameTextOptions());
-}
-
-int HistoryMessageSigned::maxWidth() const {
-	return signature.maxWidth();
-}
-
-void HistoryMessageEdited::refresh(const QString &date, bool displayed) {
-	const auto prefix = displayed
-		? (tr::lng_edited(tr::now) + ' ')
-		: QString();
-	text.setText(st::msgDateTextStyle, prefix + date, Ui::NameTextOptions());
-}
-
-int HistoryMessageEdited::maxWidth() const {
-	return text.maxWidth();
-}
-
 HistoryMessageSponsored::HistoryMessageSponsored() {
 	text.setText(
 		st::msgDateTextStyle,

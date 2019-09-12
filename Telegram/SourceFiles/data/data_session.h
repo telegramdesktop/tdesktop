@@ -251,6 +251,8 @@ public:
 	[[nodiscard]] rpl::producer<not_null<HistoryItem*>> animationPlayInlineRequest() const;
 	void notifyHistoryUnloaded(not_null<const History*> history);
 	[[nodiscard]] rpl::producer<not_null<const History*>> historyUnloaded() const;
+	void notifyItemDataChange(not_null<HistoryItem*> item);
+	[[nodiscard]] rpl::producer<not_null<HistoryItem*>> itemDataChanges() const;
 
 	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemRemoved() const;
 	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemRemoved(
@@ -337,7 +339,7 @@ public:
 	void unregisterMessageTTL(TimeId when, not_null<HistoryItem*> item);
 
 	// Returns true if item found and it is not detached.
-	bool checkEntitiesAndViewsUpdate(const MTPDmessage &data);
+	bool updateExistingMessage(const MTPDmessage &data);
 	void updateEditedMessage(const MTPMessage &data);
 	void processMessages(
 		const QVector<MTPMessage> &data,
@@ -832,6 +834,7 @@ private:
 	rpl::event_stream<not_null<ViewElement*>> _viewResizeRequest;
 	rpl::event_stream<not_null<HistoryItem*>> _itemViewRefreshRequest;
 	rpl::event_stream<not_null<HistoryItem*>> _itemTextRefreshRequest;
+	rpl::event_stream<not_null<HistoryItem*>> _itemDataChanges;
 	rpl::event_stream<not_null<HistoryItem*>> _animationPlayInlineRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRemoved;
 	rpl::event_stream<not_null<const ViewElement*>> _viewRemoved;

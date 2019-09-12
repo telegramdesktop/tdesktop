@@ -245,6 +245,14 @@ HistoryInner::HistoryInner(
 	}) | rpl::start_with_next([this](not_null<const Element*> view) {
 		mouseActionUpdate();
 	}, lifetime());
+
+	session().data().itemDataChanges(
+	) | rpl::filter([=](not_null<HistoryItem*> item) {
+		return item->mainView() != nullptr;
+	}) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
+		item->mainView()->itemDataChanged();
+	}, lifetime());
+
 	session().changes().historyUpdates(
 		_history,
 		Data::HistoryUpdate::Flag::OutboxRead

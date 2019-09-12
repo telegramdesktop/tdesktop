@@ -318,31 +318,31 @@ public:
 
 	// hasFromPhoto() returns true even if we don't display the photo
 	// but we need to skip a place at the left side for this photo
-	virtual bool hasFromPhoto() const;
-	virtual bool displayFromPhoto() const;
-	virtual bool hasFromName() const;
-	virtual bool displayFromName() const;
-	virtual bool displayForwardedFrom() const;
-	virtual bool hasOutLayout() const;
-	virtual bool drawBubble() const;
-	virtual bool hasBubble() const;
-	virtual int minWidthForMedia() const {
+	[[nodiscard]] virtual bool hasFromPhoto() const;
+	[[nodiscard]] virtual bool displayFromPhoto() const;
+	[[nodiscard]] virtual bool hasFromName() const;
+	[[nodiscard]] virtual bool displayFromName() const;
+	[[nodiscard]] virtual bool displayForwardedFrom() const;
+	[[nodiscard]] virtual bool hasOutLayout() const;
+	[[nodiscard]] virtual bool drawBubble() const;
+	[[nodiscard]] virtual bool hasBubble() const;
+	[[nodiscard]] virtual int minWidthForMedia() const {
 		return 0;
 	}
-	virtual bool hasFastReply() const;
-	virtual bool displayFastReply() const;
-	virtual std::optional<QSize> rightActionSize() const;
+	[[nodiscard]] virtual bool hasFastReply() const;
+	[[nodiscard]] virtual bool displayFastReply() const;
+	[[nodiscard]] virtual std::optional<QSize> rightActionSize() const;
 	virtual void drawRightAction(
 		Painter &p,
 		const PaintContext &context,
 		int left,
 		int top,
 		int outerWidth) const;
-	virtual ClickHandlerPtr rightActionLink() const;
-	virtual bool displayEditedBadge() const;
-	virtual TimeId displayedEditDate() const;
-	virtual bool hasVisibleText() const;
-	virtual HistoryMessageReply *displayedReply() const;
+	[[nodiscard]] virtual ClickHandlerPtr rightActionLink() const;
+	[[nodiscard]] virtual bool displayEditedBadge() const;
+	[[nodiscard]] virtual TimeId displayedEditDate() const;
+	[[nodiscard]] virtual bool hasVisibleText() const;
+	[[nodiscard]] virtual HistoryMessageReply *displayedReply() const;
 	virtual void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) {
 	}
@@ -354,6 +354,10 @@ public:
 		int height = 0;
 	};
 	[[nodiscard]] virtual VerticalRepaintRange verticalRepaintRange() const;
+
+	[[nodiscard]] virtual bool isSignedAuthorElided() const;
+
+	virtual void itemDataChanged();
 
 	virtual bool hasHeavyPart() const;
 	virtual void unloadHeavyPart();

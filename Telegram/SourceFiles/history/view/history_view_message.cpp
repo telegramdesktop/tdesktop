@@ -237,30 +237,12 @@ LogEntryOriginal &LogEntryOriginal::operator=(LogEntryOriginal &&other) {
 
 LogEntryOriginal::~LogEntryOriginal() = default;
 
-void Reactions::update(const base::flat_map<QString, int> &list) {
-	auto sorted = ranges::view::all(
-		list
-	) | ranges::view::transform([](const auto &pair) {
-		return std::make_pair(pair.first, pair.second);
-	}) | ranges::to_vector;
-	ranges::sort(sorted, std::greater<>(), &std::pair<QString, int>::second);
-
-	auto fullCount = 0;
-	auto composed = QString();
-	for (const auto &[string, count] : sorted) {
-		composed.append(string);
-		fullCount += count;
-	}
-	composed += QString::number(fullCount);
-
-	text.setText(st::msgDateTextStyle, composed, Ui::NameTextOptions());
-}
-
 Message::Message(
 	not_null<ElementDelegate*> delegate,
 	not_null<HistoryMessage*> data,
 	Element *replacing)
-: Element(delegate, data, replacing) {
+: Element(delegate, data, replacing)
+, _bottomInfo(BottomInfoDataFromMessage(this)) {
 	initLogEntryOriginal();
 	initPsa();
 }
@@ -334,16 +316,8 @@ QSize Message::performCountOptimalSize() {
 
 	updateViewButtonExistence();
 	updateMediaInBubbleState();
-	refreshEditedBadge();
 	refreshRightBadge();
-
-	if (const auto list = item->reactions(); !list.empty()) {
-		AddComponents(Reactions::Bit());
-		const auto reactions = Get<Reactions>();
-		reactions->update(list);
-	} else {
-		RemoveComponents(Reactions::Bit());
-	}
+	initTime();
 
 	if (drawBubble()) {
 		const auto forwarded = item->Get<HistoryMessageForwarded>();
@@ -1776,111 +1750,25 @@ void Message::drawInfo(
 	break;
 	}
 
-	const auto item = message();
-	auto infoW = infoWidth();
-	if (rtl()) infoRight = width - infoRight + infoW;
-
-	auto dateX = infoRight - infoW;
-	auto dateY = infoBottom - st::msgDateFont->height;
+	const auto size = _bottomInfo.size();
+	const auto dateX = infoRight - size.width();
+	const auto dateY = infoBottom - size.height();
 	if (type == InfoDisplayType::Image) {
-		auto dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
+		const auto dateW = size.width() + 2 * st::msgDateImgPadding.x();
+		const auto dateH = size.height() + 2 * st::msgDateImgPadding.y();
 		Ui::FillRoundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, sti->msgDateImgBg, sti->msgDateImgBgCorners);
 	} else if (type == InfoDisplayType::Background) {
-		auto dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
+		const auto dateW = size.width() + 2 * st::msgDateImgPadding.x();
+		const auto dateH = size.height() + 2 * st::msgDateImgPadding.y();
 		Ui::FillRoundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, sti->msgServiceBg, sti->msgServiceBgCorners);
 	}
-	dateX += timeLeft();
-
-	if (const auto msgsigned = item->Get<HistoryMessageSigned>()
-		; msgsigned && !msgsigned->isAnonymousRank) {
-		msgsigned->signature.drawElided(p, dateX, dateY, item->_timeWidth);
-	} else if (const auto sponsored = displayedSponsorBadge()) {
-		const auto skipY = viewButtonHeight();
-		sponsored->text.drawElided(p, dateX, dateY - skipY, item->_timeWidth);
-	} else if (const auto edited = displayedEditBadge()) {
-		edited->text.drawElided(p, dateX, dateY, item->_timeWidth);
-	} else {
-		p.drawText(dateX, dateY + st::msgDateFont->ascent, item->_timeText);
-	}
-
-	const auto viewIconTop = infoBottom + st::historyViewsTop;
-	const auto pinIconTop = infoBottom + st::historyPinTop;
-	auto left = infoRight - infoW;
-	if (const auto reactions = Get<Reactions>()) {
-		reactions->text.draw(p, left, dateY, reactions->text.maxWidth());
-		left += reactions->text.maxWidth() + st::historyReactionsSkip;
-	}
-	if (const auto views = item->Get<HistoryMessageViews>()) {
-		const auto textTop = infoBottom - st::msgDateFont->descent;
-		if (views->replies.count > 0
-			&& !views->commentsMegagroupId
-			&& this->context() != Context::Replies) {
-			const auto &icon = (!item->isSending() && !item->hasFailed())
-				? (invertedsprites
-					? st->historyRepliesInvertedIcon()
-					: stm->historyRepliesIcon)
-				: (invertedsprites
-					? st->historyViewsSendingInvertedIcon()
-					: st->historyViewsSendingIcon());
-			if (!item->isSending() && !item->hasFailed()) {
-				icon.paint(p, left, viewIconTop, width);
-				p.drawText(left + st::historyViewsWidth, textTop, views->replies.text);
-			} else if (!context.outbg && views->views.count < 0) { // sending outbg icon will be painted below
-				auto iconSkip = st::historyViewsSpace + views->replies.textWidth;
-				icon.paint(p, left + iconSkip, viewIconTop, width);
-			}
-			left += st::historyViewsSpace
-				+ views->replies.textWidth
-				+ st::historyViewsWidth;
-		}
-		if (views->views.count >= 0) {
-			const auto &icon = (!item->isSending() && !item->hasFailed())
-				? (invertedsprites
-					? st->historyViewsInvertedIcon()
-					: stm->historyViewsIcon)
-				: (invertedsprites
-					? st->historyViewsSendingInvertedIcon()
-					: st->historyViewsSendingIcon());
-			if (!item->isSending() && !item->hasFailed()) {
-				icon.paint(p, left, viewIconTop, width);
-				p.drawText(left + st::historyViewsWidth, textTop, views->views.text);
-			} else if (!context.outbg) { // sending outbg icon will be painted below
-				auto iconSkip = st::historyViewsSpace + views->views.textWidth;
-				icon.paint(p, left + iconSkip, viewIconTop, width);
-			}
-			left += st::historyViewsSpace
-				+ views->views.textWidth
-				+ st::historyViewsWidth;
-		}
-	} else if ((item->isSending() || item->hasFailed())
-		&& item->history()->peer->isSelf()
-		&& !context.outbg) {
-		const auto &icon = invertedsprites
-			? st->historyViewsSendingInvertedIcon()
-			: st->historyViewsSendingIcon();
-		icon.paint(p, left, viewIconTop, width);
-	}
-	if (displayPinIcon()) {
-		const auto &icon = invertedsprites
-				? st->historyPinInvertedIcon()
-				: stm->historyPinIcon;
-		icon.paint(p, left, pinIconTop, width);
-		left += st::historyPinWidth;
-	}
-	if (context.outbg) {
-		const auto &icon = (item->isSending() || item->hasFailed())
-			? (invertedsprites
-				? st->historySendingInvertedIcon()
-				: st->historySendingIcon())
-			: delegate()->elementShownUnread(this)
-			? (invertedsprites
-					? st->historySentInvertedIcon()
-					: stm->historySentIcon)
-			: (invertedsprites
-					? st->historyReceivedInvertedIcon()
-					: stm->historyReceivedIcon);
-		icon.paint(p, QPoint(infoRight, infoBottom) + st::historySendStatePosition, width);
-	}
+	_bottomInfo.paint(
+		p,
+		{ dateX, dateY },
+		width,
+		delegate()->elementShownUnread(this),
+		invertedsprites,
+		context);
 }
 
 bool Message::pointInTime(
@@ -1904,53 +1792,28 @@ bool Message::pointInTime(
 		infoBottom -= st::msgDateImgPadding.y();
 		break;
 	}
-	const auto item = message();
-	auto dateX = infoRight - infoWidth() + timeLeft();
-	auto dateY = infoBottom - st::msgDateFont->height;
-	return QRect(
-		dateX,
-		dateY,
-		item->_timeWidth,
-		st::msgDateFont->height).contains(point);
+	const auto size = _bottomInfo.size();
+	const auto infoLeft = infoRight - size.width();
+	const auto infoTop = infoBottom - size.height();
+	return _bottomInfo.pointInTime({ infoLeft, infoTop });
 }
 
 int Message::infoWidth() const {
-	const auto item = message();
-	auto result = item->_timeWidth;
-	if (const auto views = item->Get<HistoryMessageViews>()) {
-		if (views->views.count >= 0) {
-			result += st::historyViewsSpace
-				+ views->views.textWidth
-				+ st::historyViewsWidth;
-		}
-		if (views->replies.count > 0
-			&& !views->commentsMegagroupId
-			&& context() != Context::Replies) {
-			result += st::historyViewsSpace
-				+ views->replies.textWidth
-				+ st::historyViewsWidth;
-		}
-	} else if ((item->isSending() || item->hasFailed())
-		&& item->history()->peer->isSelf()) {
-		if (!hasOutLayout()) {
-			result += st::historySendStateSpace;
-		}
-	}
-	if (displayPinIcon()) {
-		result += st::historyPinWidth;
-	}
+	return _bottomInfo.optimalSize().width();
+}
 
-	// When message is scheduled until online, time is not displayed,
-	// so message should have less space.
-	if (!item->_timeWidth) {
-		result += st::historyScheduledUntilOnlineStateSpace;
-	} else if (hasOutLayout()) {
-		result += st::historySendStateSpace;
+bool Message::isSignedAuthorElided() const {
+	return _bottomInfo.isSignedAuthorElided();
+}
+
+void Message::itemDataChanged() {
+	const auto was = _bottomInfo.size();
+	_bottomInfo.update(BottomInfoDataFromMessage(this));
+	if (was != _bottomInfo.size()) {
+		history()->owner().requestViewResize(this);
+	} else {
+		history()->owner().requestViewRepaint(this);
 	}
-	if (const auto reactions = Get<Reactions>()) {
-		result += st::historyReactionsSkip + reactions->text.maxWidth();
-	}
-	return result;
 }
 
 auto Message::verticalRepaintRange() const -> VerticalRepaintRange {
@@ -1972,34 +1835,6 @@ void Message::refreshDataIdHook() {
 	if (_comments) {
 		_comments->link = nullptr;
 	}
-}
-
-int Message::timeLeft() const {
-	const auto item = message();
-	auto result = 0;
-	if (auto views = item->Get<HistoryMessageViews>()) {
-		if (views->views.count >= 0) {
-			result += st::historyViewsSpace + views->views.textWidth + st::historyViewsWidth;
-		}
-		if (views->replies.count > 0
-			&& !views->commentsMegagroupId
-			&& context() != Context::Replies) {
-			result += st::historyViewsSpace + views->replies.textWidth + st::historyViewsWidth;
-		}
-	} else if ((item->isSending() || item->hasFailed())
-		&& item->history()->peer->isSelf()) {
-		if (!hasOutLayout()) {
-			result += st::historySendStateSpace;
-		}
-	}
-	if (displayPinIcon()) {
-		result += st::historyPinWidth;
-	}
-
-	if (const auto reactions = Get<Reactions>()) {
-		result += st::historyReactionsSkip + reactions->text.maxWidth();
-	}
-	return result;
 }
 
 int Message::plainMaxWidth() const {
@@ -2629,6 +2464,8 @@ int Message::resizeContentGetHeight(int newWidth) {
 			}
 		}
 	}
+	_bottomInfo.resizeToWidth(
+		std::min(_bottomInfo.optimalSize().width(), contentWidth));
 
 	if (bubble) {
 		auto reply = displayedReply();
@@ -2733,46 +2570,8 @@ QSize Message::performCountCurrentSize(int newWidth) {
 	return { newWidth, newHeight };
 }
 
-void Message::refreshEditedBadge() {
-	const auto item = message();
-	const auto edited = displayedEditBadge();
-	const auto editDate = displayedEditDate();
-	const auto dateText = dateTime().toString(cTimeFormat());
-	if (edited) {
-		edited->refresh(dateText, editDate != 0);
-	}
-	if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
-		if (!msgsigned->isAnonymousRank) {
-			const auto text = (!edited || !editDate)
-				? dateText
-				: edited->text.toString();
-			msgsigned->refresh(text);
-		}
-	}
-	initTime();
-}
-
 void Message::initTime() const {
 	const auto item = message();
-	if (const auto msgsigned = item->Get<HistoryMessageSigned>()
-		; msgsigned && !msgsigned->isAnonymousRank) {
-		item->_timeWidth = msgsigned->maxWidth();
-	} else if (const auto sponsored = displayedSponsorBadge()) {
-		item->_timeWidth = sponsored->maxWidth();
-	} else if (const auto edited = displayedEditBadge()) {
-		item->_timeWidth = edited->maxWidth();
-	} else {
-		const auto forwarded = item->Get<HistoryMessageForwarded>();
-		if (forwarded && forwarded->imported) {
-			const auto date = base::unixtime::parse(forwarded->originalDate);
-			item->_timeText = date.toString(
-				cDateFormat() + u", "_q + cTimeFormat() + ' '
-			) + tr::lng_imported(tr::now);
-		} else {
-			item->_timeText = dateTime().toString(cTimeFormat());
-		}
-		item->_timeWidth = st::msgDateFont->width(item->_timeText);
-	}
 	if (item->_text.hasSkipBlock()) {
 		if (item->_text.updateSkipBlock(skipBlockWidth(), skipBlockHeight())) {
 			item->_textWidth = -1;

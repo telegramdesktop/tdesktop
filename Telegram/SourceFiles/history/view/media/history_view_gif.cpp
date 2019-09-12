@@ -154,7 +154,10 @@ QSize Gif::countOptimalSize() {
 	}
 	_thumbw = tw;
 	_thumbh = th;
-	auto maxWidth = qMax(tw, st::minPhotoSize);
+	auto maxWidth = std::clamp(
+		std::max(tw, _parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x())),
+		st::minPhotoSize,
+		maxSize);
 	auto minHeight = qMax(th, st::minPhotoSize);
 	if (!activeCurrentStreamed()) {
 		accumulate_max(maxWidth, gifMaxStatusWidth(_data) + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
@@ -211,7 +214,10 @@ QSize Gif::countCurrentSize(int newWidth) {
 	_thumbw = tw;
 	_thumbh = th;
 
-	newWidth = qMax(tw, st::minPhotoSize);
+	newWidth = std::clamp(
+		std::max(tw, _parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x())),
+		st::minPhotoSize,
+		maxSize);
 	auto newHeight = qMax(th, st::minPhotoSize);
 	if (!activeCurrentStreamed()) {
 		accumulate_max(newWidth, gifMaxStatusWidth(_data) + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));

@@ -408,19 +408,19 @@ int UnwrappedMedia::calculateFullRight(const QRect &inner) const {
 		+ st::msgDateImgPadding.x() * 2
 		+ st::msgReplyPadding.left();
 	const auto rightActionSize = _parent->rightActionSize();
+	const auto rightSkip = st::msgPadding.left()
+		+ (_parent->hasFromPhoto()
+			? st::msgMargin.right()
+			: st::msgPadding.right());
 	const auto rightActionWidth = rightActionSize
 		? (st::historyFastShareLeft * 2
-			+ rightActionSize->width()
-			+ st::msgPadding.left()
-			+ (_parent->hasFromPhoto()
-				? st::msgMargin.right()
-				: st::msgPadding.right()))
+			+ rightActionSize->width())
 		: 0;
 	auto fullRight = inner.x()
 		+ inner.width()
 		+ (rightAligned ? 0 : infoWidth);
-	if (fullRight + rightActionWidth > _parent->width()) {
-		fullRight = _parent->width() - rightActionWidth;
+	if (fullRight + rightActionWidth + rightSkip > _parent->width()) {
+		fullRight = _parent->width() - rightActionWidth - rightSkip;
 	}
 	return fullRight;
 }

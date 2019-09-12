@@ -99,7 +99,9 @@ void ViewsManager::done(
 				if (const auto item = owner.message(peer->id, ids[j].v)) {
 					v[j].match([&](const MTPDmessageViews &data) {
 						if (const auto views = data.vviews()) {
-							item->setViewsCount(views->v);
+							if (item->changeViewsCount(views->v)) {
+								_session->data().notifyItemDataChange(item);
+							}
 						}
 						if (const auto forwards = data.vforwards()) {
 							item->setForwardsCount(forwards->v);

@@ -1124,7 +1124,7 @@ void HistoryMessage::createComponents(CreateConfig &&config) {
 		via->create(&history()->owner(), config.viaBotId);
 	}
 	if (const auto views = Get<HistoryMessageViews>()) {
-		setViewsCount(config.viewsCount);
+		changeViewsCount(config.viewsCount);
 		if (config.replies.isNull
 			&& isSending()
 			&& config.markup.isNull()) {
@@ -1423,7 +1423,7 @@ void HistoryMessage::applyEdition(HistoryMessageEdition &&edition) {
 	if (!isLocalUpdateMedia()) {
 		refreshMedia(edition.mtpMedia);
 	}
-	setViewsCount(edition.views);
+	changeViewsCount(edition.views);
 	setForwardsCount(edition.forwards);
 	setText(_media
 		? edition.textWithEntities
@@ -1449,7 +1449,7 @@ void HistoryMessage::applyEdition(const MTPDmessageService &message) {
 		setReplyMarkup({});
 		refreshMedia(nullptr);
 		setEmptyText();
-		setViewsCount(-1);
+		changeViewsCount(-1);
 		setForwardsCount(-1);
 		if (wasGrouped) {
 			history()->owner().groups().unregisterMessage(this);
@@ -1744,27 +1744,16 @@ bool HistoryMessage::textHasLinks() const {
 	return emptyText() ? false : _text.hasLinks();
 }
 
-void HistoryMessage::setViewsCount(int count) {
+bool HistoryMessage::changeViewsCount(int count) {
 	const auto views = Get<HistoryMessageViews>();
 	if (!views
 		|| views->views.count == count
 		|| (count >= 0 && views->views.count > count)) {
-		return;
+		return false;
 	}
 
 	views->views.count = count;
-	views->views.text = Lang::FormatCountToShort(
-		std::max(views->views.count, 1)
-	).string;
-	const auto was = views->views.textWidth;
-	views->views.textWidth = views->views.text.isEmpty()
-		? 0
-		: st::msgDateFont->width(views->views.text);
-	if (was == views->views.textWidth) {
-		history()->owner().requestItemRepaint(this);
-	} else {
-		history()->owner().requestItemResize(this);
-	}
+	return true;
 }
 
 void HistoryMessage::setForwardsCount(int count) {
@@ -1852,7 +1841,6 @@ void HistoryMessage::clearReplies() {
 void HistoryMessage::refreshRepliesText(
 		not_null<HistoryMessageViews*> views,
 		bool forceResize) {
-	const auto was = views->replies.textWidth;
 	if (views->commentsMegagroupId) {
 		views->replies.text = (views->replies.count > 0)
 			? tr::lng_comments_open_count(
@@ -1867,15 +1855,8 @@ void HistoryMessage::refreshRepliesText(
 			: QString();
 		views->repliesSmall.textWidth = st::semiboldFont->width(
 			views->repliesSmall.text);
-	} else {
-		views->replies.text = (views->replies.count > 0)
-			? Lang::FormatCountToShort(views->replies.count).string
-			: QString();
-		views->replies.textWidth = views->replies.text.isEmpty()
-			? 0
-			: st::msgDateFont->width(views->replies.text);
 	}
-	if (forceResize || views->replies.textWidth != was) {
+	if (forceResize) {
 		history()->owner().requestItemResize(this);
 	} else {
 		history()->owner().requestItemRepaint(this);

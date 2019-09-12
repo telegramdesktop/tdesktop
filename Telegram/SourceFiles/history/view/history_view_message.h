@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_bottom_info.h"
 #include "ui/effects/animations.h"
 #include "base/weak_ptr.h"
 
@@ -39,12 +40,6 @@ struct PsaTooltipState : public RuntimeComponent<PsaTooltipState, Element> {
 	mutable bool buttonVisible = true;
 };
 
-struct Reactions : public RuntimeComponent<Reactions, Element> {
-	void update(const base::flat_map<QString, int> &list);
-
-	Ui::Text::String text;
-};
-
 class Message : public Element, public base::has_weak_ptr {
 public:
 	Message(
@@ -56,6 +51,11 @@ public:
 	void clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
 		bool pressed) override;
+
+	not_null<HistoryMessage*> message() const;
+
+	const HistoryMessageEdited *displayedEditBadge() const;
+	HistoryMessageEdited *displayedEditBadge();
 
 	int marginTop() const override;
 	int marginBottom() const override;
@@ -113,6 +113,9 @@ public:
 	bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &handler) const override;
 	int infoWidth() const override;
+	bool isSignedAuthorElided() const override;
+
+	void itemDataChanged() override;
 
 	VerticalRepaintRange verticalRepaintRange() const override;
 
@@ -125,11 +128,8 @@ protected:
 private:
 	struct CommentsButton;
 
-	not_null<HistoryMessage*> message() const;
-
 	void initLogEntryOriginal();
 	void initPsa();
-	void refreshEditedBadge();
 	void fromNameUpdated(int width) const;
 
 	[[nodiscard]] bool showForwardsFromSender(
@@ -208,14 +208,11 @@ private:
 	[[nodiscard]] bool displayFastShare() const;
 	[[nodiscard]] bool displayGoToOriginal() const;
 	[[nodiscard]] ClickHandlerPtr fastReplyLink() const;
-	[[nodiscard]] const HistoryMessageEdited *displayedEditBadge() const;
-	[[nodiscard]] HistoryMessageEdited *displayedEditBadge();
 	[[nodiscard]] auto displayedSponsorBadge() const
 		-> const HistoryMessageSponsored*;
 	[[nodiscard]] bool displayPinIcon() const;
 
 	void initTime() const;
-	[[nodiscard]] int timeLeft() const;
 	[[nodiscard]] int plainMaxWidth() const;
 	[[nodiscard]] int monospaceMaxWidth() const;
 
@@ -237,6 +234,8 @@ private:
 
 	Ui::Text::String _rightBadge;
 	int _bubbleWidthLimit = 0;
+
+	BottomInfo _bottomInfo;
 
 };
 

@@ -231,8 +231,8 @@ QString DateTooltipText(not_null<Element*> view) {
 				+ "\n\n" + dateText;
 		}
 	}
-	if (const auto msgsigned = view->data()->Get<HistoryMessageSigned>()) {
-		if (msgsigned->isElided && !msgsigned->isAnonymousRank) {
+	if (view->isSignedAuthorElided()) {
+		if (const auto msgsigned = view->data()->Get<HistoryMessageSigned>()) {
 			dateText += '\n'
 				+ tr::lng_signed_author(tr::now, lt_user, msgsigned->author);
 		}
@@ -839,6 +839,13 @@ void Element::checkHeavyPart() {
 	if (!hasHeavyPart() && (!_media || !_media->hasHeavyPart())) {
 		history()->owner().unregisterHeavyViewPart(this);
 	}
+}
+
+bool Element::isSignedAuthorElided() const {
+	return false;
+}
+
+void Element::itemDataChanged() {
 }
 
 void Element::unloadHeavyPart() {

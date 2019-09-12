@@ -1448,6 +1448,14 @@ rpl::producer<not_null<HistoryItem*>> Session::itemViewRefreshRequest() const {
 	return _itemViewRefreshRequest.events();
 }
 
+void Session::notifyItemDataChange(not_null<HistoryItem*> item) {
+	_itemDataChanges.fire_copy(item);
+}
+
+rpl::producer<not_null<HistoryItem*>> Session::itemDataChanges() const {
+	return _itemDataChanges.events();
+}
+
 void Session::requestItemTextRefresh(not_null<HistoryItem*> item) {
 	if (const auto i = _views.find(item); i != _views.end()) {
 		for (const auto view : i->second) {
@@ -1806,7 +1814,7 @@ void Session::reorderTwoPinnedChats(
 	notifyPinnedDialogsOrderUpdated();
 }
 
-bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
+bool Session::updateExistingMessage(const MTPDmessage &data) {
 	const auto peer = peerFromMTP(data.vpeer_id());
 	const auto existing = message(peer, data.vid().v);
 	if (!existing) {
@@ -1834,7 +1842,7 @@ void Session::updateEditedMessage(const MTPMessage &data) {
 		return;
 	}
 	if (existing->isLocalUpdateMedia() && data.type() == mtpc_message) {
-		checkEntitiesAndViewsUpdate(data.c_message());
+		updateExistingMessage(data.c_message());
 	}
 	data.match([](const MTPDmessageEmpty &) {
 	}, [&](const MTPDmessageService &data) {
@@ -1854,7 +1862,7 @@ void Session::processMessages(
 			const auto &data = message.c_message();
 			// new message, index my forwarded messages to links overview
 			if ((type == NewMessageType::Unread)
-				&& checkEntitiesAndViewsUpdate(data)) {
+				&& updateExistingMessage(data)) {
 				continue;
 			}
 		}
