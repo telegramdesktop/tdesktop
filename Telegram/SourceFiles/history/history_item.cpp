@@ -753,6 +753,7 @@ void HistoryItem::addReaction(const QString &reaction) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);
 	}
 	_reactions->add(reaction);
+	history()->owner().notifyItemDataChange(this);
 }
 
 void HistoryItem::updateReactions(const MTPMessageReactions &reactions) {
@@ -764,6 +765,7 @@ void HistoryItem::updateReactions(const MTPMessageReactions &reactions) {
 			_reactions = std::make_unique<Data::MessageReactions>(this);
 		}
 		_reactions->set(data.vresults().v, data.is_min());
+		history()->owner().notifyItemDataChange(this);
 	});
 }
 

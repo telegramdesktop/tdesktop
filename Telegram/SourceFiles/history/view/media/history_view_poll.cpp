@@ -799,7 +799,7 @@ void Poll::paintInlineFooter(
 		top,
 		std::min(
 			_totalVotesLabel.maxWidth(),
-			paintw - _parent->infoWidth()),
+			paintw - _parent->bottomInfoFirstLineWidth()),
 		width());
 }
 

@@ -14,12 +14,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_message.h"
 #include "history/view/history_view_message.h"
+#include "data/data_message_reactions.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 
 namespace HistoryView {
 
-BottomInfo::BottomInfo(Data &&data) : _data(std::move(data)) {
+BottomInfo::BottomInfo(Data &&data)
+: _data(std::move(data))
+, _reactions(st::msgMinWidth / 2) {
 	layout();
 }
 
@@ -37,6 +40,17 @@ QSize BottomInfo::optimalSize() const {
 
 QSize BottomInfo::size() const {
 	return _size;
+}
+
+int BottomInfo::firstLineWidth() const {
+	if (_size.height() == _optimalSize.height()) {
+		return _size.width();
+	}
+	const auto reactionsWidth = _reactions.maxWidth();
+	const auto noReactionsWidth = _optimalSize.width()
+		- st::historyReactionsSkip
+		- reactionsWidth;
+	return noReactionsWidth;
 }
 
 bool BottomInfo::pointInTime(QPoint position) const {
@@ -144,7 +158,7 @@ void BottomInfo::paint(
 		} else {
 			const auto available = _size.width();
 			const auto use = std::min(available, _reactions.maxWidth());
-			_reactions.drawLeftElided(
+			_reactions.drawLeft(
 				p,
 				position.x() + _size.width() - use,
 				position.y() + st::msgDateFont->height,
@@ -157,12 +171,25 @@ void BottomInfo::paint(
 int BottomInfo::resizeToWidth(int newWidth) {
 	if (newWidth >= _optimalSize.width()) {
 		_size = _optimalSize;
-		return _size.height();
+	} else {
+		const auto reactionsWidth = _reactions.maxWidth();
+		const auto noReactionsWidth = _optimalSize.width()
+			- st::historyReactionsSkip
+			- reactionsWidth;
+		accumulate_min(newWidth, std::max(noReactionsWidth, reactionsWidth));
+		_size = QSize(
+			newWidth,
+			st::msgDateFont->height + _reactions.countHeight(newWidth));
 	}
-	return 2 * st::msgDateFont->height;
+	return _size.height();
 }
 
 void BottomInfo::layout() {
+	//const auto good = ::Data::MessageReactions::SuggestList();
+	//for (const auto &item : good) {
+	//	_data.reactions.emplace(item, rand_value<uint8>() + 1);
+	//}
+
 	layoutDateText();
 	layoutViewsText();
 	layoutRepliesText();
@@ -234,6 +261,9 @@ void BottomInfo::layoutReactionsText() {
 	auto fullCount = 0;
 	auto text = QString();
 	for (const auto &[string, count] : sorted) {
+		//for (auto i = 0, n = rand_value<uint8>() % 8 + 1; i != n; ++i) {
+		//	text.append(string);
+		//}
 		text.append(string);
 		fullCount += count;
 	}

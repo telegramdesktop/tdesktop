@@ -124,7 +124,7 @@ QSize Location::countCurrentSize(int newWidth) {
 	auto minWidth = std::clamp(
 		_parent->minWidthForMedia(),
 		st::minPhotoSize,
-		st::maxMediaSize);
+		std::min(newWidth, st::maxMediaSize));
 	accumulate_max(newWidth, minWidth);
 	accumulate_max(newHeight, st::minPhotoSize);
 	if (_parent->hasBubble()) {

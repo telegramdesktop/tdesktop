@@ -106,14 +106,15 @@ public:
 		int left,
 		int top,
 		int outerWidth) const override;
-	ClickHandlerPtr rightActionLink() const override;
-	bool displayEditedBadge() const override;
-	TimeId displayedEditDate() const override;
-	HistoryMessageReply *displayedReply() const override;
-	bool toggleSelectionByHandlerClick(
+	[[nodiscard]] ClickHandlerPtr rightActionLink() const override;
+	[[nodiscard]] bool displayEditedBadge() const override;
+	[[nodiscard]] TimeId displayedEditDate() const override;
+	[[nodiscard]] HistoryMessageReply *displayedReply() const override;
+	[[nodiscard]] bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &handler) const override;
-	int infoWidth() const override;
-	bool isSignedAuthorElided() const override;
+	[[nodiscard]] int infoWidth() const override;
+	[[nodiscard]] int bottomInfoFirstLineWidth() const override;
+	[[nodiscard]] bool isSignedAuthorElided() const override;
 
 	void itemDataChanged() override;
 
@@ -202,6 +203,7 @@ private:
 	QSize performCountOptimalSize() override;
 	QSize performCountCurrentSize(int newWidth) override;
 	bool hasVisibleText() const override;
+	[[nodiscard]] bool needInfoDisplay() const;
 
 	[[nodiscard]] bool isPinnedContext() const;
 
@@ -219,7 +221,7 @@ private:
 	void updateViewButtonExistence();
 	[[nodiscard]] int viewButtonHeight() const;
 
-	WebPage *logEntryOriginal() const;
+	[[nodiscard]] WebPage *logEntryOriginal() const;
 
 	[[nodiscard]] ClickHandlerPtr createGoToCommentsLink() const;
 	[[nodiscard]] ClickHandlerPtr psaTooltipLink() const;

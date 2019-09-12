@@ -634,6 +634,10 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		if (entry) {
 			trect.setHeight(trect.height() - entry->height());
 		}
+		const auto needDrawInfo = needInfoDisplay();
+		if (needDrawInfo) {
+			trect.setHeight(trect.height() - (_bottomInfo.size().height() - st::msgDateFont->height));
+		}
 		paintText(p, trect, context);
 		if (mediaDisplayed) {
 			auto mediaHeight = media->height();
@@ -660,11 +664,6 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			entry->draw(p, entryContext);
 			p.translate(-entryLeft, -entryTop);
 		}
-		const auto needDrawInfo = entry
-			? !entry->customInfoLayout()
-			: (mediaDisplayed
-				? !media->customInfoLayout()
-				: true);
 		if (needDrawInfo) {
 			const auto bottomSelected = context.selected()
 				|| (!mediaSelectionIntervals.empty()
@@ -1802,6 +1801,10 @@ int Message::infoWidth() const {
 	return _bottomInfo.optimalSize().width();
 }
 
+int Message::bottomInfoFirstLineWidth() const {
+	return _bottomInfo.firstLineWidth();
+}
+
 bool Message::isSignedAuthorElided() const {
 	return _bottomInfo.isSignedAuthorElided();
 }
@@ -2464,8 +2467,10 @@ int Message::resizeContentGetHeight(int newWidth) {
 			}
 		}
 	}
-	_bottomInfo.resizeToWidth(
-		std::min(_bottomInfo.optimalSize().width(), contentWidth));
+	const auto bottomInfoHeight = _bottomInfo.resizeToWidth(
+		std::min(
+			_bottomInfo.optimalSize().width(),
+			contentWidth - st::msgPadding.left() - st::msgPadding.right() - 2 * st::msgDateDelta.x()));
 
 	if (bubble) {
 		auto reply = displayedReply();
@@ -2536,6 +2541,9 @@ int Message::resizeContentGetHeight(int newWidth) {
 			reply->resize(contentWidth - st::msgPadding.left() - st::msgPadding.right());
 			newHeight += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		}
+		if (needInfoDisplay()) {
+			newHeight += (bottomInfoHeight - st::msgDateFont->height);
+		}
 
 		if (item->repliesAreComments() || item->externalReply()) {
 			newHeight += st::historyCommentsButtonHeight;
@@ -2554,6 +2562,20 @@ int Message::resizeContentGetHeight(int newWidth) {
 
 	newHeight += marginTop() + marginBottom();
 	return newHeight;
+}
+
+bool Message::needInfoDisplay() const {
+	const auto media = this->media();
+	const auto mediaDisplayed = media ? media->isDisplayed() : false;
+	const auto entry = logEntryOriginal();
+
+	// Entry page is always a bubble bottom.
+	const auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
+	return entry
+		? !entry->customInfoLayout()
+		: (mediaDisplayed
+			? !media->customInfoLayout()
+			: true);
 }
 
 bool Message::hasVisibleText() const {

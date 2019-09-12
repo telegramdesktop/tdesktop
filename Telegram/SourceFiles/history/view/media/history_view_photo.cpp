@@ -210,7 +210,7 @@ QSize Photo::countCurrentSize(int newWidth) {
 	const auto minWidth = std::clamp(
 		_parent->minWidthForMedia(),
 		(_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize),
-		st::maxMediaSize);
+		std::min(newWidth, st::maxMediaSize));
 	newWidth = qMax(_pixw, minWidth);
 	auto newHeight = qMax(_pixh, st::minPhotoSize);
 	if (_parent->hasBubble() && !_caption.isEmpty()) {

@@ -466,6 +466,10 @@ int Element::infoWidth() const {
 	return 0;
 }
 
+int Element::bottomInfoFirstLineWidth() const {
+	return 0;
+}
+
 bool Element::isHiddenByGroup() const {
 	return _flags & Flag::HiddenByGroup;
 }

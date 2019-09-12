@@ -261,6 +261,7 @@ public:
 	int skipBlockHeight() const;
 	QString skipBlock() const;
 	virtual int infoWidth() const;
+	virtual int bottomInfoFirstLineWidth() const;
 
 	bool isHiddenByGroup() const;
 	virtual bool isHidden() const;

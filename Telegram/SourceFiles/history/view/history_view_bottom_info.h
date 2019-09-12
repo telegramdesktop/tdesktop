@@ -46,6 +46,7 @@ public:
 
 	[[nodiscard]] QSize optimalSize() const;
 	[[nodiscard]] QSize size() const;
+	[[nodiscard]] int firstLineWidth() const;
 	[[nodiscard]] bool pointInTime(QPoint position) const;
 	[[nodiscard]] bool isSignedAuthorElided() const;
 
