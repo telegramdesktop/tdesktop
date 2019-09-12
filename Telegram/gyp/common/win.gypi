@@ -33,6 +33,8 @@
             '/w14834', # [[nodiscard]]
             '/w15038', # wrong initialization order
             '/w14265', # class has virtual functions, but destructor is not virtual
+            '/experimental:preprocessor', # need for range-v3 see https://github.com/ericniebler/range-v3#supported-compilers
+            '/wd5105', # needed for `/experimental:preprocessor`, suppressing C5105 "macro expansion producing 'defined' has undefined behavior"
           ],
           'TreatWChar_tAsBuiltInType': 'false',
         },
