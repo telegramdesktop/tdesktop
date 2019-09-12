@@ -327,6 +327,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_suggest_emoji" = "Suggest emoji replacements";
 "lng_settings_suggest_by_emoji" = "Suggest popular stickers by emoji";
 "lng_settings_loop_stickers" = "Loop animated stickers";
+"lng_settings_disable_animated_stickers" = "Disable animated stickers";
 "lng_settings_large_emoji" = "Large emoji";
 "lng_settings_view_emojis" = "View list";
 "lng_settings_send_enter" = "Send by Enter";

@@ -85,6 +85,7 @@ QByteArray Settings::serialize() const {
 		stream << qint32(_variables.skipArchiveInSearch.current() ? 1 : 0);
 		stream << qint32(_variables.autoplayGifs ? 1 : 0);
 		stream << qint32(_variables.loopAnimatedStickers ? 1 : 0);
+		stream << qint32(_variables.disableAnimatedStickers ? 1 : 0);
 		stream << qint32(_variables.largeEmoji.current() ? 1 : 0);
 		stream << qint32(_variables.replaceEmoji.current() ? 1 : 0);
 		stream << qint32(_variables.suggestEmoji ? 1 : 0);
@@ -131,6 +132,7 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	qint32 skipArchiveInSearch = _variables.skipArchiveInSearch.current() ? 1 : 0;
 	qint32 autoplayGifs = _variables.autoplayGifs ? 1 : 0;
 	qint32 loopAnimatedStickers = _variables.loopAnimatedStickers ? 1 : 0;
+	qint32 disableAnimatedStickers = _variables.disableAnimatedStickers ? 1 : 0;
 	qint32 largeEmoji = _variables.largeEmoji.current() ? 1 : 0;
 	qint32 replaceEmoji = _variables.replaceEmoji.current() ? 1 : 0;
 	qint32 suggestEmoji = _variables.suggestEmoji ? 1 : 0;
@@ -229,6 +231,7 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> autoplayGifs;
 		stream >> loopAnimatedStickers;
+		stream >> disableAnimatedStickers;
 		stream >> largeEmoji;
 		stream >> replaceEmoji;
 		stream >> suggestEmoji;
@@ -309,6 +312,7 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	_variables.skipArchiveInSearch = (skipArchiveInSearch == 1);
 	_variables.autoplayGifs = (autoplayGifs == 1);
 	_variables.loopAnimatedStickers = (loopAnimatedStickers == 1);
+	_variables.disableAnimatedStickers = (disableAnimatedStickers == 1);
 	_variables.largeEmoji = (largeEmoji == 1);
 	_variables.replaceEmoji = (replaceEmoji == 1);
 	_variables.suggestEmoji = (suggestEmoji == 1);

@@ -720,6 +720,14 @@ void SetupStickersEmoji(
 			session->saveSettingsDelayed();
 		});
 
+	add(
+		tr::lng_settings_disable_animated_stickers(tr::now),
+		session->settings().disableAnimatedStickers(),
+		[=](bool checked) {
+			session->settings().setDisableAnimatedStickers(checked);
+			session->saveSettingsDelayed();
+		});
+
 	AddButton(
 		container,
 		tr::lng_stickers_you_have(),

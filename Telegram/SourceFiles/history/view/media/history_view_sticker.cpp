@@ -109,6 +109,7 @@ void Sticker::paintLottie(Painter &p, const QRect &r, bool selected) {
 	const auto playOnce = isEmojiSticker()
 		|| !_document->session().settings().loopAnimatedStickers();
 	if (!paused
+		&& !_document->session().settings().disableAnimatedStickers();
 		&& (!playOnce || frame.index != 0 || !_lottieOncePlayed)
 		&& _lottie->markFrameShown()
 		&& playOnce

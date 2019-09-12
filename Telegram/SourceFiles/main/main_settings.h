@@ -212,6 +212,12 @@ public:
 	void setLoopAnimatedStickers(bool value) {
 		_variables.loopAnimatedStickers = value;
 	}
+	[[nodiscard]] bool disableAnimatedStickers() const {
+		return _variables.disableAnimatedStickers;
+	}
+	void setDisableAnimatedStickers(bool value) {
+		_variables.disableAnimatedStickers = value;
+	}
 	void setLargeEmoji(bool value);
 	[[nodiscard]] bool largeEmoji() const;
 	[[nodiscard]] rpl::producer<bool> largeEmojiValue() const;
@@ -268,6 +274,7 @@ private:
 		rpl::variable<bool> skipArchiveInSearch = false;
 		bool autoplayGifs = true;
 		bool loopAnimatedStickers = true;
+		bool disableAnimatedStickers = false;
 		rpl::variable<bool> largeEmoji = true;
 		rpl::variable<bool> replaceEmoji = true;
 		bool suggestEmoji = true;
