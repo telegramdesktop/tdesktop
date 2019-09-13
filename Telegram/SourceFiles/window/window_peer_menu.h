@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 class GenericBox;
+class History;
 
 namespace Ui {
 class RpWidget;

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "app.h"
 #include "styles/style_boxes.h"
 
 void UrlAuthBox::Activate(
@@ -176,7 +177,7 @@ not_null<Ui::RpWidget*> UrlAuthBox::setupContent(
 			textcmdStartSemibold() + domain + textcmdStopSemibold(),
 			lt_user,
 			(textcmdStartSemibold()
-				+ App::peerName(session->user())
+				+ session->user()->name
 				+ textcmdStopSemibold())));
 	const auto allow = bot
 		? addCheckbox(tr::lng_url_auth_allow_messages(

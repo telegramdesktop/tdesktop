@@ -34,6 +34,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "observer_peer.h"
+#include "facades.h"
+#include "app.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -907,7 +909,9 @@ void ConfirmInviteBox::prepare() {
 		for (const auto user : _participants) {
 			auto name = new Ui::FlatLabel(this, st::confirmInviteUserName);
 			name->resizeToWidth(st::confirmInviteUserPhotoSize + padding);
-			name->setText(user->firstName.isEmpty() ? App::peerName(user) : user->firstName);
+			name->setText(user->firstName.isEmpty()
+				? user->name
+				: user->firstName);
 			name->moveToLeft(left + (padding / 2), st::confirmInviteUserNameTop);
 			left += _userWidth;
 		}

@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "boxes/background_box.h"
 #include "core/application.h"
+#include "app.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
 

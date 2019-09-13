@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class History;
+
 namespace HistoryView {
 class ElementDelegate;
 class Element;

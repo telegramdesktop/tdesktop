@@ -35,6 +35,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "inline_bots/inline_bot_result.h"
 #include "lang/lang_keys.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_history.h"
 #include "styles/style_window.h"
 #include "styles/style_info.h"

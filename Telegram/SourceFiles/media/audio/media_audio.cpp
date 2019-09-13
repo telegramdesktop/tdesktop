@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_audio.h"
 #include "core/application.h"
 #include "main/main_session.h"
+#include "facades.h"
+#include "app.h"
 
 #include <AL/al.h>
 #include <AL/alc.h>

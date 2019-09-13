@@ -7,78 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <QtCore/QTimer>
-#include <QtGui/QColor>
-#include "base/binary_guard.h"
-#include "base/flat_set.h"
-
-namespace Media {
-namespace Clip {
-
-class Reader;
-class ReaderPointer {
-public:
-	ReaderPointer(std::nullptr_t = nullptr) {
-	}
-	explicit ReaderPointer(Reader *pointer) : _pointer(pointer) {
-	}
-	ReaderPointer(const ReaderPointer &other) = delete;
-	ReaderPointer &operator=(const ReaderPointer &other) = delete;
-	ReaderPointer(ReaderPointer &&other) : _pointer(base::take(other._pointer)) {
-	}
-	ReaderPointer &operator=(ReaderPointer &&other) {
-		swap(other);
-		return *this;
-	}
-	void swap(ReaderPointer &other) {
-		qSwap(_pointer, other._pointer);
-	}
-	Reader *get() const {
-		return valid() ? _pointer : nullptr;
-	}
-	Reader *operator->() const {
-		return get();
-	}
-	void setBad() {
-		reset();
-		_pointer = BadPointer;
-	}
-	void reset() {
-		ReaderPointer temp;
-		swap(temp);
-	}
-	bool isBad() const {
-		return (_pointer == BadPointer);
-	}
-	bool valid() const {
-		return _pointer && !isBad();
-	}
-	explicit operator bool() const {
-		return valid();
-	}
-	static inline ReaderPointer Bad() {
-		ReaderPointer result;
-		result.setBad();
-		return result;
-	}
-	~ReaderPointer();
-
-private:
-	Reader *_pointer = nullptr;
-	static Reader *const BadPointer;
-
-};
-
-class Manager;
-
-enum Notification {
-	NotificationReinit,
-	NotificationRepaint,
-};
-
-} // namespace Clip
-} // namespace Media
-
 namespace anim {
 
 enum class type {
@@ -420,19 +348,5 @@ void DrawStaticLoading(
 	int stroke,
 	QPen pen,
 	QBrush brush = Qt::NoBrush);
-
-};
-
-class AnimationManager : public QObject {
-public:
-	AnimationManager();
-
-	void registerClip(not_null<Media::Clip::Manager*> clip);
-
-private:
-	void clipCallback(
-		Media::Clip::Reader *reader,
-		qint32 threadIndex,
-		qint32 notification);
 
 };

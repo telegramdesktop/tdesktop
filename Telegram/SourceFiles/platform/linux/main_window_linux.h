@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_main_window.h"
 
+#include <QtCore/QTimer>
+
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {

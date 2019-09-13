@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QTextEdit>
+#include <QtCore/QTimer>
 
 class UserData;
 

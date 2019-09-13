@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "ui/image/image_prepare.h"
 
+#include <QtCore/QTimer>
+
 class FileLocation;
 
 namespace Media {
@@ -38,6 +40,11 @@ enum ReaderSteps {
 	WaitingForDimensionsStep = -3, // before ReaderPrivate read the first image and got the original frame size
 	WaitingForRequestStep = -2, // before Reader got the original frame size and prepared the frame request
 	WaitingForFirstFrameStep = -1, // before ReaderPrivate got the frame request and started waiting for the 1-2 delay
+};
+
+enum Notification {
+	NotificationReinit,
+	NotificationRepaint,
 };
 
 class ReaderPrivate;
@@ -166,6 +173,59 @@ private:
 	friend class Manager;
 
 	ReaderPrivate *_private = nullptr;
+
+};
+
+class ReaderPointer {
+public:
+	ReaderPointer(std::nullptr_t = nullptr) {
+	}
+	explicit ReaderPointer(Reader *pointer) : _pointer(pointer) {
+	}
+	ReaderPointer(const ReaderPointer &other) = delete;
+	ReaderPointer &operator=(const ReaderPointer &other) = delete;
+	ReaderPointer(ReaderPointer &&other) : _pointer(base::take(other._pointer)) {
+	}
+	ReaderPointer &operator=(ReaderPointer &&other) {
+		swap(other);
+		return *this;
+	}
+	void swap(ReaderPointer &other) {
+		qSwap(_pointer, other._pointer);
+	}
+	Reader *get() const {
+		return valid() ? _pointer : nullptr;
+	}
+	Reader *operator->() const {
+		return get();
+	}
+	void setBad() {
+		reset();
+		_pointer = BadPointer;
+	}
+	void reset() {
+		ReaderPointer temp;
+		swap(temp);
+	}
+	bool isBad() const {
+		return (_pointer == BadPointer);
+	}
+	bool valid() const {
+		return _pointer && !isBad();
+	}
+	explicit operator bool() const {
+		return valid();
+	}
+	static inline ReaderPointer Bad() {
+		ReaderPointer result;
+		result.setBad();
+		return result;
+	}
+	~ReaderPointer();
+
+private:
+	Reader *_pointer = nullptr;
+	static Reader *const BadPointer;
 
 };
 

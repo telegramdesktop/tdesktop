@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_file.h"
+#include "media/clip/media_clip_reader.h"
 
 struct HistoryMessageVia;
 struct HistoryMessageReply;

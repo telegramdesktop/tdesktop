@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_dlls.h"
 #include "history/history.h"
 #include "mainwindow.h"
+#include "facades.h"
 
 #include <Shobjidl.h>
 #include <shellapi.h>

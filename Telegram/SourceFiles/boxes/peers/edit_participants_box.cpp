@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "window/window_session_controller.h"
 #include "history/history.h"
+#include "facades.h"
 
 namespace {
 
@@ -1817,7 +1818,7 @@ void ParticipantsBoxController::refreshCustomStatus(
 			row->setCustomStatus(tr::lng_channel_admin_status_promoted_by(
 				tr::now,
 				lt_user,
-				App::peerName(by)));
+				by->name));
 		} else {
 			if (_additional.isCreator(user)) {
 				row->setCustomStatus(
@@ -1834,7 +1835,7 @@ void ParticipantsBoxController::refreshCustomStatus(
 			: tr::lng_channel_banned_status_restricted_by)(
 				tr::now,
 				lt_user,
-				by ? App::peerName(by) : "Unknown"));
+				by ? by->name : "Unknown"));
 	}
 }
 

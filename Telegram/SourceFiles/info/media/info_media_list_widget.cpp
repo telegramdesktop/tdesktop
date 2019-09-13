@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
 #include "core/file_utilities.h"
+#include "facades.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>

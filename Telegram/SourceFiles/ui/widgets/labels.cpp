@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h" // SetClipboardText/MimeDataFromText
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
+#include "facades.h"
+#include "app.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>

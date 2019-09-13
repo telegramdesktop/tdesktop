@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/send_action_animations.h"
 
+#include "ui/effects/animation_value.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {

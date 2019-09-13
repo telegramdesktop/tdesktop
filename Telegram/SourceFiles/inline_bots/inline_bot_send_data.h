@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_location_manager.h"
 
+class History;
+
 namespace InlineBots {
 
 class Result;

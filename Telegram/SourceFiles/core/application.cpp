@@ -61,6 +61,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_phone_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/share_box.h"
+#include "facades.h"
+#include "app.h"
 
 #include <QtWidgets/QDesktopWidget>
 #include <QtCore/QMimeDatabase>

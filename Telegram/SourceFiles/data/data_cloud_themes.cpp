@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h" // Core::App().showTheme.
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
+#include "app.h"
 #include "mainwindow.h"
 
 namespace Data {

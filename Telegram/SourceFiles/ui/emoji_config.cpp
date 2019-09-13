@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "base/parse_helper.h"
 #include "main/main_session.h"
+#include "app.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>

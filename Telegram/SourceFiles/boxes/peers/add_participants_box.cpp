@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
+#include "facades.h"
+#include "app.h"
 
 namespace {
 
@@ -775,7 +777,7 @@ void AddSpecialBoxController::kickUser(
 			: tr::lng_profile_sure_kick_channel)(
 				tr::now,
 				lt_user,
-				App::peerName(user));
+				user->name);
 		_editBox = Ui::show(
 			Box<ConfirmBox>(text, kickUserSure),
 			LayerOption::KeepOther);

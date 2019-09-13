@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "data/data_countries.h"
 #include "layout.h"
+#include "app.h"
 #include "styles/style_boxes.h"
 
 namespace Passport {

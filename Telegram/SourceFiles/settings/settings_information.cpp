@@ -29,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "core/file_utilities.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 

@@ -232,7 +232,7 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 			inner,
 			object_ptr<Ui::FlatLabel>(
 				inner,
-				tr::lng_passport_request1(tr::now, lt_bot, App::peerName(bot)),
+				tr::lng_passport_request1(tr::now, lt_bot, bot->name),
 				st::passportPasswordLabelBold)),
 		st::passportFormAbout1Padding)->entity();
 
@@ -301,7 +301,7 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 			lt_policy,
 			tr::lng_passport_policy(
 				lt_bot,
-				rpl::single(App::peerName(bot))
+				rpl::single(bot->name)
 			) | Ui::Text::ToLink(policyUrl),
 			lt_bot,
 			rpl::single('@' + bot->username) | Ui::Text::ToWithEntities(),

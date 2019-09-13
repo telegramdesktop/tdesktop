@@ -22,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "mainwidget.h"
 #include "boxes/rate_call_box.h"
+#include "facades.h"
+#include "app.h"
 
 namespace Calls {
 namespace {
@@ -41,7 +43,7 @@ void Instance::startOutgoingCall(not_null<UserData*> user) {
 	if (user->callsStatus() == UserData::CallsStatus::Private) {
 		// Request full user once more to refresh the setting in case it was changed.
 		_session->api().requestFullPeer(user);
-		Ui::show(Box<InformBox>(tr::lng_call_error_not_available(tr::now, lt_user, App::peerName(user))));
+		Ui::show(Box<InformBox>(tr::lng_call_error_not_available(tr::now, lt_user, user->name)));
 		return;
 	}
 	requestMicrophonePermissionOrFail(crl::guard(this, [=] {

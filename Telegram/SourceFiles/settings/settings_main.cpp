@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "window/window_session_controller.h"
 #include "core/file_utilities.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_settings.h"
 
 #include <QtGui/QDesktopServices>

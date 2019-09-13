@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "styles/style_widgets.h"
 
+#include <QtCore/QTimer>
+
 class ConfirmBox;
 class PeerListBox;
 

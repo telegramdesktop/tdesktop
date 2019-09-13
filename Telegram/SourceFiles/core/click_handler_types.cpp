@@ -23,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "facades.h"
+#include "app.h"
 
 #include <QtGui/QDesktopServices>
 #include <QtGui/QGuiApplication>
@@ -184,8 +186,8 @@ auto MentionNameClickHandler::getTextEntity() const -> TextEntity {
 }
 
 QString MentionNameClickHandler::tooltip() const {
-	if (auto user = Auth().data().userLoaded(_userId)) {
-		auto name = App::peerName(user);
+	if (const auto user = Auth().data().userLoaded(_userId)) {
+		const auto name = user->name;
 		if (name != _text) {
 			return name;
 		}

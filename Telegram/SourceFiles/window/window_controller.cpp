@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
 #include "mainwindow.h"
+#include "facades.h"
+#include "app.h"
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>

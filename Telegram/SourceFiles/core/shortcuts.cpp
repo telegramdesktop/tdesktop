@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "platform/platform_info.h"
 #include "base/parse_helper.h"
+#include "facades.h"
 
 #include <QtWidgets/QShortcut>
 #include <QtCore/QJsonDocument>

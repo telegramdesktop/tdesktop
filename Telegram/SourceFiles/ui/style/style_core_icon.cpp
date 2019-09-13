@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/style/style_core_icon.h"
 
+#include "app.h"
+
 namespace style {
 namespace internal {
 namespace {

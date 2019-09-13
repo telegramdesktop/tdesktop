@@ -11,11 +11,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/observer.h"
 #include "dialogs/dialogs_key.h"
+#include "ui/effects/animation_value.h"
 
 class MainWidget;
 class MainWindow;
 class HistoryMessage;
 class HistoryService;
+
+namespace Adaptive {
+enum class WindowLayout;
+} // namespace Adaptive
 
 namespace ChatHelpers {
 class TabbedSelector;

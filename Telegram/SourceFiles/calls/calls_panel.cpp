@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "window/main_window.h"
 #include "layout.h"
+#include "app.h"
 
 #include <QtWidgets/QDesktopWidget>
 #include <QtWidgets/QApplication>
@@ -357,7 +358,7 @@ void Panel::initControls() {
 		if (!_call || update.peer != _call->user()) {
 			return;
 		}
-		_name->setText(App::peerName(_call->user()));
+		_name->setText(_call->user()->name);
 		updateControlsGeometry();
 	}));
 	_updateDurationTimer.setCallback([this] {
@@ -415,7 +416,7 @@ void Panel::reinitControls() {
 		st::callPanelSignalBars,
 		[=] { rtlupdate(signalBarsRect()); });
 
-	_name->setText(App::peerName(_call->user()));
+	_name->setText(_call->user()->name);
 	updateStatusText(_call->state());
 }
 
@@ -815,7 +816,7 @@ void Panel::leaveToChildEvent(QEvent *e, QWidget *child) {
 }
 
 QString Panel::tooltipText() const {
-	return tr::lng_call_fingerprint_tooltip(tr::now, lt_user, App::peerName(_user));
+	return tr::lng_call_fingerprint_tooltip(tr::now, lt_user, _user->name);
 }
 
 QPoint Panel::tooltipPos() const {

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "window/themes/window_theme.h"
 #include "lang/lang_instance.h"
+#include "app.h"
 
 namespace Ui {
 

@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/image/image_prepare.h"
 
+#include "ui/effects/animation_value.h"
+#include "facades.h"
+#include "app.h"
+
 namespace Images {
 namespace {
 

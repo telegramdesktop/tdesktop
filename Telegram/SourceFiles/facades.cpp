@@ -182,38 +182,6 @@ void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
 } // namespace App
 
 namespace Ui {
-namespace internal {
-
-void showBox(
-		object_ptr<BoxContent> content,
-		LayerOptions options,
-		anim::type animated) {
-	if (auto w = App::wnd()) {
-		w->ui_showBox(std::move(content), options, animated);
-	}
-}
-
-} // namespace internal
-
-void hideLayer(anim::type animated) {
-	if (auto w = App::wnd()) {
-		w->ui_showBox(
-			{ nullptr },
-			LayerOption::CloseOther,
-			animated);
-	}
-}
-
-void hideSettingsAndLayer(anim::type animated) {
-	if (auto w = App::wnd()) {
-		w->ui_hideSettingsAndLayer(animated);
-	}
-}
-
-bool isLayerShown() {
-	if (auto w = App::wnd()) return w->ui_isLayerShown();
-	return false;
-}
 
 void showPeerProfile(const PeerId &peer) {
 	if (const auto window = App::wnd()) {

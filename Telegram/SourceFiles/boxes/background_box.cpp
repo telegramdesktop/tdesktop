@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "boxes/background_preview_box.h"
 #include "boxes/confirm_box.h"
+#include "app.h"
 #include "styles/style_overview.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"

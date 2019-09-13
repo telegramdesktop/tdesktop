@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/generic_box.h" // window->show(Box(InitMethod()))
 #include "boxes/peers/edit_contact_box.h"
+#include "app.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 
@@ -336,7 +337,7 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 				Ui::Text::WithEntities(
 					App::formatPhone(user->session().user()->phone())),
 				lt_user,
-				Ui::Text::Bold(App::peerName(user)),
+				Ui::Text::Bold(user->name),
 				Ui::Text::WithEntities),
 			tr::lng_box_ok(tr::now),
 			share));

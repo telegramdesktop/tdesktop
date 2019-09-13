@@ -22,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "lottie/lottie_single_player.h"
 #include "lottie/lottie_multi_player.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Stickers {

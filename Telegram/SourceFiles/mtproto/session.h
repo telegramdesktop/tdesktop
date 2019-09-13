@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "mtproto/rpc_sender.h"
 
+#include <QtCore/QTimer>
+
 namespace MTP {
 
 class Instance;

@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_photo.h"
 #include "data/data_channel.h" // ChannelData::addsSignature.
-#include "data/data_user.h" // App::peerName(UserData*).
+#include "data/data_user.h" // UserData::name
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "history/history.h"
@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
+#include "app.h"
 
 namespace Api {
 namespace {
@@ -68,9 +69,7 @@ void SendExistingMedia(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
 	auto messageFromId = channelPost ? 0 : session->userId();
-	auto messagePostAuthor = channelPost
-		? App::peerName(session->user())
-		: QString();
+	auto messagePostAuthor = channelPost ? session->user()->name : QString();
 
 	auto caption = TextWithEntities{
 		message.textWithTags.text,

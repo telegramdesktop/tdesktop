@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "observer_peer.h"
 #include "main/main_session.h"
+#include "facades.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>

@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
+#include "facades.h"
+#include "app.h"
 
 namespace Window {
 namespace Notifications {
@@ -558,7 +560,7 @@ void NativeManager::doShowNotification(
 		? qsl("Telegram Desktop")
 		: (scheduled && peer->isSelf())
 		? tr::lng_notification_reminder(tr::now)
-		: App::peerName(peer);
+		: peer->name;
 	const auto subtitle = options.hideNameAndPhoto
 		? QString()
 		: item->notificationHeader();

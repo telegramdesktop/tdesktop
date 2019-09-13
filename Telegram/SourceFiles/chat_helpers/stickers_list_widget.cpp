@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
+#include "app.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
 

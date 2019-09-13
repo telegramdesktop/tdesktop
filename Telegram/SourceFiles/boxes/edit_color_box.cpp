@@ -8,11 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/edit_color_box.h"
 
 #include "lang/lang_keys.h"
-#include "styles/style_boxes.h"
 #include "ui/widgets/shadow.h"
-#include "platform/platform_info.h"
-#include "styles/style_mediaview.h"
 #include "ui/widgets/input_fields.h"
+#include "platform/platform_info.h"
+#include "app.h"
+#include "styles/style_boxes.h"
+#include "styles/style_mediaview.h"
 
 class EditColorBox::Picker : public TWidget {
 public:

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 
 #include <QtWidgets/QScrollArea>
+#include <QtCore/QTimer>
 
 namespace Ui {
 

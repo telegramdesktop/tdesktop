@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_panel.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "facades.h"
 
 #ifdef slots
 #undef slots
@@ -871,11 +872,11 @@ void Call::setFailedQueued(int error) {
 
 void Call::handleRequestError(const RPCError &error) {
 	if (error.type() == qstr("USER_PRIVACY_RESTRICTED")) {
-		Ui::show(Box<InformBox>(tr::lng_call_error_not_available(tr::now, lt_user, App::peerName(_user))));
+		Ui::show(Box<InformBox>(tr::lng_call_error_not_available(tr::now, lt_user, _user->name)));
 	} else if (error.type() == qstr("PARTICIPANT_VERSION_OUTDATED")) {
-		Ui::show(Box<InformBox>(tr::lng_call_error_outdated(tr::now, lt_user, App::peerName(_user))));
+		Ui::show(Box<InformBox>(tr::lng_call_error_outdated(tr::now, lt_user, _user->name)));
 	} else if (error.type() == qstr("CALL_PROTOCOL_LAYER_INVALID")) {
-		Ui::show(Box<InformBox>(Lang::Hard::CallErrorIncompatible().replace("{user}", App::peerName(_user))));
+		Ui::show(Box<InformBox>(Lang::Hard::CallErrorIncompatible().replace("{user}", _user->name)));
 	}
 	finish(FinishType::Failed);
 }
@@ -885,7 +886,7 @@ void Call::handleControllerError(int error) {
 		Ui::show(Box<InformBox>(
 			Lang::Hard::CallErrorIncompatible().replace(
 				"{user}",
-				App::peerName(_user))));
+				_user->name)));
 	} else if (error == tgvoip::ERROR_AUDIO_IO) {
 		Ui::show(Box<InformBox>(tr::lng_call_error_audio_io(tr::now)));
 	}

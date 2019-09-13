@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ui/wrap/slide_wrap.h"
+#include "facades.h"
 
 namespace Window {
 

@@ -11,9 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 
 namespace InlineBots {
+
 class Result;
 
 namespace Layout {
+
+class ItemBase;
 
 class PaintContext : public PaintContextBase {
 public:

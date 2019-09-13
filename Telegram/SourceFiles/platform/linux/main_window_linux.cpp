@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
+#include "facades.h"
+#include "app.h"
 
 #include <QtDBus>
 #include <QtWidgets/QMenu>

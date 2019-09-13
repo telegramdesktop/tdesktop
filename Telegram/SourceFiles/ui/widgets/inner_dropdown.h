@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
 
+#include <QtCore/QTimer>
+
 namespace Ui {
 
 class ScrollArea;

@@ -933,5 +933,14 @@ void Finish() {
 	}
 }
 
+Reader *const ReaderPointer::BadPointer = SharedMemoryLocation<Reader, 0>();
+
+ReaderPointer::~ReaderPointer() {
+	if (valid()) {
+		delete _pointer;
+	}
+	_pointer = nullptr;
+}
+
 } // namespace Clip
 } // namespace Media

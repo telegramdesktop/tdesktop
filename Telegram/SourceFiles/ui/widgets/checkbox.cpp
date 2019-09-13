@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
+#include "app.h"
 
 namespace Ui {
 namespace {

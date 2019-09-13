@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "window/window_session_controller.h"
 #include "inline_bots/inline_results_widget.h"
+#include "facades.h"
 #include "styles/style_history.h"
 
 namespace HistoryView {

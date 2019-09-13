@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "facades.h"
 
 namespace Main {
 namespace {

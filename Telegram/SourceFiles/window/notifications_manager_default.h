@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "ui/effects/animations.h"
 #include "base/timer.h"
+#include "base/binary_guard.h"
+
+#include <QtCore/QTimer>
 
 namespace Ui {
 class IconButton;

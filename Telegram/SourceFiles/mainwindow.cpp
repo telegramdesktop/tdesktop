@@ -43,7 +43,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme_warning.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_main_menu.h"
+#include "window/window_controller.h" // App::wnd.
 #include "window/window_session_controller.h"
+#include "window/window_media_preview.h"
+#include "facades.h"
+#include "app.h"
 
 #include <QtGui/QWindow>
 #include <QtCore/QCoreApplication>
@@ -951,3 +955,13 @@ MainWindow::~MainWindow() {
 	delete trayIcon;
 	delete trayIconMenu;
 }
+
+namespace App {
+
+MainWindow *wnd() {
+	return (Core::IsAppLaunched() && Core::App().activeWindow())
+		? Core::App().activeWindow()->widget().get()
+		: nullptr;
+}
+
+} // namespace App

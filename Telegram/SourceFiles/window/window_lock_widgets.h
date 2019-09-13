@@ -27,6 +27,8 @@ class LockWidget : public Ui::RpWidget {
 public:
 	LockWidget(QWidget *parent, not_null<Controller*> window);
 
+	not_null<Controller*> window() const;
+
 	virtual void setInnerFocus();
 
 	void showAnimated(const QPixmap &bgAnimCache, bool back = false);

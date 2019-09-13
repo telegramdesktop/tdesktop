@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "passport/passport_encryption.h"
 #include "passport/passport_panel_edit_contact.h"
+#include "facades.h"
 #include "styles/style_boxes.h"
 #include "styles/style_passport.h"
 

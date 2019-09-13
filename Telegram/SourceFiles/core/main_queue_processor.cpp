@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/sandbox.h"
 #include "platform/platform_specific.h"
+#include "facades.h"
 
 namespace Core {
 namespace {

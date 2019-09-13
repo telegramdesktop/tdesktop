@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "app.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 

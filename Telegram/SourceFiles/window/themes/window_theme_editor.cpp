@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "boxes/edit_color_box.h"
 #include "lang/lang_keys.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_boxes.h"

@@ -5,32 +5,14 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "animation.h"
+#include "ui/effects/animation_value.h"
 
-#include "media/clip/media_clip_reader.h"
-
-namespace Media {
-namespace Clip {
-
-Reader *const ReaderPointer::BadPointer = SharedMemoryLocation<Reader, 0>();
-
-ReaderPointer::~ReaderPointer() {
-	if (valid()) {
-		delete _pointer;
-	}
-	_pointer = nullptr;
-}
-
-} // namespace Clip
-} // namespace Media
-
+namespace anim {
 namespace {
 
 bool AnimationsDisabled = false;
 
 } // namespace
-
-namespace anim {
 
 transition linear = [](const float64 &delta, const float64 &dt) {
 	return delta * dt;

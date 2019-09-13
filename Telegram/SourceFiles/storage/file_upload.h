@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_common.h"
 
+#include <QtCore/QTimer>
+
 class ApiWrap;
 struct FileLoadResult;
 struct SendMediaReady;

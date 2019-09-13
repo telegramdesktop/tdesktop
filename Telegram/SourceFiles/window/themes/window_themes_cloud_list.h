@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "ui/widgets/checkbox.h"
 #include "base/unique_qptr.h"
+#include "base/binary_guard.h"
 
 namespace Ui {
 class PopupMenu;

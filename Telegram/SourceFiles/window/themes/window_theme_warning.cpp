@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "window/themes/window_theme.h"
 #include "lang/lang_keys.h"
+#include "app.h"
 
 namespace Window {
 namespace Theme {

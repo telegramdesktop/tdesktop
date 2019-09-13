@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "base/qthelp_regex.h"
 #include "ui/effects/animations.h"
+#include "facades.h"
+#include "app.h"
 
 #include <QtGui/QScreen>
 

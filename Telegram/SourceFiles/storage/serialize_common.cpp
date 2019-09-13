@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "ui/image/image.h"
+#include "app.h"
 
 namespace Serialize {
 namespace {

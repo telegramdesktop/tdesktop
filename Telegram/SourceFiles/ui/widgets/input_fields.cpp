@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "numbers.h"
 #include "main/main_session.h"
 #include "core/application.h"
+#include "app.h"
 
 #include <QtWidgets/QCommonStyle>
 #include <QtWidgets/QScrollBar>

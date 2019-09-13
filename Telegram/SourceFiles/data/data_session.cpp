@@ -48,6 +48,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_scheduled_messages.h"
 #include "data/data_cloud_themes.h"
 #include "base/unixtime.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_boxes.h" // st::backgroundSize
 
 namespace Data {

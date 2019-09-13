@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "platform/platform_main_window.h"
 #include "base/unique_qptr.h"
+#include "window/layer_widget.h"
+#include "ui/effects/animation_value.h"
 
 class MainWidget;
 class BoxContent;
@@ -23,6 +25,7 @@ class ClearManager;
 } // namespace Local
 
 namespace Window {
+class MediaPreviewWidget;
 class LayerWidget;
 class LayerStackWidget;
 class SectionMemento;
@@ -169,10 +172,14 @@ private:
 	object_ptr<Intro::Widget> _intro = { nullptr };
 	object_ptr<MainWidget> _main = { nullptr };
 	base::unique_qptr<Window::LayerStackWidget> _layer;
-	object_ptr<MediaPreviewWidget> _mediaPreview = { nullptr };
+	object_ptr<Window::MediaPreviewWidget> _mediaPreview = { nullptr };
 
 	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
 
 	Local::ClearManager *_clearManager = nullptr;
 
 };
+
+namespace App {
+MainWindow *wnd();
+} // namespace App

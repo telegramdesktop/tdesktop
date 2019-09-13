@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "mainwidget.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_boxes.h"
 #include "styles/style_history.h"
 

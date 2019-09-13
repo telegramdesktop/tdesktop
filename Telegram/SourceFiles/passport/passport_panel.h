@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "window/layer_widget.h"
+
+class BoxContent;
+
 namespace Ui {
 class RpWidget;
 class SeparatePanel;

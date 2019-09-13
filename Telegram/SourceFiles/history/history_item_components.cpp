@@ -24,9 +24,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "main/main_session.h"
+#include "window/window_session_controller.h"
+#include "facades.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
-#include "window/window_session_controller.h"
 
 #include <QtGui/QGuiApplication>
 
@@ -113,7 +114,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 		&& originalSender->isChannel()
 		&& !originalSender->isMegagroup();
 	const auto name = originalSender
-		? App::peerName(originalSender)
+		? originalSender->name
 		: hiddenSenderInfo->name;
 	if (!originalAuthor.isEmpty()) {
 		phrase = tr::lng_forwarded_signed(
@@ -258,12 +259,9 @@ void HistoryMessageReply::updateName() const {
 			}
 			return replyToMsg->author().get();
 		}();
-		const auto name = [&] {
-			if (replyToVia && from->isUser()) {
-				return from->asUser()->firstName;
-			}
-			return App::peerName(from);
-		}();
+		const auto name = (replyToVia && from->isUser())
+			? from->asUser()->firstName
+			: from->name;
 		replyToName.setText(st::fwdTextStyle, name, Ui::NameTextOptions());
 		replyToVersion = replyToMsg->author()->nameVersion;
 		bool hasPreview = replyToMsg->media() ? replyToMsg->media()->hasReplyPreview() : false;

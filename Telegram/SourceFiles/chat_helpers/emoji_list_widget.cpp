@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "emoji_suggestions_helper.h"
 #include "window/window_session_controller.h"
 #include "facades.h"
+#include "app.h"
 #include "styles/style_chat_helpers.h"
 
 namespace ChatHelpers {

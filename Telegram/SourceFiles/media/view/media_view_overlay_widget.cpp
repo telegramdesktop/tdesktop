@@ -46,6 +46,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout.h"
 #include "storage/file_download.h"
 #include "calls/calls_instance.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_mediaview.h"
 #include "styles/style_history.h"
 
@@ -1596,12 +1598,12 @@ void OverlayWidget::refreshFromLabel(HistoryItem *item) {
 			_fromName = info->name;
 		} else {
 			Assert(_from != nullptr);
-			_fromName = App::peerName(
-				_from->migrateTo() ? _from->migrateTo() : _from);
+			const auto from = _from->migrateTo() ? _from->migrateTo() : _from;
+			_fromName = from->name;
 		}
 	} else {
 		_from = _user;
-		_fromName = _user ? App::peerName(_user) : QString();
+		_fromName = _user ? _user->name : QString();
 	}
 }
 

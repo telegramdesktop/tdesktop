@@ -18,10 +18,16 @@ namespace HistoryView {
 class Element;
 } // namespace HistoryView
 
+namespace Media {
+namespace Clip {
+class Reader;
+} // namespace Clip
+} // namespace Media
+
 using HistoryItemsMap = base::flat_set<not_null<HistoryItem*>>;
 using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
 
-enum RoundCorners {
+enum RoundCorners : int {
 	SmallMaskCorners = 0x00, // for images
 	LargeMaskCorners,
 
@@ -60,12 +66,7 @@ enum RoundCorners {
 };
 
 namespace App {
-	MainWindow *wnd();
-	MainWidget *main();
-
 	QString formatPhone(QString phone);
-
-	[[nodiscard]] QString peerName(const PeerData *peer, bool forDialogs = false);
 
 	void hoveredItem(HistoryView::Element *item);
 	HistoryView::Element *hoveredItem();

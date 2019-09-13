@@ -37,6 +37,8 @@
 #include "window/window_session_controller.h"
 #include "ui/empty_userpic.h"
 #include "ui/widgets/input_fields.h"
+#include "facades.h"
+#include "app.h"
 
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 

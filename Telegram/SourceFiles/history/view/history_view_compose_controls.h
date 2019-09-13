@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "chat_helpers/tabbed_selector.h"
 
+class History;
+
 namespace ChatHelpers {
 class TabbedPanel;
 class TabbedSelector;

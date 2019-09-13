@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //
 //};
 
+class History;
+
 namespace Window {
 class SessionNavigation;
 } // namespace Window

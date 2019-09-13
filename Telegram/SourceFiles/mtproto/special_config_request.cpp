@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/auth_key.h"
 #include "base/unixtime.h"
 #include "base/openssl_help.h"
+#include "facades.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonArray>

@@ -36,6 +36,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
@@ -224,7 +226,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		}
 	};
 	auto submitCallback = [=](
-			QVector<PeerData*> &&result,
+			std::vector<not_null<PeerData*>> &&result,
 			TextWithTags &&comment,
 			Api::SendOptions options) {
 		if (!data->requests.empty()) {
@@ -251,7 +253,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			auto text = TextWithEntities();
 			if (result.size() > 1) {
 				text.append(
-					Ui::Text::Bold(App::peerName(error.second))
+					Ui::Text::Bold(error.second->name)
 				).append("\n\n");
 			}
 			text.append(error.first);
@@ -1312,7 +1314,7 @@ QString HistoryMessage::notificationHeader() const {
 	if (out() && isFromScheduled() && !_history->peer->isSelf()) {
 		return tr::lng_from_you(tr::now);
 	} else if (!_history->peer->isUser() && !isPost()) {
-		return App::peerName(from());
+		return from()->name;
 	}
 	return QString();
 }

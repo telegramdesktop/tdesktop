@@ -55,6 +55,7 @@ class ElementDelegate;
 } // namespace HistoryView
 
 struct HiddenSenderInfo;
+class History;
 
 class HistoryItem : public RuntimeComposer<HistoryItem> {
 public:

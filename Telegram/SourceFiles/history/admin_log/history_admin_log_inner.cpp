@@ -42,6 +42,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
+#include "facades.h"
+#include "app.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>

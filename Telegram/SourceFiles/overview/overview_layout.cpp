@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image.h"
 #include "ui/text_options.h"
+#include "app.h"
 
 namespace Overview {
 namespace Layout {
@@ -829,12 +830,12 @@ void Voice::updateName() {
 	auto version = 0;
 	if (const auto forwarded = parent()->Get<HistoryMessageForwarded>()) {
 		if (parent()->fromOriginal()->isChannel()) {
-			_name.setText(st::semiboldTextStyle, tr::lng_forwarded_channel(tr::now, lt_channel, App::peerName(parent()->fromOriginal())), Ui::NameTextOptions());
+			_name.setText(st::semiboldTextStyle, tr::lng_forwarded_channel(tr::now, lt_channel, parent()->fromOriginal()->name), Ui::NameTextOptions());
 		} else {
-			_name.setText(st::semiboldTextStyle, tr::lng_forwarded(tr::now, lt_user, App::peerName(parent()->fromOriginal())), Ui::NameTextOptions());
+			_name.setText(st::semiboldTextStyle, tr::lng_forwarded(tr::now, lt_user, parent()->fromOriginal()->name), Ui::NameTextOptions());
 		}
 	} else {
-		_name.setText(st::semiboldTextStyle, App::peerName(parent()->from()), Ui::NameTextOptions());
+		_name.setText(st::semiboldTextStyle, parent()->from()->name, Ui::NameTextOptions());
 	}
 	version = parent()->fromOriginal()->nameVersion;
 	_nameVersion = version;

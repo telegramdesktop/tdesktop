@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "core/crash_reports.h"
+#include "app.h"
 
 #include <QtWidgets/QFileDialog>
 #include <QtGui/QDesktopServices>

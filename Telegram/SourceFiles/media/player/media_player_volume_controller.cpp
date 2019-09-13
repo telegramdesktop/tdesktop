@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
+#include "facades.h"
+#include "app.h"
 
 namespace Media {
 namespace Player {

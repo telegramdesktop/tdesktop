@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/panel_animation.h"
 
+#include "ui/effects/animation_value.h"
+#include "app.h"
+
 namespace Ui {
 
 void RoundShadowAnimation::start(int frameWidth, int frameHeight, float64 devicePixelRatio) {

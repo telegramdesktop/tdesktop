@@ -56,7 +56,7 @@ class ShareBox : public BoxContent, public RPCSender {
 public:
 	using CopyCallback = Fn<void()>;
 	using SubmitCallback = Fn<void(
-		QVector<PeerData*>&&,
+		std::vector<not_null<PeerData*>>&&,
 		TextWithTags&&,
 		Api::SendOptions)>;
 	using FilterCallback = Fn<bool(PeerData*)>;

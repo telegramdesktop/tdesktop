@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/fade_animation.h"
 
+#include "app.h"
+
 namespace Ui {
 namespace {
 

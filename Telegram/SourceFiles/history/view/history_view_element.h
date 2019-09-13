@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/runtime_composer.h"
 #include "base/flags.h"
 
+class History;
 class HistoryBlock;
 class HistoryItem;
 class HistoryMessage;

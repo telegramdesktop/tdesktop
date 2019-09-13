@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/export_settings.h"
 #include "ui/rp_widget.h"
 
+class BoxContent;
+
 namespace Ui {
 class VerticalLayout;
 class Checkbox;

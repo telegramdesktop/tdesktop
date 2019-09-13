@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "ui/empty_userpic.h"
 #include "mainwindow.h"
+#include "facades.h"
 #include "styles/style_window.h"
 
 #include <thread>

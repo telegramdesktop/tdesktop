@@ -36,6 +36,7 @@ namespace Dialogs {
 class Row;
 class FakeRow;
 class IndexedList;
+enum class Mode;
 
 struct ChosenRow {
 	Key key;

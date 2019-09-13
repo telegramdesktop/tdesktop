@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "boxes/connection_box.h"
 #include "lang/lang_keys.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_window.h"
 
 namespace Window {

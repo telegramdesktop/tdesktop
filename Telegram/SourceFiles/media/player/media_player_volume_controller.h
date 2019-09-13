@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
+#include <QtCore/QTimer>
+
 namespace Ui {
 class IconButton;
 class MediaSlider;

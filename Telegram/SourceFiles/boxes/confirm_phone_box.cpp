@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_info.h" // Platform::SystemVersionPretty
 #include "mainwidget.h"
 #include "numbers.h"
+#include "app.h"
 #include "lang/lang_keys.h"
 
 namespace {

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_libs.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
+#include "facades.h"
 
 namespace Platform {
 namespace Notifications {

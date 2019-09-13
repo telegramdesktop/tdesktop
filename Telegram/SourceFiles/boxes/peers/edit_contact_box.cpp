@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "app.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 

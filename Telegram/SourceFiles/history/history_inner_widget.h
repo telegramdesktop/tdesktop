@@ -25,6 +25,7 @@ struct StateRequest;
 enum class CursorState : char;
 enum class PointState : char;
 class EmptyPainter;
+class Element;
 } // namespace HistoryView
 
 namespace Window {

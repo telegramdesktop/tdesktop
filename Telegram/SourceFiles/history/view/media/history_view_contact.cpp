@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_media_types.h"
 #include "main/main_session.h"
+#include "app.h"
 #include "styles/style_history.h"
 
 namespace HistoryView {

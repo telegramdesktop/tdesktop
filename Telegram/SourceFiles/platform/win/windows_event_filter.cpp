@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
+#include "facades.h"
+#include "app.h"
 
 #include <QtGui/QWindow>
 

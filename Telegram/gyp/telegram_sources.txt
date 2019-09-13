@@ -736,6 +736,8 @@
 <(src_loc)/support/support_helper.h
 <(src_loc)/support/support_templates.cpp
 <(src_loc)/support/support_templates.h
+<(src_loc)/ui/effects/animation_value.cpp
+<(src_loc)/ui/effects/animation_value.h
 <(src_loc)/ui/effects/animations.cpp
 <(src_loc)/ui/effects/animations.h
 <(src_loc)/ui/effects/cross_animation.cpp
@@ -832,8 +834,6 @@
 <(src_loc)/ui/wrap/wrap.h
 <(src_loc)/ui/abstract_button.cpp
 <(src_loc)/ui/abstract_button.h
-<(src_loc)/ui/animation.cpp
-<(src_loc)/ui/animation.h
 <(src_loc)/ui/countryinput.cpp
 <(src_loc)/ui/countryinput.h
 <(src_loc)/ui/emoji_config.cpp
@@ -879,6 +879,8 @@
 <(src_loc)/window/window_lock_widgets.h
 <(src_loc)/window/window_main_menu.cpp
 <(src_loc)/window/window_main_menu.h
+<(src_loc)/window/window_media_preview.cpp
+<(src_loc)/window/window_media_preview.h
 <(src_loc)/window/window_outdated_bar.cpp
 <(src_loc)/window/window_outdated_bar.h
 <(src_loc)/window/window_peer_menu.cpp

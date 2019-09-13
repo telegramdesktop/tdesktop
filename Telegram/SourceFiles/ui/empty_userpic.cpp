@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_peer.h"
 #include "ui/emoji_config.h"
+#include "ui/effects/animation_value.h"
+#include "app.h"
 #include "styles/style_history.h"
 
 namespace Ui {

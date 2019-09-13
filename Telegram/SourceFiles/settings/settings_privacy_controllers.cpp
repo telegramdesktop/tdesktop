@@ -34,6 +34,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
 #include "settings/settings_privacy_security.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
@@ -797,7 +799,7 @@ void ForwardsPrivacyController::PaintForwardedTooltip(
 	const auto phrase = tr::lng_forwarded(
 		tr::now,
 		lt_user,
-		App::peerName(view->data()->history()->session().user()));
+		view->data()->history()->session().user()->name);
 	const auto kReplacementPosition = QChar(0x0001);
 	const auto possiblePosition = tr::lng_forwarded(
 		tr::now,

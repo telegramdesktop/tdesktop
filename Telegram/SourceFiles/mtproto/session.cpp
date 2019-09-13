@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/auth_key.h"
 #include "base/unixtime.h"
 #include "core/crash_reports.h"
+#include "facades.h"
 
 namespace MTP {
 namespace internal {

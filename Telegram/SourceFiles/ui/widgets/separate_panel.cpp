@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/layer_widget.h"
 #include "window/themes/window_theme.h"
 #include "core/application.h"
+#include "app.h"
 #include "styles/style_widgets.h"
 #include "styles/style_info.h"
 #include "styles/style_calls.h"

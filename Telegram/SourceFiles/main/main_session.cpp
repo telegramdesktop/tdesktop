@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "support/support_helper.h"
 #include "observer_peer.h"
+#include "facades.h"
 
 namespace Main {
 namespace {

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 
 #include "base/observer.h"
+#include "facades.h"
 
 namespace Notify {
 namespace {

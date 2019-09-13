@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
 #include "layout.h"
+#include "app.h"
 #include "styles/style_calls.h"
 #include "styles/style_boxes.h"
 
@@ -133,10 +134,10 @@ void TopBar::updateInfoLabels() {
 }
 
 void TopBar::setInfoLabels() {
-	if (auto call = _call.get()) {
-		auto user = call->user();
-		auto fullName = App::peerName(user);
-		auto shortName = user->firstName;
+	if (const auto call = _call.get()) {
+		const auto user = call->user();
+		const auto fullName = user->name;
+		const auto shortName = user->firstName;
 		_fullInfoLabel->setText(fullName.toUpper());
 		_shortInfoLabel->setText(shortName.toUpper());
 	}

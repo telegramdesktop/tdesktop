@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
+#include "app.h"
 
 namespace InlineBots {
 namespace Layout {

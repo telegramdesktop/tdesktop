@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_templates.h"
 #include "mtproto/sender.h"
 
+class History;
+
 namespace Main {
 class Session;
 } // namespace Main

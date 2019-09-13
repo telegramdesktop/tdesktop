@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_cloud_password.h"
 #include "base/unixtime.h"
 #include "apiwrap.h"
+#include "facades.h"
 #include "main/main_session.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -160,7 +161,7 @@ EditParticipantBox::Inner::Inner(
 	_userPhoto->setPointerCursor(false);
 	_userName.setText(
 		st::rightsNameStyle,
-		App::peerName(_user),
+		_user->name,
 		Ui::NameTextOptions());
 }
 

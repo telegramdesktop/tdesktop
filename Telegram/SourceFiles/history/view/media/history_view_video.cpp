@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
+#include "app.h"
 #include "styles/style_history.h"
 
 namespace HistoryView {

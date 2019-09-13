@@ -33,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "core/application.h"
 #include "lottie/lottie_animation.h"
+#include "facades.h"
+#include "app.h"
 
 namespace {
 

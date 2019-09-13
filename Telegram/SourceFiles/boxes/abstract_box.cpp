@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "app.h"
 
 struct AbstractBox::LoadingProgress {
 	LoadingProgress(
@@ -596,3 +597,39 @@ void BoxContentDivider::paintEvent(QPaintEvent *e) {
 	auto dividerFillBottom = myrtlrect(0, height() - st::profileDividerBottom.height(), width(), st::profileDividerBottom.height());
 	st::profileDividerBottom.fill(p, dividerFillBottom);
 }
+
+namespace Ui {
+namespace internal {
+
+void showBox(
+	object_ptr<BoxContent> content,
+	LayerOptions options,
+	anim::type animated) {
+	if (auto w = App::wnd()) {
+		w->ui_showBox(std::move(content), options, animated);
+	}
+}
+
+} // namespace internal
+
+void hideLayer(anim::type animated) {
+	if (auto w = App::wnd()) {
+		w->ui_showBox(
+			{ nullptr },
+			LayerOption::CloseOther,
+			animated);
+	}
+}
+
+void hideSettingsAndLayer(anim::type animated) {
+	if (auto w = App::wnd()) {
+		w->ui_hideSettingsAndLayer(animated);
+	}
+}
+
+bool isLayerShown() {
+	if (auto w = App::wnd()) return w->ui_isLayerShown();
+	return false;
+}
+
+} // namespace Ui

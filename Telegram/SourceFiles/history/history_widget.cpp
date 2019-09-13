@@ -90,6 +90,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_common.h"
 #include "support/support_autocomplete.h"
 #include "dialogs/dialogs_key.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_history.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
@@ -998,7 +1000,7 @@ void HistoryWidget::onMentionInsert(UserData *user) {
 	if (user->username.isEmpty()) {
 		replacement = user->firstName;
 		if (replacement.isEmpty()) {
-			replacement = App::peerName(user);
+			replacement = user->name;
 		}
 		entityTag = PrepareMentionTag(user);
 	} else {
@@ -4542,7 +4544,7 @@ void HistoryWidget::sendFileConfirmed(
 
 	const auto messageFromId = channelPost ? 0 : session().userId();
 	const auto messagePostAuthor = channelPost
-		? App::peerName(session().user())
+		? session().user()->name
 		: QString();
 
 	if (file->type == SendMediaType::Photo) {
@@ -6475,7 +6477,7 @@ void HistoryWidget::updateForwardingTexts() {
 				if (!insertedPeers.contains(from)) {
 					insertedPeers.emplace(from);
 					names.push_back(from->shortName());
-					fullname = App::peerName(from);
+					fullname = from->name;
 				}
 				version += from->nameVersion;
 			} else if (const auto info = item->hiddenForwardedInfo()) {
@@ -6544,7 +6546,7 @@ void HistoryWidget::updateReplyToName() {
 	}();
 	_replyToName.setText(
 		st::msgNameStyle,
-		App::peerName(from),
+		from->name,
 		Ui::NameTextOptions());
 	_replyToNameVersion = (_replyEditMsg ? _replyEditMsg : _kbReplyTo)->author()->nameVersion;
 }

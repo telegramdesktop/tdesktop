@@ -29,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "observer_peer.h"
+#include "facades.h"
+#include "app.h"
 
 namespace Ui {
 namespace {

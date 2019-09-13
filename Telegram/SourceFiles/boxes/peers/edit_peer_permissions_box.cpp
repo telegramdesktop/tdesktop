@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_info_box.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
+#include "app.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 

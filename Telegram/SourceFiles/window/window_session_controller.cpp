@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "support/support_helper.h"
+#include "facades.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 

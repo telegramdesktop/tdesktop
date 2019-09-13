@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/themes/window_theme.h"
 #include "ui/rp_widget.h"
+#include "app.h"
 
 #include <QtCore/QCoreApplication>
 

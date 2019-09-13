@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "profile/profile_back_button.h"
 
 //#include "history/view/history_view_top_bar_widget.h"
+#include "facades.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_profile.h"

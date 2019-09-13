@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 #include <QtWidgets/QMenuBar>
+#include <QtCore/QTimer>
 
 namespace Platform {
 

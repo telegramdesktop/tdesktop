@@ -40,6 +40,7 @@ class ConnectionState;
 
 namespace Dialogs {
 
+enum class Mode;
 struct RowDescriptor;
 class Row;
 class FakeRow;

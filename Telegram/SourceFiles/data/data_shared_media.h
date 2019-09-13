@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "data/data_sparse_ids.h"
 
+class History;
+
 std::optional<Storage::SharedMediaType> SharedMediaOverviewType(
 	Storage::SharedMediaType type);
 void SharedMediaShowOverview(

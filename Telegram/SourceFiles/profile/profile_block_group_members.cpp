@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
+#include "facades.h"
 
 namespace Profile {
 namespace {

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 #include "window/themes/window_theme_preview.h"
 #include "main/main_session.h"
+#include "app.h"
 
 #include <QtCore/QBuffer>
 #include <QtGui/QImageReader>

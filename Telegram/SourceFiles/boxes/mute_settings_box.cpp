@@ -11,10 +11,11 @@ Copyright (C) 2017, Nicholas Guriev <guriev-ns@ya.ru>
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_peer.h"
-#include "styles/style_boxes.h"
 #include "ui/special_buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
+#include "app.h"
+#include "styles/style_boxes.h"
 
 namespace {
 
@@ -44,7 +45,7 @@ void MuteSettingsBox::prepare() {
 	icon->moveToLeft(st::boxPadding.left(), y);
 
 	object_ptr<Ui::FlatLabel> title(this, st::muteChatTitle);
-	title->setText(App::peerName(_peer, true));
+	title->setText(_peer->name);
 	title->moveToLeft(
 		st::boxPadding.left() + st::muteChatTitleLeft,
 		y + (icon->height() / 2) - (title->height() / 2));

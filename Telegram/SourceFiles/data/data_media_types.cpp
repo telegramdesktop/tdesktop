@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "layout.h"
 #include "storage/file_upload.h"
+#include "app.h"
 
 namespace Data {
 namespace {

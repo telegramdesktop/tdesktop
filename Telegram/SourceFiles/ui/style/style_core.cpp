@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/style/style_core.h"
 
+#include "ui/effects/animation_value.h"
+
 namespace style {
 namespace internal {
 namespace {

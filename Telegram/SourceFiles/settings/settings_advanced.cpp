@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "layout.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_settings.h"
 
 namespace Settings {

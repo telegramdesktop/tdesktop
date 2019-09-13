@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_block.h"
 
 #include "core/crash_reports.h"
+#include "app.h"
 
 #include <private/qfontengine_p.h>
 

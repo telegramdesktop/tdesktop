@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
+#include "app.h"
 #include "ui/widgets/shadow.h"
 
 DragArea::DragArea(QWidget *parent) : TWidget(parent) {

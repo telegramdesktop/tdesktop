@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "facades.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"

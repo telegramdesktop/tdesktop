@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "styles/style_widgets.h"
 
+#include <QtCore/QTimer>
+
 namespace Ui {
 
 class PopupMenu;

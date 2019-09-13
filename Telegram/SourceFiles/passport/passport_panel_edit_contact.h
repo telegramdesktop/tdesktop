@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
+class BoxContent;
+
 namespace Ui {
 class MaskedInputField;
 class PlainShadow;

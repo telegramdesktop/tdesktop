@@ -14,11 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/main_window.h"
 #include "platform/platform_specific.h"
 #include "base/zlib_help.h"
+#include "app.h"
 
 #include <QtWidgets/QFileDialog>
 #include <QtGui/QScreen>
 #include <QtGui/QDesktopServices>
 #include <QtCore/QStandardPaths>
+#include <QtCore/QTimer>
 
 namespace {
 

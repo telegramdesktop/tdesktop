@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "data/data_session.h"
 #include "history/history.h"
+#include "facades.h"
 
 #include <QtCore/QBuffer>
 #include <QtCore/QtEndian>

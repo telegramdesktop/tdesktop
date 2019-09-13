@@ -54,7 +54,7 @@ public:
 		Fn<void(PeerData *peer, bool selected)> callback);
 	void peerUnselected(not_null<PeerData*> peer);
 
-	QVector<PeerData*> selected() const;
+	std::vector<not_null<PeerData*>> selected() const;
 	bool hasSelected() const;
 
 	void peopleReceived(
@@ -1064,8 +1064,8 @@ void ShareBox::Inner::refresh() {
 	update();
 }
 
-QVector<PeerData*> ShareBox::Inner::selected() const {
-	auto result = QVector<PeerData*>();
+std::vector<not_null<PeerData*>> ShareBox::Inner::selected() const {
+	auto result = std::vector<not_null<PeerData*>>();
 	result.reserve(_dataMap.size());
 	for (const auto &[peer, chat] : _dataMap) {
 		if (chat->checkbox.checked()) {

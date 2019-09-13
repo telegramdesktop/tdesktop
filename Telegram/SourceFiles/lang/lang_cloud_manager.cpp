@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_file_parser.h"
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h"
+#include "app.h"
 #include "styles/style_boxes.h"
 
 namespace Lang {

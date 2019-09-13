@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "observer_peer.h"
+#include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
 

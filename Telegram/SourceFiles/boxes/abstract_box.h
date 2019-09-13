@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/layer_widget.h"
 #include "base/unique_qptr.h"
+#include "base/flags.h"
+#include "ui/effects/animation_value.h"
 #include "ui/rp_widget.h"
 
 namespace style {
@@ -427,3 +429,30 @@ private:
 	QPointer<BoxContent> _value;
 
 };
+
+// Legacy global method.
+namespace Ui {
+namespace internal {
+
+void showBox(
+	object_ptr<BoxContent> content,
+	LayerOptions options,
+	anim::type animated);
+
+} // namespace internal
+
+template <typename BoxType>
+QPointer<BoxType> show(
+		object_ptr<BoxType> content,
+		LayerOptions options = LayerOption::CloseOther,
+		anim::type animated = anim::type::normal) {
+	auto result = QPointer<BoxType>(content.data());
+	internal::showBox(std::move(content), options, animated);
+	return result;
+}
+
+void hideLayer(anim::type animated = anim::type::normal);
+void hideSettingsAndLayer(anim::type animated = anim::type::normal);
+bool isLayerShown();
+
+} // namespace Ui

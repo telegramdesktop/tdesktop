@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 #include "window/window_session_controller.h"
 #include "calls/calls_instance.h"
+#include "facades.h"
 
 #ifdef slots
 #undef slots

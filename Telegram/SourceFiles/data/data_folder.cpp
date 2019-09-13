@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
+#include "facades.h"
 #include "styles/style_dialogs.h"
 
 namespace Data {

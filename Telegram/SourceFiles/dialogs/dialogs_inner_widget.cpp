@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/empty_userpic.h"
 #include "ui/unread_badge.h"
+#include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
@@ -2273,12 +2274,7 @@ void InnerWidget::refreshSearchInChatLabel() {
 			dialog,
 			Ui::DialogTextOptions());
 	}
-	const auto from = [&] {
-		if (const auto from = _searchFromUser) {
-			return App::peerName(from);
-		}
-		return QString();
-	}();
+	const auto from = _searchFromUser ? _searchFromUser->name : QString();
 	if (!from.isEmpty()) {
 		const auto fromUserText = tr::lng_dlg_search_from(
 			tr::now,

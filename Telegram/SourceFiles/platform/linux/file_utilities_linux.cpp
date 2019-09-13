@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_gdk_helper.h"
 #include "core/application.h"
 #include "mainwindow.h"
+#include "boxes/abstract_box.h"
 #include "storage/localstorage.h"
+#include "facades.h"
 
 #include <QtCore/QProcess>
 

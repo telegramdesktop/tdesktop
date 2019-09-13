@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
 

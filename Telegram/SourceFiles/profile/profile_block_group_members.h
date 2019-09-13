@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "profile/profile_block_peer_list.h"
 
+#include <QtCore/QTimer>
+
 namespace Ui {
 class FlatLabel;
 } // namespace Ui

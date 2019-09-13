@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_scheduled_messages.h"
 #include "dialogs/dialogs_key.h"
 #include "boxes/peers/edit_peer_info_box.h"
+#include "facades.h"
 #include "styles/style_boxes.h"
 #include "styles/style_window.h" // st::windowMinWidth
 
@@ -645,7 +646,7 @@ void PeerMenuDeleteContact(not_null<UserData*> user) {
 	const auto text = tr::lng_sure_delete_contact(
 		tr::now,
 		lt_contact,
-		App::peerName(user));
+		user->name);
 	const auto deleteSure = [=] {
 		Ui::hideLayer();
 		user->session().api().request(MTPcontacts_DeleteContacts(

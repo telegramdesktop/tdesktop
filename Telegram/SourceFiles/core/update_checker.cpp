@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/settings/info_settings_widget.h"
 #include "window/window_session_controller.h"
 #include "settings/settings_intro.h"
+#include "app.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>

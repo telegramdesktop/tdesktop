@@ -83,6 +83,7 @@ struct UploadedThumbDocument;
 namespace HistoryView {
 class TopBarWidget;
 class ContactStatus;
+class Element;
 } // namespace HistoryView
 
 class DragArea;

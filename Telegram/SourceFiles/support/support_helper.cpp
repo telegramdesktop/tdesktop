@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
+#include "facades.h"
 #include "styles/style_boxes.h"
 
 namespace Main {

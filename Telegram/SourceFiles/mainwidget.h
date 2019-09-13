@@ -20,6 +20,7 @@ class ConfirmBox;
 class HistoryWidget;
 class StackItem;
 struct FileLoadResult;
+class History;
 
 namespace Api {
 struct SendAction;
@@ -42,6 +43,7 @@ struct RowDescriptor;
 class Row;
 class Key;
 class Widget;
+enum class Mode;
 } // namespace Dialogs
 
 namespace Media {
@@ -545,3 +547,7 @@ private:
 	int _firstColumnResizingShift = 0;
 
 };
+
+namespace App {
+MainWidget *main();
+} // namespace App

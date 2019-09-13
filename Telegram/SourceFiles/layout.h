@@ -14,6 +14,8 @@ struct TextState;
 struct StateRequest;
 } // namespace HistoryView
 
+enum RoundCorners : int;
+
 constexpr auto FullSelection = TextSelection { 0xFFFF, 0xFFFF };
 
 inline bool IsSubGroupSelection(TextSelection selection) {

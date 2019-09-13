@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
+#include "app.h"
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDesktopWidget>

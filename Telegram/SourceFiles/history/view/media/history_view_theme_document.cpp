@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "base/qthelp_url.h"
 #include "window/themes/window_theme.h"
+#include "app.h"
 #include "styles/style_history.h"
 
 namespace HistoryView {

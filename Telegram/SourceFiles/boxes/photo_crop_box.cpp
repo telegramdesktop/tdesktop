@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
+#include "app.h"
 #include "styles/style_boxes.h"
 
 PhotoCropBox::PhotoCropBox(

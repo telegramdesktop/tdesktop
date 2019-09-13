@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "base/timer.h"
 #include "inline_bots/inline_bot_layout_item.h"
+#include "app.h"
+
+#include <QtCore/QTimer>
 
 namespace InlineBots {
 namespace Layout {

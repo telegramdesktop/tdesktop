@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast_widget.h"
 
 #include "ui/image/image_prepare.h"
+#include "app.h"
 
 namespace Ui {
 namespace Toast {

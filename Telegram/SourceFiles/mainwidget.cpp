@@ -96,6 +96,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
+#include "app.h"
+#include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
@@ -4622,3 +4624,14 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	}
 }
+
+namespace App {
+
+MainWidget *main() {
+	if (const auto window = wnd()) {
+		return window->mainWidget();
+	}
+	return nullptr;
+}
+
+} // namespace App

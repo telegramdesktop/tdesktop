@@ -40,8 +40,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "core/crash_reports.h"
 #include "base/unixtime.h"
+#include "facades.h"
 #include "styles/style_dialogs.h"
-#include <memory>
 
 namespace {
 

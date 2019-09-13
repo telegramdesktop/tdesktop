@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class History;
+class PeerData;
+
 namespace Ui {
 
 void InitTextOptions();

@@ -47,6 +47,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 

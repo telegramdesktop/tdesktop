@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
+#include "app.h"
 #include "styles/style_passport.h"
 #include "styles/style_boxes.h"
 

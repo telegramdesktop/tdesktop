@@ -203,7 +203,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		result.text = tr::lng_action_secure_values_sent(
 			tr::now,
 			lt_user,
-			textcmdLink(1, App::peerName(history()->peer)),
+			textcmdLink(1, history()->peer->name),
 			lt_documents,
 			documents.join(", "));
 		return result;

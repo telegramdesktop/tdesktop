@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "app.h"
 
 namespace Core {
 namespace {

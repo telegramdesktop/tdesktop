@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "mainwindow.h" // App::wnd()->sessionController
 #include "main/main_session.h"
+#include "facades.h"
 
 namespace AdminLog {
 namespace {
@@ -241,7 +242,7 @@ TextWithEntities GenerateBannedChangeText(
 auto GenerateUserString(MTPint userId) {
 	// User name in "User name (@username)" format with entities.
 	auto user = Auth().data().user(userId.v);
-	auto name = TextWithEntities { App::peerName(user) };
+	auto name = TextWithEntities { user->name };
 	auto entityData = QString::number(user->id)
 		+ '.'
 		+ QString::number(user->accessHash());
@@ -383,7 +384,7 @@ void GenerateItems(
 	};
 
 	using Flag = MTPDmessage::Flag;
-	auto fromName = App::peerName(from);
+	auto fromName = from->name;
 	auto fromLink = from->createOpenLink();
 	auto fromLinkText = textcmdLink(1, fromName);
 

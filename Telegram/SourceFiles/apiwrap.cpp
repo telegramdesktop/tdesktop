@@ -58,6 +58,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
 #include "storage/storage_media_prepare.h"
+#include "facades.h"
+#include "app.h"
 //#include "storage/storage_feed_messages.h" // #feed
 
 namespace {
@@ -4514,7 +4516,7 @@ void ApiWrap::forwardMessages(
 					? UserId(0)
 					: peerToUser(self->id);
 				const auto messagePostAuthor = channelPost
-					? App::peerName(self)
+					? self->name
 					: QString();
 				history->addNewLocalMessage(
 					newId.msg,
@@ -4608,7 +4610,7 @@ void ApiWrap::sendSharedContact(
 	}
 	const auto messageFromId = channelPost ? 0 : _session->userId();
 	const auto messagePostAuthor = channelPost
-		? App::peerName(_session->user())
+		? _session->user()->name
 		: QString();
 	const auto vcard = QString();
 	const auto views = 1;
@@ -4998,7 +5000,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		}
 		auto messageFromId = channelPost ? 0 : _session->userId();
 		auto messagePostAuthor = channelPost
-			? App::peerName(_session->user())
+			? _session->user()->name
 			: QString();
 		if (action.options.scheduled) {
 			flags |= MTPDmessage::Flag::f_from_scheduled;
@@ -5136,7 +5138,7 @@ void ApiWrap::sendInlineResult(
 
 	const auto messageFromId = channelPost ? 0 : _session->userId();
 	const auto messagePostAuthor = channelPost
-		? App::peerName(_session->user())
+		? _session->user()->name
 		: QString();
 
 	_session->data().registerMessageRandomId(randomId, newId);

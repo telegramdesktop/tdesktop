@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
 #include "base/timer.h"
+#include "facades.h"
 
 namespace MTP {
 namespace {

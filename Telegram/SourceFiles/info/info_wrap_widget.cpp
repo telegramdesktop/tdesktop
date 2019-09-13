@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
+#include "facades.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
 

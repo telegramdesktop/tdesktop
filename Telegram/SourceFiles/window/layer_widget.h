@@ -15,6 +15,16 @@ namespace Lottie {
 class SinglePlayer;
 } // namespace Lottie
 
+class BoxContent;
+
+enum class LayerOption {
+	CloseOther = (1 << 0),
+	KeepOther = (1 << 1),
+	ShowAfterOther = (1 << 2),
+};
+using LayerOptions = base::flags<LayerOption>;
+inline constexpr auto is_flag_type(LayerOption) { return true; };
+
 namespace Window {
 
 class MainMenu;
@@ -198,61 +208,6 @@ private:
 };
 
 } // namespace Window
-
-class MediaPreviewWidget : public Ui::RpWidget, private base::Subscriber {
-public:
-	MediaPreviewWidget(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller);
-
-	void showPreview(
-		Data::FileOrigin origin,
-		not_null<DocumentData*> document);
-	void showPreview(
-		Data::FileOrigin origin,
-		not_null<PhotoData*> photo);
-	void hidePreview();
-
-	~MediaPreviewWidget();
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-private:
-	QSize currentDimensions() const;
-	QPixmap currentImage() const;
-	void setupLottie();
-	void startShow();
-	void fillEmojiString();
-	void resetGifAndCache();
-	[[nodiscard]] QRect updateArea() const;
-
-	not_null<Window::SessionController*> _controller;
-
-	Ui::Animations::Simple _a_shown;
-	bool _hiding = false;
-	Data::FileOrigin _origin;
-	DocumentData *_document = nullptr;
-	PhotoData *_photo = nullptr;
-	Media::Clip::ReaderPointer _gif;
-	std::unique_ptr<Lottie::SinglePlayer> _lottie;
-
-	int _emojiSize;
-	std::vector<not_null<EmojiPtr>> _emojiList;
-
-	void clipCallback(Media::Clip::Notification notification);
-
-	enum CacheStatus {
-		CacheNotLoaded,
-		CacheThumbLoaded,
-		CacheLoaded,
-	};
-	mutable CacheStatus _cacheStatus = CacheNotLoaded;
-	mutable QPixmap _cache;
-	mutable QSize _cachedSize;
-
-};
 
 class GenericBox;
 

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "lang/lang_keys.h"
+#include "app.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/dc_options.h"
 #include "mtproto/mtp_instance.h"
 #include "mtproto/special_config_request.h"
+#include "facades.h"
 
 namespace MTP {
 namespace internal {

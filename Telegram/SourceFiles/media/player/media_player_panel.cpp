@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
+#include "app.h"
 #include "styles/style_overview.h"
 #include "styles/style_widgets.h"
 #include "styles/style_media_player.h"

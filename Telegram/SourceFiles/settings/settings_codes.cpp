@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
 #include "media/audio/media_audio_track.h"
+#include "facades.h"
 
 namespace Settings {
 

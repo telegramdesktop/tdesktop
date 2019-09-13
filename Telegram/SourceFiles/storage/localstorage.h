@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "main/main_session.h"
 
+#include <QtCore/QTimer>
+
+class History;
+
 namespace Data {
 class WallPaper;
 } // namespace Data

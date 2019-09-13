@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/text/text_utilities.h"
 #include "boxes/confirm_box.h"
+#include "app.h"
 #include "styles/style_intro.h"
 
 namespace Intro {

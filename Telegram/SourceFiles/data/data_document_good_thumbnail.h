@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/image/image.h"
+#include "base/binary_guard.h"
 
 class DocumentData;
 

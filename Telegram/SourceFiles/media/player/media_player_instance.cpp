@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h" // Account::sessionValue.
 #include "mainwindow.h"
 #include "main/main_session.h"
+#include "facades.h"
 
 namespace Media {
 namespace Player {

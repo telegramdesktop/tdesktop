@@ -36,6 +36,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "lang/lang_cloud_manager.h"
 #include "main/main_session.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
 #include "styles/style_window.h"

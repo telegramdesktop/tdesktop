@@ -105,23 +105,6 @@ namespace App {
 		return result;
 	}
 
-	MainWindow *wnd() {
-		return (Core::IsAppLaunched() && Core::App().activeWindow())
-			? Core::App().activeWindow()->widget().get()
-			: nullptr;
-	}
-
-	MainWidget *main() {
-		if (auto window = wnd()) {
-			return window->mainWidget();
-		}
-		return nullptr;
-	}
-
-	QString peerName(const PeerData *peer, bool forDialogs) {
-		return peer ? ((forDialogs && peer->isUser() && !peer->asUser()->nameOrPhone.isEmpty()) ? peer->asUser()->nameOrPhone : peer->name) : tr::lng_deleted(tr::now);
-	}
-
 	void prepareCorners(RoundCorners index, int32 radius, const QBrush &brush, const style::color *shadow = nullptr, QImage *cors = nullptr) {
 		Expects(::corners.size() > index);
 

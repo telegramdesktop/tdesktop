@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/wrapper_windows_h.h"
 #include "base/flags.h"
 
+#include <QtCore/QTimer>
+
 namespace Ui {
 class PopupMenu;
 } // namespace Ui
