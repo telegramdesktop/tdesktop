@@ -493,7 +493,7 @@ void MainMenu::initResetScaleButton() {
 		} else {
 			_resetScaleButton.create(this);
 			_resetScaleButton->addClickHandler([] {
-				cSetConfigScale(kInterfaceScaleDefault);
+				cSetConfigScale(style::kScaleDefault);
 				Local::writeSettings();
 				App::restart();
 			});

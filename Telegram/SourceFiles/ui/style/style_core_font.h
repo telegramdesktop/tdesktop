@@ -7,8 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/basic_types.h"
+
+#include <QtGui/QFont>
+#include <QtGui/QFontMetrics>
+
 namespace style {
 namespace internal {
+
+void StartFonts();
+[[nodiscard]] QString GetFontOverride(const QString &familyName);
 
 void destroyFonts();
 int registerFontFamily(const QString &family);

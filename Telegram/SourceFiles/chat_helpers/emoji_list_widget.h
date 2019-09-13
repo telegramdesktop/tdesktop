@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "base/timer.h"
 
+namespace tr {
+template <typename ...Tags>
+struct phrase;
+} // namespace tr
+
 namespace Ui {
 namespace Emoji {
 enum class Section;
@@ -23,7 +28,7 @@ class SessionController;
 
 namespace ChatHelpers {
 
-constexpr auto kEmojiSectionCount = 8;
+inline constexpr auto kEmojiSectionCount = 8;
 
 class EmojiColorPicker;
 
@@ -119,5 +124,7 @@ private:
 	rpl::event_stream<EmojiPtr> _chosen;
 
 };
+
+tr::phrase<> EmojiCategoryTitle(int index);
 
 } // namespace ChatHelpers

@@ -99,9 +99,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <range/v3/all.hpp>
 
-// Ensures/Expects.
-#include <gsl/gsl_assert>
-
 // Redefine Ensures/Expects by our own assertions.
 #include "base/assertion.h"
 

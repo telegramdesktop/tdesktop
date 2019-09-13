@@ -7,7 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/style/style_core_icon.h"
 
-#include "app.h"
+#include "ui/style/style_core.h"
+#include "base/basic_types.h"
+
+#include <QtGui/QPainter>
 
 namespace style {
 namespace internal {
@@ -17,22 +20,19 @@ uint32 colorKey(QColor c) {
 	return (((((uint32(c.red()) << 8) | uint32(c.green())) << 8) | uint32(c.blue())) << 8) | uint32(c.alpha());
 }
 
-using IconMasks = QMap<const IconMask*, QImage>;
-using IconPixmaps = QMap<QPair<const IconMask*, uint32>, QPixmap>;
-using IconDatas = OrderedSet<IconData*>;
-NeverFreedPointer<IconMasks> iconMasks;
-NeverFreedPointer<IconPixmaps> iconPixmaps;
-NeverFreedPointer<IconDatas> iconData;
+QMap<const IconMask*, QImage> iconMasks;
+QMap<QPair<const IconMask*, uint32>, QPixmap> iconPixmaps;
+OrderedSet<IconData*> iconData;
 
 QImage createIconMask(const IconMask *mask, int scale) {
 	auto maskImage = QImage::fromData(mask->data(), mask->size(), "PNG");
-	maskImage.setDevicePixelRatio(cRetinaFactor());
+	maskImage.setDevicePixelRatio(DevicePixelRatio());
 	Assert(!maskImage.isNull());
 
 	// images are layouted like this:
 	// 100x 200x
 	// 300x
-	const auto factor = cIntRetinaFactor();
+	const auto factor = DevicePixelRatio();
 	const auto realscale = scale * factor;
 	const auto width = maskImage.width() / 3;
 	const auto height = maskImage.height() / 5;
@@ -120,7 +120,7 @@ QPoint MonoIcon::offset() const {
 void MonoIcon::paint(QPainter &p, const QPoint &pos, int outerw) const {
 	int w = width(), h = height();
 	QPoint fullOffset = pos + offset();
-	int partPosX = rtl() ? (outerw - fullOffset.x() - w) : fullOffset.x();
+	int partPosX = RightToLeft() ? (outerw - fullOffset.x() - w) : fullOffset.x();
 	int partPosY = fullOffset.y();
 
 	ensureLoaded();
@@ -143,7 +143,7 @@ void MonoIcon::fill(QPainter &p, const QRect &rect) const {
 void MonoIcon::paint(QPainter &p, const QPoint &pos, int outerw, QColor colorOverride) const {
 	int w = width(), h = height();
 	QPoint fullOffset = pos + offset();
-	int partPosX = rtl() ? (outerw - fullOffset.x() - w) : fullOffset.x();
+	int partPosX = RightToLeft() ? (outerw - fullOffset.x() - w) : fullOffset.x();
 	int partPosY = fullOffset.y();
 
 	ensureLoaded();
@@ -170,17 +170,17 @@ void MonoIcon::paint(
 		const QPoint &pos,
 		int outerw,
 		const style::palette &paletteOverride) const {
-	auto size = readGeneratedSize(_mask, cScale());
+	auto size = readGeneratedSize(_mask, Scale());
 	auto maskImage = QImage();
 	if (size.isEmpty()) {
-		maskImage = createIconMask(_mask, cScale());
-		size = maskImage.size() / cIntRetinaFactor();
+		maskImage = createIconMask(_mask, Scale());
+		size = maskImage.size() / DevicePixelRatio();
 	}
 
 	const auto w = size.width();
 	const auto h = size.height();
 	const auto fullOffset = pos + offset();
-	const auto partPosX = rtl() ? (outerw - fullOffset.x() - w) : fullOffset.x();
+	const auto partPosX = RightToLeft() ? (outerw - fullOffset.x() - w) : fullOffset.x();
 	const auto partPosY = fullOffset.y();
 
 	if (!maskImage.isNull()) {
@@ -198,11 +198,11 @@ void MonoIcon::fill(
 		QPainter &p,
 		const QRect &rect,
 		const style::palette &paletteOverride) const {
-	auto size = readGeneratedSize(_mask, cScale());
+	auto size = readGeneratedSize(_mask, Scale());
 	auto maskImage = QImage();
 	if (size.isEmpty()) {
-		maskImage = createIconMask(_mask, cScale());
-		size = maskImage.size() / cIntRetinaFactor();
+		maskImage = createIconMask(_mask, Scale());
+		size = maskImage.size() / DevicePixelRatio();
 	}
 	if (!maskImage.isNull()) {
 		auto colorizedImage = QImage(
@@ -216,10 +216,10 @@ void MonoIcon::fill(
 }
 
 QImage MonoIcon::instance(QColor colorOverride, int scale) const {
-	if (scale == kInterfaceScaleAuto) {
+	if (scale == kScaleAuto) {
 		ensureLoaded();
-		auto result = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-		result.setDevicePixelRatio(cRetinaFactor());
+		auto result = QImage(size() * DevicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
+		result.setDevicePixelRatio(DevicePixelRatio());
 		if (_pixmap.isNull()) {
 			result.fill(colorOverride);
 		} else {
@@ -229,14 +229,14 @@ QImage MonoIcon::instance(QColor colorOverride, int scale) const {
 	}
 	auto size = readGeneratedSize(_mask, scale);
 	if (!size.isEmpty()) {
-		auto result = QImage(size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-		result.setDevicePixelRatio(cRetinaFactor());
+		auto result = QImage(size * DevicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
+		result.setDevicePixelRatio(DevicePixelRatio());
 		result.fill(colorOverride);
 		return result;
 	}
 	auto mask = createIconMask(_mask, scale);
 	auto result = QImage(mask.size(), QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(DevicePixelRatio());
 	colorizeImage(mask, colorOverride, &result);
 	return result;
 }
@@ -250,12 +250,11 @@ void MonoIcon::ensureLoaded() const {
 		return;
 	}
 
-	_size = readGeneratedSize(_mask, cScale());
+	_size = readGeneratedSize(_mask, Scale());
 	if (_size.isEmpty()) {
-		iconMasks.createIfNull();
-		auto i = iconMasks->constFind(_mask);
-		if (i == iconMasks->cend()) {
-			i = iconMasks->insert(_mask, createIconMask(_mask, cScale()));
+		auto i = iconMasks.constFind(_mask);
+		if (i == iconMasks.cend()) {
+			i = iconMasks.insert(_mask, createIconMask(_mask, Scale()));
 		}
 		_maskImage = i.value();
 
@@ -269,27 +268,25 @@ void MonoIcon::ensureColorizedImage(QColor color) const {
 }
 
 void MonoIcon::createCachedPixmap() const {
-	iconPixmaps.createIfNull();
 	auto key = qMakePair(_mask, colorKey(_color->c));
-	auto j = iconPixmaps->constFind(key);
-	if (j == iconPixmaps->cend()) {
+	auto j = iconPixmaps.constFind(key);
+	if (j == iconPixmaps.cend()) {
 		auto image = colorizeImage(_maskImage, _color);
-		j = iconPixmaps->insert(key, App::pixmapFromImageInPlace(std::move(image)));
+		j = iconPixmaps.insert(key, QPixmap::fromImage(std::move(image)));
 	}
 	_pixmap = j.value();
-	_size = _pixmap.size() / cIntRetinaFactor();
+	_size = _pixmap.size() / DevicePixelRatio();
 }
 
 void IconData::created() {
-	iconData.createIfNull();
-	iconData->insert(this);
+	iconData.insert(this);
 }
 
 void IconData::fill(QPainter &p, const QRect &rect) const {
 	if (_parts.empty()) return;
 
 	auto partSize = _parts[0].size();
-	for_const (auto &part, _parts) {
+	for (const auto &part : _parts) {
 		Assert(part.offset() == QPoint(0, 0));
 		Assert(part.size() == partSize);
 		part.fill(p, rect);
@@ -300,7 +297,7 @@ void IconData::fill(QPainter &p, const QRect &rect, QColor colorOverride) const 
 	if (_parts.empty()) return;
 
 	auto partSize = _parts[0].size();
-	for_const (auto &part, _parts) {
+	for (const auto &part : _parts) {
 		Assert(part.offset() == QPoint(0, 0));
 		Assert(part.size() == partSize);
 		part.fill(p, rect, colorOverride);
@@ -317,7 +314,7 @@ QImage IconData::instance(QColor colorOverride, int scale) const {
 int IconData::width() const {
 	if (_width < 0) {
 		_width = 0;
-		for_const (auto &part, _parts) {
+		for (const auto &part : _parts) {
 			accumulate_max(_width, part.offset().x() + part.width());
 		}
 	}
@@ -327,7 +324,7 @@ int IconData::width() const {
 int IconData::height() const {
 	if (_height < 0) {
 		_height = 0;
-		for_const (auto &part, _parts) {
+		for (const auto &part : _parts) {
 			accumulate_max(_height, part.offset().x() + part.height());
 		}
 	}
@@ -336,10 +333,8 @@ int IconData::height() const {
 
 void resetIcons() {
 	iconPixmaps.clear();
-	if (iconData) {
-		for (auto data : *iconData) {
-			data->reset();
-		}
+	for (const auto data : iconData) {
+		data->reset();
 	}
 }
 

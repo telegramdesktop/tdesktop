@@ -634,7 +634,7 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 			const auto scale = cScale() * cIntRetinaFactor();
 			if (scale != 100) {
 				image = image.scaledToWidth(
-					ConvertScale(image.width(), scale),
+					style::ConvertScale(image.width(), scale),
 					Qt::SmoothTransformation);
 			}
 		} else if (Data::IsDefaultWallPaper(_paper)

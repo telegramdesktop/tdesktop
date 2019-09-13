@@ -892,7 +892,8 @@ Document::Document(
 
 	if (withThumb()) {
 		_data->loadThumbnail(parent->fullId());
-		int32 tw = ConvertScale(_data->thumbnail()->width()), th = ConvertScale(_data->thumbnail()->height());
+		auto tw = style::ConvertScale(_data->thumbnail()->width());
+		auto th = style::ConvertScale(_data->thumbnail()->height());
 		if (tw > th) {
 			_thumbw = (tw * _st.fileThumbSize) / th;
 		} else {
@@ -1407,13 +1408,13 @@ Link::Link(
 			_page->photo->loadThumbnailSmall(parent->fullId());
 		}
 
-		tw = ConvertScale(_page->photo->width());
-		th = ConvertScale(_page->photo->height());
+		tw = style::ConvertScale(_page->photo->width());
+		th = style::ConvertScale(_page->photo->height());
 	} else if (_page && _page->document && _page->document->hasThumbnail()) {
 		_page->document->loadThumbnail(parent->fullId());
 
-		tw = ConvertScale(_page->document->thumbnail()->width());
-		th = ConvertScale(_page->document->thumbnail()->height());
+		tw = style::ConvertScale(_page->document->thumbnail()->width());
+		th = style::ConvertScale(_page->document->thumbnail()->height());
 	}
 	if (tw > st::linksPhotoSize) {
 		if (th > tw) {

@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/basic_types.h"
+
+#include <QtCore/QList>
+
 enum class EntityType {
 	Invalid = 0,
 

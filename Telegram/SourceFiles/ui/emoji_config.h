@@ -7,9 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/basic_types.h"
 #include "base/binary_guard.h"
 #include "emoji.h"
-#include "lang/lang_keys.h"
+
+#include <QtGui/QPainter>
+#include <QtGui/QPixmap>
+
+#include <rpl/producer.h>
+
+using EmojiPtr = const Ui::Emoji::One*;
 
 namespace Ui {
 namespace Emoji {
@@ -19,8 +26,6 @@ namespace internal {
 [[nodiscard]] QString SetDataPath(int id);
 
 } // namespace internal
-
-constexpr auto kRecentLimit = 42;
 
 void Init();
 void Clear();
@@ -37,8 +42,6 @@ struct Set {
 
 // Thread safe, callback is called on main thread.
 void SwitchToSet(int id, Fn<void(bool)> callback);
-
-tr::phrase<> CategoryTitle(int index);
 
 std::vector<Set> Sets();
 int CurrentSetId();
@@ -108,7 +111,7 @@ public:
 	}
 
 	QString toUrl() const {
-		return qsl("emoji://e.") + QString::number(index());
+		return "emoji://e." + QString::number(index());
 	}
 
 private:
@@ -159,10 +162,7 @@ inline int ColorIndexFromOldKey(uint64 oldKey) {
 	return ColorIndexFromCode(uint32(oldKey & 0xFFFFFFFFLLU));
 }
 
-void ReplaceInText(TextWithEntities &result);
-RecentEmojiPack &GetRecent();
-void AddRecent(EmojiPtr emoji);
-rpl::producer<> UpdatedRecent();
+QVector<EmojiPtr> GetDefaultRecent();
 
 const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight);
 void Draw(QPainter &p, EmojiPtr emoji, int size, int x, int y);

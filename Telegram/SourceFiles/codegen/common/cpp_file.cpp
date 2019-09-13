@@ -53,6 +53,11 @@ CppFile &CppFile::include(const QString &header) {
 	return newline();
 }
 
+CppFile &CppFile::includeFromLibrary(const QString &header) {
+	stream() << "#include <" << header << ">";
+	return newline();
+}
+
 CppFile &CppFile::pushNamespace(const QString &name) {
 	namespaces_.push_back(name);
 

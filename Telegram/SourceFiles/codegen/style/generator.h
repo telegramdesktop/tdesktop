@@ -35,6 +35,7 @@ private:
 	QString typeToDefaultValue(structure::Type type) const;
 	QString valueAssignmentCode(structure::Value value) const;
 
+	bool writeHeaderRequiredIncludes();
 	bool writeHeaderStyleNamespace();
 	bool writeStructsForwardDeclarations();
 	bool writeStructsDefinitions();

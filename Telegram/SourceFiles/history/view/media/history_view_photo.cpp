@@ -70,8 +70,8 @@ QSize Photo::countOptimalSize() {
 	auto maxWidth = 0;
 	auto minHeight = 0;
 
-	auto tw = ConvertScale(_data->width());
-	auto th = ConvertScale(_data->height());
+	auto tw = style::ConvertScale(_data->width());
+	auto th = style::ConvertScale(_data->height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}
@@ -102,7 +102,8 @@ QSize Photo::countOptimalSize() {
 }
 
 QSize Photo::countCurrentSize(int newWidth) {
-	int tw = ConvertScale(_data->width()), th = ConvertScale(_data->height());
+	auto tw = style::ConvertScale(_data->width());
+	auto th = style::ConvertScale(_data->height());
 	if (tw > st::maxMediaSize) {
 		th = (st::maxMediaSize * th) / tw;
 		tw = st::maxMediaSize;
@@ -511,8 +512,8 @@ void Photo::validateGroupedCache(
 		return;
 	}
 
-	const auto originalWidth = ConvertScale(_data->width());
-	const auto originalHeight = ConvertScale(_data->height());
+	const auto originalWidth = style::ConvertScale(_data->width());
+	const auto originalHeight = style::ConvertScale(_data->height());
 	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
 		{ originalWidth, originalHeight },
 		{ width, height });

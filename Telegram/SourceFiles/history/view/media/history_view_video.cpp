@@ -57,7 +57,7 @@ QSize Video::sizeForAspectRatio() const {
 }
 
 QSize Video::countOptimalDimensions() const {
-	const auto desired = ConvertScale(_data->dimensions);
+	const auto desired = style::ConvertScale(_data->dimensions);
 	const auto size = desired.isEmpty() ? sizeForAspectRatio() : desired;
 	auto tw = size.width();
 	auto th = size.height();
@@ -554,8 +554,8 @@ void Video::validateGroupedCache(
 	}
 
 	const auto original = sizeForAspectRatio();
-	const auto originalWidth = ConvertScale(original.width());
-	const auto originalHeight = ConvertScale(original.height());
+	const auto originalWidth = style::ConvertScale(original.width());
+	const auto originalHeight = style::ConvertScale(original.height());
 	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
 		{ originalWidth, originalHeight },
 		{ width, height });

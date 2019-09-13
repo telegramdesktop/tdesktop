@@ -76,7 +76,7 @@ QSize Gif::countOptimalSize() {
 	const auto maxSize = _data->isVideoMessage()
 		? st::maxVideoMessageSize
 		: st::maxGifSize;
-	const auto size = ConvertScale(videoSize());
+	const auto size = style::ConvertScale(videoSize());
 	auto tw = size.width();
 	auto th = size.height();
 	if (tw > maxSize) {
@@ -125,7 +125,7 @@ QSize Gif::countCurrentSize(int newWidth) {
 	const auto maxSize = _data->isVideoMessage()
 		? st::maxVideoMessageSize
 		: st::maxGifSize;
-	const auto size = ConvertScale(videoSize());
+	const auto size = style::ConvertScale(videoSize());
 	auto tw = size.width();
 	auto th = size.height();
 	if (tw > maxSize) {

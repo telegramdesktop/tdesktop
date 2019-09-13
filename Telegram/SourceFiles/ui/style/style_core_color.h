@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtGui/QColor>
+#include <QtGui/QPen>
+#include <QtGui/QBrush>
+
 namespace style {
 
 class palette;

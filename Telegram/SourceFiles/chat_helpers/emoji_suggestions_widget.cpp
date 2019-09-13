@@ -114,7 +114,7 @@ auto SuggestionsWidget::getRowsByQuery() const -> std::vector<Row> {
 	}) | ranges::to_vector;
 
 	auto lastRecent = begin(result);
-	const auto &recent = GetRecent();
+	const auto &recent = GetRecentEmoji();
 	for (const auto &item : recent) {
 		const auto emoji = item.first->original()
 			? item.first->original()

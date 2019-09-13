@@ -157,13 +157,14 @@ Application::~Application() {
 }
 
 void Application::run() {
-	Fonts::Start();
+	style::internal::StartFonts();
 
 	ThirdParty::start();
 	Global::start();
 	refreshGlobalProxy(); // Depends on Global::started().
 
 	startLocalStorage();
+	ValidateScale();
 
 	if (Local::oldSettingsVersion() < AppVersion) {
 		psNewVersion();
@@ -178,7 +179,7 @@ void Application::run() {
 	_translator = std::make_unique<Lang::Translator>();
 	QCoreApplication::instance()->installTranslator(_translator.get());
 
-	style::startManager();
+	style::startManager(cScale());
 	Ui::InitTextOptions();
 	Ui::Emoji::Init();
 	Media::Player::start(_audio.get());

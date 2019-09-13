@@ -446,8 +446,8 @@ void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		auto pw = qMax(_pixw, lineHeight);
 		auto ph = _pixh;
 		auto pixw = _pixw, pixh = articleThumbHeight(_data->photo, _pixw);
-		const auto maxw = ConvertScale(_data->photo->thumbnail()->width());
-		const auto maxh = ConvertScale(_data->photo->thumbnail()->height());
+		const auto maxw = style::ConvertScale(_data->photo->thumbnail()->width());
+		const auto maxh = style::ConvertScale(_data->photo->thumbnail()->height());
 		if (pixw * ph != pixh * pw) {
 			float64 coef = (pixw * ph > pixh * pw) ? qMin(ph / float64(pixh), maxh / float64(pixh)) : qMin(pw / float64(pixw), maxw / float64(pixw));
 			pixh = qRound(pixh * coef);

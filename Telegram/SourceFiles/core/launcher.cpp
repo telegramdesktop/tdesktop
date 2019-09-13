@@ -445,7 +445,7 @@ void Launcher::processArguments() {
 	if (scaleKey.size() > 0) {
 		const auto value = scaleKey[0].toInt();
 		gConfigScale = ((value < 75) || (value > 300))
-			? kInterfaceScaleAuto
+			? style::kScaleAuto
 			: value;
 	}
 }

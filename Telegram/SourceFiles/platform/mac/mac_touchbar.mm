@@ -376,13 +376,15 @@ void AppendFavedStickers(std::vector<PickerScrubberItem> &to) {
 
 void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	for (auto i = 0; i != ChatHelpers::kEmojiSectionCount; ++i) {
-		const auto section = Ui::Emoji::GetSection(
-			static_cast<Ui::Emoji::Section>(i));
-		const auto title = i
-			? Ui::Emoji::CategoryTitle(i)(tr::now)
-			: TitleRecentlyUsed();
+		const auto section = static_cast<Ui::Emoji::Section>(i);
+		const auto list = (section == Ui::Emoji::Section::Recent)
+			? GetRecentEmojiSection()
+			: Ui::Emoji::GetSection(section);
+		const auto title = (section == Ui::Emoji::Section::Recent)
+			? TitleRecentlyUsed()
+			: ChatHelpers::EmojiCategoryTitle(i)(tr::now);
 		to.emplace_back(title);
-		for (const auto &emoji : section) {
+		for (const auto &emoji : list) {
 			to.emplace_back(PickerScrubberItem(emoji));
 		}
 	}

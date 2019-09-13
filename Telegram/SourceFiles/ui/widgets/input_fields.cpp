@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/countryinput.h"
 #include "ui/emoji_config.h"
-#include "emoji_suggestions_data.h"
 #include "chat_helpers/emoji_suggestions_helper.h"
 #include "chat_helpers/message_field.h" // ConvertTextTagsToEntities
 #include "platform/platform_info.h"
@@ -3072,7 +3071,7 @@ void InputField::commitInstantReplacement(
 				? emoji->variant(it.value())
 				: emoji;
 		}();
-		Ui::Emoji::AddRecent(use);
+		AddRecentEmoji(use);
 		return PrepareEmojiFormat(use, _st.font);
 	}();
 	const auto replacement = format.isImageFormat()

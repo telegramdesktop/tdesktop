@@ -7,24 +7,127 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/style/style_core_font.h"
 
+#include "base/algorithm.h"
+#include "logs.h"
+
+#include <QtCore/QMap>
+#include <QtCore/QVector>
+#include <QtGui/QFontInfo>
+#include <QtGui/QFontDatabase>
+
 namespace style {
 namespace internal {
 namespace {
 
-typedef QMap<QString, int> FontFamilyMap;
-FontFamilyMap fontFamilyMap;
-
-typedef QVector<QString> FontFamilies;
-FontFamilies fontFamilies;
-
-typedef QMap<uint32, FontData*> FontDatas;
-FontDatas fontsMap;
+QMap<QString, int> fontFamilyMap;
+QVector<QString> fontFamilies;
+QMap<uint32, FontData*> fontsMap;
 
 uint32 fontKey(int size, uint32 flags, int family) {
 	return (((uint32(family) << 10) | uint32(size)) << 4) | flags;
 }
 
+bool ValidateFont(const QString &familyName, int flags = 0) {
+	QFont checkFont(familyName);
+	checkFont.setPixelSize(13);
+	checkFont.setBold(flags & style::internal::FontBold);
+	checkFont.setItalic(flags & style::internal::FontItalic);
+	checkFont.setUnderline(flags & style::internal::FontUnderline);
+	checkFont.setStyleStrategy(QFont::PreferQuality);
+	auto realFamily = QFontInfo(checkFont).family();
+	if (realFamily.trimmed().compare(familyName, Qt::CaseInsensitive)) {
+		LOG(("Font Error: could not resolve '%1' font, got '%2'.").arg(familyName).arg(realFamily));
+		return false;
+	}
+
+	auto metrics = QFontMetrics(checkFont);
+	if (!metrics.height()) {
+		LOG(("Font Error: got a zero height in '%1'.").arg(familyName));
+		return false;
+	}
+
+	return true;
+}
+
+bool LoadCustomFont(const QString &filePath, const QString &familyName, int flags = 0) {
+	auto regularId = QFontDatabase::addApplicationFont(filePath);
+	if (regularId < 0) {
+		LOG(("Font Error: could not add '%1'.").arg(filePath));
+		return false;
+	}
+
+	auto found = [&familyName, regularId] {
+		for (auto &family : QFontDatabase::applicationFontFamilies(regularId)) {
+			if (!family.trimmed().compare(familyName, Qt::CaseInsensitive)) {
+				return true;
+			}
+		}
+		return false;
+	};
+	if (!found()) {
+		LOG(("Font Error: could not locate '%1' font in '%2'.").arg(familyName).arg(filePath));
+		return false;
+	}
+
+	return ValidateFont(familyName, flags);
+}
+
+bool Started = false;
+QString OpenSansOverride;
+QString OpenSansSemiboldOverride;
+
 } // namespace
+
+void Start() {
+	if (Started) {
+		return;
+	}
+	Started = true;
+
+	auto regular = LoadCustomFont(":/gui/fonts/OpenSans-Regular.ttf", "Open Sans");
+	auto bold = LoadCustomFont(":/gui/fonts/OpenSans-Bold.ttf", "Open Sans", style::internal::FontBold);
+	auto semibold = LoadCustomFont(":/gui/fonts/OpenSans-Semibold.ttf", "Open Sans Semibold");
+
+#ifdef Q_OS_WIN
+	// Attempt to workaround a strange font bug with Open Sans Semibold not loading.
+	// See https://github.com/telegramdesktop/tdesktop/issues/3276 for details.
+	// Crash happens on "options.maxh / _t->_st->font->height" with "division by zero".
+	// In that place "_t->_st->font" is "semiboldFont" is "font(13 "Open Sans Semibold").
+	if (!regular || !bold) {
+		if (ValidateFont("Segoe UI") && ValidateFont("Segoe UI", style::internal::FontBold)) {
+			OpenSansOverride = "Segoe UI";
+			LOG(("Fonts Info: Using Segoe UI instead of Open Sans."));
+		}
+	}
+	if (!semibold) {
+		if (ValidateFont("Segoe UI Semibold")) {
+			OpenSansSemiboldOverride = "Segoe UI Semibold";
+			LOG(("Fonts Info: Using Segoe UI Semibold instead of Open Sans Semibold."));
+		}
+	}
+	// Disable default fallbacks to Segoe UI, see:
+	// https://github.com/telegramdesktop/tdesktop/issues/5368
+	//
+	//QFont::insertSubstitution("Open Sans", "Segoe UI");
+	//QFont::insertSubstitution("Open Sans Semibold", "Segoe UI Semibold");
+#elif defined Q_OS_MAC // Q_OS_WIN
+	auto list = QStringList();
+	list.append(".SF NS Text");
+	list.append("Helvetica Neue");
+	list.append("Lucida Grande");
+	QFont::insertSubstitutions("Open Sans", list);
+	QFont::insertSubstitutions("Open Sans Semibold", list);
+#endif // Q_OS_WIN || Q_OS_MAC
+}
+
+QString GetFontOverride(const QString &familyName) {
+	if (familyName == qstr("Open Sans")) {
+		return OpenSansOverride.isEmpty() ? familyName : OpenSansOverride;
+	} else if (familyName == qstr("Open Sans Semibold")) {
+		return OpenSansSemiboldOverride.isEmpty() ? familyName : OpenSansSemiboldOverride;
+	}
+	return familyName;
+}
 
 void destroyFonts() {
 	for (auto fontData : fontsMap) {
@@ -44,7 +147,7 @@ int registerFontFamily(const QString &family) {
 }
 
 FontData::FontData(int size, uint32 flags, int family, Font *other)
-: f(Fonts::GetOverride(fontFamilies[family]))
+: f(GetFontOverride(fontFamilies[family]))
 , m(f)
 , _size(size)
 , _flags(flags)
@@ -72,7 +175,7 @@ FontData::FontData(int size, uint32 flags, int family, Font *other)
 	ascent = m.ascent();
 	descent = m.descent();
 	spacew = width(QLatin1Char(' '));
-	elidew = width(qsl("..."));
+	elidew = width("...");
 }
 
 Font FontData::bold(bool set) const {

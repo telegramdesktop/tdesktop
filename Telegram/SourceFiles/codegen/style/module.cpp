@@ -69,7 +69,7 @@ const Variable *Module::findVariable(const FullName &name, bool *outFromThisModu
 	return nullptr;
 }
 
-const Struct *Module::findStructInModule(const FullName &name, const Module &module) const {
+const Struct *Module::findStructInModule(const FullName &name, const Module &module) {
 	auto index = module.structsByName_.value(fullNameKey(name), -1);
 	if (index < 0) {
 		return nullptr;
@@ -77,7 +77,7 @@ const Struct *Module::findStructInModule(const FullName &name, const Module &mod
 	return &module.structs_.at(index);
 }
 
-const Variable *Module::findVariableInModule(const FullName &name, const Module &module) const {
+const Variable *Module::findVariableInModule(const FullName &name, const Module &module) {
 	auto index = module.variablesByName_.value(fullNameKey(name), -1);
 	if (index < 0) {
 		return nullptr;

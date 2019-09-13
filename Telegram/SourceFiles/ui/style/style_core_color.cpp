@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/style/style_core_color.h"
 
+#include "styles/palette.h"
+
 namespace style {
 namespace internal {
 

@@ -1800,8 +1800,8 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 	_blurred = true;
 	_current = QPixmap();
 	_down = OverNone;
-	_w = ConvertScale(photo->width());
-	_h = ConvertScale(photo->height());
+	_w = style::ConvertScale(photo->width());
+	_h = style::ConvertScale(photo->height());
 	contentSizeChanged();
 	refreshFromLabel(item);
 	_photo->download(fileOrigin());
@@ -1937,10 +1937,10 @@ void OverlayWidget::displayDocument(
 		updateThemePreviewGeometry();
 	} else if (!_current.isNull()) {
 		_current.setDevicePixelRatio(cRetinaFactor());
-		_w = ConvertScale(_current.width());
-		_h = ConvertScale(_current.height());
+		_w = style::ConvertScale(_current.width());
+		_h = style::ConvertScale(_current.height());
 	} else if (videoShown()) {
-		const auto contentSize = ConvertScale(videoSize());
+		const auto contentSize = style::ConvertScale(videoSize());
 		_w = contentSize.width();
 		_h = contentSize.height();
 	}
@@ -2059,7 +2059,7 @@ void OverlayWidget::streamingReady(Streaming::Information &&info) {
 	_streamed->info = std::move(info);
 	validateStreamedGoodThumbnail();
 	if (videoShown()) {
-		const auto contentSize = ConvertScale(videoSize());
+		const auto contentSize = style::ConvertScale(videoSize());
 		if (contentSize != QSize(_width, _height)) {
 			update(contentRect());
 			_w = contentSize.width();
@@ -3088,7 +3088,7 @@ void OverlayWidget::setZoomLevel(int newZoom) {
 
 	float64 nx, ny, z = (_zoom == ZoomToScreenLevel) ? _zoomToScreen : _zoom;
 	const auto contentSize = videoShown()
-		? ConvertScale(videoSize())
+		? style::ConvertScale(videoSize())
 		: QSize(_width, _height);
 	_w = contentSize.width();
 	_h = contentSize.height();

@@ -1476,7 +1476,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 			constexpr auto kOneAndHalf = 3;
 			constexpr auto kTwo = 4;
 			switch (v) {
-			case kAuto: return kInterfaceScaleAuto;
+			case kAuto: return style::kScaleAuto;
 			case kOne: return 100;
 			case kOneAndQuarter: return 125;
 			case kOneAndHalf: return 150;
@@ -1492,7 +1492,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		// If cConfigScale() has value then it was set via command line.
-		if (cConfigScale() == kInterfaceScaleAuto) {
+		if (cConfigScale() == style::kScaleAuto) {
 			SetScaleChecked(v);
 		}
 	} break;
@@ -2045,8 +2045,8 @@ void _writeUserSettings() {
 
 	auto recentEmojiPreloadData = cRecentEmojiPreload();
 	if (recentEmojiPreloadData.isEmpty()) {
-		recentEmojiPreloadData.reserve(Ui::Emoji::GetRecent().size());
-		for (auto &item : Ui::Emoji::GetRecent()) {
+		recentEmojiPreloadData.reserve(GetRecentEmoji().size());
+		for (auto &item : GetRecentEmoji()) {
 			recentEmojiPreloadData.push_back(qMakePair(item.first->id(), item.second));
 		}
 	}

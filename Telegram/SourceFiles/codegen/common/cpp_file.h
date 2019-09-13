@@ -36,6 +36,7 @@ public:
 		return *this;
 	}
 	CppFile &include(const QString &header);
+	CppFile &includeFromLibrary(const QString &header);
 
 	// Empty name adds anonymous namespace.
 	CppFile &pushNamespace(const QString &name = QString());

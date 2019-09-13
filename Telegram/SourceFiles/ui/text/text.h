@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/text/text_entity.h"
+#include "ui/painter.h"
 #include "core/click_handler.h"
 #include "base/flags.h"
 

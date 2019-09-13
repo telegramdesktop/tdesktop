@@ -65,8 +65,8 @@ private:
 };
 
 QCursor EditColorBox::Picker::generateCursor() {
-	auto diameter = ConvertScale(16);
-	auto line = ConvertScale(1);
+	auto diameter = style::ConvertScale(16);
+	auto line = style::ConvertScale(1);
 	auto size = ((diameter + 2 * line) >= 32) ? 64 : 32;
 	auto cursor = QImage(QSize(size, size) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	cursor.setDevicePixelRatio(cRetinaFactor());

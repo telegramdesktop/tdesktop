@@ -393,7 +393,10 @@ EmojiListWidget::EmojiListWidget(
 	_esize = Ui::Emoji::GetSizeLarge();
 
 	for (auto i = 0; i != kEmojiSectionCount; ++i) {
-		_counts[i] = Ui::Emoji::GetSectionCount(static_cast<Section>(i));
+		const auto section = static_cast<Section>(i);
+		_counts[i] = (section == Section::Recent)
+			? GetRecentEmoji().size()
+			: Ui::Emoji::GetSectionCount(section);
 	}
 
 	_picker->chosen(
@@ -488,10 +491,13 @@ int EmojiListWidget::countDesiredHeight(int newWidth) {
 
 void EmojiListWidget::ensureLoaded(int section) {
 	Expects(section >= 0 && section < kEmojiSectionCount);
+
 	if (!_emoji[section].isEmpty()) {
 		return;
 	}
-	_emoji[section] = Ui::Emoji::GetSection(static_cast<Section>(section));
+	_emoji[section] = (static_cast<Section>(section) == Section::Recent)
+		? GetRecentEmojiSection()
+		: Ui::Emoji::GetSection(static_cast<Section>(section));
 	_counts[section] = _emoji[section].size();
 	if (static_cast<Section>(section) == Section::Recent) {
 		return;
@@ -531,7 +537,7 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 		if (info.section > 0 && r.top() < info.rowsTop) {
 			p.setFont(st::emojiPanHeaderFont);
 			p.setPen(st::emojiPanHeaderFg);
-			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, info.top + st::emojiPanHeaderTop, width(), Ui::Emoji::CategoryTitle(info.section)(tr::now));
+			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, info.top + st::emojiPanHeaderTop, width(), ChatHelpers::EmojiCategoryTitle(info.section)(tr::now));
 		}
 		if (r.top() + r.height() > info.rowsTop) {
 			ensureLoaded(info.section);
@@ -640,7 +646,7 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void EmojiListWidget::selectEmoji(EmojiPtr emoji) {
-	Ui::Emoji::AddRecent(emoji);
+	AddRecentEmoji(emoji);
 	_chosen.fire_copy(emoji);
 }
 
@@ -776,7 +782,7 @@ void EmojiListWidget::processHideFinished() {
 
 void EmojiListWidget::refreshRecent() {
 	clearSelection();
-	_emoji[0] = Ui::Emoji::GetSection(Section::Recent);
+	_emoji[0] = GetRecentEmojiSection();
 	_counts[0] = _emoji[0].size();
 	resizeToWidth(width());
 }
@@ -857,6 +863,19 @@ void EmojiListWidget::showEmojiSection(Section section) {
 	_lastMousePos = QCursor::pos();
 
 	update();
+}
+
+tr::phrase<> EmojiCategoryTitle(int index) {
+	switch (index) {
+	case 1: return tr::lng_emoji_category1;
+	case 2: return tr::lng_emoji_category2;
+	case 3: return tr::lng_emoji_category3;
+	case 4: return tr::lng_emoji_category4;
+	case 5: return tr::lng_emoji_category5;
+	case 6: return tr::lng_emoji_category6;
+	case 7: return tr::lng_emoji_category7;
+	}
+	Unexpected("Index in CategoryTitle.");
 }
 
 } // namespace ChatHelpers

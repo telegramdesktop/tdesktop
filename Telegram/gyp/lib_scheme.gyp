@@ -51,8 +51,8 @@
       'action': [
         'python', '<(src_loc)/codegen/scheme/codegen_scheme.py',
         '-o', '<(SHARED_INTERMEDIATE_DIR)',
-		'<(res_loc)/tl/mtproto.tl',
-		'<(res_loc)/tl/api.tl',
+        '<(res_loc)/tl/mtproto.tl',
+        '<(res_loc)/tl/api.tl',
       ],
       'message': 'codegen_scheme-ing *.tl..',
       'process_outputs_as_sources': 1,

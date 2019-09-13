@@ -81,8 +81,8 @@ public:
 		return !fullpath_.isEmpty();
 	}
 
-	const Struct *findStructInModule(const FullName &name, const Module &module) const;
-	const Variable *findVariableInModule(const FullName &name, const Module &module) const;
+	static const Struct *findStructInModule(const FullName &name, const Module &module);
+	static const Variable *findVariableInModule(const FullName &name, const Module &module);
 
 private:
 	QString fullpath_;

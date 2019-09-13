@@ -9,17 +9,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flags.h"
 
-namespace Fonts {
-
-void Start();
-QString GetOverride(const QString &familyName);
-
-} // namespace
-
 class TWidget;
 
 template <typename Object>
 class object_ptr;
+
+inline QPoint rtlpoint(int x, int y, int outerw) {
+	return QPoint(rtl() ? (outerw - x) : x, y);
+}
+inline QPoint rtlpoint(const QPoint &p, int outerw) {
+	return rtl() ? QPoint(outerw - p.x(), p.y()) : p;
+}
+inline QPointF rtlpoint(const QPointF &p, int outerw) {
+	return rtl() ? QPointF(outerw - p.x(), p.y()) : p;
+}
+inline QRect rtlrect(int x, int y, int w, int h, int outerw) {
+	return QRect(rtl() ? (outerw - x - w) : x, y, w, h);
+}
+inline QRect rtlrect(const QRect &r, int outerw) {
+	return rtl() ? QRect(outerw - r.x() - r.width(), r.y(), r.width(), r.height()) : r;
+}
+inline QRectF rtlrect(const QRectF &r, int outerw) {
+	return rtl() ? QRectF(outerw - r.x() - r.width(), r.y(), r.width(), r.height()) : r;
+}
 
 namespace Ui {
 
@@ -132,111 +144,6 @@ inline bool IsLeftCorner(RectPart corner) {
 inline bool IsRightCorner(RectPart corner) {
 	return (corner == RectPart::TopRight) || (corner == RectPart::BottomRight);
 }
-
-class Painter : public QPainter {
-public:
-	explicit Painter(QPaintDevice *device) : QPainter(device) {
-	}
-
-	void drawTextLeft(int x, int y, int outerw, const QString &text, int textWidth = -1) {
-		QFontMetrics m(fontMetrics());
-		if (rtl() && textWidth < 0) textWidth = m.width(text);
-		drawText(rtl() ? (outerw - x - textWidth) : x, y + m.ascent(), text);
-	}
-	void drawTextRight(int x, int y, int outerw, const QString &text, int textWidth = -1) {
-		QFontMetrics m(fontMetrics());
-		if (!rtl() && textWidth < 0) textWidth = m.width(text);
-		drawText(rtl() ? x : (outerw - x - textWidth), y + m.ascent(), text);
-	}
-	void drawPixmapLeft(int x, int y, int outerw, const QPixmap &pix, const QRect &from) {
-		drawPixmap(QPoint(rtl() ? (outerw - x - (from.width() / pix.devicePixelRatio())) : x, y), pix, from);
-	}
-	void drawPixmapLeft(const QPoint &p, int outerw, const QPixmap &pix, const QRect &from) {
-		return drawPixmapLeft(p.x(), p.y(), outerw, pix, from);
-	}
-	void drawPixmapLeft(int x, int y, int w, int h, int outerw, const QPixmap &pix, const QRect &from) {
-		drawPixmap(QRect(rtl() ? (outerw - x - w) : x, y, w, h), pix, from);
-	}
-	void drawPixmapLeft(const QRect &r, int outerw, const QPixmap &pix, const QRect &from) {
-		return drawPixmapLeft(r.x(), r.y(), r.width(), r.height(), outerw, pix, from);
-	}
-	void drawPixmapLeft(int x, int y, int outerw, const QPixmap &pix) {
-		drawPixmap(QPoint(rtl() ? (outerw - x - (pix.width() / pix.devicePixelRatio())) : x, y), pix);
-	}
-	void drawPixmapLeft(const QPoint &p, int outerw, const QPixmap &pix) {
-		return drawPixmapLeft(p.x(), p.y(), outerw, pix);
-	}
-	void drawPixmapRight(int x, int y, int outerw, const QPixmap &pix, const QRect &from) {
-		drawPixmap(QPoint(rtl() ? x : (outerw - x - (from.width() / pix.devicePixelRatio())), y), pix, from);
-	}
-	void drawPixmapRight(const QPoint &p, int outerw, const QPixmap &pix, const QRect &from) {
-		return drawPixmapRight(p.x(), p.y(), outerw, pix, from);
-	}
-	void drawPixmapRight(int x, int y, int w, int h, int outerw, const QPixmap &pix, const QRect &from) {
-		drawPixmap(QRect(rtl() ? x : (outerw - x - w), y, w, h), pix, from);
-	}
-	void drawPixmapRight(const QRect &r, int outerw, const QPixmap &pix, const QRect &from) {
-		return drawPixmapRight(r.x(), r.y(), r.width(), r.height(), outerw, pix, from);
-	}
-	void drawPixmapRight(int x, int y, int outerw, const QPixmap &pix) {
-		drawPixmap(QPoint(rtl() ? x : (outerw - x - (pix.width() / pix.devicePixelRatio())), y), pix);
-	}
-	void drawPixmapRight(const QPoint &p, int outerw, const QPixmap &pix) {
-		return drawPixmapRight(p.x(), p.y(), outerw, pix);
-	}
-
-	void setTextPalette(const style::TextPalette &palette) {
-		_textPalette = &palette;
-	}
-	void restoreTextPalette() {
-		_textPalette = nullptr;
-	}
-	const style::TextPalette &textPalette() const {
-		return _textPalette ? *_textPalette : st::defaultTextPalette;
-	}
-
-private:
-	const style::TextPalette *_textPalette = nullptr;
-
-};
-
-class PainterHighQualityEnabler {
-public:
-	PainterHighQualityEnabler(QPainter &p) : _painter(p) {
-		static constexpr QPainter::RenderHint Hints[] = {
-			QPainter::Antialiasing,
-			QPainter::SmoothPixmapTransform,
-			QPainter::TextAntialiasing,
-			QPainter::HighQualityAntialiasing
-		};
-
-		const auto hints = _painter.renderHints();
-		for (const auto hint : Hints) {
-			if (!(hints & hint)) {
-				_hints |= hint;
-			}
-		}
-		if (_hints) {
-			_painter.setRenderHints(_hints);
-		}
-	}
-
-	PainterHighQualityEnabler(
-		const PainterHighQualityEnabler &other) = delete;
-	PainterHighQualityEnabler &operator=(
-		const PainterHighQualityEnabler &other) = delete;
-
-	~PainterHighQualityEnabler() {
-		if (_hints) {
-			_painter.setRenderHints(_hints, false);
-		}
-	}
-
-private:
-	QPainter &_painter;
-	QPainter::RenderHints _hints = 0;
-
-};
 
 template <typename Base>
 class TWidgetHelper : public Base {

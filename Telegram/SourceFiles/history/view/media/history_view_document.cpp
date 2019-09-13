@@ -124,8 +124,8 @@ QSize Document::countOptimalSize() {
 	auto thumbed = Get<HistoryDocumentThumbed>();
 	if (thumbed) {
 		_data->loadThumbnail(_realParent->fullId());
-		auto tw = ConvertScale(_data->thumbnail()->width());
-		auto th = ConvertScale(_data->thumbnail()->height());
+		auto tw = style::ConvertScale(_data->thumbnail()->width());
+		auto th = style::ConvertScale(_data->thumbnail()->height());
 		if (tw > th) {
 			thumbed->_thumbw = (tw * st::msgFileThumbSize) / th;
 		} else {

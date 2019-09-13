@@ -164,7 +164,7 @@ TG_FORCE_INLINE Shifted non_premultiplied(QColor color) {
 }
 
 TG_FORCE_INLINE QColor color(QColor a, QColor b, float64 b_ratio) {
-	auto bOpacity = snap(interpolate(0, 255, b_ratio), 0, 255) + 1;
+	auto bOpacity = std::clamp(interpolate(0, 255, b_ratio), 0, 255) + 1;
 	auto aOpacity = (256 - bOpacity);
 	auto components = (non_premultiplied(a) * aOpacity + non_premultiplied(b) * bOpacity);
 	return {

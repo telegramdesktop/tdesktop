@@ -293,8 +293,8 @@ void Generator::addDateBubble(QString date) {
 void Generator::addPhotoBubble(QString image, QString caption, QString date, Status status) {
 	Bubble bubble;
 	bubble.photo.load(image);
-	bubble.photoWidth = ConvertScale(bubble.photo.width() / 2);
-	bubble.photoHeight = ConvertScale(bubble.photo.height() / 2);
+	bubble.photoWidth = style::ConvertScale(bubble.photo.width() / 2);
+	bubble.photoHeight = style::ConvertScale(bubble.photo.height() / 2);
 	auto skipBlock = computeSkipBlock(status, date);
 	bubble.text.setRichText(st::messageTextStyle, caption + textcmdSkipBlock(skipBlock.width(), skipBlock.height()), Ui::ItemTextDefaultOptions());
 

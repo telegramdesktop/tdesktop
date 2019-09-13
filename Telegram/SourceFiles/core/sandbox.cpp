@@ -190,9 +190,8 @@ void Sandbox::setupScreenScale() {
 			LOG(("Environmental variables: QT_AUTO_SCREEN_SCALE_FACTOR='%1'").arg(QString::fromLatin1(qgetenv("QT_AUTO_SCREEN_SCALE_FACTOR"))));
 			LOG(("Environmental variables: QT_SCREEN_SCALE_FACTORS='%1'").arg(QString::fromLatin1(qgetenv("QT_SCREEN_SCALE_FACTORS"))));
 		}
-		cSetRetinaFactor(ratio);
-		cSetIntRetinaFactor(int32(ratio));
-		cSetScreenScale(kInterfaceScaleDefault);
+		style::SetDevicePixelRatio(int(ratio));
+		cSetScreenScale(style::kScaleDefault);
 	}
 }
 

@@ -22,8 +22,6 @@
       'sp_media_key_tap_loc': '<(submodules_loc)/SPMediaKeyTap',
       'emoji_suggestions_loc': '<(submodules_loc)/emoji_suggestions',
       'style_files': [
-        '<(res_loc)/colors.palette',
-        '<(res_loc)/basic.style',
         '<(src_loc)/boxes/boxes.style',
         '<(src_loc)/calls/calls.style',
         '<(src_loc)/dialogs/dialogs.style',
@@ -38,9 +36,14 @@
         '<(src_loc)/profile/profile.style',
         '<(src_loc)/settings/settings.style',
         '<(src_loc)/chat_helpers/chat_helpers.style',
-        '<(src_loc)/ui/widgets/widgets.style',
         '<(src_loc)/window/window.style',
       ],
+      'dependent_style_files': [
+        '<(res_loc)/colors.palette',
+        '<(res_loc)/basic.style',
+        '<(src_loc)/ui/widgets/widgets.style',
+      ],
+      'style_timestamp': '<(SHARED_INTERMEDIATE_DIR)/update_dependent_styles.timestamp',
       'langpacks': [
         'en',
         'de',
@@ -84,6 +87,7 @@
       'lib_lottie.gyp:lib_lottie',
       'lib_ffmpeg.gyp:lib_ffmpeg',
       'lib_mtproto.gyp:lib_mtproto',
+      'lib_ui.gyp:lib_ui',
     ],
 
     'defines': [

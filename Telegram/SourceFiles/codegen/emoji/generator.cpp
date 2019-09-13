@@ -396,6 +396,22 @@ void Init() {\n\
 
 bool Generator::writeHeader() {
 	auto header = std::make_unique<common::CppFile>(outputPath_ + ".h", project_);
+	header->includeFromLibrary("QtCore/QChar");
+	header->includeFromLibrary("QtCore/QString");
+	header->includeFromLibrary("QtCore/QVector");
+	header->newline();
+	header->includeFromLibrary("vector");
+	header->newline();
+
+	header->pushNamespace("Ui").pushNamespace("Emoji");
+	header->stream() << "class One;\n";
+	header->popNamespace().popNamespace().newline();
+
+	header->stream() << "\
+using EmojiPtr = const Ui::Emoji::One*;\n\
+using EmojiPack = QVector<EmojiPtr>;\n\
+\n";
+
 	header->pushNamespace("Ui").pushNamespace("Emoji").pushNamespace("internal");
 	header->stream() << "\
 \n\
@@ -405,20 +421,6 @@ int FullCount();\n\
 EmojiPtr ByIndex(int index);\n\
 \n\
 EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength = nullptr);\n\
-\n\
-inline bool IsReplaceEdge(const QChar *ch) {\n\
-	return true;\n\
-\n\
-//	switch (ch->unicode()) {\n\
-//	case '.': case ',': case ':': case ';': case '!': case '?': case '#': case '@':\n\
-//	case '(': case ')': case '[': case ']': case '{': case '}': case '<': case '>':\n\
-//	case '+': case '=': case '-': case '_': case '*': case '/': case '\\\\': case '^': case '$':\n\
-//	case '\"': case '\\'':\n\
-//	case 8212: case 171: case 187: // --, <<, >>\n\
-//		return true;\n\
-//	}\n\
-//	return false;\n\
-}\n\
 \n\
 const std::vector<std::pair<QString, int>> GetReplacementPairs();\n\
 EmojiPtr FindReplace(const QChar *ch, const QChar *end, int *outLength = nullptr);\n\
@@ -439,7 +441,7 @@ enum class Section {\n\
 };\n\
 \n\
 int GetSectionCount(Section section);\n\
-EmojiPack GetSection(Section section);\n\
+QVector<const One*> GetSection(Section section);\n\
 \n";
 	return header->finalize();
 }
@@ -558,8 +560,9 @@ bool Generator::writeGetSections() {
 	source_->stream() << "\
 \n\
 int GetSectionCount(Section section) {\n\
-	switch (section) {\n\
-	case Section::Recent: return GetRecent().size();\n";
+	Expects(section != Section::Recent);\n\
+\n\
+	switch (section) {\n";
 	auto countIndex = 0;
 	for (auto name : sectionNames) {
 		if (countIndex >= int(data_.categories.size())) {
@@ -575,15 +578,9 @@ int GetSectionCount(Section section) {\n\
 }\n\
 \n\
 EmojiPack GetSection(Section section) {\n\
-	switch (section) {\n\
-	case Section::Recent: {\n\
-		auto result = EmojiPack();\n\
-		result.reserve(GetRecent().size());\n\
-		for (auto &item : GetRecent()) {\n\
-			result.push_back(item.first);\n\
-		}\n\
-		return result;\n\
-	} break;\n";
+	Expects(section != Section::Recent);\n\
+\n\
+	switch (section) {\n";
 	auto index = 0;
 	auto offset = 0;
 	for (auto name : sectionNames) {
@@ -614,7 +611,7 @@ bool Generator::writeFindReplace() {
 const std::vector<std::pair<QString, int>> ReplacementPairs = {\n";
 	for (const auto &[what, index] : data_.replaces) {
 		source_->stream() << "\
-	{ qsl(\"" << what << "\"), " << index << " },\n";
+	{ \"" << what << "\", " << index << " },\n";
 	}
 	source_->stream() << "\
 };\n\
@@ -766,10 +763,6 @@ bool Generator::writeFindFromDictionary(
 			source_->stream() << tabs(tabsUsed) << "if (outLength) *outLength = (ch - start);\n";
 		}
 
-		// While IsReplaceEdge() currently is always true we just return the value.
-		//source_->stream() << tabs(1 + chars.size()) << "if (ch + " << chars.size() << " == end || IsReplaceEdge(*(ch + " << chars.size() << ")) || (ch + " << chars.size() << ")->unicode() == ' ') {\n";
-		//source_->stream() << tabs(1 + chars.size()) << "\treturn &Items[" << item.second << "];\n";
-		//source_->stream() << tabs(1 + chars.size()) << "}\n";
 		source_->stream() << tabs(tabsUsed) << "return " << (item.second + 1) << ";\n";
 	}
 	finishChecksTillKey(QString());

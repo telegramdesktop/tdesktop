@@ -56,8 +56,8 @@ QSize ThemeDocument::countOptimalSize() {
 	if (_data->isTheme()) {
 		return st::historyThemeSize;
 	}
-	auto tw = ConvertScale(_data->thumbnail()->width());
-	auto th = ConvertScale(_data->thumbnail()->height());
+	auto tw = style::ConvertScale(_data->thumbnail()->width());
+	auto th = style::ConvertScale(_data->thumbnail()->height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}
@@ -78,8 +78,8 @@ QSize ThemeDocument::countCurrentSize(int newWidth) {
 		_pixh = st::historyThemeSize.height();
 		return st::historyThemeSize;
 	}
-	auto tw = ConvertScale(_data->thumbnail()->width());
-	auto th = ConvertScale(_data->thumbnail()->height());
+	auto tw = style::ConvertScale(_data->thumbnail()->width());
+	auto th = style::ConvertScale(_data->thumbnail()->height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}
@@ -215,8 +215,8 @@ void ThemeDocument::prepareThumbnailFrom(
 			? Images::Option::TransparentBackground
 			: Images::Option(0));
 	auto original = image->original();
-	auto tw = isTheme ? _pixw : ConvertScale(_data->thumbnail()->width());
-	auto th = isTheme ? _pixh : ConvertScale(_data->thumbnail()->height());
+	auto tw = isTheme ? _pixw : style::ConvertScale(_data->thumbnail()->width());
+	auto th = isTheme ? _pixh : style::ConvertScale(_data->thumbnail()->height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}

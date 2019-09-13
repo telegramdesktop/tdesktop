@@ -1075,7 +1075,7 @@ void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
 	if (!_pressed || _dragging || _state != WidgetState::Default) {
 		return;
 	} else if (qAbs(localPosition.y() - _dragStart.y())
-		< ConvertScale(kStartReorderThreshold)) {
+		< style::ConvertScale(kStartReorderThreshold)) {
 		return;
 	}
 	_dragging = _pressed;

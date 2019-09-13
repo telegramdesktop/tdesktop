@@ -55,7 +55,7 @@ int FileBase::content_width() const {
 			return document->dimensions.width();
 		}
 		if (const auto thumb = document->thumbnail()) {
-			return ConvertScale(thumb->width());
+			return style::ConvertScale(thumb->width());
 		}
 	}
 	return 0;
@@ -67,7 +67,7 @@ int FileBase::content_height() const {
 			return document->dimensions.height();
 		}
 		if (const auto thumb = document->thumbnail()) {
-			return ConvertScale(thumb->height());
+			return style::ConvertScale(thumb->height());
 		}
 	}
 	return 0;
@@ -720,7 +720,8 @@ void Video::prepareThumbnail(QSize size) const {
 		if (_thumb.size() != size * cIntRetinaFactor()) {
 			const auto width = size.width();
 			const auto height = size.height();
-			int32 w = qMax(ConvertScale(thumb->width()), 1), h = qMax(ConvertScale(thumb->height()), 1);
+			auto w = qMax(style::ConvertScale(thumb->width()), 1);
+			auto h = qMax(style::ConvertScale(thumb->height()), 1);
 			if (w * height > h * width) {
 				if (height < h) {
 					w = w * height / h;
@@ -1034,7 +1035,8 @@ void Contact::prepareThumbnail(int width, int height) const {
 	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int w = qMax(ConvertScale(thumb->width()), 1), h = qMax(ConvertScale(thumb->height()), 1);
+			auto w = qMax(style::ConvertScale(thumb->width()), 1);
+			auto h = qMax(style::ConvertScale(thumb->height()), 1);
 			if (w * height > h * width) {
 				if (height < h) {
 					w = w * height / h;
@@ -1183,7 +1185,8 @@ void Article::prepareThumbnail(int width, int height) const {
 	const auto origin = fileOrigin();
 	if (thumb->loaded()) {
 		if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-			int w = qMax(ConvertScale(thumb->width()), 1), h = qMax(ConvertScale(thumb->height()), 1);
+			auto w = qMax(style::ConvertScale(thumb->width()), 1);
+			auto h = qMax(style::ConvertScale(thumb->height()), 1);
 			if (w * height > h * width) {
 				if (height < h) {
 					w = w * height / h;
@@ -1371,8 +1374,8 @@ void Game::validateThumbnail(Image *image, QSize size, bool good) const {
 	}
 	const auto width = size.width();
 	const auto height = size.height();
-	auto w = qMax(ConvertScale(image->width()), 1);
-	auto h = qMax(ConvertScale(image->height()), 1);
+	auto w = qMax(style::ConvertScale(image->width()), 1);
+	auto h = qMax(style::ConvertScale(image->height()), 1);
 	auto resizeByHeight1 = (w * height > h * width) && (h >= height);
 	auto resizeByHeight2 = (h * width >= w * height) && (w < width);
 	if (resizeByHeight1 || resizeByHeight2) {

@@ -8,6 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_core.h"
 
 #include "ui/effects/animation_value.h"
+#include "ui/painter.h"
+#include "styles/style_basic.h"
+#include "styles/palette.h"
+
+#include <QtGui/QPainter>
 
 namespace style {
 namespace internal {
@@ -17,52 +22,42 @@ constexpr auto kMinContrastAlpha = 64;
 constexpr auto kMinContrastDistance = 64 * 64 * 4;
 constexpr auto kContrastDeltaL = 64;
 
-using ModulesList = QList<internal::ModuleBase*>;
-NeverFreedPointer<ModulesList> styleModules;
+int DevicePixelRatioValue = 1;
+bool RightToLeftValue = false;
 
-void startModules() {
-	if (!styleModules) return;
-
-	for_const (auto module, *styleModules) {
-		module->start();
-	}
+std::vector<internal::ModuleBase*> &StyleModules() {
+	static auto result = std::vector<internal::ModuleBase*>();
+	return result;
 }
 
-void stopModules() {
-	if (!styleModules) return;
-
-	for_const (auto module, *styleModules) {
-		module->stop();
+void startModules(int scale) {
+	for (const auto module : StyleModules()) {
+		module->start(scale);
 	}
 }
 
 } // namespace
 
 void registerModule(ModuleBase *module) {
-	styleModules.createIfNull();
-	styleModules->push_back(module);
-}
-
-void unregisterModule(ModuleBase *module) {
-	styleModules->removeOne(module);
-	if (styleModules->isEmpty()) {
-		styleModules.clear();
-	}
+	StyleModules().push_back(module);
 }
 
 } // namespace internal
 
-void startManager() {
-	if (cIntRetinaFactor() * cConfigScale() > kInterfaceScaleMax) {
-		cSetConfigScale(kInterfaceScaleDefault);
-	}
+bool RightToLeft() {
+	return internal::RightToLeftValue;
+}
 
-	internal::registerFontFamily(qsl("Open Sans"));
-	internal::startModules();
+void SetRightToLeft(bool rtl) {
+	internal::RightToLeftValue = rtl;
+}
+
+void startManager(int scale) {
+	internal::registerFontFamily("Open Sans");
+	internal::startModules(scale);
 }
 
 void stopManager() {
-	internal::stopModules();
 	internal::destroyFonts();
 	internal::destroyIcons();
 }
@@ -113,15 +108,15 @@ void colorizeImage(const QImage &src, QColor c, QImage *outResult, QRect srcRect
 }
 
 QBrush transparentPlaceholderBrush() {
-	auto size = st::transparentPlaceholderSize * cIntRetinaFactor();
+	auto size = st::transparentPlaceholderSize * DevicePixelRatio();
 	auto transparent = QImage(2 * size, 2 * size, QImage::Format_ARGB32_Premultiplied);
 	transparent.fill(st::mediaviewTransparentBg->c);
 	{
-		Painter p(&transparent);
-		p.fillRect(rtlrect(0, size, size, size, 2 * size), st::mediaviewTransparentFg);
-		p.fillRect(rtlrect(size, 0, size, size, 2 * size), st::mediaviewTransparentFg);
+		QPainter p(&transparent);
+		p.fillRect(0, size, size, size, st::mediaviewTransparentFg);
+		p.fillRect(size, 0, size, size, st::mediaviewTransparentFg);
 	}
-	transparent.setDevicePixelRatio(cRetinaFactor());
+	transparent.setDevicePixelRatio(DevicePixelRatio());
 	return QBrush(transparent);
 
 }
@@ -129,14 +124,14 @@ QBrush transparentPlaceholderBrush() {
 namespace internal {
 
 QImage createCircleMask(int size, QColor bg, QColor fg) {
-	int realSize = size * cIntRetinaFactor();
+	int realSize = size * DevicePixelRatio();
 #ifndef OS_MAC_OLD
 	auto result = QImage(realSize, realSize, QImage::Format::Format_Grayscale8);
 #else // OS_MAC_OLD
 	auto result = QImage(realSize, realSize, QImage::Format::Format_RGB32);
 #endif // OS_MAC_OLD
 	{
-		Painter p(&result);
+		QPainter p(&result);
 		PainterHighQualityEnabler hq(p);
 
 		p.fillRect(0, 0, realSize, realSize, bg);
@@ -144,7 +139,7 @@ QImage createCircleMask(int size, QColor bg, QColor fg) {
 		p.setBrush(fg);
 		p.drawEllipse(0, 0, realSize, realSize);
 	}
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(DevicePixelRatio());
 	return result;
 }
 

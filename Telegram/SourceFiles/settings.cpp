@@ -7,8 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings.h"
 
-bool gRtl = false;
-Qt::LayoutDirection gLangDir = gRtl ? Qt::RightToLeft : Qt::LeftToRight;
+#include "ui/emoji_config.h"
+
+namespace {
+
+constexpr auto kRecentEmojiLimit = 42;
+
+auto UpdatesRecentEmoji = rpl::event_stream<>();
+
+} // namespace
+
+Qt::LayoutDirection gLangDir = Qt::LeftToRight;
 
 bool gInstallBetaVersion = AppBetaVersion;
 uint64 gAlphaVersion = AppAlphaVersion;
@@ -44,8 +53,8 @@ uint32 gConnectionsInSession = 1;
 QString gLoggedPhoneNumber;
 
 QByteArray gLocalSalt;
-int gScreenScale = kInterfaceScaleAuto;
-int gConfigScale = kInterfaceScaleAuto;
+int gScreenScale = style::kScaleAuto;
+int gConfigScale = style::kScaleAuto;
 
 QString gTimeFormat = qsl("hh:mm");
 
@@ -72,3 +81,128 @@ int gOtherOnline = 0;
 int32 gAutoDownloadPhoto = 0; // all auto download
 int32 gAutoDownloadAudio = 0;
 int32 gAutoDownloadGif = 0;
+
+RecentEmojiPack &GetRecentEmoji() {
+	if (cRecentEmoji().isEmpty()) {
+		RecentEmojiPack result;
+		auto haveAlready = [&result](EmojiPtr emoji) {
+			for (auto &row : result) {
+				if (row.first->id() == emoji->id()) {
+					return true;
+				}
+			}
+			return false;
+		};
+		if (!cRecentEmojiPreload().isEmpty()) {
+			auto preload = cRecentEmojiPreload();
+			cSetRecentEmojiPreload(RecentEmojiPreload());
+			result.reserve(preload.size());
+			for (auto i = preload.cbegin(), e = preload.cend(); i != e; ++i) {
+				if (auto emoji = Ui::Emoji::Find(i->first)) {
+					if (!haveAlready(emoji)) {
+						result.push_back(qMakePair(emoji, i->second));
+					}
+				}
+			}
+		}
+		const auto defaultRecent = {
+			0xD83DDE02LLU,
+			0xD83DDE18LLU,
+			0x2764LLU,
+			0xD83DDE0DLLU,
+			0xD83DDE0ALLU,
+			0xD83DDE01LLU,
+			0xD83DDC4DLLU,
+			0x263ALLU,
+			0xD83DDE14LLU,
+			0xD83DDE04LLU,
+			0xD83DDE2DLLU,
+			0xD83DDC8BLLU,
+			0xD83DDE12LLU,
+			0xD83DDE33LLU,
+			0xD83DDE1CLLU,
+			0xD83DDE48LLU,
+			0xD83DDE09LLU,
+			0xD83DDE03LLU,
+			0xD83DDE22LLU,
+			0xD83DDE1DLLU,
+			0xD83DDE31LLU,
+			0xD83DDE21LLU,
+			0xD83DDE0FLLU,
+			0xD83DDE1ELLU,
+			0xD83DDE05LLU,
+			0xD83DDE1ALLU,
+			0xD83DDE4ALLU,
+			0xD83DDE0CLLU,
+			0xD83DDE00LLU,
+			0xD83DDE0BLLU,
+			0xD83DDE06LLU,
+			0xD83DDC4CLLU,
+			0xD83DDE10LLU,
+			0xD83DDE15LLU,
+		};
+		for (const auto emoji : Ui::Emoji::GetDefaultRecent()) {
+			if (result.size() >= kRecentEmojiLimit) break;
+
+			if (!haveAlready(emoji)) {
+				result.push_back(qMakePair(emoji, 1));
+			}
+		}
+		cSetRecentEmoji(result);
+	}
+	return cRefRecentEmoji();
+}
+
+EmojiPack GetRecentEmojiSection() {
+	const auto &recent = GetRecentEmoji();
+
+	auto result = EmojiPack();
+	result.reserve(recent.size());
+	for (const auto &item : recent) {
+		result.push_back(item.first);
+	}
+	return result;
+}
+
+void AddRecentEmoji(EmojiPtr emoji) {
+	auto &recent = GetRecentEmoji();
+	auto i = recent.begin(), e = recent.end();
+	for (; i != e; ++i) {
+		if (i->first == emoji) {
+			++i->second;
+			if (i->second > 0x8000) {
+				for (auto j = recent.begin(); j != e; ++j) {
+					if (j->second > 1) {
+						j->second /= 2;
+					} else {
+						j->second = 1;
+					}
+				}
+			}
+			for (; i != recent.begin(); --i) {
+				if ((i - 1)->second > i->second) {
+					break;
+				}
+				std::swap(*i, *(i - 1));
+			}
+			break;
+		}
+	}
+	if (i == e) {
+		while (recent.size() >= kRecentEmojiLimit) {
+			recent.pop_back();
+		}
+		recent.push_back(qMakePair(emoji, 1));
+		for (i = recent.end() - 1; i != recent.begin(); --i) {
+			if ((i - 1)->second > i->second) {
+				break;
+			}
+			std::swap(*i, *(i - 1));
+		}
+	}
+	UpdatesRecentEmoji.fire({});
+}
+
+rpl::producer<> UpdatedRecentEmoji() {
+	return UpdatesRecentEmoji.events();
+}

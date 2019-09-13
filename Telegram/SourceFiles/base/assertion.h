@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <cstdlib>
 
+// Ensures/Expects.
+#include <gsl/gsl_assert>
+
 namespace base {
 namespace assertion {
 

@@ -8,6 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/style/style_core_color.h"
+#include "ui/style/style_core_scale.h"
+#include "base/algorithm.h"
+#include "base/assertion.h"
+
 #include <vector>
 
 namespace style {
@@ -87,7 +91,7 @@ public:
 	}
 
 	void reset() {
-		for_const (auto &part, _parts) {
+		for (const auto &part : _parts) {
 			part.reset();
 		}
 	}
@@ -96,21 +100,21 @@ public:
 	}
 
 	void paint(QPainter &p, const QPoint &pos, int outerw) const {
-		for_const (auto &part, _parts) {
+		for (const auto &part : _parts) {
 			part.paint(p, pos, outerw);
 		}
 	}
 	void fill(QPainter &p, const QRect &rect) const;
 
 	void paint(QPainter &p, const QPoint &pos, int outerw, QColor colorOverride) const {
-		for_const (auto &part, _parts) {
+		for (const auto &part : _parts) {
 			part.paint(p, pos, outerw, colorOverride);
 		}
 	}
 	void fill(QPainter &p, const QRect &rect, QColor colorOverride) const;
 
 	void paint(QPainter &p, const QPoint &pos, int outerw, const style::palette &paletteOverride) const {
-		for_const (auto &part, _parts) {
+		for (const auto &part : _parts) {
 			part.paint(p, pos, outerw, paletteOverride);
 		}
 	}
@@ -153,13 +157,15 @@ public:
 	Icon(Icon &&other) : _data(base::take(other._data)), _owner(base::take(_owner)) {
 	}
 	Icon &operator=(const Icon &other) {
-		Assert(!_owner);
+		Expects(!_owner);
+
 		_data = other._data;
 		_owner = false;
 		return *this;
 	}
 	Icon &operator=(Icon &&other) {
-		Assert(!_owner);
+		Expects(!_owner);
+
 		_data = base::take(other._data);
 		_owner = base::take(other._owner);
 		return *this;
@@ -205,7 +211,7 @@ public:
 		return _data->fill(p, rect, colorOverride);
 	}
 
-	QImage instance(QColor colorOverride, int scale = kInterfaceScaleAuto) const {
+	QImage instance(QColor colorOverride, int scale = kScaleAuto) const {
 		return _data->instance(colorOverride, scale);
 	}
 
