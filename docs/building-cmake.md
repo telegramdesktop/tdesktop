@@ -38,7 +38,7 @@ Go to ***BuildPath*** and run
     mkdir Libraries
     cd Libraries
 
-    git clone --branch 0.5.0 https://github.com/ericniebler/range-v3
+    git clone --branch 0.9.1 https://github.com/ericniebler/range-v3
 
     git clone https://github.com/telegramdesktop/zlib.git
     cd zlib
