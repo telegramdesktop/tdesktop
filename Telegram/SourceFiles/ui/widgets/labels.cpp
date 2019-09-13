@@ -536,7 +536,7 @@ void FlatLabel::touchEvent(QTouchEvent *e) {
 	case QEvent::TouchEnd: {
 		if (!_touchInProgress) return;
 		_touchInProgress = false;
-		auto weak = make_weak(this);
+		auto weak = MakeWeak(this);
 		if (_touchSelect) {
 			dragActionFinish(_touchPos, Qt::RightButton);
 			QContextMenuEvent contextMenu(QContextMenuEvent::Mouse, mapFromGlobal(_touchPos), _touchPos);

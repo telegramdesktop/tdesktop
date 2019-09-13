@@ -202,7 +202,7 @@ void Controller::initNameFields(
 			return;
 		}
 		SendRequest(
-			make_weak(_box),
+			Ui::MakeWeak(_box),
 			_user,
 			_sharePhone && _sharePhone->checked(),
 			firstValue,

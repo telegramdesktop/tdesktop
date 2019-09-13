@@ -3099,8 +3099,16 @@ StateResult String::getState(QPoint point, int width, StateRequest request) cons
 	return Renderer(nullptr, this).getState(point, width, request);
 }
 
+StateResult String::getStateLeft(QPoint point, int width, int outerw, StateRequest request) const {
+	return getState(style::rtlpoint(point, outerw), width, request);
+}
+
 StateResult String::getStateElided(QPoint point, int width, StateRequestElided request) const {
 	return Renderer(nullptr, this).getStateElided(point, width, request);
+}
+
+StateResult String::getStateElidedLeft(QPoint point, int width, int outerw, StateRequestElided request) const {
+	return getStateElided(style::rtlpoint(point, outerw), width, request);
 }
 
 TextSelection String::adjustSelection(TextSelection selection, TextSelectType selectType) const {

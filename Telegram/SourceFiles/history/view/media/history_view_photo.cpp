@@ -164,7 +164,7 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 	}
 	const auto radial = isRadialAnimation();
 
-	auto rthumb = rtlrect(paintx, painty, paintw, painth, width());
+	auto rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
 	if (_serviceWidth > 0) {
 		const auto pix = [&] {
 			if (loaded) {
@@ -187,7 +187,7 @@ void Photo::draw(Painter &p, const QRect &r, TextSelection selection, crl::time 
 				if (isBubbleBottom()) {
 					painth -= st::msgPadding.bottom();
 				}
-				rthumb = rtlrect(paintx, painty, paintw, painth, width());
+				rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
 			}
 		} else {
 			App::roundShadow(p, 0, 0, paintw, painth, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);

@@ -218,7 +218,7 @@ TextState Gif::getState(
 		QPoint point,
 		StateRequest request) const {
 	if (QRect(0, 0, _width, st::inlineMediaHeight).contains(point)) {
-		if (_delete && rtlpoint(point, _width).x() >= _width - st::stickerPanDeleteIconBg.width() && point.y() < st::stickerPanDeleteIconBg.height()) {
+		if (_delete && style::rtlpoint(point, _width).x() >= _width - st::stickerPanDeleteIconBg.width() && point.y() < st::stickerPanDeleteIconBg.height()) {
 			return { nullptr, _delete };
 		} else {
 			return { nullptr, _send };
@@ -668,12 +668,12 @@ void Video::paint(Painter &p, const QRect &clip, const PaintContext *context) co
 	if (withThumb) {
 		prepareThumbnail({ st::inlineThumbSize, st::inlineThumbSize });
 		if (_thumb.isNull()) {
-			p.fillRect(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), st::overviewPhotoBg);
+			p.fillRect(style::rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), st::overviewPhotoBg);
 		} else {
 			p.drawPixmapLeft(0, st::inlineRowMargin, _width, _thumb);
 		}
 	} else {
-		p.fillRect(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), st::overviewVideoBg);
+		p.fillRect(style::rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width), st::overviewVideoBg);
 	}
 
 	if (!_duration.isEmpty()) {
@@ -695,7 +695,7 @@ void Video::paint(Painter &p, const QRect &clip, const PaintContext *context) co
 	_description.drawLeftElided(p, left, st::inlineRowMargin + titleHeight, _width - left, _width, descriptionLines);
 
 	if (!context->lastRow) {
-		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+		p.fillRect(style::rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
 	}
 }
 
@@ -791,7 +791,7 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	const auto showPause = updateStatusText();
 	const auto radial = isRadialAnimation();
 
-	auto inner = rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width);
+	auto inner = style::rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width);
 	p.setPen(Qt::NoPen);
 	if (isThumbAnimation()) {
 		auto over = _animation->a_thumbOver.value(1.);
@@ -849,7 +849,7 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	}
 
 	if (!context->lastRow) {
-		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+		p.fillRect(style::rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
 	}
 }
 
@@ -994,7 +994,7 @@ void Contact::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 
 	left = st::msgFileSize + st::inlineThumbSkip;
 	prepareThumbnail(st::msgFileSize, st::msgFileSize);
-	QRect rthumb(rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width));
+	QRect rthumb(style::rtlrect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize, _width));
 	p.drawPixmapLeft(rthumb.topLeft(), _width, _thumb);
 
 	int titleTop = st::inlineRowMargin + st::inlineRowFileNameTop;
@@ -1007,7 +1007,7 @@ void Contact::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	_description.drawLeftElided(p, left, descriptionTop, _width - left, _width);
 
 	if (!context->lastRow) {
-		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+		p.fillRect(style::rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
 	}
 }
 
@@ -1107,7 +1107,7 @@ void Article::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	if (_withThumb) {
 		left = st::inlineThumbSize + st::inlineThumbSkip;
 		prepareThumbnail(st::inlineThumbSize, st::inlineThumbSize);
-		QRect rthumb(rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width));
+		QRect rthumb(style::rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width));
 		if (_thumb.isNull()) {
 			const auto thumb = getResultThumb();
 			if (!thumb && !_thumbLetter.isEmpty()) {
@@ -1147,7 +1147,7 @@ void Article::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	}
 
 	if (!context->lastRow) {
-		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+		p.fillRect(style::rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
 	}
 }
 
@@ -1164,7 +1164,7 @@ TextState Article::getState(
 			auto titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
 			auto descriptionLines = 2;
 			auto descriptionHeight = qMin(_description.countHeight(_width - left), st::normalFont->height * descriptionLines);
-			if (rtlrect(left, st::inlineRowMargin + titleHeight + descriptionHeight, _urlWidth, st::normalFont->height, _width).contains(point)) {
+			if (style::rtlrect(left, st::inlineRowMargin + titleHeight + descriptionHeight, _urlWidth, st::normalFont->height, _width).contains(point)) {
 				return { nullptr, _url };
 			}
 		}
@@ -1268,7 +1268,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	int32 left = st::emojiPanHeaderLeft - st::inlineResultsLeft;
 
 	left = st::inlineThumbSize + st::inlineThumbSkip;
-	auto rthumb = rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width);
+	auto rthumb = style::rtlrect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize, _width);
 
 	// Gif thumb
 	auto thumbDisplayed = false, radial = false;
@@ -1335,7 +1335,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	_description.drawLeftElided(p, left, st::inlineRowMargin + titleHeight, _width - left, _width, descriptionLines);
 
 	if (!context->lastRow) {
-		p.fillRect(rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
+		p.fillRect(style::rtlrect(left, _height - st::inlineRowBorder, _width - left, st::inlineRowBorder, _width), st::inlineRowBorderFg);
 	}
 }
 

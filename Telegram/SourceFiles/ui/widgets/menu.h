@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/rp_widget.h"
 #include "styles/style_widgets.h"
 
 #include <QtWidgets/QMenu>

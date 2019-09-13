@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
+#include "ui/ui_utility.h"
 #include "app.h"
 #include "styles/style_boxes.h"
 
@@ -260,7 +261,7 @@ void PhotoCropBox::sendPhoto() {
 		tosend = cropped.copy();
 	}
 
-	auto weak = make_weak(this);
+	auto weak = Ui::MakeWeak(this);
 	_readyImages.fire(std::move(tosend));
 	if (weak) {
 		closeBox();

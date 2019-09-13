@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/input_fields.h"
 #include "ui/special_buttons.h"
+#include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "core/event_filter.h"
 #include "core/qt_signal_producer.h"

@@ -68,6 +68,7 @@
       'qt.gypi',
       'qt_moc.gypi',
       'qt_rcc.gypi',
+      'codegen_styles_rule.gypi',
       'codegen_rules.gypi',
       'pch.gypi',
     ],

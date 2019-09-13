@@ -879,7 +879,7 @@ void StickersBox::Inner::paintRow(Painter &p, not_null<Row*> set, int index) {
 
 		{
 			PainterHighQualityEnabler hq(p);
-			p.drawEllipse(rtlrect(namex + set->titleWidth + st::stickersFeaturedUnreadSkip, namey + st::stickersFeaturedUnreadTop, st::stickersFeaturedUnreadSize, st::stickersFeaturedUnreadSize, width()));
+			p.drawEllipse(style::rtlrect(namex + set->titleWidth + st::stickersFeaturedUnreadSkip, namey + st::stickersFeaturedUnreadTop, st::stickersFeaturedUnreadSize, st::stickersFeaturedUnreadSize, width()));
 		}
 	}
 

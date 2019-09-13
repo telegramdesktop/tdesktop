@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+#include "base/object_ptr.h"
 #include "styles/style_widgets.h"
 
 #include <QtWidgets/QScrollArea>
@@ -133,7 +134,8 @@ public:
 	}
 	template <typename Widget>
 	object_ptr<Widget> takeWidget() {
-		return static_object_cast<Widget>(doTakeWidget());
+		return object_ptr<Widget>::fromRaw(
+			static_cast<Widget*>(doTakeWidget().release()));
 	}
 
 	void rangeChanged(int oldMax, int newMax, bool vertical);

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/effects/panel_animation.h"
 #include "ui/image/image_prepare.h"
+#include "ui/ui_utility.h"
 #include "app.h"
 
 namespace {

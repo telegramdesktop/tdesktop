@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/ui_utility.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "app.h"

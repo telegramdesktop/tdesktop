@@ -398,7 +398,7 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 
 QImage RoundButton::prepareRippleMask() const {
 	auto innerWidth = contentWidth();
-	auto rounded = rtlrect(rect().marginsRemoved(_st.padding), width());
+	auto rounded = style::rtlrect(rect().marginsRemoved(_st.padding), width());
 	if (_fullWidthOverride < 0) {
 		rounded = QRect(0, rounded.top(), innerWidth - _fullWidthOverride, rounded.height());
 	}

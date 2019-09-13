@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_title.h"
 #include "ui/rp_widget.h"
 #include "base/timer.h"
+#include "base/object_ptr.h"
 
 #include <QtWidgets/QSystemTrayIcon>
 

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 #include "base/timer.h"
+#include "base/object_ptr.h"
 #include "ui/rp_widget.h"
 
 namespace Ui {

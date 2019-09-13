@@ -269,7 +269,7 @@ void PasscodeBox::setPasswordDone(const QByteArray &newPasswordBytes) {
 	}
 	_setRequest = 0;
 	_newPasswordSet.fire_copy(newPasswordBytes);
-	const auto weak = make_weak(this);
+	const auto weak = Ui::MakeWeak(this);
 	const auto text = _reenterPasscode->isHidden()
 		? tr::lng_cloud_password_removed(tr::now)
 		: _oldPasscode->isHidden()
@@ -368,7 +368,7 @@ void PasscodeBox::validateEmail(
 			} else if (error.type() == qstr("CODE_INVALID")) {
 				errors->fire(tr::lng_signin_wrong_code(tr::now));
 			} else if (error.type() == qstr("EMAIL_HASH_EXPIRED")) {
-				const auto weak = make_weak(this);
+				const auto weak = Ui::MakeWeak(this);
 				_clearUnconfirmedPassword.fire({});
 				if (weak) {
 					auto box = Box<InformBox>(
@@ -409,7 +409,7 @@ void PasscodeBox::validateEmail(
 	box->boxClosing(
 	) | rpl::filter([=] {
 		return !*set;
-	}) | start_with_next([=, weak = make_weak(this)] {
+	}) | start_with_next([=, weak = Ui::MakeWeak(this)] {
 		if (weak) {
 			weak->_clearUnconfirmedPassword.fire({});
 		}
@@ -512,7 +512,7 @@ void PasscodeBox::save(bool force) {
 		}
 	} else {
 		closeReplacedBy();
-		const auto weak = make_weak(this);
+		const auto weak = Ui::MakeWeak(this);
 		cSetPasscodeBadTries(0);
 		Local::setPasscode(pwd.toUtf8());
 		_session->localPasscodeChanged();

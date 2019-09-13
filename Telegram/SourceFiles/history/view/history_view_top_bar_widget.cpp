@@ -20,11 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "core/shortcuts.h"
-#include "ui/special_buttons.h"
-#include "ui/unread_badge.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/special_buttons.h"
+#include "ui/unread_badge.h"
+#include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "calls/calls_instance.h"
@@ -198,23 +199,23 @@ void TopBarWidget::showMenu() {
 		return;
 	}
 	_menu.create(parentWidget());
-	_menu->setHiddenCallback([weak = make_weak(this), menu = _menu.data()]{
+	_menu->setHiddenCallback([weak = Ui::MakeWeak(this), menu = _menu.data()]{
 		menu->deleteLater();
 		if (weak && weak->_menu == menu) {
 			weak->_menu = nullptr;
 			weak->_menuToggle->setForceRippled(false);
 		}
-		});
+	});
 	_menu->setShowStartCallback(crl::guard(this, [this, menu = _menu.data()]{
 		if (_menu == menu) {
 			_menuToggle->setForceRippled(true);
 		}
-		}));
+	}));
 	_menu->setHideStartCallback(crl::guard(this, [this, menu = _menu.data()]{
 		if (_menu == menu) {
 			_menuToggle->setForceRippled(false);
 		}
-		}));
+	}));
 	_menuToggle->installEventFilter(_menu);
 	const auto addAction = [&](
 		const QString & text,

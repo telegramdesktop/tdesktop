@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "ui/widgets/shadow.h"
+#include "ui/ui_utility.h"
 #include "window/window_main_menu.h"
 #include "app.h"
 #include "styles/style_boxes.h"
@@ -294,7 +295,7 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
 		p.setOpacity(1.);
 		auto shownWidth = mainMenuRight + st::boxRoundShadow.extend.right();
 		auto sourceWidth = shownWidth * cIntRetinaFactor();
-		auto sourceRect = rtlrect(_mainMenuCache.width() - sourceWidth, 0, sourceWidth, _mainMenuCache.height(), _mainMenuCache.width());
+		auto sourceRect = style::rtlrect(_mainMenuCache.width() - sourceWidth, 0, sourceWidth, _mainMenuCache.height(), _mainMenuCache.width());
 		p.drawPixmapLeft(0, 0, shownWidth, height(), width(), _mainMenuCache, sourceRect);
 	}
 }
@@ -442,7 +443,7 @@ void LayerStackWidget::setCacheImages() {
 }
 
 void LayerStackWidget::closeLayer(not_null<LayerWidget*> layer) {
-	const auto weak = make_weak(layer.get());
+	const auto weak = Ui::MakeWeak(layer.get());
 	if (weak->inFocusChain()) {
 		setFocus();
 	}
@@ -542,7 +543,7 @@ void LayerStackWidget::startAnimation(
 	} else {
 		setupNewWidgets();
 		setCacheImages();
-		const auto weak = make_weak(this);
+		const auto weak = Ui::MakeWeak(this);
 		clearOldWidgets();
 		if (weak) {
 			prepareForAnimation();
@@ -552,7 +553,7 @@ void LayerStackWidget::startAnimation(
 }
 
 void LayerStackWidget::resizeEvent(QResizeEvent *e) {
-	const auto weak = make_weak(this);
+	const auto weak = Ui::MakeWeak(this);
 	_background->setGeometry(rect());
 	if (!weak) {
 		return;
@@ -769,7 +770,7 @@ void LayerStackWidget::clearLayers() {
 }
 
 void LayerStackWidget::clearClosingLayers() {
-	const auto weak = make_weak(this);
+	const auto weak = Ui::MakeWeak(this);
 	while (!_closingLayers.empty()) {
 		const auto index = _closingLayers.size() - 1;
 		const auto layer = _closingLayers.back().get();
@@ -822,7 +823,7 @@ void LayerStackWidget::fixOrder() {
 }
 
 void LayerStackWidget::sendFakeMouseEvent() {
-	sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
+	SendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
 }
 
 LayerStackWidget::~LayerStackWidget() {

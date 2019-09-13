@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/ui_utility.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "core/event_filter.h"
@@ -153,7 +154,7 @@ void EditLinkBox::prepare() {
 			url->showError();
 			return;
 		}
-		const auto weak = make_weak(this);
+		const auto weak = Ui::MakeWeak(this);
 		_callback(linkText, linkUrl);
 		if (weak) {
 			closeBox();
@@ -354,7 +355,7 @@ Fn<bool(
 	EditLinkAction action)> DefaultEditLinkCallback(
 		not_null<Main::Session*> session,
 		not_null<Ui::InputField*> field) {
-	const auto weak = make_weak(field);
+	const auto weak = Ui::MakeWeak(field);
 	return [=](
 			EditLinkSelection selection,
 			QString text,

@@ -60,6 +60,7 @@
       '<(src_loc)/base/invoke_queued.h',
       '<(src_loc)/base/last_used_cache.h',
       '<(src_loc)/base/match_method.h',
+      '<(src_loc)/base/object_ptr.h',
       '<(src_loc)/base/observer.cpp',
       '<(src_loc)/base/observer.h',
       '<(src_loc)/base/ordered_set.h',

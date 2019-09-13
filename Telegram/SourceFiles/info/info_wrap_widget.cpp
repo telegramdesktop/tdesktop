@@ -1036,7 +1036,7 @@ object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(
 		Assert(_topBar != nullptr);
 
 		auto result = object_ptr<Ui::AbstractButton>(parent);
-		result->addClickHandler([weak = make_weak(this)]{
+		result->addClickHandler([weak = Ui::MakeWeak(this)]{
 			if (weak) {
 				weak->_controller->showBackFromStack();
 			}

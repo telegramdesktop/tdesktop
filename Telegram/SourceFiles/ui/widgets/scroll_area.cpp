@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/scroll_area.h"
 
+#include "ui/ui_utility.h"
+
 #include <QtWidgets/QScrollBar>
 #include <QtWidgets/QApplication>
 #include <QtGui/QGuiApplication>
@@ -342,7 +344,7 @@ void ScrollArea::onScrolled() {
 	if (em) {
 		emit scrolled();
 		if (!_movingByScrollBar) {
-			sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
+			SendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
 		}
 	}
 }
@@ -518,7 +520,7 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 	case QEvent::TouchEnd: {
 		if (!_touchPress) return;
 		_touchPress = false;
-		auto weak = make_weak(this);
+		auto weak = MakeWeak(this);
 		if (_touchScroll) {
 			if (_touchScrollState == TouchScrollState::Manual) {
 				_touchScrollState = TouchScrollState::Auto;
@@ -537,9 +539,9 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 		} else if (window()) { // one short tap -- like left mouse click, one long tap -- like right mouse click
 			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
 
-			if (weak) sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton, _touchStart);
-			if (weak) sendSynteticMouseEvent(this, QEvent::MouseButtonPress, btn, _touchStart);
-			if (weak) sendSynteticMouseEvent(this, QEvent::MouseButtonRelease, btn, _touchStart);
+			if (weak) SendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton, _touchStart);
+			if (weak) SendSynteticMouseEvent(this, QEvent::MouseButtonPress, btn, _touchStart);
+			if (weak) SendSynteticMouseEvent(this, QEvent::MouseButtonRelease, btn, _touchStart);
 
 			if (weak && _touchRightButton) {
 				auto windowHandle = window()->windowHandle();

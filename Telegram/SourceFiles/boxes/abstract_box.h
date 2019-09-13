@@ -225,7 +225,8 @@ protected:
 
 	template <typename Widget>
 	object_ptr<Widget> takeInnerWidget() {
-		return static_object_cast<Widget>(doTakeInnerWidget());
+		return object_ptr<Widget>::fromRaw(
+			static_cast<Widget*>(doTakeInnerWidget().release()));
 	}
 
 	void setInnerVisible(bool scrollAreaVisible);

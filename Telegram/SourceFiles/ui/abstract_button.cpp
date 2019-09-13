@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/abstract_button.h"
 
+#include "core/application.h"
+#include "ui/ui_utility.h"
+
 #include <rpl/filter.h>
 #include <rpl/mappers.h>
-#include "core/application.h"
 
 namespace Ui {
 
@@ -69,7 +71,7 @@ void AbstractButton::mouseReleaseEvent(QMouseEvent *e) {
 		const auto was = _state;
 		_state &= ~State(StateFlag::Down);
 
-		auto weak = make_weak(this);
+		auto weak = MakeWeak(this);
 		onStateChanged(was, StateChangeSource::ByPress);
 		if (!weak) {
 			return;

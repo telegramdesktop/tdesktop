@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/toast/toast.h"
+#include "ui/ui_utility.h"
 #include "base/parse_helper.h"
 #include "base/zlib_help.h"
 #include "core/file_utilities.h"
@@ -698,7 +699,7 @@ void Editor::showMenu() {
 		return;
 	}
 	_menu.create(this);
-	_menu->setHiddenCallback([weak = make_weak(this), menu = _menu.data()]{
+	_menu->setHiddenCallback([weak = Ui::MakeWeak(this), menu = _menu.data()]{
 		menu->deleteLater();
 		if (weak && weak->_menu == menu) {
 			weak->_menu = nullptr;

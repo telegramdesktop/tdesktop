@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "observer_peer.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/ui_utility.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"

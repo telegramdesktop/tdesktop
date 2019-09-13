@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "passport/passport_form_controller.h"
+#include "base/object_ptr.h"
 
 namespace Passport {
 

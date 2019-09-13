@@ -900,7 +900,7 @@ void SingleFilePreview::paintEvent(QPaintEvent *e) {
 	App::roundRect(p, x, y, w, h, st::msgOutBg, MessageOutCorners, &st::msgOutShadow);
 
 	if (_fileThumb.isNull()) {
-		QRect inner(rtlrect(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, width()));
+		QRect inner(style::rtlrect(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, width()));
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::msgFileOutBg);
 
@@ -916,7 +916,7 @@ void SingleFilePreview::paintEvent(QPaintEvent *e) {
 			: st::historyFileOutDocument;
 		icon.paintInCenter(p, inner);
 	} else {
-		QRect rthumb(rtlrect(x + st::msgFileThumbPadding.left(), y + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, width()));
+		QRect rthumb(style::rtlrect(x + st::msgFileThumbPadding.left(), y + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, width()));
 		p.drawPixmap(rthumb.topLeft(), _fileThumb);
 	}
 	p.setFont(st::semiboldFont);
@@ -1464,7 +1464,7 @@ void SendFilesBox::setupShadows(
 		bottomShadow->move(
 			geometry.x(),
 			geometry.y() + geometry.height() - st::lineWidth);
-	}, [t = make_weak(topShadow), b = make_weak(bottomShadow)] {
+	}, [t = Ui::MakeWeak(topShadow), b = Ui::MakeWeak(bottomShadow)] {
 		Ui::DestroyChild(t.data());
 		Ui::DestroyChild(b.data());
 	}, topShadow->lifetime());

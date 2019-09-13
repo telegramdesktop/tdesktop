@@ -54,7 +54,7 @@ void SingleChoiceBox::prepare() {
 				st::boxOptionListSkip));
 	}
 	group->setChangedCallback([=](int value) {
-		const auto weak = make_weak(this);
+		const auto weak = Ui::MakeWeak(this);
 		_callback(value);
 		if (weak) {
 			closeBox();

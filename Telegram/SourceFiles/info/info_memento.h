@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_wrap_widget.h"
 #include "dialogs/dialogs_key.h"
 #include "window/section_memento.h"
+#include "base/object_ptr.h"
 
 namespace Storage {
 enum class SharedMediaType : signed char;

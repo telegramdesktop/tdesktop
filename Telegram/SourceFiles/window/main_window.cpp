@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
 #include "facades.h"

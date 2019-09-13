@@ -252,7 +252,7 @@ void PanelController::showCriticalError(const QString &text) {
 
 void PanelController::showError(const QString &text) {
 	auto box = Box<InformBox>(text);
-	const auto weak = make_weak(box.data());
+	const auto weak = Ui::MakeWeak(box.data());
 	const auto hidden = _panel->isHidden();
 	_panel->showBox(
 		std::move(box),

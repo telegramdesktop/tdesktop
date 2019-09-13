@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_cloud_themes.h"
+#include "ui/rp_widget.h"
+#include "base/object_ptr.h"
 
 namespace Ui {
 class FlatButton;

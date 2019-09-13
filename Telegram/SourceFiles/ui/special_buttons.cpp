@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/image/image_prepare.h"
 #include "ui/empty_userpic.h"
+#include "ui/ui_utility.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"

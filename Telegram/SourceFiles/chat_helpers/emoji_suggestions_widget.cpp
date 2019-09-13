@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/inner_dropdown.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/emoji_config.h"
+#include "ui/ui_utility.h"
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/event_filter.h"

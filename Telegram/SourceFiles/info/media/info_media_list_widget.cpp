@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "storage/file_download.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
@@ -1396,7 +1397,7 @@ void ListWidget::forwardItem(UniversalMsgId universalId) {
 }
 
 void ListWidget::forwardItems(MessageIdsList &&items) {
-	auto callback = [weak = make_weak(this)] {
+	auto callback = [weak = Ui::MakeWeak(this)] {
 		if (const auto strong = weak.data()) {
 			strong->clearSelected();
 		}
@@ -1409,7 +1410,7 @@ void ListWidget::forwardItems(MessageIdsList &&items) {
 
 void ListWidget::deleteSelected() {
 	if (const auto box = deleteItems(collectSelectedIds())) {
-		const auto weak = make_weak(this);
+		const auto weak = Ui::MakeWeak(this);
 		box->setDeleteConfirmedCallback([=]{
 			if (const auto strong = weak.data()) {
 				strong->clearSelected();
@@ -1439,7 +1440,7 @@ DeleteMessagesBox *ListWidget::deleteItems(MessageIdsList &&items) {
 void ListWidget::setActionBoxWeak(QPointer<Ui::RpWidget> box) {
 	if ((_actionBoxWeak = box)) {
 		_actionBoxWeakLifetime = _actionBoxWeak->alive(
-		) | rpl::start_with_done([weak = make_weak(this)]{
+		) | rpl::start_with_done([weak = Ui::MakeWeak(this)]{
 			if (weak) {
 				weak->_checkForHide.fire({});
 			}

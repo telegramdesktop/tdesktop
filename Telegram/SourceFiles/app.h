@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_types.h"
+#include "ui/rect_part.h"
 
 enum class ImageRoundRadius;
 class MainWindow;

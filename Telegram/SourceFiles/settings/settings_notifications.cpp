@@ -226,24 +226,24 @@ void NotificationsCount::prepareNotificationSampleSmall() {
 		auto padding = height / 8;
 		auto userpicSize = height - 2 * padding;
 		p.setBrush(st::notificationSampleUserpicFg);
-		p.drawEllipse(rtlrect(padding, padding, userpicSize, userpicSize, width));
+		p.drawEllipse(style::rtlrect(padding, padding, userpicSize, userpicSize, width));
 
 		auto rowLeft = height;
 		auto rowHeight = padding;
 		auto nameTop = (height - 5 * padding) / 2;
 		auto nameWidth = height;
 		p.setBrush(st::notificationSampleNameFg);
-		p.drawRoundedRect(rtlrect(rowLeft, nameTop, nameWidth, rowHeight, width), rowHeight / 2, rowHeight / 2);
+		p.drawRoundedRect(style::rtlrect(rowLeft, nameTop, nameWidth, rowHeight, width), rowHeight / 2, rowHeight / 2);
 
 		auto rowWidth = (width - rowLeft - 3 * padding);
 		auto rowTop = nameTop + rowHeight + padding;
 		p.setBrush(st::notificationSampleTextFg);
-		p.drawRoundedRect(rtlrect(rowLeft, rowTop, rowWidth, rowHeight, width), rowHeight / 2, rowHeight / 2);
+		p.drawRoundedRect(style::rtlrect(rowLeft, rowTop, rowWidth, rowHeight, width), rowHeight / 2, rowHeight / 2);
 		rowTop += rowHeight + padding;
-		p.drawRoundedRect(rtlrect(rowLeft, rowTop, rowWidth, rowHeight, width), rowHeight / 2, rowHeight / 2);
+		p.drawRoundedRect(style::rtlrect(rowLeft, rowTop, rowWidth, rowHeight, width), rowHeight / 2, rowHeight / 2);
 
 		auto closeLeft = width - 2 * padding;
-		p.fillRect(rtlrect(closeLeft, padding, padding, padding, width), st::notificationSampleCloseFg);
+		p.fillRect(style::rtlrect(closeLeft, padding, padding, padding, width), st::notificationSampleCloseFg);
 	}
 	_notificationSampleSmall = App::pixmapFromImageInPlace(std::move(sampleImage));
 	_notificationSampleSmall.setDevicePixelRatio(cRetinaFactor());
@@ -281,7 +281,7 @@ void NotificationsCount::prepareNotificationSampleLarge() {
 
 		int itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;
 
-		auto rectForName = rtlrect(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height, w);
+		auto rectForName = style::rtlrect(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height, w);
 
 		auto notifyText = st::dialogsTextFont->elided(tr::lng_notification_sample(tr::now), itemWidth);
 		p.setFont(st::dialogsTextFont);
@@ -318,10 +318,10 @@ void NotificationsCount::mouseMoveEvent(QMouseEvent *e) {
 	auto screenRect = getScreenRect();
 	auto cornerWidth = screenRect.width() / 3;
 	auto cornerHeight = screenRect.height() / 3;
-	auto topLeft = rtlrect(screenRect.x(), screenRect.y(), cornerWidth, cornerHeight, width());
-	auto topRight = rtlrect(screenRect.x() + screenRect.width() - cornerWidth, screenRect.y(), cornerWidth, cornerHeight, width());
-	auto bottomRight = rtlrect(screenRect.x() + screenRect.width() - cornerWidth, screenRect.y() + screenRect.height() - cornerHeight, cornerWidth, cornerHeight, width());
-	auto bottomLeft = rtlrect(screenRect.x(), screenRect.y() + screenRect.height() - cornerHeight, cornerWidth, cornerHeight, width());
+	auto topLeft = style::rtlrect(screenRect.x(), screenRect.y(), cornerWidth, cornerHeight, width());
+	auto topRight = style::rtlrect(screenRect.x() + screenRect.width() - cornerWidth, screenRect.y(), cornerWidth, cornerHeight, width());
+	auto bottomRight = style::rtlrect(screenRect.x() + screenRect.width() - cornerWidth, screenRect.y() + screenRect.height() - cornerHeight, cornerWidth, cornerHeight, width());
+	auto bottomLeft = style::rtlrect(screenRect.x(), screenRect.y() + screenRect.height() - cornerHeight, cornerWidth, cornerHeight, width());
 	if (topLeft.contains(e->pos())) {
 		setOverCorner(Notify::ScreenCorner::TopLeft);
 	} else if (topRight.contains(e->pos())) {

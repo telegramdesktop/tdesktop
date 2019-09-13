@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "platform/platform_window_title.h"
+#include "base/object_ptr.h"
 
 namespace Ui {
 class IconButton;

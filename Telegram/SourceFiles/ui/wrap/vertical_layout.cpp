@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/wrap/vertical_layout.h"
 
+#include "ui/ui_utility.h"
+
 namespace Ui {
 
 QMargins VerticalLayout::getMargins() const {

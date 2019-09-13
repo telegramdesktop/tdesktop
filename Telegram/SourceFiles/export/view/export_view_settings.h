@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/export_settings.h"
 #include "ui/rp_widget.h"
+#include "base/object_ptr.h"
 
 class BoxContent;
 

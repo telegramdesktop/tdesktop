@@ -118,7 +118,7 @@ void CrossAnimation::paint(
 	auto sqrt2 = sqrt(2.);
 	auto deleteScale = shown + st.minScale * (1. - shown);
 	auto deleteSkip = (deleteScale * st.skip) + (1. - deleteScale) * (st.size / 2);
-	auto deleteLeft = rtlpoint(x + deleteSkip, 0, outerWidth).x() + 0.;
+	auto deleteLeft = style::rtlpoint(x + deleteSkip, 0, outerWidth).x() + 0.;
 	auto deleteTop = y + deleteSkip + 0.;
 	auto deleteWidth = st.size - 2 * deleteSkip;
 	auto deleteHeight = st.size - 2 * deleteSkip;

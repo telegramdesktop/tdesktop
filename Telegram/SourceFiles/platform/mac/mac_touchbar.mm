@@ -812,7 +812,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			if (const auto inputField = qobject_cast<QTextEdit*>(
 					QApplication::focusWidget())) {
 				Ui::InsertEmojiAtCursor(inputField->textCursor(), emoji);
-				Ui::Emoji::AddRecent(emoji);
+				AddRecentEmoji(emoji);
 				return true;
 			}
 		}
@@ -1065,7 +1065,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	}, _lifetime);
 
 	rpl::merge(
-		Ui::Emoji::UpdatedRecent(),
+		UpdatedRecentEmoji(),
 		Ui::Emoji::Updated()
 	) | rpl::start_with_next([=] {
 		[self updatePickerPopover:ScrubberItemType::Emoji];

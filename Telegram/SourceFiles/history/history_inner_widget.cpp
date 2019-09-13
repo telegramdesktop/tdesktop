@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
 #include "ui/text_options.h"
+#include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "boxes/confirm_box.h"
@@ -932,7 +933,7 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 	case QEvent::TouchEnd: {
 		if (!_touchInProgress) return;
 		_touchInProgress = false;
-		auto weak = make_weak(this);
+		auto weak = Ui::MakeWeak(this);
 		if (_touchSelect) {
 			mouseActionFinish(_touchPos, Qt::RightButton);
 			QContextMenuEvent contextMenu(QContextMenuEvent::Mouse, mapFromGlobal(_touchPos), _touchPos);

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
+#include "base/object_ptr.h"
 
 #include <QtCore/QTimer>
 

@@ -213,7 +213,7 @@ void Game::draw(Painter &p, const QRect &r, TextSelection selection, crl::time m
 		bshift += bottomInfoPadding();
 	}
 
-	QRect bar(rtlrect(st::msgPadding.left(), tshift, st::webPageBar, height() - tshift - bshift, width()));
+	QRect bar(style::rtlrect(st::msgPadding.left(), tshift, st::webPageBar, height() - tshift - bshift, width()));
 	p.fillRect(bar, barfg);
 
 	auto lineHeight = unitedLineHeight();
@@ -255,7 +255,7 @@ void Game::draw(Painter &p, const QRect &r, TextSelection selection, crl::time m
 		auto gameX = pixwidth - st::msgDateImgDelta - gameW;
 		auto gameY = pixheight - st::msgDateImgDelta - gameH;
 
-		App::roundRect(p, rtlrect(gameX, gameY, gameW, gameH, pixwidth), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+		App::roundRect(p, style::rtlrect(gameX, gameY, gameW, gameH, pixwidth), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 
 		p.setFont(st::msgDateFont);
 		p.setPen(st::msgDateImgFg);

@@ -645,7 +645,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	const auto statustop = _st.songStatusTop;
 	const auto namewidth = _width - nameleft - nameright;
 
-	const auto inner = rtlrect(
+	const auto inner = style::rtlrect(
 		_st.songPadding.left(),
 		_st.songPadding.top(),
 		_st.songThumbSize,
@@ -710,12 +710,12 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		icon->paintInCenter(p, inner);
 	}
 
-	if (clip.intersects(rtlrect(nameleft, nametop, namewidth, st::semiboldFont->height, _width))) {
+	if (clip.intersects(style::rtlrect(nameleft, nametop, namewidth, st::semiboldFont->height, _width))) {
 		p.setPen(st::historyFileNameInFg);
 		_name.drawLeftElided(p, nameleft, nametop, namewidth, _width);
 	}
 
-	if (clip.intersects(rtlrect(nameleft, statustop, namewidth, st::normalFont->height, _width))) {
+	if (clip.intersects(style::rtlrect(nameleft, statustop, namewidth, st::normalFont->height, _width))) {
 		p.setFont(st::normalFont);
 		p.setPen(selected ? st::mediaInFgSelected : st::mediaInFg);
 		int32 unreadx = nameleft;
@@ -735,7 +735,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 			{
 				PainterHighQualityEnabler hq(p);
-				p.drawEllipse(rtlrect(unreadx + st::mediaUnreadSkip, statustop + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, _width));
+				p.drawEllipse(style::rtlrect(unreadx + st::mediaUnreadSkip, statustop + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, _width));
 			}
 		}
 	}
@@ -760,7 +760,7 @@ TextState Voice::getState(
 	const auto nametop = _st.songNameTop;
 	const auto statustop = _st.songStatusTop;
 
-	const auto inner = rtlrect(
+	const auto inner = style::rtlrect(
 		_st.songPadding.left(),
 		_st.songPadding.top(),
 		_st.songThumbSize,
@@ -776,7 +776,7 @@ TextState Voice::getState(
 	}
 	auto result = TextState(parent());
 	const auto statusmaxwidth = _width - nameleft - nameright;
-	const auto statusrect = rtlrect(
+	const auto statusrect = style::rtlrect(
 		nameleft,
 		statustop,
 		statusmaxwidth,
@@ -794,7 +794,7 @@ TextState Voice::getState(
 	const auto namewidth = std::min(
 		_width - nameleft - nameright,
 		_name.maxWidth());
-	const auto namerect = rtlrect(
+	const auto namerect = style::rtlrect(
 		nameleft,
 		nametop,
 		namewidth,
@@ -954,7 +954,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 		nametop = _st.songNameTop;
 		statustop = _st.songStatusTop;
 
-		auto inner = rtlrect(_st.songPadding.left(), _st.songPadding.top(), _st.songThumbSize, _st.songThumbSize, _width);
+		auto inner = style::rtlrect(_st.songPadding.left(), _st.songPadding.top(), _st.songThumbSize, _st.songThumbSize, _width);
 		if (clip.intersects(inner)) {
 			p.setPen(Qt::NoPen);
 			if (selected) {
@@ -995,12 +995,12 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 		statustop = st::linksBorder + _st.fileStatusTop;
 		datetop = st::linksBorder + _st.fileDateTop;
 
-		QRect border(rtlrect(nameleft, 0, _width - nameleft, st::linksBorder, _width));
+		QRect border(style::rtlrect(nameleft, 0, _width - nameleft, st::linksBorder, _width));
 		if (!context->isAfterDate && clip.intersects(border)) {
 			p.fillRect(clip.intersected(border), st::linksBorderFg);
 		}
 
-		QRect rthumb(rtlrect(0, st::linksBorder + _st.filePadding.top(), _st.fileThumbSize, _st.fileThumbSize, _width));
+		QRect rthumb(style::rtlrect(0, st::linksBorder + _st.filePadding.top(), _st.fileThumbSize, _st.fileThumbSize, _width));
 		if (clip.intersects(rthumb)) {
 			if (wthumb) {
 				const auto thumbLoaded = _data->thumbnail()->loaded();
@@ -1069,17 +1069,17 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 	const auto availwidth = _width - nameleft - nameright;
 	const auto namewidth = std::min(availwidth, _name.maxWidth());
-	if (clip.intersects(rtlrect(nameleft, nametop, namewidth, st::semiboldFont->height, _width))) {
+	if (clip.intersects(style::rtlrect(nameleft, nametop, namewidth, st::semiboldFont->height, _width))) {
 		p.setPen(st::historyFileNameInFg);
 		_name.drawLeftElided(p, nameleft, nametop, namewidth, _width);
 	}
 
-	if (clip.intersects(rtlrect(nameleft, statustop, availwidth, st::normalFont->height, _width))) {
+	if (clip.intersects(style::rtlrect(nameleft, statustop, availwidth, st::normalFont->height, _width))) {
 		p.setFont(st::normalFont);
 		p.setPen((isSong && selected) ? st::mediaInFgSelected : st::mediaInFg);
 		p.drawTextLeft(nameleft, statustop, _width, _status.text());
 	}
-	if (datetop >= 0 && clip.intersects(rtlrect(nameleft, datetop, _datew, st::normalFont->height, _width))) {
+	if (datetop >= 0 && clip.intersects(style::rtlrect(nameleft, datetop, _datew, st::normalFont->height, _width))) {
 		p.setFont(ClickHandler::showAsActive(_msgl) ? st::normalFont->underline() : st::normalFont);
 		p.setPen(st::mediaInFg);
 		p.drawTextLeft(nameleft, datetop, _width, _date, _datew);
@@ -1105,7 +1105,7 @@ void Document::drawCornerDownload(Painter &p, bool selected, const PaintContext 
 	}
 	const auto size = st::overviewSmallCheck.size;
 	const auto shift = _st.songThumbSize + st::overviewCheckSkip - size;
-	const auto inner = rtlrect(_st.songPadding.left() + shift, _st.songPadding.top() + shift, size, size, _width);
+	const auto inner = style::rtlrect(_st.songPadding.left() + shift, _st.songPadding.top() + shift, size, size, _width);
 	auto pen = st::windowBg->p;
 	pen.setWidth(st::lineWidth);
 	p.setPen(pen);
@@ -1143,7 +1143,7 @@ TextState Document::cornerDownloadTextState(
 	}
 	const auto size = st::overviewSmallCheck.size;
 	const auto shift = _st.songThumbSize + st::overviewCheckSkip - size;
-	const auto inner = rtlrect(_st.songPadding.left() + shift, _st.songPadding.top() + shift, size, size, _width);
+	const auto inner = style::rtlrect(_st.songPadding.left() + shift, _st.songPadding.top() + shift, size, size, _width);
 	if (inner.contains(point)) {
 		result.link = _data->loading() ? _cancell : _savel;
 	}
@@ -1170,7 +1170,7 @@ TextState Document::getState(
 			return state;
 		}
 
-		const auto inner = rtlrect(
+		const auto inner = style::rtlrect(
 			_st.songPadding.left(),
 			_st.songPadding.top(),
 			_st.songThumbSize,
@@ -1185,7 +1185,7 @@ TextState Document::getState(
 				: _savel;
 			return { parent(), link };
 		}
-		const auto namerect = rtlrect(
+		const auto namerect = style::rtlrect(
 			nameleft,
 			nametop,
 			namewidth,
@@ -1204,7 +1204,7 @@ TextState Document::getState(
 		const auto statustop = st::linksBorder + _st.fileStatusTop;
 		const auto datetop = st::linksBorder + _st.fileDateTop;
 
-		const auto rthumb = rtlrect(
+		const auto rthumb = style::rtlrect(
 			0,
 			st::linksBorder + _st.filePadding.top(),
 			_st.fileThumbSize,
@@ -1221,7 +1221,7 @@ TextState Document::getState(
 		}
 
 		if (_data->status != FileUploadFailed) {
-			auto daterect = rtlrect(
+			auto daterect = style::rtlrect(
 				nameleft,
 				datetop,
 				_datew,
@@ -1232,7 +1232,7 @@ TextState Document::getState(
 			}
 		}
 		if (!_data->loading() && !_data->isNull()) {
-			auto leftofnamerect = rtlrect(
+			auto leftofnamerect = style::rtlrect(
 				0,
 				st::linksBorder,
 				nameleft,
@@ -1241,7 +1241,7 @@ TextState Document::getState(
 			if (loaded && leftofnamerect.contains(point)) {
 				return { parent(), _namel };
 			}
-			const auto namerect = rtlrect(
+			const auto namerect = style::rtlrect(
 				nameleft,
 				nametop,
 				namewidth,
@@ -1492,7 +1492,7 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 
 	const auto pixLeft = 0;
 	const auto pixTop = st::linksMargin.top() + st::linksBorder;
-	if (clip.intersects(rtlrect(0, pixTop, st::linksPhotoSize, st::linksPhotoSize, _width))) {
+	if (clip.intersects(style::rtlrect(0, pixTop, st::linksPhotoSize, st::linksPhotoSize, _width))) {
 		if (_page && _page->photo) {
 			QPixmap pix;
 			if (_page->photo->thumbnail()->loaded()) {
@@ -1515,7 +1515,7 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 				? 0
 				: (_letter[0].unicode() % 4);
 			const auto fill = [&](style::color color, RoundCorners corners) {
-				auto pixRect = rtlrect(
+				auto pixRect = style::rtlrect(
 					pixLeft,
 					pixTop,
 					st::linksPhotoSize,
@@ -1533,7 +1533,7 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 			if (!_letter.isEmpty()) {
 				p.setFont(st::linksLetterFont);
 				p.setPen(st::linksLetterFg);
-				p.drawText(rtlrect(pixLeft, pixTop, st::linksPhotoSize, st::linksPhotoSize, _width), _letter, style::al_center);
+				p.drawText(style::rtlrect(pixLeft, pixTop, st::linksPhotoSize, st::linksPhotoSize, _width), _letter, style::al_center);
 			}
 		}
 	}
@@ -1550,7 +1550,7 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	p.setPen(st::linksTextFg);
 	p.setFont(st::semiboldFont);
 	if (!_title.isEmpty()) {
-		if (clip.intersects(rtlrect(left, top, qMin(w, _titlew), st::semiboldFont->height, _width))) {
+		if (clip.intersects(style::rtlrect(left, top, qMin(w, _titlew), st::semiboldFont->height, _width))) {
 			p.drawTextLeft(left, top, _width, (w < _titlew) ? st::semiboldFont->elided(_title, w) : _title);
 		}
 		top += st::semiboldFont->height;
@@ -1558,7 +1558,7 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	p.setFont(st::msgFont);
 	if (!_text.isEmpty()) {
 		int32 h = qMin(st::normalFont->height * 3, _text.countHeight(w));
-		if (clip.intersects(rtlrect(left, top, w, h, _width))) {
+		if (clip.intersects(style::rtlrect(left, top, w, h, _width))) {
 			_text.drawLeftElided(p, left, top, w, _width, 3);
 		}
 		top += h;
@@ -1566,14 +1566,14 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 
 	p.setPen(st::windowActiveTextFg);
 	for (const auto &link : _links) {
-		if (clip.intersects(rtlrect(left, top, qMin(w, link.width), st::normalFont->height, _width))) {
+		if (clip.intersects(style::rtlrect(left, top, qMin(w, link.width), st::normalFont->height, _width))) {
 			p.setFont(ClickHandler::showAsActive(link.lnk) ? st::normalFont->underline() : st::normalFont);
 			p.drawTextLeft(left, top, _width, (w < link.width) ? st::normalFont->elided(link.text, w) : link.text);
 		}
 		top += st::normalFont->height;
 	}
 
-	QRect border(rtlrect(left, 0, w, st::linksBorder, _width));
+	QRect border(style::rtlrect(left, 0, w, st::linksBorder, _width));
 	if (!context->isAfterDate && clip.intersects(border)) {
 		p.fillRect(clip.intersected(border), st::linksBorderFg);
 	}
@@ -1589,7 +1589,7 @@ TextState Link::getState(
 		QPoint point,
 		StateRequest request) const {
 	int32 left = st::linksPhotoSize + st::linksPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
-	if (rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width).contains(point)) {
+	if (style::rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width).contains(point)) {
 		return { parent(), _photol };
 	}
 
@@ -1597,7 +1597,7 @@ TextState Link::getState(
 		top += (st::linksPhotoSize - st::semiboldFont->height - st::normalFont->height) / 2;
 	}
 	if (!_title.isEmpty()) {
-		if (rtlrect(left, top, qMin(w, _titlew), st::semiboldFont->height, _width).contains(point)) {
+		if (style::rtlrect(left, top, qMin(w, _titlew), st::semiboldFont->height, _width).contains(point)) {
 			return { parent(), _photol };
 		}
 		top += st::webPageTitleFont->height;
@@ -1606,7 +1606,7 @@ TextState Link::getState(
 		top += qMin(st::normalFont->height * 3, _text.countHeight(w));
 	}
 	for (const auto &link : _links) {
-		if (rtlrect(left, top, qMin(w, link.width), st::normalFont->height, _width).contains(point)) {
+		if (style::rtlrect(left, top, qMin(w, link.width), st::normalFont->height, _width).contains(point)) {
 			return { parent(), ClickHandlerPtr(link.lnk) };
 		}
 		top += st::normalFont->height;

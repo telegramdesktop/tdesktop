@@ -75,7 +75,7 @@ void SectionToggle::paint(
 		int top,
 		int outerWidth) {
 	auto sqrt2 = sqrt(2.);
-	auto vLeft = rtlpoint(left + _st.skip, 0, outerWidth).x() + 0.;
+	auto vLeft = style::rtlpoint(left + _st.skip, 0, outerWidth).x() + 0.;
 	auto vTop = top + _st.skip + 0.;
 	auto vWidth = _st.size - 2 * _st.skip;
 	auto vHeight = _st.size - 2 * _st.skip;

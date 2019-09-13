@@ -47,7 +47,7 @@ auto QtSignalProducer(Object *object, Signal signal) {
 		NoArgument,
 		rpl::empty_value,
 		std::remove_const_t<std::decay_t<Value>>>;
-	const auto guarded = make_weak(object);
+	const auto guarded = QPointer<Object>(object);
 	return rpl::make_producer<Produced>([=](auto consumer) {
 		if (!guarded) {
 			return rpl::lifetime();
@@ -59,7 +59,7 @@ auto QtSignalProducer(Object *object, Signal signal) {
 				signal,
 				listener,
 				std::forward<decltype(handler)>(handler));
-			const auto weak = make_weak(listener);
+			const auto weak = QPointer<QObject>(listener);
 			return rpl::lifetime([=] {
 				if (weak) {
 					delete weak;

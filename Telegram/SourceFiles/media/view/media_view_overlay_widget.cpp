@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/text_options.h"
+#include "ui/ui_utility.h"
 #include "boxes/confirm_box.h"
 #include "media/audio/media_audio.h"
 #include "media/view/media_view_playback_controls.h"
@@ -351,11 +352,11 @@ void OverlayWidget::moveToScreen(bool force) {
 
 	auto navSkip = 2 * st::mediaviewControlMargin + st::mediaviewControlSize;
 	_closeNav = myrtlrect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, st::mediaviewControlMargin, st::mediaviewControlSize, st::mediaviewControlSize);
-	_closeNavIcon = centerrect(_closeNav, st::mediaviewClose);
+	_closeNavIcon = style::centerrect(_closeNav, st::mediaviewClose);
 	_leftNav = myrtlrect(st::mediaviewControlMargin, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
-	_leftNavIcon = centerrect(_leftNav, st::mediaviewLeft);
+	_leftNavIcon = style::centerrect(_leftNav, st::mediaviewLeft);
 	_rightNav = myrtlrect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
-	_rightNavIcon = centerrect(_rightNav, st::mediaviewRight);
+	_rightNavIcon = style::centerrect(_rightNav, st::mediaviewRight);
 
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
 	_photoRadialRect = QRect(QPoint((width() - st::radialSize.width()) / 2, (height() - st::radialSize.height()) / 2), st::radialSize);
@@ -558,9 +559,9 @@ void OverlayWidget::updateControls() {
 			&& _doc->filepath(DocumentData::FilePathResolve::Checked).isEmpty()
 			&& !_doc->loading());
 	_saveNav = myrtlrect(width() - st::mediaviewIconSize.width() * 2, height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
-	_saveNavIcon = centerrect(_saveNav, st::mediaviewSave);
+	_saveNavIcon = style::centerrect(_saveNav, st::mediaviewSave);
 	_moreNav = myrtlrect(width() - st::mediaviewIconSize.width(), height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
-	_moreNavIcon = centerrect(_moreNav, st::mediaviewMore);
+	_moreNavIcon = style::centerrect(_moreNav, st::mediaviewMore);
 
 	const auto dNow = QDateTime::currentDateTime();
 	const auto d = [&] {
@@ -2256,7 +2257,7 @@ void OverlayWidget::initThemePreview() {
 
 	const auto path = _doc->location().name();
 	const auto id = _themePreviewId = rand_value<uint64>();
-	const auto weak = make_weak(this);
+	const auto weak = Ui::MakeWeak(this);
 	crl::async([=, data = std::move(current)]() mutable {
 		auto preview = GeneratePreview(
 			bytes,
@@ -3588,7 +3589,7 @@ void OverlayWidget::touchEvent(QTouchEvent *e) {
 
 	case QEvent::TouchEnd: {
 		if (!_touchPress) return;
-		auto weak = make_weak(this);
+		auto weak = Ui::MakeWeak(this);
 		if (!_touchMove) {
 			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
 			auto mapped = mapFromGlobal(_touchStart);

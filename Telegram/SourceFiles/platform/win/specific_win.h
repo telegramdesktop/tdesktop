@@ -82,7 +82,7 @@ int psFixPrevious();
 
 void psNewVersion();
 
-void psUpdateOverlayed(TWidget *widget);
+void psUpdateOverlayed(QWidget *widget);
 inline QByteArray psDownloadPathBookmark(const QString &path) {
 	return QByteArray();
 }

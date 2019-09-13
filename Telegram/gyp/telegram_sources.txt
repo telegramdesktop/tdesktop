@@ -766,16 +766,6 @@
 <(src_loc)/ui/image/image_prepare.h
 <(src_loc)/ui/image/image_source.cpp
 <(src_loc)/ui/image/image_source.h
-<(src_loc)/ui/style/style_core.cpp
-<(src_loc)/ui/style/style_core.h
-<(src_loc)/ui/style/style_core_color.cpp
-<(src_loc)/ui/style/style_core_color.h
-<(src_loc)/ui/style/style_core_font.cpp
-<(src_loc)/ui/style/style_core_font.h
-<(src_loc)/ui/style/style_core_icon.cpp
-<(src_loc)/ui/style/style_core_icon.h
-<(src_loc)/ui/style/style_core_types.cpp
-<(src_loc)/ui/style/style_core_types.h
 <(src_loc)/ui/text/text.cpp
 <(src_loc)/ui/text/text.h
 <(src_loc)/ui/text/text_block.cpp
@@ -852,8 +842,8 @@
 <(src_loc)/ui/special_buttons.h
 <(src_loc)/ui/text_options.cpp
 <(src_loc)/ui/text_options.h
-<(src_loc)/ui/twidget.cpp
-<(src_loc)/ui/twidget.h
+<(src_loc)/ui/ui_utility.cpp
+<(src_loc)/ui/ui_utility.h
 <(src_loc)/ui/unread_badge.cpp
 <(src_loc)/ui/unread_badge.h
 <(src_loc)/window/layer_widget.cpp

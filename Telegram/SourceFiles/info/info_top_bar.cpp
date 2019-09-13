@@ -52,7 +52,7 @@ void TopBar::registerUpdateControlCallback(
 		QObject *guard,
 		Callback &&callback) {
 	_updateControlCallbacks[guard] =[
-		weak = make_weak(guard),
+		weak = Ui::MakeWeak(guard),
 		callback = std::forward<Callback>(callback)
 	](anim::type animated) {
 		if (!weak) {
@@ -532,7 +532,7 @@ void TopBar::performForward() {
 	Window::ShowForwardMessagesBox(
 		_navigation,
 		std::move(items),
-		[weak = make_weak(this)] {
+		[weak = Ui::MakeWeak(this)] {
 			if (weak) {
 				weak->_cancelSelectionClicks.fire({});
 			}
@@ -547,7 +547,7 @@ void TopBar::performDelete() {
 		const auto box = Ui::show(Box<DeleteMessagesBox>(
 			&_navigation->session(),
 			std::move(items)));
-		box->setDeleteConfirmedCallback([weak = make_weak(this)] {
+		box->setDeleteConfirmedCallback([weak = Ui::MakeWeak(this)] {
 			if (weak) {
 				weak->_cancelSelectionClicks.fire({});
 			}

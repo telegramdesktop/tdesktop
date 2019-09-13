@@ -397,7 +397,7 @@ void SettingsWidget::editDateLimit(
 		callback,
 		finalize,
 		st::exportCalendarSizes);
-	*shared = make_weak(box.data());
+	*shared = Ui::MakeWeak(box.data());
 	_showBoxCallback(std::move(box));
 }
 

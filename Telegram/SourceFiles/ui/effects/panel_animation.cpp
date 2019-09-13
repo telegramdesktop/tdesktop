@@ -493,7 +493,7 @@ void PanelAnimation::paintFrame(QPainter &p, int x, int y, int outerWidth, float
 	//	frameInts += _frameIntsPerLineAdded;
 	//}
 
-	p.drawImage(rtlpoint(x + (outerLeft / cIntRetinaFactor()), y + (outerTop / cIntRetinaFactor()), outerWidth), _frame, QRect(outerLeft, outerTop, outerRight - outerLeft, outerBottom - outerTop));
+	p.drawImage(style::rtlpoint(x + (outerLeft / cIntRetinaFactor()), y + (outerTop / cIntRetinaFactor()), outerWidth), _frame, QRect(outerLeft, outerTop, outerRight - outerLeft, outerBottom - outerTop));
 }
 
 } // namespace Ui

@@ -552,7 +552,7 @@ DateRow::DateRow(
 	GetYear(value))
 , _value(valueCurrent()) {
 	const auto focused = [=](const object_ptr<DateInput> &field) {
-		return [this, pointer = make_weak(field.data())]{
+		return [this, pointer = Ui::MakeWeak(field.data())]{
 			_borderAnimationStart = pointer->borderAnimationStart()
 				+ pointer->x()
 				- _day->x();

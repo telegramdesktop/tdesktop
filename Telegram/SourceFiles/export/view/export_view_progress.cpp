@@ -141,7 +141,7 @@ void ProgressWidget::Row::toggleInstance(Instance &instance, bool shown) {
 	if (instance.hiding != shown) {
 		return;
 	}
-	const auto label = make_weak(instance.label->entity());
+	const auto label = Ui::MakeWeak(instance.label->entity());
 	instance.opacity.start(
 		[=] { instanceOpacityCallback(label); },
 		shown ? 0. : 1.,
@@ -156,7 +156,7 @@ void ProgressWidget::Row::instanceOpacityCallback(
 		QPointer<Ui::FlatLabel> label) {
 	update();
 	const auto i = ranges::find(_old, label, [](const Instance &instance) {
-		return make_weak(instance.label->entity());
+		return Ui::MakeWeak(instance.label->entity());
 	});
 	if (i != end(_old) && i->hiding && !i->opacity.animating()) {
 		crl::on_main(this, [=] {
@@ -167,7 +167,7 @@ void ProgressWidget::Row::instanceOpacityCallback(
 
 void ProgressWidget::Row::removeOldInstance(QPointer<Ui::FlatLabel> label) {
 	const auto i = ranges::find(_old, label, [](const Instance &instance) {
-		return make_weak(instance.label->entity());
+		return Ui::MakeWeak(instance.label->entity());
 	});
 	if (i != end(_old)) {
 		_old.erase(i);

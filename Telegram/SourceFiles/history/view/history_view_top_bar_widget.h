@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "base/timer.h"
+#include "base/object_ptr.h"
 #include "dialogs/dialogs_key.h"
 
 namespace Main {

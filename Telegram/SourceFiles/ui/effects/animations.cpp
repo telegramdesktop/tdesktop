@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/animations.h"
 
+#include "ui/ui_utility.h"
 #include "core/application.h"
 
 namespace Ui {

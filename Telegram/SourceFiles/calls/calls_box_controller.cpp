@@ -158,7 +158,7 @@ void BoxController::Row::paintAction(
 			_actionRipple.reset();
 		}
 	}
-	st::callReDial.icon.paintInCenter(p, rtlrect(x, y, size.width(), size.height(), outerWidth));
+	st::callReDial.icon.paintInCenter(p, style::rtlrect(x, y, size.width(), size.height(), outerWidth));
 }
 
 void BoxController::Row::refreshStatus() {

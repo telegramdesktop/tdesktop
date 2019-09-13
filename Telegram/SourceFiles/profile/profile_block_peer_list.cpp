@@ -122,7 +122,7 @@ void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool select
 }
 
 void PeerListWidget::paintItemRect(Painter &p, int x, int y, int w, int h) const {
-	p.fillRect(rtlrect(x, y, w, h, width()), _st.button.textBgOver);
+	p.fillRect(style::rtlrect(x, y, w, h, width()), _st.button.textBgOver);
 }
 
 void PeerListWidget::mouseMoveEvent(QMouseEvent *e) {

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/shadow.h"
 #include "ui/image/image_prepare.h"
+#include "ui/ui_utility.h"
 #include "platform/platform_info.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"

@@ -294,7 +294,7 @@ void Loader::setImplementation(
 
 void Loader::unpack(const QString &path) {
 	const auto folder = internal::SetDataPath(_id);
-	const auto weak = make_weak(this);
+	const auto weak = Ui::MakeWeak(this);
 	crl::async([=] {
 		if (UnpackSet(path, folder)) {
 			QFile(path).remove();
@@ -401,7 +401,7 @@ void Row::paintRadio(Painter &p) {
 	pen.setCapStyle(Qt::RoundCap);
 	p.setPen(pen);
 	p.setBrush(_st->bg);
-	const auto rect = rtlrect(QRectF(
+	const auto rect = style::rtlrect(QRectF(
 		left,
 		top,
 		_st->diameter,
@@ -432,7 +432,7 @@ void Row::paintRadio(Painter &p) {
 		const auto skip0 = _st->diameter / 2.;
 		const auto skip1 = _st->skip / 10.;
 		const auto checkSkip = skip0 * (1. - toggled) + skip1 * toggled;
-		p.drawEllipse(rtlrect(QRectF(
+		p.drawEllipse(style::rtlrect(QRectF(
 			left,
 			top,
 			_st->diameter,

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/ui_utility.h"
 #include "platform/platform_info.h"
 #include "app.h"
 #include "styles/style_boxes.h"
@@ -874,7 +875,7 @@ void EditColorBox::fieldSubmitted() {
 }
 
 void EditColorBox::saveColor() {
-	const auto weak = make_weak(this);
+	const auto weak = Ui::MakeWeak(this);
 	_cancelCallback = nullptr;
 	if (_saveCallback) {
 		_saveCallback(_new.toRgb());

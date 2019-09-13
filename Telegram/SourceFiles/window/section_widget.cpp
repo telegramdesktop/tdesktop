@@ -7,12 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/section_widget.h"
 
-#include <rpl/range.h>
 #include "mainwidget.h"
+#include "ui/ui_utility.h"
 #include "window/section_memento.h"
 #include "window/window_slide_animation.h"
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
+
+#include <rpl/range.h>
 
 namespace Window {
 
@@ -32,7 +34,7 @@ void SectionWidget::setGeometryWithTopMoved(
 	_topDelta = topDelta;
 	bool willBeResized = (size() != newGeometry.size());
 	if (geometry() != newGeometry) {
-		auto weak = make_weak(this);
+		auto weak = Ui::MakeWeak(this);
 		setGeometry(newGeometry);
 		if (!weak) {
 			return;
@@ -75,6 +77,11 @@ std::unique_ptr<SectionMemento> SectionWidget::createMemento() {
 void SectionWidget::showFast() {
 	show();
 	showFinished();
+}
+
+QPixmap SectionWidget::grabForShowAnimation(
+		const SectionSlideParams &params) {
+	return Ui::GrabWidget(this);
 }
 
 void SectionWidget::PaintBackground(not_null<QWidget*> widget, QRect clip) {

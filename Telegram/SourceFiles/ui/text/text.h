@@ -152,13 +152,9 @@ public:
 	}
 
 	StateResult getState(QPoint point, int width, StateRequest request = StateRequest()) const;
-	StateResult getStateLeft(QPoint point, int width, int outerw, StateRequest request = StateRequest()) const {
-		return getState(rtlpoint(point, outerw), width, request);
-	}
+	StateResult getStateLeft(QPoint point, int width, int outerw, StateRequest request = StateRequest()) const;
 	StateResult getStateElided(QPoint point, int width, StateRequestElided request = StateRequestElided()) const;
-	StateResult getStateElidedLeft(QPoint point, int width, int outerw, StateRequestElided request = StateRequestElided()) const {
-		return getStateElided(rtlpoint(point, outerw), width, request);
-	}
+	StateResult getStateElidedLeft(QPoint point, int width, int outerw, StateRequestElided request = StateRequestElided()) const;
 
 	[[nodiscard]] TextSelection adjustSelection(TextSelection selection, TextSelectType selectType) const;
 	bool isFullSelection(TextSelection selection) const {

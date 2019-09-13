@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "export/view/export_view_content.h"
+#include "base/object_ptr.h"
 
 namespace Ui {
 class VerticalLayout;

@@ -434,7 +434,7 @@ void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		bshift += bottomInfoPadding();
 	}
 
-	QRect bar(rtlrect(st::msgPadding.left(), tshift, st::webPageBar, height() - tshift - bshift, width()));
+	QRect bar(style::rtlrect(st::msgPadding.left(), tshift, st::webPageBar, height() - tshift - bshift, width()));
 	p.fillRect(bar, barfg);
 
 	auto lineHeight = unitedLineHeight();
@@ -462,7 +462,7 @@ void WebPage::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		}
 		p.drawPixmapLeft(padding.left() + paintw - pw, tshift, width(), pix);
 		if (selected) {
-			App::roundRect(p, rtlrect(padding.left() + paintw - pw, tshift, pw, _pixh, width()), p.textPalette().selectOverlay, SelectedOverlaySmallCorners);
+			App::roundRect(p, style::rtlrect(padding.left() + paintw - pw, tshift, pw, _pixh, width()), p.textPalette().selectOverlay, SelectedOverlaySmallCorners);
 		}
 		paintw -= pw + st::webPagePhotoDelta;
 	}
@@ -573,7 +573,7 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 	auto inThumb = false;
 	if (asArticle()) {
 		auto pw = qMax(_pixw, lineHeight);
-		if (rtlrect(padding.left() + paintw - pw, 0, pw, _pixh, width()).contains(point)) {
+		if (style::rtlrect(padding.left() + paintw - pw, 0, pw, _pixh, width()).contains(point)) {
 			inThumb = true;
 		}
 		paintw -= pw + st::webPagePhotoDelta;

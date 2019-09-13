@@ -78,7 +78,7 @@ QString OpenSansSemiboldOverride;
 
 } // namespace
 
-void Start() {
+void StartFonts() {
 	if (Started) {
 		return;
 	}

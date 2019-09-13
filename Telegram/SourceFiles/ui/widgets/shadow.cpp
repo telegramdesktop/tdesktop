@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/shadow.h"
 
+#include "ui/ui_utility.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
@@ -38,7 +39,7 @@ void Shadow::paint(Painter &p, const QRect &box, int outerWidth, const style::Sh
 			to -= st.bottomLeft.height() - st.extend.bottom();
 		}
 		if (to > from && !st.left.empty()) {
-			st.left.fill(p, rtlrect(box.x() - st.extend.left(), from, st.left.width(), to - from, outerWidth));
+			st.left.fill(p, style::rtlrect(box.x() - st.extend.left(), from, st.left.width(), to - from, outerWidth));
 		}
 	}
 	if (right) {
@@ -53,7 +54,7 @@ void Shadow::paint(Painter &p, const QRect &box, int outerWidth, const style::Sh
 			to -= st.bottomRight.height() - st.extend.bottom();
 		}
 		if (to > from && !st.right.empty()) {
-			st.right.fill(p, rtlrect(box.x() + box.width() + st.extend.right() - st.right.width(), from, st.right.width(), to - from, outerWidth));
+			st.right.fill(p, style::rtlrect(box.x() + box.width() + st.extend.right() - st.right.width(), from, st.right.width(), to - from, outerWidth));
 		}
 	}
 	if (top && !st.top.empty()) {
@@ -62,7 +63,7 @@ void Shadow::paint(Painter &p, const QRect &box, int outerWidth, const style::Sh
 		if (left && !st.topLeft.empty()) from += st.topLeft.width() - st.extend.left();
 		if (right && !st.topRight.empty()) to -= st.topRight.width() - st.extend.right();
 		if (to > from) {
-			st.top.fill(p, rtlrect(from, box.y() - st.extend.top(), to - from, st.top.height(), outerWidth));
+			st.top.fill(p, style::rtlrect(from, box.y() - st.extend.top(), to - from, st.top.height(), outerWidth));
 		}
 	}
 	if (bottom && !st.bottom.empty()) {
@@ -71,7 +72,7 @@ void Shadow::paint(Painter &p, const QRect &box, int outerWidth, const style::Sh
 		if (left && !st.bottomLeft.empty()) from += st.bottomLeft.width() - st.extend.left();
 		if (right && !st.bottomRight.empty()) to -= st.bottomRight.width() - st.extend.right();
 		if (to > from) {
-			st.bottom.fill(p, rtlrect(from, box.y() + box.height() + st.extend.bottom() - st.bottom.height(), to - from, st.bottom.height(), outerWidth));
+			st.bottom.fill(p, style::rtlrect(from, box.y() + box.height() + st.extend.bottom() - st.bottom.height(), to - from, st.bottom.height(), outerWidth));
 		}
 	}
 }

@@ -265,9 +265,9 @@ void CloudListCheck::paintWithColors(
 	p.setPen(Qt::NoPen);
 
 	p.setBrush(_colors->received);
-	p.drawRoundedRect(rtlrect(received, outerWidth), radius, radius);
+	p.drawRoundedRect(style::rtlrect(received, outerWidth), radius, radius);
 	p.setBrush(_colors->sent);
-	p.drawRoundedRect(rtlrect(sent, outerWidth), radius, radius);
+	p.drawRoundedRect(style::rtlrect(sent, outerWidth), radius, radius);
 
 	const auto skip = st::settingsThemeRadioBottom / 2;
 

@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/toast/toast.h"
-#include "ui/twidget.h"
+#include "ui/rp_widget.h"
 #include "ui/text/text.h"
 
 namespace Ui {

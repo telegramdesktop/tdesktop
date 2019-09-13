@@ -118,7 +118,7 @@ void ThemeDocument::draw(Painter &p, const QRect &r, TextSelection selection, cr
 	}
 	const auto radial = isRadialAnimation();
 
-	auto rthumb = rtlrect(paintx, painty, paintw, painth, width());
+	auto rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
 	auto roundRadius = ImageRoundRadius::Small;
 	auto roundCorners = RectPart::AllCorners;
 	validateThumbnail();
@@ -131,7 +131,7 @@ void ThemeDocument::draw(Painter &p, const QRect &r, TextSelection selection, cr
 	auto statusY = painty + st::msgDateImgDelta + st::msgDateImgPadding.y();
 	auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
 	auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
-	App::roundRect(p, rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+	App::roundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 	p.setFont(st::normalFont);
 	p.setPen(st::msgDateImgFg);
 	p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());

@@ -7,93 +7,241 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/unique_qptr.h"
+#include "ui/style/style_core_direction.h"
+#include "ui/ui_utility.h"
+
 #include <rpl/event_stream.h>
 #include <rpl/map.h>
 #include <rpl/distinct_until_changed.h>
-#include "base/unique_qptr.h"
 
-namespace Ui {
-namespace details {
+class TWidget;
 
-struct ForwardTag {
-};
-
-struct InPlaceTag {
-};
-
-template <typename Value>
-class AttachmentOwner : public QObject {
+template <typename Base>
+class TWidgetHelper : public Base {
 public:
-	template <typename OtherValue>
-	AttachmentOwner(QObject *parent, const ForwardTag&, OtherValue &&value)
-	: QObject(parent)
-	, _value(std::forward<OtherValue>(value)) {
+	using Base::Base;
+
+	virtual QMargins getMargins() const {
+		return QMargins();
 	}
 
-	template <typename ...Args>
-	AttachmentOwner(QObject *parent, const InPlaceTag&, Args &&...args)
-	: QObject(parent)
-	, _value(std::forward<Args>(args)...) {
+	bool inFocusChain() const {
+		return Ui::InFocusChain(this);
 	}
 
-	not_null<Value*> value() {
-		return &_value;
+	void hideChildren() {
+		for (auto child : Base::children()) {
+			if (child->isWidgetType()) {
+				static_cast<QWidget*>(child)->hide();
+			}
+		}
+	}
+	void showChildren() {
+		for (auto child : Base::children()) {
+			if (child->isWidgetType()) {
+				static_cast<QWidget*>(child)->show();
+			}
+		}
+	}
+
+	void moveToLeft(int x, int y, int outerw = 0) {
+		auto margins = getMargins();
+		x -= margins.left();
+		y -= margins.top();
+		Base::move(rtl() ? ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - Base::width()) : x, y);
+	}
+	void moveToRight(int x, int y, int outerw = 0) {
+		auto margins = getMargins();
+		x -= margins.right();
+		y -= margins.top();
+		Base::move(rtl() ? x : ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - Base::width()), y);
+	}
+	void setGeometryToLeft(int x, int y, int w, int h, int outerw = 0) {
+		auto margins = getMargins();
+		x -= margins.left();
+		y -= margins.top();
+		w -= margins.left() - margins.right();
+		h -= margins.top() - margins.bottom();
+		Base::setGeometry(rtl() ? ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - w) : x, y, w, h);
+	}
+	void setGeometryToRight(int x, int y, int w, int h, int outerw = 0) {
+		auto margins = getMargins();
+		x -= margins.right();
+		y -= margins.top();
+		w -= margins.left() - margins.right();
+		h -= margins.top() - margins.bottom();
+		Base::setGeometry(rtl() ? x : ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - w), y, w, h);
+	}
+	QPoint myrtlpoint(int x, int y) const {
+		return style::rtlpoint(x, y, Base::width());
+	}
+	QPoint myrtlpoint(const QPoint point) const {
+		return style::rtlpoint(point, Base::width());
+	}
+	QRect myrtlrect(int x, int y, int w, int h) const {
+		return style::rtlrect(x, y, w, h, Base::width());
+	}
+	QRect myrtlrect(const QRect &rect) const {
+		return style::rtlrect(rect, Base::width());
+	}
+	void rtlupdate(const QRect &rect) {
+		Base::update(myrtlrect(rect));
+	}
+	void rtlupdate(int x, int y, int w, int h) {
+		Base::update(myrtlrect(x, y, w, h));
+	}
+
+	QPoint mapFromGlobal(const QPoint &point) const {
+		return Base::mapFromGlobal(point);
+	}
+	QPoint mapToGlobal(const QPoint &point) const {
+		return Base::mapToGlobal(point);
+	}
+	QRect mapFromGlobal(const QRect &rect) const {
+		return QRect(mapFromGlobal(rect.topLeft()), rect.size());
+	}
+	QRect mapToGlobal(const QRect &rect) const {
+		return QRect(mapToGlobal(rect.topLeft()), rect.size());
+	}
+
+protected:
+	void enterEvent(QEvent *e) final override {
+		if (auto parent = tparent()) {
+			parent->leaveToChildEvent(e, this);
+		}
+		return enterEventHook(e);
+	}
+	virtual void enterEventHook(QEvent *e) {
+		return Base::enterEvent(e);
+	}
+
+	void leaveEvent(QEvent *e) final override {
+		if (auto parent = tparent()) {
+			parent->enterFromChildEvent(e, this);
+		}
+		return leaveEventHook(e);
+	}
+	virtual void leaveEventHook(QEvent *e) {
+		return Base::leaveEvent(e);
+	}
+
+	// e - from enterEvent() of child TWidget
+	virtual void leaveToChildEvent(QEvent *e, QWidget *child) {
+	}
+
+	// e - from leaveEvent() of child TWidget
+	virtual void enterFromChildEvent(QEvent *e, QWidget *child) {
 	}
 
 private:
-	Value _value;
+	TWidget *tparent() {
+		return qobject_cast<TWidget*>(Base::parentWidget());
+	}
+	const TWidget *tparent() const {
+		return qobject_cast<const TWidget*>(Base::parentWidget());
+	}
+
+	template <typename OtherBase>
+	friend class TWidgetHelper;
 
 };
 
-} // namespace details
+class TWidget : public TWidgetHelper<QWidget> {
+	// The Q_OBJECT meta info is used for qobject_cast!
+	Q_OBJECT
+
+public:
+	TWidget(QWidget *parent = nullptr) : TWidgetHelper<QWidget>(parent) {
+	}
+
+	// Get the size of the widget as it should be.
+	// Negative return value means no default width.
+	virtual int naturalWidth() const {
+		return -1;
+	}
+
+	// Count new height for width=newWidth and resize to it.
+	void resizeToWidth(int newWidth) {
+		auto margins = getMargins();
+		auto fullWidth = margins.left() + newWidth + margins.right();
+		auto fullHeight = margins.top() + resizeGetHeight(newWidth) + margins.bottom();
+		auto newSize = QSize(fullWidth, fullHeight);
+		if (newSize != size()) {
+			resize(newSize);
+			update();
+		}
+	}
+
+	// Resize to minimum of natural width and available width.
+	void resizeToNaturalWidth(int newWidth) {
+		auto maxWidth = naturalWidth();
+		resizeToWidth((maxWidth >= 0) ? qMin(newWidth, maxWidth) : newWidth);
+	}
+
+	QRect rectNoMargins() const {
+		return rect().marginsRemoved(getMargins());
+	}
+
+	int widthNoMargins() const {
+		return rectNoMargins().width();
+	}
+
+	int heightNoMargins() const {
+		return rectNoMargins().height();
+	}
+
+	int bottomNoMargins() const {
+		auto rectWithoutMargins = rectNoMargins();
+		return y() + rectWithoutMargins.y() + rectWithoutMargins.height();
+	}
+
+	QSize sizeNoMargins() const {
+		return rectNoMargins().size();
+	}
+
+	// Updates the area that is visible inside the scroll container.
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) {
+		auto max = height();
+		visibleTopBottomUpdated(
+			snap(visibleTop, 0, max),
+			snap(visibleBottom, 0, max));
+	}
+
+signals:
+	// Child widget is responsible for emitting this signal.
+	void heightUpdated();
+
+protected:
+	void setChildVisibleTopBottom(
+			TWidget *child,
+			int visibleTop,
+			int visibleBottom) {
+		if (child) {
+			auto top = child->y();
+			child->setVisibleTopBottom(
+				visibleTop - top,
+				visibleBottom - top);
+		}
+	}
+
+	// Resizes content and counts natural widget height for the desired width.
+	virtual int resizeGetHeight(int newWidth) {
+		return heightNoMargins();
+	}
+
+	virtual void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
+	}
+
+};
+
+namespace Ui {
 
 class RpWidget;
 
-template <typename Widget, typename ...Args>
-inline base::unique_qptr<Widget> CreateObject(Args &&...args) {
-	return base::make_unique_q<Widget>(
-		nullptr,
-		std::forward<Args>(args)...);
-}
-
-template <typename Value, typename Parent, typename ...Args>
-inline Value *CreateChild(
-		Parent *parent,
-		Args &&...args) {
-	Expects(parent != nullptr);
-
-	if constexpr (std::is_base_of_v<QObject, Value>) {
-		return new Value(parent, std::forward<Args>(args)...);
-	} else {
-		return CreateChild<details::AttachmentOwner<Value>>(
-			parent,
-			details::InPlaceTag{},
-			std::forward<Args>(args)...)->value();
-	}
-}
-
-inline void DestroyChild(QWidget *child) {
-	delete child;
-}
-
-template <typename ...Args>
-inline auto Connect(Args &&...args) {
-	return QObject::connect(std::forward<Args>(args)...);
-}
-
-void ResizeFitChild(
-	not_null<RpWidget*> parent,
-	not_null<RpWidget*> child);
-
-template <typename Value>
-inline not_null<std::decay_t<Value>*> AttachAsChild(
-		not_null<QObject*> parent,
-		Value &&value) {
-	return CreateChild<details::AttachmentOwner<std::decay_t<Value>>>(
-		parent.get(),
-		details::ForwardTag{},
-		std::forward<Value>(value))->value();
-}
+void ResizeFitChild(not_null<RpWidget*> parent, not_null<RpWidget*> child);
 
 template <typename Widget>
 using RpWidgetParent = std::conditional_t<

@@ -309,7 +309,7 @@ void ChangePhoneBox::EnterCode::submit() {
 
 	const auto session = _session;
 	const auto code = _code->getDigitsOnly();
-	const auto weak = make_weak(this);
+	const auto weak = Ui::MakeWeak(this);
 	_requestId = MTP::send(MTPaccount_ChangePhone(
 		MTP_string(_phone),
 		MTP_string(_hash),

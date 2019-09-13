@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/twidget.h"
+#include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
 class DragArea : public TWidget {

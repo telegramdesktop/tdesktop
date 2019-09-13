@@ -32,6 +32,17 @@ inline bool contains(const Container &container, const T &value) {
 	return std::find(std::begin(container), end, value) != end;
 }
 
+template <typename D, typename T>
+inline constexpr D up_cast(T object) {
+	using DV = std::decay_t<decltype(*D())>;
+	using TV = std::decay_t<decltype(*T())>;
+	if constexpr (std::is_base_of_v<DV, TV>) {
+		return object;
+	} else {
+		return nullptr;
+	}
+}
+
 // We need a custom comparator for set<std::unique_ptr<T>>::find to work with pointers.
 // thanks to http://stackoverflow.com/questions/18939882/raw-pointer-lookup-for-sets-of-unique-ptrs
 template <typename T>

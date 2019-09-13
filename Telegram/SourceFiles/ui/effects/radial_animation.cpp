@@ -147,7 +147,7 @@ void InfiniteRadialAnimation::draw(
 	auto o = p.opacity();
 	p.setOpacity(o * state.shown);
 
-	const auto rect = rtlrect(
+	const auto rect = style::rtlrect(
 		position.x(),
 		position.y(),
 		size.width(),

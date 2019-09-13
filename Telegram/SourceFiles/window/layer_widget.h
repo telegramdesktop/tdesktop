@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+#include "base/object_ptr.h"
 #include "data/data_file_origin.h"
 
 namespace Lottie {

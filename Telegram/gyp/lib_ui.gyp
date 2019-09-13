@@ -16,6 +16,7 @@
       'common.gypi',
       'qt.gypi',
       'qt_moc.gypi',
+      'codegen_styles_rule.gypi',
       'codegen_rules_ui.gypi',
       'pch.gypi',
     ],

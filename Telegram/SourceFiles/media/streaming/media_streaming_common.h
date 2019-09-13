@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/rect_part.h"
+
 enum class ImageRoundRadius;
 
 namespace Media {

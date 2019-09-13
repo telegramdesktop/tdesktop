@@ -9,8 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/notifications_manager.h"
 #include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 #include "base/timer.h"
 #include "base/binary_guard.h"
+#include "base/object_ptr.h"
 
 #include <QtCore/QTimer>
 

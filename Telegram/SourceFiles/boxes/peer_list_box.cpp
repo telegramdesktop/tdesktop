@@ -507,14 +507,14 @@ void PeerListRow::paintDisabledCheckUserpic(
 	auto userpicDiameter = st::contactsPhotoCheckbox.imageRadius * 2;
 	auto userpicLeft = x + userpicShift;
 	auto userpicTop = y + userpicShift;
-	auto userpicEllipse = rtlrect(x, y, userpicDiameter, userpicDiameter, outerWidth);
+	auto userpicEllipse = style::rtlrect(x, y, userpicDiameter, userpicDiameter, outerWidth);
 	auto userpicBorderPen = st::contactsPhotoDisabledCheckFg->p;
 	userpicBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
 
 	auto iconDiameter = st::contactsPhotoCheckbox.check.size;
 	auto iconLeft = x + userpicDiameter + st::contactsPhotoCheckbox.selectWidth - iconDiameter;
 	auto iconTop = y + userpicDiameter + st::contactsPhotoCheckbox.selectWidth - iconDiameter;
-	auto iconEllipse = rtlrect(iconLeft, iconTop, iconDiameter, iconDiameter, outerWidth);
+	auto iconEllipse = style::rtlrect(iconLeft, iconTop, iconDiameter, iconDiameter, outerWidth);
 	auto iconBorderPen = st::contactsPhotoCheckbox.check.border->p;
 	iconBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
 

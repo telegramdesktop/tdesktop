@@ -263,7 +263,7 @@ TimeInput::TimeInput(QWidget *parent, const QString &value)
 	GetMinute(value))
 , _value(valueCurrent()) {
 	const auto focused = [=](const object_ptr<TimePart> &field) {
-		return [this, pointer = make_weak(field.data())]{
+		return [this, pointer = Ui::MakeWeak(field.data())]{
 			_borderAnimationStart = pointer->borderAnimationStart()
 				+ pointer->x()
 				- _hour->x();

@@ -5,9 +5,6 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 {
-  'includes': [
-    'codegen_styles_rule.gypi',
-  ],
   'actions': [{
     'action_name': 'codegen_palette',
     'inputs': [

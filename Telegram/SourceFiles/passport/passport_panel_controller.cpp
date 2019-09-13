@@ -1223,7 +1223,7 @@ void PanelController::startScopeEdit(
 					std::move(scans),
 					std::move(translations),
 					PrepareSpecialFiles(*_editDocument));
-			const auto weak = make_weak(result.data());
+			const auto weak = Ui::MakeWeak(result.data());
 			_panelHasUnsavedChanges = [=] {
 				return weak ? weak->hasUnsavedChanges() : false;
 			};
@@ -1241,7 +1241,7 @@ void PanelController::startScopeEdit(
 					_editValue->nativeNames),
 				_editValue->error,
 				_editValue->data.parsedInEdit);
-			const auto weak = make_weak(result.data());
+			const auto weak = Ui::MakeWeak(result.data());
 			_panelHasUnsavedChanges = [=] {
 				return weak ? weak->hasUnsavedChanges() : false;
 			};

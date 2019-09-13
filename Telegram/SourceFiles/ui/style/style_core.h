@@ -9,13 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/style/style_core_scale.h"
 #include "ui/style/style_core_types.h"
-
-inline QRect centerrect(const QRect &inRect, const QRect &rect) {
-	return QRect(inRect.x() + (inRect.width() - rect.width()) / 2, inRect.y() + (inRect.height() - rect.height()) / 2, rect.width(), rect.height());
-}
-inline QRect centerrect(const QRect &inRect, const style::icon &icon) {
-	return centerrect(inRect, QRect(0, 0, icon.width(), icon.height()));
-}
+#include "ui/style/style_core_direction.h"
 
 namespace style {
 namespace internal {
@@ -39,9 +33,6 @@ bool setPaletteColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);
 void EnsureContrast(ColorData &over, const ColorData &under);
 
 } // namespace internal
-
-[[nodiscard]] bool RightToLeft();
-void SetRightToLeft(bool rtl);
 
 void startManager(int scale);
 void stopManager();

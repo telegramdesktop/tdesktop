@@ -736,7 +736,7 @@ void Application::registerLeaveSubscription(QWidget *widget) {
 #ifdef Q_OS_MAC
 	if (const auto topLevel = widget->window()) {
 		if (topLevel == _window->widget()) {
-			auto weak = make_weak(widget);
+			auto weak = Ui::MakeWeak(widget);
 			auto subscription = _window->widget()->leaveEvents(
 			) | rpl::start_with_next([weak] {
 				if (const auto window = weak.data()) {
@@ -862,3 +862,11 @@ Application &App() {
 }
 
 } // namespace Core
+
+namespace Ui {
+
+void PostponeCall(FnMut<void()> &&callable) {
+	Core::App().postponeCall(std::move(callable));
+}
+
+} // namespace Ui

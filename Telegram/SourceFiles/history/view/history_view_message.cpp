@@ -1447,7 +1447,7 @@ void Message::drawRightAction(
 	p.setBrush(st::msgServiceBg);
 	{
 		PainterHighQualityEnabler hq(p);
-		p.drawEllipse(rtlrect(
+		p.drawEllipse(style::rtlrect(
 			left,
 			top,
 			st::historyFastShareSize,

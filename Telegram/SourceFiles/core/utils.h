@@ -25,17 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace base {
 
-template <typename D, typename T>
-inline constexpr D up_cast(T object) {
-	using DV = std::decay_t<decltype(*D())>;
-	using TV = std::decay_t<decltype(*T())>;
-	if constexpr (std::is_base_of_v<DV, TV>) {
-		return object;
-	} else {
-		return nullptr;
-	}
-}
-
 template <typename T>
 using set_of_unique_ptr = std::set<std::unique_ptr<T>, base::pointer_comparator<T>>;
 

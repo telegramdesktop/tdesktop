@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+#include "base/object_ptr.h"
 
 namespace Ui {
 

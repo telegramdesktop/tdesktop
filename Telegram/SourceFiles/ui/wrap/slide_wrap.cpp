@@ -107,7 +107,7 @@ void SlideWrap<RpWidget>::animationStep() {
 	}
 	auto shouldBeHidden = !_toggled && !_animation.animating();
 	if (shouldBeHidden != isHidden()) {
-		const auto guard = make_weak(this);
+		const auto guard = MakeWeak(this);
 		setVisible(!shouldBeHidden);
 		if (shouldBeHidden && guard) {
 			SendPendingMoveResizeEvents(this);

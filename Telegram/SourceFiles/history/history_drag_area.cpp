@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_drag_area.h"
 
-#include "styles/style_chat_helpers.h"
-#include "styles/style_boxes.h"
 #include "boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
 #include "inline_bots/inline_bot_result.h"
@@ -17,11 +15,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
+#include "ui/widgets/shadow.h"
+#include "ui/ui_utility.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "app.h"
-#include "ui/widgets/shadow.h"
+#include "styles/style_chat_helpers.h"
+#include "styles/style_boxes.h"
 
 DragArea::DragArea(QWidget *parent) : TWidget(parent) {
 	setMouseTracking(true);

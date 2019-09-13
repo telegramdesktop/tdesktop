@@ -572,7 +572,7 @@ void psSendToMenu(bool send, bool silent) {
 	_manageAppLnk(send, silent, CSIDL_SENDTO, L"-sendpath", L"Telegram send to link.\nYou can disable send to menu item in Telegram settings.");
 }
 
-void psUpdateOverlayed(TWidget *widget) {
+void psUpdateOverlayed(QWidget *widget) {
 	bool wm = widget->testAttribute(Qt::WA_Mapped), wv = widget->testAttribute(Qt::WA_WState_Visible);
 	if (!wm) widget->setAttribute(Qt::WA_Mapped, true);
 	if (!wv) widget->setAttribute(Qt::WA_WState_Visible, true);

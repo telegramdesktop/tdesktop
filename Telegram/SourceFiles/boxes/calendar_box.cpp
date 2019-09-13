@@ -8,10 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/calendar_box.h"
 
 #include "ui/widgets/buttons.h"
-#include "styles/style_boxes.h"
-#include "styles/style_dialogs.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/ui_utility.h"
+#include "styles/style_boxes.h"
+#include "styles/style_dialogs.h"
 
 namespace {
 
@@ -258,7 +259,7 @@ void CalendarBox::Inner::monthChanged(QDate month) {
 	_ripples.clear();
 	resizeToCurrent();
 	update();
-	sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
+	Ui::SendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
 }
 
 void CalendarBox::Inner::resizeToCurrent() {

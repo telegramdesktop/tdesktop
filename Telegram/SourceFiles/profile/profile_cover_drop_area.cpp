@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "profile/profile_cover_drop_area.h"
 
+#include "ui/ui_utility.h"
 #include "styles/style_profile.h"
 
 namespace Profile {

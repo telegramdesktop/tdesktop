@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/ui_utility.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"

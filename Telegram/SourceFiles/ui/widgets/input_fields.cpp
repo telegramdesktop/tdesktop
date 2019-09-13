@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/countryinput.h"
 #include "ui/emoji_config.h"
+#include "ui/ui_utility.h"
 #include "chat_helpers/emoji_suggestions_helper.h"
 #include "chat_helpers/message_field.h" // ConvertTextTagsToEntities
 #include "platform/platform_info.h"
@@ -1044,7 +1045,7 @@ void FlatInput::touchEvent(QTouchEvent *e) {
 
 	case QEvent::TouchEnd: {
 		if (!_touchPress) return;
-		auto weak = make_weak(this);
+		auto weak = MakeWeak(this);
 		if (!_touchMove && window()) {
 			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
 			QPoint mapped(mapFromGlobal(_touchStart)), winMapped(window()->mapFromGlobal(_touchStart));
@@ -1645,7 +1646,7 @@ void InputField::handleTouchEvent(QTouchEvent *e) {
 
 	case QEvent::TouchEnd: {
 		if (!_touchPress) return;
-		auto weak = make_weak(this);
+		auto weak = MakeWeak(this);
 		if (!_touchMove && window()) {
 			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
 			QPoint mapped(mapFromGlobal(_touchStart)), winMapped(window()->mapFromGlobal(_touchStart));
@@ -2315,7 +2316,7 @@ void InputField::handleContentsChanged() {
 
 	if (tagsChanged || (_lastTextWithTags.text != currentText)) {
 		_lastTextWithTags.text = currentText;
-		const auto weak = make_weak(this);
+		const auto weak = MakeWeak(this);
 		emit changed();
 		if (!weak) {
 			return;
@@ -3697,7 +3698,7 @@ void MaskedInputField::touchEvent(QTouchEvent *e) {
 
 	case QEvent::TouchEnd: {
 		if (!_touchPress) return;
-		auto weak = make_weak(this);
+		auto weak = MakeWeak(this);
 		if (!_touchMove && window()) {
 			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
 			QPoint mapped(mapFromGlobal(_touchStart)), winMapped(window()->mapFromGlobal(_touchStart));

@@ -5,11 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "twidget.h"
-
-#include "mainwindow.h"
-#include "core/application.h"
-#include "platform/platform_info.h"
+#include "ui/ui_utility.h"
 
 #include <QtGui/QWindow>
 #include <QtGui/QGuiApplication>
@@ -31,8 +27,10 @@ void CreateWidgetStateRecursive(not_null<QWidget*> target) {
 		if (!target->isWindow()) {
 			CreateWidgetStateRecursive(target->parentWidget());
 			WidgetCreator::Create(target);
-		} else if (!Platform::IsMac() || Platform::IsMac10_7OrGreater()) {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 6, 0)
+		} else {
 			WidgetCreator::Create(target);
+#endif // Qt >= 5.6
 		}
 	}
 }
@@ -150,15 +148,9 @@ void ForceFullRepaint(not_null<QWidget*> widget) {
 	refresher->show();
 }
 
-void PostponeCall(FnMut<void()> &&callable) {
-	Core::App().postponeCall(std::move(callable));
-}
-
-} // namespace Ui
-
-void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPoint &globalPoint) {
-	if (auto windowHandle = widget->window()->windowHandle()) {
-		auto localPoint = windowHandle->mapFromGlobal(globalPoint);
+void SendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPoint &globalPoint) {
+	if (const auto windowHandle = widget->window()->windowHandle()) {
+		const auto localPoint = windowHandle->mapFromGlobal(globalPoint);
 		QMouseEvent ev(type
 			, localPoint
 			, localPoint
@@ -174,3 +166,5 @@ void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton 
 		QGuiApplication::sendEvent(windowHandle, &ev);
 	}
 }
+
+} // namespace Ui

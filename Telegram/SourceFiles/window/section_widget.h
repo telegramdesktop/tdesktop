@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "dialogs/dialogs_key.h"
+#include "base/object_ptr.h"
 
 namespace Main {
 class Session;
@@ -106,9 +107,7 @@ public:
 
 	// This can be used to grab with or without top bar shadow.
 	// This will be protected when animation preparation will be done inside.
-	virtual QPixmap grabForShowAnimation(const SectionSlideParams &params) {
-		return Ui::GrabWidget(this);
-	}
+	virtual QPixmap grabForShowAnimation(const SectionSlideParams &params);
 
 	// Attempt to show the required section inside the existing one.
 	// For example if this section already shows exactly the required

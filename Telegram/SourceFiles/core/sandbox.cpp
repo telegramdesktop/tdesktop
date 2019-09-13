@@ -513,7 +513,7 @@ bool Sandbox::notify(QObject *receiver, QEvent *e) {
 
 	const auto wrap = createEventNestingLevel();
 	if (e->type() == QEvent::UpdateRequest) {
-		const auto weak = make_weak(receiver);
+		const auto weak = QPointer<QObject>(receiver);
 		_widgetUpdateRequests.fire({});
 		if (!weak) {
 			return true;

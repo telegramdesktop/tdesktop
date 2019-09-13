@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "platform/platform_specific.h"
 #include "core/qt_signal_producer.h"
+#include "ui/ui_utility.h"
 #include "app.h"
 #include "styles/style_widgets.h"
 

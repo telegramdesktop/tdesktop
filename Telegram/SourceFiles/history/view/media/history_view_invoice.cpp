@@ -259,7 +259,7 @@ void Invoice::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		auto statusX = st::msgDateImgDelta;
 		auto statusY = st::msgDateImgDelta;
 
-		App::roundRect(p, rtlrect(statusX, statusY, statusW, statusH, pixwidth), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+		App::roundRect(p, style::rtlrect(statusX, statusY, statusW, statusH, pixwidth), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 
 		p.setFont(st::msgDateFont);
 		p.setPen(st::msgDateImgFg);
