@@ -17,9 +17,7 @@ namespace Ui {
 class ToggleView;
 class RippleAnimation;
 
-class Menu : public TWidget {
-	Q_OBJECT
-
+class Menu : public RpWidget {
 public:
 	Menu(QWidget *parent, const style::Menu &st = st::defaultMenu);
 	Menu(QWidget *parent, QMenu *menu, const style::Menu &st = st::defaultMenu);
@@ -85,13 +83,11 @@ protected:
 	void enterEventHook(QEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 
-private slots:
-	void actionChanged();
-
 private:
 	struct ActionData;
 
 	void updateSelected(QPoint globalPosition);
+	void actionChanged();
 	void init();
 
 	// Returns the new width.

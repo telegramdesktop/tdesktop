@@ -19,3 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QFontMetrics>
 
 #include <QtWidgets/QWidget>
+
+#include <rpl/rpl.h>
+#include <range/v3/all.hpp>

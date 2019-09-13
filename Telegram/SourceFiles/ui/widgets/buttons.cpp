@@ -11,9 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/cross_animation.h"
 #include "ui/effects/numbers_animation.h"
 #include "ui/image/image_prepare.h"
-#include "window/themes/window_theme.h"
-#include "lang/lang_instance.h"
-#include "app.h"
+#include "ui/painter.h"
 
 namespace Ui {
 
@@ -91,13 +89,11 @@ void RippleButton::setForceRippled(
 	if (_forceRippled != rippled) {
 		_forceRippled = rippled;
 		if (_forceRippled) {
-			_forceRippledSubscription = base::ObservableViewer(
-				*Window::Theme::Background()
-			) | rpl::start_with_next([=](
-					const Window::Theme::BackgroundUpdate &update) {
-				if (update.paletteChanged() && _ripple) {
-					_ripple->forceRepaint();
-				}
+			_forceRippledSubscription = style::PaletteChanged(
+			) | rpl::filter([=] {
+				return _ripple != nullptr;
+			}) | rpl::start_with_next([=] {
+				_ripple->forceRepaint();
 			});
 			ensureRipple();
 			if (_ripple->empty()) {
@@ -350,7 +346,12 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 			p.setBrush(color);
 			p.drawRoundedRect(fill, radius, radius);
 		} else {
-			App::roundRect(p, fill, color, ImageRoundRadius::Small);
+			PainterHighQualityEnabler hq(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(color);
+			p.drawRoundedRect(fill, st::buttonRadius, st::buttonRadius);
+			// #TODO ui
+			//App::roundRect(p, fill, color, ImageRoundRadius::Small);
 		}
 	};
 	drawRect(_st.textBg);

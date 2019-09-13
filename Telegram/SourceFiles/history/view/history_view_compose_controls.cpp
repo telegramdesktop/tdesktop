@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "core/event_filter.h"
-#include "core/qt_signal_producer.h"
+#include "base/qt_signal_producer.h"
 #include "history/history.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_section.h"
@@ -94,7 +94,7 @@ rpl::producer<> ComposeControls::cancelRequests() const {
 
 rpl::producer<> ComposeControls::sendRequests() const {
 	auto toEmpty = rpl::map([] { return rpl::empty_value(); });
-	auto submits = Core::QtSignalProducer(
+	auto submits = base::qt_signal_producer(
 		_field.get(),
 		&Ui::InputField::submitted);
 	return rpl::merge(

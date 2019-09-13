@@ -164,7 +164,6 @@
 <(src_loc)/core/media_active_cache.h
 <(src_loc)/core/mime_type.cpp
 <(src_loc)/core/mime_type.h
-<(src_loc)/core/qt_signal_producer.h
 <(src_loc)/core/sandbox.cpp
 <(src_loc)/core/sandbox.h
 <(src_loc)/core/shortcuts.cpp
@@ -736,10 +735,6 @@
 <(src_loc)/support/support_helper.h
 <(src_loc)/support/support_templates.cpp
 <(src_loc)/support/support_templates.h
-<(src_loc)/ui/effects/animation_value.cpp
-<(src_loc)/ui/effects/animation_value.h
-<(src_loc)/ui/effects/animations.cpp
-<(src_loc)/ui/effects/animations.h
 <(src_loc)/ui/effects/cross_animation.cpp
 <(src_loc)/ui/effects/cross_animation.h
 <(src_loc)/ui/effects/fade_animation.cpp
@@ -781,8 +776,6 @@
 <(src_loc)/ui/toast/toast_manager.h
 <(src_loc)/ui/toast/toast_widget.cpp
 <(src_loc)/ui/toast/toast_widget.h
-<(src_loc)/ui/widgets/buttons.cpp
-<(src_loc)/ui/widgets/buttons.h
 <(src_loc)/ui/widgets/checkbox.cpp
 <(src_loc)/ui/widgets/checkbox.h
 <(src_loc)/ui/widgets/continuous_sliders.cpp
@@ -822,8 +815,6 @@
 <(src_loc)/ui/wrap/vertical_layout.cpp
 <(src_loc)/ui/wrap/vertical_layout.h
 <(src_loc)/ui/wrap/wrap.h
-<(src_loc)/ui/abstract_button.cpp
-<(src_loc)/ui/abstract_button.h
 <(src_loc)/ui/countryinput.cpp
 <(src_loc)/ui/countryinput.h
 <(src_loc)/ui/emoji_config.cpp

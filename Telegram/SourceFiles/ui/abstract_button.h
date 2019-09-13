@@ -14,8 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 class AbstractButton : public RpWidget {
-	Q_OBJECT
-
 public:
 	AbstractButton(QWidget *parent);
 
@@ -61,9 +59,6 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
-signals:
-	void clicked();
-
 protected:
 	enum class StateFlag {
 		None     = 0,
@@ -87,6 +82,8 @@ protected:
 
 	virtual void onStateChanged(State was, StateChangeSource source) {
 	}
+
+	void clicked(Qt::KeyboardModifiers modifiers, Qt::MouseButton button);
 
 private:
 	void updateCursor();

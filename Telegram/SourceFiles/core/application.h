@@ -199,8 +199,8 @@ public:
 	[[nodiscard]] crl::time lastNonIdleTime() const;
 	void updateNonIdle();
 
-	void registerLeaveSubscription(QWidget *widget);
-	void unregisterLeaveSubscription(QWidget *widget);
+	void registerLeaveSubscription(not_null<QWidget*> widget);
+	void unregisterLeaveSubscription(not_null<QWidget*> widget);
 
 	// Sandbox interface.
 	void postponeCall(FnMut<void()> &&callable);

@@ -313,9 +313,9 @@ OverlayWidget::OverlayWidget()
 	_controlsHideTimer.setSingleShot(true);
 	connect(&_controlsHideTimer, SIGNAL(timeout()), this, SLOT(onHideControls()));
 
-	connect(_docDownload, SIGNAL(clicked()), this, SLOT(onDownload()));
-	connect(_docSaveAs, SIGNAL(clicked()), this, SLOT(onSaveAs()));
-	connect(_docCancel, SIGNAL(clicked()), this, SLOT(onSaveCancel()));
+	_docDownload->addClickHandler([=] { onDownload(); });
+	_docSaveAs->addClickHandler([=] { onSaveAs(); });
+	_docCancel->addClickHandler([=] { onSaveCancel(); });
 
 	_dropdown->setHiddenCallback([this] { dropdownHidden(); });
 	_dropdownShowTimer->setSingleShot(true);

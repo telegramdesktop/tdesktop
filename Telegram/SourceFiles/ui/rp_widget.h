@@ -15,6 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/map.h>
 #include <rpl/distinct_until_changed.h>
 
+#include <QtWidgets/QWidget>
+#include <QtCore/QPointer>
+
 class TWidget;
 
 template <typename Base>
@@ -49,13 +52,13 @@ public:
 		auto margins = getMargins();
 		x -= margins.left();
 		y -= margins.top();
-		Base::move(rtl() ? ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - Base::width()) : x, y);
+		Base::move(style::RightToLeft() ? ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - Base::width()) : x, y);
 	}
 	void moveToRight(int x, int y, int outerw = 0) {
 		auto margins = getMargins();
 		x -= margins.right();
 		y -= margins.top();
-		Base::move(rtl() ? x : ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - Base::width()), y);
+		Base::move(style::RightToLeft() ? x : ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - Base::width()), y);
 	}
 	void setGeometryToLeft(int x, int y, int w, int h, int outerw = 0) {
 		auto margins = getMargins();
@@ -63,7 +66,7 @@ public:
 		y -= margins.top();
 		w -= margins.left() - margins.right();
 		h -= margins.top() - margins.bottom();
-		Base::setGeometry(rtl() ? ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - w) : x, y, w, h);
+		Base::setGeometry(style::RightToLeft() ? ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - w) : x, y, w, h);
 	}
 	void setGeometryToRight(int x, int y, int w, int h, int outerw = 0) {
 		auto margins = getMargins();
@@ -71,7 +74,7 @@ public:
 		y -= margins.top();
 		w -= margins.left() - margins.right();
 		h -= margins.top() - margins.bottom();
-		Base::setGeometry(rtl() ? x : ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - w), y, w, h);
+		Base::setGeometry(style::RightToLeft() ? x : ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - w), y, w, h);
 	}
 	QPoint myrtlpoint(int x, int y) const {
 		return style::rtlpoint(x, y, Base::width());
@@ -204,13 +207,9 @@ public:
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) {
 		auto max = height();
 		visibleTopBottomUpdated(
-			snap(visibleTop, 0, max),
-			snap(visibleBottom, 0, max));
+			std::clamp(visibleTop, 0, max),
+			std::clamp(visibleBottom, 0, max));
 	}
-
-signals:
-	// Child widget is responsible for emitting this signal.
-	void heightUpdated();
 
 protected:
 	void setChildVisibleTopBottom(

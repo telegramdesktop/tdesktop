@@ -101,7 +101,7 @@ private:
 
 };
 
-class RoundButton : public RippleButton, private base::Subscriber {
+class RoundButton : public RippleButton {
 public:
 	RoundButton(
 		QWidget *parent,

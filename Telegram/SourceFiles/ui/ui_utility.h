@@ -8,6 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/unique_qptr.h"
+#include "ui/ui_integration.h"
+
+#include <QtCore/QEvent>
 
 template <typename Object>
 class object_ptr;
@@ -133,9 +136,6 @@ void RenderWidget(
 	= QWidget::DrawChildren | QWidget::IgnoreMask);
 
 void ForceFullRepaint(not_null<QWidget*> widget);
-
-// Must be implemented outside lib_ui.
-void PostponeCall(FnMut<void()> &&callable);
 
 template <
 	typename Guard,

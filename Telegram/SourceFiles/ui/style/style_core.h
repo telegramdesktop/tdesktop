@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_core_types.h"
 #include "ui/style/style_core_direction.h"
 
+#include <rpl/producer.h>
+
 namespace style {
 namespace internal {
 
@@ -26,16 +28,21 @@ public:
 
 void registerModule(ModuleBase *module);
 
-// This method is implemented in palette.cpp (codegen).
-bool setPaletteColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);
-
 [[nodiscard]] QColor EnsureContrast(const QColor &over, const QColor &under);
 void EnsureContrast(ColorData &over, const ColorData &under);
+
+void StartShortAnimation();
+void StopShortAnimation();
 
 } // namespace internal
 
 void startManager(int scale);
 void stopManager();
+
+[[nodiscard]] rpl::producer<> PaletteChanged();
+void NotifyPaletteChanged();
+
+[[nodiscard]] rpl::producer<bool> ShortAnimationPlaying();
 
 // *outResult must be r.width() x r.height(), ARGB32_Premultiplied.
 // QRect(0, 0, src.width(), src.height()) must contain r.

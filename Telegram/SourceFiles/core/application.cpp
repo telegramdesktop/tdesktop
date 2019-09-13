@@ -184,6 +184,15 @@ void Application::run() {
 	Ui::Emoji::Init();
 	Media::Player::start(_audio.get());
 
+	style::ShortAnimationPlaying(
+	) | rpl::start_with_next([=](bool playing) {
+		if (playing) {
+			MTP::internal::pause();
+		} else {
+			MTP::internal::unpause();
+		}
+	}, _lifetime);
+
 	DEBUG_LOG(("Application Info: inited..."));
 
 	cChangeTimeFormat(QLocale::system().timeFormat(QLocale::ShortFormat));
@@ -732,7 +741,7 @@ QPoint Application::getPointForCallPanelCenter() const {
 }
 
 // macOS Qt bug workaround, sometimes no leaveEvent() gets to the nested widgets.
-void Application::registerLeaveSubscription(QWidget *widget) {
+void Application::registerLeaveSubscription(not_null<QWidget*> widget) {
 #ifdef Q_OS_MAC
 	if (const auto topLevel = widget->window()) {
 		if (topLevel == _window->widget()) {
@@ -750,7 +759,7 @@ void Application::registerLeaveSubscription(QWidget *widget) {
 #endif // Q_OS_MAC
 }
 
-void Application::unregisterLeaveSubscription(QWidget *widget) {
+void Application::unregisterLeaveSubscription(not_null<QWidget*> widget) {
 #ifdef Q_OS_MAC
 	_leaveSubscriptions = std::move(
 		_leaveSubscriptions
@@ -867,6 +876,14 @@ namespace Ui {
 
 void PostponeCall(FnMut<void()> &&callable) {
 	Core::App().postponeCall(std::move(callable));
+}
+
+void RegisterLeaveSubscription(not_null<QWidget*> widget) {
+	Core::App().registerLeaveSubscription(widget);
+}
+
+void UnregisterLeaveSubscription(not_null<QWidget*> widget) {
+	Core::App().unregisterLeaveSubscription(widget);
 }
 
 } // namespace Ui

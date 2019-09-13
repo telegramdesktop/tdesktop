@@ -86,12 +86,9 @@ private slots:
 		hideAnimated();
 	}
 	void onScroll();
-	void onWidgetHeightUpdated() {
-		resizeToContent();
-	}
 
 private:
-	QPointer<TWidget> doSetOwnedWidget(object_ptr<TWidget> widget);
+	QPointer<RpWidget> doSetOwnedWidget(object_ptr<RpWidget> widget);
 	QImage grabForPanelAnimation();
 	void startShowAnimation();
 	void startOpacityAnimation(bool hiding);

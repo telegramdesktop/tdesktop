@@ -447,7 +447,7 @@ void Inner::refreshSwitchPmButton(const CacheEntry *entry) {
 			_switchPmButton.create(this, nullptr, st::switchPmButton);
 			_switchPmButton->show();
 			_switchPmButton->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-			connect(_switchPmButton, SIGNAL(clicked()), this, SLOT(onSwitchPm()));
+			_switchPmButton->addClickHandler([=] { onSwitchPm(); });
 		}
 		_switchPmButton->setText(rpl::single(entry->switchPmText));
 		_switchPmStartToken = entry->switchPmStartToken;

@@ -14,6 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QPainter>
 
+#include <rpl/event_stream.h>
+#include <rpl/variable.h>
+
 namespace style {
 namespace internal {
 namespace {
@@ -22,8 +25,9 @@ constexpr auto kMinContrastAlpha = 64;
 constexpr auto kMinContrastDistance = 64 * 64 * 4;
 constexpr auto kContrastDeltaL = 64;
 
-int DevicePixelRatioValue = 1;
-bool RightToLeftValue = false;
+auto PaletteChanges = rpl::event_stream<>();
+auto ShortAnimationRunning = rpl::variable<bool>(false);
+auto RunningShortAnimations = 0;
 
 std::vector<internal::ModuleBase*> &StyleModules() {
 	static auto result = std::vector<internal::ModuleBase*>();
@@ -42,14 +46,30 @@ void registerModule(ModuleBase *module) {
 	StyleModules().push_back(module);
 }
 
-} // namespace internal
-
-bool RightToLeft() {
-	return internal::RightToLeftValue;
+void StartShortAnimation() {
+	if (++RunningShortAnimations == 1) {
+		ShortAnimationRunning = true;
+	}
 }
 
-void SetRightToLeft(bool rtl) {
-	internal::RightToLeftValue = rtl;
+void StopShortAnimation() {
+	if (--RunningShortAnimations == 0) {
+		ShortAnimationRunning = false;
+	}
+}
+
+} // namespace internal
+
+rpl::producer<> PaletteChanged() {
+	return internal::PaletteChanges.events();
+}
+
+void NotifyPaletteChanged() {
+	internal::PaletteChanges.fire({});
+}
+
+rpl::producer<bool> ShortAnimationPlaying() {
+	return internal::ShortAnimationRunning.value();
 }
 
 void startManager(int scale) {

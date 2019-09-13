@@ -519,6 +519,12 @@ ChatBackground::ChatBackground() : _adjustableColors({
 		st::historyScrollBarBg,
 		st::historyScrollBarBgOver }) {
 	saveAdjustableColors();
+
+	subscribe(this, [=](const BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			style::NotifyPaletteChanged();
+		}
+	});
 }
 
 void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {

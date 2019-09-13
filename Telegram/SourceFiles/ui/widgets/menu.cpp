@@ -24,14 +24,16 @@ struct Menu::ActionData {
 	bool hasSubmenu = false;
 };
 
-Menu::Menu(QWidget *parent, const style::Menu &st) : TWidget(parent)
+Menu::Menu(QWidget *parent, const style::Menu &st)
+: RpWidget(parent)
 , _st(st)
 , _itemHeight(_st.itemPadding.top() + _st.itemStyle.font->height + _st.itemPadding.bottom())
 , _separatorHeight(_st.separatorPadding.top() + _st.separatorWidth + _st.separatorPadding.bottom()) {
 	init();
 }
 
-Menu::Menu(QWidget *parent, QMenu *menu, const style::Menu &st) : TWidget(parent)
+Menu::Menu(QWidget *parent, QMenu *menu, const style::Menu &st)
+: RpWidget(parent)
 , _st(st)
 , _wappedMenu(menu)
 , _itemHeight(_st.itemPadding.top() + _st.itemStyle.font->height + _st.itemPadding.bottom())
@@ -68,7 +70,9 @@ not_null<QAction*> Menu::addAction(const QString &text, Fn<void()> callback, con
 }
 
 not_null<QAction*> Menu::addAction(not_null<QAction*> action, const style::icon *icon, const style::icon *iconOver) {
-	connect(action, SIGNAL(changed()), this, SLOT(actionChanged()));
+	connect(action, &QAction::changed, this, [=] {
+		actionChanged();
+	});
 	_actions.emplace_back(action);
 	_actionsData.push_back([&] {
 		auto data = ActionData();

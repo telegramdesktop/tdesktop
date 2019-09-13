@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
 #include "core/application.h"
-#include "core/qt_signal_producer.h"
 #include "app.h"
 #include "styles/style_chat_helpers.h"
 

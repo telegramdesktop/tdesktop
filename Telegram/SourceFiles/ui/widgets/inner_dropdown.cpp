@@ -52,10 +52,18 @@ InnerDropdown::InnerDropdown(
 	}, lifetime());
 }
 
-QPointer<TWidget> InnerDropdown::doSetOwnedWidget(object_ptr<TWidget> widget) {
-	auto result = QPointer<TWidget>(widget);
-	connect(widget, SIGNAL(heightUpdated()), this, SLOT(onWidgetHeightUpdated()));
-	auto container = _scroll->setOwnedWidget(object_ptr<Container>(_scroll, std::move(widget), _st));
+QPointer<RpWidget> InnerDropdown::doSetOwnedWidget(
+		object_ptr<RpWidget> widget) {
+	auto result = QPointer<RpWidget>(widget);
+	widget->heightValue(
+	) | rpl::skip(1) | rpl::start_with_next([=] {
+		resizeToContent();
+	}, widget->lifetime());
+	auto container = _scroll->setOwnedWidget(
+		object_ptr<Container>(
+			_scroll,
+			std::move(widget),
+			_st));
 	container->resizeToWidth(_scroll->width());
 	container->moveToLeft(0, 0);
 	container->show();

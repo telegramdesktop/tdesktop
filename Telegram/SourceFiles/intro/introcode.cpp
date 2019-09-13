@@ -91,7 +91,7 @@ CodeWidget::CodeWidget(
 	connect(_code, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(_callTimer, SIGNAL(timeout()), this, SLOT(onSendCall()));
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
-	connect(_noTelegramCode, SIGNAL(clicked()), this, SLOT(onNoTelegramCode()));
+	_noTelegramCode->addClickHandler([=] { onNoTelegramCode(); });
 
 	_code->setDigitsCountMax(getData()->codeLength);
 	setErrorBelowLink(true);

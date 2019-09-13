@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/animation_value.h"
 
+#include "ui/painter.h"
+
+#include <QtCore/QtMath> // M_PI
+
 namespace anim {
 namespace {
 

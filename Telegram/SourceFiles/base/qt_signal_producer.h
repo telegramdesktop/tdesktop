@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/sandbox.h"
+#include "base/base_integration.h"
 
-namespace Core {
+namespace base {
 
 // This method allows to create an rpl::producer from a Qt object
 // and a signal with none or one reported value.
@@ -20,28 +20,28 @@ namespace Core {
 // This means that all postponeCall's will be invoked right after
 // the value processing by the current consumer finishes.
 template <typename Object, typename Signal>
-auto QtSignalProducer(Object *object, Signal signal);
+auto qt_signal_producer(Object *object, Signal signal);
 
 namespace details {
 
 template <typename Signal>
-struct QtSignalArgument;
+struct qt_signal_argument;
 
 template <typename Class, typename Return, typename Value>
-struct QtSignalArgument<Return(Class::*)(Value)> {
+struct qt_signal_argument<Return(Class::*)(Value)> {
 	using type = Value;
 };
 
 template <typename Class, typename Return>
-struct QtSignalArgument<Return(Class::*)()> {
+struct qt_signal_argument<Return(Class::*)()> {
 	using type = void;
 };
 
 } // namespace details
 
 template <typename Object, typename Signal>
-auto QtSignalProducer(Object *object, Signal signal) {
-	using Value = typename details::QtSignalArgument<Signal>::type;
+auto qt_signal_producer(Object *object, Signal signal) {
+	using Value = typename details::qt_signal_argument<Signal>::type;
 	static constexpr auto NoArgument = std::is_same_v<Value, void>;
 	using Produced = std::conditional_t<
 		NoArgument,
@@ -67,7 +67,7 @@ auto QtSignalProducer(Object *object, Signal signal) {
 			});
 		};
 		auto put = [=](const Produced &value) {
-			Sandbox::Instance().customEnterFromEventLoop([&] {
+			EnterFromEventLoop([&] {
 				consumer.put_next_copy(value);
 			});
 		};
@@ -79,4 +79,4 @@ auto QtSignalProducer(Object *object, Signal signal) {
 	});
 }
 
-} // namespace Core
+} // namespace base

@@ -46,7 +46,7 @@ void BackButton::paintEvent(QPaintEvent *e) {
 
 void BackButton::onStateChanged(State was, StateChangeSource source) {
 	if (isDown() && !(was & StateFlag::Down)) {
-		emit clicked();
+		clicked(Qt::KeyboardModifiers(), Qt::LeftButton);
 	}
 }
 

@@ -8,7 +8,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 
 #include "ui/ui_utility.h"
-#include "core/application.h"
+#include "base/invoke_queued.h"
+
+#include <QtCore/QPointer>
+
+#include <crl/crl_on_main.h>
+#include <crl/crl.h>
+#include <rpl/filter.h>
+#include <range/v3/algorithm/remove_if.hpp>
+#include <range/v3/algorithm/remove.hpp>
+#include <range/v3/algorithm/find.hpp>
 
 namespace Ui {
 namespace Animations {
@@ -17,19 +26,25 @@ namespace {
 constexpr auto kAnimationTick = crl::time(1000) / 120;
 constexpr auto kIgnoreUpdatesTimeout = crl::time(4);
 
+Manager *ManagerInstance = nullptr;
+
 } // namespace
 
 void Basic::start() {
+	Expects(ManagerInstance != nullptr);
+
 	if (animating()) {
 		restart();
 	} else {
-		Core::App().animationManager().start(this);
+		ManagerInstance->start(this);
 	}
 }
 
 void Basic::stop() {
+	Expects(ManagerInstance != nullptr);
+
 	if (animating()) {
-		Core::App().animationManager().stop(this);
+		ManagerInstance->stop(this);
 	}
 }
 
@@ -56,12 +71,24 @@ void Basic::markStopped() {
 }
 
 Manager::Manager() {
+	Expects(ManagerInstance == nullptr);
+
+	ManagerInstance = this;
+
 	crl::on_main_update_requests(
 	) | rpl::filter([=] {
 		return (_lastUpdateTime + kIgnoreUpdatesTimeout < crl::now());
 	}) | rpl::start_with_next([=] {
 		update();
 	}, _lifetime);
+}
+
+Manager::~Manager() {
+	Expects(ManagerInstance == this);
+	Expects(_active.empty());
+	Expects(_starting.empty());
+
+	ManagerInstance = nullptr;
 }
 
 void Manager::start(not_null<Basic*> animation) {

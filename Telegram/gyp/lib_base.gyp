@@ -45,6 +45,7 @@
     'sources': [
       '<(src_loc)/base/algorithm.h',
       '<(src_loc)/base/assertion.h',
+      '<(src_loc)/base/base_integration.h',
       '<(src_loc)/base/basic_types.h',
       '<(src_loc)/base/binary_guard.h',
       '<(src_loc)/base/build_config.h',
@@ -72,6 +73,7 @@
       '<(src_loc)/base/qthelp_regex.h',
       '<(src_loc)/base/qthelp_url.cpp',
       '<(src_loc)/base/qthelp_url.h',
+      '<(src_loc)/base/qt_signal_producer.h',
       '<(src_loc)/base/runtime_composer.cpp',
       '<(src_loc)/base/runtime_composer.h',
       '<(src_loc)/base/thread_safe_wrap.h',

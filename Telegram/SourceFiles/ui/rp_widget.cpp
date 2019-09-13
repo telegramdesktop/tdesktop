@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/rp_widget.h"
 
-#include "core/qt_signal_producer.h"
+#include "base/qt_signal_producer.h"
 
 #include <QtGui/QWindow>
+#include <QtGui/QtEvents>
 
 namespace Ui {
 
@@ -89,7 +90,7 @@ rpl::producer<> RpWidgetMethods::windowDeactivateEvents() const {
 	const auto window = callGetWidget()->window()->windowHandle();
 	Assert(window != nullptr);
 
-	return Core::QtSignalProducer(
+	return base::qt_signal_producer(
 		window,
 		&QWindow::activeChanged
 	) | rpl::filter([=] {
