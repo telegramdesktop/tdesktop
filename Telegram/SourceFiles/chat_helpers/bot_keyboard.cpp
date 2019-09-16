@@ -135,7 +135,7 @@ void BotKeyboard::mouseReleaseEvent(QMouseEvent *e) {
 	updateSelected();
 
 	if (ClickHandlerPtr activated = ClickHandler::unpressed()) {
-		App::activateClickHandler(activated, e->button());
+		ActivateClickHandler(window(), activated, e->button());
 	}
 }
 
@@ -268,6 +268,10 @@ void BotKeyboard::clearSelection() {
 
 QPoint BotKeyboard::tooltipPos() const {
 	return _lastMousePos;
+}
+
+bool BotKeyboard::tooltipWindowActive() const {
+	return Ui::InFocusChain(window());
 }
 
 QString BotKeyboard::tooltipText() const {

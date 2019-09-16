@@ -22,11 +22,6 @@ enum {
 	MaxPhoneCodeLength = 4, // max length of country phone code
 	MaxPhoneTailLength = 32, // rest of the phone number, without country code (seen 12 at least), need more for service numbers
 
-	MaxScrollSpeed = 37, // 37px per 15ms while select-by-drag
-	FingerAccuracyThreshold = 3, // touch flick ignore 3px
-	MaxScrollAccelerated = 4000, // 4000px per second
-	MaxScrollFlick = 2500, // 2500px per second
-
 	LocalEncryptIterCount = 4000, // key derivation iteration count
 	LocalEncryptNoPwdIterCount = 4, // key derivation iteration count without pwd (not secure anyway)
 	LocalEncryptSaltSize = 32, // 256 bit

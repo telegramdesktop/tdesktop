@@ -278,6 +278,7 @@ public:
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
+	bool tooltipWindowActive() const override;
 
 protected:
 	void mouseMoveEvent(QMouseEvent *e) override;

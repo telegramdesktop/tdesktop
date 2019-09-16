@@ -35,7 +35,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
-class EditCaptionBox : public BoxContent, public RPCSender {
+class EditCaptionBox
+	: public BoxContent
+	, public RPCSender
+	, private base::Subscriber {
 public:
 	EditCaptionBox(
 		QWidget*,

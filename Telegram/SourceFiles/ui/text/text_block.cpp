@@ -7,8 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/text/text_block.h"
 
-#include "core/crash_reports.h"
-#include "app.h"
+#include "styles/style_basic.h"
 
 #include <private/qfontengine_p.h>
 
@@ -310,7 +309,7 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 		}
 
 		if ((flags & TextBlockFPre) || (flags & TextBlockFCode)) {
-			blockFont = App::monofont();
+			blockFont = style::MonospaceFont();
 			if (blockFont->size() != font->size() || blockFont->flags() != font->flags()) {
 				blockFont = style::font(font->size(), font->flags(), blockFont->family());
 			}
@@ -333,13 +332,8 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 
 		const auto part = str.mid(_from, length);
 
-		// Attempt to catch a crash in text processing
-		CrashReports::SetAnnotationRef("CrashString", &part);
-
 		QStackTextEngine engine(part, blockFont->f);
 		BlockParser parser(&engine, this, minResizeWidth, _from, part);
-
-		CrashReports::ClearAnnotationRef("CrashString");
 	}
 }
 

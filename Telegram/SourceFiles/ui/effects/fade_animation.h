@@ -17,7 +17,7 @@ class FadeAnimation {
 public:
 	FadeAnimation(TWidget *widget, float64 scale = 1.);
 
-	bool paint(Painter &p);
+	bool paint(QPainter &p);
 	void refreshCache();
 
 	using FinishedCallback = Fn<void()>;

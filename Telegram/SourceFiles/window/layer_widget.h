@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "base/object_ptr.h"
-#include "data/data_file_origin.h"
+#include "base/flags.h"
 
 namespace Lottie {
 class SinglePlayer;
@@ -76,14 +76,8 @@ protected:
 			callback();
 		}
 	}
-	void mousePressEvent(QMouseEvent *e) override {
-		e->accept();
-	}
-	void resizeEvent(QResizeEvent *e) override {
-		if (_resizedCallback) {
-			_resizedCallback();
-		}
-	}
+	void mousePressEvent(QMouseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 	virtual void doSetInnerFocus() {
 		setFocus();
 	}

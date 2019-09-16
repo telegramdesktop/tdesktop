@@ -11,10 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/text/text.h"
 
+#include <QtGui/QtEvents>
+
 namespace Ui {
 
 struct Menu::ActionData {
-	Ui::Text::String text;
+	Text::String text;
 	QString shortcut;
 	const style::icon *icon = nullptr;
 	const style::icon *iconOver = nullptr;
@@ -313,7 +315,7 @@ void Menu::handleKeyPress(int key) {
 		itemPressed(TriggeredSource::Keyboard);
 		return;
 	}
-	if (key == (rtl() ? Qt::Key_Left : Qt::Key_Right)) {
+	if (key == (style::RightToLeft() ? Qt::Key_Left : Qt::Key_Right)) {
 		if (_selected >= 0 && _actionsData[_selected].hasSubmenu) {
 			itemPressed(TriggeredSource::Keyboard);
 			return;

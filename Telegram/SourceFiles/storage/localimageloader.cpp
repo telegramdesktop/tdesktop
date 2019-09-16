@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/localimageloader.h"
 
+#include "api/api_text_entities.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "core/file_utilities.h"
@@ -126,9 +127,9 @@ MTPInputSingleMedia PrepareAlbumItemMedia(
 		uint64 randomId) {
 	auto caption = item->originalText();
 	TextUtilities::Trim(caption);
-	auto sentEntities = TextUtilities::EntitiesToMTP(
+	auto sentEntities = Api::EntitiesToMTP(
 		caption.entities,
-		TextUtilities::ConvertOption::SkipLocal);
+		Api::ConvertOption::SkipLocal);
 	const auto flags = !sentEntities.v.isEmpty()
 		? MTPDinputSingleMedia::Flag::f_entities
 		: MTPDinputSingleMedia::Flag(0);

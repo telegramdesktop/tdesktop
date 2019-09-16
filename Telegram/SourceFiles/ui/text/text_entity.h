@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/basic_types.h"
 
 #include <QtCore/QList>
+#include <QtCore/QVector>
+#include <QtGui/QClipboard>
 
 enum class EntityType {
 	Invalid = 0,
@@ -311,13 +313,6 @@ inline QString MentionNameDataFromFields(const MentionNameFields &fields) {
 	return result;
 }
 
-EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities);
-enum class ConvertOption {
-	WithLocal,
-	SkipLocal,
-};
-MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, ConvertOption option = ConvertOption::WithLocal);
-
 // New entities are added to the ones that are already in result.
 // Changes text if (flags & TextParseMarkdown).
 TextWithEntities ParseEntities(const QString &text, int32 flags);
@@ -344,6 +339,18 @@ QByteArray SerializeTags(const TextWithTags::Tags &tags);
 TextWithTags::Tags DeserializeTags(QByteArray data, int textLength);
 QString TagsMimeType();
 QString TagsTextMimeType();
+
+inline const auto kMentionTagStart = qstr("mention://user.");
+
+[[nodiscard]] bool IsMentionLink(const QString &link);
+EntitiesInText ConvertTextTagsToEntities(const TextWithTags::Tags &tags);
+TextWithTags::Tags ConvertEntitiesToTextTags(
+	const EntitiesInText &entities);
+std::unique_ptr<QMimeData> MimeDataFromText(const TextForMimeData &text);
+std::unique_ptr<QMimeData> MimeDataFromText(TextWithTags &&text);
+void SetClipboardText(
+	const TextForMimeData &text,
+	QClipboard::Mode mode = QClipboard::Clipboard);
 
 } // namespace TextUtilities
 

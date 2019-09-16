@@ -21,16 +21,7 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
-QString ConvertTagToMimeTag(const QString &tagId);
 QString PrepareMentionTag(not_null<UserData*> user);
-
-EntitiesInText ConvertTextTagsToEntities(const TextWithTags::Tags &tags);
-TextWithTags::Tags ConvertEntitiesToTextTags(
-	const EntitiesInText &entities);
-std::unique_ptr<QMimeData> MimeDataFromText(const TextForMimeData &text);
-void SetClipboardText(
-	const TextForMimeData &text,
-	QClipboard::Mode mode = QClipboard::Clipboard);
 TextWithTags PrepareEditText(not_null<HistoryItem*> item);
 
 Fn<bool(

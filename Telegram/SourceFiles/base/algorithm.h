@@ -81,6 +81,23 @@ struct pointer_comparator {
 
 };
 
+inline QString FromUtf8Safe(const char *string, int size = -1) {
+	if (!string || !size) {
+		return QString();
+	} else if (size < 0) {
+		size = strlen(string);
+	}
+	const auto result = QString::fromUtf8(string, size);
+	const auto back = result.toUtf8();
+	return (back.size() != size || memcmp(back.constData(), string, size))
+		? QString::fromLocal8Bit(string, size)
+		: result;
+}
+
+inline QString FromUtf8Safe(const QByteArray &string) {
+	return FromUtf8Safe(string.constData(), string.size());
+}
+
 } // namespace base
 
 template <typename T>

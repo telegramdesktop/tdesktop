@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_core_font.h"
 
 #include "base/algorithm.h"
-#include "logs.h"
+#include "ui/ui_log.h"
 
 #include <QtCore/QMap>
 #include <QtCore/QVector>
@@ -36,13 +36,13 @@ bool ValidateFont(const QString &familyName, int flags = 0) {
 	checkFont.setStyleStrategy(QFont::PreferQuality);
 	auto realFamily = QFontInfo(checkFont).family();
 	if (realFamily.trimmed().compare(familyName, Qt::CaseInsensitive)) {
-		LOG(("Font Error: could not resolve '%1' font, got '%2'.").arg(familyName).arg(realFamily));
+		UI_LOG(("Font Error: could not resolve '%1' font, got '%2'.").arg(familyName).arg(realFamily));
 		return false;
 	}
 
 	auto metrics = QFontMetrics(checkFont);
 	if (!metrics.height()) {
-		LOG(("Font Error: got a zero height in '%1'.").arg(familyName));
+		UI_LOG(("Font Error: got a zero height in '%1'.").arg(familyName));
 		return false;
 	}
 
@@ -52,7 +52,7 @@ bool ValidateFont(const QString &familyName, int flags = 0) {
 bool LoadCustomFont(const QString &filePath, const QString &familyName, int flags = 0) {
 	auto regularId = QFontDatabase::addApplicationFont(filePath);
 	if (regularId < 0) {
-		LOG(("Font Error: could not add '%1'.").arg(filePath));
+		UI_LOG(("Font Error: could not add '%1'.").arg(filePath));
 		return false;
 	}
 
@@ -65,7 +65,7 @@ bool LoadCustomFont(const QString &filePath, const QString &familyName, int flag
 		return false;
 	};
 	if (!found()) {
-		LOG(("Font Error: could not locate '%1' font in '%2'.").arg(familyName).arg(filePath));
+		UI_LOG(("Font Error: could not locate '%1' font in '%2'.").arg(familyName).arg(filePath));
 		return false;
 	}
 
@@ -96,13 +96,13 @@ void StartFonts() {
 	if (!regular || !bold) {
 		if (ValidateFont("Segoe UI") && ValidateFont("Segoe UI", style::internal::FontBold)) {
 			OpenSansOverride = "Segoe UI";
-			LOG(("Fonts Info: Using Segoe UI instead of Open Sans."));
+			UI_LOG(("Fonts Info: Using Segoe UI instead of Open Sans."));
 		}
 	}
 	if (!semibold) {
 		if (ValidateFont("Segoe UI Semibold")) {
 			OpenSansSemiboldOverride = "Segoe UI Semibold";
-			LOG(("Fonts Info: Using Segoe UI Semibold instead of Open Sans Semibold."));
+			UI_LOG(("Fonts Info: Using Segoe UI Semibold instead of Open Sans Semibold."));
 		}
 	}
 	// Disable default fallbacks to Segoe UI, see:

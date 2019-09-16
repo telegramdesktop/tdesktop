@@ -72,8 +72,11 @@ linkCropLimit: 360px;
 linkFont: normalFont;
 linkOverFont: font(fsize underline);
 
-dateRadius: 6px;
-buttonRadius: 3px;
+roundRadiusLarge: 6px;
+roundRadiusSmall: 3px;
+
+dateRadius: roundRadiusLarge;
+buttonRadius: roundRadiusSmall;
 
 setLittleSkip: 9px;
 

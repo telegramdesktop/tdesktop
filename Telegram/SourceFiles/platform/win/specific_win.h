@@ -19,25 +19,10 @@ namespace Platform {
 inline void SetWatchingMediaKeys(bool watching) {
 }
 
-bool IsApplicationActive();
-
-inline bool TranslucentWindowsSupported(QPoint globalPosition) {
-	return true;
-}
-
-inline void StartTranslucentPaint(QPainter &p, QPaintEvent *e) {
-}
-
-inline void InitOnTopPanel(QWidget *panel) {
-}
-
-inline void DeInitOnTopPanel(QWidget *panel) {
-}
-
-inline void ReInitOnTopPanel(QWidget *panel) {
-}
-
 QString CurrentExecutablePath(int argc, char *argv[]);
+
+inline void IgnoreApplicationActivationRightNow() {
+}
 
 inline constexpr bool UseMainQueueGeneric() {
 	return true;
@@ -74,15 +59,12 @@ void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
 
 QRect psDesktopRect();
-void psShowOverAll(QWidget *w, bool canFocus = true);
-void psBringToBack(QWidget *w);
 
 int psCleanup();
 int psFixPrevious();
 
 void psNewVersion();
 
-void psUpdateOverlayed(QWidget *widget);
 inline QByteArray psDownloadPathBookmark(const QString &path) {
 	return QByteArray();
 }

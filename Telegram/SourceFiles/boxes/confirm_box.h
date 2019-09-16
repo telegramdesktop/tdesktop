@@ -95,7 +95,7 @@ public:
 
 };
 
-class MaxInviteBox : public BoxContent {
+class MaxInviteBox : public BoxContent, private base::Subscriber {
 public:
 	MaxInviteBox(QWidget*, not_null<ChannelData*> channel);
 
@@ -201,7 +201,10 @@ private:
 
 };
 
-class ConfirmInviteBox : public BoxContent, public RPCSender {
+class ConfirmInviteBox
+	: public BoxContent
+	, public RPCSender
+	, private base::Subscriber {
 public:
 	ConfirmInviteBox(
 		QWidget*,

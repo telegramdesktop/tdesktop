@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_groups.h"
 #include "data/data_channel.h"
+#include "data/data_file_origin.h"
 #include "core/file_utilities.h"
 #include "platform/platform_info.h"
 #include "window/window_peer_menu.h"
@@ -576,7 +577,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 			? tr::lng_context_copy_selected(tr::now)
 			: tr::lng_context_copy_selected_items(tr::now);
 		result->addAction(text, [=] {
-			SetClipboardText(list->getSelectedText());
+			TextUtilities::SetClipboardText(list->getSelectedText());
 		});
 	}
 
@@ -609,11 +610,11 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 				if (const auto item = owner->message(itemId)) {
 					if (asGroup) {
 						if (const auto group = owner->groups().find(item)) {
-							SetClipboardText(HistoryGroupText(group));
+							TextUtilities::SetClipboardText(HistoryGroupText(group));
 							return;
 						}
 					}
-					SetClipboardText(HistoryItemText(item));
+					TextUtilities::SetClipboardText(HistoryItemText(item));
 				}
 			});
 		}

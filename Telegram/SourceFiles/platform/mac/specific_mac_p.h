@@ -11,8 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 bool objc_handleMediaKeyEvent(void *e);
 
 bool objc_darkMode();
-void objc_showOverAll(WId winId, bool canFocus = true);
-void objc_bringToBack(WId winId);
 
 void objc_debugShowAlert(const QString &str);
 void objc_outputDebugString(const QString &str);

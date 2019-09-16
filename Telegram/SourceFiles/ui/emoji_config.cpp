@@ -14,11 +14,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 #include "base/openssl_help.h"
 #include "base/parse_helper.h"
-#include "main/main_session.h"
-#include "app.h"
+#include "ui/style/style_core.h"
+#include "ui/painter.h"
+#include "ui/ui_utility.h"
+#include "ui/ui_log.h"
+#include "styles/style_basic.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
+#include <QtCore/QFile>
+#include <QtCore/QDir>
+
+#include <crl/crl_async.h>
 
 namespace Ui {
 namespace Emoji {
@@ -179,7 +186,7 @@ void SaveToFile(int id, const QImage &image, int size, int index) {
 	if (!f.open(QIODevice::WriteOnly)) {
 		if (!QDir::current().mkpath(internal::CacheFileFolder())
 			|| !f.open(QIODevice::WriteOnly)) {
-			LOG(("App Error: Could not open emoji cache '%1' for size %2_%3"
+			UI_LOG(("App Error: Could not open emoji cache '%1' for size %2_%3"
 				).arg(f.fileName()
 				).arg(size
 				).arg(index));
@@ -205,7 +212,7 @@ void SaveToFile(int id, const QImage &image, int size, int index) {
 		|| !write(data)
 		|| !write(openssl::Sha256(bytes::make_span(header), data))
 		|| false) {
-		LOG(("App Error: Could not write emoji cache '%1' for size %2"
+		UI_LOG(("App Error: Could not write emoji cache '%1' for size %2"
 			).arg(f.fileName()
 			).arg(size));
 	}
@@ -278,7 +285,7 @@ std::vector<QImage> LoadSprites(int id) {
 	auto result = std::vector<QImage>();
 	const auto folder = (id != 0)
 		? internal::SetDataPath(id) + '/'
-		: qsl(":/gui/emoji/");
+		: QStringLiteral(":/gui/emoji/");
 	const auto base = folder + "emoji_";
 	return ranges::view::ints(
 		0,
@@ -359,7 +366,7 @@ void ClearUniversalChecked() {
 namespace internal {
 
 QString CacheFileFolder() {
-	return cWorkingDir() + "tdata/emoji";
+	return Integration::Instance().emojiCacheFolder();
 }
 
 QString SetDataPath(int id) {
@@ -470,8 +477,8 @@ void Init() {
 	const auto persprite = kImagesPerRow * kImageRowsPerSprite;
 	SpritesCount = (count / persprite) + ((count % persprite) ? 1 : 0);
 
-	SizeNormal = style::ConvertScale(18, cScale() * cIntRetinaFactor());
-	SizeLarge = int(style::ConvertScale(18 * 4 / 3., cScale() * cIntRetinaFactor()));
+	SizeNormal = style::ConvertScale(18, style::Scale() * style::DevicePixelRatio());
+	SizeLarge = int(style::ConvertScale(18 * 4 / 3., style::Scale() * style::DevicePixelRatio()));
 	Universal = std::make_shared<UniversalImages>(ReadCurrentSetId());
 	CanClearUniversal = false;
 
@@ -479,9 +486,9 @@ void Init() {
 	InstanceLarge = std::make_unique<Instance>(SizeLarge);
 
 #if defined Q_OS_MAC && !defined OS_MAC_OLD
-	if (cScale() != kScaleForTouchBar) {
+	if (style::Scale() != kScaleForTouchBar) {
 		TouchbarSize = int(style::ConvertScale(18 * 4 / 3.,
-			kScaleForTouchBar * cIntRetinaFactor()));
+			kScaleForTouchBar * style::DevicePixelRatio()));
 		TouchbarInstance = std::make_unique<Instance>(TouchbarSize);
 		TouchbarEmoji = TouchbarInstance.get();
 	} else {
@@ -594,7 +601,7 @@ int GetSizeLarge() {
 
 #if defined Q_OS_MAC && !defined OS_MAC_OLD
 int GetSizeTouchbar() {
-	return (cScale() == kScaleForTouchBar)
+	return (style::Scale() == kScaleForTouchBar)
 		? GetSizeLarge()
 		: TouchbarSize;
 }
@@ -697,7 +704,7 @@ QVector<EmojiPtr> GetDefaultRecent() {
 	};
 	auto result = QVector<EmojiPtr>();
 	for (const auto oldKey : defaultRecent) {
-		if (const auto emoji = Ui::Emoji::FromOldKey(oldKey)) {
+		if (const auto emoji = FromOldKey(oldKey)) {
 			result.push_back(emoji);
 		}
 	}
@@ -705,7 +712,7 @@ QVector<EmojiPtr> GetDefaultRecent() {
 }
 
 const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight) {
-	auto &map = (fontHeight == st::msgFont->height * cIntRetinaFactor())
+	auto &map = (fontHeight == st::normalFont->height * style::DevicePixelRatio())
 		? MainEmojiMap
 		: OtherEmojiMap[fontHeight];
 	auto i = map.find(emoji->index());
@@ -716,7 +723,7 @@ const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight) {
 		SizeNormal + st::emojiPadding * 2,
 		fontHeight,
 		QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(cRetinaFactor());
+	image.setDevicePixelRatio(style::DevicePixelRatio());
 	image.fill(Qt::transparent);
 	{
 		QPainter p(&image);
@@ -725,18 +732,18 @@ const QPixmap &SinglePixmap(EmojiPtr emoji, int fontHeight) {
 			p,
 			emoji,
 			SizeNormal,
-			st::emojiPadding * cIntRetinaFactor(),
+			st::emojiPadding * style::DevicePixelRatio(),
 			(fontHeight - SizeNormal) / 2);
 	}
 	return map.emplace(
 		emoji->index(),
-		App::pixmapFromImageInPlace(std::move(image))
+		PixmapFromImage(std::move(image))
 	).first->second;
 }
 
 void Draw(QPainter &p, EmojiPtr emoji, int size, int x, int y) {
 #if defined Q_OS_MAC && !defined OS_MAC_OLD
-	const auto s = (cScale() == kScaleForTouchBar)
+	const auto s = (style::Scale() == kScaleForTouchBar)
 		? SizeLarge
 		: TouchbarSize;
 	if (size == s) {
@@ -835,8 +842,8 @@ void Instance::generateCache() {
 }
 
 void Instance::pushSprite(QImage &&data) {
-	_sprites.push_back(App::pixmapFromImageInPlace(std::move(data)));
-	_sprites.back().setDevicePixelRatio(cRetinaFactor());
+	_sprites.push_back(PixmapFromImage(std::move(data)));
+	_sprites.back().setDevicePixelRatio(style::DevicePixelRatio());
 }
 
 const std::shared_ptr<UniversalImages> &SourceImages() {

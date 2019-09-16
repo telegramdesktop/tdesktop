@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "api/api_hash.h"
+#include "api/api_text_entities.h"
 #include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
@@ -298,8 +299,7 @@ HistoryItem *ScheduledMessages::append(
 		message.match([&](const MTPDmessage &data) {
 			existing->updateSentContent({
 				qs(data.vmessage()),
-				TextUtilities::EntitiesFromMTP(
-					data.ventities().value_or_empty())
+				Api::EntitiesFromMTP(data.ventities().value_or_empty())
 			}, data.vmedia());
 			existing->updateReplyMarkup(data.vreply_markup());
 			existing->updateForwardedInfo(data.vfwd_from());

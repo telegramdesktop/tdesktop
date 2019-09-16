@@ -178,6 +178,7 @@ public:
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
+	bool tooltipWindowActive() const override;
 
 	// ElementDelegate interface.
 	Context elementContext() override;

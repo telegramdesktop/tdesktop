@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "inline_bots/inline_bot_result.h"
 
+#include "api/api_text_entities.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -136,7 +137,7 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 	case mtpc_botInlineMessageMediaAuto: {
 		const auto &r = message->c_botInlineMessageMediaAuto();
 		const auto message = qs(r.vmessage());
-		const auto entities = TextUtilities::EntitiesFromMTP(
+		const auto entities = Api::EntitiesFromMTP(
 			r.ventities().value_or_empty());
 		if (result->_type == Type::Photo) {
 			if (!result->_photo) {
@@ -168,7 +169,7 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		const auto &r = message->c_botInlineMessageText();
 		result->sendData = std::make_unique<internal::SendText>(
 			qs(r.vmessage()),
-			TextUtilities::EntitiesFromMTP(r.ventities().value_or_empty()),
+			Api::EntitiesFromMTP(r.ventities().value_or_empty()),
 			r.is_no_webpage());
 		if (result->_type == Type::Photo) {
 			if (!result->_photo) {

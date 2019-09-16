@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/basic_types.h"
+
+#include <QtCore/QVariant>
+
 class ClickHandler;
 using ClickHandlerPtr = std::shared_ptr<ClickHandler>;
 
@@ -65,86 +69,23 @@ public:
 
 	// This method should be called when mouse leaves the host.
 	// It returns true if the active handler was changed or false otherwise.
-	static bool clearActive(ClickHandlerHost *host = nullptr) {
-		if (host && _activeHost != host) {
-			return false;
-		}
-		return setActive(ClickHandlerPtr(), host);
-	}
+	static bool clearActive(ClickHandlerHost *host = nullptr);
 
 	// This method should be called on mouse press event.
-	static void pressed() {
-		unpressed();
-		if (!_active || !*_active) {
-			return;
-		}
-		_pressed.createIfNull();
-		*_pressed = *_active;
-		if ((_pressedHost = _activeHost)) {
-			_pressedHost->clickHandlerPressedChanged(*_pressed, true);
-		}
-	}
+	static void pressed();
 
 	// This method should be called on mouse release event.
 	// The activated click handler (if any) is returned.
-	static ClickHandlerPtr unpressed() {
-		if (_pressed && *_pressed) {
-			const auto activated = (_active && *_active == *_pressed);
-			const auto waspressed = base::take(*_pressed);
-			if (_pressedHost) {
-				_pressedHost->clickHandlerPressedChanged(waspressed, false);
-				_pressedHost = nullptr;
-			}
+	static ClickHandlerPtr unpressed();
 
-			if (activated) {
-				return *_active;
-			} else if (_active && *_active && _activeHost) {
-				// emit clickHandlerActiveChanged for current active
-				// click handler, which we didn't emit while we has
-				// a pressed click handler
-				_activeHost->clickHandlerActiveChanged(*_active, true);
-			}
-		}
-		return ClickHandlerPtr();
-	}
+	static ClickHandlerPtr getActive();
+	static ClickHandlerPtr getPressed();
 
-	static ClickHandlerPtr getActive() {
-		return _active ? *_active : ClickHandlerPtr();
-	}
-	static ClickHandlerPtr getPressed() {
-		return _pressed ? *_pressed : ClickHandlerPtr();
-	}
-
-	static bool showAsActive(const ClickHandlerPtr &p) {
-		if (!p || !_active || p != *_active) {
-			return false;
-		}
-		return !_pressed || !*_pressed || (p == *_pressed);
-	}
-	static bool showAsPressed(const ClickHandlerPtr &p) {
-		if (!p || !_active || p != *_active) {
-			return false;
-		}
-		return _pressed && (p == *_pressed);
-	}
-	static void hostDestroyed(ClickHandlerHost *host) {
-		if (_activeHost == host) {
-			if (_active) {
-				*_active = nullptr;
-			}
-			_activeHost = nullptr;
-		}
-		if (_pressedHost == host) {
-			if (_pressed) {
-				*_pressed = nullptr;
-			}
-			_pressedHost = nullptr;
-		}
-	}
+	static bool showAsActive(const ClickHandlerPtr &p);
+	static bool showAsPressed(const ClickHandlerPtr &p);
+	static void hostDestroyed(ClickHandlerHost *host);
 
 private:
-	static NeverFreedPointer<ClickHandlerPtr> _active;
-	static NeverFreedPointer<ClickHandlerPtr> _pressed;
 	static ClickHandlerHost *_activeHost;
 	static ClickHandlerHost *_pressedHost;
 
@@ -177,3 +118,12 @@ private:
 	Fn<void()> _handler;
 
 };
+
+void ActivateClickHandler(
+	not_null<QWidget*> guard,
+	ClickHandlerPtr handler,
+	ClickContext context);
+void ActivateClickHandler(
+	not_null<QWidget*> guard,
+	ClickHandlerPtr handler,
+	Qt::MouseButton button);

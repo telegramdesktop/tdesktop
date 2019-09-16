@@ -111,12 +111,12 @@ void AbstractButton::setOver(bool over, StateChangeSource source) {
 	if (over && !(_state & StateFlag::Over)) {
 		auto was = _state;
 		_state |= StateFlag::Over;
-		RegisterLeaveSubscription(this);
+		Integration::Instance().registerLeaveSubscription(this);
 		onStateChanged(was, source);
 	} else if (!over && (_state & StateFlag::Over)) {
 		auto was = _state;
 		_state &= ~State(StateFlag::Over);
-		UnregisterLeaveSubscription(this);
+		Integration::Instance().unregisterLeaveSubscription(this);
 		onStateChanged(was, source);
 	}
 	updateCursor();

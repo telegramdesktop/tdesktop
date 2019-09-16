@@ -201,12 +201,6 @@ QRect psDesktopRect() {
 	return _monitorRect;
 }
 
-void psShowOverAll(QWidget *w, bool canFocus) {
-}
-
-void psBringToBack(QWidget *w) {
-}
-
 int psCleanup() {
 	__try
 	{
@@ -306,10 +300,6 @@ void start() {
 }
 
 void finish() {
-}
-
-bool IsApplicationActive() {
-	return QApplication::activeWindow() != nullptr;
 }
 
 void SetApplicationIcon(const QIcon &icon) {
@@ -570,17 +560,6 @@ void psAutoStart(bool start, bool silent) {
 
 void psSendToMenu(bool send, bool silent) {
 	_manageAppLnk(send, silent, CSIDL_SENDTO, L"-sendpath", L"Telegram send to link.\nYou can disable send to menu item in Telegram settings.");
-}
-
-void psUpdateOverlayed(QWidget *widget) {
-	bool wm = widget->testAttribute(Qt::WA_Mapped), wv = widget->testAttribute(Qt::WA_WState_Visible);
-	if (!wm) widget->setAttribute(Qt::WA_Mapped, true);
-	if (!wv) widget->setAttribute(Qt::WA_WState_Visible, true);
-	widget->update();
-	QEvent e(QEvent::UpdateRequest);
-	QGuiApplication::sendEvent(widget, &e);
-	if (!wm) widget->setAttribute(Qt::WA_Mapped, false);
-	if (!wv) widget->setAttribute(Qt::WA_WState_Visible, false);
 }
 
 void psWriteDump() {

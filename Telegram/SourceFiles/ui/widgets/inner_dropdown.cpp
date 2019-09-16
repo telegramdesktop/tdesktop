@@ -7,13 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/inner_dropdown.h"
 
-#include "mainwindow.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/panel_animation.h"
 #include "ui/image/image_prepare.h"
 #include "ui/ui_utility.h"
-#include "app.h"
 
 namespace {
 
@@ -29,6 +27,7 @@ InnerDropdown::InnerDropdown(
 	const style::InnerDropdown &st)
 : RpWidget(parent)
 , _st(st)
+, _roundRect(ImageRoundRadius::Small, _st.bg)
 , _scroll(this, _st.scroll) {
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideAnimated()));
@@ -111,7 +110,7 @@ void InnerDropdown::onScroll() {
 }
 
 void InnerDropdown::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	QPainter p(this);
 
 	if (_a_show.animating()) {
 		if (auto opacity = _a_opacity.value(_hiding ? 0. : 1.)) {
@@ -133,7 +132,7 @@ void InnerDropdown::paintEvent(QPaintEvent *e) {
 		if (!_cache.isNull()) _cache = QPixmap();
 		const auto inner = rect().marginsRemoved(_st.padding);
 		Shadow::paint(p, inner, width(), _st.shadow);
-		App::roundRect(p, inner, _st.bg, ImageRoundRadius::Small);
+		_roundRect.paint(p, inner);
 	}
 }
 
@@ -295,11 +294,12 @@ void InnerDropdown::startShowAnimation() {
 		auto cache = grabForPanelAnimation();
 		_a_opacity = base::take(opacityAnimation);
 
+		const auto pixelRatio = style::DevicePixelRatio();
 		_showAnimation = std::make_unique<PanelAnimation>(_st.animation, _origin);
 		auto inner = rect().marginsRemoved(_st.padding);
-		_showAnimation->setFinalImage(std::move(cache), QRect(inner.topLeft() * cIntRetinaFactor(), inner.size() * cIntRetinaFactor()));
-		auto corners = App::cornersMask(ImageRoundRadius::Small);
-		_showAnimation->setCornerMasks(corners[0], corners[1], corners[2], corners[3]);
+		_showAnimation->setFinalImage(std::move(cache), QRect(inner.topLeft() * pixelRatio, inner.size() * pixelRatio));
+		_showAnimation->setCornerMasks(
+			Images::CornersMask(ImageRoundRadius::Small));
 		_showAnimation->start();
 	}
 	hideChildren();
@@ -308,12 +308,13 @@ void InnerDropdown::startShowAnimation() {
 
 QImage InnerDropdown::grabForPanelAnimation() {
 	SendPendingMoveResizeEvents(this);
-	auto result = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	const auto pixelRatio = style::DevicePixelRatio();
+	auto result = QImage(size() * pixelRatio, QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(pixelRatio);
 	result.fill(Qt::transparent);
 	{
-		Painter p(&result);
-		App::roundRect(p, rect().marginsRemoved(_st.padding), _st.bg, ImageRoundRadius::Small);
+		QPainter p(&result);
+		_roundRect.paint(p, rect().marginsRemoved(_st.padding));
 		for (const auto child : children()) {
 			if (const auto widget = qobject_cast<QWidget*>(child)) {
 				RenderWidget(p, widget, widget->pos());

@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "chat_helpers/stickers.h"
 #include "ui/effects/animations.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/special_fields.h"
 
 class ConfirmBox;
 
@@ -32,7 +32,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
-class StickersBox : public BoxContent, public RPCSender {
+class StickersBox final
+	: public BoxContent
+	, public RPCSender
+	, private base::Subscriber {
 public:
 	enum class Section {
 		Installed,

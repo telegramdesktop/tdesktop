@@ -35,8 +35,6 @@ namespace {
 
 constexpr auto kIgnoreActivationTimeoutMs = 500;
 
-std::optional<bool> ApplicationIsActive;
-
 } // namespace
 
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
@@ -141,7 +139,6 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void) applicationDidBecomeActive:(NSNotification *)aNotification {
-	ApplicationIsActive = true;
 	if (Core::IsAppLaunched() && !_ignoreActivation) {
 		Core::App().handleAppActivated();
 		if (auto window = App::wnd()) {
@@ -153,7 +150,6 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void) applicationDidResignActive:(NSNotification *)aNotification {
-	ApplicationIsActive = false;
 }
 
 - (void) receiveWakeNote:(NSNotification*)aNotification {
@@ -207,12 +203,6 @@ void SetWatchingMediaKeys(bool watching) {
 	}
 }
 
-bool IsApplicationActive() {
-	return ApplicationIsActive
-		? *ApplicationIsActive
-		: (static_cast<QApplication*>(QCoreApplication::instance())->activeWindow() != nullptr);
-}
-
 void SetApplicationIcon(const QIcon &icon) {
 	NSImage *image = nil;
 	if (!icon.isNull()) {
@@ -222,46 +212,6 @@ void SetApplicationIcon(const QIcon &icon) {
 	}
 	[[NSApplication sharedApplication] setApplicationIconImage:image];
 	[image release];
-}
-
-void InitOnTopPanel(QWidget *panel) {
-	Expects(!panel->windowHandle());
-
-	// Force creating windowHandle() without creating the platform window yet.
-	panel->setAttribute(Qt::WA_NativeWindow, true);
-	panel->windowHandle()->setProperty("_td_macNonactivatingPanelMask", QVariant(true));
-	panel->setAttribute(Qt::WA_NativeWindow, false);
-
-	panel->createWinId();
-
-	auto platformWindow = [reinterpret_cast<NSView*>(panel->winId()) window];
-	Assert([platformWindow isKindOfClass:[NSPanel class]]);
-
-	auto platformPanel = static_cast<NSPanel*>(platformWindow);
-	[platformPanel setLevel:NSPopUpMenuWindowLevel];
-	[platformPanel setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces|NSWindowCollectionBehaviorStationary|NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorIgnoresCycle];
-	[platformPanel setFloatingPanel:YES];
-	[platformPanel setHidesOnDeactivate:NO];
-
-	objc_ignoreApplicationActivationRightNow();
-}
-
-void DeInitOnTopPanel(QWidget *panel) {
-	auto platformWindow = [reinterpret_cast<NSView*>(panel->winId()) window];
-	Assert([platformWindow isKindOfClass:[NSPanel class]]);
-
-	auto platformPanel = static_cast<NSPanel*>(platformWindow);
-	auto newBehavior = ([platformPanel collectionBehavior] & (~NSWindowCollectionBehaviorCanJoinAllSpaces)) | NSWindowCollectionBehaviorMoveToActiveSpace;
-	[platformPanel setCollectionBehavior:newBehavior];
-}
-
-void ReInitOnTopPanel(QWidget *panel) {
-	auto platformWindow = [reinterpret_cast<NSView*>(panel->winId()) window];
-	Assert([platformWindow isKindOfClass:[NSPanel class]]);
-
-	auto platformPanel = static_cast<NSPanel*>(platformWindow);
-	auto newBehavior = ([platformPanel collectionBehavior] & (~NSWindowCollectionBehaviorMoveToActiveSpace)) | NSWindowCollectionBehaviorCanJoinAllSpaces;
-	[platformPanel setCollectionBehavior:newBehavior];
 }
 
 } // namespace Platform
@@ -277,20 +227,6 @@ bool objc_darkMode() {
 
 	}
 	return result;
-}
-
-void objc_showOverAll(WId winId, bool canFocus) {
-	NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
-	[wnd setLevel:NSPopUpMenuWindowLevel];
-	if (!canFocus) {
-		[wnd setStyleMask:NSUtilityWindowMask | NSNonactivatingPanelMask];
-		[wnd setCollectionBehavior:NSWindowCollectionBehaviorMoveToActiveSpace|NSWindowCollectionBehaviorStationary|NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorIgnoresCycle];
-	}
-}
-
-void objc_bringToBack(WId winId) {
-	NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
-	[wnd setLevel:NSModalPanelWindowLevel];
 }
 
 bool objc_handleMediaKeyEvent(void *ev) {

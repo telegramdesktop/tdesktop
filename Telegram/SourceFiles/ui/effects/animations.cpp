@@ -167,7 +167,7 @@ void Manager::schedule() {
 	stopTimer();
 
 	_scheduled = true;
-	Ui::PostponeCall(delayedCallGuard(), [=] {
+	PostponeCall(delayedCallGuard(), [=] {
 		_scheduled = false;
 		if (_forceImmediateUpdate) {
 			_forceImmediateUpdate = false;

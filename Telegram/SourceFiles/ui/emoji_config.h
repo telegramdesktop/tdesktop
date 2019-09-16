@@ -16,8 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/producer.h>
 
-using EmojiPtr = const Ui::Emoji::One*;
-
 namespace Ui {
 namespace Emoji {
 namespace internal {

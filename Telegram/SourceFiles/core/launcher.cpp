@@ -323,7 +323,7 @@ QStringList Launcher::readArguments(int argc, char *argv[]) const {
 	auto result = QStringList();
 	result.reserve(argc);
 	for (auto i = 0; i != argc; ++i) {
-		result.push_back(fromUtf8Safe(argv[i]));
+		result.push_back(base::FromUtf8Safe(argv[i]));
 	}
 	return result;
 }

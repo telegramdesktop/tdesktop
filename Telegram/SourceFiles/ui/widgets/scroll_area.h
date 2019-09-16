@@ -14,8 +14,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QScrollArea>
 #include <QtCore/QTimer>
+#include <QtGui/QtEvents>
 
 namespace Ui {
+
+// 37px per 15ms while select-by-drag.
+inline constexpr auto kMaxScrollSpeed = 37;
+
+// Touch flick ignore 3px.
+inline constexpr auto kFingerAccuracyThreshold = 3;
+
+// 4000px per second.
+inline constexpr auto kMaxScrollAccelerated = 4000;
+
+// 2500px per second.
+inline constexpr auto kMaxScrollFlick = 2500;
 
 enum class TouchScrollState {
 	Manual, // Scrolling manually with the finger on the screen
@@ -106,14 +119,14 @@ private:
 	crl::time _hideIn = 0;
 	QTimer _hideTimer;
 
-	Ui::Animations::Simple _a_over;
-	Ui::Animations::Simple _a_barOver;
-	Ui::Animations::Simple _a_opacity;
+	Animations::Simple _a_over;
+	Animations::Simple _a_barOver;
+	Animations::Simple _a_opacity;
 
 	QRect _bar;
 };
 
-class ScrollArea : public Ui::RpWidgetWrap<QScrollArea> {
+class ScrollArea : public RpWidgetWrap<QScrollArea> {
 	Q_OBJECT
 
 public:

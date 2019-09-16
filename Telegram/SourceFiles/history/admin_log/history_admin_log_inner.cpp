@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
+#include "ui/inactive_press.h"
 #include "core/file_utilities.h"
 #include "lang/lang_keys.h"
 #include "boxes/peers/edit_participant_box.h"
@@ -40,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
+#include "data/data_file_origin.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "facades.h"
@@ -515,6 +517,10 @@ QPoint InnerWidget::tooltipPos() const {
 	return _mousePosition;
 }
 
+bool InnerWidget::tooltipWindowActive() const {
+	return Ui::InFocusChain(window());
+}
+
 HistoryView::Context InnerWidget::elementContext() {
 	return HistoryView::Context::AdminLog;
 }
@@ -941,7 +947,7 @@ void InnerWidget::keyPressEvent(QKeyEvent *e) {
 		copySelectedText();
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
-		SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
+		TextUtilities::SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
 	} else {
 		e->ignore();
@@ -1143,7 +1149,7 @@ void InnerWidget::copyContextImage(PhotoData *photo) {
 }
 
 void InnerWidget::copySelectedText() {
-	SetClipboardText(getSelectedText());
+	TextUtilities::SetClipboardText(getSelectedText());
 }
 
 void InnerWidget::showStickerPackInfo(not_null<DocumentData*> document) {
@@ -1174,7 +1180,7 @@ void InnerWidget::openContextGif(FullMsgId itemId) {
 
 void InnerWidget::copyContextText(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
-		SetClipboardText(HistoryItemText(item));
+		TextUtilities::SetClipboardText(HistoryItemText(item));
 	}
 }
 
@@ -1324,8 +1330,10 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 	_dragStartPosition = mapPointToItem(
 		mapFromGlobal(screenPos),
 		_mouseActionItem);
-	_pressWasInactive = _controller->widget()->wasInactivePress();
-	if (_pressWasInactive) _controller->widget()->setInactivePress(false);
+	_pressWasInactive = Ui::WasInactivePress(_controller->widget());
+	if (_pressWasInactive) {
+		Ui::MarkInactivePress(_controller->widget(), false);
+	}
 
 	if (ClickHandler::getPressed()) {
 		_mouseAction = MouseAction::PrepareDrag;
@@ -1412,7 +1420,7 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 
 	if (activated) {
 		mouseActionCancel();
-		App::activateClickHandler(activated, button);
+		ActivateClickHandler(window(), activated, button);
 		return;
 	}
 	if (_mouseAction == MouseAction::PrepareDrag && !_pressWasInactive && button != Qt::RightButton) {
@@ -1432,7 +1440,7 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	if (_selectedItem && _selectedText.from != _selectedText.to) {
-		SetClipboardText(
+		TextUtilities::SetClipboardText(
 			_selectedItem->selectedText(_selectedText),
 			QClipboard::Selection);
 	}

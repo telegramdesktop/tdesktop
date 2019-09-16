@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
 #include <QtCore/QVersionNumber>
-#include <qpa/qplatformnativeinterface.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -92,10 +91,6 @@ void FallbackFontConfig() {
 
 namespace Platform {
 
-bool IsApplicationActive() {
-	return QApplication::activeWindow() != nullptr;
-}
-
 void SetApplicationIcon(const QIcon &icon) {
 	QApplication::setWindowIcon(icon);
 }
@@ -133,12 +128,6 @@ QRect psDesktopRect() {
 		_monitorRect = QApplication::desktop()->availableGeometry(App::wnd());
 	}
 	return _monitorRect;
-}
-
-void psShowOverAll(QWidget *w, bool canFocus) {
-}
-
-void psBringToBack(QWidget *w) {
 }
 
 void psWriteDump() {
@@ -241,29 +230,6 @@ void start() {
 
 void finish() {
 	Notifications::Finish();
-}
-
-bool TranslucentWindowsSupported(QPoint globalPosition) {
-	if (const auto native = QGuiApplication::platformNativeInterface()) {
-		if (const auto desktop = QApplication::desktop()) {
-			const auto index = desktop->screenNumber(globalPosition);
-			const auto screens = QGuiApplication::screens();
-			if (const auto screen = (index >= 0 && index < screens.size()) ? screens[index] : QGuiApplication::primaryScreen()) {
-				if (native->nativeResourceForScreen(QByteArray("compositingEnabled"), screen)) {
-					return true;
-				}
-
-				static auto WarnedAbout = base::flat_set<int>();
-				if (!WarnedAbout.contains(index)) {
-					WarnedAbout.insert(index);
-					LOG(("WARNING: Compositing is disabled for screen index %1 (for position %2,%3)").arg(index).arg(globalPosition.x()).arg(globalPosition.y()));
-				}
-			} else {
-				LOG(("WARNING: Could not get screen for index %1 (for position %2,%3)").arg(index).arg(globalPosition.x()).arg(globalPosition.y()));
-			}
-		}
-	}
-	return false;
 }
 
 void RegisterCustomScheme() {
@@ -430,9 +396,6 @@ void psAutoStart(bool start, bool silent) {
 }
 
 void psSendToMenu(bool send, bool silent) {
-}
-
-void psUpdateOverlayed(QWidget *widget) {
 }
 
 bool linuxMoveFile(const char *from, const char *to) {

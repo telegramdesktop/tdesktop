@@ -108,8 +108,8 @@ void Timer::timerEvent(QTimerEvent *e) {
 		cancel();
 	}
 
-	if (_callback) {
-		_callback();
+	if (const auto onstack = _callback) {
+		onstack();
 	}
 }
 

@@ -226,7 +226,7 @@ std::vector<Suggestion> Completer::resolve() {
 	if (!_querySize) {
 		return std::vector<Suggestion>();
 	}
-	_initialList = Ui::Emoji::internal::GetReplacements(*_queryBegin);
+	_initialList = internal::GetReplacements(*_queryBegin);
 	if (!_initialList) {
 		return std::vector<Suggestion>();
 	}

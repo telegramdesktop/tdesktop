@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/image/image_prepare.h"
 #include "ui/toast/toast.h"
+#include "ui/special_fields.h"
 #include "info/profile/info_profile_button.h"
 #include "main/main_account.h"
 #include "main/main_session.h"

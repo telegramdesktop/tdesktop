@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_file_utilities.h"
 #include "core/application.h"
 #include "base/unixtime.h"
+#include "ui/delayed_activation.h"
 #include "mainwindow.h"
 
 #include <QtWidgets/QFileDialog>
@@ -26,7 +27,7 @@ bool filedialogGetSaveFile(
 		const QString &initialPath) {
 	QStringList files;
 	QByteArray remoteContent;
-	Core::App().preventWindowActivation();
+	Ui::PreventDelayedActivation();
 	bool result = Platform::FileDialog::Get(
 		parent,
 		files,
@@ -119,7 +120,7 @@ namespace File {
 
 void OpenEmailLink(const QString &email) {
 	crl::on_main([=] {
-		Core::App().preventWindowActivation();
+		Ui::PreventDelayedActivation();
 		Platform::File::UnsafeOpenEmailLink(email);
 	});
 }
@@ -127,7 +128,7 @@ void OpenEmailLink(const QString &email) {
 void OpenWith(const QString &filepath, QPoint menuPosition) {
 	InvokeQueued(QCoreApplication::instance(), [=] {
 		if (!Platform::File::UnsafeShowOpenWithDropdown(filepath, menuPosition)) {
-			Core::App().preventWindowActivation();
+			Ui::PreventDelayedActivation();
 			if (!Platform::File::UnsafeShowOpenWith(filepath)) {
 				Platform::File::UnsafeLaunch(filepath);
 			}
@@ -137,14 +138,14 @@ void OpenWith(const QString &filepath, QPoint menuPosition) {
 
 void Launch(const QString &filepath) {
 	crl::on_main([=] {
-		Core::App().preventWindowActivation();
+		Ui::PreventDelayedActivation();
 		Platform::File::UnsafeLaunch(filepath);
 	});
 }
 
 void ShowInFolder(const QString &filepath) {
 	crl::on_main([=] {
-		Core::App().preventWindowActivation();
+		Ui::PreventDelayedActivation();
 		Platform::File::UnsafeShowInFolder(filepath);
 	});
 }
@@ -231,7 +232,7 @@ void GetOpenPath(
 	InvokeQueued(QCoreApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
-		Core::App().preventWindowActivation();
+		Ui::PreventDelayedActivation();
 		const auto success = Platform::FileDialog::Get(
 			parent,
 			files,
@@ -265,7 +266,7 @@ void GetOpenPaths(
 	InvokeQueued(QCoreApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
-		Core::App().preventWindowActivation();
+		Ui::PreventDelayedActivation();
 		const auto success = Platform::FileDialog::Get(
 			parent,
 			files,
@@ -314,7 +315,7 @@ void GetFolder(
 	InvokeQueued(QCoreApplication::instance(), [=] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
-		Core::App().preventWindowActivation();
+		Ui::PreventDelayedActivation();
 		const auto success = Platform::FileDialog::Get(
 			parent,
 			files,

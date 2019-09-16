@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/text/text_utilities.h"
 
+#include "base/algorithm.h"
+
+#include <QtCore/QRegularExpression>
+
 namespace Ui {
 namespace Text {
 namespace {

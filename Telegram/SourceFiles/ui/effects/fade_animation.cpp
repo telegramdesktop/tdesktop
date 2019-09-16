@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/fade_animation.h"
 
 #include "ui/ui_utility.h"
+#include "ui/painter.h"
 #include "app.h"
 
 namespace Ui {
@@ -22,7 +23,7 @@ FadeAnimation::FadeAnimation(TWidget *widget, float64 scale)
 , _scale(scale) {
 }
 
-bool FadeAnimation::paint(Painter &p) {
+bool FadeAnimation::paint(QPainter &p) {
 	if (_cache.isNull()) return false;
 
 	const auto cache = _cache;

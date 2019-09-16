@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/ui_utility.h"
 #include "styles/style_widgets.h"
+#include "styles/palette.h"
+
+#include <QtGui/QPainter>
+#include <QtGui/QtEvents>
 
 namespace Ui {
 
@@ -22,7 +26,11 @@ PlainShadow::PlainShadow(QWidget *parent, style::color color)
 	resize(st::lineWidth, st::lineWidth);
 }
 
-void Shadow::paint(Painter &p, const QRect &box, int outerWidth, const style::Shadow &st, RectParts sides) {
+void PlainShadow::paintEvent(QPaintEvent *e) {
+	QPainter(this).fillRect(e->rect(), _color);
+}
+
+void Shadow::paint(QPainter &p, const QRect &box, int outerWidth, const style::Shadow &st, RectParts sides) {
 	auto left = (sides & RectPart::Left);
 	auto top = (sides & RectPart::Top);
 	auto right = (sides & RectPart::Right);
@@ -90,19 +98,19 @@ QPixmap Shadow::grab(
 		(sides & RectPart::Bottom) ? shadow.extend.bottom() : 0
 	);
 	auto full = QRect(0, 0, extend.left() + rect.width() + extend.right(), extend.top() + rect.height() + extend.bottom());
-	auto result = QPixmap(full.size() * cIntRetinaFactor());
-	result.setDevicePixelRatio(cRetinaFactor());
+	auto result = QPixmap(full.size() * style::DevicePixelRatio());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(Qt::transparent);
 	{
-		Painter p(&result);
-		Ui::Shadow::paint(p, full.marginsRemoved(extend), full.width(), shadow);
+		QPainter p(&result);
+		Shadow::paint(p, full.marginsRemoved(extend), full.width(), shadow);
 		RenderWidget(p, target, QPoint(extend.left(), extend.top()));
 	}
 	return result;
 }
 
 void Shadow::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	QPainter p(this);
 	paint(p, rect().marginsRemoved(_st.extend), width(), _st, _sides);
 }
 

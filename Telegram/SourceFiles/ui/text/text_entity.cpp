@@ -7,14 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/text/text_entity.h"
 
-#include "main/main_session.h"
 #include "lang/lang_tag.h"
 #include "base/qthelp_url.h"
+#include "base/qthelp_regex.h"
+#include "base/crc32hash.h"
+#include "ui/text/text.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/emoji_config.h"
-#include "data/data_user.h"
-#include "data/data_session.h"
 
 #include <QtCore/QStack>
+#include <QtCore/QMimeData>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
 
 namespace TextUtilities {
 namespace {
@@ -23,7 +27,7 @@ QString ExpressionMailNameAtEnd() {
 	// Matches email first part (before '@') at the end of the string.
 	// First we find a domain without protocol (like "gmail.com"), then
 	// we find '@' before it and then we look for the name before '@'.
-	return qsl("[a-zA-Z\\-_\\.0-9]{1,256}$");
+	return QString::fromUtf8("[a-zA-Z\\-_\\.0-9]{1,256}$");
 }
 
 QString Quotes() {
@@ -33,12 +37,12 @@ QString Quotes() {
 
 QString ExpressionSeparators(const QString &additional) {
 	static const auto quotes = Quotes();
-	return qsl("\\s\\.,:;<>|'\"\\[\\]\\{\\}\\~\\!\\?\\%\\^\\(\\)\\-\\+=\\x10") + quotes + additional;
+	return QString::fromUtf8("\\s\\.,:;<>|'\"\\[\\]\\{\\}\\~\\!\\?\\%\\^\\(\\)\\-\\+=\\x10") + quotes + additional;
 }
 
 QString Separators(const QString &additional) {
 	static const auto quotes = Quotes();
-	return qsl(" \x10\n\r\t.,:;<>|'\"[]{}!?%^()-+=")
+	return QString::fromUtf8(" \x10\n\r\t.,:;<>|'\"[]{}!?%^()-+=")
 		+ QChar(0xfdd0) // QTextBeginningOfFrame
 		+ QChar(0xfdd1) // QTextEndOfFrame
 		+ QChar(QChar::ParagraphSeparator)
@@ -48,35 +52,35 @@ QString Separators(const QString &additional) {
 }
 
 QString SeparatorsBold() {
-	return Separators(qsl("`~/"));
+	return Separators(QString::fromUtf8("`~/"));
 }
 
 QString SeparatorsItalic() {
-	return Separators(qsl("`*~/"));
+	return Separators(QString::fromUtf8("`*~/"));
 }
 
 QString SeparatorsStrikeOut() {
-	return Separators(qsl("`*~/"));
+	return Separators(QString::fromUtf8("`*~/"));
 }
 
 QString SeparatorsMono() {
-	return Separators(qsl("*~/"));
+	return Separators(QString::fromUtf8("*~/"));
 }
 
 QString ExpressionHashtag() {
-	return qsl("(^|[") + ExpressionSeparators(qsl("`\\*/")) + qsl("])#[\\w]{2,64}([\\W]|$)");
+	return QString::fromUtf8("(^|[") + ExpressionSeparators(QString::fromUtf8("`\\*/")) + QString::fromUtf8("])#[\\w]{2,64}([\\W]|$)");
 }
 
 QString ExpressionHashtagExclude() {
-	return qsl("^#?\\d+$");
+	return QString::fromUtf8("^#?\\d+$");
 }
 
 QString ExpressionMention() {
-	return qsl("(^|[") + ExpressionSeparators(qsl("`\\*/")) + qsl("])@[A-Za-z_0-9]{1,32}([\\W]|$)");
+	return QString::fromUtf8("(^|[") + ExpressionSeparators(QString::fromUtf8("`\\*/")) + QString::fromUtf8("])@[A-Za-z_0-9]{1,32}([\\W]|$)");
 }
 
 QString ExpressionBotCommand() {
-	return qsl("(^|[") + ExpressionSeparators(qsl("`\\*")) + qsl("])/[A-Za-z_0-9]{1,64}(@[A-Za-z_0-9]{5,32})?([\\W]|$)");
+	return QString::fromUtf8("(^|[") + ExpressionSeparators(QString::fromUtf8("`\\*")) + QString::fromUtf8("])/[A-Za-z_0-9]{1,64}(@[A-Za-z_0-9]{5,32})?([\\W]|$)");
 }
 
 QRegularExpression CreateRegExp(const QString &expression) {
@@ -89,340 +93,340 @@ QRegularExpression CreateRegExp(const QString &expression) {
 	return result;
 }
 
-QSet<int32> CreateValidProtocols() {
-	auto result = QSet<int32>();
-	auto addOne = [&result](const QString &string) {
-		result.insert(hashCrc32(string.constData(), string.size() * sizeof(QChar)));
+base::flat_set<int32> CreateValidProtocols() {
+	auto result = base::flat_set<int32>();
+	const auto addOne = [&](const QString &string) {
+		result.insert(base::crc32(string.constData(), string.size() * sizeof(QChar)));
 	};
-	addOne(qsl("itmss")); // itunes
-	addOne(qsl("http"));
-	addOne(qsl("https"));
-	addOne(qsl("ftp"));
-	addOne(qsl("tg")); // local urls
+	addOne(QString::fromLatin1("itmss")); // itunes
+	addOne(QString::fromLatin1("http"));
+	addOne(QString::fromLatin1("https"));
+	addOne(QString::fromLatin1("ftp"));
+	addOne(QString::fromLatin1("tg")); // local urls
 	return result;
 }
 
-QSet<int32> CreateValidTopDomains() {
-	auto result = QSet<int32>();
+base::flat_set<int32> CreateValidTopDomains() {
+	auto result = base::flat_set<int32>();
 	auto addOne = [&result](const QString &string) {
-		result.insert(hashCrc32(string.constData(), string.size() * sizeof(QChar)));
+		result.insert(base::crc32(string.constData(), string.size() * sizeof(QChar)));
 	};
-	addOne(qsl("ac"));
-	addOne(qsl("ad"));
-	addOne(qsl("ae"));
-	addOne(qsl("af"));
-	addOne(qsl("ag"));
-	addOne(qsl("ai"));
-	addOne(qsl("al"));
-	addOne(qsl("am"));
-	addOne(qsl("an"));
-	addOne(qsl("ao"));
-	addOne(qsl("aq"));
-	addOne(qsl("ar"));
-	addOne(qsl("as"));
-	addOne(qsl("at"));
-	addOne(qsl("au"));
-	addOne(qsl("aw"));
-	addOne(qsl("ax"));
-	addOne(qsl("az"));
-	addOne(qsl("ba"));
-	addOne(qsl("bb"));
-	addOne(qsl("bd"));
-	addOne(qsl("be"));
-	addOne(qsl("bf"));
-	addOne(qsl("bg"));
-	addOne(qsl("bh"));
-	addOne(qsl("bi"));
-	addOne(qsl("bj"));
-	addOne(qsl("bm"));
-	addOne(qsl("bn"));
-	addOne(qsl("bo"));
-	addOne(qsl("br"));
-	addOne(qsl("bs"));
-	addOne(qsl("bt"));
-	addOne(qsl("bv"));
-	addOne(qsl("bw"));
-	addOne(qsl("by"));
-	addOne(qsl("bz"));
-	addOne(qsl("ca"));
-	addOne(qsl("cc"));
-	addOne(qsl("cd"));
-	addOne(qsl("cf"));
-	addOne(qsl("cg"));
-	addOne(qsl("ch"));
-	addOne(qsl("ci"));
-	addOne(qsl("ck"));
-	addOne(qsl("cl"));
-	addOne(qsl("cm"));
-	addOne(qsl("cn"));
-	addOne(qsl("co"));
-	addOne(qsl("cr"));
-	addOne(qsl("cu"));
-	addOne(qsl("cv"));
-	addOne(qsl("cx"));
-	addOne(qsl("cy"));
-	addOne(qsl("cz"));
-	addOne(qsl("de"));
-	addOne(qsl("dj"));
-	addOne(qsl("dk"));
-	addOne(qsl("dm"));
-	addOne(qsl("do"));
-	addOne(qsl("dz"));
-	addOne(qsl("ec"));
-	addOne(qsl("ee"));
-	addOne(qsl("eg"));
-	addOne(qsl("eh"));
-	addOne(qsl("er"));
-	addOne(qsl("es"));
-	addOne(qsl("et"));
-	addOne(qsl("eu"));
-	addOne(qsl("fi"));
-	addOne(qsl("fj"));
-	addOne(qsl("fk"));
-	addOne(qsl("fm"));
-	addOne(qsl("fo"));
-	addOne(qsl("fr"));
-	addOne(qsl("ga"));
-	addOne(qsl("gd"));
-	addOne(qsl("ge"));
-	addOne(qsl("gf"));
-	addOne(qsl("gg"));
-	addOne(qsl("gh"));
-	addOne(qsl("gi"));
-	addOne(qsl("gl"));
-	addOne(qsl("gm"));
-	addOne(qsl("gn"));
-	addOne(qsl("gp"));
-	addOne(qsl("gq"));
-	addOne(qsl("gr"));
-	addOne(qsl("gs"));
-	addOne(qsl("gt"));
-	addOne(qsl("gu"));
-	addOne(qsl("gw"));
-	addOne(qsl("gy"));
-	addOne(qsl("hk"));
-	addOne(qsl("hm"));
-	addOne(qsl("hn"));
-	addOne(qsl("hr"));
-	addOne(qsl("ht"));
-	addOne(qsl("hu"));
-	addOne(qsl("id"));
-	addOne(qsl("ie"));
-	addOne(qsl("il"));
-	addOne(qsl("im"));
-	addOne(qsl("in"));
-	addOne(qsl("io"));
-	addOne(qsl("iq"));
-	addOne(qsl("ir"));
-	addOne(qsl("is"));
-	addOne(qsl("it"));
-	addOne(qsl("je"));
-	addOne(qsl("jm"));
-	addOne(qsl("jo"));
-	addOne(qsl("jp"));
-	addOne(qsl("ke"));
-	addOne(qsl("kg"));
-	addOne(qsl("kh"));
-	addOne(qsl("ki"));
-	addOne(qsl("km"));
-	addOne(qsl("kn"));
-	addOne(qsl("kp"));
-	addOne(qsl("kr"));
-	addOne(qsl("kw"));
-	addOne(qsl("ky"));
-	addOne(qsl("kz"));
-	addOne(qsl("la"));
-	addOne(qsl("lb"));
-	addOne(qsl("lc"));
-	addOne(qsl("li"));
-	addOne(qsl("lk"));
-	addOne(qsl("lr"));
-	addOne(qsl("ls"));
-	addOne(qsl("lt"));
-	addOne(qsl("lu"));
-	addOne(qsl("lv"));
-	addOne(qsl("ly"));
-	addOne(qsl("ma"));
-	addOne(qsl("mc"));
-	addOne(qsl("md"));
-	addOne(qsl("me"));
-	addOne(qsl("mg"));
-	addOne(qsl("mh"));
-	addOne(qsl("mk"));
-	addOne(qsl("ml"));
-	addOne(qsl("mm"));
-	addOne(qsl("mn"));
-	addOne(qsl("mo"));
-	addOne(qsl("mp"));
-	addOne(qsl("mq"));
-	addOne(qsl("mr"));
-	addOne(qsl("ms"));
-	addOne(qsl("mt"));
-	addOne(qsl("mu"));
-	addOne(qsl("mv"));
-	addOne(qsl("mw"));
-	addOne(qsl("mx"));
-	addOne(qsl("my"));
-	addOne(qsl("mz"));
-	addOne(qsl("na"));
-	addOne(qsl("nc"));
-	addOne(qsl("ne"));
-	addOne(qsl("nf"));
-	addOne(qsl("ng"));
-	addOne(qsl("ni"));
-	addOne(qsl("nl"));
-	addOne(qsl("no"));
-	addOne(qsl("np"));
-	addOne(qsl("nr"));
-	addOne(qsl("nu"));
-	addOne(qsl("nz"));
-	addOne(qsl("om"));
-	addOne(qsl("pa"));
-	addOne(qsl("pe"));
-	addOne(qsl("pf"));
-	addOne(qsl("pg"));
-	addOne(qsl("ph"));
-	addOne(qsl("pk"));
-	addOne(qsl("pl"));
-	addOne(qsl("pm"));
-	addOne(qsl("pn"));
-	addOne(qsl("pr"));
-	addOne(qsl("ps"));
-	addOne(qsl("pt"));
-	addOne(qsl("pw"));
-	addOne(qsl("py"));
-	addOne(qsl("qa"));
-	addOne(qsl("re"));
-	addOne(qsl("ro"));
-	addOne(qsl("ru"));
-	addOne(qsl("rs"));
-	addOne(qsl("rw"));
-	addOne(qsl("sa"));
-	addOne(qsl("sb"));
-	addOne(qsl("sc"));
-	addOne(qsl("sd"));
-	addOne(qsl("se"));
-	addOne(qsl("sg"));
-	addOne(qsl("sh"));
-	addOne(qsl("si"));
-	addOne(qsl("sj"));
-	addOne(qsl("sk"));
-	addOne(qsl("sl"));
-	addOne(qsl("sm"));
-	addOne(qsl("sn"));
-	addOne(qsl("so"));
-	addOne(qsl("sr"));
-	addOne(qsl("ss"));
-	addOne(qsl("st"));
-	addOne(qsl("su"));
-	addOne(qsl("sv"));
-	addOne(qsl("sx"));
-	addOne(qsl("sy"));
-	addOne(qsl("sz"));
-	addOne(qsl("tc"));
-	addOne(qsl("td"));
-	addOne(qsl("tf"));
-	addOne(qsl("tg"));
-	addOne(qsl("th"));
-	addOne(qsl("tj"));
-	addOne(qsl("tk"));
-	addOne(qsl("tl"));
-	addOne(qsl("tm"));
-	addOne(qsl("tn"));
-	addOne(qsl("to"));
-	addOne(qsl("tp"));
-	addOne(qsl("tr"));
-	addOne(qsl("tt"));
-	addOne(qsl("tv"));
-	addOne(qsl("tw"));
-	addOne(qsl("tz"));
-	addOne(qsl("ua"));
-	addOne(qsl("ug"));
-	addOne(qsl("uk"));
-	addOne(qsl("um"));
-	addOne(qsl("us"));
-	addOne(qsl("uy"));
-	addOne(qsl("uz"));
-	addOne(qsl("va"));
-	addOne(qsl("vc"));
-	addOne(qsl("ve"));
-	addOne(qsl("vg"));
-	addOne(qsl("vi"));
-	addOne(qsl("vn"));
-	addOne(qsl("vu"));
-	addOne(qsl("wf"));
-	addOne(qsl("ws"));
-	addOne(qsl("ye"));
-	addOne(qsl("yt"));
-	addOne(qsl("yu"));
-	addOne(qsl("za"));
-	addOne(qsl("zm"));
-	addOne(qsl("zw"));
-	addOne(qsl("arpa"));
-	addOne(qsl("aero"));
-	addOne(qsl("asia"));
-	addOne(qsl("biz"));
-	addOne(qsl("cat"));
-	addOne(qsl("com"));
-	addOne(qsl("coop"));
-	addOne(qsl("info"));
-	addOne(qsl("int"));
-	addOne(qsl("jobs"));
-	addOne(qsl("mobi"));
-	addOne(qsl("museum"));
-	addOne(qsl("name"));
-	addOne(qsl("net"));
-	addOne(qsl("org"));
-	addOne(qsl("post"));
-	addOne(qsl("pro"));
-	addOne(qsl("tel"));
-	addOne(qsl("travel"));
-	addOne(qsl("xxx"));
-	addOne(qsl("edu"));
-	addOne(qsl("gov"));
-	addOne(qsl("mil"));
-	addOne(qsl("local"));
-	addOne(qsl("xn--lgbbat1ad8j"));
-	addOne(qsl("xn--54b7fta0cc"));
-	addOne(qsl("xn--fiqs8s"));
-	addOne(qsl("xn--fiqz9s"));
-	addOne(qsl("xn--wgbh1c"));
-	addOne(qsl("xn--node"));
-	addOne(qsl("xn--j6w193g"));
-	addOne(qsl("xn--h2brj9c"));
-	addOne(qsl("xn--mgbbh1a71e"));
-	addOne(qsl("xn--fpcrj9c3d"));
-	addOne(qsl("xn--gecrj9c"));
-	addOne(qsl("xn--s9brj9c"));
-	addOne(qsl("xn--xkc2dl3a5ee0h"));
-	addOne(qsl("xn--45brj9c"));
-	addOne(qsl("xn--mgba3a4f16a"));
-	addOne(qsl("xn--mgbayh7gpa"));
-	addOne(qsl("xn--80ao21a"));
-	addOne(qsl("xn--mgbx4cd0ab"));
-	addOne(qsl("xn--l1acc"));
-	addOne(qsl("xn--mgbc0a9azcg"));
-	addOne(qsl("xn--mgb9awbf"));
-	addOne(qsl("xn--mgbai9azgqp6j"));
-	addOne(qsl("xn--ygbi2ammx"));
-	addOne(qsl("xn--wgbl6a"));
-	addOne(qsl("xn--p1ai"));
-	addOne(qsl("xn--mgberp4a5d4ar"));
-	addOne(qsl("xn--90a3ac"));
-	addOne(qsl("xn--yfro4i67o"));
-	addOne(qsl("xn--clchc0ea0b2g2a9gcd"));
-	addOne(qsl("xn--3e0b707e"));
-	addOne(qsl("xn--fzc2c9e2c"));
-	addOne(qsl("xn--xkc2al3hye2a"));
-	addOne(qsl("xn--mgbtf8fl"));
-	addOne(qsl("xn--kprw13d"));
-	addOne(qsl("xn--kpry57d"));
-	addOne(qsl("xn--o3cw4h"));
-	addOne(qsl("xn--pgbs0dh"));
-	addOne(qsl("xn--j1amh"));
-	addOne(qsl("xn--mgbaam7a8h"));
-	addOne(qsl("xn--mgb2ddes"));
-	addOne(qsl("xn--ogbpf8fl"));
+	addOne(QString::fromLatin1("ac"));
+	addOne(QString::fromLatin1("ad"));
+	addOne(QString::fromLatin1("ae"));
+	addOne(QString::fromLatin1("af"));
+	addOne(QString::fromLatin1("ag"));
+	addOne(QString::fromLatin1("ai"));
+	addOne(QString::fromLatin1("al"));
+	addOne(QString::fromLatin1("am"));
+	addOne(QString::fromLatin1("an"));
+	addOne(QString::fromLatin1("ao"));
+	addOne(QString::fromLatin1("aq"));
+	addOne(QString::fromLatin1("ar"));
+	addOne(QString::fromLatin1("as"));
+	addOne(QString::fromLatin1("at"));
+	addOne(QString::fromLatin1("au"));
+	addOne(QString::fromLatin1("aw"));
+	addOne(QString::fromLatin1("ax"));
+	addOne(QString::fromLatin1("az"));
+	addOne(QString::fromLatin1("ba"));
+	addOne(QString::fromLatin1("bb"));
+	addOne(QString::fromLatin1("bd"));
+	addOne(QString::fromLatin1("be"));
+	addOne(QString::fromLatin1("bf"));
+	addOne(QString::fromLatin1("bg"));
+	addOne(QString::fromLatin1("bh"));
+	addOne(QString::fromLatin1("bi"));
+	addOne(QString::fromLatin1("bj"));
+	addOne(QString::fromLatin1("bm"));
+	addOne(QString::fromLatin1("bn"));
+	addOne(QString::fromLatin1("bo"));
+	addOne(QString::fromLatin1("br"));
+	addOne(QString::fromLatin1("bs"));
+	addOne(QString::fromLatin1("bt"));
+	addOne(QString::fromLatin1("bv"));
+	addOne(QString::fromLatin1("bw"));
+	addOne(QString::fromLatin1("by"));
+	addOne(QString::fromLatin1("bz"));
+	addOne(QString::fromLatin1("ca"));
+	addOne(QString::fromLatin1("cc"));
+	addOne(QString::fromLatin1("cd"));
+	addOne(QString::fromLatin1("cf"));
+	addOne(QString::fromLatin1("cg"));
+	addOne(QString::fromLatin1("ch"));
+	addOne(QString::fromLatin1("ci"));
+	addOne(QString::fromLatin1("ck"));
+	addOne(QString::fromLatin1("cl"));
+	addOne(QString::fromLatin1("cm"));
+	addOne(QString::fromLatin1("cn"));
+	addOne(QString::fromLatin1("co"));
+	addOne(QString::fromLatin1("cr"));
+	addOne(QString::fromLatin1("cu"));
+	addOne(QString::fromLatin1("cv"));
+	addOne(QString::fromLatin1("cx"));
+	addOne(QString::fromLatin1("cy"));
+	addOne(QString::fromLatin1("cz"));
+	addOne(QString::fromLatin1("de"));
+	addOne(QString::fromLatin1("dj"));
+	addOne(QString::fromLatin1("dk"));
+	addOne(QString::fromLatin1("dm"));
+	addOne(QString::fromLatin1("do"));
+	addOne(QString::fromLatin1("dz"));
+	addOne(QString::fromLatin1("ec"));
+	addOne(QString::fromLatin1("ee"));
+	addOne(QString::fromLatin1("eg"));
+	addOne(QString::fromLatin1("eh"));
+	addOne(QString::fromLatin1("er"));
+	addOne(QString::fromLatin1("es"));
+	addOne(QString::fromLatin1("et"));
+	addOne(QString::fromLatin1("eu"));
+	addOne(QString::fromLatin1("fi"));
+	addOne(QString::fromLatin1("fj"));
+	addOne(QString::fromLatin1("fk"));
+	addOne(QString::fromLatin1("fm"));
+	addOne(QString::fromLatin1("fo"));
+	addOne(QString::fromLatin1("fr"));
+	addOne(QString::fromLatin1("ga"));
+	addOne(QString::fromLatin1("gd"));
+	addOne(QString::fromLatin1("ge"));
+	addOne(QString::fromLatin1("gf"));
+	addOne(QString::fromLatin1("gg"));
+	addOne(QString::fromLatin1("gh"));
+	addOne(QString::fromLatin1("gi"));
+	addOne(QString::fromLatin1("gl"));
+	addOne(QString::fromLatin1("gm"));
+	addOne(QString::fromLatin1("gn"));
+	addOne(QString::fromLatin1("gp"));
+	addOne(QString::fromLatin1("gq"));
+	addOne(QString::fromLatin1("gr"));
+	addOne(QString::fromLatin1("gs"));
+	addOne(QString::fromLatin1("gt"));
+	addOne(QString::fromLatin1("gu"));
+	addOne(QString::fromLatin1("gw"));
+	addOne(QString::fromLatin1("gy"));
+	addOne(QString::fromLatin1("hk"));
+	addOne(QString::fromLatin1("hm"));
+	addOne(QString::fromLatin1("hn"));
+	addOne(QString::fromLatin1("hr"));
+	addOne(QString::fromLatin1("ht"));
+	addOne(QString::fromLatin1("hu"));
+	addOne(QString::fromLatin1("id"));
+	addOne(QString::fromLatin1("ie"));
+	addOne(QString::fromLatin1("il"));
+	addOne(QString::fromLatin1("im"));
+	addOne(QString::fromLatin1("in"));
+	addOne(QString::fromLatin1("io"));
+	addOne(QString::fromLatin1("iq"));
+	addOne(QString::fromLatin1("ir"));
+	addOne(QString::fromLatin1("is"));
+	addOne(QString::fromLatin1("it"));
+	addOne(QString::fromLatin1("je"));
+	addOne(QString::fromLatin1("jm"));
+	addOne(QString::fromLatin1("jo"));
+	addOne(QString::fromLatin1("jp"));
+	addOne(QString::fromLatin1("ke"));
+	addOne(QString::fromLatin1("kg"));
+	addOne(QString::fromLatin1("kh"));
+	addOne(QString::fromLatin1("ki"));
+	addOne(QString::fromLatin1("km"));
+	addOne(QString::fromLatin1("kn"));
+	addOne(QString::fromLatin1("kp"));
+	addOne(QString::fromLatin1("kr"));
+	addOne(QString::fromLatin1("kw"));
+	addOne(QString::fromLatin1("ky"));
+	addOne(QString::fromLatin1("kz"));
+	addOne(QString::fromLatin1("la"));
+	addOne(QString::fromLatin1("lb"));
+	addOne(QString::fromLatin1("lc"));
+	addOne(QString::fromLatin1("li"));
+	addOne(QString::fromLatin1("lk"));
+	addOne(QString::fromLatin1("lr"));
+	addOne(QString::fromLatin1("ls"));
+	addOne(QString::fromLatin1("lt"));
+	addOne(QString::fromLatin1("lu"));
+	addOne(QString::fromLatin1("lv"));
+	addOne(QString::fromLatin1("ly"));
+	addOne(QString::fromLatin1("ma"));
+	addOne(QString::fromLatin1("mc"));
+	addOne(QString::fromLatin1("md"));
+	addOne(QString::fromLatin1("me"));
+	addOne(QString::fromLatin1("mg"));
+	addOne(QString::fromLatin1("mh"));
+	addOne(QString::fromLatin1("mk"));
+	addOne(QString::fromLatin1("ml"));
+	addOne(QString::fromLatin1("mm"));
+	addOne(QString::fromLatin1("mn"));
+	addOne(QString::fromLatin1("mo"));
+	addOne(QString::fromLatin1("mp"));
+	addOne(QString::fromLatin1("mq"));
+	addOne(QString::fromLatin1("mr"));
+	addOne(QString::fromLatin1("ms"));
+	addOne(QString::fromLatin1("mt"));
+	addOne(QString::fromLatin1("mu"));
+	addOne(QString::fromLatin1("mv"));
+	addOne(QString::fromLatin1("mw"));
+	addOne(QString::fromLatin1("mx"));
+	addOne(QString::fromLatin1("my"));
+	addOne(QString::fromLatin1("mz"));
+	addOne(QString::fromLatin1("na"));
+	addOne(QString::fromLatin1("nc"));
+	addOne(QString::fromLatin1("ne"));
+	addOne(QString::fromLatin1("nf"));
+	addOne(QString::fromLatin1("ng"));
+	addOne(QString::fromLatin1("ni"));
+	addOne(QString::fromLatin1("nl"));
+	addOne(QString::fromLatin1("no"));
+	addOne(QString::fromLatin1("np"));
+	addOne(QString::fromLatin1("nr"));
+	addOne(QString::fromLatin1("nu"));
+	addOne(QString::fromLatin1("nz"));
+	addOne(QString::fromLatin1("om"));
+	addOne(QString::fromLatin1("pa"));
+	addOne(QString::fromLatin1("pe"));
+	addOne(QString::fromLatin1("pf"));
+	addOne(QString::fromLatin1("pg"));
+	addOne(QString::fromLatin1("ph"));
+	addOne(QString::fromLatin1("pk"));
+	addOne(QString::fromLatin1("pl"));
+	addOne(QString::fromLatin1("pm"));
+	addOne(QString::fromLatin1("pn"));
+	addOne(QString::fromLatin1("pr"));
+	addOne(QString::fromLatin1("ps"));
+	addOne(QString::fromLatin1("pt"));
+	addOne(QString::fromLatin1("pw"));
+	addOne(QString::fromLatin1("py"));
+	addOne(QString::fromLatin1("qa"));
+	addOne(QString::fromLatin1("re"));
+	addOne(QString::fromLatin1("ro"));
+	addOne(QString::fromLatin1("ru"));
+	addOne(QString::fromLatin1("rs"));
+	addOne(QString::fromLatin1("rw"));
+	addOne(QString::fromLatin1("sa"));
+	addOne(QString::fromLatin1("sb"));
+	addOne(QString::fromLatin1("sc"));
+	addOne(QString::fromLatin1("sd"));
+	addOne(QString::fromLatin1("se"));
+	addOne(QString::fromLatin1("sg"));
+	addOne(QString::fromLatin1("sh"));
+	addOne(QString::fromLatin1("si"));
+	addOne(QString::fromLatin1("sj"));
+	addOne(QString::fromLatin1("sk"));
+	addOne(QString::fromLatin1("sl"));
+	addOne(QString::fromLatin1("sm"));
+	addOne(QString::fromLatin1("sn"));
+	addOne(QString::fromLatin1("so"));
+	addOne(QString::fromLatin1("sr"));
+	addOne(QString::fromLatin1("ss"));
+	addOne(QString::fromLatin1("st"));
+	addOne(QString::fromLatin1("su"));
+	addOne(QString::fromLatin1("sv"));
+	addOne(QString::fromLatin1("sx"));
+	addOne(QString::fromLatin1("sy"));
+	addOne(QString::fromLatin1("sz"));
+	addOne(QString::fromLatin1("tc"));
+	addOne(QString::fromLatin1("td"));
+	addOne(QString::fromLatin1("tf"));
+	addOne(QString::fromLatin1("tg"));
+	addOne(QString::fromLatin1("th"));
+	addOne(QString::fromLatin1("tj"));
+	addOne(QString::fromLatin1("tk"));
+	addOne(QString::fromLatin1("tl"));
+	addOne(QString::fromLatin1("tm"));
+	addOne(QString::fromLatin1("tn"));
+	addOne(QString::fromLatin1("to"));
+	addOne(QString::fromLatin1("tp"));
+	addOne(QString::fromLatin1("tr"));
+	addOne(QString::fromLatin1("tt"));
+	addOne(QString::fromLatin1("tv"));
+	addOne(QString::fromLatin1("tw"));
+	addOne(QString::fromLatin1("tz"));
+	addOne(QString::fromLatin1("ua"));
+	addOne(QString::fromLatin1("ug"));
+	addOne(QString::fromLatin1("uk"));
+	addOne(QString::fromLatin1("um"));
+	addOne(QString::fromLatin1("us"));
+	addOne(QString::fromLatin1("uy"));
+	addOne(QString::fromLatin1("uz"));
+	addOne(QString::fromLatin1("va"));
+	addOne(QString::fromLatin1("vc"));
+	addOne(QString::fromLatin1("ve"));
+	addOne(QString::fromLatin1("vg"));
+	addOne(QString::fromLatin1("vi"));
+	addOne(QString::fromLatin1("vn"));
+	addOne(QString::fromLatin1("vu"));
+	addOne(QString::fromLatin1("wf"));
+	addOne(QString::fromLatin1("ws"));
+	addOne(QString::fromLatin1("ye"));
+	addOne(QString::fromLatin1("yt"));
+	addOne(QString::fromLatin1("yu"));
+	addOne(QString::fromLatin1("za"));
+	addOne(QString::fromLatin1("zm"));
+	addOne(QString::fromLatin1("zw"));
+	addOne(QString::fromLatin1("arpa"));
+	addOne(QString::fromLatin1("aero"));
+	addOne(QString::fromLatin1("asia"));
+	addOne(QString::fromLatin1("biz"));
+	addOne(QString::fromLatin1("cat"));
+	addOne(QString::fromLatin1("com"));
+	addOne(QString::fromLatin1("coop"));
+	addOne(QString::fromLatin1("info"));
+	addOne(QString::fromLatin1("int"));
+	addOne(QString::fromLatin1("jobs"));
+	addOne(QString::fromLatin1("mobi"));
+	addOne(QString::fromLatin1("museum"));
+	addOne(QString::fromLatin1("name"));
+	addOne(QString::fromLatin1("net"));
+	addOne(QString::fromLatin1("org"));
+	addOne(QString::fromLatin1("post"));
+	addOne(QString::fromLatin1("pro"));
+	addOne(QString::fromLatin1("tel"));
+	addOne(QString::fromLatin1("travel"));
+	addOne(QString::fromLatin1("xxx"));
+	addOne(QString::fromLatin1("edu"));
+	addOne(QString::fromLatin1("gov"));
+	addOne(QString::fromLatin1("mil"));
+	addOne(QString::fromLatin1("local"));
+	addOne(QString::fromLatin1("xn--lgbbat1ad8j"));
+	addOne(QString::fromLatin1("xn--54b7fta0cc"));
+	addOne(QString::fromLatin1("xn--fiqs8s"));
+	addOne(QString::fromLatin1("xn--fiqz9s"));
+	addOne(QString::fromLatin1("xn--wgbh1c"));
+	addOne(QString::fromLatin1("xn--node"));
+	addOne(QString::fromLatin1("xn--j6w193g"));
+	addOne(QString::fromLatin1("xn--h2brj9c"));
+	addOne(QString::fromLatin1("xn--mgbbh1a71e"));
+	addOne(QString::fromLatin1("xn--fpcrj9c3d"));
+	addOne(QString::fromLatin1("xn--gecrj9c"));
+	addOne(QString::fromLatin1("xn--s9brj9c"));
+	addOne(QString::fromLatin1("xn--xkc2dl3a5ee0h"));
+	addOne(QString::fromLatin1("xn--45brj9c"));
+	addOne(QString::fromLatin1("xn--mgba3a4f16a"));
+	addOne(QString::fromLatin1("xn--mgbayh7gpa"));
+	addOne(QString::fromLatin1("xn--80ao21a"));
+	addOne(QString::fromLatin1("xn--mgbx4cd0ab"));
+	addOne(QString::fromLatin1("xn--l1acc"));
+	addOne(QString::fromLatin1("xn--mgbc0a9azcg"));
+	addOne(QString::fromLatin1("xn--mgb9awbf"));
+	addOne(QString::fromLatin1("xn--mgbai9azgqp6j"));
+	addOne(QString::fromLatin1("xn--ygbi2ammx"));
+	addOne(QString::fromLatin1("xn--wgbl6a"));
+	addOne(QString::fromLatin1("xn--p1ai"));
+	addOne(QString::fromLatin1("xn--mgberp4a5d4ar"));
+	addOne(QString::fromLatin1("xn--90a3ac"));
+	addOne(QString::fromLatin1("xn--yfro4i67o"));
+	addOne(QString::fromLatin1("xn--clchc0ea0b2g2a9gcd"));
+	addOne(QString::fromLatin1("xn--3e0b707e"));
+	addOne(QString::fromLatin1("xn--fzc2c9e2c"));
+	addOne(QString::fromLatin1("xn--xkc2al3hye2a"));
+	addOne(QString::fromLatin1("xn--mgbtf8fl"));
+	addOne(QString::fromLatin1("xn--kprw13d"));
+	addOne(QString::fromLatin1("xn--kpry57d"));
+	addOne(QString::fromLatin1("xn--o3cw4h"));
+	addOne(QString::fromLatin1("xn--pgbs0dh"));
+	addOne(QString::fromLatin1("xn--j1amh"));
+	addOne(QString::fromLatin1("xn--mgbaam7a8h"));
+	addOne(QString::fromLatin1("xn--mgb2ddes"));
+	addOne(QString::fromLatin1("xn--ogbpf8fl"));
 	addOne(QString::fromUtf8("\xd1\x80\xd1\x84"));
 	return result;
 }
@@ -1132,7 +1136,58 @@ inline QChar RemoveOneAccent(uint32 code) {
 }
 
 const QRegularExpression &RegExpWordSplit() {
-	static const auto result = QRegularExpression (qsl("[\\@\\s\\-\\+\\(\\)\\[\\]\\{\\}\\<\\>\\,\\.\\:\\!\\_\\;\\\"\\'\\x0]"));
+	static const auto result = QRegularExpression(QString::fromLatin1("[\\@\\s\\-\\+\\(\\)\\[\\]\\{\\}\\<\\>\\,\\.\\:\\!\\_\\;\\\"\\'\\x0]"));
+	return result;
+}
+
+[[nodiscard]] QString ExpandCustomLinks(const TextWithTags &text) {
+	const auto entities = ConvertTextTagsToEntities(text.tags);
+	auto &&urls = ranges::make_iterator_range(
+		entities.begin(),
+		entities.end()
+	) | ranges::view::filter([](const EntityInText &entity) {
+		return entity.type() == EntityType::CustomUrl;
+	});
+	const auto &original = text.text;
+	if (urls.begin() == urls.end()) {
+		return original;
+	}
+	auto result = QString();
+	auto offset = 0;
+	for (const auto &entity : urls) {
+		const auto till = entity.offset() + entity.length();
+		if (till > offset) {
+			result.append(original.midRef(offset, till - offset));
+		}
+		result.append(qstr(" (")).append(entity.data()).append(')');
+		offset = till;
+	}
+	if (original.size() > offset) {
+		result.append(original.midRef(offset));
+	}
+	return result;
+}
+
+std::unique_ptr<QMimeData> MimeDataFromText(
+		TextWithTags &&text,
+		const QString &expanded) {
+	if (expanded.isEmpty()) {
+		return nullptr;
+	}
+
+	auto result = std::make_unique<QMimeData>();
+	result->setText(expanded);
+	if (!text.tags.isEmpty()) {
+		for (auto &tag : text.tags) {
+			tag.id = Ui::Integration::Instance().convertTagToMimeTag(tag.id);
+		}
+		result->setData(
+			TextUtilities::TagsTextMimeType(),
+			text.text.toUtf8());
+		result->setData(
+			TextUtilities::TagsMimeType(),
+			TextUtilities::SerializeTags(text.tags));
+	}
 	return result;
 }
 
@@ -1168,7 +1223,7 @@ QString MarkdownBoldGoodBefore() {
 }
 
 QString MarkdownBoldBadAfter() {
-	return qsl("*");
+	return QString::fromLatin1("*");
 }
 
 QString MarkdownItalicGoodBefore() {
@@ -1176,7 +1231,7 @@ QString MarkdownItalicGoodBefore() {
 }
 
 QString MarkdownItalicBadAfter() {
-	return qsl("_");
+	return QString::fromLatin1("_");
 }
 
 QString MarkdownStrikeOutGoodBefore() {
@@ -1184,7 +1239,7 @@ QString MarkdownStrikeOutGoodBefore() {
 }
 
 QString MarkdownStrikeOutBadAfter() {
-	return qsl("~");
+	return QString::fromLatin1("~");
 }
 
 QString MarkdownCodeGoodBefore() {
@@ -1192,7 +1247,7 @@ QString MarkdownCodeGoodBefore() {
 }
 
 QString MarkdownCodeBadAfter() {
-	return qsl("`\n\r");
+	return QString::fromLatin1("`\n\r");
 }
 
 QString MarkdownPreGoodBefore() {
@@ -1200,17 +1255,17 @@ QString MarkdownPreGoodBefore() {
 }
 
 QString MarkdownPreBadAfter() {
-	return qsl("`");
+	return QString::fromLatin1("`");
 }
 
 bool IsValidProtocol(const QString &protocol) {
 	static const auto list = CreateValidProtocols();
-	return list.contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
+	return list.contains(base::crc32(protocol.constData(), protocol.size() * sizeof(QChar)));
 }
 
 bool IsValidTopDomain(const QString &protocol) {
 	static const auto list = CreateValidTopDomains();
-	return list.contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
+	return list.contains(base::crc32(protocol.constData(), protocol.size() * sizeof(QChar)));
 }
 
 QString Clean(const QString &text) {
@@ -1321,14 +1376,19 @@ QString RemoveEmoji(const QString &text) {
 	return result;
 }
 
-QStringList PrepareSearchWords(const QString &query, const QRegularExpression *SplitterOverride) {
+QStringList PrepareSearchWords(
+		const QString &query,
+		const QRegularExpression *SplitterOverride) {
 	auto clean = RemoveAccents(query.trimmed().toLower());
 	auto result = QStringList();
 	if (!clean.isEmpty()) {
-		auto list = clean.split(SplitterOverride ? *SplitterOverride : RegExpWordSplit(), QString::SkipEmptyParts);
+		auto list = clean.split(SplitterOverride
+			? *SplitterOverride
+			: RegExpWordSplit(),
+			QString::SkipEmptyParts);
 		auto size = list.size();
 		result.reserve(list.size());
-		for_const (auto &word, list) {
+		for (const auto &word : std::as_const(list)) {
 			auto trimmed = word.trimmed();
 			if (!trimmed.isEmpty()) {
 				result.push_back(trimmed);
@@ -1486,112 +1546,6 @@ bool checkTagStartInCommand(const QChar *start, int32 len, int32 tagStart, int32
 		commandOffset = commandEnd - start;
 	}
 	return inCommand;
-}
-
-EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
-	auto result = EntitiesInText();
-	if (!entities.isEmpty()) {
-		result.reserve(entities.size());
-		for_const (auto &entity, entities) {
-			switch (entity.type()) {
-			case mtpc_messageEntityUrl: { auto &d = entity.c_messageEntityUrl(); result.push_back({ EntityType::Url, d.voffset().v, d.vlength().v }); } break;
-			case mtpc_messageEntityTextUrl: { auto &d = entity.c_messageEntityTextUrl(); result.push_back({ EntityType::CustomUrl, d.voffset().v, d.vlength().v, Clean(qs(d.vurl())) }); } break;
-			case mtpc_messageEntityEmail: { auto &d = entity.c_messageEntityEmail(); result.push_back({ EntityType::Email, d.voffset().v, d.vlength().v }); } break;
-			case mtpc_messageEntityHashtag: { auto &d = entity.c_messageEntityHashtag(); result.push_back({ EntityType::Hashtag, d.voffset().v, d.vlength().v }); } break;
-			case mtpc_messageEntityCashtag: { auto &d = entity.c_messageEntityCashtag(); result.push_back({ EntityType::Cashtag, d.voffset().v, d.vlength().v }); } break;
-			case mtpc_messageEntityPhone: break; // Skipping phones.
-			case mtpc_messageEntityMention: { auto &d = entity.c_messageEntityMention(); result.push_back({ EntityType::Mention, d.voffset().v, d.vlength().v }); } break;
-			case mtpc_messageEntityMentionName: {
-				auto &d = entity.c_messageEntityMentionName();
-				auto data = [&d] {
-					if (auto user = Auth().data().userLoaded(d.vuser_id().v)) {
-						return MentionNameDataFromFields({
-							d.vuser_id().v,
-							user->accessHash() });
-					}
-					return MentionNameDataFromFields(d.vuser_id().v);
-				};
-				result.push_back({ EntityType::MentionName, d.voffset().v, d.vlength().v, data() });
-			} break;
-			case mtpc_inputMessageEntityMentionName: {
-				auto &d = entity.c_inputMessageEntityMentionName();
-				auto data = ([&d]() -> QString {
-					if (d.vuser_id().type() == mtpc_inputUserSelf) {
-						return MentionNameDataFromFields(Auth().userId());
-					} else if (d.vuser_id().type() == mtpc_inputUser) {
-						auto &user = d.vuser_id().c_inputUser();
-						return MentionNameDataFromFields({ user.vuser_id().v, user.vaccess_hash().v });
-					}
-					return QString();
-				})();
-				if (!data.isEmpty()) {
-					result.push_back({ EntityType::MentionName, d.voffset().v, d.vlength().v, data });
-				}
-			} break;
-			case mtpc_messageEntityBotCommand: { auto &d = entity.c_messageEntityBotCommand(); result.push_back({ EntityType::BotCommand, d.voffset().v, d.vlength().v }); } break;
-			case mtpc_messageEntityBold: { auto &d = entity.c_messageEntityBold(); result.push_back({ EntityType::Bold, d.voffset().v, d.vlength().v }); } break;
-			case mtpc_messageEntityItalic: { auto &d = entity.c_messageEntityItalic(); result.push_back({ EntityType::Italic, d.voffset().v, d.vlength().v }); } break;
-			case mtpc_messageEntityUnderline: { auto &d = entity.c_messageEntityUnderline(); result.push_back({ EntityType::Underline, d.voffset().v, d.vlength().v }); } break;
-			case mtpc_messageEntityStrike: { auto &d = entity.c_messageEntityStrike(); result.push_back({ EntityType::StrikeOut, d.voffset().v, d.vlength().v }); } break;
-			case mtpc_messageEntityCode: { auto &d = entity.c_messageEntityCode(); result.push_back({ EntityType::Code, d.voffset().v, d.vlength().v }); } break;
-			case mtpc_messageEntityPre: { auto &d = entity.c_messageEntityPre(); result.push_back({ EntityType::Pre, d.voffset().v, d.vlength().v, Clean(qs(d.vlanguage())) }); } break;
-				// #TODO entities
-			}
-		}
-	}
-	return result;
-}
-
-MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, ConvertOption option) {
-	auto v = QVector<MTPMessageEntity>();
-	v.reserve(entities.size());
-	for_const (auto &entity, entities) {
-		if (entity.length() <= 0) continue;
-		if (option == ConvertOption::SkipLocal
-			&& entity.type() != EntityType::Bold
-			&& entity.type() != EntityType::Italic
-			&& entity.type() != EntityType::Underline
-			&& entity.type() != EntityType::StrikeOut
-			&& entity.type() != EntityType::Code // #TODO entities
-			&& entity.type() != EntityType::Pre
-			&& entity.type() != EntityType::MentionName
-			&& entity.type() != EntityType::CustomUrl) {
-			continue;
-		}
-
-		auto offset = MTP_int(entity.offset());
-		auto length = MTP_int(entity.length());
-		switch (entity.type()) {
-		case EntityType::Url: v.push_back(MTP_messageEntityUrl(offset, length)); break;
-		case EntityType::CustomUrl: v.push_back(MTP_messageEntityTextUrl(offset, length, MTP_string(entity.data()))); break;
-		case EntityType::Email: v.push_back(MTP_messageEntityEmail(offset, length)); break;
-		case EntityType::Hashtag: v.push_back(MTP_messageEntityHashtag(offset, length)); break;
-		case EntityType::Cashtag: v.push_back(MTP_messageEntityCashtag(offset, length)); break;
-		case EntityType::Mention: v.push_back(MTP_messageEntityMention(offset, length)); break;
-		case EntityType::MentionName: {
-			auto inputUser = ([](const QString &data) -> MTPInputUser {
-				auto fields = MentionNameDataToFields(data);
-				if (fields.userId == Auth().userId()) {
-					return MTP_inputUserSelf();
-				} else if (fields.userId) {
-					return MTP_inputUser(MTP_int(fields.userId), MTP_long(fields.accessHash));
-				}
-				return MTP_inputUserEmpty();
-			})(entity.data());
-			if (inputUser.type() != mtpc_inputUserEmpty) {
-				v.push_back(MTP_inputMessageEntityMentionName(offset, length, inputUser));
-			}
-		} break;
-		case EntityType::BotCommand: v.push_back(MTP_messageEntityBotCommand(offset, length)); break;
-		case EntityType::Bold: v.push_back(MTP_messageEntityBold(offset, length)); break;
-		case EntityType::Italic: v.push_back(MTP_messageEntityItalic(offset, length)); break;
-		case EntityType::Underline: v.push_back(MTP_messageEntityUnderline(offset, length)); break;
-		case EntityType::StrikeOut: v.push_back(MTP_messageEntityStrike(offset, length)); break;
-		case EntityType::Code: v.push_back(MTP_messageEntityCode(offset, length)); break; // #TODO entities
-		case EntityType::Pre: v.push_back(MTP_messageEntityPre(offset, length, MTP_string(entity.data()))); break;
-		}
-	}
-	return MTP_vector<MTPMessageEntity>(std::move(v));
 }
 
 TextWithEntities ParseEntities(const QString &text, int32 flags) {
@@ -1897,7 +1851,7 @@ void ApplyServerCleaning(TextWithEntities &result) {
 
 	// Replace tabs with two spaces.
 	if (auto tabs = std::count(result.text.cbegin(), result.text.cend(), '\t')) {
-		auto replacement = qsl("  ");
+		auto replacement = QString::fromLatin1("  ");
 		auto replacementLength = replacement.size();
 		auto shift = (replacementLength - 1);
 		result.text.resize(len + shift * tabs);
@@ -2022,11 +1976,111 @@ TextWithTags::Tags DeserializeTags(QByteArray data, int textLength) {
 }
 
 QString TagsMimeType() {
-	return qsl("application/x-td-field-tags");
+	return QString::fromLatin1("application/x-td-field-tags");
 }
 
 QString TagsTextMimeType() {
-	return qsl("application/x-td-field-text");
+	return QString::fromLatin1("application/x-td-field-text");
+}
+
+bool IsMentionLink(const QString &link) {
+	return link.startsWith(kMentionTagStart);
+}
+
+EntitiesInText ConvertTextTagsToEntities(const TextWithTags::Tags &tags) {
+	EntitiesInText result;
+	if (tags.isEmpty()) {
+		return result;
+	}
+
+	result.reserve(tags.size());
+	for (const auto &tag : tags) {
+		const auto push = [&](
+				EntityType type,
+				const QString &data = QString()) {
+			result.push_back(
+				EntityInText(type, tag.offset, tag.length, data));
+		};
+		if (IsMentionLink(tag.id)) {
+			if (auto match = qthelp::regex_match("^(\\d+\\.\\d+)(/|$)", tag.id.midRef(kMentionTagStart.size()))) {
+				push(EntityType::MentionName, match->captured(1));
+			}
+		} else if (tag.id == Ui::InputField::kTagBold) {
+			push(EntityType::Bold);
+		} else if (tag.id == Ui::InputField::kTagItalic) {
+			push(EntityType::Italic);
+		} else if (tag.id == Ui::InputField::kTagUnderline) {
+			push(EntityType::Underline);
+		} else if (tag.id == Ui::InputField::kTagStrikeOut) {
+			push(EntityType::StrikeOut);
+		} else if (tag.id == Ui::InputField::kTagCode) {
+			push(EntityType::Code);
+		} else if (tag.id == Ui::InputField::kTagPre) { // #TODO entities
+			push(EntityType::Pre);
+		} else /*if (ValidateUrl(tag.id)) */{ // We validate when we insert.
+			push(EntityType::CustomUrl, tag.id);
+		}
+	}
+	return result;
+}
+
+TextWithTags::Tags ConvertEntitiesToTextTags(const EntitiesInText &entities) {
+	TextWithTags::Tags result;
+	if (entities.isEmpty()) {
+		return result;
+	}
+
+	result.reserve(entities.size());
+	for (const auto &entity : entities) {
+		const auto push = [&](const QString &tag) {
+			result.push_back({ entity.offset(), entity.length(), tag });
+		};
+		switch (entity.type()) {
+		case EntityType::MentionName: {
+			auto match = QRegularExpression(R"(^(\d+\.\d+)$)").match(entity.data());
+			if (match.hasMatch()) {
+				push(kMentionTagStart + entity.data());
+			}
+		} break;
+		case EntityType::CustomUrl: {
+			const auto url = entity.data();
+			if (Ui::InputField::IsValidMarkdownLink(url)
+				&& !IsMentionLink(url)) {
+				push(url);
+			}
+		} break;
+		case EntityType::Bold: push(Ui::InputField::kTagBold); break;
+		case EntityType::Italic: push(Ui::InputField::kTagItalic); break;
+		case EntityType::Underline:
+			push(Ui::InputField::kTagUnderline);
+			break;
+		case EntityType::StrikeOut:
+			push(Ui::InputField::kTagStrikeOut);
+			break;
+		case EntityType::Code: push(Ui::InputField::kTagCode); break; // #TODO entities
+		case EntityType::Pre: push(Ui::InputField::kTagPre); break;
+		}
+	}
+	return result;
+}
+
+std::unique_ptr<QMimeData> MimeDataFromText(const TextForMimeData &text) {
+	return MimeDataFromText(
+		{ text.rich.text, ConvertEntitiesToTextTags(text.rich.entities) },
+		text.expanded);
+}
+
+std::unique_ptr<QMimeData> MimeDataFromText(TextWithTags &&text) {
+	const auto expanded = ExpandCustomLinks(text);
+	return MimeDataFromText(std::move(text), expanded);
+}
+
+void SetClipboardText(
+		const TextForMimeData &text,
+		QClipboard::Mode mode) {
+	if (auto data = MimeDataFromText(text)) {
+		QGuiApplication::clipboard()->setMimeData(data.release(), mode);
+	}
 }
 
 } // namespace TextUtilities
@@ -2083,8 +2137,8 @@ TextWithEntities ReplaceTag<TextWithEntities>::Call(TextWithEntities &&original,
 					return;
 				}
 				auto newEnd = newOffset + replacementEntity->length();
-				newOffset = snap(newOffset, replacementPosition, replacementEnd);
-				newEnd = snap(newEnd, replacementPosition, replacementEnd);
+				newOffset = std::clamp(newOffset, replacementPosition, replacementEnd);
+				newEnd = std::clamp(newEnd, replacementPosition, replacementEnd);
 				if (auto newLength = newEnd - newOffset) {
 					result.entities.push_back({ replacementEntity->type(), newOffset, newLength, replacementEntity->data() });
 				}
@@ -2092,7 +2146,7 @@ TextWithEntities ReplaceTag<TextWithEntities>::Call(TextWithEntities &&original,
 			}
 		};
 
-		for_const (auto &entity, original.entities) {
+		for (const auto &entity : std::as_const(original.entities)) {
 			// Transform the entity by the replacement.
 			auto offset = entity.offset();
 			auto end = offset + entity.length();
@@ -2102,8 +2156,8 @@ TextWithEntities ReplaceTag<TextWithEntities>::Call(TextWithEntities &&original,
 			if (end > replacementPosition) {
 				end = end + replacement.text.size() - kTagReplacementSize;
 			}
-			offset = snap(offset, 0, result.text.size());
-			end = snap(end, 0, result.text.size());
+			offset = std::clamp(offset, 0, result.text.size());
+			end = std::clamp(end, 0, result.text.size());
 
 			// Add all replacement entities that start before the current original entity.
 			addReplacementEntitiesUntil(offset);

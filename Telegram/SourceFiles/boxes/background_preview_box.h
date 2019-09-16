@@ -25,7 +25,8 @@ class Checkbox;
 
 class BackgroundPreviewBox
 	: public BoxContent
-	, private HistoryView::SimpleElementDelegate {
+	, private HistoryView::SimpleElementDelegate
+	, private base::Subscriber {
 public:
 	BackgroundPreviewBox(
 		QWidget*,

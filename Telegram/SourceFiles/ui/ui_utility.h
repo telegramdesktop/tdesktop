@@ -8,9 +8,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/unique_qptr.h"
+#include "ui/rect_part.h"
 #include "ui/ui_integration.h"
 
 #include <QtCore/QEvent>
+
+class QPixmap;
+class QImage;
+
+enum class RectPart;
+using RectParts = base::flags<RectPart>;
 
 template <typename Object>
 class object_ptr;
@@ -137,6 +144,8 @@ void RenderWidget(
 
 void ForceFullRepaint(not_null<QWidget*> widget);
 
+void PostponeCall(FnMut<void()> &&callable);
+
 template <
 	typename Guard,
 	typename Callable,
@@ -181,5 +190,7 @@ template <typename Widget>
 QPointer<const Widget> MakeWeak(not_null<const Widget*> object) {
 	return QPointer<const Widget>(object.get());
 }
+
+[[nodiscard]] QPixmap PixmapFromImage(QImage &&image);
 
 } // namespace Ui

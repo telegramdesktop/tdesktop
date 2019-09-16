@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/ui_utility.h"
+#include "ui/inactive_press.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
@@ -1823,8 +1824,13 @@ void ListWidget::mouseActionStart(
 	auto pressLayout = _overLayout;
 
 	_mouseAction = MouseAction::None;
-	_pressWasInactive = _controller->parentController()->widget()->wasInactivePress();
-	if (_pressWasInactive) _controller->parentController()->widget()->setInactivePress(false);
+	_pressWasInactive = Ui::WasInactivePress(
+		_controller->parentController()->widget());
+	if (_pressWasInactive) {
+		Ui::MarkInactivePress(
+			_controller->parentController()->widget(),
+			false);
+	}
 
 	if (ClickHandler::getPressed() && !hasSelected()) {
 		_mouseAction = MouseAction::PrepareDrag;
@@ -2018,7 +2024,7 @@ void ListWidget::mouseActionFinish(
 	_wasSelectedText = false;
 	if (activated) {
 		mouseActionCancel();
-		App::activateClickHandler(activated, button);
+		ActivateClickHandler(window(), activated, button);
 		return;
 	}
 
@@ -2045,7 +2051,7 @@ void ListWidget::mouseActionFinish(
 
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	//if (hasSelectedText()) { // #TODO linux clipboard
-	//	SetClipboardText(_selected.cbegin()->first->selectedText(_selected.cbegin()->second), QClipboard::Selection);
+	//	TextUtilities::SetClipboardText(_selected.cbegin()->first->selectedText(_selected.cbegin()->second), QClipboard::Selection);
 	//}
 #endif // Q_OS_LINUX32 || Q_OS_LINUX64
 }

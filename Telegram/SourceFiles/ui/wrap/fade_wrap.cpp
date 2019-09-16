@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 
 #include "ui/widgets/shadow.h"
+#include "ui/painter.h"
+#include "styles/palette.h"
 
 namespace Ui {
 

@@ -813,8 +813,7 @@ void TabbedSelector::switchTab() {
 	_slideAnimation = std::make_unique<SlideAnimation>();
 	auto slidingRect = QRect(0, _scroll->y() * cIntRetinaFactor(), width() * cIntRetinaFactor(), (height() - _scroll->y()) * cIntRetinaFactor());
 	_slideAnimation->setFinalImages(direction, std::move(wasCache), std::move(nowCache), slidingRect, wasSectionIcons);
-	auto corners = App::cornersMask(ImageRoundRadius::Small);
-	_slideAnimation->setCornerMasks(corners[0], corners[1], corners[2], corners[3]);
+	_slideAnimation->setCornerMasks(Images::CornersMask(ImageRoundRadius::Small));
 	_slideAnimation->start();
 
 	hideForSliding();

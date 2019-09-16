@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "mainwindow.h"
 #include "core/application.h"
+#include "api/api_text_entities.h"
 #include "ui/text/text.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
@@ -187,7 +188,7 @@ TermsLock TermsLock::FromMTP(const MTPDhelp_termsOfService &data) {
 		bytes::make_vector(data.vid().c_dataJSON().vdata().v),
 		TextWithEntities {
 			TextUtilities::Clean(qs(data.vtext())),
-			TextUtilities::EntitiesFromMTP(data.ventities().v) },
+			Api::EntitiesFromMTP(data.ventities().v) },
 		(minAge ? std::make_optional(minAge->v) : std::nullopt),
 		data.is_popup()
 	};

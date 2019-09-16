@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
+#include "ui/special_fields.h"
 #include "boxes/abstract_box.h"
 #include "boxes/confirm_phone_box.h"
 #include "data/data_user.h"

@@ -43,10 +43,6 @@ public:
 	}
 	Main::Account &account() const;
 	Window::SessionController *sessionController() const;
-	void setInactivePress(bool inactive);
-	bool wasInactivePress() const {
-		return _wasInactivePress;
-	}
 
 	bool hideNoQuit();
 
@@ -187,8 +183,6 @@ private:
 
 	bool _isActive = false;
 	base::Timer _isActiveTimer;
-	bool _wasInactivePress = false;
-	base::Timer _inactivePressTimer;
 
 	base::Observable<void> _dragFinished;
 	rpl::event_stream<> _leaveEvents;

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/emoji_config.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_cloud_manager.h"
@@ -154,6 +155,11 @@ void MainWindow::firstShow() {
 
 	psFirstShow();
 	updateTrayMenu();
+
+	windowDeactivateEvents(
+	) | rpl::start_with_next([=] {
+		Ui::Tooltip::Hide();
+	}, lifetime());
 }
 
 void MainWindow::clearWidgetsHook() {

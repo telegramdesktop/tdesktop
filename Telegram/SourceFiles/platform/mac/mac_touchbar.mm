@@ -22,7 +22,7 @@
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "dialogs/dialogs_layout.h"
-#include "emoji_config.h"
+#include "ui/emoji_config.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"

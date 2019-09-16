@@ -8,8 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 
 #include "ui/effects/animation_value.h"
-#include "facades.h"
-#include "app.h"
+#include "ui/style/style_core.h"
+#include "ui/painter.h"
+#include "base/flat_map.h"
+#include "styles/palette.h"
+#include "styles/style_basic.h"
 
 namespace Images {
 namespace {
@@ -19,8 +22,6 @@ TG_FORCE_INLINE uint64 blurGetColors(const uchar *p) {
 }
 
 const QImage &circleMask(QSize size) {
-	Assert(Global::started());
-
 	uint64 key = (uint64(uint32(size.width())) << 32)
 		| uint64(uint32(size.height()));
 
@@ -34,13 +35,38 @@ const QImage &circleMask(QSize size) {
 		QImage::Format_ARGB32_Premultiplied);
 	mask.fill(Qt::transparent);
 	{
-		Painter p(&mask);
+		QPainter p(&mask);
 		PainterHighQualityEnabler hq(p);
 		p.setBrush(Qt::white);
 		p.setPen(Qt::NoPen);
 		p.drawEllipse(QRect(QPoint(), size));
 	}
 	return masks.emplace(key, std::move(mask)).first->second;
+}
+
+std::array<QImage, 4> PrepareCornersMask(int radius) {
+	auto result = std::array<QImage, 4>();
+	const auto side = radius * style::DevicePixelRatio();
+	auto full = QImage(
+		QSize(side, side) * 3,
+		QImage::Format_ARGB32_Premultiplied);
+	full.fill(Qt::transparent);
+	{
+		QPainter p(&full);
+		PainterHighQualityEnabler hq(p);
+
+		p.setPen(Qt::NoPen);
+		p.setBrush(Qt::white);
+		p.drawRoundedRect(0, 0, side * 3, side * 3, side, side);
+	}
+	result[0] = full.copy(0, 0, side, side);
+	result[1] = full.copy(side * 2, 0, side, side);
+	result[2] = full.copy(0, side * 2, side, side);
+	result[3] = full.copy(side * 2, side * 2, side, side);
+	for (auto &image : result) {
+		image.setDevicePixelRatio(style::DevicePixelRatio());
+	}
+	return result;
 }
 
 } // namespace
@@ -50,6 +76,26 @@ QPixmap PixmapFast(QImage &&image) {
 		|| image.format() == QImage::Format_RGB32);
 
 	return QPixmap::fromImage(std::move(image), Qt::NoFormatConversion);
+}
+
+const std::array<QImage, 4> &CornersMask(ImageRoundRadius radius) {
+	if (radius == ImageRoundRadius::Large) {
+		static auto Mask = PrepareCornersMask(st::roundRadiusLarge);
+		return Mask;
+	} else {
+		static auto Mask = PrepareCornersMask(st::roundRadiusSmall);
+		return Mask;
+	}
+}
+
+std::array<QImage, 4> PrepareCorners(
+		ImageRoundRadius radius,
+		const style::color &color) {
+	auto result = CornersMask(radius);
+	for (auto &image : result) {
+		style::colorizeImage(image, color->c, &image);
+	}
+	return result;
 }
 
 QImage prepareBlur(QImage img) {
@@ -75,7 +121,7 @@ QImage prepareBlur(QImage img) {
 			if (withalpha) {
 				QImage imgsmall(w, h, img.format());
 				{
-					Painter p(&imgsmall);
+					QPainter p(&imgsmall);
 					PainterHighQualityEnabler hq(p);
 
 					p.setCompositionMode(QPainter::CompositionMode_Source);
@@ -394,7 +440,7 @@ void prepareCircle(QImage &img) {
 	img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	Assert(!img.isNull());
 
-	Painter p(&img);
+	QPainter p(&img);
 	p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
 	p.drawImage(
 		QRect(QPoint(), img.size() / img.devicePixelRatio()),
@@ -471,12 +517,13 @@ void prepareRound(
 	}
 	Assert(!image.isNull());
 
-	image.setDevicePixelRatio(cRetinaFactor());
-	image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(style::DevicePixelRatio());
+	image = std::move(image).convertToFormat(
+		QImage::Format_ARGB32_Premultiplied);
 	Assert(!image.isNull());
 
-	auto masks = App::cornersMask(radius);
-	prepareRound(image, masks, corners, target);
+	auto masks = CornersMask(radius);
+	prepareRound(image, masks.data(), corners, target);
 }
 
 QImage prepareColored(style::color add, QImage image) {
@@ -542,12 +589,13 @@ QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, in
 		Assert(!img.isNull());
 	}
 	if (outerw > 0 && outerh > 0) {
-		outerw *= cIntRetinaFactor();
-		outerh *= cIntRetinaFactor();
+		const auto pixelRatio = style::DevicePixelRatio();
+		outerw *= pixelRatio;
+		outerh *= pixelRatio;
 		if (outerw != w || outerh != h) {
-			img.setDevicePixelRatio(cRetinaFactor());
+			img.setDevicePixelRatio(pixelRatio);
 			auto result = QImage(outerw, outerh, QImage::Format_ARGB32_Premultiplied);
-			result.setDevicePixelRatio(cRetinaFactor());
+			result.setDevicePixelRatio(pixelRatio);
 			if (options & Images::Option::TransparentBackground) {
 				result.fill(Qt::transparent);
 			}
@@ -558,7 +606,7 @@ QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, in
 						p.fillRect(0, 0, result.width(), result.height(), st::imageBg);
 					}
 				}
-				p.drawImage((result.width() - img.width()) / (2 * cIntRetinaFactor()), (result.height() - img.height()) / (2 * cIntRetinaFactor()), img);
+				p.drawImage((result.width() - img.width()) / (2 * pixelRatio), (result.height() - img.height()) / (2 * pixelRatio), img);
 			}
 			img = result;
 			Assert(!img.isNull());
@@ -584,7 +632,7 @@ QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, in
 		Assert(colored != nullptr);
 		img = prepareColored(*colored, std::move(img));
 	}
-	img.setDevicePixelRatio(cRetinaFactor());
+	img.setDevicePixelRatio(style::DevicePixelRatio());
 	return img;
 }
 

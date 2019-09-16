@@ -7,17 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/labels.h"
 
+#include "ui/text/text_entity.h"
 #include "ui/widgets/popup_menu.h"
-#include "core/click_handler_types.h" // UrlClickHandler
-#include "chat_helpers/message_field.h" // SetClipboardText/MimeDataFromText
-#include "mainwindow.h"
-#include "lang/lang_keys.h"
-#include "facades.h"
-#include "app.h"
+#include "ui/basic_click_handlers.h" // UrlClickHandler
+#include "ui/inactive_press.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
 #include <QtGui/QDrag>
+#include <QtGui/QtEvents>
 #include <QtCore/QMimeData>
 
 namespace Ui {
@@ -49,7 +47,7 @@ void CrossFadeAnimation::addLine(Part was, Part now) {
 void CrossFadeAnimation::paintFrame(Painter &p, float64 positionReady, float64 alphaWas, float64 alphaNow) {
 	if (_lines.isEmpty()) return;
 
-	for_const (auto &line, _lines) {
+	for (const auto &line : std::as_const(_lines)) {
 		paintLine(p, line, positionReady, alphaWas, alphaNow);
 	}
 }
@@ -64,11 +62,12 @@ void CrossFadeAnimation::paintLine(Painter &p, const Line &line, float64 positio
 		return;
 	}
 
+	const auto pixelRatio = style::DevicePixelRatio();
 	auto positionWas = line.was.position;
 	auto positionNow = line.now.position;
 	auto left = anim::interpolate(positionWas.x(), positionNow.x(), positionReady);
-	auto topDelta = (snapshotNow.height() / cIntRetinaFactor()) - (snapshotWas.height() / cIntRetinaFactor());
-	auto widthDelta = (snapshotNow.width() / cIntRetinaFactor()) - (snapshotWas.width() / cIntRetinaFactor());
+	auto topDelta = (snapshotNow.height() / pixelRatio) - (snapshotWas.height() / pixelRatio);
+	auto widthDelta = (snapshotNow.width() / pixelRatio) - (snapshotWas.width() / pixelRatio);
 	auto topWas = anim::interpolate(positionWas.y(), positionNow.y() + topDelta, positionReady);
 	auto topNow = topWas - topDelta;
 
@@ -76,22 +75,22 @@ void CrossFadeAnimation::paintLine(Painter &p, const Line &line, float64 positio
 	if (!snapshotWas.isNull()) {
 		p.drawPixmap(left, topWas, snapshotWas);
 		if (topDelta > 0) {
-			p.fillRect(left, topWas - topDelta, snapshotWas.width() / cIntRetinaFactor(), topDelta, _bg);
+			p.fillRect(left, topWas - topDelta, snapshotWas.width() / pixelRatio, topDelta, _bg);
 		}
 	}
 	if (widthDelta > 0) {
-		p.fillRect(left + (snapshotWas.width() / cIntRetinaFactor()), topNow, widthDelta, snapshotNow.height() / cIntRetinaFactor(), _bg);
+		p.fillRect(left + (snapshotWas.width() / pixelRatio), topNow, widthDelta, snapshotNow.height() / pixelRatio, _bg);
 	}
 
 	p.setOpacity(alphaNow);
 	if (!snapshotNow.isNull()) {
 		p.drawPixmap(left, topNow, snapshotNow);
 		if (topDelta < 0) {
-			p.fillRect(left, topNow + topDelta, snapshotNow.width() / cIntRetinaFactor(), -topDelta, _bg);
+			p.fillRect(left, topNow + topDelta, snapshotNow.width() / pixelRatio, -topDelta, _bg);
 		}
 	}
 	if (widthDelta < 0) {
-		p.fillRect(left + (snapshotNow.width() / cIntRetinaFactor()), topWas, -widthDelta, snapshotWas.height() / cIntRetinaFactor(), _bg);
+		p.fillRect(left + (snapshotNow.width() / pixelRatio), topWas, -widthDelta, snapshotWas.height() / pixelRatio, _bg);
 	}
 }
 
@@ -140,8 +139,7 @@ void LabelSimple::paintEvent(QPaintEvent *e) {
 FlatLabel::FlatLabel(QWidget *parent, const style::FlatLabel &st)
 : RpWidget(parent)
 , _text(st.minWidth ? st.minWidth : QFIXED_MAX)
-, _st(st)
-, _contextCopyText(tr::lng_context_copy_text(tr::now)) {
+, _st(st) {
 	init();
 }
 
@@ -151,8 +149,7 @@ FlatLabel::FlatLabel(
 	const style::FlatLabel &st)
 : RpWidget(parent)
 , _text(st.minWidth ? st.minWidth : QFIXED_MAX)
-, _st(st)
-, _contextCopyText(tr::lng_context_copy_text(tr::now)) {
+, _st(st) {
 	setText(text);
 	init();
 }
@@ -163,14 +160,14 @@ FlatLabel::FlatLabel(
 	const style::FlatLabel &st)
 : RpWidget(parent)
 , _text(st.minWidth ? st.minWidth : QFIXED_MAX)
-, _st(st)
-, _contextCopyText(tr::lng_context_copy_text(tr::now)) {
+, _st(st) {
 	textUpdated();
 	std::move(
 		text
 	) | rpl::start_with_next([this](const QString &value) {
 		setText(value);
 	}, lifetime());
+	init();
 }
 
 FlatLabel::FlatLabel(
@@ -179,17 +176,19 @@ FlatLabel::FlatLabel(
 	const style::FlatLabel &st)
 : RpWidget(parent)
 , _text(st.minWidth ? st.minWidth : QFIXED_MAX)
-, _st(st)
-, _contextCopyText(tr::lng_context_copy_text(tr::now)) {
+, _st(st) {
 	textUpdated();
 	std::move(
 		text
 	) | rpl::start_with_next([this](const TextWithEntities &value) {
 		setMarkedText(value);
 	}, lifetime());
+	init();
 }
 
 void FlatLabel::init() {
+	_contextCopyText = Integration::Instance().phraseContextCopyText();
+
 	_trippleClickTimer.setSingleShot(true);
 
 	_touchSelectTimer.setSingleShot(true);
@@ -323,7 +322,7 @@ void FlatLabel::mousePressEvent(QMouseEvent *e) {
 	dragActionStart(e->globalPos(), e->button());
 }
 
-Ui::Text::StateResult FlatLabel::dragActionStart(const QPoint &p, Qt::MouseButton button) {
+Text::StateResult FlatLabel::dragActionStart(const QPoint &p, Qt::MouseButton button) {
 	_lastMousePos = p;
 	auto state = dragActionUpdate();
 
@@ -331,8 +330,10 @@ Ui::Text::StateResult FlatLabel::dragActionStart(const QPoint &p, Qt::MouseButto
 
 	ClickHandler::pressed();
 	_dragAction = NoDrag;
-	_dragWasInactive = App::wnd()->wasInactivePress();
-	if (_dragWasInactive) App::wnd()->setInactivePress(false);
+	_dragWasInactive = WasInactivePress(window());
+	if (_dragWasInactive) {
+		MarkInactivePress(window(), false);
+	}
 
 	if (ClickHandler::getPressed()) {
 		_dragStartPosition = mapFromGlobal(_lastMousePos);
@@ -376,7 +377,7 @@ Ui::Text::StateResult FlatLabel::dragActionStart(const QPoint &p, Qt::MouseButto
 	return state;
 }
 
-Ui::Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton button) {
+Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton button) {
 	_lastMousePos = p;
 	auto state = dragActionUpdate();
 
@@ -392,15 +393,18 @@ Ui::Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButt
 	_selectionType = TextSelectType::Letters;
 
 	if (activated) {
+		const auto guard = window();
 		if (!_clickHandlerFilter
 			|| _clickHandlerFilter(activated, button)) {
-			App::activateClickHandler(activated, button);
+			ActivateClickHandler(guard, activated, button);
 		}
 	}
 
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	if (!_selection.empty()) {
-		SetClipboardText(_text.toTextForMimeData(_selection), QClipboard::Selection);
+		TextUtilities::SetClipboardText(
+			_text.toTextForMimeData(_selection),
+			QClipboard::Selection);
 	}
 #endif // Q_OS_LINUX32 || Q_OS_LINUX64
 
@@ -471,7 +475,7 @@ void FlatLabel::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
 		auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
 		if (!selection.empty()) {
-			SetClipboardText(_text.toTextForMimeData(selection), QClipboard::FindBuffer);
+			TextUtilities::SetClipboardText(_text.toTextForMimeData(selection), QClipboard::FindBuffer);
 		}
 #endif // Q_OS_MAC
 	}
@@ -573,12 +577,13 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 		uponSelection = hasSelection;
 	}
 
-	_contextMenu = new Ui::PopupMenu(this);
+	_contextMenu = new PopupMenu(this);
 
 	if (fullSelection && !_contextCopyText.isEmpty()) {
 		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()));
 	} else if (uponSelection && !fullSelection) {
-		_contextMenu->addAction(tr::lng_context_copy_selected(tr::now), this, SLOT(onCopySelectedText()));
+		const auto text = Integration::Instance().phraseContextCopySelected();
+		_contextMenu->addAction(text, this, SLOT(onCopySelectedText()));
 	} else if (!hasSelection && !_contextCopyText.isEmpty()) {
 		_contextMenu->addAction(_contextCopyText, this, SLOT(onCopyContextText()));
 	}
@@ -607,12 +612,12 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 void FlatLabel::onCopySelectedText() {
 	const auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
 	if (!selection.empty()) {
-		SetClipboardText(_text.toTextForMimeData(selection));
+		TextUtilities::SetClipboardText(_text.toTextForMimeData(selection));
 	}
 }
 
 void FlatLabel::onCopyContextText() {
-	SetClipboardText(_text.toTextForMimeData());
+	TextUtilities::SetClipboardText(_text.toTextForMimeData());
 }
 
 void FlatLabel::onTouchSelect() {
@@ -646,8 +651,8 @@ void FlatLabel::onExecuteDrag() {
 		}
 		return TextForMimeData();
 	}();
-	if (auto mimeData = MimeDataFromText(selectedText)) {
-		auto drag = new QDrag(App::wnd());
+	if (auto mimeData = TextUtilities::MimeDataFromText(selectedText)) {
+		auto drag = new QDrag(window());
 		drag->setMimeData(mimeData.release());
 		drag->exec(Qt::CopyAction);
 
@@ -708,7 +713,8 @@ std::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(
 		if (lineWidth < 0) {
 			lineWidth = other.lineWidths[index];
 		}
-		auto fullWidth = data.full.width() / cIntRetinaFactor();
+		const auto pixelRatio = style::DevicePixelRatio();
+		auto fullWidth = data.full.width() / pixelRatio;
 		auto top = index * data.lineHeight + data.lineAddTop;
 		auto left = 0;
 		if (label->_st.align & Qt::AlignHCenter) {
@@ -716,10 +722,10 @@ std::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(
 		} else if (label->_st.align & Qt::AlignRight) {
 			left += (fullWidth - lineWidth);
 		}
-		auto snapshotRect = data.full.rect().intersected(QRect(left * cIntRetinaFactor(), top * cIntRetinaFactor(), lineWidth * cIntRetinaFactor(), label->_st.style.font->height * cIntRetinaFactor()));
+		auto snapshotRect = data.full.rect().intersected(QRect(left * pixelRatio, top * pixelRatio, lineWidth * pixelRatio, label->_st.style.font->height * pixelRatio));
 		if (!snapshotRect.isEmpty()) {
-			result.snapshot = App::pixmapFromImageInPlace(data.full.copy(snapshotRect));
-			result.snapshot.setDevicePixelRatio(cRetinaFactor());
+			result.snapshot = PixmapFromImage(data.full.copy(snapshotRect));
+			result.snapshot.setDevicePixelRatio(pixelRatio);
 		}
 		auto positionBase = position + label->pos();
 		result.position = positionBase + QPoint(label->_st.margin.left() + left, label->_st.margin.top() + top);
@@ -732,7 +738,7 @@ std::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(
 	return result;
 }
 
-Ui::Text::StateResult FlatLabel::dragActionUpdate() {
+Text::StateResult FlatLabel::dragActionUpdate() {
 	auto m = mapFromGlobal(_lastMousePos);
 	auto state = getTextState(m);
 	updateHover(state);
@@ -745,7 +751,7 @@ Ui::Text::StateResult FlatLabel::dragActionUpdate() {
 	return state;
 }
 
-void FlatLabel::updateHover(const Ui::Text::StateResult &state) {
+void FlatLabel::updateHover(const Text::StateResult &state) {
 	bool lnkChanged = ClickHandler::setActive(state.link, this);
 
 	if (!_selectable) {
@@ -808,15 +814,15 @@ void FlatLabel::refreshCursor(bool uponSymbol) {
 	}
 }
 
-Ui::Text::StateResult FlatLabel::getTextState(const QPoint &m) const {
-	Ui::Text::StateRequestElided request;
+Text::StateResult FlatLabel::getTextState(const QPoint &m) const {
+	Text::StateRequestElided request;
 	request.align = _st.align;
 	if (_selectable) {
-		request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
+		request.flags |= Text::StateRequest::Flag::LookupSymbol;
 	}
 	int textWidth = width() - _st.margin.left() - _st.margin.right();
 
-	Ui::Text::StateResult state;
+	Text::StateResult state;
 	bool heightExceeded = _st.maxHeight && (_st.maxHeight < _fullTextHeight || textWidth < _text.maxWidth());
 	bool renderElided = _breakEverywhere || heightExceeded;
 	if (renderElided) {
@@ -824,7 +830,7 @@ Ui::Text::StateResult FlatLabel::getTextState(const QPoint &m) const {
 		auto lines = _st.maxHeight ? qMax(_st.maxHeight / lineHeight, 1) : ((height() / lineHeight) + 2);
 		request.lines = lines;
 		if (_breakEverywhere) {
-			request.flags |= Ui::Text::StateRequest::Flag::BreakEverywhere;
+			request.flags |= Text::StateRequest::Flag::BreakEverywhere;
 		}
 		state = _text.getStateElided(m - QPoint(_st.margin.left(), _st.margin.top()), textWidth, request);
 	} else {

@@ -254,8 +254,9 @@ void ConfirmBox::mouseReleaseEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
 	if (const auto activated = ClickHandler::unpressed()) {
+		const auto guard = window();
 		Ui::hideLayer();
-		App::activateClickHandler(activated, e->button());
+		ActivateClickHandler(guard, activated, e->button());
 		return;
 	}
 	BoxContent::mouseReleaseEvent(e);

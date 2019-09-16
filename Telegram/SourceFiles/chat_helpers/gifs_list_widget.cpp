@@ -356,7 +356,7 @@ void GifsListWidget::mouseReleaseEvent(QMouseEvent *e) {
 		int row = _selected / MatrixRowShift, column = _selected % MatrixRowShift;
 		selectInlineResult(row, column);
 	} else {
-		App::activateClickHandler(activated, e->button());
+		ActivateClickHandler(window(), activated, e->button());
 	}
 }
 

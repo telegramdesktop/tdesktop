@@ -1117,4 +1117,8 @@ QPoint SilentToggle::tooltipPos() const {
 	return QCursor::pos();
 }
 
+bool SilentToggle::tooltipWindowActive() const {
+	return InFocusChain(window());
+}
+
 } // namespace Ui

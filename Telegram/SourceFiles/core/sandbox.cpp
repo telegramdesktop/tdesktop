@@ -542,30 +542,6 @@ bool Sandbox::nativeEventFilter(
 	return false;
 }
 
-void Sandbox::activateWindowDelayed(not_null<QWidget*> widget) {
-	if (_delayedActivationsPaused) {
-		return;
-	} else if (std::exchange(_windowForDelayedActivation, widget.get())) {
-		return;
-	}
-	crl::on_main(this, [=] {
-		if (const auto widget = base::take(_windowForDelayedActivation)) {
-			if (!widget->isHidden()) {
-				widget->activateWindow();
-			}
-		}
-	});
-}
-
-void Sandbox::pauseDelayedWindowActivations() {
-	_windowForDelayedActivation = nullptr;
-	_delayedActivationsPaused = true;
-}
-
-void Sandbox::resumeDelayedWindowActivations() {
-	_delayedActivationsPaused = false;
-}
-
 rpl::producer<> Sandbox::widgetUpdateRequests() const {
 	return _widgetUpdateRequests.events();
 }

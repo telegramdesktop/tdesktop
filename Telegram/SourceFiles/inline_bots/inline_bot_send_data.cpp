@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "inline_bots/inline_bot_send_data.h"
 
+#include "api/api_text_entities.h"
 #include "data/data_document.h"
 #include "inline_bots/inline_bot_result.h"
 #include "storage/localstorage.h"
@@ -78,7 +79,7 @@ QString SendDataCommon::getErrorOnSend(
 SendDataCommon::SentMTPMessageFields SendText::getSentMessageFields() const {
 	SentMTPMessageFields result;
 	result.text = MTP_string(_message);
-	result.entities = TextUtilities::EntitiesToMTP(_entities);
+	result.entities = Api::EntitiesToMTP(_entities);
 	return result;
 }
 

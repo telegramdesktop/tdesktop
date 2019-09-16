@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/parse_helper.h"
 #include "base/zlib_help.h"
 #include "base/unixtime.h"
+#include "base/crc32hash.h"
 #include "data/data_session.h"
 #include "main/main_account.h" // Account::sessionValue.
 #include "ui/image/image.h"
@@ -353,7 +354,7 @@ bool LoadTheme(
 			cache->colors = style::main_palette::save();
 		}
 		cache->paletteChecksum = style::palette::Checksum();
-		cache->contentChecksum = hashCrc32(content.constData(), content.size());
+		cache->contentChecksum = base::crc32(content.constData(), content.size());
 	}
 	return true;
 }
@@ -364,7 +365,7 @@ bool InitializeFromCache(
 	if (cache.paletteChecksum != style::palette::Checksum()) {
 		return false;
 	}
-	if (cache.contentChecksum != hashCrc32(content.constData(), content.size())) {
+	if (cache.contentChecksum != base::crc32(content.constData(), content.size())) {
 		return false;
 	}
 
@@ -1220,7 +1221,7 @@ void KeepFromEditor(
 	auto &object = saved.object;
 	cache.colors = style::main_palette::save();
 	cache.paletteChecksum = style::palette::Checksum();
-	cache.contentChecksum = hashCrc32(content.constData(), content.size());
+	cache.contentChecksum = base::crc32(content.constData(), content.size());
 	cache.background = themeParsed.background;
 	cache.tiled = themeParsed.tiled;
 	object.cloud = cloud;

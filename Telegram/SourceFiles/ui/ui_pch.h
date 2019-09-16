@@ -17,8 +17,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QCursor>
 #include <QtGui/QFont>
 #include <QtGui/QFontMetrics>
+#include <QtGui/QPainter>
+#include <QtGui/QImage>
+#include <QtGui/QPixmap>
 
 #include <QtWidgets/QWidget>
 
 #include <rpl/rpl.h>
 #include <range/v3/all.hpp>
+#include <crl/crl_time.h>
+#include <crl/crl_on_main.h>
+
+#include "base/algorithm.h"
+#include "base/basic_types.h"
+#include "base/flat_map.h"
+#include "base/flat_set.h"

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "apiwrap.h"
 
+#include "api/api_text_entities.h"
 #include "data/data_drafts.h"
 #include "data/data_photo.h"
 #include "data/data_web_page.h"
@@ -2562,9 +2563,9 @@ void ApiWrap::saveDraftsToCloud() {
 		if (!textWithTags.tags.isEmpty()) {
 			flags |= MTPmessages_SaveDraft::Flag::f_entities;
 		}
-		auto entities = TextUtilities::EntitiesToMTP(
-			ConvertTextTagsToEntities(textWithTags.tags),
-			TextUtilities::ConvertOption::SkipLocal);
+		auto entities = Api::EntitiesToMTP(
+			TextUtilities::ConvertTextTagsToEntities(textWithTags.tags),
+			Api::ConvertOption::SkipLocal);
 
 		const auto draftText = textWithTags.text;
 		history->setSentDraftText(draftText);
@@ -4830,9 +4831,9 @@ void ApiWrap::editUploadedFile(
 		return;
 	}
 
-	auto sentEntities = TextUtilities::EntitiesToMTP(
+	auto sentEntities = Api::EntitiesToMTP(
 		item->originalText().entities,
-		TextUtilities::ConvertOption::SkipLocal);
+		Api::ConvertOption::SkipLocal);
 
 	auto flagsEditMsg = MTPmessages_EditMessage::Flag::f_message | 0;
 	flagsEditMsg |= MTPmessages_EditMessage::Flag::f_no_webpage;
@@ -4934,7 +4935,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	auto sending = TextWithEntities();
 	auto left = TextWithEntities {
 		textWithTags.text,
-		ConvertTextTagsToEntities(textWithTags.tags)
+		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags)
 	};
 	auto prepareFlags = Ui::ItemTextOptions(
 		history,
@@ -4988,8 +4989,10 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		if (silentPost) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_silent;
 		}
-		auto localEntities = TextUtilities::EntitiesToMTP(sending.entities);
-		auto sentEntities = TextUtilities::EntitiesToMTP(sending.entities, TextUtilities::ConvertOption::SkipLocal);
+		auto localEntities = Api::EntitiesToMTP(sending.entities);
+		auto sentEntities = Api::EntitiesToMTP(
+			sending.entities,
+			Api::ConvertOption::SkipLocal);
 		if (!sentEntities.v.isEmpty()) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_entities;
 		}
@@ -5274,9 +5277,9 @@ void ApiWrap::sendMediaWithRandomId(
 
 	auto caption = item->originalText();
 	TextUtilities::Trim(caption);
-	auto sentEntities = TextUtilities::EntitiesToMTP(
+	auto sentEntities = Api::EntitiesToMTP(
 		caption.entities,
-		TextUtilities::ConvertOption::SkipLocal);
+		Api::ConvertOption::SkipLocal);
 
 	const auto flags = MTPmessages_SendMedia::Flags(0)
 		| (replyTo

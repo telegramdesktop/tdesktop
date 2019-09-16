@@ -127,8 +127,6 @@ private:
 
 };
 
-int32 hashCrc32(const void *data, uint32 len);
-
 int32 *hashSha1(const void *data, uint32 len, void *dest); // dest - ptr to 20 bytes, returns (int32*)dest
 inline std::array<char, 20> hashSha1(const void *data, int size) {
 	auto result = std::array<char, 20>();
@@ -197,19 +195,6 @@ private:
 	bool _locked = false;
 
 };
-
-inline QString fromUtf8Safe(const char *str, int32 size = -1) {
-	if (!str || !size) return QString();
-	if (size < 0) size = int32(strlen(str));
-	QString result(QString::fromUtf8(str, size));
-	QByteArray back = result.toUtf8();
-	if (back.size() != size || memcmp(back.constData(), str, size)) return QString::fromLocal8Bit(str, size);
-	return result;
-}
-
-inline QString fromUtf8Safe(const QByteArray &str) {
-	return fromUtf8Safe(str.constData(), str.size());
-}
 
 static const QRegularExpression::PatternOptions reMultiline(QRegularExpression::DotMatchesEverythingOption | QRegularExpression::MultilineOption);
 

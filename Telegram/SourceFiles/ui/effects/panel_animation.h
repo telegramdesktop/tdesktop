@@ -13,7 +13,7 @@ namespace Ui {
 
 class RoundShadowAnimation {
 public:
-	void setCornerMasks(const QImage &topLeft, const QImage &topRight, const QImage &bottomLeft, const QImage &bottomRight);
+	void setCornerMasks(const std::array<QImage, 4> &corners);
 
 protected:
 	void start(int frameWidth, int frameHeight, float64 devicePixelRatio);

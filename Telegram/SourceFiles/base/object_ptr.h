@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QPointer>
+
 // Smart pointer for QObject*, has move semantics, destroys object if it doesn't have a parent.
 template <typename Object>
 class object_ptr {

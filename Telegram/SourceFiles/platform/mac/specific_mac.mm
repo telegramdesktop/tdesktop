@@ -60,14 +60,6 @@ QRect psDesktopRect() {
 	return _monitorRect;
 }
 
-void psShowOverAll(QWidget *w, bool canFocus) {
-	objc_showOverAll(w->winId(), canFocus);
-}
-
-void psBringToBack(QWidget *w) {
-	objc_bringToBack(w->winId());
-}
-
 void psWriteDump() {
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	double v = objc_appkitVersion();
@@ -126,14 +118,6 @@ void start() {
 
 void finish() {
 	objc_finish();
-}
-
-void StartTranslucentPaint(QPainter &p, QPaintEvent *e) {
-#ifdef OS_MAC_OLD
-	p.setCompositionMode(QPainter::CompositionMode_Source);
-	p.fillRect(e->rect(), Qt::transparent);
-	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-#endif // OS_MAC_OLD
 }
 
 QString CurrentExecutablePath(int argc, char *argv[]) {
@@ -274,6 +258,10 @@ std::optional<crl::time> LastUserInputTime() {
 	return (crl::now() - static_cast<crl::time>(idleTime));
 }
 
+void IgnoreApplicationActivationRightNow() {
+	objc_ignoreApplicationActivationRightNow();
+}
+	
 } // namespace Platform
 
 void psNewVersion() {
@@ -284,9 +272,6 @@ void psAutoStart(bool start, bool silent) {
 }
 
 void psSendToMenu(bool send, bool silent) {
-}
-
-void psUpdateOverlayed(QWidget *widget) {
 }
 
 void psDownloadPathEnableAccess() {

@@ -35,16 +35,9 @@ public:
 protected:
 	void focusOutEvent(QFocusEvent *e) override;
 	void hideEvent(QHideEvent *e) override;
-
-	void keyPressEvent(QKeyEvent *e) override {
-		forwardKeyPress(e->key());
-	}
-	void mouseMoveEvent(QMouseEvent *e) override {
-		forwardMouseMove(e->globalPos());
-	}
-	void mousePressEvent(QMouseEvent *e) override {
-		forwardMousePress(e->globalPos());
-	}
+	void keyPressEvent(QKeyEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
 
 private slots:
 	void onHidden() {
@@ -63,7 +56,7 @@ private:
 	void init();
 	void hideFinish();
 
-	using TriggeredSource = Ui::Menu::TriggeredSource;
+	using TriggeredSource = Menu::TriggeredSource;
 	void handleActivated(QAction *action, int actionTop, TriggeredSource source);
 	void handleTriggered(QAction *action, int actionTop, TriggeredSource source);
 	void forwardKeyPress(int key);
@@ -89,7 +82,7 @@ private:
 	const style::DropdownMenu &_st;
 	Fn<void()> _hiddenCallback;
 
-	QPointer<Ui::Menu> _menu;
+	QPointer<Menu> _menu;
 
 	// Not ready with submenus yet.
 	//using Submenus = QMap<QAction*, SubmenuPointer>;

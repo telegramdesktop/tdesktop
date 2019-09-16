@@ -438,50 +438,6 @@ int GetNextRequestId() {
 	return result;
 }
 
-// crc32 hash, taken somewhere from the internet
-
-namespace {
-	uint32 _crc32Table[256];
-	class _Crc32Initializer {
-	public:
-		_Crc32Initializer() {
-			uint32 poly = 0x04c11db7;
-			for (uint32 i = 0; i < 256; ++i) {
-				_crc32Table[i] = reflect(i, 8) << 24;
-				for (uint32 j = 0; j < 8; ++j) {
-					_crc32Table[i] = (_crc32Table[i] << 1) ^ (_crc32Table[i] & (1 << 31) ? poly : 0);
-				}
-				_crc32Table[i] = reflect(_crc32Table[i], 32);
-			}
-		}
-
-	private:
-		uint32 reflect(uint32 val, char ch) {
-			uint32 result = 0;
-			for (int i = 1; i < (ch + 1); ++i) {
-				if (val & 1) {
-					result |= 1 << (ch - i);
-				}
-				val >>= 1;
-			}
-			return result;
-		}
-	};
-}
-
-int32 hashCrc32(const void *data, uint32 len) {
-	static _Crc32Initializer _crc32Initializer;
-
-	const uchar *buf = (const uchar *)data;
-
-	uint32 crc(0xffffffff);
-    for (uint32 i = 0; i < len; ++i) {
-		crc = (crc >> 8) ^ _crc32Table[(crc & 0xFF) ^ buf[i]];
-	}
-
-    return crc ^ 0xffffffff;
-}
-
 int32 *hashSha1(const void *data, uint32 len, void *dest) {
 	return (int32*)SHA1((const uchar*)data, (size_t)len, (uchar*)dest);
 }

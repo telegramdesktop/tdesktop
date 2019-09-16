@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/dropdown_menu.h"
 
-#include "lang/lang_keys.h"
+#include <QtGui/QtEvents>
 
 namespace Ui {
 
@@ -20,7 +20,7 @@ DropdownMenu::DropdownMenu(QWidget *parent, const style::DropdownMenu &st) : Inn
 // Not ready with submenus yet.
 //DropdownMenu::DropdownMenu(QWidget *parent, QMenu *menu, const style::DropdownMenu &st) : InnerDropdown(parent, st.wrap)
 //, _st(st) {
-//	_menu = setOwnedWidget(object_ptr<Ui::Menu>(this, menu, _st.menu));
+//	_menu = setOwnedWidget(object_ptr<Menu>(this, menu, _st.menu));
 //	init();
 //
 //	for (auto action : actions()) {
@@ -140,7 +140,7 @@ bool DropdownMenu::handleKeyPress(int key) {
 	} else if (key == Qt::Key_Escape) {
 		hideMenu(_parent ? true : false);
 		return true;
-	} else if (key == (rtl() ? Qt::Key_Right : Qt::Key_Left)) {
+	} else if (key == (style::RightToLeft() ? Qt::Key_Right : Qt::Key_Left)) {
 		if (_parent) {
 			hideMenu(true);
 			return true;
@@ -183,6 +183,18 @@ void DropdownMenu::hideEvent(QHideEvent *e) {
 			deleteLater();
 		}
 	}
+}
+
+void DropdownMenu::keyPressEvent(QKeyEvent *e) {
+	forwardKeyPress(e->key());
+}
+
+void DropdownMenu::mouseMoveEvent(QMouseEvent *e) {
+	forwardMouseMove(e->globalPos());
+}
+
+void DropdownMenu::mousePressEvent(QMouseEvent *e) {
+	forwardMousePress(e->globalPos());
 }
 
 void DropdownMenu::hideMenu(bool fast) {

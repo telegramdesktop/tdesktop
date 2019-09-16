@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "codegen/style/generator.h"
 
+#include "base/crc32hash.h"
+
 #include <set>
 #include <memory>
 #include <functional>
@@ -32,54 +34,6 @@ const auto kMustBeContrast = std::map<QString, QString>{
 	{ "dialogsMenuIconFg", "dialogsBg" },
 	{ "windowBoldFg", "windowBg" },
 };
-
-// crc32 hash, taken somewhere from the internet
-
-class Crc32Table {
-public:
-	Crc32Table() {
-		quint32 poly = 0x04c11db7;
-		for (auto i = 0; i != 256; ++i) {
-			_data[i] = reflect(i, 8) << 24;
-			for (auto j = 0; j != 8; ++j) {
-				_data[i] = (_data[i] << 1) ^ (_data[i] & (1 << 31) ? poly : 0);
-			}
-			_data[i] = reflect(_data[i], 32);
-		}
-	}
-
-	inline quint32 operator[](int index) const {
-		return _data[index];
-	}
-
-private:
-	quint32 reflect(quint32 val, char ch) {
-		quint32 result = 0;
-		for (int i = 1; i < (ch + 1); ++i) {
-			if (val & 1) {
-				result |= 1 << (ch - i);
-			}
-			val >>= 1;
-		}
-		return result;
-	}
-
-	quint32 _data[256];
-
-};
-
-qint32 hashCrc32(const void *data, int len) {
-	static Crc32Table table;
-
-	const uchar *buffer = static_cast<const uchar *>(data);
-
-	quint32 crc = 0xffffffff;
-	for (int i = 0; i != len; ++i) {
-		crc = (crc >> 8) ^ table[(crc & 0xFF) ^ buffer[i]];
-	}
-
-	return static_cast<qint32>(crc ^ 0xffffffff);
-}
 
 char hexChar(uchar ch) {
 	if (ch < 10) {
@@ -844,7 +798,7 @@ void palette::finalize() {\n\
 		return false;
 	}
 	auto count = indexInPalette;
-	auto checksum = hashCrc32(checksumString.constData(), checksumString.size());
+	auto checksum = base::crc32(checksumString.constData(), checksumString.size());
 
 	source_->stream() << "\n\n";
 	for (const auto &[over, under] : kMustBeContrast) {

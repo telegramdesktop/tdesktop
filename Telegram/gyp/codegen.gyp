@@ -55,7 +55,9 @@
       'common_executable.gypi',
       'qt.gypi',
     ],
-
+    'dependencies': [
+      'lib_base.gyp:lib_base',
+    ],
     'include_dirs': [
       '<(src_loc)',
     ],

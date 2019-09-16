@@ -344,6 +344,16 @@ bool LayerWidget::overlaps(const QRect &globalRect) {
 	return false;
 }
 
+void LayerWidget::mousePressEvent(QMouseEvent *e) {
+	e->accept();
+}
+
+void LayerWidget::resizeEvent(QResizeEvent *e) {
+	if (_resizedCallback) {
+		_resizedCallback();
+	}
+}
+
 void LayerStackWidget::setHideByBackgroundClick(bool hide) {
 	_hideByBackgroundClick = hide;
 }

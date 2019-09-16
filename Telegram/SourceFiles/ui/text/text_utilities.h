@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/text/text_entity.h"
+
 namespace Ui {
 namespace Text {
 namespace details {

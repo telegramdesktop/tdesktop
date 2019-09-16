@@ -9,10 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/text/text.h"
+#include "ui/click_handler.h"
 #include "boxes/abstract_box.h"
 #include "styles/style_widgets.h"
 
 #include <QtCore/QTimer>
+
+class QTouchEvent;
 
 namespace Ui {
 
@@ -155,11 +159,11 @@ private:
 	void init();
 	void textUpdated();
 
-	Ui::Text::StateResult dragActionUpdate();
-	Ui::Text::StateResult dragActionStart(const QPoint &p, Qt::MouseButton button);
-	Ui::Text::StateResult dragActionFinish(const QPoint &p, Qt::MouseButton button);
-	void updateHover(const Ui::Text::StateResult &state);
-	Ui::Text::StateResult getTextState(const QPoint &m) const;
+	Text::StateResult dragActionUpdate();
+	Text::StateResult dragActionStart(const QPoint &p, Qt::MouseButton button);
+	Text::StateResult dragActionFinish(const QPoint &p, Qt::MouseButton button);
+	void updateHover(const Text::StateResult &state);
+	Text::StateResult getTextState(const QPoint &m) const;
 	void refreshCursor(bool uponSymbol);
 
 	int countTextWidth() const;
@@ -205,7 +209,7 @@ private:
 	QPoint _trippleClickPoint;
 	QTimer _trippleClickTimer;
 
-	Ui::PopupMenu *_contextMenu = nullptr;
+	PopupMenu *_contextMenu = nullptr;
 	QString _contextCopyText;
 
 	ClickHandlerFilter _clickHandlerFilter;
@@ -218,7 +222,7 @@ private:
 
 };
 
-class DividerLabel : public PaddingWrap<Ui::FlatLabel> {
+class DividerLabel : public PaddingWrap<FlatLabel> {
 public:
 	using PaddingWrap::PaddingWrap;
 

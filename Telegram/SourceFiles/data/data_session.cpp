@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
+#include "api/api_text_entities.h"
 #include "core/application.h"
 #include "core/crash_reports.h" // CrashReports::SetAnnotation
 #include "ui/image/image.h"
@@ -1650,7 +1651,7 @@ bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
 	if (const auto existing = message(peerToChannel(peer), data.vid().v)) {
 		existing->updateSentContent({
 			qs(data.vmessage()),
-			TextUtilities::EntitiesFromMTP(data.ventities().value_or_empty())
+			Api::EntitiesFromMTP(data.ventities().value_or_empty())
 		}, data.vmedia());
 		existing->updateReplyMarkup(data.vreply_markup());
 		existing->updateForwardedInfo(data.vfwd_from());
@@ -3676,7 +3677,7 @@ void Session::insertCheckedServiceNotification(
 				MTP_string(sending.text),
 				media,
 				MTPReplyMarkup(),
-				TextUtilities::EntitiesToMTP(sending.entities),
+				Api::EntitiesToMTP(sending.entities),
 				MTPint(),
 				MTPint(),
 				MTPstring(),

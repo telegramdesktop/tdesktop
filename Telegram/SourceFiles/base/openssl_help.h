@@ -524,6 +524,17 @@ inline void AddRandomSeed(bytes::const_span data) {
 	RAND_seed(data.data(), data.size());
 }
 
+template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+[[nodiscard]] inline T RandomValue() {
+	unsigned char buffer[sizeof(T)];
+	if (!RAND_bytes(buffer, sizeof(T))) {
+		Unexpected("Could not generate random bytes!");
+	}
+	auto result = T();
+	memcpy(&result, buffer, sizeof(T));
+	return result;
+}
+
 inline bytes::vector Pbkdf2Sha512(
 		bytes::const_span password,
 		bytes::const_span salt,

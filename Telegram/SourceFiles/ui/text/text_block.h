@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/style/style_core.h"
+#include "ui/emoji_config.h"
+
 #include <private/qfixed_p.h>
 
 namespace Ui {

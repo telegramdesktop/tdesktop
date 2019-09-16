@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
+#include "api/api_text_entities.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/history_location_manager.h"
@@ -442,7 +443,7 @@ HistoryMessage::HistoryMessage(
 	}
 	setText({
 		TextUtilities::Clean(qs(data.vmessage())),
-		TextUtilities::EntitiesFromMTP(data.ventities().value_or_empty())
+		Api::EntitiesFromMTP(data.ventities().value_or_empty())
 	});
 	if (const auto groupedId = data.vgrouped_id()) {
 		setGroupId(
@@ -1051,7 +1052,7 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 
 	const auto textWithEntities = TextWithEntities{
 		qs(message.vmessage()),
-		TextUtilities::EntitiesFromMTP(message.ventities().value_or_empty())
+		Api::EntitiesFromMTP(message.ventities().value_or_empty())
 	};
 	setReplyMarkup(message.vreply_markup());
 	if (!isLocalUpdateMedia()) {

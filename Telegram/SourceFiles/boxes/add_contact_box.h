@@ -139,7 +139,10 @@ private:
 
 };
 
-class SetupChannelBox : public BoxContent, public RPCSender {
+class SetupChannelBox
+	: public BoxContent
+	, public RPCSender
+	, private base::Subscriber {
 public:
 	SetupChannelBox(
 		QWidget*,
@@ -234,7 +237,10 @@ private:
 
 };
 
-class RevokePublicLinkBox : public BoxContent, public RPCSender {
+class RevokePublicLinkBox
+	: public BoxContent
+	, public RPCSender
+	, private base::Subscriber {
 public:
 	RevokePublicLinkBox(
 		QWidget*,

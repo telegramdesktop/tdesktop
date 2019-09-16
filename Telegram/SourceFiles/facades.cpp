@@ -169,16 +169,6 @@ void showSettings() {
 	}
 }
 
-void activateClickHandler(ClickHandlerPtr handler, ClickContext context) {
-	crl::on_main(App::wnd(), [=] {
-		handler->onClick(context);
-	});
-}
-
-void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
-	activateClickHandler(handler, ClickContext{ button });
-}
-
 } // namespace App
 
 namespace Ui {

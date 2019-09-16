@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_service.h"
 #include "history/history_message.h"
 #include "history/history.h"
+#include "api/api_text_entities.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
@@ -116,7 +117,7 @@ TextWithEntities ExtractEditedText(const MTPMessage &message) {
 	const auto &data = message.c_message();
 	return {
 		TextUtilities::Clean(qs(data.vmessage())),
-		TextUtilities::EntitiesFromMTP(data.ventities().value_or_empty())
+		Api::EntitiesFromMTP(data.ventities().value_or_empty())
 	};
 }
 

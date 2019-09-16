@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/text/text_utilities.h"
+#include "ui/painter.h"
 #include "base/timer.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -135,7 +136,7 @@ void BoxContent::onDraggingScrollDelta(int delta) {
 }
 
 void BoxContent::onDraggingScrollTimer() {
-	auto delta = (_draggingScrollDelta > 0) ? qMin(_draggingScrollDelta * 3 / 20 + 1, int32(MaxScrollSpeed)) : qMax(_draggingScrollDelta * 3 / 20 - 1, -int32(MaxScrollSpeed));
+	auto delta = (_draggingScrollDelta > 0) ? qMin(_draggingScrollDelta * 3 / 20 + 1, int32(Ui::kMaxScrollSpeed)) : qMax(_draggingScrollDelta * 3 / 20 - 1, -int32(Ui::kMaxScrollSpeed));
 	_scroll->scrollToY(_scroll->scrollTop() + delta);
 }
 
@@ -276,7 +277,6 @@ AbstractBox::AbstractBox(
 : LayerWidget(layer)
 , _layer(layer)
 , _content(std::move(content)) {
-	subscribe(Lang::Current().updated(), [=] { refreshLang(); });
 	_content->setParent(this);
 	_content->setDelegate(this);
 
@@ -398,10 +398,6 @@ bool AbstractBox::closeByOutsideClick() const {
 	return _closeByOutsideClick;
 }
 
-void AbstractBox::refreshLang() {
-	InvokeQueued(this, [this] { updateButtonsPositions(); });
-}
-
 bool AbstractBox::hasTitle() const {
 	return (_title != nullptr) || !_additionalTitle.current().isEmpty();
 }
@@ -464,7 +460,10 @@ QPointer<Ui::RoundButton> AbstractBox::addButton(
 	auto result = QPointer<Ui::RoundButton>(_buttons.back());
 	result->setClickedCallback(std::move(clickCallback));
 	result->show();
-	updateButtonsPositions();
+	result->widthValue(
+	) | rpl::start_with_next([=] {
+		updateButtonsPositions();
+	}, result->lifetime());
 	return result;
 }
 
@@ -476,7 +475,10 @@ QPointer<Ui::RoundButton> AbstractBox::addLeftButton(
 	auto result = QPointer<Ui::RoundButton>(_leftButton);
 	result->setClickedCallback(std::move(clickCallback));
 	result->show();
-	updateButtonsPositions();
+	result->widthValue(
+	) | rpl::start_with_next([=] {
+		updateButtonsPositions();
+	}, result->lifetime());
 	return result;
 }
 

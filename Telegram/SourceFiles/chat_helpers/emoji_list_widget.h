@@ -52,6 +52,7 @@ public:
 	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
+	bool tooltipWindowActive() const override;
 
 	rpl::producer<EmojiPtr> chosen() const;
 

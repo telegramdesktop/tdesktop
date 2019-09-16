@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/scroll_area.h"
 
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 
 #include <QtWidgets/QScrollBar>
@@ -25,7 +26,7 @@ ScrollShadow::ScrollShadow(ScrollArea *parent, const style::ScrollArea *st) : QW
 }
 
 void ScrollShadow::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	QPainter p(this);
 	p.fillRect(rect(), _st->shColor);
 }
 
@@ -51,7 +52,7 @@ ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::ScrollArea *st)
 }
 
 void ScrollBar::recountSize() {
-	setGeometry(_vertical ? QRect(rtl() ? 0 : (area()->width() - _st->width), _st->deltat, _st->width, area()->height() - _st->deltat - _st->deltab) : QRect(_st->deltat, area()->height() - _st->width, area()->width() - _st->deltat - _st->deltab, _st->width));
+	setGeometry(_vertical ? QRect(style::RightToLeft() ? 0 : (area()->width() - _st->width), _st->deltat, _st->width, area()->height() - _st->deltat - _st->deltab) : QRect(_st->deltat, area()->height() - _st->width, area()->width() - _st->deltat - _st->deltab, _st->width));
 }
 
 void ScrollBar::onValueChanged() {
@@ -175,7 +176,7 @@ void ScrollBar::paintEvent(QPaintEvent *e) {
 	auto opacity = _a_opacity.value(_hiding ? 0. : 1.);
 	if (opacity == 0.) return;
 
-	Painter p(this);
+	QPainter p(this);
 	auto deltal = _vertical ? _st->deltax : 0, deltar = _vertical ? _st->deltax : 0;
 	auto deltat = _vertical ? 0 : _st->deltax, deltab = _vertical ? 0 : _st->deltax;
 	p.setPen(Qt::NoPen);
@@ -279,7 +280,7 @@ ScrollArea::ScrollArea(QWidget *parent, const style::ScrollArea &st, bool handle
 , _topShadow(this, &_st)
 , _bottomShadow(this, &_st)
 , _touchEnabled(handleTouch) {
-	setLayoutDirection(cLangDir());
+	setLayoutDirection(style::LayoutDirection());
 	setFocusPolicy(Qt::NoFocus);
 
 	connect(_verticalBar, SIGNAL(topShadowVisibility(bool)), _topShadow, SLOT(changeVisibility(bool)));
@@ -414,23 +415,23 @@ void ScrollArea::touchUpdateSpeed() {
 
 			// fingers are inacurates, we ignore small changes to avoid stopping the autoscroll because
 			// of a small horizontal offset when scrolling vertically
-			const int newSpeedY = (qAbs(pixelsPerSecond.y()) > FingerAccuracyThreshold) ? pixelsPerSecond.y() : 0;
-			const int newSpeedX = (qAbs(pixelsPerSecond.x()) > FingerAccuracyThreshold) ? pixelsPerSecond.x() : 0;
+			const int newSpeedY = (qAbs(pixelsPerSecond.y()) > kFingerAccuracyThreshold) ? pixelsPerSecond.y() : 0;
+			const int newSpeedX = (qAbs(pixelsPerSecond.x()) > kFingerAccuracyThreshold) ? pixelsPerSecond.x() : 0;
 			if (_touchScrollState == TouchScrollState::Auto) {
 				const int oldSpeedY = _touchSpeed.y();
 				const int oldSpeedX = _touchSpeed.x();
 				if ((oldSpeedY <= 0 && newSpeedY <= 0) || ((oldSpeedY >= 0 && newSpeedY >= 0)
 					&& (oldSpeedX <= 0 && newSpeedX <= 0)) || (oldSpeedX >= 0 && newSpeedX >= 0)) {
-					_touchSpeed.setY(snap((oldSpeedY + (newSpeedY / 4)), -MaxScrollAccelerated, +MaxScrollAccelerated));
-					_touchSpeed.setX(snap((oldSpeedX + (newSpeedX / 4)), -MaxScrollAccelerated, +MaxScrollAccelerated));
+					_touchSpeed.setY(std::clamp((oldSpeedY + (newSpeedY / 4)), -kMaxScrollAccelerated, +kMaxScrollAccelerated));
+					_touchSpeed.setX(std::clamp((oldSpeedX + (newSpeedX / 4)), -kMaxScrollAccelerated, +kMaxScrollAccelerated));
 				} else {
 					_touchSpeed = QPoint();
 				}
 			} else {
 				// we average the speed to avoid strange effects with the last delta
 				if (!_touchSpeed.isNull()) {
-					_touchSpeed.setX(snap((_touchSpeed.x() / 4) + (newSpeedX * 3 / 4), -MaxScrollFlick, +MaxScrollFlick));
-					_touchSpeed.setY(snap((_touchSpeed.y() / 4) + (newSpeedY * 3 / 4), -MaxScrollFlick, +MaxScrollFlick));
+					_touchSpeed.setX(std::clamp((_touchSpeed.x() / 4) + (newSpeedX * 3 / 4), -kMaxScrollFlick, +kMaxScrollFlick));
+					_touchSpeed.setY(std::clamp((_touchSpeed.y() / 4) + (newSpeedY * 3 / 4), -kMaxScrollFlick, +kMaxScrollFlick));
 				} else {
 					_touchSpeed = QPoint(newSpeedX, newSpeedY);
 				}
@@ -588,7 +589,7 @@ void ScrollArea::scrollContentsBy(int dx, int dy) {
 }
 
 bool ScrollArea::touchScroll(const QPoint &delta) {
-	int32 scTop = scrollTop(), scMax = scrollTopMax(), scNew = snap(scTop - delta.y(), 0, scMax);
+	int32 scTop = scrollTop(), scMax = scrollTopMax(), scNew = std::clamp(scTop - delta.y(), 0, scMax);
 	if (scNew == scTop) return false;
 
 	scrollToY(scNew);

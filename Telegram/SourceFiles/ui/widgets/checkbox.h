@@ -9,7 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/buttons.h"
 #include "ui/effects/animations.h"
+#include "ui/text/text.h"
 #include "styles/style_widgets.h"
+
+class Painter;
 
 namespace Ui {
 

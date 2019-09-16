@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/win/windows_dlls.h"
 #include "core/sandbox.h"
+#include "ui/inactive_press.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "facades.h"
@@ -113,7 +114,7 @@ bool EventFilter::mainWindowEvent(
 
 	case WM_ACTIVATE: {
 		if (LOWORD(wParam) == WA_CLICKACTIVE) {
-			_window->setInactivePress(true);
+			Ui::MarkInactivePress(_window, true);
 		}
 		if (LOWORD(wParam) != WA_INACTIVE) {
 			_window->shadowsActivate();

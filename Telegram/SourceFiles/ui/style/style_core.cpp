@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/palette.h"
 
 #include <QtGui/QPainter>
+#include <QtGui/QFontDatabase>
 
 #include <rpl/event_stream.h>
 #include <rpl/variable.h>
@@ -28,6 +29,7 @@ constexpr auto kContrastDeltaL = 64;
 auto PaletteChanges = rpl::event_stream<>();
 auto ShortAnimationRunning = rpl::variable<bool>(false);
 auto RunningShortAnimations = 0;
+auto ResolvedMonospaceFont = style::font();
 
 std::vector<internal::ModuleBase*> &StyleModules() {
 	static auto result = std::vector<internal::ModuleBase*>();
@@ -38,6 +40,28 @@ void startModules(int scale) {
 	for (const auto module : StyleModules()) {
 		module->start(scale);
 	}
+}
+
+void ResolveMonospaceFont() {
+	auto family = QString();
+	const auto tryFont = [&](const QString &attempt) {
+		if (family.isEmpty()
+			&& !QFontInfo(QFont(attempt)).family().trimmed().compare(
+				attempt,
+				Qt::CaseInsensitive)) {
+			family = attempt;
+		}
+	};
+	tryFont("Consolas");
+	tryFont("Liberation Mono");
+	tryFont("Menlo");
+	tryFont("Courier");
+	if (family.isEmpty()) {
+		const auto type = QFontDatabase::FixedFont;
+		family = QFontDatabase::systemFont(type).family();
+	}
+	const auto size = st::normalFont->f.pixelSize();
+	ResolvedMonospaceFont = style::font(size, 0, family);
 }
 
 } // namespace
@@ -60,6 +84,17 @@ void StopShortAnimation() {
 
 } // namespace internal
 
+void startManager(int scale) {
+	internal::registerFontFamily("Open Sans");
+	internal::startModules(scale);
+	internal::ResolveMonospaceFont();
+}
+
+void stopManager() {
+	internal::destroyFonts();
+	internal::destroyIcons();
+}
+
 rpl::producer<> PaletteChanged() {
 	return internal::PaletteChanges.events();
 }
@@ -72,14 +107,8 @@ rpl::producer<bool> ShortAnimationPlaying() {
 	return internal::ShortAnimationRunning.value();
 }
 
-void startManager(int scale) {
-	internal::registerFontFamily("Open Sans");
-	internal::startModules(scale);
-}
-
-void stopManager() {
-	internal::destroyFonts();
-	internal::destroyIcons();
+const style::font &MonospaceFont() {
+	return internal::ResolvedMonospaceFont;
 }
 
 void colorizeImage(const QImage &src, QColor c, QImage *outResult, QRect srcRect, QPoint dstPoint) {

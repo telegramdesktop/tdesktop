@@ -323,8 +323,7 @@ void TabbedPanel::startShowAnimation() {
 		_showAnimation = std::make_unique<Ui::PanelAnimation>(st::emojiPanAnimation, Ui::PanelAnimation::Origin::BottomRight);
 		auto inner = rect().marginsRemoved(st::emojiPanMargins);
 		_showAnimation->setFinalImage(std::move(image), QRect(inner.topLeft() * cIntRetinaFactor(), inner.size() * cIntRetinaFactor()));
-		auto corners = App::cornersMask(ImageRoundRadius::Small);
-		_showAnimation->setCornerMasks(corners[0], corners[1], corners[2], corners[3]);
+		_showAnimation->setCornerMasks(Images::CornersMask(ImageRoundRadius::Small));
 		_showAnimation->start();
 	}
 	hideChildren();

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
+#include "ui/platform/ui_platform_utility.h"
 #include "ui/toast/toast.h"
 #include "ui/text_options.h"
 #include "ui/ui_utility.h"
@@ -1115,9 +1116,9 @@ void OverlayWidget::onSaveAs() {
 				filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
 			}
 
-			psBringToBack(this);
+			Ui::Platform::BringToBack(this);
 			file = FileNameForSave(tr::lng_save_file(tr::now), filter, qsl("doc"), name, true, alreadyDir);
-			psShowOverAll(this);
+			Ui::Platform::ShowOverAll(this);
 			if (!file.isEmpty() && file != location.name()) {
 				if (_doc->data().isEmpty()) {
 					QFile(file).remove();
@@ -1141,7 +1142,7 @@ void OverlayWidget::onSaveAs() {
 	} else {
 		if (!_photo || !_photo->loaded()) return;
 
-		psBringToBack(this);
+		Ui::Platform::BringToBack(this);
 		auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 		FileDialog::GetWritePath(
 			this,
@@ -1153,13 +1154,13 @@ void OverlayWidget::onSaveAs() {
 				QString(),
 				false,
 				_photo->date),
-			crl::guard(this, [this, photo = _photo](const QString &result) {
+			crl::guard(this, [=, photo = _photo](const QString &result) {
 				if (!result.isEmpty() && _photo == photo && photo->loaded()) {
 					photo->large()->original().save(result, "JPG");
 				}
-				psShowOverAll(this);
-			}), crl::guard(this, [this] {
-				psShowOverAll(this);
+				Ui::Platform::ShowOverAll(this);
+			}), crl::guard(this, [=] {
+				Ui::Platform::ShowOverAll(this);
 			}));
 	}
 	activateWindow();
@@ -1977,13 +1978,13 @@ void OverlayWidget::updateThemePreviewGeometry() {
 void OverlayWidget::displayFinished() {
 	updateControls();
 	if (isHidden()) {
-		psUpdateOverlayed(this);
+		Ui::Platform::UpdateOverlayed(this);
 #ifdef Q_OS_LINUX
 		showFullScreen();
 #else // Q_OS_LINUX
 		show();
 #endif // Q_OS_LINUX
-		psShowOverAll(this);
+		Ui::Platform::ShowOverAll(this);
 		activateWindow();
 		QApplication::setActiveWindow(this);
 		setFocus();
@@ -3497,7 +3498,7 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 			showSaveMsgFile();
 			return;
 		}
-		App::activateClickHandler(activated, e->button());
+		ActivateClickHandler(this, activated, e->button());
 		return;
 	}
 

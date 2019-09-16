@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "base/crc32hash.h"
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
@@ -42,7 +43,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 namespace {
 
-constexpr auto kInactivePressTimeout = crl::time(200);
 constexpr auto kSaveWindowPositionTimeout = crl::time(1000);
 
 } // namespace
@@ -158,7 +158,6 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 	}
 
 	_isActiveTimer.setCallback([this] { updateIsActive(0); });
-	_inactivePressTimer.setCallback([this] { setInactivePress(false); });
 }
 
 Main::Account &MainWindow::account() const {
@@ -446,8 +445,8 @@ void MainWindow::setTitleVisible(bool visible) {
 }
 
 int32 MainWindow::screenNameChecksum(const QString &name) const {
-	auto bytes = name.toUtf8();
-	return hashCrc32(bytes.constData(), bytes.size());
+	const auto bytes = name.toUtf8();
+	return base::crc32(bytes.constData(), bytes.size());
 }
 
 void MainWindow::setPositionInited() {
@@ -662,15 +661,6 @@ void MainWindow::launchDrag(std::unique_ptr<QMimeData> data) {
 	ClickHandler::unpressed();
 	if (weak) {
 		weak->dragFinished().notify();
-	}
-}
-
-void MainWindow::setInactivePress(bool inactive) {
-	_wasInactivePress = inactive;
-	if (_wasInactivePress) {
-		_inactivePressTimer.callOnce(kInactivePressTimeout);
-	} else {
-		_inactivePressTimer.cancel();
 	}
 }
 

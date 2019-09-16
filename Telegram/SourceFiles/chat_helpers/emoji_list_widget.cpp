@@ -769,6 +769,10 @@ QPoint EmojiListWidget::tooltipPos() const {
 	return _lastMousePos;
 }
 
+bool EmojiListWidget::tooltipWindowActive() const {
+	return Ui::InFocusChain(window());
+}
+
 TabbedSelector::InnerFooter *EmojiListWidget::getFooter() const {
 	return _footer;
 }

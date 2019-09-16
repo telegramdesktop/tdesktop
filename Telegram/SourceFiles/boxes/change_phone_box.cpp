@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
+#include "ui/special_fields.h"
 #include "boxes/confirm_phone_box.h"
 #include "boxes/confirm_box.h"
 #include "main/main_session.h"

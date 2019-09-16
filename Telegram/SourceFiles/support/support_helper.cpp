@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "api/api_text_entities.h"
 #include "history/history.h"
 #include "boxes/abstract_box.h"
 #include "ui/toast/toast.h"
@@ -450,7 +451,7 @@ void Helper::applyInfo(
 		info.date = data.vdate().v;
 		info.text = TextWithEntities{
 			qs(data.vmessage()),
-			TextUtilities::EntitiesFromMTP(data.ventities().v) };
+			Api::EntitiesFromMTP(data.ventities().v) };
 		if (info.text.empty()) {
 			remove();
 		} else if (_userInformation[user] != info) {
@@ -505,13 +506,13 @@ void Helper::showEditInfoBox(not_null<UserData*> user) {
 	const auto info = infoCurrent(user);
 	const auto editData = TextWithTags{
 		info.text.text,
-		ConvertEntitiesToTextTags(info.text.entities)
+		TextUtilities::ConvertEntitiesToTextTags(info.text.entities)
 	};
 
 	const auto save = [=](TextWithTags result, Fn<void(bool)> done) {
 		saveInfo(user, TextWithEntities{
 			result.text,
-			ConvertTextTagsToEntities(result.tags)
+			TextUtilities::ConvertTextTagsToEntities(result.tags)
 		}, done);
 	};
 	Ui::show(
@@ -540,9 +541,9 @@ void Helper::saveInfo(
 		Ui::ItemTextDefaultOptions().flags);
 	TextUtilities::Trim(text);
 
-	const auto entities = TextUtilities::EntitiesToMTP(
+	const auto entities = Api::EntitiesToMTP(
 		text.entities,
-		TextUtilities::ConvertOption::SkipLocal);
+		Api::ConvertOption::SkipLocal);
 	_userInfoSaving[user].requestId = request(MTPhelp_EditUserInfo(
 		user->inputUser,
 		MTP_string(text.text),

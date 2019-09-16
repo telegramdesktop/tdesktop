@@ -205,10 +205,6 @@ public:
 	// Sandbox interface.
 	void postponeCall(FnMut<void()> &&callable);
 	void refreshGlobalProxy();
-	void activateWindowDelayed(not_null<QWidget*> widget);
-	void pauseDelayedWindowActivations();
-	void resumeDelayedWindowActivations();
-	void preventWindowActivation();
 
 	void quitPreventFinished();
 

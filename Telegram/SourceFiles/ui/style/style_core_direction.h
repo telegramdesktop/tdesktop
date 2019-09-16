@@ -17,6 +17,10 @@ namespace style {
 [[nodiscard]] bool RightToLeft();
 void SetRightToLeft(bool rtl);
 
+[[nodiscard]] inline Qt::LayoutDirection LayoutDirection() {
+	return RightToLeft() ? Qt::RightToLeft : Qt::LeftToRight;
+}
+
 inline QRect centerrect(const QRect &inRect, const QRect &rect) {
 	return QRect(
 		inRect.x() + (inRect.width() - rect.width()) / 2,

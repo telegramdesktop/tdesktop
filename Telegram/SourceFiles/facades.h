@@ -74,9 +74,6 @@ void activateBotCommand(
 void searchByHashtag(const QString &tag, PeerData *inPeer);
 void showSettings();
 
-void activateClickHandler(ClickHandlerPtr handler, ClickContext context);
-void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
-
 } // namespace App
 
 namespace Ui {

@@ -7,15 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/emoji_config.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+#include "ui/text/text_entity.h"
 #include "styles/style_widgets.h"
 
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QTextEdit>
 #include <QtCore/QTimer>
 
-class UserData;
+class QTouchEvent;
+class Painter;
 
 namespace Ui {
 
@@ -51,7 +54,7 @@ enum class InputSubmitSettings {
 	None,
 };
 
-class FlatInput : public Ui::RpWidgetWrap<QLineEdit>, private base::Subscriber {
+class FlatInput : public RpWidgetWrap<QLineEdit> {
 	// The Q_OBJECT meta info is used for qobject_cast!
 	Q_OBJECT
 
@@ -110,7 +113,7 @@ protected:
 		return _st.font;
 	}
 
-	void phPrepare(Painter &p, float64 placeholderFocused);
+	void phPrepare(QPainter &p, float64 placeholderFocused);
 
 private:
 	void updatePalette();
@@ -136,7 +139,7 @@ private:
 	QPoint _touchStart;
 };
 
-class InputField : public RpWidget, private base::Subscriber {
+class InputField : public RpWidget {
 	Q_OBJECT
 
 public:
@@ -215,10 +218,8 @@ public:
 	// (and then to clipboard or to drag-n-drop object), here is a strategy for that.
 	class TagMimeProcessor {
 	public:
-		virtual QString mimeTagFromTag(const QString &tagId) = 0;
 		virtual QString tagFromMimeTag(const QString &mimeTag) = 0;
-		virtual ~TagMimeProcessor() {
-		}
+		virtual ~TagMimeProcessor() = default;
 	};
 	void setTagMimeProcessor(std::unique_ptr<TagMimeProcessor> &&processor);
 
@@ -481,17 +482,17 @@ private:
 	rpl::variable<QString> _placeholderFull;
 	QString _placeholder;
 	int _placeholderAfterSymbols = 0;
-	Ui::Animations::Simple _a_placeholderShifted;
+	Animations::Simple _a_placeholderShifted;
 	bool _placeholderShifted = false;
 	QPainterPath _placeholderPath;
 
-	Ui::Animations::Simple _a_borderShown;
+	Animations::Simple _a_borderShown;
 	int _borderAnimationStart = 0;
-	Ui::Animations::Simple _a_borderOpacity;
+	Animations::Simple _a_borderOpacity;
 	bool _borderVisible = false;
 
-	Ui::Animations::Simple _a_focused;
-	Ui::Animations::Simple _a_error;
+	Animations::Simple _a_focused;
+	Animations::Simple _a_error;
 
 	bool _focused = false;
 	bool _error = false;
@@ -504,7 +505,7 @@ private:
 
 	bool _correcting = false;
 	MimeDataHook _mimeDataHook;
-	base::unique_qptr<Ui::PopupMenu> _contextMenu;
+	base::unique_qptr<PopupMenu> _contextMenu;
 
 	QTextCharFormat _defaultCharFormat;
 
@@ -515,9 +516,7 @@ private:
 
 };
 
-class MaskedInputField
-	: public RpWidgetWrap<QLineEdit>
-	, private base::Subscriber {
+class MaskedInputField : public RpWidgetWrap<QLineEdit> {
 	// The Q_OBJECT meta info is used for qobject_cast!
 	Q_OBJECT
 
@@ -638,17 +637,17 @@ private:
 
 	rpl::variable<QString> _placeholderFull;
 	QString _placeholder;
-	Ui::Animations::Simple _a_placeholderShifted;
+	Animations::Simple _a_placeholderShifted;
 	bool _placeholderShifted = false;
 	QPainterPath _placeholderPath;
 
-	Ui::Animations::Simple _a_borderShown;
+	Animations::Simple _a_borderShown;
 	int _borderAnimationStart = 0;
-	Ui::Animations::Simple _a_borderOpacity;
+	Animations::Simple _a_borderOpacity;
 	bool _borderVisible = false;
 
-	Ui::Animations::Simple _a_focused;
-	Ui::Animations::Simple _a_error;
+	Animations::Simple _a_focused;
+	Animations::Simple _a_error;
 
 	bool _focused = false;
 	bool _error = false;
@@ -660,61 +659,6 @@ private:
 	bool _touchRightButton = false;
 	bool _touchMove = false;
 	QPoint _touchStart;
-};
-
-class CountryCodeInput : public MaskedInputField {
-	Q_OBJECT
-
-public:
-	CountryCodeInput(QWidget *parent, const style::InputField &st);
-
-public slots:
-	void startErasing(QKeyEvent *e);
-	void codeSelected(const QString &code);
-
-signals:
-	void codeChanged(const QString &code);
-	void addedToNumber(const QString &added);
-
-protected:
-	void correctValue(
-		const QString &was,
-		int wasCursor,
-		QString &now,
-		int &nowCursor) override;
-
-private:
-	bool _nosignal;
-
-};
-
-class PhonePartInput : public MaskedInputField {
-	Q_OBJECT
-
-public:
-	PhonePartInput(QWidget *parent, const style::InputField &st);
-
-public slots:
-	void addedToNumber(const QString &added);
-	void onChooseCode(const QString &code);
-
-signals:
-	void voidBackspace(QKeyEvent *e);
-
-protected:
-	void keyPressEvent(QKeyEvent *e) override;
-
-	void correctValue(
-		const QString &was,
-		int wasCursor,
-		QString &now,
-		int &nowCursor) override;
-	void paintAdditionalPlaceholder(Painter &p) override;
-
-private:
-	QVector<int> _pattern;
-	QString _additionalPlaceholder;
-
 };
 
 class PasswordInput : public MaskedInputField {
@@ -746,58 +690,6 @@ protected:
 		int wasCursor,
 		QString &now,
 		int &nowCursor) override;
-
-};
-
-class UsernameInput : public MaskedInputField {
-public:
-	UsernameInput(
-		QWidget *parent,
-		const style::InputField &st,
-		rpl::producer<QString> placeholder,
-		const QString &val,
-		bool isLink);
-
-	void setLinkPlaceholder(const QString &placeholder);
-
-protected:
-	void correctValue(
-		const QString &was,
-		int wasCursor,
-		QString &now,
-		int &nowCursor) override;
-	void paintAdditionalPlaceholder(Painter &p) override;
-
-private:
-	QString _linkPlaceholder;
-
-};
-
-class PhoneInput : public MaskedInputField {
-public:
-	PhoneInput(
-		QWidget *parent,
-		const style::InputField &st,
-		rpl::producer<QString> placeholder,
-		const QString &defaultValue,
-		QString value);
-
-	void clearText();
-
-protected:
-	void focusInEvent(QFocusEvent *e) override;
-
-	void correctValue(
-		const QString &was,
-		int wasCursor,
-		QString &now,
-		int &nowCursor) override;
-	void paintAdditionalPlaceholder(Painter &p) override;
-
-private:
-	QString _defaultValue;
-	QVector<int> _pattern;
-	QString _additionalPlaceholder;
 
 };
 

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/platform/ui_platform_utility.h"
 #include "window/layer_widget.h"
 #include "window/themes/window_theme.h"
 #include "core/application.h"
@@ -164,7 +165,7 @@ void SeparatePanel::initLayout() {
 		}
 	});
 
-	Platform::InitOnTopPanel(this);
+	Ui::Platform::InitOnTopPanel(this);
 }
 
 void SeparatePanel::createBorderImage() {
@@ -350,7 +351,7 @@ void SeparatePanel::setInnerSize(QSize size) {
 
 void SeparatePanel::initGeometry(QSize size) {
 	const auto center = Core::App().getPointForCallPanelCenter();
-	_useTransparency = Platform::TranslucentWindowsSupported(center);
+	_useTransparency = Ui::Platform::TranslucentWindowsSupported(center);
 	_padding = _useTransparency
 		? st::callShadow.extend
 		: style::margins(
@@ -397,7 +398,7 @@ void SeparatePanel::paintEvent(QPaintEvent *e) {
 			finishAnimating();
 			if (isHidden()) return;
 		} else {
-			Platform::StartTranslucentPaint(p, e);
+			Ui::Platform::StartTranslucentPaint(p, e);
 			p.setOpacity(opacity);
 
 			PainterHighQualityEnabler hq(p);
@@ -418,7 +419,7 @@ void SeparatePanel::paintEvent(QPaintEvent *e) {
 	}
 
 	if (_useTransparency) {
-		Platform::StartTranslucentPaint(p, e);
+		Ui::Platform::StartTranslucentPaint(p, e);
 		paintShadowBorder(p);
 	} else {
 		paintOpaqueBorder(p);

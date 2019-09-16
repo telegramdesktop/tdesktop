@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class PeerData;
 
+struct TextParseOptions;
+
 namespace Ui {
 
 void InitTextOptions();

@@ -48,10 +48,6 @@ public:
 		return callable();
 	}
 
-	void activateWindowDelayed(not_null<QWidget*> widget);
-	void pauseDelayedWindowActivations();
-	void resumeDelayedWindowActivations();
-
 	rpl::producer<> widgetUpdateRequests() const;
 
 	ProxyData sandboxProxy() const;
@@ -109,9 +105,6 @@ private:
 	int _loopNestingLevel = 0;
 	std::vector<int> _previousLoopNestingLevels;
 	std::vector<PostponedCall> _postponedCalls;
-
-	QPointer<QWidget> _windowForDelayedActivation;
-	bool _delayedActivationsPaused = false;
 
 	not_null<Launcher*> _launcher;
 	std::unique_ptr<Application> _application;

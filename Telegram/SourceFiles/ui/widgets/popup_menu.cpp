@@ -9,14 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/shadow.h"
 #include "ui/image/image_prepare.h"
+#include "ui/platform/ui_platform_utility.h"
 #include "ui/ui_utility.h"
+#include "ui/delayed_activation.h"
 #include "platform/platform_info.h"
-#include "platform/platform_specific.h"
-#include "mainwindow.h"
-#include "core/application.h"
-#include "lang/lang_keys.h"
-#include "app.h"
 
+#include <QtGui/QtEvents>
+#include <QtGui/QPainter>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDesktopWidget>
 
@@ -25,6 +24,7 @@ namespace Ui {
 PopupMenu::PopupMenu(QWidget *parent, const style::PopupMenu &st)
 : RpWidget(parent)
 , _st(st)
+, _roundRect(ImageRoundRadius::Small, _st.menu.itemBg)
 , _menu(this, _st.menu) {
 	init();
 }
@@ -32,6 +32,7 @@ PopupMenu::PopupMenu(QWidget *parent, const style::PopupMenu &st)
 PopupMenu::PopupMenu(QWidget *parent, QMenu *menu, const style::PopupMenu &st)
 : RpWidget(parent)
 , _st(st)
+, _roundRect(ImageRoundRadius::Small, _st.menu.itemBg)
 , _menu(this, menu, _st.menu) {
 	init();
 
@@ -46,9 +47,7 @@ PopupMenu::PopupMenu(QWidget *parent, QMenu *menu, const style::PopupMenu &st)
 void PopupMenu::init() {
 	using namespace rpl::mappers;
 
-	rpl::merge(
-		Core::App().passcodeLockChanges(),
-		Core::App().termsLockChanges()
+	Integration::Instance().forcePopupMenuHideRequests(
 	) | rpl::start_with_next([=] {
 		hideMenu(true);
 	}, lifetime());
@@ -113,7 +112,7 @@ const std::vector<not_null<QAction*>> &PopupMenu::actions() const {
 }
 
 void PopupMenu::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	QPainter p(this);
 
 	if (_useTransparency) {
 		Platform::StartTranslucentPaint(p, e);
@@ -137,10 +136,10 @@ void PopupMenu::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void PopupMenu::paintBg(Painter &p) {
+void PopupMenu::paintBg(QPainter &p) {
 	if (_useTransparency) {
 		Shadow::paint(p, _inner, width(), _st.shadow);
-		App::roundRect(p, _inner, _st.menu.itemBg, ImageRoundRadius::Small);
+		_roundRect.paint(p, _inner);
 	} else {
 		p.fillRect(0, 0, width() - _padding.right(), _padding.top(), _st.shadow.fallback);
 		p.fillRect(width() - _padding.right(), 0, _padding.right(), height() - _padding.bottom(), _st.shadow.fallback);
@@ -190,7 +189,7 @@ void PopupMenu::popupSubmenu(SubmenuPointer submenu, int actionTop, TriggeredSou
 		currentSubmenu->hideMenu(true);
 	}
 	if (submenu) {
-		QPoint p(_inner.x() + (rtl() ? _padding.right() : _inner.width() - _padding.left()), _inner.y() + actionTop);
+		QPoint p(_inner.x() + (style::RightToLeft() ? _padding.right() : _inner.width() - _padding.left()), _inner.y() + actionTop);
 		_activeSubmenu = submenu;
 		_activeSubmenu->showMenu(geometry().topLeft() + p, this, source);
 
@@ -213,7 +212,7 @@ bool PopupMenu::handleKeyPress(int key) {
 	} else if (key == Qt::Key_Escape) {
 		hideMenu(_parent ? true : false);
 		return true;
-	} else if (key == (rtl() ? Qt::Key_Right : Qt::Key_Left)) {
+	} else if (key == (style::RightToLeft() ? Qt::Key_Right : Qt::Key_Left)) {
 		if (_parent) {
 			hideMenu(true);
 			return true;
@@ -256,6 +255,18 @@ void PopupMenu::hideEvent(QHideEvent *e) {
 			deleteLater();
 		}
 	}
+}
+
+void PopupMenu::keyPressEvent(QKeyEvent *e) {
+	forwardKeyPress(e->key());
+}
+
+void PopupMenu::mouseMoveEvent(QMouseEvent *e) {
+	forwardMouseMove(e->globalPos());
+}
+
+void PopupMenu::mousePressEvent(QMouseEvent *e) {
+	forwardMousePress(e->globalPos());
 }
 
 void PopupMenu::hideMenu(bool fast) {
@@ -368,11 +379,12 @@ void PopupMenu::startShowAnimation() {
 		auto cache = grabForPanelAnimation();
 		_a_opacity = base::take(opacityAnimation);
 
+		const auto pixelRatio = style::DevicePixelRatio();
 		_showAnimation = std::make_unique<PanelAnimation>(_st.animation, _origin);
-		_showAnimation->setFinalImage(std::move(cache), QRect(_inner.topLeft() * cIntRetinaFactor(), _inner.size() * cIntRetinaFactor()));
+		_showAnimation->setFinalImage(std::move(cache), QRect(_inner.topLeft() * pixelRatio, _inner.size() * pixelRatio));
 		if (_useTransparency) {
-			auto corners = App::cornersMask(ImageRoundRadius::Small);
-			_showAnimation->setCornerMasks(corners[0], corners[1], corners[2], corners[3]);
+			_showAnimation->setCornerMasks(
+				Images::CornersMask(ImageRoundRadius::Small));
 		} else {
 			_showAnimation->setSkipShadow(true);
 		}
@@ -400,13 +412,14 @@ void PopupMenu::showAnimationCallback() {
 
 QImage PopupMenu::grabForPanelAnimation() {
 	SendPendingMoveResizeEvents(this);
-	auto result = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	const auto pixelRatio = style::DevicePixelRatio();
+	auto result = QImage(size() * pixelRatio, QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(pixelRatio);
 	result.fill(Qt::transparent);
 	{
-		Painter p(&result);
+		QPainter p(&result);
 		if (_useTransparency) {
-			App::roundRect(p, _inner, _st.menu.itemBg, ImageRoundRadius::Small);
+			_roundRect.paint(p, _inner);
 		} else {
 			p.fillRect(_inner, _st.menu.itemBg);
 		}
@@ -428,7 +441,7 @@ void PopupMenu::popup(const QPoint &p) {
 }
 
 void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource source) {
-	if (!parent && Platform::IsMac() && !Platform::IsApplicationActive()) {
+	if (!parent && ::Platform::IsMac() && !Platform::IsApplicationActive()) {
 		_hiding = false;
 		_a_opacity.stop();
 		_a_show.stop();
@@ -447,7 +460,7 @@ void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource sou
 	_useTransparency = Platform::TranslucentWindowsSupported(p);
 	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 	handleCompositingUpdate();
-	if (rtl()) {
+	if (style::RightToLeft()) {
 		if (w.x() - width() < r.x() - _padding.left()) {
 			if (_parent && w.x() + _parent->width() - _padding.left() - _padding.right() + width() - _padding.right() <= r.x() + r.width()) {
 				w.setX(w.x() + _parent->width() - _padding.left() - _padding.right());
@@ -488,9 +501,9 @@ void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource sou
 
 	startShowAnimation();
 
-	psUpdateOverlayed(this);
+	Platform::UpdateOverlayed(this);
 	show();
-	psShowOverAll(this);
+	Platform::ShowOverAll(this);
 	activateWindow();
 }
 
@@ -500,7 +513,7 @@ PopupMenu::~PopupMenu() {
 	}
 	if (const auto parent = parentWidget()) {
 		if (QApplication::focusWidget() != nullptr) {
-			Core::App().activateWindowDelayed(parent);
+			ActivateWindowDelayed(parent);
 		}
 	}
 	if (_destroyedCallback) {

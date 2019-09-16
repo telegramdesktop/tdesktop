@@ -44,6 +44,8 @@ void NotifyPaletteChanged();
 
 [[nodiscard]] rpl::producer<bool> ShortAnimationPlaying();
 
+const style::font &MonospaceFont();
+
 // *outResult must be r.width() x r.height(), ARGB32_Premultiplied.
 // QRect(0, 0, src.width(), src.height()) must contain r.
 void colorizeImage(const QImage &src, QColor c, QImage *outResult, QRect srcRect = QRect(), QPoint dstPoint = QPoint(0, 0));

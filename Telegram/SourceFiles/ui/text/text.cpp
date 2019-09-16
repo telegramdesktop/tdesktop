@@ -7,16 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/text/text.h"
 
-#include "core/click_handler_types.h"
-#include "core/crash_reports.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/text/text_block.h"
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/emoji_config.h"
-#include "lang/lang_keys.h"
+#include "ui/ui_integration.h"
 #include "platform/platform_info.h"
-#include "boxes/confirm_box.h"
-#include "mainwindow.h"
-#include "app.h"
 
 #include <private/qfontengine_p.h>
 #include <private/qharfbuzz_p.h>
@@ -111,7 +107,7 @@ QFixed ComputeStopAfter(const TextParseOptions &options, const style::TextStyle 
 // Open Sans tilde fix.
 bool ComputeCheckTilde(const style::TextStyle &st) {
 	const auto &font = st.font;
-	return (font->size() * cIntRetinaFactor() == 13)
+	return (font->size() * style::DevicePixelRatio() == 13)
 		&& (font->flags() == 0)
 		&& (font->f.family() == qstr("Open Sans"));
 }
@@ -125,10 +121,6 @@ bool chIsBad(QChar ch) {
         || (ch >= 8232 && ch < 8237)
         || (ch >= 65024 && ch < 65040 && ch != 65039)
         || (ch >= 127 && ch < 160 && ch != 156)
-
-		|| (Platform::IsMac()
-			&& !Platform::IsMac10_7OrGreater()
-			&& (ch == 8207 || ch == 8206 || ch == 8288))
 
         // qt harfbuzz crash see https://github.com/telegramdesktop/tdesktop/issues/4551
         || (Platform::IsMac() && ch == 6158)
@@ -811,7 +803,7 @@ void Parser::parseCurrentChar() {
 
 void Parser::parseEmojiFromCurrent() {
 	int len = 0;
-	auto e = Ui::Emoji::Find(_ptr - _emojiLookback, _end, &len);
+	auto e = Emoji::Find(_ptr - _emojiLookback, _end, &len);
 	if (!e) return;
 
 	for (int l = len - _emojiLookback - 1; l > 0; --l) {
@@ -820,8 +812,8 @@ void Parser::parseEmojiFromCurrent() {
 	if (e->hasPostfix()) {
 		Assert(!_t->_text.isEmpty());
 		const auto last = _t->_text[_t->_text.size() - 1];
-		if (last.unicode() != Ui::Emoji::kPostfix) {
-			_t->_text.push_back(QChar(Ui::Emoji::kPostfix));
+		if (last.unicode() != Emoji::kPostfix) {
+			_t->_text.push_back(QChar(Emoji::kPostfix));
 			++len;
 		}
 	}
@@ -940,63 +932,20 @@ void Parser::computeLinkText(const QString &linkData, QString *outLinkText, Link
 ClickHandlerPtr Parser::CreateHandlerForLink(
 		const TextLinkData &link,
 		const TextParseOptions &options) {
+	const auto result = Integration::Instance().createLinkHandler(
+		link.type,
+		link.text,
+		link.data,
+		options);
+	if (result) {
+		return result;
+	}
 	switch (link.type) {
-	case EntityType::CustomUrl:
-		return !link.data.isEmpty()
-			? std::make_shared<HiddenUrlClickHandler>(link.data)
-			: nullptr;
-
 	case EntityType::Email:
 	case EntityType::Url:
 		return std::make_shared<UrlClickHandler>(
 			link.data,
 			link.displayStatus == LinkDisplayedFull);
-
-	case EntityType::BotCommand:
-		return std::make_shared<BotCommandClickHandler>(link.data);
-
-	case EntityType::Hashtag:
-		if (options.flags & TextTwitterMentions) {
-			return std::make_shared<UrlClickHandler>(
-				(qsl("https://twitter.com/hashtag/")
-					+ link.data.mid(1)
-					+ qsl("?src=hash")),
-				true);
-		} else if (options.flags & TextInstagramMentions) {
-			return std::make_shared<UrlClickHandler>(
-				(qsl("https://instagram.com/explore/tags/")
-					+ link.data.mid(1)
-					+ '/'),
-				true);
-		}
-		return std::make_shared<HashtagClickHandler>(link.data);
-
-	case EntityType::Cashtag:
-		return std::make_shared<CashtagClickHandler>(link.data);
-
-	case EntityType::Mention:
-		if (options.flags & TextTwitterMentions) {
-			return std::make_shared<UrlClickHandler>(
-				qsl("https://twitter.com/") + link.data.mid(1),
-				true);
-		} else if (options.flags & TextInstagramMentions) {
-			return std::make_shared<UrlClickHandler>(
-				qsl("https://instagram.com/") + link.data.mid(1) + '/',
-				true);
-		}
-		return std::make_shared<MentionClickHandler>(link.data);
-
-	case EntityType::MentionName: {
-		auto fields = TextUtilities::MentionNameDataToFields(link.data);
-		if (fields.userId) {
-			return std::make_shared<MentionNameClickHandler>(
-				link.text,
-				fields.userId,
-				fields.accessHash);
-		} else {
-			LOG(("Bad mention name: %1").arg(link.data));
-		}
-	} break;
 	}
 	return nullptr;
 }
@@ -1155,7 +1104,7 @@ public:
 		_align = align;
 
 		_parDirection = _t->_startDir;
-		if (_parDirection == Qt::LayoutDirectionAuto) _parDirection = cLangDir();
+		if (_parDirection == Qt::LayoutDirectionAuto) _parDirection = style::LayoutDirection();
 		if ((*_t->_blocks.cbegin())->type() != TextBlockTNewline) {
 			initNextParagraph(_t->_blocks.cbegin());
 		}
@@ -1195,7 +1144,7 @@ public:
 				}
 
 				_parDirection = static_cast<NewlineBlock*>(b)->nextDirection();
-				if (_parDirection == Qt::LayoutDirectionAuto) _parDirection = cLangDir();
+				if (_parDirection == Qt::LayoutDirectionAuto) _parDirection = style::LayoutDirection();
 				initNextParagraph(i + 1);
 
 				longWordLine = true;
@@ -1598,7 +1547,7 @@ private:
 			}
 		}
 	    QTextEngine::bidiReorder(nItems, levels.data(), visualOrder.data());
-		if (rtl() && skipIndex == nItems - 1) {
+		if (style::RightToLeft() && skipIndex == nItems - 1) {
 			for (int32 i = nItems; i > 1;) {
 				--i;
 				visualOrder[i] = visualOrder[i - 1];
@@ -1705,10 +1654,10 @@ private:
 							}
 						}
 					}
-					Ui::Emoji::Draw(
+					Emoji::Draw(
 						*_p,
 						static_cast<EmojiBlock*>(currentBlock)->emoji,
-						Ui::Emoji::GetSizeNormal(),
+						Emoji::GetSizeNormal(),
 						(glyphX + st::emojiPadding).toInt(),
 						_y + _yDelta + emojiY);
 //				} else if (_p && currentBlock->type() == TextBlockSkip) { // debug
@@ -1900,7 +1849,7 @@ private:
 	}
 
 	void prepareElidedLine(QString &lineText, int32 lineStart, int32 &lineLength, AbstractBlock *&_endBlock, int repeat = 0) {
-		static const QString _Elide = qsl("...");
+		static const auto _Elide = QString::fromLatin1("...");
 
 		_f = _t->_st->font;
 		QStackTextEngine engine(lineText, _f->f);
@@ -2046,7 +1995,7 @@ private:
 		}
 		auto result = f;
 		if ((flags & TextBlockFPre) || (flags & TextBlockFCode)) {
-			result = App::monofont();
+			result = style::MonospaceFont();
 			if (result->size() != f->size() || result->flags() != f->flags()) {
 				result = style::font(f->size(), f->flags(), result->family());
 			}
@@ -3093,6 +3042,22 @@ void String::drawElided(Painter &painter, int32 left, int32 top, int32 w, int32 
 //	painter.fillRect(QRect(left, top, w, countHeight(w)), QColor(0, 0, 0, 32)); // debug
 	Renderer p(&painter, this);
 	p.drawElided(left, top, w, align, lines, yFrom, yTo, removeFromEnd, breakEverywhere, selection);
+}
+
+void String::drawLeft(Painter &p, int32 left, int32 top, int32 width, int32 outerw, style::align align, int32 yFrom, int32 yTo, TextSelection selection) const {
+	draw(p, style::RightToLeft() ? (outerw - left - width) : left, top, width, align, yFrom, yTo, selection);
+}
+
+void String::drawLeftElided(Painter &p, int32 left, int32 top, int32 width, int32 outerw, int32 lines, style::align align, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere, TextSelection selection) const {
+	drawElided(p, style::RightToLeft() ? (outerw - left - width) : left, top, width, lines, align, yFrom, yTo, removeFromEnd, breakEverywhere, selection);
+}
+
+void String::drawRight(Painter &p, int32 right, int32 top, int32 width, int32 outerw, style::align align, int32 yFrom, int32 yTo, TextSelection selection) const {
+	draw(p, style::RightToLeft() ? right : (outerw - right - width), top, width, align, yFrom, yTo, selection);
+}
+
+void String::drawRightElided(Painter &p, int32 right, int32 top, int32 width, int32 outerw, int32 lines, style::align align, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere, TextSelection selection) const {
+	drawElided(p, style::RightToLeft() ? right : (outerw - right - width), top, width, lines, align, yFrom, yTo, removeFromEnd, breakEverywhere, selection);
 }
 
 StateResult String::getState(QPoint point, int width, StateRequest request) const {

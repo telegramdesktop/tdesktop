@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_sending.h"
 
+#include "api/api_text_entities.h"
 #include "base/unixtime.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
@@ -73,12 +74,12 @@ void SendExistingMedia(
 
 	auto caption = TextWithEntities{
 		message.textWithTags.text,
-		ConvertTextTagsToEntities(message.textWithTags.tags)
+		TextUtilities::ConvertTextTagsToEntities(message.textWithTags.tags)
 	};
 	TextUtilities::Trim(caption);
-	auto sentEntities = TextUtilities::EntitiesToMTP(
+	auto sentEntities = EntitiesToMTP(
 		caption.entities,
-		TextUtilities::ConvertOption::SkipLocal);
+		ConvertOption::SkipLocal);
 	if (!sentEntities.v.isEmpty()) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
 	}

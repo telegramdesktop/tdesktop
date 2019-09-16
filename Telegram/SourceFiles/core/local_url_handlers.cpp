@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/local_url_handlers.h"
 
+#include "api/api_text_entities.h"
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "lang/lang_cloud_manager.h"
@@ -337,8 +338,7 @@ bool HandleUnknown(
 	const auto callback = [=](const MTPDhelp_deepLinkInfo &result) {
 		const auto text = TextWithEntities{
 			qs(result.vmessage()),
-			TextUtilities::EntitiesFromMTP(
-				result.ventities().value_or_empty())
+			Api::EntitiesFromMTP(result.ventities().value_or_empty())
 		};
 		if (result.is_update_app()) {
 			const auto box = std::make_shared<QPointer<BoxContent>>();

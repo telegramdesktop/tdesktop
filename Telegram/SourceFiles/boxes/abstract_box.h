@@ -11,7 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "base/flags.h"
 #include "ui/effects/animation_value.h"
+#include "ui/text/text_entity.h"
 #include "ui/rp_widget.h"
+
+class Painter;
 
 namespace style {
 struct RoundButton;
@@ -77,7 +80,7 @@ public:
 
 };
 
-class BoxContent : public Ui::RpWidget, protected base::Subscriber {
+class BoxContent : public Ui::RpWidget {
 	Q_OBJECT
 
 public:
@@ -270,10 +273,7 @@ private:
 
 };
 
-class AbstractBox
-	: public Window::LayerWidget
-	, public BoxContentDelegate
-	, protected base::Subscriber {
+class AbstractBox : public Window::LayerWidget, public BoxContentDelegate {
 public:
 	AbstractBox(
 		not_null<Window::LayerStackWidget*> layer,
@@ -345,7 +345,6 @@ private:
 
 	void paintAdditionalTitle(Painter &p);
 	void updateTitlePosition();
-	void refreshLang();
 
 	[[nodiscard]] bool hasTitle() const;
 	[[nodiscard]] int titleHeight() const;

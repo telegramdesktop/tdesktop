@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/wrap/slide_wrap.h"
 
+#include "styles/style_basic.h"
+
 #include <rpl/combine.h>
 #include <range/v3/algorithm/find.hpp>
 

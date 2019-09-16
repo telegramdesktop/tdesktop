@@ -7,8 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/ui_utility.h"
 
+#include "ui/style/style_core.h"
+
 #include <QtGui/QWindow>
 #include <QtGui/QGuiApplication>
+#include <QtGui/QtEvents>
+
+#include <array>
 
 namespace Ui {
 namespace {
@@ -97,8 +102,8 @@ QPixmap GrabWidget(not_null<QWidget*> target, QRect rect, QColor bg) {
 		rect = target->rect();
 	}
 
-	auto result = QPixmap(rect.size() * cIntRetinaFactor());
-	result.setDevicePixelRatio(cRetinaFactor());
+	auto result = QPixmap(rect.size() * style::DevicePixelRatio());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	if (!target->testAttribute(Qt::WA_OpaquePaintEvent)) {
 		result.fill(bg);
 	}
@@ -116,9 +121,9 @@ QImage GrabWidgetToImage(not_null<QWidget*> target, QRect rect, QColor bg) {
 	}
 
 	auto result = QImage(
-		rect.size() * cIntRetinaFactor(),
+		rect.size() * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	if (!target->testAttribute(Qt::WA_OpaquePaintEvent)) {
 		result.fill(bg);
 	}
@@ -148,6 +153,10 @@ void ForceFullRepaint(not_null<QWidget*> widget) {
 	refresher->show();
 }
 
+void PostponeCall(FnMut<void()> &&callable) {
+	Integration::Instance().postponeCall(std::move(callable));
+}
+
 void SendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPoint &globalPoint) {
 	if (const auto windowHandle = widget->window()->windowHandle()) {
 		const auto localPoint = windowHandle->mapFromGlobal(globalPoint);
@@ -165,6 +174,10 @@ void SendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton 
 		ev.setTimestamp(crl::now());
 		QGuiApplication::sendEvent(windowHandle, &ev);
 	}
+}
+
+QPixmap PixmapFromImage(QImage &&image) {
+	return QPixmap::fromImage(std::move(image), Qt::ColorOnly);
 }
 
 } // namespace Ui
