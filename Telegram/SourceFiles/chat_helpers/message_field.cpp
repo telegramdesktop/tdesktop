@@ -552,28 +552,6 @@ AutocompleteQuery ParseMentionHashtagBotCommandQuery(
 	return result;
 }
 
-QtConnectionOwner::QtConnectionOwner(QMetaObject::Connection connection)
-: _data(connection) {
-}
-
-QtConnectionOwner::QtConnectionOwner(QtConnectionOwner &&other)
-: _data(base::take(other._data)) {
-}
-
-QtConnectionOwner &QtConnectionOwner::operator=(QtConnectionOwner &&other) {
-	disconnect();
-	_data = base::take(other._data);
-	return *this;
-}
-
-void QtConnectionOwner::disconnect() {
-	QObject::disconnect(base::take(_data));
-}
-
-QtConnectionOwner::~QtConnectionOwner() {
-	disconnect();
-}
-
 MessageLinksParser::MessageLinksParser(not_null<Ui::InputField*> field)
 : _field(field)
 , _timer([=] { parse(); }) {

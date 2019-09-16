@@ -73,6 +73,7 @@
       '<(src_loc)/base/qthelp_regex.h',
       '<(src_loc)/base/qthelp_url.cpp',
       '<(src_loc)/base/qthelp_url.h',
+      '<(src_loc)/base/qt_connection.h',
       '<(src_loc)/base/qt_signal_producer.h',
       '<(src_loc)/base/runtime_composer.cpp',
       '<(src_loc)/base/runtime_composer.h',

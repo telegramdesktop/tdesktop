@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/input_fields.h"
 #include "base/timer.h"
+#include "base/qt_connection.h"
 
 #include <QtGui/QClipboard>
 
@@ -59,20 +60,6 @@ struct AutocompleteQuery {
 AutocompleteQuery ParseMentionHashtagBotCommandQuery(
 	not_null<const Ui::InputField*> field);
 
-class QtConnectionOwner final {
-public:
-	QtConnectionOwner(QMetaObject::Connection connection = {});
-	QtConnectionOwner(QtConnectionOwner &&other);
-	QtConnectionOwner &operator=(QtConnectionOwner &&other);
-	~QtConnectionOwner();
-
-private:
-	void disconnect();
-
-	QMetaObject::Connection _data;
-
-};
-
 class MessageLinksParser : private QObject {
 public:
 	MessageLinksParser(not_null<Ui::InputField*> field);
@@ -104,7 +91,7 @@ private:
 	rpl::variable<QStringList> _list;
 	int _lastLength = 0;
 	base::Timer _timer;
-	QtConnectionOwner _connection;
+	base::qt_connection _connection;
 
 };
 
