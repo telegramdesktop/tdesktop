@@ -6,19 +6,16 @@
 
 {
   'includes': [
-    'common.gypi',
+    'common/common.gypi',
   ],
   'targets': [{
     'target_name': 'lib_lz4',
-    'type': 'static_library',
     'includes': [
-      'common.gypi',
-      'telegram_linux.gypi',
+      'common/library.gypi',
     ],
     'variables': {
       'official_build_target%': '',
       'submodules_loc': '../ThirdParty',
-      'libs_loc': '../../../Libraries',
       'lz4_loc': '<(submodules_loc)/lz4/lib',
     },
     'defines': [

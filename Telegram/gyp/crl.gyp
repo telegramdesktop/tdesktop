@@ -6,16 +6,15 @@
 
 {
   'includes': [
-    'common.gypi',
+    'common/common.gypi',
   ],
   'targets': [{
     'target_name': 'crl',
-    'type': 'static_library',
     'dependencies': [
     ],
     'includes': [
-      'common.gypi',
-      'qt.gypi',
+      'common/library.gypi',
+      'modules/qt.gypi',
     ],
     'defines': [
     ],
@@ -33,7 +32,6 @@
     },
     'include_dirs': [
       '../ThirdParty/crl/src',
-      '../SourceFiles',
     ],
     'sources': [
       '<(crl_src_loc)/common/crl_common_config.h',

@@ -16,9 +16,6 @@
       '-lDbgHelp',
       '-lOpenAL32',
       '-lopus',
-      'windows/common',
-      'windows/handler/exception_handler',
-      'windows/crash_generation/crash_generation_client',
     ],
     'msvs_settings': {
       'VCLinkerTool': {
@@ -28,6 +25,9 @@
           'libavutil/libavutil.a',
           'libswresample/libswresample.a',
           'libswscale/libswscale.a',
+          'windows/common.lib',
+          'windows/handler/exception_handler.lib',
+          'windows/crash_generation/crash_generation_client.lib',
         ],
       },
       'VCManifestTool': {

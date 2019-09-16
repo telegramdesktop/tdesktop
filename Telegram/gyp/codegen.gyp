@@ -6,7 +6,7 @@
 
 {
   'includes': [
-    'common.gypi',
+    'common/common.gypi',
   ],
   'targets': [{
     'target_name': 'codegen_lang',
@@ -15,8 +15,8 @@
       'mac_target': '10.10',
     },
     'includes': [
-      'common_executable.gypi',
-      'qt.gypi',
+      'common/executable.gypi',
+      'modules/qt.gypi',
     ],
 
     'include_dirs': [
@@ -52,8 +52,8 @@
       'mac_target': '10.10',
     },
     'includes': [
-      'common_executable.gypi',
-      'qt.gypi',
+      'common/executable.gypi',
+      'modules/qt.gypi',
     ],
     'dependencies': [
       'lib_base.gyp:lib_base',
@@ -95,8 +95,8 @@
       'mac_target': '10.10',
     },
     'includes': [
-      'common_executable.gypi',
-      'qt.gypi',
+      'common/executable.gypi',
+      'modules/qt.gypi',
     ],
 
     'include_dirs': [
@@ -132,8 +132,8 @@
       'mac_target': '10.10',
     },
     'includes': [
-      'common_executable.gypi',
-      'qt.gypi',
+      'common/executable.gypi',
+      'modules/qt.gypi',
     ],
 
     'include_dirs': [

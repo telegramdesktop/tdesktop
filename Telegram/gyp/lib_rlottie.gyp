@@ -6,23 +6,20 @@
 
 {
   'includes': [
-    'common.gypi',
+    'common/common.gypi',
   ],
   'variables': {
     'build_standard_win': 'c++14',
   },
   'targets': [{
     'target_name': 'lib_rlottie',
-    'type': 'static_library',
     'includes': [
-      'common.gypi',
-      'telegram_linux.gypi',
+      'common/library.gypi',
     ],
     'variables': {
       'official_build_target%': '',
       'build_standard_win': 'c++14',
       'submodules_loc': '../ThirdParty',
-      'libs_loc': '../../../Libraries',
       'rlottie_loc': '<(submodules_loc)/rlottie',
       'rlottie_src': '<(rlottie_loc)/src',
     },

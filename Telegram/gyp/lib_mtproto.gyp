@@ -6,22 +6,19 @@
 
 {
   'includes': [
-    'common.gypi',
+    'common/common.gypi',
   ],
   'targets': [{
     'target_name': 'lib_mtproto',
-    'type': 'static_library',
     'includes': [
-      'common.gypi',
-      'qt.gypi',
-      'telegram_linux.gypi',
-      'pch.gypi',
-      'openssl.gypi',
+      'common/library.gypi',
+      'modules/qt.gypi',
+      'modules/pch.gypi',
+      'modules/openssl.gypi',
     ],
     'variables': {
       'src_loc': '../SourceFiles',
       'res_loc': '../Resources',
-      'libs_loc': '../../../Libraries',
       'official_build_target%': '',
       'submodules_loc': '../ThirdParty',
       'pch_source': '<(src_loc)/mtproto/mtp_pch.cpp',

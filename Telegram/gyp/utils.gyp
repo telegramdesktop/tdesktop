@@ -6,17 +6,16 @@
 
 {
   'includes': [
-    'common.gypi',
+    'common/common.gypi',
   ],
   'targets': [{
     'target_name': 'Updater',
     'variables': {
-      'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
       'res_loc': '../Resources',
     },
     'includes': [
-      'common_executable.gypi',
+      'common/executable.gypi',
     ],
 
     'include_dirs': [
@@ -57,13 +56,12 @@
   }, {
     'target_name': 'Packer',
     'variables': {
-      'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
       'mac_target': '10.10',
     },
     'includes': [
-      'common_executable.gypi',
-      'qt.gypi',
+      'common/executable.gypi',
+      'modules/qt.gypi',
     ],
     'conditions': [
       [ 'build_win', {

@@ -6,8 +6,8 @@
 
 {
   'includes': [
-    '../common_executable.gypi',
-    '../qt.gypi',
+    '../common/executable.gypi',
+    '../modules/qt.gypi',
   ],
   'include_dirs': [
     '<(src_loc)',

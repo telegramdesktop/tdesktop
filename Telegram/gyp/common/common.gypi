@@ -6,9 +6,9 @@
 
 {
   'includes': [
-    'settings_win.gypi',
-    'settings_mac.gypi',
-    'settings_linux.gypi',
+    'win.gypi',
+    'mac.gypi',
+    'linux.gypi',
   ],
   'variables': {
     'variables': {
@@ -48,6 +48,7 @@
 
       'official_build_target%': '',
       'build_standard_win%': 'c++17',
+      'libs_loc%': '<(DEPTH)/../../../Libraries',
     },
     'build_os%': '<(build_os)',
     'build_win%': '<(build_win)',
@@ -55,6 +56,7 @@
     'build_linux%': '<(build_linux)',
     'official_build_target%': '<(official_build_target)',
     'build_standard_win%': '<(build_standard_win)',
+    'libs_loc%': '<(libs_loc)',
 
     # GYP does not support per-configuration libraries :(
     # So they will be emulated through additional link flags,

@@ -5,8 +5,8 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 {
+  'type': 'static_library',
   'includes': [
-    'common/common.gypi',
-    'telegram/telegram.gypi',
+    'common.gypi',
   ],
 }

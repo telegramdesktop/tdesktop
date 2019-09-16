@@ -6,7 +6,7 @@
 
 {
   'includes': [
-    'common.gypi',
+    'common/common.gypi',
   ],
   'targets': [{
     'target_name': 'linux_glibc_wraps',

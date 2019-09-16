@@ -6,20 +6,19 @@
 
 {
   'includes': [
-    'common.gypi',
+    'common/common.gypi',
   ],
   'targets': [{
     'target_name': 'lib_ui',
-    'type': 'static_library',
     'hard_dependency': 1,
     'includes': [
-      'common.gypi',
-      'qt.gypi',
-      'qt_moc.gypi',
-      'codegen_styles_rule.gypi',
-      'codegen_rules_ui.gypi',
-      'pch.gypi',
-      'openssl.gypi',
+      'common/library.gypi',
+      'modules/qt.gypi',
+      'modules/qt_moc.gypi',
+      'modules/pch.gypi',
+      'modules/openssl.gypi',
+      'codegen/styles_rule.gypi',
+      'codegen/rules_ui.gypi',
     ],
     'dependencies': [
       'codegen.gyp:codegen_emoji',
@@ -27,10 +26,6 @@
       'crl.gyp:crl',
     ],
     'variables': {
-      'variables': {
-        'libs_loc': '../../../Libraries',
-      },
-      'libs_loc': '<(libs_loc)',
       'src_loc': '../SourceFiles',
       'res_loc': '../Resources',
       'official_build_target%': '',
@@ -44,7 +39,7 @@
       'dependent_style_files': [
       ],
       'style_timestamp': '<(SHARED_INTERMEDIATE_DIR)/update_dependent_styles_ui.timestamp',
-      'list_sources_command': 'python <(DEPTH)/list_sources.py --input <(DEPTH)/lib_ui_sources.txt --replace src_loc=<(src_loc)',
+      'list_sources_command': 'python <(DEPTH)/list_sources.py --input <(DEPTH)/lib_ui/sources.txt --replace src_loc=<(src_loc)',
       'pch_source': '<(src_loc)/ui/ui_pch.cpp',
       'pch_header': '<(src_loc)/ui/ui_pch.h',
     },
@@ -62,7 +57,7 @@
     'sources': [
       '<@(style_files)',
       '<!@(<(list_sources_command) <(qt_moc_list_sources_arg))',
-      'lib_ui_sources.txt',
+      '<(DEPTH)/lib_ui/sources.txt',
     ],
     'sources!': [
       '<!@(<(list_sources_command) <(qt_moc_list_sources_arg) --exclude_for <(build_os))',

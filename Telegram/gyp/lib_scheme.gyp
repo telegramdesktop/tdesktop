@@ -6,15 +6,14 @@
 
 {
   'includes': [
-    'common.gypi',
+    'common/common.gypi',
   ],
   'targets': [{
     'target_name': 'lib_scheme',
-    'type': 'static_library',
     'hard_dependency': 1,
     'includes': [
-      'common.gypi',
-      'qt.gypi',
+      'common/library.gypi',
+      'modules/qt.gypi',
     ],
     'variables': {
       'src_loc': '../SourceFiles',
