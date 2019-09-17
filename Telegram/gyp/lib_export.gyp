@@ -28,10 +28,11 @@
     ],
     'dependencies': [
       'lib_scheme.gyp:lib_scheme',
-      'crl.gyp:crl',
+      'lib_base.gyp:lib_base',
     ],
     'export_dependent_settings': [
       'lib_scheme.gyp:lib_scheme',
+      'lib_base.gyp:lib_base',
     ],
     'conditions': [[ 'build_macold', {
       'xcode_settings': {
@@ -47,7 +48,6 @@
       '<(libs_loc)/range-v3/include',
       '<(submodules_loc)/GSL/include',
       '<(submodules_loc)/variant/include',
-      '<(submodules_loc)/crl/src',
     ],
     'sources': [
       '<(src_loc)/export/export_api_wrap.cpp',

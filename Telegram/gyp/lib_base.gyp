@@ -28,7 +28,10 @@
       'XXH_INLINE_ALL',
     ],
     'dependencies': [
-      'crl.gyp:crl',
+      '../ThirdParty/crl/crl.gyp:crl',
+    ],
+    'export_dependent_settings': [
+      '../ThirdParty/crl/crl.gyp:crl',
     ],
     'include_dirs': [
       '<(src_loc)',
@@ -36,7 +39,6 @@
       '<(libs_loc)/range-v3/include',
       '<(submodules_loc)/GSL/include',
       '<(submodules_loc)/variant/include',
-      '<(submodules_loc)/crl/src',
       '<(submodules_loc)/xxHash',
     ],
     'sources': [

@@ -24,14 +24,12 @@
       'lz4_loc': '<(submodules_loc)/lz4/lib',
     },
     'dependencies': [
-      'crl.gyp:crl',
       'lib_base.gyp:lib_base',
       'lib_rlottie.gyp:lib_rlottie',
       'lib_ffmpeg.gyp:lib_ffmpeg',
       'lib_lz4.gyp:lib_lz4',
     ],
     'export_dependent_settings': [
-      'crl.gyp:crl',
       'lib_base.gyp:lib_base',
       'lib_rlottie.gyp:lib_rlottie',
       'lib_ffmpeg.gyp:lib_ffmpeg',
@@ -50,7 +48,6 @@
       '<(lz4_loc)',
       '<(submodules_loc)/GSL/include',
       '<(submodules_loc)/variant/include',
-      '<(submodules_loc)/crl/src',
     ],
     'sources': [
       '<(src_loc)/lottie/lottie_animation.cpp',

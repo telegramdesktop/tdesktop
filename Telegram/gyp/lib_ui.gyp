@@ -23,7 +23,7 @@
     'dependencies': [
       'codegen.gyp:codegen_emoji',
       'codegen.gyp:codegen_style',
-      'crl.gyp:crl',
+      'lib_base.gyp:lib_base',
     ],
     'variables': {
       'src_loc': '../SourceFiles',
@@ -59,7 +59,6 @@
       '<(libs_loc)/range-v3/include',
       '<(submodules_loc)/GSL/include',
       '<(submodules_loc)/variant/include',
-      '<(submodules_loc)/crl/src',
       '<(emoji_suggestions_loc)',
     ],
     'sources': [

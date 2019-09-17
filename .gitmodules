@@ -10,9 +10,6 @@
 [submodule "Telegram/ThirdParty/Catch"]
 	path = Telegram/ThirdParty/Catch
 	url = https://github.com/philsquared/Catch
-[submodule "Telegram/ThirdParty/crl"]
-	path = Telegram/ThirdParty/crl
-	url = https://github.com/telegramdesktop/crl.git
 [submodule "Telegram/ThirdParty/xxHash"]
 	path = Telegram/ThirdParty/xxHash
 	url = https://github.com/Cyan4973/xxHash.git
@@ -22,3 +19,15 @@
 [submodule "Telegram/ThirdParty/lz4"]
 	path = Telegram/ThirdParty/lz4
 	url = https://github.com/lz4/lz4.git
+[submodule "Telegram/ThirdParty/lib_crl"]
+	path = Telegram/ThirdParty/lib_crl
+	url = https://github.com/desktop-app/lib_crl.git
+[submodule "Telegram/ThirdParty/lib_rpl"]
+	path = Telegram/ThirdParty/lib_rpl
+	url = https://github.com/desktop-app/lib_rpl.git
+[submodule "Telegram/ThirdParty/lib_base"]
+	path = Telegram/ThirdParty/lib_base
+	url = https://github.com/desktop-app/lib_base.git
+[submodule "Telegram/ThirdParty/gyp_helpers"]
+	path = Telegram/ThirdParty/gyp_helpers
+	url = https://github.com/desktop-app/gyp_helpers.git
