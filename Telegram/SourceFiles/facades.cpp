@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/clip/media_clip_reader.h"
 #include "window/window_session_controller.h"
 #include "history/history_item_components.h"
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "observer_peer.h"

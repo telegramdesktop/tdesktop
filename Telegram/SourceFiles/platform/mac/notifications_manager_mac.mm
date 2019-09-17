@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/notifications_manager_mac.h"
 
+#include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
-#include "platform/platform_info.h"
-#include "platform/mac/mac_utilities.h"
+#include "base/platform/mac/base_platform_mac_utilities.h"
 #include "history/history.h"
 #include "ui/empty_userpic.h"
 #include "mainwindow.h"

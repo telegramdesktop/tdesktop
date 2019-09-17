@@ -116,7 +116,6 @@
 <(src_loc)/chat_helpers/emoji_list_widget.h
 <(src_loc)/chat_helpers/emoji_sets_manager.cpp
 <(src_loc)/chat_helpers/emoji_sets_manager.h
-<(src_loc)/chat_helpers/emoji_suggestions_helper.h
 <(src_loc)/chat_helpers/emoji_suggestions_widget.cpp
 <(src_loc)/chat_helpers/emoji_suggestions_widget.h
 <(src_loc)/chat_helpers/field_autocomplete.cpp
@@ -610,8 +609,6 @@
 <(src_loc)/platform/linux/linux_libs.h
 <(src_loc)/platform/linux/file_utilities_linux.cpp
 <(src_loc)/platform/linux/file_utilities_linux.h
-<(src_loc)/platform/linux/info_linux.cpp
-<(src_loc)/platform/linux/info_linux.h
 <(src_loc)/platform/linux/launcher_linux.cpp
 <(src_loc)/platform/linux/launcher_linux.h
 <(src_loc)/platform/linux/main_window_linux.cpp
@@ -622,13 +619,9 @@
 <(src_loc)/platform/linux/specific_linux.h
 <(src_loc)/platform/mac/file_utilities_mac.mm
 <(src_loc)/platform/mac/file_utilities_mac.h
-<(src_loc)/platform/mac/info_mac.mm
-<(src_loc)/platform/mac/info_mac.h
 <(src_loc)/platform/mac/launcher_mac.mm
 <(src_loc)/platform/mac/launcher_mac.h
 <(src_loc)/platform/mac/mac_iconv_helper.c
-<(src_loc)/platform/mac/mac_utilities.mm
-<(src_loc)/platform/mac/mac_utilities.h
 <(src_loc)/platform/mac/main_window_mac.mm
 <(src_loc)/platform/mac/main_window_mac.h
 <(src_loc)/platform/mac/notifications_manager_mac.mm
@@ -645,8 +638,6 @@
 <(src_loc)/platform/win/audio_win.h
 <(src_loc)/platform/win/file_utilities_win.cpp
 <(src_loc)/platform/win/file_utilities_win.h
-<(src_loc)/platform/win/info_win.cpp
-<(src_loc)/platform/win/info_win.h
 <(src_loc)/platform/win/launcher_win.cpp
 <(src_loc)/platform/win/launcher_win.h
 <(src_loc)/platform/win/main_window_win.cpp
@@ -663,11 +654,9 @@
 <(src_loc)/platform/win/windows_dlls.h
 <(src_loc)/platform/win/windows_event_filter.cpp
 <(src_loc)/platform/win/windows_event_filter.h
-<(src_loc)/platform/win/wrapper_windows_h.h
 <(src_loc)/platform/win/wrapper_wrl_implements_h.h
 <(src_loc)/platform/platform_audio.h
 <(src_loc)/platform/platform_file_utilities.h
-<(src_loc)/platform/platform_info.h
 <(src_loc)/platform/platform_launcher.h
 <(src_loc)/platform/platform_main_window.h
 <(src_loc)/platform/platform_notifications_manager.h
@@ -739,8 +728,6 @@
 <(src_loc)/support/support_helper.h
 <(src_loc)/support/support_templates.cpp
 <(src_loc)/support/support_templates.h
-<(src_loc)/ui/effects/fade_animation.cpp
-<(src_loc)/ui/effects/fade_animation.h
 <(src_loc)/ui/effects/radial_animation.cpp
 <(src_loc)/ui/effects/radial_animation.h
 <(src_loc)/ui/effects/round_checkbox.cpp

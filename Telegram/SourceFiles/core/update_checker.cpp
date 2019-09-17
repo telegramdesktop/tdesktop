@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/update_checker.h"
 
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 #include "base/timer.h"
 #include "base/bytes.h"
 #include "base/unixtime.h"

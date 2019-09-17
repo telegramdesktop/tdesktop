@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "chat_helpers/message_field.h"
 #include "boxes/sticker_set_box.h"
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"

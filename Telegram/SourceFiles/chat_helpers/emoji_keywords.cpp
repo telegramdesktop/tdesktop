@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/emoji_keywords.h"
 
-#include "chat_helpers/emoji_suggestions_helper.h"
+#include "emoji_suggestions_helper.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
 #include "core/application.h"
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 #include "ui/emoji_config.h"
 #include "main/main_account.h"
 #include "main/main_session.h"

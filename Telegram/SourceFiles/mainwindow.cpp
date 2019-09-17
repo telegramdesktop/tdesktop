@@ -38,7 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "settings/settings_intro.h"
 #include "platform/platform_notifications_manager.h"
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 #include "window/layer_widget.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"

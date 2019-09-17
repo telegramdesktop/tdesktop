@@ -31,3 +31,9 @@
 [submodule "Telegram/ThirdParty/gyp_helpers"]
 	path = Telegram/ThirdParty/gyp_helpers
 	url = https://github.com/desktop-app/gyp_helpers.git
+[submodule "Telegram/ThirdParty/codegen"]
+	path = Telegram/ThirdParty/codegen
+	url = https://github.com/desktop-app/codegen.git
+[submodule "Telegram/ThirdParty/lib_ui"]
+	path = Telegram/ThirdParty/lib_ui
+	url = https://github.com/desktop-app/lib_ui.git

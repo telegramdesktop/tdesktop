@@ -41,7 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
 #include "chat_helpers/emoji_sets_manager.h"
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 #include "support/support_common.h"
 #include "support/support_templates.h"
 #include "main/main_session.h"

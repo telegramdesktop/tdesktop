@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/localstorage.h"
 #include "platform/platform_window_title.h"
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 #include "history/history.h"
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"

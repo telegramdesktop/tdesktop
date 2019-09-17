@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h" // Ui::IconButton
 #include "ui/wrap/slide_wrap.h" // Ui::SlideWrap
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 #include "lang/lang_keys.h"
 #include "styles/style_window.h"
 

@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_suggestions_widget.h"
 
 #include "chat_helpers/emoji_keywords.h"
-#include "chat_helpers/emoji_suggestions_helper.h"
+#include "emoji_suggestions_helper.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/inner_dropdown.h"

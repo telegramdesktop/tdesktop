@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/layer_widget.h"
 #include "base/unique_qptr.h"
 #include "base/flags.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/widgets/labels.h"
 #include "ui/effects/animation_value.h"
 #include "ui/text/text_entity.h"
 #include "ui/rp_widget.h"
@@ -454,5 +456,20 @@ QPointer<BoxType> show(
 void hideLayer(anim::type animated = anim::type::normal);
 void hideSettingsAndLayer(anim::type animated = anim::type::normal);
 bool isLayerShown();
+
+class DividerLabel : public PaddingWrap<FlatLabel> {
+public:
+	using PaddingWrap::PaddingWrap;
+
+	int naturalWidth() const override;
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+
+private:
+	object_ptr<BoxContentDivider> _background
+		= object_ptr<BoxContentDivider>(this);
+
+};
 
 } // namespace Ui

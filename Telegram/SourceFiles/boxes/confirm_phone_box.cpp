@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "core/click_handler_types.h" // UrlClickHandler
 #include "base/qthelp_url.h" // qthelp::url_encode
-#include "platform/platform_info.h" // Platform::SystemVersionPretty
+#include "base/platform/base_platform_info.h"
 #include "mainwidget.h"
 #include "numbers.h"
 #include "app.h"

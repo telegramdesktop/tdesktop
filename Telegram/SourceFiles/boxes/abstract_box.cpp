@@ -634,4 +634,14 @@ bool isLayerShown() {
 	return false;
 }
 
+int DividerLabel::naturalWidth() const {
+	return -1;
+}
+
+void DividerLabel::resizeEvent(QResizeEvent *e) {
+	_background->lower();
+	_background->setGeometry(rect());
+	return PaddingWrap::resizeEvent(e);
+}
+
 } // namespace Ui
