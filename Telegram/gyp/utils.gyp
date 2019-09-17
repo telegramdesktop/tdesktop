@@ -6,7 +6,7 @@
 
 {
   'includes': [
-    'common/common.gypi',
+    '../ThirdParty/gyp_helpers/common/common.gypi',
   ],
   'targets': [{
     'target_name': 'Updater',
@@ -15,7 +15,7 @@
       'res_loc': '../Resources',
     },
     'includes': [
-      'common/executable.gypi',
+      '../ThirdParty/gyp_helpers/common/executable.gypi',
     ],
 
     'include_dirs': [
@@ -60,8 +60,8 @@
       'mac_target': '10.10',
     },
     'includes': [
-      'common/executable.gypi',
-      'modules/qt.gypi',
+      '../ThirdParty/gyp_helpers/common/executable.gypi',
+      '../ThirdParty/gyp_helpers/modules/qt.gypi',
     ],
     'conditions': [
       [ 'build_win', {

@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QVector>
 #include <QtCore/QString>
 #include <QtCore/QByteArray>
-#include <rpl/details/callable.h>
 #include "base/basic_types.h"
 #include "base/match_method.h"
 #include "base/flags.h"

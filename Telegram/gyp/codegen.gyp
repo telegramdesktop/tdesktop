@@ -6,7 +6,7 @@
 
 {
   'includes': [
-    'common/common.gypi',
+    '../ThirdParty/gyp_helpers/common/common.gypi',
   ],
   'targets': [{
     'target_name': 'codegen_lang',
@@ -15,8 +15,8 @@
       'mac_target': '10.10',
     },
     'includes': [
-      'common/executable.gypi',
-      'modules/qt.gypi',
+      '../ThirdParty/gyp_helpers/common/executable.gypi',
+      '../ThirdParty/gyp_helpers/modules/qt.gypi',
     ],
 
     'include_dirs': [
@@ -52,11 +52,11 @@
       'mac_target': '10.10',
     },
     'includes': [
-      'common/executable.gypi',
-      'modules/qt.gypi',
+      '../ThirdParty/gyp_helpers/common/executable.gypi',
+      '../ThirdParty/gyp_helpers/modules/qt.gypi',
     ],
     'dependencies': [
-      'lib_base.gyp:lib_base',
+      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
     ],
     'include_dirs': [
       '<(src_loc)',
@@ -95,8 +95,8 @@
       'mac_target': '10.10',
     },
     'includes': [
-      'common/executable.gypi',
-      'modules/qt.gypi',
+      '../ThirdParty/gyp_helpers/common/executable.gypi',
+      '../ThirdParty/gyp_helpers/modules/qt.gypi',
     ],
 
     'include_dirs': [
@@ -132,8 +132,8 @@
       'mac_target': '10.10',
     },
     'includes': [
-      'common/executable.gypi',
-      'modules/qt.gypi',
+      '../ThirdParty/gyp_helpers/common/executable.gypi',
+      '../ThirdParty/gyp_helpers/modules/qt.gypi',
     ],
 
     'include_dirs': [

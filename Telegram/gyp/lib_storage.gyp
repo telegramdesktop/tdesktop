@@ -6,21 +6,19 @@
 
 {
   'includes': [
-    'common/common.gypi',
+    '../ThirdParty/gyp_helpers/common/common.gypi',
   ],
   'targets': [{
     'target_name': 'lib_storage',
     'includes': [
-      'common/library.gypi',
-      'modules/openssl.gypi',
-      'modules/qt.gypi',
-      'modules/pch.gypi',
+      '../ThirdParty/gyp_helpers/common/library.gypi',
+      '../ThirdParty/gyp_helpers/modules/openssl.gypi',
+      '../ThirdParty/gyp_helpers/modules/qt.gypi',
+      '../ThirdParty/gyp_helpers/modules/pch.gypi',
     ],
     'variables': {
       'src_loc': '../SourceFiles',
       'res_loc': '../Resources',
-      'official_build_target%': '',
-      'submodules_loc': '../ThirdParty',
       'pch_source': '<(src_loc)/storage/storage_pch.cpp',
       'pch_header': '<(src_loc)/storage/storage_pch.h',
     },
@@ -28,17 +26,13 @@
       'XXH_INLINE_ALL',
     ],
     'dependencies': [
-      'lib_base.gyp:lib_base',
+      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
     ],
     'export_dependent_settings': [
-      'lib_base.gyp:lib_base',
+      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
     ],
     'include_dirs': [
       '<(src_loc)',
-      '<(SHARED_INTERMEDIATE_DIR)',
-      '<(libs_loc)/range-v3/include',
-      '<(submodules_loc)/GSL/include',
-      '<(submodules_loc)/variant/include',
       '<(submodules_loc)/xxHash',
     ],
     'sources': [

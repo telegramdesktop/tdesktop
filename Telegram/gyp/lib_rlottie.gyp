@@ -6,7 +6,7 @@
 
 {
   'includes': [
-    'common/common.gypi',
+    '../ThirdParty/gyp_helpers/common/common.gypi',
   ],
   'variables': {
     'build_standard_win': 'c++14',
@@ -14,12 +14,10 @@
   'targets': [{
     'target_name': 'lib_rlottie',
     'includes': [
-      'common/library.gypi',
+      '../ThirdParty/gyp_helpers/common/library.gypi',
     ],
     'variables': {
-      'official_build_target%': '',
       'build_standard_win': 'c++14',
-      'submodules_loc': '../ThirdParty',
       'rlottie_loc': '<(submodules_loc)/rlottie',
       'rlottie_src': '<(rlottie_loc)/src',
     },

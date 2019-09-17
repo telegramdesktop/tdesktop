@@ -6,7 +6,7 @@
 
 {
   'includes': [
-    'common/common.gypi',
+    '../ThirdParty/gyp_helpers/common/common.gypi',
     'telegram/telegram.gypi',
   ],
 }

@@ -6,20 +6,18 @@
 
 {
   'includes': [
-    'common/common.gypi',
+    '../ThirdParty/gyp_helpers/common/common.gypi',
   ],
   'targets': [{
     'target_name': 'lib_scheme',
     'hard_dependency': 1,
     'includes': [
-      'common/library.gypi',
-      'modules/qt.gypi',
+      '../ThirdParty/gyp_helpers/common/library.gypi',
+      '../ThirdParty/gyp_helpers/modules/qt.gypi',
     ],
     'variables': {
       'src_loc': '../SourceFiles',
       'res_loc': '../Resources',
-      'official_build_target%': '',
-      'submodules_loc': '../ThirdParty',
     },
     'defines': [
     ],
@@ -31,11 +29,22 @@
         '/usr/local/macold/include/c++/v1',
       ],
     }]],
+    'dependencies': [
+      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
+    ],
+    'export_dependent_settings': [
+      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
+    ],
     'include_dirs': [
       '<(src_loc)',
       '<(SHARED_INTERMEDIATE_DIR)',
       '<(submodules_loc)/GSL/include',
     ],
+    'direct_dependent_settings': {
+      'include_dirs': [
+        '<(SHARED_INTERMEDIATE_DIR)',
+      ],
+    },
     'actions': [{
       'action_name': 'codegen_scheme',
       'inputs': [

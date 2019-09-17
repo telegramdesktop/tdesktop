@@ -6,30 +6,28 @@
 
 {
   'includes': [
-    'common/common.gypi',
+    '../ThirdParty/gyp_helpers/common/common.gypi',
   ],
   'targets': [{
     'target_name': 'lib_ui',
     'hard_dependency': 1,
     'includes': [
-      'common/library.gypi',
-      'modules/qt.gypi',
-      'modules/qt_moc.gypi',
-      'modules/pch.gypi',
-      'modules/openssl.gypi',
+      '../ThirdParty/gyp_helpers/common/library.gypi',
+      '../ThirdParty/gyp_helpers/modules/qt.gypi',
+      '../ThirdParty/gyp_helpers/modules/qt_moc.gypi',
+      '../ThirdParty/gyp_helpers/modules/pch.gypi',
+      '../ThirdParty/gyp_helpers/modules/openssl.gypi',
       'codegen/styles_rule.gypi',
       'codegen/rules_ui.gypi',
     ],
     'dependencies': [
       'codegen.gyp:codegen_emoji',
       'codegen.gyp:codegen_style',
-      'lib_base.gyp:lib_base',
+      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
     ],
     'variables': {
       'src_loc': '../SourceFiles',
       'res_loc': '../Resources',
-      'official_build_target%': '',
-      'submodules_loc': '../ThirdParty',
       'emoji_suggestions_loc': '<(submodules_loc)/emoji_suggestions',
       'style_files': [
         '<(res_loc)/colors.palette',
@@ -56,9 +54,6 @@
     'include_dirs': [
       '<(src_loc)',
       '<(SHARED_INTERMEDIATE_DIR)',
-      '<(libs_loc)/range-v3/include',
-      '<(submodules_loc)/GSL/include',
-      '<(submodules_loc)/variant/include',
       '<(emoji_suggestions_loc)',
     ],
     'sources': [

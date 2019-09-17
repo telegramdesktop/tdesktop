@@ -6,18 +6,17 @@
 
 {
   'includes': [
-    '../common/executable.gypi',
-    '../modules/qt.gypi',
+    '../../ThirdParty/gyp_helpers/common/executable.gypi',
+    '../../ThirdParty/gyp_helpers/modules/qt.gypi',
+  ],
+  'dependencies': [
+    '<(submodules_loc)/lib_base/lib_base.gyp:lib_base',
   ],
   'include_dirs': [
     '<(src_loc)',
-    '<(submodules_loc)/GSL/include',
-    '<(submodules_loc)/variant/include',
     '<(submodules_loc)/Catch/include',
-    '<(submodules_loc)/crl/src',
-    '<(libs_loc)/range-v3/include',
   ],
   'sources': [
-    '<(src_loc)/base/tests_main.cpp',
+    '<(submodules_loc)/lib_base/base/tests_main.cpp',
   ],
 }

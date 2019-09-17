@@ -6,16 +6,15 @@
 
 {
   'includes': [
-    'common/common.gypi',
+    '../ThirdParty/gyp_helpers/common/common.gypi',
   ],
   'targets': [{
     'target_name': 'lib_lz4',
     'includes': [
-      'common/library.gypi',
+      '../ThirdParty/gyp_helpers/common/library.gypi',
     ],
     'variables': {
       'official_build_target%': '',
-      'submodules_loc': '../ThirdParty',
       'lz4_loc': '<(submodules_loc)/lz4/lib',
     },
     'defines': [
