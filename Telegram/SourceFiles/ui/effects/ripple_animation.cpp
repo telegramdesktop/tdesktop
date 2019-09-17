@@ -8,7 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 
 #include "ui/effects/animations.h"
-#include "app.h"
+#include "ui/painter.h"
+#include "ui/ui_utility.h"
 
 namespace Ui {
 
@@ -51,11 +52,12 @@ RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, QPoint origin,
 , _frame(mask.size(), QImage::Format_ARGB32_Premultiplied) {
 	_frame.setDevicePixelRatio(mask.devicePixelRatio());
 
+	const auto pixelRatio = style::DevicePixelRatio();
 	QPoint points[] = {
 		{ 0, 0 },
-		{ _frame.width() / cIntRetinaFactor(), 0 },
-		{ _frame.width() / cIntRetinaFactor(), _frame.height() / cIntRetinaFactor() },
-		{ 0, _frame.height() / cIntRetinaFactor() },
+		{ _frame.width() / pixelRatio, 0 },
+		{ _frame.width() / pixelRatio, _frame.height() / pixelRatio },
+		{ 0, _frame.height() / pixelRatio },
 	};
 	for (auto point : points) {
 		accumulate_max(_radiusTo, style::point::dotProduct(_origin - point, _origin - point));
@@ -68,7 +70,9 @@ RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, QPoint origin,
 RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, const QPixmap &mask, Fn<void()> update)
 : _st(st)
 , _update(update)
-, _origin(mask.width() / (2 * cIntRetinaFactor()), mask.height() / (2 * cIntRetinaFactor()))
+, _origin(
+	mask.width() / (2 * style::DevicePixelRatio()),
+	mask.height() / (2 * style::DevicePixelRatio()))
 , _radiusFrom(mask.width() + mask.height())
 , _frame(mask.size(), QImage::Format_ARGB32_Premultiplied) {
 	_frame.setDevicePixelRatio(mask.devicePixelRatio());
@@ -86,7 +90,7 @@ void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, const QCol
 		auto radius = anim::interpolate(_radiusFrom, _radiusTo, _show.value(1.));
 		_frame.fill(Qt::transparent);
 		{
-			Painter p(&_frame);
+			QPainter p(&_frame);
 			p.setPen(Qt::NoPen);
 			if (colorOverride) {
 				p.setBrush(*colorOverride);
@@ -101,7 +105,7 @@ void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, const QCol
 			p.drawPixmap(0, 0, mask);
 		}
 		if (radius == _radiusTo && colorOverride == nullptr) {
-			_cache = App::pixmapFromImageInPlace(std::move(_frame));
+			_cache = PixmapFromImage(std::move(_frame));
 		}
 	}
 	auto saved = p.opacity();
@@ -142,7 +146,7 @@ void RippleAnimation::Ripple::clearCache() {
 
 RippleAnimation::RippleAnimation(const style::RippleAnimation &st, QImage mask, Fn<void()> callback)
 : _st(st)
-, _mask(App::pixmapFromImageInPlace(std::move(mask)))
+, _mask(PixmapFromImage(std::move(mask)))
 , _update(callback) {
 }
 
@@ -189,7 +193,9 @@ void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, const QCo
 		return;
 	}
 
-	if (rtl()) x = outerWidth - x - (_mask.width() / cIntRetinaFactor());
+	if (style::RightToLeft()) {
+		x = outerWidth - x - (_mask.width() / style::DevicePixelRatio());
+	}
 	p.translate(x, y);
 	for (const auto &ripple : _ripples) {
 		ripple->paint(p, _mask, colorOverride);
@@ -199,8 +205,8 @@ void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, const QCo
 }
 
 QImage RippleAnimation::maskByDrawer(QSize size, bool filled, Fn<void(QPainter &p)> drawer) {
-	auto result = QImage(size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	auto result = QImage(size * style::DevicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(filled ? QColor(255, 255, 255) : Qt::transparent);
 	if (drawer) {
 		Painter p(&result);

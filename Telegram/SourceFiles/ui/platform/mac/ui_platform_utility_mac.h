@@ -19,5 +19,9 @@ inline bool TranslucentWindowsSupported(QPoint globalPosition) {
 inline void UpdateOverlayed(not_null<QWidget*> widget) {
 }
 
+inline constexpr bool UseMainQueueGeneric() {
+	return false;
+}
+
 } // namespace Platform
 } // namespace Ui

@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <Cocoa/Cocoa.h>
 
+extern "C" {
+void _dispatch_main_queue_callback_4CF(mach_msg_header_t *msg);
+} // extern "C"
+
 namespace Ui {
 namespace Platform {
 
@@ -82,6 +86,10 @@ void ShowOverAll(not_null<QWidget*> widget, bool canFocus) {
 void BringToBack(not_null<QWidget*> widget) {
 	NSWindow *wnd = [reinterpret_cast<NSView*>(widget->winId()) window];
 	[wnd setLevel:NSModalPanelWindowLevel];
+}
+
+void DrainMainQueue() {
+	_dispatch_main_queue_callback_4CF(nullptr);
 }
 
 } // namespace Platform

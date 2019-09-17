@@ -5,13 +5,18 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "core/main_queue_processor.h"
+#include "ui/main_queue_processor.h"
 
-#include "core/sandbox.h"
-#include "platform/platform_specific.h"
-#include "facades.h"
+#include "base/base_integration.h"
+#include "ui/platform/ui_platform_utility.h"
 
-namespace Core {
+#include <QtCore/QMutex>
+#include <QtCore/QCoreApplication>
+#include <QtGui/QtEvents>
+
+#include <crl/crl_on_main.h>
+
+namespace Ui {
 namespace {
 
 constexpr auto kProcessorEvent = QEvent::Type(QEvent::User + 1);
@@ -47,7 +52,7 @@ void PushToMainQueueGeneric(void (*callable)(void*), void *argument) {
 
 	QMutexLocker lock(&ProcessorMutex);
 	if (ProcessorInstance) {
-		QApplication::postEvent(ProcessorInstance, event.release());
+		QCoreApplication::postEvent(ProcessorInstance, event.release());
 	}
 }
 
@@ -72,13 +77,13 @@ MainQueueProcessor::MainQueueProcessor() {
 		crl::init_main_queue(PushToMainQueueGeneric);
 	} else {
 		crl::wrap_main_queue([](void (*callable)(void*), void *argument) {
-			Sandbox::Instance().customEnterFromEventLoop([&] {
+			base::EnterFromEventLoop([&] {
 				callable(argument);
 			});
 		});
 	}
 
-	Core::Sandbox::Instance().widgetUpdateRequests(
+	crl::on_main_update_requests(
 	) | rpl::start_with_next([] {
 		if constexpr (Platform::UseMainQueueGeneric()) {
 			DrainMainQueueGeneric();
@@ -86,10 +91,6 @@ MainQueueProcessor::MainQueueProcessor() {
 			Platform::DrainMainQueue();
 		}
 	}, _lifetime);
-
-	base::InitObservables([] {
-		Global::RefHandleObservables().call();
-	});
 }
 
 bool MainQueueProcessor::event(QEvent *event) {
@@ -124,4 +125,4 @@ MainQueueProcessor::~MainQueueProcessor() {
 	}
 }
 
-} // namespace
+} // namespace Ui

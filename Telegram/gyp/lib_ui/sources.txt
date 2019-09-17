@@ -2,6 +2,14 @@
 <(src_loc)/ui/effects/animation_value.h
 <(src_loc)/ui/effects/animations.cpp
 <(src_loc)/ui/effects/animations.h
+<(src_loc)/ui/effects/cross_animation.cpp
+<(src_loc)/ui/effects/cross_animation.h
+<(src_loc)/ui/effects/numbers_animation.cpp
+<(src_loc)/ui/effects/numbers_animation.h
+<(src_loc)/ui/effects/panel_animation.cpp
+<(src_loc)/ui/effects/panel_animation.h
+<(src_loc)/ui/effects/ripple_animation.cpp
+<(src_loc)/ui/effects/ripple_animation.h
 <(src_loc)/ui/image/image_prepare.cpp
 <(src_loc)/ui/image/image_prepare.h
 <(src_loc)/ui/platform/ui_platform_utility.h
@@ -36,6 +44,8 @@
 <(src_loc)/ui/text/text_utilities.h
 <(src_loc)/ui/widgets/buttons.cpp
 <(src_loc)/ui/widgets/buttons.h
+<(src_loc)/ui/widgets/checkbox.cpp
+<(src_loc)/ui/widgets/checkbox.h
 <(src_loc)/ui/widgets/dropdown_menu.cpp
 <(src_loc)/ui/widgets/dropdown_menu.h
 <(src_loc)/ui/widgets/inner_dropdown.cpp
@@ -76,6 +86,8 @@
 <(src_loc)/ui/focus_persister.h
 <(src_loc)/ui/inactive_press.cpp
 <(src_loc)/ui/inactive_press.h
+<(src_loc)/ui/main_queue_processor.cpp
+<(src_loc)/ui/main_queue_processor.h
 <(src_loc)/ui/painter.h
 <(src_loc)/ui/round_rect.cpp
 <(src_loc)/ui/round_rect.h

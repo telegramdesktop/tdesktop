@@ -27,6 +27,9 @@ void UpdateOverlayed(not_null<QWidget*> widget);
 void ShowOverAll(not_null<QWidget*> widget, bool canFocus = true);
 void BringToBack(not_null<QWidget*> widget);
 
+[[nodiscard]] constexpr bool UseMainQueueGeneric();
+void DrainMainQueue(); // Needed only if UseMainQueueGeneric() is false.
+
 } // namespace Platform
 } // namespace Ui
 

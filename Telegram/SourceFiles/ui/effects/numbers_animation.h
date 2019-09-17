@@ -28,7 +28,7 @@ public:
 	void setText(const QString &text, int value);
 	void finishAnimating();
 
-	void paint(Painter &p, int x, int y, int outerWidth);
+	void paint(QPainter &p, int x, int y, int outerWidth);
 	int countWidth() const;
 	int maxWidth() const;
 
@@ -108,28 +108,3 @@ private:
 };
 
 } // namespace Ui
-
-namespace Lang {
-
-template <typename ResultString>
-struct StartReplacements;
-
-template <>
-struct StartReplacements<Ui::StringWithNumbers> {
-	static inline Ui::StringWithNumbers Call(QString &&langString) {
-		return { std::move(langString) };
-	}
-};
-
-template <typename ResultString>
-struct ReplaceTag;
-
-template <>
-struct ReplaceTag<Ui::StringWithNumbers> {
-	static Ui::StringWithNumbers Call(
-		Ui::StringWithNumbers &&original,
-		ushort tag,
-		const Ui::StringWithNumbers &replacement);
-};
-
-} // namespace Lang

@@ -353,26 +353,3 @@ void SetClipboardText(
 	QClipboard::Mode mode = QClipboard::Clipboard);
 
 } // namespace TextUtilities
-
-namespace Lang {
-
-template <typename ResultString>
-struct StartReplacements;
-
-template <>
-struct StartReplacements<TextWithEntities> {
-	static inline TextWithEntities Call(QString &&langString) {
-		return { std::move(langString), EntitiesInText() };
-	}
-};
-
-template <typename ResultString>
-struct ReplaceTag;
-
-template <>
-struct ReplaceTag<TextWithEntities> {
-	static TextWithEntities Call(TextWithEntities &&original, ushort tag, const TextWithEntities &replacement);
-
-};
-
-} // namespace Lang

@@ -105,6 +105,7 @@ private:
 	int _loopNestingLevel = 0;
 	std::vector<int> _previousLoopNestingLevels;
 	std::vector<PostponedCall> _postponedCalls;
+	SingleQueuedInvokation _handleObservables;
 
 	not_null<Launcher*> _launcher;
 	std::unique_ptr<Application> _application;

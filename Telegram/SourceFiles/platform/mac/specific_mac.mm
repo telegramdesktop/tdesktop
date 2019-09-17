@@ -34,10 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <mach-o/dyld.h>
 #include <AVFoundation/AVFoundation.h>
 
-extern "C" {
-void _dispatch_main_queue_callback_4CF(mach_msg_header_t *msg);
-} // extern "C"
-
 namespace {
 
 QStringList _initLogs;
@@ -130,10 +126,6 @@ void RemoveQuarantine(const QString &path) {
 	DEBUG_LOG(("Removing quarantine attribute: %1").arg(path));
 	const auto local = QFile::encodeName(path);
 	removexattr(local.data(), kQuarantineAttribute, 0);
-}
-
-void DrainMainQueue() {
-	_dispatch_main_queue_callback_4CF(nullptr);
 }
 
 void RegisterCustomScheme() {
@@ -261,7 +253,7 @@ std::optional<crl::time> LastUserInputTime() {
 void IgnoreApplicationActivationRightNow() {
 	objc_ignoreApplicationActivationRightNow();
 }
-	
+
 } // namespace Platform
 
 void psNewVersion() {

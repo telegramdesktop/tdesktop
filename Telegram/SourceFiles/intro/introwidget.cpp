@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/introwidget.h"
 
 #include "lang/lang_keys.h"
-#include "storage/localstorage.h"
 #include "lang/lang_file_parser.h"
+#include "storage/localstorage.h"
 #include "intro/introstart.h"
 #include "intro/introphone.h"
 #include "intro/introcode.h"

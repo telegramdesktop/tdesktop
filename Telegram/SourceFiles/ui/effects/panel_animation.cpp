@@ -8,12 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/panel_animation.h"
 
 #include "ui/effects/animation_value.h"
-#include "app.h"
+#include "ui/ui_utility.h"
+
+#include <QtGui/QPainter>
 
 namespace Ui {
 
 void RoundShadowAnimation::start(int frameWidth, int frameHeight, float64 devicePixelRatio) {
-	Assert(!started());
+	Expects(!started());
+
 	_frameWidth = frameWidth;
 	_frameHeight = frameHeight;
 	_frame = QImage(_frameWidth, _frameHeight, QImage::Format_ARGB32_Premultiplied);
@@ -27,7 +30,7 @@ void RoundShadowAnimation::start(int frameWidth, int frameHeight, float64 device
 }
 
 void RoundShadowAnimation::setShadow(const style::Shadow &st) {
-	_shadow.extend = st.extend * cIntRetinaFactor();
+	_shadow.extend = st.extend * style::DevicePixelRatio();
 	_shadow.left = cloneImage(st.left);
 	if (_shadow.valid()) {
 		_shadow.topLeft = cloneImage(st.topLeft);
@@ -64,7 +67,8 @@ void RoundShadowAnimation::setCornerMasks(
 }
 
 void RoundShadowAnimation::setCornerMask(Corner &corner, const QImage &image) {
-	Assert(!started());
+	Expects(!started());
+
 	corner.image = image;
 	if (corner.valid()) {
 		corner.width = corner.image.width();
@@ -82,11 +86,13 @@ void RoundShadowAnimation::setCornerMask(Corner &corner, const QImage &image) {
 QImage RoundShadowAnimation::cloneImage(const style::icon &source) {
 	if (source.empty()) return QImage();
 
-	auto result = QImage(source.size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	auto result = QImage(
+		source.size() * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(Qt::transparent);
 	{
-		Painter p(&result);
+		QPainter p(&result);
 		source.paint(p, 0, 0, source.width());
 	}
 	return result;
@@ -218,22 +224,26 @@ void RoundShadowAnimation::paintShadowHorizontal(int left, int right, int top, c
 }
 
 void PanelAnimation::setFinalImage(QImage &&finalImage, QRect inner) {
-	Assert(!started());
-	_finalImage = App::pixmapFromImageInPlace(std::move(finalImage).convertToFormat(QImage::Format_ARGB32_Premultiplied));
+	Expects(!started());
+
+	const auto pixelRatio = style::DevicePixelRatio();
+	_finalImage = PixmapFromImage(
+		std::move(finalImage).convertToFormat(
+			QImage::Format_ARGB32_Premultiplied));
 
 	Assert(!_finalImage.isNull());
 	_finalWidth = _finalImage.width();
 	_finalHeight = _finalImage.height();
-	Assert(!(_finalWidth % cIntRetinaFactor()));
-	Assert(!(_finalHeight % cIntRetinaFactor()));
+	Assert(!(_finalWidth % pixelRatio));
+	Assert(!(_finalHeight % pixelRatio));
 	_finalInnerLeft = inner.x();
 	_finalInnerTop = inner.y();
 	_finalInnerWidth = inner.width();
 	_finalInnerHeight = inner.height();
-	Assert(!(_finalInnerLeft % cIntRetinaFactor()));
-	Assert(!(_finalInnerTop % cIntRetinaFactor()));
-	Assert(!(_finalInnerWidth % cIntRetinaFactor()));
-	Assert(!(_finalInnerHeight % cIntRetinaFactor()));
+	Assert(!(_finalInnerLeft % pixelRatio));
+	Assert(!(_finalInnerTop % pixelRatio));
+	Assert(!(_finalInnerWidth % pixelRatio));
+	Assert(!(_finalInnerHeight % pixelRatio));
 	_finalInnerRight = _finalInnerLeft + _finalInnerWidth;
 	_finalInnerBottom = _finalInnerTop + _finalInnerHeight;
 	Assert(QRect(0, 0, _finalWidth, _finalHeight).contains(inner));
@@ -285,14 +295,14 @@ void PanelAnimation::setStartFadeTop() {
 
 void PanelAnimation::createFadeMask() {
 	auto resultHeight = qRound(_finalImage.height() * _st.fadeHeight);
-	if (auto remove = (resultHeight % cIntRetinaFactor())) {
+	if (auto remove = (resultHeight % style::DevicePixelRatio())) {
 		resultHeight -= remove;
 	}
 	auto finalAlpha = qRound(_st.fadeOpacity * 255);
 	Assert(finalAlpha >= 0 && finalAlpha < 256);
-	auto result = QImage(cIntRetinaFactor(), resultHeight, QImage::Format_ARGB32_Premultiplied);
+	auto result = QImage(style::DevicePixelRatio(), resultHeight, QImage::Format_ARGB32_Premultiplied);
 	auto ints = reinterpret_cast<uint32*>(result.bits());
-	auto intsPerLineAdded = (result.bytesPerLine() >> 2) - cIntRetinaFactor();
+	auto intsPerLineAdded = (result.bytesPerLine() >> 2) - style::DevicePixelRatio();
 	auto up = (_origin == PanelAnimation::Origin::BottomLeft || _origin == PanelAnimation::Origin::BottomRight);
 	auto from = up ? resultHeight : 0, to = resultHeight - from, delta = up ? -1 : 1;
 	auto fadeFirstAlpha = up ? (finalAlpha + 1) : 1;
@@ -302,12 +312,12 @@ void PanelAnimation::createFadeMask() {
 	for (auto y = from; y != to; y += delta) {
 		auto alpha = static_cast<uint32>(finalAlpha * y) / resultHeight;
 		auto value = (0xFFU << 24) | (alpha << 16) | (alpha << 8) | alpha;
-		for (auto x = 0; x != cIntRetinaFactor(); ++x) {
+		for (auto x = 0; x != style::DevicePixelRatio(); ++x) {
 			*ints++ = value;
 		}
 		ints += intsPerLineAdded;
 	}
-	_fadeMask = App::pixmapFromImageInPlace(style::colorizeImage(result, _st.fadeBg));
+	_fadeMask = PixmapFromImage(style::colorizeImage(result, _st.fadeBg));
 	_fadeHeight = _fadeMask.height();
 }
 
@@ -356,16 +366,18 @@ void PanelAnimation::paintFrame(QPainter &p, int x, int y, int outerWidth, float
 	Assert(started());
 	Assert(dt >= 0.);
 
+	const auto pixelRatio = style::DevicePixelRatio();
+
 	auto &transition = anim::easeOutCirc;
 	if (dt < _alphaDuration) opacity *= transition(1., dt / _alphaDuration);
 	_frameAlpha = anim::interpolate(1, 256, opacity);
 
 	auto frameWidth = (_startWidth < 0 || dt >= _widthDuration) ? _finalInnerWidth : anim::interpolate(_startWidth, _finalInnerWidth, transition(1., dt / _widthDuration));
 	auto frameHeight = (_startHeight < 0 || dt >= _heightDuration) ? _finalInnerHeight : anim::interpolate(_startHeight, _finalInnerHeight, transition(1., dt / _heightDuration));
-	if (auto decrease = (frameWidth % cIntRetinaFactor())) {
+	if (auto decrease = (frameWidth % pixelRatio)) {
 		frameWidth -= decrease;
 	}
-	if (auto decrease = (frameHeight % cIntRetinaFactor())) {
+	if (auto decrease = (frameHeight % pixelRatio)) {
 		frameHeight -= decrease;
 	}
 	auto frameLeft = (_origin == Origin::TopLeft || _origin == Origin::BottomLeft) ? _finalInnerLeft : (_finalInnerRight - frameWidth);
@@ -373,11 +385,11 @@ void PanelAnimation::paintFrame(QPainter &p, int x, int y, int outerWidth, float
 	auto frameRight = frameLeft + frameWidth;
 	auto frameBottom = frameTop + frameHeight;
 
-	auto fadeTop = (_fadeHeight > 0) ? snap(anim::interpolate(_startFadeTop, _finalInnerHeight, transition(1., dt)), 0, frameHeight) : frameHeight;
-	if (auto decrease = (fadeTop % cIntRetinaFactor())) {
+	auto fadeTop = (_fadeHeight > 0) ? std::clamp(anim::interpolate(_startFadeTop, _finalInnerHeight, transition(1., dt)), 0, frameHeight) : frameHeight;
+	if (auto decrease = (fadeTop % pixelRatio)) {
 		fadeTop -= decrease;
 	}
-	auto fadeBottom = (fadeTop < frameHeight) ? qMin(fadeTop + _fadeHeight, frameHeight) : frameHeight;
+	auto fadeBottom = (fadeTop < frameHeight) ? std::min(fadeTop + _fadeHeight, frameHeight) : frameHeight;
 	auto fadeSkipLines = 0;
 	if (_origin == Origin::BottomLeft || _origin == Origin::BottomRight) {
 		fadeTop = frameHeight - fadeTop;
@@ -392,21 +404,21 @@ void PanelAnimation::paintFrame(QPainter &p, int x, int y, int outerWidth, float
 		_frame.fill(Qt::transparent);
 	}
 	{
-		Painter p(&_frame);
+		QPainter p(&_frame);
 		p.setOpacity(opacity);
-		auto painterFrameLeft = frameLeft / cIntRetinaFactor();
-		auto painterFrameTop = frameTop / cIntRetinaFactor();
-		auto painterFadeBottom = fadeBottom / cIntRetinaFactor();
+		auto painterFrameLeft = frameLeft / pixelRatio;
+		auto painterFrameTop = frameTop / pixelRatio;
+		auto painterFadeBottom = fadeBottom / pixelRatio;
 		p.drawPixmap(painterFrameLeft, painterFrameTop, _finalImage, frameLeft, frameTop, frameWidth, frameHeight);
 		if (_fadeHeight) {
 			if (frameTop != fadeTop) {
 				p.fillRect(painterFrameLeft, painterFrameTop, frameWidth, fadeTop - frameTop, _fadeFirst);
 			}
 			if (fadeTop != fadeBottom) {
-				auto painterFadeTop = fadeTop / cIntRetinaFactor();
-				auto painterFrameWidth = frameWidth / cIntRetinaFactor();
-				auto painterFrameHeight = frameHeight / cIntRetinaFactor();
-				p.drawPixmap(painterFrameLeft, painterFadeTop, painterFrameWidth, painterFadeBottom - painterFadeTop, _fadeMask, 0, fadeSkipLines, cIntRetinaFactor(), fadeBottom - fadeTop);
+				auto painterFadeTop = fadeTop / pixelRatio;
+				auto painterFrameWidth = frameWidth / pixelRatio;
+				auto painterFrameHeight = frameHeight / pixelRatio;
+				p.drawPixmap(painterFrameLeft, painterFadeTop, painterFrameWidth, painterFadeBottom - painterFadeTop, _fadeMask, 0, fadeSkipLines, pixelRatio, fadeBottom - fadeTop);
 			}
 			if (fadeBottom != frameBottom) {
 				p.fillRect(painterFrameLeft, painterFadeBottom, frameWidth, frameBottom - fadeBottom, _fadeLast);
@@ -433,18 +445,18 @@ void PanelAnimation::paintFrame(QPainter &p, int x, int y, int outerWidth, float
 		outerRight += _shadow.extend.right();
 		outerBottom += _shadow.extend.bottom();
 	}
-	if (cIntRetinaFactor() > 1) {
-		if (auto skipLeft = (outerLeft % cIntRetinaFactor())) {
+	if (pixelRatio > 1) {
+		if (auto skipLeft = (outerLeft % pixelRatio)) {
 			outerLeft -= skipLeft;
 		}
-		if (auto skipTop = (outerTop % cIntRetinaFactor())) {
+		if (auto skipTop = (outerTop % pixelRatio)) {
 			outerTop -= skipTop;
 		}
-		if (auto skipRight = (outerRight % cIntRetinaFactor())) {
-			outerRight += (cIntRetinaFactor() - skipRight);
+		if (auto skipRight = (outerRight % pixelRatio)) {
+			outerRight += (pixelRatio - skipRight);
 		}
-		if (auto skipBottom = (outerBottom % cIntRetinaFactor())) {
-			outerBottom += (cIntRetinaFactor() - skipBottom);
+		if (auto skipBottom = (outerBottom % pixelRatio)) {
+			outerBottom += (pixelRatio - skipBottom);
 		}
 	}
 
@@ -494,7 +506,7 @@ void PanelAnimation::paintFrame(QPainter &p, int x, int y, int outerWidth, float
 	//	frameInts += _frameIntsPerLineAdded;
 	//}
 
-	p.drawImage(style::rtlpoint(x + (outerLeft / cIntRetinaFactor()), y + (outerTop / cIntRetinaFactor()), outerWidth), _frame, QRect(outerLeft, outerTop, outerRight - outerLeft, outerBottom - outerTop));
+	p.drawImage(style::rtlpoint(x + (outerLeft / pixelRatio), y + (outerTop / pixelRatio), outerWidth), _frame, QRect(outerLeft, outerTop, outerRight - outerLeft, outerBottom - outerTop));
 }
 
 } // namespace Ui

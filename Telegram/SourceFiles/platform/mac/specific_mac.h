@@ -20,10 +20,6 @@ QString CurrentExecutablePath(int argc, char *argv[]);
 
 void RemoveQuarantine(const QString &path);
 
-inline constexpr bool UseMainQueueGeneric() {
-	return false;
-}
-
 namespace ThirdParty {
 
 inline void start() {

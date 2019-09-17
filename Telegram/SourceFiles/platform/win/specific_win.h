@@ -24,10 +24,6 @@ QString CurrentExecutablePath(int argc, char *argv[]);
 inline void IgnoreApplicationActivationRightNow() {
 }
 
-inline constexpr bool UseMainQueueGeneric() {
-	return true;
-}
-
 namespace ThirdParty {
 
 void start();

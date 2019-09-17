@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 
 #include "lang/lang_instance.h"
+#include "lang/lang_file_parser.h"
+#include "lang/lang_text_entity.h"
 #include "mtproto/mtp_instance.h"
 #include "storage/localstorage.h"
 #include "core/application.h"
@@ -17,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/labels.h"
 #include "ui/text/text_utilities.h"
-#include "lang/lang_file_parser.h"
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h"
 #include "app.h"

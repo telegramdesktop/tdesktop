@@ -10,11 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_launcher.h"
 #include "platform/platform_specific.h"
 #include "platform/platform_info.h"
+#include "ui/main_queue_processor.h"
 #include "core/crash_reports.h"
-#include "core/main_queue_processor.h"
 #include "core/update_checker.h"
 #include "core/sandbox.h"
 #include "base/concurrent_timer.h"
+#include "facades.h"
 
 namespace Core {
 namespace {
@@ -453,7 +454,7 @@ void Launcher::processArguments() {
 int Launcher::executeApplication() {
 	FilteredCommandLineArguments arguments(_argc, _argv);
 	Sandbox sandbox(this, arguments.count(), arguments.values());
-	MainQueueProcessor processor;
+	Ui::MainQueueProcessor processor;
 	base::ConcurrentTimerEnvironment environment;
 	return sandbox.start();
 }

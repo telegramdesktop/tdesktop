@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Core {
+namespace Ui {
 
 class MainQueueProcessor : public QObject {
 public:
@@ -25,4 +25,4 @@ private:
 
 };
 
-} // namespace Core
+} // namespace Ui

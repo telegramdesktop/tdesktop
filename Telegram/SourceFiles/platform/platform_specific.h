@@ -40,9 +40,6 @@ bool OpenSystemSettings(SystemSettingsType type);
 }
 
 void IgnoreApplicationActivationRightNow();
-	
-[[nodiscard]] constexpr bool UseMainQueueGeneric();
-void DrainMainQueue(); // Needed only if UseMainQueueGeneric() is false.
 
 namespace ThirdParty {
 

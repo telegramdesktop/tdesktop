@@ -29,10 +29,6 @@ inline std::optional<crl::time> LastUserInputTime() {
 inline void IgnoreApplicationActivationRightNow() {
 }
 
-inline constexpr bool UseMainQueueGeneric() {
-	return true;
-}
-
 } // namespace Platform
 
 inline QString psServerPrefix() {

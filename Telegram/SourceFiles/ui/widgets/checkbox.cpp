@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/checkbox.h"
 
-#include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
-#include "app.h"
+#include "ui/ui_utility.h"
+
+#include <QtGui/QtEvents>
 
 namespace Ui {
 namespace {
@@ -624,14 +625,16 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 
 QPixmap Checkbox::grabCheckCache() const {
 	auto checkSize = _check->getSize();
-	auto image = QImage(checkSize * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	auto image = QImage(
+		checkSize * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
 	image.fill(Qt::transparent);
-	image.setDevicePixelRatio(cRetinaFactor());
+	image.setDevicePixelRatio(style::DevicePixelRatio());
 	{
 		Painter p(&image);
 		_check->paint(p, 0, 0, checkSize.width());
 	}
-	return App::pixmapFromImageInPlace(std::move(image));
+	return PixmapFromImage(std::move(image));
 }
 
 void Checkbox::onStateChanged(State was, StateChangeSource source) {
