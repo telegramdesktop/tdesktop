@@ -817,6 +817,10 @@ void Instance::checkUniversalImages() {
 void Instance::generateCache() {
 	checkUniversalImages();
 
+	const auto cachePath = internal::CacheFileFolder();
+	if (cachePath.isEmpty()) {
+		return;
+	}
 	const auto size = _size;
 	const auto index = _sprites.size();
 	crl::async([
