@@ -6,29 +6,27 @@
 
 {
   'includes': [
-    '../ThirdParty/gyp_helpers/common/common.gypi',
+    'helpers/common/common.gypi',
   ],
   'targets': [{
     'target_name': 'lib_lottie',
     'includes': [
-      '../ThirdParty/gyp_helpers/common/library.gypi',
-      '../ThirdParty/gyp_helpers/modules/openssl.gypi',
-      '../ThirdParty/gyp_helpers/modules/qt.gypi',
+      'helpers/common/library.gypi',
+      'helpers/modules/openssl.gypi',
+      'helpers/modules/qt.gypi',
     ],
     'variables': {
       'src_loc': '../SourceFiles',
       'res_loc': '../Resources',
-      'rlottie_loc': '<(submodules_loc)/rlottie/inc',
-      'lz4_loc': '<(submodules_loc)/lz4/lib',
     },
     'dependencies': [
-      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
+      '<(submodules_loc)/lib_base/lib_base.gyp:lib_base',
       'lib_rlottie.gyp:lib_rlottie',
       'lib_ffmpeg.gyp:lib_ffmpeg',
       'lib_lz4.gyp:lib_lz4',
     ],
     'export_dependent_settings': [
-      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
+      '<(submodules_loc)/lib_base/lib_base.gyp:lib_base',
       'lib_rlottie.gyp:lib_rlottie',
       'lib_ffmpeg.gyp:lib_ffmpeg',
       'lib_lz4.gyp:lib_lz4',
@@ -39,9 +37,6 @@
     'include_dirs': [
       '<(src_loc)',
       '<(libs_loc)/zlib',
-      '<(libs_loc)/ffmpeg',
-      '<(rlottie_loc)',
-      '<(lz4_loc)',
     ],
     'sources': [
       '<(src_loc)/lottie/lottie_animation.cpp',

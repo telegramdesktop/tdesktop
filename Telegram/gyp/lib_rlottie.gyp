@@ -6,7 +6,7 @@
 
 {
   'includes': [
-    '../ThirdParty/gyp_helpers/common/common.gypi',
+    'helpers/common/common.gypi',
   ],
   'variables': {
     'build_standard_win': 'c++14',
@@ -14,11 +14,11 @@
   'targets': [{
     'target_name': 'lib_rlottie',
     'includes': [
-      '../ThirdParty/gyp_helpers/common/library.gypi',
+      'helpers/common/library.gypi',
     ],
     'variables': {
       'build_standard_win': 'c++14',
-      'rlottie_loc': '<(submodules_loc)/rlottie',
+      'rlottie_loc': '<(third_party_loc)/rlottie',
       'rlottie_src': '<(rlottie_loc)/src',
     },
     'defines': [
@@ -33,6 +33,11 @@
       '<(rlottie_src)/vector/pixman',
       '<(rlottie_src)/vector/freetype',
     ],
+    'direct_dependent_settings': {
+      'include_dirs': [
+        '<(rlottie_loc)/inc',
+      ],
+    },
     'sources': [
       '<(rlottie_loc)/inc/rlottie.h',
       '<(rlottie_loc)/inc/rlottie_capi.h',

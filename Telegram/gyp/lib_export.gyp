@@ -6,15 +6,15 @@
 
 {
   'includes': [
-    '../ThirdParty/gyp_helpers/common/common.gypi',
+    'helpers/common/common.gypi',
   ],
   'targets': [{
     'target_name': 'lib_export',
     'type': 'static_library',
     'includes': [
-      '../ThirdParty/gyp_helpers/common/library.gypi',
-      '../ThirdParty/gyp_helpers/modules/qt.gypi',
-      '../ThirdParty/gyp_helpers/modules/pch.gypi',
+      'helpers/common/library.gypi',
+      'helpers/modules/qt.gypi',
+      'helpers/modules/pch.gypi',
     ],
     'variables': {
       'src_loc': '../SourceFiles',
@@ -27,11 +27,11 @@
     ],
     'dependencies': [
       'lib_scheme.gyp:lib_scheme',
-      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
+      '<(submodules_loc)/lib_base/lib_base.gyp:lib_base',
     ],
     'export_dependent_settings': [
       'lib_scheme.gyp:lib_scheme',
-      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
+      '<(submodules_loc)/lib_base/lib_base.gyp:lib_base',
     ],
     'conditions': [[ 'build_macold', {
       'xcode_settings': {

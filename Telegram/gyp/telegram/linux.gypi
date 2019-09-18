@@ -19,7 +19,11 @@
         #'xkbcommon',
       ],
     },
+    'dependencies': [
+      '<(DEPTH)/linux_glibc_wraps.gyp:linux_glibc_wraps',
+    ],
     'libraries': [
+      '<(PRODUCT_DIR)/obj.target/liblinux_glibc_wraps.a',
       '-lbreakpad_client',
       '-lcomposeplatforminputcontextplugin',
       '-libusplatforminputcontextplugin',

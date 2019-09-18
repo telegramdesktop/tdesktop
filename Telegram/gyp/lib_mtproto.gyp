@@ -6,15 +6,15 @@
 
 {
   'includes': [
-    '../ThirdParty/gyp_helpers/common/common.gypi',
+    'helpers/common/common.gypi',
   ],
   'targets': [{
     'target_name': 'lib_mtproto',
     'includes': [
-      '../ThirdParty/gyp_helpers/common/library.gypi',
-      '../ThirdParty/gyp_helpers/modules/qt.gypi',
-      '../ThirdParty/gyp_helpers/modules/pch.gypi',
-      '../ThirdParty/gyp_helpers/modules/openssl.gypi',
+      'helpers/common/library.gypi',
+      'helpers/modules/qt.gypi',
+      'helpers/modules/pch.gypi',
+      'helpers/modules/openssl.gypi',
     ],
     'variables': {
       'src_loc': '../SourceFiles',

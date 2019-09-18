@@ -6,14 +6,14 @@
 
 {
   'includes': [
-    '../ThirdParty/gyp_helpers/common/common.gypi',
+    'helpers/common/common.gypi',
   ],
   'targets': [{
     'target_name': 'lib_scheme',
     'hard_dependency': 1,
     'includes': [
-      '../ThirdParty/gyp_helpers/common/library.gypi',
-      '../ThirdParty/gyp_helpers/modules/qt.gypi',
+      'helpers/common/library.gypi',
+      'helpers/modules/qt.gypi',
     ],
     'variables': {
       'src_loc': '../SourceFiles',
@@ -30,10 +30,10 @@
       ],
     }]],
     'dependencies': [
-      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
+      '<(submodules_loc)/lib_base/lib_base.gyp:lib_base',
     ],
     'export_dependent_settings': [
-      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
+      '<(submodules_loc)/lib_base/lib_base.gyp:lib_base',
     ],
     'include_dirs': [
       '<(src_loc)',

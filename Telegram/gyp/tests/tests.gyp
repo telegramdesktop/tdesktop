@@ -6,7 +6,7 @@
 
 {
   'includes': [
-    '../../ThirdParty/gyp_helpers/common/common.gypi',
+    '../helpers/common/common.gypi',
   ],
   'variables': {
     'src_loc': '../../SourceFiles',
@@ -19,7 +19,7 @@
     'target_name': 'tests',
     'type': 'none',
     'includes': [
-      '../../ThirdParty/gyp_helpers/common/common.gypi',
+      '../helpers/common/common.gypi',
     ],
     'dependencies': [
       '<!@(<(list_tests_command))',
@@ -122,7 +122,7 @@
     'target_name': 'tests_storage',
     'includes': [
       'common_test.gypi',
-      '../../ThirdParty/gyp_helpers/modules/openssl.gypi',
+      '../helpers/modules/openssl.gypi',
     ],
     'dependencies': [
       '../lib_storage.gyp:lib_storage',

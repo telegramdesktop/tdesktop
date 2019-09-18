@@ -6,10 +6,17 @@
 
 {
   'conditions': [[ 'build_mac', {
+    'mac_hardened_runtime': 1,
+    'mac_bundle': '1',
+    'mac_bundle_resources': [
+      '<!@(python -c "for s in \'<@(langpacks)\'.split(\' \'): print(\'<(res_loc)/langs/\' + s + \'.lproj/Localizable.strings\')")',
+      '../Telegram/Images.xcassets',
+    ],
     'xcode_settings': {
       'INFOPLIST_FILE': '../Telegram.plist',
       'CURRENT_PROJECT_VERSION': '<!(./print_version.sh)',
       'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIcon',
+      'ENABLE_HARDENED_RUNTIME': 'YES',
       'OTHER_LDFLAGS': [
         '-lbsm',
         '-lm',
@@ -21,6 +28,9 @@
     ],
     'library_dirs': [
       '/usr/local/lib',
+    ],
+    'sources': [
+      '../Telegram/Telegram.entitlements',
     ],
     'configurations': {
       'Debug': {
@@ -185,6 +195,12 @@
       ],
     }],
   }], [ 'build_macstore', {
+    'mac_sandbox': 1,
+    'mac_sandbox_development_team': '6N38VWS5BX',
+    'product_name': 'Telegram Desktop',
+    'sources': [
+      '../Telegram/Telegram Desktop.entitlements',
+    ],
     'xcode_settings': {
       'PRODUCT_BUNDLE_IDENTIFIER': 'org.telegram.desktop',
       'OTHER_LDFLAGS': [

@@ -6,23 +6,23 @@
 
 {
   'includes': [
-    '../ThirdParty/gyp_helpers/common/common.gypi',
+    'helpers/common/common.gypi',
   ],
   'targets': [{
     'target_name': 'lib_ffmpeg',
     'includes': [
-      '../ThirdParty/gyp_helpers/common/library.gypi',
-      '../ThirdParty/gyp_helpers/modules/qt.gypi',
+      'helpers/common/library.gypi',
+      'helpers/modules/qt.gypi',
     ],
     'variables': {
       'src_loc': '../SourceFiles',
       'res_loc': '../Resources',
     },
     'dependencies': [
-      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
+      '<(submodules_loc)/lib_base/lib_base.gyp:lib_base',
     ],
     'export_dependent_settings': [
-      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
+      '<(submodules_loc)/lib_base/lib_base.gyp:lib_base',
     ],
     'defines': [
     ],
@@ -30,6 +30,11 @@
       '<(src_loc)',
       '<(libs_loc)/ffmpeg',
     ],
+    'direct_dependent_settings': {
+      'include_dirs': [
+        '<(libs_loc)/ffmpeg',
+      ],
+    },
     'sources': [
       '<(src_loc)/ffmpeg/ffmpeg_utility.cpp',
       '<(src_loc)/ffmpeg/ffmpeg_utility.h',

@@ -19,21 +19,21 @@
 [submodule "Telegram/ThirdParty/lz4"]
 	path = Telegram/ThirdParty/lz4
 	url = https://github.com/lz4/lz4.git
-[submodule "Telegram/ThirdParty/lib_crl"]
-	path = Telegram/ThirdParty/lib_crl
+[submodule "Telegram/lib_crl"]
+	path = Telegram/lib_crl
 	url = https://github.com/desktop-app/lib_crl.git
-[submodule "Telegram/ThirdParty/lib_rpl"]
-	path = Telegram/ThirdParty/lib_rpl
+[submodule "Telegram/lib_rpl"]
+	path = Telegram/lib_rpl
 	url = https://github.com/desktop-app/lib_rpl.git
-[submodule "Telegram/ThirdParty/lib_base"]
-	path = Telegram/ThirdParty/lib_base
+[submodule "Telegram/lib_base"]
+	path = Telegram/lib_base
 	url = https://github.com/desktop-app/lib_base.git
-[submodule "Telegram/ThirdParty/gyp_helpers"]
-	path = Telegram/ThirdParty/gyp_helpers
+[submodule "Telegram/gyp/helpers"]
+	path = Telegram/gyp/helpers
 	url = https://github.com/desktop-app/gyp_helpers.git
-[submodule "Telegram/ThirdParty/codegen"]
-	path = Telegram/ThirdParty/codegen
+[submodule "Telegram/codegen"]
+	path = Telegram/codegen
 	url = https://github.com/desktop-app/codegen.git
-[submodule "Telegram/ThirdParty/lib_ui"]
-	path = Telegram/ThirdParty/lib_ui
+[submodule "Telegram/lib_ui"]
+	path = Telegram/lib_ui
 	url = https://github.com/desktop-app/lib_ui.git

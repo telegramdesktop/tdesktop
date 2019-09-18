@@ -6,15 +6,15 @@
 
 {
   'includes': [
-    '../ThirdParty/gyp_helpers/common/common.gypi',
+    'helpers/common/common.gypi',
   ],
   'targets': [{
     'target_name': 'lib_storage',
     'includes': [
-      '../ThirdParty/gyp_helpers/common/library.gypi',
-      '../ThirdParty/gyp_helpers/modules/openssl.gypi',
-      '../ThirdParty/gyp_helpers/modules/qt.gypi',
-      '../ThirdParty/gyp_helpers/modules/pch.gypi',
+      'helpers/common/library.gypi',
+      'helpers/modules/openssl.gypi',
+      'helpers/modules/qt.gypi',
+      'helpers/modules/pch.gypi',
     ],
     'variables': {
       'src_loc': '../SourceFiles',
@@ -26,14 +26,14 @@
       'XXH_INLINE_ALL',
     ],
     'dependencies': [
-      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
+      '<(submodules_loc)/lib_base/lib_base.gyp:lib_base',
     ],
     'export_dependent_settings': [
-      '../ThirdParty/lib_base/lib_base.gyp:lib_base',
+      '<(submodules_loc)/lib_base/lib_base.gyp:lib_base',
     ],
     'include_dirs': [
       '<(src_loc)',
-      '<(submodules_loc)/xxHash',
+      '<(third_party_loc)/xxHash',
     ],
     'sources': [
       '<(src_loc)/storage/storage_clear_legacy.cpp',

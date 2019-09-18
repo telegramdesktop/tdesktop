@@ -6,21 +6,21 @@
 
 {
   'includes': [
-    '../ThirdParty/gyp_helpers/common/common.gypi',
+    'helpers/common/common.gypi',
   ],
   'targets': [{
     'target_name': 'linux_glibc_wraps',
     'type': 'static_library',
     'sources': [
-      '../SourceFiles/platform/linux/linux_glibc_wraps.c',
+      '<(src_loc)/platform/linux/linux_glibc_wraps.c',
     ],
     'conditions': [[ '"<!(uname -m)" == "x86_64" or "<!(uname -m)" == "aarch64"', {
       'sources': [
-        '../SourceFiles/platform/linux/linux_glibc_wraps_64.c',
+        '<(src_loc)/platform/linux/linux_glibc_wraps_64.c',
       ],
     }, {
       'sources': [
-        '../SourceFiles/platform/linux/linux_glibc_wraps_32.c',
+        '<(src_loc)/platform/linux/linux_glibc_wraps_32.c',
       ],
     }]],
   }],
