@@ -300,7 +300,7 @@ void BlockedBoxController::BlockNewUser(
 	};
 	Ui::show(
 		Box<PeerListBox>(std::move(controller), std::move(initBox)),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 bool BlockedBoxController::appendRow(not_null<UserData*> user) {
@@ -521,7 +521,7 @@ void LastSeenPrivacyController::confirmSave(
 			tr::lng_continue(tr::now),
 			tr::lng_cancel(tr::now),
 			std::move(callback));
-		*weakBox = Ui::show(std::move(box), LayerOption::KeepOther);
+		*weakBox = Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 	} else {
 		saveCallback();
 	}

@@ -126,7 +126,7 @@ void MainMenu::ResetScaleButton::paintEvent(QPaintEvent *e) {
 MainMenu::MainMenu(
 	QWidget *parent,
 	not_null<SessionController*> controller)
-: RpWidget(parent)
+: LayerWidget(parent)
 , _controller(controller)
 , _menu(this, st::mainMenu)
 , _telegram(this, st::mainMenuTelegramLabel)
@@ -196,7 +196,7 @@ MainMenu::MainMenu(
 		}
 	});
 
-	resize(st::mainMenuWidth, parentWidget()->height());
+	parentResized();
 	_menu->setTriggeredCallback([](QAction *action, int actionTop, Ui::Menu::TriggeredSource source) {
 		emit action->triggered();
 	});
@@ -235,6 +235,10 @@ MainMenu::MainMenu(
 	}, lifetime());
 	updatePhone();
 	initResetScaleButton();
+}
+
+void MainMenu::parentResized() {
+	resize(st::mainMenuWidth, parentWidget()->height());
 }
 
 void MainMenu::refreshMenu() {

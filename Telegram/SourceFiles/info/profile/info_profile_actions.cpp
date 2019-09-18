@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/box_content_divider.h"
+#include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "history/history_location_manager.h" // LocationClickHandler.
@@ -26,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/report_box.h"
-#include "boxes/generic_box.h" // window->show(Box(InitMethod()))
 #include "boxes/peers/edit_contact_box.h"
 #include "lang/lang_keys.h"
 #include "info/info_controller.h"
@@ -465,7 +466,7 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 }
 
 object_ptr<Ui::RpWidget> DetailsFiller::fill() {
-	add(object_ptr<BoxContentDivider>(_wrap));
+	add(object_ptr<Ui::BoxContentDivider>(_wrap));
 	add(CreateSkipWidget(_wrap));
 	add(setupInfo());
 	if (!_peer->isSelf()) {
@@ -746,7 +747,7 @@ object_ptr<Ui::RpWidget> ActionsFiller::fill() {
 //}
 //
 //object_ptr<Ui::RpWidget> FeedDetailsFiller::fill() {
-//	add(object_ptr<BoxContentDivider>(_wrap));
+//	add(object_ptr<Ui::BoxContentDivider>(_wrap));
 //	add(CreateSkipWidget(_wrap));
 //	add(setupDefaultToggle());
 //	add(CreateSkipWidget(_wrap));
@@ -853,7 +854,7 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 	);
 
 	auto members = result->entity();
-	members->add(object_ptr<BoxContentDivider>(members));
+	members->add(object_ptr<Ui::BoxContentDivider>(members));
 	members->add(CreateSkipWidget(members));
 	auto button = AddActionButton(
 		members,

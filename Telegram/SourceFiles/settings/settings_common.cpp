@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/box_content_divider.h"
 #include "info/profile/info_profile_button.h"
 #include "boxes/abstract_box.h"
 #include "window/themes/window_theme_editor_box.h"
@@ -25,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
 namespace Settings {
@@ -64,7 +65,7 @@ void AddSkip(not_null<Ui::VerticalLayout*> container, int skip) {
 }
 
 void AddDivider(not_null<Ui::VerticalLayout*> container) {
-	container->add(object_ptr<BoxContentDivider>(container));
+	container->add(object_ptr<Ui::BoxContentDivider>(container));
 }
 
 void AddDividerText(

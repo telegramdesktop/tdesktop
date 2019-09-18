@@ -93,7 +93,7 @@ std::unique_ptr<Window::SectionMemento> SectionWidget::createMemento() {
 	return _content->createMemento();
 }
 
-object_ptr<Window::LayerWidget> SectionWidget::moveContentToLayer(
+object_ptr<Ui::LayerWidget> SectionWidget::moveContentToLayer(
 		QRect bodyGeometry) {
 	if (_content->controller()->wrap() != Wrap::Narrow
 		|| width() < LayerWidget::MinimalSupportedWidth()) {

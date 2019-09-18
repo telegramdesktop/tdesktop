@@ -22,7 +22,7 @@ namespace Main {
 class Session;
 } // namespace Main
 
-class SessionsBox : public BoxContent, private MTP::Sender {
+class SessionsBox : public Ui::BoxContent, private MTP::Sender {
 public:
 	SessionsBox(QWidget*, not_null<Main::Session*> session);
 

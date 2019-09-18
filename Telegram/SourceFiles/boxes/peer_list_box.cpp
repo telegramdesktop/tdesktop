@@ -7,10 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peer_list_box.h"
 
-#include <rpl/range.h>
-#include "styles/style_boxes.h"
-#include "styles/style_dialogs.h"
-#include "styles/style_widgets.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "ui/widgets/multi_select.h"
@@ -30,6 +26,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "base/unixtime.h"
 #include "window/themes/window_theme.h"
+#include "styles/style_layers.h"
+#include "styles/style_boxes.h"
+#include "styles/style_dialogs.h"
+#include "styles/style_widgets.h"
+
+#include <rpl/range.h>
 
 auto PaintUserpicCallback(
 	not_null<PeerData*> peer,

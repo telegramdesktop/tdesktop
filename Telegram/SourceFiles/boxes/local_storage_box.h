@@ -28,7 +28,7 @@ class LabelSimple;
 class MediaSlider;
 } // namespace Ui
 
-class LocalStorageBox : public BoxContent {
+class LocalStorageBox : public Ui::BoxContent {
 	struct CreateTag {
 	};
 

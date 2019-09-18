@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
+#include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "data/data_peer.h"
@@ -23,11 +24,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "main/main_session.h"
 #include "boxes/confirm_box.h"
-#include "boxes/generic_box.h" // window->show(Box(InitMethod()))
 #include "boxes/peers/edit_contact_box.h"
 #include "app.h"
 #include "styles/style_history.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace HistoryView {
 namespace {
@@ -313,7 +313,7 @@ void ContactStatus::setupBlockHandler(not_null<UserData*> user) {
 void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 	_bar.entity()->shareClicks(
 	) | rpl::start_with_next([=] {
-		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 		const auto share = [=] {
 			user->setSettings(0);
 			user->session().api().request(MTPcontacts_AcceptContact(
@@ -349,7 +349,7 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 	) | rpl::start_with_next([=] {
 		Expects(!peer->isUser());
 
-		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 		const auto callback = crl::guard(&_bar, [=] {
 			if (*box) {
 				(*box)->closeBox();

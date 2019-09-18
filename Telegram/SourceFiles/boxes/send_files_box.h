@@ -48,7 +48,7 @@ enum class SendFilesWay {
 	Files,
 };
 
-class SendFilesBox : public BoxContent {
+class SendFilesBox : public Ui::BoxContent {
 public:
 	enum class SendLimit {
 		One,

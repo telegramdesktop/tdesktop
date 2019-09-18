@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/generic_box.h"
 #include "data/data_cloud_themes.h"
+#include "ui/layers/generic_box.h"
 #include "ui/widgets/checkbox.h"
 #include "base/unique_qptr.h"
 #include "base/binary_guard.h"

@@ -47,9 +47,12 @@ struct FormRequest;
 class FormController;
 } // namespace Passport
 
+namespace Ui {
+class LayerWidget;
+} // namespace Ui
+
 namespace Window {
 
-class LayerWidget;
 class MainWindow;
 class SectionMemento;
 class Controller;
@@ -244,7 +247,7 @@ public:
 	}
 
 	void showSpecialLayer(
-		object_ptr<LayerWidget> &&layer,
+		object_ptr<Ui::LayerWidget> &&layer,
 		anim::type animated = anim::type::normal);
 	void hideSpecialLayer(
 			anim::type animated = anim::type::normal) {

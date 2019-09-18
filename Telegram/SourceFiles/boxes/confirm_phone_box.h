@@ -85,7 +85,7 @@ private:
 
 };
 
-class ConfirmPhoneBox : public BoxContent, public RPCSender {
+class ConfirmPhoneBox : public Ui::BoxContent, public RPCSender {
 public:
 	static void start(const QString &phone, const QString &hash);
 

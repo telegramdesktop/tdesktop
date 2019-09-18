@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "window/themes/window_theme.h"
 #include "boxes/connection_box.h"
+#include "boxes/abstract_box.h"
 #include "lang/lang_keys.h"
 #include "facades.h"
 #include "app.h"

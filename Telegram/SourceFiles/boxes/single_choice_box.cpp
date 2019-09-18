@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 SingleChoiceBox::SingleChoiceBox(
 	QWidget*,

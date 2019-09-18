@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_settings.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
 #include <QtCore/QBuffer>
@@ -673,13 +674,13 @@ void StartEditor(
 }
 
 void CreateBox(
-		not_null<GenericBox*> box,
+		not_null<Ui::GenericBox*> box,
 		not_null<Window::Controller*> window) {
 	CreateForExistingBox(box, window, Data::CloudTheme());
 }
 
 void CreateForExistingBox(
-		not_null<GenericBox*> box,
+		not_null<Ui::GenericBox*> box,
 		not_null<Window::Controller*> window,
 		const Data::CloudTheme &cloud) {
 	const auto userId = window->account().sessionExists()
@@ -807,7 +808,7 @@ QByteArray CollectForExport(const QByteArray &palette) {
 }
 
 void SaveThemeBox(
-		not_null<GenericBox*> box,
+		not_null<Ui::GenericBox*> box,
 		not_null<Window::Controller*> window,
 		const Data::CloudTheme &cloud,
 		const QByteArray &palette) {

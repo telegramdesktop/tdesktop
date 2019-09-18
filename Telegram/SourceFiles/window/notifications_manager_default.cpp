@@ -19,9 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "dialogs/dialogs_layout.h"
 #include "window/themes/window_theme.h"
-#include "styles/style_dialogs.h"
-#include "styles/style_boxes.h"
-#include "styles/style_window.h"
 #include "storage/file_download.h"
 #include "main/main_session.h"
 #include "history/history.h"
@@ -29,6 +26,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "facades.h"
 #include "app.h"
+#include "styles/style_dialogs.h"
+#include "styles/style_layers.h"
+#include "styles/style_window.h"
 
 #include <QtCore/QCoreApplication>
 

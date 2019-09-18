@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/toast/toast.h"
 #include "mainwindow.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
 

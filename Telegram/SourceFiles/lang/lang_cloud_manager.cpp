@@ -22,12 +22,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h"
 #include "app.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace Lang {
 namespace {
 
-class ConfirmSwitchBox : public BoxContent {
+class ConfirmSwitchBox : public Ui::BoxContent {
 public:
 	ConfirmSwitchBox(
 		QWidget*,
@@ -46,7 +46,7 @@ private:
 
 };
 
-class NotReadyBox : public BoxContent {
+class NotReadyBox : public Ui::BoxContent {
 public:
 	NotReadyBox(
 		QWidget*,
@@ -349,7 +349,7 @@ bool CloudManager::showOfferSwitchBox() {
 			tr::lng_cancel(tr::now),
 			confirm,
 			cancel),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 	return true;
 }
 
@@ -471,7 +471,7 @@ void CloudManager::switchToLanguage(const Language &data) {
 					tr::lng_box_ok(tr::now),
 					tr::lng_cancel(tr::now),
 					[=] { performSwitchAndRestart(data); }),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 		}).fail([=](const RPCError &error) {
 			_switchingToLanguageRequest = 0;
 		}).send();
@@ -515,12 +515,12 @@ void CloudManager::performSwitchToCustom() {
 						tr::lng_box_ok(tr::now),
 						tr::lng_cancel(tr::now),
 						change),
-					LayerOption::KeepOther);
+					Ui::LayerOption::KeepOther);
 			}
 		} else {
 			Ui::show(
 				Box<InformBox>("Custom lang failed :(\n\nError: " + loader.errors()),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 		}
 	});
 }

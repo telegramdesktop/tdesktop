@@ -3003,7 +3003,7 @@ void HistoryWidget::sendScheduled() {
 	const auto callback = [=](Api::SendOptions options) { send(options); };
 	Ui::show(
 		HistoryView::PrepareScheduleBox(_list, sendMenuType(), callback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 SendMenuType HistoryWidget::sendMenuType() const {
@@ -5725,7 +5725,7 @@ bool HistoryWidget::sendExistingDocument(not_null<DocumentData*> document) {
 		? Data::RestrictionError(_peer, ChatRestriction::f_send_stickers)
 		: std::nullopt;
 	if (error) {
-		Ui::show(Box<InformBox>(*error), LayerOption::KeepOther);
+		Ui::show(Box<InformBox>(*error), Ui::LayerOption::KeepOther);
 		return false;
 	} else if (!_peer || !_peer->canWrite()) {
 		return false;
@@ -5756,7 +5756,7 @@ bool HistoryWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
 		? Data::RestrictionError(_peer, ChatRestriction::f_send_media)
 		: std::nullopt;
 	if (error) {
-		Ui::show(Box<InformBox>(*error), LayerOption::KeepOther);
+		Ui::show(Box<InformBox>(*error), Ui::LayerOption::KeepOther);
 		return false;
 	} else if (!_peer || !_peer->canWrite()) {
 		return false;

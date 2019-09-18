@@ -74,13 +74,13 @@ void SuggestPhoto(
 		|| badAspect(image.height(), image.width())) {
 		Ui::show(
 			Box<InformBox>(tr::lng_bad_photo(tr::now)),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 		return;
 	}
 
 	const auto box = Ui::show(
 		Box<PhotoCropBox>(image, title),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 	box->ready(
 	) | rpl::start_with_next(
 		std::forward<Callback>(callback),

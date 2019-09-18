@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "info/profile/info_profile_icon.h"
 #include "styles/style_passport.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace Passport {
 

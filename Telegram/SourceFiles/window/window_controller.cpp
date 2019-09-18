@@ -9,7 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "main/main_account.h"
-#include "window/layer_widget.h"
+#include "ui/layers/box_content.h"
+#include "ui/layers/layer_widget.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
@@ -75,8 +76,8 @@ void Controller::showSettings() {
 }
 
 void Controller::showBox(
-		object_ptr<BoxContent> content,
-		LayerOptions options,
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options,
 		anim::type animated) {
 	_widget.ui_showBox(std::move(content), options, animated);
 }

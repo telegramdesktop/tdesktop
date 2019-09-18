@@ -21,14 +21,14 @@ namespace Ui {
 class PlainShadow;
 } // namespace Ui
 
-class StickerSetBox : public BoxContent, public RPCSender {
+class StickerSetBox : public Ui::BoxContent, public RPCSender {
 public:
 	StickerSetBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
 		const MTPInputStickerSet &set);
 
-	static QPointer<BoxContent> Show(
+	static QPointer<Ui::BoxContent> Show(
 		not_null<Window::SessionController*> controller,
 		not_null<DocumentData*> document);
 

@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "boxes/confirm_box.h"
 #include "boxes/url_auth_box.h"
-#include "window/layer_widget.h"
+#include "ui/layers/layer_widget.h"
 #include "lang/lang_keys.h"
 #include "base/observer.h"
 #include "history/history.h"

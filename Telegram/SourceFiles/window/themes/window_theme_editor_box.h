@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/generic_box.h"
+#include "ui/layers/generic_box.h"
 
 namespace Data {
 struct CloudTheme;
@@ -26,10 +26,10 @@ void StartEditor(
 	not_null<Window::Controller*> window,
 	const Data::CloudTheme &cloud);
 void CreateBox(
-	not_null<GenericBox*> box,
+	not_null<Ui::GenericBox*> box,
 	not_null<Window::Controller*> window);
 void CreateForExistingBox(
-	not_null<GenericBox*> box,
+	not_null<Ui::GenericBox*> box,
 	not_null<Window::Controller*> window,
 	const Data::CloudTheme &cloud);
 void SaveTheme(
@@ -38,7 +38,7 @@ void SaveTheme(
 	const QByteArray &palette,
 	Fn<void()> unlock);
 void SaveThemeBox(
-	not_null<GenericBox*> box,
+	not_null<Ui::GenericBox*> box,
 	not_null<Window::Controller*> window,
 	const Data::CloudTheme &cloud,
 	const QByteArray &palette);

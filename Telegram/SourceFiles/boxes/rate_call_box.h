@@ -20,7 +20,7 @@ namespace Main {
 class Session;
 } // namespace Main
 
-class RateCallBox : public BoxContent, private MTP::Sender {
+class RateCallBox : public Ui::BoxContent, private MTP::Sender {
 public:
 	RateCallBox(
 		QWidget*,

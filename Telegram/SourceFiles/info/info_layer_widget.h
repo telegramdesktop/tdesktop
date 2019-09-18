@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "window/layer_widget.h"
+#include "ui/layers/layer_widget.h"
 #include "media/player/media_player_float.h"
 
 namespace Window {
@@ -22,7 +22,7 @@ class WrapWidget;
 class TopBar;
 
 class LayerWidget
-	: public Window::LayerWidget
+	: public Ui::LayerWidget
 	, private ::Media::Player::FloatDelegate {
 public:
 	LayerWidget(

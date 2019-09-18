@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_countries.h"
 #include "layout.h"
 #include "app.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace Passport {
 namespace {
@@ -568,41 +568,6 @@ ScanInfo::ScanInfo(
 , error(error) {
 }
 
-BoxPointer::BoxPointer(QPointer<BoxContent> value)
-: _value(value) {
-}
-
-BoxPointer::BoxPointer(BoxPointer &&other)
-: _value(base::take(other._value)) {
-}
-
-BoxPointer &BoxPointer::operator=(BoxPointer &&other) {
-	std::swap(_value, other._value);
-	return *this;
-}
-
-BoxPointer::~BoxPointer() {
-	if (const auto strong = get()) {
-		strong->closeBox();
-	}
-}
-
-BoxContent *BoxPointer::get() const {
-	return _value.data();
-}
-
-BoxPointer::operator BoxContent*() const {
-	return get();
-}
-
-BoxPointer::operator bool() const {
-	return get();
-}
-
-BoxContent *BoxPointer::operator->() const {
-	return get();
-}
-
 PanelController::PanelController(not_null<FormController*> form)
 : _form(form)
 , _scopes(ComputeScopes(_form->form())) {
@@ -750,7 +715,7 @@ void PanelController::setupPassword() {
 }
 
 void PanelController::cancelPasswordSubmit() {
-	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	*box = show(Box<ConfirmBox>(
 		tr::lng_passport_stop_password_sure(tr::now),
 		tr::lng_passport_stop(tr::now),
@@ -926,7 +891,7 @@ void PanelController::deleteValueSure(bool withDetails) {
 }
 
 void PanelController::suggestReset(Fn<void()> callback) {
-	_resetBox = BoxPointer(show(Box<ConfirmBox>(
+	_resetBox = Ui::BoxPointer(show(Box<ConfirmBox>(
 		Lang::Hard::PassportCorrupted(),
 		Lang::Hard::PassportCorruptedReset(),
 		[=] { resetPassport(callback); },
@@ -940,7 +905,7 @@ void PanelController::resetPassport(Fn<void()> callback) {
 		st::attentionBoxButton,
 		[=] { base::take(_resetBox); callback(); },
 		[=] { suggestReset(callback); }));
-	_resetBox = BoxPointer(box.data());
+	_resetBox = Ui::BoxPointer(box.data());
 }
 
 void PanelController::cancelReset() {
@@ -986,7 +951,7 @@ void PanelController::showUpdateAppBox() {
 			tr::lng_menu_update(tr::now),
 			callback,
 			[=] { _form->cancelSure(); }),
-		LayerOption::KeepOther,
+		Ui::LayerOption::KeepOther,
 		anim::type::instant);
 }
 
@@ -1104,7 +1069,7 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 	const auto widget = _panel->widget();
 	EditScans::ChooseScan(widget.get(), type, [=](QByteArray &&content) {
 		if (_scopeDocumentTypeBox) {
-			_scopeDocumentTypeBox = BoxPointer();
+			_scopeDocumentTypeBox = Ui::BoxPointer();
 		}
 		if (!_editScope || !_editDocument) {
 			startScopeEdit(index, documentIndex);
@@ -1462,8 +1427,8 @@ void PanelController::cancelAuthSure() {
 }
 
 void PanelController::showBox(
-		object_ptr<BoxContent> box,
-		LayerOptions options,
+		object_ptr<Ui::BoxContent> box,
+		Ui::LayerOptions options,
 		anim::type animated) {
 	_panel->showBox(std::move(box), options, animated);
 }

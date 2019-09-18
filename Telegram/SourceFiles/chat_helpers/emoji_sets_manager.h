@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace Emoji {
 
-class ManageSetsBox : public BoxContent {
+class ManageSetsBox : public Ui::BoxContent {
 public:
 	explicit ManageSetsBox(QWidget*);
 

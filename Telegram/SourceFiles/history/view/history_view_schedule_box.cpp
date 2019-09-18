@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/padding_wrap.h"
 #include "chat_helpers/message_field.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "styles/style_history.h"
 
 namespace HistoryView {
@@ -542,7 +542,7 @@ TimeId DefaultScheduleTime() {
 }
 
 void ScheduleBox(
-		not_null<GenericBox*> box,
+		not_null<Ui::GenericBox*> box,
 		SendMenuType type,
 		FnMut<void(Api::SendOptions)> done,
 		TimeId time) {

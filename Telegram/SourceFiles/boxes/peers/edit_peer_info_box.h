@@ -28,7 +28,7 @@ class Button;
 } // namespace Profile
 } // namespace Info
 
-class EditPeerInfoBox : public BoxContent {
+class EditPeerInfoBox : public Ui::BoxContent {
 public:
 	EditPeerInfoBox(
 		QWidget*,

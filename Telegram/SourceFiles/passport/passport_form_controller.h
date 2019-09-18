@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "core/core_cloud_password.h"
 
-class BoxContent;
 class mtpFileLoader;
 
 namespace Storage {

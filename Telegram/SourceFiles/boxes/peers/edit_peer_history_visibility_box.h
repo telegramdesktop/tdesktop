@@ -15,7 +15,7 @@ enum class HistoryVisibility {
 	Hidden,
 };
 
-class EditPeerHistoryVisibilityBox : public BoxContent {
+class EditPeerHistoryVisibilityBox : public Ui::BoxContent {
 public:
 	EditPeerHistoryVisibilityBox(
 		QWidget*,

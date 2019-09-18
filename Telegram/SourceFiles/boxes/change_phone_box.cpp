@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "app.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
 namespace {
@@ -61,7 +62,7 @@ void createErrorLabel(
 
 } // namespace
 
-class ChangePhoneBox::EnterPhone : public BoxContent {
+class ChangePhoneBox::EnterPhone : public Ui::BoxContent {
 public:
 	EnterPhone(QWidget*, not_null<Main::Session*> session);
 
@@ -89,7 +90,7 @@ private:
 
 };
 
-class ChangePhoneBox::EnterCode : public BoxContent {
+class ChangePhoneBox::EnterCode : public Ui::BoxContent {
 public:
 	EnterCode(
 		QWidget*,
@@ -214,7 +215,7 @@ void ChangePhoneBox::EnterPhone::sendPhoneDone(const QString &phoneNumber, const
 			phoneCodeHash,
 			codeLength,
 			callTimeout),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 bool ChangePhoneBox::EnterPhone::sendPhoneFail(const QString &phoneNumber, const RPCError &error) {

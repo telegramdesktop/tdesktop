@@ -595,7 +595,7 @@ void CloudList::showMenu(Element &element) {
 	}
 	const auto id = cloud.id;
 	_contextMenu->addAction(tr::lng_theme_delete(tr::now), [=] {
-		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 		const auto remove = [=] {
 			if (*box) {
 				(*box)->closeBox();

@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-class PhotoCropBox : public BoxContent {
+class PhotoCropBox : public Ui::BoxContent {
 public:
 	PhotoCropBox(QWidget*, const QImage &img, const QString &title);
 

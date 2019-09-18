@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "app.h"
 #include "styles/style_history.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 
@@ -1981,7 +1982,7 @@ void SendFilesBox::sendScheduled() {
 	const auto callback = [=](Api::SendOptions options) { send(options); };
 	Ui::show(
 		HistoryView::PrepareScheduleBox(this, _sendMenuType, callback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 SendFilesBox::~SendFilesBox() = default;

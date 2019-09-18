@@ -82,7 +82,7 @@ void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	toast.multiline = true;
 	toast.padding = st::stickersToastPadding;
 	Ui::Toast::Show(toast);
-//	Ui::show(Box<StickersBox>(archived, &Auth()), LayerOption::KeepOther);
+//	Ui::show(Box<StickersBox>(archived, &Auth()), Ui::LayerOption::KeepOther);
 
 	Auth().data().notifyStickersUpdated();
 }
@@ -187,7 +187,7 @@ void UndoInstallLocally(uint64 setId) {
 
 	Ui::show(
 		Box<InformBox>(tr::lng_stickers_not_found(tr::now)),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 bool IsFaved(not_null<const DocumentData*> document) {

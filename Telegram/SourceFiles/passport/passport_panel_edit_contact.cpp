@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/box_content_divider.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
@@ -26,12 +27,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "app.h"
 #include "styles/style_passport.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace Passport {
 namespace {
 
-class VerifyBox : public BoxContent {
+class VerifyBox : public Ui::BoxContent {
 public:
 	VerifyBox(
 		QWidget*,
@@ -231,7 +232,7 @@ void PanelEditContact::setupControls(
 		_content->resizeToWidth(width);
 	}, _content->lifetime());
 
-	_content->add(object_ptr<BoxContentDivider>(
+	_content->add(object_ptr<Ui::BoxContentDivider>(
 		_content,
 		st::passportFormDividerHeight));
 	if (!existing.isEmpty()) {
@@ -389,7 +390,7 @@ void PanelEditContact::save(const QString &value) {
 	_controller->saveScope(std::move(data), {});
 }
 
-object_ptr<BoxContent> VerifyPhoneBox(
+object_ptr<Ui::BoxContent> VerifyPhoneBox(
 		const QString &phone,
 		int codeLength,
 		Fn<void(QString code)> submit,
@@ -409,7 +410,7 @@ object_ptr<BoxContent> VerifyPhoneBox(
 		nullptr);
 }
 
-object_ptr<BoxContent> VerifyEmailBox(
+object_ptr<Ui::BoxContent> VerifyEmailBox(
 		const QString &email,
 		int codeLength,
 		Fn<void(QString code)> submit,

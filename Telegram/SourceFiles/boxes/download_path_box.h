@@ -18,7 +18,7 @@ class Radioenum;
 class LinkButton;
 } // namespace Ui
 
-class DownloadPathBox : public BoxContent {
+class DownloadPathBox : public Ui::BoxContent {
 public:
 	DownloadPathBox(QWidget *parent);
 

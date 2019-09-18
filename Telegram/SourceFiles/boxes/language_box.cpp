@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/box_content_divider.h"
 #include "ui/text/text_entity.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
@@ -27,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_passport.h"
@@ -896,9 +898,9 @@ void Content::setupContent(
 	};
 	const auto main = add(recent, false);
 	const auto divider = content->add(
-		object_ptr<Ui::SlideWrap<BoxContentDivider>>(
+		object_ptr<Ui::SlideWrap<Ui::BoxContentDivider>>(
 			content,
-			object_ptr<BoxContentDivider>(content)));
+			object_ptr<Ui::BoxContentDivider>(content)));
 	const auto other = add(official, true);
 	Ui::ResizeFitChild(this, content);
 

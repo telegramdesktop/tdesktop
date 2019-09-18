@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 #include "styles/style_info.h"
 #include "styles/style_window.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace Info {
 

@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "app.h"
 #include "styles/style_overview.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 
@@ -144,7 +145,7 @@ void BackgroundBox::prepare() {
 	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
 		Ui::show(
 			Box<BackgroundPreviewBox>(_session, paper),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	}, _inner->lifetime());
 
 	_inner->removeRequests(
@@ -154,7 +155,7 @@ void BackgroundBox::prepare() {
 }
 
 void BackgroundBox::removePaper(const Data::WallPaper &paper) {
-	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto session = _session;
 	const auto remove = [=, weak = Ui::MakeWeak(this)]{
 		if (*box) {
@@ -176,7 +177,7 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 			tr::lng_selected_delete(tr::now),
 			tr::lng_cancel(tr::now),
 			remove),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 BackgroundBox::Inner::Inner(

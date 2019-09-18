@@ -7,14 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/layers/generic_box.h"
+
 class UserData;
-class GenericBox;
 
 namespace Window {
 class Controller;
 } // namespace Window
 
 void EditContactBox(
-	not_null<GenericBox*> box,
+	not_null<Ui::GenericBox*> box,
 	not_null<Window::Controller*> window,
 	not_null<UserData*> user);

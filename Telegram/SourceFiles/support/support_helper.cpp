@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "facades.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
 namespace Main {
@@ -43,7 +44,7 @@ constexpr auto kOccupyFor = TimeId(60);
 constexpr auto kReoccupyEach = 30 * crl::time(1000);
 constexpr auto kMaxSupportInfoLength = MaxMessageSize * 4;
 
-class EditInfoBox : public BoxContent {
+class EditInfoBox : public Ui::BoxContent {
 public:
 	EditInfoBox(
 		QWidget*,
@@ -517,7 +518,7 @@ void Helper::showEditInfoBox(not_null<UserData*> user) {
 	};
 	Ui::show(
 		Box<EditInfoBox>(&user->session(), editData, save),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void Helper::saveInfo(

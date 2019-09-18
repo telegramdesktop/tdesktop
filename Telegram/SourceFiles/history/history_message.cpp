@@ -260,7 +260,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			text.append(error.first);
 			Ui::show(
 				Box<InformBox>(text),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 			return;
 		}
 

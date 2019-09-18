@@ -98,13 +98,13 @@ void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 		if (!_peer->isMegagroup()) {
 			Ui::show(
 				Box<MaxInviteBox>(_peer->asChannel()),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 		}
 	} else if (count >= Global::ChatSizeMax()
 		&& count < Global::MegagroupSizeMax()) {
 		Ui::show(
 			Box<InformBox>(tr::lng_profile_add_more_after_create(tr::now)),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	}
 }
 
@@ -210,7 +210,7 @@ void AddParticipantsBoxController::Start(
 		Box<PeerListBox>(
 			std::move(controller),
 			std::move(initBox)),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void AddParticipantsBoxController::Start(
@@ -251,7 +251,7 @@ void AddParticipantsBoxController::Start(
 		Box<PeerListBox>(
 			std::move(controller),
 			std::move(initBox)),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void AddParticipantsBoxController::Start(
@@ -517,19 +517,19 @@ void AddSpecialBoxController::showAdmin(
 						Box<ConfirmBox>(
 							tr::lng_sure_add_admin_unremove(tr::now),
 							showAdminSure),
-						LayerOption::KeepOther);
+						Ui::LayerOption::KeepOther);
 					return;
 				}
 			} else {
 				Ui::show(Box<InformBox>(
 					tr::lng_error_cant_add_admin_unban(tr::now)),
-					LayerOption::KeepOther);
+					Ui::LayerOption::KeepOther);
 				return;
 			}
 		} else {
 			Ui::show(Box<InformBox>(
 				tr::lng_error_cant_add_admin_invite(tr::now)),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 			return;
 		}
 	} else if (_additional.restrictedRights(user).has_value()) {
@@ -540,13 +540,13 @@ void AddSpecialBoxController::showAdmin(
 					Box<ConfirmBox>(
 						tr::lng_sure_add_admin_unremove(tr::now),
 						showAdminSure),
-					LayerOption::KeepOther);
+					Ui::LayerOption::KeepOther);
 				return;
 			}
 		} else {
 			Ui::show(Box<InformBox>(
 				tr::lng_error_cant_add_admin_unban(tr::now)),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 			return;
 		}
 	} else if (_additional.isExternal(user)) {
@@ -560,13 +560,13 @@ void AddSpecialBoxController::showAdmin(
 					Box<ConfirmBox>(
 						text,
 						showAdminSure),
-					LayerOption::KeepOther);
+					Ui::LayerOption::KeepOther);
 				return;
 			}
 		} else {
 			Ui::show(
 				Box<InformBox>(tr::lng_error_cant_add_admin_invite(tr::now)),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 			return;
 		}
 	}
@@ -597,7 +597,7 @@ void AddSpecialBoxController::showAdmin(
 		});
 		box->setSaveCallback(SaveAdminCallback(_peer, user, done, fail));
 	}
-	_editParticipantBox = Ui::show(std::move(box), LayerOption::KeepOther);
+	_editParticipantBox = Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 }
 
 void AddSpecialBoxController::editAdminDone(
@@ -669,13 +669,13 @@ void AddSpecialBoxController::showRestricted(
 					Box<ConfirmBox>(
 						tr::lng_sure_ban_admin(tr::now),
 						showRestrictedSure),
-					LayerOption::KeepOther);
+					Ui::LayerOption::KeepOther);
 				return;
 			}
 		} else {
 			Ui::show(
 				Box<InformBox>(tr::lng_error_cant_ban_admin(tr::now)),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 			return;
 		}
 	}
@@ -704,7 +704,7 @@ void AddSpecialBoxController::showRestricted(
 		box->setSaveCallback(
 			SaveRestrictedCallback(_peer, user, done, fail));
 	}
-	_editParticipantBox = Ui::show(std::move(box), LayerOption::KeepOther);
+	_editParticipantBox = Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 }
 
 void AddSpecialBoxController::editRestrictedDone(
@@ -759,13 +759,13 @@ void AddSpecialBoxController::kickUser(
 					Box<ConfirmBox>(
 						tr::lng_sure_ban_admin(tr::now),
 						kickUserSure),
-					LayerOption::KeepOther);
+					Ui::LayerOption::KeepOther);
 				return;
 			}
 		} else {
 			Ui::show(
 				Box<InformBox>(tr::lng_error_cant_ban_admin(tr::now)),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 			return;
 		}
 	}
@@ -780,7 +780,7 @@ void AddSpecialBoxController::kickUser(
 				user->name);
 		_editBox = Ui::show(
 			Box<ConfirmBox>(text, kickUserSure),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 		return;
 	}
 

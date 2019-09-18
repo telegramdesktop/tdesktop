@@ -36,6 +36,7 @@
       'dependent_style_files': [
         '<(submodules_loc)/lib_ui/ui/colors.palette',
         '<(submodules_loc)/lib_ui/ui/basic.style',
+        '<(submodules_loc)/lib_ui/ui/layers/layers.style',
         '<(submodules_loc)/lib_ui/ui/widgets/widgets.style',
       ],
       'style_timestamp': '<(SHARED_INTERMEDIATE_DIR)/update_dependent_styles.timestamp',

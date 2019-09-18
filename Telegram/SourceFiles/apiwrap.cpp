@@ -2810,7 +2810,7 @@ void ApiWrap::requestAttachedStickerSets(not_null<PhotoData*> photo) {
 			: MTP_inputStickerSetShortName(setData->vshort_name());
 		Ui::show(
 			Box<StickerSetBox>(App::wnd()->sessionController(), setId),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	}).fail([=](const RPCError &error) {
 		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 	}).send();
@@ -4903,7 +4903,7 @@ void ApiWrap::editUploadedFile(
 			_session->data().sendHistoryChangeNotifications();
 			Ui::show(
 				Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 		} else {
 			sendMessageFail(error, peer);
 		}

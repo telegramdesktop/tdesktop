@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
 
+using "ui/layers/layers.style";
 using "ui/widgets/widgets.style";
 using "intro/intro.style";
 
@@ -29,135 +30,6 @@ FeedUserpicButton {
 	innerSize: pixels;
 	innerPosition: point;
 	innerPart: UserpicButton;
-}
-
-ServiceCheck {
-	margin: margins;
-	diameter: pixels;
-	shift: pixels;
-	thickness: pixels;
-	tip: point;
-	small: pixels;
-	large: pixels;
-	stroke: pixels;
-	color: color;
-	duration: int;
-}
-
-boxDuration: 200;
-boxRadius: 3px;
-
-boxButtonFont: font(boxFontSize semibold);
-defaultBoxButton: RoundButton(defaultLightButton) {
-	width: -24px;
-	height: 36px;
-	font: boxButtonFont;
-}
-
-boxTextStyle: TextStyle(defaultTextStyle) {
-	font: font(boxFontSize);
-	linkFont: font(boxFontSize);
-	linkFontOver: font(boxFontSize underline);
-}
-
-boxLabelStyle: TextStyle(boxTextStyle) {
-	lineHeight: 22px;
-}
-
-attentionBoxButton: RoundButton(defaultBoxButton) {
-	textFg: attentionButtonFg;
-	textFgOver: attentionButtonFgOver;
-	textBgOver: attentionButtonBgOver;
-
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: attentionButtonBgRipple;
-	}
-}
-
-defaultBoxCheckbox: Checkbox(defaultCheckbox) {
-	width: -46px;
-	textPosition: point(12px, 1px);
-	style: boxTextStyle;
-}
-
-boxRoundShadow: Shadow {
-	left: icon {{ "round_shadow_box_left", windowShadowFg }};
-	topLeft: icon {{ "round_shadow_box_top_left", windowShadowFg }};
-	top: icon {{ "round_shadow_box_top", windowShadowFg }};
-	topRight: icon {{ "round_shadow_box_top_left-flip_horizontal", windowShadowFg }};
-	right: icon {{ "round_shadow_box_left-flip_horizontal", windowShadowFg }};
-	bottomRight: icon {{ "round_shadow_box_bottom_left-flip_horizontal", windowShadowFg }};
-	bottom: icon {{ "round_shadow_box_bottom", windowShadowFg }};
-	bottomLeft: icon {{ "round_shadow_box_bottom_left", windowShadowFg }};
-	extend: margins(10px, 10px, 10px, 10px);
-	fallback: windowShadowFgFallback;
-}
-
-boxTitleFont: font(17px semibold);
-boxTitle: FlatLabel(defaultFlatLabel) {
-	textFg: boxTitleFg;
-	maxHeight: 24px;
-	style: TextStyle(defaultTextStyle) {
-		font: boxTitleFont;
-		linkFont: boxTitleFont;
-		linkFontOver: font(17px semibold underline);
-	}
-}
-boxTitlePosition: point(23px, 16px);
-boxTitleHeight: 56px;
-boxLayerTitlePosition: point(23px, 16px);
-boxLayerTitleHeight: 56px;
-boxLayerTitleAdditionalSkip: 9px;
-boxLayerTitleAdditionalFont: normalFont;
-boxLayerScroll: defaultSolidScroll;
-
-boxRowPadding: margins(23px, 0px, 23px, 0px);
-
-boxTopMargin: 6px;
-
-boxTitleClose: IconButton(defaultIconButton) {
-	width: boxTitleHeight;
-	height: boxTitleHeight;
-
-	icon: boxTitleCloseIcon;
-	iconOver: boxTitleCloseIconOver;
-
-	rippleAreaPosition: point(6px, 6px);
-	rippleAreaSize: 44px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
-}
-
-boxLinkButton: LinkButton(defaultLinkButton) {
-	font: boxTextFont;
-	overFont: font(boxFontSize underline);
-}
-
-boxOptionListPadding: margins(0px, 0px, 0px, 0px);
-boxOptionListSkip: 20px;
-boxOptionInputSkip: 6px;
-
-boxVerticalMargin: 10px;
-boxWidth: 320px;
-boxWideWidth: 364px;
-boxPadding: margins(23px, 30px, 23px, 8px);
-boxMaxListHeight: 492px;
-boxLittleSkip: 10px;
-boxMediumSkip: 20px;
-
-boxButtonPadding: margins(8px, 12px, 13px, 12px);
-boxLayerButtonPadding: margins(8px, 8px, 8px, 8px);
-boxLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 274px;
-	align: align(topleft);
-	style: boxLabelStyle;
-}
-boxDividerLabel: FlatLabel(boxLabel) {
-	minWidth: 245px;
-	align: align(topleft);
-	textFg: windowSubTextFg;
-	style: defaultTextStyle;
 }
 
 countryRowHeight: 36px;
@@ -203,12 +75,6 @@ defaultFeedUserpicButton: FeedUserpicButton {
 	innerPosition: point(-1px, -1px);
 	innerPart: defaultUserpicButton;
 }
-
-boxLoadingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
-	color: windowSubTextFg;
-	thickness: 2px;
-}
-boxLoadingSize: 20px;
 
 cropPointSize: 10px;
 cropSkip: 13px;
@@ -768,7 +634,7 @@ rightsToggle: Toggle(defaultToggle) {
 	stroke: 2px;
 	duration: 120;
 }
-rightsDividerHeight: 10px;
+rightsDividerHeight: boxDividerHeight;
 rightsDividerMargin: margins(0px, 0px, 0px, 20px);
 rightsHeaderMargin: margins(23px, 0px, 23px, 8px);
 rightsToggleMargin: margins(23px, 8px, 23px, 8px);

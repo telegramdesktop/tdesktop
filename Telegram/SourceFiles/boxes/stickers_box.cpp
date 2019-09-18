@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "facades.h"
 #include "app.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 
@@ -1302,7 +1303,7 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 					Box<StickerSetBox>(
 						App::wnd()->sessionController(),
 						Stickers::inputSetId(*set)),
-					LayerOption::KeepOther);
+					Ui::LayerOption::KeepOther);
 			}
 		};
 		if (selectedIndex >= 0 && !_inDragArea) {

@@ -24,7 +24,7 @@ class Checkbox;
 } // namespace Ui
 
 class BackgroundPreviewBox
-	: public BoxContent
+	: public Ui::BoxContent
 	, private HistoryView::SimpleElementDelegate
 	, private base::Subscriber {
 public:

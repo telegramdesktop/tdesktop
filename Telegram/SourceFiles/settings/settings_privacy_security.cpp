@@ -504,7 +504,7 @@ bool CheckEditCloudPassword(not_null<::Main::Session*> session) {
 	return false;
 }
 
-object_ptr<BoxContent> EditCloudPasswordBox(not_null<Main::Session*> session) {
+object_ptr<Ui::BoxContent> EditCloudPasswordBox(not_null<Main::Session*> session) {
 	const auto current = session->api().passwordStateCurrent();
 	Assert(current.has_value());
 
@@ -554,8 +554,8 @@ void RemoveCloudPassword(not_null<::Main::Session*> session) {
 	}, box->lifetime());
 }
 
-object_ptr<BoxContent> CloudPasswordAppOutdatedBox() {
-	auto box = std::make_shared<QPointer<BoxContent>>();
+object_ptr<Ui::BoxContent> CloudPasswordAppOutdatedBox() {
+	auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto callback = [=] {
 		Core::UpdateApplication();
 		if (*box) (*box)->closeBox();
@@ -589,7 +589,7 @@ void AddPrivacyButton(
 		) | rpl::start_with_next([=](const Privacy &value) {
 			Ui::show(
 				Box<EditPrivacyBox>(controller, controllerFactory(), value),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 		});
 	});
 }

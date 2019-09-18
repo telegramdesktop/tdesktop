@@ -14,11 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QSystemTrayIcon>
 
-class BoxContent;
-
 namespace Main {
 class Account;
 } // namespace Main
+
+namespace Ui {
+class BoxContent;
+} // namespace Ui
 
 namespace Window {
 
@@ -175,7 +177,7 @@ private:
 	object_ptr<Ui::RpWidget> _outdated;
 	object_ptr<TWidget> _body;
 	object_ptr<TWidget> _rightColumn = { nullptr };
-	QPointer<BoxContent> _termsBox;
+	QPointer<Ui::BoxContent> _termsBox;
 
 	QIcon _icon;
 	bool _usingSupportIcon = false;

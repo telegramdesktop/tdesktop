@@ -7,11 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Ui {
+class LayerWidget;
+} // namespace Ui
+
 namespace Window {
 
 class SessionController;
 class SectionWidget;
-class LayerWidget;
 enum class Column;
 
 class SectionMemento {
@@ -22,7 +25,7 @@ public:
 		Column column,
 		const QRect &geometry) = 0;
 
-	virtual object_ptr<LayerWidget> createLayer(
+	virtual object_ptr<Ui::LayerWidget> createLayer(
 			not_null<SessionController*> controller,
 			const QRect &geometry) {
 		return nullptr;

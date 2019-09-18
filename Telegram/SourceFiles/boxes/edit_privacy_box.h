@@ -23,6 +23,10 @@ template <typename Widget>
 class SlideWrap;
 } // namespace Ui
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 class EditPrivacyBox;
 
 class EditPrivacyController {
@@ -96,7 +100,7 @@ private:
 
 };
 
-class EditPrivacyBox : public BoxContent, private MTP::Sender {
+class EditPrivacyBox : public Ui::BoxContent, private MTP::Sender {
 public:
 	using Value = ApiWrap::Privacy;
 	using Option = Value::Option;

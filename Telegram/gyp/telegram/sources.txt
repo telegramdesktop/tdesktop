@@ -58,8 +58,6 @@
 <(src_loc)/boxes/edit_color_box.h
 <(src_loc)/boxes/edit_privacy_box.cpp
 <(src_loc)/boxes/edit_privacy_box.h
-<(src_loc)/boxes/generic_box.cpp
-<(src_loc)/boxes/generic_box.h
 <(src_loc)/boxes/language_box.cpp
 <(src_loc)/boxes/language_box.h
 <(src_loc)/boxes/local_storage_box.cpp
@@ -728,8 +726,6 @@
 <(src_loc)/support/support_helper.h
 <(src_loc)/support/support_templates.cpp
 <(src_loc)/support/support_templates.h
-<(src_loc)/ui/effects/radial_animation.cpp
-<(src_loc)/ui/effects/radial_animation.h
 <(src_loc)/ui/effects/round_checkbox.cpp
 <(src_loc)/ui/effects/round_checkbox.h
 <(src_loc)/ui/effects/send_action_animations.cpp
@@ -775,8 +771,6 @@
 <(src_loc)/ui/text_options.h
 <(src_loc)/ui/unread_badge.cpp
 <(src_loc)/ui/unread_badge.h
-<(src_loc)/window/layer_widget.cpp
-<(src_loc)/window/layer_widget.h
 <(src_loc)/window/main_window.cpp
 <(src_loc)/window/main_window.h
 <(src_loc)/window/notifications_manager.cpp

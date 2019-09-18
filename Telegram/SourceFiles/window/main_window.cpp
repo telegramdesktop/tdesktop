@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "app.h"
 #include "styles/style_window.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 #include <QtWidgets/QDesktopWidget>
 #include <QtCore/QMimeData>
@@ -217,7 +217,7 @@ void MainWindow::showTermsDecline() {
 			tr::lng_terms_decline_and_delete(),
 			tr::lng_terms_back(),
 			true),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 
 	box->agreeClicks(
 	) | rpl::start_with_next([=] {
@@ -236,7 +236,7 @@ void MainWindow::showTermsDecline() {
 }
 
 void MainWindow::showTermsDelete() {
-	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto deleteByTerms = [=] {
 		if (account().sessionExists()) {
 			account().session().termsDeleteNow();
@@ -251,7 +251,7 @@ void MainWindow::showTermsDelete() {
 			st::attentionBoxButton,
 			deleteByTerms,
 			[=] { if (*box) (*box)->closeBox(); }),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 bool MainWindow::hideNoQuit() {

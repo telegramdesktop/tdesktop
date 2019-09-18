@@ -660,7 +660,7 @@ void SessionController::showBackFromStack(const SectionShow &params) {
 }
 
 void SessionController::showSpecialLayer(
-		object_ptr<LayerWidget> &&layer,
+		object_ptr<Ui::LayerWidget> &&layer,
 		anim::type animated) {
 	App::wnd()->showSpecialLayer(std::move(layer), animated);
 }

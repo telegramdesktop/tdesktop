@@ -17,7 +17,7 @@ namespace Ui {
 class Radiobutton;
 } // namespace Ui
 
-class AutoLockBox : public BoxContent {
+class AutoLockBox : public Ui::BoxContent {
 public:
 	AutoLockBox(QWidget*, not_null<Main::Session*> session);
 

@@ -333,7 +333,7 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 		_code->setFocus();
 		return;
 	} else if (!getData()->pwdRequest) {
-		const auto box = std::make_shared<QPointer<BoxContent>>();
+		const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 		const auto callback = [=] {
 			Core::UpdateApplication();
 			if (*box) (*box)->closeBox();

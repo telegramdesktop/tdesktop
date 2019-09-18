@@ -29,9 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout.h"
 #include "media/clip/media_clip_reader.h"
 #include "storage/storage_media_prepare.h"
-#include "styles/style_boxes.h"
-#include "styles/style_chat_helpers.h"
-#include "styles/style_history.h"
 #include "ui/image/image.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/checkbox.h"
@@ -42,6 +39,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "confirm_box.h"
 #include "facades.h"
 #include "app.h"
+#include "styles/style_layers.h"
+#include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
+#include "styles/style_history.h"
 
 #include <QtCore/QMimeData>
 
@@ -493,7 +494,7 @@ void EditCaptionBox::createEditMediaButton() {
 			if (mimeType == qstr("image/webp")) {
 				Ui::show(
 					Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
-					LayerOption::KeepOther);
+					Ui::LayerOption::KeepOther);
 				return false;
 			}
 			return true;
@@ -521,7 +522,7 @@ void EditCaptionBox::createEditMediaButton() {
 					|| file->type == Storage::PreparedFile::AlbumType::None) {
 					Ui::show(
 						Box<InformBox>(tr::lng_edit_media_album_error(tr::now)),
-						LayerOption::KeepOther);
+						Ui::LayerOption::KeepOther);
 					return;
 				}
 			}
@@ -551,7 +552,7 @@ void EditCaptionBox::createEditMediaButton() {
 				if (!valid) {
 					Ui::show(
 						Box<InformBox>(tr::lng_edit_media_album_error(tr::now)),
-						LayerOption::KeepOther);
+						Ui::LayerOption::KeepOther);
 					return;
 				}
 			}
@@ -687,7 +688,7 @@ bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
 		&& _isAlbum) {
 		Ui::show(
 			Box<InformBox>(tr::lng_edit_media_album_error(tr::now)),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 		return false;
 	}
 

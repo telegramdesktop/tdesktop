@@ -31,14 +31,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mtproto/sender.h"
 #include "observer_peer.h"
-#include "styles/style_boxes.h"
-#include "styles/style_info.h"
 #include "ui/rp_widget.h"
 #include "ui/special_buttons.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/box_content_divider.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -46,6 +45,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "app.h"
 #include "facades.h"
+#include "styles/style_layers.h"
+#include "styles/style_boxes.h"
+#include "styles/style_info.h"
 
 namespace {
 
@@ -70,7 +72,7 @@ void AddSkip(
 	container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
 		top));
-	container->add(object_ptr<BoxContentDivider>(container));
+	container->add(object_ptr<Ui::BoxContentDivider>(container));
 	container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
 		bottom));
@@ -193,7 +195,7 @@ void SaveSlowmodeSeconds(
 void ShowEditPermissions(not_null<PeerData*> peer) {
 	const auto box = Ui::show(
 		Box<EditPeerPermissionsBox>(peer),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 	const auto saving = box->lifetime().make_state<int>(0);
 	const auto save = [=](
 			not_null<PeerData*> peer,
@@ -244,7 +246,7 @@ class Controller
 public:
 	Controller(
 		not_null<Window::SessionNavigation*> navigation,
-		not_null<BoxContent*> box,
+		not_null<Ui::BoxContent*> box,
 		not_null<PeerData*> peer);
 
 	object_ptr<Ui::VerticalLayout> createContent();
@@ -330,7 +332,7 @@ private:
 	std::optional<bool> _signaturesSavedValue;
 
 	const not_null<Window::SessionNavigation*> _navigation;
-	const not_null<BoxContent*> _box;
+	const not_null<Ui::BoxContent*> _box;
 	not_null<PeerData*> _peer;
 	const bool _isGroup = false;
 
@@ -351,7 +353,7 @@ private:
 
 Controller::Controller(
 	not_null<Window::SessionNavigation*> navigation,
-	not_null<BoxContent*> box,
+	not_null<Ui::BoxContent*> box,
 	not_null<PeerData*> peer)
 : _navigation(navigation)
 , _box(box)
@@ -559,7 +561,7 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 		tr::lng_group_stickers_add(tr::now),
 		st::editPeerInviteLinkButton)
 	)->addClickHandler([=] {
-		Ui::show(Box<StickersBox>(channel), LayerOption::KeepOther);
+		Ui::show(Box<StickersBox>(channel), Ui::LayerOption::KeepOther);
 	});
 
 	return std::move(result);
@@ -602,13 +604,13 @@ void Controller::showEditPeerTypeBox(
 			_privacySavedValue,
 			_usernameSavedValue,
 			error),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void Controller::showEditLinkedChatBox() {
 	Expects(_peer->isChannel());
 
-	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto channel = _peer->asChannel();
 	const auto callback = [=](ChannelData *result) {
 		if (*box) {
@@ -633,7 +635,7 @@ void Controller::showEditLinkedChatBox() {
 				chat,
 				canEdit,
 				callback),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 		return;
 	} else if (!canEdit || _linkedChatsRequestId) {
 		return;
@@ -660,7 +662,7 @@ void Controller::showEditLinkedChatBox() {
 				channel,
 				std::move(chats),
 				callback),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	}).fail([=](const RPCError &error) {
 		_linkedChatsRequestId = 0;
 	}).send();
@@ -749,7 +751,7 @@ void Controller::fillInviteLinkButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
 	const auto buttonCallback = [=] {
-		Ui::show(Box<EditPeerTypeBox>(_peer), LayerOption::KeepOther);
+		Ui::show(Box<EditPeerTypeBox>(_peer), Ui::LayerOption::KeepOther);
 	};
 
 	AddButtonWithText(
@@ -807,7 +809,7 @@ void Controller::fillHistoryVisibilityButton() {
 				_peer,
 				boxCallback,
 				*_historyVisibilitySavedValue),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	};
 	AddButtonWithText(
 		container,
@@ -1429,7 +1431,7 @@ void Controller::deleteWithConfirmation() {
 			tr::lng_box_delete(tr::now),
 			st::attentionBoxButton,
 			deleteCallback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void Controller::deleteChannel() {

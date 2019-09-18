@@ -44,7 +44,7 @@ public:
 		Window::Column column,
 		const QRect &geometry) override;
 
-	object_ptr<Window::LayerWidget> createLayer(
+	object_ptr<Ui::LayerWidget> createLayer(
 		not_null<Window::SessionController*> controller,
 		const QRect &geometry) override;
 
@@ -98,7 +98,7 @@ public:
 		Window::Column column,
 		const QRect &geometry) override;
 
-	object_ptr<Window::LayerWidget> createLayer(
+	object_ptr<Ui::LayerWidget> createLayer(
 		not_null<Window::SessionController*> controller,
 		const QRect &geometry) override;
 

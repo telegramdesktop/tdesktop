@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/add_contact_box.h"
 
-#include "styles/style_boxes.h"
-#include "styles/style_dialogs.h"
 #include "lang/lang_keys.h"
 #include "mtproto/sender.h"
 #include "base/flat_set.h"
@@ -42,6 +40,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "main/main_session.h"
 #include "facades.h"
+#include "styles/style_layers.h"
+#include "styles/style_boxes.h"
+#include "styles/style_dialogs.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -164,7 +165,7 @@ void ShowAddParticipantsError(
 					tr::lng_cant_invite_make_admin(tr::now),
 					tr::lng_cancel(tr::now),
 					makeAdmin),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 			return;
 		}
 	}
@@ -199,7 +200,7 @@ void ShowAddParticipantsError(
 		}
 		return tr::lng_failed_add_participant(tr::now);
 	}();
-	Ui::show(Box<InformBox>(text), LayerOption::KeepOther);
+	Ui::show(Box<InformBox>(text), Ui::LayerOption::KeepOther);
 }
 
 class RevokePublicLinkBox::Inner : public TWidget, private MTP::Sender {
@@ -588,16 +589,16 @@ void GroupInfoBox::createGroup(
 		} else if (error.type() == qstr("USERS_TOO_FEW")) {
 			Ui::show(
 				Box<InformBox>(tr::lng_cant_invite_privacy(tr::now)),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 		} else if (error.type() == qstr("PEER_FLOOD")) {
 			Ui::show(
 				Box<InformBox>(
 					PeerFloodErrorText(PeerFloodType::InviteGroup)),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 		} else if (error.type() == qstr("USER_RESTRICTED")) {
 			Ui::show(
 				Box<InformBox>(tr::lng_cant_do_this(tr::now)),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 		}
 	}).send();
 }
@@ -636,7 +637,7 @@ void GroupInfoBox::submit() {
 			Box<PeerListBox>(
 				std::make_unique<AddParticipantsBoxController>(_navigation),
 				std::move(initBox)),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	}
 }
 
@@ -1031,7 +1032,7 @@ void SetupChannelBox::privacyChanged(Privacy value) {
 				Box<RevokePublicLinkBox>(
 					&_channel->session(),
 					callback),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 			return;
 		}
 		_link->show();
@@ -1126,14 +1127,14 @@ void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
 	const auto callback = [=] {
 		Ui::show(
 			Box<SetupChannelBox>(navigation, channel, existing),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	};
 	closeBox();
 	Ui::show(
 		Box<RevokePublicLinkBox>(
 			&channel->session(),
 			callback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
@@ -1412,7 +1413,7 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 					callback();
 				}
 			}).send();
-		})), LayerOption::KeepOther);
+		})), Ui::LayerOption::KeepOther);
 	}
 }
 

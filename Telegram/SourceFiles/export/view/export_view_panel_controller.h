@@ -12,10 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "base/timer.h"
 
-class BoxContent;
-
 namespace Ui {
 class SeparatePanel;
+class BoxContent;
 } // namespace Ui
 
 namespace Export {
@@ -25,7 +24,7 @@ struct Environment;
 namespace View {
 
 Environment PrepareEnvironment();
-QPointer<BoxContent> SuggestStart();
+QPointer<Ui::BoxContent> SuggestStart();
 void ClearSuggestStart();
 bool IsDefaultPath(const QString &path);
 void ResolveSettings(Settings &settings);
@@ -71,7 +70,7 @@ private:
 	base::unique_qptr<Ui::SeparatePanel> _panel;
 
 	State _state;
-	QPointer<BoxContent> _confirmStopBox;
+	QPointer<Ui::BoxContent> _confirmStopBox;
 	rpl::event_stream<rpl::producer<>> _panelCloseEvents;
 	bool _stopRequested = false;
 	rpl::lifetime _lifetime;

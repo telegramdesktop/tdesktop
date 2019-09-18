@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/box_content_divider.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "data/data_shared_media.h"
@@ -102,7 +103,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	if (auto members = SetupChannelMembers(_controller, result.data(), _peer)) {
 		result->add(std::move(members));
 	}
-	result->add(object_ptr<BoxContentDivider>(result));
+	result->add(object_ptr<Ui::BoxContentDivider>(result));
 	if (auto actions = SetupActions(_controller, result.data(), _peer)) {
 		result->add(std::move(actions));
 	}
@@ -215,7 +216,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 
 	auto layout = result->entity();
 
-	layout->add(object_ptr<BoxContentDivider>(layout));
+	layout->add(object_ptr<Ui::BoxContentDivider>(layout));
 	layout->add(object_ptr<Ui::FixedHeightWidget>(
 		layout,
 		st::infoSharedMediaBottomSkip)

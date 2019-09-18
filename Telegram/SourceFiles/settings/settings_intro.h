@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "window/layer_widget.h"
+#include "ui/layers/layer_widget.h"
 
 namespace Ui {
 class VerticalLayout;
@@ -21,7 +21,7 @@ namespace Settings {
 
 class IntroWidget;
 
-class LayerWidget : public Window::LayerWidget {
+class LayerWidget : public Ui::LayerWidget {
 public:
 	LayerWidget(QWidget*);
 

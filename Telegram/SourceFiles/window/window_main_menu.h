@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/object_ptr.h"
 #include "ui/rp_widget.h"
+#include "ui/layers/layer_widget.h"
 
 namespace Ui {
 class IconButton;
@@ -23,17 +24,19 @@ namespace Window {
 
 class SessionController;
 
-class MainMenu : public Ui::RpWidget, private base::Subscriber {
+class MainMenu : public Ui::LayerWidget, private base::Subscriber {
 public:
 	MainMenu(QWidget *parent, not_null<SessionController*> controller);
 
-	void setInnerFocus() {
-		setFocus();
-	}
+	void parentResized() override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+
+	void doSetInnerFocus() override {
+		setFocus();
+	}
 
 private:
 	void updateControlsGeometry();

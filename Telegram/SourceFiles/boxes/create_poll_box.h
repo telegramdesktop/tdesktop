@@ -21,7 +21,7 @@ namespace Main {
 class Session;
 } // namespace Main
 
-class CreatePollBox : public BoxContent {
+class CreatePollBox : public Ui::BoxContent {
 public:
 	struct Result {
 		PollData poll;

@@ -360,7 +360,7 @@ void PwdCheckWidget::submit() {
 		});
 
 		if (_notEmptyPassport) {
-			const auto box = std::make_shared<QPointer<BoxContent>>();
+			const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 			const auto confirmed = [=] {
 				send();
 				if (*box) {

@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/box_content_divider.h"
+#include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text_options.h"
@@ -23,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_button.h"
 #include "settings/settings_privacy_security.h"
 #include "boxes/calendar_box.h"
-#include "boxes/generic_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/passcode_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
@@ -37,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "facades.h"
 #include "main/main_session.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
@@ -53,7 +55,7 @@ enum class PasswordErrorType {
 	Later,
 };
 
-void SetCloudPassword(not_null<GenericBox*> box, not_null<UserData*> user) {
+void SetCloudPassword(not_null<Ui::GenericBox*> box, not_null<UserData*> user) {
 	user->session().api().passwordState(
 	) | rpl::start_with_next([=] {
 		using namespace Settings;
@@ -71,7 +73,7 @@ void SetCloudPassword(not_null<GenericBox*> box, not_null<UserData*> user) {
 }
 
 void TransferPasswordError(
-		not_null<GenericBox*> box,
+		not_null<Ui::GenericBox*> box,
 		not_null<UserData*> user,
 		PasswordErrorType error) {
 	box->setTitle(tr::lng_rights_transfer_check());
@@ -299,7 +301,7 @@ void EditAdminBox::prepare() {
 		: tr::lng_channel_add_admin());
 
 	addControl(
-		object_ptr<BoxContentDivider>(this),
+		object_ptr<Ui::BoxContentDivider>(this),
 		st::rightsDividerMargin);
 
 	const auto chat = peer()->asChat();
@@ -404,7 +406,7 @@ void EditAdminBox::prepare() {
 
 not_null<Ui::InputField*> EditAdminBox::addRankInput() {
 	addControl(
-		object_ptr<BoxContentDivider>(this),
+		object_ptr<Ui::BoxContentDivider>(this),
 		st::rightsRankMargin);
 
 	addControl(
@@ -474,7 +476,7 @@ not_null<Ui::SlideWrap<Ui::RpWidget>*> EditAdminBox::setupTransferButton(
 	const auto container = wrap->entity();
 
 	container->add(
-		object_ptr<BoxContentDivider>(container),
+		object_ptr<Ui::BoxContentDivider>(container),
 		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
 	container->add(EditPeerInfoBox::CreateButton(
 		this,
@@ -664,7 +666,7 @@ void EditRestrictedBox::prepare() {
 	setTitle(tr::lng_rights_user_restrictions());
 
 	addControl(
-		object_ptr<BoxContentDivider>(this),
+		object_ptr<Ui::BoxContentDivider>(this),
 		st::rightsDividerMargin);
 
 	const auto chat = peer()->asChat();
@@ -708,7 +710,7 @@ void EditRestrictedBox::prepare() {
 	addControl(std::move(checkboxes), QMargins());
 
 	_until = prepareRights.c_chatBannedRights().vuntil_date().v;
-	addControl(object_ptr<BoxContentDivider>(this), st::rightsUntilMargin);
+	addControl(object_ptr<Ui::BoxContentDivider>(this), st::rightsUntilMargin);
 	addControl(
 		object_ptr<Ui::FlatLabel>(
 			this,
@@ -759,7 +761,7 @@ void EditRestrictedBox::showRestrictUntil() {
 				setRestrictUntil(
 					static_cast<int>(QDateTime(date).toTime_t()));
 			}),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 	_restrictUntilBox->setMaxDate(
 		QDate::currentDate().addDays(kMaxRestrictDelayDays));
 	_restrictUntilBox->setMinDate(tomorrow);

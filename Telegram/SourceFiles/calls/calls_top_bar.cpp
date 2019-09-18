@@ -22,14 +22,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout.h"
 #include "app.h"
 #include "styles/style_calls.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace Calls {
 namespace {
 
 constexpr auto kUpdateDebugTimeoutMs = crl::time(500);
 
-class DebugInfoBox : public BoxContent {
+class DebugInfoBox : public Ui::BoxContent {
 public:
 	DebugInfoBox(QWidget*, base::weak_ptr<Call> call);
 

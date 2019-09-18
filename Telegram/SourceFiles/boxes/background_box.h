@@ -17,7 +17,7 @@ namespace Data {
 class WallPaper;
 } // namespace Data
 
-class BackgroundBox : public BoxContent {
+class BackgroundBox : public Ui::BoxContent {
 public:
 	BackgroundBox(QWidget*, not_null<Main::Session*> session);
 

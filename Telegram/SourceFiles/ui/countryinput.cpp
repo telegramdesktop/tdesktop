@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/effects/ripple_animation.h"
 #include "data/data_countries.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
 

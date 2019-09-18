@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "app.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "styles/style_chat_helpers.h"
 
 #include <QtWidgets/QApplication>
@@ -136,14 +136,14 @@ StickerSetBox::StickerSetBox(
 , _set(set) {
 }
 
-QPointer<BoxContent> StickerSetBox::Show(
+QPointer<Ui::BoxContent> StickerSetBox::Show(
 		not_null<Window::SessionController*> controller,
 		not_null<DocumentData*> document) {
 	if (const auto sticker = document->sticker()) {
 		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
 			return Ui::show(
 				Box<StickerSetBox>(controller, sticker->set),
-				LayerOption::KeepOther).data();
+				Ui::LayerOption::KeepOther).data();
 		}
 	}
 	return nullptr;
@@ -695,7 +695,7 @@ void StickerSetBox::Inner::install() {
 	if (isMasksSet()) {
 		Ui::show(
 			Box<InformBox>(tr::lng_stickers_masks_pack(tr::now)),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 		return;
 	} else if (_installRequest) {
 		return;

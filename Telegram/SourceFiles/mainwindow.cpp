@@ -10,14 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "dialogs/dialogs_layout.h"
-#include "styles/style_dialogs.h"
-#include "styles/style_window.h"
-#include "styles/style_boxes.h"
 #include "history/history.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/layers/layer_widget.h"
 #include "ui/emoji_config.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_cloud_manager.h"
@@ -39,7 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_intro.h"
 #include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
-#include "window/layer_widget.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_warning.h"
@@ -50,6 +47,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_media_preview.h"
 #include "facades.h"
 #include "app.h"
+#include "styles/style_dialogs.h"
+#include "styles/style_layers.h"
+#include "styles/style_window.h"
 
 #include <QtGui/QWindow>
 #include <QtCore/QCoreApplication>
@@ -274,7 +274,7 @@ void MainWindow::showSettings() {
 }
 
 void MainWindow::showSpecialLayer(
-		object_ptr<Window::LayerWidget> layer,
+		object_ptr<Ui::LayerWidget> layer,
 		anim::type animated) {
 	if (_passcodeLock) {
 		return;
@@ -303,14 +303,16 @@ void MainWindow::showMainMenu() {
 	if (isHidden()) showFromTray();
 
 	ensureLayerCreated();
-	_layer->showMainMenu(sessionController(), anim::type::normal);
+	_layer->showMainMenu(
+		object_ptr<Window::MainMenu>(this, sessionController()),
+		anim::type::normal);
 }
 
 void MainWindow::ensureLayerCreated() {
 	if (_layer) {
 		return;
 	}
-	_layer = base::make_unique_q<Window::LayerStackWidget>(
+	_layer = base::make_unique_q<Ui::LayerStackWidget>(
 		bodyWidget());
 
 	_layer->hideFinishEvents(
@@ -367,8 +369,8 @@ MainWidget *MainWindow::mainWidget() {
 }
 
 void MainWindow::ui_showBox(
-		object_ptr<BoxContent> box,
-		LayerOptions options,
+		object_ptr<Ui::BoxContent> box,
+		Ui::LayerOptions options,
 		anim::type animated) {
 	if (box) {
 		ensureLayerCreated();
@@ -600,7 +602,7 @@ void MainWindow::onShowAddContact() {
 	if (account().sessionExists()) {
 		Ui::show(
 			Box<AddContactBox>(&account().session()),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	}
 }
 
@@ -612,7 +614,7 @@ void MainWindow::onShowNewGroup() {
 			Box<GroupInfoBox>(
 				sessionController(),
 				GroupInfoBox::Type::Group),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	}
 }
 
@@ -624,7 +626,7 @@ void MainWindow::onShowNewChannel() {
 			Box<GroupInfoBox>(
 				sessionController(),
 				GroupInfoBox::Type::Channel),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	}
 }
 

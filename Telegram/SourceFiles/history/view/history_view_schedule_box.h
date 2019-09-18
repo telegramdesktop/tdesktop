@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/generic_box.h"
+#include "ui/layers/generic_box.h"
 
 namespace Api {
 struct SendOptions;
@@ -19,13 +19,13 @@ namespace HistoryView {
 
 [[nodiscard]] TimeId DefaultScheduleTime();
 void ScheduleBox(
-	not_null<GenericBox*> box,
+	not_null<Ui::GenericBox*> box,
 	SendMenuType type,
 	FnMut<void(Api::SendOptions)> done,
 	TimeId time);
 
 template <typename Guard, typename Submit>
-[[nodiscard]] object_ptr<GenericBox> PrepareScheduleBox(
+[[nodiscard]] object_ptr<Ui::GenericBox> PrepareScheduleBox(
 		Guard &&guard,
 		SendMenuType type,
 		Submit &&submit) {

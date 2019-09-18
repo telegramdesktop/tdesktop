@@ -27,7 +27,7 @@ struct CloudPasswordResult;
 class CalendarBox;
 class PasscodeBox;
 
-class EditParticipantBox : public BoxContent {
+class EditParticipantBox : public Ui::BoxContent {
 public:
 	EditParticipantBox(
 		QWidget*,

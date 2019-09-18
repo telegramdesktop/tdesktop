@@ -23,7 +23,6 @@ class Image;
 class HistoryItem;
 class HistoryMessage;
 class HistoryService;
-class BoxContent;
 struct WebPageCollage;
 enum class WebPageType;
 enum class NewMessageType;
@@ -53,6 +52,10 @@ namespace View {
 class PanelController;
 } // namespace View
 } // namespace Export
+
+namespace Ui {
+class BoxContent;
+} // namespace Ui
 
 namespace Passport {
 struct SavedCredentials;
@@ -840,7 +843,7 @@ private:
 	std::unique_ptr<Export::View::PanelController> _exportPanel;
 	rpl::event_stream<Export::View::PanelController*> _exportViewChanges;
 	TimeId _exportAvailableAt = 0;
-	QPointer<BoxContent> _exportSuggestion;
+	QPointer<Ui::BoxContent> _exportSuggestion;
 
 	rpl::variable<bool> _contactsLoaded = false;
 	rpl::event_stream<Data::Folder*> _chatsListLoadedEvents;

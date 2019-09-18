@@ -39,7 +39,7 @@ void ShowSearchFromBox(
 			box->addButton(tr::lng_cancel(), [box, subscription] {
 				box->closeBox();
 			});
-		}), LayerOption::KeepOther);
+		}), Ui::LayerOption::KeepOther);
 		box->boxClosing() | rpl::start_with_next(
 			std::move(closedCallback),
 			*subscription);

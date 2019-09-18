@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "facades.h"
 #include "styles/style_export.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace Export {
 namespace View {
@@ -30,7 +30,7 @@ namespace {
 
 constexpr auto kSaveSettingsTimeout = crl::time(1000);
 
-class SuggestBox : public BoxContent {
+class SuggestBox : public Ui::BoxContent {
 public:
 	SuggestBox(QWidget*);
 
@@ -85,9 +85,9 @@ Environment PrepareEnvironment() {
 	return result;
 }
 
-QPointer<BoxContent> SuggestStart() {
+QPointer<Ui::BoxContent> SuggestStart() {
 	ClearSuggestStart();
-	return Ui::show(Box<SuggestBox>(), LayerOption::KeepOther).data();
+	return Ui::show(Box<SuggestBox>(), Ui::LayerOption::KeepOther).data();
 }
 
 void ClearSuggestStart() {
@@ -166,10 +166,10 @@ void PanelController::showSettings() {
 	auto settings = base::make_unique_q<SettingsWidget>(
 		_panel,
 		*_settings);
-	settings->setShowBoxCallback([=](object_ptr<BoxContent> box) {
+	settings->setShowBoxCallback([=](object_ptr<Ui::BoxContent> box) {
 		_panel->showBox(
 			std::move(box),
-			LayerOption::KeepOther,
+			Ui::LayerOption::KeepOther,
 			anim::type::normal);
 	});
 
@@ -256,7 +256,7 @@ void PanelController::showError(const QString &text) {
 	const auto hidden = _panel->isHidden();
 	_panel->showBox(
 		std::move(box),
-		LayerOption::CloseOther,
+		Ui::LayerOption::CloseOther,
 		hidden ? anim::type::instant : anim::type::normal);
 	weak->setCloseByEscape(false);
 	weak->setCloseByOutsideClick(false);
@@ -330,7 +330,7 @@ void PanelController::stopWithConfirmation(FnMut<void()> callback) {
 	_confirmStopBox = box.data();
 	_panel->showBox(
 		std::move(box),
-		LayerOption::CloseOther,
+		Ui::LayerOption::CloseOther,
 		hidden ? anim::type::instant : anim::type::normal);
 	if (hidden) {
 		_panel->showAndActivate();

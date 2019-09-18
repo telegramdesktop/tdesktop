@@ -341,7 +341,7 @@ bool HandleUnknown(
 			Api::EntitiesFromMTP(result.ventities().value_or_empty())
 		};
 		if (result.is_update_app()) {
-			const auto box = std::make_shared<QPointer<BoxContent>>();
+			const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 			const auto callback = [=] {
 				Core::UpdateApplication();
 				if (*box) (*box)->closeBox();

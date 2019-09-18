@@ -16,7 +16,7 @@ namespace Main {
 class Session;
 } // namespace Main
 
-class UrlAuthBox : public BoxContent {
+class UrlAuthBox : public Ui::BoxContent {
 public:
 	static void Activate(
 		not_null<const HistoryItem*> message,

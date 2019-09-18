@@ -2775,7 +2775,7 @@ void StickersListWidget::displaySet(uint64 setId) {
 			_displayingSet = true;
 			checkHideWithBox(Ui::show(
 				Box<StickersBox>(_megagroupSet),
-				LayerOption::KeepOther).data());
+				Ui::LayerOption::KeepOther).data());
 			return;
 		} else if (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetID) {
 			setId = _megagroupSet->mgInfo->stickerSet.c_inputStickerSetID().vid().v;
@@ -2789,11 +2789,11 @@ void StickersListWidget::displaySet(uint64 setId) {
 		_displayingSet = true;
 		checkHideWithBox(Ui::show(
 			Box<StickerSetBox>(controller(), Stickers::inputSetId(*it)),
-			LayerOption::KeepOther).data());
+			Ui::LayerOption::KeepOther).data());
 	}
 }
 
-void StickersListWidget::checkHideWithBox(QPointer<BoxContent> box) {
+void StickersListWidget::checkHideWithBox(QPointer<Ui::BoxContent> box) {
 	if (!box) {
 		return;
 	}

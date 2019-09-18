@@ -26,6 +26,7 @@ class RippleAnimation;
 class SettingsSlider;
 class SlideAnimation;
 class CrossButton;
+class BoxContentDivider;
 } // namespace Ui
 
 namespace Main {
@@ -33,7 +34,7 @@ class Session;
 } // namespace Main
 
 class StickersBox final
-	: public BoxContent
+	: public Ui::BoxContent
 	, public RPCSender
 	, private base::Subscriber {
 public:
@@ -365,7 +366,7 @@ private:
 	object_ptr<AddressField> _megagroupSetField = { nullptr };
 	object_ptr<Ui::PlainShadow> _megagroupSelectedShadow = { nullptr };
 	object_ptr<Ui::CrossButton> _megagroupSelectedRemove = { nullptr };
-	object_ptr<BoxContentDivider> _megagroupDivider = { nullptr };
+	object_ptr<Ui::BoxContentDivider> _megagroupDivider = { nullptr };
 	object_ptr<Ui::FlatLabel> _megagroupSubTitle = { nullptr };
 	base::Timer _megagroupSetAddressChangedTimer;
 	mtpRequestId _megagroupSetRequestId = 0;

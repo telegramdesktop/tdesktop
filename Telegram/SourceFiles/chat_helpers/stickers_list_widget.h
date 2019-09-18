@@ -12,8 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/variant.h"
 #include "base/timer.h"
 
-class BoxContent;
-
 namespace Main {
 class Session;
 } // namespace Main
@@ -25,6 +23,7 @@ class SessionController;
 namespace Ui {
 class LinkButton;
 class RippleAnimation;
+class BoxContent;
 } // namespace Ui
 
 namespace Lottie {
@@ -203,7 +202,7 @@ private:
 
 	void setSection(Section section);
 	void displaySet(uint64 setId);
-	void checkHideWithBox(QPointer<BoxContent> box);
+	void checkHideWithBox(QPointer<Ui::BoxContent> box);
 	void installSet(uint64 setId);
 	void removeMegagroupSet(bool locally);
 	void removeSet(uint64 setId);

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_button.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/box_content_divider.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -23,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 #include "storage/file_upload.h" // For Storage::kUseBigFilesFrom.
 #include "app.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "styles/style_passport.h"
 
 #include <QtCore/QBuffer>
@@ -544,9 +545,9 @@ void EditScans::setupList(
 
 	if (type == FileType::Scan) {
 		list.divider = container->add(
-			object_ptr<Ui::SlideWrap<BoxContentDivider>>(
+			object_ptr<Ui::SlideWrap<Ui::BoxContentDivider>>(
 				container,
-				object_ptr<BoxContentDivider>(
+				object_ptr<Ui::BoxContentDivider>(
 					container,
 					st::passportFormDividerHeight)));
 		list.divider->toggle(list.files.empty(), anim::type::instant);
@@ -591,7 +592,7 @@ void EditScans::setupList(
 		chooseScan(type);
 	});
 
-	container->add(object_ptr<BoxContentDivider>(
+	container->add(object_ptr<Ui::BoxContentDivider>(
 		container,
 		st::passportFormDividerHeight));
 }

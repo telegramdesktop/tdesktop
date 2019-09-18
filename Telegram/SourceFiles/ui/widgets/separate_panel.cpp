@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/platform/ui_platform_utility.h"
-#include "window/layer_widget.h"
+#include "ui/layers/layer_widget.h"
 #include "window/themes/window_theme.h"
 #include "core/application.h"
 #include "app.h"
@@ -265,8 +265,8 @@ int SeparatePanel::hideGetDuration() {
 }
 
 void SeparatePanel::showBox(
-		object_ptr<BoxContent> box,
-		LayerOptions options,
+		object_ptr<Ui::BoxContent> box,
+		Ui::LayerOptions options,
 		anim::type animated) {
 	ensureLayerCreated();
 	_layer->showBox(std::move(box), options, animated);
@@ -282,7 +282,7 @@ void SeparatePanel::ensureLayerCreated() {
 	if (_layer) {
 		return;
 	}
-	_layer = base::make_unique_q<Window::LayerStackWidget>(_body);
+	_layer = base::make_unique_q<Ui::LayerStackWidget>(_body);
 	_layer->setHideByBackgroundClick(false);
 	_layer->move(0, 0);
 	_body->sizeValue(

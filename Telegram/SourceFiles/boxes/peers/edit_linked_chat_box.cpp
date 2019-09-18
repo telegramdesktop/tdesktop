@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "facades.h"
 #include "main/main_session.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
@@ -145,7 +146,7 @@ void Controller::choose(not_null<ChannelData*> chat) {
 				Ui::Text::RichLangValue));
 		}
 	}
-	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto sure = [=] {
 		if (*box) {
 			(*box)->closeBox();
@@ -158,7 +159,7 @@ void Controller::choose(not_null<ChannelData*> chat) {
 			text,
 			tr::lng_manage_discussion_group_link(tr::now),
 			sure),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void Controller::choose(not_null<ChatData*> chat) {
@@ -177,7 +178,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 	text.append(tr::lng_manage_discussion_group_warning(
 		tr::now,
 		Ui::Text::RichLangValue));
-	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto sure = [=] {
 		if (*box) {
 			(*box)->closeBox();
@@ -193,7 +194,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 			text,
 			tr::lng_manage_discussion_group_link(tr::now),
 			sure),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 object_ptr<Ui::RpWidget> SetupAbout(
@@ -256,7 +257,7 @@ object_ptr<Ui::RpWidget> SetupCreateGroup(
 				GroupInfoBox::Type::Megagroup,
 				channel->name + " Chat",
 				guarded),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	});
 	return result;
 }
@@ -277,7 +278,7 @@ object_ptr<Ui::RpWidget> SetupUnlink(
 	return result;
 }
 
-object_ptr<BoxContent> EditLinkedChatBox(
+object_ptr<Ui::BoxContent> EditLinkedChatBox(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		ChannelData *chat,
@@ -324,7 +325,7 @@ object_ptr<BoxContent> EditLinkedChatBox(
 
 } // namespace
 
-object_ptr<BoxContent> EditLinkedChatBox(
+object_ptr<Ui::BoxContent> EditLinkedChatBox(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		std::vector<not_null<PeerData*>> &&chats,
@@ -338,7 +339,7 @@ object_ptr<BoxContent> EditLinkedChatBox(
 		callback);
 }
 
-object_ptr<BoxContent> EditLinkedChatBox(
+object_ptr<Ui::BoxContent> EditLinkedChatBox(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		not_null<ChannelData*> chat,

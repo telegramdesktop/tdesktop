@@ -11,9 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "base/object_ptr.h"
 
-class BoxContentDivider;
-
 namespace Ui {
+class BoxContentDivider;
 class VerticalLayout;
 class FlatLabel;
 template <typename Widget>
@@ -96,7 +95,7 @@ private:
 		std::vector<ScanInfo> files;
 		std::optional<int> initialCount;
 		QString errorMissing;
-		QPointer<Ui::SlideWrap<BoxContentDivider>> divider;
+		QPointer<Ui::SlideWrap<Ui::BoxContentDivider>> divider;
 		QPointer<Ui::SlideWrap<Ui::FlatLabel>> header;
 		QPointer<Ui::SlideWrap<Ui::FlatLabel>> uploadMoreError;
 		QPointer<Ui::VerticalLayout> wrap;

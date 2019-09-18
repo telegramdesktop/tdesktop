@@ -608,7 +608,7 @@ bool MainWidget::setForwardDraft(PeerId peerId, MessageIdsList &&items) {
 		session().data().idsToItems(items),
 		true);
 	if (!error.isEmpty()) {
-		Ui::show(Box<InformBox>(error), LayerOption::KeepOther);
+		Ui::show(Box<InformBox>(error), Ui::LayerOption::KeepOther);
 		return false;
 	}
 

@@ -60,7 +60,7 @@ private:
 };
 
 class ConfirmContactBox
-	: public BoxContent
+	: public Ui::BoxContent
 	, public HistoryView::SimpleElementDelegate {
 public:
 	ConfirmContactBox(

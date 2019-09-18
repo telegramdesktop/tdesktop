@@ -15,10 +15,13 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Ui {
+class LayerWidget;
+} // namespace Ui
+
 namespace Window {
 
 class SessionController;
-class LayerWidget;
 class SlideAnimation;
 struct SectionShow;
 enum class SlideDirection;
@@ -130,7 +133,7 @@ public:
 	virtual rpl::producer<int> desiredHeight() const;
 
 	// Some sections convert to layers on some geometry sizes.
-	virtual object_ptr<LayerWidget> moveContentToLayer(
+	virtual object_ptr<Ui::LayerWidget> moveContentToLayer(
 			QRect bodyGeometry) {
 		return nullptr;
 	}

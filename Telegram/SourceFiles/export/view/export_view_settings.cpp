@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "styles/style_widgets.h"
 #include "styles/style_export.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace Export {
 namespace View {

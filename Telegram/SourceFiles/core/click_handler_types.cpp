@@ -58,7 +58,7 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 					tr::lng_open_this_link(tr::now) + qsl("\n\n") + displayUrl,
 					tr::lng_open_link(tr::now),
 					[=] { Ui::hideLayer(); open(); }),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 		} else {
 			open();
 		}

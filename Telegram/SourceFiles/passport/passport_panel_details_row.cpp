@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_user.h"
 #include "data/data_countries.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "styles/style_passport.h"
 
 namespace Passport {

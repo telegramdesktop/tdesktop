@@ -18,7 +18,7 @@ namespace Main {
 class Session;
 } // namespace Main
 
-class UsernameBox : public BoxContent, public RPCSender {
+class UsernameBox : public Ui::BoxContent, public RPCSender {
 public:
 	UsernameBox(QWidget*, not_null<Main::Session*> session);
 

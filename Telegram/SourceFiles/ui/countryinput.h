@@ -54,7 +54,7 @@ private:
 
 };
 
-class CountrySelectBox : public BoxContent {
+class CountrySelectBox : public Ui::BoxContent {
 	Q_OBJECT
 
 public:

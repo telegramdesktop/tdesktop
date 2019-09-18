@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/confirm_box.h"
 
-#include "styles/style_boxes.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -36,6 +35,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "observer_peer.h"
 #include "facades.h"
 #include "app.h"
+#include "styles/style_layers.h"
+#include "styles/style_boxes.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>

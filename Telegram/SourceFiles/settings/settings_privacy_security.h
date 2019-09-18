@@ -11,17 +11,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 class EditPrivacyController;
+
+namespace Ui {
 class BoxContent;
+} // namespace Ui
 
 namespace Settings {
 
 int ExceptionUsersCount(const std::vector<not_null<PeerData*>> &exceptions);
 
 bool CheckEditCloudPassword(not_null<::Main::Session*> session);
-object_ptr<BoxContent> EditCloudPasswordBox(
+object_ptr<Ui::BoxContent> EditCloudPasswordBox(
 	not_null<::Main::Session*> session);
 void RemoveCloudPassword(not_null<::Main::Session*> session);
-object_ptr<BoxContent> CloudPasswordAppOutdatedBox();
+object_ptr<Ui::BoxContent> CloudPasswordAppOutdatedBox();
 
 void AddPrivacyButton(
 	not_null<Window::SessionController*> controller,

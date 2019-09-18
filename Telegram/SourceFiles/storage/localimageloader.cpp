@@ -953,13 +953,13 @@ void FileLoadTask::finish() {
 		Ui::show(
 			Box<InformBox>(
 				tr::lng_send_image_empty(tr::now, lt_name, _filepath)),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
 	} else if (_result->filesize > App::kFileSizeLimit) {
 		Ui::show(
 			Box<InformBox>(
 				tr::lng_send_image_too_large(tr::now, lt_name, _filepath)),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
 	} else if (App::main()) {
 		const auto fullId = _msgIdToEdit

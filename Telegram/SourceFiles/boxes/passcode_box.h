@@ -25,7 +25,7 @@ namespace Core {
 struct CloudPasswordState;
 } // namespace Core
 
-class PasscodeBox : public BoxContent, private MTP::Sender {
+class PasscodeBox : public Ui::BoxContent, private MTP::Sender {
 public:
 	PasscodeBox(QWidget*, not_null<Main::Session*> session, bool turningOff);
 
@@ -133,7 +133,7 @@ private:
 
 	QString _pattern;
 
-	QPointer<BoxContent> _replacedBy;
+	QPointer<Ui::BoxContent> _replacedBy;
 	bool _turningOff = false;
 	bool _cloudPwd = false;
 	CloudFields _cloudFields;
@@ -163,7 +163,7 @@ private:
 
 };
 
-class RecoverBox : public BoxContent, public RPCSender {
+class RecoverBox : public Ui::BoxContent, public RPCSender {
 public:
 	RecoverBox(QWidget*, const QString &pattern, bool notEmptyPassport);
 
@@ -201,7 +201,7 @@ private:
 };
 
 struct RecoveryEmailValidation {
-	object_ptr<BoxContent> box;
+	object_ptr<Ui::BoxContent> box;
 	rpl::producer<> reloadRequests;
 	rpl::producer<> cancelRequests;
 };

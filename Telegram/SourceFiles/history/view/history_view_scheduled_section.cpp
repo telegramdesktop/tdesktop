@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h" // SendMenuType.
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
+#include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
@@ -24,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/confirm_box.h"
 #include "boxes/send_files_box.h"
-#include "boxes/generic_box.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "core/event_filter.h"
@@ -344,7 +344,7 @@ void ScheduledWidget::uploadFile(
 	};
 	Ui::show(
 		PrepareScheduleBox(this, sendMenuType(), callback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 bool ScheduledWidget::showSendingFilesError(
@@ -387,7 +387,7 @@ void ScheduledWidget::send() {
 	const auto callback = [=](Api::SendOptions options) { send(options); };
 	Ui::show(
 		PrepareScheduleBox(this, sendMenuType(), callback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void ScheduledWidget::send(Api::SendOptions options) {
@@ -432,7 +432,7 @@ void ScheduledWidget::sendExistingDocument(
 	};
 	Ui::show(
 		PrepareScheduleBox(this, sendMenuType(), callback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 bool ScheduledWidget::sendExistingDocument(
@@ -442,7 +442,7 @@ bool ScheduledWidget::sendExistingDocument(
 		_history->peer,
 		ChatRestriction::f_send_stickers);
 	if (error) {
-		Ui::show(Box<InformBox>(*error), LayerOption::KeepOther);
+		Ui::show(Box<InformBox>(*error), Ui::LayerOption::KeepOther);
 		return false;
 	}
 
@@ -470,7 +470,7 @@ void ScheduledWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
 	};
 	Ui::show(
 		PrepareScheduleBox(this, sendMenuType(), callback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 bool ScheduledWidget::sendExistingPhoto(
@@ -480,7 +480,7 @@ bool ScheduledWidget::sendExistingPhoto(
 		_history->peer,
 		ChatRestriction::f_send_media);
 	if (error) {
-		Ui::show(Box<InformBox>(*error), LayerOption::KeepOther);
+		Ui::show(Box<InformBox>(*error), Ui::LayerOption::KeepOther);
 		return false;
 	}
 
@@ -507,7 +507,7 @@ void ScheduledWidget::sendInlineResult(
 	};
 	Ui::show(
 		PrepareScheduleBox(this, sendMenuType(), callback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void ScheduledWidget::sendInlineResult(

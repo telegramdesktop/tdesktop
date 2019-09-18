@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "base/unique_qptr.h"
 #include "facades.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 
@@ -724,7 +725,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 				this,
 				SendMenuType::Scheduled,
 				send),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	};
 	const auto updateValid = [=] {
 		valid->fire(isValidQuestion() && options->isValid());

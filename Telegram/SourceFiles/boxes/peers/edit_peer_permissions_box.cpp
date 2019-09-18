@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/continuous_sliders.h"
+#include "ui/widgets/box_content_divider.h"
 #include "ui/toast/toast.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_icon.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
 #include "app.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
@@ -387,7 +389,7 @@ Fn<int()> EditPeerPermissionsBox::addSlowmodeSlider(
 		channel ? channel->slowmodeSeconds() : 0);
 
 	container->add(
-		object_ptr<BoxContentDivider>(container),
+		object_ptr<Ui::BoxContentDivider>(container),
 		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
 
 	container->add(

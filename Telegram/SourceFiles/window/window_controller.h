@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mainwindow.h"
+#include "ui/layers/layer_widget.h"
 
 namespace Main {
 class Account;
@@ -45,7 +46,7 @@ public:
 	template <typename BoxType>
 	QPointer<BoxType> show(
 			object_ptr<BoxType> content,
-			LayerOptions options = LayerOption::KeepOther,
+			Ui::LayerOptions options = Ui::LayerOption::KeepOther,
 			anim::type animated = anim::type::normal) {
 		const auto result = QPointer<BoxType>(content.data());
 		showBox(std::move(content), options, animated);
@@ -66,8 +67,8 @@ public:
 
 private:
 	void showBox(
-		object_ptr<BoxContent> content,
-		LayerOptions options,
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options,
 		anim::type animated);
 	void checkThemeEditor();
 

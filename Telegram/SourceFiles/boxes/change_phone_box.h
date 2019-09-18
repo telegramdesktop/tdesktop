@@ -13,7 +13,7 @@ namespace Main {
 class Session;
 } // namespace Main
 
-class ChangePhoneBox : public BoxContent {
+class ChangePhoneBox : public Ui::BoxContent {
 public:
 	ChangePhoneBox(QWidget*, not_null<Main::Session*> session);
 

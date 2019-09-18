@@ -25,13 +25,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "styles/style_widgets.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "styles/style_passport.h"
 
 namespace Passport {
 namespace {
 
-class RequestTypeBox : public BoxContent {
+class RequestTypeBox : public Ui::BoxContent {
 public:
 	RequestTypeBox(
 		QWidget*,
@@ -55,7 +55,7 @@ private:
 
 };
 
-class DeleteDocumentBox : public BoxContent {
+class DeleteDocumentBox : public Ui::BoxContent {
 public:
 	DeleteDocumentBox(
 		QWidget*,
@@ -676,7 +676,7 @@ void PanelEditDocument::save() {
 		std::move(result.filesData));
 }
 
-object_ptr<BoxContent> RequestIdentityType(
+object_ptr<Ui::BoxContent> RequestIdentityType(
 		Fn<void(int index)> submit,
 		std::vector<QString> labels) {
 	return Box<RequestTypeBox>(
@@ -686,7 +686,7 @@ object_ptr<BoxContent> RequestIdentityType(
 		submit);
 }
 
-object_ptr<BoxContent> RequestAddressType(
+object_ptr<Ui::BoxContent> RequestAddressType(
 		Fn<void(int index)> submit,
 		std::vector<QString> labels) {
 	return Box<RequestTypeBox>(
@@ -696,7 +696,7 @@ object_ptr<BoxContent> RequestAddressType(
 		submit);
 }
 
-object_ptr<BoxContent> ConfirmDeleteDocument(
+object_ptr<Ui::BoxContent> ConfirmDeleteDocument(
 		Fn<void(bool withDetails)> submit,
 		const QString &text,
 		const QString &detailsCheckbox) {

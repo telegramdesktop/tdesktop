@@ -874,7 +874,7 @@ void ParticipantsBoxController::Start(
 	};
 	Ui::show(
 		Box<PeerListBox>(std::move(controller), initBox),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void ParticipantsBoxController::addNewItem() {
@@ -907,7 +907,7 @@ void ParticipantsBoxController::addNewItem() {
 				adminDone,
 				restrictedDone),
 			initBox),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void ParticipantsBoxController::addNewParticipants() {
@@ -929,7 +929,7 @@ void ParticipantsBoxController::addNewParticipants() {
 			channel,
 			{ already.begin(), already.end() });
 	} else {
-		Ui::show(Box<MaxInviteBox>(channel), LayerOption::KeepOther);
+		Ui::show(Box<MaxInviteBox>(channel), Ui::LayerOption::KeepOther);
 	}
 }
 
@@ -1474,7 +1474,7 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 		});
 		box->setSaveCallback(SaveAdminCallback(_peer, user, done, fail));
 	}
-	_editParticipantBox = Ui::show(std::move(box), LayerOption::KeepOther);
+	_editParticipantBox = Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 }
 
 void ParticipantsBoxController::editAdminDone(
@@ -1552,7 +1552,7 @@ void ParticipantsBoxController::showRestricted(not_null<UserData*> user) {
 		box->setSaveCallback(
 			SaveRestrictedCallback(_peer, user, done, fail));
 	}
-	_editParticipantBox = Ui::show(std::move(box), LayerOption::KeepOther);
+	_editParticipantBox = Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 }
 
 void ParticipantsBoxController::editRestrictedDone(
@@ -1618,7 +1618,7 @@ void ParticipantsBoxController::kickMember(not_null<UserData*> user) {
 			text,
 			tr::lng_box_remove(tr::now),
 			crl::guard(this, [=] { kickMemberSure(user); })),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void ParticipantsBoxController::unkickMember(not_null<UserData*> user) {
@@ -1661,7 +1661,7 @@ void ParticipantsBoxController::removeAdmin(not_null<UserData*> user) {
 				user->firstName),
 			tr::lng_box_remove(tr::now),
 			crl::guard(this, [=] { removeAdminSure(user); })),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void ParticipantsBoxController::removeAdminSure(not_null<UserData*> user) {

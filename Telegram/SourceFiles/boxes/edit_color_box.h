@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-class EditColorBox : public BoxContent, private base::Subscriber {
+class EditColorBox : public Ui::BoxContent, private base::Subscriber {
 public:
 	enum class Mode {
 		RGBA,

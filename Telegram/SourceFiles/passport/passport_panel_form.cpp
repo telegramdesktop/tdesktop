@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/box_content_divider.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/padding_wrap.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "ui/special_buttons.h"
 #include "styles/style_passport.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
 namespace Passport {
@@ -245,7 +247,7 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 				st::passportPasswordLabel)),
 		st::passportFormAbout2Padding)->entity();
 
-	inner->add(object_ptr<BoxContentDivider>(
+	inner->add(object_ptr<Ui::BoxContentDivider>(
 		inner,
 		st::passportFormDividerHeight));
 	inner->add(

@@ -8,8 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/rate_call_box.h"
 
 #include "lang/lang_keys.h"
-#include "styles/style_boxes.h"
-#include "styles/style_calls.h"
 #include "boxes/confirm_box.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
@@ -17,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "styles/style_layers.h"
+#include "styles/style_calls.h"
 
 namespace {
 

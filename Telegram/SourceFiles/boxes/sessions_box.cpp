@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_settings.h"
@@ -320,7 +321,7 @@ void SessionsBox::terminateOne(uint64 hash) {
 			tr::lng_settings_reset_button(tr::now),
 			st::attentionBoxButton,
 			callback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void SessionsBox::terminateAll() {
@@ -346,7 +347,7 @@ void SessionsBox::terminateAll() {
 			tr::lng_settings_reset_button(tr::now),
 			st::attentionBoxButton,
 			callback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 SessionsBox::Inner::Inner(QWidget *parent)

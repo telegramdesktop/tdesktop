@@ -35,7 +35,7 @@ enum class UsernameState {
 	NotAvailable,
 };
 
-class EditPeerTypeBox : public BoxContent {
+class EditPeerTypeBox : public Ui::BoxContent {
 public:
 	// Edit just the invite link.
 	EditPeerTypeBox(QWidget*, not_null<PeerData*> peer);

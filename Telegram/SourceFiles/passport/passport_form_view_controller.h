@@ -50,8 +50,8 @@ public:
 	virtual void editScope(int index) = 0;
 
 	virtual void showBox(
-		object_ptr<BoxContent> box,
-		LayerOptions options,
+		object_ptr<Ui::BoxContent> box,
+		Ui::LayerOptions options,
 		anim::type animated) = 0;
 	virtual void showToast(const QString &text) = 0;
 	virtual void suggestReset(Fn<void()> callback) = 0;
@@ -64,7 +64,7 @@ public:
 	template <typename BoxType>
 	QPointer<BoxType> show(
 			object_ptr<BoxType> box,
-			LayerOptions options = LayerOption::KeepOther,
+			Ui::LayerOptions options = Ui::LayerOption::KeepOther,
 			anim::type animated = anim::type::normal) {
 		auto result = QPointer<BoxType>(box.data());
 		showBox(std::move(box), options, animated);

@@ -17,7 +17,7 @@ namespace Ui {
 class IconButton;
 } // namespace Ui
 
-class CalendarBox : public BoxContent, private base::Subscriber {
+class CalendarBox : public Ui::BoxContent, private base::Subscriber {
 public:
 	CalendarBox(
 		QWidget*,

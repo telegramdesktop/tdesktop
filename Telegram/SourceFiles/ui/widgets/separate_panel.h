@@ -9,18 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
-#include "boxes/abstract_box.h"
+#include "ui/layers/layer_widget.h"
 
 namespace Ui {
+class BoxContent;
 class IconButton;
+class LayerStackWidget;
 class FlatLabel;
 template <typename Widget>
 class FadeWrapScaled;
 } // namespace Ui
-
-namespace Window {
-class LayerStackWidget;
-} // namespace Window
 
 namespace Ui {
 
@@ -37,8 +35,8 @@ public:
 
 	void showInner(base::unique_qptr<Ui::RpWidget> inner);
 	void showBox(
-		object_ptr<BoxContent> box,
-		LayerOptions options,
+		object_ptr<Ui::BoxContent> box,
+		Ui::LayerOptions options,
 		anim::type animated);
 	void showToast(const QString &text);
 	void destroyLayer();
@@ -86,7 +84,7 @@ private:
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _back;
 	object_ptr<Ui::RpWidget> _body;
 	base::unique_qptr<Ui::RpWidget> _inner;
-	base::unique_qptr<Window::LayerStackWidget> _layer = { nullptr };
+	base::unique_qptr<Ui::LayerStackWidget> _layer = { nullptr };
 	rpl::event_stream<> _synteticBackRequests;
 	rpl::event_stream<> _userCloseRequests;
 	rpl::event_stream<> _closeEvents;
