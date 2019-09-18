@@ -1,24 +1,8 @@
 /out/
-/Debug/
-/Release/
-/Deploy/
+Debug/
+Release/
 /ThirdParty/
 /Telegram/build/target
-/Telegram/GeneratedFiles/
-/Telegram/SourceFiles/art/grid.png
-/Telegram/SourceFiles/art/grid_125x.png
-/Telegram/SourceFiles/art/grid_150x.png
-/Telegram/SourceFiles/art/grid_200x.png
-/Telegram/SourceFiles/art/sprite_125x.png
-/Telegram/SourceFiles/art/sprite_150x.png
-/Telegram/Resources/art/grid.png
-/Telegram/Resources/art/grid_125x.png
-/Telegram/Resources/art/grid_150x.png
-/Telegram/Resources/art/grid_200x.png
-/Telegram/Resources/art/sprite_125x.png
-/Telegram/Resources/art/sprite_150x.png
-/Telegram/Debug/
-/Telegram/Release/
 /Telegram/tests/
 /Telegram/gyp/tests/*.test
 /Telegram/out/
@@ -32,7 +16,6 @@
 *.VC.db
 *.aps
 *.xcodeproj
-/Win32/
 ipch/
 .vs/
 

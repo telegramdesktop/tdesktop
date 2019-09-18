@@ -47,6 +47,14 @@ historyToDownPosition: point(12px, 10px);
 historyToDownAbove: icon {{ "history_down_arrow", historyToDownFg, point(17px, 23px) }};
 historyToDownAboveOver: icon {{ "history_down_arrow", historyToDownFgOver, point(17px, 23px) }};
 historyToDownPaddingTop: 10px;
+historyToDownBelow: icon {
+	{ "history_down_shadow", historyToDownShadow },
+	{ "history_down_circle", historyToDownBg, point(4px, 4px) },
+};
+historyToDownBelowOver: icon {
+	{ "history_down_shadow", historyToDownShadow },
+	{ "history_down_circle", historyToDownBgOver, point(4px, 4px) },
+};
 historyToDown: TwoIconButton {
 	width: 52px;
 	height: 62px;

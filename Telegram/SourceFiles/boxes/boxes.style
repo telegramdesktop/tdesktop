@@ -10,8 +10,26 @@ using "ui/basic.style";
 using "ui/widgets/widgets.style";
 using "intro/intro.style";
 
-boxDuration: 200;
-boxRadius: 3px;
+UserpicButton {
+	size: size;
+	photoSize: pixels;
+	photoPosition: point;
+	changeButton: RoundButton;
+	changeIcon: icon;
+	changeIconPosition: point;
+	duration: int;
+	uploadHeight: pixels;
+	uploadBg: color;
+	uploadIcon: icon;
+	uploadIconPosition: point;
+}
+
+FeedUserpicButton {
+	size: size;
+	innerSize: pixels;
+	innerPosition: point;
+	innerPart: UserpicButton;
+}
 
 ServiceCheck {
 	margin: margins;
@@ -25,6 +43,9 @@ ServiceCheck {
 	color: color;
 	duration: int;
 }
+
+boxDuration: 200;
+boxRadius: 3px;
 
 boxButtonFont: font(boxFontSize semibold);
 defaultBoxButton: RoundButton(defaultLightButton) {
@@ -161,6 +182,28 @@ boxPhotoCompressedSkip: 20px;
 boxPhotoCaptionSkip: 8px;
 boxPhotoTextFg: windowSubTextFg;
 
+defaultChangeUserpicIcon: icon {{ "new_chat_photo", activeButtonFg }};
+defaultUploadUserpicIcon: icon {{ "upload_chat_photo", msgDateImgFg }};
+defaultUserpicButton: UserpicButton {
+	size: size(76px, 76px);
+	photoSize: 76px;
+	photoPosition: point(-1px, -1px);
+	changeButton: defaultActiveButton;
+	changeIcon: defaultChangeUserpicIcon;
+	changeIconPosition: point(23px, 25px);
+	duration: 500;
+	uploadHeight: 24px;
+	uploadBg: msgDateImgBgOver;
+	uploadIcon: defaultUploadUserpicIcon;
+	uploadIconPosition: point(-1px, 1px);
+}
+defaultFeedUserpicButton: FeedUserpicButton {
+	size: size(76px, 76px);
+	innerSize: 76px;
+	innerPosition: point(-1px, -1px);
+	innerPart: defaultUserpicButton;
+}
+
 boxLoadingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	color: windowSubTextFg;
 	thickness: 2px;
@@ -223,24 +266,6 @@ editBioCountdownLabel: FlatLabel(defaultFlatLabel) {
 contactUserIcon: icon {{ "settings_name", menuIconFg }};
 contactPhoneIcon: icon {{ "settings_phone_number", menuIconFg }};
 contactIconPosition: point(-5px, 23px);
-
-contactsAddIconAbove: icon {{ "contacts_add", activeButtonFg, point(18px, 18px) }};
-contactsAdd: TwoIconButton {
-	width: 52px;
-	height: 52px;
-
-	iconBelow: contactsAddIconBelow;
-	iconBelowOver: contactsAddIconBelowOver;
-	iconAbove: contactsAddIconAbove;
-	iconAboveOver: contactsAddIconAbove;
-
-	rippleAreaPosition: point(5px, 5px);
-	rippleAreaSize: 42px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: activeButtonBgRipple;
-	}
-}
-contactsAddPosition: point(14px, 8px);
 
 contactPadding: margins(49px, 2px, 0px, 12px);
 contactSkip: 6px;
