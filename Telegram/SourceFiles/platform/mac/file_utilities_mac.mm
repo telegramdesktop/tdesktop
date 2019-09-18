@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/file_utilities_mac.h"
 
-#include "base/platform/mac/base_platform_mac_utilities.h"
+#include "base/platform/mac/base_platform_utilities_mac.h"
 #include "lang/lang_keys.h"
 #include "styles/style_window.h"
 

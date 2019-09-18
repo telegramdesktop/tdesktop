@@ -225,7 +225,7 @@ Go to ***BuildPath*** and run
     cd qtimageformats && git checkout v5.6.2 && cd ..
     cd qtbase && git checkout v5.6.2 && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff && cd ..
 
-    ./configure -prefix "/usr/local/tdesktop/Qt-5.6.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
+    ./configure -prefix "/usr/local/desktop-app/Qt-5.6.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..

@@ -28,7 +28,7 @@
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "observer_peer.h"
-#include "base/platform/mac/base_platform_mac_utilities.h"
+#include "base/platform/mac/base_platform_utilities_mac.h"
 #include "stickers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_media_player.h"

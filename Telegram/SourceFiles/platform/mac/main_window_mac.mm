@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/about_box.h"
 #include "lang/lang_keys.h"
-#include "base/platform/mac/base_platform_mac_utilities.h"
+#include "base/platform/mac/base_platform_utilities_mac.h"
 #include "ui/widgets/input_fields.h"
 #include "facades.h"
 #include "app.h"

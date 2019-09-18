@@ -10,7 +10,7 @@
     'mac_bundle': '1',
     'mac_bundle_resources': [
       '<!@(python -c "for s in \'<@(langpacks)\'.split(\' \'): print(\'<(res_loc)/langs/\' + s + \'.lproj/Localizable.strings\')")',
-      '../Telegram/Images.xcassets',
+      '<(DEPTH)/../Telegram/Images.xcassets',
     ],
     'xcode_settings': {
       'INFOPLIST_FILE': '../Telegram.plist',
@@ -30,7 +30,7 @@
       '/usr/local/lib',
     ],
     'sources': [
-      '../Telegram/Telegram.entitlements',
+      '<(DEPTH)/../Telegram/Telegram.entitlements',
     ],
     'configurations': {
       'Debug': {
@@ -199,7 +199,7 @@
     'mac_sandbox_development_team': '6N38VWS5BX',
     'product_name': 'Telegram Desktop',
     'sources': [
-      '../Telegram/Telegram Desktop.entitlements',
+      '<(DEPTH)/../Telegram/Telegram Desktop.entitlements',
     ],
     'xcode_settings': {
       'PRODUCT_BUNDLE_IDENTIFIER': 'org.telegram.desktop',
