@@ -7,7 +7,6 @@
 {
   'variables': {
     'qrc_files': [
-      '<(res_loc)/qrc/fonts.qrc',
       '<(res_loc)/qrc/emoji_1.qrc',
       '<(res_loc)/qrc/emoji_2.qrc',
       '<(res_loc)/qrc/emoji_3.qrc',
@@ -18,27 +17,4 @@
       '<(res_loc)/qrc/telegram/sounds.qrc',
     ],
   },
-  'conditions': [
-    [ 'build_linux', {
-      'variables': {
-        'qrc_files': [
-          '<(res_loc)/qrc/linux.qrc',
-        ],
-      }
-    }],
-    [ 'build_mac', {
-      'variables': {
-        'qrc_files': [
-          '<(res_loc)/qrc/mac.qrc',
-        ],
-      },
-    }],
-    [ 'build_win', {
-      'variables': {
-        'qrc_files': [
-          '<(res_loc)/qrc/wnd.qrc',
-        ],
-      }
-    }],
-  ],
 }

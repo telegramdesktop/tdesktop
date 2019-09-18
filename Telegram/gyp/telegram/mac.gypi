@@ -14,7 +14,7 @@
     ],
     'xcode_settings': {
       'INFOPLIST_FILE': '../Telegram.plist',
-      'CURRENT_PROJECT_VERSION': '<!(./print_version.sh)',
+      'CURRENT_PROJECT_VERSION': '<!(helpers/common/print_version.sh <(DEPTH)/../build/version)',
       'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIcon',
       'ENABLE_HARDENED_RUNTIME': 'YES',
       'OTHER_LDFLAGS': [

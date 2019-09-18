@@ -639,3 +639,12 @@ scheduleTimeSeparator: FlatLabel(defaultFlatLabel) {
 	}
 }
 scheduleTimeSeparatorPadding: margins(2px, 0px, 2px, 0px);
+
+youtubeIcon: icon {
+	{ "media_youtube_play_bg", youtubePlayIconBg },
+	{ "media_youtube_play", youtubePlayIconFg, point(24px, 12px) },
+};
+videoIcon: icon {
+	{ "media_video_play_bg", videoPlayIconBg },
+	{ "media_video_play", videoPlayIconFg, point(12px, 12px) },
+};
