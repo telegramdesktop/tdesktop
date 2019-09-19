@@ -12,13 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h" // HistoryItem::originalText
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
+#include "base/event_filter.h"
 #include "boxes/abstract_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/ui_utility.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "core/event_filter.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
@@ -676,10 +676,10 @@ void SetupSendMenu(
 		(*menu)->popup(QCursor::pos());
 		return true;
 	};
-	Core::InstallEventFilter(button, [=](not_null<QEvent*> e) {
+	base::install_event_filter(button, [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::ContextMenu && showMenu()) {
-			return Core::EventFilter::Result::Cancel;
+			return base::EventFilterResult::Cancel;
 		}
-		return Core::EventFilter::Result::Continue;
+		return base::EventFilterResult::Continue;
 	});
 }

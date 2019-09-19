@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "platform/platform_specific.h"
 #include "core/application.h"
-#include "core/event_filter.h"
+#include "base/event_filter.h"
 #include "main/main_session.h"
 #include "app.h"
 #include "styles/style_chat_helpers.h"
@@ -525,17 +525,17 @@ SuggestionsController::SuggestionsController(
 
 	const auto fieldCallback = [=](not_null<QEvent*> event) {
 		return fieldFilter(event)
-			? Core::EventFilter::Result::Cancel
-			: Core::EventFilter::Result::Continue;
+			? base::EventFilterResult::Cancel
+			: base::EventFilterResult::Continue;
 	};
-	_fieldFilter.reset(Core::InstallEventFilter(_field, fieldCallback));
+	_fieldFilter.reset(base::install_event_filter(_field, fieldCallback));
 
 	const auto outerCallback = [=](not_null<QEvent*> event) {
 		return outerFilter(event)
-			? Core::EventFilter::Result::Cancel
-			: Core::EventFilter::Result::Continue;
+			? base::EventFilterResult::Cancel
+			: base::EventFilterResult::Continue;
 	};
-	_outerFilter.reset(Core::InstallEventFilter(outer, outerCallback));
+	_outerFilter.reset(base::install_event_filter(outer, outerCallback));
 
 	QObject::connect(
 		_field,

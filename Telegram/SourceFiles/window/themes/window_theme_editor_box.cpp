@@ -26,8 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
-#include "core/event_filter.h"
 #include "lang/lang_keys.h"
+#include "base/event_filter.h"
 #include "base/zlib_help.h"
 #include "base/unixtime.h"
 #include "data/data_session.h"
@@ -717,15 +717,15 @@ void CreateForExistingBox(
 		box->closeBox();
 		StartEditor(window, cloud);
 	};
-	Core::InstallEventFilter(box, box, [=](not_null<QEvent*> event) {
+	base::install_event_filter(box, box, [=](not_null<QEvent*> event) {
 		if (event->type() == QEvent::KeyPress) {
 			const auto key = static_cast<QKeyEvent*>(event.get())->key();
 			if (key == Qt::Key_Enter || key == Qt::Key_Return) {
 				done();
-				return Core::EventFilter::Result::Cancel;
+				return base::EventFilterResult::Cancel;
 			}
 		}
-		return Core::EventFilter::Result::Continue;
+		return base::EventFilterResult::Continue;
 	});
 	box->addButton(tr::lng_theme_editor_create(), done);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });

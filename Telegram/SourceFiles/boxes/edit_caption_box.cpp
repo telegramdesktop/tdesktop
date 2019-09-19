@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
-#include "core/event_filter.h"
+#include "base/event_filter.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "data/data_document.h"
@@ -725,9 +725,9 @@ void EditCaptionBox::setupEmojiPanel() {
 
 	const auto filterCallback = [=](not_null<QEvent*> event) {
 		emojiFilterForGeometry(event);
-		return Core::EventFilter::Result::Continue;
+		return base::EventFilterResult::Continue;
 	};
-	_emojiFilter.reset(Core::InstallEventFilter(container, filterCallback));
+	_emojiFilter.reset(base::install_event_filter(container, filterCallback));
 
 	_emojiToggle.create(this, st::boxAttachEmoji);
 	_emojiToggle->installEventFilter(_emojiPanel);

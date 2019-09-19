@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_schedule_box.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
-#include "core/event_filter.h"
+#include "base/event_filter.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
@@ -1706,9 +1706,9 @@ void SendFilesBox::setupEmojiPanel() {
 
 	const auto filterCallback = [=](not_null<QEvent*> event) {
 		emojiFilterForGeometry(event);
-		return Core::EventFilter::Result::Continue;
+		return base::EventFilterResult::Continue;
 	};
-	_emojiFilter.reset(Core::InstallEventFilter(container, filterCallback));
+	_emojiFilter.reset(base::install_event_filter(container, filterCallback));
 
 	_emojiToggle.create(this, st::boxAttachEmoji);
 	_emojiToggle->setVisible(!_caption->isHidden());

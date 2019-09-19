@@ -23,8 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "base/event_filter.h"
 #include "core/application.h"
-#include "core/event_filter.h"
 #include "core/update_checker.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peers/edit_participants_box.h"
@@ -314,13 +314,13 @@ void Widget::setupScrollUpButton() {
 		}
 		scrollToTop();
 	});
-	Core::InstallEventFilter(_scrollToTop, [=](not_null<QEvent*> event) {
+	base::install_event_filter(_scrollToTop, [=](not_null<QEvent*> event) {
 		if (event->type() != QEvent::Wheel) {
-			return Core::EventFilter::Result::Continue;
+			return base::EventFilterResult::Continue;
 		}
 		return _scroll->viewportEvent(event)
-			? Core::EventFilter::Result::Cancel
-			: Core::EventFilter::Result::Continue;
+			? base::EventFilterResult::Cancel
+			: base::EventFilterResult::Continue;
 	});
 	updateScrollUpVisibility();
 }

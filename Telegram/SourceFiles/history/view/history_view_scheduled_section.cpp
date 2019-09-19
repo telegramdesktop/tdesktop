@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
-#include "core/event_filter.h"
+#include "base/event_filter.h"
 #include "core/file_utilities.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
@@ -551,13 +551,13 @@ void ScheduledWidget::setupScrollDownButton() {
 	_scrollDown->setClickedCallback([=] {
 		scrollDownClicked();
 	});
-	Core::InstallEventFilter(_scrollDown, [=](not_null<QEvent*> event) {
+	base::install_event_filter(_scrollDown, [=](not_null<QEvent*> event) {
 		if (event->type() != QEvent::Wheel) {
-			return Core::EventFilter::Result::Continue;
+			return base::EventFilterResult::Continue;
 		}
 		return _scroll->viewportEvent(event)
-			? Core::EventFilter::Result::Cancel
-			: Core::EventFilter::Result::Continue;
+			? base::EventFilterResult::Cancel
+			: base::EventFilterResult::Continue;
 	});
 	updateScrollDownVisibility();
 }

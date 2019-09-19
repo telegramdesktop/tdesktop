@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 #include "boxes/edit_caption_box.h"
 #include "core/file_utilities.h"
-#include "core/event_filter.h"
 #include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
 #include "ui/emoji_config.h"
@@ -28,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/special_buttons.h"
 #include "inline_bots/inline_bot_result.h"
+#include "base/event_filter.h"
 #include "base/unixtime.h"
 #include "data/data_drafts.h"
 #include "data/data_session.h"
@@ -680,11 +680,11 @@ void HistoryWidget::initTabbedSelector() {
 
 	const auto selector = controller()->tabbedSelector();
 
-	Core::InstallEventFilter(this, selector, [=](not_null<QEvent*> e) {
+	base::install_event_filter(this, selector, [=](not_null<QEvent*> e) {
 		if (_tabbedPanel && e->type() == QEvent::ParentChange) {
 			setTabbedPanel(nullptr);
 		}
-		return Core::EventFilter::Result::Continue;
+		return base::EventFilterResult::Continue;
 	});
 
 	selector->emojiChosen(

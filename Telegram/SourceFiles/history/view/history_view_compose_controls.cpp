@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
-#include "core/event_filter.h"
+#include "base/event_filter.h"
 #include "base/qt_signal_producer.h"
 #include "history/history.h"
 #include "chat_helpers/tabbed_panel.h"
@@ -228,11 +228,11 @@ void ComposeControls::initTabbedSelector() {
 	const auto selector = _window->tabbedSelector();
 	const auto wrap = _wrap.get();
 
-	Core::InstallEventFilter(wrap, selector, [=](not_null<QEvent*> e) {
+	base::install_event_filter(wrap, selector, [=](not_null<QEvent*> e) {
 		if (_tabbedPanel && e->type() == QEvent::ParentChange) {
 			setTabbedPanel(nullptr);
 		}
-		return Core::EventFilter::Result::Continue;
+		return base::EventFilterResult::Continue;
 	});
 
 	selector->emojiChosen(
