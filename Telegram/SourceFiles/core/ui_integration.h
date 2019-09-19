@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/ui_integration.h"
+#include "ui/integration.h"
 
 namespace Core {
 

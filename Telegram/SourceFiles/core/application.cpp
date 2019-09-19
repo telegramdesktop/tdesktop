@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 #include "core/local_url_handlers.h"
 #include "core/launcher.h"
-#include "core/core_ui_integration.h"
+#include "core/ui_integration.h"
 #include "chat_helpers/emoji_keywords.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"

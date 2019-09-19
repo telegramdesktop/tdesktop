@@ -144,8 +144,6 @@
 <(src_loc)/core/core_cloud_password.h
 <(src_loc)/core/core_settings.cpp
 <(src_loc)/core/core_settings.h
-<(src_loc)/core/core_ui_integration.cpp
-<(src_loc)/core/core_ui_integration.h
 <(src_loc)/core/crash_report_window.cpp
 <(src_loc)/core/crash_report_window.h
 <(src_loc)/core/crash_reports.cpp
@@ -163,6 +161,8 @@
 <(src_loc)/core/sandbox.h
 <(src_loc)/core/shortcuts.cpp
 <(src_loc)/core/shortcuts.h
+<(src_loc)/core/ui_integration.cpp
+<(src_loc)/core/ui_integration.h
 <(src_loc)/core/update_checker.cpp
 <(src_loc)/core/update_checker.h
 <(src_loc)/core/utils.cpp
