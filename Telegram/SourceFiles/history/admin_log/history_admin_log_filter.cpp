@@ -284,9 +284,10 @@ void FilterBox::Inner::createAllUsersCheckbox(const FilterValue &filter) {
 	_allUsers = addRow(object_ptr<Ui::Checkbox>(this, tr::lng_admin_log_filter_all_admins(tr::now), filter.allUsers, st::adminLogFilterCheckbox), st::adminLogFilterSkip);
 	_allUsers->checkedChanges(
 	) | rpl::start_with_next([=](bool checked) {
-		if (checked && !std::exchange(_restoringInvariant, true)) {
+		if (!std::exchange(_restoringInvariant, true)) {
+			auto allChecked = _allUsers->checked();
 			for_const (auto &&checkbox, _admins) {
-				checkbox->setChecked(true);
+				checkbox->setChecked(allChecked);
 			}
 			_restoringInvariant = false;
 			if (_changedCallback) {
