@@ -736,12 +736,6 @@
 <(src_loc)/ui/image/image_location.h
 <(src_loc)/ui/image/image_source.cpp
 <(src_loc)/ui/image/image_source.h
-<(src_loc)/ui/toast/toast.cpp
-<(src_loc)/ui/toast/toast.h
-<(src_loc)/ui/toast/toast_manager.cpp
-<(src_loc)/ui/toast/toast_manager.h
-<(src_loc)/ui/toast/toast_widget.cpp
-<(src_loc)/ui/toast/toast_widget.h
 <(src_loc)/ui/widgets/continuous_sliders.cpp
 <(src_loc)/ui/widgets/continuous_sliders.h
 <(src_loc)/ui/widgets/discrete_sliders.cpp

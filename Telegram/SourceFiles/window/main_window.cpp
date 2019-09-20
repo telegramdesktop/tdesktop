@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "base/crc32hash.h"
+#include "ui/toast/toast.h"
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
@@ -144,6 +145,8 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 	) | rpl::start_with_next([=] {
 		checkLockByTerms();
 	}, lifetime());
+
+	Ui::Toast::SetDefaultParent(_body.data());
 
 	if (_outdated) {
 		_outdated->heightValue(
