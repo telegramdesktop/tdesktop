@@ -316,12 +316,22 @@ void Generator::generateData() {
 	_rows.back().pinned = true;
 	addRow("Alexandra Smith", 7, "10:00", "This is amazing!");
 	_rows.back().unreadCounter = 2;
-	addRow("Mike Apple", 2, "9:00", textcmdLink(1, QChar(55357) + QString() + QChar(56836) + " Sticker"));
+	addRow("Mike Apple", 2, "9:00", textcmdLink(1, tr::lng_in_dlg_sticker_emoji(tr::now, lt_emoji, QChar(55357) + QString() + QChar(56836))));
 	_rows.back().unreadCounter = 2;
 	_rows.back().muted = true;
-	addRow("Evening Club", 1, "8:00", textcmdLink(1, "Eva: Photo"));
+	addRow("Evening Club", 1, "8:00", textcmdLink(1, tr::lng_dialogs_text_with_from(
+		tr::now,
+		lt_from_part,
+		tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, "Eva"),
+		lt_message,
+		tr::lng_in_dlg_photo(tr::now))));
 	_rows.back().type = Row::Type::Group;
-	addRow("Old Pirates", 6, "7:00", textcmdLink(1, "Max:") + " Yo-ho-ho!");
+	addRow("Old Pirates", 6, "7:00", tr::lng_dialogs_text_with_from(
+		tr::now,
+		lt_from_part,
+		textcmdLink(1, tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, "Max")),
+		lt_message,
+		"Yo-ho-ho!"));
 	_rows.back().type = Row::Type::Group;
 	addRow("Max Bright", 3, "6:00", "How about some coffee?");
 	_rows.back().status = Status::Received;
@@ -330,7 +340,7 @@ void Generator::generateData() {
 	addRow("Davy Jones", 5, "4:00", textcmdLink(1, "Keynote.pdf"));
 
 	_topBarName.setText(st::msgNameStyle, "Eva Summer", Ui::NameTextOptions());
-	_topBarStatus = "online";
+	_topBarStatus = tr::lng_status_online(tr::now);
 	_topBarStatusActive = true;
 
 	addPhotoBubble(":/gui/art/sunrise.jpg", "Nearly missed this sunrise", "7:00", Status::None);
@@ -340,7 +350,7 @@ void Generator::generateData() {
 	addAudioBubble(waveform, 33, "0:07", "8:00", Status::None);
 	_bubbles.back().outbg = true;
 	_bubbles.back().status = Status::Received;
-	addDateBubble("December 26");
+	addDateBubble(langDayOfMonthFull(QDate(QDate::currentDate().year(), 12, 26)));
 	addTextBubble("Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do, so throw off the bowlines, sail away from safe harbor, catch the trade winds in your sails.", "10:00", Status::Received);
 	_bubbles.back().tail = false;
 	_bubbles.back().outbg = true;
