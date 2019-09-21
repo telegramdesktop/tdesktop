@@ -311,39 +311,39 @@ void Generator::addPhotoBubble(QString image, QString caption, QString date, Sta
 
 void Generator::generateData() {
 	_rows.reserve(9);
-	addRow("Eva Summer", 0, "11:00", "Reminds me of a Chinese proverb: the best time to plant a tree was 20 years ago.");
+	addRow(tr::lng_theme_preview_dialog_name1(tr::now), 0, "11:00", tr::lng_theme_preview_dialog_text1(tr::now));
 	_rows.back().active = true;
 	_rows.back().pinned = true;
-	addRow("Alexandra Smith", 7, "10:00", "This is amazing!");
+	addRow(tr::lng_theme_preview_dialog_name2(tr::now), 7, "10:00", tr::lng_theme_preview_dialog_text2(tr::now));
 	_rows.back().unreadCounter = 2;
-	addRow("Mike Apple", 2, "9:00", textcmdLink(1, tr::lng_in_dlg_sticker_emoji(tr::now, lt_emoji, QChar(55357) + QString() + QChar(56836))));
+	addRow(tr::lng_theme_preview_dialog_name3(tr::now), 2, "9:00", textcmdLink(1, tr::lng_in_dlg_sticker_emoji(tr::now, lt_emoji, QChar(55357) + QString() + QChar(56836))));
 	_rows.back().unreadCounter = 2;
 	_rows.back().muted = true;
-	addRow("Evening Club", 1, "8:00", textcmdLink(1, tr::lng_dialogs_text_with_from(
+	addRow(tr::lng_theme_preview_dialog_name4(tr::now), 1, "8:00", textcmdLink(1, tr::lng_dialogs_text_with_from(
 		tr::now,
 		lt_from_part,
-		tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, "Eva"),
+		tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, tr::lng_theme_preview_dialog_author4(tr::now)),
 		lt_message,
 		tr::lng_in_dlg_photo(tr::now))));
 	_rows.back().type = Row::Type::Group;
-	addRow("Old Pirates", 6, "7:00", tr::lng_dialogs_text_with_from(
+	addRow(tr::lng_theme_preview_dialog_name5(tr::now), 6, "7:00", tr::lng_dialogs_text_with_from(
 		tr::now,
 		lt_from_part,
-		textcmdLink(1, tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, "Max")),
+		textcmdLink(1, tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, tr::lng_theme_preview_dialog_author5(tr::now))),
 		lt_message,
-		"Yo-ho-ho!"));
+		tr::lng_theme_preview_dialog_text5(tr::now)));
 	_rows.back().type = Row::Type::Group;
-	addRow("Max Bright", 3, "6:00", "How about some coffee?");
+	addRow(tr::lng_theme_preview_dialog_name6(tr::now), 3, "6:00", tr::lng_theme_preview_dialog_text6(tr::now));
 	_rows.back().status = Status::Received;
-	addRow("Natalie Parker", 4, "5:00", "OK, great)");
+	addRow(tr::lng_theme_preview_dialog_name7(tr::now), 4, "5:00",tr::lng_theme_preview_dialog_text7(tr::now));
 	_rows.back().status = Status::Received;
-	addRow("Davy Jones", 5, "4:00", textcmdLink(1, "Keynote.pdf"));
+	addRow(tr::lng_theme_preview_dialog_name8(tr::now), 5, "4:00", textcmdLink(1, tr::lng_theme_preview_dialog_file8(tr::now)));
 
-	_topBarName.setText(st::msgNameStyle, "Eva Summer", Ui::NameTextOptions());
+	_topBarName.setText(st::msgNameStyle, tr::lng_theme_preview_chat_title(tr::now), Ui::NameTextOptions());
 	_topBarStatus = tr::lng_status_online(tr::now);
 	_topBarStatusActive = true;
 
-	addPhotoBubble(":/gui/art/sunrise.jpg", "Nearly missed this sunrise", "7:00", Status::None);
+	addPhotoBubble(":/gui/art/sunrise.jpg", tr::lng_theme_preview_message1(tr::now), "7:00", Status::None);
 	int wavedata[] = { 0, 0, 0, 0, 27, 31, 4, 1, 0, 0, 23, 30, 18, 9, 7, 19, 4, 2, 2, 2, 0, 0, 15, 15, 15, 15, 3, 15, 19, 3, 2, 0, 0, 0, 0, 0, 3, 12, 16, 6, 4, 6, 14, 12, 2, 12, 12, 11, 3, 0, 7, 5, 7, 4, 7, 5, 2, 4, 0, 9, 5, 7, 6, 2, 2, 0, 0 };
 	auto waveform = QVector<int>(base::array_size(wavedata));
 	memcpy(waveform.data(), wavedata, sizeof(wavedata));
@@ -351,16 +351,16 @@ void Generator::generateData() {
 	_bubbles.back().outbg = true;
 	_bubbles.back().status = Status::Received;
 	addDateBubble(langDayOfMonthFull(QDate(QDate::currentDate().year(), 12, 26)));
-	addTextBubble("Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do, so throw off the bowlines, sail away from safe harbor, catch the trade winds in your sails.", "10:00", Status::Received);
+	addTextBubble(tr::lng_theme_preview_message2(tr::now), "10:00", Status::Received);
 	_bubbles.back().tail = false;
 	_bubbles.back().outbg = true;
-	addTextBubble("Mark Twain said that " + QString() + QChar(9757) + QChar(55356) + QChar(57339), "10:00", Status::Received);
+	addTextBubble(tr::lng_theme_preview_message3(tr::now), "10:00", Status::Received);
 	_bubbles.back().outbg = true;
 	_bubbles.back().attached = true;
 	_bubbles.back().tail = true;
-	addTextBubble("Reminds me of a Chinese proverb: the best time to plant a tree was 20 years ago. The second best time is now.", "11:00", Status::None);
-	_bubbles.back().replyName.setText(st::msgNameStyle, "Alex Cassio", Ui::NameTextOptions());
-	_bubbles.back().replyText.setText(st::messageTextStyle, "Mark Twain said that " + QString() + QChar(9757) + QChar(55356) + QChar(57339), Ui::DialogTextOptions());
+	addTextBubble(tr::lng_theme_preview_message4(tr::now), "11:00", Status::None);
+	_bubbles.back().replyName.setText(st::msgNameStyle, tr::lng_theme_preview_your_name(tr::now), Ui::NameTextOptions());
+	_bubbles.back().replyText.setText(st::messageTextStyle, tr::lng_theme_preview_message3(tr::now), Ui::DialogTextOptions());
 }
 
 Generator::Generator(

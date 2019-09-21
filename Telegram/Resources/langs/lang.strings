@@ -1570,6 +1570,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_preview_users#one" = "{count} person is using this theme";
 "lng_theme_preview_users#other" = "{count} people are using this theme";
 
+"lng_theme_preview_dialog_name1" = "Eva Summer";
+"lng_theme_preview_dialog_text1" = "Reminds me of a Chinese proverb: the best time to plant a tree was 20 years ago.";
+"lng_theme_preview_dialog_name2" = "Alexandra Smith";
+"lng_theme_preview_dialog_text2" = "This is amazing!";
+"lng_theme_preview_dialog_name3" = "Mike Apple";
+"lng_theme_preview_dialog_name4" = "Evening Club";
+"lng_theme_preview_dialog_author4" = "Eva";
+"lng_theme_preview_dialog_name5" = "Old Pirates";
+"lng_theme_preview_dialog_author5" = "Max";
+"lng_theme_preview_dialog_text5" = "Yo-ho-ho!";
+"lng_theme_preview_dialog_name6" = "Max Bright";
+"lng_theme_preview_dialog_text6" = "How about some coffee?";
+"lng_theme_preview_dialog_name7" = "Natalie Parker";
+"lng_theme_preview_dialog_text7" = "OK, great)";
+"lng_theme_preview_dialog_name8" = "Davy Jones";
+"lng_theme_preview_dialog_file8" = "Keynote.pdf";
+
+"lng_theme_preview_your_name" = "Alex Cassio";
+"lng_theme_preview_chat_title" = "Eva Summer";
+"lng_theme_preview_message1" = "Nearly missed this sunrise";
+"lng_theme_preview_message2" = "Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do, so throw off the bowlines, sail away from safe harbor, catch the trade winds in your sails.";
+"lng_theme_preview_message3" = "Mark Twain said that ☝🏻";
+"lng_theme_preview_message4" = "Reminds me of a Chinese proverb: the best time to plant a tree was 20 years ago. The second best time is now.";
+
 "lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Show all sessions and terminate that session.\n\nIf you think that somebody logged in to your account against your will, you can enable two-step verification in Settings.\n\nSincerely,\nThe Telegram Team";
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
