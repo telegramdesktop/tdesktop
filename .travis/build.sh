@@ -170,6 +170,7 @@ buildXkbCommon() {
   git clone https://github.com/xkbcommon/libxkbcommon.git
 
   cd "$EXTERNAL/libxkbcommon"
+  git checkout xkbcommon-0.8.4
   ./autogen.sh --prefix=$XKB_PATH
   make $MAKE_ARGS
   sudo make install
