@@ -757,7 +757,9 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 		_view->showToast(tr::lng_passport_success(tr::now));
 
 		App::CallDelayed(
-			Ui::Toast::DefaultDuration + st::toastFadeOutDuration,
+			(st::toastFadeInDuration
+				+ Ui::Toast::kDefaultDuration
+				+ st::toastFadeOutDuration),
 			this,
 			[=] { cancel(); });
 	}).fail([=](const RPCError &error) {
