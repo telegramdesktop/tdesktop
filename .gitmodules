@@ -15,7 +15,7 @@
 	url = https://github.com/Cyan4973/xxHash.git
 [submodule "Telegram/ThirdParty/rlottie"]
 	path = Telegram/ThirdParty/rlottie
-	url = https://github.com/john-preston/rlottie
+	url = https://github.com/desktop-app/rlottie.git
 [submodule "Telegram/ThirdParty/lz4"]
 	path = Telegram/ThirdParty/lz4
 	url = https://github.com/lz4/lz4.git
@@ -37,3 +37,9 @@
 [submodule "Telegram/lib_ui"]
 	path = Telegram/lib_ui
 	url = https://github.com/desktop-app/lib_ui.git
+[submodule "Telegram/lib_rlottie"]
+	path = Telegram/lib_rlottie
+	url = https://github.com/desktop-app/lib_rlottie.git
+[submodule "Telegram/lib_lottie"]
+	path = Telegram/lib_lottie
+	url = https://github.com/desktop-app/lib_lottie.git

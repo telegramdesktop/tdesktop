@@ -84,6 +84,7 @@ gypArguments.append('--generator-output=..')
 gypArguments.append('-Goutput_dir=../out')
 gypArguments.append('-Dapi_id=' + apiId)
 gypArguments.append('-Dapi_hash=' + apiHash)
+gypArguments.append('-Dlottie_use_cache=1')
 gypArguments.append('-Dofficial_build_target=' + officialTarget)
 if 'TDESKTOP_BUILD_DEFINES' in os.environ:
     buildDefines = os.environ['TDESKTOP_BUILD_DEFINES']
