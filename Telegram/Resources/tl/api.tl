@@ -1078,6 +1078,10 @@ theme#f7d90ce0 flags:# creator:flags.0?true default:flags.1?true id:long access_
 account.themesNotModified#f41eb622 = account.Themes;
 account.themes#7f676421 hash:int themes:Vector<Theme> = account.Themes;
 
+wallet.liteResponse#764386d7 response:bytes = wallet.LiteResponse;
+
+wallet.secretSalt#dd484d64 salt:bytes = wallet.KeySecretSalt;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -1415,4 +1419,7 @@ langpack.getLanguage#6a596502 lang_pack:string lang_code:string = LangPackLangua
 folders.editPeerFolders#6847d0ab folder_peers:Vector<InputFolderPeer> = Updates;
 folders.deleteFolder#1c295881 folder_id:int = Updates;
 
-// LAYER 105
+wallet.sendLiteRequest#e2c9d33e body:bytes = wallet.LiteResponse;
+wallet.getKeySecretSalt#b57f346 revoke:Bool = wallet.KeySecretSalt;
+
+// LAYER 106
