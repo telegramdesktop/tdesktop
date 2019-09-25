@@ -138,6 +138,11 @@
         '<(src_loc)/platform/win/windows_dlls.cpp',
         '<(src_loc)/platform/win/windows_dlls.h',
       ],
+    }], [ 'build_linux', {
+      'libraries': [
+        '<(linux_lib_ssl)',
+        '<(linux_lib_crypto)',
+      ],
     }]],
   }],
 }
