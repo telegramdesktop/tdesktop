@@ -4,7 +4,7 @@ from subprocess import call
 from os.path import expanduser
 
 changelog_file = '../../changelog.txt'
-token_file = '../../../TelegramPrivate/github-releases-token.txt'
+token_file = '../../../DesktopPrivate/github-releases-token.txt'
 
 version = ''
 commit = ''

@@ -4,7 +4,7 @@ pushd `dirname $0` > /dev/null
 FullScriptPath=`pwd`
 popd > /dev/null
 
-if [ ! -d "$FullScriptPath/../../../TelegramPrivate" ]; then
+if [ ! -d "$FullScriptPath/../../../DesktopPrivate" ]; then
   echo ""
   echo "This script is for building the production version of Telegram Desktop."
   echo ""

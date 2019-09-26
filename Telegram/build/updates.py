@@ -183,7 +183,7 @@ if building:
 commandPath = scriptPath + '/../../out/Debug/' + outputFolder + '/command.txt'
 
 if composing:
-    templatePath = scriptPath + '/../../../TelegramPrivate/updates_template.txt'
+    templatePath = scriptPath + '/../../../DesktopPrivate/updates_template.txt'
     if not os.path.exists(templatePath):
         finish(1, 'Template file "' + templatePath + '" not found.')
 

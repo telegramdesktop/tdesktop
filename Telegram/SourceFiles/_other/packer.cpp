@@ -35,8 +35,8 @@ w/CVnbwQOw0g5GBwwFV3r0uTTvy44xx8XXxk+Qknu4eBCsmrAFNnAgMBAAE=\n\
 
 extern const char *PrivateKey;
 extern const char *PrivateBetaKey;
-#include "../../../../TelegramPrivate/packer_private.h" // RSA PRIVATE KEYS for update signing
-#include "../../../../TelegramPrivate/alpha_private.h" // private key for alpha version file generation
+#include "../../../../DesktopPrivate/packer_private.h" // RSA PRIVATE KEYS for update signing
+#include "../../../../DesktopPrivate/alpha_private.h" // private key for alpha version file generation
 
 QString countAlphaVersionSignature(quint64 version);
 

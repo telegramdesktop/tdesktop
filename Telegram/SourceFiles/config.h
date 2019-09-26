@@ -183,7 +183,7 @@ constexpr auto ApiHash = "344583e45741c457fe1862106095a5eb";
 #if (TDESKTOP_ALPHA_VERSION != 0)
 
 // Private key for downloading closed alphas.
-#include "../../../TelegramPrivate/alpha_private.h"
+#include "../../../DesktopPrivate/alpha_private.h"
 
 #else
 static const char *AlphaPrivateKey = "";

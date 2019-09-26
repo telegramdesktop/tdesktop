@@ -42,9 +42,9 @@ if os.path.isfile(officialTargetFile):
             officialTarget = line.strip()
 
 if officialTarget != '':
-    officialApiIdFile = scriptPath + '/../../../TelegramPrivate/custom_api_id.h'
+    officialApiIdFile = scriptPath + '/../../../DesktopPrivate/custom_api_id.h'
     if not os.path.isfile(officialApiIdFile):
-        print("[ERROR] TelegramPrivate/custom_api_id.h not found.")
+        print("[ERROR] DesktopPrivate/custom_api_id.h not found.")
         finish(1)
     with open(officialApiIdFile, 'r') as f:
         for line in f:

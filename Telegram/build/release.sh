@@ -9,7 +9,7 @@ Param2="$2"
 Param3="$3"
 Param4="$4"
 
-if [ ! -d "$FullScriptPath/../../../TelegramPrivate" ]; then
+if [ ! -d "$FullScriptPath/../../../DesktopPrivate" ]; then
   echo ""
   echo "This script is for building the production version of Telegram Desktop."
   echo ""

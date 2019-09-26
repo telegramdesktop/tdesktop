@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 set "FullScriptPath=%~dp0"
 set "FullExecPath=%cd%"
 
-if not exist "%FullScriptPath%..\..\..\TelegramPrivate" (
+if not exist "%FullScriptPath%..\..\..\DesktopPrivate" (
   echo.
   echo This script is for building the production version of Telegram Desktop.
   echo.
@@ -13,7 +13,7 @@ if not exist "%FullScriptPath%..\..\..\TelegramPrivate" (
 )
 
 set "HomePath=%FullScriptPath%.."
-set "SignAppxPath=%HomePath%\..\..\TelegramPrivate\AppxSign.bat"
+set "SignAppxPath=%HomePath%\..\..\DesktopPrivate\AppxSign.bat"
 set "ResourcesPath=%HomePath%\Resources"
 set "SolutionPath=%HomePath%\.."
 set "ReleasePath=%HomePath%\..\out\Debug"

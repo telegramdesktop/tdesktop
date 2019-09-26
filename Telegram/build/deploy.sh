@@ -4,7 +4,7 @@ pushd `dirname $0` > /dev/null
 FullScriptPath=`pwd`
 popd > /dev/null
 
-if [ ! -d "$FullScriptPath/../../../TelegramPrivate" ]; then
+if [ ! -d "$FullScriptPath/../../../DesktopPrivate" ]; then
   echo ""
   echo "This script is for building the production version of Telegram Desktop."
   echo ""
@@ -186,7 +186,7 @@ if [ "$DeployLinux32" == "1" ]; then
   fi
 fi
 
-$FullScriptPath/../../../TelegramPrivate/mount.sh
+$FullScriptPath/../../../DesktopPrivate/mount.sh
 
 declare -a Files
 if [ "$DeployMac" == "1" ]; then
@@ -208,7 +208,7 @@ if [ "$DeployLinux32" == "1" ]; then
   Files+=("tlinux32/$Linux32UpdateFile" "tlinux32/$Linux32SetupFile")
 fi
 cd $DeployPath
-rsync -avR --progress ${Files[@]} "$FullScriptPath/../../../TelegramPrivate/remote/files"
+rsync -avR --progress ${Files[@]} "$FullScriptPath/../../../DesktopPrivate/remote/files"
 
 echo "Version $AppVersionStrFull was deployed!"
 cd $FullExecPath
