@@ -31,9 +31,11 @@
     }]],
     'dependencies': [
       '<(submodules_loc)/lib_base/lib_base.gyp:lib_base',
+      '<(submodules_loc)/lib_tl/lib_tl.gyp:lib_tl',
     ],
     'export_dependent_settings': [
       '<(submodules_loc)/lib_base/lib_base.gyp:lib_base',
+      '<(submodules_loc)/lib_tl/lib_tl.gyp:lib_tl',
     ],
     'include_dirs': [
       '<(src_loc)',
@@ -49,6 +51,7 @@
       'action_name': 'codegen_scheme',
       'inputs': [
         '<(src_loc)/codegen/scheme/codegen_scheme.py',
+        '<(submodules_loc)/lib_tl/tl/generate_tl.py',
         '<(res_loc)/tl/mtproto.tl',
         '<(res_loc)/tl/api.tl',
       ],
@@ -58,7 +61,7 @@
       ],
       'action': [
         'python', '<(src_loc)/codegen/scheme/codegen_scheme.py',
-        '-o', '<(SHARED_INTERMEDIATE_DIR)',
+        '-o', '<(SHARED_INTERMEDIATE_DIR)/scheme',
         '<(res_loc)/tl/mtproto.tl',
         '<(res_loc)/tl/api.tl',
       ],

@@ -1,6 +1,14 @@
 // Core types (no need to gen)
 
-//vector#1cb5c415 {t:Type} # [ t ] = Vector t;
+int ? = Int;
+long ? = Long;
+double ? = Double;
+string ? = String;
+
+vector {t:Type} # [ t ] = Vector t;
+
+int128 4*[ int ] = Int128;
+int256 8*[ int ] = Int256;
 
 ///////////////////////////////
 /// Authorization key creation

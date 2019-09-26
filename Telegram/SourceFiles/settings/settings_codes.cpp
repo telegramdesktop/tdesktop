@@ -156,6 +156,7 @@ auto GenerateCodes() {
 			Ui::show(Box<InformBox>("All sound overrides were reset."));
 		}
 	});
+
 	return codes;
 }
 
