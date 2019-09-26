@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
 #include "base/platform/base_platform_info.h"
-#include "base/platform/win/base_platform_windows_h.h"
+#include "base/platform/win/base_windows_h.h"
 
 #include <shellapi.h>
 #include <VersionHelpers.h>

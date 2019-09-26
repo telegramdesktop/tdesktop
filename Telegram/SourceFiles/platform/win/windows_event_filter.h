@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/platform/win/base_platform_windows_h.h"
+#include "base/platform/win/base_windows_h.h"
 
 #include <QtCore/QAbstractNativeEventFilter>
 

@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
 #include "base/platform/base_platform_info.h"
-#include "base/platform/mac/base_platform_utilities_mac.h"
+#include "base/platform/mac/base_utilities_mac.h"
 #include "platform/platform_specific.h"
 
 #include <Cocoa/Cocoa.h>
