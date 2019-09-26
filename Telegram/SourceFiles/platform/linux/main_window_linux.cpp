@@ -585,8 +585,6 @@ void MainWindow::psFirstShow() {
 		LOG(("Not using Unity Launcher count."));
 	}
 
-	psUpdateMargins();
-
 	bool showShadows = true;
 
 	show();
@@ -609,12 +607,6 @@ void MainWindow::psFirstShow() {
 	}
 
 	setPositionInited();
-}
-
-void MainWindow::psInitSysMenu() {
-}
-
-void MainWindow::psUpdateMargins() {
 }
 
 MainWindow::~MainWindow() {

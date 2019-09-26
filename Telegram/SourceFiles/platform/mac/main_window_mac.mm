@@ -635,8 +635,6 @@ void MainWindow::updateIconCounters() {
 }
 
 void MainWindow::psFirstShow() {
-	psUpdateMargins();
-
 	bool showShadows = true;
 
 	show();
@@ -773,12 +771,6 @@ void MainWindow::psMacMonospace() {
 
 void MainWindow::psMacClearFormat() {
 	SendKeySequence(Qt::Key_N, Qt::ControlModifier | Qt::ShiftModifier);
-}
-
-void MainWindow::psInitSysMenu() {
-}
-
-void MainWindow::psUpdateMargins() {
 }
 
 void MainWindow::updateGlobalMenuHook() {
