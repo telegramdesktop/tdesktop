@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "boxes/edit_color_box.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
+#include "base/call_delayed.h"
 
 namespace Window {
 namespace Theme {
@@ -522,7 +522,7 @@ void EditorBlock::mouseReleaseEvent(QMouseEvent *e) {
 		if (_context->box) {
 			chooseRow();
 		} else if (_selected >= 0) {
-			App::CallDelayed(st::defaultRippleAnimation.hideDuration, this, [this, index = findRowIndex(&rowAtIndex(_selected))] {
+			base::call_delayed(st::defaultRippleAnimation.hideDuration, this, [this, index = findRowIndex(&rowAtIndex(_selected))] {
 				if (index >= 0 && index < _data.size()) {
 					activateRow(_data[index]);
 				}

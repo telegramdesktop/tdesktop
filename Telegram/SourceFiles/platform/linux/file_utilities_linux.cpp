@@ -7,16 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/file_utilities_linux.h"
 
-#include <private/qguiapplication_p.h>
 #include "platform/linux/linux_libs.h"
 #include "platform/linux/linux_gdk_helper.h"
 #include "core/application.h"
 #include "mainwindow.h"
 #include "boxes/abstract_box.h"
 #include "storage/localstorage.h"
+#include "base/call_delayed.h"
 #include "facades.h"
 
 #include <QtCore/QProcess>
+#include <private/qguiapplication_p.h>
 
 QStringList qt_make_filter_list(const QString &filter);
 
@@ -419,7 +420,7 @@ int GtkFileDialog::exec() {
 	show();
 
 	if (const auto parent = parentWidget()) {
-		App::CallDelayed(200, parent, [=] {
+		base::call_delayed(200, parent, [=] {
 			parent->activateWindow();
 		});
 	}

@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "chat_helpers/emoji_sets_manager.h"
 #include "base/platform/base_platform_info.h"
+#include "base/call_delayed.h"
 #include "support/support_common.h"
 #include "support/support_templates.h"
 #include "main/main_session.h"
@@ -809,7 +810,7 @@ void SetupExport(
 	)->addClickHandler([=] {
 		const auto session = &controller->session();
 		Ui::hideSettingsAndLayer();
-		App::CallDelayed(
+		base::call_delayed(
 			st::boxDuration,
 			session,
 			[=] { session->data().startExport(); });

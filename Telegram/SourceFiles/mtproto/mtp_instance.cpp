@@ -21,9 +21,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "core/application.h"
-#include "base/unixtime.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
+#include "base/unixtime.h"
+#include "base/call_delayed.h"
 #include "base/timer.h"
 #include "facades.h"
 
@@ -450,7 +451,7 @@ void Instance::Private::requestConfigIfOld() {
 void Instance::Private::requestConfigIfExpired() {
 	const auto requestIn = (_configExpiresAt - crl::now());
 	if (requestIn > 0) {
-		App::CallDelayed(
+		base::call_delayed(
 			std::min(requestIn, 3600 * crl::time(1000)),
 			_instance,
 			[=] { requestConfigIfExpired(); });

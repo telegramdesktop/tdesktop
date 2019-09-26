@@ -16,9 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
+#include "base/call_delayed.h"
 #include "apiwrap.h"
 #include "app.h"
-#include "facades.h"
 #include "styles/style_history.h"
 
 #include <QtCore/QBuffer>
@@ -601,7 +601,7 @@ base::flat_map<uint64, not_null<DocumentData*>> EmojiPack::collectStickers(
 }
 
 void EmojiPack::refreshDelayed() {
-	App::CallDelayed(details::kRefreshTimeout, _session, [=] {
+	base::call_delayed(details::kRefreshTimeout, _session, [=] {
 		refresh();
 	});
 }

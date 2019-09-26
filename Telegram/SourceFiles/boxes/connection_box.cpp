@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "base/qthelp_url.h"
+#include "base/call_delayed.h"
 #include "core/application.h"
 #include "main/main_account.h"
 #include "ui/widgets/checkbox.h"
@@ -1437,7 +1438,7 @@ void ProxiesBoxController::share(const ProxyData &proxy) {
 
 ProxiesBoxController::~ProxiesBoxController() {
 	if (_saveTimer.isActive()) {
-		App::CallDelayed(
+		base::call_delayed(
 			kSaveSettingsDelayedTimeout,
 			QCoreApplication::instance(),
 			[] { Local::writeSettings(); });

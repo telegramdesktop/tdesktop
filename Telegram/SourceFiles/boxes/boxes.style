@@ -780,8 +780,8 @@ themesMenuToggle: IconButton(defaultIconButton) {
 	width: 44px;
 	height: 44px;
 
-	icon: icon {{ "title_menu_dots", menuIconFg }};
-	iconOver: icon {{ "title_menu_dots", menuIconFgOver }};
+	icon: menuToggleIcon;
+	iconOver: menuToggleIconOver;
 	iconPosition: point(-1px, -1px);
 
 	rippleAreaPosition: point(4px, 4px);

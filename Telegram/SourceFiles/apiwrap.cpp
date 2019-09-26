@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/openssl_help.h"
 #include "base/unixtime.h"
+#include "base/call_delayed.h"
 #include "observer_peer.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -361,7 +362,7 @@ void ApiWrap::requestTermsUpdate() {
 	}
 	const auto now = crl::now();
 	if (_termsUpdateSendAt && now < _termsUpdateSendAt) {
-		App::CallDelayed(_termsUpdateSendAt - now, _session, [=] {
+		base::call_delayed(_termsUpdateSendAt - now, _session, [=] {
 			requestTermsUpdate();
 		});
 		return;
@@ -1283,7 +1284,7 @@ void ApiWrap::gotUserFull(
 	const auto &d = result.c_userFull();
 	if (user == _session->user() && !_session->validateSelf(d.vuser())) {
 		constexpr auto kRequestUserAgainTimeout = crl::time(10000);
-		App::CallDelayed(kRequestUserAgainTimeout, _session, [=] {
+		base::call_delayed(kRequestUserAgainTimeout, _session, [=] {
 			requestFullPeer(user);
 		});
 		return;

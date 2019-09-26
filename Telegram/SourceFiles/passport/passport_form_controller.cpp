@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
 #include "base/unixtime.h"
+#include "base/call_delayed.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "mainwindow.h"
@@ -28,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "storage/file_upload.h"
 #include "storage/file_download.h"
-#include "facades.h"
 #include "app.h"
 
 #include <QtCore/QJsonDocument>
@@ -756,7 +756,7 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 
 		_view->showToast(tr::lng_passport_success(tr::now));
 
-		App::CallDelayed(
+		base::call_delayed(
 			(st::toastFadeInDuration
 				+ Ui::Toast::kDefaultDuration
 				+ st::toastFadeOutDuration),
@@ -2669,7 +2669,7 @@ void FormController::cancelSure() {
 			UrlClickHandler::Open(url);
 		}
 		const auto timeout = _view->closeGetDuration();
-		App::CallDelayed(timeout, this, [=] {
+		base::call_delayed(timeout, this, [=] {
 			_controller->clearPassportForm();
 		});
 	}

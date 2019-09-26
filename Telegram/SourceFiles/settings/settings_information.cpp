@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "core/file_utilities.h"
-#include "facades.h"
+#include "base/call_delayed.h"
 #include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
@@ -367,7 +367,7 @@ BioManager SetupBio(
 	) | rpl::start_with_next([=](bool changed) {
 		if (changed) {
 			const auto saved = *generation = std::abs(*generation) + 1;
-			App::CallDelayed(kSaveBioTimeout, bio, [=] {
+			base::call_delayed(kSaveBioTimeout, bio, [=] {
 				if (*generation == saved) {
 					save(nullptr);
 					*generation = 0;

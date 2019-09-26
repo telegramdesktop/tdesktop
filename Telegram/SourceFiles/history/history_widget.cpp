@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "base/event_filter.h"
 #include "base/unixtime.h"
+#include "base/call_delayed.h"
 #include "data/data_drafts.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
@@ -3755,7 +3756,7 @@ void HistoryWidget::updateSendButtonType() {
 		&& (type == Type::Send || type == Type::Record));
 
 	if (delay != 0) {
-		App::CallDelayed(
+		base::call_delayed(
 			kRefreshSlowmodeLabelTimeout,
 			this,
 			[=] { updateSendButtonType(); });

@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
+#include "base/call_delayed.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_boxes.h" // st::backgroundSize
@@ -933,7 +934,7 @@ void Session::suggestStartExport() {
 		? 0
 		: (_exportAvailableAt - now);
 	if (left) {
-		App::CallDelayed(
+		base::call_delayed(
 			std::min(left + 5, 3600) * crl::time(1000),
 			_session,
 			[=] { suggestStartExport(); });
@@ -991,7 +992,7 @@ void Session::rememberPassportCredentials(
 	_passportCredentials = std::make_unique<CredentialsWithGeneration>(
 		std::move(data),
 		++generation);
-	App::CallDelayed(rememberFor, _session, [=, check = generation] {
+	base::call_delayed(rememberFor, _session, [=, check = generation] {
 		if (_passportCredentials && _passportCredentials->second == check) {
 			forgetPassportCredentials();
 		}

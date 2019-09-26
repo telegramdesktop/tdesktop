@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "base/parse_helper.h"
 #include "base/zlib_help.h"
+#include "base/call_delayed.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
 #include "boxes/edit_color_box.h"
@@ -419,7 +420,7 @@ Editor::Inner::Inner(QWidget *parent, const QString &path) : TWidget(parent)
 
 		if (update.type == BackgroundUpdate::Type::TestingTheme) {
 			Revert();
-			App::CallDelayed(st::slideDuration, this, [] {
+			base::call_delayed(st::slideDuration, this, [] {
 				Ui::show(Box<InformBox>(
 					tr::lng_theme_editor_cant_change_theme(tr::now)));
 			});
@@ -674,7 +675,9 @@ Editor::Editor(
 		});
 	});
 	_inner->setFocusCallback([this] {
-		App::CallDelayed(2 * st::boxDuration, this, [this] { _select->setInnerFocus(); });
+		base::call_delayed(2 * st::boxDuration, this, [this] {
+			_select->setInnerFocus();
+		});
 	});
 	_inner->setScrollCallback([this](int top, int bottom) {
 		_scroll->scrollToY(top, bottom);
@@ -720,12 +723,12 @@ void Editor::showMenu() {
 
 	_menuToggle->installEventFilter(_menu);
 	_menu->addAction(tr::lng_theme_editor_menu_export(tr::now), [=] {
-		App::CallDelayed(st::defaultRippleAnimation.hideDuration, this, [=] {
+		base::call_delayed(st::defaultRippleAnimation.hideDuration, this, [=] {
 			exportTheme();
 		});
 	});
 	_menu->addAction(tr::lng_theme_editor_menu_import(tr::now), [=] {
-		App::CallDelayed(st::defaultRippleAnimation.hideDuration, this, [=] {
+		base::call_delayed(st::defaultRippleAnimation.hideDuration, this, [=] {
 			importTheme();
 		});
 	});

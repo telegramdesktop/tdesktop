@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "base/unique_qptr.h"
 #include "base/event_filter.h"
-#include "facades.h"
+#include "base/call_delayed.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
@@ -400,7 +400,7 @@ void Options::Option::destroy(FnMut<void()> done) {
 		return;
 	}
 	_field->hide(anim::type::normal);
-	App::CallDelayed(
+	base::call_delayed(
 		st::slideWrapDuration * 2,
 		_field.get(),
 		std::move(done));

@@ -220,10 +220,6 @@ public:
 	void call_handleDelayedPeerUpdates();
 	void call_handleObservables();
 
-	void callDelayed(int duration, FnMut<void()> &&lambda) {
-		_callDelayedTimer.call(duration, std::move(lambda));
-	}
-
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
 
@@ -283,7 +279,6 @@ private:
 	rpl::event_stream<bool> _termsLockChanges;
 	std::unique_ptr<Window::TermsLock> _termsLock;
 
-	base::DelayedCallTimer _callDelayedTimer;
 	base::Timer _saveSettingsTimer;
 
 	struct LeaveSubscription {

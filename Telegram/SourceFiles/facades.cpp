@@ -33,13 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 
 namespace App {
-namespace internal {
-
-void CallDelayed(int duration, FnMut<void()> &&lambda) {
-	Core::App().callDelayed(duration, std::move(lambda));
-}
-
-} // namespace internal
 
 void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {
 	if (auto m = App::main()) {

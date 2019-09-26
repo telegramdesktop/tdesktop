@@ -753,8 +753,8 @@ topBarCallSkip: -1px;
 topBarMenuToggle: IconButton(topBarSearch) {
 	width: 44px;
 
-	icon: icon {{ "title_menu_dots", menuIconFg }};
-	iconOver: icon {{ "title_menu_dots", menuIconFgOver }};
+	icon: menuToggleIcon;
+	iconOver: menuToggleIconOver;
 	iconPosition: point(16px, 17px);
 
 	rippleAreaPosition: point(0px, 7px);

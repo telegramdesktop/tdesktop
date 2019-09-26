@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "platform/platform_specific.h"
+#include "base/call_delayed.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_dialogs.h"
@@ -402,7 +403,7 @@ void Widget::destroyDelayed() {
 	_deleted = true;
 
 	// Ubuntu has a lag if a fully transparent widget is destroyed immediately.
-	App::CallDelayed(1000, this, [this] {
+	base::call_delayed(1000, this, [this] {
 		manager()->removeWidget(this);
 	});
 }
@@ -433,7 +434,7 @@ bool Widget::shiftAnimationCallback(crl::time now) {
 void Widget::hideSlow() {
 	if (anim::Disabled()) {
 		_hiding = true;
-		App::CallDelayed(
+		base::call_delayed(
 			st::notifySlowHide,
 			this,
 			[=, guard = _hidingDelayed.make_guard()] {

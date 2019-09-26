@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "base/event_filter.h"
+#include "base/call_delayed.h"
 #include "base/qt_signal_producer.h"
 #include "history/history.h"
 #include "chat_helpers/tabbed_panel.h"
@@ -281,7 +282,7 @@ void ComposeControls::updateSendButtonType() {
 	//	&& (type == Type::Send || type == Type::Record));
 
 	//if (delay != 0) {
-	//	App::CallDelayed(
+	//	base::call_delayed(
 	//		kRefreshSlowmodeLabelTimeout,
 	//		this,
 	//		[=] { updateSendButtonType(); });

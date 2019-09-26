@@ -150,8 +150,8 @@ introBackButton: IconButton(defaultIconButton) {
 	width: 56px;
 	height: 56px;
 
-	icon: icon {{ "box_button_back", menuIconFg }};
-	iconOver: icon {{ "box_button_back", menuIconFgOver }};
+	icon: backButtonIcon;
+	iconOver: backButtonIconOver;
 
 	rippleAreaPosition: point(8px, 8px);
 	rippleAreaSize: 40px;

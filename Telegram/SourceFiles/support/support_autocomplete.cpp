@@ -19,9 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "base/unixtime.h"
+#include "base/call_delayed.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
-#include "facades.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
 #include "styles/style_layers.h"
@@ -426,7 +426,7 @@ void Autocomplete::setupContent() {
 
 	inner->activated() | rpl::start_with_next(submit, lifetime());
 	connect(input, &Ui::InputField::blurred, [=] {
-		App::CallDelayed(10, this, [=] {
+		base::call_delayed(10, this, [=] {
 			if (!input->hasFocus()) {
 				deactivate();
 			}

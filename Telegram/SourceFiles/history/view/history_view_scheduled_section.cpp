@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "base/event_filter.h"
+#include "base/call_delayed.h"
 #include "core/file_utilities.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
@@ -143,7 +144,7 @@ void ScheduledWidget::setupComposeControls() {
 		return !_choosingAttach;
 	}) | rpl::start_with_next([=] {
 		_choosingAttach = true;
-		App::CallDelayed(
+		base::call_delayed(
 			st::historyAttach.ripple.hideDuration,
 			this,
 			[=] { _choosingAttach = false; chooseAttach(); });

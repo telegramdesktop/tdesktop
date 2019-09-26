@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 
 #include "main/main_session.h"
+#include "base/call_delayed.h"
 #include "apiwrap.h"
-#include "facades.h"
 
 namespace Main {
 namespace {
@@ -44,7 +44,7 @@ void AppConfig::refresh() {
 }
 
 void AppConfig::refreshDelayed() {
-	App::CallDelayed(kRefreshTimeout, _session, [=] {
+	base::call_delayed(kRefreshTimeout, _session, [=] {
 		refresh();
 	});
 }
