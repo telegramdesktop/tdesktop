@@ -535,6 +535,7 @@ HistoryWidget::HistoryWidget(
 		if (update.peer == _peer) {
 			if (update.flags & UpdateFlag::RightsChanged) {
 				checkPreview();
+				updateStickersByEmoji();
 			}
 			if (update.flags & UpdateFlag::UnreadMentionsChanged) {
 				updateUnreadMentionsVisibility();
@@ -1106,11 +1107,14 @@ void HistoryWidget::orderWidgets() {
 }
 
 void HistoryWidget::updateStickersByEmoji() {
-	if (!_history) {
+	if (!_peer) {
 		return;
 	}
 	const auto emoji = [&] {
-		if (!_editMsgId) {
+		const auto errorForStickers = Data::RestrictionError(
+			_peer,
+			ChatRestriction::f_send_stickers);
+		if (!_editMsgId && !errorForStickers) {
 			const auto &text = _field->getTextWithTags().text;
 			auto length = 0;
 			if (const auto emoji = Ui::Emoji::Find(text, &length)) {
