@@ -46,7 +46,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kMaxGroupChannelTitle = 255; // See also edit_peer_info_box.
+constexpr auto kMaxGroupChannelTitle = 128; // See also edit_peer_info_box.
+constexpr auto kMaxUserFirstLastName = 64; // See also edit_contact_box.
 constexpr auto kMaxChannelDescription = 255; // See also edit_peer_info_box.
 constexpr auto kMinUsernameLength = 5;
 
@@ -1176,8 +1177,8 @@ void EditNameBox::prepare() {
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
 	}
-	_first->setMaxLength(kMaxGroupChannelTitle);
-	_last->setMaxLength(kMaxGroupChannelTitle);
+	_first->setMaxLength(kMaxUserFirstLastName);
+	_last->setMaxLength(kMaxUserFirstLastName);
 
 	connect(_first, &Ui::InputField::submitted, [=] { submit(); });
 	connect(_last, &Ui::InputField::submitted, [=] { submit(); });
