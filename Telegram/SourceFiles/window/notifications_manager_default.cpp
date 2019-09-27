@@ -826,6 +826,9 @@ void Notification::toggleActionButtons(bool visible) {
 }
 
 void Notification::showReplyField() {
+	if (!_item) {
+		return;
+	}
 	activateWindow();
 
 	if (_replyArea) {
