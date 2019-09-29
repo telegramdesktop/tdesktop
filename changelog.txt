@@ -1,3 +1,7 @@
+1.8.9 (27.09.19)
+
+- Bug fixes and other minor improvements.
+
 1.8.8 (10.09.19)
 
 - Create new themes based on your color and wallpaper choices.

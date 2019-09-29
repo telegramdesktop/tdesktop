@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+constexpr auto kMaxUserFirstLastName = 64; // See also add_contact_box.
+
 QString UserPhone(not_null<UserData*> user) {
 	const auto phone = user->phone();
 	return phone.isEmpty()
@@ -220,6 +222,8 @@ void Controller::initNameFields(
 	};
 	QObject::connect(first, &Ui::InputField::submitted, submit);
 	QObject::connect(last, &Ui::InputField::submitted, submit);
+	first->setMaxLength(kMaxUserFirstLastName);
+	first->setMaxLength(kMaxUserFirstLastName);
 }
 
 void Controller::setupWarning() {

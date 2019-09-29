@@ -235,7 +235,7 @@ void ShowEditPermissions(not_null<PeerData*> peer) {
 
 namespace {
 
-constexpr auto kMaxGroupChannelTitle = 255; // See also add_contact_box.
+constexpr auto kMaxGroupChannelTitle = 128; // See also add_contact_box.
 constexpr auto kMaxChannelDescription = 255; // See also add_contact_box.
 
 class Controller

@@ -668,7 +668,7 @@ void Notification::actionsOpacityCallback() {
 void Notification::updateNotifyDisplay() {
 	if (!_history || !_peer || (!_item && _forwardedCount < 2)) return;
 
-	auto options = Manager::getNotificationOptions(_item);
+	const auto options = Manager::getNotificationOptions(_item);
 	_hideReplyButton = options.hideReplyButton;
 
 	int32 w = width(), h = height();
@@ -686,12 +686,14 @@ void Notification::updateNotifyDisplay() {
 		if (!options.hideNameAndPhoto) {
 			if (_fromScheduled && _history->peer->isSelf()) {
 				Ui::EmptyUserpic::PaintSavedMessages(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
+				_userpicLoaded = true;
 			} else {
 				_history->peer->loadUserpic();
 				_history->peer->paintUserpicLeft(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
 			}
 		} else {
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), manager()->hiddenUserpicPlaceholder());
+			_userpicLoaded = true;
 		}
 
 		int32 itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;
@@ -826,6 +828,9 @@ void Notification::toggleActionButtons(bool visible) {
 }
 
 void Notification::showReplyField() {
+	if (!_item) {
+		return;
+	}
 	activateWindow();
 
 	if (_replyArea) {

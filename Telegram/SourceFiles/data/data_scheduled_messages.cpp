@@ -193,13 +193,7 @@ void ScheduledMessages::removeSending(not_null<HistoryItem*> item) {
 	Expects(item->isSending() || item->hasFailed());
 	Expects(item->isScheduled());
 
-	const auto history = item->history();
-	auto &list = _data[history];
-	Assert(!list.itemById.contains(item->id));
-	Assert(!list.idByItem.contains(item));
-	list.items.erase(
-		ranges::remove(list.items, item.get(), &OwnedItem::get),
-		end(list.items));
+	item->destroy();
 }
 
 rpl::producer<> ScheduledMessages::updates(not_null<History*> history) {

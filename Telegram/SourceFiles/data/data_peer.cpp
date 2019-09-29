@@ -698,6 +698,7 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 
 bool PeerData::canRevokeFullHistory() const {
 	return isUser()
+		&& !isSelf()
 		&& Global::RevokePrivateInbox()
 		&& (Global::RevokePrivateTimeLimit() == 0x7FFFFFFF);
 }
