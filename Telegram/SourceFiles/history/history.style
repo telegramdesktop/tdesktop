@@ -371,6 +371,7 @@ botKbScroll: defaultSolidScroll;
 historyDateFadeDuration: 200;
 
 historyPhotoLeft: 14px;
+historyPhotoBubbleMinWidth: 200px;
 historyMessageRadius: roundRadiusLarge;
 historyBubbleTailInLeft: icon {{ "bubble_tail", msgInBg }};
 historyBubbleTailInLeftSelected: icon {{ "bubble_tail", msgInBgSelected }};

@@ -87,7 +87,7 @@ QSize Photo::countOptimalSize() {
 	if (_serviceWidth > 0) {
 		return { _serviceWidth, _serviceWidth };
 	}
-	const auto minWidth = qMax(st::minPhotoSize, _parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
+	const auto minWidth = qMax((_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize), _parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	const auto maxActualWidth = qMax(tw, minWidth);
 	maxWidth = qMax(maxActualWidth, th);
 	minHeight = qMax(th, st::minPhotoSize);
@@ -127,7 +127,7 @@ QSize Photo::countCurrentSize(int newWidth) {
 	if (_pixw < 1) _pixw = 1;
 	if (_pixh < 1) _pixh = 1;
 
-	auto minWidth = qMax(st::minPhotoSize, _parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
+	auto minWidth = qMax((_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize), _parent->infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	newWidth = qMax(_pixw, minWidth);
 	auto newHeight = qMax(_pixh, st::minPhotoSize);
 	if (_parent->hasBubble() && !_caption.isEmpty()) {
