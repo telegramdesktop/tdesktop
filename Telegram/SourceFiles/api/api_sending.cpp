@@ -29,13 +29,14 @@ template <typename MediaData>
 void SendExistingMedia(
 		Api::MessageToSend &&message,
 		not_null<MediaData*> media,
-		const MTPInputMedia &inputMedia,
+		Fn<MTPInputMedia()> inputMedia,
 		Data::FileOrigin origin) {
 	const auto history = message.action.history;
 	const auto peer = history->peer;
 	const auto session = &history->session();
 	const auto api = &session->api();
 
+	media->refreshFileReference("blabla");
 	message.action.clearDraft = false;
 	message.action.generateLocal = true;
 	api->sendAction(message.action);
@@ -115,7 +116,7 @@ void SendExistingMedia(
 			MTP_flags(sendFlags),
 			peer->input,
 			MTP_int(replyTo),
-			inputMedia,
+			inputMedia(),
 			MTP_string(captionText),
 			MTP_long(randomId),
 			MTPReplyMarkup(),
@@ -154,13 +155,16 @@ void SendExistingMedia(
 void SendExistingDocument(
 		Api::MessageToSend &&message,
 		not_null<DocumentData*> document) {
+	const auto inputMedia = [=] {
+		return MTP_inputMediaDocument(
+			MTP_flags(0),
+			document->mtpInput(),
+			MTPint());
+	};
 	SendExistingMedia(
 		std::move(message),
 		document,
-		MTP_inputMediaDocument(
-			MTP_flags(0),
-			document->mtpInput(),
-			MTPint()),
+		inputMedia,
 		document->stickerOrGifOrigin());
 
 	if (document->sticker()) {
@@ -174,13 +178,16 @@ void SendExistingDocument(
 void SendExistingPhoto(
 		Api::MessageToSend &&message,
 		not_null<PhotoData*> photo) {
+	const auto inputMedia = [=] {
+		return MTP_inputMediaPhoto(
+			MTP_flags(0),
+			photo->mtpInput(),
+			MTPint());
+	};
 	SendExistingMedia(
 		std::move(message),
 		photo,
-		MTP_inputMediaPhoto(
-			MTP_flags(0),
-			photo->mtpInput(),
-			MTPint()),
+		inputMedia,
 		Data::FileOrigin());
 }
 
