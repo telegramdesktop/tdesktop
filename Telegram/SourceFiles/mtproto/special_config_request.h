@@ -39,12 +39,16 @@ public:
 
 private:
 	enum class Type {
-		//App,
-		Dns,
+		Mozilla,
+		Google,
+		RemoteConfig,
+		Realtime,
+		FireStore,
 	};
 	struct Attempt {
 		Type type;
-		QString domain;
+		QString data;
+		QString host;
 	};
 
 	SpecialConfigRequest(
@@ -89,6 +93,15 @@ public:
 	void resolve(const QString &domain);
 
 private:
+	enum class Type {
+		Mozilla,
+		Google,
+	};
+	struct Attempt {
+		Type type;
+		QString data;
+		QString host;
+	};
 	struct AttemptKey {
 		QString domain;
 		bool ipv6 = false;
@@ -108,14 +121,14 @@ private:
 
 	};
 	struct Attempts {
-		std::vector<QString> hosts;
+		std::vector<Attempt> list;
 		base::has_weak_ptr guard;
 
 	};
 
 	void resolve(const AttemptKey &key);
 	void sendNextRequest(const AttemptKey &key);
-	void performRequest(const AttemptKey &key, const QString &host);
+	void performRequest(const AttemptKey &key, const Attempt &attempt);
 	void checkExpireAndPushResult(const QString &domain);
 	void requestFinished(
 		const AttemptKey &key,

@@ -25,12 +25,7 @@ extern "C" {
 namespace MTP {
 namespace {
 
-struct DnsEntry {
-	QString data;
-	crl::time TTL = 0;
-};
-
-constexpr auto kSendNextTimeout = crl::time(1000);
+constexpr auto kSendNextTimeout = crl::time(800);
 constexpr auto kMinTimeToLive = 10 * crl::time(1000);
 constexpr auto kMaxTimeToLive = 300 * crl::time(1000);
 
@@ -46,15 +41,47 @@ Y1hZCxdv6cs5UnW9+PWvS+WIbkh+GaWYxwIDAQAB\n\
 ");
 
 constexpr auto kUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.117 Safari/537.36";
+"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36";
 
-const auto &DnsDomains() {
+const auto kRemoteProject = "peak-vista-421";
+const auto kFireProject = "reserve-5a846";
+const auto kConfigKey = "ipconfig";
+const auto kConfigSubKey = "v3";
+const auto kApiKey = "AIzaSyC2-kAkpDsroixRXw-sTw-Wfqo4NxjMwwM";
+const auto kAppId = "1:560508485281:web:4ee13a6af4e84d49e67ae0";
+
+struct DnsEntry {
+	QString data;
+	crl::time TTL = 0;
+};
+
+const std::vector<QString> &DnsDomains() {
 	static auto result = std::vector<QString>{
 		qsl("google.com"),
 		qsl("www.google.com"),
 		qsl("google.ru"),
 		qsl("www.google.ru"),
 	};
+	return result;
+}
+
+QString ApiDomain(const QString &service) {
+	return service + ".googleapis.com";
+}
+
+QString GenerateInstanceId() {
+	auto fid = bytes::array<17>();
+	bytes::set_random(fid);
+	fid[0] = (bytes::type(0xF0) & fid[0]) | bytes::type(0x07);
+	return QString::fromLatin1(
+		QByteArray::fromRawData(
+			reinterpret_cast<const char*>(fid.data()),
+			fid.size()
+		).toBase64(QByteArray::Base64UrlEncoding).mid(0, 22));
+}
+
+QString InstanceId() {
+	static const auto result = GenerateInstanceId();
 	return result;
 }
 
@@ -176,6 +203,53 @@ QByteArray ConcatenateDnsTxtFields(const std::vector<DnsEntry> &response) {
 	return QStringList(entries.values()).join(QString()).toLatin1();
 }
 
+QByteArray ParseRemoteConfigResponse(const QByteArray &bytes) {
+	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
+	const auto document = QJsonDocument::fromJson(bytes, &error);
+	if (error.error != QJsonParseError::NoError) {
+		LOG(("Config Error: Failed to parse fire response JSON, error: %1"
+			).arg(error.errorString()));
+		return {};
+	} else if (!document.isObject()) {
+		LOG(("Config Error: Not an object received in fire response JSON."));
+		return {};
+	}
+	return document.object().value(
+		"entries"
+	).toObject().value(
+		qsl("%1%2").arg(kConfigKey).arg(kConfigSubKey)
+	).toString().toLatin1();
+}
+
+QByteArray ParseFireStoreResponse(const QByteArray &bytes) {
+	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
+	const auto document = QJsonDocument::fromJson(bytes, &error);
+	if (error.error != QJsonParseError::NoError) {
+		LOG(("Config Error: Failed to parse fire response JSON, error: %1"
+			).arg(error.errorString()));
+		return {};
+	} else if (!document.isObject()) {
+		LOG(("Config Error: Not an object received in fire response JSON."));
+		return {};
+	}
+	return document.object().value(
+		"fields"
+	).toObject().value(
+		"data"
+	).toObject().value(
+		"stringValue"
+	).toString().toLatin1();
+}
+
+QByteArray ParseRealtimeResponse(const QByteArray &bytes) {
+	if (bytes.size() < 2
+		|| bytes[0] != '"'
+		|| bytes[bytes.size() - 1] != '"') {
+		return QByteArray();
+	}
+	return bytes.mid(1, bytes.size() - 2);
+}
+
 [[nodiscard]] QDateTime ParseHttpDate(const QString &date) {
 	// Wed, 10 Jul 2019 14:33:38 GMT
 	static const auto expression = QRegularExpression(
@@ -272,14 +346,49 @@ SpecialConfigRequest::SpecialConfigRequest(
 	Expects((_callback == nullptr) != (_timeDoneCallback == nullptr));
 
 	_manager.setProxy(QNetworkProxy::NoProxy);
-	_attempts = {
-		//{ Type::App, qsl("software-download.microsoft.com") },
-	};
-	for (const auto &domain : DnsDomains()) {
-		_attempts.push_back({ Type::Dns, domain });
-	}
+
+	auto domains = DnsDomains();
+	const auto domainsCount = domains.size();
+
 	std::random_device rd;
-	ranges::shuffle(_attempts, std::mt19937(rd()));
+	ranges::shuffle(domains, std::mt19937(rd()));
+	const auto takeDomain = [&] {
+		const auto result = domains.back();
+		domains.pop_back();
+		return result;
+	};
+	const auto shuffle = [&](int from, int till) {
+		Expects(till > from);
+
+		ranges::shuffle(
+			begin(_attempts) + from,
+			begin(_attempts) + till,
+			std::mt19937(rd()));
+	};
+
+	_attempts = {};
+	_attempts.push_back({ Type::Google, "dns.google.com" });
+	_attempts.push_back({ Type::Google, takeDomain(), "dns" });
+	_attempts.push_back({ Type::Mozilla, "mozilla.cloudflare-dns.com" });
+	_attempts.push_back({ Type::RemoteConfig, "firebaseremoteconfig" });
+	while (!domains.empty()) {
+		_attempts.push_back({ Type::Google, takeDomain(), "dns" });
+	}
+	_attempts.push_back({ Type::Realtime, "firebaseio.com" });
+	_attempts.push_back({ Type::FireStore, "firestore" });
+	for (const auto &domain : DnsDomains()) {
+		_attempts.push_back({ Type::FireStore, domain, "firestore" });
+	}
+
+	shuffle(0, 2);
+	shuffle(2, 4);
+	shuffle(
+		_attempts.size() - (2 + domainsCount),
+		_attempts.size() - domainsCount);
+	shuffle(_attempts.size() - domainsCount, _attempts.size());
+
+	ranges::reverse(_attempts); // We go from last to first.
+
 	sendNextRequest();
 }
 
@@ -314,28 +423,62 @@ void SpecialConfigRequest::performRequest(const Attempt &attempt) {
 	const auto type = attempt.type;
 	auto url = QUrl();
 	url.setScheme(qsl("https"));
-	url.setHost(attempt.domain);
 	auto request = QNetworkRequest();
+	auto payload = QByteArray();
 	switch (type) {
-	//case Type::App: {
-	//	url.setPath(cTestMode()
-	//		? qsl("/testv2/config.txt")
-	//		: qsl("/prodv2/config.txt"));
-	//	request.setRawHeader("Host", "tcdnb.azureedge.net");
-	//} break;
-	case Type::Dns: {
+	case Type::Mozilla: {
+		url.setHost(attempt.data);
+		url.setPath(qsl("/dns-query"));
+		url.setQuery(qsl("name=%1&type=16&random_padding=%2"
+		).arg(Global::TxtDomainString()
+		).arg(GenerateRandomPadding()));
+		request.setRawHeader("accept", "application/dns-json");
+	} break;
+	case Type::Google: {
+		url.setHost(attempt.data);
 		url.setPath(qsl("/resolve"));
 		url.setQuery(qsl("name=%1&type=ANY&random_padding=%2"
 		).arg(Global::TxtDomainString()
 		).arg(GenerateRandomPadding()));
-		request.setRawHeader("Host", "dns.google.com");
+		if (!attempt.host.isEmpty()) {
+			const auto host = attempt.host + ".google.com";
+			request.setRawHeader("Host", host.toLatin1());
+		}
+	} break;
+	case Type::RemoteConfig: {
+		url.setHost(ApiDomain(attempt.data));
+		url.setPath(qsl("/v1/projects/%1/namespaces/firebase:fetch"
+		).arg(kRemoteProject));
+		url.setQuery(qsl("key=%1").arg(kApiKey));
+		payload = qsl("{\"app_id\":\"%1\",\"app_instance_id\":\"%2\"}"
+		).arg(kAppId
+		).arg(InstanceId()).toLatin1();
+		request.setRawHeader("Content-Type", "application/json");
+	} break;
+	case Type::Realtime: {
+		url.setHost(kFireProject + qsl(".%1").arg(attempt.data));
+		url.setPath(qsl("/%1%2.json").arg(kConfigKey).arg(kConfigSubKey));
+	} break;
+	case Type::FireStore: {
+		url.setHost(attempt.host.isEmpty()
+			? ApiDomain(attempt.data)
+			: attempt.data);
+		url.setPath(qsl("/v1/projects/%1/databases/(default)/documents/%2/%3"
+		).arg(kFireProject
+		).arg(kConfigKey
+		).arg(kConfigSubKey));
+		if (!attempt.host.isEmpty()) {
+			const auto host = ApiDomain(attempt.host);
+			request.setRawHeader("Host", host.toLatin1());
+		}
 	} break;
 	default: Unexpected("Type in SpecialConfigRequest::performRequest.");
 	}
 	request.setUrl(url);
 	request.setRawHeader("User-Agent", kUserAgent);
-	const auto reply = _requests.emplace_back(
-		_manager.get(request)
+	const auto reply = _requests.emplace_back(payload.isEmpty()
+		? _manager.get(request)
+		: _manager.post(request, payload)
 	).reply;
 	connect(reply, &QNetworkReply::finished, this, [=] {
 		requestFinished(type, reply);
@@ -380,11 +523,20 @@ void SpecialConfigRequest::requestFinished(
 	}
 
 	switch (type) {
-	//case Type::App: handleResponse(result); break;
-	case Type::Dns: {
+	case Type::Mozilla:
+	case Type::Google: {
 		constexpr auto kTypeRestriction = 16; // TXT
 		handleResponse(ConcatenateDnsTxtFields(
 			ParseDnsResponse(result, kTypeRestriction)));
+	} break;
+	case Type::RemoteConfig: {
+		handleResponse(ParseRemoteConfigResponse(result));
+	} break;
+	case Type::Realtime: {
+		handleResponse(ParseRealtimeResponse(result));
+	} break;
+	case Type::FireStore: {
+		handleResponse(ParseFireStoreResponse(result));
 	} break;
 	default: Unexpected("Type in SpecialConfigRequest::requestFinished.");
 	}
@@ -555,10 +707,37 @@ void DomainResolver::resolve(const AttemptKey &key) {
 		checkExpireAndPushResult(key.domain);
 		return;
 	}
-	auto hosts = DnsDomains();
+
+	auto attempts = std::vector<Attempt>();
+	auto domains = DnsDomains();
 	std::random_device rd;
-	ranges::shuffle(hosts, std::mt19937(rd()));
-	_attempts.emplace(key, Attempts{ std::move(hosts) });
+	ranges::shuffle(domains, std::mt19937(rd()));
+	const auto takeDomain = [&] {
+		const auto result = domains.back();
+		domains.pop_back();
+		return result;
+	};
+	const auto shuffle = [&](int from, int till) {
+		Expects(till > from);
+
+		ranges::shuffle(
+			begin(attempts) + from,
+			begin(attempts) + till,
+			std::mt19937(rd()));
+	};
+
+	attempts.push_back({ Type::Google, "dns.google.com" });
+	attempts.push_back({ Type::Google, takeDomain(), "dns" });
+	attempts.push_back({ Type::Mozilla, "mozilla.cloudflare-dns.com" });
+	while (!domains.empty()) {
+		attempts.push_back({ Type::Google, takeDomain(), "dns" });
+	}
+
+	shuffle(0, 2);
+
+	ranges::reverse(attempts); // We go from last to first.
+
+	_attempts.emplace(key, Attempts{ std::move(attempts) });
 	sendNextRequest(key);
 }
 
@@ -584,29 +763,48 @@ void DomainResolver::sendNextRequest(const AttemptKey &key) {
 		return;
 	}
 	auto &attempts = i->second;
-	auto &hosts = attempts.hosts;
-	const auto host = hosts.back();
-	hosts.pop_back();
+	auto &list = attempts.list;
+	const auto attempt = list.back();
+	list.pop_back();
 
-	if (!hosts.empty()) {
+	if (!list.empty()) {
 		App::CallDelayed(kSendNextTimeout, &attempts.guard, [=] {
 			sendNextRequest(key);
 		});
 	}
-	performRequest(key, host);
+	performRequest(key, attempt);
 }
 
 void DomainResolver::performRequest(
 		const AttemptKey &key,
-		const QString &host) {
+		const Attempt &attempt) {
 	auto url = QUrl();
 	url.setScheme(qsl("https"));
-	url.setHost(host);
-	url.setPath(qsl("/resolve"));
-	url.setQuery(
-		qsl("name=%1&type=%2").arg(key.domain).arg(key.ipv6 ? 28 : 1));
 	auto request = QNetworkRequest();
-	request.setRawHeader("Host", "dns.google.com");
+	switch (attempt.type) {
+	case Type::Mozilla: {
+		url.setHost(attempt.data);
+		url.setPath(qsl("/dns-query"));
+		url.setQuery(qsl("name=%1&type=%2&random_padding=%3"
+		).arg(key.domain
+		).arg(key.ipv6 ? 28 : 1
+		).arg(GenerateRandomPadding()));
+		request.setRawHeader("accept", "application/dns-json");
+	} break;
+	case Type::Google: {
+		url.setHost(attempt.data);
+		url.setPath(qsl("/resolve"));
+		url.setQuery(qsl("name=%1&type=%2&random_padding=%3"
+		).arg(key.domain
+		).arg(key.ipv6 ? 28 : 1
+		).arg(GenerateRandomPadding()));
+		if (!attempt.host.isEmpty()) {
+			const auto host = attempt.host + ".google.com";
+			request.setRawHeader("Host", host.toLatin1());
+		}
+	} break;
+	default: Unexpected("Type in SpecialConfigRequest::performRequest.");
+	}
 	request.setUrl(url);
 	request.setRawHeader("User-Agent", kUserAgent);
 	const auto i = _requests.emplace(
