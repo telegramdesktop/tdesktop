@@ -6685,6 +6685,12 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 
 	if (!_replyEditMsg || _replyEditMsg->history()->peer->isSelf()) return;
 
+	if (const auto megagroup = _replyEditMsg->history()->peer->asMegagroup()) {
+		if (megagroup->amCreator() || megagroup->hasAdminRights()) {
+			return;
+		}
+	}
+
 	QString editTimeLeftText;
 	int updateIn = -1;
 	auto timeSinceMessage = ItemDateTime(_replyEditMsg).msecsTo(QDateTime::currentDateTime());
