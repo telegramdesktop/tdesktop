@@ -41,7 +41,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/telegramdesktop/zlib.git
     cd zlib
-    CFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure
+    CFLAGS="-mmacosx-version-min=10.8 -Werror=unguarded-availability-new" LDFLAGS="-mmacosx-version-min=10.8" ./configure
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
@@ -57,13 +57,13 @@ Go to ***BuildPath*** and run
     cd opus
     git checkout v1.3
     ./autogen.sh
-    CFLAGS="-mmacosx-version-min=10.8" CPPFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure
+    CFLAGS="-mmacosx-version-min=10.8 -Werror=unguarded-availability-new" CPPFLAGS="-mmacosx-version-min=10.8 -Werror=unguarded-availability-new" LDFLAGS="-mmacosx-version-min=10.8" ./configure
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
     cd libiconv-1.15
-    CFLAGS="-mmacosx-version-min=10.8" CPPFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure --enable-static
+    CFLAGS="-mmacosx-version-min=10.8 -Werror=unguarded-availability-new" CPPFLAGS="-mmacosx-version-min=10.8 -Werror=unguarded-availability-new" LDFLAGS="-mmacosx-version-min=10.8" ./configure --enable-static
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
@@ -76,8 +76,8 @@ Go to ***BuildPath*** and run
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
 
     ./configure --prefix=/usr/local \
-    --extra-cflags="-mmacosx-version-min=10.8" \
-    --extra-cxxflags="-mmacosx-version-min=10.8" \
+    --extra-cflags="-mmacosx-version-min=10.8 -Werror=unguarded-availability-new" \
+    --extra-cxxflags="-mmacosx-version-min=10.8 -Werror=unguarded-availability-new" \
     --extra-ldflags="-mmacosx-version-min=10.8" \
     --enable-protocol=file --enable-libopus \
     --disable-programs \
@@ -184,7 +184,7 @@ Go to ***BuildPath*** and run
     cd openal-soft
     git checkout v1.19
     cd build
-    LDFLAGS='-stdlib=libc++' cmake -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.8 ..
+    CFLAGS='-Werror=unguarded-availability-new' CPPFLAGS='-Werror=unguarded-availability-new' LDFLAGS='-stdlib=libc++' cmake -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.8 ..
     make $MAKE_THREADS_CNT
     sudo make install
     cd ../..

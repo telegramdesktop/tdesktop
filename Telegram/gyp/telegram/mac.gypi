@@ -17,6 +17,9 @@
       'CURRENT_PROJECT_VERSION': '<!(helpers/common/print_version.sh <(DEPTH)/../build/version)',
       'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIcon',
       'ENABLE_HARDENED_RUNTIME': 'YES',
+      'OTHER_CODE_SIGN_FLAGS': [
+        '--deep',
+      ],
       'OTHER_LDFLAGS': [
         '-lbsm',
         '-lm',
