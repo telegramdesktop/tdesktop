@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_info.h"
 #include "lang/lang_keys.h"
 #include "base/timer.h"
+#include "facades.h"
 #include "styles/style_window.h"
 
 #include <QtGui/QWindow>
