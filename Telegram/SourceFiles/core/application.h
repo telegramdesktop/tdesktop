@@ -123,7 +123,6 @@ public:
 	[[nodiscard]] Settings &settings() {
 		return _settings;
 	}
-	void moveSettingsFrom(Settings &&other);
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 
 	// Dc options and proxy.

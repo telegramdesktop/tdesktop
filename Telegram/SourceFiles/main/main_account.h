@@ -24,6 +24,11 @@ public:
 	Account &operator=(const Account &other) = delete;
 
 	void createSession(const MTPUser &user);
+	void createSession(
+		UserId id,
+		QByteArray serialized,
+		int streamVersion,
+		Settings &&settings);
 	void destroySession();
 
 	void logOut();
@@ -63,6 +68,11 @@ public:
 	void clearMtp();
 
 private:
+	void createSession(
+		const MTPUser &user,
+		QByteArray serialized,
+		int streamVersion,
+		Settings &&settings);
 	void watchProxyChanges();
 	void watchSessionChanges();
 

@@ -77,13 +77,52 @@ void Account::watchSessionChanges() {
 }
 
 void Account::createSession(const MTPUser &user) {
+	createSession(user, QByteArray(), 0, Settings());
+}
+
+void Account::createSession(
+		UserId id,
+		QByteArray serialized,
+		int streamVersion,
+		Settings &&settings) {
+	DEBUG_LOG(("sessionUserSerialized.size: %1").arg(serialized.size()));
+	QDataStream peekStream(serialized);
+	const auto phone = Serialize::peekUserPhone(streamVersion, peekStream);
+	const auto flags = MTPDuser::Flag::f_self | (phone.isEmpty()
+		? MTPDuser::Flag()
+		: MTPDuser::Flag::f_phone);
+	createSession(
+		MTP_user(
+			MTP_flags(flags),
+			MTP_int(base::take(_sessionUserId)),
+			MTPlong(), // access_hash
+			MTPstring(), // first_name
+			MTPstring(), // last_name
+			MTPstring(), // username
+			MTP_string(phone),
+			MTPUserProfilePhoto(),
+			MTPUserStatus(),
+			MTPint(), // bot_info_version
+			MTPVector<MTPRestrictionReason>(),
+			MTPstring(), // bot_inline_placeholder
+			MTPstring()), // lang_code
+		serialized,
+		streamVersion,
+		std::move(settings));
+}
+
+void Account::createSession(
+		const MTPUser &user,
+		QByteArray serialized,
+		int streamVersion,
+		Settings &&settings) {
 	Expects(_mtp != nullptr);
 	Expects(_session == nullptr);
 	Expects(_sessionValue.current() == nullptr);
 
 	_mtp->setUpdatesHandler(::rpcDone([](
-			const mtpPrime *from,
-			const mtpPrime *end) {
+		const mtpPrime *from,
+		const mtpPrime *end) {
 		if (const auto main = App::main()) {
 			return main->updateReceived(from, end);
 		}
@@ -96,8 +135,13 @@ void Account::createSession(const MTPUser &user) {
 		return true;
 	}));
 
-	_session = std::make_unique<Session>(this, user);
+	_session = std::make_unique<Session>(this, user, std::move(settings));
 	_sessionValue = _session.get();
+
+	if (!serialized.isEmpty()) {
+		// For now it depends on Auth() which depends on _sessionValue.
+		Local::readSelf(serialized, streamVersion);
+	}
 }
 
 void Account::destroySession() {
@@ -316,39 +360,13 @@ void Account::startMtp() {
 	}
 
 	if (_sessionUserId) {
-		DEBUG_LOG(("sessionUserSerialized.size: %1"
-			).arg(_sessionUserSerialized.size()));
-		QDataStream peekStream(_sessionUserSerialized);
-		const auto phone = Serialize::peekUserPhone(
-			_sessionUserStreamVersion,
-			peekStream);
-		const auto flags = MTPDuser::Flag::f_self | (phone.isEmpty()
-			? MTPDuser::Flag()
-			: MTPDuser::Flag::f_phone);
-		createSession(MTP_user(
-			MTP_flags(flags),
-			MTP_int(base::take(_sessionUserId)),
-			MTPlong(), // access_hash
-			MTPstring(), // first_name
-			MTPstring(), // last_name
-			MTPstring(), // username
-			MTP_string(phone),
-			MTPUserProfilePhoto(),
-			MTPUserStatus(),
-			MTPint(), // bot_info_version
-			MTPVector<MTPRestrictionReason>(),
-			MTPstring(), // bot_inline_placeholder
-			MTPstring())); // lang_code
-		Local::readSelf(
+		createSession(
+			_sessionUserId,
 			base::take(_sessionUserSerialized),
-			base::take(_sessionUserStreamVersion));
+			base::take(_sessionUserStreamVersion),
+			_storedSettings ? std::move(*_storedSettings) : Settings());
 	}
-	if (_storedSettings) {
-		if (sessionExists()) {
-			session().moveSettingsFrom(std::move(*_storedSettings));
-		}
-		_storedSettings.reset();
-	}
+	_storedSettings = nullptr;
 
 	if (sessionExists()) {
 		// Skip all pending self updates so that we won't Local::writeSelf.

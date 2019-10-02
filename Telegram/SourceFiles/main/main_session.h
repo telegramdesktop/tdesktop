@@ -57,7 +57,10 @@ class Session final
 	: public base::has_weak_ptr
 	, private base::Subscriber {
 public:
-	Session(not_null<Main::Account*> account, const MTPUser &user);
+	Session(
+		not_null<Main::Account*> account,
+		const MTPUser &user,
+		Settings &&other);
 	~Session();
 
 	Session(const Session &other) = delete;
@@ -102,7 +105,6 @@ public:
 	[[nodiscard]] Settings &settings() {
 		return _settings;
 	}
-	void moveSettingsFrom(Settings &&other);
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 
 	[[nodiscard]] not_null<MTP::Instance*> mtp();
