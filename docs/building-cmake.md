@@ -42,6 +42,7 @@ Go to ***BuildPath*** and run
     make $MAKE_THREADS_CNT
     sudo make install
 
+    git clone https://github.com/desktop-app/patches.git
     git clone --branch 0.9.1 https://github.com/ericniebler/range-v3
 
     git clone https://github.com/telegramdesktop/zlib.git
@@ -225,7 +226,7 @@ Go to ***BuildPath*** and run
     git checkout v5.6.2
     cd qtimageformats && git checkout v5.6.2 && cd ..
     cd qtbase && git checkout v5.6.2 && cd ..
-    cd qtbase && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff && cd ..
+    cd qtbase && git apply ../../patches/qtbase_5_6_2.diff && cd ..
     cd qtbase/src/plugins/platforminputcontexts
     git clone https://github.com/telegramdesktop/fcitx.git
     git clone https://github.com/telegramdesktop/hime.git
@@ -240,8 +241,8 @@ Go to ***BuildPath*** and run
 
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
-    git checkout 702ac58e47
-    git apply ../../tdesktop/Telegram/Patches/gyp.diff
+    git checkout 9f2a7bb1
+    git apply ../patches/gyp.diff
     cd ..
 
     git clone https://chromium.googlesource.com/breakpad/breakpad

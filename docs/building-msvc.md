@@ -30,9 +30,11 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
     cd ThirdParty
-    git clone https://github.com/telegramdesktop/gyp.git
+    git clone https://github.com/desktop-app/patches.git
+    git clone https://chromium.googlesource.com/external/gyp
     cd gyp
-    git checkout tdesktop
+    git checkout 9f2a7bb1
+    git apply ../patches/gyp.diff
     cd ..\..
 
 Add **GYP** and **Ninja** to your PATH:
@@ -55,6 +57,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     mkdir Libraries
     cd Libraries
 
+    git clone https://github.com/desktop-app/patches.git
     git clone --branch 0.9.1 https://github.com/ericniebler/range-v3 range-v3
 
     git clone https://github.com/telegramdesktop/lzma.git
@@ -138,7 +141,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     git checkout v5.6.2
     cd ..\qtbase
     git checkout v5.6.2
-    git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff
+    git apply ../../patches/qtbase_5_6_2.diff
     cd ..
 
     configure -debug-and-release -force-debug-info -opensource -confirm-license -static -I "%cd%\..\openssl\inc32" -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="%cd%\..\openssl\out32.dbg\ssleay32.lib %cd%\..\openssl\out32.dbg\libeay32.lib" OPENSSL_LIBS_RELEASE="%cd%\..\openssl\out32\ssleay32.lib %cd%\..\openssl\out32\libeay32.lib" -mp -nomake examples -nomake tests -platform win32-msvc2015

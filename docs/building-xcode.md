@@ -30,6 +30,7 @@ Go to ***BuildPath*** and run
 
     cd Libraries
 
+    git clone https://github.com/desktop-app/patches.git
     git clone --branch 0.9.1 https://github.com/ericniebler/range-v3
 
     cd xz-5.0.5
@@ -192,8 +193,8 @@ Go to ***BuildPath*** and run
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
     export PATH="$PWD/depot_tools:$PATH"
     cd gyp
-    git checkout 702ac58e47
-    git apply ../../tdesktop/Telegram/Patches/gyp.diff
+    git checkout 9f2a7bb1
+    git apply ../patches/gyp.diff
     ./setup.py build
     sudo ./setup.py install
     cd ..
@@ -223,7 +224,7 @@ Go to ***BuildPath*** and run
     perl init-repository --module-subset=qtbase,qtimageformats
     git checkout v5.6.2
     cd qtimageformats && git checkout v5.6.2 && cd ..
-    cd qtbase && git checkout v5.6.2 && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff && cd ..
+    cd qtbase && git checkout v5.6.2 && git apply ../../patches/qtbase_5_6_2.diff && cd ..
 
     ./configure -prefix "/usr/local/desktop-app/Qt-5.6.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
     make $MAKE_THREADS_CNT
