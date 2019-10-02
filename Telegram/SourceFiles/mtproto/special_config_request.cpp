@@ -374,19 +374,22 @@ SpecialConfigRequest::SpecialConfigRequest(
 	while (!domains.empty()) {
 		_attempts.push_back({ Type::Google, takeDomain(), "dns" });
 	}
-	_attempts.push_back({ Type::Realtime, "firebaseio.com" });
-	_attempts.push_back({ Type::FireStore, "firestore" });
-	for (const auto &domain : DnsDomains()) {
-		_attempts.push_back({ Type::FireStore, domain, "firestore" });
+	if (!_timeDoneCallback) {
+		_attempts.push_back({ Type::Realtime, "firebaseio.com" });
+		_attempts.push_back({ Type::FireStore, "firestore" });
+		for (const auto &domain : DnsDomains()) {
+			_attempts.push_back({ Type::FireStore, domain, "firestore" });
+		}
 	}
 
 	shuffle(0, 2);
 	shuffle(2, 4);
-	shuffle(
-		_attempts.size() - (2 + domainsCount),
-		_attempts.size() - domainsCount);
-	shuffle(_attempts.size() - domainsCount, _attempts.size());
-
+	if (!_timeDoneCallback) {
+		shuffle(
+			_attempts.size() - (2 + domainsCount),
+			_attempts.size() - domainsCount);
+		shuffle(_attempts.size() - domainsCount, _attempts.size());
+	}
 	ranges::reverse(_attempts); // We go from last to first.
 
 	sendNextRequest();
@@ -666,20 +669,27 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 			switch (address.type()) {
 			case mtpc_ipPort: {
 				const auto &fields = address.c_ipPort();
-				_callback(dcId, parseIp(fields.vipv4()), fields.vport().v, {});
+				const auto ip = parseIp(fields.vipv4());
+				if (!ip.empty()) {
+					_callback(dcId, ip, fields.vport().v, {});
+				}
 			} break;
 			case mtpc_ipPortSecret: {
 				const auto &fields = address.c_ipPortSecret();
-				_callback(
-					dcId,
-					parseIp(fields.vipv4()),
-					fields.vport().v,
-					bytes::make_span(fields.vsecret().v));
+				const auto ip = parseIp(fields.vipv4());
+				if (!ip.empty()) {
+					_callback(
+						dcId,
+						ip,
+						fields.vport().v,
+						bytes::make_span(fields.vsecret().v));
+				}
 			} break;
 			default: Unexpected("Type in simpleConfig ips.");
 			}
 		}
 	}
+	_callback(0, std::string(), 0, {});
 }
 
 DomainResolver::DomainResolver(Fn<void(
