@@ -1041,6 +1041,9 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	//	}
 	//}
 
+	const auto copyFlags = MTPDmessage::Flag::f_edit_hide;
+	_flags = (_flags & ~copyFlags) | (message.vflags().v & copyFlags);
+
 	if (const auto editDate = message.vedit_date()) {
 		_flags |= MTPDmessage::Flag::f_edit_date;
 		if (!Has<HistoryMessageEdited>()) {
