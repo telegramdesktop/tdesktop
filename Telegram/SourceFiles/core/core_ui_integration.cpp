@@ -47,7 +47,7 @@ void UiIntegration::textActionsUpdated() {
 		window->updateGlobalMenu();
 	}
 }
-	
+
 void UiIntegration::activationFromTopPanel() {
 	Platform::IgnoreApplicationActivationRightNow();
 }
@@ -115,7 +115,7 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 bool UiIntegration::handleUrlClick(
 		const QString &url,
 		const QVariant &context) {
-	auto local = Core::TryConvertUrlToLocal(url);
+	const auto local = Core::TryConvertUrlToLocal(url);
 	if (Core::InternalPassportLink(local)) {
 		return true;
 	}
@@ -123,8 +123,8 @@ bool UiIntegration::handleUrlClick(
 	if (UrlClickHandler::IsEmail(url)) {
 		File::OpenEmailLink(url);
 		return true;
-	} else if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-		Core::App().openLocalUrl(url, context);
+	} else if (local.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+		Core::App().openLocalUrl(local, context);
 		return true;
 	}
 	return false;
