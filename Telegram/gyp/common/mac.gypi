@@ -64,6 +64,7 @@
         'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',
         'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',
         'GCC_OPTIMIZATION_LEVEL': '0',
+        'GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS': 'NO', # temp for range-v3
         'ALWAYS_SEARCH_USER_PATHS': 'NO',
       },
       'configurations': {
@@ -88,6 +89,7 @@
         'OTHER_LDFLAGS': [
           '-w', # Suppress 'libstdc++ is deprecated' warning.
         ],
+        'GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS': 'NO', # temp for range-v3
       },
       'defines': [
         'OS_MAC_OLD',

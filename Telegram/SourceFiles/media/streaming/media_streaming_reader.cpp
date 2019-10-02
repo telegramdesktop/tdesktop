@@ -291,7 +291,7 @@ auto Reader::Slice::prepareFill(int from, int till) -> PrepareFillResult {
 		ranges::less(),
 		&PartsMap::value_type::first);
 	const auto haveTill = FindNotLoadedStart(
-		ranges::subrange(start, finish),
+		ranges::make_subrange(start, finish),
 		fromOffset);
 	if (haveTill < till) {
 		result.offsetsFromLoader = offsetsFromLoader(
@@ -607,14 +607,14 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 		markSliceUsed(fromSlice);
 		CopyLoaded(
 			buffer,
-			ranges::subrange(first.start, first.finish),
+			ranges::make_subrange(first.start, first.finish),
 			firstFrom,
 			firstTill);
 		if (fromSlice + 1 < tillSlice) {
 			markSliceUsed(fromSlice + 1);
 			CopyLoaded(
 				buffer.subspan(firstTill - firstFrom),
-				ranges::subrange(second.start, second.finish),
+				ranges::make_subrange(second.start, second.finish),
 				secondFrom,
 				secondTill);
 		}
@@ -644,7 +644,7 @@ auto Reader::Slices::fillFromHeader(int offset, bytes::span buffer)
 	if (prepared.ready) {
 		CopyLoaded(
 			buffer,
-			ranges::subrange(prepared.start, prepared.finish),
+			ranges::make_subrange(prepared.start, prepared.finish),
 			from,
 			till);
 		result.filled = true;
