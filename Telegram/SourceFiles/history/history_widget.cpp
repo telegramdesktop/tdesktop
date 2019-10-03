@@ -3163,8 +3163,8 @@ void HistoryWidget::doneShow() {
 	updateControlsVisibility();
 	if (!_historyInited) {
 		updateHistoryGeometry(true);
-	} else if (hasPendingResizedItems()) {
-		updateHistoryGeometry();
+	} else {
+		handlePendingHistoryUpdate();
 	}
 	preloadHistoryIfNeeded();
 	if (App::wnd()) {
@@ -5006,11 +5006,15 @@ int HistoryWidget::countAutomaticScrollTop() {
 	return qMin(result, _scroll->scrollTopMax());
 }
 
-void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const ScrollChange &change) {
+void HistoryWidget::updateHistoryGeometry(
+		bool initial,
+		bool loadedDown,
+		const ScrollChange &change) {
 	if (!_history || (initial && _historyInited) || (!initial && !_historyInited)) {
 		return;
 	}
 	if (_firstLoadRequest || _a_show.animating()) {
+		_updateHistoryGeometryRequired = true;
 		return; // scrollTopMax etc are not working after recountHistoryGeometry()
 	}
 
