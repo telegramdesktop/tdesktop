@@ -118,14 +118,18 @@ bool ComputeCheckTilde(const style::TextStyle &st) {
 
 bool chIsBad(QChar ch) {
 	return (ch == 0)
-        || (ch >= 8232 && ch < 8237)
-        || (ch >= 65024 && ch < 65040 && ch != 65039)
-        || (ch >= 127 && ch < 160 && ch != 156)
+		|| (ch >= 8232 && ch < 8237)
+		|| (ch >= 65024 && ch < 65040 && ch != 65039)
+		|| (ch >= 127 && ch < 160 && ch != 156)
 
-        // qt harfbuzz crash see https://github.com/telegramdesktop/tdesktop/issues/4551
-        || (Platform::IsMac() && ch == 6158)
+		// qt harfbuzz crash see https://github.com/telegramdesktop/tdesktop/issues/4551
+		|| (Platform::IsMac() && ch == 6158)
 
-        // tmp hack see https://bugreports.qt.io/browse/QTBUG-48910
+		|| (Platform::IsMac()
+			&& !Platform::IsMac10_7OrGreater()
+			&& (ch == 8207 || ch == 8206 || ch == 8288))
+
+		// tmp hack see https://bugreports.qt.io/browse/QTBUG-48910
 		|| (Platform::IsMac10_11OrGreater()
 			&& !Platform::IsMac10_12OrGreater()
 			&& ch >= 0x0B00
