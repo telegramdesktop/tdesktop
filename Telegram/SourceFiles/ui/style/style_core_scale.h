@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace style {
 
 inline constexpr auto kScaleAuto = 0;
-inline constexpr auto kScaleMin = 100;
+inline constexpr auto kScaleMin = 75;
 inline constexpr auto kScaleDefault = 100;
 inline constexpr auto kScaleMax = 300;
 
