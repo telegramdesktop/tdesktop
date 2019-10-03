@@ -27,12 +27,16 @@ Integration &Integration::Instance() {
 	return *IntegrationInstance;
 }
 
+bool Integration::Exists() {
+	return (IntegrationInstance != nullptr);
+}
+
 void Integration::textActionsUpdated() {
 }
 
-void Integration::activationFromTopPanel() {		
+void Integration::activationFromTopPanel() {
 }
-	
+
 std::shared_ptr<ClickHandler> Integration::createLinkHandler(
 		EntityType type,
 		const QString &text,

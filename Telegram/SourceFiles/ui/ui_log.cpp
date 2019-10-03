@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 void WriteLogEntry(const QString &message) {
-	Integration::Instance().writeLogEntry(message);
+	if (Integration::Exists()) {
+		Integration::Instance().writeLogEntry(message);
+	}
 }
 
 } // namespace Ui

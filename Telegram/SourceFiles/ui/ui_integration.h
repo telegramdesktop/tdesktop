@@ -28,6 +28,7 @@ class Integration {
 public:
 	static void Set(not_null<Integration*> instance);
 	static Integration &Instance();
+	static bool Exists();
 
 	virtual void postponeCall(FnMut<void()> &&callable) = 0;
 	virtual void registerLeaveSubscription(not_null<QWidget*> widget) = 0;
