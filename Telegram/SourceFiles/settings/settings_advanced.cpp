@@ -243,6 +243,30 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	});
 }
 
+bool HasSystemSpellchecker() {
+	return (Platform::IsWindows() && Platform::IsWindows8OrGreater())
+		|| Platform::IsMac();
+}
+
+void SetupSpellchecker(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	const auto session = &controller->session();
+	AddButton(
+		container,
+		tr::lng_settings_system_spellchecker(),
+		st::settingsButton
+	)->toggleOn(
+		rpl::single(session->settings().spellcheckerEnabled())
+	)->toggledValue(
+	) | rpl::filter([=](bool enabled) {
+		return (enabled != session->settings().spellcheckerEnabled());
+	}) | rpl::start_with_next([=](bool enabled) {
+		session->settings().setSpellcheckerEnabled(enabled);
+		session->saveSettingsDelayed();
+	}, container->lifetime());
+}
+
 bool HasTray() {
 	return cSupportTray() || Platform::IsWindows();
 }
@@ -514,6 +538,14 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	AddSubsectionTitle(content, tr::lng_settings_performance());
 	SetupPerformance(controller, content);
 	AddSkip(content);
+
+	if (HasSystemSpellchecker()) {
+		AddSkip(content);
+		AddDivider(content);
+		AddSubsectionTitle(content, tr::lng_settings_spellchecker());
+		SetupSpellchecker(controller, content);
+		AddSkip(content);
+	}
 
 	if (cAutoUpdate()) {
 		addUpdate();

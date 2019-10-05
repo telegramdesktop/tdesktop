@@ -231,6 +231,19 @@ public:
 		_variables.suggestStickersByEmoji = value;
 	}
 
+	void setSpellcheckerEnabled(bool value) {
+		_variables.spellcheckerEnabled = value;
+	}
+	bool spellcheckerEnabled() const {
+		return _variables.spellcheckerEnabled.current();
+	}
+	rpl::producer<bool> spellcheckerEnabledValue() const {
+		return _variables.spellcheckerEnabled.value();
+	}
+	rpl::producer<bool> spellcheckerEnabledChanges() const {
+		return _variables.spellcheckerEnabled.changes();
+	}
+
 private:
 	struct Variables {
 		Variables();
@@ -270,6 +283,7 @@ private:
 		rpl::variable<bool> replaceEmoji = true;
 		bool suggestEmoji = true;
 		bool suggestStickersByEmoji = true;
+		rpl::variable<bool> spellcheckerEnabled = true;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;
