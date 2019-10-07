@@ -2358,25 +2358,19 @@ void OverlayWidget::playbackPauseResume() {
 	Expects(_streamed != nullptr);
 
 	_streamed->resumeOnCallEnd = false;
-	if (const auto item = Auth().data().message(_msgid)) {
-		if (_streamed->player.failed()) {
-			clearStreaming();
-			initStreaming();
-		} else if (_streamed->player.finished()) {
-			_streamingStartPaused = false;
-			restartAtSeekPosition(0);
-		} else if (_streamed->player.paused()) {
-			_streamed->player.resume();
-			updatePlaybackState();
-			playbackPauseMusic();
-		} else {
-			_streamed->player.pause();
-			updatePlaybackState();
-		}
-	} else {
+	if (_streamed->player.failed()) {
 		clearStreaming();
-		updateControls();
-		update();
+		initStreaming();
+	} else if (_streamed->player.finished()) {
+		_streamingStartPaused = false;
+		restartAtSeekPosition(0);
+	} else if (_streamed->player.paused()) {
+		_streamed->player.resume();
+		updatePlaybackState();
+		playbackPauseMusic();
+	} else {
+		_streamed->player.pause();
+		updatePlaybackState();
 	}
 }
 
@@ -3324,7 +3318,7 @@ void OverlayWidget::mousePressEvent(QMouseEvent *e) {
 void OverlayWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 	updateOver(e->pos());
 
-	if (_over == OverVideo) {
+	if (_over == OverVideo && _streamed) {
 		playbackToggleFullScreen();
 		playbackPauseResume();
 	} else {

@@ -187,11 +187,16 @@ ClickHandlerPtr ItemBase::getResultUrlHandler() const {
 	return ClickHandlerPtr();
 }
 
-ClickHandlerPtr ItemBase::getResultContentUrlHandler() const {
+ClickHandlerPtr ItemBase::getResultPreviewHandler() const {
 	if (!_result->_content_url.isEmpty()) {
 		return std::make_shared<UrlClickHandler>(
 			_result->_content_url,
 			false);
+	} else if (_result->_document && _result->_document->canBePlayed()) {
+		return std::make_shared<DocumentOpenClickHandler>(
+			_result->_document);
+	} else if (_result->_photo) {
+		return std::make_shared<PhotoOpenClickHandler>(_result->_photo);
 	}
 	return ClickHandlerPtr();
 }

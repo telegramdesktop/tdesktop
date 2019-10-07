@@ -625,7 +625,7 @@ void Photo::prepareThumbnail(QSize size, QSize frame) const {
 }
 
 Video::Video(not_null<Context*> context, Result *result) : FileBase(context, result)
-, _link(getResultContentUrlHandler())
+, _link(getResultPreviewHandler())
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
 	if (int duration = content_duration()) {
@@ -1057,7 +1057,7 @@ void Contact::prepareThumbnail(int width, int height) const {
 
 Article::Article(not_null<Context*> context, Result *result, bool withThumb) : ItemBase(context, result)
 , _url(getResultUrlHandler())
-, _link(getResultContentUrlHandler())
+, _link(getResultPreviewHandler())
 , _withThumb(withThumb)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
