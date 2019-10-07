@@ -170,7 +170,7 @@ void AppendFoundEmoji(
 		const std::vector<LangPackEmoji> &list) {
 	// It is important that the 'result' won't relocate while inserting.
 	result.reserve(result.size() + list.size());
-	const auto alreadyBegin = result.data();
+	const auto alreadyBegin = begin(result);
 	const auto alreadyEnd = alreadyBegin + result.size();
 
 	auto &&add = ranges::view::all(
@@ -204,6 +204,12 @@ void AppendLegacySuggestions(
 	}
 
 	const auto suggestions = GetSuggestions(QStringToUTF16(query));
+
+	// It is important that the 'result' won't relocate while inserting.
+	result.reserve(result.size() + suggestions.size());
+	const auto alreadyBegin = begin(result);
+	const auto alreadyEnd = alreadyBegin + result.size();
+
 	auto &&add = ranges::view::all(
 		suggestions
 	) | ranges::view::transform([](const Suggestion &suggestion) {
@@ -214,10 +220,14 @@ void AppendLegacySuggestions(
 		};
 	}) | ranges::view::filter([&](const Result &entry) {
 		const auto i = entry.emoji
-			? ranges::find(result, entry.emoji, &Result::emoji)
-			: end(result);
+			? ranges::find(
+				alreadyBegin,
+				alreadyEnd,
+				entry.emoji,
+				&Result::emoji)
+			: alreadyEnd;
 		return (entry.emoji != nullptr)
-			&& (i == end(result));
+			&& (i == alreadyEnd);
 	});
 	result.insert(end(result), add.begin(), add.end());
 }
@@ -593,21 +603,24 @@ std::vector<Result> EmojiKeywords::query(
 	}
 	auto result = std::vector<Result>();
 	for (const auto &[language, item] : _data) {
-		const auto oldcount = result.size();
 		const auto list = item->query(normalized, exact);
+
+		// It is important that the 'result' won't relocate while inserting.
+		result.reserve(result.size() + list.size());
+		const auto alreadyBegin = begin(result);
+		const auto alreadyEnd = alreadyBegin + result.size();
+
 		auto &&add = ranges::view::all(
 			list
 		) | ranges::view::filter([&](Result entry) {
 			// In each item->query() result the list has no duplicates.
 			// So we need to check only for duplicates between queries.
-			const auto oldbegin = begin(result);
-			const auto oldend = oldbegin + oldcount;
 			const auto i = ranges::find(
-				oldbegin,
-				oldend,
+				alreadyBegin,
+				alreadyEnd,
 				entry.emoji,
 				&Result::emoji);
-			return (i == oldend);
+			return (i == alreadyEnd);
 		});
 		result.insert(end(result), add.begin(), add.end());
 	}
