@@ -809,6 +809,7 @@ void MainWidget::hiderLayer(base::unique_qptr<Window::HistoryHider> hider) {
 	_hider->hidden(
 	) | rpl::start_with_next([=, instance = _hider.get()] {
 		clearHider(instance);
+		instance->hide();
 		instance->deleteLater();
 	}, _hider->lifetime());
 
