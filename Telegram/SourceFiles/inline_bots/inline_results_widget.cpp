@@ -97,6 +97,7 @@ void Inner::checkRestrictedPeer() {
 				_restrictedLabel.create(this, *error, st::stickersRestrictedLabel);
 				_restrictedLabel->show();
 				_restrictedLabel->move(st::inlineResultsLeft - st::buttonRadius, st::stickerPanPadding);
+				_restrictedLabel->resizeToNaturalWidth(width() - (st::inlineResultsLeft - st::buttonRadius) * 2);
 				if (_switchPmButton) {
 					_switchPmButton->hide();
 				}
