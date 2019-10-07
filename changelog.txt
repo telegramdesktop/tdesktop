@@ -1,3 +1,7 @@
+1.8.15 (07.10.19)
+
+- Bug fixes and other minor improvements.
+
 1.8.14 (03.10.19)
 
 - Bug fixes and other minor improvements.
