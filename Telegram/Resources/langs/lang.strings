@@ -1768,6 +1768,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restricted_send_inline" = "The admins of this group restricted you from posting inline content here.";
 "lng_restricted_send_polls" = "The admins of this group restricted you from posting polls here.";
 
+"lng_restricted_send_message_until" = "The admins of this group restricted you from writing here until {date}, {time}.";
+"lng_restricted_send_media_until" = "The admins of this group restricted you from posting media content here until {date}, {time}.";
+"lng_restricted_send_stickers_until" = "The admins of this group restricted you from posting stickers here until {date}, {time}.";
+"lng_restricted_send_gifs_until" = "The admins of this group restricted you from posting GIFs here until {date}, {time}.";
+"lng_restricted_send_inline_until" = "The admins of this group restricted you from posting inline content here until {date}, {time}.";
+"lng_restricted_send_polls_until" = "The admins of this group restricted you from posting polls here until {date}, {time}.";
+
 "lng_restricted_send_message_all" = "Writing messages isn't allowed in this group.";
 "lng_restricted_send_media_all" = "Posting media content isn't allowed in this group.";
 "lng_restricted_send_stickers_all" = "Posting stickers isn't allowed in this group.";

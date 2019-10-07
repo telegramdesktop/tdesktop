@@ -170,7 +170,7 @@ void ScheduledWidget::chooseAttach() {
 	if (const auto error = Data::RestrictionError(
 		_history->peer,
 		ChatRestriction::f_send_media)) {
-		Ui::Toast::Show(*error);
+		ShowErrorToast(*error);
 		return;
 	}
 
