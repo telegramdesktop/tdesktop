@@ -92,6 +92,8 @@ public:
 
 	PeerData *ui_getPeerForMouseAction();
 
+	void notifyFileDialogShown(bool shown);
+
 	void clearData();
 
 	~OverlayWidget();

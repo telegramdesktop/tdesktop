@@ -99,6 +99,7 @@ public:
 	bool closeActiveWindow();
 	bool minimizeActiveWindow();
 	QWidget *getFileDialogParent();
+	void notifyFileDialogShown(bool shown);
 
 	// Media view interface.
 	void checkMediaViewActivation();

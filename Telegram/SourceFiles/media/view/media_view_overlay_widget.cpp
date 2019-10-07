@@ -1095,6 +1095,17 @@ void OverlayWidget::onToMessage() {
 	}
 }
 
+void OverlayWidget::notifyFileDialogShown(bool shown) {
+	if (shown && isHidden()) {
+		return;
+	}
+	if (shown) {
+		Ui::Platform::BringToBack(this);
+	} else {
+		Ui::Platform::ShowOverAll(this);
+	}
+}
+
 void OverlayWidget::onSaveAs() {
 	QString file;
 	if (_doc) {
@@ -1116,9 +1127,7 @@ void OverlayWidget::onSaveAs() {
 				filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
 			}
 
-			Ui::Platform::BringToBack(this);
 			file = FileNameForSave(tr::lng_save_file(tr::now), filter, qsl("doc"), name, true, alreadyDir);
-			Ui::Platform::ShowOverAll(this);
 			if (!file.isEmpty() && file != location.name()) {
 				if (_doc->data().isEmpty()) {
 					QFile(file).remove();
@@ -1142,7 +1151,6 @@ void OverlayWidget::onSaveAs() {
 	} else {
 		if (!_photo || !_photo->loaded()) return;
 
-		Ui::Platform::BringToBack(this);
 		auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 		FileDialog::GetWritePath(
 			this,
@@ -1158,9 +1166,6 @@ void OverlayWidget::onSaveAs() {
 				if (!result.isEmpty() && _photo == photo && photo->loaded()) {
 					photo->large()->original().save(result, "JPG");
 				}
-				Ui::Platform::ShowOverAll(this);
-			}), crl::guard(this, [=] {
-				Ui::Platform::ShowOverAll(this);
 			}));
 	}
 	activateWindow();

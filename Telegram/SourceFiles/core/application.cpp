@@ -729,6 +729,12 @@ QWidget *Application::getFileDialogParent() {
 		: nullptr;
 }
 
+void Application::notifyFileDialogShown(bool shown) {
+	if (_mediaView) {
+		_mediaView->notifyFileDialogShown(shown);
+	}
+}
+
 void Application::checkMediaViewActivation() {
 	if (_mediaView && !_mediaView->isHidden()) {
 		_mediaView->activateWindow();

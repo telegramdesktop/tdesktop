@@ -360,11 +360,13 @@ bool GetDefault(
 		Platform::FileDialog::InitLastPath();
 	}
 
-    remoteContent = QByteArray();
+	remoteContent = QByteArray();
 	if (startFile.isEmpty() || startFile.at(0) != '/') {
 		startFile = cDialogLastPath() + '/' + startFile;
 	}
 	QString file;
+
+	Core::App().notifyFileDialogShown(true);
 	if (type == Type::ReadFiles) {
 		files = QFileDialog::getOpenFileNames(Core::App().getFileDialogParent(), caption, startFile, filter);
 		QString path = files.isEmpty() ? QString() : QFileInfo(files.back()).absoluteDir().absolutePath();
@@ -373,17 +375,19 @@ bool GetDefault(
 			Local::writeUserSettings();
 		}
 		return !files.isEmpty();
-    } else if (type == Type::ReadFolder) {
+	} else if (type == Type::ReadFolder) {
 		file = QFileDialog::getExistingDirectory(Core::App().getFileDialogParent(), caption, startFile);
-    } else if (type == Type::WriteFile) {
+	} else if (type == Type::WriteFile) {
 		file = QFileDialog::getSaveFileName(Core::App().getFileDialogParent(), caption, startFile, filter);
-    } else {
+	} else {
 		file = QFileDialog::getOpenFileName(Core::App().getFileDialogParent(), caption, startFile, filter);
-    }
-    if (file.isEmpty()) {
-        files = QStringList();
-        return false;
-    }
+	}
+	Core::App().notifyFileDialogShown(false);
+
+	if (file.isEmpty()) {
+		files = QStringList();
+		return false;
+	}
 	if (type != Type::ReadFolder) {
 		// Save last used directory for all queries except directory choosing.
 		auto path = QFileInfo(file).absoluteDir().absolutePath();
