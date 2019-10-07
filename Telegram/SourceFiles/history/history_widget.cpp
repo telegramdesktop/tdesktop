@@ -3219,7 +3219,7 @@ void HistoryWidget::chooseAttach() {
 	} else if (const auto error = Data::RestrictionError(
 			_peer,
 			ChatRestriction::f_send_media)) {
-		Ui::Toast::Show(*error);
+		ShowErrorToast(*error);
 		return;
 	} else if (showSlowmodeError()) {
 		return;
