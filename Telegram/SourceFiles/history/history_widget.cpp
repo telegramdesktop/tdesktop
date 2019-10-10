@@ -124,6 +124,10 @@ constexpr auto kSaveDraftAnywayTimeout = 5000;
 constexpr auto kSaveCloudDraftIdleTimeout = 14000;
 constexpr auto kRecordingUpdateDelta = crl::time(100);
 constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
+constexpr auto kCommonModifiers = 0
+	| Qt::ShiftModifier
+	| Qt::MetaModifier
+	| Qt::ControlModifier;
 
 ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 	return [](ChannelData *channel, MsgId msgId) {
@@ -397,6 +401,7 @@ HistoryWidget::HistoryWidget(
 		_parsedLinks = std::move(parsed);
 		checkPreview();
 	}, lifetime());
+	_field->rawTextEdit()->installEventFilter(this);
 	_field->rawTextEdit()->installEventFilter(_fieldAutocomplete);
 	_field->setMimeDataHook([=](
 			not_null<const QMimeData*> data,
@@ -3601,6 +3606,16 @@ bool HistoryWidget::insertBotCommand(const QString &cmd) {
 }
 
 bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
+	if (e->type() == QEvent::KeyPress) {
+		const auto k = static_cast<QKeyEvent*>(e);
+		if ((k->modifiers() & kCommonModifiers) == Qt::ControlModifier) {
+			if (k->key() == Qt::Key_Up) {
+				return replyToPreviousMessage();
+			} else if (k->key() == Qt::Key_Down) {
+				return replyToNextMessage();
+			}
+		}
+	}
 	if ((obj == _historyDown || obj == _unreadMentions) && e->type() == QEvent::Wheel) {
 		return _scroll->viewportEvent(e);
 	}
@@ -5419,6 +5434,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 	if (!_history) return;
 
+	const auto commonModifiers = e->modifiers() & kCommonModifiers;
 	if (e->key() == Qt::Key_Escape) {
 		e->ignore();
 	} else if (e->key() == Qt::Key_Back) {
@@ -5428,29 +5444,21 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		_scroll->keyPressEvent(e);
 	} else if (e->key() == Qt::Key_PageUp) {
 		_scroll->keyPressEvent(e);
-	} else if (e->key() == Qt::Key_Down) {
-		if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
-			_scroll->keyPressEvent(e);
-		} else if ((e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier)) == Qt::ControlModifier) {
-			replyToNextMessage();
+	} else if (e->key() == Qt::Key_Down && !commonModifiers) {
+		_scroll->keyPressEvent(e);
+	} else if (e->key() == Qt::Key_Up && !commonModifiers) {
+		const auto item = _history
+			? _history->lastSentMessage()
+			: nullptr;
+		if (item
+			&& item->allowsEdit(base::unixtime::now())
+			&& _field->empty()
+			&& !_editMsgId
+			&& !_replyToId) {
+			editMessage(item);
+			return;
 		}
-	} else if (e->key() == Qt::Key_Up) {
-		if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
-			const auto item = _history
-				? _history->lastSentMessage()
-				: nullptr;
-			if (item
-				&& item->allowsEdit(base::unixtime::now())
-				&& _field->empty()
-				&& !_editMsgId
-				&& !_replyToId) {
-				editMessage(item);
-				return;
-			}
-			_scroll->keyPressEvent(e);
-		} else if ((e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier)) == Qt::ControlModifier) {
-			replyToPreviousMessage();
-		}
+		_scroll->keyPressEvent(e);
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		if (!_botStart->isHidden()) {
 			sendBotStartCommand();
@@ -5499,9 +5507,9 @@ void HistoryWidget::handlePeerMigration() {
 	}
 }
 
-void HistoryWidget::replyToPreviousMessage() {
+bool HistoryWidget::replyToPreviousMessage() {
 	if (!_history || _editMsgId) {
-		return;
+		return false;
 	}
 	const auto fullId = FullMsgId(
 		_history->channelId(),
@@ -5512,17 +5520,20 @@ void HistoryWidget::replyToPreviousMessage() {
 				const auto previous = previousView->data();
 				Ui::showPeerHistoryAtItem(previous);
 				replyToMessage(previous);
+				return true;
 			}
 		}
 	} else if (const auto previous = _history->lastMessage()) {
 		Ui::showPeerHistoryAtItem(previous);
 		replyToMessage(previous);
+		return true;
 	}
+	return false;
 }
 
-void HistoryWidget::replyToNextMessage() {
+bool HistoryWidget::replyToNextMessage() {
 	if (!_history || _editMsgId) {
-		return;
+		return false;
 	}
 	const auto fullId = FullMsgId(
 		_history->channelId(),
@@ -5537,8 +5548,10 @@ void HistoryWidget::replyToNextMessage() {
 				clearHighlightMessages();
 				cancelReply(false);
 			}
+			return true;
 		}
 	}
+	return false;
 }
 
 bool HistoryWidget::showSlowmodeError() {
