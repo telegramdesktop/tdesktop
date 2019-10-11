@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/algorithm.h"
 #include "base/assertion.h"
 #include "tl/tl_basic_types.h"
+#include "tl/tl_boxed.h"
 
 #include <QtCore/QVector>
 #include <QtCore/QString>

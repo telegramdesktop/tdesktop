@@ -48,7 +48,7 @@ void AlignedImageBufferCleanupHandler(void* data) {
 }
 
 void UnPremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
-#ifdef TDESKTOP_OFFICIAL_TARGET
+#ifndef TDESKTOP_OFFICIAL_TARGET // #TODO 5.12.5
 	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
 	const auto convert = layout->convertFromARGB32PM;
 #else // TDESKTOP_OFFICIAL_TARGET
@@ -74,7 +74,7 @@ void UnPremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 }
 
 void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
-#ifdef TDESKTOP_OFFICIAL_TARGET
+#ifndef TDESKTOP_OFFICIAL_TARGET // #TODO 5.12.5
 	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
 	const auto convert = layout->convertToARGB32PM;
 #else // TDESKTOP_OFFICIAL_TARGET

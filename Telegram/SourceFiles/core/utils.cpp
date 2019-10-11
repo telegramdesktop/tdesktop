@@ -392,7 +392,6 @@ namespace ThirdParty {
 			} else {
 				LOG(("MTP Error: Could not init OpenSSL threads, CRYPTO_num_locks() returned zero!"));
 			}
-			CRYPTO_THREADID_set_callback(_sslThreadId);
 		}
 		if (!CRYPTO_get_dynlock_create_callback()) {
 			CRYPTO_set_dynlock_create_callback(_sslCreateFunction);
@@ -419,9 +418,7 @@ namespace ThirdParty {
 #endif
 		ENGINE_cleanup();
 		CONF_modules_unload(1);
-		ERR_remove_state(0);
 		ERR_free_strings();
-		ERR_remove_thread_state(nullptr);
 		EVP_cleanup();
 
 		delete[] base::take(_sslLocks);

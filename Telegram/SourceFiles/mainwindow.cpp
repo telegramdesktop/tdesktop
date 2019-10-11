@@ -578,7 +578,7 @@ void MainWindow::updateTrayMenu(bool force) {
 
 		// On macOS just remove trayIcon menu if the window is not active.
 		// So we will activate the window on click instead of showing the menu.
-		if (!active && Platform::IsMac()) {
+		if (!active && Platform::IsMac() && false) { // #TODO 5.12.5
 			iconMenu = nullptr;
 		}
 	}

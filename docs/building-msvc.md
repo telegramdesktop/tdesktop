@@ -57,6 +57,8 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     mkdir Libraries
     cd Libraries
 
+    SET LibrariesPath=%cd%
+
     git clone https://github.com/desktop-app/patches.git
     git clone --branch 0.9.1 https://github.com/ericniebler/range-v3 range-v3
 
@@ -66,15 +68,21 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     msbuild LzmaLib.sln /property:Configuration=Release
     cd ..\..\..\..
 
-    git clone https://github.com/openssl/openssl.git
-    cd openssl
-    git checkout OpenSSL_1_0_1-stable
-    perl Configure no-shared --prefix="C:\Program Files (x86)\OpenSSL" --openssldir="C:\Program Files (x86)\Common Files\SSL" VC-WIN32
-    ms\do_ms
-    nmake -f ms\nt.mak
-    perl Configure no-shared --prefix="C:\Program Files (x86)\OpenSSL" --openssldir="C:\Program Files (x86)\Common Files\SSL" debug-VC-WIN32
-    ms\do_ms
-    nmake -f ms\nt.mak
+    git clone https://github.com/openssl/openssl.git openssl_1_1_1
+    cd openssl_1_1_1
+    git checkout OpenSSL_1_1_1-stable
+    perl Configure no-share VC-WIN32
+    nmake
+    mkdir out32
+    move libcrypto.lib out32
+    move libssl.lib out32
+    move ossl_static.pdb out32
+    perl Configure no-shared debug-VC-WIN32
+    nmake
+    mkdir out32.dbg
+    move libcrypto.lib out32.dbg
+    move libssl.lib out32.dbg
+    move ossl_static.pdb out32.dbg
     cd ..
 
     git clone https://github.com/telegramdesktop/zlib.git
@@ -133,18 +141,14 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     SET PATH=%PATH_BACKUP_%
     cd ..
 
-    git clone git://code.qt.io/qt/qt5.git qt5_6_2
-    cd qt5_6_2
+    git clone git://code.qt.io/qt/qt5.git qt_5_12_5
+    cd qt_5_12_5
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.6.2
-    cd qtimageformats
-    git checkout v5.6.2
-    cd ..\qtbase
-    git checkout v5.6.2
-    git apply ../../patches/qtbase_5_6_2.diff
-    cd ..
+    git checkout v5.12.5
+    git submodule update qtbase
+    git submodule update qtimageformats
 
-    configure -debug-and-release -force-debug-info -opensource -confirm-license -static -I "%cd%\..\openssl\inc32" -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="%cd%\..\openssl\out32.dbg\ssleay32.lib %cd%\..\openssl\out32.dbg\libeay32.lib" OPENSSL_LIBS_RELEASE="%cd%\..\openssl\out32\ssleay32.lib %cd%\..\openssl\out32\libeay32.lib" -mp -nomake examples -nomake tests -platform win32-msvc2015
+    configure -prefix "%LibrariesPath%\Qt-5.12.5" -debug-and-release -force-debug-info -opensource -confirm-license -static -static-runtime -I "%cd%\..\openssl_1_1_1\include" -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="%cd%\..\openssl_1_1_1\out32.dbg\libssl.lib %cd%\..\openssl_1_1_1\out32.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" OPENSSL_LIBS_RELEASE="%cd%\..\openssl_1_1_1\out32\libssl.lib %cd%\..\openssl_1_1_1\out32\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" -mp -nomake examples -nomake tests -platform win32-msvc
 
     jom -j4
     jom -j4 install

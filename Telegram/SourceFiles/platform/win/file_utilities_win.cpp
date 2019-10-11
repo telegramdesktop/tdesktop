@@ -421,9 +421,9 @@ bool Get(
 		} else {
 			files = dialog.selectedFiles().mid(0, 1);
 		}
-		if (type == Type::ReadFile || type == Type::ReadFiles) {
-			remoteContent = dialog.selectedRemoteContent();
-		}
+		//if (type == Type::ReadFile || type == Type::ReadFiles) {
+		//	remoteContent = dialog.selectedRemoteContent();
+		//}
 		return true;
 	}
 

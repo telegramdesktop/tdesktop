@@ -12,7 +12,7 @@
     'src_loc': '../../SourceFiles',
     'base_loc': '<(submodules_loc)/lib_base',
     'rpl_loc': '<(submodules_loc)/lib_rpl',
-    'mac_target': '10.10',
+    'mac_target': '10.12',
     'list_tests_command': 'python <(DEPTH)/tests/list_tests.py --input <(DEPTH)/tests/tests_list.txt',
   },
   'targets': [{
