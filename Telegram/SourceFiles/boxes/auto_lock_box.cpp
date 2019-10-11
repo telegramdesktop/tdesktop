@@ -23,7 +23,7 @@ void AutoLockBox::prepare() {
 
 	addButton(tr::lng_box_ok(), [this] { closeBox(); });
 
-	auto options = { 60, 300, 3600, 18000 };
+	auto options = { 60, 300, 900, 3600, 18000 };
 
 	auto group = std::make_shared<Ui::RadiobuttonGroup>(Global::AutoLock());
 	auto y = st::boxOptionListPadding.top() + st::autolockButton.margin.top();
