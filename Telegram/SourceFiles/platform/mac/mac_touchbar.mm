@@ -1163,7 +1163,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		return item;
 	} else if (isType(kTypeScrubber)) {
 		const auto isSticker = ([dictionaryItem[@"cmd"] intValue]
-		 	== kCommandScrubberStickers);
+			== kCommandScrubberStickers);
 		const auto type = isSticker
 			? ScrubberItemType::Sticker
 			: ScrubberItemType::Emoji;

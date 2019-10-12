@@ -238,7 +238,7 @@ public:
 		return bareT::read(from, end, cons);
 	}
 	void write(mtpBuffer &to) const {
-        to.push_back(bareT::type());
+		to.push_back(bareT::type());
 		bareT::write(to);
 	}
 

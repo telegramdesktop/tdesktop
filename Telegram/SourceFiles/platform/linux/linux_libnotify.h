@@ -24,9 +24,9 @@ constexpr gint NOTIFY_EXPIRES_NEVER = 0;
 
 struct NotifyNotification;
 typedef enum {
-        NOTIFY_URGENCY_LOW,
-        NOTIFY_URGENCY_NORMAL,
-        NOTIFY_URGENCY_CRITICAL,
+	NOTIFY_URGENCY_LOW,
+	NOTIFY_URGENCY_NORMAL,
+	NOTIFY_URGENCY_CRITICAL,
 } NotifyUrgency;
 
 using NotifyActionCallback = void (*)(NotifyNotification *notification, char *action, gpointer user_data);

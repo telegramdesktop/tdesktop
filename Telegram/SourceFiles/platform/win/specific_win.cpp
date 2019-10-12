@@ -70,7 +70,7 @@ using namespace Windows::Foundation;
 using namespace Platform;
 
 namespace {
-    QStringList _initLogs;
+	QStringList _initLogs;
 
 	bool themeInited = false;
 	bool finished = true;
@@ -131,11 +131,11 @@ namespace {
 }
 
 QStringList psInitLogs() {
-    return _initLogs;
+	return _initLogs;
 }
 
 void psClearInitLogs() {
-    _initLogs = QStringList();
+	_initLogs = QStringList();
 }
 
 void psActivateProcess(uint64 pid) {

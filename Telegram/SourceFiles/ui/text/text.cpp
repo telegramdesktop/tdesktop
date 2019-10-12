@@ -133,8 +133,8 @@ bool chIsBad(QChar ch) {
 		|| (Platform::IsMac10_11OrGreater()
 			&& !Platform::IsMac10_12OrGreater()
 			&& ch >= 0x0B00
-            && ch <= 0x0B7F
-            && chIsDiac(ch));
+			&& ch <= 0x0B7F
+			&& chIsDiac(ch));
 }
 
 QString textcmdSkipBlock(ushort w, ushort h) {
@@ -1523,7 +1523,7 @@ private:
 		eShapeLine(line);
 
 		int firstItem = engine.findItem(line.from), lastItem = engine.findItem(line.from + line.length - 1);
-	    int nItems = (firstItem >= 0 && lastItem >= firstItem) ? (lastItem - firstItem + 1) : 0;
+		int nItems = (firstItem >= 0 && lastItem >= firstItem) ? (lastItem - firstItem + 1) : 0;
 		if (!nItems) {
 			return true;
 		}
@@ -1550,7 +1550,7 @@ private:
 				}
 			}
 		}
-	    QTextEngine::bidiReorder(nItems, levels.data(), visualOrder.data());
+		QTextEngine::bidiReorder(nItems, levels.data(), visualOrder.data());
 		if (style::RightToLeft() && skipIndex == nItems - 1) {
 			for (int32 i = nItems; i > 1;) {
 				--i;
@@ -1875,7 +1875,7 @@ private:
 		_wLeft = _w - elideWidth - _elideRemoveFromEnd;
 
 		int firstItem = engine.findItem(line.from), lastItem = engine.findItem(line.from + line.length - 1);
-	    int nItems = (firstItem >= 0 && lastItem >= firstItem) ? (lastItem - firstItem + 1) : 0, i;
+		int nItems = (firstItem >= 0 && lastItem >= firstItem) ? (lastItem - firstItem + 1) : 0, i;
 
 		for (i = 0; i < nItems; ++i) {
 			QScriptItem &si(engine.layoutData->items[firstItem + i]);

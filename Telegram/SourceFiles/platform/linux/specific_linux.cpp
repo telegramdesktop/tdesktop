@@ -39,13 +39,13 @@ using Platform::File::internal::EscapeShell;
 namespace {
 
 bool RunShellCommand(const QByteArray &command) {
-        auto result = system(command.constData());
-        if (result) {
-                DEBUG_LOG(("App Error: command failed, code: %1, command (in utf8): %2").arg(result).arg(command.constData()));
-                return false;
-        }
-        DEBUG_LOG(("App Info: command succeeded, command (in utf8): %1").arg(command.constData()));
-        return true;
+	auto result = system(command.constData());
+	if (result) {
+		DEBUG_LOG(("App Error: command failed, code: %1, command (in utf8): %2").arg(result).arg(command.constData()));
+		return false;
+	}
+	DEBUG_LOG(("App Info: command succeeded, command (in utf8): %1").arg(command.constData()));
+	return true;
 }
 
 void FallbackFontConfig() {

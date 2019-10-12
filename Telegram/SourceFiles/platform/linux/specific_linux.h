@@ -32,10 +32,10 @@ inline void IgnoreApplicationActivationRightNow() {
 } // namespace Platform
 
 inline QString psServerPrefix() {
-    return qsl("/tmp/");
+	return qsl("/tmp/");
 }
 inline void psCheckLocalSocket(const QString &serverName) {
-    QFile address(serverName);
+	QFile address(serverName);
 	if (address.exists()) {
 		address.remove();
 	}

@@ -2568,7 +2568,7 @@ void ConnectionPrivate::removeTestConnection(
 		end(_testConnections));
 }
 
-void ConnectionPrivate::updateAuthKey() 	{
+void ConnectionPrivate::updateAuthKey() {
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData || !_connection) return;
 
