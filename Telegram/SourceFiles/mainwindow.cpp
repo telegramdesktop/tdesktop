@@ -578,7 +578,7 @@ void MainWindow::updateTrayMenu(bool force) {
 
 		// On macOS just remove trayIcon menu if the window is not active.
 		// So we will activate the window on click instead of showing the menu.
-		if (!active && Platform::IsMac() && false) { // #TODO 5.12.5
+		if (!active && Platform::IsMac()) {
 			iconMenu = nullptr;
 		}
 	}
@@ -703,6 +703,9 @@ void MainWindow::handleTrayIconActication(
 		QSystemTrayIcon::ActivationReason reason) {
 	updateIsActive(0);
 	if (Platform::IsMac() && isActive()) {
+		if (trayIcon && !trayIcon->contextMenu()) {
+			showFromTray(reason);
+		}
 		return;
 	}
 	if (reason == QSystemTrayIcon::Context) {
