@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/main_queue_processor.h"
+#include "ui/ui_utility.h"
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
 #include "core/sandbox.h"
@@ -268,9 +269,12 @@ int Launcher::exec() {
 		return psCleanup();
 	}
 
-	// both are finished in Sandbox::closeApplication
-	Logs::start(this); // must be started before Platform is started
-	Platform::start(); // must be started before Sandbox is created
+	// Must be started before Platform is started.
+	Logs::start(this);
+
+	// Must be started before Sandbox is created.
+	Platform::start();
+	Ui::DisableCustomScaling();
 
 	auto result = executeApplication();
 
