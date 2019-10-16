@@ -15,7 +15,7 @@
       '<(SHARED_INTERMEDIATE_DIR)/<(_target_name)/moc/moc_<(RULE_INPUT_ROOT).cpp',
     ],
     'action': [
-      '<(qt_loc)/bin/moc<(exe_ext)',
+      '<(qt_bindir)/moc<(exe_ext)',
 
       # Silence "Note: No relevant classes found. No output generated."
       '--no-notes',

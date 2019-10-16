@@ -28,16 +28,8 @@
             'qtharfbuzzng',
           ],
           'qt_version%': '<(qt_version)',
-          'conditions': [
-            [ 'build_macold', {
-              'linux_path_qt%': '/usr/local/macold/Qt-<(qt_version)',
-            }, {
-              'linux_path_qt%': '/usr/local/tdesktop/Qt-<(qt_version)',
-            }]
-          ]
         },
         'qt_version%': '<(qt_version)',
-        'qt_loc_unix': '<(linux_path_qt)',
         'conditions': [
           [ 'build_win', {
             'qt_lib_prefix': '<(ld_lib_prefix)',
@@ -103,7 +95,6 @@
         ],
       },
       'qt_version%': '<(qt_version)',
-      'qt_loc_unix': '<(qt_loc_unix)',
       'qt_version_loc': '<!(python -c "print(\'<(qt_version)\'.replace(\'.\', \'_\'))")',
       'qt_libs_debug': [
         '<!@(python -c "for s in \'<@(qt_libs)\'.split(\' \'): print(\'<(qt_lib_prefix)\' + s + \'<(qt_lib_debug_postfix)\')")',
@@ -111,24 +102,33 @@
       'qt_libs_release': [
         '<!@(python -c "for s in \'<@(qt_libs)\'.split(\' \'): print(\'<(qt_lib_prefix)\' + s + \'<(qt_lib_release_postfix)\')")',
       ],
+      'conditions': [
+        [ 'build_win', {
+          'qt_loc%': '<(DEPTH)/../../../Libraries/qt<(qt_version_loc)/qtbase',
+        }],
+        [ 'build_macold', {
+          'qt_loc%': '/usr/local/macold/Qt-<(qt_version)',
+        }, {
+          'qt_loc%': '/usr/local/tdesktop/Qt-<(qt_version)',
+        }]
+      ],
     },
     'qt_libs_debug': [ '<@(qt_libs_debug)' ],
     'qt_libs_release': [ '<@(qt_libs_release)' ],
     'qt_version%': '<(qt_version)',
-    'conditions': [
-      [ 'build_win', {
-        'qt_loc': '<(DEPTH)/../../../Libraries/qt<(qt_version_loc)/qtbase',
-      }, {
-        'qt_loc': '<(qt_loc_unix)',
-      }],
-    ],
+
+    'qt_incdir%': '<(qt_loc)/include',
+    'qt_libdir%': '<(qt_loc)/lib',
+    'qt_bindir%': '<(qt_loc)/bin',
+    'qt_plugins%': '<(qt_loc)/plugins',
+    'qt_specs%': '<(qt_loc)/mkspecs',
 
     # If you need moc sources include a line in your 'sources':
     # '<!@(python <(DEPTH)/list_sources.py [sources] <(qt_moc_list_sources_arg))'
     # where [sources] contains all your source files
     'qt_moc_list_sources_arg': '--moc-prefix SHARED_INTERMEDIATE_DIR/<(_target_name)/moc/moc_',
 
-    'linux_path_xkbcommon%': '/usr/local',
+    'linux_lib_xkbcommon%': '/usr/local/lib/libxkbcommon.a',
     'linux_lib_ssl%': '/usr/local/ssl/lib/libssl.a',
     'linux_lib_crypto%': '/usr/local/ssl/lib/libcrypto.a',
     'linux_lib_icu%': 'libicutu.a libicui18n.a libicuuc.a libicudata.a',
@@ -180,21 +180,20 @@
   },
 
   'include_dirs': [
-    '<(qt_loc)/include',
-    '<(qt_loc)/include/QtCore',
-    '<(qt_loc)/include/QtGui',
-    '<(qt_loc)/include/QtDBus',
-    '<(qt_loc)/include/QtCore/<(qt_version)',
-    '<(qt_loc)/include/QtGui/<(qt_version)',
-    '<(qt_loc)/include/QtCore/<(qt_version)/QtCore',
-    '<(qt_loc)/include/QtGui/<(qt_version)/QtGui',
+    '<(qt_incdir)',
+    '<(qt_incdir)/QtCore',
+    '<(qt_incdir)/QtGui',
+    '<(qt_incdir)/QtDBus',
+    '<(qt_incdir)/QtCore/<(qt_version)',
+    '<(qt_incdir)/QtGui/<(qt_version)',
+    '<(qt_incdir)/QtCore/<(qt_version)/QtCore',
+    '<(qt_incdir)/QtGui/<(qt_version)/QtGui',
   ],
   'library_dirs': [
-    '<(qt_loc)/lib',
-    '<(qt_loc)/plugins',
-    '<(qt_loc)/plugins/bearer',
-    '<(qt_loc)/plugins/platforms',
-    '<(qt_loc)/plugins/imageformats',
+    '<(qt_libdir)',
+    '<(qt_plugins)/bearer',
+    '<(qt_plugins)/platforms',
+    '<(qt_plugins)/imageformats',
   ],
   'defines': [
     'QT_WIDGETS_LIB',
@@ -208,11 +207,11 @@
         '<(DEPTH)/linux_glibc_wraps.gyp:linux_glibc_wraps',
       ],
       'library_dirs': [
-        '<(qt_loc)/plugins/platforminputcontexts',
+        '<(qt_plugins)/platforminputcontexts',
       ],
       'libraries': [
         '<(PRODUCT_DIR)/obj.target/liblinux_glibc_wraps.a',
-        '<(linux_path_xkbcommon)/lib/libxkbcommon.a',
+        '<(linux_lib_xkbcommon)',
         '<@(qt_libs_release)',
         '<(linux_lib_ssl)',
         '<(linux_lib_crypto)',
@@ -227,7 +226,7 @@
         '-lpthread',
       ],
       'include_dirs': [
-        '<(qt_loc)/mkspecs/linux-g++',
+        '<(qt_specs)/linux-g++',
       ],
       'ldflags': [
         '-static-libstdc++',

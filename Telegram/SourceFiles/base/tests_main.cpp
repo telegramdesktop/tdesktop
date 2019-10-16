@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
-#include "reporters/catch_reporter_compact.hpp"
+#if __has_include("reporters/catch_reporter_compact.hpp")
+# include "reporters/catch_reporter_compact.hpp"
+#endif  // __has_include
 #include <QFile>
 
 int (*TestForkedMethod)()/* = nullptr*/;
