@@ -8,6 +8,20 @@
   'conditions': [
     [ 'build_linux', {
       'variables': {
+        'variables': {
+          'cpu_type%': '<!(uname -m)',
+        },
+        'cpu_type%': '<(cpu_type)',
+        'conditions': [
+          [ 'cpu_type == "x86_64"',
+            { 'disable_lto%': 0 },
+            { 'disable_lto%': 1 },
+          ],
+          [ '"64" in cpu_type',
+            { 'bitness%': 64 },
+            { 'bitness%': 32 },
+          ],
+        ],
         'linux_common_flags': [
           '-pipe',
           '-Wall',
@@ -51,7 +65,7 @@
         '<(linux_path_breakpad)/lib',
       ],
       'conditions': [
-        [ '"<!(uname -m)" == "x86_64" or "<!(uname -m)" == "aarch64"', {
+        [ 'bitness == 64', {
           'defines': [
             'Q_OS_LINUX64',
           ],
@@ -69,7 +83,7 @@
               'sources': [ '__Wrong_Official_Build_Target_<(official_build_target)_' ],
             }],
           ],
-        }], [ '"<!(uname -p)" == "x86_64"', {
+        }], [ 'not disable_lto', {
           # 32 bit version can't be linked with debug info or LTO,
           # virtual memory exhausted :(
           'cflags_c': [ '-g' ],

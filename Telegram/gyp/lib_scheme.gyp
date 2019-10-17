@@ -30,6 +30,8 @@
       'include_dirs': [
         '/usr/local/macold/include/c++/v1',
       ],
+    }], [ 'cpu_type.startswith("mips64")', {
+      'cflags_cc': [ '-mxgot' ],
     }]],
     'include_dirs': [
       '<(src_loc)',

@@ -10,6 +10,7 @@
       'variables': {
         'build_defines%': '',
       },
+      'cpu_type%': '<!(uname -m)',
       'not_need_gtk%': '<!(python -c "print(\'TDESKTOP_DISABLE_GTK_INTEGRATION\' in \'<(build_defines)\')")',
       'pkgconfig_libs': [
 # In order to work libxkbcommon must be linked statically,
@@ -69,15 +70,14 @@
       },
     },
     'conditions': [
-      [ '"<!(uname -p)" != "x86_64"', {
+      [ 'cpu_type != "x86_64"', {
         'ldflags': [
           '-Wl,-wrap,__divmoddi4',
         ],
       }], ['not_need_gtk!="True"', {
         'cflags_cc': [
-          '<!(pkg-config 2> /dev/null --cflags gtk+-2.0)',
-          '<!(pkg-config 2> /dev/null --cflags glib-2.0)',
-          '<!(pkg-config 2> /dev/null --cflags dee-1.0)',
+          '<!(pkg-config --cflags gtk+-2.0)',
+          '<!(pkg-config --cflags glib-2.0)',
         ],
       }], ['<!(pkg-config ayatana-appindicator3-0.1; echo $?) == 0', {
         'cflags_cc': [ '<!(pkg-config --cflags ayatana-appindicator3-0.1)' ],
