@@ -71,18 +71,20 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     git clone https://github.com/openssl/openssl.git openssl_1_1_1
     cd openssl_1_1_1
     git checkout OpenSSL_1_1_1-stable
-    perl Configure no-share VC-WIN32
-    nmake
-    mkdir out32
-    move libcrypto.lib out32
-    move libssl.lib out32
-    move ossl_static.pdb out32
     perl Configure no-shared debug-VC-WIN32
     nmake
     mkdir out32.dbg
     move libcrypto.lib out32.dbg
     move libssl.lib out32.dbg
-    move ossl_static.pdb out32.dbg
+    move ossl_static.pdb out32.dbg\ossl_static
+    nmake clean
+    move out32.dbg\ossl_static out32.dbg\ossl_static.pdb
+    perl Configure no-shared VC-WIN32
+    nmake
+    mkdir out32
+    move libcrypto.lib out32
+    move libssl.lib out32
+    move ossl_static.pdb out32
     cd ..
 
     git clone https://github.com/telegramdesktop/zlib.git
@@ -147,8 +149,11 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     git checkout v5.12.5
     git submodule update qtbase
     git submodule update qtimageformats
+    cd qtbase
+    git apply ../../patches/qtbase_5_12_5.diff
+    cd ..
 
-    configure -prefix "%LibrariesPath%\Qt-5.12.5" -debug-and-release -force-debug-info -opensource -confirm-license -static -static-runtime -I "%cd%\..\openssl_1_1_1\include" -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="%cd%\..\openssl_1_1_1\out32.dbg\libssl.lib %cd%\..\openssl_1_1_1\out32.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" OPENSSL_LIBS_RELEASE="%cd%\..\openssl_1_1_1\out32\libssl.lib %cd%\..\openssl_1_1_1\out32\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" -mp -nomake examples -nomake tests -platform win32-msvc
+    configure -prefix "%LibrariesPath%\Qt-5.12.5" -debug-and-release -force-debug-info -opensource -confirm-license -static -static-runtime -I "%LibrariesPath%\openssl_1_1_1\include" -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="%LibrariesPath%\openssl_1_1_1\out32.dbg\libssl.lib %LibrariesPath%\openssl_1_1_1\out32.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" OPENSSL_LIBS_RELEASE="%LibrariesPath%\openssl_1_1_1\out32\libssl.lib %LibrariesPath%\openssl_1_1_1\out32\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" -mp -nomake examples -nomake tests -platform win32-msvc
 
     jom -j4
     jom -j4 install
