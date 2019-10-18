@@ -268,6 +268,8 @@ EditCaptionBox::EditCaptionBox(
 	_field->setEditLinkCallback(
 		DefaultEditLinkCallback(&_controller->session(), _field));
 
+	_spelling = InitSpellchecker(&_controller->session(), _field);
+
 	auto r = object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 		this,
 		object_ptr<Ui::Checkbox>(

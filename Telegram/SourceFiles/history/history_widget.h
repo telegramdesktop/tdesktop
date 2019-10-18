@@ -86,6 +86,10 @@ class ContactStatus;
 class Element;
 } // namespace HistoryView
 
+namespace Spellchecker {
+class SpellingHighlighter;
+} // namespace Spellchecker
+
 class DragArea;
 class SendFilesBox;
 class BotKeyboard;
@@ -741,6 +745,7 @@ private:
 	object_ptr<Ui::IconButton> _scheduled = { nullptr };
 	bool _cmdStartShown = false;
 	object_ptr<Ui::InputField> _field;
+	base::unique_qptr<Spellchecker::SpellingHighlighter> _spelling;
 	bool _recording = false;
 	bool _inField = false;
 	bool _inReplyEditForward = false;

@@ -411,6 +411,7 @@ HistoryWidget::HistoryWidget(
 		}
 		Unexpected("action in MimeData hook.");
 	});
+	_spelling = InitSpellchecker(&controller->session(), _field);
 
 	const auto suggestions = Ui::Emoji::SuggestionsController::Init(
 		this,

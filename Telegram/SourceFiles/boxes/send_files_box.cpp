@@ -1679,6 +1679,8 @@ void SendFilesBox::setupCaption() {
 		_caption,
 		&_controller->session());
 
+	_spelling = InitSpellchecker(&_controller->session(), _caption);
+
 	updateCaptionPlaceholder();
 	setupEmojiPanel();
 }
