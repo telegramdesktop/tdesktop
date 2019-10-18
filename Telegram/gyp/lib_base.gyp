@@ -23,9 +23,16 @@
       'submodules_loc': '../ThirdParty',
       'pch_source': '<(src_loc)/base/base_pch.cpp',
       'pch_header': '<(src_loc)/base/base_pch.h',
+      'use_common_xxhash%': 0,
     },
-    'defines': [
-      'XXH_INLINE_ALL',
+    'conditions': [
+      [ 'use_common_xxhash', {
+        'link_settings': {
+          'libraries': [ '-lxxhash' ],
+        },
+      }, {
+        'defines': [ 'XXH_INLINE_ALL' ],
+      }],
     ],
     'dependencies': [
       'crl.gyp:crl',

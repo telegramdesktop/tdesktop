@@ -47,6 +47,7 @@
         'pt-BR',
       ],
       'build_defines%': '',
+      'use_common_xxhash%': 0,
       'list_sources_command': 'python <(DEPTH)/list_sources.py --input <(DEPTH)/telegram/sources.txt --replace src_loc=<(src_loc)',
       'pch_source': '<(src_loc)/stdafx.cpp',
       'pch_header': '<(src_loc)/stdafx.h',
@@ -72,7 +73,6 @@
       'codegen.gyp:codegen_numbers',
       'codegen.gyp:codegen_style',
       'tests/tests.gyp:tests',
-      'utils.gyp:Updater',
       '../ThirdParty/libtgvoip/libtgvoip.gyp:libtgvoip',
       'crl.gyp:crl',
       'lib_base.gyp:lib_base',
@@ -88,7 +88,6 @@
       'AL_LIBTYPE_STATIC',
       'AL_ALEXT_PROTOTYPES',
       'TGVOIP_USE_CXX11_LIB',
-      'XXH_INLINE_ALL',
       'TDESKTOP_API_ID=<(api_id)',
       'TDESKTOP_API_HASH=<(api_hash)',
       '<!@(python -c "for s in \'<(build_defines)\'.split(\',\'): print(s)")',
@@ -134,6 +133,7 @@
         ],
         'dependencies': [
           'utils.gyp:Packer',
+          'utils.gyp:Updater',
         ],
       }], [ 'build_mac', {
         'mac_hardened_runtime': 1,
@@ -155,6 +155,10 @@
         'sources': [
           '../../Telegram/Telegram Desktop.entitlements',
         ],
+      }], [ 'use_common_xxhash', {
+        'libraries': [ '-lxxhash' ],
+      }, {
+        'defines': [ 'XXH_INLINE_ALL' ],
       }],
     ],
   }],

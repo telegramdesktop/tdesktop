@@ -22,23 +22,18 @@
       'submodules_loc': '../ThirdParty',
       'rlottie_loc': '<(submodules_loc)/rlottie/inc',
       'lz4_loc': '<(submodules_loc)/lz4/lib',
+      'use_common_rlottie%': 0,
+      'use_common_lz4%': 0,
     },
     'dependencies': [
       'crl.gyp:crl',
       'lib_base.gyp:lib_base',
-      'lib_rlottie.gyp:lib_rlottie',
       'lib_ffmpeg.gyp:lib_ffmpeg',
-      'lib_lz4.gyp:lib_lz4',
     ],
     'export_dependent_settings': [
       'crl.gyp:crl',
       'lib_base.gyp:lib_base',
-      'lib_rlottie.gyp:lib_rlottie',
       'lib_ffmpeg.gyp:lib_ffmpeg',
-      'lib_lz4.gyp:lib_lz4',
-    ],
-    'defines': [
-      'LOT_BUILD',
     ],
     'include_dirs': [
       '<(src_loc)',
@@ -74,6 +69,17 @@
       'include_dirs': [
         '/usr/local/macold/include/c++/v1',
       ],
+    }], [ 'use_common_rlottie', {
+      'link_settings': { 'libraries': [ 'rlottie' ] },
+    }, {
+      'dependencies': [ 'lib_rlottie.gyp:lib_rlottie' ],
+      'export_dependent_settings': [ 'lib_rlottie.gyp:lib_rlottie' ],
+      'defines': [ 'LOT_BUILD' ],
+    }], [ 'use_common_lz4', {
+      'link_settings': { 'libraries': [ 'lz4' ] },
+    }, {
+      'dependencies': [ 'lib_lz4.gyp:lib_lz4' ],
+      'export_dependent_settings': [ 'lib_lz4.gyp:lib_lz4' ],
     }]],
   }],
 }
