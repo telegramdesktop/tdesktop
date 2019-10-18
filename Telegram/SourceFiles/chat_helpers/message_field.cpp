@@ -282,6 +282,11 @@ base::unique_qptr<Spellchecker::SpellingHighlighter> InitSpellchecker(
 		field->rawTextEdit(),
 		session->settings().spellcheckerEnabledValue(),
 		field->documentContentsChanges());
+	Spellchecker::SetPhrases({ {
+		{ &ph::lng_spellchecker_add, tr::lng_spellchecker_add() },
+		{ &ph::lng_spellchecker_remove, tr::lng_spellchecker_remove() },
+		{ &ph::lng_spellchecker_ignore, tr::lng_spellchecker_ignore() },
+	} });
 	field->setExtendedContextMenu(s->contextMenuCreated());
 	return s;
 }

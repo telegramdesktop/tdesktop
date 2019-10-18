@@ -1594,6 +1594,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_formatting_link_url" = "URL";
 "lng_formatting_link_create" = "Create";
 
+"lng_spellchecker_add" = "Add to Dictionary";
+"lng_spellchecker_remove" = "Remove from Dictionary";
+"lng_spellchecker_ignore" = "Ignore word";
+
 "lng_full_name" = "{first_name} {last_name}";
 
 "lng_confirm_phone_link_invalid" = "This link is broken or has expired.";
