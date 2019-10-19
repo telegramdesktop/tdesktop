@@ -77,6 +77,8 @@ function(export_all_flags _filename _source_name_for_flags)
   set(_compile_file_flags "$<$<BOOL:${_compile_file_flags}>:$<JOIN:${_compile_file_flags},\n>\n>")
   set(_compile_flags "$<$<BOOL:${_compile_flags}>:$<JOIN:${_compile_flags},\n>\n>")
   set(_compile_options "$<$<BOOL:${_compile_options}>:$<JOIN:${_compile_options},\n>\n>")
+  get_source_file_property(_file_lang "${_source_name_for_flags}" LANGUAGE)
+  set(_compile_file_flags "${CMAKE_${_file_lang}_FLAGS}\n${_compile_file_flags}")
   file(GENERATE OUTPUT "${_filename}" CONTENT "${_compile_definitions}${_include_directories}${_compile_file_flags}${_compile_flags}${_compile_options}\n")
 endfunction()
 
