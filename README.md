@@ -17,6 +17,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * Mac OS X 10.6 - Mac OS X 10.7 (separate build)
 * Ubuntu 12.04 - Ubuntu 19.04
 * Fedora 22 - Fedora 30
+* Arch Linux
 * [Snappy](https://snapcraft.io/telegram-desktop)
 * [Flathub](https://flathub.org/apps/details/org.telegram.desktop)
 
