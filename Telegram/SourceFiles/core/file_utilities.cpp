@@ -160,53 +160,6 @@ QString DefaultDownloadPath() {
 		+ '/';
 }
 
-QString NameFromUserString(QString name) {
-	static const auto Bad = { '/', '\\', '<', '>', ':', '"', '|', '?', '*' };
-	for (auto &ch : name) {
-		if (ch < 32 || ranges::find(Bad, ch.unicode()) != end(Bad)) {
-			ch = '_';
-		}
-	}
-	if (name.isEmpty() || name.endsWith(' ') || name.endsWith('.')) {
-		name.append('_');
-	}
-#ifdef Q_OS_WIN
-	static const auto BadNames = {
-		qstr("CON"),
-		qstr("PRN"),
-		qstr("AUX"),
-		qstr("NUL"),
-		qstr("COM1"),
-		qstr("COM2"),
-		qstr("COM3"),
-		qstr("COM4"),
-		qstr("COM5"),
-		qstr("COM6"),
-		qstr("COM7"),
-		qstr("COM8"),
-		qstr("COM9"),
-		qstr("LPT1"),
-		qstr("LPT2"),
-		qstr("LPT3"),
-		qstr("LPT4"),
-		qstr("LPT5"),
-		qstr("LPT6"),
-		qstr("LPT7"),
-		qstr("LPT8"),
-		qstr("LPT9")
-	};
-	for (const auto bad : BadNames) {
-		if (name.startsWith(bad, Qt::CaseInsensitive)) {
-			if (name.size() == bad.size() || name[bad.size()] == '.') {
-				name = '_' + name;
-				break;
-			}
-		}
-	}
-#endif // Q_OS_WIN
-	return name;
-}
-
 namespace internal {
 
 void UnsafeOpenEmailLinkDefault(const QString &email) {

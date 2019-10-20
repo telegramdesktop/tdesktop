@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/image/image_source.h"
 #include "ui/text/text_utilities.h"
+#include "base/base_file_utilities.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "lottie/lottie_animation.h"
@@ -136,13 +137,7 @@ QString FileNameUnsafe(
 		QString name,
 		bool savingAs,
 		const QDir &dir) {
-#ifdef Q_OS_WIN
-	name = name.replace(QRegularExpression(qsl("[\\\\\\/\\:\\*\\?\\\"\\<\\>\\|]")), qsl("_"));
-#elif defined Q_OS_MAC
-	name = name.replace(QRegularExpression(qsl("[\\:]")), qsl("_"));
-#elif defined Q_OS_LINUX
-	name = name.replace(QRegularExpression(qsl("[\\/]")), qsl("_"));
-#endif
+	name = base::FileNameFromUserString(name);
 	if (Global::AskDownloadPath() || savingAs) {
 		if (!name.isEmpty() && name.at(0) == QChar::fromLatin1('.')) {
 			name = filedialogDefaultName(prefix, name);

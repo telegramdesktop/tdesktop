@@ -37,8 +37,6 @@ void ShowInFolder(const QString &filepath);
 
 [[nodiscard]] QString DefaultDownloadPath();
 
-[[nodiscard]] QString NameFromUserString(QString name);
-
 namespace internal {
 
 inline QString UrlToLocalDefault(const QUrl &url) {

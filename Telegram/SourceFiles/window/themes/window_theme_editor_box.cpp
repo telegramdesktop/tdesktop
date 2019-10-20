@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "base/event_filter.h"
+#include "base/base_file_utilities.h"
 #include "base/zlib_help.h"
 #include "base/unixtime.h"
 #include "data/data_session.h"
@@ -435,7 +436,7 @@ SendMediaReady PrepareThemeMedia(
 	};
 	push("s", std::move(thumbnail));
 
-	const auto filename = File::NameFromUserString(name)
+	const auto filename = base::FileNameFromUserString(name)
 		+ qsl(".tdesktop-theme");
 	auto attributes = QVector<MTPDocumentAttribute>(
 		1,

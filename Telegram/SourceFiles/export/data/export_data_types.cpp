@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/export_settings.h"
 #include "export/output/export_output_file.h"
+#include "base/base_file_utilities.h"
 #include "core/mime_type.h"
 #include "core/utils.h"
 #include <QtCore/QDateTime>
@@ -337,53 +338,6 @@ QString ComputeDocumentName(
 	}
 }
 
-QString CleanDocumentName(QString name) {
-	// We don't want LTR/RTL mark/embedding/override/isolate chars
-	// in filenames, because they introduce a security issue, when
-	// an executable "Fil[x]gepj.exe" may look like "Filexe.jpeg".
-	QChar controls[] = {
-		0x200E, // LTR Mark
-		0x200F, // RTL Mark
-		0x202A, // LTR Embedding
-		0x202B, // RTL Embedding
-		0x202D, // LTR Override
-		0x202E, // RTL Override
-		0x2066, // LTR Isolate
-		0x2067, // RTL Isolate
-#ifdef Q_OS_WIN
-		'\\',
-		'/',
-		':',
-		'*',
-		'?',
-		'"',
-		'<',
-		'>',
-		'|',
-#elif defined Q_OS_MAC // Q_OS_WIN
-		':',
-#elif defined Q_OS_LINUX // Q_OS_WIN || Q_OS_MAC
-		'/',
-#endif // Q_OS_WIN || Q_OS_MAC || Q_OS_LINUX
-	};
-	for (const auto ch : controls) {
-		name = std::move(name).replace(ch, '_');
-	}
-
-#ifdef Q_OS_WIN
-	const auto lower = name.trimmed().toLower();
-	const auto kBadExtensions = { qstr(".lnk"), qstr(".scf") };
-	const auto kMaskExtension = qsl(".download");
-	for (const auto extension : kBadExtensions) {
-		if (lower.endsWith(extension)) {
-			return name + kMaskExtension;
-		}
-	}
-#endif // Q_OS_WIN
-
-	return name;
-}
-
 QString DocumentFolder(const Document &data) {
 	if (data.isVideoFile) {
 		return "video_files";
@@ -469,7 +423,8 @@ Document ParseDocument(
 			MTP_string());
 		result.file.suggestedPath = suggestedFolder
 			+ DocumentFolder(result) + '/'
-			+ CleanDocumentName(ComputeDocumentName(context, result, date));
+			+ base::FileNameFromUserString(
+				ComputeDocumentName(context, result, date));
 
 		result.thumb = ParseDocumentThumb(
 			data,
