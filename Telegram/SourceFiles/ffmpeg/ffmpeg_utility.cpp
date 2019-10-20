@@ -48,55 +48,37 @@ void AlignedImageBufferCleanupHandler(void* data) {
 }
 
 void UnPremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
-#ifndef TDESKTOP_OFFICIAL_TARGET // #TODO 5.12.5
-	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
-	const auto convert = layout->convertFromARGB32PM;
-#else // TDESKTOP_OFFICIAL_TARGET
-	const auto layout = nullptr;
-	const auto convert = [](
-			uint *dst,
-			const uint *src,
-			int count,
-			std::nullptr_t,
-			std::nullptr_t) {
-		for (auto i = 0; i != count; ++i) {
-			dst[i] = qUnpremultiply(src[i]);
-		}
-	};
-#endif // TDESKTOP_OFFICIAL_TARGET
+	[[maybe_unused]] const auto udst = reinterpret_cast<uint*>(dst);
+	const auto usrc = reinterpret_cast<const uint*>(src);
 
-	convert(
-		reinterpret_cast<uint*>(dst),
-		reinterpret_cast<const uint*>(src),
-		intsCount,
-		layout,
-		nullptr);
+#ifndef TDESKTOP_OFFICIAL_TARGET
+	for (auto i = 0; i != intsCount; ++i) {
+		udst[i] = qUnpremultiply(usrc[i]);
+	}
+#elif QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
+	static const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
+	layout->convertFromARGB32PM(udst, usrc, intsCount, layout, nullptr);
+#else // Qt >= 5.12
+	static const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
+	layout->storeFromARGB32PM(dst, usrc, 0, intsCount, nullptr, nullptr);
+#endif // Qt >= 5.12
 }
 
 void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
-#ifndef TDESKTOP_OFFICIAL_TARGET // #TODO 5.12.5
-	const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
-	const auto convert = layout->convertToARGB32PM;
-#else // TDESKTOP_OFFICIAL_TARGET
-	const auto layout = nullptr;
-	const auto convert = [](
-			uint *dst,
-			const uint *src,
-			int count,
-			std::nullptr_t,
-			std::nullptr_t) {
-		for (auto i = 0; i != count; ++i) {
-			dst[i] = qPremultiply(src[i]);
-		}
-	};
-#endif // TDESKTOP_OFFICIAL_TARGET
+	const auto udst = reinterpret_cast<uint*>(dst);
+	[[maybe_unused]] const auto usrc = reinterpret_cast<const uint*>(src);
 
-	convert(
-		reinterpret_cast<uint*>(dst),
-		reinterpret_cast<const uint*>(src),
-		intsCount,
-		layout,
-		nullptr);
+#ifndef TDESKTOP_OFFICIAL_TARGET
+	for (auto i = 0; i != count; ++i) {
+		dst[i] = qPremultiply(src[i]);
+	}
+#elif QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
+	static const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
+	layout->convertToARGB32PM(udst, usrc, intsCount, layout, nullptr);
+#else // Qt >= 5.12
+	static const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
+	layout->fetchToARGB32PM(udst, src, 0, intsCount, nullptr, nullptr);
+#endif // Qt >= 5.12
 }
 
 } // namespace
