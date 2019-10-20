@@ -192,7 +192,7 @@ public:
 		max_w = avail.width();
 		accumulate_max(max_w, st::windowMinWidth);
 		max_h = avail.height();
-		accumulate_max(max_h, st::titleHeight + st::windowMinHeight);
+		accumulate_max(max_h, st::defaultWindowTitle.height + st::windowMinHeight);
 
 		HINSTANCE appinst = (HINSTANCE)GetModuleHandle(0);
 		HWND hwnd = _window ? _window->psHwnd() : nullptr;
