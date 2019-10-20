@@ -69,7 +69,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 	[[maybe_unused]] const auto usrc = reinterpret_cast<const uint*>(src);
 
 #ifndef TDESKTOP_OFFICIAL_TARGET
-	for (auto i = 0; i != count; ++i) {
+	for (auto i = 0; i != intsCount; ++i) {
 		dst[i] = qPremultiply(src[i]);
 	}
 #elif QT_VERSION < QT_VERSION_CHECK(5, 12, 0)

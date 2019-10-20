@@ -992,19 +992,19 @@ QImage GeneratePreview(
 }
 
 int DefaultPreviewTitleHeight() {
-	return st::titleHeight;
+	return st::defaultWindowTitle.height;
 }
 
 void DefaultPreviewWindowTitle(Painter &p, const style::palette &palette, QRect body, int outerWidth) {
-	auto titleRect = QRect(body.x(), body.y() - st::titleHeight, body.width(), st::titleHeight);
+	auto titleRect = QRect(body.x(), body.y() - st::defaultWindowTitle.height, body.width(), st::defaultWindowTitle.height);
 	p.fillRect(titleRect, QColor(0, 0, 0));
 	p.fillRect(titleRect, st::titleBgActive[palette]);
-	auto right = st::titleButtonClose.width;
-	st::titleButtonClose.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::titleButtonClose.iconPosition.x(), titleRect.y() + st::titleButtonClose.iconPosition.y(), outerWidth);
-	right += st::titleButtonMaximize.width;
-	st::titleButtonMaximize.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::titleButtonMaximize.iconPosition.x(), titleRect.y() + st::titleButtonMaximize.iconPosition.y(), outerWidth);
-	right += st::titleButtonMinimize.width;
-	st::titleButtonMinimize.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::titleButtonMinimize.iconPosition.x(), titleRect.y() + st::titleButtonMinimize.iconPosition.y(), outerWidth);
+	auto right = st::windowTitleButtonClose.width;
+	st::windowTitleButtonClose.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::windowTitleButtonClose.iconPosition.x(), titleRect.y() + st::windowTitleButtonClose.iconPosition.y(), outerWidth);
+	right += st::defaultWindowTitle.maximize.width;
+	st::defaultWindowTitle.maximize.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::defaultWindowTitle.maximize.iconPosition.x(), titleRect.y() + st::defaultWindowTitle.maximize.iconPosition.y(), outerWidth);
+	right += st::defaultWindowTitle.minimize.width;
+	st::defaultWindowTitle.minimize.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::defaultWindowTitle.minimize.iconPosition.x(), titleRect.y() + st::defaultWindowTitle.minimize.iconPosition.y(), outerWidth);
 	p.fillRect(titleRect.x(), titleRect.y() + titleRect.height() - st::lineWidth, titleRect.width(), st::lineWidth, st::titleShadow[palette]);
 }
 
@@ -1052,7 +1052,7 @@ void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palet
 	Painter p(&preview);
 	DefaultPreviewWindowTitle(p, palette, body, outerWidth);
 
-	auto inner = QRect(body.x(), body.y() - st::titleHeight, body.width(), body.height() + st::titleHeight);
+	auto inner = QRect(body.x(), body.y() - st::defaultWindowTitle.height, body.width(), body.height() + st::defaultWindowTitle.height);
 	p.setClipRegion(QRegion(inner.marginsAdded(QMargins(size, size, size, size))) - inner);
 	p.drawImage(inner.x() - left, inner.y() - top, topLeft);
 	p.drawImage(inner.x() + inner.width() + right - width, inner.y() - top, topRight);
