@@ -48,6 +48,7 @@
       ],
       'build_defines%': '',
       'use_common_xxhash%': 0,
+      'use_packed_resources%': 0,
       'list_sources_command': 'python <(DEPTH)/list_sources.py --input <(DEPTH)/telegram/sources.txt --replace src_loc=<(src_loc)',
       'pch_source': '<(src_loc)/stdafx.cpp',
       'pch_header': '<(src_loc)/stdafx.h',
@@ -112,7 +113,6 @@
       '<(submodules_loc)/xxHash',
     ],
     'sources': [
-      '<@(qrc_files)',
       '<@(style_files)',
       '<(res_loc)/langs/cloud_lang.strings',
       '<(res_loc)/export_html/css/style.css',
@@ -126,6 +126,31 @@
       '<!@(<(list_sources_command) <(qt_moc_list_sources_arg) --exclude_for <(build_os))',
     ],
     'conditions': [
+      [ 'use_packed_resources', {
+        'actions': [
+          {
+            'action_name': 'generate_resource_pack',
+            'inputs': [
+              '<(SHARED_INTERMEDIATE_DIR)/update_dependent_qrc.timestamp',
+            ],
+            'outputs': [
+              '<(PRODUCT_DIR)/tresources.rcc',
+            ],
+            'action': [
+              '<(qt_bindir)/rcc<(exe_ext)', '-binary',
+              '<@(qrc_files)',
+              '-o', '<@(_outputs)',
+            ],
+          },
+        ],
+        'defines': [
+          'TDESKTOP_USE_PACKED_RESOURCES',
+        ],
+      }, {
+        'sources': [
+          '<@(qrc_files)',
+        ],
+      }],
       [ '"<(official_build_target)" != ""', {
         'defines': [
           'TDESKTOP_OFFICIAL_TARGET=<(official_build_target)',

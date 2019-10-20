@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_info.h"
 #include "ui/main_queue_processor.h"
 #include "core/crash_reports.h"
+#include "core/file_utilities.h"
 #include "core/update_checker.h"
 #include "core/sandbox.h"
 #include "base/concurrent_timer.h"
@@ -244,6 +245,7 @@ void Launcher::init() {
 	prepareSettings();
 
 	QApplication::setApplicationName(qsl("TelegramDesktop"));
+	Resources::LoadAllData(); // should be called after setting an application name
 
 #ifdef TDESKTOP_LAUNCHER_FILENAME
 #define TDESKTOP_LAUNCHER_FILENAME_TO_STRING_HELPER(V) #V
