@@ -40,6 +40,8 @@
       '-lXext',
       '-lXfixes',
       '-lXrender',
+      '<(linux_lib_ssl)',
+      '<(linux_lib_crypto)',
 #      '<!(pkg-config 2> /dev/null --libs <@(pkgconfig_libs))',
     ],
     'cflags_cc': [
