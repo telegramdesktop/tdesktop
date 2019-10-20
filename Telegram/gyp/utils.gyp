@@ -9,6 +9,11 @@
     'common/common.gypi',
   ],
   'targets': [{
+    # This is a special blank target to export list of available configurations.
+    # It is strange but GYP generates only Default configuration otherwise.
+    'target_name': 'Dumb',
+    'type': 'none',
+  }, {
     'target_name': 'Updater',
     'variables': {
       'src_loc': '../SourceFiles',

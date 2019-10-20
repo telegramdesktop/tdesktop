@@ -74,6 +74,7 @@
       'codegen.gyp:codegen_numbers',
       'codegen.gyp:codegen_style',
       'tests/tests.gyp:tests',
+      'utils.gyp:Dumb',
       '../ThirdParty/libtgvoip/libtgvoip.gyp:libtgvoip',
       'crl.gyp:crl',
       'lib_base.gyp:lib_base',
