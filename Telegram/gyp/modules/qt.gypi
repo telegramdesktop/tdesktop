@@ -102,6 +102,7 @@
       'qt_libs_release': [
         '<!@(python -c "for s in \'<@(qt_libs)\'.split(\' \'): print(\'<(qt_lib_prefix)\' + s + \'<(qt_lib_release_postfix)\')")',
       ],
+      'linux_path_xkbcommon%': '',
       'conditions': [
         [ 'build_win', {
           'qt_loc%': '<(DEPTH)/../../../Libraries/qt<(qt_version_loc)/qtbase',
@@ -132,6 +133,11 @@
     'linux_lib_ssl%': '/usr/local/ssl/lib/libssl.a',
     'linux_lib_crypto%': '/usr/local/ssl/lib/libcrypto.a',
     'linux_lib_icu%': 'libicutu.a libicui18n.a libicuuc.a libicudata.a',
+    'conditions': [
+      [ 'linux_path_xkbcommon', {
+        'linux_lib_xkbcommon': '<(linux_path_xkbcommon)/lib/libxkbcommon.a',
+      }],
+    ],
   },
 
   'configurations': {
