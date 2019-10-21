@@ -43,6 +43,7 @@ OPENAL_PATH="$BUILD/openal-soft"
 OPENAL_CACHE_VERSION="4"
 
 GYP_DEFINES=""
+GYP_PACKED_RESOURCES="0"
 
 [[ ! $MAKE_ARGS ]] && MAKE_ARGS="--silent -j4"
 
@@ -120,7 +121,11 @@ build() {
     GYP_DEFINES+=",TDESKTOP_DISABLE_GTK_INTEGRATION"
   fi
 
-  info_msg "Build defines: ${GYP_DEFINES}"
+  if [[ $BUILD_VERSION == *"use_packed_resources"* ]]; then
+    GYP_PACKED_RESOURCES="1"
+  fi
+
+  info_msg "Build defines: $GYP_DEFINES, packed resources: $GYP_PACKED_RESOURCES"
 
   buildTelegram
 
@@ -677,6 +682,7 @@ buildTelegram() {
       -Dapi_id=17349 \
       -Dapi_hash=344583e45741c457fe1862106095a5eb \
       -Dbuild_defines=${GYP_DEFINES:1} \
+      -Duse_packed_resources=$GYP_PACKED_RESOURCES \
       -Dlinux_path_xkbcommon=$XKB_PATH \
       -Dlinux_path_va=$VA_PATH \
       -Dlinux_path_vdpau=$VDPAU_PATH \
@@ -700,16 +706,22 @@ buildTelegram() {
 }
 
 check() {
-  local filePath="$UPSTREAM/out/Debug/Telegram"
+  local filePath size
+  filePath="$UPSTREAM/out/Debug/Telegram"
+  resourcesPath="$UPSTREAM/out/Debug/tresources.rcc"
+
   if test -f "$filePath"; then
     success_msg "Build successfully done! :)"
 
-    local size;
     size=$(stat -c %s "$filePath")
     success_msg "File size of ${filePath}: ${size} Bytes"
   else
     error_msg "Build error, output file does not exist"
     exit 1
+  fi
+  if test -f "$resourcesPath"; then
+    size=$(stat -c %s "$resourcesPath")
+    success_msg "File size of ${resourcesPath}: ${size} Bytes"
   fi
 }
 
