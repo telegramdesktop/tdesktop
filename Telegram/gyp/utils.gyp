@@ -13,6 +13,10 @@
     # It is strange but GYP generates only Default configuration otherwise.
     'target_name': 'Dumb',
     'type': 'none',
+    'configurations': {
+      'Debug': { },
+      'Release': { },
+    },
   }, {
     'target_name': 'Updater',
     'variables': {
