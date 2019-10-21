@@ -49,9 +49,9 @@ GYP_DEFINES=""
 run() {
   # Move files to subdir
   cd ..
-  mv tdesktop tdesktop2
-  mkdir tdesktop
-  mv tdesktop2 "$UPSTREAM"
+  mv "$REPO" "${REPO}_2"
+  mkdir "$REPO"
+  mv "${REPO}_2" "$UPSTREAM"
 
   mkdir "$BUILD"
 
