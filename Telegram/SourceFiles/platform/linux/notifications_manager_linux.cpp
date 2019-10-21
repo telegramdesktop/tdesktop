@@ -89,7 +89,7 @@ QString escapeHtml(const QString &text) {
 class NotificationData {
 public:
 	NotificationData(const std::shared_ptr<Manager*> &guarded, const QString &title, const QString &body, const QStringList &capabilities, PeerId peerId, MsgId msgId)
-	: _data(Libs::notify_notification_new(title.toUtf8().constData(), body.toUtf8().constData(), nullptr)) {
+	: _data(Libs::notify_notification_new(title.toUtf8().constData(), g_markup_escape_text(body.toUtf8().constData(), -1), nullptr)) {
 		if (valid()) {
 			init(guarded, capabilities, peerId, msgId);
 		}
