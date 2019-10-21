@@ -93,6 +93,7 @@
             ],
           }],
         ],
+        'linux_path_qt%': '',
       },
       'qt_version%': '<(qt_version)',
       'qt_version_loc': '<!(python -c "print(\'<(qt_version)\'.replace(\'.\', \'_\'))")',
@@ -109,8 +110,13 @@
         }],
         [ 'build_macold', {
           'qt_loc%': '/usr/local/macold/Qt-<(qt_version)',
-        }, {
+        }],
+        [ 'build_linux', {
           'qt_loc%': '/usr/local/tdesktop/Qt-<(qt_version)',
+        }],
+        [ 'linux_path_qt', {
+          # Permit old-style path overriding.
+          'qt_loc%': '<(linux_path_qt)',
         }]
       ],
     },
