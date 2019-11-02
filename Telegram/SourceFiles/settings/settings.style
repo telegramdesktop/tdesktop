@@ -10,14 +10,14 @@ using "ui/widgets/widgets.style";
 using "info/info.style";
 using "boxes/boxes.style";
 
-settingsSectionButton: InfoProfileButton(infoProfileButton) {
+settingsSectionButton: SettingsButton(infoProfileButton) {
 	font: boxTextFont;
 	padding: margins(79px, 13px, 22px, 11px);
 }
-settingsButton: InfoProfileButton(settingsSectionButton) {
+settingsButton: SettingsButton(settingsSectionButton) {
 	padding: margins(22px, 10px, 22px, 8px);
 }
-settingsAttentionButton: InfoProfileButton(settingsButton) {
+settingsAttentionButton: SettingsButton(settingsButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }
@@ -37,14 +37,14 @@ settingsSlider: SettingsSlider(defaultSettingsSlider) {
 	labelFg: windowSubTextFg;
 	labelFgActive: windowActiveTextFg;
 }
-settingsUpdateToggle: InfoProfileButton(settingsButton) {
+settingsUpdateToggle: SettingsButton(settingsButton) {
 	height: 40px;
 	padding: margins(22px, 8px, 22px, 8px);
 }
 settingsUpdateState: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
-settingsUpdate: InfoProfileButton(infoMainButton, settingsButton) {
+settingsUpdate: SettingsButton(infoMainButton, settingsButton) {
 }
 settingsUpdateStatePosition: point(22px, 29px);
 settingsDividerLabelPadding: margins(22px, 10px, 22px, 19px);
@@ -112,7 +112,7 @@ settingsInfoPhotoTop: 17px;
 settingsInfoPhotoSkip: 16px;
 settingsInfoPhotoSet: defaultActiveButton;
 
-settingsInfoRow: InfoProfileButton(settingsButton) {
+settingsInfoRow: SettingsButton(settingsButton) {
 	height: 62px;
 	padding: margins(0px, 0px, 0px, 0px);
 }
@@ -160,7 +160,7 @@ settingsBioLabelPadding: margins(22px, 11px, 22px, 0px);
 
 settingsPrivacyEditLabelPadding: margins(22px, 11px, 22px, 11px);
 
-settingsChatButton: InfoProfileButton(settingsSectionButton) {
+settingsChatButton: SettingsButton(settingsSectionButton) {
 	padding: margins(59px, 13px, 22px, 11px);
 }
 settingsChatIconLeft: 19px;
@@ -193,7 +193,7 @@ settingsThemeMinSkip: 4px;
 settingsThemeNotSupportedBg: windowBgOver;
 settingsThemeNotSupportedIcon: icon {{ "theme_preview", menuIconFg }};
 
-autoDownloadLimitButton: InfoProfileButton(settingsButton) {
+autoDownloadLimitButton: SettingsButton(settingsButton) {
 	padding: margins(22px, 10px, 22px, 0px);
 }
 settingsAudioVolumeSlider: MediaSlider(defaultContinuousSlider) {

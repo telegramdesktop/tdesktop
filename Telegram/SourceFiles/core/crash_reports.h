@@ -57,24 +57,3 @@ void StartCatching(not_null<Core::Launcher*> launcher);
 void FinishCatching();
 
 } // namespace CrashReports
-
-namespace base {
-namespace assertion {
-
-inline void log(const char *message, const char *file, int line) {
-	const auto info = QStringLiteral("%1 %2:%3"
-	).arg(message
-	).arg(file
-	).arg(line
-	);
-	const auto entry = QStringLiteral("Assertion Failed! ") + info;
-
-#ifdef LOG
-	LOG((entry));
-#endif // LOG
-
-	CrashReports::SetAnnotation("Assertion", info);
-}
-
-} // namespace assertion
-} // namespace base

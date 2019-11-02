@@ -11,9 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
-#include "info/profile/info_profile_button.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
@@ -244,7 +244,7 @@ object_ptr<Ui::RpWidget> SetupCreateGroup(
 		Fn<void(ChannelData*)> callback) {
 	Expects(channel->isBroadcast());
 
-	auto result = object_ptr<Info::Profile::Button>(
+	auto result = object_ptr<Ui::SettingsButton>(
 		parent,
 		tr::lng_manage_discussion_group_create(
 		) | Ui::Text::ToUpper(),
@@ -266,7 +266,7 @@ object_ptr<Ui::RpWidget> SetupUnlink(
 		not_null<QWidget*> parent,
 		not_null<ChannelData*> channel,
 		Fn<void(ChannelData*)> callback) {
-	auto result = object_ptr<Info::Profile::Button>(
+	auto result = object_ptr<Ui::SettingsButton>(
 		parent,
 		(channel->isBroadcast()
 			? tr::lng_manage_discussion_group_unlink

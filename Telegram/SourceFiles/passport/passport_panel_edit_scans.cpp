@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "passport/passport_panel_controller.h"
 #include "passport/passport_panel_details_row.h"
-#include "info/profile/info_profile_button.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/box_content_divider.h"
@@ -121,7 +120,7 @@ struct EditScans::SpecialScan {
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> header;
 	QPointer<Ui::VerticalLayout> wrap;
 	base::unique_qptr<Ui::SlideWrap<ScanButton>> row;
-	QPointer<Info::Profile::Button> upload;
+	QPointer<Ui::SettingsButton> upload;
 	bool errorShown = false;
 	Ui::Animations::Simple errorAnimation;
 	rpl::variable<bool> rowCreated;
@@ -581,7 +580,7 @@ void EditScans::setupList(
 	}
 
 	list.upload = container->add(
-		object_ptr<Info::Profile::Button>(
+		object_ptr<Ui::SettingsButton>(
 			container,
 			list.uploadTexts.events_starting_with(
 				list.uploadButtonText()
@@ -692,7 +691,7 @@ void EditScans::setupSpecialScans(
 		}) | rpl::flatten_latest(
 		) | Ui::Text::ToUpper();
 		scan.upload = inner->add(
-			object_ptr<Info::Profile::Button>(
+			object_ptr<Ui::SettingsButton>(
 				inner,
 				std::move(label),
 				st::passportUploadButton),

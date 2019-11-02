@@ -307,7 +307,7 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 
 		auto name = QString::fromUtf8(list[i]->name);
 		auto nameWidth = st::countryRowNameFont->width(name);
-		auto availWidth = width() - st::countryRowPadding.left() - st::countryRowPadding.right() - codeWidth - st::boxLayerScroll.width;
+		auto availWidth = width() - st::countryRowPadding.left() - st::countryRowPadding.right() - codeWidth - st::boxScroll.width;
 		if (nameWidth > availWidth) {
 			name = st::countryRowNameFont->elided(name, availWidth);
 			nameWidth = st::countryRowNameFont->width(name);

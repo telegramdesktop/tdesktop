@@ -42,7 +42,7 @@ countryRowBgOver: windowBgOver;
 countryRowCodeFg: windowSubTextFg;
 countryRowCodeFgOver: windowSubTextFgOver;
 countriesSkip: 12px;
-countriesScroll: ScrollArea(boxLayerScroll) {
+countriesScroll: ScrollArea(boxScroll) {
 	deltat: 9px;
 	deltab: 3px;
 }
@@ -352,7 +352,7 @@ membersAbout: FlatLabel(defaultFlatLabel) {
 	style: boxLabelStyle;
 }
 
-sessionsScroll: boxLayerScroll;
+sessionsScroll: boxScroll;
 sessionsHeight: 350px;
 sessionHeight: 70px;
 sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
@@ -490,7 +490,7 @@ langsRadio: Radio(defaultRadio) {
 
 backgroundPadding: 10px;
 backgroundSize: size(108px, 193px);
-backgroundScroll: ScrollArea(boxLayerScroll) {
+backgroundScroll: ScrollArea(boxScroll) {
 	deltax: 3px;
 	width: 10px;
 	deltat: 10px;
@@ -852,7 +852,7 @@ createPollWarningPosition: point(16px, 6px);
 
 callSettingsButton: IconButton {
 	width: 50px;
-	height: boxLayerTitleHeight;
+	height: boxTitleHeight;
 	icon: icon {{ "menu_settings", boxTitleCloseFg }};
 	iconOver: icon {{ "menu_settings", boxTitleCloseFgOver }};
 	iconPosition: point(8px, -1px);

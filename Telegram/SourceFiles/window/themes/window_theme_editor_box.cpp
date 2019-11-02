@@ -16,11 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/image/image_prepare.h"
 #include "ui/toast/toast.h"
 #include "ui/special_fields.h"
-#include "info/profile/info_profile_button.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "storage/localstorage.h"
@@ -701,7 +701,7 @@ void CreateForExistingBox(
 		st::boxDividerLabel));
 
 	box->addRow(
-		object_ptr<Info::Profile::Button>(
+		object_ptr<Ui::SettingsButton>(
 			box,
 			tr::lng_theme_editor_import_existing() | Ui::Text::ToUpper(),
 			st::createThemeImportButton),

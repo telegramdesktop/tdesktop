@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/level_meter.h"
-#include "info/profile/info_profile_button.h"
+#include "ui/widgets/buttons.h"
 #include "boxes/single_choice_box.h"
 #include "boxes/confirm_box.h"
 #include "platform/platform_specific.h"

@@ -336,8 +336,8 @@ void Rows::mousePressEvent(QMouseEvent *e) {
 QRect Rows::menuToggleArea() const {
 	const auto size = st::topBarSearch.width;
 	const auto top = (DefaultRowHeight() - size) / 2;
-	const auto skip = st::boxLayerScroll.width
-		- st::boxLayerScroll.deltax
+	const auto skip = st::boxScroll.width
+		- st::boxScroll.deltax
 		+ top;
 	const auto left = width() - skip - size;
 	return QRect(left, top, size, size);
@@ -1072,7 +1072,7 @@ void LanguageBox::prepare() {
 	const auto [recent, official] = PrepareLists();
 	const auto inner = setInnerWidget(
 		object_ptr<Content>(this, recent, official),
-		st::boxLayerScroll,
+		st::boxScroll,
 		select->height());
 	inner->resizeToWidth(st::boxWidth);
 

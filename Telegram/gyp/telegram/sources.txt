@@ -136,6 +136,8 @@
 <(src_loc)/chat_helpers/tabbed_selector.h
 <(src_loc)/core/application.cpp
 <(src_loc)/core/application.h
+<(src_loc)/core/base_integration.cpp
+<(src_loc)/core/base_integration.h
 <(src_loc)/core/changelogs.cpp
 <(src_loc)/core/changelogs.h
 <(src_loc)/core/click_handler_types.cpp
@@ -402,8 +404,6 @@
 <(src_loc)/info/members/info_members_widget.h
 <(src_loc)/info/profile/info_profile_actions.cpp
 <(src_loc)/info/profile/info_profile_actions.h
-<(src_loc)/info/profile/info_profile_button.cpp
-<(src_loc)/info/profile/info_profile_button.h
 <(src_loc)/info/profile/info_profile_cover.cpp
 <(src_loc)/info/profile/info_profile_cover.h
 <(src_loc)/info/profile/info_profile_icon.cpp

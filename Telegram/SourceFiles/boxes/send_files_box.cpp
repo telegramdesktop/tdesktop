@@ -1436,7 +1436,7 @@ void SendFilesBox::prepareAlbumPreview() {
 
 	const auto wrap = Ui::CreateChild<Ui::ScrollArea>(
 		this,
-		st::boxLayerScroll);
+		st::boxScroll);
 	_albumPreview = wrap->setOwnedWidget(object_ptr<AlbumPreview>(
 		this,
 		_list,

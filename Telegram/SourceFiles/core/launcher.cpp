@@ -235,8 +235,10 @@ Launcher::Launcher(
 	const QString &systemVersion)
 : _argc(argc)
 , _argv(argv)
+, _baseIntegration(_argc, _argv)
 , _deviceModel(deviceModel)
 , _systemVersion(systemVersion) {
+	base::Integration::Set(&_baseIntegration);
 }
 
 void Launcher::init() {

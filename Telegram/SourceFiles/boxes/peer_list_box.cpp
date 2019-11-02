@@ -110,7 +110,7 @@ void PeerListBox::prepare() {
 			this,
 			_controller.get(),
 			st::peerListBox),
-		st::boxLayerScroll));
+		st::boxScroll));
 	content()->resizeToWidth(_controller->contentWidth());
 
 	_controller->setDelegate(this);

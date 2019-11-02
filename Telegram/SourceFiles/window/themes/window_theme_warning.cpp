@@ -81,9 +81,9 @@ void WarningWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void WarningWidget::updateControlsGeometry() {
-	auto left = _inner.x() + _inner.width() - st::boxButtonPadding.right() - _keepChanges->width();
-	_keepChanges->moveToLeft(left, _inner.y() + _inner.height() - st::boxButtonPadding.bottom() - _keepChanges->height());
-	_revert->moveToLeft(left - st::boxButtonPadding.left() - _revert->width(), _keepChanges->y());
+	auto left = _inner.x() + _inner.width() - st::defaultBox.buttonPadding.right() - _keepChanges->width();
+	_keepChanges->moveToLeft(left, _inner.y() + _inner.height() - st::defaultBox.buttonPadding.bottom() - _keepChanges->height());
+	_revert->moveToLeft(left - st::defaultBox.buttonPadding.left() - _revert->width(), _keepChanges->y());
 }
 
 void WarningWidget::refreshLang() {

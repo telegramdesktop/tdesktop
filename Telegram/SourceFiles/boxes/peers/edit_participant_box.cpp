@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text_options.h"
 #include "ui/special_buttons.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
-#include "info/profile/info_profile_button.h"
 #include "settings/settings_privacy_security.h"
 #include "boxes/calendar_box.h"
 #include "boxes/confirm_box.h"

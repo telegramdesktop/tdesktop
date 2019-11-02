@@ -527,7 +527,7 @@ void Editor::Inner::paintEvent(QPaintEvent *e) {
 	p.setFont(st::boxTitleFont);
 	p.setPen(st::windowFg);
 	if (!_newRows->isHidden()) {
-		p.drawTextLeft(st::themeEditorMargin.left(), _existingRows->y() + _existingRows->height() + st::boxLayerTitlePosition.y(), width(), tr::lng_theme_editor_new_keys(tr::now));
+		p.drawTextLeft(st::themeEditorMargin.left(), _existingRows->y() + _existingRows->height() + st::boxTitlePosition.y(), width(), tr::lng_theme_editor_new_keys(tr::now));
 	}
 }
 
@@ -537,7 +537,7 @@ int Editor::Inner::resizeGetHeight(int newWidth) {
 	_newRows->resizeToWidth(rowsWidth);
 
 	_existingRows->moveToLeft(0, 0);
-	_newRows->moveToLeft(0, _existingRows->height() + st::boxLayerTitleHeight);
+	_newRows->moveToLeft(0, _existingRows->height() + st::boxTitleHeight);
 
 	auto lowest = (_newRows->isHidden() ? _existingRows : _newRows).data();
 

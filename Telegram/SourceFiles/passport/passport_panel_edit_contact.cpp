@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "passport/passport_panel_controller.h"
 #include "passport/passport_panel_details_row.h"
-#include "info/profile/info_profile_button.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
@@ -237,7 +236,7 @@ void PanelEditContact::setupControls(
 		st::passportFormDividerHeight));
 	if (!existing.isEmpty()) {
 		_content->add(
-			object_ptr<Info::Profile::Button>(
+			object_ptr<Ui::SettingsButton>(
 				_content,
 				tr::lng_passport_use_existing(
 					lt_existing,
@@ -322,7 +321,7 @@ void PanelEditContact::setupControls(
 
 	if (auto text = _controller->deleteValueLabel()) {
 		_content->add(
-			object_ptr<Info::Profile::Button>(
+			object_ptr<Ui::SettingsButton>(
 				_content,
 				std::move(*text) | Ui::Text::ToUpper(),
 				st::passportDeleteButton),

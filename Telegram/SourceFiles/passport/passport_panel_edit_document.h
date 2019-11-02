@@ -18,16 +18,11 @@ class PlainShadow;
 class FlatLabel;
 class RoundButton;
 class VerticalLayout;
+class SettingsButton;
 class BoxContent;
 template <typename Widget>
 class SlideWrap;
 } // namespace Ui
-
-namespace Info {
-namespace Profile {
-class Button;
-} // namespace Profile
-} // namespace Info
 
 namespace Passport {
 
@@ -160,7 +155,7 @@ private:
 	bool _fieldsChanged = false;
 	bool _additionalShown = false;
 
-	QPointer<Info::Profile::Button> _delete;
+	QPointer<Ui::SettingsButton> _delete;
 
 	object_ptr<Ui::RoundButton> _done;
 

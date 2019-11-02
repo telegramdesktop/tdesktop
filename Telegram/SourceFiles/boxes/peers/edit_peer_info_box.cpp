@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "history/admin_log/history_admin_log_section.h"
-#include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -35,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/box_content_divider.h"
@@ -93,7 +93,7 @@ void AddButtonWithCount(
 		&icon));
 }
 
-object_ptr<Info::Profile::Button> CreateButtonWithText(
+object_ptr<Ui::SettingsButton> CreateButtonWithText(
 		not_null<QWidget*> parent,
 		rpl::producer<QString> &&text,
 		rpl::producer<QString> &&label,
@@ -107,7 +107,7 @@ object_ptr<Info::Profile::Button> CreateButtonWithText(
 		nullptr);
 }
 
-Info::Profile::Button *AddButtonWithText(
+Ui::SettingsButton *AddButtonWithText(
 		not_null<Ui::VerticalLayout*> parent,
 		rpl::producer<QString> &&text,
 		rpl::producer<QString> &&label,
@@ -1478,14 +1478,14 @@ void EditPeerInfoBox::prepare() {
 		std::move(content)));
 }
 
-object_ptr<Info::Profile::Button> EditPeerInfoBox::CreateButton(
+object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 		not_null<QWidget*> parent,
 		rpl::producer<QString> &&text,
 		rpl::producer<QString> &&count,
 		Fn<void()> callback,
-		const style::InfoProfileCountButton &st,
+		const style::SettingsCountButton &st,
 		const style::icon *icon) {
-	auto result = object_ptr<Info::Profile::Button>(
+	auto result = object_ptr<Ui::SettingsButton>(
 		parent,
 		rpl::duplicate(text),
 		st.button);

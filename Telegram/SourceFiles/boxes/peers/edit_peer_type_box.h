@@ -11,18 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 namespace style {
-struct InfoProfileCountButton;
+struct SettingsCountButton;
 } // namespace style
 
 namespace Ui {
 class VerticalLayout;
+class SettingsButton;
 } // namespace Ui
-
-namespace Info {
-namespace Profile {
-class Button;
-} // namespace Profile
-} // namespace Info
 
 enum class Privacy {
 	HasUsername,

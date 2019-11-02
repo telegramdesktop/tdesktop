@@ -13,10 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
-#include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_values.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/widgets/buttons.h"
 #include "window/window_session_controller.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
@@ -53,7 +53,7 @@ inline auto AddCountedButton(
 		Ui::MultiSlideTracker &tracker) {
 	using namespace rpl::mappers;
 
-	using Button = Profile::Button;
+	using Button = Ui::SettingsButton;
 	auto forked = std::move(count)
 		| start_spawning(parent->lifetime());
 	auto text = rpl::duplicate(

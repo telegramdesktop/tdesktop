@@ -231,7 +231,7 @@ int LocalStorageBox::Row::resizeGetHeight(int newWidth) {
 			newWidth);
 	}
 	_clear->moveToRight(
-		st::boxLayerButtonPadding.right(),
+		st::layerBox.buttonPadding.right(),
 		(height - _clear->height()) / 2,
 		newWidth);
 	return height;

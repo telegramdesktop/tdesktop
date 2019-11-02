@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/flatten_latest.h>
 #include "info/info_memento.h"
 #include "info/info_controller.h"
-#include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_widget.h"
 #include "info/profile/info_profile_text.h"
 #include "info/profile/info_profile_values.h"

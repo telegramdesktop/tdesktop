@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "base/unixtime.h"
 #include "boxes/confirm_box.h"
-#include "info/profile/info_profile_button.h"
 #include "settings/settings_common.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
@@ -70,7 +69,7 @@ private:
 	void setupContent();
 
 	QPointer<List> _current;
-	QPointer<Info::Profile::Button> _terminateAll;
+	QPointer<Ui::SettingsButton> _terminateAll;
 	QPointer<List> _incomplete;
 	QPointer<List> _list;
 
@@ -369,7 +368,7 @@ void SessionsBox::Inner::setupContent() {
 			object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
 	const auto terminateInner = terminateWrap->entity();
 	_terminateAll = terminateInner->add(
-		object_ptr<Info::Profile::Button>(
+		object_ptr<Ui::SettingsButton>(
 			terminateInner,
 			tr::lng_sessions_terminate_all(),
 			st::terminateSessionsButton));

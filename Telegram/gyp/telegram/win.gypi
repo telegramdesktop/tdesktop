@@ -16,6 +16,7 @@
       '-lDbgHelp',
       '-lOpenAL32',
       '-lopus',
+      '-lRstrtmgr',
     ],
     'msvs_settings': {
       'VCLinkerTool': {

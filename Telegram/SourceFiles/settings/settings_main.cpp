@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/discrete_sliders.h"
-#include "info/profile/info_profile_button.h"
+#include "ui/widgets/buttons.h"
 #include "info/profile/info_profile_cover.h"
 #include "data/data_user.h"
 #include "data/data_session.h"

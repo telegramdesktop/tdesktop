@@ -149,9 +149,9 @@ if %BuildUWP% equ 0 (
   if %AlphaVersion% equ 0 (
     iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "/dReleasePath=%ReleasePath%" "%FullScriptPath%setup.iss"
     if %errorlevel% neq 0 goto error
-    if not exist "tsetup.%AppVersionStrFull%.exe" goto error
+    if not exist "%SetupFile%" goto error
 :sign3
-    call "%SignPath%" "tsetup.%AppVersionStrFull%.exe"
+    call "%SignPath%" "%SetupFile%"
     if %errorlevel% neq 0 (
       timeout /t 3
       goto sign3

@@ -103,7 +103,7 @@ void SettingsWidget::changeData(Callback &&callback) {
 void SettingsWidget::setupContent() {
 	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(
 		this,
-		st::boxLayerScroll);
+		st::boxScroll);
 	const auto wrap = scroll->setOwnedWidget(
 		object_ptr<Ui::OverrideMargins>(
 			scroll,
@@ -406,7 +406,7 @@ not_null<Ui::RpWidget*> SettingsWidget::setupButtons(
 		not_null<Ui::RpWidget*> wrap) {
 	using namespace rpl::mappers;
 
-	const auto buttonsPadding = st::boxButtonPadding;
+	const auto buttonsPadding = st::defaultBox.buttonPadding;
 	const auto buttonsHeight = buttonsPadding.top()
 		+ st::defaultBoxButton.height
 		+ buttonsPadding.bottom();
@@ -654,8 +654,8 @@ void SettingsWidget::refreshButtons(
 
 		container->sizeValue(
 		) | rpl::start_with_next([=](QSize size) {
-			const auto right = st::boxButtonPadding.right();
-			const auto top = st::boxButtonPadding.top();
+			const auto right = st::defaultBox.buttonPadding.right();
+			const auto top = st::defaultBox.buttonPadding.top();
 			start->moveToRight(right, top);
 		}, start->lifetime());
 	}
@@ -674,9 +674,9 @@ void SettingsWidget::refreshButtons(
 		container->sizeValue(),
 		start ? start->widthValue() : rpl::single(0)
 	) | rpl::start_with_next([=](QSize size, int width) {
-		const auto right = st::boxButtonPadding.right()
-			+ (width ? width + st::boxButtonPadding.left() : 0);
-		const auto top = st::boxButtonPadding.top();
+		const auto right = st::defaultBox.buttonPadding.right()
+			+ (width ? width + st::defaultBox.buttonPadding.left() : 0);
+		const auto top = st::defaultBox.buttonPadding.top();
 		cancel->moveToRight(right, top);
 	}, cancel->lifetime());
 }

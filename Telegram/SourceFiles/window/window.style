@@ -214,7 +214,7 @@ windowOutdatedClose: IconButton(defaultIconButton) {
 	iconPosition: point(-1px, -1px);
 }
 
-createThemeImportButton: InfoProfileButton {
+createThemeImportButton: SettingsButton {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
 	textBg: windowBg;

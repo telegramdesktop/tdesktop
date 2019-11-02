@@ -756,7 +756,7 @@ void EditCaptionBox::updateBoxSize() {
 }
 
 int EditCaptionBox::errorTopSkip() const {
-	return (st::boxButtonPadding.top() / 2);
+	return (st::defaultBox.buttonPadding.top() / 2);
 }
 
 void EditCaptionBox::paintEvent(QPaintEvent *e) {

@@ -79,7 +79,7 @@ stickersFeaturedInstalled: icon {{ "send_control_save", lightButtonFg }};
 stickersMaxHeight: 320px;
 stickersPadding: margins(19px, 13px, 19px, 13px);
 stickersSize: size(64px, 64px);
-stickersScroll: ScrollArea(boxLayerScroll) {
+stickersScroll: ScrollArea(boxScroll) {
 	deltat: 19px;
 	deltab: 9px;
 }

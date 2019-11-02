@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "lang/lang_keys.h"
-#include "info/profile/info_profile_button.h"
 #include "storage/localstorage.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"

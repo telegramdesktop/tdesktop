@@ -766,7 +766,7 @@ SetupChannelBox::SetupChannelBox(
 	st::defaultBoxCheckbox)
 , _aboutPublicWidth(st::boxWideWidth
 	- st::boxPadding.left()
-	- st::boxButtonPadding.right()
+	- st::defaultBox.buttonPadding.right()
 	- st::newGroupPadding.left()
 	- st::defaultRadio.diameter
 	- st::defaultBoxCheckbox.textPosition.x())
@@ -1345,7 +1345,7 @@ void RevokePublicLinkBox::prepare() {
 		if (callback) {
 			callback();
 		}
-	}), st::boxLayerScroll, _innerTop);
+	}), st::boxScroll, _innerTop);
 
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 

@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/username_box.h"
 #include "data/data_user.h"
 #include "info/profile/info_profile_values.h"
-#include "info/profile/info_profile_button.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
