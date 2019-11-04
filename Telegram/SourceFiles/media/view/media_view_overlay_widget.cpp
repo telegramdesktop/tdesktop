@@ -2528,6 +2528,15 @@ void OverlayWidget::validatePhotoCurrentImage() {
 	validatePhotoImage(_photo->thumbnail(), true);
 	validatePhotoImage(_photo->thumbnailSmall(), true);
 	validatePhotoImage(_photo->thumbnailInline(), true);
+	if (_current.isNull()
+		&& _peer
+		&& !_msgid
+		&& _peer->userpicLoaded()
+		&& _peer->userpicLocation().file().valid()) {
+		validatePhotoImage(
+			Images::Create(_peer->userpicLocation()).get(),
+			true);
+	}
 	if (_current.isNull()) {
 		_photo->loadThumbnailSmall(fileOrigin());
 	}
