@@ -60,6 +60,10 @@ std::map<int, const char*> BetaLogs() {
 
 		"\xE2\x80\xA2 Update your theme for all its users when you change something.\n"
 	},
+	{
+		1009000,
+		"\xE2\x80\xA2 System spellchecker on Windows 8+ and macOS 10.12+.\n"
+	},
 	};
 };
 
