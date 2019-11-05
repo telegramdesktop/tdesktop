@@ -145,15 +145,15 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   #   Error "Bad GLIBC usages found: $BadCount"
   # fi
 
-  # BadCount=`objdump -T $ReleasePath/$BinaryName | grep GCC_4\.[3-9] | wc -l`
-  # if [ "$BadCount" != "0" ]; then
-  #   Error "Bad GCC usages found: $BadCount"
-  # fi
+  BadCount=`objdump -T $ReleasePath/$BinaryName | grep GCC_4\.[3-9] | wc -l`
+  if [ "$BadCount" != "0" ]; then
+    Error "Bad GCC usages found: $BadCount"
+  fi
 
-  # BadCount=`objdump -T $ReleasePath/$BinaryName | grep GCC_[5-9]\. | wc -l`
-  # if [ "$BadCount" != "0" ]; then
-  #   Error "Bad GCC usages found: $BadCount"
-  # fi
+  BadCount=`objdump -T $ReleasePath/$BinaryName | grep GCC_[5-9]\. | wc -l`
+  if [ "$BadCount" != "0" ]; then
+    Error "Bad GCC usages found: $BadCount"
+  fi
 
   if [ ! -f "$ReleasePath/Updater" ]; then
     Error "Updater not found!"
