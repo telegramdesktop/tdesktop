@@ -43,6 +43,9 @@ Go to ***BuildPath*** and run
     sudo make install
 
     git clone https://github.com/desktop-app/patches.git
+    cd patches
+    git checkout db1239ce64
+    cd ../
     git clone --branch 0.9.1 https://github.com/ericniebler/range-v3
 
     git clone https://github.com/telegramdesktop/zlib.git

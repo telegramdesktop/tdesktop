@@ -10,16 +10,16 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 
 ### Download libraries
 
-Download [**xz-5.0.5**](http://tukaani.org/xz/xz-5.0.5.tar.gz) and unpack to ***BuildPath*/Libraries/macos/xz-5.0.5**
+Download [**xz-5.0.5**](http://tukaani.org/xz/xz-5.0.5.tar.gz) and unpack to ***BuildPath*/Libraries/xz-5.0.5**
 
-Download [**libiconv-1.15**](http://www.gnu.org/software/libiconv/#downloading) and unpack to ***BuildPath*/Libraries/macos/libiconv-1.15**
+Download [**libiconv-1.15**](http://www.gnu.org/software/libiconv/#downloading) and unpack to ***BuildPath*/Libraries/libiconv-1.15**
 
 ### Clone source code and prepare libraries
 
 Go to ***BuildPath*** and run
 
     MAKE_THREADS_CNT=-j8
-    MACOSX_DEPLOYMENT_TARGET=10.12
+    MACOSX_DEPLOYMENT_TARGET=10.10
 
     ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
     brew install automake cmake fdk-aac git lame libass libtool libvorbis libvpx ninja opus sdl shtool texi2html theora wget x264 xvid yasm pkg-config
@@ -45,7 +45,7 @@ Go to ***BuildPath*** and run
     sudo ./setup.py install
     cd ../..
 
-    cd Libraries/macos
+    cd Libraries
     LibrariesPath=`pwd`
 
     git clone https://github.com/desktop-app/patches.git
@@ -55,22 +55,22 @@ Go to ***BuildPath*** and run
     git clone --branch 0.9.1 https://github.com/ericniebler/range-v3
 
     cd xz-5.0.5
-    CFLAGS="-mmacosx-version-min=10.12" LDFLAGS="-mmacosx-version-min=10.12" ./configure --prefix=/usr/local/macos
+    CFLAGS="-mmacosx-version-min=10.10" LDFLAGS="-mmacosx-version-min=10.10" ./configure
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
     git clone https://github.com/telegramdesktop/zlib.git
     cd zlib
-    CFLAGS="-mmacosx-version-min=10.12 -Werror=unguarded-availability-new" LDFLAGS="-mmacosx-version-min=10.12" ./configure --prefix=/usr/local/macos
+    CFLAGS="-mmacosx-version-min=10.10 -Werror=unguarded-availability-new" LDFLAGS="-mmacosx-version-min=10.10" ./configure
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
-    git clone https://github.com/openssl/openssl openssl_1_1_1
-    cd openssl_1_1_1
-    git checkout OpenSSL_1_1_1-stable
-    ./Configure --prefix=/usr/local/macos darwin64-x86_64-cc -static -mmacosx-version-min=10.12
+    git clone https://github.com/openssl/openssl
+    cd openssl
+    git checkout OpenSSL_1_0_1-stable
+    ./Configure darwin64-x86_64-cc -static -mmacosx-version-min=10.10
     make build_libs $MAKE_THREADS_CNT
     cd ..
 
@@ -78,13 +78,13 @@ Go to ***BuildPath*** and run
     cd opus
     git checkout v1.3
     ./autogen.sh
-    CFLAGS="-mmacosx-version-min=10.12 -Werror=unguarded-availability-new" CPPFLAGS="-mmacosx-version-min=10.12 -Werror=unguarded-availability-new" LDFLAGS="-mmacosx-version-min=10.12" ./configure --prefix=/usr/local/macos
+    CFLAGS="-mmacosx-version-min=10.10 -Werror=unguarded-availability-new" CPPFLAGS="-mmacosx-version-min=10.10 -Werror=unguarded-availability-new" LDFLAGS="-mmacosx-version-min=10.10" ./configure
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
     cd libiconv-1.15
-    CFLAGS="-mmacosx-version-min=10.12 -Werror=unguarded-availability-new" CPPFLAGS="-mmacosx-version-min=10.12 -Werror=unguarded-availability-new" LDFLAGS="-mmacosx-version-min=10.12" ./configure --enable-static --prefix=/usr/local/macos
+    CFLAGS="-mmacosx-version-min=10.10 -Werror=unguarded-availability-new" CPPFLAGS="-mmacosx-version-min=10.10 -Werror=unguarded-availability-new" LDFLAGS="-mmacosx-version-min=10.10" ./configure --enable-static
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
@@ -96,10 +96,10 @@ Go to ***BuildPath*** and run
     LDFLAGS=`freetype-config --libs`
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
 
-    ./configure --prefix=/usr/local/macos \
-    --extra-cflags="-mmacosx-version-min=10.12 -Werror=unguarded-availability-new" \
-    --extra-cxxflags="-mmacosx-version-min=10.12 -Werror=unguarded-availability-new" \
-    --extra-ldflags="-mmacosx-version-min=10.12" \
+    ./configure --prefix=/usr/local \
+    --extra-cflags="-mmacosx-version-min=10.10 -Werror=unguarded-availability-new" \
+    --extra-cxxflags="-mmacosx-version-min=10.10 -Werror=unguarded-availability-new" \
+    --extra-ldflags="-mmacosx-version-min=10.10" \
     --enable-protocol=file --enable-libopus \
     --disable-programs \
     --disable-doc \
@@ -205,7 +205,7 @@ Go to ***BuildPath*** and run
     cd openal-soft
     git checkout v1.19
     cd build
-    CFLAGS='-Werror=unguarded-availability-new' CPPFLAGS='-Werror=unguarded-availability-new' cmake -D CMAKE_INSTALL_PREFIX:PATH=/usr/local/macos -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.12 ..
+    CFLAGS='-Werror=unguarded-availability-new' CPPFLAGS='-Werror=unguarded-availability-new' cmake -D -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.10 ..
     make $MAKE_THREADS_CNT
     sudo make install
     cd ../..
@@ -213,12 +213,12 @@ Go to ***BuildPath*** and run
     git clone https://chromium.googlesource.com/crashpad/crashpad.git
     cd crashpad
     git checkout feb3aa3923
-    git apply ../../../tdesktop/Telegram/Patches/crashpad.diff
+    git apply ../../patches/crashpad.diff
     cd third_party/mini_chromium
     git clone https://chromium.googlesource.com/chromium/mini_chromium
     cd mini_chromium
     git checkout 7c5b0c1ab4
-    git apply ../../../../../../tdesktop/Telegram/Patches/mini_chromium.diff
+    git apply ../../../../../patches/mini_chromium.diff
     cd ../../gtest
     git clone https://chromium.googlesource.com/external/github.com/google/googletest gtest
     cd gtest
@@ -230,17 +230,17 @@ Go to ***BuildPath*** and run
     ninja -C out/Release
     cd ..
 
-    git clone git://code.qt.io/qt/qt5.git qt5_12_5
-    cd qt5_12_5
+    git clone git://code.qt.io/qt/qt5.git qt5_6_2
+    cd qt5_6_2
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.12.5
+    git checkout v5.6.2
     git submodule update qtbase
     git submodule update qtimageformats
     cd qtbase
-    git apply ../../patches/qtbase_5_12_5.diff
+    git apply ../../patches/qtbase_5_6_2.diff
     cd ..
 
-    ./configure -prefix "/usr/local/desktop-app/Qt-5.12.5" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
+    ./configure -prefix "/usr/local/desktop-app/Qt-5.6.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
