@@ -259,7 +259,11 @@ Go to ***BuildPath*** and run
     ./configure
     make $MAKE_THREADS_CNT
     sudo make install
-    cd src/tools
+    cd src
+    rm -r testing
+    git clone https://github.com/google/googletest testing
+    cd tools
+    sed -i 's/minidump_upload.m/minidump_upload.cc/' linux/tools_linux.gypi
     ../../../gyp/gyp  --depth=. --generator-output=.. -Goutput_dir=../out tools.gyp --format=cmake
     cd ../../out/Default
     cmake .
