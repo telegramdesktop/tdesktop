@@ -14,7 +14,6 @@
       'helpers/common/library.gypi',
     ],
     'variables': {
-      'official_build_target%': '',
       'lz4_loc': '<(third_party_loc)/lz4/lib',
     },
     'defines': [

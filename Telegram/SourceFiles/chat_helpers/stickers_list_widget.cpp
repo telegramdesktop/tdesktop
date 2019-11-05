@@ -1677,7 +1677,7 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 	auto h = 1;
 	if (sticker.animated && !document->dimensions.isEmpty()) {
 		const auto request = Lottie::FrameRequest{ boundingBoxSize() * cIntRetinaFactor() };
-		const auto size = request.size(document->dimensions) / cIntRetinaFactor();
+		const auto size = request.size(document->dimensions, true) / cIntRetinaFactor();
 		w = std::max(size.width(), 1);
 		h = std::max(size.height(), 1);
 	} else {

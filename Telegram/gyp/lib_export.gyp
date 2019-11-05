@@ -19,7 +19,6 @@
     'variables': {
       'src_loc': '../SourceFiles',
       'res_loc': '../Resources',
-      'official_build_target%': '',
       'pch_source': '<(src_loc)/export/export_pch.cpp',
       'pch_header': '<(src_loc)/export/export_pch.h',
     },

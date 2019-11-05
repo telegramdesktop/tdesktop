@@ -123,9 +123,9 @@
       '<!@(<(list_sources_command) <(qt_moc_list_sources_arg) --exclude_for <(build_os))',
     ],
     'conditions': [
-      [ '"<(official_build_target)" != ""', {
+      [ '"<(special_build_target)" != ""', {
         'defines': [
-          'TDESKTOP_OFFICIAL_TARGET=<(official_build_target)',
+          'TDESKTOP_OFFICIAL_TARGET=<(special_build_target)',
           'TDESKTOP_FORCE_GTK_FILE_DIALOG',
         ],
         'dependencies': [

@@ -16,6 +16,7 @@ public:
 	BaseIntegration(int argc, char *argv[]);
 
 	void enterFromEventLoop(FnMut<void()> &&method) override;
+	void logMessage(const QString &message) override;
 	void logAssertionViolation(const QString &info) override;
 
 };

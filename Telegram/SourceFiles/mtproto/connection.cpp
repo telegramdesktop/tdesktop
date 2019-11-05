@@ -225,7 +225,7 @@ ModExpFirst CreateModExp(
 void wrapInvokeAfter(SecureRequest &to, const SecureRequest &from, const RequestMap &haveSent, int32 skipBeforeRequest = 0) {
 	const auto afterId = *(mtpMsgId*)(from->after->data() + 4);
 	const auto i = afterId ? haveSent.constFind(afterId) : haveSent.cend();
-	int32 size = to->size(), lenInInts = (from.innerLength() >> 2), headlen = 4, fulllen = headlen + lenInInts;
+	int32 size = to->size(), lenInInts = (tl::count_length(from) >> 2), headlen = 4, fulllen = headlen + lenInInts;
 	if (i == haveSent.constEnd()) { // no invoke after or such msg was not sent or was completed recently
 		to->resize(size + fulllen + skipBeforeRequest);
 		if (skipBeforeRequest) {
@@ -882,7 +882,7 @@ void ConnectionPrivate::tryToSend() {
 			MTP_string(cloudLangCode),
 			clientProxyFields,
 			SecureRequest());
-		initSizeInInts = (initWrapper.innerLength() >> 2) + 2;
+		initSizeInInts = (tl::count_length(initWrapper) >> 2) + 2;
 		initSize = initSizeInInts * sizeof(mtpPrime);
 	}
 
@@ -932,7 +932,7 @@ void ConnectionPrivate::tryToSend() {
 
 					if (needsLayer && !toSendRequest->needsLayer) needsLayer = false;
 					if (toSendRequest->after) {
-						const auto toSendSize = toSendRequest.innerLength() >> 2;
+						const auto toSendSize = tl::count_length(toSendRequest) >> 2;
 						auto wrappedRequest = SecureRequest::Prepare(
 							toSendSize,
 							toSendSize + 3);
@@ -942,13 +942,13 @@ void ConnectionPrivate::tryToSend() {
 						toSendRequest = std::move(wrappedRequest);
 					}
 					if (needsLayer) {
-						const auto noWrapSize = (toSendRequest.innerLength() >> 2);
+						const auto noWrapSize = (tl::count_length(toSendRequest) >> 2);
 						const auto toSendSize = noWrapSize + initSizeInInts;
 						auto wrappedRequest = SecureRequest::Prepare(toSendSize);
 						memcpy(wrappedRequest->data(), toSendRequest->constData(), 7 * sizeof(mtpPrime)); // all except length
 						wrappedRequest->push_back(mtpc_invokeWithLayer);
 						wrappedRequest->push_back(internal::CurrentLayer);
-						initWrapper.write(*wrappedRequest);
+						initWrapper.write<mtpBuffer>(*wrappedRequest);
 						wrappedRequest->resize(wrappedRequest->size() + noWrapSize);
 						memcpy(wrappedRequest->data() + wrappedRequest->size() - noWrapSize, toSendRequest->constData() + 8, noWrapSize * sizeof(mtpPrime));
 						toSendRequest = std::move(wrappedRequest);
@@ -980,7 +980,7 @@ void ConnectionPrivate::tryToSend() {
 				initSerialized.reserve(initSizeInInts);
 				initSerialized.push_back(mtpc_invokeWithLayer);
 				initSerialized.push_back(internal::CurrentLayer);
-				initWrapper.write(initSerialized);
+				initWrapper.write<mtpBuffer>(initSerialized);
 			}
 			// prepare container + each in invoke after
 			toSendRequest = SecureRequest::Prepare(
@@ -1038,7 +1038,7 @@ void ConnectionPrivate::tryToSend() {
 							toSendRequest->resize(reqNeedsLayer + initSizeInInts + req.messageSize());
 							memcpy(toSendRequest->data() + reqNeedsLayer, req->constData() + 4, 4 * sizeof(mtpPrime));
 							memcpy(toSendRequest->data() + reqNeedsLayer + 4, initSerialized.constData(), initSize);
-							memcpy(toSendRequest->data() + reqNeedsLayer + 4 + initSizeInInts, req->constData() + 8, req.innerLength());
+							memcpy(toSendRequest->data() + reqNeedsLayer + 4 + initSizeInInts, req->constData() + 8, tl::count_length(req));
 							*(toSendRequest->data() + reqNeedsLayer + 3) += initSize;
 							added = true;
 						}
@@ -2701,7 +2701,7 @@ void ConnectionPrivate::pqAnswered() {
 bytes::vector ConnectionPrivate::encryptPQInnerRSA(
 		const MTPP_Q_inner_data &data,
 		const internal::RSAPublicKey &key) {
-	auto p_q_inner_size = data.innerLength();
+	auto p_q_inner_size = tl::count_length(data);
 	auto encSize = (p_q_inner_size >> 2) + 6;
 	if (encSize >= 65) {
 		auto tmp = mtpBuffer();
@@ -2760,7 +2760,7 @@ void ConnectionPrivate::dhParamsAnswered() {
 			return restart();
 		}
 
-		uint32 nlen = _authKeyData->new_nonce.innerLength(), slen = _authKeyData->server_nonce.innerLength();
+		uint32 nlen = tl::count_length(_authKeyData->new_nonce), slen = tl::count_length(_authKeyData->server_nonce);
 		uchar tmp_aes[1024], sha1ns[20], sha1sn[20], sha1nn[20];
 		memcpy(tmp_aes, &_authKeyData->new_nonce, nlen);
 		memcpy(tmp_aes + nlen, &_authKeyData->server_nonce, slen);
@@ -2889,7 +2889,7 @@ void ConnectionPrivate::dhClientParamsSend() {
 }
 
 std::string ConnectionPrivate::encryptClientDHInner(const MTPClient_DH_Inner_Data &data) {
-	auto client_dh_inner_size = data.innerLength();
+	auto client_dh_inner_size = tl::count_length(data);
 	auto encSize = (client_dh_inner_size >> 2) + 5;
 	auto encFullSize = encSize;
 	if (encSize & 0x03) {

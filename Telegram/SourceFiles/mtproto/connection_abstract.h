@@ -145,7 +145,7 @@ template <typename Request>
 mtpBuffer AbstractConnection::prepareNotSecurePacket(
 		const Request &request,
 		mtpMsgId newId) const {
-	const auto intsSize = request.innerLength() >> 2;
+	const auto intsSize = tl::count_length(request) >> 2;
 	const auto intsPadding = requiresExtendedPadding()
 		? uint32(rand_value<uchar>() & 0x3F)
 		: 0;

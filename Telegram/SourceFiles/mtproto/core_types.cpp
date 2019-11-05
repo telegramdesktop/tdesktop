@@ -52,25 +52,6 @@ SecureRequest SecureRequest::Prepare(uint32 size, uint32 reserveSize) {
 	return result;
 }
 
-uint32 SecureRequest::innerLength() const {
-	if (!_data || _data->size() <= kMessageBodyPosition) {
-		return 0;
-	}
-	return (*_data)[kMessageLengthPosition];
-}
-
-void SecureRequest::write(mtpBuffer &to) const {
-	if (!_data || _data->size() <= kMessageBodyPosition) {
-		return;
-	}
-	uint32 was = to.size(), s = innerLength() / sizeof(mtpPrime);
-	to.resize(was + s);
-	memcpy(
-		to.data() + was,
-		_data->constData() + kMessageBodyPosition,
-		s * sizeof(mtpPrime));
-}
-
 SecureRequestData *SecureRequest::operator->() const {
 	Expects(_data != nullptr);
 
@@ -90,7 +71,7 @@ SecureRequest::operator bool() const {
 void SecureRequest::addPadding(bool extended) {
 	if (_data->size() <= kMessageBodyPosition) return;
 
-	const auto requestSize = (innerLength() >> 2);
+	const auto requestSize = (tl::count_length(*this) >> 2);
 	const auto padding = CountPaddingAmountInInts(requestSize, extended);
 	const auto fullSize = kMessageBodyPosition + requestSize + padding;
 	if (uint32(_data->size()) != fullSize) {
@@ -107,7 +88,7 @@ uint32 SecureRequest::messageSize() const {
 	if (_data->size() <= kMessageBodyPosition) {
 		return 0;
 	}
-	const auto ints = (innerLength() >> 2);
+	const auto ints = (tl::count_length(*this) >> 2);
 	return kMessageIdInts + kSeqNoInts + kMessageLengthInts + ints;
 }
 
@@ -145,63 +126,19 @@ bool SecureRequest::needAck() const {
 	return true;
 }
 
+size_t SecureRequest::sizeInBytes() const {
+	return (_data && _data->size() > kMessageBodyPosition)
+		? (*_data)[kMessageLengthPosition]
+		: 0;
+}
+
+const void *SecureRequest::dataInBytes() const {
+	return (_data && _data->size() > kMessageBodyPosition)
+		? (_data->constData() + kMessageBodyPosition)
+		: nullptr;
+}
+
 } // namespace MTP
-
-uint32 MTPstring::innerLength() const {
-	uint32 l = v.length();
-	if (l < 254) {
-		l += 1;
-	} else {
-		l += 4;
-	}
-	uint32 d = l & 0x03;
-	if (d) l += (4 - d);
-	return l;
-}
-
-bool MTPstring::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	if (from + 1 > end || cons != mtpc_string) {
-		return false;
-	}
-
-	uint32 l;
-	const uchar *buf = (const uchar*)from;
-	if (buf[0] == 254) {
-		l = (uint32)buf[1] + ((uint32)buf[2] << 8) + ((uint32)buf[3] << 16);
-		buf += 4;
-		from += ((l + 4) >> 2) + (((l + 4) & 0x03) ? 1 : 0);
-	} else {
-		l = (uint32)buf[0];
-		++buf;
-		from += ((l + 1) >> 2) + (((l + 1) & 0x03) ? 1 : 0);
-	}
-	if (from > end) {
-		return false;
-	}
-
-	v = QByteArray(reinterpret_cast<const char*>(buf), l);
-	return true;
-}
-
-void MTPstring::write(mtpBuffer &to) const {
-	uint32 l = v.length(), s = l + ((l < 254) ? 1 : 4), was = to.size();
-	if (s & 0x03) {
-		s += 4;
-	}
-	s >>= 2;
-	to.resize(was + s);
-	char *buf = (char*)&to[was];
-	if (l < 254) {
-		uchar sl = (uchar)l;
-		*(buf++) = *(char*)(&sl);
-	} else {
-		*(buf++) = (char)254;
-		*(buf++) = (char)(l & 0xFF);
-		*(buf++) = (char)((l >> 8) & 0xFF);
-		*(buf++) = (char)((l >> 16) & 0xFF);
-	}
-	memcpy(buf, v.constData(), l);
-}
 
 bool mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons, uint32 level, mtpPrime vcons) {
 	switch (mtpTypeId(cons)) {

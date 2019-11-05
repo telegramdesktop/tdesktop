@@ -40,9 +40,9 @@
       '<(src_loc)/ffmpeg/ffmpeg_utility.cpp',
       '<(src_loc)/ffmpeg/ffmpeg_utility.h',
     ],
-    'conditions': [[ '"<(official_build_target)" != ""', {
+    'conditions': [[ '"<(special_build_target)" != ""', {
       'defines': [
-        'TDESKTOP_OFFICIAL_TARGET=<(official_build_target)',
+        'TDESKTOP_OFFICIAL_TARGET=<(special_build_target)',
       ],
     }], [ 'build_macold', {
       'xcode_settings': {

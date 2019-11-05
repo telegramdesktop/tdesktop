@@ -156,8 +156,12 @@ public:
 	static SecureRequest Serialize(const Request &request);
 
 	// For template MTP requests and MTPBoxed instanciation.
-	uint32 innerLength() const;
-	void write(mtpBuffer &to) const;
+	template <typename Accumulator>
+	void write(Accumulator &to) const {
+		if (const auto size = sizeInBytes()) {
+			tl::Writer<Accumulator>::PutBytes(to, dataInBytes(), size);
+		}
+	}
 
 	SecureRequestData *operator->() const;
 	SecureRequestData &operator*() const;
@@ -175,6 +179,9 @@ public:
 
 private:
 	explicit SecureRequest(const details::SecureRequestCreateTag &);
+
+	[[nodiscard]] size_t sizeInBytes() const;
+	[[nodiscard]] const void *dataInBytes() const;
 
 	std::shared_ptr<SecureRequestData> _data;
 
@@ -197,9 +204,9 @@ public:
 
 template <typename Request, typename>
 SecureRequest SecureRequest::Serialize(const Request &request) {
-	const auto requestSize = request.innerLength() >> 2;
+	const auto requestSize = tl::count_length(request) >> 2;
 	auto serialized = Prepare(requestSize);
-	request.write(*serialized);
+	request.template write<mtpBuffer>(*serialized);
 	return serialized;
 }
 
@@ -394,3 +401,62 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end) {
 	[[maybe_unused]] bool result = mtpTextSerializeType(to, from, end, mtpc_core_message);
 	return QString::fromUtf8(to.p, to.size);
 }
+
+namespace tl {
+
+template <typename Accumulator>
+struct Writer;
+
+template <typename Prime>
+struct Reader;
+
+template <>
+struct Writer<mtpBuffer> {
+	static void PutBytes(mtpBuffer &to, const void *bytes, uint32 count) {
+		constexpr auto kPrime = sizeof(uint32);
+		const auto primes = (count / kPrime) + (count % kPrime ? 1 : 0);
+		const auto size = to.size();
+		to.resize(size + primes);
+		memcpy(to.data() + size, bytes, count);
+	}
+	static void Put(mtpBuffer &to, uint32 value) {
+		to.push_back(mtpPrime(value));
+	}
+};
+
+template <>
+struct Reader<mtpPrime> final {
+	[[nodiscard]] static bool HasBytes(
+			uint32 count,
+			const mtpPrime *from,
+			const mtpPrime *end) {
+		constexpr auto kPrime = sizeof(uint32);
+		const auto primes = (count / kPrime) + (count % kPrime ? 1 : 0);
+		return (end - from) >= primes;
+	}
+	static void GetBytes(
+			void *bytes,
+			uint32 count,
+			const mtpPrime *&from,
+			const mtpPrime *end) {
+		Expects(HasBytes(count, from, end));
+
+		constexpr auto kPrime = sizeof(uint32);
+		const auto primes = (count / kPrime) + (count % kPrime ? 1 : 0);
+		memcpy(bytes, from, count);
+		from += primes;
+	}
+	[[nodiscard]] static bool Has(
+			uint32 primes,
+			const mtpPrime *from,
+			const mtpPrime *end) {
+		return (end - from) >= primes;
+	}
+	[[nodiscard]] static uint32 Get(const mtpPrime *&from, const mtpPrime *end) {
+		Expects(from < end);
+
+		return uint32(*from++);
+	}
+};
+
+} // namespace tl

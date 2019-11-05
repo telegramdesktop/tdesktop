@@ -21,6 +21,12 @@ void BaseIntegration::enterFromEventLoop(FnMut<void()> &&method) {
 		std::move(method));
 }
 
+void BaseIntegration::logMessage(const QString &message) {
+#ifdef DEBUG_LOG
+	DEBUG_LOG((message));
+#endif // DEBUG_LOG
+}
+
 void BaseIntegration::logAssertionViolation(const QString &info) {
 #ifdef LOG
 	LOG(("Assertion Failed! ") + info);
