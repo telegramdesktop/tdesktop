@@ -78,7 +78,6 @@ private:
 	QString _startLink;
 	Fn<void(QString, QString)> _callback;
 	Fn<void()> _setInnerFocus;
-	base::unique_qptr<Spellchecker::SpellingHighlighter> _spelling;
 
 };
 
@@ -128,7 +127,7 @@ void EditLinkBox::prepare() {
 		getDelegate()->outerContainer(),
 		text,
 		_session);
-	_spelling = InitSpellchecker(_session, text);
+	InitSpellchecker(_session, text);
 
 	const auto url = content->add(
 		object_ptr<Ui::InputField>(
@@ -275,10 +274,11 @@ void InitMessageField(
 		DefaultEditLinkCallback(&controller->session(), field));
 }
 
-base::unique_qptr<Spellchecker::SpellingHighlighter> InitSpellchecker(
-	not_null<Main::Session*> session,
-	not_null<Ui::InputField*> field) {
-	auto s = base::make_unique_q<Spellchecker::SpellingHighlighter>(
+void InitSpellchecker(
+		not_null<Main::Session*> session,
+		not_null<Ui::InputField*> field) {
+#ifndef TDESKTOP_DISABLE_SPELLCHECK
+	const auto s = field->lifetime().make_state<Spellchecker::SpellingHighlighter>(
 		field->rawTextEdit(),
 		session->settings().spellcheckerEnabledValue(),
 		field->documentContentsChanges());
@@ -288,7 +288,7 @@ base::unique_qptr<Spellchecker::SpellingHighlighter> InitSpellchecker(
 		{ &ph::lng_spellchecker_ignore, tr::lng_spellchecker_ignore() },
 	} });
 	field->setExtendedContextMenu(s->contextMenuCreated());
-	return s;
+#endif // TDESKTOP_DISABLE_SPELLCHECK
 }
 
 bool HasSendText(not_null<const Ui::InputField*> field) {

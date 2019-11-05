@@ -37,13 +37,5 @@
       '<(lz4_loc)/xxhash.c',
       '<(lz4_loc)/xxhash.h',
     ],
-    'conditions': [[ 'build_macold', {
-      'xcode_settings': {
-        'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
-      },
-      'include_dirs': [
-        '/usr/local/macold/include/c++/v1',
-      ],
-    }]],
   }],
 }

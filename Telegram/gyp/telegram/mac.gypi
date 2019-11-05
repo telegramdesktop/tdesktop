@@ -49,43 +49,35 @@
         },
       },
     },
-  }], [ 'build_macold', {
+  }], [ 'build_osx', {
     'xcode_settings': {
-      'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
       'OTHER_LDFLAGS': [
-        '-isysroot', '/',
-        '-L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/',
         '-lbase',
         '-lcrashpad_client',
         '-lcrashpad_util',
-        '/usr/local/macold/lib/libz.a',
-        '/usr/local/macold/lib/libopus.a',
-        '/usr/local/macold/lib/libopenal.a',
-        '/usr/local/macold/lib/libiconv.a',
-        '/usr/local/macold/lib/libavcodec.a',
-        '/usr/local/macold/lib/libavformat.a',
-        '/usr/local/macold/lib/libavutil.a',
-        '/usr/local/macold/lib/libswscale.a',
-        '/usr/local/macold/lib/libswresample.a',
-        '/usr/local/macold/lib/libexif.a',
-        '/usr/local/macold/lib/libc++.a',
-        '/usr/local/macold/lib/libc++abi.a',
+        '/usr/local/lib/libz.a',
+        '/usr/local/lib/libopus.a',
+        '/usr/local/lib/libopenal.a',
+        '/usr/local/lib/libiconv.a',
+        '/usr/local/lib/libavcodec.a',
+        '/usr/local/lib/libavformat.a',
+        '/usr/local/lib/libavutil.a',
+        '/usr/local/lib/libswscale.a',
+        '/usr/local/lib/libswresample.a',
       ],
     },
     'include_dirs': [
-      '/usr/local/macold',
-      '/usr/local/macold/include/c++/v1',
-      '<(libs_loc)/macold/libexif-0.6.20',
-      '<(libs_loc)/macold/crashpad',
-      '<(libs_loc)/macold/crashpad/third_party/mini_chromium/mini_chromium',
+      '/usr/local',
+      '<(libs_loc)/crashpad',
+      '<(libs_loc)/crashpad/third_party/mini_chromium/mini_chromium',
     ],
     'configurations': {
       'Debug': {
         'xcode_settings': {
-          'PRODUCT_BUNDLE_IDENTIFIER': 'com.tdesktop.TelegramDebugOld',
+          'PRODUCT_BUNDLE_IDENTIFIER': 'com.tdesktop.TelegramDebugOsx',
         },
         'library_dirs': [
-          '<(libs_loc)/macold/crashpad/out/Debug',
+          '<(libs_loc)/crashpad/out/Debug',
         ],
       },
       'Release': {
@@ -93,7 +85,7 @@
           'PRODUCT_BUNDLE_IDENTIFIER': 'com.tdesktop.Telegram',
         },
         'library_dirs': [
-          '<(libs_loc)/macold/crashpad/out/Release',
+          '<(libs_loc)/crashpad/out/Release',
         ],
       },
     },
@@ -118,7 +110,7 @@
       'postbuild_name': 'Copy crashpad_handler to Helpers',
       'action': [
         'cp',
-        '<(libs_loc)/macold/crashpad/out/${CONFIGURATION}/crashpad_handler',
+        '<(libs_loc)/crashpad/out/${CONFIGURATION}/crashpad_handler',
         '${BUILT_PRODUCTS_DIR}/Telegram.app/Contents/Helpers/',
       ],
     }],
@@ -152,7 +144,7 @@
         ],
       },
     },
-  }], [ '"<(build_macold)" != "1" and "<(build_macstore)" != "1"', {
+  }], [ '"<(build_osx)" != "1" and "<(build_macstore)" != "1"', {
     'xcode_settings': {
       'OTHER_LDFLAGS': [
         '-lbase',

@@ -30,14 +30,6 @@
     'export_dependent_settings': [
       'lib_scheme.gyp:lib_scheme',
     ],
-    'conditions': [[ 'build_macold', {
-      'xcode_settings': {
-        'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
-      },
-      'include_dirs': [
-        '/usr/local/macold/include/c++/v1',
-      ],
-    }]],
     'include_dirs': [
       '<(src_loc)',
     ],

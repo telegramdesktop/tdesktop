@@ -40,10 +40,6 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
-namespace Spellchecker {
-class SpellingHighlighter;
-} // namespace Spellchecker
-
 enum class SendMenuType;
 
 enum class SendFilesWay {
@@ -154,7 +150,6 @@ private:
 	object_ptr<Ui::EmojiButton> _emojiToggle = { nullptr };
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;
-	base::unique_qptr<Spellchecker::SpellingHighlighter> _spelling;
 
 	object_ptr<Ui::Radioenum<SendFilesWay>> _sendAlbum = { nullptr };
 	object_ptr<Ui::Radioenum<SendFilesWay>> _sendPhotos = { nullptr };

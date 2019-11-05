@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "spellcheck/spelling_highlighter.h"
 #include "ui/widgets/input_fields.h"
 #include "base/timer.h"
 #include "base/qt_connection.h"
+
+#ifndef TDESKTOP_DISABLE_SPELLCHECK
+#include "spellcheck/spelling_highlighter.h"
+#endif // TDESKTOP_DISABLE_SPELLCHECK
 
 #include <QtGui/QClipboard>
 
@@ -35,9 +38,11 @@ Fn<bool(
 void InitMessageField(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::InputField*> field);
-base::unique_qptr<Spellchecker::SpellingHighlighter> InitSpellchecker(
+
+void InitSpellchecker(
 	not_null<Main::Session*> session,
 	not_null<Ui::InputField*> field);
+
 bool HasSendText(not_null<const Ui::InputField*> field);
 
 struct InlineBotQuery {

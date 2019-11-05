@@ -8,8 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QtPlugin>
 
 Q_IMPORT_PLUGIN(QWebpPlugin)
+
+#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
 Q_IMPORT_PLUGIN(QJpegPlugin)
 Q_IMPORT_PLUGIN(QGifPlugin)
+#endif // Qt 5.8.0
+
 #ifdef Q_OS_WIN
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 #elif defined Q_OS_MAC // Q_OS_WIN

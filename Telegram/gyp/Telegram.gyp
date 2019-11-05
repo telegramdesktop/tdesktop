@@ -76,7 +76,6 @@
       '<(submodules_loc)/codegen/codegen.gyp:codegen_style',
       '<(submodules_loc)/lib_base/lib_base.gyp:lib_base',
       '<(submodules_loc)/lib_ui/lib_ui.gyp:lib_ui',
-      '<(submodules_loc)/lib_spellcheck/lib_spellcheck.gyp:lib_spellcheck',
       '<(third_party_loc)/libtgvoip/libtgvoip.gyp:libtgvoip',
       '<(submodules_loc)/lib_lottie/lib_lottie.gyp:lib_lottie',
       'tests/tests.gyp:tests',
@@ -122,16 +121,22 @@
     'sources!': [
       '<!@(<(list_sources_command) <(qt_moc_list_sources_arg) --exclude_for <(build_os))',
     ],
-    'conditions': [
-      [ '"<(special_build_target)" != ""', {
-        'defines': [
-          'TDESKTOP_OFFICIAL_TARGET=<(special_build_target)',
-          'TDESKTOP_FORCE_GTK_FILE_DIALOG',
-        ],
-        'dependencies': [
-          'utils.gyp:Packer',
-        ],
-      }],
-    ],
+    'conditions': [[ 'not build_osx', {
+      'dependencies': [
+        '<(submodules_loc)/lib_spellcheck/lib_spellcheck.gyp:lib_spellcheck',
+      ],
+    }, {
+      'defines': [
+        'TDESKTOP_DISABLE_SPELLCHECK',
+      ],
+    }], [ '"<(special_build_target)" != ""', {
+      'defines': [
+        'TDESKTOP_OFFICIAL_TARGET=<(special_build_target)',
+        'TDESKTOP_FORCE_GTK_FILE_DIALOG',
+      ],
+      'dependencies': [
+        'utils.gyp:Packer',
+      ],
+    }]],
   }],
 }

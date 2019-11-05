@@ -62,14 +62,7 @@
       '<(src_loc)/storage/cache/storage_cache_types.cpp',
       '<(src_loc)/storage/cache/storage_cache_types.h',
     ],
-    'conditions': [[ 'build_macold', {
-      'xcode_settings': {
-        'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
-      },
-      'include_dirs': [
-        '/usr/local/macold/include/c++/v1',
-      ],
-    }], [ 'build_win', {
+    'conditions': [[ 'build_win', {
       'sources!': [
         '<(src_loc)/storage/storage_clear_legacy_posix.cpp',
         '<(src_loc)/storage/storage_file_lock_posix.cpp',

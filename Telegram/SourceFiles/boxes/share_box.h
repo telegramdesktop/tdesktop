@@ -36,10 +36,6 @@ namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
 
-namespace Spellchecker {
-class SpellingHighlighter;
-} // namespace Spellchecker
-
 namespace Ui {
 class MultiSelect;
 class InputField;
@@ -117,7 +113,6 @@ private:
 
 	object_ptr<Ui::MultiSelect> _select;
 	object_ptr<Ui::SlideWrap<Ui::InputField>> _comment;
-	base::unique_qptr<Spellchecker::SpellingHighlighter> _spelling;
 
 	class Inner;
 	QPointer<Inner> _inner;

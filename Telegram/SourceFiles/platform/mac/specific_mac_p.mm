@@ -25,8 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QWindow>
 #include <QtWidgets/QApplication>
+#if __has_include(<QtCore/QOperatingSystemVersion>)
 #include <QtCore/QOperatingSystemVersion>
-
+#endif // __has_include(<QtCore/QOperatingSystemVersion>)
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
 #include <IOKit/IOKitLib.h>
@@ -285,6 +286,7 @@ void objc_outputDebugString(const QString &str) {
 }
 
 void objc_start() {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
 	// Patch: Fix macOS regression. On 10.14.4, it crashes on GPU switches.
 	// See https://bugreports.qt.io/browse/QTCREATORBUG-22215
 	const auto version = QOperatingSystemVersion::current();
@@ -293,6 +295,7 @@ void objc_start() {
 		&& version.microVersion() == 4) {
 		qputenv("QT_MAC_PRO_WEBENGINE_WORKAROUND", "1");
 	}
+#endif // Qt 5.9.0
 
 	_sharedDelegate = [[ApplicationDelegate alloc] init];
 	[[NSApplication sharedApplication] setDelegate:_sharedDelegate];

@@ -44,13 +44,6 @@
       'defines': [
         'TDESKTOP_OFFICIAL_TARGET=<(special_build_target)',
       ],
-    }], [ 'build_macold', {
-      'xcode_settings': {
-        'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
-      },
-      'include_dirs': [
-        '/usr/local/macold/include/c++/v1',
-      ],
     }]],
   }],
 }

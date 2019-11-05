@@ -24,10 +24,6 @@ namespace Data {
 class Media;
 } // namespace Data
 
-namespace Spellchecker {
-class SpellingHighlighter;
-} // namespace Spellchecker
-
 namespace Ui {
 class InputField;
 class EmojiButton;
@@ -103,7 +99,6 @@ private:
 	object_ptr<Ui::EmojiButton> _emojiToggle = { nullptr };
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;
-	base::unique_qptr<Spellchecker::SpellingHighlighter> _spelling;
 
 	int _thumbx = 0;
 	int _thumbw = 0;

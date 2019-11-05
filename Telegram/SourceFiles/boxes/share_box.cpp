@@ -207,7 +207,7 @@ void ShareBox::prepareCommentField() {
 	field->setEditLinkCallback(
 		DefaultEditLinkCallback(&_navigation->session(), field));
 
-	_spelling = InitSpellchecker(&_navigation->session(), field);
+	InitSpellchecker(&_navigation->session(), field);
 	Ui::SendPendingMoveResizeEvents(_comment);
 }
 
