@@ -118,8 +118,8 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
     Error "Dropbox path not found!"
   fi
 
-  BackupPath="/media/psf/backup/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
-  if [ ! -d "/media/psf/backup" ]; then
+  BackupPath="/media/psf/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
+  if [ ! -d "/media/psf/backup/tdesktop" ]; then
     Error "Backup folder not found!"
   fi
 
@@ -248,8 +248,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ] || [ "$BuildTarget
     Error "Dropbox path not found!"
   fi
 
-  BackupPath="$HOME/Telegram/backup/$AppVersionStrMajor/$AppVersionStrFull"
-  if [ ! -d "$HOME/Telegram/backup" ]; then
+  BackupPath="$HOME/Projects/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull"
+  if [ ! -d "$HOME/Projects/backup/tdesktop" ]; then
     Error "Backup path not found!"
   fi
 
