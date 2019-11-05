@@ -92,8 +92,8 @@ void AboutBox::showVersionHistory() {
 		auto url = qsl("https://tdesktop.com/");
 		if (Platform::IsWindows()) {
 			url += qsl("win/%1.zip");
-		} else if (Platform::IsMacOldBuild()) {
-			url += qsl("mac32/%1.zip");
+		} else if (Platform::IsOSXBuild()) {
+			url += qsl("osx/%1.zip");
 		} else if (Platform::IsMac()) {
 			url += qsl("mac/%1.zip");
 		} else if (Platform::IsLinux32Bit()) {

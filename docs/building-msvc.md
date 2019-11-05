@@ -32,7 +32,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd ThirdParty
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout db1239ce64
+    git checkout b0ec5df4
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
@@ -64,11 +64,11 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout db1239ce64
-    cd ../
+    git checkout b0ec5df
+    cd ..
     git clone --branch 0.9.1 https://github.com/ericniebler/range-v3 range-v3
 
-    git clone https://github.com/telegramdesktop/lzma.git
+    git clone https://github.com/desktop-app/lzma.git
     cd lzma\C\Util\LzmaLib
     msbuild LzmaLib.sln /property:Configuration=Debug
     msbuild LzmaLib.sln /property:Configuration=Release
@@ -93,7 +93,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     move ossl_static.pdb out32
     cd ..
 
-    git clone https://github.com/telegramdesktop/zlib.git
+    git clone https://github.com/desktop-app/zlib.git
     cd zlib
     git checkout tdesktop
     cd contrib\vstudio\vc14

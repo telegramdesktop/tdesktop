@@ -44,11 +44,11 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout db1239ce64
+    git checkout b0ec5df
     cd ../
     git clone --branch 0.9.1 https://github.com/ericniebler/range-v3
 
-    git clone https://github.com/telegramdesktop/zlib.git
+    git clone https://github.com/madler/zlib.git
     cd zlib
     ./configure
     make $MAKE_THREADS_CNT
@@ -232,9 +232,9 @@ Go to ***BuildPath*** and run
     cd qtbase
     git apply ../../patches/qtbase_5_12_5.diff
     cd src/plugins/platforminputcontexts
-    git clone https://github.com/telegramdesktop/fcitx.git
-    git clone https://github.com/telegramdesktop/hime.git
-    git clone https://github.com/telegramdesktop/nimf.git
+    git clone https://github.com/desktop-app/fcitx.git
+    git clone https://github.com/desktop-app/hime.git
+    git clone https://github.com/desktop-app/nimf.git
     cd ../../../..
 
     ./configure -prefix "/usr/local/desktop-app/Qt-5.12.5" -release -force-debug-info -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-harfbuzz -qt-pcre -qt-xcb -system-freetype -fontconfig -no-opengl -no-gtk -static -openssl-linked -I "/usr/local/desktop-app/openssl-1.1.1/include" OPENSSL_LIBS="/usr/local/desktop-app/openssl-1.1.1/lib/libssl.a /usr/local/desktop-app/openssl-1.1.1/lib/libcrypto.a -ldl -lpthread" -nomake examples -nomake tests

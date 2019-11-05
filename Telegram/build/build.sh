@@ -61,7 +61,7 @@ elif [ "$BuildTarget" == "linux32" ]; then
   ReleasePath="$HomePath/../out/Release"
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "mac" ]; then
-  echo "Building version $AppVersionStrFull for OS X 10.8+.."
+  echo "Building version $AppVersionStrFull for macOS 10.12+.."
   if [ "$AC_USERNAME" == "" ]; then
     Error "AC_USERNAME not found!"
   fi
@@ -69,10 +69,10 @@ elif [ "$BuildTarget" == "mac" ]; then
   SetupFile="tsetup.$AppVersionStrFull.dmg"
   ReleasePath="$HomePath/../out/Release"
   BinaryName="Telegram"
-elif [ "$BuildTarget" == "mac32" ]; then
-  echo "Building version $AppVersionStrFull for OS X 10.6 and 10.7.."
-  UpdateFile="tmac32upd$AppVersion"
-  SetupFile="tsetup32.$AppVersionStrFull.dmg"
+elif [ "$BuildTarget" == "osx" ]; then
+  echo "Building version $AppVersionStrFull for OS X 10.10 and 10.11.."
+  UpdateFile="tosxupd$AppVersion"
+  SetupFile="tsetup-osx.$AppVersionStrFull.dmg"
   ReleasePath="$HomePath/../out/Release"
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "macstore" ]; then
@@ -87,31 +87,29 @@ else
   Error "Invalid target!"
 fi
 
-#if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
-  if [ "$AlphaVersion" != "0" ]; then
-    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull" ]; then
-      Error "Deploy folder for version $AppVersionStrFull already exists!"
-    fi
-  else
-    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr.alpha" ]; then
-      Error "Deploy folder for version $AppVersionStr.alpha already exists!"
-    fi
-
-    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr.beta" ]; then
-      Error "Deploy folder for version $AppVersionStr.beta already exists!"
-    fi
-
-    if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr" ]; then
-      Error "Deploy folder for version $AppVersionStr already exists!"
-    fi
-
-    if [ -f "$ReleasePath/$UpdateFile" ]; then
-      Error "Update file for version $AppVersion already exists!"
-    fi
+if [ "$AlphaVersion" != "0" ]; then
+  if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull" ]; then
+    Error "Deploy folder for version $AppVersionStrFull already exists!"
+  fi
+else
+  if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr.alpha" ]; then
+    Error "Deploy folder for version $AppVersionStr.alpha already exists!"
   fi
 
-  DeployPath="$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull"
-#fi
+  if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr.beta" ]; then
+    Error "Deploy folder for version $AppVersionStr.beta already exists!"
+  fi
+
+  if [ -d "$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStr" ]; then
+    Error "Deploy folder for version $AppVersionStr already exists!"
+  fi
+
+  if [ -f "$ReleasePath/$UpdateFile" ]; then
+    Error "Update file for version $AppVersion already exists!"
+  fi
+fi
+
+DeployPath="$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull"
 
 if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
 
@@ -243,7 +241,7 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
   fi
 fi
 
-if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
+if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ] || [ "$BuildTarget" == "macstore" ]; then
 
   DropboxSymbolsPath="$HOME/Dropbox/Telegram/symbols"
   if [ ! -d "$DropboxSymbolsPath" ]; then
@@ -266,7 +264,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     Error "$BinaryName.app.dSYM not found!"
   fi
 
-  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
+  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ]; then
     if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater" ]; then
       Error "Updater not found!"
     fi
@@ -289,7 +287,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   echo "Done!"
 
   echo "Signing the application.."
-  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
+  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ]; then
     codesign --force --deep --timestamp --options runtime --sign "Developer ID Application: John Preston" "$ReleasePath/$BinaryName.app" --entitlements "$HomePath/Telegram/Telegram.entitlements"
   elif [ "$BuildTarget" == "macstore" ]; then
     codesign --force --deep --sign "3rd Party Mac Developer Application: TELEGRAM MESSENGER LLP (6N38VWS5BX)" "$ReleasePath/$BinaryName.app" --entitlements "$HomePath/Telegram/Telegram Desktop.entitlements"
@@ -316,7 +314,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     Error "$BinaryName signature not found!"
   fi
 
-  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
+  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ]; then
     if [ ! -f "$ReleasePath/$BinaryName.app/Contents/Frameworks/Updater" ]; then
       Error "Updater not found in Frameworks!"
     fi
@@ -332,7 +330,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   cp "$ReleasePath/$BinaryName.sym" "$DropboxSymbolsPath/$BinaryName/$SymbolsHash/"
   echo "Done!"
 
-  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
+  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ]; then
     cd "$ReleasePath"
     if [ "$AlphaVersion" == "0" ]; then
       cp -f tsetup_template.dmg tsetup.temp.dmg
@@ -452,7 +450,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     mkdir "$ReleasePath/deploy/$AppVersionStrMajor"
   fi
 
-  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ]; then
+  if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ]; then
     echo "Copying $BinaryName.app and $UpdateFile to deploy/$AppVersionStrMajor/$AppVersionStr..";
     mkdir "$DeployPath"
     mkdir "$DeployPath/$BinaryName"
@@ -476,12 +474,12 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
         cp -v "$DeployPath/$AlphaKeyFile" "$BackupPath/tmac/"
       fi
     fi
-    if [ "$BuildTarget" == "mac32" ]; then
-      mkdir -p "$BackupPath/tmac32"
-      cp "$DeployPath/$UpdateFile" "$BackupPath/tmac32/"
-      cp "$DeployPath/$SetupFile" "$BackupPath/tmac32/"
+    if [ "$BuildTarget" == "osx" ]; then
+      mkdir -p "$BackupPath/tosx"
+      cp "$DeployPath/$UpdateFile" "$BackupPath/tosx/"
+      cp "$DeployPath/$SetupFile" "$BackupPath/tosx/"
       if [ "$AlphaVersion" != "0" ]; then
-        cp -v "$DeployPath/$AlphaKeyFile" "$BackupPath/tmac32/"
+        cp -v "$DeployPath/$AlphaKeyFile" "$BackupPath/tosx/"
       fi
     fi
   elif [ "$BuildTarget" == "macstore" ]; then

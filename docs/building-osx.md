@@ -33,7 +33,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout db1239ce64
+    git checkout b0ec5df
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -50,7 +50,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout db1239ce64
+    git checkout b0ec5df
     cd ../
     git clone --branch 0.9.1 https://github.com/ericniebler/range-v3
 
@@ -60,7 +60,7 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
-    git clone https://github.com/telegramdesktop/zlib.git
+    git clone https://github.com/desktop-app/zlib.git
     cd zlib
     CFLAGS="-mmacosx-version-min=10.10 -Werror=unguarded-availability-new" LDFLAGS="-mmacosx-version-min=10.10" ./configure
     make $MAKE_THREADS_CNT

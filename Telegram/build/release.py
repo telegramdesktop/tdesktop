@@ -93,8 +93,8 @@ if access_token == '':
   print('Access token not found!')
   sys.exit(1)
 
-print('Version: ' + version_full);
-local_folder = expanduser("~") + '/Telegram/backup/' + version_major + '/' + version_full
+print('Version: ' + version_full)
+local_folder = expanduser("~") + '/Projects/backup/tdesktop/' + version_major + '/' + version_full
 
 if stable == 1:
   if os.path.isdir(local_folder + '.beta'):
@@ -129,14 +129,14 @@ files.append({
   'remote': 'tsetup.' + version_full + '.dmg',
   'backup_folder': 'tmac',
   'mime': 'application/octet-stream',
-  'label': 'macOS and OS X 10.8+: Installer',
+  'label': 'macOS 10.12+: Installer',
 })
 files.append({
-  'local': 'tsetup32.' + version_full + '.dmg',
-  'remote': 'tsetup32.' + version_full + '.dmg',
-  'backup_folder': 'tmac32',
+  'local': 'tsetup-osx.' + version_full + '.dmg',
+  'remote': 'tsetup-osx.' + version_full + '.dmg',
+  'backup_folder': 'tosx',
   'mime': 'application/octet-stream',
-  'label': 'OS X 10.6 and 10.7: Installer',
+  'label': 'OS X 10.10 and 10.11: Installer',
 })
 files.append({
   'local': 'tsetup.' + version_full + '.tar.xz',

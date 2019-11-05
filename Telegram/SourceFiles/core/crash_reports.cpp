@@ -328,8 +328,8 @@ QString PlatformString() {
 		return qsl("Windows");
 	} else if (Platform::IsMacStoreBuild()) {
 		return qsl("MacAppStore");
-	} else if (Platform::IsMacOldBuild()) {
-		return qsl("MacOSold");
+	} else if (Platform::IsOSXBuild()) {
+		return qsl("OSX");
 	} else if (Platform::IsMac()) {
 		return qsl("MacOS");
 	} else if (Platform::IsLinux32Bit()) {

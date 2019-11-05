@@ -47,16 +47,16 @@ fi
 echo ""
 HomePath="$FullScriptPath/.."
 DeployMac="0"
-DeployMac32="0"
+DeployOsx="0"
 DeployWin="0"
 DeployLinux="0"
 DeployLinux32="0"
 if [ "$DeployTarget" == "mac" ]; then
   DeployMac="1"
-  echo "Deploying version $AppVersionStrFull for OS X 10.8+.."
-elif [ "$DeployTarget" == "mac32" ]; then
-  DeployMac32="1"
-  echo "Deploying version $AppVersionStrFull for OS X 10.6 and 10.7.."
+  echo "Deploying version $AppVersionStrFull for macOS.."
+elif [ "$DeployTarget" == "osx" ]; then
+  DeployOsx="1"
+  echo "Deploying version $AppVersionStrFull for OS X 10.10 and 10.11.."
 elif [ "$DeployTarget" == "win" ]; then
   DeployWin="1"
   echo "Deploying version $AppVersionStrFull for Windows.."
@@ -71,11 +71,11 @@ else
   DeployWin="1"
   DeployLinux="1"
   if [ "$AlphaVersion" == "0" ]; then
-    DeployMac32="1"
+    DeployOsx="1"
     DeployLinux32="1"
-    echo "Deploying five versions of $AppVersionStrFull: for Windows, OS X 10.6 and 10.7, OS X 10.8+, Linux 64 bit and Linux 32 bit.."
+    echo "Deploying five versions of $AppVersionStrFull: for Windows, OS X 10.10 and 10.11, macOS, Linux 64 bit and Linux 32 bit.."
   else
-    echo "Deploying three versions of $AppVersionStrFull: for Windows, OS X 10.8+ and Linux 64 bit.."
+    echo "Deploying three versions of $AppVersionStrFull: for Windows, macOS and Linux 64 bit.."
   fi
 fi
 if [ "$BuildTarget" == "mac" ]; then
@@ -89,10 +89,10 @@ MacDeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tmac"
 MacUpdateFile="tmacupd$AppVersion"
 MacSetupFile="tsetup.$AppVersionStrFull.dmg"
 MacRemoteFolder="tmac"
-Mac32DeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tmac32"
-Mac32UpdateFile="tmac32upd$AppVersion"
-Mac32SetupFile="tsetup32.$AppVersionStrFull.dmg"
-Mac32RemoteFolder="tmac32"
+OsxDeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tosx"
+OsxUpdateFile="tosxupd$AppVersion"
+OsxSetupFile="tsetup-osx.$AppVersionStrFull.dmg"
+OsxRemoteFolder="tosx"
 WinDeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull/tsetup"
 WinUpdateFile="tupdate$AppVersion"
 WinSetupFile="tsetup.$AppVersionStrFull.exe"
@@ -111,8 +111,8 @@ DeployPath="$BackupPath/$AppVersionStrMajor/$AppVersionStrFull"
 if [ "$AlphaVersion" != "0" ]; then
   if [ "$DeployTarget" == "win" ]; then
     AlphaFilePath="$WinDeployPath/$AlphaKeyFile"
-  elif [ "$DeployTarget" == "mac32" ]; then
-    AlphaFilePath="$Mac32DeployPath/$AlphaKeyFile"
+  elif [ "$DeployTarget" == "osx" ]; then
+    AlphaFilePath="$OsxDeployPath/$AlphaKeyFile"
   elif [ "$DeployTarget" == "linux" ]; then
     AlphaFilePath="$LinuxDeployPath/$AlphaKeyFile"
   elif [ "$DeployTarget" == "linux32" ]; then
@@ -130,8 +130,8 @@ if [ "$AlphaVersion" != "0" ]; then
 
   MacUpdateFile="${MacUpdateFile}_${AlphaSignature}"
   MacSetupFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
-  Mac32UpdateFile="${Mac32UpdateFile}_${AlphaSignature}"
-  Mac32SetupFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
+  OsxUpdateFile="${OsxUpdateFile}_${AlphaSignature}"
+  OsxSetupFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
   WinUpdateFile="${WinUpdateFile}_${AlphaSignature}"
   WinPortableFile="talpha${AlphaVersion}_${AlphaSignature}.zip"
   LinuxUpdateFile="${LinuxUpdateFile}_${AlphaSignature}"
@@ -148,12 +148,12 @@ if [ "$DeployMac" == "1" ]; then
     Error "$MacDeployPath/$MacSetupFile not found!"
   fi
 fi
-if [ "$DeployMac32" == "1" ]; then
-  if [ ! -f "$Mac32DeployPath/$Mac32UpdateFile" ]; then
-    Error "$Mac32UpdateFile not found!"
+if [ "$DeployOsx" == "1" ]; then
+  if [ ! -f "$OsxDeployPath/$OsxUpdateFile" ]; then
+    Error "$OsxUpdateFile not found!"
   fi
-  if [ ! -f "$Mac32DeployPath/$Mac32SetupFile" ]; then
-    Error "$Mac32SetupFile not found!"
+  if [ ! -f "$OsxDeployPath/$OsxSetupFile" ]; then
+    Error "$OsxSetupFile not found!"
   fi
 fi
 if [ "$DeployWin" == "1" ]; then
@@ -192,8 +192,8 @@ declare -a Files
 if [ "$DeployMac" == "1" ]; then
   Files+=("tmac/$MacUpdateFile" "tmac/$MacSetupFile")
 fi
-if [ "$DeployMac32" == "1" ]; then
-  Files+=("tmac32/$Mac32UpdateFile" "tmac32/$Mac32SetupFile")
+if [ "$DeployOsx" == "1" ]; then
+  Files+=("tosx/$OsxUpdateFile" "tosx/$OsxSetupFile")
 fi
 if [ "$DeployWin" == "1" ]; then
   Files+=("tsetup/$WinUpdateFile" "tsetup/$WinPortableFile")
