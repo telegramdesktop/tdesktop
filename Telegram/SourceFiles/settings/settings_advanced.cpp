@@ -540,8 +540,8 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	AddSkip(content);
 
 	if (HasSystemSpellchecker()) {
-		AddSkip(content);
 		AddDivider(content);
+		AddSkip(content);
 		AddSubsectionTitle(content, tr::lng_settings_spellchecker());
 		SetupSpellchecker(controller, content);
 		AddSkip(content);
