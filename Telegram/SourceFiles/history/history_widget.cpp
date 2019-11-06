@@ -3610,8 +3610,20 @@ bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
 		const auto k = static_cast<QKeyEvent*>(e);
 		if ((k->modifiers() & kCommonModifiers) == Qt::ControlModifier) {
 			if (k->key() == Qt::Key_Up) {
+#ifdef Q_OS_MAC
+				// Cmd + Up is used instead of Home.
+				if (!_field->textCursor().atStart()) {
+					return false;
+				}
+#endif
 				return replyToPreviousMessage();
 			} else if (k->key() == Qt::Key_Down) {
+#ifdef Q_OS_MAC
+				// Cmd + Down is used instead of End.
+				if (!_field->textCursor().atEnd()) {
+					return false;
+				}
+#endif
 				return replyToNextMessage();
 			}
 		}
