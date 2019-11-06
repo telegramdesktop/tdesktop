@@ -23,6 +23,7 @@ apiId = ''
 apiHash = ''
 nextApiId = False
 nextApiHash = False
+ciBuild = False
 for arg in sys.argv:
     if nextApiId:
         apiId = re.sub(r'[^\d]', '', arg)
@@ -33,6 +34,8 @@ for arg in sys.argv:
     else:
         nextApiId = (arg == '--api-id')
         nextApiHash = (arg == '--api-hash')
+        if arg == '--ci-build':
+            ciBuild = True
 
 officialTarget = ''
 officialTargetFile = scriptPath + '/../build/target'
@@ -86,6 +89,9 @@ gypArguments.append('-Dapi_id=' + apiId)
 gypArguments.append('-Dapi_hash=' + apiHash)
 gypArguments.append('-Dlottie_use_cache=1')
 gypArguments.append('-Dspecial_build_target=' + officialTarget)
+if ciBuild:
+    gypArguments.append('-Dci_build=1')
+
 if 'TDESKTOP_BUILD_DEFINES' in os.environ:
     buildDefines = os.environ['TDESKTOP_BUILD_DEFINES']
     gypArguments.append('-Dbuild_defines=' + buildDefines)

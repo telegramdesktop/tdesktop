@@ -50,8 +50,8 @@ GOTO:EOF
     git submodule init
     git submodule update
     cd %SRC_DIR%\Telegram
-    call gyp\refresh.bat --api-id 17349 --api-hash 344583e45741c457fe1862106095a5eb
-GOTO:EOF
+    call gyp\refresh.bat --api-id 17349 --api-hash 344583e45741c457fe1862106095a5eb --ci-build
+ GOTO:EOF
 
 :configureBuild
     call:logInfo "Configuring build"
