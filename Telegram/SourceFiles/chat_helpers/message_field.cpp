@@ -279,9 +279,8 @@ void InitSpellchecker(
 		not_null<Ui::InputField*> field) {
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	const auto s = Ui::CreateChild<Spellchecker::SpellingHighlighter>(
-		field->rawTextEdit().get(),
-		session->settings().spellcheckerEnabledValue(),
-		field->documentContentsChanges());
+		field.get(),
+		session->settings().spellcheckerEnabledValue());
 	Spellchecker::SetPhrases({ {
 		{ &ph::lng_spellchecker_add, tr::lng_spellchecker_add() },
 		{ &ph::lng_spellchecker_remove, tr::lng_spellchecker_remove() },
