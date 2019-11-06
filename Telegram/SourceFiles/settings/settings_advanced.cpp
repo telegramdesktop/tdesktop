@@ -244,6 +244,9 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 }
 
 bool HasSystemSpellchecker() {
+#ifdef TDESKTOP_DISABLE_SPELLCHECK
+	return false;
+#endif // TDESKTOP_DISABLE_SPELLCHECK
 	return (Platform::IsWindows() && Platform::IsWindows8OrGreater())
 		|| Platform::IsMac();
 }
