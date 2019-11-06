@@ -1,6 +1,6 @@
 import os, sys, requests, pprint, re, json
 from uritemplate import URITemplate, expand
-from subprocess import call
+from subprocess import call, Popen, PIPE
 from os.path import expanduser
 
 changelog_file = '../../changelog.txt'
@@ -52,6 +52,59 @@ def checkResponseCode(result, right_code):
   if (result.status_code != right_code):
     print('Wrong result code: ' + str(result.status_code) + ', should be ' + str(right_code))
     sys.exit(1)
+
+def getOutput(command):
+  p = Popen(command.split(), stdout=PIPE)
+  output, err = p.communicate()
+  if err != None or p.returncode != 0:
+    print('ERROR!')
+    print(err)
+    print(p.returncode)
+    sys.exit(1)
+  return output.decode('utf-8')
+
+def prepareSources():
+  workpath = os.getcwd()
+  os.chdir('../..')
+  rootpath = os.getcwd()
+  finalpath = rootpath + '/out/Release/sources.tar'
+  if os.path.exists(finalpath):
+    os.remove(finalpath)
+  if os.path.exists(finalpath + '.gz'):
+    os.remove(finalpath + '.gz')
+  tmppath = rootpath + '/out/Release/tmp.tar'
+  print('Preparing source tarball...')
+  if (call(('git archive --prefix=tdesktop-' + version + '-full/ -o ' + finalpath + ' v' + version).split()) != 0):
+    os.remove(finalpath)
+    sys.exit(1)
+  lines = getOutput('git submodule foreach').split('\n')
+  for line in lines:
+    if len(line) == 0:
+      continue
+    match = re.match(r"^Entering '([^']+)'$", line)
+    if not match:
+      print('Bad line: ' + line)
+      sys.exit(1)
+    path = match.group(1)
+    revision = getOutput('git rev-parse v' + version + ':' + path).split('\n')[0]
+    print('Adding submodule ' + path + '...')
+    os.chdir(path)
+    if (call(('git archive --prefix=tdesktop-' + version + '-full/' + path + '/ ' + revision + ' -o ' + tmppath).split()) != 0):
+      os.remove(finalpath)
+      os.remove(tmppath)
+      sys.exit(1)
+    if (call(('gtar --concatenate --file=' + finalpath + ' ' + tmppath).split()) != 0):
+      os.remove(finalpath)
+      os.remove(tmppath)
+      sys.exit(1)
+    os.remove(tmppath)
+    os.chdir(rootpath)
+  print('Compressing...')
+  if (call(('gzip -9 ' + finalpath).split()) != 0):
+    os.remove(finalpath)
+    sys.exit(1)
+  os.chdir(workpath)
+  return finalpath + '.gz'
 
 pp = pprint.PrettyPrinter(indent=2)
 url = 'https://api.github.com/'
@@ -152,6 +205,12 @@ files.append({
   'mime': 'application/octet-stream',
   'label': 'Linux 32 bit: Binary',
 })
+files.append({
+  'local': 'sources',
+  'remote': 'tdesktop-' + version + '-full.tar.gz',
+  'mime': 'application/x-gzip',
+  'label': 'Source code (tar.gz, full)',
+})
 
 r = requests.get(url + 'repos/telegramdesktop/tdesktop/releases/tags/v' + version)
 if r.status_code == 404:
@@ -182,8 +241,8 @@ if r.status_code == 404:
     sys.exit(1)
 
   changelog = changelog.strip()
-  print('Changelog: ');
-  print(changelog);
+  print('Changelog: ')
+  print(changelog)
 
   r = requests.post(url + 'repos/telegramdesktop/tdesktop/releases', headers={'Authorization': 'token ' + access_token}, data=json.dumps({
     'tag_name': 'v' + version,
@@ -195,7 +254,7 @@ if r.status_code == 404:
   checkResponseCode(r, 201)
 
 tagname = 'v' + version
-call("git fetch origin".split());
+call("git fetch origin".split())
 if stable == 1:
   call("git push launchpad {}:master".format(tagname).split())
 else:
@@ -203,7 +262,7 @@ else:
 call("git push --tags launchpad".split())
 
 r = requests.get(url + 'repos/telegramdesktop/tdesktop/releases/tags/v' + version)
-checkResponseCode(r, 200);
+checkResponseCode(r, 200)
 
 release_data = r.json()
 #pp.pprint(release_data)
@@ -211,8 +270,8 @@ release_data = r.json()
 release_id = release_data['id']
 print('Release ID: ' + str(release_id))
 
-r = requests.get(url + 'repos/telegramdesktop/tdesktop/releases/' + str(release_id) + '/assets');
-checkResponseCode(r, 200);
+r = requests.get(url + 'repos/telegramdesktop/tdesktop/releases/' + str(release_id) + '/assets')
+checkResponseCode(r, 200)
 
 assets = release_data['assets']
 for asset in assets:
@@ -230,12 +289,15 @@ for asset in assets:
 for file in files:
   if 'already' in file:
     continue
-  file_path = local_folder + file['backup_folder'] + '/' + file['local']
+  if file['local'] == 'sources':
+    file_path = prepareSources()
+  else:
+    file_path = local_folder + file['backup_folder'] + '/' + file['local']
   if not os.path.isfile(file_path):
     print('Warning: file not found ' + file['local'])
     continue
 
-  upload_url = expand(release_data['upload_url'], {'name': file['remote'], 'label': file['label']}) + '&access_token=' + access_token;
+  upload_url = expand(release_data['upload_url'], {'name': file['remote'], 'label': file['label']}) + '&access_token=' + access_token
 
   content = upload_in_chunks(file_path, 10)
 
