@@ -44,7 +44,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b0ec5df
+    git checkout 4aa377c
     cd ../
     git clone --branch 0.9.1 https://github.com/ericniebler/range-v3
 
