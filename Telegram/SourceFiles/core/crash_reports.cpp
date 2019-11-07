@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <new>
 #include <mutex>
 
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 
 // see https://blog.inventic.eu/2012/08/qt-and-google-breakpad/
 #ifdef Q_OS_WIN
@@ -49,7 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #endif // Q_OS_LINUX64 || Q_OS_LINUX32
 
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
+#endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
 
 namespace CrashReports {
 namespace {
@@ -60,7 +60,7 @@ using AnnotationRefs = std::map<std::string, const QString*>;
 Annotations ProcessAnnotations;
 AnnotationRefs ProcessAnnotationRefs;
 
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 
 QString ReportPath;
 FILE *ReportFile = nullptr;
@@ -317,7 +317,7 @@ bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, 
 }
 #endif // !Q_OS_MAC || MAC_USE_BREAKPAD
 
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
+#endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
 
 } // namespace
 
@@ -341,7 +341,7 @@ QString PlatformString() {
 }
 
 void StartCatching(not_null<Core::Launcher*> launcher) {
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 	ProcessAnnotations["Binary"] = cExeName().toUtf8().constData();
 	ProcessAnnotations["ApiId"] = QString::number(ApiId).toUtf8().constData();
 	ProcessAnnotations["Version"] = (cAlphaVersion() ? qsl("%1 alpha").arg(cAlphaVersion()) : (AppBetaVersion ? qsl("%1 beta") : qsl("%1")).arg(AppVersion)).toUtf8().constData();
@@ -401,21 +401,21 @@ void StartCatching(not_null<Core::Launcher*> launcher) {
 		-1
 	);
 #endif // Q_OS_LINUX64 || Q_OS_LINUX32
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
+#endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
 }
 
 void FinishCatching() {
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 #if !defined Q_OS_MAC || defined MAC_USE_BREAKPAD
 
 	delete base::take(BreakpadExceptionHandler);
 
 #endif // !Q_OS_MAC || MAC_USE_BREAKPAD
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
+#endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
 }
 
 StartResult Start() {
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 	ReportPath = cWorkingDir() + qsl("tdata/working");
 
 #ifdef Q_OS_WIN
@@ -441,12 +441,12 @@ StartResult Start() {
 		return lastdump;
 	}
 
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
+#endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
 	return Restart();
 }
 
 Status Restart() {
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 	if (ReportFile) {
 		return Started;
 	}
@@ -495,13 +495,13 @@ Status Restart() {
 	LOG(("FATAL: Could not open '%1' for writing!").arg(ReportPath));
 
 	return CantOpen;
-#else // !TDESKTOP_DISABLE_CRASH_REPORTS
+#else // !DESKTOP_APP_DISABLE_CRASH_REPORTS
 	return Started;
-#endif // else for !TDESKTOP_DISABLE_CRASH_REPORTS
+#endif // else for !DESKTOP_APP_DISABLE_CRASH_REPORTS
 }
 
 void Finish() {
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 	FinishCatching();
 
 	if (ReportFile) {
@@ -514,7 +514,7 @@ void Finish() {
 		unlink(ReportPath.toUtf8().constData());
 #endif // else for Q_OS_WIN
 	}
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
+#endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
 }
 
 void SetAnnotation(const std::string &key, const QString &value) {
@@ -564,7 +564,7 @@ void SetAnnotationRef(const std::string &key, const QString *valuePtr) {
 	}
 }
 
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 
 dump::~dump() {
 	if (ReportFile) {
@@ -629,6 +629,6 @@ const dump &operator<<(const dump &stream, double num) {
 	return stream;
 }
 
-#endif // TDESKTOP_DISABLE_CRASH_REPORTS
+#endif // DESKTOP_APP_DISABLE_CRASH_REPORTS
 
 } // namespace CrashReports

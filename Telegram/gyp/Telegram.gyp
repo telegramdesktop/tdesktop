@@ -50,7 +50,6 @@
         'ko',
         'pt-BR',
       ],
-      'build_defines%': '',
       'list_sources_command': 'python <(submodules_loc)/lib_base/gyp/list_sources.py --input <(DEPTH)/telegram/sources.txt --replace src_loc=<(src_loc)',
       'pch_source': '<(src_loc)/stdafx.cpp',
       'pch_header': '<(src_loc)/stdafx.h',

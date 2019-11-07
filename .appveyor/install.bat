@@ -63,7 +63,7 @@ GOTO:EOF
     )
 
     echo %BUILD_VERSION% | findstr /C:"disable_crash_reports">nul && (
-        set TDESKTOP_BUILD_DEFINES=%TDESKTOP_BUILD_DEFINES%,TDESKTOP_DISABLE_CRASH_REPORTS
+        set TDESKTOP_BUILD_DEFINES=%TDESKTOP_BUILD_DEFINES%,DESKTOP_APP_DISABLE_CRASH_REPORTS
     )
 
     echo %BUILD_VERSION% | findstr /C:"disable_network_proxy">nul && (

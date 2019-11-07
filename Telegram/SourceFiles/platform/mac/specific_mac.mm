@@ -57,10 +57,10 @@ QRect psDesktopRect() {
 }
 
 void psWriteDump() {
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 	double v = objc_appkitVersion();
 	CrashReports::dump() << "OS-Version: " << v;
-#endif // TDESKTOP_DISABLE_CRASH_REPORTS
+#endif // DESKTOP_APP_DISABLE_CRASH_REPORTS
 }
 
 void psDeleteDir(const QString &dir) {

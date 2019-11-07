@@ -107,7 +107,7 @@ build() {
   fi
 
   if [[ $BUILD_VERSION == *"disable_crash_reports"* ]]; then
-    GYP_DEFINES+=",TDESKTOP_DISABLE_CRASH_REPORTS"
+    GYP_DEFINES+=",DESKTOP_APP_DISABLE_CRASH_REPORTS"
   fi
 
   if [[ $BUILD_VERSION == *"disable_network_proxy"* ]]; then
