@@ -84,6 +84,10 @@ LocationKey ComputeLocationKey(const Data::FileLocation &value) {
 		result.type |= (8ULL << 24);
 		result.type |= (uint64(uint32(data.vlocal_id().v)) << 32);
 		result.id = data.vvolume_id().v;
+	}, [&](const MTPDinputPhotoLegacyFileLocation &data) {
+		result.type |= (9ULL << 24);
+		result.type |= (uint64(uint32(data.vlocal_id().v)) << 32);
+		result.id = data.vvolume_id().v;
 	});
 	return result;
 }
