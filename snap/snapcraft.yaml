@@ -308,16 +308,14 @@ parts:
       - xutils-dev
       - bison
       - python-xcbgen
-    configflags:
-      - --disable-x11
     prime: [-./*]
 
   qt:
     plugin: qtbuilder
-    qt-version: 5.6.2
+    qt-version: 5.12.5
     qt-source-git: https://code.qt.io/qt/qt5.git
     qt-submodules: ['qtbase', 'qtimageformats']
-    qt-patches-path: Telegram/Patches
+    qt-patches-base-url: https://raw.githubusercontent.com/desktop-app/patches/master
     qt-extra-plugins:
       - platforminputcontexts:
         - https://github.com/telegramdesktop/fcitx.git
@@ -336,6 +334,7 @@ parts:
       - libpulse-dev
       - libssl-dev
       - libx11-xcb-dev
+      - libxcb-xkb-dev
       - libxcb-icccm4-dev
       - libxcb-image0-dev
       - libxcb-keysyms1-dev
@@ -356,14 +355,13 @@ parts:
       - -qt-zlib
       - -qt-libpng
       - -qt-libjpeg
-      - -qt-freetype
       - -qt-harfbuzz
       - -qt-pcre
       - -qt-xcb
-      - -qt-xkbcommon-x11
-      - -no-gstreamer
-      - -no-gtkstyle
+      - -no-gtk
       - -no-mirclient
+      - -system-freetype
+      - -fontconfig
       - -no-opengl
       - -static
       - -dbus-runtime
