@@ -1,0 +1,6 @@
+add_subdirectory(qt)
+add_subdirectory(openssl)
+add_subdirectory(variant)
+add_subdirectory(ranges)
+add_subdirectory(gsl)
+add_subdirectory(crash_reports)
