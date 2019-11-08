@@ -29,6 +29,8 @@ if (WIN32)
     INTERFACE
         /permissive-
         # /Qspectre
+        /W1
+        /WX
         /MP     # Enable multi process build.
         /EHsc   # Catch C++ exceptions only, extern C functions never throw a C++ exception.
         /w14834 # [[nodiscard]]
