@@ -11,8 +11,11 @@ project(Telegram
     HOMEPAGE_URL "https://desktop.telegram.org"
 )
 
-include(cmake/constants.cmake)
-include(cmake/functions.cmake)
+include(cmake/paths.cmake)
+include(cmake/force_include.cmake)
+include(cmake/init_target.cmake)
+include(cmake/generate_target.cmake)
+include(cmake/nice_target_sources.cmake)
 
 add_subdirectory(cmake)
 add_subdirectory(Telegram)
