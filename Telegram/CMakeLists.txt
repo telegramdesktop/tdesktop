@@ -6,15 +6,24 @@ add_subdirectory(lib_crl)
 add_subdirectory(lib_base)
 add_subdirectory(lib_ui)
 add_subdirectory(lib_tl)
+add_subdirectory(lib_spellcheck)
+add_subdirectory(lib_lottie)
+add_subdirectory(lib_rlottie)
 add_subdirectory(codegen)
 
 include(lib_ui/cmake/generate_styles.cmake)
-include(cmake/generate_scheme.cmake)
 include(cmake/generate_lang.cmake)
 include(cmake/generate_numbers.cmake)
 
-get_filename_component(src_loc "./SourceFiles" REALPATH)
-get_filename_component(res_loc "./Resources" REALPATH)
+get_filename_component(src_loc SourceFiles REALPATH)
+get_filename_component(res_loc Resources REALPATH)
+
+include(cmake/lib_export.cmake)
+include(cmake/lib_ffmpeg.cmake)
+include(cmake/lib_lz4.cmake)
+include(cmake/lib_mtproto.cmake)
+include(cmake/lib_scheme.cmake)
+include(cmake/lib_tgvoip.cmake)
 
 set(style_files
     boxes/boxes.style
@@ -41,15 +50,22 @@ set(dependent_style_files
     ${submodules_loc}/lib_ui/ui/widgets/widgets.style
 )
 
-set(scheme_files
-    ${res_loc}/tl/mtproto.tl
-    ${res_loc}/tl/api.tl
-)
-
-generate_scheme(Telegram ${src_loc}/codegen/scheme/codegen_scheme.py "${scheme_files}")
 generate_styles(Telegram ${src_loc} "${style_files}" "${dependent_style_files}")
 generate_lang(Telegram ${res_loc}/langs/lang.strings)
 generate_numbers(Telegram ${res_loc}/numbers.txt)
+
+target_link_libraries(Telegram
+PRIVATE
+    lib_base
+    lib_ui
+    lib_tl
+    lib_spellcheck
+    lib_lottie
+    lib_scheme
+    lib_export
+    lib_ffmpeg
+    lib_tgvoip
+)
 
 set(telegram_sources
 PRIVATE
@@ -914,17 +930,16 @@ force_include(Telegram stdafx.h)
 target_include_directories(Telegram
 PRIVATE
     ${src_loc}
+    ${libs_loc}/zlib
+    ${libs_loc}/lzma/C
+    ${libs_loc}/openal-soft/include
+    ${third_party_loc}/minizip
 )
 
 target_compile_definitions(Telegram
 PRIVATE
     TDESKTOP_API_ID=17349
     TDESKTOP_API_HASH=344583e45741c457fe1862106095a5eb
-)
-
-target_link_libraries(Telegram
-PRIVATE
-    lib_base
-    lib_ui
-    lib_tl
+    AL_LIBTYPE_STATIC
+    AL_ALEXT_PROTOTYPES
 )

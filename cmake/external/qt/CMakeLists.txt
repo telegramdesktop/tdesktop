@@ -1,12 +1,5 @@
 add_library(external_qt INTERFACE IMPORTED GLOBAL)
 
-set(qt_version 5.12.5)
-
-if (WIN32)
-    set(qt_loc ${libs_loc}/Qt-${qt_version})
-else()
-endif()
-
 target_include_directories(external_qt SYSTEM
 INTERFACE
     ${qt_loc}/include

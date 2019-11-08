@@ -1,19 +1,29 @@
 add_subdirectory(external)
 
-add_library(common INTERFACE)
+add_library(with_ranges INTERFACE)
 
-target_compile_features(common
+if (WIN32)
+    target_compile_options(with_ranges
+    INTERFACE
+        /experimental:preprocessor # need for range-v3 see https://github.com/ericniebler/range-v3#supported-compilers
+        /wd5105 # needed for `/experimental:preprocessor`, suppressing C5105 "macro expansion producing 'defined' has undefined behavior"
+    )
+endif()
+
+add_library(common_no_ranges INTERFACE)
+
+target_compile_features(common_no_ranges
 INTERFACE
     cxx_std_17
 )
 
-target_compile_definitions(common
+target_compile_definitions(common_no_ranges
 INTERFACE
     UNICODE
 )
 
 if (WIN32)
-    target_compile_definitions(common
+    target_compile_definitions(common_no_ranges
     INTERFACE
         WIN32
         _WINDOWS
@@ -25,7 +35,7 @@ if (WIN32)
         _USING_V110_SDK71_
         NOMINMAX
     )
-    target_compile_options(common
+    target_compile_options(common_no_ranges
     INTERFACE
         /permissive-
         # /Qspectre
@@ -36,11 +46,11 @@ if (WIN32)
         /w14834 # [[nodiscard]]
         /w15038 # wrong initialization order
         /w14265 # class has virtual functions, but destructor is not virtual
-        /experimental:preprocessor # need for range-v3 see https://github.com/ericniebler/range-v3#supported-compilers
+        /wd4068 # Disable "warning C4068: unknown pragma"
         /wd5105 # needed for `/experimental:preprocessor`, suppressing C5105 "macro expansion producing 'defined' has undefined behavior"
         /Zc:wchar_t- # don't tread wchar_t as builtin type
     )
-    target_link_libraries(common
+    target_link_libraries(common_no_ranges
     INTERFACE
         winmm
         imm32
@@ -72,3 +82,11 @@ if (WIN32)
       )
 else()
 endif()
+
+add_library(common INTERFACE)
+
+target_link_libraries(common
+INTERFACE
+    common_no_ranges
+    with_ranges
+)
