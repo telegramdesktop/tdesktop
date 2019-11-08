@@ -49,3 +49,6 @@
 [submodule "Telegram/lib_spellcheck"]
 	path = Telegram/lib_spellcheck
 	url = https://github.com/desktop-app/lib_spellcheck
+[submodule "Telegram/lib_storage"]
+	path = Telegram/lib_storage
+	url = https://github.com/desktop-app/lib_storage.git
