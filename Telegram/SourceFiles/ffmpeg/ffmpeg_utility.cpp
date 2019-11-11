@@ -70,7 +70,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 
 #ifndef TDESKTOP_OFFICIAL_TARGET
 	for (auto i = 0; i != intsCount; ++i) {
-		dst[i] = qPremultiply(src[i]);
+		udst[i] = qPremultiply(usrc[i]);
 	}
 #elif QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
 	static const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
