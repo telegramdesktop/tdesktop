@@ -1786,7 +1786,7 @@ std::unique_ptr<PeerListRow> ParticipantsBoxController::createRow(
 			row->setActionLink(tr::lng_profile_kick(tr::now));
 		}
 	}
-	return std::move(row);
+	return row;
 }
 
 auto ParticipantsBoxController::computeType(
@@ -1931,7 +1931,7 @@ auto ParticipantsBoxSearchController::saveState() const
 	result->offset = _offset;
 	result->allLoaded = _allLoaded;
 	result->wasLoading = (_requestId != 0);
-	return std::move(result);
+	return result;
 }
 
 void ParticipantsBoxSearchController::restoreState(

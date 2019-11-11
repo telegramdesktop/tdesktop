@@ -1043,7 +1043,7 @@ object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(
 		});
 		result->setGeometry(_topBar->geometry());
 		result->show();
-		return std::move(result);
+		return result;
 	}
 	return nullptr;
 }

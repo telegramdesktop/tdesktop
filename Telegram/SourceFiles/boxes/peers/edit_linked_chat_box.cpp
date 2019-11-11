@@ -223,7 +223,7 @@ object_ptr<Ui::RpWidget> SetupAbout(
 			tr::now,
 			Ui::Text::WithEntities);
 	}());
-	return std::move(about);
+	return about;
 }
 
 object_ptr<Ui::RpWidget> SetupFooter(

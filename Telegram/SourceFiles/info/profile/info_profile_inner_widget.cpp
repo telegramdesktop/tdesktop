@@ -125,7 +125,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		}, _members->lifetime());
 		_cover->setOnlineCount(_members->onlineCountValue());
 	}
-	return std::move(result);
+	return result;
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
@@ -227,7 +227,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	)->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	_sharedMediaWrap = result;
-	return std::move(result);
+	return result;
 }
 
 int InnerWidget::countDesiredHeight() const {

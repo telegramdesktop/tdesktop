@@ -768,7 +768,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		FocusAtEnd(question);
 	}, lifetime());
 
-	return std::move(result);
+	return result;
 }
 
 void CreatePollBox::prepare() {

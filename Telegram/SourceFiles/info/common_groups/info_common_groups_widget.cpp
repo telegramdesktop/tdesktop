@@ -33,7 +33,7 @@ object_ptr<ContentWidget> Memento::createWidget(
 		controller,
 		Auth().data().user(userId()));
 	result->setInternalState(geometry, this);
-	return std::move(result);
+	return result;
 }
 
 void Memento::setListState(std::unique_ptr<PeerListState> state) {
@@ -85,7 +85,7 @@ void Widget::setInternalState(
 std::unique_ptr<ContentMemento> Widget::doCreateMemento() {
 	auto result = std::make_unique<Memento>(user()->bareId());
 	saveState(result.get());
-	return std::move(result);
+	return result;
 }
 
 void Widget::saveState(not_null<Memento*> memento) {

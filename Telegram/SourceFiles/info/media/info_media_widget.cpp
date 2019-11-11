@@ -65,7 +65,7 @@ object_ptr<ContentWidget> Memento::createWidget(
 		parent,
 		controller);
 	result->setInternalState(geometry, this);
-	return std::move(result);
+	return result;
 }
 
 Widget::Widget(
@@ -117,7 +117,7 @@ void Widget::setInternalState(
 std::unique_ptr<ContentMemento> Widget::doCreateMemento() {
 	auto result = std::make_unique<Memento>(controller());
 	saveState(result.get());
-	return std::move(result);
+	return result;
 }
 
 void Widget::saveState(not_null<Memento*> memento) {

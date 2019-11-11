@@ -59,7 +59,7 @@ object_ptr<Window::SectionWidget> Memento::createWidget(
 	}
 	auto result = object_ptr<Widget>(parent, controller, _feed);
 	result->setInternalState(geometry, this);
-	return std::move(result);
+	return result;
 }
 
 Widget::Widget(
@@ -456,7 +456,7 @@ ClickHandlerPtr Widget::listDateLink(not_null<Element*> view) {
 std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
 	auto result = std::make_unique<Memento>(_feed);
 	saveState(result.get());
-	return std::move(result);
+	return result;
 }
 
 void Widget::saveState(not_null<Memento*> memento) {

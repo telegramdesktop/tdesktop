@@ -334,7 +334,7 @@ std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 		return tr::lng_blocked_list_unknown_phone(tr::now);
 	}();
 	row->setCustomStatus(status);
-	return std::move(row);
+	return row;
 }
 
 ApiWrap::Privacy::Key PhoneNumberPrivacyController::key() {
@@ -444,7 +444,7 @@ object_ptr<Ui::RpWidget> PhoneNumberPrivacyController::setupMiddleWidget(
 			QVector<MTPInputPrivacyRule>(1, value));
 	};
 
-	return std::move(widget);
+	return widget;
 }
 
 void PhoneNumberPrivacyController::saveAdditional() {

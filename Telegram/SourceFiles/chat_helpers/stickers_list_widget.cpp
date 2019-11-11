@@ -878,7 +878,7 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 
 	auto result = object_ptr<Footer>(this);
 	_footer = result;
-	return std::move(result);
+	return result;
 }
 
 void StickersListWidget::visibleTopBottomUpdated(
