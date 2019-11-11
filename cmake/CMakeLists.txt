@@ -29,8 +29,6 @@ if (WIN32)
         _WINDOWS
         _UNICODE
         UNICODE
-        # HAVE_STDINT_H
-        # ZLIB_WINAPI
         _SCL_SECURE_NO_WARNINGS
         _USING_V110_SDK71_
         NOMINMAX
@@ -49,6 +47,10 @@ if (WIN32)
         /wd4068 # Disable "warning C4068: unknown pragma"
         /wd5105 # needed for `/experimental:preprocessor`, suppressing C5105 "macro expansion producing 'defined' has undefined behavior"
         /Zc:wchar_t- # don't tread wchar_t as builtin type
+    )
+    target_link_options(common_no_ranges
+    INTERFACE
+        /NODEFAULTLIB:LIBCMT
     )
     target_link_libraries(common_no_ranges
     INTERFACE
@@ -79,7 +81,8 @@ if (WIN32)
         UxTheme
         DbgHelp
         Rstrtmgr
-      )
+        Crypt32
+    )
 else()
 endif()
 

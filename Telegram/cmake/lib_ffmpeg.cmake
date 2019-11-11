@@ -14,7 +14,17 @@ PUBLIC
     ${libs_loc}/ffmpeg
 )
 
+target_link_directories(lib_ffmpeg
+PUBLIC
+    ${libs_loc}/ffmpeg
+)
+
 target_link_libraries(lib_ffmpeg
 PUBLIC
     lib_base
+    ${libs_loc}/ffmpeg/libavformat/libavformat.a
+    ${libs_loc}/ffmpeg/libavcodec/libavcodec.a
+    ${libs_loc}/ffmpeg/libavutil/libavutil.a
+    ${libs_loc}/ffmpeg/libswresample/libswresample.a
+    ${libs_loc}/ffmpeg/libswscale/libswscale.a
 )

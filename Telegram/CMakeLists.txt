@@ -7,6 +7,7 @@ add_subdirectory(lib_base)
 add_subdirectory(lib_ui)
 add_subdirectory(lib_tl)
 add_subdirectory(lib_spellcheck)
+add_subdirectory(lib_storage)
 add_subdirectory(lib_lottie)
 add_subdirectory(lib_rlottie)
 add_subdirectory(codegen)
@@ -54,17 +55,33 @@ generate_styles(Telegram ${src_loc} "${style_files}" "${dependent_style_files}")
 generate_lang(Telegram ${res_loc}/langs/lang.strings)
 generate_numbers(Telegram ${res_loc}/numbers.txt)
 
+set_target_properties(Telegram PROPERTIES AUTOMOC ON)
+set_target_properties(Telegram PROPERTIES AUTORCC ON)
+set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+
 target_link_libraries(Telegram
 PRIVATE
     lib_base
+    lib_crl
     lib_ui
     lib_tl
     lib_spellcheck
+    lib_storage
     lib_lottie
+    lib_rlottie
+    lib_mtproto
     lib_scheme
     lib_export
     lib_ffmpeg
     lib_tgvoip
+    lib_lz4
+    external_qt
+    external_openssl
+    external_crash_reports
+    external_auto_updates
+    external_zlib
+    external_opus
+    external_openal
 )
 
 set(telegram_sources
@@ -904,35 +921,55 @@ PRIVATE
     qt_static_plugins.cpp
     settings.cpp
     settings.h
-
-# platforms: !win
-# <(minizip_loc)/crypt.h
-# <(minizip_loc)/ioapi.c
-# <(minizip_loc)/ioapi.h
-# <(minizip_loc)/zip.c
-# <(minizip_loc)/zip.h
-# <(minizip_loc)/unzip.c
-# <(minizip_loc)/unzip.h
-
-# platforms: win
-# <(res_loc)/winrc/Telegram.rc
-
-# platforms: mac
-# <(sp_media_key_tap_loc)/SPMediaKeyTap.m
-# <(sp_media_key_tap_loc)/SPMediaKeyTap.h
-# <(sp_media_key_tap_loc)/SPInvocationGrabbing/NSObject+SPInvocationGrabbing.m
-# <(sp_media_key_tap_loc)/SPInvocationGrabbing/NSObject+SPInvocationGrabbing.h
 )
 nice_target_sources(Telegram ${src_loc} "${telegram_sources}")
 
+set(telegram_resources
+PRIVATE
+    qrc/emoji_1.qrc
+    qrc/emoji_2.qrc
+    qrc/emoji_3.qrc
+    qrc/emoji_4.qrc
+    qrc/emoji_5.qrc
+    qrc/emoji_preview.qrc
+    qrc/telegram/telegram.qrc
+    qrc/telegram/sounds.qrc
+    winrc/Telegram.rc
+    winrc/Telegram.manifest
+)
+nice_target_sources(Telegram ${res_loc} "${telegram_resources}")
+
 force_include(Telegram stdafx.h)
+
+if (WIN32)
+    # message(${CMAKE_GENERATOR})
+    # mt.exe -manifest "${res_loc}/winrc/Telegram.manifest" "-inputresource:\"$<TARGET_FILE:Telegram>\";#1" "-outputresource:\"$<TARGET_FILE:Telegram>\";#1" >NUL
+    # set(hash_symbol "#")
+    # set(release $<CONFIG:Release>)
+    # add_custom_command(
+    # TARGET
+    #     Telegram
+    # POST_BUILD COMMAND
+    #     $<IF:${release},mt.exe,echo.> $<${release}:-manifest> $<${release}:"${res_loc}/winrc/Telegram.manifest"> $<${release}:-inputresource:"$<TARGET_FILE:Telegram>"$<SEMICOLON>${hash_symbol}1> $<${release}:-outputresource:"$<TARGET_FILE:Telegram>"$<SEMICOLON>${hash_symbol}1> $<${release}:$<ANGLE-R>NUL>
+    # COMMENT
+    #     $<IF:${release},"Appending compatibility manifest.","Finalizing build.">
+    # )
+else()
+    target_link_libraries(Telegram
+    PRIVATE
+        external_minizip
+    )
+    if (APPLE)
+        target_link_libraries(Telegram
+        PRIVATE
+            external_sp_media_key_tap
+        )
+    endif()
+endif()
 
 target_include_directories(Telegram
 PRIVATE
     ${src_loc}
-    ${libs_loc}/zlib
-    ${libs_loc}/lzma/C
-    ${libs_loc}/openal-soft/include
     ${third_party_loc}/minizip
 )
 

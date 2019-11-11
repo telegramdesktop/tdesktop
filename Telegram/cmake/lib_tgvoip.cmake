@@ -726,6 +726,11 @@ PRIVATE
     ${libs_loc}/opus/include
 )
 
+target_compile_options(lib_tgvoip
+PRIVATE
+    /wd4244 # conversion from 'int' to 'float', possible loss of data (several in webrtc)
+)
+
 target_link_libraries(lib_tgvoip
 PRIVATE
     external_openssl

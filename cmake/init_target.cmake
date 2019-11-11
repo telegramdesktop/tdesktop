@@ -8,6 +8,12 @@ function(init_target_no_ranges target_name) # init_target(my_target folder_name)
     init_target_folder(${target_name} "${ARGV1}")
     set_property(TARGET ${target_name} PROPERTY
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    if (WIN32)
+        target_compile_options(${target_name}
+        INTERFACE
+            /W1
+        )
+    endif()
     target_link_libraries(${target_name} PUBLIC common_no_ranges)
 endfunction()
 
