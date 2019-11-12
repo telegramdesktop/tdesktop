@@ -371,7 +371,8 @@ void Manager::Private::init(Manager *manager) {
 		LOG(("LibNotify capabilities: %1").arg(_capabilities.join(qstr(", "))));
 		if (_capabilities.contains(qsl("actions"))) {
 			_actionsSupported = true;
-		} else if (_capabilities.contains(qsl("body-markup"))) {
+		}
+		if (_capabilities.contains(qsl("body-markup"))) {
 			_markupSupported = true;
 		}
 	} else {
