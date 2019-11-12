@@ -49,6 +49,7 @@ addons:
       - libvdpau-dev
       - libxcb-xkb-dev
       - libxkbcommon-dev
+      - libatspi2.0-dev
       - lintian
       - quilt
       - valac

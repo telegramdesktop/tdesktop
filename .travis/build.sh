@@ -17,7 +17,7 @@ XKB_PATH="$BUILD/libxkbcommon"
 XKB_CACHE_VERSION="3"
 
 QT_PATH="$BUILD/qt"
-QT_CACHE_VERSION="4"
+QT_CACHE_VERSION="5"
 QT_PATCH="$EXTERNAL/patches/qtbase_${QT_VERSION//\./_}.diff"
 
 BREAKPAD_PATH="$BUILD/breakpad"
