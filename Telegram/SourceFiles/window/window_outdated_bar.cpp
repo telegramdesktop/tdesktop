@@ -162,7 +162,7 @@ object_ptr<Ui::RpWidget> CreateOutdatedBar(not_null<QWidget*> parent) {
 		Closed();
 	}, wrap->lifetime());
 
-	return std::move(result);
+	return result;
 }
 
 } // namespace Window

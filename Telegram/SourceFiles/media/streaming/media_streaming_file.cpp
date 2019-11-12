@@ -215,7 +215,7 @@ base::variant<FFmpeg::Packet, FFmpeg::AvErrorWrap> File::Context::readPacket() {
 	if (unroll()) {
 		return FFmpeg::AvErrorWrap();
 	} else if (!error) {
-		return std::move(result);
+		return result;
 	} else if (error.code() != AVERROR_EOF) {
 		logFatal(qstr("av_read_frame"), error);
 	}

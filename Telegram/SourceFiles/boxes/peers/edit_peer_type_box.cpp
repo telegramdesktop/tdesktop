@@ -364,7 +364,7 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 	const auto shown = (_controls.privacy->value() == Privacy::HasUsername);
 	result->toggle(shown, anim::type::instant);
 
-	return std::move(result);
+	return result;
 }
 
 void Controller::privacyChanged(Privacy value) {
@@ -630,7 +630,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 
 	observeInviteLink();
 
-	return std::move(result);
+	return result;
 }
 
 void Controller::refreshEditInviteLink() {
@@ -692,7 +692,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkCreate() {
 
 	observeInviteLink();
 
-	return std::move(result);
+	return result;
 }
 
 void Controller::refreshCreateInviteLink() {

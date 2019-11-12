@@ -478,7 +478,7 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 		[=] { submitTitle(); });
 
 	_controls.title = result->entity();
-	return std::move(result);
+	return result;
 }
 
 object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
@@ -512,7 +512,7 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 		[=] { submitDescription(); });
 
 	_controls.description = result->entity();
-	return std::move(result);
+	return result;
 }
 
 object_ptr<Ui::RpWidget> Controller::createManageGroupButtons() {
@@ -526,7 +526,7 @@ object_ptr<Ui::RpWidget> Controller::createManageGroupButtons() {
 
 	fillManageSection();
 
-	return std::move(result);
+	return result;
 }
 
 object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
@@ -564,7 +564,7 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 		Ui::show(Box<StickersBox>(channel), Ui::LayerOption::KeepOther);
 	});
 
-	return std::move(result);
+	return result;
 }
 
 bool Controller::canEditInformation() const {

@@ -67,7 +67,7 @@ object_ptr<Window::SectionWidget> ScheduledMemento::createWidget(
 	}
 	auto result = object_ptr<ScheduledWidget>(parent, controller, _history);
 	result->setInternalState(geometry, this);
-	return std::move(result);
+	return result;
 }
 
 ScheduledWidget::ScheduledWidget(
@@ -714,7 +714,7 @@ bool ScheduledWidget::returnTabbedSelector() {
 std::unique_ptr<Window::SectionMemento> ScheduledWidget::createMemento() {
 	auto result = std::make_unique<ScheduledMemento>(history());
 	saveState(result.get());
-	return std::move(result);
+	return result;
 }
 
 void ScheduledWidget::saveState(not_null<ScheduledMemento*> memento) {

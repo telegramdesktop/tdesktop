@@ -891,7 +891,7 @@ std::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
 		if (result.empty()) {
 			return std::nullopt;
 		}
-		return std::move(result);
+		return result;
 	}
 	return std::nullopt;
 }

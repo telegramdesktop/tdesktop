@@ -427,7 +427,7 @@ object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 	Expects(_footer == nullptr);
 	auto result = object_ptr<Footer>(this);
 	_footer = result;
-	return std::move(result);
+	return result;
 }
 
 template <typename Callback>

@@ -525,7 +525,7 @@ object_ptr<Ui::BoxContent> EditCloudPasswordBox(not_null<Main::Session*> session
 		session->api().clearUnconfirmedPassword();
 	}, box->lifetime());
 
-	return std::move(result);
+	return result;
 }
 
 void RemoveCloudPassword(not_null<::Main::Session*> session) {
@@ -565,7 +565,7 @@ object_ptr<Ui::BoxContent> CloudPasswordAppOutdatedBox() {
 		tr::lng_menu_update(tr::now),
 		callback);
 	*box = result.data();
-	return std::move(result);
+	return result;
 }
 
 void AddPrivacyButton(

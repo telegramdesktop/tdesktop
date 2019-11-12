@@ -1148,7 +1148,7 @@ object_ptr<Ui::BoxContent> ProxiesBoxController::create() {
 	for (const auto &item : _list) {
 		updateView(item);
 	}
-	return std::move(result);
+	return result;
 }
 
 auto ProxiesBoxController::findById(int id) -> std::vector<Item>::iterator {

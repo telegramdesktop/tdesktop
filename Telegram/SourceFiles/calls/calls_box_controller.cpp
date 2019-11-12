@@ -404,8 +404,7 @@ BoxController::Row *BoxController::rowForItem(not_null<const HistoryItem*> item)
 
 std::unique_ptr<PeerListRow> BoxController::createRow(
 		not_null<HistoryItem*> item) const {
-	auto row = std::make_unique<Row>(item);
-	return std::move(row);
+	return std::make_unique<Row>(item);
 }
 
 } // namespace Calls
