@@ -242,7 +242,9 @@ Message::Message(
 	not_null<HistoryMessage*> data,
 	Element *replacing)
 : Element(delegate, data, replacing)
-, _bottomInfo(BottomInfoDataFromMessage(this)) {
+, _bottomInfo(
+		BottomInfoDataFromMessage(this),
+		BottomInfoContextFromMessage(this)) {
 	initLogEntryOriginal();
 	initPsa();
 }
@@ -1260,17 +1262,18 @@ TextState Message::textState(
 			}
 		}
 
-		auto checkForPointInTime = [&] {
+		auto checkBottomInfoState = [&] {
 			if (mediaOnBottom && (entry || media->customInfoLayout())) {
 				return;
 			}
-			const auto inDate = pointInTime(
+			const auto bottomInfoResult = bottomInfoTextState(
 				bubble.left() + bubble.width(),
 				bubble.top() + bubble.height(),
 				point,
 				InfoDisplayType::Default);
-			if (inDate) {
-				result.cursor = CursorState::Date;
+			if (bottomInfoResult.link
+				|| bottomInfoResult.cursor != CursorState::None) {
+				result = bottomInfoResult;
 			}
 		};
 		if (inBubble) {
@@ -1283,19 +1286,19 @@ TextState Message::textState(
 					result = media->textState(point - QPoint(mediaLeft, mediaTop), request);
 					result.symbol += item->_text.length();
 				} else if (getStateText(point, trect, &result, request)) {
-					checkForPointInTime();
+					checkBottomInfoState();
 					return result;
 				} else if (point.y() >= trect.y() + trect.height()) {
 					result.symbol = item->_text.length();
 				}
 			} else if (getStateText(point, trect, &result, request)) {
-				checkForPointInTime();
+				checkBottomInfoState();
 				return result;
 			} else if (point.y() >= trect.y() + trect.height()) {
 				result.symbol = item->_text.length();
 			}
 		}
-		checkForPointInTime();
+		checkBottomInfoState();
 		if (const auto size = rightActionSize()) {
 			const auto fastShareSkip = std::clamp(
 				(g.height() - size->height()) / 2,
@@ -1770,7 +1773,7 @@ void Message::drawInfo(
 		context);
 }
 
-bool Message::pointInTime(
+TextState Message::bottomInfoTextState(
 		int right,
 		int bottom,
 		QPoint point,
@@ -1794,7 +1797,9 @@ bool Message::pointInTime(
 	const auto size = _bottomInfo.size();
 	const auto infoLeft = infoRight - size.width();
 	const auto infoTop = infoBottom - size.height();
-	return _bottomInfo.pointInTime({ infoLeft, infoTop });
+	return _bottomInfo.textState(
+		data(),
+		point - QPoint{ infoLeft, infoTop });
 }
 
 int Message::infoWidth() const {
@@ -1811,7 +1816,10 @@ bool Message::isSignedAuthorElided() const {
 
 void Message::itemDataChanged() {
 	const auto was = _bottomInfo.size();
-	_bottomInfo.update(BottomInfoDataFromMessage(this), width());
+	_bottomInfo.update(
+		BottomInfoDataFromMessage(this),
+		BottomInfoContextFromMessage(this),
+		width());
 	if (was != _bottomInfo.size()) {
 		history()->owner().requestViewResize(this);
 	} else {

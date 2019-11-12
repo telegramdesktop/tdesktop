@@ -367,8 +367,14 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 		const auto fullRight = calculateFullRight(inner);
 		const auto rightActionSize = _parent->rightActionSize();
 		auto fullBottom = height();
-		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayType::Background)) {
-			result.cursor = CursorState::Date;
+		const auto bottomInfoResult = _parent->bottomInfoTextState(
+			fullRight,
+			fullBottom,
+			point,
+			InfoDisplayType::Background);
+		if (bottomInfoResult.link
+			|| bottomInfoResult.cursor != CursorState::None) {
+			return bottomInfoResult;
 		}
 		if (rightActionSize) {
 			const auto position = calculateFastActionPosition(

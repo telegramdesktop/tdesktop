@@ -868,8 +868,16 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 			}
 		}
 		if (!inWebPage) {
-			if (_parent->pointInTime(fullRight, fullBottom, point, isRound ? InfoDisplayType::Background : InfoDisplayType::Image)) {
-				result.cursor = CursorState::Date;
+			const auto bottomInfoResult = _parent->bottomInfoTextState(
+				fullRight,
+				fullBottom,
+				point,
+				(isRound
+					? InfoDisplayType::Background
+					: InfoDisplayType::Image));
+			if (bottomInfoResult.link
+				|| bottomInfoResult.cursor != CursorState::None) {
+				return bottomInfoResult;
 			}
 		}
 		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {

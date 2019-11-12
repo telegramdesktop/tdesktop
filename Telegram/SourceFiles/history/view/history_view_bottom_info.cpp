@@ -14,20 +14,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_message.h"
 #include "history/view/history_view_message.h"
+#include "history/view/history_view_cursor_state.h"
 #include "data/data_message_reactions.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 
 namespace HistoryView {
 
-BottomInfo::BottomInfo(Data &&data)
+BottomInfo::BottomInfo(Data &&data, Context &&context)
 : _data(std::move(data))
+, _context(std::move(context))
 , _reactions(st::msgMinWidth / 2) {
 	layout();
 }
 
-void BottomInfo::update(Data &&data, int availableWidth) {
+void BottomInfo::update(Data &&data, Context &&context, int availableWidth) {
 	_data = std::move(data);
+	_context = std::move(context);
 	layout();
 	if (!_size.isEmpty()) {
 		resizeToWidth(std::min(optimalSize().width(), availableWidth));
@@ -53,13 +56,38 @@ int BottomInfo::firstLineWidth() const {
 	return noReactionsWidth;
 }
 
-bool BottomInfo::pointInTime(QPoint position) const {
-	return QRect(
+TextState BottomInfo::textState(
+		not_null<const HistoryItem*> item,
+		QPoint position) const {
+	auto result = TextState(item);
+	if (!_reactions.isEmpty()) {
+		const auto reactionsPosition = [&] {
+			if (_size.height() == _optimalSize.height()) {
+				return QPoint(0, 0);
+			}
+			const auto available = _size.width();
+			const auto use = std::min(available, _reactions.maxWidth());
+			return QPoint(_size.width() - use, st::msgDateFont->height);
+		}();
+		const auto state = _reactions.getStateLeft(
+			position - reactionsPosition,
+			std::min(_size.width(), _reactions.maxWidth()),
+			_size.width());
+		if (state.uponSymbol) {
+			result.link = _context.reactions;
+			return result;
+		}
+	}
+	const auto inTime = QRect(
 		_size.width() - _dateWidth,
 		0,
 		_dateWidth,
 		st::msgDateFont->height
 	).contains(position);
+	if (inTime) {
+		result.cursor = CursorState::Date;
+	}
+	return result;
 }
 
 bool BottomInfo::isSignedAuthorElided() const {
@@ -333,6 +361,15 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	//if (item->unread()) {
 	//	result.flags |= Flag::Unread;
 	//}
+	return result;
+}
+
+BottomInfo::Context BottomInfoContextFromMessage(
+		not_null<Message*> message) {
+	auto result = BottomInfo::Context();
+	result.reactions = std::make_shared<LambdaClickHandler>([=] {
+		message->delegate()->elementShowReactions(message);
+	});
 	return result;
 }
 

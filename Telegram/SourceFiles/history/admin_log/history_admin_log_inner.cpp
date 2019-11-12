@@ -669,6 +669,9 @@ void InnerWidget::elementReplyTo(const FullMsgId &to) {
 void InnerWidget::elementStartInteraction(not_null<const Element*> view) {
 }
 
+void InnerWidget::elementShowReactions(not_null<const Element*> view) {
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));

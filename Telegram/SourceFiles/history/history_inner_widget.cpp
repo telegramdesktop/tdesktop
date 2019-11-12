@@ -15,13 +15,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_web_page.h"
-#include "history/history_item_components.h"
-#include "history/history_item_text.h"
+#include "history/view/reactions/message_reactions_list.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_emoji_interactions.h"
+#include "history/history_item_components.h"
+#include "history/history_item_text.h"
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
@@ -37,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/inactive_press.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "window/window_peer_menu.h"
 #include "window/window_controller.h"
 #include "window/notifications_manager.h"
@@ -2867,6 +2869,12 @@ void HistoryInner::elementStartInteraction(not_null<const Element*> view) {
 	_controller->emojiInteractions().startOutgoing(view);
 }
 
+void HistoryInner::elementShowReactions(not_null<const Element*> view) {
+	_controller->window().show(HistoryView::ReactionsListBox(
+		_controller,
+		view->data()));
+}
+
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
@@ -3776,6 +3784,12 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 				Instance->elementStartInteraction(view);
 			}
 		}
+		void elementShowReactions(not_null<const Element*> view) override {
+			if (Instance) {
+				Instance->elementShowReactions(view);
+			}
+		}
+		
 	};
 
 	static Result result;

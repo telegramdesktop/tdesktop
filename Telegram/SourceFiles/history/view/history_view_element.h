@@ -91,6 +91,7 @@ public:
 	virtual not_null<Ui::PathShiftGradient*> elementPathShiftGradient() = 0;
 	virtual void elementReplyTo(const FullMsgId &to) = 0;
 	virtual void elementStartInteraction(not_null<const Element*> view) = 0;
+	virtual void elementShowReactions(not_null<const Element*> view) = 0;
 
 	virtual ~ElementDelegate() {
 	}
@@ -148,6 +149,7 @@ public:
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	void elementReplyTo(const FullMsgId &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
+	void elementShowReactions(not_null<const Element*> view) override;
 
 protected:
 	[[nodiscard]] not_null<Window::SessionController*> controller() const {
@@ -298,7 +300,7 @@ public:
 		int bottom,
 		int width,
 		InfoDisplayType type) const;
-	virtual bool pointInTime(
+	virtual TextState bottomInfoTextState(
 		int right,
 		int bottom,
 		QPoint point,

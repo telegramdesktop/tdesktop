@@ -97,8 +97,13 @@ void PeerListBox::createMultiSelect() {
 	_select->moveToLeft(0, 0);
 }
 
+void PeerListBox::setAddedTopScrollSkip(int skip) {
+	_addedTopScrollSkip = skip;
+	updateScrollSkips();
+}
+
 int PeerListBox::getTopScrollSkip() const {
-	auto result = 0;
+	auto result = _addedTopScrollSkip;
 	if (_select && !_select->isHidden()) {
 		result += _select->height();
 	}
@@ -109,7 +114,7 @@ void PeerListBox::updateScrollSkips() {
 	// If we show / hide the search field scroll top is fixed.
 	// If we resize search field by bubbles scroll bottom is fixed.
 	setInnerTopSkip(getTopScrollSkip(), _scrollBottomFixed);
-	if (!_select->animating()) {
+	if (_select && !_select->animating()) {
 		_scrollBottomFixed = true;
 	}
 }
@@ -186,8 +191,15 @@ void PeerListBox::paintEvent(QPaintEvent *e) {
 	const auto &bg = (_controller->listSt()
 		? *_controller->listSt()
 		: st::peerListBox).bg;
+	const auto fill = QRect(
+		0,
+		_addedTopScrollSkip,
+		width(),
+		height() - _addedTopScrollSkip);
 	for (const auto &rect : e->region()) {
-		p.fillRect(rect, bg);
+		if (const auto part = rect.intersected(fill); !part.isEmpty()) {
+			p.fillRect(part, bg);
+		}
 	}
 }
 

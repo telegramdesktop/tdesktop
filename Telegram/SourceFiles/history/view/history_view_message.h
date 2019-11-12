@@ -72,7 +72,7 @@ public:
 		int bottom,
 		int width,
 		InfoDisplayType type) const override;
-	bool pointInTime(
+	TextState bottomInfoTextState(
 		int right,
 		int bottom,
 		QPoint point,

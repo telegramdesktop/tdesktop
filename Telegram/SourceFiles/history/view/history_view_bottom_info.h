@@ -19,6 +19,7 @@ namespace HistoryView {
 using PaintContext = Ui::ChatPaintContext;
 
 class Message;
+struct TextState;
 
 class BottomInfo {
 public:
@@ -40,14 +41,19 @@ public:
 		std::optional<int> replies;
 		Flags flags;
 	};
-	explicit BottomInfo(Data &&data);
+	struct Context {
+		ClickHandlerPtr reactions;
+	};
+	BottomInfo(Data &&data, Context &&context);
 
-	void update(Data &&data, int availableWidth);
+	void update(Data &&data, Context &&context, int availableWidth);
 
 	[[nodiscard]] QSize optimalSize() const;
 	[[nodiscard]] QSize size() const;
 	[[nodiscard]] int firstLineWidth() const;
-	[[nodiscard]] bool pointInTime(QPoint position) const;
+	[[nodiscard]] TextState textState(
+		not_null<const HistoryItem*> item,
+		QPoint position) const;
 	[[nodiscard]] bool isSignedAuthorElided() const;
 
 	void paint(
@@ -69,6 +75,7 @@ private:
 	void countOptimalSize();
 
 	Data _data;
+	Context _context;
 	QSize _optimalSize;
 	QSize _size;
 	Ui::Text::String _authorEditedDate;
@@ -81,6 +88,9 @@ private:
 };
 
 [[nodiscard]] BottomInfo::Data BottomInfoDataFromMessage(
+	not_null<Message*> message);
+
+[[nodiscard]] BottomInfo::Context BottomInfoContextFromMessage(
 	not_null<Message*> message);
 
 } // namespace HistoryView

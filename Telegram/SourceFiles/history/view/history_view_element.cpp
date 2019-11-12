@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_large_emoji.h"
+#include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
 #include "base/unixtime.h"
 #include "core/application.h"
@@ -179,8 +180,11 @@ auto SimpleElementDelegate::elementPathShiftGradient()
 void SimpleElementDelegate::elementReplyTo(const FullMsgId &to) {
 }
 
-
 void SimpleElementDelegate::elementStartInteraction(
+	not_null<const Element*> view) {
+}
+
+void SimpleElementDelegate::elementShowReactions(
 	not_null<const Element*> view) {
 }
 
@@ -956,12 +960,12 @@ void Element::drawInfo(
 	InfoDisplayType type) const {
 }
 
-bool Element::pointInTime(
+TextState Element::bottomInfoTextState(
 		int right,
 		int bottom,
 		QPoint point,
 		InfoDisplayType type) const {
-	return false;
+	return TextState();
 }
 
 TextSelection Element::adjustSelection(

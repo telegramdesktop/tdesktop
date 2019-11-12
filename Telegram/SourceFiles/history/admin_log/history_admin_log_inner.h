@@ -139,6 +139,8 @@ public:
 	void elementReplyTo(const FullMsgId &to) override;
 	void elementStartInteraction(
 		not_null<const HistoryView::Element*> view) override;
+	void elementShowReactions(
+		not_null<const HistoryView::Element*> view) override;
 
 	~InnerWidget();
 
