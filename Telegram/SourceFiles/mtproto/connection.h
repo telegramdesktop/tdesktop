@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/auth_key.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/connection_abstract.h"
+#include "mtproto/facade.h"
 #include "base/openssl_help.h"
 #include "base/timer.h"
 

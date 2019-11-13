@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/mtp_instance.h"
 #include "mtproto/rpc_sender.h"
+#include "mtproto/facade.h"
 
 namespace MTP {
 

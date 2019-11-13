@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/connection_resolving.h"
 
+#include "mtproto/mtp_instance.h"
+
 namespace MTP {
 namespace internal {
 namespace {

@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ApiWrap;
 
+namespace MTP {
+class Instance;
+} // namespace MTP
+
 namespace Support {
 class Helper;
 class Templates;

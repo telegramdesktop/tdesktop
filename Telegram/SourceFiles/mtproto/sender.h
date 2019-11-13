@@ -8,6 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/variant.h"
+#include "mtproto/rpc_sender.h"
+#include "mtproto/mtp_instance.h"
+#include "mtproto/facade.h"
 
 namespace MTP {
 

@@ -1187,7 +1187,7 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 	if (_testConnections.empty()) {
 		if (_instance->isKeysDestroyer()) {
 			LOG(("MTP Error: DC %1 options for not found for auth key destruction!").arg(_shiftedDcId));
-			emit _instance->keyDestroyed(_shiftedDcId);
+			_instance->checkIfKeyWasDestroyed(_shiftedDcId);
 			return;
 		} else if (afterConfig) {
 			LOG(("MTP Error: DC %1 options for not found right after config load!").arg(_shiftedDcId));
@@ -2606,7 +2606,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 	} else if (_instance->isKeysDestroyer()) {
 		// We are here to destroy an old key, so we're done.
 		LOG(("MTP Error: No key %1 in updateAuthKey() for destroying.").arg(_shiftedDcId));
-		emit _instance->keyDestroyed(_shiftedDcId);
+		_instance->checkIfKeyWasDestroyed(_shiftedDcId);
 		return;
 	}
 
@@ -3104,15 +3104,17 @@ void ConnectionPrivate::handleError(int errorCode) {
 	_waitForConnectedTimer.cancel();
 
 	if (errorCode == -404) {
-		if (_instance->isKeysDestroyer()) {
-			LOG(("MTP Info: -404 error received on destroying key %1, assuming it is destroyed.").arg(_shiftedDcId));
-			emit _instance->keyDestroyed(_shiftedDcId);
-			return;
-		} else if (_dcType == DcType::Cdn) {
+		if (_dcType == DcType::Cdn) {
 			LOG(("MTP Info: -404 error received in CDN dc %1, assuming it was destroyed, recreating.").arg(_shiftedDcId));
 			clearMessages();
 			keyId = kRecreateKeyId;
 			return restart();
+		} else {
+			LOG(("MTP Info: -404 error received, informing instance."));
+			_instance->checkIfKeyWasDestroyed(_shiftedDcId);
+			if (_instance->isKeysDestroyer()) {
+				return;
+			}
 		}
 	}
 	MTP_LOG(_shiftedDcId, ("Restarting after error in connection, error code: %1...").arg(errorCode));

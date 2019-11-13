@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace MTP {
+#include "mtproto/mtp_instance.h"
 
-class Instance;
+namespace MTP {
 
 class WeakInstance : private QObject, private base::Subscriber {
 public:

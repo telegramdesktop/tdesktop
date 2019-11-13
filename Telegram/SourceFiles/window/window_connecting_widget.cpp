@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/ui_utility.h"
+#include "mtproto/facade.h"
 #include "window/themes/window_theme.h"
 #include "boxes/connection_box.h"
 #include "boxes/abstract_box.h"

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/binary_guard.h"
 #include "data/data_file_origin.h"
+#include "mtproto/facade.h"
 
 #include <QtNetwork/QNetworkReply>
 

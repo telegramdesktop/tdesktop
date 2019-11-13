@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/config_loader.h"
 
+#include "mtproto/facade.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/mtp_instance.h"
 #include "mtproto/special_config_request.h"

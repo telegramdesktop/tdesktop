@@ -17,8 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/rsa_public_key.h"
 #include "storage/localstorage.h"
 #include "calls/calls_instance.h"
-#include "main/main_account.h"
-#include "main/main_session.h"
+#include "main/main_session.h" // Session::Exists.
+#include "main/main_account.h" // Account::configUpdated.
 #include "apiwrap.h"
 #include "core/application.h"
 #include "lang/lang_instance.h"
@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
 #include "base/timer.h"
-#include "facades.h"
+#include "facades.h" // Proxies list.
 
 namespace MTP {
 namespace {
@@ -245,10 +245,6 @@ Instance::Private::Private(
 void Instance::Private::start(Config &&config) {
 	_deviceModel = std::move(config.deviceModel);
 	_systemVersion = std::move(config.systemVersion);
-
-	if (isKeysDestroyer()) {
-		_instance->connect(_instance, SIGNAL(keyDestroyed(qint32)), _instance, SLOT(onKeyDestroyed(qint32)), Qt::QueuedConnection);
-	}
 
 	for (auto &key : config.keys) {
 		auto dcId = key->dcId();
@@ -1487,10 +1483,10 @@ void Instance::Private::performKeyDestroy(ShiftedDcId shiftedDcId) {
 		} break;
 		case mtpc_destroy_auth_key_none: LOG(("MTP Info: key %1 already destroyed.").arg(shiftedDcId)); break;
 		}
-		emit _instance->keyDestroyed(shiftedDcId);
+		_instance->checkIfKeyWasDestroyed(shiftedDcId);
 	}), rpcFail([this, shiftedDcId](const RPCError &error) {
 		LOG(("MTP Error: key %1 destruction resulted in error: %2").arg(shiftedDcId).arg(error.type()));
-		emit _instance->keyDestroyed(shiftedDcId);
+		_instance->checkIfKeyWasDestroyed(shiftedDcId);
 		return true;
 	}), shiftedDcId);
 }
@@ -1749,9 +1745,16 @@ void Instance::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
 	_private->scheduleKeyDestroy(shiftedDcId);
 }
 
-void Instance::onKeyDestroyed(qint32 shiftedDcId) {
-	_private->completedKeyDestroy(shiftedDcId);
+void Instance::checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId) {
+	crl::on_main(this, [=] {
+		if (isKeysDestroyer()) {
+			LOG(("MTP Info: checkIfKeyWasDestroyed on destroying key %1, "
+				"assuming it is destroyed.").arg(shiftedDcId));
+			_private->completedKeyDestroy(shiftedDcId);
+		}
+	});
 }
+
 void Instance::sendRequest(
 		mtpRequestId requestId,
 		SecureRequest &&request,

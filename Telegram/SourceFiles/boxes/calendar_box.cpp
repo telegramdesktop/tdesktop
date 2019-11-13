@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/calendar_box.h"
 
+#include "mtproto/rpc_sender.h"
 #include "ui/widgets/buttons.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"

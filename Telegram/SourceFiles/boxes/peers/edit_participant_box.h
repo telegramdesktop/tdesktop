@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/unique_qptr.h"
 
+class RPCError;
+
 namespace Ui {
 class FlatLabel;
 class LinkButton;

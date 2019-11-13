@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/bytes.h"
 #include <array>
 #include <memory>
-#include "base/bytes.h"
 
 namespace MTP {
 
@@ -24,65 +24,29 @@ public:
 		ReadFromFile,
 		Local,
 	};
-	AuthKey(Type type, DcId dcId, const Data &data) : _type(type), _dcId(dcId), _key(data) {
-		countKeyId();
-	}
-	AuthKey(const Data &data) : _type(Type::Local), _key(data) {
-		countKeyId();
-	}
+	AuthKey(Type type, DcId dcId, const Data &data);
+	explicit AuthKey(const Data &data);
 
 	AuthKey(const AuthKey &other) = delete;
 	AuthKey &operator=(const AuthKey &other) = delete;
 
-	Type type() const {
-		return _type;
-	}
-
-	int dcId() const {
-		return _dcId;
-	}
-
-	KeyId keyId() const {
-		return _keyId;
-	}
+	Type type() const;
+	int dcId() const;
+	KeyId keyId() const;
 
 	void prepareAES_oldmtp(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send) const;
 	void prepareAES(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send) const;
 
-	const void *partForMsgKey(bool send) const {
-		return _key.data() + 88 + (send ? 0 : 8);
-	}
+	const void *partForMsgKey(bool send) const;
 
-	void write(QDataStream &to) const {
-		to.writeRawData(reinterpret_cast<const char*>(_key.data()), _key.size());
-	}
-	bytes::const_span data() const {
-		return _key;
-	}
+	void write(QDataStream &to) const;
+	bytes::const_span data() const;
+	bool equals(const std::shared_ptr<AuthKey> &other) const;
 
-	bool equals(const std::shared_ptr<AuthKey> &other) const {
-		return other ? (_key == other->_key) : false;
-	}
-
-	static void FillData(Data &authKey, bytes::const_span computedAuthKey) {
-		auto computedAuthKeySize = computedAuthKey.size();
-		Assert(computedAuthKeySize <= kSize);
-		auto authKeyBytes = gsl::make_span(authKey);
-		if (computedAuthKeySize < kSize) {
-			bytes::set_with_const(authKeyBytes.subspan(0, kSize - computedAuthKeySize), gsl::byte());
-			bytes::copy(authKeyBytes.subspan(kSize - computedAuthKeySize), computedAuthKey);
-		} else {
-			bytes::copy(authKeyBytes, computedAuthKey);
-		}
-	}
+	static void FillData(Data &authKey, bytes::const_span computedAuthKey);
 
 private:
-	void countKeyId() {
-		auto sha1 = hashSha1(_key.data(), _key.size());
-
-		// Lower 64 bits = 8 bytes of 20 byte SHA1 hash.
-		_keyId = *reinterpret_cast<KeyId*>(sha1.data() + 12);
-	}
+	void countKeyId();
 
 	Type _type = Type::Generated;
 	DcId _dcId = 0;

@@ -173,6 +173,7 @@ public:
 
 	bool isKeysDestroyer() const;
 	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
+	void checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId);
 
 	void requestConfig();
 	void requestConfigIfOld();
@@ -190,15 +191,11 @@ public slots:
 signals:
 	void configLoaded();
 	void cdnConfigLoaded();
-	void keyDestroyed(qint32 shiftedDcId);
 	void allKeysDestroyed();
 	void proxyDomainResolved(
 		QString host,
 		QStringList ips,
 		qint64 expireAt);
-
-private slots:
-	void onKeyDestroyed(qint32 shiftedDcId);
 
 private:
 	void sendRequest(

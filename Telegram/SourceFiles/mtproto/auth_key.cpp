@@ -14,6 +14,29 @@ extern "C" {
 
 namespace MTP {
 
+AuthKey::AuthKey(Type type, DcId dcId, const Data &data)
+: _type(type)
+, _dcId(dcId)
+, _key(data) {
+	countKeyId();
+}
+
+AuthKey::AuthKey(const Data &data) : _type(Type::Local), _key(data) {
+	countKeyId();
+}
+
+AuthKey::Type AuthKey::type() const {
+	return _type;
+}
+
+int AuthKey::dcId() const {
+	return _dcId;
+}
+
+AuthKey::KeyId AuthKey::keyId() const {
+	return _keyId;
+}
+
 void AuthKey::prepareAES_oldmtp(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send) const {
 	uint32 x = send ? 0 : 8;
 
@@ -70,6 +93,41 @@ void AuthKey::prepareAES(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &
 	memcpy(iv, sha256_b, 8);
 	memcpy(iv + 8, sha256_a + 8, 16);
 	memcpy(iv + 8 + 16, sha256_b + 24, 8);
+}
+
+const void *AuthKey::partForMsgKey(bool send) const {
+	return _key.data() + 88 + (send ? 0 : 8);
+}
+
+void AuthKey::write(QDataStream &to) const {
+	to.writeRawData(reinterpret_cast<const char*>(_key.data()), _key.size());
+}
+
+bytes::const_span AuthKey::data() const {
+	return _key;
+}
+
+bool AuthKey::equals(const std::shared_ptr<AuthKey> &other) const {
+	return other ? (_key == other->_key) : false;
+}
+
+void AuthKey::FillData(Data &authKey, bytes::const_span computedAuthKey) {
+	auto computedAuthKeySize = computedAuthKey.size();
+	Assert(computedAuthKeySize <= kSize);
+	auto authKeyBytes = gsl::make_span(authKey);
+	if (computedAuthKeySize < kSize) {
+		bytes::set_with_const(authKeyBytes.subspan(0, kSize - computedAuthKeySize), gsl::byte());
+		bytes::copy(authKeyBytes.subspan(kSize - computedAuthKeySize), computedAuthKey);
+	} else {
+		bytes::copy(authKeyBytes, computedAuthKey);
+	}
+}
+
+void AuthKey::countKeyId() {
+	auto sha1 = hashSha1(_key.data(), _key.size());
+
+	// Lower 64 bits = 8 bytes of 20 byte SHA1 hash.
+	_keyId = *reinterpret_cast<KeyId*>(sha1.data() + 12);
 }
 
 void aesIgeEncryptRaw(const void *src, void *dst, uint32 len, const void *key, const void *iv) {

@@ -11,6 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 
 namespace MTP {
+
+class Instance;
+
 namespace internal {
 
 struct ConnectionOptions;

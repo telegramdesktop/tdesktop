@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/dc_options.h"
 
+#include "mtproto/facade.h"
 #include "storage/serialize_common.h"
 #include "mtproto/connection_tcp.h"
 
