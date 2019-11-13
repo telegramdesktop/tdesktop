@@ -68,6 +68,7 @@ parts:
     build-packages:
       - libappindicator-dev
       - libappindicator3-dev
+      - libenchant-dev
       - libexif-dev
       - libicu-dev
       - liblzma-dev
