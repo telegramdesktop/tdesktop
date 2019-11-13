@@ -32,6 +32,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 #include "styles/style_settings.h"
 
+#ifndef TDESKTOP_DISABLE_SPELLCHECK
+#include "spellcheck/platform/platform_spellcheck.h"
+#endif // !TDESKTOP_DISABLE_SPELLCHECK
+
 namespace Settings {
 
 bool HasConnectionType() {
@@ -246,9 +250,9 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 bool HasSystemSpellchecker() {
 #ifdef TDESKTOP_DISABLE_SPELLCHECK
 	return false;
+#else
+	return Platform::Spellchecker::IsAvailable();
 #endif // TDESKTOP_DISABLE_SPELLCHECK
-	return (Platform::IsWindows() && Platform::IsWindows8OrGreater())
-		|| Platform::IsMac();
 }
 
 void SetupSpellchecker(
