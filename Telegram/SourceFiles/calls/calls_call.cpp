@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/rate_call_box.h"
 #include "calls/calls_instance.h"
 #include "base/openssl_help.h"
-#include "mtproto/connection.h"
+#include "mtproto/mtproto_dh_utils.h"
 #include "media/audio/media_audio_track.h"
 #include "base/platform/base_platform_info.h"
 #include "calls/calls_panel.h"
@@ -623,10 +623,10 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	_controller->SetEncryptionKey(reinterpret_cast<char*>(_authKey.data()), (_type == Type::Outgoing));
 	_controller->SetCallbacks(callbacks);
 	if (Global::UseProxyForCalls()
-		&& (Global::ProxySettings() == ProxyData::Settings::Enabled)) {
+		&& (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled)) {
 		const auto &proxy = Global::SelectedProxy();
 		if (proxy.supportsCalls()) {
-			Assert(proxy.type == ProxyData::Type::Socks5);
+			Assert(proxy.type == MTP::ProxyData::Type::Socks5);
 			_controller->SetProxy(
 				tgvoip::PROXY_SOCKS5,
 				proxy.host.toStdString(),

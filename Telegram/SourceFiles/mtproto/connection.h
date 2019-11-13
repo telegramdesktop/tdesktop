@@ -15,30 +15,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 namespace MTP {
+namespace details {
+class DcKeyCreator;
+} // namespace details
 
 // How much time to wait for some more requests, when sending msg acks.
 constexpr auto kAckSendWaiting = crl::time(10000);
 
 class Instance;
-
-[[nodiscard]] bool IsPrimeAndGood(bytes::const_span primeBytes, int g);
-struct ModExpFirst {
-	static constexpr auto kRandomPowerSize = 256;
-
-	bytes::vector modexp;
-	bytes::vector randomPower;
-};
-[[nodiscard]] bool IsGoodModExpFirst(
-	const openssl::BigNum &modexp,
-	const openssl::BigNum &prime);
-[[nodiscard]] ModExpFirst CreateModExp(
-	int g,
-	bytes::const_span primeBytes,
-	bytes::const_span randomSeed);
-[[nodiscard]] bytes::vector CreateAuthKey(
-	bytes::const_span firstBytes,
-	bytes::const_span randomBytes,
-	bytes::const_span primeBytes);
 
 namespace internal {
 
@@ -139,11 +123,6 @@ public slots:
 
 	void onReadyData();
 
-	// Auth key creation packet receive slots
-	void pqAnswered();
-	void dhParamsAnswered();
-	void dhClientParamsAnswered();
-
 	// General packet receive slot, connected to conn->receivedData signal
 	void handleReceived();
 
@@ -214,8 +193,6 @@ private:
 
 	bool setState(int32 state, int32 ifState = Connection::UpdateAlways);
 
-	bytes::vector encryptPQInnerRSA(const MTPP_Q_inner_data &data, const internal::RSAPublicKey &key);
-	std::string encryptClientDHInner(const MTPClient_DH_Inner_Data &data);
 	void appendTestConnection(
 		DcOptions::Variants::Protocol protocol,
 		const QString &ip,
@@ -231,11 +208,11 @@ private:
 	void resend(quint64 msgId, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
 	void resendMany(QVector<quint64> msgIds, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
 
-	template <typename Request>
-	void sendNotSecureRequest(const Request &request);
-
-	template <typename Response>
-	[[nodiscard]] bool readNotSecureResponse(Response &response);
+	void createDcKey();
+	void resetSession();
+	void lockKey();
+	void unlockKey();
+	void authKeyCreated();
 
 	not_null<Instance*> _instance;
 	DcType _dcType = DcType::Regular;
@@ -244,7 +221,6 @@ private:
 	int32 _state = DisconnectedState;
 
 	bool _needSessionReset = false;
-	void resetSession();
 
 	ShiftedDcId _shiftedDcId = 0;
 	not_null<Connection*> _owner;
@@ -283,40 +259,8 @@ private:
 	std::unique_ptr<ConnectionOptions> _connectionOptions;
 
 	bool myKeyLock = false;
-	void lockKey();
-	void unlockKey();
 
-	// Auth key creation fields and methods
-	struct AuthKeyCreateData {
-		AuthKeyCreateData()
-		: new_nonce(*(MTPint256*)((uchar*)new_nonce_buf))
-		, auth_key_aux_hash(*(MTPlong*)((uchar*)new_nonce_buf + 33)) {
-		}
-		MTPint128 nonce, server_nonce;
-		uchar new_nonce_buf[41] = { 0 }; // 32 bytes new_nonce + 1 check byte + 8 bytes of auth_key_aux_hash
-		MTPint256 &new_nonce;
-		MTPlong &auth_key_aux_hash;
-
-		uint32 retries = 0;
-		MTPlong retry_id;
-
-		int32 g = 0;
-
-		uchar aesKey[32] = { 0 };
-		uchar aesIV[32] = { 0 };
-		MTPlong auth_key_hash;
-	};
-	struct AuthKeyCreateStrings {
-		bytes::vector dh_prime;
-		bytes::vector g_a;
-		AuthKey::Data auth_key = { { gsl::byte{} } };
-	};
-	std::unique_ptr<AuthKeyCreateData> _authKeyData;
-	std::unique_ptr<AuthKeyCreateStrings> _authKeyStrings;
-
-	void dhClientParamsSend();
-	void authKeyCreated();
-	void clearAuthKeyData();
+	std::unique_ptr<details::DcKeyCreator> _keyCreator;
 
 };
 

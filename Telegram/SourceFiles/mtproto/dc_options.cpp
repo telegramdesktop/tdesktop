@@ -105,8 +105,8 @@ void DcOptions::readBuiltInPublicKeys() {
 	for (const auto key : PublicRSAKeys) {
 		const auto keyBytes = bytes::make_span(key, strlen(key));
 		auto parsed = internal::RSAPublicKey(keyBytes);
-		if (parsed.isValid()) {
-			_publicKeys.emplace(parsed.getFingerPrint(), std::move(parsed));
+		if (parsed.valid()) {
+			_publicKeys.emplace(parsed.fingerprint(), std::move(parsed));
 		} else {
 			LOG(("MTP Error: could not read this public RSA key:"));
 			LOG((key));
@@ -505,8 +505,8 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 			}
 
 			auto key = internal::RSAPublicKey(n, e);
-			if (key.isValid()) {
-				_cdnPublicKeys[dcId].emplace(key.getFingerPrint(), std::move(key));
+			if (key.valid()) {
+				_cdnPublicKeys[dcId].emplace(key.fingerprint(), std::move(key));
 			} else {
 				LOG(("MTP Error: Could not read valid CDN public key."));
 			}
@@ -554,9 +554,9 @@ void DcOptions::setCDNConfig(const MTPDcdnConfig &config) {
 		const auto &keyData = publicKey.c_cdnPublicKey();
 		const auto keyBytes = bytes::make_span(keyData.vpublic_key().v);
 		auto key = internal::RSAPublicKey(keyBytes);
-		if (key.isValid()) {
+		if (key.valid()) {
 			_cdnPublicKeys[keyData.vdc_id().v].emplace(
-				key.getFingerPrint(),
+				key.fingerprint(),
 				std::move(key));
 		} else {
 			LOG(("MTP Error: could not read this public RSA key:"));
@@ -570,20 +570,22 @@ bool DcOptions::hasCDNKeysForDc(DcId dcId) const {
 	return _cdnPublicKeys.find(dcId) != _cdnPublicKeys.cend();
 }
 
-bool DcOptions::getDcRSAKey(DcId dcId, const QVector<MTPlong> &fingerprints, internal::RSAPublicKey *result) const {
-	auto findKey = [&fingerprints, &result](const std::map<uint64, internal::RSAPublicKey> &keys) {
-		for_const (auto &fingerprint, fingerprints) {
-			auto it = keys.find(static_cast<uint64>(fingerprint.v));
+internal::RSAPublicKey DcOptions::getDcRSAKey(
+		DcId dcId,
+		const QVector<MTPlong> &fingerprints) const {
+	const auto findKey = [&](
+			const std::map<uint64, internal::RSAPublicKey> &keys) {
+		for (const auto &fingerprint : fingerprints) {
+			const auto it = keys.find(static_cast<uint64>(fingerprint.v));
 			if (it != keys.cend()) {
-				*result = it->second;
-				return true;
+				return it->second;
 			}
 		}
-		return false;
+		return internal::RSAPublicKey();
 	};
 	{
 		ReadLocker lock(this);
-		auto it = _cdnPublicKeys.find(dcId);
+		const auto it = _cdnPublicKeys.find(dcId);
 		if (it != _cdnPublicKeys.cend()) {
 			return findKey(it->second);
 		}

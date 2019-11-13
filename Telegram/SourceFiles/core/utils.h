@@ -218,50 +218,6 @@ enum DBIWorkMode {
 	dbiwmWindowOnly = 2,
 };
 
-struct ProxyData {
-	enum class Settings {
-		System,
-		Enabled,
-		Disabled,
-	};
-	enum class Type {
-		None,
-		Socks5,
-		Http,
-		Mtproto,
-	};
-	enum class Status {
-		Valid,
-		Unsupported,
-		Invalid,
-	};
-
-	Type type = Type::None;
-	QString host;
-	uint32 port = 0;
-	QString user, password;
-
-	std::vector<QString> resolvedIPs;
-	crl::time resolvedExpireAt = 0;
-
-	[[nodiscard]] bool valid() const;
-	[[nodiscard]] Status status() const;
-	[[nodiscard]] bool supportsCalls() const;
-	[[nodiscard]] bool tryCustomResolve() const;
-	[[nodiscard]] bytes::vector secretFromMtprotoPassword() const;
-	[[nodiscard]] explicit operator bool() const;
-	[[nodiscard]] bool operator==(const ProxyData &other) const;
-	[[nodiscard]] bool operator!=(const ProxyData &other) const;
-
-	[[nodiscard]] static bool ValidMtprotoPassword(const QString &password);
-	[[nodiscard]] static Status MtprotoPasswordStatus(
-		const QString &password);
-
-};
-
-ProxyData ToDirectIpProxy(const ProxyData &proxy, int ipIndex = 0);
-QNetworkProxy ToNetworkProxy(const ProxyData &proxy);
-
 static const int MatrixRowShift = 40000;
 
 inline int rowscount(int fullCount, int countPerRow) {

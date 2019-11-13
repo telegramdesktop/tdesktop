@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "mtproto/rpc_sender.h"
+#include "mtproto/mtproto_proxy_data.h"
 
 #include <QtCore/QTimer>
 

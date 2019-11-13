@@ -10,9 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/observer.h"
 #include "base/bytes.h"
 #include "mtproto/rsa_public_key.h"
+
+#include <QtCore/QReadWriteLock>
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 
 namespace MTP {
 
@@ -90,8 +93,10 @@ public:
 	DcType dcType(ShiftedDcId shiftedDcId) const;
 
 	void setCDNConfig(const MTPDcdnConfig &config);
-	bool hasCDNKeysForDc(DcId dcId) const;
-	bool getDcRSAKey(DcId dcId, const QVector<MTPlong> &fingerprints, internal::RSAPublicKey *result) const;
+	[[nodiscard]] bool hasCDNKeysForDc(DcId dcId) const;
+	[[nodiscard]] internal::RSAPublicKey getDcRSAKey(
+		DcId dcId,
+		const QVector<MTPlong> &fingerprints) const;
 
 	// Debug feature for now.
 	bool loadFromFile(const QString &path);

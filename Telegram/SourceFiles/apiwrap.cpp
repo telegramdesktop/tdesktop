@@ -280,11 +280,11 @@ void ApiWrap::refreshProxyPromotion() {
 		return;
 	}
 	const auto key = [&]() -> std::pair<QString, uint32> {
-		if (Global::ProxySettings() != ProxyData::Settings::Enabled) {
+		if (Global::ProxySettings() != MTP::ProxyData::Settings::Enabled) {
 			return {};
 		}
 		const auto &proxy = Global::SelectedProxy();
-		if (proxy.type != ProxyData::Type::Mtproto) {
+		if (proxy.type != MTP::ProxyData::Type::Mtproto) {
 			return {};
 		}
 		return { proxy.host, proxy.port };

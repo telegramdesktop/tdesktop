@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_instance.h"
 
-#include "mtproto/connection.h"
+#include "mtproto/mtproto_dh_utils.h"
 #include "core/application.h"
 #include "main/main_session.h"
 #include "apiwrap.h"

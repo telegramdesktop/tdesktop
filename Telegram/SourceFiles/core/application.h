@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/core_settings.h"
 #include "mtproto/auth_key.h"
+#include "mtproto/mtproto_proxy_data.h"
 #include "base/observer.h"
 #include "base/timer.h"
 
@@ -131,12 +132,12 @@ public:
 		return _dcOptions.get();
 	}
 	struct ProxyChange {
-		ProxyData was;
-		ProxyData now;
+		MTP::ProxyData was;
+		MTP::ProxyData now;
 	};
 	void setCurrentProxy(
-		const ProxyData &proxy,
-		ProxyData::Settings settings);
+		const MTP::ProxyData &proxy,
+		MTP::ProxyData::Settings settings);
 	[[nodiscard]] rpl::producer<ProxyChange> proxyChanges() const;
 	void badMtprotoConfigurationError();
 

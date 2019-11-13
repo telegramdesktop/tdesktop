@@ -26,19 +26,20 @@ public:
 	// or in "-----BEGIN PUBLIC KEY----- ..." format
 	explicit RSAPublicKey(bytes::const_span key);
 
-	bool isValid() const;
-	uint64 getFingerPrint() const;
-	bytes::vector getN() const;
-	bytes::vector getE() const;
+	[[nodiscard]] bool empty() const;
+	[[nodiscard]] bool valid() const;
+	[[nodiscard]] uint64 fingerprint() const;
+	[[nodiscard]] bytes::vector getN() const;
+	[[nodiscard]] bytes::vector getE() const;
 
 	// data has exactly 256 chars to be encrypted
-	bytes::vector encrypt(bytes::const_span data) const;
+	[[nodiscard]] bytes::vector encrypt(bytes::const_span data) const;
 
 	// data has exactly 256 chars to be decrypted
-	bytes::vector decrypt(bytes::const_span data) const;
+	[[nodiscard]] bytes::vector decrypt(bytes::const_span data) const;
 
 	// data has lequal than 215 chars to be decrypted
-	bytes::vector encryptOAEPpadding(bytes::const_span data) const;
+	[[nodiscard]] bytes::vector encryptOAEPpadding(bytes::const_span data) const;
 
 private:
 	class Private;

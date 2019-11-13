@@ -38,6 +38,8 @@ namespace {
 
 constexpr auto kSaveSettingsDelayedTimeout = crl::time(1000);
 
+using ProxyData = MTP::ProxyData;
+
 class Base64UrlInput : public Ui::MaskedInputField {
 public:
 	Base64UrlInput(

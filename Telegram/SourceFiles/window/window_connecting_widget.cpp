@@ -271,7 +271,7 @@ void ConnectionState::refreshState() {
 		const auto under = _widget && _widget->isOver();
 		const auto mtp = MTP::dcstate();
 		const auto throughProxy
-			= (Global::ProxySettings() == ProxyData::Settings::Enabled);
+			= (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled);
 		if (mtp == MTP::ConnectingState
 			|| mtp == MTP::DisconnectedState
 			|| (mtp < 0 && mtp > -600)) {

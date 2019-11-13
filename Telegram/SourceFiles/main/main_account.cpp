@@ -35,8 +35,8 @@ void Account::watchProxyChanges() {
 
 	Core::App().proxyChanges(
 	) | rpl::start_with_next([=](const ProxyChange &change) {
-		const auto key = [&](const ProxyData &proxy) {
-			return (proxy.type == ProxyData::Type::Mtproto)
+		const auto key = [&](const MTP::ProxyData &proxy) {
+			return (proxy.type == MTP::ProxyData::Type::Mtproto)
 				? std::make_pair(proxy.host, proxy.port)
 				: std::make_pair(QString(), uint32(0));
 		};

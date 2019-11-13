@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/connection.h"
 
+#include "mtproto/details/mtproto_dc_key_creator.h"
 #include "mtproto/session.h"
 #include "mtproto/rsa_public_key.h"
 #include "mtproto/rpc_sender.h"
@@ -39,7 +40,6 @@ namespace {
 
 constexpr auto kRecreateKeyId = AuthKey::KeyId(0xFFFFFFFFFFFFFFFFULL);
 constexpr auto kIntSize = static_cast<int>(sizeof(mtpPrime));
-constexpr auto kMaxModExpSize = 256;
 constexpr auto kWaitForBetterTimeout = crl::time(2000);
 constexpr auto kMinConnectedTimeout = crl::time(1000);
 constexpr auto kMaxConnectedTimeout = crl::time(8000);
@@ -57,6 +57,8 @@ constexpr auto kRequestConfigTimeout = crl::time(8000);
 // Don't try to handle messages larger than this size.
 constexpr auto kMaxMessageLength = 16 * 1024 * 1024;
 
+using namespace details;
+
 QString LogIdsVector(const QVector<MTPlong> &ids) {
 	if (!ids.size()) return "[]";
 	auto idsStr = QString("[%1").arg(ids.cbegin()->v);
@@ -64,162 +66,6 @@ QString LogIdsVector(const QVector<MTPlong> &ids) {
 		idsStr += QString(", %2").arg(id.v);
 	}
 	return idsStr + "]";
-}
-
-bool IsGoodModExpFirst(
-		const openssl::BigNum &modexp,
-		const openssl::BigNum &prime) {
-	const auto diff = openssl::BigNum::Sub(prime, modexp);
-	if (modexp.failed() || prime.failed() || diff.failed()) {
-		return false;
-	}
-	constexpr auto kMinDiffBitsCount = 2048 - 64;
-	if (diff.isNegative()
-		|| diff.bitsSize() < kMinDiffBitsCount
-		|| modexp.bitsSize() < kMinDiffBitsCount
-		|| modexp.bytesSize() > kMaxModExpSize) {
-		return false;
-	}
-	return true;
-}
-
-bool IsPrimeAndGoodCheck(const openssl::BigNum &prime, int g) {
-	constexpr auto kGoodPrimeBitsCount = 2048;
-
-	if (prime.failed()
-		|| prime.isNegative()
-		|| prime.bitsSize() != kGoodPrimeBitsCount) {
-		LOG(("MTP Error: Bad prime bits count %1, expected %2."
-			).arg(prime.bitsSize()
-			).arg(kGoodPrimeBitsCount));
-		return false;
-	}
-
-	const auto context = openssl::Context();
-	if (!prime.isPrime(context)) {
-		LOG(("MTP Error: Bad prime."));
-		return false;
-	}
-
-	switch (g) {
-	case 2: {
-		const auto mod8 = prime.countModWord(8);
-		if (mod8 != 7) {
-			LOG(("BigNum PT Error: bad g value: %1, mod8: %2").arg(g).arg(mod8));
-			return false;
-		}
-	} break;
-	case 3: {
-		const auto mod3 = prime.countModWord(3);
-		if (mod3 != 2) {
-			LOG(("BigNum PT Error: bad g value: %1, mod3: %2").arg(g).arg(mod3));
-			return false;
-		}
-	} break;
-	case 4: break;
-	case 5: {
-		const auto mod5 = prime.countModWord(5);
-		if (mod5 != 1 && mod5 != 4) {
-			LOG(("BigNum PT Error: bad g value: %1, mod5: %2").arg(g).arg(mod5));
-			return false;
-		}
-	} break;
-	case 6: {
-		const auto mod24 = prime.countModWord(24);
-		if (mod24 != 19 && mod24 != 23) {
-			LOG(("BigNum PT Error: bad g value: %1, mod24: %2").arg(g).arg(mod24));
-			return false;
-		}
-	} break;
-	case 7: {
-		const auto mod7 = prime.countModWord(7);
-		if (mod7 != 3 && mod7 != 5 && mod7 != 6) {
-			LOG(("BigNum PT Error: bad g value: %1, mod7: %2").arg(g).arg(mod7));
-			return false;
-		}
-	} break;
-	default: {
-		LOG(("BigNum PT Error: bad g value: %1").arg(g));
-		return false;
-	} break;
-	}
-
-	if (!openssl::BigNum(prime).subWord(1).divWord(2).isPrime(context)) {
-		LOG(("MTP Error: Bad (prime - 1) / 2."));
-		return false;
-	}
-
-	return true;
-}
-
-bool IsPrimeAndGood(bytes::const_span primeBytes, int g) {
-	static constexpr unsigned char GoodPrime[] = {
-		0xC7, 0x1C, 0xAE, 0xB9, 0xC6, 0xB1, 0xC9, 0x04, 0x8E, 0x6C, 0x52, 0x2F, 0x70, 0xF1, 0x3F, 0x73,
-		0x98, 0x0D, 0x40, 0x23, 0x8E, 0x3E, 0x21, 0xC1, 0x49, 0x34, 0xD0, 0x37, 0x56, 0x3D, 0x93, 0x0F,
-		0x48, 0x19, 0x8A, 0x0A, 0xA7, 0xC1, 0x40, 0x58, 0x22, 0x94, 0x93, 0xD2, 0x25, 0x30, 0xF4, 0xDB,
-		0xFA, 0x33, 0x6F, 0x6E, 0x0A, 0xC9, 0x25, 0x13, 0x95, 0x43, 0xAE, 0xD4, 0x4C, 0xCE, 0x7C, 0x37,
-		0x20, 0xFD, 0x51, 0xF6, 0x94, 0x58, 0x70, 0x5A, 0xC6, 0x8C, 0xD4, 0xFE, 0x6B, 0x6B, 0x13, 0xAB,
-		0xDC, 0x97, 0x46, 0x51, 0x29, 0x69, 0x32, 0x84, 0x54, 0xF1, 0x8F, 0xAF, 0x8C, 0x59, 0x5F, 0x64,
-		0x24, 0x77, 0xFE, 0x96, 0xBB, 0x2A, 0x94, 0x1D, 0x5B, 0xCD, 0x1D, 0x4A, 0xC8, 0xCC, 0x49, 0x88,
-		0x07, 0x08, 0xFA, 0x9B, 0x37, 0x8E, 0x3C, 0x4F, 0x3A, 0x90, 0x60, 0xBE, 0xE6, 0x7C, 0xF9, 0xA4,
-		0xA4, 0xA6, 0x95, 0x81, 0x10, 0x51, 0x90, 0x7E, 0x16, 0x27, 0x53, 0xB5, 0x6B, 0x0F, 0x6B, 0x41,
-		0x0D, 0xBA, 0x74, 0xD8, 0xA8, 0x4B, 0x2A, 0x14, 0xB3, 0x14, 0x4E, 0x0E, 0xF1, 0x28, 0x47, 0x54,
-		0xFD, 0x17, 0xED, 0x95, 0x0D, 0x59, 0x65, 0xB4, 0xB9, 0xDD, 0x46, 0x58, 0x2D, 0xB1, 0x17, 0x8D,
-		0x16, 0x9C, 0x6B, 0xC4, 0x65, 0xB0, 0xD6, 0xFF, 0x9C, 0xA3, 0x92, 0x8F, 0xEF, 0x5B, 0x9A, 0xE4,
-		0xE4, 0x18, 0xFC, 0x15, 0xE8, 0x3E, 0xBE, 0xA0, 0xF8, 0x7F, 0xA9, 0xFF, 0x5E, 0xED, 0x70, 0x05,
-		0x0D, 0xED, 0x28, 0x49, 0xF4, 0x7B, 0xF9, 0x59, 0xD9, 0x56, 0x85, 0x0C, 0xE9, 0x29, 0x85, 0x1F,
-		0x0D, 0x81, 0x15, 0xF6, 0x35, 0xB1, 0x05, 0xEE, 0x2E, 0x4E, 0x15, 0xD0, 0x4B, 0x24, 0x54, 0xBF,
-		0x6F, 0x4F, 0xAD, 0xF0, 0x34, 0xB1, 0x04, 0x03, 0x11, 0x9C, 0xD8, 0xE3, 0xB9, 0x2F, 0xCC, 0x5B };
-
-	if (!bytes::compare(bytes::make_span(GoodPrime), primeBytes)) {
-		if (g == 3 || g == 4 || g == 5 || g == 7) {
-			return true;
-		}
-	}
-
-	return IsPrimeAndGoodCheck(openssl::BigNum(primeBytes), g);
-}
-
-bytes::vector CreateAuthKey(
-		bytes::const_span firstBytes,
-		bytes::const_span randomBytes,
-		bytes::const_span primeBytes) {
-	using openssl::BigNum;
-
-	const auto first = BigNum(firstBytes);
-	const auto prime = BigNum(primeBytes);
-	if (!IsGoodModExpFirst(first, prime)) {
-		LOG(("AuthKey Error: Bad first prime in CreateAuthKey()."));
-		return {};
-	}
-	return BigNum::ModExp(first, BigNum(randomBytes), prime).getBytes();
-}
-
-ModExpFirst CreateModExp(
-		int g,
-		bytes::const_span primeBytes,
-		bytes::const_span randomSeed) {
-	Expects(randomSeed.size() == ModExpFirst::kRandomPowerSize);
-
-	using namespace openssl;
-
-	BigNum prime(primeBytes);
-	auto result = ModExpFirst();
-	result.randomPower.resize(ModExpFirst::kRandomPowerSize);
-	while (true) {
-		bytes::set_random(result.randomPower);
-		for (auto i = 0; i != ModExpFirst::kRandomPowerSize; ++i) {
-			result.randomPower[i] ^= randomSeed[i];
-		}
-		const auto modexp = BigNum::ModExp(
-			BigNum(g),
-			BigNum(result.randomPower),
-			prime);
-		if (IsGoodModExpFirst(modexp, prime)) {
-			result.modexp = modexp.getBytes();
-			return result;
-		}
-	}
 }
 
 void wrapInvokeAfter(SecureRequest &to, const SecureRequest &from, const RequestMap &haveSent, int32 skipBeforeRequest = 0) {
@@ -243,48 +89,6 @@ void wrapInvokeAfter(SecureRequest &to, const SecureRequest &from, const Request
 		memcpy(to->data() + size + headlen + skipBeforeRequest + 3, from->constData() + 4 + headlen, lenInInts * sizeof(mtpPrime));
 		if (size + 3 != 7) (*to)[7] += 3 * sizeof(mtpPrime);
 	}
-}
-
-bool parsePQ(const QByteArray &pqStr, QByteArray &pStr, QByteArray &qStr) {
-	if (pqStr.length() > 8) return false; // more than 64 bit pq
-
-	uint64 pq = 0, p, q;
-	const uchar *pqChars = (const uchar*)pqStr.constData();
-	for (uint32 i = 0, l = pqStr.length(); i < l; ++i) {
-		pq <<= 8;
-		pq |= (uint64)pqChars[i];
-	}
-	uint64 pqSqrt = (uint64)sqrtl((long double)pq), ySqr, y;
-	while (pqSqrt * pqSqrt > pq) --pqSqrt;
-	while (pqSqrt * pqSqrt < pq) ++pqSqrt;
-	for (ySqr = pqSqrt * pqSqrt - pq; ; ++pqSqrt, ySqr = pqSqrt * pqSqrt - pq) {
-		y = (uint64)sqrtl((long double)ySqr);
-		while (y * y > ySqr) --y;
-		while (y * y < ySqr) ++y;
-		if (!ySqr || y + pqSqrt >= pq) return false;
-		if (y * y == ySqr) {
-			p = pqSqrt + y;
-			q = (pqSqrt > y) ? (pqSqrt - y) : (y - pqSqrt);
-			break;
-		}
-	}
-	if (p > q) std::swap(p, q);
-
-	pStr.resize(4);
-	uchar *pChars = (uchar*)pStr.data();
-	for (uint32 i = 0; i < 4; ++i) {
-		*(pChars + 3 - i) = (uchar)(p & 0xFF);
-		p >>= 8;
-	}
-
-	qStr.resize(4);
-	uchar *qChars = (uchar*)qStr.data();
-	for (uint32 i = 0; i < 4; ++i) {
-		*(qChars + 3 - i) = (uchar)(q & 0xFF);
-		q >>= 8;
-	}
-
-	return true;
 }
 
 } // namespace
@@ -411,6 +215,7 @@ void ConnectionPrivate::destroyAllConnections() {
 	_waitForReceivedTimer.cancel();
 	_waitForConnectedTimer.cancel();
 	_testConnections.clear();
+	_keyCreator = nullptr;
 	_connection = nullptr;
 }
 
@@ -1391,8 +1196,6 @@ void ConnectionPrivate::doDisconnect() {
 			unlockKey();
 		}
 	}
-
-	clearAuthKeyData();
 
 	setState(DisconnectedState);
 	restarted = false;
@@ -2568,7 +2371,7 @@ void ConnectionPrivate::removeTestConnection(
 		end(_testConnections));
 }
 
-void ConnectionPrivate::updateAuthKey() 	{
+void ConnectionPrivate::updateAuthKey() {
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData || !_connection) return;
 
@@ -2597,7 +2400,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 	DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), will be creating auth_key"));
 	lockKey();
 
-	auto &key = sessionData->getKey();
+	const auto &key = sessionData->getKey();
 	if (key) {
 		if (keyId != key->keyId()) clearMessages();
 		keyId = key->keyId();
@@ -2609,19 +2412,49 @@ void ConnectionPrivate::updateAuthKey() 	{
 		_instance->checkIfKeyWasDestroyed(_shiftedDcId);
 		return;
 	}
-
-	_authKeyData = std::make_unique<ConnectionPrivate::AuthKeyCreateData>();
-	_authKeyStrings = std::make_unique<ConnectionPrivate::AuthKeyCreateStrings>();
-	const auto nonce = _authKeyData->nonce = rand_value<MTPint128>();
-
-	connect(_connection, &AbstractConnection::receivedData, [=] {
-		pqAnswered();
-	});
-
-	DEBUG_LOG(("AuthKey Info: sending Req_pq..."));
 	lockFinished.unlock();
 
-	sendNotSecureRequest(MTPReq_pq_multi(nonce));
+	createDcKey();
+}
+
+void ConnectionPrivate::createDcKey() {
+	using Result = DcKeyCreator::Result;
+	using Error = DcKeyCreator::Error;
+	auto delegate = DcKeyCreator::Delegate();
+	delegate.done = [=](base::expected<Result, Error> result) {
+		_keyCreator = nullptr;
+
+		if (result) {
+			QReadLocker lockFinished(&sessionDataMutex);
+			if (!sessionData) return;
+
+			sessionData->setSalt(result->serverSalt);
+
+			auto authKey = std::move(result->key);
+
+			DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2").arg(authKey->keyId()).arg(result->serverSalt));
+
+			sessionData->owner()->notifyKeyCreated(std::move(authKey)); // slot will call authKeyCreated()
+			sessionData->clear(_instance);
+			unlockKey();
+		} else if (result.error() == Error::UnknownPublicKey) {
+			if (_dcType == DcType::Cdn) {
+				LOG(("Warning: CDN public RSA key not found"));
+				requestCDNConfig();
+			} else {
+				LOG(("AuthKey Error: could not choose public RSA key"));
+				restart();
+			}
+		} else {
+			restart();
+		}
+	};
+	_keyCreator = std::make_unique<DcKeyCreator>(
+		BareDcId(_shiftedDcId),
+		getProtocolDcId(),
+		_connection.get(),
+		_instance->dcOptions(),
+		std::move(delegate));
 }
 
 void ConnectionPrivate::clearMessages() {
@@ -2630,410 +2463,8 @@ void ConnectionPrivate::clearMessages() {
 	}
 }
 
-void ConnectionPrivate::pqAnswered() {
-	disconnect(_connection, &AbstractConnection::receivedData, nullptr, nullptr);
-	DEBUG_LOG(("AuthKey Info: receiving Req_pq answer..."));
-
-	MTPReq_pq::ResponseType res_pq;
-	if (!readNotSecureResponse(res_pq)) {
-		return restart();
-	}
-
-	auto &res_pq_data = res_pq.c_resPQ();
-	if (res_pq_data.vnonce() != _authKeyData->nonce) {
-		LOG(("AuthKey Error: received nonce <> sent nonce (in res_pq)!"));
-		DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&res_pq_data.vnonce(), 16).str()).arg(Logs::mb(&_authKeyData->nonce, 16).str()));
-		return restart();
-	}
-
-	auto rsaKey = internal::RSAPublicKey();
-	if (!_instance->dcOptions()->getDcRSAKey(BareDcId(_shiftedDcId), res_pq.c_resPQ().vserver_public_key_fingerprints().v, &rsaKey)) {
-		if (_dcType == DcType::Cdn) {
-			LOG(("Warning: CDN public RSA key not found"));
-			requestCDNConfig();
-			return;
-		}
-		LOG(("AuthKey Error: could not choose public RSA key"));
-		return restart();
-	}
-	Assert(rsaKey.isValid());
-
-	_authKeyData->server_nonce = res_pq_data.vserver_nonce();
-	_authKeyData->new_nonce = rand_value<MTPint256>();
-
-	auto &pq = res_pq_data.vpq().v;
-	auto p = QByteArray();
-	auto q = QByteArray();
-	if (!internal::parsePQ(pq, p, q)) {
-		LOG(("AuthKey Error: could not factor pq!"));
-		DEBUG_LOG(("AuthKey Error: problematic pq: %1").arg(Logs::mb(pq.constData(), pq.length()).str()));
-		return restart();
-	}
-
-	auto p_q_inner = MTP_p_q_inner_data_dc(
-		res_pq_data.vpq(),
-		MTP_bytes(std::move(p)),
-		MTP_bytes(std::move(q)),
-		_authKeyData->nonce,
-		_authKeyData->server_nonce,
-		_authKeyData->new_nonce,
-		MTP_int(getProtocolDcId()));
-	auto dhEncString = encryptPQInnerRSA(p_q_inner, rsaKey);
-	if (dhEncString.empty()) {
-		return restart();
-	}
-
-	connect(_connection, &AbstractConnection::receivedData, [=] {
-		dhParamsAnswered();
-	});
-
-	DEBUG_LOG(("AuthKey Info: sending Req_DH_params..."));
-
-	sendNotSecureRequest(MTPReq_DH_params(
-		_authKeyData->nonce,
-		_authKeyData->server_nonce,
-		p_q_inner.c_p_q_inner_data_dc().vp(),
-		p_q_inner.c_p_q_inner_data_dc().vq(),
-		MTP_long(rsaKey.getFingerPrint()),
-		MTP_bytes(dhEncString)));
-}
-
-bytes::vector ConnectionPrivate::encryptPQInnerRSA(
-		const MTPP_Q_inner_data &data,
-		const internal::RSAPublicKey &key) {
-	auto p_q_inner_size = tl::count_length(data);
-	auto encSize = (p_q_inner_size >> 2) + 6;
-	if (encSize >= 65) {
-		auto tmp = mtpBuffer();
-		tmp.reserve(encSize);
-		data.write(tmp);
-		LOG(("AuthKey Error: too large data for RSA encrypt, size %1").arg(encSize * sizeof(mtpPrime)));
-		DEBUG_LOG(("AuthKey Error: bad data for RSA encrypt %1").arg(Logs::mb(&tmp[0], tmp.size() * 4).str()));
-		return {}; // can't be 255-byte string
-	}
-
-	auto encBuffer = mtpBuffer();
-	encBuffer.reserve(65); // 260 bytes
-	encBuffer.resize(6);
-	encBuffer[0] = 0;
-	data.write(encBuffer);
-
-	hashSha1(&encBuffer[6], p_q_inner_size, &encBuffer[1]);
-	if (encSize < 65) {
-		encBuffer.resize(65);
-		memset_rand(&encBuffer[encSize], (65 - encSize) * sizeof(mtpPrime));
-	}
-
-	auto bytes = bytes::make_span(encBuffer);
-	auto bytesToEncrypt = bytes.subspan(3, 256);
-	return key.encrypt(bytesToEncrypt);
-}
-
-void ConnectionPrivate::dhParamsAnswered() {
-	disconnect(_connection, &AbstractConnection::receivedData, nullptr, nullptr);
-	DEBUG_LOG(("AuthKey Info: receiving Req_DH_params answer..."));
-
-	MTPReq_DH_params::ResponseType res_DH_params;
-	if (!readNotSecureResponse(res_DH_params)) {
-		return restart();
-	}
-
-	switch (res_DH_params.type()) {
-	case mtpc_server_DH_params_ok: {
-		const auto &encDH(res_DH_params.c_server_DH_params_ok());
-		if (encDH.vnonce() != _authKeyData->nonce) {
-			LOG(("AuthKey Error: received nonce <> sent nonce (in server_DH_params_ok)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&encDH.vnonce(), 16).str()).arg(Logs::mb(&_authKeyData->nonce, 16).str()));
-			return restart();
-		}
-		if (encDH.vserver_nonce() != _authKeyData->server_nonce) {
-			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in server_DH_params_ok)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&encDH.vserver_nonce(), 16).str()).arg(Logs::mb(&_authKeyData->server_nonce, 16).str()));
-			return restart();
-		}
-
-		auto &encDHStr = encDH.vencrypted_answer().v;
-		uint32 encDHLen = encDHStr.length(), encDHBufLen = encDHLen >> 2;
-		if ((encDHLen & 0x03) || encDHBufLen < 6) {
-			LOG(("AuthKey Error: bad encrypted data length %1 (in server_DH_params_ok)!").arg(encDHLen));
-			DEBUG_LOG(("AuthKey Error: received encrypted data %1").arg(Logs::mb(encDHStr.constData(), encDHLen).str()));
-			return restart();
-		}
-
-		uint32 nlen = tl::count_length(_authKeyData->new_nonce), slen = tl::count_length(_authKeyData->server_nonce);
-		uchar tmp_aes[1024], sha1ns[20], sha1sn[20], sha1nn[20];
-		memcpy(tmp_aes, &_authKeyData->new_nonce, nlen);
-		memcpy(tmp_aes + nlen, &_authKeyData->server_nonce, slen);
-		memcpy(tmp_aes + nlen + slen, &_authKeyData->new_nonce, nlen);
-		memcpy(tmp_aes + nlen + slen + nlen, &_authKeyData->new_nonce, nlen);
-		hashSha1(tmp_aes, nlen + slen, sha1ns);
-		hashSha1(tmp_aes + nlen, nlen + slen, sha1sn);
-		hashSha1(tmp_aes + nlen + slen, nlen + nlen, sha1nn);
-
-		mtpBuffer decBuffer;
-		decBuffer.resize(encDHBufLen);
-
-		memcpy(_authKeyData->aesKey, sha1ns, 20);
-		memcpy(_authKeyData->aesKey + 20, sha1sn, 12);
-		memcpy(_authKeyData->aesIV, sha1sn + 12, 8);
-		memcpy(_authKeyData->aesIV + 8, sha1nn, 20);
-		memcpy(_authKeyData->aesIV + 28, &_authKeyData->new_nonce, 4);
-
-		aesIgeDecryptRaw(encDHStr.constData(), &decBuffer[0], encDHLen, _authKeyData->aesKey, _authKeyData->aesIV);
-
-		const mtpPrime *from(&decBuffer[5]), *to(from), *end(from + (encDHBufLen - 5));
-		MTPServer_DH_inner_data dh_inner;
-		if (!dh_inner.read(to, end)) {
-			LOG(("AuthKey Error: could not decrypt server_DH_inner_data!"));
-			return restart();
-		}
-		const auto &dh_inner_data(dh_inner.c_server_DH_inner_data());
-		if (dh_inner_data.vnonce() != _authKeyData->nonce) {
-			LOG(("AuthKey Error: received nonce <> sent nonce (in server_DH_inner_data)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&dh_inner_data.vnonce(), 16).str()).arg(Logs::mb(&_authKeyData->nonce, 16).str()));
-			return restart();
-		}
-		if (dh_inner_data.vserver_nonce() != _authKeyData->server_nonce) {
-			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in server_DH_inner_data)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&dh_inner_data.vserver_nonce(), 16).str()).arg(Logs::mb(&_authKeyData->server_nonce, 16).str()));
-			return restart();
-		}
-		uchar sha1Buffer[20];
-		if (memcmp(&decBuffer[0], hashSha1(&decBuffer[5], (to - from) * sizeof(mtpPrime), sha1Buffer), 20)) {
-			LOG(("AuthKey Error: sha1 hash of encrypted part did not match!"));
-			DEBUG_LOG(("AuthKey Error: sha1 did not match, server_nonce: %1, new_nonce %2, encrypted data %3").arg(Logs::mb(&_authKeyData->server_nonce, 16).str()).arg(Logs::mb(&_authKeyData->new_nonce, 16).str()).arg(Logs::mb(encDHStr.constData(), encDHLen).str()));
-			return restart();
-		}
-		base::unixtime::update(dh_inner_data.vserver_time().v);
-
-		// check that dhPrime and (dhPrime - 1) / 2 are really prime
-		if (!IsPrimeAndGood(bytes::make_span(dh_inner_data.vdh_prime().v), dh_inner_data.vg().v)) {
-			LOG(("AuthKey Error: bad dh_prime primality!"));
-			return restart();
-		}
-
-		_authKeyStrings->dh_prime = bytes::make_vector(
-			dh_inner_data.vdh_prime().v);
-		_authKeyData->g = dh_inner_data.vg().v;
-		_authKeyStrings->g_a = bytes::make_vector(dh_inner_data.vg_a().v);
-		_authKeyData->retry_id = MTP_long(0);
-		_authKeyData->retries = 0;
-	} return dhClientParamsSend();
-
-	case mtpc_server_DH_params_fail: {
-		const auto &encDH(res_DH_params.c_server_DH_params_fail());
-		if (encDH.vnonce() != _authKeyData->nonce) {
-			LOG(("AuthKey Error: received nonce <> sent nonce (in server_DH_params_fail)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&encDH.vnonce(), 16).str()).arg(Logs::mb(&_authKeyData->nonce, 16).str()));
-			return restart();
-		}
-		if (encDH.vserver_nonce() != _authKeyData->server_nonce) {
-			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in server_DH_params_fail)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&encDH.vserver_nonce(), 16).str()).arg(Logs::mb(&_authKeyData->server_nonce, 16).str()));
-			return restart();
-		}
-		uchar sha1Buffer[20];
-		if (encDH.vnew_nonce_hash() != *(MTPint128*)(hashSha1(&_authKeyData->new_nonce, 32, sha1Buffer) + 1)) {
-			LOG(("AuthKey Error: received new_nonce_hash did not match!"));
-			DEBUG_LOG(("AuthKey Error: received new_nonce_hash: %1, new_nonce: %2").arg(Logs::mb(&encDH.vnew_nonce_hash(), 16).str()).arg(Logs::mb(&_authKeyData->new_nonce, 32).str()));
-			return restart();
-		}
-		LOG(("AuthKey Error: server_DH_params_fail received!"));
-	} return restart();
-
-	}
-	LOG(("AuthKey Error: unknown server_DH_params received, typeId = %1").arg(res_DH_params.type()));
-	return restart();
-}
-
-void ConnectionPrivate::dhClientParamsSend() {
-	if (++_authKeyData->retries > 5) {
-		LOG(("AuthKey Error: could not create auth_key for %1 retries").arg(_authKeyData->retries - 1));
-		return restart();
-	}
-
-	// gen rand 'b'
-	auto randomSeed = bytes::vector(ModExpFirst::kRandomPowerSize);
-	bytes::set_random(randomSeed);
-	auto g_b_data = CreateModExp(_authKeyData->g, _authKeyStrings->dh_prime, randomSeed);
-	if (g_b_data.modexp.empty()) {
-		LOG(("AuthKey Error: could not generate good g_b."));
-		return restart();
-	}
-
-	auto computedAuthKey = CreateAuthKey(_authKeyStrings->g_a, g_b_data.randomPower, _authKeyStrings->dh_prime);
-	if (computedAuthKey.empty()) {
-		LOG(("AuthKey Error: could not generate auth_key."));
-		return restart();
-	}
-	AuthKey::FillData(_authKeyStrings->auth_key, computedAuthKey);
-
-	// count auth_key hashes - parts of sha1(auth_key)
-	auto auth_key_sha = hashSha1(_authKeyStrings->auth_key.data(), _authKeyStrings->auth_key.size());
-	memcpy(&_authKeyData->auth_key_aux_hash, auth_key_sha.data(), 8);
-	memcpy(&_authKeyData->auth_key_hash, auth_key_sha.data() + 12, 8);
-
-	auto client_dh_inner = MTP_client_DH_inner_data(_authKeyData->nonce, _authKeyData->server_nonce, _authKeyData->retry_id, MTP_bytes(g_b_data.modexp));
-
-	auto sdhEncString = encryptClientDHInner(client_dh_inner);
-
-	connect(_connection, &AbstractConnection::receivedData, [=] {
-		dhClientParamsAnswered();
-	});
-
-	DEBUG_LOG(("AuthKey Info: sending Req_client_DH_params..."));
-	sendNotSecureRequest(MTPSet_client_DH_params(
-		_authKeyData->nonce,
-		_authKeyData->server_nonce,
-		MTP_string(std::move(sdhEncString))));
-}
-
-std::string ConnectionPrivate::encryptClientDHInner(const MTPClient_DH_Inner_Data &data) {
-	auto client_dh_inner_size = tl::count_length(data);
-	auto encSize = (client_dh_inner_size >> 2) + 5;
-	auto encFullSize = encSize;
-	if (encSize & 0x03) {
-		encFullSize += 4 - (encSize & 0x03);
-	}
-
-	auto encBuffer = mtpBuffer();
-	encBuffer.reserve(encFullSize);
-	encBuffer.resize(5);
-	data.write(encBuffer);
-
-	hashSha1(&encBuffer[5], client_dh_inner_size, &encBuffer[0]);
-	if (encSize < encFullSize) {
-		encBuffer.resize(encFullSize);
-		memset_rand(&encBuffer[encSize], (encFullSize - encSize) * sizeof(mtpPrime));
-	}
-
-	auto sdhEncString = std::string(encFullSize * 4, ' ');
-
-	aesIgeEncryptRaw(&encBuffer[0], &sdhEncString[0], encFullSize * sizeof(mtpPrime), _authKeyData->aesKey, _authKeyData->aesIV);
-
-	return sdhEncString;
-}
-
-void ConnectionPrivate::dhClientParamsAnswered() {
-	QReadLocker lockFinished(&sessionDataMutex);
-	if (!sessionData) return;
-
-	disconnect(_connection, &AbstractConnection::receivedData, nullptr, nullptr);
-	DEBUG_LOG(("AuthKey Info: receiving Req_client_DH_params answer..."));
-
-	MTPSet_client_DH_params::ResponseType res_client_DH_params;
-	if (!readNotSecureResponse(res_client_DH_params)) {
-		lockFinished.unlock();
-		return restart();
-	}
-
-	switch (res_client_DH_params.type()) {
-	case mtpc_dh_gen_ok: {
-		const auto &resDH(res_client_DH_params.c_dh_gen_ok());
-		if (resDH.vnonce() != _authKeyData->nonce) {
-			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_ok)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&resDH.vnonce(), 16).str()).arg(Logs::mb(&_authKeyData->nonce, 16).str()));
-
-			lockFinished.unlock();
-			return restart();
-		}
-		if (resDH.vserver_nonce() != _authKeyData->server_nonce) {
-			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_ok)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&resDH.vserver_nonce(), 16).str()).arg(Logs::mb(&_authKeyData->server_nonce, 16).str()));
-
-			lockFinished.unlock();
-			return restart();
-		}
-		_authKeyData->new_nonce_buf[32] = 1;
-		uchar sha1Buffer[20];
-		if (resDH.vnew_nonce_hash1() != *(MTPint128*)(hashSha1(_authKeyData->new_nonce_buf, 41, sha1Buffer) + 1)) {
-			LOG(("AuthKey Error: received new_nonce_hash1 did not match!"));
-			DEBUG_LOG(("AuthKey Error: received new_nonce_hash1: %1, new_nonce_buf: %2").arg(Logs::mb(&resDH.vnew_nonce_hash1(), 16).str()).arg(Logs::mb(_authKeyData->new_nonce_buf, 41).str()));
-
-			lockFinished.unlock();
-			return restart();
-		}
-
-		uint64 salt1 = _authKeyData->new_nonce.l.l, salt2 = _authKeyData->server_nonce.l, serverSalt = salt1 ^ salt2;
-		sessionData->setSalt(serverSalt);
-
-		auto authKey = std::make_shared<AuthKey>(AuthKey::Type::Generated, BareDcId(_shiftedDcId), _authKeyStrings->auth_key);
-
-		DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2").arg(authKey->keyId()).arg(serverSalt));
-
-		sessionData->owner()->notifyKeyCreated(std::move(authKey)); // slot will call authKeyCreated()
-		sessionData->clear(_instance);
-		unlockKey();
-	} return;
-
-	case mtpc_dh_gen_retry: {
-		const auto &resDH(res_client_DH_params.c_dh_gen_retry());
-		if (resDH.vnonce() != _authKeyData->nonce) {
-			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_retry)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&resDH.vnonce(), 16).str()).arg(Logs::mb(&_authKeyData->nonce, 16).str()));
-
-			lockFinished.unlock();
-			return restart();
-		}
-		if (resDH.vserver_nonce() != _authKeyData->server_nonce) {
-			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_retry)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&resDH.vserver_nonce(), 16).str()).arg(Logs::mb(&_authKeyData->server_nonce, 16).str()));
-
-			lockFinished.unlock();
-			return restart();
-		}
-		_authKeyData->new_nonce_buf[32] = 2;
-		uchar sha1Buffer[20];
-		if (resDH.vnew_nonce_hash2() != *(MTPint128*)(hashSha1(_authKeyData->new_nonce_buf, 41, sha1Buffer) + 1)) {
-			LOG(("AuthKey Error: received new_nonce_hash2 did not match!"));
-			DEBUG_LOG(("AuthKey Error: received new_nonce_hash2: %1, new_nonce_buf: %2").arg(Logs::mb(&resDH.vnew_nonce_hash2(), 16).str()).arg(Logs::mb(_authKeyData->new_nonce_buf, 41).str()));
-
-			lockFinished.unlock();
-			return restart();
-		}
-		_authKeyData->retry_id = _authKeyData->auth_key_aux_hash;
-	} return dhClientParamsSend();
-
-	case mtpc_dh_gen_fail: {
-		const auto &resDH(res_client_DH_params.c_dh_gen_fail());
-		if (resDH.vnonce() != _authKeyData->nonce) {
-			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_fail)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&resDH.vnonce(), 16).str()).arg(Logs::mb(&_authKeyData->nonce, 16).str()));
-
-			lockFinished.unlock();
-			return restart();
-		}
-		if (resDH.vserver_nonce() != _authKeyData->server_nonce) {
-			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_fail)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&resDH.vserver_nonce(), 16).str()).arg(Logs::mb(&_authKeyData->server_nonce, 16).str()));
-
-			lockFinished.unlock();
-			return restart();
-		}
-		_authKeyData->new_nonce_buf[32] = 3;
-		uchar sha1Buffer[20];
-		if (resDH.vnew_nonce_hash3() != *(MTPint128*)(hashSha1(_authKeyData->new_nonce_buf, 41, sha1Buffer) + 1)) {
-			LOG(("AuthKey Error: received new_nonce_hash3 did not match!"));
-			DEBUG_LOG(("AuthKey Error: received new_nonce_hash3: %1, new_nonce_buf: %2").arg(Logs::mb(&resDH.vnew_nonce_hash3(), 16).str()).arg(Logs::mb(_authKeyData->new_nonce_buf, 41).str()));
-
-			lockFinished.unlock();
-			return restart();
-		}
-		LOG(("AuthKey Error: dh_gen_fail received!"));
-	}
-
-		lockFinished.unlock();
-		return restart();
-
-	}
-	LOG(("AuthKey Error: unknown set_client_DH_params_answer received, typeId = %1").arg(res_client_DH_params.type()));
-
-	lockFinished.unlock();
-	return restart();
-}
-
 void ConnectionPrivate::authKeyCreated() {
-	clearAuthKeyData();
+	_keyCreator = nullptr;
 
 	connect(_connection, &AbstractConnection::receivedData, [=] {
 		handleReceived();
@@ -3050,33 +2481,6 @@ void ConnectionPrivate::authKeyCreated() {
 	_pingIdToSend = rand_value<uint64>(); // get server_salt
 
 	emit needToSendAsync();
-}
-
-void ConnectionPrivate::clearAuthKeyData() {
-	auto zeroMemory = [](bytes::span bytes) {
-#ifdef Q_OS_WIN2
-		SecureZeroMemory(bytes.data(), bytes.size());
-#else // Q_OS_WIN
-		auto end = reinterpret_cast<char*>(bytes.data()) + bytes.size();
-		for (volatile auto p = reinterpret_cast<volatile char*>(bytes.data()); p != end; ++p) {
-			*p = 0;
-		}
-#endif // Q_OS_WIN
-	};
-	if (_authKeyData) {
-		zeroMemory(gsl::make_span(reinterpret_cast<gsl::byte*>(_authKeyData.get()), sizeof(AuthKeyCreateData)));
-		_authKeyData.reset();
-	}
-	if (_authKeyStrings) {
-		if (!_authKeyStrings->dh_prime.empty()) {
-			zeroMemory(_authKeyStrings->dh_prime);
-		}
-		if (!_authKeyStrings->g_a.empty()) {
-			zeroMemory(_authKeyStrings->g_a);
-		}
-		zeroMemory(_authKeyStrings->auth_key);
-		_authKeyStrings.reset();
-	}
 }
 
 void ConnectionPrivate::onError(
@@ -3104,7 +2508,7 @@ void ConnectionPrivate::handleError(int errorCode) {
 	_waitForConnectedTimer.cancel();
 
 	if (errorCode == -404) {
-		if (_dcType == DcType::Cdn) {
+		if (_dcType == DcType::Cdn && !_instance->isKeysDestroyer()) {
 			LOG(("MTP Info: -404 error received in CDN dc %1, assuming it was destroyed, recreating.").arg(_shiftedDcId));
 			clearMessages();
 			keyId = kRecreateKeyId;
@@ -3122,44 +2526,6 @@ void ConnectionPrivate::handleError(int errorCode) {
 }
 
 void ConnectionPrivate::onReadyData() {
-}
-
-template <typename Request>
-void ConnectionPrivate::sendNotSecureRequest(const Request &request) {
-	auto packet = _connection->prepareNotSecurePacket(
-		request,
-		base::unixtime::mtproto_msg_id());
-
-	DEBUG_LOG(("AuthKey Info: sending request, size: %1, time: %3"
-		).arg(packet.size() - 8
-		).arg(packet[5]));
-
-	const auto bytesSize = packet.size() * sizeof(mtpPrime);
-
-	_connection->sendData(std::move(packet));
-
-	onSentSome(bytesSize);
-}
-
-template <typename Response>
-bool ConnectionPrivate::readNotSecureResponse(Response &response) {
-	onReceivedSome();
-
-	if (_connection->received().empty()) {
-		LOG(("AuthKey Error: "
-			"trying to read response from empty received list"));
-		return false;
-	}
-
-	const auto buffer = std::move(_connection->received().front());
-	_connection->received().pop_front();
-
-	const auto answer = _connection->parseNotSecureResponse(buffer);
-	if (answer.empty()) {
-		return false;
-	}
-	auto from = answer.data();
-	return response.read(from, from + answer.size());
 }
 
 bool ConnectionPrivate::sendSecureRequest(
@@ -3299,8 +2665,10 @@ void ConnectionPrivate::unlockKey() {
 }
 
 ConnectionPrivate::~ConnectionPrivate() {
-	clearAuthKeyData();
-	Assert(_finished && _connection == nullptr && _testConnections.empty());
+	Expects(_finished);
+	Expects(!_connection);
+	Expects(_testConnections.empty());
+	Expects(!_keyCreator);
 }
 
 void ConnectionPrivate::stop() {
@@ -3316,29 +2684,4 @@ void ConnectionPrivate::stop() {
 }
 
 } // namespace internal
-
-bool IsPrimeAndGood(bytes::const_span primeBytes, int g) {
-	return internal::IsPrimeAndGood(primeBytes, g);
-}
-
-bool IsGoodModExpFirst(
-		const openssl::BigNum &modexp,
-		const openssl::BigNum &prime) {
-	return internal::IsGoodModExpFirst(modexp, prime);
-}
-
-ModExpFirst CreateModExp(
-		int g,
-		bytes::const_span primeBytes,
-		bytes::const_span randomSeed) {
-	return internal::CreateModExp(g, primeBytes, randomSeed);
-}
-
-bytes::vector CreateAuthKey(
-		bytes::const_span firstBytes,
-		bytes::const_span randomBytes,
-		bytes::const_span primeBytes) {
-	return internal::CreateAuthKey(firstBytes, randomBytes, primeBytes);
-}
-
 } // namespace MTP

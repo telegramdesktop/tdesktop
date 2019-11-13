@@ -163,7 +163,9 @@ bool ApplySocksProxy(
 	auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	ProxiesBoxController::ShowApplyConfirmation(ProxyData::Type::Socks5, params);
+	ProxiesBoxController::ShowApplyConfirmation(
+		MTP::ProxyData::Type::Socks5,
+		params);
 	return true;
 }
 
@@ -174,7 +176,9 @@ bool ApplyMtprotoProxy(
 	auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	ProxiesBoxController::ShowApplyConfirmation(ProxyData::Type::Mtproto, params);
+	ProxiesBoxController::ShowApplyConfirmation(
+		MTP::ProxyData::Type::Mtproto,
+		params);
 	return true;
 }
 

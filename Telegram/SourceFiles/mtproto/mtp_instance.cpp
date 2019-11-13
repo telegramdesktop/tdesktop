@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/mtp_instance.h"
 
+#include "mtproto/details/mtproto_dc_key_checker.h"
 #include "mtproto/session.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/dcenter.h"
@@ -74,7 +75,6 @@ public:
 	void cancel(mtpRequestId requestId);
 	[[nodiscard]] int32 state(mtpRequestId requestId); // < 0 means waiting for such count of ms
 	void killSession(ShiftedDcId shiftedDcId);
-	void killSession(std::unique_ptr<internal::Session> session);
 	void stopSession(ShiftedDcId shiftedDcId);
 	void reInitConnection(DcId dcId);
 	void logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
@@ -133,6 +133,7 @@ public:
 	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
 	void performKeyDestroy(ShiftedDcId shiftedDcId);
 	void completedKeyDestroy(ShiftedDcId shiftedDcId);
+	void checkMainDcKey();
 
 	void clearKilledSessions();
 	void prepareToDestroy();
@@ -226,6 +227,8 @@ private:
 	Fn<void(ShiftedDcId shiftedDcId)> _sessionResetHandler;
 
 	base::Timer _checkDelayedTimer;
+
+	std::unique_ptr<details::DcKeyChecker> _mainDcKeyChecker;
 
 	// Debug flag to find out how we end up crashing.
 	bool MustNotCreateSessions = false;
@@ -1102,13 +1105,13 @@ void Instance::Private::globalCallback(const mtpPrime *from, const mtpPrime *end
 	[[maybe_unused]] bool result = (*_globalHandler.onDone)(0, from, end);
 }
 
-void Instance::Private::onStateChange(int32 dcWithShift, int32 state) {
+void Instance::Private::onStateChange(ShiftedDcId dcWithShift, int32 state) {
 	if (_stateChangedHandler) {
 		_stateChangedHandler(dcWithShift, state);
 	}
 }
 
-void Instance::Private::onSessionReset(int32 dcWithShift) {
+void Instance::Private::onSessionReset(ShiftedDcId dcWithShift) {
 	if (_sessionResetHandler) {
 		_sessionResetHandler(dcWithShift);
 	}
@@ -1505,6 +1508,26 @@ void Instance::Private::completedKeyDestroy(ShiftedDcId shiftedDcId) {
 	}
 }
 
+void Instance::Private::checkMainDcKey() {
+	if (_mainDcKeyChecker) {
+		return;
+	}
+	const auto id = mainDcId();
+	const auto key = [&] {
+		QReadLocker lock(&_keysForWriteLock);
+		const auto i = _keysForWrite.find(id);
+		return (i != end(_keysForWrite)) ? i->second : AuthKeyPtr();
+	}();
+	if (!key) {
+		return;
+	}
+	_mainDcKeyChecker = std::make_unique<details::DcKeyChecker>(
+		_instance,
+		id,
+		key,
+		[=] { _mainDcKeyChecker = nullptr; });
+}
+
 void Instance::Private::setUpdatesHandler(RPCDoneHandlerPtr onDone) {
 	_globalHandler.onDone = onDone;
 }
@@ -1751,6 +1774,10 @@ void Instance::checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId) {
 			LOG(("MTP Info: checkIfKeyWasDestroyed on destroying key %1, "
 				"assuming it is destroyed.").arg(shiftedDcId));
 			_private->completedKeyDestroy(shiftedDcId);
+		} else if (BareDcId(shiftedDcId) == mainDcId()) {
+			LOG(("MTP Info: checkIfKeyWasDestroyed for main dc %1, "
+				"checking.").arg(shiftedDcId));
+			_private->checkMainDcKey();
 		}
 	});
 }

@@ -370,12 +370,12 @@ void Application::saveSettingsDelayed(crl::time delay) {
 }
 
 void Application::setCurrentProxy(
-		const ProxyData &proxy,
-		ProxyData::Settings settings) {
+		const MTP::ProxyData &proxy,
+		MTP::ProxyData::Settings settings) {
 	const auto current = [&] {
-		return (Global::ProxySettings() == ProxyData::Settings::Enabled)
+		return (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled)
 			? Global::SelectedProxy()
-			: ProxyData();
+			: MTP::ProxyData();
 	};
 	const auto was = current();
 	Global::SetSelectedProxy(proxy);
@@ -391,12 +391,12 @@ auto Application::proxyChanges() const -> rpl::producer<ProxyChange> {
 }
 
 void Application::badMtprotoConfigurationError() {
-	if (Global::ProxySettings() == ProxyData::Settings::Enabled
+	if (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled
 		&& !_badProxyDisableBox) {
 		const auto disableCallback = [=] {
 			setCurrentProxy(
 				Global::SelectedProxy(),
-				ProxyData::Settings::System);
+				MTP::ProxyData::Settings::System);
 		};
 		_badProxyDisableBox = Ui::show(Box<InformBox>(
 			Lang::Hard::ProxyConfigError(),
