@@ -49,3 +49,6 @@
 [submodule "Telegram/lib_spellcheck"]
 	path = Telegram/lib_spellcheck
 	url = https://github.com/desktop-app/lib_spellcheck
+[submodule "Telegram/ThirdParty/expected"]
+	path = Telegram/ThirdParty/expected
+	url = https://github.com/TartanLlama/expected
