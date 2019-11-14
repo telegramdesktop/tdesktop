@@ -33,24 +33,6 @@ class SessionData;
 class RSAPublicKey;
 struct ConnectionOptions;
 
-class Thread : public QThread {
-	// The Q_OBJECT meta info is used for qobject_cast!
-	Q_OBJECT
-
-public:
-	Thread() {
-		static int ThreadCounter = 0;
-		_threadIndex = ++ThreadCounter;
-	}
-	int getThreadIndex() const {
-		return _threadIndex;
-	}
-
-private:
-	int _threadIndex = 0;
-
-};
-
 class Connection {
 public:
 	enum ConnectionType {

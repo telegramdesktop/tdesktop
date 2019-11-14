@@ -103,7 +103,7 @@ Connection::Connection(not_null<Instance*> instance)
 void Connection::start(SessionData *sessionData, ShiftedDcId shiftedDcId) {
 	Expects(_thread == nullptr && _private == nullptr);
 
-	_thread = std::make_unique<Thread>();
+	_thread = std::make_unique<QThread>();
 	auto newData = std::make_unique<ConnectionPrivate>(
 		_instance,
 		_thread.get(),
