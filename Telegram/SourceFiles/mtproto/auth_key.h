@@ -30,18 +30,21 @@ public:
 	AuthKey(const AuthKey &other) = delete;
 	AuthKey &operator=(const AuthKey &other) = delete;
 
-	Type type() const;
-	int dcId() const;
-	KeyId keyId() const;
+	[[nodiscard]] Type type() const;
+	[[nodiscard]] int dcId() const;
+	[[nodiscard]] KeyId keyId() const;
 
 	void prepareAES_oldmtp(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send) const;
 	void prepareAES(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send) const;
 
-	const void *partForMsgKey(bool send) const;
+	[[nodiscard]] const void *partForMsgKey(bool send) const;
 
 	void write(QDataStream &to) const;
-	bytes::const_span data() const;
-	bool equals(const std::shared_ptr<AuthKey> &other) const;
+	[[nodiscard]] bytes::const_span data() const;
+	[[nodiscard]] bool equals(const std::shared_ptr<AuthKey> &other) const;
+
+	[[nodiscard]] crl::time lastCheckTime() const;
+	void setLastCheckTime(crl::time time);
 
 	static void FillData(Data &authKey, bytes::const_span computedAuthKey);
 
@@ -52,6 +55,7 @@ private:
 	DcId _dcId = 0;
 	Data _key = { { gsl::byte{} } };
 	KeyId _keyId = 0;
+	crl::time _lastCheckTime = 0;
 
 };
 

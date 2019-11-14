@@ -167,35 +167,6 @@ T rand_value() {
 	return result;
 }
 
-class ReadLockerAttempt {
-public:
-	ReadLockerAttempt(not_null<QReadWriteLock*> lock) : _lock(lock), _locked(_lock->tryLockForRead()) {
-	}
-	ReadLockerAttempt(const ReadLockerAttempt &other) = delete;
-	ReadLockerAttempt &operator=(const ReadLockerAttempt &other) = delete;
-	ReadLockerAttempt(ReadLockerAttempt &&other) : _lock(other._lock), _locked(base::take(other._locked)) {
-	}
-	ReadLockerAttempt &operator=(ReadLockerAttempt &&other) {
-		_lock = other._lock;
-		_locked = base::take(other._locked);
-		return *this;
-	}
-	~ReadLockerAttempt() {
-		if (_locked) {
-			_lock->unlock();
-		}
-	}
-
-	operator bool() const {
-		return _locked;
-	}
-
-private:
-	not_null<QReadWriteLock*> _lock;
-	bool _locked = false;
-
-};
-
 static const QRegularExpression::PatternOptions reMultiline(QRegularExpression::DotMatchesEverythingOption | QRegularExpression::MultilineOption);
 
 template <typename T>

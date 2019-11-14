@@ -76,12 +76,17 @@ template <typename PQInnerData>
 	constexpr auto kSkipPrimes = 6;
 	constexpr auto kMaxPrimes = 65; // 260 bytes
 
-	const auto p_q_inner_size = tl::count_length(data);
+	using BoxedPQInnerData = std::conditional_t<
+		tl::is_boxed_v<PQInnerData>,
+		PQInnerData,
+		tl::boxed<PQInnerData>>;
+	const auto boxed = BoxedPQInnerData(data);
+	const auto p_q_inner_size = tl::count_length(boxed);
 	const auto sizeInPrimes = (p_q_inner_size >> 2) + kSkipPrimes;
 	if (sizeInPrimes >= kMaxPrimes) {
 		auto tmp = mtpBuffer();
 		tmp.reserve(sizeInPrimes);
-		data.write(tmp);
+		boxed.write(tmp);
 		LOG(("AuthKey Error: too large data for RSA encrypt, size %1").arg(sizeInPrimes * sizeof(mtpPrime)));
 		DEBUG_LOG(("AuthKey Error: bad data for RSA encrypt %1").arg(Logs::mb(&tmp[0], tmp.size() * 4).str()));
 		return {}; // can't be 255-byte string
@@ -90,7 +95,7 @@ template <typename PQInnerData>
 	auto encBuffer = mtpBuffer();
 	encBuffer.reserve(kMaxPrimes);
 	encBuffer.resize(kSkipPrimes);
-	data.write(encBuffer);
+	boxed.write(encBuffer);
 	encBuffer.resize(kMaxPrimes);
 	const auto bytes = bytes::make_span(encBuffer);
 

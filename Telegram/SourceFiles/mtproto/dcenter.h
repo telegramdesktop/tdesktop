@@ -33,6 +33,11 @@ public:
 	void setConnectionInited(bool connectionInited = true) {
 		QMutexLocker lock(&initLock);
 		_connectionInited = connectionInited;
+		lock.unlock();
+
+		if (connectionInited) {
+			emit connectionWasInited();
+		}
 	}
 
 signals:

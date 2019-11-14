@@ -263,6 +263,7 @@ private:
 	bool _myKeyLock = false;
 
 	std::unique_ptr<details::DcKeyCreator> _keyCreator;
+	std::unique_ptr<details::DcKeyChecker> _keyChecker;
 
 };
 

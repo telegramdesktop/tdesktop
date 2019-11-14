@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/connection.h"
 
 #include "mtproto/details/mtproto_dc_key_creator.h"
+#include "mtproto/details/mtproto_dc_key_checker.h"
 #include "mtproto/session.h"
 #include "mtproto/rsa_public_key.h"
 #include "mtproto/rpc_sender.h"
@@ -94,7 +95,8 @@ void wrapInvokeAfter(SecureRequest &to, const SecureRequest &from, const Request
 
 } // namespace
 
-Connection::Connection(not_null<Instance*> instance) : _instance(instance) {
+Connection::Connection(not_null<Instance*> instance)
+: _instance(instance) {
 }
 
 void Connection::start(SessionData *sessionData, ShiftedDcId shiftedDcId) {
@@ -457,27 +459,31 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 	emit sessionResetDone();
 }
 
-mtpMsgId ConnectionPrivate::prepareToSend(SecureRequest &request, mtpMsgId currentLastId) {
-	if (request->size() < 9) return 0;
-	mtpMsgId msgId = *(mtpMsgId*)(request->constData() + 4);
-	if (msgId) { // resending this request
+mtpMsgId ConnectionPrivate::prepareToSend(
+		SecureRequest &request,
+		mtpMsgId currentLastId) {
+	if (request->size() < 9) {
+		return 0;
+	}
+	if (const auto msgId = request.getMsgId()) {
+		// resending this request
 		QWriteLocker locker(_sessionData->toResendMutex());
 		auto &toResend = _sessionData->toResendMap();
 		const auto i = toResend.find(msgId);
 		if (i != toResend.cend()) {
 			toResend.erase(i);
 		}
-	} else {
-		msgId = *(mtpMsgId*)(request->data() + 4) = currentLastId;
-		*(request->data() + 6) = _sessionData->nextRequestSeqNumber(request.needAck());
+		return msgId;
 	}
-	return msgId;
+	request.setMsgId(currentLastId);
+	request.setSeqNo(_sessionData->nextRequestSeqNumber(request.needAck()));
+	return currentLastId;
 }
 
 mtpMsgId ConnectionPrivate::replaceMsgId(SecureRequest &request, mtpMsgId newId) {
 	if (request->size() < 9) return 0;
 
-	mtpMsgId oldMsgId = *(mtpMsgId*)(request->constData() + 4);
+	const auto oldMsgId = request.getMsgId();
 	if (oldMsgId != newId) {
 		if (oldMsgId) {
 			QWriteLocker locker(_sessionData->toResendMutex());
@@ -530,9 +536,9 @@ mtpMsgId ConnectionPrivate::replaceMsgId(SecureRequest &request, mtpMsgId newId)
 				}
 			}
 		} else {
-			*(request->data() + 6) = _sessionData->nextRequestSeqNumber(request.needAck());
+			request.setSeqNo(_sessionData->nextRequestSeqNumber(request.needAck()));
 		}
-		*(mtpMsgId*)(request->data() + 4) = newId;
+		request.setMsgId(newId);
 	}
 	return newId;
 }
@@ -562,15 +568,25 @@ void ConnectionPrivate::tryToSend() {
 
 	auto needsLayer = !_connectionOptions->inited;
 	auto state = getState();
-	auto prependOnly = (state != ConnectedState);
+	auto sendOnlyFirstPing = (state != ConnectedState);
+	if (sendOnlyFirstPing && !_pingIdToSend) {
+		DEBUG_LOG(("MTP Info: dc %1 not sending, waiting for Connected state, state: %2").arg(_shiftedDcId).arg(state));
+		return; // just do nothing, if is not connected yet
+	}
+
 	auto pingRequest = SecureRequest();
+	auto ackRequest = SecureRequest();
+	auto resendRequest = SecureRequest();
+	auto stateRequest = SecureRequest();
+	auto httpWaitRequest = SecureRequest();
+	auto checkDcKeyRequest = SecureRequest();
 	if (_shiftedDcId == BareDcId(_shiftedDcId)) { // main session
-		if (!prependOnly && !_pingIdToSend && !_pingId && _pingSendAt <= crl::now()) {
+		if (!sendOnlyFirstPing && !_pingIdToSend && !_pingId && _pingSendAt <= crl::now()) {
 			_pingIdToSend = rand_value<mtpPingId>();
 		}
 	}
 	if (_pingIdToSend) {
-		if (prependOnly || _shiftedDcId != BareDcId(_shiftedDcId)) {
+		if (sendOnlyFirstPing || _shiftedDcId != BareDcId(_shiftedDcId)) {
 			pingRequest = SecureRequest::Serialize(MTPPing(
 				MTP_long(_pingIdToSend)
 			));
@@ -584,44 +600,28 @@ void ConnectionPrivate::tryToSend() {
 				"ping_id: %1").arg(_pingIdToSend));
 		}
 
-		pingRequest->msDate = crl::now(); // > 0 - can send without container
 		_pingSendAt = pingRequest->msDate + kPingSendAfter;
-		pingRequest->requestId = 0; // dont add to haveSent / wereAcked maps
-
-		if (_shiftedDcId == BareDcId(_shiftedDcId) && !prependOnly) { // main session
+		if (_shiftedDcId == BareDcId(_shiftedDcId) && !sendOnlyFirstPing) { // main session
 			_pingSender.callOnce(kPingSendAfterForce);
 		}
-
-		_pingId = _pingIdToSend;
-		_pingIdToSend = 0;
+		_pingId = base::take(_pingIdToSend);
 	} else {
-		if (prependOnly) {
-			DEBUG_LOG(("MTP Info: dc %1 not sending, waiting for Connected state, state: %2").arg(_shiftedDcId).arg(state));
-			return; // just do nothing, if is not connected yet
-		} else {
-			DEBUG_LOG(("MTP Info: dc %1 trying to send after ping, state: %2").arg(_shiftedDcId).arg(state));
+		DEBUG_LOG(("MTP Info: dc %1 trying to send after ping, state: %2").arg(_shiftedDcId).arg(state));
+	}
+
+	if (!sendOnlyFirstPing) {
+		if (!_ackRequestData.isEmpty()) {
+			ackRequest = SecureRequest::Serialize(MTPMsgsAck(
+				MTP_msgs_ack(MTP_vector<MTPlong>(
+					base::take(_ackRequestData)))));
 		}
-	}
+		if (!_resendRequestData.isEmpty()) {
+			resendRequest = SecureRequest::Serialize(MTPMsgResendReq(
+				MTP_msg_resend_req(MTP_vector<MTPlong>(
+					base::take(_resendRequestData)))));
+		}
 
-	SecureRequest ackRequest, resendRequest, stateRequest, httpWaitRequest;
-	if (!prependOnly && !_ackRequestData.isEmpty()) {
-		ackRequest = SecureRequest::Serialize(MTPMsgsAck(
-			MTP_msgs_ack(MTP_vector<MTPlong>(_ackRequestData))));
-		ackRequest->msDate = crl::now(); // > 0 - can send without container
-		ackRequest->requestId = 0; // dont add to haveSent / wereAcked maps
-
-		_ackRequestData.clear();
-	}
-	if (!prependOnly && !_resendRequestData.isEmpty()) {
-		resendRequest = SecureRequest::Serialize(MTPMsgResendReq(
-			MTP_msg_resend_req(MTP_vector<MTPlong>(_resendRequestData))));
-		resendRequest->msDate = crl::now(); // > 0 - can send without container
-		resendRequest->requestId = 0; // dont add to haveSent / wereAcked maps
-
-		_resendRequestData.clear();
-	}
-	if (!prependOnly) {
-		QVector<MTPlong> stateReq;
+		auto stateReq = QVector<MTPlong>();
 		{
 			QWriteLocker locker(_sessionData->stateRequestMutex());
 			auto &ids = _sessionData->stateRequestMap();
@@ -636,14 +636,30 @@ void ConnectionPrivate::tryToSend() {
 		if (!stateReq.isEmpty()) {
 			stateRequest = SecureRequest::Serialize(MTPMsgsStateReq(
 				MTP_msgs_state_req(MTP_vector<MTPlong>(stateReq))));
-			stateRequest->msDate = crl::now(); // > 0 - can send without container
-			stateRequest->requestId = GetNextRequestId();// add to haveSent / wereAcked maps, but don't add to requestMap
+			// Add to haveSent / wereAcked maps, but don't add to requestMap.
+			stateRequest->requestId = GetNextRequestId();
 		}
 		if (_connection->usingHttpWait()) {
 			httpWaitRequest = SecureRequest::Serialize(MTPHttpWait(
 				MTP_http_wait(MTP_int(100), MTP_int(30), MTP_int(25000))));
-			httpWaitRequest->msDate = crl::now(); // > 0 - can send without container
-			httpWaitRequest->requestId = 0; // dont add to haveSent / wereAcked maps
+		}
+		if (!_keyChecker) {
+			if (const auto &keyForCheck = _sessionData->getKeyForCheck()) {
+				_keyChecker = std::make_unique<details::DcKeyChecker>(
+					_instance,
+					_shiftedDcId,
+					keyForCheck);
+				checkDcKeyRequest = _keyChecker->prepareRequest(
+					_sessionData->getKey(),
+					_sessionData->getSessionId());
+
+				// This is a special request with msgId used inside the message
+				// body, so it is prepared already with a msgId and we place
+				// seqNo for it manually here.
+				checkDcKeyRequest.setSeqNo(
+					_sessionData->nextRequestSeqNumber(
+						checkDcKeyRequest.needAck()));
+			}
 		}
 	}
 
@@ -698,8 +714,12 @@ void ConnectionPrivate::tryToSend() {
 		QWriteLocker locker1(_sessionData->toSendMutex());
 
 		auto toSendDummy = PreRequestMap();
-		auto &toSend = prependOnly ? toSendDummy : _sessionData->toSendMap();
-		if (prependOnly) locker1.unlock();
+		auto &toSend = sendOnlyFirstPing
+			? toSendDummy
+			: _sessionData->toSendMap();
+		if (sendOnlyFirstPing) {
+			locker1.unlock();
+		}
 
 		uint32 toSendCount = toSend.size();
 		if (pingRequest) ++toSendCount;
@@ -707,13 +727,28 @@ void ConnectionPrivate::tryToSend() {
 		if (resendRequest) ++toSendCount;
 		if (stateRequest) ++toSendCount;
 		if (httpWaitRequest) ++toSendCount;
+		if (checkDcKeyRequest) ++toSendCount;
 
-		if (!toSendCount) return; // nothing to send
+		if (!toSendCount) {
+			return; // nothing to send
+		}
 
-		auto first = pingRequest ? pingRequest : (ackRequest ? ackRequest : (resendRequest ? resendRequest : (stateRequest ? stateRequest : (httpWaitRequest ? httpWaitRequest : toSend.cbegin().value()))));
+		const auto first = pingRequest
+			? pingRequest
+			: ackRequest
+			? ackRequest
+			: resendRequest
+			? resendRequest
+			: stateRequest
+			? stateRequest
+			: httpWaitRequest
+			? httpWaitRequest
+			: checkDcKeyRequest
+			? checkDcKeyRequest
+			: toSend.cbegin().value();
 		if (toSendCount == 1 && first->msDate > 0) { // if can send without container
 			toSendRequest = first;
-			if (!prependOnly) {
+			if (!sendOnlyFirstPing) {
 				toSend.clear();
 				locker1.unlock();
 			}
@@ -774,6 +809,7 @@ void ConnectionPrivate::tryToSend() {
 			if (resendRequest) containerSize += resendRequest.messageSize();
 			if (stateRequest) containerSize += stateRequest.messageSize();
 			if (httpWaitRequest) containerSize += httpWaitRequest.messageSize();
+			if (checkDcKeyRequest) containerSize += checkDcKeyRequest.messageSize();
 			for (auto i = toSend.begin(), e = toSend.end(); i != e; ++i) {
 				containerSize += i.value().messageSize();
 				if (needsLayer && i.value()->needsLayer) {
@@ -815,7 +851,7 @@ void ConnectionPrivate::tryToSend() {
 			if (pingRequest) {
 				_pingMsgId = placeToContainer(toSendRequest, bigMsgId, haveSentArr, pingRequest);
 				needAnyResponse = true;
-			} else if (resendRequest || stateRequest) {
+			} else if (resendRequest || stateRequest || checkDcKeyRequest) {
 				needAnyResponse = true;
 			}
 			for (auto i = toSend.begin(), e = toSend.end(); i != e; ++i) {
@@ -869,6 +905,7 @@ void ConnectionPrivate::tryToSend() {
 			if (resendRequest) placeToContainer(toSendRequest, bigMsgId, haveSentArr, resendRequest);
 			if (ackRequest) placeToContainer(toSendRequest, bigMsgId, haveSentArr, ackRequest);
 			if (httpWaitRequest) placeToContainer(toSendRequest, bigMsgId, haveSentArr, httpWaitRequest);
+			if (checkDcKeyRequest) placeToContainer(toSendRequest, bigMsgId, haveSentArr, checkDcKeyRequest);
 
 			mtpMsgId contMsgId = prepareToSend(toSendRequest, bigMsgId);
 			*(mtpMsgId*)(haveSentIdsWrap->data() + 4) = contMsgId;
@@ -1945,6 +1982,9 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			}
 		}
 
+		if (_keyChecker && _keyChecker->handleResponse(reqMsgId, response)) {
+			return HandleResult::Success;
+		}
 		auto requestId = wasSent(reqMsgId.v);
 		if (requestId && requestId != mtpRequestId(0xFFFFFFFF)) {
 			// Save rpc_result for processing in the main thread.
@@ -2437,7 +2477,8 @@ void ConnectionPrivate::createDcKey() {
 
 			DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2").arg(authKey->keyId()).arg(result->serverSalt));
 
-			_sessionData->owner()->notifyKeyCreated(std::move(authKey)); // slot will call authKeyCreated()
+			// slot will call authKeyCreated().
+			_sessionData->owner()->notifyKeyCreated(std::move(authKey));
 			_sessionData->clear(_instance);
 			unlockKey();
 		} else if (result.error() == Error::UnknownPublicKey) {
@@ -2539,7 +2580,13 @@ bool ConnectionPrivate::sendSecureRequest(
 		SecureRequest &&request,
 		bool needAnyResponse,
 		QReadLocker &lockFinished) {
-	request.addPadding(_connection->requiresExtendedPadding());
+#ifdef TDESKTOP_MTPROTO_OLD
+	const auto oldPadding = true;
+#else // TDESKTOP_MTPROTO_OLD
+	const auto oldPadding = false;
+#endif // TDESKTOP_MTPROTO_OLD
+	request.addPadding(_connection->requiresExtendedPadding(), oldPadding);
+
 	uint32 fullSize = request->size();
 	if (fullSize < 9) {
 		return false;
@@ -2660,14 +2707,18 @@ mtpRequestId ConnectionPrivate::wasSent(mtpMsgId msgId) const {
 
 void ConnectionPrivate::lockKey() {
 	unlockKey();
-	_sessionData->keyMutex()->lockForWrite();
+	if (const auto mutex = _sessionData->keyMutex()) {
+		mutex->lockForWrite();
+	}
 	_myKeyLock = true;
 }
 
 void ConnectionPrivate::unlockKey() {
 	if (_myKeyLock) {
 		_myKeyLock = false;
-		_sessionData->keyMutex()->unlock();
+		if (const auto mutex = _sessionData->keyMutex()) {
+			mutex->unlock();
+		}
 	}
 }
 
@@ -2683,8 +2734,7 @@ void ConnectionPrivate::stop() {
 	if (_sessionData) {
 		if (_myKeyLock) {
 			_sessionData->owner()->notifyKeyCreated(AuthKeyPtr()); // release key lock, let someone else create it
-			_sessionData->keyMutex()->unlock();
-			_myKeyLock = false;
+			unlockKey();
 		}
 		_sessionData = nullptr;
 	}

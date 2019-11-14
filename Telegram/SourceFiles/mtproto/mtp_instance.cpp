@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/mtp_instance.h"
 
-#include "mtproto/details/mtproto_dc_key_checker.h"
 #include "mtproto/session.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/dcenter.h"
@@ -34,6 +33,7 @@ namespace {
 
 constexpr auto kConfigBecomesOldIn = 2 * 60 * crl::time(1000);
 constexpr auto kConfigBecomesOldForBlockedIn = 8 * crl::time(1000);
+constexpr auto kCheckKeyEach = 60 * crl::time(1000);
 
 } // namespace
 
@@ -134,6 +134,7 @@ public:
 	void performKeyDestroy(ShiftedDcId shiftedDcId);
 	void completedKeyDestroy(ShiftedDcId shiftedDcId);
 	void checkMainDcKey();
+	void keyDestroyedOnServer(DcId dcId, uint64 keyId);
 
 	void clearKilledSessions();
 	void prepareToDestroy();
@@ -227,8 +228,6 @@ private:
 	Fn<void(ShiftedDcId shiftedDcId)> _sessionResetHandler;
 
 	base::Timer _checkDelayedTimer;
-
-	std::unique_ptr<details::DcKeyChecker> _mainDcKeyChecker;
 
 	// Debug flag to find out how we end up crashing.
 	bool MustNotCreateSessions = false;
@@ -1509,10 +1508,11 @@ void Instance::Private::completedKeyDestroy(ShiftedDcId shiftedDcId) {
 }
 
 void Instance::Private::checkMainDcKey() {
-	if (_mainDcKeyChecker) {
+	const auto id = mainDcId();
+	const auto shiftedDcId = ShiftDcId(id, kCheckKeyDcShift);
+	if (_sessions.find(shiftedDcId) != _sessions.end()) {
 		return;
 	}
-	const auto id = mainDcId();
 	const auto key = [&] {
 		QReadLocker lock(&_keysForWriteLock);
 		const auto i = _keysForWrite.find(id);
@@ -1521,11 +1521,26 @@ void Instance::Private::checkMainDcKey() {
 	if (!key) {
 		return;
 	}
-	_mainDcKeyChecker = std::make_unique<details::DcKeyChecker>(
-		_instance,
-		id,
-		key,
-		[=] { _mainDcKeyChecker = nullptr; });
+	const auto lastCheckTime = key->lastCheckTime();
+	if (lastCheckTime > 0 && lastCheckTime + kCheckKeyEach >= crl::now()) {
+		return;
+	}
+	_instance->sendDcKeyCheck(shiftedDcId, key);
+}
+
+void Instance::Private::keyDestroyedOnServer(DcId dcId, uint64 keyId) {
+	if (dcId == _mainDcId) {
+		for (const auto &[id, dc] : _dcenters) {
+			dc->destroyKey();
+		}
+		restart();
+	} else {
+		const auto i = _dcenters.find(dcId);
+		if (i != end(_dcenters)) {
+			i->second->destroyKey();
+		}
+		restart(dcId);
+	}
 }
 
 void Instance::Private::setUpdatesHandler(RPCDoneHandlerPtr onDone) {
@@ -1782,6 +1797,10 @@ void Instance::checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId) {
 	});
 }
 
+void Instance::keyDestroyedOnServer(DcId dcId, uint64 keyId) {
+	_private->keyDestroyedOnServer(dcId, keyId);
+}
+
 void Instance::sendRequest(
 		mtpRequestId requestId,
 		SecureRequest &&request,
@@ -1803,6 +1822,11 @@ void Instance::sendRequest(
 void Instance::sendAnything(ShiftedDcId shiftedDcId, crl::time msCanWait) {
 	const auto session = _private->getSession(shiftedDcId);
 	session->sendAnything(msCanWait);
+}
+
+void Instance::sendDcKeyCheck(ShiftedDcId shiftedDcId, const AuthKeyPtr &key) {
+	const auto session = _private->getSession(shiftedDcId);
+	session->sendDcKeyCheck(key);
 }
 
 Instance::~Instance() {

@@ -16,19 +16,28 @@ class Instance;
 
 namespace MTP::details {
 
+enum class DcKeyState {
+	MaybeExisting,
+	DefinitelyDestroyed,
+};
+
 class DcKeyChecker final {
 public:
 	DcKeyChecker(
 		not_null<Instance*> instance,
-		DcId dcId,
-		const AuthKeyPtr &key,
-		FnMut<void()> destroyMe);
+		ShiftedDcId shiftedDcId,
+		const AuthKeyPtr &persistentKey);
+
+	[[nodiscard]] SecureRequest prepareRequest(
+		const AuthKeyPtr &temporaryKey,
+		uint64 sessionId);
+	bool handleResponse(MTPlong requestMsgId, const mtpBuffer &response);
 
 private:
-	not_null<Instance*> _instance;
-	DcId _dcId = 0;
-	AuthKeyPtr _key;
-	FnMut<void()> _destroyMe;
+	const not_null<Instance*> _instance;
+	const ShiftedDcId _shiftedDcId = 0;
+	const AuthKeyPtr _persistentKey;
+	mtpMsgId _requestMsgId = 0;
 
 };
 

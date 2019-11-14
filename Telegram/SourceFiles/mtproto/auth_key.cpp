@@ -19,6 +19,9 @@ AuthKey::AuthKey(Type type, DcId dcId, const Data &data)
 , _dcId(dcId)
 , _key(data) {
 	countKeyId();
+	if (type == Type::Generated) {
+		_lastCheckTime = crl::now();
+	}
 }
 
 AuthKey::AuthKey(const Data &data) : _type(Type::Local), _key(data) {
@@ -109,6 +112,14 @@ bytes::const_span AuthKey::data() const {
 
 bool AuthKey::equals(const std::shared_ptr<AuthKey> &other) const {
 	return other ? (_key == other->_key) : false;
+}
+
+crl::time AuthKey::lastCheckTime() const {
+	return _lastCheckTime;
+}
+
+void AuthKey::setLastCheckTime(crl::time time) {
+	_lastCheckTime = time;
 }
 
 void AuthKey::FillData(Data &authKey, bytes::const_span computedAuthKey) {

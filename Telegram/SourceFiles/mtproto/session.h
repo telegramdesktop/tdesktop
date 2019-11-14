@@ -184,6 +184,11 @@ public:
 	}
 	void setKey(const AuthKeyPtr &key);
 
+	const AuthKeyPtr &getKeyForCheck() const {
+		return _dcKeyForCheck;
+	}
+	void setKeyForCheck(const AuthKeyPtr &key);
+
 	bool isCheckedKey() const {
 		QReadLocker locker(&_lock);
 		return _keyChecked;
@@ -193,7 +198,7 @@ public:
 		_keyChecked = checked;
 	}
 
-	not_null<QReadWriteLock*> keyMutex() const;
+	QReadWriteLock *keyMutex() const;
 
 	not_null<QReadWriteLock*> toSendMutex() const {
 		return &_toSendLock;
@@ -291,6 +296,7 @@ private:
 	not_null<Session*> _owner;
 
 	AuthKeyPtr _authKey;
+	AuthKeyPtr _dcKeyForCheck;
 	bool _keyChecked = false;
 	bool _layerInited = false;
 	ConnectionOptions _options;
@@ -345,6 +351,8 @@ public:
 	int32 getState() const;
 	QString transport() const;
 
+	void sendDcKeyCheck(const AuthKeyPtr &key);
+
 	// Nulls msgId and seqNo in request, if newRequest = true.
 	void sendPrepared(
 		const SecureRequest &request,
@@ -393,6 +401,7 @@ private:
 
 	ShiftedDcId _shiftedDcId = 0;
 	std::shared_ptr<Dcenter> _dc;
+	AuthKeyPtr _dcKeyForCheck;
 
 	crl::time _msSendCall = 0;
 	crl::time _msWait = 0;
@@ -404,9 +413,38 @@ private:
 
 };
 
-inline not_null<QReadWriteLock*> SessionData::keyMutex() const {
+inline QReadWriteLock *SessionData::keyMutex() const {
 	return _owner->keyMutex();
 }
+
+class ReadLockerAttempt {
+public:
+	ReadLockerAttempt(QReadWriteLock *lock) : _lock(lock), _locked(_lock ? _lock->tryLockForRead() : true) {
+	}
+	ReadLockerAttempt(const ReadLockerAttempt &other) = delete;
+	ReadLockerAttempt &operator=(const ReadLockerAttempt &other) = delete;
+	ReadLockerAttempt(ReadLockerAttempt &&other) : _lock(other._lock), _locked(base::take(other._locked)) {
+	}
+	ReadLockerAttempt &operator=(ReadLockerAttempt &&other) {
+		_lock = other._lock;
+		_locked = base::take(other._locked);
+		return *this;
+	}
+	~ReadLockerAttempt() {
+		if (_lock && _locked) {
+			_lock->unlock();
+		}
+	}
+
+	operator bool() const {
+		return _locked;
+	}
+
+private:
+	QReadWriteLock *_lock = nullptr;
+	bool _locked = false;
+
+};
 
 } // namespace internal
 } // namespace MTP

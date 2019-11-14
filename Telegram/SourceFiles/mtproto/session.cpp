@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/session.h"
 
+#include "mtproto/details/mtproto_dc_key_checker.h"
 #include "mtproto/connection.h"
 #include "mtproto/dcenter.h"
 #include "mtproto/auth_key.h"
@@ -75,6 +76,10 @@ void SessionData::setKey(const AuthKeyPtr &key) {
 		}
 		_layerInited = false;
 	}
+}
+
+void SessionData::setKeyForCheck(const AuthKeyPtr &key) {
+	_dcKeyForCheck = key;
 }
 
 void SessionData::notifyConnectionInited(const ConnectionOptions &options) {
@@ -157,7 +162,7 @@ void Session::start() {
 }
 
 void Session::createDcData() {
-	if (_dc) {
+	if (_dc || GetDcIdShift(_shiftedDcId) == kCheckKeyDcShift) {
 		return;
 	}
 	_dc = _instance->getDcById(_shiftedDcId);
@@ -212,7 +217,9 @@ void Session::refreshOptions() {
 }
 
 void Session::reInitConnection() {
-	_dc->setConnectionInited(false);
+	if (_dc) {
+		_dc->setConnectionInited(false);
+	}
 	_data.setConnectionInited(false);
 	restart();
 }
@@ -240,6 +247,11 @@ void Session::unpaused() {
 		_needToReceive = false;
 		QTimer::singleShot(0, this, SLOT(tryToReceive()));
 	}
+}
+
+void Session::sendDcKeyCheck(const AuthKeyPtr &key) {
+	_data.setKeyForCheck(key);
+	needToResumeAndSend();
 }
 
 void Session::sendAnything(qint64 msCanWait) {
@@ -550,10 +562,12 @@ void Session::sendPrepared(
 }
 
 QReadWriteLock *Session::keyMutex() const {
-	return _dc->keyMutex();
+	return _dc ? _dc->keyMutex() : nullptr;
 }
 
 void Session::authKeyCreatedForDC() {
+	Expects(_dc != nullptr);
+
 	DEBUG_LOG(("AuthKey Info: Session::authKeyCreatedForDC slot, emitting authKeyCreated(), dcWithShift %1").arg(_shiftedDcId));
 	_data.setKey(_dc->getKey());
 	emit authKeyCreated();
@@ -561,31 +575,37 @@ void Session::authKeyCreatedForDC() {
 
 void Session::notifyKeyCreated(AuthKeyPtr &&key) {
 	DEBUG_LOG(("AuthKey Info: Session::keyCreated(), setting, dcWithShift %1").arg(_shiftedDcId));
-	_dc->setKey(std::move(key));
+	if (_dc) {
+		_dc->setKey(std::move(key));
+	} else {
+		_data.setKey(std::move(key));
+		emit authKeyCreated();
+	}
 }
 
 void Session::connectionWasInitedForDC() {
+	Expects(_dc != nullptr);
+
 	DEBUG_LOG(("MTP Info: Session::connectionWasInitedForDC slot, dcWithShift %1").arg(_shiftedDcId));
 	_data.setConnectionInited();
 }
 
 void Session::notifyDcConnectionInited() {
 	DEBUG_LOG(("MTP Info: emitting MTProtoDC::connectionWasInited(), dcWithShift %1").arg(_shiftedDcId));
-	_dc->setConnectionInited();
-	emit _dc->connectionWasInited();
+	if (_dc) {
+		_dc->setConnectionInited();
+	} else {
+		_data.setConnectionInited();
+	}
 }
 
 void Session::destroyKey() {
-	if (!_dc) {
-		return;
-	}
-
-	if (_data.getKey()) {
+	if (const auto key = _data.getKey()) {
 		DEBUG_LOG(("MTP Info: destroying auth_key for dcWithShift %1").arg(_shiftedDcId));
-		if (_data.getKey() == _dc->getKey()) {
+		if (_dc && _dc->getKey() == key) {
 			_dc->destroyKey();
 		}
-		_data.setKey(AuthKeyPtr());
+		_data.setKey(nullptr);
 	}
 }
 

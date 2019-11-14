@@ -12,12 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP {
 namespace {
 
-uint32 CountPaddingAmountInInts(uint32 requestSize, bool extended) {
-#ifdef TDESKTOP_MTPROTO_OLD
-	return ((8 + requestSize) & 0x03)
-		? (4 - ((8 + requestSize) & 0x03))
-		: 0;
-#else // TDESKTOP_MTPROTO_OLD
+uint32 CountPaddingPrimesCount(uint32 requestSize, bool extended, bool old) {
+	if (old) {
+		return ((8 + requestSize) & 0x03)
+			? (4 - ((8 + requestSize) & 0x03))
+			: 0;
+	}
 	auto result = ((8 + requestSize) & 0x03)
 		? (4 - ((8 + requestSize) & 0x03))
 		: 0;
@@ -33,7 +33,6 @@ uint32 CountPaddingAmountInInts(uint32 requestSize, bool extended) {
 	}
 
 	return result;
-#endif // TDESKTOP_MTPROTO_OLD
 }
 
 } // namespace
@@ -49,6 +48,7 @@ SecureRequest SecureRequest::Prepare(uint32 size, uint32 reserveSize) {
 	result->reserve(kMessageBodyPosition + finalSize);
 	result->resize(kMessageBodyPosition);
 	result->back() = (size << 2);
+	result->msDate = crl::now(); // > 0 - can send without container
 	return result;
 }
 
@@ -68,11 +68,39 @@ SecureRequest::operator bool() const {
 	return (_data != nullptr);
 }
 
-void SecureRequest::addPadding(bool extended) {
-	if (_data->size() <= kMessageBodyPosition) return;
+void SecureRequest::setMsgId(mtpMsgId msgId) {
+	Expects(_data != nullptr);
+
+	memcpy(_data->data() + kMessageIdPosition, &msgId, sizeof(mtpMsgId));
+}
+
+mtpMsgId SecureRequest::getMsgId() const {
+	Expects(_data != nullptr);
+
+	return *(mtpMsgId*)(_data->constData() + kMessageIdPosition);
+}
+
+void SecureRequest::setSeqNo(uint32 seqNo) {
+	Expects(_data != nullptr);
+
+	(*_data)[kSeqNoPosition] = mtpPrime(seqNo);
+}
+
+uint32 SecureRequest::getSeqNo() const {
+	Expects(_data != nullptr);
+
+	return uint32((*_data)[kSeqNoPosition]);
+}
+
+void SecureRequest::addPadding(bool extended, bool old) {
+	Expects(_data != nullptr);
+
+	if (_data->size() <= kMessageBodyPosition) {
+		return;
+	}
 
 	const auto requestSize = (tl::count_length(*this) >> 2);
-	const auto padding = CountPaddingAmountInInts(requestSize, extended);
+	const auto padding = CountPaddingPrimesCount(requestSize, extended, old);
 	const auto fullSize = kMessageBodyPosition + requestSize + padding;
 	if (uint32(_data->size()) != fullSize) {
 		_data->resize(fullSize);
@@ -85,6 +113,8 @@ void SecureRequest::addPadding(bool extended) {
 }
 
 uint32 SecureRequest::messageSize() const {
+	Expects(_data != nullptr);
+
 	if (_data->size() <= kMessageBodyPosition) {
 		return 0;
 	}
@@ -93,13 +123,17 @@ uint32 SecureRequest::messageSize() const {
 }
 
 bool SecureRequest::isSentContainer() const {
+	Expects(_data != nullptr);
+
 	if (_data->size() <= kMessageBodyPosition) {
 		return false;
 	}
-	return (!_data->msDate && !(*_data)[kSeqNoPosition]); // msDate = 0, seqNo = 0
+	return (!_data->msDate && !getSeqNo()); // msDate = 0, seqNo = 0
 }
 
 bool SecureRequest::isStateRequest() const {
+	Expects(_data != nullptr);
+
 	if (_data->size() <= kMessageBodyPosition) {
 		return false;
 	}
@@ -108,6 +142,8 @@ bool SecureRequest::isStateRequest() const {
 }
 
 bool SecureRequest::needAck() const {
+	Expects(_data != nullptr);
+
 	if (_data->size() <= kMessageBodyPosition) {
 		return false;
 	}

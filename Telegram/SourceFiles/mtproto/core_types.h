@@ -138,9 +138,9 @@ public:
 
 	static constexpr auto kSaltInts = 2;
 	static constexpr auto kSessionIdInts = 2;
+	static constexpr auto kMessageIdPosition = kSaltInts + kSessionIdInts;
 	static constexpr auto kMessageIdInts = 2;
-	static constexpr auto kSeqNoPosition = kSaltInts
-		+ kSessionIdInts
+	static constexpr auto kSeqNoPosition = kMessageIdPosition
 		+ kMessageIdInts;
 	static constexpr auto kSeqNoInts = 1;
 	static constexpr auto kMessageLengthPosition = kSeqNoPosition
@@ -168,13 +168,19 @@ public:
 	SecureRequestData &operator*() const;
 	explicit operator bool() const;
 
-	void addPadding(bool extended);
-	uint32 messageSize() const;
+	void setMsgId(mtpMsgId msgId);
+	[[nodiscard]] mtpMsgId getMsgId() const;
+
+	void setSeqNo(uint32 seqNo);
+	[[nodiscard]] uint32 getSeqNo() const;
+
+	void addPadding(bool extended, bool old);
+	[[nodiscard]] uint32 messageSize() const;
 
 	// "request-like" wrap for msgIds vector
-	bool isSentContainer() const;
-	bool isStateRequest() const;
-	bool needAck() const;
+	[[nodiscard]] bool isSentContainer() const;
+	[[nodiscard]] bool isStateRequest() const;
+	[[nodiscard]] bool needAck() const;
 
 	using ResponseType = void; // don't know real response type =(
 

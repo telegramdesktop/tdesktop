@@ -135,6 +135,7 @@ public:
 	}
 
 	void sendAnything(ShiftedDcId shiftedDcId = 0, crl::time msCanWait = 0);
+	void sendDcKeyCheck(ShiftedDcId shiftedDcId, const AuthKeyPtr &key);
 
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
@@ -174,6 +175,7 @@ public:
 	bool isKeysDestroyer() const;
 	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
 	void checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId);
+	void keyDestroyedOnServer(DcId dcId, uint64 keyId);
 
 	void requestConfig();
 	void requestConfigIfOld();
