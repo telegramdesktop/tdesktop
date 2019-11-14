@@ -141,18 +141,18 @@ public:
 	SessionData(not_null<Session*> creator) : _owner(creator) {
 	}
 
-	void setSession(uint64 session) {
-		DEBUG_LOG(("MTP Info: setting server_session: %1").arg(session));
+	void setSessionId(uint64 sessionId) {
+		DEBUG_LOG(("MTP Info: setting server_session: %1").arg(sessionId));
 
 		QWriteLocker locker(&_lock);
-		if (_session != session) {
-			_session = session;
+		if (_sessionId != sessionId) {
+			_sessionId = sessionId;
 			_messagesSent = 0;
 		}
 	}
-	uint64 getSession() const {
+	uint64 getSessionId() const {
 		QReadLocker locker(&_lock);
-		return _session;
+		return _sessionId;
 	}
 	void setConnectionInited(bool inited = true) {
 		QWriteLocker locker(&_lock);
@@ -283,7 +283,7 @@ public:
 	void clear(Instance *instance);
 
 private:
-	uint64 _session = 0;
+	uint64 _sessionId = 0;
 	uint64 _salt = 0;
 
 	uint32 _messagesSent = 0;
@@ -389,18 +389,18 @@ private:
 	bool _killed = false;
 	bool _needToReceive = false;
 
-	SessionData data;
+	SessionData _data;
 
-	ShiftedDcId dcWithShift = 0;
-	std::shared_ptr<Dcenter> dc;
+	ShiftedDcId _shiftedDcId = 0;
+	std::shared_ptr<Dcenter> _dc;
 
-	crl::time msSendCall = 0;
-	crl::time msWait = 0;
+	crl::time _msSendCall = 0;
+	crl::time _msWait = 0;
 
 	bool _ping = false;
 
-	QTimer timeouter;
-	base::Timer sender;
+	QTimer _timeouter;
+	base::Timer _sender;
 
 };
 

@@ -42,7 +42,8 @@ public:
 		int16 protocolDcId,
 		not_null<AbstractConnection*> connection,
 		not_null<DcOptions*> dcOptions,
-		Delegate delegate);
+		Delegate delegate,
+		TimeId expireIn = 0); // 0 - persistent, > 0 - temporary
 	~DcKeyCreator();
 
 private:
@@ -87,8 +88,9 @@ private:
 
 	const not_null<AbstractConnection*> _connection;
 	const not_null<DcOptions*> _dcOptions;
-	const DcId _dcId;
+	const DcId _dcId = 0;
 	const int16 _protocolDcId = 0;
+	const TimeId _expireIn = 0;
 	Delegate _delegate;
 
 	Data _data;

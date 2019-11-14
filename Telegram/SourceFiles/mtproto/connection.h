@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP {
 namespace details {
 class DcKeyCreator;
+class DcKeyChecker;
 } // namespace details
 
 // How much time to wait for some more requests, when sending msg acks.
@@ -240,9 +241,10 @@ private:
 	base::Timer _waitForBetterTimer;
 	crl::time _waitForReceived = 0;
 	crl::time _waitForConnected = 0;
-	crl::time firstSentAt = -1;
+	crl::time _firstSentAt = -1;
 
-	QVector<MTPlong> ackRequestData, resendRequestData;
+	QVector<MTPlong> _ackRequestData;
+	QVector<MTPlong> _resendRequestData;
 
 	mtpPingId _pingId = 0;
 	mtpPingId _pingIdToSend = 0;
@@ -250,15 +252,15 @@ private:
 	mtpMsgId _pingMsgId = 0;
 	base::Timer _pingSender;
 
-	bool restarted = false;
+	bool _restarted = false;
 	bool _finished = false;
 
-	uint64 keyId = 0;
-	QReadWriteLock sessionDataMutex;
-	SessionData *sessionData = nullptr;
+	uint64 _keyId = 0;
+	QReadWriteLock _sessionDataMutex;
+	SessionData *_sessionData = nullptr;
 	std::unique_ptr<ConnectionOptions> _connectionOptions;
 
-	bool myKeyLock = false;
+	bool _myKeyLock = false;
 
 	std::unique_ptr<details::DcKeyCreator> _keyCreator;
 

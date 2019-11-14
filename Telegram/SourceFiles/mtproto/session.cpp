@@ -64,13 +64,13 @@ ConnectionOptions::ConnectionOptions(
 
 void SessionData::setKey(const AuthKeyPtr &key) {
 	if (_authKey != key) {
-		uint64 session = rand_value<uint64>();
+		const auto sessionId = rand_value<uint64>();
 		_authKey = key;
 
-		DEBUG_LOG(("MTP Info: new auth key set in SessionData, id %1, setting random server_session %2").arg(key ? key->keyId() : 0).arg(session));
+		DEBUG_LOG(("MTP Info: new auth key set in SessionData, id %1, setting random server_session %2").arg(key ? key->keyId() : 0).arg(sessionId));
 		QWriteLocker locker(&_lock);
-		if (_session != session) {
-			_session = session;
+		if (_sessionId != sessionId) {
+			_sessionId = sessionId;
 			_messagesSent = 0;
 		}
 		_layerInited = false;
@@ -135,13 +135,14 @@ void SessionData::clear(Instance *instance) {
 	instance->clearCallbacksDelayed(std::move(clearCallbacks));
 }
 
-Session::Session(not_null<Instance*> instance, ShiftedDcId shiftedDcId) : QObject()
+Session::Session(not_null<Instance*> instance, ShiftedDcId shiftedDcId)
+: QObject()
 , _instance(instance)
-, data(this)
-, dcWithShift(shiftedDcId)
-, sender([=] { needToResumeAndSend(); }) {
-	connect(&timeouter, SIGNAL(timeout()), this, SLOT(checkRequestsByTimer()));
-	timeouter.start(1000);
+, _data(this)
+, _shiftedDcId(shiftedDcId)
+, _sender([=] { needToResumeAndSend(); }) {
+	connect(&_timeouter, SIGNAL(timeout()), this, SLOT(checkRequestsByTimer()));
+	_timeouter.start(1000);
 
 	refreshOptions();
 }
@@ -149,26 +150,26 @@ Session::Session(not_null<Instance*> instance, ShiftedDcId shiftedDcId) : QObjec
 void Session::start() {
 	createDcData();
 	_connection = std::make_unique<Connection>(_instance);
-	_connection->start(&data, dcWithShift);
+	_connection->start(&_data, _shiftedDcId);
 	if (_instance->isKeysDestroyer()) {
-		_instance->scheduleKeyDestroy(dcWithShift);
+		_instance->scheduleKeyDestroy(_shiftedDcId);
 	}
 }
 
 void Session::createDcData() {
-	if (dc) {
+	if (_dc) {
 		return;
 	}
-	dc = _instance->getDcById(dcWithShift);
+	_dc = _instance->getDcById(_shiftedDcId);
 
 	if (auto lock = ReadLockerAttempt(keyMutex())) {
-		data.setKey(dc->getKey());
-		if (dc->connectionInited()) {
-			data.setConnectionInited();
+		_data.setKey(_dc->getKey());
+		if (_dc->connectionInited()) {
+			_data.setConnectionInited();
 		}
 	}
-	connect(dc.get(), SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()), Qt::QueuedConnection);
-	connect(dc.get(), SIGNAL(connectionWasInited()), this, SLOT(connectionWasInitedForDC()), Qt::QueuedConnection);
+	connect(_dc.get(), SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()), Qt::QueuedConnection);
+	connect(_dc.get(), SIGNAL(connectionWasInited()), this, SLOT(connectionWasInitedForDC()), Qt::QueuedConnection);
 }
 
 bool Session::rpcErrorOccured(
@@ -197,7 +198,7 @@ void Session::refreshOptions() {
 	const auto useHttp = (proxyType != ProxyData::Type::Mtproto);
 	const auto useIPv4 = true;
 	const auto useIPv6 = Global::TryIPv6();
-	data.applyConnectionOptions(ConnectionOptions(
+	_data.applyConnectionOptions(ConnectionOptions(
 		_instance->systemLangCode(),
 		_instance->cloudLangCode(),
 		_instance->langPackName(),
@@ -211,8 +212,8 @@ void Session::refreshOptions() {
 }
 
 void Session::reInitConnection() {
-	dc->setConnectionInited(false);
-	data.setConnectionInited(false);
+	_dc->setConnectionInited(false);
+	_data.setConnectionInited(false);
 	restart();
 }
 
@@ -221,7 +222,7 @@ void Session::stop() {
 		DEBUG_LOG(("Session Error: can't kill a killed session"));
 		return;
 	}
-	DEBUG_LOG(("Session Info: stopping session dcWithShift %1").arg(dcWithShift));
+	DEBUG_LOG(("Session Info: stopping session dcWithShift %1").arg(_shiftedDcId));
 	if (_connection) {
 		_connection->kill();
 		_instance->queueQuittingConnection(std::move(_connection));
@@ -231,7 +232,7 @@ void Session::stop() {
 void Session::kill() {
 	stop();
 	_killed = true;
-	DEBUG_LOG(("Session Info: marked session dcWithShift %1 as killed").arg(dcWithShift));
+	DEBUG_LOG(("Session Info: marked session dcWithShift %1 as killed").arg(_shiftedDcId));
 }
 
 void Session::unpaused() {
@@ -246,27 +247,27 @@ void Session::sendAnything(qint64 msCanWait) {
 		DEBUG_LOG(("Session Error: can't send anything in a killed session"));
 		return;
 	}
-	auto ms = crl::now();
-	if (msSendCall) {
-		if (ms > msSendCall + msWait) {
-			msWait = 0;
+	const auto ms = crl::now();
+	if (_msSendCall) {
+		if (ms > _msSendCall + _msWait) {
+			_msWait = 0;
 		} else {
-			msWait = (msSendCall + msWait) - ms;
-			if (msWait > msCanWait) {
-				msWait = msCanWait;
+			_msWait = (_msSendCall + _msWait) - ms;
+			if (_msWait > msCanWait) {
+				_msWait = msCanWait;
 			}
 		}
 	} else {
-		msWait = msCanWait;
+		_msWait = msCanWait;
 	}
-	if (msWait) {
-		DEBUG_LOG(("MTP Info: dcWithShift %1 can wait for %2ms from current %3").arg(dcWithShift).arg(msWait).arg(msSendCall));
-		msSendCall = ms;
-		sender.callOnce(msWait);
+	if (_msWait) {
+		DEBUG_LOG(("MTP Info: dcWithShift %1 can wait for %2ms from current %3").arg(_shiftedDcId).arg(_msWait).arg(_msSendCall));
+		_msSendCall = ms;
+		_sender.callOnce(_msWait);
 	} else {
-		DEBUG_LOG(("MTP Info: dcWithShift %1 stopped send timer, can wait for %2ms from current %3").arg(dcWithShift).arg(msWait).arg(msSendCall));
-		sender.cancel();
-		msSendCall = 0;
+		DEBUG_LOG(("MTP Info: dcWithShift %1 stopped send timer, can wait for %2ms from current %3").arg(_shiftedDcId).arg(_msWait).arg(_msSendCall));
+		_sender.cancel();
+		_msSendCall = 0;
 		needToResumeAndSend();
 	}
 }
@@ -277,10 +278,10 @@ void Session::needToResumeAndSend() {
 		return;
 	}
 	if (!_connection) {
-		DEBUG_LOG(("Session Info: resuming session dcWithShift %1").arg(dcWithShift));
+		DEBUG_LOG(("Session Info: resuming session dcWithShift %1").arg(_shiftedDcId));
 		createDcData();
 		_connection = std::make_unique<Connection>(_instance);
-		_connection->start(&data, dcWithShift);
+		_connection->start(&_data, _shiftedDcId);
 	}
 	if (_ping) {
 		_ping = false;
@@ -292,7 +293,7 @@ void Session::needToResumeAndSend() {
 
 void Session::sendPong(quint64 msgId, quint64 pingId) {
 	_instance->sendProtocolMessage(
-		dcWithShift,
+		_shiftedDcId,
 		MTPPong(MTP_pong(MTP_long(msgId), MTP_long(pingId))));
 }
 
@@ -303,7 +304,7 @@ void Session::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
 		bytes::copy(info, bytes::make_span(data));
 	}
 	_instance->sendProtocolMessage(
-		dcWithShift,
+		_shiftedDcId,
 		MTPMsgsStateInfo(
 			MTP_msgs_state_info(MTP_long(msgId), MTP_bytes(data))));
 }
@@ -314,8 +315,8 @@ void Session::checkRequestsByTimer() {
 	QVector<mtpMsgId> stateRequestIds;
 
 	{
-		QReadLocker locker(data.haveSentMutex());
-		auto &haveSent = data.haveSentMap();
+		QReadLocker locker(_data.haveSentMutex());
+		auto &haveSent = _data.haveSentMap();
 		const auto haveSentCount = haveSent.size();
 		auto ms = crl::now();
 		for (auto i = haveSent.begin(), e = haveSent.end(); i != e; ++i) {
@@ -342,9 +343,9 @@ void Session::checkRequestsByTimer() {
 	if (stateRequestIds.size()) {
 		DEBUG_LOG(("MTP Info: requesting state of msgs: %1").arg(LogIds(stateRequestIds)));
 		{
-			QWriteLocker locker(data.stateRequestMutex());
+			QWriteLocker locker(_data.stateRequestMutex());
 			for (uint32 i = 0, l = stateRequestIds.size(); i < l; ++i) {
-				data.stateRequestMap().insert(stateRequestIds[i], true);
+				_data.stateRequestMap().insert(stateRequestIds[i], true);
 			}
 		}
 		sendAnything(kCheckResendWaiting);
@@ -358,8 +359,8 @@ void Session::checkRequestsByTimer() {
 	if (!removingIds.isEmpty()) {
 		auto clearCallbacks = std::vector<RPCCallbackClear>();
 		{
-			QWriteLocker locker(data.haveSentMutex());
-			auto &haveSent = data.haveSentMap();
+			QWriteLocker locker(_data.haveSentMutex());
+			auto &haveSent = _data.haveSentMap();
 			for (uint32 i = 0, l = removingIds.size(); i < l; ++i) {
 				auto j = haveSent.find(removingIds[i]);
 				if (j != haveSent.cend()) {
@@ -375,21 +376,21 @@ void Session::checkRequestsByTimer() {
 }
 
 void Session::onConnectionStateChange(qint32 newState) {
-	_instance->onStateChange(dcWithShift, newState);
+	_instance->onStateChange(_shiftedDcId, newState);
 }
 
 void Session::onResetDone() {
-	_instance->onSessionReset(dcWithShift);
+	_instance->onSessionReset(_shiftedDcId);
 }
 
 void Session::cancel(mtpRequestId requestId, mtpMsgId msgId) {
 	if (requestId) {
-		QWriteLocker locker(data.toSendMutex());
-		data.toSendMap().remove(requestId);
+		QWriteLocker locker(_data.toSendMutex());
+		_data.toSendMap().remove(requestId);
 	}
 	if (msgId) {
-		QWriteLocker locker(data.haveSentMutex());
-		data.haveSentMap().remove(msgId);
+		QWriteLocker locker(_data.haveSentMutex());
+		_data.haveSentMap().remove(msgId);
 	}
 }
 
@@ -421,8 +422,8 @@ int32 Session::requestState(mtpRequestId requestId) const {
 	}
 	if (!requestId) return MTP::RequestSent;
 
-	QWriteLocker locker(data.toSendMutex());
-	const auto &toSend = data.toSendMap();
+	QWriteLocker locker(_data.toSendMutex());
+	const auto &toSend = _data.toSendMap();
 	const auto i = toSend.constFind(requestId);
 	if (i != toSend.cend()) {
 		return MTP::RequestSending;
@@ -461,8 +462,8 @@ QString Session::transport() const {
 mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
 	SecureRequest request;
 	{
-		QWriteLocker locker(data.haveSentMutex());
-		auto &haveSent = data.haveSentMap();
+		QWriteLocker locker(_data.haveSentMutex());
+		auto &haveSent = _data.haveSentMap();
 
 		auto i = haveSent.find(msgId);
 		if (i == haveSent.end()) {
@@ -472,7 +473,7 @@ mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContaine
 
 				auto info = std::string(cantResend, cantResend + 1);
 				return _instance->sendProtocolMessage(
-					dcWithShift,
+					_shiftedDcId,
 					MTPMsgsStateInfo(
 						MTP_msgs_state_info(
 							MTP_long(msgId),
@@ -495,8 +496,8 @@ mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContaine
 		request->msDate = forceContainer ? 0 : crl::now();
 		sendPrepared(request, msCanWait, false);
 		{
-			QWriteLocker locker(data.toResendMutex());
-			data.toResendMap().insert(msgId, request->requestId);
+			QWriteLocker locker(_data.toResendMutex());
+			_data.toResendMap().insert(msgId, request->requestId);
 		}
 		return request->requestId;
 	} else {
@@ -513,8 +514,8 @@ void Session::resendMany(QVector<quint64> msgIds, qint64 msCanWait, bool forceCo
 void Session::resendAll() {
 	QVector<mtpMsgId> toResend;
 	{
-		QReadLocker locker(data.haveSentMutex());
-		const auto &haveSent = data.haveSentMap();
+		QReadLocker locker(_data.haveSentMutex());
+		const auto &haveSent = _data.haveSentMap();
 		toResend.reserve(haveSent.size());
 		for (auto i = haveSent.cbegin(), e = haveSent.cend(); i != e; ++i) {
 			if (i.value()->requestId) {
@@ -534,8 +535,8 @@ void Session::sendPrepared(
 	DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1"
 		).arg(msCanWait));
 	{
-		QWriteLocker locker(data.toSendMutex());
-		data.toSendMap().insert(request->requestId, request);
+		QWriteLocker locker(_data.toSendMutex());
+		_data.toSendMap().insert(request->requestId, request);
 
 		if (newRequest) {
 			*(mtpMsgId*)(request->data() + 4) = 0;
@@ -549,45 +550,47 @@ void Session::sendPrepared(
 }
 
 QReadWriteLock *Session::keyMutex() const {
-	return dc->keyMutex();
+	return _dc->keyMutex();
 }
 
 void Session::authKeyCreatedForDC() {
-	DEBUG_LOG(("AuthKey Info: Session::authKeyCreatedForDC slot, emitting authKeyCreated(), dcWithShift %1").arg(dcWithShift));
-	data.setKey(dc->getKey());
+	DEBUG_LOG(("AuthKey Info: Session::authKeyCreatedForDC slot, emitting authKeyCreated(), dcWithShift %1").arg(_shiftedDcId));
+	_data.setKey(_dc->getKey());
 	emit authKeyCreated();
 }
 
 void Session::notifyKeyCreated(AuthKeyPtr &&key) {
-	DEBUG_LOG(("AuthKey Info: Session::keyCreated(), setting, dcWithShift %1").arg(dcWithShift));
-	dc->setKey(std::move(key));
+	DEBUG_LOG(("AuthKey Info: Session::keyCreated(), setting, dcWithShift %1").arg(_shiftedDcId));
+	_dc->setKey(std::move(key));
 }
 
 void Session::connectionWasInitedForDC() {
-	DEBUG_LOG(("MTP Info: Session::connectionWasInitedForDC slot, dcWithShift %1").arg(dcWithShift));
-	data.setConnectionInited();
+	DEBUG_LOG(("MTP Info: Session::connectionWasInitedForDC slot, dcWithShift %1").arg(_shiftedDcId));
+	_data.setConnectionInited();
 }
 
 void Session::notifyDcConnectionInited() {
-	DEBUG_LOG(("MTP Info: emitting MTProtoDC::connectionWasInited(), dcWithShift %1").arg(dcWithShift));
-	dc->setConnectionInited();
-	emit dc->connectionWasInited();
+	DEBUG_LOG(("MTP Info: emitting MTProtoDC::connectionWasInited(), dcWithShift %1").arg(_shiftedDcId));
+	_dc->setConnectionInited();
+	emit _dc->connectionWasInited();
 }
 
 void Session::destroyKey() {
-	if (!dc) return;
+	if (!_dc) {
+		return;
+	}
 
-	if (data.getKey()) {
-		DEBUG_LOG(("MTP Info: destroying auth_key for dcWithShift %1").arg(dcWithShift));
-		if (data.getKey() == dc->getKey()) {
-			dc->destroyKey();
+	if (_data.getKey()) {
+		DEBUG_LOG(("MTP Info: destroying auth_key for dcWithShift %1").arg(_shiftedDcId));
+		if (_data.getKey() == _dc->getKey()) {
+			_dc->destroyKey();
 		}
-		data.setKey(AuthKeyPtr());
+		_data.setKey(AuthKeyPtr());
 	}
 }
 
 int32 Session::getDcWithShift() const {
-	return dcWithShift;
+	return _shiftedDcId;
 }
 
 void Session::tryToReceive() {
@@ -604,11 +607,11 @@ void Session::tryToReceive() {
 		auto isUpdate = false;
 		auto message = SerializedMessage();
 		{
-			QWriteLocker locker(data.haveReceivedMutex());
-			auto &responses = data.haveReceivedResponses();
+			QWriteLocker locker(_data.haveReceivedMutex());
+			auto &responses = _data.haveReceivedResponses();
 			auto response = responses.begin();
 			if (response == responses.cend()) {
-				auto &updates = data.haveReceivedUpdates();
+				auto &updates = _data.haveReceivedUpdates();
 				auto update = updates.begin();
 				if (update == updates.cend()) {
 					return;
@@ -624,7 +627,7 @@ void Session::tryToReceive() {
 			}
 		}
 		if (isUpdate) {
-			if (dcWithShift == BareDcId(dcWithShift)) { // call globalCallback only in main session
+			if (_shiftedDcId == BareDcId(_shiftedDcId)) { // call globalCallback only in main session
 				_instance->globalCallback(message.constData(), message.constData() + message.size());
 			}
 		} else {

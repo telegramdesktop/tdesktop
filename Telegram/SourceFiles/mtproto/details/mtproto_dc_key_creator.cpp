@@ -69,8 +69,9 @@ struct ParsedPQ {
 	return { pStr, qStr };
 }
 
+template <typename PQInnerData>
 [[nodiscard]] bytes::vector EncryptPQInnerRSA(
-		const MTPP_Q_inner_data &data,
+		const PQInnerData &data,
 		const RSAPublicKey &key) {
 	constexpr auto kSkipPrimes = 6;
 	constexpr auto kMaxPrimes = 65; // 260 bytes
@@ -150,12 +151,15 @@ DcKeyCreator::DcKeyCreator(
 	int16 protocolDcId,
 	not_null<AbstractConnection*> connection,
 	not_null<DcOptions*> dcOptions,
-	Delegate delegate)
+	Delegate delegate,
+	TimeId expireIn)
 : _connection(connection)
 , _dcOptions(dcOptions)
 , _dcId(dcId)
 , _protocolDcId(protocolDcId)
+, _expireIn(expireIn)
 , _delegate(std::move(delegate)) {
+	Expects(_expireIn >= 0);
 	Expects(_delegate.done != nullptr);
 
 	_data.nonce = openssl::RandomValue<MTPint128>();
@@ -219,15 +223,30 @@ void DcKeyCreator::pqAnswered() {
 		return failed();
 	}
 
-	auto p_q_inner = MTP_p_q_inner_data_dc(
-		res_pq_data.vpq(),
-		MTP_bytes(parsed.p),
-		MTP_bytes(parsed.q),
-		_data.nonce,
-		_data.server_nonce,
-		_data.new_nonce,
-		MTP_int(_protocolDcId));
-	const auto dhEncString = EncryptPQInnerRSA(p_q_inner, rsaKey);
+	const auto dhEncString = [&] {
+		return (_expireIn == 0)
+			? EncryptPQInnerRSA(
+				MTP_p_q_inner_data_dc(
+					res_pq_data.vpq(),
+					MTP_bytes(parsed.p),
+					MTP_bytes(parsed.q),
+					_data.nonce,
+					_data.server_nonce,
+					_data.new_nonce,
+					MTP_int(_protocolDcId)),
+				rsaKey)
+			: EncryptPQInnerRSA(
+				MTP_p_q_inner_data_temp_dc(
+					res_pq_data.vpq(),
+					MTP_bytes(parsed.p),
+					MTP_bytes(parsed.q),
+					_data.nonce,
+					_data.server_nonce,
+					_data.new_nonce,
+					MTP_int(_protocolDcId),
+					MTP_int(_expireIn)),
+				rsaKey);
+	}();
 	if (dhEncString.empty()) {
 		return failed();
 	}
@@ -241,8 +260,8 @@ void DcKeyCreator::pqAnswered() {
 	sendNotSecureRequest(MTPReq_DH_params(
 		_data.nonce,
 		_data.server_nonce,
-		p_q_inner.c_p_q_inner_data_dc().vp(),
-		p_q_inner.c_p_q_inner_data_dc().vq(),
+		MTP_bytes(parsed.p),
+		MTP_bytes(parsed.q),
 		MTP_long(rsaKey.fingerprint()),
 		MTP_bytes(dhEncString)));
 }
