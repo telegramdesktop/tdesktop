@@ -229,9 +229,6 @@ private:
 
 	base::Timer _checkDelayedTimer;
 
-	// Debug flag to find out how we end up crashing.
-	bool MustNotCreateSessions = false;
-
 };
 
 Instance::Private::Private(
@@ -273,14 +270,12 @@ void Instance::Private::start(Config &&config) {
 
 	if (isKeysDestroyer()) {
 		for (auto &dc : _dcenters) {
-			Assert(!MustNotCreateSessions);
 			auto shiftedDcId = dc.first;
 			auto session = std::make_unique<internal::Session>(_instance, shiftedDcId);
 			auto it = _sessions.emplace(shiftedDcId, std::move(session)).first;
 			it->second->start();
 		}
 	} else if (_mainDcId != Config::kNoneMainDc) {
-		Assert(!MustNotCreateSessions);
 		auto main = std::make_unique<internal::Session>(_instance, _mainDcId);
 		_mainSession = main.get();
 		_sessions.emplace(_mainDcId, std::move(main));
@@ -581,7 +576,6 @@ void Instance::Private::killSession(ShiftedDcId shiftedDcId) {
 	if (checkIfMainAndKill(shiftedDcId)) {
 		checkIfMainAndKill(_mainDcId);
 
-		Assert(!MustNotCreateSessions);
 		auto main = std::make_unique<internal::Session>(_instance, _mainDcId);
 		_mainSession = main.get();
 		_sessions.emplace(_mainDcId, std::move(main));
@@ -715,7 +709,6 @@ void Instance::Private::addKeysForDestroy(AuthKeysList &&keys) {
 		auto dc = std::make_shared<internal::Dcenter>(_instance, dcId, std::move(key));
 		_dcenters.emplace(shiftedDcId, std::move(dc));
 
-		Assert(!MustNotCreateSessions);
 		auto session = std::make_unique<internal::Session>(_instance, shiftedDcId);
 		auto it = _sessions.emplace(shiftedDcId, std::move(session)).first;
 		it->second->start();
@@ -1450,7 +1443,6 @@ not_null<internal::Session*> Instance::Private::getSession(
 
 	auto it = _sessions.find(shiftedDcId);
 	if (it == _sessions.cend()) {
-		Assert(!MustNotCreateSessions);
 		it = _sessions.emplace(shiftedDcId, std::make_unique<internal::Session>(_instance, shiftedDcId)).first;
 		it->second->start();
 	}
@@ -1576,8 +1568,6 @@ void Instance::Private::prepareToDestroy() {
 		session.second->kill();
 	}
 	_mainSession = nullptr;
-
-	MustNotCreateSessions = true;
 }
 
 Instance::Instance(not_null<DcOptions*> options, Mode mode, Config &&config)
