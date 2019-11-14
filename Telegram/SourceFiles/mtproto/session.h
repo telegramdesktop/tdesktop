@@ -378,7 +378,6 @@ public slots:
 	void connectionWasInitedForDC();
 
 	void tryToReceive();
-	void checkRequestsByTimer();
 	void onConnectionStateChange(qint32 newState);
 	void onResetDone();
 
@@ -388,10 +387,13 @@ public slots:
 
 private:
 	void createDcData();
+	void checkRequestsByTimer();
 
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
 
-	not_null<Instance*> _instance;
+	const not_null<Instance*> _instance;
+	const ShiftedDcId _shiftedDcId = 0;
+
 	std::unique_ptr<Connection> _connection;
 
 	bool _killed = false;
@@ -399,7 +401,6 @@ private:
 
 	SessionData _data;
 
-	ShiftedDcId _shiftedDcId = 0;
 	std::shared_ptr<Dcenter> _dc;
 	AuthKeyPtr _dcKeyForCheck;
 
@@ -408,7 +409,7 @@ private:
 
 	bool _ping = false;
 
-	QTimer _timeouter;
+	base::Timer _timeouter;
 	base::Timer _sender;
 
 };

@@ -143,12 +143,11 @@ void SessionData::clear(Instance *instance) {
 Session::Session(not_null<Instance*> instance, ShiftedDcId shiftedDcId)
 : QObject()
 , _instance(instance)
-, _data(this)
 , _shiftedDcId(shiftedDcId)
+, _data(this)
+, _timeouter([=] { checkRequestsByTimer(); })
 , _sender([=] { needToResumeAndSend(); }) {
-	connect(&_timeouter, SIGNAL(timeout()), this, SLOT(checkRequestsByTimer()));
-	_timeouter.start(1000);
-
+	_timeouter.callEach(1000);
 	refreshOptions();
 }
 
@@ -291,9 +290,7 @@ void Session::needToResumeAndSend() {
 	}
 	if (!_connection) {
 		DEBUG_LOG(("Session Info: resuming session dcWithShift %1").arg(_shiftedDcId));
-		createDcData();
-		_connection = std::make_unique<Connection>(_instance);
-		_connection->start(&_data, _shiftedDcId);
+		start();
 	}
 	if (_ping) {
 		_ping = false;
