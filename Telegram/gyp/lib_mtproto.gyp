@@ -38,6 +38,8 @@
       '<(src_loc)/mtproto/details/mtproto_dc_key_checker.h',
       '<(src_loc)/mtproto/details/mtproto_dc_key_creator.cpp',
       '<(src_loc)/mtproto/details/mtproto_dc_key_creator.h',
+      '<(src_loc)/mtproto/details/mtproto_dump_to_text.cpp',
+      '<(src_loc)/mtproto/details/mtproto_dump_to_text.h',
       '<(src_loc)/mtproto/mtproto_dh_utils.cpp',
       '<(src_loc)/mtproto/mtproto_dh_utils.h',
       '<(src_loc)/mtproto/mtproto_proxy_data.cpp',

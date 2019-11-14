@@ -28,7 +28,6 @@ generate({
     'buffer': 'mtpBuffer',
   },
   'sections': [
-    'serialization',
     'read-write',
   ],
 
@@ -90,5 +89,9 @@ generate({
     'bytes': 'string',
   },
   'builtinInclude': 'mtproto/core_types.h',
+
+  'dumpToText': {
+    'include': 'mtproto/details/mtproto_dump_to_text.h',
+  },
 
 })

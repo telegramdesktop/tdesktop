@@ -99,7 +99,6 @@
       '<(SHARED_INTERMEDIATE_DIR)',
       '<(libs_loc)/breakpad/src',
       '<(libs_loc)/lzma/C',
-      '<(libs_loc)/zlib',
       '<(libs_loc)/openal-soft/include',
       '<(libs_loc)/opus/include',
       '<(minizip_loc)',

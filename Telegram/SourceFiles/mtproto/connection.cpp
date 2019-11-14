@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/details/mtproto_dc_key_creator.h"
 #include "mtproto/details/mtproto_dc_key_checker.h"
+#include "mtproto/details/mtproto_dump_to_text.h"
 #include "mtproto/session.h"
 #include "mtproto/rsa_public_key.h"
 #include "mtproto/rpc_sender.h"
@@ -1433,7 +1434,7 @@ void ConnectionPrivate::handleReceived() {
 		auto from = decryptedInts + kEncryptedHeaderIntsCount;
 		auto end = from + (messageLength / kIntSize);
 		auto sfrom = decryptedInts + 4U; // msg_id + seq_no + length + message
-		MTP_LOG(_shiftedDcId, ("Recv: ") + mtpTextSerialize(sfrom, end));
+		MTP_LOG(_shiftedDcId, ("Recv: ") + details::DumpToText(sfrom, end));
 
 		bool needToHandle = false;
 		{
@@ -2622,7 +2623,7 @@ bool ConnectionPrivate::sendSecureRequest(
 	memcpy(request->data() + 2, &session, 2 * sizeof(mtpPrime));
 
 	auto from = request->constData() + 4;
-	MTP_LOG(_shiftedDcId, ("Send: ") + mtpTextSerialize(from, from + messageSize));
+	MTP_LOG(_shiftedDcId, ("Send: ") + details::DumpToText(from, from + messageSize));
 
 #ifdef TDESKTOP_MTPROTO_OLD
 	uint32 padding = fullSize - 4 - messageSize;
