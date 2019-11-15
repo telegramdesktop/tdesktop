@@ -249,7 +249,6 @@ ConnectionPrivate::ConnectionPrivate(
 
 	connect(thread, &QThread::started, this, [=] { connectToServer(); });
 	connect(thread, &QThread::finished, this, [=] { finishAndDestroy(); });
-	connect(this, SIGNAL(finished(internal::Connection*)), _instance, SLOT(connectionFinished(internal::Connection*)), Qt::QueuedConnection);
 
 	connect(_sessionData->owner(), SIGNAL(authKeyCreated()), this, SLOT(updateAuthKey()), Qt::QueuedConnection);
 	connect(_sessionData->owner(), SIGNAL(needToRestart()), this, SLOT(restartNow()), Qt::QueuedConnection);
@@ -1227,7 +1226,11 @@ void ConnectionPrivate::doDisconnect() {
 void ConnectionPrivate::finishAndDestroy() {
 	doDisconnect();
 	_finished = true;
-	emit finished(_owner);
+	const auto connection = _owner;
+	const auto instance = _instance;
+	InvokeQueued(instance, [=] {
+		instance->connectionFinished(connection);
+	});
 	deleteLater();
 }
 
@@ -1249,7 +1252,7 @@ void ConnectionPrivate::handleReceived() {
 
 	onReceivedSome();
 
-	auto restartOnError = [this, &lockFinished] {
+	const auto restartOnError = [&] {
 		lockFinished.unlock();
 		restart();
 	};

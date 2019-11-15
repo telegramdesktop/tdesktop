@@ -140,40 +140,37 @@ void SessionData::clear(Instance *instance) {
 	instance->clearCallbacksDelayed(std::move(clearCallbacks));
 }
 
-Session::Session(not_null<Instance*> instance, ShiftedDcId shiftedDcId)
+Session::Session(
+	not_null<Instance*> instance,
+	ShiftedDcId shiftedDcId,
+	Dcenter *dc)
 : QObject()
 , _instance(instance)
 , _shiftedDcId(shiftedDcId)
+, _dc(dc)
 , _data(this)
 , _timeouter([=] { checkRequestsByTimer(); })
 , _sender([=] { needToResumeAndSend(); }) {
 	_timeouter.callEach(1000);
 	refreshOptions();
+	if (_dc) {
+		if (const auto lock = ReadLockerAttempt(keyMutex())) {
+			_data.setKey(_dc->getKey());
+			if (_dc->connectionInited()) {
+				_data.setConnectionInited();
+			}
+		}
+		connect(_dc, SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()), Qt::QueuedConnection);
+		connect(_dc, SIGNAL(connectionWasInited()), this, SLOT(connectionWasInitedForDC()), Qt::QueuedConnection);
+	}
 }
 
 void Session::start() {
-	createDcData();
 	_connection = std::make_unique<Connection>(_instance);
 	_connection->start(&_data, _shiftedDcId);
 	if (_instance->isKeysDestroyer()) {
 		_instance->scheduleKeyDestroy(_shiftedDcId);
 	}
-}
-
-void Session::createDcData() {
-	if (_dc || GetDcIdShift(_shiftedDcId) == kCheckKeyDcShift) {
-		return;
-	}
-	_dc = _instance->getDcById(_shiftedDcId);
-
-	if (auto lock = ReadLockerAttempt(keyMutex())) {
-		_data.setKey(_dc->getKey());
-		if (_dc->connectionInited()) {
-			_data.setConnectionInited();
-		}
-	}
-	connect(_dc.get(), SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()), Qt::QueuedConnection);
-	connect(_dc.get(), SIGNAL(connectionWasInited()), this, SLOT(connectionWasInitedForDC()), Qt::QueuedConnection);
 }
 
 bool Session::rpcErrorOccured(

@@ -57,5 +57,20 @@ void Dcenter::destroyKey() {
 	setKey(AuthKeyPtr());
 }
 
+bool Dcenter::connectionInited() const {
+	const auto lock = QMutexLocker(&_initLock);
+	return _connectionInited;
+}
+
+void Dcenter::setConnectionInited(bool connectionInited) {
+	auto lock = QMutexLocker(&_initLock);
+	_connectionInited = connectionInited;
+	lock.unlock();
+
+	if (connectionInited) {
+		emit connectionWasInited();
+	}
+}
+
 } // namespace internal
 } // namespace MTP

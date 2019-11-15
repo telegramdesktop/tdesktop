@@ -149,7 +149,6 @@ public:
 	void reInitConnection(DcId dcId);
 	void logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
 
-	std::shared_ptr<internal::Dcenter> getDcById(ShiftedDcId shiftedDcId);
 	void unpaused();
 
 	void queueQuittingConnection(std::unique_ptr<internal::Connection> &&connection);
@@ -185,10 +184,9 @@ public:
 
 	void syncHttpUnixtime();
 
-	~Instance();
+	void connectionFinished(not_null<internal::Connection*> connection);
 
-public slots:
-	void connectionFinished(internal::Connection *connection);
+	~Instance();
 
 signals:
 	void configLoaded();

@@ -317,7 +317,10 @@ class Session : public QObject {
 	Q_OBJECT
 
 public:
-	Session(not_null<Instance*> instance, ShiftedDcId shiftedDcId);
+	Session(
+		not_null<Instance*> instance,
+		ShiftedDcId shiftedDcId,
+		Dcenter *dc);
 
 	void start();
 	void restart();
@@ -376,13 +379,13 @@ public slots:
 	void sendMsgsStateInfo(quint64 msgId, QByteArray data);
 
 private:
-	void createDcData();
 	void checkRequestsByTimer();
 
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
 
 	const not_null<Instance*> _instance;
 	const ShiftedDcId _shiftedDcId = 0;
+	Dcenter *_dc = nullptr;
 
 	std::unique_ptr<Connection> _connection;
 
@@ -391,7 +394,6 @@ private:
 
 	SessionData _data;
 
-	std::shared_ptr<Dcenter> _dc;
 	AuthKeyPtr _dcKeyForCheck;
 
 	crl::time _msSendCall = 0;

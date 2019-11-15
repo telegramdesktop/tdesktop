@@ -26,19 +26,8 @@ public:
 	void setKey(AuthKeyPtr &&key);
 	void destroyKey();
 
-	bool connectionInited() const {
-		QMutexLocker lock(&initLock);
-		return _connectionInited;
-	}
-	void setConnectionInited(bool connectionInited = true) {
-		QMutexLocker lock(&initLock);
-		_connectionInited = connectionInited;
-		lock.unlock();
-
-		if (connectionInited) {
-			emit connectionWasInited();
-		}
-	}
+	[[nodiscard]] bool connectionInited() const;
+	void setConnectionInited(bool connectionInited = true);
 
 signals:
 	void authKeyCreated();
@@ -49,7 +38,7 @@ private slots:
 
 private:
 	mutable QReadWriteLock keyLock;
-	mutable QMutex initLock;
+	mutable QMutex _initLock;
 	not_null<Instance*> _instance;
 	DcId _id = 0;
 	AuthKeyPtr _key;

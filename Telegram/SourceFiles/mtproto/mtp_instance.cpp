@@ -81,9 +81,9 @@ public:
 	void reInitConnection(DcId dcId);
 	void logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
 
-	std::shared_ptr<Dcenter> getDcById(ShiftedDcId shiftedDcId);
-	std::shared_ptr<Dcenter> findDc(ShiftedDcId shiftedDcId);
-	std::shared_ptr<Dcenter> addDc(
+	not_null<Dcenter*> getDcById(ShiftedDcId shiftedDcId);
+	Dcenter *findDc(ShiftedDcId shiftedDcId);
+	not_null<Dcenter*> addDc(
 		ShiftedDcId shiftedDcId,
 		AuthKeyPtr &&key = nullptr);
 	void removeDc(ShiftedDcId shiftedDcId);
@@ -91,7 +91,7 @@ public:
 
 	void queueQuittingConnection(
 		std::unique_ptr<Connection> &&connection);
-	void connectionFinished(Connection *connection);
+	void connectionFinished(not_null<Connection*> connection);
 
 	void sendRequest(
 		mtpRequestId requestId,
@@ -138,12 +138,12 @@ public:
 	}
 
 	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
+	void checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId);
 	void performKeyDestroy(ShiftedDcId shiftedDcId);
 	void completedKeyDestroy(ShiftedDcId shiftedDcId);
 	void checkMainDcKey();
 	void keyDestroyedOnServer(DcId dcId, uint64 keyId);
 
-	void clearKilledSessions();
 	void prepareToDestroy();
 
 private:
@@ -156,7 +156,7 @@ private:
 
 	Session *findSession(ShiftedDcId shiftedDcId);
 	not_null<Session*> startSession(ShiftedDcId shiftedDcId);
-	Session *removeSessionToKilled(ShiftedDcId shiftedDcId);
+	Session *removeSession(ShiftedDcId shiftedDcId);
 
 	void applyDomainIps(
 		const QString &host,
@@ -187,18 +187,19 @@ private:
 	const not_null<DcOptions*> _dcOptions;
 	const Instance::Mode _mode = Instance::Mode::Normal;
 
-	DcId _mainDcId = Config::kDefaultMainDc;
-	bool _mainDcIdForced = false;
-	base::flat_map<DcId, std::shared_ptr<Dcenter>> _dcenters;
-
 	QString _deviceModel;
 	QString _systemVersion;
 
+	DcId _mainDcId = Config::kDefaultMainDc;
+	bool _mainDcIdForced = false;
+	base::flat_map<DcId, std::unique_ptr<Dcenter>> _dcenters;
+	std::vector<std::unique_ptr<Dcenter>> _dcentersToDestroy;
+
 	Session *_mainSession = nullptr;
 	base::flat_map<ShiftedDcId, std::unique_ptr<Session>> _sessions;
-	std::vector<std::unique_ptr<Session>> _killedSessions; // delayed delete
+	std::vector<std::unique_ptr<Session>> _sessionsToDestroy;
 
-	base::set_of_unique_ptr<Connection> _quittingConnections;
+	std::vector<std::unique_ptr<Connection>> _connectionsToDestroy;
 
 	std::unique_ptr<ConfigLoader> _configLoader;
 	std::unique_ptr<DomainResolver> _domainResolver;
@@ -563,20 +564,18 @@ int32 Instance::Private::state(mtpRequestId requestId) {
 
 void Instance::Private::killSession(ShiftedDcId shiftedDcId) {
 	const auto checkIfMainAndKill = [&](ShiftedDcId shiftedDcId) {
-		const auto killed = removeSessionToKilled(shiftedDcId);
-		return killed && (killed == _mainSession);
+		if (const auto removed = removeSession(shiftedDcId)) {
+			return (removed == _mainSession);
+		}
+		return false;
 	};
 	if (checkIfMainAndKill(shiftedDcId)) {
 		checkIfMainAndKill(_mainDcId);
 		_mainSession = startSession(_mainDcId);
 	}
 	InvokeQueued(_instance, [=] {
-		clearKilledSessions();
+		_sessionsToDestroy.clear();
 	});
-}
-
-void Instance::Private::clearKilledSessions() {
-	_killedSessions.clear();
 }
 
 void Instance::Private::stopSession(ShiftedDcId shiftedDcId) {
@@ -635,38 +634,47 @@ bool Instance::Private::logoutGuestDone(mtpRequestId requestId) {
 	return false;
 }
 
-std::shared_ptr<Dcenter> Instance::Private::findDc(ShiftedDcId shiftedDcId) {
+Dcenter *Instance::Private::findDc(ShiftedDcId shiftedDcId) {
 	const auto i = _dcenters.find(shiftedDcId);
-	return (i != _dcenters.end()) ? i->second : nullptr;
+	return (i != _dcenters.end()) ? i->second.get() : nullptr;
 }
 
-std::shared_ptr<Dcenter> Instance::Private::addDc(
+not_null<Dcenter*> Instance::Private::addDc(
 		ShiftedDcId shiftedDcId,
 		AuthKeyPtr &&key) {
 	const auto dcId = BareDcId(shiftedDcId);
 	return _dcenters.emplace(
 		shiftedDcId,
-		std::make_shared<Dcenter>(_instance, dcId, std::move(key))
-	).first->second;
+		std::make_unique<Dcenter>(_instance, dcId, std::move(key))
+	).first->second.get();
 }
 
 void Instance::Private::removeDc(ShiftedDcId shiftedDcId) {
-	_dcenters.erase(shiftedDcId);
+	const auto i = _dcenters.find(shiftedDcId);
+	if (i != _dcenters.end()) {
+		_dcentersToDestroy.push_back(std::move(i->second));
+		_dcenters.erase(i);
+	}
 }
 
-std::shared_ptr<Dcenter> Instance::Private::getDcById(
+not_null<Dcenter*> Instance::Private::getDcById(
 		ShiftedDcId shiftedDcId) {
-	if (auto result = findDc(shiftedDcId)) {
+	if (const auto result = findDc(shiftedDcId)) {
 		return result;
 	}
-	auto dcId = BareDcId(shiftedDcId);
-	if (isTemporaryDcId(dcId)) {
-		if (const auto realDcId = getRealIdFromTemporaryDcId(dcId)) {
-			dcId = realDcId;
+	const auto dcId = [&] {
+		const auto result = BareDcId(shiftedDcId);
+		if (isTemporaryDcId(result)) {
+			if (const auto realDcId = getRealIdFromTemporaryDcId(result)) {
+				return realDcId;
+			}
 		}
-	}
-	if (auto result = findDc(dcId)) {
 		return result;
+	}();
+	if (dcId != shiftedDcId) {
+		if (const auto result = findDc(dcId)) {
+			return result;
+		}
 	}
 	return addDc(dcId);
 }
@@ -737,13 +745,17 @@ void Instance::Private::unpaused() {
 
 void Instance::Private::queueQuittingConnection(
 		std::unique_ptr<Connection> &&connection) {
-	_quittingConnections.insert(std::move(connection));
+	_connectionsToDestroy.push_back(std::move(connection));
 }
 
-void Instance::Private::connectionFinished(Connection *connection) {
-	const auto it = _quittingConnections.find(connection);
-	if (it != _quittingConnections.end()) {
-		_quittingConnections.erase(it);
+void Instance::Private::connectionFinished(
+		not_null<Connection*> connection) {
+	const auto i = ranges::find(
+		_connectionsToDestroy,
+		connection.get(),
+		&std::unique_ptr<Connection>::get);
+	if (i != _connectionsToDestroy.end()) {
+		_connectionsToDestroy.erase(i);
 	}
 }
 
@@ -1005,7 +1017,7 @@ void Instance::Private::clearCallbacksDelayed(
 			).arg(idsString.join(", ")));
 	}
 
-	crl::on_main(_instance, [this, list = std::move(ids)] {
+	InvokeQueued(_instance, [=, list = std::move(ids)] {
 		clearCallbacks(list);
 	});
 }
@@ -1456,23 +1468,26 @@ Session *Instance::Private::findSession(ShiftedDcId shiftedDcId) {
 not_null<Session*> Instance::Private::startSession(ShiftedDcId shiftedDcId) {
 	Expects(BareDcId(shiftedDcId) != 0);
 
+	const auto dc = (GetDcIdShift(shiftedDcId) != kCheckKeyDcShift)
+		? getDcById(shiftedDcId).get()
+		: nullptr;
 	const auto result = _sessions.emplace(
 		shiftedDcId,
-		std::make_unique<Session>(_instance, shiftedDcId)
+		std::make_unique<Session>(_instance, shiftedDcId, dc)
 	).first->second.get();
 	result->start();
 	return result;
 }
 
-Session *Instance::Private::removeSessionToKilled(ShiftedDcId shiftedDcId) {
+Session *Instance::Private::removeSession(ShiftedDcId shiftedDcId) {
 	const auto i = _sessions.find(shiftedDcId);
 	if (i == _sessions.cend()) {
 		return nullptr;
 	}
 	i->second->kill();
-	_killedSessions.push_back(std::move(i->second));
+	_sessionsToDestroy.push_back(std::move(i->second));
 	_sessions.erase(i);
-	return _killedSessions.back().get();
+	return _sessionsToDestroy.back().get();
 }
 
 void Instance::Private::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
@@ -1484,11 +1499,27 @@ void Instance::Private::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
 		_instance->send(MTPauth_LogOut(), rpcDone([=](const MTPBool &) {
 			performKeyDestroy(shiftedDcId);
 		}), rpcFail([=](const RPCError &error) {
-			if (isDefaultHandledError(error)) return false;
+			if (isDefaultHandledError(error)) {
+				return false;
+			}
 			performKeyDestroy(shiftedDcId);
 			return true;
 		}), shiftedDcId);
 	}
+}
+
+void Instance::Private::checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId) {
+	InvokeQueued(_instance, [=] {
+		if (isKeysDestroyer()) {
+			LOG(("MTP Info: checkIfKeyWasDestroyed on destroying key %1, "
+				"assuming it is destroyed.").arg(shiftedDcId));
+			completedKeyDestroy(shiftedDcId);
+		} else if (BareDcId(shiftedDcId) == mainDcId()) {
+			LOG(("MTP Info: checkIfKeyWasDestroyed for main dc %1, "
+				"checking.").arg(shiftedDcId));
+			checkMainDcKey();
+		}
+	});
 }
 
 void Instance::Private::performKeyDestroy(ShiftedDcId shiftedDcId) {
@@ -1657,7 +1688,7 @@ void Instance::requestCDNConfig() {
 	_private->requestCDNConfig();
 }
 
-void Instance::connectionFinished(Connection *connection) {
+void Instance::connectionFinished(not_null<Connection*> connection) {
 	_private->connectionFinished(connection);
 }
 
@@ -1703,10 +1734,6 @@ void Instance::reInitConnection(DcId dcId) {
 
 void Instance::logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail) {
 	_private->logout(onDone, onFail);
-}
-
-std::shared_ptr<Dcenter> Instance::getDcById(ShiftedDcId shiftedDcId) {
-	return _private->getDcById(shiftedDcId);
 }
 
 void Instance::setKeyForWrite(DcId dcId, const AuthKeyPtr &key) {
@@ -1799,17 +1826,7 @@ void Instance::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
 }
 
 void Instance::checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId) {
-	crl::on_main(this, [=] {
-		if (isKeysDestroyer()) {
-			LOG(("MTP Info: checkIfKeyWasDestroyed on destroying key %1, "
-				"assuming it is destroyed.").arg(shiftedDcId));
-			_private->completedKeyDestroy(shiftedDcId);
-		} else if (BareDcId(shiftedDcId) == mainDcId()) {
-			LOG(("MTP Info: checkIfKeyWasDestroyed for main dc %1, "
-				"checking.").arg(shiftedDcId));
-			_private->checkMainDcKey();
-		}
-	});
+	_private->checkIfKeyWasDestroyed(shiftedDcId);
 }
 
 void Instance::keyDestroyedOnServer(DcId dcId, uint64 keyId) {

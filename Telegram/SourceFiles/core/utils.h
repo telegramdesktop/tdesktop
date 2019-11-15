@@ -25,12 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace base {
 
-template <typename T>
-using set_of_unique_ptr = std::set<std::unique_ptr<T>, base::pointer_comparator<T>>;
-
-template <typename T>
-using set_of_shared_ptr = std::set<std::shared_ptr<T>, base::pointer_comparator<T>>;
-
 template <typename Value, typename From, typename Till>
 inline bool in_range(Value &&value, From &&from, Till &&till) {
 	return (value >= from) && (value < till);

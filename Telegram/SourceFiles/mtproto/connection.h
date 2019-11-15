@@ -94,8 +94,6 @@ signals:
 	void resendManyAsync(QVector<quint64> msgIds, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
 	void resendAllAsync();
 
-	void finished(internal::Connection *connection);
-
 public slots:
 	void restartNow();
 
