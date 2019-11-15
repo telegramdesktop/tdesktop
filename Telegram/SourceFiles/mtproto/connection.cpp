@@ -1075,22 +1075,6 @@ void ConnectionPrivate::restart() {
 	_waitForReceivedTimer.cancel();
 	_waitForConnectedTimer.cancel();
 
-	auto key = _sessionData->getKey();
-	if (key) {
-		if (!_sessionData->isCheckedKey()) {
-			// No destroying in case of an error.
-			//
-			//if (mayBeBadKey) {
-			//	clearMessages();
-			//	_keyId = kRecreateKeyId;
-//				retryTimeout = 1; // no ddos please
-			//	LOG(("MTP Info: key may be bad and was not checked - but won't be destroyed, no log outs because of bad server right now..."));
-			//}
-		} else {
-			_sessionData->setCheckedKey(false);
-		}
-	}
-
 	lockFinished.unlock();
 	doDisconnect();
 
@@ -1476,10 +1460,6 @@ void ConnectionPrivate::handleReceived() {
 		}
 		_retryTimeout = 1; // reset restart() timer
 
-		if (!_sessionData->isCheckedKey()) {
-			DEBUG_LOG(("MTP Info: marked auth key as checked"));
-			_sessionData->setCheckedKey(true);
-		}
 		_startedConnectingAt = crl::time(0);
 
 		if (!wasConnected) {

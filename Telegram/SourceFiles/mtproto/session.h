@@ -189,15 +189,6 @@ public:
 	}
 	void setKeyForCheck(const AuthKeyPtr &key);
 
-	bool isCheckedKey() const {
-		QReadLocker locker(&_lock);
-		return _keyChecked;
-	}
-	void setCheckedKey(bool checked) {
-		QWriteLocker locker(&_lock);
-		_keyChecked = checked;
-	}
-
 	QReadWriteLock *keyMutex() const;
 
 	not_null<QReadWriteLock*> toSendMutex() const {
@@ -297,7 +288,6 @@ private:
 
 	AuthKeyPtr _authKey;
 	AuthKeyPtr _dcKeyForCheck;
-	bool _keyChecked = false;
 	bool _layerInited = false;
 	ConnectionOptions _options;
 
