@@ -261,13 +261,13 @@ private:
 };
 
 struct RPCCallbackClear {
-	RPCCallbackClear(mtpRequestId id , int32 code = RPCError::NoError)
+	RPCCallbackClear(mtpRequestId id, int32 code = RPCError::NoError)
 	: requestId(id)
 	, errorCode(code) {
 	}
 
-	mtpRequestId requestId;
-	int32 errorCode;
+	mtpRequestId requestId = 0;
+	int32 errorCode = 0;
 
 };
 

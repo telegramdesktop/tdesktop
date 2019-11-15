@@ -83,6 +83,7 @@ private:
 	void dhClientParamsSend();
 	void dhClientParamsAnswered();
 
+	void stopReceiving();
 	void failed(Error error = Error::Other);
 	void done(uint64 serverSalt);
 

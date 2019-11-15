@@ -40,7 +40,6 @@ namespace MTP {
 namespace internal {
 namespace {
 
-constexpr auto kRecreateKeyId = AuthKey::KeyId(0xFFFFFFFFFFFFFFFFULL);
 constexpr auto kIntSize = static_cast<int>(sizeof(mtpPrime));
 constexpr auto kWaitForBetterTimeout = crl::time(2000);
 constexpr auto kMinConnectedTimeout = crl::time(1000);
@@ -100,6 +99,14 @@ Connection::Connection(not_null<Instance*> instance)
 : _instance(instance) {
 }
 
+Connection::~Connection() {
+	Expects(_private == nullptr);
+
+	if (_thread) {
+		waitTillFinish();
+	}
+}
+
 void Connection::start(SessionData *sessionData, ShiftedDcId shiftedDcId) {
 	Expects(_thread == nullptr && _private == nullptr);
 
@@ -142,14 +149,6 @@ QString Connection::transport() const {
 	Expects(_private != nullptr && _thread != nullptr);
 
 	return _private->transport();
-}
-
-Connection::~Connection() {
-	Expects(_private == nullptr);
-
-	if (_thread) {
-		waitTillFinish();
-	}
 }
 
 void ConnectionPrivate::appendTestConnection(
@@ -215,11 +214,14 @@ int16 ConnectionPrivate::getProtocolDcId() const {
 }
 
 void ConnectionPrivate::destroyAllConnections() {
+	{
+		QReadLocker lockFinished(&_sessionDataMutex);
+		clearKeyCreatorOnFail();
+	}
 	_waitForBetterTimer.cancel();
 	_waitForReceivedTimer.cancel();
 	_waitForConnectedTimer.cancel();
 	_testConnections.clear();
-	_keyCreator = nullptr;
 	_connection = nullptr;
 }
 
@@ -250,7 +252,7 @@ ConnectionPrivate::ConnectionPrivate(
 	connect(thread, &QThread::started, this, [=] { connectToServer(); });
 	connect(thread, &QThread::finished, this, [=] { finishAndDestroy(); });
 
-	connect(_sessionData->owner(), SIGNAL(authKeyCreated()), this, SLOT(updateAuthKey()), Qt::QueuedConnection);
+	connect(_sessionData->owner(), SIGNAL(authKeyChanged()), this, SLOT(updateAuthKey()), Qt::QueuedConnection);
 	connect(_sessionData->owner(), SIGNAL(needToRestart()), this, SLOT(restartNow()), Qt::QueuedConnection);
 	connect(this, SIGNAL(needToReceive()), _sessionData->owner(), SLOT(tryToReceive()), Qt::QueuedConnection);
 	connect(this, SIGNAL(stateChanged(qint32)), _sessionData->owner(), SLOT(onConnectionStateChange(qint32)), Qt::QueuedConnection);
@@ -272,6 +274,13 @@ ConnectionPrivate::ConnectionPrivate(
 	connect(this, SIGNAL(resendAsync(quint64,qint64,bool,bool)), _sessionData->owner(), SLOT(resend(quint64,qint64,bool,bool)), Qt::QueuedConnection);
 	connect(this, SIGNAL(resendManyAsync(QVector<quint64>,qint64,bool,bool)), _sessionData->owner(), SLOT(resendMany(QVector<quint64>,qint64,bool,bool)), Qt::QueuedConnection);
 	connect(this, SIGNAL(resendAllAsync()), _sessionData->owner(), SLOT(resendAll()), Qt::QueuedConnection);
+}
+
+ConnectionPrivate::~ConnectionPrivate() {
+	Expects(_finished);
+	Expects(!_connection);
+	Expects(_testConnections.empty());
+	Expects(!_keyCreator);
 }
 
 void ConnectionPrivate::onConfigLoaded() {
@@ -562,11 +571,11 @@ mtpMsgId ConnectionPrivate::placeToContainer(SecureRequest &toSendRequest, mtpMs
 
 void ConnectionPrivate::tryToSend() {
 	QReadLocker lockFinished(&_sessionDataMutex);
-	if (!_sessionData || !_connection) {
+	if (!_sessionData || !_connection || !_keyId) {
 		return;
 	}
 
-	auto needsLayer = !_connectionOptions->inited;
+	auto needsLayer = !_sessionData->owner()->connectionInited();
 	auto state = getState();
 	auto sendOnlyFirstPing = (state != ConnectedState);
 	if (sendOnlyFirstPing && !_pingIdToSend) {
@@ -650,7 +659,7 @@ void ConnectionPrivate::tryToSend() {
 					_shiftedDcId,
 					keyForCheck);
 				checkDcKeyRequest = _keyChecker->prepareRequest(
-					_sessionData->getKey(),
+					_key,
 					_sessionData->getSessionId());
 
 				// This is a special request with msgId used inside the message
@@ -771,7 +780,9 @@ void ConnectionPrivate::tryToSend() {
 					auto &haveSent = _sessionData->haveSentMap();
 					haveSent.insert(msgId, toSendRequest);
 
-					if (needsLayer && !toSendRequest->needsLayer) needsLayer = false;
+					if (needsLayer && !toSendRequest->needsLayer) {
+						needsLayer = false;
+					}
 					if (toSendRequest->after) {
 						const auto toSendSize = tl::count_length(toSendRequest) >> 2;
 						auto wrappedRequest = SecureRequest::Prepare(
@@ -844,6 +855,7 @@ void ConnectionPrivate::tryToSend() {
 
 			// prepare "request-like" wrap for msgId vector
 			auto haveSentIdsWrap = SecureRequest::Prepare(idsWrapSize);
+			haveSentIdsWrap->msDate = 0; // Container: msDate = 0, seqNo = 0.
 			haveSentIdsWrap->requestId = 0;
 			haveSentIdsWrap->resize(haveSentIdsWrap->size() + idsWrapSize);
 			auto haveSentArr = (mtpMsgId*)(haveSentIdsWrap->data() + 8);
@@ -931,15 +943,6 @@ void ConnectionPrivate::retryByTimer() {
 	} else if (_retryTimeout < 64000) {
 		_retryTimeout *= 2;
 	}
-	if (_keyId == kRecreateKeyId) {
-		if (_sessionData->getKey()) {
-			unlockKey();
-
-			QWriteLocker lock(_sessionData->keyMutex());
-			_sessionData->owner()->destroyKey();
-		}
-		_keyId = 0;
-	}
 	connectToServer();
 }
 
@@ -964,7 +967,8 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 	}
 	_connectionOptions = std::make_unique<ConnectionOptions>(
 		_sessionData->connectionOptions());
-	const auto hasKey = (_sessionData->getKey() != nullptr);
+	// #TODO race.
+	const auto hasKey = (_sessionData->owner()->getKey() != nullptr);
 	lockFinished.unlock();
 
 	const auto bareDc = BareDcId(_shiftedDcId);
@@ -1212,13 +1216,6 @@ void ConnectionPrivate::connectingTimedOut() {
 void ConnectionPrivate::doDisconnect() {
 	destroyAllConnections();
 
-	{
-		QReadLocker lockFinished(&_sessionDataMutex);
-		if (_sessionData) {
-			unlockKey();
-		}
-	}
-
 	setState(DisconnectedState);
 	_restarted = false;
 }
@@ -1257,21 +1254,6 @@ void ConnectionPrivate::handleReceived() {
 		restart();
 	};
 
-	ReadLockerAttempt lock(_sessionData->keyMutex());
-	if (!lock) {
-		DEBUG_LOG(("MTP Error: auth_key for dc %1 busy, cant lock").arg(_shiftedDcId));
-		clearMessages();
-		_keyId = 0;
-
-		return restartOnError();
-	}
-
-	auto key = _sessionData->getKey();
-	if (!key || key->keyId() != _keyId) {
-		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(_shiftedDcId));
-		return restartOnError();
-	}
-
 	while (!_connection->received().empty()) {
 		auto intsBuffer = std::move(_connection->received().front());
 		_connection->received().pop_front();
@@ -1302,9 +1284,9 @@ void ConnectionPrivate::handleReceived() {
 		auto msgKey = *(MTPint128*)(ints + 2);
 
 #ifdef TDESKTOP_MTPROTO_OLD
-		aesIgeDecrypt_oldmtp(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, key, msgKey);
+		aesIgeDecrypt_oldmtp(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, _key, msgKey);
 #else // TDESKTOP_MTPROTO_OLD
-		aesIgeDecrypt(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, key, msgKey);
+		aesIgeDecrypt(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, _key, msgKey);
 #endif // TDESKTOP_MTPROTO_OLD
 
 		auto decryptedInts = reinterpret_cast<const mtpPrime*>(decryptedBuffer.constData());
@@ -1351,7 +1333,7 @@ void ConnectionPrivate::handleReceived() {
 
 		SHA256_CTX msgKeyLargeContext;
 		SHA256_Init(&msgKeyLargeContext);
-		SHA256_Update(&msgKeyLargeContext, key->partForMsgKey(false), 32);
+		SHA256_Update(&msgKeyLargeContext, _key->partForMsgKey(false), 32);
 		SHA256_Update(&msgKeyLargeContext, decryptedInts, encryptedBytesCount);
 		SHA256_Final(sha256Buffer.data(), &msgKeyLargeContext);
 
@@ -1960,10 +1942,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			// An error could be some RPC_CALL_FAIL or other error inside
 			// the initConnection, so we're not sure yet that it was inited.
 			// Wait till a good response is received.
-			if (!_connectionOptions->inited) {
-				_connectionOptions->inited = true;
-				_sessionData->notifyConnectionInited(*_connectionOptions);
-			}
+			_sessionData->notifyConnectionInited(*_connectionOptions);
 		}
 
 		if (_keyChecker && _keyChecker->handleResponse(reqMsgId, response)) {
@@ -2346,7 +2325,7 @@ void ConnectionPrivate::onConnected(
 		_testConnections.clear();
 
 		lockFinished.unlock();
-		updateAuthKey();
+		checkAuthKey();
 	}
 }
 
@@ -2383,7 +2362,7 @@ void ConnectionPrivate::confirmBestConnection() {
 	_connection = std::move(i->data);
 	_testConnections.clear();
 
-	updateAuthKey();
+	checkAuthKey();
 }
 
 void ConnectionPrivate::removeTestConnection(
@@ -2396,51 +2375,58 @@ void ConnectionPrivate::removeTestConnection(
 		end(_testConnections));
 }
 
+void ConnectionPrivate::checkAuthKey() {
+	if (!_keyId) {
+		updateAuthKey();
+	} else {
+		authKeyChecked();
+	}
+}
+
 void ConnectionPrivate::updateAuthKey() {
 	QReadLocker lockFinished(&_sessionDataMutex);
-	if (!_sessionData || !_connection) {
+	if (!_sessionData || _keyCreator) {
 		return;
 	}
 
 	DEBUG_LOG(("AuthKey Info: Connection updating key from Session, dc %1").arg(_shiftedDcId));
-	uint64 newKeyId = 0;
-	{
-		ReadLockerAttempt lock(_sessionData->keyMutex());
-		if (!lock) {
-			DEBUG_LOG(("MTP Info: could not lock auth_key for read, waiting signal emit"));
-			clearMessages();
-			_keyId = newKeyId;
-			return; // some other connection is getting key
+	_key = _sessionData->owner()->getKey();
+	const auto newKeyId = _key ? _key->keyId() : 0;
+	if (newKeyId) {
+		if (_keyId == newKeyId) {
+			return;
 		}
-		auto key = _sessionData->getKey();
-		newKeyId = key ? key->keyId() : 0;
+		_sessionData->setCurrentKeyId(newKeyId);
 	}
-	if (_keyId != newKeyId) {
-		clearMessages();
-		_keyId = newKeyId;
+	_keyId = newKeyId;
+	if (!_connection) {
+		return;
+	}
+	if (const auto already = _connection->sentEncryptedWithKeyId()) {
+		Assert(already != newKeyId);
+		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(_shiftedDcId));
+
+		lockFinished.unlock();
+		restart();
+		return;
 	}
 	DEBUG_LOG(("AuthKey Info: Connection update key from Session, dc %1 result: %2").arg(_shiftedDcId).arg(Logs::mb(&_keyId, sizeof(_keyId)).str()));
 	if (_keyId) {
-		return authKeyCreated();
+		return authKeyChecked();
 	}
 
-	DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), will be creating auth_key"));
-	lockKey();
-
-	const auto &key = _sessionData->getKey();
-	if (key) {
-		if (_keyId != key->keyId()) clearMessages();
-		_keyId = key->keyId();
-		unlockKey();
-		return authKeyCreated();
-	} else if (_instance->isKeysDestroyer()) {
+	if (_instance->isKeysDestroyer()) {
 		// We are here to destroy an old key, so we're done.
 		LOG(("MTP Error: No key %1 in updateAuthKey() for destroying.").arg(_shiftedDcId));
 		_instance->checkIfKeyWasDestroyed(_shiftedDcId);
 		return;
+	} else if (!_sessionData->owner()->acquireKeyCreation()) {
+		DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), but someone is creating already."));
+		return;
 	}
 	lockFinished.unlock();
 
+	DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), creating."));
 	createDcKey();
 }
 
@@ -2449,23 +2435,24 @@ void ConnectionPrivate::createDcKey() {
 	using Error = DcKeyCreator::Error;
 	auto delegate = DcKeyCreator::Delegate();
 	delegate.done = [=](base::expected<Result, Error> result) {
-		_keyCreator = nullptr;
+		QReadLocker lockFinished(&_sessionDataMutex);
+		if (!_sessionData) return;
 
 		if (result) {
-			QReadLocker lockFinished(&_sessionDataMutex);
-			if (!_sessionData) return;
+			DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2").arg(result->key->keyId()).arg(result->serverSalt));
 
 			_sessionData->setSalt(result->serverSalt);
+			_sessionData->clearForNewKey(_instance);
 
-			auto authKey = std::move(result->key);
+			_keyCreator = nullptr;
+			_sessionData->owner()->releaseKeyCreationOnDone(
+				std::move(result->key));
 
-			DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2").arg(authKey->keyId()).arg(result->serverSalt));
-
-			// slot will call authKeyCreated().
-			_sessionData->owner()->notifyKeyCreated(std::move(authKey));
-			_sessionData->clear(_instance);
-			unlockKey();
-		} else if (result.error() == Error::UnknownPublicKey) {
+			updateAuthKey();
+			return;
+		}
+		clearKeyCreatorOnFail();
+		if (result.error() == Error::UnknownPublicKey) {
 			if (_dcType == DcType::Cdn) {
 				LOG(("Warning: CDN public RSA key not found"));
 				requestCDNConfig();
@@ -2489,26 +2476,18 @@ void ConnectionPrivate::createDcKey() {
 		expireIn);
 }
 
-void ConnectionPrivate::clearMessages() {
-	if (_keyId && _keyId != kRecreateKeyId && _connection) {
-		_connection->received().clear();
-	}
-}
-
-void ConnectionPrivate::authKeyCreated() {
-	_keyCreator = nullptr;
-
+void ConnectionPrivate::authKeyChecked() {
 	connect(_connection, &AbstractConnection::receivedData, [=] {
 		handleReceived();
 	});
 
-	if (_sessionData->getSalt()) { // else receive salt in bad_server_salt first, then try to send all the requests
+	if (_sessionData->getSalt()) {
 		setState(ConnectedState);
 		if (_restarted) {
 			emit resendAllAsync();
 			_restarted = false;
 		}
-	}
+	} // else receive salt in bad_server_salt first, then try to send all the requests
 
 	_pingIdToSend = rand_value<uint64>(); // get server_salt
 
@@ -2542,8 +2521,7 @@ void ConnectionPrivate::handleError(int errorCode) {
 	if (errorCode == -404) {
 		if (_dcType == DcType::Cdn && !_instance->isKeysDestroyer()) {
 			LOG(("MTP Info: -404 error received in CDN dc %1, assuming it was destroyed, recreating.").arg(_shiftedDcId));
-			clearMessages();
-			_keyId = kRecreateKeyId;
+			destroyCdnKey();
 			return restart();
 		} else {
 			LOG(("MTP Info: -404 error received, informing instance."));
@@ -2557,7 +2535,16 @@ void ConnectionPrivate::handleError(int errorCode) {
 	return restart();
 }
 
-void ConnectionPrivate::onReadyData() {
+void ConnectionPrivate::destroyCdnKey() {
+	if (_key) {
+		QReadLocker lockFinished(&_sessionDataMutex);
+		if (_sessionData) {
+			_sessionData->owner()->destroyCdnKey(_keyId);
+		}
+	}
+	_key = nullptr;
+	_keyId = 0;
+
 }
 
 bool ConnectionPrivate::sendSecureRequest(
@@ -2578,24 +2565,6 @@ bool ConnectionPrivate::sendSecureRequest(
 
 	auto messageSize = request.messageSize();
 	if (messageSize < 5 || fullSize < messageSize + 4) {
-		return false;
-	}
-
-	auto lock = ReadLockerAttempt(_sessionData->keyMutex());
-	if (!lock) {
-		DEBUG_LOG(("MTP Info: could not lock key for read in sendBuffer(), dc %1, restarting...").arg(_shiftedDcId));
-
-		lockFinished.unlock();
-		restart();
-		return false;
-	}
-
-	auto key = _sessionData->getKey();
-	if (!key || key->keyId() != _keyId) {
-		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(_shiftedDcId));
-
-		lockFinished.unlock();
-		restart();
 		return false;
 	}
 
@@ -2626,7 +2595,7 @@ bool ConnectionPrivate::sendSecureRequest(
 		request->constData(),
 		&packet[prefix],
 		fullSize * sizeof(mtpPrime),
-		key,
+		_key,
 		msgKey);
 #else // TDESKTOP_MTPROTO_OLD
 	uchar encryptedSHA256[32];
@@ -2634,7 +2603,7 @@ bool ConnectionPrivate::sendSecureRequest(
 
 	SHA256_CTX msgKeyLargeContext;
 	SHA256_Init(&msgKeyLargeContext);
-	SHA256_Update(&msgKeyLargeContext, key->partForMsgKey(true), 32);
+	SHA256_Update(&msgKeyLargeContext, _key->partForMsgKey(true), 32);
 	SHA256_Update(&msgKeyLargeContext, request->constData(), fullSize * sizeof(mtpPrime));
 	SHA256_Final(encryptedSHA256, &msgKeyLargeContext);
 
@@ -2646,13 +2615,13 @@ bool ConnectionPrivate::sendSecureRequest(
 		request->constData(),
 		&packet[prefix],
 		fullSize * sizeof(mtpPrime),
-		key,
+		_key,
 		msgKey);
 #endif // TDESKTOP_MTPROTO_OLD
 
 	DEBUG_LOG(("MTP Info: sending request, size: %1, num: %2, time: %3").arg(fullSize + 6).arg((*request)[4]).arg((*request)[5]));
 
-	_connection->setSentEncrypted();
+	_connection->setSentEncryptedWithKeyId(_keyId);
 	_connection->sendData(std::move(packet));
 
 	if (needAnyResponse) {
@@ -2689,39 +2658,24 @@ mtpRequestId ConnectionPrivate::wasSent(mtpMsgId msgId) const {
 	return 0;
 }
 
-void ConnectionPrivate::lockKey() {
-	unlockKey();
-	if (const auto mutex = _sessionData->keyMutex()) {
-		mutex->lockForWrite();
-	}
-	_myKeyLock = true;
-}
+// _sessionDataMutex must be locked for read.
+void ConnectionPrivate::clearKeyCreatorOnFail() {
+	if (_keyCreator) {
+		_keyCreator = nullptr;
 
-void ConnectionPrivate::unlockKey() {
-	if (_myKeyLock) {
-		_myKeyLock = false;
-		if (const auto mutex = _sessionData->keyMutex()) {
-			mutex->unlock();
-		}
+		Assert(_sessionData != nullptr);
+		_sessionData->owner()->releaseKeyCreationOnFail();
 	}
-}
-
-ConnectionPrivate::~ConnectionPrivate() {
-	Expects(_finished);
-	Expects(!_connection);
-	Expects(_testConnections.empty());
-	Expects(!_keyCreator);
 }
 
 void ConnectionPrivate::stop() {
 	QWriteLocker lockFinished(&_sessionDataMutex);
-	if (_sessionData) {
-		if (_myKeyLock) {
-			_sessionData->owner()->notifyKeyCreated(AuthKeyPtr()); // release key lock, let someone else create it
-			unlockKey();
-		}
-		_sessionData = nullptr;
+	if (!_sessionData) {
+		Assert(_keyCreator == nullptr);
+		return;
 	}
+	clearKeyCreatorOnFail();
+	_sessionData = nullptr;
 }
 
 } // namespace internal

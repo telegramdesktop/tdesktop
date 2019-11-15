@@ -172,6 +172,9 @@ DcKeyCreator::DcKeyCreator(
 }
 
 DcKeyCreator::~DcKeyCreator() {
+	if (_delegate.done) {
+		stopReceiving();
+	}
 	const auto clearBytes = [](bytes::span bytes) {
 		OPENSSL_cleanse(bytes.data(), bytes.size());
 	};
@@ -191,11 +194,7 @@ void DcKeyCreator::pqSend() {
 }
 
 void DcKeyCreator::pqAnswered() {
-	QObject::disconnect(
-		_connection,
-		&AbstractConnection::receivedData,
-		nullptr,
-		nullptr);
+	stopReceiving();
 	DEBUG_LOG(("AuthKey Info: receiving Req_pq answer..."));
 
 	MTPReq_pq::ResponseType res_pq;
@@ -272,11 +271,7 @@ void DcKeyCreator::pqAnswered() {
 }
 
 void DcKeyCreator::dhParamsAnswered() {
-	QObject::disconnect(
-		_connection,
-		&AbstractConnection::receivedData,
-		nullptr,
-		nullptr);
+	stopReceiving();
 	DEBUG_LOG(("AuthKey Info: receiving Req_DH_params answer..."));
 
 	MTPReq_DH_params::ResponseType res_DH_params;
@@ -450,11 +445,7 @@ void DcKeyCreator::dhClientParamsSend() {
 }
 
 void DcKeyCreator::dhClientParamsAnswered() {
-	QObject::disconnect(
-		_connection,
-		&AbstractConnection::receivedData,
-		nullptr,
-		nullptr);
+	stopReceiving();
 	DEBUG_LOG(("AuthKey Info: receiving Req_client_DH_params answer..."));
 
 	MTPSet_client_DH_params::ResponseType res_client_DH_params;
@@ -578,7 +569,8 @@ bool DcKeyCreator::readNotSecureResponse(Response &response) {
 }
 
 void DcKeyCreator::failed(Error error) {
-	auto onstack = std::move(_delegate.done);
+	stopReceiving();
+	auto onstack = base::take(_delegate.done);
 	onstack(tl::unexpected(error));
 }
 
@@ -589,8 +581,18 @@ void DcKeyCreator::done(uint64 serverSalt) {
 		_dcId,
 		_authKey);
 	result.serverSalt = serverSalt;
-	auto onstack = std::move(_delegate.done);
+
+	stopReceiving();
+	auto onstack = base::take(_delegate.done);
 	onstack(std::move(result));
+}
+
+void DcKeyCreator::stopReceiving() {
+	QObject::disconnect(
+		_connection,
+		&AbstractConnection::receivedData,
+		nullptr,
+		nullptr);
 }
 
 } // namespace MTP::details

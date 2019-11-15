@@ -645,7 +645,7 @@ not_null<Dcenter*> Instance::Private::addDc(
 	const auto dcId = BareDcId(shiftedDcId);
 	return _dcenters.emplace(
 		shiftedDcId,
-		std::make_unique<Dcenter>(_instance, dcId, std::move(key))
+		std::make_unique<Dcenter>(dcId, std::move(key))
 	).first->second.get();
 }
 
@@ -690,6 +690,10 @@ void Instance::Private::setKeyForWrite(DcId dcId, const AuthKeyPtr &key) {
 	} else {
 		_keysForWrite.erase(dcId);
 	}
+	crl::on_main(_instance, [=] {
+		DEBUG_LOG(("AuthKey Info: writing auth keys, called by dc %1").arg(dcId));
+		Local::writeMtpData();
+	});
 }
 
 AuthKeysList Instance::Private::getKeysForWrite() const {
@@ -1578,17 +1582,16 @@ void Instance::Private::checkMainDcKey() {
 }
 
 void Instance::Private::keyDestroyedOnServer(DcId dcId, uint64 keyId) {
-	if (dcId == _mainDcId) {
-		for (const auto &[id, dc] : _dcenters) {
-			dc->destroyKey();
+	LOG(("Destroying key for dc: %1").arg(dcId));
+	if (const auto dc = findDc(dcId)) {
+		if (dc->destroyConfirmedForgottenKey(keyId)) {
+			LOG(("Key destroyed!"));
+			setKeyForWrite(dcId, nullptr);
+		} else {
+			LOG(("Key already is different."));
 		}
-		restart();
-	} else {
-		if (const auto dc = findDc(dcId)) {
-			return dc->destroyKey();
-		}
-		restart(dcId);
 	}
+	restart(dcId);
 }
 
 void Instance::Private::setUpdatesHandler(RPCDoneHandlerPtr onDone) {
@@ -1737,7 +1740,9 @@ void Instance::logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail) {
 }
 
 void Instance::setKeyForWrite(DcId dcId, const AuthKeyPtr &key) {
-	_private->setKeyForWrite(dcId, key);
+	InvokeQueued(this, [=] {
+		_private->setKeyForWrite(dcId, key);
+	});
 }
 
 AuthKeysList Instance::getKeysForWrite() const {

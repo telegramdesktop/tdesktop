@@ -19,30 +19,35 @@ class Dcenter : public QObject {
 	Q_OBJECT
 
 public:
-	Dcenter(not_null<Instance*> instance, DcId dcId, AuthKeyPtr &&key);
+	// Main thread.
+	Dcenter(DcId dcId, AuthKeyPtr &&key);
 
-	QReadWriteLock *keyMutex() const;
-	const AuthKeyPtr &getKey() const;
-	void setKey(AuthKeyPtr &&key);
-	void destroyKey();
+	// Thread-safe.
+	[[nodiscard]] DcId id() const;
+
+	[[nodiscard]] AuthKeyPtr getKey() const;
+	void destroyCdnKey(uint64 keyId);
+	bool destroyConfirmedForgottenKey(uint64 keyId);
+	void releaseKeyCreationOnDone(AuthKeyPtr &&key);
 
 	[[nodiscard]] bool connectionInited() const;
 	void setConnectionInited(bool connectionInited = true);
 
-signals:
-	void authKeyCreated();
-	void connectionWasInited();
+	[[nodiscard]] bool acquireKeyCreation();
+	void releaseKeyCreationOnFail();
 
-private slots:
-	void authKeyWrite();
+signals:
+	void authKeyChanged();
 
 private:
-	mutable QReadWriteLock keyLock;
-	mutable QMutex _initLock;
-	not_null<Instance*> _instance;
-	DcId _id = 0;
+	bool destroyKey(uint64 keyId);
+
+	const DcId _id = 0;
+	mutable QReadWriteLock _mutex;
+
 	AuthKeyPtr _key;
 	bool _connectionInited = false;
+	std::atomic<bool> _creatingKey = false;
 
 };
 

@@ -100,8 +100,11 @@ public:
 	[[nodiscard]] virtual QString transport() const = 0;
 	[[nodiscard]] virtual QString tag() const = 0;
 
-	void setSentEncrypted() {
-		_sentEncrypted = true;
+	void setSentEncryptedWithKeyId(uint64 keyId) {
+		_sentEncryptedWithKeyId = keyId;
+	}
+	[[nodiscard]] uint64 sentEncryptedWithKeyId() const {
+		return _sentEncryptedWithKeyId;
 	}
 
 	using BuffersQueue = std::deque<mtpBuffer>;
@@ -137,7 +140,6 @@ signals:
 
 protected:
 	BuffersQueue _receivedQueue; // list of received packets, not processed yet
-	bool _sentEncrypted = false;
 	int _pingTime = 0;
 	ProxyData _proxy;
 
@@ -149,6 +151,8 @@ protected:
 
 private:
 	[[nodiscard]] uint32 extendedNotSecurePadding() const;
+
+	uint64 _sentEncryptedWithKeyId = 0;
 
 };
 

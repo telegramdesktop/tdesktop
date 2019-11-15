@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/dcenter.h"
 #include "mtproto/auth_key.h"
 #include "base/unixtime.h"
+#include "base/openssl_help.h"
 #include "core/crash_reports.h"
 #include "facades.h"
 
@@ -63,19 +64,15 @@ ConnectionOptions::ConnectionOptions(
 , useTcp(useTcp) {
 }
 
-void SessionData::setKey(const AuthKeyPtr &key) {
-	if (_authKey != key) {
-		const auto sessionId = rand_value<uint64>();
-		_authKey = key;
-
-		DEBUG_LOG(("MTP Info: new auth key set in SessionData, id %1, setting random server_session %2").arg(key ? key->keyId() : 0).arg(sessionId));
-		QWriteLocker locker(&_lock);
-		if (_sessionId != sessionId) {
-			_sessionId = sessionId;
-			_messagesSent = 0;
-		}
-		_layerInited = false;
+void SessionData::setCurrentKeyId(uint64 keyId) {
+	QWriteLocker locker(&_lock);
+	if (_keyId == keyId) {
+		return;
 	}
+	_keyId = keyId;
+	_sessionId = openssl::RandomValue<uint64>();
+	_messagesSent = 0;
+	DEBUG_LOG(("MTP Info: new auth key set in SessionData, id %1, setting random server_session %2").arg(_keyId).arg(_sessionId));
 }
 
 void SessionData::setKeyForCheck(const AuthKeyPtr &key) {
@@ -83,25 +80,24 @@ void SessionData::setKeyForCheck(const AuthKeyPtr &key) {
 }
 
 void SessionData::notifyConnectionInited(const ConnectionOptions &options) {
-	QWriteLocker locker(&_lock);
-	if (options.cloudLangCode == _options.cloudLangCode
-		&& options.systemLangCode == _options.systemLangCode
-		&& options.langPackName == _options.langPackName
-		&& options.proxy == _options.proxy
-		&& !_options.inited) {
-		_options.inited = true;
-
-		locker.unlock();
+	// #TODO race
+	const auto current = connectionOptions();
+	if (current.cloudLangCode == _options.cloudLangCode
+		&& current.systemLangCode == _options.systemLangCode
+		&& current.langPackName == _options.langPackName
+		&& current.proxy == _options.proxy) {
 		owner()->notifyDcConnectionInited();
 	}
 }
 
-void SessionData::clear(Instance *instance) {
+void SessionData::clearForNewKey(not_null<Instance*> instance) {
 	auto clearCallbacks = std::vector<RPCCallbackClear>();
 	{
-		QReadLocker locker1(haveSentMutex()), locker2(toResendMutex()), locker3(haveReceivedMutex()), locker4(wereAckedMutex());
-		auto receivedResponsesEnd = _receivedResponses.cend();
-		clearCallbacks.reserve(_haveSent.size() + _wereAcked.size());
+		QReadLocker locker1(haveSentMutex());
+		QReadLocker locker2(toResendMutex());
+		QReadLocker locker3(haveReceivedMutex());
+		QReadLocker locker4(wereAckedMutex());
+		clearCallbacks.reserve(_haveSent.size() + _toResend.size() + _wereAcked.size());
 		for (auto i = _haveSent.cbegin(), e = _haveSent.cend(); i != e; ++i) {
 			auto requestId = i.value()->requestId;
 			if (!_receivedResponses.contains(requestId)) {
@@ -147,21 +143,15 @@ Session::Session(
 : QObject()
 , _instance(instance)
 , _shiftedDcId(shiftedDcId)
-, _dc(dc)
+, _ownedDc(dc ? nullptr : std::make_unique<Dcenter>(shiftedDcId, nullptr))
+, _dc(dc ? dc : _ownedDc.get())
 , _data(this)
 , _timeouter([=] { checkRequestsByTimer(); })
 , _sender([=] { needToResumeAndSend(); }) {
 	_timeouter.callEach(1000);
 	refreshOptions();
-	if (_dc) {
-		if (const auto lock = ReadLockerAttempt(keyMutex())) {
-			_data.setKey(_dc->getKey());
-			if (_dc->connectionInited()) {
-				_data.setConnectionInited();
-			}
-		}
-		connect(_dc, SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()), Qt::QueuedConnection);
-		connect(_dc, SIGNAL(connectionWasInited()), this, SLOT(connectionWasInitedForDC()), Qt::QueuedConnection);
+	if (sharedDc()) {
+		connect(_dc, SIGNAL(authKeyChanged()), this, SLOT(authKeyChangedForDC()), Qt::QueuedConnection);
 	}
 }
 
@@ -199,7 +189,7 @@ void Session::refreshOptions() {
 	const auto useHttp = (proxyType != ProxyData::Type::Mtproto);
 	const auto useIPv4 = true;
 	const auto useIPv6 = Global::TryIPv6();
-	_data.applyConnectionOptions(ConnectionOptions(
+	_data.setConnectionOptions(ConnectionOptions(
 		_instance->systemLangCode(),
 		_instance->cloudLangCode(),
 		_instance->langPackName(),
@@ -213,10 +203,7 @@ void Session::refreshOptions() {
 }
 
 void Session::reInitConnection() {
-	if (_dc) {
-		_dc->setConnectionInited(false);
-	}
-	_data.setConnectionInited(false);
+	_dc->setConnectionInited(false);
 	restart();
 }
 
@@ -313,6 +300,10 @@ void Session::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
 		_shiftedDcId,
 		MTPMsgsStateInfo(
 			MTP_msgs_state_info(MTP_long(msgId), MTP_bytes(data))));
+}
+
+bool Session::sharedDc() const {
+	return (_ownedDc == nullptr);
 }
 
 void Session::checkRequestsByTimer() {
@@ -555,56 +546,57 @@ void Session::sendPrepared(
 	sendAnything(msCanWait);
 }
 
-QReadWriteLock *Session::keyMutex() const {
-	return _dc ? _dc->keyMutex() : nullptr;
+void Session::authKeyChangedForDC() {
+	DEBUG_LOG(("AuthKey Info: Session::authKeyCreatedForDC slot, emitting authKeyChanged(), dcWithShift %1").arg(_shiftedDcId));
+	emit authKeyChanged();
 }
 
-void Session::authKeyCreatedForDC() {
-	Expects(_dc != nullptr);
-
-	DEBUG_LOG(("AuthKey Info: Session::authKeyCreatedForDC slot, emitting authKeyCreated(), dcWithShift %1").arg(_shiftedDcId));
-	_data.setKey(_dc->getKey());
-	emit authKeyCreated();
+bool Session::acquireKeyCreation() {
+	return _dc->acquireKeyCreation();
 }
 
-void Session::notifyKeyCreated(AuthKeyPtr &&key) {
-	DEBUG_LOG(("AuthKey Info: Session::keyCreated(), setting, dcWithShift %1").arg(_shiftedDcId));
-	if (_dc) {
-		_dc->setKey(std::move(key));
-	} else {
-		_data.setKey(std::move(key));
-		emit authKeyCreated();
+void Session::releaseKeyCreationOnFail() {
+	_dc->releaseKeyCreationOnFail();
+}
+
+void Session::releaseKeyCreationOnDone(AuthKeyPtr &&key) {
+	DEBUG_LOG(("AuthKey Info: Session key created, setting, dcWithShift %1").arg(_shiftedDcId));
+	if (sharedDc()) {
+		const auto dcId = _dc->id();
+		const auto instance = _instance;
+		InvokeQueued(instance, [=] {
+			instance->setKeyForWrite(dcId, key);
+		});
 	}
-}
-
-void Session::connectionWasInitedForDC() {
-	Expects(_dc != nullptr);
-
-	DEBUG_LOG(("MTP Info: Session::connectionWasInitedForDC slot, dcWithShift %1").arg(_shiftedDcId));
-	_data.setConnectionInited();
+	_dc->releaseKeyCreationOnDone(std::move(key));
 }
 
 void Session::notifyDcConnectionInited() {
 	DEBUG_LOG(("MTP Info: emitting MTProtoDC::connectionWasInited(), dcWithShift %1").arg(_shiftedDcId));
-	if (_dc) {
-		_dc->setConnectionInited();
-	} else {
-		_data.setConnectionInited();
-	}
+	_dc->setConnectionInited();
 }
 
-void Session::destroyKey() {
-	if (const auto key = _data.getKey()) {
-		DEBUG_LOG(("MTP Info: destroying auth_key for dcWithShift %1").arg(_shiftedDcId));
-		if (_dc && _dc->getKey() == key) {
-			_dc->destroyKey();
-		}
-		_data.setKey(nullptr);
+void Session::destroyCdnKey(uint64 keyId) {
+	_dc->destroyCdnKey(keyId);
+	if (sharedDc()) {
+		const auto dcId = _dc->id();
+		const auto instance = _instance;
+		InvokeQueued(instance, [=] {
+			instance->setKeyForWrite(dcId, nullptr);
+		});
 	}
 }
 
 int32 Session::getDcWithShift() const {
 	return _shiftedDcId;
+}
+
+AuthKeyPtr Session::getKey() const {
+	return _dc->getKey();
+}
+
+bool Session::connectionInited() const {
+	return _dc->connectionInited();
 }
 
 void Session::tryToReceive() {

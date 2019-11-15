@@ -38,14 +38,16 @@ public:
 		QString deviceModel;
 		QString systemVersion;
 	};
+
 	enum class Mode {
 		Normal,
 		KeysDestroyer,
 	};
-	Instance(not_null<DcOptions*> options, Mode mode, Config &&config);
 
+	Instance(not_null<DcOptions*> options, Mode mode, Config &&config);
 	Instance(const Instance &other) = delete;
 	Instance &operator=(const Instance &other) = delete;
+	~Instance();
 
 	void resolveProxyDomain(const QString &host);
 	void setGoodProxyDomain(const QString &host, const QString &ip);
@@ -56,15 +58,70 @@ public:
 	[[nodiscard]] QString cloudLangCode() const;
 	[[nodiscard]] QString langPackName() const;
 
-	// Thread safe.
+	// Thread-safe.
 	[[nodiscard]] QString deviceModel() const;
 	[[nodiscard]] QString systemVersion() const;
-
 	void setKeyForWrite(DcId dcId, const AuthKeyPtr &key);
+
+	// Main thread.
 	[[nodiscard]] AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
 
 	[[nodiscard]] not_null<DcOptions*> dcOptions();
+
+	void restart();
+	void restart(ShiftedDcId shiftedDcId);
+	int32 dcstate(ShiftedDcId shiftedDcId = 0);
+	QString dctransport(ShiftedDcId shiftedDcId = 0);
+	void ping();
+	void cancel(mtpRequestId requestId);
+	int32 state(mtpRequestId requestId); // < 0 means waiting for such count of ms
+
+	// Main thread.
+	void killSession(ShiftedDcId shiftedDcId);
+	void stopSession(ShiftedDcId shiftedDcId);
+	void reInitConnection(DcId dcId);
+	void logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
+
+	void unpaused();
+
+	void queueQuittingConnection(std::unique_ptr<internal::Connection> &&connection);
+
+	void setUpdatesHandler(RPCDoneHandlerPtr onDone);
+	void setGlobalFailHandler(RPCFailHandlerPtr onFail);
+	void setStateChangedHandler(Fn<void(ShiftedDcId shiftedDcId, int32 state)> handler);
+	void setSessionResetHandler(Fn<void(ShiftedDcId shiftedDcId)> handler);
+	void clearGlobalHandlers();
+
+	void onStateChange(ShiftedDcId shiftedDcId, int32 state);
+	void onSessionReset(ShiftedDcId shiftedDcId);
+
+	void clearCallbacksDelayed(std::vector<RPCCallbackClear> &&ids);
+
+	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end);
+	bool hasCallbacks(mtpRequestId requestId);
+	void globalCallback(const mtpPrime *from, const mtpPrime *end);
+
+	// return true if need to clean request data
+	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
+
+	bool isKeysDestroyer() const;
+	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
+	void checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId);
+	void keyDestroyedOnServer(DcId dcId, uint64 keyId);
+
+	void requestConfig();
+	void requestConfigIfOld();
+	void requestCDNConfig();
+	void setUserPhone(const QString &phone);
+	void badConfigurationError();
+
+	void syncHttpUnixtime();
+
+	void connectionFinished(not_null<internal::Connection*> connection);
+
+	void sendAnything(ShiftedDcId shiftedDcId = 0, crl::time msCanWait = 0);
+	void sendDcKeyCheck(ShiftedDcId shiftedDcId, const AuthKeyPtr &key);
 
 	template <typename Request>
 	mtpRequestId send(
@@ -133,60 +190,6 @@ public:
 			needsLayer,
 			afterRequestId);
 	}
-
-	void sendAnything(ShiftedDcId shiftedDcId = 0, crl::time msCanWait = 0);
-	void sendDcKeyCheck(ShiftedDcId shiftedDcId, const AuthKeyPtr &key);
-
-	void restart();
-	void restart(ShiftedDcId shiftedDcId);
-	int32 dcstate(ShiftedDcId shiftedDcId = 0);
-	QString dctransport(ShiftedDcId shiftedDcId = 0);
-	void ping();
-	void cancel(mtpRequestId requestId);
-	int32 state(mtpRequestId requestId); // < 0 means waiting for such count of ms
-	void killSession(ShiftedDcId shiftedDcId);
-	void stopSession(ShiftedDcId shiftedDcId);
-	void reInitConnection(DcId dcId);
-	void logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
-
-	void unpaused();
-
-	void queueQuittingConnection(std::unique_ptr<internal::Connection> &&connection);
-
-	void setUpdatesHandler(RPCDoneHandlerPtr onDone);
-	void setGlobalFailHandler(RPCFailHandlerPtr onFail);
-	void setStateChangedHandler(Fn<void(ShiftedDcId shiftedDcId, int32 state)> handler);
-	void setSessionResetHandler(Fn<void(ShiftedDcId shiftedDcId)> handler);
-	void clearGlobalHandlers();
-
-	void onStateChange(ShiftedDcId shiftedDcId, int32 state);
-	void onSessionReset(ShiftedDcId shiftedDcId);
-
-	void clearCallbacksDelayed(std::vector<RPCCallbackClear> &&ids);
-
-	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end);
-	bool hasCallbacks(mtpRequestId requestId);
-	void globalCallback(const mtpPrime *from, const mtpPrime *end);
-
-	// return true if need to clean request data
-	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
-
-	bool isKeysDestroyer() const;
-	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
-	void checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId);
-	void keyDestroyedOnServer(DcId dcId, uint64 keyId);
-
-	void requestConfig();
-	void requestConfigIfOld();
-	void requestCDNConfig();
-	void setUserPhone(const QString &phone);
-	void badConfigurationError();
-
-	void syncHttpUnixtime();
-
-	void connectionFinished(not_null<internal::Connection*> connection);
-
-	~Instance();
 
 signals:
 	void configLoaded();

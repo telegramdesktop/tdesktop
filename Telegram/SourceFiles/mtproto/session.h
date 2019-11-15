@@ -131,7 +131,6 @@ struct ConnectionOptions {
 	bool useIPv6 = true;
 	bool useHttp = true;
 	bool useTcp = true;
-	bool inited = false;
 
 };
 
@@ -141,6 +140,7 @@ public:
 	SessionData(not_null<Session*> creator) : _owner(creator) {
 	}
 
+	void setCurrentKeyId(uint64 keyId);
 	void setSessionId(uint64 sessionId) {
 		DEBUG_LOG(("MTP Info: setting server_session: %1").arg(sessionId));
 
@@ -150,22 +150,16 @@ public:
 			_messagesSent = 0;
 		}
 	}
-	uint64 getSessionId() const {
+	[[nodiscard]] uint64 getSessionId() const {
 		QReadLocker locker(&_lock);
 		return _sessionId;
 	}
-	void setConnectionInited(bool inited = true) {
-		QWriteLocker locker(&_lock);
-		_options.inited = inited;
-	}
 	void notifyConnectionInited(const ConnectionOptions &options);
-	void applyConnectionOptions(ConnectionOptions options) {
+	void setConnectionOptions(ConnectionOptions options) {
 		QWriteLocker locker(&_lock);
-		const auto inited = _options.inited;
 		_options = options;
-		_options.inited = inited;
 	}
-	ConnectionOptions connectionOptions() const {
+	[[nodiscard]] ConnectionOptions connectionOptions() const {
 		QReadLocker locker(&_lock);
 		return _options;
 	}
@@ -174,22 +168,15 @@ public:
 		QWriteLocker locker(&_lock);
 		_salt = salt;
 	}
-	uint64 getSalt() const {
+	[[nodiscard]] uint64 getSalt() const {
 		QReadLocker locker(&_lock);
 		return _salt;
 	}
 
-	const AuthKeyPtr &getKey() const {
-		return _authKey;
-	}
-	void setKey(const AuthKeyPtr &key);
-
-	const AuthKeyPtr &getKeyForCheck() const {
+	[[nodiscard]] const AuthKeyPtr &getKeyForCheck() const {
 		return _dcKeyForCheck;
 	}
 	void setKeyForCheck(const AuthKeyPtr &key);
-
-	QReadWriteLock *keyMutex() const;
 
 	not_null<QReadWriteLock*> toSendMutex() const {
 		return &_toSendLock;
@@ -276,19 +263,17 @@ public:
 		return result * 2 + (needAck ? 1 : 0);
 	}
 
-	void clear(Instance *instance);
+	void clearForNewKey(not_null<Instance*> instance);
 
 private:
+	uint64 _keyId = 0;
 	uint64 _sessionId = 0;
 	uint64 _salt = 0;
-
 	uint32 _messagesSent = 0;
 
 	not_null<Session*> _owner;
 
-	AuthKeyPtr _authKey;
 	AuthKeyPtr _dcKeyForCheck;
-	bool _layerInited = false;
 	ConnectionOptions _options;
 
 	PreRequestMap _toSend; // map of request_id -> request, that is waiting to be sent
@@ -317,25 +302,34 @@ class Session : public QObject {
 	Q_OBJECT
 
 public:
+	// Main thread.
 	Session(
 		not_null<Instance*> instance,
 		ShiftedDcId shiftedDcId,
 		Dcenter *dc);
+	~Session();
 
 	void start();
+	void reInitConnection();
+
 	void restart();
 	void refreshOptions();
-	void reInitConnection();
 	void stop();
 	void kill();
 
 	void unpaused();
 
-	ShiftedDcId getDcWithShift() const;
+	// Thread-safe.
+	[[nodiscard]] ShiftedDcId getDcWithShift() const;
+	[[nodiscard]] AuthKeyPtr getKey() const;
+	[[nodiscard]] bool connectionInited() const;
 
-	QReadWriteLock *keyMutex() const;
-	void notifyKeyCreated(AuthKeyPtr &&key);
-	void destroyKey();
+	// Connection thread.
+	[[nodiscard]] bool acquireKeyCreation();
+	void releaseKeyCreationOnFail();
+	void releaseKeyCreationOnDone(AuthKeyPtr &&key);
+	void destroyCdnKey(uint64 keyId);
+
 	void notifyDcConnectionInited();
 
 	void ping();
@@ -352,10 +346,8 @@ public:
 		crl::time msCanWait = 0,
 		bool newRequest = true);
 
-	~Session();
-
 signals:
-	void authKeyCreated();
+	void authKeyChanged();
 	void needToSend();
 	void needToPing();
 	void needToRestart();
@@ -367,8 +359,7 @@ public slots:
 	void resendMany(QVector<quint64> msgIds, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
 	void resendAll(); // after connection restart
 
-	void authKeyCreatedForDC();
-	void connectionWasInitedForDC();
+	void authKeyChangedForDC();
 
 	void tryToReceive();
 	void onConnectionStateChange(qint32 newState);
@@ -379,13 +370,15 @@ public slots:
 	void sendMsgsStateInfo(quint64 msgId, QByteArray data);
 
 private:
+	[[nodiscard]] bool sharedDc() const;
 	void checkRequestsByTimer();
 
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
 
 	const not_null<Instance*> _instance;
 	const ShiftedDcId _shiftedDcId = 0;
-	Dcenter *_dc = nullptr;
+	const std::unique_ptr<Dcenter> _ownedDc;
+	const not_null<Dcenter*> _dc;
 
 	std::unique_ptr<Connection> _connection;
 
@@ -403,39 +396,6 @@ private:
 
 	base::Timer _timeouter;
 	base::Timer _sender;
-
-};
-
-inline QReadWriteLock *SessionData::keyMutex() const {
-	return _owner->keyMutex();
-}
-
-class ReadLockerAttempt {
-public:
-	ReadLockerAttempt(QReadWriteLock *lock) : _lock(lock), _locked(_lock ? _lock->tryLockForRead() : true) {
-	}
-	ReadLockerAttempt(const ReadLockerAttempt &other) = delete;
-	ReadLockerAttempt &operator=(const ReadLockerAttempt &other) = delete;
-	ReadLockerAttempt(ReadLockerAttempt &&other) : _lock(other._lock), _locked(base::take(other._locked)) {
-	}
-	ReadLockerAttempt &operator=(ReadLockerAttempt &&other) {
-		_lock = other._lock;
-		_locked = base::take(other._locked);
-		return *this;
-	}
-	~ReadLockerAttempt() {
-		if (_lock && _locked) {
-			_lock->unlock();
-		}
-	}
-
-	operator bool() const {
-		return _locked;
-	}
-
-private:
-	QReadWriteLock *_lock = nullptr;
-	bool _locked = false;
 
 };
 

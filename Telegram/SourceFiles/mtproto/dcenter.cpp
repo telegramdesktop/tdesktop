@@ -23,53 +23,81 @@ constexpr auto kSpecialRequestTimeoutMs = 6000; // 4 seconds timeout for it to w
 
 } // namespace
 
-Dcenter::Dcenter(not_null<Instance*> instance, DcId dcId, AuthKeyPtr &&key)
-: _instance(instance)
-, _id(dcId)
+Dcenter::Dcenter(DcId dcId, AuthKeyPtr &&key)
+: _id(dcId)
 , _key(std::move(key)) {
-	connect(this, SIGNAL(authKeyCreated()), this, SLOT(authKeyWrite()), Qt::QueuedConnection);
 }
 
-void Dcenter::authKeyWrite() {
-	DEBUG_LOG(("AuthKey Info: MTProtoDC::authKeyWrite() slot, dc %1").arg(_id));
-	if (_key) {
-		Local::writeMtpData();
-	}
+DcId Dcenter::id() const {
+	return _id;
 }
 
-void Dcenter::setKey(AuthKeyPtr &&key) {
-	DEBUG_LOG(("AuthKey Info: MTProtoDC::setKey(%1), emitting authKeyCreated, dc %2").arg(key ? key->keyId() : 0).arg(_id));
-	_key = std::move(key);
-	_connectionInited = false;
-	_instance->setKeyForWrite(_id, _key);
-	emit authKeyCreated();
-}
-
-QReadWriteLock *Dcenter::keyMutex() const {
-	return &keyLock;
-}
-
-const AuthKeyPtr &Dcenter::getKey() const {
+AuthKeyPtr Dcenter::getKey() const {
+	QReadLocker lock(&_mutex);
 	return _key;
 }
 
-void Dcenter::destroyKey() {
-	setKey(AuthKeyPtr());
+void Dcenter::destroyCdnKey(uint64 keyId) {
+	destroyKey(keyId);
+}
+
+bool Dcenter::destroyConfirmedForgottenKey(uint64 keyId) {
+	return destroyKey(keyId);
+}
+
+bool Dcenter::destroyKey(uint64 keyId) {
+	Expects(!_creatingKey || !_key);
+
+	QWriteLocker lock(&_mutex);
+	if (_key->keyId() != keyId) {
+		return false;
+	}
+	_key = nullptr;
+	_connectionInited = false;
+	lock.unlock();
+
+	emit authKeyChanged();
+	return true;
 }
 
 bool Dcenter::connectionInited() const {
-	const auto lock = QMutexLocker(&_initLock);
+	QReadLocker lock(&_mutex);
 	return _connectionInited;
 }
 
 void Dcenter::setConnectionInited(bool connectionInited) {
-	auto lock = QMutexLocker(&_initLock);
+	QWriteLocker lock(&_mutex);
 	_connectionInited = connectionInited;
+}
+
+bool Dcenter::acquireKeyCreation() {
+	QReadLocker lock(&_mutex);
+	if (_key != nullptr) {
+		return false;
+	}
+	auto expected = false;
+	return _creatingKey.compare_exchange_strong(expected, true);
+}
+
+void Dcenter::releaseKeyCreationOnFail() {
+	Expects(_creatingKey);
+	Expects(_key == nullptr);
+
+	_creatingKey = false;
+}
+
+void Dcenter::releaseKeyCreationOnDone(AuthKeyPtr &&key) {
+	Expects(_creatingKey);
+	Expects(_key == nullptr);
+
+	QWriteLocker lock(&_mutex);
+	DEBUG_LOG(("AuthKey Info: Dcenter::releaseKeyCreationOnDone(%1), emitting authKeyChanged, dc %2").arg(key ? key->keyId() : 0).arg(_id));
+	_key = std::move(key);
+	_connectionInited = false;
+	_creatingKey = false;
 	lock.unlock();
 
-	if (connectionInited) {
-		emit connectionWasInited();
-	}
+	emit authKeyChanged();
 }
 
 } // namespace internal

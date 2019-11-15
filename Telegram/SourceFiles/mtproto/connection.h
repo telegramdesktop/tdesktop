@@ -41,12 +41,12 @@ public:
 	};
 
 	Connection(not_null<Instance*> instance);
+	~Connection();
 
 	void start(SessionData *data, ShiftedDcId shiftedDcId);
 
 	void kill();
 	void waitTillFinish();
-	~Connection();
 
 	static const int UpdateAlways = 666;
 
@@ -99,14 +99,6 @@ public slots:
 
 	void onPingSendForce();
 
-	void onSentSome(uint64 size);
-	void onReceivedSome();
-
-	void onReadyData();
-
-	// General packet receive slot, connected to conn->receivedData signal
-	void handleReceived();
-
 	// Sessions signals, when we need to send something
 	void tryToSend();
 
@@ -132,6 +124,10 @@ private:
 		qint32 errorCode);
 	void onConnected(not_null<AbstractConnection*> connection);
 	void onDisconnected(not_null<AbstractConnection*> connection);
+	void onSentSome(uint64 size);
+	void onReceivedSome();
+
+	void handleReceived();
 
 	void retryByTimer();
 	void waitConnectedFailed();
@@ -140,7 +136,9 @@ private:
 	void markConnectionOld();
 	void sendPingByTimer();
 
+	// Locks _sessionDataMutex.
 	void destroyAllConnections();
+
 	void confirmBestConnection();
 	void removeTestConnection(not_null<AbstractConnection*> connection);
 	int16 getProtocolDcId() const;
@@ -170,8 +168,6 @@ private:
 	mtpBuffer ungzip(const mtpPrime *from, const mtpPrime *end) const;
 	void handleMsgsStates(const QVector<MTPlong> &ids, const QByteArray &states, QVector<MTPlong> &acked);
 
-	void clearMessages();
-
 	bool setState(int32 state, int32 ifState = Connection::UpdateAlways);
 
 	void appendTestConnection(
@@ -191,9 +187,12 @@ private:
 
 	void createDcKey();
 	void resetSession();
-	void lockKey();
-	void unlockKey();
-	void authKeyCreated();
+	void checkAuthKey();
+	void authKeyChecked();
+	void destroyCdnKey();
+
+	// _sessionDataMutex must be locked for read.
+	void clearKeyCreatorOnFail();
 
 	not_null<Instance*> _instance;
 	DcType _dcType = DcType::Regular;
@@ -235,12 +234,11 @@ private:
 	bool _restarted = false;
 	bool _finished = false;
 
+	AuthKeyPtr _key;
 	uint64 _keyId = 0;
 	QReadWriteLock _sessionDataMutex;
 	SessionData *_sessionData = nullptr;
 	std::unique_ptr<ConnectionOptions> _connectionOptions;
-
-	bool _myKeyLock = false;
 
 	std::unique_ptr<details::DcKeyCreator> _keyCreator;
 	std::unique_ptr<details::DcKeyChecker> _keyChecker;
