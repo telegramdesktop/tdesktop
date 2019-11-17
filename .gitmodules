@@ -52,3 +52,6 @@
 [submodule "Telegram/lib_storage"]
 	path = Telegram/lib_storage
 	url = https://github.com/desktop-app/lib_storage.git
+[submodule "cmake"]
+	path = cmake
+	url = https://github.com/desktop-app/cmake_helpers.git
