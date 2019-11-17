@@ -12,7 +12,7 @@ PRIVATE
 )
 nice_target_sources(lib_mtproto ${src_loc} "${lib_mtproto_sources}")
 
-force_include(lib_mtproto mtproto/mtp_pch.h)
+target_precompile_headers(lib_mtproto PRIVATE ${src_loc}/mtproto/mtp_pch.h)
 
 target_include_directories(lib_mtproto
 PUBLIC

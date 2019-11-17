@@ -1,5 +1,5 @@
 add_library(lib_tgvoip OBJECT)
-init_target_no_ranges(lib_tgvoip)
+init_target(lib_tgvoip)
 
 set(tgvoip_loc ${third_party_loc}/libtgvoip)
 

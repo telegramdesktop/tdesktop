@@ -1,6 +1,9 @@
 add_executable(Telegram WIN32 MACOSX_BUNDLE)
 init_target(Telegram)
 
+add_executable(Updater WIN32)
+init_target(Updater)
+
 add_subdirectory(lib_rpl)
 add_subdirectory(lib_crl)
 add_subdirectory(lib_base)
@@ -939,7 +942,7 @@ PRIVATE
 )
 nice_target_sources(Telegram ${res_loc} "${telegram_resources}")
 
-force_include(Telegram stdafx.h)
+target_precompile_headers(Telegram PRIVATE ${src_loc}/stdafx.h)
 
 if (WIN32)
     # message(${CMAKE_GENERATOR})
@@ -980,3 +983,14 @@ PRIVATE
     AL_LIBTYPE_STATIC
     AL_ALEXT_PROTOTYPES
 )
+
+add_dependencies(Telegram Updater)
+
+set(updater_sources
+PRIVATE
+    _other/updater.cpp
+    _other/updater.h
+    _other/updater_linux.cpp
+    _other/updater_osx.m
+)
+nice_target_sources(Updater ${src_loc} "${updater_sources}")

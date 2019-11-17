@@ -27,7 +27,7 @@ PRIVATE
 )
 nice_target_sources(lib_export ${src_loc} "${lib_export_sources}")
 
-force_include(lib_export export/export_pch.h)
+target_precompile_headers(lib_export PRIVATE ${src_loc}/export/export_pch.h)
 
 target_include_directories(lib_export
 PUBLIC
