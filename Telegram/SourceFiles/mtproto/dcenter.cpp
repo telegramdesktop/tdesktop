@@ -37,8 +37,8 @@ AuthKeyPtr Dcenter::getKey() const {
 	return _key;
 }
 
-void Dcenter::destroyCdnKey(uint64 keyId) {
-	destroyKey(keyId);
+bool Dcenter::destroyCdnKey(uint64 keyId) {
+	return destroyKey(keyId);
 }
 
 bool Dcenter::destroyConfirmedForgottenKey(uint64 keyId) {
@@ -54,9 +54,6 @@ bool Dcenter::destroyKey(uint64 keyId) {
 	}
 	_key = nullptr;
 	_connectionInited = false;
-	lock.unlock();
-
-	emit authKeyChanged();
 	return true;
 }
 
@@ -86,18 +83,18 @@ void Dcenter::releaseKeyCreationOnFail() {
 	_creatingKey = false;
 }
 
-void Dcenter::releaseKeyCreationOnDone(AuthKeyPtr &&key) {
+void Dcenter::releaseKeyCreationOnDone(const AuthKeyPtr &key) {
 	Expects(_creatingKey);
 	Expects(_key == nullptr);
 
 	QWriteLocker lock(&_mutex);
-	DEBUG_LOG(("AuthKey Info: Dcenter::releaseKeyCreationOnDone(%1), emitting authKeyChanged, dc %2").arg(key ? key->keyId() : 0).arg(_id));
-	_key = std::move(key);
+	DEBUG_LOG(("AuthKey Info: Dcenter::releaseKeyCreationOnDone(%1), "
+		"emitting authKeyChanged, dc %2"
+		).arg(key ? key->keyId() : 0
+		).arg(_id));
+	_key = key;
 	_connectionInited = false;
 	_creatingKey = false;
-	lock.unlock();
-
-	emit authKeyChanged();
 }
 
 } // namespace internal

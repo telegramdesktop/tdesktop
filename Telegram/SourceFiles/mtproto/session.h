@@ -249,10 +249,8 @@ public:
 		return _stateRequest;
 	}
 
-	not_null<Session*> owner() {
-		return _owner;
-	}
-	not_null<const Session*> owner() const {
+	// Warning! Valid only in constructor, _owner is guaranteed != null.
+	[[nodiscard]] not_null<Session*> owner() {
 		return _owner;
 	}
 
@@ -265,13 +263,45 @@ public:
 
 	void clearForNewKey(not_null<Instance*> instance);
 
+	// Connection -> Session interface.
+	void queueTryToReceive();
+	void queueNeedToResumeAndSend();
+	void queueConnectionStateChange(int newState);
+	void queueResendAll();
+	void queueResetDone();
+	void queueSendAnything(crl::time msCanWait = 0);
+	void queueSendMsgsStateInfo(quint64 msgId, QByteArray data);
+	void queueResend(
+		mtpMsgId msgId,
+		crl::time msCanWait,
+		bool forceContainer,
+		bool sendMsgStateInfo);
+	void queueResendMany(
+		QVector<mtpMsgId> msgIds,
+		crl::time msCanWait,
+		bool forceContainer,
+		bool sendMsgStateInfo);
+
+	[[nodiscard]] bool connectionInited() const;
+	[[nodiscard]] AuthKeyPtr getKey() const;
+	[[nodiscard]] bool acquireKeyCreation();
+	void releaseKeyCreationOnDone(const AuthKeyPtr &key);
+	void releaseKeyCreationOnFail();
+	void destroyCdnKey(uint64 keyId);
+
+	void detach();
+
 private:
+	template <typename Callback>
+	void withSession(Callback &&callback);
+
 	uint64 _keyId = 0;
 	uint64 _sessionId = 0;
 	uint64 _salt = 0;
 	uint32 _messagesSent = 0;
 
-	not_null<Session*> _owner;
+	Session *_owner = nullptr;
+	mutable QMutex _ownerMutex;
 
 	AuthKeyPtr _dcKeyForCheck;
 	ConnectionOptions _options;
@@ -327,7 +357,7 @@ public:
 	// Connection thread.
 	[[nodiscard]] bool acquireKeyCreation();
 	void releaseKeyCreationOnFail();
-	void releaseKeyCreationOnDone(AuthKeyPtr &&key);
+	void releaseKeyCreationOnDone(const AuthKeyPtr &key);
 	void destroyCdnKey(uint64 keyId);
 
 	void notifyDcConnectionInited();
@@ -346,32 +376,29 @@ public:
 		crl::time msCanWait = 0,
 		bool newRequest = true);
 
+	void tryToReceive();
+	void needToResumeAndSend();
+	void connectionStateChange(int newState);
+	void resendAll(); // After connection restart.
+	void resetDone();
+	void sendAnything(crl::time msCanWait = 0);
+	void sendMsgsStateInfo(quint64 msgId, QByteArray data);
+	mtpRequestId resend(
+		mtpMsgId msgId,
+		crl::time msCanWait = 0,
+		bool forceContainer = false,
+		bool sendMsgStateInfo = false);
+
 signals:
 	void authKeyChanged();
 	void needToSend();
 	void needToPing();
 	void needToRestart();
 
-public slots:
-	void needToResumeAndSend();
-
-	mtpRequestId resend(quint64 msgId, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
-	void resendMany(QVector<quint64> msgIds, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
-	void resendAll(); // after connection restart
-
-	void authKeyChangedForDC();
-
-	void tryToReceive();
-	void onConnectionStateChange(qint32 newState);
-	void onResetDone();
-
-	void sendAnything(qint64 msCanWait = 0);
-	void sendPong(quint64 msgId, quint64 pingId);
-	void sendMsgsStateInfo(quint64 msgId, QByteArray data);
-
 private:
 	[[nodiscard]] bool sharedDc() const;
 	void checkRequestsByTimer();
+	void watchDcKeyChanges();
 
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
 
@@ -379,15 +406,15 @@ private:
 	const ShiftedDcId _shiftedDcId = 0;
 	const std::unique_ptr<Dcenter> _ownedDc;
 	const not_null<Dcenter*> _dc;
+	const std::shared_ptr<SessionData> _data;
 
 	std::unique_ptr<Connection> _connection;
 
 	bool _killed = false;
 	bool _needToReceive = false;
 
-	SessionData _data;
-
 	AuthKeyPtr _dcKeyForCheck;
+	bool _myKeyCreation = false;
 
 	crl::time _msSendCall = 0;
 	crl::time _msWait = 0;
@@ -396,6 +423,8 @@ private:
 
 	base::Timer _timeouter;
 	base::Timer _sender;
+
+	rpl::lifetime _lifetime;
 
 };
 

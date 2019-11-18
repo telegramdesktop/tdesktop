@@ -65,7 +65,8 @@ public:
 	void setMainDcId(DcId mainDcId);
 	[[nodiscard]] DcId mainDcId() const;
 
-	void setKeyForWrite(DcId dcId, const AuthKeyPtr &key);
+	void dcKeyChanged(DcId dcId, const AuthKeyPtr &key);
+	[[nodiscard]] rpl::producer<DcId> dcKeyChanged() const;
 	[[nodiscard]] AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
 
@@ -208,6 +209,7 @@ private:
 	bool _mainDcIdForced = false;
 	base::flat_map<DcId, std::unique_ptr<Dcenter>> _dcenters;
 	std::vector<std::unique_ptr<Dcenter>> _dcentersToDestroy;
+	rpl::event_stream<DcId> _dcKeyChanged;
 
 	Session *_mainSession = nullptr;
 	base::flat_map<ShiftedDcId, std::unique_ptr<Session>> _sessions;
@@ -693,7 +695,9 @@ not_null<Dcenter*> Instance::Private::getDcById(
 	return addDc(dcId);
 }
 
-void Instance::Private::setKeyForWrite(DcId dcId, const AuthKeyPtr &key) {
+void Instance::Private::dcKeyChanged(DcId dcId, const AuthKeyPtr &key) {
+	_dcKeyChanged.fire_copy(dcId);
+
 	if (isTemporaryDcId(dcId)) {
 		return;
 	}
@@ -708,6 +712,10 @@ void Instance::Private::setKeyForWrite(DcId dcId, const AuthKeyPtr &key) {
 		DEBUG_LOG(("AuthKey Info: writing auth keys, called by dc %1").arg(dcId));
 		Local::writeMtpData();
 	});
+}
+
+rpl::producer<DcId> Instance::Private::dcKeyChanged() const {
+	return _dcKeyChanged.events();
 }
 
 AuthKeysList Instance::Private::getKeysForWrite() const {
@@ -1600,7 +1608,7 @@ void Instance::Private::keyDestroyedOnServer(DcId dcId, uint64 keyId) {
 	if (const auto dc = findDc(dcId)) {
 		if (dc->destroyConfirmedForgottenKey(keyId)) {
 			LOG(("Key destroyed!"));
-			setKeyForWrite(dcId, nullptr);
+			dcKeyChanged(dcId, nullptr);
 		} else {
 			LOG(("Key already is different."));
 		}
@@ -1753,10 +1761,12 @@ void Instance::logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail) {
 	_private->logout(onDone, onFail);
 }
 
-void Instance::setKeyForWrite(DcId dcId, const AuthKeyPtr &key) {
-	InvokeQueued(this, [=] {
-		_private->setKeyForWrite(dcId, key);
-	});
+void Instance::dcKeyChanged(DcId dcId, const AuthKeyPtr &key) {
+	_private->dcKeyChanged(dcId, key);
+}
+
+rpl::producer<DcId> Instance::dcKeyChanged() const {
+	return _private->dcKeyChanged();
 }
 
 AuthKeysList Instance::getKeysForWrite() const {

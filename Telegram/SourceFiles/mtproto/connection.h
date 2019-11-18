@@ -21,7 +21,7 @@ class DcKeyChecker;
 } // namespace details
 
 // How much time to wait for some more requests, when sending msg acks.
-constexpr auto kAckSendWaiting = crl::time(10000);
+constexpr auto kAckSendWaiting = 10 * crl::time(1000);
 
 class Instance;
 
@@ -43,7 +43,7 @@ public:
 	Connection(not_null<Instance*> instance);
 	~Connection();
 
-	void start(SessionData *data, ShiftedDcId shiftedDcId);
+	void start(std::shared_ptr<SessionData> data, ShiftedDcId shiftedDcId);
 
 	void kill();
 	void waitTillFinish();
@@ -68,7 +68,7 @@ public:
 		not_null<Instance*> instance,
 		not_null<QThread*> thread,
 		not_null<Connection*> owner,
-		not_null<SessionData*> data,
+		std::shared_ptr<SessionData> data,
 		ShiftedDcId shiftedDcId);
 	~ConnectionPrivate();
 
@@ -78,21 +78,6 @@ public:
 
 	int32 getState() const;
 	QString transport() const;
-
-signals:
-	void needToReceive();
-	void needToRestart();
-	void stateChanged(qint32 newState);
-	void sessionResetDone();
-
-	void needToSendAsync();
-	void sendAnythingAsync(qint64 msWait);
-	void sendHttpWaitAsync();
-	void sendPongAsync(quint64 msgId, quint64 pingId);
-	void sendMsgsStateInfoAsync(quint64 msgId, QByteArray data);
-	void resendAsync(quint64 msgId, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
-	void resendManyAsync(QVector<quint64> msgIds, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
-	void resendAllAsync();
 
 public slots:
 	void restartNow();
@@ -112,6 +97,15 @@ private:
 		ConnectionPointer data;
 		int priority = 0;
 	};
+
+	enum class HandleResult {
+		Success,
+		Ignored,
+		RestartConnection,
+		ResetSession,
+		ParseError,
+	};
+
 	void connectToServer(bool afterConfig = false);
 	void connectingTimedOut();
 	void doDisconnect();
@@ -135,8 +129,6 @@ private:
 	void waitBetterFailed();
 	void markConnectionOld();
 	void sendPingByTimer();
-
-	// Locks _sessionDataMutex.
 	void destroyAllConnections();
 
 	void confirmBestConnection();
@@ -151,23 +143,14 @@ private:
 	mtpMsgId prepareToSend(SecureRequest &request, mtpMsgId currentLastId);
 	mtpMsgId replaceMsgId(SecureRequest &request, mtpMsgId newId);
 
-	bool sendSecureRequest(
-		SecureRequest &&request,
-		bool needAnyResponse,
-		QReadLocker &lockFinished);
+	bool sendSecureRequest(SecureRequest &&request, bool needAnyResponse);
 	mtpRequestId wasSent(mtpMsgId msgId) const;
 
-	enum class HandleResult {
-		Success,
-		Ignored,
-		RestartConnection,
-		ResetSession,
-		ParseError,
-	};
 	[[nodiscard]] HandleResult handleOneReceived(const mtpPrime *from, const mtpPrime *end, uint64 msgId, int32 serverTime, uint64 serverSalt, bool badTime);
 	mtpBuffer ungzip(const mtpPrime *from, const mtpPrime *end) const;
 	void handleMsgsStates(const QVector<MTPlong> &ids, const QByteArray &states, QVector<MTPlong> &acked);
 
+	// _sessionDataMutex must be locked for read.
 	bool setState(int32 state, int32 ifState = Connection::UpdateAlways);
 
 	void appendTestConnection(
@@ -182,19 +165,26 @@ private:
 	// remove msgs with such ids from sessionData->haveSent, add to sessionData->wereAcked
 	void requestsAcked(const QVector<MTPlong> &ids, bool byResponse = false);
 
-	void resend(quint64 msgId, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
-	void resendMany(QVector<quint64> msgIds, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
+	void resend(
+		mtpMsgId msgId,
+		crl::time msCanWait = 0,
+		bool forceContainer = false,
+		bool sendMsgStateInfo = false);
+	void resendMany(
+		QVector<mtpMsgId> msgIds,
+		crl::time msCanWait = 0,
+		bool forceContainer = false,
+		bool sendMsgStateInfo = false);
 
 	void createDcKey();
 	void resetSession();
 	void checkAuthKey();
 	void authKeyChecked();
 	void destroyCdnKey();
-
-	// _sessionDataMutex must be locked for read.
 	void clearKeyCreatorOnFail();
+	void applyAuthKey(AuthKeyPtr &&key);
 
-	not_null<Instance*> _instance;
+	const not_null<Instance*> _instance;
 	DcType _dcType = DcType::Regular;
 
 	mutable QReadWriteLock stateConnMutex;
@@ -236,8 +226,7 @@ private:
 
 	AuthKeyPtr _key;
 	uint64 _keyId = 0;
-	QReadWriteLock _sessionDataMutex;
-	SessionData *_sessionData = nullptr;
+	std::shared_ptr<SessionData> _sessionData;
 	std::unique_ptr<ConnectionOptions> _connectionOptions;
 
 	std::unique_ptr<details::DcKeyCreator> _keyCreator;

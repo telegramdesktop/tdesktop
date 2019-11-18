@@ -16,8 +16,6 @@ using AuthKeyPtr = std::shared_ptr<AuthKey>;
 namespace internal {
 
 class Dcenter : public QObject {
-	Q_OBJECT
-
 public:
 	// Main thread.
 	Dcenter(DcId dcId, AuthKeyPtr &&key);
@@ -26,18 +24,15 @@ public:
 	[[nodiscard]] DcId id() const;
 
 	[[nodiscard]] AuthKeyPtr getKey() const;
-	void destroyCdnKey(uint64 keyId);
+	bool destroyCdnKey(uint64 keyId);
 	bool destroyConfirmedForgottenKey(uint64 keyId);
-	void releaseKeyCreationOnDone(AuthKeyPtr &&key);
+	void releaseKeyCreationOnDone(const AuthKeyPtr &key);
 
 	[[nodiscard]] bool connectionInited() const;
 	void setConnectionInited(bool connectionInited = true);
 
 	[[nodiscard]] bool acquireKeyCreation();
 	void releaseKeyCreationOnFail();
-
-signals:
-	void authKeyChanged();
 
 private:
 	bool destroyKey(uint64 keyId);

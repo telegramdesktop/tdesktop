@@ -23,15 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "base/unixtime.h"
 
-extern "C" {
-#include <openssl/bn.h>
-#include <openssl/err.h>
-#include <openssl/aes.h>
-#include <openssl/sha.h>
-#include <openssl/md5.h>
-#include <openssl/rand.h>
-} // extern "C"
-
 #ifdef small
 #undef small
 #endif // small
@@ -107,7 +98,7 @@ Connection::~Connection() {
 	}
 }
 
-void Connection::start(SessionData *sessionData, ShiftedDcId shiftedDcId) {
+void Connection::start(std::shared_ptr<SessionData> sessionData, ShiftedDcId shiftedDcId) {
 	Expects(_thread == nullptr && _private == nullptr);
 
 	_thread = std::make_unique<QThread>();
@@ -115,7 +106,7 @@ void Connection::start(SessionData *sessionData, ShiftedDcId shiftedDcId) {
 		_instance,
 		_thread.get(),
 		this,
-		sessionData,
+		std::move(sessionData),
 		shiftedDcId);
 
 	// will be deleted in the thread::finished signal
@@ -214,10 +205,7 @@ int16 ConnectionPrivate::getProtocolDcId() const {
 }
 
 void ConnectionPrivate::destroyAllConnections() {
-	{
-		QReadLocker lockFinished(&_sessionDataMutex);
-		clearKeyCreatorOnFail();
-	}
+	clearKeyCreatorOnFail();
 	_waitForBetterTimer.cancel();
 	_waitForReceivedTimer.cancel();
 	_waitForConnectedTimer.cancel();
@@ -229,7 +217,7 @@ ConnectionPrivate::ConnectionPrivate(
 	not_null<Instance*> instance,
 	not_null<QThread*> thread,
 	not_null<Connection*> owner,
-	not_null<SessionData*> data,
+	std::shared_ptr<SessionData> data,
 	ShiftedDcId shiftedDcId)
 : QObject(nullptr)
 , _instance(instance)
@@ -244,7 +232,7 @@ ConnectionPrivate::ConnectionPrivate(
 , _waitForReceived(kMinReceiveTimeout)
 , _waitForConnected(kMinConnectedTimeout)
 , _pingSender(thread, [=] { sendPingByTimer(); })
-, _sessionData(data) {
+, _sessionData(std::move(data)) {
 	Expects(_shiftedDcId != 0);
 
 	moveToThread(thread);
@@ -254,33 +242,16 @@ ConnectionPrivate::ConnectionPrivate(
 
 	connect(_sessionData->owner(), SIGNAL(authKeyChanged()), this, SLOT(updateAuthKey()), Qt::QueuedConnection);
 	connect(_sessionData->owner(), SIGNAL(needToRestart()), this, SLOT(restartNow()), Qt::QueuedConnection);
-	connect(this, SIGNAL(needToReceive()), _sessionData->owner(), SLOT(tryToReceive()), Qt::QueuedConnection);
-	connect(this, SIGNAL(stateChanged(qint32)), _sessionData->owner(), SLOT(onConnectionStateChange(qint32)), Qt::QueuedConnection);
 	connect(_sessionData->owner(), SIGNAL(needToSend()), this, SLOT(tryToSend()), Qt::QueuedConnection);
 	connect(_sessionData->owner(), SIGNAL(needToPing()), this, SLOT(onPingSendForce()), Qt::QueuedConnection);
-	connect(this, SIGNAL(sessionResetDone()), _sessionData->owner(), SLOT(onResetDone()), Qt::QueuedConnection);
-
-	static bool _registered = false;
-	if (!_registered) {
-		_registered = true;
-		qRegisterMetaType<QVector<quint64> >("QVector<quint64>");
-	}
-
-	connect(this, SIGNAL(needToSendAsync()), _sessionData->owner(), SLOT(needToResumeAndSend()), Qt::QueuedConnection);
-	connect(this, SIGNAL(sendAnythingAsync(qint64)), _sessionData->owner(), SLOT(sendAnything(qint64)), Qt::QueuedConnection);
-	connect(this, SIGNAL(sendHttpWaitAsync()), _sessionData->owner(), SLOT(sendAnything()), Qt::QueuedConnection);
-	connect(this, SIGNAL(sendPongAsync(quint64,quint64)), _sessionData->owner(), SLOT(sendPong(quint64,quint64)), Qt::QueuedConnection);
-	connect(this, SIGNAL(sendMsgsStateInfoAsync(quint64, QByteArray)), _sessionData->owner(), SLOT(sendMsgsStateInfo(quint64,QByteArray)), Qt::QueuedConnection);
-	connect(this, SIGNAL(resendAsync(quint64,qint64,bool,bool)), _sessionData->owner(), SLOT(resend(quint64,qint64,bool,bool)), Qt::QueuedConnection);
-	connect(this, SIGNAL(resendManyAsync(QVector<quint64>,qint64,bool,bool)), _sessionData->owner(), SLOT(resendMany(QVector<quint64>,qint64,bool,bool)), Qt::QueuedConnection);
-	connect(this, SIGNAL(resendAllAsync()), _sessionData->owner(), SLOT(resendAll()), Qt::QueuedConnection);
 }
 
 ConnectionPrivate::~ConnectionPrivate() {
+	clearKeyCreatorOnFail();
+
 	Expects(_finished);
 	Expects(!_connection);
 	Expects(_testConnections.empty());
-	Expects(!_keyCreator);
 }
 
 void ConnectionPrivate::onConfigLoaded() {
@@ -324,6 +295,7 @@ bool ConnectionPrivate::setState(int32 state, int32 ifState) {
 		QReadLocker lock(&stateConnMutex);
 		if (_state != ifState) return false;
 	}
+
 	QWriteLocker lock(&stateConnMutex);
 	if (_state == state) return false;
 	_state = state;
@@ -332,7 +304,9 @@ bool ConnectionPrivate::setState(int32 state, int32 ifState) {
 		_retryTimer.callOnce(_retryTimeout);
 		_retryWillFinish = crl::now() + _retryTimeout;
 	}
-	emit stateChanged(state);
+	lock.unlock();
+
+	_sessionData->queueConnectionStateChange(state);
 	return true;
 }
 
@@ -465,7 +439,7 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 		_sessionData->stateRequestMap().clear();
 	}
 
-	emit sessionResetDone();
+	_sessionData->queueResetDone();
 }
 
 mtpMsgId ConnectionPrivate::prepareToSend(
@@ -570,12 +544,11 @@ mtpMsgId ConnectionPrivate::placeToContainer(SecureRequest &toSendRequest, mtpMs
 }
 
 void ConnectionPrivate::tryToSend() {
-	QReadLocker lockFinished(&_sessionDataMutex);
-	if (!_sessionData || !_connection || !_keyId) {
+	if (!_connection || !_keyId) {
 		return;
 	}
 
-	auto needsLayer = !_sessionData->owner()->connectionInited();
+	auto needsLayer = !_sessionData->connectionInited();
 	auto state = getState();
 	auto sendOnlyFirstPing = (state != ConnectedState);
 	if (sendOnlyFirstPing && !_pingIdToSend) {
@@ -926,16 +899,10 @@ void ConnectionPrivate::tryToSend() {
 			toSend.clear();
 		}
 	}
-	sendSecureRequest(
-		std::move(toSendRequest),
-		needAnyResponse,
-		lockFinished);
+	sendSecureRequest(std::move(toSendRequest), needAnyResponse);
 }
 
 void ConnectionPrivate::retryByTimer() {
-	QReadLocker lockFinished(&_sessionDataMutex);
-	if (!_sessionData) return;
-
 	if (_retryTimeout < 3) {
 		++_retryTimeout;
 	} else if (_retryTimeout == 3) {
@@ -959,17 +926,11 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 		return;
 	}
 
-	QReadLocker lockFinished(&_sessionDataMutex);
-	if (!_sessionData) {
-		DEBUG_LOG(("MTP Error: "
-			"connectToServer() called for stopped connection!"));
-		return;
-	}
 	_connectionOptions = std::make_unique<ConnectionOptions>(
 		_sessionData->connectionOptions());
+
 	// #TODO race.
-	const auto hasKey = (_sessionData->owner()->getKey() != nullptr);
-	lockFinished.unlock();
+	const auto hasKey = (_sessionData->getKey() != nullptr);
 
 	const auto bareDc = BareDcId(_shiftedDcId);
 	_dcType = _instance->dcOptions()->dcType(_shiftedDcId);
@@ -1063,6 +1024,7 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 	_waitForConnectedTimer.cancel();
 
 	setState(ConnectingState);
+
 	_pingId = _pingMsgId = _pingIdToSend = _pingSendAt = 0;
 	_pingSender.cancel();
 
@@ -1070,25 +1032,23 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 }
 
 void ConnectionPrivate::restart() {
-	QReadLocker lockFinished(&_sessionDataMutex);
-	if (!_sessionData) return;
-
 	DEBUG_LOG(("MTP Info: restarting Connection"));
 
 	_waitForReceivedTimer.cancel();
 	_waitForConnectedTimer.cancel();
 
-	lockFinished.unlock();
 	doDisconnect();
 
-	lockFinished.relock();
-	if (_sessionData && _needSessionReset) {
+	if (_needSessionReset) {
 		resetSession();
 	}
 	_restarted = true;
-	if (_retryTimer.isActive()) return;
+	if (_retryTimer.isActive()) {
+		return;
+	}
 
 	DEBUG_LOG(("MTP Info: restart timeout: %1ms").arg(_retryTimeout));
+
 	setState(-_retryTimeout);
 }
 
@@ -1152,7 +1112,7 @@ void ConnectionPrivate::sendPingByTimer() {
 			_pingSender.callOnce(mustSendTill - now);
 		}
 	} else {
-		emit needToSendAsync();
+		_sessionData->queueNeedToResumeAndSend();
 	}
 }
 
@@ -1244,15 +1204,7 @@ void ConnectionPrivate::requestCDNConfig() {
 }
 
 void ConnectionPrivate::handleReceived() {
-	QReadLocker lockFinished(&_sessionDataMutex);
-	if (!_sessionData) return;
-
 	onReceivedSome();
-
-	const auto restartOnError = [&] {
-		lockFinished.unlock();
-		restart();
-	};
 
 	while (!_connection->received().empty()) {
 		auto intsBuffer = std::move(_connection->received().front());
@@ -1268,13 +1220,13 @@ void ConnectionPrivate::handleReceived() {
 			LOG(("TCP Error: bad message received, len %1").arg(intsCount * kIntSize));
 			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(ints, intsCount * kIntSize).str()));
 
-			return restartOnError();
+			return restart();
 		}
 		if (_keyId != *(uint64*)ints) {
 			LOG(("TCP Error: bad auth_key_id %1 instead of %2 received").arg(_keyId).arg(*(uint64*)ints));
 			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(ints, intsCount * kIntSize).str()));
 
-			return restartOnError();
+			return restart();
 		}
 
 		auto encryptedInts = ints + kExternalHeaderIntsCount;
@@ -1301,7 +1253,7 @@ void ConnectionPrivate::handleReceived() {
 			LOG(("TCP Error: bad messageLength %1").arg(messageLength));
 			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(ints, intsCount * kIntSize).str()));
 
-			return restartOnError();
+			return restart();
 
 		}
 		auto fullDataLength = kEncryptedHeaderIntsCount * kIntSize + messageLength; // Without padding.
@@ -1322,7 +1274,7 @@ void ConnectionPrivate::handleReceived() {
 			LOG(("TCP Error: bad SHA1 hash after aesDecrypt in message."));
 			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encryptedInts, encryptedBytesCount).str()));
 
-			return restartOnError();
+			return restart();
 		}
 #else // TDESKTOP_MTPROTO_OLD
 		constexpr auto kMinPaddingSize = 12U;
@@ -1342,7 +1294,7 @@ void ConnectionPrivate::handleReceived() {
 			LOG(("TCP Error: bad SHA256 hash after aesDecrypt in message"));
 			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encryptedInts, encryptedBytesCount).str()));
 
-			return restartOnError();
+			return restart();
 		}
 #endif // TDESKTOP_MTPROTO_OLD
 
@@ -1350,7 +1302,7 @@ void ConnectionPrivate::handleReceived() {
 			LOG(("TCP Error: bad msg_len received %1, data size: %2").arg(messageLength).arg(encryptedBytesCount));
 			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encryptedInts, encryptedBytesCount).str()));
 
-			return restartOnError();
+			return restart();
 		}
 
 		TCP_LOG(("TCP Info: decrypted message %1,%2,%3 is %4 len").arg(msgId).arg(seqNo).arg(Logs::b(needAck)).arg(fullDataLength));
@@ -1360,7 +1312,7 @@ void ConnectionPrivate::handleReceived() {
 			LOG(("MTP Error: bad server session received"));
 			TCP_LOG(("MTP Error: bad server session %1 instead of %2 in message received").arg(session).arg(serverSession));
 
-			return restartOnError();
+			return restart();
 		}
 
 		const auto serverTime = int32(msgId >> 32);
@@ -1369,7 +1321,7 @@ void ConnectionPrivate::handleReceived() {
 		if (!isReply && ((msgId & 0x03) != 3)) {
 			LOG(("MTP Error: bad msg_id %1 in message received").arg(msgId));
 
-			return restartOnError();
+			return restart();
 		}
 
 		bool badTime = false;
@@ -1384,11 +1336,10 @@ void ConnectionPrivate::handleReceived() {
 			if (!badTime) {
 				DEBUG_LOG(("MTP Info: other salt received... received: %1, my salt: %2, updating...").arg(serverSalt).arg(mySalt));
 				_sessionData->setSalt(serverSalt);
-				if (setState(ConnectedState, ConnectingState)) { // only connected
-					if (_restarted) {
-						emit resendAllAsync();
-						_restarted = false;
-					}
+
+				if (setState(ConnectedState, ConnectingState) && _restarted) {
+					_sessionData->queueResendAll();
+					_restarted = false;
 				}
 			} else {
 				DEBUG_LOG(("MTP Info: other salt received... received: %1, my salt: %2").arg(serverSalt).arg(mySalt));
@@ -1419,29 +1370,24 @@ void ConnectionPrivate::handleReceived() {
 		}
 
 		// send acks
-		uint32 toAckSize = _ackRequestData.size();
-		if (toAckSize) {
+		if (const auto toAckSize = _ackRequestData.size()) {
 			DEBUG_LOG(("MTP Info: will send %1 acks, ids: %2").arg(toAckSize).arg(LogIdsVector(_ackRequestData)));
-			emit sendAnythingAsync(kAckSendWaiting);
+			_sessionData->queueSendAnything(kAckSendWaiting);
 		}
 
-		bool emitSignal = false;
-		{
-			QReadLocker locker(_sessionData->haveReceivedMutex());
-			emitSignal = !_sessionData->haveReceivedResponses().isEmpty() || !_sessionData->haveReceivedUpdates().isEmpty();
-			if (emitSignal) {
-				DEBUG_LOG(("MTP Info: emitting needToReceive() - need to parse in another thread, %1 responses, %2 updates.").arg(_sessionData->haveReceivedResponses().size()).arg(_sessionData->haveReceivedUpdates().size()));
-			}
-		}
+		auto lock = QReadLocker(_sessionData->haveReceivedMutex());
+		const auto tryToReceive = !_sessionData->haveReceivedResponses().isEmpty() || !_sessionData->haveReceivedUpdates().isEmpty();
+		lock.unlock();
 
-		if (emitSignal) {
-			emit needToReceive();
+		if (tryToReceive) {
+			DEBUG_LOG(("MTP Info: queueTryToReceive() - need to parse in another thread, %1 responses, %2 updates.").arg(_sessionData->haveReceivedResponses().size()).arg(_sessionData->haveReceivedUpdates().size()));
+			_sessionData->queueTryToReceive();
 		}
 
 		if (res != HandleResult::Success && res != HandleResult::Ignored) {
 			_needSessionReset = (res == HandleResult::ResetSession);
 
-			return restartOnError();
+			return restart();
 		}
 		_retryTimeout = 1; // reset restart() timer
 
@@ -1449,12 +1395,12 @@ void ConnectionPrivate::handleReceived() {
 
 		if (!wasConnected) {
 			if (getState() == ConnectedState) {
-				emit needToSendAsync();
+				_sessionData->queueNeedToResumeAndSend();
 			}
 		}
 	}
 	if (_connection->needHttpWait()) {
-		emit sendHttpWaitAsync();
+		_sessionData->queueSendAnything();
 	}
 }
 
@@ -1679,7 +1625,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 
 		if (setState(ConnectedState, ConnectingState)) { // maybe only connected
 			if (_restarted) {
-				emit resendAllAsync();
+				_sessionData->queueResendAll();
 				_restarted = false;
 			}
 		}
@@ -1741,7 +1687,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 				info[i] = state;
 			}
 		}
-		emit sendMsgsStateInfoAsync(msgId, info);
+		_sessionData->queueSendMsgsStateInfo(msgId, info);
 	} return HandleResult::Success;
 
 	case mtpc_msgs_state_info: {
@@ -2273,32 +2219,45 @@ void ConnectionPrivate::handleMsgsStates(const QVector<MTPlong> &ids, const QByt
 	}
 }
 
-void ConnectionPrivate::resend(quint64 msgId, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
-	if (msgId == _pingMsgId) return;
-	emit resendAsync(msgId, msCanWait, forceContainer, sendMsgStateInfo);
+void ConnectionPrivate::resend(
+		mtpMsgId msgId,
+		crl::time msCanWait,
+		bool forceContainer,
+		bool sendMsgStateInfo) {
+	if (msgId == _pingMsgId) {
+		return;
+	}
+	_sessionData->queueResend(
+		msgId,
+		msCanWait,
+		forceContainer,
+		sendMsgStateInfo);
 }
 
-void ConnectionPrivate::resendMany(QVector<quint64> msgIds, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
+void ConnectionPrivate::resendMany(
+		QVector<mtpMsgId> msgIds,
+		crl::time msCanWait,
+		bool forceContainer,
+		bool sendMsgStateInfo) {
 	for (int32 i = 0, l = msgIds.size(); i < l; ++i) {
 		if (msgIds.at(i) == _pingMsgId) {
 			msgIds.remove(i);
 			--l;
 		}
 	}
-	emit resendManyAsync(msgIds, msCanWait, forceContainer, sendMsgStateInfo);
+	_sessionData->queueResendMany(
+		std::move(msgIds),
+		msCanWait,
+		forceContainer,
+		sendMsgStateInfo);
 }
 
 void ConnectionPrivate::onConnected(
 		not_null<AbstractConnection*> connection) {
-	QReadLocker lockFinished(&_sessionDataMutex);
-	if (!_sessionData) return;
-
 	disconnect(connection, &AbstractConnection::connected, nullptr, nullptr);
 	if (!connection->isConnected()) {
 		LOG(("Connection Error: not connected in onConnected(), "
 			"state: %1").arg(connection->debugState()));
-
-		lockFinished.unlock();
 		return restart();
 	}
 
@@ -2323,8 +2282,6 @@ void ConnectionPrivate::onConnected(
 		_waitForBetterTimer.cancel();
 		_connection = std::move(i->data);
 		_testConnections.clear();
-
-		lockFinished.unlock();
 		checkAuthKey();
 	}
 }
@@ -2384,13 +2341,16 @@ void ConnectionPrivate::checkAuthKey() {
 }
 
 void ConnectionPrivate::updateAuthKey() {
-	QReadLocker lockFinished(&_sessionDataMutex);
-	if (!_sessionData || _keyCreator) {
+	if (_keyCreator) {
 		return;
 	}
 
 	DEBUG_LOG(("AuthKey Info: Connection updating key from Session, dc %1").arg(_shiftedDcId));
-	_key = _sessionData->owner()->getKey();
+	applyAuthKey(_sessionData->getKey());
+}
+
+void ConnectionPrivate::applyAuthKey(AuthKeyPtr &&key) {
+	_key = std::move(key);
 	const auto newKeyId = _key ? _key->keyId() : 0;
 	if (newKeyId) {
 		if (_keyId == newKeyId) {
@@ -2406,7 +2366,6 @@ void ConnectionPrivate::updateAuthKey() {
 		Assert(already != newKeyId);
 		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(_shiftedDcId));
 
-		lockFinished.unlock();
 		restart();
 		return;
 	}
@@ -2420,11 +2379,10 @@ void ConnectionPrivate::updateAuthKey() {
 		LOG(("MTP Error: No key %1 in updateAuthKey() for destroying.").arg(_shiftedDcId));
 		_instance->checkIfKeyWasDestroyed(_shiftedDcId);
 		return;
-	} else if (!_sessionData->owner()->acquireKeyCreation()) {
+	} else if (!_sessionData->acquireKeyCreation()) {
 		DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), but someone is creating already."));
 		return;
 	}
-	lockFinished.unlock();
 
 	DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), creating."));
 	createDcKey();
@@ -2435,9 +2393,6 @@ void ConnectionPrivate::createDcKey() {
 	using Error = DcKeyCreator::Error;
 	auto delegate = DcKeyCreator::Delegate();
 	delegate.done = [=](base::expected<Result, Error> result) {
-		QReadLocker lockFinished(&_sessionDataMutex);
-		if (!_sessionData) return;
-
 		if (result) {
 			DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2").arg(result->key->keyId()).arg(result->serverSalt));
 
@@ -2445,10 +2400,8 @@ void ConnectionPrivate::createDcKey() {
 			_sessionData->clearForNewKey(_instance);
 
 			_keyCreator = nullptr;
-			_sessionData->owner()->releaseKeyCreationOnDone(
-				std::move(result->key));
-
-			updateAuthKey();
+			_sessionData->releaseKeyCreationOnDone(result->key);
+			applyAuthKey(std::move(result->key));
 			return;
 		}
 		clearKeyCreatorOnFail();
@@ -2484,14 +2437,13 @@ void ConnectionPrivate::authKeyChecked() {
 	if (_sessionData->getSalt()) {
 		setState(ConnectedState);
 		if (_restarted) {
-			emit resendAllAsync();
+			_sessionData->queueResendAll();
 			_restarted = false;
 		}
 	} // else receive salt in bad_server_salt first, then try to send all the requests
 
 	_pingIdToSend = rand_value<uint64>(); // get server_salt
-
-	emit needToSendAsync();
+	_sessionData->queueNeedToResumeAndSend();
 }
 
 void ConnectionPrivate::onError(
@@ -2537,20 +2489,15 @@ void ConnectionPrivate::handleError(int errorCode) {
 
 void ConnectionPrivate::destroyCdnKey() {
 	if (_key) {
-		QReadLocker lockFinished(&_sessionDataMutex);
-		if (_sessionData) {
-			_sessionData->owner()->destroyCdnKey(_keyId);
-		}
+		_sessionData->destroyCdnKey(_keyId);
 	}
 	_key = nullptr;
 	_keyId = 0;
-
 }
 
 bool ConnectionPrivate::sendSecureRequest(
 		SecureRequest &&request,
-		bool needAnyResponse,
-		QReadLocker &lockFinished) {
+		bool needAnyResponse) {
 #ifdef TDESKTOP_MTPROTO_OLD
 	const auto oldPadding = true;
 #else // TDESKTOP_MTPROTO_OLD
@@ -2658,24 +2605,15 @@ mtpRequestId ConnectionPrivate::wasSent(mtpMsgId msgId) const {
 	return 0;
 }
 
-// _sessionDataMutex must be locked for read.
 void ConnectionPrivate::clearKeyCreatorOnFail() {
-	if (_keyCreator) {
-		_keyCreator = nullptr;
-
-		Assert(_sessionData != nullptr);
-		_sessionData->owner()->releaseKeyCreationOnFail();
+	if (!_keyCreator) {
+		return;
 	}
+	_keyCreator = nullptr;
+	_sessionData->releaseKeyCreationOnFail();
 }
 
 void ConnectionPrivate::stop() {
-	QWriteLocker lockFinished(&_sessionDataMutex);
-	if (!_sessionData) {
-		Assert(_keyCreator == nullptr);
-		return;
-	}
-	clearKeyCreatorOnFail();
-	_sessionData = nullptr;
 }
 
 } // namespace internal

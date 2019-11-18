@@ -64,6 +64,19 @@ ConnectionOptions::ConnectionOptions(
 , useTcp(useTcp) {
 }
 
+template <typename Callback>
+void SessionData::withSession(Callback &&callback) {
+	QMutexLocker lock(&_ownerMutex);
+	if (const auto session = _owner) {
+		InvokeQueued(session, [
+			session,
+			callback = std::forward<Callback>(callback)
+		] {
+			callback(session);
+		});
+	}
+}
+
 void SessionData::setCurrentKeyId(uint64 keyId) {
 	QWriteLocker locker(&_lock);
 	if (_keyId == keyId) {
@@ -136,6 +149,115 @@ void SessionData::clearForNewKey(not_null<Instance*> instance) {
 	instance->clearCallbacksDelayed(std::move(clearCallbacks));
 }
 
+void SessionData::queueTryToReceive() {
+	withSession([](not_null<Session*> session) {
+		session->tryToReceive();
+	});
+}
+
+void SessionData::queueNeedToResumeAndSend() {
+	withSession([](not_null<Session*> session) {
+		session->needToResumeAndSend();
+	});
+}
+
+void SessionData::queueConnectionStateChange(int newState) {
+	withSession([=](not_null<Session*> session) {
+		session->connectionStateChange(newState);
+	});
+}
+
+void SessionData::queueResendAll() {
+	withSession([](not_null<Session*> session) {
+		session->resendAll();
+	});
+}
+
+void SessionData::queueResetDone() {
+	withSession([](not_null<Session*> session) {
+		session->resetDone();
+	});
+}
+
+void SessionData::queueSendAnything(crl::time msCanWait) {
+	withSession([=](not_null<Session*> session) {
+		session->sendAnything(msCanWait);
+	});
+}
+
+void SessionData::queueSendMsgsStateInfo(quint64 msgId, QByteArray data) {
+	withSession([=](not_null<Session*> session) {
+		session->sendMsgsStateInfo(msgId, data);
+	});
+}
+
+void SessionData::queueResend(
+		mtpMsgId msgId,
+		crl::time msCanWait,
+		bool forceContainer,
+		bool sendMsgStateInfo) {
+	withSession([=](not_null<Session*> session) {
+		session->resend(msgId, msCanWait, forceContainer, sendMsgStateInfo);
+	});
+}
+
+void SessionData::queueResendMany(
+		QVector<mtpMsgId> msgIds,
+		crl::time msCanWait,
+		bool forceContainer,
+		bool sendMsgStateInfo) {
+	withSession([=](not_null<Session*> session) {
+		for (const auto msgId : msgIds) {
+			session->resend(
+				msgId,
+				msCanWait,
+				forceContainer,
+				sendMsgStateInfo);
+		}
+	});
+}
+
+bool SessionData::connectionInited() const {
+	QMutexLocker lock(&_ownerMutex);
+	return _owner ? _owner->connectionInited() : false;
+}
+
+AuthKeyPtr SessionData::getKey() const {
+	QMutexLocker lock(&_ownerMutex);
+	return _owner ? _owner->getKey() : nullptr;
+}
+
+bool SessionData::acquireKeyCreation() {
+	QMutexLocker lock(&_ownerMutex);
+	return _owner ? _owner->acquireKeyCreation() : false;
+}
+
+void SessionData::releaseKeyCreationOnDone(const AuthKeyPtr &key) {
+	QMutexLocker lock(&_ownerMutex);
+	if (_owner) {
+		_owner->releaseKeyCreationOnDone(key);
+	}
+}
+
+void SessionData::releaseKeyCreationOnFail() {
+	QMutexLocker lock(&_ownerMutex);
+	if (_owner) {
+		_owner->releaseKeyCreationOnFail();
+	}
+}
+
+void SessionData::destroyCdnKey(uint64 keyId) {
+	QMutexLocker lock(&_ownerMutex);
+	if (_owner) {
+		_owner->destroyCdnKey(keyId);
+	}
+}
+
+void SessionData::detach() {
+	QMutexLocker lock(&_ownerMutex);
+	_owner = nullptr;
+}
+
 Session::Session(
 	not_null<Instance*> instance,
 	ShiftedDcId shiftedDcId,
@@ -145,19 +267,30 @@ Session::Session(
 , _shiftedDcId(shiftedDcId)
 , _ownedDc(dc ? nullptr : std::make_unique<Dcenter>(shiftedDcId, nullptr))
 , _dc(dc ? dc : _ownedDc.get())
-, _data(this)
+, _data(std::make_shared<SessionData>(this))
 , _timeouter([=] { checkRequestsByTimer(); })
 , _sender([=] { needToResumeAndSend(); }) {
 	_timeouter.callEach(1000);
 	refreshOptions();
 	if (sharedDc()) {
-		connect(_dc, SIGNAL(authKeyChanged()), this, SLOT(authKeyChangedForDC()), Qt::QueuedConnection);
+		watchDcKeyChanges();
 	}
+}
+
+void Session::watchDcKeyChanges() {
+	_instance->dcKeyChanged(
+	) | rpl::filter([=](DcId dcId) {
+		return (dcId == _shiftedDcId) || (dcId == BareDcId(_shiftedDcId));
+	}) | rpl::start_with_next([=] {
+		DEBUG_LOG(("AuthKey Info: Session::authKeyCreatedForDC slot, "
+			"emitting authKeyChanged(), dcWithShift %1").arg(_shiftedDcId));
+		emit authKeyChanged();
+	}, _lifetime);
 }
 
 void Session::start() {
 	_connection = std::make_unique<Connection>(_instance);
-	_connection->start(&_data, _shiftedDcId);
+	_connection->start(_data, _shiftedDcId);
 	if (_instance->isKeysDestroyer()) {
 		_instance->scheduleKeyDestroy(_shiftedDcId);
 	}
@@ -189,7 +322,7 @@ void Session::refreshOptions() {
 	const auto useHttp = (proxyType != ProxyData::Type::Mtproto);
 	const auto useIPv4 = true;
 	const auto useIPv6 = Global::TryIPv6();
-	_data.setConnectionOptions(ConnectionOptions(
+	_data->setConnectionOptions(ConnectionOptions(
 		_instance->systemLangCode(),
 		_instance->cloudLangCode(),
 		_instance->langPackName(),
@@ -222,22 +355,25 @@ void Session::stop() {
 void Session::kill() {
 	stop();
 	_killed = true;
+	_data->detach();
 	DEBUG_LOG(("Session Info: marked session dcWithShift %1 as killed").arg(_shiftedDcId));
 }
 
 void Session::unpaused() {
 	if (_needToReceive) {
 		_needToReceive = false;
-		QTimer::singleShot(0, this, SLOT(tryToReceive()));
+		InvokeQueued(this, [=] {
+			tryToReceive();
+		});
 	}
 }
 
 void Session::sendDcKeyCheck(const AuthKeyPtr &key) {
-	_data.setKeyForCheck(key);
+	_data->setKeyForCheck(key);
 	needToResumeAndSend();
 }
 
-void Session::sendAnything(qint64 msCanWait) {
+void Session::sendAnything(crl::time msCanWait) {
 	if (_killed) {
 		DEBUG_LOG(("Session Error: can't send anything in a killed session"));
 		return;
@@ -284,12 +420,6 @@ void Session::needToResumeAndSend() {
 	}
 }
 
-void Session::sendPong(quint64 msgId, quint64 pingId) {
-	_instance->sendProtocolMessage(
-		_shiftedDcId,
-		MTPPong(MTP_pong(MTP_long(msgId), MTP_long(pingId))));
-}
-
 void Session::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
 	auto info = bytes::vector();
 	if (!data.isEmpty()) {
@@ -312,8 +442,8 @@ void Session::checkRequestsByTimer() {
 	QVector<mtpMsgId> stateRequestIds;
 
 	{
-		QReadLocker locker(_data.haveSentMutex());
-		auto &haveSent = _data.haveSentMap();
+		QReadLocker locker(_data->haveSentMutex());
+		auto &haveSent = _data->haveSentMap();
 		const auto haveSentCount = haveSent.size();
 		auto ms = crl::now();
 		for (auto i = haveSent.begin(), e = haveSent.end(); i != e; ++i) {
@@ -340,9 +470,9 @@ void Session::checkRequestsByTimer() {
 	if (stateRequestIds.size()) {
 		DEBUG_LOG(("MTP Info: requesting state of msgs: %1").arg(LogIds(stateRequestIds)));
 		{
-			QWriteLocker locker(_data.stateRequestMutex());
+			QWriteLocker locker(_data->stateRequestMutex());
 			for (uint32 i = 0, l = stateRequestIds.size(); i < l; ++i) {
-				_data.stateRequestMap().insert(stateRequestIds[i], true);
+				_data->stateRequestMap().insert(stateRequestIds[i], true);
 			}
 		}
 		sendAnything(kCheckResendWaiting);
@@ -356,8 +486,8 @@ void Session::checkRequestsByTimer() {
 	if (!removingIds.isEmpty()) {
 		auto clearCallbacks = std::vector<RPCCallbackClear>();
 		{
-			QWriteLocker locker(_data.haveSentMutex());
-			auto &haveSent = _data.haveSentMap();
+			QWriteLocker locker(_data->haveSentMutex());
+			auto &haveSent = _data->haveSentMap();
 			for (uint32 i = 0, l = removingIds.size(); i < l; ++i) {
 				auto j = haveSent.find(removingIds[i]);
 				if (j != haveSent.cend()) {
@@ -372,28 +502,28 @@ void Session::checkRequestsByTimer() {
 	}
 }
 
-void Session::onConnectionStateChange(qint32 newState) {
+void Session::connectionStateChange(int newState) {
 	_instance->onStateChange(_shiftedDcId, newState);
 }
 
-void Session::onResetDone() {
+void Session::resetDone() {
 	_instance->onSessionReset(_shiftedDcId);
 }
 
 void Session::cancel(mtpRequestId requestId, mtpMsgId msgId) {
 	if (requestId) {
-		QWriteLocker locker(_data.toSendMutex());
-		_data.toSendMap().remove(requestId);
+		QWriteLocker locker(_data->toSendMutex());
+		_data->toSendMap().remove(requestId);
 	}
 	if (msgId) {
-		QWriteLocker locker(_data.haveSentMutex());
-		_data.haveSentMap().remove(msgId);
+		QWriteLocker locker(_data->haveSentMutex());
+		_data->haveSentMap().remove(msgId);
 	}
 }
 
 void Session::ping() {
 	_ping = true;
-	sendAnything(0);
+	sendAnything();
 }
 
 int32 Session::requestState(mtpRequestId requestId) const {
@@ -419,8 +549,8 @@ int32 Session::requestState(mtpRequestId requestId) const {
 	}
 	if (!requestId) return MTP::RequestSent;
 
-	QWriteLocker locker(_data.toSendMutex());
-	const auto &toSend = _data.toSendMap();
+	QWriteLocker locker(_data->toSendMutex());
+	const auto &toSend = _data->toSendMap();
 	const auto i = toSend.constFind(requestId);
 	if (i != toSend.cend()) {
 		return MTP::RequestSending;
@@ -456,11 +586,15 @@ QString Session::transport() const {
 	return _connection ? _connection->transport() : QString();
 }
 
-mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
+mtpRequestId Session::resend(
+		mtpMsgId msgId,
+		crl::time msCanWait,
+		bool forceContainer,
+		bool sendMsgStateInfo) {
 	SecureRequest request;
 	{
-		QWriteLocker locker(_data.haveSentMutex());
-		auto &haveSent = _data.haveSentMap();
+		QWriteLocker locker(_data->haveSentMutex());
+		auto &haveSent = _data->haveSentMap();
 
 		auto i = haveSent.find(msgId);
 		if (i == haveSent.end()) {
@@ -493,8 +627,8 @@ mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContaine
 		request->msDate = forceContainer ? 0 : crl::now();
 		sendPrepared(request, msCanWait, false);
 		{
-			QWriteLocker locker(_data.toResendMutex());
-			_data.toResendMap().insert(msgId, request->requestId);
+			QWriteLocker locker(_data->toResendMutex());
+			_data->toResendMap().insert(msgId, request->requestId);
 		}
 		return request->requestId;
 	} else {
@@ -502,17 +636,11 @@ mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContaine
 	}
 }
 
-void Session::resendMany(QVector<quint64> msgIds, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
-	for (int32 i = 0, l = msgIds.size(); i < l; ++i) {
-		resend(msgIds.at(i), msCanWait, forceContainer, sendMsgStateInfo);
-	}
-}
-
 void Session::resendAll() {
 	QVector<mtpMsgId> toResend;
 	{
-		QReadLocker locker(_data.haveSentMutex());
-		const auto &haveSent = _data.haveSentMap();
+		QReadLocker locker(_data->haveSentMutex());
+		const auto &haveSent = _data->haveSentMap();
 		toResend.reserve(haveSent.size());
 		for (auto i = haveSent.cbegin(), e = haveSent.cend(); i != e; ++i) {
 			if (i.value()->requestId) {
@@ -532,8 +660,8 @@ void Session::sendPrepared(
 	DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1"
 		).arg(msCanWait));
 	{
-		QWriteLocker locker(_data.toSendMutex());
-		_data.toSendMap().insert(request->requestId, request);
+		QWriteLocker locker(_data->toSendMutex());
+		_data->toSendMap().insert(request->requestId, request);
 
 		if (newRequest) {
 			*(mtpMsgId*)(request->data() + 4) = 0;
@@ -546,29 +674,37 @@ void Session::sendPrepared(
 	sendAnything(msCanWait);
 }
 
-void Session::authKeyChangedForDC() {
-	DEBUG_LOG(("AuthKey Info: Session::authKeyCreatedForDC slot, emitting authKeyChanged(), dcWithShift %1").arg(_shiftedDcId));
-	emit authKeyChanged();
-}
-
 bool Session::acquireKeyCreation() {
-	return _dc->acquireKeyCreation();
+	Expects(!_myKeyCreation);
+
+	if (!_dc->acquireKeyCreation()) {
+		return false;
+	}
+	_myKeyCreation = true;
+	return true;
 }
 
 void Session::releaseKeyCreationOnFail() {
+	Expects(_myKeyCreation);
+
 	_dc->releaseKeyCreationOnFail();
+	_myKeyCreation = false;
 }
 
-void Session::releaseKeyCreationOnDone(AuthKeyPtr &&key) {
+void Session::releaseKeyCreationOnDone(const AuthKeyPtr &key) {
+	Expects(_myKeyCreation);
+
 	DEBUG_LOG(("AuthKey Info: Session key created, setting, dcWithShift %1").arg(_shiftedDcId));
+	_dc->releaseKeyCreationOnDone(key);
+	_myKeyCreation = false;
+
 	if (sharedDc()) {
 		const auto dcId = _dc->id();
 		const auto instance = _instance;
 		InvokeQueued(instance, [=] {
-			instance->setKeyForWrite(dcId, key);
+			instance->dcKeyChanged(dcId, key);
 		});
 	}
-	_dc->releaseKeyCreationOnDone(std::move(key));
 }
 
 void Session::notifyDcConnectionInited() {
@@ -577,12 +713,14 @@ void Session::notifyDcConnectionInited() {
 }
 
 void Session::destroyCdnKey(uint64 keyId) {
-	_dc->destroyCdnKey(keyId);
+	if (!_dc->destroyCdnKey(keyId)) {
+		return;
+	}
 	if (sharedDc()) {
 		const auto dcId = _dc->id();
 		const auto instance = _instance;
 		InvokeQueued(instance, [=] {
-			instance->setKeyForWrite(dcId, nullptr);
+			instance->dcKeyChanged(dcId, nullptr);
 		});
 	}
 }
@@ -613,11 +751,11 @@ void Session::tryToReceive() {
 		auto isUpdate = false;
 		auto message = SerializedMessage();
 		{
-			QWriteLocker locker(_data.haveReceivedMutex());
-			auto &responses = _data.haveReceivedResponses();
+			QWriteLocker locker(_data->haveReceivedMutex());
+			auto &responses = _data->haveReceivedResponses();
 			auto response = responses.begin();
 			if (response == responses.cend()) {
-				auto &updates = _data.haveReceivedUpdates();
+				auto &updates = _data->haveReceivedUpdates();
 				auto update = updates.begin();
 				if (update == updates.cend()) {
 					return;
@@ -643,6 +781,9 @@ void Session::tryToReceive() {
 }
 
 Session::~Session() {
+	if (_myKeyCreation) {
+		releaseKeyCreationOnFail();
+	}
 	Assert(_connection == nullptr);
 }
 

@@ -63,9 +63,10 @@ public:
 	// Thread-safe.
 	[[nodiscard]] QString deviceModel() const;
 	[[nodiscard]] QString systemVersion() const;
-	void setKeyForWrite(DcId dcId, const AuthKeyPtr &key);
 
 	// Main thread.
+	void dcKeyChanged(DcId dcId, const AuthKeyPtr &key);
+	[[nodiscard]] rpl::producer<DcId> dcKeyChanged() const;
 	[[nodiscard]] AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
 
@@ -110,6 +111,8 @@ public:
 	bool isKeysDestroyer() const;
 	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
 	void checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId);
+
+	// Main thread.
 	void keyDestroyedOnServer(DcId dcId, uint64 keyId);
 
 	void requestConfig();
