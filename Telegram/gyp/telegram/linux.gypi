@@ -71,7 +71,7 @@
       },
     },
     'conditions': [
-      [ '"<!(uname -p)" != "x86_64"', {
+      [ '"<!(uname -m)" != "x86_64"', {
         'ldflags': [
           '-Wl,-wrap,__divmoddi4',
         ],
