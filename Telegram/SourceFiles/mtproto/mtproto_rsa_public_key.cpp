@@ -5,16 +5,9 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mtproto/rsa_public_key.h"
+#include "mtproto/mtproto_rsa_public_key.h"
 
 #include "base/openssl_help.h"
-
-extern "C" {
-#include <openssl/rsa.h>
-#include <openssl/pem.h>
-#include <openssl/bio.h>
-#include <openssl/err.h>
-} // extern "C"
 
 namespace MTP {
 namespace internal {
@@ -234,8 +227,9 @@ void RSAPublicKey::Private::computeFingerprint() {
 	MTP_bytes(ToBytes(n)).write(string);
 	MTP_bytes(ToBytes(e)).write(string);
 
-	uchar sha1Buffer[20];
-	_fingerprint = *(uint64*)(hashSha1(&string[0], string.size() * sizeof(mtpPrime), sha1Buffer) + 3);
+	bytes::array<20> sha1Buffer;
+	openssl::Sha1To(sha1Buffer, bytes::make_span(string));
+	_fingerprint = *(uint64*)(sha1Buffer.data() + 12);
 }
 
 bytes::vector RSAPublicKey::Private::ToBytes(const BIGNUM *number) {

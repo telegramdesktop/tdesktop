@@ -7,15 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <map>
-#include <set>
-#include "mtproto/rpc_sender.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 namespace MTP {
 namespace internal {
+
 class Dcenter;
 class Session;
 class Connection;
+
+[[nodiscard]] int GetNextRequestId();
+
 } // namespace internal
 
 class DcOptions;
@@ -130,7 +132,7 @@ public:
 			ShiftedDcId shiftedDcId = 0,
 			crl::time msCanWait = 0,
 			mtpRequestId afterRequestId = 0) {
-		const auto requestId = GetNextRequestId();
+		const auto requestId = internal::GetNextRequestId();
 		sendSerialized(
 			requestId,
 			SecureRequest::Serialize(request),
@@ -161,7 +163,7 @@ public:
 	mtpRequestId sendProtocolMessage(
 			ShiftedDcId shiftedDcId,
 			const Request &request) {
-		const auto requestId = GetNextRequestId();
+		const auto requestId = internal::GetNextRequestId();
 		sendRequest(
 			requestId,
 			SecureRequest::Serialize(request),

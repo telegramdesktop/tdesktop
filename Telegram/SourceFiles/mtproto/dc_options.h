@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/observer.h"
 #include "base/bytes.h"
-#include "mtproto/rsa_public_key.h"
+#include "mtproto/mtproto_rsa_public_key.h"
 
 #include <QtCore/QReadWriteLock>
 #include <string>

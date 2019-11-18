@@ -5,12 +5,11 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mtproto/auth_key.h"
+#include "mtproto/mtproto_auth_key.h"
 
-extern "C" {
-#include <openssl/aes.h>
-#include <openssl/modes.h>
-} // extern "C"
+#include "base/openssl_help.h"
+
+#include <QtCore/QDataStream>
 
 namespace MTP {
 
@@ -43,59 +42,61 @@ AuthKey::KeyId AuthKey::keyId() const {
 void AuthKey::prepareAES_oldmtp(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send) const {
 	uint32 x = send ? 0 : 8;
 
-	uchar data_a[16 + 32], sha1_a[20];
-	memcpy(data_a, &msgKey, 16);
-	memcpy(data_a + 16, _key.data() + x, 32);
-	hashSha1(data_a, 16 + 32, sha1_a);
+	bytes::array<20> sha1_a, sha1_b, sha1_c, sha1_d;
+	bytes::array<16 + 32> data_a;
+	memcpy(data_a.data(), &msgKey, 16);
+	memcpy(data_a.data() + 16, _key.data() + x, 32);
+	openssl::Sha1To(sha1_a, data_a);
 
-	uchar data_b[16 + 16 + 16], sha1_b[20];
-	memcpy(data_b, _key.data() + 32 + x, 16);
-	memcpy(data_b + 16, &msgKey, 16);
-	memcpy(data_b + 32, _key.data() + 48 + x, 16);
-	hashSha1(data_b, 16 + 16 + 16, sha1_b);
+	bytes::array<16 + 16 + 16> data_b;
+	memcpy(data_b.data(), _key.data() + 32 + x, 16);
+	memcpy(data_b.data() + 16, &msgKey, 16);
+	memcpy(data_b.data() + 32, _key.data() + 48 + x, 16);
+	openssl::Sha1To(sha1_b, data_b);
 
-	uchar data_c[32 + 16], sha1_c[20];
-	memcpy(data_c, _key.data() + 64 + x, 32);
-	memcpy(data_c + 32, &msgKey, 16);
-	hashSha1(data_c, 32 + 16, sha1_c);
+	bytes::array<32 + 16> data_c;
+	memcpy(data_c.data(), _key.data() + 64 + x, 32);
+	memcpy(data_c.data() + 32, &msgKey, 16);
+	openssl::Sha1To(sha1_c, data_c);
 
-	uchar data_d[16 + 32], sha1_d[20];
-	memcpy(data_d, &msgKey, 16);
-	memcpy(data_d + 16, _key.data() + 96 + x, 32);
-	hashSha1(data_d, 16 + 32, sha1_d);
+	bytes::array<16 + 32> data_d;
+	memcpy(data_d.data(), &msgKey, 16);
+	memcpy(data_d.data() + 16, _key.data() + 96 + x, 32);
+	openssl::Sha1To(sha1_d, data_d);
 
-	auto key = reinterpret_cast<uchar*>(&aesKey);
-	auto iv = reinterpret_cast<uchar*>(&aesIV);
-	memcpy(key, sha1_a, 8);
-	memcpy(key + 8, sha1_b + 8, 12);
-	memcpy(key + 8 + 12, sha1_c + 4, 12);
-	memcpy(iv, sha1_a + 8, 12);
-	memcpy(iv + 12, sha1_b, 8);
-	memcpy(iv + 12 + 8, sha1_c + 16, 4);
-	memcpy(iv + 12 + 8 + 4, sha1_d, 8);
+	auto key = reinterpret_cast<bytes::type*>(&aesKey);
+	auto iv = reinterpret_cast<bytes::type*>(&aesIV);
+	memcpy(key, sha1_a.data(), 8);
+	memcpy(key + 8, sha1_b.data() + 8, 12);
+	memcpy(key + 8 + 12, sha1_c.data() + 4, 12);
+	memcpy(iv, sha1_a.data() + 8, 12);
+	memcpy(iv + 12, sha1_b.data(), 8);
+	memcpy(iv + 12 + 8, sha1_c.data() + 16, 4);
+	memcpy(iv + 12 + 8 + 4, sha1_d.data(), 8);
 }
 
 void AuthKey::prepareAES(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send) const {
 	uint32 x = send ? 0 : 8;
 
-	uchar data_a[16 + 36], sha256_a[32];
-	memcpy(data_a, &msgKey, 16);
-	memcpy(data_a + 16, _key.data() + x, 36);
-	hashSha256(data_a, 16 + 36, sha256_a);
+	bytes::array<32> sha256_a, sha256_b;
+	bytes::array<16 + 36> data_a;
+	memcpy(data_a.data(), &msgKey, 16);
+	memcpy(data_a.data() + 16, _key.data() + x, 36);
+	openssl::Sha256To(sha256_a, data_a);
 
-	uchar data_b[36 + 16], sha256_b[32];
-	memcpy(data_b, _key.data() + 40 + x, 36);
-	memcpy(data_b + 36, &msgKey, 16);
-	hashSha256(data_b, 36 + 16, sha256_b);
+	bytes::array<36 + 16> data_b;
+	memcpy(data_b.data(), _key.data() + 40 + x, 36);
+	memcpy(data_b.data() + 36, &msgKey, 16);
+	openssl::Sha256To(sha256_b, data_b);
 
 	auto key = reinterpret_cast<uchar*>(&aesKey);
 	auto iv = reinterpret_cast<uchar*>(&aesIV);
-	memcpy(key, sha256_a, 8);
-	memcpy(key + 8, sha256_b + 8, 16);
-	memcpy(key + 8 + 16, sha256_a + 24, 8);
-	memcpy(iv, sha256_b, 8);
-	memcpy(iv + 8, sha256_a + 8, 16);
-	memcpy(iv + 8 + 16, sha256_b + 24, 8);
+	memcpy(key, sha256_a.data(), 8);
+	memcpy(key + 8, sha256_b.data() + 8, 16);
+	memcpy(key + 8 + 16, sha256_a.data() + 24, 8);
+	memcpy(iv, sha256_b.data(), 8);
+	memcpy(iv + 8, sha256_a.data() + 8, 16);
+	memcpy(iv + 8 + 16, sha256_b.data() + 24, 8);
 }
 
 const void *AuthKey::partForMsgKey(bool send) const {
@@ -135,10 +136,10 @@ void AuthKey::FillData(Data &authKey, bytes::const_span computedAuthKey) {
 }
 
 void AuthKey::countKeyId() {
-	auto sha1 = hashSha1(_key.data(), _key.size());
+	const auto hash = openssl::Sha1(_key);
 
 	// Lower 64 bits = 8 bytes of 20 byte SHA1 hash.
-	_keyId = *reinterpret_cast<KeyId*>(sha1.data() + 12);
+	_keyId = *reinterpret_cast<const KeyId*>(hash.data() + 12);
 }
 
 void aesIgeEncryptRaw(const void *src, void *dst, uint32 len, const void *key, const void *iv) {

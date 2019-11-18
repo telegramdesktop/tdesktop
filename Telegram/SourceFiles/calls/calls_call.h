@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/bytes.h"
 #include "mtproto/sender.h"
-#include "mtproto/auth_key.h"
+#include "mtproto/mtproto_auth_key.h"
 
 namespace Media {
 namespace Audio {

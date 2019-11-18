@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/concurrent_sender.h"
 
 #include "mtproto/mtp_instance.h"
-#include "mtproto/rpc_sender.h"
+#include "mtproto/mtproto_rpc_sender.h"
 #include "mtproto/facade.h"
 
 namespace MTP {
@@ -135,7 +135,7 @@ void ConcurrentSender::RequestBuilder::setAfter(
 }
 
 mtpRequestId ConcurrentSender::RequestBuilder::send() {
-	const auto requestId = GetNextRequestId();
+	const auto requestId = internal::GetNextRequestId();
 	const auto dcId = _dcId;
 	const auto msCanWait = _canWait;
 	const auto afterRequestId = _afterRequestId;

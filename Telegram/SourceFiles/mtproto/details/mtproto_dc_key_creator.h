@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/core_types.h"
-#include "mtproto/auth_key.h"
+#include "mtproto/mtproto_auth_key.h"
 #include "mtproto/connection_abstract.h"
 #include "base/basic_types.h"
 #include "base/expected.h"

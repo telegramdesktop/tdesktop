@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/mtp_abstract_socket.h"
+#include "mtproto/mtproto_abstract_socket.h"
 
 namespace MTP {
 namespace internal {

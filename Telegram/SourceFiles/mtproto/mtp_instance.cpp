@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/special_config_request.h"
 #include "mtproto/connection.h"
 #include "mtproto/sender.h"
-#include "mtproto/rsa_public_key.h"
+#include "mtproto/mtproto_rsa_public_key.h"
 #include "storage/localstorage.h"
 #include "calls/calls_instance.h"
 #include "main/main_session.h" // Session::Exists.
@@ -37,7 +37,21 @@ constexpr auto kCheckKeyEach = 60 * crl::time(1000);
 
 using namespace internal;
 
+std::atomic<int> GlobalAtomicRequestId = 0;
+
 } // namespace
+
+namespace internal {
+
+int GetNextRequestId() {
+	const auto result = ++GlobalAtomicRequestId;
+	if (result == std::numeric_limits<int>::max() / 2) {
+		GlobalAtomicRequestId = 0;
+	}
+	return result;
+}
+
+} // namespace internal
 
 class Instance::Private : private Sender {
 public:

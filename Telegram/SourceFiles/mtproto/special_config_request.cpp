@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/special_config_request.h"
 
-#include "mtproto/rsa_public_key.h"
+#include "mtproto/mtproto_rsa_public_key.h"
 #include "mtproto/dc_options.h"
-#include "mtproto/auth_key.h"
+#include "mtproto/mtproto_auth_key.h"
 #include "base/unixtime.h"
 #include "base/openssl_help.h"
 #include "base/call_delayed.h"

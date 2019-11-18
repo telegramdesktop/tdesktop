@@ -5,25 +5,28 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mtproto/rpc_sender.h"
+#include "mtproto/mtproto_rpc_sender.h"
+
+#include <QtCore/QRegularExpression>
 
 RPCError::RPCError(const MTPrpcError &error)
 : _code(error.c_rpc_error().verror_code().v) {
 	QString text = qs(error.c_rpc_error().verror_message());
 	if (_code < 0 || _code >= 500) {
-		_type = qsl("INTERNAL_SERVER_ERROR");
+		_type = "INTERNAL_SERVER_ERROR";
 		_description = text;
 	} else {
 		const auto expression = QRegularExpression(
 			"^([A-Z0-9_]+)(: .*)?$",
-			reMultiline);
+			(QRegularExpression::DotMatchesEverythingOption
+				| QRegularExpression::MultilineOption));
 		const auto match = expression.match(text);
 		if (match.hasMatch()) {
 			_type = match.captured(1);
 			_description = match.captured(2).mid(2);
 		} else {
-			_type = qsl("CLIENT_BAD_RPC_ERROR");
-			_description = qsl("Bad rpc error received, text = '") + text + '\'';
+			_type = "CLIENT_BAD_RPC_ERROR";
+			_description = "Bad rpc error received, text = '" + text + '\'';
 		}
 	}
 }

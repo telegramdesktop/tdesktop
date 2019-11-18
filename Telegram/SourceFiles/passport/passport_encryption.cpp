@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_encryption.h"
 
 #include "base/openssl_help.h"
-#include "mtproto/rsa_public_key.h"
+#include "mtproto/mtproto_rsa_public_key.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonArray>

@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "media/player/media_player_float.h"
 #include "data/data_pts_waiter.h"
-#include "mtproto/rpc_sender.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 struct HistoryMessageMarkupButton;
 class MainWindow;

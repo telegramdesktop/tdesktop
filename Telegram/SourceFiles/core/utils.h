@@ -82,8 +82,6 @@ inline QByteArray str_const_toByteArray(const str_const &str) {
 	return QByteArray::fromRawData(str.c_str(), str.size());
 }
 
-int GetNextRequestId();
-
 inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #ifdef Q_OS_WIN
 	localtime_s(_Tm, _Time);
@@ -160,8 +158,6 @@ T rand_value() {
 	memset_rand(&result, sizeof(result));
 	return result;
 }
-
-static const QRegularExpression::PatternOptions reMultiline(QRegularExpression::DotMatchesEverythingOption | QRegularExpression::MultilineOption);
 
 template <typename T>
 inline T snap(const T &v, const T &_min, const T &_max) {

@@ -58,12 +58,6 @@ static_assert(sizeof(MTPdouble) == 8, "Basic types size check failed");
 
 static_assert(sizeof(int) >= 4, "Basic types size check failed");
 
-namespace {
-
-std::atomic<int> GlobalAtomicRequestId = 0;
-
-} // namespace
-
 // Precise timing functions / rand init
 
 struct CRYPTO_dynlock_value {
@@ -204,14 +198,6 @@ namespace ThirdParty {
 
 		Platform::ThirdParty::finish();
 	}
-}
-
-int GetNextRequestId() {
-	const auto result = ++GlobalAtomicRequestId;
-	if (result == std::numeric_limits<int>::max() / 2) {
-		GlobalAtomicRequestId = 0;
-	}
-	return result;
 }
 
 int32 *hashSha1(const void *data, uint32 len, void *dest) {
