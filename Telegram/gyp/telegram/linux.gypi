@@ -75,6 +75,10 @@
         'ldflags': [
           '-Wl,-wrap,__divmoddi4',
         ],
+      }, {
+        'ldflags': [
+          '-Wl,-wrap,__divmodti4',
+        ],
       }], ['not_need_gtk!="True"', {
         'cflags_cc': [
           '<!(pkg-config 2> /dev/null --cflags gtk+-2.0)',
