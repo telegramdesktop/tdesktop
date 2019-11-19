@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP {
 namespace details {
 class DcKeyCreator;
-class DcKeyChecker;
+class DcKeyBinder;
 } // namespace details
 
 // How much time to wait for some more requests, when sending msg acks.
@@ -103,6 +103,7 @@ private:
 		Ignored,
 		RestartConnection,
 		ResetSession,
+		DestroyTemporaryKey,
 		ParseError,
 	};
 
@@ -180,9 +181,10 @@ private:
 	void resetSession();
 	void checkAuthKey();
 	void authKeyChecked();
-	void destroyCdnKey();
+	void destroyTemporaryKey();
 	void clearKeyCreatorOnFail();
-	void applyAuthKey(AuthKeyPtr &&key);
+	void cancelKeyBinder();
+	void applyAuthKey(AuthKeyPtr &&temporaryKey);
 
 	const not_null<Instance*> _instance;
 	DcType _dcType = DcType::Regular;
@@ -224,13 +226,13 @@ private:
 	bool _restarted = false;
 	bool _finished = false;
 
-	AuthKeyPtr _key;
+	AuthKeyPtr _temporaryKey;
 	uint64 _keyId = 0;
 	std::shared_ptr<SessionData> _sessionData;
 	std::unique_ptr<ConnectionOptions> _connectionOptions;
 
 	std::unique_ptr<details::DcKeyCreator> _keyCreator;
-	std::unique_ptr<details::DcKeyChecker> _keyChecker;
+	std::unique_ptr<details::DcKeyBinder> _keyBinder;
 
 };
 

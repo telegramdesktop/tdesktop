@@ -123,6 +123,16 @@ void AuthKey::setLastCheckTime(crl::time time) {
 	_lastCheckTime = time;
 }
 
+TimeId AuthKey::expiresAt() const {
+	return _expiresAt;
+}
+
+void AuthKey::setExpiresAt(TimeId expiresAt) {
+	Expects(_type == Type::Temporary);
+
+	_expiresAt = expiresAt;
+}
+
 void AuthKey::FillData(Data &authKey, bytes::const_span computedAuthKey) {
 	auto computedAuthKeySize = computedAuthKey.size();
 	Assert(computedAuthKeySize <= kSize);

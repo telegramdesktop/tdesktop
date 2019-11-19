@@ -283,11 +283,14 @@ public:
 		bool sendMsgStateInfo);
 
 	[[nodiscard]] bool connectionInited() const;
-	[[nodiscard]] AuthKeyPtr getKey() const;
+	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
+	[[nodiscard]] AuthKeyPtr getTemporaryKey() const;
 	[[nodiscard]] bool acquireKeyCreation();
-	void releaseKeyCreationOnDone(const AuthKeyPtr &key);
+	void releaseKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey,
+		const AuthKeyPtr &persistentKey);
 	void releaseKeyCreationOnFail();
-	void destroyCdnKey(uint64 keyId);
+	void destroyTemporaryKey(uint64 keyId);
 
 	void detach();
 
@@ -351,14 +354,17 @@ public:
 
 	// Thread-safe.
 	[[nodiscard]] ShiftedDcId getDcWithShift() const;
-	[[nodiscard]] AuthKeyPtr getKey() const;
+	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
+	[[nodiscard]] AuthKeyPtr getTemporaryKey() const;
 	[[nodiscard]] bool connectionInited() const;
 
 	// Connection thread.
 	[[nodiscard]] bool acquireKeyCreation();
+	void releaseKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey,
+		const AuthKeyPtr &persistentKey);
 	void releaseKeyCreationOnFail();
-	void releaseKeyCreationOnDone(const AuthKeyPtr &key);
-	void destroyCdnKey(uint64 keyId);
+	void destroyTemporaryKey(uint64 keyId);
 
 	void notifyDcConnectionInited();
 

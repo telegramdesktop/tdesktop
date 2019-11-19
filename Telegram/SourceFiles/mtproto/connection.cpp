@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/connection.h"
 
+#include "mtproto/details/mtproto_dc_key_binder.h"
 #include "mtproto/details/mtproto_dc_key_creator.h"
-#include "mtproto/details/mtproto_dc_key_checker.h"
 #include "mtproto/details/mtproto_dump_to_text.h"
 #include "mtproto/session.h"
 #include "mtproto/mtproto_rsa_public_key.h"
@@ -22,10 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
 #include "base/unixtime.h"
-
-#ifdef small
-#undef small
-#endif // small
 
 namespace MTP {
 namespace internal {
@@ -42,6 +38,7 @@ constexpr auto kPingDelayDisconnect = 60;
 constexpr auto kPingSendAfter = 30 * crl::time(1000);
 constexpr auto kPingSendAfterForce = 45 * crl::time(1000);
 constexpr auto kCheckKeyExpiresIn = TimeId(3600);
+constexpr auto kTemporaryExpiresIn = TimeId(10);
 constexpr auto kTestModeDcIdShift = 10000;
 
 // If we can't connect for this time we will ask _instance to update config.
@@ -248,6 +245,7 @@ ConnectionPrivate::ConnectionPrivate(
 
 ConnectionPrivate::~ConnectionPrivate() {
 	clearKeyCreatorOnFail();
+	cancelKeyBinder();
 
 	Expects(_finished);
 	Expects(!_connection);
@@ -548,12 +546,20 @@ void ConnectionPrivate::tryToSend() {
 		return;
 	}
 
-	auto needsLayer = !_sessionData->connectionInited();
-	auto state = getState();
-	auto sendOnlyFirstPing = (state != ConnectedState);
+	const auto needsLayer = !_sessionData->connectionInited();
+	const auto state = getState();
+	const auto sendOnlyFirstPing = (state != ConnectedState);
+	const auto sendAll = !sendOnlyFirstPing && !_keyBinder;
+	const auto isMainSession = (GetDcIdShift(_shiftedDcId) == 0);
 	if (sendOnlyFirstPing && !_pingIdToSend) {
 		DEBUG_LOG(("MTP Info: dc %1 not sending, waiting for Connected state, state: %2").arg(_shiftedDcId).arg(state));
 		return; // just do nothing, if is not connected yet
+	} else if (isMainSession
+		&& !sendOnlyFirstPing
+		&& !_pingIdToSend
+		&& !_pingId
+		&& _pingSendAt <= crl::now()) {
+		_pingIdToSend = openssl::RandomValue<mtpPingId>();
 	}
 
 	auto pingRequest = SecureRequest();
@@ -561,34 +567,31 @@ void ConnectionPrivate::tryToSend() {
 	auto resendRequest = SecureRequest();
 	auto stateRequest = SecureRequest();
 	auto httpWaitRequest = SecureRequest();
-	auto checkDcKeyRequest = SecureRequest();
-	if (_shiftedDcId == BareDcId(_shiftedDcId)) { // main session
-		if (!sendOnlyFirstPing && !_pingIdToSend && !_pingId && _pingSendAt <= crl::now()) {
-			_pingIdToSend = rand_value<mtpPingId>();
-		}
-	}
+	auto bindDcKeyRequest = SecureRequest();
 	if (_pingIdToSend) {
-		if (sendOnlyFirstPing || _shiftedDcId != BareDcId(_shiftedDcId)) {
+		if (sendOnlyFirstPing || !isMainSession) {
+			DEBUG_LOG(("MTP Info: sending ping, ping_id: %1"
+				).arg(_pingIdToSend));
 			pingRequest = SecureRequest::Serialize(MTPPing(
 				MTP_long(_pingIdToSend)
 			));
-			DEBUG_LOG(("MTP Info: sending ping, ping_id: %1"
-				).arg(_pingIdToSend));
 		} else {
+			DEBUG_LOG(("MTP Info: sending ping_delay_disconnect, "
+				"ping_id: %1").arg(_pingIdToSend));
 			pingRequest = SecureRequest::Serialize(MTPPing_delay_disconnect(
 				MTP_long(_pingIdToSend),
 				MTP_int(kPingDelayDisconnect)));
-			DEBUG_LOG(("MTP Info: sending ping_delay_disconnect, "
-				"ping_id: %1").arg(_pingIdToSend));
-		}
-
-		_pingSendAt = pingRequest->msDate + kPingSendAfter;
-		if (_shiftedDcId == BareDcId(_shiftedDcId) && !sendOnlyFirstPing) { // main session
 			_pingSender.callOnce(kPingSendAfterForce);
 		}
+		_pingSendAt = pingRequest->msDate + kPingSendAfter;
 		_pingId = base::take(_pingIdToSend);
+	} else if (!sendAll) {
+		DEBUG_LOG(("MTP Info: dc %1 sending only service or bind."
+			).arg(_shiftedDcId));
 	} else {
-		DEBUG_LOG(("MTP Info: dc %1 trying to send after ping, state: %2").arg(_shiftedDcId).arg(state));
+		DEBUG_LOG(("MTP Info: dc %1 trying to send after ping, state: %2"
+			).arg(_shiftedDcId
+			).arg(state));
 	}
 
 	if (!sendOnlyFirstPing) {
@@ -625,23 +628,34 @@ void ConnectionPrivate::tryToSend() {
 			httpWaitRequest = SecureRequest::Serialize(MTPHttpWait(
 				MTP_http_wait(MTP_int(100), MTP_int(30), MTP_int(25000))));
 		}
-		if (!_keyChecker) {
-			if (const auto &keyForCheck = _sessionData->getKeyForCheck()) {
-				_keyChecker = std::make_unique<details::DcKeyChecker>(
-					_instance,
-					_shiftedDcId,
-					keyForCheck);
-				checkDcKeyRequest = _keyChecker->prepareRequest(
-					_key,
-					_sessionData->getSessionId());
+		if (_keyBinder && !_keyBinder->requested()) {
+			bindDcKeyRequest = _keyBinder->prepareRequest(
+				_temporaryKey,
+				_sessionData->getSessionId());
 
-				// This is a special request with msgId used inside the message
-				// body, so it is prepared already with a msgId and we place
-				// seqNo for it manually here.
-				checkDcKeyRequest.setSeqNo(
-					_sessionData->nextRequestSeqNumber(
-						checkDcKeyRequest.needAck()));
-			}
+			// This is a special request with msgId used inside the message
+			// body, so it is prepared already with a msgId and we place
+			// seqNo for it manually here.
+			bindDcKeyRequest.setSeqNo(
+				_sessionData->nextRequestSeqNumber(
+					bindDcKeyRequest.needAck()));
+		//} else if (!_keyChecker) {
+		//	if (const auto &keyForCheck = _sessionData->getKeyForCheck()) {
+		//		_keyChecker = std::make_unique<details::DcKeyChecker>(
+		//			_instance,
+		//			_shiftedDcId,
+		//			keyForCheck);
+		//		bindDcKeyRequest = _keyChecker->prepareRequest(
+		//			_temporaryKey,
+		//			_sessionData->getSessionId());
+
+		//		// This is a special request with msgId used inside the message
+		//		// body, so it is prepared already with a msgId and we place
+		//		// seqNo for it manually here.
+		//		bindDcKeyRequest.setSeqNo(
+		//			_sessionData->nextRequestSeqNumber(
+		//				bindDcKeyRequest.needAck()));
+		//	}
 		}
 	}
 
@@ -696,11 +710,14 @@ void ConnectionPrivate::tryToSend() {
 		QWriteLocker locker1(_sessionData->toSendMutex());
 
 		auto toSendDummy = PreRequestMap();
-		auto &toSend = sendOnlyFirstPing
-			? toSendDummy
-			: _sessionData->toSendMap();
-		if (sendOnlyFirstPing) {
+		auto &toSend = sendAll
+			? _sessionData->toSendMap()
+			: toSendDummy;
+		if (!sendAll) {
 			locker1.unlock();
+		} else {
+			int time = crl::now();
+			int now = crl::now();
 		}
 
 		uint32 toSendCount = toSend.size();
@@ -709,7 +726,7 @@ void ConnectionPrivate::tryToSend() {
 		if (resendRequest) ++toSendCount;
 		if (stateRequest) ++toSendCount;
 		if (httpWaitRequest) ++toSendCount;
-		if (checkDcKeyRequest) ++toSendCount;
+		if (bindDcKeyRequest) ++toSendCount;
 
 		if (!toSendCount) {
 			return; // nothing to send
@@ -725,12 +742,12 @@ void ConnectionPrivate::tryToSend() {
 			? stateRequest
 			: httpWaitRequest
 			? httpWaitRequest
-			: checkDcKeyRequest
-			? checkDcKeyRequest
+			: bindDcKeyRequest
+			? bindDcKeyRequest
 			: toSend.cbegin().value();
 		if (toSendCount == 1 && first->msDate > 0) { // if can send without container
 			toSendRequest = first;
-			if (!sendOnlyFirstPing) {
+			if (sendAll) {
 				toSend.clear();
 				locker1.unlock();
 			}
@@ -753,9 +770,7 @@ void ConnectionPrivate::tryToSend() {
 					auto &haveSent = _sessionData->haveSentMap();
 					haveSent.insert(msgId, toSendRequest);
 
-					if (needsLayer && !toSendRequest->needsLayer) {
-						needsLayer = false;
-					}
+					const auto wrapLayer = needsLayer && toSendRequest->needsLayer;
 					if (toSendRequest->after) {
 						const auto toSendSize = tl::count_length(toSendRequest) >> 2;
 						auto wrappedRequest = SecureRequest::Prepare(
@@ -766,7 +781,7 @@ void ConnectionPrivate::tryToSend() {
 						wrapInvokeAfter(wrappedRequest, toSendRequest, haveSent);
 						toSendRequest = std::move(wrappedRequest);
 					}
-					if (needsLayer) {
+					if (wrapLayer) {
 						const auto noWrapSize = (tl::count_length(toSendRequest) >> 2);
 						const auto toSendSize = noWrapSize + initSizeInInts;
 						auto wrappedRequest = SecureRequest::Prepare(toSendSize);
@@ -793,7 +808,7 @@ void ConnectionPrivate::tryToSend() {
 			if (resendRequest) containerSize += resendRequest.messageSize();
 			if (stateRequest) containerSize += stateRequest.messageSize();
 			if (httpWaitRequest) containerSize += httpWaitRequest.messageSize();
-			if (checkDcKeyRequest) containerSize += checkDcKeyRequest.messageSize();
+			if (bindDcKeyRequest) containerSize += bindDcKeyRequest.messageSize();
 			for (auto i = toSend.begin(), e = toSend.end(); i != e; ++i) {
 				containerSize += i.value().messageSize();
 				if (needsLayer && i.value()->needsLayer) {
@@ -836,7 +851,7 @@ void ConnectionPrivate::tryToSend() {
 			if (pingRequest) {
 				_pingMsgId = placeToContainer(toSendRequest, bigMsgId, haveSentArr, pingRequest);
 				needAnyResponse = true;
-			} else if (resendRequest || stateRequest || checkDcKeyRequest) {
+			} else if (resendRequest || stateRequest || bindDcKeyRequest) {
 				needAnyResponse = true;
 			}
 			for (auto i = toSend.begin(), e = toSend.end(); i != e; ++i) {
@@ -890,7 +905,7 @@ void ConnectionPrivate::tryToSend() {
 			if (resendRequest) placeToContainer(toSendRequest, bigMsgId, haveSentArr, resendRequest);
 			if (ackRequest) placeToContainer(toSendRequest, bigMsgId, haveSentArr, ackRequest);
 			if (httpWaitRequest) placeToContainer(toSendRequest, bigMsgId, haveSentArr, httpWaitRequest);
-			if (checkDcKeyRequest) placeToContainer(toSendRequest, bigMsgId, haveSentArr, checkDcKeyRequest);
+			if (bindDcKeyRequest) placeToContainer(toSendRequest, bigMsgId, haveSentArr, bindDcKeyRequest);
 
 			mtpMsgId contMsgId = prepareToSend(toSendRequest, bigMsgId);
 			*(mtpMsgId*)(haveSentIdsWrap->data() + 4) = contMsgId;
@@ -930,7 +945,7 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 		_sessionData->connectionOptions());
 
 	// #TODO race.
-	const auto hasKey = (_sessionData->getKey() != nullptr);
+	const auto hasKey = (_sessionData->getTemporaryKey() != nullptr);
 
 	const auto bareDc = BareDcId(_shiftedDcId);
 	_dcType = _instance->dcOptions()->dcType(_shiftedDcId);
@@ -1236,9 +1251,9 @@ void ConnectionPrivate::handleReceived() {
 		auto msgKey = *(MTPint128*)(ints + 2);
 
 #ifdef TDESKTOP_MTPROTO_OLD
-		aesIgeDecrypt_oldmtp(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, _key, msgKey);
+		aesIgeDecrypt_oldmtp(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, _temporaryKey, msgKey);
 #else // TDESKTOP_MTPROTO_OLD
-		aesIgeDecrypt(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, _key, msgKey);
+		aesIgeDecrypt(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, _temporaryKey, msgKey);
 #endif // TDESKTOP_MTPROTO_OLD
 
 		auto decryptedInts = reinterpret_cast<const mtpPrime*>(decryptedBuffer.constData());
@@ -1285,7 +1300,7 @@ void ConnectionPrivate::handleReceived() {
 
 		SHA256_CTX msgKeyLargeContext;
 		SHA256_Init(&msgKeyLargeContext);
-		SHA256_Update(&msgKeyLargeContext, _key->partForMsgKey(false), 32);
+		SHA256_Update(&msgKeyLargeContext, _temporaryKey->partForMsgKey(false), 32);
 		SHA256_Update(&msgKeyLargeContext, decryptedInts, encryptedBytesCount);
 		SHA256_Final(sha256Buffer.data(), &msgKeyLargeContext);
 
@@ -1386,7 +1401,9 @@ void ConnectionPrivate::handleReceived() {
 
 		if (res != HandleResult::Success && res != HandleResult::Ignored) {
 			_needSessionReset = (res == HandleResult::ResetSession);
-
+			if (res == HandleResult::DestroyTemporaryKey) {
+				destroyTemporaryKey();
+			}
 			return restart();
 		}
 		_retryTimeout = 1; // reset restart() timer
@@ -1884,15 +1901,37 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			response.resize(end - from);
 			memcpy(response.data(), from, (end - from) * sizeof(mtpPrime));
 		}
-		if (typeId != mtpc_rpc_error) {
+		if (typeId == mtpc_rpc_error) {
+			if (DcKeyBinder::IsDestroyedTemporaryKeyError(response)) {
+				return HandleResult::DestroyTemporaryKey;
+			}
+		} else {
 			// An error could be some RPC_CALL_FAIL or other error inside
 			// the initConnection, so we're not sure yet that it was inited.
 			// Wait till a good response is received.
 			_sessionData->notifyConnectionInited(*_connectionOptions);
 		}
 
-		if (_keyChecker && _keyChecker->handleResponse(reqMsgId, response)) {
-			return HandleResult::Success;
+		if (_keyBinder) {
+			const auto result = _keyBinder->handleResponse(
+				reqMsgId,
+				response);
+			if (result == DcKeyBindState::Success) {
+				_sessionData->releaseKeyCreationOnDone(
+					_temporaryKey,
+					base::take(_keyBinder)->persistentKey());
+				_sessionData->queueNeedToResumeAndSend();
+				return HandleResult::Success;
+			} else if (result == DcKeyBindState::Failed
+				|| result == DcKeyBindState::DefinitelyDestroyed) {
+				// #TODO maybe destroy persistent key
+				// crl::on_main(
+				//   _keyBinder->persistentKey()->setLastCheckTime(crl::now());
+				//   instance->keyDestroyedOnServer(BareDcId(shiftedDcId), base::take(_keyBinder)->persistentKey()->keyId());
+				// )
+				_sessionData->queueNeedToResumeAndSend();
+				return HandleResult::Success;
+			}
 		}
 		auto requestId = wasSent(reqMsgId.v);
 		if (requestId && requestId != mtpRequestId(0xFFFFFFFF)) {
@@ -2341,17 +2380,17 @@ void ConnectionPrivate::checkAuthKey() {
 }
 
 void ConnectionPrivate::updateAuthKey() {
-	if (_keyCreator) {
+	if (_keyCreator || _keyBinder) {
 		return;
 	}
 
 	DEBUG_LOG(("AuthKey Info: Connection updating key from Session, dc %1").arg(_shiftedDcId));
-	applyAuthKey(_sessionData->getKey());
+	applyAuthKey(_sessionData->getTemporaryKey());
 }
 
-void ConnectionPrivate::applyAuthKey(AuthKeyPtr &&key) {
-	_key = std::move(key);
-	const auto newKeyId = _key ? _key->keyId() : 0;
+void ConnectionPrivate::applyAuthKey(AuthKeyPtr &&temporaryKey) {
+	_temporaryKey = std::move(temporaryKey);
+	const auto newKeyId = _temporaryKey ? _temporaryKey->keyId() : 0;
 	if (newKeyId) {
 		if (_keyId == newKeyId) {
 			return;
@@ -2389,19 +2428,39 @@ void ConnectionPrivate::applyAuthKey(AuthKeyPtr &&key) {
 }
 
 void ConnectionPrivate::createDcKey() {
+	Expects(_keyCreator == nullptr);
+	Expects(_keyBinder == nullptr);
+
 	using Result = DcKeyCreator::Result;
 	using Error = DcKeyCreator::Error;
 	auto delegate = DcKeyCreator::Delegate();
 	delegate.done = [=](base::expected<Result, Error> result) {
 		if (result) {
-			DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2").arg(result->key->keyId()).arg(result->serverSalt));
+			DEBUG_LOG(("AuthKey Info: auth key gen succeed, "
+				"ids: (%1, %2) server salts: (%3, %4)"
+				).arg(result->temporaryKey
+					? result->temporaryKey->keyId()
+					: 0
+				).arg(result->persistentKey
+					? result->persistentKey->keyId()
+					: 0
+				).arg(result->temporaryServerSalt
+				).arg(result->persistentServerSalt));
 
-			_sessionData->setSalt(result->serverSalt);
+			_sessionData->setSalt(result->temporaryServerSalt);
 			_sessionData->clearForNewKey(_instance);
 
+			auto key = result->persistentKey
+				? std::move(result->persistentKey)
+				: _sessionData->getPersistentKey();
+			if (!key) {
+				restart();
+			}
 			_keyCreator = nullptr;
-			_sessionData->releaseKeyCreationOnDone(result->key);
-			applyAuthKey(std::move(result->key));
+			_keyBinder = std::make_unique<DcKeyBinder>(std::move(key));
+			result->temporaryKey->setExpiresAt(
+				base::unixtime::now() + kTemporaryExpiresIn);
+			applyAuthKey(std::move(result->temporaryKey));
 			return;
 		}
 		clearKeyCreatorOnFail();
@@ -2417,16 +2476,23 @@ void ConnectionPrivate::createDcKey() {
 			restart();
 		}
 	};
-	const auto expireIn = (GetDcIdShift(_shiftedDcId) == kCheckKeyDcShift)
-		? kCheckKeyExpiresIn
-		: TimeId(0);
+	delegate.sentSome = [=](uint64 size) {
+		onSentSome(size);
+	};
+	delegate.receivedSome = [=] {
+		onReceivedSome();
+	};
+//	const auto check = (GetDcIdShift(_shiftedDcId) == kCheckKeyDcShift); // #TODO remove kCheckKeyDcShift
+	auto request = DcKeyCreator::Request();
+	request.persistentNeeded = !_sessionData->getPersistentKey();
+	request.temporaryExpiresIn = kTemporaryExpiresIn;
 	_keyCreator = std::make_unique<DcKeyCreator>(
 		BareDcId(_shiftedDcId),
 		getProtocolDcId(),
 		_connection.get(),
 		_instance->dcOptions(),
 		std::move(delegate),
-		expireIn);
+		request);
 }
 
 void ConnectionPrivate::authKeyChecked() {
@@ -2471,28 +2537,26 @@ void ConnectionPrivate::handleError(int errorCode) {
 	_waitForConnectedTimer.cancel();
 
 	if (errorCode == -404) {
-		if (_dcType == DcType::Cdn && !_instance->isKeysDestroyer()) {
-			LOG(("MTP Info: -404 error received in CDN dc %1, assuming it was destroyed, recreating.").arg(_shiftedDcId));
-			destroyCdnKey();
-			return restart();
-		} else {
-			LOG(("MTP Info: -404 error received, informing instance."));
+		if (_instance->isKeysDestroyer()) {
+			LOG(("MTP Info: -404 error received in destroyer %1, assuming key was destroyed.").arg(_shiftedDcId));
 			_instance->checkIfKeyWasDestroyed(_shiftedDcId);
-			if (_instance->isKeysDestroyer()) {
-				return;
-			}
+			return;
+		} else if (_temporaryKey) {
+			LOG(("MTP Info: -404 error received in %1 with temporary key, assuming it was destroyed.").arg(_shiftedDcId));
+			destroyTemporaryKey();
 		}
 	}
 	MTP_LOG(_shiftedDcId, ("Restarting after error in connection, error code: %1...").arg(errorCode));
 	return restart();
 }
 
-void ConnectionPrivate::destroyCdnKey() {
-	if (_key) {
-		_sessionData->destroyCdnKey(_keyId);
+void ConnectionPrivate::destroyTemporaryKey() {
+	cancelKeyBinder();
+	if (_temporaryKey) {
+		_sessionData->destroyTemporaryKey(_temporaryKey->keyId());
 	}
-	_key = nullptr;
-	_keyId = 0;
+	_needSessionReset = true;
+	applyAuthKey(nullptr);
 }
 
 bool ConnectionPrivate::sendSecureRequest(
@@ -2542,7 +2606,7 @@ bool ConnectionPrivate::sendSecureRequest(
 		request->constData(),
 		&packet[prefix],
 		fullSize * sizeof(mtpPrime),
-		_key,
+		_temporaryKey,
 		msgKey);
 #else // TDESKTOP_MTPROTO_OLD
 	uchar encryptedSHA256[32];
@@ -2550,7 +2614,7 @@ bool ConnectionPrivate::sendSecureRequest(
 
 	SHA256_CTX msgKeyLargeContext;
 	SHA256_Init(&msgKeyLargeContext);
-	SHA256_Update(&msgKeyLargeContext, _key->partForMsgKey(true), 32);
+	SHA256_Update(&msgKeyLargeContext, _temporaryKey->partForMsgKey(true), 32);
 	SHA256_Update(&msgKeyLargeContext, request->constData(), fullSize * sizeof(mtpPrime));
 	SHA256_Final(encryptedSHA256, &msgKeyLargeContext);
 
@@ -2562,7 +2626,7 @@ bool ConnectionPrivate::sendSecureRequest(
 		request->constData(),
 		&packet[prefix],
 		fullSize * sizeof(mtpPrime),
-		_key,
+		_temporaryKey,
 		msgKey);
 #endif // TDESKTOP_MTPROTO_OLD
 
@@ -2610,6 +2674,14 @@ void ConnectionPrivate::clearKeyCreatorOnFail() {
 		return;
 	}
 	_keyCreator = nullptr;
+	_sessionData->releaseKeyCreationOnFail();
+}
+
+void ConnectionPrivate::cancelKeyBinder() {
+	if (!_keyBinder) {
+		return;
+	}
+	_keyBinder = nullptr;
 	_sessionData->releaseKeyCreationOnFail();
 }
 

@@ -21,6 +21,7 @@ public:
 
 	enum class Type {
 		Generated,
+		Temporary,
 		ReadFromFile,
 		Local,
 	};
@@ -45,6 +46,8 @@ public:
 
 	[[nodiscard]] crl::time lastCheckTime() const;
 	void setLastCheckTime(crl::time time);
+	[[nodiscard]] TimeId expiresAt() const;
+	void setExpiresAt(TimeId expiresAt);
 
 	static void FillData(Data &authKey, bytes::const_span computedAuthKey);
 
@@ -56,6 +59,7 @@ private:
 	Data _key = { { gsl::byte{} } };
 	KeyId _keyId = 0;
 	crl::time _lastCheckTime = 0;
+	TimeId _expiresAt = 0;
 
 };
 

@@ -23,13 +23,19 @@ using namespace ::MTP::internal;
 
 class DcKeyCreator final {
 public:
+	struct Request {
+		TimeId temporaryExpiresIn = 0;
+		bool persistentNeeded = false;
+	};
 	enum class Error {
 		UnknownPublicKey,
 		Other,
 	};
 	struct Result {
-		AuthKeyPtr key;
-		uint64 serverSalt = 0;
+		AuthKeyPtr persistentKey;
+		AuthKeyPtr temporaryKey;
+		uint64 temporaryServerSalt = 0;
+		uint64 persistentServerSalt = 0;
 	};
 	struct Delegate {
 		FnMut<void(base::expected<Result, Error>)> done;
@@ -43,11 +49,17 @@ public:
 		not_null<AbstractConnection*> connection,
 		not_null<DcOptions*> dcOptions,
 		Delegate delegate,
-		TimeId expireIn = 0); // 0 - persistent, > 0 - temporary
+		Request request);
 	~DcKeyCreator();
 
 private:
-	// Auth key creation fields and methods
+	enum class Stage {
+		None,
+		WaitingPQ,
+		WaitingDH,
+		WaitingDone,
+		Ready,
+	};
 	struct Data {
 		Data()
 		: new_nonce(*(MTPint256*)((uchar*)new_nonce_buf.data()))
@@ -61,7 +73,6 @@ private:
 		MTPint256 &new_nonce;
 		MTPlong &auth_key_aux_hash;
 
-		uint32 retries = 0;
 		MTPlong retry_id;
 
 		int32 g = 0;
@@ -69,35 +80,59 @@ private:
 		bytes::array<32> aesKey;
 		bytes::array<32> aesIV;
 		MTPlong auth_key_hash;
+		uint64 doneSalt = 0;
+	};
+	struct Attempt {
+		~Attempt();
+
+		Data data;
+		bytes::vector dhPrime;
+		bytes::vector g_a;
+		AuthKey::Data authKey = { { gsl::byte{} } };
+		TimeId expiresIn = 0;
+		uint32 retries = 0;
+		Stage stage = Stage::None;
 	};
 
-	template <typename Request>
-	void sendNotSecureRequest(const Request &request);
+	template <typename RequestType>
+	void sendNotSecureRequest(const RequestType &request);
 
-	template <typename Response>
-	[[nodiscard]] bool readNotSecureResponse(Response &response);
+	template <
+		typename RequestType,
+		typename Response = typename RequestType::ResponseType>
+	[[nodiscard]] std::optional<Response> readNotSecureResponse(
+			gsl::span<const mtpPrime> answer);
 
-	void pqSend();
-	void pqAnswered();
-	void dhParamsAnswered();
-	void dhClientParamsSend();
-	void dhClientParamsAnswered();
+	Attempt *attemptByNonce(const MTPint128 &nonce);
+
+	void answered();
+	void handleAnswer(gsl::span<const mtpPrime> answer);
+	void pqSend(not_null<Attempt*> attempt, TimeId expiresIn);
+	void pqAnswered(
+		not_null<Attempt*> attempt,
+		const MTPresPQ &data);
+	void dhParamsAnswered(
+		not_null<Attempt*> attempt,
+		const MTPserver_DH_Params &data);
+	void dhClientParamsSend(not_null<Attempt*> attempt);
+	void dhClientParamsAnswered(
+		not_null<Attempt*> attempt,
+		const MTPset_client_DH_params_answer &data);
 
 	void stopReceiving();
 	void failed(Error error = Error::Other);
-	void done(uint64 serverSalt);
+	void done();
 
 	const not_null<AbstractConnection*> _connection;
 	const not_null<DcOptions*> _dcOptions;
 	const DcId _dcId = 0;
 	const int16 _protocolDcId = 0;
-	const TimeId _expireIn = 0;
+	const Request _request;
 	Delegate _delegate;
 
-	Data _data;
-	bytes::vector _dhPrime;
-	bytes::vector _g_a;
-	AuthKey::Data _authKey = { { gsl::byte{} } };
+	Attempt _temporary;
+	Attempt _persistent;
+
 	FnMut<void(base::expected<Result, Error>)> _done;
 
 };

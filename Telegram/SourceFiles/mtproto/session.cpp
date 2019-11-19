@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/session.h"
 
-#include "mtproto/details/mtproto_dc_key_checker.h"
 #include "mtproto/connection.h"
 #include "mtproto/dcenter.h"
 #include "mtproto/mtproto_auth_key.h"
@@ -222,9 +221,14 @@ bool SessionData::connectionInited() const {
 	return _owner ? _owner->connectionInited() : false;
 }
 
-AuthKeyPtr SessionData::getKey() const {
+AuthKeyPtr SessionData::getTemporaryKey() const {
 	QMutexLocker lock(&_ownerMutex);
-	return _owner ? _owner->getKey() : nullptr;
+	return _owner ? _owner->getTemporaryKey() : nullptr;
+}
+
+AuthKeyPtr SessionData::getPersistentKey() const {
+	QMutexLocker lock(&_ownerMutex);
+	return _owner ? _owner->getPersistentKey() : nullptr;
 }
 
 bool SessionData::acquireKeyCreation() {
@@ -232,10 +236,12 @@ bool SessionData::acquireKeyCreation() {
 	return _owner ? _owner->acquireKeyCreation() : false;
 }
 
-void SessionData::releaseKeyCreationOnDone(const AuthKeyPtr &key) {
+void SessionData::releaseKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey,
+		const AuthKeyPtr &persistentKey) {
 	QMutexLocker lock(&_ownerMutex);
 	if (_owner) {
-		_owner->releaseKeyCreationOnDone(key);
+		_owner->releaseKeyCreationOnDone(temporaryKey, persistentKey);
 	}
 }
 
@@ -246,10 +252,10 @@ void SessionData::releaseKeyCreationOnFail() {
 	}
 }
 
-void SessionData::destroyCdnKey(uint64 keyId) {
+void SessionData::destroyTemporaryKey(uint64 keyId) {
 	QMutexLocker lock(&_ownerMutex);
 	if (_owner) {
-		_owner->destroyCdnKey(keyId);
+		_owner->destroyTemporaryKey(keyId);
 	}
 }
 
@@ -278,7 +284,7 @@ Session::Session(
 }
 
 void Session::watchDcKeyChanges() {
-	_instance->dcKeyChanged(
+	_instance->dcTemporaryKeyChanged(
 	) | rpl::filter([=](DcId dcId) {
 		return (dcId == _shiftedDcId) || (dcId == BareDcId(_shiftedDcId));
 	}) | rpl::start_with_next([=] {
@@ -684,6 +690,29 @@ bool Session::acquireKeyCreation() {
 	return true;
 }
 
+void Session::releaseKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey,
+		const AuthKeyPtr &persistentKey) {
+	Expects(_myKeyCreation);
+
+	DEBUG_LOG(("AuthKey Info: Session key bound, setting, dcWithShift %1"
+		).arg(_shiftedDcId));
+	_dc->releaseKeyCreationOnDone(temporaryKey, persistentKey);
+	_myKeyCreation = false;
+
+	if (sharedDc()) {
+		const auto dcId = _dc->id();
+		const auto instance = _instance;
+		InvokeQueued(instance, [=] {
+			if (persistentKey) {
+				instance->dcPersistentKeyChanged(dcId, persistentKey);
+			} else {
+				instance->dcTemporaryKeyChanged(dcId);
+			}
+		});
+	}
+}
+
 void Session::releaseKeyCreationOnFail() {
 	Expects(_myKeyCreation);
 
@@ -691,36 +720,20 @@ void Session::releaseKeyCreationOnFail() {
 	_myKeyCreation = false;
 }
 
-void Session::releaseKeyCreationOnDone(const AuthKeyPtr &key) {
-	Expects(_myKeyCreation);
-
-	DEBUG_LOG(("AuthKey Info: Session key created, setting, dcWithShift %1").arg(_shiftedDcId));
-	_dc->releaseKeyCreationOnDone(key);
-	_myKeyCreation = false;
-
-	if (sharedDc()) {
-		const auto dcId = _dc->id();
-		const auto instance = _instance;
-		InvokeQueued(instance, [=] {
-			instance->dcKeyChanged(dcId, key);
-		});
-	}
-}
-
 void Session::notifyDcConnectionInited() {
 	DEBUG_LOG(("MTP Info: emitting MTProtoDC::connectionWasInited(), dcWithShift %1").arg(_shiftedDcId));
 	_dc->setConnectionInited();
 }
 
-void Session::destroyCdnKey(uint64 keyId) {
-	if (!_dc->destroyCdnKey(keyId)) {
+void Session::destroyTemporaryKey(uint64 keyId) {
+	if (!_dc->destroyTemporaryKey(keyId)) {
 		return;
 	}
 	if (sharedDc()) {
 		const auto dcId = _dc->id();
 		const auto instance = _instance;
 		InvokeQueued(instance, [=] {
-			instance->dcKeyChanged(dcId, nullptr);
+			instance->dcTemporaryKeyChanged(dcId);
 		});
 	}
 }
@@ -729,8 +742,12 @@ int32 Session::getDcWithShift() const {
 	return _shiftedDcId;
 }
 
-AuthKeyPtr Session::getKey() const {
-	return _dc->getKey();
+AuthKeyPtr Session::getTemporaryKey() const {
+	return _dc->getTemporaryKey();
+}
+
+AuthKeyPtr Session::getPersistentKey() const {
+	return _dc->getPersistentKey();
 }
 
 bool Session::connectionInited() const {

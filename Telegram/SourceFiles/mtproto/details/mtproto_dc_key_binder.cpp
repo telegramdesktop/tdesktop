@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mtproto/details/mtproto_dc_key_checker.h"
+#include "mtproto/details/mtproto_dc_key_binder.h"
 
 #include "mtproto/mtp_instance.h"
 #include "base/unixtime.h"
@@ -16,8 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP::details {
 namespace {
-
-constexpr auto kBindKeyExpireTimeout = TimeId(3600);
 
 [[nodiscard]] QByteArray EncryptBindAuthKeyInner(
 		const AuthKeyPtr &persistentKey,
@@ -74,26 +72,28 @@ constexpr auto kBindKeyExpireTimeout = TimeId(3600);
 
 } // namespace
 
-DcKeyChecker::DcKeyChecker(
-	not_null<Instance*> instance,
-	ShiftedDcId shiftedDcId,
-	const AuthKeyPtr &persistentKey)
-: _instance(instance)
-, _shiftedDcId(shiftedDcId)
-, _persistentKey(persistentKey) {
+DcKeyBinder::DcKeyBinder(AuthKeyPtr &&persistentKey)
+: _persistentKey(std::move(persistentKey)) {
+	Expects(_persistentKey != nullptr);
 }
 
-SecureRequest DcKeyChecker::prepareRequest(
+bool DcKeyBinder::requested() const {
+	return _requestMsgId != 0;
+}
+
+SecureRequest DcKeyBinder::prepareRequest(
 		const AuthKeyPtr &temporaryKey,
 		uint64 sessionId) {
 	Expects(_requestMsgId == 0);
+	Expects(temporaryKey != nullptr);
+	Expects(temporaryKey->expiresAt() != 0);
 
 	const auto nonce = openssl::RandomValue<uint64>();
 	_requestMsgId = base::unixtime::mtproto_msg_id();
 	auto result = SecureRequest::Serialize(MTPauth_BindTempAuthKey(
 		MTP_long(_persistentKey->keyId()),
 		MTP_long(nonce),
-		MTP_int(kBindKeyExpireTimeout),
+		MTP_int(temporaryKey->expiresAt()),
 		MTP_bytes(EncryptBindAuthKeyInner(
 			_persistentKey,
 			_requestMsgId,
@@ -102,49 +102,56 @@ SecureRequest DcKeyChecker::prepareRequest(
 				MTP_long(temporaryKey->keyId()),
 				MTP_long(_persistentKey->keyId()),
 				MTP_long(sessionId),
-				MTP_int(kBindKeyExpireTimeout))))));
+				MTP_int(temporaryKey->expiresAt()))))));
 	result.setMsgId(_requestMsgId);
 	return result;
 }
 
-bool DcKeyChecker::handleResponse(
+DcKeyBindState DcKeyBinder::handleResponse(
 		MTPlong requestMsgId,
 		const mtpBuffer &response) {
 	Expects(!response.isEmpty());
 
 	if (!_requestMsgId || requestMsgId.v != _requestMsgId) {
-		return false;
+		return DcKeyBindState::Unknown;
 	}
+	_requestMsgId = 0;
 
-	const auto destroyed = [&] {
-		if (response[0] != mtpc_rpc_error) {
-			return false;
-		}
-		auto error = MTPRpcError();
-		auto from = response.begin();
-		const auto end = from + response.size();
-		if (!error.read(from, end)) {
-			return false;
-		}
-		return error.match([&](const MTPDrpc_error &data) {
+	auto from = response.begin();
+	const auto end = from + response.size();
+	auto error = MTPRpcError();
+	auto result = MTPBool();
+	if (response[0] == mtpc_boolTrue) {
+		return DcKeyBindState::Success;
+	} else if (response[0] == mtpc_rpc_error && error.read(from, end)) {
+		const auto destroyed = error.match([&](const MTPDrpc_error &data) {
 			return (data.verror_code().v == 400)
 				&& (data.verror_message().v == "ENCRYPTED_MESSAGE_INVALID");
 		});
-	}();
+		return destroyed
+			? DcKeyBindState::DefinitelyDestroyed
+			: DcKeyBindState::Failed;
+	} else {
+		return DcKeyBindState::Failed;
+	}
+}
 
-	const auto instance = _instance;
-	const auto shiftedDcId = _shiftedDcId;
-	const auto keyId = _persistentKey->keyId();
-	_persistentKey->setLastCheckTime(crl::now());
-	crl::on_main(instance, [=] {
-		instance->killSession(shiftedDcId);
-		if (destroyed) {
-			instance->keyDestroyedOnServer(BareDcId(shiftedDcId), keyId);
-		}
+AuthKeyPtr DcKeyBinder::persistentKey() const {
+	return _persistentKey;
+}
+
+bool DcKeyBinder::IsDestroyedTemporaryKeyError(
+		const mtpBuffer &buffer) {
+	auto from = buffer.data();
+	const auto end = from + buffer.size();
+	auto error = MTPRpcError();
+	if (!error.read(from, from + buffer.size())) {
+		return false;
+	}
+	return error.match([&](const MTPDrpc_error &data) {
+		return (data.verror_code().v == 401)
+			&& (data.verror_message().v == "AUTH_KEY_PERM_EMPTY");
 	});
-
-	_requestMsgId = 0;
-	return true;
 }
 
 } // namespace MTP::details

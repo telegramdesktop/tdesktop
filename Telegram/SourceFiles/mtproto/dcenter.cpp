@@ -25,34 +25,40 @@ constexpr auto kSpecialRequestTimeoutMs = 6000; // 4 seconds timeout for it to w
 
 Dcenter::Dcenter(DcId dcId, AuthKeyPtr &&key)
 : _id(dcId)
-, _key(std::move(key)) {
+, _persistentKey(std::move(key)) {
 }
 
 DcId Dcenter::id() const {
 	return _id;
 }
 
-AuthKeyPtr Dcenter::getKey() const {
+AuthKeyPtr Dcenter::getTemporaryKey() const {
 	QReadLocker lock(&_mutex);
-	return _key;
+	return _temporaryKey;
 }
 
-bool Dcenter::destroyCdnKey(uint64 keyId) {
-	return destroyKey(keyId);
+AuthKeyPtr Dcenter::getPersistentKey() const {
+	QReadLocker lock(&_mutex);
+	return _persistentKey;
+}
+
+bool Dcenter::destroyTemporaryKey(uint64 keyId) {
+	QWriteLocker lock(&_mutex);
+	if (!_temporaryKey || _temporaryKey->keyId() != keyId) {
+		return false;
+	}
+	_temporaryKey = nullptr;
+	_connectionInited = false;
+	return true;
 }
 
 bool Dcenter::destroyConfirmedForgottenKey(uint64 keyId) {
-	return destroyKey(keyId);
-}
-
-bool Dcenter::destroyKey(uint64 keyId) {
-	Expects(!_creatingKey || !_key);
-
 	QWriteLocker lock(&_mutex);
-	if (_key->keyId() != keyId) {
+	if (!_persistentKey || _persistentKey->keyId() != keyId) {
 		return false;
 	}
-	_key = nullptr;
+	_temporaryKey = nullptr;
+	_persistentKey = nullptr;
 	_connectionInited = false;
 	return true;
 }
@@ -69,7 +75,7 @@ void Dcenter::setConnectionInited(bool connectionInited) {
 
 bool Dcenter::acquireKeyCreation() {
 	QReadLocker lock(&_mutex);
-	if (_key != nullptr) {
+	if (_temporaryKey != nullptr) {
 		return false;
 	}
 	auto expected = false;
@@ -78,21 +84,27 @@ bool Dcenter::acquireKeyCreation() {
 
 void Dcenter::releaseKeyCreationOnFail() {
 	Expects(_creatingKey);
-	Expects(_key == nullptr);
+	Expects(_temporaryKey == nullptr);
 
 	_creatingKey = false;
 }
 
-void Dcenter::releaseKeyCreationOnDone(const AuthKeyPtr &key) {
+void Dcenter::releaseKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey,
+		const AuthKeyPtr &persistentKey) {
 	Expects(_creatingKey);
-	Expects(_key == nullptr);
+	Expects(_temporaryKey == nullptr);
 
 	QWriteLocker lock(&_mutex);
-	DEBUG_LOG(("AuthKey Info: Dcenter::releaseKeyCreationOnDone(%1), "
-		"emitting authKeyChanged, dc %2"
-		).arg(key ? key->keyId() : 0
+	DEBUG_LOG(("AuthKey Info: Dcenter::releaseKeyCreationOnDone(%1, %2), "
+		"emitting authKeyChanged, dc %3"
+		).arg(temporaryKey ? temporaryKey->keyId() : 0
+		).arg(persistentKey ? persistentKey->keyId() : 0
 		).arg(_id));
-	_key = key;
+	_temporaryKey = temporaryKey;
+	if (persistentKey) {
+		_persistentKey = persistentKey;
+	}
 	_connectionInited = false;
 	_creatingKey = false;
 }

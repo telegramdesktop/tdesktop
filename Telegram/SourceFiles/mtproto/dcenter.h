@@ -23,10 +23,13 @@ public:
 	// Thread-safe.
 	[[nodiscard]] DcId id() const;
 
-	[[nodiscard]] AuthKeyPtr getKey() const;
-	bool destroyCdnKey(uint64 keyId);
+	[[nodiscard]] AuthKeyPtr getTemporaryKey() const;
+	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
+	bool destroyTemporaryKey(uint64 keyId);
 	bool destroyConfirmedForgottenKey(uint64 keyId);
-	void releaseKeyCreationOnDone(const AuthKeyPtr &key);
+	void releaseKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey,
+		const AuthKeyPtr &persistentKey);
 
 	[[nodiscard]] bool connectionInited() const;
 	void setConnectionInited(bool connectionInited = true);
@@ -35,12 +38,11 @@ public:
 	void releaseKeyCreationOnFail();
 
 private:
-	bool destroyKey(uint64 keyId);
-
 	const DcId _id = 0;
 	mutable QReadWriteLock _mutex;
 
-	AuthKeyPtr _key;
+	AuthKeyPtr _temporaryKey;
+	AuthKeyPtr _persistentKey;
 	bool _connectionInited = false;
 	std::atomic<bool> _creatingKey = false;
 

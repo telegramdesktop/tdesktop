@@ -65,8 +65,9 @@ public:
 	[[nodiscard]] QString systemVersion() const;
 
 	// Main thread.
-	void dcKeyChanged(DcId dcId, const AuthKeyPtr &key);
-	[[nodiscard]] rpl::producer<DcId> dcKeyChanged() const;
+	void dcPersistentKeyChanged(DcId dcId, const AuthKeyPtr &persistentKey);
+	void dcTemporaryKeyChanged(DcId dcId);
+	[[nodiscard]] rpl::producer<DcId> dcTemporaryKeyChanged() const;
 	[[nodiscard]] AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
 

@@ -65,8 +65,9 @@ public:
 	void setMainDcId(DcId mainDcId);
 	[[nodiscard]] DcId mainDcId() const;
 
-	void dcKeyChanged(DcId dcId, const AuthKeyPtr &key);
-	[[nodiscard]] rpl::producer<DcId> dcKeyChanged() const;
+	void dcPersistentKeyChanged(DcId dcId, const AuthKeyPtr &persistentKey);
+	void dcTemporaryKeyChanged(DcId dcId);
+	[[nodiscard]] rpl::producer<DcId> dcTemporaryKeyChanged() const;
 	[[nodiscard]] AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
 
@@ -209,7 +210,7 @@ private:
 	bool _mainDcIdForced = false;
 	base::flat_map<DcId, std::unique_ptr<Dcenter>> _dcenters;
 	std::vector<std::unique_ptr<Dcenter>> _dcentersToDestroy;
-	rpl::event_stream<DcId> _dcKeyChanged;
+	rpl::event_stream<DcId> _dcTemporaryKeyChanged;
 
 	Session *_mainSession = nullptr;
 	base::flat_map<ShiftedDcId, std::unique_ptr<Session>> _sessions;
@@ -225,10 +226,8 @@ private:
 	crl::time _lastConfigLoadedTime = 0;
 	crl::time _configExpiresAt = 0;
 
-	std::map<DcId, AuthKeyPtr> _keysForWrite;
-	mutable QReadWriteLock _keysForWriteLock;
-
-	std::map<ShiftedDcId, mtpRequestId> _logoutGuestRequestIds;
+	base::flat_map<DcId, AuthKeyPtr> _keysForWrite;
+	base::flat_map<ShiftedDcId, mtpRequestId> _logoutGuestRequestIds;
 
 	// holds dcWithShift for request to this dc or -dc for request to main dc
 	std::map<mtpRequestId, ShiftedDcId> _requestsByDc;
@@ -619,23 +618,22 @@ void Instance::Private::logout(
 
 void Instance::Private::logoutGuestDcs() {
 	auto dcIds = std::vector<DcId>();
-	{
-		QReadLocker lock(&_keysForWriteLock);
-		dcIds.reserve(_keysForWrite.size());
-		for (auto &key : _keysForWrite) {
-			dcIds.push_back(key.first);
-		}
+	dcIds.reserve(_keysForWrite.size());
+	for (const auto &key : _keysForWrite) {
+		dcIds.push_back(key.first);
 	}
-	for (auto dcId : dcIds) {
-		if (dcId != mainDcId() && dcOptions()->dcType(dcId) != DcType::Cdn) {
-			auto shiftedDcId = MTP::logoutDcId(dcId);
-			auto requestId = _instance->send(MTPauth_LogOut(), rpcDone([this](mtpRequestId requestId) {
-				logoutGuestDone(requestId);
-			}), rpcFail([this](mtpRequestId requestId) {
-				return logoutGuestDone(requestId);
-			}), shiftedDcId);
-			_logoutGuestRequestIds.emplace(shiftedDcId, requestId);
+	for (const auto dcId : dcIds) {
+		if (dcId == mainDcId() || dcOptions()->dcType(dcId) == DcType::Cdn) {
+			continue;
 		}
+		const auto shiftedDcId = MTP::logoutDcId(dcId);
+		const auto requestId = _instance->send(MTPauth_LogOut(), rpcDone([=](
+				mtpRequestId requestId) {
+			logoutGuestDone(requestId);
+		}), rpcFail([=](mtpRequestId requestId) {
+			return logoutGuestDone(requestId);
+		}), shiftedDcId);
+		_logoutGuestRequestIds.emplace(shiftedDcId, requestId);
 	}
 }
 
@@ -695,35 +693,45 @@ not_null<Dcenter*> Instance::Private::getDcById(
 	return addDc(dcId);
 }
 
-void Instance::Private::dcKeyChanged(DcId dcId, const AuthKeyPtr &key) {
-	_dcKeyChanged.fire_copy(dcId);
+void Instance::Private::dcPersistentKeyChanged(
+		DcId dcId,
+		const AuthKeyPtr &persistentKey) {
+	dcTemporaryKeyChanged(dcId);
 
 	if (isTemporaryDcId(dcId)) {
 		return;
 	}
 
-	QWriteLocker lock(&_keysForWriteLock);
-	if (key) {
-		_keysForWrite[dcId] = key;
-	} else {
-		_keysForWrite.erase(dcId);
+	const auto i = _keysForWrite.find(dcId);
+	if (i != _keysForWrite.end() && i->second == persistentKey) {
+		return;
+	} else if (i == _keysForWrite.end() && !persistentKey) {
+		return;
 	}
-	crl::on_main(_instance, [=] {
-		DEBUG_LOG(("AuthKey Info: writing auth keys, called by dc %1").arg(dcId));
-		Local::writeMtpData();
-	});
+	if (!persistentKey) {
+		_keysForWrite.erase(i);
+	} else if (i != _keysForWrite.end()) {
+		i->second = persistentKey;
+	} else {
+		_keysForWrite.emplace(dcId, persistentKey);
+	}
+	DEBUG_LOG(("AuthKey Info: writing auth keys, called by dc %1").arg(dcId));
+	Local::writeMtpData();
 }
 
-rpl::producer<DcId> Instance::Private::dcKeyChanged() const {
-	return _dcKeyChanged.events();
+void Instance::Private::dcTemporaryKeyChanged(DcId dcId) {
+	_dcTemporaryKeyChanged.fire_copy(dcId);
+}
+
+rpl::producer<DcId> Instance::Private::dcTemporaryKeyChanged() const {
+	return _dcTemporaryKeyChanged.events();
 }
 
 AuthKeysList Instance::Private::getKeysForWrite() const {
 	auto result = AuthKeysList();
 
-	QReadLocker lock(&_keysForWriteLock);
 	result.reserve(_keysForWrite.size());
-	for (auto &key : _keysForWrite) {
+	for (const auto &key : _keysForWrite) {
 		result.push_back(key.second);
 	}
 	return result;
@@ -736,15 +744,12 @@ void Instance::Private::addKeysForDestroy(AuthKeysList &&keys) {
 		const auto dcId = key->dcId();
 		auto shiftedDcId = MTP::destroyKeyNextDcId(dcId);
 
-		{
-			QWriteLocker lock(&_keysForWriteLock);
-			// There could be several keys for one dc if we're destroying them.
-			// Place them all in separate shiftedDcId so that they won't conflict.
-			while (_keysForWrite.find(shiftedDcId) != _keysForWrite.cend()) {
-				shiftedDcId = MTP::destroyKeyNextDcId(shiftedDcId);
-			}
-			_keysForWrite[shiftedDcId] = key;
+		// There could be several keys for one dc if we're destroying them.
+		// Place them all in separate shiftedDcId so that they won't conflict.
+		while (_keysForWrite.find(shiftedDcId) != _keysForWrite.cend()) {
+			shiftedDcId = MTP::destroyKeyNextDcId(shiftedDcId);
 		}
+		_keysForWrite[shiftedDcId] = key;
 
 		addDc(shiftedDcId, std::move(key));
 		startSession(shiftedDcId);
@@ -1352,7 +1357,8 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 		checkDelayedRequests();
 
 		return true;
-	} else if (code == 401 || (badGuestDc && _badGuestDcRequests.find(requestId) == _badGuestDcRequests.cend())) {
+	} else if ((code == 401 && err != "AUTH_KEY_PERM_EMPTY")
+		|| (badGuestDc && _badGuestDcRequests.find(requestId) == _badGuestDcRequests.cend())) {
 		auto dcWithShift = ShiftedDcId(0);
 		if (const auto shiftedDcId = queryRequestByDc(requestId)) {
 			dcWithShift = *shiftedDcId;
@@ -1572,10 +1578,7 @@ void Instance::Private::completedKeyDestroy(ShiftedDcId shiftedDcId) {
 	Expects(isKeysDestroyer());
 
 	removeDc(shiftedDcId);
-	{
-		QWriteLocker lock(&_keysForWriteLock);
-		_keysForWrite.erase(shiftedDcId);
-	}
+	_keysForWrite.erase(shiftedDcId);
 	killSession(shiftedDcId);
 	if (_dcenters.empty()) {
 		emit _instance->allKeysDestroyed();
@@ -1588,19 +1591,15 @@ void Instance::Private::checkMainDcKey() {
 	if (findSession(shiftedDcId)) {
 		return;
 	}
-	const auto key = [&] {
-		QReadLocker lock(&_keysForWriteLock);
-		const auto i = _keysForWrite.find(id);
-		return (i != end(_keysForWrite)) ? i->second : AuthKeyPtr();
-	}();
-	if (!key) {
+	const auto i = _keysForWrite.find(id);
+	if (i == end(_keysForWrite)) {
 		return;
 	}
-	const auto lastCheckTime = key->lastCheckTime();
+	const auto lastCheckTime = i->second->lastCheckTime();
 	if (lastCheckTime > 0 && lastCheckTime + kCheckKeyEach >= crl::now()) {
 		return;
 	}
-	_instance->sendDcKeyCheck(shiftedDcId, key);
+	_instance->sendDcKeyCheck(shiftedDcId, i->second);
 }
 
 void Instance::Private::keyDestroyedOnServer(DcId dcId, uint64 keyId) {
@@ -1608,7 +1607,7 @@ void Instance::Private::keyDestroyedOnServer(DcId dcId, uint64 keyId) {
 	if (const auto dc = findDc(dcId)) {
 		if (dc->destroyConfirmedForgottenKey(keyId)) {
 			LOG(("Key destroyed!"));
-			dcKeyChanged(dcId, nullptr);
+			dcPersistentKeyChanged(dcId, nullptr);
 		} else {
 			LOG(("Key already is different."));
 		}
@@ -1761,12 +1760,18 @@ void Instance::logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail) {
 	_private->logout(onDone, onFail);
 }
 
-void Instance::dcKeyChanged(DcId dcId, const AuthKeyPtr &key) {
-	_private->dcKeyChanged(dcId, key);
+void Instance::dcPersistentKeyChanged(
+		DcId dcId,
+		const AuthKeyPtr &persistentKey) {
+	_private->dcPersistentKeyChanged(dcId, persistentKey);
 }
 
-rpl::producer<DcId> Instance::dcKeyChanged() const {
-	return _private->dcKeyChanged();
+void Instance::dcTemporaryKeyChanged(DcId dcId) {
+	_private->dcTemporaryKeyChanged(dcId);
+}
+
+rpl::producer<DcId> Instance::dcTemporaryKeyChanged() const {
+	return _private->dcTemporaryKeyChanged();
 }
 
 AuthKeysList Instance::getKeysForWrite() const {
@@ -1881,13 +1886,11 @@ void Instance::sendRequest(
 }
 
 void Instance::sendAnything(ShiftedDcId shiftedDcId, crl::time msCanWait) {
-	const auto session = _private->getSession(shiftedDcId);
-	session->sendAnything(msCanWait);
+	_private->getSession(shiftedDcId)->sendAnything(msCanWait);
 }
 
 void Instance::sendDcKeyCheck(ShiftedDcId shiftedDcId, const AuthKeyPtr &key) {
-	const auto session = _private->getSession(shiftedDcId);
-	session->sendDcKeyCheck(key);
+	_private->getSession(shiftedDcId)->sendDcKeyCheck(key);
 }
 
 Instance::~Instance() {

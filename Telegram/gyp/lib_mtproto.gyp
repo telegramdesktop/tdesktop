@@ -34,8 +34,8 @@
       '<(src_loc)',
     ],
     'sources': [
-      '<(src_loc)/mtproto/details/mtproto_dc_key_checker.cpp',
-      '<(src_loc)/mtproto/details/mtproto_dc_key_checker.h',
+      '<(src_loc)/mtproto/details/mtproto_dc_key_binder.cpp',
+      '<(src_loc)/mtproto/details/mtproto_dc_key_binder.h',
       '<(src_loc)/mtproto/details/mtproto_dc_key_creator.cpp',
       '<(src_loc)/mtproto/details/mtproto_dc_key_creator.h',
       '<(src_loc)/mtproto/details/mtproto_dump_to_text.cpp',

@@ -16,27 +16,31 @@ class Instance;
 
 namespace MTP::details {
 
-enum class DcKeyState {
-	MaybeExisting,
+enum class DcKeyBindState {
+	Unknown,
+	Success,
+	Failed,
 	DefinitelyDestroyed,
 };
 
-class DcKeyChecker final {
+class DcKeyBinder final {
 public:
-	DcKeyChecker(
-		not_null<Instance*> instance,
-		ShiftedDcId shiftedDcId,
-		const AuthKeyPtr &persistentKey);
+	DcKeyBinder(AuthKeyPtr &&persistentKey);
 
+	[[nodiscard]] bool requested() const;
 	[[nodiscard]] SecureRequest prepareRequest(
 		const AuthKeyPtr &temporaryKey,
 		uint64 sessionId);
-	bool handleResponse(MTPlong requestMsgId, const mtpBuffer &response);
+	[[nodiscard]] DcKeyBindState handleResponse(
+		MTPlong requestMsgId,
+		const mtpBuffer &response);
+	[[nodiscard]] AuthKeyPtr persistentKey() const;
+
+	[[nodiscard]] static bool IsDestroyedTemporaryKeyError(
+		const mtpBuffer &buffer);
 
 private:
-	const not_null<Instance*> _instance;
-	const ShiftedDcId _shiftedDcId = 0;
-	const AuthKeyPtr _persistentKey;
+	AuthKeyPtr _persistentKey;
 	mtpMsgId _requestMsgId = 0;
 
 };
