@@ -145,7 +145,7 @@ void EditLinkBox::prepare() {
 
 	const auto submit = [=] {
 		const auto linkText = text->getLastText();
-		const auto linkUrl = qthelp::validate_url(url->getLastText());
+		const auto linkUrl = url->getLastText();
 		if (linkText.isEmpty()) {
 			text->showError();
 			return;
