@@ -183,9 +183,10 @@ DcKeyCreator::DcKeyCreator(
 		answered();
 	});
 
-	pqSend(&_temporary, _request.temporaryExpiresIn);
 	if (_request.persistentNeeded) {
 		pqSend(&_persistent, 0);
+	} else {
+		pqSend(&_temporary, _request.temporaryExpiresIn);
 	}
 }
 
@@ -602,13 +603,12 @@ void DcKeyCreator::failed(Error error) {
 }
 
 void DcKeyCreator::done() {
-	Expects(_temporary.stage != Stage::None);
-
-	if (_persistent.stage != Stage::None && _persistent.stage != Stage::Ready) {
-		return;
-	} else if (_temporary.stage != Stage::Ready) {
+	if (_temporary.stage == Stage::None) {
+		pqSend(&_temporary, _request.temporaryExpiresIn);
 		return;
 	}
+	Assert(_temporary.stage == Stage::Ready);
+	Assert(_persistent.stage == Stage::Ready || _persistent.stage == Stage::None);
 
 	auto result = Result();
 	result.temporaryKey = std::make_shared<AuthKey>(
