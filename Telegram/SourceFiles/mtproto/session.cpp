@@ -193,25 +193,19 @@ void SessionData::queueSendMsgsStateInfo(quint64 msgId, QByteArray data) {
 void SessionData::queueResend(
 		mtpMsgId msgId,
 		crl::time msCanWait,
-		bool forceContainer,
-		bool sendMsgStateInfo) {
+		bool forceContainer) {
 	withSession([=](not_null<Session*> session) {
-		session->resend(msgId, msCanWait, forceContainer, sendMsgStateInfo);
+		session->resend(msgId, msCanWait, forceContainer);
 	});
 }
 
 void SessionData::queueResendMany(
 		QVector<mtpMsgId> msgIds,
 		crl::time msCanWait,
-		bool forceContainer,
-		bool sendMsgStateInfo) {
+		bool forceContainer) {
 	withSession([=](not_null<Session*> session) {
 		for (const auto msgId : msgIds) {
-			session->resend(
-				msgId,
-				msCanWait,
-				forceContainer,
-				sendMsgStateInfo);
+			session->resend(msgId, msCanWait, forceContainer);
 		}
 	});
 }
@@ -595,8 +589,7 @@ QString Session::transport() const {
 mtpRequestId Session::resend(
 		mtpMsgId msgId,
 		crl::time msCanWait,
-		bool forceContainer,
-		bool sendMsgStateInfo) {
+		bool forceContainer) {
 	SecureRequest request;
 	{
 		QWriteLocker locker(_data->haveSentMutex());
@@ -604,18 +597,6 @@ mtpRequestId Session::resend(
 
 		auto i = haveSent.find(msgId);
 		if (i == haveSent.end()) {
-			if (sendMsgStateInfo) {
-				char cantResend[2] = {1, 0};
-				DEBUG_LOG(("Message Info: cant resend %1, request not found").arg(msgId));
-
-				auto info = std::string(cantResend, cantResend + 1);
-				return _instance->sendProtocolMessage(
-					_shiftedDcId,
-					MTPMsgsStateInfo(
-						MTP_msgs_state_info(
-							MTP_long(msgId),
-							MTP_string(std::move(info)))));
-			}
 			return 0;
 		}
 

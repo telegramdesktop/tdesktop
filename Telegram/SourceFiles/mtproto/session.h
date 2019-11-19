@@ -274,13 +274,11 @@ public:
 	void queueResend(
 		mtpMsgId msgId,
 		crl::time msCanWait,
-		bool forceContainer,
-		bool sendMsgStateInfo);
+		bool forceContainer);
 	void queueResendMany(
 		QVector<mtpMsgId> msgIds,
 		crl::time msCanWait,
-		bool forceContainer,
-		bool sendMsgStateInfo);
+		bool forceContainer);
 
 	[[nodiscard]] bool connectionInited() const;
 	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
@@ -392,8 +390,7 @@ public:
 	mtpRequestId resend(
 		mtpMsgId msgId,
 		crl::time msCanWait = 0,
-		bool forceContainer = false,
-		bool sendMsgStateInfo = false);
+		bool forceContainer = false);
 
 signals:
 	void authKeyChanged();

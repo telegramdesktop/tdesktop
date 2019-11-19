@@ -169,13 +169,11 @@ private:
 	void resend(
 		mtpMsgId msgId,
 		crl::time msCanWait = 0,
-		bool forceContainer = false,
-		bool sendMsgStateInfo = false);
+		bool forceContainer = false);
 	void resendMany(
 		QVector<mtpMsgId> msgIds,
 		crl::time msCanWait = 0,
-		bool forceContainer = false,
-		bool sendMsgStateInfo = false);
+		bool forceContainer = false);
 
 	void createDcKey();
 	void resetSession();

@@ -311,6 +311,8 @@ bool ConnectionPrivate::setState(int32 state, int32 ifState) {
 void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 	_needSessionReset = false;
 
+	MTP_LOG(_shiftedDcId, ("Resetting session!"));
+
 	QWriteLocker locker1(_sessionData->haveSentMutex());
 	QWriteLocker locker2(_sessionData->toResendMutex());
 	QWriteLocker locker3(_sessionData->toSendMutex());
@@ -329,16 +331,10 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 
 			mtpMsgId id = i.key();
 			if (id > newId) {
-				while (true) {
-					if (toResend.constFind(newId) == toResend.cend()
-						&& wereAcked.constFind(newId) == wereAcked.cend()
-						&& haveSent.constFind(newId) == haveSent.cend()) {
-						break;
-					}
-					const auto m = base::unixtime::mtproto_msg_id();
-					if (m <= newId) break; // wtf
-
-					newId = m;
+				while (toResend.constFind(newId) != toResend.cend()
+					|| wereAcked.constFind(newId) != wereAcked.cend()
+					|| haveSent.constFind(newId) != haveSent.cend()) {
+					newId = base::unixtime::mtproto_msg_id();
 				}
 
 				MTP_LOG(_shiftedDcId, ("Replacing msgId %1 to %2!"
@@ -361,16 +357,10 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 
 			mtpMsgId id = i.key();
 			if (id > newId) {
-				while (true) {
-					if (toResend.constFind(newId) == toResend.cend()
-						&& wereAcked.constFind(newId) == wereAcked.cend()
-						&& haveSent.constFind(newId) == haveSent.cend()) {
-						break;
-					}
-					const auto m = base::unixtime::mtproto_msg_id();
-					if (m <= newId) break; // wtf
-
-					newId = m;
+				while (toResend.constFind(newId) != toResend.cend()
+					|| wereAcked.constFind(newId) != wereAcked.cend()
+					|| haveSent.constFind(newId) != haveSent.cend()) {
+					newId = base::unixtime::mtproto_msg_id();
 				}
 
 				MTP_LOG(_shiftedDcId, ("Replacing msgId %1 to %2!"
@@ -884,6 +874,7 @@ void ConnectionPrivate::tryToSend() {
 							*(toSendRequest->data() + reqNeedsLayer + 3) += initSize;
 							added = true;
 						}
+						Assert(!haveSent.contains(msgId));
 						haveSent.insert(msgId, req);
 
 						needAnyResponse = true;
@@ -900,6 +891,7 @@ void ConnectionPrivate::tryToSend() {
 			if (stateRequest) {
 				mtpMsgId msgId = placeToContainer(toSendRequest, bigMsgId, haveSentArr, stateRequest);
 				stateRequest->msDate = 0; // 0 for state request, do not request state of it
+				Assert(!haveSent.contains(msgId));
 				haveSent.insert(msgId, stateRequest);
 			}
 			if (resendRequest) placeToContainer(toSendRequest, bigMsgId, haveSentArr, resendRequest);
@@ -910,6 +902,7 @@ void ConnectionPrivate::tryToSend() {
 			mtpMsgId contMsgId = prepareToSend(toSendRequest, bigMsgId);
 			*(mtpMsgId*)(haveSentIdsWrap->data() + 4) = contMsgId;
 			(*haveSentIdsWrap)[6] = 0; // for container, msDate = 0, seqNo = 0
+			Assert(!haveSent.contains(contMsgId));
 			haveSent.insert(contMsgId, haveSentIdsWrap);
 			toSend.clear();
 		}
@@ -1847,24 +1840,6 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 		}
 	} return HandleResult::Success;
 
-	case mtpc_msg_resend_req: {
-		MTPMsgResendReq msg;
-		if (!msg.read(from, end)) {
-			return HandleResult::ParseError;
-		}
-		auto &ids = msg.c_msg_resend_req().vmsg_ids().v;
-
-		auto idsCount = ids.size();
-		DEBUG_LOG(("Message Info: resend of msgs requested, ids: %1").arg(LogIdsVector(ids)));
-		if (!idsCount) return (badTime ? HandleResult::Ignored : HandleResult::Success);
-
-		QVector<quint64> toResend(ids.size());
-		for (int32 i = 0, l = ids.size(); i < l; ++i) {
-			toResend[i] = ids.at(i).v;
-		}
-		resendMany(toResend, 0, false, true);
-	} return HandleResult::Success;
-
 	case mtpc_rpc_result: {
 		if (from + 3 > end) {
 			return HandleResult::ParseError;
@@ -2261,23 +2236,17 @@ void ConnectionPrivate::handleMsgsStates(const QVector<MTPlong> &ids, const QByt
 void ConnectionPrivate::resend(
 		mtpMsgId msgId,
 		crl::time msCanWait,
-		bool forceContainer,
-		bool sendMsgStateInfo) {
+		bool forceContainer) {
 	if (msgId == _pingMsgId) {
 		return;
 	}
-	_sessionData->queueResend(
-		msgId,
-		msCanWait,
-		forceContainer,
-		sendMsgStateInfo);
+	_sessionData->queueResend(msgId, msCanWait, forceContainer);
 }
 
 void ConnectionPrivate::resendMany(
 		QVector<mtpMsgId> msgIds,
 		crl::time msCanWait,
-		bool forceContainer,
-		bool sendMsgStateInfo) {
+		bool forceContainer) {
 	for (int32 i = 0, l = msgIds.size(); i < l; ++i) {
 		if (msgIds.at(i) == _pingMsgId) {
 			msgIds.remove(i);
@@ -2287,8 +2256,7 @@ void ConnectionPrivate::resendMany(
 	_sessionData->queueResendMany(
 		std::move(msgIds),
 		msCanWait,
-		forceContainer,
-		sendMsgStateInfo);
+		forceContainer);
 }
 
 void ConnectionPrivate::onConnected(
@@ -2448,7 +2416,9 @@ void ConnectionPrivate::createDcKey() {
 				).arg(result->persistentServerSalt));
 
 			_sessionData->setSalt(result->temporaryServerSalt);
-			_sessionData->clearForNewKey(_instance);
+			if (result->persistentKey) {
+				_sessionData->clearForNewKey(_instance);
+			}
 
 			auto key = result->persistentKey
 				? std::move(result->persistentKey)
