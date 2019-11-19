@@ -26,10 +26,6 @@ constexpr auto kCheckResendTimeout = crl::time(10000);
 // when resending request or checking its state.
 constexpr auto kCheckResendWaiting = crl::time(1000);
 
-// How much ints should message contain for us not to resend,
-// but instead to check its state.
-constexpr auto kResendThreshold = 1;
-
 // Container lives 10 minutes in haveSent map.
 constexpr auto kContainerLives = 600;
 
@@ -76,15 +72,51 @@ void SessionData::withSession(Callback &&callback) {
 	}
 }
 
-void SessionData::setCurrentKeyId(uint64 keyId) {
+bool SessionData::setCurrentKeyId(uint64 keyId) {
 	QWriteLocker locker(&_lock);
 	if (_keyId == keyId) {
-		return;
+		return false;
 	}
 	_keyId = keyId;
-	_sessionId = openssl::RandomValue<uint64>();
+
+	DEBUG_LOG(("MTP Info: auth key set in SessionData, id %1").arg(keyId));
+
+	changeSessionIdLocked();
+	return true;
+}
+
+void SessionData::changeSessionId() {
+	QWriteLocker locker(&_lock);
+	changeSessionIdLocked();
+}
+
+void SessionData::changeSessionIdLocked() {
+	auto sessionId = _sessionId;
+	do {
+		sessionId = openssl::RandomValue<uint64>();
+	} while (_sessionId == sessionId);
+
+	DEBUG_LOG(("MTP Info: setting server_session: %1").arg(sessionId));
+
+	_sessionId = sessionId;
 	_messagesSent = 0;
-	DEBUG_LOG(("MTP Info: new auth key set in SessionData, id %1, setting random server_session %2").arg(_keyId).arg(_sessionId));
+	_sessionMarkedAsStarted = false;
+}
+
+uint32 SessionData::nextRequestSeqNumber(bool needAck) {
+	QWriteLocker locker(&_lock);
+	auto result = _messagesSent;
+	_messagesSent += (needAck ? 1 : 0);
+	return result * 2 + (needAck ? 1 : 0);
+}
+
+bool SessionData::markSessionAsStarted() {
+	QWriteLocker locker(&_lock);
+	if (_sessionMarkedAsStarted) {
+		return false;
+	}
+	_sessionMarkedAsStarted = true;
+	return true;
 }
 
 void SessionData::setKeyForCheck(const AuthKeyPtr &key) {
@@ -166,12 +198,6 @@ void SessionData::queueConnectionStateChange(int newState) {
 	});
 }
 
-void SessionData::queueResendAll() {
-	withSession([](not_null<Session*> session) {
-		session->resendAll();
-	});
-}
-
 void SessionData::queueResetDone() {
 	withSession([](not_null<Session*> session) {
 		session->resetDone();
@@ -190,24 +216,21 @@ void SessionData::queueSendMsgsStateInfo(quint64 msgId, QByteArray data) {
 	});
 }
 
-void SessionData::queueResend(
+void SessionData::resend(
 		mtpMsgId msgId,
 		crl::time msCanWait,
 		bool forceContainer) {
-	withSession([=](not_null<Session*> session) {
-		session->resend(msgId, msCanWait, forceContainer);
-	});
+	QMutexLocker lock(&_ownerMutex);
+	if (_owner) {
+		_owner->resend(msgId, msCanWait, forceContainer);
+	}
 }
 
-void SessionData::queueResendMany(
-		QVector<mtpMsgId> msgIds,
-		crl::time msCanWait,
-		bool forceContainer) {
-	withSession([=](not_null<Session*> session) {
-		for (const auto msgId : msgIds) {
-			session->resend(msgId, msCanWait, forceContainer);
-		}
-	});
+void SessionData::resendAll() {
+	QMutexLocker lock(&_ownerMutex);
+	if (_owner) {
+		_owner->resendAll();
+	}
 }
 
 bool SessionData::connectionInited() const {
@@ -437,7 +460,6 @@ bool Session::sharedDc() const {
 }
 
 void Session::checkRequestsByTimer() {
-	QVector<mtpMsgId> resendingIds;
 	QVector<mtpMsgId> removingIds; // remove very old (10 minutes) containers and resend requests
 	QVector<mtpMsgId> stateRequestIds;
 
@@ -450,14 +472,9 @@ void Session::checkRequestsByTimer() {
 			auto &req = i.value();
 			if (req->msDate > 0) {
 				if (req->msDate + kCheckResendTimeout < ms) { // need to resend or check state
-					if (req.messageSize() < kResendThreshold) { // resend
-						resendingIds.reserve(haveSentCount);
-						resendingIds.push_back(i.key());
-					} else {
-						req->msDate = ms;
-						stateRequestIds.reserve(haveSentCount);
-						stateRequestIds.push_back(i.key());
-					}
+					req->msDate = ms;
+					stateRequestIds.reserve(haveSentCount);
+					stateRequestIds.push_back(i.key());
 				}
 			} else if (base::unixtime::now()
 					> int32(i.key() >> 32) + kContainerLives) {
@@ -476,12 +493,6 @@ void Session::checkRequestsByTimer() {
 			}
 		}
 		sendAnything(kCheckResendWaiting);
-	}
-	if (!resendingIds.isEmpty()) {
-		for (uint32 i = 0, l = resendingIds.size(); i < l; ++i) {
-			DEBUG_LOG(("MTP Info: resending request %1").arg(resendingIds[i]));
-			resend(resendingIds[i], kCheckResendWaiting);
-		}
 	}
 	if (!removingIds.isEmpty()) {
 		auto clearCallbacks = std::vector<RPCCallbackClear>();
@@ -586,40 +597,35 @@ QString Session::transport() const {
 	return _connection ? _connection->transport() : QString();
 }
 
-mtpRequestId Session::resend(
+void Session::resend(
 		mtpMsgId msgId,
 		crl::time msCanWait,
 		bool forceContainer) {
-	SecureRequest request;
-	{
-		QWriteLocker locker(_data->haveSentMutex());
-		auto &haveSent = _data->haveSentMap();
+	auto lock = QWriteLocker(_data->haveSentMutex());
+	auto &haveSent = _data->haveSentMap();
 
-		auto i = haveSent.find(msgId);
-		if (i == haveSent.end()) {
-			return 0;
-		}
-
-		request = i.value();
-		haveSent.erase(i);
+	auto i = haveSent.find(msgId);
+	if (i == haveSent.end()) {
+		return;
 	}
-	if (request.isSentContainer()) { // for container just resend all messages we can
+	auto request = i.value();
+	haveSent.erase(i);
+	lock.unlock();
+
+	// For container just resend all messages we can.
+	if (request.isSentContainer()) {
 		DEBUG_LOG(("Message Info: resending container from haveSent, msgId %1").arg(msgId));
 		const mtpMsgId *ids = (const mtpMsgId *)(request->constData() + 8);
 		for (uint32 i = 0, l = (request->size() - 8) >> 1; i < l; ++i) {
 			resend(ids[i], 10, true);
 		}
-		return 0xFFFFFFFF;
 	} else if (!request.isStateRequest()) {
 		request->msDate = forceContainer ? 0 : crl::now();
-		sendPrepared(request, msCanWait, false);
 		{
 			QWriteLocker locker(_data->toResendMutex());
 			_data->toResendMap().insert(msgId, request->requestId);
 		}
-		return request->requestId;
-	} else {
-		return 0;
+		sendPrepared(request, msCanWait, false);
 	}
 }
 
@@ -636,8 +642,11 @@ void Session::resendAll() {
 		}
 	}
 	for (uint32 i = 0, l = toResend.size(); i < l; ++i) {
-		resend(toResend[i], 10, true);
+		resend(toResend[i], -1, true);
 	}
+	InvokeQueued(this, [=] {
+		sendAnything();
+	});
 }
 
 void Session::sendPrepared(
@@ -657,8 +666,11 @@ void Session::sendPrepared(
 	}
 
 	DEBUG_LOG(("MTP Info: added, requestId %1").arg(request->requestId));
-
-	sendAnything(msCanWait);
+	if (msCanWait >= 0) {
+		InvokeQueued(this, [=] {
+			sendAnything(msCanWait);
+		});
+	}
 }
 
 bool Session::acquireKeyCreation() {

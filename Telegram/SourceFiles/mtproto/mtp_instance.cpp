@@ -1156,7 +1156,9 @@ void Instance::Private::onSessionReset(ShiftedDcId dcWithShift) {
 
 bool Instance::Private::rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err) { // return true if need to clean request data
 	if (isDefaultHandledError(err)) {
-		if (onFail && (*onFail)(requestId, err)) return true;
+		if (onFail && (*onFail)(requestId, err)) {
+			return true;
+		}
 	}
 
 	if (onErrorDefault(requestId, err)) {

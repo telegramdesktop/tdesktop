@@ -139,9 +139,13 @@ private:
 	mtpMsgId placeToContainer(
 		SecureRequest &toSendRequest,
 		mtpMsgId &bigMsgId,
+		bool forceNewMsgId,
 		mtpMsgId *&haveSentArr,
 		SecureRequest &req);
-	mtpMsgId prepareToSend(SecureRequest &request, mtpMsgId currentLastId);
+	mtpMsgId prepareToSend(
+		SecureRequest &request,
+		mtpMsgId currentLastId,
+		bool forceNewMsgId);
 	mtpMsgId replaceMsgId(SecureRequest &request, mtpMsgId newId);
 
 	bool sendSecureRequest(SecureRequest &&request, bool needAnyResponse);
@@ -221,7 +225,6 @@ private:
 	mtpMsgId _pingMsgId = 0;
 	base::Timer _pingSender;
 
-	bool _restarted = false;
 	bool _finished = false;
 
 	AuthKeyPtr _temporaryKey;

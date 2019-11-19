@@ -140,16 +140,8 @@ public:
 	SessionData(not_null<Session*> creator) : _owner(creator) {
 	}
 
-	void setCurrentKeyId(uint64 keyId);
-	void setSessionId(uint64 sessionId) {
-		DEBUG_LOG(("MTP Info: setting server_session: %1").arg(sessionId));
-
-		QWriteLocker locker(&_lock);
-		if (_sessionId != sessionId) {
-			_sessionId = sessionId;
-			_messagesSent = 0;
-		}
-	}
+	bool setCurrentKeyId(uint64 keyId);
+	void changeSessionId();
 	[[nodiscard]] uint64 getSessionId() const {
 		QReadLocker locker(&_lock);
 		return _sessionId;
@@ -254,12 +246,8 @@ public:
 		return _owner;
 	}
 
-	uint32 nextRequestSeqNumber(bool needAck = true) {
-		QWriteLocker locker(&_lock);
-		auto result = _messagesSent;
-		_messagesSent += (needAck ? 1 : 0);
-		return result * 2 + (needAck ? 1 : 0);
-	}
+	[[nodiscard]] bool markSessionAsStarted();
+	[[nodiscard]] uint32 nextRequestSeqNumber(bool needAck);
 
 	void clearForNewKey(not_null<Instance*> instance);
 
@@ -267,18 +255,9 @@ public:
 	void queueTryToReceive();
 	void queueNeedToResumeAndSend();
 	void queueConnectionStateChange(int newState);
-	void queueResendAll();
 	void queueResetDone();
 	void queueSendAnything(crl::time msCanWait = 0);
 	void queueSendMsgsStateInfo(quint64 msgId, QByteArray data);
-	void queueResend(
-		mtpMsgId msgId,
-		crl::time msCanWait,
-		bool forceContainer);
-	void queueResendMany(
-		QVector<mtpMsgId> msgIds,
-		crl::time msCanWait,
-		bool forceContainer);
 
 	[[nodiscard]] bool connectionInited() const;
 	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
@@ -289,10 +268,17 @@ public:
 		const AuthKeyPtr &persistentKey);
 	void releaseKeyCreationOnFail();
 	void destroyTemporaryKey(uint64 keyId);
+	void resend(
+		mtpMsgId msgId,
+		crl::time msCanWait,
+		bool forceContainer);
+	void resendAll();
 
 	void detach();
 
 private:
+	void changeSessionIdLocked();
+
 	template <typename Callback>
 	void withSession(Callback &&callback);
 
@@ -300,6 +286,7 @@ private:
 	uint64 _sessionId = 0;
 	uint64 _salt = 0;
 	uint32 _messagesSent = 0;
+	bool _sessionMarkedAsStarted = false;
 
 	Session *_owner = nullptr;
 	mutable QMutex _ownerMutex;
@@ -355,6 +342,18 @@ public:
 	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
 	[[nodiscard]] AuthKeyPtr getTemporaryKey() const;
 	[[nodiscard]] bool connectionInited() const;
+	void resend(
+		mtpMsgId msgId,
+		crl::time msCanWait = 0,
+		bool forceContainer = false);
+	void resendAll();
+
+	// Thread-safe.
+	// Nulls msgId and seqNo in request, if newRequest = true.
+	void sendPrepared(
+		const SecureRequest &request,
+		crl::time msCanWait = 0,
+		bool newRequest = true);
 
 	// Connection thread.
 	[[nodiscard]] bool acquireKeyCreation();
@@ -374,23 +373,12 @@ public:
 
 	void sendDcKeyCheck(const AuthKeyPtr &key);
 
-	// Nulls msgId and seqNo in request, if newRequest = true.
-	void sendPrepared(
-		const SecureRequest &request,
-		crl::time msCanWait = 0,
-		bool newRequest = true);
-
 	void tryToReceive();
 	void needToResumeAndSend();
 	void connectionStateChange(int newState);
-	void resendAll(); // After connection restart.
 	void resetDone();
 	void sendAnything(crl::time msCanWait = 0);
 	void sendMsgsStateInfo(quint64 msgId, QByteArray data);
-	mtpRequestId resend(
-		mtpMsgId msgId,
-		crl::time msCanWait = 0,
-		bool forceContainer = false);
 
 signals:
 	void authKeyChanged();
