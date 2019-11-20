@@ -188,7 +188,7 @@ private:
 	void destroyTemporaryKey();
 	void clearUnboundKeyCreator();
 	void releaseKeyCreationOnFail();
-	void applyAuthKey(AuthKeyPtr &&temporaryKey);
+	void applyAuthKey(AuthKeyPtr &&encryptionKey);
 
 	void setCurrentKeyId(uint64 newKeyId);
 	void changeSessionId();
@@ -235,7 +235,7 @@ private:
 
 	std::shared_ptr<SessionData> _sessionData;
 	std::unique_ptr<ConnectionOptions> _connectionOptions;
-	AuthKeyPtr _temporaryKey;
+	AuthKeyPtr _encryptionKey;
 	uint64 _keyId = 0;
 	uint64 _sessionId = 0;
 	uint64 _sessionSalt = 0;

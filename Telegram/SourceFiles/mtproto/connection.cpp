@@ -608,7 +608,7 @@ void ConnectionPrivate::tryToSend() {
 		}
 		if (_keyCreator && _keyCreator->bindReadyToRequest()) {
 			bindDcKeyRequest = _keyCreator->prepareBindRequest(
-				_temporaryKey,
+				_encryptionKey,
 				_sessionId);
 
 			// This is a special request with msgId used inside the message
@@ -623,7 +623,7 @@ void ConnectionPrivate::tryToSend() {
 		//			_shiftedDcId,
 		//			keyForCheck);
 		//		bindDcKeyRequest = _keyChecker->prepareRequest(
-		//			_temporaryKey,
+		//			_encryptionKey,
 		//			_sessionId);
 
 		//		// This is a special request with msgId used inside the message
@@ -1201,7 +1201,7 @@ void ConnectionPrivate::requestCDNConfig() {
 }
 
 void ConnectionPrivate::handleReceived() {
-	Expects(_temporaryKey != nullptr);
+	Expects(_encryptionKey != nullptr);
 
 	onReceivedSome();
 
@@ -1235,9 +1235,9 @@ void ConnectionPrivate::handleReceived() {
 		auto msgKey = *(MTPint128*)(ints + 2);
 
 #ifdef TDESKTOP_MTPROTO_OLD
-		aesIgeDecrypt_oldmtp(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, _temporaryKey, msgKey);
+		aesIgeDecrypt_oldmtp(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, _encryptionKey, msgKey);
 #else // TDESKTOP_MTPROTO_OLD
-		aesIgeDecrypt(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, _temporaryKey, msgKey);
+		aesIgeDecrypt(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, _encryptionKey, msgKey);
 #endif // TDESKTOP_MTPROTO_OLD
 
 		auto decryptedInts = reinterpret_cast<const mtpPrime*>(decryptedBuffer.constData());
@@ -1284,7 +1284,7 @@ void ConnectionPrivate::handleReceived() {
 
 		SHA256_CTX msgKeyLargeContext;
 		SHA256_Init(&msgKeyLargeContext);
-		SHA256_Update(&msgKeyLargeContext, _temporaryKey->partForMsgKey(false), 32);
+		SHA256_Update(&msgKeyLargeContext, _encryptionKey->partForMsgKey(false), 32);
 		SHA256_Update(&msgKeyLargeContext, decryptedInts, encryptedBytesCount);
 		SHA256_Final(sha256Buffer.data(), &msgKeyLargeContext);
 
@@ -1350,7 +1350,7 @@ void ConnectionPrivate::handleReceived() {
 		auto from = decryptedInts + kEncryptedHeaderIntsCount;
 		auto end = from + (messageLength / kIntSize);
 		auto sfrom = decryptedInts + 4U; // msg_id + seq_no + length + message
-		MTP_LOG(_shiftedDcId, ("Recv: ") + details::DumpToText(sfrom, end) + QString(" (keyId:%1)").arg(_temporaryKey->keyId()));
+		MTP_LOG(_shiftedDcId, ("Recv: ") + details::DumpToText(sfrom, end) + QString(" (keyId:%1)").arg(_encryptionKey->keyId()));
 
 		if (_receivedMessageIds.registerMsgId(msgId, needAck)) {
 			res = handleOneReceived(from, end, msgId, serverTime, serverSalt, badTime);
@@ -1859,7 +1859,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 				response);
 			if (result == DcKeyBindState::Success) {
 				_sessionData->releaseKeyCreationOnDone(
-					_temporaryKey,
+					_encryptionKey,
 					base::take(_keyCreator)->bindPersistentKey());
 				_sessionData->queueNeedToResumeAndSend();
 				return HandleResult::Success;
@@ -2307,13 +2307,15 @@ void ConnectionPrivate::removeTestConnection(
 void ConnectionPrivate::checkAuthKey() {
 	if (_keyId) {
 		authKeyChecked();
+	} else if (_instance->isKeysDestroyer()) {
+		applyAuthKey(_sessionData->getPersistentKey());
 	} else {
 		applyAuthKey(_sessionData->getTemporaryKey());
 	}
 }
 
 void ConnectionPrivate::updateAuthKey() {
-	if (_keyCreator) {
+	if (_instance->isKeysDestroyer() || _keyCreator) {
 		return;
 	}
 
@@ -2331,9 +2333,9 @@ void ConnectionPrivate::setCurrentKeyId(uint64 newKeyId) {
 	changeSessionId();
 }
 
-void ConnectionPrivate::applyAuthKey(AuthKeyPtr &&temporaryKey) {
-	_temporaryKey = std::move(temporaryKey);
-	const auto newKeyId = _temporaryKey ? _temporaryKey->keyId() : 0;
+void ConnectionPrivate::applyAuthKey(AuthKeyPtr &&encryptionKey) {
+	_encryptionKey = std::move(encryptionKey);
+	const auto newKeyId = _encryptionKey ? _encryptionKey->keyId() : 0;
 	if (_keyId) {
 		if (_keyId == newKeyId) {
 			return;
@@ -2374,7 +2376,9 @@ void ConnectionPrivate::applyAuthKey(AuthKeyPtr &&temporaryKey) {
 }
 
 void ConnectionPrivate::tryAcquireKeyCreation() {
-	if (_keyCreator || !_sessionData->acquireKeyCreation()) {
+	if (_instance->isKeysDestroyer()
+		|| _keyCreator
+		|| !_sessionData->acquireKeyCreation()) {
 		return;
 	}
 
@@ -2479,25 +2483,26 @@ void ConnectionPrivate::handleError(int errorCode) {
 	_waitForConnectedTimer.cancel();
 
 	if (errorCode == -404) {
-		if (_instance->isKeysDestroyer()) {
-			LOG(("MTP Info: -404 error received in destroyer %1, assuming key was destroyed.").arg(_shiftedDcId));
-			_instance->checkIfKeyWasDestroyed(_shiftedDcId);
-			return;
-		} else if (_temporaryKey) {
-			LOG(("MTP Info: -404 error received in %1 with temporary key, assuming it was destroyed.").arg(_shiftedDcId));
-			destroyTemporaryKey();
-		}
+		destroyTemporaryKey();
+	} else {
+		MTP_LOG(_shiftedDcId, ("Restarting after error in connection, error code: %1...").arg(errorCode));
+		return restart();
 	}
-	MTP_LOG(_shiftedDcId, ("Restarting after error in connection, error code: %1...").arg(errorCode));
-	return restart();
 }
 
 void ConnectionPrivate::destroyTemporaryKey() {
+	if (_instance->isKeysDestroyer()) {
+		LOG(("MTP Info: -404 error received in destroyer %1, assuming key was destroyed.").arg(_shiftedDcId));
+		_instance->checkIfKeyWasDestroyed(_shiftedDcId);
+		return;
+	}
+	LOG(("MTP Info: -404 error received in %1 with temporary key, assuming it was destroyed.").arg(_shiftedDcId));
 	releaseKeyCreationOnFail();
-	if (_temporaryKey) {
-		_sessionData->destroyTemporaryKey(_temporaryKey->keyId());
+	if (_encryptionKey) {
+		_sessionData->destroyTemporaryKey(_encryptionKey->keyId());
 	}
 	applyAuthKey(nullptr);
+	restart();
 }
 
 bool ConnectionPrivate::sendSecureRequest(
@@ -2524,7 +2529,7 @@ bool ConnectionPrivate::sendSecureRequest(
 	memcpy(request->data() + 2, &_sessionId, 2 * sizeof(mtpPrime));
 
 	auto from = request->constData() + 4;
-	MTP_LOG(_shiftedDcId, ("Send: ") + details::DumpToText(from, from + messageSize) + QString(" (keyId:%1)").arg(_temporaryKey->keyId()));
+	MTP_LOG(_shiftedDcId, ("Send: ") + details::DumpToText(from, from + messageSize) + QString(" (keyId:%1)").arg(_encryptionKey->keyId()));
 
 #ifdef TDESKTOP_MTPROTO_OLD
 	uint32 padding = fullSize - 4 - messageSize;
@@ -2544,7 +2549,7 @@ bool ConnectionPrivate::sendSecureRequest(
 		request->constData(),
 		&packet[prefix],
 		fullSize * sizeof(mtpPrime),
-		_temporaryKey,
+		_encryptionKey,
 		msgKey);
 #else // TDESKTOP_MTPROTO_OLD
 	uchar encryptedSHA256[32];
@@ -2552,7 +2557,7 @@ bool ConnectionPrivate::sendSecureRequest(
 
 	SHA256_CTX msgKeyLargeContext;
 	SHA256_Init(&msgKeyLargeContext);
-	SHA256_Update(&msgKeyLargeContext, _temporaryKey->partForMsgKey(true), 32);
+	SHA256_Update(&msgKeyLargeContext, _encryptionKey->partForMsgKey(true), 32);
 	SHA256_Update(&msgKeyLargeContext, request->constData(), fullSize * sizeof(mtpPrime));
 	SHA256_Final(encryptedSHA256, &msgKeyLargeContext);
 
@@ -2564,7 +2569,7 @@ bool ConnectionPrivate::sendSecureRequest(
 		request->constData(),
 		&packet[prefix],
 		fullSize * sizeof(mtpPrime),
-		_temporaryKey,
+		_encryptionKey,
 		msgKey);
 #endif // TDESKTOP_MTPROTO_OLD
 
