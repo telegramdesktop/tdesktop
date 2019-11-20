@@ -16,8 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP {
 namespace details {
-class DcKeyCreator;
-class DcKeyBinder;
+class BoundKeyCreator;
 } // namespace details
 
 // How much time to wait for some more requests, when sending msg acks.
@@ -179,13 +178,13 @@ private:
 		crl::time msCanWait = 0,
 		bool forceContainer = false);
 
-	void createDcKey();
+	void tryAcquireKeyCreation();
 	void resetSession();
 	void checkAuthKey();
 	void authKeyChecked();
 	void destroyTemporaryKey();
-	void clearKeyCreatorOnFail();
-	void cancelKeyBinder();
+	void clearUnboundKeyCreator();
+	void releaseKeyCreationOnFail();
 	void applyAuthKey(AuthKeyPtr &&temporaryKey);
 
 	const not_null<Instance*> _instance;
@@ -232,8 +231,7 @@ private:
 	std::shared_ptr<SessionData> _sessionData;
 	std::unique_ptr<ConnectionOptions> _connectionOptions;
 
-	std::unique_ptr<details::DcKeyCreator> _keyCreator;
-	std::unique_ptr<details::DcKeyBinder> _keyBinder;
+	std::unique_ptr<details::BoundKeyCreator> _keyCreator;
 
 };
 

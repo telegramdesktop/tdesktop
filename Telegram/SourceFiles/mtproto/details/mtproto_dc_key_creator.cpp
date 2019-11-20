@@ -169,7 +169,7 @@ DcKeyCreator::DcKeyCreator(
 	not_null<AbstractConnection*> connection,
 	not_null<DcOptions*> dcOptions,
 	Delegate delegate,
-	Request request)
+	DcKeyRequest request)
 : _connection(connection)
 , _dcOptions(dcOptions)
 , _dcId(dcId)
@@ -313,7 +313,7 @@ void DcKeyCreator::pqAnswered(
 			_dcId,
 			data.vserver_public_key_fingerprints().v);
 		if (!rsaKey.valid()) {
-			return failed(Error::UnknownPublicKey);
+			return failed(DcKeyError::UnknownPublicKey);
 		}
 
 		attempt->data.server_nonce = data.vserver_nonce();
@@ -596,7 +596,7 @@ void DcKeyCreator::dhClientParamsAnswered(
 	});
 }
 
-void DcKeyCreator::failed(Error error) {
+void DcKeyCreator::failed(DcKeyError error) {
 	stopReceiving();
 	auto onstack = base::take(_delegate.done);
 	onstack(tl::unexpected(error));
@@ -610,7 +610,7 @@ void DcKeyCreator::done() {
 	Assert(_temporary.stage == Stage::Ready);
 	Assert(_persistent.stage == Stage::Ready || _persistent.stage == Stage::None);
 
-	auto result = Result();
+	auto result = DcKeyResult();
 	result.temporaryKey = std::make_shared<AuthKey>(
 		AuthKey::Type::Temporary,
 		_dcId,

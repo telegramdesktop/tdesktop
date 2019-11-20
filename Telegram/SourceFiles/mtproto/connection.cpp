@@ -7,8 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/connection.h"
 
-#include "mtproto/details/mtproto_dc_key_binder.h"
-#include "mtproto/details/mtproto_dc_key_creator.h"
+#include "mtproto/details/mtproto_bound_key_creator.h"
 #include "mtproto/details/mtproto_dump_to_text.h"
 #include "mtproto/session.h"
 #include "mtproto/mtproto_rsa_public_key.h"
@@ -202,7 +201,7 @@ int16 ConnectionPrivate::getProtocolDcId() const {
 }
 
 void ConnectionPrivate::destroyAllConnections() {
-	clearKeyCreatorOnFail();
+	clearUnboundKeyCreator();
 	_waitForBetterTimer.cancel();
 	_waitForReceivedTimer.cancel();
 	_waitForConnectedTimer.cancel();
@@ -244,8 +243,7 @@ ConnectionPrivate::ConnectionPrivate(
 }
 
 ConnectionPrivate::~ConnectionPrivate() {
-	clearKeyCreatorOnFail();
-	cancelKeyBinder();
+	releaseKeyCreationOnFail();
 
 	Expects(_finished);
 	Expects(!_connection);
@@ -445,7 +443,7 @@ void ConnectionPrivate::tryToSend() {
 	const auto needsLayer = !_sessionData->connectionInited();
 	const auto state = getState();
 	const auto sendOnlyFirstPing = (state != ConnectedState);
-	const auto sendAll = !sendOnlyFirstPing && !_keyBinder;
+	const auto sendAll = !sendOnlyFirstPing && !_keyCreator;
 	const auto isMainSession = (GetDcIdShift(_shiftedDcId) == 0);
 	if (sendOnlyFirstPing && !_pingIdToSend) {
 		DEBUG_LOG(("MTP Info: dc %1 not sending, waiting for Connected state, state: %2").arg(_shiftedDcId).arg(state));
@@ -459,10 +457,10 @@ void ConnectionPrivate::tryToSend() {
 	}
 	const auto forceNewMsgId = sendAll
 		&& _sessionData->markSessionAsStarted();
-
-	if (forceNewMsgId) {
-		int a = 0;
+	if (forceNewMsgId && _keyCreator) {
+		_keyCreator->restartBinder();
 	}
+
 	auto pingRequest = SecureRequest();
 	auto ackRequest = SecureRequest();
 	auto resendRequest = SecureRequest();
@@ -529,8 +527,8 @@ void ConnectionPrivate::tryToSend() {
 			httpWaitRequest = SecureRequest::Serialize(MTPHttpWait(
 				MTP_http_wait(MTP_int(100), MTP_int(30), MTP_int(25000))));
 		}
-		if (_keyBinder && !_keyBinder->requested()) {
-			bindDcKeyRequest = _keyBinder->prepareRequest(
+		if (_keyCreator && _keyCreator->bindReadyToRequest()) {
+			bindDcKeyRequest = _keyCreator->prepareBindRequest(
 				_temporaryKey,
 				_sessionData->getSessionId());
 
@@ -857,14 +855,13 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 	_connectionOptions = std::make_unique<ConnectionOptions>(
 		_sessionData->connectionOptions());
 
-	// #TODO race.
-	const auto hasKey = (_sessionData->getTemporaryKey() != nullptr);
+	tryAcquireKeyCreation();
 
 	const auto bareDc = BareDcId(_shiftedDcId);
 	_dcType = _instance->dcOptions()->dcType(_shiftedDcId);
 
 	// Use media_only addresses only if key for this dc is already created.
-	if (_dcType == DcType::MediaDownload && !hasKey) {
+	if (_dcType == DcType::MediaDownload && _keyCreator) {
 		_dcType = DcType::Regular;
 	} else if (_dcType == DcType::Cdn && !_instance->isKeysDestroyer()) {
 		if (!_instance->dcOptions()->hasCDNKeysForDc(bareDc)) {
@@ -1790,7 +1787,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			memcpy(response.data(), from, (end - from) * sizeof(mtpPrime));
 		}
 		if (typeId == mtpc_rpc_error) {
-			if (DcKeyBinder::IsDestroyedTemporaryKeyError(response)) {
+			if (IsDestroyedTemporaryKeyError(response)) {
 				return HandleResult::DestroyTemporaryKey;
 			}
 			// An error could be some RPC_CALL_FAIL or other error inside
@@ -1801,22 +1798,22 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 		}
 		requestsAcked(ids, true);
 
-		if (_keyBinder) {
-			const auto result = _keyBinder->handleResponse(
+		if (_keyCreator) {
+			const auto result = _keyCreator->handleBindResponse(
 				reqMsgId,
 				response);
 			if (result == DcKeyBindState::Success) {
 				_sessionData->releaseKeyCreationOnDone(
 					_temporaryKey,
-					base::take(_keyBinder)->persistentKey());
+					base::take(_keyCreator)->bindPersistentKey());
 				_sessionData->queueNeedToResumeAndSend();
 				return HandleResult::Success;
 			} else if (result == DcKeyBindState::Failed
 				|| result == DcKeyBindState::DefinitelyDestroyed) {
 				// #TODO maybe destroy persistent key
 				// crl::on_main(
-				//   _keyBinder->persistentKey()->setLastCheckTime(crl::now());
-				//   instance->keyDestroyedOnServer(BareDcId(shiftedDcId), base::take(_keyBinder)->persistentKey()->keyId());
+				//   _keyCreator->bindPersistentKey()->setLastCheckTime(crl::now());
+				//   instance->keyDestroyedOnServer(BareDcId(shiftedDcId), base::take(_keyCreator)->bindPersistentKey()->keyId());
 				// )
 				_sessionData->queueNeedToResumeAndSend();
 				return HandleResult::Success;
@@ -2251,9 +2248,6 @@ void ConnectionPrivate::removeTestConnection(
 }
 
 void ConnectionPrivate::checkAuthKey() {
-	Expects(_keyCreator == nullptr);
-	Expects(_keyBinder == nullptr || _keyId != 0);
-
 	if (_keyId) {
 		authKeyChecked();
 	} else {
@@ -2262,7 +2256,7 @@ void ConnectionPrivate::checkAuthKey() {
 }
 
 void ConnectionPrivate::updateAuthKey() {
-	if (_keyCreator || _keyBinder) {
+	if (_keyCreator) {
 		return;
 	}
 
@@ -2316,67 +2310,69 @@ void ConnectionPrivate::applyAuthKey(AuthKeyPtr &&temporaryKey) {
 		// We are here to destroy an old key, so we're done.
 		LOG(("MTP Error: No key %1 in updateAuthKey() for destroying.").arg(_shiftedDcId));
 		_instance->checkIfKeyWasDestroyed(_shiftedDcId);
-		return;
-	} else if (!_sessionData->acquireKeyCreation()) {
+	} else if (_keyCreator) {
+		DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), creating."));
+		_keyCreator->start(
+			BareDcId(_shiftedDcId),
+			getProtocolDcId(),
+			_connection.get(),
+			_instance->dcOptions());
+	} else {
 		DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), but someone is creating already."));
+	}
+}
+
+void ConnectionPrivate::tryAcquireKeyCreation() {
+	if (_keyCreator || !_sessionData->acquireKeyCreation()) {
 		return;
 	}
 
-	DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), creating."));
-	createDcKey();
-}
-
-void ConnectionPrivate::createDcKey() {
-	Expects(_keyCreator == nullptr);
-	Expects(_keyBinder == nullptr);
-
-	using Result = DcKeyCreator::Result;
-	using Error = DcKeyCreator::Error;
-	auto delegate = DcKeyCreator::Delegate();
-	delegate.done = [=](base::expected<Result, Error> result) {
-		if (result) {
-			DEBUG_LOG(("AuthKey Info: auth key gen succeed, "
-				"ids: (%1, %2) server salts: (%3, %4)"
-				).arg(result->temporaryKey
-					? result->temporaryKey->keyId()
-					: 0
-				).arg(result->persistentKey
-					? result->persistentKey->keyId()
-					: 0
-				).arg(result->temporaryServerSalt
-				).arg(result->persistentServerSalt));
-
-			_sessionData->setSalt(result->temporaryServerSalt);
-			if (result->persistentKey) {
-				_sessionData->clearForNewKey(_instance);
+	using Result = DcKeyResult;
+	using Error = DcKeyError;
+	auto delegate = BoundKeyCreator::Delegate();
+	delegate.unboundReady = [=](base::expected<Result, Error> result) {
+		if (!result) {
+			releaseKeyCreationOnFail();
+			if (result.error() == Error::UnknownPublicKey) {
+				if (_dcType == DcType::Cdn) {
+					LOG(("Warning: CDN public RSA key not found"));
+					requestCDNConfig();
+					return;
+				}
+				LOG(("AuthKey Error: could not choose public RSA key"));
 			}
-
-			auto key = result->persistentKey
-				? std::move(result->persistentKey)
-				: _sessionData->getPersistentKey();
-			if (!key) {
-				restart();
-			}
-			_keyCreator = nullptr;
-			_keyBinder = std::make_unique<DcKeyBinder>(std::move(key));
-			result->temporaryKey->setExpiresAt(base::unixtime::now()
-				+ kTemporaryExpiresIn
-				+ kBindKeyAdditionalExpiresTimeout);
-			applyAuthKey(std::move(result->temporaryKey));
+			restart();
 			return;
 		}
-		clearKeyCreatorOnFail();
-		if (result.error() == Error::UnknownPublicKey) {
-			if (_dcType == DcType::Cdn) {
-				LOG(("Warning: CDN public RSA key not found"));
-				requestCDNConfig();
-			} else {
-				LOG(("AuthKey Error: could not choose public RSA key"));
-				restart();
-			}
-		} else {
-			restart();
+		DEBUG_LOG(("AuthKey Info: unbound key creation succeed, "
+			"ids: (%1, %2) server salts: (%3, %4)"
+			).arg(result->temporaryKey
+				? result->temporaryKey->keyId()
+				: 0
+			).arg(result->persistentKey
+				? result->persistentKey->keyId()
+				: 0
+			).arg(result->temporaryServerSalt
+			).arg(result->persistentServerSalt));
+
+		_sessionData->setSalt(result->temporaryServerSalt);
+		if (result->persistentKey) {
+			_sessionData->clearForNewKey(_instance);
 		}
+
+		auto key = result->persistentKey
+			? std::move(result->persistentKey)
+			: _sessionData->getPersistentKey();
+		if (!key) {
+			releaseKeyCreationOnFail();
+			restart();
+			return;
+		}
+		result->temporaryKey->setExpiresAt(base::unixtime::now()
+			+ kTemporaryExpiresIn
+			+ kBindKeyAdditionalExpiresTimeout);
+		_keyCreator->bind(std::move(key));
+		applyAuthKey(std::move(result->temporaryKey));
 	};
 	delegate.sentSome = [=](uint64 size) {
 		onSentSome(size);
@@ -2384,17 +2380,14 @@ void ConnectionPrivate::createDcKey() {
 	delegate.receivedSome = [=] {
 		onReceivedSome();
 	};
-//	const auto check = (GetDcIdShift(_shiftedDcId) == kCheckKeyDcShift); // #TODO remove kCheckKeyDcShift
-	auto request = DcKeyCreator::Request();
+
+	//	const auto check = (GetDcIdShift(_shiftedDcId) == kCheckKeyDcShift); // #TODO remove kCheckKeyDcShift
+	auto request = DcKeyRequest();
 	request.persistentNeeded = !_sessionData->getPersistentKey();
 	request.temporaryExpiresIn = kTemporaryExpiresIn;
-	_keyCreator = std::make_unique<DcKeyCreator>(
-		BareDcId(_shiftedDcId),
-		getProtocolDcId(),
-		_connection.get(),
-		_instance->dcOptions(),
-		std::move(delegate),
-		request);
+	_keyCreator = std::make_unique<BoundKeyCreator>(
+		request,
+		std::move(delegate));
 }
 
 void ConnectionPrivate::authKeyChecked() {
@@ -2449,7 +2442,7 @@ void ConnectionPrivate::handleError(int errorCode) {
 }
 
 void ConnectionPrivate::destroyTemporaryKey() {
-	cancelKeyBinder();
+	releaseKeyCreationOnFail();
 	if (_temporaryKey) {
 		_sessionData->destroyTemporaryKey(_temporaryKey->keyId());
 	}
@@ -2566,19 +2559,17 @@ mtpRequestId ConnectionPrivate::wasSent(mtpMsgId msgId) const {
 	return 0;
 }
 
-void ConnectionPrivate::clearKeyCreatorOnFail() {
+void ConnectionPrivate::clearUnboundKeyCreator() {
+	if (_keyCreator) {
+		_keyCreator->stop();
+	}
+}
+
+void ConnectionPrivate::releaseKeyCreationOnFail() {
 	if (!_keyCreator) {
 		return;
 	}
 	_keyCreator = nullptr;
-	_sessionData->releaseKeyCreationOnFail();
-}
-
-void ConnectionPrivate::cancelKeyBinder() {
-	if (!_keyBinder) {
-		return;
-	}
-	_keyBinder = nullptr;
 	_sessionData->releaseKeyCreationOnFail();
 }
 

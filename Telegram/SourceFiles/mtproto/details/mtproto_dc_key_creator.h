@@ -21,24 +21,27 @@ namespace MTP::details {
 
 using namespace ::MTP::internal;
 
+struct DcKeyRequest {
+	TimeId temporaryExpiresIn = 0;
+	bool persistentNeeded = false;
+};
+
+enum class DcKeyError {
+	UnknownPublicKey,
+	Other,
+};
+
+struct DcKeyResult {
+	AuthKeyPtr persistentKey;
+	AuthKeyPtr temporaryKey;
+	uint64 temporaryServerSalt = 0;
+	uint64 persistentServerSalt = 0;
+};
+
 class DcKeyCreator final {
 public:
-	struct Request {
-		TimeId temporaryExpiresIn = 0;
-		bool persistentNeeded = false;
-	};
-	enum class Error {
-		UnknownPublicKey,
-		Other,
-	};
-	struct Result {
-		AuthKeyPtr persistentKey;
-		AuthKeyPtr temporaryKey;
-		uint64 temporaryServerSalt = 0;
-		uint64 persistentServerSalt = 0;
-	};
 	struct Delegate {
-		FnMut<void(base::expected<Result, Error>)> done;
+		Fn<void(base::expected<DcKeyResult, DcKeyError>)> done;
 		Fn<void(uint64)> sentSome;
 		Fn<void()> receivedSome;
 	};
@@ -49,7 +52,7 @@ public:
 		not_null<AbstractConnection*> connection,
 		not_null<DcOptions*> dcOptions,
 		Delegate delegate,
-		Request request);
+		DcKeyRequest request);
 	~DcKeyCreator();
 
 private:
@@ -120,20 +123,18 @@ private:
 		const MTPset_client_DH_params_answer &data);
 
 	void stopReceiving();
-	void failed(Error error = Error::Other);
+	void failed(DcKeyError error = DcKeyError::Other);
 	void done();
 
 	const not_null<AbstractConnection*> _connection;
 	const not_null<DcOptions*> _dcOptions;
 	const DcId _dcId = 0;
 	const int16 _protocolDcId = 0;
-	const Request _request;
+	const DcKeyRequest _request;
 	Delegate _delegate;
 
 	Attempt _temporary;
 	Attempt _persistent;
-
-	FnMut<void(base::expected<Result, Error>)> _done;
 
 };
 

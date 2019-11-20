@@ -25,7 +25,7 @@ enum class DcKeyBindState {
 
 class DcKeyBinder final {
 public:
-	DcKeyBinder(AuthKeyPtr &&persistentKey);
+	explicit DcKeyBinder(AuthKeyPtr &&persistentKey);
 
 	[[nodiscard]] bool requested() const;
 	[[nodiscard]] SecureRequest prepareRequest(
@@ -35,9 +35,6 @@ public:
 		MTPlong requestMsgId,
 		const mtpBuffer &response);
 	[[nodiscard]] AuthKeyPtr persistentKey() const;
-
-	[[nodiscard]] static bool IsDestroyedTemporaryKeyError(
-		const mtpBuffer &buffer);
 
 private:
 	AuthKeyPtr _persistentKey;

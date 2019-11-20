@@ -140,18 +140,4 @@ AuthKeyPtr DcKeyBinder::persistentKey() const {
 	return _persistentKey;
 }
 
-bool DcKeyBinder::IsDestroyedTemporaryKeyError(
-		const mtpBuffer &buffer) {
-	auto from = buffer.data();
-	const auto end = from + buffer.size();
-	auto error = MTPRpcError();
-	if (!error.read(from, from + buffer.size())) {
-		return false;
-	}
-	return error.match([&](const MTPDrpc_error &data) {
-		return (data.verror_code().v == 401)
-			&& (data.verror_message().v == "AUTH_KEY_PERM_EMPTY");
-	});
-}
-
 } // namespace MTP::details
