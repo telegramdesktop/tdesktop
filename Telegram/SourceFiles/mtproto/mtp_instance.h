@@ -85,7 +85,7 @@ public:
 	void killSession(ShiftedDcId shiftedDcId);
 	void stopSession(ShiftedDcId shiftedDcId);
 	void reInitConnection(DcId dcId);
-	void logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
+	void logout(Fn<void()> done);
 
 	void unpaused();
 
@@ -110,12 +110,12 @@ public:
 	// return true if need to clean request data
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
 
+	// Thread-safe.
 	bool isKeysDestroyer() const;
-	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
-	void checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId);
+	void keyWasPossiblyDestroyed(ShiftedDcId shiftedDcId);
 
 	// Main thread.
-	void keyDestroyedOnServer(DcId dcId, uint64 keyId);
+	void keyDestroyedOnServer(ShiftedDcId shiftedDcId, uint64 keyId);
 
 	void requestConfig();
 	void requestConfigIfOld();
@@ -128,7 +128,6 @@ public:
 	void connectionFinished(not_null<internal::Connection*> connection);
 
 	void sendAnything(ShiftedDcId shiftedDcId = 0, crl::time msCanWait = 0);
-	void sendDcKeyCheck(ShiftedDcId shiftedDcId, const AuthKeyPtr &key);
 
 	template <typename Request>
 	mtpRequestId send(

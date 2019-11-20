@@ -93,11 +93,6 @@ public:
 		return _options;
 	}
 
-	[[nodiscard]] const AuthKeyPtr &getKeyForCheck() const {
-		return _dcKeyForCheck;
-	}
-	void setKeyForCheck(const AuthKeyPtr &key);
-
 	not_null<QReadWriteLock*> toSendMutex() const {
 		return &_toSendLock;
 	}
@@ -190,7 +185,6 @@ private:
 	Session *_owner = nullptr;
 	mutable QMutex _ownerMutex;
 
-	AuthKeyPtr _dcKeyForCheck;
 	ConnectionOptions _options;
 
 	PreRequestMap _toSend; // map of request_id -> request, that is waiting to be sent
@@ -219,7 +213,7 @@ public:
 	Session(
 		not_null<Instance*> instance,
 		ShiftedDcId shiftedDcId,
-		Dcenter *dc);
+		not_null<Dcenter*> dc);
 	~Session();
 
 	void start();
@@ -266,8 +260,6 @@ public:
 	int32 getState() const;
 	QString transport() const;
 
-	void sendDcKeyCheck(const AuthKeyPtr &key);
-
 	void tryToReceive();
 	void needToResumeAndSend();
 	void connectionStateChange(int newState);
@@ -282,14 +274,12 @@ signals:
 	void needToRestart();
 
 private:
-	[[nodiscard]] bool sharedDc() const;
 	void watchDcKeyChanges();
 
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
 
 	const not_null<Instance*> _instance;
 	const ShiftedDcId _shiftedDcId = 0;
-	const std::unique_ptr<Dcenter> _ownedDc;
 	const not_null<Dcenter*> _dc;
 	const std::shared_ptr<SessionData> _data;
 

@@ -40,6 +40,7 @@ constexpr auto kTemporaryExpiresIn = TimeId(10);
 constexpr auto kBindKeyAdditionalExpiresTimeout = TimeId(30);
 constexpr auto kTestModeDcIdShift = 10000;
 constexpr auto kCheckSentRequestsEach = 1 * crl::time(1000);
+constexpr auto kKeyOldEnoughForDestroy = 60 * crl::time(1000);
 
 // If we can't connect for this time we will ask _instance to update config.
 constexpr auto kRequestConfigTimeout = 8 * crl::time(1000);
@@ -997,7 +998,7 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 	if (_testConnections.empty()) {
 		if (_instance->isKeysDestroyer()) {
 			LOG(("MTP Error: DC %1 options for not found for auth key destruction!").arg(_shiftedDcId));
-			_instance->checkIfKeyWasDestroyed(_shiftedDcId);
+			_instance->keyWasPossiblyDestroyed(_shiftedDcId);
 			return;
 		} else if (afterConfig) {
 			LOG(("MTP Error: DC %1 options for not found right after config load!").arg(_shiftedDcId));
@@ -1857,19 +1858,19 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			const auto result = _keyCreator->handleBindResponse(
 				reqMsgId,
 				response);
-			if (result == DcKeyBindState::Success) {
+			switch (result) {
+			case DcKeyBindState::Success:
 				_sessionData->releaseKeyCreationOnDone(
 					_encryptionKey,
 					base::take(_keyCreator)->bindPersistentKey());
 				_sessionData->queueNeedToResumeAndSend();
 				return HandleResult::Success;
-			} else if (result == DcKeyBindState::Failed
-				|| result == DcKeyBindState::DefinitelyDestroyed) {
-				// #TODO maybe destroy persistent key
-				// crl::on_main(
-				//   _keyCreator->bindPersistentKey()->setLastCheckTime(crl::now());
-				//   instance->keyDestroyedOnServer(BareDcId(shiftedDcId), base::take(_keyCreator)->bindPersistentKey()->keyId());
-				// )
+			case DcKeyBindState::DefinitelyDestroyed:
+				if (destroyOldEnoughPersistentKey()) {
+					return HandleResult::DestroyTemporaryKey;
+				}
+				[[fallthrough]];
+			case DcKeyBindState::Failed:
 				_sessionData->queueNeedToResumeAndSend();
 				return HandleResult::Success;
 			}
@@ -2362,7 +2363,7 @@ void ConnectionPrivate::applyAuthKey(AuthKeyPtr &&encryptionKey) {
 	if (_instance->isKeysDestroyer()) {
 		// We are here to destroy an old key, so we're done.
 		LOG(("MTP Error: No key %1 in updateAuthKey() for destroying.").arg(_shiftedDcId));
-		_instance->checkIfKeyWasDestroyed(_shiftedDcId);
+		_instance->keyWasPossiblyDestroyed(_shiftedDcId);
 	} else if (_keyCreator) {
 		DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), creating."));
 		_keyCreator->start(
@@ -2373,6 +2374,25 @@ void ConnectionPrivate::applyAuthKey(AuthKeyPtr &&encryptionKey) {
 	} else {
 		DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), but someone is creating already."));
 	}
+}
+
+bool ConnectionPrivate::destroyOldEnoughPersistentKey() {
+	Expects(_keyCreator != nullptr);
+
+	const auto key = _keyCreator->bindPersistentKey();
+	Assert(key != nullptr);
+
+	const auto created = key->creationTime();
+	if (created > 0 && crl::now() - created < kKeyOldEnoughForDestroy) {
+		return false;
+	}
+	const auto instance = _instance;
+	const auto shiftedDcId = _shiftedDcId;
+	const auto keyId = key->keyId();
+	InvokeQueued(instance, [=] {
+		instance->keyDestroyedOnServer(shiftedDcId, keyId);
+	});
+	return true;
 }
 
 void ConnectionPrivate::tryAcquireKeyCreation() {
@@ -2436,7 +2456,6 @@ void ConnectionPrivate::tryAcquireKeyCreation() {
 		onReceivedSome();
 	};
 
-	//	const auto check = (GetDcIdShift(_shiftedDcId) == kCheckKeyDcShift); // #TODO remove kCheckKeyDcShift
 	auto request = DcKeyRequest();
 	request.persistentNeeded = !_sessionData->getPersistentKey();
 	request.temporaryExpiresIn = kTemporaryExpiresIn;
@@ -2493,7 +2512,7 @@ void ConnectionPrivate::handleError(int errorCode) {
 void ConnectionPrivate::destroyTemporaryKey() {
 	if (_instance->isKeysDestroyer()) {
 		LOG(("MTP Info: -404 error received in destroyer %1, assuming key was destroyed.").arg(_shiftedDcId));
-		_instance->checkIfKeyWasDestroyed(_shiftedDcId);
+		_instance->keyWasPossiblyDestroyed(_shiftedDcId);
 		return;
 	}
 	LOG(("MTP Info: -404 error received in %1 with temporary key, assuming it was destroyed.").arg(_shiftedDcId));

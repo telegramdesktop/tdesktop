@@ -95,7 +95,7 @@ public:
 	void killSession(ShiftedDcId shiftedDcId);
 	void stopSession(ShiftedDcId shiftedDcId);
 	void reInitConnection(DcId dcId);
-	void logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
+	void logout(Fn<void()> done);
 
 	not_null<Dcenter*> getDcById(ShiftedDcId shiftedDcId);
 	Dcenter *findDc(ShiftedDcId shiftedDcId);
@@ -154,11 +154,10 @@ public:
 	}
 
 	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
-	void checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId);
+	void keyWasPossiblyDestroyed(ShiftedDcId shiftedDcId);
 	void performKeyDestroy(ShiftedDcId shiftedDcId);
 	void completedKeyDestroy(ShiftedDcId shiftedDcId);
-	void checkMainDcKey();
-	void keyDestroyedOnServer(DcId dcId, uint64 keyId);
+	void keyDestroyedOnServer(ShiftedDcId shiftedDcId, uint64 keyId);
 
 	void prepareToDestroy();
 
@@ -609,10 +608,13 @@ void Instance::Private::reInitConnection(DcId dcId) {
 	}
 }
 
-void Instance::Private::logout(
-		RPCDoneHandlerPtr onDone,
-		RPCFailHandlerPtr onFail) {
-	_instance->send(MTPauth_LogOut(), std::move(onDone), std::move(onFail));
+void Instance::Private::logout(Fn<void()> done) {
+	_instance->send(MTPauth_LogOut(), rpcDone([=] {
+		done();
+	}), rpcFail([=] {
+		done();
+		return true;
+	}));
 	logoutGuestDcs();
 }
 
@@ -1502,14 +1504,16 @@ Session *Instance::Private::findSession(ShiftedDcId shiftedDcId) {
 not_null<Session*> Instance::Private::startSession(ShiftedDcId shiftedDcId) {
 	Expects(BareDcId(shiftedDcId) != 0);
 
-	const auto dc = (GetDcIdShift(shiftedDcId) != kCheckKeyDcShift)
-		? getDcById(shiftedDcId).get()
-		: nullptr;
+	const auto dc = getDcById(shiftedDcId);
 	const auto result = _sessions.emplace(
 		shiftedDcId,
 		std::make_unique<Session>(_instance, shiftedDcId, dc)
 	).first->second.get();
 	result->start();
+	if (isKeysDestroyer()) {
+		scheduleKeyDestroy(shiftedDcId);
+	}
+
 	return result;
 }
 
@@ -1542,24 +1546,20 @@ void Instance::Private::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
 	}
 }
 
-void Instance::Private::checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId) {
+void Instance::Private::keyWasPossiblyDestroyed(ShiftedDcId shiftedDcId) {
+	Expects(isKeysDestroyer());
+
 	InvokeQueued(_instance, [=] {
-		if (isKeysDestroyer()) {
-			LOG(("MTP Info: checkIfKeyWasDestroyed on destroying key %1, "
-				"assuming it is destroyed.").arg(shiftedDcId));
-			completedKeyDestroy(shiftedDcId);
-		} else if (BareDcId(shiftedDcId) == mainDcId()) {
-			LOG(("MTP Info: checkIfKeyWasDestroyed for main dc %1, "
-				"checking.").arg(shiftedDcId));
-			checkMainDcKey();
-		}
+		LOG(("MTP Info: checkIfKeyWasDestroyed on destroying key %1, "
+			"assuming it is destroyed.").arg(shiftedDcId));
+		completedKeyDestroy(shiftedDcId);
 	});
 }
 
 void Instance::Private::performKeyDestroy(ShiftedDcId shiftedDcId) {
 	Expects(isKeysDestroyer());
 
-	_instance->send(MTPDestroy_auth_key(), rpcDone([this, shiftedDcId](const MTPDestroyAuthKeyRes &result) {
+	_instance->send(MTPDestroy_auth_key(), rpcDone([=](const MTPDestroyAuthKeyRes &result) {
 		switch (result.type()) {
 		case mtpc_destroy_auth_key_ok: LOG(("MTP Info: key %1 destroyed.").arg(shiftedDcId)); break;
 		case mtpc_destroy_auth_key_fail: {
@@ -1568,10 +1568,10 @@ void Instance::Private::performKeyDestroy(ShiftedDcId shiftedDcId) {
 		} break;
 		case mtpc_destroy_auth_key_none: LOG(("MTP Info: key %1 already destroyed.").arg(shiftedDcId)); break;
 		}
-		_instance->checkIfKeyWasDestroyed(shiftedDcId);
-	}), rpcFail([this, shiftedDcId](const RPCError &error) {
+		_instance->keyWasPossiblyDestroyed(shiftedDcId);
+	}), rpcFail([=](const RPCError &error) {
 		LOG(("MTP Error: key %1 destruction resulted in error: %2").arg(shiftedDcId).arg(error.type()));
-		_instance->checkIfKeyWasDestroyed(shiftedDcId);
+		_instance->keyWasPossiblyDestroyed(shiftedDcId);
 		return true;
 	}), shiftedDcId);
 }
@@ -1587,34 +1587,19 @@ void Instance::Private::completedKeyDestroy(ShiftedDcId shiftedDcId) {
 	}
 }
 
-void Instance::Private::checkMainDcKey() {
-	const auto id = mainDcId();
-	const auto shiftedDcId = ShiftDcId(id, kCheckKeyDcShift);
-	if (findSession(shiftedDcId)) {
-		return;
-	}
-	const auto i = _keysForWrite.find(id);
-	if (i == end(_keysForWrite)) {
-		return;
-	}
-	const auto lastCheckTime = i->second->lastCheckTime();
-	if (lastCheckTime > 0 && lastCheckTime + kCheckKeyEach >= crl::now()) {
-		return;
-	}
-	_instance->sendDcKeyCheck(shiftedDcId, i->second);
-}
-
-void Instance::Private::keyDestroyedOnServer(DcId dcId, uint64 keyId) {
-	LOG(("Destroying key for dc: %1").arg(dcId));
-	if (const auto dc = findDc(dcId)) {
+void Instance::Private::keyDestroyedOnServer(
+		ShiftedDcId shiftedDcId,
+		uint64 keyId) {
+	LOG(("Destroying key for dc: %1").arg(shiftedDcId));
+	if (const auto dc = findDc(BareDcId(shiftedDcId))) {
 		if (dc->destroyConfirmedForgottenKey(keyId)) {
 			LOG(("Key destroyed!"));
-			dcPersistentKeyChanged(dcId, nullptr);
+			dcPersistentKeyChanged(BareDcId(shiftedDcId), nullptr);
 		} else {
 			LOG(("Key already is different."));
 		}
 	}
-	restart(dcId);
+	restart(shiftedDcId);
 }
 
 void Instance::Private::setUpdatesHandler(RPCDoneHandlerPtr onDone) {
@@ -1758,8 +1743,8 @@ void Instance::reInitConnection(DcId dcId) {
 	_private->reInitConnection(dcId);
 }
 
-void Instance::logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail) {
-	_private->logout(onDone, onFail);
+void Instance::logout(Fn<void()> done) {
+	_private->logout(std::move(done));
 }
 
 void Instance::dcPersistentKeyChanged(
@@ -1857,16 +1842,12 @@ bool Instance::isKeysDestroyer() const {
 	return _private->isKeysDestroyer();
 }
 
-void Instance::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
-	_private->scheduleKeyDestroy(shiftedDcId);
+void Instance::keyWasPossiblyDestroyed(ShiftedDcId shiftedDcId) {
+	_private->keyWasPossiblyDestroyed(shiftedDcId);
 }
 
-void Instance::checkIfKeyWasDestroyed(ShiftedDcId shiftedDcId) {
-	_private->checkIfKeyWasDestroyed(shiftedDcId);
-}
-
-void Instance::keyDestroyedOnServer(DcId dcId, uint64 keyId) {
-	_private->keyDestroyedOnServer(dcId, keyId);
+void Instance::keyDestroyedOnServer(ShiftedDcId shiftedDcId, uint64 keyId) {
+	_private->keyDestroyedOnServer(shiftedDcId, keyId);
 }
 
 void Instance::sendRequest(
@@ -1889,10 +1870,6 @@ void Instance::sendRequest(
 
 void Instance::sendAnything(ShiftedDcId shiftedDcId, crl::time msCanWait) {
 	_private->getSession(shiftedDcId)->sendAnything(msCanWait);
-}
-
-void Instance::sendDcKeyCheck(ShiftedDcId shiftedDcId, const AuthKeyPtr &key) {
-	_private->getSession(shiftedDcId)->sendDcKeyCheck(key);
 }
 
 Instance::~Instance() {

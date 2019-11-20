@@ -97,6 +97,7 @@ private:
 	std::unique_ptr<Settings> _storedSettings;
 	MTP::Instance::Config _mtpConfig;
 	MTP::AuthKeysList _mtpKeysToDestroy;
+	bool _loggingOut = false;
 
 	rpl::lifetime _lifetime;
 

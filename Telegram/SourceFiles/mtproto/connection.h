@@ -189,6 +189,7 @@ private:
 	void clearUnboundKeyCreator();
 	void releaseKeyCreationOnFail();
 	void applyAuthKey(AuthKeyPtr &&encryptionKey);
+	bool destroyOldEnoughPersistentKey();
 
 	void setCurrentKeyId(uint64 newKeyId);
 	void changeSessionId();

@@ -19,7 +19,7 @@ AuthKey::AuthKey(Type type, DcId dcId, const Data &data)
 , _key(data) {
 	countKeyId();
 	if (type == Type::Generated || type == Type::Temporary) {
-		_lastCheckTime = crl::now();
+		_creationTime = crl::now();
 	}
 }
 
@@ -115,12 +115,8 @@ bool AuthKey::equals(const std::shared_ptr<AuthKey> &other) const {
 	return other ? (_key == other->_key) : false;
 }
 
-crl::time AuthKey::lastCheckTime() const {
-	return _lastCheckTime;
-}
-
-void AuthKey::setLastCheckTime(crl::time time) {
-	_lastCheckTime = time;
+crl::time AuthKey::creationTime() const {
+	return _creationTime;
 }
 
 TimeId AuthKey::expiresAt() const {

@@ -378,13 +378,12 @@ void Account::startMtp() {
 
 
 void Account::logOut() {
+	if (_loggingOut) {
+		return;
+	}
+	_loggingOut = true;
 	if (_mtp) {
-		_mtp->logout(::rpcDone([=] {
-			loggedOut();
-		}), ::rpcFail([=] {
-			loggedOut();
-			return true;
-		}));
+		_mtp->logout([=] { loggedOut(); });
 	} else {
 		// We log out because we've forgotten passcode.
 		loggedOut();
@@ -399,6 +398,7 @@ void Account::forcedLogOut() {
 }
 
 void Account::loggedOut() {
+	_loggingOut = false;
 	if (Global::LocalPasscode()) {
 		Global::SetLocalPasscode(false);
 		Global::RefLocalPasscodeChanged().notify();

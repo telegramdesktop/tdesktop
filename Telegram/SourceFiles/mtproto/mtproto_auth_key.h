@@ -44,8 +44,7 @@ public:
 	[[nodiscard]] bytes::const_span data() const;
 	[[nodiscard]] bool equals(const std::shared_ptr<AuthKey> &other) const;
 
-	[[nodiscard]] crl::time lastCheckTime() const;
-	void setLastCheckTime(crl::time time);
+	[[nodiscard]] crl::time creationTime() const; // > 0 if known.
 	[[nodiscard]] TimeId expiresAt() const;
 	void setExpiresAt(TimeId expiresAt);
 
@@ -58,7 +57,7 @@ private:
 	DcId _dcId = 0;
 	Data _key = { { gsl::byte{} } };
 	KeyId _keyId = 0;
-	crl::time _lastCheckTime = 0;
+	crl::time _creationTime = 0;
 	TimeId _expiresAt = 0;
 
 };

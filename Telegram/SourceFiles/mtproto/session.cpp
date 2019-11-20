@@ -50,10 +50,6 @@ void SessionData::withSession(Callback &&callback) {
 	}
 }
 
-void SessionData::setKeyForCheck(const AuthKeyPtr &key) {
-	_dcKeyForCheck = key;
-}
-
 void SessionData::notifyConnectionInited(const ConnectionOptions &options) {
 	// #TODO race
 	const auto current = connectionOptions();
@@ -61,7 +57,10 @@ void SessionData::notifyConnectionInited(const ConnectionOptions &options) {
 		&& current.systemLangCode == _options.systemLangCode
 		&& current.langPackName == _options.langPackName
 		&& current.proxy == _options.proxy) {
-		owner()->notifyDcConnectionInited();
+		QMutexLocker lock(&_ownerMutex);
+		if (_owner) {
+			_owner->notifyDcConnectionInited();
+		}
 	}
 }
 
@@ -211,19 +210,16 @@ void SessionData::detach() {
 Session::Session(
 	not_null<Instance*> instance,
 	ShiftedDcId shiftedDcId,
-	Dcenter *dc)
+	not_null<Dcenter*> dc)
 : QObject()
 , _instance(instance)
 , _shiftedDcId(shiftedDcId)
-, _ownedDc(dc ? nullptr : std::make_unique<Dcenter>(shiftedDcId, nullptr))
-, _dc(dc ? dc : _ownedDc.get())
+, _dc(dc)
 , _data(std::make_shared<SessionData>(this))
 , _sender([=] { needToResumeAndSend(); }) {
 	_timeouter.callEach(1000);
 	refreshOptions();
-	if (sharedDc()) {
-		watchDcKeyChanges();
-	}
+	watchDcKeyChanges();
 }
 
 void Session::watchDcKeyChanges() {
@@ -240,9 +236,6 @@ void Session::watchDcKeyChanges() {
 void Session::start() {
 	_connection = std::make_unique<Connection>(_instance);
 	_connection->start(_data, _shiftedDcId);
-	if (_instance->isKeysDestroyer()) {
-		_instance->scheduleKeyDestroy(_shiftedDcId);
-	}
 }
 
 bool Session::rpcErrorOccured(
@@ -317,11 +310,6 @@ void Session::unpaused() {
 	}
 }
 
-void Session::sendDcKeyCheck(const AuthKeyPtr &key) {
-	_data->setKeyForCheck(key);
-	needToResumeAndSend();
-}
-
 void Session::sendAnything(crl::time msCanWait) {
 	if (_killed) {
 		DEBUG_LOG(("Session Error: can't send anything in a killed session"));
@@ -379,10 +367,6 @@ void Session::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
 		_shiftedDcId,
 		MTPMsgsStateInfo(
 			MTP_msgs_state_info(MTP_long(msgId), MTP_bytes(data))));
-}
-
-bool Session::sharedDc() const {
-	return (_ownedDc == nullptr);
 }
 
 void Session::connectionStateChange(int newState) {
@@ -565,17 +549,15 @@ void Session::releaseKeyCreationOnDone(
 	_dc->releaseKeyCreationOnDone(temporaryKey, persistentKey);
 	_myKeyCreation = false;
 
-	if (sharedDc()) {
-		const auto dcId = _dc->id();
-		const auto instance = _instance;
-		InvokeQueued(instance, [=] {
-			if (persistentKey) {
-				instance->dcPersistentKeyChanged(dcId, persistentKey);
-			} else {
-				instance->dcTemporaryKeyChanged(dcId);
-			}
-		});
-	}
+	const auto dcId = _dc->id();
+	const auto instance = _instance;
+	InvokeQueued(instance, [=] {
+		if (persistentKey) {
+			instance->dcPersistentKeyChanged(dcId, persistentKey);
+		} else {
+			instance->dcTemporaryKeyChanged(dcId);
+		}
+	});
 }
 
 void Session::releaseKeyCreationOnFail() {
@@ -594,13 +576,11 @@ void Session::destroyTemporaryKey(uint64 keyId) {
 	if (!_dc->destroyTemporaryKey(keyId)) {
 		return;
 	}
-	if (sharedDc()) {
-		const auto dcId = _dc->id();
-		const auto instance = _instance;
-		InvokeQueued(instance, [=] {
-			instance->dcTemporaryKeyChanged(dcId);
-		});
-	}
+	const auto dcId = _dc->id();
+	const auto instance = _instance;
+	InvokeQueued(instance, [=] {
+		instance->dcTemporaryKeyChanged(dcId);
+	});
 }
 
 int32 Session::getDcWithShift() const {
