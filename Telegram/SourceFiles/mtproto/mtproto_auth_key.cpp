@@ -18,7 +18,7 @@ AuthKey::AuthKey(Type type, DcId dcId, const Data &data)
 , _dcId(dcId)
 , _key(data) {
 	countKeyId();
-	if (type == Type::Generated) {
+	if (type == Type::Generated || type == Type::Temporary) {
 		_lastCheckTime = crl::now();
 	}
 }

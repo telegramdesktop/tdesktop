@@ -37,12 +37,12 @@ constexpr auto kMarkConnectionOldTimeout = crl::time(192000);
 constexpr auto kPingDelayDisconnect = 60;
 constexpr auto kPingSendAfter = 30 * crl::time(1000);
 constexpr auto kPingSendAfterForce = 45 * crl::time(1000);
-constexpr auto kCheckKeyExpiresIn = TimeId(3600);
 constexpr auto kTemporaryExpiresIn = TimeId(10);
+constexpr auto kBindKeyAdditionalExpiresTimeout = TimeId(30);
 constexpr auto kTestModeDcIdShift = 10000;
 
 // If we can't connect for this time we will ask _instance to update config.
-constexpr auto kRequestConfigTimeout = crl::time(8000);
+constexpr auto kRequestConfigTimeout = 8 * crl::time(1000);
 
 // Don't try to handle messages larger than this size.
 constexpr auto kMaxMessageLength = 16 * 1024 * 1024;
@@ -1278,7 +1278,7 @@ void ConnectionPrivate::handleReceived() {
 		auto from = decryptedInts + kEncryptedHeaderIntsCount;
 		auto end = from + (messageLength / kIntSize);
 		auto sfrom = decryptedInts + 4U; // msg_id + seq_no + length + message
-		MTP_LOG(_shiftedDcId, ("Recv: ") + details::DumpToText(sfrom, end));
+		MTP_LOG(_shiftedDcId, ("Recv: ") + details::DumpToText(sfrom, end) + QString(" (keyId:%1)").arg(_temporaryKey->keyId()));
 
 		bool needToHandle = false;
 		{
@@ -2359,8 +2359,9 @@ void ConnectionPrivate::createDcKey() {
 			}
 			_keyCreator = nullptr;
 			_keyBinder = std::make_unique<DcKeyBinder>(std::move(key));
-			result->temporaryKey->setExpiresAt(
-				base::unixtime::now() + kTemporaryExpiresIn);
+			result->temporaryKey->setExpiresAt(base::unixtime::now()
+				+ kTemporaryExpiresIn
+				+ kBindKeyAdditionalExpiresTimeout);
 			applyAuthKey(std::move(result->temporaryKey));
 			return;
 		}
@@ -2482,7 +2483,7 @@ bool ConnectionPrivate::sendSecureRequest(
 	memcpy(request->data() + 2, &session, 2 * sizeof(mtpPrime));
 
 	auto from = request->constData() + 4;
-	MTP_LOG(_shiftedDcId, ("Send: ") + details::DumpToText(from, from + messageSize));
+	MTP_LOG(_shiftedDcId, ("Send: ") + details::DumpToText(from, from + messageSize) + QString(" (keyId:%1)").arg(_temporaryKey->keyId()));
 
 #ifdef TDESKTOP_MTPROTO_OLD
 	uint32 padding = fullSize - 4 - messageSize;
