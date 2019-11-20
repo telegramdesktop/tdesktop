@@ -17,28 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP {
 namespace internal {
-namespace {
-
-// How much time passed from send till we resend request or check its state.
-constexpr auto kCheckResendTimeout = crl::time(10000);
-
-// How much time to wait for some more requests,
-// when resending request or checking its state.
-constexpr auto kCheckResendWaiting = crl::time(1000);
-
-// Container lives 10 minutes in haveSent map.
-constexpr auto kContainerLives = 600;
-
-QString LogIds(const QVector<uint64> &ids) {
-	if (!ids.size()) return "[]";
-	auto idsStr = QString("[%1").arg(*ids.cbegin());
-	for (const auto id : ids) {
-		idsStr += QString(", %2").arg(id);
-	}
-	return idsStr + "]";
-}
-
-} // namespace
 
 ConnectionOptions::ConnectionOptions(
 	const QString &systemLangCode,
@@ -70,53 +48,6 @@ void SessionData::withSession(Callback &&callback) {
 			callback(session);
 		});
 	}
-}
-
-bool SessionData::setCurrentKeyId(uint64 keyId) {
-	QWriteLocker locker(&_lock);
-	if (_keyId == keyId) {
-		return false;
-	}
-	_keyId = keyId;
-
-	DEBUG_LOG(("MTP Info: auth key set in SessionData, id %1").arg(keyId));
-
-	changeSessionIdLocked();
-	return true;
-}
-
-void SessionData::changeSessionId() {
-	QWriteLocker locker(&_lock);
-	changeSessionIdLocked();
-}
-
-void SessionData::changeSessionIdLocked() {
-	auto sessionId = _sessionId;
-	do {
-		sessionId = openssl::RandomValue<uint64>();
-	} while (_sessionId == sessionId);
-
-	DEBUG_LOG(("MTP Info: setting server_session: %1").arg(sessionId));
-
-	_sessionId = sessionId;
-	_messagesSent = 0;
-	_sessionMarkedAsStarted = false;
-}
-
-uint32 SessionData::nextRequestSeqNumber(bool needAck) {
-	QWriteLocker locker(&_lock);
-	auto result = _messagesSent;
-	_messagesSent += (needAck ? 1 : 0);
-	return result * 2 + (needAck ? 1 : 0);
-}
-
-bool SessionData::markSessionAsStarted() {
-	QWriteLocker locker(&_lock);
-	if (_sessionMarkedAsStarted) {
-		return false;
-	}
-	_sessionMarkedAsStarted = true;
-	return true;
 }
 
 void SessionData::setKeyForCheck(const AuthKeyPtr &key) {
@@ -172,10 +103,6 @@ void SessionData::clearForNewKey(not_null<Instance*> instance) {
 	{
 		QWriteLocker locker(wereAckedMutex());
 		_wereAcked.clear();
-	}
-	{
-		QWriteLocker locker(receivedIdsMutex());
-		_receivedIds.clear();
 	}
 	instance->clearCallbacksDelayed(std::move(clearCallbacks));
 }
@@ -291,7 +218,6 @@ Session::Session(
 , _ownedDc(dc ? nullptr : std::make_unique<Dcenter>(shiftedDcId, nullptr))
 , _dc(dc ? dc : _ownedDc.get())
 , _data(std::make_shared<SessionData>(this))
-, _timeouter([=] { checkRequestsByTimer(); })
 , _sender([=] { needToResumeAndSend(); }) {
 	_timeouter.callEach(1000);
 	refreshOptions();
@@ -457,60 +383,6 @@ void Session::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
 
 bool Session::sharedDc() const {
 	return (_ownedDc == nullptr);
-}
-
-void Session::checkRequestsByTimer() {
-	QVector<mtpMsgId> removingIds; // remove very old (10 minutes) containers and resend requests
-	QVector<mtpMsgId> stateRequestIds;
-
-	{
-		QReadLocker locker(_data->haveSentMutex());
-		auto &haveSent = _data->haveSentMap();
-		const auto haveSentCount = haveSent.size();
-		auto ms = crl::now();
-		for (auto i = haveSent.begin(), e = haveSent.end(); i != e; ++i) {
-			auto &req = i.value();
-			if (req->msDate > 0) {
-				if (req->msDate + kCheckResendTimeout < ms) { // need to resend or check state
-					req->msDate = ms;
-					stateRequestIds.reserve(haveSentCount);
-					stateRequestIds.push_back(i.key());
-				}
-			} else if (base::unixtime::now()
-					> int32(i.key() >> 32) + kContainerLives) {
-				removingIds.reserve(haveSentCount);
-				removingIds.push_back(i.key());
-			}
-		}
-	}
-
-	if (stateRequestIds.size()) {
-		DEBUG_LOG(("MTP Info: requesting state of msgs: %1").arg(LogIds(stateRequestIds)));
-		{
-			QWriteLocker locker(_data->stateRequestMutex());
-			for (uint32 i = 0, l = stateRequestIds.size(); i < l; ++i) {
-				_data->stateRequestMap().insert(stateRequestIds[i], true);
-			}
-		}
-		sendAnything(kCheckResendWaiting);
-	}
-	if (!removingIds.isEmpty()) {
-		auto clearCallbacks = std::vector<RPCCallbackClear>();
-		{
-			QWriteLocker locker(_data->haveSentMutex());
-			auto &haveSent = _data->haveSentMap();
-			for (uint32 i = 0, l = removingIds.size(); i < l; ++i) {
-				auto j = haveSent.find(removingIds[i]);
-				if (j != haveSent.cend()) {
-					if (j.value()->requestId) {
-						clearCallbacks.push_back(j.value()->requestId);
-					}
-					haveSent.erase(j);
-				}
-			}
-		}
-		_instance->clearCallbacksDelayed(std::move(clearCallbacks));
-	}
 }
 
 void Session::connectionStateChange(int newState) {

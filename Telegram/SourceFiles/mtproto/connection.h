@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "mtproto/details/mtproto_received_ids_manager.h"
 #include "mtproto/mtproto_auth_key.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/connection_abstract.h"
@@ -133,7 +134,9 @@ private:
 
 	void confirmBestConnection();
 	void removeTestConnection(not_null<AbstractConnection*> connection);
-	int16 getProtocolDcId() const;
+	[[nodiscard]] int16 getProtocolDcId() const;
+
+	void checkSentRequests();
 
 	mtpMsgId placeToContainer(
 		SecureRequest &toSendRequest,
@@ -187,6 +190,12 @@ private:
 	void releaseKeyCreationOnFail();
 	void applyAuthKey(AuthKeyPtr &&temporaryKey);
 
+	void setCurrentKeyId(uint64 newKeyId);
+	void changeSessionId();
+	void setSessionSalt(uint64 salt);
+	[[nodiscard]] bool markSessionAsStarted();
+	[[nodiscard]] uint32 nextRequestSeqNumber(bool needAck);
+
 	const not_null<Instance*> _instance;
 	DcType _dcType = DcType::Regular;
 
@@ -215,21 +224,28 @@ private:
 	crl::time _waitForConnected = 0;
 	crl::time _firstSentAt = -1;
 
-	QVector<MTPlong> _ackRequestData;
-	QVector<MTPlong> _resendRequestData;
-
 	mtpPingId _pingId = 0;
 	mtpPingId _pingIdToSend = 0;
 	crl::time _pingSendAt = 0;
 	mtpMsgId _pingMsgId = 0;
 	base::Timer _pingSender;
+	base::Timer _checkSentRequestsTimer;
 
 	bool _finished = false;
 
-	AuthKeyPtr _temporaryKey;
-	uint64 _keyId = 0;
 	std::shared_ptr<SessionData> _sessionData;
 	std::unique_ptr<ConnectionOptions> _connectionOptions;
+	AuthKeyPtr _temporaryKey;
+	uint64 _keyId = 0;
+	uint64 _sessionId = 0;
+	uint64 _sessionSalt = 0;
+	uint32 _messagesCounter = 0;
+	bool _sessionMarkedAsStarted = false;
+
+	QVector<MTPlong> _ackRequestData;
+	QVector<MTPlong> _resendRequestData;
+	base::flat_set<mtpMsgId> _stateRequestData;
+	details::ReceivedIdsManager _receivedMessageIds;
 
 	std::unique_ptr<details::BoundKeyCreator> _keyCreator;
 

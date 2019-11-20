@@ -21,9 +21,6 @@ using AuthKeyPtr = std::shared_ptr<AuthKey>;
 
 namespace internal {
 
-// Received msgIds and wereAcked msgIds count stored.
-constexpr auto kIdsBufferSize = 400;
-
 class Dcenter;
 class Connection;
 
@@ -42,60 +39,6 @@ public:
 		ParentType::const_iterator e(cend());
 		return size() ? (--e).key() : 0;
 	}
-
-};
-
-class ReceivedMsgIds {
-public:
-	bool registerMsgId(mtpMsgId msgId, bool needAck) {
-		auto i = _idsNeedAck.constFind(msgId);
-		if (i == _idsNeedAck.cend()) {
-			if (_idsNeedAck.size() < kIdsBufferSize || msgId > min()) {
-				_idsNeedAck.insert(msgId, needAck);
-				return true;
-			}
-			MTP_LOG(-1, ("No need to handle - %1 < min = %2").arg(msgId).arg(min()));
-		} else {
-			MTP_LOG(-1, ("No need to handle - %1 already is in map").arg(msgId));
-		}
-		return false;
-	}
-
-	mtpMsgId min() const {
-		return _idsNeedAck.isEmpty() ? 0 : _idsNeedAck.cbegin().key();
-	}
-
-	mtpMsgId max() const {
-		auto end = _idsNeedAck.cend();
-		return _idsNeedAck.isEmpty() ? 0 : (--end).key();
-	}
-
-	void shrink() {
-		auto size = _idsNeedAck.size();
-		while (size-- > kIdsBufferSize) {
-			_idsNeedAck.erase(_idsNeedAck.begin());
-		}
-	}
-
-	enum class State {
-		NotFound,
-		NeedsAck,
-		NoAckNeeded,
-	};
-	State lookup(mtpMsgId msgId) const {
-		auto i = _idsNeedAck.constFind(msgId);
-		if (i == _idsNeedAck.cend()) {
-			return State::NotFound;
-		}
-		return i.value() ? State::NeedsAck : State::NoAckNeeded;
-	}
-
-	void clear() {
-		_idsNeedAck.clear();
-	}
-
-private:
-	QMap<mtpMsgId, bool> _idsNeedAck;
 
 };
 
@@ -140,29 +83,14 @@ public:
 	SessionData(not_null<Session*> creator) : _owner(creator) {
 	}
 
-	bool setCurrentKeyId(uint64 keyId);
-	void changeSessionId();
-	[[nodiscard]] uint64 getSessionId() const {
-		QReadLocker locker(&_lock);
-		return _sessionId;
-	}
 	void notifyConnectionInited(const ConnectionOptions &options);
 	void setConnectionOptions(ConnectionOptions options) {
-		QWriteLocker locker(&_lock);
+		QWriteLocker locker(&_optionsLock);
 		_options = options;
 	}
 	[[nodiscard]] ConnectionOptions connectionOptions() const {
-		QReadLocker locker(&_lock);
+		QReadLocker locker(&_optionsLock);
 		return _options;
-	}
-
-	void setSalt(uint64 salt) {
-		QWriteLocker locker(&_lock);
-		_salt = salt;
-	}
-	[[nodiscard]] uint64 getSalt() const {
-		QReadLocker locker(&_lock);
-		return _salt;
 	}
 
 	[[nodiscard]] const AuthKeyPtr &getKeyForCheck() const {
@@ -182,14 +110,8 @@ public:
 	not_null<QReadWriteLock*> wereAckedMutex() const {
 		return &_wereAckedLock;
 	}
-	not_null<QReadWriteLock*> receivedIdsMutex() const {
-		return &_receivedIdsLock;
-	}
 	not_null<QReadWriteLock*> haveReceivedMutex() const {
 		return &_haveReceivedLock;
-	}
-	not_null<QReadWriteLock*> stateRequestMutex() const {
-		return &_stateRequestLock;
 	}
 
 	PreRequestMap &toSendMap() {
@@ -210,12 +132,6 @@ public:
 	const RequestIdsMap &toResendMap() const {
 		return _toResend;
 	}
-	ReceivedMsgIds &receivedIdsSet() {
-		return _receivedIds;
-	}
-	const ReceivedMsgIds &receivedIdsSet() const {
-		return _receivedIds;
-	}
 	RequestIdsMap &wereAckedMap() {
 		return _wereAcked;
 	}
@@ -234,20 +150,11 @@ public:
 	const QList<SerializedMessage> &haveReceivedUpdates() const {
 		return _receivedUpdates;
 	}
-	QMap<mtpMsgId, bool> &stateRequestMap() {
-		return _stateRequest;
-	}
-	const QMap<mtpMsgId, bool> &stateRequestMap() const {
-		return _stateRequest;
-	}
 
 	// Warning! Valid only in constructor, _owner is guaranteed != null.
 	[[nodiscard]] not_null<Session*> owner() {
 		return _owner;
 	}
-
-	[[nodiscard]] bool markSessionAsStarted();
-	[[nodiscard]] uint32 nextRequestSeqNumber(bool needAck);
 
 	void clearForNewKey(not_null<Instance*> instance);
 
@@ -277,16 +184,8 @@ public:
 	void detach();
 
 private:
-	void changeSessionIdLocked();
-
 	template <typename Callback>
 	void withSession(Callback &&callback);
-
-	uint64 _keyId = 0;
-	uint64 _sessionId = 0;
-	uint64 _salt = 0;
-	uint32 _messagesSent = 0;
-	bool _sessionMarkedAsStarted = false;
 
 	Session *_owner = nullptr;
 	mutable QMutex _ownerMutex;
@@ -297,22 +196,18 @@ private:
 	PreRequestMap _toSend; // map of request_id -> request, that is waiting to be sent
 	RequestMap _haveSent; // map of msg_id -> request, that was sent, msDate = 0 for msgs_state_req (no resend / state req), msDate = 0, seqNo = 0 for containers
 	RequestIdsMap _toResend; // map of msg_id -> request_id, that request_id -> request lies in toSend and is waiting to be resent
-	ReceivedMsgIds _receivedIds; // set of received msg_id's, for checking new msg_ids
 	RequestIdsMap _wereAcked; // map of msg_id -> request_id, this msg_ids already were acked or do not need ack
-	QMap<mtpMsgId, bool> _stateRequest; // set of msg_id's, whose state should be requested
 
 	QMap<mtpRequestId, SerializedMessage> _receivedResponses; // map of request_id -> response that should be processed in the main thread
 	QList<SerializedMessage> _receivedUpdates; // list of updates that should be processed in the main thread
 
 	// mutexes
-	mutable QReadWriteLock _lock;
+	mutable QReadWriteLock _optionsLock;
 	mutable QReadWriteLock _toSendLock;
 	mutable QReadWriteLock _haveSentLock;
 	mutable QReadWriteLock _toResendLock;
-	mutable QReadWriteLock _receivedIdsLock;
 	mutable QReadWriteLock _wereAckedLock;
 	mutable QReadWriteLock _haveReceivedLock;
-	mutable QReadWriteLock _stateRequestLock;
 
 };
 
@@ -388,7 +283,6 @@ signals:
 
 private:
 	[[nodiscard]] bool sharedDc() const;
-	void checkRequestsByTimer();
 	void watchDcKeyChanges();
 
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);

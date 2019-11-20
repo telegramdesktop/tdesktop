@@ -100,6 +100,7 @@ public:
 	void onStateChange(ShiftedDcId shiftedDcId, int32 state);
 	void onSessionReset(ShiftedDcId shiftedDcId);
 
+	// Thread-safe.
 	void clearCallbacksDelayed(std::vector<RPCCallbackClear> &&ids);
 
 	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end);
