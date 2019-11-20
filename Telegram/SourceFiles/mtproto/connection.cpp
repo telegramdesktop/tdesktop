@@ -1315,7 +1315,6 @@ void ConnectionPrivate::handleReceived() {
 		}
 
 		const auto serverTime = int32(msgId >> 32);
-		const auto clientTime = base::unixtime::now();
 		const auto isReply = ((msgId & 0x03) == 1);
 		if (!isReply && ((msgId & 0x03) != 3)) {
 			LOG(("MTP Error: bad msg_id %1 in message received").arg(msgId));
@@ -1323,10 +1322,11 @@ void ConnectionPrivate::handleReceived() {
 			return restart();
 		}
 
-		bool badTime = false;
-		if (serverTime > clientTime + 60 || serverTime + 300 < clientTime) {
+		const auto clientTime = base::unixtime::now();
+		const auto badTime = (serverTime > clientTime + 60)
+			|| (serverTime + 300 < clientTime);
+		if (badTime) {
 			DEBUG_LOG(("MTP Info: bad server time from msg_id: %1, my time: %2").arg(serverTime).arg(clientTime));
-			badTime = true;
 		}
 
 		bool wasConnected = (getState() == ConnectedState);
