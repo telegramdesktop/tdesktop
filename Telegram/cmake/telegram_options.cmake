@@ -48,7 +48,7 @@ endif()
 if (DESKTOP_APP_DISABLE_SPELLCHECK)
     target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_SPELLCHECK)
 else()
-    target_link_libraries(Telegram PRIVATE lib_spellcheck)
+    target_link_libraries(Telegram PRIVATE desktop-app::lib_spellcheck)
 endif()
 
 if (TDESKTOP_FORCE_GTK_FILE_DIALOG)

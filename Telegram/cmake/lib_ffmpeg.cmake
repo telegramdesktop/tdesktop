@@ -5,6 +5,7 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 add_library(lib_ffmpeg OBJECT)
+add_library(desktop-app::lib_ffmpeg ALIAS lib_ffmpeg)
 init_target(lib_ffmpeg)
 
 set(lib_ffmpeg_sources
@@ -27,7 +28,7 @@ PUBLIC
 
 target_link_libraries(lib_ffmpeg
 PUBLIC
-    lib_base
+    desktop-app::lib_base
     ${libs_loc}/ffmpeg/libavformat/libavformat.a
     ${libs_loc}/ffmpeg/libavcodec/libavcodec.a
     ${libs_loc}/ffmpeg/libavutil/libavutil.a

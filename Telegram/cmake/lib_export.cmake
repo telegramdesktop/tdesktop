@@ -6,6 +6,7 @@
 
 add_library(lib_export OBJECT)
 init_target(lib_export)
+add_library(tdesktop::lib_export ALIAS lib_export)
 
 set(lib_export_sources
 PRIVATE
@@ -42,6 +43,6 @@ PUBLIC
 
 target_link_libraries(lib_export
 PUBLIC
-    lib_base
-    lib_scheme
+    desktop-app::lib_base
+    tdesktop::lib_scheme
 )

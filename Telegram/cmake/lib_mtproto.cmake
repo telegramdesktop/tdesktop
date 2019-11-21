@@ -6,6 +6,7 @@
 
 add_library(lib_mtproto OBJECT)
 init_target(lib_mtproto)
+add_library(tdesktop::lib_mtproto ALIAS lib_mtproto)
 
 set(lib_mtproto_sources
 PRIVATE
@@ -27,5 +28,5 @@ PUBLIC
 
 target_link_libraries(lib_mtproto
 PUBLIC
-    lib_scheme
+    tdesktop::lib_scheme
 )

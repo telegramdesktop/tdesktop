@@ -18,7 +18,6 @@ add_subdirectory(lib_tl)
 add_subdirectory(lib_spellcheck)
 add_subdirectory(lib_storage)
 add_subdirectory(lib_lottie)
-add_subdirectory(lib_rlottie)
 add_subdirectory(codegen)
 
 include(lib_ui/cmake/generate_styles.cmake)
@@ -69,26 +68,26 @@ set_target_properties(Telegram PROPERTIES AUTORCC ON)
 
 target_link_libraries(Telegram
 PRIVATE
-    lib_base
-    lib_crl
-    lib_ui
-    lib_tl
-    lib_storage
-    lib_lottie
-    lib_rlottie
-    lib_mtproto
-    lib_scheme
-    lib_export
-    lib_ffmpeg
-    lib_tgvoip
-    external_lz4
-    external_qt
-    external_openssl
-    external_crash_reports
-    external_auto_updates
-    external_zlib
-    external_opus
-    external_openal
+    tdesktop::lib_mtproto
+    tdesktop::lib_scheme
+    tdesktop::lib_export
+    tdesktop::lib_tgvoip
+    desktop-app::lib_base
+    desktop-app::lib_crl
+    desktop-app::lib_ui
+    desktop-app::lib_tl
+    desktop-app::lib_storage
+    desktop-app::lib_lottie
+    desktop-app::lib_ffmpeg
+    desktop-app::external_lz4
+    desktop-app::external_rlottie
+    desktop-app::external_qt
+    desktop-app::external_openssl
+    desktop-app::external_crash_reports
+    desktop-app::external_auto_updates
+    desktop-app::external_zlib
+    desktop-app::external_opus
+    desktop-app::external_openal
 )
 
 set(telegram_sources
@@ -964,12 +963,12 @@ if (WIN32)
 else()
     target_link_libraries(Telegram
     PRIVATE
-        external_minizip
+        desktop-app::external_minizip
     )
     if (APPLE)
         target_link_libraries(Telegram
         PRIVATE
-            external_sp_media_key_tap
+            desktop-app::external_sp_media_key_tap
         )
     endif()
 endif()

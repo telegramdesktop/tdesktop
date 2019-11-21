@@ -6,6 +6,7 @@
 
 add_library(lib_scheme OBJECT)
 init_target(lib_scheme)
+add_library(tdesktop::lib_scheme ALIAS lib_scheme)
 
 include(cmake/generate_scheme.cmake)
 
@@ -23,6 +24,6 @@ PUBLIC
 
 target_link_libraries(lib_scheme
 PUBLIC
-    lib_base
-    lib_tl
+    desktop-app::lib_base
+    desktop-app::lib_tl
 )

@@ -6,6 +6,7 @@
 
 add_library(lib_tgvoip OBJECT)
 init_target(lib_tgvoip)
+add_library(tdesktop::lib_tgvoip ALIAS lib_tgvoip)
 
 set(tgvoip_loc ${third_party_loc}/libtgvoip)
 
@@ -761,5 +762,5 @@ PRIVATE
 
 target_link_libraries(lib_tgvoip
 PRIVATE
-    external_openssl
+    desktop-app::external_openssl
 )
