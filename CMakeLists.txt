@@ -1,8 +1,16 @@
+# This file is part of Telegram Desktop,
+# the official desktop application for the Telegram messaging service.
+#
+# For license and copyright information please follow this link:
+# https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+
 cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0076 NEW)
 cmake_policy(SET CMP0091 NEW)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+include(cmake/variables.cmake)
 
 project(Telegram
     LANGUAGES C CXX
@@ -11,7 +19,6 @@ project(Telegram
     HOMEPAGE_URL "https://desktop.telegram.org"
 )
 
-include(cmake/paths.cmake)
 include(cmake/options.cmake)
 include(cmake/init_target.cmake)
 include(cmake/generate_target.cmake)

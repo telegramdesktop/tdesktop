@@ -1,3 +1,9 @@
+# This file is part of Telegram Desktop,
+# the official desktop application for the Telegram messaging service.
+#
+# For license and copyright information please follow this link:
+# https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+
 add_executable(Telegram WIN32 MACOSX_BUNDLE)
 init_target(Telegram)
 
@@ -24,10 +30,10 @@ get_filename_component(res_loc Resources REALPATH)
 
 include(cmake/lib_export.cmake)
 include(cmake/lib_ffmpeg.cmake)
-include(cmake/lib_lz4.cmake)
 include(cmake/lib_mtproto.cmake)
 include(cmake/lib_scheme.cmake)
 include(cmake/lib_tgvoip.cmake)
+include(cmake/telegram_options.cmake)
 
 set(style_files
     boxes/boxes.style
@@ -60,7 +66,6 @@ generate_numbers(Telegram ${res_loc}/numbers.txt)
 
 set_target_properties(Telegram PROPERTIES AUTOMOC ON)
 set_target_properties(Telegram PROPERTIES AUTORCC ON)
-set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
 target_link_libraries(Telegram
 PRIVATE
@@ -68,7 +73,6 @@ PRIVATE
     lib_crl
     lib_ui
     lib_tl
-    lib_spellcheck
     lib_storage
     lib_lottie
     lib_rlottie
@@ -77,7 +81,7 @@ PRIVATE
     lib_export
     lib_ffmpeg
     lib_tgvoip
-    lib_lz4
+    external_lz4
     external_qt
     external_openssl
     external_crash_reports
@@ -978,8 +982,8 @@ PRIVATE
 
 target_compile_definitions(Telegram
 PRIVATE
-    TDESKTOP_API_ID=17349
-    TDESKTOP_API_HASH=344583e45741c457fe1862106095a5eb
+    TDESKTOP_API_ID=${TDESKTOP_API_ID}
+    TDESKTOP_API_HASH=${TDESKTOP_API_HASH}
     AL_LIBTYPE_STATIC
     AL_ALEXT_PROTOTYPES
 )
@@ -994,3 +998,6 @@ PRIVATE
     _other/updater_osx.m
 )
 nice_target_sources(Updater ${src_loc} "${updater_sources}")
+
+set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+set_target_properties(Updater PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")

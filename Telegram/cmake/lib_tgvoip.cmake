@@ -1,3 +1,9 @@
+# This file is part of Telegram Desktop,
+# the official desktop application for the Telegram messaging service.
+#
+# For license and copyright information please follow this link:
+# https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+
 add_library(lib_tgvoip OBJECT)
 init_target(lib_tgvoip)
 
@@ -708,13 +714,35 @@ PRIVATE
     WEBRTC_APM_DEBUG_DUMP=0
     TGVOIP_USE_DESKTOP_DSP
     WEBRTC_NS_FLOAT
-    WEBRTC_WIN
 )
 
 if (WIN32)
     target_compile_options(lib_tgvoip
     PRIVATE
         /wd4005
+    )
+    target_compile_definitions(lib_tgvoip
+    PRIVATE
+        WEBRTC_WIN
+    )
+elseif (APPLE)
+    target_compile_definitions(lib_tgvoip
+    PRIVATE
+        WEBRTC_POSIX
+        WEBRTC_MAC
+        TARGET_OS_OSX
+    )
+    if (build_macstore)
+        target_compile_definitions(lib_tgvoip
+        PRIVATE
+            TGVOIP_NO_OSX_PRIVATE_API
+        )
+    endif()
+else()
+    target_compile_definitions(lib_tgvoip
+    PRIVATE
+        WEBRTC_POSIX
+        WEBRTC_LINUX
     )
 endif()
 

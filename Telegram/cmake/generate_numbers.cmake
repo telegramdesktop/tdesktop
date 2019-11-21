@@ -1,3 +1,9 @@
+# This file is part of Telegram Desktop,
+# the official desktop application for the Telegram messaging service.
+#
+# For license and copyright information please follow this link:
+# https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+
 function(generate_numbers target_name numbers_file)
     set(gen_dst ${CMAKE_CURRENT_BINARY_DIR}/gen)
     set(generated_files
