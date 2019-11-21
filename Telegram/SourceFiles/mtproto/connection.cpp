@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_rsa_public_key.h"
 #include "mtproto/mtproto_rpc_sender.h"
 #include "mtproto/dc_options.h"
+#include "mtproto/dcenter.h"
 #include "mtproto/connection_abstract.h"
 #include "zlib.h"
 #include "core/application.h"
@@ -76,6 +77,12 @@ using namespace details;
 		idsStr += QString(", %2").arg(id);
 	}
 	return idsStr + "]";
+}
+
+[[nodiscard]] TemporaryKeyType TemporaryKeyTypeByDcType(DcType type) {
+	return (type == DcType::MediaCluster)
+		? TemporaryKeyType::MediaCluster
+		: TemporaryKeyType::Regular;
 }
 
 void wrapInvokeAfter(SecureRequest &to, const SecureRequest &from, const RequestMap &haveSent, int32 skipBeforeRequest = 0) {
@@ -164,7 +171,7 @@ void ConnectionPrivate::appendTestConnection(
 		const QString &ip,
 		int port,
 		const bytes::vector &protocolSecret) {
-	QWriteLocker lock(&stateConnMutex);
+	QWriteLocker lock(&_stateMutex);
 
 	const auto priority = (qthelp::is_ipv6(ip) ? 0 : 1)
 		+ (protocol == DcOptions::Variants::Tcp ? 1 : 0)
@@ -216,7 +223,7 @@ int16 ConnectionPrivate::getProtocolDcId() const {
 	const auto testedDcId = cTestMode()
 		? (kTestModeDcIdShift + simpleDcId)
 		: simpleDcId;
-	return (_dcType == DcType::MediaDownload)
+	return (_currentDcType == DcType::MediaCluster)
 		? -testedDcId
 		: testedDcId;
 }
@@ -279,9 +286,11 @@ ConnectionPrivate::ConnectionPrivate(
 	ShiftedDcId shiftedDcId)
 : QObject(nullptr)
 , _instance(instance)
-, _state(DisconnectedState)
-, _shiftedDcId(shiftedDcId)
 , _owner(owner)
+, _shiftedDcId(shiftedDcId)
+, _realDcType(_instance->dcOptions()->dcType(_shiftedDcId))
+, _currentDcType(_realDcType)
+, _state(DisconnectedState)
 , _retryTimer(thread, [=] { retryByTimer(); })
 , _oldConnectionTimer(thread, [=] { markConnectionOld(); })
 , _waitForConnectedTimer(thread, [=] { waitConnectedFailed(); })
@@ -329,7 +338,7 @@ int32 ConnectionPrivate::getShiftedDcId() const {
 }
 
 int32 ConnectionPrivate::getState() const {
-	QReadLocker lock(&stateConnMutex);
+	QReadLocker lock(&_stateMutex);
 	int32 result = _state;
 	if (_state < 0) {
 		if (_retryTimer.isActive()) {
@@ -343,7 +352,7 @@ int32 ConnectionPrivate::getState() const {
 }
 
 QString ConnectionPrivate::transport() const {
-	QReadLocker lock(&stateConnMutex);
+	QReadLocker lock(&_stateMutex);
 	if (!_connection || (_state < 0)) {
 		return QString();
 	}
@@ -354,13 +363,13 @@ QString ConnectionPrivate::transport() const {
 
 bool ConnectionPrivate::setState(int32 state, int32 ifState) {
 	if (ifState != Connection::UpdateAlways) {
-		QReadLocker lock(&stateConnMutex);
+		QReadLocker lock(&_stateMutex);
 		if (_state != ifState) {
 			return false;
 		}
 	}
 
-	QWriteLocker lock(&stateConnMutex);
+	QWriteLocker lock(&_stateMutex);
 	if (_state == state) {
 		return false;
 	}
@@ -407,6 +416,15 @@ uint32 ConnectionPrivate::nextRequestSeqNumber(bool needAck) {
 	const auto result = _messagesCounter;
 	_messagesCounter += (needAck ? 1 : 0);
 	return result * 2 + (needAck ? 1 : 0);
+}
+
+bool ConnectionPrivate::realDcTypeChanged() {
+	const auto now = _instance->dcOptions()->dcType(_shiftedDcId);
+	if (_realDcType == now) {
+		return false;
+	}
+	_realDcType = now;
+	return true;
 }
 
 bool ConnectionPrivate::markSessionAsStarted() {
@@ -643,10 +661,10 @@ void ConnectionPrivate::tryToSend() {
 		const auto systemLangCode = _connectionOptions->systemLangCode;
 		const auto cloudLangCode = _connectionOptions->cloudLangCode;
 		const auto langPackName = _connectionOptions->langPackName;
-		const auto deviceModel = (_dcType == DcType::Cdn)
+		const auto deviceModel = (_currentDcType == DcType::Cdn)
 			? "n/a"
 			: _instance->deviceModel();
-		const auto systemVersion = (_dcType == DcType::Cdn)
+		const auto systemVersion = (_currentDcType == DcType::Cdn)
 			? "n/a"
 			: _instance->systemVersion();
 #if defined OS_MAC_STORE
@@ -928,40 +946,38 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 		DEBUG_LOG(("MTP Error: "
 			"connectToServer() called for finished connection!"));
 		return;
+	} else if (afterConfig && (!_testConnections.empty() || _connection)) {
+		return;
+	}
+
+	destroyAllConnections();
+
+	if (realDcTypeChanged() && _keyCreator) {
+		destroyTemporaryKey();
+		return;
 	}
 
 	_connectionOptions = std::make_unique<ConnectionOptions>(
 		_sessionData->connectionOptions());
 
-	tryAcquireKeyCreation();
-
 	const auto bareDc = BareDcId(_shiftedDcId);
-	_dcType = _instance->dcOptions()->dcType(_shiftedDcId);
 
-	// Use media_only addresses only if key for this dc is already created.
-	if (_dcType == DcType::MediaDownload && _keyCreator) {
-		_dcType = DcType::Regular;
-	} else if (_dcType == DcType::Cdn && !_instance->isKeysDestroyer()) {
+	_currentDcType = tryAcquireKeyCreation();
+	if (_currentDcType == DcType::Cdn && !_instance->isKeysDestroyer()) {
 		if (!_instance->dcOptions()->hasCDNKeysForDc(bareDc)) {
 			requestCDNConfig();
 			return;
 		}
 	}
-
-	if (afterConfig && (!_testConnections.empty() || _connection)) {
-		return;
-	}
-
-	destroyAllConnections();
 	if (_connectionOptions->proxy.type == ProxyData::Type::Mtproto) {
 		// host, port, secret for mtproto proxy are taken from proxy.
 		appendTestConnection(DcOptions::Variants::Tcp, {}, 0, {});
 	} else {
 		using Variants = DcOptions::Variants;
-		const auto special = (_dcType == DcType::Temporary);
+		const auto special = (_currentDcType == DcType::Temporary);
 		const auto variants = _instance->dcOptions()->lookup(
 			bareDc,
-			_dcType,
+			_currentDcType,
 			_connectionOptions->proxy.type != ProxyData::Type::None);
 		const auto useIPv4 = special ? true : _connectionOptions->useIPv4;
 		const auto useIPv6 = special ? false : _connectionOptions->useIPv6;
@@ -1351,7 +1367,11 @@ void ConnectionPrivate::handleReceived() {
 		auto from = decryptedInts + kEncryptedHeaderIntsCount;
 		auto end = from + (messageLength / kIntSize);
 		auto sfrom = decryptedInts + 4U; // msg_id + seq_no + length + message
-		MTP_LOG(_shiftedDcId, ("Recv: ") + details::DumpToText(sfrom, end) + QString(" (keyId:%1)").arg(_encryptionKey->keyId()));
+		MTP_LOG(_shiftedDcId, ("Recv: ")
+			+ details::DumpToText(sfrom, end)
+			+ QString(" (protocolDcId:%1,key:%2)"
+			).arg(getProtocolDcId()
+			).arg(_encryptionKey->keyId()));
 
 		if (_receivedMessageIds.registerMsgId(msgId, needAck)) {
 			res = handleOneReceived(from, end, msgId, serverTime, serverSalt, badTime);
@@ -1860,9 +1880,11 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 				response);
 			switch (result) {
 			case DcKeyBindState::Success:
-				_sessionData->releaseKeyCreationOnDone(
+				if (!_sessionData->releaseKeyCreationOnDone(
 					_encryptionKey,
-					base::take(_keyCreator)->bindPersistentKey());
+					base::take(_keyCreator)->bindPersistentKey())) {
+					return HandleResult::DestroyTemporaryKey;
+				}
 				_sessionData->queueNeedToResumeAndSend();
 				return HandleResult::Success;
 			case DcKeyBindState::DefinitelyDestroyed:
@@ -1967,7 +1989,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 		return HandleResult::ResetSession;
 	}
 
-	if (_dcType == DcType::Regular) {
+	if (_currentDcType == DcType::Regular) {
 		mtpBuffer update(end - from);
 		if (end > from) memcpy(update.data(), from, (end - from) * sizeof(mtpPrime));
 
@@ -1986,7 +2008,8 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			LOG(("Message Error: unknown constructor 0x%1").arg(cons, 0, 16));
 		}
 	} else {
-		LOG(("Message Error: unexpected updates in dcType: %1").arg(static_cast<int>(_dcType)));
+		LOG(("Message Error: unexpected updates in dcType: %1"
+			).arg(static_cast<int>(_currentDcType)));
 	}
 
 	return HandleResult::Success;
@@ -2311,17 +2334,27 @@ void ConnectionPrivate::checkAuthKey() {
 	} else if (_instance->isKeysDestroyer()) {
 		applyAuthKey(_sessionData->getPersistentKey());
 	} else {
-		applyAuthKey(_sessionData->getTemporaryKey());
+		applyAuthKey(_sessionData->getTemporaryKey(
+			TemporaryKeyTypeByDcType(_currentDcType)));
 	}
 }
 
 void ConnectionPrivate::updateAuthKey() {
-	if (_instance->isKeysDestroyer() || _keyCreator) {
+	if (_instance->isKeysDestroyer() || _keyCreator || !_connection) {
 		return;
 	}
 
-	DEBUG_LOG(("AuthKey Info: Connection updating key from Session, dc %1").arg(_shiftedDcId));
-	applyAuthKey(_sessionData->getTemporaryKey());
+	DEBUG_LOG(("AuthKey Info: Connection updating key from Session, dc %1"
+		).arg(_shiftedDcId));
+	const auto myKeyType = TemporaryKeyTypeByDcType(_currentDcType);
+	applyAuthKey(_sessionData->getTemporaryKey(myKeyType));
+
+	if (_connection
+		&& !_encryptionKey
+		&& myKeyType == TemporaryKeyType::MediaCluster
+		&& _sessionData->getTemporaryKey(TemporaryKeyType::Regular)) {
+		restart();
+	}
 }
 
 void ConnectionPrivate::setCurrentKeyId(uint64 newKeyId) {
@@ -2395,11 +2428,17 @@ bool ConnectionPrivate::destroyOldEnoughPersistentKey() {
 	return true;
 }
 
-void ConnectionPrivate::tryAcquireKeyCreation() {
-	if (_instance->isKeysDestroyer()
-		|| _keyCreator
-		|| !_sessionData->acquireKeyCreation()) {
-		return;
+DcType ConnectionPrivate::tryAcquireKeyCreation() {
+	if (_keyCreator) {
+		return _currentDcType;
+	} else if (_instance->isKeysDestroyer()) {
+		return _realDcType;
+	}
+
+	const auto keyType = TemporaryKeyTypeByDcType(_realDcType);
+	const auto acquired = _sessionData->acquireKeyCreation(keyType);
+	if (acquired == CreatingKeyType::None) {
+		return _realDcType;
 	}
 
 	using Result = DcKeyResult;
@@ -2409,7 +2448,7 @@ void ConnectionPrivate::tryAcquireKeyCreation() {
 		if (!result) {
 			releaseKeyCreationOnFail();
 			if (result.error() == Error::UnknownPublicKey) {
-				if (_dcType == DcType::Cdn) {
+				if (_realDcType == DcType::Cdn) {
 					LOG(("Warning: CDN public RSA key not found"));
 					requestCDNConfig();
 					return;
@@ -2457,11 +2496,14 @@ void ConnectionPrivate::tryAcquireKeyCreation() {
 	};
 
 	auto request = DcKeyRequest();
-	request.persistentNeeded = !_sessionData->getPersistentKey();
+	request.persistentNeeded = (acquired == CreatingKeyType::Persistent);
 	request.temporaryExpiresIn = kTemporaryExpiresIn;
 	_keyCreator = std::make_unique<BoundKeyCreator>(
 		request,
 		std::move(delegate));
+	const auto forceUseRegular = (_realDcType == DcType::MediaCluster)
+		&& (acquired != CreatingKeyType::TemporaryMediaCluster);
+	return forceUseRegular ? DcType::Regular : _realDcType;
 }
 
 void ConnectionPrivate::authKeyChecked() {
@@ -2548,7 +2590,11 @@ bool ConnectionPrivate::sendSecureRequest(
 	memcpy(request->data() + 2, &_sessionId, 2 * sizeof(mtpPrime));
 
 	auto from = request->constData() + 4;
-	MTP_LOG(_shiftedDcId, ("Send: ") + details::DumpToText(from, from + messageSize) + QString(" (keyId:%1)").arg(_encryptionKey->keyId()));
+	MTP_LOG(_shiftedDcId, ("Send: ")
+		+ details::DumpToText(from, from + messageSize)
+		+ QString(" (protocolDcId:%1,key:%2)"
+		).arg(getProtocolDcId()
+		).arg(_encryptionKey->keyId()));
 
 #ifdef TDESKTOP_MTPROTO_OLD
 	uint32 padding = fullSize - 4 - messageSize;

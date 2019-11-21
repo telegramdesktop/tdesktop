@@ -24,6 +24,9 @@ namespace internal {
 class Dcenter;
 class Connection;
 
+enum class TemporaryKeyType;
+enum class CreatingKeyType;
+
 using PreRequestMap = QMap<mtpRequestId, SecureRequest>;
 using RequestMap = QMap<mtpMsgId, SecureRequest>;
 
@@ -163,11 +166,11 @@ public:
 
 	[[nodiscard]] bool connectionInited() const;
 	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
-	[[nodiscard]] AuthKeyPtr getTemporaryKey() const;
-	[[nodiscard]] bool acquireKeyCreation();
-	void releaseKeyCreationOnDone(
+	[[nodiscard]] AuthKeyPtr getTemporaryKey(TemporaryKeyType type) const;
+	[[nodiscard]] CreatingKeyType acquireKeyCreation(TemporaryKeyType type);
+	[[nodiscard]] bool releaseKeyCreationOnDone(
 		const AuthKeyPtr &temporaryKey,
-		const AuthKeyPtr &persistentKey);
+		const AuthKeyPtr &persistentKeyUsedForBind);
 	void releaseKeyCreationOnFail();
 	void destroyTemporaryKey(uint64 keyId);
 	void resend(
@@ -229,7 +232,7 @@ public:
 	// Thread-safe.
 	[[nodiscard]] ShiftedDcId getDcWithShift() const;
 	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
-	[[nodiscard]] AuthKeyPtr getTemporaryKey() const;
+	[[nodiscard]] AuthKeyPtr getTemporaryKey(TemporaryKeyType type) const;
 	[[nodiscard]] bool connectionInited() const;
 	void resend(
 		mtpMsgId msgId,
@@ -245,10 +248,10 @@ public:
 		bool newRequest = true);
 
 	// Connection thread.
-	[[nodiscard]] bool acquireKeyCreation();
-	void releaseKeyCreationOnDone(
+	[[nodiscard]] CreatingKeyType acquireKeyCreation(TemporaryKeyType type);
+	[[nodiscard]] bool releaseKeyCreationOnDone(
 		const AuthKeyPtr &temporaryKey,
-		const AuthKeyPtr &persistentKey);
+		const AuthKeyPtr &persistentKeyUsedForBind);
 	void releaseKeyCreationOnFail();
 	void destroyTemporaryKey(uint64 keyId);
 
@@ -289,7 +292,7 @@ private:
 	bool _needToReceive = false;
 
 	AuthKeyPtr _dcKeyForCheck;
-	bool _myKeyCreation = false;
+	CreatingKeyType _myKeyCreation = CreatingKeyType();
 
 	crl::time _msSendCall = 0;
 	crl::time _msWait = 0;

@@ -22,7 +22,7 @@ namespace MTP {
 enum class DcType {
 	Regular,
 	Temporary,
-	MediaDownload,
+	MediaCluster,
 	Cdn,
 };
 class DcOptions {
@@ -89,8 +89,11 @@ public:
 		};
 		std::vector<Endpoint> data[AddressTypeCount][ProtocolCount];
 	};
-	Variants lookup(DcId dcId, DcType type, bool throughProxy) const;
-	DcType dcType(ShiftedDcId shiftedDcId) const;
+	[[nodiscard]] Variants lookup(
+		DcId dcId,
+		DcType type,
+		bool throughProxy) const;
+	[[nodiscard]] DcType dcType(ShiftedDcId shiftedDcId) const;
 
 	void setCDNConfig(const MTPDcdnConfig &config);
 	[[nodiscard]] bool hasCDNKeysForDc(DcId dcId) const;
@@ -120,6 +123,8 @@ private:
 		const std::map<DcId, std::vector<Endpoint>> &a,
 		const std::map<DcId, std::vector<Endpoint>> &b);
 	static void FilterIfHasWithFlag(Variants &variants, Flag flag);
+
+	[[nodiscard]] bool hasMediaOnlyOptionsFor(DcId dcId) const;
 
 	void processFromList(const QVector<MTPDcOption> &options, bool overwrite);
 	void computeCdnDcIds();

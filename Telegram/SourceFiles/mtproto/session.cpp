@@ -164,9 +164,9 @@ bool SessionData::connectionInited() const {
 	return _owner ? _owner->connectionInited() : false;
 }
 
-AuthKeyPtr SessionData::getTemporaryKey() const {
+AuthKeyPtr SessionData::getTemporaryKey(TemporaryKeyType type) const {
 	QMutexLocker lock(&_ownerMutex);
-	return _owner ? _owner->getTemporaryKey() : nullptr;
+	return _owner ? _owner->getTemporaryKey(type) : nullptr;
 }
 
 AuthKeyPtr SessionData::getPersistentKey() const {
@@ -174,18 +174,20 @@ AuthKeyPtr SessionData::getPersistentKey() const {
 	return _owner ? _owner->getPersistentKey() : nullptr;
 }
 
-bool SessionData::acquireKeyCreation() {
+CreatingKeyType SessionData::acquireKeyCreation(TemporaryKeyType type) {
 	QMutexLocker lock(&_ownerMutex);
-	return _owner ? _owner->acquireKeyCreation() : false;
+	return _owner ? _owner->acquireKeyCreation(type) : CreatingKeyType::None;
 }
 
-void SessionData::releaseKeyCreationOnDone(
+bool SessionData::releaseKeyCreationOnDone(
 		const AuthKeyPtr &temporaryKey,
-		const AuthKeyPtr &persistentKey) {
+		const AuthKeyPtr &persistentKeyUsedForBind) {
 	QMutexLocker lock(&_ownerMutex);
-	if (_owner) {
-		_owner->releaseKeyCreationOnDone(temporaryKey, persistentKey);
-	}
+	return _owner
+		? _owner->releaseKeyCreationOnDone(
+			temporaryKey,
+			persistentKeyUsedForBind)
+		: false;
 }
 
 void SessionData::releaseKeyCreationOnFail() {
@@ -529,42 +531,56 @@ void Session::sendPrepared(
 	}
 }
 
-bool Session::acquireKeyCreation() {
-	Expects(!_myKeyCreation);
+CreatingKeyType Session::acquireKeyCreation(TemporaryKeyType type) {
+	Expects(_myKeyCreation == CreatingKeyType::None);
 
-	if (!_dc->acquireKeyCreation()) {
-		return false;
-	}
-	_myKeyCreation = true;
-	return true;
+	_myKeyCreation = _dc->acquireKeyCreation(type);
+	return _myKeyCreation;
 }
 
-void Session::releaseKeyCreationOnDone(
+bool Session::releaseKeyCreationOnDone(
 		const AuthKeyPtr &temporaryKey,
-		const AuthKeyPtr &persistentKey) {
-	Expects(_myKeyCreation);
+		const AuthKeyPtr &persistentKeyUsedForBind) {
+	Expects(_myKeyCreation != CreatingKeyType::None);
+	Expects(persistentKeyUsedForBind != nullptr);
+
+	const auto wasKeyCreation = std::exchange(
+		_myKeyCreation,
+		CreatingKeyType::None);
+	const auto result = _dc->releaseKeyCreationOnDone(
+		wasKeyCreation,
+		temporaryKey,
+		persistentKeyUsedForBind);
+
+	if (!result) {
+		DEBUG_LOG(("AuthKey Info: Persistent key changed "
+			"while binding temporary, dcWithShift %1"
+			).arg(_shiftedDcId));
+		return false;
+	}
 
 	DEBUG_LOG(("AuthKey Info: Session key bound, setting, dcWithShift %1"
 		).arg(_shiftedDcId));
-	_dc->releaseKeyCreationOnDone(temporaryKey, persistentKey);
-	_myKeyCreation = false;
 
 	const auto dcId = _dc->id();
 	const auto instance = _instance;
 	InvokeQueued(instance, [=] {
-		if (persistentKey) {
-			instance->dcPersistentKeyChanged(dcId, persistentKey);
+		if (wasKeyCreation == CreatingKeyType::Persistent) {
+			instance->dcPersistentKeyChanged(dcId, persistentKeyUsedForBind);
 		} else {
 			instance->dcTemporaryKeyChanged(dcId);
 		}
 	});
+	return true;
 }
 
 void Session::releaseKeyCreationOnFail() {
-	Expects(_myKeyCreation);
+	Expects(_myKeyCreation != CreatingKeyType::None);
 
-	_dc->releaseKeyCreationOnFail();
-	_myKeyCreation = false;
+	const auto wasKeyCreation = std::exchange(
+		_myKeyCreation,
+		CreatingKeyType::None);
+	_dc->releaseKeyCreationOnFail(wasKeyCreation);
 }
 
 void Session::notifyDcConnectionInited() {
@@ -587,8 +603,8 @@ int32 Session::getDcWithShift() const {
 	return _shiftedDcId;
 }
 
-AuthKeyPtr Session::getTemporaryKey() const {
-	return _dc->getTemporaryKey();
+AuthKeyPtr Session::getTemporaryKey(TemporaryKeyType type) const {
+	return _dc->getTemporaryKey(type);
 }
 
 AuthKeyPtr Session::getPersistentKey() const {
@@ -643,7 +659,7 @@ void Session::tryToReceive() {
 }
 
 Session::~Session() {
-	if (_myKeyCreation) {
+	if (_myKeyCreation != CreatingKeyType::None) {
 		releaseKeyCreationOnFail();
 	}
 	Assert(_connection == nullptr);

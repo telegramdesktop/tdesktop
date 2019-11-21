@@ -181,7 +181,7 @@ private:
 		crl::time msCanWait = 0,
 		bool forceContainer = false);
 
-	void tryAcquireKeyCreation();
+	[[nodiscard]] DcType tryAcquireKeyCreation();
 	void resetSession();
 	void checkAuthKey();
 	void authKeyChecked();
@@ -193,20 +193,22 @@ private:
 
 	void setCurrentKeyId(uint64 newKeyId);
 	void changeSessionId();
-	void setSessionSalt(uint64 salt);
 	[[nodiscard]] bool markSessionAsStarted();
 	[[nodiscard]] uint32 nextRequestSeqNumber(bool needAck);
 
-	const not_null<Instance*> _instance;
-	DcType _dcType = DcType::Regular;
+	[[nodiscard]] bool realDcTypeChanged();
 
-	mutable QReadWriteLock stateConnMutex;
+	const not_null<Instance*> _instance;
+	const not_null<Connection*> _owner;
+	const ShiftedDcId _shiftedDcId = 0;
+	DcType _realDcType = DcType();
+	DcType _currentDcType = DcType();
+
+	mutable QReadWriteLock _stateMutex;
 	int32 _state = DisconnectedState;
 
 	bool _needSessionReset = false;
 
-	ShiftedDcId _shiftedDcId = 0;
-	not_null<Connection*> _owner;
 	ConnectionPointer _connection;
 	std::vector<TestConnection> _testConnections;
 	crl::time _startedConnectingAt = 0;

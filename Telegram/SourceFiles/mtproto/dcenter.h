@@ -15,6 +15,18 @@ using AuthKeyPtr = std::shared_ptr<AuthKey>;
 
 namespace internal {
 
+enum class TemporaryKeyType {
+	Regular,
+	MediaCluster
+};
+
+enum class CreatingKeyType {
+	None,
+	Persistent,
+	TemporaryRegular,
+	TemporaryMediaCluster
+};
+
 class Dcenter : public QObject {
 public:
 	// Main thread.
@@ -22,29 +34,30 @@ public:
 
 	// Thread-safe.
 	[[nodiscard]] DcId id() const;
-
-	[[nodiscard]] AuthKeyPtr getTemporaryKey() const;
 	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
+	[[nodiscard]] AuthKeyPtr getTemporaryKey(TemporaryKeyType type) const;
+	[[nodiscard]] CreatingKeyType acquireKeyCreation(TemporaryKeyType type);
+	bool releaseKeyCreationOnDone(
+		CreatingKeyType type,
+		const AuthKeyPtr &temporaryKey,
+		const AuthKeyPtr &persistentKeyUsedForBind);
+	void releaseKeyCreationOnFail(CreatingKeyType type);
 	bool destroyTemporaryKey(uint64 keyId);
 	bool destroyConfirmedForgottenKey(uint64 keyId);
-	void releaseKeyCreationOnDone(
-		const AuthKeyPtr &temporaryKey,
-		const AuthKeyPtr &persistentKey);
 
 	[[nodiscard]] bool connectionInited() const;
 	void setConnectionInited(bool connectionInited = true);
 
-	[[nodiscard]] bool acquireKeyCreation();
-	void releaseKeyCreationOnFail();
-
 private:
+	static constexpr auto kTemporaryKeysCount = 2;
+
 	const DcId _id = 0;
 	mutable QReadWriteLock _mutex;
 
-	AuthKeyPtr _temporaryKey;
+	AuthKeyPtr _temporaryKeys[kTemporaryKeysCount];
 	AuthKeyPtr _persistentKey;
 	bool _connectionInited = false;
-	std::atomic<bool> _creatingKey = false;
+	std::atomic<bool> _creatingKeys[kTemporaryKeysCount] = { false };
 
 };
 

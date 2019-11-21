@@ -540,8 +540,9 @@ DcType DcOptions::dcType(ShiftedDcId shiftedDcId) const {
 	if (_cdnDcIds.find(BareDcId(shiftedDcId)) != _cdnDcIds.cend()) {
 		return DcType::Cdn;
 	}
-	if (isDownloadDcId(shiftedDcId)) {
-		return DcType::MediaDownload;
+	const auto dcId = BareDcId(shiftedDcId);
+	if (isDownloadDcId(shiftedDcId) && hasMediaOnlyOptionsFor(dcId)) {
+		return DcType::MediaCluster;
 	}
 	return DcType::Regular;
 }
@@ -599,38 +600,52 @@ auto DcOptions::lookup(
 		bool throughProxy) const -> Variants {
 	using Flag = Flag;
 	auto result = Variants();
-	{
-		ReadLocker lock(this);
-		const auto i = _data.find(dcId);
-		if (i == end(_data)) {
-			return result;
+
+	ReadLocker lock(this);
+	const auto i = _data.find(dcId);
+	if (i == end(_data)) {
+		return result;
+	}
+	for (const auto &endpoint : i->second) {
+		const auto flags = endpoint.flags;
+		if (type == DcType::Cdn && !(flags & Flag::f_cdn)) {
+			continue;
+		} else if (type != DcType::MediaCluster
+			&& (flags & Flag::f_media_only)) {
+			continue;
+		} else if (!ValidateSecret(endpoint.secret)) {
+			continue;
 		}
-		for (const auto &endpoint : i->second) {
-			const auto flags = endpoint.flags;
-			if (type == DcType::Cdn && !(flags & Flag::f_cdn)) {
-				continue;
-			} else if (type != DcType::MediaDownload
-				&& (flags & Flag::f_media_only)) {
-				continue;
-			} else if (!ValidateSecret(endpoint.secret)) {
-				continue;
-			}
-			const auto address = (flags & Flag::f_ipv6)
-				? Variants::IPv6
-				: Variants::IPv4;
-			result.data[address][Variants::Tcp].push_back(endpoint);
-			if (!(flags & (Flag::f_tcpo_only | Flag::f_secret))) {
-				result.data[address][Variants::Http].push_back(endpoint);
-			}
-		}
-		if (type == DcType::MediaDownload) {
-			FilterIfHasWithFlag(result, Flag::f_media_only);
-		}
-		if (throughProxy) {
-			FilterIfHasWithFlag(result, Flag::f_static);
+		const auto address = (flags & Flag::f_ipv6)
+			? Variants::IPv6
+			: Variants::IPv4;
+		result.data[address][Variants::Tcp].push_back(endpoint);
+		if (!(flags & (Flag::f_tcpo_only | Flag::f_secret))) {
+			result.data[address][Variants::Http].push_back(endpoint);
 		}
 	}
+	if (type == DcType::MediaCluster) {
+		FilterIfHasWithFlag(result, Flag::f_media_only);
+	}
+	if (throughProxy) {
+		FilterIfHasWithFlag(result, Flag::f_static);
+	}
 	return result;
+}
+
+bool DcOptions::hasMediaOnlyOptionsFor(DcId dcId) const {
+	ReadLocker lock(this);
+	const auto i = _data.find(dcId);
+	if (i == end(_data)) {
+		return false;
+	}
+	for (const auto &endpoint : i->second) {
+		const auto flags = endpoint.flags;
+		if (flags & Flag::f_media_only) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void DcOptions::FilterIfHasWithFlag(Variants &variants, Flag flag) {
