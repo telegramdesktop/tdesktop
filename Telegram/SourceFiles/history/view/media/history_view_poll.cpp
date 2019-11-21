@@ -302,10 +302,12 @@ void Poll::updateTexts() {
 	const auto willStartAnimation = checkAnimationStart();
 
 	if (_question.toString() != _poll->question) {
+		auto options = Ui::WebpageTextTitleOptions();
+		options.maxw = options.maxh = 0;
 		_question.setText(
 			st::historyPollQuestionStyle,
 			_poll->question,
-			Ui::WebpageTextTitleOptions());
+			options);
 	}
 	if (_closed != _poll->closed || _subtitle.isEmpty()) {
 		_closed = _poll->closed;
