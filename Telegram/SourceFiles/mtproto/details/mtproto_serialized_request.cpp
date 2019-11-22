@@ -5,9 +5,11 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mtproto/core_types.h"
+#include "mtproto/details/mtproto_serialized_request.h"
 
-namespace MTP {
+#include "base/openssl_help.h"
+
+namespace MTP::details {
 namespace {
 
 uint32 CountPaddingPrimesCount(uint32 requestSize, bool extended, bool old) {
@@ -27,7 +29,7 @@ uint32 CountPaddingPrimesCount(uint32 requestSize, bool extended, bool old) {
 
 	if (extended) {
 		// Some more random padding.
-		result += ((rand_value<uchar>() & 0x0F) << 2);
+		result += ((openssl::RandomValue<uchar>() & 0x0F) << 2);
 	}
 
 	return result;
@@ -35,67 +37,72 @@ uint32 CountPaddingPrimesCount(uint32 requestSize, bool extended, bool old) {
 
 } // namespace
 
-SecureRequest::SecureRequest(const details::SecureRequestCreateTag &tag)
-: _data(std::make_shared<SecureRequestData>(tag)) {
+SerializedRequest::SerializedRequest(const RequestConstructHider::Tag &tag)
+: _data(std::make_shared<RequestData>(tag)) {
 }
 
-SecureRequest SecureRequest::Prepare(uint32 size, uint32 reserveSize) {
+SerializedRequest SerializedRequest::Prepare(
+		uint32 size,
+		uint32 reserveSize) {
+	Expects(size > 0);
+
 	const auto finalSize = std::max(size, reserveSize);
 
-	auto result = SecureRequest(details::SecureRequestCreateTag{});
+	auto result = SerializedRequest(RequestConstructHider::Tag{});
 	result->reserve(kMessageBodyPosition + finalSize);
 	result->resize(kMessageBodyPosition);
 	result->back() = (size << 2);
-	result->msDate = crl::now(); // > 0 - can send without container
+	result->lastSentTime = crl::now();
 	return result;
 }
 
-SecureRequestData *SecureRequest::operator->() const {
+RequestData *SerializedRequest::operator->() const {
 	Expects(_data != nullptr);
 
 	return _data.get();
 }
 
-SecureRequestData &SecureRequest::operator*() const {
+RequestData &SerializedRequest::operator*() const {
 	Expects(_data != nullptr);
 
 	return *_data;
 }
 
-SecureRequest::operator bool() const {
+SerializedRequest::operator bool() const {
 	return (_data != nullptr);
 }
 
-void SecureRequest::setMsgId(mtpMsgId msgId) {
+void SerializedRequest::setMsgId(mtpMsgId msgId) {
 	Expects(_data != nullptr);
+	Expects(_data->size() > kMessageBodyPosition);
 
 	memcpy(_data->data() + kMessageIdPosition, &msgId, sizeof(mtpMsgId));
 }
 
-mtpMsgId SecureRequest::getMsgId() const {
+mtpMsgId SerializedRequest::getMsgId() const {
 	Expects(_data != nullptr);
+	Expects(_data->size() > kMessageBodyPosition);
 
 	return *(mtpMsgId*)(_data->constData() + kMessageIdPosition);
 }
 
-void SecureRequest::setSeqNo(uint32 seqNo) {
+void SerializedRequest::setSeqNo(uint32 seqNo) {
 	Expects(_data != nullptr);
+	Expects(_data->size() > kMessageBodyPosition);
 
 	(*_data)[kSeqNoPosition] = mtpPrime(seqNo);
 }
 
-uint32 SecureRequest::getSeqNo() const {
+uint32 SerializedRequest::getSeqNo() const {
 	Expects(_data != nullptr);
+	Expects(_data->size() > kMessageBodyPosition);
 
 	return uint32((*_data)[kSeqNoPosition]);
 }
 
-void SecureRequest::addPadding(bool extended, bool old) {
+void SerializedRequest::addPadding(bool extended, bool old) {
 	Expects(_data != nullptr);
-
-	if (_data->size() <= kMessageBodyPosition) {
-		return;
-	}
+	Expects(_data->size() > kMessageBodyPosition);
 
 	const auto requestSize = (tl::count_length(*this) >> 2);
 	const auto padding = CountPaddingPrimesCount(requestSize, extended, old);
@@ -103,48 +110,38 @@ void SecureRequest::addPadding(bool extended, bool old) {
 	if (uint32(_data->size()) != fullSize) {
 		_data->resize(fullSize);
 		if (padding > 0) {
-			memset_rand(
-				_data->data() + (fullSize - padding),
-				padding * sizeof(mtpPrime));
+			bytes::set_random(bytes::make_span(*_data).subspan(
+				(fullSize - padding) * sizeof(mtpPrime)));
 		}
 	}
 }
 
-uint32 SecureRequest::messageSize() const {
+uint32 SerializedRequest::messageSize() const {
 	Expects(_data != nullptr);
+	Expects(_data->size() > kMessageBodyPosition);
 
-	if (_data->size() <= kMessageBodyPosition) {
-		return 0;
-	}
 	const auto ints = (tl::count_length(*this) >> 2);
 	return kMessageIdInts + kSeqNoInts + kMessageLengthInts + ints;
 }
 
-bool SecureRequest::isSentContainer() const {
+bool SerializedRequest::isSentContainer() const {
 	Expects(_data != nullptr);
 
-	if (_data->size() <= kMessageBodyPosition) {
-		return false;
-	}
-	return (!_data->msDate && !getSeqNo()); // msDate = 0, seqNo = 0
+	return _data->isContainerIdsWrap;
 }
 
-bool SecureRequest::isStateRequest() const {
+bool SerializedRequest::isStateRequest() const {
 	Expects(_data != nullptr);
+	Expects(_data->size() > kMessageBodyPosition);
 
-	if (_data->size() <= kMessageBodyPosition) {
-		return false;
-	}
 	const auto type = mtpTypeId((*_data)[kMessageBodyPosition]);
 	return (type == mtpc_msgs_state_req);
 }
 
-bool SecureRequest::needAck() const {
+bool SerializedRequest::needAck() const {
 	Expects(_data != nullptr);
+	Expects(_data->size() > kMessageBodyPosition);
 
-	if (_data->size() <= kMessageBodyPosition) {
-		return false;
-	}
 	const auto type = mtpTypeId((*_data)[kMessageBodyPosition]);
 	switch (type) {
 	case mtpc_msg_container:
@@ -160,16 +157,14 @@ bool SecureRequest::needAck() const {
 	return true;
 }
 
-size_t SecureRequest::sizeInBytes() const {
-	return (_data && _data->size() > kMessageBodyPosition)
-		? (*_data)[kMessageLengthPosition]
-		: 0;
+size_t SerializedRequest::sizeInBytes() const {
+	Expects(!_data || _data->size() > kMessageBodyPosition);
+	return _data ? (*_data)[kMessageLengthPosition] : 0;
 }
 
-const void *SecureRequest::dataInBytes() const {
-	return (_data && _data->size() > kMessageBodyPosition)
-		? (_data->constData() + kMessageBodyPosition)
-		: nullptr;
+const void *SerializedRequest::dataInBytes() const {
+	Expects(!_data || _data->size() > kMessageBodyPosition);
+	return _data ? (_data->constData() + kMessageBodyPosition) : nullptr;
 }
 
 } // namespace MTP

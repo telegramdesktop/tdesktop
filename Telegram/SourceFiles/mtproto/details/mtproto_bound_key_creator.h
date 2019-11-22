@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP::details {
 
+class SerializedRequest;
+
 class BoundKeyCreator final {
 public:
 	struct Delegate {
@@ -32,7 +34,7 @@ public:
 	void bind(AuthKeyPtr &&persistentKey);
 	void restartBinder();
 	[[nodiscard]] bool readyToBind() const;
-	[[nodiscard]] SecureRequest prepareBindRequest(
+	[[nodiscard]] SerializedRequest prepareBindRequest(
 		const AuthKeyPtr &temporaryKey,
 		uint64 sessionId);
 	[[nodiscard]] DcKeyBindState handleBindResponse(

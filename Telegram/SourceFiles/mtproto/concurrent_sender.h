@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "base/flat_map.h"
 #include "mtproto/core_types.h"
+#include "mtproto/details/mtproto_serialized_request.h"
 
 #ifndef _DEBUG
 #define MTP_SENDER_USE_GENERIC_HANDLERS
@@ -61,7 +62,7 @@ class ConcurrentSender : public base::has_weak_ptr {
 	protected:
 		RequestBuilder(
 			not_null<ConcurrentSender*> sender,
-			SecureRequest &&serialized) noexcept;
+			details::SerializedRequest &&serialized) noexcept;
 
 		void setToDC(ShiftedDcId dcId) noexcept;
 		void setCanWait(crl::time ms) noexcept;
@@ -74,7 +75,7 @@ class ConcurrentSender : public base::has_weak_ptr {
 
 	private:
 		not_null<ConcurrentSender*> _sender;
-		SecureRequest _serialized;
+		details::SerializedRequest _serialized;
 		ShiftedDcId _dcId = 0;
 		crl::time _canWait = 0;
 
@@ -224,8 +225,8 @@ void ConcurrentSender::RequestBuilder::setFailHandler(
 template <typename Request>
 ConcurrentSender::SpecificRequestBuilder<Request>::SpecificRequestBuilder(
 	not_null<ConcurrentSender*> sender,
-	Request &&request
-) noexcept : RequestBuilder(sender, SecureRequest::Serialize(request)) {
+	Request &&request) noexcept
+: RequestBuilder(sender, details::SerializedRequest::Serialize(request)) {
 }
 
 template <typename Request>

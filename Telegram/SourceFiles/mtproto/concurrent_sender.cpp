@@ -111,7 +111,7 @@ auto ConcurrentSender::with_instance(Method &&method)
 
 ConcurrentSender::RequestBuilder::RequestBuilder(
 	not_null<ConcurrentSender*> sender,
-	SecureRequest &&serialized) noexcept
+	details::SerializedRequest &&serialized) noexcept
 : _sender(sender)
 , _serialized(std::move(serialized)) {
 }

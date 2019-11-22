@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "mtproto/mtproto_rpc_sender.h"
 #include "mtproto/mtproto_proxy_data.h"
+#include "mtproto/details/mtproto_serialized_request.h"
 
 #include <QtCore/QTimer>
 
@@ -26,18 +27,6 @@ class Connection;
 
 enum class TemporaryKeyType;
 enum class CreatingKeyType;
-
-using PreRequestMap = QMap<mtpRequestId, SecureRequest>;
-using RequestMap = QMap<mtpMsgId, SecureRequest>;
-using SerializedMessage = mtpBuffer;
-
-inline bool ResponseNeedsAck(const SerializedMessage &response) {
-	if (response.size() < 8) {
-		return false;
-	}
-	auto seqNo = *(uint32*)(response.constData() + 6);
-	return (seqNo & 0x01) ? true : false;
-}
 
 struct ConnectionOptions {
 	ConnectionOptions() = default;
@@ -80,38 +69,26 @@ public:
 		return _options;
 	}
 
-	not_null<QReadWriteLock*> toSendMutex() const {
+	not_null<QReadWriteLock*> toSendMutex() {
 		return &_toSendLock;
 	}
-	not_null<QReadWriteLock*> haveSentMutex() const {
+	not_null<QReadWriteLock*> haveSentMutex() {
 		return &_haveSentLock;
 	}
-	not_null<QReadWriteLock*> haveReceivedMutex() const {
+	not_null<QReadWriteLock*> haveReceivedMutex() {
 		return &_haveReceivedLock;
 	}
 
-	PreRequestMap &toSendMap() {
+	base::flat_map<mtpRequestId, details::SerializedRequest> &toSendMap() {
 		return _toSend;
 	}
-	const PreRequestMap &toSendMap() const {
-		return _toSend;
-	}
-	RequestMap &haveSentMap() {
+	base::flat_map<mtpMsgId, details::SerializedRequest> &haveSentMap() {
 		return _haveSent;
 	}
-	const RequestMap &haveSentMap() const {
-		return _haveSent;
-	}
-	QMap<mtpRequestId, SerializedMessage> &haveReceivedResponses() {
+	base::flat_map<mtpRequestId, mtpBuffer> &haveReceivedResponses() {
 		return _receivedResponses;
 	}
-	const QMap<mtpRequestId, SerializedMessage> &haveReceivedResponses() const {
-		return _receivedResponses;
-	}
-	QList<SerializedMessage> &haveReceivedUpdates() {
-		return _receivedUpdates;
-	}
-	const QList<SerializedMessage> &haveReceivedUpdates() const {
+	std::vector<mtpBuffer> &haveReceivedUpdates() {
 		return _receivedUpdates;
 	}
 
@@ -126,7 +103,6 @@ public:
 	void queueConnectionStateChange(int newState);
 	void queueResetDone();
 	void queueSendAnything(crl::time msCanWait = 0);
-	void queueSendMsgsStateInfo(quint64 msgId, QByteArray data);
 
 	[[nodiscard]] bool connectionInited() const;
 	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
@@ -148,18 +124,17 @@ private:
 	mutable QMutex _ownerMutex;
 
 	ConnectionOptions _options;
-
-	PreRequestMap _toSend; // map of request_id -> request, that is waiting to be sent
-	RequestMap _haveSent; // map of msg_id -> request, that was sent, msDate = 0 for msgs_state_req (no resend / state req), msDate = 0, seqNo = 0 for containers
-
-	QMap<mtpRequestId, SerializedMessage> _receivedResponses; // map of request_id -> response that should be processed in the main thread
-	QList<SerializedMessage> _receivedUpdates; // list of updates that should be processed in the main thread
-
-	// mutexes
 	mutable QReadWriteLock _optionsLock;
-	mutable QReadWriteLock _toSendLock;
-	mutable QReadWriteLock _haveSentLock;
-	mutable QReadWriteLock _haveReceivedLock;
+
+	base::flat_map<mtpRequestId, details::SerializedRequest> _toSend; // map of request_id -> request, that is waiting to be sent
+	QReadWriteLock _toSendLock;
+
+	base::flat_map<mtpMsgId, details::SerializedRequest> _haveSent; // map of msg_id -> request, that was sent
+	QReadWriteLock _haveSentLock;
+
+	base::flat_map<mtpRequestId, mtpBuffer> _receivedResponses; // map of request_id -> response that should be processed in the main thread
+	std::vector<mtpBuffer> _receivedUpdates; // list of updates that should be processed in the main thread
+	QReadWriteLock _haveReceivedLock;
 
 };
 
@@ -189,7 +164,9 @@ public:
 	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
 	[[nodiscard]] AuthKeyPtr getTemporaryKey(TemporaryKeyType type) const;
 	[[nodiscard]] bool connectionInited() const;
-	void sendPrepared(const SecureRequest &request, crl::time msCanWait = 0);
+	void sendPrepared(
+		const details::SerializedRequest &request,
+		crl::time msCanWait = 0);
 
 	// Connection thread.
 	[[nodiscard]] CreatingKeyType acquireKeyCreation(TemporaryKeyType type);
@@ -212,7 +189,6 @@ public:
 	void connectionStateChange(int newState);
 	void resetDone();
 	void sendAnything(crl::time msCanWait = 0);
-	void sendMsgsStateInfo(quint64 msgId, QByteArray data);
 
 signals:
 	void authKeyChanged();

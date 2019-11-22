@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/details/mtproto_dc_key_binder.h"
 
+#include "mtproto/details/mtproto_serialized_request.h"
 #include "mtproto/mtp_instance.h"
 #include "base/unixtime.h"
 #include "base/openssl_help.h"
@@ -21,12 +22,12 @@ namespace {
 		const AuthKeyPtr &persistentKey,
 		mtpMsgId realMsgId,
 		const MTPBindAuthKeyInner &data) {
-	auto serialized = SecureRequest::Serialize(data);
+	auto serialized = SerializedRequest::Serialize(data);
 	serialized.setMsgId(realMsgId);
 	serialized.setSeqNo(0);
 	serialized.addPadding(false, true);
 
-	constexpr auto kMsgIdPosition = SecureRequest::kMessageIdPosition;
+	constexpr auto kMsgIdPosition = SerializedRequest::kMessageIdPosition;
 	constexpr auto kMinMessageSize = 5;
 
 	const auto sizeInPrimes = serialized->size();
@@ -77,7 +78,7 @@ DcKeyBinder::DcKeyBinder(AuthKeyPtr &&persistentKey)
 	Expects(_persistentKey != nullptr);
 }
 
-SecureRequest DcKeyBinder::prepareRequest(
+SerializedRequest DcKeyBinder::prepareRequest(
 		const AuthKeyPtr &temporaryKey,
 		uint64 sessionId) {
 	Expects(temporaryKey != nullptr);
@@ -85,7 +86,7 @@ SecureRequest DcKeyBinder::prepareRequest(
 
 	const auto nonce = openssl::RandomValue<uint64>();
 	const auto msgId = base::unixtime::mtproto_msg_id();
-	auto result = SecureRequest::Serialize(MTPauth_BindTempAuthKey(
+	auto result = SerializedRequest::Serialize(MTPauth_BindTempAuthKey(
 		MTP_long(_persistentKey->keyId()),
 		MTP_long(nonce),
 		MTP_int(temporaryKey->expiresAt()),

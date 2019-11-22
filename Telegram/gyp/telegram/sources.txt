@@ -547,7 +547,6 @@
 <(src_loc)/mtproto/connection_resolving.h
 <(src_loc)/mtproto/connection_tcp.cpp
 <(src_loc)/mtproto/connection_tcp.h
-<(src_loc)/mtproto/core_types.cpp
 <(src_loc)/mtproto/core_types.h
 <(src_loc)/mtproto/dcenter.cpp
 <(src_loc)/mtproto/dcenter.h

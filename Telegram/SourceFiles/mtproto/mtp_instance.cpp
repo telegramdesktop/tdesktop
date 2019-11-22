@@ -36,6 +36,7 @@ constexpr auto kConfigBecomesOldForBlockedIn = 8 * crl::time(1000);
 constexpr auto kCheckKeyEach = 60 * crl::time(1000);
 
 using namespace internal;
+using namespace details;
 
 std::atomic<int> GlobalAtomicRequestId = 0;
 
@@ -111,7 +112,7 @@ public:
 
 	void sendRequest(
 		mtpRequestId requestId,
-		SecureRequest &&request,
+		SerializedRequest &&request,
 		RPCResponseHandler &&callbacks,
 		ShiftedDcId shiftedDcId,
 		crl::time msCanWait,
@@ -121,9 +122,9 @@ public:
 	void unregisterRequest(mtpRequestId requestId);
 	void storeRequest(
 		mtpRequestId requestId,
-		const SecureRequest &request,
+		const SerializedRequest &request,
 		RPCResponseHandler &&callbacks);
-	SecureRequest getRequest(mtpRequestId requestId);
+	SerializedRequest getRequest(mtpRequestId requestId);
 	void clearCallbacksDelayed(std::vector<RPCCallbackClear> &&ids);
 	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end);
 	bool hasCallbacks(mtpRequestId requestId);
@@ -238,7 +239,7 @@ private:
 	std::map<mtpRequestId, RPCResponseHandler> _parserMap;
 	QMutex _parserMapLock;
 
-	std::map<mtpRequestId, SecureRequest> _requestMap;
+	std::map<mtpRequestId, SerializedRequest> _requestMap;
 	QReadWriteLock _requestMapLock;
 
 	std::deque<std::pair<mtpRequestId, crl::time>> _delayedRequests;
@@ -911,7 +912,7 @@ void Instance::Private::checkDelayedRequests() {
 			continue;
 		}
 
-		auto request = SecureRequest();
+		auto request = SerializedRequest();
 		{
 			QReadLocker locker(&_requestMapLock);
 			auto it = _requestMap.find(requestId);
@@ -932,7 +933,7 @@ void Instance::Private::checkDelayedRequests() {
 
 void Instance::Private::sendRequest(
 		mtpRequestId requestId,
-		SecureRequest &&request,
+		SerializedRequest &&request,
 		RPCResponseHandler &&callbacks,
 		ShiftedDcId shiftedDcId,
 		crl::time msCanWait,
@@ -951,7 +952,7 @@ void Instance::Private::sendRequest(
 	if (afterRequestId) {
 		request->after = getRequest(afterRequestId);
 	}
-	request->msDate = crl::now(); // > 0 - can send without container
+	request->lastSentTime = crl::now();
 	request->needsLayer = needsLayer;
 
 	session->sendPrepared(request, msCanWait);
@@ -980,7 +981,7 @@ void Instance::Private::unregisterRequest(mtpRequestId requestId) {
 
 void Instance::Private::storeRequest(
 		mtpRequestId requestId,
-		const SecureRequest &request,
+		const SerializedRequest &request,
 		RPCResponseHandler &&callbacks) {
 	if (callbacks.onDone || callbacks.onFail) {
 		QMutexLocker locker(&_parserMapLock);
@@ -992,8 +993,8 @@ void Instance::Private::storeRequest(
 	}
 }
 
-SecureRequest Instance::Private::getRequest(mtpRequestId requestId) {
-	auto result = SecureRequest();
+SerializedRequest Instance::Private::getRequest(mtpRequestId requestId) {
+	auto result = SerializedRequest();
 	{
 		QReadLocker locker(&_requestMapLock);
 		auto it = _requestMap.find(requestId);
@@ -1319,7 +1320,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 			newdcWithShift = ShiftDcId(newdcWithShift, GetDcIdShift(dcWithShift));
 		}
 
-		auto request = SecureRequest();
+		auto request = SerializedRequest();
 		{
 			QReadLocker locker(&_requestMapLock);
 			auto it = _requestMap.find(requestId);
@@ -1391,7 +1392,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 		if (badGuestDc) _badGuestDcRequests.insert(requestId);
 		return true;
 	} else if (err == qstr("CONNECTION_NOT_INITED") || err == qstr("CONNECTION_LAYER_INVALID")) {
-		SecureRequest request;
+		SerializedRequest request;
 		{
 			QReadLocker locker(&_requestMapLock);
 			auto it = _requestMap.find(requestId);
@@ -1416,7 +1417,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 	} else if (err == qstr("CONNECTION_LANG_CODE_INVALID")) {
 		Lang::CurrentCloudManager().resetToDefault();
 	} else if (err == qstr("MSG_WAIT_FAILED")) {
-		SecureRequest request;
+		SerializedRequest request;
 		{
 			QReadLocker locker(&_requestMapLock);
 			auto it = _requestMap.find(requestId);
@@ -1435,7 +1436,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 			if (const auto afterDcId = queryRequestByDc(request->after->requestId)) {
 				dcWithShift = *shiftedDcId;
 				if (*shiftedDcId != *afterDcId) {
-					request->after = SecureRequest();
+					request->after = SerializedRequest();
 				}
 			} else {
 				LOG(("MTP Error: could not find dependent request %1 by dc").arg(request->after->requestId));
@@ -1852,7 +1853,7 @@ void Instance::keyDestroyedOnServer(ShiftedDcId shiftedDcId, uint64 keyId) {
 
 void Instance::sendRequest(
 		mtpRequestId requestId,
-		SecureRequest &&request,
+		SerializedRequest &&request,
 		RPCResponseHandler &&callbacks,
 		ShiftedDcId shiftedDcId,
 		crl::time msCanWait,

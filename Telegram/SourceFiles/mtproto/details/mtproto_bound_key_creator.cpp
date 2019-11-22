@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/details/mtproto_bound_key_creator.h"
 
+#include "mtproto/details/mtproto_serialized_request.h"
+
 namespace MTP::details {
 
 BoundKeyCreator::BoundKeyCreator(DcKeyRequest request, Delegate delegate)
@@ -54,7 +56,7 @@ bool BoundKeyCreator::readyToBind() const {
 	return _binder.has_value();
 }
 
-SecureRequest BoundKeyCreator::prepareBindRequest(
+SerializedRequest BoundKeyCreator::prepareBindRequest(
 		const AuthKeyPtr &temporaryKey,
 		uint64 sessionId) {
 	Expects(_binder.has_value());

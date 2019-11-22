@@ -44,6 +44,8 @@
       '<(src_loc)/mtproto/details/mtproto_dump_to_text.h',
       '<(src_loc)/mtproto/details/mtproto_received_ids_manager.cpp',
       '<(src_loc)/mtproto/details/mtproto_received_ids_manager.h',
+      '<(src_loc)/mtproto/details/mtproto_serialized_request.cpp',
+      '<(src_loc)/mtproto/details/mtproto_serialized_request.h',
       '<(src_loc)/mtproto/mtproto_abstract_socket.cpp',
       '<(src_loc)/mtproto/mtproto_abstract_socket.h',
       '<(src_loc)/mtproto/mtproto_auth_key.cpp',

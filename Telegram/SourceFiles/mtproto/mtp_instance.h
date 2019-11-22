@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/details/mtproto_serialized_request.h"
 
 namespace MTP {
 namespace internal {
@@ -139,7 +140,7 @@ public:
 		const auto requestId = internal::GetNextRequestId();
 		sendSerialized(
 			requestId,
-			SecureRequest::Serialize(request),
+			details::SerializedRequest::Serialize(request),
 			std::move(callbacks),
 			shiftedDcId,
 			msCanWait,
@@ -170,7 +171,7 @@ public:
 		const auto requestId = internal::GetNextRequestId();
 		sendRequest(
 			requestId,
-			SecureRequest::Serialize(request),
+			details::SerializedRequest::Serialize(request),
 			{},
 			shiftedDcId,
 			0,
@@ -181,7 +182,7 @@ public:
 
 	void sendSerialized(
 			mtpRequestId requestId,
-			SecureRequest &&request,
+			details::SerializedRequest &&request,
 			RPCResponseHandler &&callbacks,
 			ShiftedDcId shiftedDcId,
 			crl::time msCanWait,
@@ -209,7 +210,7 @@ signals:
 private:
 	void sendRequest(
 		mtpRequestId requestId,
-		SecureRequest &&request,
+		details::SerializedRequest &&request,
 		RPCResponseHandler &&callbacks,
 		ShiftedDcId shiftedDcId,
 		crl::time msCanWait,

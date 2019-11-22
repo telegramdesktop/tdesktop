@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/core_types.h"
+#include "mtproto/details/mtproto_serialized_request.h"
 
 namespace MTP::details {
 

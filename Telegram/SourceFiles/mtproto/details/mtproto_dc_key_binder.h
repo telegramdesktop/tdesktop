@@ -16,6 +16,8 @@ class Instance;
 
 namespace MTP::details {
 
+class SerializedRequest;
+
 enum class DcKeyBindState {
 	Success,
 	Failed,
@@ -26,7 +28,7 @@ class DcKeyBinder final {
 public:
 	explicit DcKeyBinder(AuthKeyPtr &&persistentKey);
 
-	[[nodiscard]] SecureRequest prepareRequest(
+	[[nodiscard]] SerializedRequest prepareRequest(
 		const AuthKeyPtr &temporaryKey,
 		uint64 sessionId);
 	[[nodiscard]] DcKeyBindState handleResponse(const mtpBuffer &response);

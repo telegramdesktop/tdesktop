@@ -94,12 +94,6 @@ void SessionData::queueSendAnything(crl::time msCanWait) {
 	});
 }
 
-void SessionData::queueSendMsgsStateInfo(quint64 msgId, QByteArray data) {
-	withSession([=](not_null<Session*> session) {
-		session->sendMsgsStateInfo(msgId, data);
-	});
-}
-
 bool SessionData::connectionInited() const {
 	QMutexLocker lock(&_ownerMutex);
 	return _owner ? _owner->connectionInited() : false;
@@ -300,18 +294,6 @@ void Session::needToResumeAndSend() {
 	}
 }
 
-void Session::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
-	auto info = bytes::vector();
-	if (!data.isEmpty()) {
-		info.resize(data.size());
-		bytes::copy(info, bytes::make_span(data));
-	}
-	_instance->sendProtocolMessage(
-		_shiftedDcId,
-		MTPMsgsStateInfo(
-			MTP_msgs_state_info(MTP_long(msgId), MTP_bytes(data))));
-}
-
 void Session::connectionStateChange(int newState) {
 	_instance->onStateChange(_shiftedDcId, newState);
 }
@@ -356,17 +338,14 @@ int32 Session::requestState(mtpRequestId requestId) const {
 	}
 	if (!connected) {
 		return result;
-	}
-	if (!requestId) return MTP::RequestSent;
-
-	QWriteLocker locker(_data->toSendMutex());
-	const auto &toSend = _data->toSendMap();
-	const auto i = toSend.constFind(requestId);
-	if (i != toSend.cend()) {
-		return MTP::RequestSending;
-	} else {
+	} else if (!requestId) {
 		return MTP::RequestSent;
 	}
+
+	QWriteLocker locker(_data->toSendMutex());
+	return _data->toSendMap().contains(requestId)
+		? MTP::RequestSending
+		: MTP::RequestSent;
 }
 
 int32 Session::getState() const {
@@ -397,13 +376,13 @@ QString Session::transport() const {
 }
 
 void Session::sendPrepared(
-		const SecureRequest &request,
+		const details::SerializedRequest &request,
 		crl::time msCanWait) {
 	DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1"
 		).arg(msCanWait));
 	{
 		QWriteLocker locker(_data->toSendMutex());
-		_data->toSendMap().insert(request->requestId, request);
+		_data->toSendMap().emplace(request->requestId, request);
 		*(mtpMsgId*)(request->data() + 4) = 0;
 		*(request->data() + 6) = 0;
 	}
@@ -510,35 +489,27 @@ void Session::tryToReceive() {
 		return;
 	}
 	while (true) {
-		auto requestId = mtpRequestId(0);
-		auto isUpdate = false;
-		auto message = SerializedMessage();
-		{
-			QWriteLocker locker(_data->haveReceivedMutex());
-			auto &responses = _data->haveReceivedResponses();
-			auto response = responses.begin();
-			if (response == responses.cend()) {
-				auto &updates = _data->haveReceivedUpdates();
-				auto update = updates.begin();
-				if (update == updates.cend()) {
-					return;
-				} else {
-					message = std::move(*update);
-					isUpdate = true;
-					updates.pop_front();
-				}
-			} else {
-				requestId = response.key();
-				message = std::move(response.value());
-				responses.erase(response);
-			}
+		auto lock = QWriteLocker(_data->haveReceivedMutex());
+		const auto responses = base::take(_data->haveReceivedResponses());
+		const auto updates = base::take(_data->haveReceivedUpdates());
+		lock.unlock();
+		if (responses.empty() && updates.empty()) {
+			break;
 		}
-		if (isUpdate) {
-			if (_shiftedDcId == BareDcId(_shiftedDcId)) { // call globalCallback only in main session
-				_instance->globalCallback(message.constData(), message.constData() + message.size());
+		for (const auto &[requestId, response] : responses) {
+			_instance->execCallback(
+				requestId,
+				response.constData(),
+				response.constData() + response.size());
+		}
+
+		// Call globalCallback only in main session.
+		if (_shiftedDcId == BareDcId(_shiftedDcId)) {
+			for (const auto &update : updates) {
+				_instance->globalCallback(
+					update.constData(),
+					update.constData() + update.size());
 			}
-		} else {
-			_instance->execCallback(requestId, message.constData(), message.constData() + message.size());
 		}
 	}
 }

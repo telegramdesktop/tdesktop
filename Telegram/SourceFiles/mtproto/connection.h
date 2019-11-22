@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/details/mtproto_received_ids_manager.h"
+#include "mtproto/details/mtproto_serialized_request.h"
 #include "mtproto/mtproto_auth_key.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/connection_abstract.h"
@@ -139,18 +140,22 @@ private:
 	void checkSentRequests();
 
 	mtpMsgId placeToContainer(
-		SecureRequest &toSendRequest,
+		details::SerializedRequest &toSendRequest,
 		mtpMsgId &bigMsgId,
 		bool forceNewMsgId,
 		mtpMsgId *&haveSentArr,
-		SecureRequest &req);
+		details::SerializedRequest &req);
 	mtpMsgId prepareToSend(
-		SecureRequest &request,
+		details::SerializedRequest &request,
 		mtpMsgId currentLastId,
 		bool forceNewMsgId);
-	mtpMsgId replaceMsgId(SecureRequest &request, mtpMsgId newId);
+	mtpMsgId replaceMsgId(
+		details::SerializedRequest &request,
+		mtpMsgId newId);
 
-	bool sendSecureRequest(SecureRequest &&request, bool needAnyResponse);
+	bool sendSecureRequest(
+		details::SerializedRequest &&request,
+		bool needAnyResponse);
 	mtpRequestId wasSent(mtpMsgId msgId) const;
 
 	[[nodiscard]] HandleResult handleOneReceived(const mtpPrime *from, const mtpPrime *end, uint64 msgId, int32 serverTime, uint64 serverSalt, bool badTime);
