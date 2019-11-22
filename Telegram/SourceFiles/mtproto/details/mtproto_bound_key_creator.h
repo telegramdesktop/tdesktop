@@ -31,12 +31,11 @@ public:
 
 	void bind(AuthKeyPtr &&persistentKey);
 	void restartBinder();
-	[[nodiscard]] bool bindReadyToRequest() const;
+	[[nodiscard]] bool readyToBind() const;
 	[[nodiscard]] SecureRequest prepareBindRequest(
 		const AuthKeyPtr &temporaryKey,
 		uint64 sessionId);
 	[[nodiscard]] DcKeyBindState handleBindResponse(
-		MTPlong requestMsgId,
 		const mtpBuffer &response);
 	[[nodiscard]] AuthKeyPtr bindPersistentKey() const;
 

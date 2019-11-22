@@ -29,22 +29,6 @@ enum class CreatingKeyType;
 
 using PreRequestMap = QMap<mtpRequestId, SecureRequest>;
 using RequestMap = QMap<mtpMsgId, SecureRequest>;
-
-class RequestIdsMap : public QMap<mtpMsgId, mtpRequestId> {
-public:
-	using ParentType = QMap<mtpMsgId, mtpRequestId>;
-
-	mtpMsgId min() const {
-		return size() ? cbegin().key() : 0;
-	}
-
-	mtpMsgId max() const {
-		ParentType::const_iterator e(cend());
-		return size() ? (--e).key() : 0;
-	}
-
-};
-
 using SerializedMessage = mtpBuffer;
 
 inline bool ResponseNeedsAck(const SerializedMessage &response) {
@@ -102,12 +86,6 @@ public:
 	not_null<QReadWriteLock*> haveSentMutex() const {
 		return &_haveSentLock;
 	}
-	not_null<QReadWriteLock*> toResendMutex() const {
-		return &_toResendLock;
-	}
-	not_null<QReadWriteLock*> wereAckedMutex() const {
-		return &_wereAckedLock;
-	}
 	not_null<QReadWriteLock*> haveReceivedMutex() const {
 		return &_haveReceivedLock;
 	}
@@ -123,18 +101,6 @@ public:
 	}
 	const RequestMap &haveSentMap() const {
 		return _haveSent;
-	}
-	RequestIdsMap &toResendMap() { // msgId -> requestId, on which toSend: requestId -> request for resended requests
-		return _toResend;
-	}
-	const RequestIdsMap &toResendMap() const {
-		return _toResend;
-	}
-	RequestIdsMap &wereAckedMap() {
-		return _wereAcked;
-	}
-	const RequestIdsMap &wereAckedMap() const {
-		return _wereAcked;
 	}
 	QMap<mtpRequestId, SerializedMessage> &haveReceivedResponses() {
 		return _receivedResponses;
@@ -154,8 +120,6 @@ public:
 		return _owner;
 	}
 
-	void clearForNewKey(not_null<Instance*> instance);
-
 	// Connection -> Session interface.
 	void queueTryToReceive();
 	void queueNeedToResumeAndSend();
@@ -173,11 +137,6 @@ public:
 		const AuthKeyPtr &persistentKeyUsedForBind);
 	void releaseKeyCreationOnFail();
 	void destroyTemporaryKey(uint64 keyId);
-	void resend(
-		mtpMsgId msgId,
-		crl::time msCanWait,
-		bool forceContainer);
-	void resendAll();
 
 	void detach();
 
@@ -192,8 +151,6 @@ private:
 
 	PreRequestMap _toSend; // map of request_id -> request, that is waiting to be sent
 	RequestMap _haveSent; // map of msg_id -> request, that was sent, msDate = 0 for msgs_state_req (no resend / state req), msDate = 0, seqNo = 0 for containers
-	RequestIdsMap _toResend; // map of msg_id -> request_id, that request_id -> request lies in toSend and is waiting to be resent
-	RequestIdsMap _wereAcked; // map of msg_id -> request_id, this msg_ids already were acked or do not need ack
 
 	QMap<mtpRequestId, SerializedMessage> _receivedResponses; // map of request_id -> response that should be processed in the main thread
 	QList<SerializedMessage> _receivedUpdates; // list of updates that should be processed in the main thread
@@ -202,8 +159,6 @@ private:
 	mutable QReadWriteLock _optionsLock;
 	mutable QReadWriteLock _toSendLock;
 	mutable QReadWriteLock _haveSentLock;
-	mutable QReadWriteLock _toResendLock;
-	mutable QReadWriteLock _wereAckedLock;
 	mutable QReadWriteLock _haveReceivedLock;
 
 };
@@ -234,18 +189,7 @@ public:
 	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
 	[[nodiscard]] AuthKeyPtr getTemporaryKey(TemporaryKeyType type) const;
 	[[nodiscard]] bool connectionInited() const;
-	void resend(
-		mtpMsgId msgId,
-		crl::time msCanWait = 0,
-		bool forceContainer = false);
-	void resendAll();
-
-	// Thread-safe.
-	// Nulls msgId and seqNo in request, if newRequest = true.
-	void sendPrepared(
-		const SecureRequest &request,
-		crl::time msCanWait = 0,
-		bool newRequest = true);
+	void sendPrepared(const SecureRequest &request, crl::time msCanWait = 0);
 
 	// Connection thread.
 	[[nodiscard]] CreatingKeyType acquireKeyCreation(TemporaryKeyType type);

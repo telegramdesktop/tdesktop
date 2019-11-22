@@ -154,6 +154,9 @@ private:
 	mtpRequestId wasSent(mtpMsgId msgId) const;
 
 	[[nodiscard]] HandleResult handleOneReceived(const mtpPrime *from, const mtpPrime *end, uint64 msgId, int32 serverTime, uint64 serverSalt, bool badTime);
+	[[nodiscard]] HandleResult handleBindResponse(
+		mtpMsgId requestMsgId,
+		const mtpBuffer &response);
 	mtpBuffer ungzip(const mtpPrime *from, const mtpPrime *end) const;
 	void handleMsgsStates(const QVector<MTPlong> &ids, const QByteArray &states, QVector<MTPlong> &acked);
 
@@ -176,10 +179,8 @@ private:
 		mtpMsgId msgId,
 		crl::time msCanWait = 0,
 		bool forceContainer = false);
-	void resendMany(
-		QVector<mtpMsgId> msgIds,
-		crl::time msCanWait = 0,
-		bool forceContainer = false);
+	void resendAll();
+	void clearSpecialMsgId(mtpMsgId msgId);
 
 	[[nodiscard]] DcType tryAcquireKeyCreation();
 	void resetSession();
@@ -249,8 +250,11 @@ private:
 	QVector<MTPlong> _resendRequestData;
 	base::flat_set<mtpMsgId> _stateRequestData;
 	details::ReceivedIdsManager _receivedMessageIds;
+	base::flat_map<mtpMsgId, mtpRequestId> _resendingIds;
+	base::flat_map<mtpMsgId, mtpRequestId> _ackedIds;
 
 	std::unique_ptr<details::BoundKeyCreator> _keyCreator;
+	mtpMsgId _bindMsgId = 0;
 
 };
 

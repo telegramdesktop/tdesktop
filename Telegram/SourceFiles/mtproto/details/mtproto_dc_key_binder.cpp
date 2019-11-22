@@ -77,45 +77,33 @@ DcKeyBinder::DcKeyBinder(AuthKeyPtr &&persistentKey)
 	Expects(_persistentKey != nullptr);
 }
 
-bool DcKeyBinder::requested() const {
-	return _requestMsgId != 0;
-}
-
 SecureRequest DcKeyBinder::prepareRequest(
 		const AuthKeyPtr &temporaryKey,
 		uint64 sessionId) {
-	Expects(_requestMsgId == 0);
 	Expects(temporaryKey != nullptr);
 	Expects(temporaryKey->expiresAt() != 0);
 
 	const auto nonce = openssl::RandomValue<uint64>();
-	_requestMsgId = base::unixtime::mtproto_msg_id();
+	const auto msgId = base::unixtime::mtproto_msg_id();
 	auto result = SecureRequest::Serialize(MTPauth_BindTempAuthKey(
 		MTP_long(_persistentKey->keyId()),
 		MTP_long(nonce),
 		MTP_int(temporaryKey->expiresAt()),
 		MTP_bytes(EncryptBindAuthKeyInner(
 			_persistentKey,
-			_requestMsgId,
+			msgId,
 			MTP_bind_auth_key_inner(
 				MTP_long(nonce),
 				MTP_long(temporaryKey->keyId()),
 				MTP_long(_persistentKey->keyId()),
 				MTP_long(sessionId),
 				MTP_int(temporaryKey->expiresAt()))))));
-	result.setMsgId(_requestMsgId);
+	result.setMsgId(msgId);
 	return result;
 }
 
-DcKeyBindState DcKeyBinder::handleResponse(
-		MTPlong requestMsgId,
-		const mtpBuffer &response) {
+DcKeyBindState DcKeyBinder::handleResponse(const mtpBuffer &response) {
 	Expects(!response.isEmpty());
-
-	if (!_requestMsgId || requestMsgId.v != _requestMsgId) {
-		return DcKeyBindState::Unknown;
-	}
-	_requestMsgId = 0;
 
 	auto from = response.begin();
 	const auto end = from + response.size();

@@ -64,48 +64,6 @@ void SessionData::notifyConnectionInited(const ConnectionOptions &options) {
 	}
 }
 
-void SessionData::clearForNewKey(not_null<Instance*> instance) {
-	auto clearCallbacks = std::vector<RPCCallbackClear>();
-	{
-		QReadLocker locker1(haveSentMutex());
-		QReadLocker locker2(toResendMutex());
-		QReadLocker locker3(haveReceivedMutex());
-		QReadLocker locker4(wereAckedMutex());
-		clearCallbacks.reserve(_haveSent.size() + _toResend.size() + _wereAcked.size());
-		for (auto i = _haveSent.cbegin(), e = _haveSent.cend(); i != e; ++i) {
-			auto requestId = i.value()->requestId;
-			if (!_receivedResponses.contains(requestId)) {
-				clearCallbacks.push_back(requestId);
-			}
-		}
-		for (auto i = _toResend.cbegin(), e = _toResend.cend(); i != e; ++i) {
-			auto requestId = i.value();
-			if (!_receivedResponses.contains(requestId)) {
-				clearCallbacks.push_back(requestId);
-			}
-		}
-		for (auto i = _wereAcked.cbegin(), e = _wereAcked.cend(); i != e; ++i) {
-			auto requestId = i.value();
-			if (!_receivedResponses.contains(requestId)) {
-				clearCallbacks.push_back(requestId);
-			}
-		}
-	}
-	{
-		QWriteLocker locker(haveSentMutex());
-		_haveSent.clear();
-	}
-	{
-		QWriteLocker locker(toResendMutex());
-		_toResend.clear();
-	}
-	{
-		QWriteLocker locker(wereAckedMutex());
-		_wereAcked.clear();
-	}
-	instance->clearCallbacksDelayed(std::move(clearCallbacks));
-}
-
 void SessionData::queueTryToReceive() {
 	withSession([](not_null<Session*> session) {
 		session->tryToReceive();
@@ -140,23 +98,6 @@ void SessionData::queueSendMsgsStateInfo(quint64 msgId, QByteArray data) {
 	withSession([=](not_null<Session*> session) {
 		session->sendMsgsStateInfo(msgId, data);
 	});
-}
-
-void SessionData::resend(
-		mtpMsgId msgId,
-		crl::time msCanWait,
-		bool forceContainer) {
-	QMutexLocker lock(&_ownerMutex);
-	if (_owner) {
-		_owner->resend(msgId, msCanWait, forceContainer);
-	}
-}
-
-void SessionData::resendAll() {
-	QMutexLocker lock(&_ownerMutex);
-	if (_owner) {
-		_owner->resendAll();
-	}
 }
 
 bool SessionData::connectionInited() const {
@@ -455,72 +396,16 @@ QString Session::transport() const {
 	return _connection ? _connection->transport() : QString();
 }
 
-void Session::resend(
-		mtpMsgId msgId,
-		crl::time msCanWait,
-		bool forceContainer) {
-	auto lock = QWriteLocker(_data->haveSentMutex());
-	auto &haveSent = _data->haveSentMap();
-
-	auto i = haveSent.find(msgId);
-	if (i == haveSent.end()) {
-		return;
-	}
-	auto request = i.value();
-	haveSent.erase(i);
-	lock.unlock();
-
-	// For container just resend all messages we can.
-	if (request.isSentContainer()) {
-		DEBUG_LOG(("Message Info: resending container from haveSent, msgId %1").arg(msgId));
-		const mtpMsgId *ids = (const mtpMsgId *)(request->constData() + 8);
-		for (uint32 i = 0, l = (request->size() - 8) >> 1; i < l; ++i) {
-			resend(ids[i], 10, true);
-		}
-	} else if (!request.isStateRequest()) {
-		request->msDate = forceContainer ? 0 : crl::now();
-		{
-			QWriteLocker locker(_data->toResendMutex());
-			_data->toResendMap().insert(msgId, request->requestId);
-		}
-		sendPrepared(request, msCanWait, false);
-	}
-}
-
-void Session::resendAll() {
-	QVector<mtpMsgId> toResend;
-	{
-		QReadLocker locker(_data->haveSentMutex());
-		const auto &haveSent = _data->haveSentMap();
-		toResend.reserve(haveSent.size());
-		for (auto i = haveSent.cbegin(), e = haveSent.cend(); i != e; ++i) {
-			if (i.value()->requestId) {
-				toResend.push_back(i.key());
-			}
-		}
-	}
-	for (uint32 i = 0, l = toResend.size(); i < l; ++i) {
-		resend(toResend[i], -1, true);
-	}
-	InvokeQueued(this, [=] {
-		sendAnything();
-	});
-}
-
 void Session::sendPrepared(
 		const SecureRequest &request,
-		crl::time msCanWait,
-		bool newRequest) {
+		crl::time msCanWait) {
 	DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1"
 		).arg(msCanWait));
 	{
 		QWriteLocker locker(_data->toSendMutex());
 		_data->toSendMap().insert(request->requestId, request);
-
-		if (newRequest) {
-			*(mtpMsgId*)(request->data() + 4) = 0;
-			*(request->data() + 6) = 0;
-		}
+		*(mtpMsgId*)(request->data() + 4) = 0;
+		*(request->data() + 6) = 0;
 	}
 
 	DEBUG_LOG(("MTP Info: added, requestId %1").arg(request->requestId));

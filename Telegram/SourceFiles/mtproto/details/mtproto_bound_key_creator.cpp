@@ -50,8 +50,8 @@ void BoundKeyCreator::restartBinder() {
 	}
 }
 
-bool BoundKeyCreator::bindReadyToRequest() const {
-	return _binder ? !_binder->requested() : false;
+bool BoundKeyCreator::readyToBind() const {
+	return _binder.has_value();
 }
 
 SecureRequest BoundKeyCreator::prepareBindRequest(
@@ -63,11 +63,10 @@ SecureRequest BoundKeyCreator::prepareBindRequest(
 }
 
 DcKeyBindState BoundKeyCreator::handleBindResponse(
-		MTPlong requestMsgId,
 		const mtpBuffer &response) {
-	return _binder
-		? _binder->handleResponse(requestMsgId, response)
-		: DcKeyBindState::Unknown;
+	Expects(_binder.has_value());
+
+	return _binder->handleResponse(response);
 }
 
 AuthKeyPtr BoundKeyCreator::bindPersistentKey() const {

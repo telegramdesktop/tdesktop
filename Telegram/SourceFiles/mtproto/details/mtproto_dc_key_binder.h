@@ -17,7 +17,6 @@ class Instance;
 namespace MTP::details {
 
 enum class DcKeyBindState {
-	Unknown,
 	Success,
 	Failed,
 	DefinitelyDestroyed,
@@ -27,18 +26,14 @@ class DcKeyBinder final {
 public:
 	explicit DcKeyBinder(AuthKeyPtr &&persistentKey);
 
-	[[nodiscard]] bool requested() const;
 	[[nodiscard]] SecureRequest prepareRequest(
 		const AuthKeyPtr &temporaryKey,
 		uint64 sessionId);
-	[[nodiscard]] DcKeyBindState handleResponse(
-		MTPlong requestMsgId,
-		const mtpBuffer &response);
+	[[nodiscard]] DcKeyBindState handleResponse(const mtpBuffer &response);
 	[[nodiscard]] AuthKeyPtr persistentKey() const;
 
 private:
 	AuthKeyPtr _persistentKey;
-	mtpMsgId _requestMsgId = 0;
 
 };
 
