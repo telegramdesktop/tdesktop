@@ -20,7 +20,7 @@ function(generate_numbers target_name numbers_file)
     COMMENT "Generating numbers (${target_name})"
     DEPENDS
         codegen_numbers
-        ${gen_src}
+        ${numbers_file}
     )
     generate_target(${target_name} numbers "${generated_files}" ${gen_dst})
 endfunction()
