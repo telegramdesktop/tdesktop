@@ -60,7 +60,7 @@ void Downloader::requestedAmountIncrement(MTP::DcId dcId, int index, int amount)
 	using namespace rpl::mappers;
 
 	auto it = _requestedBytesAmount.find(dcId);
-	if (it == _requestedBytesAmount.cend()) {
+	if (it == _requestedBytesAmount.end()) {
 		it = _requestedBytesAmount.emplace(dcId, RequestedInDc { { 0 } }).first;
 	}
 	it->second[index] += amount;

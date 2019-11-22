@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/countryinput.h"
 #include "intro/introwidget.h"
+#include "mtproto/sender.h"
+#include "base/timer.h"
 
 namespace Ui {
 class PhonePartInput;
@@ -19,22 +21,18 @@ class FlatLabel;
 
 namespace Intro {
 
-class PhoneWidget : public Widget::Step {
-	Q_OBJECT
-
+class QrWidget : public Widget::Step {
 public:
-	PhoneWidget(
+	QrWidget(
 		QWidget *parent,
 		not_null<Main::Account*> account,
 		not_null<Widget::Data*> data);
 
-	void selectCountry(const QString &country);
-
-	void setInnerFocus() override;
 	void activate() override;
 	void finished() override;
 	void cancelled() override;
 	void submit() override;
+	rpl::producer<QString> nextButtonText() const override;
 
 	bool hasBack() const override {
 		return true;
@@ -43,32 +41,23 @@ public:
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 
-private slots:
-	void onInputChange();
-	void onCheckRequest();
-
 private:
-	void countryChanged();
+	void refreshCode();
+	void updateCodeGeometry();
+	void checkForTokenUpdate(const MTPUpdates &updates);
+	void checkForTokenUpdate(const MTPUpdate &update);
+	void handleTokenResult(const MTPauth_LoginToken &result);
+	void showTokenError(const RPCError &error);
+	void importTo(MTP::DcId dcId, const QByteArray &token);
+	void showToken(const QByteArray &token);
+	void done(const MTPauth_Authorization &authorization);
 
-	void phoneSubmitDone(const MTPauth_SentCode &result);
-	bool phoneSubmitFail(const RPCError &error);
-
-	QString fullNumber() const;
-	void stopCheck();
-
-	void showPhoneError(rpl::producer<QString> text);
-	void hidePhoneError();
-
-	bool _changed = false;
-
-	object_ptr<CountryInput> _country;
-	object_ptr<Ui::CountryCodeInput> _code;
-	object_ptr<Ui::PhonePartInput> _phone;
-
-	QString _sentPhone;
-	mtpRequestId _sentRequest = 0;
-
-	object_ptr<QTimer> _checkRequest;
+	rpl::event_stream<QImage> _qrImages;
+	not_null<Ui::RpWidget*> _code;
+	base::Timer _refreshTimer;
+	MTP::Sender _api;
+	mtpRequestId _requestId = 0;
+	bool _forceRefresh = false;
 
 };
 

@@ -79,7 +79,7 @@ private:
 	int _priority = 1;
 
 	using RequestedInDc = std::array<int64, MTP::kDownloadSessionsCount>;
-	std::map<MTP::DcId, RequestedInDc> _requestedBytesAmount;
+	base::flat_map<MTP::DcId, RequestedInDc> _requestedBytesAmount;
 
 	base::flat_map<MTP::DcId, crl::time> _killDownloadSessionTimes;
 	base::Timer _killDownloadSessionsTimer;

@@ -133,7 +133,6 @@ public:
 	void incrementSticker(DocumentData *sticker);
 
 	void activate();
-	[[nodiscard]] bool updateReceived(const mtpPrime *from, const mtpPrime *end);
 
 	void refreshDialog(Dialogs::Key key);
 	void removeDialog(Dialogs::Key key);
@@ -394,6 +393,8 @@ private:
 	bool failChannelDifference(ChannelData *channel, const RPCError &err);
 	void failDifferenceStartTimerFor(ChannelData *channel);
 
+	void mtpUpdateReceived(const MTPUpdates &updates);
+	void mtpNewSessionCreated();
 	void feedUpdateVector(
 		const MTPVector<MTPUpdate> &updates,
 		bool skipMessageIds = false);

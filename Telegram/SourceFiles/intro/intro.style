@@ -160,3 +160,6 @@ introBackButton: IconButton(defaultIconButton) {
 	}
 }
 
+introQrTop: 90px;
+introQrPixel: 50px; // large enough
+introQrMaxSize: 170px;

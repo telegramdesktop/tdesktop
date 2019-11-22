@@ -236,7 +236,7 @@ void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 	result.match([&](const MTPDauth_authorization &data) {
 		if (data.vuser().type() != mtpc_user
 			|| !data.vuser().c_user().is_self()) {
-			showCodeError(rpl::single(Lang::Hard::ServerError()));
+			showError(rpl::single(Lang::Hard::ServerError()));
 			return;
 		}
 		cSetLoggedPhoneNumber(getData()->phone);

@@ -56,6 +56,8 @@ public:
 		QByteArray &&selfSerialized,
 		int32 selfStreamVersion);
 	[[nodiscard]] Settings *getSessionSettings();
+	[[nodiscard]] rpl::producer<> mtpNewSessionCreated() const;
+	[[nodiscard]] rpl::producer<MTPUpdates> mtpUpdates() const;
 
 	// Serialization.
 	[[nodiscard]] QByteArray serializeMtpAuthorization() const;
@@ -86,6 +88,8 @@ private:
 	std::unique_ptr<MTP::Instance> _mtp;
 	rpl::variable<MTP::Instance*> _mtpValue;
 	std::unique_ptr<MTP::Instance> _mtpForKeysDestroy;
+	rpl::event_stream<MTPUpdates> _mtpUpdates;
+	rpl::event_stream<> _mtpNewSessionCreated;
 	rpl::event_stream<> _configUpdates;
 
 	std::unique_ptr<Session> _session;

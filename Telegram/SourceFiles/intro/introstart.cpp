@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/introstart.h"
 
 #include "lang/lang_keys.h"
-#include "intro/introphone.h"
+#include "intro/intro_qr.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 
@@ -26,7 +26,7 @@ StartWidget::StartWidget(
 }
 
 void StartWidget::submit() {
-	goNext<PhoneWidget>();
+	goNext<QrWidget>();
 }
 
 rpl::producer<QString> StartWidget::nextButtonText() const {

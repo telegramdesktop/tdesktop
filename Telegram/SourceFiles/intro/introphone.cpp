@@ -69,13 +69,6 @@ void PhoneWidget::resizeEvent(QResizeEvent *e) {
 	auto phoneTop = _country->y() + _country->height() + st::introPhoneTop;
 	_code->moveToLeft(contentLeft(), phoneTop);
 	_phone->moveToLeft(contentLeft() + _country->width() - st::introPhone.width, phoneTop);
-	updateSignupGeometry();
-}
-
-void PhoneWidget::updateSignupGeometry() {
-	if (_signup) {
-		_signup->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introDescriptionTop);
-	}
 }
 
 void PhoneWidget::showPhoneError(rpl::producer<QString> text) {
@@ -85,10 +78,6 @@ void PhoneWidget::showPhoneError(rpl::producer<QString> text) {
 
 void PhoneWidget::hidePhoneError() {
 	hideError();
-	if (_signup) {
-		_signup->hide(anim::type::instant);
-		showDescription();
-	}
 }
 
 void PhoneWidget::countryChanged() {

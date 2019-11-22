@@ -120,21 +120,6 @@ void Account::createSession(
 	Expects(_session == nullptr);
 	Expects(_sessionValue.current() == nullptr);
 
-	_mtp->setUpdatesHandler(::rpcDone([](
-		const mtpPrime *from,
-		const mtpPrime *end) {
-		if (const auto main = App::main()) {
-			return main->updateReceived(from, end);
-		}
-		return true;
-	}));
-	_mtp->setGlobalFailHandler(::rpcFail([=](const RPCError &error) {
-		if (sessionExists()) {
-			crl::on_main(&session(), [=] { logOut(); });
-		}
-		return true;
-	}));
-
 	_session = std::make_unique<Session>(this, user, std::move(settings));
 	_sessionValue = _session.get();
 
@@ -152,7 +137,6 @@ void Account::destroySession() {
 		return;
 	}
 	session().data().clear();
-	_mtp->clearGlobalHandlers();
 
 	_sessionValue = nullptr;
 	_session = nullptr;
@@ -190,6 +174,14 @@ rpl::producer<MTP::Instance*> Account::mtpValue() const {
 
 rpl::producer<MTP::Instance*> Account::mtpChanges() const {
 	return _mtpValue.changes();
+}
+
+rpl::producer<MTPUpdates> Account::mtpUpdates() const {
+	return _mtpUpdates.events();
+}
+
+rpl::producer<> Account::mtpNewSessionCreated() const {
+	return _mtpNewSessionCreated.events();
 }
 
 void Account::setMtpMainDcId(MTP::DcId mainDcId) {
@@ -344,6 +336,26 @@ void Account::startMtp() {
 	_mtp->setUserPhone(cLoggedPhoneNumber());
 	_mtpConfig.mainDcId = _mtp->mainDcId();
 
+	_mtp->setUpdatesHandler(::rpcDone([=](
+			const mtpPrime *from,
+			const mtpPrime *end) {
+		auto newSession = MTPNewSession();
+		auto updates = MTPUpdates();
+		if (updates.read(from, end)) {
+			_mtpUpdates.fire(std::move(updates));
+		} else if (newSession.read(from, end)) {
+			_mtpNewSessionCreated.fire({});
+		} else {
+			return false;
+		}
+		return true;
+	}));
+	_mtp->setGlobalFailHandler(::rpcFail([=](const RPCError &error) {
+		if (sessionExists()) {
+			crl::on_main(&session(), [=] { logOut(); });
+		}
+		return true;
+	}));
 	_mtp->setStateChangedHandler([](MTP::ShiftedDcId dc, int32 state) {
 		if (dc == MTP::maindc()) {
 			Global::RefConnectionTypeChanged().notify();
