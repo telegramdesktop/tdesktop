@@ -10,17 +10,26 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 
 ### Install software and required packages
 
-You will need GCC 8.1 installed. To install them and all the required dependencies run
+You will need GCC 8 installed. To install them and all the required dependencies run
 
     sudo apt-get install software-properties-common -y && \
-    sudo apt-get install git libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libicu-dev libdee-dev libdrm-dev dh-autoreconf autoconf automake build-essential libass-dev libfreetype6-dev libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev libvorbis-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libxcb-render-util0-dev libxcb-util0-dev libxcb-xkb-dev libxrender-dev libasound-dev libpulse-dev libxcb-sync0-dev libxcb-randr0-dev libx11-xcb-dev libffi-dev libncurses5-dev pkg-config texi2html zlib1g-dev yasm xutils-dev bison python-xcbgen chrpath gperf -y && \
+    sudo apt-get install git libexif-dev liblzma-dev libz-dev libssl-dev \
+    libappindicator-dev libicu-dev libdee-dev libdrm-dev dh-autoreconf \
+    autoconf automake build-essential libass-dev libfreetype6-dev \
+    libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev \
+    libvorbis-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev \
+    libxcb-xfixes0-dev libxcb-keysyms1-dev libxcb-icccm4-dev \
+    libxcb-render-util0-dev libxcb-util0-dev libxcb-xkb-dev libxrender-dev \
+    libasound-dev libpulse-dev libxcb-sync0-dev libxcb-randr0-dev bison \
+    libx11-xcb-dev libffi-dev libncurses5-dev pkg-config texi2html yasm \
+    zlib1g-dev xutils-dev python-xcbgen chrpath gperf -y --force-yes && \
     sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
     sudo apt-get update && \
     sudo apt-get install gcc-8 g++-8 -y && \
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 && \
     sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 60 && \
     sudo update-alternatives --config gcc && \
-    sudo add-apt-repository --remove ppa:ubuntu-toolchain-r/test -y && \
+    sudo add-apt-repository --remove ppa:ubuntu-toolchain-r/test -y
 
 You can set the multithreaded make parameter by running
 
@@ -41,6 +50,7 @@ Go to ***BuildPath*** and run
     ./bootstrap
     make $MAKE_THREADS_CNT
     sudo make install
+    cd ..
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
@@ -237,7 +247,27 @@ Go to ***BuildPath*** and run
     git clone https://github.com/desktop-app/nimf.git
     cd ../../../..
 
-    ./configure -prefix "/usr/local/desktop-app/Qt-5.12.5" -release -force-debug-info -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-harfbuzz -qt-pcre -qt-xcb -system-freetype -fontconfig -no-opengl -no-gtk -static -openssl-linked -I "/usr/local/desktop-app/openssl-1.1.1/include" OPENSSL_LIBS="/usr/local/desktop-app/openssl-1.1.1/lib/libssl.a /usr/local/desktop-app/openssl-1.1.1/lib/libcrypto.a -ldl -lpthread" -nomake examples -nomake tests
+    OPENSSL_DIR=/usr/local/desktop-app/openssl-1.1.1
+    ./configure -prefix "/usr/local/desktop-app/Qt-5.12.5" \
+    -release \
+    -force-debug-info \
+    -opensource \
+    -confirm-license \
+    -qt-zlib \
+    -qt-libpng \
+    -qt-libjpeg \
+    -qt-harfbuzz \
+    -qt-pcre \
+    -qt-xcb \
+    -system-freetype \
+    -fontconfig \
+    -no-opengl \
+    -no-gtk \
+    -static \
+    -openssl-linked \
+    -I "$OPENSSL_DIR/include" OPENSSL_LIBS="$OPENSSL_DIR/lib/libssl.a $OPENSSL_DIR/lib/libcrypto.a -ldl -lpthread" \
+    -nomake examples \
+    -nomake tests
 
     make $MAKE_THREADS_CNT
     sudo make install
