@@ -991,10 +991,10 @@ add_dependencies(Telegram Updater)
 
 set(updater_sources
 PRIVATE
-    _other/updater.cpp
-    _other/updater.h
+    _other/updater_win.cpp
     _other/updater_linux.cpp
     _other/updater_osx.m
+    _other/updater.h
 )
 nice_target_sources(Updater ${src_loc} "${updater_sources}")
 
