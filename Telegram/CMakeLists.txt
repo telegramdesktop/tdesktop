@@ -7,9 +7,6 @@
 add_executable(Telegram WIN32 MACOSX_BUNDLE)
 init_target(Telegram)
 
-add_executable(Updater WIN32)
-init_target(Updater)
-
 add_subdirectory(lib_rpl)
 add_subdirectory(lib_crl)
 add_subdirectory(lib_base)
@@ -63,8 +60,7 @@ generate_styles(Telegram ${src_loc} "${style_files}" "${dependent_style_files}")
 generate_lang(Telegram ${res_loc}/langs/lang.strings)
 generate_numbers(Telegram ${res_loc}/numbers.txt)
 
-set_target_properties(Telegram PROPERTIES AUTOMOC ON)
-set_target_properties(Telegram PROPERTIES AUTORCC ON)
+set_target_properties(Telegram PROPERTIES AUTOMOC ON AUTORCC ON)
 
 target_link_libraries(Telegram
 PRIVATE
@@ -82,13 +78,16 @@ PRIVATE
     desktop-app::external_lz4
     desktop-app::external_rlottie
     desktop-app::external_qt
-    desktop-app::external_openssl
-    desktop-app::external_crash_reports
     desktop-app::external_auto_updates
+    desktop-app::external_openssl
     desktop-app::external_zlib
     desktop-app::external_opus
     desktop-app::external_openal
 )
+
+if (NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
+    target_link_libraries(Telegram PRIVATE desktop-app::external_crash_reports)
+endif()
 
 set(telegram_sources
 PRIVATE
@@ -960,18 +959,69 @@ if (WIN32)
     # COMMENT
     #     $<IF:${release},"Appending compatibility manifest.","Finalizing build.">
     # )
-else()
+elseif (APPLE)
     target_link_libraries(Telegram
     PRIVATE
-        desktop-app::external_minizip
+        desktop-app::external_sp_media_key_tap
+        desktop-app::external_iconv
     )
-    if (APPLE)
-        target_link_libraries(Telegram
-        PRIVATE
-            desktop-app::external_sp_media_key_tap
+
+    set(icons_path ${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Images.xcassets)
+    set_target_properties(Telegram PROPERTIES RESOURCE ${icons_path})
+    target_sources(Telegram PRIVATE ${icons_path})
+
+    set(lang_packs
+        en
+        de
+        es
+        it
+        nl
+        ko
+        pt-BR
+    )
+    foreach (lang ${lang_packs})
+        set(strings_path ${res_loc}/langs/${lang}.lproj/Localizable.strings)
+        set_source_files_properties(${strings_path} PROPERTIES
+        MACOSX_PACKAGE_LOCATION
+            Resources/${lang}.lproj/Localizable.strings
+        )
+        target_sources(Telegram PRIVATE ${strings_path})
+    endforeach()
+
+    add_custom_command(TARGET Telegram
+    PRE_LINK
+        COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks
+        COMMAND cp $<TARGET_FILE:Updater> $<TARGET_FILE_DIR:Telegram>/../Frameworks/
+    )
+
+    if (NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
+        add_custom_command(TARGET Telegram
+        PRE_LINK
+            COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Helpers
+            COMMAND cp ${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>/crashpad_handler $<TARGET_FILE_DIR:Telegram>/../Helpers/
         )
     endif()
 endif()
+
+if (build_macstore)
+    set(bundle_identifier "org.telegram.desktop")
+elseif (build_osx)
+    set(bundle_identifier "com.tdesktop.Telegram$<$<CONFIG:Debug>:DebugOsx>")
+else()
+    set(bundle_identifier "com.tdesktop.Telegram$<$<CONFIG:Debug>:Debug>")
+endif()
+set_target_properties(Telegram PROPERTIES
+    MACOSX_BUNDLE_GUI_IDENTIFIER ${bundle_identifier}
+    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/Telegram.plist
+    XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT $<$<NOT:$<CONFIG:Debug>>:dwarf-with-dsym>
+    XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon
+    XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
+    XCODE_ATTRIBUTE_COMBINE_HIDPI_IMAGES YES
+    XCODE_ATTRIBUTE_COPY_PHASE_STRIP NO
+    XCODE_ATTRIBUTE_ALWAYS_SEARCH_USER_PATHS NO
+    XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY libc++
+    XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS --deep
+)
 
 target_include_directories(Telegram
 PRIVATE
@@ -987,6 +1037,11 @@ PRIVATE
     AL_ALEXT_PROTOTYPES
 )
 
+set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+add_executable(Updater WIN32)
+init_target(Updater)
+
 add_dependencies(Telegram Updater)
 
 set(updater_sources
@@ -998,5 +1053,4 @@ PRIVATE
 )
 nice_target_sources(Updater ${src_loc} "${updater_sources}")
 
-set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 set_target_properties(Updater PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")

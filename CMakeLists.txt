@@ -19,10 +19,13 @@ project(Telegram
     HOMEPAGE_URL "https://desktop.telegram.org"
 )
 
-include(cmake/options.cmake)
+include(cmake/nice_target_sources.cmake)
+include(cmake/target_link_frameworks.cmake)
 include(cmake/init_target.cmake)
 include(cmake/generate_target.cmake)
-include(cmake/nice_target_sources.cmake)
+
+include(cmake/options.cmake)
+
 include(cmake/external/qt/package.cmake)
 
 add_subdirectory(cmake)

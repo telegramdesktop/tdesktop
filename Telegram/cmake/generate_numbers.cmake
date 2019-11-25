@@ -6,6 +6,8 @@
 
 function(generate_numbers target_name numbers_file)
     set(gen_dst ${CMAKE_CURRENT_BINARY_DIR}/gen)
+    file(MAKE_DIRECTORY ${gen_dst})
+
     set(generated_files
         ${gen_dst}/numbers.cpp
         ${gen_dst}/numbers.h

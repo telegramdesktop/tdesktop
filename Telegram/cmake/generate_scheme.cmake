@@ -6,6 +6,8 @@
 
 function(generate_scheme target_name script scheme_files)
     set(gen_dst ${CMAKE_CURRENT_BINARY_DIR}/gen)
+    file(MAKE_DIRECTORY ${gen_dst})
+
     set(generated_files
         ${gen_dst}/scheme.cpp
         ${gen_dst}/scheme.h

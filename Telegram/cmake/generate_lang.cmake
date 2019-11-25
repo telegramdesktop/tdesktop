@@ -6,6 +6,8 @@
 
 function(generate_lang target_name lang_file)
     set(gen_dst ${CMAKE_CURRENT_BINARY_DIR}/gen)
+    file(MAKE_DIRECTORY ${gen_dst})
+
     set(generated_files
         ${gen_dst}/lang_auto.cpp
         ${gen_dst}/lang_auto.h

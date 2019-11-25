@@ -4,8 +4,8 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-add_library(lib_tgvoip OBJECT)
-init_target(lib_tgvoip)
+add_library(lib_tgvoip STATIC)
+init_target(lib_tgvoip cxx_std_11)
 add_library(tdesktop::lib_tgvoip ALIAS lib_tgvoip)
 
 set(tgvoip_loc ${third_party_loc}/libtgvoip)
@@ -168,6 +168,8 @@ PRIVATE
     webrtc_dsp/rtc_base/sanitizer.h
     webrtc_dsp/rtc_base/scoped_ref_ptr.h
     webrtc_dsp/rtc_base/logging.h
+    webrtc_dsp/rtc_base/logging_mac.h
+    webrtc_dsp/rtc_base/logging_mac.mm
     webrtc_dsp/rtc_base/timeutils.h
     webrtc_dsp/rtc_base/atomicops.h
     webrtc_dsp/rtc_base/stringencode.cc
@@ -721,6 +723,7 @@ if (WIN32)
     target_compile_options(lib_tgvoip
     PRIVATE
         /wd4005
+        /wd4244 # conversion from 'int' to 'float', possible loss of data (several in webrtc)
     )
     target_compile_definitions(lib_tgvoip
     PRIVATE
@@ -732,6 +735,7 @@ elseif (APPLE)
         WEBRTC_POSIX
         WEBRTC_MAC
         TARGET_OS_OSX
+        TARGET_OSX
     )
     if (build_macstore)
         target_compile_definitions(lib_tgvoip
@@ -753,11 +757,6 @@ PUBLIC
 PRIVATE
     ${tgvoip_loc}/webrtc_dsp
     ${libs_loc}/opus/include
-)
-
-target_compile_options(lib_tgvoip
-PRIVATE
-    /wd4244 # conversion from 'int' to 'float', possible loss of data (several in webrtc)
 )
 
 target_link_libraries(lib_tgvoip
