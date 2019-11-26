@@ -716,6 +716,9 @@ void MainWindow::createGlobalMenu() {
 	edit->addSeparator();
 	psSelectAll = edit->addAction(tr::lng_mac_menu_select_all(tr::now), this, SLOT(psMacSelectAll()), QKeySequence::SelectAll);
 
+	edit->addSeparator();
+	edit->addAction(tr::lng_mac_menu_emoji_and_symbols(tr::now).replace('&', "&&"), this, SLOT(psMacEmojiAndSymbols()), QKeySequence(Qt::MetaModifier | Qt::ControlModifier | Qt::Key_Space));
+
 	QMenu *window = psMainMenu.addMenu(tr::lng_mac_menu_window(tr::now));
 	psContacts = window->addAction(tr::lng_mac_menu_contacts(tr::now));
 	connect(psContacts, &QAction::triggered, psContacts, crl::guard(this, [=] {
@@ -766,6 +769,10 @@ void MainWindow::psMacDelete() {
 
 void MainWindow::psMacSelectAll() {
 	SendKeySequence(Qt::Key_A, Qt::ControlModifier);
+}
+
+void MainWindow::psMacEmojiAndSymbols() {
+	[NSApp orderFrontCharacterPalette:nil];
 }
 
 void MainWindow::psMacBold() {
