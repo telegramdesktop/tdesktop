@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_utilities.h"
 #include "ui/image/image_prepare.h"
+#include "ui/painter.h"
 #include "main/main_account.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h"
@@ -26,35 +27,26 @@ namespace Intro {
 namespace details {
 namespace {
 
-[[nodiscard]] QImage TelegramLogoImage(int size) {
-	constexpr auto kScale = 0.8;
-	const auto used = int(size * kScale);
-	const auto adjusted = used + ((used % 2) + (size % 2)) % 2;
-	const auto image = Core::App().logo().scaled(
-		adjusted,
-		adjusted,
-		Qt::KeepAspectRatio,
-		Qt::SmoothTransformation);
-	auto result = QImage(size, size, QImage::Format_ARGB32_Premultiplied);
+[[nodiscard]] QImage TelegramLogoImage() {
+	const auto size = QSize(st::introQrCenterSize, st::introQrCenterSize);
+	auto result = QImage(
+		size * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::transparent);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	{
-		QPainter p(&result);
-		p.drawImage(
-			QRect(
-			(size - adjusted) / 2,
-				(size - adjusted) / 2,
-				adjusted,
-				adjusted),
-			image);
+		auto p = QPainter(&result);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(st::activeButtonBg);
+		p.setPen(Qt::NoPen);
+		p.drawEllipse(QRect(QPoint(), size));
+		st::introQrPlane.paintInCenter(p, QRect(QPoint(), size));
 	}
 	return result;
 }
 
 [[nodiscard]] QImage TelegramQrExact(const Qr::Data &data, int pixel) {
 	return Qr::Generate(data, pixel, st::windowFg->c);
-	//Qr::ReplaceCenter(
-	//	Qr::Generate(data, pixel),
-	//	TelegramLogoImage(Qr::ReplaceSize(data, pixel)));
 }
 
 [[nodiscard]] QImage TelegramQr(const Qr::Data &data, int pixel, int max = 0) {
@@ -74,25 +66,53 @@ namespace {
 	) | rpl::map([](const QByteArray &code) {
 		return Qr::Encode(code, Qr::Redundancy::Quartile);
 	});
+	auto palettes = rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		style::PaletteChanged()
+	);
 	auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
-	auto current = result->lifetime().make_state<QImage>();
+	const auto current = result->lifetime().make_state<QImage>();
+	const auto center = result->lifetime().make_state<QImage>();
+	result->resize(st::introQrMaxSize, st::introQrMaxSize);
 	rpl::combine(
 		std::move(qrs),
-		rpl::single(rpl::empty_value()) | rpl::then(style::PaletteChanged())
+		rpl::duplicate(palettes)
 	) | rpl::map([](const Qr::Data &code, const auto &) {
 		return TelegramQr(code, st::introQrPixel, st::introQrMaxSize);
 	}) | rpl::start_with_next([=](QImage &&image) {
-		result->resize(image.size() / cIntRetinaFactor());
 		*current = std::move(image);
 		result->update();
 	}, result->lifetime());
+	std::move(
+		palettes
+	) | rpl::map([] {
+		return TelegramLogoImage();
+	}) | rpl::start_with_next([=](QImage &&image) {
+		*center = std::move(image);
+	}, result->lifetime());
 	result->paintRequest(
 	) | rpl::filter([=] {
-		return !current->isNull();
+		return !center->isNull();
 	}) | rpl::start_with_next([=](QRect clip) {
-		QPainter(result).drawImage(
-			QRect(QPoint(), current->size() / cIntRetinaFactor()),
-			*current);
+		auto p = QPainter(result);
+		p.drawImage(
+			QRect(
+				(result->width() - st::introQrCenterSize) / 2,
+				(result->height() - st::introQrCenterSize) / 2,
+				st::introQrCenterSize,
+				st::introQrCenterSize),
+			*center);
+		if (current) {
+			const auto size = current->size() / cIntRetinaFactor();
+			p.drawImage(
+				QRect(
+					(result->width() - size.width()) / 2,
+					(result->height() - size.height()) / 2,
+					size.width(),
+					size.height()),
+				*current);
+		}
 	}, result->lifetime());
 	return result;
 }
