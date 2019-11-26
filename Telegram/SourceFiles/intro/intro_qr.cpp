@@ -56,7 +56,14 @@ namespace {
 	if (max > 0 && data.size * pixel > max) {
 		pixel = std::max(max / data.size, 1);
 	}
-	return TelegramQrExact(data, pixel * style::DevicePixelRatio());
+	const auto qr = TelegramQrExact(data, pixel * style::DevicePixelRatio());
+	auto result = QImage(qr.size(), QImage::Format_ARGB32_Premultiplied);
+	result.fill(st::windowBg->c);
+	{
+		auto p = QPainter(&result);
+		p.drawImage(QRect(QPoint(), qr.size()), qr);
+	}
+	return result;
 }
 
 [[nodiscard]] not_null<Ui::RpWidget*> PrepareQrWidget(
@@ -67,8 +74,10 @@ namespace {
 		: waiting(callback, st::defaultInfiniteRadialAnimation) {
 		}
 
+		QImage previous;
 		QImage qr;
 		QImage center;
+		Ui::Animations::Simple shown;
 		Ui::InfiniteRadialAnimation waiting;
 	};
 	auto qrs = std::move(
@@ -92,9 +101,15 @@ namespace {
 	) | rpl::map([](const Qr::Data &code, const auto &) {
 		return TelegramQr(code, st::introQrPixel, st::introQrMaxSize);
 	}) | rpl::start_with_next([=](QImage &&image) {
+		state->previous = std::move(state->qr);
 		state->qr = std::move(image);
 		state->waiting.stop();
-		result->update();
+		state->shown.stop();
+		state->shown.start(
+			[=] { result->update(); },
+			0.,
+			1.,
+			st::fadeWrapDuration);
 	}, result->lifetime());
 	std::move(
 		palettes
@@ -106,7 +121,24 @@ namespace {
 	result->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
 		auto p = QPainter(result);
-		auto rect = QRect(
+		const auto shown = state->qr.isNull() ? 0. : state->shown.value(1.);
+		if (!state->qr.isNull()) {
+			const auto size = state->qr.size() / cIntRetinaFactor();
+			const auto qr = QRect(
+				(result->width() - size.width()) / 2,
+				(result->height() - size.height()) / 2,
+				size.width(),
+				size.height());
+			if (shown == 1.) {
+				state->previous = QImage();
+			} else if (!state->previous.isNull()) {
+				p.drawImage(qr, state->previous);
+			}
+			p.setOpacity(shown);
+			p.drawImage(qr, state->qr);
+			p.setOpacity(1.);
+		}
+		const auto rect = QRect(
 			(result->width() - st::introQrCenterSize) / 2,
 			(result->height() - st::introQrCenterSize) / 2,
 			st::introQrCenterSize,
@@ -119,23 +151,13 @@ namespace {
 			auto pen = st::activeButtonBg->p;
 			pen.setWidth(line);
 			pen.setCapStyle(Qt::RoundCap);
-			p.setOpacity(radial.shown);
+			p.setOpacity(radial.shown * (1. - shown));
 			p.setPen(pen);
 			p.drawArc(
 				rect.marginsAdded({ line, line, line, line }),
 				radial.arcFrom,
 				radial.arcLength);
 			p.setOpacity(1.);
-		}
-		if (!state->qr.isNull()) {
-			const auto size = state->qr.size() / cIntRetinaFactor();
-			p.drawImage(
-				QRect(
-					(result->width() - size.width()) / 2,
-					(result->height() - size.height()) / 2,
-					size.width(),
-					size.height()),
-				state->qr);
 		}
 	}, result->lifetime());
 	return result;
@@ -148,7 +170,7 @@ QrWidget::QrWidget(
 	not_null<Main::Account*> account,
 	not_null<Data*> data)
 : Step(parent, account, data)
-	, _refreshTimer([=] { refreshCode(); }) {
+, _refreshTimer([=] { refreshCode(); }) {
 	setTitleText(rpl::single(QString()));
 	setDescriptionText(rpl::single(QString()));
 	setErrorCentered(true);
@@ -161,6 +183,10 @@ QrWidget::QrWidget(
 
 	setupControls();
 	refreshCode();
+}
+
+int QrWidget::errorTop() const {
+	return contentTop() + st::introQrErrorTop;
 }
 
 void QrWidget::checkForTokenUpdate(const MTPUpdates &updates) {
@@ -256,9 +282,7 @@ void QrWidget::setupControls() {
 			contentTop() + st::introQrSkipTop);
 	}, skip->lifetime());
 
-	skip->setClickedCallback([=] {
-		goNext<PhoneWidget>();
-	});
+	skip->setClickedCallback([=] { submit(); });
 }
 
 void QrWidget::refreshCode() {

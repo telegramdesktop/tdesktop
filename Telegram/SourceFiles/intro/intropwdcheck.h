@@ -46,6 +46,8 @@ private slots:
 	void onCheckRequest();
 
 private:
+	int errorTop() const override;
+
 	void showReset();
 	void refreshLang();
 	void updateControlsGeometry();

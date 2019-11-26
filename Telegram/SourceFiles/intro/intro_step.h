@@ -78,7 +78,6 @@ public:
 	[[nodiscard]] int contentTop() const;
 
 	void setErrorCentered(bool centered);
-	void setErrorBelowLink(bool below);
 	void showError(rpl::producer<QString> text);
 	void hideError() {
 		showError(rpl::single(QString()));
@@ -127,6 +126,8 @@ protected:
 			_acceptTermsCallback(callback);
 		}
 	}
+
+	virtual int errorTop() const;
 
 private:
 	struct CoverAnimation {

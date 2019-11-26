@@ -122,7 +122,7 @@ void Widget::createLanguageLink() {
 			Lang::CurrentCloudManager().switchToLanguage(languageId);
 		});
 		_changeLanguage->toggle(
-			!_resetAccount && !_terms,
+			!_resetAccount && !_terms && _nextShown,
 			anim::type::normal);
 		updateControlsGeometry();
 	};
@@ -230,11 +230,6 @@ void Widget::historyMove(Direction direction) {
 	setupNextButton();
 	if (_resetAccount) _resetAccount->show(anim::type::normal);
 	if (_terms) _terms->show(anim::type::normal);
-	if (_changeLanguage) {
-		_changeLanguage->toggle(
-			!_resetAccount && !_terms,
-			anim::type::normal);
-	}
 	getStep()->showAnimated(direction);
 	fixOrder();
 }
@@ -253,6 +248,7 @@ void Widget::hideAndDestroy(object_ptr<Ui::FadeWrap<Ui::RpWidget>> widget) {
 void Widget::fixOrder() {
 	_next->raise();
 	if (_update) _update->raise();
+	if (_changeLanguage) _changeLanguage->raise();
 	_settings->raise();
 	_back->raise();
 	_connecting->raise();
@@ -333,7 +329,7 @@ void Widget::showTerms() {
 	}
 	if (_changeLanguage) {
 		_changeLanguage->toggle(
-			!_terms && !_resetAccount,
+			!_terms && !_resetAccount && _nextShown,
 			anim::type::normal);
 	}
 }
@@ -491,7 +487,7 @@ void Widget::showControls() {
 	}
 	if (_changeLanguage) {
 		_changeLanguage->toggle(
-			!_resetAccount && !_terms,
+			!_resetAccount && !_terms && _nextShown,
 			anim::type::instant);
 	}
 	if (_terms) {
@@ -508,12 +504,19 @@ void Widget::setupNextButton() {
 	auto visible = getStep()->nextButtonText(
 	) | rpl::map([](const QString &text) {
 		return !text.isEmpty();
-	}) | rpl::distinct_until_changed();
+	});
 	std::move(
 		visible
-	) | rpl::start_with_next([=](bool visible) {
+	) | rpl::filter([=](bool visible) {
+		return visible != _nextShown;
+	}) | rpl::start_with_next([=](bool visible) {
 		_next->toggle(visible, anim::type::normal);
 		_nextShown = visible;
+		if (_changeLanguage) {
+			_changeLanguage->toggle(
+				!_resetAccount && !_terms && _nextShown,
+				anim::type::normal);
+		}
 		_nextShownAnimation.start(
 			[=] { updateControlsGeometry(); },
 			_nextShown ? 0. : 1.,

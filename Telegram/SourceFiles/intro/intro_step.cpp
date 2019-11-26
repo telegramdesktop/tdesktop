@@ -179,9 +179,12 @@ void Step::updateLabelsPosition() {
 		}
 		Ui::SendPendingMoveResizeEvents(_error->entity());
 		auto errorLeft = _errorCentered ? 0 : (contentLeft() + st::buttonRadius);
-		auto errorTop = contentTop() + (_errorBelowLink ? st::introErrorBelowLinkTop : st::introErrorTop);
-		_error->moveToLeft(errorLeft, errorTop);
+		_error->moveToLeft(errorLeft, errorTop());
 	}
+}
+
+int Step::errorTop() const {
+	return contentTop() + st::introErrorTop;
 }
 
 void Step::setTitleText(rpl::producer<QString> titleText) {
@@ -362,13 +365,6 @@ int Step::contentTop() const {
 void Step::setErrorCentered(bool centered) {
 	_errorCentered = centered;
 	_error.destroy();
-}
-
-void Step::setErrorBelowLink(bool below) {
-	_errorBelowLink = below;
-	if (_error) {
-		updateLabelsPosition();
-	}
 }
 
 void Step::showError(rpl::producer<QString> text) {

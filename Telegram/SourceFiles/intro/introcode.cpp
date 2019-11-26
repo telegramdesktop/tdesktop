@@ -95,7 +95,6 @@ CodeWidget::CodeWidget(
 	_noTelegramCode->addClickHandler([=] { onNoTelegramCode(); });
 
 	_code->setDigitsCountMax(getData()->codeLength);
-	setErrorBelowLink(true);
 
 	setTitleText(rpl::single(App::formatPhone(getData()->phone)));
 	updateDescText();
@@ -105,6 +104,10 @@ void CodeWidget::refreshLang() {
 	if (_noTelegramCode) _noTelegramCode->setText(tr::lng_code_no_telegram(tr::now));
 	updateDescText();
 	updateControlsGeometry();
+}
+
+int CodeWidget::errorTop() const {
+	return contentTop() + st::introErrorBelowLinkTop;
 }
 
 void CodeWidget::updateDescText() {

@@ -152,7 +152,7 @@ private:
 
 	std::unique_ptr<Window::ConnectionState> _connecting;
 
-	bool _nextShown = false;
+	bool _nextShown = true;
 	Ui::Animations::Simple _nextShownAnimation;
 
 	mtpRequestId _resetRequest = 0;

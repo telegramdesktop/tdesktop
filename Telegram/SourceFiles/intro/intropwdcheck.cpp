@@ -50,7 +50,6 @@ PwdCheckWidget::PwdCheckWidget(
 
 	setTitleText(tr::lng_signin_title());
 	updateDescriptionText();
-	setErrorBelowLink(true);
 
 	if (_hint.isEmpty()) {
 		_pwdHint->hide();
@@ -77,6 +76,10 @@ void PwdCheckWidget::refreshLang() {
 			tr::lng_signin_hint(tr::now, lt_password_hint, _hint));
 	}
 	updateControlsGeometry();
+}
+
+int PwdCheckWidget::errorTop() const {
+	return contentTop() + st::introErrorBelowLinkTop;
 }
 
 void PwdCheckWidget::resizeEvent(QResizeEvent *e) {
