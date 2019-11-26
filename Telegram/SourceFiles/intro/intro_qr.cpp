@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/effects/radial_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
@@ -61,6 +62,15 @@ namespace {
 [[nodiscard]] not_null<Ui::RpWidget*> PrepareQrWidget(
 		not_null<QWidget*> parent,
 		rpl::producer<QByteArray> codes) {
+	struct State {
+		explicit State(Fn<void()> callback)
+		: waiting(callback, st::defaultInfiniteRadialAnimation) {
+		}
+
+		QImage qr;
+		QImage center;
+		Ui::InfiniteRadialAnimation waiting;
+	};
 	auto qrs = std::move(
 		codes
 	) | rpl::map([](const QByteArray &code) {
@@ -72,8 +82,9 @@ namespace {
 		style::PaletteChanged()
 	);
 	auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
-	const auto current = result->lifetime().make_state<QImage>();
-	const auto center = result->lifetime().make_state<QImage>();
+	const auto state = result->lifetime().make_state<State>(
+		[=] { result->update(); });
+	state->waiting.start();
 	result->resize(st::introQrMaxSize, st::introQrMaxSize);
 	rpl::combine(
 		std::move(qrs),
@@ -81,7 +92,8 @@ namespace {
 	) | rpl::map([](const Qr::Data &code, const auto &) {
 		return TelegramQr(code, st::introQrPixel, st::introQrMaxSize);
 	}) | rpl::start_with_next([=](QImage &&image) {
-		*current = std::move(image);
+		state->qr = std::move(image);
+		state->waiting.stop();
 		result->update();
 	}, result->lifetime());
 	std::move(
@@ -89,29 +101,41 @@ namespace {
 	) | rpl::map([] {
 		return TelegramLogoImage();
 	}) | rpl::start_with_next([=](QImage &&image) {
-		*center = std::move(image);
+		state->center = std::move(image);
 	}, result->lifetime());
 	result->paintRequest(
-	) | rpl::filter([=] {
-		return !center->isNull();
-	}) | rpl::start_with_next([=](QRect clip) {
+	) | rpl::start_with_next([=](QRect clip) {
 		auto p = QPainter(result);
-		p.drawImage(
-			QRect(
-				(result->width() - st::introQrCenterSize) / 2,
-				(result->height() - st::introQrCenterSize) / 2,
-				st::introQrCenterSize,
-				st::introQrCenterSize),
-			*center);
-		if (current) {
-			const auto size = current->size() / cIntRetinaFactor();
+		auto rect = QRect(
+			(result->width() - st::introQrCenterSize) / 2,
+			(result->height() - st::introQrCenterSize) / 2,
+			st::introQrCenterSize,
+			st::introQrCenterSize);
+		p.drawImage(rect, state->center);
+		if (!anim::Disabled() && state->waiting.animating()) {
+			auto hq = PainterHighQualityEnabler(p);
+			const auto line = st::radialLine;
+			const auto radial = state->waiting.computeState();
+			auto pen = st::activeButtonBg->p;
+			pen.setWidth(line);
+			pen.setCapStyle(Qt::RoundCap);
+			p.setOpacity(radial.shown);
+			p.setPen(pen);
+			p.drawArc(
+				rect.marginsAdded({ line, line, line, line }),
+				radial.arcFrom,
+				radial.arcLength);
+			p.setOpacity(1.);
+		}
+		if (!state->qr.isNull()) {
+			const auto size = state->qr.size() / cIntRetinaFactor();
 			p.drawImage(
 				QRect(
 					(result->width() - size.width()) / 2,
 					(result->height() - size.height()) / 2,
 					size.width(),
 					size.height()),
-				*current);
+				state->qr);
 		}
 	}, result->lifetime());
 	return result;

@@ -478,7 +478,8 @@ void Step::showFast() {
 }
 
 bool Step::animating() const {
-	return (_slideAnimation && _slideAnimation->animating()) || _a_show.animating();
+	return (_slideAnimation && _slideAnimation->animating())
+		|| _a_show.animating();
 }
 
 bool Step::hasCover() const {
