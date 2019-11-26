@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/countryinput.h"
-#include "intro/introwidget.h"
+#include "intro/intro_step.h"
 #include "mtproto/sender.h"
 #include "base/timer.h"
 
@@ -20,13 +20,14 @@ class FlatLabel;
 } // namespace Ui
 
 namespace Intro {
+namespace details {
 
-class QrWidget : public Widget::Step {
+class QrWidget : public Step {
 public:
 	QrWidget(
 		QWidget *parent,
 		not_null<Main::Account*> account,
-		not_null<Widget::Data*> data);
+		not_null<Data*> data);
 
 	void activate() override;
 	void finished() override;
@@ -38,12 +39,9 @@ public:
 		return true;
 	}
 
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-
 private:
+	void setupControls();
 	void refreshCode();
-	void updateCodeGeometry();
 	void checkForTokenUpdate(const MTPUpdates &updates);
 	void checkForTokenUpdate(const MTPUpdate &update);
 	void handleTokenResult(const MTPauth_LoginToken &result);
@@ -52,8 +50,7 @@ private:
 	void showToken(const QByteArray &token);
 	void done(const MTPauth_Authorization &authorization);
 
-	rpl::event_stream<QImage> _qrImages;
-	not_null<Ui::RpWidget*> _code;
+	rpl::event_stream<QByteArray> _qrCodes;
 	base::Timer _refreshTimer;
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
@@ -61,4 +58,5 @@ private:
 
 };
 
+} // namespace details
 } // namespace Intro

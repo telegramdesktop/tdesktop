@@ -74,8 +74,9 @@ introPlaneHeight: 38px;
 introHeight: 406px;
 introStepTopMin: 76px;
 introStepWidth: 380px;
-introStepHeight: 266px;
-introStepHeightAdd: 30px;
+introNextTop: 266px;
+introStepHeight: 384px;
+introContentTopAdd: 30px;
 introStepHeightFull: 590px;
 introSlideDuration: 200;
 introCoverDuration: 200;
@@ -160,6 +161,20 @@ introBackButton: IconButton(defaultIconButton) {
 	}
 }
 
-introQrTop: 90px;
+introQrTop: 0px;
 introQrPixel: 50px; // large enough
 introQrMaxSize: 170px;
+introQrLabelsWidth: 292px;
+introQrTitle: FlatLabel(defaultFlatLabel) {
+	textFg: introTitleFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(20px semibold);
+		linkFont: font(20px semibold);
+		linkFontOver: font(20px semibold underline);
+	}
+}
+introQrTitleTop: 196px;
+introQrStep: defaultFlatLabel;
+introQrStepsTop: 232px;
+introQrStepMargins: margins(0px, 8px, 0px, 0px);
+introQrSkipTop: 360px;

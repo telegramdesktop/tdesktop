@@ -7,55 +7,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "intro/introwidget.h"
 
-#include "lang/lang_keys.h"
-#include "lang/lang_file_parser.h"
-#include "storage/localstorage.h"
 #include "intro/introstart.h"
 #include "intro/introphone.h"
 #include "intro/introcode.h"
 #include "intro/introsignup.h"
 #include "intro/intropwdcheck.h"
+#include "lang/lang_keys.h"
+#include "lang/lang_cloud_manager.h"
+#include "storage/localstorage.h"
 #include "main/main_account.h"
-#include "mainwidget.h"
-#include "apiwrap.h"
 #include "mainwindow.h"
-#include "core/application.h"
 #include "boxes/confirm_box.h"
-#include "ui/text/text.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
-#include "ui/effects/slide_animation.h"
 #include "core/update_checker.h"
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
-#include "window/window_lock_widgets.h"
 #include "base/platform/base_platform_info.h"
-#include "data/data_user.h"
-#include "window/themes/window_theme.h"
-#include "lang/lang_cloud_manager.h"
-#include "main/main_session.h"
 #include "facades.h"
 #include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_intro.h"
-#include "styles/style_window.h"
 
 namespace Intro {
 namespace {
 
-void PrepareSupportMode() {
-	using Data::AutoDownload::Full;
-
-	anim::SetDisabled(true);
-	Local::writeSettings();
-
-	Global::SetDesktopNotify(false);
-	Global::SetSoundNotify(false);
-	Auth().settings().autoDownload() = Full::FullDisabled();
-	Local::writeUserSettings();
-}
+using namespace ::Intro::details;
 
 } // namespace
 
@@ -72,7 +51,9 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 , _next(this, nullptr, st::introNextButton) {
 	getData()->country = Platform::SystemCountry();
 
-	_back->entity()->setClickedCallback([this] { historyMove(Direction::Back); });
+	_back->entity()->setClickedCallback([=] {
+		historyMove(Direction::Back);
+	});
 	_back->hide(anim::type::instant);
 
 	_next->setClickedCallback([this] { getStep()->submit(); });
@@ -100,17 +81,15 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 
 	if (!Core::UpdaterDisabled()) {
 		Core::UpdateChecker checker;
-		checker.isLatest() | rpl::start_with_next([=] {
-			onCheckUpdateStatus();
-		}, lifetime());
-		checker.failed() | rpl::start_with_next([=] {
-			onCheckUpdateStatus();
-		}, lifetime());
-		checker.ready() | rpl::start_with_next([=] {
-			onCheckUpdateStatus();
-		}, lifetime());
 		checker.start();
-		onCheckUpdateStatus();
+		rpl::merge(
+			rpl::single(rpl::empty_value()),
+			checker.isLatest(),
+			checker.failed(),
+			checker.ready()
+		) | rpl::start_with_next([=] {
+			checkUpdateStatus();
+		}, lifetime());
 	}
 }
 
@@ -165,7 +144,7 @@ void Widget::createLanguageLink() {
 	}
 }
 
-void Widget::onCheckUpdateStatus() {
+void Widget::checkUpdateStatus() {
 	Expects(!Core::UpdaterDisabled());
 
 	if (Core::UpdateChecker().state() == Core::UpdateChecker::State::Ready) {
@@ -201,16 +180,18 @@ void Widget::setInnerFocus() {
 }
 
 void Widget::historyMove(Direction direction) {
-	if (getStep()->animating()) return;
+	Expects(_stepHistory.size() > 1);
 
-	Assert(_stepHistory.size() > 1);
+	if (getStep()->animating()) {
+		return;
+	}
 
 	auto wasStep = getStep((direction == Direction::Back) ? 0 : 1);
 	if (direction == Direction::Back) {
 		_stepHistory.pop_back();
 		wasStep->cancelled();
 	} else if (direction == Direction::Replace) {
-		_stepHistory.removeAt(_stepHistory.size() - 2);
+		_stepHistory.erase(_stepHistory.end() - 2);
 	}
 
 	if (_resetAccount) {
@@ -223,7 +204,7 @@ void Widget::historyMove(Direction direction) {
 	getStep()->finishInit();
 	getStep()->prepareShowAnimated(wasStep);
 	if (wasStep->hasCover() != getStep()->hasCover()) {
-		_nextTopFrom = wasStep->contentTop() + st::introStepHeight;
+		_nextTopFrom = wasStep->contentTop() + st::introNextTop;
 		_controlsTopFrom = wasStep->hasCover() ? st::introCoverHeight : 0;
 		_coverShownAnimation.start([this] { updateControlsGeometry(); }, 0., 1., st::introCoverDuration, wasStep->hasCover() ? anim::linear : anim::easeOutCirc);
 	}
@@ -241,7 +222,7 @@ void Widget::historyMove(Direction direction) {
 	if (_update) {
 		_update->toggle(!stepHasCover, anim::type::normal);
 	}
-	_next->setText(getStep()->nextButtonText());
+	setupNextButton();
 	if (_resetAccount) _resetAccount->show(anim::type::normal);
 	if (_terms) _terms->show(anim::type::normal);
 	if (_changeLanguage) {
@@ -286,7 +267,7 @@ void Widget::moveToStep(Step *step, Direction direction) {
 
 void Widget::appendStep(Step *step) {
 	_stepHistory.push_back(step);
-	step->setGeometry(calculateStepRect());
+	step->setGeometry(rect());
 	step->setGoCallback([=](Step *step, Direction direction) {
 		if (direction == Direction::Back) {
 			historyMove(direction);
@@ -495,7 +476,8 @@ void Widget::showTerms(Fn<void()> callback) {
 void Widget::showControls() {
 	getStep()->show();
 	_next->show();
-	_next->setText(getStep()->nextButtonText());
+	setupNextButton();
+	_nextShownAnimation.stop();
 	_connecting->setForceHidden(false);
 	auto hasCover = getStep()->hasCover();
 	_settings->toggle(!hasCover, anim::type::instant);
@@ -511,6 +493,27 @@ void Widget::showControls() {
 		_terms->show(anim::type::instant);
 	}
 	_back->toggle(getStep()->hasBack(), anim::type::instant);
+}
+
+void Widget::setupNextButton() {
+	_next->setText(getStep()->nextButtonText(
+	) | rpl::filter([](const QString &text) {
+		return !text.isEmpty();
+	}));
+	auto visible = getStep()->nextButtonText(
+	) | rpl::map([](const QString &text) {
+		return !text.isEmpty();
+	}) | rpl::distinct_until_changed();
+	std::move(
+		visible
+	) | rpl::start_with_next([=](bool visible) {
+		_nextShown = visible;
+		_nextShownAnimation.start(
+			[=] { updateControlsGeometry(); },
+			_nextShown ? 0. : 1.,
+			_nextShown ? 1. : 0.,
+			st::slideDuration);
+	}, getStep()->lifetime());
 }
 
 void Widget::hideControls() {
@@ -534,7 +537,12 @@ void Widget::showAnimated(const QPixmap &bgAnimCache, bool back) {
 	(_showBack ? _cacheUnder : _cacheOver) = Ui::GrabWidget(this);
 	hideControls();
 
-	_a_show.start([=] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
+	_a_show.start(
+		[=] { animationCallback(); },
+		0.,
+		1.,
+		st::slideDuration,
+		Window::SlideAnimation::transition());
 
 	show();
 }
@@ -575,20 +583,9 @@ void Widget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-QRect Widget::calculateStepRect() const {
-	auto stepInnerTop = (height() - st::introHeight) / 2;
-	accumulate_max(stepInnerTop, st::introStepTopMin);
-	auto nextTop = stepInnerTop + st::introStepHeight;
-	auto additionalHeight = st::introStepHeightAdd;
-	auto stepWidth = width();
-	auto stepHeight = nextTop + additionalHeight;
-	return QRect(0, 0, stepWidth, stepHeight);
-}
-
 void Widget::resizeEvent(QResizeEvent *e) {
-	auto stepRect = calculateStepRect();
-	for_const (auto step, _stepHistory) {
-		step->setGeometry(stepRect);
+	for (const auto step : _stepHistory) {
+		step->setGeometry(rect());
 	}
 
 	updateControlsGeometry();
@@ -605,9 +602,11 @@ void Widget::updateControlsGeometry() {
 	}
 	_back->moveToLeft(0, controlsTop);
 
-	auto nextTopTo = getStep()->contentTop() + st::introStepHeight;
+	auto nextTopTo = getStep()->contentTop() + st::introNextTop;
 	auto nextTop = anim::interpolate(_nextTopFrom, nextTopTo, shown);
-	_next->moveToLeft((width() - _next->width()) / 2, nextTop);
+	const auto shownAmount = _nextShownAnimation.value(_nextShown ? 1. : 0.);
+	const auto realNextTop = anim::interpolate(height(), nextTop, shownAmount);
+	_next->moveToLeft((width() - _next->width()) / 2, realNextTop);
 	if (_changeLanguage) {
 		_changeLanguage->moveToLeft((width() - _changeLanguage->width()) / 2, _next->y() + _next->height() + _changeLanguage->height());
 	}
@@ -640,442 +639,5 @@ Widget::~Widget() {
 	}
 	if (App::wnd()) App::wnd()->noIntro(this);
 }
-
-rpl::producer<QString> Widget::Step::nextButtonText() const {
-	return tr::lng_intro_next();
-}
-
-void Widget::Step::finish(const MTPUser &user, QImage &&photo) {
-	if (user.type() != mtpc_user
-		|| !user.c_user().is_self()
-		|| !user.c_user().vid().v) {
-		// No idea what to do here.
-		// We could've reset intro and MTP, but this really should not happen.
-		Ui::show(Box<InformBox>("Internal error: bad user.is_self() after sign in."));
-		return;
-	}
-
-	// Save the default language if we've suggested some other and user ignored it.
-	const auto currentId = Lang::Current().id();
-	const auto defaultId = Lang::DefaultLanguageId();
-	const auto suggested = Lang::CurrentCloudManager().suggestedLanguage();
-	if (currentId.isEmpty() && !suggested.isEmpty() && suggested != defaultId) {
-		Lang::Current().switchToId(Lang::DefaultLanguage());
-		Local::writeLangPack();
-	}
-
-	const auto account = _account;
-	const auto weak = base::make_weak(account.get());
-	account->createSession(user);
-	Local::writeMtpData();
-	App::wnd()->setupMain();
-
-	// "this" is already deleted here by creating the main widget.
-	if (weak && account->sessionExists()) {
-		auto &session = account->session();
-		if (!photo.isNull()) {
-			session.api().uploadPeerPhoto(session.user(), std::move(photo));
-		}
-		if (session.supportMode()) {
-			PrepareSupportMode();
-		}
-	}
-}
-
-void Widget::Step::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	paintAnimated(p, e->rect());
-}
-
-void Widget::Step::resizeEvent(QResizeEvent *e) {
-	updateLabelsPosition();
-}
-
-void Widget::Step::updateLabelsPosition() {
-	Ui::SendPendingMoveResizeEvents(_description->entity());
-	if (hasCover()) {
-		_title->moveToLeft((width() - _title->width()) / 2, contentTop() + st::introCoverTitleTop);
-		_description->moveToLeft((width() - _description->width()) / 2, contentTop() + st::introCoverDescriptionTop);
-	} else {
-		_title->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introTitleTop);
-		_description->resizeToWidth(st::introDescription.minWidth);
-		_description->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introDescriptionTop);
-	}
-	if (_error) {
-		if (_errorCentered) {
-			_error->entity()->resizeToWidth(width());
-		}
-		Ui::SendPendingMoveResizeEvents(_error->entity());
-		auto errorLeft = _errorCentered ? 0 : (contentLeft() + st::buttonRadius);
-		auto errorTop = contentTop() + (_errorBelowLink ? st::introErrorBelowLinkTop : st::introErrorTop);
-		_error->moveToLeft(errorLeft, errorTop);
-	}
-}
-
-void Widget::Step::setTitleText(rpl::producer<QString> titleText) {
-	_titleText = std::move(titleText);
-}
-
-void Widget::Step::setDescriptionText(
-		rpl::producer<QString> descriptionText) {
-	setDescriptionText(
-		std::move(descriptionText) | Ui::Text::ToWithEntities());
-}
-
-void Widget::Step::setDescriptionText(
-		rpl::producer<TextWithEntities> richDescriptionText) {
-	_descriptionText = std::move(richDescriptionText);
-}
-
-void Widget::Step::showFinished() {
-	_a_show.stop();
-	_coverAnimation = CoverAnimation();
-	_slideAnimation.reset();
-	prepareCoverMask();
-	activate();
-}
-
-bool Widget::Step::paintAnimated(Painter &p, QRect clip) {
-	if (_slideAnimation) {
-		_slideAnimation->paintFrame(p, (width() - st::introStepWidth) / 2, contentTop(), width());
-		if (!_slideAnimation->animating()) {
-			showFinished();
-			return false;
-		}
-		return true;
-	}
-
-	auto dt = _a_show.value(1.);
-	if (!_a_show.animating()) {
-		if (hasCover()) {
-			paintCover(p, 0);
-		}
-		if (_coverAnimation.title) {
-			showFinished();
-		}
-		if (!QRect(0, contentTop(), width(), st::introStepHeight).intersects(clip)) {
-			return true;
-		}
-		return false;
-	}
-
-	auto progress = (hasCover() ? anim::easeOutCirc(1., dt) : anim::linear(1., dt));
-	auto arrivingAlpha = progress;
-	auto departingAlpha = 1. - progress;
-	auto showCoverMethod = progress;
-	auto hideCoverMethod = progress;
-	auto coverTop = (hasCover() ? anim::interpolate(-st::introCoverHeight, 0, showCoverMethod) : anim::interpolate(0, -st::introCoverHeight, hideCoverMethod));
-
-	paintCover(p, coverTop);
-
-	auto positionReady = hasCover() ? showCoverMethod : hideCoverMethod;
-	_coverAnimation.title->paintFrame(p, positionReady, departingAlpha, arrivingAlpha);
-	_coverAnimation.description->paintFrame(p, positionReady, departingAlpha, arrivingAlpha);
-
-	paintContentSnapshot(p, _coverAnimation.contentSnapshotWas, departingAlpha, showCoverMethod);
-	paintContentSnapshot(p, _coverAnimation.contentSnapshotNow, arrivingAlpha, 1. - hideCoverMethod);
-
-	return true;
-}
-
-void Widget::Step::fillSentCodeData(const MTPDauth_sentCode &data) {
-	const auto &type = data.vtype();
-	switch (type.type()) {
-	case mtpc_auth_sentCodeTypeApp: {
-		getData()->codeByTelegram = true;
-		getData()->codeLength = type.c_auth_sentCodeTypeApp().vlength().v;
-	} break;
-	case mtpc_auth_sentCodeTypeSms: {
-		getData()->codeByTelegram = false;
-		getData()->codeLength = type.c_auth_sentCodeTypeSms().vlength().v;
-	} break;
-	case mtpc_auth_sentCodeTypeCall: {
-		getData()->codeByTelegram = false;
-		getData()->codeLength = type.c_auth_sentCodeTypeCall().vlength().v;
-	} break;
-	case mtpc_auth_sentCodeTypeFlashCall: LOG(("Error: should not be flashcall!")); break;
-	}
-}
-
-void Widget::Step::showDescription() {
-	_description->show(anim::type::normal);
-}
-
-void Widget::Step::hideDescription() {
-	_description->hide(anim::type::normal);
-}
-
-void Widget::Step::paintContentSnapshot(Painter &p, const QPixmap &snapshot, float64 alpha, float64 howMuchHidden) {
-	if (!snapshot.isNull()) {
-		auto contentTop = anim::interpolate(height() - (snapshot.height() / cIntRetinaFactor()), height(), howMuchHidden);
-		if (contentTop < height()) {
-			p.setOpacity(alpha);
-			p.drawPixmap(QPoint(contentLeft(), contentTop), snapshot, QRect(0, 0, snapshot.width(), (height() - contentTop) * cIntRetinaFactor()));
-		}
-	}
-}
-
-void Widget::Step::prepareCoverMask() {
-	if (!_coverMask.isNull()) return;
-
-	auto maskWidth = cIntRetinaFactor();
-	auto maskHeight = st::introCoverHeight * cIntRetinaFactor();
-	auto mask = QImage(maskWidth, maskHeight, QImage::Format_ARGB32_Premultiplied);
-	auto maskInts = reinterpret_cast<uint32*>(mask.bits());
-	Assert(mask.depth() == (sizeof(uint32) << 3));
-	auto maskIntsPerLineAdded = (mask.bytesPerLine() >> 2) - maskWidth;
-	Assert(maskIntsPerLineAdded >= 0);
-	auto realHeight = static_cast<float64>(maskHeight - 1);
-	for (auto y = 0; y != maskHeight; ++y) {
-		auto color = anim::color(st::introCoverTopBg, st::introCoverBottomBg, y / realHeight);
-		auto colorInt = anim::getPremultiplied(color);
-		for (auto x = 0; x != maskWidth; ++x) {
-			*maskInts++ = colorInt;
-		}
-		maskInts += maskIntsPerLineAdded;
-	}
-	_coverMask = App::pixmapFromImageInPlace(std::move(mask));
-}
-
-void Widget::Step::paintCover(Painter &p, int top) {
-	auto coverHeight = top + st::introCoverHeight;
-	if (coverHeight > 0) {
-		p.drawPixmap(QRect(0, 0, width(), coverHeight), _coverMask, QRect(0, -top * cIntRetinaFactor(), _coverMask.width(), coverHeight * cIntRetinaFactor()));
-	}
-
-	auto left = 0;
-	auto right = 0;
-	if (width() < st::introCoverMaxWidth) {
-		auto iconsMaxSkip = st::introCoverMaxWidth - st::introCoverLeft.width() - st::introCoverRight.width();
-		auto iconsSkip = st::introCoverIconsMinSkip + (iconsMaxSkip - st::introCoverIconsMinSkip) * (width() - st::introStepWidth) / (st::introCoverMaxWidth - st::introStepWidth);
-		auto outside = iconsSkip + st::introCoverLeft.width() + st::introCoverRight.width() - width();
-		left = -outside / 2;
-		right = -outside - left;
-	}
-	if (top < 0) {
-		auto shown = float64(coverHeight) / st::introCoverHeight;
-		auto leftShown = qRound(shown * (left + st::introCoverLeft.width()));
-		left = leftShown - st::introCoverLeft.width();
-		auto rightShown = qRound(shown * (right + st::introCoverRight.width()));
-		right = rightShown - st::introCoverRight.width();
-	}
-	st::introCoverLeft.paint(p, left, coverHeight - st::introCoverLeft.height(), width());
-	st::introCoverRight.paint(p, width() - right - st::introCoverRight.width(), coverHeight - st::introCoverRight.height(), width());
-
-	auto planeLeft = (width() - st::introCoverIcon.width()) / 2 - st::introCoverIconLeft;
-	auto planeTop = top + st::introCoverIconTop;
-	if (top < 0 && !_hasCover) {
-		auto deltaLeft = -qRound(float64(st::introPlaneWidth / st::introPlaneHeight) * top);
-//		auto deltaTop = top;
-		planeLeft += deltaLeft;
-	//	planeTop += top;
-	}
-	st::introCoverIcon.paint(p, planeLeft, planeTop, width());
-}
-
-int Widget::Step::contentLeft() const {
-	return (width() - st::introNextButton.width) / 2;
-}
-
-int Widget::Step::contentTop() const {
-	auto result = height() - st::introStepHeight - st::introStepHeightAdd;
-	if (_hasCover) {
-		auto added = 1. - snap(float64(height() - st::windowMinHeight) / (st::introStepHeightFull - st::windowMinHeight), 0., 1.);
-		result += qRound(added * st::introStepHeightAdd);
-	}
-	return result;
-}
-
-void Widget::Step::setErrorCentered(bool centered) {
-	_errorCentered = centered;
-	_error.destroy();
-}
-
-void Widget::Step::setErrorBelowLink(bool below) {
-	_errorBelowLink = below;
-	if (_error) {
-		updateLabelsPosition();
-	}
-}
-
-void Widget::Step::showError(rpl::producer<QString> text) {
-	_errorText = std::move(text);
-}
-
-void Widget::Step::refreshError(const QString &text) {
-	if (text.isEmpty()) {
-		if (_error) _error->hide(anim::type::normal);
-	} else {
-		if (!_error) {
-			_error.create(
-				this,
-				object_ptr<Ui::FlatLabel>(
-					this,
-					_errorCentered
-						? st::introErrorCentered
-						: st::introError));
-			_error->hide(anim::type::instant);
-		}
-		_error->entity()->setText(text);
-		updateLabelsPosition();
-		_error->show(anim::type::normal);
-	}
-}
-
-Widget::Step::Step(
-	QWidget *parent,
-	not_null<Main::Account*> account,
-	not_null<Data*> data,
-	bool hasCover)
-: RpWidget(parent)
-, _account(account)
-, _data(data)
-, _hasCover(hasCover)
-, _title(this, _hasCover ? st::introCoverTitle : st::introTitle)
-, _description(
-	this,
-	object_ptr<Ui::FlatLabel>(
-		this,
-		_hasCover
-			? st::introCoverDescription
-			: st::introDescription)) {
-	hide();
-	subscribe(Window::Theme::Background(), [this](
-			const Window::Theme::BackgroundUpdate &update) {
-		if (update.paletteChanged()) {
-			if (!_coverMask.isNull()) {
-				_coverMask = QPixmap();
-				prepareCoverMask();
-			}
-		}
-	});
-
-	_errorText.value(
-	) | rpl::start_with_next([=](const QString &text) {
-		refreshError(text);
-	}, lifetime());
-
-	_titleText.value(
-	) | rpl::start_with_next([=](const QString &text) {
-		_title->setText(text);
-		updateLabelsPosition();
-	}, lifetime());
-
-	_descriptionText.value(
-	) | rpl::start_with_next([=](const TextWithEntities &text) {
-		_description->entity()->setMarkedText(text);
-		updateLabelsPosition();
-	}, lifetime());
-}
-
-void Widget::Step::prepareShowAnimated(Step *after) {
-	setInnerFocus();
-	if (hasCover() || after->hasCover()) {
-		_coverAnimation = prepareCoverAnimation(after);
-		prepareCoverMask();
-	} else {
-		auto leftSnapshot = after->prepareSlideAnimation();
-		auto rightSnapshot = prepareSlideAnimation();
-		_slideAnimation = std::make_unique<Ui::SlideAnimation>();
-		_slideAnimation->setSnapshots(std::move(leftSnapshot), std::move(rightSnapshot));
-		_slideAnimation->setOverflowHidden(false);
-	}
-}
-
-Widget::Step::CoverAnimation Widget::Step::prepareCoverAnimation(Step *after) {
-	auto result = CoverAnimation();
-	result.title = Ui::FlatLabel::CrossFade(
-		after->_title,
-		_title,
-		st::introBg);
-	result.description = Ui::FlatLabel::CrossFade(
-		after->_description->entity(),
-		_description->entity(),
-		st::introBg,
-		after->_description->pos(),
-		_description->pos());
-	result.contentSnapshotWas = after->prepareContentSnapshot();
-	result.contentSnapshotNow = prepareContentSnapshot();
-	return result;
-}
-
-QPixmap Widget::Step::prepareContentSnapshot() {
-	auto otherTop = _description->y() + _description->height();
-	auto otherRect = myrtlrect(contentLeft(), otherTop, st::introStepWidth, height() - otherTop);
-	return Ui::GrabWidget(this, otherRect);
-}
-
-QPixmap Widget::Step::prepareSlideAnimation() {
-	auto grabLeft = (width() - st::introStepWidth) / 2;
-	auto grabTop = contentTop();
-	return Ui::GrabWidget(
-		this,
-		QRect(grabLeft, grabTop, st::introStepWidth, st::introStepHeight));
-}
-
-void Widget::Step::showAnimated(Direction direction) {
-	setFocus();
-	show();
-	hideChildren();
-	if (_slideAnimation) {
-		auto slideLeft = (direction == Direction::Back);
-		_slideAnimation->start(slideLeft, [this] { update(0, contentTop(), width(), st::introStepHeight); }, st::introSlideDuration);
-	} else {
-		_a_show.start([this] { update(); }, 0., 1., st::introCoverDuration);
-	}
-}
-
-void Widget::Step::setGoCallback(Fn<void(Step *step, Direction direction)> callback) {
-	_goCallback = std::move(callback);
-}
-
-void Widget::Step::setShowResetCallback(Fn<void()> callback) {
-	_showResetCallback = std::move(callback);
-}
-
-void Widget::Step::setShowTermsCallback(Fn<void()> callback) {
-	_showTermsCallback = std::move(callback);
-}
-
-void Widget::Step::setAcceptTermsCallback(
-		Fn<void(Fn<void()> callback)> callback) {
-	_acceptTermsCallback = std::move(callback);
-}
-
-void Widget::Step::showFast() {
-	show();
-	showFinished();
-}
-
-bool Widget::Step::animating() const {
-	return (_slideAnimation && _slideAnimation->animating()) || _a_show.animating();
-}
-
-bool Widget::Step::hasCover() const {
-	return _hasCover;
-}
-
-bool Widget::Step::hasBack() const {
-	return false;
-}
-
-void Widget::Step::activate() {
-	_title->show();
-	_description->show(anim::type::instant);
-	if (!_errorText.current().isEmpty()) {
-		_error->show(anim::type::instant);
-	}
-}
-
-void Widget::Step::cancelled() {
-}
-
-void Widget::Step::finished() {
-	hide();
-}
-
-Widget::Step::CoverAnimation::~CoverAnimation() = default;
-
-Widget::Step::~Step() = default;
 
 } // namespace Intro

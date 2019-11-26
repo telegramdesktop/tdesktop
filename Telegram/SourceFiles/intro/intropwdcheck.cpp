@@ -7,8 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "intro/intropwdcheck.h"
 
-#include "styles/style_intro.h"
-#include "styles/style_boxes.h"
+#include "intro/introwidget.h"
 #include "core/file_utilities.h"
 #include "core/core_cloud_password.h"
 #include "boxes/confirm_box.h"
@@ -18,13 +17,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "base/openssl_help.h"
+#include "styles/style_intro.h"
+#include "styles/style_boxes.h"
 
 namespace Intro {
+namespace details {
 
 PwdCheckWidget::PwdCheckWidget(
 	QWidget *parent,
 	not_null<Main::Account*> account,
-	not_null<Widget::Data*> data)
+	not_null<Data*> data)
 : Step(parent, account, data)
 , _request(getData()->pwdRequest)
 , _hasRecovery(getData()->hasRecovery)
@@ -389,4 +391,5 @@ rpl::producer<QString> PwdCheckWidget::nextButtonText() const {
 	return tr::lng_intro_submit();
 }
 
+} // namespace details
 } // namespace Intro

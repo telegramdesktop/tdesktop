@@ -13,11 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 
 namespace Intro {
+namespace details {
 
 StartWidget::StartWidget(
 	QWidget *parent,
 	not_null<Main::Account*> account,
-	not_null<Widget::Data*> data)
+	not_null<Data*> data)
 : Step(parent, account, data, true) {
 	setMouseTracking(true);
 	setTitleText(rpl::single(qsl("Telegram Desktop")));
@@ -33,4 +34,5 @@ rpl::producer<QString> StartWidget::nextButtonText() const {
 	return tr::lng_start_msgs();
 }
 
+} // namespace details
 } // namespace Intro

@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/countryinput.h"
-#include "intro/introwidget.h"
+#include "intro/intro_step.h"
 
 namespace Ui {
 class PhonePartInput;
@@ -18,15 +18,16 @@ class FlatLabel;
 } // namespace Ui
 
 namespace Intro {
+namespace details {
 
-class PhoneWidget : public Widget::Step {
+class PhoneWidget : public Step {
 	Q_OBJECT
 
 public:
 	PhoneWidget(
 		QWidget *parent,
 		not_null<Main::Account*> account,
-		not_null<Widget::Data*> data);
+		not_null<Data*> data);
 
 	void selectCountry(const QString &country);
 
@@ -72,4 +73,5 @@ private:
 
 };
 
+} // namespace details
 } // namespace Intro

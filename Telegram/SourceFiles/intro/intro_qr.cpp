@@ -7,11 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "intro/intro_qr.h"
 
-#include "lang/lang_keys.h"
 #include "intro/introphone.h"
+#include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/text/text_utilities.h"
 #include "main/main_account.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h"
@@ -20,14 +22,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_intro.h"
 
 namespace Intro {
+namespace details {
 namespace {
 
 [[nodiscard]] QImage TelegramLogoImage(int size) {
-	return Core::App().logo().scaled(
-		size,
-		size,
+	constexpr auto kScale = 0.8;
+	const auto used = int(size * kScale);
+	const auto adjusted = used + ((used % 2) + (size % 2)) % 2;
+	const auto image = Core::App().logo().scaled(
+		adjusted,
+		adjusted,
 		Qt::KeepAspectRatio,
 		Qt::SmoothTransformation);
+	auto result = QImage(size, size, QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+	{
+		QPainter p(&result);
+		p.drawImage(
+			QRect(
+			(size - adjusted) / 2,
+				(size - adjusted) / 2,
+				adjusted,
+				adjusted),
+			image);
+	}
+	return result;
 }
 
 [[nodiscard]] QImage TelegramQrExact(const Qr::Data &data, int pixel) {
@@ -46,17 +65,22 @@ namespace {
 }
 
 [[nodiscard]] QImage TelegramQr(const QString &text, int pixel, int max) {
-	return TelegramQr(Qr::Encode(text), pixel, max);
+	return TelegramQr(
+		Qr::Encode(text, Qr::Redundancy::Quartile),
+		pixel,
+		max);
 }
 
 [[nodiscard]] not_null<Ui::RpWidget*> PrepareQrWidget(
 		not_null<QWidget*> parent,
-		rpl::producer<QImage> images) {
+		rpl::producer<QByteArray> codes) {
 	auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	auto current = result->lifetime().make_state<QImage>();
 	std::move(
-		images
-	) | rpl::start_with_next([=](QImage &&image) {
+		codes
+	) | rpl::map([](const QByteArray &code) {
+		return TelegramQr(code, st::introQrPixel, st::introQrMaxSize);
+	}) | rpl::start_with_next([=](QImage &&image) {
 		result->resize(image.size() / cIntRetinaFactor());
 		*current = std::move(image);
 		result->update();
@@ -77,12 +101,11 @@ namespace {
 QrWidget::QrWidget(
 	QWidget *parent,
 	not_null<Main::Account*> account,
-	not_null<Widget::Data*> data)
-: Step(parent, account, data)
-, _code(PrepareQrWidget(this, _qrImages.events()))
-, _refreshTimer([=] { refreshCode(); }) {
-	setTitleText(tr::lng_intro_qr_title());
-	setDescriptionText(tr::lng_intro_qr_description());
+	not_null<Data*> data)
+	: Step(parent, account, data)
+	, _refreshTimer([=] { refreshCode(); }) {
+	setTitleText(rpl::single(QString()));
+	setDescriptionText(rpl::single(QString()));
 	setErrorCentered(true);
 
 	account->destroyStaleAuthorizationKeys();
@@ -91,18 +114,8 @@ QrWidget::QrWidget(
 		checkForTokenUpdate(updates);
 	}, lifetime());
 
-	_code->widthValue(
-	) | rpl::start_with_next([=] {
-		updateCodeGeometry();
-	}, _code->lifetime());
-	_code->show();
-
+	setupControls();
 	refreshCode();
-}
-
-void QrWidget::resizeEvent(QResizeEvent *e) {
-	Step::resizeEvent(e);
-	updateCodeGeometry();
 }
 
 void QrWidget::checkForTokenUpdate(const MTPUpdates &updates) {
@@ -130,18 +143,77 @@ void QrWidget::checkForTokenUpdate(const MTPUpdate &update) {
 	}, [](const auto &) {});
 }
 
-void QrWidget::updateCodeGeometry() {
-	_code->moveToLeft(
-		(width() - _code->width()) / 2,
-		contentTop() + st::introQrTop);
-}
-
 void QrWidget::submit() {
 	goReplace<PhoneWidget>();
 }
 
 rpl::producer<QString> QrWidget::nextButtonText() const {
-	return tr::lng_intro_qr_skip();
+	return rpl::single(QString());
+}
+
+void QrWidget::setupControls() {
+	const auto code = PrepareQrWidget(this, _qrCodes.events());
+	rpl::combine(
+		sizeValue(),
+		code->widthValue()
+	) | rpl::start_with_next([=](QSize size, int codeWidth) {
+		code->moveToLeft(
+			(size.width() - codeWidth) / 2,
+			contentTop() + st::introQrTop);
+	}, code->lifetime());
+
+	const auto title = Ui::CreateChild<Ui::FlatLabel>(
+		this,
+		tr::lng_intro_qr_title(),
+		st::introQrTitle);
+	rpl::combine(
+		sizeValue(),
+		title->widthValue()
+	) | rpl::start_with_next([=](QSize size, int titleWidth) {
+		title->moveToLeft(
+			(size.width() - st::introQrLabelsWidth) / 2,
+			contentTop() + st::introQrTitleTop);
+	}, title->lifetime());
+
+	const auto steps = Ui::CreateChild<Ui::VerticalLayout>(this);
+	const auto texts = {
+		tr::lng_intro_qr_step1,
+		tr::lng_intro_qr_step2,
+		tr::lng_intro_qr_step3,
+	};
+	for (const auto &text : texts) {
+		steps->add(
+			object_ptr<Ui::FlatLabel>(
+				this,
+				text(Ui::Text::RichLangValue),
+				st::introQrStep),
+			st::introQrStepMargins);
+	}
+	steps->resizeToWidth(st::introQrLabelsWidth);
+	rpl::combine(
+		sizeValue(),
+		steps->widthValue()
+	) | rpl::start_with_next([=](QSize size, int stepsWidth) {
+		steps->moveToLeft(
+			(size.width() - stepsWidth) / 2,
+			contentTop() + st::introQrStepsTop);
+	}, steps->lifetime());
+
+	const auto skip = Ui::CreateChild<Ui::LinkButton>(
+		this,
+		tr::lng_intro_qr_skip(tr::now));
+	rpl::combine(
+		sizeValue(),
+		skip->widthValue()
+	) | rpl::start_with_next([=](QSize size, int skipWidth) {
+		skip->moveToLeft(
+			(size.width() - skipWidth) / 2,
+			contentTop() + st::introQrSkipTop);
+	}, skip->lifetime());
+
+	skip->setClickedCallback([=] {
+		goNext<PhoneWidget>();
+	});
 }
 
 void QrWidget::refreshCode() {
@@ -188,8 +260,7 @@ void QrWidget::showTokenError(const RPCError &error) {
 
 void QrWidget::showToken(const QByteArray &token) {
 	const auto encoded = token.toBase64(QByteArray::Base64UrlEncoding);
-	const auto text = "tg_login/" + encoded;
-	_qrImages.fire(TelegramQr(text, st::introQrPixel, st::introQrMaxSize));
+	_qrCodes.fire_copy("tg_login/" + encoded);
 }
 
 void QrWidget::importTo(MTP::DcId dcId, const QByteArray &token) {
@@ -223,7 +294,7 @@ void QrWidget::done(const MTPauth_Authorization &authorization) {
 
 void QrWidget::activate() {
 	Step::activate();
-	_code->show();
+	showChildren();
 }
 
 void QrWidget::finished() {
@@ -237,4 +308,5 @@ void QrWidget::cancelled() {
 	_api.request(base::take(_requestId)).cancel();
 }
 
+} // namespace details
 } // namespace Intro

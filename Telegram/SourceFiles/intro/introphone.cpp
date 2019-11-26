@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 
 namespace Intro {
+namespace details {
 namespace {
 
 bool AllowPhoneAttempt(const QString &phone) {
@@ -34,7 +35,7 @@ bool AllowPhoneAttempt(const QString &phone) {
 PhoneWidget::PhoneWidget(
 	QWidget *parent,
 	not_null<Main::Account*> account,
-	not_null<Widget::Data*> data)
+	not_null<Data*> data)
 : Step(parent, account, data)
 , _country(this, st::introCountry)
 , _code(this, st::introCountryCode)
@@ -52,7 +53,7 @@ PhoneWidget::PhoneWidget(
 
 	setTitleText(tr::lng_phone_title());
 	setDescriptionText(tr::lng_phone_desc());
-	subscribe(getData()->updated, [this] { countryChanged(); });
+	subscribe(getData()->updated, [=] { countryChanged(); });
 	setErrorCentered(true);
 
 	if (!_country->onChooseCountry(getData()->country)) {
@@ -149,10 +150,10 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	getData()->phoneHash = qba(d.vphone_code_hash());
 	const auto next = d.vnext_type();
 	if (next && next->type() == mtpc_auth_codeTypeCall) {
-		getData()->callStatus = Widget::Data::CallStatus::Waiting;
+		getData()->callStatus = CallStatus::Waiting;
 		getData()->callTimeout = d.vtimeout().value_or(60);
 	} else {
-		getData()->callStatus = Widget::Data::CallStatus::Disabled;
+		getData()->callStatus = CallStatus::Disabled;
 		getData()->callTimeout = 0;
 	}
 	goNext<CodeWidget>();
@@ -220,4 +221,5 @@ void PhoneWidget::cancelled() {
 	MTP::cancel(base::take(_sentRequest));
 }
 
+} // namespace details
 } // namespace Intro

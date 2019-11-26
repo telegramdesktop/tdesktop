@@ -7,8 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "intro/introsignup.h"
 
-#include "styles/style_intro.h"
-#include "styles/style_boxes.h"
+#include "intro/introwidget.h"
 #include "core/file_utilities.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/confirm_box.h"
@@ -17,23 +16,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/special_buttons.h"
+#include "styles/style_intro.h"
+#include "styles/style_boxes.h"
 
 namespace Intro {
+namespace details {
 
 SignupWidget::SignupWidget(
 	QWidget *parent,
 	not_null<Main::Account*> account,
-	not_null<Widget::Data*> data)
-: Step(parent, account, data)
-, _photo(
-	this,
-	tr::lng_settings_crop_profile(tr::now),
-	Ui::UserpicButton::Role::ChangePhoto,
-	st::defaultUserpicButton)
-, _first(this, st::introName, tr::lng_signup_firstname())
-, _last(this, st::introName, tr::lng_signup_lastname())
-, _invertOrder(langFirstNameGoesSecond())
-, _checkRequest(this) {
+	not_null<Data*> data)
+	: Step(parent, account, data)
+	, _photo(
+		this,
+		tr::lng_settings_crop_profile(tr::now),
+		Ui::UserpicButton::Role::ChangePhoto,
+		st::defaultUserpicButton)
+	, _first(this, st::introName, tr::lng_signup_firstname())
+	, _last(this, st::introName, tr::lng_signup_lastname())
+	, _invertOrder(langFirstNameGoesSecond())
+	, _checkRequest(this) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
@@ -236,4 +238,5 @@ rpl::producer<QString> SignupWidget::nextButtonText() const {
 	return tr::lng_intro_finish();
 }
 
+} // namespace details
 } // namespace Intro

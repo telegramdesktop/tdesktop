@@ -179,8 +179,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photos_comment" = "Comment";
 
 "lng_intro_qr_title" = "Scan From Mobile Telegram";
-"lng_intro_qr_description" = "Please scan this code from your Telegram on iOS or Android.";
-"lng_intro_qr_skip" = "Log in using phone";
+"lng_intro_qr_step1" = "**1.** Open Telegram on your phone";
+"lng_intro_qr_step2" = "**2.** Go to **Settings** and tap \"Scan QR code\"";
+"lng_intro_qr_step3" = "**3.** Scan this image to Log In";
+"lng_intro_qr_skip" = "Or log in using your phone number";
 
 "lng_phone_title" = "Your Phone Number";
 "lng_phone_desc" = "Please confirm your country code and\nenter your mobile phone number.";

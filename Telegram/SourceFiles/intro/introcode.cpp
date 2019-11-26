@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_intro.h"
 
 namespace Intro {
+namespace details {
 
 CodeInput::CodeInput(
 	QWidget *parent,
@@ -77,7 +78,7 @@ void CodeInput::correctValue(const QString &was, int wasCursor, QString &now, in
 CodeWidget::CodeWidget(
 	QWidget *parent,
 	not_null<Main::Account*> account,
-	not_null<Widget::Data*> data)
+	not_null<Data*> data)
 : Step(parent, account, data)
 , _noTelegramCode(this, tr::lng_code_no_telegram(tr::now), st::introLink)
 , _code(this, st::introCode, tr::lng_code_ph())
@@ -118,7 +119,7 @@ void CodeWidget::updateDescText() {
 		_noTelegramCode->hide();
 		_callStatus = getData()->callStatus;
 		_callTimeout = getData()->callTimeout;
-		if (_callStatus == Widget::Data::CallStatus::Waiting && !_callTimer->isActive()) {
+		if (_callStatus == CallStatus::Waiting && !_callTimer->isActive()) {
 			_callTimer->start(1000);
 		}
 	}
@@ -131,7 +132,7 @@ void CodeWidget::updateCallText() {
 			return QString();
 		}
 		switch (_callStatus) {
-		case Widget::Data::CallStatus::Waiting: {
+		case CallStatus::Waiting: {
 			if (_callTimeout >= 3600) {
 				return tr::lng_code_call(
 					tr::now,
@@ -150,9 +151,9 @@ void CodeWidget::updateCallText() {
 					qsl("%1").arg(_callTimeout % 60, 2, 10, QChar('0')));
 			}
 		} break;
-		case Widget::Data::CallStatus::Calling:
+		case CallStatus::Calling:
 			return tr::lng_code_calling(tr::now);
-		case Widget::Data::CallStatus::Called:
+		case CallStatus::Called:
 			return tr::lng_code_called(tr::now);
 		}
 		return QString();
@@ -295,9 +296,9 @@ void CodeWidget::onInputChange() {
 }
 
 void CodeWidget::onSendCall() {
-	if (_callStatus == Widget::Data::CallStatus::Waiting) {
+	if (_callStatus == CallStatus::Waiting) {
 		if (--_callTimeout <= 0) {
-			_callStatus = Widget::Data::CallStatus::Calling;
+			_callStatus = CallStatus::Calling;
 			_callTimer->stop();
 			_callRequestId = MTP::send(MTPauth_ResendCode(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash)), rpcDone(&CodeWidget::callDone));
 		} else {
@@ -313,8 +314,8 @@ void CodeWidget::callDone(const MTPauth_SentCode &v) {
 		fillSentCodeData(v.c_auth_sentCode());
 		_code->setDigitsCountMax(getData()->codeLength);
 	}
-	if (_callStatus == Widget::Data::CallStatus::Calling) {
-		_callStatus = Widget::Data::CallStatus::Called;
+	if (_callStatus == CallStatus::Calling) {
+		_callStatus = CallStatus::Called;
 		getData()->callStatus = _callStatus;
 		getData()->callTimeout = _callTimeout;
 		updateCallText();
@@ -406,10 +407,10 @@ void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
 	_code->setDigitsCountMax(getData()->codeLength);
 	const auto next = d.vnext_type();
 	if (next && next->type() == mtpc_auth_codeTypeCall) {
-		getData()->callStatus = Widget::Data::CallStatus::Waiting;
+		getData()->callStatus = CallStatus::Waiting;
 		getData()->callTimeout = d.vtimeout().value_or(60);
 	} else {
-		getData()->callStatus = Widget::Data::CallStatus::Disabled;
+		getData()->callStatus = CallStatus::Disabled;
 		getData()->callTimeout = 0;
 	}
 	getData()->codeByTelegram = false;
@@ -435,4 +436,5 @@ bool CodeWidget::noTelegramCodeFail(const RPCError &error) {
 	return false;
 }
 
+} // namespace details
 } // namespace Intro

@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "intro/introwidget.h"
+#include "intro/intro_step.h"
 #include "ui/widgets/input_fields.h"
+#include "intro/introwidget.h"
 
 namespace Ui {
 class RoundButton;
@@ -17,6 +18,9 @@ class FlatLabel;
 } // namespace Ui
 
 namespace Intro {
+namespace details {
+
+enum class CallStatus;
 
 class CodeInput final : public Ui::MaskedInputField {
 public:
@@ -35,14 +39,14 @@ private:
 
 };
 
-class CodeWidget : public Widget::Step {
+class CodeWidget : public Step {
 	Q_OBJECT
 
 public:
 	CodeWidget(
 		QWidget *parent,
 		not_null<Main::Account*> account,
-		not_null<Widget::Data*> data);
+		not_null<Data*> data);
 
 	bool hasBack() const override {
 		return true;
@@ -89,7 +93,7 @@ private:
 	mtpRequestId _sentRequest = 0;
 
 	object_ptr<QTimer> _callTimer;
-	Widget::Data::CallStatus _callStatus;
+	CallStatus _callStatus = CallStatus();
 	int _callTimeout;
 	mtpRequestId _callRequestId = 0;
 	object_ptr<Ui::FlatLabel> _callLabel;
@@ -98,4 +102,5 @@ private:
 
 };
 
+} // namespace details
 } // namespace Intro

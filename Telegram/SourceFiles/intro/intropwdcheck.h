@@ -7,7 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "intro/introwidget.h"
+#include "intro/intro_step.h"
+#include "core/core_cloud_password.h"
 #include "mtproto/sender.h"
 
 namespace Ui {
@@ -18,15 +19,16 @@ class LinkButton;
 } // namespace Ui
 
 namespace Intro {
+namespace details {
 
-class PwdCheckWidget : public Widget::Step, private MTP::Sender {
+class PwdCheckWidget : public Step, private MTP::Sender {
 	Q_OBJECT
 
 public:
 	PwdCheckWidget(
 		QWidget *parent,
 		not_null<Main::Account*> account,
-		not_null<Widget::Data*> data);
+		not_null<Data*> data);
 
 	void setInnerFocus() override;
 	void activate() override;
@@ -81,4 +83,5 @@ private:
 
 };
 
+} // namespace details
 } // namespace Intro

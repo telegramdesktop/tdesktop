@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "intro/introwidget.h"
+#include "intro/intro_step.h"
 
 namespace Ui {
 class RoundButton;
@@ -16,15 +16,16 @@ class UserpicButton;
 } // namespace Ui
 
 namespace Intro {
+namespace details {
 
-class SignupWidget : public Widget::Step {
+class SignupWidget : public Step {
 	Q_OBJECT
 
 public:
 	SignupWidget(
 		QWidget *parent,
 		not_null<Main::Account*> account,
-		not_null<Widget::Data*> data);
+		not_null<Data*> data);
 
 	void finishInit() override;
 	void setInnerFocus() override;
@@ -62,4 +63,5 @@ private:
 
 };
 
+} // namespace details
 } // namespace Intro
