@@ -145,7 +145,7 @@ private:
 	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _update = { nullptr };
 	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _settings;
 
-	object_ptr<Ui::RoundButton> _next;
+	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _next;
 	object_ptr<Ui::FadeWrap<Ui::LinkButton>> _changeLanguage = { nullptr };
 	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _resetAccount = { nullptr };
 	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _terms = { nullptr };

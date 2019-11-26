@@ -75,6 +75,7 @@ introHeight: 406px;
 introStepTopMin: 76px;
 introStepWidth: 380px;
 introNextTop: 266px;
+introNextSlide: 200px;
 introStepHeight: 384px;
 introContentTopAdd: 30px;
 introStepHeightFull: 590px;

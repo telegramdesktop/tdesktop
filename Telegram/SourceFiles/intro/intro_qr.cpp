@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_utilities.h"
+#include "ui/image/image_prepare.h"
 #include "main/main_account.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h"
@@ -50,9 +51,10 @@ namespace {
 }
 
 [[nodiscard]] QImage TelegramQrExact(const Qr::Data &data, int pixel) {
-	return Qr::ReplaceCenter(
-		Qr::Generate(data, pixel),
-		TelegramLogoImage(Qr::ReplaceSize(data, pixel)));
+	return Qr::Generate(data, pixel, st::windowFg->c);
+	//Qr::ReplaceCenter(
+	//	Qr::Generate(data, pixel),
+	//	TelegramLogoImage(Qr::ReplaceSize(data, pixel)));
 }
 
 [[nodiscard]] QImage TelegramQr(const Qr::Data &data, int pixel, int max = 0) {
@@ -64,21 +66,20 @@ namespace {
 	return TelegramQrExact(data, pixel * style::DevicePixelRatio());
 }
 
-[[nodiscard]] QImage TelegramQr(const QString &text, int pixel, int max) {
-	return TelegramQr(
-		Qr::Encode(text, Qr::Redundancy::Quartile),
-		pixel,
-		max);
-}
-
 [[nodiscard]] not_null<Ui::RpWidget*> PrepareQrWidget(
 		not_null<QWidget*> parent,
 		rpl::producer<QByteArray> codes) {
-	auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
-	auto current = result->lifetime().make_state<QImage>();
-	std::move(
+	auto qrs = std::move(
 		codes
 	) | rpl::map([](const QByteArray &code) {
+		return Qr::Encode(code, Qr::Redundancy::Quartile);
+	});
+	auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	auto current = result->lifetime().make_state<QImage>();
+	rpl::combine(
+		std::move(qrs),
+		rpl::single(rpl::empty_value()) | rpl::then(style::PaletteChanged())
+	) | rpl::map([](const Qr::Data &code, const auto &) {
 		return TelegramQr(code, st::introQrPixel, st::introQrMaxSize);
 	}) | rpl::start_with_next([=](QImage &&image) {
 		result->resize(image.size() / cIntRetinaFactor());
@@ -102,7 +103,7 @@ QrWidget::QrWidget(
 	QWidget *parent,
 	not_null<Main::Account*> account,
 	not_null<Data*> data)
-	: Step(parent, account, data)
+: Step(parent, account, data)
 	, _refreshTimer([=] { refreshCode(); }) {
 	setTitleText(rpl::single(QString()));
 	setDescriptionText(rpl::single(QString()));

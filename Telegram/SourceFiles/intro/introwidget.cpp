@@ -48,7 +48,12 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 		this,
 		tr::lng_menu_settings(),
 		st::defaultBoxButton))
-, _next(this, nullptr, st::introNextButton) {
+, _next(
+	this,
+	object_ptr<Ui::RoundButton>(
+		this,
+		nullptr,
+		st::introNextButton)) {
 	getData()->country = Platform::SystemCountry();
 
 	_back->entity()->setClickedCallback([=] {
@@ -56,7 +61,7 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 	});
 	_back->hide(anim::type::instant);
 
-	_next->setClickedCallback([this] { getStep()->submit(); });
+	_next->entity()->setClickedCallback([this] { getStep()->submit(); });
 
 	_settings->entity()->setClickedCallback([] { App::wnd()->showSettings(); });
 
@@ -475,8 +480,8 @@ void Widget::showTerms(Fn<void()> callback) {
 
 void Widget::showControls() {
 	getStep()->show();
-	_next->show();
 	setupNextButton();
+	_next->show(anim::type::instant);
 	_nextShownAnimation.stop();
 	_connecting->setForceHidden(false);
 	auto hasCover = getStep()->hasCover();
@@ -496,7 +501,7 @@ void Widget::showControls() {
 }
 
 void Widget::setupNextButton() {
-	_next->setText(getStep()->nextButtonText(
+	_next->entity()->setText(getStep()->nextButtonText(
 	) | rpl::filter([](const QString &text) {
 		return !text.isEmpty();
 	}));
@@ -507,6 +512,7 @@ void Widget::setupNextButton() {
 	std::move(
 		visible
 	) | rpl::start_with_next([=](bool visible) {
+		_next->toggle(visible, anim::type::normal);
 		_nextShown = visible;
 		_nextShownAnimation.start(
 			[=] { updateControlsGeometry(); },
@@ -518,7 +524,7 @@ void Widget::setupNextButton() {
 
 void Widget::hideControls() {
 	getStep()->hide();
-	_next->hide();
+	_next->hide(anim::type::instant);
 	_connecting->setForceHidden(true);
 	_settings->hide(anim::type::instant);
 	if (_update) _update->hide(anim::type::instant);
@@ -605,7 +611,10 @@ void Widget::updateControlsGeometry() {
 	auto nextTopTo = getStep()->contentTop() + st::introNextTop;
 	auto nextTop = anim::interpolate(_nextTopFrom, nextTopTo, shown);
 	const auto shownAmount = _nextShownAnimation.value(_nextShown ? 1. : 0.);
-	const auto realNextTop = anim::interpolate(height(), nextTop, shownAmount);
+	const auto realNextTop = anim::interpolate(
+		nextTop + st::introNextSlide,
+		nextTop,
+		shownAmount);
 	_next->moveToLeft((width() - _next->width()) / 2, realNextTop);
 	if (_changeLanguage) {
 		_changeLanguage->moveToLeft((width() - _changeLanguage->width()) / 2, _next->y() + _next->height() + _changeLanguage->height());
