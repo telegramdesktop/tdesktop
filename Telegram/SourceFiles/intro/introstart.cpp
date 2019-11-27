@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_qr.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "main/main_account.h"
 
 namespace Intro {
 namespace details {
@@ -27,6 +28,7 @@ StartWidget::StartWidget(
 }
 
 void StartWidget::submit() {
+	account().destroyStaleAuthorizationKeys();
 	goNext<QrWidget>();
 }
 

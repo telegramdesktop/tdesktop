@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //#include "history/feed/history_feed_section.h" // #feed
 #include "storage/localstorage.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
 #include "boxes/confirm_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/sticker_set_box.h"
@@ -222,7 +223,8 @@ bool ApiWrap::BlockedUsersSlice::operator!=(const BlockedUsersSlice &other) cons
 }
 
 ApiWrap::ApiWrap(not_null<Main::Session*> session)
-: _session(session)
+: MTP::Sender(session->account().mtp())
+, _session(session)
 , _messageDataResolveDelayed([=] { resolveMessageDatas(); })
 , _webPagesTimer([=] { resolveWebPages(); })
 , _draftsSaveTimer([=] { saveDraftsToCloud(); })

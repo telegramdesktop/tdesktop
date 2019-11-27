@@ -745,6 +745,7 @@ ParticipantsBoxController::ParticipantsBoxController(
 : PeerListController(CreateSearchController(peer, role, &_additional))
 , _navigation(navigation)
 , _peer(peer)
+, _api(_peer->session().api().instance())
 , _role(role)
 , _additional(peer, _role) {
 	subscribeToMigration();
@@ -1022,7 +1023,7 @@ void ParticipantsBoxController::restoreState(
 		: nullptr;
 	if (const auto my = dynamic_cast<SavedState*>(typeErasedState)) {
 		if (const auto requestId = base::take(_loadRequestId)) {
-			request(requestId).cancel();
+			_api.request(requestId).cancel();
 		}
 
 		_additional = std::move(my->additional);
@@ -1251,7 +1252,7 @@ void ParticipantsBoxController::loadMoreRows() {
 		: kParticipantsFirstPageCount;
 	const auto participantsHash = 0;
 
-	_loadRequestId = request(MTPchannels_GetParticipants(
+	_loadRequestId = _api.request(MTPchannels_GetParticipants(
 		channel->inputChannel,
 		filter,
 		MTP_int(_offset),
@@ -1906,7 +1907,8 @@ ParticipantsBoxSearchController::ParticipantsBoxSearchController(
 	not_null<ParticipantsAdditionalData*> additional)
 : _channel(channel)
 , _role(role)
-, _additional(additional) {
+, _additional(additional)
+, _api(_channel->session().api().instance()) {
 	_timer.setCallback([=] { searchOnServer(); });
 }
 
@@ -1938,7 +1940,7 @@ void ParticipantsBoxSearchController::restoreState(
 		std::unique_ptr<SavedStateBase> state) {
 	if (auto my = dynamic_cast<SavedState*>(state.get())) {
 		if (auto requestId = base::take(_requestId)) {
-			request(requestId).cancel();
+			_api.request(requestId).cancel();
 		}
 		_cache.clear();
 		_queries.clear();
@@ -2002,7 +2004,7 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 	auto perPage = kParticipantsPerPage;
 	auto participantsHash = 0;
 
-	_requestId = request(MTPchannels_GetParticipants(
+	_requestId = _api.request(MTPchannels_GetParticipants(
 		_channel->inputChannel,
 		filter,
 		MTP_int(_offset),

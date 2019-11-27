@@ -60,8 +60,6 @@ PhoneWidget::PhoneWidget(
 		_country->onChooseCountry(qsl("US"));
 	}
 	_changed = false;
-
-	account->destroyStaleAuthorizationKeys();
 }
 
 void PhoneWidget::resizeEvent(QResizeEvent *e) {

@@ -16,8 +16,7 @@ namespace Settings {
 
 class BlockedBoxController
 	: public PeerListController
-	, private base::Subscriber
-	, private MTP::Sender {
+	, private base::Subscriber {
 public:
 	explicit BlockedBoxController(
 		not_null<Window::SessionController*> window);
@@ -39,6 +38,7 @@ private:
 	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
 
 	const not_null<Window::SessionController*> _window;
+	MTP::Sender _api;
 
 	int _offset = 0;
 	mtpRequestId _loadRequestId = 0;

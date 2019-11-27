@@ -130,6 +130,7 @@ Call::Call(
 	Type type)
 : _delegate(delegate)
 , _user(user)
+, _api(_user->session().api().instance())
 , _type(type) {
 	_discardByTimeoutTimer.setCallback([this] { hangup(); });
 
@@ -189,7 +190,7 @@ void Call::startOutgoing() {
 	Expects(_state == State::Requesting);
 	Expects(_gaHash.size() == kSha256Size);
 
-	request(MTPphone_RequestCall(
+	_api.request(MTPphone_RequestCall(
 		MTP_flags(0),
 		_user->inputUser,
 		MTP_int(rand_value<int32>()),
@@ -236,11 +237,13 @@ void Call::startIncoming() {
 	Expects(_type == Type::Incoming);
 	Expects(_state == State::Starting);
 
-	request(MTPphone_ReceivedCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)))).done([this](const MTPBool &result) {
+	_api.request(MTPphone_ReceivedCall(
+		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash))
+	)).done([=](const MTPBool &result) {
 		if (_state == State::Starting) {
 			setState(State::WaitingIncoming);
 		}
-	}).fail([this](const RPCError &error) {
+	}).fail([=](const RPCError &error) {
 		handleRequestError(error);
 	}).send();
 }
@@ -267,7 +270,7 @@ void Call::actuallyAnswer() {
 	} else {
 		_answerAfterDhConfigReceived = false;
 	}
-	request(MTPphone_AcceptCall(
+	_api.request(MTPphone_AcceptCall(
 		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)),
 		MTP_bytes(_gb),
 		MTP_phoneCallProtocol(
@@ -504,7 +507,7 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 	_keyFingerprint = ComputeFingerprint(_authKey);
 
 	setState(State::ExchangingKeys);
-	request(MTPphone_ConfirmCall(
+	_api.request(MTPphone_ConfirmCall(
 		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)),
 		MTP_bytes(_ga),
 		MTP_long(_keyFingerprint),
@@ -840,7 +843,7 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	auto duration = getDurationMs() / 1000;
 	auto connectionId = _controller ? _controller->GetPreferredRelayID() : 0;
 	_finishByTimeoutTimer.call(kHangupTimeoutMs, [this, finalState] { setState(finalState); });
-	request(MTPphone_DiscardCall(
+	_api.request(MTPphone_DiscardCall(
 		MTP_flags(0),
 		MTP_inputPhoneCall(
 			MTP_long(_id),

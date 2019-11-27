@@ -262,7 +262,7 @@ Instance::Private::Private(
 	not_null<Instance*> instance,
 	not_null<DcOptions*> options,
 	Instance::Mode mode)
-: Sender()
+: Sender(instance)
 , _instance(instance)
 , _dcOptions(options)
 , _mode(mode) {

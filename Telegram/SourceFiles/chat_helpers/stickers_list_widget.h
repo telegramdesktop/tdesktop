@@ -38,8 +38,7 @@ struct StickerIcon;
 
 class StickersListWidget
 	: public TabbedSelector::Inner
-	, private base::Subscriber
-	, private MTP::Sender {
+	, private base::Subscriber {
 public:
 	StickersListWidget(
 		QWidget *parent,
@@ -300,6 +299,7 @@ private:
 
 	void showPreview();
 
+	MTP::Sender _api;
 	ChannelData *_megagroupSet = nullptr;
 	uint64 _megagroupSetIdRequested = 0;
 	std::vector<Set> _mySets;

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
+#include "main/main_account.h"
 #include "base/openssl_help.h"
 #include "styles/style_intro.h"
 #include "styles/style_boxes.h"
@@ -28,6 +29,7 @@ PwdCheckWidget::PwdCheckWidget(
 	not_null<Main::Account*> account,
 	not_null<Data*> data)
 : Step(parent, account, data)
+, _api(account->mtp())
 , _request(getData()->pwdRequest)
 , _hasRecovery(getData()->hasRecovery)
 , _notEmptyPassport(getData()->pwdNotEmptyPassport)
@@ -115,7 +117,7 @@ void PwdCheckWidget::activate() {
 }
 
 void PwdCheckWidget::cancelled() {
-	request(base::take(_sentRequest)).cancel();
+	_api.request(base::take(_sentRequest)).cancel();
 }
 
 void PwdCheckWidget::stopCheck() {
@@ -127,7 +129,7 @@ void PwdCheckWidget::onCheckRequest() {
 	if (status < 0) {
 		auto leftms = -status;
 		if (leftms >= 1000) {
-			request(base::take(_sentRequest)).cancel();
+			_api.request(base::take(_sentRequest)).cancel();
 		}
 	}
 	if (!_sentRequest && status == MTP::RequestSent) {
@@ -202,8 +204,8 @@ void PwdCheckWidget::checkPasswordHash() {
 }
 
 void PwdCheckWidget::requestPasswordData() {
-	request(base::take(_sentRequest)).cancel();
-	_sentRequest = request(
+	_api.request(base::take(_sentRequest)).cancel();
+	_sentRequest = _api.request(
 		MTPaccount_GetPassword()
 	).done([=](const MTPaccount_Password &result) {
 		_sentRequest = 0;
@@ -225,7 +227,7 @@ void PwdCheckWidget::passwordChecked() {
 		return serverError();
 	}
 	_request.id = 0;
-	_sentRequest = request(
+	_sentRequest = _api.request(
 		MTPauth_CheckPassword(check.result)
 	).done([=](const MTPauth_Authorization &result) {
 		pwdSubmitDone(false, result);
@@ -289,7 +291,7 @@ void PwdCheckWidget::recoverStartFail(const RPCError &error) {
 void PwdCheckWidget::onToRecover() {
 	if (_hasRecovery) {
 		if (_sentRequest) {
-			request(base::take(_sentRequest)).cancel();
+			_api.request(base::take(_sentRequest)).cancel();
 		}
 		hideError();
 		_toRecover->hide();
@@ -301,7 +303,7 @@ void PwdCheckWidget::onToRecover() {
 		_codeField->setFocus();
 		updateDescriptionText();
 		if (_emailPattern.isEmpty()) {
-			request(
+			_api.request(
 				MTPauth_RequestPasswordRecovery()
 			).done([=](const MTPauth_PasswordRecovery &result) {
 				recoverStarted(result);
@@ -320,7 +322,7 @@ void PwdCheckWidget::onToPassword() {
 
 void PwdCheckWidget::showReset() {
 	if (_sentRequest) {
-		request(base::take(_sentRequest)).cancel();
+		_api.request(base::take(_sentRequest)).cancel();
 	}
 	_toRecover->show();
 	_toPassword->hide();
@@ -355,7 +357,7 @@ void PwdCheckWidget::submit() {
 			return;
 		}
 		const auto send = crl::guard(this, [=] {
-			_sentRequest = request(
+			_sentRequest = _api.request(
 				MTPauth_RecoverPassword(MTP_string(code))
 			).done([=](const MTPauth_Authorization &result) {
 				pwdSubmitDone(true, result);

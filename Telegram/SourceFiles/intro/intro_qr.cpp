@@ -170,12 +170,12 @@ QrWidget::QrWidget(
 	not_null<Main::Account*> account,
 	not_null<Data*> data)
 : Step(parent, account, data)
+, _api(account->mtp())
 , _refreshTimer([=] { refreshCode(); }) {
 	setTitleText(rpl::single(QString()));
 	setDescriptionText(rpl::single(QString()));
 	setErrorCentered(true);
 
-	account->destroyStaleAuthorizationKeys();
 	account->mtpUpdates(
 	) | rpl::start_with_next([=](const MTPUpdates &updates) {
 		checkForTokenUpdate(updates);

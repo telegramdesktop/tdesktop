@@ -22,7 +22,7 @@ namespace Main {
 class Session;
 } // namespace Main
 
-class SessionsBox : public Ui::BoxContent, private MTP::Sender {
+class SessionsBox : public Ui::BoxContent {
 public:
 	SessionsBox(QWidget*, not_null<Main::Session*> session);
 
@@ -60,6 +60,7 @@ private:
 	void terminateAll();
 
 	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 
 	bool _loading = false;
 	Full _data;

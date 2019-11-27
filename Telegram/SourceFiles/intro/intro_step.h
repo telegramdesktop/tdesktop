@@ -177,7 +177,6 @@ private:
 	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _description;
 
 	bool _errorCentered = false;
-	bool _errorBelowLink = false;
 	rpl::variable<QString> _errorText;
 	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _error = { nullptr };
 

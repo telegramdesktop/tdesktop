@@ -276,6 +276,7 @@ AddSpecialBoxController::AddSpecialBoxController(
 	peer,
 	&_additional))
 , _peer(peer)
+, _api(_peer->session().api().instance())
 , _role(role)
 , _additional(peer, Role::Members)
 , _adminDoneCallback(std::move(adminDoneCallback))
@@ -408,7 +409,7 @@ void AddSpecialBoxController::loadMoreRows() {
 	const auto participantsHash = 0;
 	const auto channel = _peer->asChannel();
 
-	_loadRequestId = request(MTPchannels_GetParticipants(
+	_loadRequestId = _api.request(MTPchannels_GetParticipants(
 		channel->inputChannel,
 		MTP_channelParticipantsRecent(),
 		MTP_int(_offset),
@@ -464,7 +465,7 @@ bool AddSpecialBoxController::checkInfoLoaded(
 
 	// We don't know what this user status is in the group.
 	const auto channel = _peer->asChannel();
-	request(MTPchannels_GetParticipant(
+	_api.request(MTPchannels_GetParticipant(
 		channel->inputChannel,
 		user->inputUser
 	)).done([=](const MTPchannels_ChannelParticipant &result) {
@@ -829,6 +830,7 @@ AddSpecialBoxSearchController::AddSpecialBoxSearchController(
 	not_null<ParticipantsAdditionalData*> additional)
 : _peer(peer)
 , _additional(additional)
+, _api(_peer->session().api().instance())
 , _timer([=] { searchOnServer(); }) {
 	subscribeToMigration();
 }
@@ -924,7 +926,7 @@ void AddSpecialBoxSearchController::requestParticipants() {
 	const auto participantsHash = 0;
 	const auto channel = _peer->asChannel();
 
-	_requestId = request(MTPchannels_GetParticipants(
+	_requestId = _api.request(MTPchannels_GetParticipants(
 		channel->inputChannel,
 		MTP_channelParticipantsSearch(MTP_string(_query)),
 		MTP_int(_offset),
@@ -1012,7 +1014,7 @@ void AddSpecialBoxSearchController::requestGlobal() {
 	}
 
 	auto perPage = SearchPeopleLimit;
-	_requestId = request(MTPcontacts_Search(
+	_requestId = _api.request(MTPcontacts_Search(
 		MTP_string(_query),
 		MTP_int(perPage)
 	)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {

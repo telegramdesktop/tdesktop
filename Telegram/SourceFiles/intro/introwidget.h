@@ -72,10 +72,7 @@ class Step;
 
 } // namespace details
 
-class Widget
-	: public Ui::RpWidget
-	, private MTP::Sender
-	, private base::Subscriber {
+class Widget : public Ui::RpWidget, private base::Subscriber {
 public:
 	Widget(QWidget *parent, not_null<Main::Account*> account);
 
@@ -91,7 +88,6 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
 private:
-	void setupConnectingWidget();
 	void refreshLang();
 	void animationCallback();
 	void createLanguageLink();
@@ -127,7 +123,8 @@ private:
 	void getNearestDC();
 	void showTerms(Fn<void()> callback);
 
-	not_null<Main::Account*> _account;
+	const not_null<Main::Account*> _account;
+	std::optional<MTP::Sender> _api;
 
 	Ui::Animations::Simple _a_show;
 	bool _showBack = false;

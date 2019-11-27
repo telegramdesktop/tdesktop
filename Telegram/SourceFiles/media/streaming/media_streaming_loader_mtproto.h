@@ -70,7 +70,7 @@ private:
 	const int _size = 0;
 	const Data::FileOrigin _origin;
 
-	MTP::Sender _sender;
+	MTP::Sender _api;
 
 	PriorityQueue _requested;
 	base::flat_map<int, mtpRequestId> _requests;

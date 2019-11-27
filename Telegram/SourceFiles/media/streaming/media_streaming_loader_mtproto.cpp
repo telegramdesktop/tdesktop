@@ -29,7 +29,8 @@ LoaderMtproto::LoaderMtproto(
 , _location(location)
 , _dcId(location.dcId())
 , _size(size)
-, _origin(origin) {
+, _origin(origin)
+, _api(_owner->api().instance()) {
 }
 
 LoaderMtproto::~LoaderMtproto() {
@@ -68,7 +69,7 @@ void LoaderMtproto::stop() {
 	crl::on_main(this, [=] {
 		ranges::for_each(
 			base::take(_requests),
-			_sender.requestCanceller(),
+			_api.requestCanceller(),
 			&base::flat_map<int, mtpRequestId>::value_type::second);
 		_requested.clear();
 	});
@@ -82,7 +83,7 @@ void LoaderMtproto::cancel(int offset) {
 
 void LoaderMtproto::cancelForOffset(int offset) {
 	if (const auto requestId = _requests.take(offset)) {
-		_sender.request(*requestId).cancel();
+		_api.request(*requestId).cancel();
 		sendNext();
 	} else {
 		_requested.remove(offset);
@@ -122,7 +123,7 @@ void LoaderMtproto::sendNext() {
 	changeRequestedAmount(index, kPartSize);
 
 	const auto usedFileReference = _location.fileReference();
-	const auto id = _sender.request(MTPupload_GetFile(
+	const auto id = _api.request(MTPupload_GetFile(
 		MTP_flags(0),
 		_location.tl(Auth().userId()),
 		MTP_int(offset),

@@ -266,7 +266,7 @@ private:
 	std::unique_ptr<Window::Controller> _window;
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
 	const std::unique_ptr<Lang::Instance> _langpack;
-	std::unique_ptr<Lang::CloudManager> _langCloudManager;
+	const std::unique_ptr<Lang::CloudManager> _langCloudManager;
 	const std::unique_ptr<ChatHelpers::EmojiKeywords> _emojiKeywords;
 	std::unique_ptr<Lang::Translator> _translator;
 	base::Observable<void> _passcodedChanged;

@@ -754,6 +754,7 @@ Widget::Widget(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
+, _api(_controller->session().api().instance())
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
 , _scroll(this, st::inlineBotsScroll) {
@@ -1133,9 +1134,16 @@ void Widget::onInlineRequest() {
 		}
 	}
 	Notify::inlineBotRequesting(true);
-	_inlineRequestId = request(MTPmessages_GetInlineBotResults(MTP_flags(0), _inlineBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset))).done([this](const MTPmessages_BotResults &result, mtpRequestId requestId) {
+	_inlineRequestId = _api.request(MTPmessages_GetInlineBotResults(
+		MTP_flags(0),
+		_inlineBot->inputUser,
+		_inlineQueryPeer->input,
+		MTPInputGeoPoint(),
+		MTP_string(_inlineQuery),
+		MTP_string(nextOffset)
+	)).done([=](const MTPmessages_BotResults &result) {
 		inlineResultsDone(result);
-	}).fail([this](const RPCError &error) {
+	}).fail([=](const RPCError &error) {
 		// show error?
 		Notify::inlineBotRequesting(false);
 		_inlineRequestId = 0;

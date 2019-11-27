@@ -53,10 +53,7 @@ QImage TakeMiddleSample(QImage original, QSize size) {
 
 } // namespace
 
-class BackgroundBox::Inner
-	: public Ui::RpWidget
-	, private MTP::Sender
-	, private base::Subscriber {
+class BackgroundBox::Inner : public Ui::RpWidget, private base::Subscriber {
 public:
 	Inner(
 		QWidget *parent,
@@ -114,6 +111,7 @@ private:
 	void validatePaperThumbnail(const Paper &paper) const;
 
 	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 
 	std::vector<Paper> _papers;
 
@@ -185,6 +183,7 @@ BackgroundBox::Inner::Inner(
 	not_null<Main::Session*> session)
 : RpWidget(parent)
 , _session(session)
+, _api(_session->api().instance())
 , _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [=] { update(); })) {
 	_check->setChecked(true, Ui::RoundCheckbox::SetStyle::Fast);
 	if (_session->data().wallpapers().empty()) {
@@ -209,7 +208,7 @@ BackgroundBox::Inner::Inner(
 }
 
 void BackgroundBox::Inner::requestPapers() {
-	request(MTPaccount_GetWallPapers(
+	_api.request(MTPaccount_GetWallPapers(
 		MTP_int(_session->data().wallpapersHash())
 	)).done([=](const MTPaccount_WallPapers &result) {
 		if (_session->data().updateWallpapers(result)) {

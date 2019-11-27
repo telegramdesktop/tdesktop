@@ -153,8 +153,7 @@ private:
 // This class is hold in header because it requires Qt preprocessing.
 class StickersBox::Inner
 	: public Ui::RpWidget
-	, private base::Subscriber
-	, private MTP::Sender {
+	, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -320,6 +319,7 @@ private:
 	int countMaxNameWidth() const;
 
 	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 
 	Section _section;
 

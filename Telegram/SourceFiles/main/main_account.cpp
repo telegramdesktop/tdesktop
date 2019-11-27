@@ -498,16 +498,16 @@ rpl::producer<> Account::configUpdates() const {
 }
 
 void Account::resetAuthorizationKeys() {
+	_mtpValue = nullptr;
 	_mtp = nullptr;
-	_mtpValue = _mtp.get();
 	startMtp();
 	Local::writeMtpData();
 }
 
 void Account::clearMtp() {
+	_mtpValue = nullptr;
 	_mtp = nullptr;
 	_mtpForKeysDestroy = nullptr;
-	_mtpValue = _mtp.get();
 }
 
 } // namespace Main

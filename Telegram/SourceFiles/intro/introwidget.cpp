@@ -50,30 +50,42 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 		st::defaultBoxButton))
 , _next(
 	this,
-	object_ptr<Ui::RoundButton>(
+	object_ptr<Ui::RoundButton>(this, nullptr, st::introNextButton))
+, _connecting(std::make_unique<Window::ConnectionState>(
 		this,
-		nullptr,
-		st::introNextButton)) {
+		rpl::single(true))) {
+	appendStep(new StartWidget(this, _account, getData()));
+	fixOrder();
+
 	getData()->country = Platform::SystemCountry();
+
+	_account->mtpValue(
+	) | rpl::start_with_next([=](MTP::Instance *instance) {
+		if (instance) {
+			_api.emplace(instance);
+			createLanguageLink();
+		} else {
+			_api.reset();
+		}
+	}, lifetime());
+	subscribe(Lang::CurrentCloudManager().firstLanguageSuggestion(), [=] {
+		createLanguageLink();
+	});
 
 	_back->entity()->setClickedCallback([=] {
 		historyMove(Direction::Back);
 	});
 	_back->hide(anim::type::instant);
 
-	_next->entity()->setClickedCallback([this] { getStep()->submit(); });
+	_next->entity()->setClickedCallback([=] { getStep()->submit(); });
 
 	_settings->entity()->setClickedCallback([] { App::wnd()->showSettings(); });
 
 	getNearestDC();
-	setupConnectingWidget();
-
-	appendStep(new StartWidget(this, _account, getData()));
-	fixOrder();
-
-	subscribe(Lang::CurrentCloudManager().firstLanguageSuggestion(), [this] { createLanguageLink(); });
-	createLanguageLink();
-	if (_changeLanguage) _changeLanguage->finishAnimating();
+	
+	if (_changeLanguage) {
+		_changeLanguage->finishAnimating();
+	}
 
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
@@ -98,12 +110,6 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 	}
 }
 
-void Widget::setupConnectingWidget() {
-	_connecting = std::make_unique<Window::ConnectionState>(
-		this,
-		rpl::single(true));
-}
-
 void Widget::refreshLang() {
 	_changeLanguage.destroy();
 	createLanguageLink();
@@ -111,9 +117,13 @@ void Widget::refreshLang() {
 }
 
 void Widget::createLanguageLink() {
-	if (_changeLanguage) return;
+	if (_changeLanguage) {
+		return;
+	}
 
-	auto createLink = [this](const QString &text, const QString &languageId) {
+	const auto createLink = [=](
+			const QString &text,
+			const QString &languageId) {
 		_changeLanguage.create(
 			this,
 			object_ptr<Ui::LinkButton>(this, text));
@@ -134,8 +144,8 @@ void Widget::createLanguageLink() {
 		createLink(
 			Lang::GetOriginalValue(tr::lng_switch_to_this.base),
 			defaultId);
-	} else if (!suggested.isEmpty() && suggested != currentId) {
-		request(MTPlangpack_GetStrings(
+	} else if (!suggested.isEmpty() && suggested != currentId && _api) {
+		_api->request(MTPlangpack_GetStrings(
 			MTP_string(Lang::CloudLangPackName()),
 			MTP_string(suggested),
 			MTP_vector<MTPstring>(1, MTP_string("lng_switch_to_this"))
@@ -339,18 +349,24 @@ void Widget::acceptTerms(Fn<void()> callback) {
 }
 
 void Widget::resetAccount() {
-	if (_resetRequest) return;
+	if (_resetRequest || !_api) {
+		return;
+	}
 
 	Ui::show(Box<ConfirmBox>(tr::lng_signin_sure_reset(tr::now), tr::lng_signin_reset(tr::now), st::attentionBoxButton, crl::guard(this, [this] {
-		if (_resetRequest) return;
-		_resetRequest = request(MTPaccount_DeleteAccount(MTP_string("Forgot password"))).done([this](const MTPBool &result) {
+		if (_resetRequest) {
+			return;
+		}
+		_resetRequest = _api->request(MTPaccount_DeleteAccount(
+			MTP_string("Forgot password")
+		)).done([=](const MTPBool &result) {
 			_resetRequest = 0;
 
 			Ui::hideLayer();
 			moveToStep(
 				new SignupWidget(this, _account, getData()),
 				Direction::Replace);
-		}).fail([this](const RPCError &error) {
+		}).fail([=](const RPCError &error) {
 			_resetRequest = 0;
 
 			const auto &type = error.type();
@@ -410,8 +426,12 @@ void Widget::resetAccount() {
 }
 
 void Widget::getNearestDC() {
-	request(MTPhelp_GetNearestDc()).done([this](const MTPNearestDc &result) {
-		auto &nearest = result.c_nearestDc();
+	if (!_api) {
+		return;
+	}
+	_api->request(MTPhelp_GetNearestDc(
+	)).done([=](const MTPNearestDc &result) {
+		const auto &nearest = result.c_nearestDc();
 		DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3"
 			).arg(qs(nearest.vcountry())
 			).arg(nearest.vnearest_dc().v

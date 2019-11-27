@@ -52,9 +52,9 @@ private:
 	void showToken(const QByteArray &token);
 	void done(const MTPauth_Authorization &authorization);
 
+	MTP::Sender _api;
 	rpl::event_stream<QByteArray> _qrCodes;
 	base::Timer _refreshTimer;
-	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
 	bool _forceRefresh = false;
 

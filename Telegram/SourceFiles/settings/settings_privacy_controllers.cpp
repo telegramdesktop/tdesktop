@@ -180,7 +180,8 @@ AdminLog::OwnedItem GenerateForwardedItem(
 
 BlockedBoxController::BlockedBoxController(
 	not_null<Window::SessionController*> window)
-: _window(window) {
+: _window(window)
+, _api(_window->session().api().instance()) {
 }
 
 Main::Session &BlockedBoxController::session() const {
@@ -220,7 +221,7 @@ void BlockedBoxController::loadMoreRows() {
 		return;
 	}
 
-	_loadRequestId = request(MTPcontacts_GetBlocked(
+	_loadRequestId = _api.request(MTPcontacts_GetBlocked(
 		MTP_int(_offset),
 		MTP_int(kBlockedPerPage)
 	)).done([=](const MTPcontacts_Blocked &result) {

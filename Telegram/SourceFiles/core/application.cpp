@@ -93,6 +93,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _dcOptions(std::make_unique<MTP::DcOptions>())
 , _account(std::make_unique<Main::Account>(cDataFile()))
 , _langpack(std::make_unique<Lang::Instance>())
+, _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
 , _audio(std::make_unique<Media::Audio::Instance>())
 , _logo(Window::LoadLogo())
@@ -114,9 +115,6 @@ Application::Application(not_null<Launcher*> launcher)
 	) | rpl::filter([=](MTP::Instance *instance) {
 		return instance != nullptr;
 	}) | rpl::start_with_next([=](not_null<MTP::Instance*> mtp) {
-		_langCloudManager = std::make_unique<Lang::CloudManager>(
-			langpack(),
-			mtp);
 		if (!UpdaterDisabled()) {
 			UpdateChecker().setMtproto(mtp.get());
 		}
@@ -134,11 +132,6 @@ Application::~Application() {
 	// Some MTP requests can be cancelled from data clearing.
 	unlockTerms();
 	activeAccount().destroySession();
-
-	// The langpack manager should be destroyed before MTProto instance,
-	// because it is MTP::Sender and it may have pending requests.
-	_langCloudManager.reset();
-
 	activeAccount().clearMtp();
 
 	Shortcuts::Finish();
