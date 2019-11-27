@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/countryinput.h"
 #include "intro/intro_step.h"
+#include "base/timer.h"
 
 namespace Ui {
 class PhonePartInput;
@@ -20,9 +21,7 @@ class FlatLabel;
 namespace Intro {
 namespace details {
 
-class PhoneWidget : public Step {
-	Q_OBJECT
-
+class PhoneWidget final : public Step {
 public:
 	PhoneWidget(
 		QWidget *parent,
@@ -44,11 +43,9 @@ public:
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 
-private slots:
-	void onInputChange();
-	void onCheckRequest();
-
 private:
+	void phoneChanged();
+	void checkRequest();
 	void countryChanged();
 
 	void phoneSubmitDone(const MTPauth_SentCode &result);
@@ -69,7 +66,7 @@ private:
 	QString _sentPhone;
 	mtpRequestId _sentRequest = 0;
 
-	object_ptr<QTimer> _checkRequest;
+	base::Timer _checkRequestTimer;
 
 };
 

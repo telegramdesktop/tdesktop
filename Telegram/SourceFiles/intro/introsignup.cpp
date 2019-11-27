@@ -26,24 +26,21 @@ SignupWidget::SignupWidget(
 	QWidget *parent,
 	not_null<Main::Account*> account,
 	not_null<Data*> data)
-	: Step(parent, account, data)
-	, _photo(
-		this,
-		tr::lng_settings_crop_profile(tr::now),
-		Ui::UserpicButton::Role::ChangePhoto,
-		st::defaultUserpicButton)
-	, _first(this, st::introName, tr::lng_signup_firstname())
-	, _last(this, st::introName, tr::lng_signup_lastname())
-	, _invertOrder(langFirstNameGoesSecond())
-	, _checkRequest(this) {
+: Step(parent, account, data)
+, _photo(
+	this,
+	tr::lng_settings_crop_profile(tr::now),
+	Ui::UserpicButton::Role::ChangePhoto,
+	st::defaultUserpicButton)
+, _first(this, st::introName, tr::lng_signup_firstname())
+, _last(this, st::introName, tr::lng_signup_lastname())
+, _invertOrder(langFirstNameGoesSecond()) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
 	} else {
 		setTabOrder(_first, _last);
 	}
-
-	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
 	setErrorCentered(true);
 
@@ -107,25 +104,7 @@ void SignupWidget::cancelled() {
 	MTP::cancel(base::take(_sentRequest));
 }
 
-void SignupWidget::stopCheck() {
-	_checkRequest->stop();
-}
-
-void SignupWidget::onCheckRequest() {
-	auto status = MTP::state(_sentRequest);
-	if (status < 0) {
-		auto leftms = -status;
-		if (leftms >= 1000) {
-			MTP::cancel(base::take(_sentRequest));
-		}
-	}
-	if (!_sentRequest && status == MTP::RequestSent) {
-		stopCheck();
-	}
-}
-
 void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
-	stopCheck();
 	auto &d = result.c_auth_authorization();
 	if (d.vuser().type() != mtpc_user || !d.vuser().c_user().is_self()) { // wtf?
 		showError(rpl::single(Lang::Hard::ServerError()));
@@ -136,7 +115,6 @@ void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 
 bool SignupWidget::nameSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
-		stopCheck();
 		showError(tr::lng_flood_error());
 		if (_invertOrder) {
 			_first->setFocus();
@@ -147,7 +125,6 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 	}
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	stopCheck();
 	auto &err = error.type();
 	if (err == qstr("PHONE_NUMBER_FLOOD")) {
 		Ui::show(Box<InformBox>(tr::lng_error_phone_flood(tr::now)));
@@ -180,10 +157,6 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 		_first->setFocus();
 	}
 	return false;
-}
-
-void SignupWidget::onInputChange() {
-	hideError();
 }
 
 void SignupWidget::submit() {

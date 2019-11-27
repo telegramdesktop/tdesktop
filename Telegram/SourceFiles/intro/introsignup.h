@@ -18,9 +18,7 @@ class UserpicButton;
 namespace Intro {
 namespace details {
 
-class SignupWidget : public Step {
-	Q_OBJECT
-
+class SignupWidget final : public Step {
 public:
 	SignupWidget(
 		QWidget *parent,
@@ -37,18 +35,12 @@ public:
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 
-private slots:
-	void onInputChange();
-	void onCheckRequest();
-
 private:
 	void refreshLang();
 	void updateControlsGeometry();
 
 	void nameSubmitDone(const MTPauth_Authorization &result);
 	bool nameSubmitFail(const RPCError &error);
-
-	void stopCheck();
 
 	object_ptr<Ui::UserpicButton> _photo;
 	object_ptr<Ui::InputField> _first;
@@ -59,7 +51,6 @@ private:
 	bool _invertOrder = false;
 
 	bool _termsAccepted = false;
-	object_ptr<QTimer> _checkRequest;
 
 };
 

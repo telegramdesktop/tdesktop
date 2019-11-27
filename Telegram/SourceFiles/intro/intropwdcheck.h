@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_step.h"
 #include "core/core_cloud_password.h"
 #include "mtproto/sender.h"
+#include "base/timer.h"
 
 namespace Ui {
 class InputField;
@@ -21,9 +22,7 @@ class LinkButton;
 namespace Intro {
 namespace details {
 
-class PwdCheckWidget : public Step {
-	Q_OBJECT
-
+class PwdCheckWidget final : public Step {
 public:
 	PwdCheckWidget(
 		QWidget *parent,
@@ -39,13 +38,10 @@ public:
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 
-private slots:
-	void onToRecover();
-	void onToPassword();
-	void onInputChange();
-	void onCheckRequest();
-
 private:
+	void toRecover();
+	void toPassword();
+
 	int errorTop() const override;
 
 	void showReset();
@@ -60,7 +56,6 @@ private:
 	void recoverStarted(const MTPauth_PasswordRecovery &result);
 
 	void updateDescriptionText();
-	void stopCheck();
 	void handleSrpIdInvalid();
 	void requestPasswordData();
 	void checkPasswordHash();
@@ -81,8 +76,6 @@ private:
 	object_ptr<Ui::LinkButton> _toRecover;
 	object_ptr<Ui::LinkButton> _toPassword;
 	mtpRequestId _sentRequest = 0;
-
-	object_ptr<QTimer> _checkRequest;
 
 };
 

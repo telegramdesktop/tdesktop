@@ -40,16 +40,15 @@ PhoneWidget::PhoneWidget(
 , _country(this, st::introCountry)
 , _code(this, st::introCountryCode)
 , _phone(this, st::introPhone)
-, _checkRequest(this) {
+, _checkRequestTimer([=] { checkRequest(); }) {
 	connect(_phone, SIGNAL(voidBackspace(QKeyEvent*)), _code, SLOT(startErasing(QKeyEvent*)));
 	connect(_country, SIGNAL(codeChanged(const QString &)), _code, SLOT(codeSelected(const QString &)));
 	connect(_code, SIGNAL(codeChanged(const QString &)), _country, SLOT(onChooseCode(const QString &)));
 	connect(_code, SIGNAL(codeChanged(const QString &)), _phone, SLOT(onChooseCode(const QString &)));
 	connect(_country, SIGNAL(codeChanged(const QString &)), _phone, SLOT(onChooseCode(const QString &)));
 	connect(_code, SIGNAL(addedToNumber(const QString &)), _phone, SLOT(addedToNumber(const QString &)));
-	connect(_phone, SIGNAL(changed()), this, SLOT(onInputChange()));
-	connect(_code, SIGNAL(changed()), this, SLOT(onInputChange()));
-	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
+	connect(_phone, &Ui::PhonePartInput::changed, [=] { phoneChanged(); });
+	connect(_code, &Ui::CountryCodeInput::changed, [=] { phoneChanged(); });
 
 	setTitleText(tr::lng_phone_title());
 	setDescriptionText(tr::lng_phone_desc());
@@ -85,7 +84,7 @@ void PhoneWidget::countryChanged() {
 	}
 }
 
-void PhoneWidget::onInputChange() {
+void PhoneWidget::phoneChanged() {
 	_changed = true;
 	hidePhoneError();
 }
@@ -102,7 +101,7 @@ void PhoneWidget::submit() {
 
 	hidePhoneError();
 
-	_checkRequest->start(1000);
+	_checkRequestTimer.callEach(1000);
 
 	_sentPhone = phone;
 	account().mtp()->setUserPhone(_sentPhone);
@@ -117,10 +116,10 @@ void PhoneWidget::submit() {
 }
 
 void PhoneWidget::stopCheck() {
-	_checkRequest->stop();
+	_checkRequestTimer.cancel();
 }
 
-void PhoneWidget::onCheckRequest() {
+void PhoneWidget::checkRequest() {
 	auto status = MTP::state(_sentRequest);
 	if (status < 0) {
 		auto leftms = -status;
@@ -209,7 +208,7 @@ void PhoneWidget::activate() {
 
 void PhoneWidget::finished() {
 	Step::finished();
-	_checkRequest->stop();
+	_checkRequestTimer.cancel();
 	rpcInvalidate();
 
 	cancelled();

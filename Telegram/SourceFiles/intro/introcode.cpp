@@ -82,17 +82,15 @@ CodeWidget::CodeWidget(
 : Step(parent, account, data)
 , _noTelegramCode(this, tr::lng_code_no_telegram(tr::now), st::introLink)
 , _code(this, st::introCode, tr::lng_code_ph())
-, _callTimer(this)
+, _callTimer([=] { sendCall(); })
 , _callStatus(getData()->callStatus)
 , _callTimeout(getData()->callTimeout)
 , _callLabel(this, st::introDescription)
-, _checkRequest(this) {
+, _checkRequestTimer([=] { checkRequest(); }) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
-	connect(_code, SIGNAL(changed()), this, SLOT(onInputChange()));
-	connect(_callTimer, SIGNAL(timeout()), this, SLOT(onSendCall()));
-	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
-	_noTelegramCode->addClickHandler([=] { onNoTelegramCode(); });
+	connect(_code, &CodeInput::changed, [=] { codeChanged(); });
+	_noTelegramCode->addClickHandler([=] { noTelegramCode(); });
 
 	_code->setDigitsCountMax(getData()->codeLength);
 
@@ -101,7 +99,9 @@ CodeWidget::CodeWidget(
 }
 
 void CodeWidget::refreshLang() {
-	if (_noTelegramCode) _noTelegramCode->setText(tr::lng_code_no_telegram(tr::now));
+	if (_noTelegramCode) {
+		_noTelegramCode->setText(tr::lng_code_no_telegram(tr::now));
+	}
 	updateDescText();
 	updateControlsGeometry();
 }
@@ -117,13 +117,13 @@ void CodeWidget::updateDescText() {
 			Ui::Text::RichLangValue));
 	if (getData()->codeByTelegram) {
 		_noTelegramCode->show();
-		_callTimer->stop();
+		_callTimer.cancel();
 	} else {
 		_noTelegramCode->hide();
 		_callStatus = getData()->callStatus;
 		_callTimeout = getData()->callTimeout;
-		if (_callStatus == CallStatus::Waiting && !_callTimer->isActive()) {
-			_callTimer->start(1000);
+		if (_callStatus == CallStatus::Waiting && !_callTimer.isActive()) {
+			_callTimer.callEach(1000);
 		}
 	}
 	updateCallText();
@@ -199,8 +199,8 @@ void CodeWidget::activate() {
 
 void CodeWidget::finished() {
 	Step::finished();
-	_checkRequest->stop();
-	_callTimer->stop();
+	_checkRequestTimer.cancel();
+	_callTimer.cancel();
 	rpcInvalidate();
 
 	cancelled();
@@ -215,10 +215,10 @@ void CodeWidget::cancelled() {
 }
 
 void CodeWidget::stopCheck() {
-	_checkRequest->stop();
+	_checkRequestTimer.cancel();
 }
 
-void CodeWidget::onCheckRequest() {
+void CodeWidget::checkRequest() {
 	auto status = MTP::state(_sentRequest);
 	if (status < 0) {
 		auto leftms = -status;
@@ -278,7 +278,7 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 		showCodeError(tr::lng_bad_code());
 		return true;
 	} else if (err == qstr("SESSION_PASSWORD_NEEDED")) {
-		_checkRequest->start(1000);
+		_checkRequestTimer.callEach(1000);
 		_sentRequest = MTP::send(
 			MTPaccount_GetPassword(),
 			rpcDone(&CodeWidget::gotPassword),
@@ -293,17 +293,21 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 	return false;
 }
 
-void CodeWidget::onInputChange() {
+void CodeWidget::codeChanged() {
 	hideError();
 	submit();
 }
 
-void CodeWidget::onSendCall() {
+void CodeWidget::sendCall() {
 	if (_callStatus == CallStatus::Waiting) {
 		if (--_callTimeout <= 0) {
 			_callStatus = CallStatus::Calling;
-			_callTimer->stop();
-			_callRequestId = MTP::send(MTPauth_ResendCode(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash)), rpcDone(&CodeWidget::callDone));
+			_callTimer.cancel();
+			_callRequestId = MTP::send(
+				MTPauth_ResendCode(
+					MTP_string(getData()->phone),
+					MTP_bytes(getData()->phoneHash)),
+				rpcDone(&CodeWidget::callDone));
 		} else {
 			getData()->callStatus = _callStatus;
 			getData()->callTimeout = _callTimeout;
@@ -369,7 +373,7 @@ void CodeWidget::submit() {
 
 	hideError();
 
-	_checkRequest->start(1000);
+	_checkRequestTimer.callEach(1000);
 
 	_sentCode = text;
 	getData()->pwdRequest = Core::CloudPasswordCheckRequest();
@@ -385,7 +389,7 @@ void CodeWidget::submit() {
 		rpcFail(&CodeWidget::codeSubmitFail));
 }
 
-void CodeWidget::onNoTelegramCode() {
+void CodeWidget::noTelegramCode() {
 	if (_noTelegramCodeRequestId) {
 		return;
 	}

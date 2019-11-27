@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_step.h"
 #include "ui/widgets/input_fields.h"
 #include "intro/introwidget.h"
+#include "base/timer.h"
 
 namespace Ui {
 class RoundButton;
@@ -39,9 +40,7 @@ private:
 
 };
 
-class CodeWidget : public Step {
-	Q_OBJECT
-
+class CodeWidget final : public Step {
 public:
 	CodeWidget(
 		QWidget *parent,
@@ -62,13 +61,12 @@ public:
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 
-private slots:
-	void onNoTelegramCode();
-	void onInputChange();
-	void onSendCall();
-	void onCheckRequest();
-
 private:
+	void noTelegramCode();
+	void codeChanged();
+	void sendCall();
+	void checkRequest();
+
 	int errorTop() const override;
 
 	void updateCallText();
@@ -94,13 +92,13 @@ private:
 	QString _sentCode;
 	mtpRequestId _sentRequest = 0;
 
-	object_ptr<QTimer> _callTimer;
+	base::Timer _callTimer;
 	CallStatus _callStatus = CallStatus();
 	int _callTimeout;
 	mtpRequestId _callRequestId = 0;
 	object_ptr<Ui::FlatLabel> _callLabel;
 
-	object_ptr<QTimer> _checkRequest;
+	base::Timer _checkRequestTimer;
 
 };
 

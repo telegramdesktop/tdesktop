@@ -38,17 +38,15 @@ PwdCheckWidget::PwdCheckWidget(
 , _pwdHint(this, st::introPasswordHint)
 , _codeField(this, st::introPassword, tr::lng_signin_code())
 , _toRecover(this, tr::lng_signin_recover(tr::now))
-, _toPassword(this, tr::lng_signin_try_password(tr::now))
-, _checkRequest(this) {
+, _toPassword(this, tr::lng_signin_try_password(tr::now)) {
 	Expects(!!_request);
 
-	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+	subscribe(Lang::Current().updated(), [=] { refreshLang(); });
 
-	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
-	_toRecover->addClickHandler([=] { onToRecover(); });
-	_toPassword->addClickHandler([=] { onToPassword(); });
-	connect(_pwdField, SIGNAL(changed()), this, SLOT(onInputChange()));
-	connect(_codeField, SIGNAL(changed()), this, SLOT(onInputChange()));
+	_toRecover->addClickHandler([=] { toRecover(); });
+	_toPassword->addClickHandler([=] { toPassword(); });
+	connect(_pwdField, &Ui::PasswordInput::changed, [=] { hideError(); });
+	connect(_codeField, &Ui::InputField::changed, [=] { hideError(); });
 
 	setTitleText(tr::lng_signin_title());
 	updateDescriptionText();
@@ -120,26 +118,8 @@ void PwdCheckWidget::cancelled() {
 	_api.request(base::take(_sentRequest)).cancel();
 }
 
-void PwdCheckWidget::stopCheck() {
-	_checkRequest->stop();
-}
-
-void PwdCheckWidget::onCheckRequest() {
-	auto status = MTP::state(_sentRequest);
-	if (status < 0) {
-		auto leftms = -status;
-		if (leftms >= 1000) {
-			_api.request(base::take(_sentRequest)).cancel();
-		}
-	}
-	if (!_sentRequest && status == MTP::RequestSent) {
-		stopCheck();
-	}
-}
-
 void PwdCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorization &result) {
 	_sentRequest = 0;
-	stopCheck();
 	if (recover) {
 		cSetPasswordRecovered(true);
 	}
@@ -154,14 +134,12 @@ void PwdCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorization &re
 void PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		_sentRequest = 0;
-		stopCheck();
 		showError(tr::lng_flood_error());
 		_pwdField->showError();
 		return;
 	}
 
 	_sentRequest = 0;
-	stopCheck();
 	const auto &type = error.type();
 	if (type == qstr("PASSWORD_HASH_INVALID")
 		|| type == qstr("SRP_PASSWORD_CHANGED")) {
@@ -248,7 +226,6 @@ void PwdCheckWidget::codeSubmitFail(const RPCError &error) {
 	}
 
 	_sentRequest = 0;
-	stopCheck();
 	const auto &type = error.type();
 	if (type == qstr("PASSWORD_EMPTY")
 		|| type == qstr("AUTH_KEY_UNREGISTERED")) {
@@ -257,7 +234,7 @@ void PwdCheckWidget::codeSubmitFail(const RPCError &error) {
 		recoverStartFail(error);
 	} else if (type == qstr("PASSWORD_RECOVERY_EXPIRED")) {
 		_emailPattern = QString();
-		onToPassword();
+		toPassword();
 	} else if (type == qstr("CODE_INVALID")) {
 		showError(tr::lng_signin_wrong_code());
 		_codeField->selectAll();
@@ -278,7 +255,6 @@ void PwdCheckWidget::recoverStarted(const MTPauth_PasswordRecovery &result) {
 }
 
 void PwdCheckWidget::recoverStartFail(const RPCError &error) {
-	stopCheck();
 	_pwdField->show();
 	_pwdHint->show();
 	_codeField->hide();
@@ -288,7 +264,7 @@ void PwdCheckWidget::recoverStartFail(const RPCError &error) {
 	hideError();
 }
 
-void PwdCheckWidget::onToRecover() {
+void PwdCheckWidget::toRecover() {
 	if (_hasRecovery) {
 		if (_sentRequest) {
 			_api.request(base::take(_sentRequest)).cancel();
@@ -312,12 +288,16 @@ void PwdCheckWidget::onToRecover() {
 			}).send();
 		}
 	} else {
-		Ui::show(Box<InformBox>(tr::lng_signin_no_email_forgot(tr::now), [this] { showReset(); }));
+		Ui::show(Box<InformBox>(
+			tr::lng_signin_no_email_forgot(tr::now),
+			[=] { showReset(); }));
 	}
 }
 
-void PwdCheckWidget::onToPassword() {
-	Ui::show(Box<InformBox>(tr::lng_signin_cant_email_forgot(tr::now), [this] { showReset(); }));
+void PwdCheckWidget::toPassword() {
+	Ui::show(Box<InformBox>(
+		tr::lng_signin_cant_email_forgot(tr::now),
+		[=] { showReset(); }));
 }
 
 void PwdCheckWidget::showReset() {
@@ -344,12 +324,10 @@ void PwdCheckWidget::updateDescriptionText() {
 		: tr::lng_signin_desc());
 }
 
-void PwdCheckWidget::onInputChange() {
-	hideError();
-}
-
 void PwdCheckWidget::submit() {
-	if (_sentRequest) return;
+	if (_sentRequest) {
+		return;
+	}
 	if (_pwdField->isHidden()) {
 		auto code = _codeField->getLastText().trimmed();
 		if (code.isEmpty()) {

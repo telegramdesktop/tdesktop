@@ -22,7 +22,7 @@ class FlatLabel;
 namespace Intro {
 namespace details {
 
-class QrWidget : public Step {
+class QrWidget final : public Step {
 public:
 	QrWidget(
 		QWidget *parent,
