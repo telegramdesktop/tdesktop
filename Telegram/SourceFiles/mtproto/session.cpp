@@ -148,8 +148,7 @@ Session::Session(
 	not_null<Instance*> instance,
 	ShiftedDcId shiftedDcId,
 	not_null<Dcenter*> dc)
-: QObject()
-, _instance(instance)
+: _instance(instance)
 , _shiftedDcId(shiftedDcId)
 , _dc(dc)
 , _data(std::make_shared<SessionData>(this))
@@ -157,6 +156,19 @@ Session::Session(
 	_timeouter.callEach(1000);
 	refreshOptions();
 	watchDcKeyChanges();
+	watchDcOptionsChanges();
+}
+
+Session::~Session() {
+	Expects(!_connection);
+	Expects(!_thread);
+
+	if (_myKeyCreation != CreatingKeyType::None) {
+		releaseKeyCreationOnFail();
+	}
+	for (const auto &thread : _destroyingThreads) {
+		thread->wait();
+	}
 }
 
 void Session::watchDcKeyChanges() {
@@ -166,13 +178,59 @@ void Session::watchDcKeyChanges() {
 	}) | rpl::start_with_next([=] {
 		DEBUG_LOG(("AuthKey Info: Session::authKeyCreatedForDC slot, "
 			"emitting authKeyChanged(), dcWithShift %1").arg(_shiftedDcId));
-		emit authKeyChanged();
+		if (const auto connection = _connection) {
+			InvokeQueued(connection, [=] {
+				connection->updateAuthKey();
+			});
+		}
 	}, _lifetime);
 }
 
+void Session::watchDcOptionsChanges() {
+	_instance->dcOptions()->changed(
+	) | rpl::filter([=](DcId dcId) {
+		return (BareDcId(_shiftedDcId) == dcId) && (_connection != nullptr);
+	}) | rpl::start_with_next([=] {
+		InvokeQueued(_connection, [connection = _connection] {
+			connection->dcOptionsChanged();
+		});
+	}, _lifetime);
+
+	if (_instance->dcOptions()->dcType(_shiftedDcId) == DcType::Cdn) {
+		_instance->dcOptions()->cdnConfigChanged(
+		) | rpl::filter([=] {
+			return (_connection != nullptr);
+		}) | rpl::start_with_next([=] {
+			InvokeQueued(_connection, [connection = _connection] {
+				connection->cdnConfigChanged();
+			});
+		}, _lifetime);
+	}
+}
+
 void Session::start() {
-	_connection = std::make_unique<Connection>(_instance);
-	_connection->start(_data, _shiftedDcId);
+	killConnection();
+
+	_thread = std::make_unique<QThread>();
+	const auto thread = _thread.get();
+
+	connect(thread, &QThread::finished, [=] {
+		InvokeQueued(this, [=] {
+			const auto i = ranges::find(
+				_destroyingThreads,
+				thread,
+				&std::unique_ptr<QThread>::get);
+			if (i != _destroyingThreads.end()) {
+				_destroyingThreads.erase(i);
+			}
+		});
+	});
+	_connection = new Connection(
+		_instance,
+		thread,
+		_data,
+		_shiftedDcId);
+	thread->start();
 }
 
 bool Session::rpcErrorOccured(
@@ -188,7 +246,11 @@ void Session::restart() {
 		return;
 	}
 	refreshOptions();
-	emit needToRestart();
+	if (const auto connection = _connection) {
+		InvokeQueued(connection, [=] {
+			connection->restartNow();
+		});
+	}
 }
 
 void Session::refreshOptions() {
@@ -221,14 +283,11 @@ void Session::reInitConnection() {
 
 void Session::stop() {
 	if (_killed) {
-		DEBUG_LOG(("Session Error: can't kill a killed session"));
+		DEBUG_LOG(("Session Error: can't stop a killed session"));
 		return;
 	}
 	DEBUG_LOG(("Session Info: stopping session dcWithShift %1").arg(_shiftedDcId));
-	if (_connection) {
-		_connection->kill();
-		_instance->queueQuittingConnection(std::move(_connection));
-	}
+	killConnection();
 }
 
 void Session::kill() {
@@ -286,12 +345,15 @@ void Session::needToResumeAndSend() {
 		DEBUG_LOG(("Session Info: resuming session dcWithShift %1").arg(_shiftedDcId));
 		start();
 	}
-	if (_ping) {
-		_ping = false;
-		emit needToPing();
-	} else {
-		emit needToSend();
-	}
+	const auto connection = _connection;
+	const auto ping = base::take(_ping);
+	InvokeQueued(connection, [=] {
+		if (ping) {
+			connection->sendPingForce();
+		} else {
+			connection->tryToSend();
+		}
+	});
 }
 
 void Session::connectionStateChange(int newState) {
@@ -323,7 +385,7 @@ int32 Session::requestState(mtpRequestId requestId) const {
 
 	bool connected = false;
 	if (_connection) {
-		int32 s = _connection->state();
+		const auto s = _connection->getState();
 		if (s == ConnectedState) {
 			connected = true;
 		} else if (s == ConnectingState || s == DisconnectedState) {
@@ -352,7 +414,7 @@ int32 Session::getState() const {
 	int32 result = -86400000;
 
 	if (_connection) {
-		int32 s = _connection->state();
+		const auto s = _connection->getState();
 		if (s == ConnectedState) {
 			return s;
 		} else if (s == ConnectingState || s == DisconnectedState) {
@@ -448,7 +510,8 @@ void Session::releaseKeyCreationOnFail() {
 }
 
 void Session::notifyDcConnectionInited() {
-	DEBUG_LOG(("MTP Info: emitting MTProtoDC::connectionWasInited(), dcWithShift %1").arg(_shiftedDcId));
+	DEBUG_LOG(("MTP Info: MTProtoDC::connectionWasInited(), dcWithShift %1"
+		).arg(_shiftedDcId));
 	_dc->setConnectionInited();
 }
 
@@ -514,11 +577,19 @@ void Session::tryToReceive() {
 	}
 }
 
-Session::~Session() {
-	if (_myKeyCreation != CreatingKeyType::None) {
-		releaseKeyCreationOnFail();
+void Session::killConnection() {
+	Expects(!_thread || _connection);
+
+	if (!_connection) {
+		return;
 	}
-	Assert(_connection == nullptr);
+
+	base::take(_connection)->deleteLater();
+	_destroyingThreads.push_back(base::take(_thread));
+	_destroyingThreads.back()->quit();
+
+	Ensures(_connection == nullptr);
+	Ensures(_thread == nullptr);
 }
 
 } // namespace internal

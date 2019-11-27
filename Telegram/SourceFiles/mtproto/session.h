@@ -56,7 +56,7 @@ struct ConnectionOptions {
 class Session;
 class SessionData {
 public:
-	SessionData(not_null<Session*> creator) : _owner(creator) {
+	explicit SessionData(not_null<Session*> creator) : _owner(creator) {
 	}
 
 	void notifyConnectionInited(const ConnectionOptions &options);
@@ -90,11 +90,6 @@ public:
 	}
 	std::vector<mtpBuffer> &haveReceivedUpdates() {
 		return _receivedUpdates;
-	}
-
-	// Warning! Valid only in constructor, _owner is guaranteed != null.
-	[[nodiscard]] not_null<Session*> owner() {
-		return _owner;
 	}
 
 	// Connection -> Session interface.
@@ -139,8 +134,6 @@ private:
 };
 
 class Session : public QObject {
-	Q_OBJECT
-
 public:
 	// Main thread.
 	Session(
@@ -180,8 +173,8 @@ public:
 
 	void ping();
 	void cancel(mtpRequestId requestId, mtpMsgId msgId);
-	int32 requestState(mtpRequestId requestId) const;
-	int32 getState() const;
+	int requestState(mtpRequestId requestId) const;
+	int getState() const;
 	QString transport() const;
 
 	void tryToReceive();
@@ -190,23 +183,26 @@ public:
 	void resetDone();
 	void sendAnything(crl::time msCanWait = 0);
 
-signals:
-	void authKeyChanged();
-	void needToSend();
-	void needToPing();
-	void needToRestart();
-
 private:
 	void watchDcKeyChanges();
+	void watchDcOptionsChanges();
 
-	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
+	void killConnection();
+
+	bool rpcErrorOccured(
+		mtpRequestId requestId,
+		const RPCFailHandlerPtr &onFail,
+		const RPCError &err);
 
 	const not_null<Instance*> _instance;
 	const ShiftedDcId _shiftedDcId = 0;
 	const not_null<Dcenter*> _dc;
 	const std::shared_ptr<SessionData> _data;
 
-	std::unique_ptr<Connection> _connection;
+	std::unique_ptr<QThread> _thread;
+	std::vector<std::unique_ptr<QThread>> _destroyingThreads;
+
+	Connection *_connection = nullptr;
 
 	bool _killed = false;
 	bool _needToReceive = false;

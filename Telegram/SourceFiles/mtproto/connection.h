@@ -29,72 +29,34 @@ class Instance;
 namespace internal {
 
 class AbstractConnection;
-class ConnectionPrivate;
 class SessionData;
 class RSAPublicKey;
 struct ConnectionOptions;
 
-class Connection {
+class Connection : public QObject {
 public:
-	enum ConnectionType {
-		TcpConnection,
-		HttpConnection
-	};
-
-	Connection(not_null<Instance*> instance);
-	~Connection();
-
-	void start(std::shared_ptr<SessionData> data, ShiftedDcId shiftedDcId);
-
-	void kill();
-	void waitTillFinish();
-
-	static const int UpdateAlways = 666;
-
-	int32 state() const;
-	QString transport() const;
-
-private:
-	not_null<Instance*> _instance;
-	std::unique_ptr<QThread> _thread;
-	ConnectionPrivate *_private = nullptr;
-	rpl::lifetime _lifetime;
-
-};
-
-class ConnectionPrivate : public QObject {
-	Q_OBJECT
-
-public:
-	ConnectionPrivate(
+	Connection(
 		not_null<Instance*> instance,
 		not_null<QThread*> thread,
-		not_null<Connection*> owner,
 		std::shared_ptr<SessionData> data,
 		ShiftedDcId shiftedDcId);
-	~ConnectionPrivate();
+	~Connection();
 
-	void stop();
-
-	int32 getShiftedDcId() const;
+	[[nodiscard]] int32 getShiftedDcId() const;
 	void dcOptionsChanged();
+	void cdnConfigChanged();
 
-	int32 getState() const;
-	QString transport() const;
-
-public slots:
-	void restartNow();
-
-	void onPingSendForce();
-
-	// Sessions signals, when we need to send something
-	void tryToSend();
+	[[nodiscard]] int32 getState() const;
+	[[nodiscard]] QString transport() const;
 
 	void updateAuthKey();
-
-	void onCDNConfigLoaded();
+	void restartNow();
+	void sendPingForce();
+	void tryToSend();
 
 private:
+	static constexpr auto kUpdateStateAlways = 666;
+
 	struct TestConnection {
 		ConnectionPointer data;
 		int priority = 0;
@@ -113,7 +75,6 @@ private:
 	void connectingTimedOut();
 	void doDisconnect();
 	void restart();
-	void finishAndDestroy();
 	void requestCDNConfig();
 	void handleError(int errorCode);
 	void onError(
@@ -167,7 +128,7 @@ private:
 	void handleMsgsStates(const QVector<MTPlong> &ids, const QByteArray &states, QVector<MTPlong> &acked);
 
 	// _sessionDataMutex must be locked for read.
-	bool setState(int32 state, int32 ifState = Connection::UpdateAlways);
+	bool setState(int state, int ifState = kUpdateStateAlways);
 
 	void appendTestConnection(
 		DcOptions::Variants::Protocol protocol,
@@ -206,13 +167,12 @@ private:
 	[[nodiscard]] bool realDcTypeChanged();
 
 	const not_null<Instance*> _instance;
-	const not_null<Connection*> _owner;
 	const ShiftedDcId _shiftedDcId = 0;
 	DcType _realDcType = DcType();
 	DcType _currentDcType = DcType();
 
 	mutable QReadWriteLock _stateMutex;
-	int32 _state = DisconnectedState;
+	int _state = DisconnectedState;
 
 	bool _needSessionReset = false;
 
@@ -240,8 +200,6 @@ private:
 	mtpMsgId _pingMsgId = 0;
 	base::Timer _pingSender;
 	base::Timer _checkSentRequestsTimer;
-
-	bool _finished = false;
 
 	std::shared_ptr<SessionData> _sessionData;
 	std::unique_ptr<ConnectionOptions> _connectionOptions;

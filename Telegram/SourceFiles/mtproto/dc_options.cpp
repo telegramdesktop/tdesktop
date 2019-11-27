@@ -68,6 +68,11 @@ public:
 	: _that(that)
 	, _lock(&_that->_useThroughLockers) {
 	}
+
+	void unlock() {
+		_lock.unlock();
+	}
+
 	~WriteLocker() {
 		_that->computeCdnDcIds();
 	}
@@ -82,6 +87,10 @@ class DcOptions::ReadLocker {
 public:
 	ReadLocker(not_null<const DcOptions*> that)
 	: _lock(&that->_useThroughLockers) {
+	}
+
+	void unlock() {
+		_lock.unlock();
 	}
 
 private:
@@ -517,6 +526,10 @@ rpl::producer<DcId> DcOptions::changed() const {
 	return _changed.events();
 }
 
+rpl::producer<> DcOptions::cdnConfigChanged() const {
+	return _cdnConfigChanged.events();
+}
+
 std::vector<DcId> DcOptions::configEnumDcIds() const {
 	auto result = std::vector<DcId>();
 	{
@@ -553,20 +566,23 @@ DcType DcOptions::dcType(ShiftedDcId shiftedDcId) const {
 void DcOptions::setCDNConfig(const MTPDcdnConfig &config) {
 	WriteLocker lock(this);
 	_cdnPublicKeys.clear();
-	for_const (auto &publicKey, config.vpublic_keys().v) {
-		Expects(publicKey.type() == mtpc_cdnPublicKey);
-		const auto &keyData = publicKey.c_cdnPublicKey();
-		const auto keyBytes = bytes::make_span(keyData.vpublic_key().v);
-		auto key = internal::RSAPublicKey(keyBytes);
-		if (key.valid()) {
-			_cdnPublicKeys[keyData.vdc_id().v].emplace(
-				key.fingerprint(),
-				std::move(key));
-		} else {
-			LOG(("MTP Error: could not read this public RSA key:"));
-			LOG((qs(keyData.vpublic_key())));
-		}
+	for (const auto &key : config.vpublic_keys().v) {
+		key.match([&](const MTPDcdnPublicKey &data) {
+			const auto keyBytes = bytes::make_span(data.vpublic_key().v);
+			auto key = internal::RSAPublicKey(keyBytes);
+			if (key.valid()) {
+				_cdnPublicKeys[data.vdc_id().v].emplace(
+					key.fingerprint(),
+					std::move(key));
+			} else {
+				LOG(("MTP Error: could not read this public RSA key:"));
+				LOG((qs(data.vpublic_key())));
+			}
+		});
 	}
+	lock.unlock();
+
+	_cdnConfigChanged.fire({});
 }
 
 bool DcOptions::hasCDNKeysForDc(DcId dcId) const {

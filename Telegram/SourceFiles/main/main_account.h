@@ -85,7 +85,6 @@ private:
 	void watchSessionChanges();
 
 	void destroyMtpKeys(MTP::AuthKeysList &&keys);
-	void allKeysDestroyed();
 	void resetAuthorizationKeys();
 
 	void loggedOut();

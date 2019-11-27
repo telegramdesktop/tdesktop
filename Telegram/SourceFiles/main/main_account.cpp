@@ -453,18 +453,14 @@ void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
 		Core::App().dcOptions(),
 		MTP::Instance::Mode::KeysDestroyer,
 		std::move(destroyConfig));
-	QObject::connect(
-		_mtpForKeysDestroy.get(),
-		&MTP::Instance::allKeysDestroyed,
-		[=] { allKeysDestroyed(); });
-}
-
-void Account::allKeysDestroyed() {
-	LOG(("MTP Info: all keys scheduled for destroy are destroyed."));
-	crl::on_main(this, [=] {
-		_mtpForKeysDestroy = nullptr;
-		Local::writeMtpData();
-	});
+	_mtpForKeysDestroy->allKeysDestroyed(
+	) | rpl::start_with_next([=] {
+		LOG(("MTP Info: all keys scheduled for destroy are destroyed."));
+		crl::on_main(this, [=] {
+			_mtpForKeysDestroy = nullptr;
+			Local::writeMtpData();
+		});
+	}, _lifetime);
 }
 
 void Account::suggestMainDcId(MTP::DcId mainDcId) {

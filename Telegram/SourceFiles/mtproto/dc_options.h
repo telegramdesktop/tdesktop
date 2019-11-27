@@ -67,6 +67,7 @@ public:
 	QByteArray serialize() const;
 
 	[[nodiscard]] rpl::producer<DcId> changed() const;
+	[[nodiscard]] rpl::producer<> cdnConfigChanged() const;
 	void setFromList(const MTPVector<MTPDcOption> &options);
 	void addFromList(const MTPVector<MTPDcOption> &options);
 	void addFromOther(DcOptions &&options);
@@ -141,6 +142,7 @@ private:
 	mutable QReadWriteLock _useThroughLockers;
 
 	rpl::event_stream<DcId> _changed;
+	rpl::event_stream<> _cdnConfigChanged;
 
 	// True when we have overriden options from a .tdesktop-endpoints file.
 	bool _immutable = false;

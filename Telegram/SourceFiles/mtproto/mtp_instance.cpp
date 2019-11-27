@@ -71,6 +71,7 @@ public:
 	[[nodiscard]] rpl::producer<DcId> dcTemporaryKeyChanged() const;
 	[[nodiscard]] AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
+	[[nodiscard]] rpl::producer<> allKeysDestroyed() const;
 
 	[[nodiscard]] not_null<DcOptions*> dcOptions();
 
@@ -105,10 +106,6 @@ public:
 		AuthKeyPtr &&key = nullptr);
 	void removeDc(ShiftedDcId shiftedDcId);
 	void unpaused();
-
-	void queueQuittingConnection(
-		std::unique_ptr<Connection> &&connection);
-	void connectionFinished(not_null<Connection*> connection);
 
 	void sendRequest(
 		mtpRequestId requestId,
@@ -216,8 +213,6 @@ private:
 	base::flat_map<ShiftedDcId, std::unique_ptr<Session>> _sessions;
 	std::vector<std::unique_ptr<Session>> _sessionsToDestroy;
 
-	std::vector<std::unique_ptr<Connection>> _connectionsToDestroy;
-
 	std::unique_ptr<ConfigLoader> _configLoader;
 	std::unique_ptr<DomainResolver> _domainResolver;
 	std::unique_ptr<SpecialConfigRequest> _httpUnixtimeLoader;
@@ -228,6 +223,8 @@ private:
 
 	base::flat_map<DcId, AuthKeyPtr> _keysForWrite;
 	base::flat_map<ShiftedDcId, mtpRequestId> _logoutGuestRequestIds;
+
+	rpl::event_stream<> _allKeysDestroyed;
 
 	// holds dcWithShift for request to this dc or -dc for request to main dc
 	std::map<mtpRequestId, ShiftedDcId> _requestsByDc;
@@ -480,13 +477,10 @@ void Instance::Private::requestCDNConfig() {
 		MTPhelp_GetCdnConfig()
 	).done([this](const MTPCdnConfig &result) {
 		_cdnConfigLoadRequestId = 0;
-
-		Expects(result.type() == mtpc_cdnConfig);
-		dcOptions()->setCDNConfig(result.c_cdnConfig());
-
+		result.match([&](const MTPDcdnConfig &data) {
+			dcOptions()->setCDNConfig(data);
+		});
 		Local::writeSettings();
-
-		emit _instance->cdnConfigLoaded();
 	}).send();
 }
 
@@ -759,6 +753,10 @@ void Instance::Private::addKeysForDestroy(AuthKeysList &&keys) {
 	}
 }
 
+rpl::producer<> Instance::Private::allKeysDestroyed() const {
+	return _allKeysDestroyed.events();
+}
+
 not_null<DcOptions*> Instance::Private::dcOptions() {
 	return _dcOptions;
 }
@@ -774,22 +772,6 @@ QString Instance::Private::systemVersion() const {
 void Instance::Private::unpaused() {
 	for (const auto &[shiftedDcId, session] : _sessions) {
 		session->unpaused();
-	}
-}
-
-void Instance::Private::queueQuittingConnection(
-		std::unique_ptr<Connection> &&connection) {
-	_connectionsToDestroy.push_back(std::move(connection));
-}
-
-void Instance::Private::connectionFinished(
-		not_null<Connection*> connection) {
-	const auto i = ranges::find(
-		_connectionsToDestroy,
-		connection.get(),
-		&std::unique_ptr<Connection>::get);
-	if (i != _connectionsToDestroy.end()) {
-		_connectionsToDestroy.erase(i);
 	}
 }
 
@@ -1582,7 +1564,7 @@ void Instance::Private::completedKeyDestroy(ShiftedDcId shiftedDcId) {
 	_keysForWrite.erase(shiftedDcId);
 	killSession(shiftedDcId);
 	if (_dcenters.empty()) {
-		emit _instance->allKeysDestroyed();
+		_allKeysDestroyed.fire({});
 	}
 }
 
@@ -1674,6 +1656,10 @@ QString Instance::langPackName() const {
 	return Lang::Current().langPackName();
 }
 
+rpl::producer<> Instance::allKeysDestroyed() const {
+	return _private->allKeysDestroyed();
+}
+
 void Instance::requestConfig() {
 	_private->requestConfig();
 }
@@ -1696,10 +1682,6 @@ void Instance::requestConfigIfOld() {
 
 void Instance::requestCDNConfig() {
 	_private->requestCDNConfig();
-}
-
-void Instance::connectionFinished(not_null<Connection*> connection) {
-	_private->connectionFinished(connection);
 }
 
 void Instance::restart() {
@@ -1782,11 +1764,6 @@ QString Instance::systemVersion() const {
 
 void Instance::unpaused() {
 	_private->unpaused();
-}
-
-void Instance::queueQuittingConnection(
-		std::unique_ptr<Connection> &&connection) {
-	_private->queueQuittingConnection(std::move(connection));
 }
 
 void Instance::setUpdatesHandler(RPCDoneHandlerPtr onDone) {

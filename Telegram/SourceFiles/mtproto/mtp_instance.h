@@ -15,7 +15,6 @@ namespace internal {
 
 class Dcenter;
 class Session;
-class Connection;
 
 [[nodiscard]] int GetNextRequestId();
 
@@ -61,6 +60,8 @@ public:
 	[[nodiscard]] QString cloudLangCode() const;
 	[[nodiscard]] QString langPackName() const;
 
+	[[nodiscard]] rpl::producer<> allKeysDestroyed() const;
+
 	// Thread-safe.
 	[[nodiscard]] QString deviceModel() const;
 	[[nodiscard]] QString systemVersion() const;
@@ -89,8 +90,6 @@ public:
 	void logout(Fn<void()> done);
 
 	void unpaused();
-
-	void queueQuittingConnection(std::unique_ptr<internal::Connection> &&connection);
 
 	void setUpdatesHandler(RPCDoneHandlerPtr onDone);
 	void setGlobalFailHandler(RPCFailHandlerPtr onFail);
@@ -125,8 +124,6 @@ public:
 	void badConfigurationError();
 
 	void syncHttpUnixtime();
-
-	void connectionFinished(not_null<internal::Connection*> connection);
 
 	void sendAnything(ShiftedDcId shiftedDcId = 0, crl::time msCanWait = 0);
 
@@ -199,8 +196,6 @@ public:
 	}
 
 signals:
-	void cdnConfigLoaded();
-	void allKeysDestroyed();
 	void proxyDomainResolved(
 		QString host,
 		QStringList ips,
