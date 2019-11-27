@@ -66,15 +66,12 @@ public:
 		const bytes::vector &secret);
 	QByteArray serialize() const;
 
-	using Ids = std::vector<DcId>;
-	base::Observable<Ids> &changed() const {
-		return _changed;
-	}
+	[[nodiscard]] rpl::producer<DcId> changed() const;
 	void setFromList(const MTPVector<MTPDcOption> &options);
 	void addFromList(const MTPVector<MTPDcOption> &options);
 	void addFromOther(DcOptions &&options);
 
-	Ids configEnumDcIds() const;
+	[[nodiscard]] std::vector<DcId> configEnumDcIds() const;
 
 	struct Variants {
 		enum Address {
@@ -119,7 +116,7 @@ private:
 		const std::string &ip,
 		int port,
 		const bytes::vector &secret);
-	static Ids CountOptionsDifference(
+	static std::vector<DcId> CountOptionsDifference(
 		const std::map<DcId, std::vector<Endpoint>> &a,
 		const std::map<DcId, std::vector<Endpoint>> &b);
 	static void FilterIfHasWithFlag(Variants &variants, Flag flag);
@@ -143,7 +140,7 @@ private:
 	std::map<DcId, std::map<uint64, internal::RSAPublicKey>> _cdnPublicKeys;
 	mutable QReadWriteLock _useThroughLockers;
 
-	mutable base::Observable<Ids> _changed;
+	rpl::event_stream<DcId> _changed;
 
 	// True when we have overriden options from a .tdesktop-endpoints file.
 	bool _immutable = false;

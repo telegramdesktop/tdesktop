@@ -399,14 +399,18 @@ void Application::badMtprotoConfigurationError() {
 
 void Application::startLocalStorage() {
 	Local::start();
-	subscribe(_dcOptions->changed(), [this](const MTP::DcOptions::Ids &ids) {
-		Local::writeSettings();
-		if (const auto instance = activeAccount().mtp()) {
-			for (const auto id : ids) {
-				instance->restart(id);
-			}
-		}
-	});
+
+	const auto writing = _lifetime.make_state<bool>(false);
+	_dcOptions->changed(
+	) | rpl::filter([=] {
+		return !*writing;
+	}) | rpl::start_with_next([=] {
+		*writing = true;
+		Ui::PostponeCall(this, [=] {
+			Local::writeSettings();
+		});
+	}, _lifetime);
+
 	_saveSettingsTimer.setCallback([=] { Local::writeSettings(); });
 }
 

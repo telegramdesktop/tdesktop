@@ -126,7 +126,9 @@ Connection::~Connection() {
 	}
 }
 
-void Connection::start(std::shared_ptr<SessionData> sessionData, ShiftedDcId shiftedDcId) {
+void Connection::start(
+		std::shared_ptr<SessionData> sessionData,
+		ShiftedDcId shiftedDcId) {
 	Expects(_thread == nullptr && _private == nullptr);
 
 	_thread = std::make_unique<QThread>();
@@ -136,6 +138,16 @@ void Connection::start(std::shared_ptr<SessionData> sessionData, ShiftedDcId shi
 		this,
 		std::move(sessionData),
 		shiftedDcId);
+
+	_instance->dcOptions()->changed(
+	) | rpl::filter([=](DcId dcId) {
+		return (BareDcId(shiftedDcId) == dcId) && (_private != nullptr);
+	}) | rpl::start_with_next([=] {
+		const auto raw = _private;
+		InvokeQueued(raw, [=] {
+			raw->dcOptionsChanged();
+		});
+	}, _lifetime);
 
 	// will be deleted in the thread::finished signal
 	_private = newData.release();
@@ -329,16 +341,17 @@ ConnectionPrivate::~ConnectionPrivate() {
 	Expects(_testConnections.empty());
 }
 
-void ConnectionPrivate::onConfigLoaded() {
-	connectToServer(true);
-}
-
 void ConnectionPrivate::onCDNConfigLoaded() {
 	restart();
 }
 
 int32 ConnectionPrivate::getShiftedDcId() const {
 	return _shiftedDcId;
+}
+
+void ConnectionPrivate::dcOptionsChanged() {
+	_retryTimeout = 1;
+	connectToServer(true);
 }
 
 int32 ConnectionPrivate::getState() const {
@@ -1004,7 +1017,6 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 			return restart();
 		}
 		DEBUG_LOG(("MTP Info: DC %1 options not found, waiting for config").arg(_shiftedDcId));
-		connect(_instance, SIGNAL(configLoaded()), this, SLOT(onConfigLoaded()), Qt::UniqueConnection);
 		InvokeQueued(_instance, [instance = _instance] {
 			instance->requestConfig();
 		});

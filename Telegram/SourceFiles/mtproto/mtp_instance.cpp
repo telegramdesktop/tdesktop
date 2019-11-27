@@ -860,8 +860,6 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	_configExpiresAt = crl::now()
 		+ (data.vexpires().v - base::unixtime::now()) * crl::time(1000);
 	requestConfigIfExpired();
-
-	emit _instance->configLoaded();
 }
 
 bool Instance::Private::configLoadFail(const RPCError &error) {

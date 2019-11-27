@@ -58,6 +58,7 @@ private:
 	not_null<Instance*> _instance;
 	std::unique_ptr<QThread> _thread;
 	ConnectionPrivate *_private = nullptr;
+	rpl::lifetime _lifetime;
 
 };
 
@@ -76,6 +77,7 @@ public:
 	void stop();
 
 	int32 getShiftedDcId() const;
+	void dcOptionsChanged();
 
 	int32 getState() const;
 	QString transport() const;
@@ -90,7 +92,6 @@ public slots:
 
 	void updateAuthKey();
 
-	void onConfigLoaded();
 	void onCDNConfigLoaded();
 
 private:

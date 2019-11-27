@@ -170,7 +170,7 @@ void DcOptions::processFromList(
 		ApplyOneOption(data, dcId, flags, ip, port, secret);
 	}
 
-	auto difference = [&] {
+	const auto difference = [&] {
 		WriteLocker lock(this);
 		auto result = CountOptionsDifference(_data, data);
 		if (!result.empty()) {
@@ -178,8 +178,8 @@ void DcOptions::processFromList(
 		}
 		return result;
 	}();
-	if (!difference.empty()) {
-		_changed.notify(std::move(difference));
+	for (const auto dcId : difference) {
+		_changed.fire_copy(dcId);
 	}
 }
 
@@ -232,9 +232,8 @@ void DcOptions::addFromOther(DcOptions &&options) {
 			}
 		}
 	}
-
-	if (!idsChanged.empty()) {
-		_changed.notify(std::move(idsChanged));
+	for (const auto dcId : idsChanged) {
+		_changed.fire_copy(dcId);
 	}
 }
 
@@ -280,10 +279,10 @@ bool DcOptions::ApplyOneOption(
 	return true;
 }
 
-auto DcOptions::CountOptionsDifference(
+std::vector<DcId> DcOptions::CountOptionsDifference(
 		const std::map<DcId, std::vector<Endpoint>> &a,
-		const std::map<DcId, std::vector<Endpoint>> &b) -> Ids {
-	auto result = Ids();
+		const std::map<DcId, std::vector<Endpoint>> &b) {
+	auto result = std::vector<DcId>();
 	const auto find = [](
 			const std::vector<Endpoint> &where,
 			const Endpoint &what) {
@@ -514,8 +513,12 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 	}
 }
 
-DcOptions::Ids DcOptions::configEnumDcIds() const {
-	auto result = Ids();
+rpl::producer<DcId> DcOptions::changed() const {
+	return _changed.events();
+}
+
+std::vector<DcId> DcOptions::configEnumDcIds() const {
+	auto result = std::vector<DcId>();
 	{
 		ReadLocker lock(this);
 		result.reserve(_data.size());

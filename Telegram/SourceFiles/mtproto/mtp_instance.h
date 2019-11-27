@@ -199,7 +199,6 @@ public:
 	}
 
 signals:
-	void configLoaded();
 	void cdnConfigLoaded();
 	void allKeysDestroyed();
 	void proxyDomainResolved(
