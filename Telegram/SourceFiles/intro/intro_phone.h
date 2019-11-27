@@ -44,6 +44,7 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void setupQrLogin();
 	void phoneChanged();
 	void checkRequest();
 	void countryChanged();

@@ -5,13 +5,13 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "intro/introwidget.h"
+#include "intro/intro_widget.h"
 
-#include "intro/introstart.h"
-#include "intro/introphone.h"
-#include "intro/introcode.h"
-#include "intro/introsignup.h"
-#include "intro/intropwdcheck.h"
+#include "intro/intro_start.h"
+#include "intro/intro_phone.h"
+#include "intro/intro_code.h"
+#include "intro/intro_signup.h"
+#include "intro/intro_password_check.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
 #include "storage/localstorage.h"
@@ -82,7 +82,7 @@ Widget::Widget(QWidget *parent, not_null<Main::Account*> account)
 	_settings->entity()->setClickedCallback([] { App::wnd()->showSettings(); });
 
 	getNearestDC();
-	
+
 	if (_changeLanguage) {
 		_changeLanguage->finishAnimating();
 	}

@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 #include "core/application.h"
 #include "main/main_session.h"
-#include "intro/introwidget.h"
+#include "intro/intro_widget.h"
 #include "main/main_account.h" // Account::sessionValue.
 #include "mainwidget.h"
 #include "boxes/confirm_box.h"

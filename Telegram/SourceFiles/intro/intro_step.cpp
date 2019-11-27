@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "intro/intro_step.h"
 
-#include "intro/introwidget.h"
+#include "intro/intro_widget.h"
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"

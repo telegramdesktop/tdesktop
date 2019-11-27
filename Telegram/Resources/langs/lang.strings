@@ -186,6 +186,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_phone_title" = "Your Phone Number";
 "lng_phone_desc" = "Please confirm your country code and\nenter your mobile phone number.";
+"lng_phone_to_qr" = "Quick log in using QR code";
 "lng_country_code" = "Country Code";
 "lng_bad_country_code" = "Invalid Country Code";
 "lng_country_ph" = "Search";

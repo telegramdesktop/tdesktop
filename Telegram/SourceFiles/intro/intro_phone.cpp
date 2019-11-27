@@ -5,16 +5,18 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "intro/introphone.h"
+#include "intro/intro_phone.h"
 
 #include "lang/lang_keys.h"
-#include "intro/introcode.h"
+#include "intro/intro_code.h"
+#include "intro/intro_qr.h"
 #include "styles/style_intro.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/special_fields.h"
 #include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "boxes/confirm_phone_box.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h"
@@ -54,11 +56,42 @@ PhoneWidget::PhoneWidget(
 	setDescriptionText(tr::lng_phone_desc());
 	subscribe(getData()->updated, [=] { countryChanged(); });
 	setErrorCentered(true);
+	setupQrLogin();
 
 	if (!_country->onChooseCountry(getData()->country)) {
 		_country->onChooseCountry(qsl("US"));
 	}
 	_changed = false;
+}
+
+void PhoneWidget::setupQrLogin() {
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		account().appConfig().refreshed()
+	) | rpl::map([=] {
+		return account().appConfig().get<QString>(
+			"qr_login_code",
+			"disabled");
+	}) | rpl::filter([](const QString &value) {
+		return (value != "disabled");
+	}) | rpl::take(1) | rpl::start_with_next([=] {
+		const auto qrLogin = Ui::CreateChild<Ui::LinkButton>(
+			this,
+			tr::lng_phone_to_qr(tr::now));
+		qrLogin->show();
+
+		rpl::combine(
+			sizeValue(),
+			qrLogin->widthValue()
+		) | rpl::start_with_next([=](QSize size, int qrLoginWidth) {
+			qrLogin->moveToLeft(
+				(size.width() - qrLoginWidth) / 2,
+				contentTop() + st::introQrLoginLinkTop);
+		}, qrLogin->lifetime());
+
+		qrLogin->setClickedCallback([=] { goReplace<QrWidget>(); });
+	}, lifetime());
 }
 
 void PhoneWidget::resizeEvent(QResizeEvent *e) {
@@ -200,9 +233,7 @@ void PhoneWidget::setInnerFocus() {
 
 void PhoneWidget::activate() {
 	Step::activate();
-	_country->show();
-	_phone->show();
-	_code->show();
+	showChildren();
 	setInnerFocus();
 }
 

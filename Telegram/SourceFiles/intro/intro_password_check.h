@@ -22,9 +22,9 @@ class LinkButton;
 namespace Intro {
 namespace details {
 
-class PwdCheckWidget final : public Step {
+class PasswordCheckWidget final : public Step {
 public:
-	PwdCheckWidget(
+	PasswordCheckWidget(
 		QWidget *parent,
 		not_null<Main::Account*> account,
 		not_null<Data*> data);

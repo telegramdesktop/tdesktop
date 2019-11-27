@@ -15,6 +15,7 @@ namespace Main {
 
 class Session;
 class Settings;
+class AppConfig;
 
 class Account final : public base::has_weak_ptr {
 public:
@@ -34,6 +35,10 @@ public:
 
 	void logOut();
 	void forcedLogOut();
+
+	[[nodiscard]] AppConfig &appConfig() {
+		return *_appConfig;
+	}
 
 	[[nodiscard]] bool sessionExists() const;
 	[[nodiscard]] Session &session();
@@ -91,6 +96,8 @@ private:
 	rpl::event_stream<MTPUpdates> _mtpUpdates;
 	rpl::event_stream<> _mtpNewSessionCreated;
 	rpl::event_stream<> _configUpdates;
+
+	std::unique_ptr<AppConfig> _appConfig;
 
 	std::unique_ptr<Session> _session;
 	rpl::variable<Session*> _sessionValue;

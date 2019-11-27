@@ -5,13 +5,15 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "intro/introstart.h"
+#include "intro/intro_start.h"
 
 #include "lang/lang_keys.h"
 #include "intro/intro_qr.h"
+#include "intro/intro_phone.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "main/main_account.h"
+#include "main/main_app_config.h"
 
 namespace Intro {
 namespace details {
@@ -29,7 +31,14 @@ StartWidget::StartWidget(
 
 void StartWidget::submit() {
 	account().destroyStaleAuthorizationKeys();
-	goNext<QrWidget>();
+	const auto qrLogin = account().appConfig().get<QString>(
+		"qr_login_code",
+		"disabled");
+	if (qrLogin == "primary") {
+		goNext<QrWidget>();
+	} else {
+		goNext<PhoneWidget>();
+	}
 }
 
 rpl::producer<QString> StartWidget::nextButtonText() const {

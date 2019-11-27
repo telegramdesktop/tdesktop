@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/changelogs.h"
 #include "main/main_account.h"
-#include "main/main_app_config.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "storage/file_download.h"
 #include "storage/file_upload.h"
@@ -44,7 +43,6 @@ Session::Session(
 , _saveSettingsTimer([=] { Local::writeUserSettings(); })
 , _autoLockTimer([=] { checkAutoLock(); })
 , _api(std::make_unique<ApiWrap>(this))
-, _appConfig(std::make_unique<AppConfig>(this))
 , _calls(std::make_unique<Calls::Instance>(this))
 , _downloader(std::make_unique<Storage::Downloader>(_api.get()))
 , _uploader(std::make_unique<Storage::Uploader>(_api.get()))

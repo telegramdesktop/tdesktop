@@ -5,11 +5,11 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "intro/introcode.h"
+#include "intro/intro_code.h"
 
 #include "lang/lang_keys.h"
-#include "intro/introsignup.h"
-#include "intro/intropwdcheck.h"
+#include "intro/intro_signup.h"
+#include "intro/intro_password_check.h"
 #include "core/update_checker.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -355,7 +355,7 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 	getData()->hasRecovery = d.is_has_recovery();
 	getData()->pwdHint = qs(d.vhint().value_or_empty());
 	getData()->pwdNotEmptyPassport = d.is_has_secure_values();
-	goReplace<PwdCheckWidget>();
+	goReplace<PasswordCheckWidget>();
 }
 
 void CodeWidget::submit() {

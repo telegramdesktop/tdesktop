@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "mainwidget.h"
 #include "observer_peer.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "facades.h"
 
@@ -26,6 +27,7 @@ namespace Main {
 Account::Account(const QString &dataName) {
 	watchProxyChanges();
 	watchSessionChanges();
+	_appConfig = std::make_unique<AppConfig>(this);
 }
 
 Account::~Account() = default;

@@ -5,14 +5,14 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "intro/intropwdcheck.h"
+#include "intro/intro_password_check.h"
 
-#include "intro/introwidget.h"
+#include "intro/intro_widget.h"
 #include "core/file_utilities.h"
 #include "core/core_cloud_password.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
-#include "intro/introsignup.h"
+#include "intro/intro_signup.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Intro {
 namespace details {
 
-PwdCheckWidget::PwdCheckWidget(
+PasswordCheckWidget::PasswordCheckWidget(
 	QWidget *parent,
 	not_null<Main::Account*> account,
 	not_null<Data*> data)
@@ -63,7 +63,7 @@ PwdCheckWidget::PwdCheckWidget(
 	setMouseTracking(true);
 }
 
-void PwdCheckWidget::refreshLang() {
+void PasswordCheckWidget::refreshLang() {
 	if (_toRecover) {
 		_toRecover->setText(tr::lng_signin_recover(tr::now));
 	}
@@ -78,16 +78,16 @@ void PwdCheckWidget::refreshLang() {
 	updateControlsGeometry();
 }
 
-int PwdCheckWidget::errorTop() const {
+int PasswordCheckWidget::errorTop() const {
 	return contentTop() + st::introErrorBelowLinkTop;
 }
 
-void PwdCheckWidget::resizeEvent(QResizeEvent *e) {
+void PasswordCheckWidget::resizeEvent(QResizeEvent *e) {
 	Step::resizeEvent(e);
 	updateControlsGeometry();
 }
 
-void PwdCheckWidget::updateControlsGeometry() {
+void PasswordCheckWidget::updateControlsGeometry() {
 	_pwdField->moveToLeft(contentLeft(), contentTop() + st::introPasswordTop);
 	_pwdHint->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introPasswordHintTop);
 	_codeField->moveToLeft(contentLeft(), contentTop() + st::introStepFieldTop);
@@ -96,7 +96,7 @@ void PwdCheckWidget::updateControlsGeometry() {
 	_toPassword->moveToLeft(contentLeft() + st::buttonRadius, linkTop);
 }
 
-void PwdCheckWidget::setInnerFocus() {
+void PasswordCheckWidget::setInnerFocus() {
 	if (_pwdField->isHidden()) {
 		_codeField->setFocusFast();
 	} else {
@@ -104,7 +104,7 @@ void PwdCheckWidget::setInnerFocus() {
 	}
 }
 
-void PwdCheckWidget::activate() {
+void PasswordCheckWidget::activate() {
 	if (_pwdField->isHidden() && _codeField->isHidden()) {
 		Step::activate();
 		_pwdField->show();
@@ -114,11 +114,11 @@ void PwdCheckWidget::activate() {
 	setInnerFocus();
 }
 
-void PwdCheckWidget::cancelled() {
+void PasswordCheckWidget::cancelled() {
 	_api.request(base::take(_sentRequest)).cancel();
 }
 
-void PwdCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorization &result) {
+void PasswordCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorization &result) {
 	_sentRequest = 0;
 	if (recover) {
 		cSetPasswordRecovered(true);
@@ -131,7 +131,7 @@ void PwdCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorization &re
 	finish(d.vuser());
 }
 
-void PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
+void PasswordCheckWidget::pwdSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		_sentRequest = 0;
 		showError(tr::lng_flood_error());
@@ -161,7 +161,7 @@ void PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 	}
 }
 
-void PwdCheckWidget::handleSrpIdInvalid() {
+void PasswordCheckWidget::handleSrpIdInvalid() {
 	const auto now = crl::now();
 	if (_lastSrpIdInvalidTime > 0
 		&& now - _lastSrpIdInvalidTime < Core::kHandleSrpIdInvalidTimeout) {
@@ -173,7 +173,7 @@ void PwdCheckWidget::handleSrpIdInvalid() {
 	}
 }
 
-void PwdCheckWidget::checkPasswordHash() {
+void PasswordCheckWidget::checkPasswordHash() {
 	if (_request.id) {
 		passwordChecked();
 	} else {
@@ -181,7 +181,7 @@ void PwdCheckWidget::checkPasswordHash() {
 	}
 }
 
-void PwdCheckWidget::requestPasswordData() {
+void PasswordCheckWidget::requestPasswordData() {
 	_api.request(base::take(_sentRequest)).cancel();
 	_sentRequest = _api.request(
 		MTPaccount_GetPassword()
@@ -194,7 +194,7 @@ void PwdCheckWidget::requestPasswordData() {
 	}).send();
 }
 
-void PwdCheckWidget::passwordChecked() {
+void PasswordCheckWidget::passwordChecked() {
 	if (!_request || !_request.id) {
 		return serverError();
 	}
@@ -214,11 +214,11 @@ void PwdCheckWidget::passwordChecked() {
 	}).send();
 }
 
-void PwdCheckWidget::serverError() {
+void PasswordCheckWidget::serverError() {
 	showError(rpl::single(Lang::Hard::ServerError()));
 }
 
-void PwdCheckWidget::codeSubmitFail(const RPCError &error) {
+void PasswordCheckWidget::codeSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		showError(tr::lng_flood_error());
 		_codeField->showError();
@@ -249,12 +249,12 @@ void PwdCheckWidget::codeSubmitFail(const RPCError &error) {
 	}
 }
 
-void PwdCheckWidget::recoverStarted(const MTPauth_PasswordRecovery &result) {
+void PasswordCheckWidget::recoverStarted(const MTPauth_PasswordRecovery &result) {
 	_emailPattern = qs(result.c_auth_passwordRecovery().vemail_pattern());
 	updateDescriptionText();
 }
 
-void PwdCheckWidget::recoverStartFail(const RPCError &error) {
+void PasswordCheckWidget::recoverStartFail(const RPCError &error) {
 	_pwdField->show();
 	_pwdHint->show();
 	_codeField->hide();
@@ -264,7 +264,7 @@ void PwdCheckWidget::recoverStartFail(const RPCError &error) {
 	hideError();
 }
 
-void PwdCheckWidget::toRecover() {
+void PasswordCheckWidget::toRecover() {
 	if (_hasRecovery) {
 		if (_sentRequest) {
 			_api.request(base::take(_sentRequest)).cancel();
@@ -294,13 +294,13 @@ void PwdCheckWidget::toRecover() {
 	}
 }
 
-void PwdCheckWidget::toPassword() {
+void PasswordCheckWidget::toPassword() {
 	Ui::show(Box<InformBox>(
 		tr::lng_signin_cant_email_forgot(tr::now),
 		[=] { showReset(); }));
 }
 
-void PwdCheckWidget::showReset() {
+void PasswordCheckWidget::showReset() {
 	if (_sentRequest) {
 		_api.request(base::take(_sentRequest)).cancel();
 	}
@@ -316,7 +316,7 @@ void PwdCheckWidget::showReset() {
 	update();
 }
 
-void PwdCheckWidget::updateDescriptionText() {
+void PasswordCheckWidget::updateDescriptionText() {
 	auto pwdHidden = _pwdField->isHidden();
 	auto emailPattern = _emailPattern;
 	setDescriptionText(pwdHidden
@@ -324,7 +324,7 @@ void PwdCheckWidget::updateDescriptionText() {
 		: tr::lng_signin_desc());
 }
 
-void PwdCheckWidget::submit() {
+void PasswordCheckWidget::submit() {
 	if (_sentRequest) {
 		return;
 	}
@@ -370,7 +370,7 @@ void PwdCheckWidget::submit() {
 	}
 }
 
-rpl::producer<QString> PwdCheckWidget::nextButtonText() const {
+rpl::producer<QString> PasswordCheckWidget::nextButtonText() const {
 	return tr::lng_intro_submit();
 }
 

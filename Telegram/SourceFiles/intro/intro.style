@@ -107,6 +107,7 @@ introPhone: InputField(introCountry) {
 	textMargins: margins(12px, 27px, 12px, 6px);
 	width: 225px;
 }
+introQrLoginLinkTop: 368px;
 introCode: introCountry;
 introName: introCountry;
 introPassword: introCountry;

@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "intro/intro_step.h"
+#include "intro/intro_widget.h"
 #include "ui/widgets/input_fields.h"
-#include "intro/introwidget.h"
 #include "base/timer.h"
 
 namespace Ui {
