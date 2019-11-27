@@ -146,28 +146,27 @@ void SessionData::detach() {
 
 Session::Session(
 	not_null<Instance*> instance,
+	not_null<QThread*> thread,
 	ShiftedDcId shiftedDcId,
 	not_null<Dcenter*> dc)
 : _instance(instance)
 , _shiftedDcId(shiftedDcId)
 , _dc(dc)
 , _data(std::make_shared<SessionData>(this))
+, _thread(thread)
 , _sender([=] { needToResumeAndSend(); }) {
 	_timeouter.callEach(1000);
 	refreshOptions();
 	watchDcKeyChanges();
 	watchDcOptionsChanges();
+	start();
 }
 
 Session::~Session() {
 	Expects(!_connection);
-	Expects(!_thread);
 
 	if (_myKeyCreation != CreatingKeyType::None) {
 		releaseKeyCreationOnFail();
-	}
-	for (const auto &thread : _destroyingThreads) {
-		thread->wait();
 	}
 }
 
@@ -210,27 +209,11 @@ void Session::watchDcOptionsChanges() {
 
 void Session::start() {
 	killConnection();
-
-	_thread = std::make_unique<QThread>();
-	const auto thread = _thread.get();
-
-	connect(thread, &QThread::finished, [=] {
-		InvokeQueued(this, [=] {
-			const auto i = ranges::find(
-				_destroyingThreads,
-				thread,
-				&std::unique_ptr<QThread>::get);
-			if (i != _destroyingThreads.end()) {
-				_destroyingThreads.erase(i);
-			}
-		});
-	});
 	_connection = new Connection(
 		_instance,
-		thread,
+		_thread.get(),
 		_data,
 		_shiftedDcId);
-	thread->start();
 }
 
 bool Session::rpcErrorOccured(
@@ -578,18 +561,13 @@ void Session::tryToReceive() {
 }
 
 void Session::killConnection() {
-	Expects(!_thread || _connection);
-
 	if (!_connection) {
 		return;
 	}
 
 	base::take(_connection)->deleteLater();
-	_destroyingThreads.push_back(base::take(_thread));
-	_destroyingThreads.back()->quit();
 
 	Ensures(_connection == nullptr);
-	Ensures(_thread == nullptr);
 }
 
 } // namespace internal

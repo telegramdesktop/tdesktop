@@ -139,7 +139,7 @@ Connection::Connection(
 
 	moveToThread(thread);
 
-	connect(thread, &QThread::started, this, [=] {
+	InvokeQueued(this, [=] {
 		_checkSentRequestsTimer.callEach(kCheckSentRequestsEach);
 		connectToServer();
 	});

@@ -170,6 +170,7 @@ private:
 	Session *findSession(ShiftedDcId shiftedDcId);
 	not_null<Session*> startSession(ShiftedDcId shiftedDcId);
 	Session *removeSession(ShiftedDcId shiftedDcId);
+	[[nodiscard]] not_null<QThread*> getThreadForDc(ShiftedDcId shiftedDcId);
 
 	void applyDomainIps(
 		const QString &host,
@@ -199,6 +200,10 @@ private:
 	const not_null<Instance*> _instance;
 	const not_null<DcOptions*> _dcOptions;
 	const Instance::Mode _mode = Instance::Mode::Normal;
+
+	std::unique_ptr<QThread> _mainSessionThread;
+	std::unique_ptr<QThread> _otherSessionsThread;
+	std::vector<std::unique_ptr<QThread>> _fileSessionThreads;
 
 	QString _deviceModel;
 	QString _systemVersion;
@@ -263,6 +268,8 @@ Instance::Private::Private(
 , _instance(instance)
 , _dcOptions(options)
 , _mode(mode) {
+	const auto idealThreadPoolSize = QThread::idealThreadCount();
+	_fileSessionThreads.resize(2 * std::max(idealThreadPoolSize / 2, 1));
 }
 
 void Instance::Private::start(Config &&config) {
@@ -1486,11 +1493,11 @@ not_null<Session*> Instance::Private::startSession(ShiftedDcId shiftedDcId) {
 	Expects(BareDcId(shiftedDcId) != 0);
 
 	const auto dc = getDcById(shiftedDcId);
+	const auto thread = getThreadForDc(shiftedDcId);
 	const auto result = _sessions.emplace(
 		shiftedDcId,
-		std::make_unique<Session>(_instance, shiftedDcId, dc)
+		std::make_unique<Session>(_instance, thread, shiftedDcId, dc)
 	).first->second.get();
-	result->start();
 	if (isKeysDestroyer()) {
 		scheduleKeyDestroy(shiftedDcId);
 	}
@@ -1507,6 +1514,47 @@ Session *Instance::Private::removeSession(ShiftedDcId shiftedDcId) {
 	_sessionsToDestroy.push_back(std::move(i->second));
 	_sessions.erase(i);
 	return _sessionsToDestroy.back().get();
+}
+
+
+not_null<QThread*> Instance::Private::getThreadForDc(
+		ShiftedDcId shiftedDcId) {
+	static const auto EnsureStarted = [](std::unique_ptr<QThread> &thread) {
+		if (!thread) {
+			thread = std::make_unique<QThread>();
+			thread->start();
+		}
+		return thread.get();
+	};
+	static const auto FindOne = [](
+			std::vector<std::unique_ptr<QThread>> &threads,
+			int index,
+			bool shift) {
+		Expects(!threads.empty());
+		Expects(!(threads.size() % 2));
+
+		const auto count = int(threads.size());
+		index %= count;
+		if (index >= count / 2) {
+			index = (count - 1) - (index - count / 2);
+		}
+		if (shift) {
+			index = (index + count / 2) % count;
+		}
+		return EnsureStarted(threads[index]);
+	};
+	if (shiftedDcId == BareDcId(shiftedDcId)) {
+		return EnsureStarted(_mainSessionThread);
+	} else if (isDownloadDcId(shiftedDcId)) {
+		const auto index = GetDcIdShift(shiftedDcId) - kBaseDownloadDcShift;
+		const auto composed = index + BareDcId(shiftedDcId);
+		return FindOne(_fileSessionThreads, composed, false);
+	} else if (isUploadDcId(shiftedDcId)) {
+		const auto index = GetDcIdShift(shiftedDcId) - kBaseUploadDcShift;
+		const auto composed = index + BareDcId(shiftedDcId);
+		return FindOne(_fileSessionThreads, composed, true);
+	}
+	return EnsureStarted(_otherSessionsThread);
 }
 
 void Instance::Private::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
@@ -1616,6 +1664,23 @@ void Instance::Private::prepareToDestroy() {
 		session->kill();
 	}
 	_mainSession = nullptr;
+
+	auto threads = std::vector<std::unique_ptr<QThread>>();
+	threads.push_back(base::take(_mainSessionThread));
+	threads.push_back(base::take(_otherSessionsThread));
+	for (auto &thread : base::take(_fileSessionThreads)) {
+		threads.push_back(std::move(thread));
+	}
+	for (const auto &thread : threads) {
+		if (thread) {
+			thread->quit();
+		}
+	}
+	for (const auto &thread : threads) {
+		if (thread) {
+			thread->wait();
+		}
+	}
 }
 
 Instance::Instance(not_null<DcOptions*> options, Mode mode, Config &&config)

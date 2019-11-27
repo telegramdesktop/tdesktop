@@ -138,6 +138,7 @@ public:
 	// Main thread.
 	Session(
 		not_null<Instance*> instance,
+		not_null<QThread*> thread,
 		ShiftedDcId shiftedDcId,
 		not_null<Dcenter*> dc);
 	~Session();
@@ -198,9 +199,7 @@ private:
 	const ShiftedDcId _shiftedDcId = 0;
 	const not_null<Dcenter*> _dc;
 	const std::shared_ptr<SessionData> _data;
-
-	std::unique_ptr<QThread> _thread;
-	std::vector<std::unique_ptr<QThread>> _destroyingThreads;
+	const not_null<QThread*> _thread;
 
 	Connection *_connection = nullptr;
 
