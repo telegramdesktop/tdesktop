@@ -11,10 +11,14 @@ function(generate_numbers target_name numbers_file)
     set(generated_files
         ${gen_dst}/numbers.cpp
         ${gen_dst}/numbers.h
+        ${gen_dst}/numbers.timestamp
     )
     add_custom_command(
     OUTPUT
-        ${generated_files}
+        ${gen_dst}/numbers.timestamp
+    BYPRODUCTS
+        ${gen_dst}/numbers.cpp
+        ${gen_dst}/numbers.h
     COMMAND
         codegen_numbers
         -o${gen_dst}

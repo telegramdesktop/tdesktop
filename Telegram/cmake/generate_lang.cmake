@@ -11,10 +11,14 @@ function(generate_lang target_name lang_file)
     set(generated_files
         ${gen_dst}/lang_auto.cpp
         ${gen_dst}/lang_auto.h
+        ${gen_dst}/lang_auto.timestamp
     )
     add_custom_command(
     OUTPUT
-        ${generated_files}
+        ${gen_dst}/lang_auto.timestamp
+    BYPRODUCTS
+        ${gen_dst}/lang_auto.cpp
+        ${gen_dst}/lang_auto.h
     COMMAND
         codegen_lang
         -o${gen_dst}

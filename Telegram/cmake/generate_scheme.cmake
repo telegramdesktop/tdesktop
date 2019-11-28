@@ -11,10 +11,14 @@ function(generate_scheme target_name script scheme_files)
     set(generated_files
         ${gen_dst}/scheme.cpp
         ${gen_dst}/scheme.h
+        ${gen_dst}/scheme.timestamp
     )
     add_custom_command(
     OUTPUT
-        ${generated_files}
+        ${gen_dst}/scheme.timestamp
+    BYPRODUCTS
+        ${gen_dst}/scheme.cpp
+        ${gen_dst}/scheme.h
     COMMAND
         python
         ${script}
