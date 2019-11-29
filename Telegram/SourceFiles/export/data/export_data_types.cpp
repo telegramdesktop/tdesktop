@@ -209,6 +209,32 @@ Utf8String FillLeft(const Utf8String &data, int length, char filler) {
 	return result;
 }
 
+bool RefreshFileReference(FileLocation &to, const FileLocation &from) {
+	if (to.dcId != from.dcId || to.data.type() != from.data.type()) {
+		return false;
+	}
+	if (to.data.type() == mtpc_inputPhotoFileLocation) {
+		const auto &toData = to.data.c_inputPhotoFileLocation();
+		const auto &fromData = from.data.c_inputPhotoFileLocation();
+		if (toData.vid().v != fromData.vid().v
+			|| toData.vthumb_size().v != fromData.vthumb_size().v) {
+			return false;
+		}
+		to = from;
+		return true;
+	} else if (to.data.type() == mtpc_inputDocumentFileLocation) {
+		const auto &toData = to.data.c_inputDocumentFileLocation();
+		const auto &fromData = from.data.c_inputDocumentFileLocation();
+		if (toData.vid().v != fromData.vid().v
+			|| toData.vthumb_size().v != fromData.vthumb_size().v) {
+			return false;
+		}
+		to = from;
+		return true;
+	}
+	return false;
+}
+
 Image ParseMaxImage(
 		const MTPDphoto &photo,
 		const QString &suggestedPath) {
