@@ -41,6 +41,7 @@ Go to ***BuildPath*** and run
     ./bootstrap
     make $MAKE_THREADS_CNT
     sudo make install
+    cd ../
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
