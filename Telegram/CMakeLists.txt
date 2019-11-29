@@ -91,6 +91,8 @@ endif()
 
 set(telegram_sources
 PRIVATE
+    ${style_files}
+
     api/api_common.h
     api/api_hash.h
     api/api_sending.cpp
@@ -941,6 +943,8 @@ PRIVATE
     qrc/telegram/sounds.qrc
     winrc/Telegram.rc
     winrc/Telegram.manifest
+    langs/lang.strings
+    numbers.txt
 )
 nice_target_sources(Telegram ${res_loc} "${telegram_resources}")
 
@@ -986,6 +990,7 @@ elseif (APPLE)
             Resources/${lang}.lproj/Localizable.strings
         )
         target_sources(Telegram PRIVATE ${strings_path})
+        source_group(TREE ${res_loc} PREFIX Resources FILES ${strings_path})
     endforeach()
 
     add_custom_command(TARGET Telegram
