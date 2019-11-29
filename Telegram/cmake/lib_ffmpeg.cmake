@@ -21,17 +21,14 @@ PUBLIC
     ${libs_loc}/ffmpeg
 )
 
-target_link_directories(lib_ffmpeg
-PUBLIC
-    ${libs_loc}/ffmpeg
-)
+set(ffmpeg_lib_loc ${libs_loc}/ffmpeg)
 
 target_link_libraries(lib_ffmpeg
 PUBLIC
     desktop-app::lib_base
-    ${libs_loc}/ffmpeg/libavformat/libavformat.a
-    ${libs_loc}/ffmpeg/libavcodec/libavcodec.a
-    ${libs_loc}/ffmpeg/libavutil/libavutil.a
-    ${libs_loc}/ffmpeg/libswresample/libswresample.a
-    ${libs_loc}/ffmpeg/libswscale/libswscale.a
+    ${ffmpeg_lib_loc}/libavformat/libavformat.a
+    ${ffmpeg_lib_loc}/libavcodec/libavcodec.a
+    ${ffmpeg_lib_loc}/libavutil/libavutil.a
+    ${ffmpeg_lib_loc}/libswresample/libswresample.a
+    ${ffmpeg_lib_loc}/libswscale/libswscale.a
 )
