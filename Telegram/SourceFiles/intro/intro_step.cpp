@@ -233,6 +233,9 @@ bool Step::paintAnimated(Painter &p, QRect clip) {
 		}
 		return false;
 	}
+	if (!_coverAnimation.clipping.isEmpty()) {
+		p.setClipRect(_coverAnimation.clipping);
+	}
 
 	auto progress = (hasCover() ? anim::easeOutCirc(1., dt) : anim::linear(1., dt));
 	auto arrivingAlpha = progress;
@@ -449,6 +452,10 @@ void Step::showAnimated(Direction direction) {
 	} else {
 		_a_show.start([this] { update(); }, 0., 1., st::introCoverDuration);
 	}
+}
+
+void Step::setShowAnimationClipping(QRect clipping) {
+	_coverAnimation.clipping = clipping;
 }
 
 void Step::setGoCallback(Fn<void(Step *step, Direction direction)> callback) {

@@ -64,6 +64,7 @@ public:
 	void showAnimated(Direction direction);
 	void showFast();
 	[[nodiscard]] bool animating() const;
+	void setShowAnimationClipping(QRect clipping);
 
 	[[nodiscard]] bool hasCover() const;
 	[[nodiscard]] virtual bool hasBack() const;
@@ -142,6 +143,8 @@ private:
 		// From content top till the next button top.
 		QPixmap contentSnapshotWas;
 		QPixmap contentSnapshotNow;
+
+		QRect clipping;
 	};
 	void updateLabelsPosition();
 	void paintContentSnapshot(

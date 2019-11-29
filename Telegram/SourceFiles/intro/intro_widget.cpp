@@ -639,6 +639,9 @@ void Widget::updateControlsGeometry() {
 		nextTop,
 		shownAmount);
 	_next->moveToLeft((width() - _next->width()) / 2, realNextTop);
+	getStep()->setShowAnimationClipping(shownAmount > 0
+		? QRect(0, 0, width(), realNextTop)
+		: QRect());
 	if (_changeLanguage) {
 		_changeLanguage->moveToLeft((width() - _changeLanguage->width()) / 2, _next->y() + _next->height() + _changeLanguage->height());
 	}
