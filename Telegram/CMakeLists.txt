@@ -995,31 +995,55 @@ elseif (APPLE)
         source_group(TREE ${res_loc} PREFIX Resources FILES ${strings_path})
     endforeach()
 
-    add_custom_command(TARGET Telegram
-    PRE_LINK
-        COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks
-        COMMAND cp $<TARGET_FILE:Updater> $<TARGET_FILE_DIR:Telegram>/../Frameworks/
-    )
-
-    if (NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
+    if (NOT build_macstore)
         add_custom_command(TARGET Telegram
         PRE_LINK
-            COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Helpers
-            COMMAND cp ${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>/crashpad_handler $<TARGET_FILE_DIR:Telegram>/../Helpers/
+            COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks
+            COMMAND cp $<TARGET_FILE:Updater> $<TARGET_FILE_DIR:Telegram>/../Frameworks/
         )
+        if (NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
+            add_custom_command(TARGET Telegram
+            PRE_LINK
+                COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Helpers
+                COMMAND cp ${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>/crashpad_handler $<TARGET_FILE_DIR:Telegram>/../Helpers/
+            )
+        endif()
     endif()
 endif()
 
 if (build_macstore)
     set(bundle_identifier "org.telegram.desktop")
+    set(bundle_entitlements "Telegram Desktop.entitlements")
+    set(output_name "Telegram Desktop")
+    set_target_properties(Telegram PROPERTIES
+        XCODE_ATTRIBUTE_FRAMEWORK_SEARCH_PATHS ${libs_loc}/breakpad/src/client/mac/build/Release
+    )
+    target_link_frameworks(Telegram PRIVATE Breakpad)
+    add_custom_command(TARGET Telegram
+    PRE_LINK
+        COMMAND rm -rf $<TARGET_FILE_DIR:Telegram>/../Frameworks
+        COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks
+        COMMAND cp -a ${libs_loc}/breakpad/src/client/mac/build/Release/Breakpad.framework $<TARGET_FILE_DIR:Telegram>/../Frameworks/Breakpad.framework
+    )
 elseif (build_osx)
     set(bundle_identifier "com.tdesktop.Telegram$<$<CONFIG:Debug>:DebugOsx>")
+    set(bundle_entitlements "Telegram.entitlements")
+    set(output_name "Telegram")
 else()
     set(bundle_identifier "com.tdesktop.Telegram$<$<CONFIG:Debug>:Debug>")
+    set(bundle_entitlements "Telegram.entitlements")
+    set(output_name "Telegram")
 endif()
+
+set(current_version 1.9.1)
 set_target_properties(Telegram PROPERTIES
+    OUTPUT_NAME ${output_name}
     MACOSX_BUNDLE_GUI_IDENTIFIER ${bundle_identifier}
     MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/Telegram.plist
+    XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "${CMAKE_CURRENT_SOURCE_DIR}/Telegram/${bundle_entitlements}"
+    XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER ${bundle_identifier}
+    XCODE_ATTRIBUTE_CURRENT_PROJECT_VERSION ${current_version}
+    XCODE_ATTRIBUTE_PRODUCT_NAME ${output_name}
     XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT $<$<NOT:$<CONFIG:Debug>>:dwarf-with-dsym>
     XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon
     XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
@@ -1029,6 +1053,12 @@ set_target_properties(Telegram PROPERTIES
     XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY libc++
     XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS --deep
 )
+set(entitlement_sources
+    "${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Telegram.entitlements"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Telegram Desktop.entitlements"
+)
+target_sources(Telegram PRIVATE ${entitlement_sources})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/Telegram PREFIX Resources FILES ${entitlement_sources})
 
 target_include_directories(Telegram
 PRIVATE
@@ -1044,20 +1074,29 @@ PRIVATE
     AL_ALEXT_PROTOTYPES
 )
 
+if (disable_autoupdate)
+    target_compile_definitions(Telegram
+    PRIVATE
+        TDESKTOP_DISABLE_AUTOUPDATE
+    )
+endif()
+
 set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
-add_executable(Updater WIN32)
-init_target(Updater)
+if (NOT build_macstore AND NOT build_winstore)
+    add_executable(Updater WIN32)
+    init_target(Updater)
 
-add_dependencies(Telegram Updater)
+    add_dependencies(Telegram Updater)
 
-set(updater_sources
-PRIVATE
-    _other/updater_win.cpp
-    _other/updater_linux.cpp
-    _other/updater_osx.m
-    _other/updater.h
-)
-nice_target_sources(Updater ${src_loc} "${updater_sources}")
+    set(updater_sources
+    PRIVATE
+        _other/updater_win.cpp
+        _other/updater_linux.cpp
+        _other/updater_osx.m
+        _other/updater.h
+    )
+    nice_target_sources(Updater ${src_loc} "${updater_sources}")
 
-set_target_properties(Updater PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+    set_target_properties(Updater PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+endif()

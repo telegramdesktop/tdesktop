@@ -8,10 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #define __HUGE
 
-#ifdef OS_MAC_STORE
-#define MAC_USE_BREAKPAD
-#endif // OS_MAC_STORE
-
 #ifdef __cplusplus
 
 #include <cmath>
