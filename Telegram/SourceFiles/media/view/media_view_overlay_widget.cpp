@@ -1803,7 +1803,6 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 
 	_zoom = 0;
 	_zoomToScreen = 0;
-	Auth().downloader().clearPriorities();
 	_blurred = true;
 	_current = QPixmap();
 	_down = OverNone;

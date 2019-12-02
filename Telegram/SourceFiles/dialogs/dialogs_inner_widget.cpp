@@ -2464,7 +2464,6 @@ void InnerWidget::loadPeerPhotos() {
 
 	auto yFrom = _visibleTop;
 	auto yTo = _visibleTop + (_visibleBottom - _visibleTop) * (PreloadHeightsCount + 1);
-	session().downloader().clearPriorities();
 	if (_state == WidgetState::Default) {
 		auto otherStart = shownDialogs()->size() * st::dialogsRowHeight;
 		if (yFrom < otherStart) {

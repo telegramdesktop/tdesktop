@@ -1798,8 +1798,6 @@ void HistoryWidget::showHistory(
 	_nonEmptySelection = false;
 
 	if (_peer) {
-		session().downloader().clearPriorities();
-
 		_history = _peer->owner().history(_peer);
 		_migrated = _history->migrateFrom();
 		if (_migrated

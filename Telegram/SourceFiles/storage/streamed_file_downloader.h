@@ -49,7 +49,8 @@ private:
 	Cache::Key cacheKey() const override;
 	std::optional<MediaKey> fileLocationKey() const override;
 	void cancelRequests() override;
-	bool loadPart() override;
+	bool readyToRequest() const override;
+	void loadPart(int dcIndex) override;
 
 	void savePart(const Media::Streaming::LoadedPart &part);
 
@@ -60,7 +61,7 @@ private:
 	std::shared_ptr<Media::Streaming::Reader> _reader;
 
 	std::vector<bool> _partIsSaved; // vector<bool> :D
-	int _nextPartIndex = 0;
+	mutable int _nextPartIndex = 0;
 	int _partsCount = 0;
 	int _partsRequested = 0;
 	int _partsSaved = 0;
