@@ -67,7 +67,6 @@ public:
 	void addPadding(bool extended, bool old);
 	[[nodiscard]] uint32 messageSize() const;
 
-	[[nodiscard]] bool isStateRequest() const;
 	[[nodiscard]] bool needAck() const;
 
 	using ResponseType = void; // don't know real response type =(

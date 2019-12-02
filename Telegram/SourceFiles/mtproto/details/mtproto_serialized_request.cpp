@@ -124,14 +124,6 @@ uint32 SerializedRequest::messageSize() const {
 	return kMessageIdInts + kSeqNoInts + kMessageLengthInts + ints;
 }
 
-bool SerializedRequest::isStateRequest() const {
-	Expects(_data != nullptr);
-	Expects(_data->size() > kMessageBodyPosition);
-
-	const auto type = mtpTypeId((*_data)[kMessageBodyPosition]);
-	return (type == mtpc_msgs_state_req);
-}
-
 bool SerializedRequest::needAck() const {
 	Expects(_data != nullptr);
 	Expects(_data->size() > kMessageBodyPosition);

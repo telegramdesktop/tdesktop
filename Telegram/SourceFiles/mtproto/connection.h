@@ -128,7 +128,7 @@ private:
 		mtpMsgId requestMsgId,
 		const mtpBuffer &response);
 	mtpBuffer ungzip(const mtpPrime *from, const mtpPrime *end) const;
-	void handleMsgsStates(const QVector<MTPlong> &ids, const QByteArray &states, QVector<MTPlong> &acked);
+	void handleMsgsStates(const QVector<MTPlong> &ids, const QByteArray &states);
 
 	// _sessionDataMutex must be locked for read.
 	bool setState(int state, int ifState = kUpdateStateAlways);
@@ -219,6 +219,7 @@ private:
 	details::ReceivedIdsManager _receivedMessageIds;
 	base::flat_map<mtpMsgId, mtpRequestId> _resendingIds;
 	base::flat_map<mtpMsgId, mtpRequestId> _ackedIds;
+	base::flat_map<mtpMsgId, details::SerializedRequest> _stateAndResendRequests;
 	base::flat_map<mtpMsgId, SentContainer> _sentContainers;
 
 	std::unique_ptr<details::BoundKeyCreator> _keyCreator;
