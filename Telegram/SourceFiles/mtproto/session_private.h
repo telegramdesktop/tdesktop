@@ -221,6 +221,7 @@ private:
 
 	std::unique_ptr<BoundKeyCreator> _keyCreator;
 	mtpMsgId _bindMsgId = 0;
+	crl::time _bindMessageSent = 0;
 
 };
 

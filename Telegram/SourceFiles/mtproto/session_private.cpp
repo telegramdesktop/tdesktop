@@ -216,31 +216,30 @@ int16 SessionPrivate::getProtocolDcId() const {
 void SessionPrivate::checkSentRequests() {
 	clearOldContainers();
 
-	auto restarting = false;
+	const auto now = crl::now();
+	if (_bindMsgId && _bindMessageSent + kCheckSentRequestTimeout < now) {
+		DEBUG_LOG(("MTP Info: "
+			"Request state while key is not bound, restarting."));
+		restart();
+		return;
+	}
 	auto requesting = false;
 	{
 		QReadLocker locker(_sessionData->haveSentMutex());
 		auto &haveSent = _sessionData->haveSentMap();
 		const auto haveSentCount = haveSent.size();
-		const auto now = crl::now();
 		const auto checkAfter = kCheckSentRequestTimeout;
 		for (const auto &[msgId, request] : haveSent) {
 			if (request->lastSentTime + checkAfter < now) {
 				// Need to check state.
 				request->lastSentTime = now;
-				if (_bindMsgId) {
-					restarting = true;
-				} else if (_stateRequestData.emplace(msgId).second) {
+				if (_stateRequestData.emplace(msgId).second) {
 					requesting = true;
 				}
 			}
 		}
 	}
-	if (restarting) {
-		DEBUG_LOG(("MTP Info: "
-			"Request state while key is not bound, restarting."));
-		restart();
-	} else if (requesting) {
+	if (requesting) {
 		_sessionData->queueSendAnything(kSendStateRequestWaiting);
 	}
 }
@@ -683,6 +682,7 @@ void SessionPrivate::tryToSend() {
 				forceNewMsgId && !bindDcKeyRequest);
 			if (bindDcKeyRequest) {
 				_bindMsgId = msgId;
+				_bindMessageSent = crl::now();
 				needAnyResponse = true;
 			} else if (pingRequest) {
 				_pingMsgId = msgId;
@@ -779,6 +779,7 @@ void SessionPrivate::tryToSend() {
 					bigMsgId,
 					false,
 					bindDcKeyRequest);
+				_bindMessageSent = crl::now();
 				needAnyResponse = true;
 			}
 			if (pingRequest) {
@@ -1854,6 +1855,8 @@ SessionPrivate::HandleResult SessionPrivate::handleBindResponse(
 	if (!_keyCreator || !_bindMsgId || _bindMsgId != requestMsgId) {
 		return HandleResult::Ignored;
 	}
+	_bindMsgId = 0;
+
 	const auto result = _keyCreator->handleBindResponse(response);
 	switch (result) {
 	case DcKeyBindState::Success:
