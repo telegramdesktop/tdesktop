@@ -341,16 +341,8 @@ void Account::startMtp() {
 	_mtp->setUpdatesHandler(::rpcDone([=](
 			const mtpPrime *from,
 			const mtpPrime *end) {
-		auto newSession = MTPNewSession();
-		auto updates = MTPUpdates();
-		if (updates.read(from, end)) {
-			_mtpUpdates.fire(std::move(updates));
-		} else if (newSession.read(from, end)) {
-			_mtpNewSessionCreated.fire({});
-		} else {
-			return false;
-		}
-		return true;
+		return checkForUpdates(from, end)
+			|| checkForNewSession(from, end);
 	}));
 	_mtp->setGlobalFailHandler(::rpcFail([=](const RPCError &error) {
 		if (sessionExists()) {
@@ -390,6 +382,23 @@ void Account::startMtp() {
 	_mtpValue = _mtp.get();
 }
 
+bool Account::checkForUpdates(const mtpPrime *from, const mtpPrime *end) {
+	auto updates = MTPUpdates();
+	if (!updates.read(from, end)) {
+		return false;
+	}
+	_mtpUpdates.fire(std::move(updates));
+	return true;
+}
+
+bool Account::checkForNewSession(const mtpPrime *from, const mtpPrime *end) {
+	auto newSession = MTPNewSession();
+	if (!newSession.read(from, end)) {
+		return false;
+	}
+	_mtpNewSessionCreated.fire({});
+	return true;
+}
 
 void Account::logOut() {
 	if (_loggingOut) {

@@ -83,6 +83,8 @@ private:
 		Settings &&settings);
 	void watchProxyChanges();
 	void watchSessionChanges();
+	bool checkForUpdates(const mtpPrime *from, const mtpPrime *end);
+	bool checkForNewSession(const mtpPrime *from, const mtpPrime *end);
 
 	void destroyMtpKeys(MTP::AuthKeysList &&keys);
 	void resetAuthorizationKeys();
