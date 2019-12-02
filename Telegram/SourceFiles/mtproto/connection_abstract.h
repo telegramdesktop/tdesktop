@@ -18,7 +18,7 @@ namespace MTP {
 
 class Instance;
 
-namespace internal {
+namespace details {
 
 struct ConnectionOptions;
 
@@ -195,5 +195,5 @@ mtpBuffer AbstractConnection::prepareNotSecurePacket(
 	return result;
 }
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

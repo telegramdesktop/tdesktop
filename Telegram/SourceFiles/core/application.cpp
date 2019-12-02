@@ -184,9 +184,9 @@ void Application::run() {
 	style::ShortAnimationPlaying(
 	) | rpl::start_with_next([=](bool playing) {
 		if (playing) {
-			MTP::internal::pause();
+			MTP::details::pause();
 		} else {
-			MTP::internal::unpause();
+			MTP::details::unpause();
 		}
 	}, _lifetime);
 

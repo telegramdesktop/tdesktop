@@ -75,7 +75,7 @@ public:
 	~ProxiesBoxController();
 
 private:
-	using Checker = MTP::internal::ConnectionPointer;
+	using Checker = MTP::details::ConnectionPointer;
 	struct Item {
 		int id = 0;
 		ProxyData data;

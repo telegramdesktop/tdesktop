@@ -14,10 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP {
 
-class SpecialConfigRequest;
 class Instance;
 
-namespace internal {
+namespace details {
+
+class SpecialConfigRequest;
 
 class ConfigLoader : public base::has_weak_ptr {
 public:
@@ -76,5 +77,5 @@ inline bool operator==(const ConfigLoader::SpecialEndpoint &a, const ConfigLoade
 	return (a.dcId == b.dcId) && (a.ip == b.ip) && (a.port == b.port);
 }
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

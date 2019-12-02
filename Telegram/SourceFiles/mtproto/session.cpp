@@ -7,18 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/session.h"
 
-#include "mtproto/connection.h"
-#include "mtproto/dcenter.h"
+#include "mtproto/details/mtproto_dcenter.h"
+#include "mtproto/session_private.h"
 #include "mtproto/mtproto_auth_key.h"
 #include "base/unixtime.h"
 #include "base/openssl_help.h"
-#include "core/crash_reports.h"
 #include "facades.h"
 
 namespace MTP {
-namespace internal {
+namespace details {
 
-ConnectionOptions::ConnectionOptions(
+SessionOptions::SessionOptions(
 	const QString &systemLangCode,
 	const QString &cloudLangCode,
 	const QString &langPackName,
@@ -50,9 +49,9 @@ void SessionData::withSession(Callback &&callback) {
 	}
 }
 
-void SessionData::notifyConnectionInited(const ConnectionOptions &options) {
+void SessionData::notifyConnectionInited(const SessionOptions &options) {
 	// #TODO race
-	const auto current = connectionOptions();
+	const auto current = this->options();
 	if (current.cloudLangCode == _options.cloudLangCode
 		&& current.systemLangCode == _options.systemLangCode
 		&& current.langPackName == _options.langPackName
@@ -163,7 +162,7 @@ Session::Session(
 }
 
 Session::~Session() {
-	Expects(!_connection);
+	Expects(!_private);
 
 	if (_myKeyCreation != CreatingKeyType::None) {
 		releaseKeyCreationOnFail();
@@ -177,11 +176,11 @@ void Session::watchDcKeyChanges() {
 	}) | rpl::start_with_next([=] {
 		DEBUG_LOG(("AuthKey Info: dcTemporaryKeyChanged in Session %1"
 			).arg(_shiftedDcId));
-		if (const auto connection = _connection) {
-			InvokeQueued(connection, [=] {
+		if (const auto captured = _private) {
+			InvokeQueued(captured, [=] {
 				DEBUG_LOG(("AuthKey Info: calling Connection::updateAuthKey in Session %1"
 					).arg(_shiftedDcId));
-				connection->updateAuthKey();
+				captured->updateAuthKey();
 			});
 		}
 	}, _lifetime);
@@ -190,20 +189,20 @@ void Session::watchDcKeyChanges() {
 void Session::watchDcOptionsChanges() {
 	_instance->dcOptions()->changed(
 	) | rpl::filter([=](DcId dcId) {
-		return (BareDcId(_shiftedDcId) == dcId) && (_connection != nullptr);
+		return (BareDcId(_shiftedDcId) == dcId) && (_private != nullptr);
 	}) | rpl::start_with_next([=] {
-		InvokeQueued(_connection, [connection = _connection] {
-			connection->dcOptionsChanged();
+		InvokeQueued(_private, [captured = _private] {
+			captured->dcOptionsChanged();
 		});
 	}, _lifetime);
 
 	if (_instance->dcOptions()->dcType(_shiftedDcId) == DcType::Cdn) {
 		_instance->dcOptions()->cdnConfigChanged(
 		) | rpl::filter([=] {
-			return (_connection != nullptr);
+			return (_private != nullptr);
 		}) | rpl::start_with_next([=] {
-			InvokeQueued(_connection, [connection = _connection] {
-				connection->cdnConfigChanged();
+			InvokeQueued(_private, [captured = _private] {
+				captured->cdnConfigChanged();
 			});
 		}, _lifetime);
 	}
@@ -211,7 +210,7 @@ void Session::watchDcOptionsChanges() {
 
 void Session::start() {
 	killConnection();
-	_connection = new Connection(
+	_private = new SessionPrivate(
 		_instance,
 		_thread.get(),
 		_data,
@@ -231,9 +230,9 @@ void Session::restart() {
 		return;
 	}
 	refreshOptions();
-	if (const auto connection = _connection) {
-		InvokeQueued(connection, [=] {
-			connection->restartNow();
+	if (const auto captured = _private) {
+		InvokeQueued(captured, [=] {
+			captured->restartNow();
 		});
 	}
 }
@@ -248,7 +247,7 @@ void Session::refreshOptions() {
 	const auto useHttp = (proxyType != ProxyData::Type::Mtproto);
 	const auto useIPv4 = true;
 	const auto useIPv6 = Global::TryIPv6();
-	_data->setConnectionOptions(ConnectionOptions(
+	_data->setOptions(SessionOptions(
 		_instance->systemLangCode(),
 		_instance->cloudLangCode(),
 		_instance->langPackName(),
@@ -326,17 +325,17 @@ void Session::needToResumeAndSend() {
 		DEBUG_LOG(("Session Info: can't resume a killed session"));
 		return;
 	}
-	if (!_connection) {
+	if (!_private) {
 		DEBUG_LOG(("Session Info: resuming session dcWithShift %1").arg(_shiftedDcId));
 		start();
 	}
-	const auto connection = _connection;
+	const auto captured = _private;
 	const auto ping = base::take(_ping);
-	InvokeQueued(connection, [=] {
+	InvokeQueued(captured, [=] {
 		if (ping) {
-			connection->sendPingForce();
+			captured->sendPingForce();
 		} else {
-			connection->tryToSend();
+			captured->tryToSend();
 		}
 	});
 }
@@ -369,8 +368,8 @@ int32 Session::requestState(mtpRequestId requestId) const {
 	int32 result = MTP::RequestSent;
 
 	bool connected = false;
-	if (_connection) {
-		const auto s = _connection->getState();
+	if (_private) {
+		const auto s = _private->getState();
 		if (s == ConnectedState) {
 			connected = true;
 		} else if (s == ConnectingState || s == DisconnectedState) {
@@ -398,8 +397,8 @@ int32 Session::requestState(mtpRequestId requestId) const {
 int32 Session::getState() const {
 	int32 result = -86400000;
 
-	if (_connection) {
-		const auto s = _connection->getState();
+	if (_private) {
+		const auto s = _private->getState();
 		if (s == ConnectedState) {
 			return s;
 		} else if (s == ConnectingState || s == DisconnectedState) {
@@ -419,11 +418,11 @@ int32 Session::getState() const {
 }
 
 QString Session::transport() const {
-	return _connection ? _connection->transport() : QString();
+	return _private ? _private->transport() : QString();
 }
 
 void Session::sendPrepared(
-		const details::SerializedRequest &request,
+		const SerializedRequest &request,
 		crl::time msCanWait) {
 	DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1"
 		).arg(msCanWait));
@@ -563,14 +562,14 @@ void Session::tryToReceive() {
 }
 
 void Session::killConnection() {
-	if (!_connection) {
+	if (!_private) {
 		return;
 	}
 
-	base::take(_connection)->deleteLater();
+	base::take(_private)->deleteLater();
 
-	Ensures(_connection == nullptr);
+	Ensures(_private == nullptr);
 }
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

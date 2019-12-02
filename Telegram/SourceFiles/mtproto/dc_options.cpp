@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/dc_options.h"
 
+#include "mtproto/details/mtproto_rsa_public_key.h"
 #include "mtproto/facade.h"
-#include "storage/serialize_common.h"
 #include "mtproto/connection_tcp.h"
+#include "storage/serialize_common.h"
 
 namespace MTP {
 namespace {
+
+using namespace details;
 
 const char *(PublicRSAKeys[]) = { "\
 -----BEGIN RSA PUBLIC KEY-----\n\
@@ -102,6 +105,8 @@ DcOptions::DcOptions() {
 	constructFromBuiltIn();
 }
 
+DcOptions::~DcOptions() = default;
+
 bool DcOptions::ValidateSecret(bytes::const_span secret) {
 	// See also TcpConnection::Protocol::Create.
 	return (secret.size() >= 21 && secret[0] == bytes::type(0xEE))
@@ -113,7 +118,7 @@ bool DcOptions::ValidateSecret(bytes::const_span secret) {
 void DcOptions::readBuiltInPublicKeys() {
 	for (const auto key : PublicRSAKeys) {
 		const auto keyBytes = bytes::make_span(key, strlen(key));
-		auto parsed = internal::RSAPublicKey(keyBytes);
+		auto parsed = RSAPublicKey(keyBytes);
 		if (parsed.valid()) {
 			_publicKeys.emplace(parsed.fingerprint(), std::move(parsed));
 		} else {
@@ -512,7 +517,7 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 				return;
 			}
 
-			auto key = internal::RSAPublicKey(n, e);
+			auto key = RSAPublicKey(n, e);
 			if (key.valid()) {
 				_cdnPublicKeys[dcId].emplace(key.fingerprint(), std::move(key));
 			} else {
@@ -569,7 +574,7 @@ void DcOptions::setCDNConfig(const MTPDcdnConfig &config) {
 	for (const auto &key : config.vpublic_keys().v) {
 		key.match([&](const MTPDcdnPublicKey &data) {
 			const auto keyBytes = bytes::make_span(data.vpublic_key().v);
-			auto key = internal::RSAPublicKey(keyBytes);
+			auto key = RSAPublicKey(keyBytes);
 			if (key.valid()) {
 				_cdnPublicKeys[data.vdc_id().v].emplace(
 					key.fingerprint(),
@@ -590,18 +595,17 @@ bool DcOptions::hasCDNKeysForDc(DcId dcId) const {
 	return _cdnPublicKeys.find(dcId) != _cdnPublicKeys.cend();
 }
 
-internal::RSAPublicKey DcOptions::getDcRSAKey(
+RSAPublicKey DcOptions::getDcRSAKey(
 		DcId dcId,
 		const QVector<MTPlong> &fingerprints) const {
-	const auto findKey = [&](
-			const std::map<uint64, internal::RSAPublicKey> &keys) {
+	const auto findKey = [&](const std::map<uint64, RSAPublicKey> &keys) {
 		for (const auto &fingerprint : fingerprints) {
 			const auto it = keys.find(static_cast<uint64>(fingerprint.v));
 			if (it != keys.cend()) {
 				return it->second;
 			}
 		}
-		return internal::RSAPublicKey();
+		return RSAPublicKey();
 	};
 	{
 		ReadLocker lock(this);

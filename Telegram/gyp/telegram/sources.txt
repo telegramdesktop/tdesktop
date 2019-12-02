@@ -537,12 +537,8 @@
 <(src_loc)/media/view/media_view_group_thumbs.h
 <(src_loc)/media/view/media_view_overlay_widget.cpp
 <(src_loc)/media/view/media_view_overlay_widget.h
-<(src_loc)/mtproto/concurrent_sender.cpp
-<(src_loc)/mtproto/concurrent_sender.h
 <(src_loc)/mtproto/config_loader.cpp
 <(src_loc)/mtproto/config_loader.h
-<(src_loc)/mtproto/connection.cpp
-<(src_loc)/mtproto/connection.h
 <(src_loc)/mtproto/connection_abstract.cpp
 <(src_loc)/mtproto/connection_abstract.h
 <(src_loc)/mtproto/connection_http.cpp
@@ -552,8 +548,6 @@
 <(src_loc)/mtproto/connection_tcp.cpp
 <(src_loc)/mtproto/connection_tcp.h
 <(src_loc)/mtproto/core_types.h
-<(src_loc)/mtproto/dcenter.cpp
-<(src_loc)/mtproto/dcenter.h
 <(src_loc)/mtproto/dc_options.cpp
 <(src_loc)/mtproto/dc_options.h
 <(src_loc)/mtproto/dedicated_file_loader.cpp
@@ -565,6 +559,8 @@
 <(src_loc)/mtproto/sender.h
 <(src_loc)/mtproto/session.cpp
 <(src_loc)/mtproto/session.h
+<(src_loc)/mtproto/session_private.cpp
+<(src_loc)/mtproto/session_private.h
 <(src_loc)/mtproto/special_config_request.cpp
 <(src_loc)/mtproto/special_config_request.h
 <(src_loc)/mtproto/type_utils.h

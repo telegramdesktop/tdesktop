@@ -7,14 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/mtp_instance.h"
 
+#include "mtproto/details/mtproto_dcenter.h"
+#include "mtproto/details/mtproto_rsa_public_key.h"
+#include "mtproto/special_config_request.h"
 #include "mtproto/session.h"
 #include "mtproto/dc_options.h"
-#include "mtproto/dcenter.h"
 #include "mtproto/config_loader.h"
-#include "mtproto/special_config_request.h"
-#include "mtproto/connection.h"
 #include "mtproto/sender.h"
-#include "mtproto/mtproto_rsa_public_key.h"
 #include "storage/localstorage.h"
 #include "calls/calls_instance.h"
 #include "main/main_session.h" // Session::Exists.
@@ -35,14 +34,13 @@ constexpr auto kConfigBecomesOldIn = 2 * 60 * crl::time(1000);
 constexpr auto kConfigBecomesOldForBlockedIn = 8 * crl::time(1000);
 constexpr auto kCheckKeyEach = 60 * crl::time(1000);
 
-using namespace internal;
 using namespace details;
 
 std::atomic<int> GlobalAtomicRequestId = 0;
 
 } // namespace
 
-namespace internal {
+namespace details {
 
 int GetNextRequestId() {
 	const auto result = ++GlobalAtomicRequestId;
@@ -52,7 +50,7 @@ int GetNextRequestId() {
 	return result;
 }
 
-} // namespace internal
+} // namespace details
 
 class Instance::Private : private Sender {
 public:

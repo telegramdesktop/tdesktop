@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/details/mtproto_dc_key_creator.h"
 
+#include "mtproto/details/mtproto_rsa_public_key.h"
 #include "mtproto/connection_abstract.h"
 #include "mtproto/mtproto_dh_utils.h"
 #include "base/openssl_help.h"

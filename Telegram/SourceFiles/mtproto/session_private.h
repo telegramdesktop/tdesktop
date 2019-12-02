@@ -21,26 +21,23 @@ namespace details {
 class BoundKeyCreator;
 } // namespace details
 
-// How much time to wait for some more requests, when sending msg acks.
-constexpr auto kAckSendWaiting = 10 * crl::time(1000);
-
 class Instance;
 
-namespace internal {
+namespace details {
 
 class AbstractConnection;
 class SessionData;
 class RSAPublicKey;
-struct ConnectionOptions;
+struct SessionOptions;
 
-class Connection : public QObject {
+class SessionPrivate final : public QObject {
 public:
-	Connection(
+	SessionPrivate(
 		not_null<Instance*> instance,
 		not_null<QThread*> thread,
 		std::shared_ptr<SessionData> data,
 		ShiftedDcId shiftedDcId);
-	~Connection();
+	~SessionPrivate();
 
 	[[nodiscard]] int32 getShiftedDcId() const;
 	void dcOptionsChanged();
@@ -106,20 +103,20 @@ private:
 	void clearOldContainers();
 
 	mtpMsgId placeToContainer(
-		details::SerializedRequest &toSendRequest,
+		SerializedRequest &toSendRequest,
 		mtpMsgId &bigMsgId,
 		bool forceNewMsgId,
-		details::SerializedRequest &req);
+		SerializedRequest &req);
 	mtpMsgId prepareToSend(
-		details::SerializedRequest &request,
+		SerializedRequest &request,
 		mtpMsgId currentLastId,
 		bool forceNewMsgId);
 	mtpMsgId replaceMsgId(
-		details::SerializedRequest &request,
+		SerializedRequest &request,
 		mtpMsgId newId);
 
 	bool sendSecureRequest(
-		details::SerializedRequest &&request,
+		SerializedRequest &&request,
 		bool needAnyResponse);
 	mtpRequestId wasSent(mtpMsgId msgId) const;
 
@@ -205,7 +202,7 @@ private:
 	base::Timer _checkSentRequestsTimer;
 
 	std::shared_ptr<SessionData> _sessionData;
-	std::unique_ptr<ConnectionOptions> _connectionOptions;
+	std::unique_ptr<SessionOptions> _options;
 	AuthKeyPtr _encryptionKey;
 	uint64 _keyId = 0;
 	uint64 _sessionId = 0;
@@ -216,16 +213,16 @@ private:
 	QVector<MTPlong> _ackRequestData;
 	QVector<MTPlong> _resendRequestData;
 	base::flat_set<mtpMsgId> _stateRequestData;
-	details::ReceivedIdsManager _receivedMessageIds;
+	ReceivedIdsManager _receivedMessageIds;
 	base::flat_map<mtpMsgId, mtpRequestId> _resendingIds;
 	base::flat_map<mtpMsgId, mtpRequestId> _ackedIds;
-	base::flat_map<mtpMsgId, details::SerializedRequest> _stateAndResendRequests;
+	base::flat_map<mtpMsgId, SerializedRequest> _stateAndResendRequests;
 	base::flat_map<mtpMsgId, SentContainer> _sentContainers;
 
-	std::unique_ptr<details::BoundKeyCreator> _keyCreator;
+	std::unique_ptr<BoundKeyCreator> _keyCreator;
 	mtpMsgId _bindMsgId = 0;
 
 };
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

@@ -14,7 +14,7 @@ from generate_tl import generate
 
 generate({
   'namespaces': {
-    'creator': 'MTP::internal',
+    'creator': 'MTP::details',
   },
   'prefixes': {
     'type': 'MTP',

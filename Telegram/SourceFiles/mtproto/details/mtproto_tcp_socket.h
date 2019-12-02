@@ -7,10 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/mtproto_abstract_socket.h"
+#include "mtproto/details/mtproto_abstract_socket.h"
 
-namespace MTP {
-namespace internal {
+namespace MTP::details {
 
 class TcpSocket final : public AbstractSocket {
 public:
@@ -35,5 +34,4 @@ private:
 
 };
 
-} // namespace internal
-} // namespace MTP
+} // namespace MTP::details

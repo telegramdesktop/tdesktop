@@ -7,13 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QReadWriteLock>
+
 namespace MTP {
 
 class Instance;
 class AuthKey;
 using AuthKeyPtr = std::shared_ptr<AuthKey>;
 
-namespace internal {
+namespace details {
 
 enum class TemporaryKeyType {
 	Regular,
@@ -61,5 +63,5 @@ private:
 
 };
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

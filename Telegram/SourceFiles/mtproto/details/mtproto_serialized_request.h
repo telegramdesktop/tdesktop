@@ -11,7 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <crl/crl_time.h>
 
-namespace MTP::details {
+namespace MTP {
+namespace details {
 
 class RequestData;
 class SerializedRequest;
@@ -44,7 +45,7 @@ public:
 	template <
 		typename Request,
 		typename = std::enable_if_t<tl::is_boxed_v<Request>>>
-	static SerializedRequest Serialize(const Request &request);
+		static SerializedRequest Serialize(const Request &request);
 
 	// For template MTP requests and MTPBoxed instantiation.
 	template <typename Accumulator>
@@ -102,4 +103,5 @@ SerializedRequest SerializedRequest::Serialize(const Request &request) {
 	return serialized;
 }
 
-} // namespace MTP::details
+} // namespace details
+} // namespace MTP

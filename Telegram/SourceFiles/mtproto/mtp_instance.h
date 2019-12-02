@@ -11,14 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/details/mtproto_serialized_request.h"
 
 namespace MTP {
-namespace internal {
+namespace details {
 
 class Dcenter;
 class Session;
 
 [[nodiscard]] int GetNextRequestId();
 
-} // namespace internal
+} // namespace details
 
 class DcOptions;
 class AuthKey;
@@ -131,7 +131,7 @@ public:
 			ShiftedDcId shiftedDcId = 0,
 			crl::time msCanWait = 0,
 			mtpRequestId afterRequestId = 0) {
-		const auto requestId = internal::GetNextRequestId();
+		const auto requestId = details::GetNextRequestId();
 		sendSerialized(
 			requestId,
 			details::SerializedRequest::Serialize(request),
@@ -162,7 +162,7 @@ public:
 	mtpRequestId sendProtocolMessage(
 			ShiftedDcId shiftedDcId,
 			const Request &request) {
-		const auto requestId = internal::GetNextRequestId();
+		const auto requestId = details::GetNextRequestId();
 		sendRequest(
 			requestId,
 			details::SerializedRequest::Serialize(request),

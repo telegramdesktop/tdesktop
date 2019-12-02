@@ -11,13 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 
 namespace MTP {
-namespace internal {
+namespace details {
 
 [[nodiscard]] bool paused();
 void pause();
 void unpause();
 
-} // namespace internal
+} // namespace details
 
 // send(MTPhelp_GetConfig(), MTP::configDcId(dc)) - for dc enumeration
 constexpr ShiftedDcId configDcId(DcId dcId) {
@@ -37,23 +37,24 @@ constexpr ShiftedDcId updaterDcId(DcId dcId) {
 constexpr auto kDownloadSessionsCount = 2;
 constexpr auto kUploadSessionsCount = 2;
 
-namespace internal {
+namespace details {
 
 constexpr ShiftedDcId downloadDcId(DcId dcId, int index) {
 	static_assert(kDownloadSessionsCount < kMaxMediaDcCount, "Too large MTPDownloadSessionsCount!");
 	return ShiftDcId(dcId, kBaseDownloadDcShift + index);
 };
 
-} // namespace internal
+} // namespace details
 
 // send(req, callbacks, MTP::downloadDcId(dc, index)) - for download shifted dc id
 inline ShiftedDcId downloadDcId(DcId dcId, int index) {
 	Expects(index >= 0 && index < kDownloadSessionsCount);
-	return internal::downloadDcId(dcId, index);
+	return details::downloadDcId(dcId, index);
 }
 
 inline constexpr bool isDownloadDcId(ShiftedDcId shiftedDcId) {
-	return (shiftedDcId >= internal::downloadDcId(0, 0)) && (shiftedDcId < internal::downloadDcId(0, kDownloadSessionsCount - 1) + kDcShift);
+	return (shiftedDcId >= details::downloadDcId(0, 0))
+		&& (shiftedDcId < details::downloadDcId(0, kDownloadSessionsCount - 1) + kDcShift);
 }
 
 inline bool isCdnDc(MTPDdcOption::Flags flags) {
@@ -75,25 +76,26 @@ inline DcId getTemporaryIdFromRealDcId(ShiftedDcId shiftedDcId) {
 	return (dcId < Instance::Config::kTemporaryMainDc) ? (dcId + Instance::Config::kTemporaryMainDc) : 0;
 }
 
-namespace internal {
+namespace details {
 
 constexpr ShiftedDcId uploadDcId(DcId dcId, int index) {
 	static_assert(kUploadSessionsCount < kMaxMediaDcCount, "Too large MTPUploadSessionsCount!");
 	return ShiftDcId(dcId, kBaseUploadDcShift + index);
 };
 
-} // namespace internal
+} // namespace details
 
 // send(req, callbacks, MTP::uploadDcId(index)) - for upload shifted dc id
 // uploading always to the main dc so BareDcId(result) == 0
 inline ShiftedDcId uploadDcId(int index) {
 	Expects(index >= 0 && index < kUploadSessionsCount);
 
-	return internal::uploadDcId(0, index);
+	return details::uploadDcId(0, index);
 };
 
 constexpr bool isUploadDcId(ShiftedDcId shiftedDcId) {
-	return (shiftedDcId >= internal::uploadDcId(0, 0)) && (shiftedDcId < internal::uploadDcId(0, kUploadSessionsCount - 1) + kDcShift);
+	return (shiftedDcId >= details::uploadDcId(0, 0))
+		&& (shiftedDcId < details::uploadDcId(0, kUploadSessionsCount - 1) + kDcShift);
 }
 
 inline ShiftedDcId destroyKeyNextDcId(ShiftedDcId shiftedDcId) {

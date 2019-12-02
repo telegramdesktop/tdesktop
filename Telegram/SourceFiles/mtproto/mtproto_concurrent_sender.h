@@ -7,12 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/details/callable.h>
 #include "base/bytes.h"
 #include "base/weak_ptr.h"
 #include "base/flat_map.h"
 #include "mtproto/core_types.h"
 #include "mtproto/details/mtproto_serialized_request.h"
+
+#include <rpl/details/callable.h>
 
 #ifndef _DEBUG
 #define MTP_SENDER_USE_GENERIC_HANDLERS

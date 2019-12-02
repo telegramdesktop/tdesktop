@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "storage/localstorage.h"
 #include "platform/platform_file_utilities.h"
-#include "mtproto/connection.h" // for MTP::kAckSendWaiting
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "core/crash_reports.h"
@@ -28,7 +27,7 @@ namespace Storage {
 namespace {
 
 // How much time without download causes additional session kill.
-constexpr auto kKillSessionTimeout = crl::time(5000);
+constexpr auto kKillSessionTimeout = 15 * crl::time(1000);
 
 // Max 16 file parts downloaded at the same time, 128 KB each.
 constexpr auto kMaxFileQueries = 16;
@@ -75,11 +74,10 @@ void Downloader::killDownloadSessionsStart(MTP::DcId dcId) {
 	if (!_killDownloadSessionTimes.contains(dcId)) {
 		_killDownloadSessionTimes.emplace(
 			dcId,
-			crl::now() + MTP::kAckSendWaiting + kKillSessionTimeout);
+			crl::now() + kKillSessionTimeout);
 	}
 	if (!_killDownloadSessionsTimer.isActive()) {
-		_killDownloadSessionsTimer.callOnce(
-			MTP::kAckSendWaiting + kKillSessionTimeout + 5);
+		_killDownloadSessionsTimer.callOnce(kKillSessionTimeout + 5);
 	}
 }
 
@@ -92,16 +90,17 @@ void Downloader::killDownloadSessionsStop(MTP::DcId dcId) {
 }
 
 void Downloader::killDownloadSessions() {
-	auto ms = crl::now(), left = MTP::kAckSendWaiting + kKillSessionTimeout;
+	const auto now = crl::now();
+	auto left = kKillSessionTimeout;
 	for (auto i = _killDownloadSessionTimes.begin(); i != _killDownloadSessionTimes.end(); ) {
-		if (i->second <= ms) {
+		if (i->second <= now) {
 			for (int j = 0; j < MTP::kDownloadSessionsCount; ++j) {
 				MTP::stopSession(MTP::downloadDcId(i->first, j));
 			}
 			i = _killDownloadSessionTimes.erase(i);
 		} else {
-			if (i->second - ms < left) {
-				left = i->second - ms;
+			if (i->second - now < left) {
+				left = i->second - now;
 			}
 			++i;
 		}

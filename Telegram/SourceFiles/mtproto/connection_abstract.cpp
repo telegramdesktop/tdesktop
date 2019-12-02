@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 
 namespace MTP {
-namespace internal {
+namespace details {
 
 ConnectionPointer::ConnectionPointer() = default;
 
@@ -194,5 +194,5 @@ uint32 AbstractConnection::extendedNotSecurePadding() const {
 		: 0;
 }
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

@@ -20,17 +20,17 @@ class Instance;
 class AuthKey;
 using AuthKeyPtr = std::shared_ptr<AuthKey>;
 
-namespace internal {
+namespace details {
 
 class Dcenter;
-class Connection;
+class SessionPrivate;
 
 enum class TemporaryKeyType;
 enum class CreatingKeyType;
 
-struct ConnectionOptions {
-	ConnectionOptions() = default;
-	ConnectionOptions(
+struct SessionOptions {
+	SessionOptions() = default;
+	SessionOptions(
 		const QString &systemLangCode,
 		const QString &cloudLangCode,
 		const QString &langPackName,
@@ -39,8 +39,6 @@ struct ConnectionOptions {
 		bool useIPv6,
 		bool useHttp,
 		bool useTcp);
-	ConnectionOptions(const ConnectionOptions &other) = default;
-	ConnectionOptions &operator=(const ConnectionOptions &other) = default;
 
 	QString systemLangCode;
 	QString cloudLangCode;
@@ -54,17 +52,17 @@ struct ConnectionOptions {
 };
 
 class Session;
-class SessionData {
+class SessionData final {
 public:
 	explicit SessionData(not_null<Session*> creator) : _owner(creator) {
 	}
 
-	void notifyConnectionInited(const ConnectionOptions &options);
-	void setConnectionOptions(ConnectionOptions options) {
+	void notifyConnectionInited(const SessionOptions &options);
+	void setOptions(SessionOptions options) {
 		QWriteLocker locker(&_optionsLock);
 		_options = options;
 	}
-	[[nodiscard]] ConnectionOptions connectionOptions() const {
+	[[nodiscard]] SessionOptions options() const {
 		QReadLocker locker(&_optionsLock);
 		return _options;
 	}
@@ -79,10 +77,10 @@ public:
 		return &_haveReceivedLock;
 	}
 
-	base::flat_map<mtpRequestId, details::SerializedRequest> &toSendMap() {
+	base::flat_map<mtpRequestId, SerializedRequest> &toSendMap() {
 		return _toSend;
 	}
-	base::flat_map<mtpMsgId, details::SerializedRequest> &haveSentMap() {
+	base::flat_map<mtpMsgId, SerializedRequest> &haveSentMap() {
 		return _haveSent;
 	}
 	base::flat_map<mtpRequestId, mtpBuffer> &haveReceivedResponses() {
@@ -92,7 +90,7 @@ public:
 		return _receivedUpdates;
 	}
 
-	// Connection -> Session interface.
+	// SessionPrivate -> Session interface.
 	void queueTryToReceive();
 	void queueNeedToResumeAndSend();
 	void queueConnectionStateChange(int newState);
@@ -118,13 +116,13 @@ private:
 	Session *_owner = nullptr;
 	mutable QMutex _ownerMutex;
 
-	ConnectionOptions _options;
+	SessionOptions _options;
 	mutable QReadWriteLock _optionsLock;
 
-	base::flat_map<mtpRequestId, details::SerializedRequest> _toSend; // map of request_id -> request, that is waiting to be sent
+	base::flat_map<mtpRequestId, SerializedRequest> _toSend; // map of request_id -> request, that is waiting to be sent
 	QReadWriteLock _toSendLock;
 
-	base::flat_map<mtpMsgId, details::SerializedRequest> _haveSent; // map of msg_id -> request, that was sent
+	base::flat_map<mtpMsgId, SerializedRequest> _haveSent; // map of msg_id -> request, that was sent
 	QReadWriteLock _haveSentLock;
 
 	base::flat_map<mtpRequestId, mtpBuffer> _receivedResponses; // map of request_id -> response that should be processed in the main thread
@@ -133,7 +131,7 @@ private:
 
 };
 
-class Session : public QObject {
+class Session final : public QObject {
 public:
 	// Main thread.
 	Session(
@@ -159,10 +157,10 @@ public:
 	[[nodiscard]] AuthKeyPtr getTemporaryKey(TemporaryKeyType type) const;
 	[[nodiscard]] bool connectionInited() const;
 	void sendPrepared(
-		const details::SerializedRequest &request,
+		const SerializedRequest &request,
 		crl::time msCanWait = 0);
 
-	// Connection thread.
+	// SessionPrivate thread.
 	[[nodiscard]] CreatingKeyType acquireKeyCreation(TemporaryKeyType type);
 	[[nodiscard]] bool releaseKeyCreationOnDone(
 		const AuthKeyPtr &temporaryKey,
@@ -201,7 +199,7 @@ private:
 	const std::shared_ptr<SessionData> _data;
 	const not_null<QThread*> _thread;
 
-	Connection *_connection = nullptr;
+	SessionPrivate *_private = nullptr;
 
 	bool _killed = false;
 	bool _needToReceive = false;
@@ -221,5 +219,5 @@ private:
 
 };
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

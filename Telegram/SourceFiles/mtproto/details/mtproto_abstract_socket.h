@@ -10,8 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/bytes.h"
 #include "base/basic_types.h"
 
-namespace MTP {
-namespace internal {
+namespace MTP::details {
 
 class AbstractSocket : protected QObject {
 public:
@@ -62,5 +61,4 @@ protected:
 
 };
 
-} // namespace internal
-} // namespace MTP
+} // namespace MTP::details

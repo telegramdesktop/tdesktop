@@ -5,9 +5,9 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mtproto/mtproto_tls_socket.h"
+#include "mtproto/details/mtproto_tls_socket.h"
 
-#include "mtproto/mtproto_tcp_socket.h"
+#include "mtproto/details/mtproto_tcp_socket.h"
 #include "base/openssl_help.h"
 #include "base/bytes.h"
 #include "base/invoke_queued.h"
@@ -16,8 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QtEndian>
 #include <range/v3/algorithm/reverse.hpp>
 
-namespace MTP {
-namespace internal {
+namespace MTP::details {
 namespace {
 
 constexpr auto kMaxGrease = 8;
@@ -778,5 +777,4 @@ void TlsSocket::handleError(int errorCode) {
 	_error.fire({});
 }
 
-} // namespace internal
-} // namespace MTP
+} // namespace MTP::details

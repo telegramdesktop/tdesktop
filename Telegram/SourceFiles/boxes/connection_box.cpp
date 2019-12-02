@@ -1059,7 +1059,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 
 	item.state = ItemState::Checking;
 	const auto setup = [&](Checker &checker, const bytes::vector &secret) {
-		checker = MTP::internal::AbstractConnection::Create(
+		checker = MTP::details::AbstractConnection::Create(
 			mtproto,
 			type,
 			QThread::currentThread(),
@@ -1107,7 +1107,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 }
 
 void ProxiesBoxController::setupChecker(int id, const Checker &checker) {
-	using Connection = MTP::internal::AbstractConnection;
+	using Connection = MTP::details::AbstractConnection;
 	const auto pointer = checker.get();
 	pointer->connect(pointer, &Connection::connected, [=] {
 		const auto item = findById(id);

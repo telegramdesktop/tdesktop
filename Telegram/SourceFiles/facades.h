@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/type_traits.h"
 #include "base/observer.h"
 #include "base/call_delayed.h"
-#include "ui/effects/animation_value.h"
 #include "mtproto/mtproto_proxy_data.h"
 
 class History;

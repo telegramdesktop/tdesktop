@@ -5,12 +5,11 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mtproto/mtproto_rsa_public_key.h"
+#include "mtproto/details/mtproto_rsa_public_key.h"
 
 #include "base/openssl_help.h"
 
-namespace MTP {
-namespace internal {
+namespace MTP::details {
 namespace {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x2070000fL)
 
@@ -292,5 +291,4 @@ bytes::vector RSAPublicKey::encryptOAEPpadding(
 	return _private->encryptOAEPpadding(data);
 }
 
-} // namespace internal
-} // namespace MTP
+} // namespace MTP::details

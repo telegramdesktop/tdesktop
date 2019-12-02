@@ -19,8 +19,6 @@ class DcOptions;
 
 namespace MTP::details {
 
-using namespace ::MTP::internal;
-
 struct DcKeyRequest {
 	TimeId temporaryExpiresIn = 0;
 	bool persistentNeeded = false;

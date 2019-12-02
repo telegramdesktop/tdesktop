@@ -9,8 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/bytes.h"
 
-namespace MTP {
-namespace internal {
+namespace MTP::details {
 
 // this class holds an RSA public key and can encrypt fixed-size messages with it
 class RSAPublicKey final {
@@ -47,5 +46,4 @@ private:
 
 };
 
-} // namespace internal
-} // namespace MTP
+} // namespace MTP::details

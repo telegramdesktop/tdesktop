@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 namespace MTP {
-namespace internal {
+namespace details {
 
 class ResolvingConnection : public AbstractConnection {
 public:
@@ -67,5 +67,5 @@ private:
 
 };
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

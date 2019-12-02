@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/observer.h"
 #include "base/bytes.h"
-#include "mtproto/mtproto_rsa_public_key.h"
 
 #include <QtCore/QReadWriteLock>
 #include <string>
@@ -18,6 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <set>
 
 namespace MTP {
+namespace details {
+class RSAPublicKey;
+} // namespace details
 
 enum class DcType {
 	Regular,
@@ -52,6 +54,7 @@ public:
 	};
 
 	DcOptions();
+	~DcOptions();
 
 	[[nodiscard]] static bool ValidateSecret(bytes::const_span secret);
 
@@ -95,7 +98,7 @@ public:
 
 	void setCDNConfig(const MTPDcdnConfig &config);
 	[[nodiscard]] bool hasCDNKeysForDc(DcId dcId) const;
-	[[nodiscard]] internal::RSAPublicKey getDcRSAKey(
+	[[nodiscard]] details::RSAPublicKey getDcRSAKey(
 		DcId dcId,
 		const QVector<MTPlong> &fingerprints) const;
 
@@ -137,8 +140,8 @@ private:
 
 	std::map<DcId, std::vector<Endpoint>> _data;
 	std::set<DcId> _cdnDcIds;
-	std::map<uint64, internal::RSAPublicKey> _publicKeys;
-	std::map<DcId, std::map<uint64, internal::RSAPublicKey>> _cdnPublicKeys;
+	std::map<uint64, details::RSAPublicKey> _publicKeys;
+	std::map<DcId, std::map<uint64, details::RSAPublicKey>> _cdnPublicKeys;
 	mutable QReadWriteLock _useThroughLockers;
 
 	rpl::event_stream<DcId> _changed;

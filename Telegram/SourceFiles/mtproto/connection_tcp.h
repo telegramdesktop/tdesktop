@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_auth_key.h"
 
 namespace MTP {
-namespace internal {
+namespace details {
 
 class AbstractSocket;
 
@@ -98,5 +98,5 @@ private:
 
 };
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

@@ -5,12 +5,11 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mtproto/mtproto_tcp_socket.h"
+#include "mtproto/details/mtproto_tcp_socket.h"
 
 #include "base/invoke_queued.h"
 
-namespace MTP {
-namespace internal {
+namespace MTP::details {
 
 TcpSocket::TcpSocket(not_null<QThread*> thread, const QNetworkProxy &proxy)
 : AbstractSocket(thread) {
@@ -153,5 +152,4 @@ void TcpSocket::handleError(int errorCode) {
 	_error.fire({});
 }
 
-} // namespace internal
-} // namespace MTP
+} // namespace MTP::details

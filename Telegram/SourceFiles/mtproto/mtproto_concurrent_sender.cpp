@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mtproto/concurrent_sender.h"
+#include "mtproto/mtproto_concurrent_sender.h"
 
 #include "mtproto/mtp_instance.h"
 #include "mtproto/mtproto_rpc_sender.h"
@@ -135,7 +135,7 @@ void ConcurrentSender::RequestBuilder::setAfter(
 }
 
 mtpRequestId ConcurrentSender::RequestBuilder::send() {
-	const auto requestId = internal::GetNextRequestId();
+	const auto requestId = details::GetNextRequestId();
 	const auto dcId = _dcId;
 	const auto msCanWait = _canWait;
 	const auto afterRequestId = _afterRequestId;

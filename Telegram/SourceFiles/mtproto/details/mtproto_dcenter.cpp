@@ -5,17 +5,16 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mtproto/dcenter.h"
+#include "mtproto/details/mtproto_dcenter.h"
 
 #include "mtproto/facade.h"
 #include "mtproto/mtproto_auth_key.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/mtp_instance.h"
 #include "mtproto/special_config_request.h"
-#include "storage/localstorage.h"
 
 namespace MTP {
-namespace internal {
+namespace details {
 namespace {
 
 constexpr auto kEnumerateDcTimeout = 8000; // 8 seconds timeout for help_getConfig to work (then move to other dc)
@@ -165,5 +164,5 @@ void Dcenter::releaseKeyCreationOnFail(CreatingKeyType type) {
 	_creatingKeys[IndexByType(type)] = false;
 }
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

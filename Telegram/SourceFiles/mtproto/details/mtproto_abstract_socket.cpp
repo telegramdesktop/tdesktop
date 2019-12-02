@@ -5,13 +5,12 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mtproto/mtproto_abstract_socket.h"
+#include "mtproto/details/mtproto_abstract_socket.h"
 
-#include "mtproto/mtproto_tcp_socket.h"
-#include "mtproto/mtproto_tls_socket.h"
+#include "mtproto/details/mtproto_tcp_socket.h"
+#include "mtproto/details/mtproto_tls_socket.h"
 
-namespace MTP {
-namespace internal {
+namespace MTP::details {
 
 std::unique_ptr<AbstractSocket> AbstractSocket::Create(
 		not_null<QThread*> thread,
@@ -24,5 +23,4 @@ std::unique_ptr<AbstractSocket> AbstractSocket::Create(
 	}
 }
 
-} // namespace internal
-} // namespace MTP
+} // namespace MTP::details
