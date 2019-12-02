@@ -106,7 +106,6 @@ private:
 	void clearOldContainers();
 
 	mtpMsgId placeToContainer(
-		SentContainer &sentIdsWrap,
 		details::SerializedRequest &toSendRequest,
 		mtpMsgId &bigMsgId,
 		bool forceNewMsgId,

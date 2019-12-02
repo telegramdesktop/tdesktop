@@ -249,19 +249,30 @@ void Connection::checkSentRequests() {
 }
 
 void Connection::clearOldContainers() {
+	auto resent = false;
 	const auto now = crl::now();
 	for (auto i = _sentContainers.begin(); i != _sentContainers.end();) {
 		if (now > i->second.sent + kSentContainerLives) {
-			DEBUG_LOG(("MTP Info: Removing old container %1, "
+			DEBUG_LOG(("MTP Info: Removing old container with resending %1, "
 				"sent: %2, now: %3, current unixtime: %4"
 				).arg(i->first
 				).arg(i->second.sent
 				).arg(now
 				).arg(base::unixtime::now()));
+
+			const auto ids = std::move(i->second.messages);
 			i = _sentContainers.erase(i);
+
+			resent = resent || !ids.empty();
+			for (const auto innerMsgId : ids) {
+				resend(innerMsgId, -1, true);
+			}
 		} else {
 			++i;
 		}
+	}
+	if (resent) {
+		_sessionData->queueNeedToResumeAndSend();
 	}
 }
 
@@ -464,7 +475,6 @@ mtpMsgId Connection::replaceMsgId(SerializedRequest &request, mtpMsgId newId) {
 }
 
 mtpMsgId Connection::placeToContainer(
-		SentContainer &sentIdsWrap,
 		SerializedRequest &toSendRequest,
 		mtpMsgId &bigMsgId,
 		bool forceNewMsgId,
@@ -473,7 +483,6 @@ mtpMsgId Connection::placeToContainer(
 	if (msgId >= bigMsgId) {
 		bigMsgId = base::unixtime::mtproto_msg_id();
 	}
-	sentIdsWrap.messages.push_back(msgId);
 
 	uint32 from = toSendRequest->size(), len = req.messageSize();
 	toSendRequest->resize(from + len);
@@ -554,6 +563,8 @@ void Connection::tryToSend() {
 			resendRequest = SerializedRequest::Serialize(MTPMsgResendReq(
 				MTP_msg_resend_req(MTP_vector<MTPlong>(
 					base::take(_resendRequestData)))));
+			// Add to haveSent / _ackedIds, but don't add to requestMap.
+			resendRequest->requestId = GetNextRequestId();
 		}
 		if (!_stateRequestData.empty()) {
 			auto ids = QVector<MTPlong>();
@@ -768,7 +779,6 @@ void Connection::tryToSend() {
 
 			if (bindDcKeyRequest) {
 				_bindMsgId = placeToContainer(
-					sentIdsWrap,
 					toSendRequest,
 					bigMsgId,
 					false,
@@ -777,14 +787,10 @@ void Connection::tryToSend() {
 			}
 			if (pingRequest) {
 				_pingMsgId = placeToContainer(
-					sentIdsWrap,
 					toSendRequest,
 					bigMsgId,
 					forceNewMsgId,
 					pingRequest);
-				needAnyResponse = true;
-			}
-			if (resendRequest || stateRequest) {
 				needAnyResponse = true;
 			}
 			for (auto &[requestId, request] : toSend) {
@@ -792,7 +798,6 @@ void Connection::tryToSend() {
 					request,
 					bigMsgId,
 					forceNewMsgId);
-				sentIdsWrap.messages.push_back(msgId);
 				if (msgId >= bigMsgId) {
 					bigMsgId = base::unixtime::mtproto_msg_id();
 				}
@@ -816,9 +821,10 @@ void Connection::tryToSend() {
 							*(toSendRequest->data() + reqNeedsLayer + 3) += initSize;
 							added = true;
 						}
+
 						Assert(!haveSent.contains(msgId));
 						haveSent.emplace(msgId, request);
-
+						sentIdsWrap.messages.push_back(msgId);
 						needAnyResponse = true;
 					} else {
 						_ackedIds.emplace(msgId, request->requestId);
@@ -832,25 +838,28 @@ void Connection::tryToSend() {
 			}
 			if (stateRequest) {
 				const auto msgId = placeToContainer(
-					sentIdsWrap,
 					toSendRequest,
 					bigMsgId,
 					forceNewMsgId,
 					stateRequest);
 				Assert(!haveSent.contains(msgId));
 				haveSent.emplace(msgId, stateRequest);
+				sentIdsWrap.messages.push_back(msgId);
+				needAnyResponse = true;
 			}
 			if (resendRequest) {
-				placeToContainer(
-					sentIdsWrap,
+				const auto msgId = placeToContainer(
 					toSendRequest,
 					bigMsgId,
 					forceNewMsgId,
 					resendRequest);
+				Assert(!haveSent.contains(msgId));
+				haveSent.emplace(msgId, resendRequest);
+				sentIdsWrap.messages.push_back(msgId);
+				needAnyResponse = true;
 			}
 			if (ackRequest) {
 				placeToContainer(
-					sentIdsWrap,
 					toSendRequest,
 					bigMsgId,
 					forceNewMsgId,
@@ -858,7 +867,6 @@ void Connection::tryToSend() {
 			}
 			if (httpWaitRequest) {
 				placeToContainer(
-					sentIdsWrap,
 					toSendRequest,
 					bigMsgId,
 					forceNewMsgId,
@@ -1959,7 +1967,6 @@ void Connection::requestsAcked(const QVector<MTPlong> &ids, bool byResponse) {
 
 	DEBUG_LOG(("Message Info: requests acked, ids %1").arg(LogIdsVector(ids)));
 
-	auto clearedBecauseTooOld = std::vector<RPCCallbackClear>();
 	QVector<MTPlong> toAckMore;
 	{
 		QWriteLocker locker2(_sessionData->haveSentMutex());
@@ -2023,7 +2030,6 @@ void Connection::requestsAcked(const QVector<MTPlong> &ids, bool byResponse) {
 	auto ackedCount = _ackedIds.size();
 	if (ackedCount > kIdsBufferSize) {
 		DEBUG_LOG(("Message Info: removing some old acked sent msgIds %1").arg(ackedCount - kIdsBufferSize));
-		clearedBecauseTooOld.reserve(ackedCount - kIdsBufferSize);
 		while (ackedCount-- > kIdsBufferSize) {
 			_ackedIds.erase(_ackedIds.begin());
 		}
