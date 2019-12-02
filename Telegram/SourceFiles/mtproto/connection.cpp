@@ -218,41 +218,51 @@ int16 Connection::getProtocolDcId() const {
 void Connection::checkSentRequests() {
 	// Remove very old (10 minutes) containers and resend requests.
 	auto removingIds = std::vector<mtpMsgId>();
+	auto restarting = false;
 	auto requesting = false;
 	{
 		QReadLocker locker(_sessionData->haveSentMutex());
 		auto &haveSent = _sessionData->haveSentMap();
 		const auto haveSentCount = haveSent.size();
-		auto now = crl::now();
+		const auto now = crl::now();
+		const auto checkAfter = kCheckSentRequestTimeout;
 		for (const auto &[msgId, request] : haveSent) {
 			if (request.isStateRequest()) {
 				continue;
 			} else if (request.isSentContainer()) {
-				if (base::unixtime::now()
-					> int32(msgId >> 32) + kContainerLives) {
+				if (now > request->lastSentTime + kContainerLives) {
 					removingIds.push_back(msgId);
+					DEBUG_LOG(("MTP Info: Removing old container %1, "
+						"sent: %2, now: %3, current unixtime: %4"
+						).arg(msgId
+						).arg(request->lastSentTime
+						).arg(now
+						).arg(base::unixtime::now()));
 				}
-			} else if (request->lastSentTime + kCheckSentRequestTimeout
-				< now) {
+			} else if (request->lastSentTime + checkAfter < now) {
 				// Need to check state.
 				request->lastSentTime = now;
-				if (_stateRequestData.emplace(msgId).second) {
+				if (_bindMsgId) {
+					restarting = true;
+				} else if (_stateRequestData.emplace(msgId).second) {
 					requesting = true;
 				}
 			}
 		}
 	}
-	if (requesting) {
-		_sessionData->queueSendAnything(kSendStateRequestWaiting);
-	}
 	if (!removingIds.empty()) {
 		QWriteLocker locker(_sessionData->haveSentMutex());
 		auto &haveSent = _sessionData->haveSentMap();
 		for (const auto msgId : removingIds) {
-			if (const auto removed = haveSent.take(msgId)) {
-				Assert(!(*removed)->requestId);
-			}
+			haveSent.remove(msgId);
 		}
+	}
+	if (restarting) {
+		DEBUG_LOG(("MTP Info: "
+			"Request state while key is not bound, restarting."));
+		restart();
+	} else if (requesting) {
+		_sessionData->queueSendAnything(kSendStateRequestWaiting);
 	}
 }
 
@@ -479,7 +489,12 @@ mtpMsgId Connection::placeToContainer(
 }
 
 void Connection::tryToSend() {
-	if (!_connection || !_keyId) {
+	DEBUG_LOG(("MTP Info: tryToSend for dc %1.").arg(_shiftedDcId));
+	if (!_connection) {
+		DEBUG_LOG(("MTP Info: not yet connected in dc %1.").arg(_shiftedDcId));
+		return;
+	} else if (!_keyId) {
+		DEBUG_LOG(("MTP Info: not yet with auth key in dc %1.").arg(_shiftedDcId));
 		return;
 	}
 
@@ -1051,6 +1066,7 @@ void Connection::sendPingByTimer() {
 }
 
 void Connection::sendPingForce() {
+	DEBUG_LOG(("MTP Info: send ping force for dcWithShift %1.").arg(_shiftedDcId));
 	if (!_pingId) {
 		_pingSendAt = 0;
 		DEBUG_LOG(("Will send ping!"));
@@ -1496,14 +1512,20 @@ Connection::HandleResult Connection::handleOneReceived(
 			const auto requestId = wasSent(resendId);
 			if (requestId) {
 				LOG(("Message Error: "
-					"bad message notification received, "
-					"msgId %1, error_code %2, fatal: clearing callbacks"
+					"fatal bad message notification received, "
+					"msgId %1, error_code %2, requestId: %3"
 					).arg(badMsgId
 					).arg(errorCode
-					));
-				_instance->clearCallbacksDelayed({ 1, RPCCallbackClear(
-					requestId,
-					-errorCode) });
+					).arg(requestId));
+				auto response = mtpBuffer();
+				MTPRpcError(MTP_rpc_error(
+					MTP_int(500),
+					MTP_string("PROTOCOL_ERROR")
+				)).write(response);
+
+				// Save rpc_error for processing in the main thread.
+				QWriteLocker locker(_sessionData->haveReceivedMutex());
+				_sessionData->haveReceivedResponses().emplace(requestId, response);
 			} else {
 				DEBUG_LOG(("Message Error: "
 					"such message was not sent recently %1").arg(badMsgId));
@@ -2006,16 +2028,8 @@ void Connection::requestsAcked(const QVector<MTPlong> &ids, bool byResponse) {
 		DEBUG_LOG(("Message Info: removing some old acked sent msgIds %1").arg(ackedCount - kIdsBufferSize));
 		clearedBecauseTooOld.reserve(ackedCount - kIdsBufferSize);
 		while (ackedCount-- > kIdsBufferSize) {
-			auto i = _ackedIds.begin();
-			clearedBecauseTooOld.push_back(RPCCallbackClear(
-				i->second,
-				RPCError::TimeoutError));
-			_ackedIds.erase(i);
+			_ackedIds.erase(_ackedIds.begin());
 		}
-	}
-
-	if (!clearedBecauseTooOld.empty()) {
-		_instance->clearCallbacksDelayed(std::move(clearedBecauseTooOld));
 	}
 
 	if (toAckMore.size()) {
@@ -2260,7 +2274,7 @@ void Connection::applyAuthKey(AuthKeyPtr &&encryptionKey) {
 			return;
 		}
 		setCurrentKeyId(0);
-		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed, restarting..."
+		DEBUG_LOG(("MTP Info: auth_key id for dc %1 changed, restarting..."
 			).arg(_shiftedDcId));
 		if (_connection) {
 			restart();

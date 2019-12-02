@@ -175,10 +175,12 @@ void Session::watchDcKeyChanges() {
 	) | rpl::filter([=](DcId dcId) {
 		return (dcId == _shiftedDcId) || (dcId == BareDcId(_shiftedDcId));
 	}) | rpl::start_with_next([=] {
-		DEBUG_LOG(("AuthKey Info: Session::authKeyCreatedForDC slot, "
-			"emitting authKeyChanged(), dcWithShift %1").arg(_shiftedDcId));
+		DEBUG_LOG(("AuthKey Info: dcTemporaryKeyChanged in Session %1"
+			).arg(_shiftedDcId));
 		if (const auto connection = _connection) {
 			InvokeQueued(connection, [=] {
+				DEBUG_LOG(("AuthKey Info: calling Connection::updateAuthKey in Session %1"
+					).arg(_shiftedDcId));
 				connection->updateAuthKey();
 			});
 		}

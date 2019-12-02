@@ -122,7 +122,6 @@ public:
 		const SerializedRequest &request,
 		RPCResponseHandler &&callbacks);
 	SerializedRequest getRequest(mtpRequestId requestId);
-	void clearCallbacksDelayed(std::vector<RPCCallbackClear> &&ids);
 	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end);
 	bool hasCallbacks(mtpRequestId requestId);
 	void globalCallback(const mtpPrime *from, const mtpPrime *end);
@@ -188,12 +187,6 @@ private:
 		mtpRequestId requestId) const;
 	std::optional<ShiftedDcId> changeRequestByDc(
 		mtpRequestId requestId, DcId newdc);
-
-	// RPCError::NoError means do not toggle onError callback.
-	void clearCallbacks(
-		mtpRequestId requestId,
-		int32 errorCode = RPCError::NoError);
-	void clearCallbacks(const std::vector<RPCCallbackClear> &ids);
 
 	void checkDelayedRequests();
 
@@ -562,7 +555,9 @@ void Instance::Private::cancel(mtpRequestId requestId) {
 		const auto session = getSession(qAbs(*shiftedDcId));
 		session->cancel(requestId, msgId);
 	}
-	clearCallbacks(requestId);
+
+	QMutexLocker locker(&_parserMapLock);
+	_parserMap.erase(requestId);
 }
 
 // result < 0 means waiting for such count of ms.
@@ -992,76 +987,6 @@ SerializedRequest Instance::Private::getRequest(mtpRequestId requestId) {
 	return result;
 }
 
-
-void Instance::Private::clearCallbacks(mtpRequestId requestId, int32 errorCode) {
-	RPCResponseHandler h;
-	bool found = false;
-	{
-		QMutexLocker locker(&_parserMapLock);
-		auto it = _parserMap.find(requestId);
-		if (it != _parserMap.end()) {
-			h = it->second;
-			found = true;
-
-			_parserMap.erase(it);
-		}
-	}
-	if (errorCode && found) {
-		LOG(("API Error: callbacks cleared without handling! "
-			"Request: %1, error code: %2"
-			).arg(requestId
-			).arg(errorCode));
-		rpcErrorOccured(
-			requestId,
-			h,
-			RPCError::Local(
-				"CLEAR_CALLBACK",
-				QString("did not handle request %1, error code %2"
-				).arg(requestId
-				).arg(errorCode)));
-	}
-}
-
-void Instance::Private::clearCallbacksDelayed(
-		std::vector<RPCCallbackClear> &&ids) {
-	if (ids.empty()) {
-		return;
-	}
-
-	if (Logs::DebugEnabled()) {
-		auto idsString = QStringList();
-		idsString.reserve(ids.size());
-		for (auto &value : ids) {
-			idsString.push_back(QString::number(value.requestId));
-		}
-		DEBUG_LOG(("RPC Info: clear callbacks delayed, msgIds: %1"
-			).arg(idsString.join(", ")));
-	}
-
-	InvokeQueued(_instance, [=, list = std::move(ids)] {
-		clearCallbacks(list);
-	});
-}
-
-void Instance::Private::clearCallbacks(
-		const std::vector<RPCCallbackClear> &ids) {
-	Expects(!ids.empty());
-
-	for (const auto &clearRequest : ids) {
-		if (Logs::DebugEnabled()) {
-			QMutexLocker locker(&_parserMapLock);
-			const auto hasParsers = (_parserMap.find(clearRequest.requestId)
-				!= _parserMap.end());
-			DEBUG_LOG(("RPC Info: "
-				"clearing delayed callback %1, error code %2, parsers: %3"
-				).arg(clearRequest.requestId
-				).arg(clearRequest.errorCode
-				).arg(Logs::b(hasParsers)));
-		}
-		clearCallbacks(clearRequest.requestId, clearRequest.errorCode);
-		unregisterRequest(clearRequest.requestId);
-	}
-}
 
 void Instance::Private::execCallback(
 		mtpRequestId requestId,
@@ -1857,10 +1782,6 @@ void Instance::onStateChange(ShiftedDcId shiftedDcId, int32 state) {
 
 void Instance::onSessionReset(ShiftedDcId shiftedDcId) {
 	_private->onSessionReset(shiftedDcId);
-}
-
-void Instance::clearCallbacksDelayed(std::vector<RPCCallbackClear> &&ids) {
-	_private->clearCallbacksDelayed(std::move(ids));
 }
 
 void Instance::execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) {
