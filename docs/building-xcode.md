@@ -33,7 +33,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 4aa377c
+    git checkout 395b620
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -50,7 +50,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 4aa377c
+    git checkout 395b620
     cd ../
     git clone --branch 0.9.1 https://github.com/ericniebler/range-v3
 
