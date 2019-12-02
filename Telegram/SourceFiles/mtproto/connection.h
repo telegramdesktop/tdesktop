@@ -61,7 +61,10 @@ private:
 		ConnectionPointer data;
 		int priority = 0;
 	};
-
+	struct SentContainer {
+		crl::time sent = 0;
+		std::vector<mtpMsgId> messages;
+	};
 	enum class HandleResult {
 		Success,
 		Ignored,
@@ -100,12 +103,13 @@ private:
 	[[nodiscard]] int16 getProtocolDcId() const;
 
 	void checkSentRequests();
+	void clearOldContainers();
 
 	mtpMsgId placeToContainer(
+		SentContainer &sentIdsWrap,
 		details::SerializedRequest &toSendRequest,
 		mtpMsgId &bigMsgId,
 		bool forceNewMsgId,
-		mtpMsgId *&haveSentArr,
 		details::SerializedRequest &req);
 	mtpMsgId prepareToSend(
 		details::SerializedRequest &request,
@@ -216,6 +220,7 @@ private:
 	details::ReceivedIdsManager _receivedMessageIds;
 	base::flat_map<mtpMsgId, mtpRequestId> _resendingIds;
 	base::flat_map<mtpMsgId, mtpRequestId> _ackedIds;
+	base::flat_map<mtpMsgId, SentContainer> _sentContainers;
 
 	std::unique_ptr<details::BoundKeyCreator> _keyCreator;
 	mtpMsgId _bindMsgId = 0;

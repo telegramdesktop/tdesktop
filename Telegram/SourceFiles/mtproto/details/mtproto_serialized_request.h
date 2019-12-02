@@ -67,8 +67,6 @@ public:
 	void addPadding(bool extended, bool old);
 	[[nodiscard]] uint32 messageSize() const;
 
-	// "request-like" wrap for msgIds vector
-	[[nodiscard]] bool isSentContainer() const;
 	[[nodiscard]] bool isStateRequest() const;
 	[[nodiscard]] bool needAck() const;
 
@@ -94,7 +92,6 @@ public:
 	mtpRequestId requestId = 0;
 	bool needsLayer = false;
 	bool forceSendInContainer = false;
-	bool isContainerIdsWrap = false;
 
 };
 

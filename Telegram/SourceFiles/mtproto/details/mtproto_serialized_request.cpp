@@ -124,12 +124,6 @@ uint32 SerializedRequest::messageSize() const {
 	return kMessageIdInts + kSeqNoInts + kMessageLengthInts + ints;
 }
 
-bool SerializedRequest::isSentContainer() const {
-	Expects(_data != nullptr);
-
-	return _data->isContainerIdsWrap;
-}
-
 bool SerializedRequest::isStateRequest() const {
 	Expects(_data != nullptr);
 	Expects(_data->size() > kMessageBodyPosition);
