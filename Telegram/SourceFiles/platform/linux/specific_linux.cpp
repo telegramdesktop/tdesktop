@@ -229,7 +229,6 @@ void start() {
 }
 
 void finish() {
-	Notifications::Finish();
 }
 
 void RegisterCustomScheme() {
