@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtNetwork/QNetworkReply>
 
 class ApiWrap;
-class FileLoader;
 
 namespace Main {
 class Session;
@@ -36,17 +35,27 @@ constexpr auto kMaxWallPaperInMemory = kMaxFileInMemory;
 constexpr auto kMaxAnimationInMemory = kMaxFileInMemory; // 10 MB gif and mp4 animations held in memory while playing
 constexpr auto kMaxWallPaperDimension = 4096; // 4096x4096 is max area.
 
-class Downloader final : public base::has_weak_ptr {
+class Downloader {
 public:
-	explicit Downloader(not_null<ApiWrap*> api);
-	~Downloader();
+	virtual ~Downloader() = default;
+
+	[[nodiscard]] virtual MTP::DcId dcId() const = 0;
+	[[nodiscard]] virtual bool readyToRequest() const = 0;
+	[[nodiscard]] virtual void loadPart(int dcIndex) = 0;
+
+};
+
+class DownloadManager final : public base::has_weak_ptr {
+public:
+	explicit DownloadManager(not_null<ApiWrap*> api);
+	~DownloadManager();
 
 	[[nodiscard]] ApiWrap &api() const {
 		return *_api;
 	}
 
-	void enqueue(not_null<FileLoader*> loader);
-	void remove(not_null<FileLoader*> loader);
+	void enqueue(not_null<Downloader*> loader);
+	void remove(not_null<Downloader*> loader);
 
 	[[nodiscard]] base::Observable<void> &taskFinished() {
 		return _taskFinishedObservable;
@@ -59,14 +68,14 @@ public:
 private:
 	class Queue final {
 	public:
-		void enqueue(not_null<FileLoader*> loader);
-		void remove(not_null<FileLoader*> loader);
+		void enqueue(not_null<Downloader*> loader);
+		void remove(not_null<Downloader*> loader);
 		void resetGeneration();
-		[[nodiscard]] FileLoader *nextLoader() const;
+		[[nodiscard]] Downloader *nextLoader() const;
 
 	private:
-		std::vector<not_null<FileLoader*>> _loaders;
-		std::vector<not_null<FileLoader*>> _previousGeneration;
+		std::vector<not_null<Downloader*>> _loaders;
+		std::vector<not_null<Downloader*>> _previousGeneration;
 
 	};
 
@@ -105,7 +114,7 @@ struct StorageImageSaved {
 
 };
 
-class FileLoader : public QObject {
+class FileLoader : public QObject, public Storage::Downloader {
 	Q_OBJECT
 
 public:
@@ -171,7 +180,7 @@ signals:
 	void failed(FileLoader *loader, bool started);
 
 protected:
-	friend class Storage::Downloader;
+	friend class Storage::DownloadManager;
 
 	enum class LocalStatus {
 		NotTried,
@@ -180,7 +189,7 @@ protected:
 		Loaded,
 	};
 
-	[[nodiscard]] MTP::DcId dcId() const {
+	MTP::DcId dcId() const override {
 		return _dcId;
 	}
 
@@ -195,15 +204,13 @@ protected:
 	void cancel(bool failed);
 
 	void notifyAboutProgress();
-	[[nodiscard]] virtual bool readyToRequest() const = 0;
-	virtual void loadPart(int dcIndex) = 0;
 
 	bool writeResultPart(int offset, bytes::const_span buffer);
 	bool finalizeResult();
 	[[nodiscard]] QByteArray readLoadedPartBack(int offset, int size);
 
 	const MTP::DcId _dcId = 0;
-	const not_null<Storage::Downloader*> _downloader;
+	const not_null<Storage::DownloadManager*> _downloader;
 
 	bool _autoLoading = false;
 	uint8 _cacheTag = 0;
@@ -272,12 +279,15 @@ public:
 	~mtpFileLoader();
 
 private:
-	friend class Downloader;
+	friend class DownloadManager;
 
 	struct RequestData {
-		MTP::DcId dcId = 0;
-		int dcIndex = 0;
 		int offset = 0;
+		int dcIndex = 0;
+
+		inline bool operator<(const RequestData &other) const {
+			return offset < other.offset;
+		}
 	};
 	struct CdnFileHash {
 		CdnFileHash(int limit, QByteArray hash) : limit(limit), hash(hash) {
@@ -289,9 +299,7 @@ private:
 	std::optional<MediaKey> fileLocationKey() const override;
 	void cancelRequests() override;
 
-	[[nodiscard]] RequestData prepareRequest(int offset, int dcIndex) const;
-	void makeRequest(int offset, int dcIndex);
-	void makeRequest(int offset);
+	void makeRequest(const RequestData &requestData);
 
 	bool readyToRequest() const override;
 	void loadPart(int dcIndex) override;
@@ -310,11 +318,21 @@ private:
 	bool cdnPartFailed(const RPCError &error, mtpRequestId requestId);
 
 	mtpRequestId sendRequest(const RequestData &requestData);
-	void placeSentRequest(mtpRequestId requestId, const RequestData &requestData);
-	int finishSentRequestGetOffset(mtpRequestId requestId);
-	void switchToCDN(int offset, const MTPDupload_fileCdnRedirect &redirect);
+	void placeSentRequest(
+		mtpRequestId requestId,
+		const RequestData &requestData);
+	[[nodiscard]] RequestData finishSentRequest(mtpRequestId requestId);
+	void switchToCDN(
+		const RequestData &requestData,
+		const MTPDupload_fileCdnRedirect &redirect);
 	void addCdnHashes(const QVector<MTPFileHash> &hashes);
-	void changeCDNParams(int offset, MTP::DcId dcId, const QByteArray &token, const QByteArray &encryptionKey, const QByteArray &encryptionIV, const QVector<MTPFileHash> &hashes);
+	void changeCDNParams(
+		const RequestData &requestData,
+		MTP::DcId dcId,
+		const QByteArray &token,
+		const QByteArray &encryptionKey,
+		const QByteArray &encryptionIV,
+		const QVector<MTPFileHash> &hashes);
 
 	enum class CheckCdnHashResult {
 		NoHash,
@@ -338,8 +356,8 @@ private:
 	QByteArray _cdnToken;
 	QByteArray _cdnEncryptionKey;
 	QByteArray _cdnEncryptionIV;
-	std::map<int, CdnFileHash> _cdnFileHashes;
-	std::map<int, QByteArray> _cdnUncheckedParts;
+	base::flat_map<int, CdnFileHash> _cdnFileHashes;
+	base::flat_map<RequestData, QByteArray> _cdnUncheckedParts;
 	mtpRequestId _cdnHashesRequestId = 0;
 
 };

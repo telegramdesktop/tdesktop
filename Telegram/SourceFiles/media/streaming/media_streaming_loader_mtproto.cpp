@@ -21,7 +21,7 @@ constexpr auto kMaxConcurrentRequests = 4;
 } // namespace
 
 LoaderMtproto::LoaderMtproto(
-	not_null<Storage::Downloader*> owner,
+	not_null<Storage::DownloadManager*> owner,
 	const StorageFileLocation &location,
 	int size,
 	Data::FileOrigin origin)

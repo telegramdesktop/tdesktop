@@ -29,7 +29,7 @@ class Session;
 } // namespace Data
 
 namespace Storage {
-class Downloader;
+class DownloadManager;
 class Uploader;
 class Facade;
 } // namespace Storage
@@ -80,7 +80,7 @@ public:
 	}
 	bool validateSelf(const MTPUser &user);
 
-	[[nodiscard]] Storage::Downloader &downloader() {
+	[[nodiscard]] Storage::DownloadManager &downloader() {
 		return *_downloader;
 	}
 	[[nodiscard]] Storage::Uploader &uploader() {
@@ -145,7 +145,7 @@ private:
 
 	const std::unique_ptr<ApiWrap> _api;
 	const std::unique_ptr<Calls::Instance> _calls;
-	const std::unique_ptr<Storage::Downloader> _downloader;
+	const std::unique_ptr<Storage::DownloadManager> _downloader;
 	const std::unique_ptr<Storage::Uploader> _uploader;
 	const std::unique_ptr<Storage::Facade> _storage;
 	const std::unique_ptr<Window::Notifications::System> _notifications;

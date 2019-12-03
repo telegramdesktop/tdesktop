@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 
 namespace Storage {
-class Downloader;
+class DownloadManager;
 } // namespace Storage
 
 namespace Media {
@@ -21,7 +21,7 @@ namespace Streaming {
 class LoaderMtproto : public Loader, public base::has_weak_ptr {
 public:
 	LoaderMtproto(
-		not_null<Storage::Downloader*> owner,
+		not_null<Storage::DownloadManager*> owner,
 		const StorageFileLocation &location,
 		int size,
 		Data::FileOrigin origin);
@@ -61,7 +61,7 @@ private:
 	void cancelForOffset(int offset);
 	void changeRequestedAmount(int index, int amount);
 
-	const not_null<Storage::Downloader*> _owner;
+	const not_null<Storage::DownloadManager*> _owner;
 
 	// _location can be changed with an updated file_reference.
 	StorageFileLocation _location;

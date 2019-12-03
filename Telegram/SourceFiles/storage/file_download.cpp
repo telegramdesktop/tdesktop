@@ -45,7 +45,7 @@ constexpr auto kPartSize = 128 * 1024;
 
 } // namespace
 
-void Downloader::Queue::enqueue(not_null<FileLoader*> loader) {
+void DownloadManager::Queue::enqueue(not_null<Downloader*> loader) {
 	const auto i = ranges::find(_loaders, loader);
 	if (i != end(_loaders)) {
 		return;
@@ -56,14 +56,14 @@ void Downloader::Queue::enqueue(not_null<FileLoader*> loader) {
 		end(_previousGeneration));
 }
 
-void Downloader::Queue::remove(not_null<FileLoader*> loader) {
+void DownloadManager::Queue::remove(not_null<Downloader*> loader) {
 	_loaders.erase(ranges::remove(_loaders, loader), end(_loaders));
 	_previousGeneration.erase(
 		ranges::remove(_previousGeneration, loader),
 		end(_previousGeneration));
 }
 
-void Downloader::Queue::resetGeneration() {
+void DownloadManager::Queue::resetGeneration() {
 	if (!_previousGeneration.empty()) {
 		_loaders.reserve(_loaders.size() + _previousGeneration.size());
 		std::copy(
@@ -75,22 +75,22 @@ void Downloader::Queue::resetGeneration() {
 	std::swap(_loaders, _previousGeneration);
 }
 
-FileLoader *Downloader::Queue::nextLoader() const {
+Downloader *DownloadManager::Queue::nextLoader() const {
 	auto &&all = ranges::view::concat(_loaders, _previousGeneration);
 	const auto i = ranges::find(all, true, &FileLoader::readyToRequest);
 	return (i != all.end()) ? i->get() : nullptr;
 }
 
-Downloader::Downloader(not_null<ApiWrap*> api)
+DownloadManager::DownloadManager(not_null<ApiWrap*> api)
 : _api(api)
 , _killDownloadSessionsTimer([=] { killDownloadSessions(); }) {
 }
 
-Downloader::~Downloader() {
+DownloadManager::~DownloadManager() {
 	killDownloadSessions();
 }
 
-void Downloader::enqueue(not_null<FileLoader*> loader) {
+void DownloadManager::enqueue(not_null<Downloader*> loader) {
 	const auto dcId = loader->dcId();
 	(dcId ? _mtprotoLoaders[dcId] : _webLoaders).enqueue(loader);
 	if (!_resettingGeneration) {
@@ -102,13 +102,13 @@ void Downloader::enqueue(not_null<FileLoader*> loader) {
 	checkSendNext();
 }
 
-void Downloader::remove(not_null<FileLoader*> loader) {
+void DownloadManager::remove(not_null<Downloader*> loader) {
 	const auto dcId = loader->dcId();
 	(dcId ? _mtprotoLoaders[dcId] : _webLoaders).remove(loader);
 	crl::on_main(&_api->session(), [=] { checkSendNext(); });
 }
 
-void Downloader::resetGeneration() {
+void DownloadManager::resetGeneration() {
 	_resettingGeneration = false;
 	for (auto &[dcId, queue] : _mtprotoLoaders) {
 		queue.resetGeneration();
@@ -116,7 +116,7 @@ void Downloader::resetGeneration() {
 	_webLoaders.resetGeneration();
 }
 
-void Downloader::checkSendNext() {
+void DownloadManager::checkSendNext() {
 	for (auto &[dcId, queue] : _mtprotoLoaders) {
 		const auto bestIndex = [&] {
 			const auto i = _requestedBytesAmount.find(dcId);
@@ -143,7 +143,7 @@ void Downloader::checkSendNext() {
 	}
 }
 
-void Downloader::requestedAmountIncrement(
+void DownloadManager::requestedAmountIncrement(
 		MTP::DcId dcId,
 		int index,
 		int amount) {
@@ -166,14 +166,14 @@ void Downloader::requestedAmountIncrement(
 	}
 }
 
-int Downloader::chooseDcIndexForRequest(MTP::DcId dcId) {
+int DownloadManager::chooseDcIndexForRequest(MTP::DcId dcId) {
 	const auto i = _requestedBytesAmount.find(dcId);
 	return (i != end(_requestedBytesAmount))
 		? (ranges::min_element(i->second) - begin(i->second))
 		: 0;
 }
 
-void Downloader::killDownloadSessionsStart(MTP::DcId dcId) {
+void DownloadManager::killDownloadSessionsStart(MTP::DcId dcId) {
 	if (!_killDownloadSessionTimes.contains(dcId)) {
 		_killDownloadSessionTimes.emplace(
 			dcId,
@@ -184,7 +184,7 @@ void Downloader::killDownloadSessionsStart(MTP::DcId dcId) {
 	}
 }
 
-void Downloader::killDownloadSessionsStop(MTP::DcId dcId) {
+void DownloadManager::killDownloadSessionsStop(MTP::DcId dcId) {
 	_killDownloadSessionTimes.erase(dcId);
 	if (_killDownloadSessionTimes.empty()
 		&& _killDownloadSessionsTimer.isActive()) {
@@ -192,7 +192,7 @@ void Downloader::killDownloadSessionsStop(MTP::DcId dcId) {
 	}
 }
 
-void Downloader::killDownloadSessions() {
+void DownloadManager::killDownloadSessions() {
 	const auto now = crl::now();
 	auto left = kKillSessionTimeout;
 	for (auto i = _killDownloadSessionTimes.begin(); i != _killDownloadSessionTimes.end(); ) {
@@ -669,8 +669,7 @@ void mtpFileLoader::refreshFileReferenceFrom(
 		cancel(true);
 		return;
 	}
-	const auto offset = finishSentRequestGetOffset(requestId);
-	makeRequest(offset);
+	makeRequest(finishSentRequest(requestId));
 }
 
 bool mtpFileLoader::readyToRequest() const {
@@ -683,28 +682,17 @@ bool mtpFileLoader::readyToRequest() const {
 void mtpFileLoader::loadPart(int dcIndex) {
 	Expects(readyToRequest());
 
-	makeRequest(_nextRequestOffset, dcIndex);
+	makeRequest({ _nextRequestOffset, dcIndex });
 	_nextRequestOffset += Storage::kPartSize;
-}
-
-mtpFileLoader::RequestData mtpFileLoader::prepareRequest(
-		int offset,
-		int dcIndex) const {
-	auto result = RequestData();
-	result.dcId = _cdnDcId ? _cdnDcId : dcId();
-	result.dcIndex = dcIndex;
-	result.offset = offset;
-	return result;
 }
 
 mtpRequestId mtpFileLoader::sendRequest(const RequestData &requestData) {
 	const auto offset = requestData.offset;
 	const auto limit = Storage::kPartSize;
 	const auto shiftedDcId = MTP::downloadDcId(
-		requestData.dcId,
+		_cdnDcId ? _cdnDcId : dcId(),
 		requestData.dcIndex);
 	if (_cdnDcId) {
-		Assert(requestData.dcId == _cdnDcId);
 		return MTP::send(
 			MTPupload_GetCdnFile(
 				MTP_bytes(_cdnToken),
@@ -761,15 +749,10 @@ mtpRequestId mtpFileLoader::sendRequest(const RequestData &requestData) {
 	});
 }
 
-void mtpFileLoader::makeRequest(int offset, int dcIndex) {
+void mtpFileLoader::makeRequest(const RequestData &requestData) {
 	Expects(!_finished);
 
-	auto requestData = prepareRequest(offset, dcIndex);
 	placeSentRequest(sendRequest(requestData), requestData);
-}
-
-void mtpFileLoader::makeRequest(int offset) {
-	makeRequest(offset, _downloader->chooseDcIndexForRequest(dcId()));
 }
 
 void mtpFileLoader::requestMoreCdnFileHashes() {
@@ -779,18 +762,14 @@ void mtpFileLoader::requestMoreCdnFileHashes() {
 		return;
 	}
 
-	auto offset = _cdnUncheckedParts.cbegin()->first;
-	auto requestData = RequestData();
-	requestData.dcId = dcId();
-	requestData.dcIndex = 0;
-	requestData.offset = offset;
-	auto shiftedDcId = MTP::downloadDcId(
-		requestData.dcId,
+	const auto requestData = _cdnUncheckedParts.cbegin()->first;
+	const auto shiftedDcId = MTP::downloadDcId(
+		dcId(),
 		requestData.dcIndex);
-	auto requestId = _cdnHashesRequestId = MTP::send(
+	const auto requestId = _cdnHashesRequestId = MTP::send(
 		MTPupload_GetCdnFileHashes(
 			MTP_bytes(_cdnToken),
-			MTP_int(offset)),
+			MTP_int(requestData.offset)),
 		rpcDone(&mtpFileLoader::getCdnFileHashesDone),
 		rpcFail(&mtpFileLoader::cdnPartFailed),
 		shiftedDcId);
@@ -801,21 +780,20 @@ void mtpFileLoader::normalPartLoaded(
 		const MTPupload_File &result,
 		mtpRequestId requestId) {
 	Expects(!_finished);
-	Expects(result.type() == mtpc_upload_fileCdnRedirect || result.type() == mtpc_upload_file);
 
-	auto offset = finishSentRequestGetOffset(requestId);
-	if (result.type() == mtpc_upload_fileCdnRedirect) {
-		return switchToCDN(offset, result.c_upload_fileCdnRedirect());
-	}
-	auto buffer = bytes::make_span(result.c_upload_file().vbytes().v);
-	return partLoaded(offset, buffer);
+	const auto requestData = finishSentRequest(requestId);
+	result.match([&](const MTPDupload_fileCdnRedirect &data) {
+		switchToCDN(requestData, data);
+	}, [&](const MTPDupload_file &data) {
+		partLoaded(requestData.offset, bytes::make_span(data.vbytes().v));
+	});
 }
 
 void mtpFileLoader::webPartLoaded(
 		const MTPupload_WebFile &result,
 		mtpRequestId requestId) {
 	result.match([&](const MTPDupload_webFile &data) {
-		const auto offset = finishSentRequestGetOffset(requestId);
+		const auto requestData = finishSentRequest(requestId);
 		if (!_size) {
 			_size = data.vsize().v;
 		} else if (data.vsize().v != _size) {
@@ -826,21 +804,17 @@ void mtpFileLoader::webPartLoaded(
 			cancel(true);
 			return;
 		}
-		partLoaded(offset, bytes::make_span(data.vbytes().v));
+		partLoaded(requestData.offset, bytes::make_span(data.vbytes().v));
 	});
 }
 
 void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId requestId) {
 	Expects(!_finished);
 
-	const auto offset = finishSentRequestGetOffset(requestId);
+	const auto requestData = finishSentRequest(requestId);
 	result.match([&](const MTPDupload_cdnFileReuploadNeeded &data) {
-		auto requestData = RequestData();
-		requestData.dcId = dcId();
-		requestData.dcIndex = 0;
-		requestData.offset = offset;
 		const auto shiftedDcId = MTP::downloadDcId(
-			requestData.dcId,
+			dcId(),
 			requestData.dcIndex);
 		const auto requestId = MTP::send(
 			MTPupload_ReuploadCdnFile(
@@ -860,7 +834,7 @@ void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId 
 		auto ivec = bytes::make_span(state.ivec);
 		std::copy(iv.begin(), iv.end(), ivec.begin());
 
-		auto counterOffset = static_cast<uint32>(offset) >> 4;
+		auto counterOffset = static_cast<uint32>(requestData.offset) >> 4;
 		state.ivec[15] = static_cast<uchar>(counterOffset & 0xFF);
 		state.ivec[14] = static_cast<uchar>((counterOffset >> 8) & 0xFF);
 		state.ivec[13] = static_cast<uchar>((counterOffset >> 16) & 0xFF);
@@ -870,19 +844,20 @@ void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId 
 		auto buffer = bytes::make_detached_span(decryptInPlace);
 		MTP::aesCtrEncrypt(buffer, key.data(), &state);
 
-		switch (checkCdnFileHash(offset, buffer)) {
+		switch (checkCdnFileHash(requestData.offset, buffer)) {
 		case CheckCdnHashResult::NoHash: {
-			_cdnUncheckedParts.emplace(offset, decryptInPlace);
+			_cdnUncheckedParts.emplace(requestData, decryptInPlace);
 			requestMoreCdnFileHashes();
 		} return;
 
 		case CheckCdnHashResult::Invalid: {
-			LOG(("API Error: Wrong cdnFileHash for offset %1.").arg(offset));
+			LOG(("API Error: Wrong cdnFileHash for offset %1."
+				).arg(requestData.offset));
 			cancel(true);
 		} return;
 
 		case CheckCdnHashResult::Good: {
-			partLoaded(offset, buffer);
+			partLoaded(requestData.offset, buffer);
 		} return;
 		}
 		Unexpected("Result of checkCdnFileHash()");
@@ -907,9 +882,9 @@ mtpFileLoader::CheckCdnHashResult mtpFileLoader::checkCdnFileHash(
 void mtpFileLoader::reuploadDone(
 		const MTPVector<MTPFileHash> &result,
 		mtpRequestId requestId) {
-	auto offset = finishSentRequestGetOffset(requestId);
+	const auto requestData = finishSentRequest(requestId);
 	addCdnHashes(result.v);
-	makeRequest(offset);
+	makeRequest(requestData);
 }
 
 void mtpFileLoader::getCdnFileHashesDone(
@@ -920,27 +895,28 @@ void mtpFileLoader::getCdnFileHashesDone(
 
 	_cdnHashesRequestId = 0;
 
-	const auto offset = finishSentRequestGetOffset(requestId);
+	const auto requestData = finishSentRequest(requestId);
 	addCdnHashes(result.v);
 	auto someMoreChecked = false;
 	for (auto i = _cdnUncheckedParts.begin(); i != _cdnUncheckedParts.cend();) {
-		const auto uncheckedOffset = i->first;
+		const auto uncheckedData = i->first;
 		const auto uncheckedBytes = bytes::make_span(i->second);
 
-		switch (checkCdnFileHash(uncheckedOffset, uncheckedBytes)) {
+		switch (checkCdnFileHash(uncheckedData.offset, uncheckedBytes)) {
 		case CheckCdnHashResult::NoHash: {
 			++i;
 		} break;
 
 		case CheckCdnHashResult::Invalid: {
-			LOG(("API Error: Wrong cdnFileHash for offset %1.").arg(offset));
+			LOG(("API Error: Wrong cdnFileHash for offset %1."
+				).arg(uncheckedData.offset));
 			cancel(true);
 			return;
 		} break;
 
 		case CheckCdnHashResult::Good: {
 			someMoreChecked = true;
-			const auto goodOffset = uncheckedOffset;
+			const auto goodOffset = uncheckedData.offset;
 			const auto goodBytes = std::move(i->second);
 			const auto weak = QPointer<mtpFileLoader>(this);
 			i = _cdnUncheckedParts.erase(i);
@@ -967,7 +943,7 @@ void mtpFileLoader::getCdnFileHashesDone(
 	LOG(("API Error: "
 		"Could not find cdnFileHash for offset %1 "
 		"after getCdnFileHashes request."
-		).arg(offset));
+		).arg(requestData.offset));
 	cancel(true);
 }
 
@@ -977,24 +953,25 @@ void mtpFileLoader::placeSentRequest(
 	Expects(!_finished);
 
 	_downloader->requestedAmountIncrement(
-		requestData.dcId,
+		dcId(),
 		requestData.dcIndex,
 		Storage::kPartSize);
 	_sentRequests.emplace(requestId, requestData);
 }
 
-int mtpFileLoader::finishSentRequestGetOffset(mtpRequestId requestId) {
+auto mtpFileLoader::finishSentRequest(mtpRequestId requestId)
+-> RequestData {
 	auto it = _sentRequests.find(requestId);
 	Assert(it != _sentRequests.cend());
 
-	auto requestData = it->second;
+	const auto result = it->second;
 	_downloader->requestedAmountIncrement(
-		requestData.dcId,
-		requestData.dcIndex,
+		dcId(),
+		result.dcIndex,
 		-Storage::kPartSize);
 	_sentRequests.erase(it);
 
-	return requestData.offset;
+	return result;
 }
 
 bool mtpFileLoader::feedPart(int offset, bytes::const_span buffer) {
@@ -1061,9 +1038,9 @@ bool mtpFileLoader::cdnPartFailed(
 	}
 	if (error.type() == qstr("FILE_TOKEN_INVALID")
 		|| error.type() == qstr("REQUEST_TOKEN_INVALID")) {
-		auto offset = finishSentRequestGetOffset(requestId);
+		const auto requestData = finishSentRequest(requestId);
 		changeCDNParams(
-			offset,
+			requestData,
 			0,
 			QByteArray(),
 			QByteArray(),
@@ -1078,15 +1055,15 @@ void mtpFileLoader::cancelRequests() {
 	while (!_sentRequests.empty()) {
 		auto requestId = _sentRequests.begin()->first;
 		MTP::cancel(requestId);
-		finishSentRequestGetOffset(requestId);
+		[[maybe_unused]] const auto data = finishSentRequest(requestId);
 	}
 }
 
 void mtpFileLoader::switchToCDN(
-		int offset,
+		const RequestData &requestData,
 		const MTPDupload_fileCdnRedirect &redirect) {
 	changeCDNParams(
-		offset,
+		requestData,
 		redirect.vdc_id().v,
 		redirect.vfile_token().v,
 		redirect.vencryption_key().v,
@@ -1105,7 +1082,7 @@ void mtpFileLoader::addCdnHashes(const QVector<MTPFileHash> &hashes) {
 }
 
 void mtpFileLoader::changeCDNParams(
-		int offset,
+		const RequestData &requestData,
 		MTP::DcId dcId,
 		const QByteArray &token,
 		const QByteArray &encryptionKey,
@@ -1130,19 +1107,18 @@ void mtpFileLoader::changeCDNParams(
 	addCdnHashes(hashes);
 
 	if (resendAllRequests && !_sentRequests.empty()) {
-		auto resendOffsets = std::vector<int>();
-		resendOffsets.reserve(_sentRequests.size());
+		auto resendRequests = std::vector<RequestData>();
+		resendRequests.reserve(_sentRequests.size());
 		while (!_sentRequests.empty()) {
 			auto requestId = _sentRequests.begin()->first;
 			MTP::cancel(requestId);
-			auto resendOffset = finishSentRequestGetOffset(requestId);
-			resendOffsets.push_back(resendOffset);
+			resendRequests.push_back(finishSentRequest(requestId));
 		}
-		for (auto resendOffset : resendOffsets) {
-			makeRequest(resendOffset);
+		for (const auto &requestData : resendRequests) {
+			makeRequest(requestData);
 		}
 	}
-	makeRequest(offset);
+	makeRequest(requestData);
 }
 
 Storage::Cache::Key mtpFileLoader::cacheKey() const {
