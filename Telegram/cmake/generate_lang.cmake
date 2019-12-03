@@ -8,17 +8,17 @@ function(generate_lang target_name lang_file)
     set(gen_dst ${CMAKE_CURRENT_BINARY_DIR}/gen)
     file(MAKE_DIRECTORY ${gen_dst})
 
-    set(generated_files
+    set(gen_timestamp ${gen_dst}/lang_auto.timestamp)
+    set(gen_files
         ${gen_dst}/lang_auto.cpp
         ${gen_dst}/lang_auto.h
-        ${gen_dst}/lang_auto.timestamp
     )
+
     add_custom_command(
     OUTPUT
-        ${gen_dst}/lang_auto.timestamp
+        ${gen_timestamp}
     BYPRODUCTS
-        ${gen_dst}/lang_auto.cpp
-        ${gen_dst}/lang_auto.h
+        ${gen_files}
     COMMAND
         codegen_lang
         -o${gen_dst}
@@ -28,5 +28,5 @@ function(generate_lang target_name lang_file)
         codegen_lang
         ${lang_file}
     )
-    generate_target(${target_name} lang "${generated_files}" ${gen_dst})
+    generate_target(${target_name} lang ${gen_timestamp} "${gen_files}" ${gen_dst})
 endfunction()

@@ -79,10 +79,10 @@ PRIVATE
     desktop-app::lib_ffmpeg
     desktop-app::external_lz4
     desktop-app::external_rlottie
+    desktop-app::external_zlib
     desktop-app::external_qt
     desktop-app::external_auto_updates
     desktop-app::external_openssl
-    desktop-app::external_zlib
     desktop-app::external_opus
     desktop-app::external_openal
 )
@@ -91,7 +91,8 @@ if (NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
     target_link_libraries(Telegram PRIVATE desktop-app::external_crash_reports)
 endif()
 
-set(telegram_sources
+target_precompile_headers(Telegram PRIVATE ${src_loc}/stdafx.h)
+nice_target_sources(Telegram ${src_loc}
 PRIVATE
     ${style_files}
 
@@ -931,9 +932,8 @@ PRIVATE
     settings.cpp
     settings.h
 )
-nice_target_sources(Telegram ${src_loc} "${telegram_sources}")
 
-set(telegram_resources
+nice_target_sources(Telegram ${res_loc}
 PRIVATE
     qrc/emoji_1.qrc
     qrc/emoji_2.qrc
@@ -948,9 +948,6 @@ PRIVATE
     langs/lang.strings
     numbers.txt
 )
-nice_target_sources(Telegram ${res_loc} "${telegram_resources}")
-
-target_precompile_headers(Telegram PRIVATE ${src_loc}/stdafx.h)
 
 if (WIN32)
     # message(${CMAKE_GENERATOR})
@@ -1008,6 +1005,34 @@ elseif (APPLE)
                 COMMAND cp ${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>/crashpad_handler $<TARGET_FILE_DIR:Telegram>/../Helpers/
             )
         endif()
+    endif()
+elseif (LINUX)
+    find_package(PkgConfig REQUIRED)
+
+    pkg_check_modules(GTK2 REQUIRED gtk+-2.0)
+    target_include_directories(Telegram PRIVATE ${GTK2_INCLUDE_DIRS})
+    target_compile_options(Telegram PRIVATE -Wno-register)
+
+    set(appindicator_packages
+        ayatana-appindicator3-0.1
+        ayatana-appindicator-0.1
+        appindicator3-0.1
+        appindicator-0.1
+    )
+    set(appindicator_found 0)
+    foreach (package ${appindicator_packages})
+        pkg_check_modules(APPIND_${package} ${package})
+        if (APPIND_${package}_FOUND)
+            set(appindicator_found 1)
+            target_include_directories(Telegram PRIVATE "${APPIND_${package}_INCLUDE_DIRS}")
+            if (${package} MATCHES "ayatana")
+                target_compile_definitions(Telegram PRIVATE TDESKTOP_USE_AYATANA_INDICATORS)
+            endif()
+            break()
+        endif()
+    endforeach()
+    if (NOT ${appindicator_found})
+        message(FATAL_ERROR "No libappindicator found by pkg-config.")
     endif()
 endif()
 
@@ -1081,7 +1106,13 @@ if (disable_autoupdate)
     )
 endif()
 
-set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+if (${CMAKE_GENERATOR} MATCHES "(Visual Studio|Xcode|Ninja)")
+    set(output_folder ${CMAKE_BINARY_DIR})
+else()
+    set(output_folder ${CMAKE_BINARY_DIR}/$<IF:$<CONFIG:Debug>,Debug,Release>)
+endif()
+
+set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
 if (NOT build_macstore AND NOT build_winstore)
     add_executable(Updater WIN32)
@@ -1089,14 +1120,13 @@ if (NOT build_macstore AND NOT build_winstore)
 
     add_dependencies(Telegram Updater)
 
-    set(updater_sources
+    nice_target_sources(Updater ${src_loc}
     PRIVATE
         _other/updater_win.cpp
         _other/updater_linux.cpp
         _other/updater_osx.m
         _other/updater.h
     )
-    nice_target_sources(Updater ${src_loc} "${updater_sources}")
 
-    set_target_properties(Updater PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+    set_target_properties(Updater PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 endif()

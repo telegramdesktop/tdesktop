@@ -8,7 +8,8 @@ add_library(lib_export OBJECT)
 init_target(lib_export)
 add_library(tdesktop::lib_export ALIAS lib_export)
 
-set(lib_export_sources
+target_precompile_headers(lib_export PRIVATE ${src_loc}/export/export_pch.h)
+nice_target_sources(lib_export ${src_loc}
 PRIVATE
     export/export_api_wrap.cpp
     export/export_api_wrap.h
@@ -32,9 +33,6 @@ PRIVATE
     export/output/export_output_text.cpp
     export/output/export_output_text.h
 )
-nice_target_sources(lib_export ${src_loc} "${lib_export_sources}")
-
-target_precompile_headers(lib_export PRIVATE ${src_loc}/export/export_pch.h)
 
 target_include_directories(lib_export
 PUBLIC

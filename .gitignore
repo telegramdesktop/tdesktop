@@ -43,6 +43,7 @@ stage
 /snap/plugins/__pycache__
 
 /Telegram/*.user.*
+*.txt.user
 *.pro.user
 /Linux/
 /Telegram/Makefile

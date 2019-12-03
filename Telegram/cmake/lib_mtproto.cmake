@@ -8,7 +8,8 @@ add_library(lib_mtproto OBJECT)
 init_target(lib_mtproto)
 add_library(tdesktop::lib_mtproto ALIAS lib_mtproto)
 
-set(lib_mtproto_sources
+target_precompile_headers(lib_mtproto PRIVATE ${src_loc}/mtproto/mtp_pch.h)
+nice_target_sources(lib_mtproto ${src_loc}
 PRIVATE
     mtproto/mtp_abstract_socket.cpp
     mtproto/mtp_abstract_socket.h
@@ -17,9 +18,6 @@ PRIVATE
     mtproto/mtp_tls_socket.cpp
     mtproto/mtp_tls_socket.h
 )
-nice_target_sources(lib_mtproto ${src_loc} "${lib_mtproto_sources}")
-
-target_precompile_headers(lib_mtproto PRIVATE ${src_loc}/mtproto/mtp_pch.h)
 
 target_include_directories(lib_mtproto
 PUBLIC

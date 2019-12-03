@@ -5,12 +5,12 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 add_library(lib_tgvoip STATIC)
-init_target(lib_tgvoip cxx_std_11)
+init_target(lib_tgvoip)
 add_library(tdesktop::lib_tgvoip ALIAS lib_tgvoip)
 
 set(tgvoip_loc ${third_party_loc}/libtgvoip)
 
-set(lib_tgvoip_sources
+nice_target_sources(lib_tgvoip ${tgvoip_loc}
 PRIVATE
     BlockingQueue.cpp
     BlockingQueue.h
@@ -710,10 +710,8 @@ PRIVATE
     # webrtc_dsp/common_audio/signal_processing/filter_ar_fast_q12_armv7.S
 )
 
-nice_target_sources(lib_tgvoip ${tgvoip_loc} "${lib_tgvoip_sources}")
-
 target_compile_definitions(lib_tgvoip
-PRIVATE
+PUBLIC
     WEBRTC_APM_DEBUG_DUMP=0
     TGVOIP_USE_DESKTOP_DSP
     WEBRTC_NS_FLOAT
@@ -726,12 +724,12 @@ if (WIN32)
         /wd4244 # conversion from 'int' to 'float', possible loss of data (several in webrtc)
     )
     target_compile_definitions(lib_tgvoip
-    PRIVATE
+    PUBLIC
         WEBRTC_WIN
     )
 elseif (APPLE)
     target_compile_definitions(lib_tgvoip
-    PRIVATE
+    PUBLIC
         WEBRTC_POSIX
         WEBRTC_MAC
         TARGET_OS_OSX
@@ -739,13 +737,22 @@ elseif (APPLE)
     )
     if (build_macstore)
         target_compile_definitions(lib_tgvoip
-        PRIVATE
+        PUBLIC
             TGVOIP_NO_OSX_PRIVATE_API
         )
     endif()
 else()
-    target_compile_definitions(lib_tgvoip
+    target_compile_options(lib_tgvoip
     PRIVATE
+        -Wno-unknown-pragmas
+        -Wno-error=sequence-point
+        -Wno-error=unused-result
+    )
+    if (build_linux32)
+        target_compile_options(lib_tgvoip PRIVATE -msse2)
+    endif()
+    target_compile_definitions(lib_tgvoip
+    PUBLIC
         WEBRTC_POSIX
         WEBRTC_LINUX
     )

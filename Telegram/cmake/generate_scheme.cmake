@@ -8,17 +8,17 @@ function(generate_scheme target_name script scheme_files)
     set(gen_dst ${CMAKE_CURRENT_BINARY_DIR}/gen)
     file(MAKE_DIRECTORY ${gen_dst})
 
-    set(generated_files
+    set(gen_timestamp ${gen_dst}/scheme.timestamp)
+    set(gen_files
         ${gen_dst}/scheme.cpp
         ${gen_dst}/scheme.h
-        ${gen_dst}/scheme.timestamp
     )
+
     add_custom_command(
     OUTPUT
-        ${gen_dst}/scheme.timestamp
+        ${gen_timestamp}
     BYPRODUCTS
-        ${gen_dst}/scheme.cpp
-        ${gen_dst}/scheme.h
+        ${gen_files}
     COMMAND
         python
         ${script}
@@ -30,5 +30,5 @@ function(generate_scheme target_name script scheme_files)
         ${submodules_loc}/lib_tl/tl/generate_tl.py
         ${scheme_files}
     )
-    generate_target(${target_name} scheme "${generated_files}" ${gen_dst})
+    generate_target(${target_name} scheme ${gen_timestamp} "${gen_files}" ${gen_dst})
 endfunction()

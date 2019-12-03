@@ -20,6 +20,7 @@ project(Telegram
 )
 
 include(cmake/nice_target_sources.cmake)
+include(cmake/target_link_static_libraries.cmake)
 include(cmake/target_link_frameworks.cmake)
 include(cmake/init_target.cmake)
 include(cmake/generate_target.cmake)
