@@ -34,13 +34,13 @@ constexpr ShiftedDcId updaterDcId(DcId dcId) {
 	return ShiftDcId(dcId, kUpdaterDcShift);
 }
 
-constexpr auto kDownloadSessionsCount = 2;
 constexpr auto kUploadSessionsCount = 2;
 
 namespace details {
 
 constexpr ShiftedDcId downloadDcId(DcId dcId, int index) {
-	static_assert(kDownloadSessionsCount < kMaxMediaDcCount, "Too large MTPDownloadSessionsCount!");
+	Expects(index < kMaxMediaDcCount);
+
 	return ShiftDcId(dcId, kBaseDownloadDcShift + index);
 };
 
@@ -48,13 +48,12 @@ constexpr ShiftedDcId downloadDcId(DcId dcId, int index) {
 
 // send(req, callbacks, MTP::downloadDcId(dc, index)) - for download shifted dc id
 inline ShiftedDcId downloadDcId(DcId dcId, int index) {
-	Expects(index >= 0 && index < kDownloadSessionsCount);
 	return details::downloadDcId(dcId, index);
 }
 
 inline constexpr bool isDownloadDcId(ShiftedDcId shiftedDcId) {
 	return (shiftedDcId >= details::downloadDcId(0, 0))
-		&& (shiftedDcId < details::downloadDcId(0, kDownloadSessionsCount - 1) + kDcShift);
+		&& (shiftedDcId < details::downloadDcId(0, kMaxMediaDcCount - 1) + kDcShift);
 }
 
 inline bool isCdnDc(MTPDdcOption::Flags flags) {

@@ -61,10 +61,11 @@ public:
 	void stopStreaming(bool stillActive = false);
 	[[nodiscard]] rpl::producer<LoadedPart> partsForDownloader() const;
 	void loadForDownloader(
-		Storage::StreamedFileDownloader *downloader,
+		not_null<Storage::StreamedFileDownloader*> downloader,
 		int offset);
 	void doneForDownloader(int offset);
-	void cancelForDownloader(Storage::StreamedFileDownloader *downloader);
+	void cancelForDownloader(
+		not_null<Storage::StreamedFileDownloader*> downloader);
 
 	~Reader();
 

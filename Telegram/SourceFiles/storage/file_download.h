@@ -41,7 +41,7 @@ public:
 
 	[[nodiscard]] virtual MTP::DcId dcId() const = 0;
 	[[nodiscard]] virtual bool readyToRequest() const = 0;
-	[[nodiscard]] virtual void loadPart(int dcIndex) = 0;
+	virtual void loadPart(int dcIndex) = 0;
 
 };
 
@@ -91,8 +91,7 @@ private:
 
 	base::Observable<void> _taskFinishedObservable;
 
-	using RequestedInDc = std::array<int64, MTP::kDownloadSessionsCount>;
-	base::flat_map<MTP::DcId, RequestedInDc> _requestedBytesAmount;
+	base::flat_map<MTP::DcId, std::vector<int>> _requestedBytesAmount;
 
 	base::flat_map<MTP::DcId, crl::time> _killDownloadSessionTimes;
 	base::Timer _killDownloadSessionsTimer;

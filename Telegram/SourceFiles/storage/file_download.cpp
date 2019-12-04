@@ -43,6 +43,9 @@ constexpr auto kMaxWebFileQueries = 8;
 // fixed part size download for hash checking.
 constexpr auto kPartSize = 128 * 1024;
 
+constexpr auto kStartSessionsCount = 1;
+constexpr auto kMaxSessionsCount = 8;
+
 } // namespace
 
 void DownloadManager::Queue::enqueue(not_null<Downloader*> loader) {
@@ -121,6 +124,7 @@ void DownloadManager::checkSendNext() {
 		const auto bestIndex = [&] {
 			const auto i = _requestedBytesAmount.find(dcId);
 			if (i == end(_requestedBytesAmount)) {
+				_requestedBytesAmount[dcId].resize(kStartSessionsCount);
 				return 0;
 			}
 			const auto j = ranges::min_element(i->second);
@@ -136,6 +140,9 @@ void DownloadManager::checkSendNext() {
 			loader->loadPart(bestIndex);
 		}
 	}
+	if (_requestedBytesAmount[0].empty()) {
+		_requestedBytesAmount[0] = std::vector<int>(1, 0);
+	}
 	if (_requestedBytesAmount[0][0] < kMaxWebFileQueries) {
 		if (const auto loader = _webLoaders.nextLoader()) {
 			loader->loadPart(0);
@@ -147,13 +154,14 @@ void DownloadManager::requestedAmountIncrement(
 		MTP::DcId dcId,
 		int index,
 		int amount) {
-	Expects(index >= 0 && index < MTP::kDownloadSessionsCount);
-
 	using namespace rpl::mappers;
 
 	auto it = _requestedBytesAmount.find(dcId);
 	if (it == _requestedBytesAmount.end()) {
-		it = _requestedBytesAmount.emplace(dcId, RequestedInDc { { 0 } }).first;
+		it = _requestedBytesAmount.emplace(
+			dcId,
+			std::vector<int>(dcId ? kStartSessionsCount : 1, 0)
+		).first;
 	}
 	it->second[index] += amount;
 	if (!dcId) {
@@ -163,6 +171,7 @@ void DownloadManager::requestedAmountIncrement(
 		killDownloadSessionsStop(dcId);
 	} else if (ranges::find_if(it->second, _1 > 0) == end(it->second)) {
 		killDownloadSessionsStart(dcId);
+		checkSendNext();
 	}
 }
 
@@ -197,8 +206,11 @@ void DownloadManager::killDownloadSessions() {
 	auto left = kKillSessionTimeout;
 	for (auto i = _killDownloadSessionTimes.begin(); i != _killDownloadSessionTimes.end(); ) {
 		if (i->second <= now) {
-			for (int j = 0; j < MTP::kDownloadSessionsCount; ++j) {
-				MTP::stopSession(MTP::downloadDcId(i->first, j));
+			const auto j = _requestedBytesAmount.find(i->first);
+			if (j != end(_requestedBytesAmount)) {
+				for (auto index = 0; index != int(j->second.size()); ++index) {
+					MTP::stopSession(MTP::downloadDcId(i->first, index));
+				}
 			}
 			i = _killDownloadSessionTimes.erase(i);
 		} else {
@@ -458,8 +470,6 @@ void FileLoader::cancel(bool fail) {
 	}
 	_data = QByteArray();
 
-	const auto downloader = _downloader;
-	const auto sessionGuard = &session();
 	const auto weak = QPointer<FileLoader>(this);
 	if (fail) {
 		emit failed(this, started);

@@ -40,7 +40,7 @@ public:
 	[[nodiscard]] virtual rpl::producer<LoadedPart> parts() const = 0;
 
 	virtual void attachDownloader(
-		Storage::StreamedFileDownloader *downloader) = 0;
+		not_null<Storage::StreamedFileDownloader*> downloader) = 0;
 	virtual void clearAttachedDownloader() = 0;
 
 	virtual ~Loader() = default;

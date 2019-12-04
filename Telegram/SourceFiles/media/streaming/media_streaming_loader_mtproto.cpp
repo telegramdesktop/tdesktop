@@ -91,7 +91,7 @@ void LoaderMtproto::cancelForOffset(int offset) {
 }
 
 void LoaderMtproto::attachDownloader(
-		Storage::StreamedFileDownloader *downloader) {
+		not_null<Storage::StreamedFileDownloader*> downloader) {
 	_downloader = downloader;
 }
 

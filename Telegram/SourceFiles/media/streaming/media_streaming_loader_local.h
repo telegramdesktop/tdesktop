@@ -33,7 +33,7 @@ public:
 	[[nodiscard]] rpl::producer<LoadedPart> parts() const override;
 
 	void attachDownloader(
-		Storage::StreamedFileDownloader *downloader) override;
+		not_null<Storage::StreamedFileDownloader*> downloader) override;
 	void clearAttachedDownloader() override;
 
 private:

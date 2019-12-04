@@ -1033,8 +1033,6 @@ void SessionPrivate::onSentSome(uint64 size) {
 		}
 		if (isUploadDcId(_shiftedDcId)) {
 			remain *= kUploadSessionsCount;
-		} else if (isDownloadDcId(_shiftedDcId)) {
-			remain *= kDownloadSessionsCount;
 		}
 		_waitForReceivedTimer.callOnce(remain);
 	}
