@@ -16,6 +16,7 @@ namespace {
 using namespace Media::Streaming;
 
 constexpr auto kPartSize = Loader::kPartSize;
+constexpr auto kRequestPartsCount = 8;
 
 } // namespace
 
@@ -60,6 +61,8 @@ StreamedFileDownloader::StreamedFileDownloader(
 			savePart(std::move(part));
 		}
 	}, _lifetime);
+
+	requestParts();
 }
 
 StreamedFileDownloader::~StreamedFileDownloader() {
@@ -76,6 +79,31 @@ Data::FileOrigin StreamedFileDownloader::fileOrigin() const {
 
 void StreamedFileDownloader::stop() {
 	cancelRequests();
+}
+
+void StreamedFileDownloader::requestParts() {
+	while (!_finished
+		&& _nextPartIndex < _partsCount
+		&& _partsRequested < kRequestPartsCount) {
+		requestPart();
+	}
+}
+
+void StreamedFileDownloader::requestPart() {
+	Expects(!_finished);
+
+	const auto index = std::find(
+		begin(_partIsSaved) + _nextPartIndex,
+		end(_partIsSaved),
+		false
+	) - begin(_partIsSaved);
+	if (index == _partsCount) {
+		_nextPartIndex = _partsCount;
+		return;
+	}
+	_nextPartIndex = index + 1;
+	_reader->loadForDownloader(this, index * kPartSize);
+	++_partsRequested;
 }
 
 QByteArray StreamedFileDownloader::readLoadedPart(int offset) {
@@ -104,30 +132,11 @@ void StreamedFileDownloader::cancelRequests() {
 }
 
 bool StreamedFileDownloader::readyToRequest() const {
-	if (_finished || _nextPartIndex >= _partsCount) {
-		return false;
-	}
-	_nextPartIndex = std::find(
-		begin(_partIsSaved) + _nextPartIndex,
-		end(_partIsSaved),
-		false
-	) - begin(_partIsSaved);
-	return (_nextPartIndex < _partsCount);
+	return false;
 }
 
 void StreamedFileDownloader::loadPart(int dcIndex) {
-	const auto index = std::find(
-		begin(_partIsSaved) + _nextPartIndex,
-		end(_partIsSaved),
-		false
-	) - begin(_partIsSaved);
-	if (index == _partsCount) {
-		_nextPartIndex = _partsCount;
-		return;
-	}
-	_nextPartIndex = index + 1;
-	_reader->loadForDownloader(this, index * kPartSize);
-	++_partsRequested;
+	Unexpected("StreamedFileDownloader can't load parts.");
 }
 
 void StreamedFileDownloader::savePart(const LoadedPart &part) {
@@ -159,6 +168,7 @@ void StreamedFileDownloader::savePart(const LoadedPart &part) {
 		}
 	}
 	_reader->doneForDownloader(offset);
+	requestParts();
 	notifyAboutProgress();
 }
 

@@ -10,15 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader.h"
 #include "mtproto/sender.h"
 #include "data/data_file_origin.h"
-
-namespace Storage {
-class DownloadManager;
-} // namespace Storage
+#include "storage/file_download.h"
 
 namespace Media {
 namespace Streaming {
 
-class LoaderMtproto : public Loader, public base::has_weak_ptr {
+class LoaderMtproto
+	: public Loader
+	, public base::has_weak_ptr
+	, public Storage::Downloader {
 public:
 	LoaderMtproto(
 		not_null<Storage::DownloadManager*> owner,
@@ -44,7 +44,9 @@ public:
 	void clearAttachedDownloader() override;
 
 private:
-	void sendNext();
+	MTP::DcId dcId() const override;
+	bool readyToRequest() const override;
+	void loadPart(int dcIndex) override;
 
 	void requestDone(int offset, const MTPupload_File &result);
 	void requestFailed(

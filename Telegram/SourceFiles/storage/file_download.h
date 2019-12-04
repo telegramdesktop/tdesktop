@@ -71,6 +71,7 @@ private:
 		void enqueue(not_null<Downloader*> loader);
 		void remove(not_null<Downloader*> loader);
 		void resetGeneration();
+		[[nodiscard]] bool empty() const;
 		[[nodiscard]] Downloader *nextLoader() const;
 
 	private:
@@ -92,13 +93,13 @@ private:
 	base::Observable<void> _taskFinishedObservable;
 
 	base::flat_map<MTP::DcId, std::vector<int>> _requestedBytesAmount;
+	base::Timer _resetGenerationTimer;
 
 	base::flat_map<MTP::DcId, crl::time> _killDownloadSessionTimes;
 	base::Timer _killDownloadSessionsTimer;
 
 	base::flat_map<MTP::DcId, Queue> _mtprotoLoaders;
 	Queue _webLoaders;
-	bool _resettingGeneration = false;
 
 };
 

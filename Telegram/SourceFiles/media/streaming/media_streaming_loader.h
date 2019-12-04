@@ -52,9 +52,10 @@ public:
 	bool add(int value);
 	bool remove(int value);
 	void increasePriority();
-	std::optional<int> front() const;
-	std::optional<int> take();
-	base::flat_set<int> takeInRange(int from, int till);
+	[[nodiscard]] bool empty() const;
+	[[nodiscard]] std::optional<int> front() const;
+	[[nodiscard]] std::optional<int> take();
+	[[nodiscard]] base::flat_set<int> takeInRange(int from, int till);
 	void clear();
 
 private:

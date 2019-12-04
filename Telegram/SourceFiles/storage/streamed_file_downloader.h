@@ -51,6 +51,8 @@ private:
 	void cancelRequests() override;
 	bool readyToRequest() const override;
 	void loadPart(int dcIndex) override;
+	void requestParts();
+	void requestPart();
 
 	void savePart(const Media::Streaming::LoadedPart &part);
 

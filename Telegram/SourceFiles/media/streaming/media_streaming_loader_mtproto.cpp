@@ -37,6 +37,7 @@ LoaderMtproto::~LoaderMtproto() {
 	for (const auto [index, amount] : _amountByDcIndex) {
 		changeRequestedAmount(index, -amount);
 	}
+	_owner->remove(this);
 }
 
 std::optional<Storage::Cache::Key> LoaderMtproto::baseCacheKey() const {
@@ -60,7 +61,7 @@ void LoaderMtproto::load(int offset) {
 		if (_requests.contains(offset)) {
 			return;
 		} else if (_requested.add(offset)) {
-			sendNext();
+			_owner->enqueue(this); // #TODO download priority
 		}
 	});
 }
@@ -72,6 +73,7 @@ void LoaderMtproto::stop() {
 			_api.requestCanceller(),
 			&base::flat_map<int, mtpRequestId>::value_type::second);
 		_requested.clear();
+		_owner->remove(this);
 	});
 }
 
@@ -84,7 +86,7 @@ void LoaderMtproto::cancel(int offset) {
 void LoaderMtproto::cancelForOffset(int offset) {
 	if (const auto requestId = _requests.take(offset)) {
 		_api.request(*requestId).cancel();
-		sendNext();
+		_owner->enqueue(this);
 	} else {
 		_requested.remove(offset);
 	}
@@ -110,17 +112,21 @@ void LoaderMtproto::changeRequestedAmount(int index, int amount) {
 	_amountByDcIndex[index] += amount;
 }
 
-void LoaderMtproto::sendNext() {
-	if (_requests.size() >= kMaxConcurrentRequests) {
-		return;
-	}
+MTP::DcId LoaderMtproto::dcId() const {
+	return _dcId;
+}
+
+bool LoaderMtproto::readyToRequest() const {
+	return !_requested.empty();
+}
+
+void LoaderMtproto::loadPart(int dcIndex) {
 	const auto offset = _requested.take().value_or(-1);
 	if (offset < 0) {
 		return;
 	}
 
-	const auto index = _owner->chooseDcIndexForRequest(_dcId);
-	changeRequestedAmount(index, kPartSize);
+	changeRequestedAmount(dcIndex, kPartSize);
 
 	const auto usedFileReference = _location.fileReference();
 	const auto id = _api.request(MTPupload_GetFile(
@@ -129,23 +135,21 @@ void LoaderMtproto::sendNext() {
 		MTP_int(offset),
 		MTP_int(kPartSize)
 	)).done([=](const MTPupload_File &result) {
-		changeRequestedAmount(index, -kPartSize);
+		changeRequestedAmount(dcIndex, -kPartSize);
 		requestDone(offset, result);
 	}).fail([=](const RPCError &error) {
-		changeRequestedAmount(index, -kPartSize);
+		changeRequestedAmount(dcIndex, -kPartSize);
 		requestFailed(offset, error, usedFileReference);
 	}).toDC(
-		MTP::downloadDcId(_dcId, index)
+		MTP::downloadDcId(_dcId, dcIndex)
 	).send();
 	_requests.emplace(offset, id);
-
-	sendNext();
 }
 
 void LoaderMtproto::requestDone(int offset, const MTPupload_File &result) {
 	result.match([&](const MTPDupload_file &data) {
 		_requests.erase(offset);
-		sendNext();
+		_owner->enqueue(this);
 		_parts.fire({ offset, data.vbytes().v });
 	}, [&](const MTPDupload_fileCdnRedirect &data) {
 		changeCdnParams(
@@ -189,7 +193,7 @@ void LoaderMtproto::requestFailed(
 			return;
 		} else {
 			_requested.add(offset);
-			sendNext();
+			_owner->enqueue(this);
 		}
 	};
 	_owner->api().refreshFileReference(

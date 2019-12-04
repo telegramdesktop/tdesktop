@@ -45,6 +45,7 @@ constexpr auto kPartSize = 128 * 1024;
 
 constexpr auto kStartSessionsCount = 1;
 constexpr auto kMaxSessionsCount = 8;
+constexpr auto kResetDownloadPrioritiesTimeout = crl::time(200);
 
 } // namespace
 
@@ -78,6 +79,10 @@ void DownloadManager::Queue::resetGeneration() {
 	std::swap(_loaders, _previousGeneration);
 }
 
+bool DownloadManager::Queue::empty() const {
+	return _loaders.empty() && _previousGeneration.empty();
+}
+
 Downloader *DownloadManager::Queue::nextLoader() const {
 	auto &&all = ranges::view::concat(_loaders, _previousGeneration);
 	const auto i = ranges::find(all, true, &FileLoader::readyToRequest);
@@ -86,6 +91,7 @@ Downloader *DownloadManager::Queue::nextLoader() const {
 
 DownloadManager::DownloadManager(not_null<ApiWrap*> api)
 : _api(api)
+, _resetGenerationTimer([=] { resetGeneration(); })
 , _killDownloadSessionsTimer([=] { killDownloadSessions(); }) {
 }
 
@@ -96,11 +102,8 @@ DownloadManager::~DownloadManager() {
 void DownloadManager::enqueue(not_null<Downloader*> loader) {
 	const auto dcId = loader->dcId();
 	(dcId ? _mtprotoLoaders[dcId] : _webLoaders).enqueue(loader);
-	if (!_resettingGeneration) {
-		_resettingGeneration = true;
-		crl::on_main(this, [=] {
-			resetGeneration();
-		});
+	if (!_resetGenerationTimer.isActive()) {
+		_resetGenerationTimer.callOnce(kResetDownloadPrioritiesTimeout);
 	}
 	checkSendNext();
 }
@@ -112,7 +115,7 @@ void DownloadManager::remove(not_null<Downloader*> loader) {
 }
 
 void DownloadManager::resetGeneration() {
-	_resettingGeneration = false;
+	_resetGenerationTimer.cancel();
 	for (auto &[dcId, queue] : _mtprotoLoaders) {
 		queue.resetGeneration();
 	}
@@ -121,6 +124,9 @@ void DownloadManager::resetGeneration() {
 
 void DownloadManager::checkSendNext() {
 	for (auto &[dcId, queue] : _mtprotoLoaders) {
+		if (queue.empty()) {
+			continue;
+		}
 		const auto bestIndex = [&] {
 			const auto i = _requestedBytesAmount.find(dcId);
 			if (i == end(_requestedBytesAmount)) {
