@@ -46,11 +46,10 @@ public:
 	QByteArray readLoadedPart(int offset);
 
 private:
+	void startLoading() override;
 	Cache::Key cacheKey() const override;
 	std::optional<MediaKey> fileLocationKey() const override;
 	void cancelRequests() override;
-	bool readyToRequest() const override;
-	void loadPart(int dcIndex) override;
 	void requestParts();
 	void requestPart();
 

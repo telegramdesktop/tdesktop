@@ -685,6 +685,10 @@
 <(src_loc)/settings/settings_privacy_security.h
 <(src_loc)/storage/file_download.cpp
 <(src_loc)/storage/file_download.h
+<(src_loc)/storage/file_download_mtproto.cpp
+<(src_loc)/storage/file_download_mtproto.h
+<(src_loc)/storage/file_download_web.cpp
+<(src_loc)/storage/file_download_web.h
 <(src_loc)/storage/file_upload.cpp
 <(src_loc)/storage/file_upload.h
 <(src_loc)/storage/localimageloader.cpp

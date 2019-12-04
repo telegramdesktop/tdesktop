@@ -28,7 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "storage/localstorage.h"
 #include "storage/file_upload.h"
-#include "storage/file_download.h"
+#include "storage/file_download_mtproto.h"
 #include "app.h"
 #include "apiwrap.h"
 

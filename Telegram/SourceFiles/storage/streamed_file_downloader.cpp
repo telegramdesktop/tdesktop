@@ -38,7 +38,6 @@ StreamedFileDownloader::StreamedFileDownloader(
 	uint8 cacheTag)
 : FileLoader(
 	toFile,
-	dcId,
 	size,
 	locationType,
 	toCache,
@@ -61,8 +60,6 @@ StreamedFileDownloader::StreamedFileDownloader(
 			savePart(std::move(part));
 		}
 	}, _lifetime);
-
-	requestParts();
 }
 
 StreamedFileDownloader::~StreamedFileDownloader() {
@@ -131,12 +128,8 @@ void StreamedFileDownloader::cancelRequests() {
 	_reader->cancelForDownloader(this);
 }
 
-bool StreamedFileDownloader::readyToRequest() const {
-	return false;
-}
-
-void StreamedFileDownloader::loadPart(int dcIndex) {
-	Unexpected("StreamedFileDownloader can't load parts.");
+void StreamedFileDownloader::startLoading() {
+	requestParts();
 }
 
 void StreamedFileDownloader::savePart(const LoadedPart &part) {

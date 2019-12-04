@@ -139,7 +139,6 @@ Application::~Application() {
 	Ui::Emoji::Clear();
 	Media::Clip::Finish();
 
-	stopWebLoadManager();
 	App::deinitMedia();
 
 	Window::Theme::Uninitialize();
