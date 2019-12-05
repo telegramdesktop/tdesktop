@@ -1036,7 +1036,9 @@ void SessionPrivate::onSentSome(uint64 size) {
 		}
 		_waitForReceivedTimer.callOnce(remain);
 	}
-	if (!_firstSentAt) _firstSentAt = crl::now();
+	if (!_firstSentAt) {
+		_firstSentAt = crl::now();
+	}
 }
 
 void SessionPrivate::onReceivedSome() {
@@ -1048,7 +1050,9 @@ void SessionPrivate::onReceivedSome() {
 	_waitForReceivedTimer.cancel();
 	if (_firstSentAt > 0) {
 		const auto ms = crl::now() - _firstSentAt;
-		DEBUG_LOG(("MTP Info: response in %1ms, _waitForReceived: %2ms").arg(ms).arg(_waitForReceived));
+		DEBUG_LOG(("MTP Info: response in %1ms, _waitForReceived: %2ms"
+			).arg(ms
+			).arg(_waitForReceived));
 
 		if (ms > 0 && ms * 2 < _waitForReceived) {
 			_waitForReceived = qMax(ms * 2, kMinReceiveTimeout);
@@ -1060,7 +1064,8 @@ void SessionPrivate::onReceivedSome() {
 void SessionPrivate::markConnectionOld() {
 	_oldConnection = true;
 	_waitForReceived = kMinReceiveTimeout;
-	DEBUG_LOG(("This connection marked as old! _waitForReceived now %1ms").arg(_waitForReceived));
+	DEBUG_LOG(("This connection marked as old! _waitForReceived now %1ms"
+		).arg(_waitForReceived));
 }
 
 void SessionPrivate::sendPingByTimer() {
@@ -1094,10 +1099,6 @@ void SessionPrivate::sendPingForce() {
 void SessionPrivate::waitReceivedFailed() {
 	Expects(_options != nullptr);
 
-	if (!_options->useTcp) {
-		return;
-	}
-
 	DEBUG_LOG(("MTP Info: bad connection, _waitForReceived: %1ms").arg(_waitForReceived));
 	if (_waitForReceived < kMaxReceiveTimeout) {
 		_waitForReceived *= 2;
@@ -1109,6 +1110,12 @@ void SessionPrivate::waitReceivedFailed() {
 
 	DEBUG_LOG(("MTP Info: immediate restart!"));
 	InvokeQueued(this, [=] { connectToServer(); });
+
+	const auto instance = _instance;
+	const auto shiftedDcId = _shiftedDcId;
+	InvokeQueued(instance, [=] {
+		instance->restartedByTimeout(shiftedDcId);
+	});
 }
 
 void SessionPrivate::waitConnectedFailed() {

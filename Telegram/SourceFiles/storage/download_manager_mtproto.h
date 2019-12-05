@@ -42,8 +42,8 @@ public:
 		return _taskFinishedObservable;
 	}
 
-	void requestedAmountIncrement(MTP::DcId dcId, int index, int amount);
-	[[nodiscard]] int chooseDcIndexForRequest(MTP::DcId dcId);
+	void changeRequestedAmount(MTP::DcId dcId, int index, int delta);
+	void requestSucceeded(MTP::DcId dcId, int index);
 
 private:
 	class Queue final {
@@ -59,27 +59,48 @@ private:
 		std::vector<not_null<Task*>> _previousGeneration;
 
 	};
+	struct DcSessionBalanceData {
+		DcSessionBalanceData();
+
+		int requested = 0;
+		int successes = 0; // Since last timeout in this dc in any session.
+		int maxWaitedAmount = 0;
+	};
+	struct DcBalanceData {
+		DcBalanceData();
+
+		std::vector<DcSessionBalanceData> sessions;
+		crl::time lastSessionRemove = 0;
+		int sessionRemoveIndex = 0;
+		int sessionRemoveTimes = 0;
+		int timeouts = 0; // Since all sessions had successes >= required.
+	};
 
 	void checkSendNext();
 	void checkSendNext(MTP::DcId dcId, Queue &queue);
+	bool trySendNextPart(MTP::DcId dcId, Queue &queue);
 
-	void killDownloadSessionsStart(MTP::DcId dcId);
-	void killDownloadSessionsStop(MTP::DcId dcId);
-	void killDownloadSessions();
+	void killSessionsSchedule(MTP::DcId dcId);
+	void killSessionsCancel(MTP::DcId dcId);
+	void killSessions();
+	void killSessions(MTP::DcId dcId);
 
 	void resetGeneration();
+	void sessionTimedOut(MTP::DcId dcId, int index);
+	void removeSession(MTP::DcId dcId);
 
 	const not_null<ApiWrap*> _api;
 
 	base::Observable<void> _taskFinishedObservable;
 
-	base::flat_map<MTP::DcId, std::vector<int>> _requestedBytesAmount;
+	base::flat_map<MTP::DcId, DcBalanceData> _balanceData;
 	base::Timer _resetGenerationTimer;
 
-	base::flat_map<MTP::DcId, crl::time> _killDownloadSessionTimes;
-	base::Timer _killDownloadSessionsTimer;
+	base::flat_map<MTP::DcId, crl::time> _killSessionsWhen;
+	base::Timer _killSessionsTimer;
 
 	base::flat_map<MTP::DcId, Queue> _queues;
+	rpl::lifetime _lifetime;
 
 };
 
@@ -148,6 +169,11 @@ private:
 		Invalid,
 		Good,
 	};
+	enum class FinishRequestReason {
+		Success,
+		Redirect,
+		Cancel,
+	};
 
 	// Called only if readyToRequest() == true.
 	[[nodiscard]] virtual int takeNextRequestOffset() = 0;
@@ -187,7 +213,9 @@ private:
 	void placeSentRequest(
 		mtpRequestId requestId,
 		const RequestData &requestData);
-	[[nodiscard]] RequestData finishSentRequest(mtpRequestId requestId);
+	[[nodiscard]] RequestData finishSentRequest(
+		mtpRequestId requestId,
+		FinishRequestReason reason);
 	void switchToCDN(
 		const RequestData &requestData,
 		const MTPDupload_fileCdnRedirect &redirect);

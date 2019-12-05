@@ -120,6 +120,9 @@ public:
 	void setUserPhone(const QString &phone);
 	void badConfigurationError();
 
+	void restartedByTimeout(ShiftedDcId shiftedDcId);
+	[[nodiscard]] rpl::producer<ShiftedDcId> restartsByTimeout() const;
+
 	void syncHttpUnixtime();
 
 	void sendAnything(ShiftedDcId shiftedDcId = 0, crl::time msCanWait = 0);

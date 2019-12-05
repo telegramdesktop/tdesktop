@@ -85,6 +85,9 @@ public:
 	void badConfigurationError();
 	void syncHttpUnixtime();
 
+	void restartedByTimeout(ShiftedDcId shiftedDcId);
+	[[nodiscard]] rpl::producer<ShiftedDcId> restartsByTimeout() const;
+
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
 	[[nodiscard]] int32 dcstate(ShiftedDcId shiftedDcId = 0);
@@ -208,6 +211,7 @@ private:
 	Session *_mainSession = nullptr;
 	base::flat_map<ShiftedDcId, std::unique_ptr<Session>> _sessions;
 	std::vector<std::unique_ptr<Session>> _sessionsToDestroy;
+	rpl::event_stream<ShiftedDcId> _restartsByTimeout;
 
 	std::unique_ptr<ConfigLoader> _configLoader;
 	std::unique_ptr<DomainResolver> _domainResolver;
@@ -444,6 +448,14 @@ void Instance::Private::syncHttpUnixtime() {
 			_httpUnixtimeLoader = nullptr;
 		});
 	});
+}
+
+void Instance::Private::restartedByTimeout(ShiftedDcId shiftedDcId) {
+	_restartsByTimeout.fire_copy(shiftedDcId);
+}
+
+rpl::producer<ShiftedDcId> Instance::Private::restartsByTimeout() const {
+	return _restartsByTimeout.events();
 }
 
 void Instance::Private::requestConfigIfOld() {
@@ -1662,6 +1674,14 @@ void Instance::badConfigurationError() {
 
 void Instance::syncHttpUnixtime() {
 	_private->syncHttpUnixtime();
+}
+
+void Instance::restartedByTimeout(ShiftedDcId shiftedDcId) {
+	_private->restartedByTimeout(shiftedDcId);
+}
+
+rpl::producer<ShiftedDcId> Instance::restartsByTimeout() const {
+	return _private->restartsByTimeout();
 }
 
 void Instance::requestConfigIfOld() {

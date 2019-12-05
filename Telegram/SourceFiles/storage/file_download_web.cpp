@@ -222,7 +222,6 @@ void WebLoadManager::remove(int id) {
 		ranges::remove(_previousGeneration, id, &Enqueued::id),
 		end(_previousGeneration));
 	removeSent(id);
-	checkSendNext();
 }
 
 void WebLoadManager::resetGeneration() {
@@ -258,6 +257,7 @@ void WebLoadManager::removeSent(int id) {
 	if (const auto i = _sent.find(id); i != end(_sent)) {
 		deleteDeferred(i->second.reply);
 		_sent.erase(i);
+		checkSendNext();
 	}
 }
 
@@ -265,11 +265,9 @@ not_null<QNetworkReply*> WebLoadManager::send(int id, const QString &url) {
 	const auto result = _network.get(QNetworkRequest(url));
 	const auto handleProgress = [=](qint64 ready, qint64 total) {
 		progress(id, result, ready, total);
-		checkSendNext();
 	};
 	const auto handleError = [=](QNetworkReply::NetworkError error) {
 		failed(id, result, error);
-		checkSendNext();
 	};
 	connect(result, &QNetworkReply::downloadProgress, handleProgress);
 	connect(result, QNetworkReply_error, handleError);
