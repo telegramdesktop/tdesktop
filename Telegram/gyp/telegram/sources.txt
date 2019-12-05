@@ -683,6 +683,8 @@
 <(src_loc)/settings/settings_privacy_controllers.h
 <(src_loc)/settings/settings_privacy_security.cpp
 <(src_loc)/settings/settings_privacy_security.h
+<(src_loc)/storage/download_manager_mtproto.cpp
+<(src_loc)/storage/download_manager_mtproto.h
 <(src_loc)/storage/file_download.cpp
 <(src_loc)/storage/file_download.h
 <(src_loc)/storage/file_download_mtproto.cpp

@@ -817,7 +817,6 @@ void DocumentData::destroyLoader() const {
 	if (cancelled()) {
 		loader->cancel();
 	}
-	loader->stop();
 }
 
 bool DocumentData::loading() const {

@@ -306,7 +306,6 @@ void RemoteSource::destroyLoader() {
 	if (cancelled()) {
 		loader->cancel();
 	}
-	loader->stop();
 }
 
 void RemoteSource::loadLocal() {

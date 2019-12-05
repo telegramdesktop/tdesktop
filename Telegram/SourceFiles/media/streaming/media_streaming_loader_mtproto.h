@@ -10,22 +10,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader.h"
 #include "mtproto/sender.h"
 #include "data/data_file_origin.h"
-#include "storage/file_download.h"
+#include "storage/download_manager_mtproto.h"
 
 namespace Media {
 namespace Streaming {
 
-class LoaderMtproto
-	: public Loader
-	, public base::has_weak_ptr
-	, public Storage::Downloader {
+class LoaderMtproto : public Loader, public Storage::DownloadMtprotoTask {
 public:
 	LoaderMtproto(
-		not_null<Storage::DownloadManager*> owner,
+		not_null<Storage::DownloadManagerMtproto*> owner,
 		const StorageFileLocation &location,
 		int size,
 		Data::FileOrigin origin);
-	~LoaderMtproto();
 
 	[[nodiscard]] auto baseCacheKey() const
 	-> std::optional<Storage::Cache::Key> override;
@@ -44,39 +40,18 @@ public:
 	void clearAttachedDownloader() override;
 
 private:
-	MTP::DcId dcId() const override;
 	bool readyToRequest() const override;
-	void loadPart(int dcIndex) override;
+	int takeNextRequestOffset() override;
+	bool feedPart(int offset, const QByteArray &bytes) override;
+	void cancelOnFail() override;
 
-	void requestDone(int offset, const MTPupload_File &result);
-	void requestFailed(
-		int offset,
-		const RPCError &error,
-		const QByteArray &usedFileReference);
-	void changeCdnParams(
-		int offset,
-		MTP::DcId dcId,
-		const QByteArray &token,
-		const QByteArray &encryptionKey,
-		const QByteArray &encryptionIV,
-		const QVector<MTPFileHash> &hashes);
 	void cancelForOffset(int offset);
-	void changeRequestedAmount(int index, int amount);
-
-	const not_null<Storage::DownloadManager*> _owner;
-
-	// _location can be changed with an updated file_reference.
-	StorageFileLocation _location;
-	MTP::DcId _dcId = 0;
 
 	const int _size = 0;
-	const Data::FileOrigin _origin;
 
 	MTP::Sender _api;
 
 	PriorityQueue _requested;
-	base::flat_map<int, mtpRequestId> _requests;
-	base::flat_map<int, int> _amountByDcIndex;
 	rpl::event_stream<LoadedPart> _parts;
 
 	Storage::StreamedFileDownloader *_downloader = nullptr;

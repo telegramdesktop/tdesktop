@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
+#include "data/data_file_origin.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/ripple_animation.h"

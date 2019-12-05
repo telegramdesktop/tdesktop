@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/file_download.h"
 #include "storage/cache/storage_cache_types.h"
+#include "data/data_file_origin.h"
 
 namespace Media {
 namespace Streaming {
@@ -41,7 +42,6 @@ public:
 
 	uint64 objId() const override;
 	Data::FileOrigin fileOrigin() const override;
-	void stop() override;
 
 	QByteArray readLoadedPart(int offset);
 
@@ -49,7 +49,7 @@ private:
 	void startLoading() override;
 	Cache::Key cacheKey() const override;
 	std::optional<MediaKey> fileLocationKey() const override;
-	void cancelRequests() override;
+	void cancelHook() override;
 	void requestParts();
 	void requestPart();
 

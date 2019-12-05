@@ -20,7 +20,6 @@ struct MessageGroupId;
 struct SendingAlbum;
 enum class SendMediaType;
 struct FileLoadTo;
-class mtpFileLoader;
 
 namespace Main {
 class Session;
@@ -38,6 +37,7 @@ class Result;
 namespace Storage {
 enum class SharedMediaType : signed char;
 struct PreparedList;
+class DownloadMtprotoTask;
 } // namespace Storage
 
 namespace Dialogs {
@@ -201,7 +201,7 @@ public:
 		FileReferencesHandler &&handler);
 	void refreshFileReference(
 		Data::FileOrigin origin,
-		not_null<mtpFileLoader*> loader,
+		not_null<Storage::DownloadMtprotoTask*> task,
 		int requestId,
 		const QByteArray &current);
 

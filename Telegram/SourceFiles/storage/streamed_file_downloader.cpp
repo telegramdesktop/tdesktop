@@ -63,7 +63,7 @@ StreamedFileDownloader::StreamedFileDownloader(
 }
 
 StreamedFileDownloader::~StreamedFileDownloader() {
-	stop();
+	cancelHook();
 }
 
 uint64 StreamedFileDownloader::objId() const {
@@ -72,10 +72,6 @@ uint64 StreamedFileDownloader::objId() const {
 
 Data::FileOrigin StreamedFileDownloader::fileOrigin() const {
 	return _origin;
-}
-
-void StreamedFileDownloader::stop() {
-	cancelRequests();
 }
 
 void StreamedFileDownloader::requestParts() {
@@ -121,7 +117,7 @@ std::optional<MediaKey> StreamedFileDownloader::fileLocationKey() const {
 	return _fileLocationKey;
 }
 
-void StreamedFileDownloader::cancelRequests() {
+void StreamedFileDownloader::cancelHook() {
 	_partsRequested = 0;
 	_nextPartIndex = 0;
 

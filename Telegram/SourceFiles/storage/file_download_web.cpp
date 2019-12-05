@@ -455,7 +455,7 @@ webFileLoader::webFileLoader(
 }
 
 webFileLoader::~webFileLoader() {
-	cancelRequests();
+	cancelRequest();
 }
 
 QString webFileLoader::url() const {
@@ -493,7 +493,7 @@ void webFileLoader::loadProgress(qint64 ready, qint64 total) {
 }
 
 void webFileLoader::loadFinished(const QByteArray &data) {
-	cancelRequests();
+	cancelRequest();
 	if (writeResultPart(0, bytes::make_span(data))) {
 		if (finalizeResult()) {
 			notifyAboutProgress();
@@ -513,11 +513,11 @@ std::optional<MediaKey> webFileLoader::fileLocationKey() const {
 	return std::nullopt;
 }
 
-void webFileLoader::stop() {
-	cancelRequests();
+void webFileLoader::cancelHook() {
+	cancelRequest();
 }
 
-void webFileLoader::cancelRequests() {
+void webFileLoader::cancelRequest() {
 	if (!_manager) {
 		return;
 	}

@@ -55,7 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "support/support_helper.h"
 #include "storage/localimageloader.h"
-#include "storage/file_download_mtproto.h"
+#include "storage/download_manager_mtproto.h"
 #include "storage/file_upload.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
@@ -2973,12 +2973,12 @@ void ApiWrap::requestFileReference(
 
 void ApiWrap::refreshFileReference(
 		Data::FileOrigin origin,
-		not_null<mtpFileLoader*> loader,
+		not_null<Storage::DownloadMtprotoTask*> task,
 		int requestId,
 		const QByteArray &current) {
-	return refreshFileReference(origin, crl::guard(loader, [=](
+	return refreshFileReference(origin, crl::guard(task, [=](
 			const UpdatedFileReferences &data) {
-		loader->refreshFileReferenceFrom(data, requestId, current);
+		task->refreshFileReferenceFrom(data, requestId, current);
 	}));
 }
 

@@ -24,10 +24,10 @@ public:
 	[[nodiscard]] QString url() const;
 
 	int currentOffset() const override;
-	void stop() override;
-	void cancelRequests() override;
 
 private:
+	void cancelRequest();
+	void cancelHook() override;
 	void startLoading() override;
 	Storage::Cache::Key cacheKey() const override;
 	std::optional<MediaKey> fileLocationKey() const override;

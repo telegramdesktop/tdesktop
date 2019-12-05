@@ -341,6 +341,7 @@ QString PlatformString() {
 }
 
 void StartCatching(not_null<Core::Launcher*> launcher) {
+	return; AssertIsDebug();
 #ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 	ProcessAnnotations["Binary"] = cExeName().toUtf8().constData();
 	ProcessAnnotations["ApiId"] = QString::number(ApiId).toUtf8().constData();
