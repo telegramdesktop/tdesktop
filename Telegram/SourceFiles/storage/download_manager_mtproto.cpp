@@ -18,7 +18,8 @@ namespace Storage {
 namespace {
 
 constexpr auto kKillSessionTimeout = 15 * crl::time(1000);
-constexpr auto kMaxWaitedInSession = 2 * 1024 * 1024;
+constexpr auto kStartWaitedInSession = 4 * kDownloadPartSize;
+constexpr auto kMaxWaitedInSession = 16 * kDownloadPartSize;
 constexpr auto kStartSessionsCount = 1;
 constexpr auto kMaxSessionsCount = 8;
 constexpr auto kMaxTrackedSessionRemoves = 64;
@@ -28,10 +29,13 @@ constexpr auto kMaxTrackedSuccesses = kRetryAddSessionSuccesses
 	* kMaxTrackedSessionRemoves;
 constexpr auto kRemoveSessionAfterTimeouts = 2;
 constexpr auto kResetDownloadPrioritiesTimeout = crl::time(200);
+constexpr auto kGrowMaxWaitedDurationThreshold = crl::time(500);
+constexpr auto kGrowSessionsDurationThreshold = crl::time(500);
+constexpr auto kBadRequestDurationThreshold = crl::time(2000);
 
-// Each session remove by timeouts we wait for time
+// Each (session remove by timeouts) we wait for time:
 // kRetryAddSessionTimeout * max(removesCount, kMaxTrackedSessionRemoves)
-// and for successes in all remaining sessions
+// and for successes in all remaining sessions:
 // kRetryAddSessionSuccesses * max(removesCount, kMaxTrackedSessionRemoves)
 
 } // namespace
@@ -77,7 +81,7 @@ auto DownloadManagerMtproto::Queue::nextTask() const -> Task* {
 }
 
 DownloadManagerMtproto::DcSessionBalanceData::DcSessionBalanceData()
-: maxWaitedAmount(kDownloadPartSize) {
+: maxWaitedAmount(kStartWaitedInSession) {
 }
 
 DownloadManagerMtproto::DcBalanceData::DcBalanceData()
@@ -184,19 +188,44 @@ void DownloadManagerMtproto::changeRequestedAmount(
 	}
 }
 
-void DownloadManagerMtproto::requestSucceeded(MTP::DcId dcId, int index) {
+void DownloadManagerMtproto::requestSucceeded(
+		MTP::DcId dcId,
+		int index,
+		crl::time duration) {
 	using namespace rpl::mappers;
 
-	DEBUG_LOG(("Download (%1,%2) request done.").arg(dcId).arg(index));
+	DEBUG_LOG(("Download (%1,%2) request done, duration %3."
+		).arg(dcId
+		).arg(index
+		).arg(duration));
 	const auto i = _balanceData.find(dcId);
 	Assert(i != end(_balanceData));
 	auto &dc = i->second;
 	Assert(index < dc.sessions.size());
 	auto &data = dc.sessions[index];
+	const auto guard = gsl::finally([&] {
+		checkSendNext(dcId, _queues[dcId]);
+	});
+	const auto parts = data.maxWaitedAmount / kDownloadPartSize;
+	if (duration < kGrowMaxWaitedDurationThreshold * parts) {
+		if (data.maxWaitedAmount < kMaxWaitedInSession) {
+			data.maxWaitedAmount = std::min(
+				data.maxWaitedAmount + kDownloadPartSize,
+				kMaxWaitedInSession);
+			DEBUG_LOG(("Download (%1,%2) increased max waited amount %3."
+				).arg(dcId
+				).arg(index
+				).arg(data.maxWaitedAmount));
+		}
+	}
+	if (duration >= kBadRequestDurationThreshold * parts) {
+		DEBUG_LOG(("Duration too large, signaling time out."));
+		sessionTimedOut(dcId, index);
+		return;
+	} else if (duration >= kGrowSessionsDurationThreshold * parts) {
+		return;
+	}
 	data.successes = std::min(data.successes + 1, kMaxTrackedSuccesses);
-	data.maxWaitedAmount = std::min(
-		data.maxWaitedAmount + kDownloadPartSize,
-		kMaxWaitedInSession);
 	const auto notEnough = ranges::find_if(
 		dc.sessions,
 		_1 < (dc.sessionRemoveTimes + 1) * kRetryAddSessionSuccesses,
@@ -222,7 +251,6 @@ void DownloadManagerMtproto::requestSucceeded(MTP::DcId dcId, int index) {
 		).arg(dcId
 		).arg(dc.sessions.size()));
 	dc.sessions.emplace_back();
-	checkSendNext(dcId, _queues[dcId]);
 }
 
 void DownloadManagerMtproto::sessionTimedOut(MTP::DcId dcId, int index) {
@@ -588,8 +616,6 @@ void DownloadMtprotoTask::getCdnFileHashesDone(
 		mtpRequestId requestId) {
 	Expects(_cdnHashesRequestId == requestId);
 
-	_cdnHashesRequestId = 0;
-
 	const auto requestData = finishSentRequest(
 		requestId,
 		FinishRequestReason::Redirect);
@@ -648,6 +674,8 @@ void DownloadMtprotoTask::placeSentRequest(
 		requestData.offset,
 		requestId);
 
+	i->second.sent = crl::now();
+
 	Ensures(ok1 && ok2);
 }
 
@@ -658,6 +686,9 @@ auto DownloadMtprotoTask::finishSentRequest(
 	auto it = _sentRequests.find(requestId);
 	Assert(it != _sentRequests.cend());
 
+	if (_cdnHashesRequestId == requestId) {
+		_cdnHashesRequestId = 0;
+	}
 	const auto result = it->second;
 	_owner->changeRequestedAmount(
 		dcId(),
@@ -667,7 +698,8 @@ auto DownloadMtprotoTask::finishSentRequest(
 	const auto ok = _requestByOffset.remove(result.offset);
 
 	if (reason == FinishRequestReason::Success) {
-		_owner->requestSucceeded(dcId(), result.dcIndex);
+		const auto duration = crl::now() - result.sent;
+		_owner->requestSucceeded(dcId(), result.dcIndex, duration);
 	}
 
 	Ensures(ok);
@@ -755,9 +787,6 @@ bool DownloadMtprotoTask::cdnPartFailed(
 		return false;
 	}
 
-	if (requestId == _cdnHashesRequestId) {
-		_cdnHashesRequestId = 0;
-	}
 	if (error.type() == qstr("FILE_TOKEN_INVALID")
 		|| error.type() == qstr("REQUEST_TOKEN_INVALID")) {
 		const auto requestData = finishSentRequest(

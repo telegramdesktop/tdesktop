@@ -43,7 +43,7 @@ public:
 	}
 
 	void changeRequestedAmount(MTP::DcId dcId, int index, int delta);
-	void requestSucceeded(MTP::DcId dcId, int index);
+	void requestSucceeded(MTP::DcId dcId, int index, crl::time duration);
 
 private:
 	class Queue final {
@@ -153,6 +153,7 @@ private:
 	struct RequestData {
 		int offset = 0;
 		int dcIndex = 0;
+		crl::time sent = 0;
 
 		inline bool operator<(const RequestData &other) const {
 			return offset < other.offset;
