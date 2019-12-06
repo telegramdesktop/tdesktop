@@ -122,9 +122,7 @@ if not exist "%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_sym
 )
 
 echo Dumping debug symbols..
-xcopy "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\%BinaryName%.exe.exe*"
-call "%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" "%ReleasePath%\%BinaryName%.exe.pdb" > "%ReleasePath%\%BinaryName%.exe.sym"
-del "%ReleasePath%\%BinaryName%.exe.exe"
+call "%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" "%ReleasePath%\%BinaryName%.pdb" > "%ReleasePath%\%BinaryName%.sym"
 echo Done!
 
 set "PATH=%PATH%;C:\Program Files\7-Zip;C:\Program Files (x86)\Inno Setup 5"
@@ -186,10 +184,10 @@ for /f ^"usebackq^ eol^=^
 :symbolslinedone
 FOR /F "tokens=1,2,3,4* delims= " %%i in ("%SymbolsHashLine%") do set "SymbolsHash=%%l"
 
-echo Copying %BinaryName%.exe.sym to %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash%
-if not exist %DropboxSymbolsPath%\%BinaryName%.exe.pdb mkdir %DropboxSymbolsPath%\%BinaryName%.exe.pdb
-if not exist %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash% mkdir %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash%
-move "%ReleasePath%\%BinaryName%.exe.sym" %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash%\
+echo Copying %BinaryName%.sym to %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash%
+if not exist %DropboxSymbolsPath%\%BinaryName%.pdb mkdir %DropboxSymbolsPath%\%BinaryName%.pdb
+if not exist %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash% mkdir %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash%
+move "%ReleasePath%\%BinaryName%.sym" %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash%\
 echo Done!
 
 if %BuildUWP% neq 0 (
@@ -225,8 +223,7 @@ if %BuildUWP% neq 0 (
   if not exist "%ReleasePath%\deploy\%AppVersionStrMajor%" mkdir "%ReleasePath%\deploy\%AppVersionStrMajor%"
   mkdir "%DeployPath%"
 
-  xcopy "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\"
-  move "%ReleasePath%\%BinaryName%.exe.pdb" "%DeployPath%\"
+  move "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\"
   move "%ReleasePath%\%BinaryName%.x86.appx" "%DeployPath%\"
   move "%ReleasePath%\%BinaryName%.x64.appx" "%DeployPath%\"
   move "%ReleasePath%\%BinaryName%.exe" "%DeployPath%\"
@@ -246,10 +243,8 @@ if %BuildUWP% neq 0 (
 
   move "%ReleasePath%\%BinaryName%.exe" "%DeployPath%\%BinaryName%\"
   move "%ReleasePath%\Updater.exe" "%DeployPath%\"
-  xcopy "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\"
-  xcopy "%ReleasePath%\Updater.pdb" "%DeployPath%\"
-  move "%ReleasePath%\%BinaryName%.exe.pdb" "%DeployPath%\"
-  move "%ReleasePath%\Updater.exe.pdb" "%DeployPath%\"
+  move "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\"
+  move "%ReleasePath%\Updater.pdb" "%DeployPath%\"
   if %AlphaVersion% equ 0 (
     move "%ReleasePath%\%SetupFile%" "%DeployPath%\"
   ) else (
@@ -280,10 +275,8 @@ if %BuildUWP% equ 0 (
     if not exist "%DeployPath%\%SetupFile%" goto error
   )
   if not exist "%DeployPath%\%BinaryName%.pdb" goto error
-  if not exist "%DeployPath%\%BinaryName%.exe.pdb" goto error
   if not exist "%DeployPath%\Updater.exe" goto error
   if not exist "%DeployPath%\Updater.pdb" goto error
-  if not exist "%DeployPath%\Updater.exe.pdb" goto error
   md "%FinalDeployPath%"
 
   xcopy "%DeployPath%\%UpdateFile%" "%FinalDeployPath%\" /Y

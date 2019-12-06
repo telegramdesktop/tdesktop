@@ -1124,4 +1124,27 @@ if (NOT build_macstore AND NOT build_winstore)
     )
 
     set_target_properties(Updater PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
+
+    if (DESKTOP_APP_SPECIAL_TARGET)
+        add_executable(Packer WIN32)
+        init_target(Packer)
+
+        add_dependencies(Telegram Packer)
+
+        nice_target_sources(Packer ${src_loc}
+        PRIVATE
+            _other/packer.cpp
+            _other/packer.h
+        )
+
+        target_link_libraries(Packer
+        PRIVATE
+            desktop-app::external_qt
+            desktop-app::external_zlib
+            desktop-app::external_auto_updates
+            desktop-app::external_openssl
+        )
+
+        set_target_properties(Packer PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
+    endif()
 endif()
