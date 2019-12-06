@@ -1064,14 +1064,13 @@ else()
     set(output_name "Telegram")
 endif()
 
-set(current_version 1.9.1)
 set_target_properties(Telegram PROPERTIES
     OUTPUT_NAME ${output_name}
     MACOSX_BUNDLE_GUI_IDENTIFIER ${bundle_identifier}
     MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/Telegram.plist
     XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "${CMAKE_CURRENT_SOURCE_DIR}/Telegram/${bundle_entitlements}"
     XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER ${bundle_identifier}
-    XCODE_ATTRIBUTE_CURRENT_PROJECT_VERSION ${current_version}
+    XCODE_ATTRIBUTE_CURRENT_PROJECT_VERSION ${desktop_app_version_string}
     XCODE_ATTRIBUTE_PRODUCT_NAME ${output_name}
     XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT $<$<NOT:$<CONFIG:Debug>>:dwarf-with-dsym>
     XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon

@@ -11,10 +11,12 @@ cmake_policy(SET CMP0091 NEW)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 include(cmake/variables.cmake)
+include(cmake/version.cmake)
+desktop_app_parse_version(Telegram/build/version)
 
 project(Telegram
     LANGUAGES C CXX
-    VERSION 1.9.0
+    VERSION ${desktop_app_version_cmake}
     DESCRIPTION "Official Telegram Desktop messenger"
     HOMEPAGE_URL "https://desktop.telegram.org"
 )
