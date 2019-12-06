@@ -906,7 +906,7 @@ rpl::producer<LoadedPart> Reader::partsForDownloader() const {
 }
 
 void Reader::loadForDownloader(
-		Storage::StreamedFileDownloader *downloader,
+		not_null<Storage::StreamedFileDownloader*> downloader,
 		int offset) {
 	if (_attachedDownloader != downloader) {
 		if (_attachedDownloader) {
@@ -931,7 +931,7 @@ void Reader::doneForDownloader(int offset) {
 }
 
 void Reader::cancelForDownloader(
-		Storage::StreamedFileDownloader *downloader) {
+		not_null<Storage::StreamedFileDownloader*> downloader) {
 	if (_attachedDownloader == downloader) {
 		_downloaderOffsetRequests.take();
 		_attachedDownloader = nullptr;

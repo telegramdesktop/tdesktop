@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader_local.h"
 #include "storage/localstorage.h"
 #include "storage/streamed_file_downloader.h"
+#include "storage/file_download_mtproto.h"
+#include "storage/file_download_web.h"
 #include "platform/platform_specific.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -815,7 +817,6 @@ void DocumentData::destroyLoader() const {
 	if (cancelled()) {
 		loader->cancel();
 	}
-	loader->stop();
 }
 
 bool DocumentData::loading() const {

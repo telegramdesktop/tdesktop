@@ -1192,7 +1192,7 @@ void PanelController::startScopeEdit(
 			_panelHasUnsavedChanges = [=] {
 				return weak ? weak->hasUnsavedChanges() : false;
 			};
-			return std::move(result);
+			return result;
 		} break;
 		case Scope::Type::PersonalDetails:
 		case Scope::Type::AddressDetails: {
@@ -1210,7 +1210,7 @@ void PanelController::startScopeEdit(
 			_panelHasUnsavedChanges = [=] {
 				return weak ? weak->hasUnsavedChanges() : false;
 			};
-			return std::move(result);
+			return result;
 		} break;
 		case Scope::Type::Phone:
 		case Scope::Type::Email: {

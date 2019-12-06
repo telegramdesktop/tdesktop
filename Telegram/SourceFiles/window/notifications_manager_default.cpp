@@ -65,7 +65,7 @@ std::unique_ptr<Manager> Create(System *system) {
 Manager::Manager(System *system)
 : Notifications::Manager(system)
 , _inputCheckTimer([=] { checkLastInput(); }) {
-	subscribe(system->session().downloader().taskFinished(), [this] {
+	subscribe(system->session().downloaderTaskFinished(), [this] {
 		for (const auto &notification : _notifications) {
 			notification->updatePeerPhoto();
 		}

@@ -178,8 +178,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_caption" = "Caption";
 "lng_photos_comment" = "Comment";
 
+"lng_intro_qr_title" = "Scan From Mobile Telegram";
+"lng_intro_qr_step1" = "**1.** Open Telegram on your phone";
+"lng_intro_qr_step2" = "**2.** Go to Settings > Devices > Scan QR Code";
+"lng_intro_qr_step3" = "**3.** Scan this image to Log In";
+"lng_intro_qr_skip" = "Or log in using your phone number";
+
 "lng_phone_title" = "Your Phone Number";
 "lng_phone_desc" = "Please confirm your country code and\nenter your mobile phone number.";
+"lng_phone_to_qr" = "Quick log in using QR code";
 "lng_country_code" = "Country Code";
 "lng_bad_country_code" = "Invalid Country Code";
 "lng_country_ph" = "Search";
@@ -2231,6 +2238,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mac_menu_new_group" = "New Group";
 "lng_mac_menu_new_channel" = "New Channel";
 "lng_mac_menu_show" = "Show Telegram";
+"lng_mac_menu_emoji_and_symbols" = "Emoji & Symbols";
 
 "lng_mac_touchbar_favorite_stickers" = "Favorite stickers";
 

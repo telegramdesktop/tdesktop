@@ -13,13 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_file_origin.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "history/view/history_view_cursor_state.h"
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
-#include "storage/file_download.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/ui_utility.h"
 #include "ui/inactive_press.h"
@@ -574,7 +574,7 @@ void ListWidget::start() {
 		}
 	}, lifetime());
 	ObservableViewer(
-		session().downloader().taskFinished()
+		session().downloaderTaskFinished()
 	) | rpl::start_with_next([this] { update(); }, lifetime());
 	session().data().itemLayoutChanged(
 	) | rpl::start_with_next([this](auto item) {

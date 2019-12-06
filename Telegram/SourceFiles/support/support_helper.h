@@ -39,7 +39,7 @@ inline bool operator!=(const UserInfo &a, const UserInfo &b) {
 	return !(a == b);
 }
 
-class Helper : private MTP::Sender {
+class Helper final {
 public:
 	explicit Helper(not_null<Main::Session*> session);
 
@@ -87,6 +87,7 @@ private:
 		Fn<void(bool success)> done);
 
 	not_null<Main::Session*> _session;
+	MTP::Sender _api;
 	Templates _templates;
 	QString _supportName;
 	QString _supportNameNormalized;

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/round_checkbox.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 enum class SendMenuType;
 

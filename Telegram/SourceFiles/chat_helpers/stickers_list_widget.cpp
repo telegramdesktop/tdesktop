@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
+#include "data/data_file_origin.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/ripple_animation.h"
@@ -828,6 +829,7 @@ StickersListWidget::StickersListWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : Inner(parent, controller)
+, _api(controller->session().api().instance())
 , _section(Section::Stickers)
 , _megagroupSetAbout(st::columnMinimalWidthThird - st::emojiScroll.width - st::emojiPanHeaderLeft)
 , _addText(tr::lng_stickers_featured_add(tr::now).toUpper())
@@ -878,7 +880,7 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 
 	auto result = object_ptr<Footer>(this);
 	_footer = result;
-	return std::move(result);
+	return result;
 }
 
 void StickersListWidget::visibleTopBottomUpdated(
@@ -1069,7 +1071,7 @@ void StickersListWidget::sendSearchRequest() {
 
 	_footer->setLoading(true);
 	const auto hash = int32(0);
-	_searchRequestId = request(MTPmessages_SearchStickerSets(
+	_searchRequestId = _api.request(MTPmessages_SearchStickerSets(
 		MTP_flags(0),
 		MTP_string(_searchQuery),
 		MTP_int(hash)
@@ -1092,7 +1094,7 @@ void StickersListWidget::searchForSets(const QString &query) {
 	if (_searchQuery != cleaned) {
 		_footer->setLoading(false);
 		if (const auto requestId = base::take(_searchRequestId)) {
-			request(requestId).cancel();
+			_api.request(requestId).cancel();
 		}
 		if (_searchCache.find(cleaned) != _searchCache.cend()) {
 			_searchRequestTimer.cancel();
@@ -1108,7 +1110,7 @@ void StickersListWidget::searchForSets(const QString &query) {
 void StickersListWidget::cancelSetsSearch() {
 	_footer->setLoading(false);
 	if (const auto requestId = base::take(_searchRequestId)) {
-		request(requestId).cancel();
+		_api.request(requestId).cancel();
 	}
 	_searchRequestTimer.cancel();
 	_searchQuery = _searchNextQuery = QString();
@@ -2468,7 +2470,7 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 		return;
 	}
 	_megagroupSetIdRequested = set.vid().v;
-	request(MTPmessages_GetStickerSet(
+	_api.request(MTPmessages_GetStickerSet(
 		_megagroupSet->mgInfo->stickerSet
 	)).done([=](const MTPmessages_StickerSet &result) {
 		if (const auto set = Stickers::FeedSetFull(result)) {
@@ -2810,7 +2812,7 @@ void StickersListWidget::installSet(uint64 setId) {
 		const auto input = Stickers::inputSetId(*it);
 		if ((it->flags & MTPDstickerSet_ClientFlag::f_not_loaded)
 			|| it->stickers.empty()) {
-			request(MTPmessages_GetStickerSet(
+			_api.request(MTPmessages_GetStickerSet(
 				input
 			)).done([=](const MTPmessages_StickerSet &result) {
 				Stickers::FeedSetFull(result);
@@ -2825,7 +2827,7 @@ void StickersListWidget::installSet(uint64 setId) {
 void StickersListWidget::sendInstallRequest(
 		uint64 setId,
 		const MTPInputStickerSet &input) {
-	request(MTPmessages_InstallStickerSet(
+	_api.request(MTPmessages_InstallStickerSet(
 		input,
 		MTP_bool(false)
 	)).done([=](const MTPmessages_StickerSetInstallResult &result) {
@@ -2876,9 +2878,9 @@ void StickersListWidget::removeSet(uint64 setId) {
 			auto it = sets.find(_removingSetId);
 			if (it != sets.cend()) {
 				if (it->id && it->access) {
-					request(MTPmessages_UninstallStickerSet(MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access)))).send();
+					_api.request(MTPmessages_UninstallStickerSet(MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access)))).send();
 				} else if (!it->shortName.isEmpty()) {
-					request(MTPmessages_UninstallStickerSet(MTP_inputStickerSetShortName(MTP_string(it->shortName)))).send();
+					_api.request(MTPmessages_UninstallStickerSet(MTP_inputStickerSetShortName(MTP_string(it->shortName)))).send();
 				}
 				auto writeRecent = false;
 				auto &recent = Stickers::GetRecentPack();

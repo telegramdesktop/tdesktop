@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_file_origin.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
@@ -1803,7 +1804,6 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 
 	_zoom = 0;
 	_zoomToScreen = 0;
-	Auth().downloader().clearPriorities();
 	_blurred = true;
 	_current = QPixmap();
 	_down = OverNone;

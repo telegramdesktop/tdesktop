@@ -9,17 +9,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/observer.h"
 #include "base/bytes.h"
-#include "mtproto/rsa_public_key.h"
+
+#include <QtCore/QReadWriteLock>
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 
 namespace MTP {
+namespace details {
+class RSAPublicKey;
+} // namespace details
 
 enum class DcType {
 	Regular,
 	Temporary,
-	MediaDownload,
+	MediaCluster,
 	Cdn,
 };
 class DcOptions {
@@ -49,6 +54,7 @@ public:
 	};
 
 	DcOptions();
+	~DcOptions();
 
 	[[nodiscard]] static bool ValidateSecret(bytes::const_span secret);
 
@@ -63,15 +69,13 @@ public:
 		const bytes::vector &secret);
 	QByteArray serialize() const;
 
-	using Ids = std::vector<DcId>;
-	base::Observable<Ids> &changed() const {
-		return _changed;
-	}
+	[[nodiscard]] rpl::producer<DcId> changed() const;
+	[[nodiscard]] rpl::producer<> cdnConfigChanged() const;
 	void setFromList(const MTPVector<MTPDcOption> &options);
 	void addFromList(const MTPVector<MTPDcOption> &options);
 	void addFromOther(DcOptions &&options);
 
-	Ids configEnumDcIds() const;
+	[[nodiscard]] std::vector<DcId> configEnumDcIds() const;
 
 	struct Variants {
 		enum Address {
@@ -86,12 +90,17 @@ public:
 		};
 		std::vector<Endpoint> data[AddressTypeCount][ProtocolCount];
 	};
-	Variants lookup(DcId dcId, DcType type, bool throughProxy) const;
-	DcType dcType(ShiftedDcId shiftedDcId) const;
+	[[nodiscard]] Variants lookup(
+		DcId dcId,
+		DcType type,
+		bool throughProxy) const;
+	[[nodiscard]] DcType dcType(ShiftedDcId shiftedDcId) const;
 
 	void setCDNConfig(const MTPDcdnConfig &config);
-	bool hasCDNKeysForDc(DcId dcId) const;
-	bool getDcRSAKey(DcId dcId, const QVector<MTPlong> &fingerprints, internal::RSAPublicKey *result) const;
+	[[nodiscard]] bool hasCDNKeysForDc(DcId dcId) const;
+	[[nodiscard]] details::RSAPublicKey getDcRSAKey(
+		DcId dcId,
+		const QVector<MTPlong> &fingerprints) const;
 
 	// Debug feature for now.
 	bool loadFromFile(const QString &path);
@@ -111,10 +120,12 @@ private:
 		const std::string &ip,
 		int port,
 		const bytes::vector &secret);
-	static Ids CountOptionsDifference(
+	static std::vector<DcId> CountOptionsDifference(
 		const std::map<DcId, std::vector<Endpoint>> &a,
 		const std::map<DcId, std::vector<Endpoint>> &b);
 	static void FilterIfHasWithFlag(Variants &variants, Flag flag);
+
+	[[nodiscard]] bool hasMediaOnlyOptionsFor(DcId dcId) const;
 
 	void processFromList(const QVector<MTPDcOption> &options, bool overwrite);
 	void computeCdnDcIds();
@@ -129,11 +140,12 @@ private:
 
 	std::map<DcId, std::vector<Endpoint>> _data;
 	std::set<DcId> _cdnDcIds;
-	std::map<uint64, internal::RSAPublicKey> _publicKeys;
-	std::map<DcId, std::map<uint64, internal::RSAPublicKey>> _cdnPublicKeys;
+	std::map<uint64, details::RSAPublicKey> _publicKeys;
+	std::map<DcId, std::map<uint64, details::RSAPublicKey>> _cdnPublicKeys;
 	mutable QReadWriteLock _useThroughLockers;
 
-	mutable base::Observable<Ids> _changed;
+	rpl::event_stream<DcId> _changed;
+	rpl::event_stream<> _cdnConfigChanged;
 
 	// True when we have overriden options from a .tdesktop-endpoints file.
 	bool _immutable = false;

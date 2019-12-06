@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "core/application.h"
 #include "main/main_account.h"
+#include "mtproto/facade.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -37,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kSaveSettingsDelayedTimeout = crl::time(1000);
+
+using ProxyData = MTP::ProxyData;
 
 class Base64UrlInput : public Ui::MaskedInputField {
 public:
@@ -1057,7 +1060,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 
 	item.state = ItemState::Checking;
 	const auto setup = [&](Checker &checker, const bytes::vector &secret) {
-		checker = MTP::internal::AbstractConnection::Create(
+		checker = MTP::details::AbstractConnection::Create(
 			mtproto,
 			type,
 			QThread::currentThread(),
@@ -1105,7 +1108,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 }
 
 void ProxiesBoxController::setupChecker(int id, const Checker &checker) {
-	using Connection = MTP::internal::AbstractConnection;
+	using Connection = MTP::details::AbstractConnection;
 	const auto pointer = checker.get();
 	pointer->connect(pointer, &Connection::connected, [=] {
 		const auto item = findById(id);
@@ -1148,7 +1151,7 @@ object_ptr<Ui::BoxContent> ProxiesBoxController::create() {
 	for (const auto &item : _list) {
 		updateView(item);
 	}
-	return std::move(result);
+	return result;
 }
 
 auto ProxiesBoxController::findById(int id) -> std::vector<Item>::iterator {

@@ -366,12 +366,13 @@ void Manager::Private::init(Manager *manager) {
 			auto capabilityText = QString::fromUtf8(static_cast<const char*>(capability->data));
 			_capabilities.push_back(capabilityText);
 		}
-		Libs::g_list_free_full(capabilities, g_free);
+		Libs::g_list_free_full(capabilities, Libs::g_free);
 
 		LOG(("LibNotify capabilities: %1").arg(_capabilities.join(qstr(", "))));
 		if (_capabilities.contains(qsl("actions"))) {
 			_actionsSupported = true;
-		} else if (_capabilities.contains(qsl("body-markup"))) {
+		}
+		if (_capabilities.contains(qsl("body-markup"))) {
 			_markupSupported = true;
 		}
 	} else {

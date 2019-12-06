@@ -20,7 +20,7 @@ namespace Main {
 class Session;
 } // namespace Main
 
-class SelfDestructionBox : public Ui::BoxContent, private MTP::Sender {
+class SelfDestructionBox : public Ui::BoxContent {
 public:
 	SelfDestructionBox(
 		QWidget*,

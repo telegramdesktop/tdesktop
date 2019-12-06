@@ -94,7 +94,7 @@ inline auto AddButton(
 		navigation->showSection(
 			Info::Memento(peer->id, Section(type)));
 	});
-	return std::move(result);
+	return result;
 };
 
 inline auto AddCommonGroupsButton(
@@ -113,7 +113,7 @@ inline auto AddCommonGroupsButton(
 		navigation->showSection(
 			Info::Memento(user->id, Section::Type::CommonGroups));
 	});
-	return std::move(result);
+	return result;
 };
 
 } // namespace Media

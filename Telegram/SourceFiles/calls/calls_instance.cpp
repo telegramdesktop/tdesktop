@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_instance.h"
 
-#include "mtproto/connection.h"
+#include "mtproto/mtproto_dh_utils.h"
 #include "core/application.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -32,7 +32,9 @@ constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * crl::time(1000);
 
 } // namespace
 
-Instance::Instance(not_null<Main::Session*> session) : _session(session) {
+Instance::Instance(not_null<Main::Session*> session)
+: _session(session)
+, _api(_session->api().instance()) {
 }
 
 void Instance::startOutgoingCall(not_null<UserData*> user) {
@@ -139,7 +141,7 @@ void Instance::refreshDhConfig() {
 	Expects(_currentCall != nullptr);
 
 	const auto weak = base::make_weak(_currentCall);
-	request(MTPmessages_GetDhConfig(
+	_api.request(MTPmessages_GetDhConfig(
 		MTP_int(_dhConfig.version),
 		MTP_int(MTP::ModExpFirst::kRandomPowerSize)
 	)).done([=](const MTPmessages_DhConfig &result) {
@@ -203,13 +205,14 @@ void Instance::refreshServerConfig() {
 	if (_lastServerConfigUpdateTime && (crl::now() - _lastServerConfigUpdateTime) < kServerConfigUpdateTimeoutMs) {
 		return;
 	}
-	_serverConfigRequestId = request(MTPphone_GetCallConfig()).done([this](const MTPDataJSON &result) {
+	_serverConfigRequestId = _api.request(MTPphone_GetCallConfig(
+	)).done([=](const MTPDataJSON &result) {
 		_serverConfigRequestId = 0;
 		_lastServerConfigUpdateTime = crl::now();
 
 		const auto &json = result.c_dataJSON().vdata().v;
 		UpdateConfig(std::string(json.data(), json.size()));
-	}).fail([this](const RPCError &error) {
+	}).fail([=](const RPCError &error) {
 		_serverConfigRequestId = 0;
 	}).send();
 }
@@ -246,7 +249,7 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 			LOG(("API Error: Self found in phoneCallRequested."));
 		}
 		if (alreadyInCall() || !user || user->isSelf()) {
-			request(MTPphone_DiscardCall(
+			_api.request(MTPphone_DiscardCall(
 				MTP_flags(0),
 				MTP_inputPhoneCall(phoneCall.vid(), phoneCall.vaccess_hash()),
 				MTP_int(0),

@@ -7,13 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/auth_key.h"
+#include "mtproto/mtproto_auth_key.h"
+#include "mtproto/mtp_instance.h"
 #include "base/weak_ptr.h"
 
 namespace Main {
 
 class Session;
 class Settings;
+class AppConfig;
 
 class Account final : public base::has_weak_ptr {
 public:
@@ -33,6 +35,10 @@ public:
 
 	void logOut();
 	void forcedLogOut();
+
+	[[nodiscard]] AppConfig &appConfig() {
+		return *_appConfig;
+	}
 
 	[[nodiscard]] bool sessionExists() const;
 	[[nodiscard]] Session &session();
@@ -55,6 +61,8 @@ public:
 		QByteArray &&selfSerialized,
 		int32 selfStreamVersion);
 	[[nodiscard]] Settings *getSessionSettings();
+	[[nodiscard]] rpl::producer<> mtpNewSessionCreated() const;
+	[[nodiscard]] rpl::producer<MTPUpdates> mtpUpdates() const;
 
 	// Serialization.
 	[[nodiscard]] QByteArray serializeMtpAuthorization() const;
@@ -75,9 +83,10 @@ private:
 		Settings &&settings);
 	void watchProxyChanges();
 	void watchSessionChanges();
+	bool checkForUpdates(const mtpPrime *from, const mtpPrime *end);
+	bool checkForNewSession(const mtpPrime *from, const mtpPrime *end);
 
 	void destroyMtpKeys(MTP::AuthKeysList &&keys);
-	void allKeysDestroyed();
 	void resetAuthorizationKeys();
 
 	void loggedOut();
@@ -85,7 +94,11 @@ private:
 	std::unique_ptr<MTP::Instance> _mtp;
 	rpl::variable<MTP::Instance*> _mtpValue;
 	std::unique_ptr<MTP::Instance> _mtpForKeysDestroy;
+	rpl::event_stream<MTPUpdates> _mtpUpdates;
+	rpl::event_stream<> _mtpNewSessionCreated;
 	rpl::event_stream<> _configUpdates;
+
+	std::unique_ptr<AppConfig> _appConfig;
 
 	std::unique_ptr<Session> _session;
 	rpl::variable<Session*> _sessionValue;
@@ -96,6 +109,7 @@ private:
 	std::unique_ptr<Settings> _storedSettings;
 	MTP::Instance::Config _mtpConfig;
 	MTP::AuthKeysList _mtpKeysToDestroy;
+	bool _loggingOut = false;
 
 	rpl::lifetime _lifetime;
 

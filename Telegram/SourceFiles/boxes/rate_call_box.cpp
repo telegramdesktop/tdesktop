@@ -31,6 +31,7 @@ RateCallBox::RateCallBox(
 	uint64 callId,
 	uint64 callAccessHash)
 : _session(session)
+, _api(_session->api().instance())
 , _callId(callId)
 , _callAccessHash(callAccessHash) {
 }
@@ -120,7 +121,7 @@ void RateCallBox::send() {
 		return;
 	}
 	auto comment = _comment ? _comment->getLastText().trimmed() : QString();
-	_requestId = request(MTPphone_SetCallRating(
+	_requestId = _api.request(MTPphone_SetCallRating(
 		MTP_flags(0),
 		MTP_inputPhoneCall(MTP_long(_callId), MTP_long(_callAccessHash)),
 		MTP_int(_rating),

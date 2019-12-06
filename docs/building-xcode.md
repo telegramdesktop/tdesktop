@@ -33,7 +33,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 4aa377c
+    git checkout 395b620
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -50,7 +50,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 4aa377c
+    git checkout 395b620
     cd ../
     git clone --branch 0.9.1 https://github.com/ericniebler/range-v3
 
@@ -213,12 +213,12 @@ Go to ***BuildPath*** and run
     git clone https://chromium.googlesource.com/crashpad/crashpad.git
     cd crashpad
     git checkout feb3aa3923
-    git apply ../../patches/crashpad.diff
+    git apply ../patches/crashpad.diff
     cd third_party/mini_chromium
     git clone https://chromium.googlesource.com/chromium/mini_chromium
     cd mini_chromium
     git checkout 7c5b0c1ab4
-    git apply ../../../../../patches/mini_chromium.diff
+    git apply ../../../../patches/mini_chromium.diff
     cd ../../gtest
     git clone https://chromium.googlesource.com/external/github.com/google/googletest gtest
     cd gtest

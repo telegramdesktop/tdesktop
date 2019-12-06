@@ -100,7 +100,7 @@ private:
 
 };
 
-class EditPrivacyBox : public Ui::BoxContent, private MTP::Sender {
+class EditPrivacyBox : public Ui::BoxContent {
 public:
 	using Value = ApiWrap::Privacy;
 	using Option = Value::Option;

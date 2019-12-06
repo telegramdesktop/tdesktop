@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/value_ordering.h"
 #include "base/timer.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Data {
 enum class LoadDirection : char;
 } // namespace Data
@@ -40,7 +44,7 @@ SearchResult ParseSearchResult(
 	Data::LoadDirection direction,
 	const MTPmessages_Messages &data);
 
-class SearchController : private MTP::Sender {
+class SearchController final {
 public:
 	using IdsList = Storage::SparseIdsList;
 	struct Query {
@@ -67,6 +71,7 @@ public:
 		std::optional<IdsList> migratedList;
 	};
 
+	explicit SearchController(not_null<Main::Session*> session);
 	void setQuery(const Query &query);
 	bool hasInCache(const Query &query) const;
 
@@ -124,6 +129,7 @@ private:
 		const Query &query,
 		Data *listData);
 
+	MTP::Sender _api;
 	Cache _cache;
 	Cache::iterator _current = _cache.end();
 
@@ -131,7 +137,7 @@ private:
 
 class DelayedSearchController {
 public:
-	DelayedSearchController();
+	explicit DelayedSearchController(not_null<Main::Session*> session);
 
 	using Query = SearchController::Query;
 	using SavedState = SearchController::SavedState;

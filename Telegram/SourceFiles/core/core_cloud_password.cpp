@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_cloud_password.h"
 
 #include "base/openssl_help.h"
-#include "mtproto/connection.h"
+#include "mtproto/mtproto_dh_utils.h"
 
 namespace Core {
 namespace {

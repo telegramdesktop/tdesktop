@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "styles/style_chat_helpers.h"
+#include "data/data_file_origin.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/effects/ripple_animation.h"
@@ -22,10 +22,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
+#include "apiwrap.h"
 #include "window/window_session_controller.h"
 #include "history/view/history_view_cursor_state.h"
 #include "facades.h"
 #include "app.h"
+#include "styles/style_chat_helpers.h"
 
 #include <QtWidgets/QApplication>
 
@@ -130,6 +132,7 @@ GifsListWidget::GifsListWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : Inner(parent, controller)
+, _api(controller->session().api().instance())
 , _section(Section::Gifs)
 , _updateInlineItems([=] { updateInlineItems(); })
 , _previewTimer([=] { showPreview(); }) {
@@ -178,7 +181,7 @@ object_ptr<TabbedSelector::InnerFooter> GifsListWidget::createFooter() {
 
 	auto result = object_ptr<Footer>(this);
 	_footer = result;
-	return std::move(result);
+	return result;
 }
 
 void GifsListWidget::visibleTopBottomUpdated(
@@ -217,7 +220,7 @@ GifsListWidget::~GifsListWidget() {
 void GifsListWidget::cancelGifsSearch() {
 	_footer->setLoading(false);
 	if (_inlineRequestId) {
-		request(_inlineRequestId).cancel();
+		_api.request(_inlineRequestId).cancel();
 		_inlineRequestId = 0;
 	}
 	_inlineRequestTimer.stop();
@@ -840,7 +843,7 @@ void GifsListWidget::searchForGifs(const QString &query) {
 	if (_inlineQuery != query) {
 		_footer->setLoading(false);
 		if (_inlineRequestId) {
-			request(_inlineRequestId).cancel();
+			_api.request(_inlineRequestId).cancel();
 			_inlineRequestId = 0;
 		}
 		if (_inlineCache.find(query) != _inlineCache.cend()) {
@@ -855,7 +858,7 @@ void GifsListWidget::searchForGifs(const QString &query) {
 
 	if (!_searchBot && !_searchBotRequestId) {
 		auto username = str_const_toString(kSearchBotUsername);
-		_searchBotRequestId = request(MTPcontacts_ResolveUsername(
+		_searchBotRequestId = _api.request(MTPcontacts_ResolveUsername(
 			MTP_string(username)
 		)).done([=](const MTPcontacts_ResolvedPeer &result) {
 			Expects(result.type() == mtpc_contacts_resolvedPeer);
@@ -905,7 +908,7 @@ void GifsListWidget::sendInlineRequest() {
 	}
 
 	_footer->setLoading(true);
-	_inlineRequestId = request(MTPmessages_GetInlineBotResults(
+	_inlineRequestId = _api.request(MTPmessages_GetInlineBotResults(
 		MTP_flags(0),
 		_searchBot->inputUser,
 		_inlineQueryPeer->input,

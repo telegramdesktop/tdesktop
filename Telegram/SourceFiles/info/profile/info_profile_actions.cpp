@@ -344,7 +344,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		result,
 		st::infoIconInformation,
 		st::infoInformationIconPosition);
-	return std::move(result);
+	return result;
 }
 
 object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
@@ -365,7 +365,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 		result,
 		st::infoIconNotifications,
 		st::infoNotificationsIconPosition);
-	return std::move(result);
+	return result;
 }
 
 void DetailsFiller::setupMainButtons() {
@@ -775,7 +775,7 @@ object_ptr<Ui::RpWidget> ActionsFiller::fill() {
 //		result,
 //		st::infoIconNotifications,
 //		st::infoNotificationsIconPosition);
-//	return std::move(result);
+//	return result;
 //}
 
 } // namespace
@@ -870,7 +870,7 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 		st::infoChannelMembersIconPosition);
 	members->add(CreateSkipWidget(members));
 
-	return std::move(result);
+	return result;
 }
 // // #feed
 //object_ptr<Ui::RpWidget> SetupFeedDetails(

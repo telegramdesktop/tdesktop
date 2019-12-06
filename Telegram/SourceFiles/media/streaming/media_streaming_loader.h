@@ -40,7 +40,7 @@ public:
 	[[nodiscard]] virtual rpl::producer<LoadedPart> parts() const = 0;
 
 	virtual void attachDownloader(
-		Storage::StreamedFileDownloader *downloader) = 0;
+		not_null<Storage::StreamedFileDownloader*> downloader) = 0;
 	virtual void clearAttachedDownloader() = 0;
 
 	virtual ~Loader() = default;
@@ -52,9 +52,10 @@ public:
 	bool add(int value);
 	bool remove(int value);
 	void increasePriority();
-	std::optional<int> front() const;
-	std::optional<int> take();
-	base::flat_set<int> takeInRange(int from, int till);
+	[[nodiscard]] bool empty() const;
+	[[nodiscard]] std::optional<int> front() const;
+	[[nodiscard]] std::optional<int> take();
+	[[nodiscard]] base::flat_set<int> takeInRange(int from, int till);
 	void clear();
 
 private:

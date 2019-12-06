@@ -7,10 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/image/image_source.h"
 
-#include "storage/file_download.h"
+#include "storage/cache/storage_cache_database.h"
+#include "storage/file_download_mtproto.h"
+#include "storage/file_download_web.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
-#include "storage/cache/storage_cache_database.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "main/main_session.h"
@@ -305,7 +306,6 @@ void RemoteSource::destroyLoader() {
 	if (cancelled()) {
 		loader->cancel();
 	}
-	loader->stop();
 }
 
 void RemoteSource::loadLocal() {

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "apiwrap.h"
 
 namespace Api {
 namespace {
@@ -191,6 +192,10 @@ SearchController::CacheEntry::CacheEntry(const Query &query)
 	: std::nullopt) {
 }
 
+SearchController::SearchController(not_null<Main::Session*> session)
+: _api(session->api().instance()) {
+}
+
 bool SearchController::hasInCache(const Query &query) const {
 	return query.query.isEmpty() || _cache.contains(query);
 }
@@ -361,7 +366,7 @@ void SearchController::requestMore(
 	if (!prepared) {
 		return;
 	}
-	auto requestId = request(
+	auto requestId = _api.request(
 		std::move(*prepared)
 	).done([=](const MTPmessages_Messages &result) {
 		listData->requests.remove(key);
@@ -377,11 +382,13 @@ void SearchController::requestMore(
 			parsed.fullCount);
 	}).send();
 	listData->requests.emplace(key, [=] {
-		request(requestId).cancel();
+		_api.request(requestId).cancel();
 	});
 }
 
-DelayedSearchController::DelayedSearchController() {
+DelayedSearchController::DelayedSearchController(
+	not_null<Main::Session*> session)
+: _controller(session) {
 	_timer.setCallback([this] { setQueryFast(_nextQuery); });
 }
 

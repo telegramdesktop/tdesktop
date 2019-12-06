@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/connection_tcp.h"
 
-#include "mtproto/mtp_abstract_socket.h"
+#include "mtproto/details/mtproto_abstract_socket.h"
 #include "base/bytes.h"
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
@@ -17,7 +17,7 @@ extern "C" {
 } // extern "C"
 
 namespace MTP {
-namespace internal {
+namespace details {
 namespace {
 
 constexpr auto kPacketSizeMax = int(0x01000000 * sizeof(mtpPrime));
@@ -665,5 +665,5 @@ void TcpConnection::socketError() {
 
 TcpConnection::~TcpConnection() = default;
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

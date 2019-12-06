@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_user.h"
+#include "apiwrap.h"
 #include "facades.h"
 #include "app.h"
 
@@ -216,7 +217,8 @@ void BoxController::Row::stopLastActionRipple() {
 }
 
 BoxController::BoxController(not_null<Window::SessionController*> window)
-: _window(window) {
+: _window(window)
+, _api(_window->session().api().instance()) {
 }
 
 Main::Session &BoxController::session() const {
@@ -256,7 +258,7 @@ void BoxController::loadMoreRows() {
 		return;
 	}
 
-	_loadRequestId = request(MTPmessages_Search(
+	_loadRequestId = _api.request(MTPmessages_Search(
 		MTP_flags(0),
 		MTP_inputPeerEmpty(),
 		MTP_string(),
@@ -404,8 +406,7 @@ BoxController::Row *BoxController::rowForItem(not_null<const HistoryItem*> item)
 
 std::unique_ptr<PeerListRow> BoxController::createRow(
 		not_null<HistoryItem*> item) const {
-	auto row = std::make_unique<Row>(item);
-	return std::move(row);
+	return std::make_unique<Row>(item);
 }
 
 } // namespace Calls

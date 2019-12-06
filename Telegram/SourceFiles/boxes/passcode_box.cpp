@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/confirm_phone_box.h"
 #include "mainwindow.h"
+#include "apiwrap.h"
 #include "main/main_session.h"
 #include "storage/localstorage.h"
 #include "ui/widgets/buttons.h"
@@ -47,6 +48,7 @@ PasscodeBox::PasscodeBox(
 	not_null<Main::Session*> session,
 	bool turningOff)
 : _session(session)
+, _api(_session->api().instance())
 , _turningOff(turningOff)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
 , _oldPasscode(this, st::defaultInputField, tr::lng_passcode_enter_old())
@@ -62,6 +64,7 @@ PasscodeBox::PasscodeBox(
 	not_null<Main::Session*> session,
 	const CloudFields &fields)
 : _session(session)
+, _api(_session->api().instance())
 , _turningOff(fields.turningOff)
 , _cloudPwd(true)
 , _cloudFields(fields)
@@ -357,7 +360,7 @@ void PasscodeBox::validateEmail(
 		if (_setRequest) {
 			return;
 		}
-		_setRequest = request(MTPaccount_ConfirmPasswordEmail(
+		_setRequest = _api.request(MTPaccount_ConfirmPasswordEmail(
 			MTP_string(code)
 		)).done([=](const MTPBool &result) {
 			*set = true;
@@ -387,7 +390,7 @@ void PasscodeBox::validateEmail(
 		if (_setRequest) {
 			return;
 		}
-		_setRequest = request(MTPaccount_ResendPasswordEmail(
+		_setRequest = _api.request(MTPaccount_ResendPasswordEmail(
 		)).done([=](const MTPBool &result) {
 			_setRequest = 0;
 			resent->fire(tr::lng_cloud_password_resent(tr::now));
@@ -597,8 +600,8 @@ void PasscodeBox::requestPasswordData() {
 		return serverError();
 	}
 
-	request(base::take(_setRequest)).cancel();
-	_setRequest = request(
+	_api.request(base::take(_setRequest)).cancel();
+	_setRequest = _api.request(
 		MTPaccount_GetPassword()
 	).done([=](const MTPaccount_Password &result) {
 		_setRequest = 0;
@@ -636,7 +639,7 @@ void PasscodeBox::sendClearCloudPassword(
 		| MTPDaccount_passwordInputSettings::Flag::f_new_password_hash
 		| MTPDaccount_passwordInputSettings::Flag::f_hint
 		| MTPDaccount_passwordInputSettings::Flag::f_email;
-	_setRequest = request(MTPaccount_UpdatePasswordSettings(
+	_setRequest = _api.request(MTPaccount_UpdatePasswordSettings(
 		check.result,
 		MTP_account_passwordInputSettings(
 			MTP_flags(flags),
@@ -667,7 +670,7 @@ void PasscodeBox::setNewCloudPassword(const QString &newPassword) {
 		| MTPDaccount_passwordInputSettings::Flag::f_hint
 		| MTPDaccount_passwordInputSettings::Flag::f_email;
 	_checkPasswordCallback = nullptr;
-	_setRequest = request(MTPaccount_UpdatePasswordSettings(
+	_setRequest = _api.request(MTPaccount_UpdatePasswordSettings(
 		MTP_inputCheckPasswordEmpty(),
 		MTP_account_passwordInputSettings(
 			MTP_flags(flags),
@@ -695,7 +698,7 @@ void PasscodeBox::changeCloudPassword(
 		const QString &oldPassword,
 		const Core::CloudPasswordResult &check,
 		const QString &newPassword) {
-	_setRequest = request(MTPaccount_GetPasswordSettings(
+	_setRequest = _api.request(MTPaccount_GetPasswordSettings(
 		check.result
 	)).done([=](const MTPaccount_PasswordSettings &result) {
 		_setRequest = 0;
@@ -760,7 +763,7 @@ void PasscodeBox::resetSecret(
 		const QString &newPassword,
 		Fn<void()> callback) {
 	using Flag = MTPDaccount_passwordInputSettings::Flag;
-	_setRequest = request(MTPaccount_UpdatePasswordSettings(
+	_setRequest = _api.request(MTPaccount_UpdatePasswordSettings(
 		check.result,
 		MTP_account_passwordInputSettings(
 			MTP_flags(Flag::f_new_secure_settings),
@@ -814,7 +817,7 @@ void PasscodeBox::sendChangeCloudPassword(
 				_cloudFields.newSecureSecretAlgo,
 				bytes::make_span(newPasswordBytes)));
 	}
-	_setRequest = request(MTPaccount_UpdatePasswordSettings(
+	_setRequest = _api.request(MTPaccount_UpdatePasswordSettings(
 		check.result,
 		MTP_account_passwordInputSettings(
 			MTP_flags(flags),
@@ -873,7 +876,7 @@ void PasscodeBox::emailChanged() {
 void PasscodeBox::recoverByEmail() {
 	if (_pattern.isEmpty()) {
 		_pattern = "-";
-		request(MTPauth_RequestPasswordRecovery(
+		_api.request(MTPauth_RequestPasswordRecovery(
 		)).done([=](const MTPauth_PasswordRecovery &result) {
 			recoverStarted(result);
 		}).fail([=](const RPCError &error) {

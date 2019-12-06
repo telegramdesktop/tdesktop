@@ -25,7 +25,7 @@ namespace Core {
 struct CloudPasswordState;
 } // namespace Core
 
-class PasscodeBox : public Ui::BoxContent, private MTP::Sender {
+class PasscodeBox : public Ui::BoxContent {
 public:
 	PasscodeBox(QWidget*, not_null<Main::Session*> session, bool turningOff);
 
@@ -130,6 +130,7 @@ private:
 	void serverError();
 
 	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 
 	QString _pattern;
 

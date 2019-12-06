@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/rate_call_box.h"
 #include "calls/calls_instance.h"
 #include "base/openssl_help.h"
-#include "mtproto/connection.h"
+#include "mtproto/mtproto_dh_utils.h"
 #include "media/audio/media_audio_track.h"
 #include "base/platform/base_platform_info.h"
 #include "calls/calls_panel.h"
@@ -130,6 +130,7 @@ Call::Call(
 	Type type)
 : _delegate(delegate)
 , _user(user)
+, _api(_user->session().api().instance())
 , _type(type) {
 	_discardByTimeoutTimer.setCallback([this] { hangup(); });
 
@@ -189,7 +190,7 @@ void Call::startOutgoing() {
 	Expects(_state == State::Requesting);
 	Expects(_gaHash.size() == kSha256Size);
 
-	request(MTPphone_RequestCall(
+	_api.request(MTPphone_RequestCall(
 		MTP_flags(0),
 		_user->inputUser,
 		MTP_int(rand_value<int32>()),
@@ -236,11 +237,13 @@ void Call::startIncoming() {
 	Expects(_type == Type::Incoming);
 	Expects(_state == State::Starting);
 
-	request(MTPphone_ReceivedCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)))).done([this](const MTPBool &result) {
+	_api.request(MTPphone_ReceivedCall(
+		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash))
+	)).done([=](const MTPBool &result) {
 		if (_state == State::Starting) {
 			setState(State::WaitingIncoming);
 		}
-	}).fail([this](const RPCError &error) {
+	}).fail([=](const RPCError &error) {
 		handleRequestError(error);
 	}).send();
 }
@@ -267,7 +270,7 @@ void Call::actuallyAnswer() {
 	} else {
 		_answerAfterDhConfigReceived = false;
 	}
-	request(MTPphone_AcceptCall(
+	_api.request(MTPphone_AcceptCall(
 		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)),
 		MTP_bytes(_gb),
 		MTP_phoneCallProtocol(
@@ -504,7 +507,7 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 	_keyFingerprint = ComputeFingerprint(_authKey);
 
 	setState(State::ExchangingKeys);
-	request(MTPphone_ConfirmCall(
+	_api.request(MTPphone_ConfirmCall(
 		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)),
 		MTP_bytes(_ga),
 		MTP_long(_keyFingerprint),
@@ -623,10 +626,10 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	_controller->SetEncryptionKey(reinterpret_cast<char*>(_authKey.data()), (_type == Type::Outgoing));
 	_controller->SetCallbacks(callbacks);
 	if (Global::UseProxyForCalls()
-		&& (Global::ProxySettings() == ProxyData::Settings::Enabled)) {
+		&& (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled)) {
 		const auto &proxy = Global::SelectedProxy();
 		if (proxy.supportsCalls()) {
-			Assert(proxy.type == ProxyData::Type::Socks5);
+			Assert(proxy.type == MTP::ProxyData::Type::Socks5);
 			_controller->SetProxy(
 				tgvoip::PROXY_SOCKS5,
 				proxy.host.toStdString(),
@@ -840,7 +843,7 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	auto duration = getDurationMs() / 1000;
 	auto connectionId = _controller ? _controller->GetPreferredRelayID() : 0;
 	_finishByTimeoutTimer.call(kHangupTimeoutMs, [this, finalState] { setState(finalState); });
-	request(MTPphone_DiscardCall(
+	_api.request(MTPphone_DiscardCall(
 		MTP_flags(0),
 		MTP_inputPhoneCall(
 			MTP_long(_id),

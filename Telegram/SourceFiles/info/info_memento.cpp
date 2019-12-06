@@ -160,7 +160,7 @@ object_ptr<Window::SectionWidget> Memento::createWidget(
 		wrap,
 		this);
 	result->setGeometry(geometry);
-	return std::move(result);
+	return result;
 }
 
 object_ptr<Ui::LayerWidget> Memento::createLayer(
@@ -198,7 +198,7 @@ object_ptr<Window::SectionWidget> MoveMemento::createWidget(
 		wrap,
 		this);
 	result->setGeometry(geometry);
-	return std::move(result);
+	return result;
 }
 
 object_ptr<Ui::LayerWidget> MoveMemento::createLayer(

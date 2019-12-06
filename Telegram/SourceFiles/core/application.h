@@ -8,7 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "core/core_settings.h"
-#include "mtproto/auth_key.h"
+#include "mtproto/mtproto_auth_key.h"
+#include "mtproto/mtproto_proxy_data.h"
 #include "base/observer.h"
 #include "base/timer.h"
 
@@ -131,12 +132,12 @@ public:
 		return _dcOptions.get();
 	}
 	struct ProxyChange {
-		ProxyData was;
-		ProxyData now;
+		MTP::ProxyData was;
+		MTP::ProxyData now;
 	};
 	void setCurrentProxy(
-		const ProxyData &proxy,
-		ProxyData::Settings settings);
+		const MTP::ProxyData &proxy,
+		MTP::ProxyData::Settings settings);
 	[[nodiscard]] rpl::producer<ProxyChange> proxyChanges() const;
 	void badMtprotoConfigurationError();
 
@@ -265,7 +266,7 @@ private:
 	std::unique_ptr<Window::Controller> _window;
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
 	const std::unique_ptr<Lang::Instance> _langpack;
-	std::unique_ptr<Lang::CloudManager> _langCloudManager;
+	const std::unique_ptr<Lang::CloudManager> _langCloudManager;
 	const std::unique_ptr<ChatHelpers::EmojiKeywords> _emojiKeywords;
 	std::unique_ptr<Lang::Translator> _translator;
 	base::Observable<void> _passcodedChanged;

@@ -25,8 +25,7 @@ namespace Calls {
 class Panel;
 
 class Instance
-	: private MTP::Sender
-	, private Call::Delegate
+	: private Call::Delegate
 	, private base::Subscriber
 	, public base::has_weak_ptr {
 public:
@@ -74,6 +73,7 @@ private:
 	void handleCallUpdate(const MTPPhoneCall &call);
 
 	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 
 	DhConfig _dhConfig;
 

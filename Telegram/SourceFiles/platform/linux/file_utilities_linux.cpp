@@ -18,7 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 
 #include <QtCore/QProcess>
+
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 #include <private/qguiapplication_p.h>
+#endif // TDESKTOP_DISABLE_GTK_INTEGRATION
 
 QStringList qt_make_filter_list(const QString &filter);
 

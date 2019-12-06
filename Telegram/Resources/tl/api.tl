@@ -89,6 +89,7 @@ inputDocumentFileLocation#bad07584 id:long access_hash:long file_reference:bytes
 inputSecureFileLocation#cbc7ee28 id:long access_hash:long = InputFileLocation;
 inputTakeoutFileLocation#29be5899 = InputFileLocation;
 inputPhotoFileLocation#40181ffe id:long access_hash:long file_reference:bytes thumb_size:string = InputFileLocation;
+inputPhotoLegacyFileLocation#d83466f3 id:long access_hash:long file_reference:bytes volume_id:long local_id:int secret:long = InputFileLocation;
 inputPeerPhotoFileLocation#27d69997 flags:# big:flags.0?true peer:InputPeer volume_id:long local_id:int = InputFileLocation;
 inputStickerSetThumb#dbaeae9 stickerset:InputStickerSet volume_id:long local_id:int = InputFileLocation;
 
@@ -347,6 +348,8 @@ updatePeerLocated#b4afcfb0 peers:Vector<PeerLocated> = Update;
 updateNewScheduledMessage#39a51dfb message:Message = Update;
 updateDeleteScheduledMessages#90866cee peer:Peer messages:Vector<int> = Update;
 updateTheme#8216fba3 theme:Theme = Update;
+updateGeoLiveViewed#871fb939 peer:Peer msg_id:int = Update;
+updateLoginToken#564fe691 = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -1082,6 +1085,12 @@ wallet.liteResponse#764386d7 response:bytes = wallet.LiteResponse;
 
 wallet.secretSalt#dd484d64 salt:bytes = wallet.KeySecretSalt;
 
+auth.loginToken#629f1980 expires:int token:bytes = auth.LoginToken;
+auth.loginTokenMigrateTo#68e9916 dc_id:int token:bytes = auth.LoginToken;
+auth.loginTokenSuccess#390d5c5e authorization:auth.Authorization = auth.LoginToken;
+
+auth.loginTokenInfo#5203303a dc_id:int auth_key_id:long device_model:string platform:string system_version:string api_id:int app_name:string app_version:string ip:string region:string = auth.LoginTokenInfo;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -1107,6 +1116,10 @@ auth.recoverPassword#4ea56e92 code:string = auth.Authorization;
 auth.resendCode#3ef1a9bf phone_number:string phone_code_hash:string = auth.SentCode;
 auth.cancelCode#1f040578 phone_number:string phone_code_hash:string = Bool;
 auth.dropTempAuthKeys#8e48a188 except_auth_keys:Vector<long> = Bool;
+auth.exportLoginToken#b1b41517 api_id:int api_hash:string except_ids:Vector<int> = auth.LoginToken;
+auth.importLoginToken#95ac5ce4 token:bytes = auth.LoginToken;
+auth.acceptLoginToken#42e731b9 token:bytes = Updates;
+auth.checkLoginToken#7d4fd4b0 token:bytes = auth.LoginTokenInfo;
 
 account.registerDevice#68976c6f flags:# no_muted:flags.0?true token_type:int token:string app_sandbox:Bool secret:bytes other_uids:Vector<int> = Bool;
 account.unregisterDevice#3076c4bf token_type:int token:string other_uids:Vector<int> = Bool;
@@ -1422,4 +1435,4 @@ folders.deleteFolder#1c295881 folder_id:int = Updates;
 wallet.sendLiteRequest#e2c9d33e body:bytes = wallet.LiteResponse;
 wallet.getKeySecretSalt#b57f346 revoke:Bool = wallet.KeySecretSalt;
 
-// LAYER 106
+// LAYER 107

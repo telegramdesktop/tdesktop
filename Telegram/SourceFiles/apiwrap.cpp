@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //#include "history/feed/history_feed_section.h" // #feed
 #include "storage/localstorage.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
 #include "boxes/confirm_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/sticker_set_box.h"
@@ -54,7 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "support/support_helper.h"
 #include "storage/localimageloader.h"
-#include "storage/file_download.h"
+#include "storage/download_manager_mtproto.h"
 #include "storage/file_upload.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
@@ -222,7 +223,8 @@ bool ApiWrap::BlockedUsersSlice::operator!=(const BlockedUsersSlice &other) cons
 }
 
 ApiWrap::ApiWrap(not_null<Main::Session*> session)
-: _session(session)
+: MTP::Sender(session->account().mtp())
+, _session(session)
 , _messageDataResolveDelayed([=] { resolveMessageDatas(); })
 , _webPagesTimer([=] { resolveWebPages(); })
 , _draftsSaveTimer([=] { saveDraftsToCloud(); })
@@ -280,11 +282,11 @@ void ApiWrap::refreshProxyPromotion() {
 		return;
 	}
 	const auto key = [&]() -> std::pair<QString, uint32> {
-		if (Global::ProxySettings() != ProxyData::Settings::Enabled) {
+		if (Global::ProxySettings() != MTP::ProxyData::Settings::Enabled) {
 			return {};
 		}
 		const auto &proxy = Global::SelectedProxy();
-		if (proxy.type != ProxyData::Type::Mtproto) {
+		if (proxy.type != MTP::ProxyData::Type::Mtproto) {
 			return {};
 		}
 		return { proxy.host, proxy.port };
@@ -2971,12 +2973,12 @@ void ApiWrap::requestFileReference(
 
 void ApiWrap::refreshFileReference(
 		Data::FileOrigin origin,
-		not_null<mtpFileLoader*> loader,
+		not_null<Storage::DownloadMtprotoTask*> task,
 		int requestId,
 		const QByteArray &current) {
-	return refreshFileReference(origin, crl::guard(loader, [=](
+	return refreshFileReference(origin, crl::guard(task, [=](
 			const UpdatedFileReferences &data) {
-		loader->refreshFileReferenceFrom(data, requestId, current);
+		task->refreshFileReferenceFrom(data, requestId, current);
 	}));
 }
 

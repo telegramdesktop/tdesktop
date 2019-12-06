@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_scheduled_messages.h"
+#include "data/data_file_origin.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_message.h"
@@ -1798,8 +1799,6 @@ void HistoryWidget::showHistory(
 	_nonEmptySelection = false;
 
 	if (_peer) {
-		session().downloader().clearPriorities();
-
 		_history = _peer->owner().history(_peer);
 		_migrated = _history->migrateFrom();
 		if (_migrated
@@ -3610,8 +3609,20 @@ bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
 		const auto k = static_cast<QKeyEvent*>(e);
 		if ((k->modifiers() & kCommonModifiers) == Qt::ControlModifier) {
 			if (k->key() == Qt::Key_Up) {
+#ifdef Q_OS_MAC
+				// Cmd + Up is used instead of Home.
+				if (!_field->textCursor().atStart()) {
+					return false;
+				}
+#endif
 				return replyToPreviousMessage();
 			} else if (k->key() == Qt::Key_Down) {
+#ifdef Q_OS_MAC
+				// Cmd + Down is used instead of End.
+				if (!_field->textCursor().atEnd()) {
+					return false;
+				}
+#endif
 				return replyToNextMessage();
 			}
 		}

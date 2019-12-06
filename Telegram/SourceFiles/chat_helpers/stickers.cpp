@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_file_origin.h"
 #include "boxes/stickers_box.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
@@ -891,7 +892,7 @@ std::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
 		if (result.empty()) {
 			return std::nullopt;
 		}
-		return std::move(result);
+		return result;
 	}
 	return std::nullopt;
 }

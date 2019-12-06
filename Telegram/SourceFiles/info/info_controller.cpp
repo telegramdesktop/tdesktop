@@ -196,7 +196,7 @@ void Controller::updateSearchControllers(
 	auto searchQuery = memento->searchFieldQuery();
 	if (isMedia) {
 		_searchController
-			= std::make_unique<Api::DelayedSearchController>();
+			= std::make_unique<Api::DelayedSearchController>(&session());
 		auto mediaMemento = dynamic_cast<Media::Memento*>(memento.get());
 		Assert(mediaMemento != nullptr);
 		_searchController->restoreState(

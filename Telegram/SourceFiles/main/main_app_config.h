@@ -7,30 +7,49 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "mtproto/sender.h"
+
 namespace Main {
 
-class Session;
+class Account;
 
 class AppConfig final {
 public:
-	explicit AppConfig(not_null<Session*> session);
+	explicit AppConfig(not_null<Account*> account);
 
 	template <typename Type>
-	Type get(const QString &key, Type fallback) const {
+	[[nodiscard]] Type get(const QString &key, Type fallback) const {
 		if constexpr (std::is_same_v<Type, double>) {
 			return getDouble(key, fallback);
+		} else if constexpr (std::is_same_v<Type, QString>) {
+			return getString(key, fallback);
 		}
 	}
+
+	[[nodiscard]] rpl::producer<> refreshed() const;
 
 private:
 	void refresh();
 	void refreshDelayed();
 
-	double getDouble(const QString &key, double fallback) const;
+	template <typename Extractor>
+	[[nodiscard]] auto getValue(
+		const QString &key,
+		Extractor &&extractor) const;
 
-	not_null<Session*> _session;
+	[[nodiscard]] double getDouble(
+		const QString &key,
+		double fallback) const;
+	[[nodiscard]] QString getString(
+		const QString &key,
+		const QString &fallback) const;
+
+	const not_null<Account*> _account;
+	std::optional<MTP::Sender> _api;
 	mtpRequestId _requestId = 0;
 	base::flat_map<QString, MTPJSONValue> _data;
+	rpl::event_stream<> _refreshed;
+	rpl::lifetime _lifetime;
 
 };
 

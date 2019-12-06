@@ -329,7 +329,7 @@ void Sandbox::singleInstanceChecked() {
 			_lastCrashDump,
 			[=] { launchApplication(); });
 		window->proxyChanges(
-		) | rpl::start_with_next([=](ProxyData &&proxy) {
+		) | rpl::start_with_next([=](MTP::ProxyData &&proxy) {
 			_sandboxProxy = std::move(proxy);
 			refreshGlobalProxy();
 		}, window->lifetime());
@@ -443,15 +443,15 @@ void Sandbox::refreshGlobalProxy() {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	const auto proxy = !Global::started()
 		? _sandboxProxy
-		: (Global::ProxySettings() == ProxyData::Settings::Enabled)
+		: (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled)
 		? Global::SelectedProxy()
-		: ProxyData();
-	if (proxy.type == ProxyData::Type::Socks5
-		|| proxy.type == ProxyData::Type::Http) {
+		: MTP::ProxyData();
+	if (proxy.type == MTP::ProxyData::Type::Socks5
+		|| proxy.type == MTP::ProxyData::Type::Http) {
 		QNetworkProxy::setApplicationProxy(
-			ToNetworkProxy(ToDirectIpProxy(proxy)));
+			MTP::ToNetworkProxy(MTP::ToDirectIpProxy(proxy)));
 	} else if (!Global::started()
-		|| Global::ProxySettings() == ProxyData::Settings::System) {
+		|| Global::ProxySettings() == MTP::ProxyData::Settings::System) {
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
 	} else {
 		QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
@@ -555,7 +555,7 @@ rpl::producer<> Sandbox::widgetUpdateRequests() const {
 	return _widgetUpdateRequests.events();
 }
 
-ProxyData Sandbox::sandboxProxy() const {
+MTP::ProxyData Sandbox::sandboxProxy() const {
 	return _sandboxProxy;
 }
 

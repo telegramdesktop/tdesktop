@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "mainwidget.h"
 #include "observer_peer.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "facades.h"
 
@@ -26,6 +27,7 @@ namespace Main {
 Account::Account(const QString &dataName) {
 	watchProxyChanges();
 	watchSessionChanges();
+	_appConfig = std::make_unique<AppConfig>(this);
 }
 
 Account::~Account() = default;
@@ -35,8 +37,8 @@ void Account::watchProxyChanges() {
 
 	Core::App().proxyChanges(
 	) | rpl::start_with_next([=](const ProxyChange &change) {
-		const auto key = [&](const ProxyData &proxy) {
-			return (proxy.type == ProxyData::Type::Mtproto)
+		const auto key = [&](const MTP::ProxyData &proxy) {
+			return (proxy.type == MTP::ProxyData::Type::Mtproto)
 				? std::make_pair(proxy.host, proxy.port)
 				: std::make_pair(QString(), uint32(0));
 		};
@@ -120,21 +122,6 @@ void Account::createSession(
 	Expects(_session == nullptr);
 	Expects(_sessionValue.current() == nullptr);
 
-	_mtp->setUpdatesHandler(::rpcDone([](
-		const mtpPrime *from,
-		const mtpPrime *end) {
-		if (const auto main = App::main()) {
-			return main->updateReceived(from, end);
-		}
-		return true;
-	}));
-	_mtp->setGlobalFailHandler(::rpcFail([=](const RPCError &error) {
-		if (sessionExists()) {
-			crl::on_main(&session(), [=] { logOut(); });
-		}
-		return true;
-	}));
-
 	_session = std::make_unique<Session>(this, user, std::move(settings));
 	_sessionValue = _session.get();
 
@@ -152,7 +139,6 @@ void Account::destroySession() {
 		return;
 	}
 	session().data().clear();
-	_mtp->clearGlobalHandlers();
 
 	_sessionValue = nullptr;
 	_session = nullptr;
@@ -190,6 +176,14 @@ rpl::producer<MTP::Instance*> Account::mtpValue() const {
 
 rpl::producer<MTP::Instance*> Account::mtpChanges() const {
 	return _mtpValue.changes();
+}
+
+rpl::producer<MTPUpdates> Account::mtpUpdates() const {
+	return _mtpUpdates.events();
+}
+
+rpl::producer<> Account::mtpNewSessionCreated() const {
+	return _mtpNewSessionCreated.events();
 }
 
 void Account::setMtpMainDcId(MTP::DcId mainDcId) {
@@ -344,6 +338,18 @@ void Account::startMtp() {
 	_mtp->setUserPhone(cLoggedPhoneNumber());
 	_mtpConfig.mainDcId = _mtp->mainDcId();
 
+	_mtp->setUpdatesHandler(::rpcDone([=](
+			const mtpPrime *from,
+			const mtpPrime *end) {
+		return checkForUpdates(from, end)
+			|| checkForNewSession(from, end);
+	}));
+	_mtp->setGlobalFailHandler(::rpcFail([=](const RPCError &error) {
+		if (sessionExists()) {
+			crl::on_main(&session(), [=] { logOut(); });
+		}
+		return true;
+	}));
 	_mtp->setStateChangedHandler([](MTP::ShiftedDcId dc, int32 state) {
 		if (dc == MTP::maindc()) {
 			Global::RefConnectionTypeChanged().notify();
@@ -376,15 +382,31 @@ void Account::startMtp() {
 	_mtpValue = _mtp.get();
 }
 
+bool Account::checkForUpdates(const mtpPrime *from, const mtpPrime *end) {
+	auto updates = MTPUpdates();
+	if (!updates.read(from, end)) {
+		return false;
+	}
+	_mtpUpdates.fire(std::move(updates));
+	return true;
+}
+
+bool Account::checkForNewSession(const mtpPrime *from, const mtpPrime *end) {
+	auto newSession = MTPNewSession();
+	if (!newSession.read(from, end)) {
+		return false;
+	}
+	_mtpNewSessionCreated.fire({});
+	return true;
+}
 
 void Account::logOut() {
+	if (_loggingOut) {
+		return;
+	}
+	_loggingOut = true;
 	if (_mtp) {
-		_mtp->logout(::rpcDone([=] {
-			loggedOut();
-		}), ::rpcFail([=] {
-			loggedOut();
-			return true;
-		}));
+		_mtp->logout([=] { loggedOut(); });
 	} else {
 		// We log out because we've forgotten passcode.
 		loggedOut();
@@ -399,6 +421,7 @@ void Account::forcedLogOut() {
 }
 
 void Account::loggedOut() {
+	_loggingOut = false;
 	if (Global::LocalPasscode()) {
 		Global::SetLocalPasscode(false);
 		Global::RefLocalPasscodeChanged().notify();
@@ -439,18 +462,14 @@ void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
 		Core::App().dcOptions(),
 		MTP::Instance::Mode::KeysDestroyer,
 		std::move(destroyConfig));
-	QObject::connect(
-		_mtpForKeysDestroy.get(),
-		&MTP::Instance::allKeysDestroyed,
-		[=] { allKeysDestroyed(); });
-}
-
-void Account::allKeysDestroyed() {
-	LOG(("MTP Info: all keys scheduled for destroy are destroyed."));
-	crl::on_main(this, [=] {
-		_mtpForKeysDestroy = nullptr;
-		Local::writeMtpData();
-	});
+	_mtpForKeysDestroy->allKeysDestroyed(
+	) | rpl::start_with_next([=] {
+		LOG(("MTP Info: all keys scheduled for destroy are destroyed."));
+		crl::on_main(this, [=] {
+			_mtpForKeysDestroy = nullptr;
+			Local::writeMtpData();
+		});
+	}, _lifetime);
 }
 
 void Account::suggestMainDcId(MTP::DcId mainDcId) {
@@ -486,16 +505,16 @@ rpl::producer<> Account::configUpdates() const {
 }
 
 void Account::resetAuthorizationKeys() {
+	_mtpValue = nullptr;
 	_mtp = nullptr;
-	_mtpValue = _mtp.get();
 	startMtp();
 	Local::writeMtpData();
 }
 
 void Account::clearMtp() {
+	_mtpValue = nullptr;
 	_mtp = nullptr;
 	_mtpForKeysDestroy = nullptr;
-	_mtpValue = _mtp.get();
 }
 
 } // namespace Main

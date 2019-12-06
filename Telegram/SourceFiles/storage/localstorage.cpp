@@ -1264,7 +1264,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		ProxyData proxy;
+		MTP::ProxyData proxy;
 		switch (v) {
 		case dbictHttpProxy:
 		case dbictTcpProxy: {
@@ -1274,14 +1274,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 
 			proxy.port = uint32(port);
 			proxy.type = (v == dbictTcpProxy)
-				? ProxyData::Type::Socks5
-				: ProxyData::Type::Http;
+				? MTP::ProxyData::Type::Socks5
+				: MTP::ProxyData::Type::Http;
 		} break;
 		};
-		Global::SetSelectedProxy(proxy ? proxy : ProxyData());
+		Global::SetSelectedProxy(proxy ? proxy : MTP::ProxyData());
 		Global::SetProxySettings(proxy
-			? ProxyData::Settings::Enabled
-			: ProxyData::Settings::System);
+			? MTP::ProxyData::Settings::Enabled
+			: MTP::ProxyData::Settings::System);
 		if (proxy) {
 			Global::SetProxiesList({ 1, proxy });
 		} else {
@@ -1299,20 +1299,20 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 
 		const auto readProxy = [&] {
 			qint32 proxyType, port;
-			ProxyData proxy;
+			MTP::ProxyData proxy;
 			stream >> proxyType >> proxy.host >> port >> proxy.user >> proxy.password;
 			proxy.port = port;
 			proxy.type = (proxyType == dbictTcpProxy)
-				? ProxyData::Type::Socks5
+				? MTP::ProxyData::Type::Socks5
 				: (proxyType == dbictHttpProxy)
-				? ProxyData::Type::Http
-				: (proxyType == kProxyTypeShift + int(ProxyData::Type::Socks5))
-				? ProxyData::Type::Socks5
-				: (proxyType == kProxyTypeShift + int(ProxyData::Type::Http))
-				? ProxyData::Type::Http
-				: (proxyType == kProxyTypeShift + int(ProxyData::Type::Mtproto))
-				? ProxyData::Type::Mtproto
-				: ProxyData::Type::None;
+				? MTP::ProxyData::Type::Http
+				: (proxyType == kProxyTypeShift + int(MTP::ProxyData::Type::Socks5))
+				? MTP::ProxyData::Type::Socks5
+				: (proxyType == kProxyTypeShift + int(MTP::ProxyData::Type::Http))
+				? MTP::ProxyData::Type::Http
+				: (proxyType == kProxyTypeShift + int(MTP::ProxyData::Type::Mtproto))
+				? MTP::ProxyData::Type::Mtproto
+				: MTP::ProxyData::Type::None;
 			return proxy;
 		};
 		if (connectionType == dbictProxiesListOld
@@ -1327,7 +1327,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 				index -= (index > 0 ? count : -count);
 			}
 
-			auto list = std::vector<ProxyData>();
+			auto list = std::vector<MTP::ProxyData>();
 			for (auto i = 0; i < count; ++i) {
 				const auto proxy = readProxy();
 				if (proxy) {
@@ -1345,29 +1345,29 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 			if (connectionType == dbictProxiesListOld) {
 				settings = static_cast<qint32>(
 					(index > 0 && index <= list.size()
-						? ProxyData::Settings::Enabled
-						: ProxyData::Settings::System));
+						? MTP::ProxyData::Settings::Enabled
+						: MTP::ProxyData::Settings::System));
 				index = std::abs(index);
 			}
 			if (index > 0 && index <= list.size()) {
 				Global::SetSelectedProxy(list[index - 1]);
 			} else {
-				Global::SetSelectedProxy(ProxyData());
+				Global::SetSelectedProxy(MTP::ProxyData());
 			}
 
-			const auto unchecked = static_cast<ProxyData::Settings>(settings);
+			const auto unchecked = static_cast<MTP::ProxyData::Settings>(settings);
 			switch (unchecked) {
-			case ProxyData::Settings::Enabled:
+			case MTP::ProxyData::Settings::Enabled:
 				Global::SetProxySettings(Global::SelectedProxy()
-					? ProxyData::Settings::Enabled
-					: ProxyData::Settings::System);
+					? MTP::ProxyData::Settings::Enabled
+					: MTP::ProxyData::Settings::System);
 				break;
-			case ProxyData::Settings::Disabled:
-			case ProxyData::Settings::System:
+			case MTP::ProxyData::Settings::Disabled:
+			case MTP::ProxyData::Settings::System:
 				Global::SetProxySettings(unchecked);
 				break;
 			default:
-				Global::SetProxySettings(ProxyData::Settings::System);
+				Global::SetProxySettings(MTP::ProxyData::Settings::System);
 				break;
 			}
 			Global::SetUseProxyForCalls(calls == 1);
@@ -1381,14 +1381,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 				Global::SetSelectedProxy(proxy);
 				if (connectionType == dbictTcpProxy
 					|| connectionType == dbictHttpProxy) {
-					Global::SetProxySettings(ProxyData::Settings::Enabled);
+					Global::SetProxySettings(MTP::ProxyData::Settings::Enabled);
 				} else {
-					Global::SetProxySettings(ProxyData::Settings::System);
+					Global::SetProxySettings(MTP::ProxyData::Settings::System);
 				}
 			} else {
 				Global::SetProxiesList({});
-				Global::SetSelectedProxy(ProxyData());
-				Global::SetProxySettings(ProxyData::Settings::System);
+				Global::SetSelectedProxy(MTP::ProxyData());
+				Global::SetProxySettings(MTP::ProxyData::Settings::System);
 			}
 		}
 		Core::App().refreshGlobalProxy();
@@ -2646,7 +2646,7 @@ void writeSettings() {
 	auto &proxies = Global::RefProxiesList();
 	const auto &proxy = Global::SelectedProxy();
 	auto proxyIt = ranges::find(proxies, proxy);
-	if (proxy.type != ProxyData::Type::None
+	if (proxy.type != MTP::ProxyData::Type::None
 		&& proxyIt == end(proxies)) {
 		proxies.push_back(proxy);
 		proxyIt = end(proxies) - 1;

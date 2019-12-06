@@ -21,25 +21,17 @@ constexpr auto kMaxConcurrentRequests = 4;
 } // namespace
 
 LoaderMtproto::LoaderMtproto(
-	not_null<Storage::Downloader*> owner,
+	not_null<Storage::DownloadManagerMtproto*> owner,
 	const StorageFileLocation &location,
 	int size,
 	Data::FileOrigin origin)
-: _owner(owner)
-, _location(location)
-, _dcId(location.dcId())
+: DownloadMtprotoTask(owner, location, origin)
 , _size(size)
-, _origin(origin) {
-}
-
-LoaderMtproto::~LoaderMtproto() {
-	for (const auto [index, amount] : _amountByDcIndex) {
-		changeRequestedAmount(index, -amount);
-	}
+, _api(api().instance()) {
 }
 
 std::optional<Storage::Cache::Key> LoaderMtproto::baseCacheKey() const {
-	return _location.bigFileBaseCacheKey();
+	return location().data.get<StorageFileLocation>().bigFileBaseCacheKey();
 }
 
 int LoaderMtproto::size() const {
@@ -56,21 +48,19 @@ void LoaderMtproto::load(int offset) {
 				return;
 			}
 		}
-		if (_requests.contains(offset)) {
+		if (haveSentRequestForOffset(offset)) {
 			return;
 		} else if (_requested.add(offset)) {
-			sendNext();
+			addToQueue(); // #TODO download priority
 		}
 	});
 }
 
 void LoaderMtproto::stop() {
 	crl::on_main(this, [=] {
-		ranges::for_each(
-			base::take(_requests),
-			_sender.requestCanceller(),
-			&base::flat_map<int, mtpRequestId>::value_type::second);
+		cancelAllRequests();
 		_requested.clear();
+		removeFromQueue();
 	});
 }
 
@@ -81,16 +71,16 @@ void LoaderMtproto::cancel(int offset) {
 }
 
 void LoaderMtproto::cancelForOffset(int offset) {
-	if (const auto requestId = _requests.take(offset)) {
-		_sender.request(*requestId).cancel();
-		sendNext();
+	if (haveSentRequestForOffset(offset)) {
+		cancelRequestForOffset(offset);
+		addToQueue(); // #TODO download priority
 	} else {
 		_requested.remove(offset);
 	}
 }
 
 void LoaderMtproto::attachDownloader(
-		Storage::StreamedFileDownloader *downloader) {
+		not_null<Storage::StreamedFileDownloader*> downloader) {
 	_downloader = downloader;
 }
 
@@ -104,96 +94,24 @@ void LoaderMtproto::increasePriority() {
 	});
 }
 
-void LoaderMtproto::changeRequestedAmount(int index, int amount) {
-	_owner->requestedAmountIncrement(_dcId, index, amount);
-	_amountByDcIndex[index] += amount;
+bool LoaderMtproto::readyToRequest() const {
+	return !_requested.empty();
 }
 
-void LoaderMtproto::sendNext() {
-	if (_requests.size() >= kMaxConcurrentRequests) {
-		return;
-	}
-	const auto offset = _requested.take().value_or(-1);
-	if (offset < 0) {
-		return;
-	}
+int LoaderMtproto::takeNextRequestOffset() {
+	const auto offset = _requested.take();
 
-	const auto index = _owner->chooseDcIndexForRequest(_dcId);
-	changeRequestedAmount(index, kPartSize);
-
-	const auto usedFileReference = _location.fileReference();
-	const auto id = _sender.request(MTPupload_GetFile(
-		MTP_flags(0),
-		_location.tl(Auth().userId()),
-		MTP_int(offset),
-		MTP_int(kPartSize)
-	)).done([=](const MTPupload_File &result) {
-		changeRequestedAmount(index, -kPartSize);
-		requestDone(offset, result);
-	}).fail([=](const RPCError &error) {
-		changeRequestedAmount(index, -kPartSize);
-		requestFailed(offset, error, usedFileReference);
-	}).toDC(
-		MTP::downloadDcId(_dcId, index)
-	).send();
-	_requests.emplace(offset, id);
-
-	sendNext();
+	Ensures(offset.has_value());
+	return *offset;
 }
 
-void LoaderMtproto::requestDone(int offset, const MTPupload_File &result) {
-	result.match([&](const MTPDupload_file &data) {
-		_requests.erase(offset);
-		sendNext();
-		_parts.fire({ offset, data.vbytes().v });
-	}, [&](const MTPDupload_fileCdnRedirect &data) {
-		changeCdnParams(
-			offset,
-			data.vdc_id().v,
-			data.vfile_token().v,
-			data.vencryption_key().v,
-			data.vencryption_iv().v,
-			data.vfile_hashes().v);
-	});
+bool LoaderMtproto::feedPart(int offset, const QByteArray &bytes) {
+	_parts.fire({ offset, bytes });
+	return true;
 }
 
-void LoaderMtproto::changeCdnParams(
-		int offset,
-		MTP::DcId dcId,
-		const QByteArray &token,
-		const QByteArray &encryptionKey,
-		const QByteArray &encryptionIV,
-		const QVector<MTPFileHash> &hashes) {
-	// #TODO streaming later cdn
+void LoaderMtproto::cancelOnFail() {
 	_parts.fire({ LoadedPart::kFailedOffset });
-}
-
-void LoaderMtproto::requestFailed(
-		int offset,
-		const RPCError &error,
-		const QByteArray &usedFileReference) {
-	const auto &type = error.type();
-	const auto fail = [=] {
-		_parts.fire({ LoadedPart::kFailedOffset });
-	};
-	if (error.code() != 400 || !type.startsWith(qstr("FILE_REFERENCE_"))) {
-		return fail();
-	}
-	const auto callback = [=](const Data::UpdatedFileReferences &updated) {
-		_location.refreshFileReference(updated);
-		if (_location.fileReference() == usedFileReference) {
-			fail();
-		} else if (!_requests.take(offset)) {
-			// Request with such offset was already cancelled.
-			return;
-		} else {
-			_requested.add(offset);
-			sendNext();
-		}
-	};
-	_owner->api().refreshFileReference(
-		_origin,
-		crl::guard(this, callback));
 }
 
 rpl::producer<LoadedPart> LoaderMtproto::parts() const {

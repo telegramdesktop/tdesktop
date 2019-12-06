@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "apiwrap.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "base/unixtime.h"
@@ -77,6 +78,7 @@ private:
 
 SessionsBox::SessionsBox(QWidget*, not_null<Main::Session*> session)
 : _session(session)
+, _api(_session->api().instance())
 , _shortPollTimer([=] { shortPollSessions(); }) {
 }
 
@@ -280,7 +282,7 @@ void SessionsBox::shortPollSessions() {
 	if (_shortPollRequest) {
 		return;
 	}
-	_shortPollRequest = request(MTPaccount_GetAuthorizations(
+	_shortPollRequest = _api.request(MTPaccount_GetAuthorizations(
 	)).done([=](const MTPaccount_Authorizations &result) {
 		got(result);
 	}).send();
@@ -294,7 +296,7 @@ void SessionsBox::terminateOne(uint64 hash) {
 			_terminateBox->closeBox();
 			_terminateBox = nullptr;
 		}
-		request(MTPaccount_ResetAuthorization(
+		_api.request(MTPaccount_ResetAuthorization(
 			MTP_long(hash)
 		)).done([=](const MTPBool &result) {
 			_inner->terminatingOne(hash, false);
@@ -330,12 +332,12 @@ void SessionsBox::terminateAll() {
 			_terminateBox->closeBox();
 			_terminateBox = nullptr;
 		}
-		request(MTPauth_ResetAuthorizations(
+		_api.request(MTPauth_ResetAuthorizations(
 		)).done([=](const MTPBool &result) {
-			request(base::take(_shortPollRequest)).cancel();
+			_api.request(base::take(_shortPollRequest)).cancel();
 			shortPollSessions();
 		}).fail([=](const RPCError &result) {
-			request(base::take(_shortPollRequest)).cancel();
+			_api.request(base::take(_shortPollRequest)).cancel();
 			shortPollSessions();
 		}).send();
 		setLoading(true);

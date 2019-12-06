@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "base/flags.h"
 #include "base/object_ptr.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 namespace Main {
 class Session;

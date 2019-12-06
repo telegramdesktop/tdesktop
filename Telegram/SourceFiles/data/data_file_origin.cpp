@@ -33,6 +33,12 @@ struct FileReferenceAccumulator {
 		}, [](const MTPDdocumentEmpty &data) {
 		});
 	}
+	void push(const MTPPage &data) {
+		data.match([&](const auto &data) {
+			push(data.vphotos());
+			push(data.vdocuments());
+		});
+	}
 	void push(const MTPWallPaper &data) {
 		data.match([&](const MTPDwallPaper &data) {
 			push(data.vdocument());
@@ -56,6 +62,9 @@ struct FileReferenceAccumulator {
 			}
 			if (const auto photo = data.vphoto()) {
 				push(*photo);
+			}
+			if (const auto page = data.vcached_page()) {
+				push(*page);
 			}
 		}, [](const auto &data) {
 		});

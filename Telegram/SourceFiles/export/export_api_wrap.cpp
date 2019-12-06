@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/data/export_data_types.h"
 #include "export/output/export_output_result.h"
 #include "export/output/export_output_file.h"
-#include "mtproto/rpc_sender.h"
+#include "mtproto/mtproto_rpc_sender.h"
 #include "base/value_ordering.h"
 #include "base/bytes.h"
 #include <set>
@@ -82,6 +82,10 @@ LocationKey ComputeLocationKey(const Data::FileLocation &value) {
 		result.id = data.vvolume_id().v;
 	}, [&](const MTPDinputStickerSetThumb &data) {
 		result.type |= (8ULL << 24);
+		result.type |= (uint64(uint32(data.vlocal_id().v)) << 32);
+		result.id = data.vvolume_id().v;
+	}, [&](const MTPDinputPhotoLegacyFileLocation &data) {
+		result.type |= (9ULL << 24);
 		result.type |= (uint64(uint32(data.vlocal_id().v)) << 32);
 		result.id = data.vvolume_id().v;
 	});
@@ -177,6 +181,7 @@ struct ApiWrap::FileProcess {
 	FnMut<void(const QString &relativePath)> done;
 
 	Data::FileLocation location;
+	Data::FileOrigin origin;
 	int offset = 0;
 	int size = 0;
 
@@ -396,6 +401,9 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
 		} else if (result.type() == qstr("LOCATION_INVALID")
 			|| result.type() == qstr("VERSION_INVALID")) {
 			filePartUnavailable();
+		} else if (result.code() == 400
+			&& result.type().startsWith(qstr("FILE_REFERENCE_"))) {
+			filePartRefreshReference(offset);
 		} else {
 			error(std::move(result));
 		}
@@ -692,6 +700,7 @@ void ApiWrap::requestOtherData(
 	_otherDataProcess->file.suggestedPath = suggestedPath;
 	loadFile(
 		_otherDataProcess->file,
+		Data::FileOrigin(),
 		[](FileProgress progress) { return true; },
 		[=](const QString &result) { otherDataDone(result); });
 }
@@ -776,6 +785,7 @@ void ApiWrap::loadNextUserpic() {
 		; ++_userpicsProcess->fileIndex) {
 		const auto ready = processFileLoad(
 			list[_userpicsProcess->fileIndex].image.file,
+			Data::FileOrigin(),
 			[=](FileProgress value) { return loadUserpicProgress(value); },
 			[=](const QString &path) { loadUserpicDone(path); });
 		if (!ready) {
@@ -1378,6 +1388,24 @@ void ApiWrap::loadMessagesFiles(Data::MessagesSlice &&slice) {
 	loadNextMessageFile();
 }
 
+Data::Message *ApiWrap::currentFileMessage() const {
+	Expects(_chatProcess != nullptr);
+	Expects(_chatProcess->slice.has_value());
+
+	return &_chatProcess->slice->list[_chatProcess->fileIndex];
+}
+
+Data::FileOrigin ApiWrap::currentFileMessageOrigin() const {
+	Expects(_chatProcess != nullptr);
+	Expects(_chatProcess->slice.has_value());
+
+	auto result = Data::FileOrigin();
+	result.messageId = currentFileMessage()->id;
+	result.peer = _chatProcess->info.input;
+	result.split = _chatProcess->info.splits[_chatProcess->localSplitIndex];
+	return result;
+}
+
 void ApiWrap::loadNextMessageFile() {
 	Expects(_chatProcess != nullptr);
 	Expects(_chatProcess->slice.has_value());
@@ -1394,9 +1422,10 @@ void ApiWrap::loadNextMessageFile() {
 		};
 		const auto ready = processFileLoad(
 			list[_chatProcess->fileIndex].file(),
+			currentFileMessageOrigin(),
 			fileProgress,
 			[=](const QString &path) { loadMessageFileDone(path); },
-			&list[_chatProcess->fileIndex]);
+			currentFileMessage());
 		if (!ready) {
 			return;
 		}
@@ -1405,9 +1434,10 @@ void ApiWrap::loadNextMessageFile() {
 		};
 		const auto thumbReady = processFileLoad(
 			list[_chatProcess->fileIndex].thumb().file,
+			currentFileMessageOrigin(),
 			thumbProgress,
 			[=](const QString &path) { loadMessageThumbDone(path); },
-			&list[_chatProcess->fileIndex]);
+			currentFileMessage());
 		if (!thumbReady) {
 			return;
 		}
@@ -1497,6 +1527,7 @@ void ApiWrap::finishMessages() {
 
 bool ApiWrap::processFileLoad(
 		Data::File &file,
+		const Data::FileOrigin &origin,
 		Fn<bool(FileProgress)> progress,
 		FnMut<void(QString)> done,
 		Data::Message *message) {
@@ -1508,7 +1539,7 @@ bool ApiWrap::processFileLoad(
 	} else if (!file.location && file.content.isEmpty()) {
 		file.skipReason = SkipReason::Unavailable;
 		return true;
-	} else if (writePreloadedFile(file)) {
+	} else if (writePreloadedFile(file, origin)) {
 		return !file.relativePath.isEmpty();
 	}
 
@@ -1544,11 +1575,13 @@ bool ApiWrap::processFileLoad(
 		file.skipReason = SkipReason::FileSize;
 		return true;
 	}
-	loadFile(file, std::move(progress), std::move(done));
+	loadFile(file, origin, std::move(progress), std::move(done));
 	return false;
 }
 
-bool ApiWrap::writePreloadedFile(Data::File &file) {
+bool ApiWrap::writePreloadedFile(
+		Data::File &file,
+		const Data::FileOrigin &origin) {
 	Expects(_settings != nullptr);
 
 	using namespace Output;
@@ -1557,7 +1590,7 @@ bool ApiWrap::writePreloadedFile(Data::File &file) {
 		file.relativePath = *path;
 		return true;
 	} else if (!file.content.isEmpty()) {
-		const auto process = prepareFileProcess(file);
+		const auto process = prepareFileProcess(file, origin);
 		if (const auto result = process->file.writeBlock(file.content)) {
 			file.relativePath = process->relativePath;
 			_fileCache->save(file.location, file.relativePath);
@@ -1571,13 +1604,14 @@ bool ApiWrap::writePreloadedFile(Data::File &file) {
 
 void ApiWrap::loadFile(
 		const Data::File &file,
+		const Data::FileOrigin &origin,
 		Fn<bool(FileProgress)> progress,
 		FnMut<void(QString)> done) {
 	Expects(_fileProcess == nullptr);
 	Expects(file.location.dcId != 0
 		|| file.location.data.type() == mtpc_inputTakeoutFileLocation);
 
-	_fileProcess = prepareFileProcess(file);
+	_fileProcess = prepareFileProcess(file, origin);
 	_fileProcess->progress = std::move(progress);
 	_fileProcess->done = std::move(done);
 
@@ -1594,7 +1628,9 @@ void ApiWrap::loadFile(
 	loadFilePart();
 }
 
-auto ApiWrap::prepareFileProcess(const Data::File &file) const
+auto ApiWrap::prepareFileProcess(
+	const Data::File &file,
+	const Data::FileOrigin &origin) const
 -> std::unique_ptr<FileProcess> {
 	Expects(_settings != nullptr);
 
@@ -1607,6 +1643,7 @@ auto ApiWrap::prepareFileProcess(const Data::File &file) const
 	result->relativePath = relativePath;
 	result->location = file.location;
 	result->size = file.size;
+	result->origin = origin;
 	return result;
 }
 
@@ -1699,6 +1736,87 @@ void ApiWrap::filePartDone(int offset, const MTPupload_File &result) {
 	const auto relativePath = process->relativePath;
 	_fileCache->save(process->location, relativePath);
 	process->done(process->relativePath);
+}
+
+void ApiWrap::filePartRefreshReference(int offset) {
+	Expects(_fileProcess != nullptr);
+
+	const auto &origin = _fileProcess->origin;
+	if (!origin.messageId) {
+		error("FILE_REFERENCE error for non-message file.");
+		return;
+	}
+	if (origin.peer.type() == mtpc_inputPeerChannel
+		|| origin.peer.type() == mtpc_inputPeerChannelFromMessage) {
+		const auto channel = (origin.peer.type() == mtpc_inputPeerChannel)
+			? MTP_inputChannel(
+				origin.peer.c_inputPeerChannel().vchannel_id(),
+				origin.peer.c_inputPeerChannel().vaccess_hash())
+			: MTP_inputChannelFromMessage(
+				origin.peer.c_inputPeerChannelFromMessage().vpeer(),
+				origin.peer.c_inputPeerChannelFromMessage().vmsg_id(),
+				origin.peer.c_inputPeerChannelFromMessage().vchannel_id());
+		mainRequest(MTPchannels_GetMessages(
+			channel,
+			MTP_vector<MTPInputMessage>(
+				1,
+				MTP_inputMessageID(MTP_int(origin.messageId)))
+		)).fail([=](const RPCError &error) {
+			filePartUnavailable();
+			return true;
+		}).done([=](const MTPmessages_Messages &result) {
+			filePartExtractReference(offset, result);
+		}).send();
+	} else {
+		splitRequest(origin.split, MTPmessages_GetMessages(
+			MTP_vector<MTPInputMessage>(
+				1,
+				MTP_inputMessageID(MTP_int(origin.messageId)))
+		)).fail([=](const RPCError &error) {
+			filePartUnavailable();
+			return true;
+		}).done([=](const MTPmessages_Messages &result) {
+			filePartExtractReference(offset, result);
+		}).send();
+	}
+}
+
+void ApiWrap::filePartExtractReference(
+		int offset,
+		const MTPmessages_Messages &result) {
+	Expects(_fileProcess != nullptr);
+
+	result.match([&](const MTPDmessages_messagesNotModified &data) {
+		error("Unexpected messagesNotModified received.");
+	}, [&](const auto &data) {
+		auto context = Data::ParseMediaContext();
+		const auto messages = Data::ParseMessagesSlice(
+			context,
+			data.vmessages(),
+			data.vusers(),
+			data.vchats(),
+			_chatProcess->info.relativePath);
+		for (const auto &message : messages.list) {
+			if (message.id == _fileProcess->origin.messageId) {
+				const auto refresh1 = Data::RefreshFileReference(
+					_fileProcess->location,
+					message.file().location);
+				const auto refresh2 = Data::RefreshFileReference(
+					_fileProcess->location,
+					message.thumb().file.location);
+				if (refresh1 || refresh2) {
+					fileRequest(
+						_fileProcess->location,
+						offset
+					).done([=](const MTPupload_File &result) {
+						filePartDone(offset, result);
+					}).send();
+					return;
+				}
+			}
+		}
+		filePartUnavailable();
+	});
 }
 
 void ApiWrap::filePartUnavailable() {

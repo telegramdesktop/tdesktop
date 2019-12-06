@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 
 namespace MTP {
-namespace internal {
+namespace details {
 namespace {
 
 constexpr auto kForceHttpPort = 80;
@@ -246,5 +246,5 @@ QUrl HttpConnection::url() const {
 	return QUrl(pattern.arg(_address).arg(kForceHttpPort));
 }
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

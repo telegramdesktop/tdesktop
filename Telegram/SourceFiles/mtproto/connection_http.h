@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtNetwork/QNetworkReply>
 
 namespace MTP {
-namespace internal {
+namespace details {
 
 class HttpConnection : public AbstractConnection {
 public:
@@ -64,5 +64,5 @@ private:
 
 };
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

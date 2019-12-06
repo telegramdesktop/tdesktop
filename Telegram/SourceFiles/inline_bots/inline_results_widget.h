@@ -173,7 +173,7 @@ private:
 
 } // namespace internal
 
-class Widget : public Ui::RpWidget, private MTP::Sender {
+class Widget : public Ui::RpWidget {
 	Q_OBJECT
 
 public:
@@ -246,6 +246,7 @@ private:
 	void inlineResultsDone(const MTPmessages_BotResults &result);
 
 	not_null<Window::SessionController*> _controller;
+	MTP::Sender _api;
 
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;

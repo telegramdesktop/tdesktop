@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
+#include "data/data_file_origin.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -661,6 +662,7 @@ StickersBox::Inner::Inner(
 	StickersBox::Section section)
 : RpWidget(parent)
 , _session(session)
+, _api(_session->api().instance())
 , _section(section)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _shiftingAnimation([=](crl::time now) {
@@ -677,6 +679,7 @@ StickersBox::Inner::Inner(
 StickersBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> megagroup)
 : RpWidget(parent)
 , _session(&megagroup->session())
+, _api(_session->api().instance())
 , _section(StickersBox::Section::Installed)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _shiftingAnimation([=](crl::time now) {
@@ -1469,11 +1472,13 @@ void StickersBox::Inner::handleMegagroupSetAddressChange() {
 			}
 		}
 	} else if (!_megagroupSetRequestId) {
-		_megagroupSetRequestId = request(MTPmessages_GetStickerSet(MTP_inputStickerSetShortName(MTP_string(text)))).done([this](const MTPmessages_StickerSet &result) {
+		_megagroupSetRequestId = _api.request(MTPmessages_GetStickerSet(
+			MTP_inputStickerSetShortName(MTP_string(text))
+		)).done([=](const MTPmessages_StickerSet &result) {
 			_megagroupSetRequestId = 0;
 			auto set = Stickers::FeedSetFull(result);
 			setMegagroupSelectedSet(MTP_inputStickerSetID(MTP_long(set->id), MTP_long(set->access)));
-		}).fail([this](const RPCError &error) {
+		}).fail([=](const RPCError &error) {
 			_megagroupSetRequestId = 0;
 			setMegagroupSelectedSet(MTP_inputStickerSetEmpty());
 		}).send();

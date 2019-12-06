@@ -180,7 +180,8 @@ AdminLog::OwnedItem GenerateForwardedItem(
 
 BlockedBoxController::BlockedBoxController(
 	not_null<Window::SessionController*> window)
-: _window(window) {
+: _window(window)
+, _api(_window->session().api().instance()) {
 }
 
 Main::Session &BlockedBoxController::session() const {
@@ -220,7 +221,7 @@ void BlockedBoxController::loadMoreRows() {
 		return;
 	}
 
-	_loadRequestId = request(MTPcontacts_GetBlocked(
+	_loadRequestId = _api.request(MTPcontacts_GetBlocked(
 		MTP_int(_offset),
 		MTP_int(kBlockedPerPage)
 	)).done([=](const MTPcontacts_Blocked &result) {
@@ -334,7 +335,7 @@ std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 		return tr::lng_blocked_list_unknown_phone(tr::now);
 	}();
 	row->setCustomStatus(status);
-	return std::move(row);
+	return row;
 }
 
 ApiWrap::Privacy::Key PhoneNumberPrivacyController::key() {
@@ -444,7 +445,7 @@ object_ptr<Ui::RpWidget> PhoneNumberPrivacyController::setupMiddleWidget(
 			QVector<MTPInputPrivacyRule>(1, value));
 	};
 
-	return std::move(widget);
+	return widget;
 }
 
 void PhoneNumberPrivacyController::saveAdditional() {

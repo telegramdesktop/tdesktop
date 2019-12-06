@@ -240,9 +240,7 @@ namespace {
 constexpr auto kMaxGroupChannelTitle = 128; // See also add_contact_box.
 constexpr auto kMaxChannelDescription = 255; // See also add_contact_box.
 
-class Controller
-	: public base::has_weak_ptr
-	, private MTP::Sender {
+class Controller : public base::has_weak_ptr {
 public:
 	Controller(
 		not_null<Window::SessionNavigation*> navigation,
@@ -334,6 +332,7 @@ private:
 	const not_null<Window::SessionNavigation*> _navigation;
 	const not_null<Ui::BoxContent*> _box;
 	not_null<PeerData*> _peer;
+	MTP::Sender _api;
 	const bool _isGroup = false;
 
 	base::unique_qptr<Ui::VerticalLayout> _wrap;
@@ -344,7 +343,6 @@ private:
 
 	const rpl::event_stream<Privacy> _privacyTypeUpdates;
 	const rpl::event_stream<ChannelData*> _linkedChatUpdates;
-	MTP::Sender _linkedChatsRequester;
 	mtpRequestId _linkedChatsRequestId = 0;
 
 	rpl::lifetime _lifetime;
@@ -358,6 +356,7 @@ Controller::Controller(
 : _navigation(navigation)
 , _box(box)
 , _peer(peer)
+, _api(_peer->session().api().instance())
 , _isGroup(_peer->isChat() || _peer->isMegagroup()) {
 	_box->setTitle(_isGroup
 		? tr::lng_edit_group()
@@ -478,7 +477,7 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 		[=] { submitTitle(); });
 
 	_controls.title = result->entity();
-	return std::move(result);
+	return result;
 }
 
 object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
@@ -512,7 +511,7 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 		[=] { submitDescription(); });
 
 	_controls.description = result->entity();
-	return std::move(result);
+	return result;
 }
 
 object_ptr<Ui::RpWidget> Controller::createManageGroupButtons() {
@@ -526,7 +525,7 @@ object_ptr<Ui::RpWidget> Controller::createManageGroupButtons() {
 
 	fillManageSection();
 
-	return std::move(result);
+	return result;
 }
 
 object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
@@ -564,7 +563,7 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 		Ui::show(Box<StickersBox>(channel), Ui::LayerOption::KeepOther);
 	});
 
-	return std::move(result);
+	return result;
 }
 
 bool Controller::canEditInformation() const {
@@ -644,7 +643,7 @@ void Controller::showEditLinkedChatBox() {
 		callback(_linkedChatOriginalValue);
 		return;
 	}
-	_linkedChatsRequestId = _linkedChatsRequester.request(
+	_linkedChatsRequestId = _api.request(
 		MTPchannels_GetGroupsForDiscussion()
 	).done([=](const MTPmessages_Chats &result) {
 		_linkedChatsRequestId = 0;
@@ -1187,7 +1186,7 @@ void Controller::saveUsername() {
 		return;
 	}
 
-	request(MTPchannels_UpdateUsername(
+	_api.request(MTPchannels_UpdateUsername(
 		channel->inputChannel,
 		MTP_string(*_savingData.username)
 	)).done([=](const MTPBool &result) {
@@ -1242,7 +1241,7 @@ void Controller::saveLinkedChat() {
 	const auto input = *_savingData.linkedChat
 		? (*_savingData.linkedChat)->inputChannel
 		: MTP_inputChannelEmpty();
-	request(MTPchannels_SetDiscussionGroup(
+	_api.request(MTPchannels_SetDiscussionGroup(
 		(channel->isBroadcast() ? channel->inputChannel : input),
 		(channel->isBroadcast() ? input : channel->inputChannel)
 	)).done([=](const MTPBool &result) {
@@ -1283,14 +1282,14 @@ void Controller::saveTitle() {
 	};
 
 	if (const auto channel = _peer->asChannel()) {
-		request(MTPchannels_EditTitle(
+		_api.request(MTPchannels_EditTitle(
 			channel->inputChannel,
 			MTP_string(*_savingData.title)
 		)).done(std::move(onDone)
 		).fail(std::move(onFail)
 		).send();
 	} else if (const auto chat = _peer->asChat()) {
-		request(MTPmessages_EditChatTitle(
+		_api.request(MTPmessages_EditChatTitle(
 			chat->inputChat,
 			MTP_string(*_savingData.title)
 		)).done(std::move(onDone)
@@ -1311,7 +1310,7 @@ void Controller::saveDescription() {
 		_peer->setAbout(*_savingData.description);
 		continueSave();
 	};
-	request(MTPmessages_EditChatAbout(
+	_api.request(MTPmessages_EditChatAbout(
 		_peer->input,
 		MTP_string(*_savingData.description)
 	)).done([=](const MTPBool &result) {
@@ -1368,7 +1367,7 @@ void Controller::togglePreHistoryHidden(
 
 		done();
 	};
-	request(MTPchannels_TogglePreHistoryHidden(
+	_api.request(MTPchannels_TogglePreHistoryHidden(
 		channel->inputChannel,
 		MTP_bool(hidden)
 	)).done([=](const MTPUpdates &result) {
@@ -1390,7 +1389,7 @@ void Controller::saveSignatures() {
 		|| *_savingData.signatures == channel->addsSignature()) {
 		return continueSave();
 	}
-	request(MTPchannels_ToggleSignatures(
+	_api.request(MTPchannels_ToggleSignatures(
 		channel->inputChannel,
 		MTP_bool(*_savingData.signatures)
 	)).done([=](const MTPUpdates &result) {

@@ -34,8 +34,7 @@ namespace ChatHelpers {
 class GifsListWidget
 	: public TabbedSelector::Inner
 	, public InlineBots::Layout::Context
-	, private base::Subscriber
-	, private MTP::Sender {
+	, private base::Subscriber {
 public:
 	using InlineChosen = TabbedSelector::InlineChosen;
 
@@ -118,6 +117,8 @@ private:
 
 	void updateInlineItems();
 	void showPreview();
+
+	MTP::Sender _api;
 
 	Section _section = Section::Gifs;
 	crl::time _lastScrolled = 0;

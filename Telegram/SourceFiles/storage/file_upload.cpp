@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/localimageloader.h"
 #include "storage/file_download.h"
-#include "mtproto/connection.h" // for MTP::kAckSendWaiting
 #include "data/data_document.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
@@ -42,7 +41,7 @@ constexpr auto kDocumentUploadPartSize4 = 512 * 1024;
 constexpr auto kUploadRequestInterval = crl::time(500);
 
 // How much time without upload causes additional session kill.
-constexpr auto kKillSessionTimeout = crl::time(5000);
+constexpr auto kKillSessionTimeout = 15 * crl::time(000);
 
 } // namespace
 
@@ -256,8 +255,7 @@ void Uploader::sendNext() {
 	bool stopping = stopSessionsTimer.isActive();
 	if (queue.empty()) {
 		if (!stopping) {
-			stopSessionsTimer.start(
-				MTP::kAckSendWaiting + kKillSessionTimeout);
+			stopSessionsTimer.start(kKillSessionTimeout);
 		}
 		return;
 	}
