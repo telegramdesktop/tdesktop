@@ -48,11 +48,11 @@ echo.
 
 set "HomePath=%FullScriptPath%.."
 set "ResourcesPath=%HomePath%\Resources"
-set "SolutionPath=%HomePath%\.."
+set "SolutionPath=%HomePath%\..\out"
 set "UpdateFile=tupdate%AppVersion%"
 set "SetupFile=tsetup.%AppVersionStrFull%.exe"
 set "PortableFile=tportable.%AppVersionStrFull%.zip"
-set "ReleasePath=%HomePath%\..\out\Release"
+set "ReleasePath=%SolutionPath%\Release"
 set "DeployPath=%ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStrFull%"
 set "SignPath=%HomePath%\..\..\DesktopPrivate\Sign.bat"
 set "BinaryName=Telegram"
@@ -105,25 +105,25 @@ if %AlphaVersion% neq 0 (
 
 cd "%HomePath%"
 
-call gyp\refresh.bat
+call configure.bat
 if %errorlevel% neq 0 goto error
 
 cd "%SolutionPath%"
-call ninja -C out/Release Telegram
+call cmake --build . --config Release --target Telegram
 if %errorlevel% neq 0 goto error
 
 echo.
 echo Version %AppVersionStrFull% build successfull. Preparing..
 echo.
 
-if not exist "%SolutionPath%\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" (
+if not exist "%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" (
   echo Utility dump_syms not found!
   exit /b 1
 )
 
 echo Dumping debug symbols..
 xcopy "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\%BinaryName%.exe.exe*"
-call "%SolutionPath%\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" "%ReleasePath%\%BinaryName%.exe.pdb" > "%ReleasePath%\%BinaryName%.exe.sym"
+call "%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" "%ReleasePath%\%BinaryName%.exe.pdb" > "%ReleasePath%\%BinaryName%.exe.sym"
 del "%ReleasePath%\%BinaryName%.exe.exe"
 echo Done!
 

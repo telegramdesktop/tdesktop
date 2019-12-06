@@ -18,6 +18,7 @@ project(Telegram
     DESCRIPTION "Official Telegram Desktop messenger"
     HOMEPAGE_URL "https://desktop.telegram.org"
 )
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Telegram)
 
 include(cmake/nice_target_sources.cmake)
 include(cmake/target_link_static_libraries.cmake)
