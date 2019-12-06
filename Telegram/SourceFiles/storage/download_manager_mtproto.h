@@ -42,8 +42,13 @@ public:
 		return _taskFinishedObservable;
 	}
 
-	void changeRequestedAmount(MTP::DcId dcId, int index, int delta);
-	void requestSucceeded(MTP::DcId dcId, int index, crl::time duration);
+	int changeRequestedAmount(MTP::DcId dcId, int index, int delta);
+	void requestSucceeded(
+		MTP::DcId dcId,
+		int index,
+		int amountAtRequestStart,
+		crl::time timeAtRequestStart);
+	[[nodiscard]] int chooseSessionIndex(MTP::DcId dcId) const;
 
 private:
 	class Queue final {
@@ -53,6 +58,7 @@ private:
 		void resetGeneration();
 		[[nodiscard]] bool empty() const;
 		[[nodiscard]] Task *nextTask() const;
+		void removeSession(int index);
 
 	private:
 		std::vector<not_null<Task*>> _tasks;
@@ -129,7 +135,8 @@ public:
 	[[nodiscard]] const Location &location() const;
 
 	[[nodiscard]] virtual bool readyToRequest() const = 0;
-	void loadPart(int dcIndex);
+	void loadPart(int sessionIndex);
+	void removeSession(int sessionIndex);
 
 	void refreshFileReferenceFrom(
 		const Data::UpdatedFileReferences &updates,
@@ -152,7 +159,8 @@ protected:
 private:
 	struct RequestData {
 		int offset = 0;
-		int dcIndex = 0;
+		int sessionIndex = 0;
+		int requestedInSession = 0;
 		crl::time sent = 0;
 
 		inline bool operator<(const RequestData &other) const {
