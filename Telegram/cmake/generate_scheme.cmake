@@ -12,6 +12,8 @@ function(generate_scheme target_name script scheme_files)
     set(gen_files
         ${gen_dst}/scheme.cpp
         ${gen_dst}/scheme.h
+        ${gen_dst}/scheme-dump_to_text.cpp
+        ${gen_dst}/scheme-dump_to_text.h
     )
 
     add_custom_command(

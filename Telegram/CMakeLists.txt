@@ -17,6 +17,7 @@ if (NOT DESKTOP_APP_DISABLE_SPELLCHECK)
 endif()
 add_subdirectory(lib_storage)
 add_subdirectory(lib_lottie)
+add_subdirectory(lib_qr)
 add_subdirectory(codegen)
 
 include(lib_ui/cmake/generate_styles.cmake)
@@ -76,11 +77,13 @@ PRIVATE
     desktop-app::lib_tl
     desktop-app::lib_storage
     desktop-app::lib_lottie
+    desktop-app::lib_qr
     desktop-app::lib_ffmpeg
     desktop-app::external_lz4
     desktop-app::external_rlottie
     desktop-app::external_zlib
     desktop-app::external_qt
+    desktop-app::external_qr_code_generator
     desktop-app::external_auto_updates
     desktop-app::external_openssl
     desktop-app::external_opus
@@ -530,18 +533,22 @@ PRIVATE
     inline_bots/inline_bot_send_data.h
     inline_bots/inline_results_widget.cpp
     inline_bots/inline_results_widget.h
-    intro/introwidget.cpp
-    intro/introwidget.h
-    intro/introcode.cpp
-    intro/introcode.h
-    intro/introphone.cpp
-    intro/introphone.h
-    intro/intropwdcheck.cpp
-    intro/intropwdcheck.h
-    intro/introsignup.cpp
-    intro/introsignup.h
-    intro/introstart.cpp
-    intro/introstart.h
+    intro/intro_code.cpp
+    intro/intro_code.h
+    intro/intro_password_check.cpp
+    intro/intro_password_check.h
+    intro/intro_phone.cpp
+    intro/intro_phone.h
+    intro/intro_qr.cpp
+    intro/intro_qr.h
+    intro/intro_signup.cpp
+    intro/intro_signup.h
+    intro/intro_start.cpp
+    intro/intro_start.h
+    intro/intro_step.cpp
+    intro/intro_step.h
+    intro/intro_widget.cpp
+    intro/intro_widget.h
     lang/lang_cloud_manager.cpp
     lang/lang_cloud_manager.h
     lang/lang_file_parser.cpp
@@ -631,14 +638,8 @@ PRIVATE
     media/view/media_view_group_thumbs.h
     media/view/media_view_overlay_widget.cpp
     media/view/media_view_overlay_widget.h
-    mtproto/auth_key.cpp
-    mtproto/auth_key.h
-    mtproto/concurrent_sender.cpp
-    mtproto/concurrent_sender.h
     mtproto/config_loader.cpp
     mtproto/config_loader.h
-    mtproto/connection.cpp
-    mtproto/connection.h
     mtproto/connection_abstract.cpp
     mtproto/connection_abstract.h
     mtproto/connection_http.cpp
@@ -647,10 +648,7 @@ PRIVATE
     mtproto/connection_resolving.h
     mtproto/connection_tcp.cpp
     mtproto/connection_tcp.h
-    mtproto/core_types.cpp
     mtproto/core_types.h
-    mtproto/dcenter.cpp
-    mtproto/dcenter.h
     mtproto/dc_options.cpp
     mtproto/dc_options.h
     mtproto/dedicated_file_loader.cpp
@@ -659,13 +657,11 @@ PRIVATE
     mtproto/facade.h
     mtproto/mtp_instance.cpp
     mtproto/mtp_instance.h
-    mtproto/rsa_public_key.cpp
-    mtproto/rsa_public_key.h
-    mtproto/rpc_sender.cpp
-    mtproto/rpc_sender.h
     mtproto/sender.h
     mtproto/session.cpp
     mtproto/session.h
+    mtproto/session_private.cpp
+    mtproto/session_private.h
     mtproto/special_config_request.cpp
     mtproto/special_config_request.h
     mtproto/type_utils.h
@@ -788,8 +784,14 @@ PRIVATE
     settings/settings_privacy_controllers.h
     settings/settings_privacy_security.cpp
     settings/settings_privacy_security.h
+    storage/download_manager_mtproto.cpp
+    storage/download_manager_mtproto.h
     storage/file_download.cpp
     storage/file_download.h
+    storage/file_download_mtproto.cpp
+    storage/file_download_mtproto.h
+    storage/file_download_web.cpp
+    storage/file_download_web.h
     storage/file_upload.cpp
     storage/file_upload.h
     storage/localimageloader.cpp
