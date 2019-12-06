@@ -1009,32 +1009,34 @@ elseif (APPLE)
         endif()
     endif()
 elseif (LINUX)
-    find_package(PkgConfig REQUIRED)
+    if (NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
+        find_package(PkgConfig REQUIRED)
 
-    pkg_check_modules(GTK2 REQUIRED gtk+-2.0)
-    target_include_directories(Telegram PRIVATE ${GTK2_INCLUDE_DIRS})
-    target_compile_options(Telegram PRIVATE -Wno-register)
+        pkg_check_modules(GTK2 REQUIRED gtk+-2.0)
+        target_include_directories(Telegram PRIVATE ${GTK2_INCLUDE_DIRS})
+        target_compile_options(Telegram PRIVATE -Wno-register)
 
-    set(appindicator_packages
-        ayatana-appindicator3-0.1
-        ayatana-appindicator-0.1
-        appindicator3-0.1
-        appindicator-0.1
-    )
-    set(appindicator_found 0)
-    foreach (package ${appindicator_packages})
-        pkg_check_modules(APPIND_${package} ${package})
-        if (APPIND_${package}_FOUND)
-            set(appindicator_found 1)
-            target_include_directories(Telegram PRIVATE "${APPIND_${package}_INCLUDE_DIRS}")
-            if (${package} MATCHES "ayatana")
-                target_compile_definitions(Telegram PRIVATE TDESKTOP_USE_AYATANA_INDICATORS)
+        set(appindicator_packages
+            ayatana-appindicator3-0.1
+            ayatana-appindicator-0.1
+            appindicator3-0.1
+            appindicator-0.1
+        )
+        set(appindicator_found 0)
+        foreach (package ${appindicator_packages})
+            pkg_check_modules(APPIND_${package} ${package})
+            if (APPIND_${package}_FOUND)
+                set(appindicator_found 1)
+                target_include_directories(Telegram PRIVATE "${APPIND_${package}_INCLUDE_DIRS}")
+                if (${package} MATCHES "ayatana")
+                    target_compile_definitions(Telegram PRIVATE TDESKTOP_USE_AYATANA_INDICATORS)
+                endif()
+                break()
             endif()
-            break()
+        endforeach()
+        if (NOT ${appindicator_found})
+            message(FATAL_ERROR "No libappindicator found by pkg-config.")
         endif()
-    endforeach()
-    if (NOT ${appindicator_found})
-        message(FATAL_ERROR "No libappindicator found by pkg-config.")
     endif()
 endif()
 
