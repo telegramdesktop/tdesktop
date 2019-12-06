@@ -988,7 +988,7 @@ elseif (APPLE)
         set(strings_path ${res_loc}/langs/${lang}.lproj/Localizable.strings)
         set_source_files_properties(${strings_path} PROPERTIES
         MACOSX_PACKAGE_LOCATION
-            Resources/${lang}.lproj/Localizable.strings
+            Resources/${lang}.lproj
         )
         target_sources(Telegram PRIVATE ${strings_path})
         source_group(TREE ${res_loc} PREFIX Resources FILES ${strings_path})
@@ -1100,13 +1100,6 @@ PRIVATE
     AL_LIBTYPE_STATIC
     AL_ALEXT_PROTOTYPES
 )
-
-if (disable_autoupdate)
-    target_compile_definitions(Telegram
-    PRIVATE
-        TDESKTOP_DISABLE_AUTOUPDATE
-    )
-endif()
 
 if (${CMAKE_GENERATOR} MATCHES "(Visual Studio|Xcode|Ninja)")
     set(output_folder ${CMAKE_BINARY_DIR})

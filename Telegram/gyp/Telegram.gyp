@@ -130,7 +130,7 @@
       ],
     }], [ '"<(special_build_target)" != ""', {
       'defines': [
-        'TDESKTOP_OFFICIAL_TARGET=<(special_build_target)',
+        'TDESKTOP_ALLOW_CLOSED_ALPHA',
         'TDESKTOP_FORCE_GTK_FILE_DIALOG',
       ],
       'dependencies': [

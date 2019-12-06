@@ -51,6 +51,14 @@ else()
     target_link_libraries(Telegram PRIVATE desktop-app::lib_spellcheck)
 endif()
 
+if (disable_autoupdate)
+    target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_AUTOUPDATE)
+endif()
+
+if (DESKTOP_APP_SPECIAL_TARGET)
+    target_compile_definitions(Telegram PRIVATE TDESKTOP_ALLOW_CLOSED_ALPHA)
+endif()
+
 if (TDESKTOP_FORCE_GTK_FILE_DIALOG)
     target_compile_definitions(Telegram PRIVATE TDESKTOP_FORCE_GTK_FILE_DIALOG)
 endif()

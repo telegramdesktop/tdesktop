@@ -24,3 +24,7 @@ PUBLIC
     desktop-app::lib_base
     desktop-app::external_ffmpeg
 )
+
+if (DESKTOP_APP_SPECIAL_TARGET)
+    target_compile_definitions(lib_ffmpeg PRIVATE LIB_FFMPEG_USE_QT_PRIVATE_API)
+endif()

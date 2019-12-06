@@ -5,8 +5,16 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 add_library(lib_tgvoip STATIC)
-init_target(lib_tgvoip)
+init_target(lib_tgvoip cxx_std_11)
 add_library(tdesktop::lib_tgvoip ALIAS lib_tgvoip)
+
+if (NOT APPLE)
+    # On macOS if you build libtgvoip with C++17 it uses std::optional
+    # instead of absl::optional and when it uses optional::value, the
+    # build fails, because optional::value is available starting with
+    # macOS 10.14+. This way we force using absl::optional.
+    target_compile_features(lib_tgvoip PUBLIC cxx_std_17)
+endif()
 
 set(tgvoip_loc ${third_party_loc}/libtgvoip)
 

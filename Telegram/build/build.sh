@@ -52,13 +52,15 @@ if [ "$BuildTarget" == "linux" ]; then
   echo "Building version $AppVersionStrFull for Linux 64bit.."
   UpdateFile="tlinuxupd$AppVersion"
   SetupFile="tsetup.$AppVersionStrFull.tar.xz"
-  ReleasePath="$HomePath/../out/Release"
+  ProjectPath="$HomePath/../out"
+  ReleasePath="$ProjectPath/Release"
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "linux32" ]; then
   echo "Building version $AppVersionStrFull for Linux 32bit.."
   UpdateFile="tlinux32upd$AppVersion"
   SetupFile="tsetup32.$AppVersionStrFull.tar.xz"
-  ReleasePath="$HomePath/../out/Release"
+  ProjectPath="$HomePath/../out"
+  ReleasePath="$ProjectPath/Release"
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "mac" ]; then
   echo "Building version $AppVersionStrFull for macOS 10.12+.."
@@ -67,13 +69,15 @@ elif [ "$BuildTarget" == "mac" ]; then
   fi
   UpdateFile="tmacupd$AppVersion"
   SetupFile="tsetup.$AppVersionStrFull.dmg"
-  ReleasePath="$HomePath/../out/Release"
+  ProjectPath="$HomePath/../out"
+  ReleasePath="$ProjectPath/Release"
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "osx" ]; then
   echo "Building version $AppVersionStrFull for OS X 10.10 and 10.11.."
   UpdateFile="tosxupd$AppVersion"
   SetupFile="tsetup-osx.$AppVersionStrFull.dmg"
-  ReleasePath="$HomePath/../out/Release"
+  ProjectPath="$HomePath/../out"
+  ReleasePath="$ProjectPath/Release"
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "macstore" ]; then
   if [ "$AlphaVersion" != "0" ]; then
@@ -81,7 +85,8 @@ elif [ "$BuildTarget" == "macstore" ]; then
   fi
 
   echo "Building version $AppVersionStrFull for Mac App Store.."
-  ReleasePath="$HomePath/../out/Release"
+  ProjectPath="$HomePath/../out"
+  ReleasePath="$ProjectPath/Release"
   BinaryName="Telegram Desktop"
 else
   Error "Invalid target!"
@@ -123,10 +128,12 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
     Error "Backup folder not found!"
   fi
 
-  gyp/refresh.sh
+  ./configure.sh
 
+  cd $ProjectPath
+  cmake --build . --config Release --target Telegram -- -j8
   cd $ReleasePath
-  make -j4
+
   echo "$BinaryName build complete!"
 
   if [ ! -f "$ReleasePath/$BinaryName" ]; then
@@ -253,8 +260,11 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "osx" ] || [ "$BuildTarget
     Error "Backup path not found!"
   fi
 
-  gyp/refresh.sh
-  xcodebuild -project Telegram.xcodeproj -alltargets -configuration Release build
+  ./configure.sh
+
+  cd $ProjectPath
+  cmake --build . --config Release --target Telegram
+  cd $ReleasePath
 
   if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
     Error "$BinaryName.app not found!"
