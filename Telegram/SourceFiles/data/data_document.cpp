@@ -1673,22 +1673,24 @@ bool IsExecutableName(const QString &filepath) {
 		const auto joined =
 #ifdef Q_OS_MAC
 			qsl("\
-action app bin command csh osx workflow terminal url caction mpkg pkg xhtm \
-webarchive");
+applescript action app bin command csh osx workflow terminal url caction \
+mpkg pkg scpt scptd xhtm webarchive");
 #elif defined Q_OS_LINUX // Q_OS_MAC
-			qsl("bin csh deb desktop ksh out pet pkg pup rpm run shar slp");
+			qsl("bin csh deb desktop ksh out pet pkg pup rpm run sh shar \
+slp zsh");
 #else // Q_OS_MAC || Q_OS_LINUX
 			qsl("\
-ad ade adp app application appref-ms asp asx bas bat bin cer cfg chi chm \
-cmd cnt com cpl crt csh der diagcab dll drv eml exe fon fxp gadget grp hlp \
-hpj hta htt inf ini ins inx isp isu its jar jnlp job js jse ksh lnk local \
-mad maf mag mam manifest maq mar mas mat mau mav maw mcf mda mdb mde mdt \
-mdw mdz mht mhtml mmc mof msc msg msh msh1 msh2 msh1xml msh2xml mshxml msi \
-msp mst ops osd paf pcd pif pl plg prf prg ps1 ps2 ps1xml ps2xml psc1 psc2 \
-pst py py3 pyc pyd pyo pyw pywz pyz reg rgs scf scr sct search-ms \
-settingcontent-ms shb shs slk sys tmp u3p url vb vbe vbp vbs vbscript vdx \
-vsmacros vsd vsdm vsdx vss vssm vssx vst vstm vstx vsw vsx vtx website ws \
-wsc wsf wsh xbap xll xnk");
+ad ade adp app application appref-ms asp asx bas bat bin cdxml cer cfg chi \
+chm cmd cnt com cpl crt csh der diagcab dll drv eml exe fon fxp gadget grp \
+hlp hpj hta htt inf ini ins inx isp isu its jar jnlp job js jse ksh lnk \
+local lua mad maf mag mam manifest maq mar mas mat mau mav maw mcf mda mdb \
+mde mdt mdw mdz mht mhtml mjs mmc mof msc msg msh msh1 msh2 msh1xml msh2xml \
+mshxml msi msp mst ops osd paf pcd phar php php3 php4 php5 php7 phps php-s \
+pht phtml pif pl plg pm pod prf prg ps1 ps2 ps1xml ps2xml psc1 psc2 psd1 \
+psm1 pssc pst py py3 pyc pyd pyi pyo pyw pywz pyz rb reg rgs scf scr sct \
+search-ms settingcontent-ms shb shs slk sys t tmp u3p url vb vbe vbp vbs \
+vbscript vdx vsmacros vsd vsdm vsdx vss vssm vssx vst vstm vstx vsw vsx vtx \
+website ws wsc wsf wsh xbap xll xnk xs");
 #endif // !Q_OS_MAC && !Q_OS_LINUX
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());
