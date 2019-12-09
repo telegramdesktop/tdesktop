@@ -416,6 +416,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_performance" = "Performance";
 "lng_settings_enable_animations" = "Enable animations";
 "lng_settings_autoplay_gifs" = "Autoplay GIFs";
+"lng_settings_sensitive_title" = "Sensitive content";
+"lng_settings_sensitive_disable_filtering" = "Disable filtering";
+"lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";
 
 "lng_settings_spellchecker" = "Spell checker";
 "lng_settings_system_spellchecker" = "Use system spell checker";

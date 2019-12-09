@@ -17,6 +17,12 @@ set(scheme_files
 
 generate_scheme(lib_scheme ${src_loc}/codegen/scheme/codegen_scheme.py "${scheme_files}")
 
+nice_target_sources(lib_scheme ${res_loc}
+PRIVATE
+    tl/mtproto.tl
+    tl/api.tl
+)
+
 target_include_directories(lib_scheme
 PUBLIC
     ${src_loc}

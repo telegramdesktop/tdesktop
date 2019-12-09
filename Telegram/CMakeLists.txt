@@ -101,8 +101,12 @@ PRIVATE
 
     api/api_common.h
     api/api_hash.h
+    api/api_self_destruct.cpp
+    api/api_self_destruct.h
     api/api_sending.cpp
     api/api_sending.h
+    api/api_sensitive_content.cpp
+    api/api_sensitive_content.h
     api/api_single_message_search.cpp
     api/api_single_message_search.h
     api/api_text_entities.cpp

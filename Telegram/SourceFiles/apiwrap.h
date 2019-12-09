@@ -83,6 +83,9 @@ QString RequestKey(Types &&...values) {
 	return result;
 }
 
+class SelfDestruct;
+class SensitiveContent;
+
 } // namespace Api
 
 class ApiWrap : public MTP::Sender, private base::Subscriber {
@@ -131,6 +134,7 @@ public:
 	};
 
 	explicit ApiWrap(not_null<Main::Session*> session);
+	~ApiWrap();
 
 	Main::Session &session() const;
 
@@ -465,9 +469,8 @@ public:
 	void reloadBlockedUsers();
 	rpl::producer<BlockedUsersSlice> blockedUsersSlice();
 
-	void reloadSelfDestruct();
-	rpl::producer<int> selfDestructValue() const;
-	void saveSelfDestruct(int days);
+	[[nodiscard]] Api::SelfDestruct &selfDestruct();
+	[[nodiscard]] Api::SensitiveContent &sensitiveContent();
 
 	void createPoll(
 		const PollData &data,
@@ -479,8 +482,6 @@ public:
 		const std::vector<QByteArray> &options);
 	void closePoll(not_null<HistoryItem*> item);
 	void reloadPollResults(not_null<HistoryItem*> item);
-
-	~ApiWrap();
 
 private:
 	struct MessageDataRequest {
@@ -679,8 +680,6 @@ private:
 		const QVector<MTPPrivacyRule> &rules);
 	void updatePrivacyLastSeens(const QVector<MTPPrivacyRule> &rules);
 
-	void setSelfDestructDays(int days);
-
 	void migrateDone(
 		not_null<PeerData*> peer,
 		not_null<ChannelData*> channel);
@@ -874,9 +873,8 @@ private:
 	std::optional<BlockedUsersSlice> _blockedUsersSlice;
 	rpl::event_stream<BlockedUsersSlice> _blockedUsersChanges;
 
-	mtpRequestId _selfDestructRequestId = 0;
-	std::optional<int> _selfDestructDays;
-	rpl::event_stream<int> _selfDestructChanges;
+	const std::unique_ptr<Api::SelfDestruct> _selfDestruct;
+	const std::unique_ptr<Api::SensitiveContent> _sensitiveContent;
 
 	base::flat_map<FullMsgId, mtpRequestId> _pollVotesRequestIds;
 	base::flat_map<FullMsgId, mtpRequestId> _pollCloseRequestIds;

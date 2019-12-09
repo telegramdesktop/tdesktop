@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "apiwrap.h"
+#include "api/api_self_destruct.h"
 #include "main/main_session.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -76,7 +77,7 @@ void SelfDestructionBox::showContent() {
 
 	clearButtons();
 	addButton(tr::lng_settings_save(), [=] {
-		_session->api().saveSelfDestruct(_ttlGroup->value());
+		_session->api().selfDestruct().update(_ttlGroup->value());
 		closeBox();
 	});
 	addButton(tr::lng_cancel(), [=] { closeBox(); });

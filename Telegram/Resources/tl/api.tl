@@ -1091,6 +1091,8 @@ auth.loginTokenSuccess#390d5c5e authorization:auth.Authorization = auth.LoginTok
 
 auth.loginTokenInfo#5203303a dc_id:int auth_key_id:long device_model:string platform:string system_version:string api_id:int app_name:string app_version:string ip:string region:string = auth.LoginTokenInfo;
 
+account.contentSettings#57e28221 flags:# sensitive_enabled:flags.0?true sensitive_can_change:flags.1?true = account.ContentSettings;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -1183,6 +1185,8 @@ account.saveTheme#f257106c theme:InputTheme unsave:Bool = Bool;
 account.installTheme#7ae43737 flags:# dark:flags.0?true format:flags.1?string theme:flags.1?InputTheme = Bool;
 account.getTheme#8d9d742b format:string theme:InputTheme document_id:long = Theme;
 account.getThemes#285946f8 format:string hash:int = account.Themes;
+account.setContentSettings#b574b16b flags:# sensitive_enabled:flags.0?true = Bool;
+account.getContentSettings#8b9b4dae = account.ContentSettings;
 
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
 users.getFullUser#ca30a5b1 id:InputUser = UserFull;
