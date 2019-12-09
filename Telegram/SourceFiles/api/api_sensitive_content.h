@@ -8,8 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
+#include "base/timer.h"
 
 class ApiWrap;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Api {
 
@@ -25,10 +30,12 @@ public:
 	[[nodiscard]] rpl::producer<bool> canChange() const;
 
 private:
+	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
 	rpl::variable<bool> _enabled = false;
 	rpl::variable<bool> _canChange = false;
+	base::Timer _appConfigReloadTimer;
 
 };
 

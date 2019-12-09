@@ -81,13 +81,15 @@ void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 	}
 }
 
-QString UserData::unavailableReason() const {
-	return _unavailableReason;
+auto UserData::unavailableReasons() const
+-> const std::vector<Data::UnavailableReason> & {
+	return _unavailableReasons;
 }
 
-void UserData::setUnavailableReason(const QString &text) {
-	if (_unavailableReason != text) {
-		_unavailableReason = text;
+void UserData::setUnavailableReasons(
+		std::vector<Data::UnavailableReason> &&reasons) {
+	if (_unavailableReasons != reasons) {
+		_unavailableReasons = std::move(reasons);
 		Notify::peerUpdatedDelayed(
 			this,
 			Notify::PeerUpdate::Flag::UnavailableReasonChanged);

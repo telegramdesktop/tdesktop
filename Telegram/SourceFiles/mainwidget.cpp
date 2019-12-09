@@ -1593,7 +1593,7 @@ void MainWidget::ui_showPeerHistory(
 			peerId = peer->id;
 			if (showAtMsgId > 0) showAtMsgId = -showAtMsgId;
 		}
-		const auto unavailable = peer->unavailableReason();
+		const auto unavailable = peer->computeUnavailableReason();
 		if (!unavailable.isEmpty()) {
 			if (params.activation != anim::activation::background) {
 				Ui::show(Box<InformBox>(unavailable));

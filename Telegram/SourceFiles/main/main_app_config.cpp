@@ -41,6 +41,7 @@ void AppConfig::refresh() {
 		_requestId = 0;
 		refreshDelayed();
 		if (result.type() == mtpc_jsonObject) {
+			_data.clear();
 			for (const auto &element : result.c_jsonObject().vvalue().v) {
 				element.match([&](const MTPDjsonObjectValue &data) {
 					_data.emplace_or_assign(qs(data.vkey()), data.vvalue());
@@ -90,6 +91,25 @@ QString AppConfig::getString(
 			return qs(data.vvalue());
 		}, [&](const auto &data) {
 			return fallback;
+		});
+	});
+}
+
+std::vector<QString> AppConfig::getStringArray(
+		const QString &key,
+		std::vector<QString> &&fallback) const {
+	return getValue(key, [&](const MTPJSONValue &value) {
+		return value.match([&](const MTPDjsonArray &data) {
+			auto result = std::vector<QString>();
+			for (const auto &entry : data.vvalue().v) {
+				if (entry.type() != mtpc_jsonString) {
+					return std::move(fallback);
+				}
+				result.push_back(qs(entry.c_jsonString().vvalue()));
+			}
+			return result;
+		}, [&](const auto &data) {
+			return std::move(fallback);
 		});
 	});
 }

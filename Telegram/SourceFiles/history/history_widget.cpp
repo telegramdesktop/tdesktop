@@ -562,7 +562,7 @@ HistoryWidget::HistoryWidget(
 				updateNotifyControls();
 			}
 			if (update.flags & UpdateFlag::UnavailableReasonChanged) {
-				const auto unavailable = _peer->unavailableReason();
+				const auto unavailable = _peer->computeUnavailableReason();
 				if (!unavailable.isEmpty()) {
 					controller->showBackFromStack();
 					Ui::show(Box<InformBox>(unavailable));

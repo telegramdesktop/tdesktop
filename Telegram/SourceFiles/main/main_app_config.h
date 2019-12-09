@@ -23,13 +23,16 @@ public:
 			return getDouble(key, fallback);
 		} else if constexpr (std::is_same_v<Type, QString>) {
 			return getString(key, fallback);
+		} else if constexpr (std::is_same_v<Type, std::vector<QString>>) {
+			return getStringArray(key, std::move(fallback));
 		}
 	}
 
 	[[nodiscard]] rpl::producer<> refreshed() const;
 
-private:
 	void refresh();
+
+private:
 	void refreshDelayed();
 
 	template <typename Extractor>
@@ -43,6 +46,9 @@ private:
 	[[nodiscard]] QString getString(
 		const QString &key,
 		const QString &fallback) const;
+	[[nodiscard]] std::vector<QString> getStringArray(
+		const QString &key,
+		std::vector<QString> &&fallback) const;
 
 	const not_null<Account*> _account;
 	std::optional<MTP::Sender> _api;

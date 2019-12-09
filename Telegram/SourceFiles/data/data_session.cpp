@@ -101,30 +101,26 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 
 // We should get a full restriction in "{full}: {reason}" format and we
 // need to find an "-all" tag in {full}, otherwise ignore this restriction.
-QString ExtractUnavailableReason(
+std::vector<UnavailableReason> ExtractUnavailableReasons(
 		const QVector<MTPRestrictionReason> &restrictions) {
-	auto &&texts = ranges::view::all(
+	return ranges::view::all(
 		restrictions
-	) | ranges::view::transform([](const MTPRestrictionReason &restriction) {
+	) | ranges::view::filter([](const MTPRestrictionReason &restriction) {
 		return restriction.match([&](const MTPDrestrictionReason &data) {
 			const auto platform = qs(data.vplatform());
-			return (false
+			return false
 #ifdef OS_MAC_STORE
 				|| (platform == qstr("ios"))
 #elif defined OS_WIN_STORE // OS_MAC_STORE
 				|| (platform == qstr("ms"))
 #endif // OS_MAC_STORE || OS_WIN_STORE
-				|| (platform == qstr("all")))
-				? std::make_optional(qs(data.vtext()))
-				: std::nullopt;
+				|| (platform == qstr("all"));
 		});
-	}) | ranges::view::filter([](const std::optional<QString> &value) {
-		return value.has_value();
-	}) | ranges::view::transform([](const std::optional<QString> &value) {
-		return *value;
-	});
-	const auto begin = texts.begin();
-	return (begin != texts.end()) ? *begin : nullptr;
+	}) | ranges::view::transform([](const MTPRestrictionReason &restriction) {
+		return restriction.match([&](const MTPDrestrictionReason &data) {
+			return UnavailableReason{ qs(data.vreason()), qs(data.vtext()) };
+		});
+	}) | ranges::to_vector;
 }
 
 MTPPhotoSize FindDocumentInlineThumbnail(const MTPDdocument &data) {
@@ -365,10 +361,10 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				result->inputUser = MTP_inputUser(data.vid(), MTP_long(result->accessHash()));
 			}
 			if (const auto restriction = data.vrestriction_reason()) {
-				result->setUnavailableReason(
-					ExtractUnavailableReason(restriction->v));
+				result->setUnavailableReasons(
+					ExtractUnavailableReasons(restriction->v));
 			} else {
-				result->setUnavailableReason(QString());
+				result->setUnavailableReasons({});
 			}
 		}
 		if (data.is_deleted()) {
@@ -636,10 +632,10 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				channel->setVersion(data.vversion().v);
 			}
 			if (const auto restriction = data.vrestriction_reason()) {
-				channel->setUnavailableReason(
-					ExtractUnavailableReason(restriction->v));
+				channel->setUnavailableReasons(
+					ExtractUnavailableReasons(restriction->v));
 			} else {
-				channel->setUnavailableReason(QString());
+				channel->setUnavailableReasons({});
 			}
 			channel->setFlags(data.vflags().v);
 			//if (const auto feedId = data.vfeed_id()) { // #feed

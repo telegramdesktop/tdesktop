@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/confirm_box.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "core/application.h"
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
@@ -374,6 +376,27 @@ void PeerData::setUserpicChecked(
 		//	}
 		//}
 	}
+}
+
+auto PeerData::unavailableReasons() const
+-> const std::vector<Data::UnavailableReason> & {
+	static const auto result = std::vector<Data::UnavailableReason>();
+	return result;
+}
+
+QString PeerData::computeUnavailableReason() const {
+	const auto &list = unavailableReasons();
+	const auto &config = session().account().appConfig();
+	const auto skip = config.get<std::vector<QString>>(
+		"ignore_restriction_reasons",
+		std::vector<QString>());
+	auto &&filtered = ranges::view::all(
+		list
+	) | ranges::view::filter([&](const Data::UnavailableReason &reason) {
+		return ranges::find(skip, reason.reason) == end(skip);
+	});
+	const auto first = filtered.begin();
+	return (first != filtered.end()) ? first->text : QString();
 }
 
 bool PeerData::canPinMessages() const {

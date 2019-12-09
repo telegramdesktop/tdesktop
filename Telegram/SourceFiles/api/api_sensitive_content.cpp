@@ -8,11 +8,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sensitive_content.h"
 
 #include "apiwrap.h"
+#include "main/main_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 
 namespace Api {
+namespace {
+
+constexpr auto kRefreshAppConfigTimeout = 3 * crl::time(1000);
+
+} // namespace
 
 SensitiveContent::SensitiveContent(not_null<ApiWrap*> api)
-: _api(api->instance()) {
+: _session(&api->session())
+, _api(api->instance())
+, _appConfigReloadTimer([=] { _session->account().appConfig().refresh(); }) {
 }
 
 void SensitiveContent::reload() {
@@ -57,6 +67,8 @@ void SensitiveContent::update(bool enabled) {
 		_requestId = 0;
 	}).send();
 	_enabled = enabled;
+
+	_appConfigReloadTimer.callOnce(kRefreshAppConfigTimeout);
 }
 
 } // namespace Api
