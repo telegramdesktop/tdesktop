@@ -51,6 +51,8 @@ TabbedPanel::TabbedPanel(
 , _heightRatio(st::emojiPanHeightRatio)
 , _minContentHeight(st::emojiPanMinHeight)
 , _maxContentHeight(st::emojiPanMaxHeight) {
+	Expects(_selector != nullptr);
+
 	_selector->setParent(this);
 	_selector->setRoundRadius(st::buttonRadius);
 	_selector->setAfterShownCallback([=](SelectorTab tab) {
@@ -145,10 +147,6 @@ void TabbedPanel::setDesiredHeightValues(
 }
 
 void TabbedPanel::updateContentHeight() {
-	if (isDestroying()) {
-		return;
-	}
-
 	auto addedHeight = innerPadding().top() + innerPadding().bottom();
 	auto marginsHeight = _selector->marginTop() + _selector->marginBottom();
 	auto availableHeight = _bottom - marginsHeight;
@@ -183,7 +181,7 @@ void TabbedPanel::paintEvent(QPaintEvent *e) {
 	auto showAnimating = _a_show.animating();
 	if (_showAnimation && !showAnimating) {
 		_showAnimation.reset();
-		if (!opacityAnimating && !isDestroying()) {
+		if (!opacityAnimating) {
 			showChildren();
 			_selector->afterShown();
 		}
@@ -217,9 +215,6 @@ void TabbedPanel::enterEventHook(QEvent *e) {
 }
 
 bool TabbedPanel::preventAutoHide() const {
-	if (isDestroying()) {
-		return false;
-	}
 	return _selector->preventAutoHide();
 }
 
@@ -267,7 +262,7 @@ void TabbedPanel::hideFast() {
 void TabbedPanel::opacityAnimationCallback() {
 	update();
 	if (!_a_opacity.animating()) {
-		if (_hiding || isDestroying()) {
+		if (_hiding) {
 			_hiding = false;
 			hideFinished();
 		} else if (!_a_show.animating()) {
@@ -363,7 +358,7 @@ void TabbedPanel::hideAnimated() {
 	}
 
 	_hideTimer.cancel();
-	if (!isDestroying() && _selector->isSliding()) {
+	if (_selector->isSliding()) {
 		_hideAfterSlide = true;
 	} else {
 		startOpacityAnimation(true);
@@ -371,9 +366,6 @@ void TabbedPanel::hideAnimated() {
 }
 
 void TabbedPanel::toggleAnimated() {
-	if (isDestroying()) {
-		return;
-	}
 	if (isHidden() || _hiding || _hideAfterSlide) {
 		showAnimated();
 	} else {
@@ -387,11 +379,7 @@ void TabbedPanel::hideFinished() {
 	_showAnimation.reset();
 	_cache = QPixmap();
 	_hiding = false;
-	if (isDestroying()) {
-		deleteLater();
-	} else {
-		_selector->hideFinished();
-	}
+	_selector->hideFinished();
 }
 
 void TabbedPanel::showAnimated() {
@@ -401,9 +389,6 @@ void TabbedPanel::showAnimated() {
 }
 
 void TabbedPanel::showStarted() {
-	if (isDestroying()) {
-		return;
-	}
 	if (isHidden()) {
 		_selector->showStarted();
 		moveByBottom();
@@ -416,9 +401,6 @@ void TabbedPanel::showStarted() {
 }
 
 bool TabbedPanel::eventFilter(QObject *obj, QEvent *e) {
-	if (isDestroying()) {
-		return false;
-	}
 	if (e->type() == QEvent::Enter) {
 		otherEnter();
 	} else if (e->type() == QEvent::Leave) {
@@ -455,6 +437,7 @@ bool TabbedPanel::overlaps(const QRect &globalRect) const {
 }
 
 TabbedPanel::~TabbedPanel() {
+	hideFast();
 	if (!_ownedSelector) {
 		_controller->takeTabbedSelectorOwnershipFrom(this);
 	}

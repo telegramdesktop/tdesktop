@@ -52,9 +52,7 @@ public:
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 
-	void showFinishedHook() override {
-		afterShown();
-	}
+	void showFinishedHook() override;
 
 private:
 	const not_null<TabbedSelector*> _selector;
