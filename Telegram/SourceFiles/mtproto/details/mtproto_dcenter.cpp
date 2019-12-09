@@ -104,9 +104,6 @@ void Dcenter::setConnectionInited(bool connectionInited) {
 
 CreatingKeyType Dcenter::acquireKeyCreation(TemporaryKeyType type) {
 	QReadLocker lock(&_mutex);
-	if (type == TemporaryKeyType::MediaCluster) {
-		int a = 0;
-	}
 	const auto index = IndexByType(type);
 	auto &key = _temporaryKeys[index];
 	if (key != nullptr) {

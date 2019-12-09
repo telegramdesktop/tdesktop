@@ -2245,15 +2245,8 @@ void SessionPrivate::updateAuthKey() {
 
 	DEBUG_LOG(("AuthKey Info: Connection updating key from Session, dc %1"
 		).arg(_shiftedDcId));
-	const auto myKeyType = TemporaryKeyTypeByDcType(_currentDcType);
-	applyAuthKey(_sessionData->getTemporaryKey(myKeyType));
-
-	if (_connection
-		&& !_encryptionKey
-		&& myKeyType == TemporaryKeyType::MediaCluster
-		&& _sessionData->getTemporaryKey(TemporaryKeyType::Regular)) {
-		restart();
-	}
+	applyAuthKey(_sessionData->getTemporaryKey(
+		TemporaryKeyTypeByDcType(_currentDcType)));
 }
 
 void SessionPrivate::setCurrentKeyId(uint64 newKeyId) {
@@ -2287,16 +2280,31 @@ void SessionPrivate::applyAuthKey(AuthKeyPtr &&encryptionKey) {
 	setCurrentKeyId(newKeyId);
 	Assert(!_connection->sentEncryptedWithKeyId());
 
-	DEBUG_LOG(("AuthKey Info: Connection update key from Session, dc %1 result: %2").arg(_shiftedDcId).arg(Logs::mb(&_keyId, sizeof(_keyId)).str()));
+	DEBUG_LOG(("AuthKey Info: Connection update key from Session, "
+		"dc %1 result: %2"
+		).arg(_shiftedDcId
+		).arg(Logs::mb(&_keyId, sizeof(_keyId)).str()));
 	if (_keyId) {
 		return authKeyChecked();
 	}
 
 	if (_instance->isKeysDestroyer()) {
 		// We are here to destroy an old key, so we're done.
-		LOG(("MTP Error: No key %1 in updateAuthKey() for destroying.").arg(_shiftedDcId));
+		LOG(("MTP Error: No key %1 in updateAuthKey() for destroying."
+			).arg(_shiftedDcId));
 		_instance->keyWasPossiblyDestroyed(_shiftedDcId);
-	} else if (_keyCreator) {
+	} else if (noMediaKeyWithExistingRegularKey()) {
+		DEBUG_LOG(("AuthKey Info: No key in updateAuthKey() for media, "
+			"but someone has created regular, trying to acquire."));
+		const auto dcType = tryAcquireKeyCreation();
+		if (_keyCreator && dcType != _currentDcType) {
+			DEBUG_LOG(("AuthKey Info: "
+				"Dc type changed for creation, restarting."));
+			restart();
+			return;
+		}
+	}
+	if (_keyCreator) {
 		DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), creating."));
 		_keyCreator->start(
 			BareDcId(_shiftedDcId),
@@ -2304,8 +2312,15 @@ void SessionPrivate::applyAuthKey(AuthKeyPtr &&encryptionKey) {
 			_connection.get(),
 			_instance->dcOptions());
 	} else {
-		DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), but someone is creating already."));
+		DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), "
+			"but someone is creating already, waiting."));
 	}
+}
+
+bool SessionPrivate::noMediaKeyWithExistingRegularKey() const {
+	return (TemporaryKeyTypeByDcType(_currentDcType)
+			== TemporaryKeyType::MediaCluster)
+		&& _sessionData->getTemporaryKey(TemporaryKeyType::Regular);
 }
 
 bool SessionPrivate::destroyOldEnoughPersistentKey() {
