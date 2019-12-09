@@ -766,6 +766,10 @@ else()
     )
 endif()
 
+if (NOT WIN32)
+    target_compile_definitions(lib_tgvoip PRIVATE TGVOIP_USE_INSTALLED_OPUS)
+endif()
+
 target_include_directories(lib_tgvoip
 PUBLIC
     ${tgvoip_loc}
