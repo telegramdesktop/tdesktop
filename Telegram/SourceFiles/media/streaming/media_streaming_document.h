@@ -53,8 +53,6 @@ public:
 	[[nodiscard]] float64 waitingOpacity() const;
 	[[nodiscard]] Ui::RadialState waitingState() const;
 
-	[[nodiscard]] rpl::lifetime &lifetime();
-
 private:
 	void waitingCallback();
 

@@ -51,12 +51,12 @@ Document::Document(
 		handleUpdate(std::move(update));
 	}, [=](Streaming::Error &&error) {
 		handleError(std::move(error));
-	}, lifetime());
+	}, _player.lifetime());
 
 	_player.fullInCache(
 	) | rpl::start_with_next([=](bool fullInCache) {
 		_document->setLoadedInMediaCache(fullInCache);
-	}, lifetime());
+	}, _player.lifetime());
 }
 
 const Player &Document::player() const {
@@ -122,10 +122,6 @@ float64 Document::waitingOpacity() const {
 
 Ui::RadialState Document::waitingState() const {
 	return _radial.computeState();
-}
-
-rpl::lifetime &Document::lifetime() {
-	return _player.lifetime();
 }
 
 void Document::handleUpdate(Update &&update) {

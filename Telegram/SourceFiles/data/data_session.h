@@ -43,6 +43,7 @@ class Reader;
 } // namespace Clip
 namespace Streaming {
 class Reader;
+class Document;
 } // namespace Streaming
 } // namespace Media
 
@@ -439,6 +440,9 @@ public:
 		not_null<DocumentData*> document,
 		FileOrigin origin,
 		bool forceRemoteLoader = false);
+	std::shared_ptr<::Media::Streaming::Document> documentStreamer(
+		not_null<DocumentData*> document,
+		FileOrigin origin);
 
 	HistoryItem *addNewMessage(
 		const MTPMessage &data,
@@ -956,6 +960,9 @@ private:
 	base::flat_map<
 		not_null<DocumentData*>,
 		std::weak_ptr<::Media::Streaming::Reader>> _streamedReaders;
+	base::flat_map<
+		not_null<DocumentData*>,
+		std::weak_ptr<::Media::Streaming::Document>> _streamedDocuments;
 
 	base::flat_map<FolderId, std::unique_ptr<Folder>> _folders;
 	//rpl::variable<FeedId> _defaultFeedId = FeedId(); // #feed

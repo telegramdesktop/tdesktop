@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
-#include "media/streaming/media_streaming_player.h"
+#include "media/streaming/media_streaming_document.h"
 #include "media/view/media_view_playback_progress.h"
 #include "boxes/confirm_box.h"
 #include "history/history_item_components.h"
@@ -46,17 +46,24 @@ int gifMaxStatusWidth(DocumentData *document) {
 
 struct Gif::Streamed {
 	Streamed(
-		not_null<Data::Session*> owner,
-		std::shared_ptr<::Media::Streaming::Reader> reader);
+		not_null<DocumentData*> document,
+		Data::FileOrigin origin);
+	~Streamed();
 
-	::Media::Streaming::Player player;
-	::Media::Streaming::Information info;
+	std::shared_ptr<::Media::Streaming::Document> shared;
+	not_null<::Media::Streaming::Instance*> instance;
+	rpl::lifetime lifetime;
 };
 
 Gif::Streamed::Streamed(
-	not_null<Data::Session*> owner,
-	std::shared_ptr<::Media::Streaming::Reader> reader)
-: player(owner, std::move(reader)) {
+	not_null<DocumentData*> document,
+	Data::FileOrigin origin)
+: shared(document->owner().documentStreamer(document, origin))
+, instance(shared->addInstance()) {
+}
+
+Gif::Streamed::~Streamed() {
+	shared->removeInstance(instance);
 }
 
 Gif::Gif(
@@ -378,7 +385,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
 
-	if (radial || (!player && ((_streamed && _streamed->player.failed()) || (!_data->loaded() && !_data->loading()) || !autoplayEnabled()))) {
+	if (radial || (!player && ((_streamed && _streamed->shared->player().failed()) || (!_data->loaded() && !_data->loading()) || !autoplayEnabled()))) {
 		auto radialOpacity = (radial && _data->loaded() && item->id > 0) ? _animation->radial.opacity() : 1.;
 		auto inner = QRect(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		p.setPen(Qt::NoPen);
@@ -814,15 +821,15 @@ int Gif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply
 	return ::Media::Player::instance()->roundVideoPlayer(_parent->data());
 }
 
-::Media::Streaming::Player *Gif::activeOwnPlayer() const {
+const ::Media::Streaming::Player *Gif::activeOwnPlayer() const {
 	return (_streamed
-		&& _streamed->player.ready()
-		&& !_streamed->player.videoSize().isEmpty())
-		? &_streamed->player
+		&& _streamed->shared->player().ready()
+		&& !_streamed->shared->player().videoSize().isEmpty())
+		? &_streamed->shared->player()
 		: nullptr;
 }
 
-::Media::Streaming::Player *Gif::activeCurrentPlayer() const {
+const ::Media::Streaming::Player *Gif::activeCurrentPlayer() const {
 	if (const auto player = activeRoundPlayer()) {
 		return player;
 	}
@@ -890,28 +897,24 @@ void Gif::playAnimation(bool autoplay) {
 		options.mode = ::Media::Streaming::Mode::Video;
 		options.loop = true;
 		//}
-		_streamed->player.play(options);
+		_streamed->shared->play(options);
 	}
 }
 
 void Gif::createStreamedPlayer() {
-	setStreamed(std::make_unique<Streamed>(
-		&_data->owner(),
-		_data->owner().documentStreamedReader(
-			_data,
-			_realParent->fullId())));
+	setStreamed(std::make_unique<Streamed>(_data, _realParent->fullId()));
 
-	_streamed->player.updates(
+	_streamed->shared->player().updates(
 	) | rpl::start_with_next_error([=](::Media::Streaming::Update &&update) {
 		handleStreamingUpdate(std::move(update));
 	}, [=](::Media::Streaming::Error &&error) {
 		handleStreamingError(std::move(error));
-	}, _streamed->player.lifetime());
+	}, _streamed->lifetime);
 
-	_streamed->player.fullInCache(
+	_streamed->shared->player().fullInCache(
 	) | rpl::start_with_next([=](bool fullInCache) {
 		_data->setLoadedInMediaCache(fullInCache);
-	}, _streamed->player.lifetime());
+	}, _streamed->lifetime);
 }
 
 void Gif::setStreamed(std::unique_ptr<Streamed> value) {
@@ -932,10 +935,8 @@ void Gif::handleStreamingUpdate(::Media::Streaming::Update &&update) {
 	update.data.match([&](Information &update) {
 		streamingReady(std::move(update));
 	}, [&](const PreloadedVideo &update) {
-		_streamed->info.video.state.receivedTill = update.till;
 		//updatePlaybackState();
 	}, [&](const UpdateVideo &update) {
-		_streamed->info.video.state.position = update.position;
 		history()->owner().requestViewRepaint(_parent);
 		Core::App().updateNonIdle();
 		//updatePlaybackState();
@@ -949,11 +950,6 @@ void Gif::handleStreamingUpdate(::Media::Streaming::Update &&update) {
 		//playbackWaitingChange(update.waiting);
 	}, [&](MutedByOther) {
 	}, [&](Finished) {
-		const auto finishTrack = [](TrackState &state) {
-			state.position = state.receivedTill = state.duration;
-		};
-		finishTrack(_streamed->info.audio.state);
-		finishTrack(_streamed->info.video.state);
 		//updatePlaybackState();
 	});
 }
@@ -974,7 +970,6 @@ void Gif::handleStreamingError(::Media::Streaming::Error &&error) {
 }
 
 void Gif::streamingReady(::Media::Streaming::Information &&info) {
-	_streamed->info = std::move(info);
 	history()->owner().requestViewResize(_parent);
 	//validateStreamedGoodThumbnail();
 	//if (videoShown()) {

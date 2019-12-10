@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h" // instance()->play()
 #include "media/streaming/media_streaming_loader.h" // unique_ptr<Loader>
 #include "media/streaming/media_streaming_reader.h" // make_shared<Reader>
+#include "media/streaming/media_streaming_document.h" // make_shared<Document
 #include "boxes/abstract_box.h"
 #include "passport/passport_form_controller.h"
 #include "window/themes/window_theme.h"
@@ -171,21 +172,22 @@ rpl::producer<int> PinnedDialogsCountMaxValue(
 	});
 }
 
+template <typename Object>
 bool PruneDestroyedAndSet(
 		base::flat_map<
 			not_null<DocumentData*>,
-			std::weak_ptr<::Media::Streaming::Reader>> &readers,
+			std::weak_ptr<Object>> &objects,
 		not_null<DocumentData*> document,
-		const std::shared_ptr<::Media::Streaming::Reader> &reader) {
+		const std::shared_ptr<Object> &object) {
 	auto result = false;
-	for (auto i = begin(readers); i != end(readers);) {
+	for (auto i = begin(objects); i != end(objects);) {
 		if (i->first == document) {
-			(i++)->second = reader;
+			(i++)->second = object;
 			result = true;
 		} else if (i->second.lock() != nullptr) {
 			++i;
 		} else {
-			i = readers.erase(i);
+			i = objects.erase(i);
 		}
 	}
 	return result;
@@ -1152,6 +1154,24 @@ std::shared_ptr<::Media::Streaming::Reader> Session::documentStreamedReader(
 		std::move(loader));
 	if (!PruneDestroyedAndSet(_streamedReaders, document, result)) {
 		_streamedReaders.emplace_or_assign(document, result);
+	}
+	return result;
+}
+
+std::shared_ptr<::Media::Streaming::Document> Session::documentStreamer(
+		not_null<DocumentData*> document,
+		FileOrigin origin) {
+	const auto i = _streamedDocuments.find(document);
+	if (i != end(_streamedDocuments)) {
+		if (auto result = i->second.lock()) {
+			return result;
+		}
+	}
+	auto result = std::make_shared<::Media::Streaming::Document>(
+		document,
+		origin);
+	if (!PruneDestroyedAndSet(_streamedDocuments, document, result)) {
+		_streamedDocuments.emplace_or_assign(document, result);
 	}
 	return result;
 }
