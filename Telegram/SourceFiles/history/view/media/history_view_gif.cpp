@@ -14,7 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
-#include "media/streaming/media_streaming_document.h"
+#include "media/streaming/media_streaming_instance.h"
+#include "media/streaming/media_streaming_player.h"
 #include "media/view/media_view_playback_progress.h"
 #include "boxes/confirm_box.h"
 #include "history/history_item_components.h"
@@ -43,26 +44,6 @@ int gifMaxStatusWidth(DocumentData *document) {
 }
 
 } // namespace
-
-struct Gif::Streamed {
-	explicit Streamed(
-		std::shared_ptr<::Media::Streaming::Document> document);
-	~Streamed();
-
-	std::shared_ptr<::Media::Streaming::Document> shared;
-	not_null<::Media::Streaming::Instance*> instance;
-	rpl::lifetime lifetime;
-};
-
-Gif::Streamed::Streamed(
-	std::shared_ptr<::Media::Streaming::Document> document)
-: shared(std::move(document))
-, instance(shared->addInstance()) {
-}
-
-Gif::Streamed::~Streamed() {
-	shared->removeInstance(instance);
-}
 
 Gif::Gif(
 	not_null<Element*> parent,
@@ -388,7 +369,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	if (radial
 		|| (!player
 			&& !startPlayAsync
-			&& ((_streamed && _streamed->shared->player().failed())
+			&& ((_streamed && _streamed->player().failed())
 				|| (!_data->loaded() && !_data->loading())
 				|| !autoplayEnabled()))) {
 		auto radialOpacity = (radial && _data->loaded() && item->id > 0)
@@ -844,21 +825,21 @@ int Gif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply
 	return result;
 }
 
-::Media::Streaming::Document *Gif::activeRoundStreamed() const {
+::Media::Streaming::Instance *Gif::activeRoundStreamed() const {
 	return ::Media::Player::instance()->roundVideoStreamed(_parent->data());
 }
 
-const ::Media::Streaming::Document *Gif::activeOwnStreamed() const {
+const ::Media::Streaming::Instance *Gif::activeOwnStreamed() const {
 	return (_streamed
-		&& _streamed->shared->player().ready()
-		&& !_streamed->shared->player().videoSize().isEmpty())
-		? _streamed->shared.get()
+		&& _streamed->player().ready()
+		&& !_streamed->player().videoSize().isEmpty())
+		? _streamed.get()
 		: nullptr;
 }
 
-const ::Media::Streaming::Document *Gif::activeCurrentStreamed() const {
-	if (const auto player = activeRoundStreamed()) {
-		return player;
+const ::Media::Streaming::Instance *Gif::activeCurrentStreamed() const {
+	if (const auto streamed = activeRoundStreamed()) {
+		return streamed;
 	}
 	return activeOwnStreamed();
 }
@@ -926,7 +907,7 @@ void Gif::playAnimation(bool autoplay) {
 		options.mode = ::Media::Streaming::Mode::Video;
 		options.loop = true;
 		//}
-		_streamed->shared->play(options);
+		_streamed->play(options);
 	}
 }
 
@@ -937,22 +918,24 @@ bool Gif::createStreamedPlayer() {
 	if (!shared) {
 		return false;
 	}
-	setStreamed(std::make_unique<Streamed>(std::move(shared)));
+	setStreamed(std::make_unique<::Media::Streaming::Instance>(
+		std::move(shared),
+		[=] { history()->owner().requestViewRepaint(_parent); }));
 
-	_streamed->shared->player().updates(
+	_streamed->player().updates(
 	) | rpl::start_with_next_error([=](::Media::Streaming::Update &&update) {
 		handleStreamingUpdate(std::move(update));
 	}, [=](::Media::Streaming::Error &&error) {
 		handleStreamingError(std::move(error));
-	}, _streamed->lifetime);
+	}, _streamed->lifetime());
 
-	if (_streamed->shared->player().ready()) {
-		streamingReady(base::duplicate(_streamed->shared->info()));
+	if (_streamed->ready()) {
+		streamingReady(base::duplicate(_streamed->info()));
 	}
 	return true;
 }
 
-void Gif::setStreamed(std::unique_ptr<Streamed> value) {
+void Gif::setStreamed(std::unique_ptr<::Media::Streaming::Instance> value) {
 	const auto removed = (_streamed && !value);
 	const auto set = (!_streamed && value);
 	if (removed) {
@@ -960,9 +943,6 @@ void Gif::setStreamed(std::unique_ptr<Streamed> value) {
 	}
 	_streamed = std::move(value);
 	if (set) {
-		_streamed->instance->setWaitingCallback([=] {
-			history()->owner().requestViewRepaint(_parent);
-		});
 		history()->owner().registerPlayingVideoFile(_parent);
 	}
 }

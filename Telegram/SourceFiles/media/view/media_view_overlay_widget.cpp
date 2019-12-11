@@ -26,9 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_group_thumbs.h"
+#include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
-#include "media/streaming/media_streaming_reader.h"
-#include "media/streaming/media_streaming_document.h"
 #include "media/player/media_player_instance.h"
 #include "history/history.h"
 #include "history/history_message.h"
@@ -190,10 +189,8 @@ struct OverlayWidget::Streamed {
 		QWidget *controlsParent,
 		not_null<PlaybackControls::Delegate*> controlsDelegate,
 		Callback &&loadingCallback);
-	~Streamed();
 
-	std::shared_ptr<Streaming::Document> shared;
-	not_null<Streaming::Instance*> instance;
+	Streaming::Instance instance;
 	PlaybackControls controls;
 
 	QImage frameForDirectPaint;
@@ -201,8 +198,6 @@ struct OverlayWidget::Streamed {
 	bool withSound = false;
 	bool pausedBySeek = false;
 	bool resumeOnCallEnd = false;
-
-	rpl::lifetime lifetime;
 };
 
 template <typename Callback>
@@ -212,14 +207,8 @@ OverlayWidget::Streamed::Streamed(
 	QWidget *controlsParent,
 	not_null<PlaybackControls::Delegate*> controlsDelegate,
 	Callback &&loadingCallback)
-: shared(document->owner().documentStreamer(document, origin))
-, instance(shared->addInstance())
+: instance(document, origin, std::forward<Callback>(loadingCallback))
 , controls(controlsParent, controlsDelegate) {
-	instance->setWaitingCallback(std::forward<Callback>(loadingCallback));
-}
-
-OverlayWidget::Streamed::~Streamed() {
-	shared->removeInstance(instance);
 }
 
 OverlayWidget::OverlayWidget()
@@ -367,13 +356,13 @@ void OverlayWidget::moveToScreen(bool force) {
 }
 
 bool OverlayWidget::videoShown() const {
-	return _streamed && !_streamed->shared->info().video.cover.isNull();
+	return _streamed && !_streamed->instance.info().video.cover.isNull();
 }
 
 QSize OverlayWidget::videoSize() const {
 	Expects(videoShown());
 
-	return _streamed->shared->info().video.size;
+	return _streamed->instance.info().video.size;
 }
 
 bool OverlayWidget::videoIsGifv() const {
@@ -387,9 +376,9 @@ QImage OverlayWidget::videoFrame() const {
 	//request.radius = (_doc && _doc->isVideoMessage())
 	//	? ImageRoundRadius::Ellipse
 	//	: ImageRoundRadius::None;
-	return _streamed->shared->player().ready()
-		? _streamed->shared->player().frame(request)
-		: _streamed->shared->info().video.cover;
+	return _streamed->instance.player().ready()
+		? _streamed->instance.player().frame(request)
+		: _streamed->instance.info().video.cover;
 }
 
 QImage OverlayWidget::videoFrameForDirectPaint() const {
@@ -2007,12 +1996,12 @@ void OverlayWidget::initStreaming() {
 
 	Core::App().updateNonIdle();
 
-	_streamed->shared->player().updates(
+	_streamed->instance.player().updates(
 	) | rpl::start_with_next_error([=](Streaming::Update &&update) {
 		handleStreamingUpdate(std::move(update));
 	}, [=](Streaming::Error &&error) {
 		handleStreamingError(std::move(error));
-	}, _streamed->lifetime);
+	}, _streamed->instance.lifetime());
 
 	restartAtSeekPosition(0);
 }
@@ -2092,14 +2081,14 @@ void OverlayWidget::createStreamingObjects() {
 QImage OverlayWidget::transformVideoFrame(QImage frame) const {
 	Expects(videoShown());
 
-	if (_streamed->shared->info().video.rotation != 0) {
+	if (_streamed->instance.info().video.rotation != 0) {
 		auto transform = QTransform();
-		transform.rotate(_streamed->shared->info().video.rotation);
+		transform.rotate(_streamed->instance.info().video.rotation);
 		frame = frame.transformed(transform);
 	}
-	if (frame.size() != _streamed->shared->info().video.size) {
+	if (frame.size() != _streamed->instance.info().video.size) {
 		frame = frame.scaled(
-			_streamed->shared->info().video.size,
+			_streamed->instance.info().video.size,
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
 	}
@@ -2276,18 +2265,18 @@ void OverlayWidget::playbackPauseResume() {
 	Expects(_streamed != nullptr);
 
 	_streamed->resumeOnCallEnd = false;
-	if (_streamed->shared->player().failed()) {
+	if (_streamed->instance.player().failed()) {
 		clearStreaming();
 		initStreaming();
-	} else if (_streamed->shared->player().finished()) {
+	} else if (_streamed->instance.player().finished()) {
 		_streamingStartPaused = false;
 		restartAtSeekPosition(0);
-	} else if (_streamed->shared->player().paused()) {
-		_streamed->shared->resume();
+	} else if (_streamed->instance.player().paused()) {
+		_streamed->instance.resume();
 		updatePlaybackState();
 		playbackPauseMusic();
 	} else {
-		_streamed->shared->pause();
+		_streamed->instance.pause();
 		updatePlaybackState();
 	}
 }
@@ -2297,7 +2286,7 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	Expects(_doc != nullptr);
 
 	if (videoShown()) {
-		_streamed->shared->saveFrameToCover();
+		_streamed->instance.saveFrameToCover();
 		_current = Images::PixmapFast(transformVideoFrame(videoFrame()));
 		update(contentRect());
 	}
@@ -2308,9 +2297,9 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 		options.mode = Streaming::Mode::Video;
 		options.loop = true;
 	}
-	_streamed->shared->play(options);
+	_streamed->instance.play(options);
 	if (_streamingStartPaused) {
-		_streamed->shared->pause();
+		_streamed->instance.pause();
 	} else {
 		playbackPauseMusic();
 	}
@@ -2322,8 +2311,8 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 void OverlayWidget::playbackControlsSeekProgress(crl::time position) {
 	Expects(_streamed != nullptr);
 
-	if (!_streamed->shared->player().paused()
-		&& !_streamed->shared->player().finished()) {
+	if (!_streamed->instance.player().paused()
+		&& !_streamed->instance.player().finished()) {
 		_streamed->pausedBySeek = true;
 		playbackControlsPause();
 	}
@@ -2333,7 +2322,7 @@ void OverlayWidget::playbackControlsSeekFinished(crl::time position) {
 	Expects(_streamed != nullptr);
 
 	_streamingStartPaused = !_streamed->pausedBySeek
-		&& !_streamed->shared->player().finished();
+		&& !_streamed->instance.player().finished();
 	restartAtSeekPosition(position);
 }
 
@@ -2371,12 +2360,12 @@ void OverlayWidget::playbackToggleFullScreen() {
 void OverlayWidget::playbackPauseOnCall() {
 	Expects(_streamed != nullptr);
 
-	if (_streamed->shared->player().finished()
-		|| _streamed->shared->player().paused()) {
+	if (_streamed->instance.player().finished()
+		|| _streamed->instance.player().paused()) {
 		return;
 	}
 	_streamed->resumeOnCallEnd = true;
-	_streamed->shared->pause();
+	_streamed->instance.pause();
 	updatePlaybackState();
 }
 
@@ -2385,7 +2374,7 @@ void OverlayWidget::playbackResumeOnCall() {
 
 	if (_streamed->resumeOnCallEnd) {
 		_streamed->resumeOnCallEnd = false;
-		_streamed->shared->resume();
+		_streamed->instance.resume();
 		updatePlaybackState();
 		playbackPauseMusic();
 	}
@@ -2407,7 +2396,7 @@ void OverlayWidget::updatePlaybackState() {
 	if (videoIsGifv()) {
 		return;
 	}
-	const auto state = _streamed->shared->player().prepareLegacyState();
+	const auto state = _streamed->instance.player().prepareLegacyState();
 	if (state.position != kTimeUnknown && state.length != kTimeUnknown) {
 		_streamed->controls.updatePlayback(state);
 	}
@@ -2711,7 +2700,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 
 void OverlayWidget::checkGroupThumbsAnimation() {
 	if (_groupThumbs
-		&& (!_streamed || _streamed->shared->player().ready())) {
+		&& (!_streamed || _streamed->instance.player().ready())) {
 		_groupThumbs->checkForAnimationStart();
 	}
 }
@@ -2723,7 +2712,7 @@ void OverlayWidget::paintTransformedVideoFrame(Painter &p) {
 	//	const auto fill = rect.intersected(this->rect());
 	//	PaintImageProfile(p, image, rect, fill);
 	//} else {
-	const auto rotation = _streamed->shared->info().video.rotation;
+	const auto rotation = _streamed->instance.info().video.rotation;
 	const auto rotated = [](QRect rect, int rotation) {
 		switch (rotation) {
 		case 0: return rect;
@@ -2763,7 +2752,7 @@ void OverlayWidget::paintRadialLoading(
 		bool radial,
 		float64 radialOpacity) {
 	if (_streamed) {
-		if (!_streamed->shared->waitingShown()) {
+		if (!_streamed->instance.waitingShown()) {
 			return;
 		}
 	} else if (!radial && (!_doc || _doc->loaded())) {
@@ -2816,11 +2805,11 @@ void OverlayWidget::paintRadialLoadingContent(
 
 	if (_streamed) {
 		paintBg(
-			_streamed->shared->waitingOpacity(),
+			_streamed->instance.waitingOpacity(),
 			st::radialBg);
 		Ui::InfiniteRadialAnimation::Draw(
 			p,
-			_streamed->shared->waitingState(),
+			_streamed->instance.waitingState(),
 			arc.topLeft(),
 			arc.size(),
 			width(),

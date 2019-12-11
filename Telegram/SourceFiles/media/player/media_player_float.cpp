@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "media/audio/media_audio.h"
-#include "media/streaming/media_streaming_document.h"
+#include "media/streaming/media_streaming_instance.h"
 #include "media/view/media_view_playback_progress.h"
 #include "media/player/media_player_instance.h"
 #include "window/window_session_controller.h"
@@ -206,13 +206,8 @@ void Float::paintEvent(QPaintEvent *e) {
 	}
 }
 
-Streaming::Document *Float::getStreamed() const {
+Streaming::Instance *Float::getStreamed() const {
 	return instance()->roundVideoStreamed(_item);
-}
-
-const Streaming::Player *Float::getPlayer() const {
-	const auto streamed = getStreamed();
-	return streamed ? &streamed->player() : nullptr;
 }
 
 View::PlaybackProgress *Float::getPlayback() const {
@@ -220,7 +215,7 @@ View::PlaybackProgress *Float::getPlayback() const {
 }
 
 bool Float::hasFrame() const {
-	return (getPlayer() != nullptr);
+	return (getStreamed() != nullptr);
 }
 
 bool Float::fillFrame() {
@@ -234,11 +229,11 @@ bool Float::fillFrame() {
 	auto frameInner = [&] {
 		return QRect(QPoint(), _frame.size() / cIntRetinaFactor());
 	};
-	if (const auto player = getPlayer()) {
+	if (const auto streamed = getStreamed()) {
 		auto request = Streaming::FrameRequest::NonStrict();
 		request.outer = request.resize = _frame.size();
 		request.radius = ImageRoundRadius::Ellipse;
-		auto frame = player->frame(request);
+		auto frame = streamed->frame(request);
 		if (!frame.isNull()) {
 			_frame.fill(Qt::transparent);
 

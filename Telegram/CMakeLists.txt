@@ -622,6 +622,8 @@ PRIVATE
     media/streaming/media_streaming_file.cpp
     media/streaming/media_streaming_file.h
     media/streaming/media_streaming_file_delegate.h
+    media/streaming/media_streaming_instance.cpp
+    media/streaming/media_streaming_instance.h
     media/streaming/media_streaming_loader.cpp
     media/streaming/media_streaming_loader.h
     media/streaming/media_streaming_loader_local.cpp

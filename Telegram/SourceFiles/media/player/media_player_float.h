@@ -26,8 +26,7 @@ class PlaybackProgress;
 
 namespace Media {
 namespace Streaming {
-class Document;
-class Player;
+class Instance;
 } // namespace Streaming
 } // namespace Media
 
@@ -56,7 +55,7 @@ public:
 		return outRatio();
 	}
 	[[nodiscard]] bool isReady() const {
-		return (getPlayer() != nullptr);
+		return (getStreamed() != nullptr);
 	}
 	void detach();
 	[[nodiscard]] bool detached() const {
@@ -81,8 +80,7 @@ protected:
 
 private:
 	[[nodiscard]] float64 outRatio() const;
-	[[nodiscard]] Streaming::Document *getStreamed() const;
-	[[nodiscard]] const Streaming::Player *getPlayer() const;
+	[[nodiscard]] Streaming::Instance *getStreamed() const;
 	[[nodiscard]] View::PlaybackProgress *getPlayback() const;
 	void repaintItem();
 	void prepareShadow();

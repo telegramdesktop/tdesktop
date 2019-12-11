@@ -22,7 +22,7 @@ class PlaybackProgress;
 
 namespace Media {
 namespace Streaming {
-class Document;
+class Instance;
 struct Update;
 struct Information;
 enum class Error;
@@ -81,8 +81,6 @@ public:
 	void parentTextUpdated() override;
 
 private:
-	struct Streamed;
-
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
 	bool dataLoaded() const override;
@@ -93,13 +91,13 @@ private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 	QSize videoSize() const;
-	::Media::Streaming::Document *activeRoundStreamed() const;
-	const ::Media::Streaming::Document *activeOwnStreamed() const;
-	const ::Media::Streaming::Document *activeCurrentStreamed() const;
+	::Media::Streaming::Instance *activeRoundStreamed() const;
+	const ::Media::Streaming::Instance *activeOwnStreamed() const;
+	const ::Media::Streaming::Instance *activeCurrentStreamed() const;
 	::Media::View::PlaybackProgress *videoPlayback() const;
 
 	bool createStreamedPlayer();
-	void setStreamed(std::unique_ptr<Streamed> value);
+	void setStreamed(std::unique_ptr<::Media::Streaming::Instance> value);
 	void handleStreamingUpdate(::Media::Streaming::Update &&update);
 	void handleStreamingError(::Media::Streaming::Error &&error);
 	void streamingReady(::Media::Streaming::Information &&info);
@@ -117,7 +115,7 @@ private:
 	int _thumbw = 1;
 	int _thumbh = 1;
 	Ui::Text::String _caption;
-	std::unique_ptr<Streamed> _streamed;
+	std::unique_ptr<::Media::Streaming::Instance> _streamed;
 
 	void setStatusSize(int newSize) const;
 	void updateStatusText() const;

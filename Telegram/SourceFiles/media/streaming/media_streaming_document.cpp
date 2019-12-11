@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/streaming/media_streaming_document.h"
 
+#include "media/streaming/media_streaming_instance.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
@@ -25,16 +26,6 @@ constexpr auto kWaitingShowDelay = crl::time(500);
 constexpr auto kGoodThumbnailQuality = 87;
 
 } // namespace
-
-void Instance::setWaitingCallback(Fn<void()> callback) {
-	_waitingCallback = std::move(callback);
-}
-
-void Instance::callWaitingCallback() {
-	if (_waitingCallback) {
-		_waitingCallback();
-	}
-}
 
 Document::Document(
 	not_null<DocumentData*> document,
@@ -57,6 +48,10 @@ Document::Document(
 	}, _player.lifetime());
 }
 
+Player &Document::player() {
+	return _player;
+}
+
 const Player &Document::player() const {
 	return _player;
 }
@@ -73,18 +68,6 @@ void Document::play(const PlaybackOptions &options) {
 	waitingChange(true);
 }
 
-void Document::pause() {
-	_player.pause();
-}
-
-void Document::resume() {
-	_player.resume();
-}
-
-void Document::stop() {
-	_player.stop();
-}
-
 void Document::saveFrameToCover() {
 	auto request = Streaming::FrameRequest();
 	//request.radius = (_doc && _doc->isVideoMessage())
@@ -95,39 +78,12 @@ void Document::saveFrameToCover() {
 		: _info.video.cover;
 }
 
-bool Document::active() const {
-	return _player.active();
+void Document::registerInstance(not_null<Instance*> instance) {
+	_instances.emplace(instance);
 }
 
-bool Document::ready() const {
-	return _player.ready();
-}
-
-bool Document::paused() const {
-	return _player.paused();
-}
-
-float64 Document::speed() const {
-	return _player.speed();
-}
-
-void Document::setSpeed(float64 speed) {
-	_player.setSpeed(speed);
-}
-
-not_null<Instance*> Document::addInstance() {
-	return _instances.emplace(std::make_unique<Instance>()).first->get();
-}
-
-void Document::removeInstance(not_null<Instance*> instance) {
-	const auto i = ranges::lower_bound(
-		_instances,
-		instance.get(),
-		ranges::less(),
-		&std::unique_ptr<Instance>::get);
-	if (i != _instances.end() && i->get() == instance) {
-		_instances.erase(i);
-	}
+void Document::unregisterInstance(not_null<Instance*> instance) {
+	_instances.remove(instance);
 }
 
 bool Document::waitingShown() const {

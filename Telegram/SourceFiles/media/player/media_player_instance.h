@@ -26,7 +26,7 @@ class PlaybackProgress;
 namespace Media {
 namespace Streaming {
 class Document;
-class Reader;
+class Instance;
 struct PlaybackOptions;
 struct Update;
 enum class Error;
@@ -80,7 +80,7 @@ public:
 	void playPause(const AudioMsgId &audioId);
 	[[nodiscard]] TrackState getState(AudioMsgId::Type type) const;
 
-	[[nodiscard]] Streaming::Document *roundVideoStreamed(
+	[[nodiscard]] Streaming::Instance *roundVideoStreamed(
 		HistoryItem *item) const;
 	[[nodiscard]] View::PlaybackProgress *roundVideoPlayback(
 		HistoryItem *item) const;
