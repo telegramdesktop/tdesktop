@@ -369,10 +369,11 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	}
 
 	if (radial
-		|| (!streamed
-			&& !startPlayAsync
-			&& ((_streamed && _streamed->player().failed())
-				|| (!_data->loaded() && !_data->loading())
+		|| (!startPlayAsync
+			&& (!_streamed
+				|| _streamed->waitingShown()
+				|| _streamed->player().failed())
+			&& ((!_data->loaded() && !_data->loading())
 				|| !autoplayEnabled()))) {
 		auto radialOpacity = (radial && _data->loaded() && item->id > 0)
 			? _animation->radial.opacity()

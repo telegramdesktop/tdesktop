@@ -1389,9 +1389,10 @@ void Session::unloadHeavyViewParts(
 	if (_heavyViewParts.empty()) {
 		return;
 	}
-	const auto remove = ranges::count(_heavyViewParts, delegate, [](not_null<ViewElement*> element) {
-		return element->delegate();
-	});
+	const auto remove = ranges::count(
+		_heavyViewParts,
+		delegate,
+		[](not_null<ViewElement*> element) { return element->delegate(); });
 	if (remove == _heavyViewParts.size()) {
 		for (const auto view : base::take(_heavyViewParts)) {
 			view->unloadHeavyPart();
@@ -3225,10 +3226,12 @@ void Session::unregisterContactItem(
 
 void Session::registerPlayingVideoFile(not_null<ViewElement*> view) {
 	_playingVideoFiles.emplace(view);
+	registerHeavyViewPart(view);
 }
 
 void Session::unregisterPlayingVideoFile(not_null<ViewElement*> view) {
 	_playingVideoFiles.remove(view);
+	unregisterHeavyViewPart(view);
 }
 
 void Session::stopPlayingVideoFiles() {

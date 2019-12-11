@@ -80,6 +80,10 @@ public:
 
 	void parentTextUpdated() override;
 
+	void unloadHeavyPart() override {
+		stopAnimation();
+	}
+
 private:
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
