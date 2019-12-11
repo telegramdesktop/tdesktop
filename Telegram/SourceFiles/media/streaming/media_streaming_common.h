@@ -43,7 +43,7 @@ struct PlaybackOptions {
 	float64 speed = 1.; // Valid values between 0.5 and 2.
 	AudioMsgId audioId;
 	bool syncVideoByAudio = true;
-	bool dropStaleFrames = true;
+	bool waitForMarkAsShown = false;
 	bool loop = false;
 };
 

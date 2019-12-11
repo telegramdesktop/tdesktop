@@ -60,6 +60,7 @@ public:
 	void callWaitingCallback();
 
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
+	bool markFrameShown();
 
 	rpl::lifetime &lifetime();
 

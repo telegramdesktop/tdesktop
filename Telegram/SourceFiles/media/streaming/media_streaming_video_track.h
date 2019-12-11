@@ -14,6 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media {
 namespace Streaming {
 
+constexpr auto kFrameDisplayTimeAlreadyDone
+	= std::numeric_limits<crl::time>::max();
+
 class VideoTrackObject;
 
 class VideoTrack final {
@@ -47,6 +50,8 @@ public:
 	// Called from the main thread.
 	// Returns the position of the displayed frame.
 	[[nodiscard]] crl::time markFrameDisplayed(crl::time now);
+	void addTimelineDelay(crl::time delayed);
+	bool markFrameShown();
 	[[nodiscard]] crl::time nextFrameDisplayTime() const;
 	[[nodiscard]] QImage frame(const FrameRequest &request);
 	[[nodiscard]] rpl::producer<> checkNextFrame() const;
@@ -79,6 +84,7 @@ private:
 		struct PresentFrame {
 			crl::time displayPosition = kTimeUnknown;
 			crl::time nextCheckDelay = 0;
+			crl::time addedWorldTimeDelay = 0;
 		};
 
 		// Called from the wrapped object queue.
@@ -101,6 +107,8 @@ private:
 		// Called from the main thread.
 		// Returns the position of the displayed frame.
 		[[nodiscard]] crl::time markFrameDisplayed(crl::time now);
+		void addTimelineDelay(crl::time delayed);
+		bool markFrameShown();
 		[[nodiscard]] crl::time nextFrameDisplayTime() const;
 		[[nodiscard]] not_null<Frame*> frameForPaint();
 
@@ -114,6 +122,10 @@ private:
 
 		static constexpr auto kFramesCount = 4;
 		std::array<Frame, kFramesCount> _frames;
+
+		// (_counter % 2) == 1 main thread can write _delay.
+		// (_counter % 2) == 0 crl::queue can read _delay.
+		crl::time _delay = kTimeUnknown;
 
 	};
 

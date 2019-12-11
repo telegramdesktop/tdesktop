@@ -61,6 +61,7 @@ public:
 
 	[[nodiscard]] QSize videoSize() const;
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
+	bool markFrameShown();
 
 	[[nodiscard]] Media::Player::TrackState prepareLegacyState() const;
 
@@ -175,6 +176,7 @@ private:
 
 	crl::time _startedTime = kTimeUnknown;
 	crl::time _pausedTime = kTimeUnknown;
+	crl::time _currentFrameTime = kTimeUnknown;
 	crl::time _nextFrameTime = kTimeUnknown;
 	base::Timer _renderFrameTimer;
 	rpl::event_stream<Update, Error> _updates;

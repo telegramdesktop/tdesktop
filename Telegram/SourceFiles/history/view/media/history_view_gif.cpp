@@ -253,7 +253,6 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	const auto isRound = _data->isVideoMessage();
 	auto displayMute = false;
 	const auto streamed = activeCurrentStreamed();
-	const auto player = streamed ? &streamed->player() : nullptr;
 
 	if ((!streamed || item->id < 0) && displayLoading) {
 		ensureAnimation();
@@ -310,7 +309,10 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 		request.resize = QSize(_thumbw, _thumbh) * cIntRetinaFactor();
 		request.corners = roundCorners;
 		request.radius = roundRadius;
-		p.drawImage(rthumb, player->frame(request));
+		p.drawImage(rthumb, streamed->frame(request));
+		if (!paused) {
+			streamed->markFrameShown();
+		}
 
 		if (const auto playback = videoPlayback()) {
 			const auto value = playback->value();
@@ -367,7 +369,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	}
 
 	if (radial
-		|| (!player
+		|| (!streamed
 			&& !startPlayAsync
 			&& ((_streamed && _streamed->player().failed())
 				|| (!_data->loaded() && !_data->loading())
@@ -434,7 +436,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 			}
 		}
 
-		if (!isRound && (!player || item->id < 0)) {
+		if (!isRound && (!streamed || item->id < 0)) {
 			auto statusX = paintx + st::msgDateImgDelta + st::msgDateImgPadding.x();
 			auto statusY = painty + st::msgDateImgDelta + st::msgDateImgPadding.y();
 			auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
@@ -829,7 +831,7 @@ int Gif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply
 	return ::Media::Player::instance()->roundVideoStreamed(_parent->data());
 }
 
-const ::Media::Streaming::Instance *Gif::activeOwnStreamed() const {
+::Media::Streaming::Instance *Gif::activeOwnStreamed() const {
 	return (_streamed
 		&& _streamed->player().ready()
 		&& !_streamed->player().videoSize().isEmpty())
@@ -837,7 +839,7 @@ const ::Media::Streaming::Instance *Gif::activeOwnStreamed() const {
 		: nullptr;
 }
 
-const ::Media::Streaming::Instance *Gif::activeCurrentStreamed() const {
+::Media::Streaming::Instance *Gif::activeCurrentStreamed() const {
 	if (const auto streamed = activeRoundStreamed()) {
 		return streamed;
 	}
@@ -903,6 +905,7 @@ void Gif::playAnimation(bool autoplay) {
 		}
 		auto options = ::Media::Streaming::PlaybackOptions();
 		options.audioId = AudioMsgId(_data, _realParent->fullId());
+		options.waitForMarkAsShown = true;
 		//if (!_streamed->withSound) {
 		options.mode = ::Media::Streaming::Mode::Video;
 		options.loop = true;

@@ -101,7 +101,6 @@ void Player::checkNextFrameRender() {
 		}
 	} else {
 		_renderFrameTimer.cancel();
-		_nextFrameTime = kTimeUnknown;
 		renderFrame(now);
 	}
 }
@@ -110,6 +109,7 @@ void Player::checkNextFrameAvailability() {
 	Expects(_video != nullptr);
 
 	_nextFrameTime = _video->nextFrameDisplayTime();
+	Assert(_nextFrameTime != kFrameDisplayTimeAlreadyDone);
 	if (_nextFrameTime != kTimeUnknown) {
 		checkNextFrameRender();
 	}
@@ -117,11 +117,30 @@ void Player::checkNextFrameAvailability() {
 
 void Player::renderFrame(crl::time now) {
 	Expects(_video != nullptr);
+	Expects(_nextFrameTime != kTimeUnknown);
+	Expects(_nextFrameTime != kFrameDisplayTimeAlreadyDone);
 
 	const auto position = _video->markFrameDisplayed(now);
-	Assert(position != kTimeUnknown);
+	if (_options.waitForMarkAsShown) {
+		_currentFrameTime = _nextFrameTime;
+		_nextFrameTime = kFrameDisplayTimeAlreadyDone;
+	} else {
+		_video->markFrameShown();
+		_nextFrameTime = kTimeUnknown;
+	}
 
+	Assert(position != kTimeUnknown);
 	videoPlayedTill(position);
+}
+
+bool Player::markFrameShown() {
+	Expects(_video != nullptr);
+
+	if (_nextFrameTime == kFrameDisplayTimeAlreadyDone) {
+		_nextFrameTime = kTimeUnknown;
+		_video->addTimelineDelay(crl::now() - _currentFrameTime);
+	}
+	return _video->markFrameShown();
 }
 
 template <typename Track>
@@ -690,7 +709,9 @@ void Player::start() {
 }
 
 void Player::checkVideoStep() {
-	if (_nextFrameTime != kTimeUnknown) {
+	if (_nextFrameTime == kFrameDisplayTimeAlreadyDone) {
+		return;
+	} else if (_nextFrameTime != kTimeUnknown) {
 		checkNextFrameRender();
 	} else {
 		checkNextFrameAvailability();

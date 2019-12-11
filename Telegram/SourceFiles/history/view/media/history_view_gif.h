@@ -92,8 +92,8 @@ private:
 	QSize countCurrentSize(int newWidth) override;
 	QSize videoSize() const;
 	::Media::Streaming::Instance *activeRoundStreamed() const;
-	const ::Media::Streaming::Instance *activeOwnStreamed() const;
-	const ::Media::Streaming::Instance *activeCurrentStreamed() const;
+	::Media::Streaming::Instance *activeOwnStreamed() const;
+	::Media::Streaming::Instance *activeCurrentStreamed() const;
 	::Media::View::PlaybackProgress *videoPlayback() const;
 
 	bool createStreamedPlayer();

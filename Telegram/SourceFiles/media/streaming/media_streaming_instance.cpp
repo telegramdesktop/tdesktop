@@ -140,6 +140,10 @@ QImage Instance::frame(const FrameRequest &request) const {
 	return player().frame(request);
 }
 
+bool Instance::markFrameShown() {
+	return _shared->player().markFrameShown();
+}
+
 rpl::lifetime &Instance::lifetime() {
 	return _lifetime;
 }
