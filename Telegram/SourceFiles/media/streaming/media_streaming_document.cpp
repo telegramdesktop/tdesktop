@@ -38,10 +38,8 @@ void Instance::callWaitingCallback() {
 
 Document::Document(
 	not_null<DocumentData*> document,
-	Data::FileOrigin origin)
-: _player(
-	&document->owner(),
-	document->owner().documentStreamedReader(document, origin))
+	std::shared_ptr<Reader> reader)
+: _player(&document->owner(), reader)
 , _radial(
 	[=] { waitingCallback(); },
 	st::defaultInfiniteRadialAnimation)
@@ -83,6 +81,10 @@ void Document::resume() {
 	_player.resume();
 }
 
+void Document::stop() {
+	_player.stop();
+}
+
 void Document::saveFrameToCover() {
 	auto request = Streaming::FrameRequest();
 	//request.radius = (_doc && _doc->isVideoMessage())
@@ -91,6 +93,26 @@ void Document::saveFrameToCover() {
 	_info.video.cover = _player.ready()
 		? _player.frame(request)
 		: _info.video.cover;
+}
+
+bool Document::active() const {
+	return _player.active();
+}
+
+bool Document::ready() const {
+	return _player.ready();
+}
+
+bool Document::paused() const {
+	return _player.paused();
+}
+
+float64 Document::speed() const {
+	return _player.speed();
+}
+
+void Document::setSpeed(float64 speed) {
+	_player.setSpeed(speed);
 }
 
 not_null<Instance*> Document::addInstance() {

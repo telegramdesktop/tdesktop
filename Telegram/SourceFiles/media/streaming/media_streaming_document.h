@@ -36,7 +36,7 @@ class Document {
 public:
 	Document(
 		not_null<DocumentData*> document,
-		Data::FileOrigin origin);
+		std::shared_ptr<Reader> reader);
 
 	[[nodiscard]] const Player &player() const;
 	[[nodiscard]] const Information &info() const;
@@ -44,7 +44,16 @@ public:
 	void play(const PlaybackOptions &options);
 	void pause();
 	void resume();
+	void stop();
 	void saveFrameToCover();
+
+	[[nodiscard]] bool active() const;
+	[[nodiscard]] bool ready() const;
+
+	[[nodiscard]] bool paused() const;
+
+	[[nodiscard]] float64 speed() const;
+	void setSpeed(float64 speed); // 0.5 <= speed <= 2.
 
 	[[nodiscard]] not_null<Instance*> addInstance();
 	void removeInstance(not_null<Instance*> instance);

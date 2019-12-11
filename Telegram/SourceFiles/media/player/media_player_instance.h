@@ -25,7 +25,7 @@ class PlaybackProgress;
 
 namespace Media {
 namespace Streaming {
-class Player;
+class Document;
 class Reader;
 struct PlaybackOptions;
 struct Update;
@@ -80,7 +80,7 @@ public:
 	void playPause(const AudioMsgId &audioId);
 	[[nodiscard]] TrackState getState(AudioMsgId::Type type) const;
 
-	[[nodiscard]] Streaming::Player *roundVideoPlayer(
+	[[nodiscard]] Streaming::Document *roundVideoStreamed(
 		HistoryItem *item) const;
 	[[nodiscard]] View::PlaybackProgress *roundVideoPlayback(
 		HistoryItem *item) const;
@@ -193,7 +193,7 @@ private:
 	void setupShortcuts();
 	void playStreamed(
 		const AudioMsgId &audioId,
-		std::shared_ptr<Streaming::Reader> reader);
+		std::shared_ptr<Streaming::Document> shared);
 	Streaming::PlaybackOptions streamingOptions(
 		const AudioMsgId &audioId,
 		crl::time position = 0);

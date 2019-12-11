@@ -22,7 +22,7 @@ class PlaybackProgress;
 
 namespace Media {
 namespace Streaming {
-class Player;
+class Document;
 struct Update;
 struct Information;
 enum class Error;
@@ -93,12 +93,12 @@ private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 	QSize videoSize() const;
-	::Media::Streaming::Player *activeRoundPlayer() const;
-	const ::Media::Streaming::Player *activeOwnPlayer() const;
-	const ::Media::Streaming::Player *activeCurrentPlayer() const;
+	::Media::Streaming::Document *activeRoundStreamed() const;
+	const ::Media::Streaming::Document *activeOwnStreamed() const;
+	const ::Media::Streaming::Document *activeCurrentStreamed() const;
 	::Media::View::PlaybackProgress *videoPlayback() const;
 
-	void createStreamedPlayer();
+	bool createStreamedPlayer();
 	void setStreamed(std::unique_ptr<Streamed> value);
 	void handleStreamingUpdate(::Media::Streaming::Update &&update);
 	void handleStreamingError(::Media::Streaming::Error &&error);

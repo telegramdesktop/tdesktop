@@ -1167,9 +1167,13 @@ std::shared_ptr<::Media::Streaming::Document> Session::documentStreamer(
 			return result;
 		}
 	}
+	auto reader = documentStreamedReader(document, origin);
+	if (!reader) {
+		return nullptr;
+	}
 	auto result = std::make_shared<::Media::Streaming::Document>(
 		document,
-		origin);
+		std::move(reader));
 	if (!PruneDestroyedAndSet(_streamedDocuments, document, result)) {
 		_streamedDocuments.emplace_or_assign(document, result);
 	}

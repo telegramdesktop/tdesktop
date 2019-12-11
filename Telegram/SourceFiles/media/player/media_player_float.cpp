@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "media/audio/media_audio.h"
-#include "media/streaming/media_streaming_player.h"
+#include "media/streaming/media_streaming_document.h"
 #include "media/view/media_view_playback_progress.h"
 #include "media/player/media_player_instance.h"
 #include "window/window_session_controller.h"
@@ -132,11 +132,11 @@ void Float::mouseDoubleClickEvent(QMouseEvent *e) {
 }
 
 void Float::pauseResume() {
-	if (const auto player = instance()->roundVideoPlayer(_item)) {
-		if (player->paused()) {
-			player->resume();
+	if (const auto streamed = getStreamed()) {
+		if (streamed->paused()) {
+			streamed->resume();
 		} else {
-			player->pause();
+			streamed->pause();
 		}
 	}
 }
@@ -206,8 +206,13 @@ void Float::paintEvent(QPaintEvent *e) {
 	}
 }
 
-Streaming::Player *Float::getPlayer() const {
-	return instance()->roundVideoPlayer(_item);
+Streaming::Document *Float::getStreamed() const {
+	return instance()->roundVideoStreamed(_item);
+}
+
+const Streaming::Player *Float::getPlayer() const {
+	const auto streamed = getStreamed();
+	return streamed ? &streamed->player() : nullptr;
 }
 
 View::PlaybackProgress *Float::getPlayback() const {
