@@ -61,7 +61,7 @@ void Calls::sectionSaveChanges(FnMut<void()> done) {
 }
 
 void Calls::setupContent(not_null<Window::SessionController*> controller) {
-	using namespace tgvoip;
+	using VoIP = tgvoip::VoIPController;
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	const auto getId = [](const auto &device) {
@@ -75,7 +75,7 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 		if (Global::CallOutputDeviceID() == qsl("default")) {
 			return tr::lng_settings_call_device_default(tr::now);
 		}
-		const auto &list = VoIPController::EnumerateAudioOutputs();
+		const auto &list = VoIP::EnumerateAudioOutputs();
 		const auto i = ranges::find(
 			list,
 			Global::CallOutputDeviceID(),
@@ -89,7 +89,7 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 		if (Global::CallInputDeviceID() == qsl("default")) {
 			return tr::lng_settings_call_device_default(tr::now);
 		}
-		const auto &list = VoIPController::EnumerateAudioInputs();
+		const auto &list = VoIP::EnumerateAudioInputs();
 		const auto i = ranges::find(
 			list,
 			Global::CallInputDeviceID(),
@@ -111,7 +111,7 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 		),
 		st::settingsButton
 	)->addClickHandler([=] {
-		const auto &devices = VoIPController::EnumerateAudioOutputs();
+		const auto &devices = VoIP::EnumerateAudioOutputs();
 		const auto options = ranges::view::concat(
 			ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
 			devices | ranges::view::transform(getName)
@@ -186,7 +186,7 @@ void Calls::setupContent(not_null<Window::SessionController*> controller) {
 		),
 		st::settingsButton
 	)->addClickHandler([=] {
-		const auto &devices = VoIPController::EnumerateAudioInputs();
+		const auto &devices = VoIP::EnumerateAudioInputs();
 		const auto options = ranges::view::concat(
 			ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
 			devices | ranges::view::transform(getName)

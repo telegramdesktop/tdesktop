@@ -68,6 +68,7 @@ namespace View {
 namespace {
 
 constexpr auto kPreloadCount = 4;
+constexpr auto kMaxZoomLevel = 7; // x8
 
 constexpr auto kOverlayLoaderPriority = 2;
 
@@ -897,13 +898,13 @@ bool OverlayWidget::radialAnimationCallback(crl::time now) {
 void OverlayWidget::zoomIn() {
 	int32 newZoom = _zoom;
 	if (newZoom == ZoomToScreenLevel) {
-		if (qCeil(_zoomToScreen) <= MaxZoomLevel) {
+		if (qCeil(_zoomToScreen) <= kMaxZoomLevel) {
 			newZoom = qCeil(_zoomToScreen);
 		}
 	} else {
-		if (newZoom < _zoomToScreen && (newZoom + 1 > _zoomToScreen || (_zoomToScreen > MaxZoomLevel && newZoom == MaxZoomLevel))) {
+		if (newZoom < _zoomToScreen && (newZoom + 1 > _zoomToScreen || (_zoomToScreen > kMaxZoomLevel && newZoom == kMaxZoomLevel))) {
 			newZoom = ZoomToScreenLevel;
-		} else if (newZoom < MaxZoomLevel) {
+		} else if (newZoom < kMaxZoomLevel) {
 			++newZoom;
 		}
 	}
@@ -913,13 +914,13 @@ void OverlayWidget::zoomIn() {
 void OverlayWidget::zoomOut() {
 	int32 newZoom = _zoom;
 	if (newZoom == ZoomToScreenLevel) {
-		if (qFloor(_zoomToScreen) >= -MaxZoomLevel) {
+		if (qFloor(_zoomToScreen) >= -kMaxZoomLevel) {
 			newZoom = qFloor(_zoomToScreen);
 		}
 	} else {
-		if (newZoom > _zoomToScreen && (newZoom - 1 < _zoomToScreen || (_zoomToScreen < -MaxZoomLevel && newZoom == -MaxZoomLevel))) {
+		if (newZoom > _zoomToScreen && (newZoom - 1 < _zoomToScreen || (_zoomToScreen < -kMaxZoomLevel && newZoom == -kMaxZoomLevel))) {
 			newZoom = ZoomToScreenLevel;
-		} else if (newZoom > -MaxZoomLevel) {
+		} else if (newZoom > -kMaxZoomLevel) {
 			--newZoom;
 		}
 	}
@@ -929,7 +930,7 @@ void OverlayWidget::zoomOut() {
 void OverlayWidget::zoomReset() {
 	int32 newZoom = _zoom;
 	if (_zoom == 0) {
-		if (qFloor(_zoomToScreen) == qCeil(_zoomToScreen) && qRound(_zoomToScreen) >= -MaxZoomLevel && qRound(_zoomToScreen) <= MaxZoomLevel) {
+		if (qFloor(_zoomToScreen) == qCeil(_zoomToScreen) && qRound(_zoomToScreen) >= -kMaxZoomLevel && qRound(_zoomToScreen) <= kMaxZoomLevel) {
 			newZoom = qRound(_zoomToScreen);
 		} else {
 			newZoom = ZoomToScreenLevel;

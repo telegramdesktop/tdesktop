@@ -435,7 +435,9 @@ void EmojiKeywords::LangPack::applyDifference(
 				LangPackData &&result) {
 			applyData(std::move(result));
 		});
-		crl::async([=, callback = std::move(callback)]() mutable {
+		crl::async([=,
+			copy = std::move(copy),
+			callback = std::move(callback)]() mutable {
 			ApplyDifference(copy, keywords, version);
 			WriteLocalCache(id, copy);
 			crl::on_main([
