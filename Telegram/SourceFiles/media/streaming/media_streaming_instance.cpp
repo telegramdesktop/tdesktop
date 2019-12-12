@@ -94,6 +94,12 @@ bool Instance::ready() const {
 	return _shared->player().ready();
 }
 
+std::optional<Error> Instance::failed() const {
+	Expects(_shared != nullptr);
+
+	return _shared->player().failed();
+}
+
 bool Instance::paused() const {
 	Expects(_shared != nullptr);
 

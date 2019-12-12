@@ -1295,7 +1295,7 @@ bool DocumentData::useStreamingLoader() const {
 
 bool DocumentData::canBeStreamed() const {
 	// For now video messages are not streamed.
-	return hasRemoteLocation() && supportsStreaming() && !isVideoMessage();
+	return hasRemoteLocation() && supportsStreaming();
 }
 
 bool DocumentData::canBePlayed() const {

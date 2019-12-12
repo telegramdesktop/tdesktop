@@ -100,7 +100,8 @@ private:
 	::Media::Streaming::Instance *activeCurrentStreamed() const;
 	::Media::View::PlaybackProgress *videoPlayback() const;
 
-	bool createStreamedPlayer();
+	void createStreamedPlayer();
+	void startStreamedPlayer() const;
 	void setStreamed(std::unique_ptr<::Media::Streaming::Instance> value);
 	void handleStreamingUpdate(::Media::Streaming::Update &&update);
 	void handleStreamingError(::Media::Streaming::Error &&error);

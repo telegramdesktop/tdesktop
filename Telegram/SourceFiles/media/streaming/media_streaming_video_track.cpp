@@ -961,6 +961,9 @@ QImage VideoTrack::frame(
 		const auto j = none
 			? frame->prepared.emplace(instance, useRequest).first
 			: i;
+		if (changed && !none) {
+			i->second.request = useRequest;
+		}
 		if (frame->prepared.size() > 1) {
 			for (auto &[alreadyInstance, prepared] : frame->prepared) {
 				if (alreadyInstance != instance

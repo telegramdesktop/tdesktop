@@ -47,6 +47,7 @@ public:
 
 	[[nodiscard]] bool active() const;
 	[[nodiscard]] bool ready() const;
+	[[nodiscard]] std::optional<Error> failed() const;
 
 	[[nodiscard]] bool paused() const;
 
@@ -62,7 +63,7 @@ public:
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
 	bool markFrameShown();
 
-	rpl::lifetime &lifetime();
+	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	const std::shared_ptr<Document> _shared;

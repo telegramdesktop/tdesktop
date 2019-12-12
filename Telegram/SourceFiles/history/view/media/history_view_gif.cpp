@@ -235,12 +235,17 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	//auto loaded = _data->loaded();
 	auto displayLoading = (item->id < 0) || _data->displayLoading();
 	auto selected = (selection == FullSelection);
-	const auto startPlayAsync = autoplayEnabled()
+	const auto canBePlayed = _data->canBePlayed();
+	const auto activeRoundPlaying = activeRoundStreamed();
+	const auto autoplay = autoplayEnabled() && canBePlayed;
+	const auto streamingMode = _streamed || activeRoundPlaying || autoplay;
+	const auto startPlayAsync = autoplay
 		&& !_streamed
-		&& _data->canBePlayed()
-		&& !activeRoundStreamed();
+		&& !activeRoundPlaying;
 	if (startPlayAsync) {
 		_parent->delegate()->elementAnimationAutoplayAsync(_parent);
+	} else if (_streamed && !_streamed->active() && !_streamed->failed()) {
+		startStreamedPlayer();
 	}
 
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
@@ -254,7 +259,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	auto displayMute = false;
 	const auto streamed = activeCurrentStreamed();
 
-	if ((!streamed || item->id < 0) && displayLoading) {
+	if ((!streamed || item->isSending()) && displayLoading) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
 			_animation->radial.start(dataProgress());
@@ -369,16 +374,13 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	}
 
 	if (radial
-		|| (!startPlayAsync
-			&& (!_streamed
-				|| _streamed->waitingShown()
-				|| _streamed->player().failed())
+		|| (!streamingMode
 			&& ((!_data->loaded() && !_data->loading())
 				|| !autoplayEnabled()))) {
-		auto radialOpacity = (radial && _data->loaded() && item->id > 0)
-			? _animation->radial.opacity()
-			: streamed
+		const auto radialOpacity = streamed
 			? streamed->waitingOpacity()
+			: (radial && _data->loaded() && !item->isSending())
+			? _animation->radial.opacity()
 			: 1.;
 		auto inner = QRect(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 		p.setPen(Qt::NoPen);
@@ -399,8 +401,10 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 		}
 
 		p.setOpacity(radialOpacity);
-		auto icon = [&]() -> const style::icon * {
-			if (_data->loaded() && !radial) {
+		const auto icon = [&]() -> const style::icon * {
+			if (streamingMode) {
+				return nullptr;
+			} else if ((_data->loaded() || canBePlayed) && !radial) {
 				return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 			} else if (radial || _data->loading()) {
 				if (item->id > 0 || _data->uploading()) {
@@ -413,8 +417,8 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 		if (icon) {
 			icon->paintInCenter(p, inner);
 		}
+		p.setOpacity(1);
 		if (radial) {
-			p.setOpacity(1);
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 			const auto fg = selected
 				? st::historyFileThumbRadialFgSelected
@@ -437,7 +441,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 			}
 		}
 
-		if (!isRound && (!streamed || item->id < 0)) {
+		if (!isRound && (!streamingMode || item->isSending())) {
 			auto statusX = paintx + st::msgDateImgDelta + st::msgDateImgPadding.x();
 			auto statusY = painty + st::msgDateImgDelta + st::msgDateImgPadding.y();
 			auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
@@ -660,7 +664,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 		if (_data->uploading()) {
 			result.link = _cancell;
 		} else {
-			result.link = _data->loaded()
+			result.link = (_data->loaded() || _data->canBePlayed())
 				? _openl :
 				_data->loading()
 				? _cancell
@@ -901,26 +905,16 @@ void Gif::playAnimation(bool autoplay) {
 		if (!autoplayEnabled()) {
 			history()->owner().checkPlayingVideoFiles();
 		}
-		if (!createStreamedPlayer()) {
-			return;
-		}
-		auto options = ::Media::Streaming::PlaybackOptions();
-		options.audioId = AudioMsgId(_data, _realParent->fullId());
-		options.waitForMarkAsShown = true;
-		//if (!_streamed->withSound) {
-		options.mode = ::Media::Streaming::Mode::Video;
-		options.loop = true;
-		//}
-		_streamed->play(options);
+		createStreamedPlayer();
 	}
 }
 
-bool Gif::createStreamedPlayer() {
+void Gif::createStreamedPlayer() {
 	auto shared = _data->owner().documentStreamer(
 		_data,
 		_realParent->fullId());
 	if (!shared) {
-		return false;
+		return;
 	}
 	setStreamed(std::make_unique<::Media::Streaming::Instance>(
 		std::move(shared),
@@ -936,7 +930,20 @@ bool Gif::createStreamedPlayer() {
 	if (_streamed->ready()) {
 		streamingReady(base::duplicate(_streamed->info()));
 	}
-	return true;
+	startStreamedPlayer();
+}
+
+void Gif::startStreamedPlayer() const {
+	Expects(_streamed != nullptr);
+
+	auto options = ::Media::Streaming::PlaybackOptions();
+	options.audioId = AudioMsgId(_data, _realParent->fullId());
+	options.waitForMarkAsShown = true;
+	//if (!_streamed->withSound) {
+	options.mode = ::Media::Streaming::Mode::Video;
+	options.loop = true;
+	//}
+	_streamed->play(options);
 }
 
 void Gif::setStreamed(std::unique_ptr<::Media::Streaming::Instance> value) {
