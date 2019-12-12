@@ -18,6 +18,7 @@ constexpr auto kFrameDisplayTimeAlreadyDone
 	= std::numeric_limits<crl::time>::max();
 
 class VideoTrackObject;
+class Instance;
 
 class VideoTrack final {
 public:
@@ -53,7 +54,10 @@ public:
 	void addTimelineDelay(crl::time delayed);
 	bool markFrameShown();
 	[[nodiscard]] crl::time nextFrameDisplayTime() const;
-	[[nodiscard]] QImage frame(const FrameRequest &request);
+	[[nodiscard]] QImage frame(
+		const FrameRequest &request,
+		const Instance *instance);
+	void unregisterInstance(not_null<const Instance*> instance);
 	[[nodiscard]] rpl::producer<> checkNextFrame() const;
 	[[nodiscard]] rpl::producer<> waitingForData() const;
 
@@ -63,6 +67,13 @@ public:
 private:
 	friend class VideoTrackObject;
 
+	struct Prepared {
+		Prepared(const FrameRequest &request) : request(request) {
+		}
+
+		FrameRequest request = FrameRequest::NonStrict();
+		QImage image;
+	};
 	struct Frame {
 		FFmpeg::FramePointer decoded = FFmpeg::MakeFramePointer();
 		QImage original;
@@ -70,8 +81,7 @@ private:
 		crl::time displayed = kTimeUnknown;
 		crl::time display = kTimeUnknown;
 
-		FrameRequest request = FrameRequest::NonStrict();
-		QImage prepared;
+		base::flat_map<const Instance*, Prepared> prepared;
 	};
 
 	class Shared {
@@ -129,9 +139,7 @@ private:
 
 	};
 
-	static QImage PrepareFrameByRequest(
-		not_null<Frame*> frame,
-		bool useExistingPrepared = false);
+	static void PrepareFrameByRequests(not_null<Frame*> frame);
 	[[nodiscard]] static bool IsDecoded(not_null<const Frame*> frame);
 	[[nodiscard]] static bool IsRasterized(not_null<const Frame*> frame);
 	[[nodiscard]] static bool IsStale(

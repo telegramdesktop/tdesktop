@@ -377,7 +377,7 @@ QImage OverlayWidget::videoFrame() const {
 	//	? ImageRoundRadius::Ellipse
 	//	: ImageRoundRadius::None;
 	return _streamed->instance.player().ready()
-		? _streamed->instance.player().frame(request)
+		? _streamed->instance.frame(request)
 		: _streamed->instance.info().video.cover;
 }
 

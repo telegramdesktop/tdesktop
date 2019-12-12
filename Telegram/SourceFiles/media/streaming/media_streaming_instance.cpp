@@ -137,7 +137,7 @@ void Instance::callWaitingCallback() {
 }
 
 QImage Instance::frame(const FrameRequest &request) const {
-	return player().frame(request);
+	return player().frame(request, this);
 }
 
 bool Instance::markFrameShown() {

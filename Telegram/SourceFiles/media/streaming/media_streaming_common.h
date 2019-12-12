@@ -127,18 +127,22 @@ struct FrameRequest {
 		return result;
 	}
 
-	bool empty() const {
+	[[nodiscard]] bool empty() const {
 		return resize.isEmpty();
 	}
 
-	bool operator==(const FrameRequest &other) const {
+	[[nodiscard]] bool operator==(const FrameRequest &other) const {
 		return (resize == other.resize)
 			&& (outer == other.outer)
 			&& (radius == other.radius)
 			&& (corners == other.corners);
 	}
-	bool operator!=(const FrameRequest &other) const {
+	[[nodiscard]] bool operator!=(const FrameRequest &other) const {
 		return !(*this == other);
+	}
+
+	[[nodiscard]] bool goodFor(const FrameRequest &other) const {
+		return (*this == other) || (strict && !other.strict);
 	}
 };
 

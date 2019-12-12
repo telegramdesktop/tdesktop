@@ -45,7 +45,10 @@ public:
 	void interrupt();
 	void frameShown();
 	void addTimelineDelay(crl::time delayed);
-	void updateFrameRequest(const FrameRequest &request);
+	void updateFrameRequest(
+		const Instance *instance,
+		const FrameRequest &request);
+	void removeFrameRequest(const Instance *instance);
 
 private:
 	enum class FrameResult {
@@ -68,6 +71,8 @@ private:
 	void readFrames();
 	[[nodiscard]] ReadEnoughState readEnoughFrames(crl::time trackTime);
 	[[nodiscard]] FrameResult readFrame(not_null<Frame*> frame);
+	void fillRequests(not_null<Frame*> frame) const;
+	[[nodiscard]] QSize chooseOriginalResize() const;
 	void presentFrameIfNeeded();
 	void callReady();
 	[[nodiscard]] bool loopAround();
@@ -98,7 +103,7 @@ private:
 	crl::time _loopingShift = 0;
 	rpl::event_stream<> _checkNextFrame;
 	rpl::event_stream<> _waitingForData;
-	FrameRequest _request = FrameRequest::NonStrict();
+	base::flat_map<const Instance*, FrameRequest> _requests;
 
 	bool _queued = false;
 	base::ConcurrentTimer _readFramesTimer;
@@ -297,6 +302,36 @@ auto VideoTrackObject::readFrame(not_null<Frame*> frame) -> FrameResult {
 	return FrameResult::Done;
 }
 
+void VideoTrackObject::fillRequests(not_null<Frame*> frame) const {
+	auto i = frame->prepared.begin();
+	for (const auto &[instance, request] : _requests) {
+		while (i != frame->prepared.end() && i->first < instance) {
+			i = frame->prepared.erase(i);
+		}
+		if (i == frame->prepared.end() || i->first > instance) {
+			i = frame->prepared.emplace(instance, request).first;
+		}
+		++i;
+	}
+	while (i != frame->prepared.end()) {
+		i = frame->prepared.erase(i);
+	}
+}
+
+QSize VideoTrackObject::chooseOriginalResize() const {
+	auto chosen = QSize();
+	for (const auto &[_, request] : _requests) {
+		const auto byWidth = (request.resize.width() >= chosen.width());
+		const auto byHeight = (request.resize.height() >= chosen.height());
+		if (byWidth && byHeight) {
+			chosen = request.resize;
+		} else if (byWidth || byHeight) {
+			return QSize();
+		}
+	}
+	return chosen;
+}
+
 void VideoTrackObject::presentFrameIfNeeded() {
 	if (_pausedTime != kTimeUnknown || _resumedTime == kTimeUnknown) {
 		return;
@@ -304,19 +339,19 @@ void VideoTrackObject::presentFrameIfNeeded() {
 	const auto rasterize = [&](not_null<Frame*> frame) {
 		Expects(frame->position != kFinishedPosition);
 
-		frame->request = _request;
+		fillRequests(frame);
 		frame->original = ConvertFrame(
 			_stream,
 			frame->decoded.get(),
-			frame->request.resize,
+			chooseOriginalResize(),
 			std::move(frame->original));
 		if (frame->original.isNull()) {
-			frame->prepared = QImage();
+			frame->prepared.clear();
 			fail(Error::InvalidData);
 			return;
 		}
 
-		VideoTrack::PrepareFrameByRequest(frame);
+		VideoTrack::PrepareFrameByRequests(frame);
 
 		Ensures(VideoTrack::IsRasterized(frame));
 	};
@@ -405,8 +440,14 @@ void VideoTrackObject::addTimelineDelay(crl::time delayed) {
 	_syncTimePoint.worldTime += delayed;
 }
 
-void VideoTrackObject::updateFrameRequest(const FrameRequest &request) {
-	_request = request;
+void VideoTrackObject::updateFrameRequest(
+		const Instance *instance,
+		const FrameRequest &request) {
+	_requests.emplace(instance, request);
+}
+
+void VideoTrackObject::removeFrameRequest(const Instance *instance) {
+	_requests.remove(instance);
 }
 
 bool VideoTrackObject::tryReadFirstFrame(FFmpeg::Packet &&packet) {
@@ -898,33 +939,75 @@ bool VideoTrack::markFrameShown() {
 	return true;
 }
 
-QImage VideoTrack::frame(const FrameRequest &request) {
+QImage VideoTrack::frame(
+		const FrameRequest &request,
+		const Instance *instance) {
 	const auto frame = _shared->frameForPaint();
-	const auto changed = (frame->request != request)
-		&& (request.strict || !frame->request.strict);
+	const auto i = frame->prepared.find(instance);
+	const auto none = (i == frame->prepared.end());
+	const auto preparedFor = none
+		? FrameRequest::NonStrict()
+		: i->second.request;
+	const auto changed = !preparedFor.goodFor(request);
+	const auto useRequest = changed ? request : preparedFor;
 	if (changed) {
-		frame->request = request;
 		_wrapped.with([=](Implementation &unwrapped) {
-			unwrapped.updateFrameRequest(request);
+			unwrapped.updateFrameRequest(instance, request);
 		});
 	}
-	return PrepareFrameByRequest(frame, !changed);
+	if (GoodForRequest(frame->original, useRequest)) {
+		return frame->original;
+	} else if (changed || none || i->second.image.isNull()) {
+		const auto j = none
+			? frame->prepared.emplace(instance, useRequest).first
+			: i;
+		if (frame->prepared.size() > 1) {
+			for (auto &[alreadyInstance, prepared] : frame->prepared) {
+				if (alreadyInstance != instance
+					&& prepared.request == useRequest
+					&& !prepared.image.isNull()) {
+					return prepared.image;
+				}
+			}
+		}
+		j->second.image = PrepareByRequest(
+			frame->original,
+			useRequest,
+			std::move(j->second.image));
+		return j->second.image;
+	}
+	return i->second.image;
 }
 
-QImage VideoTrack::PrepareFrameByRequest(
-		not_null<Frame*> frame,
-		bool useExistingPrepared) {
+void VideoTrack::unregisterInstance(not_null<const Instance*> instance) {
+	_wrapped.with([=](Implementation &unwrapped) {
+		unwrapped.removeFrameRequest(instance);
+	});
+}
+
+void VideoTrack::PrepareFrameByRequests(not_null<Frame*> frame) {
 	Expects(!frame->original.isNull());
 
-	if (GoodForRequest(frame->original, frame->request)) {
-		return frame->original;
-	} else if (frame->prepared.isNull() || !useExistingPrepared) {
-		frame->prepared = PrepareByRequest(
-			frame->original,
-			frame->request,
-			std::move(frame->prepared));
+	const auto begin = frame->prepared.begin();
+	const auto end = frame->prepared.end();
+	for (auto i = begin; i != end; ++i) {
+		auto &prepared = i->second;
+		if (!GoodForRequest(frame->original, prepared.request)) {
+			auto j = begin;
+			for (; j != i; ++j) {
+				if (j->second.request == prepared.request) {
+					prepared.image = QImage();
+					break;
+				}
+			}
+			if (j == i) {
+				prepared.image = PrepareByRequest(
+					frame->original,
+					prepared.request,
+					std::move(prepared.image));
+			}
+		}
 	}
-	return frame->prepared;
 }
 
 bool VideoTrack::IsDecoded(not_null<const Frame*> frame) {

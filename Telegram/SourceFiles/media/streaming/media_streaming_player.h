@@ -29,6 +29,7 @@ class Reader;
 class File;
 class AudioTrack;
 class VideoTrack;
+class Instance;
 
 class Player final : private FileDelegate {
 public:
@@ -60,7 +61,10 @@ public:
 	[[nodiscard]] rpl::producer<bool> fullInCache() const;
 
 	[[nodiscard]] QSize videoSize() const;
-	[[nodiscard]] QImage frame(const FrameRequest &request) const;
+	[[nodiscard]] QImage frame(
+		const FrameRequest &request,
+		const Instance *instance = nullptr) const;
+	void unregisterInstance(not_null<const Instance*> instance);
 	bool markFrameShown();
 
 	[[nodiscard]] Media::Player::TrackState prepareLegacyState() const;

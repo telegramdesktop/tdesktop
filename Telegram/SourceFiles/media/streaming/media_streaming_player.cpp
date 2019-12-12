@@ -809,10 +809,18 @@ QSize Player::videoSize() const {
 	return _information.video.size;
 }
 
-QImage Player::frame(const FrameRequest &request) const {
+QImage Player::frame(
+		const FrameRequest &request,
+		const Instance *instance) const {
 	Expects(_video != nullptr);
 
-	return _video->frame(request);
+	return _video->frame(request, instance);
+}
+
+void Player::unregisterInstance(not_null<const Instance*> instance) {
+	if (_video) {
+		_video->unregisterInstance(instance);
+	}
 }
 
 Media::Player::TrackState Player::prepareLegacyState() const {

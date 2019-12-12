@@ -84,6 +84,7 @@ void Document::registerInstance(not_null<Instance*> instance) {
 
 void Document::unregisterInstance(not_null<Instance*> instance) {
 	_instances.remove(instance);
+	_player.unregisterInstance(instance);
 }
 
 bool Document::waitingShown() const {
