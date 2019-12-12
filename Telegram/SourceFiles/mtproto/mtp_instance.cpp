@@ -1454,15 +1454,19 @@ Session *Instance::Private::removeSession(ShiftedDcId shiftedDcId) {
 
 not_null<QThread*> Instance::Private::getThreadForDc(
 		ShiftedDcId shiftedDcId) {
-	static const auto EnsureStarted = [](std::unique_ptr<QThread> &thread) {
+	static const auto EnsureStarted = [](
+			std::unique_ptr<QThread> &thread,
+			auto name) {
 		if (!thread) {
 			thread = std::make_unique<QThread>();
+			thread->setObjectName(name());
 			thread->start();
 		}
 		return thread.get();
 	};
 	static const auto FindOne = [](
 			std::vector<std::unique_ptr<QThread>> &threads,
+			const char *prefix,
 			int index,
 			bool shift) {
 		Expects(!threads.empty());
@@ -1476,20 +1480,26 @@ not_null<QThread*> Instance::Private::getThreadForDc(
 		if (shift) {
 			index = (index + count / 2) % count;
 		}
-		return EnsureStarted(threads[index]);
+		return EnsureStarted(threads[index], [=] {
+			return QString("MTP %1 Session (%2)").arg(prefix).arg(index);
+		});
 	};
 	if (shiftedDcId == BareDcId(shiftedDcId)) {
-		return EnsureStarted(_mainSessionThread);
+		return EnsureStarted(_mainSessionThread, [] {
+			return QString("MTP Main Session");
+		});
 	} else if (isDownloadDcId(shiftedDcId)) {
 		const auto index = GetDcIdShift(shiftedDcId) - kBaseDownloadDcShift;
 		const auto composed = index + BareDcId(shiftedDcId);
-		return FindOne(_fileSessionThreads, composed, false);
+		return FindOne(_fileSessionThreads, "Download", composed, false);
 	} else if (isUploadDcId(shiftedDcId)) {
 		const auto index = GetDcIdShift(shiftedDcId) - kBaseUploadDcShift;
 		const auto composed = index + BareDcId(shiftedDcId);
-		return FindOne(_fileSessionThreads, composed, true);
+		return FindOne(_fileSessionThreads, "Upload", composed, true);
 	}
-	return EnsureStarted(_otherSessionsThread);
+	return EnsureStarted(_otherSessionsThread, [] {
+		return QString("MTP Other Session");
+	});
 }
 
 void Instance::Private::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
