@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_qr.h"
 
 #include "intro/intro_phone.h"
+#include "intro/intro_widget.h"
+#include "intro/intro_password_check.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -20,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h"
+#include "core/core_cloud_password.h"
+#include "core/update_checker.h"
 #include "base/unixtime.h"
 #include "qr/qr_generate.h"
 #include "styles/style_intro.h"
@@ -320,7 +324,9 @@ void QrWidget::handleTokenResult(const MTPauth_LoginToken &result) {
 
 void QrWidget::showTokenError(const RPCError &error) {
 	_requestId = 0;
-	if (base::take(_forceRefresh)) {
+	if (error.type() == qstr("SESSION_PASSWORD_NEEDED")) {
+		sendCheckPasswordRequest();
+	} else if (base::take(_forceRefresh)) {
 		refreshCode();
 	} else {
 		showError(rpl::single(error.type()));
@@ -359,6 +365,38 @@ void QrWidget::done(const MTPauth_Authorization &authorization) {
 		LOG(("API Error: Unexpected auth.authorizationSignUpRequired."));
 		showError(rpl::single(Lang::Hard::ServerError()));
 	});
+}
+
+void QrWidget::sendCheckPasswordRequest() {
+	_requestId = _api.request(MTPaccount_GetPassword(
+	)).done([=](const MTPaccount_Password &result) {
+		result.match([&](const MTPDaccount_password &data) {
+			getData()->pwdRequest = Core::ParseCloudPasswordCheckRequest(
+				data);
+			if (!data.vcurrent_algo() || !data.vsrp_id() || !data.vsrp_B()) {
+				LOG(("API Error: No current password received on login."));
+				goReplace<QrWidget>();
+				return;
+			} else if (!getData()->pwdRequest) {
+				const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
+				const auto callback = [=] {
+					Core::UpdateApplication();
+					if (*box) (*box)->closeBox();
+				};
+				*box = Ui::show(Box<ConfirmBox>(
+					tr::lng_passport_app_out_of_date(tr::now),
+					tr::lng_menu_update(tr::now),
+					callback));
+				return;
+			}
+			getData()->hasRecovery = data.is_has_recovery();
+			getData()->pwdHint = qs(data.vhint().value_or_empty());
+			getData()->pwdNotEmptyPassport = data.is_has_secure_values();
+			goReplace<PasswordCheckWidget>();
+		});
+	}).fail([=](const RPCError &error) {
+		showTokenError(error);
+	}).send();
 }
 
 void QrWidget::activate() {

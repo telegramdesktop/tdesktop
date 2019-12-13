@@ -42,6 +42,7 @@ public:
 private:
 	int errorTop() const override;
 
+	void sendCheckPasswordRequest();
 	void setupControls();
 	void refreshCode();
 	void checkForTokenUpdate(const MTPUpdates &updates);
