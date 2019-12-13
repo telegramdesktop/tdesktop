@@ -341,6 +341,7 @@ void QrWidget::showToken(const QByteArray &token) {
 void QrWidget::importTo(MTP::DcId dcId, const QByteArray &token) {
 	Expects(_requestId != 0);
 
+	_api.instance()->setMainDcId(dcId);
 	_requestId = _api.request(MTPauth_ImportLoginToken(
 		MTP_bytes(token)
 	)).done([=](const MTPauth_LoginToken &result) {
