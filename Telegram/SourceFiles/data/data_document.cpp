@@ -549,9 +549,7 @@ void DocumentData::setattributes(
 		}
 	}
 	validateGoodThumbnail();
-	if (isAudioFile()
-		|| (isAnimation() && !isVideoMessage())
-		|| isVoiceMessage()) {
+	if (isAudioFile() || isAnimation() || isVoiceMessage()) {
 		setMaybeSupportsStreaming(true);
 	}
 }
