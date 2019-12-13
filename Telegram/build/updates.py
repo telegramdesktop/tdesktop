@@ -46,12 +46,12 @@ outputFolder = 'updates/' + today
 archive = 'tdesktop_macOS_' + today + '.zip'
 
 if building:
-    print('Building debug version for OS X 10.8+..')
+    print('Building debug version for OS X 10.12+..')
 
     if os.path.exists('../out/Debug/' + outputFolder):
         finish(1, 'Todays updates version exists.')
 
-    result = subprocess.call('configure.sh', shell=True)
+    result = subprocess.call('./configure.sh', shell=True)
     if result != 0:
         finish(1, 'While calling GYP.')
 
