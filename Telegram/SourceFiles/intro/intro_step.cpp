@@ -359,7 +359,8 @@ int Step::contentTop() const {
 	auto result = (height() - st::introHeight) / 2;
 	accumulate_max(result, st::introStepTopMin);
 	if (_hasCover) {
-		auto added = 1. - snap(float64(height() - st::windowMinHeight) / (st::introStepHeightFull - st::windowMinHeight), 0., 1.);
+		const auto currentHeightFull = result + st::introNextTop + st::introContentTopAdd;
+		auto added = 1. - snap(float64(currentHeightFull - st::windowMinHeight) / (st::introStepHeightFull - st::windowMinHeight), 0., 1.);
 		result += qRound(added * st::introContentTopAdd);
 	}
 	return result;
@@ -409,6 +410,8 @@ void Step::prepareShowAnimated(Step *after) {
 }
 
 Step::CoverAnimation Step::prepareCoverAnimation(Step *after) {
+	Ui::SendPendingMoveResizeEvents(this);
+
 	auto result = CoverAnimation();
 	result.title = Ui::FlatLabel::CrossFade(
 		after->_title,
