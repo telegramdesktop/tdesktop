@@ -28,7 +28,7 @@ GOTO:EOF
     git clone -q --depth 1 --branch master https://github.com/telegramdesktop/dependencies_windows.git %LIB_DIR%
     cd %LIB_DIR%
 
-    git clone --depth 1 --branch 0.9.1 https://github.com/ericniebler/range-v3
+    git clone --depth 1 --branch 0.10.0 https://github.com/ericniebler/range-v3
 
     if exist prepare.bat (
         call prepare.bat

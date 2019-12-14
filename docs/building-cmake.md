@@ -56,7 +56,7 @@ Go to ***BuildPath*** and run
     cd patches
     git checkout 395b620
     cd ../
-    git clone --branch 0.9.1 https://github.com/ericniebler/range-v3
+    git clone --branch 0.10.0 https://github.com/ericniebler/range-v3
 
     git clone https://github.com/madler/zlib.git
     cd zlib

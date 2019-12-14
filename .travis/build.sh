@@ -224,7 +224,7 @@ buildRange() {
   rm -rf *
 
   cd "$EXTERNAL"
-  git clone --depth 1 --branch 0.9.1 https://github.com/ericniebler/range-v3
+  git clone --depth 1 --branch 0.10.0 https://github.com/ericniebler/range-v3
 
   cd "$EXTERNAL/range-v3"
   cp -r * "$RANGE_PATH/"
