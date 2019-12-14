@@ -411,7 +411,7 @@ void StickersBox::updateTabsGeometry() {
 
 	auto featuredLeft = width() / 3;
 	auto featuredRight = 2 * width() / 3;
-	auto featuredTextWidth = st::stickersTabs.labelFont->width(tr::lng_stickers_featured_tab(tr::now).toUpper());
+	auto featuredTextWidth = st::stickersTabs.labelStyle.font->width(tr::lng_stickers_featured_tab(tr::now).toUpper());
 	auto featuredTextRight = featuredLeft + (featuredRight - featuredLeft - featuredTextWidth) / 2 + featuredTextWidth;
 	auto unreadBadgeLeft = featuredTextRight - st::stickersFeaturedBadgeSkip;
 	auto unreadBadgeTop = st::stickersFeaturedBadgeTop;

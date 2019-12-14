@@ -185,6 +185,7 @@ void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRe
 	corners[3] = roundMask.copy(retinaRadius, retinaRadius, retinaRadius, retinaRadius);
 	auto rounded = preview.copy(inner.x() * retina, inner.y() * retina, inner.width() * retina, inner.height() * retina);
 	Images::prepareRound(rounded, corners);
+	rounded.setDevicePixelRatio(cRetinaFactor());
 	preview.fill(st::themePreviewBg->c);
 
 	auto topLeft = st::macWindowShadowTopLeft.instance(QColor(0, 0, 0), 100);

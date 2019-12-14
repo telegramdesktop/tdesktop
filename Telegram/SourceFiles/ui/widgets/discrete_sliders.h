@@ -41,11 +41,11 @@ protected:
 	int resizeGetHeight(int newWidth) override = 0;
 
 	struct Section {
-		Section(const QString &label, const style::font &font);
+		Section(const QString &label, const style::TextStyle &st);
 
-		int left, width;
-		QString label;
-		int labelWidth;
+		int left = 0;
+		int width = 0;
+		Ui::Text::String label;
 		std::unique_ptr<RippleAnimation> ripple;
 	};
 
@@ -72,7 +72,7 @@ protected:
 
 private:
 	void activateCallback();
-	virtual const style::font &getLabelFont() const = 0;
+	virtual const style::TextStyle &getLabelStyle() const = 0;
 	virtual int getAnimationDuration() const = 0;
 
 	int getIndexFromPosition(QPoint pos);
@@ -107,7 +107,7 @@ protected:
 	void startRipple(int sectionIndex) override;
 
 private:
-	const style::font &getLabelFont() const override;
+	const style::TextStyle &getLabelStyle() const override;
 	int getAnimationDuration() const override;
 	QImage prepareRippleMask(int sectionIndex, const Section &section);
 

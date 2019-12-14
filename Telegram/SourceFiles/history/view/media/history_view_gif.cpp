@@ -898,7 +898,6 @@ void Gif::playAnimation(bool autoplay) {
 		Core::App().showDocument(_data, _parent->data());
 		return;
 	}
-	using Mode = ::Media::Clip::Reader::Mode;
 	if (_streamed) {
 		stopAnimation();
 	} else if (_data->canBePlayed()) {
