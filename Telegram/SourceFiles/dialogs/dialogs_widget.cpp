@@ -331,7 +331,8 @@ void Widget::updateScrollUpVisibility() {
 	}
 
 	startScrollUpButtonAnimation(
-		_scroll->scrollTop() > st::historyToDownShownAfter);
+		(_scroll->scrollTop() > st::historyToDownShownAfter)
+		&& (_scroll->scrollTop() < _scroll->scrollTopMax()));
 }
 
 void Widget::startScrollUpButtonAnimation(bool shown) {
