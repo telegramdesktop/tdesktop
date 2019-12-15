@@ -1112,6 +1112,8 @@ PRIVATE
 
 if (${CMAKE_GENERATOR} MATCHES "(Visual Studio|Xcode|Ninja)")
     set(output_folder ${CMAKE_BINARY_DIR})
+elseif((${CMAKE_GENERATOR} MATCHES "(Unix Makefiles)") AND DESKTOP_APP_SPECIAL_TARGET STREQUAL "")
+    set(output_folder ${CMAKE_BINARY_DIR}/bin)
 else()
     set(output_folder ${CMAKE_BINARY_DIR}/$<IF:$<CONFIG:Debug>,Debug,Release>)
 endif()

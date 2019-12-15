@@ -27,6 +27,7 @@ if sys.platform == 'win32' and not 'COMSPEC' in os.environ:
 
 executePath = os.getcwd()
 scriptPath = os.path.dirname(os.path.realpath(__file__))
+scriptName = os.path.basename(scriptPath)
 
 arguments = sys.argv[1:]
 
@@ -50,5 +51,10 @@ if officialTarget != '':
                 arguments.append('-DTDESKTOP_API_ID=' + apiIdMatch.group(1))
             elif apiHashMatch:
                 arguments.append('-DTDESKTOP_API_HASH=' + apiHashMatch.group(1))
+    finish(run_cmake.run(scriptName, arguments))
 
-finish(run_cmake.run(os.path.basename(scriptPath), arguments))
+if 'linux' in sys.platform:
+    debugCode = run_cmake.run(scriptName, arguments, "Debug")
+    finish(debugCode if debugCode else run_cmake.run(scriptName, arguments, "Release"))
+else:
+    finish(run_cmake.run(scriptName, arguments))
