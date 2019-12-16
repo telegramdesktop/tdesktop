@@ -2755,7 +2755,9 @@ void OverlayWidget::paintTransformedVideoFrame(Painter &p) {
 	if (rotation) {
 		p.restore();
 	}
-	_streamed->instance.markFrameShown();
+	if (_streamed->instance.player().ready()) {
+		_streamed->instance.markFrameShown();
+	}
 	//}
 }
 

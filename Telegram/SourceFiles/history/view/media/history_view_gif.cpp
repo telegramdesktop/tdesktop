@@ -151,32 +151,6 @@ QSize Gif::countCurrentSize(int newWidth) {
 	auto newHeight = qMax(th, st::minPhotoSize);
 	accumulate_max(newWidth, _parent->infoWidth() + 2 * st::msgDateImgDelta + st::msgDateImgPadding.x());
 	if (!activeCurrentStreamed()) {
-		//const auto own = (reader->mode() == ::Media::Clip::Reader::Mode::Gif);
-		//if (own && !reader->started()) {
-		//	auto isRound = _data->isVideoMessage();
-		//	auto inWebPage = (_parent->media() != this);
-		//	auto roundRadius = isRound
-		//		? ImageRoundRadius::Ellipse
-		//		: inWebPage
-		//		? ImageRoundRadius::Small
-		//		: ImageRoundRadius::Large;
-		//	auto roundCorners = (isRound || inWebPage)
-		//		? RectPart::AllCorners
-		//		: ((isBubbleTop()
-		//			? (RectPart::TopLeft | RectPart::TopRight)
-		//			: RectPart::None)
-		//			| ((isBubbleBottom() && _caption.isEmpty())
-		//				? (RectPart::BottomLeft | RectPart::BottomRight)
-		//				: RectPart::None));
-		//	reader->start(
-		//		_thumbw,
-		//		_thumbh,
-		//		newWidth,
-		//		newHeight,
-		//		roundRadius,
-		//		roundCorners);
-		//}
-		// #TODO video
 		accumulate_max(newWidth, gifMaxStatusWidth(_data) + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	}
 	if (_parent->hasBubble()) {
@@ -307,8 +281,6 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 				displayMute = true;
 			}
 		}
-		// #TODO video
-		// paused?..
 		auto request = ::Media::Streaming::FrameRequest();
 		request.outer = QSize(usew, painth) * cIntRetinaFactor();
 		request.resize = QSize(_thumbw, _thumbh) * cIntRetinaFactor();
@@ -778,22 +750,22 @@ void Gif::updateStatusText() const {
 		statusSize = _data->loadOffset();
 	} else if (_data->loaded()) {
 		statusSize = FileStatusSizeLoaded;
-		if (const auto streamed = activeRoundStreamed()) {
-			const auto state = streamed->player().prepareLegacyState();
-			if (state.length) {
-				auto position = int64(0);
-				if (::Media::Player::IsStoppedAtEnd(state.state)) {
-					position = state.length;
-				} else if (!::Media::Player::IsStoppedOrStopping(state.state)) {
-					position = state.position;
-				}
-				statusSize = -1 - int((state.length - position) / state.frequency + 1);
-			} else {
-				statusSize = -1 - _data->getDuration();
-			}
-		}
 	} else {
 		statusSize = FileStatusSizeReady;
+	}
+	if (const auto streamed = activeRoundStreamed()) {
+		const auto state = streamed->player().prepareLegacyState();
+		if (state.length) {
+			auto position = int64(0);
+			if (::Media::Player::IsStoppedAtEnd(state.state)) {
+				position = state.length;
+			} else if (!::Media::Player::IsStoppedOrStopping(state.state)) {
+				position = state.position;
+			}
+			statusSize = -1 - int((state.length - position) / state.frequency + 1);
+		} else {
+			statusSize = -1 - _data->getDuration();
+		}
 	}
 	if (statusSize != _statusSize) {
 		setStatusSize(statusSize);
@@ -854,39 +826,6 @@ int Gif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply
 ::Media::View::PlaybackProgress *Gif::videoPlayback() const {
 	return ::Media::Player::instance()->roundVideoPlayback(_parent->data());
 }
-// #TODO video
-//void Gif::clipCallback(::Media::Clip::Notification notification) {
-//	using namespace ::Media::Clip;
-//
-//	const auto reader = _gif.get();
-//	if (!reader) {
-//		return;
-//	}
-//	switch (notification) {
-//	case NotificationReinit: {
-//		auto stopped = false;
-//		if (reader->autoPausedGif()) {
-//			auto amVisible = false;
-//			history()->owner().queryItemVisibility().notify(
-//				{ _parent->data(), &amVisible },
-//				true);
-//			if (!amVisible) { // Stop animation if it is not visible.
-//				stopAnimation();
-//				stopped = true;
-//			}
-//		}
-//		if (!stopped) {
-//			history()->owner().requestViewResize(_parent);
-//		}
-//	} break;
-//
-//	case NotificationRepaint: {
-//		if (!reader->currentDisplayed()) {
-//			history()->owner().requestViewRepaint(_parent);
-//		}
-//	} break;
-//	}
-//}
 
 void Gif::playAnimation(bool autoplay) {
 	if (_data->isVideoMessage() && !autoplay) {
