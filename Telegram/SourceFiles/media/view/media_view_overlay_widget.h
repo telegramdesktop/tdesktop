@@ -259,6 +259,7 @@ private:
 	void refreshCaptionGeometry();
 
 	void initStreaming();
+	void startStreamingPlayer();
 	void initStreamingThumbnail();
 	void streamingReady(Streaming::Information &&info);
 	void createStreamingObjects();

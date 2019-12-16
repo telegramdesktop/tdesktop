@@ -2003,6 +2003,15 @@ void OverlayWidget::initStreaming() {
 		handleStreamingError(std::move(error));
 	}, _streamed->instance.lifetime());
 
+	startStreamingPlayer();
+}
+
+void OverlayWidget::startStreamingPlayer() {
+	Expects(_streamed != nullptr);
+
+	if (!_streamed->withSound && _streamed->instance.player().playing()) {
+		return;
+	}
 	restartAtSeekPosition(0);
 }
 
@@ -2706,6 +2715,8 @@ void OverlayWidget::checkGroupThumbsAnimation() {
 }
 
 void OverlayWidget::paintTransformedVideoFrame(Painter &p) {
+	Expects(_streamed != nullptr);
+
 	const auto rect = contentRect();
 	const auto image = videoFrameForDirectPaint();
 	//if (_fullScreenVideo) {
@@ -2744,6 +2755,7 @@ void OverlayWidget::paintTransformedVideoFrame(Painter &p) {
 	if (rotation) {
 		p.restore();
 	}
+	_streamed->instance.markFrameShown();
 	//}
 }
 
