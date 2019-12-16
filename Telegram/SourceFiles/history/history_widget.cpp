@@ -2738,6 +2738,7 @@ void HistoryWidget::preloadHistoryIfNeeded() {
 	}
 
 	updateHistoryDownVisibility();
+	updateUnreadMentionsVisibility();
 	if (!_scrollToAnimation.animating()) {
 		preloadHistoryByScroll();
 		checkReplyReturns();
@@ -5402,13 +5403,24 @@ void HistoryWidget::updateUnreadMentionsVisibility() {
 	if (showUnreadMentions) {
 		session().api().preloadEnoughUnreadMentions(_history);
 	}
-	auto unreadMentionsIsVisible = [this, showUnreadMentions] {
+	const auto unreadMentionsIsShown = [&] {
 		if (!showUnreadMentions || _firstLoadRequest) {
 			return false;
 		}
-		return (_history->getUnreadMentionsLoadedCount() > 0);
-	};
-	auto unreadMentionsIsShown = unreadMentionsIsVisible();
+		if (!_history->getUnreadMentionsLoadedCount()) {
+			return false;
+		}
+		// If we have an unheard voice message with the mention
+		// and our message is the last one, we can't see the status
+		// (delivered/read) of this message.
+		// (Except for MacBooks with the TouchPad.)
+		if (_scroll->scrollTop() == _scroll->scrollTopMax()) {
+			if (const auto lastMessage = _history->lastMessage()) {
+				return !lastMessage->from()->isSelf();
+			}
+		}
+		return true;
+	}();
 	if (unreadMentionsIsShown) {
 		_unreadMentions->setUnreadCount(_history->getUnreadMentionsCount());
 	}
