@@ -436,6 +436,7 @@ void OverlayWidget::clearStreaming() {
 	_fullScreenVideo = false;
 	if (_streamed) {
 		_streamed->instance.stop();
+		_streamed->instance.unlockPlayer();
 		_streamed = nullptr;
 	}
 }
@@ -2077,6 +2078,7 @@ void OverlayWidget::createStreamingObjects() {
 		this,
 		static_cast<PlaybackControls::Delegate*>(this),
 		[=] { waitingAnimationCallback(); });
+	_streamed->instance.lockPlayer();
 	_streamed->withSound = _doc->isAudioFile()
 		|| _doc->isVideoFile()
 		|| _doc->isVoiceMessage()

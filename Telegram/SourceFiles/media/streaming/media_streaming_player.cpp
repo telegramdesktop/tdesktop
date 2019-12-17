@@ -883,6 +883,20 @@ crl::time Player::getCurrentReceivedTill(crl::time duration) const {
 		: result;
 }
 
+void Player::lock() {
+	++_locks;
+}
+
+void Player::unlock() {
+	Expects(_locks > 0);
+
+	--_locks;
+}
+
+bool Player::locked() const {
+	return (_locks > 0);
+}
+
 rpl::lifetime &Player::lifetime() {
 	return _lifetime;
 }

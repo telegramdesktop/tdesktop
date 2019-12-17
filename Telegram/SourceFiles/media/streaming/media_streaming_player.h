@@ -69,6 +69,10 @@ public:
 
 	[[nodiscard]] Media::Player::TrackState prepareLegacyState() const;
 
+	void lock();
+	void unlock();
+	[[nodiscard]] bool locked() const;
+
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 	~Player();
@@ -193,6 +197,8 @@ private:
 	std::atomic<int> _durationByPackets = 0;
 	int _durationByLastAudioPacket = 0;
 	int _durationByLastVideoPacket = 0;
+
+	int _locks = 0;
 
 	rpl::lifetime _lifetime;
 	rpl::lifetime _sessionLifetime;

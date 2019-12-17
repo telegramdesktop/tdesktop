@@ -36,6 +36,7 @@ Instance::Instance(
 
 Instance::~Instance() {
 	if (_shared) {
+		unlockPlayer();
 		_shared->unregisterInstance(this);
 	}
 }
@@ -147,7 +148,33 @@ QImage Instance::frame(const FrameRequest &request) const {
 }
 
 bool Instance::markFrameShown() {
+	Expects(_shared != nullptr);
+
 	return _shared->player().markFrameShown();
+}
+
+void Instance::lockPlayer() {
+	Expects(_shared != nullptr);
+
+	if (!_playerLocked) {
+		_playerLocked = true;
+		_shared->player().lock();
+	}
+}
+
+void Instance::unlockPlayer() {
+	Expects(_shared != nullptr);
+
+	if (_playerLocked) {
+		_playerLocked = false;
+		_shared->player().unlock();
+	}
+}
+
+bool Instance::playerLocked() const {
+	Expects(_shared != nullptr);
+
+	return _shared->player().locked();
 }
 
 rpl::lifetime &Instance::lifetime() {

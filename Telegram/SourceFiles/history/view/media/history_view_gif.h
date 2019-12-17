@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_file.h"
-#include "media/clip/media_clip_reader.h"
+#include "media/streaming/media_streaming_common.h"
 
 struct HistoryMessageVia;
 struct HistoryMessageReply;
@@ -154,6 +154,8 @@ private:
 	Ui::Text::String _caption;
 	std::unique_ptr<::Media::Streaming::Instance> _streamed;
 
+	mutable ::Media::Streaming::FrameRequest _lockedFrameRequest;
+	mutable QImage _lockedFrame;
 	QString _downloadSize;
 
 };

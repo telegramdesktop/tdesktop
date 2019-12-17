@@ -314,9 +314,18 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 		request.resize = QSize(_thumbw, _thumbh) * cIntRetinaFactor();
 		request.corners = roundCorners;
 		request.radius = roundRadius;
-		p.drawImage(rthumb, streamed->frame(request));
-		if (!paused) {
-			streamed->markFrameShown();
+		if (streamed->playerLocked() && !activeRoundPlaying) {
+			if (_lockedFrameRequest != request || _lockedFrame.isNull()) {
+				_lockedFrameRequest = request;
+				_lockedFrame = streamed->frame(request);
+			}
+			p.drawImage(rthumb, _lockedFrame);
+		} else {
+			_lockedFrame = QImage();
+			p.drawImage(rthumb, streamed->frame(request));
+			if (!paused) {
+				streamed->markFrameShown();
+			}
 		}
 
 		if (const auto playback = videoPlayback()) {

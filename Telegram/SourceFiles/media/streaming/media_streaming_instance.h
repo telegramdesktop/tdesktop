@@ -63,11 +63,16 @@ public:
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
 	bool markFrameShown();
 
+	void lockPlayer();
+	void unlockPlayer();
+	[[nodiscard]] bool playerLocked() const;
+
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	const std::shared_ptr<Document> _shared;
 	Fn<void()> _waitingCallback;
+	bool _playerLocked = false;
 	rpl::lifetime _lifetime;
 
 };
