@@ -586,6 +586,7 @@ historyGroupAboutTextSkip: 10px;
 historyGroupAboutSkip: 8px;
 
 historyVideoDownloadSize: msgFileSize;
+historyVideoMuteSize: 22px;
 historyVideoCancel: icon {{ "playlist_cancel", historyFileThumbIconFg }};
 historyVideoCancelSelected: icon {{ "playlist_cancel", historyFileThumbIconFgSelected }};
 historyVideoDownload: icon {{ "playlist_download", historyFileThumbIconFg }};

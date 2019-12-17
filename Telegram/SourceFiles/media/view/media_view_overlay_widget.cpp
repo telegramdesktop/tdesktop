@@ -434,7 +434,10 @@ bool OverlayWidget::documentBubbleShown() const {
 
 void OverlayWidget::clearStreaming() {
 	_fullScreenVideo = false;
-	_streamed = nullptr;
+	if (_streamed) {
+		_streamed->instance.stop();
+		_streamed = nullptr;
+	}
 }
 
 void OverlayWidget::documentUpdated(DocumentData *doc) {
