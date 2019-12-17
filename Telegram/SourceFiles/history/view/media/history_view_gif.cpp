@@ -23,9 +23,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/media/history_view_media_common.h"
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
 #include "ui/image/image.h"
+#include "ui/grouped_layout.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
@@ -47,21 +49,36 @@ int gifMaxStatusWidth(DocumentData *document) {
 
 Gif::Gif(
 	not_null<Element*> parent,
+	not_null<HistoryItem*> realParent,
 	not_null<DocumentData*> document)
-: File(parent, parent->data())
+: File(parent, realParent)
 , _data(document)
-, _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
-	const auto item = parent->data();
-	setDocumentLinks(_data, item);
+, _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
+, _downloadSize(formatSizeText(_data->size)) {
+	setDocumentLinks(_data, realParent);
 
 	setStatusSize(FileStatusSizeReady);
 
-	_caption = createCaption(item);
-	_data->loadThumbnail(item->fullId());
+	_caption = createCaption(realParent);
+	_data->loadThumbnail(realParent->fullId());
 }
 
 Gif::~Gif() {
 	setStreamed(nullptr);
+}
+
+QSize Gif::sizeForAspectRatio() const {
+	// We use size only for aspect ratio and we want to have it
+	// as close to the thumbnail as possible.
+	//if (!_data->dimensions.isEmpty()) {
+	//	return _data->dimensions;
+	//}
+	if (const auto thumb = _data->thumbnail()) {
+		if (!thumb->size().isEmpty()) {
+			return thumb->size();
+		}
+	}
+	return { 1, 1 };
 }
 
 QSize Gif::countOptimalSize() {
@@ -196,6 +213,13 @@ QSize Gif::videoSize() const {
 	}
 }
 
+bool Gif::downloadInCorner() const {
+	return _data->isVideoFile()
+		&& !autoplayEnabled()
+		&& _data->canBeStreamed()
+		&& !_data->inappPlaybackFailed()
+		&& IsServerMsgId(_parent->data()->id);
+}
 
 bool Gif::autoplayEnabled() const {
 	return history()->session().settings().autoplayGifs();
@@ -209,6 +233,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	//auto loaded = _data->loaded();
 	auto displayLoading = (item->id < 0) || _data->displayLoading();
 	auto selected = (selection == FullSelection);
+	const auto cornerDownload = downloadInCorner();
 	const auto canBePlayed = _data->canBePlayed();
 	const auto activeRoundPlaying = activeRoundStreamed();
 	const auto autoplay = autoplayEnabled() && canBePlayed;
@@ -404,7 +429,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 					width(),
 					fg,
 					st::msgFileRadialLine);
-			} else {
+			} else if (!cornerDownload) {
 				_animation->radial.draw(
 					p,
 					rinner,
@@ -432,6 +457,8 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 		p.drawEllipse(muteRect);
 		(selected ? st::historyVideoMessageMuteSelected : st::historyVideoMessageMute).paintInCenter(p, muteRect);
 	}
+
+	drawCornerStatus(p, selected);
 
 	if (!inWebPage && isRound) {
 		auto mediaUnread = item->hasUnreadMediaFlag();
@@ -534,6 +561,59 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	}
 }
 
+void Gif::drawCornerStatus(Painter &p, bool selected) const {
+	const auto padding = st::msgDateImgPadding;
+	const auto radial = _animation && _animation->radial.animating();
+	const auto cornerDownload = downloadInCorner() && !_data->loaded() && !_data->loadedInMediaCache();
+	const auto addWidth = cornerDownload ? (st::historyVideoDownloadSize + 2 * padding.y()) : 0;
+	const auto downloadWidth = cornerDownload ? st::normalFont->width(_downloadSize) : 0;
+	const auto statusW = std::max(downloadWidth, st::normalFont->width(_statusText)) + 2 * padding.x() + addWidth;
+	const auto statusH = cornerDownload ? (st::historyVideoDownloadSize + 2 * padding.y()) : (st::normalFont->height + 2 * padding.y());
+	const auto statusX = st::msgDateImgDelta + padding.x();
+	const auto statusY = st::msgDateImgDelta + padding.y();
+	const auto around = style::rtlrect(statusX - padding.x(), statusY - padding.y(), statusW, statusH, width());
+	const auto statusTextTop = statusY + (cornerDownload ? (((statusH - 2 * st::normalFont->height) / 3)  - padding.y()) : 0);
+	App::roundRect(p, around, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+	p.setFont(st::normalFont);
+	p.setPen(st::msgDateImgFg);
+	p.drawTextLeft(statusX + addWidth, statusTextTop, width(), _statusText, statusW - 2 * padding.x());
+	if (cornerDownload) {
+		const auto downloadTextTop = statusY + st::normalFont->height + (2 * (statusH - 2 * st::normalFont->height) / 3)  - padding.y();
+		p.drawTextLeft(statusX + addWidth, downloadTextTop, width(), _downloadSize, statusW - 2 * padding.x());
+		const auto inner = QRect(statusX + padding.y() - padding.x(), statusY, st::historyVideoDownloadSize, st::historyVideoDownloadSize);
+		const auto icon = [&]() -> const style::icon * {
+			if (_data->loading()) {
+				return &(selected ? st::historyVideoCancelSelected : st::historyVideoCancel);
+			}
+			return &(selected ? st::historyVideoDownloadSelected : st::historyVideoDownload);
+		}();
+		if (icon) {
+			icon->paintInCenter(p, inner);
+		}
+		if (radial) {
+			QRect rinner(inner.marginsRemoved(QMargins(st::historyVideoRadialLine, st::historyVideoRadialLine, st::historyVideoRadialLine, st::historyVideoRadialLine)));
+			_animation->radial.draw(p, rinner, st::historyVideoRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
+		}
+	}
+}
+
+TextState Gif::cornerStatusTextState(
+		QPoint point,
+		StateRequest request) const {
+	auto result = TextState(_parent);
+	if (!downloadInCorner() || _data->loaded()) {
+		return result;
+	}
+	const auto padding = st::msgDateImgPadding;
+	const auto addWidth = st::historyVideoDownloadSize + 2 * padding.y() - padding.x();
+	const auto statusX = st::msgDateImgDelta + padding.x(), statusY = st::msgDateImgDelta + padding.y();
+	const auto inner = QRect(statusX + padding.y() - padding.x(), statusY, st::historyVideoDownloadSize, st::historyVideoDownloadSize);
+	if (inner.contains(point)) {
+		result.link = _data->loading() ? _cancell : _savel;
+	}
+	return result;
+}
+
 TextState Gif::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
 
@@ -632,6 +712,9 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 			}
 		}
 	}
+	if (const auto state = cornerStatusTextState(point, request); state.link) {
+		return state;
+	}
 	if (QRect(usex + paintx, painty, usew, painth).contains(point)) {
 		if (_data->uploading()) {
 			result.link = _cancell;
@@ -686,6 +769,128 @@ TextForMimeData Gif::selectedText(TextSelection selection) const {
 	return _caption.toTextForMimeData(selection);
 }
 
+QSize Gif::sizeForGrouping() const {
+	return sizeForAspectRatio();
+}
+
+void Gif::drawGrouped(
+		Painter &p,
+		const QRect &clip,
+		TextSelection selection,
+		crl::time ms,
+		const QRect &geometry,
+		RectParts corners,
+		not_null<uint64*> cacheKey,
+		not_null<QPixmap*> cache) const {
+	_data->automaticLoad(_realParent->fullId(), _parent->data());
+
+	validateGroupedCache(geometry, corners, cacheKey, cache);
+
+	const auto selected = (selection == FullSelection);
+	const auto loaded = _data->loaded();
+	const auto displayLoading = _data->displayLoading();
+	const auto bubble = _parent->hasBubble();
+
+	if (displayLoading) {
+		ensureAnimation();
+		if (!_animation->radial.animating()) {
+			_animation->radial.start(_data->progress());
+		}
+	}
+	const auto radial = isRadialAnimation();
+
+	if (!bubble) {
+//		App::roundShadow(p, 0, 0, paintw, painth, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
+	}
+	p.drawPixmap(geometry.topLeft(), *cache);
+	if (selected) {
+		const auto roundRadius = ImageRoundRadius::Large;
+		App::complexOverlayRect(p, geometry, roundRadius, corners);
+	}
+
+	const auto radialOpacity = radial
+		? _animation->radial.opacity()
+		: 1.;
+	const auto backOpacity = (loaded && !_data->uploading())
+		? radialOpacity
+		: 1.;
+	const auto radialSize = st::historyGroupRadialSize;
+	const auto inner = QRect(
+		geometry.x() + (geometry.width() - radialSize) / 2,
+		geometry.y() + (geometry.height() - radialSize) / 2,
+		radialSize,
+		radialSize);
+	p.setPen(Qt::NoPen);
+	if (selected) {
+		p.setBrush(st::msgDateImgBgSelected);
+	} else if (isThumbAnimation()) {
+		auto over = _animation->a_thumbOver.value(1.);
+		p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
+	} else {
+		auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
+		p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
+	}
+
+	p.setOpacity(backOpacity * p.opacity());
+
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(inner);
+	}
+
+	auto icon = [&]() -> const style::icon * {
+		if (_data->waitingForAlbum()) {
+			return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
+		} else if (_data->loading() || _data->uploading()) {
+			return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+		} else if (!IsServerMsgId(_realParent->id)) {
+			return nullptr;
+		} else if (loaded || _data->canBePlayed()) {
+			return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
+		}
+		return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
+	}();
+	const auto previous = [&]() -> const style::icon* {
+		if (_data->waitingForAlbum()) {
+			return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+		}
+		return nullptr;
+	}();
+	p.setOpacity(backOpacity);
+	if (icon) {
+		if (previous && radialOpacity > 0. && radialOpacity < 1.) {
+			PaintInterpolatedIcon(p, *icon, *previous, radialOpacity, inner);
+		} else {
+			icon->paintInCenter(p, inner);
+		}
+	}
+	p.setOpacity(1);
+	if (radial) {
+		const auto line = st::historyGroupRadialLine;
+		const auto rinner = inner.marginsRemoved({ line, line, line, line });
+		const auto color = selected
+			? st::historyFileThumbRadialFgSelected
+			: st::historyFileThumbRadialFg;
+		_animation->radial.draw(p, rinner, line, color);
+	}
+}
+
+TextState Gif::getStateGrouped(
+		const QRect &geometry,
+		QPoint point,
+		StateRequest request) const {
+	if (!geometry.contains(point)) {
+		return {};
+	}
+	return TextState(_parent, (_data->loading() || _data->uploading())
+		? _cancell
+		: !IsServerMsgId(_realParent->id)
+		? nullptr
+		: (_data->loaded() || _data->canBePlayed())
+		? _openl
+		: _savel);
+}
+
 bool Gif::uploading() const {
 	return _data->uploading();
 }
@@ -723,6 +928,62 @@ bool Gif::isSeparateRoundVideo() const {
 	return _data->isVideoMessage()
 		&& (_parent->media() == this)
 		&& !_parent->hasBubble();
+}
+
+void Gif::validateGroupedCache(
+		const QRect &geometry,
+		RectParts corners,
+		not_null<uint64*> cacheKey,
+		not_null<QPixmap*> cache) const {
+	using Option = Images::Option;
+	const auto good = _data->goodThumbnail();
+	const auto useGood = (good && good->loaded());
+	const auto thumb = _data->thumbnail();
+	const auto useThumb = (thumb && thumb->loaded());
+	const auto image = useGood
+		? good
+		: useThumb
+		? thumb
+		: _data->thumbnailInline();
+	if (good && !useGood) {
+		good->load({});
+	}
+
+	const auto loadLevel = useGood ? 3 : useThumb ? 2 : image ? 1 : 0;
+	const auto width = geometry.width();
+	const auto height = geometry.height();
+	const auto options = Option::Smooth
+		| Option::RoundedLarge
+		| (useGood ? Option(0) : Option::Blurred)
+		| ((corners & RectPart::TopLeft) ? Option::RoundedTopLeft : Option::None)
+		| ((corners & RectPart::TopRight) ? Option::RoundedTopRight : Option::None)
+		| ((corners & RectPart::BottomLeft) ? Option::RoundedBottomLeft : Option::None)
+		| ((corners & RectPart::BottomRight) ? Option::RoundedBottomRight : Option::None);
+	const auto key = (uint64(width) << 48)
+		| (uint64(height) << 32)
+		| (uint64(options) << 16)
+		| (uint64(loadLevel));
+	if (*cacheKey == key) {
+		return;
+	}
+
+	const auto original = sizeForAspectRatio();
+	const auto originalWidth = style::ConvertScale(original.width());
+	const auto originalHeight = style::ConvertScale(original.height());
+	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
+		{ originalWidth, originalHeight },
+		{ width, height });
+	const auto pixWidth = pixSize.width() * cIntRetinaFactor();
+	const auto pixHeight = pixSize.height() * cIntRetinaFactor();
+
+	*cacheKey = key;
+	*cache = (image ? image : Image::BlankMedia().get())->pixNoCache(
+		_realParent->fullId(),
+		pixWidth,
+		pixHeight,
+		options,
+		width,
+		height);
 }
 
 void Gif::setStatusSize(int newSize) const {

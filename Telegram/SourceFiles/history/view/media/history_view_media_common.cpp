@@ -73,13 +73,8 @@ std::unique_ptr<Media> CreateAttach(
 			return std::make_unique<UnwrappedMedia>(
 				parent,
 				std::make_unique<Sticker>(parent, document));
-		} else if (document->isAnimation()) {
-			return std::make_unique<Gif>(parent, document);
-		} else if (document->isVideoFile()) {
-			return std::make_unique<Video>(
-				parent,
-				parent->data(),
-				document);
+		} else if (document->isAnimation() || document->isVideoFile()) {
+			return std::make_unique<Gif>(parent, parent->data(), document);
 		} else if (document->isWallPaper() || document->isTheme()) {
 			return std::make_unique<ThemeDocument>(
 				parent,

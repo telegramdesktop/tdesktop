@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 struct HistoryMessageVia;
 struct HistoryMessageReply;
 struct HistoryMessageForwarded;
+class Painter;
 
 namespace Media {
 namespace View {
@@ -35,6 +36,7 @@ class Gif final : public File {
 public:
 	Gif(
 		not_null<Element*> parent,
+		not_null<HistoryItem*> realParent,
 		not_null<DocumentData*> document);
 	~Gif();
 
@@ -60,6 +62,21 @@ public:
 	DocumentData *getDocument() const override {
 		return _data;
 	}
+
+	QSize sizeForGrouping() const override;
+	void drawGrouped(
+		Painter &p,
+		const QRect &clip,
+		TextSelection selection,
+		crl::time ms,
+		const QRect &geometry,
+		RectParts corners,
+		not_null<uint64*> cacheKey,
+		not_null<QPixmap*> cache) const override;
+	TextState getStateGrouped(
+		const QRect &geometry,
+		QPoint point,
+		StateRequest request) const override;
 
 	void stopAnimation() override;
 	void checkAnimation() override;
@@ -116,14 +133,28 @@ private:
 	QString mediaTypeString() const;
 	bool isSeparateRoundVideo() const;
 
+	void validateGroupedCache(
+		const QRect &geometry,
+		RectParts corners,
+		not_null<uint64*> cacheKey,
+		not_null<QPixmap*> cache) const;
+	void setStatusSize(int newSize) const;
+	void updateStatusText() const;
+	QSize sizeForAspectRatio() const;
+
+	[[nodiscard]] bool downloadInCorner() const;
+	void drawCornerStatus(Painter &p, bool selected) const;
+	[[nodiscard]] TextState cornerStatusTextState(
+		QPoint point,
+		StateRequest request) const;
+
 	not_null<DocumentData*> _data;
 	int _thumbw = 1;
 	int _thumbh = 1;
 	Ui::Text::String _caption;
 	std::unique_ptr<::Media::Streaming::Instance> _streamed;
 
-	void setStatusSize(int newSize) const;
-	void updateStatusText() const;
+	QString _downloadSize;
 
 };
 
