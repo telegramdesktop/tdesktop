@@ -41,6 +41,10 @@ Instance::~Instance() {
 	}
 }
 
+bool Instance::valid() const {
+	return (_shared != nullptr);
+}
+
 const Player &Instance::player() const {
 	Expects(_shared != nullptr);
 
@@ -75,6 +79,12 @@ void Instance::stop() {
 	Expects(_shared != nullptr);
 
 	_shared->player().stop();
+}
+
+void Instance::stopAudio() {
+	Expects(_shared != nullptr);
+
+	_shared->player().stopAudio();
 }
 
 void Instance::saveFrameToCover() {

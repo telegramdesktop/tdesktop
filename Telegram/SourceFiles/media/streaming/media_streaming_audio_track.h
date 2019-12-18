@@ -28,6 +28,9 @@ public:
 	void pause(crl::time time);
 	void resume(crl::time time);
 
+	// Allow to irreversibly stop only audio track.
+	void stop();
+
 	// Called from the main thread.
 	void setSpeed(float64 speed);
 	[[nodiscard]] rpl::producer<> waitingForData() const;

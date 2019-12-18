@@ -36,6 +36,8 @@ public:
 		Fn<void()> waitingCallback);
 	~Instance();
 
+	[[nodiscard]] bool valid() const;
+
 	[[nodiscard]] const Player &player() const;
 	[[nodiscard]] const Information &info() const;
 
@@ -43,6 +45,7 @@ public:
 	void pause();
 	void resume();
 	void stop();
+	void stopAudio();
 	void saveFrameToCover();
 
 	[[nodiscard]] bool active() const;

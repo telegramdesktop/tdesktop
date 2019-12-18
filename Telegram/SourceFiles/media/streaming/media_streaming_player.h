@@ -45,6 +45,9 @@ public:
 	void resume();
 	void stop();
 
+	// Allow to irreversibly stop only audio track.
+	void stopAudio();
+
 	[[nodiscard]] bool active() const;
 	[[nodiscard]] bool ready() const;
 

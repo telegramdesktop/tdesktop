@@ -578,6 +578,15 @@ void Player::stop() {
 	stop(false);
 }
 
+void Player::stopAudio() {
+	if (!_video) {
+		stop();
+	} else if (_audio) {
+		_audioFinished = true;
+		_audio->stop();
+	}
+}
+
 void Player::updatePausedState() {
 	const auto paused = _pausedByUser || _pausedByWaitingForData;
 	if (_paused == paused) {
@@ -666,7 +675,7 @@ void Player::start() {
 		_updates.fire({ WaitingForData{ true } });
 	}, _sessionLifetime);
 
-	if (guard && _audio) {
+	if (guard && _audio && !_audioFinished) {
 		_audio->playPosition(
 		) | rpl::start_with_next_done([=](crl::time position) {
 			audioPlayedTill(position);
@@ -701,7 +710,13 @@ void Player::start() {
 		}, _sessionLifetime);
 	}
 	if (guard && _audio) {
-		trackSendReceivedTill(*_audio, _information.audio.state);
+		if (_audioFinished) {
+			if (!_video || _videoFinished) {
+				_updates.fire({ Finished() });
+			}
+		} else {
+			trackSendReceivedTill(*_audio, _information.audio.state);
+		}
 	}
 	if (guard && _video) {
 		trackSendReceivedTill(*_video, _information.video.state);

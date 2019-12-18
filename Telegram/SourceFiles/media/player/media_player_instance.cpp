@@ -394,6 +394,7 @@ void Instance::playStreamed(
 	data->streamed = std::make_unique<Streamed>(
 		audioId,
 		std::move(shared));
+	data->streamed->instance.lockPlayer();
 
 	data->streamed->instance.player().updates(
 	) | rpl::start_with_next_error([=](Streaming::Update &&update) {

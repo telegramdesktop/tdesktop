@@ -171,6 +171,14 @@ void AudioTrack::resume(crl::time time) {
 	Media::Player::mixer()->resume(_audioId, true);
 }
 
+void AudioTrack::stop() {
+	Expects(initialized());
+
+	if (_audioId.externalPlayId()) {
+		Media::Player::mixer()->stop(_audioId);
+	}
+}
+
 void AudioTrack::setSpeed(float64 speed) {
 	_options.speed = speed;
 	Media::Player::mixer()->setSpeedFromExternal(_audioId, speed);
@@ -228,9 +236,7 @@ rpl::producer<crl::time> AudioTrack::playPosition() {
 }
 
 AudioTrack::~AudioTrack() {
-	if (_audioId.externalPlayId()) {
-		Media::Player::mixer()->stop(_audioId);
-	}
+	stop();
 }
 
 } // namespace Streaming
