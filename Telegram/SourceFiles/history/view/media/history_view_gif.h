@@ -102,6 +102,8 @@ public:
 	}
 
 private:
+	struct Streamed;
+
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
 	bool dataLoaded() const override;
@@ -113,16 +115,17 @@ private:
 	QSize countCurrentSize(int newWidth) override;
 	QSize videoSize() const;
 	::Media::Streaming::Instance *activeRoundStreamed() const;
-	::Media::Streaming::Instance *activeOwnStreamed() const;
+	Streamed *activeOwnStreamed() const;
 	::Media::Streaming::Instance *activeCurrentStreamed() const;
 	::Media::View::PlaybackProgress *videoPlayback() const;
 
 	void createStreamedPlayer();
 	void startStreamedPlayer() const;
-	void setStreamed(std::unique_ptr<::Media::Streaming::Instance> value);
+	void setStreamed(std::unique_ptr<Streamed> value);
 	void handleStreamingUpdate(::Media::Streaming::Update &&update);
 	void handleStreamingError(::Media::Streaming::Error &&error);
 	void streamingReady(::Media::Streaming::Information &&info);
+	void repaintStreamedContent();
 
 	bool needInfoDisplay() const;
 	int additionalWidth(
@@ -152,10 +155,8 @@ private:
 	int _thumbw = 1;
 	int _thumbh = 1;
 	Ui::Text::String _caption;
-	std::unique_ptr<::Media::Streaming::Instance> _streamed;
+	std::unique_ptr<Streamed> _streamed;
 
-	mutable ::Media::Streaming::FrameRequest _lockedFrameRequest;
-	mutable QImage _lockedFrame;
 	QString _downloadSize;
 
 };
