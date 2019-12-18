@@ -252,10 +252,8 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	const auto autoPaused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 	const auto cornerDownload = downloadInCorner();
 	const auto canBePlayed = _data->canBePlayed();
-	const auto activeRoundPlaying = activeRoundStreamed();
-	const auto activeOwnPlaying = activeOwnStreamed();
 	const auto autoplay = autoplayEnabled() && canBePlayed;
-	const auto streamingMode = _streamed || activeRoundPlaying || autoplay;
+	const auto activeRoundPlaying = activeRoundStreamed();
 	const auto startPlayAsync = autoplay
 		&& !_streamed
 		&& !activeRoundPlaying;
@@ -268,6 +266,8 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 		&& !_streamed->instance.failed()) {
 		startStreamedPlayer();
 	}
+	const auto streamingMode = _streamed || activeRoundPlaying || autoplay;
+	const auto activeOwnPlaying = activeOwnStreamed();
 
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	bool bubble = _parent->hasBubble();
@@ -1244,6 +1244,10 @@ void Gif::handleStreamingError(::Media::Streaming::Error &&error) {
 void Gif::repaintStreamedContent() {
 	const auto own = activeOwnStreamed();
 	if (own && !own->frozenFrame.isNull()) {
+		return;
+	}
+	if (App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any)
+		&& !activeRoundStreamed()) {
 		return;
 	}
 	history()->owner().requestViewRepaint(_parent);
