@@ -139,7 +139,7 @@ private:
 
 	};
 
-	static void PrepareFrameByRequests(not_null<Frame*> frame);
+	static void PrepareFrameByRequests(not_null<Frame*> frame, int rotation);
 	[[nodiscard]] static bool IsDecoded(not_null<const Frame*> frame);
 	[[nodiscard]] static bool IsRasterized(not_null<const Frame*> frame);
 	[[nodiscard]] static bool IsStale(
@@ -149,7 +149,7 @@ private:
 	const int _streamIndex = 0;
 	const AVRational _streamTimeBase;
 	const crl::time _streamDuration = 0;
-	//const int _streamRotation = 0;
+	const int _streamRotation = 0;
 	//AVRational _streamAspect = kNormalAspect;
 	std::unique_ptr<Shared> _shared;
 

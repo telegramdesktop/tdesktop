@@ -351,7 +351,7 @@ void VideoTrackObject::presentFrameIfNeeded() {
 			return;
 		}
 
-		VideoTrack::PrepareFrameByRequests(frame);
+		VideoTrack::PrepareFrameByRequests(frame, _stream.rotation);
 
 		Ensures(VideoTrack::IsRasterized(frame));
 	};
@@ -855,7 +855,7 @@ VideoTrack::VideoTrack(
 : _streamIndex(stream.index)
 , _streamTimeBase(stream.timeBase)
 , _streamDuration(stream.duration)
-//, _streamRotation(stream.rotation)
+, _streamRotation(stream.rotation)
 //, _streamAspect(stream.aspect)
 , _shared(std::make_unique<Shared>())
 , _wrapped(
@@ -955,7 +955,7 @@ QImage VideoTrack::frame(
 			unwrapped.updateFrameRequest(instance, request);
 		});
 	}
-	if (GoodForRequest(frame->original, useRequest)) {
+	if (GoodForRequest(frame->original, _streamRotation, useRequest)) {
 		return frame->original;
 	} else if (changed || none || i->second.image.isNull()) {
 		const auto j = none
@@ -975,6 +975,7 @@ QImage VideoTrack::frame(
 		}
 		j->second.image = PrepareByRequest(
 			frame->original,
+			_streamRotation,
 			useRequest,
 			std::move(j->second.image));
 		return j->second.image;
@@ -988,14 +989,16 @@ void VideoTrack::unregisterInstance(not_null<const Instance*> instance) {
 	});
 }
 
-void VideoTrack::PrepareFrameByRequests(not_null<Frame*> frame) {
+void VideoTrack::PrepareFrameByRequests(
+		not_null<Frame*> frame,
+		int rotation) {
 	Expects(!frame->original.isNull());
 
 	const auto begin = frame->prepared.begin();
 	const auto end = frame->prepared.end();
 	for (auto i = begin; i != end; ++i) {
 		auto &prepared = i->second;
-		if (!GoodForRequest(frame->original, prepared.request)) {
+		if (!GoodForRequest(frame->original, rotation, prepared.request)) {
 			auto j = begin;
 			for (; j != i; ++j) {
 				if (j->second.request == prepared.request) {
@@ -1006,6 +1009,7 @@ void VideoTrack::PrepareFrameByRequests(not_null<Frame*> frame) {
 			if (j == i) {
 				prepared.image = PrepareByRequest(
 					frame->original,
+					rotation,
 					prepared.request,
 					std::move(prepared.image));
 			}
