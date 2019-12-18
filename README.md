@@ -22,10 +22,9 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 ## Third-party
 
-* Qt 5.3.2 and 5.6.2, slightly patched ([LGPL](http://doc.qt.io/qt-5/lgpl.html))
-* OpenSSL 1.0.1g ([OpenSSL License](https://www.openssl.org/source/license.html))
-* zlib 1.2.8 ([zlib License](http://www.zlib.net/zlib_license.html))
-* libexif 0.6.20 ([LGPL](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html))
+* Qt 5.12.5 and 5.6.2, slightly patched ([LGPL](http://doc.qt.io/qt-5/lgpl.html))
+* OpenSSL 1.1.1 ([OpenSSL License](https://www.openssl.org/source/license.html))
+* zlib 1.2.11 ([zlib License](http://www.zlib.net/zlib_license.html))
 * LZMA SDK 9.20 ([public domain](http://www.7-zip.org/sdk.html))
 * liblzma ([public domain](http://tukaani.org/xz/))
 * Google Breakpad ([License](https://chromium.googlesource.com/breakpad/breakpad/+/master/LICENSE))
@@ -43,6 +42,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * Catch test framework ([Boost License](https://github.com/philsquared/Catch/blob/master/LICENSE.txt))
 * xxHash ([BSD License](https://github.com/Cyan4973/xxHash/blob/dev/LICENSE))
 * QR Code generator ([MIT License](https://github.com/nayuki/QR-Code-generator#license))
+* CMake ([New BSD License](https://github.com/Kitware/CMake/blob/master/Copyright.txt))
 
 ## Build instructions
 
