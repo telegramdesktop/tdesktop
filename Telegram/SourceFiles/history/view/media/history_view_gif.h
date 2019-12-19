@@ -120,6 +120,7 @@ private:
 	::Media::View::PlaybackProgress *videoPlayback() const;
 
 	void createStreamedPlayer();
+	void checkStreamedIsStarted() const;
 	void startStreamedPlayer() const;
 	void setStreamed(std::unique_ptr<Streamed> value);
 	void handleStreamingUpdate(::Media::Streaming::Update &&update);

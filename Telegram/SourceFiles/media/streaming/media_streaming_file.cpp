@@ -27,6 +27,8 @@ File::Context::Context(
 , _size(reader->size()) {
 }
 
+File::Context::~Context() = default;
+
 int File::Context::Read(void *opaque, uint8_t *buffer, int bufferSize) {
 	return static_cast<Context*>(opaque)->read(
 		bytes::make_span(buffer, bufferSize));
@@ -344,10 +346,16 @@ void File::Context::fail(Error error) {
 	_delegate->fileError(error);
 }
 
-File::Context::~Context() = default;
-
 bool File::Context::finished() const {
 	return unroll() || _readTillEnd;
+}
+
+void File::Context::waitTillInterrupted() {
+	while (!interrupted()) {
+		_reader->startSleep(&_semaphore);
+		_semaphore.acquire();
+	}
+	_reader->stopSleep();
 }
 
 File::File(
@@ -366,6 +374,7 @@ void File::start(not_null<FileDelegate*> delegate, crl::time position) {
 		while (!context->finished()) {
 			context->readNextPacket();
 		}
+		context->waitTillInterrupted();
 	});
 }
 

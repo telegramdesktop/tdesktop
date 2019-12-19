@@ -261,10 +261,8 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 		if (!autoPaused) {
 			_parent->delegate()->elementAnimationAutoplayAsync(_parent);
 		}
-	} else if (_streamed
-		&& !_streamed->instance.active()
-		&& !_streamed->instance.failed()) {
-		startStreamedPlayer();
+	} else {
+		checkStreamedIsStarted();
 	}
 	const auto streamingMode = _streamed || activeRoundPlaying || autoplay;
 	const auto activeOwnPlaying = activeOwnStreamed();
@@ -1202,6 +1200,17 @@ void Gif::startStreamedPlayer() const {
 	options.loop = true;
 	//}
 	_streamed->instance.play(options);
+}
+
+void Gif::checkStreamedIsStarted() const {
+	if (!_streamed) {
+		return;
+	} else if (_streamed->instance.paused()) {
+		_streamed->instance.resume();
+	}
+	if (!_streamed->instance.active() && !_streamed->instance.failed()) {
+		startStreamedPlayer();
+	}
 }
 
 void Gif::setStreamed(std::unique_ptr<Streamed> value) {

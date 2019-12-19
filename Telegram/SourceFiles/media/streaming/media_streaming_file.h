@@ -44,6 +44,7 @@ private:
 	class Context final : public base::has_weak_ptr {
 	public:
 		Context(not_null<FileDelegate*> delegate, not_null<Reader*> reader);
+		~Context();
 
 		void start(crl::time position);
 		void readNextPacket();
@@ -54,7 +55,7 @@ private:
 		[[nodiscard]] bool failed() const;
 		[[nodiscard]] bool finished() const;
 
-		~Context();
+		void waitTillInterrupted();
 
 	private:
 		static int Read(void *opaque, uint8_t *buffer, int bufferSize);
