@@ -467,6 +467,11 @@ void Player::provideStartInformation() {
 	} else {
 		_stage = Stage::Ready;
 
+		if (_audio && _audioFinished) {
+			// Audio was stopped before it was ready.
+			_audio->stop();
+		}
+
 		// Don't keep the reference to the video cover.
 		auto copy = _information;
 		_information.video.cover = QImage();
@@ -583,7 +588,10 @@ void Player::stopAudio() {
 		stop();
 	} else if (_audio) {
 		_audioFinished = true;
-		_audio->stop();
+		if (_information.audio.state.duration != kTimeUnknown) {
+			// Audio is ready.
+			_audio->stop();
+		}
 	}
 }
 
@@ -803,6 +811,15 @@ void Player::setSpeed(float64 speed) {
 	}
 }
 
+void Player::setWaitForMarkAsShown(bool wait) {
+	if (_options.waitForMarkAsShown != wait) {
+		_options.waitForMarkAsShown = wait;
+		if (_video) {
+			_video->setWaitForMarkAsShown(wait);
+		}
+	}
+}
+
 bool Player::active() const {
 	return (_stage != Stage::Uninitialized) && !finished() && !failed();
 }
@@ -906,6 +923,10 @@ void Player::unlock() {
 	Expects(_locks > 0);
 
 	--_locks;
+	if (!_locks) {
+		stopAudio();
+		setWaitForMarkAsShown(true);
+	}
 }
 
 bool Player::locked() const {

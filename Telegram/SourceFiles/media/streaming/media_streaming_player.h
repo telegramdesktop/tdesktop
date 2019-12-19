@@ -53,6 +53,7 @@ public:
 
 	[[nodiscard]] float64 speed() const;
 	void setSpeed(float64 speed); // 0.5 <= speed <= 2.
+	void setWaitForMarkAsShown(bool wait);
 
 	[[nodiscard]] bool playing() const;
 	[[nodiscard]] bool buffering() const;

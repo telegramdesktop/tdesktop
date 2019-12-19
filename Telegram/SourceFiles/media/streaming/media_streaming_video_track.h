@@ -47,6 +47,7 @@ public:
 
 	// Called from the main thread.
 	void setSpeed(float64 speed);
+	void setWaitForMarkAsShown(bool wait);
 
 	// Called from the main thread.
 	// Returns the position of the displayed frame.

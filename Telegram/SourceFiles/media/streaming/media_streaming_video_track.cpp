@@ -42,6 +42,7 @@ public:
 	void pause(crl::time time);
 	void resume(crl::time time);
 	void setSpeed(float64 speed);
+	void setWaitForMarkAsShown(bool wait);
 	void interrupt();
 	void frameShown();
 	void addTimelineDelay(crl::time delayed);
@@ -415,6 +416,13 @@ void VideoTrackObject::setSpeed(float64 speed) {
 		_syncTimePoint = trackTime();
 	}
 	_options.speed = speed;
+}
+
+void VideoTrackObject::setWaitForMarkAsShown(bool wait) {
+	if (interrupted()) {
+		return;
+	}
+	_options.waitForMarkAsShown = wait;
 }
 
 bool VideoTrackObject::interrupted() const {
@@ -905,6 +913,12 @@ void VideoTrack::resume(crl::time time) {
 void VideoTrack::setSpeed(float64 speed) {
 	_wrapped.with([=](Implementation &unwrapped) {
 		unwrapped.setSpeed(speed);
+	});
+}
+
+void VideoTrack::setWaitForMarkAsShown(bool wait) {
+	_wrapped.with([=](Implementation &unwrapped) {
+		unwrapped.setWaitForMarkAsShown(wait);
 	});
 }
 

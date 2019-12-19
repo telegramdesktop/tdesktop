@@ -231,7 +231,7 @@ QSize Gif::videoSize() const {
 
 bool Gif::downloadInCorner() const {
 	return _data->isVideoFile()
-		&& !autoplayEnabled()
+		&& (_data->loading() || !autoplayEnabled())
 		&& _data->canBeStreamed()
 		&& !_data->inappPlaybackFailed()
 		&& IsServerMsgId(_parent->data()->id);
@@ -284,7 +284,10 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 		? &activeOwnPlaying->instance
 		: nullptr;
 
-	if ((!streamed || item->isSending()) && displayLoading) {
+	if (displayLoading
+		&& (!streamed
+			|| item->isSending()
+			|| (cornerDownload && _data->loading()))) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
 			_animation->radial.start(dataProgress());
@@ -416,9 +419,11 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 		|| (!streamingMode
 			&& ((!_data->loaded() && !_data->loading())
 				|| !autoplayEnabled()))) {
-		const auto radialOpacity = streamed
+		const auto radialOpacity = item->isSending()
+			? 1.
+			: streamed
 			? streamed->waitingOpacity()
-			: (radial && _data->loaded() && !item->isSending())
+			: (radial && _data->loaded())
 			? _animation->radial.opacity()
 			: 1.;
 		auto inner = QRect(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
@@ -441,12 +446,12 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 
 		p.setOpacity(radialOpacity);
 		const auto icon = [&]() -> const style::icon * {
-			if (streamingMode) {
+			if (streamingMode && !_data->uploading()) {
 				return nullptr;
-			} else if ((_data->loaded() || canBePlayed) && !radial) {
+			} else if ((_data->loaded() || canBePlayed) && (!radial || cornerDownload)) {
 				return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 			} else if (radial || _data->loading()) {
-				if (item->id > 0 || _data->uploading()) {
+				if (!item->isSending() || _data->uploading()) {
 					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 				}
 				return nullptr;
@@ -462,7 +467,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 			const auto fg = selected
 				? st::historyFileThumbRadialFgSelected
 				: st::historyFileThumbRadialFg;
-			if (streamed) {
+			if (streamed && !_data->uploading()) {
 				Ui::InfiniteRadialAnimation::Draw(
 					p,
 					streamed->waitingState(),
@@ -478,17 +483,6 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 					st::msgFileRadialLine,
 					fg);
 			}
-		}
-
-		if (!isRound && (!streamingMode || item->isSending())) {
-			auto statusX = paintx + st::msgDateImgDelta + st::msgDateImgPadding.x();
-			auto statusY = painty + st::msgDateImgDelta + st::msgDateImgPadding.y();
-			auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
-			auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
-			App::roundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
-			p.setFont(st::normalFont);
-			p.setPen(st::msgDateImgFg);
-			p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
 		}
 	}
 	if (displayMute) {
@@ -615,8 +609,8 @@ void Gif::drawCornerStatus(Painter &p, bool selected) const {
 		: _statusText;
 	const auto padding = st::msgDateImgPadding;
 	const auto radial = _animation && _animation->radial.animating();
-	const auto cornerMute = _streamed && _data->isVideoFile();
 	const auto cornerDownload = downloadInCorner() && !_data->loaded() && !_data->loadedInMediaCache();
+	const auto cornerMute = _streamed && _data->isVideoFile() && !cornerDownload;
 	const auto addLeft = cornerDownload ? (st::historyVideoDownloadSize + 2 * padding.y()) : 0;
 	const auto addRight = cornerMute ? st::historyVideoMuteSize : 0;
 	const auto downloadWidth = cornerDownload ? st::normalFont->width(_downloadSize) : 0;
@@ -1067,7 +1061,7 @@ void Gif::updateStatusText() const {
 		statusSize = FileStatusSizeFailed;
 	} else if (_data->uploading()) {
 		statusSize = _data->uploadingData->offset;
-	} else if (_data->loading()) {
+	} else if (!downloadInCorner() && _data->loading()) {
 		statusSize = _data->loadOffset();
 	} else if (_data->loaded() || _data->canBePlayed()) {
 		statusSize = FileStatusSizeLoaded;
