@@ -29,9 +29,10 @@ public:
 
 	// Return true if reading and processing more packets is desired.
 	// Return false if sleeping until 'wake()' is called is desired.
-	// Return true after the EOF packet if looping is desired.
-	[[nodiscard]] virtual bool fileProcessPacket(
-		FFmpeg::Packet &&packet) = 0;
+	[[nodiscard]] virtual bool fileProcessPackets(
+		base::flat_map<int, std::vector<FFmpeg::Packet>> &packets) = 0;
+	// Return true if looping is desired.
+	[[nodiscard]] virtual bool fileProcessEndOfFile() = 0;
 	[[nodiscard]] virtual bool fileReadMore() = 0;
 };
 

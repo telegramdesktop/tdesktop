@@ -490,9 +490,10 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 		if (res == AVERROR_EOF) {
 			if (_audioStreamId >= 0) {
 				// queue terminating packet to audio player
+				auto empty = FFmpeg::Packet();
 				Player::mixer()->feedFromExternal({
 					_audioMsgId,
-					FFmpeg::Packet()
+					gsl::make_span(&empty, 1)
 				});
 			}
 			return PacketResult::EndOfFile;
@@ -519,7 +520,7 @@ void FFMpegReaderImplementation::processPacket(FFmpeg::Packet &&packet) {
 			// queue packet to audio player
 			Player::mixer()->feedFromExternal({
 				_audioMsgId,
-				std::move(packet)
+				gsl::make_span(&packet, 1)
 			});
 		}
 	}

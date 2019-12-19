@@ -58,6 +58,10 @@ private:
 		void waitTillInterrupted();
 
 	private:
+		enum class SleepPolicy {
+			Allowed,
+			Disallowed,
+		};
 		static int Read(void *opaque, uint8_t *buffer, int bufferSize);
 		static int64_t Seek(void *opaque, int64_t offset, int whence);
 
@@ -82,6 +86,7 @@ private:
 		// TODO base::expected.
 		[[nodiscard]] auto readPacket()
 		-> base::variant<FFmpeg::Packet, FFmpeg::AvErrorWrap>;
+		void processQueuedPackets(SleepPolicy policy);
 
 		void handleEndOfFile();
 		void sendFullInCache(bool force = false);
@@ -89,6 +94,7 @@ private:
 		const not_null<FileDelegate*> _delegate;
 		const not_null<Reader*> _reader;
 
+		base::flat_map<int, std::vector<FFmpeg::Packet>> _queuedPackets;
 		int _offset = 0;
 		int _size = 0;
 		bool _failed = false;

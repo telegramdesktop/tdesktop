@@ -47,14 +47,21 @@ crl::time AudioTrack::streamDuration() const {
 	return _stream.duration;
 }
 
-void AudioTrack::process(FFmpeg::Packet &&packet) {
-	if (packet.empty()) {
+void AudioTrack::process(std::vector<FFmpeg::Packet> &&packets) {
+	if (packets.empty()) {
+		return;
+	} else if (packets.front().empty()) {
+		Assert(packets.size() == 1);
 		_readTillEnd = true;
 	}
-	if (initialized()) {
-		mixerEnqueue(std::move(packet));
-	} else if (!tryReadFirstFrame(std::move(packet))) {
-		_error(Error::InvalidData);
+	for (auto i = begin(packets), e = end(packets); i != e; ++i) {
+		if (initialized()) {
+			mixerEnqueue(gsl::make_span(&*i, (e - i)));
+			break;
+		} else if (!tryReadFirstFrame(std::move(*i))) {
+			_error(Error::InvalidData);
+			break;
+		}
 	}
 }
 
@@ -148,10 +155,10 @@ void AudioTrack::callReady() {
 	base::take(_ready)({ VideoInformation(), data });
 }
 
-void AudioTrack::mixerEnqueue(FFmpeg::Packet &&packet) {
+void AudioTrack::mixerEnqueue(gsl::span<FFmpeg::Packet> packets) {
 	Media::Player::mixer()->feedFromExternal({
 		_audioId,
-		std::move(packet)
+		packets
 	});
 }
 
@@ -172,8 +179,6 @@ void AudioTrack::resume(crl::time time) {
 }
 
 void AudioTrack::stop() {
-	Expects(initialized());
-
 	if (_audioId.externalPlayId()) {
 		Media::Player::mixer()->stop(_audioId);
 	}

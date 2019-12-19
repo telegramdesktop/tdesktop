@@ -22,7 +22,7 @@ struct ExternalSoundData {
 
 struct ExternalSoundPart {
 	AudioMsgId audio;
-	FFmpeg::Packet packet;
+	gsl::span<FFmpeg::Packet> packets;
 };
 
 class ChildFFMpegLoader : public AbstractAudioFFMpegLoader {

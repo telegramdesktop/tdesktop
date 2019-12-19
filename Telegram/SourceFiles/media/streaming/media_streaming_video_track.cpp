@@ -34,7 +34,7 @@ public:
 		FnMut<void(const Information &)> ready,
 		Fn<void(Error)> error);
 
-	void process(FFmpeg::Packet &&packet);
+	void process(std::vector<FFmpeg::Packet> &&packets);
 
 	[[nodisacrd]] rpl::producer<> checkNextFrame() const;
 	[[nodisacrd]] rpl::producer<> waitingForData() const;
@@ -149,25 +149,42 @@ rpl::producer<> VideoTrackObject::waitingForData() const {
 		: _waitingForData.events();
 }
 
-void VideoTrackObject::process(FFmpeg::Packet &&packet) {
-	if (interrupted()) {
+void VideoTrackObject::process(std::vector<FFmpeg::Packet> &&packets) {
+	if (interrupted() || packets.empty()) {
 		return;
 	}
-	if (packet.empty()) {
+	if (packets.front().empty()) {
+		Assert(packets.size() == 1);
 		_readTillEnd = true;
 	} else if (!_readTillEnd) {
+		//for (const auto &packet : packets) {
+		//	// Maybe it is enough to count by list.back()?.. hope so.
+		//	accumulate_max(
+		//		_durationByLastPacket,
+		//		durationByPacket(packet));
+		//	if (interrupted()) {
+		//		return;
+		//	}
+		//}
 		accumulate_max(
 			_durationByLastPacket,
-			durationByPacket(packet));
+			durationByPacket(packets.back()));
 		if (interrupted()) {
 			return;
 		}
 	}
-	if (_shared->initialized()) {
-		_stream.queue.push_back(std::move(packet));
-		queueReadFrames();
-	} else if (!tryReadFirstFrame(std::move(packet))) {
-		fail(Error::InvalidData);
+	for (auto i = begin(packets), e = end(packets); i != e; ++i) {
+		if (_shared->initialized()) {
+			_stream.queue.insert(
+				end(_stream.queue),
+				std::make_move_iterator(i),
+				std::make_move_iterator(e));
+			queueReadFrames();
+			break;
+		} else if (!tryReadFirstFrame(std::move(*i))) {
+			fail(Error::InvalidData);
+			break;
+		}
 	}
 }
 
@@ -547,6 +564,7 @@ void VideoTrackObject::callReady() {
 		? _stream.duration
 		: _syncTimePoint.trackTime;
 	base::take(_ready)({ data });
+	LOG(("READY CALLED!"));
 }
 
 TimePoint VideoTrackObject::trackTime() const {
@@ -887,11 +905,12 @@ crl::time VideoTrack::streamDuration() const {
 	return _streamDuration;
 }
 
-void VideoTrack::process(FFmpeg::Packet &&packet) {
+void VideoTrack::process(std::vector<FFmpeg::Packet> &&packets) {
+	LOG(("PACKETS! (%1)").arg(packets.size()));
 	_wrapped.with([
-		packet = std::move(packet)
+		packets = std::move(packets)
 	](Implementation &unwrapped) mutable {
-		unwrapped.process(std::move(packet));
+		unwrapped.process(std::move(packets));
 	});
 }
 

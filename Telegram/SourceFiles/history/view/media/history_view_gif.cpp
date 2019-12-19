@@ -1188,7 +1188,7 @@ void Gif::createStreamedPlayer() {
 	if (_streamed->instance.ready()) {
 		streamingReady(base::duplicate(_streamed->instance.info()));
 	}
-	startStreamedPlayer();
+	checkStreamedIsStarted();
 }
 
 void Gif::startStreamedPlayer() const {

@@ -343,54 +343,82 @@ void Player::fileWaitingForData() {
 	}
 }
 
-bool Player::fileProcessPacket(FFmpeg::Packet &&packet) {
+bool Player::fileProcessPackets(
+		base::flat_map<int, std::vector<FFmpeg::Packet>> &packets) {
 	_waitingForData = false;
-
-	const auto &native = packet.fields();
-	const auto index = native.stream_index;
-	if (packet.empty()) {
-		_readTillEnd = true;
-		setDurationByPackets();
-		if (_audio) {
-			const auto till = _loopingShift + computeAudioDuration();
+	auto audioTill = kTimeUnknown;
+	auto videoTill = kTimeUnknown;
+	for (auto &[index, list] : packets) {
+		if (list.empty()) {
+			continue;
+		}
+		if (_audio && _audio->streamIndex() == index) {
+			//for (const auto &packet : list) {
+			//	// Maybe it is enough to count by list.back()?.. hope so.
+			//	accumulate_max(
+			//		_durationByLastAudioPacket,
+			//		durationByPacket(*_audio, packet));
+			//}
+			accumulate_max(
+				_durationByLastAudioPacket,
+				durationByPacket(*_audio, list.back()));
+			const auto till = _loopingShift + std::clamp(
+				FFmpeg::PacketPosition(
+					list.back(),
+					_audio->streamTimeBase()),
+				crl::time(0),
+				computeAudioDuration() - 1);
 			crl::on_main(&_sessionGuard, [=] {
 				audioReceivedTill(till);
 			});
-			_audio->process(FFmpeg::Packet());
-		}
-		if (_video) {
-			const auto till = _loopingShift + computeVideoDuration();
+			_audio->process(base::take(list));
+		} else if (_video && _video->streamIndex() == index) {
+			//for (const auto &packet : list) {
+			//	// Maybe it is enough to count by list.back()?.. hope so.
+			//	accumulate_max(
+			//		_durationByLastVideoPacket,
+			//		durationByPacket(*_video, packet));
+			//}
+			accumulate_max(
+				_durationByLastVideoPacket,
+				durationByPacket(*_video, list.back()));
+			const auto till = _loopingShift + std::clamp(
+				FFmpeg::PacketPosition(
+					list.back(),
+					_video->streamTimeBase()),
+				crl::time(0),
+				computeVideoDuration() - 1);
 			crl::on_main(&_sessionGuard, [=] {
 				videoReceivedTill(till);
 			});
-			_video->process(FFmpeg::Packet());
+			_video->process(base::take(list));
 		}
-	} else if (_audio && _audio->streamIndex() == native.stream_index) {
-		accumulate_max(
-			_durationByLastAudioPacket,
-			durationByPacket(*_audio, packet));
+	}
+	return fileReadMore();
+}
 
-		const auto till = _loopingShift + std::clamp(
-			FFmpeg::PacketPosition(packet, _audio->streamTimeBase()),
-			crl::time(0),
-			computeAudioDuration() - 1);
+bool Player::fileProcessEndOfFile() {
+	_waitingForData = false;
+	_readTillEnd = true;
+	setDurationByPackets();
+	const auto generateEmptyQueue = [] {
+		auto result = std::vector<FFmpeg::Packet>();
+		result.emplace_back();
+		return result;
+	};
+	if (_audio) {
+		const auto till = _loopingShift + computeAudioDuration();
 		crl::on_main(&_sessionGuard, [=] {
 			audioReceivedTill(till);
 		});
-		_audio->process(std::move(packet));
-	} else if (_video && _video->streamIndex() == native.stream_index) {
-		accumulate_max(
-			_durationByLastVideoPacket,
-			durationByPacket(*_video, packet));
-
-		const auto till = _loopingShift + std::clamp(
-			FFmpeg::PacketPosition(packet, _video->streamTimeBase()),
-			crl::time(0),
-			computeVideoDuration() - 1);
+		_audio->process(generateEmptyQueue());
+	}
+	if (_video) {
+		const auto till = _loopingShift + computeVideoDuration();
 		crl::on_main(&_sessionGuard, [=] {
 			videoReceivedTill(till);
 		});
-		_video->process(std::move(packet));
+		_video->process(generateEmptyQueue());
 	}
 	return fileReadMore();
 }

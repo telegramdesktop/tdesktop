@@ -37,7 +37,7 @@ public:
 	[[nodiscard]] crl::time streamDuration() const;
 
 	// Called from the same unspecified thread.
-	void process(FFmpeg::Packet &&packet);
+	void process(std::vector<FFmpeg::Packet> &&packets);
 	void waitForData();
 
 	// Called from the main thread.

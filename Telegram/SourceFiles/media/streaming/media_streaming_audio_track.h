@@ -46,7 +46,7 @@ public:
 	[[nodiscard]] crl::time streamDuration() const;
 
 	// Called from the same unspecified thread.
-	void process(FFmpeg::Packet &&packet);
+	void process(std::vector<FFmpeg::Packet> &&packets);
 	void waitForData();
 
 	// Called from the main thread.
@@ -59,7 +59,7 @@ private:
 	[[nodiscard]] bool fillStateFromFrame();
 	[[nodiscard]] bool processFirstFrame();
 	void mixerInit();
-	void mixerEnqueue(FFmpeg::Packet &&packet);
+	void mixerEnqueue(gsl::span<FFmpeg::Packet> packets);
 	void mixerForceToBuffer();
 	void callReady();
 
