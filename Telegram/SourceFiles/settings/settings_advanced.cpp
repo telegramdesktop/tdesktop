@@ -470,6 +470,23 @@ void SetupPerformance(
 		}
 		session->saveSettingsDelayed();
 	}, container->lifetime());
+
+	AddButton(
+		container,
+		tr::lng_settings_autoplay_videos(),
+		st::settingsButton
+	)->toggleOn(
+		rpl::single(session->settings().autoplayVideos())
+	)->toggledValue(
+	) | rpl::filter([=](bool enabled) {
+		return (enabled != session->settings().autoplayVideos());
+	}) | rpl::start_with_next([=](bool enabled) {
+		session->settings().setAutoplayVideos(enabled);
+		if (!enabled) {
+			session->data().checkPlayingVideoFiles();
+		}
+		session->saveSettingsDelayed();
+	}, container->lifetime());
 }
 
 void SetupSystemIntegration(

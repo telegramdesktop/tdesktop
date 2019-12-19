@@ -1706,9 +1706,8 @@ void HistoryWidget::showHistory(
 		cancelTypingAction();
 	}
 
-	if (!session().settings().autoplayGifs()) {
-		session().data().stopPlayingVideoFiles();
-	}
+	session().data().stopPlayingVideoFiles();
+
 	clearReplyReturns();
 	clearAllLoadRequests();
 

@@ -238,7 +238,9 @@ bool Gif::downloadInCorner() const {
 }
 
 bool Gif::autoplayEnabled() const {
-	return history()->session().settings().autoplayGifs();
+	return _data->isVideoFile()
+		? history()->session().settings().autoplayVideos()
+		: history()->session().settings().autoplayGifs();
 }
 
 void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
