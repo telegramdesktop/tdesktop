@@ -36,6 +36,14 @@ enum class Type {
 	File         = 0x06,
 };
 
+inline constexpr auto kStreamedTypes = {
+	Type::Video,
+	Type::Music,
+	Type::VoiceMessage,
+	Type::VideoMessage,
+	Type::GIF,
+};
+
 constexpr auto kTypesCount = 7;
 
 class Single {

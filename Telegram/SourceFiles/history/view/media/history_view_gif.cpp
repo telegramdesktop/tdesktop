@@ -247,8 +247,6 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	const auto item = _parent->data();
-	//_data->automaticLoad(_realParent->fullId(), item);
-	//auto loaded = _data->loaded();
 	auto displayLoading = (item->id < 0) || _data->displayLoading();
 	auto selected = (selection == FullSelection);
 	const auto autoPaused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
@@ -833,8 +831,6 @@ void Gif::drawGrouped(
 		RectParts corners,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
-	_data->automaticLoad(_realParent->fullId(), _parent->data());
-
 	validateGroupedCache(geometry, corners, cacheKey, cache);
 
 	const auto selected = (selection == FullSelection);

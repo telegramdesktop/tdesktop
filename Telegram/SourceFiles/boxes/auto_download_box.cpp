@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_auto_download.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
@@ -59,15 +60,9 @@ void AutoDownloadBox::setupContent() {
 		this,
 		std::move(wrap)));
 
-	static const auto kHidden = {
-		Type::Video,
-		Type::Music,
-		Type::VoiceMessage
-	};
-
 	const auto values = Ui::CreateChild<base::flat_map<Type, int>>(content);
 	const auto add = [&](Type type, rpl::producer<QString> label) {
-		if (ranges::find(kHidden, type) != end(kHidden)) {
+		if (ranges::find(kStreamedTypes, type) != end(kStreamedTypes)) {
 			return;
 		}
 		const auto value = settings->bytesLimit(_source, type);
@@ -146,6 +141,7 @@ void AutoDownloadBox::setupContent() {
 			return settings->bytesLimit(_source, type) != value;
 		}) != end(*values);
 
+		const auto &kHidden = kStreamedTypes;
 		const auto hiddenChanged = ranges::find_if(kHidden, [&](Type type) {
 			const auto now = settings->bytesLimit(_source, type);
 			return (now > 0) && (now != *limit);
