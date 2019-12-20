@@ -419,8 +419,6 @@ PRIVATE
     history/view/media/history_view_sticker.cpp
     history/view/media/history_view_theme_document.h
     history/view/media/history_view_theme_document.cpp
-    history/view/media/history_view_video.h
-    history/view/media/history_view_video.cpp
     history/view/media/history_view_web_page.h
     history/view/media/history_view_web_page.cpp
     history/view/history_view_compose_controls.cpp

@@ -145,6 +145,7 @@ public:
 			TextSelection selection,
 			crl::time ms,
 			const QRect &geometry,
+			RectParts sides,
 			RectParts corners,
 			not_null<uint64*> cacheKey,
 			not_null<QPixmap*> cache) const {
@@ -152,6 +153,7 @@ public:
 	}
 	[[nodiscard]] virtual TextState getStateGrouped(
 		const QRect &geometry,
+		RectParts sides,
 		QPoint point,
 		StateRequest request) const;
 

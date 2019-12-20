@@ -121,6 +121,8 @@ private:
 		QPoint point,
 		StateRequest request) const;
 
+	[[nodiscard]] RectParts cornersFromSides(RectParts sides) const;
+
 	Ui::Text::String _caption;
 	std::vector<Part> _parts;
 	bool _needBubble = false;

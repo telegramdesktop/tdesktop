@@ -247,8 +247,8 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	const auto item = _parent->data();
-	auto displayLoading = (item->id < 0) || _data->displayLoading();
-	auto selected = (selection == FullSelection);
+	const auto displayLoading = (item->id < 0) || _data->displayLoading();
+	const auto selected = (selection == FullSelection);
 	const auto autoPaused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 	const auto cornerDownload = downloadInCorner();
 	const auto canBePlayed = _data->canBePlayed();
@@ -493,7 +493,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	}
 
 	if (!isRound) {
-		drawCornerStatus(p, selected);
+		drawCornerStatus(p, selected, QPoint());
 	}
 
 	if (!inWebPage && isRound) {
@@ -597,7 +597,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	}
 }
 
-void Gif::drawCornerStatus(Painter &p, bool selected) const {
+void Gif::drawCornerStatus(Painter &p, bool selected, QPoint position) const {
 	if (!needInfoDisplay()) {
 		return;
 	}
@@ -614,8 +614,8 @@ void Gif::drawCornerStatus(Painter &p, bool selected) const {
 	const auto downloadWidth = cornerDownload ? st::normalFont->width(_downloadSize) : 0;
 	const auto statusW = std::max(downloadWidth, st::normalFont->width(text)) + 2 * padding.x() + addLeft + addRight;
 	const auto statusH = cornerDownload ? (st::historyVideoDownloadSize + 2 * padding.y()) : (st::normalFont->height + 2 * padding.y());
-	const auto statusX = st::msgDateImgDelta + padding.x();
-	const auto statusY = st::msgDateImgDelta + padding.y();
+	const auto statusX = position.x() + st::msgDateImgDelta + padding.x();
+	const auto statusY = position.y() + st::msgDateImgDelta + padding.y();
 	const auto around = style::rtlrect(statusX - padding.x(), statusY - padding.y(), statusW, statusH, width());
 	const auto statusTextTop = statusY + (cornerDownload ? (((statusH - 2 * st::normalFont->height) / 3)  - padding.y()) : 0);
 	App::roundRect(p, around, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
@@ -646,14 +646,16 @@ void Gif::drawCornerStatus(Painter &p, bool selected) const {
 
 TextState Gif::cornerStatusTextState(
 		QPoint point,
-		StateRequest request) const {
+		StateRequest request,
+		QPoint position) const {
 	auto result = TextState(_parent);
 	if (!needInfoDisplay() || !downloadInCorner() || _data->loaded()) {
 		return result;
 	}
 	const auto padding = st::msgDateImgPadding;
 	const auto addWidth = st::historyVideoDownloadSize + 2 * padding.y() - padding.x();
-	const auto statusX = st::msgDateImgDelta + padding.x(), statusY = st::msgDateImgDelta + padding.y();
+	const auto statusX = position.x() + st::msgDateImgDelta + padding.x();
+	const auto statusY = position.y() + st::msgDateImgDelta + padding.y();
 	const auto inner = QRect(statusX + padding.y() - padding.x(), statusY, st::historyVideoDownloadSize, st::historyVideoDownloadSize);
 	if (inner.contains(point)) {
 		result.link = _data->loading() ? _cancell : _savel;
@@ -760,20 +762,20 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 		}
 	}
 	if (!isRound) {
-		if (const auto state = cornerStatusTextState(point, request); state.link) {
+		if (const auto state = cornerStatusTextState(point, request, QPoint()); state.link) {
 			return state;
 		}
 	}
 	if (QRect(usex + paintx, painty, usew, painth).contains(point)) {
-		if (_data->uploading()) {
-			result.link = _cancell;
-		} else {
-			result.link = (_data->loaded() || _data->canBePlayed())
-				? _openl :
-				_data->loading()
-				? _cancell
-				: _savel;
-		}
+		result.link = _data->uploading()
+			? _cancell
+			: !IsServerMsgId(_realParent->id)
+			? nullptr
+			: (_data->loaded() || _data->canBePlayed())
+			? _openl
+			: _data->loading()
+			? _cancell
+			: _savel;
 	}
 	if (isRound || _caption.isEmpty()) {
 		auto fullRight = usex + paintx + usew;
@@ -818,6 +820,10 @@ TextForMimeData Gif::selectedText(TextSelection selection) const {
 	return _caption.toTextForMimeData(selection);
 }
 
+bool Gif::fullFeaturedGrouped(RectParts sides) const {
+	return (sides & RectPart::Left) && (sides & RectPart::Right);
+}
+
 QSize Gif::sizeForGrouping() const {
 	return sizeForAspectRatio();
 }
@@ -828,113 +834,207 @@ void Gif::drawGrouped(
 		TextSelection selection,
 		crl::time ms,
 		const QRect &geometry,
+		RectParts sides,
 		RectParts corners,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
-	validateGroupedCache(geometry, corners, cacheKey, cache);
-
+	const auto item = _parent->data();
+	const auto displayLoading = (item->id < 0) || _data->displayLoading();
 	const auto selected = (selection == FullSelection);
-	const auto loaded = _data->loaded();
-	const auto displayLoading = _data->displayLoading();
-	const auto bubble = _parent->hasBubble();
+	const auto autoPaused = App::wnd()->sessionController()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
+	const auto fullFeatured = fullFeaturedGrouped(sides);
+	const auto cornerDownload = fullFeatured && downloadInCorner();
+	const auto canBePlayed = _data->canBePlayed();
+	const auto autoplay = fullFeatured && autoplayEnabled() && canBePlayed;
+	const auto startPlayAsync = autoplay && !_streamed;
+	if (startPlayAsync) {
+		if (!autoPaused) {
+			const_cast<Gif*>(this)->playAnimation(true);
+		}
+	} else {
+		checkStreamedIsStarted();
+	}
+	const auto streamingMode = _streamed || autoplay;
+	const auto activeOwnPlaying = activeOwnStreamed();
 
-	if (displayLoading) {
+	auto paintx = geometry.x(), painty = geometry.y(), paintw = geometry.width(), painth = geometry.height();
+
+	auto displayMute = false;
+	const auto streamed = activeOwnPlaying
+		? &activeOwnPlaying->instance
+		: nullptr;
+
+	if (displayLoading
+		&& (!streamed
+			|| item->isSending()
+			|| (cornerDownload && _data->loading()))) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
-			_animation->radial.start(_data->progress());
+			_animation->radial.start(dataProgress());
 		}
 	}
-	const auto radial = isRadialAnimation();
+	updateStatusText();
+	const auto radial = isRadialAnimation()
+		|| (streamed && streamed->waitingShown());
 
-	if (!bubble) {
-//		App::roundShadow(p, 0, 0, paintw, painth, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
+	const auto roundRadius = ImageRoundRadius::Large;
+
+	if (streamed) {
+		const auto paused = autoPaused;
+		auto request = ::Media::Streaming::FrameRequest();
+		const auto original = sizeForAspectRatio();
+		const auto originalWidth = style::ConvertScale(original.width());
+		const auto originalHeight = style::ConvertScale(original.height());
+		const auto pixSize = Ui::GetImageScaleSizeForGeometry(
+			{ originalWidth, originalHeight },
+			{ geometry.width(), geometry.height() });
+		request.outer = geometry.size() * cIntRetinaFactor();
+		request.resize = pixSize * cIntRetinaFactor();
+		request.corners = corners;
+		request.radius = roundRadius;
+		if (activeOwnPlaying->instance.playerLocked()) {
+			if (activeOwnPlaying->frozenFrame.isNull()) {
+				activeOwnPlaying->frozenRequest = request;
+				activeOwnPlaying->frozenFrame = streamed->frame(request);
+				activeOwnPlaying->frozenStatusText = _statusText;
+			} else if (activeOwnPlaying->frozenRequest != request) {
+				activeOwnPlaying->frozenRequest = request;
+				activeOwnPlaying->frozenFrame = streamed->frame(request);
+			}
+			p.drawImage(geometry, activeOwnPlaying->frozenFrame);
+		} else {
+			if (activeOwnPlaying) {
+				activeOwnPlaying->frozenFrame = QImage();
+				activeOwnPlaying->frozenStatusText = QString();
+			}
+			p.drawImage(geometry, streamed->frame(request));
+			if (!paused) {
+				streamed->markFrameShown();
+			}
+		}
+	} else {
+		validateGroupedCache(geometry, corners, cacheKey, cache);
+		p.drawPixmap(geometry, *cache);
 	}
-	p.drawPixmap(geometry.topLeft(), *cache);
+
 	if (selected) {
-		const auto roundRadius = ImageRoundRadius::Large;
 		App::complexOverlayRect(p, geometry, roundRadius, corners);
 	}
 
-	const auto radialOpacity = radial
-		? _animation->radial.opacity()
-		: 1.;
-	const auto backOpacity = (loaded && !_data->uploading())
-		? radialOpacity
-		: 1.;
-	const auto radialSize = st::historyGroupRadialSize;
-	const auto inner = QRect(
-		geometry.x() + (geometry.width() - radialSize) / 2,
-		geometry.y() + (geometry.height() - radialSize) / 2,
-		radialSize,
-		radialSize);
-	p.setPen(Qt::NoPen);
-	if (selected) {
-		p.setBrush(st::msgDateImgBgSelected);
-	} else if (isThumbAnimation()) {
-		auto over = _animation->a_thumbOver.value(1.);
-		p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
-	} else {
-		auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
-		p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
-	}
-
-	p.setOpacity(backOpacity * p.opacity());
-
-	{
-		PainterHighQualityEnabler hq(p);
-		p.drawEllipse(inner);
-	}
-
-	auto icon = [&]() -> const style::icon * {
-		if (_data->waitingForAlbum()) {
-			return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
-		} else if (_data->loading() || _data->uploading()) {
-			return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
-		} else if (!IsServerMsgId(_realParent->id)) {
-			return nullptr;
-		} else if (loaded || _data->canBePlayed()) {
-			return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
-		}
-		return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
-	}();
-	const auto previous = [&]() -> const style::icon* {
-		if (_data->waitingForAlbum()) {
-			return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
-		}
-		return nullptr;
-	}();
-	p.setOpacity(backOpacity);
-	if (icon) {
-		if (previous && radialOpacity > 0. && radialOpacity < 1.) {
-			PaintInterpolatedIcon(p, *icon, *previous, radialOpacity, inner);
+	if (radial
+		|| (!streamingMode
+			&& ((!_data->loaded() && !_data->loading())
+				|| !autoplayEnabled()))) {
+		const auto radialOpacity = item->isSending()
+			? 1.
+			: streamed
+			? streamed->waitingOpacity()
+			: (radial && _data->loaded())
+			? _animation->radial.opacity()
+			: 1.;
+		const auto radialSize = st::historyGroupRadialSize;
+		const auto inner = QRect(
+			geometry.x() + (geometry.width() - radialSize) / 2,
+			geometry.y() + (geometry.height() - radialSize) / 2,
+			radialSize,
+			radialSize);
+		p.setPen(Qt::NoPen);
+		if (selected) {
+			p.setBrush(st::msgDateImgBgSelected);
+		} else if (isThumbAnimation()) {
+			auto over = _animation->a_thumbOver.value(1.);
+			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
-			icon->paintInCenter(p, inner);
+			auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
+			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
+		}
+		p.setOpacity(radialOpacity * p.opacity());
+
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawEllipse(inner);
+		}
+
+		p.setOpacity(radialOpacity);
+		const auto icon = [&]() -> const style::icon * {
+			if (_data->waitingForAlbum()) {
+				return &(selected ? st::historyFileThumbWaitingSelected : st::historyFileThumbWaiting);
+			} else if (streamingMode && !_data->uploading()) {
+				return nullptr;
+			} else if ((_data->loaded() || canBePlayed) && (!radial || cornerDownload)) {
+				return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
+			} else if (radial || _data->loading()) {
+				if (!item->isSending() || _data->uploading()) {
+					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+				}
+				return nullptr;
+			}
+			return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
+		}();
+		const auto previous = [&]() -> const style::icon* {
+			if (_data->waitingForAlbum()) {
+				return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+			}
+			return nullptr;
+		}();
+		if (icon) {
+			if (previous && radialOpacity > 0. && radialOpacity < 1.) {
+				PaintInterpolatedIcon(p, *icon, *previous, radialOpacity, inner);
+			} else {
+				icon->paintInCenter(p, inner);
+			}
+		}
+		p.setOpacity(1);
+		if (radial) {
+			const auto line = st::historyGroupRadialLine;
+			const auto rinner = inner.marginsRemoved({ line, line, line, line });
+			const auto fg = selected
+				? st::historyFileThumbRadialFgSelected
+				: st::historyFileThumbRadialFg;
+			if (streamed && !_data->uploading()) {
+				Ui::InfiniteRadialAnimation::Draw(
+					p,
+					streamed->waitingState(),
+					rinner.topLeft(),
+					rinner.size(),
+					width(),
+					fg,
+					st::msgFileRadialLine);
+			} else if (!cornerDownload) {
+				_animation->radial.draw(
+					p,
+					rinner,
+					st::msgFileRadialLine,
+					fg);
+			}
 		}
 	}
-	p.setOpacity(1);
-	if (radial) {
-		const auto line = st::historyGroupRadialLine;
-		const auto rinner = inner.marginsRemoved({ line, line, line, line });
-		const auto color = selected
-			? st::historyFileThumbRadialFgSelected
-			: st::historyFileThumbRadialFg;
-		_animation->radial.draw(p, rinner, line, color);
+	if (fullFeatured) {
+		drawCornerStatus(p, selected, geometry.topLeft());
 	}
 }
 
 TextState Gif::getStateGrouped(
 		const QRect &geometry,
+		RectParts sides,
 		QPoint point,
 		StateRequest request) const {
 	if (!geometry.contains(point)) {
 		return {};
 	}
-	return TextState(_parent, (_data->loading() || _data->uploading())
+	if (fullFeaturedGrouped(sides)) {
+		if (const auto state = cornerStatusTextState(point, request, geometry.topLeft()); state.link) {
+			return state;
+		}
+	}
+	return TextState(_parent, _data->uploading()
 		? _cancell
 		: !IsServerMsgId(_realParent->id)
 		? nullptr
 		: (_data->loaded() || _data->canBePlayed())
 		? _openl
+		: _data->loading()
+		? _cancell
 		: _savel);
 }
 

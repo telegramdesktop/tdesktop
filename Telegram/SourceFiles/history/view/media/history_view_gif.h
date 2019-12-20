@@ -63,6 +63,7 @@ public:
 		return _data;
 	}
 
+	bool fullFeaturedGrouped(RectParts sides) const;
 	QSize sizeForGrouping() const override;
 	void drawGrouped(
 		Painter &p,
@@ -70,11 +71,13 @@ public:
 		TextSelection selection,
 		crl::time ms,
 		const QRect &geometry,
+		RectParts sides,
 		RectParts corners,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const override;
 	TextState getStateGrouped(
 		const QRect &geometry,
+		RectParts sides,
 		QPoint point,
 		StateRequest request) const override;
 
@@ -147,10 +150,11 @@ private:
 	QSize sizeForAspectRatio() const;
 
 	[[nodiscard]] bool downloadInCorner() const;
-	void drawCornerStatus(Painter &p, bool selected) const;
+	void drawCornerStatus(Painter &p, bool selected, QPoint position) const;
 	[[nodiscard]] TextState cornerStatusTextState(
 		QPoint point,
-		StateRequest request) const;
+		StateRequest request,
+		QPoint position) const;
 
 	not_null<DocumentData*> _data;
 	int _thumbw = 1;

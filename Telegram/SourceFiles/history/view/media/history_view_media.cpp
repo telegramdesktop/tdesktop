@@ -66,6 +66,7 @@ PointState Media::pointState(QPoint point) const {
 
 TextState Media::getStateGrouped(
 		const QRect &geometry,
+		RectParts sides,
 		QPoint point,
 		StateRequest request) const {
 	Unexpected("Grouping method call.");

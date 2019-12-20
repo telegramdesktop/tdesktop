@@ -160,6 +160,17 @@ void GroupedMedia::refreshParentId(
 	}
 }
 
+RectParts GroupedMedia::cornersFromSides(RectParts sides) const {
+	auto result = Ui::GetCornersFromSides(sides);
+	if (!isBubbleTop()) {
+		result &= ~(RectPart::TopLeft | RectPart::TopRight);
+	}
+	if (!isBubbleBottom() || !_caption.isEmpty()) {
+		result &= ~(RectPart::BottomLeft | RectPart::BottomRight);
+	}
+	return result;
+}
+
 void GroupedMedia::draw(
 		Painter &p,
 		const QRect &clip,
@@ -172,20 +183,14 @@ void GroupedMedia::draw(
 			: IsGroupItemSelection(selection, i)
 			? FullSelection
 			: TextSelection();
-		auto corners = Ui::GetCornersFromSides(part.sides);
-		if (!isBubbleTop()) {
-			corners &= ~(RectPart::TopLeft | RectPart::TopRight);
-		}
-		if (!isBubbleBottom() || !_caption.isEmpty()) {
-			corners &= ~(RectPart::BottomLeft | RectPart::BottomRight);
-		}
 		part.content->drawGrouped(
 			p,
 			clip,
 			partSelection,
 			ms,
 			part.geometry,
-			corners,
+			part.sides,
+			cornersFromSides(part.sides),
 			&part.cacheKey,
 			&part.cache);
 	}
@@ -221,6 +226,7 @@ TextState GroupedMedia::getPartState(
 		if (part.geometry.contains(point)) {
 			auto result = part.content->getStateGrouped(
 				part.geometry,
+				part.sides,
 				point,
 				request);
 			result.itemId = part.item->fullId();
