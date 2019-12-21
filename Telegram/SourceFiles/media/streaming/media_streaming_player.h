@@ -99,7 +99,7 @@ private:
 	void fileFullInCache(bool fullInCache) override;
 	bool fileProcessPackets(
 		base::flat_map<int, std::vector<FFmpeg::Packet>> &packets) override;
-	bool fileProcessEndOfFile() override;
+	void fileProcessEndOfFile() override;
 	bool fileReadMore() override;
 
 	// Called from the main thread.

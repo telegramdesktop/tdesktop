@@ -397,7 +397,7 @@ bool Player::fileProcessPackets(
 	return fileReadMore();
 }
 
-bool Player::fileProcessEndOfFile() {
+void Player::fileProcessEndOfFile() {
 	_waitingForData = false;
 	_readTillEnd = true;
 	setDurationByPackets();
@@ -420,7 +420,6 @@ bool Player::fileProcessEndOfFile() {
 		});
 		_video->process(generateEmptyQueue());
 	}
-	return fileReadMore();
 }
 
 bool Player::fileReadMore() {

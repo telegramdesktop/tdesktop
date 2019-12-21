@@ -27,12 +27,12 @@ public:
 	virtual void fileWaitingForData() = 0;
 	virtual void fileFullInCache(bool fullInCache) = 0;
 
+	virtual void fileProcessEndOfFile() = 0;
 	// Return true if reading and processing more packets is desired.
 	// Return false if sleeping until 'wake()' is called is desired.
 	[[nodiscard]] virtual bool fileProcessPackets(
 		base::flat_map<int, std::vector<FFmpeg::Packet>> &packets) = 0;
-	// Return true if looping is desired.
-	[[nodiscard]] virtual bool fileProcessEndOfFile() = 0;
+	// Also returns true after fileProcessEndOfFile() if looping is desired.
 	[[nodiscard]] virtual bool fileReadMore() = 0;
 };
 

@@ -317,7 +317,7 @@ void File::Context::readNextPacket() {
 }
 
 void File::Context::handleEndOfFile() {
-	const auto more = _delegate->fileProcessEndOfFile();
+	_delegate->fileProcessEndOfFile();
 	if (_delegate->fileReadMore()) {
 		_readTillEnd = false;
 		auto error = FFmpeg::AvErrorWrap(av_seek_frame(

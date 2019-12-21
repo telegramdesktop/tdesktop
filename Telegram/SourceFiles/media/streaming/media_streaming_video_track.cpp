@@ -564,7 +564,6 @@ void VideoTrackObject::callReady() {
 		? _stream.duration
 		: _syncTimePoint.trackTime;
 	base::take(_ready)({ data });
-	LOG(("READY CALLED!"));
 }
 
 TimePoint VideoTrackObject::trackTime() const {
@@ -906,7 +905,6 @@ crl::time VideoTrack::streamDuration() const {
 }
 
 void VideoTrack::process(std::vector<FFmpeg::Packet> &&packets) {
-	LOG(("PACKETS! (%1)").arg(packets.size()));
 	_wrapped.with([
 		packets = std::move(packets)
 	](Implementation &unwrapped) mutable {
