@@ -37,6 +37,8 @@ public:
 		not_null<Storage::Cache::Database*> cache,
 		std::unique_ptr<Loader> loader);
 
+	void setLoaderPriority(int priority);
+
 	// Any thread.
 	[[nodiscard]] int size() const;
 	[[nodiscard]] bool isRemoteLoader() const;
@@ -219,6 +221,8 @@ private:
 	void checkForDownloaderChange(int checkItemsCount);
 	void checkForDownloaderReadyOffsets();
 
+	void refreshLoaderPriority();
+
 	static std::shared_ptr<CacheHelper> InitCacheHelper(
 		std::optional<Storage::Cache::Key> baseKey);
 
@@ -242,6 +246,7 @@ private:
 	// Main thread.
 	Storage::StreamedFileDownloader *_attachedDownloader = nullptr;
 	rpl::event_stream<LoadedPart> _partsForDownloader;
+	int _realPriority = 1;
 	bool _streamingActive = false;
 
 	// Streaming thread.

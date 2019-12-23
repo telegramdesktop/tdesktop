@@ -26,7 +26,8 @@ public:
 
 	void load(int offset) override;
 	void cancel(int offset) override;
-	void increasePriority() override;
+	void resetPriorities() override;
+	void setPriority(int priority) override;
 	void stop() override;
 
 	// Parts will be sent from the main thread.

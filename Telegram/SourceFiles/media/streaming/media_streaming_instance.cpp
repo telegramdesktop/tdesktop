@@ -187,6 +187,20 @@ bool Instance::playerLocked() const {
 	return _shared->player().locked();
 }
 
+void Instance::setPriority(int priority) {
+	Expects(_shared != nullptr);
+
+	if (_priority == priority) {
+		return;
+	}
+	_priority = priority;
+	_shared->refreshPlayerPriority();
+}
+
+int Instance::priority() const {
+	return _priority;
+}
+
 rpl::lifetime &Instance::lifetime() {
 	return _lifetime;
 }

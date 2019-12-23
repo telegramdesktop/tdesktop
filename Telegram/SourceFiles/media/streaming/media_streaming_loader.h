@@ -33,7 +33,8 @@ public:
 
 	virtual void load(int offset) = 0;
 	virtual void cancel(int offset) = 0;
-	virtual void increasePriority() = 0;
+	virtual void resetPriorities() = 0;
+	virtual void setPriority(int priority) = 0;
 	virtual void stop() = 0;
 
 	// Parts will be sent from the main thread.
@@ -51,7 +52,7 @@ class PriorityQueue {
 public:
 	bool add(int value);
 	bool remove(int value);
-	void increasePriority();
+	void resetPriorities();
 	[[nodiscard]] bool empty() const;
 	[[nodiscard]] std::optional<int> front() const;
 	[[nodiscard]] std::optional<int> take();

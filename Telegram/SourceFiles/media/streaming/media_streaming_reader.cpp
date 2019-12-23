@@ -888,6 +888,7 @@ void Reader::stopSleep() {
 
 void Reader::startStreaming() {
 	_streamingActive = true;
+	refreshLoaderPriority();
 }
 
 void Reader::stopStreaming(bool stillActive) {
@@ -896,6 +897,7 @@ void Reader::stopStreaming(bool stillActive) {
 	_waiting.store(nullptr, std::memory_order_release);
 	if (!stillActive) {
 		_streamingActive = false;
+		refreshLoaderPriority();
 		_loadingOffsets.clear();
 		processDownloaderRequests();
 	}
@@ -1078,6 +1080,18 @@ void Reader::checkCacheResultsForDownloader() {
 		return;
 	}
 	processDownloaderRequests();
+}
+
+void Reader::setLoaderPriority(int priority) {
+	if (_realPriority == priority) {
+		return;
+	}
+	_realPriority = priority;
+	refreshLoaderPriority();
+}
+
+void Reader::refreshLoaderPriority() {
+	_loader->setPriority(_streamingActive ? _realPriority : 0);
 }
 
 bool Reader::isRemoteLoader() const {
@@ -1269,8 +1283,8 @@ void Reader::cancelLoadInRange(int from, int till) {
 
 void Reader::checkLoadWillBeFirst(int offset) {
 	if (_loadingOffsets.front().value_or(offset) != offset) {
-		_loadingOffsets.increasePriority();
-		_loader->increasePriority();
+		_loadingOffsets.resetPriorities();
+		_loader->resetPriorities();
 	}
 }
 

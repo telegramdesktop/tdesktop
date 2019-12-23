@@ -71,6 +71,8 @@ public:
 	void unregisterInstance(not_null<const Instance*> instance);
 	bool markFrameShown();
 
+	void setLoaderPriority(int priority);
+
 	[[nodiscard]] Media::Player::TrackState prepareLegacyState() const;
 
 	void lock();

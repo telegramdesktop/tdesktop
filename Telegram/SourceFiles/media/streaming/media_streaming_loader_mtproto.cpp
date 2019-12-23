@@ -57,9 +57,7 @@ void LoaderMtproto::load(int offset) {
 }
 
 void LoaderMtproto::addToQueueWithPriority() {
-	addToQueue([&] {
-		return 1;
-	}());
+	addToQueue(_priority);
 }
 
 void LoaderMtproto::stop() {
@@ -79,7 +77,9 @@ void LoaderMtproto::cancel(int offset) {
 void LoaderMtproto::cancelForOffset(int offset) {
 	if (haveSentRequestForOffset(offset)) {
 		cancelRequestForOffset(offset);
-		addToQueueWithPriority();
+		if (!_requested.empty()) {
+			addToQueueWithPriority();
+		}
 	} else {
 		_requested.remove(offset);
 	}
@@ -94,10 +94,20 @@ void LoaderMtproto::clearAttachedDownloader() {
 	_downloader = nullptr;
 }
 
-void LoaderMtproto::increasePriority() {
+void LoaderMtproto::resetPriorities() {
 	crl::on_main(this, [=] {
-		_requested.increasePriority();
+		_requested.resetPriorities();
 	});
+}
+
+void LoaderMtproto::setPriority(int priority) {
+	if (_priority == priority) {
+		return;
+	}
+	_priority = priority;
+	if (haveSentRequests()) {
+		addToQueueWithPriority();
+	}
 }
 
 bool LoaderMtproto::readyToRequest() const {

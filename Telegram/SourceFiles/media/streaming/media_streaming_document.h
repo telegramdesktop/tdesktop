@@ -41,6 +41,7 @@ private:
 
 	void registerInstance(not_null<Instance*> instance);
 	void unregisterInstance(not_null<Instance*> instance);
+	void refreshPlayerPriority();
 
 	void waitingCallback();
 

@@ -143,6 +143,10 @@ bool Player::markFrameShown() {
 	return _video->markFrameShown();
 }
 
+void Player::setLoaderPriority(int priority) {
+	_file->setLoaderPriority(priority);
+}
+
 template <typename Track>
 void Player::trackReceivedTill(
 		const Track &track,

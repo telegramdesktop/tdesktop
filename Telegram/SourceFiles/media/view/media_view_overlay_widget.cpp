@@ -68,6 +68,8 @@ namespace {
 
 constexpr auto kPreloadCount = 4;
 
+constexpr auto kOverlayLoaderPriority = 2;
+
 // macOS OpenGL renderer fails to render larger texture
 // even though it reports that max texture size is 16384.
 constexpr auto kMaxDisplayImageSize = 4096;
@@ -2081,6 +2083,7 @@ bool OverlayWidget::createStreamingObjects() {
 		_streamed = nullptr;
 		return false;
 	}
+	_streamed->instance.setPriority(kOverlayLoaderPriority);
 	_streamed->instance.lockPlayer();
 	_streamed->withSound = _doc->isAudioFile()
 		|| _doc->isVideoFile()

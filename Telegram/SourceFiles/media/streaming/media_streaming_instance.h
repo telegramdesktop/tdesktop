@@ -70,11 +70,15 @@ public:
 	void unlockPlayer();
 	[[nodiscard]] bool playerLocked() const;
 
+	void setPriority(int priority);
+	[[nodiscard]] int priority() const;
+
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	const std::shared_ptr<Document> _shared;
 	Fn<void()> _waitingCallback;
+	int _priority = 1;
 	bool _playerLocked = false;
 	rpl::lifetime _lifetime;
 

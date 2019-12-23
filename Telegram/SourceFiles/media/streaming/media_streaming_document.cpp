@@ -85,6 +85,18 @@ void Document::registerInstance(not_null<Instance*> instance) {
 void Document::unregisterInstance(not_null<Instance*> instance) {
 	_instances.remove(instance);
 	_player.unregisterInstance(instance);
+	refreshPlayerPriority();
+}
+
+void Document::refreshPlayerPriority() {
+	if (_instances.empty()) {
+		return;
+	}
+	const auto max = ranges::max_element(
+		_instances,
+		ranges::less(),
+		&Instance::priority);
+	_player.setLoaderPriority((*max)->priority());
 }
 
 bool Document::waitingShown() const {

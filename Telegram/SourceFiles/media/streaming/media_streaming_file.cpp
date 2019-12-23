@@ -421,6 +421,10 @@ bool File::isRemoteLoader() const {
 	return _reader->isRemoteLoader();
 }
 
+void File::setLoaderPriority(int priority) {
+	_reader->setLoaderPriority(priority);
+}
+
 File::~File() {
 	stop();
 }

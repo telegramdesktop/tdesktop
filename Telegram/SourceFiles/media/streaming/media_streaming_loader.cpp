@@ -86,7 +86,7 @@ void PriorityQueue::clear() {
 	_data.clear();
 }
 
-void PriorityQueue::increasePriority() {
+void PriorityQueue::resetPriorities() {
 	++_priority;
 }
 

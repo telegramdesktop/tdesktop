@@ -68,7 +68,10 @@ void LoaderLocal::fail() {
 void LoaderLocal::cancel(int offset) {
 }
 
-void LoaderLocal::increasePriority() {
+void LoaderLocal::resetPriorities() {
+}
+
+void LoaderLocal::setPriority(int priority) {
 }
 
 void LoaderLocal::stop() {

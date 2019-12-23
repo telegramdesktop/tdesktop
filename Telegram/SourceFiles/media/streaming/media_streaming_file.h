@@ -37,6 +37,7 @@ public:
 	void stop(bool stillActive = false);
 
 	[[nodiscard]] bool isRemoteLoader() const;
+	void setLoaderPriority(int priority);
 
 	~File();
 
