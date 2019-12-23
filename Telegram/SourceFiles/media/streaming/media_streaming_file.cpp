@@ -328,6 +328,11 @@ void File::Context::handleEndOfFile() {
 		if (error) {
 			logFatal(qstr("av_seek_frame"));
 		}
+
+		// If we loaded a file till the end then we think it is fully cached,
+		// assume we finished loading and don't want to keep all other
+		// download tasks throttled because of an active streaming.
+		_reader->tryRemoveLoaderAsync();
 	} else {
 		_readTillEnd = true;
 	}
@@ -374,12 +379,10 @@ bool File::Context::finished() const {
 	return unroll() || _readTillEnd;
 }
 
-void File::Context::waitTillInterrupted() {
-	while (!interrupted()) {
-		_reader->startSleep(&_semaphore);
-		_semaphore.acquire();
-	}
-	_reader->stopSleep();
+void File::Context::stopStreamingAsync() {
+	// If we finished loading we don't want to keep all other
+	// download tasks throttled because of an active streaming.
+	_reader->stopStreamingAsync();
 }
 
 File::File(
@@ -398,7 +401,9 @@ void File::start(not_null<FileDelegate*> delegate, crl::time position) {
 		while (!context->finished()) {
 			context->readNextPacket();
 		}
-		context->waitTillInterrupted();
+		if (!context->interrupted()) {
+			context->stopStreamingAsync();
+		}
 	});
 }
 

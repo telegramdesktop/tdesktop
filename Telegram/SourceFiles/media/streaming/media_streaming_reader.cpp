@@ -886,6 +886,19 @@ void Reader::stopSleep() {
 	_sleeping.store(nullptr, std::memory_order_release);
 }
 
+void Reader::stopStreamingAsync() {
+	_stopStreamingAsync = true;
+	crl::on_main(this, [=] {
+		if (_stopStreamingAsync) {
+			stopStreaming(false);
+		}
+	});
+}
+
+void Reader::tryRemoveLoaderAsync() {
+	_loader->tryRemoveFromQueue();
+}
+
 void Reader::startStreaming() {
 	_streamingActive = true;
 	refreshLoaderPriority();
@@ -894,6 +907,7 @@ void Reader::startStreaming() {
 void Reader::stopStreaming(bool stillActive) {
 	Expects(_sleeping == nullptr);
 
+	_stopStreamingAsync = false;
 	_waiting.store(nullptr, std::memory_order_release);
 	if (!stillActive) {
 		_streamingActive = false;

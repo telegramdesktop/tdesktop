@@ -30,6 +30,8 @@ public:
 	void setPriority(int priority) override;
 	void stop() override;
 
+	void tryRemoveFromQueue() override;
+
 	// Parts will be sent from the main thread.
 	[[nodiscard]] rpl::producer<LoadedPart> parts() const override;
 

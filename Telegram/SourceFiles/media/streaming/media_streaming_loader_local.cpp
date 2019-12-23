@@ -77,6 +77,9 @@ void LoaderLocal::setPriority(int priority) {
 void LoaderLocal::stop() {
 }
 
+void LoaderLocal::tryRemoveFromQueue() {
+}
+
 rpl::producer<LoadedPart> LoaderLocal::parts() const {
 	return _parts.events();
 }

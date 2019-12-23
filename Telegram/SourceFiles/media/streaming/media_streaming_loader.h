@@ -37,6 +37,9 @@ public:
 	virtual void setPriority(int priority) = 0;
 	virtual void stop() = 0;
 
+	// Remove from queue if no requests are in progress.
+	virtual void tryRemoveFromQueue() = 0;
+
 	// Parts will be sent from the main thread.
 	[[nodiscard]] virtual rpl::producer<LoadedPart> parts() const = 0;
 

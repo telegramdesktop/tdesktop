@@ -56,7 +56,7 @@ private:
 		[[nodiscard]] bool failed() const;
 		[[nodiscard]] bool finished() const;
 
-		void waitTillInterrupted();
+		void stopStreamingAsync();
 
 	private:
 		enum class SleepPolicy {

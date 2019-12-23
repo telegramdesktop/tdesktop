@@ -68,6 +68,14 @@ void LoaderMtproto::stop() {
 	});
 }
 
+void LoaderMtproto::tryRemoveFromQueue() {
+	crl::on_main(this, [=] {
+		if (_requested.empty() && !haveSentRequests()) {
+			removeFromQueue();
+		}
+	});
+}
+
 void LoaderMtproto::cancel(int offset) {
 	crl::on_main(this, [=] {
 		cancelForOffset(offset);

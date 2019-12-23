@@ -57,6 +57,8 @@ public:
 	void startSleep(not_null<crl::semaphore*> wake);
 	void wakeFromSleep();
 	void stopSleep();
+	void stopStreamingAsync();
+	void tryRemoveLoaderAsync();
 
 	// Main thread.
 	void startStreaming();
@@ -233,6 +235,7 @@ private:
 	base::thread_safe_queue<LoadedPart, std::vector> _loadedParts;
 	std::atomic<crl::semaphore*> _waiting = nullptr;
 	std::atomic<crl::semaphore*> _sleeping = nullptr;
+	std::atomic<bool> _stopStreamingAsync = false;
 	PriorityQueue _loadingOffsets;
 
 	Slices _slices;
