@@ -1847,7 +1847,7 @@ void SendFilesBox::setupShadows(
 void SendFilesBox::prepare() {
 	_send = addButton(tr::lng_send_button(), [=] { send({}); });
 	if (_sendType == Api::SendType::Normal) {
-		SetupSendMenu(
+		SetupSendMenuAndShortcuts(
 			_send,
 			[=] { return _sendMenuType; },
 			[=] { sendSilent(); },

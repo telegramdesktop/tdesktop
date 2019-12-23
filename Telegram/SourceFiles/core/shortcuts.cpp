@@ -76,6 +76,11 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ qsl("self_chat")        , Command::ChatSelf },
 
 	{ qsl("show_archive")     , Command::ShowArchive },
+
+	// Shortcuts that have no default values.
+	{ qsl("message_silently") , Command::SendSilentMessage },
+	{ qsl("message_scheduled"), Command::ScheduleMessage },
+	//
 };
 
 const auto CommandNames = base::flat_map<Command, QString>{

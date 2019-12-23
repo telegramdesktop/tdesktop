@@ -942,7 +942,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 				tr::lng_polls_create_button(),
 				[=] { send({}); });
 			if (_sendType == Api::SendType::Normal) {
-				SetupSendMenu(
+				SetupSendMenuAndShortcuts(
 					submit.data(),
 					[=] { return SendMenuType::Scheduled; },
 					sendSilent,

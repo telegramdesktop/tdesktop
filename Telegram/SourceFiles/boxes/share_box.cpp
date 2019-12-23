@@ -426,7 +426,7 @@ void ShareBox::createButtons() {
 		const auto send = addButton(tr::lng_share_confirm(), [=] {
 			submit({});
 		});
-		SetupSendMenu(
+		SetupSendMenuAndShortcuts(
 			send,
 			[=] { return sendMenuType(); },
 			[=] { submitSilent(); },

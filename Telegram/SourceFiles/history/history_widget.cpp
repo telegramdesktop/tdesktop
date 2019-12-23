@@ -314,7 +314,7 @@ HistoryWidget::HistoryWidget(
 	_fieldBarCancel->addClickHandler([=] { cancelFieldAreaState(); });
 	_send->addClickHandler([=] { sendButtonClicked(); });
 
-	SetupSendMenu(
+	SetupSendMenuAndShortcuts(
 		_send,
 		[=] { return sendButtonMenuType(); },
 		[=] { sendSilent(); },

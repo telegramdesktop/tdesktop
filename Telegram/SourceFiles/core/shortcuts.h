@@ -37,6 +37,9 @@ enum class Command {
 
 	ShowArchive,
 
+	SendSilentMessage,
+	ScheduleMessage,
+
 	SupportReloadTemplates,
 	SupportToggleMuted,
 	SupportScrollToCurrent,

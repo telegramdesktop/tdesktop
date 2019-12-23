@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "base/event_filter.h"
 #include "boxes/abstract_box.h"
+#include "core/shortcuts.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/ui_utility.h"
@@ -666,7 +667,7 @@ void MessageLinksParser::apply(
 	_list = std::move(parsed);
 }
 
-void SetupSendMenu(
+void SetupSendMenuAndShortcuts(
 		not_null<Ui::RpWidget*> button,
 		Fn<SendMenuType()> type,
 		Fn<void()> silent,
@@ -702,4 +703,30 @@ void SetupSendMenu(
 		}
 		return base::EventFilterResult::Continue;
 	});
+
+	Shortcuts::Requests(
+	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+
+		const auto now = type();
+		if (now == SendMenuType::Disabled
+			|| (!silent && now == SendMenuType::SilentOnly)) {
+			return;
+		}
+		silent
+			&& (now != SendMenuType::Reminder)
+			&& request->check(Command::SendSilentMessage)
+			&& request->handle([=] {
+				silent();
+				return true;
+			});
+
+		schedule
+			&& (now != SendMenuType::SilentOnly)
+			&& request->check(Command::ScheduleMessage)
+			&& request->handle([=] {
+				schedule();
+				return true;
+			});
+	}, button->lifetime());
 }

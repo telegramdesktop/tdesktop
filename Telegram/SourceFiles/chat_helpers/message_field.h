@@ -103,7 +103,7 @@ enum class SendMenuType {
 	Reminder,
 };
 
-void SetupSendMenu(
+void SetupSendMenuAndShortcuts(
 	not_null<Ui::RpWidget*> button,
 	Fn<SendMenuType()> type,
 	Fn<void()> silent,

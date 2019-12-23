@@ -688,7 +688,7 @@ void ScheduleBox(
 	const auto submit = box->addButton(tr::lng_settings_save(), [=] {
 		save(false);
 	});
-	SetupSendMenu(
+	SetupSendMenuAndShortcuts(
 		submit.data(),
 		[=] { return SendMenuType::SilentOnly; },
 		[=] { save(true); },
