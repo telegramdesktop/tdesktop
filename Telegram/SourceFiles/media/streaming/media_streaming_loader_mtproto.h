@@ -46,6 +46,7 @@ private:
 	void cancelOnFail() override;
 
 	void cancelForOffset(int offset);
+	void addToQueueWithPriority();
 
 	const int _size = 0;
 

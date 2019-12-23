@@ -35,7 +35,7 @@ public:
 		return *_api;
 	}
 
-	void enqueue(not_null<Task*> task);
+	void enqueue(not_null<Task*> task, int priority);
 	void remove(not_null<Task*> task);
 
 	[[nodiscard]] base::Observable<void> &taskFinished() {
@@ -53,16 +53,19 @@ public:
 private:
 	class Queue final {
 	public:
-		void enqueue(not_null<Task*> task);
+		void enqueue(not_null<Task*> task, int priority);
 		void remove(not_null<Task*> task);
 		void resetGeneration();
 		[[nodiscard]] bool empty() const;
-		[[nodiscard]] Task *nextTask() const;
+		[[nodiscard]] Task *nextTask(bool onlyHighestPriority) const;
 		void removeSession(int index);
 
 	private:
-		std::vector<not_null<Task*>> _tasks;
-		std::vector<not_null<Task*>> _previousGeneration;
+		struct Enqueued {
+			not_null<Task*> task;
+			int priority = 0;
+		};
+		std::vector<Enqueued> _tasks;
 
 	};
 	struct DcSessionBalanceData {
@@ -80,6 +83,7 @@ private:
 		int sessionRemoveIndex = 0;
 		int sessionRemoveTimes = 0;
 		int timeouts = 0; // Since all sessions had successes >= required.
+		int totalRequested = 0;
 	};
 
 	void checkSendNext();
@@ -149,7 +153,7 @@ protected:
 	void cancelAllRequests();
 	void cancelRequestForOffset(int offset);
 
-	void addToQueue();
+	void addToQueue(int priority = 0);
 	void removeFromQueue();
 
 	[[nodiscard]] ApiWrap &api() const {

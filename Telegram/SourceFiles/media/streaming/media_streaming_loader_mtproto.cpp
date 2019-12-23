@@ -51,9 +51,15 @@ void LoaderMtproto::load(int offset) {
 		if (haveSentRequestForOffset(offset)) {
 			return;
 		} else if (_requested.add(offset)) {
-			addToQueue(); // #TODO download priority
+			addToQueueWithPriority();
 		}
 	});
+}
+
+void LoaderMtproto::addToQueueWithPriority() {
+	addToQueue([&] {
+		return 1;
+	}());
 }
 
 void LoaderMtproto::stop() {
@@ -73,7 +79,7 @@ void LoaderMtproto::cancel(int offset) {
 void LoaderMtproto::cancelForOffset(int offset) {
 	if (haveSentRequestForOffset(offset)) {
 		cancelRequestForOffset(offset);
-		addToQueue(); // #TODO download priority
+		addToQueueWithPriority();
 	} else {
 		_requested.remove(offset);
 	}
