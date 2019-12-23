@@ -125,6 +125,7 @@ void DownloadManagerMtproto::remove(not_null<Task*> task) {
 	const auto dcId = task->dcId();
 	auto &queue = _queues[dcId];
 	queue.remove(task);
+	checkSendNext(dcId, queue);
 }
 
 void DownloadManagerMtproto::resetGeneration() {

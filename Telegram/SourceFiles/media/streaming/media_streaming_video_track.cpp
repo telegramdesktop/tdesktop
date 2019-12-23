@@ -339,6 +339,9 @@ void VideoTrackObject::fillRequests(not_null<Frame*> frame) const {
 QSize VideoTrackObject::chooseOriginalResize() const {
 	auto chosen = QSize();
 	for (const auto &[_, request] : _requests) {
+		if (request.resize.isEmpty()) {
+			return QSize();
+		}
 		const auto byWidth = (request.resize.width() >= chosen.width());
 		const auto byHeight = (request.resize.height() >= chosen.height());
 		if (byWidth && byHeight) {
@@ -458,9 +461,6 @@ void VideoTrackObject::addTimelineDelay(crl::time delayed) {
 
 	if (!delayed) {
 		return;
-	}
-	if (delayed > 1000) {
-		int a = 0;
 	}
 	_syncTimePoint.worldTime += delayed;
 }
@@ -806,10 +806,6 @@ void VideoTrack::Shared::addTimelineDelay(crl::time delayed) {
 	}
 	const auto recountCurrentFrame = [&](int counter) {
 		_delay += delayed;
-		if (delayed > 1000) {
-			int a = 0;
-		}
-
 		//const auto next = (counter + 1) % (2 * kFramesCount);
 		//const auto index = next / 2;
 		//const auto frame = getFrame(index);
@@ -976,14 +972,14 @@ QImage VideoTrack::frame(
 	const auto frame = _shared->frameForPaint();
 	const auto i = frame->prepared.find(instance);
 	const auto none = (i == frame->prepared.end());
-	const auto preparedFor = none
+	const auto preparedFor = frame->prepared.empty()
 		? FrameRequest::NonStrict()
-		: i->second.request;
+		: (none ? frame->prepared.begin() : i)->second.request;
 	const auto changed = !preparedFor.goodFor(request);
 	const auto useRequest = changed ? request : preparedFor;
 	if (changed) {
 		_wrapped.with([=](Implementation &unwrapped) {
-			unwrapped.updateFrameRequest(instance, request);
+			unwrapped.updateFrameRequest(instance, useRequest);
 		});
 	}
 	if (GoodForRequest(frame->original, _streamRotation, useRequest)) {
