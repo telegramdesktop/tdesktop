@@ -1856,14 +1856,15 @@ void OverlayWidget::displayDocument(
 					_doc->dimensions.height());
 			}
 		} else {
-			_doc->automaticLoad(fileOrigin(), item);
-
 			if (_doc->canBePlayed() && initStreaming()) {
 			} else if (_doc->isVideoFile()) {
+				_doc->automaticLoad(fileOrigin(), item);
 				initStreamingThumbnail();
 			} else if (_doc->isTheme()) {
+				_doc->automaticLoad(fileOrigin(), item);
 				initThemePreview();
 			} else {
+				_doc->automaticLoad(fileOrigin(), item);
 				auto &location = _doc->location(true);
 				if (location.accessEnable()) {
 					const auto &path = location.name();
@@ -3216,7 +3217,9 @@ void OverlayWidget::preloadData(int delta) {
 				image->load(fileOrigin());
 			} else {
 				(*document)->loadThumbnail(fileOrigin());
-				(*document)->automaticLoad(fileOrigin(), entity.item);
+				if (!(*document)->canBePlayed()) {
+					(*document)->automaticLoad(fileOrigin(), entity.item);
+				}
 			}
 		}
 	}

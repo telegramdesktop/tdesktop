@@ -19,6 +19,8 @@ namespace {
 
 constexpr auto kAutoLockTimeoutLateMs = crl::time(3000);
 constexpr auto kLegacyCallsPeerToPeerNobody = 4;
+constexpr auto kVersionTag = -1;
+constexpr auto kVersion = 1;
 
 } // namespace
 
@@ -45,6 +47,7 @@ QByteArray Settings::serialize() const {
 	{
 		QDataStream stream(&result, QIODevice::WriteOnly);
 		stream.setVersion(QDataStream::Qt_5_1);
+		stream << qint32(kVersionTag) << qint32(kVersion);
 		stream << static_cast<qint32>(_variables.selectorTab);
 		stream << qint32(_variables.lastSeenWarningSeen ? 1 : 0);
 		stream << qint32(_variables.tabbedSelectorSectionEnabled ? 1 : 0);
@@ -83,14 +86,13 @@ QByteArray Settings::serialize() const {
 		stream << qint32(_variables.notifyAboutPinned.current() ? 1 : 0);
 		stream << qint32(_variables.archiveInMainMenu.current() ? 1 : 0);
 		stream << qint32(_variables.skipArchiveInSearch.current() ? 1 : 0);
-		stream << qint32(_variables.autoplayGifs ? 1 : 0);
+		stream << qint32(0);// LEGACY _variables.autoplayGifs ? 1 : 0);
 		stream << qint32(_variables.loopAnimatedStickers ? 1 : 0);
 		stream << qint32(_variables.largeEmoji.current() ? 1 : 0);
 		stream << qint32(_variables.replaceEmoji.current() ? 1 : 0);
 		stream << qint32(_variables.suggestEmoji ? 1 : 0);
 		stream << qint32(_variables.suggestStickersByEmoji ? 1 : 0);
 		stream << qint32(_variables.spellcheckerEnabled.current() ? 1 : 0);
-		stream << qint32(_variables.autoplayVideos ? 1 : 0);
 	}
 	return result;
 }
@@ -102,6 +104,8 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 
 	QDataStream stream(serialized);
 	stream.setVersion(QDataStream::Qt_5_1);
+	qint32 versionTag = 0;
+	qint32 version = 0;
 	qint32 selectorTab = static_cast<qint32>(ChatHelpers::SelectorTab::Emoji);
 	qint32 lastSeenWarningSeen = 0;
 	qint32 tabbedSelectorSectionEnabled = 1;
@@ -131,16 +135,21 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	qint32 notifyAboutPinned = _variables.notifyAboutPinned.current() ? 1 : 0;
 	qint32 archiveInMainMenu = _variables.archiveInMainMenu.current() ? 1 : 0;
 	qint32 skipArchiveInSearch = _variables.skipArchiveInSearch.current() ? 1 : 0;
-	qint32 autoplayGifs = _variables.autoplayGifs ? 1 : 0;
+	qint32 autoplayGifs = 1;
 	qint32 loopAnimatedStickers = _variables.loopAnimatedStickers ? 1 : 0;
 	qint32 largeEmoji = _variables.largeEmoji.current() ? 1 : 0;
 	qint32 replaceEmoji = _variables.replaceEmoji.current() ? 1 : 0;
 	qint32 suggestEmoji = _variables.suggestEmoji ? 1 : 0;
 	qint32 suggestStickersByEmoji = _variables.suggestStickersByEmoji ? 1 : 0;
 	qint32 spellcheckerEnabled = _variables.spellcheckerEnabled.current() ? 1 : 0;
-	qint32 autoplayVideos = _variables.autoplayVideos ? 1 : 0;
 
-	stream >> selectorTab;
+	stream >> versionTag;
+	if (versionTag == kVersionTag) {
+		stream >> version;
+		stream >> selectorTab;
+	} else {
+		selectorTab = versionTag;
+	}
 	stream >> lastSeenWarningSeen;
 	if (!stream.atEnd()) {
 		stream >> tabbedSelectorSectionEnabled;
@@ -241,9 +250,6 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> spellcheckerEnabled;
 	}
-	if (!stream.atEnd()) {
-		stream >> autoplayVideos;
-	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Main::Settings::constructFromSerialized()"));
@@ -252,6 +258,13 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	if (!autoDownload.isEmpty()
 		&& !_variables.autoDownload.setFromSerialized(autoDownload)) {
 		return;
+	}
+	if (!version) {
+		if (!autoplayGifs) {
+			using namespace Data::AutoDownload;
+			_variables.autoDownload = WithDisabledAutoPlay(
+				_variables.autoDownload);
+		}
 	}
 
 	auto uncheckedTab = static_cast<ChatHelpers::SelectorTab>(selectorTab);
@@ -317,14 +330,12 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	_variables.notifyAboutPinned = (notifyAboutPinned == 1);
 	_variables.archiveInMainMenu = (archiveInMainMenu == 1);
 	_variables.skipArchiveInSearch = (skipArchiveInSearch == 1);
-	_variables.autoplayGifs = (autoplayGifs == 1);
 	_variables.loopAnimatedStickers = (loopAnimatedStickers == 1);
 	_variables.largeEmoji = (largeEmoji == 1);
 	_variables.replaceEmoji = (replaceEmoji == 1);
 	_variables.suggestEmoji = (suggestEmoji == 1);
 	_variables.suggestStickersByEmoji = (suggestStickersByEmoji == 1);
 	_variables.spellcheckerEnabled = (spellcheckerEnabled == 1);
-	_variables.autoplayVideos = (autoplayVideos == 1);
 }
 
 void Settings::setSupportChatsTimeSlice(int slice) {

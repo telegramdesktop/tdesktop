@@ -238,9 +238,10 @@ bool Gif::downloadInCorner() const {
 }
 
 bool Gif::autoplayEnabled() const {
-	return _data->isVideoFile()
-		? history()->session().settings().autoplayVideos()
-		: history()->session().settings().autoplayGifs();
+	return Data::AutoDownload::ShouldAutoPlay(
+		_data->session().settings().autoDownload(),
+		_realParent->history()->peer,
+		_data);
 }
 
 void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
@@ -415,8 +416,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 
 	if (radial
 		|| (!streamingMode
-			&& ((!_data->loaded() && !_data->loading())
-				|| !autoplayEnabled()))) {
+			&& ((!_data->loaded() && !_data->loading()) || !autoplay))) {
 		const auto radialOpacity = item->isSending()
 			? 1.
 			: streamed
@@ -923,8 +923,7 @@ void Gif::drawGrouped(
 
 	if (radial
 		|| (!streamingMode
-			&& ((!_data->loaded() && !_data->loading())
-				|| !autoplayEnabled()))) {
+			&& ((!_data->loaded() && !_data->loading()) || !autoplay))) {
 		const auto radialOpacity = item->isSending()
 			? 1.
 			: streamed

@@ -429,7 +429,6 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	const auto thumbLoaded = _data->hasThumbnail()
 		&& _data->thumbnail()->loaded();
 
-	_data->automaticLoad(parent()->fullId(), parent());
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 	if (displayLoading) {
 		ensureRadial();
@@ -621,8 +620,6 @@ void Voice::initDimensions() {
 
 void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool selected = (selection == FullSelection);
-
-	_data->automaticLoad(parent()->fullId(), parent());
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 
 	if (displayLoading) {

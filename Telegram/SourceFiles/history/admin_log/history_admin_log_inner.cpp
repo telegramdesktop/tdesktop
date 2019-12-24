@@ -1046,15 +1046,22 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					cancelContextDownload(document);
 				});
 			} else {
-				if (document->loaded()
-					&& document->isGifv()
-					&& !document->session().settings().autoplayGifs()) {
-					const auto itemId = view
-						? view->data()->fullId()
-						: FullMsgId();
-					_menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
-						openContextGif(itemId);
-					});
+				const auto itemId = view
+					? view->data()->fullId()
+					: FullMsgId();
+				if (const auto item = document->session().data().message(itemId)) {
+					const auto notAutoplayedGif = [&] {
+						return document->isGifv()
+							&& Data::AutoDownload::ShouldAutoPlay(
+								document->session().settings().autoDownload(),
+								item->history()->peer,
+								document);
+					}();
+					if (notAutoplayedGif) {
+						_menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
+							openContextGif(itemId);
+						});
+					}
 				}
 				if (!document->filepath(DocumentData::FilePathResolve::Checked).isEmpty()) {
 					_menu->addAction(Platform::IsMac() ? tr::lng_context_show_in_finder(tr::now) : tr::lng_context_show_in_folder(tr::now), [=] {

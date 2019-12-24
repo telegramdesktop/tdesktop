@@ -452,41 +452,6 @@ void SetupPerformance(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
 	SetupAnimations(container);
-
-	const auto session = &controller->session();
-	AddButton(
-		container,
-		tr::lng_settings_autoplay_gifs(),
-		st::settingsButton
-	)->toggleOn(
-		rpl::single(session->settings().autoplayGifs())
-	)->toggledValue(
-	) | rpl::filter([=](bool enabled) {
-		return (enabled != session->settings().autoplayGifs());
-	}) | rpl::start_with_next([=](bool enabled) {
-		session->settings().setAutoplayGifs(enabled);
-		if (!enabled) {
-			session->data().checkPlayingVideoFiles();
-		}
-		session->saveSettingsDelayed();
-	}, container->lifetime());
-
-	AddButton(
-		container,
-		tr::lng_settings_autoplay_videos(),
-		st::settingsButton
-	)->toggleOn(
-		rpl::single(session->settings().autoplayVideos())
-	)->toggledValue(
-	) | rpl::filter([=](bool enabled) {
-		return (enabled != session->settings().autoplayVideos());
-	}) | rpl::start_with_next([=](bool enabled) {
-		session->settings().setAutoplayVideos(enabled);
-		if (!enabled) {
-			session->data().checkPlayingVideoFiles();
-		}
-		session->saveSettingsDelayed();
-	}, container->lifetime());
 }
 
 void SetupSystemIntegration(

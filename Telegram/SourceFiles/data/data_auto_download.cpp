@@ -20,7 +20,9 @@ namespace AutoDownload {
 namespace {
 
 constexpr auto kDefaultMaxSize = 8 * 1024 * 1024;
-constexpr auto kVersion = char(1);
+constexpr auto kDefaultAutoPlaySize = 50 * 1024 * 1024;
+constexpr auto kVersion1 = char(1);
+constexpr auto kVersion = char(2);
 
 template <typename Enum>
 auto enums_view(int from, int till) {
@@ -38,13 +40,16 @@ auto enums_view(int till) {
 void SetDefaultsForSource(Full &data, Source source) {
 	data.setBytesLimit(source, Type::Photo, kDefaultMaxSize);
 	data.setBytesLimit(source, Type::VoiceMessage, kDefaultMaxSize);
-	data.setBytesLimit(source, Type::VideoMessage, kDefaultMaxSize);
-	data.setBytesLimit(source, Type::GIF, kDefaultMaxSize);
+	data.setBytesLimit(
+		source,
+		Type::AutoPlayVideoMessage,
+		kDefaultAutoPlaySize);
+	data.setBytesLimit(source, Type::AutoPlayGIF, kDefaultAutoPlaySize);
 	const auto channelsFileLimit = (source == Source::Channel)
 		? 0
 		: kDefaultMaxSize;
 	data.setBytesLimit(source, Type::File, channelsFileLimit);
-	data.setBytesLimit(source, Type::Video, channelsFileLimit);
+	data.setBytesLimit(source, Type::AutoPlayVideo, kDefaultAutoPlaySize);
 	data.setBytesLimit(source, Type::Music, channelsFileLimit);
 }
 
@@ -69,19 +74,12 @@ Source SourceFromPeer(not_null<PeerData*> peer) {
 	}
 }
 
-Type TypeFromDocument(not_null<DocumentData*> document) {
-	if (document->isSong()) {
-		return Type::Music;
-	} else if (document->isVoiceMessage()) {
-		return Type::VoiceMessage;
-	} else if (document->isVideoMessage()) {
-		return Type::VideoMessage;
-	} else if (document->isAnimation()) {
-		return Type::GIF;
-	} else if (document->isVideoFile()) {
-		return Type::Video;
-	}
-	return Type::File;
+Type AutoPlayTypeFromDocument(not_null<DocumentData*> document) {
+	return document->isVideoFile()
+		? Type::AutoPlayVideo
+		: document->isVideoMessage()
+		? Type::AutoPlayVideoMessage
+		: Type::AutoPlayGIF;
 }
 
 } // namespace
@@ -223,7 +221,7 @@ bool Full::setFromSerialized(const QByteArray &serialized) {
 	stream >> version;
 	if (stream.status() != QDataStream::Ok) {
 		return false;
-	} else if (version != kVersion) {
+	} else if (version != kVersion && version != kVersion1) {
 		return false;
 	}
 	auto temp = Full();
@@ -233,6 +231,15 @@ bool Full::setFromSerialized(const QByteArray &serialized) {
 			stream >> value;
 			if (!temp.set(source).setFromSerialized(type, value)) {
 				return false;
+			}
+		}
+	}
+	if (version == kVersion1) {
+		for (const auto source : enums_view<Source>(kSourcesCount)) {
+			for (const auto type : kAutoPlayTypes) {
+				temp.setBytesLimit(source, type, std::max(
+					temp.bytesLimit(source, type),
+					kDefaultAutoPlaySize));
 			}
 		}
 	}
@@ -259,7 +266,7 @@ bool Should(
 	}
 	return data.shouldDownload(
 		SourceFromPeer(peer),
-		TypeFromDocument(document),
+		Type::File,
 		document->size);
 }
 
@@ -269,11 +276,10 @@ bool Should(
 	if (document->sticker()) {
 		return true;
 	}
-	const auto type = TypeFromDocument(document);
 	const auto size = document->size;
-	return data.shouldDownload(Source::User, type, size)
-		|| data.shouldDownload(Source::Group, type, size)
-		|| data.shouldDownload(Source::Channel, type, size);
+	return data.shouldDownload(Source::User, Type::File, size)
+		|| data.shouldDownload(Source::Group, Type::File, size)
+		|| data.shouldDownload(Source::Channel, Type::File, size);
 }
 
 bool Should(
@@ -284,6 +290,26 @@ bool Should(
 		SourceFromPeer(peer),
 		Type::Photo,
 		image->bytesSize());
+}
+
+bool ShouldAutoPlay(
+		const Full &data,
+		not_null<PeerData*> peer,
+		not_null<DocumentData*> document) {
+	return data.shouldDownload(
+		SourceFromPeer(peer),
+		AutoPlayTypeFromDocument(document),
+		document->size);
+}
+
+Full WithDisabledAutoPlay(const Full &data) {
+	auto result = data;
+	for (const auto source : enums_view<Source>(kSourcesCount)) {
+		for (const auto type : kAutoPlayTypes) {
+			result.setBytesLimit(source, type, 0);
+		}
+	}
+	return result;
 }
 
 } // namespace AutoDownload

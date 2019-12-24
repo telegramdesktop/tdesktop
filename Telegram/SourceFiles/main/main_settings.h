@@ -198,18 +198,6 @@ public:
 	void setExeLaunchWarning(bool warning) {
 		_variables.exeLaunchWarning = warning;
 	}
-	[[nodiscard]] bool autoplayGifs() const {
-		return _variables.autoplayGifs;
-	}
-	void setAutoplayGifs(bool value) {
-		_variables.autoplayGifs = value;
-	}
-	[[nodiscard]] bool autoplayVideos() const {
-		return _variables.autoplayVideos;
-	}
-	void setAutoplayVideos(bool value) {
-		_variables.autoplayVideos = value;
-	}
 	[[nodiscard]] bool loopAnimatedStickers() const {
 		return _variables.loopAnimatedStickers;
 	}
@@ -283,8 +271,6 @@ private:
 		rpl::variable<bool> archiveInMainMenu = false;
 		rpl::variable<bool> notifyAboutPinned = true;
 		rpl::variable<bool> skipArchiveInSearch = false;
-		bool autoplayGifs = true;
-		bool autoplayVideos = true;
 		bool loopAnimatedStickers = true;
 		rpl::variable<bool> largeEmoji = true;
 		rpl::variable<bool> replaceEmoji = true;

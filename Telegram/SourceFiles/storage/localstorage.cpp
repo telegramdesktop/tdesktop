@@ -1117,8 +1117,8 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		};
 		set(Type::Photo, photo);
 		set(Type::VoiceMessage, audio);
-		set(Type::GIF, gif);
-		set(Type::VideoMessage, gif);
+		set(Type::AutoPlayGIF, gif);
+		set(Type::AutoPlayVideoMessage, gif);
 	} break;
 
 	case dbiAutoPlayOld: {
@@ -1126,7 +1126,25 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> gif;
 		if (!_checkStreamStatus(stream)) return false;
 
-		GetStoredSessionSettings().setAutoplayGifs(gif == 1);
+		if (!gif) {
+			using namespace Data::AutoDownload;
+			auto &settings = GetStoredSessionSettings().autoDownload();
+			const auto types = {
+				Type::AutoPlayGIF,
+				Type::AutoPlayVideo,
+				Type::AutoPlayVideoMessage,
+			};
+			const auto sources = {
+				Source::User,
+				Source::Group,
+				Source::Channel
+			};
+			for (const auto source : sources) {
+				for (const auto type : types) {
+					settings.setBytesLimit(source, type, 0);
+				}
+			}
+		}
 	} break;
 
 	case dbiDialogsMode: {
