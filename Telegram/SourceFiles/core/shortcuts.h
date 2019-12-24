@@ -37,6 +37,7 @@ enum class Command {
 
 	ShowArchive,
 
+	SendMessage,
 	SendSilentMessage,
 	ScheduleMessage,
 

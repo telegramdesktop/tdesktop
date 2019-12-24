@@ -78,6 +78,7 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ qsl("show_archive")     , Command::ShowArchive },
 
 	// Shortcuts that have no default values.
+	{ qsl("message")          , Command::SendMessage },
 	{ qsl("message_silently") , Command::SendSilentMessage },
 	{ qsl("message_scheduled"), Command::ScheduleMessage },
 	//

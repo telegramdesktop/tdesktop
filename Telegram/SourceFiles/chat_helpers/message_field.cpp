@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QTextBlock>
 #include <QtGui/QClipboard>
+#include <QtWidgets/QApplication>
 
 namespace {
 
@@ -713,20 +714,36 @@ void SetupSendMenuAndShortcuts(
 			|| (!silent && now == SendMenuType::SilentOnly)) {
 			return;
 		}
-		silent
+		(silent
 			&& (now != SendMenuType::Reminder)
 			&& request->check(Command::SendSilentMessage)
 			&& request->handle([=] {
 				silent();
 				return true;
-			});
-
-		schedule
+			}))
+		||
+		(schedule
 			&& (now != SendMenuType::SilentOnly)
 			&& request->check(Command::ScheduleMessage)
 			&& request->handle([=] {
 				schedule();
 				return true;
-			});
+			}))
+		||
+		(request->check(Command::SendMessage) && request->handle([=] {
+			const auto post = [&](QEvent::Type type) {
+				QApplication::postEvent(
+					button,
+					new QMouseEvent(
+						type,
+						QPointF(0, 0),
+						Qt::LeftButton,
+						Qt::LeftButton,
+						Qt::NoModifier));
+			};
+			post(QEvent::MouseButtonPress);
+			post(QEvent::MouseButtonRelease);
+			return true;
+		}));
 	}, button->lifetime());
 }
