@@ -237,6 +237,7 @@ Go to ***BuildPath*** and run
     git submodule update qtbase
     git submodule update qtimageformats
     cd qtbase
+    git cherry-pick 7ac4e55
     git apply ../../patches/qtbase_5_12_5.diff
     cd ..
 
