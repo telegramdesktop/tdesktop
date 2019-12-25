@@ -951,7 +951,7 @@ private:
 	std::unordered_map<
 		UserId,
 		base::flat_set<not_null<ViewElement*>>> _contactViews;
-	base::flat_set<not_null<ViewElement*>> _playingVideoFiles;
+	base::flat_map<not_null<ViewElement*>, int> _playingVideoFiles;
 
 	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
 	base::flat_set<not_null<GameData*>> _gamesUpdated;

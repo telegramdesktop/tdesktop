@@ -3225,17 +3225,25 @@ void Session::unregisterContactItem(
 }
 
 void Session::registerPlayingVideoFile(not_null<ViewElement*> view) {
-	_playingVideoFiles.emplace(view);
-	registerHeavyViewPart(view);
+	if (++_playingVideoFiles[view] == 1) {
+		registerHeavyViewPart(view);
+	}
 }
 
 void Session::unregisterPlayingVideoFile(not_null<ViewElement*> view) {
-	_playingVideoFiles.remove(view);
-	unregisterHeavyViewPart(view);
+	const auto i = _playingVideoFiles.find(view);
+	if (i != _playingVideoFiles.end()) {
+		if (!--i->second) {
+			_playingVideoFiles.erase(i);
+			unregisterHeavyViewPart(view);
+		}
+	} else {
+		unregisterHeavyViewPart(view);
+	}
 }
 
 void Session::stopPlayingVideoFiles() {
-	for (const auto view : base::take(_playingVideoFiles)) {
+	for (const auto &[view, count] : base::take(_playingVideoFiles)) {
 		if (const auto media = view->media()) {
 			media->stopAnimation();
 		}
@@ -3243,10 +3251,16 @@ void Session::stopPlayingVideoFiles() {
 }
 
 void Session::checkPlayingVideoFiles() {
-	for (const auto view : base::take(_playingVideoFiles)) {
+	const auto old = base::take(_playingVideoFiles);
+	for (const auto &[view, count] : old) {
 		if (const auto media = view->media()) {
-			media->checkAnimation();
+			if (const auto left = media->checkAnimationCount()) {
+				_playingVideoFiles.emplace(view, left);
+				registerHeavyViewPart(view);
+				continue;
+			}
 		}
+		unregisterHeavyViewPart(view);
 	}
 }
 

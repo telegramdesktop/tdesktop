@@ -1365,10 +1365,14 @@ void Gif::stopAnimation() {
 	}
 }
 
-void Gif::checkAnimation() {
-	if (_streamed && !autoplayEnabled()) {
-		stopAnimation();
+int Gif::checkAnimationCount() {
+	if (!_streamed) {
+		return 0;
+	} else if (autoplayEnabled()) {
+		return 1;
 	}
+	stopAnimation();
+	return 0;
 }
 
 float64 Gif::dataProgress() const {

@@ -86,6 +86,10 @@ public:
 		return true;
 	}
 
+	void stopAnimation() override;
+	int checkAnimationCount() override;
+	void unloadHeavyPart() override;
+
 	void parentTextUpdated() override;
 
 private:

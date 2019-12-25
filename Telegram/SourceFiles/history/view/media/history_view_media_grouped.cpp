@@ -408,6 +408,26 @@ void GroupedMedia::updateNeedBubbleState() {
 	_needBubble = computeNeedBubble();
 }
 
+void GroupedMedia::stopAnimation() {
+	for (auto &part : _parts) {
+		part.content->stopAnimation();
+	}
+}
+
+int GroupedMedia::checkAnimationCount() {
+	auto result = 0;
+	for (auto &part : _parts) {
+		result += part.content->checkAnimationCount();
+	}
+	return result;
+}
+
+void GroupedMedia::unloadHeavyPart() {
+	for (auto &part : _parts) {
+		part.content->unloadHeavyPart();
+	}
+}
+
 void GroupedMedia::parentTextUpdated() {
 	history()->owner().requestViewResize(_parent);
 }

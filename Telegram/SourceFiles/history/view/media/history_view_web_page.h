@@ -62,8 +62,8 @@ public:
 	void stopAnimation() override {
 		if (_attach) _attach->stopAnimation();
 	}
-	void checkAnimation() override {
-		if (_attach) _attach->checkAnimation();
+	int checkAnimationCount() override {
+		return _attach ? _attach->checkAnimationCount() : 0;
 	}
 
 	not_null<WebPageData*> webpage() {
