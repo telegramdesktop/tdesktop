@@ -194,7 +194,7 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 			errAtStart = false;
 		} else if (res == Result::Wait) {
 			waiting = (samples.size() < kPlaybackBufferSize)
-				&& !l->forceToBuffer();
+				&& (!samplesCount || !l->forceToBuffer());
 			if (waiting) {
 				l->saveDecodedSamples(&samples, &samplesCount);
 			}
