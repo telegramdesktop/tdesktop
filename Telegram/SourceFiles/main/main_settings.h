@@ -153,6 +153,9 @@ public:
 		_variables.groupStickersSectionHidden.remove(peerId);
 	}
 
+	void setMediaLastPlaybackPosition(DocumentId id, crl::time time);
+	[[nodiscard]] crl::time mediaLastPlaybackPosition(DocumentId id) const;
+
 	[[nodiscard]] Data::AutoDownload::Full &autoDownload() {
 		return _variables.autoDownload;
 	}
@@ -277,6 +280,7 @@ private:
 		bool suggestEmoji = true;
 		bool suggestStickersByEmoji = true;
 		rpl::variable<bool> spellcheckerEnabled = true;
+		std::vector<std::pair<DocumentId, crl::time>> mediaLastPlaybackPosition;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;

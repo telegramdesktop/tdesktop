@@ -21,6 +21,7 @@ constexpr auto kAutoLockTimeoutLateMs = crl::time(3000);
 constexpr auto kLegacyCallsPeerToPeerNobody = 4;
 constexpr auto kVersionTag = -1;
 constexpr auto kVersion = 1;
+constexpr auto kMaxSavedPlaybackPositions = 16;
 
 } // namespace
 
@@ -93,6 +94,10 @@ QByteArray Settings::serialize() const {
 		stream << qint32(_variables.suggestEmoji ? 1 : 0);
 		stream << qint32(_variables.suggestStickersByEmoji ? 1 : 0);
 		stream << qint32(_variables.spellcheckerEnabled.current() ? 1 : 0);
+		stream << qint32(_variables.mediaLastPlaybackPosition.size());
+		for (const auto &[id, time] : _variables.mediaLastPlaybackPosition) {
+			stream << quint64(id) << qint64(time);
+		}
 	}
 	return result;
 }
@@ -142,6 +147,7 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	qint32 suggestEmoji = _variables.suggestEmoji ? 1 : 0;
 	qint32 suggestStickersByEmoji = _variables.suggestStickersByEmoji ? 1 : 0;
 	qint32 spellcheckerEnabled = _variables.spellcheckerEnabled.current() ? 1 : 0;
+	std::vector<std::pair<DocumentId, crl::time>> mediaLastPlaybackPosition;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -250,6 +256,18 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> spellcheckerEnabled;
 	}
+	if (!stream.atEnd()) {
+		auto count = qint32(0);
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				quint64 documentId;
+				qint64 time;
+				stream >> documentId >> time;
+				mediaLastPlaybackPosition.emplace_back(documentId, time);
+			}
+		}
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Main::Settings::constructFromSerialized()"));
@@ -336,6 +354,7 @@ void Settings::constructFromSerialized(const QByteArray &serialized) {
 	_variables.suggestEmoji = (suggestEmoji == 1);
 	_variables.suggestStickersByEmoji = (suggestStickersByEmoji == 1);
 	_variables.spellcheckerEnabled = (spellcheckerEnabled == 1);
+	_variables.mediaLastPlaybackPosition = std::move(mediaLastPlaybackPosition);
 }
 
 void Settings::setSupportChatsTimeSlice(int slice) {
@@ -428,6 +447,34 @@ int Settings::thirdColumnWidth() const {
 
 rpl::producer<int> Settings::thirdColumnWidthChanges() const {
 	return _variables.thirdColumnWidth.changes();
+}
+
+void Settings::setMediaLastPlaybackPosition(DocumentId id, crl::time time) {
+	auto &map = _variables.mediaLastPlaybackPosition;
+	const auto i = ranges::find(
+		map,
+		id,
+		&std::pair<DocumentId, crl::time>::first);
+	if (i != map.end()) {
+		if (time > 0) {
+			i->second = time;
+		} else {
+			map.erase(i);
+		}
+	} else if (time > 0) {
+		if (map.size() >= kMaxSavedPlaybackPositions) {
+			map.erase(map.begin());
+		}
+		map.emplace_back(id, time);
+	}
+}
+
+crl::time Settings::mediaLastPlaybackPosition(DocumentId id) const {
+	const auto i = ranges::find(
+		_variables.mediaLastPlaybackPosition,
+		id,
+		&std::pair<DocumentId, crl::time>::first);
+	return (i != _variables.mediaLastPlaybackPosition.end()) ? i->second : 0;
 }
 
 void Settings::setArchiveCollapsed(bool collapsed) {

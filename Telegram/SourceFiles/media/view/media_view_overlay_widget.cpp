@@ -80,6 +80,8 @@ constexpr auto kIdsLimit = 48;
 // Preload next messages if we went further from current than that.
 constexpr auto kIdsPreloadAfter = 28;
 
+constexpr auto kMinLengthForSavePosition = 20 * TimeId(60); // 20 minutes.
+
 Images::Options VideoThumbOptions(not_null<DocumentData*> document) {
 	const auto result = Images::Option::Smooth | Images::Option::Blurred;
 	return (document && document->isVideoMessage())
@@ -435,6 +437,20 @@ bool OverlayWidget::documentBubbleShown() const {
 }
 
 void OverlayWidget::clearStreaming() {
+	if (_streamed && _doc) {
+		const auto state = _streamed->instance.player().prepareLegacyState();
+		const auto time = (state.position == kTimeUnknown
+			|| state.length == kTimeUnknown)
+			? TimeId(0)
+			: (state.length >= kMinLengthForSavePosition * state.frequency)
+			? (state.position / state.frequency) * crl::time(1000)
+			: TimeId(0);
+		auto &session = _doc->session();
+		if (session.settings().mediaLastPlaybackPosition(_doc->id) != time) {
+			session.settings().setMediaLastPlaybackPosition(_doc->id, time);
+			session.saveSettingsDelayed();
+		}
+	}
 	_fullScreenVideo = false;
 	_streamed = nullptr;
 }
@@ -2018,7 +2034,10 @@ void OverlayWidget::startStreamingPlayer() {
 	if (!_streamed->withSound && _streamed->instance.player().playing()) {
 		return;
 	}
-	restartAtSeekPosition(0);
+	const auto position = _doc
+		? _doc->session().settings().mediaLastPlaybackPosition(_doc->id)
+		: 0;
+	restartAtSeekPosition(position);
 }
 
 void OverlayWidget::initStreamingThumbnail() {
