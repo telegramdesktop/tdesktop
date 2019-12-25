@@ -40,6 +40,10 @@ enum class MediaInBubbleState {
 	Bottom,
 };
 
+[[nodiscard]] QString DocumentTimestampLinkBase(
+	not_null<DocumentData*> document,
+	FullMsgId context);
+
 class Media : public Object {
 public:
 	Media(not_null<Element*> parent) : _parent(parent) {
@@ -237,8 +241,11 @@ public:
 	virtual ~Media() = default;
 
 protected:
-	QSize countCurrentSize(int newWidth) override;
-	Ui::Text::String createCaption(not_null<HistoryItem*> item) const;
+	[[nodiscard]] QSize countCurrentSize(int newWidth) override;
+	[[nodiscard]] Ui::Text::String createCaption(
+		not_null<HistoryItem*> item,
+		TimeId timestampLinksDuration = 0,
+		const QString &timestampLinkBase = QString()) const;
 
 	virtual void playAnimation(bool autoplay) {
 	}

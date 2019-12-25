@@ -178,6 +178,7 @@ public:
 	QString createInternalLinkFull(const QString &query) const;
 	void checkStartUrl();
 	bool openLocalUrl(const QString &url, QVariant context);
+	bool openInternalUrl(const QString &url, QVariant context);
 
 	void forceLogOut(const TextWithEntities &explanation);
 	void checkLocalTime();
@@ -240,6 +241,12 @@ private:
 	void quitDelayed();
 
 	void clearPasscodeLock();
+
+	bool openCustomUrl(
+		const QString &protocol,
+		const std::vector<LocalUrlHandler> &handlers,
+		const QString &url,
+		const QVariant &context);
 
 	static Application *Instance;
 	struct InstanceSetter {

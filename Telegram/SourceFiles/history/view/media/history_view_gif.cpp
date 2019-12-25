@@ -76,7 +76,7 @@ Gif::Gif(
 
 	setStatusSize(FileStatusSizeReady);
 
-	_caption = createCaption(realParent);
+	refreshCaption();
 	_data->loadThumbnail(realParent->fullId());
 }
 
@@ -1208,10 +1208,29 @@ bool Gif::isReadyForOpen() const {
 }
 
 void Gif::parentTextUpdated() {
-	_caption = (_parent->media() == this)
-		? createCaption(_parent->data())
-		: Ui::Text::String();
-	history()->owner().requestViewResize(_parent);
+	if (_parent->media() == this) {
+		refreshCaption();
+		history()->owner().requestViewResize(_parent);
+	}
+}
+
+void Gif::refreshParentId(not_null<HistoryItem*> realParent) {
+	if (_parent->media() == this) {
+		refreshCaption();
+	}
+}
+
+void Gif::refreshCaption() {
+	const auto timestampLinksDuration = _data->isVideoFile()
+		? _data->getDuration()
+		: 0;
+	const auto timestampLinkBase = timestampLinksDuration
+		? DocumentTimestampLinkBase(_data, _realParent->fullId())
+		: QString();
+	_caption = createCaption(
+			_parent->data(),
+			timestampLinksDuration,
+			timestampLinkBase);
 }
 
 int Gif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply, const HistoryMessageForwarded *forwarded) const {

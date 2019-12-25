@@ -43,7 +43,8 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	const auto open = [=] {
 		UrlClickHandler::Open(url, context);
 	};
-	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)
+		|| url.startsWith(qstr("internal:"), Qt::CaseInsensitive)) {
 		open();
 	} else {
 		const auto parsedUrl = QUrl::fromUserInput(url);
@@ -55,7 +56,9 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 				: url;
 			Ui::show(
 				Box<ConfirmBox>(
-					tr::lng_open_this_link(tr::now) + qsl("\n\n") + displayUrl,
+					(tr::lng_open_this_link(tr::now)
+						+ qsl("\n\n")
+						+ displayUrl),
 					tr::lng_open_link(tr::now),
 					[=] { Ui::hideLayer(); open(); }),
 				Ui::LayerOption::KeepOther);

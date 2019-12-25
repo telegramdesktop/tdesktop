@@ -583,27 +583,36 @@ void Application::checkStartUrl() {
 }
 
 bool Application::openLocalUrl(const QString &url, QVariant context) {
-	auto urlTrimmed = url.trimmed();
-	if (urlTrimmed.size() > 8192) urlTrimmed = urlTrimmed.mid(0, 8192);
+	return openCustomUrl("tg://", LocalUrlHandlers(), url, context);
+}
 
-	const auto protocol = qstr("tg://");
+bool Application::openInternalUrl(const QString &url, QVariant context) {
+	return openCustomUrl("internal:", InternalUrlHandlers(), url, context);
+}
+
+bool Application::openCustomUrl(
+		const QString &protocol,
+		const std::vector<LocalUrlHandler> &handlers,
+		const QString &url,
+		const QVariant &context) {
+	const auto urlTrimmed = url.trimmed();
 	if (!urlTrimmed.startsWith(protocol, Qt::CaseInsensitive) || locked()) {
 		return false;
 	}
-	auto command = urlTrimmed.midRef(protocol.size());
-
+	const auto command = urlTrimmed.midRef(protocol.size(), 8192);
 	const auto session = activeAccount().sessionExists()
 		? &activeAccount().session()
 		: nullptr;
 	using namespace qthelp;
 	const auto options = RegExOption::CaseInsensitive;
-	for (const auto &[expression, handler] : LocalUrlHandlers()) {
+	for (const auto &[expression, handler] : handlers) {
 		const auto match = regex_match(expression, command, options);
 		if (match) {
 			return handler(session, match, context);
 		}
 	}
 	return false;
+
 }
 
 void Application::lockByPasscode() {

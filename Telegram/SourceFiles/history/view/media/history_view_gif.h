@@ -104,12 +104,16 @@ public:
 		stopAnimation();
 	}
 
+	void refreshParentId(not_null<HistoryItem*> realParent) override;
+
 private:
 	struct Streamed;
 
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
 	bool dataLoaded() const override;
+
+	void refreshCaption();
 
 	[[nodiscard]] bool autoplayEnabled() const;
 

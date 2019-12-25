@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_form_controller.h"
 #include "window/window_session_controller.h"
 #include "data/data_session.h"
+#include "data/data_document.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_channel.h"
 #include "mainwindow.h"
@@ -362,6 +363,38 @@ bool HandleUnknown(
 	return true;
 }
 
+bool OpenMediaTimestamp(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
+		return false;
+	}
+	const auto time = match->captured(2).toInt();
+	if (time < 0) {
+		return false;
+	}
+	const auto base = match->captured(1);
+	if (base.startsWith(qstr("doc"))) {
+		const auto parts = base.mid(3).split('_');
+		const auto documentId = parts.value(0).toULongLong();
+		const auto itemId = FullMsgId(
+			parts.value(1).toInt(),
+			parts.value(2).toInt());
+		const auto document = session->data().document(documentId);
+		session->settings().setMediaLastPlaybackPosition(
+			documentId,
+			time * crl::time(1000));
+		if (!document->isNull()) {
+			Core::App().showDocument(
+				document,
+				session->data().message(itemId));
+		}
+		return true;
+	}
+	return false;
+}
+
 } // namespace
 
 const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
@@ -421,7 +454,17 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			qsl("^([^\\?]+)(\\?|#|$)"),
 			HandleUnknown
-		}
+		},
+	};
+	return Result;
+}
+
+const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
+	static auto Result = std::vector<LocalUrlHandler>{
+		{
+			qsl("^media_timestamp/?\\?base=([a-zA-Z0-9\\.\\_\\-]+)&t=(\\d+)(&|$)"),
+			OpenMediaTimestamp
+		},
 	};
 	return Result;
 }
