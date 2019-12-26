@@ -259,15 +259,24 @@ Full Full::FullDisabled() {
 
 bool Should(
 		const Full &data,
-		not_null<PeerData*> peer,
+		Source source,
 		not_null<DocumentData*> document) {
 	if (document->sticker()) {
 		return true;
+	} else if (document->isVoiceMessage()
+		|| document->isVideoMessage()
+		|| document->isSong()
+		|| document->isVideoFile()) {
+		return false;
 	}
-	return data.shouldDownload(
-		SourceFromPeer(peer),
-		Type::File,
-		document->size);
+	return data.shouldDownload(source, Type::File, document->size);
+}
+
+bool Should(
+		const Full &data,
+		not_null<PeerData*> peer,
+		not_null<DocumentData*> document) {
+	return Should(data, SourceFromPeer(peer), document);
 }
 
 bool Should(
@@ -277,9 +286,9 @@ bool Should(
 		return true;
 	}
 	const auto size = document->size;
-	return data.shouldDownload(Source::User, Type::File, size)
-		|| data.shouldDownload(Source::Group, Type::File, size)
-		|| data.shouldDownload(Source::Channel, Type::File, size);
+	return Should(data, Source::User, document)
+		|| Should(data, Source::Group, document)
+		|| Should(data, Source::Channel, document);
 }
 
 bool Should(

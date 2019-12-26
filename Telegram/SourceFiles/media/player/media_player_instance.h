@@ -196,7 +196,7 @@ private:
 		std::shared_ptr<Streaming::Document> shared);
 	Streaming::PlaybackOptions streamingOptions(
 		const AudioMsgId &audioId,
-		crl::time position = 0);
+		crl::time position = -1);
 
 	// Observed notifications.
 	void handleSongUpdate(const AudioMsgId &audioId);

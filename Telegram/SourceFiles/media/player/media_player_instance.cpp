@@ -422,7 +422,15 @@ Streaming::PlaybackOptions Instance::streamingOptions(
 		? kVoicePlaybackSpeedMultiplier
 		: 1.;
 	result.audioId = audioId;
-	result.position = position;
+	if (position >= 0) {
+		result.position = position;
+	} else if (document) {
+		auto &settings = document->session().settings();
+		result.position = settings.mediaLastPlaybackPosition(document->id);
+		settings.setMediaLastPlaybackPosition(document->id, 0);
+	} else {
+		result.position = 0;
+	}
 	return result;
 }
 

@@ -146,6 +146,10 @@ Stream File::Context::initStream(
 
 	result.codec = FFmpeg::MakeCodecPointer(info);
 	if (!result.codec) {
+		if (info->codecpar->codec_id == AV_CODEC_ID_MJPEG) {
+			// mp3 files contain such "video stream", just ignore it.
+			return Stream();
+		}
 		return result;
 	}
 

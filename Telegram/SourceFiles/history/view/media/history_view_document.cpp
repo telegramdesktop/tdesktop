@@ -38,10 +38,10 @@ Document::Document(
 : File(parent, parent->data())
 , _data(document) {
 	const auto item = parent->data();
-	auto caption = createCaption(item);
+	auto caption = createCaption();
 
 	createComponents(!caption.isEmpty());
-	if (auto named = Get<HistoryDocumentNamed>()) {
+	if (const auto named = Get<HistoryDocumentNamed>()) {
 		fillNamedFromData(named);
 	}
 
@@ -49,7 +49,7 @@ Document::Document(
 
 	setStatusSize(FileStatusSizeReady);
 
-	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
 		captioned->_caption = std::move(caption);
 	}
 }
@@ -830,7 +830,7 @@ void Document::refreshParentId(not_null<HistoryItem*> realParent) {
 
 void Document::parentTextUpdated() {
 	auto caption = (_parent->media() == this)
-		? createCaption(_parent->data())
+		? createCaption()
 		: Ui::Text::String();
 	if (!caption.isEmpty()) {
 		AddComponents(HistoryDocumentCaptioned::Bit());
@@ -847,6 +847,19 @@ TextWithEntities Document::getCaption() const {
 		return captioned->_caption.toTextWithEntities();
 	}
 	return TextWithEntities();
+}
+
+Ui::Text::String Document::createCaption() {
+	const auto timestampLinksDuration = _data->isSong()
+		? _data->getDuration()
+		: 0;
+	const auto timestampLinkBase = timestampLinksDuration
+		? DocumentTimestampLinkBase(_data, _realParent->fullId())
+		: QString();
+	return File::createCaption(
+		_parent->data(),
+		timestampLinksDuration,
+		timestampLinkBase);
 }
 
 } // namespace HistoryView

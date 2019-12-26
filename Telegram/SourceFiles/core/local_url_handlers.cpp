@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_channel.h"
+#include "media/player/media_player_instance.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
@@ -385,10 +386,12 @@ bool OpenMediaTimestamp(
 		session->settings().setMediaLastPlaybackPosition(
 			documentId,
 			time * crl::time(1000));
-		if (!document->isNull()) {
+		if (document->isVideoFile()) {
 			Core::App().showDocument(
 				document,
 				session->data().message(itemId));
+		} else if (document->isSong()) {
+			Media::Player::instance()->play({ document, itemId });
 		}
 		return true;
 	}
