@@ -423,7 +423,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	if (radial
 		|| (!streamingMode
 			&& ((!_data->loaded() && !_data->loading()) || !autoplay))) {
-		const auto radialOpacity = item->isSending()
+		const auto radialOpacity = (item->isSending() || _data->uploading())
 			? 1.
 			: streamed
 			? streamed->waitingOpacity()
@@ -873,6 +873,7 @@ void Gif::drawGrouped(
 	if (displayLoading
 		&& (!streamed
 			|| item->isSending()
+			|| _data->uploading()
 			|| (cornerDownload && _data->loading()))) {
 		ensureAnimation();
 		if (!_animation->radial.animating()) {
@@ -930,7 +931,7 @@ void Gif::drawGrouped(
 	if (radial
 		|| (!streamingMode
 			&& ((!_data->loaded() && !_data->loading()) || !autoplay))) {
-		const auto radialOpacity = item->isSending()
+		const auto radialOpacity = (item->isSending() || _data->uploading())
 			? 1.
 			: streamed
 			? streamed->waitingOpacity()
@@ -1423,6 +1424,7 @@ bool Gif::dataLoaded() const {
 bool Gif::needInfoDisplay() const {
 	return _data->isVideoFile()
 		|| _parent->data()->isSending()
+		|| _data->uploading()
 		|| _parent->isUnderCursor();
 }
 

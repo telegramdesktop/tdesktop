@@ -198,6 +198,10 @@ private:
 		const MTPDmessageFwdHeader &data);
 
 	void refreshMessageBadge();
+	[[nodiscard]] bool generateLocalEntitiesByReply() const;
+	[[nodiscard]] TextWithEntities withLocalEntities(
+		const TextWithEntities &textWithEntities) const;
+	void reapplyText();
 
 	Ui::Text::String _messageBadge;
 

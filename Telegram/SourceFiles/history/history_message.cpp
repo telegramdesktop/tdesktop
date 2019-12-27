@@ -17,7 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_location_manager.h"
 #include "history/history_service.h"
 #include "history/view/history_view_service_message.h"
-#include "history/view/history_view_context_menu.h" // For CopyPostLink().
+#include "history/view/history_view_context_menu.h" // CopyPostLink.
+#include "history/view/media/history_view_media.h" // AddTimestampLinks.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "main/main_session.h"
 #include "boxes/share_box.h"
@@ -698,7 +699,13 @@ int HistoryMessage::viewsCount() const {
 
 bool HistoryMessage::updateDependencyItem() {
 	if (const auto reply = Get<HistoryMessageReply>()) {
-		return reply->updateData(this, true);
+		const auto document = reply->replyToDocument();
+		const auto result = reply->updateData(this, true);
+		if (document != reply->replyToDocument()
+			&& generateLocalEntitiesByReply()) {
+			reapplyText();
+		}
+		return result;
 	}
 	return true;
 }
@@ -1150,6 +1157,37 @@ Storage::SharedMediaTypesMask HistoryMessage::sharedMediaTypes() const {
 	return result;
 }
 
+bool HistoryMessage::generateLocalEntitiesByReply() const {
+	return !_media || _media->webpage();
+}
+
+TextWithEntities HistoryMessage::withLocalEntities(
+		const TextWithEntities &textWithEntities) const {
+	if (!generateLocalEntitiesByReply()) {
+		return textWithEntities;
+	}
+	if (const auto reply = Get<HistoryMessageReply>()) {
+		if (const auto document = reply->replyToDocument()) {
+			if (document->isVideoFile() || document->isSong()) {
+				using namespace HistoryView;
+				const auto duration = document->getDuration();
+				const auto base = (duration > 0)
+					? DocumentTimestampLinkBase(
+						document,
+						reply->replyToMsg->fullId())
+					: QString();
+				if (!base.isEmpty()) {
+					return AddTimestampLinks(
+						textWithEntities,
+						duration,
+						base);
+				}
+			}
+		}
+	}
+	return textWithEntities;
+}
+
 void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 	for_const (auto &entity, textWithEntities.entities) {
 		auto type = entity.type();
@@ -1168,7 +1206,7 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 	clearIsolatedEmoji();
 	_text.setMarkedText(
 		st::messageTextStyle,
-		textWithEntities,
+		withLocalEntities(textWithEntities),
 		Ui::ItemTextOptions(this));
 	if (!textWithEntities.text.isEmpty() && _text.isEmpty()) {
 		// If server has allowed some text that we've trim-ed entirely,
@@ -1182,6 +1220,11 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 	}
 	_textWidth = -1;
 	_textHeight = 0;
+}
+
+void HistoryMessage::reapplyText() {
+	setText(originalText());
+	history()->owner().requestItemResize(this);
 }
 
 void HistoryMessage::setEmptyText() {
@@ -1309,8 +1352,13 @@ void HistoryMessage::setRealId(MsgId newId) {
 }
 
 void HistoryMessage::dependencyItemRemoved(HistoryItem *dependency) {
-	if (auto reply = Get<HistoryMessageReply>()) {
+	if (const auto reply = Get<HistoryMessageReply>()) {
+		const auto document = reply->replyToDocument();
 		reply->itemRemoved(this, dependency);
+		if (document != reply->replyToDocument()
+			&& generateLocalEntitiesByReply()) {
+			reapplyText();
+		}
 	}
 }
 

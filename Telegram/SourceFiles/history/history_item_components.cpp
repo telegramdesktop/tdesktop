@@ -358,6 +358,13 @@ void HistoryMessageReply::paint(
 	}
 }
 
+DocumentData *HistoryMessageReply::replyToDocument() const {
+	if (const auto media = replyToMsg ? replyToMsg->media() : nullptr) {
+		return media->document();
+	}
+	return nullptr;
+}
+
 ReplyMarkupClickHandler::ReplyMarkupClickHandler(
 	int row,
 	int column,

@@ -32,7 +32,17 @@ namespace {
 	return (ok1 && ok2 && ok3) ? result : -1;
 }
 
-[[nodiscard]] TextWithEntities AddTimestampLinks(
+} // namespace
+
+QString DocumentTimestampLinkBase(
+		not_null<DocumentData*> document,
+		FullMsgId context) {
+	return QString(
+		"doc%1_%2_%3"
+	).arg(document->id).arg(context.channel).arg(context.msg);
+}
+
+TextWithEntities AddTimestampLinks(
 		TextWithEntities text,
 		TimeId duration,
 		const QString &base) {
@@ -90,16 +100,6 @@ namespace {
 					+ QString::number(time))));
 	}
 	return text;
-}
-
-} // namespace
-
-QString DocumentTimestampLinkBase(
-		not_null<DocumentData*> document,
-		FullMsgId context) {
-	return QString(
-		"doc%1_%2_%3"
-	).arg(document->id).arg(context.channel).arg(context.msg);
 }
 
 Storage::SharedMediaTypesMask Media::sharedMediaTypes() const {
