@@ -324,7 +324,7 @@ private:
 	[[nodiscard]] bool documentContentShown() const;
 	[[nodiscard]] bool documentBubbleShown() const;
 	void paintTransformedVideoFrame(Painter &p);
-	void clearStreaming();
+	void clearStreaming(bool savePosition = true);
 
 	QBrush _transparentBrush;
 

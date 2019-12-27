@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "history/history.h"
 #include "history/history_message.h"
+#include "history/view/media/history_view_media.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
@@ -436,8 +437,8 @@ bool OverlayWidget::documentBubbleShown() const {
 			&& _current.isNull());
 }
 
-void OverlayWidget::clearStreaming() {
-	if (_streamed && _doc) {
+void OverlayWidget::clearStreaming(bool savePosition) {
+	if (_streamed && _doc && savePosition) {
 		const auto state = _streamed->instance.player().prepareLegacyState();
 		const auto time = (state.position == kTimeUnknown
 			|| state.length == kTimeUnknown)
@@ -1640,10 +1641,18 @@ void OverlayWidget::refreshCaption(HistoryItem *item) {
 		}
 		return false;
 	}();
+
+	using namespace HistoryView;
 	_caption = Ui::Text::String(st::msgMinWidth);
+	const auto duration = (_streamed && !videoIsGifv())
+		? _doc->getDuration()
+		: 0;
+	const auto base = duration
+		? DocumentTimestampLinkBase(_doc, item->fullId())
+		: QString();
 	_caption.setMarkedText(
 		st::mediaviewCaptionStyle,
-		caption,
+		AddTimestampLinks(caption, duration, base),
 		Ui::ItemTextOptions(item));
 }
 
@@ -1852,7 +1861,7 @@ void OverlayWidget::displayDocument(
 	}
 	_fullScreenVideo = false;
 	_current = QPixmap();
-	clearStreaming();
+	clearStreaming(_doc != doc);
 	destroyThemePreview();
 	_doc = doc;
 	_themeCloudData = cloud;
@@ -1860,7 +1869,6 @@ void OverlayWidget::displayDocument(
 	_radial.stop();
 
 	refreshMediaViewer();
-	refreshCaption(item);
 	if (_doc) {
 		if (_doc->sticker()) {
 			if (const auto image = _doc->getStickerLarge()) {
@@ -1892,6 +1900,7 @@ void OverlayWidget::displayDocument(
 			}
 		}
 	}
+	refreshCaption(item);
 
 	_docIconRect = QRect((width() - st::mediaviewFileIconSize) / 2, (height() - st::mediaviewFileIconSize) / 2, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	if (documentBubbleShown()) {
