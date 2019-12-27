@@ -283,9 +283,14 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 		: activeOwnPlaying
 		? &activeOwnPlaying->instance
 		: nullptr;
+	const auto streamedForWaiting = activeRoundPlaying
+		? activeRoundPlaying
+		: _streamed
+		? &_streamed->instance
+		: nullptr;
 
 	if (displayLoading
-		&& (!streamed
+		&& (!streamedForWaiting
 			|| item->isSending()
 			|| (cornerDownload && _data->loading()))) {
 		ensureAnimation();
@@ -295,7 +300,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	}
 	updateStatusText();
 	const auto radial = isRadialAnimation()
-		|| (streamed && streamed->waitingShown());
+		|| (streamedForWaiting && streamedForWaiting->waitingShown());
 
 	if (bubble) {
 		if (!_caption.isEmpty()) {
@@ -425,8 +430,8 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 			&& ((!_data->loaded() && !_data->loading()) || !autoplay))) {
 		const auto radialOpacity = (item->isSending() || _data->uploading())
 			? 1.
-			: streamed
-			? streamed->waitingOpacity()
+			: streamedForWaiting
+			? streamedForWaiting->waitingOpacity()
 			: (radial && _data->loaded())
 			? _animation->radial.opacity()
 			: 1.;
@@ -471,10 +476,10 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 			const auto fg = selected
 				? st::historyFileThumbRadialFgSelected
 				: st::historyFileThumbRadialFg;
-			if (streamed && !_data->uploading()) {
+			if (streamedForWaiting && !_data->uploading()) {
 				Ui::InfiniteRadialAnimation::Draw(
 					p,
-					streamed->waitingState(),
+					streamedForWaiting->waitingState(),
 					rinner.topLeft(),
 					rinner.size(),
 					width(),
@@ -869,9 +874,12 @@ void Gif::drawGrouped(
 	const auto streamed = activeOwnPlaying
 		? &activeOwnPlaying->instance
 		: nullptr;
+	const auto streamedForWaiting = _streamed
+		? &_streamed->instance
+		: nullptr;
 
 	if (displayLoading
-		&& (!streamed
+		&& (!streamedForWaiting
 			|| item->isSending()
 			|| _data->uploading()
 			|| (cornerDownload && _data->loading()))) {
@@ -882,7 +890,7 @@ void Gif::drawGrouped(
 	}
 	updateStatusText();
 	const auto radial = isRadialAnimation()
-		|| (streamed && streamed->waitingShown());
+		|| (streamedForWaiting && streamedForWaiting->waitingShown());
 
 	const auto roundRadius = ImageRoundRadius::Large;
 
@@ -933,8 +941,8 @@ void Gif::drawGrouped(
 			&& ((!_data->loaded() && !_data->loading()) || !autoplay))) {
 		const auto radialOpacity = (item->isSending() || _data->uploading())
 			? 1.
-			: streamed
-			? streamed->waitingOpacity()
+			: streamedForWaiting
+			? streamedForWaiting->waitingOpacity()
 			: (radial && _data->loaded())
 			? _animation->radial.opacity()
 			: 1.;
@@ -997,10 +1005,10 @@ void Gif::drawGrouped(
 			const auto fg = selected
 				? st::historyFileThumbRadialFgSelected
 				: st::historyFileThumbRadialFg;
-			if (streamed && !_data->uploading()) {
+			if (streamedForWaiting && !_data->uploading()) {
 				Ui::InfiniteRadialAnimation::Draw(
 					p,
-					streamed->waitingState(),
+					streamedForWaiting->waitingState(),
 					rinner.topLeft(),
 					rinner.size(),
 					width(),
