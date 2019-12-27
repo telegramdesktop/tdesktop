@@ -177,7 +177,7 @@ if %BuildUWP% equ 0 (
 
 for /f ^"usebackq^ eol^=^
 
-^ delims^=^" %%a in (%ReleasePath%\%BinaryName%.exe.sym) do (
+^ delims^=^" %%a in (%ReleasePath%\%BinaryName%.sym) do (
   set "SymbolsHashLine=%%a"
   goto symbolslinedone
 )
