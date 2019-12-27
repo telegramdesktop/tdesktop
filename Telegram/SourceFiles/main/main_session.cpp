@@ -203,6 +203,13 @@ Support::Templates& Session::supportTemplates() const {
 	return supportHelper().templates();
 }
 
+void Session::saveSettingsNowIfNeeded() {
+	if (_saveSettingsTimer.isActive()) {
+		_saveSettingsTimer.cancel();
+		Local::writeUserSettings();
+	}
+}
+
 } // namespace Main
 
 Main::Session &Auth() {

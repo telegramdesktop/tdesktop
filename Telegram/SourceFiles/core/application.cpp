@@ -123,7 +123,14 @@ Application::Application(not_null<Launcher*> launcher)
 
 Application::~Application() {
 	_window.reset();
-	_mediaView.reset();
+	if (_mediaView) {
+		_mediaView->clearData();
+		_mediaView = nullptr;
+	}
+
+	if (activeAccount().sessionExists()) {
+		activeAccount().session().saveSettingsNowIfNeeded();
+	}
 
 	// This can call writeMap() that serializes Main::Session.
 	// In case it gets called after destroySession() we get missing data.

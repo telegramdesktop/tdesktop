@@ -439,9 +439,12 @@ bool OverlayWidget::documentBubbleShown() const {
 
 void OverlayWidget::clearStreaming(bool savePosition) {
 	if (_streamed && _doc && savePosition) {
+		using State = Media::Player::State;
 		const auto state = _streamed->instance.player().prepareLegacyState();
 		const auto time = (state.position == kTimeUnknown
-			|| state.length == kTimeUnknown)
+			|| state.length == kTimeUnknown
+			|| state.state == State::PausedAtEnd
+			|| Media::Player::IsStopped(state.state))
 			? TimeId(0)
 			: (state.length >= kMinLengthForSavePosition * state.frequency)
 			? (state.position / state.frequency) * crl::time(1000)

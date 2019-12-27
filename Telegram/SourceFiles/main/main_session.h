@@ -106,6 +106,7 @@ public:
 		return _settings;
 	}
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
+	void saveSettingsNowIfNeeded();
 
 	[[nodiscard]] not_null<MTP::Instance*> mtp();
 	[[nodiscard]] ApiWrap &api() {
