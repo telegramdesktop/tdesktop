@@ -142,7 +142,7 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	void setReplyToLinkFrom(
 		not_null<HistoryMessage*> holder);
 
-	[[nodiscard]] void refreshReplyToDocument();
+	void refreshReplyToDocument();
 
 	MsgId replyToMsgId = 0;
 	HistoryItem *replyToMsg = nullptr;
