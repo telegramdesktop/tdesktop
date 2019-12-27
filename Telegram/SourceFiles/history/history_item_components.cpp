@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
+#include "data/data_document.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "facades.h"
@@ -179,6 +180,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 bool HistoryMessageReply::updateData(
 		not_null<HistoryMessage*> holder,
 		bool force) {
+	const auto guard = gsl::finally([&] { refreshReplyToDocument(); });
 	if (!force) {
 		if (replyToMsg || !replyToMsgId) {
 			return true;
@@ -358,11 +360,13 @@ void HistoryMessageReply::paint(
 	}
 }
 
-DocumentData *HistoryMessageReply::replyToDocument() const {
+void HistoryMessageReply::refreshReplyToDocument() {
+	replyToDocumentId = 0;
 	if (const auto media = replyToMsg ? replyToMsg->media() : nullptr) {
-		return media->document();
+		if (const auto document = media->document()) {
+			replyToDocumentId = document->id;
+		}
 	}
-	return nullptr;
 }
 
 ReplyMarkupClickHandler::ReplyMarkupClickHandler(

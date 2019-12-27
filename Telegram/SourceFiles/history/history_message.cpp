@@ -699,9 +699,9 @@ int HistoryMessage::viewsCount() const {
 
 bool HistoryMessage::updateDependencyItem() {
 	if (const auto reply = Get<HistoryMessageReply>()) {
-		const auto document = reply->replyToDocument();
+		const auto documentId = reply->replyToDocumentId;
 		const auto result = reply->updateData(this, true);
-		if (document != reply->replyToDocument()
+		if (documentId != reply->replyToDocumentId
 			&& generateLocalEntitiesByReply()) {
 			reapplyText();
 		}
@@ -902,6 +902,7 @@ void HistoryMessage::returnSavedMedia() {
 		history()->owner().groups().refreshMessage(this, true);
 	} else {
 		history()->owner().requestItemViewRefresh(this);
+		history()->owner().updateDependentMessages(this);
 	}
 }
 
@@ -1167,21 +1168,22 @@ TextWithEntities HistoryMessage::withLocalEntities(
 		return textWithEntities;
 	}
 	if (const auto reply = Get<HistoryMessageReply>()) {
-		if (const auto document = reply->replyToDocument()) {
-			if (document->isVideoFile() || document->isSong()) {
-				using namespace HistoryView;
-				const auto duration = document->getDuration();
-				const auto base = (duration > 0)
-					? DocumentTimestampLinkBase(
-						document,
-						reply->replyToMsg->fullId())
-					: QString();
-				if (!base.isEmpty()) {
-					return AddTimestampLinks(
-						textWithEntities,
-						duration,
-						base);
-				}
+		const auto document = reply->replyToDocumentId
+			? history()->owner().document(reply->replyToDocumentId).get()
+			: nullptr;
+		if (document && (document->isVideoFile() || document->isSong())) {
+			using namespace HistoryView;
+			const auto duration = document->getDuration();
+			const auto base = (duration > 0)
+				? DocumentTimestampLinkBase(
+					document,
+					reply->replyToMsg->fullId())
+				: QString();
+			if (!base.isEmpty()) {
+				return AddTimestampLinks(
+					textWithEntities,
+					duration,
+					base);
 			}
 		}
 	}
@@ -1353,9 +1355,9 @@ void HistoryMessage::setRealId(MsgId newId) {
 
 void HistoryMessage::dependencyItemRemoved(HistoryItem *dependency) {
 	if (const auto reply = Get<HistoryMessageReply>()) {
-		const auto document = reply->replyToDocument();
+		const auto documentId = reply->replyToDocumentId;
 		reply->itemRemoved(this, dependency);
-		if (document != reply->replyToDocument()
+		if (documentId != reply->replyToDocumentId
 			&& generateLocalEntitiesByReply()) {
 			reapplyText();
 		}

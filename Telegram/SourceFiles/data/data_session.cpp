@@ -1681,6 +1681,7 @@ bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
 		existing->indexAsNewItem();
 		existing->contributeToSlowmode(data.vdate().v);
 		requestItemTextRefresh(existing);
+		updateDependentMessages(existing);
 		if (existing->mainView()) {
 			checkSavedGif(existing);
 			return true;

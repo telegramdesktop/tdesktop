@@ -142,10 +142,11 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	void setReplyToLinkFrom(
 		not_null<HistoryMessage*> holder);
 
-	[[nodiscard]] DocumentData *replyToDocument() const;
+	[[nodiscard]] void refreshReplyToDocument();
 
 	MsgId replyToMsgId = 0;
 	HistoryItem *replyToMsg = nullptr;
+	DocumentId replyToDocumentId = 0;
 	ClickHandlerPtr replyToLnk;
 	mutable Ui::Text::String replyToName, replyToText;
 	mutable int replyToVersion = 0;
