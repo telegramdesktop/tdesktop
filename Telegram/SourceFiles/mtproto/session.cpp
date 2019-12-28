@@ -108,7 +108,7 @@ AuthKeyPtr SessionData::getPersistentKey() const {
 	return _owner ? _owner->getPersistentKey() : nullptr;
 }
 
-CreatingKeyType SessionData::acquireKeyCreation(TemporaryKeyType type) {
+CreatingKeyType SessionData::acquireKeyCreation(DcType type) {
 	QMutexLocker lock(&_ownerMutex);
 	return _owner ? _owner->acquireKeyCreation(type) : CreatingKeyType::None;
 }
@@ -121,6 +121,14 @@ bool SessionData::releaseKeyCreationOnDone(
 		? _owner->releaseKeyCreationOnDone(
 			temporaryKey,
 			persistentKeyUsedForBind)
+		: false;
+}
+
+bool SessionData::releaseCdnKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey) {
+	QMutexLocker lock(&_ownerMutex);
+	return _owner
+		? _owner->releaseCdnKeyCreationOnDone(temporaryKey)
 		: false;
 }
 
@@ -441,7 +449,7 @@ void Session::sendPrepared(
 	}
 }
 
-CreatingKeyType Session::acquireKeyCreation(TemporaryKeyType type) {
+CreatingKeyType Session::acquireKeyCreation(DcType type) {
 	Expects(_myKeyCreation == CreatingKeyType::None);
 
 	_myKeyCreation = _dc->acquireKeyCreation(type);
@@ -454,6 +462,21 @@ bool Session::releaseKeyCreationOnDone(
 	Expects(_myKeyCreation != CreatingKeyType::None);
 	Expects(persistentKeyUsedForBind != nullptr);
 
+	return releaseGenericKeyCreationOnDone(
+		temporaryKey,
+		persistentKeyUsedForBind);
+}
+
+bool Session::releaseCdnKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey) {
+	Expects(_myKeyCreation == CreatingKeyType::TemporaryRegular);
+
+	return releaseGenericKeyCreationOnDone(temporaryKey, nullptr);
+}
+
+bool Session::releaseGenericKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey,
+		const AuthKeyPtr &persistentKeyUsedForBind) {
 	const auto wasKeyCreation = std::exchange(
 		_myKeyCreation,
 		CreatingKeyType::None);

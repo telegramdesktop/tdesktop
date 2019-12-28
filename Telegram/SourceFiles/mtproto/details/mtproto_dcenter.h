@@ -14,6 +14,7 @@ namespace MTP {
 class Instance;
 class AuthKey;
 using AuthKeyPtr = std::shared_ptr<AuthKey>;
+enum class DcType;
 
 namespace details {
 
@@ -29,6 +30,8 @@ enum class CreatingKeyType {
 	TemporaryMediaCluster
 };
 
+[[nodiscard]] TemporaryKeyType TemporaryKeyTypeByDcType(DcType type);
+
 class Dcenter : public QObject {
 public:
 	// Main thread.
@@ -38,7 +41,7 @@ public:
 	[[nodiscard]] DcId id() const;
 	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
 	[[nodiscard]] AuthKeyPtr getTemporaryKey(TemporaryKeyType type) const;
-	[[nodiscard]] CreatingKeyType acquireKeyCreation(TemporaryKeyType type);
+	[[nodiscard]] CreatingKeyType acquireKeyCreation(DcType type);
 	bool releaseKeyCreationOnDone(
 		CreatingKeyType type,
 		const AuthKeyPtr &temporaryKey,

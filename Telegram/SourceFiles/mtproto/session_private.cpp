@@ -77,12 +77,6 @@ using namespace details;
 	return idsStr + "]";
 }
 
-[[nodiscard]] TemporaryKeyType TemporaryKeyTypeByDcType(DcType type) {
-	return (type == DcType::MediaCluster)
-		? TemporaryKeyType::MediaCluster
-		: TemporaryKeyType::Regular;
-}
-
 void WrapInvokeAfter(
 		SerializedRequest &to,
 		const SerializedRequest &from,
@@ -2349,8 +2343,7 @@ DcType SessionPrivate::tryAcquireKeyCreation() {
 		return _realDcType;
 	}
 
-	const auto keyType = TemporaryKeyTypeByDcType(_realDcType);
-	const auto acquired = _sessionData->acquireKeyCreation(keyType);
+	const auto acquired = _sessionData->acquireKeyCreation(_realDcType);
 	if (acquired == CreatingKeyType::None) {
 		return _realDcType;
 	}
@@ -2384,19 +2377,29 @@ DcType SessionPrivate::tryAcquireKeyCreation() {
 			).arg(result->persistentServerSalt));
 
 		_sessionSalt = result->temporaryServerSalt;
-		auto key = result->persistentKey
-			? std::move(result->persistentKey)
-			: _sessionData->getPersistentKey();
-		if (!key) {
-			releaseKeyCreationOnFail();
-			restart();
-			return;
-		}
 		result->temporaryKey->setExpiresAt(base::unixtime::now()
 			+ kTemporaryExpiresIn
 			+ kBindKeyAdditionalExpiresTimeout);
-		_keyCreator->bind(std::move(key));
+		if (_realDcType != DcType::Cdn) {
+			auto key = result->persistentKey
+				? std::move(result->persistentKey)
+				: _sessionData->getPersistentKey();
+			if (!key) {
+				releaseKeyCreationOnFail();
+				restart();
+				return;
+			}
+			_keyCreator->bind(std::move(key));
+		}
 		applyAuthKey(std::move(result->temporaryKey));
+		if (_realDcType == DcType::Cdn) {
+			_keyCreator = nullptr;
+			if (!_sessionData->releaseCdnKeyCreationOnDone(_encryptionKey)) {
+				restart();
+			} else {
+				_sessionData->queueNeedToResumeAndSend();
+			}
+		}
 	};
 	delegate.sentSome = [=](uint64 size) {
 		onSentSome(size);

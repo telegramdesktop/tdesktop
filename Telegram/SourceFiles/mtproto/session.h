@@ -19,6 +19,7 @@ namespace MTP {
 class Instance;
 class AuthKey;
 using AuthKeyPtr = std::shared_ptr<AuthKey>;
+enum class DcType;
 
 namespace details {
 
@@ -100,10 +101,12 @@ public:
 	[[nodiscard]] bool connectionInited() const;
 	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
 	[[nodiscard]] AuthKeyPtr getTemporaryKey(TemporaryKeyType type) const;
-	[[nodiscard]] CreatingKeyType acquireKeyCreation(TemporaryKeyType type);
+	[[nodiscard]] CreatingKeyType acquireKeyCreation(DcType type);
 	[[nodiscard]] bool releaseKeyCreationOnDone(
 		const AuthKeyPtr &temporaryKey,
 		const AuthKeyPtr &persistentKeyUsedForBind);
+	[[nodiscard]] bool releaseCdnKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey);
 	void releaseKeyCreationOnFail();
 	void destroyTemporaryKey(uint64 keyId);
 
@@ -161,10 +164,11 @@ public:
 		crl::time msCanWait = 0);
 
 	// SessionPrivate thread.
-	[[nodiscard]] CreatingKeyType acquireKeyCreation(TemporaryKeyType type);
+	[[nodiscard]] CreatingKeyType acquireKeyCreation(DcType type);
 	[[nodiscard]] bool releaseKeyCreationOnDone(
 		const AuthKeyPtr &temporaryKey,
 		const AuthKeyPtr &persistentKeyUsedForBind);
+	[[nodiscard]] bool releaseCdnKeyCreationOnDone(const AuthKeyPtr &temporaryKey);
 	void releaseKeyCreationOnFail();
 	void destroyTemporaryKey(uint64 keyId);
 
@@ -192,6 +196,10 @@ private:
 		mtpRequestId requestId,
 		const RPCFailHandlerPtr &onFail,
 		const RPCError &err);
+
+	[[nodiscard]] bool releaseGenericKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey,
+		const AuthKeyPtr &persistentKeyUsedForBind);
 
 	const not_null<Instance*> _instance;
 	const ShiftedDcId _shiftedDcId = 0;

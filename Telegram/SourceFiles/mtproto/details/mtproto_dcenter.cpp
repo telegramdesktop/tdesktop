@@ -48,6 +48,13 @@ const char *NameOfType(CreatingKeyType type) {
 
 } // namespace
 
+
+TemporaryKeyType TemporaryKeyTypeByDcType(DcType type) {
+	return (type == DcType::MediaCluster)
+		? TemporaryKeyType::MediaCluster
+		: TemporaryKeyType::Regular;
+}
+
 Dcenter::Dcenter(DcId dcId, AuthKeyPtr &&key)
 : _id(dcId)
 , _persistentKey(std::move(key)) {
@@ -102,23 +109,24 @@ void Dcenter::setConnectionInited(bool connectionInited) {
 	_connectionInited = connectionInited;
 }
 
-CreatingKeyType Dcenter::acquireKeyCreation(TemporaryKeyType type) {
+CreatingKeyType Dcenter::acquireKeyCreation(DcType type) {
 	QReadLocker lock(&_mutex);
-	const auto index = IndexByType(type);
+	const auto keyType = TemporaryKeyTypeByDcType(type);
+	const auto index = IndexByType(keyType);
 	auto &key = _temporaryKeys[index];
 	if (key != nullptr) {
 		return CreatingKeyType::None;
 	}
 	auto expected = false;
 	const auto regular = IndexByType(TemporaryKeyType::Regular);
-	if (type == TemporaryKeyType::MediaCluster && _temporaryKeys[regular]) {
+	if (keyType == TemporaryKeyType::MediaCluster && _temporaryKeys[regular]) {
 		return !_creatingKeys[index].compare_exchange_strong(expected, true)
 			? CreatingKeyType::None
 			: CreatingKeyType::TemporaryMediaCluster;
 	}
 	return !_creatingKeys[regular].compare_exchange_strong(expected, true)
 		? CreatingKeyType::None
-		: !_persistentKey
+		: (type != DcType::Cdn && !_persistentKey)
 		? CreatingKeyType::Persistent
 		: CreatingKeyType::TemporaryRegular;
 }
@@ -132,10 +140,6 @@ bool Dcenter::releaseKeyCreationOnDone(
 	Expects(temporaryKey != nullptr);
 
 	QWriteLocker lock(&_mutex);
-	if (type != CreatingKeyType::Persistent
-		&& _persistentKey != persistentKeyUsedForBind) {
-		return false;
-	}
 	if (type == CreatingKeyType::Persistent) {
 		_persistentKey = persistentKeyUsedForBind;
 	} else if (_persistentKey != persistentKeyUsedForBind) {
