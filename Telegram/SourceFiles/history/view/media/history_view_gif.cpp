@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/grouped_layout.h"
 #include "data/data_session.h"
+#include "data/data_streaming.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "app.h"
@@ -81,7 +82,10 @@ Gif::Gif(
 }
 
 Gif::~Gif() {
-	setStreamed(nullptr);
+	if (_streamed) {
+		_data->owner().streaming().keepAlive(_data);
+		setStreamed(nullptr);
+	}
 }
 
 QSize Gif::sizeForAspectRatio() const {
@@ -256,13 +260,11 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 	const auto canBePlayed = _data->canBePlayed();
 	const auto autoplay = autoplayEnabled() && canBePlayed;
 	const auto activeRoundPlaying = activeRoundStreamed();
-	const auto startPlayAsync = autoplay
+	const auto startPlay = autoplay
 		&& !_streamed
 		&& !activeRoundPlaying;
-	if (startPlayAsync) {
-		if (!autoPaused) {
-			_parent->delegate()->elementAnimationAutoplayAsync(_parent);
-		}
+	if (startPlay) {
+		const_cast<Gif*>(this)->playAnimation(true);
 	} else {
 		checkStreamedIsStarted();
 	}
@@ -857,11 +859,9 @@ void Gif::drawGrouped(
 	const auto cornerDownload = fullFeatured && downloadInCorner();
 	const auto canBePlayed = _data->canBePlayed();
 	const auto autoplay = fullFeatured && autoplayEnabled() && canBePlayed;
-	const auto startPlayAsync = autoplay && !_streamed;
-	if (startPlayAsync) {
-		if (!autoPaused) {
-			const_cast<Gif*>(this)->playAnimation(true);
-		}
+	const auto startPlay = autoplay && !_streamed;
+	if (startPlay) {
+		const_cast<Gif*>(this)->playAnimation(true);
 	} else {
 		checkStreamedIsStarted();
 	}
@@ -1301,7 +1301,7 @@ void Gif::playAnimation(bool autoplay) {
 }
 
 void Gif::createStreamedPlayer() {
-	auto shared = _data->owner().documentStreamer(
+	auto shared = _data->owner().streaming().sharedDocument(
 		_data,
 		_realParent->fullId());
 	if (!shared) {

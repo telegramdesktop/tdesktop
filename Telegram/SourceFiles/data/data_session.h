@@ -37,16 +37,6 @@ namespace Main {
 class Session;
 } // namespace Main
 
-namespace Media {
-namespace Clip {
-class Reader;
-} // namespace Clip
-namespace Streaming {
-class Reader;
-class Document;
-} // namespace Streaming
-} // namespace Media
-
 namespace Export {
 class Controller;
 namespace View {
@@ -69,6 +59,7 @@ class LocationPoint;
 class WallPaper;
 class ScheduledMessages;
 class CloudThemes;
+class Streaming;
 
 class Session final {
 public:
@@ -97,6 +88,9 @@ public:
 	}
 	[[nodiscard]] CloudThemes &cloudThemes() const {
 		return *_cloudThemes;
+	}
+	[[nodiscard]] Streaming &streaming() const {
+		return *_streaming;
 	}
 	[[nodiscard]] MsgId nextNonHistoryEntryId() {
 		return ++_nonHistoryEntryId;
@@ -435,14 +429,6 @@ public:
 	void requestDocumentViewRepaint(not_null<const DocumentData*> document);
 	void markMediaRead(not_null<const DocumentData*> document);
 	void requestPollViewRepaint(not_null<const PollData*> poll);
-
-	std::shared_ptr<::Media::Streaming::Reader> documentStreamedReader(
-		not_null<DocumentData*> document,
-		FileOrigin origin,
-		bool forceRemoteLoader = false);
-	std::shared_ptr<::Media::Streaming::Document> documentStreamer(
-		not_null<DocumentData*> document,
-		FileOrigin origin);
 
 	HistoryItem *addNewMessage(
 		const MTPMessage &data,
@@ -957,13 +943,6 @@ private:
 	base::flat_set<not_null<GameData*>> _gamesUpdated;
 	base::flat_set<not_null<PollData*>> _pollsUpdated;
 
-	base::flat_map<
-		not_null<DocumentData*>,
-		std::weak_ptr<::Media::Streaming::Reader>> _streamedReaders;
-	base::flat_map<
-		not_null<DocumentData*>,
-		std::weak_ptr<::Media::Streaming::Document>> _streamedDocuments;
-
 	base::flat_map<FolderId, std::unique_ptr<Folder>> _folders;
 	//rpl::variable<FeedId> _defaultFeedId = FeedId(); // #feed
 
@@ -1004,6 +983,7 @@ private:
 	Groups _groups;
 	std::unique_ptr<ScheduledMessages> _scheduledMessages;
 	std::unique_ptr<CloudThemes> _cloudThemes;
+	std::unique_ptr<Streaming> _streaming;
 	MsgId _nonHistoryEntryId = ServerMaxMsgId;
 
 	rpl::lifetime _lifetime;

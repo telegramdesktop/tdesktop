@@ -28,9 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_encrypted_file.h"
 #include "main/main_account.h"
 #include "media/player/media_player_instance.h" // instance()->play()
-#include "media/streaming/media_streaming_loader.h" // unique_ptr<Loader>
-#include "media/streaming/media_streaming_reader.h" // make_shared<Reader>
-#include "media/streaming/media_streaming_document.h" // make_shared<Document
 #include "boxes/abstract_box.h"
 #include "passport/passport_form_controller.h"
 #include "window/themes/window_theme.h"
@@ -48,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_streaming.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
@@ -172,27 +170,6 @@ rpl::producer<int> PinnedDialogsCountMaxValue(
 	});
 }
 
-template <typename Object>
-bool PruneDestroyedAndSet(
-		base::flat_map<
-			not_null<DocumentData*>,
-			std::weak_ptr<Object>> &objects,
-		not_null<DocumentData*> document,
-		const std::shared_ptr<Object> &object) {
-	auto result = false;
-	for (auto i = begin(objects); i != end(objects);) {
-		if (i->first == document) {
-			(i++)->second = object;
-			result = true;
-		} else if (i->second.lock() != nullptr) {
-			++i;
-		} else {
-			i = objects.erase(i);
-		}
-	}
-	return result;
-}
-
 } // namespace
 
 Session::Session(not_null<Main::Session*> session)
@@ -213,7 +190,8 @@ Session::Session(not_null<Main::Session*> session)
 , _unmuteByFinishedTimer([=] { unmuteByFinished(); })
 , _groups(this)
 , _scheduledMessages(std::make_unique<ScheduledMessages>(this))
-, _cloudThemes(std::make_unique<CloudThemes>(session)) {
+, _cloudThemes(std::make_unique<CloudThemes>(session))
+, _streaming(std::make_unique<Streaming>(this)) {
 	_cache->open(Local::cacheKey());
 	_bigFileCache->open(Local::cacheBigFileKey());
 
@@ -1131,53 +1109,6 @@ void Session::requestDocumentViewRepaint(
 			requestItemRepaint(item);
 		}
 	}
-}
-
-std::shared_ptr<::Media::Streaming::Reader> Session::documentStreamedReader(
-		not_null<DocumentData*> document,
-		FileOrigin origin,
-		bool forceRemoteLoader) {
-	const auto i = _streamedReaders.find(document);
-	if (i != end(_streamedReaders)) {
-		if (auto result = i->second.lock()) {
-			if (!forceRemoteLoader || result->isRemoteLoader()) {
-				return result;
-			}
-		}
-	}
-	auto loader = document->createStreamingLoader(origin, forceRemoteLoader);
-	if (!loader) {
-		return nullptr;
-	}
-	auto result = std::make_shared<::Media::Streaming::Reader>(
-		&cacheBigFile(),
-		std::move(loader));
-	if (!PruneDestroyedAndSet(_streamedReaders, document, result)) {
-		_streamedReaders.emplace_or_assign(document, result);
-	}
-	return result;
-}
-
-std::shared_ptr<::Media::Streaming::Document> Session::documentStreamer(
-		not_null<DocumentData*> document,
-		FileOrigin origin) {
-	const auto i = _streamedDocuments.find(document);
-	if (i != end(_streamedDocuments)) {
-		if (auto result = i->second.lock()) {
-			return result;
-		}
-	}
-	auto reader = documentStreamedReader(document, origin);
-	if (!reader) {
-		return nullptr;
-	}
-	auto result = std::make_shared<::Media::Streaming::Document>(
-		document,
-		std::move(reader));
-	if (!PruneDestroyedAndSet(_streamedDocuments, document, result)) {
-		_streamedDocuments.emplace_or_assign(document, result);
-	}
-	return result;
 }
 
 void Session::requestPollViewRepaint(not_null<const PollData*> poll) {

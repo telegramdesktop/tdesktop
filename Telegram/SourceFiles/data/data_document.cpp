@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 
 #include "data/data_session.h"
+#include "data/data_streaming.h"
 #include "data/data_document_good_thumbnail.h"
 #include "lang/lang_keys.h"
 #include "inline_bots/inline_bot_layout_item.h"
@@ -931,7 +932,7 @@ void DocumentData::save(
 		}
 	} else {
 		status = FileReady;
-		auto reader = owner().documentStreamedReader(this, origin, true);
+		auto reader = owner().streaming().sharedReader(this, origin, true);
 		if (reader) {
 			_loader = std::make_unique<Storage::StreamedFileDownloader>(
 				id,

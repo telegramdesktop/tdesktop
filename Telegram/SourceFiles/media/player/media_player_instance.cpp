@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_streaming.h"
 #include "media/audio/media_audio.h"
 #include "media/audio/media_audio_capture.h"
 #include "media/streaming/media_streaming_instance.h"
@@ -359,7 +360,7 @@ void Instance::play(const AudioMsgId &audioId) {
 	if (document->isAudioFile()
 		|| document->isVoiceMessage()
 		|| document->isVideoMessage()) {
-		auto shared = document->owner().documentStreamer(
+		auto shared = document->owner().streaming().sharedDocument(
 			document,
 			audioId.contextId());
 		if (!shared) {

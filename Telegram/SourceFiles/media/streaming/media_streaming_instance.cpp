@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_streaming.h"
 
 namespace Media {
 namespace Streaming {
@@ -30,7 +31,7 @@ Instance::Instance(
 	Data::FileOrigin origin,
 	Fn<void()> waitingCallback)
 : Instance(
-	document->owner().documentStreamer(document, origin),
+	document->owner().streaming().sharedDocument(document, origin),
 	std::move(waitingCallback)) {
 }
 
