@@ -1,3 +1,10 @@
+1.9.2 beta (29.12.19)
+
+- Videos in chats start playing automatically.
+- Resume playback from where you left off when watching long videos.
+- Control videos, GIFs and round video messages automatic playback in Settings > Advanced > Automatic media download.
+- Spell checker on Linux using Enchant.
+
 1.9.1 beta (06.11.19)
 
 - Bug fixes and other minor improvements.

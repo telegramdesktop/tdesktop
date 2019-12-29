@@ -19,50 +19,31 @@ namespace {
 std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		1006004,
-		"- Replace media when editing messages with media content.\n"
-
-		"- Jump quickly to the top of your chats list.\n"
-
-		"- Get emoji suggestions for the first word you type in a message.\n"
-
-		"- Help Telegram improve emoji suggestions in your language "
-		"using this interface https://translations.telegram.org/en/emoji"
-	},
-	{
-		1007001,
-		"- Disable pinned messages notifications in Settings."
-	},
-	{
-		1007004,
-		"- Download video files while watching them using streaming."
-	},
-	{
-		1007008,
-		"\xE2\x80\xA2 Hide archived chats in the main menu.\n"
-
-		"\xE2\x80\xA2 See who is online straight from the chat list.\n"
-
-		"\xE2\x80\xA2 Apply formatting to selected text parts "
-		"from the MacBook Pro TouchBar."
-	},
-	{
-		1007011,
-		"\xE2\x80\xA2 Use strikethrough and underline formatting.\n"
-
-		"\xE2\x80\xA2 Bug fixes and other minor improvements."
-	},
-	{
 		1008005,
-		"\xE2\x80\xA2 Create new themes based on your color and wallpaper choices.\n"
+		"\xE2\x80\xA2 Create new themes based on your color "
+		"and wallpaper choices.\n"
 
 		"\xE2\x80\xA2 Share your themes with other users via links.\n"
 
-		"\xE2\x80\xA2 Update your theme for all its users when you change something.\n"
+		"\xE2\x80\xA2 Update your theme for all its users "
+		"when you change something.\n"
 	},
 	{
 		1009000,
-		"\xE2\x80\xA2 System spellchecker on Windows 8+ and macOS 10.12+.\n"
+		"\xE2\x80\xA2 System spell checker on Windows 8+ and macOS 10.12+.\n"
+	},
+	{
+		1009002,
+		"\xE2\x80\xA2 Videos in chats start playing automatically.\n"
+
+		"\xE2\x80\xA2 Resume playback from where you left off "
+		"when watching long videos.\n"
+
+		"\xE2\x80\xA2 Control videos, GIFs and round video messages "
+		"automatic playback in "
+		"Settings > Advanced > Automatic media download.\n"
+
+		"\xE2\x80\xA2 Spell checker on Linux using Enchant.\n"
 	},
 	};
 };
