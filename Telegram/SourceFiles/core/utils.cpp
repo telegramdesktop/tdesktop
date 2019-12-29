@@ -705,9 +705,9 @@ QString rusKeyboardLayoutSwitch(const QString &from) {
 		fastRusKeyboardSwitch.insert(QString::fromUtf8("б").at(0), ',');
 		fastRusKeyboardSwitch.insert(QString::fromUtf8("ю").at(0), '.');
 		fastRusKeyboardSwitch.insert(QString::fromUtf8("І").at(0), 'S');
-    		fastRusKeyboardSwitch.insert(QString::fromUtf8("і").at(0), 's');
-    		fastRusKeyboardSwitch.insert(QString::fromUtf8("Ї").at(0), ']');
-    		fastRusKeyboardSwitch.insert(QString::fromUtf8("ї").at(0), ']');
+		fastRusKeyboardSwitch.insert(QString::fromUtf8("і").at(0), 's');
+		fastRusKeyboardSwitch.insert(QString::fromUtf8("Ї").at(0), ']');
+		fastRusKeyboardSwitch.insert(QString::fromUtf8("ї").at(0), ']');
 	}
 
 	QString result;
