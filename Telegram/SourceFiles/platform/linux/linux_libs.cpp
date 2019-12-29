@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_libs.h"
 
 #include "platform/linux/linux_gdk_helper.h"
-#include "platform/linux/linux_libnotify.h"
 #include "platform/linux/linux_desktop_environment.h"
 
 #include <QtGui/QGuiApplication>
@@ -289,10 +288,6 @@ void start() {
 		load(lib_gtk, "gtk_button_get_type", gtk_button_get_type);
 	} else {
 		LOG(("Could not load gtk-x11-2.0!"));
-	}
-
-	if (gtkLoaded) {
-		startLibNotify();
 	}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }

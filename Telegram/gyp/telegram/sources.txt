@@ -594,8 +594,6 @@
 <(src_loc)/platform/linux/linux_desktop_environment.h
 <(src_loc)/platform/linux/linux_gdk_helper.cpp
 <(src_loc)/platform/linux/linux_gdk_helper.h
-<(src_loc)/platform/linux/linux_libnotify.cpp
-<(src_loc)/platform/linux/linux_libnotify.h
 <(src_loc)/platform/linux/linux_libs.cpp
 <(src_loc)/platform/linux/linux_libs.h
 <(src_loc)/platform/linux/file_utilities_linux.cpp
