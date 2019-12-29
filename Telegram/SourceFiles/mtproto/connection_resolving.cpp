@@ -7,8 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/connection_resolving.h"
 
+#include "mtproto/mtp_instance.h"
+
 namespace MTP {
-namespace internal {
+namespace details {
 namespace {
 
 constexpr auto kOneConnectionTimeout = 4000;
@@ -254,5 +256,5 @@ QString ResolvingConnection::tag() const {
 	return _child ? _child->tag() : QString();
 }
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

@@ -533,9 +533,11 @@ Fn<void()> SavePreparedTheme(
 	const auto createTheme = [=](const MTPDocument &data) {
 		const auto document = session->data().processDocument(data);
 		state->requestId = api->request(MTPaccount_CreateTheme(
+			MTP_flags(MTPaccount_CreateTheme::Flag::f_document),
 			MTP_string(fields.slug),
 			MTP_string(fields.title),
-			document->mtpInput()
+			document->mtpInput(),
+			MTPInputThemeSettings()
 		)).done([=](const MTPTheme &result) {
 			finish(result);
 		}).fail([=](const RPCError &error) {
@@ -557,7 +559,8 @@ Fn<void()> SavePreparedTheme(
 			MTP_inputTheme(MTP_long(fields.id), MTP_long(fields.accessHash)),
 			MTP_string(fields.slug),
 			MTP_string(fields.title),
-			document->mtpInput()
+			document->mtpInput(),
+			MTPInputThemeSettings()
 		)).done([=](const MTPTheme &result) {
 			finish(result);
 		}).fail([=](const RPCError &error) {
@@ -617,9 +620,11 @@ Fn<void()> SavePreparedTheme(
 
 	const auto checkFields = [=] {
 		state->requestId = api->request(MTPaccount_CreateTheme(
+			MTP_flags(MTPaccount_CreateTheme::Flag::f_document),
 			MTP_string(fields.slug),
 			MTP_string(fields.title),
-			MTP_inputDocumentEmpty()
+			MTP_inputDocumentEmpty(),
+			MTPInputThemeSettings()
 		)).done([=](const MTPTheme &result) {
 			save();
 		}).fail([=](const RPCError &error) {

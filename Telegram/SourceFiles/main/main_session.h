@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ApiWrap;
 
+namespace MTP {
+class Instance;
+} // namespace MTP
+
 namespace Support {
 class Helper;
 class Templates;
@@ -25,7 +29,7 @@ class Session;
 } // namespace Data
 
 namespace Storage {
-class Downloader;
+class DownloadManagerMtproto;
 class Uploader;
 class Facade;
 } // namespace Storage
@@ -51,7 +55,6 @@ class Changelogs;
 namespace Main {
 
 class Account;
-class AppConfig;
 
 class Session final
 	: public base::has_weak_ptr
@@ -77,7 +80,7 @@ public:
 	}
 	bool validateSelf(const MTPUser &user);
 
-	[[nodiscard]] Storage::Downloader &downloader() {
+	[[nodiscard]] Storage::DownloadManagerMtproto &downloader() {
 		return *_downloader;
 	}
 	[[nodiscard]] Storage::Uploader &uploader() {
@@ -88,9 +91,6 @@ public:
 	}
 	[[nodiscard]] Stickers::EmojiPack &emojiStickersPack() {
 		return *_emojiStickersPack;
-	}
-	[[nodiscard]] AppConfig &appConfig() {
-		return *_appConfig;
 	}
 
 	[[nodiscard]] base::Observable<void> &downloaderTaskFinished();
@@ -106,6 +106,7 @@ public:
 		return _settings;
 	}
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
+	void saveSettingsNowIfNeeded();
 
 	[[nodiscard]] not_null<MTP::Instance*> mtp();
 	[[nodiscard]] ApiWrap &api() {
@@ -144,9 +145,8 @@ private:
 	base::Timer _autoLockTimer;
 
 	const std::unique_ptr<ApiWrap> _api;
-	const std::unique_ptr<AppConfig> _appConfig;
 	const std::unique_ptr<Calls::Instance> _calls;
-	const std::unique_ptr<Storage::Downloader> _downloader;
+	const std::unique_ptr<Storage::DownloadManagerMtproto> _downloader;
 	const std::unique_ptr<Storage::Uploader> _uploader;
 	const std::unique_ptr<Storage::Facade> _storage;
 	const std::unique_ptr<Window::Notifications::System> _notifications;

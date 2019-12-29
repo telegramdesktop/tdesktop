@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "numbers.h"
 #include "app.h"
 #include "lang/lang_keys.h"
+#include "mtproto/facade.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 

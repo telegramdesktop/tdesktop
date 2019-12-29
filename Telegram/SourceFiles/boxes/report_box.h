@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 namespace Ui {
 template <typename Enum>

@@ -142,7 +142,8 @@ void PeerListRowWithLink::paintAction(
 
 PeerListGlobalSearchController::PeerListGlobalSearchController(
 	not_null<Window::SessionNavigation*> navigation)
-: _navigation(navigation) {
+: _navigation(navigation)
+, _api(_navigation->session().api().instance()) {
 	_timer.setCallback([this] { searchOnServer(); });
 }
 
@@ -169,7 +170,7 @@ bool PeerListGlobalSearchController::searchInCache() {
 }
 
 void PeerListGlobalSearchController::searchOnServer() {
-	_requestId = request(MTPcontacts_Search(
+	_requestId = _api.request(MTPcontacts_Search(
 		MTP_string(_query),
 		MTP_int(SearchPeopleLimit)
 	)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {

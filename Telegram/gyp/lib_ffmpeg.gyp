@@ -42,7 +42,7 @@
     ],
     'conditions': [[ '"<(special_build_target)" != ""', {
       'defines': [
-        'TDESKTOP_OFFICIAL_TARGET=<(special_build_target)',
+        'LIB_FFMPEG_USE_QT_PRIVATE_API',
       ],
     }]],
   }],

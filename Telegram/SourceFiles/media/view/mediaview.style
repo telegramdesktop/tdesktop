@@ -188,11 +188,6 @@ mediaviewGroupWidthMax: 160px;
 mediaviewGroupSkip: 3px;
 mediaviewGroupSkipCurrent: 12px;
 
-mediaviewStreamingRadial: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
-	color: radialFg;
-	thickness: radialLine;
-}
-
 themePreviewSize: size(903px, 584px);
 themePreviewBg: windowBg;
 themePreviewOverlayOpacity: 0.8;

@@ -71,15 +71,18 @@
       },
     },
     'conditions': [
-      [ '"<!(uname -p)" != "x86_64"', {
+      [ '"<!(uname -m)" != "x86_64"', {
         'ldflags': [
           '-Wl,-wrap,__divmoddi4',
+        ],
+      }, {
+        'ldflags': [
+          '-Wl,-wrap,__divmodti4',
         ],
       }], ['not_need_gtk!="True"', {
         'cflags_cc': [
           '<!(pkg-config 2> /dev/null --cflags gtk+-2.0)',
           '<!(pkg-config 2> /dev/null --cflags glib-2.0)',
-          '<!(pkg-config 2> /dev/null --cflags dee-1.0)',
         ],
       }], ['<!(pkg-config ayatana-appindicator3-0.1; echo $?) == 0', {
         'cflags_cc': [ '<!(pkg-config --cflags ayatana-appindicator3-0.1)' ],

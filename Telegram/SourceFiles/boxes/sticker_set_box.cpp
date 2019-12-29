@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_file_origin.h"
 #include "lang/lang_keys.h"
 #include "chat_helpers/stickers.h"
 #include "boxes/confirm_box.h"
@@ -99,7 +100,7 @@ private:
 	void showPreview();
 
 	not_null<Window::SessionController*> _controller;
-	MTP::Sender _mtp;
+	MTP::Sender _api;
 	std::vector<Element> _elements;
 	std::unique_ptr<Lottie::MultiPlayer> _lottiePlayer;
 	Stickers::Pack _pack;
@@ -220,6 +221,7 @@ StickerSetBox::Inner::Inner(
 	const MTPInputStickerSet &set)
 : RpWidget(parent)
 , _controller(controller)
+, _api(_controller->session().api().instance())
 , _input(set)
 , _previewTimer([=] { showPreview(); }) {
 	set.match([&](const MTPDinputStickerSetID &data) {
@@ -231,7 +233,7 @@ StickerSetBox::Inner::Inner(
 	}, [&](const MTPDinputStickerSetAnimatedEmoji &) {
 	});
 
-	_mtp.request(MTPmessages_GetStickerSet(
+	_api.request(MTPmessages_GetStickerSet(
 		_input
 	)).done([=](const MTPmessages_StickerSet &result) {
 		gotSet(result);
@@ -700,7 +702,7 @@ void StickerSetBox::Inner::install() {
 	} else if (_installRequest) {
 		return;
 	}
-	_installRequest = _mtp.request(MTPmessages_InstallStickerSet(
+	_installRequest = _api.request(MTPmessages_InstallStickerSet(
 		_input,
 		MTP_bool(false)
 	)).done([=](const MTPmessages_StickerSetInstallResult &result) {

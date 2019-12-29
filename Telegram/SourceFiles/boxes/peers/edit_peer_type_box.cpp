@@ -51,9 +51,7 @@ namespace {
 constexpr auto kUsernameCheckTimeout = crl::time(200);
 constexpr auto kMinUsernameLength = 5;
 
-class Controller
-	: public base::has_weak_ptr
-	, private MTP::Sender {
+class Controller : public base::has_weak_ptr {
 public:
 	Controller(
 		not_null<Ui::VerticalLayout*> container,
@@ -144,6 +142,7 @@ private:
 	QString inviteLinkText();
 
 	not_null<PeerData*> _peer;
+	MTP::Sender _api;
 	std::optional<Privacy> _privacySavedValue;
 	std::optional<QString> _usernameSavedValue;
 
@@ -169,6 +168,7 @@ Controller::Controller(
 	std::optional<Privacy> privacySavedValue,
 	std::optional<QString> usernameSavedValue)
 : _peer(peer)
+, _api(_peer->session().api().instance())
 , _privacySavedValue(privacySavedValue)
 , _usernameSavedValue(usernameSavedValue)
 , _useLocationPhrases(useLocationPhrases)
@@ -401,7 +401,7 @@ void Controller::privacyChanged(Privacy value) {
 		refreshVisibilities();
 		_controls.usernameInput->setDisplayFocused(true);
 	} else {
-		request(base::take(_checkUsernameRequestId)).cancel();
+		_api.request(base::take(_checkUsernameRequestId)).cancel();
 		_checkUsernameTimer.cancel();
 		refreshVisibilities();
 	}
@@ -420,11 +420,11 @@ void Controller::checkUsernameAvailability() {
 		return;
 	}
 	if (_checkUsernameRequestId) {
-		request(_checkUsernameRequestId).cancel();
+		_api.request(_checkUsernameRequestId).cancel();
 	}
 	const auto channel = _peer->migrateToOrMe()->asChannel();
 	const auto username = channel ? channel->username : QString();
-	_checkUsernameRequestId = request(MTPchannels_CheckUsername(
+	_checkUsernameRequestId = _api.request(MTPchannels_CheckUsername(
 		channel ? channel->inputChannel : MTP_inputChannelEmpty(),
 		MTP_string(checking)
 	)).done([=](const MTPBool &result) {

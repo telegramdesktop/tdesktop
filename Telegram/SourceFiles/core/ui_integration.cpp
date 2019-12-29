@@ -126,6 +126,9 @@ bool UiIntegration::handleUrlClick(
 	} else if (local.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
 		Core::App().openLocalUrl(local, context);
 		return true;
+	} else if (local.startsWith(qstr("internal:"), Qt::CaseInsensitive)) {
+		Core::App().openInternalUrl(local, context);
+		return true;
 	}
 	return false;
 

@@ -28,8 +28,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "storage/localstorage.h"
 #include "storage/file_upload.h"
-#include "storage/file_download.h"
+#include "storage/file_download_mtproto.h"
 #include "app.h"
+#include "apiwrap.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonArray>
@@ -620,6 +621,7 @@ FormController::FormController(
 	not_null<Window::SessionController*> controller,
 	const FormRequest &request)
 : _controller(controller)
+, _api(_controller->session().api().instance())
 , _request(PreprocessRequest(request))
 , _shortPollTimer([=] { reloadPassword(); })
 , _view(std::make_unique<PanelController>(this)) {
@@ -741,7 +743,7 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 		credentialsEncryptedData.secret,
 		bytes::make_span(_request.publicKey.toUtf8()));
 
-	_submitRequestId = request(MTPaccount_AcceptAuthorization(
+	_submitRequestId = _api.request(MTPaccount_AcceptAuthorization(
 		MTP_int(_request.botId),
 		MTP_string(_request.scope),
 		MTP_string(_request.publicKey),
@@ -808,8 +810,8 @@ void FormController::requestPasswordData(mtpRequestId &guard) {
 		return passwordServerError();
 	}
 
-	request(base::take(guard)).cancel();
-	guard = request(
+	_api.request(base::take(guard)).cancel();
+	guard = _api.request(
 		MTPaccount_GetPassword()
 	).done([=, &guard](const MTPaccount_Password &result) {
 		guard = 0;
@@ -843,7 +845,7 @@ void FormController::submitPassword(
 		const Core::CloudPasswordResult &check,
 		const QByteArray &password,
 		bool submitSaved) {
-	_passwordCheckRequestId = request(MTPaccount_GetPasswordSettings(
+	_passwordCheckRequestId = _api.request(MTPaccount_GetPasswordSettings(
 		check.result
 	)).handleFloodErrors(
 	).done([=](const MTPaccount_PasswordSettings &result) {
@@ -936,7 +938,7 @@ void FormController::checkSavedPasswordSettings(
 void FormController::checkSavedPasswordSettings(
 		const Core::CloudPasswordResult &check,
 		const SavedCredentials &credentials) {
-	_passwordCheckRequestId = request(MTPaccount_GetPasswordSettings(
+	_passwordCheckRequestId = _api.request(MTPaccount_GetPasswordSettings(
 		check.result
 	)).done([=](const MTPaccount_PasswordSettings &result) {
 		Expects(result.type() == mtpc_account_passwordSettings);
@@ -982,7 +984,7 @@ void FormController::recoverPassword() {
 	} else if (_recoverRequestId) {
 		return;
 	}
-	_recoverRequestId = request(MTPauth_RequestPasswordRecovery(
+	_recoverRequestId = _api.request(MTPauth_RequestPasswordRecovery(
 	)).done([=](const MTPauth_PasswordRecovery &result) {
 		Expects(result.type() == mtpc_auth_passwordRecovery);
 
@@ -1024,7 +1026,7 @@ void FormController::cancelPassword() {
 	if (_passwordRequestId) {
 		return;
 	}
-	_passwordRequestId = request(MTPaccount_CancelPasswordEmail(
+	_passwordRequestId = _api.request(MTPaccount_CancelPasswordEmail(
 	)).done([=](const MTPBool &result) {
 		_passwordRequestId = 0;
 		reloadPassword();
@@ -1093,7 +1095,7 @@ void FormController::resetSecret(
 		const Core::CloudPasswordResult &check,
 		const bytes::vector &password) {
 	using Flag = MTPDaccount_passwordInputSettings::Flag;
-	_saveSecretRequestId = request(MTPaccount_UpdatePasswordSettings(
+	_saveSecretRequestId = _api.request(MTPaccount_UpdatePasswordSettings(
 		check.result,
 		MTP_account_passwordInputSettings(
 			MTP_flags(Flag::f_new_secure_settings),
@@ -1625,7 +1627,7 @@ void FormController::verify(
 	nonconst->verification.requestId = [&] {
 		switch (nonconst->type) {
 		case Value::Type::Phone:
-			return request(MTPaccount_VerifyPhone(
+			return _api.request(MTPaccount_VerifyPhone(
 				MTP_string(getPhoneFromValue(nonconst)),
 				MTP_string(nonconst->verification.phoneCodeHash),
 				MTP_string(prepared)
@@ -1643,7 +1645,7 @@ void FormController::verify(
 				}
 			}).send();
 		case Value::Type::Email:
-			return request(MTPaccount_VerifyEmail(
+			return _api.request(MTPaccount_VerifyEmail(
 				MTP_string(getEmailFromValue(nonconst)),
 				MTP_string(prepared)
 			)).done([=](const MTPBool &result) {
@@ -1825,7 +1827,7 @@ void FormController::cancelValueVerification(not_null<const Value*> value) {
 void FormController::clearValueVerification(not_null<Value*> value) {
 	const auto was = (value->verification.codeLength != 0);
 	if (const auto requestId = base::take(value->verification.requestId)) {
-		request(requestId).cancel();
+		_api.request(requestId).cancel();
 	}
 	value->verification = Verification();
 	if (was) {
@@ -1872,7 +1874,7 @@ void FormController::deleteValueEdit(not_null<const Value*> value) {
 	}
 
 	const auto nonconst = findValue(value);
-	nonconst->saveRequestId = request(MTPaccount_DeleteSecureValue(
+	nonconst->saveRequestId = _api.request(MTPaccount_DeleteSecureValue(
 		MTP_vector<MTPSecureValueType>(1, ConvertType(nonconst->type))
 	)).done([=](const MTPBool &result) {
 		resetValue(*nonconst);
@@ -2019,7 +2021,7 @@ void FormController::sendSaveRequest(
 		const MTPInputSecureValue &data) {
 	Expects(value->saveRequestId == 0);
 
-	value->saveRequestId = request(MTPaccount_SaveSecureValue(
+	value->saveRequestId = _api.request(MTPaccount_SaveSecureValue(
 		data,
 		MTP_long(_secretId)
 	)).done([=](const MTPSecureValue &result) {
@@ -2092,7 +2094,7 @@ QString FormController::getPlainTextFromValue(
 }
 
 void FormController::startPhoneVerification(not_null<Value*> value) {
-	value->verification.requestId = request(MTPaccount_SendVerifyPhoneCode(
+	value->verification.requestId = _api.request(MTPaccount_SendVerifyPhoneCode(
 		MTP_string(getPhoneFromValue(value)),
 		MTP_codeSettings(MTP_flags(0))
 	)).done([=](const MTPauth_SentCode &result) {
@@ -2149,7 +2151,7 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 }
 
 void FormController::startEmailVerification(not_null<Value*> value) {
-	value->verification.requestId = request(MTPaccount_SendVerifyEmailCode(
+	value->verification.requestId = _api.request(MTPaccount_SendVerifyEmailCode(
 		MTP_string(getEmailFromValue(value))
 	)).done([=](const MTPaccount_SentEmailCode &result) {
 		Expects(result.type() == mtpc_account_sentEmailCode);
@@ -2171,7 +2173,7 @@ void FormController::requestPhoneCall(not_null<Value*> value) {
 
 	value->verification.call->setStatus(
 		{ SentCodeCall::State::Calling, 0 });
-	request(MTPauth_ResendCode(
+	_api.request(MTPauth_ResendCode(
 		MTP_string(getPhoneFromValue(value)),
 		MTP_string(value->verification.phoneCodeHash)
 	)).done([=](const MTPauth_SentCode &code) {
@@ -2222,7 +2224,7 @@ void FormController::saveSecret(
 		saved.hashForSecret);
 
 	using Flag = MTPDaccount_passwordInputSettings::Flag;
-	_saveSecretRequestId = request(MTPaccount_UpdatePasswordSettings(
+	_saveSecretRequestId = _api.request(MTPaccount_UpdatePasswordSettings(
 		check.result,
 		MTP_account_passwordInputSettings(
 			MTP_flags(Flag::f_new_secure_settings),
@@ -2270,7 +2272,7 @@ void FormController::requestForm() {
 		formFail(NonceNameByScope(_request.scope).toUpper() + "_EMPTY");
 		return;
 	}
-	_formRequestId = request(MTPaccount_GetAuthorizationForm(
+	_formRequestId = _api.request(MTPaccount_GetAuthorizationForm(
 		MTP_int(_request.botId),
 		MTP_string(_request.scope),
 		MTP_string(_request.publicKey)
@@ -2478,7 +2480,7 @@ void FormController::formDone(const MTPaccount_AuthorizationForm &result) {
 
 void FormController::requestConfig() {
 	const auto hash = ConfigInstance().hash;
-	_configRequestId = request(MTPhelp_GetPassportConfig(
+	_configRequestId = _api.request(MTPhelp_GetPassportConfig(
 		MTP_int(hash)
 	)).done([=](const MTPhelp_PassportConfig &result) {
 		_configRequestId = 0;
@@ -2555,7 +2557,7 @@ void FormController::requestPassword() {
 	if (_passwordRequestId) {
 		return;
 	}
-	_passwordRequestId = request(MTPaccount_GetPassword(
+	_passwordRequestId = _api.request(MTPaccount_GetPassword(
 	)).done([=](const MTPaccount_Password &result) {
 		_passwordRequestId = 0;
 		passwordDone(result);

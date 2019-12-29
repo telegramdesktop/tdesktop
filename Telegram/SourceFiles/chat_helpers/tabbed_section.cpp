@@ -51,6 +51,10 @@ void TabbedSection::resizeEvent(QResizeEvent *e) {
 	_selector->setGeometry(rect());
 }
 
+void TabbedSection::showFinishedHook() {
+	afterShown();
+}
+
 bool TabbedSection::showInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {

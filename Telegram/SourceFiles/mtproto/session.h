@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
-#include "mtproto/rpc_sender.h"
+#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/mtproto_proxy_data.h"
+#include "mtproto/details/mtproto_serialized_request.h"
 
 #include <QtCore/QTimer>
 
@@ -17,100 +19,19 @@ namespace MTP {
 class Instance;
 class AuthKey;
 using AuthKeyPtr = std::shared_ptr<AuthKey>;
+enum class DcType;
 
-namespace internal {
-
-// Received msgIds and wereAcked msgIds count stored.
-constexpr auto kIdsBufferSize = 400;
+namespace details {
 
 class Dcenter;
-class Connection;
+class SessionPrivate;
 
-using PreRequestMap = QMap<mtpRequestId, SecureRequest>;
-using RequestMap = QMap<mtpMsgId, SecureRequest>;
+enum class TemporaryKeyType;
+enum class CreatingKeyType;
 
-class RequestIdsMap : public QMap<mtpMsgId, mtpRequestId> {
-public:
-	using ParentType = QMap<mtpMsgId, mtpRequestId>;
-
-	mtpMsgId min() const {
-		return size() ? cbegin().key() : 0;
-	}
-
-	mtpMsgId max() const {
-		ParentType::const_iterator e(cend());
-		return size() ? (--e).key() : 0;
-	}
-
-};
-
-class ReceivedMsgIds {
-public:
-	bool registerMsgId(mtpMsgId msgId, bool needAck) {
-		auto i = _idsNeedAck.constFind(msgId);
-		if (i == _idsNeedAck.cend()) {
-			if (_idsNeedAck.size() < kIdsBufferSize || msgId > min()) {
-				_idsNeedAck.insert(msgId, needAck);
-				return true;
-			}
-			MTP_LOG(-1, ("No need to handle - %1 < min = %2").arg(msgId).arg(min()));
-		} else {
-			MTP_LOG(-1, ("No need to handle - %1 already is in map").arg(msgId));
-		}
-		return false;
-	}
-
-	mtpMsgId min() const {
-		return _idsNeedAck.isEmpty() ? 0 : _idsNeedAck.cbegin().key();
-	}
-
-	mtpMsgId max() const {
-		auto end = _idsNeedAck.cend();
-		return _idsNeedAck.isEmpty() ? 0 : (--end).key();
-	}
-
-	void shrink() {
-		auto size = _idsNeedAck.size();
-		while (size-- > kIdsBufferSize) {
-			_idsNeedAck.erase(_idsNeedAck.begin());
-		}
-	}
-
-	enum class State {
-		NotFound,
-		NeedsAck,
-		NoAckNeeded,
-	};
-	State lookup(mtpMsgId msgId) const {
-		auto i = _idsNeedAck.constFind(msgId);
-		if (i == _idsNeedAck.cend()) {
-			return State::NotFound;
-		}
-		return i.value() ? State::NeedsAck : State::NoAckNeeded;
-	}
-
-	void clear() {
-		_idsNeedAck.clear();
-	}
-
-private:
-	QMap<mtpMsgId, bool> _idsNeedAck;
-
-};
-
-using SerializedMessage = mtpBuffer;
-
-inline bool ResponseNeedsAck(const SerializedMessage &response) {
-	if (response.size() < 8) {
-		return false;
-	}
-	auto seqNo = *(uint32*)(response.constData() + 6);
-	return (seqNo & 0x01) ? true : false;
-}
-
-struct ConnectionOptions {
-	ConnectionOptions() = default;
-	ConnectionOptions(
+struct SessionOptions {
+	SessionOptions() = default;
+	SessionOptions(
 		const QString &systemLangCode,
 		const QString &cloudLangCode,
 		const QString &langPackName,
@@ -119,8 +40,6 @@ struct ConnectionOptions {
 		bool useIPv6,
 		bool useHttp,
 		bool useTcp);
-	ConnectionOptions(const ConnectionOptions &other) = default;
-	ConnectionOptions &operator=(const ConnectionOptions &other) = default;
 
 	QString systemLangCode;
 	QString cloudLangCode;
@@ -130,282 +49,183 @@ struct ConnectionOptions {
 	bool useIPv6 = true;
 	bool useHttp = true;
 	bool useTcp = true;
-	bool inited = false;
 
 };
 
 class Session;
-class SessionData {
+class SessionData final {
 public:
-	SessionData(not_null<Session*> creator) : _owner(creator) {
+	explicit SessionData(not_null<Session*> creator) : _owner(creator) {
 	}
 
-	void setSession(uint64 session) {
-		DEBUG_LOG(("MTP Info: setting server_session: %1").arg(session));
-
-		QWriteLocker locker(&_lock);
-		if (_session != session) {
-			_session = session;
-			_messagesSent = 0;
-		}
-	}
-	uint64 getSession() const {
-		QReadLocker locker(&_lock);
-		return _session;
-	}
-	void setConnectionInited(bool inited = true) {
-		QWriteLocker locker(&_lock);
-		_options.inited = inited;
-	}
-	void notifyConnectionInited(const ConnectionOptions &options);
-	void applyConnectionOptions(ConnectionOptions options) {
-		QWriteLocker locker(&_lock);
-		const auto inited = _options.inited;
+	void notifyConnectionInited(const SessionOptions &options);
+	void setOptions(SessionOptions options) {
+		QWriteLocker locker(&_optionsLock);
 		_options = options;
-		_options.inited = inited;
 	}
-	ConnectionOptions connectionOptions() const {
-		QReadLocker locker(&_lock);
+	[[nodiscard]] SessionOptions options() const {
+		QReadLocker locker(&_optionsLock);
 		return _options;
 	}
 
-	void setSalt(uint64 salt) {
-		QWriteLocker locker(&_lock);
-		_salt = salt;
-	}
-	uint64 getSalt() const {
-		QReadLocker locker(&_lock);
-		return _salt;
-	}
-
-	const AuthKeyPtr &getKey() const {
-		return _authKey;
-	}
-	void setKey(const AuthKeyPtr &key);
-
-	bool isCheckedKey() const {
-		QReadLocker locker(&_lock);
-		return _keyChecked;
-	}
-	void setCheckedKey(bool checked) {
-		QWriteLocker locker(&_lock);
-		_keyChecked = checked;
-	}
-
-	not_null<QReadWriteLock*> keyMutex() const;
-
-	not_null<QReadWriteLock*> toSendMutex() const {
+	not_null<QReadWriteLock*> toSendMutex() {
 		return &_toSendLock;
 	}
-	not_null<QReadWriteLock*> haveSentMutex() const {
+	not_null<QReadWriteLock*> haveSentMutex() {
 		return &_haveSentLock;
 	}
-	not_null<QReadWriteLock*> toResendMutex() const {
-		return &_toResendLock;
-	}
-	not_null<QReadWriteLock*> wereAckedMutex() const {
-		return &_wereAckedLock;
-	}
-	not_null<QReadWriteLock*> receivedIdsMutex() const {
-		return &_receivedIdsLock;
-	}
-	not_null<QReadWriteLock*> haveReceivedMutex() const {
+	not_null<QReadWriteLock*> haveReceivedMutex() {
 		return &_haveReceivedLock;
 	}
-	not_null<QReadWriteLock*> stateRequestMutex() const {
-		return &_stateRequestLock;
-	}
 
-	PreRequestMap &toSendMap() {
+	base::flat_map<mtpRequestId, SerializedRequest> &toSendMap() {
 		return _toSend;
 	}
-	const PreRequestMap &toSendMap() const {
-		return _toSend;
-	}
-	RequestMap &haveSentMap() {
+	base::flat_map<mtpMsgId, SerializedRequest> &haveSentMap() {
 		return _haveSent;
 	}
-	const RequestMap &haveSentMap() const {
-		return _haveSent;
-	}
-	RequestIdsMap &toResendMap() { // msgId -> requestId, on which toSend: requestId -> request for resended requests
-		return _toResend;
-	}
-	const RequestIdsMap &toResendMap() const {
-		return _toResend;
-	}
-	ReceivedMsgIds &receivedIdsSet() {
-		return _receivedIds;
-	}
-	const ReceivedMsgIds &receivedIdsSet() const {
-		return _receivedIds;
-	}
-	RequestIdsMap &wereAckedMap() {
-		return _wereAcked;
-	}
-	const RequestIdsMap &wereAckedMap() const {
-		return _wereAcked;
-	}
-	QMap<mtpRequestId, SerializedMessage> &haveReceivedResponses() {
+	base::flat_map<mtpRequestId, mtpBuffer> &haveReceivedResponses() {
 		return _receivedResponses;
 	}
-	const QMap<mtpRequestId, SerializedMessage> &haveReceivedResponses() const {
-		return _receivedResponses;
-	}
-	QList<SerializedMessage> &haveReceivedUpdates() {
+	std::vector<mtpBuffer> &haveReceivedUpdates() {
 		return _receivedUpdates;
 	}
-	const QList<SerializedMessage> &haveReceivedUpdates() const {
-		return _receivedUpdates;
-	}
-	QMap<mtpMsgId, bool> &stateRequestMap() {
-		return _stateRequest;
-	}
-	const QMap<mtpMsgId, bool> &stateRequestMap() const {
-		return _stateRequest;
-	}
 
-	not_null<Session*> owner() {
-		return _owner;
-	}
-	not_null<const Session*> owner() const {
-		return _owner;
-	}
+	// SessionPrivate -> Session interface.
+	void queueTryToReceive();
+	void queueNeedToResumeAndSend();
+	void queueConnectionStateChange(int newState);
+	void queueResetDone();
+	void queueSendAnything(crl::time msCanWait = 0);
 
-	uint32 nextRequestSeqNumber(bool needAck = true) {
-		QWriteLocker locker(&_lock);
-		auto result = _messagesSent;
-		_messagesSent += (needAck ? 1 : 0);
-		return result * 2 + (needAck ? 1 : 0);
-	}
+	[[nodiscard]] bool connectionInited() const;
+	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
+	[[nodiscard]] AuthKeyPtr getTemporaryKey(TemporaryKeyType type) const;
+	[[nodiscard]] CreatingKeyType acquireKeyCreation(DcType type);
+	[[nodiscard]] bool releaseKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey,
+		const AuthKeyPtr &persistentKeyUsedForBind);
+	[[nodiscard]] bool releaseCdnKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey);
+	void releaseKeyCreationOnFail();
+	void destroyTemporaryKey(uint64 keyId);
 
-	void clear(Instance *instance);
+	void detach();
 
 private:
-	uint64 _session = 0;
-	uint64 _salt = 0;
+	template <typename Callback>
+	void withSession(Callback &&callback);
 
-	uint32 _messagesSent = 0;
+	Session *_owner = nullptr;
+	mutable QMutex _ownerMutex;
 
-	not_null<Session*> _owner;
+	SessionOptions _options;
+	mutable QReadWriteLock _optionsLock;
 
-	AuthKeyPtr _authKey;
-	bool _keyChecked = false;
-	bool _layerInited = false;
-	ConnectionOptions _options;
+	base::flat_map<mtpRequestId, SerializedRequest> _toSend; // map of request_id -> request, that is waiting to be sent
+	QReadWriteLock _toSendLock;
 
-	PreRequestMap _toSend; // map of request_id -> request, that is waiting to be sent
-	RequestMap _haveSent; // map of msg_id -> request, that was sent, msDate = 0 for msgs_state_req (no resend / state req), msDate = 0, seqNo = 0 for containers
-	RequestIdsMap _toResend; // map of msg_id -> request_id, that request_id -> request lies in toSend and is waiting to be resent
-	ReceivedMsgIds _receivedIds; // set of received msg_id's, for checking new msg_ids
-	RequestIdsMap _wereAcked; // map of msg_id -> request_id, this msg_ids already were acked or do not need ack
-	QMap<mtpMsgId, bool> _stateRequest; // set of msg_id's, whose state should be requested
+	base::flat_map<mtpMsgId, SerializedRequest> _haveSent; // map of msg_id -> request, that was sent
+	QReadWriteLock _haveSentLock;
 
-	QMap<mtpRequestId, SerializedMessage> _receivedResponses; // map of request_id -> response that should be processed in the main thread
-	QList<SerializedMessage> _receivedUpdates; // list of updates that should be processed in the main thread
-
-	// mutexes
-	mutable QReadWriteLock _lock;
-	mutable QReadWriteLock _toSendLock;
-	mutable QReadWriteLock _haveSentLock;
-	mutable QReadWriteLock _toResendLock;
-	mutable QReadWriteLock _receivedIdsLock;
-	mutable QReadWriteLock _wereAckedLock;
-	mutable QReadWriteLock _haveReceivedLock;
-	mutable QReadWriteLock _stateRequestLock;
+	base::flat_map<mtpRequestId, mtpBuffer> _receivedResponses; // map of request_id -> response that should be processed in the main thread
+	std::vector<mtpBuffer> _receivedUpdates; // list of updates that should be processed in the main thread
+	QReadWriteLock _haveReceivedLock;
 
 };
 
-class Session : public QObject {
-	Q_OBJECT
-
+class Session final : public QObject {
 public:
-	Session(not_null<Instance*> instance, ShiftedDcId shiftedDcId);
+	// Main thread.
+	Session(
+		not_null<Instance*> instance,
+		not_null<QThread*> thread,
+		ShiftedDcId shiftedDcId,
+		not_null<Dcenter*> dc);
+	~Session();
 
 	void start();
+	void reInitConnection();
+
 	void restart();
 	void refreshOptions();
-	void reInitConnection();
 	void stop();
 	void kill();
 
 	void unpaused();
 
-	ShiftedDcId getDcWithShift() const;
+	// Thread-safe.
+	[[nodiscard]] ShiftedDcId getDcWithShift() const;
+	[[nodiscard]] AuthKeyPtr getPersistentKey() const;
+	[[nodiscard]] AuthKeyPtr getTemporaryKey(TemporaryKeyType type) const;
+	[[nodiscard]] bool connectionInited() const;
+	void sendPrepared(
+		const SerializedRequest &request,
+		crl::time msCanWait = 0);
 
-	QReadWriteLock *keyMutex() const;
-	void notifyKeyCreated(AuthKeyPtr &&key);
-	void destroyKey();
+	// SessionPrivate thread.
+	[[nodiscard]] CreatingKeyType acquireKeyCreation(DcType type);
+	[[nodiscard]] bool releaseKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey,
+		const AuthKeyPtr &persistentKeyUsedForBind);
+	[[nodiscard]] bool releaseCdnKeyCreationOnDone(const AuthKeyPtr &temporaryKey);
+	void releaseKeyCreationOnFail();
+	void destroyTemporaryKey(uint64 keyId);
+
 	void notifyDcConnectionInited();
 
 	void ping();
 	void cancel(mtpRequestId requestId, mtpMsgId msgId);
-	int32 requestState(mtpRequestId requestId) const;
-	int32 getState() const;
+	int requestState(mtpRequestId requestId) const;
+	int getState() const;
 	QString transport() const;
 
-	// Nulls msgId and seqNo in request, if newRequest = true.
-	void sendPrepared(
-		const SecureRequest &request,
-		crl::time msCanWait = 0,
-		bool newRequest = true);
-
-	~Session();
-
-signals:
-	void authKeyCreated();
-	void needToSend();
-	void needToPing();
-	void needToRestart();
-
-public slots:
-	void needToResumeAndSend();
-
-	mtpRequestId resend(quint64 msgId, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
-	void resendMany(QVector<quint64> msgIds, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
-	void resendAll(); // after connection restart
-
-	void authKeyCreatedForDC();
-	void connectionWasInitedForDC();
-
 	void tryToReceive();
-	void checkRequestsByTimer();
-	void onConnectionStateChange(qint32 newState);
-	void onResetDone();
-
-	void sendAnything(qint64 msCanWait = 0);
-	void sendPong(quint64 msgId, quint64 pingId);
-	void sendMsgsStateInfo(quint64 msgId, QByteArray data);
+	void needToResumeAndSend();
+	void connectionStateChange(int newState);
+	void resetDone();
+	void sendAnything(crl::time msCanWait = 0);
 
 private:
-	void createDcData();
+	void watchDcKeyChanges();
+	void watchDcOptionsChanges();
 
-	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
+	void killConnection();
 
-	not_null<Instance*> _instance;
-	std::unique_ptr<Connection> _connection;
+	bool rpcErrorOccured(
+		mtpRequestId requestId,
+		const RPCFailHandlerPtr &onFail,
+		const RPCError &err);
+
+	[[nodiscard]] bool releaseGenericKeyCreationOnDone(
+		const AuthKeyPtr &temporaryKey,
+		const AuthKeyPtr &persistentKeyUsedForBind);
+
+	const not_null<Instance*> _instance;
+	const ShiftedDcId _shiftedDcId = 0;
+	const not_null<Dcenter*> _dc;
+	const std::shared_ptr<SessionData> _data;
+	const not_null<QThread*> _thread;
+
+	SessionPrivate *_private = nullptr;
 
 	bool _killed = false;
 	bool _needToReceive = false;
 
-	SessionData data;
+	AuthKeyPtr _dcKeyForCheck;
+	CreatingKeyType _myKeyCreation = CreatingKeyType();
 
-	ShiftedDcId dcWithShift = 0;
-	std::shared_ptr<Dcenter> dc;
-
-	crl::time msSendCall = 0;
-	crl::time msWait = 0;
+	crl::time _msSendCall = 0;
+	crl::time _msWait = 0;
 
 	bool _ping = false;
 
-	QTimer timeouter;
-	base::Timer sender;
+	base::Timer _timeouter;
+	base::Timer _sender;
+
+	rpl::lifetime _lifetime;
 
 };
 
-inline not_null<QReadWriteLock*> SessionData::keyMutex() const {
-	return _owner->keyMutex();
-}
-
-} // namespace internal
+} // namespace details
 } // namespace MTP

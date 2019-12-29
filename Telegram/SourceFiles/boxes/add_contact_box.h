@@ -94,7 +94,7 @@ private:
 
 };
 
-class GroupInfoBox : public Ui::BoxContent, private MTP::Sender {
+class GroupInfoBox : public Ui::BoxContent {
 public:
 	enum class Type {
 		Group,
@@ -124,6 +124,7 @@ private:
 	void updateMaxHeight();
 
 	const not_null<Window::SessionNavigation*> _navigation;
+	MTP::Sender _api;
 
 	Type _type = Type::Group;
 	QString _initialTitle;

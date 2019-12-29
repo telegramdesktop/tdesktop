@@ -72,6 +72,12 @@ struct LangPackData {
 	return false;
 }
 
+[[nodiscard]] EmojiPtr FindExact(const QString &text) {
+	auto length = 0;
+	const auto result = Find(text, &length);
+	return (length < text.size()) ? nullptr : result;
+}
+
 void CreateCacheFilePath() {
 	QDir().mkpath(internal::CacheFileFolder() + qstr("/keywords"));
 }
@@ -120,7 +126,7 @@ void CreateCacheFilePath() {
 			const auto emoji = MustAddPostfix(text)
 				? (text + QChar(Ui::Emoji::kPostfix))
 				: text;
-			const auto entry = LangPackEmoji{ Find(emoji), text };
+			const auto entry = LangPackEmoji{ FindExact(emoji), text };
 			if (!entry.emoji) {
 				return {};
 			}
@@ -251,7 +257,7 @@ void ApplyDifference(
 				const auto emoji = MustAddPostfix(text)
 					? (text + QChar(Ui::Emoji::kPostfix))
 					: text;
-				return LangPackEmoji{ Find(emoji), text };
+				return LangPackEmoji{ FindExact(emoji), text };
 			}) | ranges::view::filter([&](const LangPackEmoji &entry) {
 				if (!entry.emoji) {
 					LOG(("API Warning: emoji %1 is not supported, word: %2."

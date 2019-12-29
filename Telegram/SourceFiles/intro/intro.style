@@ -74,8 +74,10 @@ introPlaneHeight: 38px;
 introHeight: 406px;
 introStepTopMin: 76px;
 introStepWidth: 380px;
-introStepHeight: 266px;
-introStepHeightAdd: 30px;
+introNextTop: 266px;
+introNextSlide: 200px;
+introStepHeight: 384px;
+introContentTopAdd: 30px;
 introStepHeightFull: 590px;
 introSlideDuration: 200;
 introCoverDuration: 200;
@@ -105,6 +107,7 @@ introPhone: InputField(introCountry) {
 	textMargins: margins(12px, 27px, 12px, 6px);
 	width: 225px;
 }
+introQrLoginLinkTop: 368px;
 introCode: introCountry;
 introName: introCountry;
 introPassword: introCountry;
@@ -160,3 +163,23 @@ introBackButton: IconButton(defaultIconButton) {
 	}
 }
 
+introQrTop: -6px;
+introQrPixel: 50px; // large enough
+introQrMaxSize: 180px;
+introQrLabelsWidth: 292px;
+introQrTitle: FlatLabel(defaultFlatLabel) {
+	textFg: introTitleFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(20px semibold);
+		linkFont: font(20px semibold);
+		linkFontOver: font(20px semibold underline);
+	}
+}
+introQrErrorTop: 336px;
+introQrTitleTop: 196px;
+introQrStep: defaultFlatLabel;
+introQrStepsTop: 232px;
+introQrStepMargins: margins(0px, 8px, 0px, 0px);
+introQrSkipTop: 360px;
+introQrCenterSize: 44px;
+introQrPlane: icon {{ "intro_qr_plane", activeButtonFg }};

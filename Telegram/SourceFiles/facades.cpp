@@ -373,9 +373,9 @@ struct Data {
 	bool NotificationsDemoIsShown = false;
 
 	bool TryIPv6 = !Platform::IsWindows();
-	std::vector<ProxyData> ProxiesList;
-	ProxyData SelectedProxy;
-	ProxyData::Settings ProxySettings = ProxyData::Settings::System;
+	std::vector<MTP::ProxyData> ProxiesList;
+	MTP::ProxyData SelectedProxy;
+	MTP::ProxyData::Settings ProxySettings = MTP::ProxyData::Settings::System;
 	bool UseProxyForCalls = false;
 	base::Observable<void> ConnectionTypeChanged;
 
@@ -501,9 +501,9 @@ DefineVar(Global, Notify::ScreenCorner, NotificationsCorner);
 DefineVar(Global, bool, NotificationsDemoIsShown);
 
 DefineVar(Global, bool, TryIPv6);
-DefineVar(Global, std::vector<ProxyData>, ProxiesList);
-DefineVar(Global, ProxyData, SelectedProxy);
-DefineVar(Global, ProxyData::Settings, ProxySettings);
+DefineVar(Global, std::vector<MTP::ProxyData>, ProxiesList);
+DefineVar(Global, MTP::ProxyData, SelectedProxy);
+DefineVar(Global, MTP::ProxyData::Settings, ProxySettings);
 DefineVar(Global, bool, UseProxyForCalls);
 DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);
 

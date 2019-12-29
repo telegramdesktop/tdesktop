@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_media_types.h"
 #include "data/data_peer.h"
+#include "data/data_file_origin.h"
 #include "styles/style_overview.h"
 #include "styles/style_history.h"
 #include "core/file_utilities.h"
@@ -428,7 +429,6 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	const auto thumbLoaded = _data->hasThumbnail()
 		&& _data->thumbnail()->loaded();
 
-	_data->automaticLoad(parent()->fullId(), parent());
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 	if (displayLoading) {
 		ensureRadial();
@@ -620,8 +620,6 @@ void Voice::initDimensions() {
 
 void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool selected = (selection == FullSelection);
-
-	_data->automaticLoad(parent()->fullId(), parent());
 	bool loaded = _data->loaded(), displayLoading = _data->displayLoading();
 
 	if (displayLoading) {

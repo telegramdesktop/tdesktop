@@ -594,11 +594,6 @@ HistoryItem *History::createItem(
 		if (detachExistingItem) {
 			result->removeMainView();
 		}
-		if (message.type() == mtpc_message) {
-			result->updateSentContent(
-				result->originalText(),
-				message.c_message().vmedia());
-		}
 		return result;
 	}
 	return HistoryItem::Create(this, message, clientFlags);

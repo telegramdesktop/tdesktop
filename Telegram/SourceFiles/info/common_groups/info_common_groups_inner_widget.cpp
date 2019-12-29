@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "mtproto/sender.h"
+#include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/search_field_controller.h"
@@ -27,10 +28,7 @@ namespace {
 constexpr auto kCommonGroupsPerPage = 40;
 constexpr auto kCommonGroupsSearchAfter = 20;
 
-class ListController
-	: public PeerListController
-	, private base::Subscriber
-	, private MTP::Sender {
+class ListController : public PeerListController , private base::Subscriber {
 public:
 	ListController(
 		not_null<Controller*> controller,
@@ -58,6 +56,7 @@ private:
 		bool wasLoading = false;
 	};
 	const not_null<Controller*> _controller;
+	MTP::Sender _api;
 	not_null<UserData*> _user;
 	mtpRequestId _preloadRequestId = 0;
 	bool _allLoaded = false;
@@ -70,6 +69,7 @@ ListController::ListController(
 	not_null<UserData*> user)
 : PeerListController()
 , _controller(controller)
+, _api(_controller->session().api().instance())
 , _user(user) {
 	_controller->setSearchEnabledByContent(false);
 }
@@ -95,7 +95,7 @@ void ListController::loadMoreRows() {
 	if (_preloadRequestId || _allLoaded) {
 		return;
 	}
-	_preloadRequestId = request(MTPmessages_GetCommonChats(
+	_preloadRequestId = _api.request(MTPmessages_GetCommonChats(
 		_user->inputUser,
 		MTP_int(_preloadGroupId),
 		MTP_int(kCommonGroupsPerPage)
@@ -143,7 +143,7 @@ void ListController::restoreState(
 		: nullptr;
 	if (auto my = dynamic_cast<SavedState*>(typeErasedState)) {
 		if (auto requestId = base::take(_preloadRequestId)) {
-			request(requestId).cancel();
+			_api.request(requestId).cancel();
 		}
 		_allLoaded = my->allLoaded;
 		_preloadGroupId = my->preloadGroupId;

@@ -11,10 +11,96 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "storage/storage_shared_media.h"
+#include "data/data_document.h"
 #include "ui/text_options.h"
 #include "styles/style_history.h"
 
 namespace HistoryView {
+namespace {
+
+[[nodiscard]] TimeId TimeFromMatch(
+		const QStringRef &hours,
+		const QStringRef &minutes1,
+		const QStringRef &minutes2,
+		const QStringRef &seconds) {
+	auto ok1 = true;
+	auto ok2 = true;
+	auto ok3 = true;
+	const auto result = (hours.isEmpty() ? 0 : hours.toInt(&ok1)) * 3600
+		+ (minutes1 + minutes2).toInt(&ok2) * 60
+		+ seconds.toInt(&ok3);
+	return (ok1 && ok2 && ok3) ? result : -1;
+}
+
+} // namespace
+
+QString DocumentTimestampLinkBase(
+		not_null<DocumentData*> document,
+		FullMsgId context) {
+	return QString(
+		"doc%1_%2_%3"
+	).arg(document->id).arg(context.channel).arg(context.msg);
+}
+
+TextWithEntities AddTimestampLinks(
+		TextWithEntities text,
+		TimeId duration,
+		const QString &base) {
+	static const auto expression = QRegularExpression(
+		"(?<![^\\s])(?:(?:(\\d{1,2}):)?(\\d))?(\\d):(\\d\\d)(?![^\\s])");
+	const auto &string = text.text;
+	auto offset = 0;
+	while (true) {
+		const auto m = expression.match(string, offset);
+		if (!m.hasMatch()) {
+			break;
+		}
+
+		const auto from = m.capturedStart();
+		const auto till = from + m.capturedLength();
+		offset = till;
+
+		const auto time = TimeFromMatch(
+			m.capturedRef(1),
+			m.capturedRef(2),
+			m.capturedRef(3),
+			m.capturedRef(4));
+		if (time < 0 || time > duration) {
+			continue;
+		}
+
+		auto &entities = text.entities;
+		const auto i = ranges::lower_bound(
+			entities,
+			from,
+			std::less<>(),
+			&EntityInText::offset);
+		if (i != entities.end() && i->offset() < till) {
+			continue;
+		}
+
+		const auto intersects = [&](const EntityInText &entity) {
+			return entity.offset() + entity.length() > from;
+		};
+		auto j = std::make_reverse_iterator(i);
+		const auto e = std::make_reverse_iterator(entities.begin());
+		if (std::find_if(j, e, intersects) != e) {
+			continue;
+		}
+
+		entities.insert(
+			i,
+			EntityInText(
+				EntityType::CustomUrl,
+				from,
+				till - from,
+				("internal:media_timestamp?base="
+					+ base
+					+ "&t="
+					+ QString::number(time))));
+	}
+	return text;
+}
 
 Storage::SharedMediaTypesMask Media::sharedMediaTypes() const {
 	return {};
@@ -32,7 +118,12 @@ QSize Media::countCurrentSize(int newWidth) {
 	return QSize(qMin(newWidth, maxWidth()), minHeight());
 }
 
-Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {
+Ui::Text::String Media::createCaption(
+		not_null<HistoryItem*> item,
+		TimeId timestampLinksDuration,
+		const QString &timestampLinkBase) const {
+	Expects(timestampLinksDuration >= 0);
+
 	if (item->emptyText()) {
 		return {};
 	}
@@ -42,7 +133,12 @@ Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {
 	auto result = Ui::Text::String(minResizeWidth);
 	result.setMarkedText(
 		st::messageTextStyle,
-		item->originalText(),
+		(timestampLinksDuration
+			? AddTimestampLinks(
+				item->originalText(),
+				timestampLinksDuration,
+				timestampLinkBase)
+			: item->originalText()),
 		Ui::ItemTextOptions(item));
 	if (const auto width = _parent->skipBlockWidth()) {
 		result.updateSkipBlock(width, _parent->skipBlockHeight());
@@ -66,6 +162,7 @@ PointState Media::pointState(QPoint point) const {
 
 TextState Media::getStateGrouped(
 		const QRect &geometry,
+		RectParts sides,
 		QPoint point,
 		StateRequest request) const {
 	Unexpected("Grouping method call.");

@@ -678,12 +678,12 @@ TextSelection WebPage::adjustSelection(TextSelection selection, TextSelectType t
 		return _siteName.adjustSelection(selection, type);
 	}
 
+	auto titlesLength = _siteName.length() + _title.length();
 	auto titleSelection = _title.adjustSelection(toTitleSelection(selection), type);
-	if ((!_siteNameLines && !_descriptionLines) || (selection.from >= _siteName.length() && selection.to <= _description.length())) {
+	if ((!_siteNameLines && !_descriptionLines) || (selection.from >= _siteName.length() && selection.to <= titlesLength)) {
 		return fromTitleSelection(titleSelection);
 	}
 
-	auto titlesLength = _siteName.length() + _title.length();
 	auto descriptionSelection = _description.adjustSelection(toDescriptionSelection(selection), type);
 	if ((!_siteNameLines && !_titleLines) || selection.from >= titlesLength) {
 		return fromDescriptionSelection(descriptionSelection);

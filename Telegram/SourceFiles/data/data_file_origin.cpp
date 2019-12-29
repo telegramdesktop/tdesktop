@@ -33,9 +33,16 @@ struct FileReferenceAccumulator {
 		}, [](const MTPDdocumentEmpty &data) {
 		});
 	}
+	void push(const MTPPage &data) {
+		data.match([&](const auto &data) {
+			push(data.vphotos());
+			push(data.vdocuments());
+		});
+	}
 	void push(const MTPWallPaper &data) {
 		data.match([&](const MTPDwallPaper &data) {
 			push(data.vdocument());
+		}, [&](const MTPDwallPaperNoFile &data) {
 		});
 	}
 	void push(const MTPTheme &data) {
@@ -46,16 +53,26 @@ struct FileReferenceAccumulator {
 		}, [&](const MTPDthemeDocumentNotModified &data) {
 		});
 	}
+	void push(const MTPWebPageAttribute &data) {
+		data.match([&](const MTPDwebPageAttributeTheme &data) {
+			if (const auto documents = data.vdocuments()) {
+				push(*documents);
+			}
+		});
+	}
 	void push(const MTPWebPage &data) {
 		data.match([&](const MTPDwebPage &data) {
 			if (const auto document = data.vdocument()) {
 				push(*document);
 			}
-			if (const auto documents = data.vdocuments()) {
-				push(*documents);
+			if (const auto attributes = data.vattributes()) {
+				push(*attributes);
 			}
 			if (const auto photo = data.vphoto()) {
 				push(*photo);
+			}
+			if (const auto page = data.vcached_page()) {
+				push(*page);
 			}
 		}, [](const auto &data) {
 		});

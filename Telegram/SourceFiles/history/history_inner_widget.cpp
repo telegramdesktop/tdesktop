@@ -62,7 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kScrollDateHideTimeout = 1000;
-constexpr auto kUnloadHeavyPartsPages = 3;
+constexpr auto kUnloadHeavyPartsPages = 1;
 
 // Helper binary search for an item in a list that is not completely
 // above the given top of the visible area or below the given bottom of the visible area
@@ -1568,8 +1568,16 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto lnkIsVideo = document->isVideoFile();
 		const auto lnkIsVoice = document->isVoiceMessage();
 		const auto lnkIsAudio = document->isAudioFile();
-		if (document->loaded() && document->isGifv()) {
-			if (!document->session().settings().autoplayGifs()) {
+		if (document->isGifv()) {
+			const auto notAutoplayedGif = [&] {
+				return item
+					&& document->isGifv()
+					&& Data::AutoDownload::ShouldAutoPlay(
+						document->session().settings().autoDownload(),
+						item->history()->peer,
+						document);
+			}();
+			if (notAutoplayedGif) {
 				_menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
 					openContextGif(itemId);
 				});

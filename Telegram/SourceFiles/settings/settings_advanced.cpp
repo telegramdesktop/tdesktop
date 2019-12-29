@@ -32,6 +32,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 #include "styles/style_settings.h"
 
+#ifndef TDESKTOP_DISABLE_SPELLCHECK
+#include "spellcheck/platform/platform_spellcheck.h"
+#endif // !TDESKTOP_DISABLE_SPELLCHECK
+
 namespace Settings {
 
 bool HasConnectionType() {
@@ -48,7 +52,7 @@ void SetupConnectionType(not_null<Ui::VerticalLayout*> container) {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	const auto connectionType = [] {
 		const auto transport = MTP::dctransport();
-		if (Global::ProxySettings() != ProxyData::Settings::Enabled) {
+		if (Global::ProxySettings() != MTP::ProxyData::Settings::Enabled) {
 			return transport.isEmpty()
 				? tr::lng_connection_auto_connecting(tr::now)
 				: tr::lng_connection_auto(tr::now, lt_transport, transport);
@@ -246,9 +250,9 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 bool HasSystemSpellchecker() {
 #ifdef TDESKTOP_DISABLE_SPELLCHECK
 	return false;
+#else
+	return Platform::Spellchecker::IsAvailable();
 #endif // TDESKTOP_DISABLE_SPELLCHECK
-	return (Platform::IsWindows() && Platform::IsWindows8OrGreater())
-		|| Platform::IsMac();
 }
 
 void SetupSpellchecker(
@@ -452,24 +456,6 @@ void SetupPerformance(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
 	SetupAnimations(container);
-
-	const auto session = &controller->session();
-	AddButton(
-		container,
-		tr::lng_settings_autoplay_gifs(),
-		st::settingsButton
-	)->toggleOn(
-		rpl::single(session->settings().autoplayGifs())
-	)->toggledValue(
-	) | rpl::filter([=](bool enabled) {
-		return (enabled != session->settings().autoplayGifs());
-	}) | rpl::start_with_next([=](bool enabled) {
-		session->settings().setAutoplayGifs(enabled);
-		if (!enabled) {
-			session->data().stopAutoplayAnimations();
-		}
-		session->saveSettingsDelayed();
-	}, container->lifetime());
 }
 
 void SetupSystemIntegration(

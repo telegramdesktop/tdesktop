@@ -50,6 +50,8 @@
       'outputs': [
         '<(SHARED_INTERMEDIATE_DIR)/scheme.cpp',
         '<(SHARED_INTERMEDIATE_DIR)/scheme.h',
+        '<(SHARED_INTERMEDIATE_DIR)/scheme-dump_to_text.cpp',
+        '<(SHARED_INTERMEDIATE_DIR)/scheme-dump_to_text.h',
       ],
       'action': [
         'python', '<(src_loc)/codegen/scheme/codegen_scheme.py',

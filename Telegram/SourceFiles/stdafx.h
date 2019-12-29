@@ -8,10 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #define __HUGE
 
-#ifdef OS_MAC_STORE
-#define MAC_USE_BREAKPAD
-#endif // OS_MAC_STORE
-
 #ifdef __cplusplus
 
 #include <cmath>
@@ -120,7 +116,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/utils.h"
 #include "config.h"
 
-#include "mtproto/facade.h"
+#include "scheme.h"
+#include "mtproto/type_utils.h"
 
 #include "ui/style/style_core.h"
 #include "styles/palette.h"

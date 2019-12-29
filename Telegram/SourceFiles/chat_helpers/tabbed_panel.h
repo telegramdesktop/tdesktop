@@ -75,9 +75,6 @@ private:
 
 	void hideByTimerOrLeave();
 	void moveByBottom();
-	bool isDestroying() const {
-		return !_selector;
-	}
 	void showFromSelector();
 
 	style::margins innerPadding() const;

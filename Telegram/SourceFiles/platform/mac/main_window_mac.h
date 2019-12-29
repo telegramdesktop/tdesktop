@@ -49,6 +49,7 @@ public slots:
 	void psMacPaste();
 	void psMacDelete();
 	void psMacSelectAll();
+	void psMacEmojiAndSymbols();
 
 	void psMacBold();
 	void psMacItalic();

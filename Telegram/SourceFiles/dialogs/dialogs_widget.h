@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/special_buttons.h"
 #include "api/api_single_message_search.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 namespace Main {
 class Session;

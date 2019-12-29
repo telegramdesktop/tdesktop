@@ -153,6 +153,9 @@ public:
 		_variables.groupStickersSectionHidden.remove(peerId);
 	}
 
+	void setMediaLastPlaybackPosition(DocumentId id, crl::time time);
+	[[nodiscard]] crl::time mediaLastPlaybackPosition(DocumentId id) const;
+
 	[[nodiscard]] Data::AutoDownload::Full &autoDownload() {
 		return _variables.autoDownload;
 	}
@@ -197,12 +200,6 @@ public:
 	}
 	void setExeLaunchWarning(bool warning) {
 		_variables.exeLaunchWarning = warning;
-	}
-	[[nodiscard]] bool autoplayGifs() const {
-		return _variables.autoplayGifs;
-	}
-	void setAutoplayGifs(bool value) {
-		_variables.autoplayGifs = value;
 	}
 	[[nodiscard]] bool loopAnimatedStickers() const {
 		return _variables.loopAnimatedStickers;
@@ -277,13 +274,13 @@ private:
 		rpl::variable<bool> archiveInMainMenu = false;
 		rpl::variable<bool> notifyAboutPinned = true;
 		rpl::variable<bool> skipArchiveInSearch = false;
-		bool autoplayGifs = true;
 		bool loopAnimatedStickers = true;
 		rpl::variable<bool> largeEmoji = true;
 		rpl::variable<bool> replaceEmoji = true;
 		bool suggestEmoji = true;
 		bool suggestStickersByEmoji = true;
 		rpl::variable<bool> spellcheckerEnabled = true;
+		std::vector<std::pair<DocumentId, crl::time>> mediaLastPlaybackPosition;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;

@@ -40,6 +40,14 @@ enum class MediaInBubbleState {
 	Bottom,
 };
 
+[[nodiscard]] QString DocumentTimestampLinkBase(
+	not_null<DocumentData*> document,
+	FullMsgId context);
+[[nodiscard]] TextWithEntities AddTimestampLinks(
+	TextWithEntities text,
+	TimeId duration,
+	const QString &base);
+
 class Media : public Object {
 public:
 	Media(not_null<Element*> parent) : _parent(parent) {
@@ -133,6 +141,9 @@ public:
 	}
 	virtual void clearStickerLoopPlayed() {
 	}
+	virtual int checkAnimationCount() {
+		return 0;
+	}
 
 	[[nodiscard]] virtual QSize sizeForGrouping() const {
 		Unexpected("Grouping method call.");
@@ -143,6 +154,7 @@ public:
 			TextSelection selection,
 			crl::time ms,
 			const QRect &geometry,
+			RectParts sides,
 			RectParts corners,
 			not_null<uint64*> cacheKey,
 			not_null<QPixmap*> cache) const {
@@ -150,6 +162,7 @@ public:
 	}
 	[[nodiscard]] virtual TextState getStateGrouped(
 		const QRect &geometry,
+		RectParts sides,
 		QPoint point,
 		StateRequest request) const;
 
@@ -232,8 +245,11 @@ public:
 	virtual ~Media() = default;
 
 protected:
-	QSize countCurrentSize(int newWidth) override;
-	Ui::Text::String createCaption(not_null<HistoryItem*> item) const;
+	[[nodiscard]] QSize countCurrentSize(int newWidth) override;
+	[[nodiscard]] Ui::Text::String createCaption(
+		not_null<HistoryItem*> item,
+		TimeId timestampLinksDuration = 0,
+		const QString &timestampLinkBase = QString()) const;
 
 	virtual void playAnimation(bool autoplay) {
 	}

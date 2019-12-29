@@ -211,6 +211,7 @@ void CloudListCheck::validateBackgroundCache(int width) {
 			imageWidth,
 			_backgroundFull.height());
 	Images::prepareRound(_backgroundCache, ImageRoundRadius::Large);
+	_backgroundCache.setDevicePixelRatio(cRetinaFactor());
 }
 
 void CloudListCheck::paint(Painter &p, int left, int top, int outerWidth) {

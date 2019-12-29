@@ -15,17 +15,16 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * Windows XP - Windows 10 (**not** RT)
 * Mac OS X 10.8 - Mac OS X 10.15
 * Mac OS X 10.6 - Mac OS X 10.7 (separate build)
-* Ubuntu 12.04 - Ubuntu 19.04
+* Ubuntu 12.04 - Ubuntu 19.10
 * Fedora 22 - Fedora 30
 * [Snappy](https://snapcraft.io/telegram-desktop)
 * [Flathub](https://flathub.org/apps/details/org.telegram.desktop)
 
 ## Third-party
 
-* Qt 5.3.2 and 5.6.2, slightly patched ([LGPL](http://doc.qt.io/qt-5/lgpl.html))
-* OpenSSL 1.0.1g ([OpenSSL License](https://www.openssl.org/source/license.html))
-* zlib 1.2.8 ([zlib License](http://www.zlib.net/zlib_license.html))
-* libexif 0.6.20 ([LGPL](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html))
+* Qt 5.12.5 and 5.6.2, slightly patched ([LGPL](http://doc.qt.io/qt-5/lgpl.html))
+* OpenSSL 1.1.1 ([OpenSSL License](https://www.openssl.org/source/license.html))
+* zlib 1.2.11 ([zlib License](http://www.zlib.net/zlib_license.html))
 * LZMA SDK 9.20 ([public domain](http://www.7-zip.org/sdk.html))
 * liblzma ([public domain](http://tukaani.org/xz/))
 * Google Breakpad ([License](https://chromium.googlesource.com/breakpad/breakpad/+/master/LICENSE))
@@ -42,6 +41,8 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * Emoji alpha codes ([MIT License](https://github.com/emojione/emojione/blob/master/extras/alpha-codes/LICENSE.md))
 * Catch test framework ([Boost License](https://github.com/philsquared/Catch/blob/master/LICENSE.txt))
 * xxHash ([BSD License](https://github.com/Cyan4973/xxHash/blob/dev/LICENSE))
+* QR Code generator ([MIT License](https://github.com/nayuki/QR-Code-generator#license))
+* CMake ([New BSD License](https://github.com/Kitware/CMake/blob/master/Copyright.txt))
 
 ## Build instructions
 

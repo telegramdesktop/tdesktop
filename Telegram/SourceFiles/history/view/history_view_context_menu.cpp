@@ -168,12 +168,19 @@ void AddDocumentActions(
 		});
 		return;
 	}
-	if (document->loaded()
-		&& document->isGifv()
-		&& !document->session().settings().autoplayGifs()) {
-		menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
-			OpenGif(contextId);
-		});
+	if (const auto item = document->session().data().message(contextId)) {
+		const auto notAutoplayedGif = [&] {
+			return document->isGifv()
+				&& Data::AutoDownload::ShouldAutoPlay(
+					document->session().settings().autoDownload(),
+					item->history()->peer,
+					document);
+		}();
+		if (notAutoplayedGif) {
+			menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
+				OpenGif(contextId);
+			});
+		}
 	}
 	if (document->sticker()
 		&& document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {

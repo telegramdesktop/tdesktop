@@ -318,7 +318,7 @@ struct FileKey {
 
 };
 
-class FormController : private MTP::Sender, public base::has_weak_ptr {
+class FormController : public base::has_weak_ptr {
 public:
 	FormController(
 		not_null<Window::SessionController*> controller,
@@ -512,6 +512,7 @@ private:
 	void shortPollEmailConfirmation();
 
 	not_null<Window::SessionController*> _controller;
+	MTP::Sender _api;
 	FormRequest _request;
 	UserData *_bot = nullptr;
 

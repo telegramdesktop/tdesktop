@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_privacy_security.h"
 
+#include "api/api_self_destruct.h"
+#include "api/api_sensitive_content.h"
 #include "settings/settings_common.h"
 #include "settings/settings_privacy_controllers.h"
 #include "boxes/peer_list_box.h"
@@ -428,20 +430,56 @@ void SetupCloudPassword(
 	session->api().reloadPasswordState();
 
 	AddSkip(container);
+	AddDivider(container);
+}
+
+void SetupSensitiveContent(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	using namespace rpl::mappers;
+
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto inner = wrap->entity();
+
+	AddSkip(inner);
+	AddSubsectionTitle(inner, tr::lng_settings_sensitive_title());
+
+	const auto session = &controller->session();
+
+	session->api().sensitiveContent().reload();
+	AddButton(
+		inner,
+		tr::lng_settings_sensitive_disable_filtering(),
+		st::settingsButton
+	)->toggleOn(
+		session->api().sensitiveContent().enabled()
+	)->toggledChanges(
+	) | rpl::filter([=](bool toggled) {
+		return toggled != session->api().sensitiveContent().enabledCurrent();
+	}) | rpl::start_with_next([=](bool toggled) {
+		session->api().sensitiveContent().update(toggled);
+	}, container->lifetime());
+
+	AddSkip(inner);
+	AddDividerText(inner, tr::lng_settings_sensitive_about());
+
+	wrap->toggleOn(session->api().sensitiveContent().canChange());
 }
 
 void SetupSelfDestruction(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_settings_destroy_title());
 
 	const auto session = &controller->session();
 
-	session->api().reloadSelfDestruct();
+	session->api().selfDestruct().reload();
 	const auto label = [&] {
-		return session->api().selfDestructValue(
+		return session->api().selfDestruct().days(
 		) | rpl::map(
 			SelfDestructionBox::DaysLabel
 		);
@@ -455,7 +493,7 @@ void SetupSelfDestruction(
 	)->addClickHandler([=] {
 		Ui::show(Box<SelfDestructionBox>(
 			session,
-			session->api().selfDestructValue()));
+			session->api().selfDestruct().days()));
 	});
 
 	AddSkip(container);
@@ -609,6 +647,11 @@ void PrivacySecurity::setupContent(
 	SetupSessionsList(controller, content);
 	SetupLocalPasscode(controller, content);
 	SetupCloudPassword(controller, content);
+#if !defined OS_MAC_STORE && !defined OS_WIN_STORE
+	SetupSensitiveContent(controller, content);
+#else // !OS_MAC_STORE && !OS_WIN_STORE
+	AddDivider(content);
+#endif // !OS_MAC_STORE && !OS_WIN_STORE
 	SetupSelfDestruction(controller, content);
 
 	Ui::ResizeFitChild(this, content);

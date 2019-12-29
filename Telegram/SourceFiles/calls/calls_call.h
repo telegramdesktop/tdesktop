@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/bytes.h"
 #include "mtproto/sender.h"
-#include "mtproto/auth_key.h"
+#include "mtproto/mtproto_auth_key.h"
 
 namespace Media {
 namespace Audio {
@@ -31,7 +31,7 @@ struct DhConfig {
 	bytes::vector p;
 };
 
-class Call : public base::has_weak_ptr, private MTP::Sender {
+class Call : public base::has_weak_ptr {
 public:
 	class Delegate {
 	public:
@@ -183,6 +183,7 @@ private:
 
 	not_null<Delegate*> _delegate;
 	not_null<UserData*> _user;
+	MTP::Sender _api;
 	Type _type = Type::Outgoing;
 	State _state = State::Starting;
 	FinishType _finishAfterRequestingCall = FinishType::None;

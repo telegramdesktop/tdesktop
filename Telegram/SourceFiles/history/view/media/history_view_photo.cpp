@@ -345,6 +345,7 @@ void Photo::drawGrouped(
 		TextSelection selection,
 		crl::time ms,
 		const QRect &geometry,
+		RectParts sides,
 		RectParts corners,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
@@ -448,6 +449,7 @@ void Photo::drawGrouped(
 
 TextState Photo::getStateGrouped(
 		const QRect &geometry,
+		RectParts sides,
 		QPoint point,
 		StateRequest request) const {
 	if (!geometry.contains(point)) {

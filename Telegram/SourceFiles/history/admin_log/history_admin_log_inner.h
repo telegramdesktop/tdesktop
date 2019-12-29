@@ -44,7 +44,6 @@ class InnerWidget final
 	: public Ui::RpWidget
 	, public Ui::AbstractTooltipShower
 	, public HistoryView::ElementDelegate
-	, private MTP::Sender
 	, private base::Subscriber {
 public:
 	InnerWidget(
@@ -216,9 +215,11 @@ private:
 	template <typename Method>
 	void enumerateDates(Method method);
 
-	not_null<Window::SessionController*> _controller;
-	not_null<ChannelData*> _channel;
-	not_null<History*> _history;
+	const not_null<Window::SessionController*> _controller;
+	const not_null<ChannelData*> _channel;
+	const not_null<History*> _history;
+	MTP::Sender _api;
+
 	std::vector<OwnedItem> _items;
 	std::set<uint64> _eventIds;
 	std::map<not_null<const HistoryItem*>, not_null<Element*>> _itemsByData;

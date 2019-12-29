@@ -886,16 +886,32 @@ void Reader::stopSleep() {
 	_sleeping.store(nullptr, std::memory_order_release);
 }
 
+void Reader::stopStreamingAsync() {
+	_stopStreamingAsync = true;
+	crl::on_main(this, [=] {
+		if (_stopStreamingAsync) {
+			stopStreaming(false);
+		}
+	});
+}
+
+void Reader::tryRemoveLoaderAsync() {
+	_loader->tryRemoveFromQueue();
+}
+
 void Reader::startStreaming() {
 	_streamingActive = true;
+	refreshLoaderPriority();
 }
 
 void Reader::stopStreaming(bool stillActive) {
 	Expects(_sleeping == nullptr);
 
+	_stopStreamingAsync = false;
 	_waiting.store(nullptr, std::memory_order_release);
 	if (!stillActive) {
 		_streamingActive = false;
+		refreshLoaderPriority();
 		_loadingOffsets.clear();
 		processDownloaderRequests();
 	}
@@ -906,7 +922,7 @@ rpl::producer<LoadedPart> Reader::partsForDownloader() const {
 }
 
 void Reader::loadForDownloader(
-		Storage::StreamedFileDownloader *downloader,
+		not_null<Storage::StreamedFileDownloader*> downloader,
 		int offset) {
 	if (_attachedDownloader != downloader) {
 		if (_attachedDownloader) {
@@ -931,7 +947,7 @@ void Reader::doneForDownloader(int offset) {
 }
 
 void Reader::cancelForDownloader(
-		Storage::StreamedFileDownloader *downloader) {
+		not_null<Storage::StreamedFileDownloader*> downloader) {
 	if (_attachedDownloader == downloader) {
 		_downloaderOffsetRequests.take();
 		_attachedDownloader = nullptr;
@@ -1078,6 +1094,18 @@ void Reader::checkCacheResultsForDownloader() {
 		return;
 	}
 	processDownloaderRequests();
+}
+
+void Reader::setLoaderPriority(int priority) {
+	if (_realPriority == priority) {
+		return;
+	}
+	_realPriority = priority;
+	refreshLoaderPriority();
+}
+
+void Reader::refreshLoaderPriority() {
+	_loader->setPriority(_streamingActive ? _realPriority : 0);
 }
 
 bool Reader::isRemoteLoader() const {
@@ -1269,8 +1297,8 @@ void Reader::cancelLoadInRange(int from, int till) {
 
 void Reader::checkLoadWillBeFirst(int offset) {
 	if (_loadingOffsets.front().value_or(offset) != offset) {
-		_loadingOffsets.increasePriority();
-		_loader->increasePriority();
+		_loadingOffsets.resetPriorities();
+		_loader->resetPriorities();
 	}
 }
 

@@ -8,10 +8,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/dc_options.h"
+#include "mtproto/mtproto_proxy_data.h"
 #include "base/bytes.h"
 
+#include <QtCore/QObject>
+#include <QtCore/QThread>
+
 namespace MTP {
-namespace internal {
+
+class Instance;
+
+namespace details {
 
 struct ConnectionOptions;
 
@@ -57,17 +64,17 @@ public:
 	virtual ~AbstractConnection() = default;
 
 	// virtual constructor
-	static ConnectionPointer Create(
+	[[nodiscard]] static ConnectionPointer Create(
 		not_null<Instance*> instance,
 		DcOptions::Variants::Protocol protocol,
 		QThread *thread,
 		const bytes::vector &secret,
 		const ProxyData &proxy);
 
-	virtual ConnectionPointer clone(const ProxyData &proxy) = 0;
+	[[nodiscard]] virtual ConnectionPointer clone(const ProxyData &proxy) = 0;
 
-	virtual crl::time pingTime() const = 0;
-	virtual crl::time fullConnectTimeout() const = 0;
+	[[nodiscard]] virtual crl::time pingTime() const = 0;
+	[[nodiscard]] virtual crl::time fullConnectTimeout() const = 0;
 	virtual void sendData(mtpBuffer &&buffer) = 0;
 	virtual void disconnectFromServer() = 0;
 	virtual void connectToServer(
@@ -77,41 +84,44 @@ public:
 		int16 protocolDcId) = 0;
 	virtual void timedOut() {
 	}
-	virtual bool isConnected() const = 0;
-	virtual bool usingHttpWait() {
+	[[nodiscard]] virtual bool isConnected() const = 0;
+	[[nodiscard]] virtual bool usingHttpWait() {
 		return false;
 	}
-	virtual bool needHttpWait() {
+	[[nodiscard]] virtual bool needHttpWait() {
 		return false;
 	}
-	virtual bool requiresExtendedPadding() const {
+	[[nodiscard]] virtual bool requiresExtendedPadding() const {
 		return false;
 	}
 
-	virtual int32 debugState() const = 0;
+	[[nodiscard]] virtual int32 debugState() const = 0;
 
-	virtual QString transport() const = 0;
-	virtual QString tag() const = 0;
+	[[nodiscard]] virtual QString transport() const = 0;
+	[[nodiscard]] virtual QString tag() const = 0;
 
-	void setSentEncrypted() {
-		_sentEncrypted = true;
+	void setSentEncryptedWithKeyId(uint64 keyId) {
+		_sentEncryptedWithKeyId = keyId;
+	}
+	[[nodiscard]] uint64 sentEncryptedWithKeyId() const {
+		return _sentEncryptedWithKeyId;
 	}
 
 	using BuffersQueue = std::deque<mtpBuffer>;
-	BuffersQueue &received() {
+	[[nodiscard]] BuffersQueue &received() {
 		return _receivedQueue;
 	}
 
 	template <typename Request>
-	mtpBuffer prepareNotSecurePacket(
+	[[nodiscard]] mtpBuffer prepareNotSecurePacket(
 		const Request &request,
 		mtpMsgId newId) const;
-	mtpBuffer prepareSecurePacket(
+	[[nodiscard]] mtpBuffer prepareSecurePacket(
 		uint64 keyId,
 		MTPint128 msgKey,
 		uint32 size) const;
 
-	gsl::span<const mtpPrime> parseNotSecureResponse(
+	[[nodiscard]] gsl::span<const mtpPrime> parseNotSecureResponse(
 		const mtpBuffer &buffer) const;
 
 	// Used to emit error(...) with no real code from the server.
@@ -130,14 +140,19 @@ signals:
 
 protected:
 	BuffersQueue _receivedQueue; // list of received packets, not processed yet
-	bool _sentEncrypted = false;
 	int _pingTime = 0;
 	ProxyData _proxy;
 
 	// first we always send fake MTPReq_pq to see if connection works at all
 	// we send them simultaneously through TCP/HTTP/IPv4/IPv6 to choose the working one
-	mtpBuffer preparePQFake(const MTPint128 &nonce) const;
-	std::optional<MTPResPQ> readPQFakeReply(const mtpBuffer &buffer) const;
+	[[nodiscard]] mtpBuffer preparePQFake(const MTPint128 &nonce) const;
+	[[nodiscard]] std::optional<MTPResPQ> readPQFakeReply(
+		const mtpBuffer &buffer) const;
+
+private:
+	[[nodiscard]] uint32 extendedNotSecurePadding() const;
+
+	uint64 _sentEncryptedWithKeyId = 0;
 
 };
 
@@ -146,9 +161,7 @@ mtpBuffer AbstractConnection::prepareNotSecurePacket(
 		const Request &request,
 		mtpMsgId newId) const {
 	const auto intsSize = tl::count_length(request) >> 2;
-	const auto intsPadding = requiresExtendedPadding()
-		? uint32(rand_value<uchar>() & 0x3F)
-		: 0;
+	const auto intsPadding = extendedNotSecurePadding();
 
 	auto result = mtpBuffer();
 	constexpr auto kTcpPrefixInts = 2;
@@ -173,14 +186,14 @@ mtpBuffer AbstractConnection::prepareNotSecurePacket(
 	*messageLength = (result.size() - kPrefixInts + intsPadding) << 2;
 
 	if (intsPadding > 0) {
-		result.resize(result.size() + intsPadding);
-		memset_rand(
-			result.data() + result.size() - intsPadding,
-			intsPadding * sizeof(mtpPrime));
+		const auto skipPrimes = result.size();
+		result.resize(skipPrimes + intsPadding);
+		const auto skipBytes = skipPrimes * sizeof(mtpPrime);
+		bytes::set_random(bytes::make_span(result).subspan(skipBytes));
 	}
 
 	return result;
 }
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

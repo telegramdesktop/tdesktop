@@ -814,10 +814,10 @@ void LastCrashedWindow::onNetworkSettingsSaved(
 		QString password) {
 	Expects(host.isEmpty() || port != 0);
 
-	auto proxy = ProxyData();
+	auto proxy = MTP::ProxyData();
 	proxy.type = host.isEmpty()
-		? ProxyData::Type::None
-		: ProxyData::Type::Http;
+		? MTP::ProxyData::Type::None
+		: MTP::ProxyData::Type::Http;
 	proxy.host = host;
 	proxy.port = port;
 	proxy.user = username;
@@ -843,7 +843,7 @@ void LastCrashedWindow::proxyUpdated() {
 	activate();
 }
 
-rpl::producer<ProxyData> LastCrashedWindow::proxyChanges() const {
+rpl::producer<MTP::ProxyData> LastCrashedWindow::proxyChanges() const {
 	return _proxyChanges.events();
 }
 

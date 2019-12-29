@@ -7,11 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/dc_options.h"
 
-#include "storage/serialize_common.h"
+#include "mtproto/details/mtproto_rsa_public_key.h"
+#include "mtproto/facade.h"
 #include "mtproto/connection_tcp.h"
+#include "storage/serialize_common.h"
 
 namespace MTP {
 namespace {
+
+using namespace details;
 
 const char *(PublicRSAKeys[]) = { "\
 -----BEGIN RSA PUBLIC KEY-----\n\
@@ -67,6 +71,11 @@ public:
 	: _that(that)
 	, _lock(&_that->_useThroughLockers) {
 	}
+
+	void unlock() {
+		_lock.unlock();
+	}
+
 	~WriteLocker() {
 		_that->computeCdnDcIds();
 	}
@@ -83,6 +92,10 @@ public:
 	: _lock(&that->_useThroughLockers) {
 	}
 
+	void unlock() {
+		_lock.unlock();
+	}
+
 private:
 	QReadLocker _lock;
 
@@ -91,6 +104,8 @@ private:
 DcOptions::DcOptions() {
 	constructFromBuiltIn();
 }
+
+DcOptions::~DcOptions() = default;
 
 bool DcOptions::ValidateSecret(bytes::const_span secret) {
 	// See also TcpConnection::Protocol::Create.
@@ -103,9 +118,9 @@ bool DcOptions::ValidateSecret(bytes::const_span secret) {
 void DcOptions::readBuiltInPublicKeys() {
 	for (const auto key : PublicRSAKeys) {
 		const auto keyBytes = bytes::make_span(key, strlen(key));
-		auto parsed = internal::RSAPublicKey(keyBytes);
-		if (parsed.isValid()) {
-			_publicKeys.emplace(parsed.getFingerPrint(), std::move(parsed));
+		auto parsed = RSAPublicKey(keyBytes);
+		if (parsed.valid()) {
+			_publicKeys.emplace(parsed.fingerprint(), std::move(parsed));
 		} else {
 			LOG(("MTP Error: could not read this public RSA key:"));
 			LOG((key));
@@ -169,7 +184,7 @@ void DcOptions::processFromList(
 		ApplyOneOption(data, dcId, flags, ip, port, secret);
 	}
 
-	auto difference = [&] {
+	const auto difference = [&] {
 		WriteLocker lock(this);
 		auto result = CountOptionsDifference(_data, data);
 		if (!result.empty()) {
@@ -177,8 +192,8 @@ void DcOptions::processFromList(
 		}
 		return result;
 	}();
-	if (!difference.empty()) {
-		_changed.notify(std::move(difference));
+	for (const auto dcId : difference) {
+		_changed.fire_copy(dcId);
 	}
 }
 
@@ -231,9 +246,8 @@ void DcOptions::addFromOther(DcOptions &&options) {
 			}
 		}
 	}
-
-	if (!idsChanged.empty()) {
-		_changed.notify(std::move(idsChanged));
+	for (const auto dcId : idsChanged) {
+		_changed.fire_copy(dcId);
 	}
 }
 
@@ -279,10 +293,10 @@ bool DcOptions::ApplyOneOption(
 	return true;
 }
 
-auto DcOptions::CountOptionsDifference(
+std::vector<DcId> DcOptions::CountOptionsDifference(
 		const std::map<DcId, std::vector<Endpoint>> &a,
-		const std::map<DcId, std::vector<Endpoint>> &b) -> Ids {
-	auto result = Ids();
+		const std::map<DcId, std::vector<Endpoint>> &b) {
+	auto result = std::vector<DcId>();
 	const auto find = [](
 			const std::vector<Endpoint> &where,
 			const Endpoint &what) {
@@ -503,9 +517,9 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 				return;
 			}
 
-			auto key = internal::RSAPublicKey(n, e);
-			if (key.isValid()) {
-				_cdnPublicKeys[dcId].emplace(key.getFingerPrint(), std::move(key));
+			auto key = RSAPublicKey(n, e);
+			if (key.valid()) {
+				_cdnPublicKeys[dcId].emplace(key.fingerprint(), std::move(key));
 			} else {
 				LOG(("MTP Error: Could not read valid CDN public key."));
 			}
@@ -513,8 +527,16 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 	}
 }
 
-DcOptions::Ids DcOptions::configEnumDcIds() const {
-	auto result = Ids();
+rpl::producer<DcId> DcOptions::changed() const {
+	return _changed.events();
+}
+
+rpl::producer<> DcOptions::cdnConfigChanged() const {
+	return _cdnConfigChanged.events();
+}
+
+std::vector<DcId> DcOptions::configEnumDcIds() const {
+	auto result = std::vector<DcId>();
 	{
 		ReadLocker lock(this);
 		result.reserve(_data.size());
@@ -539,8 +561,9 @@ DcType DcOptions::dcType(ShiftedDcId shiftedDcId) const {
 	if (_cdnDcIds.find(BareDcId(shiftedDcId)) != _cdnDcIds.cend()) {
 		return DcType::Cdn;
 	}
-	if (isDownloadDcId(shiftedDcId)) {
-		return DcType::MediaDownload;
+	const auto dcId = BareDcId(shiftedDcId);
+	if (isDownloadDcId(shiftedDcId) && hasMediaOnlyOptionsFor(dcId)) {
+		return DcType::MediaCluster;
 	}
 	return DcType::Regular;
 }
@@ -548,20 +571,23 @@ DcType DcOptions::dcType(ShiftedDcId shiftedDcId) const {
 void DcOptions::setCDNConfig(const MTPDcdnConfig &config) {
 	WriteLocker lock(this);
 	_cdnPublicKeys.clear();
-	for_const (auto &publicKey, config.vpublic_keys().v) {
-		Expects(publicKey.type() == mtpc_cdnPublicKey);
-		const auto &keyData = publicKey.c_cdnPublicKey();
-		const auto keyBytes = bytes::make_span(keyData.vpublic_key().v);
-		auto key = internal::RSAPublicKey(keyBytes);
-		if (key.isValid()) {
-			_cdnPublicKeys[keyData.vdc_id().v].emplace(
-				key.getFingerPrint(),
-				std::move(key));
-		} else {
-			LOG(("MTP Error: could not read this public RSA key:"));
-			LOG((qs(keyData.vpublic_key())));
-		}
+	for (const auto &key : config.vpublic_keys().v) {
+		key.match([&](const MTPDcdnPublicKey &data) {
+			const auto keyBytes = bytes::make_span(data.vpublic_key().v);
+			auto key = RSAPublicKey(keyBytes);
+			if (key.valid()) {
+				_cdnPublicKeys[data.vdc_id().v].emplace(
+					key.fingerprint(),
+					std::move(key));
+			} else {
+				LOG(("MTP Error: could not read this public RSA key:"));
+				LOG((qs(data.vpublic_key())));
+			}
+		});
 	}
+	lock.unlock();
+
+	_cdnConfigChanged.fire({});
 }
 
 bool DcOptions::hasCDNKeysForDc(DcId dcId) const {
@@ -569,20 +595,21 @@ bool DcOptions::hasCDNKeysForDc(DcId dcId) const {
 	return _cdnPublicKeys.find(dcId) != _cdnPublicKeys.cend();
 }
 
-bool DcOptions::getDcRSAKey(DcId dcId, const QVector<MTPlong> &fingerprints, internal::RSAPublicKey *result) const {
-	auto findKey = [&fingerprints, &result](const std::map<uint64, internal::RSAPublicKey> &keys) {
-		for_const (auto &fingerprint, fingerprints) {
-			auto it = keys.find(static_cast<uint64>(fingerprint.v));
+RSAPublicKey DcOptions::getDcRSAKey(
+		DcId dcId,
+		const QVector<MTPlong> &fingerprints) const {
+	const auto findKey = [&](const std::map<uint64, RSAPublicKey> &keys) {
+		for (const auto &fingerprint : fingerprints) {
+			const auto it = keys.find(static_cast<uint64>(fingerprint.v));
 			if (it != keys.cend()) {
-				*result = it->second;
-				return true;
+				return it->second;
 			}
 		}
-		return false;
+		return RSAPublicKey();
 	};
 	{
 		ReadLocker lock(this);
-		auto it = _cdnPublicKeys.find(dcId);
+		const auto it = _cdnPublicKeys.find(dcId);
 		if (it != _cdnPublicKeys.cend()) {
 			return findKey(it->second);
 		}
@@ -596,38 +623,52 @@ auto DcOptions::lookup(
 		bool throughProxy) const -> Variants {
 	using Flag = Flag;
 	auto result = Variants();
-	{
-		ReadLocker lock(this);
-		const auto i = _data.find(dcId);
-		if (i == end(_data)) {
-			return result;
+
+	ReadLocker lock(this);
+	const auto i = _data.find(dcId);
+	if (i == end(_data)) {
+		return result;
+	}
+	for (const auto &endpoint : i->second) {
+		const auto flags = endpoint.flags;
+		if (type == DcType::Cdn && !(flags & Flag::f_cdn)) {
+			continue;
+		} else if (type != DcType::MediaCluster
+			&& (flags & Flag::f_media_only)) {
+			continue;
+		} else if (!ValidateSecret(endpoint.secret)) {
+			continue;
 		}
-		for (const auto &endpoint : i->second) {
-			const auto flags = endpoint.flags;
-			if (type == DcType::Cdn && !(flags & Flag::f_cdn)) {
-				continue;
-			} else if (type != DcType::MediaDownload
-				&& (flags & Flag::f_media_only)) {
-				continue;
-			} else if (!ValidateSecret(endpoint.secret)) {
-				continue;
-			}
-			const auto address = (flags & Flag::f_ipv6)
-				? Variants::IPv6
-				: Variants::IPv4;
-			result.data[address][Variants::Tcp].push_back(endpoint);
-			if (!(flags & (Flag::f_tcpo_only | Flag::f_secret))) {
-				result.data[address][Variants::Http].push_back(endpoint);
-			}
-		}
-		if (type == DcType::MediaDownload) {
-			FilterIfHasWithFlag(result, Flag::f_media_only);
-		}
-		if (throughProxy) {
-			FilterIfHasWithFlag(result, Flag::f_static);
+		const auto address = (flags & Flag::f_ipv6)
+			? Variants::IPv6
+			: Variants::IPv4;
+		result.data[address][Variants::Tcp].push_back(endpoint);
+		if (!(flags & (Flag::f_tcpo_only | Flag::f_secret))) {
+			result.data[address][Variants::Http].push_back(endpoint);
 		}
 	}
+	if (type == DcType::MediaCluster) {
+		FilterIfHasWithFlag(result, Flag::f_media_only);
+	}
+	if (throughProxy) {
+		FilterIfHasWithFlag(result, Flag::f_static);
+	}
 	return result;
+}
+
+bool DcOptions::hasMediaOnlyOptionsFor(DcId dcId) const {
+	ReadLocker lock(this);
+	const auto i = _data.find(dcId);
+	if (i == end(_data)) {
+		return false;
+	}
+	for (const auto &endpoint : i->second) {
+		const auto flags = endpoint.flags;
+		if (flags & Flag::f_media_only) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void DcOptions::FilterIfHasWithFlag(Variants &variants, Flag flag) {

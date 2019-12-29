@@ -15,10 +15,7 @@ class SessionController;
 
 namespace Calls {
 
-class BoxController
-	: public PeerListController
-	, private base::Subscriber
-	, private MTP::Sender {
+class BoxController : public PeerListController, private base::Subscriber {
 public:
 	explicit BoxController(not_null<Window::SessionController*> window);
 
@@ -44,6 +41,7 @@ private:
 		not_null<HistoryItem*> item) const;
 
 	const not_null<Window::SessionController*> _window;
+	MTP::Sender _api;
 
 	MsgId _offsetId = 0;
 	mtpRequestId _loadRequestId = 0;

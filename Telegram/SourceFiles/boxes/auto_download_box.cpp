@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_auto_download.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
@@ -24,8 +25,53 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kMegabyte = 1024 * 1024;
-constexpr auto kDefaultLimit = 10 * kMegabyte;
+constexpr auto kDefaultDownloadLimit = 10 * kMegabyte;
+constexpr auto kDefaultAutoPlayLimit = 50 * kMegabyte;
 
+using Type = Data::AutoDownload::Type;
+
+not_null<int*> AddSizeLimitSlider(
+		not_null<Ui::VerticalLayout*> container,
+		const base::flat_map<Type, int> &values,
+		int defaultValue) {
+	using namespace Settings;
+	using Pair = base::flat_map<Type, int>::value_type;
+
+	const auto limits = Ui::CreateChild<rpl::event_stream<int>>(
+		container.get());
+	const auto currentLimit = ranges::max_element(
+		values,
+		std::less<>(),
+		[](Pair pair) { return pair.second; })->second;
+	const auto initialLimit = currentLimit ? currentLimit : defaultValue;
+	const auto result = Ui::CreateChild<int>(container.get(), initialLimit);
+	AddButtonWithLabel(
+		container,
+		tr::lng_media_size_limit(),
+		limits->events_starting_with_copy(
+			initialLimit
+		) | rpl::map([](int value) {
+			return tr::lng_media_size_up_to(
+				tr::now,
+				lt_size,
+				QString::number(value / kMegabyte) + " MB");
+		}),
+		st::autoDownloadLimitButton
+	)->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto slider = container->add(
+		object_ptr<Ui::MediaSlider>(container, st::autoDownloadLimitSlider),
+		st::autoDownloadLimitPadding);
+	slider->resize(st::autoDownloadLimitSlider.seekSize);
+	slider->setPseudoDiscrete(
+		Export::View::kSizeValueCount,
+		Export::View::SizeLimitByIndex,
+		*result,
+		[=](int value) {
+			*result = value;
+			limits->fire_copy(value);
+		});
+	return result;
+}
 } // namespace
 
 AutoDownloadBox::AutoDownloadBox(
@@ -41,12 +87,13 @@ void AutoDownloadBox::prepare() {
 }
 
 void AutoDownloadBox::setupContent() {
+	using namespace rpl::mappers;
 	using namespace Settings;
 	using namespace Data::AutoDownload;
-	using namespace rpl::mappers;
 	using Type = Data::AutoDownload::Type;
+	using Pair = base::flat_map<Type, int>::value_type;
 
-	setTitle(tr::lng_media_auto_title());
+	setTitle(tr::lng_profile_settings_section());
 
 	const auto settings = &_session->settings().autoDownload();
 	const auto checked = [=](Source source, Type type) {
@@ -59,17 +106,10 @@ void AutoDownloadBox::setupContent() {
 		this,
 		std::move(wrap)));
 
-	static const auto kHidden = {
-		Type::Video,
-		Type::Music,
-		Type::VoiceMessage
-	};
-
-	const auto values = Ui::CreateChild<base::flat_map<Type, int>>(content);
-	const auto add = [&](Type type, rpl::producer<QString> label) {
-		if (ranges::find(kHidden, type) != end(kHidden)) {
-			return;
-		}
+	const auto add = [&](
+			not_null<base::flat_map<Type, int>*> values,
+			Type type,
+			rpl::producer<QString> label) {
 		const auto value = settings->bytesLimit(_source, type);
 		AddButton(
 			content,
@@ -83,77 +123,78 @@ void AutoDownloadBox::setupContent() {
 		}, content->lifetime());
 		values->emplace(type, value);
 	};
-	add(Type::Photo, tr::lng_media_photo_title());
-	add(Type::VoiceMessage, tr::lng_media_audio_title());
-	add(Type::VideoMessage, tr::lng_media_video_messages_title());
-	add(Type::Video, tr::lng_media_video_title());
-	add(Type::File, tr::lng_media_file_title());
-	add(Type::Music, tr::lng_media_music_title());
-	add(Type::GIF, tr::lng_media_animation_title());
 
-	const auto limits = Ui::CreateChild<rpl::event_stream<int>>(content);
-	using Pair = base::flat_map<Type, int>::value_type;
-	const auto settingsLimit = ranges::max_element(
-		*values,
-		std::less<>(),
-		[](Pair pair) { return pair.second; })->second;
-	const auto initialLimit = settingsLimit ? settingsLimit : kDefaultLimit;
-	const auto limit = Ui::CreateChild<int>(content, initialLimit);
-	AddButtonWithLabel(
+	AddSubsectionTitle(content, tr::lng_media_auto_title());
+
+	const auto downloadValues = Ui::CreateChild<base::flat_map<Type, int>>(
+		content);
+	add(downloadValues, Type::Photo, tr::lng_media_photo_title());
+	add(downloadValues, Type::File, tr::lng_media_file_title());
+
+	const auto downloadLimit = AddSizeLimitSlider(
 		content,
-		tr::lng_media_size_limit(),
-		limits->events_starting_with_copy(
-			initialLimit
-		) | rpl::map([](int value) {
-			return tr::lng_media_size_up_to(
-				tr::now,
-				lt_size,
-				QString::number(value / kMegabyte) + " MB");
-		}),
-		st::autoDownloadLimitButton
-	)->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto slider = content->add(
-		object_ptr<Ui::MediaSlider>(content, st::autoDownloadLimitSlider),
-		st::autoDownloadLimitPadding);
-	slider->resize(st::autoDownloadLimitSlider.seekSize);
-	slider->setPseudoDiscrete(
-		Export::View::kSizeValueCount,
-		Export::View::SizeLimitByIndex,
-		*limit,
-		[=](int value) {
-			*limit = value;
-			limits->fire_copy(value);
-		});
+		*downloadValues,
+		kDefaultDownloadLimit);
+
+	AddSkip(content);
+	AddSubsectionTitle(content, tr::lng_media_auto_play());
+
+	const auto autoPlayValues = Ui::CreateChild<base::flat_map<Type, int>>(
+		content);
+	add(
+		autoPlayValues,
+		Type::AutoPlayVideoMessage,
+		tr::lng_media_video_messages_title());
+	add(autoPlayValues, Type::AutoPlayVideo, tr::lng_media_video_title());
+	add(autoPlayValues, Type::AutoPlayGIF, tr::lng_media_animation_title());
+
+	const auto autoPlayLimit = AddSizeLimitSlider(
+		content,
+		*autoPlayValues,
+		kDefaultAutoPlayLimit);
+
+	const auto limitByType = [=](Type type) {
+		return (ranges::find(kAutoPlayTypes, type) != end(kAutoPlayTypes))
+			? *autoPlayLimit
+			: *downloadLimit;
+	};
 
 	addButton(tr::lng_connection_save(), [=] {
-		auto allowMore = ranges::view::all(
-			*values
-		) | ranges::view::filter([&](Pair pair) {
+		auto &&values = ranges::view::concat(
+			*downloadValues,
+			*autoPlayValues);
+		auto allowMore = values | ranges::view::filter([&](Pair pair) {
 			const auto [type, enabled] = pair;
-			const auto value = enabled ? *limit : 0;
+			const auto value = enabled ? limitByType(type) : 0;
 			const auto old = settings->bytesLimit(_source, type);
 			return (old < value);
 		}) | ranges::view::transform([](Pair pair) {
 			return pair.first;
 		});
+		const auto less = ranges::find_if(*autoPlayValues, [&](Pair pair) {
+			const auto [type, enabled] = pair;
+			const auto value = enabled ? limitByType(type) : 0;
+			return value < settings->bytesLimit(_source, type);
+		}) != end(*autoPlayValues);
 		const auto allowMoreTypes = base::flat_set<Type>(
 			allowMore.begin(),
 			allowMore.end());
 
-		const auto changed = ranges::find_if(*values, [&](Pair pair) {
+		const auto changed = ranges::find_if(values, [&](Pair pair) {
 			const auto [type, enabled] = pair;
-			const auto value = enabled ? *limit : 0;
-			return settings->bytesLimit(_source, type) != value;
-		}) != end(*values);
+			const auto value = enabled ? limitByType(type) : 0;
+			return value != settings->bytesLimit(_source, type);
+		}) != end(values);
 
+		const auto &kHidden = kStreamedTypes;
 		const auto hiddenChanged = ranges::find_if(kHidden, [&](Type type) {
 			const auto now = settings->bytesLimit(_source, type);
-			return (now > 0) && (now != *limit);
+			return (now > 0) && (now != limitByType(type));
 		}) != end(kHidden);
 
 		if (changed) {
-			for (const auto [type, enabled] : *values) {
-				const auto value = enabled ? *limit : 0;
+			for (const auto [type, enabled] : values) {
+				const auto value = enabled ? limitByType(type) : 0;
 				settings->setBytesLimit(_source, type, value);
 			}
 		}
@@ -161,7 +202,10 @@ void AutoDownloadBox::setupContent() {
 			for (const auto type : kHidden) {
 				const auto now = settings->bytesLimit(_source, type);
 				if (now > 0) {
-					settings->setBytesLimit(_source, type, *limit);
+					settings->setBytesLimit(
+						_source,
+						type,
+						limitByType(type));
 				}
 			}
 		}
@@ -174,6 +218,9 @@ void AutoDownloadBox::setupContent() {
 		if (ranges::find_if(allowMoreTypes, _1 != Type::Photo)
 			!= allowMoreTypes.end()) {
 			_session->data().documentLoadSettingsChanged();
+		}
+		if (less) {
+			_session->data().checkPlayingVideoFiles();
 		}
 		closeBox();
 	});

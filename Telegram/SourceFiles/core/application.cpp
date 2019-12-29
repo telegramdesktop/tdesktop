@@ -93,6 +93,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _dcOptions(std::make_unique<MTP::DcOptions>())
 , _account(std::make_unique<Main::Account>(cDataFile()))
 , _langpack(std::make_unique<Lang::Instance>())
+, _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
 , _audio(std::make_unique<Media::Audio::Instance>())
 , _logo(Window::LoadLogo())
@@ -114,9 +115,6 @@ Application::Application(not_null<Launcher*> launcher)
 	) | rpl::filter([=](MTP::Instance *instance) {
 		return instance != nullptr;
 	}) | rpl::start_with_next([=](not_null<MTP::Instance*> mtp) {
-		_langCloudManager = std::make_unique<Lang::CloudManager>(
-			langpack(),
-			mtp);
 		if (!UpdaterDisabled()) {
 			UpdateChecker().setMtproto(mtp.get());
 		}
@@ -125,7 +123,14 @@ Application::Application(not_null<Launcher*> launcher)
 
 Application::~Application() {
 	_window.reset();
-	_mediaView.reset();
+	if (_mediaView) {
+		_mediaView->clearData();
+		_mediaView = nullptr;
+	}
+
+	if (activeAccount().sessionExists()) {
+		activeAccount().session().saveSettingsNowIfNeeded();
+	}
 
 	// This can call writeMap() that serializes Main::Session.
 	// In case it gets called after destroySession() we get missing data.
@@ -134,11 +139,6 @@ Application::~Application() {
 	// Some MTP requests can be cancelled from data clearing.
 	unlockTerms();
 	activeAccount().destroySession();
-
-	// The langpack manager should be destroyed before MTProto instance,
-	// because it is MTP::Sender and it may have pending requests.
-	_langCloudManager.reset();
-
 	activeAccount().clearMtp();
 
 	Shortcuts::Finish();
@@ -146,7 +146,6 @@ Application::~Application() {
 	Ui::Emoji::Clear();
 	Media::Clip::Finish();
 
-	stopWebLoadManager();
 	App::deinitMedia();
 
 	Window::Theme::Uninitialize();
@@ -191,9 +190,9 @@ void Application::run() {
 	style::ShortAnimationPlaying(
 	) | rpl::start_with_next([=](bool playing) {
 		if (playing) {
-			MTP::internal::pause();
+			MTP::details::pause();
 		} else {
-			MTP::internal::unpause();
+			MTP::details::unpause();
 		}
 	}, _lifetime);
 
@@ -370,12 +369,12 @@ void Application::saveSettingsDelayed(crl::time delay) {
 }
 
 void Application::setCurrentProxy(
-		const ProxyData &proxy,
-		ProxyData::Settings settings) {
+		const MTP::ProxyData &proxy,
+		MTP::ProxyData::Settings settings) {
 	const auto current = [&] {
-		return (Global::ProxySettings() == ProxyData::Settings::Enabled)
+		return (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled)
 			? Global::SelectedProxy()
-			: ProxyData();
+			: MTP::ProxyData();
 	};
 	const auto was = current();
 	Global::SetSelectedProxy(proxy);
@@ -391,12 +390,12 @@ auto Application::proxyChanges() const -> rpl::producer<ProxyChange> {
 }
 
 void Application::badMtprotoConfigurationError() {
-	if (Global::ProxySettings() == ProxyData::Settings::Enabled
+	if (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled
 		&& !_badProxyDisableBox) {
 		const auto disableCallback = [=] {
 			setCurrentProxy(
 				Global::SelectedProxy(),
-				ProxyData::Settings::System);
+				MTP::ProxyData::Settings::System);
 		};
 		_badProxyDisableBox = Ui::show(Box<InformBox>(
 			Lang::Hard::ProxyConfigError(),
@@ -406,14 +405,18 @@ void Application::badMtprotoConfigurationError() {
 
 void Application::startLocalStorage() {
 	Local::start();
-	subscribe(_dcOptions->changed(), [this](const MTP::DcOptions::Ids &ids) {
-		Local::writeSettings();
-		if (const auto instance = activeAccount().mtp()) {
-			for (const auto id : ids) {
-				instance->restart(id);
-			}
-		}
-	});
+
+	const auto writing = _lifetime.make_state<bool>(false);
+	_dcOptions->changed(
+	) | rpl::filter([=] {
+		return !*writing;
+	}) | rpl::start_with_next([=] {
+		*writing = true;
+		Ui::PostponeCall(this, [=] {
+			Local::writeSettings();
+		});
+	}, _lifetime);
+
 	_saveSettingsTimer.setCallback([=] { Local::writeSettings(); });
 }
 
@@ -587,27 +590,36 @@ void Application::checkStartUrl() {
 }
 
 bool Application::openLocalUrl(const QString &url, QVariant context) {
-	auto urlTrimmed = url.trimmed();
-	if (urlTrimmed.size() > 8192) urlTrimmed = urlTrimmed.mid(0, 8192);
+	return openCustomUrl("tg://", LocalUrlHandlers(), url, context);
+}
 
-	const auto protocol = qstr("tg://");
+bool Application::openInternalUrl(const QString &url, QVariant context) {
+	return openCustomUrl("internal:", InternalUrlHandlers(), url, context);
+}
+
+bool Application::openCustomUrl(
+		const QString &protocol,
+		const std::vector<LocalUrlHandler> &handlers,
+		const QString &url,
+		const QVariant &context) {
+	const auto urlTrimmed = url.trimmed();
 	if (!urlTrimmed.startsWith(protocol, Qt::CaseInsensitive) || locked()) {
 		return false;
 	}
-	auto command = urlTrimmed.midRef(protocol.size());
-
+	const auto command = urlTrimmed.midRef(protocol.size(), 8192);
 	const auto session = activeAccount().sessionExists()
 		? &activeAccount().session()
 		: nullptr;
 	using namespace qthelp;
 	const auto options = RegExOption::CaseInsensitive;
-	for (const auto &[expression, handler] : LocalUrlHandlers()) {
+	for (const auto &[expression, handler] : handlers) {
 		const auto match = regex_match(expression, command, options);
 		if (match) {
 			return handler(session, match, context);
 		}
 	}
 	return false;
+
 }
 
 void Application::lockByPasscode() {

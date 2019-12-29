@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/ui_utility.h"
+#include "mtproto/facade.h"
 #include "window/themes/window_theme.h"
 #include "boxes/connection_box.h"
 #include "boxes/abstract_box.h"
@@ -270,7 +271,7 @@ void ConnectionState::refreshState() {
 		const auto under = _widget && _widget->isOver();
 		const auto mtp = MTP::dcstate();
 		const auto throughProxy
-			= (Global::ProxySettings() == ProxyData::Settings::Enabled);
+			= (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled);
 		if (mtp == MTP::ConnectingState
 			|| mtp == MTP::DisconnectedState
 			|| (mtp < 0 && mtp > -600)) {

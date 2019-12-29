@@ -226,6 +226,7 @@ InnerWidget::InnerWidget(
 , _controller(controller)
 , _channel(channel)
 , _history(channel->owner().history(channel))
+, _api(_channel->session().api().instance())
 , _scrollDateCheck([=] { scrollDateCheck(); })
 , _emptyText(
 		st::historyAdminLogEmptyWidth
@@ -407,7 +408,7 @@ void InnerWidget::applySearch(const QString &query) {
 
 void InnerWidget::requestAdmins() {
 	auto participantsHash = 0;
-	request(MTPchannels_GetParticipants(
+	_api.request(MTPchannels_GetParticipants(
 		_channel->inputChannel,
 		MTP_channelParticipantsAdmins(),
 		MTP_int(0),
@@ -463,8 +464,8 @@ void InnerWidget::showFilter(Fn<void(FilterValue &&filter)> callback) {
 }
 
 void InnerWidget::clearAndRequestLog() {
-	request(base::take(_preloadUpRequestId)).cancel();
-	request(base::take(_preloadDownRequestId)).cancel();
+	_api.request(base::take(_preloadUpRequestId)).cancel();
+	_api.request(base::take(_preloadDownRequestId)).cancel();
 	_filterChanged = true;
 	_upLoaded = false;
 	_downLoaded = true;
@@ -635,7 +636,7 @@ void InnerWidget::preloadMore(Direction direction) {
 	auto maxId = (direction == Direction::Up) ? _minId : 0;
 	auto minId = (direction == Direction::Up) ? 0 : _maxId;
 	auto perPage = _items.empty() ? kEventsFirstPage : kEventsPerPage;
-	requestId = request(MTPchannels_GetAdminLog(
+	requestId = _api.request(MTPchannels_GetAdminLog(
 		MTP_flags(flags),
 		_channel->inputChannel,
 		MTP_string(_searchQuery),
@@ -1045,15 +1046,22 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					cancelContextDownload(document);
 				});
 			} else {
-				if (document->loaded()
-					&& document->isGifv()
-					&& !document->session().settings().autoplayGifs()) {
-					const auto itemId = view
-						? view->data()->fullId()
-						: FullMsgId();
-					_menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
-						openContextGif(itemId);
-					});
+				const auto itemId = view
+					? view->data()->fullId()
+					: FullMsgId();
+				if (const auto item = document->session().data().message(itemId)) {
+					const auto notAutoplayedGif = [&] {
+						return document->isGifv()
+							&& Data::AutoDownload::ShouldAutoPlay(
+								document->session().settings().autoDownload(),
+								item->history()->peer,
+								document);
+					}();
+					if (notAutoplayedGif) {
+						_menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
+							openContextGif(itemId);
+						});
+					}
 				}
 				if (!document->filepath(DocumentData::FilePathResolve::Checked).isEmpty()) {
 					_menu->addAction(Platform::IsMac() ? tr::lng_context_show_in_finder(tr::now) : tr::lng_context_show_in_folder(tr::now), [=] {
@@ -1217,7 +1225,7 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 		if (base::contains(_admins, user)) {
 			editRestrictions(true, MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 		} else {
-			request(MTPchannels_GetParticipant(
+			_api.request(MTPchannels_GetParticipant(
 				_channel->inputChannel,
 				user->inputUser
 			)).done([=](const MTPchannels_ChannelParticipant &result) {

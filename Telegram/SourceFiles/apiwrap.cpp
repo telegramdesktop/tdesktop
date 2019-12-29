@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 #include "api/api_text_entities.h"
+#include "api/api_self_destruct.h"
+#include "api/api_sensitive_content.h"
 #include "data/data_drafts.h"
 #include "data/data_photo.h"
 #include "data/data_web_page.h"
@@ -40,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //#include "history/feed/history_feed_section.h" // #feed
 #include "storage/localstorage.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
 #include "boxes/confirm_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/sticker_set_box.h"
@@ -54,7 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "support/support_helper.h"
 #include "storage/localimageloader.h"
-#include "storage/file_download.h"
+#include "storage/download_manager_mtproto.h"
 #include "storage/file_upload.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
@@ -222,7 +225,8 @@ bool ApiWrap::BlockedUsersSlice::operator!=(const BlockedUsersSlice &other) cons
 }
 
 ApiWrap::ApiWrap(not_null<Main::Session*> session)
-: _session(session)
+: MTP::Sender(session->account().mtp())
+, _session(session)
 , _messageDataResolveDelayed([=] { resolveMessageDatas(); })
 , _webPagesTimer([=] { resolveWebPages(); })
 , _draftsSaveTimer([=] { saveDraftsToCloud(); })
@@ -231,7 +235,9 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _fileLoader(std::make_unique<TaskQueue>(kFileLoaderQueueStopTimeout))
 //, _feedReadTimer([=] { readFeeds(); }) // #feed
 , _proxyPromotionTimer([=] { refreshProxyPromotion(); })
-, _updateNotifySettingsTimer([=] { sendNotifySettingsUpdates(); }) {
+, _updateNotifySettingsTimer([=] { sendNotifySettingsUpdates(); })
+, _selfDestruct(std::make_unique<Api::SelfDestruct>(this))
+, _sensitiveContent(std::make_unique<Api::SensitiveContent>(this)) {
 	crl::on_main([=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -243,6 +249,8 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 		setupSupportMode();
 	});
 }
+
+ApiWrap::~ApiWrap() = default;
 
 Main::Session &ApiWrap::session() const {
 	return *_session;
@@ -280,11 +288,11 @@ void ApiWrap::refreshProxyPromotion() {
 		return;
 	}
 	const auto key = [&]() -> std::pair<QString, uint32> {
-		if (Global::ProxySettings() != ProxyData::Settings::Enabled) {
+		if (Global::ProxySettings() != MTP::ProxyData::Settings::Enabled) {
 			return {};
 		}
 		const auto &proxy = Global::SelectedProxy();
-		if (proxy.type != ProxyData::Type::Mtproto) {
+		if (proxy.type != MTP::ProxyData::Type::Mtproto) {
 			return {};
 		}
 		return { proxy.host, proxy.port };
@@ -2971,12 +2979,12 @@ void ApiWrap::requestFileReference(
 
 void ApiWrap::refreshFileReference(
 		Data::FileOrigin origin,
-		not_null<mtpFileLoader*> loader,
+		not_null<Storage::DownloadMtprotoTask*> task,
 		int requestId,
 		const QByteArray &current) {
-	return refreshFileReference(origin, crl::guard(loader, [=](
+	return refreshFileReference(origin, crl::guard(task, [=](
 			const UpdatedFileReferences &data) {
-		loader->refreshFileReferenceFrom(data, requestId, current);
+		task->refreshFileReferenceFrom(data, requestId, current);
 	}));
 }
 
@@ -5798,42 +5806,12 @@ auto ApiWrap::blockedUsersSlice() -> rpl::producer<BlockedUsersSlice> {
 		: (_blockedUsersChanges.events() | rpl::type_erased());
 }
 
-void ApiWrap::reloadSelfDestruct() {
-	if (_selfDestructRequestId) {
-		return;
-	}
-	_selfDestructRequestId = request(MTPaccount_GetAccountTTL(
-	)).done([=](const MTPAccountDaysTTL &result) {
-		_selfDestructRequestId = 0;
-		result.match([&](const MTPDaccountDaysTTL &data) {
-			setSelfDestructDays(data.vdays().v);
-		});
-	}).fail([=](const RPCError &error) {
-		_selfDestructRequestId = 0;
-	}).send();
+Api::SelfDestruct &ApiWrap::selfDestruct() {
+	return *_selfDestruct;
 }
 
-rpl::producer<int> ApiWrap::selfDestructValue() const {
-	return _selfDestructDays
-		? _selfDestructChanges.events_starting_with_copy(*_selfDestructDays)
-		: (_selfDestructChanges.events() | rpl::type_erased());
-}
-
-void ApiWrap::saveSelfDestruct(int days) {
-	request(_selfDestructRequestId).cancel();
-	_selfDestructRequestId = request(MTPaccount_SetAccountTTL(
-		MTP_accountDaysTTL(MTP_int(days))
-	)).done([=](const MTPBool &result) {
-		_selfDestructRequestId = 0;
-	}).fail([=](const RPCError &result) {
-		_selfDestructRequestId = 0;
-	}).send();
-	setSelfDestructDays(days);
-}
-
-void ApiWrap::setSelfDestructDays(int days) {
-	_selfDestructDays = days;
-	_selfDestructChanges.fire_copy(days);
+Api::SensitiveContent &ApiWrap::sensitiveContent() {
+	return *_sensitiveContent;
 }
 
 void ApiWrap::createPoll(
@@ -6105,5 +6083,3 @@ void ApiWrap::sendReadRequest(not_null<PeerData*> peer, MsgId upTo) {
 	}();
 	_readRequests.emplace(peer, requestId, upTo);
 }
-
-ApiWrap::~ApiWrap() = default;

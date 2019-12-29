@@ -14,7 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media {
 namespace Streaming {
 
+constexpr auto kFrameDisplayTimeAlreadyDone
+	= std::numeric_limits<crl::time>::max();
+
 class VideoTrackObject;
+class Instance;
 
 class VideoTrack final {
 public:
@@ -33,7 +37,7 @@ public:
 	[[nodiscard]] crl::time streamDuration() const;
 
 	// Called from the same unspecified thread.
-	void process(FFmpeg::Packet &&packet);
+	void process(std::vector<FFmpeg::Packet> &&packets);
 	void waitForData();
 
 	// Called from the main thread.
@@ -43,12 +47,18 @@ public:
 
 	// Called from the main thread.
 	void setSpeed(float64 speed);
+	void setWaitForMarkAsShown(bool wait);
 
 	// Called from the main thread.
 	// Returns the position of the displayed frame.
 	[[nodiscard]] crl::time markFrameDisplayed(crl::time now);
+	void addTimelineDelay(crl::time delayed);
+	bool markFrameShown();
 	[[nodiscard]] crl::time nextFrameDisplayTime() const;
-	[[nodiscard]] QImage frame(const FrameRequest &request);
+	[[nodiscard]] QImage frame(
+		const FrameRequest &request,
+		const Instance *instance);
+	void unregisterInstance(not_null<const Instance*> instance);
 	[[nodiscard]] rpl::producer<> checkNextFrame() const;
 	[[nodiscard]] rpl::producer<> waitingForData() const;
 
@@ -58,6 +68,13 @@ public:
 private:
 	friend class VideoTrackObject;
 
+	struct Prepared {
+		Prepared(const FrameRequest &request) : request(request) {
+		}
+
+		FrameRequest request = FrameRequest::NonStrict();
+		QImage image;
+	};
 	struct Frame {
 		FFmpeg::FramePointer decoded = FFmpeg::MakeFramePointer();
 		QImage original;
@@ -65,8 +82,7 @@ private:
 		crl::time displayed = kTimeUnknown;
 		crl::time display = kTimeUnknown;
 
-		FrameRequest request = FrameRequest::NonStrict();
-		QImage prepared;
+		base::flat_map<const Instance*, Prepared> prepared;
 	};
 
 	class Shared {
@@ -79,6 +95,7 @@ private:
 		struct PresentFrame {
 			crl::time displayPosition = kTimeUnknown;
 			crl::time nextCheckDelay = 0;
+			crl::time addedWorldTimeDelay = 0;
 		};
 
 		// Called from the wrapped object queue.
@@ -101,6 +118,8 @@ private:
 		// Called from the main thread.
 		// Returns the position of the displayed frame.
 		[[nodiscard]] crl::time markFrameDisplayed(crl::time now);
+		void addTimelineDelay(crl::time delayed);
+		bool markFrameShown();
 		[[nodiscard]] crl::time nextFrameDisplayTime() const;
 		[[nodiscard]] not_null<Frame*> frameForPaint();
 
@@ -115,11 +134,13 @@ private:
 		static constexpr auto kFramesCount = 4;
 		std::array<Frame, kFramesCount> _frames;
 
+		// (_counter % 2) == 1 main thread can write _delay.
+		// (_counter % 2) == 0 crl::queue can read _delay.
+		crl::time _delay = kTimeUnknown;
+
 	};
 
-	static QImage PrepareFrameByRequest(
-		not_null<Frame*> frame,
-		bool useExistingPrepared = false);
+	static void PrepareFrameByRequests(not_null<Frame*> frame, int rotation);
 	[[nodiscard]] static bool IsDecoded(not_null<const Frame*> frame);
 	[[nodiscard]] static bool IsRasterized(not_null<const Frame*> frame);
 	[[nodiscard]] static bool IsStale(
@@ -129,7 +150,7 @@ private:
 	const int _streamIndex = 0;
 	const AVRational _streamTimeBase;
 	const crl::time _streamDuration = 0;
-	//const int _streamRotation = 0;
+	const int _streamRotation = 0;
 	//AVRational _streamAspect = kNormalAspect;
 	std::unique_ptr<Shared> _shared;
 

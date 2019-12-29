@@ -12,9 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QImage>
 
-#ifdef TDESKTOP_OFFICIAL_TARGET
+#ifdef LIB_FFMPEG_USE_QT_PRIVATE_API
 #include <private/qdrawhelper_p.h>
-#endif // TDESKTOP_OFFICIAL_TARGET
+#endif // LIB_FFMPEG_USE_QT_PRIVATE_API
 
 extern "C" {
 #include <libavutil/opt.h>
@@ -51,7 +51,7 @@ void UnPremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 	[[maybe_unused]] const auto udst = reinterpret_cast<uint*>(dst);
 	const auto usrc = reinterpret_cast<const uint*>(src);
 
-#ifndef TDESKTOP_OFFICIAL_TARGET
+#ifndef LIB_FFMPEG_USE_QT_PRIVATE_API
 	for (auto i = 0; i != intsCount; ++i) {
 		udst[i] = qUnpremultiply(usrc[i]);
 	}
@@ -68,7 +68,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 	const auto udst = reinterpret_cast<uint*>(dst);
 	[[maybe_unused]] const auto usrc = reinterpret_cast<const uint*>(src);
 
-#ifndef TDESKTOP_OFFICIAL_TARGET
+#ifndef LIB_FFMPEG_USE_QT_PRIVATE_API
 	for (auto i = 0; i != intsCount; ++i) {
 		udst[i] = qPremultiply(usrc[i]);
 	}

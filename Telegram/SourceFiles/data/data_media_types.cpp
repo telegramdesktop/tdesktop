@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_photo.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_gif.h"
-#include "history/view/media/history_view_video.h"
 #include "history/view/media/history_view_document.h"
 #include "history/view/media/history_view_contact.h"
 #include "history/view/media/history_view_location.h"
@@ -37,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_poll.h"
 #include "data/data_channel.h"
+#include "data/data_file_origin.h"
 #include "lang/lang_keys.h"
 #include "layout.h"
 #include "storage/file_upload.h"
@@ -774,10 +774,8 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 		return std::make_unique<HistoryView::UnwrappedMedia>(
 			message,
 			std::make_unique<HistoryView::Sticker>(message, _document));
-	} else if (_document->isAnimation()) {
-		return std::make_unique<HistoryView::Gif>(message, _document);
-	} else if (_document->isVideoFile()) {
-		return std::make_unique<HistoryView::Video>(
+	} else if (_document->isAnimation() || _document->isVideoFile()) {
+		return std::make_unique<HistoryView::Gif>(
 			message,
 			realParent,
 			_document);

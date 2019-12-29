@@ -11,9 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/changelogs.h"
 #include "main/main_account.h"
-#include "main/main_app_config.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "storage/file_download.h"
+#include "storage/download_manager_mtproto.h"
 #include "storage/file_upload.h"
 #include "storage/localstorage.h"
 #include "storage/storage_facade.h"
@@ -44,9 +44,8 @@ Session::Session(
 , _saveSettingsTimer([=] { Local::writeUserSettings(); })
 , _autoLockTimer([=] { checkAutoLock(); })
 , _api(std::make_unique<ApiWrap>(this))
-, _appConfig(std::make_unique<AppConfig>(this))
 , _calls(std::make_unique<Calls::Instance>(this))
-, _downloader(std::make_unique<Storage::Downloader>(_api.get()))
+, _downloader(std::make_unique<Storage::DownloadManagerMtproto>(_api.get()))
 , _uploader(std::make_unique<Storage::Uploader>(_api.get()))
 , _storage(std::make_unique<Storage::Facade>())
 , _notifications(std::make_unique<Window::Notifications::System>(this))
@@ -202,6 +201,13 @@ Support::Helper &Session::supportHelper() const {
 
 Support::Templates& Session::supportTemplates() const {
 	return supportHelper().templates();
+}
+
+void Session::saveSettingsNowIfNeeded() {
+	if (_saveSettingsTimer.isActive()) {
+		_saveSettingsTimer.cancel();
+		Local::writeUserSettings();
+	}
 }
 
 } // namespace Main

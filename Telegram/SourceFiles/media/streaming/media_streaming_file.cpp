@@ -16,6 +16,7 @@ namespace Streaming {
 namespace {
 
 constexpr auto kMaxSingleReadAmount = 8 * 1024 * 1024;
+constexpr auto kMaxQueuedPackets = 1024;
 
 } // namespace
 
@@ -26,6 +27,8 @@ File::Context::Context(
 , _reader(reader)
 , _size(reader->size()) {
 }
+
+File::Context::~Context() = default;
 
 int File::Context::Read(void *opaque, uint8_t *buffer, int bufferSize) {
 	return static_cast<Context*>(opaque)->read(
@@ -52,6 +55,7 @@ int File::Context::read(bytes::span buffer) {
 
 	buffer = buffer.subspan(0, amount);
 	while (!_reader->fill(_offset, buffer, &_semaphore)) {
+		processQueuedPackets(SleepPolicy::Disallowed);
 		_delegate->fileWaitingForData();
 		_semaphore.acquire();
 		if (_interrupted) {
@@ -142,6 +146,10 @@ Stream File::Context::initStream(
 
 	result.codec = FFmpeg::MakeCodecPointer(info);
 	if (!result.codec) {
+		if (info->codecpar->codec_id == AV_CODEC_ID_MJPEG) {
+			// mp3 files contain such "video stream", just ignore it.
+			return Stream();
+		}
 		return result;
 	}
 
@@ -262,6 +270,13 @@ void File::Context::start(crl::time position) {
 		return;
 	}
 
+	if (video.codec) {
+		_queuedPackets[video.index].reserve(kMaxQueuedPackets);
+	}
+	if (audio.codec) {
+		_queuedPackets[audio.index].reserve(kMaxQueuedPackets);
+	}
+
 	const auto header = _reader->headerSize();
 	if (!_delegate->fileReady(header, std::move(video), std::move(audio))) {
 		return fail(Error::OpenFailed);
@@ -285,24 +300,28 @@ void File::Context::readNextPacket() {
 	if (unroll()) {
 		return;
 	} else if (const auto packet = base::get_if<FFmpeg::Packet>(&result)) {
-		const auto more = _delegate->fileProcessPacket(std::move(*packet));
-		if (!more) {
-			do {
-				_reader->startSleep(&_semaphore);
-				_semaphore.acquire();
-				_reader->stopSleep();
-			} while (!unroll() && !_delegate->fileReadMore());
+		const auto index = packet->fields().stream_index;
+		const auto i = _queuedPackets.find(index);
+		if (i == end(_queuedPackets)) {
+			return;
+		}
+		i->second.push_back(std::move(*packet));
+		if (i->second.size() == kMaxQueuedPackets) {
+			processQueuedPackets(SleepPolicy::Allowed);
 		}
 	} else {
 		// Still trying to read by drain.
 		Assert(result.is<FFmpeg::AvErrorWrap>());
 		Assert(result.get<FFmpeg::AvErrorWrap>().code() == AVERROR_EOF);
-		handleEndOfFile();
+		processQueuedPackets(SleepPolicy::Allowed);
+		if (!finished()) {
+			handleEndOfFile();
+		}
 	}
 }
 
 void File::Context::handleEndOfFile() {
-	const auto more = _delegate->fileProcessPacket(FFmpeg::Packet());
+	_delegate->fileProcessEndOfFile();
 	if (_delegate->fileReadMore()) {
 		_readTillEnd = false;
 		auto error = FFmpeg::AvErrorWrap(av_seek_frame(
@@ -313,8 +332,24 @@ void File::Context::handleEndOfFile() {
 		if (error) {
 			logFatal(qstr("av_seek_frame"));
 		}
+
+		// If we loaded a file till the end then we think it is fully cached,
+		// assume we finished loading and don't want to keep all other
+		// download tasks throttled because of an active streaming.
+		_reader->tryRemoveLoaderAsync();
 	} else {
 		_readTillEnd = true;
+	}
+}
+
+void File::Context::processQueuedPackets(SleepPolicy policy) {
+	const auto more = _delegate->fileProcessPackets(_queuedPackets);
+	if (!more && policy == SleepPolicy::Allowed) {
+		do {
+			_reader->startSleep(&_semaphore);
+			_semaphore.acquire();
+			_reader->stopSleep();
+		} while (!unroll() && !_delegate->fileReadMore());
 	}
 }
 
@@ -344,10 +379,14 @@ void File::Context::fail(Error error) {
 	_delegate->fileError(error);
 }
 
-File::Context::~Context() = default;
-
 bool File::Context::finished() const {
 	return unroll() || _readTillEnd;
+}
+
+void File::Context::stopStreamingAsync() {
+	// If we finished loading we don't want to keep all other
+	// download tasks throttled because of an active streaming.
+	_reader->stopStreamingAsync();
 }
 
 File::File(
@@ -365,6 +404,9 @@ void File::start(not_null<FileDelegate*> delegate, crl::time position) {
 		context->start(position);
 		while (!context->finished()) {
 			context->readNextPacket();
+		}
+		if (!context->interrupted()) {
+			context->stopStreamingAsync();
 		}
 	});
 }
@@ -386,6 +428,10 @@ void File::stop(bool stillActive) {
 
 bool File::isRemoteLoader() const {
 	return _reader->isRemoteLoader();
+}
+
+void File::setLoaderPriority(int priority) {
+	_reader->setLoaderPriority(priority);
 }
 
 File::~File() {

@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/concurrent_sender.h"
+#include "mtproto/mtproto_concurrent_sender.h"
 
 namespace Export {
 namespace Data {
@@ -23,6 +23,7 @@ struct DialogsInfo;
 struct DialogInfo;
 struct MessagesSlice;
 struct Message;
+struct FileOrigin;
 } // namespace Data
 
 namespace Output {
@@ -159,21 +160,33 @@ private:
 	void finishMessagesSlice();
 	void finishMessages();
 
+	[[nodiscard]] Data::Message *currentFileMessage() const;
+	[[nodiscard]] Data::FileOrigin currentFileMessageOrigin() const;
+
 	bool processFileLoad(
 		Data::File &file,
+		const Data::FileOrigin &origin,
 		Fn<bool(FileProgress)> progress,
 		FnMut<void(QString)> done,
 		Data::Message *message = nullptr);
 	std::unique_ptr<FileProcess> prepareFileProcess(
-		const Data::File &file) const;
-	bool writePreloadedFile(Data::File &file);
+		const Data::File &file,
+		const Data::FileOrigin &origin) const;
+	bool writePreloadedFile(
+		Data::File &file,
+		const Data::FileOrigin &origin);
 	void loadFile(
 		const Data::File &file,
+		const Data::FileOrigin &origin,
 		Fn<bool(FileProgress)> progress,
 		FnMut<void(QString)> done);
 	void loadFilePart();
 	void filePartDone(int offset, const MTPupload_File &result);
 	void filePartUnavailable();
+	void filePartRefreshReference(int offset);
+	void filePartExtractReference(
+		int offset,
+		const MTPmessages_Messages &result);
 
 	template <typename Request>
 	class RequestBuilder;

@@ -178,8 +178,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_caption" = "Caption";
 "lng_photos_comment" = "Comment";
 
+"lng_intro_qr_title" = "Scan From Mobile Telegram";
+"lng_intro_qr_step1" = "**1.** Open Telegram on your phone";
+"lng_intro_qr_step2" = "**2.** Go to Settings > Devices > Scan QR Code";
+"lng_intro_qr_step3" = "**3.** Scan this image to Log In";
+"lng_intro_qr_skip" = "Or log in using your phone number";
+
 "lng_phone_title" = "Your Phone Number";
 "lng_phone_desc" = "Please confirm your country code and\nenter your mobile phone number.";
+"lng_phone_to_qr" = "Quick log in using QR code";
 "lng_country_code" = "Country Code";
 "lng_bad_country_code" = "Invalid Country Code";
 "lng_country_ph" = "Search";
@@ -408,7 +415,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_system_integration" = "System integration";
 "lng_settings_performance" = "Performance";
 "lng_settings_enable_animations" = "Enable animations";
-"lng_settings_autoplay_gifs" = "Autoplay GIFs";
+"lng_settings_sensitive_title" = "Sensitive content";
+"lng_settings_sensitive_disable_filtering" = "Disable filtering";
+"lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";
 
 "lng_settings_spellchecker" = "Spell checker";
 "lng_settings_system_spellchecker" = "Use system spell checker";
@@ -1143,12 +1152,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_auto_in_groups" = "In groups";
 "lng_media_auto_in_channels" = "In channels";
 "lng_media_auto_title" = "Automatically download";
+"lng_media_auto_play" = "Autoplay";
 "lng_media_photo_title" = "Photos";
 "lng_media_video_title" = "Video files";
-"lng_media_audio_title" = "Voice messages";
 "lng_media_video_messages_title" = "Round video messages";
 "lng_media_file_title" = "Files";
-"lng_media_music_title" = "Music";
 "lng_media_animation_title" = "Animated GIFs";
 "lng_media_size_limit" = "Limit by size";
 "lng_media_size_up_to" = "up to {size}";
@@ -2231,6 +2239,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mac_menu_new_group" = "New Group";
 "lng_mac_menu_new_channel" = "New Channel";
 "lng_mac_menu_show" = "Show Telegram";
+"lng_mac_menu_emoji_and_symbols" = "Emoji & Symbols";
 
 "lng_mac_touchbar_favorite_stickers" = "Favorite stickers";
 

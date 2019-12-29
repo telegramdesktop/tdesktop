@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_scheduled_messages.h"
+#include "data/data_file_origin.h"
 #include "api/api_text_entities.h"
 #include "ui/special_buttons.h"
 #include "ui/widgets/buttons.h"
@@ -93,6 +94,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/view/export_view_top_bar.h"
 #include "export/view/export_view_panel_controller.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
 #include "support/support_helper.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
@@ -429,6 +431,16 @@ MainWidget::MainWidget(
 	) | rpl::start_with_next(
 		[this] { updateControlsGeometry(); },
 		lifetime());
+
+	session().account().mtpUpdates(
+	) | rpl::start_with_next([=](const MTPUpdates &updates) {
+		mtpUpdateReceived(updates);
+	}, lifetime());
+
+	session().account().mtpNewSessionCreated(
+	) | rpl::start_with_next([=] {
+		mtpNewSessionCreated();
+	}, lifetime());
 
 	// MSVC BUG + REGRESSION rpl::mappers::tuple :(
 	using namespace rpl::mappers;
@@ -1581,7 +1593,7 @@ void MainWidget::ui_showPeerHistory(
 			peerId = peer->id;
 			if (showAtMsgId > 0) showAtMsgId = -showAtMsgId;
 		}
-		const auto unavailable = peer->unavailableReason();
+		const auto unavailable = peer->computeUnavailableReason();
 		if (!unavailable.isEmpty()) {
 			if (params.activation != anim::activation::background) {
 				Ui::show(Box<InformBox>(unavailable));
@@ -3673,35 +3685,22 @@ void MainWidget::checkIdleFinish() {
 	}
 }
 
-bool MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
-	if (end <= from) {
-		return false;
-	}
-
+void MainWidget::mtpNewSessionCreated() {
 	session().checkAutoLock();
+	updSeq = 0;
+	MTP_LOG(0, ("getDifference { after new_session_created }%1"
+		).arg(cTestMode() ? " TESTMODE" : ""));
+	getDifference();
+}
 
-	if (mtpTypeId(*from) == mtpc_new_session_created) {
-		MTPNewSession newSession;
-		if (!newSession.read(from, end)) {
-			return false;
-		}
-		updSeq = 0;
-		MTP_LOG(0, ("getDifference { after new_session_created }%1").arg(cTestMode() ? " TESTMODE" : ""));
-		getDifference();
-		return true;
-	}
-	MTPUpdates updates;
-	if (!updates.read(from, end)) {
-		return false;
-	}
-
+void MainWidget::mtpUpdateReceived(const MTPUpdates &updates) {
+	session().checkAutoLock();
 	_lastUpdateTime = crl::now();
 	_noUpdatesTimer.callOnce(kNoUpdatesTimeout);
 	if (!requestingDifference()
 		|| HasForceLogoutNotification(updates)) {
 		feedUpdates(updates);
 	}
-	return true;
 }
 
 void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {

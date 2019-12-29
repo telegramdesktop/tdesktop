@@ -13,8 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "storage/localstorage.h"
 #include "core/application.h"
-#include "apiwrap.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
 #include "boxes/confirm_box.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/labels.h"
@@ -156,11 +156,17 @@ Language ParseLanguage(const MTPLangPackLanguage &data) {
 	});
 }
 
-CloudManager::CloudManager(
-	Instance &langpack,
-	not_null<MTP::Instance*> mtproto)
-: MTP::Sender()
-, _langpack(langpack) {
+CloudManager::CloudManager(Instance &langpack)
+: _langpack(langpack) {
+	Core::App().activeAccount().mtpValue(
+	) | rpl::start_with_next([=](MTP::Instance *instance) {
+		if (instance) {
+			_api.emplace(instance);
+			resendRequests();
+		} else {
+			_api.reset();
+		}
+	}, _lifetime);
 }
 
 Pack CloudManager::packTypeFromId(const QString &id) const {
@@ -195,7 +201,10 @@ mtpRequestId CloudManager::packRequestId(Pack pack) const {
 }
 
 void CloudManager::requestLangPackDifference(Pack pack) {
-	request(base::take(packRequestId(pack))).cancel();
+	if (!_api) {
+		return;
+	}
+	_api->request(base::take(packRequestId(pack))).cancel();
 	if (_langpack.isCustom()) {
 		return;
 	}
@@ -206,7 +215,7 @@ void CloudManager::requestLangPackDifference(Pack pack) {
 		return;
 	}
 	if (version > 0) {
-		packRequestId(pack) = request(MTPlangpack_GetDifference(
+		packRequestId(pack) = _api->request(MTPlangpack_GetDifference(
 			MTP_string(CloudLangPackName()),
 			MTP_string(code),
 			MTP_int(version)
@@ -217,7 +226,7 @@ void CloudManager::requestLangPackDifference(Pack pack) {
 			packRequestId(pack) = 0;
 		}).send();
 	} else {
-		packRequestId(pack) = request(MTPlangpack_GetLangPack(
+		packRequestId(pack) = _api->request(MTPlangpack_GetLangPack(
 			MTP_string(CloudLangPackName()),
 			MTP_string(code)
 		)).done([=](const MTPLangPackDifference &result) {
@@ -284,7 +293,12 @@ void CloudManager::applyLangPackDifference(
 }
 
 void CloudManager::requestLanguageList() {
-	_languagesRequestId = request(MTPlangpack_GetLanguages(
+	if (!_api) {
+		_languagesRequestId = -1;
+		return;
+	}
+	_api->request(base::take(_languagesRequestId)).cancel();
+	_languagesRequestId = _api->request(MTPlangpack_GetLanguages(
 		MTP_string(CloudLangPackName())
 	)).done([=](const MTPVector<MTPLangPackLanguage> &result) {
 		auto languages = Languages();
@@ -402,10 +416,20 @@ void CloudManager::requestLanguageAndSwitch(
 		return;
 	}
 
-	request(_switchingToLanguageRequest).cancel();
-	_switchingToLanguageRequest = request(MTPlangpack_GetLanguage(
+	_switchingToLanguageId = id;
+	_switchingToLanguageWarning = warning;
+	sendSwitchingToLanguageRequest();
+}
+
+void CloudManager::sendSwitchingToLanguageRequest() {
+	if (!_api) {
+		_switchingToLanguageId = -1;
+		return;
+	}
+	_api->request(_switchingToLanguageRequest).cancel();
+	_switchingToLanguageRequest = _api->request(MTPlangpack_GetLanguage(
 		MTP_string(Lang::CloudLangPackName()),
-		MTP_string(id)
+		MTP_string(_switchingToLanguageId)
 	)).done([=](const MTPLangPackLanguage &result) {
 		_switchingToLanguageRequest = 0;
 		const auto language = Lang::ParseLanguage(result);
@@ -416,7 +440,7 @@ void CloudManager::requestLanguageAndSwitch(
 				performSwitchAndRestart(language);
 			}
 		};
-		if (!warning) {
+		if (!_switchingToLanguageWarning) {
 			finalize();
 			return;
 		}
@@ -438,9 +462,11 @@ void CloudManager::requestLanguageAndSwitch(
 void CloudManager::switchToLanguage(const Language &data) {
 	if (_langpack.id() == data.id && data.id != qstr("#custom")) {
 		return;
+	} else if (!_api) {
+		return;
 	}
 
-	request(_switchingToLanguageRequest).cancel();
+	_api->request(base::take(_getKeysForSwitchRequestId)).cancel();
 	if (data.id == qstr("#custom")) {
 		performSwitchToCustom();
 	} else if (canApplyWithoutRestart(data.id)) {
@@ -449,12 +475,12 @@ void CloudManager::switchToLanguage(const Language &data) {
 		QVector<MTPstring> keys;
 		keys.reserve(3);
 		keys.push_back(MTP_string("lng_sure_save_language"));
-		_switchingToLanguageRequest = request(MTPlangpack_GetStrings(
+		_getKeysForSwitchRequestId = _api->request(MTPlangpack_GetStrings(
 			MTP_string(Lang::CloudLangPackName()),
 			MTP_string(data.id),
 			MTP_vector<MTPstring>(std::move(keys))
 		)).done([=](const MTPVector<MTPLangPackString> &result) {
-			_switchingToLanguageRequest = 0;
+			_getKeysForSwitchRequestId = 0;
 			const auto values = Instance::ParseStrings(result);
 			const auto getValue = [&](ushort key) {
 				auto it = values.find(key);
@@ -473,7 +499,7 @@ void CloudManager::switchToLanguage(const Language &data) {
 					[=] { performSwitchAndRestart(data); }),
 				Ui::LayerOption::KeepOther);
 		}).fail([=](const RPCError &error) {
-			_switchingToLanguageRequest = 0;
+			_getKeysForSwitchRequestId = 0;
 		}).send();
 	}
 }
@@ -481,7 +507,7 @@ void CloudManager::switchToLanguage(const Language &data) {
 void CloudManager::performSwitchToCustom() {
 	auto filter = qsl("Language files (*.strings)");
 	auto title = qsl("Choose language .strings file");
-	FileDialog::GetOpenPath(Core::App().getFileDialogParent(), title, filter, [weak = base::make_weak(this)](const FileDialog::OpenResult &result) {
+	FileDialog::GetOpenPath(Core::App().getFileDialogParent(), title, filter, [=, weak = base::make_weak(this)](const FileDialog::OpenResult &result) {
 		if (!weak || result.paths.isEmpty()) {
 			return;
 		}
@@ -491,9 +517,13 @@ void CloudManager::performSwitchToCustom() {
 			filePath,
 			{ tr::lng_sure_save_language.base });
 		if (loader.errors().isEmpty()) {
-			weak->request(weak->_switchingToLanguageRequest).cancel();
-			if (weak->canApplyWithoutRestart(qsl("#custom"))) {
-				weak->_langpack.switchToCustomFile(filePath);
+			if (_api) {
+				_api->request(
+					base::take(_switchingToLanguageRequest)
+				).cancel();
+			}
+			if (canApplyWithoutRestart(qsl("#custom"))) {
+				_langpack.switchToCustomFile(filePath);
 			} else {
 				const auto values = loader.found();
 				const auto getValue = [&](ushort key) {
@@ -506,7 +536,7 @@ void CloudManager::performSwitchToCustom() {
 					+ "\n\n"
 					 + getValue(tr::lng_sure_save_language.base);
 				const auto change = [=] {
-					weak->_langpack.switchToCustomFile(filePath);
+					_langpack.switchToCustomFile(filePath);
 					App::restart();
 				};
 				Ui::show(
@@ -572,9 +602,25 @@ void CloudManager::switchLangPackId(const Language &data) {
 
 void CloudManager::changeIdAndReInitConnection(const Language &data) {
 	_langpack.switchToId(data);
+	if (_api) {
+		const auto mtproto = _api->instance();
+		mtproto->reInitConnection(mtproto->mainDcId());
+	}
+}
 
-	auto mtproto = requestMTP();
-	mtproto->reInitConnection(mtproto->mainDcId());
+void CloudManager::resendRequests() {
+	if (packRequestId(Pack::Base)) {
+		requestLangPackDifference(Pack::Base);
+	}
+	if (packRequestId(Pack::Current)) {
+		requestLangPackDifference(Pack::Current);
+	}
+	if (_languagesRequestId) {
+		requestLanguageList();
+	}
+	if (_switchingToLanguageRequest) {
+		sendSwitchingToLanguageRequest();
+	}
 }
 
 CloudManager &CurrentCloudManager() {

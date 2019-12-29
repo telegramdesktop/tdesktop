@@ -365,6 +365,7 @@ void AlbumThumb::prepareCache(QSize size, int shrink) {
 		ImageRoundRadius::Large,
 		_albumCorners,
 		QRect(QPoint(), size * cIntRetinaFactor()));
+	_albumCache.setDevicePixelRatio(cRetinaFactor());
 }
 
 void AlbumThumb::drawSimpleFrame(Painter &p, QRect to, QSize size) const {

@@ -84,6 +84,18 @@ private:
 
 };
 
+struct UnavailableReason {
+	QString reason;
+	QString text;
+
+	bool operator==(const UnavailableReason &other) const {
+		return (reason == other.reason) && (text == other.text);
+	}
+	bool operator!=(const UnavailableReason &other) const {
+		return !(*this == other);
+	}
+};
+
 } // namespace Data
 
 class PeerClickHandler : public ClickHandler {
@@ -271,9 +283,7 @@ public:
 
 	// If this string is not empty we must not allow to open the
 	// conversation and we must show this string instead.
-	[[nodiscard]] virtual QString unavailableReason() const {
-		return QString();
-	}
+	[[nodiscard]] QString computeUnavailableReason() const;
 
 	[[nodiscard]] ClickHandlerPtr createOpenLink();
 	[[nodiscard]] const ClickHandlerPtr &openLink() {
@@ -346,6 +356,8 @@ private:
 	void fillNames();
 	std::unique_ptr<Ui::EmptyUserpic> createEmptyUserpic() const;
 	void refreshEmptyUserpic() const;
+	[[nodiscard]] virtual auto unavailableReasons() const
+		-> const std::vector<Data::UnavailableReason> &;
 
 	void setUserpicChecked(
 		PhotoId photoId,

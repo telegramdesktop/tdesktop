@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "mtproto/mtproto_proxy_data.h"
+
 #include <QtWidgets/QApplication>
 #include <QtNetwork/QLocalServer>
 #include <QtNetwork/QLocalSocket>
@@ -50,7 +52,7 @@ public:
 
 	rpl::producer<> widgetUpdateRequests() const;
 
-	ProxyData sandboxProxy() const;
+	MTP::ProxyData sandboxProxy() const;
 
 	static Sandbox &Instance() {
 		Expects(QCoreApplication::instance() != nullptr);
@@ -119,7 +121,7 @@ private:
 	std::unique_ptr<UpdateChecker> _updateChecker;
 
 	QByteArray _lastCrashDump;
-	ProxyData _sandboxProxy;
+	MTP::ProxyData _sandboxProxy;
 
 	rpl::event_stream<> _widgetUpdateRequests;
 

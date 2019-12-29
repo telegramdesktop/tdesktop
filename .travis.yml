@@ -43,6 +43,7 @@ addons:
       - liblzma-dev
       - libopus-dev
       - libpulse-dev
+      - libenchant-dev
       - libssl-dev
       - libdee-dev
       - libva-dev

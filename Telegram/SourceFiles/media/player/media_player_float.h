@@ -26,7 +26,7 @@ class PlaybackProgress;
 
 namespace Media {
 namespace Streaming {
-class Player;
+class Instance;
 } // namespace Streaming
 } // namespace Media
 
@@ -42,7 +42,7 @@ public:
 		Fn<void(bool visible)> toggleCallback,
 		Fn<void(bool closed)> draggedCallback);
 
-	HistoryItem *item() const {
+	[[nodiscard]] HistoryItem *item() const {
 		return _item;
 	}
 	void setOpacity(float64 opacity) {
@@ -51,17 +51,17 @@ public:
 			update();
 		}
 	}
-	float64 countOpacityByParent() const {
+	[[nodiscard]] float64 countOpacityByParent() const {
 		return outRatio();
 	}
-	bool isReady() const {
-		return (getPlayer() != nullptr);
+	[[nodiscard]] bool isReady() const {
+		return (getStreamed() != nullptr);
 	}
 	void detach();
-	bool detached() const {
+	[[nodiscard]] bool detached() const {
 		return !_item;
 	}
-	bool dragged() const {
+	[[nodiscard]] bool dragged() const {
 		return _drag;
 	}
 	void resetMouseState() {
@@ -79,14 +79,14 @@ protected:
 	void mouseDoubleClickEvent(QMouseEvent *e) override;
 
 private:
-	float64 outRatio() const;
-	Streaming::Player *getPlayer() const;
-	View::PlaybackProgress *getPlayback() const;
+	[[nodiscard]] float64 outRatio() const;
+	[[nodiscard]] Streaming::Instance *getStreamed() const;
+	[[nodiscard]] View::PlaybackProgress *getPlayback() const;
 	void repaintItem();
 	void prepareShadow();
 	bool hasFrame() const;
 	bool fillFrame();
-	QRect getInnerRect() const;
+	[[nodiscard]] QRect getInnerRect() const;
 	void finishDrag(bool closed);
 	void pauseResume();
 

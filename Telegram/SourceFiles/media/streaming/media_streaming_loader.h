@@ -33,14 +33,18 @@ public:
 
 	virtual void load(int offset) = 0;
 	virtual void cancel(int offset) = 0;
-	virtual void increasePriority() = 0;
+	virtual void resetPriorities() = 0;
+	virtual void setPriority(int priority) = 0;
 	virtual void stop() = 0;
+
+	// Remove from queue if no requests are in progress.
+	virtual void tryRemoveFromQueue() = 0;
 
 	// Parts will be sent from the main thread.
 	[[nodiscard]] virtual rpl::producer<LoadedPart> parts() const = 0;
 
 	virtual void attachDownloader(
-		Storage::StreamedFileDownloader *downloader) = 0;
+		not_null<Storage::StreamedFileDownloader*> downloader) = 0;
 	virtual void clearAttachedDownloader() = 0;
 
 	virtual ~Loader() = default;
@@ -51,10 +55,11 @@ class PriorityQueue {
 public:
 	bool add(int value);
 	bool remove(int value);
-	void increasePriority();
-	std::optional<int> front() const;
-	std::optional<int> take();
-	base::flat_set<int> takeInRange(int from, int till);
+	void resetPriorities();
+	[[nodiscard]] bool empty() const;
+	[[nodiscard]] std::optional<int> front() const;
+	[[nodiscard]] std::optional<int> take();
+	[[nodiscard]] base::flat_set<int> takeInRange(int from, int till);
 	void clear();
 
 private:

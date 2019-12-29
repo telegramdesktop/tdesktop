@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/object_ptr.h"
 #include "mtproto/connection_abstract.h"
+#include "mtproto/mtproto_proxy_data.h"
 
 namespace Ui {
 class BoxContent;
@@ -25,6 +26,7 @@ class Radioenum;
 
 class ProxiesBoxController : public base::Subscriber {
 public:
+	using ProxyData = MTP::ProxyData;
 	using Type = ProxyData::Type;
 
 	ProxiesBoxController();
@@ -73,7 +75,7 @@ public:
 	~ProxiesBoxController();
 
 private:
-	using Checker = MTP::internal::ConnectionPointer;
+	using Checker = MTP::details::ConnectionPointer;
 	struct Item {
 		int id = 0;
 		ProxyData data;

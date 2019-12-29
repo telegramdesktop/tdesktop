@@ -37,15 +37,6 @@ namespace Main {
 class Session;
 } // namespace Main
 
-namespace Media {
-namespace Clip {
-class Reader;
-} // namespace Clip
-namespace Streaming {
-class Reader;
-} // namespace Streaming
-} // namespace Media
-
 namespace Export {
 class Controller;
 namespace View {
@@ -68,6 +59,7 @@ class LocationPoint;
 class WallPaper;
 class ScheduledMessages;
 class CloudThemes;
+class Streaming;
 
 class Session final {
 public:
@@ -96,6 +88,9 @@ public:
 	}
 	[[nodiscard]] CloudThemes &cloudThemes() const {
 		return *_cloudThemes;
+	}
+	[[nodiscard]] Streaming &streaming() const {
+		return *_streaming;
 	}
 	[[nodiscard]] MsgId nextNonHistoryEntryId() {
 		return ++_nonHistoryEntryId;
@@ -435,11 +430,6 @@ public:
 	void markMediaRead(not_null<const DocumentData*> document);
 	void requestPollViewRepaint(not_null<const PollData*> poll);
 
-	std::shared_ptr<::Media::Streaming::Reader> documentStreamedReader(
-		not_null<DocumentData*> document,
-		FileOrigin origin,
-		bool forceRemoteLoader = false);
-
 	HistoryItem *addNewMessage(
 		const MTPMessage &data,
 		MTPDmessage_ClientFlags flags,
@@ -610,11 +600,11 @@ public:
 	void unregisterContactItem(
 		UserId contactId,
 		not_null<HistoryItem*> item);
-	void registerAutoplayAnimation(
-		not_null<::Media::Clip::Reader*> reader,
-		not_null<ViewElement*> view);
-	void unregisterAutoplayAnimation(
-		not_null<::Media::Clip::Reader*> reader);
+
+	void registerPlayingVideoFile(not_null<ViewElement*> view);
+	void unregisterPlayingVideoFile(not_null<ViewElement*> view);
+	void checkPlayingVideoFiles();
+	void stopPlayingVideoFiles();
 
 	HistoryItem *findWebPageItem(not_null<WebPageData*> page) const;
 	QString findContactPhone(not_null<UserData*> contact) const;
@@ -625,8 +615,6 @@ public:
 	void notifyPollUpdateDelayed(not_null<PollData*> poll);
 	bool hasPendingWebPageGamePollNotification() const;
 	void sendWebPageGamePollNotifications();
-
-	void stopAutoplayAnimations();
 
 	void registerItemView(not_null<ViewElement*> view);
 	void unregisterItemView(not_null<ViewElement*> view);
@@ -949,17 +937,11 @@ private:
 	std::unordered_map<
 		UserId,
 		base::flat_set<not_null<ViewElement*>>> _contactViews;
-	base::flat_map<
-		not_null<::Media::Clip::Reader*>,
-		not_null<ViewElement*>> _autoplayAnimations;
+	base::flat_map<not_null<ViewElement*>, int> _playingVideoFiles;
 
 	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
 	base::flat_set<not_null<GameData*>> _gamesUpdated;
 	base::flat_set<not_null<PollData*>> _pollsUpdated;
-
-	base::flat_map<
-		not_null<DocumentData*>,
-		std::weak_ptr<::Media::Streaming::Reader>> _streamedReaders;
 
 	base::flat_map<FolderId, std::unique_ptr<Folder>> _folders;
 	//rpl::variable<FeedId> _defaultFeedId = FeedId(); // #feed
@@ -1001,6 +983,7 @@ private:
 	Groups _groups;
 	std::unique_ptr<ScheduledMessages> _scheduledMessages;
 	std::unique_ptr<CloudThemes> _cloudThemes;
+	std::unique_ptr<Streaming> _streaming;
 	MsgId _nonHistoryEntryId = ServerMaxMsgId;
 
 	rpl::lifetime _lifetime;

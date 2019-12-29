@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/type_traits.h"
 #include "base/observer.h"
 #include "base/call_delayed.h"
-#include "ui/effects/animation_value.h"
+#include "mtproto/mtproto_proxy_data.h"
 
 class History;
 
@@ -224,9 +224,9 @@ DeclareVar(Notify::ScreenCorner, NotificationsCorner);
 DeclareVar(bool, NotificationsDemoIsShown);
 
 DeclareVar(bool, TryIPv6);
-DeclareVar(std::vector<ProxyData>, ProxiesList);
-DeclareVar(ProxyData, SelectedProxy);
-DeclareVar(ProxyData::Settings, ProxySettings);
+DeclareVar(std::vector<MTP::ProxyData>, ProxiesList);
+DeclareVar(MTP::ProxyData, SelectedProxy);
+DeclareVar(MTP::ProxyData::Settings, ProxySettings);
 DeclareVar(bool, UseProxyForCalls);
 DeclareRefVar(base::Observable<void>, ConnectionTypeChanged);
 

@@ -216,7 +216,10 @@ MTPWallPaperSettings WallPaper::mtpSettings() const {
 		(_backgroundColor
 			? MTP_int(SerializeMaybeColor(_backgroundColor))
 			: MTP_int(0)),
-		MTP_int(_intensity));
+		MTP_int(0), // second_background_color
+		MTP_int(_intensity),
+		MTP_int(0) // rotation
+	);
 }
 
 WallPaper WallPaper::withUrlParams(
@@ -309,6 +312,8 @@ WallPaper WallPaper::withoutImageData() const {
 std::optional<WallPaper> WallPaper::Create(const MTPWallPaper &data) {
 	return data.match([](const MTPDwallPaper &data) {
 		return Create(data);
+	}, [](const MTPDwallPaperNoFile &data) {
+		return std::optional<WallPaper>(); // #TODO themes
 	});
 }
 

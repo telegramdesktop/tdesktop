@@ -10,14 +10,14 @@ using "ui/widgets/widgets.style";
 using "history/history.style";
 using "boxes/boxes.style"; // UserpicButton
 
-windowMinWidth: 380px;
+windowMinWidth: 360px;
 windowMinHeight: 480px;
 windowDefaultWidth: 800px;
 windowDefaultHeight: 600px;
 
 columnMinimalWidthLeft: 260px;
 columnMaximalWidthLeft: 540px;
-columnMinimalWidthMain: 380px;
+columnMinimalWidthMain: 360px;
 columnDesiredWidthMain: 512px;
 columnMinimalWidthThird: 292px;
 columnMaximalWidthThird: 392px;

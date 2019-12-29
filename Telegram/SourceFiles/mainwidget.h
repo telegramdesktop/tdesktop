@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "media/player/media_player_float.h"
 #include "data/data_pts_waiter.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 struct HistoryMessageMarkupButton;
 class MainWindow;
@@ -132,7 +133,6 @@ public:
 	void incrementSticker(DocumentData *sticker);
 
 	void activate();
-	[[nodiscard]] bool updateReceived(const mtpPrime *from, const mtpPrime *end);
 
 	void refreshDialog(Dialogs::Key key);
 	void removeDialog(Dialogs::Key key);
@@ -393,6 +393,8 @@ private:
 	bool failChannelDifference(ChannelData *channel, const RPCError &err);
 	void failDifferenceStartTimerFor(ChannelData *channel);
 
+	void mtpUpdateReceived(const MTPUpdates &updates);
+	void mtpNewSessionCreated();
 	void feedUpdateVector(
 		const MTPVector<MTPUpdate> &updates,
 		bool skipMessageIds = false);

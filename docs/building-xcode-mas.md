@@ -6,9 +6,9 @@
 
 Go to ***BuildPath*** and run
 
-    MACOSX_DEPLOYMENT_TARGET=10.8
+    MACOSX_DEPLOYMENT_TARGET=10.12
 
-    cd Libraries
+    cd Libraries/macos
 
     git clone https://chromium.googlesource.com/breakpad/breakpad
     cd breakpad
@@ -17,7 +17,7 @@ Go to ***BuildPath*** and run
     cd src/third_party/lss
     git checkout a91633d1
     cd ../../..
-    git apply ../../tdesktop/Telegram/Patches/breakpad.diff
+    git apply ../patches/breakpad.diff
     cd src/client/mac
     xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Debug build
     xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Release build

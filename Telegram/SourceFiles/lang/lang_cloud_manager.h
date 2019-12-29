@@ -22,9 +22,9 @@ struct Language;
 
 Language ParseLanguage(const MTPLangPackLanguage &data);
 
-class CloudManager : public base::has_weak_ptr, private MTP::Sender, private base::Subscriber {
+class CloudManager : public base::has_weak_ptr, private base::Subscriber {
 public:
-	CloudManager(Instance &langpack, not_null<MTP::Instance*> mtproto);
+	explicit CloudManager(Instance &langpack);
 
 	using Languages = std::vector<Language>;
 
@@ -72,6 +72,10 @@ private:
 	void switchLangPackId(const Language &data);
 	void changeIdAndReInitConnection(const Language &data);
 
+	void sendSwitchingToLanguageRequest();
+	void resendRequests();
+
+	std::optional<MTP::Sender> _api;
 	Instance &_langpack;
 	Languages _languages;
 	base::Observable<void> _languagesChanged;
@@ -87,6 +91,12 @@ private:
 	base::Observable<void> _firstLanguageSuggestion;
 
 	mtpRequestId _switchingToLanguageRequest = 0;
+	QString _switchingToLanguageId;
+	bool _switchingToLanguageWarning = false;
+
+	mtpRequestId _getKeysForSwitchRequestId = 0;
+
+	rpl::lifetime _lifetime;
 
 };
 

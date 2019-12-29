@@ -28,8 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_encrypted_file.h"
 #include "main/main_account.h"
 #include "media/player/media_player_instance.h" // instance()->play()
-#include "media/streaming/media_streaming_loader.h" // unique_ptr<Loader>
-#include "media/streaming/media_streaming_reader.h" // make_shared<Reader>
 #include "boxes/abstract_box.h"
 #include "passport/passport_form_controller.h"
 #include "window/themes/window_theme.h"
@@ -47,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_streaming.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
@@ -101,30 +100,26 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 
 // We should get a full restriction in "{full}: {reason}" format and we
 // need to find an "-all" tag in {full}, otherwise ignore this restriction.
-QString ExtractUnavailableReason(
+std::vector<UnavailableReason> ExtractUnavailableReasons(
 		const QVector<MTPRestrictionReason> &restrictions) {
-	auto &&texts = ranges::view::all(
+	return ranges::view::all(
 		restrictions
-	) | ranges::view::transform([](const MTPRestrictionReason &restriction) {
+	) | ranges::view::filter([](const MTPRestrictionReason &restriction) {
 		return restriction.match([&](const MTPDrestrictionReason &data) {
 			const auto platform = qs(data.vplatform());
-			return (false
+			return false
 #ifdef OS_MAC_STORE
 				|| (platform == qstr("ios"))
 #elif defined OS_WIN_STORE // OS_MAC_STORE
 				|| (platform == qstr("ms"))
 #endif // OS_MAC_STORE || OS_WIN_STORE
-				|| (platform == qstr("all")))
-				? std::make_optional(qs(data.vtext()))
-				: std::nullopt;
+				|| (platform == qstr("all"));
 		});
-	}) | ranges::view::filter([](const std::optional<QString> &value) {
-		return value.has_value();
-	}) | ranges::view::transform([](const std::optional<QString> &value) {
-		return *value;
-	});
-	const auto begin = texts.begin();
-	return (begin != texts.end()) ? *begin : nullptr;
+	}) | ranges::view::transform([](const MTPRestrictionReason &restriction) {
+		return restriction.match([&](const MTPDrestrictionReason &data) {
+			return UnavailableReason{ qs(data.vreason()), qs(data.vtext()) };
+		});
+	}) | ranges::to_vector;
 }
 
 MTPPhotoSize FindDocumentInlineThumbnail(const MTPDdocument &data) {
@@ -175,26 +170,6 @@ rpl::producer<int> PinnedDialogsCountMaxValue(
 	});
 }
 
-bool PruneDestroyedAndSet(
-		base::flat_map<
-			not_null<DocumentData*>,
-			std::weak_ptr<::Media::Streaming::Reader>> &readers,
-		not_null<DocumentData*> document,
-		const std::shared_ptr<::Media::Streaming::Reader> &reader) {
-	auto result = false;
-	for (auto i = begin(readers); i != end(readers);) {
-		if (i->first == document) {
-			(i++)->second = reader;
-			result = true;
-		} else if (i->second.lock() != nullptr) {
-			++i;
-		} else {
-			i = readers.erase(i);
-		}
-	}
-	return result;
-}
-
 } // namespace
 
 Session::Session(not_null<Main::Session*> session)
@@ -215,7 +190,8 @@ Session::Session(not_null<Main::Session*> session)
 , _unmuteByFinishedTimer([=] { unmuteByFinished(); })
 , _groups(this)
 , _scheduledMessages(std::make_unique<ScheduledMessages>(this))
-, _cloudThemes(std::make_unique<CloudThemes>(session)) {
+, _cloudThemes(std::make_unique<CloudThemes>(session))
+, _streaming(std::make_unique<Streaming>(this)) {
 	_cache->open(Local::cacheKey());
 	_bigFileCache->open(Local::cacheBigFileKey());
 
@@ -365,10 +341,10 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				result->inputUser = MTP_inputUser(data.vid(), MTP_long(result->accessHash()));
 			}
 			if (const auto restriction = data.vrestriction_reason()) {
-				result->setUnavailableReason(
-					ExtractUnavailableReason(restriction->v));
+				result->setUnavailableReasons(
+					ExtractUnavailableReasons(restriction->v));
 			} else {
-				result->setUnavailableReason(QString());
+				result->setUnavailableReasons({});
 			}
 		}
 		if (data.is_deleted()) {
@@ -636,10 +612,10 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				channel->setVersion(data.vversion().v);
 			}
 			if (const auto restriction = data.vrestriction_reason()) {
-				channel->setUnavailableReason(
-					ExtractUnavailableReason(restriction->v));
+				channel->setUnavailableReasons(
+					ExtractUnavailableReasons(restriction->v));
 			} else {
-				channel->setUnavailableReason(QString());
+				channel->setUnavailableReasons({});
 			}
 			channel->setFlags(data.vflags().v);
 			//if (const auto feedId = data.vfeed_id()) { // #feed
@@ -1135,31 +1111,6 @@ void Session::requestDocumentViewRepaint(
 	}
 }
 
-std::shared_ptr<::Media::Streaming::Reader> Session::documentStreamedReader(
-		not_null<DocumentData*> document,
-		FileOrigin origin,
-		bool forceRemoteLoader) {
-	const auto i = _streamedReaders.find(document);
-	if (i != end(_streamedReaders)) {
-		if (auto result = i->second.lock()) {
-			if (!forceRemoteLoader || result->isRemoteLoader()) {
-				return result;
-			}
-		}
-	}
-	auto loader = document->createStreamingLoader(origin, forceRemoteLoader);
-	if (!loader) {
-		return nullptr;
-	}
-	auto result = std::make_shared<::Media::Streaming::Reader>(
-		&cacheBigFile(),
-		std::move(loader));
-	if (!PruneDestroyedAndSet(_streamedReaders, document, result)) {
-		_streamedReaders.emplace_or_assign(document, result);
-	}
-	return result;
-}
-
 void Session::requestPollViewRepaint(not_null<const PollData*> poll) {
 	if (const auto i = _pollViews.find(poll); i != _pollViews.end()) {
 		for (const auto view : i->second) {
@@ -1369,9 +1320,10 @@ void Session::unloadHeavyViewParts(
 	if (_heavyViewParts.empty()) {
 		return;
 	}
-	const auto remove = ranges::count(_heavyViewParts, delegate, [](not_null<ViewElement*> element) {
-		return element->delegate();
-	});
+	const auto remove = ranges::count(
+		_heavyViewParts,
+		delegate,
+		[](not_null<ViewElement*> element) { return element->delegate(); });
 	if (remove == _heavyViewParts.size()) {
 		for (const auto view : base::take(_heavyViewParts)) {
 			view->unloadHeavyPart();
@@ -1660,6 +1612,7 @@ bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
 		existing->indexAsNewItem();
 		existing->contributeToSlowmode(data.vdate().v);
 		requestItemTextRefresh(existing);
+		updateDependentMessages(existing);
 		if (existing->mainView()) {
 			checkSavedGif(existing);
 			return true;
@@ -2766,12 +2719,27 @@ void Session::webpageApplyFields(
 	const auto pendingTill = TimeId(0);
 	const auto photo = data.vphoto();
 	const auto document = data.vdocument();
-	const auto lookupThemeDocument = [&]() -> DocumentData* {
+	const auto lookupInAttribute = [&](
+			const MTPDwebPageAttributeTheme &data) -> DocumentData* {
 		if (const auto documents = data.vdocuments()) {
 			for (const auto &document : documents->v) {
 				const auto processed = processDocument(document);
 				if (processed->isTheme()) {
 					return processed;
+				}
+			}
+		}
+		return nullptr;
+	};
+	const auto lookupThemeDocument = [&]() -> DocumentData* {
+		if (const auto attributes = data.vattributes()) {
+			for (const auto &attribute : attributes->v) {
+				const auto result = attribute.match([&](
+						const MTPDwebPageAttributeTheme &data) {
+					return lookupInAttribute(data);
+				});
+				if (result) {
+					return result;
 				}
 			}
 		}
@@ -3203,22 +3171,43 @@ void Session::unregisterContactItem(
 	}
 }
 
-void Session::registerAutoplayAnimation(
-		not_null<::Media::Clip::Reader*> reader,
-		not_null<ViewElement*> view) {
-	_autoplayAnimations.emplace(reader, view);
+void Session::registerPlayingVideoFile(not_null<ViewElement*> view) {
+	if (++_playingVideoFiles[view] == 1) {
+		registerHeavyViewPart(view);
+	}
 }
 
-void Session::unregisterAutoplayAnimation(
-		not_null<::Media::Clip::Reader*> reader) {
-	_autoplayAnimations.remove(reader);
+void Session::unregisterPlayingVideoFile(not_null<ViewElement*> view) {
+	const auto i = _playingVideoFiles.find(view);
+	if (i != _playingVideoFiles.end()) {
+		if (!--i->second) {
+			_playingVideoFiles.erase(i);
+			unregisterHeavyViewPart(view);
+		}
+	} else {
+		unregisterHeavyViewPart(view);
+	}
 }
 
-void Session::stopAutoplayAnimations() {
-	for (const auto [reader, view] : base::take(_autoplayAnimations)) {
+void Session::stopPlayingVideoFiles() {
+	for (const auto &[view, count] : base::take(_playingVideoFiles)) {
 		if (const auto media = view->media()) {
 			media->stopAnimation();
 		}
+	}
+}
+
+void Session::checkPlayingVideoFiles() {
+	const auto old = base::take(_playingVideoFiles);
+	for (const auto &[view, count] : old) {
+		if (const auto media = view->media()) {
+			if (const auto left = media->checkAnimationCount()) {
+				_playingVideoFiles.emplace(view, left);
+				registerHeavyViewPart(view);
+				continue;
+			}
+		}
+		unregisterHeavyViewPart(view);
 	}
 }
 
@@ -3747,11 +3736,9 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 			QByteArray(),
 			"JPG")));
 	for (const auto &paper : data) {
-		paper.match([&](const MTPDwallPaper &paper) {
-			if (const auto parsed = Data::WallPaper::Create(paper)) {
-				_wallpapers.push_back(*parsed);
-			}
-		});
+		if (const auto parsed = Data::WallPaper::Create(paper)) {
+			_wallpapers.push_back(*parsed);
+		}
 	}
 	const auto defaultFound = ranges::find_if(
 		_wallpapers,

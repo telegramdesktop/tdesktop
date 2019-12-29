@@ -130,20 +130,23 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 		int w,
 		PaintFlags flags) const;
 
-	MsgId replyToId() const {
+	[[nodiscard]] MsgId replyToId() const {
 		return replyToMsgId;
 	}
-	int replyToWidth() const {
+	[[nodiscard]] int replyToWidth() const {
 		return maxReplyWidth;
 	}
-	ClickHandlerPtr replyToLink() const {
+	[[nodiscard]] ClickHandlerPtr replyToLink() const {
 		return replyToLnk;
 	}
 	void setReplyToLinkFrom(
 		not_null<HistoryMessage*> holder);
 
+	void refreshReplyToDocument();
+
 	MsgId replyToMsgId = 0;
 	HistoryItem *replyToMsg = nullptr;
+	DocumentId replyToDocumentId = 0;
 	ClickHandlerPtr replyToLnk;
 	mutable Ui::Text::String replyToName, replyToText;
 	mutable int replyToVersion = 0;

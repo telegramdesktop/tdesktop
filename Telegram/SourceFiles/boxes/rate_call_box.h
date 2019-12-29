@@ -20,7 +20,7 @@ namespace Main {
 class Session;
 } // namespace Main
 
-class RateCallBox : public Ui::BoxContent, private MTP::Sender {
+class RateCallBox : public Ui::BoxContent {
 public:
 	RateCallBox(
 		QWidget*,
@@ -41,6 +41,7 @@ private:
 	void commentResized();
 
 	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 
 	uint64 _callId = 0;
 	uint64 _callAccessHash = 0;

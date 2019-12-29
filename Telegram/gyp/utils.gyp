@@ -22,7 +22,7 @@
       '<(src_loc)',
     ],
     'sources': [
-      '<(src_loc)/_other/updater.cpp',
+      '<(src_loc)/_other/updater_win.cpp',
       '<(src_loc)/_other/updater.h',
       '<(src_loc)/_other/updater_linux.cpp',
       '<(src_loc)/_other/updater_osx.m',
@@ -49,7 +49,7 @@
       }],
       [ '"<(build_win)" != "1"', {
         'sources!': [
-          '<(src_loc)/_other/updater.cpp',
+          '<(src_loc)/_other/updater_win.cpp',
         ],
       }],
     ],

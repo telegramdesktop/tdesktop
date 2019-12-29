@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_gif.h"
 #include "history/view/media/history_view_document.h"
 #include "history/view/media/history_view_sticker.h"
-#include "history/view/media/history_view_video.h"
 #include "history/view/media/history_view_theme_document.h"
 #include "styles/style_history.h"
 
@@ -73,13 +72,8 @@ std::unique_ptr<Media> CreateAttach(
 			return std::make_unique<UnwrappedMedia>(
 				parent,
 				std::make_unique<Sticker>(parent, document));
-		} else if (document->isAnimation()) {
-			return std::make_unique<Gif>(parent, document);
-		} else if (document->isVideoFile()) {
-			return std::make_unique<Video>(
-				parent,
-				parent->data(),
-				document);
+		} else if (document->isAnimation() || document->isVideoFile()) {
+			return std::make_unique<Gif>(parent, parent->data(), document);
 		} else if (document->isWallPaper() || document->isTheme()) {
 			return std::make_unique<ThemeDocument>(
 				parent,

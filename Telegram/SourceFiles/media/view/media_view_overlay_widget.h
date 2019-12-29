@@ -178,7 +178,6 @@ private:
 	void playbackPauseOnCall();
 	void playbackResumeOnCall();
 	void playbackPauseMusic();
-	void playbackWaitingChange(bool waiting);
 
 	void updateOver(QPoint mpos);
 	void moveToScreen(bool force = false);
@@ -259,13 +258,13 @@ private:
 	void refreshClipControllerGeometry();
 	void refreshCaptionGeometry();
 
-	void initStreaming();
+	[[nodiscard]] bool initStreaming();
+	void startStreamingPlayer();
 	void initStreamingThumbnail();
 	void streamingReady(Streaming::Information &&info);
-	void createStreamingObjects();
+	[[nodiscard]] bool createStreamingObjects();
 	void handleStreamingUpdate(Streaming::Update &&update);
 	void handleStreamingError(Streaming::Error &&error);
-	void validateStreamedGoodThumbnail();
 
 	void initThemePreview();
 	void destroyThemePreview();
@@ -325,7 +324,7 @@ private:
 	[[nodiscard]] bool documentContentShown() const;
 	[[nodiscard]] bool documentBubbleShown() const;
 	void paintTransformedVideoFrame(Painter &p);
-	void clearStreaming();
+	void clearStreaming(bool savePosition = true);
 
 	QBrush _transparentBrush;
 

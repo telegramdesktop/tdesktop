@@ -1287,7 +1287,6 @@ void PeerListContent::loadProfilePhotos() {
 
 	auto yFrom = _visibleTop;
 	auto yTo = _visibleBottom + (_visibleBottom - _visibleTop) * PreloadHeightsCount;
-	_controller->session().downloader().clearPriorities();
 
 	if (yTo < 0) return;
 	if (yFrom < 0) yFrom = 0;
