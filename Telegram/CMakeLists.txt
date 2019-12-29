@@ -701,8 +701,6 @@ PRIVATE
     platform/linux/linux_desktop_environment.h
     platform/linux/linux_gdk_helper.cpp
     platform/linux/linux_gdk_helper.h
-    platform/linux/linux_libnotify.cpp
-    platform/linux/linux_libnotify.h
     platform/linux/linux_libs.cpp
     platform/linux/linux_libs.h
     platform/linux/file_utilities_linux.cpp
