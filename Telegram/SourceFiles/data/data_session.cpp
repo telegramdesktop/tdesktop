@@ -3721,11 +3721,9 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, int32 hash) {
 			QByteArray(),
 			"JPG")));
 	for (const auto &paper : data) {
-		paper.match([&](const MTPDwallPaper &paper) {
-			if (const auto parsed = Data::WallPaper::Create(paper)) {
-				_wallpapers.push_back(*parsed);
-			}
-		});
+		if (const auto parsed = Data::WallPaper::Create(paper)) {
+			_wallpapers.push_back(*parsed);
+		}
 	}
 	const auto defaultFound = ranges::find_if(
 		_wallpapers,

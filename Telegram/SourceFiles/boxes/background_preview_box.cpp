@@ -716,6 +716,9 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 		return;
 	}
 	const auto generateCallback = [=](QImage &&image) {
+		if (image.isNull()) {
+			return;
+		}
 		crl::async([
 			this,
 			image = std::move(image),

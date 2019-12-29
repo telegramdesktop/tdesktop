@@ -42,6 +42,7 @@ struct FileReferenceAccumulator {
 	void push(const MTPWallPaper &data) {
 		data.match([&](const MTPDwallPaper &data) {
 			push(data.vdocument());
+		}, [&](const MTPDwallPaperNoFile &data) {
 		});
 	}
 	void push(const MTPTheme &data) {

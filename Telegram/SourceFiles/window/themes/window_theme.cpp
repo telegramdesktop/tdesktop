@@ -593,6 +593,9 @@ void ChatBackground::checkUploadWallPaper() {
 				_session->data().documentConvert(
 					_session->data().document(documentId),
 					data.vdocument());
+			}, [&](const MTPDwallPaperNoFile &data) {
+				LOG(("API Error: "
+					"Got wallPaperNoFile after account.UploadWallPaper."));
 			});
 			if (const auto paper = Data::WallPaper::Create(result)) {
 				setPaper(*paper);

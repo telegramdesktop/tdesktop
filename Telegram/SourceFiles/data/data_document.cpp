@@ -587,8 +587,9 @@ bool DocumentData::checkWallPaperProperties() {
 		|| !dimensions.height()
 		|| dimensions.width() > Storage::kMaxWallPaperDimension
 		|| dimensions.height() > Storage::kMaxWallPaperDimension
-		|| size > Storage::kMaxWallPaperInMemory) {
-		return false;
+		|| size > Storage::kMaxWallPaperInMemory
+		|| mimeString() == qstr("application/x-tgwallpattern")) {
+		return false; // #TODO themes support svg patterns
 	}
 	type = WallPaperDocument;
 	validateGoodThumbnail();
