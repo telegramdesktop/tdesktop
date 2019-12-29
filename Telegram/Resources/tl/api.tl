@@ -500,7 +500,7 @@ messages.affectedMessages#84d19185 pts:int pts_count:int = messages.AffectedMess
 
 webPageEmpty#eb1477e8 id:long = WebPage;
 webPagePending#c586da1c id:long date:int = WebPage;
-webPage#fa64e172 flags:# id:long url:string display_url:string hash:int type:flags.0?string site_name:flags.1?string title:flags.2?string description:flags.3?string photo:flags.4?Photo embed_url:flags.5?string embed_type:flags.5?string embed_width:flags.6?int embed_height:flags.6?int duration:flags.7?int author:flags.8?string document:flags.9?Document documents:flags.11?Vector<Document> cached_page:flags.10?Page = WebPage;
+webPage#e89c45b2 flags:# id:long url:string display_url:string hash:int type:flags.0?string site_name:flags.1?string title:flags.2?string description:flags.3?string photo:flags.4?Photo embed_url:flags.5?string embed_type:flags.5?string embed_width:flags.6?int embed_height:flags.6?int duration:flags.7?int author:flags.8?string document:flags.9?Document cached_page:flags.10?Page attributes:flags.12?Vector<WebPageAttribute> = WebPage;
 webPageNotModified#85849473 = WebPage;
 
 authorization#ad01d61d flags:# current:flags.0?true official_app:flags.1?true password_pending:flags.2?true hash:long device_model:string platform:string system_version:string api_id:int app_name:string app_version:string date_created:int date_active:int ip:string country:string region:string = Authorization;
@@ -1105,6 +1105,8 @@ inputThemeSettings#bd507cd1 flags:# base_theme:BaseTheme accent_color:int messag
 
 themeSettings#9c14984a flags:# base_theme:BaseTheme accent_color:int message_top_color:flags.0?int message_bottom_color:flags.0?int wallpaper:flags.1?WallPaper = ThemeSettings;
 
+webPageAttributeTheme#54b56617 flags:# documents:flags.0?Vector<Document> settings:flags.1?ThemeSettings = WebPageAttribute;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -1452,4 +1454,4 @@ folders.deleteFolder#1c295881 folder_id:int = Updates;
 wallet.sendLiteRequest#e2c9d33e body:bytes = wallet.LiteResponse;
 wallet.getKeySecretSalt#b57f346 revoke:Bool = wallet.KeySecretSalt;
 
-// LAYER 107
+// LAYER 108

@@ -2719,12 +2719,27 @@ void Session::webpageApplyFields(
 	const auto pendingTill = TimeId(0);
 	const auto photo = data.vphoto();
 	const auto document = data.vdocument();
-	const auto lookupThemeDocument = [&]() -> DocumentData* {
+	const auto lookupInAttribute = [&](
+			const MTPDwebPageAttributeTheme &data) -> DocumentData* {
 		if (const auto documents = data.vdocuments()) {
 			for (const auto &document : documents->v) {
 				const auto processed = processDocument(document);
 				if (processed->isTheme()) {
 					return processed;
+				}
+			}
+		}
+		return nullptr;
+	};
+	const auto lookupThemeDocument = [&]() -> DocumentData* {
+		if (const auto attributes = data.vattributes()) {
+			for (const auto &attribute : attributes->v) {
+				const auto result = attribute.match([&](
+						const MTPDwebPageAttributeTheme &data) {
+					return lookupInAttribute(data);
+				});
+				if (result) {
+					return result;
 				}
 			}
 		}
