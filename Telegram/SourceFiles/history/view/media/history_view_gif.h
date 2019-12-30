@@ -135,14 +135,15 @@ private:
 	void streamingReady(::Media::Streaming::Information &&info);
 	void repaintStreamedContent();
 
-	bool needInfoDisplay() const;
-	int additionalWidth(
+	[[nodiscard]] bool needInfoDisplay() const;
+	[[nodiscard]] bool needCornerStatusDisplay() const;
+	[[nodiscard]] int additionalWidth(
 		const HistoryMessageVia *via,
 		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const;
-	int additionalWidth() const;
-	QString mediaTypeString() const;
-	bool isSeparateRoundVideo() const;
+	[[nodiscard]] int additionalWidth() const;
+	[[nodiscard]] QString mediaTypeString() const;
+	[[nodiscard]] bool isSeparateRoundVideo() const;
 
 	void validateGroupedCache(
 		const QRect &geometry,
@@ -151,7 +152,7 @@ private:
 		not_null<QPixmap*> cache) const;
 	void setStatusSize(int newSize) const;
 	void updateStatusText() const;
-	QSize sizeForAspectRatio() const;
+	[[nodiscard]] QSize sizeForAspectRatio() const;
 
 	[[nodiscard]] bool downloadInCorner() const;
 	void drawCornerStatus(Painter &p, bool selected, QPoint position) const;
