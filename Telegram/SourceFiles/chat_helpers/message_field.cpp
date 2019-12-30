@@ -278,6 +278,9 @@ void InitSpellchecker(
 		not_null<Main::Session*> session,
 		not_null<Ui::InputField*> field) {
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
+	if (!Platform::Spellchecker::IsAvailable()) {
+		return;
+	}
 	const auto s = Ui::CreateChild<Spellchecker::SpellingHighlighter>(
 		field.get(),
 		session->settings().spellcheckerEnabledValue());
