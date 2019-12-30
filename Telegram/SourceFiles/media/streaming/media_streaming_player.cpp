@@ -811,7 +811,7 @@ bool Player::buffering() const {
 }
 
 bool Player::paused() const {
-	return _pausedByUser;
+	return _pausedByUser && active();
 }
 
 bool Player::finished() const {
