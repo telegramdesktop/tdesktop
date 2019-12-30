@@ -1572,7 +1572,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			const auto notAutoplayedGif = [&] {
 				return item
 					&& document->isGifv()
-					&& Data::AutoDownload::ShouldAutoPlay(
+					&& !Data::AutoDownload::ShouldAutoPlay(
 						document->session().settings().autoDownload(),
 						item->history()->peer,
 						document);

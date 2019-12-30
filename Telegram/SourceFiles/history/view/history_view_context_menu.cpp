@@ -171,7 +171,7 @@ void AddDocumentActions(
 	if (const auto item = document->session().data().message(contextId)) {
 		const auto notAutoplayedGif = [&] {
 			return document->isGifv()
-				&& Data::AutoDownload::ShouldAutoPlay(
+				&& !Data::AutoDownload::ShouldAutoPlay(
 					document->session().settings().autoDownload(),
 					item->history()->peer,
 					document);
