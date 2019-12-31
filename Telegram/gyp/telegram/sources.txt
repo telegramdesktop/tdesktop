@@ -6,6 +6,10 @@
 <(src_loc)/api/api_single_message_search.h
 <(src_loc)/api/api_text_entities.cpp
 <(src_loc)/api/api_text_entities.h
+<(src_loc)/api/api_self_destruct.cpp
+<(src_loc)/api/api_self_destruct.h
+<(src_loc)/api/api_sensitive_content.cpp
+<(src_loc)/api/api_sensitive_content.h
 <(src_loc)/boxes/peers/add_participants_box.cpp
 <(src_loc)/boxes/peers/add_participants_box.h
 <(src_loc)/boxes/peers/edit_contact_box.cpp
@@ -192,6 +196,8 @@
 <(src_loc)/data/data_drafts.h
 <(src_loc)/data/data_folder.cpp
 <(src_loc)/data/data_folder.h
+<(src_loc)/data/data_streaming.cpp
+<(src_loc)/data/data_streaming.h
 //<(src_loc)/data/data_feed_messages.cpp
 //<(src_loc)/data/data_feed_messages.h
 <(src_loc)/data/data_file_origin.cpp
@@ -314,8 +320,6 @@
 <(src_loc)/history/view/media/history_view_sticker.cpp
 <(src_loc)/history/view/media/history_view_theme_document.h
 <(src_loc)/history/view/media/history_view_theme_document.cpp
-<(src_loc)/history/view/media/history_view_video.h
-<(src_loc)/history/view/media/history_view_video.cpp
 <(src_loc)/history/view/media/history_view_web_page.h
 <(src_loc)/history/view/media/history_view_web_page.cpp
 <(src_loc)/history/view/history_view_compose_controls.cpp
@@ -531,6 +535,8 @@
 <(src_loc)/media/streaming/media_streaming_utility.h
 <(src_loc)/media/streaming/media_streaming_video_track.cpp
 <(src_loc)/media/streaming/media_streaming_video_track.h
+<(src_loc)/media/streaming/media_streaming_instance.cpp
+<(src_loc)/media/streaming/media_streaming_instance.h
 <(src_loc)/media/view/media_view_playback_controls.cpp
 <(src_loc)/media/view/media_view_playback_controls.h
 <(src_loc)/media/view/media_view_playback_progress.cpp
