@@ -1,3 +1,10 @@
+1.9.3 (31.12.19)
+
+- Videos in chats start playing automatically.
+- Resume playback from where you left off when watching long videos and listening to long audio tracks.
+- Control automatic playback for videos, GIFs and round video messages in Settings > Advanced > Automatic media download.
+- Enjoy system spell checker support on all modern systems.
+
 1.9.2 beta (29.12.19)
 
 - Videos in chats start playing automatically.
