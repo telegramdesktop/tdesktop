@@ -111,7 +111,9 @@ QSize Gif::countOptimalSize() {
 			_parent->skipBlockHeight());
 	}
 
-	const auto maxSize = _data->isVideoMessage()
+	const auto maxSize = _data->isVideoFile()
+		? st::maxMediaSize
+		: _data->isVideoMessage()
 		? st::maxVideoMessageSize
 		: st::maxGifSize;
 	const auto size = style::ConvertScale(videoSize());
@@ -160,7 +162,9 @@ QSize Gif::countOptimalSize() {
 QSize Gif::countCurrentSize(int newWidth) {
 	auto availableWidth = newWidth;
 
-	const auto maxSize = _data->isVideoMessage()
+	const auto maxSize = _data->isVideoFile()
+		? st::maxMediaSize
+		: _data->isVideoMessage()
 		? st::maxVideoMessageSize
 		: st::maxGifSize;
 	const auto size = style::ConvertScale(videoSize());
