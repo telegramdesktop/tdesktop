@@ -245,9 +245,12 @@ void QrWidget::setupControls() {
 		sizeValue(),
 		title->widthValue()
 	) | rpl::start_with_next([=](QSize size, int titleWidth) {
+		title->resizeToWidth(st::introQrTitleWidth);
+		const auto oneLine = st::introQrTitle.style.font->height;
+		const auto topDelta = (title->height() - oneLine);
 		title->moveToLeft(
-			(size.width() - st::introQrLabelsWidth) / 2,
-			contentTop() + st::introQrTitleTop);
+			(size.width() - title->width()) / 2,
+			contentTop() + st::introQrTitleTop - topDelta);
 	}, title->lifetime());
 
 	const auto steps = Ui::CreateChild<Ui::VerticalLayout>(this);
@@ -256,13 +259,26 @@ void QrWidget::setupControls() {
 		tr::lng_intro_qr_step2,
 		tr::lng_intro_qr_step3,
 	};
+	auto index = 0;
 	for (const auto &text : texts) {
-		steps->add(
+		const auto label = steps->add(
 			object_ptr<Ui::FlatLabel>(
-				this,
+				steps,
 				text(Ui::Text::RichLangValue),
 				st::introQrStep),
 			st::introQrStepMargins);
+		const auto number = Ui::CreateChild<Ui::FlatLabel>(
+			steps,
+			rpl::single(Ui::Text::Bold(QString::number(++index) + ".")),
+			st::defaultFlatLabel);
+		rpl::combine(
+			number->widthValue(),
+			label->positionValue()
+		) | rpl::start_with_next([=](int width, QPoint position) {
+			number->moveToLeft(
+				position.x() - width - st::normalFont->spacew,
+				position.y());
+		}, number->lifetime());
 	}
 	steps->resizeToWidth(st::introQrLabelsWidth);
 	rpl::combine(

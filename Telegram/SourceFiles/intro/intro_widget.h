@@ -131,6 +131,7 @@ private:
 	QPixmap _cacheUnder, _cacheOver;
 
 	std::vector<details::Step*> _stepHistory;
+	rpl::lifetime _stepLifetime;
 
 	details::Data _data;
 

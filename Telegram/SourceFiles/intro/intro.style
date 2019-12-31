@@ -167,8 +167,11 @@ introQrTop: -6px;
 introQrPixel: 50px; // large enough
 introQrMaxSize: 180px;
 introQrLabelsWidth: 292px;
+introQrTitleWidth: 320px;
 introQrTitle: FlatLabel(defaultFlatLabel) {
 	textFg: introTitleFg;
+	align: align(top);
+	minWidth: introQrTitleWidth;
 	style: TextStyle(defaultTextStyle) {
 		font: font(20px semibold);
 		linkFont: font(20px semibold);
@@ -177,9 +180,11 @@ introQrTitle: FlatLabel(defaultFlatLabel) {
 }
 introQrErrorTop: 336px;
 introQrTitleTop: 196px;
-introQrStep: defaultFlatLabel;
+introQrStep: FlatLabel(defaultFlatLabel) {
+	minWidth: introQrLabelsWidth;
+}
 introQrStepsTop: 232px;
-introQrStepMargins: margins(0px, 8px, 0px, 0px);
+introQrStepMargins: margins(20px, 8px, 0px, 0px);
 introQrSkipTop: 360px;
 introQrCenterSize: 44px;
 introQrPlane: icon {{ "intro_qr_plane", activeButtonFg }};

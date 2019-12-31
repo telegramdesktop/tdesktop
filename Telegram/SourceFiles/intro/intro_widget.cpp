@@ -224,6 +224,7 @@ void Widget::historyMove(Direction direction) {
 		_coverShownAnimation.start([this] { updateControlsGeometry(); }, 0., 1., st::introCoverDuration, wasStep->hasCover() ? anim::linear : anim::easeOutCirc);
 	}
 
+	_stepLifetime.destroy();
 	if (direction == Direction::Forward || direction == Direction::Replace) {
 		wasStep->finished();
 	}
@@ -521,13 +522,10 @@ void Widget::setupNextButton() {
 	) | rpl::filter([](const QString &text) {
 		return !text.isEmpty();
 	}));
-	auto visible = getStep()->nextButtonText(
+	getStep()->nextButtonText(
 	) | rpl::map([](const QString &text) {
 		return !text.isEmpty();
-	});
-	std::move(
-		visible
-	) | rpl::filter([=](bool visible) {
+	}) | rpl::filter([=](bool visible) {
 		return visible != _nextShown;
 	}) | rpl::start_with_next([=](bool visible) {
 		_next->toggle(visible, anim::type::normal);
@@ -542,7 +540,7 @@ void Widget::setupNextButton() {
 			_nextShown ? 0. : 1.,
 			_nextShown ? 1. : 0.,
 			st::slideDuration);
-	}, getStep()->lifetime());
+	}, _stepLifetime);
 }
 
 void Widget::hideControls() {
