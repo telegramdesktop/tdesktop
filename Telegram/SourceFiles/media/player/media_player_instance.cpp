@@ -42,7 +42,21 @@ constexpr auto kIdsLimit = 32;
 // Preload next messages if we went further from current than that.
 constexpr auto kIdsPreloadAfter = 28;
 
+constexpr auto kMinLengthForSavePosition = 20 * TimeId(60); // 20 minutes.
+
 } // namespace
+
+struct Instance::Streamed {
+	Streamed(
+		AudioMsgId id,
+		std::shared_ptr<Streaming::Document> document);
+
+	AudioMsgId id;
+	Streaming::Instance instance;
+	View::PlaybackProgress progress;
+	bool clearing = false;
+	rpl::lifetime lifetime;
+};
 
 void start(not_null<Audio::Instance*> instance) {
 	Audio::Start(instance);
@@ -58,17 +72,23 @@ void finish(not_null<Audio::Instance*> instance) {
 	Audio::Finish(instance);
 }
 
-struct Instance::Streamed {
-	Streamed(
-		AudioMsgId id,
-		std::shared_ptr<Streaming::Document> document);
-
-	AudioMsgId id;
-	Streaming::Instance instance;
-	View::PlaybackProgress progress;
-	bool clearing = false;
-	rpl::lifetime lifetime;
-};
+void SaveLastPlaybackPosition(
+		not_null<DocumentData*> document,
+		const TrackState &state) {
+	const auto time = (state.position == kTimeUnknown
+		|| state.length == kTimeUnknown
+		|| state.state == State::PausedAtEnd
+		|| IsStopped(state.state))
+		? TimeId(0)
+		: (state.length >= kMinLengthForSavePosition * state.frequency)
+		? (state.position / state.frequency) * crl::time(1000)
+		: TimeId(0);
+	auto &session = document->session();
+	if (session.settings().mediaLastPlaybackPosition(document->id) != time) {
+		session.settings().setMediaLastPlaybackPosition(document->id, time);
+		session.saveSettingsDelayed();
+	}
+}
 
 Instance::Streamed::Streamed(
 	AudioMsgId id,
@@ -174,6 +194,9 @@ void Instance::clearStreamed(not_null<Data*> data) {
 		return;
 	}
 	data->streamed->clearing = true;
+	SaveLastPlaybackPosition(
+		data->current.audio(),
+		data->streamed->instance.player().prepareLegacyState());
 	data->streamed->instance.stop();
 	data->isPlaying = false;
 	requestRoundVideoResize();
