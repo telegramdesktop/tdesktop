@@ -46,7 +46,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/Kitware/CMake cmake
     cd cmake
-    git checkout v3.15.3
+    git checkout v3.16.0
     ./bootstrap
     make $MAKE_THREADS_CNT
     sudo make install
@@ -304,7 +304,7 @@ Go to ***BuildPath*** and run
 
 Go to ***BuildPath*/tdesktop/Telegram** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
-    gyp/refresh.sh --api-id YOUR_API_ID --api-hash YOUR_API_HASH
+    ./configure.sh -D TDESKTOP_API_ID=YOUR_API_ID -D TDESKTOP_API_HASH=YOUR_API_HASH -D DESKTOP_APP_USE_PACKAGED=OFF
 
 To make Debug version go to ***BuildPath*/tdesktop/out/Debug** and run
 
@@ -314,6 +314,6 @@ To make Release version go to ***BuildPath*/tdesktop/out/Release** and run
 
     make $MAKE_THREADS_CNT
 
-You can debug your builds from Qt Creator, just open **CMakeLists.txt** from ***BuildPath*/tdesktop/out/Debug** and launch with debug.
+You can debug your builds from Qt Creator, just open ***BuildPath*/tdesktop/CMakeLists.txt**, configure to a separate directory with correct options and launch with debug.
 
 [api_credentials]: api_credentials.md

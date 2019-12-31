@@ -1,7 +1,7 @@
 Building via qmake
 ==================
 
-**NB** These are outdated, please refer to [Building using GYP/CMake][cmake] instructions.
+**NB** These are outdated, please refer to [Building using CMake][cmake] instructions.
 
 The following commands assume the following environment variables are set:
 

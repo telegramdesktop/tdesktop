@@ -164,16 +164,13 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     jom -j4 install
     cd ..
 
-    cd ../tdesktop/Telegram
-    gyp\refresh.bat
-
 ## Build the project
 
-If you want to pass a build define (like `TDESKTOP_DISABLE_AUTOUPDATE` or `TDESKTOP_DISABLE_NETWORK_PROXY`), call `set TDESKTOP_BUILD_DEFINES=TDESKTOP_DISABLE_AUTOUPDATE,TDESKTOP_DISABLE_NETWORK_PROXY,...` (comma seperated string)
+Go to ***BuildPath*\\tdesktop\\Telegram** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
-After, call **gyp\refresh.bat** once again.
+    configure.bat -D TDESKTOP_API_ID=YOUR_API_ID -D TDESKTOP_API_HASH=YOUR_API_HASH -D DESKTOP_APP_USE_PACKAGED=OFF
 
-* Open ***BuildPath*\\tdesktop\\Telegram\\Telegram.sln** in Visual Studio 2019
+* Open ***BuildPath*\\tdesktop\\out\\Telegram.sln** in Visual Studio 2019
 * Select Telegram project and press Build > Build Telegram (Debug and Release configurations)
 * The result Telegram.exe will be located in **D:\TBuild\tdesktop\out\Debug** (and **Release**)
 

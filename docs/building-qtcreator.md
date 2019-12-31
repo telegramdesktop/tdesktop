@@ -1,6 +1,6 @@
 ## Build instructions for Qt Creator 3.5.1 under Ubuntu 12.04
 
-**NB** These are outdated, please refer to [Building using GYP/CMake][cmake] instructions.
+**NB** These are outdated, please refer to [Building using CMake][cmake] instructions.
 
 ### Prepare
 

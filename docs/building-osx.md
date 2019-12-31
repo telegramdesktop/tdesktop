@@ -1,5 +1,7 @@
 ## Build instructions for Xcode 10.1
 
+**NB** These are used for OS X 10.10/10.11 build, after the [Building using Xcode][xcode] instructions.
+
 ### Prepare folder
 
 Choose a folder for the future build, for example **/Users/user/TBuild**. It will be named ***BuildPath*** in the rest of this document. All commands will be launched from Terminal.
@@ -247,10 +249,10 @@ Go to ***BuildPath*** and run
 
 ### Building the project
 
-Go to ***BuildPath*/tdesktop/Telegram** and run
+Go to ***BuildPath*/tdesktop/Telegram** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
-    gyp/refresh.sh
+    ./configure.sh -D TDESKTOP_API_ID=YOUR_API_ID -D TDESKTOP_API_HASH=YOUR_API_HASH -D DESKTOP_APP_USE_PACKAGED=OFF
 
-Then launch Xcode, open ***BuildPath*/tdesktop/Telegram/Telegram.xcodeproj** and build for Debug / Release.
+Then launch Xcode, open ***BuildPath*/tdesktop/out/Telegram.xcodeproj** and build for Debug / Release.
 
 [api_credentials]: api_credentials.md
