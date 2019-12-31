@@ -775,10 +775,10 @@ PUBLIC
     ${tgvoip_loc}
 PRIVATE
     ${tgvoip_loc}/webrtc_dsp
-    ${libs_loc}/opus/include
 )
 
 target_link_libraries(lib_tgvoip
 PRIVATE
     desktop-app::external_openssl
+    desktop-app::external_opus
 )

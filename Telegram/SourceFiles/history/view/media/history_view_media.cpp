@@ -26,8 +26,10 @@ namespace {
 	auto ok1 = true;
 	auto ok2 = true;
 	auto ok3 = true;
+	auto minutes = minutes1.toString();
+	minutes += minutes2;
 	const auto result = (hours.isEmpty() ? 0 : hours.toInt(&ok1)) * 3600
-		+ (minutes1 + minutes2).toInt(&ok2) * 60
+		+ minutes.toInt(&ok2) * 60
 		+ seconds.toInt(&ok3);
 	return (ok1 && ok2 && ok3) ? result : -1;
 }

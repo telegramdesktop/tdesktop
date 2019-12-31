@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "scheme.h"
 #include "base/flags.h"
 
 inline MTPbool MTP_bool(bool v) {
