@@ -1118,7 +1118,7 @@ QPoint SilentToggle::tooltipPos() const {
 }
 
 bool SilentToggle::tooltipWindowActive() const {
-	return InFocusChain(window());
+	return Ui::AppInFocus() && InFocusChain(window());
 }
 
 } // namespace Ui

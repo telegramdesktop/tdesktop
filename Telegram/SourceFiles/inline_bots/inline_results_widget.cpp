@@ -149,7 +149,7 @@ QPoint Inner::tooltipPos() const {
 }
 
 bool Inner::tooltipWindowActive() const {
-	return Ui::InFocusChain(window());
+	return Ui::AppInFocus() && Ui::InFocusChain(window());
 }
 
 Inner::~Inner() = default;

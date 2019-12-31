@@ -266,7 +266,9 @@ private:
 //
 //};
 
-class SilentToggle : public Ui::IconButton, public Ui::AbstractTooltipShower {
+class SilentToggle
+	: public Ui::IconButton
+	, public Ui::AbstractTooltipShower {
 public:
 	SilentToggle(QWidget *parent, not_null<ChannelData*> channel);
 

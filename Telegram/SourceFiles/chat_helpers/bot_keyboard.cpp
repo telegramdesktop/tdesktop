@@ -271,7 +271,7 @@ QPoint BotKeyboard::tooltipPos() const {
 }
 
 bool BotKeyboard::tooltipWindowActive() const {
-	return Ui::InFocusChain(window());
+	return Ui::AppInFocus() && Ui::InFocusChain(window());
 }
 
 QString BotKeyboard::tooltipText() const {

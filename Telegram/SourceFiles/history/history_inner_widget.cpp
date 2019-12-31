@@ -3207,7 +3207,7 @@ QPoint HistoryInner::tooltipPos() const {
 }
 
 bool HistoryInner::tooltipWindowActive() const {
-	return Ui::InFocusChain(window());
+	return Ui::AppInFocus() && Ui::InFocusChain(window());
 }
 
 void HistoryInner::onParentGeometryChanged() {

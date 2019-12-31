@@ -770,7 +770,7 @@ QPoint EmojiListWidget::tooltipPos() const {
 }
 
 bool EmojiListWidget::tooltipWindowActive() const {
-	return Ui::InFocusChain(window());
+	return Ui::AppInFocus() && Ui::InFocusChain(window());
 }
 
 TabbedSelector::InnerFooter *EmojiListWidget::getFooter() const {

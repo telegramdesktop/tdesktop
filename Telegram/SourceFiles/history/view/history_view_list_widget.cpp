@@ -1092,7 +1092,7 @@ QPoint ListWidget::tooltipPos() const {
 }
 
 bool ListWidget::tooltipWindowActive() const {
-	return Ui::InFocusChain(window());
+	return Ui::AppInFocus() && Ui::InFocusChain(window());
 }
 
 Context ListWidget::elementContext() {

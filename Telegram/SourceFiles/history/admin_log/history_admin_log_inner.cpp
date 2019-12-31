@@ -519,7 +519,7 @@ QPoint InnerWidget::tooltipPos() const {
 }
 
 bool InnerWidget::tooltipWindowActive() const {
-	return Ui::InFocusChain(window());
+	return Ui::AppInFocus() && Ui::InFocusChain(window());
 }
 
 HistoryView::Context InnerWidget::elementContext() {
