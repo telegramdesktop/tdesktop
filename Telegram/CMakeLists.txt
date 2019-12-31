@@ -70,7 +70,6 @@ PRIVATE
     tdesktop::lib_mtproto
     tdesktop::lib_scheme
     tdesktop::lib_export
-    tdesktop::lib_tgvoip
     desktop-app::lib_base
     desktop-app::lib_crl
     desktop-app::lib_ui
@@ -85,6 +84,7 @@ PRIVATE
     desktop-app::external_qt
     desktop-app::external_qr_code_generator
     desktop-app::external_auto_updates
+    tdesktop::lib_tgvoip
     desktop-app::external_openssl
     desktop-app::external_opus
     desktop-app::external_openal
