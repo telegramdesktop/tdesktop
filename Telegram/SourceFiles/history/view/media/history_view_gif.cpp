@@ -1339,7 +1339,7 @@ void Gif::startStreamedPlayer() const {
 }
 
 void Gif::checkStreamedIsStarted() const {
-	if (!_streamed) {
+	if (!_streamed || _streamed->instance.playerLocked()) {
 		return;
 	} else if (_streamed->instance.paused()) {
 		_streamed->instance.resume();
