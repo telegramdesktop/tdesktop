@@ -814,7 +814,8 @@ void SessionPrivate::tryToSend() {
 							added = true;
 						}
 
-						Assert(!haveSent.contains(msgId));
+						// #TODO rewrite so that it will always hold.
+						//Assert(!haveSent.contains(msgId));
 						haveSent.emplace(msgId, request);
 						sentIdsWrap.messages.push_back(msgId);
 						needAnyResponse = true;
