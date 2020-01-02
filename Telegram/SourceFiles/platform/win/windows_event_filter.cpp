@@ -238,13 +238,24 @@ bool EventFilter::mainWindowEvent(
 	} return false;
 
 	case WM_COMMAND: {
-		if (HIWORD(wParam)) return false;
+		if (HIWORD(wParam)) {
+			return false;
+		}
 		int cmd = LOWORD(wParam);
 		switch (cmd) {
-		case SC_CLOSE: _window->close(); return true;
-		case SC_MINIMIZE: _window->setWindowState(Qt::WindowMinimized); return true;
-		case SC_MAXIMIZE: _window->setWindowState(Qt::WindowMaximized); return true;
-		case SC_RESTORE: _window->setWindowState(Qt::WindowNoState); return true;
+		case SC_CLOSE:
+			_window->close();
+			return true;
+		case SC_MINIMIZE:
+			_window->setWindowState(
+				_window->windowState() | Qt::WindowMinimized);
+			return true;
+		case SC_MAXIMIZE:
+			_window->setWindowState(Qt::WindowMaximized);
+			return true;
+		case SC_RESTORE:
+			_window->setWindowState(Qt::WindowNoState);
+			return true;
 		}
 	} return true;
 

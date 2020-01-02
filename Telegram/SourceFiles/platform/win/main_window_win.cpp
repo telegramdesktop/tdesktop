@@ -825,7 +825,7 @@ void MainWindow::psFirstShow() {
 			&& cStartMinimized()
 			&& !Core::App().passcodeLocked())) {
 		DEBUG_LOG(("Window Pos: First show, setting minimized after."));
-		setWindowState(Qt::WindowMinimized);
+		setWindowState(windowState() | Qt::WindowMinimized);
 		if (Global::WorkMode().value() == dbiwmTrayOnly
 			|| Global::WorkMode().value() == dbiwmWindowAndTray) {
 			hide();

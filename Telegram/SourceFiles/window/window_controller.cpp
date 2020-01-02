@@ -102,7 +102,7 @@ void Controller::minimize() {
 	if (Global::WorkMode().value() == dbiwmTrayOnly) {
 		_widget.minimizeToTray();
 	} else {
-		_widget.setWindowState(Qt::WindowMinimized);
+		_widget.setWindowState(_widget.windowState() | Qt::WindowMinimized);
 	}
 }
 
