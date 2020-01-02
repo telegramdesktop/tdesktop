@@ -96,7 +96,7 @@ int32 documentColorIndex(DocumentData *document, QString &ext) {
 		? document->mimeString().toLower()
 		: QString();
 	if (name.endsWith(qstr(".doc")) ||
-	    	name.endsWith(qstr(".docx")) ||
+		name.endsWith(qstr(".docx")) ||
 		name.endsWith(qstr(".txt")) ||
 		name.endsWith(qstr(".psd")) ||
 		mime.startsWith(qstr("text/"))) {

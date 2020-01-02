@@ -3492,7 +3492,7 @@ void MainWidget::activate() {
 	if (!_mainSection) {
 		if (_hider) {
 			_dialogs->setInnerFocus();
-        } else if (App::wnd() && !Ui::isLayerShown()) {
+		} else if (App::wnd() && !Ui::isLayerShown()) {
 			if (!cSendPaths().isEmpty()) {
 				const auto interpret = qstr("interpret://");
 				const auto path = cSendPaths()[0];

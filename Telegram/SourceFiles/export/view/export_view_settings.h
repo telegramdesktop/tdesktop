@@ -65,7 +65,7 @@ private:
 		const QString &text,
 		Types types,
 		const QString &about);
- 	void addChatOption(
+	void addChatOption(
 		not_null<Ui::VerticalLayout*> container,
 		const QString &text,
 		Types types);

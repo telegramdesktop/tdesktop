@@ -316,12 +316,12 @@ namespace App {
 	}
 
 	QImage readImage(QByteArray data, QByteArray *format, bool opaque, bool *animated) {
-        QByteArray tmpFormat;
+		QByteArray tmpFormat;
 		QImage result;
 		QBuffer buffer(&data);
-        if (!format) {
-            format = &tmpFormat;
-        }
+		if (!format) {
+			format = &tmpFormat;
+		}
 		{
 			QImageReader reader(&buffer, *format);
 #ifndef OS_MAC_OLD

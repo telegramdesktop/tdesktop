@@ -58,9 +58,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif
 
 #ifndef WM_NCPOINTERUPDATE
-#define WM_NCPOINTERUPDATE              0x0241
-#define WM_NCPOINTERDOWN                0x0242
-#define WM_NCPOINTERUP                  0x0243
+#define WM_NCPOINTERUPDATE 0x0241
+#define WM_NCPOINTERDOWN 0x0242
+#define WM_NCPOINTERUP 0x0243
 #endif
 
 using namespace Microsoft::WRL;
@@ -70,22 +70,23 @@ using namespace Windows::Foundation;
 using namespace Platform;
 
 namespace {
-    QStringList _initLogs;
 
-	bool themeInited = false;
-	bool finished = true;
-	QMargins simpleMargins, margins;
-	HICON bigIcon = 0, smallIcon = 0, overlayIcon = 0;
+QStringList _initLogs;
 
-	class _PsInitializer {
-	public:
-		_PsInitializer() {
-			Dlls::start();
-		}
-	};
-	_PsInitializer _psInitializer;
+bool themeInited = false;
+bool finished = true;
+QMargins simpleMargins, margins;
+HICON bigIcon = 0, smallIcon = 0, overlayIcon = 0;
 
+class _PsInitializer {
+public:
+	_PsInitializer() {
+		Dlls::start();
+	}
 };
+_PsInitializer _psInitializer;
+
+} // namespace
 
 void psDeleteDir(const QString &dir) {
 	std::wstring wDir = QDir::toNativeSeparators(dir).toStdWString();
@@ -131,11 +132,11 @@ namespace {
 }
 
 QStringList psInitLogs() {
-    return _initLogs;
+	return _initLogs;
 }
 
 void psClearInitLogs() {
-    _initLogs = QStringList();
+	_initLogs = QStringList();
 }
 
 void psActivateProcess(uint64 pid) {

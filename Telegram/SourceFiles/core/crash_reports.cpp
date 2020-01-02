@@ -201,13 +201,13 @@ void SignalHandler(int signum) {
 	if (name) {
 		dump() << "Caught signal " << signum << " (" << name << ") in thread " << uint64(thread) << "\n";
 	} else if (signum == -1) {
-        dump() << "Google Breakpad caught a crash, minidump written in thread " << uint64(thread) << "\n";
-        if (BreakpadDumpPath) {
-            dump() << "Minidump: " << BreakpadDumpPath << "\n";
-        } else if (BreakpadDumpPathW) {
-            dump() << "Minidump: " << BreakpadDumpPathW << "\n";
-        }
-    } else {
+		dump() << "Google Breakpad caught a crash, minidump written in thread " << uint64(thread) << "\n";
+		if (BreakpadDumpPath) {
+			dump() << "Minidump: " << BreakpadDumpPath << "\n";
+		} else if (BreakpadDumpPathW) {
+			dump() << "Minidump: " << BreakpadDumpPathW << "\n";
+		}
+	} else {
 		dump() << "Caught signal " << signum << " in thread " << uint64(thread) << "\n";
 	}
 
@@ -246,18 +246,18 @@ void SignalHandler(int signum) {
 #endif
 	}
 
-    void *addresses[132] = { 0 };
+	void *addresses[132] = { 0 };
 	size_t size = backtrace(addresses, 128);
 
 	/* overwrite sigaction with caller's address */
-    if (caller) {
-        for (int i = size; i > 1; --i) {
-            addresses[i + 3] = addresses[i];
-        }
-        addresses[2] = (void*)0x1;
-        addresses[3] = caller;
-        addresses[4] = (void*)0x1;
-    }
+	if (caller) {
+		for (int i = size; i > 1; --i) {
+			addresses[i + 3] = addresses[i];
+		}
+		addresses[2] = (void*)0x1;
+		addresses[3] = caller;
+		addresses[4] = (void*)0x1;
+	}
 
 #ifdef Q_OS_MAC
 	dump() << "\nBase image addresses:\n";
@@ -302,14 +302,14 @@ bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, 
 	CrashLogged = true;
 
 #ifdef Q_OS_WIN
-    BreakpadDumpPathW = _minidump_id;
+	BreakpadDumpPathW = _minidump_id;
 	SignalHandler(-1);
 #else // Q_OS_WIN
 
 #ifdef Q_OS_MAC
-    BreakpadDumpPath = _minidump_id;
+	BreakpadDumpPath = _minidump_id;
 #else // Q_OS_MAC
-    BreakpadDumpPath = md.path();
+	BreakpadDumpPath = md.path();
 #endif // else for Q_OS_MAC
 	SignalHandler(-1, 0, 0);
 #endif // else for Q_OS_WIN
@@ -382,12 +382,13 @@ void StartCatching(not_null<Core::Launcher*> launcher) {
 	crashpad::CrashpadClient crashpad_client;
 	std::string handler = (cExeDir() + cExeName() + qsl("/Contents/Helpers/crashpad_handler")).toUtf8().constData();
 	std::string database = QFile::encodeName(dumpspath).constData();
-	if (crashpad_client.StartHandler(base::FilePath(handler),
-		                                base::FilePath(database),
-		                                std::string(),
-		                                ProcessAnnotations,
-		                                std::vector<std::string>(),
-		                                false)) {
+	if (crashpad_client.StartHandler(
+			base::FilePath(handler),
+			base::FilePath(database),
+			std::string(),
+			ProcessAnnotations,
+			std::vector<std::string>(),
+			false)) {
 		crashpad_client.UseHandler();
 	}
 #endif // else for MAC_USE_BREAKPAD
@@ -580,20 +581,20 @@ const dump &operator<<(const dump &stream, const char *str) {
 }
 
 const dump &operator<<(const dump &stream, const wchar_t *str) {
-    if (!ReportFile) return stream;
+	if (!ReportFile) return stream;
 
-    for (int i = 0, l = wcslen(str); i < l; ++i) {
-        if (
+	for (int i = 0, l = wcslen(str); i < l; ++i) {
+		if (
 #if !defined(__WCHAR_UNSIGNED__)
-            str[i] >= 0 &&
+			str[i] >= 0 &&
 #endif
-            str[i] < 128) {
+			str[i] < 128) {
 			SafeWriteChar(char(str[i]));
-        } else {
+		} else {
 			SafeWriteChar('?');
-        }
-    }
-    return stream;
+		}
+	}
+	return stream;
 }
 
 const dump &operator<<(const dump &stream, int num) {

@@ -96,7 +96,7 @@ class RPCDoneHandlerBare : public RPCAbstractDoneHandler { // done(from, end)
 	using CallbackType = bool (*)(const mtpPrime *, const mtpPrime *);
 
 public:
-    RPCDoneHandlerBare(CallbackType onDone) : _onDone(onDone) {
+	RPCDoneHandlerBare(CallbackType onDone) : _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		return (*_onDone)(from, end);
@@ -111,7 +111,7 @@ class RPCDoneHandlerBareReq : public RPCAbstractDoneHandler { // done(from, end,
 	using CallbackType = bool (*)(const mtpPrime *, const mtpPrime *, mtpRequestId);
 
 public:
-    RPCDoneHandlerBareReq(CallbackType onDone) : _onDone(onDone) {
+	RPCDoneHandlerBareReq(CallbackType onDone) : _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		return (*_onDone)(from, end, requestId);
@@ -127,7 +127,7 @@ class RPCDoneHandlerPlain : public RPCAbstractDoneHandler { // done(result)
 	using CallbackType = TReturn (*)(const TResponse &);
 
 public:
-    RPCDoneHandlerPlain(CallbackType onDone) : _onDone(onDone) {
+	RPCDoneHandlerPlain(CallbackType onDone) : _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		auto response = TResponse();
@@ -148,7 +148,7 @@ class RPCDoneHandlerReq : public RPCAbstractDoneHandler { // done(result, req_id
 	using CallbackType = TReturn (*)(const TResponse &, mtpRequestId);
 
 public:
-    RPCDoneHandlerReq(CallbackType onDone) : _onDone(onDone) {
+	RPCDoneHandlerReq(CallbackType onDone) : _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		auto response = TResponse();
@@ -169,7 +169,7 @@ class RPCDoneHandlerNo : public RPCAbstractDoneHandler { // done()
 	using CallbackType = TReturn (*)();
 
 public:
-    RPCDoneHandlerNo(CallbackType onDone) : _onDone(onDone) {
+	RPCDoneHandlerNo(CallbackType onDone) : _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		(*_onDone)();
@@ -186,7 +186,7 @@ class RPCDoneHandlerNoReq : public RPCAbstractDoneHandler { // done(req_id)
 	using CallbackType = TReturn (*)(mtpRequestId);
 
 public:
-    RPCDoneHandlerNoReq(CallbackType onDone) : _onDone(onDone) {
+	RPCDoneHandlerNoReq(CallbackType onDone) : _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		(*_onDone)(requestId);
@@ -346,7 +346,7 @@ class RPCDoneHandlerBareOwned : public RPCOwnedDoneHandler { // done(from, end)
 	using CallbackType = bool (TReceiver::*)(const mtpPrime *, const mtpPrime *);
 
 public:
-    RPCDoneHandlerBareOwned(TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone) {
+	RPCDoneHandlerBareOwned(TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		return _owner
@@ -364,7 +364,7 @@ class RPCDoneHandlerBareOwnedReq : public RPCOwnedDoneHandler { // done(from, en
 	using CallbackType = bool (TReceiver::*)(const mtpPrime *, const mtpPrime *, mtpRequestId);
 
 public:
-    RPCDoneHandlerBareOwnedReq(TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone) {
+	RPCDoneHandlerBareOwnedReq(TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		return _owner
@@ -382,7 +382,7 @@ class RPCDoneHandlerOwned : public RPCOwnedDoneHandler { // done(result)
 	using CallbackType = TReturn (TReceiver::*)(const TResponse &);
 
 public:
-    RPCDoneHandlerOwned(TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone) {
+	RPCDoneHandlerOwned(TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		auto response = TResponse();
@@ -405,7 +405,7 @@ class RPCDoneHandlerOwnedReq : public RPCOwnedDoneHandler { // done(result, req_
 	using CallbackType = TReturn (TReceiver::*)(const TResponse &, mtpRequestId);
 
 public:
-    RPCDoneHandlerOwnedReq(TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone) {
+	RPCDoneHandlerOwnedReq(TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		auto response = TResponse();
@@ -428,7 +428,7 @@ class RPCDoneHandlerOwnedNo : public RPCOwnedDoneHandler { // done()
 	using CallbackType = TReturn (TReceiver::*)();
 
 public:
-    RPCDoneHandlerOwnedNo(TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone) {
+	RPCDoneHandlerOwnedNo(TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		if (_owner) (static_cast<TReceiver*>(_owner)->*_onDone)();
@@ -445,7 +445,7 @@ class RPCDoneHandlerOwnedNoReq : public RPCOwnedDoneHandler { // done(req_id)
 	using CallbackType = TReturn (TReceiver::*)(mtpRequestId);
 
 public:
-    RPCDoneHandlerOwnedNoReq(TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone) {
+	RPCDoneHandlerOwnedNoReq(TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		if (_owner) (static_cast<TReceiver*>(_owner)->*_onDone)(requestId);
@@ -462,7 +462,7 @@ class RPCBindedDoneHandlerBareOwned : public RPCOwnedDoneHandler { // done(b, fr
 	using CallbackType = bool (TReceiver::*)(T, const mtpPrime *, const mtpPrime *);
 
 public:
-    RPCBindedDoneHandlerBareOwned(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _b(b), _onDone(onDone) {
+	RPCBindedDoneHandlerBareOwned(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _b(b), _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		return _owner
@@ -481,7 +481,7 @@ class RPCBindedDoneHandlerBareOwnedReq : public RPCOwnedDoneHandler { // done(b,
 	using CallbackType = bool (TReceiver::*)(T, const mtpPrime *, const mtpPrime *, mtpRequestId);
 
 public:
-    RPCBindedDoneHandlerBareOwnedReq(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _b(b), _onDone(onDone) {
+	RPCBindedDoneHandlerBareOwnedReq(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _b(b), _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		return _owner
@@ -500,7 +500,7 @@ class RPCBindedDoneHandlerOwned : public RPCOwnedDoneHandler { // done(b, result
 	using CallbackType = TReturn (TReceiver::*)(T, const TResponse &);
 
 public:
-    RPCBindedDoneHandlerOwned(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone), _b(b) {
+	RPCBindedDoneHandlerOwned(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone), _b(b) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		auto response = TResponse();
@@ -524,7 +524,7 @@ class RPCBindedDoneHandlerOwnedReq : public RPCOwnedDoneHandler { // done(b, res
 	using CallbackType = TReturn (TReceiver::*)(T, const TResponse &, mtpRequestId);
 
 public:
-    RPCBindedDoneHandlerOwnedReq(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone), _b(b) {
+	RPCBindedDoneHandlerOwnedReq(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone), _b(b) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		auto response = TResponse();
@@ -548,7 +548,7 @@ class RPCBindedDoneHandlerOwnedNo : public RPCOwnedDoneHandler { // done(b)
 	using CallbackType = TReturn (TReceiver::*)(T);
 
 public:
-    RPCBindedDoneHandlerOwnedNo(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _b(b), _onDone(onDone) {
+	RPCBindedDoneHandlerOwnedNo(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _b(b), _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		if (_owner) (static_cast<TReceiver*>(_owner)->*_onDone)(_b);
@@ -566,7 +566,7 @@ class RPCBindedDoneHandlerOwnedNoReq : public RPCOwnedDoneHandler { // done(b, r
 	using CallbackType = TReturn (TReceiver::*)(T, mtpRequestId);
 
 public:
-    RPCBindedDoneHandlerOwnedNoReq(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _b(b), _onDone(onDone) {
+	RPCBindedDoneHandlerOwnedNoReq(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _b(b), _onDone(onDone) {
 	}
 	bool operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 		if (_owner) (static_cast<TReceiver*>(_owner)->*_onDone)(_b, requestId);

@@ -241,7 +241,7 @@ public:
 
 protected:
 	void resizeEvent(QResizeEvent *e);
-    void closeEvent(QCloseEvent *e);
+	void closeEvent(QCloseEvent *e);
 
 private:
 	PreLaunchLog _log;

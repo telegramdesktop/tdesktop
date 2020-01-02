@@ -33,13 +33,13 @@ inline void finish() {
 
 inline QString psServerPrefix() {
 #ifndef OS_MAC_STORE
-    return qsl("/tmp/");
+	return qsl("/tmp/");
 #else // OS_MAC_STORE
 	return objc_documentsPath();
 #endif // OS_MAC_STORE
 }
 inline void psCheckLocalSocket(const QString &serverName) {
-    QFile address(serverName);
+	QFile address(serverName);
 	if (address.exists()) {
 		address.remove();
 	}
