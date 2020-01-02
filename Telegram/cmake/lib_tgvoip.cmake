@@ -756,7 +756,7 @@ else()
         -Wno-error=sequence-point
         -Wno-error=unused-result
     )
-    if (build_linux32)
+    if (build_linux32 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i686.*|i386.*|x86.*")
         target_compile_options(lib_tgvoip PRIVATE -msse2)
     endif()
     target_compile_definitions(lib_tgvoip
