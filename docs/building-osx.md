@@ -207,7 +207,7 @@ Go to ***BuildPath*** and run
     cd openal-soft
     git checkout v1.19
     cd build
-    CFLAGS='-Werror=unguarded-availability-new' CPPFLAGS='-Werror=unguarded-availability-new' cmake -D -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.10 ..
+    CFLAGS='-Werror=unguarded-availability-new' CPPFLAGS='-Werror=unguarded-availability-new' cmake -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.10 ..
     make $MAKE_THREADS_CNT
     sudo make install
     cd ../..
