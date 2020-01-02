@@ -1,5 +1,6 @@
 @echo OFF
 
+setlocal enabledelayedexpansion
 set "FullScriptPath=%~dp0"
 
 python %FullScriptPath%configure.py %*
