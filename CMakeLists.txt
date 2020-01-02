@@ -10,7 +10,6 @@ cmake_policy(SET CMP0091 NEW)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-include(cmake/variables.cmake)
 include(cmake/version.cmake)
 desktop_app_parse_version(Telegram/build/version)
 
@@ -21,6 +20,9 @@ project(Telegram
     HOMEPAGE_URL "https://desktop.telegram.org"
 )
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Telegram)
+
+# This needs to be after project() is called so CMAKE_SIZEOF_VOID_P is available
+include(cmake/variables.cmake)
 
 include(cmake/nice_target_sources.cmake)
 include(cmake/target_link_static_libraries.cmake)
