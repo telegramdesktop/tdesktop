@@ -1108,9 +1108,9 @@ PRIVATE
     AL_ALEXT_PROTOTYPES
 )
 
-if (${CMAKE_GENERATOR} MATCHES "(Visual Studio|Xcode|Ninja)")
+if ((${CMAKE_GENERATOR} MATCHES "(Visual Studio|Xcode)") OR ((${CMAKE_GENERATOR} MATCHES "(Ninja)") AND NOT ${CMAKE_EXECUTABLE_SUFFIX} STREQUAL ""))
     set(output_folder ${CMAKE_BINARY_DIR})
-elseif((${CMAKE_GENERATOR} MATCHES "(Unix Makefiles)") AND DESKTOP_APP_SPECIAL_TARGET STREQUAL "")
+elseif((${CMAKE_GENERATOR} MATCHES "(Unix Makefiles|Ninja)") AND DESKTOP_APP_SPECIAL_TARGET STREQUAL "")
     set(output_folder ${CMAKE_BINARY_DIR}/bin)
 else()
     set(output_folder ${CMAKE_BINARY_DIR}/$<IF:$<CONFIG:Debug>,Debug,Release>)
