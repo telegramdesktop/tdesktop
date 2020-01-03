@@ -48,6 +48,7 @@ namespace Media {
 namespace View {
 
 class GroupThumbs;
+class Pip;
 
 #if defined Q_OS_MAC && !defined OS_MAC_OLD
 #define USE_OPENGL_OVERLAY_WIDGET
@@ -178,6 +179,7 @@ private:
 	void playbackPauseOnCall();
 	void playbackResumeOnCall();
 	void playbackPauseMusic();
+	void switchToPip();
 
 	void updateOver(QPoint mpos);
 	void moveToScreen(bool force = false);
@@ -239,12 +241,14 @@ private:
 	void showDocument(
 		not_null<DocumentData*> document,
 		HistoryItem *context,
-		const Data::CloudTheme &cloud);
+		const Data::CloudTheme &cloud,
+		bool continueStreaming);
 	void displayPhoto(not_null<PhotoData*> photo, HistoryItem *item);
 	void displayDocument(
 		DocumentData *document,
 		HistoryItem *item,
-		const Data::CloudTheme &cloud = Data::CloudTheme());
+		const Data::CloudTheme &cloud = Data::CloudTheme(),
+		bool continueStreaming = false);
 	void displayFinished();
 	void redisplayContent();
 	void findCurrent();
@@ -258,7 +262,7 @@ private:
 	void refreshClipControllerGeometry();
 	void refreshCaptionGeometry();
 
-	[[nodiscard]] bool initStreaming();
+	[[nodiscard]] bool initStreaming(bool continueStreaming = false);
 	void startStreamingPlayer();
 	void initStreamingThumbnail();
 	void streamingReady(Streaming::Information &&info);
@@ -374,6 +378,7 @@ private:
 	bool _blurred = true;
 
 	std::unique_ptr<Streamed> _streamed;
+	std::unique_ptr<Pip> _pip;
 
 	const style::icon *_docIcon = nullptr;
 	style::color _docIconColor;

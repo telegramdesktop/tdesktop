@@ -672,14 +672,16 @@ PRIVATE
     media/streaming/media_streaming_utility.h
     media/streaming/media_streaming_video_track.cpp
     media/streaming/media_streaming_video_track.h
-    media/view/media_view_playback_controls.cpp
-    media/view/media_view_playback_controls.h
-    media/view/media_view_playback_progress.cpp
-    media/view/media_view_playback_progress.h
     media/view/media_view_group_thumbs.cpp
     media/view/media_view_group_thumbs.h
     media/view/media_view_overlay_widget.cpp
     media/view/media_view_overlay_widget.h
+    media/view/media_view_pip.cpp
+    media/view/media_view_pip.h
+    media/view/media_view_playback_controls.cpp
+    media/view/media_view_playback_controls.h
+    media/view/media_view_playback_progress.cpp
+    media/view/media_view_playback_progress.h
     mtproto/config_loader.cpp
     mtproto/config_loader.h
     mtproto/connection_abstract.cpp

@@ -60,6 +60,10 @@ const Information &Document::info() const {
 	return _info;
 }
 
+not_null<DocumentData*> Document::data() const {
+	return _document;
+}
+
 void Document::play(const PlaybackOptions &options) {
 	_player.play(options);
 	_info.audio.state.position

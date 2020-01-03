@@ -37,6 +37,7 @@ public:
 	~Instance();
 
 	[[nodiscard]] bool valid() const;
+	[[nodiscard]] std::shared_ptr<Document> shared() const;
 
 	[[nodiscard]] const Player &player() const;
 	[[nodiscard]] const Information &info() const;

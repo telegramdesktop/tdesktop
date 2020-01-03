@@ -46,6 +46,10 @@ bool Instance::valid() const {
 	return (_shared != nullptr);
 }
 
+std::shared_ptr<Document> Instance::shared() const {
+	return _shared;
+}
+
 const Player &Instance::player() const {
 	Expects(_shared != nullptr);
 

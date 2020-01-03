@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_group_thumbs.h"
+#include "media/view/media_view_pip.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/player/media_player_instance.h"
@@ -186,13 +187,12 @@ struct OverlayWidget::Collage {
 };
 
 struct OverlayWidget::Streamed {
-	template <typename Callback>
 	Streamed(
 		not_null<DocumentData*> document,
 		Data::FileOrigin origin,
 		QWidget *controlsParent,
 		not_null<PlaybackControls::Delegate*> controlsDelegate,
-		Callback &&loadingCallback);
+		Fn<void()> waitingCallback);
 
 	Streaming::Instance instance;
 	PlaybackControls controls;
@@ -204,14 +204,13 @@ struct OverlayWidget::Streamed {
 	bool resumeOnCallEnd = false;
 };
 
-template <typename Callback>
 OverlayWidget::Streamed::Streamed(
 	not_null<DocumentData*> document,
 	Data::FileOrigin origin,
 	QWidget *controlsParent,
 	not_null<PlaybackControls::Delegate*> controlsDelegate,
-	Callback &&loadingCallback)
-: instance(document, origin, std::forward<Callback>(loadingCallback))
+	Fn<void()> waitingCallback)
+: instance(document, origin, std::move(waitingCallback))
 , controls(controlsParent, controlsDelegate) {
 }
 
@@ -1759,20 +1758,23 @@ void OverlayWidget::showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> co
 	activateControls();
 }
 
-void OverlayWidget::showDocument(not_null<DocumentData*> document, HistoryItem *context) {
-	showDocument(document, context, Data::CloudTheme());
+void OverlayWidget::showDocument(
+		not_null<DocumentData*> document,
+		HistoryItem *context) {
+	showDocument(document, context, Data::CloudTheme(), false);
 }
 
 void OverlayWidget::showTheme(
 		not_null<DocumentData*> document,
 		const Data::CloudTheme &cloud) {
-	showDocument(document, nullptr, cloud);
+	showDocument(document, nullptr, cloud, false);
 }
 
 void OverlayWidget::showDocument(
 		not_null<DocumentData*> document,
 		HistoryItem *context,
-		const Data::CloudTheme &cloud) {
+		const Data::CloudTheme &cloud,
+		bool continueStreaming) {
 	if (context) {
 		setContext(context);
 	} else {
@@ -1783,7 +1785,7 @@ void OverlayWidget::showDocument(
 	_photo = nullptr;
 
 	_streamingStartPaused = false;
-	displayDocument(document, context, cloud);
+	displayDocument(document, context, cloud, continueStreaming);
 	preloadData(0);
 	activateControls();
 }
@@ -1845,7 +1847,8 @@ void OverlayWidget::redisplayContent() {
 void OverlayWidget::displayDocument(
 		DocumentData *doc,
 		HistoryItem *item,
-		const Data::CloudTheme &cloud) {
+		const Data::CloudTheme &cloud,
+		bool continueStreaming) {
 	if (isHidden()) {
 		moveToScreen();
 	}
@@ -1870,7 +1873,7 @@ void OverlayWidget::displayDocument(
 					_doc->dimensions.height());
 			}
 		} else {
-			if (_doc->canBePlayed() && initStreaming()) {
+			if (_doc->canBePlayed() && initStreaming(continueStreaming)) {
 			} else if (_doc->isVideoFile()) {
 				_doc->automaticLoad(fileOrigin(), item);
 				initStreamingThumbnail();
@@ -2001,7 +2004,7 @@ void OverlayWidget::displayFinished() {
 	}
 }
 
-bool OverlayWidget::initStreaming() {
+bool OverlayWidget::initStreaming(bool continueStreaming) {
 	Expects(_doc != nullptr);
 	Expects(_doc->canBePlayed());
 
@@ -2023,16 +2026,29 @@ bool OverlayWidget::initStreaming() {
 		handleStreamingError(std::move(error));
 	}, _streamed->instance.lifetime());
 
-	startStreamingPlayer();
+	if (continueStreaming) {
+		_pip = nullptr;
+	}
+	if (!continueStreaming
+		|| (!_streamed->instance.player().active()
+			&& !_streamed->instance.player().finished())) {
+		startStreamingPlayer();
+	}
 	return true;
 }
 
 void OverlayWidget::startStreamingPlayer() {
 	Expects(_streamed != nullptr);
 
-	if (!_streamed->withSound && _streamed->instance.player().playing()) {
+	if (_streamed->instance.player().playing()) {
+		if (!_streamed->withSound) {
+			return;
+		}
+		_pip = nullptr;
+	} else if (_pip && _streamed->withSound) {
 		return;
 	}
+
 	const auto position = _doc
 		? _doc->session().settings().mediaLastPlaybackPosition(_doc->id)
 		: 0;
@@ -2310,7 +2326,8 @@ void OverlayWidget::playbackPauseResume() {
 		if (!_doc->canBePlayed() || !initStreaming()) {
 			redisplayContent();
 		}
-	} else if (_streamed->instance.player().finished()) {
+	} else if (_streamed->instance.player().finished()
+		|| !_streamed->instance.player().active()) {
 		_streamingStartPaused = false;
 		restartAtSeekPosition(0);
 	} else if (_streamed->instance.player().paused()) {
@@ -2338,6 +2355,8 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	if (!_streamed->withSound) {
 		options.mode = Streaming::Mode::Video;
 		options.loop = true;
+	} else if (_pip) {
+		_pip = nullptr;
 	}
 	_streamed->instance.play(options);
 	if (_streamingStartPaused) {
@@ -2379,8 +2398,32 @@ float64 OverlayWidget::playbackControlsCurrentVolume() {
 	return Global::VideoVolume();
 }
 
+void OverlayWidget::switchToPip() {
+	const auto document = _doc;
+	const auto msgId = _msgid;
+	_pip = std::make_unique<Pip>(_streamed->instance.shared(), [=] {
+		showDocument(_doc, Auth().data().message(msgId), {}, true);
+	});
+	_pip->move(0, 0);
+	_pip->show();
+	_pip->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return (e->type() == QEvent::Close);
+	}) | rpl::start_with_next([=] {
+		crl::on_main(_pip.get(), [=] {
+			_pip = nullptr;
+		});
+	}, _pip->lifetime());
+	close();
+}
+
 void OverlayWidget::playbackToggleFullScreen() {
 	Expects(_streamed != nullptr);
+
+	if (!videoIsGifv() && !_fullScreenVideo) {
+		switchToPip();
+		return;
+	}
 
 	if (!videoShown() || (videoIsGifv() && !_fullScreenVideo)) {
 		return;

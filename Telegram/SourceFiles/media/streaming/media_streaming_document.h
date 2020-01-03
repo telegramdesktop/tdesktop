@@ -31,6 +31,7 @@ public:
 	[[nodiscard]] Player &player();
 	[[nodiscard]] const Player &player() const;
 	[[nodiscard]] const Information &info() const;
+	[[nodiscard]] not_null<DocumentData*> data() const;
 
 	[[nodiscard]] bool waitingShown() const;
 	[[nodiscard]] float64 waitingOpacity() const;
