@@ -488,11 +488,8 @@ void EditCaptionBox::updateEditMediaButton() {
 
 void EditCaptionBox::createEditMediaButton() {
 	const auto callback = [=](FileDialog::OpenResult &&result) {
-		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
-			return;
-		}
 
-		const auto isValidFile = [](QString mimeType) {
+		auto isValidFile = [](QString mimeType) {
 			if (mimeType == qstr("image/webp")) {
 				Ui::show(
 					Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
@@ -502,73 +499,21 @@ void EditCaptionBox::createEditMediaButton() {
 			return true;
 		};
 
-		if (!result.remoteContent.isEmpty()) {
+		auto list = Storage::PreparedList::EditedPreparedFile(
+			std::move(result),
+			_isAlbum,
+			[] {
+				Ui::show(
+					Box<InformBox>(tr::lng_edit_media_album_error(tr::now)),
+					Ui::LayerOption::KeepOther);
+			},
+			std::move(isValidFile),
+			st::sendMediaPreviewSize);
 
-			auto list = Storage::PrepareMediaFromImage(
-				QImage(),
-				std::move(result.remoteContent),
-				st::sendMediaPreviewSize);
-
-			if (!isValidFile(list.files.front().mime)) {
-				return;
-			}
-
-			if (_isAlbum) {
-				const auto albumMimes = {
-					"image/jpeg",
-					"image/png",
-					"video/mp4",
-				};
-				const auto file = &list.files.front();
-				if (ranges::find(albumMimes, file->mime) == end(albumMimes)
-					|| file->type == Storage::PreparedFile::AlbumType::None) {
-					Ui::show(
-						Box<InformBox>(tr::lng_edit_media_album_error(tr::now)),
-						Ui::LayerOption::KeepOther);
-					return;
-				}
-			}
-
-			_preparedList = std::move(list);
-		} else if (!result.paths.isEmpty()) {
-			auto list = Storage::PrepareMediaList(
-				QStringList(result.paths.front()),
-				st::sendMediaPreviewSize);
-
-			// Don't rewrite _preparedList if new list is not valid for album.
-			if (_isAlbum) {
-				using Info = FileMediaInformation;
-
-				const auto media = &list.files.front().information->media;
-				const auto valid = media->match([&](const Info::Image &data) {
-					return Storage::ValidateThumbDimensions(
-						data.data.width(),
-						data.data.height())
-						&& !data.animated;
-				}, [&](Info::Video &data) {
-					data.isGifv = false;
-					return true;
-				}, [](auto &&other) {
-					return false;
-				});
-				if (!valid) {
-					Ui::show(
-						Box<InformBox>(tr::lng_edit_media_album_error(tr::now)),
-						Ui::LayerOption::KeepOther);
-					return;
-				}
-			}
-			const auto info = QFileInfo(result.paths.front());
-			if (!isValidFile(Core::MimeTypeForFile(info).name())) {
-				return;
-			}
-
-			_preparedList = std::move(list);
-		} else {
-			return;
+		if (list) {
+			_preparedList = std::move(*list);
+			updateEditPreview();
 		}
-
-		updateEditPreview();
 	};
 
 	const auto buttonCallback = [=] {

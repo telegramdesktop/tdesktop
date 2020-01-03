@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "core/file_utilities.h"
+
 struct FileMediaInformation;
 
 namespace Storage {
@@ -59,6 +61,12 @@ struct PreparedList {
 	static PreparedList Reordered(
 		PreparedList &&list,
 		std::vector<int> order);
+	static std::optional<PreparedList> EditedPreparedFile(
+		FileDialog::OpenResult &&result,
+		bool isAlbum,
+		Fn<void()> errorCallback,
+		Fn<bool(QString)> isValidFileCallback,
+		int previewWidth);
 	void mergeToEnd(PreparedList &&other);
 
 	bool canAddCaption(bool isAlbum, bool compressImages) const;

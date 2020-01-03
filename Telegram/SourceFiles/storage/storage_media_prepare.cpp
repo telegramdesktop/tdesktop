@@ -278,6 +278,79 @@ PreparedList PrepareMediaFromImage(
 	return result;
 }
 
+std::optional<PreparedList> PreparedList::EditedPreparedFile(
+		FileDialog::OpenResult &&result,
+		bool isAlbum,
+		Fn<void()> errorCallback,
+		Fn<bool(QString)> isValidFileCallback,
+		int previewWidth) {
+	if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+		return std::nullopt;
+	}
+
+	if (!result.remoteContent.isEmpty()) {
+
+		auto list = Storage::PrepareMediaFromImage(
+			QImage(),
+			std::move(result.remoteContent),
+			previewWidth);
+
+		if (!isValidFileCallback(list.files.front().mime)) {
+			return std::nullopt;
+		}
+
+		if (isAlbum) {
+			const auto albumMimes = {
+				"image/jpeg",
+				"image/png",
+				"video/mp4",
+			};
+			const auto file = &list.files.front();
+			if (ranges::find(albumMimes, file->mime) == end(albumMimes)
+				|| file->type == Storage::PreparedFile::AlbumType::None) {
+				errorCallback();
+				return std::nullopt;
+			}
+		}
+		Expects(list.files.size() == 1);
+		return std::move(list);
+	} else if (!result.paths.isEmpty()) {
+		auto list = Storage::PrepareMediaList(
+			QStringList(result.paths.front()),
+			previewWidth);
+
+		// Don't rewrite _preparedList if a new list is not valid for album.
+		if (isAlbum) {
+			using Info = FileMediaInformation;
+
+			const auto media = &list.files.front().information->media;
+			const auto valid = media->match([&](const Info::Image &data) {
+				return Storage::ValidateThumbDimensions(
+					data.data.width(),
+					data.data.height())
+					&& !data.animated;
+			}, [&](Info::Video &data) {
+				data.isGifv = false;
+				return true;
+			}, [](auto &&other) {
+				return false;
+			});
+			if (!valid) {
+				errorCallback();
+				return std::nullopt;
+			}
+		}
+		const auto info = QFileInfo(result.paths.front());
+		if (!isValidFileCallback(Core::MimeTypeForFile(info).name())) {
+			return std::nullopt;
+		}
+
+		Expects(list.files.size() == 1);
+		return std::move(list);
+	}
+	return std::nullopt;
+}
+
 PreparedList PreparedList::Reordered(
 		PreparedList &&list,
 		std::vector<int> order) {
