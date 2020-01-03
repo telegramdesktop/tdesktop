@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "window/window_controller.h"
 #include "styles/style_window.h"
+#include "styles/style_mediaview.h"
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
@@ -22,6 +23,14 @@ namespace View {
 namespace {
 
 constexpr auto kPipLoaderPriority = 2;
+
+[[nodiscard]] QRect ScreenFromPosition(QPoint point) {
+	const auto screen = QGuiApplication::screenAt(point);
+	const auto use = screen ? screen : QGuiApplication::primaryScreen();
+	return use
+		? use->availableGeometry()
+		: QRect(0, 0, st::windowDefaultWidth, st::windowDefaultHeight);
+}
 
 } // namespace
 
@@ -66,11 +75,13 @@ void Pip::setupSize() {
 			? QSize(_size.width() * fit.height() / _size.height(), fit.height())
 			: QSize(fit.width(), _size.height() * fit.width() / _size.width());
 	}
-	resize(_size);
-
-	auto policy = QSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-	policy.setHeightForWidth(true);
-	setSizePolicy(policy);
+	const auto skip = st::pipBorderSkip;
+	setGeometry({
+		available.x() + skip,
+		available.y() + skip,
+		_size.width(),
+		_size.height()
+	});
 }
 
 void Pip::setupStreaming() {
@@ -166,6 +177,8 @@ void Pip::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	} else if (!base::take(_dragStartPosition)) {
 		playbackPauseResume();
+	} else {
+		finishDrag(e->globalPos());
 	}
 }
 
@@ -207,11 +220,98 @@ void Pip::playbackPauseResume() {
 	}
 }
 
+[[nodiscard]] QPoint ClampToEdges(QRect screen, QRect inner) {
+	const auto skip = st::pipBorderSkip;
+	const auto area = st::pipBorderSnapArea;
+	const auto sleft = screen.x() + skip;
+	const auto stop = screen.y() + skip;
+	const auto sright = screen.x() + screen.width() - skip;
+	const auto sbottom = screen.y() + screen.height() - skip;
+	const auto ileft = inner.x();
+	const auto itop = inner.y();
+	const auto iright = inner.x() + inner.width();
+	const auto ibottom = inner.y() + inner.height();
+	auto shiftx = 0;
+	auto shifty = 0;
+	if (iright + shiftx >= sright - area && iright + shiftx < sright + area) {
+		shiftx += (sright - iright);
+	}
+	if (ileft + shiftx >= sleft - area && ileft + shiftx < sleft + area) {
+		shiftx += (sleft - ileft);
+	}
+	if (ibottom + shifty >= sbottom - area && ibottom + shifty < sbottom + area) {
+		shifty += (sbottom - ibottom);
+	}
+	if (itop + shifty >= stop - area && itop + shifty < stop + area) {
+		shifty += (stop - itop);
+	}
+	return inner.topLeft() + QPoint(shiftx, shifty);
+}
+
 void Pip::updatePosition(QPoint point) {
 	Expects(_dragStartPosition.has_value());
 
 	const auto position = *_dragStartPosition + (point - *_pressPoint);
-	move(position);
+	const auto screen = ScreenFromPosition(point);
+	const auto clamped = ClampToEdges(screen, QRect(position, size()));
+	if (clamped != position) {
+		moveAnimated(clamped);
+	} else {
+		_positionAnimation.stop();
+		move(position);
+	}
+}
+
+void Pip::finishDrag(QPoint point) {
+	const auto screen = ScreenFromPosition(point);
+	const auto position = pos();
+	const auto clamped = [&] {
+		auto result = position;
+		if (result.x() > screen.x() + screen.width() - width()) {
+			result.setX(screen.x() + screen.width() - width());
+		}
+		if (result.x() < screen.x()) {
+			result.setX(screen.x());
+		}
+		if (result.y() > screen.y() + screen.height() - height()) {
+			result.setY(screen.y() + screen.height() - height());
+		}
+		if (result.y() < screen.y()) {
+			result.setY(screen.y());
+		}
+		return result;
+	}();
+	if (position != clamped) {
+		moveAnimated(clamped);
+	} else {
+		_positionAnimation.stop();
+	}
+}
+
+void Pip::updatePositionAnimated() {
+	const auto progress = _positionAnimation.value(1.);
+	if (!_positionAnimation.animating()) {
+		move(_positionAnimationTo);
+		return;
+	}
+	const auto from = QPointF(_positionAnimationFrom);
+	const auto to = QPointF(_positionAnimationTo);
+	move((from + (to - from) * progress).toPoint());
+}
+
+void Pip::moveAnimated(QPoint to) {
+	if (_positionAnimation.animating() && _positionAnimationTo == to) {
+		return;
+	}
+	_positionAnimationTo = to;
+	_positionAnimationFrom = pos();
+	_positionAnimation.stop();
+	_positionAnimation.start(
+		[=] { updatePositionAnimated(); },
+		0.,
+		1.,
+		st::slideWrapDuration,
+		anim::easeOutCirc);
 }
 
 QImage Pip::videoFrame() const {

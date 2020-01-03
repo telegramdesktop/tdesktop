@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "media/streaming/media_streaming_instance.h"
+#include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
 namespace Media {
@@ -40,10 +41,13 @@ private:
 	void setupSize();
 	void setupStreaming();
 	void playbackPauseResume();
+	void finishDrag(QPoint point);
 	void updatePosition(QPoint point);
 	void waitingAnimationCallback();
 	void handleStreamingUpdate(Streaming::Update &&update);
 	void handleStreamingError(Streaming::Error &&error);
+	void updatePositionAnimated();
+	void moveAnimated(QPoint to);
 
 	[[nodiscard]] QImage videoFrame() const;
 	[[nodiscard]] QImage videoFrameForDirectPaint() const;
@@ -53,6 +57,10 @@ private:
 	std::optional<QPoint> _pressPoint;
 	std::optional<QPoint> _dragStartPosition;
 	FnMut<void()> _closeAndContinue;
+
+	QPoint _positionAnimationFrom;
+	QPoint _positionAnimationTo;
+	Ui::Animations::Simple _positionAnimation;
 
 };
 

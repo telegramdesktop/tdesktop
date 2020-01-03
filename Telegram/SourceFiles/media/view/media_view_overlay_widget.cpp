@@ -2404,7 +2404,6 @@ void OverlayWidget::switchToPip() {
 	_pip = std::make_unique<Pip>(_streamed->instance.shared(), [=] {
 		showDocument(_doc, Auth().data().message(msgId), {}, true);
 	});
-	_pip->move(0, 0);
 	_pip->show();
 	_pip->events(
 	) | rpl::filter([=](not_null<QEvent*> e) {

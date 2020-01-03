@@ -209,5 +209,4 @@ themePreviewButtonsSkip: 20px;
 themePreviewDialogsWidth: 312px;
 
 pipBorderSkip: 20px;
-pipBorderSnapArea: 10px;
-pip
+pipBorderSnapArea: 16px;
