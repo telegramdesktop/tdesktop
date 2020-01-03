@@ -960,6 +960,10 @@ public:
 	void setSendWay(SendFilesWay way);
 	std::vector<int> takeOrder();
 
+	auto thumbDeleted() {
+		return _thumbDeleted.events();
+	}
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -974,6 +978,8 @@ private:
 	void prepareThumbs();
 	void updateSizeAnimated(const std::vector<Ui::GroupMediaLayout> &layout);
 	void updateSize();
+
+	void deleteThumbUnderCursor();
 
 	void paintAlbum(Painter &p) const;
 	void paintPhotos(Painter &p, QRect clip) const;
@@ -1002,6 +1008,8 @@ private:
 	AlbumThumb *_suggestedThumb = nullptr;
 	AlbumThumb *_paintedAbove = nullptr;
 	QPoint _draggedStartPosition;
+
+	rpl::event_stream<int> _thumbDeleted;
 
 	mutable Ui::Animations::Simple _thumbsHeightAnimation;
 	mutable Ui::Animations::Simple _shrinkAnimation;
@@ -1277,6 +1285,27 @@ void SendFilesBox::AlbumPreview::paintFiles(Painter &p, QRect clip) const {
 	}
 }
 
+void SendFilesBox::AlbumPreview::deleteThumbUnderCursor() {
+	const auto thumb = findThumb(mapFromGlobal(QCursor::pos()));
+	if (!thumb) {
+		return;
+	}
+	const auto thumbIt = ranges::find_if(_thumbs, [&](auto &t) {
+		return t.get() == thumb;
+	});
+	const auto index = std::distance(_thumbs.begin(), thumbIt);
+	const auto orderIt = ranges::find(_order, index);
+	Expects(orderIt != _order.end());
+
+	_order.erase(orderIt);
+	for (auto i = orderIt; i != _order.end(); i++) {
+		if ((*i) > index) {
+			(*i)--;
+		}
+	}
+	_thumbDeleted.fire(index);
+}
+
 void SendFilesBox::AlbumPreview::mousePressEvent(QMouseEvent *e) {
 	if (_finishDragAnimation.animating()) {
 		return;
@@ -1442,6 +1471,32 @@ void SendFilesBox::prepareAlbumPreview() {
 		this,
 		_list,
 		_sendWay->value()));
+
+	_albumPreview->thumbDeleted(
+	) | rpl::start_with_next([=](auto index) {
+
+		_list.files.erase(_list.files.begin() + index);
+		applyAlbumOrder();
+
+		if (_preview) {
+			_preview->deleteLater();
+		}
+		_albumPreview = nullptr;
+
+		if (_list.files.size() == 1) {
+			_list.albumIsPossible = false;
+			if (_sendWay->value() == SendFilesWay::Album) {
+				_sendWay->setValue(SendFilesWay::Photos);
+			}
+		}
+
+		_compressConfirm = _compressConfirmInitial;
+		refreshAlbumMediaCount();
+		preparePreview();
+		captionResized();
+
+	}, _albumPreview->lifetime());
+
 	_preview = wrap;
 	_albumPreview->show();
 	setupShadows(wrap, _albumPreview);
