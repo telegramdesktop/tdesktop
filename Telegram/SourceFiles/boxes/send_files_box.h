@@ -120,6 +120,8 @@ private:
 	void updateControlsGeometry();
 	void updateCaptionPlaceholder();
 
+	void addThumbButtonHandlers();
+
 	bool canAddFiles(not_null<const QMimeData*> data) const;
 	bool canAddUrls(const QList<QUrl> &urls) const;
 	bool addFiles(not_null<const QMimeData*> data);

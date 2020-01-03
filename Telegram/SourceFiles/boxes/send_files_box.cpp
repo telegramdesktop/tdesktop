@@ -979,6 +979,7 @@ private:
 	void updateSizeAnimated(const std::vector<Ui::GroupMediaLayout> &layout);
 	void updateSize();
 
+	int thumbIndexUnderCursor();
 	void deleteThumbUnderCursor();
 
 	void paintAlbum(Painter &p) const;
@@ -1285,25 +1286,33 @@ void SendFilesBox::AlbumPreview::paintFiles(Painter &p, QRect clip) const {
 	}
 }
 
-void SendFilesBox::AlbumPreview::deleteThumbUnderCursor() {
+int SendFilesBox::AlbumPreview::thumbIndexUnderCursor() {
 	const auto thumb = findThumb(mapFromGlobal(QCursor::pos()));
 	if (!thumb) {
-		return;
+		return -1;
 	}
 	const auto thumbIt = ranges::find_if(_thumbs, [&](auto &t) {
 		return t.get() == thumb;
 	});
-	const auto index = std::distance(_thumbs.begin(), thumbIt);
+	Expects(thumbIt != _thumbs.end());
+	return std::distance(_thumbs.begin(), thumbIt);
+}
+
+void SendFilesBox::AlbumPreview::deleteThumbUnderCursor() {
+	auto index = thumbIndexUnderCursor();
+	if (index < 0) {
+		return;
+	}
 	const auto orderIt = ranges::find(_order, index);
 	Expects(orderIt != _order.end());
 
 	_order.erase(orderIt);
-	for (auto i = orderIt; i != _order.end(); i++) {
-		if ((*i) > index) {
-			(*i)--;
+	ranges::for_each(_order, [=](auto &i) {
+		if (i > index) {
+			i--;
 		}
-	}
-	_thumbDeleted.fire(index);
+	});
+	_thumbDeleted.fire(std::move(index));
 }
 
 void SendFilesBox::AlbumPreview::mousePressEvent(QMouseEvent *e) {
@@ -1472,6 +1481,16 @@ void SendFilesBox::prepareAlbumPreview() {
 		_list,
 		_sendWay->value()));
 
+	addThumbButtonHandlers();
+
+	_preview = wrap;
+	_albumPreview->show();
+	setupShadows(wrap, _albumPreview);
+
+	initPreview(_albumPreview->desiredHeightValue());
+}
+
+void SendFilesBox::addThumbButtonHandlers() {
 	_albumPreview->thumbDeleted(
 	) | rpl::start_with_next([=](auto index) {
 
@@ -1497,11 +1516,6 @@ void SendFilesBox::prepareAlbumPreview() {
 
 	}, _albumPreview->lifetime());
 
-	_preview = wrap;
-	_albumPreview->show();
-	setupShadows(wrap, _albumPreview);
-
-	initPreview(_albumPreview->desiredHeightValue());
 }
 
 void SendFilesBox::setupShadows(
