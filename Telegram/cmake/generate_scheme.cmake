@@ -5,6 +5,8 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 function(generate_scheme target_name script scheme_files)
+    find_package(Python REQUIRED)
+
     set(gen_dst ${CMAKE_CURRENT_BINARY_DIR}/gen)
     file(MAKE_DIRECTORY ${gen_dst})
 
@@ -22,7 +24,7 @@ function(generate_scheme target_name script scheme_files)
     BYPRODUCTS
         ${gen_files}
     COMMAND
-        python
+        ${Python_EXECUTABLE}
         ${script}
         -o${gen_dst}/scheme
         ${scheme_files}

@@ -27,12 +27,12 @@ include(cmake/generate_numbers.cmake)
 get_filename_component(src_loc SourceFiles REALPATH)
 get_filename_component(res_loc Resources REALPATH)
 
+include(cmake/telegram_options.cmake)
 include(cmake/lib_export.cmake)
 include(cmake/lib_ffmpeg.cmake)
 include(cmake/lib_mtproto.cmake)
 include(cmake/lib_scheme.cmake)
 include(cmake/lib_tgvoip.cmake)
-include(cmake/telegram_options.cmake)
 
 set(style_files
     boxes/boxes.style
@@ -65,6 +65,17 @@ generate_numbers(Telegram ${res_loc}/numbers.txt)
 
 set_target_properties(Telegram PROPERTIES AUTOMOC ON AUTORCC ON)
 
+if (DESKTOP_APP_USE_PACKAGED)
+    set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+    find_package(Threads)
+
+    target_link_libraries(Telegram
+    PRIVATE
+        ${CMAKE_DL_LIBS}
+        Threads::Threads
+    )
+endif()
+
 target_link_libraries(Telegram
 PRIVATE
     tdesktop::lib_mtproto
@@ -83,15 +94,15 @@ PRIVATE
     desktop-app::external_zlib
     desktop-app::external_qt
     desktop-app::external_qr_code_generator
+    desktop-app::external_crash_reports
     desktop-app::external_auto_updates
     tdesktop::lib_tgvoip
     desktop-app::external_openssl
-    desktop-app::external_opus
     desktop-app::external_openal
 )
 
-if (NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
-    target_link_libraries(Telegram PRIVATE desktop-app::external_crash_reports)
+if (NOT DESKTOP_APP_USE_PACKAGED)
+    target_link_libraries(Telegram PRIVATE desktop-app::external_opus)
 endif()
 
 target_precompile_headers(Telegram PRIVATE ${src_loc}/stdafx.h)
@@ -936,10 +947,15 @@ PRIVATE
     mainwindow.h
     observer_peer.cpp
     observer_peer.h
-    qt_static_plugins.cpp
     settings.cpp
     settings.h
 )
+
+if (DESKTOP_APP_USE_PACKAGED)
+    nice_target_sources(Telegram ${src_loc} PRIVATE qt_functions.cpp)
+else()
+    nice_target_sources(Telegram ${src_loc} PRIVATE qt_static_plugins.cpp)
+endif()
 
 nice_target_sources(Telegram ${res_loc}
 PRIVATE
@@ -1018,9 +1034,14 @@ elseif (LINUX)
     if (NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
         find_package(PkgConfig REQUIRED)
 
-        pkg_check_modules(GTK2 REQUIRED gtk+-2.0)
-        target_include_directories(Telegram PRIVATE ${GTK2_INCLUDE_DIRS})
+        pkg_search_module(GTK REQUIRED gtk+-2.0 gtk+-3.0)
+        target_include_directories(Telegram PRIVATE ${GTK_INCLUDE_DIRS})
         target_compile_options(Telegram PRIVATE -Wno-register)
+
+        if (DESKTOP_APP_USE_PACKAGED)
+            find_library(X11_LIBRARY X11)
+            target_link_libraries(Telegram PRIVATE ${X11_LIBRARY})
+        endif()
 
         set(appindicator_packages
             ayatana-appindicator3-0.1
@@ -1094,23 +1115,26 @@ set(entitlement_sources
 target_sources(Telegram PRIVATE ${entitlement_sources})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/Telegram PREFIX Resources FILES ${entitlement_sources})
 
-target_include_directories(Telegram
-PRIVATE
-    ${src_loc}
-    ${third_party_loc}/minizip
-)
+target_include_directories(Telegram PRIVATE ${src_loc})
+
+if (NOT DESKTOP_APP_USE_PACKAGED)
+    target_include_directories(Telegram PRIVATE ${third_party_loc}/minizip)
+endif()
 
 target_compile_definitions(Telegram
 PRIVATE
     TDESKTOP_API_ID=${TDESKTOP_API_ID}
     TDESKTOP_API_HASH=${TDESKTOP_API_HASH}
-    AL_LIBTYPE_STATIC
     AL_ALEXT_PROTOTYPES
 )
 
-if ((${CMAKE_GENERATOR} MATCHES "(Visual Studio|Xcode)") OR ((${CMAKE_GENERATOR} MATCHES "(Ninja)") AND NOT ${CMAKE_EXECUTABLE_SUFFIX} STREQUAL ""))
+if (NOT DESKTOP_APP_USE_PACKAGED)
+    target_compile_definitions(Telegram PRIVATE AL_LIBTYPE_STATIC)
+endif()
+
+if (${CMAKE_GENERATOR} MATCHES "(Visual Studio|Xcode)")
     set(output_folder ${CMAKE_BINARY_DIR})
-elseif((${CMAKE_GENERATOR} MATCHES "(Unix Makefiles|Ninja)") AND DESKTOP_APP_SPECIAL_TARGET STREQUAL "")
+elseif (DESKTOP_APP_SPECIAL_TARGET STREQUAL "")
     set(output_folder ${CMAKE_BINARY_DIR}/bin)
 else()
     set(output_folder ${CMAKE_BINARY_DIR}/$<IF:$<CONFIG:Debug>,Debug,Release>)
@@ -1118,7 +1142,7 @@ endif()
 
 set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
-if (NOT build_macstore AND NOT build_winstore)
+if ((NOT disable_autoupdate OR NOT LINUX) AND NOT build_macstore AND NOT build_winstore)
     add_executable(Updater WIN32)
     init_target(Updater)
 
