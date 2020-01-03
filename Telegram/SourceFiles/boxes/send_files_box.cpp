@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "confirm_box.h"
 #include "history/view/history_view_schedule_box.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
@@ -964,6 +965,10 @@ public:
 		return _thumbDeleted.events();
 	}
 
+	auto thumbChanged() {
+		return _thumbChanged.events();
+	}
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -981,6 +986,7 @@ private:
 
 	int thumbIndexUnderCursor();
 	void deleteThumbUnderCursor();
+	void changeThumbUnderCursor();
 
 	void paintAlbum(Painter &p) const;
 	void paintPhotos(Painter &p, QRect clip) const;
@@ -1011,6 +1017,7 @@ private:
 	QPoint _draggedStartPosition;
 
 	rpl::event_stream<int> _thumbDeleted;
+	rpl::event_stream<int> _thumbChanged;
 
 	mutable Ui::Animations::Simple _thumbsHeightAnimation;
 	mutable Ui::Animations::Simple _shrinkAnimation;
@@ -1315,6 +1322,14 @@ void SendFilesBox::AlbumPreview::deleteThumbUnderCursor() {
 	_thumbDeleted.fire(std::move(index));
 }
 
+void SendFilesBox::AlbumPreview::changeThumbUnderCursor() {
+	auto index = thumbIndexUnderCursor();
+	if (index < -1) {
+		return;
+	}
+	_thumbChanged.fire(std::move(index));
+}
+
 void SendFilesBox::AlbumPreview::mousePressEvent(QMouseEvent *e) {
 	if (_finishDragAnimation.animating()) {
 		return;
@@ -1443,7 +1458,8 @@ void SendFilesBox::initPreview(rpl::producer<int> desiredPreviewHeight) {
 	) | rpl::start_with_next([=](int height) {
 		setDimensions(
 			st::boxWideWidth,
-			std::min(st::sendMediaPreviewHeightMax, height));
+			std::min(st::sendMediaPreviewHeightMax, height),
+			true);
 	}, lifetime());
 
 	if (_preview) {
@@ -1516,6 +1532,57 @@ void SendFilesBox::addThumbButtonHandlers() {
 
 	}, _albumPreview->lifetime());
 
+	_albumPreview->thumbChanged(
+	) | rpl::start_with_next([=](auto index) {
+
+		const auto callback = [=](FileDialog::OpenResult &&result) {
+			auto isValidFile = [](QString mimeType) {
+				if (mimeType != qstr("image/webp")) {
+					return true;
+				}
+				Ui::show(
+					Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
+					Ui::LayerOption::KeepOther);
+				return false;
+			};
+
+			auto errorCallback = [] {
+				Ui::show(
+					Box<InformBox>(tr::lng_edit_media_album_error(tr::now)),
+					Ui::LayerOption::KeepOther);
+			};
+
+			auto list = Storage::PreparedList::EditedPreparedFile(
+				std::move(result),
+				true,
+				std::move(errorCallback),
+				std::move(isValidFile),
+				st::sendMediaPreviewSize);
+
+			if (!list) {
+				return;
+			}
+
+			_list.files[index] = std::move((*list).files.front());
+			applyAlbumOrder();
+
+			if (_preview) {
+				_preview->deleteLater();
+			}
+			_albumPreview = nullptr;
+
+			refreshAlbumMediaCount();
+			preparePreview();
+			captionResized();
+		};
+
+		FileDialog::GetOpenPath(
+			this,
+			tr::lng_choose_file(tr::now),
+			qsl("Image and Video Files (*.png *.jpg *.mp4)"),
+			crl::guard(this, callback));
+
+	}, _albumPreview->lifetime());
 }
 
 void SendFilesBox::setupShadows(
