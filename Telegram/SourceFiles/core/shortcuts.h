@@ -35,6 +35,8 @@ enum class Command {
 	ChatPinned4,
 	ChatPinned5,
 
+	ShowArchive,
+
 	SupportReloadTemplates,
 	SupportToggleMuted,
 	SupportScrollToCurrent,
