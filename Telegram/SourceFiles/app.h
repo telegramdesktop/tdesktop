@@ -63,6 +63,8 @@ enum RoundCorners : int {
 	MessageOutCorners,
 	MessageOutSelectedCorners,
 
+	SendFilesBoxAlbumGroupCorners,
+
 	RoundCornersCount
 };
 

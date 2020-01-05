@@ -514,6 +514,27 @@ editMediaButton: IconButton {
 	ripple: defaultRippleAnimation;
 }
 
+// SendFilesBox
+
+sendBoxAlbumGroupEditInternalSkip: 9px;
+sendBoxAlbumGroupSkipRight: 6px;
+sendBoxAlbumGroupSkipTop: 6px;
+sendBoxAlbumGroupRadius: 12px;
+sendBoxAlbumGroupHeight: 25px;
+sendBoxAlbumGroupClickArea: 34px;
+
+sendBoxAlbumGroupEditButtonIcon: icon {{ "settings_edit", msgServiceFg }};
+sendBoxAlbumGroupEditButtonIconPosition: point(4px, -1px);
+sendBoxAlbumGroupButton: IconButton {
+	width: sendBoxAlbumGroupClickArea;
+	height: sendBoxAlbumGroupClickArea;
+}
+
+sendBoxAlbumGroupDeleteButtonIcon: icon {{ "history_file_cancel", msgServiceFg}};
+sendBoxAlbumGroupDeleteButtonIconPosition: point(-3px, 0px);
+
+// End of SendFilesBox
+
 calendarTitleHeight: boxTitleHeight;
 calendarPrevious: IconButton {
 	width: calendarTitleHeight;

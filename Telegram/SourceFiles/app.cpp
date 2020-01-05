@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "numbers.h"
 #include "observer_peer.h"
 #include "main/main_session.h"
+#include "styles/style_boxes.h"
 #include "styles/style_overview.h"
 #include "styles/style_mediaview.h"
 #include "styles/style_chat_helpers.h"
@@ -180,6 +181,8 @@ namespace App {
 		prepareCorners(MessageInSelectedCorners, st::historyMessageRadius, st::msgInBgSelected, &st::msgInShadowSelected);
 		prepareCorners(MessageOutCorners, st::historyMessageRadius, st::msgOutBg, &st::msgOutShadow);
 		prepareCorners(MessageOutSelectedCorners, st::historyMessageRadius, st::msgOutBgSelected, &st::msgOutShadowSelected);
+
+		prepareCorners(SendFilesBoxAlbumGroupCorners, st::sendBoxAlbumGroupRadius, st::callFingerprintBg);
 	}
 
 	void createCorners() {

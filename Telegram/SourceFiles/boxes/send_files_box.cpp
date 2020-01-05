@@ -52,6 +52,63 @@ constexpr auto kDragDuration = crl::time(200);
 const auto kStickerMimeString = qstr("image/webp");
 const auto kAnimatedStickerMimeString = qstr("application/x-tgsticker");
 
+void PaintAlbumThumbButtons(
+	Painter &p,
+	QPoint point,
+	int outerWidth,
+	float64 shrinkProgress,
+	Ui::IconButton *editButton,
+	Ui::IconButton *deleteButton) {
+
+	const auto skipInternal = st::sendBoxAlbumGroupEditInternalSkip;
+	const auto size = st::sendBoxAlbumGroupHeight;
+	const auto clickArea = st::sendBoxAlbumGroupClickArea;
+	const auto skipRight = st::sendBoxAlbumGroupSkipRight;
+	const auto skipTop = st::sendBoxAlbumGroupSkipTop;
+	const auto groupWidth = size * 2 + skipInternal;
+
+	const auto groupX = point.x() + outerWidth - skipRight - groupWidth;
+	const auto groupY = point.y() + skipTop;
+
+	const auto skipFromArea = (clickArea - size) / 2;
+	const auto buttonX = groupX - skipFromArea;
+	const auto buttonY = groupY - skipFromArea;
+
+	const auto deleteLeft = skipInternal + size;
+
+	editButton->moveToLeft(buttonX, buttonY);
+	deleteButton->moveToLeft(buttonX + deleteLeft, buttonY);
+
+	const auto alpha = 1.0 - shrinkProgress;
+	editButton->setDisabled(alpha < 1);
+	deleteButton->setDisabled(alpha < 1);
+	p.setOpacity(alpha);
+	App::roundRect(
+		p,
+		groupX,
+		groupY,
+		groupWidth,
+		size,
+		st::callFingerprintBg,
+		SendFilesBoxAlbumGroupCorners);
+
+	const auto editP = st::sendBoxAlbumGroupEditButtonIconPosition;
+	const auto deleteP = st::sendBoxAlbumGroupDeleteButtonIconPosition;
+
+	st::sendBoxAlbumGroupEditButtonIcon.paintInCenter(
+		p,
+		QRect(groupX + editP.x(), groupY + editP.y(), size, size));
+	st::sendBoxAlbumGroupDeleteButtonIcon.paintInCenter(
+		p,
+		QRect(
+			groupX + deleteLeft + deleteP.x(),
+			groupY + deleteP.y(),
+			size,
+			size));
+	p.setOpacity(1);
+
+}
+
 class SingleMediaPreview : public Ui::RpWidget {
 public:
 	static SingleMediaPreview *Create(
@@ -149,6 +206,11 @@ public:
 	void suggestMove(float64 delta, Fn<void()> callback);
 	void finishAnimations();
 
+	void addAlbumThumbButtons(
+		QWidget *parent,
+		Fn<void()> editCallback,
+		Fn<void()> deleteCallback);
+
 private:
 	QRect countRealGeometry() const;
 	QRect countCurrentGeometry(float64 progress) const;
@@ -173,6 +235,9 @@ private:
 	float64 _suggestedMove = 0.;
 	Ui::Animations::Simple _suggestedMoveAnimation;
 	int _lastShrinkValue = 0;
+
+	object_ptr<Ui::IconButton> _editMedia = nullptr;
+	object_ptr<Ui::IconButton> _deleteMedia = nullptr;
 
 };
 
@@ -246,6 +311,17 @@ AlbumThumb::AlbumThumb(
 		_nameWidth = st::semiboldFont->width(_name);
 	}
 	_statusWidth = st::normalFont->width(_status);
+}
+
+void AlbumThumb::addAlbumThumbButtons(
+		QWidget *parent,
+		Fn<void()> editCallback,
+		Fn<void()> deleteCallback) {
+	_editMedia.create(parent, st::sendBoxAlbumGroupButton);
+	_deleteMedia.create(parent, st::sendBoxAlbumGroupButton);
+
+	_editMedia->setClickedCallback(std::move(editCallback));
+	_deleteMedia->setClickedCallback(std::move(deleteCallback));
 }
 
 void AlbumThumb::resetLayoutAnimation() {
@@ -338,6 +414,14 @@ void AlbumThumb::paintInAlbum(
 		}
 		st::historyFileThumbPlay.paintInCenter(p, inner);
 	}
+
+	PaintAlbumThumbButtons(
+		p,
+		{ x, y },
+		geometry.width(),
+		shrinkProgress,
+		_editMedia,
+		_deleteMedia);
 }
 
 void AlbumThumb::prepareCache(QSize size, int shrink) {
@@ -1088,6 +1172,10 @@ void SendFilesBox::AlbumPreview::prepareThumbs() {
 		_thumbs.push_back(std::make_unique<AlbumThumb>(
 			_list.files[i],
 			layout[i]));
+		_thumbs[i]->addAlbumThumbButtons(
+			this,
+			[=] { changeThumbUnderCursor(); },
+			[=] { deleteThumbUnderCursor(); });
 	}
 	_thumbsHeight = countLayoutHeight(layout);
 	_photosHeight = ranges::accumulate(ranges::view::all(
