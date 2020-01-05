@@ -52,6 +52,23 @@ constexpr auto kDragDuration = crl::time(200);
 const auto kStickerMimeString = qstr("image/webp");
 const auto kAnimatedStickerMimeString = qstr("application/x-tgsticker");
 
+inline bool CanAddUrls(const QList<QUrl> &urls) {
+	return !urls.isEmpty() && ranges::find_if(
+		urls,
+		[](const QUrl &url) { return !url.isLocalFile(); }
+	) == urls.end();
+}
+
+inline bool IsFirstAlbumItem(const Storage::PreparedList &list) {
+	using AlbumType = Storage::PreparedFile::AlbumType;
+	return (list.files.size() > 0)
+		&& (list.files.front().type != AlbumType::None);
+}
+
+inline bool IsSingleItem(const Storage::PreparedList &list) {
+	return list.files.size() == 1;
+}
+
 void PaintAlbumThumbButtons(
 	Painter &p,
 	QPoint point,
@@ -1556,7 +1573,7 @@ void SendFilesBox::initPreview(rpl::producer<int> desiredPreviewHeight) {
 }
 
 void SendFilesBox::prepareSingleFilePreview() {
-	Expects(_list.files.size() == 1);
+	Expects(IsSingleItem(_list));
 
 	const auto &file = _list.files[0];
 	const auto media = SingleMediaPreview::Create(this, _controller, file);
@@ -1606,7 +1623,7 @@ void SendFilesBox::addThumbButtonHandlers() {
 		}
 		_albumPreview = nullptr;
 
-		if (_list.files.size() == 1) {
+		if (IsSingleItem(_list)) {
 			_list.albumIsPossible = false;
 			if (_sendWay->value() == SendFilesWay::Album) {
 				_sendWay->setValue(SendFilesWay::Photos);
@@ -1798,7 +1815,7 @@ void SendFilesBox::refreshAlbumMediaCount() {
 }
 
 void SendFilesBox::preparePreview() {
-	if (_list.files.size() == 1) {
+	if (IsSingleItem(_list)) {
 		prepareSingleFilePreview();
 	} else {
 		if (_list.albumIsPossible) {
@@ -1835,7 +1852,7 @@ void SendFilesBox::setupSendWayControls() {
 		addRadio(_sendAlbum, SendFilesWay::Album, tr::lng_send_album(tr::now));
 	}
 	if (!_list.albumIsPossible || _albumPhotosCount > 0) {
-		addRadio(_sendPhotos, SendFilesWay::Photos, (_list.files.size() == 1)
+		addRadio(_sendPhotos, SendFilesWay::Photos, IsSingleItem(_list)
 			? tr::lng_send_photo(tr::now)
 			: (_albumVideosCount > 0)
 			? tr::lng_send_separate_photos_videos(tr::now)
@@ -1843,7 +1860,7 @@ void SendFilesBox::setupSendWayControls() {
 				? tr::lng_send_separate_photos(tr::now)
 				: tr::lng_send_photos(tr::now, lt_count, _list.files.size())));
 	}
-	addRadio(_sendFiles, SendFilesWay::Files, (_list.files.size() == 1)
+	addRadio(_sendFiles, SendFilesWay::Files, (IsSingleItem(_list))
 		? tr::lng_send_file(tr::now)
 		: tr::lng_send_files(tr::now, lt_count, _list.files.size()));
 }
@@ -1970,16 +1987,9 @@ void SendFilesBox::captionResized() {
 	update();
 }
 
-bool SendFilesBox::canAddUrls(const QList<QUrl> &urls) const {
-	return !urls.isEmpty() && ranges::find_if(
-		urls,
-		[](const QUrl &url) { return !url.isLocalFile(); }
-	) == urls.end();
-}
-
 bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
 	const auto urls = data->hasUrls() ? data->urls() : QList<QUrl>();
-	auto filesCount = canAddUrls(urls) ? urls.size() : 0;
+	auto filesCount = CanAddUrls(urls) ? urls.size() : 0;
 	if (!filesCount && data->hasImage()) {
 		++filesCount;
 	}
@@ -1988,8 +1998,7 @@ bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
 		return false;
 	} else if (_list.files.size() > 1 && !_albumPreview) {
 		return false;
-	} else if (_list.files.front().type
-		== Storage::PreparedFile::AlbumType::None) {
+	} else if (!IsFirstAlbumItem(_list)) {
 		return false;
 	}
 	return true;
@@ -1998,7 +2007,7 @@ bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
 bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 	auto list = [&] {
 		const auto urls = data->hasUrls() ? data->urls() : QList<QUrl>();
-		auto result = canAddUrls(urls)
+		auto result = CanAddUrls(urls)
 			? Storage::PrepareMediaList(urls, st::sendMediaPreviewSize)
 			: Storage::PreparedList(
 				Storage::PreparedList::Error::EmptyFile,
@@ -2016,26 +2025,29 @@ bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 		}
 		return result;
 	}();
-	if (_list.files.size() + list.files.size() > Storage::MaxAlbumItems()) {
+	return addFiles(std::move(list));
+}
+
+bool SendFilesBox::addFiles(Storage::PreparedList list) {
+	const auto sumFiles = _list.files.size() + list.files.size();
+	if (sumFiles > Storage::MaxAlbumItems()) {
 		return false;
 	} else if (list.error != Storage::PreparedList::Error::None) {
 		return false;
-	} else if (list.files.size() != 1 && !list.albumIsPossible) {
+	} else if (!IsSingleItem(list) && !list.albumIsPossible) {
 		return false;
-	} else if (list.files.front().type
-		== Storage::PreparedFile::AlbumType::None) {
+	} else if (!IsFirstAlbumItem(list)) {
 		return false;
 	} else if (_list.files.size() > 1 && !_albumPreview) {
 		return false;
-	} else if (_list.files.front().type
-		== Storage::PreparedFile::AlbumType::None) {
+	} else if (!IsFirstAlbumItem(_list)) {
 		return false;
 	}
 	applyAlbumOrder();
 	delete base::take(_preview);
 	_albumPreview = nullptr;
 
-	if (_list.files.size() == 1
+	if (IsSingleItem(_list)
 		&& _sendWay->value() == SendFilesWay::Photos) {
 		_sendWay->setValue(SendFilesWay::Album);
 	}
