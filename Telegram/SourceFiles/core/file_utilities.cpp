@@ -295,6 +295,10 @@ QString AllFilesFilter() {
 #endif // Q_OS_WIN
 }
 
+QString AlbumFilesFilter() {
+	return qsl("Image and Video Files (*.png *.jpg *.mp4 *.jpeg)");
+}
+
 namespace internal {
 
 void InitLastPathDefault() {

@@ -1667,7 +1667,7 @@ void SendFilesBox::addThumbButtonHandlers() {
 		FileDialog::GetOpenPath(
 			this,
 			tr::lng_choose_file(tr::now),
-			qsl("Image and Video Files (*.png *.jpg *.mp4)"),
+			FileDialog::AlbumFilesFilter(),
 			crl::guard(this, callback));
 
 	}, _albumPreview->lifetime());

@@ -518,12 +518,12 @@ void EditCaptionBox::createEditMediaButton() {
 
 	const auto buttonCallback = [=] {
 		const auto filters = _isAlbum
-			? QStringList(qsl("Image and Video Files (*.png *.jpg *.mp4)"))
-			: QStringList(FileDialog::AllFilesFilter());
+			? FileDialog::AlbumFilesFilter()
+			: FileDialog::AllFilesFilter();
 		FileDialog::GetOpenPath(
 			this,
 			tr::lng_choose_file(tr::now),
-			filters.join(qsl(";;")),
+			filters,
 			crl::guard(this, callback));
 	};
 

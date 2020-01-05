@@ -82,6 +82,7 @@ void GetFolder(
 	Fn<void()> failed = Fn<void()>());
 
 QString AllFilesFilter();
+QString AlbumFilesFilter();
 
 namespace internal {
 
