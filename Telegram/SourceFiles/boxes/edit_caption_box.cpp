@@ -499,7 +499,7 @@ void EditCaptionBox::createEditMediaButton() {
 			return true;
 		};
 
-		auto list = Storage::PreparedList::EditedPreparedFile(
+		auto list = Storage::PreparedList::PreparedFileFromFileDialog(
 			std::move(result),
 			_isAlbum,
 			[] {

@@ -126,6 +126,40 @@ void PaintAlbumThumbButtons(
 
 }
 
+void FileDialogCallback(
+	FileDialog::OpenResult &&result,
+	bool isAlbum,
+	Fn<void(Storage::PreparedList)> callback) {
+	auto isValidFile = [](QString mimeType) {
+		if (mimeType != qstr("image/webp")) {
+			return true;
+		}
+		Ui::show(
+			Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
+			Ui::LayerOption::KeepOther);
+		return false;
+	};
+
+	auto errorCallback = [] {
+		Ui::show(
+			Box<InformBox>(tr::lng_edit_media_album_error(tr::now)),
+			Ui::LayerOption::KeepOther);
+	};
+
+	auto list = Storage::PreparedList::PreparedFileFromFileDialog(
+		std::move(result),
+		isAlbum,
+		std::move(errorCallback),
+		std::move(isValidFile),
+		st::sendMediaPreviewSize);
+
+	if (!list) {
+		return;
+	}
+
+	callback(std::move(*list));
+}
+
 class SingleMediaPreview : public Ui::RpWidget {
 public:
 	static SingleMediaPreview *Create(
@@ -1631,9 +1665,7 @@ void SendFilesBox::addThumbButtonHandlers() {
 		}
 
 		_compressConfirm = _compressConfirmInitial;
-		refreshAlbumMediaCount();
-		preparePreview();
-		captionResized();
+		refreshAllAfterAlbumChanges();
 
 	}, _albumPreview->lifetime());
 
@@ -1641,44 +1673,20 @@ void SendFilesBox::addThumbButtonHandlers() {
 	) | rpl::start_with_next([=](auto index) {
 
 		const auto callback = [=](FileDialog::OpenResult &&result) {
-			auto isValidFile = [](QString mimeType) {
-				if (mimeType != qstr("image/webp")) {
-					return true;
-				}
-				Ui::show(
-					Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
-					Ui::LayerOption::KeepOther);
-				return false;
-			};
-
-			auto errorCallback = [] {
-				Ui::show(
-					Box<InformBox>(tr::lng_edit_media_album_error(tr::now)),
-					Ui::LayerOption::KeepOther);
-			};
-
-			auto list = Storage::PreparedList::EditedPreparedFile(
+			FileDialogCallback(
 				std::move(result),
 				true,
-				std::move(errorCallback),
-				std::move(isValidFile),
-				st::sendMediaPreviewSize);
+				[=] (auto list) {
+					_list.files[index] = std::move(list.files.front());
+					applyAlbumOrder();
 
-			if (!list) {
-				return;
-			}
+					if (_preview) {
+						_preview->deleteLater();
+					}
+					_albumPreview = nullptr;
 
-			_list.files[index] = std::move((*list).files.front());
-			applyAlbumOrder();
-
-			if (_preview) {
-				_preview->deleteLater();
-			}
-			_albumPreview = nullptr;
-
-			refreshAlbumMediaCount();
-			preparePreview();
-			captionResized();
+					refreshAllAfterAlbumChanges();
+				});
 		};
 
 		FileDialog::GetOpenPath(
@@ -1738,6 +1746,49 @@ void SendFilesBox::prepare() {
 			_cancelledCallback();
 		}
 	}, lifetime());
+
+	const auto title = tr::lng_stickers_featured_add(tr::now) + qsl("...");
+	_addFileToAlbum = addLeftButton(
+		rpl::single(title),
+		App::LambdaDelayed(st::historyAttach.ripple.hideDuration, this, [=] {
+			openDialogToAddFileToAlbum();
+		}));
+
+	updateLeftButtonVisibility();
+}
+
+void SendFilesBox::updateLeftButtonVisibility() {
+	const auto isAlbum = _list.albumIsPossible
+		&& (_list.files.size() < Storage::MaxAlbumItems());
+	if (isAlbum || (IsSingleItem(_list) && IsFirstAlbumItem(_list))) {
+		_addFileToAlbum->show();
+	} else {
+		_addFileToAlbum->hide();
+	}
+}
+
+void SendFilesBox::refreshAllAfterAlbumChanges() {
+	refreshAlbumMediaCount();
+	preparePreview();
+	captionResized();
+	updateLeftButtonVisibility();
+}
+
+void SendFilesBox::openDialogToAddFileToAlbum() {
+	const auto callback = [=](FileDialog::OpenResult &&result) {
+		FileDialogCallback(
+			std::move(result),
+			true,
+			[=] (auto list) {
+				addFiles(std::move(list));
+			});
+	};
+
+	FileDialog::GetOpenPath(
+		this,
+		tr::lng_choose_file(tr::now),
+		FileDialog::AlbumFilesFilter(),
+		crl::guard(this, callback));
 }
 
 void SendFilesBox::initSendWay() {
@@ -2054,9 +2105,7 @@ bool SendFilesBox::addFiles(Storage::PreparedList list) {
 	_list.mergeToEnd(std::move(list));
 
 	_compressConfirm = _compressConfirmInitial;
-	refreshAlbumMediaCount();
-	preparePreview();
-	captionResized();
+	refreshAllAfterAlbumChanges();
 	return true;
 }
 
@@ -2094,7 +2143,9 @@ void SendFilesBox::updateBoxSize() {
 }
 
 void SendFilesBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
+	if (e->matches(QKeySequence::Open) && !_addFileToAlbum->isHidden()) {
+		openDialogToAddFileToAlbum();
+	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		const auto modifiers = e->modifiers();
 		const auto ctrl = modifiers.testFlag(Qt::ControlModifier)
 			|| modifiers.testFlag(Qt::MetaModifier);

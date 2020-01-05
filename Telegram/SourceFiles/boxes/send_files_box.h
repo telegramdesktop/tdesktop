@@ -126,6 +126,10 @@ private:
 	bool addFiles(not_null<const QMimeData*> data);
 	bool addFiles(Storage::PreparedList list);
 
+	void openDialogToAddFileToAlbum();
+	void updateLeftButtonVisibility();
+	void refreshAllAfterAlbumChanges();
+
 	const not_null<Window::SessionController*> _controller;
 	const Api::SendType _sendType = Api::SendType();
 
@@ -166,5 +170,6 @@ private:
 	int _albumPhotosCount = 0;
 
 	QPointer<Ui::RoundButton> _send;
+	QPointer<Ui::RoundButton> _addFileToAlbum;
 
 };

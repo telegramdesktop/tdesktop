@@ -278,7 +278,7 @@ PreparedList PrepareMediaFromImage(
 	return result;
 }
 
-std::optional<PreparedList> PreparedList::EditedPreparedFile(
+std::optional<PreparedList> PreparedList::PreparedFileFromFileDialog(
 		FileDialog::OpenResult &&result,
 		bool isAlbum,
 		Fn<void()> errorCallback,

@@ -61,7 +61,7 @@ struct PreparedList {
 	static PreparedList Reordered(
 		PreparedList &&list,
 		std::vector<int> order);
-	static std::optional<PreparedList> EditedPreparedFile(
+	static std::optional<PreparedList> PreparedFileFromFileDialog(
 		FileDialog::OpenResult &&result,
 		bool isAlbum,
 		Fn<void()> errorCallback,
