@@ -84,7 +84,21 @@ void PaintAlbumThumbButtons(
 	const auto skipTop = st::sendBoxAlbumGroupSkipTop;
 	const auto groupWidth = size * 2 + skipInternal;
 
-	const auto groupX = point.x() + outerWidth - skipRight - groupWidth;
+	// If the width is tiny, it would be better to not display the buttons.
+	if (groupWidth > outerWidth) {
+		editButton->hide();
+		deleteButton->hide();
+		return;
+	} else if (deleteButton->isHidden() && editButton->isHidden()) {
+		editButton->show();
+		deleteButton->show();
+	}
+
+	// If the width is too small,
+	// it would be better to display the buttons in the center.
+	const auto groupX = point.x() + ((groupWidth + skipRight * 2 > outerWidth)
+		? (outerWidth - groupWidth) / 2
+		: outerWidth - skipRight - groupWidth);
 	const auto groupY = point.y() + skipTop;
 
 	const auto skipFromArea = (clickArea - size) / 2;
