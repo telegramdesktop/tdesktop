@@ -38,7 +38,7 @@ public:
 
 	PipPanel(
 		QWidget *parent,
-		Fn<void(QPainter&, const FrameRequest&)> paint);
+		Fn<void(QPainter&, FrameRequest)> paint);
 
 	void setAspectRatio(QSize ratio);
 	[[nodiscard]] Position countPosition() const;
@@ -55,18 +55,22 @@ private:
 	void setPositionDefault();
 	void setPositionOnScreen(Position position, QRect available);
 
+	QScreen *myScreen() const;
 	void finishDrag(QPoint point);
 	void updatePosition(QPoint point);
 	void updatePositionAnimated();
+	void updateOverState(QPoint point);
 	void moveAnimated(QPoint to);
 
 	QPointer<QWidget> _parent;
-	Fn<void(QPainter&, const FrameRequest&)> _paint;
+	Fn<void(QPainter&, FrameRequest)> _paint;
 	RectParts _attached = RectParts();
 	QSize _ratio;
 
-	std::optional<QPoint> _pressPoint;
-	std::optional<QPoint> _dragStartPosition;
+	RectPart _overState = RectPart();
+	std::optional<RectPart> _pressState;
+	QPoint _pressPoint;
+	std::optional<QRect> _dragStartGeometry;
 
 	QPoint _positionAnimationFrom;
 	QPoint _positionAnimationTo;
@@ -87,7 +91,7 @@ private:
 
 	void setupPanel();
 	void setupStreaming();
-	void paint(QPainter &p, const FrameRequest &request);
+	void paint(QPainter &p, FrameRequest request);
 	void playbackPauseResume();
 	void waitingAnimationCallback();
 	void handleStreamingUpdate(Streaming::Update &&update);

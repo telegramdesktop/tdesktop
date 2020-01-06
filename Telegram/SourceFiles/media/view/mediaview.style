@@ -212,3 +212,4 @@ pipDefaultSize: 320px;
 pipMinimalSize: 100px;
 pipBorderSkip: 20px;
 pipBorderSnapArea: 16px;
+pipResizeArea: 10px;
