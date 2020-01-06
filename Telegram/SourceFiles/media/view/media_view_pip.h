@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
+#include <QtCore/QPointer>
+
 namespace Media {
 namespace View {
 
@@ -24,11 +26,23 @@ using PipParent = Ui::RpWidgetWrap<QOpenGLWidget>;
 using PipParent = Ui::RpWidget;
 #endif // USE_OPENGL_OVERLAY_WIDGET
 
-class Pip final : public PipParent {
+class PipPanel final : public PipParent {
 public:
-	Pip(
-		std::shared_ptr<Streaming::Document> document,
-		FnMut<void()> closeAndContinue);
+	struct Position {
+		RectParts attached = RectPart(0);
+		RectParts snapped = RectPart(0);
+		QRect geometry;
+		QRect screen;
+	};
+	using FrameRequest = Streaming::FrameRequest;
+
+	PipPanel(
+		QWidget *parent,
+		Fn<void(QPainter&, const FrameRequest&)> paint);
+
+	void setAspectRatio(QSize ratio);
+	[[nodiscard]] Position countPosition() const;
+	void setPosition(Position position);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -38,29 +52,60 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
 private:
-	void setupSize();
-	void setupStreaming();
-	void playbackPauseResume();
+	void setPositionDefault();
+	void setPositionOnScreen(Position position, QRect available);
+
 	void finishDrag(QPoint point);
 	void updatePosition(QPoint point);
-	void waitingAnimationCallback();
-	void handleStreamingUpdate(Streaming::Update &&update);
-	void handleStreamingError(Streaming::Error &&error);
 	void updatePositionAnimated();
 	void moveAnimated(QPoint to);
 
-	[[nodiscard]] QImage videoFrame() const;
-	[[nodiscard]] QImage videoFrameForDirectPaint() const;
+	QPointer<QWidget> _parent;
+	Fn<void(QPainter&, const FrameRequest&)> _paint;
+	RectParts _attached = RectParts();
+	QSize _ratio;
 
-	Streaming::Instance _instance;
-	QSize _size;
 	std::optional<QPoint> _pressPoint;
 	std::optional<QPoint> _dragStartPosition;
-	FnMut<void()> _closeAndContinue;
 
 	QPoint _positionAnimationFrom;
 	QPoint _positionAnimationTo;
 	Ui::Animations::Simple _positionAnimation;
+
+};
+
+class Pip final {
+public:
+	Pip(
+		QWidget *parent,
+		std::shared_ptr<Streaming::Document> document,
+		FnMut<void()> closeAndContinue,
+		FnMut<void()> destroy);
+
+private:
+	using FrameRequest = Streaming::FrameRequest;
+
+	void setupPanel();
+	void setupStreaming();
+	void paint(QPainter &p, const FrameRequest &request);
+	void playbackPauseResume();
+	void waitingAnimationCallback();
+	void handleStreamingUpdate(Streaming::Update &&update);
+	void handleStreamingError(Streaming::Error &&error);
+
+	[[nodiscard]] QImage videoFrame(const FrameRequest &request) const;
+	[[nodiscard]] QImage videoFrameForDirectPaint(
+		const FrameRequest &request) const;
+
+	Streaming::Instance _instance;
+	PipPanel _panel;
+	QSize _size;
+	FnMut<void()> _closeAndContinue;
+	FnMut<void()> _destroy;
+
+	QImage _frameForDirectPaint;
+	mutable QImage _preparedCoverStorage;
+	mutable FrameRequest _preparedCoverRequest;
 
 };
 

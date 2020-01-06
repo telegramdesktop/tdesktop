@@ -2401,18 +2401,11 @@ float64 OverlayWidget::playbackControlsCurrentVolume() {
 void OverlayWidget::switchToPip() {
 	const auto document = _doc;
 	const auto msgId = _msgid;
-	_pip = std::make_unique<Pip>(_streamed->instance.shared(), [=] {
+	_pip = std::make_unique<Pip>(this, _streamed->instance.shared(), [=] {
 		showDocument(_doc, Auth().data().message(msgId), {}, true);
+	}, [=] {
+		_pip = nullptr;
 	});
-	_pip->show();
-	_pip->events(
-	) | rpl::filter([=](not_null<QEvent*> e) {
-		return (e->type() == QEvent::Close);
-	}) | rpl::start_with_next([=] {
-		crl::on_main(_pip.get(), [=] {
-			_pip = nullptr;
-		});
-	}, _pip->lifetime());
 	close();
 }
 

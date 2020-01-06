@@ -208,5 +208,7 @@ themePreviewCancelButton: RoundButton(defaultLightButton) {
 themePreviewButtonsSkip: 20px;
 themePreviewDialogsWidth: 312px;
 
+pipDefaultSize: 320px;
+pipMinimalSize: 100px;
 pipBorderSkip: 20px;
 pipBorderSnapArea: 16px;
