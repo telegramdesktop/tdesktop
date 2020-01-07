@@ -34,9 +34,7 @@ bool HasExtensionFrom(const QString &file, const QStringList &extensions) {
 bool ValidPhotoForAlbum(
 		const FileMediaInformation::Image &image,
 		const QString &mime) {
-	if (image.animated
-		|| mime == qstr("image/webp")
-		|| mime == qstr("application/x-tgsticker")) {
+	if (image.animated || Core::IsMimeSticker(mime)) {
 		return false;
 	}
 	const auto width = image.data.width();
@@ -397,7 +395,7 @@ bool PreparedList::canAddCaption(bool isAlbum, bool compressImages) const {
 		if (files.empty()) {
 			return false;
 		}
-		return (files.front().mime == qstr("image/webp"))
+		return Core::IsMimeSticker(files.front().mime)
 			|| files.front().path.endsWith(
 				qstr(".tgs"),
 				Qt::CaseInsensitive);

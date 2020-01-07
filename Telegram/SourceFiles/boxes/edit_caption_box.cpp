@@ -490,7 +490,7 @@ void EditCaptionBox::createEditMediaButton() {
 	const auto callback = [=](FileDialog::OpenResult &&result) {
 
 		auto isValidFile = [](QString mimeType) {
-			if (mimeType == qstr("image/webp")) {
+			if (Core::IsMimeSticker(mimeType)) {
 				Ui::show(
 					Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
 					Ui::LayerOption::KeepOther);

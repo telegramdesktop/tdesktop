@@ -656,9 +656,6 @@ bool FileLoadTask::FillImageInformation(
 }
 
 void FileLoadTask::process() {
-	const auto stickerMime = qsl("image/webp");
-	const auto animatedStickerMime = qsl("application/x-tgsticker");
-
 	_result = std::make_shared<FileLoadResult>(
 		id(),
 		_id,
@@ -700,7 +697,7 @@ void FileLoadTask::process() {
 		if (auto image = base::get_if<FileMediaInformation::Image>(
 				&_information->media)) {
 			fullimage = base::take(image->data);
-			if (filemime != stickerMime && filemime != animatedStickerMime) {
+			if (!Core::IsMimeSticker(filemime)) {
 				fullimage = Images::prepareOpaque(std::move(fullimage));
 			}
 			isAnimation = image->animated;
@@ -719,7 +716,7 @@ void FileLoadTask::process() {
 			}
 			const auto mimeType = Core::MimeTypeForData(_content);
 			filemime = mimeType.name();
-			if (filemime != stickerMime && filemime != animatedStickerMime) {
+			if (!Core::IsMimeSticker(filemime)) {
 				fullimage = Images::prepareOpaque(std::move(fullimage));
 			}
 			if (filemime == "image/jpeg") {
@@ -831,8 +828,7 @@ void FileLoadTask::process() {
 		attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
 
 		if (ValidateThumbDimensions(w, h)) {
-			isSticker = (filemime == stickerMime
-				|| filemime == animatedStickerMime)
+			isSticker = Core::IsMimeSticker(filemime)
 				&& (w > 0)
 				&& (h > 0)
 				&& (w <= StickerMaxSize)

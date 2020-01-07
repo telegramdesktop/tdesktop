@@ -49,8 +49,6 @@ namespace {
 constexpr auto kMinPreviewWidth = 20;
 constexpr auto kShrinkDuration = crl::time(150);
 constexpr auto kDragDuration = crl::time(200);
-const auto kStickerMimeString = qstr("image/webp");
-const auto kAnimatedStickerMimeString = qstr("application/x-tgsticker");
 
 inline bool CanAddUrls(const QList<QUrl> &urls) {
 	return !urls.isEmpty() && ranges::find_if(
@@ -145,7 +143,7 @@ void FileDialogCallback(
 	bool isAlbum,
 	Fn<void(Storage::PreparedList)> callback) {
 	auto isValidFile = [](QString mimeType) {
-		if (mimeType != qstr("image/webp")) {
+		if (!Core::IsMimeSticker(mimeType)) {
 			return true;
 		}
 		Ui::show(
@@ -751,14 +749,12 @@ SingleMediaPreview *SingleMediaPreview::Create(
 			preview.height())) {
 		return nullptr;
 	}
-	const auto sticker = (file.information->filemime == kStickerMimeString)
-		|| (file.information->filemime == kAnimatedStickerMimeString);
 	return Ui::CreateChild<SingleMediaPreview>(
 		parent,
 		controller,
 		preview,
 		animated,
-		sticker,
+		Core::IsMimeSticker(file.information->filemime),
 		animationPreview ? file.path : QString());
 }
 
