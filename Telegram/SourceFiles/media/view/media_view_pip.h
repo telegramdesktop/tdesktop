@@ -104,10 +104,14 @@ private:
 	Streaming::Instance _instance;
 	PipPanel _panel;
 	QSize _size;
+
 	FnMut<void()> _closeAndContinue;
 	FnMut<void()> _destroy;
 
-	QImage _frameForDirectPaint;
+#ifdef USE_OPENGL_OVERLAY_WIDGET
+	mutable QImage _frameForDirectPaint;
+#endif // USE_OPENGL_OVERLAY_WIDGET
+
 	mutable QImage _preparedCoverStorage;
 	mutable FrameRequest _preparedCoverRequest;
 
