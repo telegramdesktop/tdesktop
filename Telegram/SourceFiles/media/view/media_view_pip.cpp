@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_document.h"
 #include "media/streaming/media_streaming_utility.h"
 #include "core/application.h"
+#include "ui/platform/ui_platform_utility.h"
 #include "window/window_controller.h"
 #include "styles/style_window.h"
 #include "styles/style_mediaview.h"
@@ -200,10 +201,13 @@ PipPanel::PipPanel(
 , _paint(std::move(paint)) {
 	setWindowFlags(Qt::Tool
 		| Qt::WindowStaysOnTopHint
-		| Qt::FramelessWindowHint);
+		| Qt::FramelessWindowHint
+		| Qt::WindowDoesNotAcceptFocus);
 	setAttribute(Qt::WA_ShowWithoutActivating);
 	setMouseTracking(true);
 	resize(0, 0);
+	show();
+	Ui::Platform::IgnoreAllActivation(this);
 }
 
 void PipPanel::setAspectRatio(QSize ratio) {
