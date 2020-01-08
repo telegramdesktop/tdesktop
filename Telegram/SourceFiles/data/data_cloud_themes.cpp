@@ -134,7 +134,6 @@ void CloudThemes::applyUpdate(const MTPTheme &theme) {
 			return;
 		}
 		applyFromDocument(cloud);
-	}, [&](const MTPDthemeDocumentNotModified &data) {
 	});
 	scheduleReload();
 }
@@ -160,8 +159,6 @@ void CloudThemes::resolve(
 void CloudThemes::showPreview(const MTPTheme &data) {
 	data.match([&](const MTPDtheme &data) {
 		showPreview(CloudTheme::Parse(_session, data));
-	}, [&](const MTPDthemeDocumentNotModified &data) {
-		LOG(("API Error: Unexpected themeDocumentNotModified."));
 	});
 }
 
@@ -269,8 +266,6 @@ void CloudThemes::parseThemes(const QVector<MTPTheme> &list) {
 	for (const auto &theme : list) {
 		theme.match([&](const MTPDtheme &data) {
 			_list.push_back(CloudTheme::Parse(_session, data));
-		}, [&](const MTPDthemeDocumentNotModified &data) {
-			LOG(("API Error: Unexpected themeDocumentNotModified."));
 		});
 	}
 	checkCurrentTheme();

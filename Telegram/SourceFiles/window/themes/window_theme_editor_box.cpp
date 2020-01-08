@@ -513,9 +513,6 @@ Fn<void()> SavePreparedTheme(
 			const auto result = Data::CloudTheme::Parse(session, data);
 			session->data().cloudThemes().savedFromEditor(result);
 			return result;
-		}, [&](const MTPDthemeDocumentNotModified &data) {
-			LOG(("API Error: Unexpected themeDocumentNotModified."));
-			return fields;
 		});
 		if (cloud.documentId && !state->themeContent.isEmpty()) {
 			const auto document = session->data().document(cloud.documentId);
@@ -758,9 +755,6 @@ void SaveTheme(
 		)).done([=](const MTPTheme &result) {
 			result.match([&](const MTPDtheme &data) {
 				save(CloudTheme::Parse(&window->account().session(), data));
-			}, [&](const MTPDthemeDocumentNotModified &data) {
-				LOG(("API Error: Unexpected themeDocumentNotModified."));
-				save(CloudTheme());
 			});
 		}).fail([=](const RPCError &error) {
 			save(CloudTheme());

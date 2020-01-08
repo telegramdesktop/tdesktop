@@ -50,7 +50,6 @@ struct FileReferenceAccumulator {
 			if (const auto document = data.vdocument()) {
 				push(*document);
 			}
-		}, [&](const MTPDthemeDocumentNotModified &data) {
 		});
 	}
 	void push(const MTPWebPageAttribute &data) {
