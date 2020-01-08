@@ -627,6 +627,12 @@ void AlbumThumb::paintPhoto(Painter &p, int left, int top, int outerWidth) {
 		top,
 		outerWidth,
 		_photo);
+
+	_lastRectOfButtons = PaintAlbumThumbButtons(
+		p,
+		{ left, top },
+		st::sendMediaPreviewSize,
+		0);
 }
 
 void AlbumThumb::paintFile(Painter &p, int left, int top, int outerWidth) {
@@ -1261,9 +1267,21 @@ int SendFilesBox::AlbumPreview::contentTop() const {
 
 AlbumThumb *SendFilesBox::AlbumPreview::findThumb(QPoint position) const {
 	position -= QPoint(contentLeft(), contentTop());
-	const auto i = ranges::find_if(_thumbs, [&](const auto &thumb) {
-		return thumb->containsPoint(position);
-	});
+
+	auto top = 0;
+	auto find = [&](const auto &thumb) {
+		if (_sendWay == SendFilesWay::Album) {
+			return thumb->containsPoint(position);
+		} else if (_sendWay == SendFilesWay::Photos) {
+			const auto bottom = top + thumb->photoHeight();
+			const auto isUnderTop = (position.y() > top);
+			top = bottom + st::sendMediaPreviewPhotoSkip;
+			return isUnderTop && (position.y() < bottom);
+		}
+		return false;
+	};
+
+	const auto i = ranges::find_if(_thumbs, std::move(find));
 	return (i == _thumbs.end()) ? nullptr : i->get();
 }
 
@@ -1512,21 +1530,25 @@ void SendFilesBox::AlbumPreview::mousePressEvent(QMouseEvent *e) {
 }
 
 void SendFilesBox::AlbumPreview::mouseMoveEvent(QMouseEvent *e) {
-	if (_sendWay != SendFilesWay::Album) {
+	if (_sendWay == SendFilesWay::Files) {
 		applyCursor(style::cur_default);
 		return;
 	}
-	if (_draggedThumb) {
+	const auto isAlbum = (_sendWay == SendFilesWay::Album);
+	if (isAlbum && _draggedThumb) {
 		const auto position = e->pos();
 		_draggedThumb->moveInAlbum(position - _draggedStartPosition);
 		updateSuggestedDrag(_draggedThumb->center());
 		update();
 	} else {
 		const auto thumb = findThumb(e->pos());
+		const auto regularCursor = isAlbum
+			? style::cur_sizeall
+			: style::cur_default;
 		const auto cursor = thumb
 			? (thumb->buttonsContainPoint(e->pos())
 				? style::cur_pointer
-				: style::cur_sizeall)
+				: regularCursor)
 			: style::cur_default;
 		applyCursor(cursor);
 	}
