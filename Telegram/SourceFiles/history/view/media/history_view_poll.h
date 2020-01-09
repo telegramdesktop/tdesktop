@@ -62,6 +62,7 @@ private:
 	[[nodiscard]] ClickHandlerPtr createAnswerClickHandler(
 		const Answer &answer) const;
 	void updateTexts();
+	void updateRecentVoters();
 	void updateAnswers();
 	void updateVotes();
 	void updateTotalVotes();
@@ -73,6 +74,11 @@ private:
 		int maxVotes);
 	void checkSendingAnimation() const;
 
+	void paintRecentVoters(
+		Painter &p,
+		int left,
+		int top,
+		TextSelection selection) const;
 	int paintAnswer(
 		Painter &p,
 		const Answer &answer,
@@ -124,6 +130,9 @@ private:
 
 	Ui::Text::String _question;
 	Ui::Text::String _subtitle;
+	std::vector<not_null<UserData*>> _recentVoters;
+	QImage _recentVotersImage;
+
 	std::vector<Answer> _answers;
 	Ui::Text::String _totalVotesLabel;
 

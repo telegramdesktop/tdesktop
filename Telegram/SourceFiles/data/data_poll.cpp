@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 
 #include "apiwrap.h"
+#include "data/data_user.h"
+#include "data/data_session.h"
 #include "main/main_session.h"
 
 namespace {
@@ -34,7 +36,9 @@ PollAnswer *AnswerByOption(
 
 } // namespace
 
-PollData::PollData(PollId id) : id(id) {
+PollData::PollData(not_null<Data::Session*> owner, PollId id)
+: id(id)
+, _owner(owner) {
 }
 
 bool PollData::applyChanges(const MTPDpoll &poll) {
@@ -96,6 +100,26 @@ bool PollData::applyResults(const MTPPollResults &results) {
 				}
 			}
 		}
+		if (const auto recent = results.vrecent_voters()) {
+			const auto recentChanged = !ranges::equal(
+				recentVoters,
+				recent->v,
+				ranges::equal_to(),
+				&UserData::id,
+				&MTPint::v);
+			if (recentChanged) {
+				changed = true;
+				recentVoters = ranges::view::all(
+					recent->v
+				) | ranges::view::transform([&](MTPint userId) {
+					return _owner->userLoaded(userId.v);
+				}) | ranges::view::filter([](UserData *user) {
+					return user != nullptr;
+				}) | ranges::view::transform([](UserData *user) {
+					return not_null<UserData*>(user);
+				}) | ranges::to_vector;
+			}
+		}
 		if (!changed) {
 			return false;
 		}
@@ -112,7 +136,7 @@ void PollData::checkResultsReload(not_null<HistoryItem*> item, crl::time now) {
 		return;
 	}
 	lastResultsUpdate = now;
-	Auth().api().reloadPollResults(item);
+	_owner->session().api().reloadPollResults(item);
 }
 
 PollAnswer *PollData::answerByOption(const QByteArray &option) {

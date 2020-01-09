@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "data/data_media_types.h"
 #include "data/data_poll.h"
+#include "data/data_user.h"
 #include "data/data_session.h"
 #include "layout.h"
 #include "main/main_session.h"
@@ -28,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 namespace {
+
+constexpr auto kShowRecentVotersCount = 3;
 
 struct PercentCounterItem {
 	int index = 0;
@@ -331,12 +334,22 @@ void Poll::updateTexts() {
 					? tr::lng_polls_public(tr::now)
 					: tr::lng_polls_anonymous(tr::now))));
 	}
-
+	updateRecentVoters();
 	updateAnswers();
 	updateVotes();
 
 	if (willStartAnimation) {
 		startAnswersAnimation();
+	}
+}
+
+void Poll::updateRecentVoters() {
+	auto &&sliced = ranges::view::all(
+		_poll->recentVoters
+	) | ranges::view::take(kShowRecentVotersCount);
+	const auto changed = !ranges::equal(_recentVoters, sliced);
+	if (changed) {
+		_recentVoters = sliced | ranges::to_vector;
 	}
 }
 
@@ -501,6 +514,7 @@ void Poll::draw(Painter &p, const QRect &r, TextSelection selection, crl::time m
 
 	p.setPen(regular);
 	_subtitle.drawLeftElided(p, padding.left(), tshift, paintw, width());
+	paintRecentVoters(p, padding.left() + _subtitle.maxWidth(), tshift, selection);
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
 
 	const auto progress = _answersAnimation
@@ -557,6 +571,36 @@ void Poll::resetAnswersAnimation() const {
 void Poll::radialAnimationCallback() const {
 	if (!anim::Disabled()) {
 		history()->owner().requestViewRepaint(_parent);
+	}
+}
+
+void Poll::paintRecentVoters(
+		Painter &p,
+		int left,
+		int top,
+		TextSelection selection) const {
+	const auto count = int(_recentVoters.size());
+	if (!count) {
+		return;
+	}
+	auto x = left
+		+ st::historyPollRecentVotersSkip
+		+ (count - 1) * st::historyPollRecentVoterSkip;
+	auto y = top;
+	const auto size = st::historyPollRecentVoterSize;
+	const auto outbg = _parent->hasOutLayout();
+	const auto selected = (selection == FullSelection);
+	auto pen = (selected
+		? (outbg ? st::msgOutBgSelected : st::msgInBgSelected)
+		: (outbg ? st::msgOutBg : st::msgInBg))->p;
+	pen.setWidth(st::lineWidth);
+	for (const auto &recent : _recentVoters) {
+		recent->paintUserpic(p, x, y, size);
+		p.setPen(pen);
+		p.setBrush(Qt::NoBrush);
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(x, y, size, size);
+		x -= st::historyPollRecentVoterSkip;
 	}
 }
 

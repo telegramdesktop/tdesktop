@@ -366,7 +366,7 @@ private:
 
 	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);
 
-	not_null<Data::Session*> _owner;
+	const not_null<Data::Session*> _owner;
 
 	ImagePtr _userpic;
 	PhotoId _userpicPhotoId = kUnknownPhotoId;

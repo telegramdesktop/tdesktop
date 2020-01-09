@@ -2895,7 +2895,7 @@ void Session::gameApplyFields(
 not_null<PollData*> Session::poll(PollId id) {
 	auto i = _polls.find(id);
 	if (i == _polls.cend()) {
-		i = _polls.emplace(id, std::make_unique<PollData>(id)).first;
+		i = _polls.emplace(id, std::make_unique<PollData>(this, id)).first;
 	}
 	return i->second.get();
 }

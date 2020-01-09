@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Data {
+class Session;
+} // namespace Data
+
 struct PollAnswer {
 	QString text;
 	QByteArray option;
@@ -25,7 +29,7 @@ inline bool operator!=(const PollAnswer &a, const PollAnswer &b) {
 }
 
 struct PollData {
-	explicit PollData(PollId id);
+	PollData(not_null<Data::Session*> owner, PollId id);
 
 	enum class Flag {
 		Closed      = 0x01,
@@ -54,6 +58,7 @@ struct PollData {
 	PollId id = 0;
 	QString question;
 	std::vector<PollAnswer> answers;
+	std::vector<not_null<UserData*>> recentVoters;
 	int totalVoters = 0;
 	QByteArray sendingVote;
 	crl::time lastResultsUpdate = 0;
@@ -67,6 +72,7 @@ private:
 		const MTPPollAnswerVoters &result,
 		bool isMinResults);
 
+	not_null<Data::Session*> _owner;
 	Flags _flags = Flags();
 
 };

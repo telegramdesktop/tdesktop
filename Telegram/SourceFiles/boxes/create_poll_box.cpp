@@ -706,7 +706,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	};
 
 	const auto collectResult = [=] {
-		auto result = PollData(id);
+		auto result = PollData(&_session->data(), id);
 		result.question = question->getLastText().trimmed();
 		result.answers = options->toPollAnswers();
 		return result;
