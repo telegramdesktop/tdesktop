@@ -1719,8 +1719,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}
 				if (const auto media = item->media()) {
 					if (const auto poll = media->poll()) {
-						if (!poll->closed) {
-							if (poll->voted()) {
+						if (!poll->closed()) {
+							if (poll->voted() && !poll->quiz()) {
 								_menu->addAction(tr::lng_polls_retract(tr::now), [=] {
 									session().api().sendPollVotes(itemId, {});
 								});

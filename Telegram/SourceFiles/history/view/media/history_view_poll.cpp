@@ -112,6 +112,8 @@ struct Poll::AnswerAnimation {
 	anim::value percent;
 	anim::value filling;
 	anim::value opacity;
+	bool chosen = false;
+	bool correct = false;
 };
 
 struct Poll::AnswersAnimation {
@@ -132,7 +134,7 @@ struct Poll::SendingAnimation {
 struct Poll::Answer {
 	Answer();
 
-	void fillText(const PollAnswer &original);
+	void fillData(not_null<PollData*> poll, const PollAnswer &original);
 
 	Ui::Text::String text;
 	QByteArray option;
@@ -142,6 +144,7 @@ struct Poll::Answer {
 	float64 filling = 0.;
 	QString votesPercentString;
 	bool chosen = false;
+	bool correct = false;
 	ClickHandlerPtr handler;
 	mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 };
@@ -159,7 +162,11 @@ Poll::SendingAnimation::SendingAnimation(
 Poll::Answer::Answer() : text(st::msgMinWidth / 2) {
 }
 
-void Poll::Answer::fillText(const PollAnswer &original) {
+void Poll::Answer::fillData(
+		not_null<PollData*> poll,
+		const PollAnswer &original) {
+	chosen = original.chosen;
+	correct = poll->quiz() ? original.correct : chosen;
 	if (!text.isEmpty() && text.toString() == original.text) {
 		return;
 	}
@@ -218,7 +225,7 @@ QSize Poll::countOptimalSize() {
 }
 
 bool Poll::showVotes() const {
-	return _voted || _closed;
+	return _voted || (_flags & PollData::Flag::Closed);
 }
 
 bool Poll::canVote() const {
@@ -309,11 +316,20 @@ void Poll::updateTexts() {
 			_poll->question,
 			options);
 	}
-	if (_closed != _poll->closed || _subtitle.isEmpty()) {
-		_closed = _poll->closed;
+	if (_flags != _poll->flags() || _subtitle.isEmpty()) {
+		using Flag = PollData::Flag;
+		_flags = _poll->flags();
 		_subtitle.setText(
 			st::msgDateTextStyle,
-			_closed ? tr::lng_polls_closed(tr::now) : tr::lng_polls_anonymous(tr::now));
+			((_flags & Flag::Closed)
+				? tr::lng_polls_closed(tr::now)
+				: (_flags & Flag::Quiz)
+				? ((_flags & Flag::PublicVotes)
+					? tr::lng_polls_public_quiz(tr::now)
+					: tr::lng_polls_anonymous_quiz(tr::now))
+				: ((_flags & Flag::PublicVotes)
+					? tr::lng_polls_public(tr::now)
+					: tr::lng_polls_anonymous(tr::now))));
 	}
 
 	updateAnswers();
@@ -334,16 +350,16 @@ void Poll::updateAnswers() {
 	if (!changed) {
 		auto &&answers = ranges::view::zip(_answers, _poll->answers);
 		for (auto &&[answer, original] : answers) {
-			answer.fillText(original);
+			answer.fillData(_poll, original);
 		}
 		return;
 	}
 	_answers = ranges::view::all(
 		_poll->answers
-	) | ranges::view::transform([](const PollAnswer &answer) {
+	) | ranges::view::transform([&](const PollAnswer &answer) {
 		auto result = Answer();
 		result.option = answer.option;
-		result.fillText(answer);
+		result.fillData(_poll, answer);
 		return result;
 	}) | ranges::to_vector;
 
@@ -592,6 +608,8 @@ int Poll::paintAnswer(
 			p.setOpacity(sqrt(opacity));
 			paintFilling(
 				p,
+				animation->chosen,
+				animation->correct,
 				animation->filling.current(),
 				left,
 				top,
@@ -613,6 +631,8 @@ int Poll::paintAnswer(
 			selection);
 		paintFilling(
 			p,
+			answer.chosen,
+			answer.correct,
 			answer.filling,
 			left,
 			top,
@@ -696,6 +716,8 @@ void Poll::paintPercent(
 
 void Poll::paintFilling(
 		Painter &p,
+		bool chosen,
+		bool correct,
 		float64 filling,
 		int left,
 		int top,
@@ -712,15 +734,29 @@ void Poll::paintFilling(
 
 	top += st::historyPollAnswerPadding.top();
 
-	const auto bar = outbg ? (selected ? st::msgWaveformOutActiveSelected : st::msgWaveformOutActive) : (selected ? st::msgWaveformInActiveSelected : st::msgWaveformInActive);
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
-	p.setBrush(bar);
+	const auto thickness = st::historyPollFillingHeight;
 	const auto max = awidth - st::historyPollFillingRight;
 	const auto size = anim::interpolate(st::historyPollFillingMin, max, filling);
 	const auto radius = st::historyPollFillingRadius;
-	const auto ftop = bottom - st::historyPollFillingBottom - st::historyPollFillingHeight;
-	p.drawRoundedRect(aleft, ftop, size, st::historyPollFillingHeight, radius, radius);
+	const auto ftop = bottom - st::historyPollFillingBottom - thickness;
+
+	if (chosen && !correct) {
+		p.setBrush(st::boxTextFgError);
+	} else {
+		const auto bar = outbg ? (selected ? st::msgWaveformOutActiveSelected : st::msgWaveformOutActive) : (selected ? st::msgWaveformInActiveSelected : st::msgWaveformInActive);
+		p.setBrush(bar);
+	}
+	auto barleft = aleft;
+	auto barwidth = size;
+	if (chosen || correct) {
+		p.drawEllipse(aleft, ftop - thickness, thickness * 3, thickness * 3);
+		barleft += thickness * 3 - radius;
+		barwidth -= thickness * 3 - radius;
+	}
+
+	p.drawRoundedRect(barleft, ftop, barwidth, thickness, radius, radius);
 }
 
 bool Poll::answerVotesChanged() const {
@@ -748,6 +784,8 @@ void Poll::saveStateInAnimation() const {
 		result.percent = show ? float64(answer.votesPercent) : 0.;
 		result.filling = show ? answer.filling : 0.;
 		result.opacity = show ? 1. : 0.;
+		result.chosen = answer.chosen;
+		result.correct = answer.correct;
 		return result;
 	};
 	ranges::transform(
@@ -761,7 +799,7 @@ bool Poll::checkAnimationStart() const {
 		// Skip initial changes.
 		return false;
 	}
-	const auto result = (showVotes() != (_poll->voted() || _poll->closed))
+	const auto result = (showVotes() != (_poll->voted() || _poll->closed()))
 		|| answerVotesChanged();
 	if (result) {
 		saveStateInAnimation();
@@ -780,6 +818,8 @@ void Poll::startAnswersAnimation() const {
 		data.percent.start(show ? float64(answer.votesPercent) : 0.);
 		data.filling.start(show ? answer.filling : 0.);
 		data.opacity.start(show ? 1. : 0.);
+		data.chosen = data.chosen || answer.chosen;
+		data.correct = data.correct || answer.correct;
 	}
 	_answersAnimation->progress.start(
 		[=] { history()->owner().requestViewRepaint(_parent); },

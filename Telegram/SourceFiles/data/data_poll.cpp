@@ -41,7 +41,10 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 	Expects(poll.vid().v == id);
 
 	const auto newQuestion = qs(poll.vquestion());
-	const auto newClosed = poll.is_closed();
+	const auto newFlags = (poll.is_closed() ? Flag::Closed : Flag(0))
+		| (poll.is_public_voters() ? Flag::PublicVotes : Flag(0))
+		| (poll.is_multiple_choice() ? Flag::MultiChoice : Flag(0))
+		| (poll.is_quiz() ? Flag::Quiz : Flag(0));
 	auto newAnswers = ranges::view::all(
 		poll.vanswers().v
 	) | ranges::view::transform([](const MTPPollAnswer &data) {
@@ -56,14 +59,14 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 	) | ranges::to_vector;
 
 	const auto changed1 = (question != newQuestion)
-		|| (closed != newClosed);
+		|| (_flags != newFlags);
 	const auto changed2 = (answers != newAnswers);
 	if (!changed1 && !changed2) {
 		return false;
 	}
 	if (changed1) {
 		question = newQuestion;
-		closed = newClosed;
+		_flags = newFlags;
 	}
 	if (changed2) {
 		std::swap(answers, newAnswers);
@@ -71,6 +74,7 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 			if (const auto current = answerByOption(old.option)) {
 				current->votes = old.votes;
 				current->chosen = old.chosen;
+				current->correct = old.correct;
 			}
 		}
 	}
@@ -104,7 +108,7 @@ bool PollData::applyResults(const MTPPollResults &results) {
 void PollData::checkResultsReload(not_null<HistoryItem*> item, crl::time now) {
 	if (lastResultsUpdate && lastResultsUpdate + kShortPollTimeout > now) {
 		return;
-	} else if (closed) {
+	} else if (closed()) {
 		return;
 	}
 	lastResultsUpdate = now;
@@ -137,15 +141,40 @@ bool PollData::applyResultToAnswers(
 				answer->chosen = voters.is_chosen();
 				changed = true;
 			}
+			if (answer->correct != voters.is_correct()) {
+				answer->correct = voters.is_correct();
+				changed = true;
+			}
 		} else if (const auto existing = answerByOption(option)) {
 			answer->chosen = existing->chosen;
+			answer->correct = existing->correct;
 		}
 		return changed;
 	});
 }
 
+PollData::Flags PollData::flags() const {
+	return _flags;
+}
+
 bool PollData::voted() const {
 	return ranges::find(answers, true, &PollAnswer::chosen) != end(answers);
+}
+
+bool PollData::closed() const {
+	return (_flags & Flag::Closed);
+}
+
+bool PollData::publicVotes() const {
+	return (_flags & Flag::PublicVotes);
+}
+
+bool PollData::multiChoice() const {
+	return (_flags & Flag::MultiChoice);
+}
+
+bool PollData::quiz() const {
+	return (_flags & Flag::Quiz);
 }
 
 MTPPoll PollDataToMTP(not_null<const PollData*> poll) {

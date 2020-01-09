@@ -8,8 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_media.h"
-
-struct PollAnswer;
+#include "data/data_poll.h"
 
 namespace HistoryView {
 
@@ -99,6 +98,8 @@ private:
 		TextSelection selection) const;
 	void paintFilling(
 		Painter &p,
+		bool chosen,
+		bool correct,
 		float64 filling,
 		int left,
 		int top,
@@ -115,11 +116,11 @@ private:
 
 	void toggleRipple(Answer &answer, bool pressed);
 
-	not_null<PollData*> _poll;
+	const not_null<PollData*> _poll;
 	int _pollVersion = 0;
 	int _totalVotes = 0;
 	bool _voted = false;
-	bool _closed = false;
+	PollData::Flags _flags = PollData::Flags();
 
 	Ui::Text::String _question;
 	Ui::Text::String _subtitle;
