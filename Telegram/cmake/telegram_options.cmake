@@ -12,6 +12,7 @@ option(TDESKTOP_DISABLE_GTK_INTEGRATION "Disable all code for GTK integration (L
 option(TDESKTOP_API_TEST "Use test API credentials." OFF)
 set(TDESKTOP_API_ID "0" CACHE STRING "Provide 'api_id' for the Telegram API access.")
 set(TDESKTOP_API_HASH "" CACHE STRING "Provide 'api_hash' for the Telegram API access.")
+set(TDESKTOP_LAUNCHER_FILENAME "" CACHE STRING "Use custom desktop file name (Linux only).")
 
 if (TDESKTOP_API_TEST)
     set(TDESKTOP_API_ID 17349)
@@ -81,4 +82,8 @@ endif()
 
 if (TDESKTOP_DISABLE_GTK_INTEGRATION)
     target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_GTK_INTEGRATION)
+endif()
+
+if (TDESKTOP_LAUNCHER_FILENAME)
+    target_compile_definitions(Telegram PRIVATE TDESKTOP_LAUNCHER_FILENAME=${TDESKTOP_LAUNCHER_FILENAME})
 endif()
