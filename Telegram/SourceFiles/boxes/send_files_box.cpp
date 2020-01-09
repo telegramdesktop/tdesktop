@@ -50,6 +50,12 @@ constexpr auto kMinPreviewWidth = 20;
 constexpr auto kShrinkDuration = crl::time(150);
 constexpr auto kDragDuration = crl::time(200);
 
+enum class ButtonType {
+	Edit,
+	Delete,
+	None,
+};
+
 inline bool CanAddUrls(const QList<QUrl> &urls) {
 	return !urls.isEmpty() && ranges::find_if(
 		urls,
@@ -67,29 +73,21 @@ inline bool IsSingleItem(const Storage::PreparedList &list) {
 	return list.files.size() == 1;
 }
 
-void PaintAlbumThumbButtons(
+QRect PaintAlbumThumbButtons(
 	Painter &p,
 	QPoint point,
 	int outerWidth,
-	float64 shrinkProgress,
-	Ui::IconButton *editButton,
-	Ui::IconButton *deleteButton) {
+	float64 shrinkProgress) {
 
 	const auto skipInternal = st::sendBoxAlbumGroupEditInternalSkip;
 	const auto size = st::sendBoxAlbumGroupHeight;
-	const auto clickArea = st::sendBoxAlbumGroupClickArea;
 	const auto skipRight = st::sendBoxAlbumGroupSkipRight;
 	const auto skipTop = st::sendBoxAlbumGroupSkipTop;
 	const auto groupWidth = size * 2 + skipInternal;
 
 	// If the width is tiny, it would be better to not display the buttons.
 	if (groupWidth > outerWidth) {
-		editButton->hide();
-		deleteButton->hide();
-		return;
-	} else if (deleteButton->isHidden() && editButton->isHidden()) {
-		editButton->show();
-		deleteButton->show();
+		return QRect();
 	}
 
 	// If the width is too small,
@@ -98,26 +96,14 @@ void PaintAlbumThumbButtons(
 		? (outerWidth - groupWidth) / 2
 		: outerWidth - skipRight - groupWidth);
 	const auto groupY = point.y() + skipTop;
-
-	const auto skipFromArea = (clickArea - size) / 2;
-	const auto buttonX = groupX - skipFromArea;
-	const auto buttonY = groupY - skipFromArea;
-
 	const auto deleteLeft = skipInternal + size;
 
-	editButton->moveToLeft(buttonX, buttonY);
-	deleteButton->moveToLeft(buttonX + deleteLeft, buttonY);
+	p.setOpacity(1.0 - shrinkProgress);
 
-	const auto alpha = 1.0 - shrinkProgress;
-	editButton->setDisabled(alpha < 1);
-	deleteButton->setDisabled(alpha < 1);
-	p.setOpacity(alpha);
+	QRect groupRect(groupX, groupY, groupWidth, size);
 	App::roundRect(
 		p,
-		groupX,
-		groupY,
-		groupWidth,
-		size,
+		groupRect,
 		st::callFingerprintBg,
 		SendFilesBoxAlbumGroupCorners);
 
@@ -136,6 +122,7 @@ void PaintAlbumThumbButtons(
 			size));
 	p.setOpacity(1);
 
+	return groupRect;
 }
 
 void FileDialogCallback(
@@ -262,6 +249,8 @@ public:
 	void paintFile(Painter &p, int left, int top, int outerWidth);
 
 	bool containsPoint(QPoint position) const;
+	bool buttonsContainPoint(QPoint position) const;
+	ButtonType buttonTypeFromPoint(QPoint position) const;
 	int distanceTo(QPoint position) const;
 	bool isPointAfter(QPoint position) const;
 	void moveInAlbum(QPoint to);
@@ -298,6 +287,8 @@ private:
 	float64 _suggestedMove = 0.;
 	Ui::Animations::Simple _suggestedMoveAnimation;
 	int _lastShrinkValue = 0;
+
+	QRect _lastRectOfButtons;
 
 	object_ptr<Ui::IconButton> _editMedia = nullptr;
 	object_ptr<Ui::IconButton> _deleteMedia = nullptr;
@@ -478,13 +469,11 @@ void AlbumThumb::paintInAlbum(
 		st::historyFileThumbPlay.paintInCenter(p, inner);
 	}
 
-	PaintAlbumThumbButtons(
+	_lastRectOfButtons = PaintAlbumThumbButtons(
 		p,
 		{ x, y },
 		geometry.width(),
-		shrinkProgress,
-		_editMedia,
-		_deleteMedia);
+		shrinkProgress);
 }
 
 void AlbumThumb::prepareCache(QSize size, int shrink) {
@@ -666,6 +655,19 @@ void AlbumThumb::paintFile(Painter &p, int left, int top, int outerWidth) {
 
 bool AlbumThumb::containsPoint(QPoint position) const {
 	return _layout.geometry.contains(position);
+}
+
+bool AlbumThumb::buttonsContainPoint(QPoint position) const {
+	return _lastRectOfButtons.contains(position);
+}
+
+ButtonType AlbumThumb::buttonTypeFromPoint(QPoint position) const {
+	if (!buttonsContainPoint(position)) {
+		return ButtonType::None;
+	}
+	return (position.x() < _lastRectOfButtons.center().x())
+		? ButtonType::Edit
+		: ButtonType::Delete;
 }
 
 int AlbumThumb::distanceTo(QPoint position) const {
@@ -1129,9 +1131,13 @@ private:
 	void updateSizeAnimated(const std::vector<Ui::GroupMediaLayout> &layout);
 	void updateSize();
 
-	int thumbIndexUnderCursor();
-	void deleteThumbUnderCursor();
-	void changeThumbUnderCursor();
+	int thumbIndex(AlbumThumb *thumb);
+	AlbumThumb *thumbUnderCursor();
+	void deleteThumbByIndex(int index);
+	void changeThumbByIndex(int index);
+	void thumbButtonsCallback(
+		not_null<AlbumThumb*> thumb,
+		ButtonType type);
 
 	void paintAlbum(Painter &p) const;
 	void paintPhotos(Painter &p, QRect clip) const;
@@ -1233,10 +1239,6 @@ void SendFilesBox::AlbumPreview::prepareThumbs() {
 		_thumbs.push_back(std::make_unique<AlbumThumb>(
 			_list.files[i],
 			layout[i]));
-		_thumbs[i]->addAlbumThumbButtons(
-			this,
-			[=] { changeThumbUnderCursor(); },
-			[=] { deleteThumbUnderCursor(); });
 	}
 	_thumbsHeight = countLayoutHeight(layout);
 	_photosHeight = ranges::accumulate(ranges::view::all(
@@ -1442,8 +1444,7 @@ void SendFilesBox::AlbumPreview::paintFiles(Painter &p, QRect clip) const {
 	}
 }
 
-int SendFilesBox::AlbumPreview::thumbIndexUnderCursor() {
-	const auto thumb = findThumb(mapFromGlobal(QCursor::pos()));
+int SendFilesBox::AlbumPreview::thumbIndex(AlbumThumb *thumb) {
 	if (!thumb) {
 		return -1;
 	}
@@ -1454,8 +1455,11 @@ int SendFilesBox::AlbumPreview::thumbIndexUnderCursor() {
 	return std::distance(_thumbs.begin(), thumbIt);
 }
 
-void SendFilesBox::AlbumPreview::deleteThumbUnderCursor() {
-	auto index = thumbIndexUnderCursor();
+AlbumThumb *SendFilesBox::AlbumPreview::thumbUnderCursor() {
+	return findThumb(mapFromGlobal(QCursor::pos()));
+}
+
+void SendFilesBox::AlbumPreview::deleteThumbByIndex(int index) {
 	if (index < 0) {
 		return;
 	}
@@ -1471,12 +1475,23 @@ void SendFilesBox::AlbumPreview::deleteThumbUnderCursor() {
 	_thumbDeleted.fire(std::move(index));
 }
 
-void SendFilesBox::AlbumPreview::changeThumbUnderCursor() {
-	auto index = thumbIndexUnderCursor();
-	if (index < -1) {
+void SendFilesBox::AlbumPreview::changeThumbByIndex(int index) {
+	if (index < 0) {
 		return;
 	}
 	_thumbChanged.fire(std::move(index));
+}
+
+void SendFilesBox::AlbumPreview::thumbButtonsCallback(
+	not_null<AlbumThumb*> thumb,
+	ButtonType type) {
+	const auto index = thumbIndex(thumb);
+
+	switch (type) {
+	case ButtonType::None: return;
+	case ButtonType::Edit: changeThumbByIndex(index); break;
+	case ButtonType::Delete: deleteThumbByIndex(index); break;
+	}
 }
 
 void SendFilesBox::AlbumPreview::mousePressEvent(QMouseEvent *e) {
@@ -1486,6 +1501,10 @@ void SendFilesBox::AlbumPreview::mousePressEvent(QMouseEvent *e) {
 	const auto position = e->pos();
 	cancelDrag();
 	if (const auto thumb = findThumb(position)) {
+		if (thumb->buttonsContainPoint(e->pos())) {
+			thumbButtonsCallback(thumb, thumb->buttonTypeFromPoint(e->pos()));
+			return;
+		}
 		_paintedAbove = _suggestedThumb = _draggedThumb = thumb;
 		_draggedStartPosition = position;
 		_shrinkAnimation.start([=] { update(); }, 0., 1., kShrinkDuration);
@@ -1503,8 +1522,11 @@ void SendFilesBox::AlbumPreview::mouseMoveEvent(QMouseEvent *e) {
 		updateSuggestedDrag(_draggedThumb->center());
 		update();
 	} else {
-		const auto cursor = findThumb(e->pos())
-			? style::cur_sizeall
+		const auto thumb = findThumb(e->pos());
+		const auto cursor = thumb
+			? (thumb->buttonsContainPoint(e->pos())
+				? style::cur_pointer
+				: style::cur_sizeall)
 			: style::cur_default;
 		applyCursor(cursor);
 	}
