@@ -522,15 +522,18 @@ sendBoxAlbumGroupSkipTop: 6px;
 sendBoxAlbumGroupRadius: 12px;
 sendBoxAlbumGroupHeight: 25px;
 
-sendBoxAlbumGroupEditButtonIcon: icon {{ "settings_edit", msgServiceFg }};
+sendBoxAlbumGroupEditButtonIcon: editMediaButtonIconPhoto;
 sendBoxAlbumGroupEditButtonIconPosition: point(4px, -1px);
-sendBoxAlbumGroupButton: IconButton {
-	width: sendBoxAlbumGroupHeight;
-	height: sendBoxAlbumGroupHeight;
+
+sendBoxAlbumGroupButtonFile: IconButton(editMediaButton) {
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgRipple;
+	}
 }
 
-sendBoxAlbumGroupDeleteButtonIcon: icon {{ "history_file_cancel", msgServiceFg}};
 sendBoxAlbumGroupDeleteButtonIconPosition: point(-3px, 0px);
+sendBoxAlbumGroupDeleteButtonIcon: icon {{ "history_file_cancel", msgServiceFg}};
+sendBoxAlbumGroupDeleteButtonIconFile: icon {{ "history_file_cancel", menuIconFg, point(6px, 6px) }};
 
 // End of SendFilesBox
 

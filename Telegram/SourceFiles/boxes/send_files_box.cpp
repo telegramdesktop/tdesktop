@@ -231,7 +231,10 @@ class AlbumThumb {
 public:
 	AlbumThumb(
 		const Storage::PreparedFile &file,
-		const Ui::GroupMediaLayout &layout);
+		const Ui::GroupMediaLayout &layout,
+		QWidget *parent,
+		Fn<void()> editCallback,
+		Fn<void()> deleteCallback);
 
 	void moveToLayout(const Ui::GroupMediaLayout &layout);
 	void animateLayoutToInitial();
@@ -258,10 +261,7 @@ public:
 	void suggestMove(float64 delta, Fn<void()> callback);
 	void finishAnimations();
 
-	void addAlbumThumbButtons(
-		QWidget *parent,
-		Fn<void()> editCallback,
-		Fn<void()> deleteCallback);
+	void updateFileRow(int row);
 
 private:
 	QRect countRealGeometry() const;
@@ -297,7 +297,10 @@ private:
 
 AlbumThumb::AlbumThumb(
 	const Storage::PreparedFile &file,
-	const Ui::GroupMediaLayout &layout)
+	const Ui::GroupMediaLayout &layout,
+	QWidget *parent,
+	Fn<void()> editCallback,
+	Fn<void()> deleteCallback)
 : _layout(layout)
 , _fullPreview(file.preview)
 , _shrinkSize(int(std::ceil(st::historyMessageRadius / 1.4)))
@@ -338,7 +341,11 @@ AlbumThumb::AlbumThumb(
 
 	const auto availableFileWidth = st::sendMediaPreviewSize
 		- st::sendMediaFileThumbSkip
-		- st::sendMediaFileThumbSize;
+		- st::sendMediaFileThumbSize
+		// Right buttons.
+		- st::sendBoxAlbumGroupButtonFile.width * 2
+		- st::sendBoxAlbumGroupEditInternalSkip
+		- st::sendBoxAlbumGroupSkipRight;
 	const auto filepath = file.path;
 	if (filepath.isEmpty()) {
 		_name = filedialogDefaultName(
@@ -365,17 +372,45 @@ AlbumThumb::AlbumThumb(
 		_nameWidth = st::semiboldFont->width(_name);
 	}
 	_statusWidth = st::normalFont->width(_status);
+
+	_editMedia.create(parent, st::sendBoxAlbumGroupButtonFile);
+	_deleteMedia.create(parent, st::sendBoxAlbumGroupButtonFile);
+
+	const auto duration = st::historyAttach.ripple.hideDuration;
+	_editMedia->setClickedCallback(App::LambdaDelayed(
+		duration,
+		parent,
+		std::move(editCallback)));
+	_deleteMedia->setClickedCallback(App::LambdaDelayed(
+		duration,
+		parent,
+		std::move(deleteCallback)));
+
+	_editMedia->setIconOverride(&st::editMediaButtonIconFile);
+	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupDeleteButtonIconFile);
+
+	updateFileRow(-1);
 }
 
-void AlbumThumb::addAlbumThumbButtons(
-		QWidget *parent,
-		Fn<void()> editCallback,
-		Fn<void()> deleteCallback) {
-	_editMedia.create(parent, st::sendBoxAlbumGroupButton);
-	_deleteMedia.create(parent, st::sendBoxAlbumGroupButton);
+void AlbumThumb::updateFileRow(int row) {
+	if (row < 0) {
+		_editMedia->hide();
+		_deleteMedia->hide();
+		return;
+	}
+	_editMedia->show();
+	_deleteMedia->show();
 
-	_editMedia->setClickedCallback(std::move(editCallback));
-	_deleteMedia->setClickedCallback(std::move(deleteCallback));
+	const auto fileHeight = st::sendMediaFileThumbSize
+		+ st::sendMediaFileThumbSkip;
+
+	const auto top = row * fileHeight + st::sendBoxAlbumGroupSkipTop;
+	const auto size = st::editMediaButtonSize;
+
+	auto right = st::sendBoxAlbumGroupSkipRight + size;
+	_deleteMedia->moveToRight(right, top);
+	right += st::sendBoxAlbumGroupEditInternalSkip + size;
+	_editMedia->moveToRight(right, top);
 }
 
 void AlbumThumb::resetLayoutAnimation() {
@@ -1136,6 +1171,7 @@ private:
 	void prepareThumbs();
 	void updateSizeAnimated(const std::vector<Ui::GroupMediaLayout> &layout);
 	void updateSize();
+	void updateFileRows();
 
 	int thumbIndex(AlbumThumb *thumb);
 	AlbumThumb *thumbUnderCursor();
@@ -1192,6 +1228,7 @@ SendFilesBox::AlbumPreview::AlbumPreview(
 	setMouseTracking(true);
 	prepareThumbs();
 	updateSize();
+	updateFileRows();
 }
 
 void SendFilesBox::AlbumPreview::setSendWay(SendFilesWay way) {
@@ -1200,7 +1237,16 @@ void SendFilesBox::AlbumPreview::setSendWay(SendFilesWay way) {
 		_sendWay = way;
 	}
 	updateSize();
+	updateFileRows();
 	update();
+}
+
+void SendFilesBox::AlbumPreview::updateFileRows() {
+	Expects(_order.size() == _thumbs.size());
+	const auto isFile = (_sendWay == SendFilesWay::Files);
+	for (auto i = 0; i < _order.size(); i++) {
+		_thumbs[i]->updateFileRow(isFile ? _order[i] : -1);
+	}
 }
 
 std::vector<int> SendFilesBox::AlbumPreview::takeOrder() {
@@ -1244,7 +1290,10 @@ void SendFilesBox::AlbumPreview::prepareThumbs() {
 	for (auto i = 0; i != count; ++i) {
 		_thumbs.push_back(std::make_unique<AlbumThumb>(
 			_list.files[i],
-			layout[i]));
+			layout[i],
+			this,
+			[=] { changeThumbByIndex(thumbIndex(thumbUnderCursor())); },
+			[=] { deleteThumbByIndex(thumbIndex(thumbUnderCursor())); }));
 	}
 	_thumbsHeight = countLayoutHeight(layout);
 	_photosHeight = ranges::accumulate(ranges::view::all(
@@ -1269,13 +1318,19 @@ AlbumThumb *SendFilesBox::AlbumPreview::findThumb(QPoint position) const {
 	position -= QPoint(contentLeft(), contentTop());
 
 	auto top = 0;
+	const auto isPhotosWay = (_sendWay == SendFilesWay::Photos);
+	const auto skip = isPhotosWay
+		? st::sendMediaPreviewPhotoSkip
+		: st::sendMediaFileThumbSkip;
 	auto find = [&](const auto &thumb) {
 		if (_sendWay == SendFilesWay::Album) {
 			return thumb->containsPoint(position);
-		} else if (_sendWay == SendFilesWay::Photos) {
-			const auto bottom = top + thumb->photoHeight();
+		} else if (isPhotosWay || _sendWay == SendFilesWay::Files) {
+			const auto bottom = top + (isPhotosWay
+				? thumb->photoHeight()
+				: st::sendMediaFileThumbSize);
 			const auto isUnderTop = (position.y() > top);
-			top = bottom + st::sendMediaPreviewPhotoSkip;
+			top = bottom + skip;
 			return isUnderTop && (position.y() < bottom);
 		}
 		return false;
