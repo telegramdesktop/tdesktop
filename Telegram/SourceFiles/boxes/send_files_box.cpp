@@ -1745,18 +1745,24 @@ void SendFilesBox::prepareAlbumPreview() {
 		_list,
 		_sendWay->value()));
 
-	addThumbButtonHandlers();
+	addThumbButtonHandlers(wrap);
 
 	_preview = wrap;
 	_albumPreview->show();
 	setupShadows(wrap, _albumPreview);
 
 	initPreview(_albumPreview->desiredHeightValue());
+
+	crl::on_main([=] {
+		wrap->scrollToY(_lastScrollTop);
+		_lastScrollTop = 0;
+	});
 }
 
-void SendFilesBox::addThumbButtonHandlers() {
+void SendFilesBox::addThumbButtonHandlers(not_null<Ui::ScrollArea*> wrap) {
 	_albumPreview->thumbDeleted(
 	) | rpl::start_with_next([=](auto index) {
+		_lastScrollTop = wrap->scrollTop();
 
 		_list.files.erase(_list.files.begin() + index);
 		applyAlbumOrder();
@@ -1780,6 +1786,7 @@ void SendFilesBox::addThumbButtonHandlers() {
 
 	_albumPreview->thumbChanged(
 	) | rpl::start_with_next([=](auto index) {
+		_lastScrollTop = wrap->scrollTop();
 
 		const auto callback = [=](FileDialog::OpenResult &&result) {
 			FileDialogCallback(

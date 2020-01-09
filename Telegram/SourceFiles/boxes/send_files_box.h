@@ -120,7 +120,7 @@ private:
 	void updateControlsGeometry();
 	void updateCaptionPlaceholder();
 
-	void addThumbButtonHandlers();
+	void addThumbButtonHandlers(not_null<Ui::ScrollArea*> wrap);
 
 	bool canAddFiles(not_null<const QMimeData*> data) const;
 	bool addFiles(not_null<const QMimeData*> data);
@@ -168,6 +168,8 @@ private:
 	AlbumPreview *_albumPreview = nullptr;
 	int _albumVideosCount = 0;
 	int _albumPhotosCount = 0;
+
+	int _lastScrollTop = 0;
 
 	QPointer<Ui::RoundButton> _send;
 	QPointer<Ui::RoundButton> _addFileToAlbum;
