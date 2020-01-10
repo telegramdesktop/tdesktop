@@ -151,6 +151,7 @@ struct Poll::Answer {
 	bool correct = false;
 	bool selected = false;
 	ClickHandlerPtr handler;
+	Ui::Animations::Simple selectedAnimation;
 	mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 };
 
@@ -439,6 +440,11 @@ void Poll::toggleMultiOption(const QByteArray &option) {
 	if (i != end(_answers)) {
 		const auto selected = i->selected;
 		i->selected = !selected;
+		i->selectedAnimation.start(
+			[=] { history()->owner().requestViewRepaint(_parent); },
+			selected ? 1. : 0.,
+			selected ? 0. : 1.,
+			st::defaultCheck.duration);
 		if (selected) {
 			const auto j = ranges::find(
 				_answers,
@@ -839,16 +845,10 @@ void Poll::paintRadio(
 	const auto over = ClickHandler::showAsActive(answer.handler);
 	const auto &regular = selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg);
 
-	const auto checkmark = answer.selected;
+	const auto checkmark = answer.selectedAnimation.value(answer.selected ? 1. : 0.);
 
 	const auto o = p.opacity();
-	if (checkmark) {
-		const auto color = outbg ? (selected ? st::msgFileThumbLinkOutFgSelected : st::msgFileThumbLinkOutFg) : (selected ? st::msgFileThumbLinkInFgSelected : st::msgFileThumbLinkInFg);
-		auto pen = color->p;
-		pen.setWidth(st.thickness);
-		p.setPen(pen);
-		p.setBrush(color);
-	} else {
+	if (checkmark < 1.) {
 		p.setBrush(Qt::NoBrush);
 		p.setOpacity(o * (over ? st::historyPollRadioOpacityOver : st::historyPollRadioOpacity));
 	}
@@ -870,13 +870,21 @@ void Poll::paintRadio(
 				state.arcLength);
 		}
 	} else {
-		if (!checkmark) {
+		if (checkmark < 1.) {
 			auto pen = regular->p;
 			pen.setWidth(st.thickness);
 			p.setPen(pen);
+			p.drawEllipse(rect);
 		}
-		p.drawEllipse(rect);
-		if (checkmark) {
+		if (checkmark > 0.) {
+			const auto removeFull = (st.diameter / 2 - st.thickness);
+			const auto removeNow = removeFull * (1. - checkmark);
+			const auto color = outbg ? (selected ? st::msgFileThumbLinkOutFgSelected : st::msgFileThumbLinkOutFg) : (selected ? st::msgFileThumbLinkInFgSelected : st::msgFileThumbLinkInFg);
+			auto pen = color->p;
+			pen.setWidth(st.thickness);
+			p.setPen(pen);
+			p.setBrush(color);
+			p.drawEllipse(rect.marginsRemoved({ removeNow, removeNow, removeNow, removeNow }));
 			const auto &icon = outbg ? (selected ? st::historyPollOutChosenSelected : st::historyPollOutChosen) : (selected ? st::historyPollInChosenSelected : st::historyPollInChosen);
 			icon.paint(p, left + (st.diameter - icon.width()) / 2, top + (st.diameter - icon.height()) / 2, width());
 		}
