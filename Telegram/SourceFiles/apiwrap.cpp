@@ -5882,13 +5882,13 @@ void ApiWrap::sendPollVotes(
 	const auto hideSending = [=] {
 		if (showSending) {
 			if (const auto item = _session->data().message(itemId)) {
-				poll->sendingVote = QByteArray();
+				poll->sendingVotes.clear();
 				_session->data().requestItemRepaint(item);
 			}
 		}
 	};
 	if (showSending) {
-		poll->sendingVote = options.front();
+		poll->sendingVotes = options;
 		_session->data().requestItemRepaint(item);
 	}
 

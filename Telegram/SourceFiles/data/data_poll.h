@@ -60,7 +60,7 @@ struct PollData {
 	std::vector<PollAnswer> answers;
 	std::vector<not_null<UserData*>> recentVoters;
 	int totalVoters = 0;
-	QByteArray sendingVote;
+	std::vector<QByteArray> sendingVotes;
 	crl::time lastResultsUpdate = 0;
 
 	int version = 0;

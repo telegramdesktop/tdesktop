@@ -573,6 +573,14 @@ historyPollRippleOpacity: 0.3;
 historyPollRecentVotersSkip: 4px;
 historyPollRecentVoterSize: 18px;
 historyPollRecentVoterSkip: 13px;
+historyPollBottomButtonSkip: 15px;
+historyPollBottomButtonTop: 4px;
+historyPollChoiceRight: icon {{ "poll_choice_right", activeButtonFg }};
+historyPollChoiceWrong: icon {{ "poll_choice_wrong", activeButtonFg }};
+historyPollOutChosen: icon {{ "poll_select_check", historyFileOutIconFg }};
+historyPollOutChosenSelected: icon {{ "poll_select_check", historyFileOutIconFgSelected }};
+historyPollInChosen: icon {{ "poll_select_check", historyFileInIconFg }};
+historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSelected }};
 
 boxAttachEmoji: IconButton(historyAttachEmoji) {
 	width: 30px;

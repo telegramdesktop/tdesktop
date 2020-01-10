@@ -9,10 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/media/history_view_media.h"
 #include "data/data_poll.h"
+#include "base/weak_ptr.h"
 
 namespace HistoryView {
 
-class Poll : public Media {
+class Poll : public Media, public base::has_weak_ptr {
 public:
 	Poll(
 		not_null<Element*> parent,
@@ -52,6 +53,7 @@ private:
 
 	[[nodiscard]] bool showVotes() const;
 	[[nodiscard]] bool canVote() const;
+	[[nodiscard]] bool canSendVotes() const;
 
 	[[nodiscard]] int countAnswerTop(
 		const Answer &answer,
@@ -60,12 +62,14 @@ private:
 		const Answer &answer,
 		int innerWidth) const;
 	[[nodiscard]] ClickHandlerPtr createAnswerClickHandler(
-		const Answer &answer) const;
+		const Answer &answer);
 	void updateTexts();
 	void updateRecentVoters();
 	void updateAnswers();
 	void updateVotes();
 	void updateTotalVotes();
+	bool showVotersCount() const;
+	bool inlineFooter() const;
 	void updateAnswerVotes();
 	void updateAnswerVotesFromOriginal(
 		Answer &answer,
@@ -112,6 +116,18 @@ private:
 		int width,
 		int height,
 		TextSelection selection) const;
+	void paintInlineFooter(
+		Painter &p,
+		int left,
+		int top,
+		int paintw,
+		TextSelection selection) const;
+	void paintBottom(
+		Painter &p,
+		int left,
+		int top,
+		int paintw,
+		TextSelection selection) const;
 
 	bool checkAnimationStart() const;
 	bool answerVotesChanged() const;
@@ -121,6 +137,9 @@ private:
 	void radialAnimationCallback() const;
 
 	void toggleRipple(Answer &answer, bool pressed);
+	void toggleMultiOption(const QByteArray &option);
+	void sendMultiOptions();
+	void showResults();
 
 	const not_null<PollData*> _poll;
 	int _pollVersion = 0;
@@ -135,6 +154,9 @@ private:
 
 	std::vector<Answer> _answers;
 	Ui::Text::String _totalVotesLabel;
+	ClickHandlerPtr _showResultsLink;
+	ClickHandlerPtr _sendVotesLink;
+	bool _hasSelected = false;
 
 	mutable std::unique_ptr<AnswersAnimation> _answersAnimation;
 	mutable std::unique_ptr<SendingAnimation> _sendingAnimation;
