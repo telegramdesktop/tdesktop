@@ -812,15 +812,15 @@ createPollField: InputField(defaultInputField) {
 }
 createPollFieldPadding: margins(22px, 5px, 22px, 5px);
 createPollOptionField: InputField(createPollField) {
-	textMargins: margins(22px, 8px, 40px, 8px);
+	textMargins: margins(22px, 11px, 40px, 11px);
 	placeholderMargins: margins(2px, 0px, 2px, 0px);
-	heightMax: 64px;
+	heightMax: 68px;
 }
 createPollLimitLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 274px;
 	align: align(topleft);
 }
-createPollLimitPadding: margins(22px, 10px, 22px, 5px);
+createPollLimitPadding: margins(22px, 10px, 22px, 16px);
 createPollOptionRemove: CrossButton {
 	width: 22px;
 	height: 22px;
@@ -841,7 +841,7 @@ createPollOptionRemove: CrossButton {
 		color: windowBgOver;
 	}
 }
-createPollOptionRemovePosition: point(10px, 7px);
+createPollOptionRemovePosition: point(11px, 9px);
 createPollWarning: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	palette: TextPalette(defaultTextPalette) {
@@ -849,6 +849,8 @@ createPollWarning: FlatLabel(defaultFlatLabel) {
 	}
 }
 createPollWarningPosition: point(16px, 6px);
+createPollCheckboxMargin: margins(23px, 10px, 23px, 10px);
+createPollFieldTitlePadding: margins(22px, 7px, 10px, 6px);
 
 callSettingsButton: IconButton {
 	width: 50px;

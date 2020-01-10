@@ -12,10 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/toast/toast.h"
 #include "main/main_session.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
@@ -49,6 +52,8 @@ public:
 	[[nodiscard]] std::vector<PollAnswer> toPollAnswers() const;
 	void focusFirst();
 
+	void enableChooseCorrect(bool enabled);
+
 	[[nodiscard]] rpl::producer<int> usedCount() const;
 	[[nodiscard]] rpl::producer<not_null<QWidget*>> scrollToWidget() const;
 	[[nodiscard]] rpl::producer<> backspaceInFront() const;
@@ -56,23 +61,31 @@ public:
 private:
 	class Option {
 	public:
-		static Option Create(
+		Option(
 			not_null<QWidget*> outer,
 			not_null<Ui::VerticalLayout*> container,
 			not_null<Main::Session*> session,
-			int position);
+			int position,
+			std::shared_ptr<Ui::RadiobuttonGroup> group);
+
+		Option(const Option &other) = delete;
+		Option &operator=(const Option &other) = delete;
 
 		void toggleRemoveAlways(bool toggled);
+		void enableChooseCorrect(
+			std::shared_ptr<Ui::RadiobuttonGroup> group);
 
 		void show(anim::type animated);
 		void destroy(FnMut<void()> done);
 
-		//[[nodisacrd]] bool hasShadow() const;
-		//void destroyShadow();
+		[[nodisacrd]] bool hasShadow() const;
+		void createShadow();
+		void destroyShadow();
 
 		[[nodiscard]] bool isEmpty() const;
 		[[nodiscard]] bool isGood() const;
 		[[nodiscard]] bool isTooLong() const;
+		[[nodiscard]] bool isCorrect() const;
 		[[nodiscard]] bool hasFocus() const;
 		void setFocus() const;
 		void clearValue();
@@ -86,29 +99,18 @@ private:
 
 		[[nodiscard]] rpl::producer<Qt::MouseButton> removeClicks() const;
 
-		inline bool operator<(const Option &other) const {
-			return field() < other.field();
-		}
-
-		friend inline bool operator<(
-				const Option &option,
-				Ui::InputField *field) {
-			return option.field() < field;
-		}
-		friend inline bool operator<(
-				Ui::InputField *field,
-				const Option &option) {
-			return field < option.field();
-		}
-
 	private:
-		Option() = default;
-
-		void createShadow();
 		void createRemove();
 		void createWarning();
+		void toggleCorrectSpace(bool visible);
+		void updateFieldGeometry();
 
-		base::unique_qptr<Ui::SlideWrap<Ui::InputField>> _field;
+		base::unique_qptr<Ui::SlideWrap<Ui::RpWidget>> _wrap;
+		not_null<Ui::RpWidget*> _content;
+		base::unique_qptr<Ui::FadeWrapScaled<Ui::Radiobutton>> _correct;
+		Ui::Animations::Simple _correctShown;
+		bool _hasCorrect = false;
+		Ui::InputField *_field = nullptr;
 		base::unique_qptr<Ui::PlainShadow> _shadow;
 		base::unique_qptr<Ui::CrossButton> _remove;
 		rpl::variable<bool> *_removeAlways = nullptr;
@@ -116,23 +118,24 @@ private:
 	};
 
 	[[nodiscard]] bool full() const;
-	//[[nodiscard]] bool correctShadows() const;
-	//void fixShadows();
+	[[nodiscard]] bool correctShadows() const;
+	void fixShadows();
 	void removeEmptyTail();
 	void addEmptyOption();
 	void checkLastOption();
 	void validateState();
 	void fixAfterErase();
-	void destroy(Option &&option);
-	void removeDestroyed(not_null<Ui::InputField*> field);
+	void destroy(std::unique_ptr<Option> option);
+	void removeDestroyed(not_null<Option*> field);
 	int findField(not_null<Ui::InputField*> field) const;
 
 	not_null<QWidget*> _outer;
 	not_null<Ui::VerticalLayout*> _container;
 	const not_null<Main::Session*> _session;
+	std::shared_ptr<Ui::RadiobuttonGroup> _chooseCorrectGroup;
 	int _position = 0;
-	std::vector<Option> _list;
-	std::set<Option, std::less<>> _destroyed;
+	std::vector<std::unique_ptr<Option>> _list;
+	std::vector<std::unique_ptr<Option>> _destroyed;
 	rpl::variable<bool> _valid = false;
 	rpl::variable<int> _usedCount = 0;
 	rpl::event_stream<not_null<QWidget*>> _scrollToWidget;
@@ -187,58 +190,83 @@ void FocusAtEnd(not_null<Ui::InputField*> field) {
 	field->ensureCursorVisible();
 }
 
-Options::Option Options::Option::Create(
-		not_null<QWidget*> outer,
-		not_null<Ui::VerticalLayout*> container,
-		not_null<Main::Session*> session,
-		int position) {
-	auto result = Option();
-	const auto field = container->insert(
-		position,
-		object_ptr<Ui::SlideWrap<Ui::InputField>>(
-			container,
-			object_ptr<Ui::InputField>(
-				container,
-				st::createPollOptionField,
-				Ui::InputField::Mode::NoNewlines,
-				tr::lng_polls_create_option_add())));
-	InitField(outer, field->entity(), session);
-	field->entity()->setMaxLength(kOptionLimit + kErrorLimit);
-	result._field.reset(field);
+Options::Option::Option(
+	not_null<QWidget*> outer,
+	not_null<Ui::VerticalLayout*> container,
+	not_null<Main::Session*> session,
+	int position,
+	std::shared_ptr<Ui::RadiobuttonGroup> group)
+: _wrap(container->insert(
+	position,
+	object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
+		container,
+		object_ptr<Ui::RpWidget>(container))))
+, _content(_wrap->entity())
+, _field(
+	Ui::CreateChild<Ui::InputField>(
+		_content.get(),
+		st::createPollOptionField,
+		Ui::InputField::Mode::NoNewlines,
+		tr::lng_polls_create_option_add())) {
+	InitField(outer, _field, session);
+	_field->setMaxLength(kOptionLimit + kErrorLimit);
+	_field->show();
 
-	result.createShadow();
-	result.createRemove();
-	result.createWarning();
-	return result;
+	_wrap->hide(anim::type::instant);
+
+	_content->widthValue(
+	) | rpl::start_with_next([=] {
+		updateFieldGeometry();
+	}, _field->lifetime());
+
+	_field->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		_content->resize(_content->width(), height);
+	}, _field->lifetime());
+
+	QObject::connect(_field, &Ui::InputField::changed, [=] {
+		Ui::PostponeCall(crl::guard(_field, [=] {
+			if (_hasCorrect) {
+				_correct->toggle(isGood(), anim::type::normal);
+			}
+		}));
+	});
+
+	createShadow();
+	createRemove();
+	createWarning();
+	enableChooseCorrect(group);
+	if (_correct) {
+		_correct->finishAnimating();
+	}
 }
 
-//bool Options::Option::hasShadow() const {
-//	return (_shadow != nullptr);
-//}
+bool Options::Option::hasShadow() const {
+	return (_shadow != nullptr);
+}
 
 void Options::Option::createShadow() {
-	Expects(_field != nullptr);
+	Expects(_content != nullptr);
 
 	if (_shadow) {
 		return;
 	}
-	const auto value = Ui::CreateChild<Ui::PlainShadow>(field().get());
-	value->show();
+	_shadow.reset(Ui::CreateChild<Ui::PlainShadow>(field().get()));
+	_shadow->show();
 	field()->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
 		const auto left = st::createPollFieldPadding.left();
-		value->setGeometry(
+		_shadow->setGeometry(
 			left,
 			size.height() - st::lineWidth,
 			size.width() - left,
 			st::lineWidth);
-	}, value->lifetime());
-	_shadow.reset(value);
+	}, _shadow->lifetime());
 }
 
-//void Options::Option::destroyShadow() {
-//	_shadow = nullptr;
-//}
+void Options::Option::destroyShadow() {
+	_shadow = nullptr;
+}
 
 void Options::Option::createRemove() {
 	using namespace rpl::mappers;
@@ -313,6 +341,10 @@ bool Options::Option::isTooLong() const {
 	return (field()->getLastText().size() > kOptionLimit);
 }
 
+bool Options::Option::isCorrect() const {
+	return isGood() && _correct && _correct->entity()->Checkbox::checked();
+}
+
 bool Options::Option::hasFocus() const {
 	return field()->hasFocus();
 }
@@ -333,8 +365,66 @@ void Options::Option::toggleRemoveAlways(bool toggled) {
 	*_removeAlways = toggled;
 }
 
+void Options::Option::enableChooseCorrect(
+		std::shared_ptr<Ui::RadiobuttonGroup> group) {
+	if (!group) {
+		if (_correct) {
+			_hasCorrect = false;
+			_correct->hide(anim::type::normal);
+			toggleCorrectSpace(false);
+		}
+		return;
+	}
+	static auto Index = 0;
+	const auto button = Ui::CreateChild<Ui::FadeWrapScaled<Ui::Radiobutton>>(
+		_content.get(),
+		object_ptr<Ui::Radiobutton>(
+			_content.get(),
+			group,
+			++Index,
+			QString(),
+			st::defaultCheckbox));
+	button->entity()->resize(
+		button->entity()->height(),
+		button->entity()->height());
+	button->hide(anim::type::instant);
+	_content->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		const auto left = st::createPollFieldPadding.left();
+		button->moveToLeft(
+			left,
+			(size.height() - button->heightNoMargins()) / 2);
+	}, button->lifetime());
+	_correct.reset(button);
+	_hasCorrect = true;
+	if (isGood()) {
+		_correct->show(anim::type::normal);
+	} else {
+		_correct->hide(anim::type::instant);
+	}
+	toggleCorrectSpace(true);
+}
+
+void Options::Option::toggleCorrectSpace(bool visible) {
+	_correctShown.start(
+		[=] { updateFieldGeometry(); },
+		visible ? 0. : 1.,
+		visible ? 1. : 0.,
+		st::fadeWrapDuration);
+}
+
+void Options::Option::updateFieldGeometry() {
+	const auto shown = _correctShown.value(_hasCorrect ? 1. : 0.);
+	const auto skip = st::defaultRadio.diameter
+		+ st::defaultCheckbox.textPosition.x();
+	const auto left = anim::interpolate(0, skip, shown);
+	const auto width = _content->width() - left;
+	_field->resizeToWidth(_content->width() - left);
+	_field->moveToLeft(left, 0);
+}
+
 not_null<Ui::InputField*> Options::Option::field() const {
-	return _field->entity();
+	return _field;
 }
 
 void Options::Option::removePlaceholder() const {
@@ -344,10 +434,12 @@ void Options::Option::removePlaceholder() const {
 PollAnswer Options::Option::toPollAnswer(int index) const {
 	Expects(index >= 0 && index < kMaxOptionsCount);
 
-	return PollAnswer{
+	auto result = PollAnswer{
 		field()->getLastText().trimmed(),
 		QByteArray(1, ('0' + index))
 	};
+	result.correct = _correct ? _correct->entity()->Checkbox::checked() : false;
+	return result;
 }
 
 rpl::producer<Qt::MouseButton> Options::Option::removeClicks() const {
@@ -390,19 +482,18 @@ rpl::producer<> Options::backspaceInFront() const {
 }
 
 void Options::Option::show(anim::type animated) {
-	_field->hide(anim::type::instant);
-	_field->show(animated);
+	_wrap->show(animated);
 }
 
 void Options::Option::destroy(FnMut<void()> done) {
-	if (anim::Disabled() || _field->isHidden()) {
+	if (anim::Disabled() || _wrap->isHidden()) {
 		Ui::PostponeCall(std::move(done));
 		return;
 	}
-	_field->hide(anim::type::normal);
+	_wrap->hide(anim::type::normal);
 	base::call_delayed(
 		st::slideWrapDuration * 2,
-		_field.get(),
+		_content.get(),
 		std::move(done));
 }
 
@@ -410,8 +501,8 @@ std::vector<PollAnswer> Options::toPollAnswers() const {
 	auto result = std::vector<PollAnswer>();
 	result.reserve(_list.size());
 	auto counter = int(0);
-	const auto makeAnswer = [&](const Option &option) {
-		return option.toPollAnswer(counter++);
+	const auto makeAnswer = [&](const std::unique_ptr<Option> &option) {
+		return option->toPollAnswer(counter++);
 	};
 	ranges::copy(
 		_list
@@ -424,29 +515,42 @@ std::vector<PollAnswer> Options::toPollAnswers() const {
 void Options::focusFirst() {
 	Expects(!_list.empty());
 
-	_list.front().setFocus();
+	_list.front()->setFocus();
 }
-//
-//bool Options::correctShadows() const {
-//	// Last one should be without shadow if all options were used.
-//	const auto noShadow = ranges::find(
-//		_list,
-//		true,
-//		ranges::not_fn(&Option::hasShadow));
-//	return (noShadow == end(_list) - (full() ? 1 : 0));
-//}
-//
-//void Options::fixShadows() {
-//	if (correctShadows()) {
-//		return;
-//	}
-//	for (auto &option : _list) {
-//		option.createShadow();
-//	}
-//	if (full()) {
-//		_list.back().destroyShadow();
-//	}
-//}
+
+void Options::enableChooseCorrect(bool enabled) {
+	_chooseCorrectGroup = enabled
+		? std::make_shared<Ui::RadiobuttonGroup>(0)
+		: nullptr;
+	if (_chooseCorrectGroup) {
+		_chooseCorrectGroup->setChangedCallback([=](int) {
+			validateState();
+		});
+	}
+	validateState();
+	for (auto &option : _list) {
+		option->enableChooseCorrect(_chooseCorrectGroup);
+	}
+}
+
+bool Options::correctShadows() const {
+	// Last one should be without shadow.
+	const auto noShadow = ranges::find(
+		_list,
+		true,
+		ranges::not_fn(&Option::hasShadow));
+	return (noShadow == end(_list) - 1);
+}
+
+void Options::fixShadows() {
+	if (correctShadows()) {
+		return;
+	}
+	for (auto &option : _list) {
+		option->createShadow();
+	}
+	_list.back()->destroyShadow();
+}
 
 void Options::removeEmptyTail() {
 	// Only one option at the end of options list can be empty.
@@ -465,7 +569,7 @@ void Options::removeEmptyTail() {
 		return;
 	}
 	if (focusLast) {
-		emptyItem->setFocus();
+		(*emptyItem)->setFocus();
 	}
 	for (auto i = emptyItem + 1; i != end; ++i) {
 		destroy(std::move(*i));
@@ -474,44 +578,46 @@ void Options::removeEmptyTail() {
 	fixAfterErase();
 }
 
-void Options::destroy(Option &&option) {
-	const auto field = option.field();
-	option.destroy([=] { removeDestroyed(field); });
-	_destroyed.emplace(std::move(option));
+void Options::destroy(std::unique_ptr<Option> option) {
+	const auto value = option.get();
+	option->destroy([=] { removeDestroyed(value); });
+	_destroyed.push_back(std::move(option));
 }
 
 void Options::fixAfterErase() {
 	Expects(!_list.empty());
 
 	const auto last = _list.end() - 1;
-	last->setPlaceholder();
-	last->toggleRemoveAlways(false);
+	(*last)->setPlaceholder();
+	(*last)->toggleRemoveAlways(false);
 	if (last != begin(_list)) {
-		(last - 1)->setPlaceholder();
-		(last - 1)->toggleRemoveAlways(false);
+		(*(last - 1))->setPlaceholder();
+		(*(last - 1))->toggleRemoveAlways(false);
 	}
+	fixShadows();
 }
 
 void Options::addEmptyOption() {
 	if (full()) {
 		return;
-	} else if (!_list.empty() && _list.back().isEmpty()) {
+	} else if (!_list.empty() && _list.back()->isEmpty()) {
 		return;
 	}
 	if (_list.size() > 1) {
-		(_list.end() - 2)->removePlaceholder();
-		(_list.end() - 2)->toggleRemoveAlways(true);
+		(*(_list.end() - 2))->removePlaceholder();
+		(*(_list.end() - 2))->toggleRemoveAlways(true);
 	}
-	_list.push_back(Option::Create(
+	_list.push_back(std::make_unique<Option>(
 		_outer,
 		_container,
 		_session,
-		_position + _list.size() + _destroyed.size()));
-	const auto field = _list.back().field();
+		_position + _list.size() + _destroyed.size(),
+		_chooseCorrectGroup));
+	const auto field = _list.back()->field();
 	QObject::connect(field, &Ui::InputField::submitted, [=] {
 		const auto index = findField(field);
-		if (_list[index].isGood() && index + 1 < _list.size()) {
-			_list[index + 1].setFocus();
+		if (_list[index]->isGood() && index + 1 < _list.size()) {
+			_list[index + 1]->setFocus();
 		}
 	});
 	QObject::connect(field, &Ui::InputField::changed, [=] {
@@ -534,25 +640,25 @@ void Options::addEmptyOption() {
 
 		const auto index = findField(field);
 		if (index > 0) {
-			_list[index - 1].setFocus();
+			_list[index - 1]->setFocus();
 		} else {
 			_backspaceInFront.fire({});
 		}
 		return base::EventFilterResult::Cancel;
 	});
 
-	_list.back().removeClicks(
+	_list.back()->removeClicks(
 	) | rpl::start_with_next([=] {
 		Ui::PostponeCall(crl::guard(field, [=] {
 			Expects(!_list.empty());
 
 			const auto item = begin(_list) + findField(field);
 			if (item == _list.end() - 1) {
-				item->clearValue();
+				(*item)->clearValue();
 				return;
 			}
-			if (item->hasFocus()) {
-				(item + 1)->setFocus();
+			if ((*item)->hasFocus()) {
+				(*(item + 1))->setFocus();
 			}
 			destroy(std::move(*item));
 			_list.erase(item);
@@ -561,21 +667,28 @@ void Options::addEmptyOption() {
 		}));
 	}, field->lifetime());
 
-	_list.back().show((_list.size() == 1)
+	_list.back()->show((_list.size() == 1)
 		? anim::type::instant
 		: anim::type::normal);
-	//fixShadows();
+	fixShadows();
 }
 
-void Options::removeDestroyed(not_null<Ui::InputField*> field) {
-	_destroyed.erase(_destroyed.find(field));
+void Options::removeDestroyed(not_null<Option*> option) {
+	const auto i = ranges::find(
+		_destroyed,
+		option.get(),
+		&std::unique_ptr<Option>::get);
+	Assert(i != end(_destroyed));
+	_destroyed.erase(i);
 }
 
 void Options::validateState() {
 	checkLastOption();
 	_valid = (ranges::count_if(_list, &Option::isGood) > 1)
-		&& (ranges::find_if(_list, &Option::isTooLong) == end(_list));
-	const auto lastEmpty = !_list.empty() && _list.back().isEmpty();
+		&& (ranges::find_if(_list, &Option::isTooLong) == end(_list))
+		&& (!_chooseCorrectGroup
+			|| ranges::find_if(_list, &Option::isCorrect) != end(_list));
+	const auto lastEmpty = !_list.empty() && _list.back()->isEmpty();
 	_usedCount = _list.size() - (lastEmpty ? 1 : 0);
 }
 
@@ -668,7 +781,12 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	const auto question = setupQuestion(container);
 	AddDivider(container);
 	AddSkip(container);
-	AddSubsectionTitle(container, tr::lng_polls_create_options());
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			tr::lng_polls_create_options(),
+			st::settingsSubsectionTitle),
+		st::createPollFieldTitlePadding);
 	const auto options = lifetime().make_state<Options>(
 		getDelegate()->outerContainer(),
 		container,
@@ -684,11 +802,56 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		container->resizeToWidth(container->widthNoMargins());
 	});
 	container->add(
-		object_ptr<Ui::FlatLabel>(
+		object_ptr<Ui::DividerLabel>(
 			container,
-			std::move(limit),
-			st::createPollLimitLabel),
-		st::createPollLimitPadding);
+			object_ptr<Ui::FlatLabel>(
+				container,
+				std::move(limit),
+				st::boxDividerLabel),
+			st::createPollLimitPadding));
+
+	AddSkip(container);
+	AddSubsectionTitle(container, tr::lng_polls_create_settings());
+
+	const auto anonymous = container->add(
+		object_ptr<Ui::Checkbox>(
+			container,
+			tr::lng_polls_create_anonymous(tr::now),
+			true,
+			st::defaultCheckbox),
+		st::createPollCheckboxMargin);
+	const auto multiple = container->add(
+		object_ptr<Ui::Checkbox>(
+			container,
+			tr::lng_polls_create_multiple_choice(tr::now),
+			false,
+			st::defaultCheckbox),
+		st::createPollCheckboxMargin);
+	const auto quiz = container->add(
+		object_ptr<Ui::Checkbox>(
+			container,
+			tr::lng_polls_create_quiz_mode(tr::now),
+			false,
+			st::defaultCheckbox),
+		st::createPollCheckboxMargin);
+
+	using namespace rpl::mappers;
+	quiz->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
+		if (checked && multiple->checked()) {
+			multiple->setChecked(false);
+		}
+		multiple->setDisabled(checked);
+		options->enableChooseCorrect(checked);
+	}, quiz->lifetime());
+
+	multiple->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return (e->type() == QEvent::MouseButtonPress)
+			&& multiple->isDisabled();
+	}) | rpl::start_with_next([=] {
+		Ui::Toast::Show("Quiz has only one right answer.");
+	}, multiple->lifetime());
 
 	const auto isValidQuestion = [=] {
 		const auto text = question->getLastText().trimmed();
