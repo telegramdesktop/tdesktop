@@ -712,8 +712,10 @@ void Options::checkLastOption() {
 CreatePollBox::CreatePollBox(
 	QWidget*,
 	not_null<Main::Session*> session,
+	PublicVotes publicVotes,
 	Api::SendType sendType)
 : _session(session)
+, _publicVotes(publicVotes)
 , _sendType(sendType) {
 }
 
@@ -813,13 +815,15 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_polls_create_settings());
 
-	const auto anonymous = container->add(
-		object_ptr<Ui::Checkbox>(
-			container,
-			tr::lng_polls_create_anonymous(tr::now),
-			true,
-			st::defaultCheckbox),
-		st::createPollCheckboxMargin);
+	const auto anonymous = (_publicVotes == PublicVotes::Enabled)
+		? container->add(
+			object_ptr<Ui::Checkbox>(
+				container,
+				tr::lng_polls_create_anonymous(tr::now),
+				true,
+				st::defaultCheckbox),
+			st::createPollCheckboxMargin)
+		: nullptr;
 	const auto multiple = container->add(
 		object_ptr<Ui::Checkbox>(
 			container,
@@ -873,7 +877,9 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		auto result = PollData(&_session->data(), id);
 		result.question = question->getLastText().trimmed();
 		result.answers = options->toPollAnswers();
-		result.setFlags((anonymous->checked() ? Flag(0) : Flag::PublicVotes)
+		const auto publicVotes = (anonymous && !anonymous->checked());
+		result.setFlags(Flag(0)
+			| (publicVotes ? Flag::PublicVotes : Flag(0))
 			| (multiple->checked() ? Flag::MultiChoice : Flag(0))
 			| (quiz->checked() ? Flag::Quiz : Flag(0)));
 		return result;

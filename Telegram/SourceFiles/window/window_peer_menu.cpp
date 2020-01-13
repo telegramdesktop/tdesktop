@@ -710,6 +710,9 @@ void PeerMenuShareContactBox(
 void PeerMenuCreatePoll(not_null<PeerData*> peer) {
 	const auto box = Ui::show(Box<CreatePollBox>(
 		&peer->session(),
+		((peer->isChannel() && !peer->isMegagroup())
+			? CreatePollBox::PublicVotes::Disabled
+			: CreatePollBox::PublicVotes::Enabled),
 		Api::SendType::Normal));
 	const auto lock = box->lifetime().make_state<bool>(false);
 	box->submitRequests(
