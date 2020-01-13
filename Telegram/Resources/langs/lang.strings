@@ -2173,6 +2173,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_polls_votes_count#one" = "{count} vote";
 "lng_polls_votes_count#other" = "{count} votes";
 "lng_polls_votes_none" = "No votes";
+"lng_polls_answers_count#one" = "{count} answer";
+"lng_polls_answers_count#other" = "{count} answers";
+"lng_polls_answers_none" = "No answers";
 "lng_polls_submit_votes" = "Submit votes";
 "lng_polls_view_results" = "View results";
 "lng_polls_retract" = "Retract vote";

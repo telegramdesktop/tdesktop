@@ -511,9 +511,17 @@ void Poll::updateTotalVotes() {
 		return;
 	}
 	_totalVotes = _poll->totalVoters;
+	const auto quiz = _poll->quiz();
 	const auto string = !_totalVotes
-		? tr::lng_polls_votes_none(tr::now)
-		: tr::lng_polls_votes_count(tr::now, lt_count_short, _totalVotes);
+		? (quiz
+			? tr::lng_polls_answers_none
+			: tr::lng_polls_votes_none)(tr::now)
+		: (quiz
+			? tr::lng_polls_answers_count
+			: tr::lng_polls_votes_count)(
+				tr::now,
+				lt_count_short,
+				_totalVotes);
 	_totalVotesLabel.setText(st::msgDateTextStyle, string);
 }
 
@@ -1064,9 +1072,17 @@ TextState Poll::textState(QPoint point, StateRequest request) const {
 				result.customTooltip = true;
 				using Flag = Ui::Text::StateRequest::Flag;
 				if (request.flags & Flag::LookupCustomTooltip) {
+					const auto quiz = _poll->quiz();
 					result.customTooltipText = answer.votes
-						? tr::lng_polls_votes_count(tr::now, lt_count_decimal, answer.votes)
-						: tr::lng_polls_votes_none(tr::now);
+						? (quiz
+							? tr::lng_polls_answers_count
+							: tr::lng_polls_votes_count)(
+								tr::now,
+								lt_count_decimal,
+								answer.votes)
+						: (quiz
+							? tr::lng_polls_answers_none
+							: tr::lng_polls_votes_none)(tr::now);
 				}
 			}
 			return result;
