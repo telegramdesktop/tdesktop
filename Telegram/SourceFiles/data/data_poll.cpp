@@ -177,6 +177,13 @@ bool PollData::applyResultToAnswers(
 	});
 }
 
+void PollData::setFlags(Flags flags) {
+	if (_flags != flags) {
+		_flags = flags;
+		++version;
+	}
+}
+
 PollData::Flags PollData::flags() const {
 	return _flags;
 }
@@ -201,7 +208,7 @@ bool PollData::quiz() const {
 	return (_flags & Flag::Quiz);
 }
 
-MTPPoll PollDataToMTP(not_null<const PollData*> poll) {
+MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close) {
 	const auto convert = [](const PollAnswer &answer) {
 		return MTP_pollAnswer(
 			MTP_string(answer.text),
@@ -213,9 +220,14 @@ MTPPoll PollDataToMTP(not_null<const PollData*> poll) {
 		poll->answers,
 		ranges::back_inserter(answers),
 		convert);
+	using Flag = MTPDpoll::Flag;
+	const auto flags = ((poll->closed() || close) ? Flag::f_closed : Flag(0))
+		| (poll->multiChoice() ? Flag::f_multiple_choice : Flag(0))
+		| (poll->publicVotes() ? Flag::f_public_voters : Flag(0))
+		| (poll->quiz() ? Flag::f_quiz : Flag(0));
 	return MTP_poll(
 		MTP_long(poll->id),
-		MTP_flags(MTPDpoll::Flag::f_closed),
+		MTP_flags(flags),
 		MTP_string(poll->question),
 		MTP_vector<MTPPollAnswer>(answers));
 }

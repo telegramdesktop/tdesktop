@@ -48,6 +48,7 @@ struct PollData {
 	[[nodiscard]] const PollAnswer *answerByOption(
 		const QByteArray &option) const;
 
+	void setFlags(Flags flags);
 	[[nodiscard]] Flags flags() const;
 	[[nodiscard]] bool voted() const;
 	[[nodiscard]] bool closed() const;
@@ -77,4 +78,4 @@ private:
 
 };
 
-MTPPoll PollDataToMTP(not_null<const PollData*> poll);
+MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close = false);

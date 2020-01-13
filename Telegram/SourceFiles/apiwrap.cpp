@@ -5842,15 +5842,24 @@ void ApiWrap::createPoll(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
 	}
 
+	const auto inputFlags = data.quiz()
+		? MTPDinputMediaPoll::Flag::f_correct_answers
+		: MTPDinputMediaPoll::Flag(0);
+	auto correct = QVector<MTPbytes>();
+	for (const auto &answer : data.answers) {
+		if (answer.correct) {
+			correct.push_back(MTP_bytes(answer.option));
+		}
+	}
 	const auto replyTo = action.replyTo;
 	history->sendRequestId = request(MTPmessages_SendMedia(
 		MTP_flags(sendFlags),
 		peer->input,
 		MTP_int(replyTo),
 		MTP_inputMediaPoll(
-			MTP_flags(0),
+			MTP_flags(inputFlags),
 			PollDataToMTP(&data),
-			MTPvector<MTPbytes>()), // correct_answers #TODO polls
+			MTP_vector<MTPbytes>(correct)),
 		MTP_string(),
 		MTP_long(rand_value<uint64>()),
 		MTPReplyMarkup(),
@@ -5924,15 +5933,24 @@ void ApiWrap::closePoll(not_null<HistoryItem*> item) {
 		return;
 	}
 
+	const auto inputFlags = poll->quiz()
+		? MTPDinputMediaPoll::Flag::f_correct_answers
+		: MTPDinputMediaPoll::Flag(0);
+	auto correct = QVector<MTPbytes>();
+	for (const auto &answer : poll->answers) {
+		if (answer.correct) {
+			correct.push_back(MTP_bytes(answer.option));
+		}
+	}
 	const auto requestId = request(MTPmessages_EditMessage(
 		MTP_flags(MTPmessages_EditMessage::Flag::f_media),
 		item->history()->peer->input,
 		MTP_int(item->id),
 		MTPstring(),
 		MTP_inputMediaPoll(
-			MTP_flags(0),
-			PollDataToMTP(poll),
-			MTPvector<MTPbytes>()), // correct_answers #TODO polls
+			MTP_flags(inputFlags),
+			PollDataToMTP(poll, true),
+			MTP_vector<MTPbytes>(correct)),
 		MTPReplyMarkup(),
 		MTPVector<MTPMessageEntity>(),
 		MTP_int(0) // schedule_date

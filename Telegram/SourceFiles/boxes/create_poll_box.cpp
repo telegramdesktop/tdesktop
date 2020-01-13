@@ -869,9 +869,13 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	};
 
 	const auto collectResult = [=] {
+		using Flag = PollData::Flag;
 		auto result = PollData(&_session->data(), id);
 		result.question = question->getLastText().trimmed();
 		result.answers = options->toPollAnswers();
+		result.setFlags((anonymous->checked() ? Flag(0) : Flag::PublicVotes)
+			| (multiple->checked() ? Flag::MultiChoice : Flag(0))
+			| (quiz->checked() ? Flag::Quiz : Flag(0)));
 		return result;
 	};
 	const auto send = [=](Api::SendOptions options) {
