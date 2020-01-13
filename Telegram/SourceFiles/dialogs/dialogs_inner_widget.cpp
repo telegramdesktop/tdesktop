@@ -2957,7 +2957,7 @@ void InnerWidget::setupShortcuts() {
 			const auto folder = session().data().folderLoaded(
 				Data::Folder::kId);
 			if (folder && !folder->chatsList()->empty()) {
-				App::wnd()->sessionController()->openFolder(folder);
+				_controller->openFolder(folder);
 				Ui::hideSettingsAndLayer();
 				return true;
 			}
