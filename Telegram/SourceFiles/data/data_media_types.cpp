@@ -1302,6 +1302,9 @@ TextForMimeData MediaPoll::clipboardText() const {
 }
 
 QString MediaPoll::errorTextForForward(not_null<PeerData*> peer) const {
+	if (_poll->publicVotes() && peer->isChannel() && !peer->isMegagroup()) {
+		return tr::lng_restricted_send_public_polls(tr::now);
+	}
 	return Data::RestrictionError(
 		peer,
 		ChatRestriction::f_send_polls

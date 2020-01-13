@@ -1797,6 +1797,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restricted_send_inline_all" = "Posting inline content isn't allowed in this group.";
 "lng_restricted_send_polls_all" = "Posting polls isn't allowed in this group.";
 
+"lng_restricted_send_public_polls" = "Sorry, public polls can't be forwarded to channels.";
+
 "lng_exceptions_list_title" = "Exceptions";
 "lng_removed_list_title" = "Removed users";
 
