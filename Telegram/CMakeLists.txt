@@ -94,6 +94,10 @@ if (NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
     target_link_libraries(Telegram PRIVATE desktop-app::external_crash_reports)
 endif()
 
+if (LINUX AND NOT DESKTOP_APP_DISABLE_SPELLCHECK AND NOT DESKTOP_APP_USE_PACKAGED)
+    target_link_libraries(Telegram PRIVATE desktop-app::external_sonnet)
+endif()
+
 target_precompile_headers(Telegram PRIVATE ${src_loc}/stdafx.h)
 nice_target_sources(Telegram ${src_loc}
 PRIVATE

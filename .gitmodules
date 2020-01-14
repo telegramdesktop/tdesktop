@@ -64,3 +64,6 @@
 [submodule "Telegram/lib_qr"]
 	path = Telegram/lib_qr
 	url = https://github.com/desktop-app/lib_qr.git
+[submodule "Telegram/ThirdParty/sonnet"]
+	path = Telegram/ThirdParty/sonnet
+	url = https://github.com/KDE/sonnet
