@@ -577,6 +577,11 @@ bool InnerWidget::elementIntersectsRange(
 void InnerWidget::elementStartStickerLoop(not_null<const Element*> view) {
 }
 
+void InnerWidget::elementShowPollResults(
+	not_null<PollData*> poll,
+	FullMsgId context) {
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));

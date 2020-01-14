@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
+#include "boxes/poll_results_box.h"
 #include "data/data_media_types.h"
 #include "data/data_poll.h"
 #include "data/data_user.h"
@@ -255,6 +256,9 @@ bool Poll::canSendVotes() const {
 }
 
 bool Poll::showVotersCount() const {
+	if (!_totalVotes) {
+		return true;
+	}
 	return showVotes()
 		? !(_flags & PollData::Flag::PublicVotes)
 		: !(_flags & PollData::Flag::MultiChoice);
@@ -475,7 +479,9 @@ void Poll::sendMultiOptions() {
 }
 
 void Poll::showResults() {
-	// #TODO polls
+	_parent->delegate()->elementShowPollResults(
+		_poll,
+		_parent->data()->fullId());
 }
 
 void Poll::updateVotes() {

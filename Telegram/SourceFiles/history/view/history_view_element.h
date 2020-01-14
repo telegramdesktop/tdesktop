@@ -51,6 +51,9 @@ public:
 		int from,
 		int till) = 0;
 	virtual void elementStartStickerLoop(not_null<const Element*> view) = 0;
+	virtual void elementShowPollResults(
+		not_null<PollData*> poll,
+		FullMsgId context) = 0;
 
 };
 
@@ -71,6 +74,9 @@ public:
 		int from,
 		int till) override;
 	void elementStartStickerLoop(not_null<const Element*> view) override;
+	void elementShowPollResults(
+		not_null<PollData*> poll,
+		FullMsgId context) override;
 
 };
 

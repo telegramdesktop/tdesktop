@@ -94,6 +94,11 @@ void SimpleElementDelegate::elementStartStickerLoop(
 	not_null<const Element*> view) {
 }
 
+void SimpleElementDelegate::elementShowPollResults(
+	not_null<PollData*> poll,
+	FullMsgId context) {
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {

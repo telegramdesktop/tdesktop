@@ -1,0 +1,23 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+#pragma once
+
+#include "ui/layers/generic_box.h"
+
+class PollData;
+class HistoryItem;
+
+namespace Window {
+class SessionController;
+} // namespace Window
+
+void PollResultsBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Window::SessionController*> window,
+	not_null<PollData*> poll,
+	FullMsgId context);

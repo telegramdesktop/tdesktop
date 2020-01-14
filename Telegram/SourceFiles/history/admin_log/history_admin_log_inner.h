@@ -101,6 +101,9 @@ public:
 		int till) override;
 	void elementStartStickerLoop(
 		not_null<const HistoryView::Element*> view) override;
+	void elementShowPollResults(
+		not_null<PollData*> poll,
+		FullMsgId context) override;
 
 	~InnerWidget();
 

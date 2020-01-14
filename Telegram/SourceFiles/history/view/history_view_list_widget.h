@@ -197,6 +197,9 @@ public:
 		int from,
 		int till) override;
 	void elementStartStickerLoop(not_null<const Element*> view) override;
+	void elementShowPollResults(
+		not_null<PollData*> poll,
+		FullMsgId context) override;
 
 	~ListWidget();
 

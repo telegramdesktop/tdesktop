@@ -188,6 +188,8 @@ PRIVATE
     boxes/passcode_box.h
     boxes/photo_crop_box.cpp
     boxes/photo_crop_box.h
+    boxes/poll_results_box.cpp
+    boxes/poll_results_box.h
     boxes/rate_call_box.cpp
     boxes/rate_call_box.h
     boxes/report_box.cpp

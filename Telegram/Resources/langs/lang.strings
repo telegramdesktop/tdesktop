@@ -2200,6 +2200,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_polls_create_quiz_mode" = "Quiz Mode";
 "lng_polls_create_button" = "Create";
 
+"lng_polls_poll_results_title" = "Poll results";
+"lng_polls_quiz_results_title" = "Quiz results";
+"lng_polls_show_more#one" = "Show {count} more voter";
+"lng_polls_show_more#other" = "Show {count} more voters";
+
 "lng_outdated_title" = "PLEASE UPDATE YOUR OPERATING SYSTEM.";
 "lng_outdated_soon" = "Otherwise, Telegram Desktop will stop updating on {date}.";
 "lng_outdated_now" = "So that Telegram Desktop can update to newer versions.";

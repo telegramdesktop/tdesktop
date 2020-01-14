@@ -81,6 +81,9 @@ public:
 		int from,
 		int till) const;
 	void elementStartStickerLoop(not_null<const Element*> view);
+	void elementShowPollResults(
+		not_null<PollData*> poll,
+		FullMsgId context);
 
 	void updateBotInfo(bool recount = true);
 

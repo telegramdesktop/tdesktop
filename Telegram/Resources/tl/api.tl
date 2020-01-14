@@ -351,6 +351,7 @@ updateDeleteScheduledMessages#90866cee peer:Peer messages:Vector<int> = Update;
 updateTheme#8216fba3 theme:Theme = Update;
 updateGeoLiveViewed#871fb939 peer:Peer msg_id:int = Update;
 updateLoginToken#564fe691 = Update;
+updateMessagePollVote#42f88f2c poll_id:long user_id:int options:Vector<bytes> = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -1082,10 +1083,6 @@ theme#28f1114 flags:# creator:flags.0?true default:flags.1?true id:long access_h
 account.themesNotModified#f41eb622 = account.Themes;
 account.themes#7f676421 hash:int themes:Vector<Theme> = account.Themes;
 
-wallet.liteResponse#764386d7 response:bytes = wallet.LiteResponse;
-
-wallet.secretSalt#dd484d64 salt:bytes = wallet.KeySecretSalt;
-
 auth.loginToken#629f1980 expires:int token:bytes = auth.LoginToken;
 auth.loginTokenMigrateTo#68e9916 dc_id:int token:bytes = auth.LoginToken;
 auth.loginTokenSuccess#390d5c5e authorization:auth.Authorization = auth.LoginToken;
@@ -1106,7 +1103,9 @@ themeSettings#9c14984a flags:# base_theme:BaseTheme accent_color:int message_top
 
 webPageAttributeTheme#54b56617 flags:# documents:flags.0?Vector<Document> settings:flags.1?ThemeSettings = WebPageAttribute;
 
-messageUserVote#f212f56d user_id:int option:bytes = MessageUserVote;
+messageUserVote#a28e5559 user_id:int option:bytes date:int = MessageUserVote;
+messageUserVoteInputOption#36377430 user_id:int date:int = MessageUserVote;
+messageUserVoteMultiple#e8fe0de user_id:int options:Vector<bytes> date:int = MessageUserVote;
 
 messages.votesList#823f649 flags:# count:int votes:Vector<MessageUserVote> users:Vector<User> next_offset:flags.0?string = messages.VotesList;
 
@@ -1454,8 +1453,5 @@ langpack.getLanguage#6a596502 lang_pack:string lang_code:string = LangPackLangua
 
 folders.editPeerFolders#6847d0ab folder_peers:Vector<InputFolderPeer> = Updates;
 folders.deleteFolder#1c295881 folder_id:int = Updates;
-
-wallet.sendLiteRequest#e2c9d33e body:bytes = wallet.LiteResponse;
-wallet.getKeySecretSalt#b57f346 revoke:Bool = wallet.KeySecretSalt;
 
 // LAYER 109

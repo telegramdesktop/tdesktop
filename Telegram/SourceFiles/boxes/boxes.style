@@ -923,3 +923,17 @@ customBadgeField: InputField(defaultInputField) {
 
 	heightMin: 32px;
 }
+
+pollResultsQuestion: FlatLabel(defaultFlatLabel) {
+	minWidth: 320px;
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px semibold);
+		linkFont: font(16px semibold);
+		linkFontOver: font(16px semibold underline);
+	}
+}
+pollResultsVotesCount: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+pollResultsHeaderPadding: margins(22px, 8px, 22px, 8px);

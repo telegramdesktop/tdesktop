@@ -30,9 +30,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/inactive_press.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
+#include "window/window_controller.h"
 #include "boxes/confirm_box.h"
 #include "boxes/report_box.h"
 #include "boxes/sticker_set_box.h"
+#include "boxes/poll_results_box.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "history/history_widget.h"
@@ -2418,6 +2420,13 @@ void HistoryInner::elementStartStickerLoop(
 	_animatedStickersPlayed.emplace(view->data());
 }
 
+void HistoryInner::elementShowPollResults(
+		not_null<PollData*> poll,
+		FullMsgId context) {
+	_controller->window().show(
+		Box(PollResultsBox, _controller, poll, context));
+}
+
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
@@ -3276,6 +3285,13 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 				not_null<const Element*> view) override {
 			if (Instance) {
 				Instance->elementStartStickerLoop(view);
+			}
+		}
+		void elementShowPollResults(
+				not_null<PollData*> poll,
+				FullMsgId context) override {
+			if (Instance) {
+				Instance->elementShowPollResults(poll, context);
 			}
 		}
 

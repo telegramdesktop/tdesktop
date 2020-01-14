@@ -1153,6 +1153,11 @@ bool ListWidget::elementIntersectsRange(
 void ListWidget::elementStartStickerLoop(not_null<const Element*> view) {
 }
 
+void ListWidget::elementShowPollResults(
+	not_null<PollData*> poll,
+	FullMsgId context) {
+}
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();
