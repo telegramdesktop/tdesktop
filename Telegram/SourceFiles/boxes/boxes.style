@@ -937,3 +937,16 @@ pollResultsVotesCount: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 pollResultsHeaderPadding: margins(22px, 8px, 22px, 8px);
+pollResultsShowMore: SettingsButton {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	font: semiboldFont;
+
+	height: 20px;
+	padding: margins(71px, 10px, 8px, 8px);
+
+	ripple: defaultRippleAnimation;
+}

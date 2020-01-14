@@ -277,7 +277,7 @@ void CreateAnswerRows(
 					lt_count_decimal,
 					rpl::single(answer.votes + 0.),
 					Ui::Text::Upper),
-				st::infoMainButton)),
+				st::pollResultsShowMore)),
 		style::margins());
 	more->toggle(answer.votes > kFirstPage, anim::type::instant);
 	more->entity()->setClickedCallback([=] {

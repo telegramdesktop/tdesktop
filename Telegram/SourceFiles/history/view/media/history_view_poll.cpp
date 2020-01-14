@@ -256,11 +256,8 @@ bool Poll::canSendVotes() const {
 }
 
 bool Poll::showVotersCount() const {
-	if (!_totalVotes) {
-		return true;
-	}
 	return showVotes()
-		? !(_flags & PollData::Flag::PublicVotes)
+		? (!_totalVotes || !(_flags & PollData::Flag::PublicVotes))
 		: !(_flags & PollData::Flag::MultiChoice);
 }
 
