@@ -149,6 +149,8 @@ historyReceivedIcon: icon {{ "history_received", historyOutIconFg, point(2px, 4p
 historyReceivedSelectedIcon: icon {{ "history_received", historyOutIconFgSelected, point(2px, 4px) }};
 historyReceivedInvertedIcon: icon {{ "history_received", historyIconFgInverted, point(2px, 4px) }};
 
+historyScheduledUntilOnlineStateSpace: 17px;
+
 historyViewsSpace: 11px;
 historyViewsWidth: 20px;
 historyViewsTop: -15px;

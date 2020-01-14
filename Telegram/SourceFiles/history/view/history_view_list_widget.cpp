@@ -1391,7 +1391,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 					} else {
 						ServiceMessagePainter::paintDate(
 							p,
-							view->dateTime(),
+							ItemDateText(view->data(), IsItemScheduledUntilOnline(view->data())),
 							dateY,
 							width);
 					}

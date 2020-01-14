@@ -185,8 +185,8 @@ void UnreadBar::paint(Painter &p, int y, int w) const {
 }
 
 
-void DateBadge::init(const QDateTime &date) {
-	text = langDayOfMonthFull(date.date());
+void DateBadge::init(const QString &date) {
+	text = date;
 	width = st::msgServiceFont->width(text);
 }
 
@@ -207,7 +207,8 @@ Element::Element(
 	not_null<HistoryItem*> data)
 : _delegate(delegate)
 , _data(data)
-, _dateTime(ItemDateTime(data))
+, _isScheduledUntilOnline(IsItemScheduledUntilOnline(data))
+, _dateTime(_isScheduledUntilOnline ? QDateTime() : ItemDateTime(data))
 , _context(delegate->elementContext()) {
 	history()->owner().registerItemView(this);
 	refreshMedia();
@@ -505,7 +506,7 @@ void Element::setDisplayDate(bool displayDate) {
 	const auto item = data();
 	if (displayDate && !Has<DateBadge>()) {
 		AddComponents(DateBadge::Bit());
-		Get<DateBadge>()->init(dateTime());
+		Get<DateBadge>()->init(ItemDateText(item, _isScheduledUntilOnline));
 		setPendingResize();
 	} else if (!displayDate && Has<DateBadge>()) {
 		RemoveComponents(DateBadge::Bit());

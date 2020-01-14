@@ -122,7 +122,7 @@ struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
 // Any HistoryView::Element can have this Component for
 // displaying the day mark above the message.
 struct DateBadge : public RuntimeComponent<DateBadge, Element> {
-	void init(const QDateTime &date);
+	void init(const QString &date);
 
 	int height() const;
 	void paint(Painter &p, int y, int w) const;
@@ -310,6 +310,7 @@ private:
 	const not_null<ElementDelegate*> _delegate;
 	const not_null<HistoryItem*> _data;
 	std::unique_ptr<Media> _media;
+	bool _isScheduledUntilOnline = false;
 	const QDateTime _dateTime;
 
 	int _y = 0;

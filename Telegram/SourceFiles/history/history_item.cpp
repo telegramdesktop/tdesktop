@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/crash_reports.h"
 #include "base/unixtime.h"
+#include "data/data_scheduled_messages.h" // kScheduledUntilOnlineTimestamp
 #include "data/data_session.h"
 #include "data/data_messages.h"
 #include "data/data_media_types.h"
@@ -860,6 +861,21 @@ HistoryItem::~HistoryItem() = default;
 
 QDateTime ItemDateTime(not_null<const HistoryItem*> item) {
 	return base::unixtime::parse(item->date());
+}
+
+QString ItemDateText(not_null<const HistoryItem*> item, bool isUntilOnline) {
+	const auto dateText = langDayOfMonthFull(ItemDateTime(item).date());
+	return !item->isScheduled()
+		? dateText
+		: isUntilOnline
+			? tr::lng_scheduled_date_until_online(tr::now)
+			: tr::lng_scheduled_date(tr::now, lt_date, dateText);
+}
+
+bool IsItemScheduledUntilOnline(not_null<const HistoryItem*> item) {
+	return item->isScheduled()
+		&& (item->date() ==
+			Data::ScheduledMessages::kScheduledUntilOnlineTimestamp);
 }
 
 ClickHandlerPtr goToMessageClickHandler(

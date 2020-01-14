@@ -199,6 +199,10 @@ void ServiceMessagePainter::paintDate(Painter &p, const QDateTime &date, int y, 
 	paintPreparedDate(p, dateText, dateTextWidth, y, w);
 }
 
+void ServiceMessagePainter::paintDate(Painter &p, const QString &dateText, int y, int w) {
+	paintPreparedDate(p, dateText, st::msgServiceFont->width(dateText), y, w);
+}
+
 void ServiceMessagePainter::paintDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w) {
 	paintPreparedDate(p, dateText, dateTextWidth, y, w);
 }

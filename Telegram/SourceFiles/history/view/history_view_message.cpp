@@ -1269,7 +1269,12 @@ int Message::infoWidth() const {
 			result += st::historySendStateSpace;
 		}
 	}
-	if (hasOutLayout()) {
+
+	// When message is scheduled until online, time is not displayed,
+	// so message should have less space.
+	if (!item->_timeWidth) {
+		result += st::historyScheduledUntilOnlineStateSpace;
+	} else if (hasOutLayout()) {
 		result += st::historySendStateSpace;
 	}
 	return result;
