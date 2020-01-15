@@ -27,15 +27,12 @@ public:
 		PollData poll;
 		Api::SendOptions options;
 	};
-	enum class PublicVotes {
-		Enabled,
-		Disabled,
-	};
 
 	CreatePollBox(
 		QWidget*,
 		not_null<Main::Session*> session,
-		PublicVotes publicVotes,
+		PollData::Flags chosen,
+		PollData::Flags disabled,
 		Api::SendType sendType);
 
 	rpl::producer<Result> submitRequests() const;
@@ -52,7 +49,8 @@ private:
 		not_null<Ui::VerticalLayout*> container);
 
 	const not_null<Main::Session*> _session;
-	const PublicVotes _publicVotes = PublicVotes();
+	const PollData::Flags _chosen = PollData::Flags();
+	const PollData::Flags _disabled = PollData::Flags();
 	const Api::SendType _sendType = Api::SendType();
 	Fn<void()> _setInnerFocus;
 	Fn<rpl::producer<bool>()> _dataIsValidValue;

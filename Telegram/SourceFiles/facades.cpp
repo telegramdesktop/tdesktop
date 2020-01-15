@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "media/clip/media_clip_reader.h"
 #include "window/window_session_controller.h"
+#include "window/window_peer_menu.h"
 #include "history/history_item_components.h"
 #include "base/platform/base_platform_info.h"
 #include "data/data_peer.h"
@@ -113,6 +114,19 @@ void activateBotCommand(
 				history->session().user(),
 				action);
 		}));
+	} break;
+
+	case ButtonType::RequestPoll: {
+		hideSingleUseKeyboard(msg);
+		auto chosen = PollData::Flags();
+		auto disabled = PollData::Flags();
+		if (!button->data.isEmpty()) {
+			disabled |= PollData::Flag::Quiz;
+			if (button->data[0]) {
+				chosen |= PollData::Flag::Quiz;
+			}
+		}
+		Window::PeerMenuCreatePoll(msg->history()->peer, chosen, disabled);
 	} break;
 
 	case ButtonType::SwitchInlineSame:

@@ -164,6 +164,7 @@ struct HistoryMessageMarkupButton {
 		Callback,
 		RequestPhone,
 		RequestLocation,
+		RequestPoll,
 		SwitchInline,
 		SwitchInlineSame,
 		Game,

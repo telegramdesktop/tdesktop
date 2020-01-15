@@ -191,6 +191,7 @@ public:
 	[[nodiscard]] bool canRevokeFullHistory() const;
 	[[nodiscard]] bool slowmodeApplied() const;
 	[[nodiscard]] int slowmodeSecondsLeft() const;
+	[[nodiscard]] bool canSendPolls() const;
 
 	[[nodiscard]] UserData *asUser();
 	[[nodiscard]] const UserData *asUser() const;

@@ -45,7 +45,8 @@ public:
 	Options(
 		not_null<QWidget*> outer,
 		not_null<Ui::VerticalLayout*> container,
-		not_null<Main::Session*> session);
+		not_null<Main::Session*> session,
+		bool chooseCorrectEnabled);
 
 	[[nodiscard]] bool isValid() const;
 	[[nodiscard]] rpl::producer<bool> isValidChanged() const;
@@ -128,6 +129,8 @@ private:
 	void destroy(std::unique_ptr<Option> option);
 	void removeDestroyed(not_null<Option*> field);
 	int findField(not_null<Ui::InputField*> field) const;
+	[[nodiscard]] auto createChooseCorrectGroup()
+		-> std::shared_ptr<Ui::RadiobuttonGroup>;
 
 	not_null<QWidget*> _outer;
 	not_null<Ui::VerticalLayout*> _container;
@@ -236,9 +239,11 @@ Options::Option::Option(
 	createRemove();
 	createWarning();
 	enableChooseCorrect(group);
+	_correctShown.stop();
 	if (_correct) {
 		_correct->finishAnimating();
 	}
+	updateFieldGeometry();
 }
 
 bool Options::Option::hasShadow() const {
@@ -449,10 +454,14 @@ rpl::producer<Qt::MouseButton> Options::Option::removeClicks() const {
 Options::Options(
 	not_null<QWidget*> outer,
 	not_null<Ui::VerticalLayout*> container,
-	not_null<Main::Session*> session)
+	not_null<Main::Session*> session,
+	bool chooseCorrectEnabled)
 : _outer(outer)
 , _container(container)
 , _session(session)
+, _chooseCorrectGroup(chooseCorrectEnabled
+	? createChooseCorrectGroup()
+	: nullptr)
 , _position(_container->count()) {
 	checkLastOption();
 }
@@ -518,15 +527,18 @@ void Options::focusFirst() {
 	_list.front()->setFocus();
 }
 
+std::shared_ptr<Ui::RadiobuttonGroup> Options::createChooseCorrectGroup() {
+	auto result = std::make_shared<Ui::RadiobuttonGroup>(0);
+	result->setChangedCallback([=](int) {
+		validateState();
+	});
+	return result;
+}
+
 void Options::enableChooseCorrect(bool enabled) {
 	_chooseCorrectGroup = enabled
-		? std::make_shared<Ui::RadiobuttonGroup>(0)
+		? createChooseCorrectGroup()
 		: nullptr;
-	if (_chooseCorrectGroup) {
-		_chooseCorrectGroup->setChangedCallback([=](int) {
-			validateState();
-		});
-	}
 	validateState();
 	for (auto &option : _list) {
 		option->enableChooseCorrect(_chooseCorrectGroup);
@@ -712,10 +724,12 @@ void Options::checkLastOption() {
 CreatePollBox::CreatePollBox(
 	QWidget*,
 	not_null<Main::Session*> session,
-	PublicVotes publicVotes,
+	PollData::Flags chosen,
+	PollData::Flags disabled,
 	Api::SendType sendType)
 : _session(session)
-, _publicVotes(publicVotes)
+, _chosen(chosen)
+, _disabled(disabled)
 , _sendType(sendType) {
 }
 
@@ -792,7 +806,8 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	const auto options = lifetime().make_state<Options>(
 		getDelegate()->outerContainer(),
 		container,
-		_session);
+		_session,
+		(_chosen & PollData::Flag::Quiz));
 	auto limit = options->usedCount() | rpl::after_next([=](int count) {
 		setCloseByEscape(!count);
 		setCloseByOutsideClick(!count);
@@ -815,12 +830,12 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_polls_create_settings());
 
-	const auto anonymous = (_publicVotes == PublicVotes::Enabled)
+	const auto anonymous = (!(_disabled & PollData::Flag::PublicVotes))
 		? container->add(
 			object_ptr<Ui::Checkbox>(
 				container,
 				tr::lng_polls_create_anonymous(tr::now),
-				true,
+				!(_chosen & PollData::Flag::PublicVotes),
 				st::defaultCheckbox),
 			st::createPollCheckboxMargin)
 		: nullptr;
@@ -828,16 +843,19 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		object_ptr<Ui::Checkbox>(
 			container,
 			tr::lng_polls_create_multiple_choice(tr::now),
-			false,
+			(_chosen & PollData::Flag::MultiChoice),
 			st::defaultCheckbox),
 		st::createPollCheckboxMargin);
 	const auto quiz = container->add(
 		object_ptr<Ui::Checkbox>(
 			container,
 			tr::lng_polls_create_quiz_mode(tr::now),
-			false,
+			(_chosen & PollData::Flag::Quiz),
 			st::defaultCheckbox),
 		st::createPollCheckboxMargin);
+	quiz->setDisabled(_disabled & PollData::Flag::Quiz);
+	multiple->setDisabled((_disabled & PollData::Flag::MultiChoice)
+		|| (_chosen & PollData::Flag::Quiz));
 
 	using namespace rpl::mappers;
 	quiz->checkedChanges(
@@ -845,14 +863,14 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		if (checked && multiple->checked()) {
 			multiple->setChecked(false);
 		}
-		multiple->setDisabled(checked);
+		multiple->setDisabled(checked
+			|| (_disabled & PollData::Flag::MultiChoice));
 		options->enableChooseCorrect(checked);
 	}, quiz->lifetime());
 
 	multiple->events(
 	) | rpl::filter([=](not_null<QEvent*> e) {
-		return (e->type() == QEvent::MouseButtonPress)
-			&& multiple->isDisabled();
+		return (e->type() == QEvent::MouseButtonPress) && quiz->checked();
 	}) | rpl::start_with_next([=] {
 		Ui::Toast::Show("Quiz has only one right answer.");
 	}, multiple->lifetime());

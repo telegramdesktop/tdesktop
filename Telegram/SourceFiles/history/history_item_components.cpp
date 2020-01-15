@@ -843,6 +843,21 @@ void HistoryMessageReplyMarkup::createFromButtonRows(
 				}, [&](const MTPDinputKeyboardButtonUrlAuth &data) {
 					LOG(("API Error: inputKeyboardButtonUrlAuth received."));
 					// Should not get those for the users.
+				}, [&](const MTPDkeyboardButtonRequestPoll &data) {
+					const auto quiz = [&] {
+						if (!data.vquiz()) {
+							return QByteArray();
+						}
+						return data.vquiz()->match([&](const MTPDboolTrue&) {
+							return QByteArray(1, 1);
+						}, [&](const MTPDboolFalse&) {
+							return QByteArray(1, 0);
+						});
+					}();
+					row.emplace_back(
+						Type::RequestPoll,
+						qs(data.vtext()),
+						quiz);
 				});
 			}
 			if (!row.empty()) {

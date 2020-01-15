@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_poll.h"
+
 class History;
 
 namespace Ui {
@@ -58,7 +60,10 @@ void PeerMenuAddChannelMembers(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel);
 //void PeerMenuUngroupFeed(not_null<Data::Feed*> feed); // #feed
-void PeerMenuCreatePoll(not_null<PeerData*> peer);
+void PeerMenuCreatePoll(
+	not_null<PeerData*> peer,
+	PollData::Flags chosen = PollData::Flags(),
+	PollData::Flags disabled = PollData::Flags());
 void PeerMenuBlockUserBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::Controller*> window,
