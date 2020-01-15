@@ -1296,6 +1296,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_reminder_messages" = "Reminders";
 "lng_scheduled_date" = "Scheduled for {date}";
 "lng_scheduled_date_until_online" = "Scheduled until online";
+"lng_scheduled_send_until_online" = "Send when online";
 "lng_scheduled_send_now" = "Send message now?";
 "lng_scheduled_send_now_many#one" = "Send {count} message now?";
 "lng_scheduled_send_now_many#other" = "Send {count} messages now?";

@@ -21,6 +21,7 @@ struct SendOptions {
 enum class SendType {
 	Normal,
 	Scheduled,
+	ScheduledToUser, // For "Send when online".
 };
 
 struct SendAction {

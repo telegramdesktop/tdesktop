@@ -1937,7 +1937,9 @@ void SendFilesBox::setInnerFocus() {
 void SendFilesBox::send(
 		Api::SendOptions options,
 		bool ctrlShiftEnter) {
-	if (_sendType == Api::SendType::Scheduled && !options.scheduled) {
+	if ((_sendType == Api::SendType::Scheduled
+		|| _sendType == Api::SendType::ScheduledToUser)
+		&& !options.scheduled) {
 		return sendScheduled();
 	}
 
@@ -1982,9 +1984,12 @@ void SendFilesBox::sendSilent() {
 }
 
 void SendFilesBox::sendScheduled() {
+	const auto type = (_sendType == Api::SendType::ScheduledToUser)
+		? SendMenuType::ScheduledToUser
+		: _sendMenuType;
 	const auto callback = [=](Api::SendOptions options) { send(options); };
 	Ui::show(
-		HistoryView::PrepareScheduleBox(this, _sendMenuType, callback),
+		HistoryView::PrepareScheduleBox(this, type, callback),
 		Ui::LayerOption::KeepOther);
 }
 

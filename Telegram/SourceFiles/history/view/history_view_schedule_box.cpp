@@ -8,16 +8,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_schedule_box.h"
 
 #include "api/api_common.h"
+#include "data/data_peer.h"
+#include "data/data_user.h"
+#include "data/data_scheduled_messages.h" // kScheduledUntilOnlineTimestamp
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
 #include "boxes/calendar_box.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/padding_wrap.h"
 #include "chat_helpers/message_field.h"
+#include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_history.h"
+
+#include <QGuiApplication>
 
 namespace HistoryView {
 namespace {
@@ -535,10 +542,28 @@ void TimeInput::startBorderAnimation() {
 	}
 }
 
+void FillSendUntilOnlineMenu(
+		not_null<Ui::IconButton*> button,
+		Fn<void()> callback) {
+	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
+	button->setClickedCallback([=] {
+		*menu = base::make_unique_q<Ui::PopupMenu>(button);
+		(*menu)->addAction(
+			tr::lng_scheduled_send_until_online(tr::now),
+			std::move(callback));
+		(*menu)->popup(QCursor::pos());
+		return true;
+	});
+}
+
 } // namespace
 
 TimeId DefaultScheduleTime() {
 	return base::unixtime::now() + 600;
+}
+
+bool CanScheduleUntilOnline(not_null<PeerData*> peer) {
+	return !peer->isSelf() && peer->isUser() && !peer->asUser()->isBot();
 }
 
 void ScheduleBox(
@@ -546,9 +571,9 @@ void ScheduleBox(
 		SendMenuType type,
 		FnMut<void(Api::SendOptions)> done,
 		TimeId time) {
-	box->setTitle((type == SendMenuType::Scheduled)
-		? tr::lng_schedule_title()
-		: tr::lng_remind_title());
+	box->setTitle((type == SendMenuType::Reminder)
+		? tr::lng_remind_title()
+		: tr::lng_schedule_title());
 	box->setWidth(st::boxWideWidth);
 
 	const auto date = Ui::CreateChild<rpl::variable<QDate>>(
@@ -637,10 +662,15 @@ void ScheduleBox(
 		}
 		return result;
 	};
-	const auto save = [=](bool silent) {
+	const auto save = [=](bool silent, bool untilOnline = false) {
+		// Pro tip: Hold Ctrl key to send a silent scheduled message!
+		auto ctrl =
+			(QGuiApplication::keyboardModifiers() == Qt::ControlModifier);
 		auto result = Api::SendOptions();
-		result.silent = silent;
-		result.scheduled = collect();
+		result.silent = silent || ctrl;
+		result.scheduled = untilOnline
+			? Data::ScheduledMessages::kScheduledUntilOnlineTimestamp
+			: collect();
 		if (!result.scheduled) {
 			return;
 		}
@@ -664,6 +694,14 @@ void ScheduleBox(
 		[=] { save(true); },
 		nullptr);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+
+	if (type == SendMenuType::ScheduledToUser) {
+		const auto sendUntilOnline = box->addTopButton(st::infoTopBarMenu);
+		FillSendUntilOnlineMenu(
+			sendUntilOnline.data(),
+			[=] { save(false, true); });
+	}
+
 }
 
 } // namespace HistoryView

@@ -18,6 +18,7 @@ enum class SendMenuType;
 namespace HistoryView {
 
 [[nodiscard]] TimeId DefaultScheduleTime();
+[[nodiscard]] bool CanScheduleUntilOnline(not_null<PeerData*> peer);
 void ScheduleBox(
 	not_null<Ui::GenericBox*> box,
 	SendMenuType type,

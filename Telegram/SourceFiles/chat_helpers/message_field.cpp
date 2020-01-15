@@ -688,9 +688,9 @@ void SetupSendMenu(
 		}
 		if (schedule && now != SendMenuType::SilentOnly) {
 			(*menu)->addAction(
-				(now == SendMenuType::Scheduled
-					? tr::lng_schedule_message(tr::now)
-					: tr::lng_reminder_message(tr::now)),
+				(now == SendMenuType::Reminder
+					? tr::lng_reminder_message(tr::now)
+					: tr::lng_schedule_message(tr::now)),
 				schedule);
 		}
 		(*menu)->popup(QCursor::pos());

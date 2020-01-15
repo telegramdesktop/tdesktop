@@ -3019,6 +3019,8 @@ SendMenuType HistoryWidget::sendMenuType() const {
 		? SendMenuType::Disabled
 		: _peer->isSelf()
 		? SendMenuType::Reminder
+		: HistoryView::CanScheduleUntilOnline(_peer)
+		? SendMenuType::ScheduledToUser
 		: SendMenuType::Scheduled;
 }
 

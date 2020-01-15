@@ -99,6 +99,7 @@ enum class SendMenuType {
 	Disabled,
 	SilentOnly,
 	Scheduled,
+	ScheduledToUser, // For "Send when online".
 	Reminder,
 };
 

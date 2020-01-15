@@ -240,7 +240,9 @@ bool ScheduledWidget::confirmSendingFiles(
 		text,
 		boxCompressConfirm,
 		_history->peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
-		Api::SendType::Scheduled,
+		CanScheduleUntilOnline(_history->peer)
+			? Api::SendType::ScheduledToUser
+			: Api::SendType::Scheduled,
 		SendMenuType::Disabled);
 	//_field->setTextWithTags({});
 
@@ -545,6 +547,8 @@ void ScheduledWidget::sendInlineResult(
 SendMenuType ScheduledWidget::sendMenuType() const {
 	return _history->peer->isSelf()
 		? SendMenuType::Reminder
+		: HistoryView::CanScheduleUntilOnline(_history->peer)
+		? SendMenuType::ScheduledToUser
 		: SendMenuType::Scheduled;
 }
 
