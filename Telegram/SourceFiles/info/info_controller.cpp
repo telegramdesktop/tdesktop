@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_session.h"
+#include "data/data_media_types.h"
+#include "history/history_item.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 
@@ -46,6 +48,10 @@ Key::Key(not_null<PeerData*> peer) : _value(peer) {
 Key::Key(Settings::Tag settings) : _value(settings) {
 }
 
+Key::Key(not_null<PollData*> poll, FullMsgId contextId)
+: _value(PollKey{ poll, contextId }) {
+}
+
 PeerData *Key::peer() const {
 	if (const auto peer = base::get_if<not_null<PeerData*>>(&_value)) {
 		return *peer;
@@ -65,6 +71,20 @@ UserData *Key::settingsSelf() const {
 		return tag->self;
 	}
 	return nullptr;
+}
+
+PollData *Key::poll() const {
+	if (const auto data = base::get_if<PollKey>(&_value)) {
+		return data->poll;
+	}
+	return nullptr;
+}
+
+FullMsgId Key::pollContextId() const {
+	if (const auto data = base::get_if<PollKey>(&_value)) {
+		return data->contextId;
+	}
+	return FullMsgId();
 }
 
 rpl::producer<SparseIdsMergedSlice> AbstractController::mediaSource(
@@ -104,6 +124,15 @@ PeerId AbstractController::migratedPeerId() const {
 		return peer->id;
 	}
 	return PeerId(0);
+}
+
+PollData *AbstractController::poll() const {
+	if (const auto item = session().data().message(pollContextId())) {
+		if (const auto media = item->media()) {
+			return media->poll();
+		}
+	}
+	return nullptr;
 }
 
 void AbstractController::showSection(

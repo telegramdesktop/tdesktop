@@ -34,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/report_box.h"
 #include "boxes/sticker_set_box.h"
-#include "boxes/poll_results_box.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "history/history_widget.h"
@@ -2423,8 +2422,7 @@ void HistoryInner::elementStartStickerLoop(
 void HistoryInner::elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context) {
-	_controller->window().show(
-		Box(PollResultsBox, _controller, poll, context));
+	_controller->showPollResults(poll, context);
 }
 
 auto HistoryInner::getSelectionState() const

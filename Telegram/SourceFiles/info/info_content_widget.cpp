@@ -266,6 +266,8 @@ Key ContentMemento::key() const {
 		return Key(Auth().data().peer(peerId));
 	//} else if (const auto feed = this->feed()) { // #feed
 	//	return Key(feed);
+	} else if (const auto poll = this->poll()) {
+		return Key(poll, pollContextId());
 	} else {
 		return Settings::Tag{ settingsSelf() };
 	}

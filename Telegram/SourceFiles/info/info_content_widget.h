@@ -123,6 +123,10 @@ public:
 	//explicit ContentMemento(not_null<Data::Feed*> feed) : _feed(feed) { // #feed
 	//}
 	explicit ContentMemento(Settings::Tag settings);
+	ContentMemento(not_null<PollData*> poll, FullMsgId contextId)
+	: _poll(poll)
+	, _pollContextId(contextId) {
+	}
 
 	virtual object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -140,6 +144,12 @@ public:
 	//}
 	UserData *settingsSelf() const {
 		return _settingsSelf;
+	}
+	PollData *poll() const {
+		return _poll;
+	}
+	FullMsgId pollContextId() const {
+		return _pollContextId;
 	}
 	Key key() const;
 
@@ -177,6 +187,9 @@ private:
 	const PeerId _migratedPeerId = 0;
 	//Data::Feed * const _feed = nullptr; // #feed
 	UserData * const _settingsSelf = nullptr;
+	PollData * const _poll = nullptr;
+	const FullMsgId _pollContextId;
+
 	int _scrollTop = 0;
 	QString _searchFieldQuery;
 	bool _searchEnabledByContent = false;

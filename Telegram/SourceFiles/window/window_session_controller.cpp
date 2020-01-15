@@ -100,6 +100,13 @@ void SessionNavigation::showSettings(const SectionShow &params) {
 	showSettings(Settings::Type::Main, params);
 }
 
+void SessionNavigation::showPollResults(
+		not_null<PollData*> poll,
+		FullMsgId contextId,
+		const SectionShow &params) {
+	showSection(Info::Memento(poll, contextId), params);
+}
+
 SessionController::SessionController(
 	not_null<Main::Session*> session,
 	not_null<Controller*> window)

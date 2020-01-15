@@ -148,6 +148,11 @@ public:
 		const SectionShow &params = SectionShow());
 	void showSettings(const SectionShow &params = SectionShow());
 
+	void showPollResults(
+		not_null<PollData*> poll,
+		FullMsgId contextId,
+		const SectionShow &params = SectionShow());
+
 	virtual ~SessionNavigation() = default;
 
 private:

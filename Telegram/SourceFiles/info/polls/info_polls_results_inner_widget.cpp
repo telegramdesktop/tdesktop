@@ -5,8 +5,9 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "boxes/poll_results_box.h"
+#include "info/polls/info_polls_results_inner_widget.h"
 
+#include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "data/data_poll.h"
 #include "data/data_peer.h"
@@ -14,11 +15,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
 #include "boxes/peer_list_box.h"
-#include "window/window_session_controller.h"
 #include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -27,12 +28,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
+namespace Info {
+namespace Polls {
 namespace {
 
 constexpr auto kFirstPage = 10;
 constexpr auto kPerPage = 100;
 
-class Delegate final : public PeerListContentDelegate {
+class ListDelegate final : public PeerListContentDelegate {
 public:
 	void peerListSetTitle(rpl::producer<QString> title) override;
 	void peerListSetAdditionalTitle(rpl::producer<QString> title) override;
@@ -48,10 +51,10 @@ public:
 
 };
 
-class Controller final : public PeerListController {
+class ListController final : public PeerListController {
 public:
-	Controller(
-		not_null<Window::SessionController*> window,
+	ListController(
+		not_null<Main::Session*> session,
 		not_null<PollData*> poll,
 		FullMsgId context,
 		QByteArray option);
@@ -63,11 +66,13 @@ public:
 
 	void allowLoadAll();
 
+	rpl::producer<not_null<PeerData*>> showPeerInfoRequests() const;
+
 private:
 	bool appendRow(not_null<UserData*> user);
 	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
 
-	const not_null<Window::SessionController*> _window;
+	const not_null<Main::Session*> _session;
 	const not_null<PollData*> _poll;
 	const FullMsgId _context;
 	const QByteArray _option;
@@ -80,62 +85,65 @@ private:
 	bool _allLoaded = false;
 	bool _loadingAll = false;
 
+	rpl::event_stream<not_null<PeerData*>> _showPeerInfoRequests;
+
 };
 
-void Delegate::peerListSetTitle(rpl::producer<QString> title) {
+void ListDelegate::peerListSetTitle(rpl::producer<QString> title) {
 }
 
-void Delegate::peerListSetAdditionalTitle(rpl::producer<QString> title) {
+void ListDelegate::peerListSetAdditionalTitle(rpl::producer<QString> title) {
 }
 
-bool Delegate::peerListIsRowSelected(not_null<PeerData*> peer) {
+bool ListDelegate::peerListIsRowSelected(not_null<PeerData*> peer) {
 	return false;
 }
 
-int Delegate::peerListSelectedRowsCount() {
+int ListDelegate::peerListSelectedRowsCount() {
 	return 0;
 }
 
-std::vector<not_null<PeerData*>> Delegate::peerListCollectSelectedRows() {
+auto ListDelegate::peerListCollectSelectedRows()
+-> std::vector<not_null<PeerData*>> {
 	return {};
 }
 
-void Delegate::peerListScrollToTop() {
+void ListDelegate::peerListScrollToTop() {
 }
 
-void Delegate::peerListAddSelectedRowInBunch(not_null<PeerData*> peer) {
+void ListDelegate::peerListAddSelectedRowInBunch(not_null<PeerData*> peer) {
 	Unexpected("Item selection in Info::Profile::Members.");
 }
 
-void Delegate::peerListFinishSelectedRowsBunch() {
+void ListDelegate::peerListFinishSelectedRowsBunch() {
 }
 
-void Delegate::peerListSetDescription(
+void ListDelegate::peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) {
 	description.destroy();
 }
 
-Controller::Controller(
-	not_null<Window::SessionController*> window,
+ListController::ListController(
+	not_null<Main::Session*> session,
 	not_null<PollData*> poll,
 	FullMsgId context,
 	QByteArray option)
-: _window(window)
+: _session(session)
 , _poll(poll)
 , _context(context)
 , _option(option)
-, _api(_window->session().api().instance()) {
+, _api(_session->api().instance()) {
 }
 
-Main::Session &Controller::session() const {
-	return _window->session();
+Main::Session &ListController::session() const {
+	return *_session;
 }
 
-void Controller::prepare() {
+void ListController::prepare() {
 	delegate()->peerListRefreshRows();
 }
 
-void Controller::loadMoreRows() {
+void ListController::loadMoreRows() {
 	if (_loadRequestId
 		|| _allLoaded
 		|| (!_loadingAll && !_offset.isEmpty())) {
@@ -180,16 +188,21 @@ void Controller::loadMoreRows() {
 	}).send();
 }
 
-void Controller::allowLoadAll() {
+void ListController::allowLoadAll() {
 	_loadingAll = true;
 	loadMoreRows();
 }
 
-void Controller::rowClicked(not_null<PeerListRow*> row) {
-	_window->showPeerHistory(row->peer(), Window::SectionShow::Way::Forward);
+auto ListController::showPeerInfoRequests() const
+-> rpl::producer<not_null<PeerData*>> {
+	return _showPeerInfoRequests.events();
 }
 
-bool Controller::appendRow(not_null<UserData*> user) {
+void ListController::rowClicked(not_null<PeerListRow*> row) {
+	_showPeerInfoRequests.fire(row->peer());
+}
+
+bool ListController::appendRow(not_null<UserData*> user) {
 	if (delegate()->peerListFindRow(user->id)) {
 		return false;
 	}
@@ -197,21 +210,21 @@ bool Controller::appendRow(not_null<UserData*> user) {
 	return true;
 }
 
-std::unique_ptr<PeerListRow> Controller::createRow(
+std::unique_ptr<PeerListRow> ListController::createRow(
 		not_null<UserData*> user) const {
 	auto row = std::make_unique<PeerListRow>(user);
 	row->setCustomStatus(QString());
 	return row;
 }
 
-void CreateAnswerRows(
-		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> window,
+ListController *CreateAnswerRows(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Main::Session*> session,
 		not_null<PollData*> poll,
 		FullMsgId context,
 		const PollAnswer &answer) {
 	if (!answer.votes) {
-		return;
+		return nullptr;
 	}
 
 	const auto percent = answer.votes * 100 / poll->totalVoters;
@@ -224,12 +237,12 @@ void CreateAnswerRows(
 	const auto &font = st::boxDividerLabel.style.font;
 	const auto rightWidth = font->width(rightText);
 	const auto rightSkip = rightWidth + font->spacew * 4;
-	const auto header = box->addRow(
+	const auto header = container->add(
 		object_ptr<Ui::DividerLabel>(
-			box,
+			container,
 			object_ptr<Ui::FlatLabel>(
-				box,
-				(answer.text.repeated(20)
+				container,
+				(answer.text
 					+ QString::fromUtf8(" \xe2\x80\x94 ")
 					+ QString::number(percent)
 					+ "%"),
@@ -238,8 +251,7 @@ void CreateAnswerRows(
 				st::pollResultsHeaderPadding.left(),
 				st::pollResultsHeaderPadding.top(),
 				st::pollResultsHeaderPadding.right() + rightSkip,
-				st::pollResultsHeaderPadding.bottom())),
-		style::margins());
+				st::pollResultsHeaderPadding.bottom())));
 	const auto votes = Ui::CreateChild<Ui::FlatLabel>(
 		header,
 		rightText,
@@ -251,72 +263,128 @@ void CreateAnswerRows(
 			st::pollResultsHeaderPadding.top(),
 			width);
 	}, votes->lifetime());
-	box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::boxLittleSkip));
+	container->add(object_ptr<Ui::FixedHeightWidget>(
+		container,
+		st::boxLittleSkip));
 
-	const auto delegate = box->lifetime().make_state<Delegate>();
-	const auto controller = box->lifetime().make_state<Controller>(
-		window,
+	const auto delegate = container->lifetime().make_state<ListDelegate>();
+	const auto controller = container->lifetime().make_state<ListController>(
+		session,
 		poll,
 		context,
 		answer.option);
-	const auto content = box->addRow(
-		object_ptr<PeerListContent>(
-			box,
-			controller,
-			st::infoCommonGroupsList),
-		style::margins());
+	const auto content = container->add(object_ptr<PeerListContent>(
+		container,
+		controller,
+		st::infoCommonGroupsList));
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 
-	const auto more = box->addRow(
+	const auto more = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
-			box,
+			container,
 			object_ptr<Ui::SettingsButton>(
-				box,
+				container,
 				tr::lng_polls_show_more(
 					lt_count_decimal,
 					rpl::single(answer.votes + 0.),
 					Ui::Text::Upper),
-				st::pollResultsShowMore)),
-		style::margins());
+				st::pollResultsShowMore)));
 	more->toggle(answer.votes > kFirstPage, anim::type::instant);
 	more->entity()->setClickedCallback([=] {
 		controller->allowLoadAll();
 		more->hide(anim::type::instant);
 	});
 
-	box->addRow(object_ptr<Ui::FixedHeightWidget>(box, st::boxLittleSkip));
+	container->add(object_ptr<Ui::FixedHeightWidget>(
+		container,
+		st::boxLittleSkip));
+
+	return controller;
 }
 
 } // namespace
 
-void PollResultsBox(
-		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> window,
-		not_null<PollData*> poll,
-		FullMsgId context) {
-	const auto quiz = poll->quiz();
-	box->setWidth(st::boxWideWidth);
-	box->setTitle(quiz
-		? tr::lng_polls_quiz_results_title()
-		: tr::lng_polls_poll_results_title());
-	box->setAdditionalTitle((quiz
-		? tr::lng_polls_answers_count
-		: tr::lng_polls_votes_count)(
-			lt_count_decimal,
-			rpl::single(poll->totalVoters * 1.)));
-	box->addRow(
+InnerWidget::InnerWidget(
+	QWidget *parent,
+	not_null<Controller*> controller,
+	not_null<PollData*> poll,
+	FullMsgId contextId)
+: RpWidget(parent)
+, _controller(controller)
+, _poll(poll)
+, _contextId(contextId)
+, _content(setupContent(this)) {
+}
+
+void InnerWidget::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
+	setChildVisibleTopBottom(_content, visibleTop, visibleBottom);
+}
+
+void InnerWidget::saveState(not_null<Memento*> memento) {
+	//memento->setListState(_listController->saveState());
+}
+
+void InnerWidget::restoreState(not_null<Memento*> memento) {
+	//_listController->restoreState(memento->listState());
+}
+
+int InnerWidget::desiredHeight() const {
+	auto desired = 0;
+	//auto count = qMax(_user->commonChatsCount(), 1);
+	//desired += qMax(count, _list->fullRowsCount())
+	//	* st::infoCommonGroupsList.item.height;
+	return qMax(height(), desired);
+}
+
+object_ptr<Ui::VerticalLayout> InnerWidget::setupContent(
+		RpWidget *parent) {
+	auto result = object_ptr<Ui::VerticalLayout>(parent);
+
+	const auto quiz = _poll->quiz();
+	result->add(
 		object_ptr<Ui::FlatLabel>(
-			box,
-			poll->question,
+			result,
+			_poll->question,
 			st::pollResultsQuestion),
 		style::margins{
 			st::boxRowPadding.left(),
 			0,
 			st::boxRowPadding.right(),
 			st::boxMediumSkip });
-	for (const auto &answer : poll->answers) {
-		CreateAnswerRows(box, window, poll, context, answer);
+	for (const auto &answer : _poll->answers) {
+		const auto session = &_controller->parentController()->session();
+		const auto controller = CreateAnswerRows(
+			result,
+			session,
+			_poll,
+			_contextId,
+			answer);
+		if (controller) {
+			controller->showPeerInfoRequests(
+			) | rpl::start_to_stream(
+				_showPeerInfoRequests,
+				lifetime());
+		}
 	}
-	box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+	parent->widthValue(
+	) | rpl::start_with_next([content = result.data()](int newWidth) {
+		content->resizeToWidth(newWidth);
+	}, result->lifetime());
+	result->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		parent->resize(parent->width(), height);
+	}, result->lifetime());
+	return result;
 }
+
+auto InnerWidget::showPeerInfoRequests() const
+-> rpl::producer<not_null<PeerData*>> {
+	return _showPeerInfoRequests.events();
+}
+
+} // namespace Polls
+} // namespace Info
+

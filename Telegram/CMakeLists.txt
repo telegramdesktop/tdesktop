@@ -188,8 +188,6 @@ PRIVATE
     boxes/passcode_box.h
     boxes/photo_crop_box.cpp
     boxes/photo_crop_box.h
-    boxes/poll_results_box.cpp
-    boxes/poll_results_box.h
     boxes/rate_call_box.cpp
     boxes/rate_call_box.h
     boxes/report_box.cpp
@@ -520,6 +518,10 @@ PRIVATE
     info/media/info_media_widget.h
     info/members/info_members_widget.cpp
     info/members/info_members_widget.h
+    info/polls/info_polls_results_inner_widget.cpp
+    info/polls/info_polls_results_inner_widget.h
+    info/polls/info_polls_results_widget.cpp
+    info/polls/info_polls_results_widget.h
     info/profile/info_profile_actions.cpp
     info/profile/info_profile_actions.h
     info/profile/info_profile_cover.cpp
