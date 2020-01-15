@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_content_widget.h"
 #include "info/info_controller.h"
 
+struct PeerListState;
+
 namespace Info {
 namespace Polls {
 
@@ -18,6 +20,7 @@ class InnerWidget;
 class Memento final : public ContentMemento {
 public:
 	Memento(not_null<PollData*> poll, FullMsgId contextId);
+	~Memento();
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -26,7 +29,16 @@ public:
 
 	Section section() const override;
 
-	~Memento();
+	void setListStates(base::flat_map<
+		QByteArray,
+		std::unique_ptr<PeerListState>> states);
+	auto listStates()
+	-> base::flat_map<QByteArray, std::unique_ptr<PeerListState>>;
+
+private:
+	base::flat_map<
+		QByteArray,
+		std::unique_ptr<PeerListState>> _listStates;
 
 };
 

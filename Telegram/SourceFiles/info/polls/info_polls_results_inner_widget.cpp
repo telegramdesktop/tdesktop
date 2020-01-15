@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/polls/info_polls_results_inner_widget.h"
 
+#include "info/polls/info_polls_results_widget.h"
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "data/data_poll.h"
@@ -51,44 +52,6 @@ public:
 
 };
 
-class ListController final : public PeerListController {
-public:
-	ListController(
-		not_null<Main::Session*> session,
-		not_null<PollData*> poll,
-		FullMsgId context,
-		QByteArray option);
-
-	Main::Session &session() const override;
-	void prepare() override;
-	void rowClicked(not_null<PeerListRow*> row) override;
-	void loadMoreRows() override;
-
-	void allowLoadAll();
-
-	rpl::producer<not_null<PeerData*>> showPeerInfoRequests() const;
-
-private:
-	bool appendRow(not_null<UserData*> user);
-	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
-
-	const not_null<Main::Session*> _session;
-	const not_null<PollData*> _poll;
-	const FullMsgId _context;
-	const QByteArray _option;
-
-	MTP::Sender _api;
-
-	QString _offset;
-	mtpRequestId _loadRequestId = 0;
-	int _fullCount = 0;
-	bool _allLoaded = false;
-	bool _loadingAll = false;
-
-	rpl::event_stream<not_null<PeerData*>> _showPeerInfoRequests;
-
-};
-
 void ListDelegate::peerListSetTitle(rpl::producer<QString> title) {
 }
 
@@ -122,6 +85,59 @@ void ListDelegate::peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) {
 	description.destroy();
 }
+
+} // namespace
+
+class ListController final : public PeerListController {
+public:
+	ListController(
+		not_null<Main::Session*> session,
+		not_null<PollData*> poll,
+		FullMsgId context,
+		QByteArray option);
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	void loadMoreRows() override;
+
+	void allowLoadAll();
+
+	rpl::producer<not_null<PeerData*>> showPeerInfoRequests() const;
+
+	std::unique_ptr<PeerListState> saveState() const override;
+	void restoreState(std::unique_ptr<PeerListState> state) override;
+
+	std::unique_ptr<PeerListRow> createRestoredRow(
+		not_null<PeerData*> peer) override;
+
+private:
+	struct SavedState : SavedStateBase {
+		QString offset;
+		bool allLoaded = false;
+		bool wasLoading = false;
+		bool loadingAll = false;
+	};
+
+	bool appendRow(not_null<UserData*> user);
+	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
+
+	const not_null<Main::Session*> _session;
+	const not_null<PollData*> _poll;
+	const FullMsgId _context;
+	const QByteArray _option;
+
+	MTP::Sender _api;
+
+	QString _offset;
+	mtpRequestId _loadRequestId = 0;
+	int _fullCount = 0;
+	bool _allLoaded = false;
+	bool _loadingAll = false;
+
+	rpl::event_stream<not_null<PeerData*>> _showPeerInfoRequests;
+
+};
 
 ListController::ListController(
 	not_null<Main::Session*> session,
@@ -196,6 +212,46 @@ void ListController::allowLoadAll() {
 auto ListController::showPeerInfoRequests() const
 -> rpl::producer<not_null<PeerData*>> {
 	return _showPeerInfoRequests.events();
+}
+
+auto ListController::saveState() const -> std::unique_ptr<PeerListState> {
+	auto result = PeerListController::saveState();
+
+	auto my = std::make_unique<SavedState>();
+	my->offset = _offset;
+	my->allLoaded = _allLoaded;
+	my->wasLoading = (_loadRequestId != 0);
+	my->loadingAll = _loadingAll;
+	result->controllerState = std::move(my);
+
+	return result;
+}
+
+void ListController::restoreState(std::unique_ptr<PeerListState> state) {
+	auto typeErasedState = state
+		? state->controllerState.get()
+		: nullptr;
+	if (const auto my = dynamic_cast<SavedState*>(typeErasedState)) {
+		if (const auto requestId = base::take(_loadRequestId)) {
+			_api.request(requestId).cancel();
+		}
+
+		_offset = my->offset;
+		_allLoaded = my->allLoaded;
+		_loadingAll = my->loadingAll;
+		if (my->wasLoading) {
+			loadMoreRows();
+		}
+		PeerListController::restoreState(std::move(state));
+	}
+}
+
+std::unique_ptr<PeerListRow> ListController::createRestoredRow(
+		not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return createRow(user);
+	}
+	return nullptr;
 }
 
 void ListController::rowClicked(not_null<PeerListRow*> row) {
@@ -303,8 +359,6 @@ ListController *CreateAnswerRows(
 	return controller;
 }
 
-} // namespace
-
 InnerWidget::InnerWidget(
 	QWidget *parent,
 	not_null<Controller*> controller,
@@ -314,7 +368,8 @@ InnerWidget::InnerWidget(
 , _controller(controller)
 , _poll(poll)
 , _contextId(contextId)
-, _content(setupContent(this)) {
+, _content(this) {
+	setupContent();
 }
 
 void InnerWidget::visibleTopBottomUpdated(
@@ -324,11 +379,23 @@ void InnerWidget::visibleTopBottomUpdated(
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
-	//memento->setListState(_listController->saveState());
+	auto states = base::flat_map<
+		QByteArray,
+		std::unique_ptr<PeerListState>>();
+	for (const auto &[option, controller] : _sections) {
+		states[option] = controller->saveState();
+	}
+	memento->setListStates(std::move(states));
 }
 
 void InnerWidget::restoreState(not_null<Memento*> memento) {
-	//_listController->restoreState(memento->listState());
+	auto states = memento->listStates();
+	for (const auto &[option, controller] : _sections) {
+		const auto i = states.find(option);
+		if (i != end(states)) {
+			controller->restoreState(std::move(i->second));
+		}
+	}
 }
 
 int InnerWidget::desiredHeight() const {
@@ -339,14 +406,11 @@ int InnerWidget::desiredHeight() const {
 	return qMax(height(), desired);
 }
 
-object_ptr<Ui::VerticalLayout> InnerWidget::setupContent(
-		RpWidget *parent) {
-	auto result = object_ptr<Ui::VerticalLayout>(parent);
-
+void InnerWidget::setupContent() {
 	const auto quiz = _poll->quiz();
-	result->add(
+	_content->add(
 		object_ptr<Ui::FlatLabel>(
-			result,
+			_content,
 			_poll->question,
 			st::pollResultsQuestion),
 		style::margins{
@@ -357,27 +421,30 @@ object_ptr<Ui::VerticalLayout> InnerWidget::setupContent(
 	for (const auto &answer : _poll->answers) {
 		const auto session = &_controller->parentController()->session();
 		const auto controller = CreateAnswerRows(
-			result,
+			_content,
 			session,
 			_poll,
 			_contextId,
 			answer);
-		if (controller) {
-			controller->showPeerInfoRequests(
-			) | rpl::start_to_stream(
-				_showPeerInfoRequests,
-				lifetime());
+		if (!controller) {
+			continue;
 		}
+		controller->showPeerInfoRequests(
+		) | rpl::start_to_stream(
+			_showPeerInfoRequests,
+			lifetime());
+		_sections.emplace(answer.option, controller);
 	}
-	parent->widthValue(
-	) | rpl::start_with_next([content = result.data()](int newWidth) {
-		content->resizeToWidth(newWidth);
-	}, result->lifetime());
-	result->heightValue(
+
+	widthValue(
+	) | rpl::start_with_next([=](int newWidth) {
+		_content->resizeToWidth(newWidth);
+	}, _content->lifetime());
+
+	_content->heightValue(
 	) | rpl::start_with_next([=](int height) {
-		parent->resize(parent->width(), height);
-	}, result->lifetime());
-	return result;
+		resize(width(), height);
+	}, _content->lifetime());
 }
 
 auto InnerWidget::showPeerInfoRequests() const

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/polls/info_polls_results_widget.h"
 
 #include "info/polls/info_polls_results_inner_widget.h"
+#include "boxes/peer_list_box.h"
 
 namespace Info {
 namespace Polls {
@@ -18,6 +19,17 @@ Memento::Memento(not_null<PollData*> poll, FullMsgId contextId)
 
 Section Memento::section() const {
 	return Section(Section::Type::PollResults);
+}
+
+void Memento::setListStates(base::flat_map<
+		QByteArray,
+		std::unique_ptr<PeerListState>> states) {
+	_listStates = std::move(states);
+}
+
+auto Memento::listStates()
+-> base::flat_map<QByteArray, std::unique_ptr<PeerListState>> {
+	return std::move(_listStates);
 }
 
 object_ptr<ContentWidget> Memento::createWidget(
@@ -82,10 +94,12 @@ std::unique_ptr<ContentMemento> Widget::doCreateMemento() {
 
 void Widget::saveState(not_null<Memento*> memento) {
 	memento->setScrollTop(scrollTopSave());
+	_inner->saveState(memento);
 }
 
 void Widget::restoreState(not_null<Memento*> memento) {
-	const auto scrollTop = memento->scrollTop();
+	_inner->restoreState(memento);
+	auto scrollTop = memento->scrollTop();
 	scrollTopRestore(memento->scrollTop());
 }
 

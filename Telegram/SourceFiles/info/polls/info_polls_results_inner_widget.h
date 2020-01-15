@@ -21,6 +21,7 @@ class Controller;
 namespace Polls {
 
 class Memento;
+class ListController;
 
 class InnerWidget final : public Ui::RpWidget {
 public:
@@ -51,13 +52,14 @@ protected:
 		int visibleBottom) override;
 
 private:
-	object_ptr<Ui::VerticalLayout> setupContent(RpWidget *parent);
+	void setupContent();
 
 	not_null<Controller*> _controller;
 	not_null<PollData*> _poll;
 	FullMsgId _contextId;
 	object_ptr<Ui::VerticalLayout> _content;
 	rpl::event_stream<not_null<PeerData*>> _showPeerInfoRequests;
+	base::flat_map<QByteArray, not_null<ListController*>> _sections;
 
 };
 
