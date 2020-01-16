@@ -28,10 +28,13 @@ namespace {
 	auto ok3 = true;
 	auto minutes = minutes1.toString();
 	minutes += minutes2;
-	const auto result = (hours.isEmpty() ? 0 : hours.toInt(&ok1)) * 3600
-		+ minutes.toInt(&ok2) * 60
-		+ seconds.toInt(&ok3);
-	return (ok1 && ok2 && ok3) ? result : -1;
+	const auto value1 = (hours.isEmpty() ? 0 : hours.toInt(&ok1));
+	const auto value2 = minutes.toInt(&ok2);
+	const auto value3 = seconds.toInt(&ok3);
+	const auto ok = ok1 && ok2 && ok3;
+	return (ok && value3 < 60 && (hours.isEmpty() || value2 < 60))
+		? (value1 * 3600 + value2 * 60 + value3)
+		: -1;
 }
 
 } // namespace
@@ -49,7 +52,7 @@ TextWithEntities AddTimestampLinks(
 		TimeId duration,
 		const QString &base) {
 	static const auto expression = QRegularExpression(
-		"(?<![^\\s])(?:(?:(\\d{1,2}):)?(\\d))?(\\d):(\\d\\d)(?![^\\s])");
+		"(?<![^\\s\\(\\)\"\\,\\.\\-])(?:(?:(\\d{1,2}):)?(\\d))?(\\d):(\\d\\d)(?![^\\s\\(\\)\",\\.\\-])");
 	const auto &string = text.text;
 	auto offset = 0;
 	while (true) {
