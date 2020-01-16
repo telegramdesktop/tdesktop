@@ -59,6 +59,7 @@ private:
 	FullMsgId _contextId;
 	object_ptr<Ui::VerticalLayout> _content;
 	rpl::event_stream<not_null<PeerData*>> _showPeerInfoRequests;
+	rpl::variable<int> _visibleTop = 0;
 	base::flat_map<QByteArray, not_null<ListController*>> _sections;
 
 };

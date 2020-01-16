@@ -87,8 +87,9 @@ void PeerListDummy::paintEvent(QPaintEvent *e) {
 	const auto from = floorclamp(fill.top(), _st.item.height, 0, _count);
 	const auto till = ceilclamp(bottom, _st.item.height, 0, _count);
 	p.translate(0, _st.item.height * from);
+	p.setPen(Qt::NoPen);
 	for (auto i = from; i != till; ++i) {
-		p.setBrush(st::windowBgRipple);
+		p.setBrush(st::windowBgOver);
 		p.drawEllipse(
 			_st.item.photoPosition.x(),
 			_st.item.photoPosition.y(),
@@ -400,6 +401,7 @@ std::unique_ptr<PeerListRow> ListController::createRow(
 
 ListController *CreateAnswerRows(
 		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<int> visibleTop,
 		not_null<Main::Session*> session,
 		not_null<PollData*> poll,
 		FullMsgId context,
@@ -428,34 +430,10 @@ ListController *CreateAnswerRows(
 	const auto &font = st::boxDividerLabel.style.font;
 	const auto sampleWidth = font->width(sampleText);
 	const auto rightSkip = sampleWidth + font->spacew * 4;
-	const auto header = container->add(
-		object_ptr<Ui::DividerLabel>(
-			container,
-			object_ptr<Ui::FlatLabel>(
-				container,
-				(answer.text
-					+ QString::fromUtf8(" \xe2\x80\x94 ")
-					+ QString::number(percent)
-					+ "%"),
-				st::boxDividerLabel),
-			style::margins(
-				st::pollResultsHeaderPadding.left(),
-				st::pollResultsHeaderPadding.top(),
-				st::pollResultsHeaderPadding.right() + rightSkip,
-				st::pollResultsHeaderPadding.bottom())));
-	const auto votes = Ui::CreateChild<Ui::FlatLabel>(
-		header,
-		phrase(
-			lt_count_decimal,
-			controller->fullCount() | rpl::map(_1 + 0.)),
-		st::pollResultsVotesCount);
-	header->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		votes->moveToRight(
-			st::pollResultsHeaderPadding.right(),
-			st::pollResultsHeaderPadding.top(),
-			width);
-	}, votes->lifetime());
+	const auto headerWrap = container->add(
+		object_ptr<Ui::RpWidget>(
+			container));
+
 	container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
 		st::boxLittleSkip));
@@ -480,6 +458,42 @@ ListController *CreateAnswerRows(
 		delete placeholder;
 	}, placeholder->lifetime());
 
+	const auto header = Ui::CreateChild<Ui::DividerLabel>(
+		container.get(),
+		object_ptr<Ui::FlatLabel>(
+			container,
+			(answer.text
+				+ QString::fromUtf8(" \xe2\x80\x94 ")
+				+ QString::number(percent)
+				+ "%"),
+			st::boxDividerLabel),
+		style::margins(
+			st::pollResultsHeaderPadding.left(),
+			st::pollResultsHeaderPadding.top(),
+			st::pollResultsHeaderPadding.right() + rightSkip,
+			st::pollResultsHeaderPadding.bottom()));
+
+	const auto votes = Ui::CreateChild<Ui::FlatLabel>(
+		header,
+		phrase(
+			lt_count_decimal,
+			controller->fullCount() | rpl::map(_1 + 0.)),
+		st::pollResultsVotesCount);
+
+	headerWrap->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		header->resizeToWidth(width);
+		votes->moveToRight(
+			st::pollResultsHeaderPadding.right(),
+			st::pollResultsHeaderPadding.top(),
+			width);
+	}, header->lifetime());
+
+	header->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		headerWrap->resize(headerWrap->width(), height);
+	}, header->lifetime());
+
 	const auto more = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
@@ -502,6 +516,23 @@ ListController *CreateAnswerRows(
 		container,
 		st::boxLittleSkip));
 
+	rpl::combine(
+		std::move(visibleTop),
+		headerWrap->geometryValue(),
+		more->topValue()
+	) | rpl::start_with_next([=](
+			int visibleTop,
+			QRect headerRect,
+			int moreTop) {
+		const auto skip = st::pollResultsHeaderPadding.top()
+			- st::pollResultsHeaderPadding.bottom();
+		const auto top = std::clamp(
+			visibleTop - skip,
+			headerRect.y(),
+			moreTop - headerRect.height());
+		header->move(0, top);
+	}, header->lifetime());
+
 	return controller;
 }
 
@@ -522,6 +553,7 @@ void InnerWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
 	setChildVisibleTopBottom(_content, visibleTop, visibleBottom);
+	_visibleTop = visibleTop;
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
@@ -568,6 +600,7 @@ void InnerWidget::setupContent() {
 		const auto session = &_controller->parentController()->session();
 		const auto controller = CreateAnswerRows(
 			_content,
+			_visibleTop.value(),
 			session,
 			_poll,
 			_contextId,
