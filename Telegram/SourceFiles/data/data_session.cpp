@@ -2083,6 +2083,7 @@ void Session::unreadEntryChanged(const Dialogs::Key &key, bool added) {
 			_chatsList.unreadEntryChanged(state, added);
 		}
 	}
+	Notify::unreadCounterUpdated();
 }
 
 void Session::selfDestructIn(not_null<HistoryItem*> item, crl::time delay) {
