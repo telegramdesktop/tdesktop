@@ -55,6 +55,10 @@ Widget::Widget(QWidget *parent, not_null<Controller*> controller)
 	) | rpl::start_with_next([=](not_null<PeerData*> peer) {
 		controller->showPeerInfo(peer);
 	}, _inner->lifetime());
+	_inner->scrollToRequests(
+	) | rpl::start_with_next([=](const Ui::ScrollToRequest &request) {
+		scrollTo(request);
+	}, _inner->lifetime());
 
 	controller->setCanSaveChanges(rpl::single(false));
 }

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/widgets/scroll_area.h"
 #include "base/object_ptr.h"
 
 namespace Ui {
@@ -38,6 +39,9 @@ public:
 		return _contextId;
 	}
 
+	[[nodiscard]] auto scrollToRequests() const
+		-> rpl::producer<Ui::ScrollToRequest>;
+
 	[[nodiscard]] auto showPeerInfoRequests() const
 		-> rpl::producer<not_null<PeerData*>>;
 
@@ -58,9 +62,11 @@ private:
 	not_null<PollData*> _poll;
 	FullMsgId _contextId;
 	object_ptr<Ui::VerticalLayout> _content;
+	base::flat_map<QByteArray, not_null<ListController*>> _sections;
+
+	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<not_null<PeerData*>> _showPeerInfoRequests;
 	rpl::variable<int> _visibleTop = 0;
-	base::flat_map<QByteArray, not_null<ListController*>> _sections;
 
 };
 

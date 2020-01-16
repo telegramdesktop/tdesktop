@@ -165,9 +165,11 @@ public:
 	void loadMoreRows() override;
 
 	void allowLoadMore();
+	void collapse();
 
 	[[nodiscard]] auto showPeerInfoRequests() const
 		-> rpl::producer<not_null<PeerData*>>;
+	[[nodiscard]] rpl::producer<int> scrollToRequests() const;
 	[[nodiscard]] rpl::producer<int> count() const;
 	[[nodiscard]] rpl::producer<int> fullCount() const;
 	[[nodiscard]] rpl::producer<int> loadMoreCount() const;
@@ -177,6 +179,8 @@ public:
 
 	std::unique_ptr<PeerListRow> createRestoredRow(
 		not_null<PeerData*> peer) override;
+
+	void scrollTo(int y);
 
 private:
 	struct SavedState : SavedStateBase {
@@ -191,6 +195,8 @@ private:
 	bool appendRow(not_null<UserData*> user);
 	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
 	void addPreloaded();
+	bool addPreloadedPage();
+	void preloadedAdded();
 
 	const not_null<Main::Session*> _session;
 	const not_null<PollData*> _poll;
@@ -208,6 +214,7 @@ private:
 	rpl::variable<int> _leftToLoad;
 
 	rpl::event_stream<not_null<PeerData*>> _showPeerInfoRequests;
+	rpl::event_stream<int> _scrollToRequests;
 
 };
 
@@ -280,15 +287,15 @@ void ListController::loadMoreRows() {
 			}
 			return data.vcount().v;
 		});
-		_count = delegate()->peerListFullRowsCount();
 		if (_offset.isEmpty()) {
 			addPreloaded();
 			_fullCount = delegate()->peerListFullRowsCount();
 			_leftToLoad = 0;
 		} else {
-			delegate()->peerListRefreshRows();
+			_count = delegate()->peerListFullRowsCount();
 			_fullCount = count;
 			_leftToLoad = count - delegate()->peerListFullRowsCount();
+			delegate()->peerListRefreshRows();
 		}
 		_loadRequestId = 0;
 	}).fail([=](const RPCError &error) {
@@ -297,22 +304,68 @@ void ListController::loadMoreRows() {
 }
 
 void ListController::allowLoadMore() {
-	_loadForOffset = _offset;
-	addPreloaded();
-	loadMoreRows();
+	if (!addPreloadedPage()) {
+		_loadForOffset = _offset;
+		addPreloaded();
+		loadMoreRows();
+	}
+}
+
+void ListController::collapse() {
+	const auto count = delegate()->peerListFullRowsCount();
+	if (count <= kFirstPage) {
+		return;
+	}
+	const auto remove = count - (kFirstPage - kLeavePreloaded);
+	ranges::action::reverse(_preloaded);
+	_preloaded.reserve(_preloaded.size() + remove);
+	for (auto i = 0; i != remove; ++i) {
+		const auto row = delegate()->peerListRowAt(count - i - 1);
+		_preloaded.push_back(row->peer()->asUser());
+		delegate()->peerListRemoveRow(row);
+	}
+	ranges::action::reverse(_preloaded);
+
+	delegate()->peerListRefreshRows();
+	const auto now = count - remove;
+	_count = now;
+	_leftToLoad = _fullCount.current() - now;
 }
 
 void ListController::addPreloaded() {
 	for (const auto user : base::take(_preloaded)) {
 		appendRow(user);
 	}
-	_leftToLoad = _fullCount.current() - delegate()->peerListFullRowsCount();
+	preloadedAdded();
+}
+
+bool ListController::addPreloadedPage() {
+	if (_preloaded.size() < kPerPage + kLeavePreloaded) {
+		return false;
+	}
+	const auto from = begin(_preloaded);
+	const auto till = from + kPerPage;
+	for (auto i = from; i != till; ++i) {
+		appendRow(*i);
+	}
+	_preloaded.erase(from, till);
+	preloadedAdded();
+	return true;
+}
+
+void ListController::preloadedAdded() {
+	_count = delegate()->peerListFullRowsCount();
+	_leftToLoad = _fullCount.current() - _count.current();
 	delegate()->peerListRefreshRows();
 }
 
 auto ListController::showPeerInfoRequests() const
 -> rpl::producer<not_null<PeerData*>> {
 	return _showPeerInfoRequests.events();
+}
+
+rpl::producer<int> ListController::scrollToRequests() const {
+	return _scrollToRequests.events();
 }
 
 rpl::producer<int> ListController::count() const {
@@ -399,6 +452,10 @@ std::unique_ptr<PeerListRow> ListController::createRow(
 	return row;
 }
 
+void ListController::scrollTo(int y) {
+	_scrollToRequests.fire_copy(y);
+}
+
 ListController *CreateAnswerRows(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<int> visibleTop,
@@ -479,11 +536,32 @@ ListController *CreateAnswerRows(
 			lt_count_decimal,
 			controller->fullCount() | rpl::map(_1 + 0.)),
 		st::pollResultsVotesCount);
+	const auto collapse = Ui::CreateChild<Ui::LinkButton>(
+		header,
+		tr::lng_polls_votes_collapse(tr::now),
+		st::defaultLinkButton);
+	collapse->setClickedCallback([=] {
+		controller->scrollTo(headerWrap->y());
+		controller->collapse();
+	});
+	rpl::combine(
+		controller->fullCount(),
+		controller->count()
+	) | rpl::start_with_next([=](int fullCount, int count) {
+		const auto many = (fullCount > kFirstPage)
+			&& (count > kFirstPage - kLeavePreloaded);
+		collapse->setVisible(many);
+		votes->setVisible(!many);
+	}, collapse->lifetime());
 
 	headerWrap->widthValue(
 	) | rpl::start_with_next([=](int width) {
 		header->resizeToWidth(width);
 		votes->moveToRight(
+			st::pollResultsHeaderPadding.right(),
+			st::pollResultsHeaderPadding.top(),
+			width);
+		collapse->moveToRight(
 			st::pollResultsHeaderPadding.right(),
 			st::pollResultsHeaderPadding.top(),
 			width);
@@ -520,7 +598,9 @@ ListController *CreateAnswerRows(
 		std::move(visibleTop),
 		headerWrap->geometryValue(),
 		more->topValue()
-	) | rpl::start_with_next([=](
+	) | rpl::filter([=](int, QRect headerRect, int moreTop) {
+		return moreTop >= headerRect.y() + headerRect.height();
+	}) | rpl::start_with_next([=](
 			int visibleTop,
 			QRect headerRect,
 			int moreTop) {
@@ -612,6 +692,10 @@ void InnerWidget::setupContent() {
 		) | rpl::start_to_stream(
 			_showPeerInfoRequests,
 			lifetime());
+		controller->scrollToRequests(
+		) | rpl::start_with_next([=](int y) {
+			_scrollToRequests.fire({ y, -1 });
+		}, lifetime());
 		_sections.emplace(answer.option, controller);
 	}
 
@@ -624,6 +708,10 @@ void InnerWidget::setupContent() {
 	) | rpl::start_with_next([=](int height) {
 		resize(width(), height);
 	}, _content->lifetime());
+}
+
+rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {
+	return _scrollToRequests.events();
 }
 
 auto InnerWidget::showPeerInfoRequests() const
