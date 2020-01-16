@@ -37,6 +37,21 @@ constexpr auto kFirstPage = 15;
 constexpr auto kPerPage = 50;
 constexpr auto kLeavePreloaded = 5;
 
+class PeerListDummy final : public Ui::RpWidget {
+public:
+	PeerListDummy(QWidget *parent, int count, const style::PeerList &st);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	const style::PeerList &_st;
+	int _count = 0;
+
+	std::vector<Ui::Animations::Simple> _animations;
+
+};
+
 class ListDelegate final : public PeerListContentDelegate {
 public:
 	void peerListSetTitle(rpl::producer<QString> title) override;
@@ -52,6 +67,52 @@ public:
 		object_ptr<Ui::FlatLabel> description) override;
 
 };
+
+PeerListDummy::PeerListDummy(
+	QWidget *parent,
+	int count,
+	const style::PeerList &st)
+: _st(st)
+, _count(count) {
+	resize(width(), _count * _st.item.height);
+}
+
+void PeerListDummy::paintEvent(QPaintEvent *e) {
+	QPainter p(this);
+
+	PainterHighQualityEnabler hq(p);
+
+	const auto fill = e->rect();
+	const auto bottom = fill.top() + fill.height();
+	const auto from = floorclamp(fill.top(), _st.item.height, 0, _count);
+	const auto till = ceilclamp(bottom, _st.item.height, 0, _count);
+	p.translate(0, _st.item.height * from);
+	for (auto i = from; i != till; ++i) {
+		p.setBrush(st::windowBgRipple);
+		p.drawEllipse(
+			_st.item.photoPosition.x(),
+			_st.item.photoPosition.y(),
+			_st.item.photoSize,
+			_st.item.photoSize);
+
+		const auto small = int(1.5 * _st.item.photoSize);
+		const auto large = 2 * small;
+		const auto second = (i % 2) ? large : small;
+		const auto height = _st.item.nameStyle.font->height / 2;
+		const auto radius = height / 2;
+		const auto left = _st.item.namePosition.x();
+		const auto top = _st.item.namePosition.y()
+			+ (_st.item.nameStyle.font->height - height) / 2;
+		const auto skip = _st.item.namePosition.x()
+			- _st.item.photoPosition.x()
+			- _st.item.photoSize;
+		const auto next = left + small + skip;
+		p.drawRoundedRect(left, top, small, height, radius, radius);
+		p.drawRoundedRect(next, top, second, height, radius, radius);
+
+		p.translate(0, _st.item.height);
+	}
+}
 
 void ListDelegate::peerListSetTitle(rpl::producer<QString> title) {
 }
@@ -106,8 +167,9 @@ public:
 
 	[[nodiscard]] auto showPeerInfoRequests() const
 		-> rpl::producer<not_null<PeerData*>>;
+	[[nodiscard]] rpl::producer<int> count() const;
 	[[nodiscard]] rpl::producer<int> fullCount() const;
-	[[nodiscard]] rpl::producer<int> leftToLoad() const;
+	[[nodiscard]] rpl::producer<int> loadMoreCount() const;
 
 	std::unique_ptr<PeerListState> saveState() const override;
 	void restoreState(std::unique_ptr<PeerListState> state) override;
@@ -140,8 +202,9 @@ private:
 	mtpRequestId _loadRequestId = 0;
 	QString _loadForOffset;
 	std::vector<not_null<UserData*>> _preloaded;
-	rpl::variable<int> _leftToLoad;
+	rpl::variable<int> _count = 0;
 	rpl::variable<int> _fullCount;
+	rpl::variable<int> _leftToLoad;
 
 	rpl::event_stream<not_null<PeerData*>> _showPeerInfoRequests;
 
@@ -159,8 +222,8 @@ ListController::ListController(
 , _api(_session->api().instance()) {
 	const auto i = ranges::find(poll->answers, option, &PollAnswer::option);
 	Assert(i != poll->answers.end());
-	_leftToLoad = i->votes;
 	_fullCount = i->votes;
+	_leftToLoad = i->votes;
 }
 
 Main::Session &ListController::session() const {
@@ -216,6 +279,7 @@ void ListController::loadMoreRows() {
 			}
 			return data.vcount().v;
 		});
+		_count = delegate()->peerListFullRowsCount();
 		if (_offset.isEmpty()) {
 			addPreloaded();
 			_fullCount = delegate()->peerListFullRowsCount();
@@ -241,6 +305,7 @@ void ListController::addPreloaded() {
 	for (const auto user : base::take(_preloaded)) {
 		appendRow(user);
 	}
+	_leftToLoad = _fullCount.current() - delegate()->peerListFullRowsCount();
 	delegate()->peerListRefreshRows();
 }
 
@@ -249,12 +314,24 @@ auto ListController::showPeerInfoRequests() const
 	return _showPeerInfoRequests.events();
 }
 
-rpl::producer<int> ListController::leftToLoad() const {
-	return _leftToLoad.value();
+rpl::producer<int> ListController::count() const {
+	return _count.value();
 }
 
 rpl::producer<int> ListController::fullCount() const {
 	return _fullCount.value();
+}
+
+rpl::producer<int> ListController::loadMoreCount() const {
+	const auto initial = (_fullCount.current() <= kFirstPage)
+		? _fullCount.current()
+		: (kFirstPage - kLeavePreloaded);
+	return rpl::combine(
+		_count.value(),
+		_leftToLoad.value()
+	) | rpl::map([=](int count, int leftToLoad) {
+		return (count > 0) ? leftToLoad : (leftToLoad - initial);
+	});
 }
 
 auto ListController::saveState() const -> std::unique_ptr<PeerListState> {
@@ -262,8 +339,8 @@ auto ListController::saveState() const -> std::unique_ptr<PeerListState> {
 
 	auto my = std::make_unique<SavedState>();
 	my->offset = _offset;
-	my->leftToLoad = _leftToLoad.current();
 	my->fullCount = _fullCount.current();
+	my->leftToLoad = _leftToLoad.current();
 	my->preloaded = _preloaded;
 	my->wasLoading = (_loadRequestId != 0);
 	my->loadForOffset = _loadForOffset;
@@ -284,11 +361,12 @@ void ListController::restoreState(std::unique_ptr<PeerListState> state) {
 		_offset = my->offset;
 		_loadForOffset = my->loadForOffset;
 		_preloaded = std::move(my->preloaded);
+		_count = int(state->list.size());
+		_fullCount = my->fullCount;
+		_leftToLoad = my->leftToLoad;
 		if (my->wasLoading) {
 			loadMoreRows();
 		}
-		_leftToLoad = my->leftToLoad;
-		_fullCount = my->fullCount;
 		PeerListController::restoreState(std::move(state));
 	}
 }
@@ -389,6 +467,19 @@ ListController *CreateAnswerRows(
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 
+	const auto count = (answer.votes <= kFirstPage)
+		? answer.votes
+		: (kFirstPage - kLeavePreloaded);
+	const auto placeholder = container->add(object_ptr<PeerListDummy>(
+		container,
+		count,
+		st::infoCommonGroupsList));
+
+	controller->count(
+	) | rpl::filter(_1 > 0) | rpl::start_with_next([=] {
+		delete placeholder;
+	}, placeholder->lifetime());
+
 	const auto more = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
@@ -396,13 +487,13 @@ ListController *CreateAnswerRows(
 				container,
 				tr::lng_polls_show_more(
 					lt_count_decimal,
-					controller->leftToLoad() | rpl::map(_1 + 0.),
+					controller->loadMoreCount() | rpl::map(_1 + 0.),
 					Ui::Text::Upper),
 				st::pollResultsShowMore)));
 	more->entity()->setClickedCallback([=] {
 		controller->allowLoadMore();
 	});
-	controller->leftToLoad(
+	controller->loadMoreCount(
 	) | rpl::map(_1 > 0) | rpl::start_with_next([=](bool visible) {
 		more->toggle(visible, anim::type::instant);
 	}, more->lifetime());

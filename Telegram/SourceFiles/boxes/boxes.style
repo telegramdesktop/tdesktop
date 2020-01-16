@@ -936,7 +936,7 @@ pollResultsQuestion: FlatLabel(defaultFlatLabel) {
 pollResultsVotesCount: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
-pollResultsHeaderPadding: margins(22px, 8px, 22px, 8px);
+pollResultsHeaderPadding: margins(22px, 22px, 22px, 8px);
 pollResultsShowMore: SettingsButton {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
