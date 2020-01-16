@@ -33,8 +33,9 @@ namespace Info {
 namespace Polls {
 namespace {
 
-constexpr auto kFirstPage = 10;
-constexpr auto kPerPage = 100;
+constexpr auto kFirstPage = 15;
+constexpr auto kPerPage = 50;
+constexpr auto kLeavePreloaded = 5;
 
 class ListDelegate final : public PeerListContentDelegate {
 public:
@@ -101,9 +102,12 @@ public:
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
 
-	void allowLoadAll();
+	void allowLoadMore();
 
-	rpl::producer<not_null<PeerData*>> showPeerInfoRequests() const;
+	[[nodiscard]] auto showPeerInfoRequests() const
+		-> rpl::producer<not_null<PeerData*>>;
+	[[nodiscard]] rpl::producer<int> fullCount() const;
+	[[nodiscard]] rpl::producer<int> leftToLoad() const;
 
 	std::unique_ptr<PeerListState> saveState() const override;
 	void restoreState(std::unique_ptr<PeerListState> state) override;
@@ -114,13 +118,16 @@ public:
 private:
 	struct SavedState : SavedStateBase {
 		QString offset;
-		bool allLoaded = false;
+		QString loadForOffset;
+		int leftToLoad = 0;
+		int fullCount = 0;
+		std::vector<not_null<UserData*>> preloaded;
 		bool wasLoading = false;
-		bool loadingAll = false;
 	};
 
 	bool appendRow(not_null<UserData*> user);
 	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
+	void addPreloaded();
 
 	const not_null<Main::Session*> _session;
 	const not_null<PollData*> _poll;
@@ -131,9 +138,10 @@ private:
 
 	QString _offset;
 	mtpRequestId _loadRequestId = 0;
-	int _fullCount = 0;
-	bool _allLoaded = false;
-	bool _loadingAll = false;
+	QString _loadForOffset;
+	std::vector<not_null<UserData*>> _preloaded;
+	rpl::variable<int> _leftToLoad;
+	rpl::variable<int> _fullCount;
 
 	rpl::event_stream<not_null<PeerData*>> _showPeerInfoRequests;
 
@@ -149,6 +157,10 @@ ListController::ListController(
 , _context(context)
 , _option(option)
 , _api(_session->api().instance()) {
+	const auto i = ranges::find(poll->answers, option, &PollAnswer::option);
+	Assert(i != poll->answers.end());
+	_leftToLoad = i->votes;
+	_fullCount = i->votes;
 }
 
 Main::Session &ListController::session() const {
@@ -161,52 +173,75 @@ void ListController::prepare() {
 
 void ListController::loadMoreRows() {
 	if (_loadRequestId
-		|| _allLoaded
-		|| (!_loadingAll && !_offset.isEmpty())) {
+		|| !_leftToLoad.current()
+		|| (!_offset.isEmpty() && _loadForOffset != _offset)) {
 		return;
 	}
 	const auto item = session().data().message(_context);
 	if (!item || !IsServerMsgId(item->id)) {
-		_allLoaded = true;
+		_leftToLoad = 0;
 		return;
 	}
 
 	using Flag = MTPmessages_GetPollVotes::Flag;
 	const auto flags = Flag::f_option
 		| (_offset.isEmpty() ? Flag(0) : Flag::f_offset);
+	const auto limit = _offset.isEmpty() ? kFirstPage : kPerPage;
 	_loadRequestId = _api.request(MTPmessages_GetPollVotes(
 		MTP_flags(flags),
 		item->history()->peer->input,
 		MTP_int(item->id),
 		MTP_bytes(_option),
 		MTP_string(_offset),
-		MTP_int(_offset.isEmpty() ? kFirstPage : kPerPage)
+		MTP_int(limit)
 	)).done([=](const MTPmessages_VotesList &result) {
-		_loadRequestId = 0;
-		result.match([&](const MTPDmessages_votesList &data) {
-			_fullCount = data.vcount().v;
+		const auto count = result.match([&](
+				const MTPDmessages_votesList &data) {
 			_offset = data.vnext_offset().value_or_empty();
 			auto &owner = session().data();
 			owner.processUsers(data.vusers());
+			auto add = limit - kLeavePreloaded;
 			for (const auto &vote : data.vvotes().v) {
 				vote.match([&](const auto &data) {
 					const auto user = owner.user(data.vuser_id().v);
 					if (user->loadedStatus != PeerData::NotLoaded) {
-						appendRow(user);
+						if (add) {
+							appendRow(user);
+							--add;
+						} else {
+							_preloaded.push_back(user);
+						}
 					}
 				});
 			}
+			return data.vcount().v;
 		});
-		_allLoaded = _offset.isEmpty();
-		delegate()->peerListRefreshRows();
+		if (_offset.isEmpty()) {
+			addPreloaded();
+			_fullCount = delegate()->peerListFullRowsCount();
+			_leftToLoad = 0;
+		} else {
+			delegate()->peerListRefreshRows();
+			_fullCount = count;
+			_leftToLoad = count - delegate()->peerListFullRowsCount();
+		}
+		_loadRequestId = 0;
 	}).fail([=](const RPCError &error) {
 		_loadRequestId = 0;
 	}).send();
 }
 
-void ListController::allowLoadAll() {
-	_loadingAll = true;
+void ListController::allowLoadMore() {
+	_loadForOffset = _offset;
+	addPreloaded();
 	loadMoreRows();
+}
+
+void ListController::addPreloaded() {
+	for (const auto user : base::take(_preloaded)) {
+		appendRow(user);
+	}
+	delegate()->peerListRefreshRows();
 }
 
 auto ListController::showPeerInfoRequests() const
@@ -214,14 +249,24 @@ auto ListController::showPeerInfoRequests() const
 	return _showPeerInfoRequests.events();
 }
 
+rpl::producer<int> ListController::leftToLoad() const {
+	return _leftToLoad.value();
+}
+
+rpl::producer<int> ListController::fullCount() const {
+	return _fullCount.value();
+}
+
 auto ListController::saveState() const -> std::unique_ptr<PeerListState> {
 	auto result = PeerListController::saveState();
 
 	auto my = std::make_unique<SavedState>();
 	my->offset = _offset;
-	my->allLoaded = _allLoaded;
+	my->leftToLoad = _leftToLoad.current();
+	my->fullCount = _fullCount.current();
+	my->preloaded = _preloaded;
 	my->wasLoading = (_loadRequestId != 0);
-	my->loadingAll = _loadingAll;
+	my->loadForOffset = _loadForOffset;
 	result->controllerState = std::move(my);
 
 	return result;
@@ -237,11 +282,13 @@ void ListController::restoreState(std::unique_ptr<PeerListState> state) {
 		}
 
 		_offset = my->offset;
-		_allLoaded = my->allLoaded;
-		_loadingAll = my->loadingAll;
+		_loadForOffset = my->loadForOffset;
+		_preloaded = std::move(my->preloaded);
 		if (my->wasLoading) {
 			loadMoreRows();
 		}
+		_leftToLoad = my->leftToLoad;
+		_fullCount = my->fullCount;
 		PeerListController::restoreState(std::move(state));
 	}
 }
@@ -279,20 +326,30 @@ ListController *CreateAnswerRows(
 		not_null<PollData*> poll,
 		FullMsgId context,
 		const PollAnswer &answer) {
+	using namespace rpl::mappers;
+
 	if (!answer.votes) {
 		return nullptr;
 	}
 
+	const auto delegate = container->lifetime().make_state<ListDelegate>();
+	const auto controller = container->lifetime().make_state<ListController>(
+		session,
+		poll,
+		context,
+		answer.option);
+
 	const auto percent = answer.votes * 100 / poll->totalVoters;
-	const auto rightText = (poll->quiz()
+	const auto phrase = poll->quiz()
 		? tr::lng_polls_answers_count
-		: tr::lng_polls_votes_count)(
+		: tr::lng_polls_votes_count;
+	const auto sampleText = phrase(
 			tr::now,
 			lt_count_decimal,
 			answer.votes);
 	const auto &font = st::boxDividerLabel.style.font;
-	const auto rightWidth = font->width(rightText);
-	const auto rightSkip = rightWidth + font->spacew * 4;
+	const auto sampleWidth = font->width(sampleText);
+	const auto rightSkip = sampleWidth + font->spacew * 4;
 	const auto header = container->add(
 		object_ptr<Ui::DividerLabel>(
 			container,
@@ -310,7 +367,9 @@ ListController *CreateAnswerRows(
 				st::pollResultsHeaderPadding.bottom())));
 	const auto votes = Ui::CreateChild<Ui::FlatLabel>(
 		header,
-		rightText,
+		phrase(
+			lt_count_decimal,
+			controller->fullCount() | rpl::map(_1 + 0.)),
 		st::pollResultsVotesCount);
 	header->widthValue(
 	) | rpl::start_with_next([=](int width) {
@@ -323,12 +382,6 @@ ListController *CreateAnswerRows(
 		container,
 		st::boxLittleSkip));
 
-	const auto delegate = container->lifetime().make_state<ListDelegate>();
-	const auto controller = container->lifetime().make_state<ListController>(
-		session,
-		poll,
-		context,
-		answer.option);
 	const auto content = container->add(object_ptr<PeerListContent>(
 		container,
 		controller,
@@ -343,14 +396,16 @@ ListController *CreateAnswerRows(
 				container,
 				tr::lng_polls_show_more(
 					lt_count_decimal,
-					rpl::single(answer.votes + 0.),
+					controller->leftToLoad() | rpl::map(_1 + 0.),
 					Ui::Text::Upper),
 				st::pollResultsShowMore)));
-	more->toggle(answer.votes > kFirstPage, anim::type::instant);
 	more->entity()->setClickedCallback([=] {
-		controller->allowLoadAll();
-		more->hide(anim::type::instant);
+		controller->allowLoadMore();
 	});
+	controller->leftToLoad(
+	) | rpl::map(_1 > 0) | rpl::start_with_next([=](bool visible) {
+		more->toggle(visible, anim::type::instant);
+	}, more->lifetime());
 
 	container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
