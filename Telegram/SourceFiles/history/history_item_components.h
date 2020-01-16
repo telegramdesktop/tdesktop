@@ -91,6 +91,7 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	HistoryMessageReply &operator=(const HistoryMessageReply &other) = delete;
 	HistoryMessageReply &operator=(HistoryMessageReply &&other) {
 		replyToMsgId = other.replyToMsgId;
+		replyToDocumentId = other.replyToDocumentId;
 		std::swap(replyToMsg, other.replyToMsg);
 		replyToLnk = std::move(other.replyToLnk);
 		replyToName = std::move(other.replyToName);
