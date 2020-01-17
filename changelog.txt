@@ -1,3 +1,7 @@
+1.9.4 (17.01.19)
+
+- Bug fixes and other minor improvements.
+
 1.9.3 (31.12.19)
 
 - Videos in chats start playing automatically.
