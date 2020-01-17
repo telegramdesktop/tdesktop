@@ -49,7 +49,7 @@ bool RunShellCommand(const QByteArray &command) {
 }
 
 void FallbackFontConfig() {
-#ifndef TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
+#ifndef DESKTOP_APP_USE_PACKAGED
 	const auto custom = cWorkingDir() + "tdata/fc-custom-1.conf";
 	const auto finish = gsl::finally([&] {
 		if (QFile(custom).exists()) {
@@ -84,7 +84,7 @@ void FallbackFontConfig() {
 	}
 
 	QFile(":/fc/fc-custom.conf").copy(custom);
-#endif // TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
+#endif // !DESKTOP_APP_USE_PACKAGED
 }
 
 } // namespace
