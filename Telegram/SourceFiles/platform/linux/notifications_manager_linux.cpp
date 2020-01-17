@@ -28,12 +28,12 @@ std::vector<QString> GetServerInformation(
 		const std::shared_ptr<QDBusInterface> &notificationInterface) {
 	std::vector<QString> serverInformation;
 	auto serverInformationReply = notificationInterface
-		->call("GetServerInformation");
+		->call(qsl("GetServerInformation"));
 
 	if (serverInformationReply.type() == QDBusMessage::ReplyMessage) {
 		for (const auto &arg : serverInformationReply.arguments()) {
 			if (static_cast<QMetaType::Type>(arg.type())
-					== QMetaType::QString) {
+				== QMetaType::QString) {
 				serverInformation.push_back(arg.toString());
 			} else {
 				LOG(("Native notification error: "
@@ -55,7 +55,7 @@ std::vector<QString> GetServerInformation(
 std::vector<QString> GetCapabilities(
 		const std::shared_ptr<QDBusInterface> &notificationInterface) {
 	QDBusReply<QStringList> capabilitiesReply = notificationInterface
-		->call("GetCapabilities");
+		->call(qsl("GetCapabilities"));
 
 	if (capabilitiesReply.isValid()) {
 		return capabilitiesReply.value().toVector().toStdVector();
@@ -96,23 +96,25 @@ NotificationData::NotificationData(
 
 	if (ranges::find(capabilities, qsl("body-markup")) != capabilitiesEnd) {
 		_body = subtitle.isEmpty()
-				? msg.toHtmlEscaped()
-				: qsl("<b>%1</b>\n%2").arg(subtitle.toHtmlEscaped())
-									.arg(msg.toHtmlEscaped());
+			? msg.toHtmlEscaped()
+			: qsl("<b>%1</b>\n%2").arg(subtitle.toHtmlEscaped())
+				.arg(msg.toHtmlEscaped());
 	} else {
 		_body = subtitle.isEmpty()
-				? msg
-				: qsl("%1\n%2").arg(subtitle).arg(msg);
+			? msg
+			: qsl("%1\n%2").arg(subtitle).arg(msg);
 	}
 
 	if (ranges::find(capabilities, qsl("actions")) != capabilitiesEnd) {
+		_actions << qsl("default") << QString();
+
 		// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
-		_actions << "mail-reply-sender"
-				<< tr::lng_notification_reply(tr::now);
+		_actions << qsl("mail-reply-sender")
+			<< tr::lng_notification_reply(tr::now);
 
 		connect(_notificationInterface.get(),
-				SIGNAL(ActionInvoked(uint, QString)),
-				this, SLOT(notificationClicked(uint)));
+			SIGNAL(ActionInvoked(uint, QString)),
+			this, SLOT(notificationClicked(uint)));
 	}
 
 	if (ranges::find(capabilities, qsl("action-icons")) != capabilitiesEnd) {
@@ -125,26 +127,35 @@ NotificationData::NotificationData(
 			_hints["suppress-sound"] = true;
 		} else {
 			// sound name according to http://0pointer.de/public/sound-naming-spec.html
-			_hints["sound-name"] = "message-new-instant";
+			_hints["sound-name"] = qsl("message-new-instant");
 		}
 	}
 
 	if (ranges::find(capabilities, qsl("x-canonical-append"))
-			!= capabilitiesEnd) {
-		_hints["x-canonical-append"] = "true";
+		!= capabilitiesEnd) {
+		_hints["x-canonical-append"] = qsl("true");
 	}
 
-	_hints["category"] = "im.received";
-	_hints["desktop-entry"] = "telegramdesktop";
+	_hints["category"] = qsl("im.received");
+
+#ifdef TDESKTOP_LAUNCHER_FILENAME
+#define TDESKTOP_LAUNCHER_FILENAME_TO_STRING_HELPER(V) #V
+#define TDESKTOP_LAUNCHER_FILENAME_TO_STRING(V) TDESKTOP_LAUNCHER_FILENAME_TO_STRING_HELPER(V)
+	_hints["desktop-entry"] =
+		qsl(TDESKTOP_LAUNCHER_FILENAME_TO_STRING(TDESKTOP_LAUNCHER_FILENAME))
+			.remove(QRegExp(qsl("\\.desktop$"), Qt::CaseInsensitive));
+#else
+	_hints["desktop-entry"] = qsl("telegramdesktop");
+#endif
 
 	connect(_notificationInterface.get(),
-			SIGNAL(NotificationClosed(uint, uint)),
-			this, SLOT(notificationClosed(uint)));
+		SIGNAL(NotificationClosed(uint, uint)),
+		this, SLOT(notificationClosed(uint)));
 }
 
 bool NotificationData::show() {
-	QDBusReply<uint> notifyReply = _notificationInterface->call("Notify",
-		str_const_toString(AppName), uint(0), "telegram", _title, _body,
+	QDBusReply<uint> notifyReply = _notificationInterface->call(qsl("Notify"),
+		str_const_toString(AppName), uint(0), QString(), _title, _body,
 		_actions, _hints, -1);
 
 	if (notifyReply.isValid()) {
@@ -159,7 +170,7 @@ bool NotificationData::show() {
 
 bool NotificationData::close() {
 	QDBusReply<void> closeReply = _notificationInterface
-		->call("CloseNotification", _notificationId);
+		->call(qsl("CloseNotification"), _notificationId);
 
 	if (!closeReply.isValid()) {
 		LOG(("Native notification error: %1")
@@ -180,12 +191,12 @@ void NotificationData::setImage(const QString &imagePath) {
 		const auto minorVersion = specificationVersion.minorVersion();
 
 		if ((majorVersion == 1 && minorVersion >= 2) || majorVersion > 1) {
-			imageKey = "image-data";
-		} else if (majorVersion == 1 && minorVersion) {
-			imageKey = "image_data";
+			imageKey = qsl("image-data");
+		} else if (majorVersion == 1 && minorVersion == 1) {
+			imageKey = qsl("image_data");
 		} else if ((majorVersion == 1 && minorVersion < 1)
-									|| majorVersion < 1) {
-			imageKey = "icon_data";
+			|| majorVersion < 1) {
+			imageKey = qsl("icon_data");
 		} else {
 			LOG(("Native notification error: unknown specification version"));
 			return;
@@ -197,7 +208,7 @@ void NotificationData::setImage(const QString &imagePath) {
 
 	auto image = QImage(imagePath).convertToFormat(QImage::Format_RGBA8888);
 	QByteArray imageBytes((const char*)image.constBits(),
-						image.sizeInBytes());
+		image.sizeInBytes());
 
 	ImageData imageData;
 	imageData.width = image.width();
@@ -233,12 +244,12 @@ QDBusArgument &operator<<(QDBusArgument &argument,
 		const NotificationData::ImageData &imageData) {
 	argument.beginStructure();
 	argument << imageData.width
-			<< imageData.height
-			<< imageData.rowStride
-			<< imageData.hasAlpha
-			<< imageData.bitsPerSample
-			<< imageData.channels
-			<< imageData.data;
+		<< imageData.height
+		<< imageData.rowStride
+		<< imageData.hasAlpha
+		<< imageData.bitsPerSample
+		<< imageData.channels
+		<< imageData.data;
 	argument.endStructure();
 	return argument;
 }
@@ -247,29 +258,23 @@ const QDBusArgument &operator>>(const QDBusArgument &argument,
 		NotificationData::ImageData &imageData) {
 	argument.beginStructure();
 	argument >> imageData.width
-			>> imageData.height
-			>> imageData.rowStride
-			>> imageData.hasAlpha
-			>> imageData.bitsPerSample
-			>> imageData.channels
-			>> imageData.data;
+		>> imageData.height
+		>> imageData.rowStride
+		>> imageData.hasAlpha
+		>> imageData.bitsPerSample
+		>> imageData.channels
+		>> imageData.data;
 	argument.endStructure();
 	return argument;
 }
 
 bool Supported() {
-	static auto Checked = false;
-	static auto NotificationDaemonRunning = false;
+	static auto Available = QDBusInterface(
+		str_const_toString(kService),
+		str_const_toString(kObjectPath),
+		str_const_toString(kInterface)).isValid();
 
-	if (!Checked) {
-		Checked = true;
-		NotificationDaemonRunning = QDBusInterface(
-			str_const_toString(kService),
-			str_const_toString(kObjectPath),
-			str_const_toString(kInterface)).isValid();
-	}
-
-	return NotificationDaemonRunning;
+	return Available;
 }
 
 std::unique_ptr<Window::Notifications::Manager> Create(
@@ -284,9 +289,9 @@ Manager::Private::Private(Manager *manager, Type type)
 : _cachedUserpics(type)
 , _manager(manager)
 , _notificationInterface(std::make_shared<QDBusInterface>(
-							str_const_toString(kService),
-							str_const_toString(kObjectPath),
-							str_const_toString(kInterface))) {
+		str_const_toString(kService),
+		str_const_toString(kObjectPath),
+		str_const_toString(kInterface))) {
 	qDBusRegisterMetaType<NotificationData::ImageData>();
 
 	auto specificationVersion = ParseSpecificationVersion(
