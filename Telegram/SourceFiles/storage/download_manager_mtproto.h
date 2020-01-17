@@ -163,7 +163,7 @@ protected:
 private:
 	struct RequestData {
 		int offset = 0;
-		int sessionIndex = 0;
+		mutable int sessionIndex = 0;
 		int requestedInSession = 0;
 		crl::time sent = 0;
 

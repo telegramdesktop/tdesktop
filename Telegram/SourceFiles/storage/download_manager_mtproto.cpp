@@ -487,6 +487,13 @@ void DownloadMtprotoTask::removeSession(int sessionIndex) {
 			redirect.push_back({ requestId, requestData.offset });
 		}
 	}
+	for (auto &[requestData, bytes] : _cdnUncheckedParts) {
+		if (requestData.sessionIndex == sessionIndex) {
+			const auto newIndex = _owner->chooseSessionIndex(dcId());
+			Assert(newIndex < sessionIndex);
+			requestData.sessionIndex = newIndex;
+		}
+	}
 	for (const auto &[requestId, offset] : redirect) {
 		cancelRequest(requestId);
 		const auto newIndex = _owner->chooseSessionIndex(dcId());
