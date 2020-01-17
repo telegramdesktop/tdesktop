@@ -52,8 +52,7 @@ if officialTarget != '':
             elif apiHashMatch:
                 arguments.append('-DTDESKTOP_API_HASH=' + apiHashMatch.group(1))
     finish(run_cmake.run(scriptName, arguments))
-
-if 'linux' in sys.platform:
+elif 'linux' in sys.platform:
     debugCode = run_cmake.run(scriptName, arguments, "Debug")
     finish(debugCode if debugCode else run_cmake.run(scriptName, arguments, "Release"))
 else:

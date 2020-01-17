@@ -10,7 +10,7 @@ cmake_policy(SET CMP0091 NEW)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-include(cmake/variables.cmake)
+include(cmake/validate_special_target.cmake)
 include(cmake/version.cmake)
 desktop_app_parse_version(Telegram/build/version)
 
@@ -22,6 +22,7 @@ project(Telegram
 )
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Telegram)
 
+include(cmake/variables.cmake)
 include(cmake/nice_target_sources.cmake)
 include(cmake/target_link_static_libraries.cmake)
 include(cmake/target_link_frameworks.cmake)
