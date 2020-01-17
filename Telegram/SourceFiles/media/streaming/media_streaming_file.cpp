@@ -162,10 +162,10 @@ Stream File::Context::initStream(
 	result.duration = (info->duration != AV_NOPTS_VALUE)
 		? FFmpeg::PtsToTime(info->duration, result.timeBase)
 		: FFmpeg::PtsToTime(format->duration, FFmpeg::kUniversalTimeBase);
-	if (result.duration <= 0) {
-		result.codec = nullptr;
-	} else if (result.duration == kTimeUnknown) {
+	if (result.duration == kTimeUnknown) {
 		result.duration = kDurationUnavailable;
+	} else if (result.duration <= 0) {
+		result.codec = nullptr;
 	} else {
 		++result.duration;
 		if (result.duration > kDurationMax) {
