@@ -2178,7 +2178,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_polls_answers_count#one" = "{count} answer";
 "lng_polls_answers_count#other" = "{count} answers";
 "lng_polls_answers_none" = "No answers";
-"lng_polls_submit_votes" = "Submit votes";
+"lng_polls_submit_votes" = "Vote";
 "lng_polls_view_results" = "View results";
 "lng_polls_retract" = "Retract vote";
 "lng_polls_stop" = "Stop poll";
@@ -2202,8 +2202,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_polls_poll_results_title" = "Poll results";
 "lng_polls_quiz_results_title" = "Quiz results";
-"lng_polls_show_more#one" = "Show {count} more voter";
-"lng_polls_show_more#other" = "Show {count} more voters";
+"lng_polls_show_more#one" = "Show more ({count})";
+"lng_polls_show_more#other" = "Show more ({count})";
 "lng_polls_votes_collapse" = "Collapse";
 
 "lng_outdated_title" = "PLEASE UPDATE YOUR OPERATING SYSTEM.";
