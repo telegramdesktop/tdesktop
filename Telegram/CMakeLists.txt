@@ -1134,6 +1134,10 @@ if (NOT build_macstore AND NOT build_winstore)
 
     set_target_properties(Updater PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
+    if (LINUX)
+        target_link_options(Updater INTERFACE -static-libstdc++)
+    endif()
+
     if (DESKTOP_APP_SPECIAL_TARGET)
         add_executable(Packer WIN32)
         init_target(Packer)
