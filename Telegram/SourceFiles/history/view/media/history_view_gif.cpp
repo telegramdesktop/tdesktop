@@ -1229,6 +1229,7 @@ void Gif::parentTextUpdated() {
 }
 
 void Gif::refreshParentId(not_null<HistoryItem*> realParent) {
+	File::refreshParentId(realParent);
 	if (_parent->media() == this) {
 		refreshCaption();
 	}
