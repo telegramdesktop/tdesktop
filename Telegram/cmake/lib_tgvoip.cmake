@@ -15,7 +15,7 @@ if (TDESKTOP_USE_PACKAGED_TGVOIP)
     target_link_libraries(lib_tgvoip INTERFACE ${TGVOIP_LIBRARIES})
 else()
     add_library(lib_tgvoip STATIC)
-    init_target(lib_tgvoip cxx_std_11)
+    init_target(lib_tgvoip)
     add_library(tdesktop::lib_tgvoip ALIAS lib_tgvoip)
 
     if (NOT APPLE)
@@ -49,6 +49,8 @@ else()
         OpusEncoder.cpp
         OpusEncoder.h
         threading.h
+        TgVoip.cpp
+        TgVoip.h
         VoIPController.cpp
         VoIPGroupController.cpp
         VoIPController.h
