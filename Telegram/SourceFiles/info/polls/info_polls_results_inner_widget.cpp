@@ -245,7 +245,8 @@ void ListController::prepare() {
 void ListController::loadMoreRows() {
 	if (_loadRequestId
 		|| !_leftToLoad.current()
-		|| (!_offset.isEmpty() && _loadForOffset != _offset)) {
+		|| (!_offset.isEmpty() && _loadForOffset != _offset)
+		|| !_preloaded.empty()) {
 		return;
 	}
 	const auto item = session().data().message(_context);
