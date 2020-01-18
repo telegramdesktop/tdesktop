@@ -730,7 +730,7 @@ void SetupSendMenuAndShortcuts(
 				return true;
 			}))
 		||
-		(request->check(Command::SendMessage) && request->handle([=] {
+		(request->check(Command::JustSendMessage) && request->handle([=] {
 			const auto post = [&](QEvent::Type type) {
 				QApplication::postEvent(
 					button,
