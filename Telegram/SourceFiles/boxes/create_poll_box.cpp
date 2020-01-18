@@ -839,13 +839,17 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 				st::defaultCheckbox),
 			st::createPollCheckboxMargin)
 		: nullptr;
-	const auto multiple = container->add(
-		object_ptr<Ui::Checkbox>(
-			container,
-			tr::lng_polls_create_multiple_choice(tr::now),
-			(_chosen & PollData::Flag::MultiChoice),
-			st::defaultCheckbox),
-		st::createPollCheckboxMargin);
+	const auto hasMultiple = !(_chosen & PollData::Flag::Quiz)
+		|| !(_disabled & PollData::Flag::Quiz);
+	const auto multiple = hasMultiple
+		? container->add(
+			object_ptr<Ui::Checkbox>(
+				container,
+				tr::lng_polls_create_multiple_choice(tr::now),
+				(_chosen & PollData::Flag::MultiChoice),
+				st::defaultCheckbox),
+			st::createPollCheckboxMargin)
+		: nullptr;
 	const auto quiz = container->add(
 		object_ptr<Ui::Checkbox>(
 			container,
@@ -854,26 +858,29 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			st::defaultCheckbox),
 		st::createPollCheckboxMargin);
 	quiz->setDisabled(_disabled & PollData::Flag::Quiz);
-	multiple->setDisabled((_disabled & PollData::Flag::MultiChoice)
-		|| (_chosen & PollData::Flag::Quiz));
+	if (multiple) {
+		multiple->setDisabled((_disabled & PollData::Flag::MultiChoice)
+			|| (_chosen & PollData::Flag::Quiz));
+		multiple->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return (e->type() == QEvent::MouseButtonPress) && quiz->checked();
+		}) | rpl::start_with_next([=] {
+			Ui::Toast::Show("Quiz has only one right answer.");
+		}, multiple->lifetime());
+	}
 
 	using namespace rpl::mappers;
 	quiz->checkedChanges(
 	) | rpl::start_with_next([=](bool checked) {
-		if (checked && multiple->checked()) {
-			multiple->setChecked(false);
+		if (multiple) {
+			if (checked && multiple->checked()) {
+				multiple->setChecked(false);
+			}
+			multiple->setDisabled(checked
+				|| (_disabled & PollData::Flag::MultiChoice));
 		}
-		multiple->setDisabled(checked
-			|| (_disabled & PollData::Flag::MultiChoice));
 		options->enableChooseCorrect(checked);
 	}, quiz->lifetime());
-
-	multiple->events(
-	) | rpl::filter([=](not_null<QEvent*> e) {
-		return (e->type() == QEvent::MouseButtonPress) && quiz->checked();
-	}) | rpl::start_with_next([=] {
-		Ui::Toast::Show("Quiz has only one right answer.");
-	}, multiple->lifetime());
 
 	const auto isValidQuestion = [=] {
 		const auto text = question->getLastText().trimmed();
@@ -896,9 +903,10 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		result.question = question->getLastText().trimmed();
 		result.answers = options->toPollAnswers();
 		const auto publicVotes = (anonymous && !anonymous->checked());
+		const auto multiChoice = (multiple && multiple->checked());
 		result.setFlags(Flag(0)
 			| (publicVotes ? Flag::PublicVotes : Flag(0))
-			| (multiple->checked() ? Flag::MultiChoice : Flag(0))
+			| (multiChoice ? Flag::MultiChoice : Flag(0))
 			| (quiz->checked() ? Flag::Quiz : Flag(0)));
 		return result;
 	};
