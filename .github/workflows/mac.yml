@@ -102,7 +102,7 @@ jobs:
 
           git clone $GIT/desktop-app/zlib.git
           cd zlib
-          CFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure
+          CFLAGS="$MIN_MAC $UNGUARDED" LDFLAGS="$MIN_MAC" ./configure --prefix=$PREFIX
           make -j$(nproc)
           sudo make install
 

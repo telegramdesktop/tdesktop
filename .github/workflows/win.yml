@@ -23,7 +23,6 @@ jobs:
     env:
       SDK: "10.0.18362.0"
       VC: "call vcvars32.bat && cd Libraries"
-      PY2: 'C:\hostedtoolcache\windows\Python\2.7.16\x64'
       GIT: "https://github.com"
       QT: "5_12_5"
       OPENSSL_VER: "1_1_1"
@@ -185,6 +184,16 @@ jobs:
         if: steps.cache-breakpad.outputs.cache-hit != 'true'
         run: |
           cd %LibrariesPath%
+
+          echo Find any version of Python 2.
+          for /D %%a in (C:\hostedtoolcache\windows\Python\2.*) do (
+            SET PY2=%%a\x64
+          )
+          IF [%PY2%] == [] (
+            echo Python 2 is not found.
+            exit 1
+          )
+          echo Found %PY2%.
 
           git clone %GIT%/telegramdesktop/gyp.git
           cd gyp
