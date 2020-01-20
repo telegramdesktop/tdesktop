@@ -556,7 +556,7 @@ mtpRequestId DownloadMtprotoTask::sendRequest(
 	}, [&](const StorageFileLocation &location) {
 		const auto reference = location.fileReference();
 		return api().request(MTPupload_GetFile(
-			MTP_flags(MTPupload_GetFile::Flag::f_cdn_supported),
+			MTP_flags(0),
 			location.tl(api().session().userId()),
 			MTP_int(offset),
 			MTP_int(limit)
