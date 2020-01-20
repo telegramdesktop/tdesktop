@@ -108,13 +108,22 @@ NotificationData::NotificationData(
 	if (ranges::find(capabilities, qsl("actions")) != capabilitiesEnd) {
 		_actions << qsl("default") << QString();
 
-		// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
-		_actions << qsl("mail-reply-sender")
-			<< tr::lng_notification_reply(tr::now);
-
 		connect(_notificationInterface.get(),
 			SIGNAL(ActionInvoked(uint, QString)),
 			this, SLOT(notificationClicked(uint)));
+
+		if (ranges::find(capabilities, qsl("inline-reply")) != capabilitiesEnd) {
+			_actions << qsl("inline-reply")
+				<< tr::lng_notification_reply(tr::now);
+
+			connect(_notificationInterface.get(),
+				SIGNAL(NotificationReplied(uint,QString)),
+				this, SLOT(notificationReplied(uint,QString)));
+		} else {
+			// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
+			_actions << qsl("mail-reply-sender")
+				<< tr::lng_notification_reply(tr::now);
+		}
 	}
 
 	if (ranges::find(capabilities, qsl("action-icons")) != capabilitiesEnd) {
@@ -234,6 +243,15 @@ void NotificationData::notificationClicked(uint id) {
 		const auto manager = _manager;
 		crl::on_main(manager, [=] {
 			manager->notificationActivated(_peerId, _msgId);
+		});
+	}
+}
+
+void NotificationData::notificationReplied(uint id, const QString &text) {
+	if (id == _notificationId) {
+		const auto manager = _manager;
+		crl::on_main(manager, [=] {
+			manager->notificationReplied(_peerId, _msgId, { text, {} });
 		});
 	}
 }
