@@ -43,7 +43,7 @@ travisStartFold() {
     fi
 
     echo "travis_fold:start:$NAME"
-    sameLineInfoMessage "$TITLE"   
+    sameLineInfoMessage "$TITLE"
 
     TRAVIS_LAST_FOLD="$NAME"
 }
