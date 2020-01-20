@@ -495,10 +495,13 @@ void DownloadMtprotoTask::removeSession(int sessionIndex) {
 		}
 	}
 	for (const auto &[requestId, offset] : redirect) {
+		const auto needMakeRequest = (requestId != _cdnHashesRequestId);
 		cancelRequest(requestId);
-		const auto newIndex = _owner->chooseSessionIndex(dcId());
-		Assert(newIndex < sessionIndex);
-		makeRequest({ offset, newIndex });
+		if (needMakeRequest) {
+			const auto newIndex = _owner->chooseSessionIndex(dcId());
+			Assert(newIndex < sessionIndex);
+			makeRequest({ offset, newIndex });
+		}
 	}
 }
 
