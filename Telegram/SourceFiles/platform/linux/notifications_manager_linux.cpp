@@ -52,19 +52,19 @@ std::vector<QString> GetServerInformation(
 	return serverInformation;
 }
 
-std::vector<QString> GetCapabilities(
+QStringList GetCapabilities(
 		const std::shared_ptr<QDBusInterface> &notificationInterface) {
 	QDBusReply<QStringList> capabilitiesReply = notificationInterface
 		->call(qsl("GetCapabilities"));
 
 	if (capabilitiesReply.isValid()) {
-		return capabilitiesReply.value().toVector().toStdVector();
+		return capabilitiesReply.value();
 	} else {
 		LOG(("Native notification error: %1")
 			.arg(capabilitiesReply.error().message()));
 	}
 
-	return std::vector<QString>();
+	return {};
 }
 
 QVersionNumber ParseSpecificationVersion(
@@ -303,14 +303,7 @@ Manager::Private::Private(Manager *manager, Type type)
 	}
 
 	if (!capabilities.empty()) {
-		const auto capabilitiesString = std::accumulate(
-			capabilities.begin(),
-			capabilities.end(),
-			QString{},
-			[](auto &s, auto &p) {
-				return s + (p + qstr(", "));
-			}).chopped(2);
-
+		const auto capabilitiesString = capabilities.join(", ");
 		LOG(("Notification daemon capabilities: %1").arg(capabilitiesString));
 	}
 }
