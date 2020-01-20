@@ -92,9 +92,8 @@ NotificationData::NotificationData(
 , _peerId(peerId)
 , _msgId(msgId) {
 	auto capabilities = GetCapabilities(_notificationInterface);
-	auto capabilitiesEnd = capabilities.end();
 
-	if (ranges::find(capabilities, qsl("body-markup")) != capabilitiesEnd) {
+	if (capabilities.contains(qsl("body-markup"))) {
 		_body = subtitle.isEmpty()
 			? msg.toHtmlEscaped()
 			: qsl("<b>%1</b>\n%2").arg(subtitle.toHtmlEscaped())
@@ -105,7 +104,7 @@ NotificationData::NotificationData(
 			: qsl("%1\n%2").arg(subtitle).arg(msg);
 	}
 
-	if (ranges::find(capabilities, qsl("actions")) != capabilitiesEnd) {
+	if (capabilities.contains(qsl("actions"))) {
 		_actions << qsl("default") << QString();
 
 		// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
@@ -117,12 +116,12 @@ NotificationData::NotificationData(
 			this, SLOT(notificationClicked(uint)));
 	}
 
-	if (ranges::find(capabilities, qsl("action-icons")) != capabilitiesEnd) {
+	if (capabilities.contains(qsl("action-icons"))) {
 		_hints["action-icons"] = true;
 	}
 
 	// suppress system sound if telegram sound activated, otherwise use system sound
-	if (ranges::find(capabilities, qsl("sound")) != capabilitiesEnd) {
+	if (capabilities.contains(qsl("sound"))) {
 		if (Global::SoundNotify()) {
 			_hints["suppress-sound"] = true;
 		} else {
@@ -131,8 +130,7 @@ NotificationData::NotificationData(
 		}
 	}
 
-	if (ranges::find(capabilities, qsl("x-canonical-append"))
-		!= capabilitiesEnd) {
+	if (capabilities.contains(qsl("x-canonical-append"))) {
 		_hints["x-canonical-append"] = qsl("true");
 	}
 
