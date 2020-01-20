@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/ui_utility.h"
 #include "mtproto/facade.h"
+#include "core/update_checker.h"
 #include "window/themes/window_theme.h"
 #include "boxes/connection_box.h"
 #include "boxes/abstract_box.h"
@@ -194,6 +195,7 @@ bool ConnectionState::State::operator==(const State &other) const {
 	return (type == other.type)
 		&& (useProxy == other.useProxy)
 		&& (underCursor == other.underCursor)
+		&& (updateReady == other.updateReady)
 		&& (waitTillRetry == other.waitTillRetry);
 }
 
@@ -217,6 +219,15 @@ ConnectionState::ConnectionState(
 	subscribe(Global::RefConnectionTypeChanged(), [=] {
 		refreshState();
 	});
+	if (!Core::UpdaterDisabled()) {
+		Core::UpdateChecker checker;
+		rpl::merge(
+			rpl::single(rpl::empty_value()),
+			checker.ready()
+		) | rpl::start_with_next([=] {
+			refreshState();
+		}, _lifetime);
+	}
 	refreshState();
 }
 
@@ -267,24 +278,26 @@ void ConnectionState::setForceHidden(bool hidden) {
 }
 
 void ConnectionState::refreshState() {
+	using Checker = Core::UpdateChecker;
 	const auto state = [&]() -> State {
 		const auto under = _widget && _widget->isOver();
+		const auto ready = (Checker().state() == Checker::State::Ready);
 		const auto mtp = MTP::dcstate();
-		const auto throughProxy
+		const auto proxy
 			= (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled);
 		if (mtp == MTP::ConnectingState
 			|| mtp == MTP::DisconnectedState
 			|| (mtp < 0 && mtp > -600)) {
-			return { State::Type::Connecting, throughProxy, under };
+			return { State::Type::Connecting, proxy, under, ready };
 		} else if (mtp < 0
 			&& mtp >= -kMinimalWaitingStateDuration
 			&& _state.type != State::Type::Waiting) {
-			return { State::Type::Connecting, throughProxy, under };
+			return { State::Type::Connecting, proxy, under, ready };
 		} else if (mtp < 0) {
-			const auto seconds = ((-mtp) / 1000) + 1;
-			return { State::Type::Waiting, throughProxy, under, seconds };
+			const auto wait = ((-mtp) / 1000) + 1;
+			return { State::Type::Waiting, proxy, under, ready, wait };
 		}
-		return { State::Type::Connected, throughProxy, under };
+		return { State::Type::Connected, proxy, under, ready };
 	}();
 	if (state.waitTillRetry > 0) {
 		_refreshTimer.callOnce(kRefreshTimeout);
@@ -399,17 +412,23 @@ auto ConnectionState::computeLayout(const State &state) const -> Layout {
 	auto result = Layout();
 	result.proxyEnabled = state.useProxy;
 	result.progressShown = (state.type != State::Type::Connected);
-	result.visible = state.useProxy
-		|| state.type == State::Type::Connecting
-		|| state.type == State::Type::Waiting;
+	result.visible = !state.updateReady
+		&& (state.useProxy
+			|| state.type == State::Type::Connecting
+			|| state.type == State::Type::Waiting);
 	switch (state.type) {
 	case State::Type::Connecting:
-		result.text = state.underCursor ? tr::lng_connecting(tr::now) : QString();
+		result.text = state.underCursor
+			? tr::lng_connecting(tr::now)
+			: QString();
 		break;
 
 	case State::Type::Waiting:
 		Assert(state.waitTillRetry > 0);
-		result.text = tr::lng_reconnecting(tr::now, lt_count, state.waitTillRetry);
+		result.text = tr::lng_reconnecting(
+			tr::now,
+			lt_count,
+			state.waitTillRetry);
 		break;
 	}
 	result.textWidth = st::normalFont->width(result.text);

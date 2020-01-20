@@ -41,6 +41,7 @@ private:
 		Type type = Type::Connected;
 		bool useProxy = false;
 		bool underCursor = false;
+		bool updateReady = false;
 		int waitTillRetry = 0;
 
 		bool operator==(const State &other) const;
