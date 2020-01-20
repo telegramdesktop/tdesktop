@@ -707,7 +707,7 @@ else()
         webrtc_dsp/common_audio/vad/vad_core.c
         webrtc_dsp/common_audio/vad/vad_sp.h
         webrtc_dsp/common_audio/vad/vad_filterbank.h
-        webrtc_dsp/common_audio/vad/vad_gmm.c 
+        webrtc_dsp/common_audio/vad/vad_gmm.c
 
         # ARM/NEON sources
         # TODO check if there's a good way to make these compile with ARM ports of TDesktop

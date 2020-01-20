@@ -408,8 +408,8 @@ Also in this update:
 
 1.3.11 alpha (01.08.18)
 
-- Added a new night theme. 
-- You can now assign custom themes as night and day themes to quickly switch between them.  
+- Added a new night theme.
+- You can now assign custom themes as night and day themes to quickly switch between them.
 
 1.3.10 (13.07.18)
 
