@@ -963,11 +963,12 @@ void Poll::paintFilling(
 		const auto &icon = (chosen && !correct)
 			? st::historyPollChoiceWrong
 			: st::historyPollChoiceRight;
+		const auto cleft = aleft - st::historyPollPercentSkip - icon.width();
 		const auto ctop = ftop - (icon.height() - thickness) / 2;
-		p.drawEllipse(aleft, ctop, icon.width(), icon.height());
-		icon.paint(p, aleft, ctop, width);
-		barleft += icon.width() - radius;
-		barwidth -= icon.width() - radius;
+		p.drawEllipse(cleft, ctop, icon.width(), icon.height());
+		icon.paint(p, cleft, ctop, width);
+		//barleft += icon.width() - radius;
+		//barwidth -= icon.width() - radius;
 	}
 	if (barwidth > 0) {
 		p.drawRoundedRect(barleft, ftop, barwidth, thickness, radius, radius);
