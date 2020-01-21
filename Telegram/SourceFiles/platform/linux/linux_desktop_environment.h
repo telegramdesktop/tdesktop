@@ -67,7 +67,6 @@ inline bool IsAwesome() {
 
 bool TryQtTrayIcon();
 bool PreferAppIndicatorTrayIcon();
-bool TryUnityCounter();
 
 } // namespace DesktopEnvironment
 } // namespace Platform

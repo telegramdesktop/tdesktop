@@ -11,8 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_utilities.h"
 #include "base/weak_ptr.h"
 
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus/QDBusInterface>
 #include <QtDBus/QDBusArgument>
+#endif
 
 namespace Platform {
 namespace Notifications {
@@ -28,6 +30,7 @@ inline bool SkipToast() {
 inline void FlashBounce() {
 }
 
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 class NotificationData : public QObject {
 	Q_OBJECT
 
@@ -134,8 +137,11 @@ private:
 	base::weak_ptr<Manager> _manager;
 	std::shared_ptr<QDBusInterface> _notificationInterface;
 };
+#endif
 
 } // namespace Notifications
 } // namespace Platform
 
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 Q_DECLARE_METATYPE(Platform::Notifications::NotificationData::ImageData)
+#endif

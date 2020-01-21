@@ -12,12 +12,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 
 #include <QtCore/QBuffer>
+
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus/QDBusConnection>
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusMetaType>
+#endif
 
 namespace Platform {
 namespace Notifications {
+
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 namespace {
 
 constexpr auto kService = str_const("org.freedesktop.Notifications");
@@ -276,24 +281,32 @@ const QDBusArgument &operator>>(const QDBusArgument &argument,
 	argument.endStructure();
 	return argument;
 }
+#endif
 
 bool Supported() {
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	static auto Available = QDBusInterface(
 		str_const_toString(kService),
 		str_const_toString(kObjectPath),
 		str_const_toString(kInterface)).isValid();
 
 	return Available;
+#else
+	return false;
+#endif
 }
 
 std::unique_ptr<Window::Notifications::Manager> Create(
 		Window::Notifications::System *system) {
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	if (Global::NativeNotifications() && Supported()) {
 		return std::make_unique<Manager>(system);
 	}
+#endif
 	return nullptr;
 }
 
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 Manager::Private::Private(Manager *manager, Type type)
 : _cachedUserpics(type)
 , _manager(manager)
@@ -435,6 +448,7 @@ void Manager::doClearAllFast() {
 void Manager::doClearFromHistory(not_null<History*> history) {
 	_private->clearFromHistory(history);
 }
+#endif
 
 } // namespace Notifications
 } // namespace Platform
