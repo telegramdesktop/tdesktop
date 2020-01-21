@@ -145,13 +145,8 @@ NotificationData::NotificationData(
 
 	_hints["category"] = qsl("im.received");
 
-#ifdef TDESKTOP_LAUNCHER_FILENAME
 	_hints["desktop-entry"] =
-		qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_FILENAME))
-			.remove(QRegExp(qsl("\\.desktop$"), Qt::CaseInsensitive));
-#else
-	_hints["desktop-entry"] = qsl("telegramdesktop");
-#endif
+		qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME));
 
 	connect(_notificationInterface.get(),
 		SIGNAL(NotificationClosed(uint, uint)),

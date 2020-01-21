@@ -548,10 +548,7 @@ void MainWindow::psFirstShow() {
 		auto snapName = QString::fromLatin1(qgetenv("SNAP_NAME"));
 		if(snapName.isEmpty()) {
 			std::vector<QString> possibleDesktopFiles = {
-#ifdef TDESKTOP_LAUNCHER_FILENAME
-				MACRO_TO_STRING(TDESKTOP_LAUNCHER_FILENAME),
-#endif // TDESKTOP_LAUNCHER_FILENAME
-				"telegramdesktop.desktop",
+				MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME) + ".desktop",
 				"Telegram.desktop"
 			};
 
