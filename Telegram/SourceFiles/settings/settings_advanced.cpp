@@ -358,7 +358,7 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 	}
 
 #ifndef OS_WIN_STORE
-	if (Platform::IsWindows()) {
+	if (Platform::IsWindows() || Platform::IsLinux()) {
 		const auto minimizedToggled = [] {
 			return cStartMinimized() && !Global::LocalPasscode();
 		};
@@ -369,9 +369,6 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 		const auto minimized = addSlidingCheckbox(
 			tr::lng_settings_start_min(tr::now),
 			minimizedToggled());
-		const auto sendto = addCheckbox(
-			tr::lng_settings_add_sendto(tr::now),
-			cSendToMenu());
 
 		autostart->checkedChanges(
 		) | rpl::filter([](bool checked) {
@@ -408,6 +405,12 @@ void SetupTrayContent(not_null<Ui::VerticalLayout*> container) {
 		) | rpl::start_with_next([=] {
 			minimized->entity()->setChecked(minimizedToggled());
 		}, minimized->lifetime());
+	}
+
+	if (Platform::IsWindows()) {
+		const auto sendto = addCheckbox(
+			tr::lng_settings_add_sendto(tr::now),
+			cSendToMenu());
 
 		sendto->checkedChanges(
 		) | rpl::filter([](bool checked) {
