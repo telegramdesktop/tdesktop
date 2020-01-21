@@ -28,9 +28,6 @@
 [submodule "Telegram/lib_base"]
 	path = Telegram/lib_base
 	url = https://github.com/desktop-app/lib_base.git
-[submodule "Telegram/gyp/helpers"]
-	path = Telegram/gyp/helpers
-	url = https://github.com/desktop-app/gyp_helpers.git
 [submodule "Telegram/codegen"]
 	path = Telegram/codegen
 	url = https://github.com/desktop-app/codegen.git

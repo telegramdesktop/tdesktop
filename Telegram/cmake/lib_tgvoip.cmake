@@ -742,6 +742,7 @@ else()
         PRIVATE
             /wd4005
             /wd4244 # conversion from 'int' to 'float', possible loss of data (several in webrtc)
+            /wd5055 # operator '>' deprecated between enumerations and floating-point types
         )
         target_compile_definitions(lib_tgvoip
         PUBLIC
