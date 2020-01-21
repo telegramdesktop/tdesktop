@@ -112,7 +112,7 @@ NotificationData::NotificationData(
 			SIGNAL(ActionInvoked(uint, QString)),
 			this, SLOT(notificationClicked(uint)));
 
-		if (ranges::find(capabilities, qsl("inline-reply")) != capabilitiesEnd) {
+		if (capabilities.contains(qsl("inline-reply"))) {
 			_actions << qsl("inline-reply")
 				<< tr::lng_notification_reply(tr::now);
 
