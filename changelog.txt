@@ -1,3 +1,7 @@
+1.9.5 (21.01.19)
+
+- Bug fixes and other minor improvements.
+
 1.9.4 (17.01.19)
 
 - Bug fixes and other minor improvements.
