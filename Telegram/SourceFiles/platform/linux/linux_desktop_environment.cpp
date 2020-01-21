@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/linux_desktop_environment.h"
 
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include <QDBusInterface>
+#endif
 
 namespace Platform {
 namespace DesktopEnvironment {
@@ -117,11 +119,11 @@ bool TryQtTrayIcon() {
 
 bool PreferAppIndicatorTrayIcon() {
 	return IsXFCE() || IsUnity() || IsUbuntu() ||
-	       (IsGnome() && QDBusInterface("org.kde.StatusNotifierWatcher", "/").isValid());
-}
-
-bool TryUnityCounter() {
-	return IsUnity() || IsPantheon() || IsUbuntu() || IsKDE5();
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+		(IsGnome() && QDBusInterface("org.kde.StatusNotifierWatcher", "/").isValid());
+#else
+		IsGnome();
+#endif
 }
 
 } // namespace DesktopEnvironment
