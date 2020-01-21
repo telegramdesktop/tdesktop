@@ -232,7 +232,7 @@ QSize Poll::countOptimalSize() {
 		+ st::msgDateFont->height
 		+ st::historyPollAnswersSkip
 		+ answersHeight
-		+ st::msgPadding.bottom()
+		+ st::historyPollTotalVotesSkip
 		+ bottomButtonHeight
 		+ st::msgDateFont->height
 		+ st::msgPadding.bottom();
@@ -645,10 +645,10 @@ void Poll::draw(Painter &p, const QRect &r, TextSelection selection, crl::time m
 			selection);
 		tshift += height;
 	}
-	tshift += st::msgPadding.bottom();
 	if (!inlineFooter()) {
 		paintBottom(p, padding.left(), tshift, paintw, selection);
 	} else if (!_totalVotesLabel.isEmpty()) {
+		tshift += st::msgPadding.bottom();
 		paintInlineFooter(p, padding.left(), tshift, paintw, selection);
 	}
 }
@@ -679,7 +679,7 @@ void Poll::paintBottom(
 		int top,
 		int paintw,
 		TextSelection selection) const {
-	const auto stringtop = top + st::historyPollBottomButtonTop;
+	const auto stringtop = top + st::msgPadding.bottom() + st::historyPollBottomButtonTop;
 	const auto selected = (selection == FullSelection);
 	const auto outbg = _parent->hasOutLayout();
 	const auto &regular = selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg);
@@ -692,8 +692,16 @@ void Poll::paintBottom(
 			: canSendVotes()
 			? _sendVotesLink
 			: nullptr;
-		const auto over = link ? ClickHandler::showAsActive(link) : false;
-		p.setFont(over ? st::semiboldFont->underline() : st::semiboldFont);
+		if (_linkRipple) {
+			const auto linkHeight = bottomButtonHeight();
+			p.setOpacity(st::historyPollRippleOpacity);
+			_linkRipple->paint(p, left - st::msgPadding.left(), height() - linkHeight, width());
+			if (_linkRipple->empty()) {
+				_linkRipple.reset();
+			}
+			p.setOpacity(1.);
+		}
+		p.setFont(st::semiboldFont);
 		if (!link) {
 			p.setPen(regular);
 		} else {
@@ -1092,7 +1100,6 @@ TextState Poll::textState(QPoint point, StateRequest request) const {
 		}
 		tshift += height;
 	}
-	tshift += st::msgPadding.bottom();
 	if (!showVotersCount()) {
 		const auto link = showVotes()
 			? _showResultsLink
@@ -1100,12 +1107,10 @@ TextState Poll::textState(QPoint point, StateRequest request) const {
 			? _sendVotesLink
 			: nullptr;
 		if (link) {
-			const auto string = showVotes()
-				? tr::lng_polls_view_results(tr::now, Ui::Text::Upper)
-				: tr::lng_polls_submit_votes(tr::now, Ui::Text::Upper);
-			const auto stringw = st::semiboldFont->width(string);
-			const auto stringtop = tshift + st::historyPollBottomButtonTop;
-			if (QRect(padding.left() + (paintw - stringw) / 2, stringtop, stringw, st::semiboldFont->height).contains(point)) {
+			const auto linkHeight = bottomButtonHeight();
+			const auto linkTop = height() - linkHeight;
+			if (QRect(0, linkTop, width(), linkHeight).contains(point)) {
+				_lastLinkPoint = point;
 				result.link = link;
 				return result;
 			}
@@ -1125,6 +1130,8 @@ void Poll::clickHandlerPressedChanged(
 		&Answer::handler);
 	if (i != end(_answers)) {
 		toggleRipple(*i, pressed);
+	} else if (handler == _sendVotesLink || handler == _showResultsLink) {
+		toggleLinkRipple(pressed);
 	}
 }
 
@@ -1147,10 +1154,55 @@ void Poll::toggleRipple(Answer &answer, bool pressed) {
 		}
 		const auto top = countAnswerTop(answer, innerWidth);
 		answer.ripple->add(_lastLinkPoint - QPoint(0, top));
-	} else {
-		if (answer.ripple) {
-			answer.ripple->lastStop();
+	} else if (answer.ripple) {
+		answer.ripple->lastStop();
+	}
+}
+
+int Poll::bottomButtonHeight() const {
+	const auto skip = st::historyPollChoiceRight.height()
+		- st::historyPollFillingBottom
+		- st::historyPollFillingHeight
+		- (st::historyPollChoiceRight.height() - st::historyPollFillingHeight) / 2;
+	return st::historyPollTotalVotesSkip
+		- skip
+		+ st::historyPollBottomButtonSkip
+		+ st::msgDateFont->height
+		+ st::msgPadding.bottom();
+}
+
+void Poll::toggleLinkRipple(bool pressed) {
+	if (pressed) {
+		const auto linkWidth = width();
+		const auto linkHeight = bottomButtonHeight();
+		if (!_linkRipple) {
+			const auto drawMask = [&](QPainter &p) {
+				const auto radius = st::historyMessageRadius;
+				p.drawRoundedRect(
+					0,
+					0,
+					linkWidth,
+					linkHeight,
+					radius,
+					radius);
+				p.fillRect(0, 0, linkWidth, radius * 2, Qt::white);
+			};
+			auto mask = isBubbleBottom()
+				? Ui::RippleAnimation::maskByDrawer(
+					QSize(linkWidth, linkHeight),
+					false,
+					drawMask)
+				: Ui::RippleAnimation::rectMask({ linkWidth, linkHeight });
+			_linkRipple = std::make_unique<Ui::RippleAnimation>(
+				(_parent->hasOutLayout()
+					? st::historyPollRippleOut
+					: st::historyPollRippleIn),
+				std::move(mask),
+				[=] { history()->owner().requestViewRepaint(_parent); });
 		}
+		_linkRipple->add(_lastLinkPoint - QPoint(0, height() - linkHeight));
+	} else if (_linkRipple) {
+		_linkRipple->lastStop();
 	}
 }
 

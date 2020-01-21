@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "base/weak_ptr.h"
 
+namespace Ui {
+class RippleAnimation;
+} // namespace Ui
+
 namespace HistoryView {
 
 class Poll : public Media, public base::has_weak_ptr {
@@ -137,9 +141,12 @@ private:
 	void radialAnimationCallback() const;
 
 	void toggleRipple(Answer &answer, bool pressed);
+	void toggleLinkRipple(bool pressed);
 	void toggleMultiOption(const QByteArray &option);
 	void sendMultiOptions();
 	void showResults();
+
+	[[nodiscard]] int bottomButtonHeight() const;
 
 	const not_null<PollData*> _poll;
 	int _pollVersion = 0;
@@ -156,6 +163,7 @@ private:
 	Ui::Text::String _totalVotesLabel;
 	ClickHandlerPtr _showResultsLink;
 	ClickHandlerPtr _sendVotesLink;
+	mutable std::unique_ptr<Ui::RippleAnimation> _linkRipple;
 	bool _hasSelected = false;
 
 	mutable std::unique_ptr<AnswersAnimation> _answersAnimation;
