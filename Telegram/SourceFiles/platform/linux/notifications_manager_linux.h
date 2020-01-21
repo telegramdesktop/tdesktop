@@ -70,6 +70,7 @@ private:
 private slots:
 	void notificationClosed(uint id);
 	void notificationClicked(uint id);
+	void notificationReplied(uint id, const QString &text);
 };
 
 using Notification = std::shared_ptr<NotificationData>;
