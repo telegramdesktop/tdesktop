@@ -488,26 +488,14 @@ void EditCaptionBox::updateEditMediaButton() {
 
 void EditCaptionBox::createEditMediaButton() {
 	const auto callback = [=](FileDialog::OpenResult &&result) {
-
-		auto isValidFile = [](QString mimeType) {
-			if (Core::IsMimeSticker(mimeType)) {
-				Ui::show(
-					Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
-					Ui::LayerOption::KeepOther);
-				return false;
-			}
-			return true;
+		auto showBoxErrorCallback = [](tr::phrase<> t) {
+			Ui::show(Box<InformBox>(t(tr::now)), Ui::LayerOption::KeepOther);
 		};
 
-		auto list = Storage::PreparedList::PreparedFileFromFileDialog(
+		auto list = Storage::PreparedList::PreparedFileFromFilesDialog(
 			std::move(result),
 			_isAlbum,
-			[] {
-				Ui::show(
-					Box<InformBox>(tr::lng_edit_media_album_error(tr::now)),
-					Ui::LayerOption::KeepOther);
-			},
-			std::move(isValidFile),
+			std::move(showBoxErrorCallback),
 			st::sendMediaPreviewSize);
 
 		if (list) {

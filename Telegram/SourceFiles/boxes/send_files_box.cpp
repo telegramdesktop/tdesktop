@@ -129,27 +129,14 @@ void FileDialogCallback(
 	FileDialog::OpenResult &&result,
 	bool isAlbum,
 	Fn<void(Storage::PreparedList)> callback) {
-	auto isValidFile = [](QString mimeType) {
-		if (!Core::IsMimeSticker(mimeType)) {
-			return true;
-		}
-		Ui::show(
-			Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)),
-			Ui::LayerOption::KeepOther);
-		return false;
+	auto showBoxErrorCallback = [](tr::phrase<> text) {
+		Ui::show(Box<InformBox>(text(tr::now)), Ui::LayerOption::KeepOther);
 	};
 
-	auto errorCallback = [] {
-		Ui::show(
-			Box<InformBox>(tr::lng_edit_media_album_error(tr::now)),
-			Ui::LayerOption::KeepOther);
-	};
-
-	auto list = Storage::PreparedList::PreparedFileFromFileDialog(
+	auto list = Storage::PreparedList::PreparedFileFromFilesDialog(
 		std::move(result),
 		isAlbum,
-		std::move(errorCallback),
-		std::move(isValidFile),
+		std::move(showBoxErrorCallback),
 		st::sendMediaPreviewSize);
 
 	if (!list) {
@@ -1900,7 +1887,7 @@ void SendFilesBox::openDialogToAddFileToAlbum() {
 			});
 	};
 
-	FileDialog::GetOpenPath(
+	FileDialog::GetOpenPaths(
 		this,
 		tr::lng_choose_file(tr::now),
 		FileDialog::AlbumFilesFilter(),
@@ -2197,9 +2184,8 @@ bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 
 bool SendFilesBox::addFiles(Storage::PreparedList list) {
 	const auto sumFiles = _list.files.size() + list.files.size();
-	if (sumFiles > Storage::MaxAlbumItems()) {
-		return false;
-	} else if (list.error != Storage::PreparedList::Error::None) {
+	const auto cutToAlbumSize = (sumFiles > Storage::MaxAlbumItems());
+	if (list.error != Storage::PreparedList::Error::None) {
 		return false;
 	} else if (!IsSingleItem(list) && !list.albumIsPossible) {
 		return false;
@@ -2218,7 +2204,7 @@ bool SendFilesBox::addFiles(Storage::PreparedList list) {
 		&& _sendWay->value() == SendFilesWay::Photos) {
 		_sendWay->setValue(SendFilesWay::Album);
 	}
-	_list.mergeToEnd(std::move(list));
+	_list.mergeToEnd(std::move(list), cutToAlbumSize);
 
 	_compressConfirm = _compressConfirmInitial;
 	refreshAllAfterAlbumChanges();

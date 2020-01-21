@@ -276,11 +276,10 @@ PreparedList PrepareMediaFromImage(
 	return result;
 }
 
-std::optional<PreparedList> PreparedList::PreparedFileFromFileDialog(
+std::optional<PreparedList> PreparedList::PreparedFileFromFilesDialog(
 		FileDialog::OpenResult &&result,
 		bool isAlbum,
-		Fn<void()> errorCallback,
-		Fn<bool(QString)> isValidFileCallback,
+		Fn<void(tr::phrase<>)> errorCallback,
 		int previewWidth) {
 	if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 		return std::nullopt;
@@ -293,7 +292,8 @@ std::optional<PreparedList> PreparedList::PreparedFileFromFileDialog(
 			std::move(result.remoteContent),
 			previewWidth);
 
-		if (!isValidFileCallback(list.files.front().mime)) {
+		if (Core::IsMimeSticker(list.files.front().mime)) {
+			errorCallback(tr::lng_edit_media_invalid_file);
 			return std::nullopt;
 		}
 
@@ -304,46 +304,68 @@ std::optional<PreparedList> PreparedList::PreparedFileFromFileDialog(
 				"video/mp4",
 			};
 			const auto file = &list.files.front();
-			if (ranges::find(albumMimes, file->mime) == end(albumMimes)
+			if (!ranges::contains(albumMimes, file->mime)
 				|| file->type == Storage::PreparedFile::AlbumType::None) {
-				errorCallback();
+				errorCallback(tr::lng_edit_media_album_error);
 				return std::nullopt;
 			}
 		}
 		Expects(list.files.size() == 1);
 		return std::move(list);
 	} else if (!result.paths.isEmpty()) {
-		auto list = Storage::PrepareMediaList(
-			QStringList(result.paths.front()),
-			previewWidth);
-
-		// Don't rewrite _preparedList if a new list is not valid for album.
-		if (isAlbum) {
+		const auto isSingleFile = (result.paths.size() == 1);
+		auto temp = Storage::PrepareMediaList(result.paths, previewWidth);
+		if (temp.error != PreparedList::Error::None) {
+			errorCallback(tr::lng_send_media_invalid_files);
+			return std::nullopt;
+		}
+		auto filteredFiles = ranges::view::all(
+			temp.files
+		) | ranges::view::filter([&](const auto &file) {
+			if (!isAlbum) {
+				return true;
+			}
+			const auto info = QFileInfo(file.path);
+			if (Core::IsMimeSticker(Core::MimeTypeForFile(info).name())) {
+				if (isSingleFile) {
+					errorCallback(tr::lng_edit_media_invalid_file);
+				}
+				return false;
+			}
 			using Info = FileMediaInformation;
 
-			const auto media = &list.files.front().information->media;
-			const auto valid = media->match([&](const Info::Image &data) {
+			const auto media = &file.information->media;
+			const auto valid = media->match([](const Info::Image &data) {
 				return Storage::ValidateThumbDimensions(
 					data.data.width(),
 					data.data.height())
 					&& !data.animated;
-			}, [&](Info::Video &data) {
+			}, [](Info::Video &data) {
 				data.isGifv = false;
 				return true;
 			}, [](auto &&other) {
 				return false;
 			});
-			if (!valid) {
-				errorCallback();
-				return std::nullopt;
+			if (!valid && isSingleFile) {
+				errorCallback(tr::lng_edit_media_album_error);
 			}
-		}
-		const auto info = QFileInfo(result.paths.front());
-		if (!isValidFileCallback(Core::MimeTypeForFile(info).name())) {
+			return valid;
+		}) | ranges::view::transform([](auto &file) {
+			return std::move(file);
+		}) | ranges::to_vector;
+
+		if (!filteredFiles.size()) {
+			if (!isSingleFile) {
+				errorCallback(tr::lng_send_media_invalid_files);
+			}
 			return std::nullopt;
 		}
 
-		Expects(list.files.size() == 1);
+		auto list = PreparedList(temp.error, temp.errorData);
+		list.albumIsPossible = isAlbum;
+		list.allFilesForCompress = temp.allFilesForCompress;
+		list.files = std::move(filteredFiles);
+
 		return std::move(list);
 	}
 	return std::nullopt;
@@ -365,7 +387,7 @@ PreparedList PreparedList::Reordered(
 	return result;
 }
 
-void PreparedList::mergeToEnd(PreparedList &&other) {
+void PreparedList::mergeToEnd(PreparedList &&other, bool cutToAlbumSize) {
 	if (error != Error::None) {
 		return;
 	}
@@ -375,9 +397,14 @@ void PreparedList::mergeToEnd(PreparedList &&other) {
 		return;
 	}
 	allFilesForCompress = allFilesForCompress && other.allFilesForCompress;
-	files.reserve(files.size() + other.files.size());
+	files.reserve(std::min(
+		size_t(cutToAlbumSize ? kMaxAlbumCount : INT_MAX),
+		files.size() + other.files.size()));
 	for (auto &file : other.files) {
 		files.push_back(std::move(file));
+		if (cutToAlbumSize && files.size() == kMaxAlbumCount) {
+			break;
+		}
 	}
 	if (files.size() > 1 && files.size() <= kMaxAlbumCount) {
 		const auto badIt = ranges::find(
