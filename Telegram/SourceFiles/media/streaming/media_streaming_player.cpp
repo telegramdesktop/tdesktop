@@ -396,6 +396,8 @@ bool Player::fileProcessPackets(
 				videoReceivedTill(till);
 			});
 			_video->process(base::take(list));
+		} else {
+			list.clear(); // Free non-needed packets.
 		}
 	}
 	return fileReadMore();

@@ -309,6 +309,7 @@ void File::Context::readNextPacket() {
 		if (i->second.size() == kMaxQueuedPackets) {
 			processQueuedPackets(SleepPolicy::Allowed);
 		}
+		Assert(i->second.size() < kMaxQueuedPackets);
 	} else {
 		// Still trying to read by drain.
 		Assert(result.is<FFmpeg::AvErrorWrap>());
