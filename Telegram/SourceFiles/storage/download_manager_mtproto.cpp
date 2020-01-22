@@ -252,7 +252,9 @@ void DownloadManagerMtproto::requestSucceeded(
 
 	if (duration >= kBadRequestDurationThreshold) {
 		DEBUG_LOG(("Duration too large, signaling time out."));
-		sessionTimedOut(dcId, index);
+		crl::on_main(this, [=] {
+			sessionTimedOut(dcId, index);
+		});
 		return;
 	}
 	if (amountAtRequestStart == data.maxWaitedAmount
