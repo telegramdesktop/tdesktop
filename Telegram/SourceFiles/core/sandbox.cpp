@@ -98,12 +98,7 @@ int Sandbox::start() {
 	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
-#ifndef OS_MAC_STORE
-	_localServerName = psServerPrefix() + h + '-' + cGUIDStr();
-#else // OS_MAC_STORE
-	h[4] = 0; // use only first 4 chars
-	_localServerName = psServerPrefix() + h;
-#endif // OS_MAC_STORE
+	_localServerName = Platform::SingleInstanceLocalServerName(h);
 
 	connect(
 		&_localSocket,
