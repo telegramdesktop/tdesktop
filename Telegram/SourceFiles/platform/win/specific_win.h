@@ -21,6 +21,8 @@ inline void SetWatchingMediaKeys(bool watching) {
 
 QString CurrentExecutablePath(int argc, char *argv[]);
 
+QString SingleInstanceLocalServerName(const QString &hash);
+
 inline void IgnoreApplicationActivationRightNow() {
 }
 
@@ -34,9 +36,6 @@ inline void finish() {
 } // namespace ThirdParty
 } // namespace Platform
 
-inline QString psServerPrefix() {
-	return qsl("Global\\");
-}
 inline void psCheckLocalSocket(const QString &) {
 }
 

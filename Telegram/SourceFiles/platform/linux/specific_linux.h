@@ -20,7 +20,11 @@ namespace Platform {
 inline void SetWatchingMediaKeys(bool watching) {
 }
 
+bool InSandbox();
+
 QString CurrentExecutablePath(int argc, char *argv[]);
+
+QString SingleInstanceLocalServerName(const QString &hash);
 
 inline std::optional<crl::time> LastUserInputTime() {
 	return std::nullopt;
@@ -31,9 +35,6 @@ inline void IgnoreApplicationActivationRightNow() {
 
 } // namespace Platform
 
-inline QString psServerPrefix() {
-	return qsl("/tmp/");
-}
 inline void psCheckLocalSocket(const QString &serverName) {
 	QFile address(serverName);
 	if (address.exists()) {

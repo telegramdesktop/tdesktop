@@ -120,6 +120,14 @@ QString CurrentExecutablePath(int argc, char *argv[]) {
 	return NS2QString([[NSBundle mainBundle] bundlePath]);
 }
 
+QString SingleInstanceLocalServerName(const QString &hash) {
+#ifndef OS_MAC_STORE
+	return qsl("/tmp/") + hash + '-' + cGUIDStr();
+#else // OS_MAC_STORE
+	return objc_documentsPath() + hash.left(4);
+#endif // OS_MAC_STORE
+}
+
 void RemoveQuarantine(const QString &path) {
 	const auto kQuarantineAttribute = "com.apple.quarantine";
 

@@ -18,6 +18,8 @@ namespace Platform {
 
 QString CurrentExecutablePath(int argc, char *argv[]);
 
+QString SingleInstanceLocalServerName(const QString &hash);
+
 void RemoveQuarantine(const QString &path);
 
 namespace ThirdParty {
@@ -31,13 +33,6 @@ inline void finish() {
 } // namespace ThirdParty
 } // namespace Platform
 
-inline QString psServerPrefix() {
-#ifndef OS_MAC_STORE
-	return qsl("/tmp/");
-#else // OS_MAC_STORE
-	return objc_documentsPath();
-#endif // OS_MAC_STORE
-}
 inline void psCheckLocalSocket(const QString &serverName) {
 	QFile address(serverName);
 	if (address.exists()) {
