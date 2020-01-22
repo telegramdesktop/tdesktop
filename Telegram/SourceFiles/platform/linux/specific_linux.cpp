@@ -384,6 +384,7 @@ bool OpenSystemSettings(SystemSettingsType type) {
 		} else if (DesktopEnvironment::IsGnome()) {
 			add("gnome-control-center sound");
 		}
+		add("pavucontrol-qt");
 		add("pavucontrol");
 		add("alsamixergui");
 		return ranges::find_if(options, [](const QString &command) {
