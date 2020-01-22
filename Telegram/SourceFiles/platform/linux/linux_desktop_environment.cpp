@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/linux_desktop_environment.h"
 
+#include "platform/linux/specific_linux.h"
+
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include <QDBusInterface>
 #endif
@@ -26,7 +28,14 @@ Type Compute() {
 	auto xdgCurrentDesktop = GetEnv("XDG_CURRENT_DESKTOP").toLower();
 	auto list = xdgCurrentDesktop.split(':', QString::SkipEmptyParts);
 	auto desktopSession = GetEnv("DESKTOP_SESSION").toLower();
+	auto slash = desktopSession.lastIndexOf('/');
 	auto kdeSession = GetEnv("KDE_SESSION_VERSION");
+
+	// DESKTOP_SESSION can contain a path
+	if (slash != -1) {
+		desktopSession = desktopSession.mid(slash + 1);
+	}
+
 	if (!list.isEmpty()) {
 		if (list.contains("unity")) {
 			// gnome-fallback sessions set XDG_CURRENT_DESKTOP to Unity
@@ -35,8 +44,6 @@ Type Compute() {
 				return Type::Gnome;
 			}
 			return Type::Unity;
-		} else if (list.contains("xfce")) {
-			return Type::XFCE;
 		} else if (list.contains("pantheon")) {
 			return Type::Pantheon;
 		} else if (list.contains("gnome")) {
@@ -53,7 +60,7 @@ Type Compute() {
 	}
 
 	if (!desktopSession.isEmpty()) {
-		if (desktopSession == qstr("gnome") || desktopSession == qstr("mate")) {
+		if (desktopSession == qstr("gnome")) {
 			return Type::Gnome;
 		} else if (desktopSession == qstr("kde4") || desktopSession == qstr("kde-plasma")) {
 			return Type::KDE4;
@@ -63,10 +70,6 @@ Type Compute() {
 				return Type::KDE4;
 			}
 			return Type::KDE3;
-		} else if (desktopSession.indexOf(qstr("xfce")) >= 0 || desktopSession == qstr("xubuntu")) {
-			return Type::XFCE;
-		} else if (desktopSession == qstr("awesome")) {
-			return Type::Awesome;
 		}
 	}
 
@@ -95,9 +98,7 @@ Type ComputeAndLog() {
 		case Type::KDE5: return "KDE5";
 		case Type::Ubuntu: return "Ubuntu";
 		case Type::Unity: return "Unity";
-		case Type::XFCE: return "XFCE";
 		case Type::Pantheon: return "Pantheon";
-		case Type::Awesome: return "Awesome";
 		}
 		return QString::number(static_cast<int>(result));
 	};
@@ -114,15 +115,17 @@ Type Get() {
 }
 
 bool TryQtTrayIcon() {
-	return !IsPantheon() && !IsAwesome();
+	return !IsPantheon();
 }
 
 bool PreferAppIndicatorTrayIcon() {
-	return IsXFCE() || IsUnity() || IsUbuntu() ||
+	return (InSandbox() && !IsKDE())
+		|| IsUnity()
+		|| IsUbuntu()
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-		(IsGnome() && QDBusInterface("org.kde.StatusNotifierWatcher", "/").isValid());
+		|| (IsGnome() && QDBusInterface("org.kde.StatusNotifierWatcher", "/").isValid());
 #else
-		IsGnome();
+		|| IsGnome();
 #endif
 }
 
