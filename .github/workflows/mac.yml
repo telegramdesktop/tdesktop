@@ -429,4 +429,4 @@ jobs:
         name: Upload artifact.
         with:
           name: Telegram
-          path: $REPO_NAME\out\Debug\artifact\
+          path: ${{ env.REPO_NAME }}/out/Debug/artifact/
