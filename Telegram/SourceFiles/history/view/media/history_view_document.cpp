@@ -30,6 +30,35 @@ namespace {
 
 constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
 
+[[nodiscard]] QString CleanTagSymbols(const QString &value) {
+	auto result = QString();
+	const auto begin = value.begin(), end = value.end();
+	auto from = begin;
+	for (auto ch = begin; ch != end; ++ch) {
+		if (ch->isHighSurrogate()
+			&& (ch + 1) != end
+			&& (ch + 1)->isLowSurrogate()
+			&& QChar::surrogateToUcs4(
+				ch->unicode(),
+				(ch + 1)->unicode()) >= 0xe0000) {
+			if (ch > from) {
+				if (result.isEmpty()) {
+					result.reserve(value.size());
+				}
+				result.append(from, ch - from);
+			}
+			++ch;
+			from = ch + 1;
+		}
+	}
+	if (from == begin) {
+		return value;
+	} else if (end > from) {
+		result.append(from, end - from);
+	}
+	return result;
+}
+
 } // namespace
 
 Document::Document(
@@ -104,7 +133,8 @@ void Document::createComponents(bool caption) {
 }
 
 void Document::fillNamedFromData(HistoryDocumentNamed *named) {
-	const auto nameString = named->_name = _data->composeNameString();
+	const auto nameString = named->_name = CleanTagSymbols(
+		_data->composeNameString());
 	named->_namew = st::semiboldFont->width(nameString);
 }
 
