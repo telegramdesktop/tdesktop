@@ -243,7 +243,7 @@ bool Gif::downloadInCorner() const {
 		&& (_data->loading() || !autoplayEnabled())
 		&& _data->canBeStreamed()
 		&& !_data->inappPlaybackFailed()
-		&& IsServerMsgId(_parent->data()->id);
+		&& !_parent->data()->isSending();
 }
 
 bool Gif::autoplayEnabled() const {
@@ -790,7 +790,7 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 	if (QRect(usex + paintx, painty, usew, painth).contains(point)) {
 		result.link = _data->uploading()
 			? _cancell
-			: !IsServerMsgId(_realParent->id)
+			: _realParent->isSending()
 			? nullptr
 			: (_data->loaded() || _data->canBePlayed())
 			? _openl
@@ -1051,7 +1051,7 @@ TextState Gif::getStateGrouped(
 	}
 	return TextState(_parent, _data->uploading()
 		? _cancell
-		: !IsServerMsgId(_realParent->id)
+		: _realParent->isSending()
 		? nullptr
 		: (_data->loaded() || _data->canBePlayed())
 		? _openl
