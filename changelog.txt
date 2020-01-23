@@ -1,3 +1,14 @@
+1.9.7 (23.01.20)
+
+- Create three new kinds of polls.
+- See who voted for what in polls with visible votes.
+- Vote for several options in polls that allow multiple answers.
+- Guess the correct answer in quiz-style polls.
+- Explore various ways of combining the different poll options.
+- Add polls from the '...' menu in any group or channel.
+- Use bots like @QuizBot to create quizzes with several questions and media attachments.
+- Schedule messages to be sent when your recipient comes online (only works if you know their online status).
+
 1.9.6 (22.01.20)
 
 - Bug fixes and other minor improvements.
