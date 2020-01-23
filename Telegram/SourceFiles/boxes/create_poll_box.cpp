@@ -660,7 +660,7 @@ void Options::addEmptyOption() {
 	});
 
 	_list.back()->removeClicks(
-	) | rpl::start_with_next([=] {
+	) | rpl::take(1) | rpl::start_with_next([=] {
 		Ui::PostponeCall(crl::guard(field, [=] {
 			Expects(!_list.empty());
 
