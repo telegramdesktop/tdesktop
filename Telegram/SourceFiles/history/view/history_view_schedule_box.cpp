@@ -563,7 +563,10 @@ TimeId DefaultScheduleTime() {
 }
 
 bool CanScheduleUntilOnline(not_null<PeerData*> peer) {
-	return !peer->isSelf() && peer->isUser() && !peer->asUser()->isBot();
+	return !peer->isSelf()
+	&& peer->isUser()
+	&& !peer->asUser()->isBot()
+	&& (peer->asUser()->onlineTill > 0);
 }
 
 void ScheduleBox(
