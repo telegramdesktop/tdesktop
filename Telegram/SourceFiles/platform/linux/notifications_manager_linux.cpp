@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QBuffer>
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#include <QtCore/QVersionNumber>
 #include <QtDBus/QDBusConnection>
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusMetaType>
