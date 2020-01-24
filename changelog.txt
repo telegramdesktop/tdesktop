@@ -1,3 +1,7 @@
+1.9.8 (24.01.20)
+
+- Bug fixes and other minor improvements.
+
 1.9.7 (23.01.20)
 
 - Create three new kinds of polls.
