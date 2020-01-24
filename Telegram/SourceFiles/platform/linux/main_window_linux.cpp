@@ -42,10 +42,11 @@ QByteArray _trayPixbufData;
 QList<QPair<GtkWidget*, QObject*> > _trayItems;
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
-int32 _trayIconSize = 22;
+int32 _trayIconSize = 48;
 bool _trayIconMuted = true;
 int32 _trayIconCount = 0;
 QImage _trayIconImageBack, _trayIconImage;
+QString _trayIconThemeName, _trayIconName;
 QString _desktopFile;
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
@@ -84,33 +85,82 @@ gboolean _trayIconResized(GtkStatusIcon *status_icon, gint size, gpointer popup_
 #define GTK_ALPHA 3
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
-QImage _trayIconImageGen() {
+QImage _trayIconImageGen(bool useSystemIcon) {
 	const auto counter = Core::App().unreadBadge();
 	const auto muted = Core::App().unreadBadgeMuted();
 	const auto counterSlice = (counter >= 1000)
 		? (1000 + (counter % 100))
 		: counter;
-	if (_trayIconImage.isNull() || _trayIconImage.width() != _trayIconSize || muted != _trayIconMuted || counterSlice != _trayIconCount) {
-		if (_trayIconImageBack.isNull() || _trayIconImageBack.width() != _trayIconSize) {
-			_trayIconImageBack = Core::App().logo().scaled(_trayIconSize, _trayIconSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-			_trayIconImageBack = _trayIconImageBack.convertToFormat(QImage::Format_ARGB32);
-			int w = _trayIconImageBack.width(), h = _trayIconImageBack.height(), perline = _trayIconImageBack.bytesPerLine();
+
+	QString iconThemeName = QIcon::themeName();
+	QString iconName = (counter > 0)
+		? (muted ? "telegram-mute-panel" : "telegram-attention-panel")
+		: "telegram-panel";
+
+	if (_trayIconImage.isNull() || _trayIconImage.width() != _trayIconSize
+		|| (useSystemIcon && (iconThemeName != _trayIconThemeName
+			|| iconName != _trayIconName))
+		|| muted != _trayIconMuted || counterSlice != _trayIconCount) {
+		if (_trayIconImageBack.isNull()
+			|| _trayIconImageBack.width() != _trayIconSize
+			|| iconThemeName != _trayIconThemeName
+			|| iconName != _trayIconName) {
+			_trayIconImageBack = Core::App().logo();
+
+			if (useSystemIcon) {
+				_trayIconImageBack = QIcon::fromTheme(
+					iconName,
+					QIcon::fromTheme(
+						"telegram",
+						QIcon(QPixmap::fromImage(_trayIconImageBack)))
+				).pixmap(_trayIconSize, _trayIconSize).toImage();
+			}
+
+			int w = _trayIconImageBack.width(),
+				h = _trayIconImageBack.height();
+
+			if (w != _trayIconSize || h != _trayIconSize) {
+				_trayIconImageBack = _trayIconImageBack.scaled(
+					_trayIconSize,
+					_trayIconSize,
+					Qt::IgnoreAspectRatio,
+					Qt::SmoothTransformation);
+			}
+
+			_trayIconImageBack = _trayIconImageBack.convertToFormat(
+				QImage::Format_ARGB32);
+
+			w = _trayIconImageBack.width();
+			h = _trayIconImageBack.height();
+			int perline = _trayIconImageBack.bytesPerLine();
 			uchar *bytes = _trayIconImageBack.bits();
+
 			for (int32 y = 0; y < h; ++y) {
 				for (int32 x = 0; x < w; ++x) {
 					int32 srcoff = y * perline + x * 4;
-					bytes[srcoff + QT_RED  ] = qMax(bytes[srcoff + QT_RED  ], uchar(224));
-					bytes[srcoff + QT_GREEN] = qMax(bytes[srcoff + QT_GREEN], uchar(165));
-					bytes[srcoff + QT_BLUE ] = qMax(bytes[srcoff + QT_BLUE ], uchar(44));
+					bytes[srcoff + QT_RED  ] = qMax(
+						bytes[srcoff + QT_RED  ],
+						uchar(224));
+					bytes[srcoff + QT_GREEN] = qMax(
+						bytes[srcoff + QT_GREEN],
+						uchar(165));
+					bytes[srcoff + QT_BLUE ] = qMax(
+						bytes[srcoff + QT_BLUE ],
+						uchar(44));
 				}
 			}
 		}
+
 		_trayIconImage = _trayIconImageBack;
 		_trayIconMuted = muted;
 		_trayIconCount = counterSlice;
+		_trayIconThemeName = iconThemeName;
+		_trayIconName = iconName;
+
 		if (counter > 0) {
 			QPainter p(&_trayIconImage);
 			int32 layerSize = -16;
+
 			if (_trayIconSize >= 48) {
 				layerSize = -32;
 			} else if (_trayIconSize >= 36) {
@@ -118,25 +168,46 @@ QImage _trayIconImageGen() {
 			} else if (_trayIconSize >= 32) {
 				layerSize = -20;
 			}
+
 			auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
 			auto &fg = st::trayCounterFg;
-			auto layer = App::wnd()->iconWithCounter(layerSize, counter, bg, fg, false);
-			p.drawImage(_trayIconImage.width() - layer.width() - 1, _trayIconImage.height() - layer.height() - 1, layer);
+
+			auto layer = App::wnd()->iconWithCounter(
+				layerSize,
+				counter,
+				bg,
+				fg,
+				false);
+
+			p.drawImage(
+				_trayIconImage.width() - layer.width() - 1,
+				_trayIconImage.height() - layer.height() - 1,
+				layer);
 		}
 	}
+
 	return _trayIconImage;
 }
 
 QString _trayIconImageFile() {
 	const auto counter = Core::App().unreadBadge();
 	const auto muted = Core::App().unreadBadgeMuted();
-	const auto counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
+	const auto counterSlice = (counter >= 1000)
+		? (1000 + (counter % 100))
+		: counter;
 
-	QString name = cWorkingDir() + qsl("tdata/ticons/icon%1_%2_%3.png").arg(muted ? "mute" : "").arg(_trayIconSize).arg(counterSlice);
+	QString iconThemeName = QIcon::themeName();
+
+	QString name = cWorkingDir() + qsl("tdata/ticons/icon%1_%2_%3_%4.png")
+		.arg(muted ? "mute" : "")
+		.arg(iconThemeName)
+		.arg(_trayIconSize)
+		.arg(counterSlice);
+
 	QFileInfo info(name);
 	if (info.exists()) return name;
 
-	QImage img = _trayIconImageGen();
+	QImage img = _trayIconImageGen(false);
 	if (img.save(name, "PNG")) return name;
 
 	QDir dir(info.absoluteDir());
@@ -271,15 +342,7 @@ void MainWindow::psSetupTrayIcon() {
 		LOG(("Using Qt tray icon."));
 		if (!trayIcon) {
 			trayIcon = new QSystemTrayIcon(this);
-			QIcon icon;
-			QFileInfo iconFile(_trayIconImageFile());
-			if (iconFile.exists()) {
-				QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
-				icon = QIcon(path.constData());
-			} else {
-				icon = Window::CreateIcon(&account());
-			}
-			trayIcon->setIcon(icon);
+			trayIcon->setIcon(QIcon(QPixmap::fromImage(_trayIconImageGen(true))));
 
 			attachToTrayIcon(trayIcon);
 		}
@@ -346,10 +409,9 @@ void MainWindow::unreadCounterChangedHook() {
 void MainWindow::updateIconCounters() {
 	updateWindowIcon();
 
-	const auto counter = Core::App().unreadBadge();
-
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	if (useUnityCount) {
+		const auto counter = Core::App().unreadBadge();
 		QVariantMap dbusUnityProperties;
 		if (counter > 0) {
 			// Gnome requires that count is a 64bit integer
@@ -374,32 +436,12 @@ void MainWindow::updateIconCounters() {
 				_psUpdateIndicatorTimer.start(100);
 			}
 		} else if (useStatusIcon && trayIconChecked) {
-			QFileInfo iconFile(_trayIconImageFile());
-			if (iconFile.exists()) {
-				QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
-				Libs::gtk_status_icon_set_from_file(_trayIcon, path.constData());
-			} else {
-				loadPixbuf(_trayIconImageGen());
-				Libs::gtk_status_icon_set_from_pixbuf(_trayIcon, _trayPixbuf);
-			}
+			loadPixbuf(_trayIconImageGen(true));
+			Libs::gtk_status_icon_set_from_pixbuf(_trayIcon, _trayPixbuf);
 		}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 	} else if (trayIcon) {
-		QIcon icon;
-		QFileInfo iconFile(_trayIconImageFile());
-		if (iconFile.exists()) {
-			QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
-			icon = QIcon(path.constData());
-		} else {
-			const auto counter = Core::App().unreadBadge();
-			const auto muted = Core::App().unreadBadgeMuted();
-
-			auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
-			auto &fg = st::trayCounterFg;
-			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(16, counter, bg, fg, true)));
-			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(32, counter, bg, fg, true)));
-		}
-		trayIcon->setIcon(icon);
+		trayIcon->setIcon(QIcon(QPixmap::fromImage(_trayIconImageGen(true))));
 	}
 }
 
@@ -504,14 +546,8 @@ void MainWindow::psCreateTrayIcon() {
 		if (Libs::gdk_init_check(0, 0)) {
 			if (!_trayMenu) _trayMenu = Libs::gtk_menu_new();
 			if (_trayMenu) {
-				QFileInfo iconFile(_trayIconImageFile());
-				if (iconFile.exists()) {
-					QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
-					_trayIcon = Libs::gtk_status_icon_new_from_file(path.constData());
-				} else {
-					loadPixbuf(_trayIconImageGen());
-					_trayIcon = Libs::gtk_status_icon_new_from_pixbuf(_trayPixbuf);
-				}
+				loadPixbuf(_trayIconImageGen(true));
+				_trayIcon = Libs::gtk_status_icon_new_from_pixbuf(_trayPixbuf);
 				if (_trayIcon) {
 					LOG(("Tray Icon: Using GTK status tray icon."));
 
