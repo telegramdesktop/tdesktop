@@ -961,6 +961,8 @@ void Poll::paintFilling(
 
 	if (chosen && !correct) {
 		p.setBrush(st::boxTextFgError);
+	} else if (chosen && correct && _poll->quiz() && !outbg) {
+		p.setBrush(st::boxTextFgGood);
 	} else {
 		const auto bar = outbg ? (selected ? st::msgWaveformOutActiveSelected : st::msgWaveformOutActive) : (selected ? st::msgWaveformInActiveSelected : st::msgWaveformInActive);
 		p.setBrush(bar);
