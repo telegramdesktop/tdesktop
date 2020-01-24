@@ -11,8 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "facades.h"
 
-#include <QtCore/QBuffer>
-
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include <QtCore/QVersionNumber>
 #include <QtDBus/QDBusConnection>
@@ -102,7 +100,8 @@ NotificationData::NotificationData(
 	if (capabilities.contains(qsl("body-markup"))) {
 		_body = subtitle.isEmpty()
 			? msg.toHtmlEscaped()
-			: qsl("<b>%1</b>\n%2").arg(subtitle.toHtmlEscaped())
+			: qsl("<b>%1</b>\n%2")
+				.arg(subtitle.toHtmlEscaped())
 				.arg(msg.toHtmlEscaped());
 	} else {
 		_body = subtitle.isEmpty()
@@ -352,7 +351,7 @@ void Manager::Private::showNotification(
 
 	const auto key = hideNameAndPhoto
 		? InMemoryKey()
-		:peer->userpicUniqueKey();
+		: peer->userpicUniqueKey();
 	notification->setImage(_cachedUserpics.get(key, peer));
 
 	auto i = _notifications.find(peer->id);
