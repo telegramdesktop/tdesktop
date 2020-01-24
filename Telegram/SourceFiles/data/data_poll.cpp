@@ -168,13 +168,12 @@ bool PollData::applyResultToAnswers(
 				answer->chosen = voters.is_chosen();
 				changed = true;
 			}
+		}
+		if (!isMinResults || closed()) {
 			if (answer->correct != voters.is_correct()) {
 				answer->correct = voters.is_correct();
 				changed = true;
 			}
-		} else if (const auto existing = answerByOption(option)) {
-			answer->chosen = existing->chosen;
-			answer->correct = existing->correct;
 		}
 		return changed;
 	});
