@@ -48,8 +48,9 @@ public:
 		not_null<Main::Session*> session,
 		bool chooseCorrectEnabled);
 
+	[[nodiscard]] bool hasOptions() const;
 	[[nodiscard]] bool isValid() const;
-	[[nodiscard]] rpl::producer<bool> isValidChanged() const;
+	[[nodiscard]] bool hasCorrect() const;
 	[[nodiscard]] std::vector<PollAnswer> toPollAnswers() const;
 	void focusFirst();
 
@@ -139,8 +140,10 @@ private:
 	int _position = 0;
 	std::vector<std::unique_ptr<Option>> _list;
 	std::vector<std::unique_ptr<Option>> _destroyed;
-	rpl::variable<bool> _valid = false;
 	rpl::variable<int> _usedCount = 0;
+	bool _hasOptions = false;
+	bool _isValid = false;
+	bool _hasCorrect = false;
 	rpl::event_stream<not_null<QWidget*>> _scrollToWidget;
 	rpl::event_stream<> _backspaceInFront;
 
@@ -470,12 +473,16 @@ bool Options::full() const {
 	return (_list.size() == kMaxOptionsCount);
 }
 
-bool Options::isValid() const {
-	return _valid.current();
+bool Options::hasOptions() const {
+	return _hasOptions;
 }
 
-rpl::producer<bool> Options::isValidChanged() const {
-	return _valid.changes();
+bool Options::isValid() const {
+	return _isValid;
+}
+
+bool Options::hasCorrect() const {
+	return _hasCorrect;
 }
 
 rpl::producer<int> Options::usedCount() const {
@@ -696,10 +703,11 @@ void Options::removeDestroyed(not_null<Option*> option) {
 
 void Options::validateState() {
 	checkLastOption();
-	_valid = (ranges::count_if(_list, &Option::isGood) > 1)
-		&& (ranges::find_if(_list, &Option::isTooLong) == end(_list))
-		&& (!_chooseCorrectGroup
-			|| ranges::find_if(_list, &Option::isCorrect) != end(_list));
+	_hasOptions = (ranges::count_if(_list, &Option::isGood) > 1);
+	_isValid = _hasOptions
+		&& (ranges::find_if(_list, &Option::isTooLong) == end(_list));
+	_hasCorrect = ranges::find_if(_list, &Option::isCorrect) != end(_list);
+
 	const auto lastEmpty = !_list.empty() && _list.back()->isEmpty();
 	_usedCount = _list.size() - (lastEmpty ? 1 : 0);
 }
@@ -789,7 +797,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	using namespace Settings;
 
 	const auto id = rand_value<uint64>();
-	const auto valid = lifetime().make_state<rpl::event_stream<bool>>();
+	const auto error = lifetime().make_state<Errors>(Error::Question);
 
 	auto result = object_ptr<Ui::VerticalLayout>(this);
 	const auto container = result.data();
@@ -910,8 +918,41 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			| (quiz->checked() ? Flag::Quiz : Flag(0)));
 		return result;
 	};
-	const auto send = [=](Api::SendOptions options) {
-		_submitRequests.fire({ collectResult(), options });
+	const auto collectError = [=] {
+		if (isValidQuestion()) {
+			*error &= ~Error::Question;
+		} else {
+			*error |= Error::Question;
+		}
+		if (!options->hasOptions()) {
+			*error |= Error::Options;
+		} else if (!options->isValid()) {
+			*error |= Error::Other;
+		} else {
+			*error &= ~(Error::Options | Error::Other);
+		}
+		if (quiz->checked() && !options->hasCorrect()) {
+			*error |= Error::Correct;
+		} else {
+			*error &= ~Error::Correct;
+		}
+	};
+	const auto showError = [=](const QString &text) {
+		Ui::Toast::Show(text);
+	};
+	const auto send = [=](Api::SendOptions sendOptions) {
+		collectError();
+		if (*error & Error::Question) {
+			showError(tr::lng_polls_choose_question(tr::now));
+			question->setFocus();
+		} else if (*error & Error::Options) {
+			showError(tr::lng_polls_choose_answers(tr::now));
+			options->focusFirst();
+		} else if (*error & Error::Correct) {
+			showError(tr::lng_polls_choose_correct(tr::now));
+		} else if (!*error) {
+			_submitRequests.fire({ collectResult(), sendOptions });
+		}
 	};
 	const auto sendSilent = [=] {
 		auto options = Api::SendOptions();
@@ -926,36 +967,6 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 				send),
 			Ui::LayerOption::KeepOther);
 	};
-	const auto updateValid = [=] {
-		valid->fire(isValidQuestion() && options->isValid());
-	};
-	connect(question, &Ui::InputField::changed, [=] {
-		updateValid();
-	});
-	valid->events_starting_with(
-		false
-	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool valid) {
-		clearButtons();
-		if (valid) {
-			const auto submit = addButton(
-				tr::lng_polls_create_button(),
-				[=] { send({}); });
-			if (_sendType == Api::SendType::Normal) {
-				SetupSendMenuAndShortcuts(
-					submit.data(),
-					[=] { return SendMenuType::Scheduled; },
-					sendSilent,
-					sendScheduled);
-			}
-		}
-		addButton(tr::lng_cancel(), [=] { closeBox(); });
-	}, lifetime());
-
-	options->isValidChanged(
-	) | rpl::start_with_next([=] {
-		updateValid();
-	}, lifetime());
 
 	options->scrollToWidget(
 	) | rpl::start_with_next([=](not_null<QWidget*> widget) {
@@ -966,6 +977,22 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	) | rpl::start_with_next([=] {
 		FocusAtEnd(question);
 	}, lifetime());
+
+	const auto submit = addButton(
+		tr::lng_polls_create_button(),
+		[=] { send({}); });
+	if (_sendType == Api::SendType::Normal) {
+		const auto sendMenuType = [=] {
+			collectError();
+			return *error ? SendMenuType::Disabled : SendMenuType::Scheduled;
+		};
+		SetupSendMenuAndShortcuts(
+			submit.data(),
+			sendMenuType,
+			sendSilent,
+			sendScheduled);
+	}
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	return result;
 }

@@ -2204,6 +2204,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_polls_create_multiple_choice" = "Multiple Answers";
 "lng_polls_create_quiz_mode" = "Quiz Mode";
 "lng_polls_create_button" = "Create";
+"lng_polls_choose_question" = "Please enter a question.";
+"lng_polls_choose_answers" = "Please enter at least two options.";
+"lng_polls_choose_correct" = "Please choose the correct answer.";
 
 "lng_polls_poll_results_title" = "Poll results";
 "lng_polls_quiz_results_title" = "Quiz results";

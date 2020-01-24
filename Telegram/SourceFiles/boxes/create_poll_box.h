@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "api/api_common.h"
 #include "data/data_poll.h"
+#include "base/flags.h"
 
 struct PollData;
 
@@ -44,6 +45,15 @@ protected:
 	void prepare() override;
 
 private:
+	enum class Error {
+		Question = 0x01,
+		Options  = 0x02,
+		Correct  = 0x04,
+		Other    = 0x08,
+	};
+	friend constexpr inline bool is_flag_type(Error) { return true; }
+	using Errors = base::flags<Error>;
+
 	object_ptr<Ui::RpWidget> setupContent();
 	not_null<Ui::InputField*> setupQuestion(
 		not_null<Ui::VerticalLayout*> container);
