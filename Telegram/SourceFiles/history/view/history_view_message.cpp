@@ -505,6 +505,10 @@ void Message::draw(
 			const auto fastShareTop = g.top() + g.height() - fastShareSkip - st::historyFastShareSize;
 			drawRightAction(p, fastShareLeft, fastShareTop, width());
 		}
+
+		if (media) {
+			media->paintBubbleFireworks(p, g, ms);
+		}
 	} else if (media && media->isDisplayed()) {
 		p.translate(g.topLeft());
 		media->draw(p, clip.translated(-g.topLeft()), skipTextSelection(selection), ms);

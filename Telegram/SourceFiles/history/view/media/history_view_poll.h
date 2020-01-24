@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class RippleAnimation;
+class FireworksAnimation;
 } // namespace Ui
 
 namespace HistoryView {
@@ -43,6 +44,10 @@ public:
 
 	BubbleRoll bubbleRoll() const override;
 	QMargins bubbleRollRepaintMargins() const override;
+	void paintBubbleFireworks(
+		Painter &p,
+		const QRect &bubble,
+		crl::time ms) const override;
 
 	void clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
@@ -149,7 +154,7 @@ private:
 	void toggleMultiOption(const QByteArray &option);
 	void sendMultiOptions();
 	void showResults();
-	void checkQuizAnsweredWrong();
+	void checkQuizAnswered();
 
 	[[nodiscard]] int bottomButtonHeight() const;
 
@@ -172,10 +177,12 @@ private:
 
 	mutable std::unique_ptr<AnswersAnimation> _answersAnimation;
 	mutable std::unique_ptr<SendingAnimation> _sendingAnimation;
+	mutable std::unique_ptr<Ui::FireworksAnimation> _fireworksAnimation;
 	Ui::Animations::Simple _wrongAnswerAnimation;
 	mutable QPoint _lastLinkPoint;
 
 	bool _hasSelected = false;
+	bool _votedFromHere = false;
 	mutable bool _wrongAnswerAnimated = false;
 
 };

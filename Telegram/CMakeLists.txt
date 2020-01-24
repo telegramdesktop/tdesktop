@@ -845,6 +845,8 @@ PRIVATE
     support/support_helper.h
     support/support_templates.cpp
     support/support_templates.h
+    ui/effects/fireworks_animation.cpp
+    ui/effects/fireworks_animation.h
     ui/effects/round_checkbox.cpp
     ui/effects/round_checkbox.h
     ui/effects/send_action_animations.cpp

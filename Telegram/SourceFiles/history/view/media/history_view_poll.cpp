@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/fireworks_animation.h"
 #include "data/data_media_types.h"
 #include "data/data_poll.h"
 #include "data/data_user.h"
@@ -36,6 +37,7 @@ constexpr auto kRotateSegments = 8;
 constexpr auto kRotateAmplitude = 3.;
 constexpr auto kScaleSegments = 2;
 constexpr auto kScaleAmplitude = 0.03;
+constexpr auto kRollDuration = crl::time(400);
 
 struct PercentCounterItem {
 	int index = 0;
@@ -380,26 +382,30 @@ void Poll::updateTexts() {
 	if (willStartAnimation) {
 		startAnswersAnimation();
 		if (!voted) {
-			checkQuizAnsweredWrong();
+			checkQuizAnswered();
 		}
 	}
 }
 
-void Poll::checkQuizAnsweredWrong() {
-	if (!_voted || !_poll->quiz()) {
+void Poll::checkQuizAnswered() {
+	if (!_voted || !_votedFromHere || !_poll->quiz() || anim::Disabled()) {
 		return;
 	}
 	const auto i = ranges::find(_answers, true, &Answer::chosen);
-	if (i == end(_answers) || i->correct) {
+	if (i == end(_answers)) {
 		return;
 	}
-	constexpr auto kDuration = crl::time(400);
-	_wrongAnswerAnimation.start(
-		[=] { history()->owner().requestViewRepaint(_parent); },
-		0.,
-		1.,
-		kDuration,
-		anim::linear);
+	if (i->correct) {
+		_fireworksAnimation = std::make_unique<Ui::FireworksAnimation>(
+			[=] { history()->owner().requestViewRepaint(_parent); });
+	} else {
+		_wrongAnswerAnimation.start(
+			[=] { history()->owner().requestViewRepaint(_parent); },
+			0.,
+			1.,
+			kRollDuration,
+			anim::linear);
+	}
 }
 
 void Poll::updateRecentVoters() {
@@ -451,6 +457,7 @@ ClickHandlerPtr Poll::createAnswerClickHandler(
 		}));
 	}
 	return std::make_shared<LambdaClickHandler>(crl::guard(this, [=] {
+		_votedFromHere = true;
 		history()->session().api().sendPollVotes(
 			_parent->data()->fullId(),
 			{ option });
@@ -490,9 +497,7 @@ void Poll::sendMultiOptions() {
 		&Answer::option
 	) | ranges::to_vector;
 	if (!chosen.empty()) {
-		for (auto &answer : _answers) {
-			answer.selected = false;
-		}
+		_votedFromHere = true;
 		history()->session().api().sendPollVotes(
 			_parent->data()->fullId(),
 			std::move(chosen));
@@ -506,7 +511,17 @@ void Poll::showResults() {
 }
 
 void Poll::updateVotes() {
-	_voted = _poll->voted();
+	const auto voted = _poll->voted();
+	if (_voted != voted) {
+		_voted = voted;
+		if (_voted) {
+			for (auto &answer : _answers) {
+				answer.selected = false;
+			}
+		} else {
+			_votedFromHere = false;
+		}
+	}
 	updateAnswerVotes();
 	updateTotalVotes();
 }
@@ -1177,6 +1192,16 @@ QMargins Poll::bubbleRollRepaintMargins() const {
 	static const auto kAdd = int(std::ceil(
 		st::msgMaxWidth * std::sin(kRotateAmplitude * M_PI / 180.)));
 	return QMargins(kAdd, kAdd, kAdd, kAdd);
+}
+
+void Poll::paintBubbleFireworks(
+		Painter &p,
+		const QRect &bubble,
+		crl::time ms) const {
+	if (!_fireworksAnimation || _fireworksAnimation->paint(p, bubble)) {
+		return;
+	}
+	_fireworksAnimation = nullptr;
 }
 
 void Poll::clickHandlerPressedChanged(

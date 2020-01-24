@@ -247,6 +247,11 @@ public:
 	[[nodiscard]] virtual QMargins bubbleRollRepaintMargins() const {
 		return QMargins();
 	}
+	virtual void paintBubbleFireworks(
+		Painter &p,
+		const QRect &bubble,
+		crl::time ms) const {
+	}
 
 	virtual void unloadHeavyPart() {
 	}
