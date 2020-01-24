@@ -27,7 +27,8 @@ jobs:
       QT: "5_12_5"
       OPENSSL_VER: "1_1_1"
       UPLOAD_ARTIFACT: "false"
-      MANUAL_CACHING: "1"
+      ONLY_CACHE: "false"
+      MANUAL_CACHING: "2"
       DOC_PATH: "docs/building-msvc.md"
     steps:
       - name: Get repository name.
@@ -134,6 +135,7 @@ jobs:
           move ossl_static.pdb out32
 
           rmdir /S /Q test
+          rmdir /S /Q .git
 
       - name: Zlib.
         shell: cmd
@@ -226,6 +228,7 @@ jobs:
           path: ${{ env.LibrariesPath }}/opus
           key: ${{ runner.OS }}-opus-${{ env.CACHE_KEY }}
       - name: Opus.
+        if: steps.cache-opus.outputs.cache-hit != 'true'
         shell: cmd
         run: |
           %VC%
@@ -242,7 +245,7 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ${{ env.LibrariesPath }}/ffmpeg
-          key: ${{ runner.OS }}-ffmpeg-${{ env.CACHE_KEY }}-${{ hashFiles('**/build_ffmpeg_win.sh') }}
+          key: ${{ runner.OS }}-ffmpeg-${{ env.CACHE_KEY }}-2-${{ hashFiles('**/build_ffmpeg_win.sh') }}
       - name: FFmpeg.
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
         shell: cmd
@@ -256,6 +259,8 @@ jobs:
           set CHERE_INVOKING=enabled_from_arguments
           set MSYS2_PATH_TYPE=inherit
           call c:\tools\msys64\usr\bin\bash --login ../../%REPO_NAME%/Telegram/Patches/build_ffmpeg_win.sh
+
+          rmdir /S /Q .git
 
       - name: Qt 5.12.5 cache.
         id: cache-qt
@@ -298,7 +303,7 @@ jobs:
           -nomake examples ^
           -nomake tests ^
           -platform win32-msvc
-      - name: Build Qt 5.12.5.
+      - name: Qt 5.12.5 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         shell: cmd
         run: |
@@ -321,7 +326,8 @@ jobs:
           fi
           echo "::set-env name=TDESKTOP_BUILD_DEFINE::$DEFINE"
 
-      - name: Build Telegram Desktop.
+      - name: Telegram Desktop build.
+        if: env.ONLY_CACHE == 'false'
         shell: cmd
         run: |
           cd %REPO_NAME%\Telegram

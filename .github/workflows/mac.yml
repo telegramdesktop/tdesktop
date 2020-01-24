@@ -32,7 +32,8 @@ jobs:
       QT_PREFIX: "/usr/local/desktop-app/Qt-5.12.5"
       LIBICONV_VER: "libiconv-1.15"
       UPLOAD_ARTIFACT: "false"
-      MANUAL_CACHING: "1"
+      ONLY_CACHE: "false"
+      MANUAL_CACHING: "2"
       DOC_PATH: "docs/building-xcode.md"
     steps:
       - name: Get repository name.
@@ -117,8 +118,8 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone $GIT/openssl/openssl openssl_$OPENSSL_VER
-          cd openssl_$OPENSSL_VER
+          git clone $GIT/openssl/openssl openssl
+          cd openssl
           git checkout OpenSSL_"$OPENSSL_VER"-stable
           ./Configure \
           --prefix=$PREFIX \
@@ -126,6 +127,15 @@ jobs:
           -static \
           $MIN_MAC
           make build_libs -j$(nproc)
+
+          SSL_DIR=$LibrariesPath/openssl_${{ env.OPENSSL_VER }}
+          mkdir -p $SSL_DIR/include
+          copyLib() {
+            cp $1.a $SSL_DIR/$1.a
+          }
+          copyLib libssl
+          copyLib libcrypto
+          sudo cp -R include/. $SSL_DIR/include/
 
       - name: Opus cache.
         id: cache-opus
@@ -174,7 +184,7 @@ jobs:
         id: cache-ffmpeg
         uses: actions/cache@v1
         with:
-          path: ${{ env.LibrariesPath }}/ffmpeg
+          path: ${{ env.LibrariesPath }}/ffmpeg-cache
           key: ${{ runner.OS }}-ffmpeg-${{ env.CACHE_KEY }}
       - name: FFmpeg.
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
@@ -188,7 +198,7 @@ jobs:
           LDFLAGS=`freetype-config --libs`
           PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
 
-          ./configure --prefix=/usr/local \
+          ./configure --prefix=$LibrariesPath/ffmpeg-cache \
           --extra-cflags="$MIN_MAC $UNGUARDED" \
           --extra-cxxflags="$MIN_MAC $UNGUARDED" \
           --extra-ldflags="$MIN_MAC" \
@@ -290,10 +300,23 @@ jobs:
           --enable-muxer=opus
 
           make -j$(nproc)
+          sudo make install
       - name: FFmpeg install.
         run: |
-          cd $LibrariesPath/ffmpeg
-          sudo make install
+          cd $LibrariesPath
+          #List of files from cmake/external/ffmpeg/CMakeLists.txt.
+          copyLib() {
+            mkdir -p ffmpeg/$1
+            \cp -fR ffmpeg-cache/lib/$1.a ffmpeg/$1/$1.a
+          }
+          copyLib libavformat
+          copyLib libavcodec
+          copyLib libswresample
+          copyLib libswscale
+          copyLib libavutil
+
+          sudo cp -R ffmpeg-cache/. /usr/local/
+          sudo cp -R ffmpeg-cache/include/. ffmpeg/
 
       - name: OpenAL Soft.
         run: |
@@ -364,8 +387,8 @@ jobs:
           cd $LibrariesPath
           mv qt-cache Qt-5.12.5
           sudo mkdir -p $QT_PREFIX
-          sudo mv -f Qt-5.12.5 /usr/local/desktop-app/
-      - name: Build Qt 5.12.5.
+          sudo mv -f Qt-5.12.5 "$(dirname "$QT_PREFIX")"/
+      - name: Qt 5.12.5 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
           cd $LibrariesPath
@@ -400,7 +423,8 @@ jobs:
           make clean
           cp -r $QT_PREFIX $LibrariesPath/qt-cache
 
-      - name: Build Telegram Desktop.
+      - name: Telegram Desktop build.
+        if: env.ONLY_CACHE == 'false'
         run: |
           cd $REPO_NAME/Telegram
 
