@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_media.h"
+#include "ui/effects/animations.h"
 #include "data/data_poll.h"
 #include "base/weak_ptr.h"
 
@@ -39,6 +40,8 @@ public:
 	bool customInfoLayout() const override {
 		return false;
 	}
+
+	BubbleRoll getBubbleRoll() const override;
 
 	void clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
@@ -145,6 +148,7 @@ private:
 	void toggleMultiOption(const QByteArray &option);
 	void sendMultiOptions();
 	void showResults();
+	void checkQuizAnsweredWrong();
 
 	[[nodiscard]] int bottomButtonHeight() const;
 
@@ -168,6 +172,7 @@ private:
 
 	mutable std::unique_ptr<AnswersAnimation> _answersAnimation;
 	mutable std::unique_ptr<SendingAnimation> _sendingAnimation;
+	mutable Ui::Animations::Simple _wrongAnswerAnimation;
 	mutable QPoint _lastLinkPoint;
 
 };

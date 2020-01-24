@@ -537,10 +537,10 @@ historyPollQuestionStyle: TextStyle(defaultTextStyle) {
 historyPollAnswerStyle: defaultTextStyle;
 historyPollQuestionTop: 7px;
 historyPollSubtitleSkip: 4px;
-historyPollAnswerPadding: margins(31px, 10px, 0px, 10px);
+historyPollAnswerPadding: margins(32px, 10px, 0px, 10px);
 historyPollAnswersSkip: 2px;
 historyPollPercentFont: semiboldFont;
-historyPollPercentSkip: 6px;
+historyPollPercentSkip: 5px;
 historyPollPercentTop: 0px;
 historyPollTotalVotesSkip: 5px;
 historyPollFillingMin: 4px;

@@ -233,6 +233,18 @@ public:
 		return true;
 	}
 
+	struct BubbleRoll {
+		float64 rotate = 0.;
+		float64 scale = 1.;
+
+		explicit operator bool() const {
+			return (rotate != 0.) || (scale != 1.);
+		}
+	};
+	[[nodiscard]] virtual BubbleRoll getBubbleRoll() const {
+		return BubbleRoll();
+	}
+
 	virtual void unloadHeavyPart() {
 	}
 

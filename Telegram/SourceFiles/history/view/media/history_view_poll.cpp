@@ -344,6 +344,7 @@ void Poll::updateTexts() {
 	_pollVersion = _poll->version;
 
 	const auto willStartAnimation = checkAnimationStart();
+	const auto voted = _voted;
 
 	if (_question.toString() != _poll->question) {
 		auto options = Ui::WebpageTextTitleOptions();
@@ -374,7 +375,27 @@ void Poll::updateTexts() {
 
 	if (willStartAnimation) {
 		startAnswersAnimation();
+		if (!voted) {
+			checkQuizAnsweredWrong();
+		}
 	}
+}
+
+void Poll::checkQuizAnsweredWrong() {
+	if (!_voted || !_poll->quiz()) {
+		return;
+	}
+	const auto i = ranges::find(_answers, true, &Answer::chosen);
+	if (i == end(_answers) || i->correct) {
+		return;
+	}
+	constexpr auto kDuration = crl::time(400);
+	_wrongAnswerAnimation.start(
+		[=] { history()->owner().requestViewRepaint(_parent); },
+		0.,
+		1.,
+		kDuration,
+		anim::linear);
 }
 
 void Poll::updateRecentVoters() {
@@ -1119,6 +1140,35 @@ TextState Poll::textState(QPoint point, StateRequest request) const {
 		}
 	}
 	return result;
+}
+
+auto Poll::getBubbleRoll() const -> BubbleRoll {
+	constexpr auto kRotateSegments = 8;
+	constexpr auto kRotateAmplitude = 2.5;
+	constexpr auto kScaleSegments = 2;
+	constexpr auto kScaleAmplitude = 0.025;
+
+	const auto value = _wrongAnswerAnimation.value(1.);
+	if (value == 1.) {
+		return BubbleRoll();
+	}
+	const auto rotateFull = value * kRotateSegments;
+	const auto progress = [](float64 full) {
+		const auto lower = std::floor(full);
+		const auto shift = (full - lower);
+		switch (int(lower) % 4) {
+		case 0: return -shift;
+		case 1: return (shift - 1.);
+		case 2: return shift;
+		case 3: return (1. - shift);
+		}
+		Unexpected("Value in Poll::getBubbleRollDegrees.");
+	};
+	const auto scaleFull = value * kScaleSegments;
+	return {
+		.rotate = progress(value * kRotateSegments) * kRotateAmplitude,
+		.scale = 1. + progress(value * kScaleSegments) * kScaleAmplitude
+	};
 }
 
 void Poll::clickHandlerPressedChanged(

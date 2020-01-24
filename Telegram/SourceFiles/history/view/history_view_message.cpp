@@ -409,6 +409,15 @@ void Message::draw(
 
 	paintHighlight(p, g.height());
 
+	const auto roll = media ? media->getBubbleRoll() : Media::BubbleRoll();
+	if (roll) {
+		p.save();
+		p.translate(g.center());
+		p.rotate(roll.rotate);
+		p.scale(roll.scale, roll.scale);
+		p.translate(-g.center());
+	}
+
 	p.setTextPalette(selected
 		? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected)
 		: (outbg ? st::outTextPalette : st::inTextPalette));
@@ -503,6 +512,10 @@ void Message::draw(
 	}
 
 	p.restoreTextPalette();
+
+	if (roll) {
+		p.restore();
+	}
 
 	const auto reply = item->Get<HistoryMessageReply>();
 	if (reply && reply->isNameUpdated()) {
