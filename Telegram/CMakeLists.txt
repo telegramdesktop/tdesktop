@@ -1194,6 +1194,18 @@ if ((NOT disable_autoupdate OR NOT LINUX) AND NOT build_macstore AND NOT build_w
     endif()
 endif()
 
+if(DESKTOP_APP_ENABLE_IPO_OPTIMIZATIONS)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT ipo_result OUTPUT ipo_output)
+
+    if(ipo_result)
+        message(STATUS "IPO optimizations enabled.")
+        set_property(TARGET Telegram PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    else()
+        message(WARNING "IPO is not supported: ${ipo_output}")
+    endif()
+endif()
+
 if (LINUX AND DESKTOP_APP_USE_PACKAGED)
     include(GNUInstallDirs)
     install(TARGETS Telegram RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" BUNDLE DESTINATION "${CMAKE_INSTALL_BINDIR}")
