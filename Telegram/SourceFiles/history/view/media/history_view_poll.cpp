@@ -32,6 +32,10 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kShowRecentVotersCount = 3;
+constexpr auto kRotateSegments = 8;
+constexpr auto kRotateAmplitude = 3.;
+constexpr auto kScaleSegments = 2;
+constexpr auto kScaleAmplitude = 0.03;
 
 struct PercentCounterItem {
 	int index = 0;
@@ -1142,14 +1146,10 @@ TextState Poll::textState(QPoint point, StateRequest request) const {
 	return result;
 }
 
-auto Poll::getBubbleRoll() const -> BubbleRoll {
-	constexpr auto kRotateSegments = 8;
-	constexpr auto kRotateAmplitude = 2.5;
-	constexpr auto kScaleSegments = 2;
-	constexpr auto kScaleAmplitude = 0.025;
-
+auto Poll::bubbleRoll() const -> BubbleRoll {
 	const auto value = _wrongAnswerAnimation.value(1.);
-	if (value == 1.) {
+	_wrongAnswerAnimated = (value < 1.);
+	if (!_wrongAnswerAnimated) {
 		return BubbleRoll();
 	}
 	const auto rotateFull = value * kRotateSegments;
@@ -1164,11 +1164,19 @@ auto Poll::getBubbleRoll() const -> BubbleRoll {
 		}
 		Unexpected("Value in Poll::getBubbleRollDegrees.");
 	};
-	const auto scaleFull = value * kScaleSegments;
 	return {
 		.rotate = progress(value * kRotateSegments) * kRotateAmplitude,
 		.scale = 1. + progress(value * kScaleSegments) * kScaleAmplitude
 	};
+}
+
+QMargins Poll::bubbleRollRepaintMargins() const {
+	if (!_wrongAnswerAnimated) {
+		return QMargins();
+	}
+	static const auto kAdd = int(std::ceil(
+		st::msgMaxWidth * std::sin(kRotateAmplitude * M_PI / 180.)));
+	return QMargins(kAdd, kAdd, kAdd, kAdd);
 }
 
 void Poll::clickHandlerPressedChanged(

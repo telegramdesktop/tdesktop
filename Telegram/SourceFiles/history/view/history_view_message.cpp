@@ -409,7 +409,7 @@ void Message::draw(
 
 	paintHighlight(p, g.height());
 
-	const auto roll = media ? media->getBubbleRoll() : Media::BubbleRoll();
+	const auto roll = media ? media->bubbleRoll() : Media::BubbleRoll();
 	if (roll) {
 		p.save();
 		p.translate(g.center());
@@ -1291,6 +1291,15 @@ int Message::infoWidth() const {
 		result += st::historySendStateSpace;
 	}
 	return result;
+}
+
+auto Message::verticalRepaintRange() const -> VerticalRepaintRange {
+	const auto media = this->media();
+	const auto add = media ? media->bubbleRollRepaintMargins() : QMargins();
+	return {
+		.top = -add.top(),
+		.height = height() + add.top() + add.bottom()
+	};
 }
 
 void Message::refreshDataIdHook() {

@@ -41,7 +41,8 @@ public:
 		return false;
 	}
 
-	BubbleRoll getBubbleRoll() const override;
+	BubbleRoll bubbleRoll() const override;
+	QMargins bubbleRollRepaintMargins() const override;
 
 	void clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
@@ -168,12 +169,14 @@ private:
 	ClickHandlerPtr _showResultsLink;
 	ClickHandlerPtr _sendVotesLink;
 	mutable std::unique_ptr<Ui::RippleAnimation> _linkRipple;
-	bool _hasSelected = false;
 
 	mutable std::unique_ptr<AnswersAnimation> _answersAnimation;
 	mutable std::unique_ptr<SendingAnimation> _sendingAnimation;
-	mutable Ui::Animations::Simple _wrongAnswerAnimation;
+	Ui::Animations::Simple _wrongAnswerAnimation;
 	mutable QPoint _lastLinkPoint;
+
+	bool _hasSelected = false;
+	mutable bool _wrongAnswerAnimated = false;
 
 };
 

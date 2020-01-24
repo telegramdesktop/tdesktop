@@ -242,7 +242,8 @@ void HistoryInner::repaintItem(const Element *view) {
 	}
 	const auto top = itemTop(view);
 	if (top >= 0) {
-		update(0, top, width(), view->height());
+		const auto range = view->verticalRepaintRange();
+		update(0, top + range.top, width(), range.height);
 	}
 }
 

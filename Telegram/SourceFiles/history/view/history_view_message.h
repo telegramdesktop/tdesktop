@@ -86,6 +86,8 @@ public:
 	TimeId displayedEditDate() const override;
 	int infoWidth() const override;
 
+	VerticalRepaintRange verticalRepaintRange() const override;
+
 protected:
 	void refreshDataIdHook() override;
 

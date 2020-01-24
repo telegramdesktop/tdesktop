@@ -241,8 +241,11 @@ public:
 			return (rotate != 0.) || (scale != 1.);
 		}
 	};
-	[[nodiscard]] virtual BubbleRoll getBubbleRoll() const {
+	[[nodiscard]] virtual BubbleRoll bubbleRoll() const {
 		return BubbleRoll();
+	}
+	[[nodiscard]] virtual QMargins bubbleRollRepaintMargins() const {
+		return QMargins();
 	}
 
 	virtual void unloadHeavyPart() {
