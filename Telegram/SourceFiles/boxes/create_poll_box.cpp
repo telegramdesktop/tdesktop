@@ -546,10 +546,10 @@ void Options::enableChooseCorrect(bool enabled) {
 	_chooseCorrectGroup = enabled
 		? createChooseCorrectGroup()
 		: nullptr;
-	validateState();
 	for (auto &option : _list) {
 		option->enableChooseCorrect(_chooseCorrectGroup);
 	}
+	validateState();
 }
 
 bool Options::correctShadows() const {
