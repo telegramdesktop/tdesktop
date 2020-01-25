@@ -18,6 +18,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "core/crash_reports.h"
 
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QDesktopWidget>
+#include <QtGui/QDesktopServices>
+#include <qpa/qplatformnativeinterface.h>
+
 #include <Shobjidl.h>
 #include <shellapi.h>
 
@@ -48,16 +53,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <intsafe.h>
 #include <guiddef.h>
 
-#include <qpa/qplatformnativeinterface.h>
-
 #ifndef DCX_USESTYLE
 #define DCX_USESTYLE 0x00010000
 #endif
 
 #ifndef WM_NCPOINTERUPDATE
-#define WM_NCPOINTERUPDATE              0x0241
-#define WM_NCPOINTERDOWN                0x0242
-#define WM_NCPOINTERUP                  0x0243
+#define WM_NCPOINTERUPDATE 0x0241
+#define WM_NCPOINTERDOWN 0x0242
+#define WM_NCPOINTERUP 0x0243
 #endif
 
 using namespace Microsoft::WRL;
@@ -67,22 +70,23 @@ using namespace Windows::Foundation;
 using namespace Platform;
 
 namespace {
-    QStringList _initLogs;
 
-	bool themeInited = false;
-	bool finished = true;
-	QMargins simpleMargins, margins;
-	HICON bigIcon = 0, smallIcon = 0, overlayIcon = 0;
+QStringList _initLogs;
 
-	class _PsInitializer {
-	public:
-		_PsInitializer() {
-			Dlls::start();
-		}
-	};
-	_PsInitializer _psInitializer;
+bool themeInited = false;
+bool finished = true;
+QMargins simpleMargins, margins;
+HICON bigIcon = 0, smallIcon = 0, overlayIcon = 0;
 
+class _PsInitializer {
+public:
+	_PsInitializer() {
+		Dlls::start();
+	}
 };
+_PsInitializer _psInitializer;
+
+} // namespace
 
 void psDeleteDir(const QString &dir) {
 	std::wstring wDir = QDir::toNativeSeparators(dir).toStdWString();
@@ -128,11 +132,11 @@ namespace {
 }
 
 QStringList psInitLogs() {
-    return _initLogs;
+	return _initLogs;
 }
 
 void psClearInitLogs() {
-    _initLogs = QStringList();
+	_initLogs = QStringList();
 }
 
 void psActivateProcess(uint64 pid) {
@@ -196,12 +200,6 @@ QRect psDesktopRect() {
 		}
 	}
 	return _monitorRect;
-}
-
-void psShowOverAll(QWidget *w, bool canFocus) {
-}
-
-void psBringToBack(QWidget *w) {
 }
 
 int psCleanup() {
@@ -305,10 +303,6 @@ void start() {
 void finish() {
 }
 
-bool IsApplicationActive() {
-	return QApplication::activeWindow() != nullptr;
-}
-
 void SetApplicationIcon(const QIcon &icon) {
 	QApplication::setWindowIcon(icon);
 }
@@ -329,6 +323,10 @@ QString CurrentExecutablePath(int argc, char *argv[]) {
 		return info.absoluteFilePath();
 	}
 	return QString();
+}
+
+QString SingleInstanceLocalServerName(const QString &hash) {
+	return qsl("Global\\") + hash + '-' + cGUIDStr();
 }
 
 std::optional<crl::time> LastUserInputTime() {
@@ -569,19 +567,8 @@ void psSendToMenu(bool send, bool silent) {
 	_manageAppLnk(send, silent, CSIDL_SENDTO, L"-sendpath", L"Telegram send to link.\nYou can disable send to menu item in Telegram settings.");
 }
 
-void psUpdateOverlayed(TWidget *widget) {
-	bool wm = widget->testAttribute(Qt::WA_Mapped), wv = widget->testAttribute(Qt::WA_WState_Visible);
-	if (!wm) widget->setAttribute(Qt::WA_Mapped, true);
-	if (!wv) widget->setAttribute(Qt::WA_WState_Visible, true);
-	widget->update();
-	QEvent e(QEvent::UpdateRequest);
-	QGuiApplication::sendEvent(widget, &e);
-	if (!wm) widget->setAttribute(Qt::WA_Mapped, false);
-	if (!wv) widget->setAttribute(Qt::WA_WState_Visible, false);
-}
-
 void psWriteDump() {
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 	PROCESS_MEMORY_COUNTERS data = { 0 };
 	if (Dlls::GetProcessMemoryInfo
 		&& Dlls::GetProcessMemoryInfo(
@@ -602,7 +589,7 @@ void psWriteDump() {
 			<< (data.PagefileUsage / mb)
 			<< " MB (current)\n";
 	}
-#endif // TDESKTOP_DISABLE_CRASH_REPORTS
+#endif // DESKTOP_APP_DISABLE_CRASH_REPORTS
 }
 
 bool psLaunchMaps(const Data::LocationPoint &point) {

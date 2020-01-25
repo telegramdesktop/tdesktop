@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "base/flags.h"
+#include "base/object_ptr.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 namespace Main {
 class Session;
@@ -37,6 +39,7 @@ namespace Dialogs {
 class Row;
 class FakeRow;
 class IndexedList;
+enum class Mode;
 
 struct ChosenRow {
 	Key key;
@@ -60,6 +63,7 @@ enum class WidgetState {
 
 class InnerWidget
 	: public Ui::RpWidget
+//	, public QObject
 	, public RPCSender
 	, private base::Subscriber {
 	Q_OBJECT
@@ -130,6 +134,8 @@ public:
 
 	void notify_historyMuteUpdated(History *history);
 
+	not_null<IndexedList*> dialogsList() const;
+
 	void performFilter();
 
 	const Dialogs::EntryTypes& currentFilter() const { return _currentFilterTypes; }
@@ -138,6 +144,8 @@ public:
 
 public slots:
 	void onParentGeometryChanged();
+	void onPerformFilterStarted();
+	void onPerformFilterFinished();
 
 signals:
 	void draggingScrollDelta(int delta);
@@ -402,11 +410,6 @@ private:
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	Dialogs::EntryTypes _currentFilterTypes = Dialogs::EntryType::All;
 
-/* BUGGGGGGGG
-private slots:
-	void onPerformFilterStarted();
-	void onPerformFilterFinished();
- */
 };
 
 } // namespace Dialogs

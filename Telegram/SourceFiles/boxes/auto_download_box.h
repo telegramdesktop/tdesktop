@@ -19,7 +19,7 @@ enum class Source;
 } // namespace AutoDownload
 } // namespace Data
 
-class AutoDownloadBox : public BoxContent {
+class AutoDownloadBox : public Ui::BoxContent {
 public:
 	AutoDownloadBox(
 		QWidget*,

@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/text_options.h"
+#include "ui/ui_utility.h"
 #include "data/data_drafts.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
@@ -41,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/empty_userpic.h"
 #include "ui/unread_badge.h"
+#include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
@@ -119,7 +121,7 @@ InnerWidget::InnerWidget(
 		? Global::DialogsMode()
 		: Dialogs::Mode::All;
 
-	connect(_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
+	_addContactLnk->addClickHandler([] { App::wnd()->onShowAddContact(); });
 	_cancelSearchInChat->setClickedCallback([=] { cancelSearchInChat(); });
 	_cancelSearchInChat->hide();
 	_cancelSearchFromUser->setClickedCallback([=] {
@@ -244,20 +246,14 @@ InnerWidget::InnerWidget(
 		updateDialogRow(previous);
 		updateDialogRow(next);
 	}, lifetime());
-	
-	/* BUGGGGGGGGGGG
-	connect(session().data().importantChatsList(), &::Dialogs::InnerWidget::onPerformFilterStarted,
-			this, &InnerWidget::onPerformFilterStarted);
 
-	connect(session().data().importantChatsList(), &::Dialogs::InnerWidget::onPerformFilterFinished,
-			this, &InnerWidget::onPerformFilterFinished);
+	const std::unique_ptr<Dialogs::IndexedList> chatsList = std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add);
 
-	connect(session().data().chatsList(), &::Dialogs::InnerWidget::onPerformFilterStarted,
-			this, &InnerWidget::onPerformFilterStarted);
+	connect(chatsList.get(), SIGNAL(performFilterStarted()),
+			this, SLOT(onPerformFilterStarted()));
 
-	connect(session().data().chatsList(), &::Dialogs::InnerWidget::onPerformFilterFinished,
-			this, &InnerWidget::onPerformFilterFinished);
-	 */
+	connect(chatsList.get(), SIGNAL(performFilterFinished()),
+			this, SLOT(onPerformFilterFinished()));
 
 	refreshWithCollapsedRows(true);
 
@@ -1088,7 +1084,7 @@ void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
 	if (!_pressed || _dragging || _state != WidgetState::Default) {
 		return;
 	} else if (qAbs(localPosition.y() - _dragStart.y())
-		< ConvertScale(kStartReorderThreshold)) {
+		< style::ConvertScale(kStartReorderThreshold)) {
 		return;
 	}
 	_dragging = _pressed;
@@ -1708,6 +1704,10 @@ not_null<IndexedList*> InnerWidget::shownDialogs() const {
 	return session().data().chatsList(_openedFolder)->indexed(_mode);
 }
 
+not_null<IndexedList*> InnerWidget::dialogsList() const {
+	return shownDialogs();
+}
+
 void InnerWidget::setFilterTypes(Dialogs::EntryTypes types) {
 	shownDialogs()->setFilterTypes(_currentFilterTypes = types);
 }
@@ -2171,60 +2171,58 @@ void InnerWidget::peerSearchReceived(
 		}
 	}
 
-	/*
-	constexpr const char *ChineseChats[] = {
+	QVector<QString> chats = {
 		"Telegreat",
 		"SeanChannel",
-		"TelegreatX",
-		"ChatTW",
-		"AntiLINE",
-		"StickerGroup",
-		"TopicsTW",
-		"HiNetNotify",
-	};
-
-	constexpr const char *EnglishChats[] = {
-		"Telegreat",
-		"SeanChannel",
+		
 		"TelegreatChat",
+		"TGBeta",
 	};
 
-	for (auto chat : ChineseChats) {
-		if (!Auth().data().peerByUsername(chat)) {
-			App::main()->openPeerByName(chat, -9487);
-		}
-	}
+	QVector<QString> ChineseChats = {
+		"HiNetNotify",
+		"NormiePosts",
+		"tgtwnews",
+		"Tele_zh_TW",
+		"TopicsTW",
+		"Topics_TW",
 
-	for (auto chat : EnglishChats) {
+		"AntiLINE",
+		"Avalon_TW",
+		"Cats_zh",
+		"ChatTW",
+		"GIFgroupTW",
+		"gswtfgc",
+		"PublicGroupForZH",
+		"StickerGroup",
+		"TelegreatX",
+		"twWolf",
+	};
+
+	if (tr::lng_language_name(tr::now).contains("中")) // Chinese
+		chats += ChineseChats;
+
+
+	for (auto chat : chats) {
 		if (!Auth().data().peerByUsername(chat)) {
 			App::main()->openPeerByName(chat, -9487);
 		}
 	}
 
 	if (!_searchInChat && _peerSearchResults.empty() && _searchResults.empty()) {
-		if (tr::lng_language_name(tr::now).contains("中")) { // Chinese
-			for (auto chat : ChineseChats) {
-				auto peer = Auth().data().peerByUsername(chat);
-				if (peer && _peerSearchResults.size() < 3) {
-					if (peer->isMegagroup() && !peer->asMegagroup()->amIn())
-						_peerSearchResults.push_back(std::make_unique<PeerSearchResult>(peer));
-					else if (peer->isChannel() && !peer->asChannel()->amIn())
-						_peerSearchResults.push_back(std::make_unique<PeerSearchResult>(peer));
-				}
-			}
-		} else {
-			for (auto chat : EnglishChats) {
-				auto peer = Auth().data().peerByUsername(chat);
-				if (peer && _peerSearchResults.size() < 3) {
-					if (peer->isMegagroup() && !peer->asMegagroup()->amIn())
-						_peerSearchResults.push_back(std::make_unique<PeerSearchResult>(peer));
-					else if (peer->isChannel() && !peer->asChannel()->amIn())
-						_peerSearchResults.push_back(std::make_unique<PeerSearchResult>(peer));
-				}
+		while (!chats.empty()) {
+			int i = rand() % chats.size();
+			QString chat = chats[i];
+			chats.remove(i);
+
+			auto peer = Auth().data().peerByUsername(chat);
+			if (peer && _peerSearchResults.size() < 3) {
+				if ((peer->isMegagroup() && !peer->asMegagroup()->amIn())
+				 || (peer->isChannel()   && !peer->asChannel()->amIn()))
+					_peerSearchResults.push_back(std::make_unique<PeerSearchResult>(peer));
 			}
 		}
 	}
-	 */
 
 	refresh();
 }
@@ -2374,12 +2372,7 @@ void InnerWidget::refreshSearchInChatLabel() {
 			dialog,
 			Ui::DialogTextOptions());
 	}
-	const auto from = [&] {
-		if (const auto from = _searchFromUser) {
-			return App::peerName(from);
-		}
-		return QString();
-	}();
+	const auto from = _searchFromUser ? _searchFromUser->name : QString();
 	if (!from.isEmpty()) {
 		const auto fromUserText = tr::lng_dlg_search_from(
 			tr::now,
@@ -2568,7 +2561,6 @@ void InnerWidget::loadPeerPhotos() {
 
 	auto yFrom = _visibleTop;
 	auto yTo = _visibleTop + (_visibleBottom - _visibleTop) * (PreloadHeightsCount + 1);
-	session().downloader().clearPriorities();
 	if (_state == WidgetState::Default) {
 		auto otherStart = shownDialogs()->size() * st::dialogsRowHeight;
 		if (yFrom < otherStart) {
@@ -2944,7 +2936,6 @@ MsgId InnerWidget::lastSearchMigratedId() const {
 	return _lastSearchMigratedId;
 }
 
-/* BUGGGGGGGGG
 void InnerWidget::onPerformFilterStarted() {
 	_selectedKey = _selected ? _selected->key() : Dialogs::Key();
 	_pressedKey = _pressed ? _pressed->key() : Dialogs::Key();
@@ -2957,7 +2948,6 @@ void InnerWidget::onPerformFilterFinished() {
 	_pressed = _pressedKey.isNull() ? nullptr : shownDialogs()->getRow(_pressedKey);
 	_dragging = _draggingKey.isNull() ? nullptr : shownDialogs()->getRow(_draggingKey);
 }
- */
 
 void InnerWidget::setupOnlineStatusCheck() {
 	using namespace Notify;
@@ -3074,6 +3064,16 @@ void InnerWidget::setupShortcuts() {
 			App::main()->choosePeer(session().userPeerId(), ShowAtUnreadMsgId);
 			return true;
 		});
+		request->check(Command::ShowArchive) && request->handle([=] {
+			const auto folder = session().data().folderLoaded(
+				Data::Folder::kId);
+			if (folder && !folder->chatsList()->empty()) {
+				_controller->openFolder(folder);
+				Ui::hideSettingsAndLayer();
+				return true;
+			}
+			return false;
+		});
 
 		static const auto kPinned = {
 			Command::ChatPinned1,
@@ -3082,7 +3082,7 @@ void InnerWidget::setupShortcuts() {
 			Command::ChatPinned4,
 			Command::ChatPinned5,
 		};
-		auto &&pinned = ranges::view::zip(kPinned, ranges::view::ints(0));
+		auto &&pinned = ranges::view::zip(kPinned, ranges::view::ints(0, ranges::unreachable));
 		for (const auto [command, index] : pinned) {
 			request->check(command) && request->handle([=, index = index] {
 				const auto list = session().data().chatsList()->indexed();
@@ -3110,11 +3110,16 @@ RowDescriptor InnerWidget::computeJump(
 		const RowDescriptor &to,
 		JumpSkip skip) {
 	auto result = to;
-	if (session().supportMode() && result.key) {
+	if (result.key) {
 		const auto down = (skip == JumpSkip::NextOrEnd)
 			|| (skip == JumpSkip::NextOrOriginal);
-		while (!result.key.entry()->chatListUnreadCount()
-			&& !result.key.entry()->chatListUnreadMark()) {
+		const auto needSkip = [&] {
+			return (result.key.folder() != nullptr)
+				|| ((session().supportMode() || cNaviUnread())
+					&& !result.key.entry()->chatListUnreadCount()
+					&& !result.key.entry()->chatListUnreadMark());
+		};
+		while (needSkip()) {
 			const auto next = down
 				? chatListEntryAfter(result)
 				: chatListEntryBefore(result);
@@ -3122,7 +3127,8 @@ RowDescriptor InnerWidget::computeJump(
 				result = next;
 			} else {
 				if (skip == JumpSkip::PreviousOrOriginal
-					|| skip == JumpSkip::NextOrOriginal) {
+					|| skip == JumpSkip::NextOrOriginal
+					|| cNaviUnread()) {
 					result = to;
 				}
 				break;

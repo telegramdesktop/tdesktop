@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "platform/platform_specific.h"
-#include "platform/win/wrapper_windows_h.h"
+#include "base/platform/win/base_windows_h.h"
 
 namespace Data {
 class LocationPoint;
@@ -19,28 +19,11 @@ namespace Platform {
 inline void SetWatchingMediaKeys(bool watching) {
 }
 
-bool IsApplicationActive();
-
-inline bool TranslucentWindowsSupported(QPoint globalPosition) {
-	return true;
-}
-
-inline void StartTranslucentPaint(QPainter &p, QPaintEvent *e) {
-}
-
-inline void InitOnTopPanel(QWidget *panel) {
-}
-
-inline void DeInitOnTopPanel(QWidget *panel) {
-}
-
-inline void ReInitOnTopPanel(QWidget *panel) {
-}
-
 QString CurrentExecutablePath(int argc, char *argv[]);
 
-inline constexpr bool UseMainQueueGeneric() {
-	return true;
+QString SingleInstanceLocalServerName(const QString &hash);
+
+inline void IgnoreApplicationActivationRightNow() {
 }
 
 namespace ThirdParty {
@@ -53,9 +36,6 @@ inline void finish() {
 } // namespace ThirdParty
 } // namespace Platform
 
-inline QString psServerPrefix() {
-	return qsl("Global\\");
-}
 inline void psCheckLocalSocket(const QString &) {
 }
 
@@ -74,15 +54,12 @@ void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
 
 QRect psDesktopRect();
-void psShowOverAll(QWidget *w, bool canFocus = true);
-void psBringToBack(QWidget *w);
 
 int psCleanup();
 int psFixPrevious();
 
 void psNewVersion();
 
-void psUpdateOverlayed(TWidget *widget);
 inline QByteArray psDownloadPathBookmark(const QString &path) {
 	return QByteArray();
 }

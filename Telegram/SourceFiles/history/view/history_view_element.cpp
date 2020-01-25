@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "lang/lang_keys.h"
 #include "layout.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_history.h"
 
 namespace HistoryView {
@@ -91,6 +93,11 @@ bool SimpleElementDelegate::elementIntersectsRange(
 
 void SimpleElementDelegate::elementStartStickerLoop(
 	not_null<const Element*> view) {
+}
+
+void SimpleElementDelegate::elementShowPollResults(
+	not_null<PollData*> poll,
+	FullMsgId context) {
 }
 
 TextSelection UnshiftItemSelection(
@@ -179,8 +186,8 @@ void UnreadBar::paint(Painter &p, int y, int w) const {
 }
 
 
-void DateBadge::init(const QDateTime &date) {
-	text = langDayOfMonthFull(date.date());
+void DateBadge::init(const QString &date) {
+	text = date;
 	width = st::msgServiceFont->width(text);
 }
 
@@ -201,7 +208,8 @@ Element::Element(
 	not_null<HistoryItem*> data)
 : _delegate(delegate)
 , _data(data)
-, _dateTime(ItemDateTime(data))
+, _isScheduledUntilOnline(IsItemScheduledUntilOnline(data))
+, _dateTime(_isScheduledUntilOnline ? QDateTime() : ItemDateTime(data))
 , _context(delegate->elementContext()) {
 	history()->owner().registerItemView(this);
 	refreshMedia();
@@ -505,7 +513,7 @@ void Element::setDisplayDate(bool displayDate) {
 	const auto item = data();
 	if (displayDate && !Has<DateBadge>()) {
 		AddComponents(DateBadge::Bit());
-		Get<DateBadge>()->init(dateTime());
+		Get<DateBadge>()->init(ItemDateText(item, _isScheduledUntilOnline));
 		setPendingResize();
 	} else if (!displayDate && Has<DateBadge>()) {
 		RemoveComponents(DateBadge::Bit());
@@ -600,6 +608,13 @@ bool Element::hasVisibleText() const {
 	return false;
 }
 
+auto Element::verticalRepaintRange() const -> VerticalRepaintRange {
+	return {
+		.top = 0,
+		.height = height()
+	};
+}
+
 void Element::unloadHeavyPart() {
 	if (_media) {
 		_media->unloadHeavyPart();
@@ -615,7 +630,7 @@ const HistoryBlock *Element::block() const {
 }
 
 void Element::attachToBlock(not_null<HistoryBlock*> block, int index) {
-	Expects(!_data->isLogEntry());
+	Expects(_data->isHistoryEntry());
 	Expects(_block == nullptr);
 	Expects(_indexInBlock < 0);
 	Expects(index >= 0);

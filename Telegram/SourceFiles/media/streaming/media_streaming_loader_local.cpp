@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/cache/storage_cache_types.h"
 
+#include <QtCore/QBuffer>
+
 namespace Media {
 namespace Streaming {
 namespace {
@@ -66,10 +68,16 @@ void LoaderLocal::fail() {
 void LoaderLocal::cancel(int offset) {
 }
 
-void LoaderLocal::increasePriority() {
+void LoaderLocal::resetPriorities() {
+}
+
+void LoaderLocal::setPriority(int priority) {
 }
 
 void LoaderLocal::stop() {
+}
+
+void LoaderLocal::tryRemoveFromQueue() {
 }
 
 rpl::producer<LoadedPart> LoaderLocal::parts() const {
@@ -77,7 +85,7 @@ rpl::producer<LoadedPart> LoaderLocal::parts() const {
 }
 
 void LoaderLocal::attachDownloader(
-		Storage::StreamedFileDownloader *downloader) {
+		not_null<Storage::StreamedFileDownloader*> downloader) {
 	Unexpected("Downloader attached to a local streaming loader.");
 }
 

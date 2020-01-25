@@ -10,9 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "platform/win/windows_dlls.h"
+#include "base/platform/base_platform_file_utilities.h"
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "core/crash_reports.h"
+#include "app.h"
+
+#include <QtWidgets/QFileDialog>
+#include <QtGui/QDesktopServices>
+#include <QtCore/QSettings>
 
 #include <Shlwapi.h>
 #include <Windowsx.h>
@@ -255,16 +261,7 @@ void UnsafeLaunch(const QString &filepath) {
 }
 
 void UnsafeShowInFolder(const QString &filepath) {
-	auto nativePath = QDir::toNativeSeparators(filepath);
-	auto wstringPath = nativePath.toStdWString();
-	if (auto pidl = ILCreateFromPathW(wstringPath.c_str())) {
-		SHOpenFolderAndSelectItems(pidl, 0, nullptr, 0);
-		ILFree(pidl);
-	} else {
-		auto pathEscaped = nativePath.replace('"', qsl("\"\""));
-		auto wstringParam = (qstr("/select,") + pathEscaped).toStdWString();
-		ShellExecute(0, 0, L"explorer", wstringParam.c_str(), 0, SW_SHOWNORMAL);
-	}
+	base::Platform::ShowInFolder(filepath);
 }
 
 void PostprocessDownloaded(const QString &filepath) {
@@ -424,9 +421,9 @@ bool Get(
 		} else {
 			files = dialog.selectedFiles().mid(0, 1);
 		}
-		if (type == Type::ReadFile || type == Type::ReadFiles) {
-			remoteContent = dialog.selectedRemoteContent();
-		}
+		//if (type == Type::ReadFile || type == Type::ReadFiles) {
+		//	remoteContent = dialog.selectedRemoteContent();
+		//}
 		return true;
 	}
 

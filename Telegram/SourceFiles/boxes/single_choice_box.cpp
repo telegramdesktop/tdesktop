@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 SingleChoiceBox::SingleChoiceBox(
 	QWidget*,
@@ -38,7 +39,7 @@ void SingleChoiceBox::prepare() {
 	content->add(object_ptr<Ui::FixedHeightWidget>(
 		content,
 		st::boxOptionListPadding.top() + st::autolockButton.margin.top()));
-	auto &&ints = ranges::view::ints(0);
+	auto &&ints = ranges::view::ints(0, ranges::unreachable);
 	for (const auto &[i, text] : ranges::view::zip(ints, _optionTexts)) {
 		content->add(
 			object_ptr<Ui::Radiobutton>(
@@ -54,7 +55,7 @@ void SingleChoiceBox::prepare() {
 				st::boxOptionListSkip));
 	}
 	group->setChangedCallback([=](int value) {
-		const auto weak = make_weak(this);
+		const auto weak = Ui::MakeWeak(this);
 		_callback(value);
 		if (weak) {
 			closeBox();

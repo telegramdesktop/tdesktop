@@ -14,9 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/common_groups/info_common_groups_widget.h"
 //#include "info/feed/info_feed_profile_widget.h" // #feed
 #include "info/settings/info_settings_widget.h"
+#include "info/polls/info_polls_results_widget.h"
 #include "info/info_section_widget.h"
 #include "info/info_layer_widget.h"
 #include "info/info_controller.h"
+#include "ui/ui_utility.h"
 #include "boxes/peer_list_box.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -39,6 +41,10 @@ Memento::Memento(PeerId peerId, Section section)
 //
 Memento::Memento(Settings::Tag settings, Section section)
 : Memento(DefaultStack(settings, section)) {
+}
+
+Memento::Memento(not_null<PollData*> poll, FullMsgId contextId)
+: Memento(DefaultStack(poll, contextId)) {
 }
 
 Memento::Memento(std::vector<std::unique_ptr<ContentMemento>> stack)
@@ -68,6 +74,14 @@ std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
 	result.push_back(std::make_unique<Settings::Memento>(
 		settings.self,
 		section.settingsType()));
+	return result;
+}
+
+std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
+		not_null<PollData*> poll,
+		FullMsgId contextId) {
+	auto result = std::vector<std::unique_ptr<ContentMemento>>();
+	result.push_back(std::make_unique<Polls::Memento>(poll, contextId));
 	return result;
 }
 
@@ -159,10 +173,10 @@ object_ptr<Window::SectionWidget> Memento::createWidget(
 		wrap,
 		this);
 	result->setGeometry(geometry);
-	return std::move(result);
+	return result;
 }
 
-object_ptr<Window::LayerWidget> Memento::createLayer(
+object_ptr<Ui::LayerWidget> Memento::createLayer(
 		not_null<Window::SessionController*> controller,
 		const QRect &geometry) {
 	if (geometry.width() >= LayerWidget::MinimalSupportedWidth()) {
@@ -197,10 +211,10 @@ object_ptr<Window::SectionWidget> MoveMemento::createWidget(
 		wrap,
 		this);
 	result->setGeometry(geometry);
-	return std::move(result);
+	return result;
 }
 
-object_ptr<Window::LayerWidget> MoveMemento::createLayer(
+object_ptr<Ui::LayerWidget> MoveMemento::createLayer(
 		not_null<Window::SessionController*> controller,
 		const QRect &geometry) {
 	if (geometry.width() < LayerWidget::MinimalSupportedWidth()) {

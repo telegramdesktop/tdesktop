@@ -24,8 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mtproto/sender.h"
 #include "observer_peer.h"
-#include "styles/style_boxes.h"
-#include "styles/style_info.h"
 #include "ui/rp_widget.h"
 #include "ui/special_buttons.h"
 #include "ui/toast/toast.h"
@@ -33,10 +31,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/box_content_divider.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/special_fields.h"
 #include "window/window_session_controller.h"
+#include "styles/style_layers.h"
+#include "styles/style_boxes.h"
+#include "styles/style_info.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 #include <rpl/flatten_latest.h>
 
 namespace {
@@ -44,9 +51,7 @@ namespace {
 constexpr auto kUsernameCheckTimeout = crl::time(200);
 constexpr auto kMinUsernameLength = 5;
 
-class Controller
-	: public base::has_weak_ptr
-	, private MTP::Sender {
+class Controller : public base::has_weak_ptr {
 public:
 	Controller(
 		not_null<Ui::VerticalLayout*> container,
@@ -137,6 +142,7 @@ private:
 	QString inviteLinkText();
 
 	not_null<PeerData*> _peer;
+	MTP::Sender _api;
 	std::optional<Privacy> _privacySavedValue;
 	std::optional<QString> _usernameSavedValue;
 
@@ -162,6 +168,7 @@ Controller::Controller(
 	std::optional<Privacy> privacySavedValue,
 	std::optional<QString> usernameSavedValue)
 : _peer(peer)
+, _api(_peer->session().api().instance())
 , _privacySavedValue(privacySavedValue)
 , _usernameSavedValue(usernameSavedValue)
 , _useLocationPhrases(useLocationPhrases)
@@ -185,7 +192,7 @@ void Controller::createContent() {
 
 	fillPrivaciesButtons(_wrap, _privacySavedValue);
 	// Skip.
-	_wrap->add(object_ptr<BoxContentDivider>(_wrap));
+	_wrap->add(object_ptr<Ui::BoxContentDivider>(_wrap));
 	//
 	_wrap->add(createInviteLinkCreate());
 	_wrap->add(createInviteLinkEdit());
@@ -357,7 +364,7 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 	const auto shown = (_controls.privacy->value() == Privacy::HasUsername);
 	result->toggle(shown, anim::type::instant);
 
-	return std::move(result);
+	return result;
 }
 
 void Controller::privacyChanged(Privacy value) {
@@ -394,7 +401,7 @@ void Controller::privacyChanged(Privacy value) {
 		refreshVisibilities();
 		_controls.usernameInput->setDisplayFocused(true);
 	} else {
-		request(base::take(_checkUsernameRequestId)).cancel();
+		_api.request(base::take(_checkUsernameRequestId)).cancel();
 		_checkUsernameTimer.cancel();
 		refreshVisibilities();
 	}
@@ -413,11 +420,11 @@ void Controller::checkUsernameAvailability() {
 		return;
 	}
 	if (_checkUsernameRequestId) {
-		request(_checkUsernameRequestId).cancel();
+		_api.request(_checkUsernameRequestId).cancel();
 	}
 	const auto channel = _peer->migrateToOrMe()->asChannel();
 	const auto username = channel ? channel->username : QString();
-	_checkUsernameRequestId = request(MTPchannels_CheckUsername(
+	_checkUsernameRequestId = _api.request(MTPchannels_CheckUsername(
 		channel ? channel->inputChannel : MTP_inputChannelEmpty(),
 		MTP_string(checking)
 	)).done([=](const MTPBool &result) {
@@ -467,7 +474,7 @@ void Controller::askUsernameRevoke() {
 		Box<RevokePublicLinkBox>(
 			&_peer->session(),
 			std::move(revokeCallback)),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void Controller::usernameChanged() {
@@ -549,7 +556,7 @@ void Controller::exportInviteLink(const QString &confirmation) {
 	auto box = Box<ConfirmBox>(
 		confirmation,
 		std::move(callback));
-	*boxPointer = Ui::show(std::move(box), LayerOption::KeepOther);
+	*boxPointer = Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 }
 
 bool Controller::canEditInviteLink() const {
@@ -607,7 +614,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 	_controls.inviteLink->setContextCopyText(QString());
 	_controls.inviteLink->setBreakEverywhere(true);
 	_controls.inviteLink->setClickHandlerFilter([=](auto&&...) {
-		QApplication::clipboard()->setText(inviteLinkText());
+		QGuiApplication::clipboard()->setText(inviteLinkText());
 		Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
 		return false;
 	});
@@ -623,7 +630,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 
 	observeInviteLink();
 
-	return std::move(result);
+	return result;
 }
 
 void Controller::refreshEditInviteLink() {
@@ -685,7 +692,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkCreate() {
 
 	observeInviteLink();
 
-	return std::move(result);
+	return result;
 }
 
 void Controller::refreshCreateInviteLink() {

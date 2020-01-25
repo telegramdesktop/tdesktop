@@ -7,7 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QLibrary>
+
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+
 extern "C" {
 #undef signals
 #ifdef TDESKTOP_USE_AYATANA_INDICATORS
@@ -255,7 +258,7 @@ inline bool g_type_cit_helper(Object *instance, GType iface_type) {
 	if (ginstance->g_class && ginstance->g_class->g_type == iface_type) {
 		return true;
 	}
-    return g_type_check_instance_is_a(ginstance, iface_type);
+	return g_type_check_instance_is_a(ginstance, iface_type);
 }
 
 typedef gint (*f_gtk_dialog_run)(GtkDialog *dialog);

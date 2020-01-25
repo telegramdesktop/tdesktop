@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
 #include "media/audio/media_audio_track.h"
+#include "facades.h"
 
 namespace Settings {
 
@@ -94,9 +95,6 @@ auto GenerateCodes() {
 			}
 		});
 	});
-	codes.emplace(qsl("edittheme"), [](::Main::Session *session) {
-		Window::Theme::Editor::Start();
-	});
 	codes.emplace(qsl("videoplayer"), [](::Main::Session *session) {
 		auto text = cUseExternalVideoPlayer() ? qsl("Use internal video player?") : qsl("Use external video player?");
 		Ui::show(Box<ConfirmBox>(text, [] {
@@ -158,6 +156,7 @@ auto GenerateCodes() {
 			Ui::show(Box<InformBox>("All sound overrides were reset."));
 		}
 	});
+
 	return codes;
 }
 

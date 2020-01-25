@@ -43,12 +43,14 @@ addons:
       - liblzma-dev
       - libopus-dev
       - libpulse-dev
+      - libenchant-dev
       - libssl-dev
       - libdee-dev
       - libva-dev
       - libvdpau-dev
       - libxcb-xkb-dev
       - libxkbcommon-dev
+      - libatspi2.0-dev
       - lintian
       - quilt
       - valac

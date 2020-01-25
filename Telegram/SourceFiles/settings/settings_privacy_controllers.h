@@ -16,8 +16,7 @@ namespace Settings {
 
 class BlockedBoxController
 	: public PeerListController
-	, private base::Subscriber
-	, private MTP::Sender {
+	, private base::Subscriber {
 public:
 	explicit BlockedBoxController(
 		not_null<Window::SessionController*> window);
@@ -39,6 +38,7 @@ private:
 	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
 
 	const not_null<Window::SessionController*> _window;
+	MTP::Sender _api;
 
 	int _offset = 0;
 	mtpRequestId _loadRequestId = 0;
@@ -61,6 +61,18 @@ public:
 		Exception exception) override;
 	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
 	rpl::producer<QString> exceptionsDescription() override;
+
+	object_ptr<Ui::RpWidget> setupMiddleWidget(
+		not_null<Window::SessionController*> controller,
+		not_null<QWidget*> parent,
+		rpl::producer<Option> optionValue) override;
+
+	void saveAdditional() override;
+
+private:
+	rpl::variable<Option> _phoneNumberOption = { Option::Contacts };
+	rpl::variable<Option> _addedByPhone = { Option::Everyone };
+	Fn<void()> _saveAdditional;
 
 };
 

@@ -34,8 +34,8 @@ public:
 	void select();
 	void unselect();
 
-	int unreadCount() const;
-	void setUnreadCount(int unreadCount);
+	UnreadState unreadCount() const;
+	void setUnreadCount(UnreadState unreadCount);
 
 signals:
 
@@ -49,7 +49,7 @@ protected:
 private:
 	EntryTypes _type;
 	bool _selected = false;
-	int _unreadCount = 0;
+	UnreadState _unreadCount;
 	base::unique_qptr<Ui::PopupMenu> _menu = nullptr;
 };
 

@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/confirm_phone_box.h"
 
-#include "styles/style_boxes.h"
 #include "boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -15,10 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "core/click_handler_types.h" // UrlClickHandler
 #include "base/qthelp_url.h" // qthelp::url_encode
-#include "platform/platform_info.h" // Platform::SystemVersionPretty
+#include "base/platform/base_platform_info.h"
 #include "mainwidget.h"
 #include "numbers.h"
+#include "app.h"
 #include "lang/lang_keys.h"
+#include "mtproto/facade.h"
+#include "styles/style_layers.h"
+#include "styles/style_boxes.h"
 
 namespace {
 
@@ -53,7 +56,7 @@ Locale: ") + Platform::SystemLanguage();
 } // namespace
 
 void ShowPhoneBannedError(const QString &phone) {
-	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto close = [=] {
 		if (*box) {
 			(*box)->closeBox();

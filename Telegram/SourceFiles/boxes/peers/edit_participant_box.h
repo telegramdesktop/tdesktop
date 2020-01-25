@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/unique_qptr.h"
 
+class RPCError;
+
 namespace Ui {
 class FlatLabel;
 class LinkButton;
@@ -27,7 +29,7 @@ struct CloudPasswordResult;
 class CalendarBox;
 class PasscodeBox;
 
-class EditParticipantBox : public BoxContent {
+class EditParticipantBox : public Ui::BoxContent {
 public:
 	EditParticipantBox(
 		QWidget*,

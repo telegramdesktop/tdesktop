@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/localstorage.h"
 #include "platform/platform_window_title.h"
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 #include "history/history.h"
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
@@ -24,15 +24,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "base/crc32hash.h"
+#include "base/call_delayed.h"
+#include "ui/toast/toast.h"
+#include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_window.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
+
+#include <QtWidgets/QDesktopWidget>
+#include <QtCore/QMimeData>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QWindow>
+#include <QtGui/QScreen>
+#include <QtGui/QDrag>
 
 namespace Window {
 namespace {
 
-constexpr auto kInactivePressTimeout = crl::time(200);
 constexpr auto kSaveWindowPositionTimeout = crl::time(1000);
 
 } // namespace
@@ -135,6 +147,8 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 		checkLockByTerms();
 	}, lifetime());
 
+	Ui::Toast::SetDefaultParent(_body.data());
+
 	if (_outdated) {
 		_outdated->heightValue(
 		) | rpl::filter([=] {
@@ -148,7 +162,6 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 	}
 
 	_isActiveTimer.setCallback([this] { updateIsActive(0); });
-	_inactivePressTimer.setCallback([this] { setInactivePress(false); });
 }
 
 Main::Account &MainWindow::account() const {
@@ -208,7 +221,7 @@ void MainWindow::showTermsDecline() {
 			tr::lng_terms_decline_and_delete(),
 			tr::lng_terms_back(),
 			true),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 
 	box->agreeClicks(
 	) | rpl::start_with_next([=] {
@@ -227,7 +240,7 @@ void MainWindow::showTermsDecline() {
 }
 
 void MainWindow::showTermsDelete() {
-	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto deleteByTerms = [=] {
 		if (account().sessionExists()) {
 			account().session().termsDeleteNow();
@@ -242,7 +255,7 @@ void MainWindow::showTermsDelete() {
 			st::attentionBoxButton,
 			deleteByTerms,
 			[=] { if (*box) (*box)->closeBox(); }),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 bool MainWindow::hideNoQuit() {
@@ -265,7 +278,6 @@ bool MainWindow::hideNoQuit() {
 }
 
 void MainWindow::clearWidgets() {
-	Ui::hideLayer(anim::type::instant);
 	clearWidgetsHook();
 	updateGlobalMenu();
 }
@@ -337,7 +349,7 @@ void MainWindow::handleActiveChanged() {
 	if (isActiveWindow()) {
 		Core::App().checkMediaViewActivation();
 	}
-	App::CallDelayed(1, this, [this] {
+	base::call_delayed(1, this, [this] {
 		updateTrayMenu();
 		handleActiveChangedHook();
 	});
@@ -437,8 +449,8 @@ void MainWindow::setTitleVisible(bool visible) {
 }
 
 int32 MainWindow::screenNameChecksum(const QString &name) const {
-	auto bytes = name.toUtf8();
-	return hashCrc32(bytes.constData(), bytes.size());
+	const auto bytes = name.toUtf8();
+	return base::crc32(bytes.constData(), bytes.size());
 }
 
 void MainWindow::setPositionInited() {
@@ -579,13 +591,13 @@ void MainWindow::reActivateWindow() {
 		}
 	};
 	crl::on_main(this, reActivate);
-	App::CallDelayed(200, this, reActivate);
+	base::call_delayed(200, this, reActivate);
 #endif // Q_OS_LINUX32 || Q_OS_LINUX64
 }
 
 void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
-	auto wasWidth = width();
-	auto wasRightWidth = _rightColumn ? _rightColumn->width() : 0;
+	const auto wasWidth = width();
+	const auto wasRightWidth = _rightColumn ? _rightColumn->width() : 0;
 	_rightColumn = std::move(widget);
 	if (_rightColumn) {
 		_rightColumn->setParent(this);
@@ -594,12 +606,21 @@ void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 	} else if (App::wnd()) {
 		App::wnd()->setInnerFocus();
 	}
-	auto nowRightWidth = _rightColumn ? _rightColumn->width() : 0;
-	setMinimumWidth(st::windowMinWidth + nowRightWidth);
+	const auto nowRightWidth = _rightColumn ? _rightColumn->width() : 0;
+	const auto wasMaximized = isMaximized();
+	const auto wasMinimumWidth = minimumWidth();
+	const auto nowMinimumWidth = st::windowMinWidth + nowRightWidth;
+	const auto firstResize = (nowMinimumWidth < wasMinimumWidth);
+	if (firstResize) {
+		setMinimumWidth(nowMinimumWidth);
+	}
 	if (!isMaximized()) {
 		tryToExtendWidthBy(wasWidth + nowRightWidth - wasRightWidth - width());
 	} else {
 		updateControlsGeometry();
+	}
+	if (!firstResize) {
+		setMinimumWidth(nowMinimumWidth);
 	}
 }
 
@@ -647,18 +668,6 @@ void MainWindow::launchDrag(std::unique_ptr<QMimeData> data) {
 	}
 }
 
-void MainWindow::setInactivePress(bool inactive) {
-	_wasInactivePress = inactive;
-	if (_wasInactivePress) {
-		_inactivePressTimer.callOnce(kInactivePressTimeout);
-	} else {
-		_inactivePressTimer.cancel();
-	}
-}
-
-MainWindow::~MainWindow() {
-	// We want to delete all widgets before the _controller.
-	_body.destroy();
-}
+MainWindow::~MainWindow() = default;
 
 } // namespace Window

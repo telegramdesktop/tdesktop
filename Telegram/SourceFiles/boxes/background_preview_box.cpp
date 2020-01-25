@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/ui_utility.h"
 #include "history/history.h"
 #include "history/history_message.h"
 #include "history/view/history_view_message.h"
@@ -24,8 +25,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/confirm_box.h"
 #include "boxes/background_preview_box.h"
+#include "app.h"
 #include "styles/style_history.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
+
+#include <QtGui/QClipboard>
+#include <QtGui/QGuiApplication>
 
 namespace {
 
@@ -221,7 +227,7 @@ void ServiceCheck::Generator::invalidate() {
 
 ServiceCheck::Generator &ServiceCheck::Frames() {
 	static const auto Instance = Ui::CreateChild<Generator>(
-		QApplication::instance());
+		QCoreApplication::instance());
 	return *Instance;
 }
 
@@ -284,7 +290,7 @@ AdminLog::OwnedItem GenerateTextItem(
 	const auto flags = Flag::f_entities
 		| Flag::f_from_id
 		| (out ? Flag::f_out : Flag(0));
-	const auto clientFlags = MTPDmessage_ClientFlags();
+	const auto clientFlags = MTPDmessage_ClientFlag::f_fake_history_item;
 	const auto replyTo = 0;
 	const auto viaBotId = 0;
 	const auto item = history->owner().makeMessage(
@@ -498,7 +504,7 @@ void BackgroundPreviewBox::apply() {
 }
 
 void BackgroundPreviewBox::share() {
-	QApplication::clipboard()->setText(_paper.shareUrl());
+	QGuiApplication::clipboard()->setText(_paper.shareUrl());
 	Ui::Toast::Show(tr::lng_background_link_copied(tr::now));
 }
 
@@ -710,6 +716,9 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 		return;
 	}
 	const auto generateCallback = [=](QImage &&image) {
+		if (image.isNull()) {
+			return;
+		}
 		crl::async([
 			this,
 			image = std::move(image),

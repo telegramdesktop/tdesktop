@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_photo.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_gif.h"
-#include "history/view/media/history_view_video.h"
 #include "history/view/media/history_view_document.h"
 #include "history/view/media/history_view_contact.h"
 #include "history/view/media/history_view_location.h"
@@ -23,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_call.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/media/history_view_poll.h"
+#include "history/view/media/history_view_theme_document.h"
 #include "ui/image/image.h"
 #include "ui/image/image_source.h"
 #include "ui/text_options.h"
@@ -36,9 +36,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_poll.h"
 #include "data/data_channel.h"
+#include "data/data_file_origin.h"
 #include "lang/lang_keys.h"
 #include "layout.h"
 #include "storage/file_upload.h"
+#include "app.h"
 
 namespace Data {
 namespace {
@@ -772,12 +774,14 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 		return std::make_unique<HistoryView::UnwrappedMedia>(
 			message,
 			std::make_unique<HistoryView::Sticker>(message, _document));
-	} else if (_document->isAnimation()) {
-		return std::make_unique<HistoryView::Gif>(message, _document);
-	} else if (_document->isVideoFile()) {
-		return std::make_unique<HistoryView::Video>(
+	} else if (_document->isAnimation() || _document->isVideoFile()) {
+		return std::make_unique<HistoryView::Gif>(
 			message,
 			realParent,
+			_document);
+	} else if (_document->isTheme() && _document->hasThumbnail()) {
+		return std::make_unique<HistoryView::ThemeDocument>(
+			message,
 			_document);
 	}
 	return std::make_unique<HistoryView::Document>(message, _document);
@@ -1298,6 +1302,9 @@ TextForMimeData MediaPoll::clipboardText() const {
 }
 
 QString MediaPoll::errorTextForForward(not_null<PeerData*> peer) const {
+	if (_poll->publicVotes() && peer->isChannel() && !peer->isMegagroup()) {
+		return tr::lng_restricted_send_public_polls(tr::now);
+	}
 	return Data::RestrictionError(
 		peer,
 		ChatRestriction::f_send_polls

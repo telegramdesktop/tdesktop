@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "base/timer.h"
+#include "base/object_ptr.h"
 #include "chat_helpers/stickers.h"
 
 namespace Ui {
@@ -32,6 +33,7 @@ struct StickerSuggestion {
 	std::unique_ptr<Lottie::SinglePlayer> animated;
 };
 
+using AdminRows = QList<ChannelData*>;
 using MentionRows = QList<UserData*>;
 using HashtagRows = QList<QString>;
 using BotCommandRows = QList<QPair<UserData*, const BotCommand*>>;
@@ -86,6 +88,7 @@ public:
 	void hideFast();
 
 signals:
+	void adminChosen(FieldAutocomplete::ChooseMethod method) const;
 	void mentionChosen(UserData *user, FieldAutocomplete::ChooseMethod method) const;
 	void hashtagChosen(QString hashtag, FieldAutocomplete::ChooseMethod method) const;
 	void botCommandChosen(QString command, FieldAutocomplete::ChooseMethod method) const;
@@ -110,12 +113,14 @@ private:
 
 	const not_null<Main::Session*> _session;
 	QPixmap _cache;
+	internal::AdminRows _arows;
 	internal::MentionRows _mrows;
 	internal::HashtagRows _hrows;
 	internal::BotCommandRows _brows;
 	internal::StickerRows _srows;
 
 	void rowsUpdated(
+		internal::AdminRows &&arows,
 		internal::MentionRows &&mrows,
 		internal::HashtagRows &&hrows,
 		internal::BotCommandRows &&brows,
@@ -160,6 +165,7 @@ class FieldAutocompleteInner final
 public:
 	FieldAutocompleteInner(
 		not_null<FieldAutocomplete*> parent,
+		not_null<AdminRows*> arows,
 		not_null<MentionRows*> mrows,
 		not_null<HashtagRows*> hrows,
 		not_null<BotCommandRows*> brows,
@@ -173,6 +179,7 @@ public:
 	void rowsUpdated();
 
 signals:
+	void adminChosen(FieldAutocomplete::ChooseMethod method) const;
 	void mentionChosen(UserData *user, FieldAutocomplete::ChooseMethod method) const;
 	void hashtagChosen(QString hashtag, FieldAutocomplete::ChooseMethod method) const;
 	void botCommandChosen(QString command, FieldAutocomplete::ChooseMethod method) const;
@@ -204,6 +211,7 @@ private:
 	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
 
 	not_null<FieldAutocomplete*> _parent;
+	not_null<AdminRows*> _arows;
 	not_null<MentionRows*> _mrows;
 	not_null<HashtagRows*> _hrows;
 	not_null<BotCommandRows*> _brows;

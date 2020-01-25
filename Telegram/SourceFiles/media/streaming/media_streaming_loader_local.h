@@ -26,14 +26,17 @@ public:
 
 	void load(int offset) override;
 	void cancel(int offset) override;
-	void increasePriority() override;
+	void resetPriorities() override;
+	void setPriority(int priority) override;
 	void stop() override;
+
+	void tryRemoveFromQueue() override;
 
 	// Parts will be sent from the main thread.
 	[[nodiscard]] rpl::producer<LoadedPart> parts() const override;
 
 	void attachDownloader(
-		Storage::StreamedFileDownloader *downloader) override;
+		not_null<Storage::StreamedFileDownloader*> downloader) override;
 	void clearAttachedDownloader() override;
 
 private:

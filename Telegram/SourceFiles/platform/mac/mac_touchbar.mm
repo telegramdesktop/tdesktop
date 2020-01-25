@@ -22,14 +22,14 @@
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "dialogs/dialogs_layout.h"
-#include "emoji_config.h"
+#include "ui/emoji_config.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "observer_peer.h"
-#include "platform/mac/mac_utilities.h"
-#include "stickers.h"
+#include "base/platform/mac/base_utilities_mac.h"
+#include "chat_helpers/stickers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_media_player.h"
 #include "styles/style_settings.h"
@@ -37,6 +37,8 @@
 #include "window/window_session_controller.h"
 #include "ui/empty_userpic.h"
 #include "ui/widgets/input_fields.h"
+#include "facades.h"
+#include "app.h"
 
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
@@ -71,6 +73,17 @@ constexpr auto kSavedMessagesId = 0;
 constexpr auto kArchiveId = -1;
 
 constexpr auto kMaxStickerSets = 5;
+
+constexpr auto kGestureStateProcessed = {
+	NSGestureRecognizerStateChanged,
+	NSGestureRecognizerStateBegan,
+};
+
+constexpr auto kGestureStateFinished = {
+	NSGestureRecognizerStateEnded,
+	NSGestureRecognizerStateCancelled,
+	NSGestureRecognizerStateFailed,
+};
 
 NSString *const kTypePinned = @"pinned";
 NSString *const kTypeSlider = @"slider";
@@ -374,13 +387,15 @@ void AppendFavedStickers(std::vector<PickerScrubberItem> &to) {
 
 void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	for (auto i = 0; i != ChatHelpers::kEmojiSectionCount; ++i) {
-		const auto section = Ui::Emoji::GetSection(
-			static_cast<Ui::Emoji::Section>(i));
-		const auto title = i
-			? Ui::Emoji::CategoryTitle(i)(tr::now)
-			: TitleRecentlyUsed();
+		const auto section = static_cast<Ui::Emoji::Section>(i);
+		const auto list = (section == Ui::Emoji::Section::Recent)
+			? GetRecentEmojiSection()
+			: Ui::Emoji::GetSection(section);
+		const auto title = (section == Ui::Emoji::Section::Recent)
+			? TitleRecentlyUsed()
+			: ChatHelpers::EmojiCategoryTitle(i)(tr::now);
 		to.emplace_back(title);
-		for (const auto &emoji : section) {
+		for (const auto &emoji : list) {
 			to.emplace_back(PickerScrubberItem(emoji));
 		}
 	}
@@ -498,28 +513,19 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	button.action = @selector(buttonActionPin:);
 	self.view = button;
 
-	using Update = const Window::Theme::BackgroundUpdate;
-	auto themeChanged = base::ObservableViewer(
+	base::ObservableViewer(
 		*Window::Theme::Background()
-	) | rpl::start_spawning(_lifetime);
-
-	rpl::duplicate(
-		themeChanged
-	) | rpl::filter([=](const Update &update) {
-		return update.paletteChanged()
-			&& (_number <= kSavedMessagesId || UseEmptyUserpic(_peer));
+	) | rpl::filter([](const Window::Theme::BackgroundUpdate &update) {
+		return update.paletteChanged();
 	}) | rpl::start_with_next([=] {
-		[self updateUserpic];
-	}, _lifetime);
-
-	std::move(
-		themeChanged
-	) | rpl::filter([=](const Update &update) {
-		return (update.type == Update::Type::ApplyingTheme)
-			&& (_peer != nullptr)
-			&& (UnreadCount(_peer) || Data::IsPeerAnOnlineUser(_peer));
-	}) | rpl::start_with_next([=] {
-		[self updateBadge];
+		crl::on_main([=] {
+			if (_number <= kSavedMessagesId || UseEmptyUserpic(_peer)) {
+				[self updateUserpic];
+			} else if (_peer
+				&& (UnreadCount(_peer) || Data::IsPeerAnOnlineUser(_peer))) {
+				[self updateBadge];
+			}
+		});
 	}, _lifetime);
 
 	if (num <= kSavedMessagesId) {
@@ -613,9 +619,8 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		return;
 	}
 	isWaitingUserpicLoad = !self.peer->userpicLoaded();
-	auto pixmap = self.peer->genUserpic(kIdealIconSize);
-	pixmap.setDevicePixelRatio(cRetinaFactor());
-	_userpic = pixmap;
+	_userpic = self.peer->genUserpic(kIdealIconSize);
+	_userpic.setDevicePixelRatio(cRetinaFactor());
 	[self updateBadge];
 }
 
@@ -647,9 +652,11 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 @end // @interface PickerScrubberItemView
 @implementation PickerScrubberItemView {
 	rpl::lifetime _lifetime;
-	Data::FileOrigin _origin;
 	QSize _dimensions;
 	Image *_image;
+	@public
+	Data::FileOrigin fileOrigin;
+	DocumentData *documentData;
 }
 
 - (instancetype)initWithFrame:(NSRect)frameRect {
@@ -673,9 +680,10 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	if (!_image) {
 		return;
 	}
+	fileOrigin = document->stickerSetOrigin();
+	documentData = std::move(document);
 	_dimensions = document->dimensions;
-	_origin = document->stickerSetOrigin();
-	_image->load(_origin);
+	_image->load(fileOrigin);
 	if (_image->loaded()) {
 		[self updateImage];
 		return;
@@ -695,7 +703,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			.scaled(kCircleDiameter, kCircleDiameter, Qt::KeepAspectRatio);
 	_imageView.image = [qt_mac_create_nsimage(
 			_image->pixSingle(
-				_origin,
+				fileOrigin,
 				size.width(),
 				size.height(),
 				kCircleDiameter,
@@ -717,9 +725,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 @implementation PickerCustomTouchBarItem {
 	std::vector<PickerScrubberItem> _stickers;
 	NSPopoverTouchBarItem *_parentPopover;
-	std::unique_ptr<base::Timer> _previewTimer;
-	int _highlightedIndex;
-	bool _previewShown;
+	DocumentId _lastPreviewedSticker;
 }
 
 - (id) init:(ScrubberItemType)type popover:(NSPopoverTouchBarItem *)popover {
@@ -745,16 +751,63 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	[scrubber registerClass:[NSScrubberTextItemView class] forItemIdentifier:kPickerTitleItemIdentifier];
 	[scrubber registerClass:[NSScrubberImageItemView class] forItemIdentifier:kEmojiItemIdentifier];
 
-	_previewShown = false;
-	_highlightedIndex = 0;
-	_previewTimer = !IsSticker(type)
-		? nullptr
-		: std::make_unique<base::Timer>([=] {
-			[self showPreview];
-		});
+	if (IsSticker(type)) {
+		auto *gesture = [[NSPressGestureRecognizer alloc]
+			initWithTarget:self
+			action:@selector(gesturePreviewHandler:)];
+		gesture.allowedTouchTypes = NSTouchTypeMaskDirect;
+		gesture.minimumPressDuration = QApplication::startDragTime() / 1000.;
+		gesture.allowableMovement = 0;
+		[scrubber addGestureRecognizer:gesture];
+	}
+	_lastPreviewedSticker = 0;
 
 	self.view = scrubber;
 	return self;
+}
+
+- (void)gesturePreviewHandler:(NSPressGestureRecognizer *)gesture {
+	const auto customEnter = [](const auto callback) {
+		Core::Sandbox::Instance().customEnterFromEventLoop([=] {
+			if (App::wnd()) {
+				callback();
+			}
+		});
+	};
+
+	const auto checkState = [&](const auto &states) {
+		return ranges::find(states, gesture.state) != end(states);
+	};
+
+	if (checkState(kGestureStateProcessed)) {
+		NSScrollView *scrollView = self.view;
+		auto *container = scrollView.documentView.subviews.firstObject;
+		if (!container) {
+			return;
+		}
+		const auto point = [gesture locationInView:(std::move(container))];
+
+		for (PickerScrubberItemView *item in container.subviews) {
+			const auto &doc = item->documentData;
+			const auto &origin = item->fileOrigin
+				? item->fileOrigin
+				: Data::FileOrigin();
+			if (![item isMemberOfClass:[PickerScrubberItemView class]]
+				|| !doc
+				|| (doc->id == _lastPreviewedSticker)
+				|| !NSPointInRect(point, item.frame)) {
+				continue;
+			}
+			_lastPreviewedSticker = doc->id;
+			customEnter([origin = std::move(origin), doc = std::move(doc)] {
+				App::wnd()->showMediaPreview(origin, doc);
+			});
+			break;
+		}
+	} else if (checkState(kGestureStateFinished)) {
+		customEnter([] { App::wnd()->hideMediaPreview(); });
+		_lastPreviewedSticker = 0;
+	}
 }
 
 - (void)encodeWithCoder:(nonnull NSCoder *)aCoder {
@@ -771,7 +824,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	const auto item = _stickers[index];
 	if (const auto document = item.document) {
 		PickerScrubberItemView *itemView = [scrubber makeItemWithIdentifier:kStickerItemIdentifier owner:nil];
-		[itemView addDocument:document];
+		[itemView addDocument:(std::move(document))];
 		return itemView;
 	} else if (const auto emoji = item.emoji) {
 		NSScrubberImageItemView *itemView = [scrubber makeItemWithIdentifier:kEmojiItemIdentifier owner:nil];
@@ -797,12 +850,6 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		return;
 	}
 	scrubber.selectedIndex = -1;
-	if (_previewShown && [self hidePreview]) {
-		return;
-	}
-	if (_previewTimer) {
-		_previewTimer->cancel();
-	}
 	const auto chat = GetActiveChat();
 
 	const auto callback = [&]() -> bool {
@@ -810,13 +857,15 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 			if (const auto error = RestrictionToSendStickers()) {
 				Ui::show(Box<InformBox>(*error));
 			}
-			Api::SendExistingDocument(chat.history(), document);
+			Api::SendExistingDocument(
+				Api::MessageToSend(chat.history()),
+				document);
 			return true;
 		} else if (const auto emoji = _stickers[index].emoji) {
 			if (const auto inputField = qobject_cast<QTextEdit*>(
 					QApplication::focusWidget())) {
 				Ui::InsertEmojiAtCursor(inputField->textCursor(), emoji);
-				Ui::Emoji::AddRecent(emoji);
+				AddRecentEmoji(emoji);
 				return true;
 			}
 		}
@@ -830,47 +879,6 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	if (_parentPopover) {
 		[_parentPopover dismissPopover:nil];
 	}
-}
-
-- (void)scrubber:(NSScrubber *)scrubber didHighlightItemAtIndex:(NSInteger)index {
-	if (_previewTimer) {
-		_previewTimer->callOnce(QApplication::startDragTime());
-		_highlightedIndex = index;
-	}
-}
-
-- (void)scrubber:(NSScrubber *)scrubber didChangeVisibleRange:(NSRange)visibleRange {
-	[self didCancelInteractingWithScrubber:scrubber];
-}
-
-- (void)didCancelInteractingWithScrubber:(NSScrubber *)scrubber {
-	if (_previewTimer) {
-		_previewTimer->cancel();
-	}
-	if (_previewShown) {
-		[self hidePreview];
-	}
-}
-
-- (void)showPreview {
-	if (const auto document = _stickers[_highlightedIndex].document) {
-		if (const auto w = App::wnd()) {
-			w->showMediaPreview(document->stickerSetOrigin(), document);
-			_previewShown = true;
-		}
-	}
-}
-
-- (bool)hidePreview {
-	if (const auto w = App::wnd()) {
-		Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-			w->hideMediaPreview();
-		});
-		_previewShown = false;
-		_highlightedIndex = 0;
-		return true;
-	}
-	return false;
 }
 
 - (void)updateStickers {
@@ -1069,7 +1077,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 	}, _lifetime);
 
 	rpl::merge(
-		Ui::Emoji::UpdatedRecent(),
+		UpdatedRecentEmoji(),
 		Ui::Emoji::Updated()
 	) | rpl::start_with_next([=] {
 		[self updatePickerPopover:ScrubberItemType::Emoji];
@@ -1155,7 +1163,7 @@ void AppendEmojiPacks(std::vector<PickerScrubberItem> &to) {
 		return item;
 	} else if (isType(kTypeScrubber)) {
 		const auto isSticker = ([dictionaryItem[@"cmd"] intValue]
-		 	== kCommandScrubberStickers);
+			== kCommandScrubberStickers);
 		const auto type = isSticker
 			? ScrubberItemType::Sticker
 			: ScrubberItemType::Emoji;

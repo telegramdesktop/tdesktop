@@ -11,6 +11,7 @@ https://git.io/TD
 #include "storage/localstorage.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
 TypingBox::TypingBox(QWidget *parent)

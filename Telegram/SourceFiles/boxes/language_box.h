@@ -16,7 +16,7 @@ class MultiSelect;
 struct ScrollToRequest;
 } // namespace Ui
 
-class LanguageBox : public BoxContent {
+class LanguageBox : public Ui::BoxContent {
 public:
 	LanguageBox(QWidget*) {
 	}

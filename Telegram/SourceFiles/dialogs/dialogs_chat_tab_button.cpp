@@ -48,11 +48,11 @@ void ChatTabButton::unselect() {
 	setSelected(false);
 }
 
-int ChatTabButton::unreadCount() const {
+UnreadState ChatTabButton::unreadCount() const {
 	return _unreadCount;
 }
 
-void ChatTabButton::setUnreadCount(int unreadCount) {
+void ChatTabButton::setUnreadCount(UnreadState unreadCount) {
 	if (_unreadCount != unreadCount) {
 		_unreadCount = unreadCount;
 
@@ -77,29 +77,36 @@ void ChatTabButton::leaveEventHook(QEvent *e) {
 void ChatTabButton::paintEvent(QPaintEvent *event) {
 	Ui::IconButton::paintEvent(event);
 
-	if (_unreadCount <= 0) {
+	if (_unreadCount.messages <= 0) {
 		return;
 	}
 
 	Painter painter(this);
 
-	QString counter = QString::number(_unreadCount);
-	if (counter.size() > 4) {
-		counter = qsl("..") + counter.mid(counter.size() - 3);
-	}
-
 	::Dialogs::Layout::UnreadBadgeStyle st;
 	st.active = false;
-	st.muted = false;
+	int count;
 
-	// place the badge at horizontal center
-	int unreadRight = (width() + std::max(st.size, st.font->width(counter) + 2 * st.padding)) / 2;
+	if (_unreadCount.chats == _unreadCount.chatsMuted) {
+		st.muted = true;
+		count = _unreadCount.chats;
+	} else {
+		st.muted = false;
+		count = _unreadCount.chats - _unreadCount.chatsMuted;
+	}
+
+	QString counter = QString::number(count);
+	if (counter.size() > 3) {
+		counter = qsl("MAX");
+	}
+
+	int unreadRight = width() * 0.8;
 
 	// keep the bottom padding for the badge as the top padding for the button icon
 	int unreadTop = height() - st.size - style().iconPosition.y();
 	int unreadWidth = 0;
 
-	::Dialogs::Layout::paintUnreadCount(painter, counter, unreadRight, unreadTop, st, &unreadWidth);
+	Layout::paintUnreadCount(painter, counter, unreadRight, unreadTop, st, &unreadWidth);
 }
 
 void ChatTabButton::contextMenuEvent(QContextMenuEvent *e) {

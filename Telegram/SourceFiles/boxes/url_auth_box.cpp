@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "app.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
 void UrlAuthBox::Activate(
@@ -84,7 +86,7 @@ void UrlAuthBox::Request(
 	const auto bot = request.is_request_write_access()
 		? session->data().processUser(request.vbot()).get()
 		: nullptr;
-	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto finishWithUrl = [=](const QString &url) {
 		if (*box) {
 			(*box)->closeBox();
@@ -121,7 +123,7 @@ void UrlAuthBox::Request(
 	};
 	*box = Ui::show(
 		Box<UrlAuthBox>(session, url, qs(request.vdomain()), bot, callback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 UrlAuthBox::UrlAuthBox(
@@ -165,7 +167,7 @@ not_null<Ui::RpWidget*> UrlAuthBox::setupContent(
 				st::boxPadding.bottom(),
 				st::boxPadding.right(),
 				st::boxPadding.bottom()));
-		checkbox->setAllowMultiline(true);
+		checkbox->setAllowTextLines();
 		checkbox->setText(text, true);
 		return checkbox;
 	};
@@ -176,7 +178,7 @@ not_null<Ui::RpWidget*> UrlAuthBox::setupContent(
 			textcmdStartSemibold() + domain + textcmdStopSemibold(),
 			lt_user,
 			(textcmdStartSemibold()
-				+ App::peerName(session->user())
+				+ session->user()->name
 				+ textcmdStopSemibold())));
 	const auto allow = bot
 		? addCheckbox(tr::lng_url_auth_allow_messages(

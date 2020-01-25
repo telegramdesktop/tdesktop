@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/box_content_divider.h"
 #include "ui/text/text_entity.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
@@ -27,10 +28,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_passport.h"
 #include "styles/style_chat_helpers.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
 
 namespace {
 
@@ -331,8 +336,8 @@ void Rows::mousePressEvent(QMouseEvent *e) {
 QRect Rows::menuToggleArea() const {
 	const auto size = st::topBarSearch.width;
 	const auto top = (DefaultRowHeight() - size) / 2;
-	const auto skip = st::boxLayerScroll.width
-		- st::boxLayerScroll.deltax
+	const auto skip = st::boxScroll.width
+		- st::boxScroll.deltax
 		+ top;
 	const auto left = width() - skip - size;
 	return QRect(left, top, size, size);
@@ -408,7 +413,7 @@ bool Rows::hasMenu(not_null<const Row*> row) const {
 
 void Rows::share(not_null<const Row*> row) const {
 	const auto link = qsl("https://t.me/setlanguage/") + row->data.id;
-	QApplication::clipboard()->setText(link);
+	QGuiApplication::clipboard()->setText(link);
 	Ui::Toast::Show(tr::lng_username_copied(tr::now));
 }
 
@@ -893,9 +898,9 @@ void Content::setupContent(
 	};
 	const auto main = add(recent, false);
 	const auto divider = content->add(
-		object_ptr<Ui::SlideWrap<BoxContentDivider>>(
+		object_ptr<Ui::SlideWrap<Ui::BoxContentDivider>>(
 			content,
-			object_ptr<BoxContentDivider>(content)));
+			object_ptr<Ui::BoxContentDivider>(content)));
 	const auto other = add(official, true);
 	Ui::ResizeFitChild(this, content);
 
@@ -1067,7 +1072,7 @@ void LanguageBox::prepare() {
 	const auto [recent, official] = PrepareLists();
 	const auto inner = setInnerWidget(
 		object_ptr<Content>(this, recent, official),
-		st::boxLayerScroll,
+		st::boxScroll,
 		select->height());
 	inner->resizeToWidth(st::boxWidth);
 

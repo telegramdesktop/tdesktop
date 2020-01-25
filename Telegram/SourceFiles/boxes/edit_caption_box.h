@@ -10,7 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/wrap/slide_wrap.h"
-#include <rpl/event_stream.h>
+#include "media/clip/media_clip_reader.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 namespace ChatHelpers {
 class TabbedPanel;
@@ -35,7 +36,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
-class EditCaptionBox : public BoxContent, public RPCSender {
+class EditCaptionBox
+	: public Ui::BoxContent
+	, public RPCSender
+	, private base::Subscriber {
 public:
 	EditCaptionBox(
 		QWidget*,
@@ -57,7 +61,7 @@ private:
 
 	void setupEmojiPanel();
 	void updateEmojiPanelGeometry();
-	bool emojiFilter(not_null<QEvent*> event);
+	void emojiFilterForGeometry(not_null<QEvent*> event);
 
 	void save();
 	void captionResized();

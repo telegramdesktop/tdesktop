@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-using "basic.style";
+using "ui/basic.style";
 
 using "ui/widgets/widgets.style";
 using "boxes/boxes.style";
@@ -123,7 +123,7 @@ passportRowTitleFg: windowFg;
 passportRowDescriptionFg: windowSubTextFg;
 
 passportScansHeaderPadding: margins(22px, 10px, 22px, 10px);
-passportUploadButton: InfoProfileButton {
+passportUploadButton: SettingsButton {
 	textFg: windowActiveTextFg;
 	textFgOver: windowActiveTextFg;
 	textBg: windowBg;
@@ -140,7 +140,7 @@ passportUploadButtonPadding: margins(0px, 10px, 0px, 10px);
 passportUploadHeaderPadding: margins(22px, 14px, 22px, 3px);
 passportUploadErrorPadding: margins(22px, 5px, 22px, 5px);
 passportValueErrorPadding: passportUploadHeaderPadding;
-passportDeleteButton: InfoProfileButton(passportUploadButton) {
+passportDeleteButton: SettingsButton(passportUploadButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }

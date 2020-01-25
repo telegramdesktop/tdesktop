@@ -9,11 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/export_settings.h"
 #include "ui/rp_widget.h"
+#include "base/object_ptr.h"
 
 namespace Ui {
 class VerticalLayout;
 class Checkbox;
 class ScrollArea;
+class BoxContent;
 } // namespace Ui
 
 namespace Export {
@@ -31,7 +33,7 @@ public:
 	rpl::producer<> startClicks() const;
 	rpl::producer<> cancelClicks() const;
 
-	void setShowBoxCallback(Fn<void(object_ptr<BoxContent>)> callback) {
+	void setShowBoxCallback(Fn<void(object_ptr<Ui::BoxContent>)> callback) {
 		_showBoxCallback = std::move(callback);
 	}
 
@@ -63,7 +65,7 @@ private:
 		const QString &text,
 		Types types,
 		const QString &about);
- 	void addChatOption(
+	void addChatOption(
 		not_null<Ui::VerticalLayout*> container,
 		const QString &text,
 		Types types);
@@ -94,7 +96,7 @@ private:
 	void changeData(Callback &&callback);
 
 	PeerId _singlePeerId = 0;
-	Fn<void(object_ptr<BoxContent>)> _showBoxCallback;
+	Fn<void(object_ptr<Ui::BoxContent>)> _showBoxCallback;
 
 	// Use through readData / changeData wrappers.
 	Settings _internal_data;

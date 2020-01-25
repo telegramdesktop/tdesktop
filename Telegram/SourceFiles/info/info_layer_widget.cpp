@@ -17,9 +17,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/main_window.h"
 #include "main/main_session.h"
+#include "boxes/abstract_box.h"
+#include "app.h"
 #include "styles/style_info.h"
 #include "styles/style_window.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace Info {
 

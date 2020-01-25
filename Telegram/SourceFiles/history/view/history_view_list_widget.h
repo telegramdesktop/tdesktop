@@ -46,6 +46,7 @@ struct SelectedItem {
 	FullMsgId msgId;
 	bool canDelete = false;
 	bool canForward = false;
+	bool canSendNow = false;
 
 };
 
@@ -62,6 +63,7 @@ public:
 		int limitBefore,
 		int limitAfter) = 0;
 	virtual bool listAllowsMultiSelect() = 0;
+	virtual bool listIsItemGoodForSelection(not_null<HistoryItem*> item) = 0;
 	virtual bool listIsLessInOrder(
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) = 0;
@@ -77,6 +79,7 @@ public:
 struct SelectionData {
 	bool canDelete = false;
 	bool canForward = false;
+	bool canSendNow = false;
 
 };
 
@@ -92,7 +95,8 @@ public:
 		int shift = 0;
 	};
 
-	explicit ListMemento(Data::MessagePosition position)
+	explicit ListMemento(
+		Data::MessagePosition position = Data::UnreadMessagePosition)
 	: _aroundPosition(position) {
 	}
 	void setAroundPosition(Data::MessagePosition position) {
@@ -174,6 +178,7 @@ public:
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
+	bool tooltipWindowActive() const override;
 
 	// ElementDelegate interface.
 	Context elementContext() override;
@@ -192,6 +197,9 @@ public:
 		int from,
 		int till) override;
 	void elementStartStickerLoop(not_null<const Element*> view) override;
+	void elementShowPollResults(
+		not_null<PollData*> poll,
+		FullMsgId context) override;
 
 	~ListWidget();
 
@@ -337,7 +345,6 @@ private:
 		TextSelection selection);
 	int itemMinimalHeight() const;
 
-	bool isGoodForSelection(not_null<HistoryItem*> item) const;
 	bool isGoodForSelection(
 		SelectedMap &applyTo,
 		not_null<HistoryItem*> item,

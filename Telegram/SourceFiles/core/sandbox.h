@@ -7,6 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "mtproto/mtproto_proxy_data.h"
+
+#include <QtWidgets/QApplication>
+#include <QtNetwork/QLocalServer>
+#include <QtNetwork/QLocalSocket>
+#include <QtCore/QAbstractNativeEventFilter>
+
 namespace Core {
 
 class Launcher;
@@ -43,18 +50,14 @@ public:
 		return callable();
 	}
 
-	void activateWindowDelayed(not_null<QWidget*> widget);
-	void pauseDelayedWindowActivations();
-	void resumeDelayedWindowActivations();
-
 	rpl::producer<> widgetUpdateRequests() const;
 
-	ProxyData sandboxProxy() const;
+	MTP::ProxyData sandboxProxy() const;
 
 	static Sandbox &Instance() {
-		Expects(QApplication::instance() != nullptr);
+		Expects(QCoreApplication::instance() != nullptr);
 
-		return *static_cast<Sandbox*>(QApplication::instance());
+		return *static_cast<Sandbox*>(QCoreApplication::instance());
 	}
 
 	~Sandbox();
@@ -104,9 +107,7 @@ private:
 	int _loopNestingLevel = 0;
 	std::vector<int> _previousLoopNestingLevels;
 	std::vector<PostponedCall> _postponedCalls;
-
-	QPointer<QWidget> _windowForDelayedActivation;
-	bool _delayedActivationsPaused = false;
+	SingleQueuedInvokation _handleObservables;
 
 	not_null<Launcher*> _launcher;
 	std::unique_ptr<Application> _application;
@@ -120,7 +121,7 @@ private:
 	std::unique_ptr<UpdateChecker> _updateChecker;
 
 	QByteArray _lastCrashDump;
-	ProxyData _sandboxProxy;
+	MTP::ProxyData _sandboxProxy;
 
 	rpl::event_stream<> _widgetUpdateRequests;
 

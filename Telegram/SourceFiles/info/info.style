@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-using "basic.style";
+using "ui/basic.style";
 
 using "boxes/boxes.style";
 using "ui/widgets/widgets.style";
@@ -196,7 +196,7 @@ infoTopBarDuration: 150;
 
 infoLayerTopMinimal: 20px;
 infoLayerTopMaximal: 40px;
-infoLayerTopBarHeight: boxLayerTitleHeight;
+infoLayerTopBarHeight: boxTitleHeight;
 infoLayerTopBarBackIcon: icon {{ "info_back", boxTitleCloseFg }};
 infoLayerTopBarBackIconOver: icon {{ "info_back", boxTitleCloseFgOver }};
 infoLayerTopBarBack: IconButton(infoTopBarBack) {
@@ -256,7 +256,7 @@ infoLayerTopBar: InfoTopBar(infoTopBar) {
 	height: infoLayerTopBarHeight;
 	back: infoLayerTopBarBack;
 	title: boxTitle;
-	titlePosition: boxLayerTitlePosition;
+	titlePosition: boxTitlePosition;
 	bg: boxBg;
 	mediaCancel: infoLayerTopBarMediaCancel;
 	mediaActionsSkip: 6px;
@@ -402,7 +402,7 @@ infoProfileToggle: Toggle(defaultToggle) {
 infoProfileToggleOver: Toggle(infoProfileToggle) {
 	untoggledFg: menuIconFgOver;
 }
-infoProfileButton: InfoProfileButton {
+infoProfileButton: SettingsButton {
 	textFg: windowBoldFg;
 	textFgOver: windowBoldFgOver;
 	textBg: windowBg;
@@ -419,10 +419,10 @@ infoProfileButton: InfoProfileButton {
 
 	ripple: defaultRippleAnimation;
 }
-infoNotificationsButton: InfoProfileButton(infoProfileButton) {
+infoNotificationsButton: SettingsButton(infoProfileButton) {
 	padding: margins(79px, 13px, 8px, 9px);
 }
-infoMainButton: InfoProfileButton(infoProfileButton) {
+infoMainButton: SettingsButton(infoProfileButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
 	font: semiboldFont;
@@ -431,14 +431,14 @@ infoSharedMediaCoverHeight: 62px;
 infoSharedMediaButton: infoProfileButton;
 infoSharedMediaBottomSkip: 12px;
 
-infoBlockButton: InfoProfileButton(infoProfileButton) {
+infoBlockButton: SettingsButton(infoProfileButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }
-infoCreateLinkedChatButton: InfoProfileButton(infoMainButton) {
+infoCreateLinkedChatButton: SettingsButton(infoMainButton) {
 	padding: margins(74px, 10px, 8px, 8px);
 }
-infoUnlinkChatButton: InfoProfileButton(infoCreateLinkedChatButton) {
+infoUnlinkChatButton: SettingsButton(infoCreateLinkedChatButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }
@@ -587,8 +587,8 @@ infoChannelsList: PeerList(infoCommonGroupsList) {
 	}
 }
 
-managePeerButton: InfoProfileCountButton {
-	button: InfoProfileButton(infoProfileButton) {
+managePeerButton: SettingsCountButton {
+	button: SettingsButton(infoProfileButton) {
 		padding: margins(76px, 12px, 76px, 10px);
 	}
 	iconPosition: point(20px, 5px);
@@ -598,31 +598,31 @@ managePeerButton: InfoProfileCountButton {
 	labelPosition: point(25px, 12px);
 }
 
-peerPermissionsButton: InfoProfileCountButton(managePeerButton) {
-	button: InfoProfileButton(infoProfileButton) {
+peerPermissionsButton: SettingsCountButton(managePeerButton) {
+	button: SettingsButton(infoProfileButton) {
 		padding: margins(24px, 12px, 24px, 10px);
 	}
 	iconPosition: point(24px, 5px);
 }
 
-manageGroupButton: InfoProfileCountButton(managePeerButton) {
-	button: InfoProfileButton(infoProfileButton) {
+manageGroupButton: SettingsCountButton(managePeerButton) {
+	button: SettingsButton(infoProfileButton) {
 		padding: margins(72px, 10px, 24px, 8px);
 	}
 	labelPosition: point(22px, 12px);
 	iconPosition: point(20px, 4px);
 }
 
-manageGroupTopButtonWithText: InfoProfileCountButton(manageGroupButton) {
-	button: InfoProfileButton(infoProfileButton) {
+manageGroupTopButtonWithText: SettingsCountButton(manageGroupButton) {
+	button: SettingsButton(infoProfileButton) {
 		padding: margins(22px, 10px, 24px, 8px);
 	}
 	labelPosition: point(22px, 10px);
 	iconPosition: point(0px, 0px);
 }
 
-manageDeleteGroupButton: InfoProfileCountButton(manageGroupTopButtonWithText) {
-	button: InfoProfileButton(infoProfileButton) {
+manageDeleteGroupButton: SettingsCountButton(manageGroupTopButtonWithText) {
+	button: SettingsButton(infoProfileButton) {
 		padding: margins(25px, 11px, 24px, 8px);
 		textFg: attentionButtonFg;
 		textFgOver: attentionButtonFg;
@@ -634,7 +634,7 @@ manageDeleteGroupButton: InfoProfileCountButton(manageGroupTopButtonWithText) {
 editPeerSkip: 7px;
 editPeerHistoryVisibilityMargins: margins(15px, 0px, 20px, 16px);
 
-terminateSessionsButton: InfoProfileButton(infoBlockButton) {
+terminateSessionsButton: SettingsButton(infoBlockButton) {
 	padding: margins(23px, 12px, 23px, 10px);
 }
 
@@ -753,8 +753,8 @@ topBarCallSkip: -1px;
 topBarMenuToggle: IconButton(topBarSearch) {
 	width: 44px;
 
-	icon: icon {{ "title_menu_dots", menuIconFg }};
-	iconOver: icon {{ "title_menu_dots", menuIconFgOver }};
+	icon: menuToggleIcon;
+	iconOver: menuToggleIconOver;
 	iconPosition: point(16px, 17px);
 
 	rippleAreaPosition: point(0px, 7px);

@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-using "basic.style";
+using "ui/basic.style";
 
 using "ui/widgets/widgets.style";
 using "info/info.style";
@@ -60,12 +60,6 @@ profileDropAreaSubtitleTop: 68px;
 profileDropAreaBorderFg: profileDropAreaFg;
 profileDropAreaBorderWidth: 3px;
 profileDropAreaDuration: 200;
-
-profileDividerBg: windowBgOver;
-profileDividerFg: windowShadowFg;
-profileDividerLeft: icon {{ "profile_divider_left", profileDividerFg }};
-profileDividerTop: icon {{ "profile_divider_top", profileDividerFg }};
-profileDividerBottom: icon {{ "profile_divider_bottom", profileDividerFg }};
 
 profileBlocksTop: 7px;
 profileBlocksBottom: 20px;

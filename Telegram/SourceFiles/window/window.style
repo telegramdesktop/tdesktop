@@ -5,17 +5,15 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-
-using "basic.style";
+using "ui/basic.style";
 using "ui/widgets/widgets.style";
 using "history/history.style";
+using "boxes/boxes.style"; // UserpicButton
 
 windowMinWidth: 380px;
 windowMinHeight: 480px;
 windowDefaultWidth: 800px;
 windowDefaultHeight: 600px;
-windowShadow: icon {{ "window_shadow", windowShadowFg }};
-windowShadowShift: 1px;
 
 columnMinimalWidthLeft: 260px;
 columnMaximalWidthLeft: 540px;
@@ -117,7 +115,7 @@ mainMenuSkip: 13px;
 mainMenu: Menu(defaultMenu) {
 	itemFg: windowBoldFg;
 	itemFgOver: windowBoldFgOver;
-	itemFont: semiboldFont;
+	itemStyle: semiboldTextStyle;
 	itemIconPosition: point(26px, 8px);
 	itemPadding: margins(76px, 13px, 28px, 13px);
 	itemToggle: Toggle(defaultMenuToggle) {
@@ -163,86 +161,6 @@ mainMenuVersionLabel: FlatLabel(mainMenuTelegramLabel) {
 	style: defaultTextStyle;
 }
 mainMenuVersionBottom: 21px;
-
-// Windows specific title
-
-titleHeight: 21px;
-titleButtonMinimize: IconButton {
-	width: 24px;
-	height: 21px;
-
-	icon: icon {
-		{ size(24px, 21px), titleButtonBg },
-		{ "title_button_minimize", titleButtonFg, point(4px, 4px) },
-	};
-	iconOver: icon {
-		{ size(24px, 21px), titleButtonBgOver },
-		{ "title_button_minimize", titleButtonFgOver, point(4px, 4px) },
-	};
-	iconPosition: point(0px, 0px);
-}
-titleButtonMinimizeIconActive: icon {
-	{ size(24px, 21px), titleButtonBgActive },
-	{ "title_button_minimize", titleButtonFgActive, point(4px, 4px) },
-};
-titleButtonMinimizeIconActiveOver: icon {
-	{ size(24px, 21px), titleButtonBgActiveOver },
-	{ "title_button_minimize", titleButtonFgActiveOver, point(4px, 4px) },
-};
-titleButtonMaximize: IconButton(titleButtonMinimize) {
-	icon: icon {
-		{ size(24px, 21px), titleButtonBg },
-		{ "title_button_maximize", titleButtonFg, point(4px, 4px) },
-	};
-	iconOver: icon {
-		{ size(24px, 21px), titleButtonBgOver },
-		{ "title_button_maximize", titleButtonFgOver, point(4px, 4px) },
-	};
-}
-titleButtonMaximizeIconActive: icon {
-	{ size(24px, 21px), titleButtonBgActive },
-	{ "title_button_maximize", titleButtonFgActive, point(4px, 4px) },
-};
-titleButtonMaximizeIconActiveOver: icon {
-	{ size(24px, 21px), titleButtonBgActiveOver },
-	{ "title_button_maximize", titleButtonFgActiveOver, point(4px, 4px) },
-};
-titleButtonRestoreIcon: icon {
-	{ size(24px, 21px), titleButtonBg },
-	{ "title_button_restore", titleButtonFg, point(4px, 4px) },
-};
-titleButtonRestoreIconOver: icon {
-	{ size(24px, 21px), titleButtonBgOver },
-	{ "title_button_restore", titleButtonFgOver, point(4px, 4px) },
-};
-titleButtonRestoreIconActive: icon {
-	{ size(24px, 21px), titleButtonBgActive },
-	{ "title_button_restore", titleButtonFgActive, point(4px, 4px) },
-};
-titleButtonRestoreIconActiveOver: icon {
-	{ size(24px, 21px), titleButtonBgActiveOver },
-	{ "title_button_restore", titleButtonFgActiveOver, point(4px, 4px) },
-};
-titleButtonClose: IconButton(titleButtonMinimize) {
-	width: 25px;
-
-	icon: icon {
-		{ size(25px, 21px), titleButtonCloseBg },
-		{ "title_button_close", titleButtonCloseFg, point(5px, 4px) },
-	};
-	iconOver: icon {
-		{ size(25px, 21px), titleButtonCloseBgOver },
-		{ "title_button_close", titleButtonCloseFgOver, point(5px, 4px) },
-	};
-}
-titleButtonCloseIconActive: icon {
-	{ size(25px, 21px), titleButtonCloseBgActive },
-	{ "title_button_close", titleButtonCloseFgActive, point(5px, 4px) },
-};
-titleButtonCloseIconActiveOver: icon {
-	{ size(25px, 21px), titleButtonCloseBgActiveOver },
-	{ "title_button_close", titleButtonCloseFgActiveOver, point(5px, 4px) },
-};
 
 themeEditorSampleSize: size(90px, 51px);
 themeEditorMargin: margins(17px, 10px, 17px, 10px);
@@ -294,6 +212,35 @@ windowOutdatedClose: IconButton(defaultIconButton) {
 	icon: icon {{ "info_close", outdatedFg }};
 	iconOver: icon {{ "info_close", outdatedFg }};
 	iconPosition: point(-1px, -1px);
+}
+
+createThemeImportButton: SettingsButton {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	font: semiboldFont;
+
+	height: 20px;
+	padding: margins(23px, 10px, 23px, 8px);
+
+	ripple: defaultRippleAnimation;
+}
+createThemeLink: InputField(defaultInputField) {
+	textMargins: margins(0px, 7px, 0px, 0px);
+	textBg: boxBg;
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(0px, 0px, 0px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: boxTextFont;
+
+	heightMin: 34px;
+
+	font: boxTextFont;
 }
 
 // Mac specific

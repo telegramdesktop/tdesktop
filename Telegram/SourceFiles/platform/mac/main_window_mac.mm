@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"
+#include "core/sandbox.h"
 #include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_widget.h"
@@ -25,12 +26,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "platform/mac/mac_touchbar.h"
 #include "platform/platform_notifications_manager.h"
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/about_box.h"
 #include "lang/lang_keys.h"
-#include "platform/mac/mac_utilities.h"
+#include "base/platform/mac/base_utilities_mac.h"
 #include "ui/widgets/input_fields.h"
+#include "facades.h"
+#include "app.h"
+
+#include <QtWidgets/QApplication>
+#include <QtGui/QClipboard>
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
@@ -48,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 - (void) screenIsUnlocked:(NSNotification *)aNotification;
 - (void) windowWillEnterFullScreen:(NSNotification *)aNotification;
 - (void) windowWillExitFullScreen:(NSNotification *)aNotification;
+- (void) windowDidExitFullScreen:(NSNotification *)aNotification;
 
 @end // @interface MainWindowObserver
 
@@ -77,7 +84,7 @@ public:
 	LayerCreationChecker(NSView * __weak view, Fn<void()> callback)
 	: _weakView(view)
 	, _callback(std::move(callback)) {
-		QApplication::instance()->installEventFilter(this);
+		QCoreApplication::instance()->installEventFilter(this);
 	}
 
 protected:
@@ -132,6 +139,7 @@ public:
 
 	void willEnterFullScreen();
 	void willExitFullScreen();
+	void didExitFullScreen();
 
 	bool clipboardHasText();
 
@@ -142,6 +150,7 @@ public:
 private:
 	void initCustomTitle();
 	void refreshWeakTitleReferences();
+	void enforceCorrectStyleMask();
 
 	not_null<MainWindow*> _public;
 	friend class MainWindow;
@@ -203,6 +212,10 @@ private:
 
 - (void) windowWillExitFullScreen:(NSNotification *)aNotification {
 	_private->willExitFullScreen();
+}
+
+- (void) windowDidExitFullScreen:(NSNotification *)aNotification {
+	_private->didExitFullScreen();
 }
 
 @end // @implementation MainWindowObserver
@@ -278,6 +291,7 @@ void MainWindow::Private::initCustomTitle() {
 
 	[[NSNotificationCenter defaultCenter] addObserver:_observer selector:@selector(windowWillEnterFullScreen:) name:NSWindowWillEnterFullScreenNotification object:_nativeWindow];
 	[[NSNotificationCenter defaultCenter] addObserver:_observer selector:@selector(windowWillExitFullScreen:) name:NSWindowWillExitFullScreenNotification object:_nativeWindow];
+	[[NSNotificationCenter defaultCenter] addObserver:_observer selector:@selector(windowDidExitFullScreen:) name:NSWindowDidExitFullScreenNotification object:_nativeWindow];
 
 	// Qt has bug with layer-backed widgets containing QOpenGLWidgets.
 	// See https://bugreports.qt.io/browse/QTBUG-64494
@@ -384,7 +398,7 @@ bool MainWindow::Private::clipboardHasText() {
 	auto currentChangeCount = static_cast<int>([_generalPasteboard changeCount]);
 	if (_generalPasteboardChangeCount != currentChangeCount) {
 		_generalPasteboardChangeCount = currentChangeCount;
-		_generalPasteboardHasText = !QApplication::clipboard()->text().isEmpty();
+		_generalPasteboardHasText = !QGuiApplication::clipboard()->text().isEmpty();
 	}
 	return _generalPasteboardHasText;
 }
@@ -397,6 +411,17 @@ void MainWindow::Private::willEnterFullScreen() {
 void MainWindow::Private::willExitFullScreen() {
 	_inFullScreen = false;
 	_public->setTitleVisible(true);
+	enforceCorrectStyleMask();
+}
+
+void MainWindow::Private::didExitFullScreen() {
+	enforceCorrectStyleMask();
+}
+
+void MainWindow::Private::enforceCorrectStyleMask() {
+	if (_nativeWindow && _public->_customTitleHeight > 0) {
+		[_nativeWindow setStyleMask:[_nativeWindow styleMask] | NSFullSizeContentViewWindowMask];
+	}
 }
 
 void MainWindow::Private::enableShadow(WId winId) {
@@ -629,8 +654,6 @@ void MainWindow::updateIconCounters() {
 }
 
 void MainWindow::psFirstShow() {
-	psUpdateMargins();
-
 	bool showShadows = true;
 
 	show();
@@ -693,6 +716,9 @@ void MainWindow::createGlobalMenu() {
 	edit->addSeparator();
 	psSelectAll = edit->addAction(tr::lng_mac_menu_select_all(tr::now), this, SLOT(psMacSelectAll()), QKeySequence::SelectAll);
 
+	edit->addSeparator();
+	edit->addAction(tr::lng_mac_menu_emoji_and_symbols(tr::now).replace('&', "&&"), this, SLOT(psMacEmojiAndSymbols()), QKeySequence(Qt::MetaModifier | Qt::ControlModifier | Qt::Key_Space));
+
 	QMenu *window = psMainMenu.addMenu(tr::lng_mac_menu_window(tr::now));
 	psContacts = window->addAction(tr::lng_mac_menu_contacts(tr::now));
 	connect(psContacts, &QAction::triggered, psContacts, crl::guard(this, [=] {
@@ -745,6 +771,10 @@ void MainWindow::psMacSelectAll() {
 	SendKeySequence(Qt::Key_A, Qt::ControlModifier);
 }
 
+void MainWindow::psMacEmojiAndSymbols() {
+	[NSApp orderFrontCharacterPalette:nil];
+}
+
 void MainWindow::psMacBold() {
 	SendKeySequence(Qt::Key_B, Qt::ControlModifier);
 }
@@ -767,12 +797,6 @@ void MainWindow::psMacMonospace() {
 
 void MainWindow::psMacClearFormat() {
 	SendKeySequence(Qt::Key_N, Qt::ControlModifier | Qt::ShiftModifier);
-}
-
-void MainWindow::psInitSysMenu() {
-}
-
-void MainWindow::psUpdateMargins() {
 }
 
 void MainWindow::updateGlobalMenuHook() {

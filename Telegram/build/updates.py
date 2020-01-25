@@ -46,20 +46,21 @@ outputFolder = 'updates/' + today
 archive = 'tdesktop_macOS_' + today + '.zip'
 
 if building:
-    print('Building debug version for OS X 10.8+..')
+    print('Building debug version for OS X 10.12+..')
 
     if os.path.exists('../out/Debug/' + outputFolder):
         finish(1, 'Todays updates version exists.')
 
-    result = subprocess.call('gyp/refresh.sh', shell=True)
+    result = subprocess.call('./configure.sh', shell=True)
     if result != 0:
         finish(1, 'While calling GYP.')
 
-    result = subprocess.call('xcodebuild -project Telegram.xcodeproj -alltargets -configuration Debug build', shell=True)
+    os.chdir('../out')
+    result = subprocess.call('cmake --build . --config Debug --target Telegram', shell=True)
     if result != 0:
         finish(1, 'While building Telegram.')
 
-    os.chdir('../out/Debug')
+    os.chdir('Debug')
     if not os.path.exists('Telegram.app'):
         finish(1, 'Telegram.app not found.')
 
@@ -183,7 +184,7 @@ if building:
 commandPath = scriptPath + '/../../out/Debug/' + outputFolder + '/command.txt'
 
 if composing:
-    templatePath = scriptPath + '/../../../TelegramPrivate/updates_template.txt'
+    templatePath = scriptPath + '/../../../DesktopPrivate/updates_template.txt'
     if not os.path.exists(templatePath):
         finish(1, 'Template file "' + templatePath + '" not found.')
 

@@ -56,6 +56,9 @@ public:
 	void stopAnimation() override {
 		if (_attach) _attach->stopAnimation();
 	}
+	int checkAnimationCount() override {
+		return _attach ? _attach->checkAnimationCount() : 0;
+	}
 
 	not_null<GameData*> game() {
 		return _data;

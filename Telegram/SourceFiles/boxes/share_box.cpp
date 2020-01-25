@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "history/history.h"
 #include "history/history_message.h"
+#include "history/view/history_view_schedule_box.h"
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
 #include "boxes/peer_list_box.h"
@@ -36,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "main/main_session.h"
 #include "core/application.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_history.h"
 
@@ -53,7 +55,7 @@ public:
 		Fn<void(PeerData *peer, bool selected)> callback);
 	void peerUnselected(not_null<PeerData*> peer);
 
-	QVector<PeerData*> selected() const;
+	std::vector<not_null<PeerData*>> selected() const;
 	bool hasSelected() const;
 
 	void peopleReceived(
@@ -195,7 +197,7 @@ void ShareBox::prepareCommentField() {
 	const auto field = _comment->entity();
 
 	connect(field, &Ui::InputField::submitted, [=] {
-		submit();
+		submit({});
 	});
 
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
@@ -205,6 +207,7 @@ void ShareBox::prepareCommentField() {
 	field->setEditLinkCallback(
 		DefaultEditLinkCallback(&_navigation->session(), field));
 
+	InitSpellchecker(&_navigation->session(), field);
 	Ui::SendPendingMoveResizeEvents(_comment);
 }
 
@@ -242,7 +245,7 @@ void ShareBox::prepare() {
 	_select->setSubmittedCallback([=](Qt::KeyboardModifiers modifiers) {
 		if (modifiers.testFlag(Qt::ControlModifier)
 			|| modifiers.testFlag(Qt::MetaModifier)) {
-			submit();
+			submit({});
 		} else {
 			_inner->selectActive();
 		}
@@ -408,16 +411,26 @@ void ShareBox::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
+SendMenuType ShareBox::sendMenuType() const {
+	const auto selected = _inner->selected();
+	return ranges::all_of(selected, HistoryView::CanScheduleUntilOnline)
+		? SendMenuType::ScheduledToUser
+		: (selected.size() == 1 && selected.front()->isSelf())
+		? SendMenuType::Reminder
+		: SendMenuType::Scheduled;
+}
+
 void ShareBox::createButtons() {
 	clearButtons();
 	if (_hasSelected) {
 		const auto send = addButton(tr::lng_share_confirm(), [=] {
-			submit();
+			submit({});
 		});
-		SetupSendWithoutSound(
+		SetupSendMenuAndShortcuts(
 			send,
-			[=] { return true; },
-			[=] { submit(true); });
+			[=] { return sendMenuType(); },
+			[=] { submitSilent(); },
+			[=] { submitScheduled(); });
 	} else if (_copyCallback) {
 		addButton(tr::lng_share_copy_link(), [=] { copyLink(); });
 	}
@@ -451,13 +464,26 @@ void ShareBox::innerSelectedChanged(PeerData *peer, bool checked) {
 	update();
 }
 
-void ShareBox::submit(bool silent) {
+void ShareBox::submit(Api::SendOptions options) {
 	if (_submitCallback) {
 		_submitCallback(
 			_inner->selected(),
 			_comment->entity()->getTextWithAppliedMarkdown(),
-			silent);
+			options);
 	}
+}
+
+void ShareBox::submitSilent() {
+	auto options = Api::SendOptions();
+	options.silent = true;
+	submit(options);
+}
+
+void ShareBox::submitScheduled() {
+	const auto callback = [=](Api::SendOptions options) { submit(options); };
+	Ui::show(
+		HistoryView::PrepareScheduleBox(this, sendMenuType(), callback),
+		Ui::LayerOption::KeepOther);
 }
 
 void ShareBox::copyLink() {
@@ -621,7 +647,7 @@ void ShareBox::Inner::repaintChatAtIndex(int index) {
 
 	auto row = index / _columnCount;
 	auto column = index % _columnCount;
-	update(rtlrect(_rowsLeft + qFloor(column * _rowWidthReal), row * _rowHeight, _rowWidth, _rowHeight, width()));
+	update(style::rtlrect(_rowsLeft + qFloor(column * _rowWidthReal), row * _rowHeight, _rowWidth, _rowHeight, width()));
 }
 
 ShareBox::Inner::Chat *ShareBox::Inner::getChatAtIndex(int index) {
@@ -698,7 +724,6 @@ void ShareBox::Inner::loadProfilePhotos(int yFrom) {
 	yFrom *= _columnCount;
 	yTo *= _columnCount;
 
-	_navigation->session().downloader().clearPriorities();
 	if (_filter.isEmpty()) {
 		if (!_chatsIndexed->empty()) {
 			auto i = _chatsIndexed->cfind(yFrom, _rowHeight);
@@ -1042,8 +1067,8 @@ void ShareBox::Inner::refresh() {
 	update();
 }
 
-QVector<PeerData*> ShareBox::Inner::selected() const {
-	auto result = QVector<PeerData*>();
+std::vector<not_null<PeerData*>> ShareBox::Inner::selected() const {
+	auto result = std::vector<not_null<PeerData*>>();
 	result.reserve(_dataMap.size());
 	for (const auto &[peer, chat] : _dataMap) {
 		if (chat->checkbox.checked()) {

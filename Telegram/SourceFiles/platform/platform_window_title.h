@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/window_title.h"
 #include "window/themes/window_theme_preview.h"
+#include "base/object_ptr.h"
 
 namespace Platform {
 

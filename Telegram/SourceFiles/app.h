@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_types.h"
+#include "ui/rect_part.h"
 
 enum class ImageRoundRadius;
 class MainWindow;
@@ -18,10 +19,16 @@ namespace HistoryView {
 class Element;
 } // namespace HistoryView
 
+namespace Media {
+namespace Clip {
+class Reader;
+} // namespace Clip
+} // namespace Media
+
 using HistoryItemsMap = base::flat_set<not_null<HistoryItem*>>;
 using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
 
-enum RoundCorners {
+enum RoundCorners : int {
 	SmallMaskCorners = 0x00, // for images
 	LargeMaskCorners,
 
@@ -56,17 +63,15 @@ enum RoundCorners {
 	MessageOutCorners,
 	MessageOutSelectedCorners,
 
+	SendFilesBoxAlbumGroupCorners,
+
 	RoundCornersCount
 };
 
 namespace App {
-	MainWindow *wnd();
-	MainWidget *main();
-
 	QString formatPhone(QString phone);
 
 	void updateTab(int oriType, int newType);
-	[[nodiscard]] QString peerName(const PeerData *peer, bool forDialogs = false);
 
 	void hoveredItem(HistoryView::Element *item);
 	HistoryView::Element *hoveredItem();
@@ -79,8 +84,6 @@ namespace App {
 	void mousedItem(HistoryView::Element *item);
 	HistoryView::Element *mousedItem();
 	void clearMousedItems();
-
-	const style::font &monofont();
 
 	void initMedia();
 	void deinitMedia();
@@ -105,7 +108,6 @@ namespace App {
 	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners);
 	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners);
 
-	QImage *cornersMask(ImageRoundRadius radius);
 	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, RoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full);
 	inline void roundRect(Painter &p, const QRect &rect, style::color bg, RoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {
 		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, shadow, parts);

@@ -9,21 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
-
-class BoxContentDivider;
+#include "base/object_ptr.h"
 
 namespace Ui {
+class BoxContentDivider;
 class VerticalLayout;
+class SettingsButton;
 class FlatLabel;
 template <typename Widget>
 class SlideWrap;
 } // namespace Ui
-
-namespace Info {
-namespace Profile {
-class Button;
-} // namespace Profile
-} // namespace Info
 
 namespace Passport {
 
@@ -95,12 +90,12 @@ private:
 		std::vector<ScanInfo> files;
 		std::optional<int> initialCount;
 		QString errorMissing;
-		QPointer<Ui::SlideWrap<BoxContentDivider>> divider;
+		QPointer<Ui::SlideWrap<Ui::BoxContentDivider>> divider;
 		QPointer<Ui::SlideWrap<Ui::FlatLabel>> header;
 		QPointer<Ui::SlideWrap<Ui::FlatLabel>> uploadMoreError;
 		QPointer<Ui::VerticalLayout> wrap;
 		std::vector<base::unique_qptr<Ui::SlideWrap<ScanButton>>> rows;
-		QPointer<Info::Profile::Button> upload;
+		QPointer<Ui::SettingsButton> upload;
 		rpl::event_stream<rpl::producer<QString>> uploadTexts;
 		bool errorShown = false;
 		Ui::Animations::Simple errorAnimation;

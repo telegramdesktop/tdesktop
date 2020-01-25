@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/sandbox.h"
 
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
@@ -24,6 +24,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "base/qthelp_regex.h"
 #include "ui/effects/animations.h"
+#include "facades.h"
+#include "app.h"
+
+#include <QtGui/QScreen>
 
 namespace Core {
 namespace {
@@ -79,6 +83,11 @@ Sandbox::Sandbox(
 	char **argv)
 : QApplication(argc, argv)
 , _mainThreadId(QThread::currentThreadId())
+, _handleObservables([=] {
+	Expects(_application != nullptr);
+
+	_application->call_handleObservables();
+})
 , _launcher(launcher) {
 }
 
@@ -89,12 +98,7 @@ int Sandbox::start() {
 	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
-#ifndef OS_MAC_STORE
-	_localServerName = psServerPrefix() + h + '-' + cGUIDStr();
-#else // OS_MAC_STORE
-	h[4] = 0; // use only first 4 chars
-	_localServerName = psServerPrefix() + h;
-#endif // OS_MAC_STORE
+	_localServerName = Platform::SingleInstanceLocalServerName(h);
 
 	connect(
 		&_localSocket,
@@ -148,6 +152,10 @@ void Sandbox::launchApplication() {
 		}
 		setupScreenScale();
 
+		base::InitObservables([] {
+			Instance()._handleObservables.call();
+		});
+
 		_application = std::make_unique<Application>(_launcher);
 
 		// Ideally this should go to constructor.
@@ -186,9 +194,8 @@ void Sandbox::setupScreenScale() {
 			LOG(("Environmental variables: QT_AUTO_SCREEN_SCALE_FACTOR='%1'").arg(QString::fromLatin1(qgetenv("QT_AUTO_SCREEN_SCALE_FACTOR"))));
 			LOG(("Environmental variables: QT_SCREEN_SCALE_FACTORS='%1'").arg(QString::fromLatin1(qgetenv("QT_SCREEN_SCALE_FACTORS"))));
 		}
-		cSetRetinaFactor(ratio);
-		cSetIntRetinaFactor(int32(ratio));
-		cSetScreenScale(kInterfaceScaleDefault);
+		style::SetDevicePixelRatio(int(ratio));
+		cSetScreenScale(style::kScaleDefault);
 	}
 }
 
@@ -317,7 +324,7 @@ void Sandbox::singleInstanceChecked() {
 			_lastCrashDump,
 			[=] { launchApplication(); });
 		window->proxyChanges(
-		) | rpl::start_with_next([=](ProxyData &&proxy) {
+		) | rpl::start_with_next([=](MTP::ProxyData &&proxy) {
 			_sandboxProxy = std::move(proxy);
 			refreshGlobalProxy();
 		}, window->lifetime());
@@ -431,15 +438,15 @@ void Sandbox::refreshGlobalProxy() {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	const auto proxy = !Global::started()
 		? _sandboxProxy
-		: (Global::ProxySettings() == ProxyData::Settings::Enabled)
+		: (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled)
 		? Global::SelectedProxy()
-		: ProxyData();
-	if (proxy.type == ProxyData::Type::Socks5
-		|| proxy.type == ProxyData::Type::Http) {
+		: MTP::ProxyData();
+	if (proxy.type == MTP::ProxyData::Type::Socks5
+		|| proxy.type == MTP::ProxyData::Type::Http) {
 		QNetworkProxy::setApplicationProxy(
-			ToNetworkProxy(ToDirectIpProxy(proxy)));
+			MTP::ToNetworkProxy(MTP::ToDirectIpProxy(proxy)));
 	} else if (!Global::started()
-		|| Global::ProxySettings() == ProxyData::Settings::System) {
+		|| Global::ProxySettings() == MTP::ProxyData::Settings::System) {
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
 	} else {
 		QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
@@ -510,7 +517,7 @@ bool Sandbox::notify(QObject *receiver, QEvent *e) {
 
 	const auto wrap = createEventNestingLevel();
 	if (e->type() == QEvent::UpdateRequest) {
-		const auto weak = make_weak(receiver);
+		const auto weak = QPointer<QObject>(receiver);
 		_widgetUpdateRequests.fire({});
 		if (!weak) {
 			return true;
@@ -532,42 +539,18 @@ void Sandbox::processPostponedCalls(int level) {
 }
 
 bool Sandbox::nativeEventFilter(
-	const QByteArray &eventType,
-	void *message,
-	long *result) {
+		const QByteArray &eventType,
+		void *message,
+		long *result) {
 	registerEnterFromEventLoop();
 	return false;
-}
-
-void Sandbox::activateWindowDelayed(not_null<QWidget*> widget) {
-	if (_delayedActivationsPaused) {
-		return;
-	} else if (std::exchange(_windowForDelayedActivation, widget.get())) {
-		return;
-	}
-	crl::on_main(this, [=] {
-		if (const auto widget = base::take(_windowForDelayedActivation)) {
-			if (!widget->isHidden()) {
-				widget->activateWindow();
-			}
-		}
-	});
-}
-
-void Sandbox::pauseDelayedWindowActivations() {
-	_windowForDelayedActivation = nullptr;
-	_delayedActivationsPaused = true;
-}
-
-void Sandbox::resumeDelayedWindowActivations() {
-	_delayedActivationsPaused = false;
 }
 
 rpl::producer<> Sandbox::widgetUpdateRequests() const {
 	return _widgetUpdateRequests.events();
 }
 
-ProxyData Sandbox::sandboxProxy() const {
+MTP::ProxyData Sandbox::sandboxProxy() const {
 	return _sandboxProxy;
 }
 
@@ -610,3 +593,11 @@ rpl::producer<> on_main_update_requests() {
 }
 
 } // namespace crl
+
+namespace base {
+
+void EnterFromEventLoop(FnMut<void()> &&method) {
+	Core::Sandbox::Instance().customEnterFromEventLoop(std::move(method));
+}
+
+} // namespace base

@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/add_contact_box.h"
 
-#include "styles/style_boxes.h"
-#include "styles/style_dialogs.h"
 #include "lang/lang_keys.h"
 #include "mtproto/sender.h"
 #include "base/flat_set.h"
@@ -25,12 +23,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
+#include "ui/special_fields.h"
 #include "ui/text_options.h"
 #include "ui/unread_badge.h"
+#include "ui/ui_utility.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -40,10 +39,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "observer_peer.h"
 #include "main/main_session.h"
+#include "facades.h"
+#include "styles/style_layers.h"
+#include "styles/style_boxes.h"
+#include "styles/style_dialogs.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
 
 namespace {
 
-constexpr auto kMaxGroupChannelTitle = 255; // See also edit_peer_info_box.
+constexpr auto kMaxGroupChannelTitle = 128; // See also edit_peer_info_box.
+constexpr auto kMaxUserFirstLastName = 64; // See also edit_contact_box.
 constexpr auto kMaxChannelDescription = 255; // See also edit_peer_info_box.
 constexpr auto kMinUsernameLength = 5;
 
@@ -56,6 +63,48 @@ bool IsValidPhone(QString phone) {
 				|| phone.length() == 5
 				|| phone.length() == 6
 				|| phone == qsl("4242")));
+}
+
+void ChatCreateDone(
+		not_null<Window::SessionNavigation*> navigation,
+		QImage image,
+		const MTPUpdates &updates) {
+	navigation->session().api().applyUpdates(updates);
+
+	auto success = base::make_optional(&updates)
+		| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
+			switch (updates->type()) {
+			case mtpc_updates:
+				return &updates->c_updates().vchats().v;
+			case mtpc_updatesCombined:
+				return &updates->c_updatesCombined().vchats().v;
+			}
+			LOG(("API Error: unexpected update cons %1 "
+				"(GroupInfoBox::creationDone)").arg(updates->type()));
+			return std::nullopt;
+		}
+		| [](auto chats) {
+			return (!chats->empty()
+				&& chats->front().type() == mtpc_chat)
+				? base::make_optional(chats)
+				: std::nullopt;
+		}
+		| [&](auto chats) {
+			return navigation->session().data().chat(
+				chats->front().c_chat().vid().v);
+		}
+		| [&](not_null<ChatData*> chat) {
+			if (!image.isNull()) {
+				chat->session().api().uploadPeerPhoto(
+					chat,
+					std::move(image));
+			}
+			Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+		};
+	if (!success) {
+		LOG(("API Error: chat not found in updates "
+			"(ContactsBox::creationDone)"));
+	}
 }
 
 } // namespace
@@ -116,7 +165,7 @@ void ShowAddParticipantsError(
 					tr::lng_cant_invite_make_admin(tr::now),
 					tr::lng_cancel(tr::now),
 					makeAdmin),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 			return;
 		}
 	}
@@ -151,10 +200,10 @@ void ShowAddParticipantsError(
 		}
 		return tr::lng_failed_add_participant(tr::now);
 	}();
-	Ui::show(Box<InformBox>(text), LayerOption::KeepOther);
+	Ui::show(Box<InformBox>(text), Ui::LayerOption::KeepOther);
 }
 
-class RevokePublicLinkBox::Inner : public TWidget, private MTP::Sender {
+class RevokePublicLinkBox::Inner : public TWidget {
 public:
 	Inner(
 		QWidget *parent,
@@ -179,6 +228,7 @@ private:
 	void updateSelected();
 
 	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 
 	PeerData *_selected = nullptr;
 	PeerData *_pressed = nullptr;
@@ -401,6 +451,7 @@ GroupInfoBox::GroupInfoBox(
 	const QString &title,
 	Fn<void(not_null<ChannelData*>)> channelDone)
 : _navigation(navigation)
+, _api(_navigation->session().api().instance())
 , _type(type)
 , _initialTitle(title)
 , _channelDone(std::move(channelDone)) {
@@ -520,53 +571,19 @@ void GroupInfoBox::createGroup(
 	if (inputs.empty()) {
 		return;
 	}
-	_creationRequestId = request(MTPmessages_CreateChat(
+	_creationRequestId = _api.request(MTPmessages_CreateChat(
 		MTP_vector<MTPInputUser>(inputs),
 		MTP_string(title)
 	)).done([=](const MTPUpdates &result) {
 		auto image = _photo->takeResultImage();
-		Ui::hideLayer();
+		const auto navigation = _navigation;
 
-		_navigation->session().api().applyUpdates(result);
-
-		auto success = base::make_optional(&result)
-			| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
-				switch (updates->type()) {
-				case mtpc_updates:
-					return &updates->c_updates().vchats().v;
-				case mtpc_updatesCombined:
-					return &updates->c_updatesCombined().vchats().v;
-				}
-				LOG(("API Error: unexpected update cons %1 "
-					"(GroupInfoBox::creationDone)").arg(updates->type()));
-				return std::nullopt;
-			}
-			| [](auto chats) {
-				return (!chats->empty()
-					&& chats->front().type() == mtpc_chat)
-					? base::make_optional(chats)
-					: std::nullopt;
-			}
-			| [&](auto chats) {
-				return _navigation->session().data().chat(
-					chats->front().c_chat().vid().v);
-			}
-			| [&](not_null<ChatData*> chat) {
-				if (!image.isNull()) {
-					chat->session().api().uploadPeerPhoto(
-						chat,
-						std::move(image));
-				}
-				Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
-			};
-		if (!success) {
-			LOG(("API Error: chat not found in updates "
-				"(ContactsBox::creationDone)"));
-		}
+		Ui::hideLayer(); // Destroys 'this'.
+		ChatCreateDone(navigation, std::move(image), result);
 	}).fail([=](const RPCError &error) {
 		_creationRequestId = 0;
 		if (error.type() == qstr("NO_CHAT_TITLE")) {
-			auto weak = make_weak(this);
+			auto weak = Ui::MakeWeak(this);
 			selectUsersBox->closeBox();
 			if (weak) {
 				_title->showError();
@@ -574,16 +591,16 @@ void GroupInfoBox::createGroup(
 		} else if (error.type() == qstr("USERS_TOO_FEW")) {
 			Ui::show(
 				Box<InformBox>(tr::lng_cant_invite_privacy(tr::now)),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 		} else if (error.type() == qstr("PEER_FLOOD")) {
 			Ui::show(
 				Box<InformBox>(
 					PeerFloodErrorText(PeerFloodType::InviteGroup)),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 		} else if (error.type() == qstr("USER_RESTRICTED")) {
 			Ui::show(
 				Box<InformBox>(tr::lng_cant_do_this(tr::now)),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 		}
 	}).send();
 }
@@ -605,7 +622,7 @@ void GroupInfoBox::submit() {
 	if (_type != Type::Group) {
 		createChannel(title, description);
 	} else {
-		auto initBox = [title, weak = make_weak(this)](
+		auto initBox = [title, weak = Ui::MakeWeak(this)](
 				not_null<PeerListBox*> box) {
 			auto create = [box, title, weak] {
 				if (weak) {
@@ -622,7 +639,7 @@ void GroupInfoBox::submit() {
 			Box<PeerListBox>(
 				std::make_unique<AddParticipantsBoxController>(_navigation),
 				std::move(initBox)),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	}
 }
 
@@ -630,7 +647,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 	const auto flags = (_type == Type::Megagroup)
 		? MTPchannels_CreateChannel::Flag::f_megagroup
 		: MTPchannels_CreateChannel::Flag::f_broadcast;
-	_creationRequestId = request(MTPchannels_CreateChannel(
+	_creationRequestId = _api.request(MTPchannels_CreateChannel(
 		MTP_flags(flags),
 		MTP_string(title),
 		MTP_string(description),
@@ -667,7 +684,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 						std::move(image));
 				}
 				_createdChannel = channel;
-				_creationRequestId = request(MTPmessages_ExportChatInvite(
+				_creationRequestId = _api.request(MTPmessages_ExportChatInvite(
 					_createdChannel->input
 				)).done([=](const MTPExportedChatInvite &result) {
 					_creationRequestId = 0;
@@ -751,7 +768,7 @@ SetupChannelBox::SetupChannelBox(
 	st::defaultBoxCheckbox)
 , _aboutPublicWidth(st::boxWideWidth
 	- st::boxPadding.left()
-	- st::boxButtonPadding.right()
+	- st::defaultBox.buttonPadding.right()
 	- st::newGroupPadding.left()
 	- st::defaultRadio.diameter
 	- st::defaultBoxCheckbox.textPosition.x())
@@ -1017,7 +1034,7 @@ void SetupChannelBox::privacyChanged(Privacy value) {
 				Box<RevokePublicLinkBox>(
 					&_channel->session(),
 					callback),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 			return;
 		}
 		_link->show();
@@ -1112,14 +1129,14 @@ void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
 	const auto callback = [=] {
 		Ui::show(
 			Box<SetupChannelBox>(navigation, channel, existing),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	};
 	closeBox();
 	Ui::show(
 		Box<RevokePublicLinkBox>(
 			&channel->session(),
 			callback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
@@ -1165,8 +1182,8 @@ void EditNameBox::prepare() {
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
 	}
-	_first->setMaxLength(kMaxGroupChannelTitle);
-	_last->setMaxLength(kMaxGroupChannelTitle);
+	_first->setMaxLength(kMaxUserFirstLastName);
+	_last->setMaxLength(kMaxUserFirstLastName);
 
 	connect(_first, &Ui::InputField::submitted, [=] { submit(); });
 	connect(_last, &Ui::InputField::submitted, [=] { submit(); });
@@ -1272,6 +1289,7 @@ RevokePublicLinkBox::Inner::Inner(
 	Fn<void()> revokeCallback)
 : TWidget(parent)
 , _session(session)
+, _api(_session->api().instance())
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _revokeWidth(st::normalFont->width(tr::lng_channels_too_much_public_revoke(tr::now)))
 , _revokeCallback(std::move(revokeCallback)) {
@@ -1279,7 +1297,7 @@ RevokePublicLinkBox::Inner::Inner(
 
 	resize(width(), 5 * _rowHeight);
 
-	request(MTPchannels_GetAdminedPublicChannels(
+	_api.request(MTPchannels_GetAdminedPublicChannels(
 		MTP_flags(0)
 	)).done([=](const MTPmessages_Chats &result) {
 		const auto &chats = result.match([](const auto &data) {
@@ -1330,7 +1348,7 @@ void RevokePublicLinkBox::prepare() {
 		if (callback) {
 			callback();
 		}
-	}), st::boxLayerScroll, _innerTop);
+	}), st::boxScroll, _innerTop);
 
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
@@ -1349,7 +1367,7 @@ void RevokePublicLinkBox::Inner::updateSelected() {
 	PeerData *selected = nullptr;
 	auto top = _rowsTop;
 	for (const auto &row : _rows) {
-		auto revokeLink = rtlrect(width() - st::contactsPadding.right() - st::contactsCheckPosition.x() - _revokeWidth, top + st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, _revokeWidth, st::normalFont->height, width());
+		auto revokeLink = style::rtlrect(width() - st::contactsPadding.right() - st::contactsCheckPosition.x() - _revokeWidth, top + st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, _revokeWidth, st::normalFont->height, width());
 		if (revokeLink.contains(point)) {
 			selected = row.peer;
 			break;
@@ -1386,7 +1404,7 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 		auto confirmText = tr::lng_channels_too_much_public_revoke(tr::now);
 		_weakRevokeConfirmBox = Ui::show(Box<ConfirmBox>(text, confirmText, crl::guard(this, [this, pressed]() {
 			if (_revokeRequestId) return;
-			_revokeRequestId = request(MTPchannels_UpdateUsername(
+			_revokeRequestId = _api.request(MTPchannels_UpdateUsername(
 				pressed->asChannel()->inputChannel,
 				MTP_string()
 			)).done([=](const MTPBool &result) {
@@ -1398,7 +1416,7 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 					callback();
 				}
 			}).send();
-		})), LayerOption::KeepOther);
+		})), Ui::LayerOption::KeepOther);
 	}
 }
 

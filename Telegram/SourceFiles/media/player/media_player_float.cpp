@@ -15,14 +15,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "media/audio/media_audio.h"
-#include "media/streaming/media_streaming_player.h"
+#include "media/streaming/media_streaming_instance.h"
 #include "media/view/media_view_playback_progress.h"
 #include "media/player/media_player_instance.h"
 #include "window/window_session_controller.h"
 #include "window/section_widget.h"
 #include "main/main_session.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_media_player.h"
 #include "styles/style_history.h"
+
+#include <QtWidgets/QApplication>
 
 namespace Media {
 namespace Player {
@@ -128,11 +132,11 @@ void Float::mouseDoubleClickEvent(QMouseEvent *e) {
 }
 
 void Float::pauseResume() {
-	if (const auto player = instance()->roundVideoPlayer(_item)) {
-		if (player->paused()) {
-			player->resume();
+	if (const auto streamed = getStreamed()) {
+		if (streamed->paused()) {
+			streamed->resume();
 		} else {
-			player->pause();
+			streamed->pause();
 		}
 	}
 }
@@ -202,8 +206,8 @@ void Float::paintEvent(QPaintEvent *e) {
 	}
 }
 
-Streaming::Player *Float::getPlayer() const {
-	return instance()->roundVideoPlayer(_item);
+Streaming::Instance *Float::getStreamed() const {
+	return instance()->roundVideoStreamed(_item);
 }
 
 View::PlaybackProgress *Float::getPlayback() const {
@@ -211,7 +215,7 @@ View::PlaybackProgress *Float::getPlayback() const {
 }
 
 bool Float::hasFrame() const {
-	return (getPlayer() != nullptr);
+	return (getStreamed() != nullptr);
 }
 
 bool Float::fillFrame() {
@@ -225,11 +229,11 @@ bool Float::fillFrame() {
 	auto frameInner = [&] {
 		return QRect(QPoint(), _frame.size() / cIntRetinaFactor());
 	};
-	if (const auto player = getPlayer()) {
+	if (const auto streamed = getStreamed()) {
 		auto request = Streaming::FrameRequest::NonStrict();
 		request.outer = request.resize = _frame.size();
 		request.radius = ImageRoundRadius::Ellipse;
-		auto frame = player->frame(request);
+		auto frame = streamed->frame(request);
 		if (!frame.isNull()) {
 			_frame.fill(Qt::transparent);
 

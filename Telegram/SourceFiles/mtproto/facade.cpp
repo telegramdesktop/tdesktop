@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 
 namespace MTP {
-namespace internal {
+namespace details {
 namespace {
 
 int PauseLevel = 0;
@@ -36,7 +36,7 @@ void unpause() {
 	}
 }
 
-} // namespace internal
+} // namespace details
 
 Instance *MainInstance() {
 	return Core::IsAppLaunched()

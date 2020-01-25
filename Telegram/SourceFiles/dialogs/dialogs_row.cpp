@@ -38,7 +38,7 @@ QString ComposeFolderListEntryText(not_null<Data::Folder*> folder) {
 		list.size() - (throwAwayLastName ? 1 : 0)
 	);
 	const auto wrapName = [](not_null<History*> history) {
-		const auto name = TextUtilities::Clean(App::peerName(history->peer));
+		const auto name = TextUtilities::Clean(history->peer->name);
 		return (history->unreadCount() > 0)
 			? (textcmdStartSemibold()
 				+ textcmdLink(1, name)

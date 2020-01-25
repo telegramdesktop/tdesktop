@@ -25,8 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "base/event_filter.h"
 #include "core/application.h"
-#include "core/event_filter.h"
 #include "core/update_checker.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peers/edit_participants_box.h"
@@ -40,10 +40,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_folder.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
 #include "styles/style_info.h"
 #include "styles/style_window.h"
+
+#include <QtCore/QMimeData>
 
 namespace Dialogs {
 namespace {
@@ -321,11 +325,13 @@ void Widget::setupScrollUpButton() {
 		}
 		scrollToTop();
 	});
-	Core::InstallEventFilter(_scrollToTop, [=](not_null<QEvent*> event) {
-		if (event->type() == QEvent::Wheel) {
-			return _scroll->viewportEvent(event);
+	base::install_event_filter(_scrollToTop, [=](not_null<QEvent*> event) {
+		if (event->type() != QEvent::Wheel) {
+			return base::EventFilterResult::Continue;
 		}
-		return false;
+		return _scroll->viewportEvent(event)
+			? base::EventFilterResult::Cancel
+			: base::EventFilterResult::Continue;
 	});
 	updateScrollUpVisibility();
 }
@@ -336,7 +342,8 @@ void Widget::updateScrollUpVisibility() {
 	}
 
 	startScrollUpButtonAnimation(
-		_scroll->scrollTop() > st::historyToDownShownAfter);
+		(_scroll->scrollTop() > st::historyToDownShownAfter)
+		&& (_scroll->scrollTop() < _scroll->scrollTopMax()));
 }
 
 void Widget::startScrollUpButtonAnimation(bool shown) {
@@ -455,7 +462,9 @@ void Widget::refreshFolderTopBar() {
 			_folderTopBar.create(this, controller());
 			updateControlsGeometry();
 		}
-		_folderTopBar->setActiveChat(_openedFolder);
+		_folderTopBar->setActiveChat(
+			_openedFolder,
+			HistoryView::TopBarWidget::Section::History);
 	} else {
 		_folderTopBar.destroy();
 	}
@@ -644,6 +653,7 @@ void Widget::startSlideAnimation() {
 	if (_showDirection == Window::SlideDirection::FromLeft) {
 		std::swap(_cacheUnder, _cacheOver);
 	}
+
 	_a_show.start([=] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
 }
 
@@ -684,6 +694,16 @@ void Widget::notify_historyMuteUpdated(History *history) {
 
 void Widget::performFilter() {
 	_inner->performFilter();
+}
+
+void Widget::unreadCountChanged() {
+	UnreadState counts[4];
+
+	for (int i=0; i<4; i++)
+		counts[i] = UnreadState();
+
+	_inner->dialogsList()->countUnreadMessages(counts);
+	_chatTabs->unreadCountChanged(counts);
 }
 
 void Widget::refreshLoadMoreButton(bool mayBlock, bool isBlocked) {
@@ -734,7 +754,7 @@ void Widget::onDraggingScrollDelta(int delta) {
 }
 
 void Widget::onDraggingScrollTimer() {
-	auto delta = (_draggingScrollDelta > 0) ? qMin(_draggingScrollDelta * 3 / 20 + 1, int32(MaxScrollSpeed)) : qMax(_draggingScrollDelta * 3 / 20 - 1, -int32(MaxScrollSpeed));
+	auto delta = (_draggingScrollDelta > 0) ? qMin(_draggingScrollDelta * 3 / 20 + 1, int32(Ui::kMaxScrollSpeed)) : qMax(_draggingScrollDelta * 3 / 20 - 1, -int32(Ui::kMaxScrollSpeed));
 	_scroll->scrollToY(_scroll->scrollTop() + delta);
 }
 
@@ -1248,7 +1268,7 @@ void Widget::dropEvent(QDropEvent *e) {
 		if (auto peer = _inner->updateFromParentDrag(mapToGlobal(e->pos()))) {
 			e->acceptProposedAction();
 			App::main()->onFilesOrForwardDrop(peer->id, e->mimeData());
-			controller()->window()->activateWindow();
+			controller()->widget()->activateWindow();
 		}
 	}
 }
@@ -1355,7 +1375,6 @@ void Widget::showSearchFrom() {
 	if (const auto peer = _searchInChat.peer()) {
 		const auto chat = _searchInChat;
 		ShowSearchFromBox(
-			controller(),
 			peer,
 			crl::guard(this, [=](not_null<UserData*> user) {
 				Ui::hideLayer();

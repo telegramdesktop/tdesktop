@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-using "basic.style";
+using "ui/basic.style";
 
 using "ui/widgets/widgets.style";
 
@@ -269,64 +269,64 @@ dialogsSearchFromPalette: TextPalette(defaultTextPalette) {
 	linkFg: dialogsNameFg;
 }
 
-dialogsChatTabsOneOnOneButton: IconButton {
-        width: 40px;
-        height: 40px;
+dialogsChatTabsPrivateButton: IconButton {
+    width: 45px;
+    height: 45px;
 
-        icon: icon {{ "private_icon", dialogsMenuIconFg }};
-        iconOver: icon {{ "private_icon", windowBgActive }};
-        iconPosition: point(10px, 5px);
+    icon: icon {{ "tab_private", dialogsMenuIconFg }};
+    iconOver: icon {{ "tab_private", windowBgActive }};
+    iconPosition: point(7px, 7px);
 
-        rippleAreaPosition: point(0px, 0px);
-        rippleAreaSize: 40px;
-        ripple: RippleAnimation(defaultRippleAnimation) {
-                color: windowBgOver;
-        }
+    rippleAreaPosition: point(0px, 0px);
+    rippleAreaSize: 45px;
+    ripple: RippleAnimation(defaultRippleAnimation) {
+        color: windowBgOver;
+    }
 }
 
 dialogsChatTabsBotButton: IconButton {
-        width: 40px;
-        height: 40px;
+    width: 45px;
+    height: 45px;
 
-        icon: icon {{ "bot_icon", dialogsMenuIconFg }};
-        iconOver: icon {{ "bot_icon", windowBgActive }};
-        iconPosition: point(10px, 5px);
+    icon: icon {{ "tab_bot", dialogsMenuIconFg }};
+    iconOver: icon {{ "tab_bot", windowBgActive }};
+    iconPosition: point(7px, 7px);
 
-        rippleAreaPosition: point(0px, 0px);
-        rippleAreaSize: 40px;
-        ripple: RippleAnimation(defaultRippleAnimation) {
-                color: windowBgOver;
-        }
+    rippleAreaPosition: point(0px, 0px);
+    rippleAreaSize: 45px;
+    ripple: RippleAnimation(defaultRippleAnimation) {
+        color: windowBgOver;
+    }
 }
 
 dialogsChatTabsGroupButton: IconButton {
-        width: 40px;
-        height: 40px;
+    width: 45px;
+    height: 45px;
 
-        icon: icon {{ "group_icon", dialogsMenuIconFg }};
-        iconOver: icon {{ "group_icon", windowBgActive }};
-        iconPosition: point(10px, 5px);
+    icon: icon {{ "tab_group", dialogsMenuIconFg }};
+    iconOver: icon {{ "tab_group", windowBgActive }};
+    iconPosition: point(7px, 7px);
 
-        rippleAreaPosition: point(0px, 0px);
-        rippleAreaSize: 40px;
-        ripple: RippleAnimation(defaultRippleAnimation) {
-                color: windowBgOver;
-        }
+    rippleAreaPosition: point(0px, 0px);
+    rippleAreaSize: 45px;
+    ripple: RippleAnimation(defaultRippleAnimation) {
+        color: windowBgOver;
+    }
 }
 
-dialogsChatTabsAnnouncementButton: IconButton {
-        width: 40px;
-        height: 40px;
+dialogsChatTabsChannelButton: IconButton {
+    width: 45px;
+    height: 45px;
 
-        icon: icon {{ "announcements_icon", dialogsMenuIconFg }};
-        iconOver: icon {{ "announcements_icon", windowBgActive }};
-        iconPosition: point(10px, 5px);
+    icon: icon {{ "tab_channel", dialogsMenuIconFg }};
+    iconOver: icon {{ "tab_channel", windowBgActive }};
+    iconPosition: point(7px, 7px);
 
-        rippleAreaPosition: point(0px, 0px);
-        rippleAreaSize: 40px;
-        ripple: RippleAnimation(defaultRippleAnimation) {
-                color: windowBgOver;
-        }
+    rippleAreaPosition: point(0px, 0px);
+    rippleAreaSize: 45px;
+    ripple: RippleAnimation(defaultRippleAnimation) {
+        color: windowBgOver;
+    }
 }
 
 dialogsScamPadding: margins(2px, 0px, 2px, 0px);

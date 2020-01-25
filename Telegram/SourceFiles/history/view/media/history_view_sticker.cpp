@@ -18,11 +18,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/emoji_config.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "mainwindow.h" // App::wnd()->sessionController.
 #include "window/window_session_controller.h" // isGifPausedAtLeastFor.
 #include "data/data_session.h"
 #include "data/data_document.h"
+#include "data/data_file_origin.h"
 #include "lottie/lottie_single_player.h"
 #include "styles/style_history.h"
 
@@ -30,7 +32,9 @@ namespace HistoryView {
 namespace {
 
 double GetEmojiStickerZoom(not_null<Main::Session*> session) {
-	return session->appConfig().get<double>("emojies_animated_zoom", 0.625);
+	return session->account().appConfig().get<double>(
+		"emojies_animated_zoom",
+		0.625);
 }
 
 } // namespace

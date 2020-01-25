@@ -20,8 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
-
 #include "boxes/peers/edit_peer_permissions_box.h"
+#include "app.h"
 
 namespace Info {
 namespace Profile {
@@ -50,7 +50,7 @@ rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer) {
 		peer,
 		Notify::PeerUpdate::Flag::NameChanged
 	) | rpl::map([=] {
-		return App::peerName(peer);
+		return peer->name;
 	}) | Ui::Text::ToWithEntities();
 }
 

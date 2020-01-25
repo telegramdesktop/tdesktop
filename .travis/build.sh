@@ -11,24 +11,24 @@ CACHE="$HOME/travisCacheDir"
 
 QT_WAS_BUILT="0"
 
-QT_VERSION=5.6.2
+QT_VERSION=5.12.5
 
 XKB_PATH="$BUILD/libxkbcommon"
 XKB_CACHE_VERSION="3"
 
 QT_PATH="$BUILD/qt"
-QT_CACHE_VERSION="4"
-QT_PATCH="$UPSTREAM/Telegram/Patches/qtbase_${QT_VERSION//\./_}.diff"
+QT_CACHE_VERSION="5"
+QT_PATCH="$EXTERNAL/patches/qtbase_${QT_VERSION//\./_}.diff"
 
 BREAKPAD_PATH="$BUILD/breakpad"
 BREAKPAD_CACHE_VERSION="3"
 
 GYP_PATH="$BUILD/gyp"
 GYP_CACHE_VERSION="3"
-GYP_PATCH="$UPSTREAM/Telegram/Patches/gyp.diff"
+GYP_PATCH="$EXTERNAL/patches/gyp.diff"
 
 RANGE_PATH="$BUILD/range-v3"
-RANGE_CACHE_VERSION="4"
+RANGE_CACHE_VERSION="3"
 
 VA_PATH="$BUILD/libva"
 VA_CACHE_VERSION="3"
@@ -63,6 +63,8 @@ build() {
   mkdir -p "$EXTERNAL"
 
   BUILD_VERSION_DATA=$(echo $BUILD_VERSION | cut -d'-' -f 1)
+
+  getPatches
 
   # libxkbcommon
   getXkbCommon
@@ -105,7 +107,7 @@ build() {
   fi
 
   if [[ $BUILD_VERSION == *"disable_crash_reports"* ]]; then
-    GYP_DEFINES+=",TDESKTOP_DISABLE_CRASH_REPORTS"
+    GYP_DEFINES+=",DESKTOP_APP_DISABLE_CRASH_REPORTS"
   fi
 
   if [[ $BUILD_VERSION == *"disable_network_proxy"* ]]; then
@@ -125,6 +127,11 @@ build() {
   buildTelegram
 
   travisEndFold
+}
+
+getPatches() {
+  cd "$EXTERNAL"
+  git clone --depth 1 https://github.com/desktop-app/patches
 }
 
 getXkbCommon() {
@@ -170,6 +177,7 @@ buildXkbCommon() {
   git clone https://github.com/xkbcommon/libxkbcommon.git
 
   cd "$EXTERNAL/libxkbcommon"
+  git checkout xkbcommon-0.8.4
   ./autogen.sh --prefix=$XKB_PATH
   make $MAKE_ARGS
   sudo make install
@@ -216,7 +224,7 @@ buildRange() {
   rm -rf *
 
   cd "$EXTERNAL"
-  git clone --depth 1 --branch 0.5.0 https://github.com/ericniebler/range-v3
+  git clone --depth 1 --branch 0.10.0 https://github.com/ericniebler/range-v3
 
   cd "$EXTERNAL/range-v3"
   cp -r * "$RANGE_PATH/"
@@ -579,8 +587,8 @@ buildCustomQt() {
   QT_WAS_BUILT="1"
   info_msg "Downloading and building patched qt"
 
-  if [ -d "$EXTERNAL/qt${QT_VERSION}" ]; then
-    sudo rm -rf "$EXTERNAL/qt${QT_VERSION}"
+  if [ -d "$EXTERNAL/qt_${QT_VERSION}" ]; then
+    sudo rm -rf "$EXTERNAL/qt_${QT_VERSION}"
   fi
   cd $QT_PATH
   sudo rm -rf *
@@ -591,8 +599,8 @@ buildCustomQt() {
   cd "$EXTERNAL/qt${QT_VERSION}"
   perl init-repository --branch --module-subset=qtbase,qtimageformats
   git checkout v${QT_VERSION}
-  cd qtbase && git checkout v${QT_VERSION} && cd ..
-  cd qtimageformats && git checkout v${QT_VERSION} && cd ..
+  git submodule update qtbase
+  git submodule update qtimageformats
 
   cd "$EXTERNAL/qt${QT_VERSION}/qtbase"
   git apply "$QT_PATCH"
@@ -605,10 +613,10 @@ buildCustomQt() {
   cd ../../../..
 
   ./configure -prefix $QT_PATH -release -opensource -confirm-license -qt-zlib \
-              -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb \
-              -qt-xkbcommon-x11 -no-opengl -no-gtkstyle -static \
+              -qt-libpng -qt-libjpeg -qt-harfbuzz -qt-pcre -qt-xcb \
+              -system-freetype -fontconfig -no-opengl -no-gtk -static \
               -nomake examples -nomake tests -no-mirclient \
-              -dbus-runtime -no-gstreamer -no-mtdev # <- Not sure about these
+              -dbus-runtime -no-mtdev # <- Not sure about these
   make $MAKE_ARGS
   sudo make install
 }
@@ -663,7 +671,7 @@ buildGYP() {
   git clone https://chromium.googlesource.com/external/gyp
 
   cd "$EXTERNAL/gyp"
-  git checkout 702ac58e47
+  git checkout 9f2a7bb1
   git apply "$GYP_PATCH"
   cp -r * "$GYP_PATH/"
 }
@@ -675,6 +683,7 @@ buildTelegram() {
   "$GYP_PATH/gyp" \
       -Dapi_id=17349 \
       -Dapi_hash=344583e45741c457fe1862106095a5eb \
+      -Dspecial_build_target= \
       -Dbuild_defines=${GYP_DEFINES:1} \
       -Dlinux_path_xkbcommon=$XKB_PATH \
       -Dlinux_path_va=$VA_PATH \
@@ -685,7 +694,6 @@ buildTelegram() {
       -Dlinux_path_qt=$QT_PATH \
       -Dlinux_path_breakpad=$BREAKPAD_PATH \
       -Dlinux_path_libexif_lib=/usr/local/lib \
-      -Dlinux_path_opus_include=/usr/include/opus \
       -Dlinux_lib_ssl=-lssl \
       -Dlinux_lib_crypto=-lcrypto \
       -Dlinux_lib_icu=-licuuc\ -licutu\ -licui18n \

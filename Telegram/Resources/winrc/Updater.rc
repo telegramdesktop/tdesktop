@@ -1,6 +1,5 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource1.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -25,8 +24,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,8,2,0
- PRODUCTVERSION 1,8,2,0
+ FILEVERSION 1,9,8,0
+ PRODUCTVERSION 1,9,8,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -43,10 +42,10 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Sean"
             VALUE "FileDescription", "Telegreat Desktop Updater"
-            VALUE "FileVersion", "1.8.2.0"
-            VALUE "LegalCopyright", "Copyright (C) 2014-2019"
+            VALUE "FileVersion", "1.9.8.0"
+            VALUE "LegalCopyright", "Copyright (C) 2014-2020"
             VALUE "ProductName", "Telegreat Desktop"
-            VALUE "ProductVersion", "1.8.2.0"
+            VALUE "ProductVersion", "1.9.8.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -57,16 +56,3 @@ END
 
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
-
-
-
-#ifndef APSTUDIO_INVOKED
-/////////////////////////////////////////////////////////////////////////////
-//
-// Generated from the TEXTINCLUDE 3 resource.
-//
-
-
-/////////////////////////////////////////////////////////////////////////////
-#endif    // not APSTUDIO_INVOKED
-

@@ -3,12 +3,12 @@ setlocal enabledelayedexpansion
 set "FullScriptPath=%~dp0"
 set "FullExecPath=%cd%"
 
-if exist "%FullScriptPath%..\..\..\TelegramPrivate" (
-  rm -r "%FullScriptPath%..\..\..\TelegramPrivate"
+if exist "%FullScriptPath%..\..\..\DesktopPrivate" (
+  rm -r "%FullScriptPath%..\..\..\DesktopPrivate"
 )
-xcopy "%FullScriptPath%..\..\TelegramPrivate" "%FullScriptPath%..\..\..\TelegramPrivate" /S /Y /I
+xcopy "%FullScriptPath%..\..\DesktopPrivate" "%FullScriptPath%..\..\..\DesktopPrivate" /S /Y /I
 
-if not exist "%FullScriptPath%..\..\..\TelegramPrivate" (
+if not exist "%FullScriptPath%..\..\..\DesktopPrivate" (
   echo.
   echo This script is for building the production version of Telegreat.
   echo.
@@ -53,13 +53,13 @@ echo.
 
 set "HomePath=%FullScriptPath%.."
 set "ResourcesPath=%HomePath%\Resources"
-set "SolutionPath=%HomePath%\.."
+set "SolutionPath=%HomePath%\..\out"
 set "UpdateFile=tupdate%AppVersion%"
 set "SetupFile=tsetup.%AppVersionStrFull%.exe"
 set "PortableFile=tportable.%AppVersionStrFull%.7z"
-set "ReleasePath=%HomePath%\..\out\Release"
+set "ReleasePath=%SolutionPath%\Release"
 set "DeployPath=%ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStrFull%"
-set "SignPath=%HomePath%\..\..\TelegramPrivate\Sign.bat"
+set "SignPath=%HomePath%\..\..\DesktopPrivate\Sign.bat"
 set "BinaryName=Telegreat"
 set "DropboxSymbolsPath=D:\TBuild\symbols"
 set "FinalReleasePath=D:\TBuild\backup"
@@ -110,26 +110,24 @@ if %AlphaVersion% neq 0 (
 
 cd "%HomePath%"
 
-call gyp\refresh.bat
+call configure.bat
 if %errorlevel% neq 0 goto error
 
 cd "%SolutionPath%"
-call ninja -C out/Release Telegreat
+call cmake --build . --config Release --target Telegram
 if %errorlevel% neq 0 goto error
 
 echo.
 echo Version %AppVersionStrFull% build successfull. Preparing..
 echo.
 
-if not exist "%SolutionPath%\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" (
+if not exist "%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" (
   echo Utility dump_syms not found!
   exit /b 1
 )
 
 echo Dumping debug symbols..
-xcopy "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\%BinaryName%.exe.exe*"
-call "%SolutionPath%\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" "%ReleasePath%\%BinaryName%.exe.pdb" > "%ReleasePath%\%BinaryName%.exe.sym"
-del "%ReleasePath%\%BinaryName%.exe.exe"
+call "%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" "%ReleasePath%\%BinaryName%.pdb" > "%ReleasePath%\%BinaryName%.sym"
 echo Done!
 
 set "PATH=%PATH%;C:\Program Files\7-Zip;C:\Program Files (x86)\Inno Setup 5"
@@ -154,9 +152,9 @@ if %BuildUWP% equ 0 (
   if %AlphaVersion% equ 0 (
     iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "/dReleasePath=%ReleasePath%" "%FullScriptPath%setup.iss"
     if %errorlevel% neq 0 goto error
-    if not exist "tsetup.%AppVersionStrFull%.exe" goto error
+    if not exist "%SetupFile%" goto error
 :sign3
-    call "%SignPath%" "tsetup.%AppVersionStrFull%.exe"
+    call "%SignPath%" "%SetupFile%"
     if %errorlevel% neq 0 (
       timeout /t 3
       goto sign3
@@ -184,17 +182,17 @@ if %BuildUWP% equ 0 (
 
 for /f ^"usebackq^ eol^=^
 
-^ delims^=^" %%a in (%ReleasePath%\%BinaryName%.exe.sym) do (
+^ delims^=^" %%a in (%ReleasePath%\%BinaryName%.sym) do (
   set "SymbolsHashLine=%%a"
   goto symbolslinedone
 )
 :symbolslinedone
 FOR /F "tokens=1,2,3,4* delims= " %%i in ("%SymbolsHashLine%") do set "SymbolsHash=%%l"
 
-echo Copying %BinaryName%.exe.sym to %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash%
-if not exist %DropboxSymbolsPath%\%BinaryName%.exe.pdb mkdir %DropboxSymbolsPath%\%BinaryName%.exe.pdb
-if not exist %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash% mkdir %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash%
-move "%ReleasePath%\%BinaryName%.exe.sym" %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash%\
+echo Copying %BinaryName%.sym to %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash%
+if not exist %DropboxSymbolsPath%\%BinaryName%.pdb mkdir %DropboxSymbolsPath%\%BinaryName%.pdb
+if not exist %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash% mkdir %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash%
+move "%ReleasePath%\%BinaryName%.sym" %DropboxSymbolsPath%\%BinaryName%.pdb\%SymbolsHash%\
 echo Done!
 
 if %BuildUWP% neq 0 (
@@ -230,8 +228,7 @@ if %BuildUWP% neq 0 (
   if not exist "%ReleasePath%\deploy\%AppVersionStrMajor%" mkdir "%ReleasePath%\deploy\%AppVersionStrMajor%"
   mkdir "%DeployPath%"
 
-  xcopy "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\"
-  move "%ReleasePath%\%BinaryName%.exe.pdb" "%DeployPath%\"
+  move "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\"
   move "%ReleasePath%\%BinaryName%.x86.appx" "%DeployPath%\"
   move "%ReleasePath%\%BinaryName%.x64.appx" "%DeployPath%\"
   move "%ReleasePath%\%BinaryName%.exe" "%DeployPath%\"
@@ -251,10 +248,8 @@ if %BuildUWP% neq 0 (
 
   move "%ReleasePath%\%BinaryName%.exe" "%DeployPath%\%BinaryName%\"
   move "%ReleasePath%\Updater.exe" "%DeployPath%\"
-  xcopy "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\"
-  xcopy "%ReleasePath%\Updater.pdb" "%DeployPath%\"
-  move "%ReleasePath%\%BinaryName%.exe.pdb" "%DeployPath%\"
-  move "%ReleasePath%\Updater.exe.pdb" "%DeployPath%\"
+  move "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\"
+  move "%ReleasePath%\Updater.pdb" "%DeployPath%\"
   if %AlphaVersion% equ 0 (
     move "%ReleasePath%\%SetupFile%" "%DeployPath%\"
   ) else (
@@ -285,10 +280,8 @@ if %BuildUWP% equ 0 (
     if not exist "%DeployPath%\%SetupFile%" goto error
   )
   if not exist "%DeployPath%\%BinaryName%.pdb" goto error
-  if not exist "%DeployPath%\%BinaryName%.exe.pdb" goto error
   if not exist "%DeployPath%\Updater.exe" goto error
   if not exist "%DeployPath%\Updater.pdb" goto error
-  if not exist "%DeployPath%\Updater.exe.pdb" goto error
   md "%FinalDeployPath%"
 
   xcopy "%DeployPath%\%UpdateFile%" "%FinalDeployPath%\" /Y

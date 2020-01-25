@@ -34,7 +34,7 @@ public:
 		FnMut<void(const Information &)> ready,
 		Fn<void(Error)> error);
 
-	void process(FFmpeg::Packet &&packet);
+	void process(std::vector<FFmpeg::Packet> &&packets);
 
 	[[nodisacrd]] rpl::producer<> checkNextFrame() const;
 	[[nodisacrd]] rpl::producer<> waitingForData() const;
@@ -42,9 +42,14 @@ public:
 	void pause(crl::time time);
 	void resume(crl::time time);
 	void setSpeed(float64 speed);
+	void setWaitForMarkAsShown(bool wait);
 	void interrupt();
-	void frameDisplayed();
-	void updateFrameRequest(const FrameRequest &request);
+	void frameShown();
+	void addTimelineDelay(crl::time delayed);
+	void updateFrameRequest(
+		const Instance *instance,
+		const FrameRequest &request);
+	void removeFrameRequest(const Instance *instance);
 
 private:
 	enum class FrameResult {
@@ -67,6 +72,8 @@ private:
 	void readFrames();
 	[[nodiscard]] ReadEnoughState readEnoughFrames(crl::time trackTime);
 	[[nodiscard]] FrameResult readFrame(not_null<Frame*> frame);
+	void fillRequests(not_null<Frame*> frame) const;
+	[[nodiscard]] QSize chooseOriginalResize() const;
 	void presentFrameIfNeeded();
 	void callReady();
 	[[nodiscard]] bool loopAround();
@@ -97,7 +104,7 @@ private:
 	crl::time _loopingShift = 0;
 	rpl::event_stream<> _checkNextFrame;
 	rpl::event_stream<> _waitingForData;
-	FrameRequest _request = FrameRequest::NonStrict();
+	base::flat_map<const Instance*, FrameRequest> _requests;
 
 	bool _queued = false;
 	base::ConcurrentTimer _readFramesTimer;
@@ -142,25 +149,42 @@ rpl::producer<> VideoTrackObject::waitingForData() const {
 		: _waitingForData.events();
 }
 
-void VideoTrackObject::process(FFmpeg::Packet &&packet) {
-	if (interrupted()) {
+void VideoTrackObject::process(std::vector<FFmpeg::Packet> &&packets) {
+	if (interrupted() || packets.empty()) {
 		return;
 	}
-	if (packet.empty()) {
+	if (packets.front().empty()) {
+		Assert(packets.size() == 1);
 		_readTillEnd = true;
 	} else if (!_readTillEnd) {
+		//for (const auto &packet : packets) {
+		//	// Maybe it is enough to count by list.back()?.. hope so.
+		//	accumulate_max(
+		//		_durationByLastPacket,
+		//		durationByPacket(packet));
+		//	if (interrupted()) {
+		//		return;
+		//	}
+		//}
 		accumulate_max(
 			_durationByLastPacket,
-			durationByPacket(packet));
+			durationByPacket(packets.back()));
 		if (interrupted()) {
 			return;
 		}
 	}
-	if (_shared->initialized()) {
-		_stream.queue.push_back(std::move(packet));
-		queueReadFrames();
-	} else if (!tryReadFirstFrame(std::move(packet))) {
-		fail(Error::InvalidData);
+	for (auto i = begin(packets), e = end(packets); i != e; ++i) {
+		if (_shared->initialized()) {
+			_stream.queue.insert(
+				end(_stream.queue),
+				std::make_move_iterator(i),
+				std::make_move_iterator(e));
+			queueReadFrames();
+			break;
+		} else if (!tryReadFirstFrame(std::move(*i))) {
+			fail(Error::InvalidData);
+			break;
+		}
 	}
 }
 
@@ -222,7 +246,7 @@ void VideoTrackObject::readFrames() {
 
 auto VideoTrackObject::readEnoughFrames(crl::time trackTime)
 -> ReadEnoughState {
-	const auto dropStaleFrames = _options.dropStaleFrames;
+	const auto dropStaleFrames = !_options.waitForMarkAsShown;
 	const auto state = _shared->prepareState(trackTime, dropStaleFrames);
 	return state.match([&](Shared::PrepareFrame frame) -> ReadEnoughState {
 		while (true) {
@@ -296,35 +320,69 @@ auto VideoTrackObject::readFrame(not_null<Frame*> frame) -> FrameResult {
 	return FrameResult::Done;
 }
 
+void VideoTrackObject::fillRequests(not_null<Frame*> frame) const {
+	auto i = frame->prepared.begin();
+	for (const auto &[instance, request] : _requests) {
+		while (i != frame->prepared.end() && i->first < instance) {
+			i = frame->prepared.erase(i);
+		}
+		if (i == frame->prepared.end() || i->first > instance) {
+			i = frame->prepared.emplace(instance, request).first;
+		}
+		++i;
+	}
+	while (i != frame->prepared.end()) {
+		i = frame->prepared.erase(i);
+	}
+}
+
+QSize VideoTrackObject::chooseOriginalResize() const {
+	auto chosen = QSize();
+	for (const auto &[_, request] : _requests) {
+		if (request.resize.isEmpty()) {
+			return QSize();
+		}
+		const auto byWidth = (request.resize.width() >= chosen.width());
+		const auto byHeight = (request.resize.height() >= chosen.height());
+		if (byWidth && byHeight) {
+			chosen = request.resize;
+		} else if (byWidth || byHeight) {
+			return QSize();
+		}
+	}
+	return chosen;
+}
+
 void VideoTrackObject::presentFrameIfNeeded() {
 	if (_pausedTime != kTimeUnknown || _resumedTime == kTimeUnknown) {
 		return;
 	}
-	const auto time = trackTime();
 	const auto rasterize = [&](not_null<Frame*> frame) {
 		Expects(frame->position != kFinishedPosition);
 
-		frame->request = _request;
+		fillRequests(frame);
 		frame->original = ConvertFrame(
 			_stream,
 			frame->decoded.get(),
-			frame->request.resize,
+			chooseOriginalResize(),
 			std::move(frame->original));
 		if (frame->original.isNull()) {
-			frame->prepared = QImage();
+			frame->prepared.clear();
 			fail(Error::InvalidData);
 			return;
 		}
 
-		VideoTrack::PrepareFrameByRequest(frame);
+		VideoTrack::PrepareFrameByRequests(frame, _stream.rotation);
 
 		Ensures(VideoTrack::IsRasterized(frame));
 	};
+	const auto dropStaleFrames = !_options.waitForMarkAsShown;
 	const auto presented = _shared->presentFrame(
-		time,
+		trackTime(),
 		_options.speed,
-		_options.dropStaleFrames,
+		dropStaleFrames,
 		rasterize);
+	addTimelineDelay(presented.addedWorldTimeDelay);
 	if (presented.displayPosition == kFinishedPosition) {
 		interrupt();
 		_checkNextFrame = rpl::event_stream<>();
@@ -380,19 +438,41 @@ void VideoTrackObject::setSpeed(float64 speed) {
 	_options.speed = speed;
 }
 
+void VideoTrackObject::setWaitForMarkAsShown(bool wait) {
+	if (interrupted()) {
+		return;
+	}
+	_options.waitForMarkAsShown = wait;
+}
+
 bool VideoTrackObject::interrupted() const {
 	return (_shared == nullptr);
 }
 
-void VideoTrackObject::frameDisplayed() {
+void VideoTrackObject::frameShown() {
 	if (interrupted()) {
 		return;
 	}
 	queueReadFrames();
 }
 
-void VideoTrackObject::updateFrameRequest(const FrameRequest &request) {
-	_request = request;
+void VideoTrackObject::addTimelineDelay(crl::time delayed) {
+	Expects(_syncTimePoint.valid());
+
+	if (!delayed) {
+		return;
+	}
+	_syncTimePoint.worldTime += delayed;
+}
+
+void VideoTrackObject::updateFrameRequest(
+		const Instance *instance,
+		const FrameRequest &request) {
+	_requests.emplace(instance, request);
+}
+
+void VideoTrackObject::removeFrameRequest(const Instance *instance) {
+	_requests.remove(instance);
 }
 
 bool VideoTrackObject::tryReadFirstFrame(FFmpeg::Packet &&packet) {
@@ -529,6 +609,7 @@ void VideoTrack::Shared::init(QImage &&cover, crl::time position) {
 	// But in this case we update _counter, so we set a fake displayed time.
 	_frames[0].displayed = kDisplaySkipped;
 
+	_delay = 0;
 	_counter.store(0, std::memory_order_release);
 }
 
@@ -617,23 +698,25 @@ auto VideoTrack::Shared::presentFrame(
 	const auto present = [&](int counter, int index) -> PresentFrame {
 		const auto frame = getFrame(index);
 		const auto position = frame->position;
+		const auto addedWorldTimeDelay = base::take(_delay);
 		if (position == kFinishedPosition) {
-			return { kFinishedPosition, kTimeUnknown };
+			return { kFinishedPosition, kTimeUnknown, addedWorldTimeDelay };
 		}
 		rasterize(frame);
 		if (!IsRasterized(frame)) {
 			// Error happened during frame prepare.
-			return { kTimeUnknown, kTimeUnknown };
+			return { kTimeUnknown, kTimeUnknown, addedWorldTimeDelay };
 		}
 		const auto trackLeft = position - time.trackTime;
 		frame->display = time.worldTime
+			+ addedWorldTimeDelay
 			+ crl::time(std::round(trackLeft / playbackSpeed));
 
 		// Release this frame to the main thread for rendering.
 		_counter.store(
 			(counter + 1) % (2 * kFramesCount),
 			std::memory_order_release);
-		return { position, crl::time(0) };
+		return { position, crl::time(0), addedWorldTimeDelay };
 	};
 	const auto nextCheckDelay = [&](int index) -> PresentFrame {
 		const auto frame = getFrame(index);
@@ -669,6 +752,10 @@ crl::time VideoTrack::Shared::nextFrameDisplayTime() const {
 		const auto next = (counter + 1) % (2 * kFramesCount);
 		const auto index = next / 2;
 		const auto frame = getFrame(index);
+		if (frame->displayed != kTimeUnknown) {
+			// Frame already displayed, but not yet shown.
+			return kFrameDisplayTimeAlreadyDone;
+		}
 		Assert(IsRasterized(frame));
 		Assert(frame->display != kTimeUnknown);
 
@@ -689,31 +776,86 @@ crl::time VideoTrack::Shared::nextFrameDisplayTime() const {
 }
 
 crl::time VideoTrack::Shared::markFrameDisplayed(crl::time now) {
-	const auto markAndJump = [&](int counter) {
+	const auto mark = [&](int counter) {
 		const auto next = (counter + 1) % (2 * kFramesCount);
 		const auto index = next / 2;
 		const auto frame = getFrame(index);
 		Assert(frame->position != kTimeUnknown);
-		Assert(frame->displayed == kTimeUnknown);
-
-		frame->displayed = now;
-		_counter.store(
-			next,
-			std::memory_order_release);
+		if (frame->displayed == kTimeUnknown) {
+			frame->displayed = now;
+		}
 		return frame->position;
 	};
 
 	switch (counter()) {
 	case 0: Unexpected("Value 0 in VideoTrack::Shared::markFrameDisplayed.");
-	case 1: return markAndJump(1);
+	case 1: return mark(1);
 	case 2: Unexpected("Value 2 in VideoTrack::Shared::markFrameDisplayed.");
-	case 3: return markAndJump(3);
+	case 3: return mark(3);
 	case 4: Unexpected("Value 4 in VideoTrack::Shared::markFrameDisplayed.");
-	case 5: return markAndJump(5);
+	case 5: return mark(5);
 	case 6: Unexpected("Value 6 in VideoTrack::Shared::markFrameDisplayed.");
-	case 7: return markAndJump(7);
+	case 7: return mark(7);
 	}
 	Unexpected("Counter value in VideoTrack::Shared::markFrameDisplayed.");
+}
+
+void VideoTrack::Shared::addTimelineDelay(crl::time delayed) {
+	if (!delayed) {
+		return;
+	}
+	const auto recountCurrentFrame = [&](int counter) {
+		_delay += delayed;
+		//const auto next = (counter + 1) % (2 * kFramesCount);
+		//const auto index = next / 2;
+		//const auto frame = getFrame(index);
+		//if (frame->displayed != kTimeUnknown) {
+		//	// Frame already displayed.
+		//	return;
+		//}
+		//Assert(IsRasterized(frame));
+		//Assert(frame->display != kTimeUnknown);
+		//frame->display = countFrameDisplayTime(frame->index);
+	};
+
+	switch (counter()) {
+	case 0: Unexpected("Value 0 in VideoTrack::Shared::addTimelineDelay.");
+	case 1: return recountCurrentFrame(1);
+	case 2: Unexpected("Value 2 in VideoTrack::Shared::addTimelineDelay.");
+	case 3: return recountCurrentFrame(3);
+	case 4: Unexpected("Value 4 in VideoTrack::Shared::addTimelineDelay.");
+	case 5: return recountCurrentFrame(5);
+	case 6: Unexpected("Value 6 in VideoTrack::Shared::addTimelineDelay.");
+	case 7: return recountCurrentFrame(7);
+	}
+	Unexpected("Counter value in VideoTrack::Shared::addTimelineDelay.");
+}
+
+bool VideoTrack::Shared::markFrameShown() {
+	const auto jump = [&](int counter) {
+		const auto next = (counter + 1) % (2 * kFramesCount);
+		const auto index = next / 2;
+		const auto frame = getFrame(index);
+		if (frame->displayed == kTimeUnknown) {
+			return false;
+		}
+		_counter.store(
+			next,
+			std::memory_order_release);
+		return true;
+	};
+
+	switch (counter()) {
+	case 0: return false;
+	case 1: return jump(1);
+	case 2: return false;
+	case 3: return jump(3);
+	case 4: return false;
+	case 5: return jump(5);
+	case 6: return false;
+	case 7: return jump(7);
+	}
+	Unexpected("Counter value in VideoTrack::Shared::markFrameShown.");
 }
 
 not_null<VideoTrack::Frame*> VideoTrack::Shared::frameForPaint() {
@@ -734,7 +876,7 @@ VideoTrack::VideoTrack(
 : _streamIndex(stream.index)
 , _streamTimeBase(stream.timeBase)
 , _streamDuration(stream.duration)
-//, _streamRotation(stream.rotation)
+, _streamRotation(stream.rotation)
 //, _streamAspect(stream.aspect)
 , _shared(std::make_unique<Shared>())
 , _wrapped(
@@ -758,11 +900,11 @@ crl::time VideoTrack::streamDuration() const {
 	return _streamDuration;
 }
 
-void VideoTrack::process(FFmpeg::Packet &&packet) {
+void VideoTrack::process(std::vector<FFmpeg::Packet> &&packets) {
 	_wrapped.with([
-		packet = std::move(packet)
+		packets = std::move(packets)
 	](Implementation &unwrapped) mutable {
-		unwrapped.process(std::move(packet));
+		unwrapped.process(std::move(packets));
 	});
 }
 
@@ -787,47 +929,119 @@ void VideoTrack::setSpeed(float64 speed) {
 	});
 }
 
+void VideoTrack::setWaitForMarkAsShown(bool wait) {
+	_wrapped.with([=](Implementation &unwrapped) {
+		unwrapped.setWaitForMarkAsShown(wait);
+	});
+}
+
 crl::time VideoTrack::nextFrameDisplayTime() const {
 	return _shared->nextFrameDisplayTime();
 }
 
 crl::time VideoTrack::markFrameDisplayed(crl::time now) {
 	const auto result = _shared->markFrameDisplayed(now);
-	_wrapped.with([](Implementation &unwrapped) {
-		unwrapped.frameDisplayed();
-	});
 
 	Ensures(result != kTimeUnknown);
 	return result;
 }
 
-QImage VideoTrack::frame(const FrameRequest &request) {
-	const auto frame = _shared->frameForPaint();
-	const auto changed = (frame->request != request)
-		&& (request.strict || !frame->request.strict);
-	if (changed) {
-		frame->request = request;
-		_wrapped.with([=](Implementation &unwrapped) {
-			unwrapped.updateFrameRequest(request);
-		});
-	}
-	return PrepareFrameByRequest(frame, !changed);
+void VideoTrack::addTimelineDelay(crl::time delayed) {
+	_shared->addTimelineDelay(delayed);
+	//if (!delayed) {
+	//	return;
+	//}
+	//_wrapped.with([=](Implementation &unwrapped) mutable {
+	//	unwrapped.addTimelineDelay(delayed);
+	//});
 }
 
-QImage VideoTrack::PrepareFrameByRequest(
+bool VideoTrack::markFrameShown() {
+	if (!_shared->markFrameShown()) {
+		return false;
+	}
+	_wrapped.with([](Implementation &unwrapped) {
+		unwrapped.frameShown();
+	});
+	return true;
+}
+
+QImage VideoTrack::frame(
+		const FrameRequest &request,
+		const Instance *instance) {
+	const auto frame = _shared->frameForPaint();
+	const auto i = frame->prepared.find(instance);
+	const auto none = (i == frame->prepared.end());
+	const auto preparedFor = frame->prepared.empty()
+		? FrameRequest::NonStrict()
+		: (none ? frame->prepared.begin() : i)->second.request;
+	const auto changed = !preparedFor.goodFor(request);
+	const auto useRequest = changed ? request : preparedFor;
+	if (changed) {
+		_wrapped.with([=](Implementation &unwrapped) {
+			unwrapped.updateFrameRequest(instance, useRequest);
+		});
+	}
+	if (GoodForRequest(frame->original, _streamRotation, useRequest)) {
+		return frame->original;
+	} else if (changed || none || i->second.image.isNull()) {
+		const auto j = none
+			? frame->prepared.emplace(instance, useRequest).first
+			: i;
+		if (changed && !none) {
+			i->second.request = useRequest;
+		}
+		if (frame->prepared.size() > 1) {
+			for (auto &[alreadyInstance, prepared] : frame->prepared) {
+				if (alreadyInstance != instance
+					&& prepared.request == useRequest
+					&& !prepared.image.isNull()) {
+					return prepared.image;
+				}
+			}
+		}
+		j->second.image = PrepareByRequest(
+			frame->original,
+			_streamRotation,
+			useRequest,
+			std::move(j->second.image));
+		return j->second.image;
+	}
+	return i->second.image;
+}
+
+void VideoTrack::unregisterInstance(not_null<const Instance*> instance) {
+	_wrapped.with([=](Implementation &unwrapped) {
+		unwrapped.removeFrameRequest(instance);
+	});
+}
+
+void VideoTrack::PrepareFrameByRequests(
 		not_null<Frame*> frame,
-		bool useExistingPrepared) {
+		int rotation) {
 	Expects(!frame->original.isNull());
 
-	if (GoodForRequest(frame->original, frame->request)) {
-		return frame->original;
-	} else if (frame->prepared.isNull() || !useExistingPrepared) {
-		frame->prepared = PrepareByRequest(
-			frame->original,
-			frame->request,
-			std::move(frame->prepared));
+	const auto begin = frame->prepared.begin();
+	const auto end = frame->prepared.end();
+	for (auto i = begin; i != end; ++i) {
+		auto &prepared = i->second;
+		if (!GoodForRequest(frame->original, rotation, prepared.request)) {
+			auto j = begin;
+			for (; j != i; ++j) {
+				if (j->second.request == prepared.request) {
+					prepared.image = QImage();
+					break;
+				}
+			}
+			if (j == i) {
+				prepared.image = PrepareByRequest(
+					frame->original,
+					rotation,
+					prepared.request,
+					std::move(prepared.image));
+			}
+		}
 	}
-	return frame->prepared;
 }
 
 bool VideoTrack::IsDecoded(not_null<const Frame*> frame) {

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_shared_media.h"
 
 class AudioMsgId;
+class DocumentData;
 
 namespace Media {
 namespace Audio {
@@ -25,8 +26,8 @@ class PlaybackProgress;
 
 namespace Media {
 namespace Streaming {
-class Player;
-class Reader;
+class Document;
+class Instance;
 struct PlaybackOptions;
 struct Update;
 enum class Error;
@@ -36,13 +37,17 @@ enum class Error;
 namespace Media {
 namespace Player {
 
+class Instance;
+struct TrackState;
+
 void start(not_null<Audio::Instance*> instance);
 void finish(not_null<Audio::Instance*> instance);
 
-class Instance;
-Instance *instance();
+void SaveLastPlaybackPosition(
+	not_null<DocumentData*> document,
+	const TrackState &state);
 
-struct TrackState;
+Instance *instance();
 
 class Instance : private base::Subscriber {
 public:
@@ -80,7 +85,7 @@ public:
 	void playPause(const AudioMsgId &audioId);
 	[[nodiscard]] TrackState getState(AudioMsgId::Type type) const;
 
-	[[nodiscard]] Streaming::Player *roundVideoPlayer(
+	[[nodiscard]] Streaming::Instance *roundVideoStreamed(
 		HistoryItem *item) const;
 	[[nodiscard]] View::PlaybackProgress *roundVideoPlayback(
 		HistoryItem *item) const;
@@ -193,10 +198,10 @@ private:
 	void setupShortcuts();
 	void playStreamed(
 		const AudioMsgId &audioId,
-		std::shared_ptr<Streaming::Reader> reader);
+		std::shared_ptr<Streaming::Document> shared);
 	Streaming::PlaybackOptions streamingOptions(
 		const AudioMsgId &audioId,
-		crl::time position = 0);
+		crl::time position = -1);
 
 	// Observed notifications.
 	void handleSongUpdate(const AudioMsgId &audioId);

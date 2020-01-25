@@ -11,13 +11,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/special_fields.h"
 #include "ui/toast/toast.h"
 #include "core/application.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
 
 namespace {
 
@@ -167,7 +171,7 @@ void UsernameBox::changed() {
 }
 
 void UsernameBox::linkClick() {
-	QApplication::clipboard()->setText(Core::App().createInternalLinkFull(getName()));
+	QGuiApplication::clipboard()->setText(Core::App().createInternalLinkFull(getName()));
 	Ui::Toast::Show(tr::lng_username_copied(tr::now));
 }
 

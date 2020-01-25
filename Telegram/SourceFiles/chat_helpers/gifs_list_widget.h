@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "base/timer.h"
 #include "inline_bots/inline_bot_layout_item.h"
+#include "app.h"
+
+#include <QtCore/QTimer>
 
 namespace InlineBots {
 namespace Layout {
@@ -31,8 +34,7 @@ namespace ChatHelpers {
 class GifsListWidget
 	: public TabbedSelector::Inner
 	, public InlineBots::Layout::Context
-	, private base::Subscriber
-	, private MTP::Sender {
+	, private base::Subscriber {
 public:
 	using InlineChosen = TabbedSelector::InlineChosen;
 
@@ -115,6 +117,8 @@ private:
 
 	void updateInlineItems();
 	void showPreview();
+
+	MTP::Sender _api;
 
 	Section _section = Section::Gifs;
 	crl::time _lastScrolled = 0;

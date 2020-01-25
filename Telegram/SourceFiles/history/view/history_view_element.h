@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/runtime_composer.h"
 #include "base/flags.h"
 
+class History;
 class HistoryBlock;
 class HistoryItem;
 class HistoryMessage;
@@ -50,6 +51,9 @@ public:
 		int from,
 		int till) = 0;
 	virtual void elementStartStickerLoop(not_null<const Element*> view) = 0;
+	virtual void elementShowPollResults(
+		not_null<PollData*> poll,
+		FullMsgId context) = 0;
 
 };
 
@@ -70,6 +74,9 @@ public:
 		int from,
 		int till) override;
 	void elementStartStickerLoop(not_null<const Element*> view) override;
+	void elementShowPollResults(
+		not_null<PollData*> poll,
+		FullMsgId context) override;
 
 };
 
@@ -115,7 +122,7 @@ struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
 // Any HistoryView::Element can have this Component for
 // displaying the day mark above the message.
 struct DateBadge : public RuntimeComponent<DateBadge, Element> {
-	void init(const QDateTime &date);
+	void init(const QString &date);
 
 	int height() const;
 	void paint(Painter &p, int y, int w) const;
@@ -256,6 +263,12 @@ public:
 	virtual TimeId displayedEditDate() const;
 	virtual bool hasVisibleText() const;
 
+	struct VerticalRepaintRange {
+		int top = 0;
+		int height = 0;
+	};
+	[[nodiscard]] virtual VerticalRepaintRange verticalRepaintRange() const;
+
 	virtual void unloadHeavyPart();
 
 	// Legacy blocks structure.
@@ -303,6 +316,7 @@ private:
 	const not_null<ElementDelegate*> _delegate;
 	const not_null<HistoryItem*> _data;
 	std::unique_ptr<Media> _media;
+	bool _isScheduledUntilOnline = false;
 	const QDateTime _dateTime;
 
 	int _y = 0;

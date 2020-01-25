@@ -1,6 +1,6 @@
 #define MyAppShortName "Telegreat"
-#define MyAppName "Telegreat"
-#define MyAppPublisher "Sean"
+#define MyAppName "Telegreat Desktop"
+#define MyAppPublisher "Sean Wei"
 #define MyAppURL "https://telegre.at"
 #define MyAppExeName "Telegreat.exe"
 #define MyAppId "53F49750-5EA2-5EA2-5EA2-7A333C87D1ED"

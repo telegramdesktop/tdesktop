@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "history/history_item.h"
 #include "history/history.h"
+#include "app.h"
 #include "styles/style_dialogs.h" // st::dialogsTextWidthMin
 #include "base/flags.h"
 
@@ -220,7 +221,7 @@ void Entry::updateChatListEntry() const {
 		if (inChatList()) {
 			main->repaintDialogRow(
 				Mode::All,
-				_rowInCurrentTab ? _rowInCurrentTab : mainChatListLink(Mode::All));
+				mainChatListLink(Mode::All));
 			if (inChatList(Mode::Important)) {
 				main->repaintDialogRow(
 					Mode::Important,

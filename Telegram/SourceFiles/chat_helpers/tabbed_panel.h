@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "base/timer.h"
+#include "base/object_ptr.h"
 
 namespace Window {
 class SessionController;
@@ -25,14 +26,18 @@ class TabbedSelector;
 
 class TabbedPanel : public Ui::RpWidget {
 public:
-	TabbedPanel(QWidget *parent, not_null<Window::SessionController*> controller);
+	TabbedPanel(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller,
+		not_null<TabbedSelector*> selector);
 	TabbedPanel(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		object_ptr<TabbedSelector> selector);
 
-	object_ptr<TabbedSelector> takeSelector();
-	QPointer<TabbedSelector> getSelector() const;
+	[[nodiscard]] bool isSelectorStolen() const;
+	[[nodiscard]] not_null<TabbedSelector*> selector() const;
+
 	void moveBottomRight(int bottom, int right);
 	void setDesiredHeightValues(
 		float64 ratio,
@@ -62,11 +67,14 @@ protected:
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
 private:
+	TabbedPanel(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller,
+		object_ptr<TabbedSelector> ownedSelector,
+		TabbedSelector *nonOwnedSelector);
+
 	void hideByTimerOrLeave();
 	void moveByBottom();
-	bool isDestroying() const {
-		return !_selector;
-	}
 	void showFromSelector();
 
 	style::margins innerPadding() const;
@@ -87,8 +95,9 @@ private:
 	bool preventAutoHide() const;
 	void updateContentHeight();
 
-	not_null<Window::SessionController*> _controller;
-	object_ptr<TabbedSelector> _selector;
+	const not_null<Window::SessionController*> _controller;
+	const object_ptr<TabbedSelector> _ownedSelector = { nullptr };
+	const not_null<TabbedSelector*> _selector;
 
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;

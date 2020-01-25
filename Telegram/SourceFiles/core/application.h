@@ -7,15 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "core/core_settings.h"
+#include "mtproto/mtproto_auth_key.h"
+#include "mtproto/mtproto_proxy_data.h"
 #include "base/observer.h"
-#include "mtproto/auth_key.h"
 #include "base/timer.h"
 
 class MainWindow;
 class MainWidget;
 class FileUploader;
 class Translator;
-class BoxContent;
 
 namespace Storage {
 class Databases;
@@ -42,6 +43,7 @@ namespace Ui {
 namespace Animations {
 class Manager;
 } // namespace Animations
+class BoxContent;
 } // namespace Ui
 
 namespace MTP {
@@ -66,6 +68,10 @@ class Instance;
 class Translator;
 class CloudManager;
 } // namespace Lang
+
+namespace Data {
+struct CloudTheme;
+} // namespace Data
 
 namespace Core {
 
@@ -94,9 +100,7 @@ public:
 	bool closeActiveWindow();
 	bool minimizeActiveWindow();
 	QWidget *getFileDialogParent();
-	QWidget *getGlobalShortcutParent() {
-		return &_globalShortcutParent;
-	}
+	void notifyFileDialogShown(bool shown);
 
 	// Media view interface.
 	void checkMediaViewActivation();
@@ -105,6 +109,9 @@ public:
 	void showPhoto(not_null<PhotoData*> photo, HistoryItem *item);
 	void showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> item);
 	void showDocument(not_null<DocumentData*> document, HistoryItem *item);
+	void showTheme(
+		not_null<DocumentData*> document,
+		const Data::CloudTheme &cloud);
 	PeerData *ui_getPeerForMouseAction();
 
 	QPoint getPointForCallPanelCenter() const;
@@ -115,17 +122,22 @@ public:
 		return _logoNoMargin;
 	}
 
-	// MTProto components.
+	[[nodiscard]] Settings &settings() {
+		return _settings;
+	}
+	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
+
+	// Dc options and proxy.
 	MTP::DcOptions *dcOptions() {
 		return _dcOptions.get();
 	}
 	struct ProxyChange {
-		ProxyData was;
-		ProxyData now;
+		MTP::ProxyData was;
+		MTP::ProxyData now;
 	};
 	void setCurrentProxy(
-		const ProxyData &proxy,
-		ProxyData::Settings settings);
+		const MTP::ProxyData &proxy,
+		MTP::ProxyData::Settings settings);
 	[[nodiscard]] rpl::producer<ProxyChange> proxyChanges() const;
 	void badMtprotoConfigurationError();
 
@@ -166,6 +178,7 @@ public:
 	QString createInternalLinkFull(const QString &query) const;
 	void checkStartUrl();
 	bool openLocalUrl(const QString &url, QVariant context);
+	bool openInternalUrl(const QString &url, QVariant context);
 
 	void forceLogOut(const TextWithEntities &explanation);
 	void checkLocalTime();
@@ -188,16 +201,12 @@ public:
 	[[nodiscard]] crl::time lastNonIdleTime() const;
 	void updateNonIdle();
 
-	void registerLeaveSubscription(QWidget *widget);
-	void unregisterLeaveSubscription(QWidget *widget);
+	void registerLeaveSubscription(not_null<QWidget*> widget);
+	void unregisterLeaveSubscription(not_null<QWidget*> widget);
 
 	// Sandbox interface.
 	void postponeCall(FnMut<void()> &&callable);
 	void refreshGlobalProxy();
-	void activateWindowDelayed(not_null<QWidget*> widget);
-	void pauseDelayedWindowActivations();
-	void resumeDelayedWindowActivations();
-	void preventWindowActivation();
 
 	void quitPreventFinished();
 
@@ -213,14 +222,12 @@ public:
 	void call_handleDelayedPeerUpdates();
 	void call_handleObservables();
 
-	void callDelayed(int duration, FnMut<void()> &&lambda) {
-		_callDelayedTimer.call(duration, std::move(lambda));
-	}
-
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
 
 private:
+	static constexpr auto kDefaultSaveDelay = crl::time(1000);
+
 	friend bool IsAppLaunched();
 	friend Application &App();
 
@@ -234,6 +241,12 @@ private:
 	void quitDelayed();
 
 	void clearPasscodeLock();
+
+	bool openCustomUrl(
+		const QString &protocol,
+		const std::vector<LocalUrlHandler> &handlers,
+		const QString &url,
+		const QVariant &context);
 
 	static Application *Instance;
 	struct InstanceSetter {
@@ -251,8 +264,7 @@ private:
 	// Some fields are just moved from the declaration.
 	struct Private;
 	const std::unique_ptr<Private> _private;
-
-	QWidget _globalShortcutParent;
+	Settings _settings;
 
 	const std::unique_ptr<Storage::Databases> _databases;
 	const std::unique_ptr<Ui::Animations::Manager> _animationsManager;
@@ -261,11 +273,11 @@ private:
 	std::unique_ptr<Window::Controller> _window;
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
 	const std::unique_ptr<Lang::Instance> _langpack;
-	std::unique_ptr<Lang::CloudManager> _langCloudManager;
+	const std::unique_ptr<Lang::CloudManager> _langCloudManager;
 	const std::unique_ptr<ChatHelpers::EmojiKeywords> _emojiKeywords;
 	std::unique_ptr<Lang::Translator> _translator;
 	base::Observable<void> _passcodedChanged;
-	QPointer<BoxContent> _badProxyDisableBox;
+	QPointer<Ui::BoxContent> _badProxyDisableBox;
 
 	const std::unique_ptr<Media::Audio::Instance> _audio;
 	const QImage _logo;
@@ -275,7 +287,7 @@ private:
 	rpl::event_stream<bool> _termsLockChanges;
 	std::unique_ptr<Window::TermsLock> _termsLock;
 
-	base::DelayedCallTimer _callDelayedTimer;
+	base::Timer _saveSettingsTimer;
 
 	struct LeaveSubscription {
 		LeaveSubscription(

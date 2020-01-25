@@ -33,7 +33,11 @@ void Loaders::feedFromExternal(ExternalSoundPart &&part) {
 		QMutexLocker lock(&_fromExternalMutex);
 		invoke = _fromExternalQueues.empty()
 			&& _fromExternalForceToBuffer.empty();
-		_fromExternalQueues[part.audio].push_back(std::move(part.packet));
+		auto &queue = _fromExternalQueues[part.audio];
+		queue.insert(
+			end(queue),
+			std::make_move_iterator(part.packets.begin()),
+			std::make_move_iterator(part.packets.end()));
 	}
 	if (invoke) {
 		_fromExternalNotify.call();
@@ -190,7 +194,7 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 			errAtStart = false;
 		} else if (res == Result::Wait) {
 			waiting = (samples.size() < kPlaybackBufferSize)
-				&& !l->forceToBuffer();
+				&& (!samplesCount || !l->forceToBuffer());
 			if (waiting) {
 				l->saveDecodedSamples(&samples, &samplesCount);
 			}

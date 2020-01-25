@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 
 #include "apiwrap.h"
+#include "data/data_user.h"
+#include "data/data_session.h"
 #include "main/main_session.h"
 
 namespace {
@@ -34,14 +36,19 @@ PollAnswer *AnswerByOption(
 
 } // namespace
 
-PollData::PollData(PollId id) : id(id) {
+PollData::PollData(not_null<Data::Session*> owner, PollId id)
+: id(id)
+, _owner(owner) {
 }
 
 bool PollData::applyChanges(const MTPDpoll &poll) {
 	Expects(poll.vid().v == id);
 
 	const auto newQuestion = qs(poll.vquestion());
-	const auto newClosed = poll.is_closed();
+	const auto newFlags = (poll.is_closed() ? Flag::Closed : Flag(0))
+		| (poll.is_public_voters() ? Flag::PublicVotes : Flag(0))
+		| (poll.is_multiple_choice() ? Flag::MultiChoice : Flag(0))
+		| (poll.is_quiz() ? Flag::Quiz : Flag(0));
 	auto newAnswers = ranges::view::all(
 		poll.vanswers().v
 	) | ranges::view::transform([](const MTPPollAnswer &data) {
@@ -56,14 +63,14 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 	) | ranges::to_vector;
 
 	const auto changed1 = (question != newQuestion)
-		|| (closed != newClosed);
+		|| (_flags != newFlags);
 	const auto changed2 = (answers != newAnswers);
 	if (!changed1 && !changed2) {
 		return false;
 	}
 	if (changed1) {
 		question = newQuestion;
-		closed = newClosed;
+		_flags = newFlags;
 	}
 	if (changed2) {
 		std::swap(answers, newAnswers);
@@ -71,6 +78,7 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 			if (const auto current = answerByOption(old.option)) {
 				current->votes = old.votes;
 				current->chosen = old.chosen;
+				current->correct = old.correct;
 			}
 		}
 	}
@@ -92,6 +100,29 @@ bool PollData::applyResults(const MTPPollResults &results) {
 				}
 			}
 		}
+		if (const auto recent = results.vrecent_voters()) {
+			const auto recentChanged = !ranges::equal(
+				recentVoters,
+				recent->v,
+				ranges::equal_to(),
+				&UserData::id,
+				&MTPint::v);
+			if (recentChanged) {
+				changed = true;
+				recentVoters = ranges::view::all(
+					recent->v
+				) | ranges::view::transform([&](MTPint userId) {
+					const auto user = _owner->user(userId.v);
+					return (user->loadedStatus != PeerData::NotLoaded)
+						? user.get()
+						: nullptr;
+				}) | ranges::view::filter([](UserData *user) {
+					return user != nullptr;
+				}) | ranges::view::transform([](UserData *user) {
+					return not_null<UserData*>(user);
+				}) | ranges::to_vector;
+			}
+		}
 		if (!changed) {
 			return false;
 		}
@@ -104,11 +135,11 @@ bool PollData::applyResults(const MTPPollResults &results) {
 void PollData::checkResultsReload(not_null<HistoryItem*> item, crl::time now) {
 	if (lastResultsUpdate && lastResultsUpdate + kShortPollTimeout > now) {
 		return;
-	} else if (closed) {
+	} else if (closed()) {
 		return;
 	}
 	lastResultsUpdate = now;
-	Auth().api().reloadPollResults(item);
+	_owner->session().api().reloadPollResults(item);
 }
 
 PollAnswer *PollData::answerByOption(const QByteArray &option) {
@@ -137,18 +168,49 @@ bool PollData::applyResultToAnswers(
 				answer->chosen = voters.is_chosen();
 				changed = true;
 			}
-		} else if (const auto existing = answerByOption(option)) {
-			answer->chosen = existing->chosen;
+		}
+		if (!isMinResults || closed()) {
+			if (answer->correct != voters.is_correct()) {
+				answer->correct = voters.is_correct();
+				changed = true;
+			}
 		}
 		return changed;
 	});
+}
+
+void PollData::setFlags(Flags flags) {
+	if (_flags != flags) {
+		_flags = flags;
+		++version;
+	}
+}
+
+PollData::Flags PollData::flags() const {
+	return _flags;
 }
 
 bool PollData::voted() const {
 	return ranges::find(answers, true, &PollAnswer::chosen) != end(answers);
 }
 
-MTPPoll PollDataToMTP(not_null<const PollData*> poll) {
+bool PollData::closed() const {
+	return (_flags & Flag::Closed);
+}
+
+bool PollData::publicVotes() const {
+	return (_flags & Flag::PublicVotes);
+}
+
+bool PollData::multiChoice() const {
+	return (_flags & Flag::MultiChoice);
+}
+
+bool PollData::quiz() const {
+	return (_flags & Flag::Quiz);
+}
+
+MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close) {
 	const auto convert = [](const PollAnswer &answer) {
 		return MTP_pollAnswer(
 			MTP_string(answer.text),
@@ -160,9 +222,14 @@ MTPPoll PollDataToMTP(not_null<const PollData*> poll) {
 		poll->answers,
 		ranges::back_inserter(answers),
 		convert);
+	using Flag = MTPDpoll::Flag;
+	const auto flags = ((poll->closed() || close) ? Flag::f_closed : Flag(0))
+		| (poll->multiChoice() ? Flag::f_multiple_choice : Flag(0))
+		| (poll->publicVotes() ? Flag::f_public_voters : Flag(0))
+		| (poll->quiz() ? Flag::f_quiz : Flag(0));
 	return MTP_poll(
 		MTP_long(poll->id),
-		MTP_flags(MTPDpoll::Flag::f_closed),
+		MTP_flags(flags),
 		MTP_string(poll->question),
 		MTP_vector<MTPPollAnswer>(answers));
 }

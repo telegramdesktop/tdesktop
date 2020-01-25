@@ -86,6 +86,8 @@ public:
 	TimeId displayedEditDate() const override;
 	int infoWidth() const override;
 
+	VerticalRepaintRange verticalRepaintRange() const override;
+
 protected:
 	void refreshDataIdHook() override;
 
@@ -142,7 +144,6 @@ private:
 	bool displayFastShare() const;
 	bool displayGoToOriginal() const;
 	ClickHandlerPtr fastReplyLink() const;
-	TimeId displayedEditDate(bool hasViaBotOrInlineMarkup) const;
 	const HistoryMessageEdited *displayedEditBadge() const;
 	HistoryMessageEdited *displayedEditBadge();
 	void initTime();

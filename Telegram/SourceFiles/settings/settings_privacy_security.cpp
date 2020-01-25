@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_privacy_security.h"
 
+#include "api/api_self_destruct.h"
+#include "api/api_sensitive_content.h"
 #include "settings/settings_common.h"
 #include "settings/settings_privacy_controllers.h"
 #include "boxes/peer_list_box.h"
@@ -21,10 +23,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/buttons.h"
 #include "calls/calls_instance.h"
 #include "core/core_cloud_password.h"
 #include "core/update_checker.h"
-#include "info/profile/info_profile_button.h"
 #include "platform/platform_specific.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
@@ -33,8 +35,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
+#include "facades.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
+
+#include <QtGui/QGuiApplication>
 
 namespace Settings {
 namespace {
@@ -172,6 +177,8 @@ void SetupPrivacy(
 		tr::lng_settings_groups_invite(),
 		Key::Invites,
 		[] { return std::make_unique<GroupsInvitePrivacyController>(); });
+
+	session->api().reloadPrivacy(ApiWrap::Privacy::Key::AddedByPhone);
 
 	AddSkip(container, st::settingsPrivacySecurityPadding);
 	AddDividerText(container, tr::lng_settings_group_privacy_about());
@@ -423,20 +430,56 @@ void SetupCloudPassword(
 	session->api().reloadPasswordState();
 
 	AddSkip(container);
+	AddDivider(container);
+}
+
+void SetupSensitiveContent(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	using namespace rpl::mappers;
+
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto inner = wrap->entity();
+
+	AddSkip(inner);
+	AddSubsectionTitle(inner, tr::lng_settings_sensitive_title());
+
+	const auto session = &controller->session();
+
+	session->api().sensitiveContent().reload();
+	AddButton(
+		inner,
+		tr::lng_settings_sensitive_disable_filtering(),
+		st::settingsButton
+	)->toggleOn(
+		session->api().sensitiveContent().enabled()
+	)->toggledChanges(
+	) | rpl::filter([=](bool toggled) {
+		return toggled != session->api().sensitiveContent().enabledCurrent();
+	}) | rpl::start_with_next([=](bool toggled) {
+		session->api().sensitiveContent().update(toggled);
+	}, container->lifetime());
+
+	AddSkip(inner);
+	AddDividerText(inner, tr::lng_settings_sensitive_about());
+
+	wrap->toggleOn(session->api().sensitiveContent().canChange());
 }
 
 void SetupSelfDestruction(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	AddDivider(container);
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_settings_destroy_title());
 
 	const auto session = &controller->session();
 
-	session->api().reloadSelfDestruct();
+	session->api().selfDestruct().reload();
 	const auto label = [&] {
-		return session->api().selfDestructValue(
+		return session->api().selfDestruct().days(
 		) | rpl::map(
 			SelfDestructionBox::DaysLabel
 		);
@@ -450,7 +493,7 @@ void SetupSelfDestruction(
 	)->addClickHandler([=] {
 		Ui::show(Box<SelfDestructionBox>(
 			session,
-			session->api().selfDestructValue()));
+			session->api().selfDestruct().days()));
 	});
 
 	AddSkip(container);
@@ -499,7 +542,7 @@ bool CheckEditCloudPassword(not_null<::Main::Session*> session) {
 	return false;
 }
 
-object_ptr<BoxContent> EditCloudPasswordBox(not_null<Main::Session*> session) {
+object_ptr<Ui::BoxContent> EditCloudPasswordBox(not_null<Main::Session*> session) {
 	const auto current = session->api().passwordStateCurrent();
 	Assert(current.has_value());
 
@@ -520,7 +563,7 @@ object_ptr<BoxContent> EditCloudPasswordBox(not_null<Main::Session*> session) {
 		session->api().clearUnconfirmedPassword();
 	}, box->lifetime());
 
-	return std::move(result);
+	return result;
 }
 
 void RemoveCloudPassword(not_null<::Main::Session*> session) {
@@ -549,8 +592,8 @@ void RemoveCloudPassword(not_null<::Main::Session*> session) {
 	}, box->lifetime());
 }
 
-object_ptr<BoxContent> CloudPasswordAppOutdatedBox() {
-	auto box = std::make_shared<QPointer<BoxContent>>();
+object_ptr<Ui::BoxContent> CloudPasswordAppOutdatedBox() {
+	auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto callback = [=] {
 		Core::UpdateApplication();
 		if (*box) (*box)->closeBox();
@@ -560,7 +603,7 @@ object_ptr<BoxContent> CloudPasswordAppOutdatedBox() {
 		tr::lng_menu_update(tr::now),
 		callback);
 	*box = result.data();
-	return std::move(result);
+	return result;
 }
 
 void AddPrivacyButton(
@@ -584,7 +627,7 @@ void AddPrivacyButton(
 		) | rpl::start_with_next([=](const Privacy &value) {
 			Ui::show(
 				Box<EditPrivacyBox>(controller, controllerFactory(), value),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 		});
 	});
 }
@@ -604,6 +647,11 @@ void PrivacySecurity::setupContent(
 	SetupSessionsList(controller, content);
 	SetupLocalPasscode(controller, content);
 	SetupCloudPassword(controller, content);
+#if !defined OS_MAC_STORE && !defined OS_WIN_STORE
+	SetupSensitiveContent(controller, content);
+#else // !OS_MAC_STORE && !OS_WIN_STORE
+	AddDivider(content);
+#endif // !OS_MAC_STORE && !OS_WIN_STORE
 	SetupSelfDestruction(controller, content);
 
 	Ui::ResizeFitChild(this, content);

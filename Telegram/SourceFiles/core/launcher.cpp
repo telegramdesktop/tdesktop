@@ -9,12 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_launcher.h"
 #include "platform/platform_specific.h"
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
+#include "ui/main_queue_processor.h"
+#include "ui/ui_utility.h"
 #include "core/crash_reports.h"
-#include "core/main_queue_processor.h"
 #include "core/update_checker.h"
 #include "core/sandbox.h"
 #include "base/concurrent_timer.h"
+#include "facades.h"
 
 namespace Core {
 namespace {
@@ -233,8 +235,10 @@ Launcher::Launcher(
 	const QString &systemVersion)
 : _argc(argc)
 , _argv(argv)
+, _baseIntegration(_argc, _argv)
 , _deviceModel(deviceModel)
 , _systemVersion(systemVersion) {
+	base::Integration::Set(&_baseIntegration);
 }
 
 void Launcher::init() {
@@ -244,13 +248,10 @@ void Launcher::init() {
 
 	QApplication::setApplicationName(qsl("Telegreat"));
 
-#ifdef TDESKTOP_LAUNCHER_FILENAME
-#define TDESKTOP_LAUNCHER_FILENAME_TO_STRING_HELPER(V) #V
-#define TDESKTOP_LAUNCHER_FILENAME_TO_STRING(V) TDESKTOP_LAUNCHER_FILENAME_TO_STRING_HELPER(V)
-	QApplication::setDesktopFileName(qsl(TDESKTOP_LAUNCHER_FILENAME_TO_STRING(TDESKTOP_LAUNCHER_FILENAME)));
-#elif defined(Q_OS_LINUX) && QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
-	QApplication::setDesktopFileName(qsl("telegramdesktop.desktop"));
+#if defined(Q_OS_LINUX) && QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
+	QApplication::setDesktopFileName(qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME)) + ".desktop");
 #endif
+
 #ifndef OS_MAC_OLD
 	QApplication::setAttribute(Qt::AA_DisableHighDpiScaling, true);
 #endif // OS_MAC_OLD
@@ -267,9 +268,12 @@ int Launcher::exec() {
 		return psCleanup();
 	}
 
-	// both are finished in Sandbox::closeApplication
-	Logs::start(this); // must be started before Platform is started
-	Platform::start(); // must be started before Sandbox is created
+	// Must be started before Platform is started.
+	Logs::start(this);
+
+	// Must be started before Sandbox is created.
+	Platform::start();
+	Ui::DisableCustomScaling();
 
 	auto result = executeApplication();
 
@@ -323,7 +327,7 @@ QStringList Launcher::readArguments(int argc, char *argv[]) const {
 	auto result = QStringList();
 	result.reserve(argc);
 	for (auto i = 0; i != argc; ++i) {
-		result.push_back(fromUtf8Safe(argv[i]));
+		result.push_back(base::FromUtf8Safe(argv[i]));
 	}
 	return result;
 }
@@ -445,7 +449,7 @@ void Launcher::processArguments() {
 	if (scaleKey.size() > 0) {
 		const auto value = scaleKey[0].toInt();
 		gConfigScale = ((value < 75) || (value > 300))
-			? kInterfaceScaleAuto
+			? style::kScaleAuto
 			: value;
 	}
 }
@@ -453,7 +457,7 @@ void Launcher::processArguments() {
 int Launcher::executeApplication() {
 	FilteredCommandLineArguments arguments(_argc, _argv);
 	Sandbox sandbox(this, arguments.count(), arguments.values());
-	MainQueueProcessor processor;
+	Ui::MainQueueProcessor processor;
 	base::ConcurrentTimerEnvironment environment;
 	return sandbox.start();
 }

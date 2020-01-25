@@ -37,6 +37,8 @@ public:
 		not_null<Storage::Cache::Database*> cache,
 		std::unique_ptr<Loader> loader);
 
+	void setLoaderPriority(int priority);
+
 	// Any thread.
 	[[nodiscard]] int size() const;
 	[[nodiscard]] bool isRemoteLoader() const;
@@ -55,16 +57,19 @@ public:
 	void startSleep(not_null<crl::semaphore*> wake);
 	void wakeFromSleep();
 	void stopSleep();
+	void stopStreamingAsync();
+	void tryRemoveLoaderAsync();
 
 	// Main thread.
 	void startStreaming();
 	void stopStreaming(bool stillActive = false);
 	[[nodiscard]] rpl::producer<LoadedPart> partsForDownloader() const;
 	void loadForDownloader(
-		Storage::StreamedFileDownloader *downloader,
+		not_null<Storage::StreamedFileDownloader*> downloader,
 		int offset);
 	void doneForDownloader(int offset);
-	void cancelForDownloader(Storage::StreamedFileDownloader *downloader);
+	void cancelForDownloader(
+		not_null<Storage::StreamedFileDownloader*> downloader);
 
 	~Reader();
 
@@ -218,6 +223,8 @@ private:
 	void checkForDownloaderChange(int checkItemsCount);
 	void checkForDownloaderReadyOffsets();
 
+	void refreshLoaderPriority();
+
 	static std::shared_ptr<CacheHelper> InitCacheHelper(
 		std::optional<Storage::Cache::Key> baseKey);
 
@@ -228,6 +235,7 @@ private:
 	base::thread_safe_queue<LoadedPart, std::vector> _loadedParts;
 	std::atomic<crl::semaphore*> _waiting = nullptr;
 	std::atomic<crl::semaphore*> _sleeping = nullptr;
+	std::atomic<bool> _stopStreamingAsync = false;
 	PriorityQueue _loadingOffsets;
 
 	Slices _slices;
@@ -241,6 +249,7 @@ private:
 	// Main thread.
 	Storage::StreamedFileDownloader *_attachedDownloader = nullptr;
 	rpl::event_stream<LoadedPart> _partsForDownloader;
+	int _realPriority = 1;
 	bool _streamingActive = false;
 
 	// Streaming thread.

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/cross_animation.h"
 #include "ui/text_options.h"
 #include "lang/lang_keys.h"
+#include "app.h"
 
 namespace Ui {
 namespace {
@@ -71,7 +72,7 @@ void MultiSelect::Item::paintOnce(Painter &p, int x, int y, int outerWidth) {
 	}
 
 	auto radius = _st.height / 2;
-	auto inner = rtlrect(x + radius, y, _width - radius, _st.height, outerWidth);
+	auto inner = style::rtlrect(x + radius, y, _width - radius, _st.height, outerWidth);
 
 	auto clipEnabled = p.hasClipping();
 	auto clip = clipEnabled ? p.clipRegion() : QRegion();
@@ -81,7 +82,7 @@ void MultiSelect::Item::paintOnce(Painter &p, int x, int y, int outerWidth) {
 	p.setBrush(_active ? _st.textActiveBg : _st.textBg);
 	{
 		PainterHighQualityEnabler hq(p);
-		p.drawRoundedRect(rtlrect(x, y, _width, _st.height, outerWidth), radius, radius);
+		p.drawRoundedRect(style::rtlrect(x, y, _width, _st.height, outerWidth), radius, radius);
 	}
 
 	if (clipEnabled) {
@@ -111,7 +112,7 @@ void MultiSelect::Item::paintDeleteButton(Painter &p, int x, int y, int outerWid
 	p.setBrush(_color);
 	{
 		PainterHighQualityEnabler hq(p);
-		p.drawEllipse(rtlrect(x, y, _st.height, _st.height, outerWidth));
+		p.drawEllipse(style::rtlrect(x, y, _st.height, _st.height, outerWidth));
 	}
 
 	CrossAnimation::paint(p, _st.deleteCross, _st.deleteFg, x, y, outerWidth, overOpacity);
@@ -128,7 +129,7 @@ bool MultiSelect::Item::paintCached(Painter &p, int x, int y, int outerWidth) {
 	auto width = opacity * _cache.width() / _cache.devicePixelRatio();
 
 	p.setOpacity(opacity);
-	p.drawPixmap(rtlrect(x + (_width - width) / 2., y + (_st.height - height) / 2., width, height, outerWidth), _cache);
+	p.drawPixmap(style::rtlrect(x + (_width - width) / 2., y + (_st.height - height) / 2., width, height, outerWidth), _cache);
 	p.setOpacity(1.);
 	return true;
 }

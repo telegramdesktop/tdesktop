@@ -1,3 +1,113 @@
+1.9.8 (24.01.20)
+
+- Bug fixes and other minor improvements.
+
+1.9.7 (23.01.20)
+
+- Create three new kinds of polls.
+- See who voted for what in polls with visible votes.
+- Vote for several options in polls that allow multiple answers.
+- Guess the correct answer in quiz-style polls.
+- Explore various ways of combining the different poll options.
+- Add polls from the '...' menu in any group or channel.
+- Use bots like @QuizBot to create quizzes with several questions and media attachments.
+- Schedule messages to be sent when your recipient comes online (only works if you know their online status).
+
+1.9.6 (22.01.20)
+
+- Bug fixes and other minor improvements.
+
+1.9.5 (21.01.20)
+
+- Bug fixes and other minor improvements.
+
+1.9.4 (17.01.20)
+
+- Bug fixes and other minor improvements.
+
+1.9.3 (31.12.19)
+
+- Videos in chats start playing automatically.
+- Resume playback from where you left off when watching long videos and listening to long audio tracks.
+- Control automatic playback for videos, GIFs and round video messages in Settings > Advanced > Automatic media download.
+- Enjoy system spell checker support on all modern systems.
+
+1.9.2 beta (29.12.19)
+
+- Videos in chats start playing automatically.
+- Resume playback from where you left off when watching long videos.
+- Control videos, GIFs and round video messages automatic playback in Settings > Advanced > Automatic media download.
+- Spell checker on Linux using Enchant.
+
+1.9.1 beta (06.11.19)
+
+- Bug fixes and other minor improvements.
+
+1.9 beta (05.11.19)
+
+- System spellchecker on Windows 8+ and macOS 10.12+.
+
+1.8.15 (07.10.19)
+
+- Bug fixes and other minor improvements.
+
+1.8.14 (03.10.19)
+
+- Bug fixes and other minor improvements.
+
+1.8.13 (03.10.19)
+
+- Bug fixes and other minor improvements.
+
+1.8.12 (02.10.19)
+
+- Bug fixes and other minor improvements.
+
+1.8.11 (01.10.19)
+
+- Bug fixes and other minor improvements.
+
+1.8.10 (30.09.19)
+
+- Bug fixes and other minor improvements.
+
+1.8.9 (27.09.19)
+
+- Bug fixes and other minor improvements.
+
+1.8.8 (10.09.19)
+
+- Create new themes based on your color and wallpaper choices.
+- Share your themes with other users via links.
+- Update your theme for all its users when you change something.
+
+1.8.7 beta (10.09.19)
+
+- Bug fixes and other minor improvements.
+
+1.8.6 beta (09.09.19)
+
+- Bug fixes and other minor improvements.
+
+1.8.5 beta (08.09.19)
+
+- Create new themes based on your color and wallpaper choices.
+- Share your themes with other users via links.
+- Update your theme for all its users when you change something.
+
+1.8.4 (06.09.19)
+
+- Bug fixes and other minor improvements.
+
+1.8.3 (05.09.19)
+
+- Right click the 'Send' button and select 'Schedule Message' to automatically send something at a specified time.
+- Schedule reminders for yourself in the 'Saved Messages' chat.
+- Get a notification when any of your scheduled messages are sent.
+- Customize your app's appearance by choosing accent colors for the 'Day', 'Night' and 'Tinted' themes.
+- Choose who can find you on Telegram when they add your number to their phone contacts.
+- Send a single :grin:, :anguished:, :rage:, :poo:, :cry: or :open_mouth: to check out what's new in the animated emoji department.
+
 1.8.2 (20.08.19)
 
 - Bug fixes and other minor improvements.
@@ -321,8 +431,8 @@ Also in this update:
 
 1.3.11 alpha (01.08.18)
 
-- Added a new night theme. 
-- You can now assign custom themes as night and day themes to quickly switch between them.  
+- Added a new night theme.
+- You can now assign custom themes as night and day themes to quickly switch between them.
 
 1.3.10 (13.07.18)
 

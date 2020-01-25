@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //
 //};
 
+class History;
+
 namespace Window {
 class SessionNavigation;
 } // namespace Window
@@ -57,9 +59,7 @@ private:
 
 };
 
-class PeerListGlobalSearchController
-	: public PeerListSearchController
-	, private MTP::Sender {
+class PeerListGlobalSearchController : public PeerListSearchController {
 public:
 	PeerListGlobalSearchController(
 		not_null<Window::SessionNavigation*> navigation);
@@ -76,6 +76,7 @@ private:
 	void searchDone(const MTPcontacts_Found &result, mtpRequestId requestId);
 
 	const not_null<Window::SessionNavigation*> _navigation;
+	MTP::Sender _api;
 	base::Timer _timer;
 	QString _query;
 	mtpRequestId _requestId = 0;

@@ -10,11 +10,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/variable.h>
 #include "base/flags.h"
 #include "base/observer.h"
+#include "base/object_ptr.h"
 #include "dialogs/dialogs_key.h"
+#include "ui/effects/animation_value.h"
 
 class MainWidget;
+class MainWindow;
 class HistoryMessage;
 class HistoryService;
+
+namespace Adaptive {
+enum class WindowLayout;
+} // namespace Adaptive
+
+namespace ChatHelpers {
+class TabbedSelector;
+} // namespace ChatHelpers
 
 namespace Main {
 class Session;
@@ -36,11 +47,15 @@ struct FormRequest;
 class FormController;
 } // namespace Passport
 
+namespace Ui {
+class LayerWidget;
+} // namespace Ui
+
 namespace Window {
 
-class LayerWidget;
 class MainWindow;
 class SectionMemento;
+class Controller;
 
 enum class GifPauseReason {
 	Any           = 0,
@@ -133,6 +148,11 @@ public:
 		const SectionShow &params = SectionShow());
 	void showSettings(const SectionShow &params = SectionShow());
 
+	void showPollResults(
+		not_null<PollData*> poll,
+		FullMsgId contextId,
+		const SectionShow &params = SectionShow());
+
 	virtual ~SessionNavigation() = default;
 
 private:
@@ -146,11 +166,17 @@ class SessionController
 public:
 	SessionController(
 		not_null<Main::Session*> session,
-		not_null<MainWindow*> window);
+		not_null<Controller*> window);
 
-	not_null<MainWindow*> window() const {
-		return _window;
+	[[nodiscard]] Controller &window() const {
+		return *_window;
 	}
+	[[nodiscard]] not_null<::MainWindow*> widget() const;
+
+	[[nodiscard]] auto tabbedSelector() const
+	-> not_null<ChatHelpers::TabbedSelector*>;
+	void takeTabbedSelectorOwnershipFrom(not_null<QWidget*> parent);
+	[[nodiscard]] bool hasTabbedSelectorOwnership() const;
 
 	// This is needed for History TopBar updating when searchInChat
 	// is changed in the Dialogs::Widget of the current window.
@@ -226,7 +252,7 @@ public:
 	}
 
 	void showSpecialLayer(
-		object_ptr<LayerWidget> &&layer,
+		object_ptr<Ui::LayerWidget> &&layer,
 		anim::type animated = anim::type::normal);
 	void hideSpecialLayer(
 			anim::type animated = anim::type::normal) {
@@ -292,13 +318,16 @@ private:
 	void pushToChatEntryHistory(Dialogs::RowDescriptor row);
 	bool chatEntryHistoryMove(int steps);
 
-	const not_null<MainWindow*> _window;
+	const not_null<Controller*> _window;
 
 	std::unique_ptr<Passport::FormController> _passportForm;
 
 	GifPauseReasons _gifPauseReasons = 0;
 	base::Observable<void> _gifPauseLevelChanged;
 	base::Observable<void> _floatPlayerAreaUpdated;
+
+	// Depends on _gifPause*.
+	const std::unique_ptr<ChatHelpers::TabbedSelector> _tabbedSelector;
 
 	rpl::variable<Dialogs::RowDescriptor> _activeChatEntry;
 	base::Variable<bool> _dialogsListFocused = { false };

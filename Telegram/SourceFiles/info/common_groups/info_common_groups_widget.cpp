@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "ui/search_field_controller.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/ui_utility.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
@@ -32,7 +33,7 @@ object_ptr<ContentWidget> Memento::createWidget(
 		controller,
 		Auth().data().user(userId()));
 	result->setInternalState(geometry, this);
-	return std::move(result);
+	return result;
 }
 
 void Memento::setListState(std::unique_ptr<PeerListState> state) {
@@ -84,7 +85,7 @@ void Widget::setInternalState(
 std::unique_ptr<ContentMemento> Widget::doCreateMemento() {
 	auto result = std::make_unique<Memento>(user()->bareId());
 	saveState(result.get());
-	return std::move(result);
+	return result;
 }
 
 void Widget::saveState(not_null<Memento*> memento) {

@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/toast/toast.h"
+#include "ui/inactive_press.h"
 #include "lang/lang_keys.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "data/data_session.h"
@@ -35,7 +36,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"
+#include "facades.h"
 #include "styles/style_history.h"
+
+#include <QtWidgets/QApplication>
+#include <QtCore/QMimeData>
 
 namespace HistoryView {
 namespace {
@@ -669,6 +674,7 @@ auto ListWidget::collectSelectedItems() const -> SelectedItems {
 		auto result = SelectedItem(itemId);
 		result.canDelete = selection.canDelete;
 		result.canForward = selection.canForward;
+		result.canSendNow = selection.canSendNow;
 		return result;
 	};
 	auto items = SelectedItems();
@@ -746,15 +752,11 @@ bool ListWidget::isSelectedAsGroup(
 	return applyTo.contains(item->fullId());
 }
 
-bool ListWidget::isGoodForSelection(not_null<HistoryItem*> item) const {
-	return IsServerMsgId(item->id) && !item->serviceMsg();
-}
-
 bool ListWidget::isGoodForSelection(
 		SelectedMap &applyTo,
 		not_null<HistoryItem*> item,
 		int &totalCount) const {
-	if (!isGoodForSelection(item)) {
+	if (!_delegate->listIsItemGoodForSelection(item)) {
 		return false;
 	} else if (!applyTo.contains(item->fullId())) {
 		++totalCount;
@@ -774,6 +776,7 @@ bool ListWidget::addToSelection(
 	}
 	iterator->second.canDelete = item->canDelete();
 	iterator->second.canForward = item->allowsForward();
+	iterator->second.canSendNow = item->allowsSendNow();
 	return true;
 }
 
@@ -1088,6 +1091,10 @@ QPoint ListWidget::tooltipPos() const {
 	return _mousePosition;
 }
 
+bool ListWidget::tooltipWindowActive() const {
+	return Ui::AppInFocus() && Ui::InFocusChain(window());
+}
+
 Context ListWidget::elementContext() {
 	return _delegate->listContext();
 }
@@ -1144,6 +1151,11 @@ bool ListWidget::elementIntersectsRange(
 }
 
 void ListWidget::elementStartStickerLoop(not_null<const Element*> view) {
+}
+
+void ListWidget::elementShowPollResults(
+	not_null<PollData*> poll,
+	FullMsgId context) {
 }
 
 void ListWidget::saveState(not_null<ListMemento*> memento) {
@@ -1379,7 +1391,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 					} else {
 						ServiceMessagePainter::paintDate(
 							p,
-							view->dateTime(),
+							ItemDateText(view->data(), IsItemScheduledUntilOnline(view->data())),
 							dateY,
 							width);
 					}
@@ -1543,11 +1555,11 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 		}
 	} else if (e == QKeySequence::Copy
 		&& (hasSelectedText() || hasSelectedItems())) {
-		SetClipboardText(getSelectedText());
+		TextUtilities::SetClipboardText(getSelectedText());
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E
 		&& e->modifiers().testFlag(Qt::ControlModifier)) {
-		SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
+		TextUtilities::SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
 	} else if (e == QKeySequence::Delete) {
 		_delegate->listDeleteRequest();
@@ -1814,14 +1826,14 @@ void ListWidget::updateDragSelection(
 	const auto changeGroup = [&](not_null<HistoryItem*> item, bool add) {
 		if (const auto group = groups.find(item)) {
 			for (const auto item : group->items) {
-				if (!isGoodForSelection(item)) {
+				if (!_delegate->listIsItemGoodForSelection(item)) {
 					return;
 				}
 			}
 			for (const auto item : group->items) {
 				changeItem(item, add);
 			}
-		} else if (isGoodForSelection(item)) {
+		} else if (_delegate->listIsItemGoodForSelection(item)) {
 			changeItem(item, add);
 		}
 	};
@@ -1891,8 +1903,10 @@ void ListWidget::mouseActionStart(
 	const auto pressElement = _overElement;
 
 	_mouseAction = MouseAction::None;
-	_pressWasInactive = _controller->window()->wasInactivePress();
-	if (_pressWasInactive) _controller->window()->setInactivePress(false);
+	_pressWasInactive = Ui::WasInactivePress(_controller->widget());
+	if (_pressWasInactive) {
+		Ui::MarkInactivePress(_controller->widget(), false);
+	}
 
 	if (ClickHandler::getPressed()) {
 		_mouseAction = MouseAction::PrepareDrag;
@@ -2014,7 +2028,7 @@ void ListWidget::mouseActionFinish(
 		activated = nullptr;
 	} else if (activated) {
 		mouseActionCancel();
-		App::activateClickHandler(activated, {
+		ActivateClickHandler(window(), activated, {
 			button,
 			QVariant::fromValue(pressState.itemId)
 		});
@@ -2056,7 +2070,7 @@ void ListWidget::mouseActionFinish(
 	if (_selectedTextItem
 		&& _selectedTextRange.from != _selectedTextRange.to) {
 		if (const auto view = viewForItem(_selectedTextItem)) {
-			SetClipboardText(
+			TextUtilities::SetClipboardText(
 				view->selectedText(_selectedTextRange),
 				QClipboard::Selection);
 }
@@ -2301,7 +2315,7 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 		}
 		return TextForMimeData();
 	}();
-	if (auto mimeData = MimeDataFromText(selectedText)) {
+	if (auto mimeData = TextUtilities::MimeDataFromText(selectedText)) {
 		clearDragSelection();
 //		_widget->noSelectingScroll(); #TODO scroll
 
@@ -2332,12 +2346,18 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 			? _pressItemExact
 			: pressedItem;
 		if (_mouseCursorState == CursorState::Date) {
-			forwardIds = session().data().itemOrItsGroup(_overElement->data());
+			if (_overElement->data()->allowsForward()) {
+				forwardIds = session().data().itemOrItsGroup(
+					_overElement->data());
+			}
 		} else if (_pressState.pointState == PointState::GroupPart) {
-			forwardIds = MessageIdsList(1, exactItem->fullId());
+			if (exactItem->allowsForward()) {
+				forwardIds = MessageIdsList(1, exactItem->fullId());
+			}
 		} else if (const auto media = pressedView->media()) {
-			if (media->dragItemByHandler(pressedHandler)
-				|| media->dragItem()) {
+			if (pressedView->data()->allowsForward()
+				&& (media->dragItemByHandler(pressedHandler)
+					|| media->dragItem())) {
 				forwardIds = MessageIdsList(1, exactItem->fullId());
 			}
 		}
@@ -2366,7 +2386,7 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 void ListWidget::performDrag() {
 	if (auto mimeData = prepareDrag()) {
 		// This call enters event loop and can destroy any QObject.
-		_controller->window()->launchDrag(std::move(mimeData));
+		_controller->widget()->launchDrag(std::move(mimeData));
 	}
 }
 
@@ -2378,7 +2398,9 @@ void ListWidget::repaintItem(const Element *view) {
 	if (!view) {
 		return;
 	}
-	update(0, itemTop(view), width(), view->height());
+	const auto top = itemTop(view);
+	const auto range = view->verticalRepaintRange();
+	update(0, top + range.top, width(), range.height);
 }
 
 void ListWidget::repaintItem(FullMsgId itemId) {

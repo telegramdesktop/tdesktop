@@ -16,12 +16,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
-#include "platform/platform_info.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
+#include "facades.h"
 #include "styles/style_export.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace Export {
 namespace View {
@@ -29,7 +30,7 @@ namespace {
 
 constexpr auto kSaveSettingsTimeout = crl::time(1000);
 
-class SuggestBox : public BoxContent {
+class SuggestBox : public Ui::BoxContent {
 public:
 	SuggestBox(QWidget*);
 
@@ -84,9 +85,9 @@ Environment PrepareEnvironment() {
 	return result;
 }
 
-QPointer<BoxContent> SuggestStart() {
+QPointer<Ui::BoxContent> SuggestStart() {
 	ClearSuggestStart();
-	return Ui::show(Box<SuggestBox>(), LayerOption::KeepOther).data();
+	return Ui::show(Box<SuggestBox>(), Ui::LayerOption::KeepOther).data();
 }
 
 void ClearSuggestStart() {
@@ -133,6 +134,13 @@ PanelController::PanelController(not_null<Controller*> process)
 	}, _lifetime);
 }
 
+PanelController::~PanelController() {
+	if (_saveSettingsTimer.isActive()) {
+		saveSettings();
+	}
+	_panel->destroyLayer();
+}
+
 void PanelController::activatePanel() {
 	_panel->showAndActivate();
 }
@@ -158,10 +166,10 @@ void PanelController::showSettings() {
 	auto settings = base::make_unique_q<SettingsWidget>(
 		_panel,
 		*_settings);
-	settings->setShowBoxCallback([=](object_ptr<BoxContent> box) {
+	settings->setShowBoxCallback([=](object_ptr<Ui::BoxContent> box) {
 		_panel->showBox(
 			std::move(box),
-			LayerOption::KeepOther,
+			Ui::LayerOption::KeepOther,
 			anim::type::normal);
 	});
 
@@ -244,11 +252,11 @@ void PanelController::showCriticalError(const QString &text) {
 
 void PanelController::showError(const QString &text) {
 	auto box = Box<InformBox>(text);
-	const auto weak = make_weak(box.data());
+	const auto weak = Ui::MakeWeak(box.data());
 	const auto hidden = _panel->isHidden();
 	_panel->showBox(
 		std::move(box),
-		LayerOption::CloseOther,
+		Ui::LayerOption::CloseOther,
 		hidden ? anim::type::instant : anim::type::normal);
 	weak->setCloseByEscape(false);
 	weak->setCloseByOutsideClick(false);
@@ -322,7 +330,7 @@ void PanelController::stopWithConfirmation(FnMut<void()> callback) {
 	_confirmStopBox = box.data();
 	_panel->showBox(
 		std::move(box),
-		LayerOption::CloseOther,
+		Ui::LayerOption::CloseOther,
 		hidden ? anim::type::instant : anim::type::normal);
 	if (hidden) {
 		_panel->showAndActivate();
@@ -384,12 +392,6 @@ void PanelController::saveSettings() const {
 		settings.path = QString();
 	}
 	Local::WriteExportSettings(settings);
-}
-
-PanelController::~PanelController() {
-	if (_saveSettingsTimer.isActive()) {
-		saveSettings();
-	}
 }
 
 } // namespace View

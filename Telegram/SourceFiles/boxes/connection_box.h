@@ -7,11 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
 #include "base/timer.h"
+#include "base/object_ptr.h"
 #include "mtproto/connection_abstract.h"
+#include "mtproto/mtproto_proxy_data.h"
 
 namespace Ui {
+class BoxContent;
 class InputField;
 class PortInput;
 class PasswordInput;
@@ -24,6 +26,7 @@ class Radioenum;
 
 class ProxiesBoxController : public base::Subscriber {
 public:
+	using ProxyData = MTP::ProxyData;
 	using Type = ProxyData::Type;
 
 	ProxiesBoxController();
@@ -32,8 +35,8 @@ public:
 		Type type,
 		const QMap<QString, QString> &fields);
 
-	static object_ptr<BoxContent> CreateOwningBox();
-	object_ptr<BoxContent> create();
+	static object_ptr<Ui::BoxContent> CreateOwningBox();
+	object_ptr<Ui::BoxContent> create();
 
 	enum class ItemState {
 		Connecting,
@@ -60,8 +63,8 @@ public:
 	void restoreItem(int id);
 	void shareItem(int id);
 	void applyItem(int id);
-	object_ptr<BoxContent> editItemBox(int id);
-	object_ptr<BoxContent> addNewItemBox();
+	object_ptr<Ui::BoxContent> editItemBox(int id);
+	object_ptr<Ui::BoxContent> addNewItemBox();
 	bool setProxySettings(ProxyData::Settings value);
 	void setProxyForCalls(bool enabled);
 	void setTryIPv6(bool enabled);
@@ -72,7 +75,7 @@ public:
 	~ProxiesBoxController();
 
 private:
-	using Checker = MTP::internal::ConnectionPointer;
+	using Checker = MTP::details::ConnectionPointer;
 	struct Item {
 		int id = 0;
 		ProxyData data;

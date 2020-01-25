@@ -12,24 +12,24 @@ https://github.com/bettergram/bettergram/blob/master/LEGAL
 
 namespace Dialogs {
 
-ChatTabs::ChatTabs(QWidget *parent) : TWidget(parent)
+ChatTabs::ChatTabs(QWidget *parent) : RpWidget(parent)
 , _type(EntryType::None)
-,_oneOnOneButton(EntryType::OneOnOne, this, st::dialogsChatTabsOneOnOneButton)
-,_botButton(EntryType::Bot, this, st::dialogsChatTabsBotButton)
-,_groupButton(EntryType::Group, this, st::dialogsChatTabsGroupButton)
-,_announcementButton(EntryType::Channel, this, st::dialogsChatTabsAnnouncementButton) {
+, _privateButton(EntryType::Private, this, st::dialogsChatTabsPrivateButton)
+, _botButton(EntryType::Bot, this, st::dialogsChatTabsBotButton)
+, _groupButton(EntryType::Group, this, st::dialogsChatTabsGroupButton)
+, _channelButton(EntryType::Channel, this, st::dialogsChatTabsChannelButton) {
 
-	_listButtons.push_back(_oneOnOneButton);
+	_listButtons.push_back(_privateButton);
 	_listButtons.push_back(_botButton);
 	_listButtons.push_back(_groupButton);
-	_listButtons.push_back(_announcementButton);
+	_listButtons.push_back(_channelButton);
 
 	setGeometryToLeft(0, 0, width(), _listButtons.first()->height());
 
-	_oneOnOneButton->setClickedCallback([this] { onTabClicked(_oneOnOneButton->type()); });
+	_privateButton->setClickedCallback([this] { onTabClicked(_privateButton->type()); });
 	_botButton->setClickedCallback([this] { onTabClicked(_botButton->type()); });
 	_groupButton->setClickedCallback([this] { onTabClicked(_groupButton->type()); });
-	_announcementButton->setClickedCallback([this] { onTabClicked(_announcementButton->type()); });
+	_channelButton->setClickedCallback([this] { onTabClicked(_channelButton->type()); });
 
 	EntryTypes type = EntryTypes::from_raw(cLastTab());
 	_type = type;
@@ -44,18 +44,18 @@ void ChatTabs::selectTab(const EntryTypes &type) {
 	_type = type;
 
 	// Set default icons to tab buttons
-	_oneOnOneButton->unselect();
+	_privateButton->unselect();
 	_botButton->unselect();
 	_groupButton->unselect();
-	_announcementButton->unselect();
+	_channelButton->unselect();
 
 	cSetLastTab(type);
 
 	// Set highlighted icon to the current tab button
 
 	switch (_type.value()) {
-	case static_cast<unsigned>(EntryType::OneOnOne):
-		_oneOnOneButton->select();
+	case static_cast<unsigned>(EntryType::Private):
+		_privateButton->select();
 		break;
 	case static_cast<unsigned>(EntryType::Bot):
 		_botButton->select();
@@ -64,7 +64,7 @@ void ChatTabs::selectTab(const EntryTypes &type) {
 		_groupButton->select();
 		break;
 	case static_cast<unsigned>(EntryType::Channel):
-		_announcementButton->select();
+		_channelButton->select();
 		break;
 	case static_cast<unsigned>(EntryType::None):
 		break;
@@ -76,6 +76,13 @@ void ChatTabs::selectTab(const EntryTypes &type) {
 
 const EntryTypes &ChatTabs::selectedTab() const {
 	return _type;
+}
+
+void ChatTabs::unreadCountChanged(UnreadState counts[4]) {
+	_privateButton->setUnreadCount(counts[0]);
+	_botButton->setUnreadCount(counts[1]);
+	_groupButton->setUnreadCount(counts[2]);
+	_channelButton->setUnreadCount(counts[3]);
 }
 
 void ChatTabs::onTabClicked(const EntryTypes &type) {

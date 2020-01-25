@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "core/mime_type.h"
 #include "ui/image/image_prepare.h"
+#include "app.h"
+
+#include <QtCore/QSemaphore>
+#include <QtCore/QMimeData>
 
 namespace Storage {
 namespace {
@@ -30,9 +34,7 @@ bool HasExtensionFrom(const QString &file, const QStringList &extensions) {
 bool ValidPhotoForAlbum(
 		const FileMediaInformation::Image &image,
 		const QString &mime) {
-	if (image.animated
-		|| mime == qstr("image/webp")
-		|| mime == qstr("application/x-tgsticker")) {
+	if (image.animated || Core::IsMimeSticker(mime)) {
 		return false;
 	}
 	const auto width = image.data.width();
@@ -86,7 +88,7 @@ bool PrepareAlbumMediaIsWaiting(
 			if (ValidPhotoForAlbum(*image, file.mime)) {
 				file.shownDimensions = PrepareShownDimensions(image->data);
 				file.preview = Images::prepareOpaque(image->data.scaledToWidth(
-					std::min(previewWidth, ConvertScale(image->data.width()))
+					std::min(previewWidth, style::ConvertScale(image->data.width()))
 						* cIntRetinaFactor(),
 					Qt::SmoothTransformation));
 				Assert(!file.preview.isNull());
@@ -274,6 +276,101 @@ PreparedList PrepareMediaFromImage(
 	return result;
 }
 
+std::optional<PreparedList> PreparedList::PreparedFileFromFilesDialog(
+		FileDialog::OpenResult &&result,
+		bool isAlbum,
+		Fn<void(tr::phrase<>)> errorCallback,
+		int previewWidth) {
+	if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+		return std::nullopt;
+	}
+
+	if (!result.remoteContent.isEmpty()) {
+
+		auto list = Storage::PrepareMediaFromImage(
+			QImage(),
+			std::move(result.remoteContent),
+			previewWidth);
+
+		if (Core::IsMimeSticker(list.files.front().mime)) {
+			errorCallback(tr::lng_edit_media_invalid_file);
+			return std::nullopt;
+		}
+
+		if (isAlbum) {
+			const auto albumMimes = {
+				"image/jpeg",
+				"image/png",
+				"video/mp4",
+			};
+			const auto file = &list.files.front();
+			if (!ranges::contains(albumMimes, file->mime)
+				|| file->type == Storage::PreparedFile::AlbumType::None) {
+				errorCallback(tr::lng_edit_media_album_error);
+				return std::nullopt;
+			}
+		}
+		Expects(list.files.size() == 1);
+		return std::move(list);
+	} else if (!result.paths.isEmpty()) {
+		const auto isSingleFile = (result.paths.size() == 1);
+		auto temp = Storage::PrepareMediaList(result.paths, previewWidth);
+		if (temp.error != PreparedList::Error::None) {
+			errorCallback(tr::lng_send_media_invalid_files);
+			return std::nullopt;
+		}
+		auto filteredFiles = ranges::view::all(
+			temp.files
+		) | ranges::view::filter([&](const auto &file) {
+			if (!isAlbum) {
+				return true;
+			}
+			const auto info = QFileInfo(file.path);
+			if (Core::IsMimeSticker(Core::MimeTypeForFile(info).name())) {
+				if (isSingleFile) {
+					errorCallback(tr::lng_edit_media_invalid_file);
+				}
+				return false;
+			}
+			using Info = FileMediaInformation;
+
+			const auto media = &file.information->media;
+			const auto valid = media->match([](const Info::Image &data) {
+				return Storage::ValidateThumbDimensions(
+					data.data.width(),
+					data.data.height())
+					&& !data.animated;
+			}, [](Info::Video &data) {
+				data.isGifv = false;
+				return true;
+			}, [](auto &&other) {
+				return false;
+			});
+			if (!valid && isSingleFile) {
+				errorCallback(tr::lng_edit_media_album_error);
+			}
+			return valid;
+		}) | ranges::view::transform([](auto &file) {
+			return std::move(file);
+		}) | ranges::to_vector;
+
+		if (!filteredFiles.size()) {
+			if (!isSingleFile) {
+				errorCallback(tr::lng_send_media_invalid_files);
+			}
+			return std::nullopt;
+		}
+
+		auto list = PreparedList(temp.error, temp.errorData);
+		list.albumIsPossible = isAlbum;
+		list.allFilesForCompress = temp.allFilesForCompress;
+		list.files = std::move(filteredFiles);
+
+		return std::move(list);
+	}
+	return std::nullopt;
+}
+
 PreparedList PreparedList::Reordered(
 		PreparedList &&list,
 		std::vector<int> order) {
@@ -290,7 +387,7 @@ PreparedList PreparedList::Reordered(
 	return result;
 }
 
-void PreparedList::mergeToEnd(PreparedList &&other) {
+void PreparedList::mergeToEnd(PreparedList &&other, bool cutToAlbumSize) {
 	if (error != Error::None) {
 		return;
 	}
@@ -300,9 +397,14 @@ void PreparedList::mergeToEnd(PreparedList &&other) {
 		return;
 	}
 	allFilesForCompress = allFilesForCompress && other.allFilesForCompress;
-	files.reserve(files.size() + other.files.size());
+	files.reserve(std::min(
+		size_t(cutToAlbumSize ? kMaxAlbumCount : INT_MAX),
+		files.size() + other.files.size()));
 	for (auto &file : other.files) {
 		files.push_back(std::move(file));
+		if (cutToAlbumSize && files.size() == kMaxAlbumCount) {
+			break;
+		}
 	}
 	if (files.size() > 1 && files.size() <= kMaxAlbumCount) {
 		const auto badIt = ranges::find(
@@ -320,7 +422,7 @@ bool PreparedList::canAddCaption(bool isAlbum, bool compressImages) const {
 		if (files.empty()) {
 			return false;
 		}
-		return (files.front().mime == qstr("image/webp"))
+		return Core::IsMimeSticker(files.front().mime)
 			|| files.front().path.endsWith(
 				qstr(".tgs"),
 				Qt::CaseInsensitive);

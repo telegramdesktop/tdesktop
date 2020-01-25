@@ -9,15 +9,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "dialogs/dialogs_key.h"
+#include "base/object_ptr.h"
 
 namespace Main {
 class Session;
 } // namespace Main
 
+namespace Ui {
+class LayerWidget;
+} // namespace Ui
+
 namespace Window {
 
 class SessionController;
-class LayerWidget;
 class SlideAnimation;
 struct SectionShow;
 enum class SlideDirection;
@@ -39,23 +43,31 @@ public:
 	, _controller(controller) {
 	}
 
-	Main::Session &session() const;
+	[[nodiscard]] Main::Session &session() const;
+
+	// Tabbed selector management.
+	virtual void pushTabbedSelectorToThirdSection(
+		const Window::SectionShow &params) {
+	}
+	virtual bool returnTabbedSelector() {
+		return false;
+	}
 
 	// Float player interface.
 	virtual bool wheelEventFromFloatPlayer(QEvent *e) {
 		return false;
 	}
-	virtual QRect rectForFloatPlayer() const {
+	[[nodiscard]] virtual QRect rectForFloatPlayer() const {
 		return mapToGlobal(rect());
 	}
 
 protected:
-	not_null<Window::SessionController*> controller() const {
+	[[nodiscard]] not_null<Window::SessionController*> controller() const {
 		return _controller;
 	}
 
 private:
-	not_null<Window::SessionController*> _controller;
+	const not_null<Window::SessionController*> _controller;
 
 };
 
@@ -98,9 +110,7 @@ public:
 
 	// This can be used to grab with or without top bar shadow.
 	// This will be protected when animation preparation will be done inside.
-	virtual QPixmap grabForShowAnimation(const SectionSlideParams &params) {
-		return Ui::GrabWidget(this);
-	}
+	virtual QPixmap grabForShowAnimation(const SectionSlideParams &params);
 
 	// Attempt to show the required section inside the existing one.
 	// For example if this section already shows exactly the required
@@ -123,7 +133,7 @@ public:
 	virtual rpl::producer<int> desiredHeight() const;
 
 	// Some sections convert to layers on some geometry sizes.
-	virtual object_ptr<LayerWidget> moveContentToLayer(
+	virtual object_ptr<Ui::LayerWidget> moveContentToLayer(
 			QRect bodyGeometry) {
 		return nullptr;
 	}

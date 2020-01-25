@@ -7,6 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QLineEdit>
+#include <QtWidgets/QTextEdit>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QCheckBox>
+#include <QtNetwork/QNetworkReply>
+#include <QtNetwork/QHttpMultiPart>
+#include <QtNetwork/QNetworkAccessManager>
+
+namespace MTP {
+struct ProxyData;
+} // namespace MTP
+
 namespace Core {
 class Launcher;
 } // namespace Core
@@ -87,7 +100,7 @@ public:
 		const QByteArray &crashdump,
 		Fn<void()> launch);
 
-	rpl::producer<ProxyData> proxyChanges() const;
+	rpl::producer<MTP::ProxyData> proxyChanges() const;
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -190,7 +203,7 @@ private:
 	void setDownloadProgress(qint64 ready, qint64 total);
 
 	Fn<void()> _launch;
-	rpl::event_stream<ProxyData> _proxyChanges;
+	rpl::event_stream<MTP::ProxyData> _proxyChanges;
 	rpl::lifetime _lifetime;
 
 };
@@ -228,7 +241,7 @@ public:
 
 protected:
 	void resizeEvent(QResizeEvent *e);
-    void closeEvent(QCloseEvent *e);
+	void closeEvent(QCloseEvent *e);
 
 private:
 	PreLaunchLog _log;

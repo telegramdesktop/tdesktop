@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 
 #include "base/timer.h"
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 
 namespace Ui {
 namespace {

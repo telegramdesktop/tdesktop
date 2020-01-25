@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/ui_utility.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
+#include "facades.h"
 #include "styles/style_history.h"
 #include "styles/style_window.h"
 #include "styles/style_info.h"
@@ -95,7 +97,7 @@ object_ptr<Window::SectionWidget> SectionMemento::createWidget(
 	}
 	auto result = object_ptr<Widget>(parent, controller, _channel);
 	result->setInternalState(geometry, this);
-	return std::move(result);
+	return result;
 }
 
 FixedBar::FixedBar(
@@ -250,7 +252,11 @@ void FixedBar::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-Widget::Widget(QWidget *parent, not_null<Window::SessionController*> controller, not_null<ChannelData*> channel) : Window::SectionWidget(parent, controller)
+Widget::Widget(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	not_null<ChannelData*> channel)
+: Window::SectionWidget(parent, controller)
 , _scroll(this, st::historyScroll, false)
 , _fixedBar(this, controller, channel)
 , _fixedBarShadow(this)
@@ -267,9 +273,19 @@ Widget::Widget(QWidget *parent, not_null<Window::SessionController*> controller,
 	subscribe(Adaptive::Changed(), [this] { updateAdaptiveLayout(); });
 
 	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller, channel));
-	subscribe(_inner->showSearchSignal, [this] { _fixedBar->showSearch(); });
-	subscribe(_inner->cancelledSignal, [this] { _fixedBar->goBack(); });
-	subscribe(_inner->scrollToSignal, [this](int top) { _scroll->scrollToY(top); });
+	_inner->showSearchSignal(
+	) | rpl::start_with_next([=] {
+		_fixedBar->showSearch();
+	}, lifetime());
+	_inner->cancelSignal(
+	) | rpl::start_with_next([=] {
+		_fixedBar->goBack();
+	}, lifetime());
+	_inner->scrollToSignal(
+	) | rpl::start_with_next([=](int top) {
+		_scroll->scrollToY(top);
+	}, lifetime());
+
 	_scroll->move(0, _fixedBar->height());
 	_scroll->show();
 
@@ -336,7 +352,9 @@ void Widget::setInternalState(const QRect &geometry, not_null<SectionMemento*> m
 void Widget::setupShortcuts() {
 	Shortcuts::Requests(
 	) | rpl::filter([=] {
-		return isActiveWindow() && !Ui::isLayerShown() && inFocusChain();
+		return Ui::AppInFocus()
+			&& Ui::InFocusChain(this)
+			&& !Ui::isLayerShown();
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 		request->check(Command::Search, 2) && request->handle([=] {
@@ -349,7 +367,7 @@ void Widget::setupShortcuts() {
 std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
 	auto result = std::make_unique<SectionMemento>(channel());
 	saveState(result.get());
-	return std::move(result);
+	return result;
 }
 
 void Widget::saveState(not_null<SectionMemento*> memento) {

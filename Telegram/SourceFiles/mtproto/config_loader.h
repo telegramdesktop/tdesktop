@@ -10,14 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "base/bytes.h"
-#include "mtproto/rpc_sender.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 namespace MTP {
 
-class SpecialConfigRequest;
 class Instance;
 
-namespace internal {
+namespace details {
+
+class SpecialConfigRequest;
 
 class ConfigLoader : public base::has_weak_ptr {
 public:
@@ -76,5 +77,5 @@ inline bool operator==(const ConfigLoader::SpecialEndpoint &a, const ConfigLoade
 	return (a.dcId == b.dcId) && (a.ip == b.ip) && (a.port == b.port);
 }
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

@@ -82,6 +82,7 @@ public:
 
 	enum class Type {
 		Send,
+		Schedule,
 		Save,
 		Record,
 		Cancel,
@@ -129,6 +130,7 @@ private:
 	void paintSave(Painter &p, bool over);
 	void paintCancel(Painter &p, bool over);
 	void paintSend(Painter &p, bool over);
+	void paintSchedule(Painter &p, bool over);
 	void paintSlowmode(Painter &p);
 
 	Type _type = Type::Send;
@@ -264,7 +266,9 @@ private:
 //
 //};
 
-class SilentToggle : public Ui::IconButton, public Ui::AbstractTooltipShower {
+class SilentToggle
+	: public Ui::IconButton
+	, public Ui::AbstractTooltipShower {
 public:
 	SilentToggle(QWidget *parent, not_null<ChannelData*> channel);
 
@@ -276,6 +280,7 @@ public:
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
+	bool tooltipWindowActive() const override;
 
 protected:
 	void mouseMoveEvent(QMouseEvent *e) override;

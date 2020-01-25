@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-using "basic.style";
+using "ui/basic.style";
 
 using "boxes/boxes.style";
 using "ui/widgets/widgets.style";
@@ -79,7 +79,7 @@ stickersFeaturedInstalled: icon {{ "send_control_save", lightButtonFg }};
 stickersMaxHeight: 320px;
 stickersPadding: margins(19px, 13px, 19px, 13px);
 stickersSize: size(64px, 64px);
-stickersScroll: ScrollArea(boxLayerScroll) {
+stickersScroll: ScrollArea(boxScroll) {
 	deltat: 19px;
 	deltab: 9px;
 }

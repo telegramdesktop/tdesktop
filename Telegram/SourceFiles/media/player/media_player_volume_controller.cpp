@@ -11,10 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/continuous_sliders.h"
-#include "styles/style_media_player.h"
-#include "styles/style_widgets.h"
+#include "ui/ui_utility.h"
+#include "base/object_ptr.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
+#include "facades.h"
+#include "app.h"
+#include "styles/style_media_player.h"
+#include "styles/style_widgets.h"
 
 namespace Media {
 namespace Player {

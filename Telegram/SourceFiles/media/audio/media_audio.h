@@ -7,8 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/effects/animation_value.h"
 #include "storage/localimageloader.h"
 #include "base/bytes.h"
+
+#include <QtCore/QTimer>
 
 namespace Media {
 struct ExternalSoundData;

@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/overload.h"
 #include "main/main_session.h"
 
+#include <QtCore/QBuffer>
+
 namespace {
 
 constexpr auto kDocumentBaseCacheTag = 0x0000000000010000ULL;
@@ -114,6 +116,12 @@ StorageFileLocation::StorageFileLocation(
 		_sizeLetter = data.vthumb_size().v.isEmpty()
 			? char(0)
 			: data.vthumb_size().v[0];
+	}, [&](const MTPDinputPhotoLegacyFileLocation &data) {
+		_type = Type::Legacy;
+		_volumeId = data.vvolume_id().v;
+		_localId = data.vlocal_id().v;
+		_accessHash = data.vsecret().v;
+		_fileReference = data.vfile_reference().v;
 	}, [&](const MTPDinputPeerPhotoFileLocation &data) {
 		_type = Type::PeerPhoto;
 		const auto fillPeer = base::overload([&](

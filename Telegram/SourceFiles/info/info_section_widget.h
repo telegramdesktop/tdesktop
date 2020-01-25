@@ -50,7 +50,7 @@ public:
 		const Window::SectionShow &params) override;
 	std::unique_ptr<Window::SectionMemento> createMemento() override;
 
-	object_ptr<Window::LayerWidget> moveContentToLayer(
+	object_ptr<Ui::LayerWidget> moveContentToLayer(
 		QRect bodyGeometry) override;
 
 	// Float player interface.

@@ -10,20 +10,26 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 
 ### Install software and required packages
 
-You will need GCC 8.1 and CMake 3.2 installed. To install them and all the required dependencies run
+You will need GCC 8 installed. To install them and all the required dependencies run
 
     sudo apt-get install software-properties-common -y && \
-    sudo apt-get install git libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libicu-dev libdee-dev libdrm-dev dh-autoreconf autoconf automake build-essential libass-dev libfreetype6-dev libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev libvorbis-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libxcb-render-util0-dev libxcb-util0-dev libxrender-dev libasound-dev libpulse-dev libxcb-sync0-dev libxcb-randr0-dev libx11-xcb-dev libffi-dev libncurses5-dev pkg-config texi2html zlib1g-dev yasm cmake xutils-dev bison python-xcbgen -y && \
-
+    sudo apt-get install git libexif-dev liblzma-dev libz-dev libssl-dev \
+    libappindicator-dev libicu-dev libdee-dev libdrm-dev dh-autoreconf \
+    autoconf automake build-essential libass-dev libfreetype6-dev \
+    libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev \
+    libvorbis-dev libenchant-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev \
+    libxcb-xfixes0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libatspi2.0-dev \
+    libxcb-render-util0-dev libxcb-util0-dev libxcb-xkb-dev libxrender-dev \
+    libasound-dev libpulse-dev libxcb-sync0-dev libxcb-randr0-dev bison \
+    libx11-xcb-dev libffi-dev libncurses5-dev pkg-config texi2html yasm \
+    zlib1g-dev xutils-dev python-xcbgen chrpath gperf -y --force-yes && \
     sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
-    sudo add-apt-repository ppa:george-edison55/cmake-3.x -y && \
     sudo apt-get update && \
-    sudo apt-get install gcc-8 g++-8 cmake -y && \
+    sudo apt-get install gcc-8 g++-8 -y && \
     sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 && \
     sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 60 && \
     sudo update-alternatives --config gcc && \
-    sudo add-apt-repository --remove ppa:ubuntu-toolchain-r/test -y && \
-    sudo add-apt-repository --remove ppa:george-edison55/cmake-3.x -y
+    sudo add-apt-repository --remove ppa:ubuntu-toolchain-r/test -y
 
 You can set the multithreaded make parameter by running
 
@@ -38,9 +44,21 @@ Go to ***BuildPath*** and run
     mkdir Libraries
     cd Libraries
 
-    git clone --branch 0.5.0 https://github.com/ericniebler/range-v3
+    git clone https://github.com/Kitware/CMake cmake
+    cd cmake
+    git checkout v3.16.0
+    ./bootstrap
+    make $MAKE_THREADS_CNT
+    sudo make install
+    cd ..
 
-    git clone https://github.com/telegramdesktop/zlib.git
+    git clone https://github.com/desktop-app/patches.git
+    cd patches
+    git checkout 395b620
+    cd ../
+    git clone --branch 0.10.0 https://github.com/ericniebler/range-v3
+
+    git clone https://github.com/madler/zlib.git
     cd zlib
     ./configure
     make $MAKE_THREADS_CNT
@@ -199,10 +217,10 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ../..
 
-    git clone https://github.com/openssl/openssl
-    cd openssl
-    git checkout OpenSSL_1_0_1-stable
-    ./config
+    git clone https://github.com/openssl/openssl openssl_1_1_1
+    cd openssl_1_1_1
+    git checkout OpenSSL_1_1_1-stable
+    ./config --prefix=/usr/local/desktop-app/openssl-1.1.1
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
@@ -210,25 +228,46 @@ Go to ***BuildPath*** and run
     git clone https://github.com/xkbcommon/libxkbcommon.git
     cd libxkbcommon
     git checkout xkbcommon-0.8.4
-    ./autogen.sh --disable-x11
+    ./autogen.sh
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
 
-    git clone git://code.qt.io/qt/qt5.git qt5_6_2
-    cd qt5_6_2
+    git clone git://code.qt.io/qt/qt5.git qt_5_12_5
+    cd qt_5_12_5
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.6.2
-    cd qtimageformats && git checkout v5.6.2 && cd ..
-    cd qtbase && git checkout v5.6.2 && cd ..
-    cd qtbase && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff && cd ..
-    cd qtbase/src/plugins/platforminputcontexts
-    git clone https://github.com/telegramdesktop/fcitx.git
-    git clone https://github.com/telegramdesktop/hime.git
-    git clone https://github.com/telegramdesktop/nimf.git
+    git checkout v5.12.5
+    git submodule update qtbase
+    git submodule update qtimageformats
+    cd qtbase
+    git apply ../../patches/qtbase_5_12_5.diff
+    cd src/plugins/platforminputcontexts
+    git clone https://github.com/desktop-app/fcitx.git
+    git clone https://github.com/desktop-app/hime.git
+    git clone https://github.com/desktop-app/nimf.git
     cd ../../../..
 
-    ./configure -prefix "/usr/local/tdesktop/Qt-5.6.2" -release -force-debug-info -opensource -confirm-license -qt-zlib -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb -qt-xkbcommon-x11 -no-opengl -no-gtkstyle -static -openssl-linked -nomake examples -nomake tests
+    OPENSSL_DIR=/usr/local/desktop-app/openssl-1.1.1
+    ./configure -prefix "/usr/local/desktop-app/Qt-5.12.5" \
+    -release \
+    -force-debug-info \
+    -opensource \
+    -confirm-license \
+    -qt-zlib \
+    -qt-libpng \
+    -qt-libjpeg \
+    -qt-harfbuzz \
+    -qt-pcre \
+    -qt-xcb \
+    -system-freetype \
+    -fontconfig \
+    -no-opengl \
+    -no-gtk \
+    -static \
+    -openssl-linked \
+    -I "$OPENSSL_DIR/include" OPENSSL_LIBS="$OPENSSL_DIR/lib/libssl.a $OPENSSL_DIR/lib/libcrypto.a -ldl -lpthread" \
+    -nomake examples \
+    -nomake tests
 
     make $MAKE_THREADS_CNT
     sudo make install
@@ -236,8 +275,8 @@ Go to ***BuildPath*** and run
 
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
-    git checkout 702ac58e47
-    git apply ../../tdesktop/Telegram/Patches/gyp.diff
+    git checkout 9f2a7bb1
+    git apply ../patches/gyp.diff
     cd ..
 
     git clone https://chromium.googlesource.com/breakpad/breakpad
@@ -250,7 +289,11 @@ Go to ***BuildPath*** and run
     ./configure
     make $MAKE_THREADS_CNT
     sudo make install
-    cd src/tools
+    cd src
+    rm -r testing
+    git clone https://github.com/google/googletest testing
+    cd tools
+    sed -i 's/minidump_upload.m/minidump_upload.cc/' linux/tools_linux.gypi
     ../../../gyp/gyp  --depth=. --generator-output=.. -Goutput_dir=../out tools.gyp --format=cmake
     cd ../../out/Default
     cmake .
@@ -261,7 +304,7 @@ Go to ***BuildPath*** and run
 
 Go to ***BuildPath*/tdesktop/Telegram** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
-    gyp/refresh.sh --api-id YOUR_API_ID --api-hash YOUR_API_HASH
+    ./configure.sh -D TDESKTOP_API_ID=YOUR_API_ID -D TDESKTOP_API_HASH=YOUR_API_HASH -D DESKTOP_APP_USE_PACKAGED=OFF
 
 To make Debug version go to ***BuildPath*/tdesktop/out/Debug** and run
 
@@ -271,6 +314,6 @@ To make Release version go to ***BuildPath*/tdesktop/out/Release** and run
 
     make $MAKE_THREADS_CNT
 
-You can debug your builds from Qt Creator, just open **CMakeLists.txt** from ***BuildPath*/tdesktop/out/Debug** and launch with debug.
+You can debug your builds from Qt Creator, just open ***BuildPath*/tdesktop/CMakeLists.txt**, configure to a separate directory with correct options and launch with debug.
 
 [api_credentials]: api_credentials.md

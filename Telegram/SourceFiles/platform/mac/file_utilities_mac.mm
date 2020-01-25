@@ -7,9 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/file_utilities_mac.h"
 
-#include "platform/mac/mac_utilities.h"
+#include "base/platform/mac/base_utilities_mac.h"
+#include "base/platform/base_platform_file_utilities.h"
 #include "lang/lang_keys.h"
 #include "styles/style_window.h"
+
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QDesktopWidget>
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
@@ -570,13 +574,7 @@ void UnsafeLaunch(const QString &filepath) {
 }
 
 void UnsafeShowInFolder(const QString &filepath) {
-	auto folder = QFileInfo(filepath).absolutePath();
-
-	@autoreleasepool {
-
-	[[NSWorkspace sharedWorkspace] selectFile:Q2NSString(filepath) inFileViewerRootedAtPath:Q2NSString(folder)];
-
-	}
+	base::Platform::ShowInFolder(filepath);
 }
 
 } // namespace File

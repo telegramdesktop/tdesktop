@@ -11,6 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/specific_mac_p.h"
 #include "base/timer.h"
 
+#include <QtWidgets/QMenuBar>
+#include <QtCore/QTimer>
+
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {
@@ -21,11 +24,6 @@ public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 
 	void psFirstShow();
-	void psInitSysMenu();
-	void psUpdateMargins();
-
-	void psRefreshTaskbarIcon() {
-	}
 
 	bool psFilterNativeEvent(void *event);
 
@@ -51,6 +49,7 @@ public slots:
 	void psMacPaste();
 	void psMacDelete();
 	void psMacSelectAll();
+	void psMacEmojiAndSymbols();
 
 	void psMacBold();
 	void psMacItalic();

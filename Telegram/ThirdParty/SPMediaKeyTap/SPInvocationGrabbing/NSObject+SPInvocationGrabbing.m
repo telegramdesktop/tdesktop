@@ -49,7 +49,7 @@
 	[anInvocation retainArguments];
 	anInvocation.target = _object;
 	self.invocation = anInvocation;
-	
+
 	if(backgroundAfterForward)
 		[NSThread detachNewThreadSelector:@selector(runInBackground) toTarget:self withObject:nil];
 	else if(onMainAfterForward)
@@ -59,7 +59,7 @@
 	NSMethodSignature *signature = [super methodSignatureForSelector:inSelector];
 	if (signature == NULL)
 		signature = [_object methodSignatureForSelector:inSelector];
-    
+
 	return signature;
 }
 

@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/update_checker.h"
 
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 #include "base/timer.h"
 #include "base/bytes.h"
 #include "base/unixtime.h"
@@ -21,6 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "settings/settings_intro.h"
 #include "data/data_user.h"
+#include "ui/layers/box_content.h"
+#include "app.h"
+
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
 
 extern "C" {
 #include <openssl/rsa.h>
@@ -218,7 +223,7 @@ QString FindUpdateFile() {
 			"^("
 			"tupdate|"
 			"tmacupd|"
-			"tmac32upd|"
+			"tosxupd|"
 			"tlinuxupd|"
 			"tlinux32upd"
 			")\\d+(_[a-z\\d]+)?$",
@@ -497,21 +502,7 @@ bool ParseCommonMap(
 		return false;
 	}
 	const auto platforms = document.object();
-	const auto platform = [&] {
-		if (Platform::IsWindows()) {
-			return "win";
-		} else if (Platform::IsMacOldBuild()) {
-			return "mac32";
-		} else if (Platform::IsMac()) {
-			return "mac";
-		} else if (Platform::IsLinux32Bit()) {
-			return "linux32";
-		} else if (Platform::IsLinux64Bit()) {
-			return "linux";
-		} else {
-			Unexpected("Platform in ParseCommonMap.");
-		}
-	}();
+	const auto platform = Platform::AutoUpdateKey();
 	const auto it = platforms.constFind(platform);
 	if (it == platforms.constEnd()) {
 		LOG(("Update Error: MTP platform '%1' not found in response."
@@ -639,8 +630,10 @@ void HttpChecker::start() {
 	if (Main::Session::Exists())
 		addOne("uid", QString::number(Auth().userId()));
 
-	auto url = QUrl(Local::readAutoupdatePrefix() + qstr("/tupdates/current"));
+	const auto updaterVersion = Platform::AutoUpdateVersion();
+	auto url = QUrl(Local::readAutoupdatePrefix() + qstr("/tupdates/current") + QString::number(updaterVersion));
 	url.setQuery(query);
+	DEBUG_LOG(("Update Info: requesting update state"));
 	const auto request = QNetworkRequest(url);
 	_manager = std::make_unique<QNetworkAccessManager>();
 	_reply = _manager->get(request);
@@ -909,6 +902,7 @@ void MtpChecker::start() {
 		crl::on_main(this, [=] { fail(); });
 		return;
 	}
+	const auto updaterVersion = Platform::AutoUpdateVersion();
 	constexpr auto kFeed = "tdfeed";
 	MTP::ResolveChannel(&_mtp, kFeed, [=](const MTPInputChannel &channel) {
 		_mtp.send(
@@ -1603,7 +1597,7 @@ void UpdateApplication() {
 					Window::SectionShow());
 			} else {
 				window->showSpecialLayer(
-					Box<Settings::LayerWidget>(),
+					Box<::Settings::LayerWidget>(),
 					anim::type::normal);
 			}
 			window->showFromTray();

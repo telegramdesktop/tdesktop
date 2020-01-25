@@ -18,6 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
 
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QDesktopWidget>
+#include <QtCore/QStandardPaths>
+#include <QtCore/QProcess>
+#include <QtCore/QVersionNumber>
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <cstdlib>
@@ -26,10 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <pwd.h>
 
 #include <iostream>
-#include <QProcess>
-#include <QVersionNumber>
-
-#include <qpa/qplatformnativeinterface.h>
 
 using namespace Platform;
 using Platform::File::internal::EscapeShell;
@@ -37,17 +39,17 @@ using Platform::File::internal::EscapeShell;
 namespace {
 
 bool RunShellCommand(const QByteArray &command) {
-        auto result = system(command.constData());
-        if (result) {
-                DEBUG_LOG(("App Error: command failed, code: %1, command (in utf8): %2").arg(result).arg(command.constData()));
-                return false;
-        }
-        DEBUG_LOG(("App Info: command succeeded, command (in utf8): %1").arg(command.constData()));
-        return true;
+	auto result = system(command.constData());
+	if (result) {
+		DEBUG_LOG(("App Error: command failed, code: %1, command (in utf8): %2").arg(result).arg(command.constData()));
+		return false;
+	}
+	DEBUG_LOG(("App Info: command succeeded, command (in utf8): %1").arg(command.constData()));
+	return true;
 }
 
 void FallbackFontConfig() {
-#ifndef TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
+#ifndef DESKTOP_APP_USE_PACKAGED
 	const auto custom = cWorkingDir() + "tdata/fc-custom-1.conf";
 	const auto finish = gsl::finally([&] {
 		if (QFile(custom).exists()) {
@@ -82,19 +84,22 @@ void FallbackFontConfig() {
 	}
 
 	QFile(":/fc/fc-custom.conf").copy(custom);
-#endif // TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
+#endif // !DESKTOP_APP_USE_PACKAGED
 }
 
 } // namespace
 
 namespace Platform {
 
-bool IsApplicationActive() {
-	return QApplication::activeWindow() != nullptr;
-}
-
 void SetApplicationIcon(const QIcon &icon) {
 	QApplication::setWindowIcon(icon);
+}
+
+bool InSandbox() {
+	static const auto Sandbox = QFileInfo::exists(
+		QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation)
+		+ qsl("/flatpak-info"));
+	return Sandbox;
 }
 
 QString CurrentExecutablePath(int argc, char *argv[]) {
@@ -114,6 +119,23 @@ QString CurrentExecutablePath(int argc, char *argv[]) {
 	return argc ? QFile::decodeName(argv[0]) : QString();
 }
 
+QString SingleInstanceLocalServerName(const QString &hash) {
+	const auto runtimeDir = QStandardPaths::writableLocation(
+		QStandardPaths::RuntimeLocation);
+
+	if (InSandbox()) {
+		return runtimeDir
+			+ qsl("/app/")
+			+ QString::fromUtf8(qgetenv("FLATPAK_ID"))
+			+ '/' + hash;
+	} else if (QFileInfo::exists(runtimeDir)) {
+		return runtimeDir + '/' + hash + '-' + cGUIDStr();
+	} else { // non-systemd distros
+		return QStandardPaths::writableLocation(QStandardPaths::TempLocation)
+			+ '/' + hash + '-' + cGUIDStr();
+	}
+}
+
 } // namespace Platform
 
 namespace {
@@ -130,12 +152,6 @@ QRect psDesktopRect() {
 		_monitorRect = QApplication::desktop()->availableGeometry(App::wnd());
 	}
 	return _monitorRect;
-}
-
-void psShowOverAll(QWidget *w, bool canFocus) {
-}
-
-void psBringToBack(QWidget *w) {
 }
 
 void psWriteDump() {
@@ -237,30 +253,6 @@ void start() {
 }
 
 void finish() {
-	Notifications::Finish();
-}
-
-bool TranslucentWindowsSupported(QPoint globalPosition) {
-	if (const auto native = QGuiApplication::platformNativeInterface()) {
-		if (const auto desktop = QApplication::desktop()) {
-			const auto index = desktop->screenNumber(globalPosition);
-			const auto screens = QGuiApplication::screens();
-			if (const auto screen = (index >= 0 && index < screens.size()) ? screens[index] : QGuiApplication::primaryScreen()) {
-				if (native->nativeResourceForScreen(QByteArray("compositingEnabled"), screen)) {
-					return true;
-				}
-
-				static auto WarnedAbout = base::flat_set<int>();
-				if (!WarnedAbout.contains(index)) {
-					WarnedAbout.insert(index);
-					LOG(("WARNING: Compositing is disabled for screen index %1 (for position %2,%3)").arg(index).arg(globalPosition.x()).arg(globalPosition.y()));
-				}
-			} else {
-				LOG(("WARNING: Could not get screen for index %1 (for position %2,%3)").arg(index).arg(globalPosition.x()).arg(globalPosition.y()));
-			}
-		}
-	}
-	return false;
 }
 
 void RegisterCustomScheme() {
@@ -392,6 +384,7 @@ bool OpenSystemSettings(SystemSettingsType type) {
 		} else if (DesktopEnvironment::IsGnome()) {
 			add("gnome-control-center sound");
 		}
+		add("pavucontrol-qt");
 		add("pavucontrol");
 		add("alsamixergui");
 		return ranges::find_if(options, [](const QString &command) {
@@ -427,9 +420,6 @@ void psAutoStart(bool start, bool silent) {
 }
 
 void psSendToMenu(bool send, bool silent) {
-}
-
-void psUpdateOverlayed(QWidget *widget) {
 }
 
 bool linuxMoveFile(const char *from, const char *to) {

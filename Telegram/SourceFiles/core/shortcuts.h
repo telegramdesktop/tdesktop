@@ -35,6 +35,12 @@ enum class Command {
 	ChatPinned4,
 	ChatPinned5,
 
+	ShowArchive,
+
+	JustSendMessage,
+	SendSilentMessage,
+	ScheduleMessage,
+
 	SupportReloadTemplates,
 	SupportToggleMuted,
 	SupportScrollToCurrent,

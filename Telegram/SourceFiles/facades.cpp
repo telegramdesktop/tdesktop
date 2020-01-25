@@ -12,8 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "media/clip/media_clip_reader.h"
 #include "window/window_session_controller.h"
+#include "window/window_peer_menu.h"
 #include "history/history_item_components.h"
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "observer_peer.h"
@@ -23,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "boxes/confirm_box.h"
 #include "boxes/url_auth_box.h"
-#include "window/layer_widget.h"
+#include "ui/layers/layer_widget.h"
 #include "lang/lang_keys.h"
 #include "base/observer.h"
 #include "history/history.h"
@@ -33,13 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 
 namespace App {
-namespace internal {
-
-void CallDelayed(int duration, FnMut<void()> &&lambda) {
-	Core::App().callDelayed(duration, std::move(lambda));
-}
-
-} // namespace internal
 
 void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {
 	if (auto m = App::main()) {
@@ -113,12 +107,26 @@ void activateBotCommand(
 		const auto history = msg->history();
 		Ui::show(Box<ConfirmBox>(tr::lng_bot_share_phone(tr::now), tr::lng_bot_share_phone_confirm(tr::now), [=] {
 			Ui::showPeerHistory(history, ShowAtTheEndMsgId);
-			auto options = ApiWrap::SendOptions(history);
-			options.replyTo = msgId;
+			auto action = Api::SendAction(history);
+			action.clearDraft = false;
+			action.replyTo = msgId;
 			history->session().api().shareContact(
 				history->session().user(),
-				options);
+				action);
 		}));
+	} break;
+
+	case ButtonType::RequestPoll: {
+		hideSingleUseKeyboard(msg);
+		auto chosen = PollData::Flags();
+		auto disabled = PollData::Flags();
+		if (!button->data.isEmpty()) {
+			disabled |= PollData::Flag::Quiz;
+			if (button->data[0]) {
+				chosen |= PollData::Flag::Quiz;
+			}
+		}
+		Window::PeerMenuCreatePoll(msg->history()->peer, chosen, disabled);
 	} break;
 
 	case ButtonType::SwitchInlineSame:
@@ -168,51 +176,9 @@ void showSettings() {
 	}
 }
 
-void activateClickHandler(ClickHandlerPtr handler, ClickContext context) {
-	crl::on_main(App::wnd(), [=] {
-		handler->onClick(context);
-	});
-}
-
-void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
-	activateClickHandler(handler, ClickContext{ button });
-}
-
 } // namespace App
 
 namespace Ui {
-namespace internal {
-
-void showBox(
-		object_ptr<BoxContent> content,
-		LayerOptions options,
-		anim::type animated) {
-	if (auto w = App::wnd()) {
-		w->ui_showBox(std::move(content), options, animated);
-	}
-}
-
-} // namespace internal
-
-void hideLayer(anim::type animated) {
-	if (auto w = App::wnd()) {
-		w->ui_showBox(
-			{ nullptr },
-			LayerOption::CloseOther,
-			animated);
-	}
-}
-
-void hideSettingsAndLayer(anim::type animated) {
-	if (auto w = App::wnd()) {
-		w->ui_hideSettingsAndLayer(animated);
-	}
-}
-
-bool isLayerShown() {
-	if (auto w = App::wnd()) return w->ui_isLayerShown();
-	return false;
-}
 
 void showPeerProfile(const PeerId &peer) {
 	if (const auto window = App::wnd()) {
@@ -335,7 +301,6 @@ namespace internal {
 struct Data {
 	SingleQueuedInvokation HandleUnreadCounterUpdate = { [] { Core::App().call_handleUnreadCounterUpdate(); } };
 	SingleQueuedInvokation HandleDelayedPeerUpdates = { [] { Core::App().call_handleDelayedPeerUpdates(); } };
-	SingleQueuedInvokation HandleObservables = { [] { Core::App().call_handleObservables(); } };
 
 	Adaptive::WindowLayout AdaptiveWindowLayout = Adaptive::WindowLayout::Normal;
 	Adaptive::ChatLayout AdaptiveChatLayout = Adaptive::ChatLayout::Normal;
@@ -422,9 +387,9 @@ struct Data {
 	bool NotificationsDemoIsShown = false;
 
 	bool TryIPv6 = !Platform::IsWindows();
-	std::vector<ProxyData> ProxiesList;
-	ProxyData SelectedProxy;
-	ProxyData::Settings ProxySettings = ProxyData::Settings::System;
+	std::vector<MTP::ProxyData> ProxiesList;
+	MTP::ProxyData SelectedProxy;
+	MTP::ProxyData::Settings ProxySettings = MTP::ProxyData::Settings::System;
 	bool UseProxyForCalls = false;
 	base::Observable<void> ConnectionTypeChanged;
 
@@ -470,7 +435,6 @@ void finish() {
 
 DefineRefVar(Global, SingleQueuedInvokation, HandleUnreadCounterUpdate);
 DefineRefVar(Global, SingleQueuedInvokation, HandleDelayedPeerUpdates);
-DefineRefVar(Global, SingleQueuedInvokation, HandleObservables);
 
 DefineVar(Global, Adaptive::WindowLayout, AdaptiveWindowLayout);
 DefineVar(Global, Adaptive::ChatLayout, AdaptiveChatLayout);
@@ -555,9 +519,9 @@ DefineVar(Global, Notify::ScreenCorner, NotificationsCorner);
 DefineVar(Global, bool, NotificationsDemoIsShown);
 
 DefineVar(Global, bool, TryIPv6);
-DefineVar(Global, std::vector<ProxyData>, ProxiesList);
-DefineVar(Global, ProxyData, SelectedProxy);
-DefineVar(Global, ProxyData::Settings, ProxySettings);
+DefineVar(Global, std::vector<MTP::ProxyData>, ProxiesList);
+DefineVar(Global, MTP::ProxyData, SelectedProxy);
+DefineVar(Global, MTP::ProxyData::Settings, ProxySettings);
 DefineVar(Global, bool, UseProxyForCalls);
 DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);
 

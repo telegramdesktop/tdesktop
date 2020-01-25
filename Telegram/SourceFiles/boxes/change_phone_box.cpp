@@ -13,11 +13,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
+#include "ui/special_fields.h"
 #include "boxes/confirm_phone_box.h"
 #include "boxes/confirm_box.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "app.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
 namespace {
@@ -59,7 +62,7 @@ void createErrorLabel(
 
 } // namespace
 
-class ChangePhoneBox::EnterPhone : public BoxContent {
+class ChangePhoneBox::EnterPhone : public Ui::BoxContent {
 public:
 	EnterPhone(QWidget*, not_null<Main::Session*> session);
 
@@ -87,7 +90,7 @@ private:
 
 };
 
-class ChangePhoneBox::EnterCode : public BoxContent {
+class ChangePhoneBox::EnterCode : public Ui::BoxContent {
 public:
 	EnterCode(
 		QWidget*,
@@ -212,7 +215,7 @@ void ChangePhoneBox::EnterPhone::sendPhoneDone(const QString &phoneNumber, const
 			phoneCodeHash,
 			codeLength,
 			callTimeout),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 bool ChangePhoneBox::EnterPhone::sendPhoneFail(const QString &phoneNumber, const RPCError &error) {
@@ -308,7 +311,7 @@ void ChangePhoneBox::EnterCode::submit() {
 
 	const auto session = _session;
 	const auto code = _code->getDigitsOnly();
-	const auto weak = make_weak(this);
+	const auto weak = Ui::MakeWeak(this);
 	_requestId = MTP::send(MTPaccount_ChangePhone(
 		MTP_string(_phone),
 		MTP_string(_hash),

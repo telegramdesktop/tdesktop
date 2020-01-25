@@ -8,10 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
-
-class BoxContentDivider;
+#include "base/object_ptr.h"
 
 namespace Ui {
+class BoxContentDivider;
 class ScrollArea;
 class FadeShadow;
 class RoundButton;

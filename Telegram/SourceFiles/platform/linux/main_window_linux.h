@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_main_window.h"
 
+#include <QtCore/QTimer>
+
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {
@@ -18,11 +20,6 @@ public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 
 	void psFirstShow();
-	void psInitSysMenu();
-	void psUpdateMargins();
-
-	void psRefreshTaskbarIcon() {
-	}
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "mainwindow.h"
 #include "core/application.h"
+#include "api/api_text_entities.h"
 #include "ui/text/text.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
@@ -18,19 +19,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/toast/toast.h"
-#include "styles/style_boxes.h"
+#include "window/window_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
-#include "main/main_session.h"
+#include "main/main_account.h"
+#include "facades.h"
+#include "styles/style_layers.h"
+#include "styles/style_boxes.h"
 
 namespace Window {
 
-LockWidget::LockWidget(QWidget *parent) : RpWidget(parent) {
+LockWidget::LockWidget(QWidget *parent, not_null<Controller*> window)
+: RpWidget(parent)
+, _window(window) {
 	show();
 }
 
+not_null<Controller*> LockWidget::window() const {
+	return _window;
+}
+
 void LockWidget::setInnerFocus() {
-	if (const auto controller = App::wnd()->sessionController()) {
+	if (const auto controller = _window->sessionController()) {
 		controller->dialogsListFocused().set(false, true);
 	}
 	setFocus();
@@ -60,7 +70,7 @@ void LockWidget::animationCallback() {
 	update();
 	if (!_a_show.animating()) {
 		showChildren();
-		if (App::wnd()) App::wnd()->setInnerFocus();
+		_window->widget()->setInnerFocus();
 
 		Ui::showChatsList();
 
@@ -94,8 +104,10 @@ void LockWidget::paintContent(Painter &p) {
 	p.fillRect(rect(), st::windowBg);
 }
 
-PasscodeLockWidget::PasscodeLockWidget(QWidget *parent)
-: LockWidget(parent)
+PasscodeLockWidget::PasscodeLockWidget(
+	QWidget *parent,
+	not_null<Controller*> window)
+: LockWidget(parent, window)
 , _passcode(this, st::passcodeInput, tr::lng_passcode_ph())
 , _submit(this, tr::lng_passcode_submit(), st::passcodeSubmit)
 , _logout(this, tr::lng_passcode_logout(tr::now)) {
@@ -103,7 +115,7 @@ PasscodeLockWidget::PasscodeLockWidget(QWidget *parent)
 	connect(_passcode, &Ui::MaskedInputField::submitted, [=] { submit(); });
 
 	_submit->setClickedCallback([=] { submit(); });
-	_logout->setClickedCallback([] { App::wnd()->onLogout(); });
+	_logout->setClickedCallback([=] { window->widget()->onLogout(); });
 }
 
 void PasscodeLockWidget::paintContent(Painter &p) {
@@ -133,7 +145,7 @@ void PasscodeLockWidget::submit() {
 	}
 
 	const auto passcode = _passcode->text().toUtf8();
-	const auto correct = App::main()
+	const auto correct = window()->account().sessionExists()
 		? Local::checkPasscode(passcode)
 		: (Local::readMap(passcode) != Local::ReadMapPassNeeded);
 	if (!correct) {
@@ -177,7 +189,7 @@ TermsLock TermsLock::FromMTP(const MTPDhelp_termsOfService &data) {
 		bytes::make_vector(data.vid().c_dataJSON().vdata().v),
 		TextWithEntities {
 			TextUtilities::Clean(qs(data.vtext())),
-			TextUtilities::EntitiesFromMTP(data.ventities().v) },
+			Api::EntitiesFromMTP(data.ventities().v) },
 		(minAge ? std::make_optional(minAge->v) : std::nullopt),
 		data.is_popup()
 	};

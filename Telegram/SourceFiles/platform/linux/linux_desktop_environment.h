@@ -18,9 +18,7 @@ enum class Type {
 	KDE5,
 	Ubuntu,
 	Unity,
-	XFCE,
 	Pantheon,
-	Awesome,
 };
 
 Type Get();
@@ -53,21 +51,12 @@ inline bool IsUnity() {
 	return Get() == Type::Unity;
 }
 
-inline bool IsXFCE() {
-	return Get() == Type::XFCE;
-}
-
 inline bool IsPantheon() {
 	return Get() == Type::Pantheon;
 }
 
-inline bool IsAwesome() {
-	return Get() == Type::Awesome;
-}
-
 bool TryQtTrayIcon();
 bool PreferAppIndicatorTrayIcon();
-bool TryUnityCounter();
 
 } // namespace DesktopEnvironment
 } // namespace Platform

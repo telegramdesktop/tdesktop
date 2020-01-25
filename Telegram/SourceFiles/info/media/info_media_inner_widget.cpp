@@ -12,11 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_list_widget.h"
 #include "info/media/info_media_buttons.h"
 #include "info/media/info_media_empty_widget.h"
-#include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/info_controller.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/box_content_divider.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/search_field_controller.h"
 #include "styles/style_info.h"
@@ -66,7 +67,7 @@ void InnerWidget::createOtherTypes() {
 	_otherTypes->show();
 
 	createTypeButtons();
-	_otherTypes->add(object_ptr<BoxContentDivider>(_otherTypes));
+	_otherTypes->add(object_ptr<Ui::BoxContentDivider>(_otherTypes));
 	//createTabs();
 
 	_otherTypes->resizeToWidth(width());

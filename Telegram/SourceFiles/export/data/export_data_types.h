@@ -60,6 +60,8 @@ struct FileLocation {
 	}
 };
 
+bool RefreshFileReference(FileLocation &to, const FileLocation &from);
+
 struct File {
 	enum class SkipReason {
 		None,
@@ -524,6 +526,12 @@ struct Message {
 	const File &file() const;
 	Image &thumb();
 	const Image &thumb() const;
+};
+
+struct FileOrigin {
+	int split = 0;
+	MTPInputPeer peer;
+	int32 messageId = 0;
 };
 
 Message ParseMessage(

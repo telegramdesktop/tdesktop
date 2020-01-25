@@ -8,27 +8,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_libs.h"
 
 #include "platform/linux/linux_gdk_helper.h"
-#include "platform/linux/linux_libnotify.h"
 #include "platform/linux/linux_desktop_environment.h"
+
+#include <QtGui/QGuiApplication>
 
 namespace Platform {
 namespace Libs {
 namespace {
 
 bool loadLibrary(QLibrary &lib, const char *name, int version) {
-    DEBUG_LOG(("Loading '%1' with version %2...").arg(QLatin1String(name)).arg(version));
-    lib.setFileNameAndVersion(QLatin1String(name), version);
-    if (lib.load()) {
-        DEBUG_LOG(("Loaded '%1' with version %2!").arg(QLatin1String(name)).arg(version));
-        return true;
-    }
-    lib.setFileNameAndVersion(QLatin1String(name), QString());
-    if (lib.load()) {
-        DEBUG_LOG(("Loaded '%1' without version!").arg(QLatin1String(name)));
-        return true;
-    }
-    LOG(("Could not load '%1' with version %2 :(").arg(QLatin1String(name)).arg(version));
-    return false;
+	DEBUG_LOG(("Loading '%1' with version %2...").arg(QLatin1String(name)).arg(version));
+	lib.setFileNameAndVersion(QLatin1String(name), version);
+	if (lib.load()) {
+		DEBUG_LOG(("Loaded '%1' with version %2!").arg(QLatin1String(name)).arg(version));
+		return true;
+	}
+	lib.setFileNameAndVersion(QLatin1String(name), QString());
+	if (lib.load()) {
+		DEBUG_LOG(("Loaded '%1' without version!").arg(QLatin1String(name)));
+		return true;
+	}
+	LOG(("Could not load '%1' with version %2 :(").arg(QLatin1String(name)).arg(version));
+	return false;
 }
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
@@ -106,8 +107,13 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 		// Otherwise we get segfault in Ubuntu 17.04 in gtk_init_check() call.
 		// See https://github.com/telegramdesktop/tdesktop/issues/3176
 		// See https://github.com/telegramdesktop/tdesktop/issues/3162
-		DEBUG_LOG(("Limit allowed GDK backends to x11"));
-		gdk_set_allowed_backends("x11");
+		if(QGuiApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive)) {
+			DEBUG_LOG(("Limit allowed GDK backends to wayland"));
+			gdk_set_allowed_backends("wayland");
+		} else if (QGuiApplication::platformName() == qsl("xcb")) {
+			DEBUG_LOG(("Limit allowed GDK backends to x11"));
+			gdk_set_allowed_backends("x11");
+		}
 	}
 
 	DEBUG_LOG(("Library gtk functions loaded!"));
@@ -228,6 +234,7 @@ void start() {
 
 	bool gtkLoaded = false;
 	bool indicatorLoaded = false;
+	bool isWayland = QGuiApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive);
 	QLibrary lib_gtk, lib_indicator;
 	if (loadLibrary(lib_indicator, "ayatana-appindicator3", 1) || loadLibrary(lib_indicator, "appindicator3", 1)) {
 		if (loadLibrary(lib_gtk, "gtk-3", 0)) {
@@ -235,7 +242,7 @@ void start() {
 			indicatorLoaded = setupAppIndicator(lib_indicator);
 		}
 	}
-	if (!gtkLoaded || !indicatorLoaded) {
+	if ((!gtkLoaded || !indicatorLoaded) && !isWayland) {
 		if (loadLibrary(lib_indicator, "ayatana-appindicator", 1) || loadLibrary(lib_indicator, "appindicator", 1)) {
 			if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
 				gtkLoaded = indicatorLoaded = false;
@@ -250,7 +257,7 @@ void start() {
 		if (loadLibrary(lib_gtk, "gtk-3", 0)) {
 			gtkLoaded = setupGtkBase(lib_gtk);
 		}
-		if (!gtkLoaded && loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
+		if (!gtkLoaded && !isWayland && loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
 			gtkLoaded = setupGtkBase(lib_gtk);
 		}
 	}
@@ -281,10 +288,6 @@ void start() {
 		load(lib_gtk, "gtk_button_get_type", gtk_button_get_type);
 	} else {
 		LOG(("Could not load gtk-x11-2.0!"));
-	}
-
-	if (gtkLoaded) {
-		startLibNotify();
 	}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }

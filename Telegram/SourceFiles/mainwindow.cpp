@@ -10,14 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "dialogs/dialogs_layout.h"
-#include "styles/style_dialogs.h"
-#include "styles/style_window.h"
-#include "styles/style_boxes.h"
 #include "history/history.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/tooltip.h"
+#include "ui/layers/layer_widget.h"
 #include "ui/emoji_config.h"
+#include "ui/ui_utility.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 #include "core/application.h"
 #include "main/main_session.h"
-#include "intro/introwidget.h"
+#include "intro/intro_widget.h"
 #include "main/main_account.h" // Account::sessionValue.
 #include "mainwidget.h"
 #include "boxes/confirm_box.h"
@@ -36,14 +36,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "settings/settings_intro.h"
 #include "platform/platform_notifications_manager.h"
-#include "platform/platform_info.h"
-#include "window/layer_widget.h"
+#include "base/platform/base_platform_info.h"
+#include "base/call_delayed.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_warning.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_main_menu.h"
+#include "window/window_controller.h" // App::wnd.
 #include "window/window_session_controller.h"
+#include "window/window_media_preview.h"
+#include "facades.h"
+#include "app.h"
+#include "styles/style_dialogs.h"
+#include "styles/style_layers.h"
+#include "styles/style_window.h"
+
+#include <QtGui/QWindow>
+#include <QtCore/QCoreApplication>
 
 namespace {
 
@@ -146,11 +156,15 @@ void MainWindow::firstShow() {
 
 	psFirstShow();
 	updateTrayMenu();
+
+	windowDeactivateEvents(
+	) | rpl::start_with_next([=] {
+		Ui::Tooltip::Hide();
+	}, lifetime());
 }
 
 void MainWindow::clearWidgetsHook() {
-	Expects(_passcodeLock == nullptr || !Global::LocalPasscode());
-
+	destroyLayer();
 	_main.destroy();
 	_passcodeLock.destroy();
 	_intro.destroy();
@@ -170,7 +184,7 @@ QPixmap MainWindow::grabInner() {
 void MainWindow::setupPasscodeLock() {
 	auto animated = (_main || _intro);
 	auto bg = animated ? grabInner() : QPixmap();
-	_passcodeLock.create(bodyWidget());
+	_passcodeLock.create(bodyWidget(), &controller());
 	updateControlsGeometry();
 
 	Core::App().hideMediaView();
@@ -207,8 +221,6 @@ void MainWindow::clearPasscodeLock() {
 }
 
 void MainWindow::setupIntro() {
-	Ui::hideSettingsAndLayer(anim::type::instant);
-
 	auto animated = (_main || _passcodeLock);
 	auto bg = animated ? grabInner() : QPixmap();
 
@@ -263,7 +275,7 @@ void MainWindow::showSettings() {
 }
 
 void MainWindow::showSpecialLayer(
-		object_ptr<Window::LayerWidget> layer,
+		object_ptr<Ui::LayerWidget> layer,
 		anim::type animated) {
 	if (_passcodeLock) {
 		return;
@@ -292,14 +304,16 @@ void MainWindow::showMainMenu() {
 	if (isHidden()) showFromTray();
 
 	ensureLayerCreated();
-	_layer->showMainMenu(sessionController(), anim::type::normal);
+	_layer->showMainMenu(
+		object_ptr<Window::MainMenu>(this, sessionController()),
+		anim::type::normal);
 }
 
 void MainWindow::ensureLayerCreated() {
 	if (_layer) {
 		return;
 	}
-	_layer = base::make_unique_q<Window::LayerStackWidget>(
+	_layer = base::make_unique_q<Ui::LayerStackWidget>(
 		bodyWidget());
 
 	_layer->hideFinishEvents(
@@ -356,8 +370,8 @@ MainWidget *MainWindow::mainWidget() {
 }
 
 void MainWindow::ui_showBox(
-		object_ptr<BoxContent> box,
-		LayerOptions options,
+		object_ptr<Ui::BoxContent> box,
+		Ui::LayerOptions options,
 		anim::type animated) {
 	if (box) {
 		ensureLayerCreated();
@@ -544,7 +558,7 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 }
 
 void MainWindow::updateTrayMenu(bool force) {
-    if (!trayIconMenu || (Platform::IsWindows() && !force)) return;
+	if (!trayIconMenu || (Platform::IsWindows() && !force)) return;
 
 	auto iconMenu = trayIconMenu;
 	auto actions = iconMenu->actions();
@@ -575,12 +589,12 @@ void MainWindow::updateTrayMenu(bool force) {
 	notificationAction->setText(notificationActionText);
 
 #ifndef Q_OS_WIN
-    if (trayIcon && trayIcon->contextMenu() != iconMenu) {
+	if (trayIcon && trayIcon->contextMenu() != iconMenu) {
 		trayIcon->setContextMenu(iconMenu);
-    }
+	}
 #endif // !Q_OS_WIN
 
-    psTrayMenuUpdated();
+	psTrayMenuUpdated();
 }
 
 void MainWindow::onShowAddContact() {
@@ -589,7 +603,7 @@ void MainWindow::onShowAddContact() {
 	if (account().sessionExists()) {
 		Ui::show(
 			Box<AddContactBox>(&account().session()),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	}
 }
 
@@ -601,7 +615,7 @@ void MainWindow::onShowNewGroup() {
 			Box<GroupInfoBox>(
 				sessionController(),
 				GroupInfoBox::Type::Group),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	}
 }
 
@@ -613,7 +627,7 @@ void MainWindow::onShowNewChannel() {
 			Box<GroupInfoBox>(
 				sessionController(),
 				GroupInfoBox::Type::Channel),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	}
 }
 
@@ -676,11 +690,11 @@ void MainWindow::fixOrder() {
 
 void MainWindow::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 	if (reason != QSystemTrayIcon::Context) {
-		App::CallDelayed(1, this, [this] {
+		base::call_delayed(1, this, [this] {
 			updateTrayMenu();
 			updateGlobalMenu();
 		});
-        activate();
+		activate();
 		Notify::unreadCounterUpdated();
 	}
 }
@@ -689,6 +703,9 @@ void MainWindow::handleTrayIconActication(
 		QSystemTrayIcon::ActivationReason reason) {
 	updateIsActive(0);
 	if (Platform::IsMac() && isActive()) {
+		if (trayIcon && !trayIcon->contextMenu()) {
+			showFromTray(reason);
+		}
 		return;
 	}
 	if (reason == QSystemTrayIcon::Context) {
@@ -951,3 +968,13 @@ MainWindow::~MainWindow() {
 	delete trayIcon;
 	delete trayIconMenu;
 }
+
+namespace App {
+
+MainWindow *wnd() {
+	return (Core::IsAppLaunched() && Core::App().activeWindow())
+		? Core::App().activeWindow()->widget().get()
+		: nullptr;
+}
+
+} // namespace App

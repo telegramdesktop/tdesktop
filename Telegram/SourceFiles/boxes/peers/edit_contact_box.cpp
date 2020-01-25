@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_contact_box.h"
 
-#include "boxes/generic_box.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "ui/wrap/vertical_layout.h"
@@ -20,10 +19,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "app.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
 namespace {
+
+constexpr auto kMaxUserFirstLastName = 64; // See also add_contact_box.
 
 QString UserPhone(not_null<UserData*> user) {
 	const auto phone = user->phone();
@@ -33,7 +36,7 @@ QString UserPhone(not_null<UserData*> user) {
 }
 
 void SendRequest(
-		QPointer<GenericBox> box,
+		QPointer<Ui::GenericBox> box,
 		not_null<UserData*> user,
 		bool sharePhone,
 		const QString &first,
@@ -79,7 +82,7 @@ void SendRequest(
 class Controller {
 public:
 	Controller(
-		not_null<GenericBox*> box,
+		not_null<Ui::GenericBox*> box,
 		not_null<Window::Controller*> window,
 		not_null<UserData*> user);
 
@@ -96,7 +99,7 @@ private:
 		not_null<Ui::InputField*> last,
 		bool inverted);
 
-	not_null<GenericBox*> _box;
+	not_null<Ui::GenericBox*> _box;
 	not_null<Window::Controller*> _window;
 	not_null<UserData*> _user;
 	Ui::Checkbox *_sharePhone = nullptr;
@@ -107,7 +110,7 @@ private:
 };
 
 Controller::Controller(
-	not_null<GenericBox*> box,
+	not_null<Ui::GenericBox*> box,
 	not_null<Window::Controller*> window,
 	not_null<UserData*> user)
 : _box(box)
@@ -199,7 +202,7 @@ void Controller::initNameFields(
 			return;
 		}
 		SendRequest(
-			make_weak(_box),
+			Ui::MakeWeak(_box),
 			_user,
 			_sharePhone && _sharePhone->checked(),
 			firstValue,
@@ -220,6 +223,8 @@ void Controller::initNameFields(
 	};
 	QObject::connect(first, &Ui::InputField::submitted, submit);
 	QObject::connect(last, &Ui::InputField::submitted, submit);
+	first->setMaxLength(kMaxUserFirstLastName);
+	first->setMaxLength(kMaxUserFirstLastName);
 }
 
 void Controller::setupWarning() {
@@ -260,7 +265,7 @@ void Controller::setupSharePhoneNumber() {
 } // namespace
 
 void EditContactBox(
-		not_null<GenericBox*> box,
+		not_null<Ui::GenericBox*> box,
 		not_null<Window::Controller*> window,
 		not_null<UserData*> user) {
 	box->lifetime().make_state<Controller>(box, window, user)->prepare();

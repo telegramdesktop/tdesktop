@@ -20,37 +20,23 @@ namespace Platform {
 inline void SetWatchingMediaKeys(bool watching) {
 }
 
-bool IsApplicationActive();
-
-inline void StartTranslucentPaint(QPainter &p, QPaintEvent *e) {
-}
-
-inline void InitOnTopPanel(QWidget *panel) {
-}
-
-inline void DeInitOnTopPanel(QWidget *panel) {
-}
-
-inline void ReInitOnTopPanel(QWidget *panel) {
-}
+bool InSandbox();
 
 QString CurrentExecutablePath(int argc, char *argv[]);
+
+QString SingleInstanceLocalServerName(const QString &hash);
 
 inline std::optional<crl::time> LastUserInputTime() {
 	return std::nullopt;
 }
 
-inline constexpr bool UseMainQueueGeneric() {
-	return true;
+inline void IgnoreApplicationActivationRightNow() {
 }
 
 } // namespace Platform
 
-inline QString psServerPrefix() {
-    return qsl("/tmp/");
-}
 inline void psCheckLocalSocket(const QString &serverName) {
-    QFile address(serverName);
+	QFile address(serverName);
 	if (address.exists()) {
 		address.remove();
 	}
@@ -70,15 +56,12 @@ void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
 
 QRect psDesktopRect();
-void psShowOverAll(QWidget *w, bool canFocus = true);
-void psBringToBack(QWidget *w);
 
 int psCleanup();
 int psFixPrevious();
 
 void psNewVersion();
 
-void psUpdateOverlayed(QWidget *widget);
 inline QByteArray psDownloadPathBookmark(const QString &path) {
 	return QByteArray();
 }

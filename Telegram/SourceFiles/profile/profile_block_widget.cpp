@@ -41,8 +41,4 @@ void BlockWidget::paintTitle(Painter &p) {
 	p.drawTextLeft(titleLeft, titleTop, width(), _title);
 }
 
-int defaultOutlineButtonLeft() {
-	return st::profileBlockTitlePosition.x() - st::defaultLeftOutlineButton.padding.left();
-}
-
 } // namespace Profile

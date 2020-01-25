@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/local_url_handlers.h"
 
+#include "api/api_text_entities.h"
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "lang/lang_cloud_manager.h"
@@ -22,11 +23,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_form_controller.h"
 #include "window/window_session_controller.h"
 #include "data/data_session.h"
+#include "data/data_document.h"
+#include "data/data_cloud_themes.h"
 #include "data/data_channel.h"
+#include "media/player/media_player_instance.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "app.h"
 
 namespace Core {
 namespace {
@@ -75,6 +80,21 @@ bool ShowStickerSet(
 	Ui::show(Box<StickerSetBox>(
 		App::wnd()->sessionController(),
 		MTP_inputStickerSetShortName(MTP_string(match->captured(1)))));
+	return true;
+}
+
+bool ShowTheme(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
+		return false;
+	}
+	const auto clickFromMessageId = context.value<FullMsgId>();
+	Core::App().hideMediaView();
+	session->data().cloudThemes().resolve(
+		match->captured(1),
+		clickFromMessageId);
 	return true;
 }
 
@@ -145,7 +165,9 @@ bool ApplySocksProxy(
 	auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	ProxiesBoxController::ShowApplyConfirmation(ProxyData::Type::Socks5, params);
+	ProxiesBoxController::ShowApplyConfirmation(
+		MTP::ProxyData::Type::Socks5,
+		params);
 	return true;
 }
 
@@ -156,7 +178,9 @@ bool ApplyMtprotoProxy(
 	auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	ProxiesBoxController::ShowApplyConfirmation(ProxyData::Type::Mtproto, params);
+	ProxiesBoxController::ShowApplyConfirmation(
+		MTP::ProxyData::Type::Mtproto,
+		params);
 	return true;
 }
 
@@ -338,11 +362,10 @@ bool HandleUnknown(
 	const auto callback = [=](const MTPDhelp_deepLinkInfo &result) {
 		const auto text = TextWithEntities{
 			qs(result.vmessage()),
-			TextUtilities::EntitiesFromMTP(
-				result.ventities().value_or_empty())
+			Api::EntitiesFromMTP(result.ventities().value_or_empty())
 		};
 		if (result.is_update_app()) {
-			const auto box = std::make_shared<QPointer<BoxContent>>();
+			const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 			const auto callback = [=] {
 				Core::UpdateApplication();
 				if (*box) (*box)->closeBox();
@@ -359,6 +382,40 @@ bool HandleUnknown(
 	return true;
 }
 
+bool OpenMediaTimestamp(
+		Main::Session *session,
+		const Match &match,
+		const QVariant &context) {
+	if (!session) {
+		return false;
+	}
+	const auto time = match->captured(2).toInt();
+	if (time < 0) {
+		return false;
+	}
+	const auto base = match->captured(1);
+	if (base.startsWith(qstr("doc"))) {
+		const auto parts = base.mid(3).split('_');
+		const auto documentId = parts.value(0).toULongLong();
+		const auto itemId = FullMsgId(
+			parts.value(1).toInt(),
+			parts.value(2).toInt());
+		const auto document = session->data().document(documentId);
+		session->settings().setMediaLastPlaybackPosition(
+			documentId,
+			time * crl::time(1000));
+		if (document->isVideoFile()) {
+			Core::App().showDocument(
+				document,
+				session->data().message(itemId));
+		} else if (document->isSong()) {
+			Media::Player::instance()->play({ document, itemId });
+		}
+		return true;
+	}
+	return false;
+}
+
 } // namespace
 
 const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
@@ -370,6 +427,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			qsl("^addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"),
 			ShowStickerSet
+		},
+		{
+			qsl("^addtheme/?\\?slug=([a-zA-Z0-9\\.\\_]+)(&|$)"),
+			ShowTheme
 		},
 		{
 			qsl("^setlanguage/?\\?lang=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"),
@@ -418,7 +479,17 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			qsl("^([^\\?]+)(\\?|#|$)"),
 			HandleUnknown
-		}
+		},
+	};
+	return Result;
+}
+
+const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
+	static auto Result = std::vector<LocalUrlHandler>{
+		{
+			qsl("^media_timestamp/?\\?base=([a-zA-Z0-9\\.\\_\\-]+)&t=(\\d+)(&|$)"),
+			OpenMediaTimestamp
+		},
 	};
 	return Result;
 }
@@ -437,6 +508,8 @@ QString TryConvertUrlToLocal(QString url) {
 			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(1));
 		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://addstickers?set=") + url_encode(stickerSetMatch->captured(1));
+		} else if (auto themeMatch = regex_match(qsl("^addtheme/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
+			return qsl("tg://addtheme?slug=") + url_encode(themeMatch->captured(1));
 		} else if (auto languageMatch = regex_match(qsl("^setlanguage/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://setlanguage?lang=") + url_encode(languageMatch->captured(1));
 		} else if (auto shareUrlMatch = regex_match(qsl("^share/url/?\\?(.+)$"), query, matchOptions)) {

@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_controller.h"
 #include "passport/passport_panel_details_row.h"
 #include "passport/passport_panel_edit_scans.h"
-#include "info/profile/info_profile_button.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
@@ -25,13 +24,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "styles/style_widgets.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "styles/style_passport.h"
 
 namespace Passport {
 namespace {
 
-class RequestTypeBox : public BoxContent {
+class RequestTypeBox : public Ui::BoxContent {
 public:
 	RequestTypeBox(
 		QWidget*,
@@ -55,7 +54,7 @@ private:
 
 };
 
-class DeleteDocumentBox : public BoxContent {
+class DeleteDocumentBox : public Ui::BoxContent {
 public:
 	DeleteDocumentBox(
 		QWidget*,
@@ -484,7 +483,7 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 	}
 	if (auto text = _controller->deleteValueLabel()) {
 		inner->add(
-			object_ptr<Info::Profile::Button>(
+			object_ptr<Ui::SettingsButton>(
 				inner,
 				std::move(*text) | Ui::Text::ToUpper(),
 				st::passportDeleteButton),
@@ -676,7 +675,7 @@ void PanelEditDocument::save() {
 		std::move(result.filesData));
 }
 
-object_ptr<BoxContent> RequestIdentityType(
+object_ptr<Ui::BoxContent> RequestIdentityType(
 		Fn<void(int index)> submit,
 		std::vector<QString> labels) {
 	return Box<RequestTypeBox>(
@@ -686,7 +685,7 @@ object_ptr<BoxContent> RequestIdentityType(
 		submit);
 }
 
-object_ptr<BoxContent> RequestAddressType(
+object_ptr<Ui::BoxContent> RequestAddressType(
 		Fn<void(int index)> submit,
 		std::vector<QString> labels) {
 	return Box<RequestTypeBox>(
@@ -696,7 +695,7 @@ object_ptr<BoxContent> RequestAddressType(
 		submit);
 }
 
-object_ptr<BoxContent> ConfirmDeleteDocument(
+object_ptr<Ui::BoxContent> ConfirmDeleteDocument(
 		Fn<void(bool withDetails)> submit,
 		const QString &text,
 		const QString &detailsCheckbox) {

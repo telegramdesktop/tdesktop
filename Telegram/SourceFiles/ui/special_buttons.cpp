@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/image/image_prepare.h"
 #include "ui/empty_userpic.h"
+#include "ui/ui_utility.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
@@ -29,6 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "observer_peer.h"
+#include "facades.h"
+#include "app.h"
 
 namespace Ui {
 namespace {
@@ -71,13 +74,13 @@ void SuggestPhoto(
 		|| badAspect(image.height(), image.width())) {
 		Ui::show(
 			Box<InformBox>(tr::lng_bad_photo(tr::now)),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 		return;
 	}
 
 	const auto box = Ui::show(
 		Box<PhotoCropBox>(image, title),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 	box->ready(
 	) | rpl::start_with_next(
 		std::forward<Callback>(callback),
@@ -369,6 +372,7 @@ void SendButton::paintEvent(QPaintEvent *e) {
 	case Type::Save: paintSave(p, over); break;
 	case Type::Cancel: paintCancel(p, over); break;
 	case Type::Send: paintSend(p, over); break;
+	case Type::Schedule: paintSchedule(p, over); break;
 	case Type::Slowmode: paintSlowmode(p); break;
 	}
 }
@@ -424,6 +428,23 @@ void SendButton::paintSend(Painter &p, bool over) {
 	} else {
 		sendIcon.paint(p, st::historySendIconPosition, width());
 	}
+}
+
+void SendButton::paintSchedule(Painter &p, bool over) {
+	{
+		PainterHighQualityEnabler hq(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(over ? st::historySendIconFgOver : st::historySendIconFg);
+		p.drawEllipse(
+			st::historyScheduleIconPosition.x(),
+			st::historyScheduleIconPosition.y(),
+			st::historyScheduleIcon.width(),
+			st::historyScheduleIcon.height());
+	}
+	st::historyScheduleIcon.paint(
+		p,
+		st::historyScheduleIconPosition,
+		width());
 }
 
 void SendButton::paintSlowmode(Painter &p) {
@@ -1094,6 +1115,10 @@ QString SilentToggle::tooltipText() const {
 
 QPoint SilentToggle::tooltipPos() const {
 	return QCursor::pos();
+}
+
+bool SilentToggle::tooltipWindowActive() const {
+	return Ui::AppInFocus() && InFocusChain(window());
 }
 
 } // namespace Ui

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_file_origin.h"
 #include "lang/lang_keys.h"
 #include "chat_helpers/stickers.h"
 #include "boxes/confirm_box.h"
@@ -29,8 +30,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "styles/style_boxes.h"
+#include "app.h"
+#include "styles/style_layers.h"
 #include "styles/style_chat_helpers.h"
+
+#include <QtWidgets/QApplication>
+#include <QtGui/QClipboard>
 
 namespace {
 
@@ -95,7 +100,7 @@ private:
 	void showPreview();
 
 	not_null<Window::SessionController*> _controller;
-	MTP::Sender _mtp;
+	MTP::Sender _api;
 	std::vector<Element> _elements;
 	std::unique_ptr<Lottie::MultiPlayer> _lottiePlayer;
 	Stickers::Pack _pack;
@@ -132,16 +137,17 @@ StickerSetBox::StickerSetBox(
 , _set(set) {
 }
 
-void StickerSetBox::Show(
+QPointer<Ui::BoxContent> StickerSetBox::Show(
 		not_null<Window::SessionController*> controller,
 		not_null<DocumentData*> document) {
 	if (const auto sticker = document->sticker()) {
 		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-			Ui::show(
+			return Ui::show(
 				Box<StickerSetBox>(controller, sticker->set),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther).data();
 		}
 	}
+	return nullptr;
 }
 
 void StickerSetBox::prepare() {
@@ -177,7 +183,7 @@ void StickerSetBox::addStickers() {
 
 void StickerSetBox::shareStickers() {
 	auto url = Core::App().createInternalLinkFull(qsl("addstickers/") + _inner->shortName());
-	QApplication::clipboard()->setText(url);
+	QGuiApplication::clipboard()->setText(url);
 	Ui::show(Box<InformBox>(tr::lng_stickers_copied(tr::now)));
 }
 
@@ -215,6 +221,7 @@ StickerSetBox::Inner::Inner(
 	const MTPInputStickerSet &set)
 : RpWidget(parent)
 , _controller(controller)
+, _api(_controller->session().api().instance())
 , _input(set)
 , _previewTimer([=] { showPreview(); }) {
 	set.match([&](const MTPDinputStickerSetID &data) {
@@ -226,7 +233,7 @@ StickerSetBox::Inner::Inner(
 	}, [&](const MTPDinputStickerSetAnimatedEmoji &) {
 	});
 
-	_mtp.request(MTPmessages_GetStickerSet(
+	_api.request(MTPmessages_GetStickerSet(
 		_input
 	)).done([=](const MTPmessages_StickerSet &result) {
 		gotSet(result);
@@ -436,7 +443,7 @@ void StickerSetBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 		const auto index = stickerFromGlobalPos(e->globalPos());
 		if (index >= 0 && index < _pack.size() && !isMasksSet()) {
 			const auto sticker = _pack[index];
-			Core::App().postponeCall(crl::guard(App::main(), [=] {
+			Ui::PostponeCall(crl::guard(App::main(), [=] {
 				if (App::main()->onSendSticker(sticker)) {
 					Ui::hideSettingsAndLayer();
 				}
@@ -625,7 +632,7 @@ void StickerSetBox::Inner::paintSticker(
 	auto h = 1;
 	if (element.animated && !document->dimensions.isEmpty()) {
 		const auto request = Lottie::FrameRequest{ boundingBoxSize() * cIntRetinaFactor() };
-		const auto size = request.size(document->dimensions) / cIntRetinaFactor();
+		const auto size = request.size(document->dimensions, true) / cIntRetinaFactor();
 		w = std::max(size.width(), 1);
 		h = std::max(size.height(), 1);
 	} else {
@@ -690,12 +697,12 @@ void StickerSetBox::Inner::install() {
 	if (isMasksSet()) {
 		Ui::show(
 			Box<InformBox>(tr::lng_stickers_masks_pack(tr::now)),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 		return;
 	} else if (_installRequest) {
 		return;
 	}
-	_installRequest = _mtp.request(MTPmessages_InstallStickerSet(
+	_installRequest = _api.request(MTPmessages_InstallStickerSet(
 		_input,
 		MTP_bool(false)
 	)).done([=](const MTPmessages_StickerSetInstallResult &result) {

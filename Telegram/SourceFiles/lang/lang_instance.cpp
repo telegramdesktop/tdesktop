@@ -10,9 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "storage/serialize_common.h"
 #include "storage/localstorage.h"
-#include "platform/platform_info.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_file_parser.h"
+#include "base/platform/base_platform_info.h"
 #include "base/qthelp_regex.h"
 
 namespace Lang {

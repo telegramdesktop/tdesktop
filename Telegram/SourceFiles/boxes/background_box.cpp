@@ -10,13 +10,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image.h"
+#include "ui/ui_utility.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "mtproto/sender.h"
 #include "data/data_session.h"
+#include "data/data_file_origin.h"
 #include "boxes/background_preview_box.h"
 #include "boxes/confirm_box.h"
+#include "app.h"
 #include "styles/style_overview.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 
@@ -49,10 +53,7 @@ QImage TakeMiddleSample(QImage original, QSize size) {
 
 } // namespace
 
-class BackgroundBox::Inner
-	: public Ui::RpWidget
-	, private MTP::Sender
-	, private base::Subscriber {
+class BackgroundBox::Inner : public Ui::RpWidget, private base::Subscriber {
 public:
 	Inner(
 		QWidget *parent,
@@ -110,6 +111,7 @@ private:
 	void validatePaperThumbnail(const Paper &paper) const;
 
 	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 
 	std::vector<Paper> _papers;
 
@@ -141,7 +143,7 @@ void BackgroundBox::prepare() {
 	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
 		Ui::show(
 			Box<BackgroundPreviewBox>(_session, paper),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 	}, _inner->lifetime());
 
 	_inner->removeRequests(
@@ -151,9 +153,9 @@ void BackgroundBox::prepare() {
 }
 
 void BackgroundBox::removePaper(const Data::WallPaper &paper) {
-	const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto session = _session;
-	const auto remove = [=, weak = make_weak(this)]{
+	const auto remove = [=, weak = Ui::MakeWeak(this)]{
 		if (*box) {
 			(*box)->closeBox();
 		}
@@ -173,7 +175,7 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 			tr::lng_selected_delete(tr::now),
 			tr::lng_cancel(tr::now),
 			remove),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 BackgroundBox::Inner::Inner(
@@ -181,6 +183,7 @@ BackgroundBox::Inner::Inner(
 	not_null<Main::Session*> session)
 : RpWidget(parent)
 , _session(session)
+, _api(_session->api().instance())
 , _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [=] { update(); })) {
 	_check->setChecked(true, Ui::RoundCheckbox::SetStyle::Fast);
 	if (_session->data().wallpapers().empty()) {
@@ -205,7 +208,7 @@ BackgroundBox::Inner::Inner(
 }
 
 void BackgroundBox::Inner::requestPapers() {
-	request(MTPaccount_GetWallPapers(
+	_api.request(MTPaccount_GetWallPapers(
 		MTP_int(_session->data().wallpapersHash())
 	)).done([=](const MTPaccount_WallPapers &result) {
 		if (_session->data().updateWallpapers(result)) {
@@ -329,7 +332,7 @@ void BackgroundBox::Inner::paintPaper(
 	if (paper.data.id() == Window::Theme::Background()->id()) {
 		const auto checkLeft = x + st::backgroundSize.width() - st::overviewCheckSkip - st::overviewCheck.size;
 		const auto checkTop = y + st::backgroundSize.height() - st::overviewCheckSkip - st::overviewCheck.size;
-		_check->paint(p, crl::now(), checkLeft, checkTop, width());
+		_check->paint(p, checkLeft, checkTop, width());
 	} else if (Data::IsCloudWallPaper(paper.data)
 		&& !Data::IsDefaultWallPaper(paper.data)
 		&& over.has_value()

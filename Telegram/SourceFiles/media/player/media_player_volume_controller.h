@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
+#include "base/object_ptr.h"
+
+#include <QtCore/QTimer>
 
 namespace Ui {
 class IconButton;

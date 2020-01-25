@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "chat_helpers/stickers.h"
 #include "ui/effects/animations.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/special_fields.h"
 
 class ConfirmBox;
 
@@ -26,13 +26,17 @@ class RippleAnimation;
 class SettingsSlider;
 class SlideAnimation;
 class CrossButton;
+class BoxContentDivider;
 } // namespace Ui
 
 namespace Main {
 class Session;
 } // namespace Main
 
-class StickersBox : public BoxContent, public RPCSender {
+class StickersBox final
+	: public Ui::BoxContent
+	, public RPCSender
+	, private base::Subscriber {
 public:
 	enum class Section {
 		Installed,
@@ -152,8 +156,7 @@ int stickerPacksCount(bool includeArchivedOfficial = false);
 // This class is hold in header because it requires Qt preprocessing.
 class StickersBox::Inner
 	: public Ui::RpWidget
-	, private base::Subscriber
-	, private MTP::Sender {
+	, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -319,6 +322,7 @@ private:
 	int countMaxNameWidth() const;
 
 	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 
 	Section _section;
 
@@ -365,7 +369,7 @@ private:
 	object_ptr<AddressField> _megagroupSetField = { nullptr };
 	object_ptr<Ui::PlainShadow> _megagroupSelectedShadow = { nullptr };
 	object_ptr<Ui::CrossButton> _megagroupSelectedRemove = { nullptr };
-	object_ptr<BoxContentDivider> _megagroupDivider = { nullptr };
+	object_ptr<Ui::BoxContentDivider> _megagroupDivider = { nullptr };
 	object_ptr<Ui::FlatLabel> _megagroupSubTitle = { nullptr };
 	base::Timer _megagroupSetAddressChangedTimer;
 	mtpRequestId _megagroupSetRequestId = 0;

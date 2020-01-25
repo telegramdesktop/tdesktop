@@ -37,6 +37,7 @@ public:
 	void stop(bool stillActive = false);
 
 	[[nodiscard]] bool isRemoteLoader() const;
+	void setLoaderPriority(int priority);
 
 	~File();
 
@@ -44,6 +45,7 @@ private:
 	class Context final : public base::has_weak_ptr {
 	public:
 		Context(not_null<FileDelegate*> delegate, not_null<Reader*> reader);
+		~Context();
 
 		void start(crl::time position);
 		void readNextPacket();
@@ -54,9 +56,13 @@ private:
 		[[nodiscard]] bool failed() const;
 		[[nodiscard]] bool finished() const;
 
-		~Context();
+		void stopStreamingAsync();
 
 	private:
+		enum class SleepPolicy {
+			Allowed,
+			Disallowed,
+		};
 		static int Read(void *opaque, uint8_t *buffer, int bufferSize);
 		static int64_t Seek(void *opaque, int64_t offset, int whence);
 
@@ -81,6 +87,7 @@ private:
 		// TODO base::expected.
 		[[nodiscard]] auto readPacket()
 		-> base::variant<FFmpeg::Packet, FFmpeg::AvErrorWrap>;
+		void processQueuedPackets(SleepPolicy policy);
 
 		void handleEndOfFile();
 		void sendFullInCache(bool force = false);
@@ -88,6 +95,7 @@ private:
 		const not_null<FileDelegate*> _delegate;
 		const not_null<Reader*> _reader;
 
+		base::flat_map<int, std::vector<FFmpeg::Packet>> _queuedPackets;
 		int _offset = 0;
 		int _size = 0;
 		bool _failed = false;

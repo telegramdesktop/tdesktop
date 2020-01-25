@@ -53,10 +53,10 @@ void RemoveQuarantineAttribute(NSString *path) {
 }
 
 void RemoveQuarantineFromBundle(NSString *path) {
-    RemoveQuarantineAttribute(path);
-    RemoveQuarantineAttribute([path stringByAppendingString:@"/Contents/MacOS/Telegram"]);
-    RemoveQuarantineAttribute([path stringByAppendingString:@"/Contents/Helpers/crashpad_handler"]);
-    RemoveQuarantineAttribute([path stringByAppendingString:@"/Contents/Frameworks/Updater"]);
+	RemoveQuarantineAttribute(path);
+	RemoveQuarantineAttribute([path stringByAppendingString:@"/Contents/MacOS/Telegram"]);
+	RemoveQuarantineAttribute([path stringByAppendingString:@"/Contents/Helpers/crashpad_handler"]);
+	RemoveQuarantineAttribute([path stringByAppendingString:@"/Contents/Frameworks/Updater"]);
 }
 
 void delFolder() {

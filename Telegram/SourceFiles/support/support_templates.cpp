@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "main/main_session.h"
 
+#include <QtNetwork/QNetworkAccessManager>
+
 namespace Support {
 namespace details {
 namespace {

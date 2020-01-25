@@ -26,6 +26,7 @@ struct LocalUrlHandler {
 };
 
 [[nodiscard]] const std::vector<LocalUrlHandler> &LocalUrlHandlers();
+[[nodiscard]] const std::vector<LocalUrlHandler> &InternalUrlHandlers();
 
 [[nodiscard]] QString TryConvertUrlToLocal(QString url);
 

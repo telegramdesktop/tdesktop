@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "lang/lang_keys.h"
 #include "layout.h"
+#include "app.h"
 #include "styles/style_mediaview.h"
 
 namespace Media {

@@ -84,6 +84,18 @@ private:
 
 };
 
+struct UnavailableReason {
+	QString reason;
+	QString text;
+
+	bool operator==(const UnavailableReason &other) const {
+		return (reason == other.reason) && (text == other.text);
+	}
+	bool operator!=(const UnavailableReason &other) const {
+		return !(*this == other);
+	}
+};
+
 } // namespace Data
 
 class PeerClickHandler : public ClickHandler {
@@ -179,6 +191,7 @@ public:
 	[[nodiscard]] bool canRevokeFullHistory() const;
 	[[nodiscard]] bool slowmodeApplied() const;
 	[[nodiscard]] int slowmodeSecondsLeft() const;
+	[[nodiscard]] bool canSendPolls() const;
 
 	[[nodiscard]] UserData *asUser();
 	[[nodiscard]] const UserData *asUser() const;
@@ -271,9 +284,7 @@ public:
 
 	// If this string is not empty we must not allow to open the
 	// conversation and we must show this string instead.
-	[[nodiscard]] virtual QString unavailableReason() const {
-		return QString();
-	}
+	[[nodiscard]] QString computeUnavailableReason() const;
 
 	[[nodiscard]] ClickHandlerPtr createOpenLink();
 	[[nodiscard]] const ClickHandlerPtr &openLink() {
@@ -346,6 +357,8 @@ private:
 	void fillNames();
 	std::unique_ptr<Ui::EmptyUserpic> createEmptyUserpic() const;
 	void refreshEmptyUserpic() const;
+	[[nodiscard]] virtual auto unavailableReasons() const
+		-> const std::vector<Data::UnavailableReason> &;
 
 	void setUserpicChecked(
 		PhotoId photoId,
@@ -354,7 +367,7 @@ private:
 
 	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);
 
-	not_null<Data::Session*> _owner;
+	const not_null<Data::Session*> _owner;
 
 	ImagePtr _userpic;
 	PhotoId _userpicPhotoId = kUnknownPhotoId;

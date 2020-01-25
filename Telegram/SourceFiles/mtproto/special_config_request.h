@@ -7,21 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "mtproto/details/mtproto_domain_resolver.h"
 #include "base/bytes.h"
+#include "base/weak_ptr.h"
 
-namespace MTP {
+#include <QtCore/QPointer>
+#include <QtNetwork/QNetworkReply>
+#include <QtNetwork/QNetworkAccessManager>
 
-struct ServiceWebRequest {
-    ServiceWebRequest(not_null<QNetworkReply*> reply);
-    ServiceWebRequest(ServiceWebRequest &&other);
-    ServiceWebRequest &operator=(ServiceWebRequest &&other);
-    ~ServiceWebRequest();
-
-    void destroy();
-
-    QPointer<QNetworkReply> reply;
-
-};
+namespace MTP::details {
 
 class SpecialConfigRequest : public QObject {
 public:
@@ -36,12 +30,16 @@ public:
 
 private:
 	enum class Type {
-		//App,
-		Dns,
+		Mozilla,
+		Google,
+		RemoteConfig,
+		Realtime,
+		FireStore,
 	};
 	struct Attempt {
 		Type type;
-		QString domain;
+		QString data;
+		QString host;
 	};
 
 	SpecialConfigRequest(
@@ -76,62 +74,4 @@ private:
 
 };
 
-class DomainResolver : public QObject {
-public:
-	DomainResolver(Fn<void(
-		const QString &domain,
-		const QStringList &ips,
-		crl::time expireAt)> callback);
-
-	void resolve(const QString &domain);
-
-private:
-	struct AttemptKey {
-		QString domain;
-		bool ipv6 = false;
-
-		inline bool operator<(const AttemptKey &other) const {
-			return (domain < other.domain)
-				|| (domain == other.domain && !ipv6 && other.ipv6);
-		}
-		inline bool operator==(const AttemptKey &other) const {
-			return (domain == other.domain) && (ipv6 == other.ipv6);
-		}
-
-	};
-	struct CacheEntry {
-		QStringList ips;
-		crl::time expireAt = 0;
-
-	};
-	struct Attempts {
-		std::vector<QString> hosts;
-		base::has_weak_ptr guard;
-
-	};
-
-	void resolve(const AttemptKey &key);
-	void sendNextRequest(const AttemptKey &key);
-	void performRequest(const AttemptKey &key, const QString &host);
-	void checkExpireAndPushResult(const QString &domain);
-	void requestFinished(
-		const AttemptKey &key,
-		not_null<QNetworkReply*> reply);
-	QByteArray finalizeRequest(
-		const AttemptKey &key,
-		not_null<QNetworkReply*> reply);
-
-	Fn<void(
-		const QString &domain,
-		const QStringList &ips,
-		crl::time expireAt)> _callback;
-
-	QNetworkAccessManager _manager;
-	std::map<AttemptKey, Attempts> _attempts;
-	std::map<AttemptKey, std::vector<ServiceWebRequest>> _requests;
-	std::map<AttemptKey, CacheEntry> _cache;
-	crl::time _lastTimestamp = 0;
-
-};
-
-} // namespace MTP
+} // namespace MTP::details

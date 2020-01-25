@@ -39,7 +39,7 @@ enum class Mode {
 
 enum class EntryType : unsigned {
 	None = 0x00,
-	OneOnOne = 0x01,
+	Private = 0x01,
 	Bot = 0x02,
 	Group = 0x04,
 	Channel = 0x08,
@@ -97,6 +97,20 @@ inline UnreadState operator-(const UnreadState &a, const UnreadState &b) {
 	auto result = a;
 	result -= b;
 	return result;
+}
+
+inline bool operator==(const UnreadState &a, const UnreadState &b) {
+	return (a.messages == b.messages
+	&& a.messagesMuted == b.messagesMuted
+	&& a.chats == b.chats
+	&& a.chatsMuted == b.chatsMuted
+	&& a.marks == b.marks
+	&& a.marksMuted == b.marksMuted
+	&& a.known == b.known);
+}
+
+inline bool operator!=(const UnreadState &a, const UnreadState &b) {
+	return !(a == b);
 }
 
 class Entry {

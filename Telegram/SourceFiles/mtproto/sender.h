@@ -8,11 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/variant.h"
+#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/mtp_instance.h"
+#include "mtproto/facade.h"
 
 namespace MTP {
-
-class Instance;
-Instance *MainInstance();
 
 class Sender {
 	class RequestBuilder {
@@ -101,11 +101,11 @@ class Sender {
 
 			bool operator()(mtpRequestId requestId, const RPCError &error) override {
 				if (_skipPolicy == FailSkipPolicy::Simple) {
-					if (MTP::isDefaultHandledError(error)) {
+					if (isDefaultHandledError(error)) {
 						return false;
 					}
 				} else if (_skipPolicy == FailSkipPolicy::HandleFlood) {
-					if (MTP::isDefaultHandledError(error) && !MTP::isFloodError(error)) {
+					if (isDefaultHandledError(error) && !isFloodError(error)) {
 						return false;
 					}
 				}
@@ -192,7 +192,12 @@ class Sender {
 	};
 
 public:
-	Sender() noexcept {
+	explicit Sender(not_null<Instance*> instance) noexcept
+	: _instance(instance) {
+	}
+
+	[[nodiscard]] not_null<Instance*> instance() const {
+		return _instance;
 	}
 
 	template <typename Request>
@@ -242,7 +247,7 @@ public:
 		}
 
 		mtpRequestId send() {
-			const auto id = MainInstance()->send(
+			const auto id = sender()->instance()->send(
 				_request,
 				takeOnDone(),
 				takeOnFail(),
@@ -290,15 +295,12 @@ public:
 	}
 
 	void requestSendDelayed() {
-		MainInstance()->sendAnything();
+		_instance->sendAnything();
 	}
 	void requestCancellingDiscard() {
 		for (auto &request : _requests) {
 			request.handled();
 		}
-	}
-	not_null<Instance*> requestMTP() const {
-		return MainInstance();
 	}
 
 private:
@@ -389,6 +391,7 @@ private:
 		}
 	}
 
+	const not_null<Instance*> _instance;
 	base::flat_set<RequestWrap, RequestWrapComparator> _requests;
 
 };

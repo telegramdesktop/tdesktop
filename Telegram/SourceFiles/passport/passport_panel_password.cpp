@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "info/profile/info_profile_icon.h"
 #include "styles/style_passport.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace Passport {
 
@@ -38,7 +38,7 @@ PanelAskPassword::PanelAskPassword(
 	tr::lng_passport_request1(
 		tr::now,
 		lt_bot,
-		App::peerName(_controller->bot())),
+		_controller->bot()->name),
 	st::passportPasswordLabelBold)
 , _about2(
 	this,
@@ -179,7 +179,7 @@ void PanelNoPassword::setupContent() {
 				tr::lng_passport_request1(
 					tr::now,
 					lt_bot,
-					App::peerName(_controller->bot())),
+					_controller->bot()->name),
 				st::passportPasswordLabelBold)),
 		st::passportPasswordAbout1Padding)->entity();
 

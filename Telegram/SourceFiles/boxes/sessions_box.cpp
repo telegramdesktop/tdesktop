@@ -11,17 +11,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "apiwrap.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "base/unixtime.h"
 #include "boxes/confirm_box.h"
-#include "info/profile/info_profile_button.h"
 #include "settings/settings_common.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_settings.h"
@@ -69,7 +70,7 @@ private:
 	void setupContent();
 
 	QPointer<List> _current;
-	QPointer<Info::Profile::Button> _terminateAll;
+	QPointer<Ui::SettingsButton> _terminateAll;
 	QPointer<List> _incomplete;
 	QPointer<List> _list;
 
@@ -77,6 +78,7 @@ private:
 
 SessionsBox::SessionsBox(QWidget*, not_null<Main::Session*> session)
 : _session(session)
+, _api(_session->api().instance())
 , _shortPollTimer([=] { shortPollSessions(); }) {
 }
 
@@ -280,7 +282,7 @@ void SessionsBox::shortPollSessions() {
 	if (_shortPollRequest) {
 		return;
 	}
-	_shortPollRequest = request(MTPaccount_GetAuthorizations(
+	_shortPollRequest = _api.request(MTPaccount_GetAuthorizations(
 	)).done([=](const MTPaccount_Authorizations &result) {
 		got(result);
 	}).send();
@@ -294,7 +296,7 @@ void SessionsBox::terminateOne(uint64 hash) {
 			_terminateBox->closeBox();
 			_terminateBox = nullptr;
 		}
-		request(MTPaccount_ResetAuthorization(
+		_api.request(MTPaccount_ResetAuthorization(
 			MTP_long(hash)
 		)).done([=](const MTPBool &result) {
 			_inner->terminatingOne(hash, false);
@@ -320,7 +322,7 @@ void SessionsBox::terminateOne(uint64 hash) {
 			tr::lng_settings_reset_button(tr::now),
 			st::attentionBoxButton,
 			callback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 void SessionsBox::terminateAll() {
@@ -330,12 +332,12 @@ void SessionsBox::terminateAll() {
 			_terminateBox->closeBox();
 			_terminateBox = nullptr;
 		}
-		request(MTPauth_ResetAuthorizations(
+		_api.request(MTPauth_ResetAuthorizations(
 		)).done([=](const MTPBool &result) {
-			request(base::take(_shortPollRequest)).cancel();
+			_api.request(base::take(_shortPollRequest)).cancel();
 			shortPollSessions();
 		}).fail([=](const RPCError &result) {
-			request(base::take(_shortPollRequest)).cancel();
+			_api.request(base::take(_shortPollRequest)).cancel();
 			shortPollSessions();
 		}).send();
 		setLoading(true);
@@ -346,7 +348,7 @@ void SessionsBox::terminateAll() {
 			tr::lng_settings_reset_button(tr::now),
 			st::attentionBoxButton,
 			callback),
-		LayerOption::KeepOther);
+		Ui::LayerOption::KeepOther);
 }
 
 SessionsBox::Inner::Inner(QWidget *parent)
@@ -368,7 +370,7 @@ void SessionsBox::Inner::setupContent() {
 			object_ptr<Ui::VerticalLayout>(content)))->setDuration(0);
 	const auto terminateInner = terminateWrap->entity();
 	_terminateAll = terminateInner->add(
-		object_ptr<Info::Profile::Button>(
+		object_ptr<Ui::SettingsButton>(
 			terminateInner,
 			tr::lng_sessions_terminate_all(),
 			st::terminateSessionsButton));

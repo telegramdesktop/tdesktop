@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "storage/localstorage.h"
 #include "history/view/history_view_cursor_state.h"
+#include "app.h"
 
 QString formatSizeText(qint64 size) {
 	if (size >= 1024 * 1024) { // more than 1 mb
@@ -95,7 +96,7 @@ int32 documentColorIndex(DocumentData *document, QString &ext) {
 		? document->mimeString().toLower()
 		: QString();
 	if (name.endsWith(qstr(".doc")) ||
-	    	name.endsWith(qstr(".docx")) ||
+		name.endsWith(qstr(".docx")) ||
 		name.endsWith(qstr(".txt")) ||
 		name.endsWith(qstr(".psd")) ||
 		mime.startsWith(qstr("text/"))) {

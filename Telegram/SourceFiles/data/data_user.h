@@ -207,8 +207,8 @@ public:
 
 	std::unique_ptr<BotInfo> botInfo;
 
-	QString unavailableReason() const override;
-	void setUnavailableReason(const QString &reason);
+	void setUnavailableReasons(
+		std::vector<Data::UnavailableReason> &&reasons);
 
 	int commonChatsCount() const {
 		return _commonChatsCount;
@@ -216,10 +216,13 @@ public:
 	void setCommonChatsCount(int count);
 
 private:
+	auto unavailableReasons() const
+		-> const std::vector<Data::UnavailableReason> & override;
+
 	Flags _flags;
 	FullFlags _fullFlags;
 
-	QString _unavailableReason;
+	std::vector<Data::UnavailableReason> _unavailableReasons;
 	QString _phone;
 	ContactStatus _contactStatus = ContactStatus::Unknown;
 	BlockStatus _blockStatus = BlockStatus::Unknown;

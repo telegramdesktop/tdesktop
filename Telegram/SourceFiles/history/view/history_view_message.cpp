@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 #include "layout.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
 #include "styles/style_dialogs.h"
@@ -408,6 +410,15 @@ void Message::draw(
 
 	paintHighlight(p, g.height());
 
+	const auto roll = media ? media->bubbleRoll() : Media::BubbleRoll();
+	if (roll) {
+		p.save();
+		p.translate(g.center());
+		p.rotate(roll.rotate);
+		p.scale(roll.scale, roll.scale);
+		p.translate(-g.center());
+	}
+
 	p.setTextPalette(selected
 		? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected)
 		: (outbg ? st::outTextPalette : st::inTextPalette));
@@ -495,6 +506,10 @@ void Message::draw(
 			const auto fastShareTop = g.top() + g.height() - fastShareSkip - st::historyFastShareSize;
 			drawRightAction(p, fastShareLeft, fastShareTop, width());
 		}
+
+		if (media) {
+			media->paintBubbleFireworks(p, g, ms);
+		}
 	} else if (media && media->isDisplayed()) {
 		p.translate(g.topLeft());
 		media->draw(p, clip.translated(-g.topLeft()), skipTextSelection(selection), ms);
@@ -502,6 +517,10 @@ void Message::draw(
 	}
 
 	p.restoreTextPalette();
+
+	if (roll) {
+		p.restore();
+	}
 
 	const auto reply = item->Get<HistoryMessageReply>();
 	if (reply && reply->isNameUpdated()) {
@@ -886,7 +905,7 @@ TextState Message::textState(
 		result.symbol += item->_text.length();
 	}
 
-	if (keyboard && !item->isLogEntry()) {
+	if (keyboard && item->isHistoryEntry()) {
 		auto keyboardTop = g.top() + g.height() + st::msgBotKbButton.margin;
 		if (QRect(g.left(), keyboardTop, g.width(), keyboardHeight).contains(point)) {
 			result.link = keyboard->getLink(point - QPoint(g.left(), keyboardTop));
@@ -1307,10 +1326,24 @@ int Message::infoWidth() const {
 			result += st::historySendStateSpace;
 		}
 	}
-	if (hasOutLayout()) {
+
+	// When message is scheduled until online, time is not displayed,
+	// so message should have less space.
+	if (!item->_timeWidth) {
+		result += st::historyScheduledUntilOnlineStateSpace;
+	} else if (hasOutLayout()) {
 		result += st::historySendStateSpace;
 	}
 	return result;
+}
+
+auto Message::verticalRepaintRange() const -> VerticalRepaintRange {
+	const auto media = this->media();
+	const auto add = media ? media->bubbleRollRepaintMargins() : QMargins();
+	return {
+		.top = -add.top(),
+		.height = height() + add.top() + add.bottom()
+	};
 }
 
 void Message::refreshDataIdHook() {
@@ -1485,7 +1518,7 @@ void Message::drawRightAction(
 	p.setBrush(st::msgServiceBg);
 	{
 		PainterHighQualityEnabler hq(p);
-		p.drawEllipse(rtlrect(
+		p.drawEllipse(style::rtlrect(
 			left,
 			top,
 			st::historyFastShareSize,
@@ -1869,21 +1902,9 @@ bool Message::displayEditedBadge() const {
 
 TimeId Message::displayedEditDate() const {
 	const auto item = message();
-	auto hasViaBotId = item->Has<HistoryMessageVia>();
-	auto hasInlineMarkup = (item->inlineReplyMarkup() != nullptr);
-	return displayedEditDate(hasViaBotId || hasInlineMarkup);
-}
-
-TimeId Message::displayedEditDate(
-		bool hasViaBotOrInlineMarkup) const {
-	if (hasViaBotOrInlineMarkup) {
+	if (item->hideEditedBadge()) {
 		return TimeId(0);
-	} else if (const auto fromUser = message()->from()->asUser()) {
-		if (fromUser->isBot()) {
-			return TimeId(0);
-		}
-	}
-	if (const auto edited = displayedEditBadge()) {
+	} else if (const auto edited = displayedEditBadge()) {
 		return edited->date;
 	}
 	return TimeId(0);

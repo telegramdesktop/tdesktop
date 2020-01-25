@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/auth_key.h"
+#include "mtproto/mtproto_auth_key.h"
 
 namespace Serialize {
 
@@ -22,6 +22,13 @@ inline int bytearraySize(const QByteArray &arr) {
 inline int bytesSize(bytes::const_span bytes) {
 	return sizeof(quint32) + bytes.size();
 }
+
+inline int colorSize() {
+	return sizeof(quint32);
+}
+
+void writeColor(QDataStream &stream, const QColor &color);
+QColor readColor(QDataStream &stream);
 
 struct ReadBytesVectorWrap {
 	bytes::vector &bytes;

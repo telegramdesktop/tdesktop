@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_object.h"
+#include "ui/rect_part.h"
 
+class History;
 struct HistoryMessageEdited;
 struct TextSelection;
 
@@ -29,6 +31,7 @@ enum class CursorState : char;
 enum class InfoDisplayType : char;
 struct TextState;
 struct StateRequest;
+class Element;
 
 enum class MediaInBubbleState {
 	None,
@@ -36,6 +39,14 @@ enum class MediaInBubbleState {
 	Middle,
 	Bottom,
 };
+
+[[nodiscard]] QString DocumentTimestampLinkBase(
+	not_null<DocumentData*> document,
+	FullMsgId context);
+[[nodiscard]] TextWithEntities AddTimestampLinks(
+	TextWithEntities text,
+	TimeId duration,
+	const QString &base);
 
 class Media : public Object {
 public:
@@ -130,6 +141,9 @@ public:
 	}
 	virtual void clearStickerLoopPlayed() {
 	}
+	virtual int checkAnimationCount() {
+		return 0;
+	}
 
 	[[nodiscard]] virtual QSize sizeForGrouping() const {
 		Unexpected("Grouping method call.");
@@ -140,6 +154,7 @@ public:
 			TextSelection selection,
 			crl::time ms,
 			const QRect &geometry,
+			RectParts sides,
 			RectParts corners,
 			not_null<uint64*> cacheKey,
 			not_null<QPixmap*> cache) const {
@@ -147,6 +162,7 @@ public:
 	}
 	[[nodiscard]] virtual TextState getStateGrouped(
 		const QRect &geometry,
+		RectParts sides,
 		QPoint point,
 		StateRequest request) const;
 
@@ -217,6 +233,26 @@ public:
 		return true;
 	}
 
+	struct BubbleRoll {
+		float64 rotate = 0.;
+		float64 scale = 1.;
+
+		explicit operator bool() const {
+			return (rotate != 0.) || (scale != 1.);
+		}
+	};
+	[[nodiscard]] virtual BubbleRoll bubbleRoll() const {
+		return BubbleRoll();
+	}
+	[[nodiscard]] virtual QMargins bubbleRollRepaintMargins() const {
+		return QMargins();
+	}
+	virtual void paintBubbleFireworks(
+		Painter &p,
+		const QRect &bubble,
+		crl::time ms) const {
+	}
+
 	virtual void unloadHeavyPart() {
 	}
 
@@ -229,8 +265,11 @@ public:
 	virtual ~Media() = default;
 
 protected:
-	QSize countCurrentSize(int newWidth) override;
-	Ui::Text::String createCaption(not_null<HistoryItem*> item) const;
+	[[nodiscard]] QSize countCurrentSize(int newWidth) override;
+	[[nodiscard]] Ui::Text::String createCaption(
+		not_null<HistoryItem*> item,
+		TimeId timestampLinksDuration = 0,
+		const QString &timestampLinkBase = QString()) const;
 
 	virtual void playAnimation(bool autoplay) {
 	}

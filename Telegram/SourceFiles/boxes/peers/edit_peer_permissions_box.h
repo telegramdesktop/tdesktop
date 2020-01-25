@@ -15,7 +15,7 @@ class RoundButton;
 class VerticalLayout;
 } // namespace Ui
 
-class EditPeerPermissionsBox : public BoxContent {
+class EditPeerPermissionsBox : public Ui::BoxContent {
 public:
 	EditPeerPermissionsBox(QWidget*, not_null<PeerData*> peer);
 

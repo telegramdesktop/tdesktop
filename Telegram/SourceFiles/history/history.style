@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-using "basic.style";
+using "ui/basic.style";
 using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 
@@ -18,6 +18,7 @@ maxVideoMessageSize: 240px;
 maxSignatureSize: 144px;
 maxWallPaperWidth: 160px;
 maxWallPaperHeight: 240px;
+historyThemeSize: size(272px, 176px);
 
 historyMinimalWidth: 380px;
 
@@ -46,6 +47,14 @@ historyToDownPosition: point(12px, 10px);
 historyToDownAbove: icon {{ "history_down_arrow", historyToDownFg, point(17px, 23px) }};
 historyToDownAboveOver: icon {{ "history_down_arrow", historyToDownFgOver, point(17px, 23px) }};
 historyToDownPaddingTop: 10px;
+historyToDownBelow: icon {
+	{ "history_down_shadow", historyToDownShadow },
+	{ "history_down_circle", historyToDownBg, point(4px, 4px) },
+};
+historyToDownBelowOver: icon {
+	{ "history_down_shadow", historyToDownShadow },
+	{ "history_down_circle", historyToDownBgOver, point(4px, 4px) },
+};
 historyToDown: TwoIconButton {
 	width: 52px;
 	height: 62px;
@@ -140,6 +149,8 @@ historyReceivedIcon: icon {{ "history_received", historyOutIconFg, point(2px, 4p
 historyReceivedSelectedIcon: icon {{ "history_received", historyOutIconFgSelected, point(2px, 4px) }};
 historyReceivedInvertedIcon: icon {{ "history_received", historyIconFgInverted, point(2px, 4px) }};
 
+historyScheduledUntilOnlineStateSpace: 17px;
+
 historyViewsSpace: 11px;
 historyViewsWidth: 20px;
 historyViewsTop: -15px;
@@ -220,6 +231,8 @@ historySendIcon: icon {{ "send_control_send", historySendIconFg }};
 historySendIconOver: icon {{ "send_control_send", historySendIconFgOver }};
 historySendIconPosition: point(11px, 11px);
 historySendSize: size(46px, 46px);
+historyScheduleIcon: icon {{ "send_control_schedule", historyComposeAreaBg }};
+historyScheduleIconPosition: point(8px, 8px);
 historyEditSaveIcon: icon {{ "send_control_save", historySendIconFg, point(3px, 7px) }};
 historyEditSaveIconOver: icon {{ "send_control_save", historySendIconFgOver, point(3px, 7px) }};
 
@@ -266,6 +279,17 @@ historyBotKeyboardHide: IconButton(historyAttach) {
 historyBotCommandStart: IconButton(historyAttach) {
 	icon: icon {{ "send_control_bot_command", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_bot_command", historyComposeIconFgOver }};
+}
+historyScheduledToggle: IconButton(historyAttach) {
+	icon: icon {
+		{ "send_control_scheduled", historyComposeIconFg },
+		{ "send_control_scheduled_dot", attentionButtonFg }
+	};
+	iconOver: icon {
+		{ "send_control_scheduled", historyComposeIconFgOver },
+		{ "send_control_scheduled_dot", attentionButtonFg }
+	};
+	iconPosition: point(-1px, -1px);
 }
 historyRecordVoiceFg: historyComposeIconFg;
 historyRecordVoiceFgOver: historyComposeIconFgOver;
@@ -357,7 +381,8 @@ botKbScroll: defaultSolidScroll;
 historyDateFadeDuration: 200;
 
 historyPhotoLeft: 14px;
-historyMessageRadius: 6px;
+historyPhotoBubbleMinWidth: 200px;
+historyMessageRadius: roundRadiusLarge;
 historyBubbleTailInLeft: icon {{ "bubble_tail", msgInBg }};
 historyBubbleTailInLeftSelected: icon {{ "bubble_tail", msgInBgSelected }};
 historyBubbleTailOutLeft: icon {{ "bubble_tail", msgOutBg }};
@@ -511,11 +536,11 @@ historyPollQuestionStyle: TextStyle(defaultTextStyle) {
 }
 historyPollAnswerStyle: defaultTextStyle;
 historyPollQuestionTop: 7px;
-historyPollSubtitleSkip: 2px;
-historyPollAnswerPadding: margins(31px, 10px, 0px, 10px);
-historyPollAnswersSkip: 3px;
+historyPollSubtitleSkip: 4px;
+historyPollAnswerPadding: margins(32px, 10px, 0px, 10px);
+historyPollAnswersSkip: 2px;
 historyPollPercentFont: semiboldFont;
-historyPollPercentSkip: 6px;
+historyPollPercentSkip: 5px;
 historyPollPercentTop: 0px;
 historyPollTotalVotesSkip: 5px;
 historyPollFillingMin: 4px;
@@ -547,6 +572,17 @@ historyPollRippleOut: RippleAnimation(defaultRippleAnimation) {
 	color: msgWaveformOutInactive;
 }
 historyPollRippleOpacity: 0.3;
+historyPollRecentVotersSkip: 4px;
+historyPollRecentVoterSize: 18px;
+historyPollRecentVoterSkip: 13px;
+historyPollBottomButtonSkip: 15px;
+historyPollBottomButtonTop: 4px;
+historyPollChoiceRight: icon {{ "poll_choice_right", activeButtonFg }};
+historyPollChoiceWrong: icon {{ "poll_choice_wrong", activeButtonFg }};
+historyPollOutChosen: icon {{ "poll_select_check", historyFileOutIconFg }};
+historyPollOutChosenSelected: icon {{ "poll_select_check", historyFileOutIconFgSelected }};
+historyPollInChosen: icon {{ "poll_select_check", historyFileInIconFg }};
+historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSelected }};
 
 boxAttachEmoji: IconButton(historyAttachEmoji) {
 	width: 30px;
@@ -563,6 +599,7 @@ historyGroupAboutTextSkip: 10px;
 historyGroupAboutSkip: 8px;
 
 historyVideoDownloadSize: msgFileSize;
+historyVideoMuteSize: 22px;
 historyVideoCancel: icon {{ "playlist_cancel", historyFileThumbIconFg }};
 historyVideoCancelSelected: icon {{ "playlist_cancel", historyFileThumbIconFgSelected }};
 historyVideoDownload: icon {{ "playlist_download", historyFileThumbIconFg }};
@@ -587,3 +624,41 @@ largeEmojiSize: 36px;
 largeEmojiOutline: 1px;
 largeEmojiPadding: margins(0px, 0px, 0px, 0px);
 largeEmojiSkip: 4px;
+
+scheduleHeight: 95px;
+scheduleDateTop: 38px;
+scheduleDateField: InputField(defaultInputField) {
+	textMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	heightMin: 30px;
+	textAlign: align(top);
+	font: font(14px);
+}
+scheduleTimeField: InputField(scheduleDateField) {
+	border: 0px;
+	borderActive: 0px;
+	heightMin: 28px;
+	placeholderFont: font(14px);
+	placeholderFgActive: placeholderFgActive;
+}
+scheduleDateWidth: 136px;
+scheduleTimeWidth: 72px;
+scheduleAtSkip: 24px;
+scheduleAtTop: 42px;
+scheduleAtLabel: FlatLabel(defaultFlatLabel) {
+}
+scheduleTimeSeparator: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}
+scheduleTimeSeparatorPadding: margins(2px, 0px, 2px, 0px);
+
+youtubeIcon: icon {
+	{ "media_youtube_play_bg", youtubePlayIconBg },
+	{ "media_youtube_play", youtubePlayIconFg, point(24px, 12px) },
+};
+videoIcon: icon {
+	{ "media_video_play_bg", videoPlayIconBg },
+	{ "media_video_play", videoPlayIconFg, point(12px, 12px) },
+};

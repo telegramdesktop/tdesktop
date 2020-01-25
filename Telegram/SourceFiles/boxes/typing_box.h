@@ -13,7 +13,7 @@ namespace Ui {
 class Checkbox;
 } // namespace Ui
 
-class TypingBox : public BoxContent {
+class TypingBox : public Ui::BoxContent {
 	Q_OBJECT
 
 public:

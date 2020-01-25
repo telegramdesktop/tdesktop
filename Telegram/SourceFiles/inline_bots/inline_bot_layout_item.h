@@ -11,9 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 
 namespace InlineBots {
+
 class Result;
 
 namespace Layout {
+
+class ItemBase;
 
 class PaintContext : public PaintContextBase {
 public:
@@ -100,7 +103,7 @@ protected:
 	int getResultDuration() const;
 	QString getResultUrl() const;
 	ClickHandlerPtr getResultUrlHandler() const;
-	ClickHandlerPtr getResultContentUrlHandler() const;
+	ClickHandlerPtr getResultPreviewHandler() const;
 	QString getResultThumbLetter() const;
 
 	not_null<Context*> context() const {

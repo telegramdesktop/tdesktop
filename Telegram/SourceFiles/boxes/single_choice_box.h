@@ -14,7 +14,7 @@ namespace Ui {
 class Radiobutton;
 } // namespace Ui
 
-class SingleChoiceBox : public BoxContent {
+class SingleChoiceBox : public Ui::BoxContent {
 public:
 	SingleChoiceBox(
 		QWidget*,

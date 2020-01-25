@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_media_types.h"
 #include "main/main_session.h"
+#include "app.h"
 #include "styles/style_history.h"
 
 namespace HistoryView {
@@ -162,7 +163,7 @@ void Contact::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		statustop = st::msgFileThumbStatusTop - topMinus;
 		linktop = st::msgFileThumbLinkTop - topMinus;
 
-		QRect rthumb(rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top() - topMinus, st::msgFileThumbSize, st::msgFileThumbSize, paintw));
+		QRect rthumb(style::rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top() - topMinus, st::msgFileThumbSize, st::msgFileThumbSize, paintw));
 		if (_contact) {
 			_contact->paintUserpic(p, rthumb.x(), rthumb.y(), st::msgFileThumbSize);
 		} else {
@@ -207,7 +208,7 @@ TextState Contact::textState(QPoint point, StateRequest request) const {
 	if (_userId) {
 		nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
 		linktop = st::msgFileThumbLinkTop - topMinus;
-		if (rtlrect(nameleft, linktop, _linkw, st::semiboldFont->height, width()).contains(point)) {
+		if (style::rtlrect(nameleft, linktop, _linkw, st::semiboldFont->height, width()).contains(point)) {
 			result.link = _linkl;
 			return result;
 		}

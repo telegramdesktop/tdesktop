@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/never.h>
 #include <rpl/merge.h>
 #include "lang/lang_keys.h"
+#include "lang/lang_numbers_animation.h"
 #include "info/info_wrap_widget.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h"
@@ -52,7 +53,7 @@ void TopBar::registerUpdateControlCallback(
 		QObject *guard,
 		Callback &&callback) {
 	_updateControlCallbacks[guard] =[
-		weak = make_weak(guard),
+		weak = Ui::MakeWeak(guard),
 		callback = std::forward<Callback>(callback)
 	](anim::type animated) {
 		if (!weak) {
@@ -532,7 +533,7 @@ void TopBar::performForward() {
 	Window::ShowForwardMessagesBox(
 		_navigation,
 		std::move(items),
-		[weak = make_weak(this)] {
+		[weak = Ui::MakeWeak(this)] {
 			if (weak) {
 				weak->_cancelSelectionClicks.fire({});
 			}
@@ -547,7 +548,7 @@ void TopBar::performDelete() {
 		const auto box = Ui::show(Box<DeleteMessagesBox>(
 			&_navigation->session(),
 			std::move(items)));
-		box->setDeleteConfirmedCallback([weak = make_weak(this)] {
+		box->setDeleteConfirmedCallback([weak = Ui::MakeWeak(this)] {
 			if (weak) {
 				weak->_cancelSelectionClicks.fire({});
 			}
@@ -627,6 +628,11 @@ rpl::producer<QString> TitleValue(
 			return tr::lng_settings_section_call_settings();
 		}
 		Unexpected("Bad settings type in Info::TitleValue()");
+
+	case Section::Type::PollResults:
+		return key.poll()->quiz()
+			? tr::lng_polls_quiz_results_title()
+			: tr::lng_polls_poll_results_title();
 	}
 	Unexpected("Bad section type in Info::TitleValue()");
 }

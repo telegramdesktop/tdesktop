@@ -8,11 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #define __HUGE
 
-// Fix Google Breakpad build for Mac App Store version
-#ifdef Q_OS_MAC
-#define __STDC_FORMAT_MACROS
-#endif // Q_OS_MAC
-
 #ifdef __cplusplus
 
 #include <cmath>
@@ -28,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma warning(disable:4180)
 #endif // __clang__ || _MSC_VER >= 1914
 
-#include <QtCore/QtCore>
+#include <QtCore/QMap>
 
 #ifdef __clang__
 #pragma clang diagnostic pop
@@ -36,12 +31,57 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma warning(pop)
 #endif // __clang__ || _MSC_VER >= 1914
 
-#ifdef OS_MAC_STORE
-#define MAC_USE_BREAKPAD
-#endif // OS_MAC_STORE
+#include <QtCore/QtMath>
+#include <QtCore/QObject>
+#include <QtCore/QPointer>
+#include <QtCore/QMutex>
+#include <QtCore/QReadWriteLock>
+#include <QtCore/QDataStream>
+#include <QtCore/QDir>
+#include <QtCore/QFile>
+#include <QtCore/QFileInfo>
+#include <QtCore/QThread>
+#include <QtCore/QByteArray>
+#include <QtCore/QChar>
+#include <QtCore/QDateTime>
+#include <QtCore/QHash>
+#include <QtCore/QList>
+#include <QtCore/QMargins>
+#include <QtCore/QPair>
+#include <QtCore/QPoint>
+#include <QtCore/QRect>
+#include <QtCore/QRegularExpression>
+#include <QtCore/QSet>
+#include <QtCore/QSize>
+#include <QtCore/QString>
+#include <QtCore/QStringList>
+#include <QtCore/QVector>
 
-#include <QtWidgets/QtWidgets>
-#include <QtNetwork/QtNetwork>
+#include <QtGui/QIcon>
+#include <QtGui/QImage>
+#include <QtGui/QImageReader>
+#include <QtGui/QPixmap>
+#include <QtGui/QtEvents>
+#include <QtGui/QBrush>
+#include <QtGui/QColor>
+#include <QtGui/QPainter>
+#include <QtGui/QPainterPath>
+#include <QtGui/QPen>
+#include <QtGui/QRegion>
+#include <QtGui/QRgb>
+#include <QtGui/QFont>
+#include <QtGui/QFontInfo>
+
+#include <QtWidgets/QWidget>
+
+#ifndef OS_MAC_OLD
+#include <QtWidgets/QOpenGLWidget>
+#endif // OS_MAC_OLD
+
+// Fix Google Breakpad build for Mac App Store version
+#ifdef Q_OS_MAC
+#define __STDC_FORMAT_MACROS
+#endif // Q_OS_MAC
 
 #include <array>
 #include <vector>
@@ -54,9 +94,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <optional>
 
 #include <range/v3/all.hpp>
-
-// Ensures/Expects.
-#include <gsl/gsl_assert>
 
 // Redefine Ensures/Expects by our own assertions.
 #include "base/assertion.h"
@@ -72,25 +109,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_set.h"
 #include "base/flat_map.h"
 #include "base/weak_ptr.h"
+#include "base/observer.h"
 
 #include "base/basic_types.h"
 #include "logs.h"
 #include "core/utils.h"
 #include "config.h"
 
-#include "mtproto/facade.h"
+#include "scheme.h"
+#include "mtproto/type_utils.h"
 
 #include "ui/style/style_core.h"
 #include "styles/palette.h"
 #include "styles/style_basic.h"
 
-#include "ui/animation.h"
-#include "ui/twidget.h"
 #include "ui/image/image_location.h"
 #include "ui/text/text.h"
 
 #include "data/data_types.h"
-#include "app.h"
-#include "facades.h"
 
 #endif // __cplusplus

@@ -12,6 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct HistoryDocumentNamed;
 
+namespace Ui {
+namespace Text {
+class String;
+} // namespace Text
+} // namespace Ui
+
 namespace HistoryView {
 
 class Document
@@ -68,6 +74,8 @@ private:
 		bool showPause = false;
 		int realDuration = 0;
 	};
+
+	[[nodiscard]] Ui::Text::String createCaption();
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;

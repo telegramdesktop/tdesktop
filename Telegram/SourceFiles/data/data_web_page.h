@@ -15,6 +15,7 @@ enum class WebPageType {
 	Video,
 	Profile,
 	WallPaper,
+	Theme,
 	Article,
 	ArticleWithIV,
 };

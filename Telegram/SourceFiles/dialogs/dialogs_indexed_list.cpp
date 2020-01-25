@@ -217,7 +217,7 @@ void IndexedList::setFilterTypes(EntryTypes types) {
 }
 
 void IndexedList::performFilter() {
-//	emit performFilterStarted(); // BUGGGGGGGG
+	emit performFilterStarted();
 
 	if (_filterTypes == EntryType::All) {
 		if (_pFiltered) {
@@ -228,7 +228,7 @@ void IndexedList::performFilter() {
 			_pFiltered.release();
 		}
 
-//		emit performFilterFinished(); // BUGGGGGGG
+		emit performFilterFinished();
 		return;
 	}
 
@@ -241,7 +241,32 @@ void IndexedList::performFilter() {
 			(*it)->key().entry()->setRowInCurrentTab(row);
 		}
 
-//	emit performFilterFinished(); // BUGGGGGGGGGGGGGGGg
+	emit performFilterFinished();
+}
+
+/* counts[private, bot, group, channel] */
+void IndexedList::countUnreadMessages(UnreadState counts[4]) const {
+	for (auto it = _list.cbegin(); it != _list.cend(); ++it) {
+		const Entry *entry = (*it)->entry();
+		const EntryTypes type = entry->getEntryType();
+		const History *history = (*it)->history();
+		int typeIndex = -1;
+
+		if (type & EntryType::Private) typeIndex = 0;
+		if (type & EntryType::Bot) typeIndex = 1;
+		if (type & EntryType::Group) typeIndex = 2;
+		if (type & (EntryType::Channel)) typeIndex = 3;
+
+		if (typeIndex < 0)
+			continue;
+
+		auto count = entry->chatListUnreadState();
+		if (count.chatsMuted && history->getUnreadMentionsCount()) {
+			count.chatsMuted = 0;
+			count.messagesMuted -= history->getUnreadMentionsCount();
+		}
+		counts[typeIndex] += count;
+	}
 }
 
 List& IndexedList::current() {

@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_translator.h"
 
 #include "lang/lang_keys.h"
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 
 namespace Lang {
 

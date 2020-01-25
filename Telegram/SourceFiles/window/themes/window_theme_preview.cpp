@@ -83,9 +83,12 @@ QString fillLetters(const QString &name) {
 
 class Generator {
 public:
-	Generator(const Instance &theme, CurrentData &&current);
+	Generator(
+		const Instance &theme,
+		CurrentData &&current,
+		PreviewType type);
 
-	QImage generate();
+	[[nodiscard]] QImage generate();
 
 private:
 	enum class Status {
@@ -131,6 +134,7 @@ private:
 		Ui::Text::String replyText = { st::msgMinWidth };
 	};
 
+	[[nodiscard]] bool extended() const;
 	void prepare();
 
 	void addRow(QString name, int peerIndex, QString date, QString text);
@@ -162,7 +166,8 @@ private:
 
 	const Instance &_theme;
 	const style::palette &_palette;
-	CurrentData _current;
+	const CurrentData _current;
+	const PreviewType _type;
 	Painter *_p = nullptr;
 
 	QRect _rect;
@@ -188,10 +193,19 @@ private:
 
 };
 
+bool Generator::extended() const {
+	return (_type == PreviewType::Extended);
+}
+
 void Generator::prepare() {
-	_rect = QRect(0, 0, st::themePreviewMargin.left() + st::themePreviewSize.width() + st::themePreviewMargin.right(), st::themePreviewMargin.top() + st::themePreviewSize.height() + st::themePreviewMargin.bottom());
-	_inner = _rect.marginsRemoved(st::themePreviewMargin);
-	_body = _inner.marginsRemoved(QMargins(0, Platform::PreviewTitleHeight(), 0, 0));
+	const auto size = extended()
+		? QRect(
+			QPoint(),
+			st::themePreviewSize).marginsAdded(st::themePreviewMargin).size()
+		: st::themePreviewSize;
+	_rect = QRect(QPoint(), size);
+	_inner = extended() ? _rect.marginsRemoved(st::themePreviewMargin) : _rect;
+	_body = extended() ? _inner.marginsRemoved(QMargins(0, Platform::PreviewTitleHeight(), 0, 0)) : _inner;
 	_dialogs = QRect(_body.x(), _body.y(), st::themePreviewDialogsWidth, _body.height());
 	_dialogsList = _dialogs.marginsRemoved(QMargins(0, st::dialogsFilterPadding.y() + st::dialogsMenuToggle.height + st::dialogsFilterPadding.y(), 0, st::dialogsPadding.y()));
 	_topBar = QRect(_dialogs.x() + _dialogs.width(), _dialogs.y(), _body.width() - _dialogs.width(), st::topBarHeight);
@@ -279,8 +293,8 @@ void Generator::addDateBubble(QString date) {
 void Generator::addPhotoBubble(QString image, QString caption, QString date, Status status) {
 	Bubble bubble;
 	bubble.photo.load(image);
-	bubble.photoWidth = ConvertScale(bubble.photo.width() / 2);
-	bubble.photoHeight = ConvertScale(bubble.photo.height() / 2);
+	bubble.photoWidth = style::ConvertScale(bubble.photo.width() / 2);
+	bubble.photoHeight = style::ConvertScale(bubble.photo.height() / 2);
 	auto skipBlock = computeSkipBlock(status, date);
 	bubble.text.setRichText(st::messageTextStyle, caption + textcmdSkipBlock(skipBlock.width(), skipBlock.height()), Ui::ItemTextDefaultOptions());
 
@@ -339,10 +353,14 @@ void Generator::generateData() {
 	_bubbles.back().replyText.setText(st::messageTextStyle, "Mark Twain said that " + QString() + QChar(9757) + QChar(55356) + QChar(57339), Ui::DialogTextOptions());
 }
 
-Generator::Generator(const Instance &theme, CurrentData &&current)
+Generator::Generator(
+	const Instance &theme,
+	CurrentData &&current,
+	PreviewType type)
 : _theme(theme)
 , _palette(_theme.palette)
-, _current(std::move(current)) {
+, _current(std::move(current))
+, _type(type) {
 }
 
 QImage Generator::generate() {
@@ -368,7 +386,9 @@ QImage Generator::generate() {
 		paintDialogs();
 		paintHistoryShadows();
 	}
-	Platform::PreviewWindowFramePaint(result, _palette, _body, _rect.width());
+	if (extended()) {
+		Platform::PreviewWindowFramePaint(result, _palette, _body, _rect.width());
+	}
 
 	return result;
 }
@@ -378,6 +398,7 @@ void Generator::paintHistoryList() {
 
 	_historyBottom = _history.y() + _history.height();
 	_historyBottom -= st::historyPaddingBottom;
+	_p->setClipping(true);
 	for (auto i = _bubbles.size(); i != 0;) {
 		auto &bubble = _bubbles[--i];
 		if (bubble.width > 0) {
@@ -725,7 +746,7 @@ void Generator::paintBubble(const Bubble &bubble) {
 		auto h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 
 		auto bar = (bubble.outbg ? st::msgOutReplyBarColor[_palette] : st::msgInReplyBarColor[_palette]);
-		auto rbar = rtlrect(trect.x() + st::msgReplyBarPos.x(), trect.y() + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), _rect.width());
+		auto rbar = style::rtlrect(trect.x() + st::msgReplyBarPos.x(), trect.y() + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), _rect.width());
 		_p->fillRect(rbar, bar);
 
 		_p->setPen(bubble.outbg ? st::msgOutServiceFg[_palette] : st::msgInServiceFg[_palette]);
@@ -749,7 +770,7 @@ void Generator::paintBubble(const Bubble &bubble) {
 		auto statustop = y + st::msgFileStatusTop;
 		auto bottom = y + st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
 
-		auto inner = rtlrect(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _rect.width());
+		auto inner = style::rtlrect(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, _rect.width());
 		_p->setPen(Qt::NoPen);
 		_p->setBrush(bubble.outbg ? st::msgFileOutBg[_palette] : st::msgFileInBg[_palette]);
 
@@ -908,48 +929,82 @@ void Generator::restoreTextPalette() {
 
 } // namespace
 
-std::unique_ptr<Preview> PreviewFromFile(const QString &filepath) {
+QString CachedThemePath(uint64 documentId) {
+	return QString::fromLatin1("special://cached-%1").arg(documentId);
+}
+
+std::unique_ptr<Preview> PreviewFromFile(
+		const QByteArray &bytes,
+		const QString &filepath,
+		const Data::CloudTheme &cloud) {
 	auto result = std::make_unique<Preview>();
-	result->pathRelative = filepath.isEmpty()
-		? QString()
-		: QDir().relativeFilePath(filepath);
-	result->pathAbsolute = filepath.isEmpty()
-		? QString()
+	auto &object = result->object;
+	object.cloud = cloud;
+	object.pathAbsolute = filepath.isEmpty()
+		? CachedThemePath(cloud.documentId)
 		: QFileInfo(filepath).absoluteFilePath();
-	if (!LoadFromFile(filepath, &result->instance, &result->content)) {
-		return nullptr;
+	object.pathRelative = filepath.isEmpty()
+		? object.pathAbsolute
+		: QDir().relativeFilePath(filepath);
+	const auto instance = &result->instance;
+	const auto cache = &result->instance.cached;
+	if (bytes.isEmpty()) {
+		if (!LoadFromFile(filepath, instance, cache, &object.content)) {
+			return nullptr;
+		}
+	} else {
+		object.content = bytes;
+		if (!LoadFromContent(bytes, instance, cache)) {
+			return nullptr;
+		}
 	}
 	return result;
 }
 
 std::unique_ptr<Preview> GeneratePreview(
+		const QByteArray &bytes,
 		const QString &filepath,
-		CurrentData &&data) {
-	auto result = PreviewFromFile(filepath);
+		const Data::CloudTheme &cloud,
+		CurrentData &&data,
+		PreviewType type) {
+	auto result = PreviewFromFile(bytes, filepath, cloud);
 	if (!result) {
 		return nullptr;
 	}
 	result->preview = Generator(
 		result->instance,
-		std::move(data)
+		std::move(data),
+		type
 	).generate();
 	return result;
 }
 
+QImage GeneratePreview(
+		const QByteArray &bytes,
+		const QString &filepath) {
+	const auto preview = GeneratePreview(
+		bytes,
+		filepath,
+		Data::CloudTheme(),
+		CurrentData{ Data::ThemeWallPaper().id() },
+		PreviewType::Normal);
+	return preview ? preview->preview : QImage();
+}
+
 int DefaultPreviewTitleHeight() {
-	return st::titleHeight;
+	return st::defaultWindowTitle.height;
 }
 
 void DefaultPreviewWindowTitle(Painter &p, const style::palette &palette, QRect body, int outerWidth) {
-	auto titleRect = QRect(body.x(), body.y() - st::titleHeight, body.width(), st::titleHeight);
+	auto titleRect = QRect(body.x(), body.y() - st::defaultWindowTitle.height, body.width(), st::defaultWindowTitle.height);
 	p.fillRect(titleRect, QColor(0, 0, 0));
 	p.fillRect(titleRect, st::titleBgActive[palette]);
-	auto right = st::titleButtonClose.width;
-	st::titleButtonClose.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::titleButtonClose.iconPosition.x(), titleRect.y() + st::titleButtonClose.iconPosition.y(), outerWidth);
-	right += st::titleButtonMaximize.width;
-	st::titleButtonMaximize.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::titleButtonMaximize.iconPosition.x(), titleRect.y() + st::titleButtonMaximize.iconPosition.y(), outerWidth);
-	right += st::titleButtonMinimize.width;
-	st::titleButtonMinimize.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::titleButtonMinimize.iconPosition.x(), titleRect.y() + st::titleButtonMinimize.iconPosition.y(), outerWidth);
+	auto right = st::windowTitleButtonClose.width;
+	st::windowTitleButtonClose.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::windowTitleButtonClose.iconPosition.x(), titleRect.y() + st::windowTitleButtonClose.iconPosition.y(), outerWidth);
+	right += st::defaultWindowTitle.maximize.width;
+	st::defaultWindowTitle.maximize.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::defaultWindowTitle.maximize.iconPosition.x(), titleRect.y() + st::defaultWindowTitle.maximize.iconPosition.y(), outerWidth);
+	right += st::defaultWindowTitle.minimize.width;
+	st::defaultWindowTitle.minimize.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::defaultWindowTitle.minimize.iconPosition.x(), titleRect.y() + st::defaultWindowTitle.minimize.iconPosition.y(), outerWidth);
 	p.fillRect(titleRect.x(), titleRect.y() + titleRect.height() - st::lineWidth, titleRect.width(), st::lineWidth, st::titleShadow[palette]);
 }
 
@@ -997,7 +1052,7 @@ void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palet
 	Painter p(&preview);
 	DefaultPreviewWindowTitle(p, palette, body, outerWidth);
 
-	auto inner = QRect(body.x(), body.y() - st::titleHeight, body.width(), body.height() + st::titleHeight);
+	auto inner = QRect(body.x(), body.y() - st::defaultWindowTitle.height, body.width(), body.height() + st::defaultWindowTitle.height);
 	p.setClipRegion(QRegion(inner.marginsAdded(QMargins(size, size, size, size))) - inner);
 	p.drawImage(inner.x() - left, inner.y() - top, topLeft);
 	p.drawImage(inner.x() + inner.width() + right - width, inner.y() - top, topRight);

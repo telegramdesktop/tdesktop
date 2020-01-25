@@ -7,10 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peer_list_box.h"
 
-#include <rpl/range.h>
-#include "styles/style_boxes.h"
-#include "styles/style_dialogs.h"
-#include "styles/style_widgets.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "ui/widgets/multi_select.h"
@@ -30,6 +26,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "base/unixtime.h"
 #include "window/themes/window_theme.h"
+#include "styles/style_layers.h"
+#include "styles/style_boxes.h"
+#include "styles/style_dialogs.h"
+#include "styles/style_widgets.h"
+
+#include <rpl/range.h>
 
 auto PaintUserpicCallback(
 	not_null<PeerData*> peer,
@@ -108,7 +110,7 @@ void PeerListBox::prepare() {
 			this,
 			_controller.get(),
 			st::peerListBox),
-		st::boxLayerScroll));
+		st::boxScroll));
 	content()->resizeToWidth(_controller->contentWidth());
 
 	_controller->setDelegate(this);
@@ -507,14 +509,14 @@ void PeerListRow::paintDisabledCheckUserpic(
 	auto userpicDiameter = st::contactsPhotoCheckbox.imageRadius * 2;
 	auto userpicLeft = x + userpicShift;
 	auto userpicTop = y + userpicShift;
-	auto userpicEllipse = rtlrect(x, y, userpicDiameter, userpicDiameter, outerWidth);
+	auto userpicEllipse = style::rtlrect(x, y, userpicDiameter, userpicDiameter, outerWidth);
 	auto userpicBorderPen = st::contactsPhotoDisabledCheckFg->p;
 	userpicBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
 
 	auto iconDiameter = st::contactsPhotoCheckbox.check.size;
 	auto iconLeft = x + userpicDiameter + st::contactsPhotoCheckbox.selectWidth - iconDiameter;
 	auto iconTop = y + userpicDiameter + st::contactsPhotoCheckbox.selectWidth - iconDiameter;
-	auto iconEllipse = rtlrect(iconLeft, iconTop, iconDiameter, iconDiameter, outerWidth);
+	auto iconEllipse = style::rtlrect(iconLeft, iconTop, iconDiameter, iconDiameter, outerWidth);
 	auto iconBorderPen = st::contactsPhotoCheckbox.check.border->p;
 	iconBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
 
@@ -1285,7 +1287,6 @@ void PeerListContent::loadProfilePhotos() {
 
 	auto yFrom = _visibleTop;
 	auto yTo = _visibleBottom + (_visibleBottom - _visibleTop) * PreloadHeightsCount;
-	_controller->session().downloader().clearPriorities();
 
 	if (yTo < 0) return;
 	if (yFrom < 0) yFrom = 0;

@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "main/main_account.h"
 #include "mainwidget.h"
+#include "app.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 
@@ -293,7 +295,7 @@ void Loader::setImplementation(
 
 void Loader::unpack(const QString &path) {
 	const auto folder = internal::SetDataPath(_id);
-	const auto weak = make_weak(this);
+	const auto weak = Ui::MakeWeak(this);
 	crl::async([=] {
 		if (UnpackSet(path, folder)) {
 			QFile(path).remove();
@@ -366,7 +368,7 @@ void Row::paintPreview(Painter &p) const {
 	const auto y = st::manageEmojiPreviewPadding.top();
 	const auto width = st::manageEmojiPreviewWidth;
 	const auto height = st::manageEmojiPreviewWidth;
-	auto &&preview = ranges::view::zip(_preview, ranges::view::ints(0));
+	auto &&preview = ranges::view::zip(_preview, ranges::view::ints(0, int(_preview.size())));
 	for (const auto &[pixmap, index] : preview) {
 		const auto row = (index / 2);
 		const auto column = (index % 2);
@@ -400,7 +402,7 @@ void Row::paintRadio(Painter &p) {
 	pen.setCapStyle(Qt::RoundCap);
 	p.setPen(pen);
 	p.setBrush(_st->bg);
-	const auto rect = rtlrect(QRectF(
+	const auto rect = style::rtlrect(QRectF(
 		left,
 		top,
 		_st->diameter,
@@ -431,7 +433,7 @@ void Row::paintRadio(Painter &p) {
 		const auto skip0 = _st->diameter / 2.;
 		const auto skip1 = _st->skip / 10.;
 		const auto checkSkip = skip0 * (1. - toggled) + skip1 * toggled;
-		p.drawEllipse(rtlrect(QRectF(
+		p.drawEllipse(style::rtlrect(QRectF(
 			left,
 			top,
 			_st->diameter,
@@ -569,7 +571,7 @@ void Row::setupPreview(const Set &set) {
 	const auto size = st::manageEmojiPreview * cIntRetinaFactor();
 	const auto original = QImage(set.previewPath);
 	const auto full = original.height();
-	auto &&preview = ranges::view::zip(_preview, ranges::view::ints(0));
+	auto &&preview = ranges::view::zip(_preview, ranges::view::ints(0, int(_preview.size())));
 	for (auto &&[pixmap, index] : preview) {
 		pixmap = App::pixmapFromImageInPlace(original.copy(
 			{ full * index, 0, full, full }

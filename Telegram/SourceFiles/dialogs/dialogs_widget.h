@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_entry.h"
 #include "ui/special_buttons.h"
 #include "api/api_single_message_search.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 namespace Main {
 class Session;
@@ -41,6 +42,7 @@ class ConnectionState;
 
 namespace Dialogs {
 
+enum class Mode;
 struct RowDescriptor;
 class Row;
 class FakeRow;
@@ -89,6 +91,7 @@ public:
 	void notify_historyMuteUpdated(History *history);
 
 	void performFilter();
+	void unreadCountChanged();
 
 	~Widget();
 

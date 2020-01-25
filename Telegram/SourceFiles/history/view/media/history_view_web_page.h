@@ -62,6 +62,9 @@ public:
 	void stopAnimation() override {
 		if (_attach) _attach->stopAnimation();
 	}
+	int checkAnimationCount() override {
+		return _attach ? _attach->checkAnimationCount() : 0;
+	}
 
 	not_null<WebPageData*> webpage() {
 		return _data;
@@ -89,6 +92,8 @@ private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
+	TextSelection toTitleSelection(TextSelection selection) const;
+	TextSelection fromTitleSelection(TextSelection selection) const;
 	TextSelection toDescriptionSelection(TextSelection selection) const;
 	TextSelection fromDescriptionSelection(TextSelection selection) const;
 	QMargins inBubblePadding() const;
@@ -106,11 +111,11 @@ private:
 
 	bool _asArticle = false;
 	int _dataVersion = -1;
+	int _siteNameLines = 0;
 	int _titleLines = 0;
 	int _descriptionLines = 0;
 
-	Ui::Text::String _title, _description;
-	int _siteNameWidth = 0;
+	Ui::Text::String _siteName, _title, _description;
 
 	QString _duration;
 	int _durationWidth = 0;

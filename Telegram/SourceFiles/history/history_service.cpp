@@ -203,7 +203,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		result.text = tr::lng_action_secure_values_sent(
 			tr::now,
 			lt_user,
-			textcmdLink(1, App::peerName(history()->peer)),
+			textcmdLink(1, history()->peer->name),
 			lt_documents,
 			documents.join(", "));
 		return result;
@@ -799,8 +799,8 @@ not_null<HistoryService*> GenerateJoinedMessage(
 		MTPDmessage::Flags flags) {
 	return new HistoryService(
 		history,
-		MTPDmessage_ClientFlags(),
-		clientMsgId(),
+		MTPDmessage_ClientFlag::f_local_history_entry,
+		history->owner().nextLocalMessageId(),
 		inviteDate,
 		GenerateJoinedText(history, inviter),
 		flags);

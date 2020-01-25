@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
 
@@ -133,7 +135,7 @@ void BotKeyboard::mouseReleaseEvent(QMouseEvent *e) {
 	updateSelected();
 
 	if (ClickHandlerPtr activated = ClickHandler::unpressed()) {
-		App::activateClickHandler(activated, e->button());
+		ActivateClickHandler(window(), activated, e->button());
 	}
 }
 
@@ -266,6 +268,10 @@ void BotKeyboard::clearSelection() {
 
 QPoint BotKeyboard::tooltipPos() const {
 	return _lastMousePos;
+}
+
+bool BotKeyboard::tooltipWindowActive() const {
+	return Ui::AppInFocus() && Ui::InFocusChain(window());
 }
 
 QString BotKeyboard::tooltipText() const {

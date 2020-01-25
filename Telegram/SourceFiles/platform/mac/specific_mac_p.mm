@@ -16,12 +16,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "platform/mac/mac_touchbar.h"
-#include "platform/mac/mac_utilities.h"
-#include "platform/platform_info.h"
+#include "base/platform/mac/base_utilities_mac.h"
+#include "base/platform/base_platform_info.h"
 #include "lang/lang_keys.h"
 #include "base/timer.h"
+#include "facades.h"
 #include "styles/style_window.h"
 
+#include <QtGui/QWindow>
+#include <QtWidgets/QApplication>
+#if __has_include(<QtCore/QOperatingSystemVersion>)
+#include <QtCore/QOperatingSystemVersion>
+#endif // __has_include(<QtCore/QOperatingSystemVersion>)
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
 #include <IOKit/IOKitLib.h>
@@ -31,8 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kIgnoreActivationTimeoutMs = 500;
-
-std::optional<bool> ApplicationIsActive;
 
 } // namespace
 
@@ -138,7 +142,6 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void) applicationDidBecomeActive:(NSNotification *)aNotification {
-	ApplicationIsActive = true;
 	if (Core::IsAppLaunched() && !_ignoreActivation) {
 		Core::App().handleAppActivated();
 		if (auto window = App::wnd()) {
@@ -150,7 +153,6 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void) applicationDidResignActive:(NSNotification *)aNotification {
-	ApplicationIsActive = false;
 }
 
 - (void) receiveWakeNote:(NSNotification*)aNotification {
@@ -204,12 +206,6 @@ void SetWatchingMediaKeys(bool watching) {
 	}
 }
 
-bool IsApplicationActive() {
-	return ApplicationIsActive
-		? *ApplicationIsActive
-		: (static_cast<QApplication*>(QApplication::instance())->activeWindow() != nullptr);
-}
-
 void SetApplicationIcon(const QIcon &icon) {
 	NSImage *image = nil;
 	if (!icon.isNull()) {
@@ -219,46 +215,6 @@ void SetApplicationIcon(const QIcon &icon) {
 	}
 	[[NSApplication sharedApplication] setApplicationIconImage:image];
 	[image release];
-}
-
-void InitOnTopPanel(QWidget *panel) {
-	Expects(!panel->windowHandle());
-
-	// Force creating windowHandle() without creating the platform window yet.
-	panel->setAttribute(Qt::WA_NativeWindow, true);
-	panel->windowHandle()->setProperty("_td_macNonactivatingPanelMask", QVariant(true));
-	panel->setAttribute(Qt::WA_NativeWindow, false);
-
-	panel->createWinId();
-
-	auto platformWindow = [reinterpret_cast<NSView*>(panel->winId()) window];
-	Assert([platformWindow isKindOfClass:[NSPanel class]]);
-
-	auto platformPanel = static_cast<NSPanel*>(platformWindow);
-	[platformPanel setLevel:NSPopUpMenuWindowLevel];
-	[platformPanel setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces|NSWindowCollectionBehaviorStationary|NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorIgnoresCycle];
-	[platformPanel setFloatingPanel:YES];
-	[platformPanel setHidesOnDeactivate:NO];
-
-	objc_ignoreApplicationActivationRightNow();
-}
-
-void DeInitOnTopPanel(QWidget *panel) {
-	auto platformWindow = [reinterpret_cast<NSView*>(panel->winId()) window];
-	Assert([platformWindow isKindOfClass:[NSPanel class]]);
-
-	auto platformPanel = static_cast<NSPanel*>(platformWindow);
-	auto newBehavior = ([platformPanel collectionBehavior] & (~NSWindowCollectionBehaviorCanJoinAllSpaces)) | NSWindowCollectionBehaviorMoveToActiveSpace;
-	[platformPanel setCollectionBehavior:newBehavior];
-}
-
-void ReInitOnTopPanel(QWidget *panel) {
-	auto platformWindow = [reinterpret_cast<NSView*>(panel->winId()) window];
-	Assert([platformWindow isKindOfClass:[NSPanel class]]);
-
-	auto platformPanel = static_cast<NSPanel*>(platformWindow);
-	auto newBehavior = ([platformPanel collectionBehavior] & (~NSWindowCollectionBehaviorMoveToActiveSpace)) | NSWindowCollectionBehaviorCanJoinAllSpaces;
-	[platformPanel setCollectionBehavior:newBehavior];
 }
 
 } // namespace Platform
@@ -274,20 +230,6 @@ bool objc_darkMode() {
 
 	}
 	return result;
-}
-
-void objc_showOverAll(WId winId, bool canFocus) {
-	NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
-	[wnd setLevel:NSPopUpMenuWindowLevel];
-	if (!canFocus) {
-		[wnd setStyleMask:NSUtilityWindowMask | NSNonactivatingPanelMask];
-		[wnd setCollectionBehavior:NSWindowCollectionBehaviorMoveToActiveSpace|NSWindowCollectionBehaviorStationary|NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorIgnoresCycle];
-	}
-}
-
-void objc_bringToBack(WId winId) {
-	NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
-	[wnd setLevel:NSModalPanelWindowLevel];
 }
 
 bool objc_handleMediaKeyEvent(void *ev) {
@@ -344,6 +286,17 @@ void objc_outputDebugString(const QString &str) {
 }
 
 void objc_start() {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
+	// Patch: Fix macOS regression. On 10.14.4, it crashes on GPU switches.
+	// See https://bugreports.qt.io/browse/QTCREATORBUG-22215
+	const auto version = QOperatingSystemVersion::current();
+	if (version.majorVersion() == 10
+		&& version.minorVersion() == 14
+		&& version.microVersion() == 4) {
+		qputenv("QT_MAC_PRO_WEBENGINE_WORKAROUND", "1");
+	}
+#endif // Qt 5.9.0
+
 	_sharedDelegate = [[ApplicationDelegate alloc] init];
 	[[NSApplication sharedApplication] setDelegate:_sharedDelegate];
 	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver: _sharedDelegate

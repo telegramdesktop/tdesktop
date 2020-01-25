@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "layout.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
 namespace {
@@ -230,7 +231,7 @@ int LocalStorageBox::Row::resizeGetHeight(int newWidth) {
 			newWidth);
 	}
 	_clear->moveToRight(
-		st::boxLayerButtonPadding.right(),
+		st::layerBox.buttonPadding.right(),
 		(height - _clear->height()) / 2,
 		newWidth);
 	return height;

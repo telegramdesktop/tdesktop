@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
 #include "ui/widgets/input_fields.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 namespace Ui {
 class InputField;
@@ -85,7 +86,7 @@ private:
 
 };
 
-class ConfirmPhoneBox : public BoxContent, public RPCSender {
+class ConfirmPhoneBox : public Ui::BoxContent, public RPCSender {
 public:
 	static void start(const QString &phone, const QString &hash);
 

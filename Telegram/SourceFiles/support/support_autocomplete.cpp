@@ -19,11 +19,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "base/unixtime.h"
+#include "base/call_delayed.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
-#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace Support {
 namespace {
@@ -271,7 +272,7 @@ AdminLog::OwnedItem GenerateCommentItem(
 	using Flag = MTPDmessage::Flag;
 	const auto id = ServerMaxMsgId + (ServerMaxMsgId / 2);
 	const auto flags = Flag::f_entities | Flag::f_from_id | Flag::f_out;
-	const auto clientFlags = MTPDmessage_ClientFlags();
+	const auto clientFlags = MTPDmessage_ClientFlag::f_fake_history_item;
 	const auto replyTo = 0;
 	const auto viaBotId = 0;
 	const auto item = history->owner().makeMessage(
@@ -318,11 +319,13 @@ AdminLog::OwnedItem GenerateContactItem(
 		MTP_int(0),
 		MTP_int(0),
 		MTP_string(),
-		MTP_long(0));
+		MTP_long(0),
+		//MTPMessageReactions(),
+		MTPVector<MTPRestrictionReason>());
 	const auto item = history->owner().makeMessage(
 		history,
 		message.c_message(),
-		MTPDmessage_ClientFlags());
+		MTPDmessage_ClientFlag::f_fake_history_item);
 	return AdminLog::OwnedItem(delegate, item);
 }
 
@@ -423,7 +426,7 @@ void Autocomplete::setupContent() {
 
 	inner->activated() | rpl::start_with_next(submit, lifetime());
 	connect(input, &Ui::InputField::blurred, [=] {
-		App::CallDelayed(10, this, [=] {
+		base::call_delayed(10, this, [=] {
 			if (!input->hasFocus()) {
 				deactivate();
 			}
@@ -536,7 +539,7 @@ void ConfirmContactBox::prepare() {
 	_contact->initDimensions();
 
 	_submit = [=, original = std::move(_submit)](Qt::KeyboardModifiers m) {
-		const auto weak = make_weak(this);
+		const auto weak = Ui::MakeWeak(this);
 		original(m);
 		if (weak) {
 			closeBox();

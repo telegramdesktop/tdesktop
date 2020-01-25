@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 
 namespace style {
-struct InfoProfileCountButton;
+struct SettingsCountButton;
 } // namespace style
 
 namespace Window {
@@ -20,15 +20,10 @@ class SessionNavigation;
 
 namespace Ui {
 class VerticalLayout;
+class SettingsButton;
 } // namespace Ui
 
-namespace Info {
-namespace Profile {
-class Button;
-} // namespace Profile
-} // namespace Info
-
-class EditPeerInfoBox : public BoxContent {
+class EditPeerInfoBox : public Ui::BoxContent {
 public:
 	EditPeerInfoBox(
 		QWidget*,
@@ -41,12 +36,12 @@ public:
 
 	static bool Available(not_null<PeerData*> peer);
 
-	[[nodiscard]] static object_ptr<Info::Profile::Button> CreateButton(
+	[[nodiscard]] static object_ptr<Ui::SettingsButton> CreateButton(
 		not_null<QWidget*> parent,
 		rpl::producer<QString> &&text,
 		rpl::producer<QString> &&count,
 		Fn<void()> callback,
-		const style::InfoProfileCountButton &st,
+		const style::SettingsCountButton &st,
 		const style::icon *icon = nullptr);
 
 protected:

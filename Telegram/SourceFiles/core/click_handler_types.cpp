@@ -10,19 +10,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "core/local_url_handlers.h"
-#include "core/file_utilities.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
-#include "platform/platform_specific.h"
-#include "history/view/history_view_element.h"
-#include "history/history_item.h"
 #include "boxes/confirm_box.h"
 #include "base/qthelp_regex.h"
-#include "base/qthelp_url.h"
 #include "storage/localstorage.h"
-#include "ui/widgets/tooltip.h"
+#include "history/view/history_view_element.h"
+#include "history/history_item.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "facades.h"
+#include "app.h"
+
+#include <QtGui/QDesktopServices>
+#include <QtGui/QGuiApplication>
 
 namespace {
 
@@ -33,63 +34,6 @@ bool UrlRequiresConfirmation(const QUrl &url) {
 
 } // namespace
 
-UrlClickHandler::UrlClickHandler(const QString &url, bool fullDisplayed)
-: TextClickHandler(fullDisplayed)
-, _originalUrl(url) {
-	if (isEmail()) {
-		_readable = _originalUrl;
-	} else {
-		const auto original = QUrl(_originalUrl);
-		const auto good = QUrl(original.isValid()
-			? original.toEncoded()
-			: QString());
-		_readable = good.isValid() ? good.toDisplayString() : _originalUrl;
-	}
-}
-
-QString UrlClickHandler::copyToClipboardContextItemText() const {
-	return isEmail()
-		? tr::lng_context_copy_email(tr::now)
-		: tr::lng_context_copy_link(tr::now);
-}
-
-QString UrlClickHandler::url() const {
-	if (isEmail()) {
-		return _originalUrl;
-	}
-
-	QUrl u(_originalUrl), good(u.isValid() ? u.toEncoded() : QString());
-	QString result(good.isValid() ? QString::fromUtf8(good.toEncoded()) : _originalUrl);
-
-	if (!result.isEmpty() && !QRegularExpression(qsl("^[a-zA-Z]+:")).match(result).hasMatch()) { // no protocol
-		return qsl("http://") + result;
-	}
-	return result;
-}
-
-void UrlClickHandler::Open(QString url, QVariant context) {
-	url = Core::TryConvertUrlToLocal(url);
-	if (Core::InternalPassportLink(url)) {
-		return;
-	}
-
-	Ui::Tooltip::Hide();
-	if (isEmail(url)) {
-		File::OpenEmailLink(url);
-	} else if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-		Core::App().openLocalUrl(url, context);
-	} else if (!url.isEmpty()) {
-		QDesktopServices::openUrl(url);
-	}
-}
-
-auto UrlClickHandler::getTextEntity() const -> TextEntity {
-	const auto type = isEmail(_originalUrl)
-		? EntityType::Email
-		: EntityType::Url;
-	return { type, _originalUrl };
-}
-
 void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	url = Core::TryConvertUrlToLocal(url);
 	if (Core::InternalPassportLink(url)) {
@@ -99,7 +43,8 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	const auto open = [=] {
 		UrlClickHandler::Open(url, context);
 	};
-	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)
+		|| url.startsWith(qstr("internal:"), Qt::CaseInsensitive)) {
 		open();
 	} else {
 		const auto parsedUrl = QUrl::fromUserInput(url);
@@ -111,10 +56,12 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 				: url;
 			Ui::show(
 				Box<ConfirmBox>(
-					tr::lng_open_this_link(tr::now) + qsl("\n\n") + displayUrl,
+					(tr::lng_open_this_link(tr::now)
+						+ qsl("\n\n")
+						+ displayUrl),
 					tr::lng_open_link(tr::now),
 					[=] { Ui::hideLayer(); open(); }),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 		} else {
 			open();
 		}
@@ -181,8 +128,8 @@ auto MentionNameClickHandler::getTextEntity() const -> TextEntity {
 }
 
 QString MentionNameClickHandler::tooltip() const {
-	if (auto user = Auth().data().userLoaded(_userId)) {
-		auto name = App::peerName(user);
+	if (const auto user = Auth().data().userLoaded(_userId)) {
+		const auto name = user->name;
 		if (name != _text) {
 			return name;
 		}

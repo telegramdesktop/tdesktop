@@ -93,8 +93,8 @@ void Panel::showEditValue(object_ptr<Ui::RpWidget> from) {
 }
 
 void Panel::showBox(
-		object_ptr<BoxContent> box,
-		LayerOptions options,
+		object_ptr<Ui::BoxContent> box,
+		Ui::LayerOptions options,
 		anim::type animated) {
 	_widget->showBox(std::move(box), options, animated);
 	_widget->showAndActivate();

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_wrap_widget.h"
 #include "dialogs/dialogs_key.h"
 #include "window/section_memento.h"
+#include "base/object_ptr.h"
 
 namespace Storage {
 enum class SharedMediaType : signed char;
@@ -35,6 +36,7 @@ public:
 	Memento(PeerId peerId, Section section);
 	//Memento(not_null<Data::Feed*> feed, Section section); // #feed
 	Memento(Settings::Tag settings, Section section);
+	Memento(not_null<PollData*> poll, FullMsgId contextId);
 	explicit Memento(std::vector<std::unique_ptr<ContentMemento>> stack);
 
 	object_ptr<Window::SectionWidget> createWidget(
@@ -43,7 +45,7 @@ public:
 		Window::Column column,
 		const QRect &geometry) override;
 
-	object_ptr<Window::LayerWidget> createLayer(
+	object_ptr<Ui::LayerWidget> createLayer(
 		not_null<Window::SessionController*> controller,
 		const QRect &geometry) override;
 
@@ -75,10 +77,13 @@ private:
 	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
 		Settings::Tag settings,
 		Section section);
+	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
+		not_null<PollData*> poll,
+		FullMsgId contextId);
+
 	//static std::unique_ptr<ContentMemento> DefaultContent( // #feed
 	//	not_null<Data::Feed*> feed,
 	//	Section section);
-
 	static std::unique_ptr<ContentMemento> DefaultContent(
 		PeerId peerId,
 		Section section);
@@ -97,7 +102,7 @@ public:
 		Window::Column column,
 		const QRect &geometry) override;
 
-	object_ptr<Window::LayerWidget> createLayer(
+	object_ptr<Ui::LayerWidget> createLayer(
 		not_null<Window::SessionController*> controller,
 		const QRect &geometry) override;
 

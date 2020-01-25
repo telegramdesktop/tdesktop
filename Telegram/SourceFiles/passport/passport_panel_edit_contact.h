@@ -8,12 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "base/object_ptr.h"
 
 namespace Ui {
 class MaskedInputField;
 class PlainShadow;
 class RoundButton;
 class VerticalLayout;
+class BoxContent;
 } // namespace Ui
 
 namespace Passport {
@@ -73,13 +75,13 @@ private:
 
 };
 
-object_ptr<BoxContent> VerifyPhoneBox(
+object_ptr<Ui::BoxContent> VerifyPhoneBox(
 	const QString &phone,
 	int codeLength,
 	Fn<void(QString code)> submit,
 	rpl::producer<QString> call,
 	rpl::producer<QString> error);
-object_ptr<BoxContent> VerifyEmailBox(
+object_ptr<Ui::BoxContent> VerifyEmailBox(
 	const QString &email,
 	int codeLength,
 	Fn<void(QString code)> submit,

@@ -14,7 +14,9 @@ class History;
 
 namespace Dialogs {
 
-class IndexedList {
+class IndexedList : public QObject {
+	Q_OBJECT
+
 public:
 	IndexedList(SortMode sortMode);
 
@@ -83,11 +85,11 @@ public:
 
 	void performFilter();
 
-	/* BUGGGGGGGGG
+	void countUnreadMessages(UnreadState counts[4]) const;
+
 signals:
 	void performFilterStarted();
 	void performFilterFinished();
-	 */
 
 private:
 	void adjustByName(

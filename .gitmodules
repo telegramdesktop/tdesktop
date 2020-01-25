@@ -10,15 +10,54 @@
 [submodule "Telegram/ThirdParty/Catch"]
 	path = Telegram/ThirdParty/Catch
 	url = https://github.com/philsquared/Catch
-[submodule "Telegram/ThirdParty/crl"]
-	path = Telegram/ThirdParty/crl
-	url = https://github.com/telegramdesktop/crl.git
 [submodule "Telegram/ThirdParty/xxHash"]
 	path = Telegram/ThirdParty/xxHash
 	url = https://github.com/Cyan4973/xxHash.git
 [submodule "Telegram/ThirdParty/rlottie"]
 	path = Telegram/ThirdParty/rlottie
-	url = https://github.com/john-preston/rlottie
+	url = https://github.com/desktop-app/rlottie.git
 [submodule "Telegram/ThirdParty/lz4"]
 	path = Telegram/ThirdParty/lz4
 	url = https://github.com/lz4/lz4.git
+[submodule "Telegram/lib_crl"]
+	path = Telegram/lib_crl
+	url = https://github.com/desktop-app/lib_crl.git
+[submodule "Telegram/lib_rpl"]
+	path = Telegram/lib_rpl
+	url = https://github.com/desktop-app/lib_rpl.git
+[submodule "Telegram/lib_base"]
+	path = Telegram/lib_base
+	url = https://github.com/desktop-app/lib_base.git
+[submodule "Telegram/codegen"]
+	path = Telegram/codegen
+	url = https://github.com/desktop-app/codegen.git
+[submodule "Telegram/lib_ui"]
+	path = Telegram/lib_ui
+	url = https://github.com/Sea-n/tdesktop-lib_ui.git
+[submodule "Telegram/lib_rlottie"]
+	path = Telegram/lib_rlottie
+	url = https://github.com/desktop-app/lib_rlottie.git
+[submodule "Telegram/lib_lottie"]
+	path = Telegram/lib_lottie
+	url = https://github.com/desktop-app/lib_lottie.git
+[submodule "Telegram/lib_tl"]
+	path = Telegram/lib_tl
+	url = https://github.com/desktop-app/lib_tl.git
+[submodule "Telegram/lib_spellcheck"]
+	path = Telegram/lib_spellcheck
+	url = https://github.com/desktop-app/lib_spellcheck
+[submodule "Telegram/lib_storage"]
+	path = Telegram/lib_storage
+	url = https://github.com/desktop-app/lib_storage.git
+[submodule "cmake"]
+	path = cmake
+	url = https://github.com/desktop-app/cmake_helpers.git
+[submodule "Telegram/ThirdParty/expected"]
+	path = Telegram/ThirdParty/expected
+	url = https://github.com/TartanLlama/expected
+[submodule "Telegram/ThirdParty/QR"]
+	path = Telegram/ThirdParty/QR
+	url = https://github.com/nayuki/QR-Code-generator
+[submodule "Telegram/lib_qr"]
+	path = Telegram/lib_qr
+	url = https://github.com/desktop-app/lib_qr.git

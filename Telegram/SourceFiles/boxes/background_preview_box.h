@@ -24,8 +24,9 @@ class Checkbox;
 } // namespace Ui
 
 class BackgroundPreviewBox
-	: public BoxContent
-	, private HistoryView::SimpleElementDelegate {
+	: public Ui::BoxContent
+	, private HistoryView::SimpleElementDelegate
+	, private base::Subscriber {
 public:
 	BackgroundPreviewBox(
 		QWidget*,

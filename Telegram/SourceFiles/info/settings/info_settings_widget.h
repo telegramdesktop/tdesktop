@@ -20,7 +20,6 @@ namespace Settings {
 using Type = Section::SettingsType;
 
 struct Tag;
-class InnerWidget;
 
 class Memento final : public ContentMemento {
 public:

@@ -21,6 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_user.h"
+#include "apiwrap.h"
+#include "facades.h"
+#include "app.h"
 
 namespace Calls {
 namespace {
@@ -156,7 +159,7 @@ void BoxController::Row::paintAction(
 			_actionRipple.reset();
 		}
 	}
-	st::callReDial.icon.paintInCenter(p, rtlrect(x, y, size.width(), size.height(), outerWidth));
+	st::callReDial.icon.paintInCenter(p, style::rtlrect(x, y, size.width(), size.height(), outerWidth));
 }
 
 void BoxController::Row::refreshStatus() {
@@ -214,7 +217,8 @@ void BoxController::Row::stopLastActionRipple() {
 }
 
 BoxController::BoxController(not_null<Window::SessionController*> window)
-: _window(window) {
+: _window(window)
+, _api(_window->session().api().instance()) {
 }
 
 Main::Session &BoxController::session() const {
@@ -254,7 +258,7 @@ void BoxController::loadMoreRows() {
 		return;
 	}
 
-	_loadRequestId = request(MTPmessages_Search(
+	_loadRequestId = _api.request(MTPmessages_Search(
 		MTP_flags(0),
 		MTP_inputPeerEmpty(),
 		MTP_string(),
@@ -402,8 +406,7 @@ BoxController::Row *BoxController::rowForItem(not_null<const HistoryItem*> item)
 
 std::unique_ptr<PeerListRow> BoxController::createRow(
 		not_null<HistoryItem*> item) const {
-	auto row = std::make_unique<Row>(item);
-	return std::move(row);
+	return std::make_unique<Row>(item);
 }
 
 } // namespace Calls

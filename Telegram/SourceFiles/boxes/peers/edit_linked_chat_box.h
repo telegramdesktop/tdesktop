@@ -7,20 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
+#include "base/object_ptr.h"
+
+namespace Ui {
+class BoxContent;
+} // namespace Ui
 
 namespace Window {
 class SessionNavigation;
 } // namespace Window
 
-object_ptr<BoxContent> EditLinkedChatBox(
+object_ptr<Ui::BoxContent> EditLinkedChatBox(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel,
 	not_null<ChannelData*> chat,
 	bool canEdit,
 	Fn<void(ChannelData*)> callback);
 
-object_ptr<BoxContent> EditLinkedChatBox(
+object_ptr<Ui::BoxContent> EditLinkedChatBox(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel,
 	std::vector<not_null<PeerData*>> &&chats,

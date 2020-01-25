@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "inline_bots/inline_bot_layout_item.h"
 
+#include <QtCore/QTimer>
+
 namespace Ui {
 class ScrollArea;
 class IconButton;
@@ -84,6 +86,7 @@ public:
 	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
+	bool tooltipWindowActive() const override;
 
 	~Inner();
 
@@ -170,7 +173,7 @@ private:
 
 } // namespace internal
 
-class Widget : public Ui::RpWidget, private MTP::Sender {
+class Widget : public Ui::RpWidget {
 	Q_OBJECT
 
 public:
@@ -243,6 +246,7 @@ private:
 	void inlineResultsDone(const MTPmessages_BotResults &result);
 
 	not_null<Window::SessionController*> _controller;
+	MTP::Sender _api;
 
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;

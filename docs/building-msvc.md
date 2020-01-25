@@ -18,7 +18,8 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 
 ## Install third party software
 
-* Download **ActivePerl** installer from [https://www.activestate.com/activeperl/downloads](https://www.activestate.com/activeperl/downloads) and install to ***BuildPath*\\ThirdParty\\Perl**
+Strawberry
+* Download **Strawberry Perl** installer from [http://strawberryperl.com/](http://strawberryperl.com/) and install to ***BuildPath*\\ThirdParty\\Strawberry**
 * Download **NASM** installer from [http://www.nasm.us](http://www.nasm.us) and install to ***BuildPath*\\ThirdParty\\NASM**
 * Download **Yasm** executable from [http://yasm.tortall.net/Download.html](http://yasm.tortall.net/Download.html), rename to *yasm.exe* and put to ***BuildPath*\\ThirdParty\\yasm**
 * Download **MSYS2** installer from [http://www.msys2.org/](http://www.msys2.org/) and install to ***BuildPath*\\ThirdParty\\msys64**
@@ -30,9 +31,14 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
     cd ThirdParty
-    git clone https://github.com/telegramdesktop/gyp.git
+    git clone https://github.com/desktop-app/patches.git
+    cd patches
+    git checkout 395b620
+    cd ../
+    git clone https://chromium.googlesource.com/external/gyp
     cd gyp
-    git checkout tdesktop
+    git checkout 9f2a7bb1
+    git apply ../patches/gyp.diff
     cd ..\..
 
 Add **GYP** and **Ninja** to your PATH:
@@ -48,35 +54,48 @@ Add **GYP** and **Ninja** to your PATH:
 
 Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
-    SET PATH=%cd%\ThirdParty\Perl\bin;%cd%\ThirdParty\Python27;%cd%\ThirdParty\NASM;%cd%\ThirdParty\jom;%cd%\ThirdParty\cmake\bin;%cd%\ThirdParty\yasm;%PATH%
+    SET PATH=%cd%\ThirdParty\Strawberry\perl\bin;%cd%\ThirdParty\Python27;%cd%\ThirdParty\NASM;%cd%\ThirdParty\jom;%cd%\ThirdParty\cmake\bin;%cd%\ThirdParty\yasm;%PATH%
 
     git clone --recursive https://github.com/Sea-n/tdesktop.git
 
     mkdir Libraries
     cd Libraries
 
-    git clone --branch 0.5.0 https://github.com/ericniebler/range-v3 range-v3
+    SET LibrariesPath=%cd%
 
-    git clone https://github.com/telegramdesktop/lzma.git
+    git clone https://github.com/desktop-app/patches.git
+    cd patches
+    git checkout 395b620
+    cd ..
+    git clone --branch 0.10.0 https://github.com/ericniebler/range-v3 range-v3
+
+    git clone https://github.com/desktop-app/lzma.git
     cd lzma\C\Util\LzmaLib
     msbuild LzmaLib.sln /property:Configuration=Debug
     msbuild LzmaLib.sln /property:Configuration=Release
     cd ..\..\..\..
 
-    git clone https://github.com/openssl/openssl.git
-    cd openssl
-    git checkout OpenSSL_1_0_1-stable
-    perl Configure no-shared --prefix="C:\Program Files (x86)\OpenSSL" --openssldir="C:\Program Files (x86)\Common Files\SSL" VC-WIN32
-    ms\do_ms
-    nmake -f ms\nt.mak
-    perl Configure no-shared --prefix="C:\Program Files (x86)\OpenSSL" --openssldir="C:\Program Files (x86)\Common Files\SSL" debug-VC-WIN32
-    ms\do_ms
-    nmake -f ms\nt.mak
+    git clone https://github.com/openssl/openssl.git openssl_1_1_1
+    cd openssl_1_1_1
+    git checkout OpenSSL_1_1_1-stable
+    perl Configure no-shared debug-VC-WIN32
+    nmake
+    mkdir out32.dbg
+    move libcrypto.lib out32.dbg
+    move libssl.lib out32.dbg
+    move ossl_static.pdb out32.dbg\ossl_static
+    nmake clean
+    move out32.dbg\ossl_static out32.dbg\ossl_static.pdb
+    perl Configure no-shared VC-WIN32
+    nmake
+    mkdir out32
+    move libcrypto.lib out32
+    move libssl.lib out32
+    move ossl_static.pdb out32
     cd ..
 
-    git clone https://github.com/telegramdesktop/zlib.git
+    git clone https://github.com/desktop-app/zlib.git
     cd zlib
-    git checkout tdesktop
     cd contrib\vstudio\vc14
     msbuild zlibstat.vcxproj /property:Configuration=Debug
     msbuild zlibstat.vcxproj /property:Configuration=ReleaseWithoutAsm
@@ -130,33 +149,29 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     SET PATH=%PATH_BACKUP_%
     cd ..
 
-    git clone git://code.qt.io/qt/qt5.git qt5_6_2
-    cd qt5_6_2
+    git clone git://code.qt.io/qt/qt5.git qt_5_12_5
+    cd qt_5_12_5
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.6.2
-    cd qtimageformats
-    git checkout v5.6.2
-    cd ..\qtbase
-    git checkout v5.6.2
-    git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff
+    git checkout v5.12.5
+    git submodule update qtbase
+    git submodule update qtimageformats
+    cd qtbase
+    git apply ../../patches/qtbase_5_12_5.diff
     cd ..
 
-    configure -debug-and-release -force-debug-info -opensource -confirm-license -static -I "%cd%\..\openssl\inc32" -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="%cd%\..\openssl\out32.dbg\ssleay32.lib %cd%\..\openssl\out32.dbg\libeay32.lib" OPENSSL_LIBS_RELEASE="%cd%\..\openssl\out32\ssleay32.lib %cd%\..\openssl\out32\libeay32.lib" -mp -nomake examples -nomake tests -platform win32-msvc2015
+    configure -prefix "%LibrariesPath%\Qt-5.12.5" -debug-and-release -force-debug-info -opensource -confirm-license -static -static-runtime -I "%LibrariesPath%\openssl_1_1_1\include" -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="%LibrariesPath%\openssl_1_1_1\out32.dbg\libssl.lib %LibrariesPath%\openssl_1_1_1\out32.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" OPENSSL_LIBS_RELEASE="%LibrariesPath%\openssl_1_1_1\out32\libssl.lib %LibrariesPath%\openssl_1_1_1\out32\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" -mp -nomake examples -nomake tests -platform win32-msvc
 
     jom -j4
     jom -j4 install
     cd ..
 
-    cd ../tdesktop/Telegram
-    gyp\refresh.bat
-
 ## Build the project
 
-If you want to pass a build define (like `TDESKTOP_DISABLE_AUTOUPDATE` or `TDESKTOP_DISABLE_NETWORK_PROXY`), call `set TDESKTOP_BUILD_DEFINES=TDESKTOP_DISABLE_AUTOUPDATE,TDESKTOP_DISABLE_NETWORK_PROXY,...` (comma seperated string)
+Go to ***BuildPath*\\tdesktop\\Telegram** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
-After, call **gyp\refresh.bat** once again.
+    configure.bat -D TDESKTOP_API_ID=YOUR_API_ID -D TDESKTOP_API_HASH=YOUR_API_HASH -D DESKTOP_APP_USE_PACKAGED=OFF
 
-* Open ***BuildPath*\\tdesktop\\Telegram\\Telegram.sln** in Visual Studio 2019
+* Open ***BuildPath*\\tdesktop\\out\\Telegram.sln** in Visual Studio 2019
 * Select Telegram project and press Build > Build Telegram (Debug and Release configurations)
 * The result Telegram.exe will be located in **D:\TBuild\tdesktop\out\Debug** (and **Release**)
 

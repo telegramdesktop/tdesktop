@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/mute_settings_box.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/report_box.h"
-#include "boxes/generic_box.h"
 #include "boxes/create_poll_box.h"
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/peers/edit_contact_box.h"
@@ -20,12 +19,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/layers/generic_box.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "observer_peer.h"
+#include "api/api_common.h"
 #include "history/history.h"
+#include "history/history_item.h"
+#include "history/history_message.h" // GetErrorTextForSending.
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "support/support_helper.h"
@@ -40,10 +43,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_drafts.h"
 #include "data/data_user.h"
+#include "data/data_scheduled_messages.h"
 #include "dialogs/dialogs_key.h"
 #include "boxes/peers/edit_peer_info_box.h"
+#include "facades.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_window.h" // st::windowMinWidth
+
+#include <QtWidgets/QAction>
 
 namespace Window {
 namespace {
@@ -339,7 +347,7 @@ void Filler::addToggleArchive() {
 }
 
 void Filler::addBlockUser(not_null<UserData*> user) {
-	const auto window = &_controller->window()->controller();
+	const auto window = &_controller->window();
 	const auto blockText = [](not_null<UserData*> user) {
 		return user->isBlocked()
 			? ((user->isBot() && !user->isSupport())
@@ -374,7 +382,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 
 void Filler::addUserActions(not_null<UserData*> user) {
 	const auto controller = _controller;
-	const auto window = &_controller->window()->controller();
+	const auto window = &_controller->window();
 	if (_source != PeerMenuSource::ChatsList) {
 		if (user->session().supportMode()) {
 			_addAction("Edit support info", [=] {
@@ -404,6 +412,11 @@ void Filler::addUserActions(not_null<UserData*> user) {
 			_addAction(
 				tr::lng_profile_invite_to_group(tr::now),
 				[=] { AddBotToGroup::Start(controller, user); });
+		}
+		if (user->canSendPolls()) {
+			_addAction(
+				tr::lng_polls_create(tr::now),
+				[=] { PeerMenuCreatePoll(user); });
 		}
 		if (user->canExportChatHistory()) {
 			_addAction(
@@ -645,7 +658,7 @@ void PeerMenuDeleteContact(not_null<UserData*> user) {
 	const auto text = tr::lng_sure_delete_contact(
 		tr::now,
 		lt_contact,
-		App::peerName(user));
+		user->name);
 	const auto deleteSure = [=] {
 		Ui::hideLayer();
 		user->session().api().request(MTPcontacts_DeleteContacts(
@@ -668,11 +681,12 @@ void PeerMenuShareContactBox(
 		if (!peer->canWrite()) {
 			Ui::show(Box<InformBox>(
 				tr::lng_forward_share_cant(tr::now)),
-				LayerOption::KeepOther);
+				Ui::LayerOption::KeepOther);
 			return;
 		} else if (peer->isSelf()) {
-			auto options = ApiWrap::SendOptions(peer->owner().history(peer));
-			user->session().api().shareContact(user, options);
+			auto action = Api::SendAction(peer->owner().history(peer));
+			action.clearDraft = false;
+			user->session().api().shareContact(user, action);
 			Ui::Toast::Show(tr::lng_share_done(tr::now));
 			if (auto strong = *weak) {
 				strong->closeBox();
@@ -688,9 +702,10 @@ void PeerMenuShareContactBox(
 			[peer, user] {
 				const auto history = peer->owner().history(peer);
 				Ui::showPeerHistory(history, ShowAtTheEndMsgId);
-				auto options = ApiWrap::SendOptions(history);
-				user->session().api().shareContact(user, options);
-			}), LayerOption::KeepOther);
+				auto action = Api::SendAction(history);
+				action.clearDraft = false;
+				user->session().api().shareContact(user, action);
+			}), Ui::LayerOption::KeepOther);
 	};
 	*weak = Ui::show(Box<PeerListBox>(
 		std::make_unique<ChooseRecipientBoxController>(
@@ -703,23 +718,36 @@ void PeerMenuShareContactBox(
 		}));
 }
 
-void PeerMenuCreatePoll(not_null<PeerData*> peer) {
-	const auto box = Ui::show(Box<CreatePollBox>(&peer->session()));
+void PeerMenuCreatePoll(
+		not_null<PeerData*> peer,
+		PollData::Flags chosen,
+		PollData::Flags disabled) {
+	if (peer->isChannel() && !peer->isMegagroup()) {
+		chosen &= ~PollData::Flag::PublicVotes;
+		disabled |= PollData::Flag::PublicVotes;
+	}
+	const auto box = Ui::show(Box<CreatePollBox>(
+		&peer->session(),
+		chosen,
+		disabled,
+		Api::SendType::Normal));
 	const auto lock = box->lifetime().make_state<bool>(false);
 	box->submitRequests(
-	) | rpl::start_with_next([=](const PollData &result) {
+	) | rpl::start_with_next([=](const CreatePollBox::Result &result) {
 		if (std::exchange(*lock, true)) {
 			return;
 		}
-		auto options = ApiWrap::SendOptions(peer->owner().history(peer));
-		if (const auto id = App::main()->currentReplyToIdFor(options.history)) {
-			options.replyTo = id;
+		auto action = Api::SendAction(peer->owner().history(peer));
+		action.clearDraft = false;
+		action.options = result.options;
+		if (const auto id = App::main()->currentReplyToIdFor(action.history)) {
+			action.replyTo = id;
 		}
-		if (const auto localDraft = options.history->localDraft()) {
-			options.clearDraft = localDraft->textWithTags.text.isEmpty();
+		if (const auto localDraft = action.history->localDraft()) {
+			action.clearDraft = localDraft->textWithTags.text.isEmpty();
 		}
 		const auto api = &peer->session().api();
-		api->createPoll(result, options, crl::guard(box, [=] {
+		api->createPoll(result.poll, action, crl::guard(box, [=] {
 			box->closeBox();
 		}), crl::guard(box, [=](const RPCError &error) {
 			*lock = false;
@@ -729,7 +757,7 @@ void PeerMenuCreatePoll(not_null<PeerData*> peer) {
 }
 
 void PeerMenuBlockUserBox(
-		not_null<GenericBox*> box,
+		not_null<Ui::GenericBox*> box,
 		not_null<Window::Controller*> window,
 		not_null<UserData*> user,
 		bool suggestClearChat) {
@@ -826,9 +854,10 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 			auto items = peer->owner().idsToItems(ids);
 			if (!items.empty()) {
 				const auto api = &peer->session().api();
-				auto options = ApiWrap::SendOptions(peer->owner().history(peer));
-				options.generateLocal = false;
-				api->forwardMessages(std::move(items), options, [] {
+				auto action = Api::SendAction(peer->owner().history(peer));
+				action.clearDraft = false;
+				action.generateLocal = false;
+				api->forwardMessages(std::move(items), action, [] {
 					Ui::Toast::Show(tr::lng_share_done(tr::now));
 				});
 			}
@@ -851,8 +880,64 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 		std::make_unique<ChooseRecipientBoxController>(
 			navigation,
 			std::move(callback)),
-		std::move(initBox)), LayerOption::KeepOther);
+		std::move(initBox)), Ui::LayerOption::KeepOther);
 	return weak->data();
+}
+
+QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<History*> history,
+		MessageIdsList &&items,
+		FnMut<void()> &&successCallback) {
+	const auto session = &navigation->session();
+	const auto text = (items.size() > 1)
+		? tr::lng_scheduled_send_now_many(tr::now, lt_count, items.size())
+		: tr::lng_scheduled_send_now(tr::now);
+
+	const auto error = GetErrorTextForSending(
+		history->peer,
+		session->data().idsToItems(items),
+		TextWithTags());
+	if (!error.isEmpty()) {
+		auto config = Ui::Toast::Config();
+		config.multiline = true;
+		config.minWidth = st::msgMinWidth;
+		config.text = error;
+		Ui::Toast::Show(config);
+		return { nullptr };
+	}
+	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
+	auto done = [
+		=,
+		list = std::move(items),
+		callback = std::move(successCallback)
+	]() mutable {
+		if (*box) {
+			(*box)->closeBox();
+		}
+		auto ids = QVector<MTPint>();
+		for (const auto item : session->data().idsToItems(list)) {
+			if (item->allowsSendNow()) {
+				ids.push_back(MTP_int(
+					session->data().scheduledMessages().lookupId(item)));
+			}
+		}
+		session->api().request(MTPmessages_SendScheduledMessages(
+			history->peer->input,
+			MTP_vector<MTPint>(ids)
+		)).done([=](const MTPUpdates &result) {
+			session->api().applyUpdates(result);
+		}).fail([=](const RPCError &error) {
+			session->api().sendMessageFail(error, history->peer);
+		}).send();
+		if (callback) {
+			callback();
+		}
+	};
+	*box = Ui::show(
+		Box<ConfirmBox>(text, tr::lng_send_button(tr::now), std::move(done)),
+		Ui::LayerOption::KeepOther);
+	return box->data();
 }
 
 void PeerMenuAddChannelMembers(
@@ -862,7 +947,7 @@ void PeerMenuAddChannelMembers(
 		&& channel->membersCount() >= Global::ChatSizeMax()) {
 		Ui::show(
 			Box<MaxInviteBox>(channel),
-			LayerOption::KeepOther);
+			Ui::LayerOption::KeepOther);
 		return;
 	}
 	const auto api = &channel->session().api();
@@ -944,13 +1029,17 @@ void ToggleHistoryArchived(not_null<History*> history, bool archived) {
 
 Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer) {
 	return [=] {
-		Ui::show(Box<DeleteMessagesBox>(peer, true), LayerOption::KeepOther);
+		Ui::show(
+			Box<DeleteMessagesBox>(peer, true),
+			Ui::LayerOption::KeepOther);
 	};
 }
 
 Fn<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer) {
 	return [=] {
-		Ui::show(Box<DeleteMessagesBox>(peer, false), LayerOption::KeepOther);
+		Ui::show(
+			Box<DeleteMessagesBox>(peer, false),
+			Ui::LayerOption::KeepOther);
 	};
 }
 

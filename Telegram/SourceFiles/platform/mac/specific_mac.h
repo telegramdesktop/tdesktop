@@ -16,17 +16,11 @@ class LocationPoint;
 
 namespace Platform {
 
-inline bool TranslucentWindowsSupported(QPoint globalPosition) {
-	return true;
-}
-
 QString CurrentExecutablePath(int argc, char *argv[]);
 
-void RemoveQuarantine(const QString &path);
+QString SingleInstanceLocalServerName(const QString &hash);
 
-inline constexpr bool UseMainQueueGeneric() {
-	return false;
-}
+void RemoveQuarantine(const QString &path);
 
 namespace ThirdParty {
 
@@ -39,15 +33,8 @@ inline void finish() {
 } // namespace ThirdParty
 } // namespace Platform
 
-inline QString psServerPrefix() {
-#ifndef OS_MAC_STORE
-    return qsl("/tmp/");
-#else // OS_MAC_STORE
-	return objc_documentsPath();
-#endif // OS_MAC_STORE
-}
 inline void psCheckLocalSocket(const QString &serverName) {
-    QFile address(serverName);
+	QFile address(serverName);
 	if (address.exists()) {
 		address.remove();
 	}
@@ -67,8 +54,6 @@ void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
 
 QRect psDesktopRect();
-void psShowOverAll(QWidget *w, bool canFocus = true);
-void psBringToBack(QWidget *w);
 
 int psCleanup();
 int psFixPrevious();
@@ -76,8 +61,6 @@ int psFixPrevious();
 bool psShowOpenWithMenu(int x, int y, const QString &file);
 
 void psNewVersion();
-
-void psUpdateOverlayed(QWidget *widget);
 
 void psDownloadPathEnableAccess();
 QByteArray psDownloadPathBookmark(const QString &path);

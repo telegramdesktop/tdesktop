@@ -7,3 +7,4 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "export/export_pch.h"
 
+// Precompiled header helper.

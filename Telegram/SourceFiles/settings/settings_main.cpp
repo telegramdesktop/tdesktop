@@ -16,17 +16,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/discrete_sliders.h"
-#include "info/profile/info_profile_button.h"
+#include "ui/widgets/buttons.h"
 #include "info/profile/info_profile_cover.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_cloud_themes.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "window/window_session_controller.h"
 #include "core/file_utilities.h"
+#include "base/call_delayed.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_settings.h"
+
+#include <QtGui/QDesktopServices>
 
 namespace Settings {
 
@@ -119,7 +125,7 @@ void SetupInterfaceScale(
 	const auto toggled = Ui::CreateChild<rpl::event_stream<bool>>(
 		container.get());
 
-	const auto switched = (cConfigScale() == kInterfaceScaleAuto);
+	const auto switched = (cConfigScale() == style::kScaleAuto);
 	const auto button = AddButton(
 		container,
 		tr::lng_settings_default_scale(),
@@ -135,7 +141,7 @@ void SetupInterfaceScale(
 		auto values = (cIntRetinaFactor() > 1)
 			? std::vector<int>{ 100, 110, 120, 130, 140, 150 }
 			: std::vector<int>{ 100, 125, 150, 200, 250, 300 };
-		if (cConfigScale() == kInterfaceScaleAuto) {
+		if (cConfigScale() == style::kScaleAuto) {
 			return values;
 		}
 		if (ranges::find(values, cConfigScale()) == end(values)) {
@@ -162,7 +168,7 @@ void SetupInterfaceScale(
 		*inSetScale = true;
 		const auto guard = gsl::finally([=] { *inSetScale = false; });
 
-		toggled->fire(scale == kInterfaceScaleAuto);
+		toggled->fire(scale == style::kScaleAuto);
 		slider->setActiveSection(sectionFromScale(scale));
 		if (cEvalScale(scale) != cEvalScale(cConfigScale())) {
 			const auto confirmed = crl::guard(button, [=] {
@@ -171,7 +177,7 @@ void SetupInterfaceScale(
 				App::restart();
 			});
 			const auto cancelled = crl::guard(button, [=] {
-				App::CallDelayed(
+				base::call_delayed(
 					st::defaultSettingsSlider.duration,
 					button,
 					[=] { (*setScale)(cConfigScale()); });
@@ -203,13 +209,13 @@ void SetupInterfaceScale(
 		return scaleByIndex(section);
 	}) | rpl::start_with_next([=](int scale) {
 		(*setScale)((scale == cScreenScale())
-			? kInterfaceScaleAuto
+			? style::kScaleAuto
 			: scale);
 	}, slider->lifetime());
 
 	button->toggledValue(
 	) | rpl::map([](bool checked) {
-		return checked ? kInterfaceScaleAuto : cEvalScale(cConfigScale());
+		return checked ? style::kScaleAuto : cEvalScale(cConfigScale());
 	}) | rpl::start_with_next([=](int scale) {
 		(*setScale)(scale);
 	}, button->lifetime());
@@ -240,14 +246,30 @@ void SetupHelp(
 		container,
 		tr::lng_settings_ask_question(),
 		st::settingsSectionButton);
+	const auto requestId = button->lifetime().make_state<mtpRequestId>();
+	button->lifetime().add([=] {
+		if (*requestId) {
+			controller->session().api().request(*requestId).cancel();
+		}
+	});
 	button->addClickHandler([=] {
-		const auto ready = crl::guard(button, [=](const MTPUser &data) {
-			if (const auto user = controller->session().data().processUser(data)) {
-				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
-			}
-		});
 		const auto sure = crl::guard(button, [=] {
-			controller->session().api().requestSupportContact(ready);
+			if (*requestId) {
+				return;
+			}
+			*requestId = controller->session().api().request(
+				MTPhelp_GetSupport()
+			).done([=](const MTPhelp_Support &result) {
+				*requestId = 0;
+				result.match([&](const MTPDhelp_support &data) {
+					auto &owner = controller->session().data();
+					if (const auto user = owner.processUser(data.vuser())) {
+						Ui::showPeerHistory(user, ShowAtUnreadMsgId);
+					}
+				});
+			}).fail([=](const RPCError &error) {
+				*requestId = 0;
+			}).send();
 		});
 		auto box = Box<ConfirmBox>(
 			tr::lng_settings_ask_sure(tr::now),
@@ -300,6 +322,7 @@ void Main::setupContent(not_null<Window::SessionController*> controller) {
 	// If we load this in advance it won't jump when we open its' section.
 	controller->session().api().reloadPasswordState();
 	controller->session().api().reloadContactSignupSilent();
+	controller->session().data().cloudThemes().refresh();
 }
 
 rpl::producer<Type> Main::sectionShowOther() {

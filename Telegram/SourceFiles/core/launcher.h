@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "core/base_integration.h"
+
 namespace Core {
 
 class Launcher {
@@ -63,6 +65,7 @@ private:
 	int _argc;
 	char **_argv;
 	QStringList _arguments;
+	BaseIntegration _baseIntegration;
 
 	const QString _deviceModel;
 	const QString _systemVersion;

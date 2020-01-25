@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "ui/image/image.h"
+#include "app.h"
 
 namespace Serialize {
 namespace {
@@ -20,6 +21,23 @@ namespace {
 constexpr auto kModernImageLocationTag = std::numeric_limits<qint32>::min();
 
 } // namespace
+
+void writeColor(QDataStream &stream, const QColor &color) {
+	stream << (quint32(uchar(color.red()))
+		| (quint32(uchar(color.green())) << 8)
+		| (quint32(uchar(color.blue())) << 16)
+		| (quint32(uchar(color.alpha())) << 24));
+}
+
+QColor readColor(QDataStream &stream) {
+	auto value = quint32();
+	stream >> value;
+	return QColor(
+		int(value & 0xFFU),
+		int((value >> 8) & 0xFFU),
+		int((value >> 16) & 0xFFU),
+		int((value >> 24) & 0xFFU));
+}
 
 std::optional<StorageImageLocation> readLegacyStorageImageLocationOrTag(
 		int streamAppVersion,

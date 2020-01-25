@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/panel_animation.h"
 #include "mtproto/sender.h"
 #include "main/main_session.h"
+#include "base/object_ptr.h"
 
 namespace InlineBots {
 class Result;
@@ -70,7 +71,6 @@ public:
 
 	void setRoundRadius(int radius);
 	void refreshStickers();
-	void showMegagroupSet(ChannelData *megagroup);
 	void setCurrentPeer(PeerData *peer);
 
 	void hideFinished();

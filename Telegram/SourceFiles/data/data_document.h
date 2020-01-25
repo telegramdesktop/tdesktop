@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flags.h"
+#include "base/binary_guard.h"
 #include "data/data_types.h"
 #include "ui/image/image.h"
 
@@ -166,6 +167,7 @@ public:
 	void setData(const QByteArray &data) {
 		_data = data;
 	}
+	void setDataAndCache(const QByteArray &data);
 	bool checkWallPaperProperties();
 	[[nodiscard]] bool isWallPaper() const;
 	[[nodiscard]] bool isPatternWallPaper() const;

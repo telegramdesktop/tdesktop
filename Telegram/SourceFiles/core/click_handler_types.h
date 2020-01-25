@@ -7,74 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/click_handler.h"
-
-class TextClickHandler : public ClickHandler {
-public:
-	TextClickHandler(bool fullDisplayed = true)
-	: _fullDisplayed(fullDisplayed) {
-	}
-
-	QString copyToClipboardText() const override {
-		return url();
-	}
-
-	QString tooltip() const override {
-		return _fullDisplayed ? QString() : readable();
-	}
-
-	void setFullDisplayed(bool full) {
-		_fullDisplayed = full;
-	}
-
-protected:
-	virtual QString url() const = 0;
-	virtual QString readable() const {
-		return url();
-	}
-
-	bool _fullDisplayed;
-
-};
-
-class UrlClickHandler : public TextClickHandler {
-public:
-	UrlClickHandler(const QString &url, bool fullDisplayed = true);
-
-	QString copyToClipboardContextItemText() const override;
-
-	QString dragText() const override {
-		return url();
-	}
-
-	TextEntity getTextEntity() const override;
-
-	static void Open(QString url, QVariant context = {});
-	void onClick(ClickContext context) const override {
-		const auto button = context.button;
-		if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-			Open(url(), context.other);
-		}
-	}
-
-protected:
-	QString url() const override;
-	QString readable() const override {
-		return _readable;
-	}
-
-private:
-	static bool isEmail(const QString &url) {
-		int at = url.indexOf('@'), slash = url.indexOf('/');
-		return ((at > 0) && (slash < 0 || slash > at));
-	}
-	bool isEmail() const {
-		return isEmail(_originalUrl);
-	}
-
-	QString _originalUrl, _readable;
-
-};
+#include "ui/basic_click_handlers.h"
 
 class HiddenUrlClickHandler : public UrlClickHandler {
 public:
@@ -98,6 +31,7 @@ public:
 
 };
 
+class UserData;
 class BotGameUrlClickHandler : public UrlClickHandler {
 public:
 	BotGameUrlClickHandler(UserData *bot, QString url)
@@ -208,7 +142,6 @@ private:
 };
 
 class PeerData;
-class UserData;
 class BotCommandClickHandler : public TextClickHandler {
 public:
 	BotCommandClickHandler(const QString &cmd) : _cmd(cmd) {

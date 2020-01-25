@@ -16,8 +16,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
-#include <vector>
+#include "facades.h"
+#include "app.h"
+
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus>
+#endif
+
+#include <QtWidgets/QMenu>
+#include <QtWidgets/QAction>
 
 namespace Platform {
 namespace {
@@ -39,7 +46,10 @@ bool _trayIconMuted = true;
 int32 _trayIconCount = 0;
 QImage _trayIconImageBack, _trayIconImage;
 QString _desktopFile;
+
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 QString _dbusPath = "/";
+#endif
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 void _trayIconPopup(GtkStatusIcon *status_icon, guint button, guint32 activate_time, gpointer popup_menu) {
@@ -184,12 +194,12 @@ static gboolean _trayIconCheck(gpointer/* pIn*/) {
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 quint32 djbStringHash(QString string) {
-        quint32 hash = 5381;
-        QByteArray chars = string.toLatin1();
-        for(int i = 0; i < chars.length(); i++){
-                hash = (hash << 5) + hash + chars[i];
-        }
-        return hash;
+	quint32 hash = 5381;
+	QByteArray chars = string.toLatin1();
+	for(int i = 0; i < chars.length(); i++){
+		hash = (hash << 5) + hash + chars[i];
+	}
+	return hash;
 }
 
 } // namespace
@@ -270,13 +280,6 @@ void MainWindow::psSetupTrayIcon() {
 			}
 			trayIcon->setIcon(icon);
 
-			// This is very important for native notifications via libnotify!
-			// Some notification servers compose several notifications with a "Reply"
-			// action into one and after that a click on "Reply" button does not call
-			// the specified callback from any of the sent notification - libnotify
-			// just ignores ibus messages, but Qt tray icon at least emits this signal.
-			connect(trayIcon, SIGNAL(messageClicked()), this, SLOT(showFromTray()));
-
 			attachToTrayIcon(trayIcon);
 		}
 		updateIconCounters();
@@ -344,6 +347,7 @@ void MainWindow::updateIconCounters() {
 
 	const auto counter = Core::App().unreadBadge();
 
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	if (useUnityCount) {
 		QVariantMap dbusUnityProperties;
 		if (counter > 0) {
@@ -358,6 +362,7 @@ void MainWindow::updateIconCounters() {
 		signal << dbusUnityProperties;
 		QDBusConnection::sessionBus().send(signal);
 	}
+#endif
 
 	if (noQtTrayIcon) {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
@@ -547,19 +552,15 @@ void MainWindow::psCreateTrayIcon() {
 void MainWindow::psFirstShow() {
 	psCreateTrayIcon();
 
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	if (QDBusInterface("com.canonical.Unity", "/").isValid()) {
 		auto snapName = QString::fromLatin1(qgetenv("SNAP_NAME"));
 		if(snapName.isEmpty()) {
 			std::vector<QString> possibleDesktopFiles = {
-#ifdef TDESKTOP_LAUNCHER_FILENAME
-#define TDESKTOP_LAUNCHER_FILENAME_TO_STRING_HELPER(V) #V
-#define TDESKTOP_LAUNCHER_FILENAME_TO_STRING(V) TDESKTOP_LAUNCHER_FILENAME_TO_STRING_HELPER(V)
-				TDESKTOP_LAUNCHER_FILENAME_TO_STRING(TDESKTOP_LAUNCHER_FILENAME),
-#endif // TDESKTOP_LAUNCHER_FILENAME
-				"telegramdesktop.desktop",
+				MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME) ".desktop",
 				"Telegram.desktop"
 			};
-			
+
 			for (auto it = possibleDesktopFiles.begin(); it != possibleDesktopFiles.end(); it++) {
 				if (!QStandardPaths::locate(QStandardPaths::ApplicationsLocation, *it).isEmpty()) {
 					_desktopFile = *it;
@@ -580,8 +581,7 @@ void MainWindow::psFirstShow() {
 	} else {
 		LOG(("Not using Unity Launcher count."));
 	}
-
-	psUpdateMargins();
+#endif
 
 	bool showShadows = true;
 
@@ -605,12 +605,6 @@ void MainWindow::psFirstShow() {
 	}
 
 	setPositionInited();
-}
-
-void MainWindow::psInitSysMenu() {
-}
-
-void MainWindow::psUpdateMargins() {
 }
 
 MainWindow::~MainWindow() {

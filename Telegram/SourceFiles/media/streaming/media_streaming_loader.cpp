@@ -50,6 +50,10 @@ bool PriorityQueue::remove(int value) {
 	return true;
 }
 
+bool PriorityQueue::empty() const {
+	return _data.empty();
+}
+
 std::optional<int> PriorityQueue::front() const {
 	return _data.empty()
 		? std::nullopt
@@ -82,7 +86,7 @@ void PriorityQueue::clear() {
 	_data.clear();
 }
 
-void PriorityQueue::increasePriority() {
+void PriorityQueue::resetPriorities() {
 	++_priority;
 }
 

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "mtproto/mtproto_rpc_sender.h"
 
 namespace Ui {
 class UsernameInput;
@@ -18,7 +19,7 @@ namespace Main {
 class Session;
 } // namespace Main
 
-class UsernameBox : public BoxContent, public RPCSender {
+class UsernameBox : public Ui::BoxContent, public RPCSender {
 public:
 	UsernameBox(QWidget*, not_null<Main::Session*> session);
 

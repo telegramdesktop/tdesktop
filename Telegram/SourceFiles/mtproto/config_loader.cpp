@@ -7,12 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/config_loader.h"
 
+#include "mtproto/special_config_request.h"
+#include "mtproto/facade.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/mtp_instance.h"
-#include "mtproto/special_config_request.h"
+#include "facades.h"
 
 namespace MTP {
-namespace internal {
+namespace details {
 namespace {
 
 constexpr auto kEnumerateDcTimeout = 8000; // 8 seconds timeout for help_getConfig to work (then move to other dc)
@@ -128,7 +130,11 @@ void ConfigLoader::createSpecialLoader() {
 			const std::string &ip,
 			int port,
 			bytes::const_span secret) {
-		addSpecialEndpoint(dcId, ip, port, secret);
+		if (ip.empty()) {
+			_specialLoader = nullptr;
+		} else {
+			addSpecialEndpoint(dcId, ip, port, secret);
+		}
 	}, _phone);
 }
 
@@ -209,5 +215,5 @@ void ConfigLoader::specialConfigLoaded(const MTPConfig &result) {
 	_instance->dcOptions()->setFromList(data.vdc_options());
 }
 
-} // namespace internal
+} // namespace details
 } // namespace MTP

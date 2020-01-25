@@ -86,6 +86,10 @@ public:
 		return true;
 	}
 
+	void stopAnimation() override;
+	int checkAnimationCount() override;
+	void unloadHeavyPart() override;
+
 	void parentTextUpdated() override;
 
 private:
@@ -120,6 +124,8 @@ private:
 	TextState getPartState(
 		QPoint point,
 		StateRequest request) const;
+
+	[[nodiscard]] RectParts cornersFromSides(RectParts sides) const;
 
 	Ui::Text::String _caption;
 	std::vector<Part> _parts;

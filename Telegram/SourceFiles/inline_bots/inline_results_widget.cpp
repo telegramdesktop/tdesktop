@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
-#include "styles/style_chat_helpers.h"
+#include "data/data_file_origin.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
@@ -32,6 +32,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "observer_peer.h"
 #include "history/view/history_view_cursor_state.h"
+#include "facades.h"
+#include "app.h"
+#include "styles/style_chat_helpers.h"
+
+#include <QtWidgets/QApplication>
 
 namespace InlineBots {
 namespace Layout {
@@ -93,6 +98,7 @@ void Inner::checkRestrictedPeer() {
 				_restrictedLabel.create(this, *error, st::stickersRestrictedLabel);
 				_restrictedLabel->show();
 				_restrictedLabel->move(st::inlineResultsLeft - st::buttonRadius, st::stickerPanPadding);
+				_restrictedLabel->resizeToNaturalWidth(width() - (st::inlineResultsLeft - st::buttonRadius) * 2);
 				if (_switchPmButton) {
 					_switchPmButton->hide();
 				}
@@ -140,6 +146,10 @@ QString Inner::tooltipText() const {
 
 QPoint Inner::tooltipPos() const {
 	return _lastMousePos;
+}
+
+bool Inner::tooltipWindowActive() const {
+	return Ui::AppInFocus() && Ui::InFocusChain(window());
 }
 
 Inner::~Inner() = default;
@@ -235,7 +245,7 @@ void Inner::mouseReleaseEvent(QMouseEvent *e) {
 		int row = _selected / MatrixRowShift, column = _selected % MatrixRowShift;
 		selectInlineResult(row, column);
 	} else {
-		App::activateClickHandler(activated, e->button());
+		ActivateClickHandler(window(), activated, e->button());
 	}
 }
 
@@ -443,7 +453,7 @@ void Inner::refreshSwitchPmButton(const CacheEntry *entry) {
 			_switchPmButton.create(this, nullptr, st::switchPmButton);
 			_switchPmButton->show();
 			_switchPmButton->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-			connect(_switchPmButton, SIGNAL(clicked()), this, SLOT(onSwitchPm()));
+			_switchPmButton->addClickHandler([=] { onSwitchPm(); });
 		}
 		_switchPmButton->setText(rpl::single(entry->switchPmText));
 		_switchPmStartToken = entry->switchPmStartToken;
@@ -745,6 +755,7 @@ Widget::Widget(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
+, _api(_controller->session().api().instance())
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
 , _scroll(this, st::inlineBotsScroll) {
@@ -922,8 +933,7 @@ void Widget::startShowAnimation() {
 		_showAnimation = std::make_unique<Ui::PanelAnimation>(st::emojiPanAnimation, Ui::PanelAnimation::Origin::BottomLeft);
 		auto inner = rect().marginsRemoved(st::emojiPanMargins);
 		_showAnimation->setFinalImage(std::move(image), QRect(inner.topLeft() * cIntRetinaFactor(), inner.size() * cIntRetinaFactor()));
-		auto corners = App::cornersMask(ImageRoundRadius::Small);
-		_showAnimation->setCornerMasks(corners[0], corners[1], corners[2], corners[3]);
+		_showAnimation->setCornerMasks(Images::CornersMask(ImageRoundRadius::Small));
 		_showAnimation->start();
 	}
 	hideChildren();
@@ -1125,9 +1135,16 @@ void Widget::onInlineRequest() {
 		}
 	}
 	Notify::inlineBotRequesting(true);
-	_inlineRequestId = request(MTPmessages_GetInlineBotResults(MTP_flags(0), _inlineBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset))).done([this](const MTPmessages_BotResults &result, mtpRequestId requestId) {
+	_inlineRequestId = _api.request(MTPmessages_GetInlineBotResults(
+		MTP_flags(0),
+		_inlineBot->inputUser,
+		_inlineQueryPeer->input,
+		MTPInputGeoPoint(),
+		MTP_string(_inlineQuery),
+		MTP_string(nextOffset)
+	)).done([=](const MTPmessages_BotResults &result) {
 		inlineResultsDone(result);
-	}).fail([this](const RPCError &error) {
+	}).fail([=](const RPCError &error) {
 		// show error?
 		Notify::inlineBotRequesting(false);
 		_inlineRequestId = 0;

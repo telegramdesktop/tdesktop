@@ -10,22 +10,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_loader.h"
 #include "mtproto/sender.h"
 #include "data/data_file_origin.h"
-
-namespace Storage {
-class Downloader;
-} // namespace Storage
+#include "storage/download_manager_mtproto.h"
 
 namespace Media {
 namespace Streaming {
 
-class LoaderMtproto : public Loader, public base::has_weak_ptr {
+class LoaderMtproto : public Loader, public Storage::DownloadMtprotoTask {
 public:
 	LoaderMtproto(
-		not_null<Storage::Downloader*> owner,
+		not_null<Storage::DownloadManagerMtproto*> owner,
 		const StorageFileLocation &location,
 		int size,
 		Data::FileOrigin origin);
-	~LoaderMtproto();
 
 	[[nodiscard]] auto baseCacheKey() const
 	-> std::optional<Storage::Cache::Key> override;
@@ -33,48 +29,34 @@ public:
 
 	void load(int offset) override;
 	void cancel(int offset) override;
-	void increasePriority() override;
+	void resetPriorities() override;
+	void setPriority(int priority) override;
 	void stop() override;
+
+	void tryRemoveFromQueue() override;
 
 	// Parts will be sent from the main thread.
 	[[nodiscard]] rpl::producer<LoadedPart> parts() const override;
 
 	void attachDownloader(
-		Storage::StreamedFileDownloader *downloader) override;
+		not_null<Storage::StreamedFileDownloader*> downloader) override;
 	void clearAttachedDownloader() override;
 
 private:
-	void sendNext();
+	bool readyToRequest() const override;
+	int takeNextRequestOffset() override;
+	bool feedPart(int offset, const QByteArray &bytes) override;
+	void cancelOnFail() override;
 
-	void requestDone(int offset, const MTPupload_File &result);
-	void requestFailed(
-		int offset,
-		const RPCError &error,
-		const QByteArray &usedFileReference);
-	void changeCdnParams(
-		int offset,
-		MTP::DcId dcId,
-		const QByteArray &token,
-		const QByteArray &encryptionKey,
-		const QByteArray &encryptionIV,
-		const QVector<MTPFileHash> &hashes);
 	void cancelForOffset(int offset);
-	void changeRequestedAmount(int index, int amount);
-
-	const not_null<Storage::Downloader*> _owner;
-
-	// _location can be changed with an updated file_reference.
-	StorageFileLocation _location;
-	MTP::DcId _dcId = 0;
+	void addToQueueWithPriority();
 
 	const int _size = 0;
-	const Data::FileOrigin _origin;
+	int _priority = 0;
 
-	MTP::Sender _sender;
+	MTP::Sender _api;
 
 	PriorityQueue _requested;
-	base::flat_map<int, mtpRequestId> _requests;
-	base::flat_map<int, int> _amountByDcIndex;
 	rpl::event_stream<LoadedPart> _parts;
 
 	Storage::StreamedFileDownloader *_downloader = nullptr;

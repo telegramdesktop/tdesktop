@@ -14,13 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "boxes/connection_box.h"
 #include "boxes/about_box.h"
 #include "boxes/confirm_box.h"
-#include "info/profile/info_profile_button.h"
 #include "platform/platform_specific.h"
-#include "platform/platform_info.h"
+#include "base/platform/base_platform_info.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "core/update_checker.h"
@@ -29,7 +29,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "layout.h"
+#include "facades.h"
+#include "app.h"
 #include "styles/style_settings.h"
+
+#ifndef TDESKTOP_DISABLE_SPELLCHECK
+#include "spellcheck/platform/platform_spellcheck.h"
+#endif // !TDESKTOP_DISABLE_SPELLCHECK
 
 namespace Settings {
 
@@ -47,7 +53,7 @@ void SetupConnectionType(not_null<Ui::VerticalLayout*> container) {
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	const auto connectionType = [] {
 		const auto transport = MTP::dctransport();
-		if (Global::ProxySettings() != ProxyData::Settings::Enabled) {
+		if (Global::ProxySettings() != MTP::ProxyData::Settings::Enabled) {
 			return transport.isEmpty()
 				? tr::lng_connection_auto_connecting(tr::now)
 				: tr::lng_connection_auto(tr::now, lt_transport, transport);
@@ -242,6 +248,33 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	});
 }
 
+bool HasSystemSpellchecker() {
+#ifdef TDESKTOP_DISABLE_SPELLCHECK
+	return false;
+#else
+	return Platform::Spellchecker::IsAvailable();
+#endif // TDESKTOP_DISABLE_SPELLCHECK
+}
+
+void SetupSpellchecker(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	const auto session = &controller->session();
+	AddButton(
+		container,
+		tr::lng_settings_system_spellchecker(),
+		st::settingsButton
+	)->toggleOn(
+		rpl::single(session->settings().spellcheckerEnabled())
+	)->toggledValue(
+	) | rpl::filter([=](bool enabled) {
+		return (enabled != session->settings().spellcheckerEnabled());
+	}) | rpl::start_with_next([=](bool enabled) {
+		session->settings().setSpellcheckerEnabled(enabled);
+		session->saveSettingsDelayed();
+	}, container->lifetime());
+}
+
 bool HasTray() {
 	return cSupportTray() || Platform::IsWindows();
 }
@@ -424,24 +457,6 @@ void SetupPerformance(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
 	SetupAnimations(container);
-
-	const auto session = &controller->session();
-	AddButton(
-		container,
-		tr::lng_settings_autoplay_gifs(),
-		st::settingsButton
-	)->toggleOn(
-		rpl::single(session->settings().autoplayGifs())
-	)->toggledValue(
-	) | rpl::filter([=](bool enabled) {
-		return (enabled != session->settings().autoplayGifs());
-	}) | rpl::start_with_next([=](bool enabled) {
-		session->settings().setAutoplayGifs(enabled);
-		if (!enabled) {
-			session->data().stopAutoplayAnimations();
-		}
-		session->saveSettingsDelayed();
-	}, container->lifetime());
 }
 
 void SetupSystemIntegration(
@@ -514,6 +529,14 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	AddSubsectionTitle(content, tr::lng_settings_performance());
 	SetupPerformance(controller, content);
 	AddSkip(content);
+
+	if (HasSystemSpellchecker()) {
+		AddDivider(content);
+		AddSkip(content);
+		AddSubsectionTitle(content, tr::lng_settings_spellchecker());
+		SetupSpellchecker(controller, content);
+		AddSkip(content);
+	}
 
 	if (cAutoUpdate()) {
 		addUpdate();

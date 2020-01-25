@@ -10,15 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_file_origin.h"
 #include "calls/calls_emoji_fingerprint.h"
-#include "styles/style_calls.h"
-#include "styles/style_history.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/platform/ui_platform_utility.h"
 #include "ui/empty_userpic.h"
 #include "ui/emoji_config.h"
 #include "core/application.h"
@@ -30,6 +30,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "window/main_window.h"
 #include "layout.h"
+#include "app.h"
+#include "styles/style_calls.h"
+#include "styles/style_history.h"
+
+#include <QtWidgets/QDesktopWidget>
+#include <QtWidgets/QApplication>
 
 namespace Calls {
 namespace {
@@ -354,7 +360,7 @@ void Panel::initControls() {
 		if (!_call || update.peer != _call->user()) {
 			return;
 		}
-		_name->setText(App::peerName(_call->user()));
+		_name->setText(_call->user()->name);
 		updateControlsGeometry();
 	}));
 	_updateDurationTimer.setCallback([this] {
@@ -412,7 +418,7 @@ void Panel::reinitControls() {
 		st::callPanelSignalBars,
 		[=] { rtlupdate(signalBarsRect()); });
 
-	_name->setText(App::peerName(_call->user()));
+	_name->setText(_call->user()->name);
 	updateStatusText(_call->state());
 }
 
@@ -436,7 +442,7 @@ void Panel::initLayout() {
 	});
 	createDefaultCacheImage();
 
-	Platform::InitOnTopPanel(this);
+	Ui::Platform::InitOnTopPanel(this);
 }
 
 void Panel::toggleOpacityAnimation(bool visible) {
@@ -588,7 +594,7 @@ bool Panel::isGoodUserPhoto(PhotoData *photo) {
 
 void Panel::initGeometry() {
 	auto center = Core::App().getPointForCallPanelCenter();
-	_useTransparency = Platform::TranslucentWindowsSupported(center);
+	_useTransparency = Ui::Platform::TranslucentWindowsSupported(center);
 	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 	_padding = _useTransparency ? st::callShadow.extend : style::margins(st::lineWidth, st::lineWidth, st::lineWidth, st::lineWidth);
 	_contentTop = _padding.top() + st::callWidth;
@@ -700,7 +706,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 			finishAnimating();
 			if (!_call || isHidden()) return;
 		} else {
-			Platform::StartTranslucentPaint(p, e);
+			Ui::Platform::StartTranslucentPaint(p, e);
 			p.setOpacity(opacity);
 
 			PainterHighQualityEnabler hq(p);
@@ -713,7 +719,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 	}
 
 	if (_useTransparency) {
-		Platform::StartTranslucentPaint(p, e);
+		Ui::Platform::StartTranslucentPaint(p, e);
 		p.drawPixmapLeft(0, 0, width(), _cache);
 	} else {
 		p.drawPixmapLeft(_padding.left(), _padding.top(), width(), _userPhoto);
@@ -812,7 +818,7 @@ void Panel::leaveToChildEvent(QEvent *e, QWidget *child) {
 }
 
 QString Panel::tooltipText() const {
-	return tr::lng_call_fingerprint_tooltip(tr::now, lt_user, App::peerName(_user));
+	return tr::lng_call_fingerprint_tooltip(tr::now, lt_user, _user->name);
 }
 
 QPoint Panel::tooltipPos() const {
@@ -860,9 +866,9 @@ void Panel::stateChanged(State state) {
 	if (windowHandle()) {
 		// First stateChanged() is called before the first Platform::InitOnTopPanel(this).
 		if ((state == State::Starting) || (state == State::WaitingIncoming)) {
-			Platform::ReInitOnTopPanel(this);
+			Ui::Platform::ReInitOnTopPanel(this);
 		} else {
-			Platform::DeInitOnTopPanel(this);
+			Ui::Platform::DeInitOnTopPanel(this);
 		}
 	}
 	if (state == State::Established) {

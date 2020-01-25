@@ -7,11 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/calendar_box.h"
 
+#include "mtproto/mtproto_rpc_sender.h"
 #include "ui/widgets/buttons.h"
-#include "styles/style_boxes.h"
-#include "styles/style_dialogs.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/ui_utility.h"
+#include "styles/style_boxes.h"
+#include "styles/style_dialogs.h"
 
 namespace {
 
@@ -25,6 +27,11 @@ public:
 
 	void start() {
 		_month.setForced(_month.value(), true);
+	}
+
+	void setBeginningButton(bool enabled);
+	bool hasBeginningButton() const {
+		return _beginningButton;
 	}
 
 	void setMinDate(QDate date);
@@ -55,6 +62,9 @@ public:
 	bool isEnabled(int index) const {
 		return (index >= _minDayIndex) && (index <= _maxDayIndex);
 	}
+	bool atBeginning() const {
+		return _highlighted == _min;
+	}
 
 	const base::Variable<QDate> &month() {
 		return _month;
@@ -68,6 +78,8 @@ private:
 
 	static int daysShiftForMonth(QDate month);
 	static int rowsCountForMonth(QDate month);
+
+	bool _beginningButton = false;
 
 	base::Variable<QDate> _month;
 	QDate _min, _max;
@@ -84,6 +96,10 @@ private:
 
 CalendarBox::Context::Context(QDate month, QDate highlighted) : _highlighted(highlighted) {
 	showMonth(month);
+}
+
+void CalendarBox::Context::setBeginningButton(bool enabled) {
+	_beginningButton = enabled;
 }
 
 void CalendarBox::Context::setMinDate(QDate date) {
@@ -192,6 +208,7 @@ public:
 
 	int countHeight();
 	void setDateChosenCallback(Fn<void(QDate)> callback);
+	void selectBeginning();
 
 	~Inner();
 
@@ -243,7 +260,7 @@ void CalendarBox::Inner::monthChanged(QDate month) {
 	_ripples.clear();
 	resizeToCurrent();
 	update();
-	sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
+	Ui::SendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
 }
 
 void CalendarBox::Inner::resizeToCurrent() {
@@ -389,7 +406,10 @@ void CalendarBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	auto pressed = _pressed;
 	setPressed(kEmptySelection);
 	if (pressed != kEmptySelection && pressed == _selected) {
-		_dateChosenCallback(_context->dateFromIndex(pressed));
+		crl::on_main(this, [=] {
+			const auto onstack = _dateChosenCallback;
+			onstack(_context->dateFromIndex(pressed));
+		});
 	}
 }
 
@@ -415,6 +435,10 @@ int CalendarBox::Inner::countHeight() {
 
 void CalendarBox::Inner::setDateChosenCallback(Fn<void(QDate)> callback) {
 	_dateChosenCallback = std::move(callback);
+}
+
+void CalendarBox::Inner::selectBeginning() {
+	_dateChosenCallback(_context->dateFromIndex(_context->minDayIndex()));
 }
 
 CalendarBox::Inner::~Inner() = default;
@@ -494,6 +518,14 @@ void CalendarBox::setMaxDate(QDate date) {
 	_context->setMaxDate(date);
 }
 
+bool CalendarBox::hasBeginningButton() const {
+	return _context->hasBeginningButton();
+}
+
+void CalendarBox::setBeginningButton(bool enabled) {
+	_context->setBeginningButton(enabled);
+}
+
 void CalendarBox::prepare() {
 	_previous->setClickedCallback([this] { goPreviousMonth(); });
 	_next->setClickedCallback([this] { goNextMonth(); });
@@ -509,6 +541,9 @@ void CalendarBox::prepare() {
 
 	if (_finalize) {
 		_finalize(this);
+	}
+	if (!_context->atBeginning() && hasBeginningButton()) {
+		addLeftButton(tr::lng_calendar_beginning(), [this] { _inner->selectBeginning(); });
 	}
 }
 
@@ -555,6 +590,8 @@ void CalendarBox::resizeEvent(QResizeEvent *e) {
 void CalendarBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		e->ignore();
+	} else if (e->key() == Qt::Key_Home) {
+		_inner->selectBeginning();
 	} else if (e->key() == Qt::Key_Left) {
 		goPreviousMonth();
 	} else if (e->key() == Qt::Key_Right) {

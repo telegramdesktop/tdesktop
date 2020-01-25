@@ -74,6 +74,20 @@ struct FileOriginWallpaper {
 	}
 };
 
+struct FileOriginTheme {
+	FileOriginTheme(uint64 themeId, uint64 accessHash)
+	: themeId(themeId)
+	, accessHash(accessHash) {
+	}
+
+	uint64 themeId = 0;
+	uint64 accessHash = 0;
+
+	inline bool operator<(const FileOriginTheme &other) const {
+		return themeId < other.themeId;
+	}
+};
+
 struct FileOrigin {
 	using Variant = base::optional_variant<
 		FileOriginMessage,
@@ -81,7 +95,8 @@ struct FileOrigin {
 		FileOriginPeerPhoto,
 		FileOriginStickerSet,
 		FileOriginSavedGifs,
-		FileOriginWallpaper>;
+		FileOriginWallpaper,
+		FileOriginTheme>;
 
 	FileOrigin() = default;
 	FileOrigin(FileOriginMessage data) : data(data) {
@@ -95,6 +110,8 @@ struct FileOrigin {
 	FileOrigin(FileOriginSavedGifs data) : data(data) {
 	}
 	FileOrigin(FileOriginWallpaper data) : data(data) {
+	}
+	FileOrigin(FileOriginTheme data) : data(data) {
 	}
 
 	explicit operator bool() const {
@@ -140,5 +157,6 @@ UpdatedFileReferences GetFileReferences(
 UpdatedFileReferences GetFileReferences(const MTPmessages_StickerSet &data);
 UpdatedFileReferences GetFileReferences(const MTPmessages_SavedGifs &data);
 UpdatedFileReferences GetFileReferences(const MTPWallPaper &data);
+UpdatedFileReferences GetFileReferences(const MTPTheme &data);
 
 } // namespace Data

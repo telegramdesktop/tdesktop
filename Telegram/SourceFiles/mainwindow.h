@@ -10,9 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "platform/platform_main_window.h"
 #include "base/unique_qptr.h"
+#include "ui/layers/layer_widget.h"
+#include "ui/effects/animation_value.h"
 
 class MainWidget;
-class BoxContent;
 
 namespace Intro {
 class Widget;
@@ -23,8 +24,7 @@ class ClearManager;
 } // namespace Local
 
 namespace Window {
-class LayerWidget;
-class LayerStackWidget;
+class MediaPreviewWidget;
 class SectionMemento;
 struct SectionShow;
 class PasscodeLockWidget;
@@ -36,6 +36,8 @@ class WarningWidget;
 
 namespace Ui {
 class LinkButton;
+class BoxContent;
+class LayerStackWidget;
 } // namespace Ui
 
 class MediaPreviewWidget;
@@ -97,14 +99,14 @@ public:
 	void updateTrayMenu(bool force = false) override;
 
 	void showSpecialLayer(
-		object_ptr<Window::LayerWidget> layer,
+		object_ptr<Ui::LayerWidget> layer,
 		anim::type animated);
 	bool showSectionInExistingLayer(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params);
 	void ui_showBox(
-		object_ptr<BoxContent> box,
-		LayerOptions options,
+		object_ptr<Ui::BoxContent> box,
+		Ui::LayerOptions options,
 		anim::type animated);
 	void ui_hideSettingsAndLayer(anim::type animated);
 	void ui_removeLayerBlackout();
@@ -168,11 +170,15 @@ private:
 	object_ptr<Window::PasscodeLockWidget> _passcodeLock = { nullptr };
 	object_ptr<Intro::Widget> _intro = { nullptr };
 	object_ptr<MainWidget> _main = { nullptr };
-	base::unique_qptr<Window::LayerStackWidget> _layer;
-	object_ptr<MediaPreviewWidget> _mediaPreview = { nullptr };
+	base::unique_qptr<Ui::LayerStackWidget> _layer;
+	object_ptr<Window::MediaPreviewWidget> _mediaPreview = { nullptr };
 
 	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
 
 	Local::ClearManager *_clearManager = nullptr;
 
 };
+
+namespace App {
+MainWindow *wnd();
+} // namespace App

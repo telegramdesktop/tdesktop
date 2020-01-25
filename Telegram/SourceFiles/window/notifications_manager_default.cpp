@@ -12,16 +12,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/platform/ui_platform_utility.h"
+#include "ui/text_options.h"
+#include "ui/emoji_config.h"
+#include "ui/empty_userpic.h"
+#include "ui/ui_utility.h"
 #include "dialogs/dialogs_layout.h"
 #include "window/themes/window_theme.h"
-#include "styles/style_dialogs.h"
-#include "styles/style_boxes.h"
-#include "styles/style_window.h"
 #include "storage/file_download.h"
 #include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "platform/platform_specific.h"
+#include "base/call_delayed.h"
+#include "facades.h"
+#include "app.h"
+#include "styles/style_dialogs.h"
+#include "styles/style_layers.h"
+#include "styles/style_window.h"
+
+#include <QtCore/QCoreApplication>
 
 namespace Window {
 namespace Notifications {
@@ -55,7 +65,7 @@ std::unique_ptr<Manager> Create(System *system) {
 Manager::Manager(System *system)
 : Notifications::Manager(system)
 , _inputCheckTimer([=] { checkLastInput(); }) {
-	subscribe(system->session().downloader().taskFinished(), [this] {
+	subscribe(system->session().downloaderTaskFinished(), [this] {
 		for (const auto &notification : _notifications) {
 			notification->updatePeerPhoto();
 		}
@@ -66,13 +76,14 @@ Manager::Manager(System *system)
 }
 
 Manager::QueuedNotification::QueuedNotification(
-	not_null<HistoryItem*> item
-	, int forwardedCount)
+	not_null<HistoryItem*> item,
+	int forwardedCount)
 : history(item->history())
 , peer(history->peer)
-, author((!peer->isUser() && !item->isPost()) ? item->author().get() : nullptr)
+, author(item->notificationHeader())
 , item((forwardedCount < 2) ? item.get() : nullptr)
-, forwardedCount(forwardedCount) {
+, forwardedCount(forwardedCount)
+, fromScheduled((item->out() || peer->isSelf()) && item->isFromScheduled()) {
 }
 
 QPixmap Manager::hiddenUserpicPlaceholder() const {
@@ -206,7 +217,10 @@ void Manager::showNextFromQueue() {
 			queued.author,
 			queued.item,
 			queued.forwardedCount,
-			startPosition, startShift, shiftDirection);
+			queued.fromScheduled,
+			startPosition,
+			startShift,
+			shiftDirection);
 		_notifications.push_back(std::move(notification));
 		--count;
 	} while (count > 0 && !_queuedNotifications.empty());
@@ -289,7 +303,9 @@ void Manager::removeWidget(internal::Widget *remove) {
 	showNextFromQueue();
 }
 
-void Manager::doShowNotification(HistoryItem *item, int forwardedCount) {
+void Manager::doShowNotification(
+		not_null<HistoryItem*> item,
+		int forwardedCount) {
 	_queuedNotifications.emplace_back(item, forwardedCount);
 	showNextFromQueue();
 }
@@ -308,7 +324,7 @@ void Manager::doClearAllFast() {
 	base::take(_hideAll);
 }
 
-void Manager::doClearFromHistory(History *history) {
+void Manager::doClearFromHistory(not_null<History*> history) {
 	for (auto i = _queuedNotifications.begin(); i != _queuedNotifications.cend();) {
 		if (i->history == history) {
 			i = _queuedNotifications.erase(i);
@@ -324,8 +340,8 @@ void Manager::doClearFromHistory(History *history) {
 	showNextFromQueue();
 }
 
-void Manager::doClearFromItem(HistoryItem *item) {
-	_queuedNotifications.erase(std::remove_if(_queuedNotifications.begin(), _queuedNotifications.end(), [item](auto &queued) {
+void Manager::doClearFromItem(not_null<HistoryItem*> item) {
+	_queuedNotifications.erase(std::remove_if(_queuedNotifications.begin(), _queuedNotifications.end(), [&](auto &queued) {
 		return (queued.item == item);
 	}), _queuedNotifications.cend());
 
@@ -353,7 +369,12 @@ Manager::~Manager() {
 
 namespace internal {
 
-Widget::Widget(Manager *manager, QPoint startPosition, int shift, Direction shiftDirection) : TWidget(nullptr)
+Widget::Widget(
+	not_null<Manager*> manager,
+	QPoint startPosition,
+	int shift,
+	Direction shiftDirection)
+: TWidget(nullptr)
 , _manager(manager)
 , _startPosition(startPosition)
 , _direction(shiftDirection)
@@ -371,7 +392,7 @@ Widget::Widget(Manager *manager, QPoint startPosition, int shift, Direction shif
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	Platform::InitOnTopPanel(this);
+	Ui::Platform::InitOnTopPanel(this);
 
 	_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::notifyFastAnim);
 }
@@ -382,7 +403,7 @@ void Widget::destroyDelayed() {
 	_deleted = true;
 
 	// Ubuntu has a lag if a fully transparent widget is destroyed immediately.
-	App::CallDelayed(1000, this, [this] {
+	base::call_delayed(1000, this, [this] {
 		manager()->removeWidget(this);
 	});
 }
@@ -413,7 +434,7 @@ bool Widget::shiftAnimationCallback(crl::time now) {
 void Widget::hideSlow() {
 	if (anim::Disabled()) {
 		_hiding = true;
-		App::CallDelayed(
+		base::call_delayed(
 			st::notifySlowHide,
 			this,
 			[=, guard = _hidingDelayed.make_guard()] {
@@ -462,7 +483,7 @@ void Widget::addToHeight(int add) {
 	auto newHeight = height() + add;
 	auto newPosition = computePosition(newHeight);
 	updateGeometry(newPosition.x(), newPosition.y(), width(), newHeight);
-	psUpdateOverlayed(this);
+	Ui::Platform::UpdateOverlayed(this);
 }
 
 void Widget::updateGeometry(int x, int y, int width, int height) {
@@ -501,12 +522,13 @@ void Background::paintEvent(QPaintEvent *e) {
 }
 
 Notification::Notification(
-	Manager *manager,
-	History *history,
-	PeerData *peer,
-	PeerData *author,
-	HistoryItem *msg,
+	not_null<Manager*> manager,
+	not_null<History*> history,
+	not_null<PeerData*> peer,
+	const QString &author,
+	HistoryItem *item,
 	int forwardedCount,
+	bool fromScheduled,
 	QPoint startPosition,
 	int shift,
 	Direction shiftDirection)
@@ -515,8 +537,9 @@ Notification::Notification(
 , _history(history)
 , _peer(peer)
 , _author(author)
-, _item(msg)
+, _item(item)
 , _forwardedCount(forwardedCount)
+, _fromScheduled(fromScheduled)
 , _close(this, st::notifyClose)
 , _reply(this, tr::lng_notification_reply(), st::defaultBoxButton) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
@@ -582,8 +605,8 @@ void Notification::prepareActionsCache() {
 	actionsCacheImg.fill(Qt::transparent);
 	{
 		Painter p(&actionsCacheImg);
-		st::notifyFadeRight.fill(p, rtlrect(0, 0, fadeWidth, actionsCacheHeight, actionsCacheWidth));
-		p.fillRect(rtlrect(fadeWidth, 0, actionsCacheWidth - fadeWidth, actionsCacheHeight, actionsCacheWidth), st::notificationBg);
+		st::notifyFadeRight.fill(p, style::rtlrect(0, 0, fadeWidth, actionsCacheHeight, actionsCacheWidth));
+		p.fillRect(style::rtlrect(fadeWidth, 0, actionsCacheWidth - fadeWidth, actionsCacheHeight, actionsCacheWidth), st::notificationBg);
 		p.drawPixmapRight(replyRight, _reply->y() - actionsTop, actionsCacheWidth, replyCache);
 	}
 	_buttonsCache = App::pixmapFromImageInPlace(std::move(actionsCacheImg));
@@ -650,7 +673,7 @@ void Notification::actionsOpacityCallback() {
 void Notification::updateNotifyDisplay() {
 	if (!_history || !_peer || (!_item && _forwardedCount < 2)) return;
 
-	auto options = Manager::getNotificationOptions(_item);
+	const auto options = Manager::getNotificationOptions(_item);
 	_hideReplyButton = options.hideReplyButton;
 
 	int32 w = width(), h = height();
@@ -666,16 +689,30 @@ void Notification::updateNotifyDisplay() {
 		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder);
 
 		if (!options.hideNameAndPhoto) {
-			_history->peer->loadUserpic();
-			_history->peer->paintUserpicLeft(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
+			if (_fromScheduled && _history->peer->isSelf()) {
+				Ui::EmptyUserpic::PaintSavedMessages(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
+				_userpicLoaded = true;
+			} else {
+				_history->peer->loadUserpic();
+				_history->peer->paintUserpicLeft(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
+			}
 		} else {
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), manager()->hiddenUserpicPlaceholder());
+			_userpicLoaded = true;
 		}
 
 		int32 itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;
 
 		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
+		const auto reminder = _fromScheduled && _history->peer->isSelf();
 		if (!options.hideNameAndPhoto) {
+			if (_fromScheduled) {
+				static const auto emoji = Ui::Emoji::Find(QString::fromUtf8("\xF0\x9F\x93\x85"));
+				const auto size = Ui::Emoji::GetSizeNormal() / cIntRetinaFactor();
+				const auto top = rectForName.top() + (st::msgNameFont->height - size) / 2;
+				Ui::Emoji::Draw(p, emoji, Ui::Emoji::GetSizeNormal(), rectForName.left(), top);
+				rectForName.setLeft(rectForName.left() + size + st::msgNameFont->spacew);
+			}
 			if (const auto chatTypeIcon = Dialogs::Layout::ChatTypeIcon(_history->peer, false, false)) {
 				chatTypeIcon->paint(p, rectForName.topLeft(), w);
 				rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
@@ -683,44 +720,64 @@ void Notification::updateNotifyDisplay() {
 		}
 
 		if (!options.hideMessageText) {
-			const HistoryItem *textCachedFor = nullptr;
-			Ui::Text::String itemTextCache(itemWidth);
-			QRect r(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dialogsTextFont->height);
-			if (_item) {
-				auto active = false, selected = false;
-				_item->drawInDialog(
-					p,
-					r,
-					active,
-					selected,
-					HistoryItem::DrawInDialog::Normal,
-					textCachedFor,
-					itemTextCache);
-			} else if (_forwardedCount > 1) {
-				p.setFont(st::dialogsTextFont);
-				if (_author) {
-					itemTextCache.setText(st::dialogsTextStyle, _author->name);
-					p.setPen(st::dialogsTextFgService);
-					itemTextCache.drawElided(p, r.left(), r.top(), r.width());
-					r.setTop(r.top() + st::dialogsTextFont->height);
-				}
-				p.setPen(st::dialogsTextFg);
-				p.drawText(r.left(), r.top() + st::dialogsTextFont->ascent, tr::lng_forward_messages(tr::now, lt_count, _forwardedCount));
-			}
+			auto itemTextCache = Ui::Text::String(itemWidth);
+			auto r = QRect(
+				st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft,
+				st::notifyItemTop + st::msgNameFont->height,
+				itemWidth,
+				2 * st::dialogsTextFont->height);
+			p.setTextPalette(st::dialogsTextPalette);
+			p.setPen(st::dialogsTextFg);
+			p.setFont(st::dialogsTextFont);
+			const auto text = _item
+				? _item->inDialogsText(reminder
+					? HistoryItem::DrawInDialog::WithoutSender
+					: HistoryItem::DrawInDialog::Normal)
+				: ((!_author.isEmpty()
+					? textcmdLink(1, _author)
+					: QString())
+					+ (_forwardedCount > 1
+						? ('\n' + tr::lng_forward_messages(
+							tr::now,
+							lt_count,
+							_forwardedCount))
+						: QString()));
+			const auto Options = TextParseOptions{
+				TextParseRichText
+				| (_forwardedCount > 1 ? TextParseMultiline : 0),
+				0,
+				0,
+				Qt::LayoutDirectionAuto,
+			};
+			itemTextCache.setText(st::dialogsTextStyle, text, Options);
+			itemTextCache.drawElided(
+				p,
+				r.left(),
+				r.top(),
+				r.width(),
+				r.height() / st::dialogsTextFont->height);
+			p.restoreTextPalette();
 		} else {
-			static QString notifyText = st::dialogsTextFont->elided(tr::lng_notification_preview(tr::now), itemWidth);
 			p.setFont(st::dialogsTextFont);
 			p.setPen(st::dialogsTextFgService);
-			p.drawText(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height + st::dialogsTextFont->ascent, notifyText);
+			p.drawText(
+				st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft,
+				st::notifyItemTop + st::msgNameFont->height + st::dialogsTextFont->ascent,
+				st::dialogsTextFont->elided(
+					tr::lng_notification_preview(tr::now),
+					itemWidth));
 		}
 
 		p.setPen(st::dialogsNameFg);
-		if (!options.hideNameAndPhoto) {
-			_history->peer->nameText().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
-		} else {
+		if (options.hideNameAndPhoto) {
 			p.setFont(st::msgNameFont);
 			static QString notifyTitle = st::msgNameFont->elided(qsl("Telegreat"), rectForName.width());
 			p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
+		} else if (reminder) {
+			p.setFont(st::msgNameFont);
+			p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, tr::lng_notification_reminder(tr::now));
+		} else {
+			_history->peer->nameText().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 		}
 	}
 
@@ -776,6 +833,9 @@ void Notification::toggleActionButtons(bool visible) {
 }
 
 void Notification::showReplyField() {
+	if (!_item) {
+		return;
+	}
 	activateWindow();
 
 	if (_replyArea) {
@@ -839,7 +899,7 @@ void Notification::changeHeight(int newHeight) {
 }
 
 bool Notification::unlinkHistory(History *history) {
-	auto unlink = _history && (history == _history || !history);
+	const auto unlink = _history && (history == _history || !history);
 	if (unlink) {
 		hideFast();
 		_history = nullptr;
@@ -897,7 +957,12 @@ void Notification::stopHiding() {
 	Widget::hideStop();
 }
 
-HideAllButton::HideAllButton(Manager *manager, QPoint startPosition, int shift, Direction shiftDirection) : Widget(manager, startPosition, shift, shiftDirection) {
+HideAllButton::HideAllButton(
+	not_null<Manager*> manager,
+	QPoint startPosition,
+	int shift,
+	Direction shiftDirection)
+: Widget(manager, startPosition, shift, shiftDirection) {
 	setCursor(style::cur_pointer);
 
 	auto position = computePosition(st::notifyHideAllHeight);

@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
-#include "styles/style_info.h"
 #include "ui/widgets/labels.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
@@ -30,6 +29,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "styles/style_boxes.h"
+#include "styles/style_info.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
 
 namespace Info {
 namespace Profile {
@@ -76,7 +80,7 @@ void SectionToggle::paint(
 		int top,
 		int outerWidth) {
 	auto sqrt2 = sqrt(2.);
-	auto vLeft = rtlpoint(left + _st.skip, 0, outerWidth).x() + 0.;
+	auto vLeft = style::rtlpoint(left + _st.skip, 0, outerWidth).x() + 0.;
 	auto vTop = top + _st.skip + 0.;
 	auto vWidth = _st.size - 2 * _st.skip;
 	auto vHeight = _st.size - 2 * _st.skip;
@@ -441,7 +445,7 @@ void Cover::refreshStatusText() {
 	
 	_id->setLink(1, std::make_shared<LambdaClickHandler>([=] {
 		QString id = QString::number(_peer->bareId());
-		QApplication::clipboard()->setText(id);
+		QGuiApplication::clipboard()->setText(id);
 		Ui::Toast::Show("ID copied to clipboard.");
 	}));
 

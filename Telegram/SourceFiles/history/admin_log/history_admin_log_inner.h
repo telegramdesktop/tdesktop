@@ -44,7 +44,6 @@ class InnerWidget final
 	: public Ui::RpWidget
 	, public Ui::AbstractTooltipShower
 	, public HistoryView::ElementDelegate
-	, private MTP::Sender
 	, private base::Subscriber {
 public:
 	InnerWidget(
@@ -52,13 +51,13 @@ public:
 		not_null<Window::SessionController*> controller,
 		not_null<ChannelData*> channel);
 
-	Main::Session &session() const;
+	[[nodiscard]] Main::Session &session() const;
 
-	base::Observable<void> showSearchSignal;
-	base::Observable<int> scrollToSignal;
-	base::Observable<void> cancelledSignal;
+	[[nodiscard]] rpl::producer<> showSearchSignal() const;
+	[[nodiscard]] rpl::producer<int> scrollToSignal() const;
+	[[nodiscard]] rpl::producer<> cancelSignal() const;
 
-	not_null<ChannelData*> channel() const {
+	[[nodiscard]] not_null<ChannelData*> channel() const {
 		return _channel;
 	}
 
@@ -81,6 +80,7 @@ public:
 	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
+	bool tooltipWindowActive() const override;
 
 	// HistoryView::ElementDelegate interface.
 	HistoryView::Context elementContext() override;
@@ -101,6 +101,9 @@ public:
 		int till) override;
 	void elementStartStickerLoop(
 		not_null<const HistoryView::Element*> view) override;
+	void elementShowPollResults(
+		not_null<PollData*> poll,
+		FullMsgId context) override;
 
 	~InnerWidget();
 
@@ -215,9 +218,11 @@ private:
 	template <typename Method>
 	void enumerateDates(Method method);
 
-	not_null<Window::SessionController*> _controller;
-	not_null<ChannelData*> _channel;
-	not_null<History*> _history;
+	const not_null<Window::SessionController*> _controller;
+	const not_null<ChannelData*> _channel;
+	const not_null<History*> _history;
+	MTP::Sender _api;
+
 	std::vector<OwnedItem> _items;
 	std::set<uint64> _eventIds;
 	std::map<not_null<const HistoryItem*>, not_null<Element*>> _itemsByData;
@@ -276,7 +281,9 @@ private:
 	std::vector<not_null<UserData*>> _adminsCanEdit;
 	Fn<void(FilterValue &&filter)> _showFilterCallback;
 
-	std::shared_ptr<LocalIdManager> _idManager;
+	rpl::event_stream<> _showSearchSignal;
+	rpl::event_stream<int> _scrollToSignal;
+	rpl::event_stream<> _cancelSignal;
 
 };
 

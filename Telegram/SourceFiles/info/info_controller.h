@@ -33,16 +33,24 @@ public:
 	Key(not_null<PeerData*> peer);
 	//Key(not_null<Data::Feed*> feed); // #feed
 	Key(Settings::Tag settings);
+	Key(not_null<PollData*> poll, FullMsgId contextId);
 
 	PeerData *peer() const;
 	//Data::Feed *feed() const; // #feed
 	UserData *settingsSelf() const;
+	PollData *poll() const;
+	FullMsgId pollContextId() const;
 
 private:
+	struct PollKey {
+		not_null<PollData*> poll;
+		FullMsgId contextId;
+	};
 	base::variant<
 		not_null<PeerData*>,
 		//not_null<Data::Feed*>, // #feed
-		Settings::Tag> _value;
+		Settings::Tag,
+		PollKey> _value;
 
 };
 
@@ -60,6 +68,7 @@ public:
 		Members,
 		//Channels, // #feed
 		Settings,
+		PollResults,
 	};
 	using SettingsType = ::Settings::Type;
 	using MediaType = Storage::SharedMediaType;
@@ -112,6 +121,10 @@ public:
 	//}
 	UserData *settingsSelf() const {
 		return key().settingsSelf();
+	}
+	PollData *poll() const;
+	FullMsgId pollContextId() const {
+		return key().pollContextId();
 	}
 
 	virtual void setSearchEnabledByContent(bool enabled) {

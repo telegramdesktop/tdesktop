@@ -59,7 +59,7 @@ object_ptr<Window::SectionWidget> Memento::createWidget(
 	}
 	auto result = object_ptr<Widget>(parent, controller, _feed);
 	result->setInternalState(geometry, this);
-	return std::move(result);
+	return result;
 }
 
 Widget::Widget(
@@ -82,6 +82,7 @@ Widget::Widget(
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
 	_topBar->show();
+
 	_topBar->forwardSelectionRequest(
 	) | rpl::start_with_next([=] {
 		forwardSelected();
@@ -455,7 +456,7 @@ ClickHandlerPtr Widget::listDateLink(not_null<Element*> view) {
 std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
 	auto result = std::make_unique<Memento>(_feed);
 	saveState(result.get());
-	return std::move(result);
+	return result;
 }
 
 void Widget::saveState(not_null<Memento*> memento) {

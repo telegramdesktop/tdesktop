@@ -7,6 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/round_checkbox.h"
 
+#include "window/themes/window_theme.h"
+#include "ui/rp_widget.h"
+#include "ui/ui_utility.h"
+#include "app.h"
+
+#include <QtCore/QCoreApplication>
+
 namespace Ui {
 namespace {
 
@@ -237,11 +244,18 @@ QPixmap CheckCaches::paintFrame(
 CheckCaches *FrameCaches() {
 	static QPointer<CheckCaches> Instance;
 
-	if (auto instance = Instance.data()) {
+	if (const auto instance = Instance.data()) {
 		return instance;
 	}
-	auto result = new CheckCaches(QGuiApplication::instance());
+	const auto result = new CheckCaches(QCoreApplication::instance());
 	Instance = result;
+	const auto subscription = Ui::CreateChild<base::Subscription>(result);
+	*subscription = Window::Theme::Background()->add_subscription([=](
+			const Window::Theme::BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			FrameCaches()->clear();
+		}
+	});
 	return result;
 }
 
@@ -330,7 +344,6 @@ void RoundCheckbox::setChecked(bool newChecked, SetStyle speed) {
 }
 
 void RoundCheckbox::invalidateCache() {
-	FrameCaches()->clear();
 	if (!_inactiveCacheBg.isNull() || !_inactiveCacheFg.isNull()) {
 		prepareInactiveCache();
 	}
@@ -415,7 +428,7 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
 		auto pen = _st.selectFg->p;
 		pen.setWidth(_st.selectWidth);
 		p.setPen(pen);
-		p.drawEllipse(rtlrect(x, y, _st.imageRadius * 2, _st.imageRadius * 2, outerWidth));
+		p.drawEllipse(style::rtlrect(x, y, _st.imageRadius * 2, _st.imageRadius * 2, outerWidth));
 		p.setOpacity(1.);
 	}
 

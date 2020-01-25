@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-class GenericBox;
+#include "data/data_poll.h"
+
+class History;
 
 namespace Ui {
 class RpWidget;
+class GenericBox;
 } // namespace Ui
 
 namespace Data {
@@ -57,9 +60,12 @@ void PeerMenuAddChannelMembers(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel);
 //void PeerMenuUngroupFeed(not_null<Data::Feed*> feed); // #feed
-void PeerMenuCreatePoll(not_null<PeerData*> peer);
+void PeerMenuCreatePoll(
+	not_null<PeerData*> peer,
+	PollData::Flags chosen = PollData::Flags(),
+	PollData::Flags disabled = PollData::Flags());
 void PeerMenuBlockUserBox(
-	not_null<GenericBox*> box,
+	not_null<Ui::GenericBox*> box,
 	not_null<Window::Controller*> window,
 	not_null<UserData*> user,
 	bool suggestClearChat);
@@ -72,6 +78,12 @@ Fn<void()> GoToFirstMessageHandler(not_null<PeerData*> peer);
 
 QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
+	MessageIdsList &&items,
+	FnMut<void()> &&successCallback = nullptr);
+
+QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<History*> history,
 	MessageIdsList &&items,
 	FnMut<void()> &&successCallback = nullptr);
 

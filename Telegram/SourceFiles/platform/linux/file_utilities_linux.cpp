@@ -7,12 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/file_utilities_linux.h"
 
-#include <private/qguiapplication_p.h>
 #include "platform/linux/linux_libs.h"
 #include "platform/linux/linux_gdk_helper.h"
 #include "core/application.h"
 #include "mainwindow.h"
+#include "boxes/abstract_box.h"
 #include "storage/localstorage.h"
+#include "base/platform/base_platform_file_utilities.h"
+#include "base/call_delayed.h"
+#include "facades.h"
+
+#include <QtCore/QProcess>
+
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+#include <private/qguiapplication_p.h>
+#endif // TDESKTOP_DISABLE_GTK_INTEGRATION
 
 QStringList qt_make_filter_list(const QString &filter);
 
@@ -51,32 +60,7 @@ QByteArray EscapeShell(const QByteArray &content) {
 void UnsafeShowInFolder(const QString &filepath) {
 	// Hide mediaview to make other apps visible.
 	Ui::hideLayer(anim::type::instant);
-
-	auto absolutePath = QFileInfo(filepath).absoluteFilePath();
-	QProcess process;
-	process.start("xdg-mime", QStringList() << "query" << "default" << "inode/directory");
-	process.waitForFinished();
-	auto output = QString::fromLatin1(process.readLine().simplified());
-	auto command = qsl("xdg-open");
-	auto arguments = QStringList();
-	if (output == qstr("dolphin.desktop") || output == qstr("org.kde.dolphin.desktop")) {
-		command = qsl("dolphin");
-		arguments << "--select" << absolutePath;
-	} else if (output == qstr("nautilus.desktop") || output == qstr("org.gnome.Nautilus.desktop") || output == qstr("nautilus-folder-handler.desktop")) {
-		command = qsl("nautilus");
-		arguments << absolutePath;
-	} else if (output == qstr("nemo.desktop")) {
-		command = qsl("nemo");
-		arguments << "--no-desktop" << absolutePath;
-	} else if (output == qstr("konqueror.desktop") || output == qstr("kfmclient_dir.desktop")) {
-		command = qsl("konqueror");
-		arguments << "--select" << absolutePath;
-	} else {
-		arguments << QFileInfo(filepath).absoluteDir().absolutePath();
-	}
-	if (!process.startDetached(command, arguments)) {
-		LOG(("Failed to launch '%1 %2'").arg(command).arg(arguments.join(' ')));
-	}
+	base::Platform::ShowInFolder(filepath);
 }
 
 } // namespace File
@@ -415,7 +399,7 @@ int GtkFileDialog::exec() {
 	show();
 
 	if (const auto parent = parentWidget()) {
-		App::CallDelayed(200, parent, [=] {
+		base::call_delayed(200, parent, [=] {
 			parent->activateWindow();
 		});
 	}
