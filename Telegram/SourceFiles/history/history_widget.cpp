@@ -647,16 +647,17 @@ HistoryWidget::HistoryWidget(
 	) | rpl::filter([=](const Api::SendAction &action) {
 		return (action.history == _history);
 	}) | rpl::start_with_next([=](const Api::SendAction &action) {
+		const auto lastKeyboardUsed = lastForceReplyReplied(FullMsgId(
+			action.history->channelId(),
+			action.replyTo));
 		if (action.options.scheduled) {
+			cancelReply(lastKeyboardUsed);
 			crl::on_main(this, [=, history = action.history]{
 				controller->showSection(
 					HistoryView::ScheduledMemento(history));
 			});
 		} else {
 			fastShowAtEnd(action.history);
-			const auto lastKeyboardUsed = lastForceReplyReplied(FullMsgId(
-				action.history->channelId(),
-				action.replyTo));
 			if (cancelReply(lastKeyboardUsed) && !action.clearDraft) {
 				onCloudDraftSave();
 			}
