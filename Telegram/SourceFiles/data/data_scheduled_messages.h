@@ -31,6 +31,7 @@ public:
 	[[nodiscard]] MsgId lookupId(not_null<HistoryItem*> item) const;
 	[[nodiscard]] int count(not_null<History*> history) const;
 
+	void checkEntitiesAndUpdate(const MTPDmessage &data);
 	void apply(const MTPDupdateNewScheduledMessage &update);
 	void apply(const MTPDupdateDeleteScheduledMessages &update);
 	void apply(

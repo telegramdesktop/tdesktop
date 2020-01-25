@@ -132,6 +132,45 @@ void ScheduledMessages::apply(const MTPDupdateNewScheduledMessage &update) {
 	_updates.fire_copy(history);
 }
 
+void ScheduledMessages::checkEntitiesAndUpdate(const MTPDmessage &data) {
+	// When the user sends a message with a media scheduled until online
+	// while the recipient is already online, the server sends
+	// updateNewMessage to the client and the client calls this method.
+
+	const auto peer = peerFromMTP(data.vto_id());
+	if (!peerIsUser(peer)) {
+		return;
+	}
+
+	const auto history = _session->data().historyLoaded(peer);
+	if (!history) {
+		return;
+	}
+
+	const auto i = _data.find(history);
+	if (i == end(_data)) {
+		return;
+	}
+
+	const auto &itemMap = i->second.itemById;
+	const auto j = itemMap.find(data.vid().v);
+	if (j == end(itemMap)) {
+		return;
+	}
+
+	const auto existing = j->second;
+	Assert(existing->date() == kScheduledUntilOnlineTimestamp);
+	existing->updateSentContent({
+		qs(data.vmessage()),
+		Api::EntitiesFromMTP(data.ventities().value_or_empty())
+	}, data.vmedia());
+	existing->updateReplyMarkup(data.vreply_markup());
+	existing->updateForwardedInfo(data.vfwd_from());
+	_session->data().requestItemTextRefresh(existing);
+
+	existing->destroy();
+}
+
 void ScheduledMessages::apply(
 		const MTPDupdateDeleteScheduledMessages &update) {
 	const auto peer = peerFromMTP(update.vpeer());
