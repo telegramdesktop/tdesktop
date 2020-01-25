@@ -234,7 +234,11 @@ void NotificationData::setImage(const QString &imagePath) {
 
 	const QByteArray imageBytes(
 		(const char*)image.constBits(),
+#if QT_VERSION < QT_VERSION_CHECK(5, 10, 0)
+		image.byteCount());
+#else
 		image.sizeInBytes());
+#endif
 
 	ImageData imageData;
 	imageData.width = image.width();

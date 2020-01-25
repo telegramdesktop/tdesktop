@@ -200,6 +200,8 @@ QString CurrentExecutablePath(int argc, char *argv[]) {
 }
 
 QString SingleInstanceLocalServerName(const QString &hash) {
+	const auto isSnap = !qgetenv("SNAP").isEmpty();
+
 	const auto runtimeDir = QStandardPaths::writableLocation(
 		QStandardPaths::RuntimeLocation);
 
@@ -208,6 +210,8 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 			+ qsl("/app/")
 			+ QString::fromUtf8(qgetenv("FLATPAK_ID"))
 			+ '/' + hash;
+	} else if (QFileInfo::exists(runtimeDir) && isSnap) {
+		return runtimeDir + '/' + hash;
 	} else if (QFileInfo::exists(runtimeDir)) {
 		return runtimeDir + '/' + hash + '-' + cGUIDStr();
 	} else { // non-systemd distros
