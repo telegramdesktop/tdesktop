@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
+#include "history/history_message.h"
 #include "apiwrap.h"
 
 namespace Data {
@@ -114,6 +115,56 @@ MsgId ScheduledMessages::lookupId(not_null<HistoryItem*> item) const {
 int ScheduledMessages::count(not_null<History*> history) const {
 	const auto i = _data.find(history);
 	return (i != end(_data)) ? i->second.items.size() : 0;
+}
+
+void ScheduledMessages::sendNowSimpleMessage(
+	const MTPDupdateShortSentMessage &update,
+	not_null<HistoryItem*> local) {
+	Expects(local->isSending());
+	Expects(local->isScheduled());
+	Expects(local->date() == kScheduledUntilOnlineTimestamp);
+
+	// When the user sends a text message scheduled until online
+	// while the recipient is already online, the server sends
+	// updateShortSentMessage to the client and the client calls this method.
+	// Since such messages can only be sent to recipients,
+	// we know for sure that a message can't have fields such as the author,
+	// views count, etc.
+
+	const auto &history = local->history();
+	auto flags = NewMessageFlags(history->peer)
+		| MTPDmessage::Flag::f_entities
+		| MTPDmessage::Flag::f_from_id
+		| (local->replyToId()
+			? MTPDmessage::Flag::f_reply_to_msg_id
+			: MTPDmessage::Flag(0));
+	auto clientFlags = NewMessageClientFlags()
+		| MTPDmessage_ClientFlag::f_local_history_entry;
+
+	history->addNewMessage(
+		MTP_message(
+			MTP_flags(flags),
+			update.vid(),
+			MTP_int(_session->userId()),
+			peerToMTP(history->peer->id),
+			MTPMessageFwdHeader(),
+			MTPint(),
+			MTP_int(local->replyToId()),
+			update.vdate(),
+			MTP_string(local->originalText().text),
+			MTP_messageMediaEmpty(),
+			MTPReplyMarkup(),
+			Api::EntitiesToMTP(local->originalText().entities),
+			MTP_int(1),
+			MTPint(),
+			MTP_string(),
+			MTPlong(),
+			//MTPMessageReactions(),
+			MTPVector<MTPRestrictionReason>()),
+		clientFlags,
+		NewMessageType::Unread);
+
+	local->destroy();
 }
 
 void ScheduledMessages::apply(const MTPDupdateNewScheduledMessage &update) {

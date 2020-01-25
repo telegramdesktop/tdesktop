@@ -41,6 +41,10 @@ public:
 	void appendSending(not_null<HistoryItem*> item);
 	void removeSending(not_null<HistoryItem*> item);
 
+	void sendNowSimpleMessage(
+		const MTPDupdateShortSentMessage &update,
+		not_null<HistoryItem*> local);
+
 	[[nodiscard]] rpl::producer<> updates(not_null<History*> history);
 	[[nodiscard]] Data::MessagesSlice list(not_null<History*> history);
 

@@ -3799,14 +3799,19 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 		if (!IsServerMsgId(d.vid().v)) {
 			LOG(("API Error: Bad msgId got from server: %1").arg(d.vid().v));
 		} else if (randomId) {
-			const auto sent = session().data().messageSentData(randomId);
+			auto &owner = session().data();
+			const auto sent = owner.messageSentData(randomId);
 			const auto lookupMessage = [&] {
 				return sent.peerId
-					? session().data().message(
-						peerToChannel(sent.peerId),
-						d.vid().v)
+					? owner.message(peerToChannel(sent.peerId), d.vid().v)
 					: nullptr;
 			};
+			if (const auto id = owner.messageIdByRandomId(randomId)) {
+				if (const auto local = owner.message(id);
+					local->isScheduled()) {
+					owner.scheduledMessages().sendNowSimpleMessage(d, local);
+				}
+			}
 			const auto wasAlready = (lookupMessage() != nullptr);
 			feedUpdate(MTP_updateMessageID(d.vid(), MTP_long(randomId))); // ignore real date
 			if (const auto item = lookupMessage()) {
