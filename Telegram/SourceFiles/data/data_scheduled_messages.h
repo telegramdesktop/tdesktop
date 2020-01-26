@@ -29,6 +29,7 @@ public:
 	~ScheduledMessages();
 
 	[[nodiscard]] MsgId lookupId(not_null<HistoryItem*> item) const;
+	[[nodiscard]] HistoryItem *lookupItem(PeerId peer, MsgId msg) const;
 	[[nodiscard]] int count(not_null<History*> history) const;
 
 	void checkEntitiesAndUpdate(const MTPDmessage &data);

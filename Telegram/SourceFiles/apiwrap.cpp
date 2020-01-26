@@ -579,6 +579,13 @@ void ApiWrap::sendMessageFail(
 				requestFullPeer(peer);
 			}
 		}
+	} else if (error.type() == qstr("SCHEDULE_STATUS_PRIVATE")) {
+		auto &scheduled = _session->data().scheduledMessages();
+		Assert(peer->isUser());
+		if (const auto item = scheduled.lookupItem(peer->id, itemId.msg)) {
+			scheduled.removeSending(item);
+			Ui::show(Box<InformBox>(tr::lng_cant_do_this(tr::now)));
+		}
 	}
 	if (const auto item = _session->data().message(itemId)) {
 		Assert(randomId != 0);

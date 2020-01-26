@@ -112,6 +112,27 @@ MsgId ScheduledMessages::lookupId(not_null<HistoryItem*> item) const {
 	return j->second;
 }
 
+HistoryItem *ScheduledMessages::lookupItem(PeerId peer, MsgId msg) const {
+	const auto history = _session->data().historyLoaded(peer);
+	if (!history) {
+		return nullptr;
+	}
+
+	const auto i = _data.find(history);
+	if (i == end(_data)) {
+		return nullptr;
+	}
+
+	const auto &items = i->second.items;
+	const auto j = ranges::find_if(items, [&](auto &item) {
+		return item->id == msg;
+	});
+	if (j == end(items)) {
+		return nullptr;
+	}
+	return (*j).get();
+}
+
 int ScheduledMessages::count(not_null<History*> history) const {
 	const auto i = _data.find(history);
 	return (i != end(_data)) ? i->second.items.size() : 0;
