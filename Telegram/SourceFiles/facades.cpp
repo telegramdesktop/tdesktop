@@ -159,14 +159,21 @@ void activateBotCommand(
 }
 
 void searchByHashtag(const QString &tag, PeerData *inPeer) {
-	if (const auto m = App::main()) {
+	if (const auto window = App::wnd()) {
+		if (const auto controller = window->sessionController()) {
+			if (controller->openedFolder().current()) {
+				controller->closeFolder();
+			}
+		}
 		Ui::hideSettingsAndLayer();
 		Core::App().hideMediaView();
-		m->searchMessages(
-			tag + ' ',
-			(inPeer && !inPeer->isUser())
-				? inPeer->owner().history(inPeer).get()
-				: Dialogs::Key());
+		if (const auto m = window->mainWidget()) {
+			m->searchMessages(
+				tag + ' ',
+				(inPeer && !inPeer->isUser())
+					? inPeer->owner().history(inPeer).get()
+					: Dialogs::Key());
+		}
 	}
 }
 
