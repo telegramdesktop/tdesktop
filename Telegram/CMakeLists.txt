@@ -85,6 +85,10 @@ if (LINUX AND NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
     )
 endif()
 
+if (add_hunspell_library)
+    target_link_libraries(Telegram PRIVATE desktop-app::external_hunspell)
+endif()
+
 target_link_libraries(Telegram
 PRIVATE
     tdesktop::lib_mtproto
