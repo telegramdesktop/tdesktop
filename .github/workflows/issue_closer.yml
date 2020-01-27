@@ -26,7 +26,7 @@ jobs:
             let body = context.payload.issue.body;
 
             console.log("Body of issue:\n" + body);
-            let index1 = body.indexOf(item1) + item1.length;
+            let index1 = body.indexOf(item1);
             let index2 = body.indexOf(item2);
             index2 = (index2 == -1) ? Number.MAX_SAFE_INTEGER : index2;
 
@@ -46,7 +46,7 @@ jobs:
               return version[0].split(".")[0];
             }
 
-            let issueVer = parseVersion(body.substring(index1, index2));
+            let issueVer = parseVersion(body.substring(index1 + item1.length, index2));
 
             if (issueVer == undefined) {
               console.log(errorStr);
