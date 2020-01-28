@@ -86,9 +86,7 @@ void PeerClickHandler::onClick(ClickContext context) const {
 	if (context.button == Qt::LeftButton && App::wnd()) {
 		const auto controller = App::wnd()->sessionController();
 		const auto currentPeer = controller->activeChatCurrent().peer();
-		if (_peer
-			&& _peer->isChannel()
-			&& currentPeer != _peer) {
+		if (_peer && _peer->isChannel() && currentPeer != _peer) {
 			const auto clickedChannel = _peer->asChannel();
 			if (!clickedChannel->isPublic() && !clickedChannel->amIn()
 				&& (!currentPeer->isChannel()
