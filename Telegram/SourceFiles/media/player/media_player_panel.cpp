@@ -234,7 +234,9 @@ void Panel::refreshList() {
 			: nullptr;
 		const auto media = item ? item->media() : nullptr;
 		const auto document = media ? media->document() : nullptr;
-		if (!document || !document->isSharedMediaMusic()) {
+		if (!document
+			|| !document->isSharedMediaMusic()
+			|| !IsServerMsgId(item->id)) {
 			return nullptr;
 		}
 		const auto result = item->history()->peer;
