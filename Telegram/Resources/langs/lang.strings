@@ -1268,6 +1268,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cant_invite_make_admin" = "Make admin";
 
 "lng_send_button" = "Send";
+"lng_schedule_button" = "Schedule";
 "lng_send_silent_message" = "Send without sound";
 "lng_schedule_message" = "Schedule message";
 "lng_reminder_message" = "Set a reminder";

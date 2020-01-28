@@ -688,7 +688,7 @@ void ScheduleBox(
 	}, timeInput->lifetime());
 
 	box->setFocusCallback([=] { timeInput->setFocusFast(); });
-	const auto submit = box->addButton(tr::lng_settings_save(), [=] {
+	const auto submit = box->addButton(tr::lng_schedule_button(), [=] {
 		save(false);
 	});
 	SetupSendMenuAndShortcuts(
