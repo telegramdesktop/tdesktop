@@ -583,25 +583,24 @@ void MainWindow::psFirstShow() {
 	}
 #endif
 
-	bool showShadows = true;
-
 	show();
-	//_private.enableShadow(winId());
 	if (cWindowPos().maximized) {
 		DEBUG_LOG(("Window Pos: First show, setting maximized."));
 		setWindowState(Qt::WindowMaximized);
 	}
 
 	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized()) || cStartInTray()) {
-		setWindowState(Qt::WindowMinimized);
-		if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
-			hide();
-		} else {
-			show();
-		}
-		showShadows = false;
-	} else {
-		show();
+		// If I call hide() synchronously here after show() then on Ubuntu 14.04
+		// it will show a window frame with transparent window body, without content.
+		// And to be able to "Show from tray" one more hide() will be required.
+		crl::on_main(this, [=] {
+			setWindowState(Qt::WindowMinimized);
+			if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
+				hide();
+			} else {
+				show();
+			}
+		});
 	}
 
 	setPositionInited();
