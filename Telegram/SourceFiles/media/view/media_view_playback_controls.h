@@ -36,6 +36,8 @@ public:
 		virtual void playbackControlsSeekFinished(crl::time position) = 0;
 		virtual void playbackControlsVolumeChanged(float64 volume) = 0;
 		[[nodiscard]] virtual float64 playbackControlsCurrentVolume() = 0;
+		virtual void playbackControlsSpeedChanged(float64 speed) = 0;
+		[[nodiscard]] virtual float64 playbackControlsCurrentSpeed() = 0;
 		virtual void playbackControlsToFullScreen() = 0;
 		virtual void playbackControlsFromFullScreen() = 0;
 		virtual void playbackControlsToPictureInPicture() = 0;
@@ -90,6 +92,7 @@ private:
 	std::unique_ptr<PlaybackProgress> _playbackProgress;
 	std::unique_ptr<PlaybackProgress> _receivedTillProgress;
 	object_ptr<Ui::MediaSlider> _volumeController;
+	object_ptr<Ui::MediaSlider> _speedController;
 	object_ptr<Ui::IconButton> _fullScreenToggle;
 	object_ptr<Ui::IconButton> _pictureInPicture;
 	object_ptr<Ui::LabelSimple> _playedAlready;

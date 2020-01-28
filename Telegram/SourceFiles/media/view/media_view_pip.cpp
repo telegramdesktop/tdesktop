@@ -11,6 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_document.h"
 #include "media/streaming/media_streaming_utility.h"
 #include "media/audio/media_audio.h"
+#include "main/main_session.h"
+#include "main/main_settings.h"
+#include "data/data_document.h"
 #include "core/application.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/widgets/buttons.h"
@@ -721,6 +724,9 @@ void Pip::restartAtSeekPosition(crl::time position) {
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
 	options.audioId = _instance.player().prepareLegacyState().id;
+	options.speed = options.audioId.audio()
+		? options.audioId.audio()->session().settings().videoPlaybackSpeed()
+		: 1.;
 	_instance.play(options);
 	updatePlaybackState();
 }

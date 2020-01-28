@@ -241,6 +241,13 @@ public:
 		return _variables.spellcheckerEnabled.changes();
 	}
 
+	[[nodiscard]] float64 videoPlaybackSpeed() const {
+		return _variables.videoPlaybackSpeed.current();
+	}
+	void setVideoPlaybackSpeed(float64 speed) {
+		_variables.videoPlaybackSpeed = speed;
+	}
+
 private:
 	struct Variables {
 		Variables();
@@ -281,6 +288,7 @@ private:
 		bool suggestStickersByEmoji = true;
 		rpl::variable<bool> spellcheckerEnabled = true;
 		std::vector<std::pair<DocumentId, crl::time>> mediaLastPlaybackPosition;
+		rpl::variable<float64> videoPlaybackSpeed = 1.;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;

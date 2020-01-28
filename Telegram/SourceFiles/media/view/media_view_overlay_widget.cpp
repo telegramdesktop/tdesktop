@@ -2361,8 +2361,11 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	if (!_streamed->withSound) {
 		options.mode = Streaming::Mode::Video;
 		options.loop = true;
-	} else if (_pip) {
-		_pip = nullptr;
+	} else {
+		options.speed = _doc->session().settings().videoPlaybackSpeed();
+		if (_pip) {
+			_pip = nullptr;
+		}
 	}
 	_streamed->instance.play(options);
 	if (_streamingStartPaused) {
@@ -2397,11 +2400,27 @@ void OverlayWidget::playbackControlsVolumeChanged(float64 volume) {
 	Global::SetVideoVolume(volume);
 	updateMixerVideoVolume();
 	Global::RefVideoVolumeChanged().notify();
-	Auth().saveSettingsDelayed();
+	if (_doc) {
+		_doc->session().saveSettingsDelayed();
+	}
 }
 
 float64 OverlayWidget::playbackControlsCurrentVolume() {
 	return Global::VideoVolume();
+}
+
+void OverlayWidget::playbackControlsSpeedChanged(float64 speed) {
+	if (_doc) {
+		_doc->session().settings().setVideoPlaybackSpeed(speed);
+		_doc->session().saveSettingsDelayed();
+	}
+	if (_streamed && !videoIsGifv()) {
+		_streamed->instance.setSpeed(speed);
+	}
+}
+
+float64 OverlayWidget::playbackControlsCurrentSpeed() {
+	return _doc ? _doc->session().settings().videoPlaybackSpeed() : 1.;
 }
 
 void OverlayWidget::switchToPip() {

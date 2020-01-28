@@ -30,6 +30,7 @@ PlaybackControls::PlaybackControls(
 , _playbackSlider(this, st::mediaviewPlayback)
 , _playbackProgress(std::make_unique<PlaybackProgress>())
 , _volumeController(this, st::mediaviewPlayback)
+, _speedController(this, st::mediaviewPlayback)
 , _fullScreenToggle(this, st::mediaviewFullScreenButton)
 , _pictureInPicture(this, st::mediaviewFullScreenButton)
 , _playedAlready(this, st::mediaviewPlayProgressLabel)
@@ -54,6 +55,12 @@ PlaybackControls::PlaybackControls(
 	_volumeController->setChangeProgressCallback([=](float64 value) {
 		_delegate->playbackControlsVolumeChanged(value);
 	});
+	_speedController->setPseudoDiscrete(
+		7,
+		[=](int index) { return (index + 2) / 4.; },
+		_delegate->playbackControlsCurrentSpeed(),
+		[=](float64 speed) { _delegate->playbackControlsSpeedChanged(speed); });
+	_speedController->setAlwaysDisplayMarker(false);
 
 	_playPauseResume->addClickHandler([=] {
 		if (_showPause) {
@@ -121,6 +128,7 @@ void PlaybackControls::startFading(Callback start) {
 		showChildren();
 		_playbackSlider->disablePaint(true);
 		_volumeController->disablePaint(true);
+		_speedController->disablePaint(true);
 		_childrenHidden = false;
 	}
 	start();
@@ -128,7 +136,8 @@ void PlaybackControls::startFading(Callback start) {
 		for (const auto child : children()) {
 			if (child->isWidgetType()
 				&& child != _playbackSlider
-				&& child != _volumeController) {
+				&& child != _volumeController
+				&& child != _speedController) {
 				static_cast<QWidget*>(child)->hide();
 			}
 		}
@@ -138,6 +147,7 @@ void PlaybackControls::startFading(Callback start) {
 	}
 	_playbackSlider->disablePaint(false);
 	_volumeController->disablePaint(false);
+	_speedController->disablePaint(false);
 }
 
 void PlaybackControls::showAnimated() {
@@ -159,6 +169,7 @@ void PlaybackControls::fadeFinished() {
 void PlaybackControls::fadeUpdated(float64 opacity) {
 	_playbackSlider->setFadeOpacity(opacity);
 	_volumeController->setFadeOpacity(opacity);
+	_speedController->setFadeOpacity(opacity);
 }
 
 void PlaybackControls::updatePlayback(const Player::TrackState &state) {
@@ -306,8 +317,12 @@ void PlaybackControls::resizeEvent(QResizeEvent *e) {
 
 	_pictureInPicture->moveToLeft(left, playTop);
 
+	const auto volumeTop = playTop + (_fullScreenToggle->height() - _volumeController->height()) / 2;
 	_volumeController->resize(st::mediaviewVolumeWidth, st::mediaviewPlayback.seekSize.height());
-	_volumeController->moveToRight(skip, playTop + (_fullScreenToggle->height() - _volumeController->height()) / 2);
+	_volumeController->moveToRight(skip, volumeTop);
+
+	_speedController->resize(st::mediaviewVolumeWidth, st::mediaviewPlayback.seekSize.height());
+	_speedController->moveToRight(skip + _volumeController->width() + skip, volumeTop);
 }
 
 void PlaybackControls::paintEvent(QPaintEvent *e) {
@@ -320,6 +335,7 @@ void PlaybackControls::paintEvent(QPaintEvent *e) {
 		showChildren();
 		_playbackSlider->setFadeOpacity(1.);
 		_volumeController->setFadeOpacity(1.);
+		_speedController->setFadeOpacity(1.);
 		_childrenHidden = false;
 	}
 	App::roundRect(p, rect(), st::mediaviewSaveMsgBg, MediaviewSaveCorners);
