@@ -174,7 +174,7 @@ private:
 	float64 playbackControlsCurrentVolume() override;
 	void playbackControlsVolumeToggled() override;
 	void playbackControlsVolumeChangeFinished() override;
-	void playbackControlsSpeedChanged(float64 speed);
+	void playbackControlsSpeedChanged(float64 speed) override;
 	float64 playbackControlsCurrentSpeed() override;
 	void playbackControlsToFullScreen() override;
 	void playbackControlsFromFullScreen() override;

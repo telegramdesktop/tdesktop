@@ -211,6 +211,8 @@ PipPanel::PipPanel(
 		| Qt::FramelessWindowHint
 		| Qt::WindowDoesNotAcceptFocus);
 	setAttribute(Qt::WA_ShowWithoutActivating);
+	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
+	Ui::Platform::InitOnTopPanel(this);
 	setMouseTracking(true);
 	resize(0, 0);
 	show();
