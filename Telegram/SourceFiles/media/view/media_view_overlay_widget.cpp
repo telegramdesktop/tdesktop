@@ -227,6 +227,10 @@ OverlayWidget::OverlayWidget()
 , _dropdownShowTimer(this) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
+	_lastPositiveVolume = (Global::VideoVolume() > 0.)
+		? Global::VideoVolume()
+		: Global::kDefaultVolume;
+
 	setWindowIcon(Window::CreateIcon(&Core::App().activeAccount()));
 	setWindowTitle(qsl("Media viewer"));
 
@@ -2407,6 +2411,18 @@ void OverlayWidget::playbackControlsVolumeChanged(float64 volume) {
 
 float64 OverlayWidget::playbackControlsCurrentVolume() {
 	return Global::VideoVolume();
+}
+
+void OverlayWidget::playbackControlsVolumeToggled() {
+	const auto volume = Global::VideoVolume();
+	playbackControlsVolumeChanged(volume ? 0. : _lastPositiveVolume);
+}
+
+void OverlayWidget::playbackControlsVolumeChangeFinished() {
+	const auto volume = Global::VideoVolume();
+	if (volume > 0.) {
+		_lastPositiveVolume = volume;
+	}
 }
 
 void OverlayWidget::playbackControlsSpeedChanged(float64 speed) {

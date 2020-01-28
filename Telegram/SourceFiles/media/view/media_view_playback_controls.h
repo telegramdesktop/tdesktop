@@ -36,6 +36,8 @@ public:
 		virtual void playbackControlsSeekFinished(crl::time position) = 0;
 		virtual void playbackControlsVolumeChanged(float64 volume) = 0;
 		[[nodiscard]] virtual float64 playbackControlsCurrentVolume() = 0;
+		virtual void playbackControlsVolumeToggled() = 0;
+		virtual void playbackControlsVolumeChangeFinished() = 0;
 		virtual void playbackControlsSpeedChanged(float64 speed) = 0;
 		[[nodiscard]] virtual float64 playbackControlsCurrentSpeed() = 0;
 		virtual void playbackControlsToFullScreen() = 0;
@@ -71,6 +73,9 @@ private:
 	[[nodiscard]] float64 countDownloadedTillPercent(
 		const Player::TrackState &state) const;
 
+	void updatePlaybackSpeed(float64 speed);
+	void updateVolumeToggleIcon();
+
 	void updatePlayPauseResumeState(const Player::TrackState &state);
 	void updateTimeTexts(const Player::TrackState &state);
 	void refreshTimeTexts();
@@ -91,8 +96,10 @@ private:
 	object_ptr<Ui::MediaSlider> _playbackSlider;
 	std::unique_ptr<PlaybackProgress> _playbackProgress;
 	std::unique_ptr<PlaybackProgress> _receivedTillProgress;
+	object_ptr<Ui::IconButton> _volumeToggle;
 	object_ptr<Ui::MediaSlider> _volumeController;
 	object_ptr<Ui::MediaSlider> _speedController;
+	object_ptr<Ui::LabelSimple> _speedLabel;
 	object_ptr<Ui::IconButton> _fullScreenToggle;
 	object_ptr<Ui::IconButton> _pictureInPicture;
 	object_ptr<Ui::LabelSimple> _playedAlready;

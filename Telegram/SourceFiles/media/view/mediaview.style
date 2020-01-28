@@ -59,6 +59,23 @@ mediaviewPlaybackTop: 28px;
 mediaviewVolumeWidth: 60px;
 mediaviewControllerRadius: roundRadiusLarge;
 
+mediaviewVolumeIcon0: icon {{ "player_volume0", mediaviewPlaybackIconFg }};
+mediaviewVolumeIcon0Over: icon {{ "player_volume0", mediaviewPlaybackIconFgOver }};
+mediaviewVolumeIcon1: icon {{ "player_volume1", mediaviewPlaybackIconFg }};
+mediaviewVolumeIcon1Over: icon {{ "player_volume1", mediaviewPlaybackIconFgOver }};
+mediaviewVolumeIcon2: icon {{ "player_volume2", mediaviewPlaybackIconFg }};
+mediaviewVolumeIcon2Over: icon {{ "player_volume2", mediaviewPlaybackIconFgOver }};
+mediaviewVolumeIcon3: icon {{ "player_volume3", mediaviewPlaybackIconFg }};
+mediaviewVolumeIcon3Over: icon {{ "player_volume3", mediaviewPlaybackIconFgOver }};
+mediaviewVolumeToggle: IconButton {
+	width: 31px;
+	height: 29px;
+
+	icon: mediaviewVolumeIcon0;
+	iconOver: mediaviewVolumeIcon0Over;
+	iconPosition: point(8px, 8px);
+}
+
 mediaviewLeft: icon {{ "mediaview_next-flip_horizontal", mediaviewControlFg }};
 mediaviewRight: icon {{ "mediaview_next", mediaviewControlFg }};
 mediaviewClose: icon {{ "mediaview_close", mediaviewControlFg }};

@@ -29,8 +29,10 @@ PlaybackControls::PlaybackControls(
 , _playPauseResume(this, st::mediaviewPlayButton)
 , _playbackSlider(this, st::mediaviewPlayback)
 , _playbackProgress(std::make_unique<PlaybackProgress>())
+, _volumeToggle(this, st::mediaviewVolumeToggle)
 , _volumeController(this, st::mediaviewPlayback)
 , _speedController(this, st::mediaviewPlayback)
+, _speedLabel(this, st::mediaviewPlayProgressLabel)
 , _fullScreenToggle(this, st::mediaviewFullScreenButton)
 , _pictureInPicture(this, st::mediaviewFullScreenButton)
 , _playedAlready(this, st::mediaviewPlayProgressLabel)
@@ -54,12 +56,24 @@ PlaybackControls::PlaybackControls(
 	_volumeController->setValue(_delegate->playbackControlsCurrentVolume());
 	_volumeController->setChangeProgressCallback([=](float64 value) {
 		_delegate->playbackControlsVolumeChanged(value);
+		updateVolumeToggleIcon();
 	});
+	_volumeController->setChangeFinishedCallback([=](float64) {
+		_delegate->playbackControlsVolumeChangeFinished();
+	});
+	updateVolumeToggleIcon();
+	_volumeToggle->setClickedCallback([=] {
+		_delegate->playbackControlsVolumeToggled();
+		_volumeController->setValue(_delegate->playbackControlsCurrentVolume());
+		updateVolumeToggleIcon();
+	});
+
 	_speedController->setPseudoDiscrete(
 		7,
 		[=](int index) { return (index + 2) / 4.; },
 		_delegate->playbackControlsCurrentSpeed(),
-		[=](float64 speed) { _delegate->playbackControlsSpeedChanged(speed); });
+		[=](float64 speed) { updatePlaybackSpeed(speed); });
+	updatePlaybackSpeed(_delegate->playbackControlsCurrentSpeed());
 	_speedController->setAlwaysDisplayMarker(false);
 
 	_playPauseResume->addClickHandler([=] {
@@ -172,10 +186,39 @@ void PlaybackControls::fadeUpdated(float64 opacity) {
 	_speedController->setFadeOpacity(opacity);
 }
 
+void PlaybackControls::updatePlaybackSpeed(float64 speed) {
+	_delegate->playbackControlsSpeedChanged(speed);
+	//const auto percent = int(std::round(speed * 100.));
+	//_speedLabel->setText(QString::number(percent) + '%');
+	_speedLabel->setText(QString::number(speed) + 'x');
+	resizeEvent(nullptr);
+}
+
 void PlaybackControls::updatePlayback(const Player::TrackState &state) {
 	updatePlayPauseResumeState(state);
 	_playbackProgress->updateState(state, countDownloadedTillPercent(state));
 	updateTimeTexts(state);
+}
+
+void PlaybackControls::updateVolumeToggleIcon() {
+	const auto volume = _delegate->playbackControlsCurrentVolume();
+	_volumeToggle->setIconOverride([&] {
+		return (volume <= 0.)
+			? nullptr
+			: (volume < 1 / 3.)
+			? &st::mediaviewVolumeIcon1
+			: (volume < 2 / 3.)
+			? &st::mediaviewVolumeIcon2
+			: &st::mediaviewVolumeIcon3;
+	}(), [&] {
+		return (volume <= 0.)
+			? nullptr
+			: (volume < 1 / 3.)
+			? &st::mediaviewVolumeIcon1Over
+			: (volume < 2 / 3.)
+			? &st::mediaviewVolumeIcon2Over
+			: &st::mediaviewVolumeIcon3Over;
+	}());
 }
 
 float64 PlaybackControls::countDownloadedTillPercent(
@@ -317,12 +360,21 @@ void PlaybackControls::resizeEvent(QResizeEvent *e) {
 
 	_pictureInPicture->moveToLeft(left, playTop);
 
+	auto right = skip;
 	const auto volumeTop = playTop + (_fullScreenToggle->height() - _volumeController->height()) / 2;
+	const auto volumeIconTop = playTop + (_fullScreenToggle->height() - _volumeToggle->height()) / 2;
 	_volumeController->resize(st::mediaviewVolumeWidth, st::mediaviewPlayback.seekSize.height());
-	_volumeController->moveToRight(skip, volumeTop);
+	_volumeController->moveToRight(right, volumeTop);
+	right += _volumeController->width();
+	_volumeToggle->moveToRight(right, volumeIconTop);
+	right += _volumeToggle->width() + 2 * skip;
 
+	const auto speedTop = volumeTop;
+	const auto speedLabelTop = playTop + (_fullScreenToggle->height() - _speedLabel->height()) / 2;
 	_speedController->resize(st::mediaviewVolumeWidth, st::mediaviewPlayback.seekSize.height());
-	_speedController->moveToRight(skip + _volumeController->width() + skip, volumeTop);
+	_speedController->moveToRight(right, volumeTop);
+	right += _speedController->width() + st::semiboldFont->spacew * 3;
+	_speedLabel->moveToRight(right, speedLabelTop);
 }
 
 void PlaybackControls::paintEvent(QPaintEvent *e) {

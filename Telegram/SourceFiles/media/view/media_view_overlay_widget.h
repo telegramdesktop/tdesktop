@@ -172,6 +172,8 @@ private:
 	void playbackControlsSeekFinished(crl::time position) override;
 	void playbackControlsVolumeChanged(float64 volume) override;
 	float64 playbackControlsCurrentVolume() override;
+	void playbackControlsVolumeToggled() override;
+	void playbackControlsVolumeChangeFinished() override;
 	void playbackControlsSpeedChanged(float64 speed);
 	float64 playbackControlsCurrentSpeed() override;
 	void playbackControlsToFullScreen() override;
@@ -359,6 +361,7 @@ private:
 	bool _streamingStartPaused = false;
 	bool _fullScreenVideo = false;
 	int _fullScreenZoomCache = 0;
+	float64 _lastPositiveVolume = 1.;
 
 	std::unique_ptr<GroupThumbs> _groupThumbs;
 	QRect _groupThumbsRect;
