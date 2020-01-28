@@ -2317,6 +2317,12 @@ void OverlayWidget::playbackControlsFromFullScreen() {
 	playbackToggleFullScreen();
 }
 
+void OverlayWidget::playbackControlsToPictureInPicture() {
+	if (!videoIsGifv()) {
+		switchToPip();
+	}
+}
+
 void OverlayWidget::playbackPauseResume() {
 	Expects(_streamed != nullptr);
 
@@ -2411,11 +2417,6 @@ void OverlayWidget::switchToPip() {
 
 void OverlayWidget::playbackToggleFullScreen() {
 	Expects(_streamed != nullptr);
-
-	if (!videoIsGifv() && !_fullScreenVideo) {
-		switchToPip();
-		return;
-	}
 
 	if (!videoShown() || (videoIsGifv() && !_fullScreenVideo)) {
 		return;

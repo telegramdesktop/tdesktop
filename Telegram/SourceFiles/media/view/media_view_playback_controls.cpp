@@ -31,6 +31,7 @@ PlaybackControls::PlaybackControls(
 , _playbackProgress(std::make_unique<PlaybackProgress>())
 , _volumeController(this, st::mediaviewPlayback)
 , _fullScreenToggle(this, st::mediaviewFullScreenButton)
+, _pictureInPicture(this, st::mediaviewFullScreenButton)
 , _playedAlready(this, st::mediaviewPlayProgressLabel)
 , _toPlayLeft(this, st::mediaviewPlayProgressLabel)
 , _fadeAnimation(std::make_unique<Ui::FadeAnimation>(this)) {
@@ -40,6 +41,13 @@ PlaybackControls::PlaybackControls(
 	});
 	_fadeAnimation->setUpdatedCallback([=](float64 opacity) {
 		fadeUpdated(opacity);
+	});
+
+	_pictureInPicture->setIconOverride(
+		&st::mediaviewFullScreenOutIcon,
+		&st::mediaviewFullScreenOutIconOver);
+	_pictureInPicture->addClickHandler([=] {
+		_delegate->playbackControlsToPictureInPicture();
 	});
 
 	_volumeController->setValue(_delegate->playbackControlsCurrentVolume());
@@ -275,26 +283,31 @@ void PlaybackControls::setInFullScreen(bool inFullScreen) {
 }
 
 void PlaybackControls::resizeEvent(QResizeEvent *e) {
-	int playTop = (height() - _playPauseResume->height()) / 2;
-	_playPauseResume->moveToLeft(st::mediaviewPlayPauseLeft, playTop);
+	const auto skip = st::mediaviewFullScreenLeft;
 
-	int fullScreenTop = (height() - _fullScreenToggle->height()) / 2;
-	_fullScreenToggle->moveToRight(st::mediaviewFullScreenLeft, fullScreenTop);
-
-	_volumeController->resize(st::mediaviewVolumeWidth, st::mediaviewPlayback.seekSize.height());
-	_volumeController->moveToRight(st::mediaviewFullScreenLeft + _fullScreenToggle->width() + st::mediaviewVolumeLeft, st::mediaviewPlaybackTop);
-
-	auto playbackWidth = width() - st::mediaviewPlayPauseLeft - _playPauseResume->width() - playTop - fullScreenTop - _volumeController->width() - st::mediaviewVolumeLeft - _fullScreenToggle->width() - st::mediaviewFullScreenLeft;
+	auto playbackWidth = width() - 2 * skip;
 	_playbackSlider->resize(playbackWidth, st::mediaviewPlayback.seekSize.height());
-	_playbackSlider->moveToLeft(st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop, st::mediaviewPlaybackTop);
+	_playbackSlider->moveToLeft(st::mediaviewPlayPauseLeft, st::mediaviewPlaybackTop);
 
-	_playedAlready->moveToLeft(st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop, st::mediaviewPlayProgressTop);
-	_toPlayLeft->moveToRight(width() - (st::mediaviewPlayPauseLeft + _playPauseResume->width() + playTop) - playbackWidth, st::mediaviewPlayProgressTop);
-
+	_playedAlready->moveToLeft(st::mediaviewPlayPauseLeft, st::mediaviewPlayProgressTop);
+	_toPlayLeft->moveToRight(st::mediaviewPlayPauseLeft, st::mediaviewPlayProgressTop);
 	if (_downloadProgress) {
 		const auto left = (_playbackSlider->width() - _downloadProgress->width()) / 2;
 		_downloadProgress->move(_playbackSlider->x() + left, st::mediaviewPlayProgressTop);
 	}
+
+	auto left = skip;
+	const auto playTop = height() - _playPauseResume->height() - skip;
+	_playPauseResume->moveToLeft(left, playTop);
+	left += _playPauseResume->width() + skip;
+
+	_fullScreenToggle->moveToLeft(left, playTop);
+	left += _fullScreenToggle->width() + skip;
+
+	_pictureInPicture->moveToLeft(left, playTop);
+
+	_volumeController->resize(st::mediaviewVolumeWidth, st::mediaviewPlayback.seekSize.height());
+	_volumeController->moveToRight(skip, playTop + (_fullScreenToggle->height() - _volumeController->height()) / 2);
 }
 
 void PlaybackControls::paintEvent(QPaintEvent *e) {

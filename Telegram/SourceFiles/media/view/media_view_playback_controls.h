@@ -38,6 +38,7 @@ public:
 		[[nodiscard]] virtual float64 playbackControlsCurrentVolume() = 0;
 		virtual void playbackControlsToFullScreen() = 0;
 		virtual void playbackControlsFromFullScreen() = 0;
+		virtual void playbackControlsToPictureInPicture() = 0;
 	};
 
 	PlaybackControls(QWidget *parent, not_null<Delegate*> delegate);
@@ -90,6 +91,7 @@ private:
 	std::unique_ptr<PlaybackProgress> _receivedTillProgress;
 	object_ptr<Ui::MediaSlider> _volumeController;
 	object_ptr<Ui::IconButton> _fullScreenToggle;
+	object_ptr<Ui::IconButton> _pictureInPicture;
 	object_ptr<Ui::LabelSimple> _playedAlready;
 	object_ptr<Ui::LabelSimple> _toPlayLeft;
 	object_ptr<Ui::LabelSimple> _downloadProgress = { nullptr };

@@ -10,11 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_document.h"
 #include "media/streaming/media_streaming_utility.h"
+#include "media/audio/media_audio.h"
 #include "core/application.h"
 #include "ui/platform/ui_platform_utility.h"
+#include "ui/widgets/buttons.h"
+#include "ui/wrap/fade_wrap.h"
 #include "window/window_controller.h"
 #include "styles/style_window.h"
 #include "styles/style_mediaview.h"
+#include "styles/style_layers.h" // st::boxTitleClose
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
@@ -564,16 +568,6 @@ void PipPanel::moveAnimated(QPoint to) {
 		anim::easeOutCirc);
 }
 
-void PipPanel::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Space) {
-		//playbackPauseResume();
-	} else if (e->key() == Qt::Key_Escape) {
-		//crl::on_main(this, [=] {
-		//	_closeAndContinue();
-		//});
-	}
-}
-
 Pip::Pip(
 	QWidget *parent,
 	std::shared_ptr<Streaming::Document> document,
@@ -583,8 +577,32 @@ Pip::Pip(
 , _panel(parent, [=](QPainter &p, const FrameRequest &request) {
 	paint(p, request);
 })
+, _playPauseResume(
+	std::in_place,
+	&_panel,
+	object_ptr<Ui::IconButton>(&_panel, st::mediaviewPlayButton))
+, _pictureInPicture(
+	std::in_place,
+	&_panel,
+	object_ptr<Ui::IconButton>(&_panel, st::mediaviewFullScreenButton))
+, _close(
+	std::in_place,
+	&_panel,
+	object_ptr<Ui::IconButton>(&_panel, st::boxTitleClose))
 , _closeAndContinue(std::move(closeAndContinue))
 , _destroy(std::move(destroy)) {
+	_close->entity()->addClickHandler([=] {
+		_panel.close();
+	});
+	_pictureInPicture->entity()->addClickHandler([=] {
+		_closeAndContinue();
+	});
+	_playPauseResume->entity()->addClickHandler([=] {
+		playbackPauseResume();
+	});
+	_close->show(anim::type::instant);
+	_pictureInPicture->show(anim::type::instant);
+	_playPauseResume->show(anim::type::instant);
 	setupPanel();
 	setupStreaming();
 }
@@ -597,13 +615,35 @@ void Pip::setupPanel() {
 		_panel.setAspectRatio(size);
 	}
 	_panel.setPosition(PipPanel::Position());
-	//_panel.events(
-	//) | rpl::filter([=](not_null<QEvent*> e) {
-	//	return (e->type() == QEvent::WindowActivate);
-	//}) | rpl::start_with_next([=](not_null<QEvent*> e) {
-	//	int a = 0;
-	//}, _panel.lifetime());
 	_panel.show();
+
+	_panel.sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		_close->moveToLeft(0, 0, size.width());
+		const auto skip = st::mediaviewFullScreenLeft;
+		const auto sum = _playPauseResume->width() + skip + _pictureInPicture->width();
+		const auto left = (size.width() - sum) / 2;
+		const auto top = size.height() - _playPauseResume->height() - skip;
+		_playPauseResume->moveToLeft(left, top);
+		_pictureInPicture->moveToRight(left, top);
+	}, _panel.lifetime());
+
+	_panel.events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return e->type() == QEvent::Close;
+	}) | rpl::start_with_next([=] {
+		_destroy();
+	}, _panel.lifetime());
+}
+
+void Pip::updatePlayPauseResumeState(const Player::TrackState &state) {
+	auto showPause = Player::ShowPauseIcon(state.state);
+	if (showPause != _showPause) {
+		_showPause = showPause;
+		_playPauseResume->entity()->setIconOverride(
+			_showPause ? &st::mediaviewPauseIcon : nullptr,
+			_showPause ? &st::mediaviewPauseIconOver : nullptr);
+	}
 }
 
 void Pip::setupStreaming() {
@@ -632,20 +672,27 @@ void Pip::handleStreamingUpdate(Streaming::Update &&update) {
 	update.data.match([&](Information &update) {
 		_panel.setAspectRatio(update.video.size);
 	}, [&](const PreloadedVideo &update) {
-		//updatePlaybackState();
+		updatePlaybackState();
 	}, [&](const UpdateVideo &update) {
 		_panel.update();
 		Core::App().updateNonIdle();
-		//updatePlaybackState();
+		updatePlaybackState();
 	}, [&](const PreloadedAudio &update) {
-		//updatePlaybackState();
+		updatePlaybackState();
 	}, [&](const UpdateAudio &update) {
-		//updatePlaybackState();
+		updatePlaybackState();
 	}, [&](WaitingForData) {
 	}, [&](MutedByOther) {
 	}, [&](Finished) {
-		//updatePlaybackState();
+		updatePlaybackState();
 	});
+}
+
+void Pip::updatePlaybackState() {
+	const auto state = _instance.player().prepareLegacyState();
+	if (state.position != kTimeUnknown && state.length != kTimeUnknown) {
+		updatePlayPauseResumeState(state);
+	}
 }
 
 void Pip::handleStreamingError(Streaming::Error &&error) {
@@ -653,16 +700,29 @@ void Pip::handleStreamingError(Streaming::Error &&error) {
 }
 
 void Pip::playbackPauseResume() {
-	if (_instance.player().finished() || !_instance.player().active()) {
-		//restartAtSeekPosition(0);
+	if (_instance.player().failed()) {
+		_panel.close();
+	} else if (_instance.player().finished()
+		|| !_instance.player().active()) {
+		restartAtSeekPosition(0);
 	} else if (_instance.player().paused()) {
 		_instance.resume();
-			//updatePlaybackState();
-			//playbackPauseMusic();
+		updatePlaybackState();
 	} else {
 		_instance.pause();
-		//updatePlaybackState();
+		updatePlaybackState();
 	}
+}
+
+void Pip::restartAtSeekPosition(crl::time position) {
+	if (!_instance.info().video.cover.isNull()) {
+		_instance.saveFrameToCover();
+	}
+	auto options = Streaming::PlaybackOptions();
+	options.position = position;
+	options.audioId = _instance.player().prepareLegacyState().id;
+	_instance.play(options);
+	updatePlaybackState();
 }
 
 QImage Pip::videoFrame(const FrameRequest &request) const {

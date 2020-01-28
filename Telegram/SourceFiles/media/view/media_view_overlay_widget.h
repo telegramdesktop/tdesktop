@@ -174,6 +174,7 @@ private:
 	float64 playbackControlsCurrentVolume() override;
 	void playbackControlsToFullScreen() override;
 	void playbackControlsFromFullScreen() override;
+	void playbackControlsToPictureInPicture() override;
 	void playbackPauseResume();
 	void playbackToggleFullScreen();
 	void playbackPauseOnCall();

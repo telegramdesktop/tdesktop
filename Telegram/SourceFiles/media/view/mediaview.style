@@ -24,7 +24,7 @@ mediaviewPlayback: MediaSlider {
 	duration: mediaviewOverDuration;
 }
 
-mediaviewControllerSize: size(600px, 50px);
+mediaviewControllerSize: size(480px, 100px);
 mediaviewPlayProgressLabel: LabelSimple(defaultLabelSimple) {
 	font: semiboldFont;
 	textFg: mediaviewPlaybackProgressFg;
@@ -57,7 +57,7 @@ mediaviewFullScreenOutIconOver: icon {{ "media_fullscreen_from", mediaviewPlayba
 mediaviewPlaybackTop: 28px;
 
 mediaviewVolumeWidth: 60px;
-mediaviewControllerRadius: 25px;
+mediaviewControllerRadius: roundRadiusLarge;
 
 mediaviewLeft: icon {{ "mediaview_next-flip_horizontal", mediaviewControlFg }};
 mediaviewRight: icon {{ "mediaview_next", mediaviewControlFg }};

@@ -13,7 +13,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QPointer>
 
+namespace Ui {
+class IconButton;
+template <typename Widget>
+class FadeWrap;
+} // namespace Ui
+
 namespace Media {
+namespace Player {
+struct TrackState;
+} // namespace Player
+
 namespace View {
 
 #if defined Q_OS_MAC && !defined OS_MAC_OLD
@@ -49,7 +59,6 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
 
 private:
 	void setPositionDefault();
@@ -97,6 +106,10 @@ private:
 	void handleStreamingUpdate(Streaming::Update &&update);
 	void handleStreamingError(Streaming::Error &&error);
 
+	void updatePlaybackState();
+	void updatePlayPauseResumeState(const Player::TrackState &state);
+	void restartAtSeekPosition(crl::time position);
+
 	[[nodiscard]] QImage videoFrame(const FrameRequest &request) const;
 	[[nodiscard]] QImage videoFrameForDirectPaint(
 		const FrameRequest &request) const;
@@ -104,6 +117,11 @@ private:
 	Streaming::Instance _instance;
 	PipPanel _panel;
 	QSize _size;
+
+	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _playPauseResume;
+	base::unique_qptr< Ui::FadeWrap<Ui::IconButton>> _pictureInPicture;
+	base::unique_qptr< Ui::FadeWrap<Ui::IconButton>> _close;
+	bool _showPause = false;
 
 	FnMut<void()> _closeAndContinue;
 	FnMut<void()> _destroy;
