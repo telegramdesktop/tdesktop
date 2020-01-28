@@ -401,10 +401,10 @@ void PreparedList::mergeToEnd(PreparedList &&other, bool cutToAlbumSize) {
 		size_t(cutToAlbumSize ? kMaxAlbumCount : INT_MAX),
 		files.size() + other.files.size()));
 	for (auto &file : other.files) {
-		files.push_back(std::move(file));
 		if (cutToAlbumSize && files.size() == kMaxAlbumCount) {
 			break;
 		}
+		files.push_back(std::move(file));
 	}
 	if (files.size() > 1 && files.size() <= kMaxAlbumCount) {
 		const auto badIt = ranges::find(
