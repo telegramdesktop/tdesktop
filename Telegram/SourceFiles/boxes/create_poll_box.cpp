@@ -873,7 +873,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		) | rpl::filter([=](not_null<QEvent*> e) {
 			return (e->type() == QEvent::MouseButtonPress) && quiz->checked();
 		}) | rpl::start_with_next([=] {
-			Ui::Toast::Show("Quiz has only one right answer.");
+			Ui::Toast::Show(tr::lng_polls_create_one_answer(tr::now));
 		}, multiple->lifetime());
 	}
 
