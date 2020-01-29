@@ -1180,7 +1180,7 @@ if ((NOT disable_autoupdate OR NOT LINUX) AND NOT build_macstore AND NOT build_w
     set_target_properties(Updater PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
     if (LINUX)
-        target_link_options(Updater INTERFACE -static-libstdc++)
+        target_link_options(Updater PRIVATE -static-libstdc++)
     endif()
 
     if (DESKTOP_APP_SPECIAL_TARGET)
