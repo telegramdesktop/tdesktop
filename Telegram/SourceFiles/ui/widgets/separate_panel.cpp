@@ -398,7 +398,6 @@ void SeparatePanel::paintEvent(QPaintEvent *e) {
 			finishAnimating();
 			if (isHidden()) return;
 		} else {
-			Ui::Platform::StartTranslucentPaint(p, e);
 			p.setOpacity(opacity);
 
 			PainterHighQualityEnabler hq(p);
@@ -419,7 +418,6 @@ void SeparatePanel::paintEvent(QPaintEvent *e) {
 	}
 
 	if (_useTransparency) {
-		Ui::Platform::StartTranslucentPaint(p, e);
 		paintShadowBorder(p);
 	} else {
 		paintOpaqueBorder(p);

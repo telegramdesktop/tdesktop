@@ -260,11 +260,11 @@ PipPanel::PipPanel(
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 	setAttribute(Qt::WA_NoSystemBackground);
 	setAttribute(Qt::WA_TranslucentBackground);
+	Ui::Platform::IgnoreAllActivation(this);
 	Ui::Platform::InitOnTopPanel(this);
 	setMouseTracking(true);
 	resize(0, 0);
 	show();
-	//Ui::Platform::IgnoreAllActivation(this);
 }
 
 void PipPanel::setAspectRatio(QSize ratio) {
@@ -429,12 +429,12 @@ void PipPanel::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
 	if (_useTransparency) {
-		Ui::Platform::StartTranslucentPaint(p, e);
+		Ui::Platform::StartTranslucentPaint(p, e->region().rects());
 	}
 
 	auto request = FrameRequest();
 	const auto inner = rect().marginsRemoved(_padding);
-	request.resize = request.outer = inner.size();
+	request.resize = request.outer = inner.size() * style::DevicePixelRatio();
 	request.corners = RectPart(0)
 		| ((_attached & (RectPart::Left | RectPart::Top))
 			? RectPart(0)
@@ -728,7 +728,9 @@ void Pip::setupPanel() {
 	) | rpl::filter([=](not_null<QEvent*> e) {
 		return e->type() == QEvent::Close;
 	}) | rpl::start_with_next([=] {
-		_destroy();
+		crl::on_main(&_panel, [=] {
+			_destroy();
+		});
 	}, _panel.lifetime());
 }
 
@@ -786,7 +788,7 @@ void Pip::setupStreaming() {
 
 void Pip::paint(QPainter &p, FrameRequest request) {
 	const auto image = videoFrameForDirectPaint(request);
-	p.drawImage(0, 0, image);
+	p.drawImage(QRect{ QPoint(), request.outer / style::DevicePixelRatio() }, image);
 	if (_instance.player().ready()) {
 		_instance.markFrameShown();
 	}

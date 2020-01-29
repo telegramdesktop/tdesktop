@@ -2522,6 +2522,9 @@ void OverlayWidget::switchToPip() {
 		closeAndContinue,
 		[=] { _pip = nullptr; });
 	close();
+	if (const auto window = Core::App().activeWindow()) {
+		window->activate();
+	}
 }
 
 void OverlayWidget::playbackToggleFullScreen() {

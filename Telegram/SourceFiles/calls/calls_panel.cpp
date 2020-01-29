@@ -706,7 +706,6 @@ void Panel::paintEvent(QPaintEvent *e) {
 			finishAnimating();
 			if (!_call || isHidden()) return;
 		} else {
-			Ui::Platform::StartTranslucentPaint(p, e);
 			p.setOpacity(opacity);
 
 			PainterHighQualityEnabler hq(p);
@@ -719,7 +718,6 @@ void Panel::paintEvent(QPaintEvent *e) {
 	}
 
 	if (_useTransparency) {
-		Ui::Platform::StartTranslucentPaint(p, e);
 		p.drawPixmapLeft(0, 0, width(), _cache);
 	} else {
 		p.drawPixmapLeft(_padding.left(), _padding.top(), width(), _userPhoto);
