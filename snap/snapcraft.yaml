@@ -192,6 +192,7 @@ parts:
     source-tag: v2.2.7
     plugin: autotools
     build-packages:
+      - libltdl-dev
       - libglib2.0-dev
       - libhunspell-dev
     stage-packages:
