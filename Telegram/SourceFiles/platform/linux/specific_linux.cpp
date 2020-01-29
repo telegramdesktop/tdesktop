@@ -44,6 +44,8 @@ namespace {
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
 
+bool XDGDesktopPortalIsPresent = false;
+
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 void SandboxAutostart(bool autostart) {
 	QVariantMap options;
@@ -192,6 +194,10 @@ bool InSnap() {
 	static const auto Snap = qEnvironmentVariableIsSet("SNAP");
 	return Snap;
 }
+
+bool IsXDGDesktopPortalPresent() {
+	return XDGDesktopPortalIsPresent;
+};
 
 QString CurrentExecutablePath(int argc, char *argv[]) {
 	constexpr auto kMaxPath = 1024;
@@ -372,6 +378,21 @@ namespace Platform {
 
 void start() {
 	FallbackFontConfig();
+
+#if !defined(TDESKTOP_DISABLE_DBUS_INTEGRATION) && defined(TDESKTOP_FORCE_GTK_FILE_DIALOG)
+	LOG(("Checking for XDG Desktop Portal..."));
+	XDGDesktopPortalIsPresent = QDBusInterface(
+		"org.freedesktop.portal.Desktop",
+		"/org/freedesktop/portal/desktop").isValid();
+
+	// this can give us a chance to use a proper file dialog for current session
+	if(XDGDesktopPortalIsPresent) {
+		LOG(("XDG Desktop Portal is present!"));
+		qputenv("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
+	} else {
+		LOG(("XDG Desktop Portal is not present :("));
+	}
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION && TDESKTOP_FORCE_GTK_FILE_DIALOG
 }
 
 void finish() {

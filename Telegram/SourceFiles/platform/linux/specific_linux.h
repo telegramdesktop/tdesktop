@@ -23,6 +23,8 @@ inline void SetWatchingMediaKeys(bool watching) {
 bool InSandbox();
 bool InSnap();
 
+bool IsXDGDesktopPortalPresent();
+
 QString CurrentExecutablePath(int argc, char *argv[]);
 
 QString SingleInstanceLocalServerName(const QString &hash);

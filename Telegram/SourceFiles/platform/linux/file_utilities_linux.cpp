@@ -21,9 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 #include <private/qguiapplication_p.h>
-#endif // TDESKTOP_DISABLE_GTK_INTEGRATION
 
 QStringList qt_make_filter_list(const QString &filter);
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 namespace Platform {
 namespace File {
@@ -87,7 +87,8 @@ bool NativeSupported() {
 #ifndef TDESKTOP_FORCE_GTK_FILE_DIALOG
 	return false;
 #endif // TDESKTOP_FORCE_GTK_FILE_DIALOG
-	return Platform::internal::GdkHelperLoaded()
+	return !Platform::IsXDGDesktopPortalPresent()
+		&& Platform::internal::GdkHelperLoaded()
 		&& (Libs::gtk_widget_hide_on_delete != nullptr)
 		&& (Libs::gtk_clipboard_store != nullptr)
 		&& (Libs::gtk_clipboard_get != nullptr)
