@@ -16,10 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/widgets/shadow.h"
 #include "window/window_controller.h"
 #include "styles/style_window.h"
 #include "styles/style_mediaview.h"
 #include "styles/style_layers.h" // st::boxTitleClose
+#include "styles/style_calls.h" // st::callShadow
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
@@ -123,7 +125,8 @@ constexpr auto kSaveGeometryTimeout = crl::time(1000);
 		QSize minimalSize,
 		QSize maximalSize,
 		QSize ratio,
-		RectPart by) {
+		RectPart by,
+		RectParts attached) {
 	if (by == RectPart::Center) {
 		return original;
 	} else if (!original.width() && !original.height()) {
@@ -174,24 +177,40 @@ constexpr auto kSaveGeometryTimeout = crl::time(1000);
 		return QRect(
 			original.topLeft() + QPoint(
 				(original.width() - newSize.width()),
-				(original.height() - newSize.height()) / 2),
+				((attached & RectPart::Top)
+					? 0
+					: (attached & RectPart::Bottom)
+					? (original.height() - newSize.height())
+					: (original.height() - newSize.height()) / 2)),
 			newSize);
 	case RectPart::Top:
 		return QRect(
 			original.topLeft() + QPoint(
-				(original.width() - newSize.width()) / 2,
+				((attached & RectPart::Left)
+					? 0
+					: (attached & RectPart::Right)
+					? (original.width() - newSize.width())
+					: (original.width() - newSize.width()) / 2),
 				0),
 			newSize);
 	case RectPart::Right:
 		return QRect(
 			original.topLeft() + QPoint(
 				0,
-				(original.height() - newSize.height()) / 2),
+				((attached & RectPart::Top)
+					? 0
+					: (attached & RectPart::Bottom)
+					? (original.height() - newSize.height())
+					: (original.height() - newSize.height()) / 2)),
 			newSize);
 	case RectPart::Bottom:
 		return QRect(
 			original.topLeft() + QPoint(
-				(original.width() - newSize.width()) / 2,
+				((attached & RectPart::Left)
+					? 0
+					: (attached & RectPart::Right)
+					? (original.width() - newSize.width())
+					: (original.width() - newSize.width()) / 2),
 				(original.height() - newSize.height())),
 			newSize);
 	}
@@ -239,11 +258,13 @@ PipPanel::PipPanel(
 		| Qt::WindowDoesNotAcceptFocus);
 	setAttribute(Qt::WA_ShowWithoutActivating);
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
+	setAttribute(Qt::WA_NoSystemBackground);
+	setAttribute(Qt::WA_TranslucentBackground);
 	Ui::Platform::InitOnTopPanel(this);
 	setMouseTracking(true);
 	resize(0, 0);
 	show();
-	Ui::Platform::IgnoreAllActivation(this);
+	//Ui::Platform::IgnoreAllActivation(this);
 }
 
 void PipPanel::setAspectRatio(QSize ratio) {
@@ -271,6 +292,10 @@ void PipPanel::setPosition(Position position) {
 	setPositionDefault();
 }
 
+rpl::producer<> PipPanel::saveGeometryRequests() const {
+	return _saveGeometryRequests.events();
+}
+
 QScreen *PipPanel::myScreen() const {
 	return windowHandle() ? windowHandle()->screen() : nullptr;
 }
@@ -282,30 +307,32 @@ PipPanel::Position PipPanel::countPosition() const {
 	}
 	auto result = Position();
 	result.screen = screen->geometry();
-	result.geometry = geometry();
+	result.geometry = geometry().marginsRemoved(_padding);
 	const auto available = screen->availableGeometry();
 	const auto skip = st::pipBorderSkip;
 	const auto left = result.geometry.x();
 	const auto right = left + result.geometry.width();
 	const auto top = result.geometry.y();
 	const auto bottom = top + result.geometry.height();
-	if (left == available.x()) {
-		result.attached |= RectPart::Left;
-	} else if (right == available.x() + available.width()) {
-		result.attached |= RectPart::Right;
-	} else if (left == available.x() + skip) {
-		result.snapped |= RectPart::Left;
-	} else if (right == available.x() + available.width() - skip) {
-		result.snapped |= RectPart::Right;
-	}
-	if (top == available.y()) {
-		result.attached |= RectPart::Top;
-	} else if (bottom == available.y() + available.height()) {
-		result.attached |= RectPart::Bottom;
-	} else if (top == available.y() + skip) {
-		result.snapped |= RectPart::Top;
-	} else if (bottom == available.y() + available.height() - skip) {
-		result.snapped |= RectPart::Bottom;
+	if (!_dragState || *_dragState != RectPart::Center) {
+		if (left == available.x()) {
+			result.attached |= RectPart::Left;
+		} else if (right == available.x() + available.width()) {
+			result.attached |= RectPart::Right;
+		} else if (left == available.x() + skip) {
+			result.snapped |= RectPart::Left;
+		} else if (right == available.x() + available.width() - skip) {
+			result.snapped |= RectPart::Right;
+		}
+		if (top == available.y()) {
+			result.attached |= RectPart::Top;
+		} else if (bottom == available.y() + available.height()) {
+			result.attached |= RectPart::Bottom;
+		} else if (top == available.y() + skip) {
+			result.snapped |= RectPart::Top;
+		} else if (bottom == available.y() + available.height() - skip) {
+			result.snapped |= RectPart::Bottom;
+		}
 	}
 	return result;
 }
@@ -393,16 +420,21 @@ void PipPanel::setPositionOnScreen(Position position, QRect available) {
 		geometry.moveTop(inner.y() + inner.height() - geometry.height());
 	}
 
-	setGeometry(geometry);
-	_attached = position.attached;
+	setGeometry(geometry.marginsAdded(_padding));
+	updateDecorations();
 	update();
 }
 
 void PipPanel::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
+	if (_useTransparency) {
+		Ui::Platform::StartTranslucentPaint(p, e);
+	}
+
 	auto request = FrameRequest();
-	request.resize = request.outer = size();
+	const auto inner = rect().marginsRemoved(_padding);
+	request.resize = request.outer = inner.size();
 	request.corners = RectPart(0)
 		| ((_attached & (RectPart::Left | RectPart::Top))
 			? RectPart(0)
@@ -416,6 +448,12 @@ void PipPanel::paintEvent(QPaintEvent *e) {
 		| ((_attached & (RectPart::Bottom | RectPart::Left))
 			? RectPart(0)
 			: RectPart::BottomLeft);
+	request.radius = ImageRoundRadius::Large;
+	if (_useTransparency) {
+		const auto sides = RectPart::AllSides & ~_attached;
+		Ui::Shadow::paint(p, inner, width(), st::callShadow);
+	}
+	p.translate(_padding.left(), _padding.top());
 	_paint(p, request);
 }
 
@@ -430,7 +468,7 @@ void PipPanel::mousePressEvent(QMouseEvent *e) {
 void PipPanel::mouseReleaseEvent(QMouseEvent *e) {
 	if (e->button() != Qt::LeftButton || !base::take(_pressState)) {
 		return;
-	} else if (!base::take(_dragStartGeometry)) {
+	} else if (!base::take(_dragState)) {
 		//playbackPauseResume();
 	} else {
 		finishDrag(e->globalPos());
@@ -439,26 +477,34 @@ void PipPanel::mouseReleaseEvent(QMouseEvent *e) {
 
 void PipPanel::updateOverState(QPoint point) {
 	const auto size = st::pipResizeArea;
+	const auto ignore = _attached | _snapped;
+	const auto count = [&](RectPart side, int padding) {
+		return (ignore & side) ? 0 : padding ? padding : size;
+	};
+	const auto left = count(RectPart::Left, _padding.left());
+	const auto top = count(RectPart::Top, _padding.top());
+	const auto right = count(RectPart::Right, _padding.right());
+	const auto bottom = count(RectPart::Bottom, _padding.bottom());
 	const auto overState = [&] {
-		if (point.x() < size) {
-			if (point.y() < size) {
+		if (point.x() < left) {
+			if (point.y() < top) {
 				return RectPart::TopLeft;
-			} else if (point.y() >= height() - size) {
+			} else if (point.y() >= height() - bottom) {
 				return RectPart::BottomLeft;
 			} else {
 				return RectPart::Left;
 			}
-		} else if (point.x() >= width() - size) {
-			if (point.y() < size) {
+		} else if (point.x() >= width() - right) {
+			if (point.y() < top) {
 				return RectPart::TopRight;
-			} else if (point.y() >= height() - size) {
+			} else if (point.y() >= height() - bottom) {
 				return RectPart::BottomRight;
 			} else {
 				return RectPart::Right;
 			}
-		} else if (point.y() < size) {
+		} else if (point.y() < top) {
 			return RectPart::Top;
-		} else if (point.y() >= height() - size) {
+		} else if (point.y() >= height() - bottom) {
 			return RectPart::Bottom;
 		} else {
 			return RectPart::Center;
@@ -495,20 +541,21 @@ void PipPanel::mouseMoveEvent(QMouseEvent *e) {
 	}
 	const auto point = e->globalPos();
 	const auto distance = QApplication::startDragDistance();
-	if (!_dragStartGeometry
+	if (!_dragState
 		&& (point - _pressPoint).manhattanLength() > distance) {
-		_dragStartGeometry = geometry();
+		_dragState = _pressState;
+		updateDecorations();
+		_dragStartGeometry = geometry().marginsRemoved(_padding);
 	}
-	if (_dragStartGeometry) {
-		updatePosition(point);
+	if (_dragState) {
+		processDrag(point);
 	}
 }
 
-void PipPanel::updatePosition(QPoint point) {
-	Expects(_dragStartGeometry.has_value());
-	Expects(_pressState.has_value());
+void PipPanel::processDrag(QPoint point) {
+	Expects(_dragState.has_value());
 
-	const auto dragPart = *_pressState;
+	const auto dragPart = *_dragState;
 	const auto screen = (dragPart == RectPart::Center)
 		? ScreenFromPosition(point)
 		: myScreen()
@@ -526,7 +573,7 @@ void PipPanel::updatePosition(QPoint point) {
 		screen.height() / 2,
 		Qt::KeepAspectRatio);
 	const auto geometry = Transformed(
-		*_dragStartGeometry,
+		_dragStartGeometry,
 		minimalSize,
 		maximalSize,
 		point - _pressPoint,
@@ -536,7 +583,8 @@ void PipPanel::updatePosition(QPoint point) {
 		minimalSize,
 		maximalSize,
 		_ratio,
-		dragPart);
+		dragPart,
+		_attached);
 	const auto clamped = (dragPart == RectPart::Center)
 		? ClampToEdges(screen, valid)
 		: valid.topLeft();
@@ -544,23 +592,24 @@ void PipPanel::updatePosition(QPoint point) {
 		moveAnimated(clamped);
 	} else {
 		_positionAnimation.stop();
-		setGeometry(valid);
+		setGeometry(valid.marginsAdded(_padding));
 	}
 }
 
 void PipPanel::finishDrag(QPoint point) {
 	const auto screen = ScreenFromPosition(point);
+	const auto inner = geometry().marginsRemoved(_padding);
 	const auto position = pos();
 	const auto clamped = [&] {
 		auto result = position;
-		if (result.x() > screen.x() + screen.width() - width()) {
-			result.setX(screen.x() + screen.width() - width());
+		if (result.x() > screen.x() + screen.width() - inner.width()) {
+			result.setX(screen.x() + screen.width() - inner.width());
 		}
 		if (result.x() < screen.x()) {
 			result.setX(screen.x());
 		}
-		if (result.y() > screen.y() + screen.height() - height()) {
-			result.setY(screen.y() + screen.height() - height());
+		if (result.y() > screen.y() + screen.height() - inner.height()) {
+			result.setY(screen.y() + screen.height() - inner.height());
 		}
 		if (result.y() < screen.y()) {
 			result.setY(screen.y());
@@ -571,18 +620,23 @@ void PipPanel::finishDrag(QPoint point) {
 		moveAnimated(clamped);
 	} else {
 		_positionAnimation.stop();
+		updateDecorations();
 	}
 }
 
 void PipPanel::updatePositionAnimated() {
 	const auto progress = _positionAnimation.value(1.);
 	if (!_positionAnimation.animating()) {
-		move(_positionAnimationTo);
+		move(_positionAnimationTo - QPoint(_padding.left(), _padding.top()));
+		if (!_dragState) {
+			updateDecorations();
+		}
 		return;
 	}
 	const auto from = QPointF(_positionAnimationFrom);
 	const auto to = QPointF(_positionAnimationTo);
-	move((from + (to - from) * progress).toPoint());
+	move((from + (to - from) * progress).toPoint()
+		- QPoint(_padding.left(), _padding.top()));
 }
 
 void PipPanel::moveAnimated(QPoint to) {
@@ -590,7 +644,7 @@ void PipPanel::moveAnimated(QPoint to) {
 		return;
 	}
 	_positionAnimationTo = to;
-	_positionAnimationFrom = pos();
+	_positionAnimationFrom = pos() + QPoint(_padding.left(), _padding.top());
 	_positionAnimation.stop();
 	_positionAnimation.start(
 		[=] { updatePositionAnimated(); },
@@ -598,6 +652,32 @@ void PipPanel::moveAnimated(QPoint to) {
 		1.,
 		st::slideWrapDuration,
 		anim::easeOutCirc);
+}
+
+void PipPanel::updateDecorations() {
+	const auto position = countPosition();
+	const auto center = position.geometry.center();
+	const auto use = Ui::Platform::TranslucentWindowsSupported(center);
+	const auto full = use ? st::callShadow.extend : style::margins();
+	const auto padding = style::margins(
+		(position.attached & RectPart::Left) ? 0 : full.left(),
+		(position.attached & RectPart::Top) ? 0 : full.top(),
+		(position.attached & RectPart::Right) ? 0 : full.right(),
+		(position.attached & RectPart::Bottom) ? 0 : full.bottom());
+	_snapped = position.snapped;
+	if (_padding == padding || _attached == position.attached) {
+		return;
+	}
+	const auto newGeometry = position.geometry.marginsAdded(padding);
+	_attached = position.attached;
+	_padding = padding;
+	_useTransparency = use;
+	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
+	setGeometry(newGeometry);
+	update();
+	if (!_dragState) {
+		_saveGeometryRequests.fire({});
+	}
 }
 
 Pip::Pip(
@@ -610,7 +690,6 @@ Pip::Pip(
 , _panel(
 	_delegate->pipParentWidget(),
 	[=](QPainter &p, const FrameRequest &request) { paint(p, request); })
-, _saveGeometryTimer([=] { saveGeometry(); })
 , _playPauseResume(
 	std::in_place,
 	&_panel,
@@ -640,9 +719,9 @@ void Pip::setupPanel() {
 	_panel.setPosition(Deserialize(_delegate->pipLoadGeometry()));
 	_panel.show();
 
-	_panel.geometryValue(
-	) | rpl::skip(1) | rpl::start_with_next([=] {
-		_saveGeometryTimer.callOnce(kSaveGeometryTimeout);
+	_panel.saveGeometryRequests(
+	) | rpl::start_with_next([=] {
+		saveGeometry();
 	}, _panel.lifetime());
 
 	_panel.events(

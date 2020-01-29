@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_instance.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
-#include "base/timer.h"
 
 #include <QtCore/QPointer>
 
@@ -55,6 +54,8 @@ public:
 	[[nodiscard]] Position countPosition() const;
 	void setPosition(Position position);
 
+	[[nodiscard]] rpl::producer<> saveGeometryRequests() const;
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -66,15 +67,17 @@ private:
 	void setPositionOnScreen(Position position, QRect available);
 
 	QScreen *myScreen() const;
+	void processDrag(QPoint point);
 	void finishDrag(QPoint point);
-	void updatePosition(QPoint point);
 	void updatePositionAnimated();
 	void updateOverState(QPoint point);
 	void moveAnimated(QPoint to);
+	void updateDecorations();
 
 	QPointer<QWidget> _parent;
 	Fn<void(QPainter&, FrameRequest)> _paint;
 	RectParts _attached = RectParts();
+	RectParts _snapped = RectParts();
 	QSize _ratio;
 
 	bool _useTransparency = true;
@@ -83,7 +86,9 @@ private:
 	RectPart _overState = RectPart();
 	std::optional<RectPart> _pressState;
 	QPoint _pressPoint;
-	std::optional<QRect> _dragStartGeometry;
+	QRect _dragStartGeometry;
+	std::optional<RectPart> _dragState;
+	rpl::event_stream<> _saveGeometryRequests;
 
 	QPoint _positionAnimationFrom;
 	QPoint _positionAnimationTo;
@@ -132,7 +137,6 @@ private:
 	Streaming::Instance _instance;
 	PipPanel _panel;
 	QSize _size;
-	base::Timer _saveGeometryTimer;
 
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _playPauseResume;
 	base::unique_qptr< Ui::FadeWrap<Ui::IconButton>> _pictureInPicture;
