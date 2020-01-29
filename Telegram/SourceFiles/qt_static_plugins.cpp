@@ -21,12 +21,15 @@ Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
 Q_IMPORT_PLUGIN(QGenericEnginePlugin)
 #elif defined Q_OS_LINUX // Q_OS_WIN | Q_OS_MAC
 Q_IMPORT_PLUGIN(QXcbIntegrationPlugin)
-Q_IMPORT_PLUGIN(QConnmanEnginePlugin)
 Q_IMPORT_PLUGIN(QGenericEnginePlugin)
-Q_IMPORT_PLUGIN(QNetworkManagerEnginePlugin)
 Q_IMPORT_PLUGIN(QComposePlatformInputContextPlugin)
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+Q_IMPORT_PLUGIN(QConnmanEnginePlugin)
+Q_IMPORT_PLUGIN(QNetworkManagerEnginePlugin)
 Q_IMPORT_PLUGIN(QIbusPlatformInputContextPlugin)
 Q_IMPORT_PLUGIN(QFcitxPlatformInputContextPlugin)
 Q_IMPORT_PLUGIN(QHimePlatformInputContextPlugin)
 Q_IMPORT_PLUGIN(NimfInputContextPlugin)
+Q_IMPORT_PLUGIN(QXdgDesktopPortalThemePlugin)
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 #endif // Q_OS_WIN | Q_OS_MAC | Q_OS_LINUX
