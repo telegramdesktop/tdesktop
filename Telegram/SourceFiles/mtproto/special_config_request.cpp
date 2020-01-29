@@ -24,7 +24,7 @@ namespace {
 
 constexpr auto kSendNextTimeout = crl::time(800);
 
-constexpr auto kPublicKey = str_const("\
+constexpr auto kPublicKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIIBCgKCAQEAyr+18Rex2ohtVy8sroGPBwXD3DOoKCSpjDqYoXgCqB7ioln4eDCF\n\
 fOBUlfXUEvM/fnKCpF46VkAftlb4VuPDeQSS/ZxZYEGqHaywlroVnXHIjgqoxiAd\n\
@@ -33,7 +33,7 @@ fOBUlfXUEvM/fnKCpF46VkAftlb4VuPDeQSS/ZxZYEGqHaywlroVnXHIjgqoxiAd\n\
 fDK/NWcvGqa0w/nriMD6mDjKOryamw0OP9QuYgMN0C9xMW9y8SmP4h92OAWodTYg\n\
 Y1hZCxdv6cs5UnW9+PWvS+WIbkh+GaWYxwIDAQAB\n\
 -----END RSA PUBLIC KEY-----\
-");
+"_cs;
 
 const auto kRemoteProject = "peak-vista-421";
 const auto kFireProject = "reserve-5a846";
@@ -436,9 +436,7 @@ bool SpecialConfigRequest::decryptSimpleConfig(const QByteArray &bytes) {
 		return false;
 	}
 
-	auto publicKey = details::RSAPublicKey(bytes::make_span(
-		kPublicKey.c_str(),
-		kPublicKey.size()));
+	auto publicKey = details::RSAPublicKey(bytes::make_span(kPublicKey));
 	auto decrypted = publicKey.decrypt(bytes::make_span(decodedBytes));
 	auto decryptedBytes = gsl::make_span(decrypted);
 

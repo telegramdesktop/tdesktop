@@ -458,7 +458,7 @@ void MainWindow::setPositionInited() {
 }
 
 void MainWindow::attachToTrayIcon(not_null<QSystemTrayIcon*> icon) {
-	icon->setToolTip(str_const_toString(AppName));
+	icon->setToolTip(AppName.utf16());
 	connect(icon, &QSystemTrayIcon::activated, this, [=](
 			QSystemTrayIcon::ActivationReason reason) {
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {

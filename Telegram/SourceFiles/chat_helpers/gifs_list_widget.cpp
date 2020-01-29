@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/gifs_list_widget.h"
 
+#include "base/const_string.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -37,7 +38,7 @@ namespace {
 constexpr auto kSaveChosenTabTimeout = 1000;
 constexpr auto kSearchRequestDelay = 400;
 constexpr auto kInlineItemsMaxPerRow = 5;
-constexpr auto kSearchBotUsername = str_const("gif");
+constexpr auto kSearchBotUsername = "gif"_cs;
 
 } // namespace
 
@@ -857,7 +858,7 @@ void GifsListWidget::searchForGifs(const QString &query) {
 	}
 
 	if (!_searchBot && !_searchBotRequestId) {
-		auto username = str_const_toString(kSearchBotUsername);
+		auto username = kSearchBotUsername.utf16();
 		_searchBotRequestId = _api.request(MTPcontacts_ResolveUsername(
 			MTP_string(username)
 		)).done([=](const MTPcontacts_ResolvedPeer &result) {

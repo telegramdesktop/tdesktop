@@ -377,7 +377,7 @@ QString objc_documentsPath() {
 QString objc_appDataPath() {
 	NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSApplicationSupportDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
 	if (url) {
-		return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/' + str_const_toString(AppName) + '/';
+		return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/' + AppName.utf16() + '/';
 	}
 	return QString();
 }

@@ -558,7 +558,7 @@ bool Editor::Inner::readData() {
 				auto result = readColor(name, row.value.data() + 1, row.value.size() - 1);
 				Assert(!result.error);
 				_newRows->feed(name, result.color);
-				//if (!_newRows->feedFallbackName(name, str_const_toString(row.fallback))) {
+				//if (!_newRows->feedFallbackName(name, row.fallback.utf16())) {
 				//	Unexpected("Row for fallback not found");
 				//}
 			} else {

@@ -47,41 +47,6 @@ T *SharedMemoryLocation() {
 	return reinterpret_cast<T*>(_SharedMemoryLocation + N);
 }
 
-// see https://github.com/boostcon/cppnow_presentations_2012/blob/master/wed/schurr_cpp11_tools_for_class_authors.pdf
-class str_const { // constexpr string
-public:
-	constexpr str_const(const char *str, std::size_t size)
-	: _str(str)
-	, _size(size) {
-	}
-	template <std::size_t N>
-	constexpr str_const(const char(&a)[N]) : str_const(a, N - 1) {
-	}
-	constexpr char operator[](std::size_t n) const {
-		return (n < _size) ? _str[n] :
-#ifndef OS_MAC_OLD
-			throw std::out_of_range("");
-#else // OS_MAC_OLD
-			throw std::exception();
-#endif // OS_MAC_OLD
-	}
-	constexpr std::size_t size() const { return _size; }
-	constexpr const char *c_str() const { return _str; }
-
-private:
-	const char* const _str;
-	const std::size_t _size;
-
-};
-
-inline QString str_const_toString(const str_const &str) {
-	return QString::fromUtf8(str.c_str(), str.size());
-}
-
-inline QByteArray str_const_toByteArray(const str_const &str) {
-	return QByteArray::fromRawData(str.c_str(), str.size());
-}
-
 inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #ifdef Q_OS_WIN
 	localtime_s(_Tm, _Time);

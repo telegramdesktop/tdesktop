@@ -42,7 +42,7 @@ using Platform::File::internal::EscapeShell;
 
 namespace {
 
-constexpr auto kDesktopFile = str_const(":/misc/telegramdesktop.desktop");
+constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 void SandboxAutostart(bool autostart) {
@@ -121,14 +121,14 @@ bool GenerateDesktopFile(const QString &targetPath, const QString &args) {
 
 	QString fileText;
 
-	QFile source(str_const_toString(kDesktopFile));
+	QFile source(kDesktopFile.utf16());
 	if (source.open(QIODevice::ReadOnly)) {
 		QTextStream s(&source);
 		fileText = s.readAll();
 		source.close();
 	} else {
 		LOG(("App Error: Could not open '%1' for read")
-			.arg(str_const_toString(kDesktopFile)));
+			.arg(kDesktopFile.utf16()));
 
 		return false;
 	}

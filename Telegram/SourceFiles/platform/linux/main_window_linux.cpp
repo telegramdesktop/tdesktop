@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace {
 
-constexpr auto kLauncherBasename = str_const(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME) ".desktop");
+constexpr auto kLauncherBasename = MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME) ".desktop"_cs;
 
 bool noQtTrayIcon = false, tryAppIndicator = false;
 bool useGtkBase = false, useAppIndicator = false, useStatusIcon = false, trayIconChecked = false, useUnityCount = false;
@@ -557,9 +557,9 @@ void MainWindow::psFirstShow() {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	if (QDBusInterface("com.canonical.Unity", "/").isValid()) {
 		auto snapName = QString::fromLatin1(qgetenv("SNAP_NAME"));
-		if(snapName.isEmpty()) {
+		if (snapName.isEmpty()) {
 			std::vector<QString> possibleDesktopFiles = {
-				str_const_toString(kLauncherBasename),
+				kLauncherBasename.utf16(),
 				"Telegram.desktop"
 			};
 
@@ -577,10 +577,10 @@ void MainWindow::psFirstShow() {
 		} else {
 			LOG(("SNAP Environment detected, setting Launcher entry to %1_%2.desktop!")
 				.arg(snapName)
-				.arg(str_const_toString(kLauncherBasename)));
+				.arg(kLauncherBasename.utf16()));
 			_desktopFile = snapName
 				+ '_'
-				+ str_const_toString(kLauncherBasename);
+				+ kLauncherBasename.utf16();
 			useUnityCount=true;
 		}
 		_dbusPath = "/com/canonical/unity/launcherentry/" + QString::number(djbStringHash("application://" + _desktopFile));

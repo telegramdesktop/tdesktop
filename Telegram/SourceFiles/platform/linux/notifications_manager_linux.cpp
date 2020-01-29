@@ -23,8 +23,8 @@ namespace Notifications {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 namespace {
 
-constexpr auto kService = str_const("org.freedesktop.Notifications");
-constexpr auto kObjectPath = str_const("/org/freedesktop/Notifications");
+constexpr auto kService = "org.freedesktop.Notifications"_cs;
+constexpr auto kObjectPath = "/org/freedesktop/Notifications"_cs;
 constexpr auto kInterface = kService;
 
 std::vector<QString> GetServerInformation(
@@ -112,9 +112,9 @@ NotificationData::NotificationData(
 		_actions << qsl("default") << QString();
 
 		_notificationInterface->connection().connect(
-			str_const_toString(kService),
-			str_const_toString(kObjectPath),
-			str_const_toString(kInterface),
+			kService.utf16(),
+			kObjectPath.utf16(),
+			kInterface.utf16(),
 			qsl("ActionInvoked"),
 			this,
 			SLOT(notificationClicked(uint)));
@@ -124,9 +124,9 @@ NotificationData::NotificationData(
 				<< tr::lng_notification_reply(tr::now);
 
 			_notificationInterface->connection().connect(
-				str_const_toString(kService),
-				str_const_toString(kObjectPath),
-				str_const_toString(kInterface),
+				kService.utf16(),
+				kObjectPath.utf16(),
+				kInterface.utf16(),
 				qsl("NotificationReplied"),
 				this,
 				SLOT(notificationReplied(uint,QString)));
@@ -161,9 +161,9 @@ NotificationData::NotificationData(
 		qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME));
 
 	_notificationInterface->connection().connect(
-		str_const_toString(kService),
-		str_const_toString(kObjectPath),
-		str_const_toString(kInterface),
+		kService.utf16(),
+		kObjectPath.utf16(),
+		kInterface.utf16(),
 		qsl("NotificationClosed"),
 		this,
 		SLOT(notificationClosed(uint)));
@@ -172,7 +172,7 @@ NotificationData::NotificationData(
 bool NotificationData::show() {
 	const QDBusReply<uint> notifyReply = _notificationInterface->call(
 		qsl("Notify"),
-		str_const_toString(AppName),
+		AppName.utf16(),
 		uint(0),
 		QString(),
 		_title,
@@ -311,9 +311,10 @@ const QDBusArgument &operator>>(const QDBusArgument &argument,
 bool Supported() {
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 	static const auto Available = QDBusInterface(
-		str_const_toString(kService),
-		str_const_toString(kObjectPath),
-		str_const_toString(kInterface)).isValid();
+		kService.utf16(),
+		kObjectPath.utf16(),
+		kInterface.utf16()
+	).isValid();
 
 	return Available;
 #else
@@ -335,10 +336,11 @@ std::unique_ptr<Window::Notifications::Manager> Create(
 Manager::Private::Private(Manager *manager, Type type)
 : _cachedUserpics(type)
 , _manager(manager)
-, _notificationInterface(std::make_shared<QDBusInterface>(
-		str_const_toString(kService),
-		str_const_toString(kObjectPath),
-		str_const_toString(kInterface))) {
+, _notificationInterface(
+	std::make_shared<QDBusInterface>(
+		kService.utf16(),
+		kObjectPath.utf16(),
+		kInterface.utf16())) {
 	qDBusRegisterMetaType<NotificationData::ImageData>();
 
 	const auto specificationVersion = ParseSpecificationVersion(

@@ -68,7 +68,7 @@ const auto kColorizeIgnoredKeys = base::flat_set<QLatin1String>{ {
 	qstr("mediaviewFileBlueCornerFg"),
 } };
 
-QColor qColor(str_const hex) {
+QColor qColor(std::string_view hex) {
 	Expects(hex.size() == 6);
 
 	const auto component = [](char a, char b) {
@@ -90,7 +90,7 @@ QColor qColor(str_const hex) {
 		component(hex[4], hex[5]));
 };
 
-Colorizer::Color cColor(str_const hex) {
+Colorizer::Color cColor(std::string_view hex) {
 	const auto q = qColor(hex);
 	auto hue = int();
 	auto saturation = int();
@@ -338,7 +338,7 @@ QByteArray Colorize(
 		const Colorizer &colorizer) {
 	Expects(hexColor.size() == 7 || hexColor.size() == 9);
 
-	auto color = qColor(str_const(hexColor.data() + 1, 6));
+	auto color = qColor(std::string_view(hexColor.data() + 1, 6));
 	const auto changed = Colorize(color, colorizer).value_or(color).toRgb();
 
 	auto result = QByteArray();

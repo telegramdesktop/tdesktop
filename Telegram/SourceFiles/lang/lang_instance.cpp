@@ -20,9 +20,9 @@ namespace {
 
 const auto kSerializeVersionTag = qsl("#new");
 constexpr auto kSerializeVersion = 1;
-constexpr auto kDefaultLanguage = str_const("en");
-constexpr auto kCloudLangPackName = str_const("tdesktop");
-constexpr auto kCustomLanguage = str_const("#custom");
+constexpr auto kDefaultLanguage = "en"_cs;
+constexpr auto kCloudLangPackName = "tdesktop"_cs;
+constexpr auto kCustomLanguage = "#custom"_cs;
 constexpr auto kLangValuesLimit = 20000;
 
 std::vector<QString> PrepareDefaultValues() {
@@ -213,7 +213,7 @@ void ParseKeyValue(
 } // namespace
 
 QString DefaultLanguageId() {
-	return str_const_toString(kDefaultLanguage);
+	return kDefaultLanguage.utf16();
 }
 
 QString LanguageIdOrDefault(const QString &id) {
@@ -221,11 +221,11 @@ QString LanguageIdOrDefault(const QString &id) {
 }
 
 QString CloudLangPackName() {
-	return str_const_toString(kCloudLangPackName);
+	return kCloudLangPackName.utf16();
 }
 
 QString CustomLanguageId() {
-	return str_const_toString(kCustomLanguage);
+	return kCustomLanguage.utf16();
 }
 
 Language DefaultLanguage() {
