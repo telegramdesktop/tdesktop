@@ -11,8 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_document.h"
 #include "media/streaming/media_streaming_utility.h"
 #include "media/audio/media_audio.h"
-#include "main/main_session.h"
-#include "main/main_settings.h"
 #include "data/data_document.h"
 #include "core/application.h"
 #include "ui/platform/ui_platform_utility.h"
@@ -32,6 +30,7 @@ namespace View {
 namespace {
 
 constexpr auto kPipLoaderPriority = 2;
+constexpr auto kSaveGeometryTimeout = crl::time(1000);
 
 [[nodiscard]] QRect ScreenFromPosition(QPoint point) {
 	const auto screen = QGuiApplication::screenAt(point);
@@ -197,6 +196,34 @@ constexpr auto kPipLoaderPriority = 2;
 			newSize);
 	}
 	Unexpected("RectPart in PiP Constrained.");
+}
+
+[[nodiscard]] QByteArray Serialize(const PipPanel::Position &position) {
+	auto result = QByteArray();
+	auto stream = QDataStream(&result, QIODevice::WriteOnly);
+	stream.setVersion(QDataStream::Qt_5_3);
+	stream
+		<< qint32(position.attached.value())
+		<< qint32(position.snapped.value())
+		<< position.screen
+		<< position.geometry;
+	stream.device()->close();
+
+	return result;
+}
+
+[[nodiscard]] PipPanel::Position Deserialize(const QByteArray &data) {
+	auto stream = QDataStream(data);
+	auto result = PipPanel::Position();
+	auto attached = qint32(0);
+	auto snapped = qint32(0);
+	stream >> attached >> snapped >> result.screen >> result.geometry;
+	if (stream.status() != QDataStream::Ok) {
+		return {};
+	}
+	result.attached = RectParts::from_raw(attached);
+	result.snapped = RectParts::from_raw(snapped);
+	return result;
 }
 
 } // namespace
@@ -574,14 +601,16 @@ void PipPanel::moveAnimated(QPoint to) {
 }
 
 Pip::Pip(
-	QWidget *parent,
+	not_null<Delegate*> delegate,
 	std::shared_ptr<Streaming::Document> document,
 	FnMut<void()> closeAndContinue,
 	FnMut<void()> destroy)
-: _instance(document, [=] { waitingAnimationCallback(); })
-, _panel(parent, [=](QPainter &p, const FrameRequest &request) {
-	paint(p, request);
-})
+: _delegate(delegate)
+, _instance(document, [=] { waitingAnimationCallback(); })
+, _panel(
+	_delegate->pipParentWidget(),
+	[=](QPainter &p, const FrameRequest &request) { paint(p, request); })
+, _saveGeometryTimer([=] { saveGeometry(); })
 , _playPauseResume(
 	std::in_place,
 	&_panel,
@@ -596,6 +625,46 @@ Pip::Pip(
 	object_ptr<Ui::IconButton>(&_panel, st::boxTitleClose))
 , _closeAndContinue(std::move(closeAndContinue))
 , _destroy(std::move(destroy)) {
+	setupPanel();
+	setupButtons();
+	setupStreaming();
+}
+
+void Pip::setupPanel() {
+	const auto size = style::ConvertScale(_instance.info().video.size);
+	if (size.isEmpty()) {
+		_panel.setAspectRatio(QSize(1, 1));
+	} else {
+		_panel.setAspectRatio(size);
+	}
+	_panel.setPosition(Deserialize(_delegate->pipLoadGeometry()));
+	_panel.show();
+
+	_panel.geometryValue(
+	) | rpl::skip(1) | rpl::start_with_next([=] {
+		_saveGeometryTimer.callOnce(kSaveGeometryTimeout);
+	}, _panel.lifetime());
+
+	_panel.events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return e->type() == QEvent::Close;
+	}) | rpl::start_with_next([=] {
+		_destroy();
+	}, _panel.lifetime());
+}
+
+void Pip::setupButtons() {
+	_panel.sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		_close->moveToLeft(0, 0, size.width());
+		const auto skip = st::mediaviewFullScreenLeft;
+		const auto sum = _playPauseResume->width() + skip + _pictureInPicture->width();
+		const auto left = (size.width() - sum) / 2;
+		const auto top = size.height() - _playPauseResume->height() - skip;
+		_playPauseResume->moveToLeft(left, top);
+		_pictureInPicture->moveToRight(left, top);
+	}, _panel.lifetime());
+
 	_close->entity()->addClickHandler([=] {
 		_panel.close();
 	});
@@ -608,37 +677,10 @@ Pip::Pip(
 	_close->show(anim::type::instant);
 	_pictureInPicture->show(anim::type::instant);
 	_playPauseResume->show(anim::type::instant);
-	setupPanel();
-	setupStreaming();
 }
 
-void Pip::setupPanel() {
-	const auto size = style::ConvertScale(_instance.info().video.size);
-	if (size.isEmpty()) {
-		_panel.setAspectRatio(QSize(1, 1));
-	} else {
-		_panel.setAspectRatio(size);
-	}
-	_panel.setPosition(PipPanel::Position());
-	_panel.show();
-
-	_panel.sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		_close->moveToLeft(0, 0, size.width());
-		const auto skip = st::mediaviewFullScreenLeft;
-		const auto sum = _playPauseResume->width() + skip + _pictureInPicture->width();
-		const auto left = (size.width() - sum) / 2;
-		const auto top = size.height() - _playPauseResume->height() - skip;
-		_playPauseResume->moveToLeft(left, top);
-		_pictureInPicture->moveToRight(left, top);
-	}, _panel.lifetime());
-
-	_panel.events(
-	) | rpl::filter([=](not_null<QEvent*> e) {
-		return e->type() == QEvent::Close;
-	}) | rpl::start_with_next([=] {
-		_destroy();
-	}, _panel.lifetime());
+void Pip::saveGeometry() {
+	_delegate->pipSaveGeometry(Serialize(_panel.countPosition()));
 }
 
 void Pip::updatePlayPauseResumeState(const Player::TrackState &state) {
@@ -726,9 +768,7 @@ void Pip::restartAtSeekPosition(crl::time position) {
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
 	options.audioId = _instance.player().prepareLegacyState().id;
-	options.speed = options.audioId.audio()
-		? options.audioId.audio()->session().settings().videoPlaybackSpeed()
-		: 1.;
+	options.speed = _delegate->pipPlaybackSpeed();
 	_instance.play(options);
 	updatePlaybackState();
 }

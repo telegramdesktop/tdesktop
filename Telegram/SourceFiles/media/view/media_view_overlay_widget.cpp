@@ -83,6 +83,43 @@ constexpr auto kIdsLimit = 48;
 // Preload next messages if we went further from current than that.
 constexpr auto kIdsPreloadAfter = 28;
 
+class PipDelegate final : public Pip::Delegate {
+public:
+	PipDelegate(QWidget *parent, not_null<Main::Session*> session);
+
+	void pipSaveGeometry(QByteArray geometry) override;
+	QByteArray pipLoadGeometry() override;
+	float64 pipPlaybackSpeed() override;
+	QWidget *pipParentWidget() override;
+
+private:
+	QWidget *_parent = nullptr;
+	not_null<Main::Session*> _session;
+
+};
+
+PipDelegate::PipDelegate(QWidget *parent, not_null<Main::Session*> session)
+: _parent(parent)
+, _session(session) {
+}
+
+void PipDelegate::pipSaveGeometry(QByteArray geometry) {
+	_session->settings().setVideoPipGeometry(geometry);
+	_session->saveSettingsDelayed();
+}
+
+QByteArray PipDelegate::pipLoadGeometry() {
+	return _session->settings().videoPipGeometry();
+}
+
+float64 PipDelegate::pipPlaybackSpeed() {
+	return _session->settings().videoPlaybackSpeed();
+}
+
+QWidget *PipDelegate::pipParentWidget() {
+	return _parent;
+}
+
 Images::Options VideoThumbOptions(not_null<DocumentData*> document) {
 	const auto result = Images::Option::Smooth | Images::Option::Blurred;
 	return (document && document->isVideoMessage())
@@ -204,6 +241,21 @@ struct OverlayWidget::Streamed {
 	bool resumeOnCallEnd = false;
 };
 
+struct OverlayWidget::PipWrap {
+	PipWrap(
+		QWidget *parent,
+		not_null<DocumentData*> document,
+		std::shared_ptr<Streaming::Document> shared,
+		FnMut<void()> closeAndContinue,
+		FnMut<void()> destroy);
+
+	PipWrap(const PipWrap &other) = delete;
+	PipWrap &operator=(const PipWrap &other) = delete;
+
+	PipDelegate delegate;
+	Pip wrapped;
+};
+
 OverlayWidget::Streamed::Streamed(
 	not_null<DocumentData*> document,
 	Data::FileOrigin origin,
@@ -212,6 +264,20 @@ OverlayWidget::Streamed::Streamed(
 	Fn<void()> waitingCallback)
 : instance(document, origin, std::move(waitingCallback))
 , controls(controlsParent, controlsDelegate) {
+}
+
+OverlayWidget::PipWrap::PipWrap(
+	QWidget *parent,
+	not_null<DocumentData*> document,
+	std::shared_ptr<Streaming::Document> shared,
+	FnMut<void()> closeAndContinue,
+	FnMut<void()> destroy)
+: delegate(parent, &document->session())
+, wrapped(
+	&delegate,
+	std::move(shared),
+	std::move(closeAndContinue),
+	std::move(destroy)) {
 }
 
 OverlayWidget::OverlayWidget()
@@ -985,6 +1051,7 @@ void OverlayWidget::clearData() {
 	_fromName = QString();
 	_photo = nullptr;
 	_doc = nullptr;
+	_pip = nullptr;
 	_fullScreenVideo = false;
 	_caption.clear();
 }
@@ -2440,13 +2507,20 @@ float64 OverlayWidget::playbackControlsCurrentSpeed() {
 }
 
 void OverlayWidget::switchToPip() {
+	Expects(_streamed != nullptr);
+	Expects(_doc != nullptr);
+
 	const auto document = _doc;
 	const auto msgId = _msgid;
-	_pip = std::make_unique<Pip>(this, _streamed->instance.shared(), [=] {
-		showDocument(_doc, Auth().data().message(msgId), {}, true);
-	}, [=] {
-		_pip = nullptr;
-	});
+	const auto closeAndContinue = [=] {
+		showDocument(document, document->owner().message(msgId), {}, true);
+	};
+	_pip = std::make_unique<PipWrap>(
+		this,
+		document,
+		_streamed->instance.shared(),
+		closeAndContinue,
+		[=] { _pip = nullptr; });
 	close();
 }
 

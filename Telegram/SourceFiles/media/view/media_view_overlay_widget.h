@@ -129,6 +129,7 @@ private slots:
 
 private:
 	struct Streamed;
+	struct PipWrap;
 
 	enum OverState {
 		OverNone,
@@ -384,7 +385,7 @@ private:
 	bool _blurred = true;
 
 	std::unique_ptr<Streamed> _streamed;
-	std::unique_ptr<Pip> _pip;
+	std::unique_ptr<PipWrap> _pip;
 
 	const style::icon *_docIcon = nullptr;
 	style::color _docIconColor;

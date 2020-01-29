@@ -247,6 +247,12 @@ public:
 	void setVideoPlaybackSpeed(float64 speed) {
 		_variables.videoPlaybackSpeed = speed;
 	}
+	[[nodiscard]] QByteArray videoPipGeometry() const {
+		return _variables.videoPipGeometry;
+	}
+	void setVideoPipGeometry(QByteArray geometry) {
+		_variables.videoPipGeometry = geometry;
+	}
 
 private:
 	struct Variables {
@@ -289,6 +295,7 @@ private:
 		rpl::variable<bool> spellcheckerEnabled = true;
 		std::vector<std::pair<DocumentId, crl::time>> mediaLastPlaybackPosition;
 		rpl::variable<float64> videoPlaybackSpeed = 1.;
+		QByteArray videoPipGeometry;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;

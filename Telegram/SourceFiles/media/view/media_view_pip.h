@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_instance.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
+#include "base/timer.h"
 
 #include <QtCore/QPointer>
 
@@ -76,6 +77,9 @@ private:
 	RectParts _attached = RectParts();
 	QSize _ratio;
 
+	bool _useTransparency = true;
+	style::margins _padding;
+
 	RectPart _overState = RectPart();
 	std::optional<RectPart> _pressState;
 	QPoint _pressPoint;
@@ -89,8 +93,16 @@ private:
 
 class Pip final {
 public:
+	class Delegate {
+	public:
+		virtual void pipSaveGeometry(QByteArray geometry) = 0;
+		[[nodiscard]] virtual QByteArray pipLoadGeometry() = 0;
+		[[nodiscard]] virtual float64 pipPlaybackSpeed() = 0;
+		[[nodiscard]] virtual QWidget *pipParentWidget() = 0;
+	};
+
 	Pip(
-		QWidget *parent,
+		not_null<Delegate*> delegate,
 		std::shared_ptr<Streaming::Document> document,
 		FnMut<void()> closeAndContinue,
 		FnMut<void()> destroy);
@@ -99,12 +111,14 @@ private:
 	using FrameRequest = Streaming::FrameRequest;
 
 	void setupPanel();
+	void setupButtons();
 	void setupStreaming();
 	void paint(QPainter &p, FrameRequest request);
 	void playbackPauseResume();
 	void waitingAnimationCallback();
 	void handleStreamingUpdate(Streaming::Update &&update);
 	void handleStreamingError(Streaming::Error &&error);
+	void saveGeometry();
 
 	void updatePlaybackState();
 	void updatePlayPauseResumeState(const Player::TrackState &state);
@@ -114,9 +128,11 @@ private:
 	[[nodiscard]] QImage videoFrameForDirectPaint(
 		const FrameRequest &request) const;
 
+	const not_null<Delegate*> _delegate;
 	Streaming::Instance _instance;
 	PipPanel _panel;
 	QSize _size;
+	base::Timer _saveGeometryTimer;
 
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _playPauseResume;
 	base::unique_qptr< Ui::FadeWrap<Ui::IconButton>> _pictureInPicture;
