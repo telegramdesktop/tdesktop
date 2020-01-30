@@ -249,7 +249,7 @@ void Launcher::init() {
 	QApplication::setApplicationName(qsl("TelegramDesktop"));
 
 #if defined(Q_OS_LINUX) && QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
-	QApplication::setDesktopFileName(qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME)) + ".desktop");
+	QApplication::setDesktopFileName(Platform::GetLauncherFilename());
 #endif
 
 #ifndef OS_MAC_OLD
