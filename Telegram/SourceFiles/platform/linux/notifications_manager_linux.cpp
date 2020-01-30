@@ -47,7 +47,7 @@ std::vector<QString> GetServerInformation(
 		}
 	} else if (serverInformationReply.type() == QDBusMessage::ErrorMessage) {
 		LOG(("Native notification error: %1")
-			.arg(QDBusError(serverInformationReply).message()));
+			.arg(serverInformationReply.errorMessage()));
 	} else {
 		LOG(("Native notification error: "
 			"error while getting information about notification daemon"));
