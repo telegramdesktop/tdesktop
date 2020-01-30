@@ -55,11 +55,18 @@ void SandboxAutostart(bool autostart) {
 	});
 	options["dbus-activatable"] = false;
 
-	QDBusInterface(
+	const auto requestBackgroundReply = QDBusInterface(
 		qsl("org.freedesktop.portal.Desktop"),
 		qsl("/org/freedesktop/portal/desktop"),
-		qsl("/org/freedesktop/portal/desktop")
+		qsl("org.freedesktop.portal.Background")
 	).call(qsl("RequestBackground"), QString(), options);
+
+	if (requestBackgroundReply.type() == QDBusMessage::ErrorMessage) {
+		LOG(("Flatpak autostart error: %1")
+			.arg(requestBackgroundReply.errorMessage()));
+	} else if (requestBackgroundReply.type() != QDBusMessage::ReplyMessage) {
+		LOG(("Flatpak autostart error: invalid reply"));
+	}
 }
 #endif
 
