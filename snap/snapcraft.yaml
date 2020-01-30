@@ -14,6 +14,8 @@ apps:
     environment:
       # Use GTK3 cursor theme, icon theme and open/save file dialogs.
       QT_QPA_PLATFORMTHEME: gtk3
+      # Wayland support is still too bad.
+      DISABLE_WAYLAND: 1
     plugs:
       - desktop
       - desktop-legacy
