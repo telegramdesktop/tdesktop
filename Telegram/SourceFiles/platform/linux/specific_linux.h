@@ -21,10 +21,14 @@ inline void SetWatchingMediaKeys(bool watching) {
 }
 
 bool InSandbox();
+bool InSnap();
 
 QString CurrentExecutablePath(int argc, char *argv[]);
 
 QString SingleInstanceLocalServerName(const QString &hash);
+
+QString GetLauncherBasename();
+QString GetLauncherFilename();
 
 inline std::optional<crl::time> LastUserInputTime() {
 	return std::nullopt;

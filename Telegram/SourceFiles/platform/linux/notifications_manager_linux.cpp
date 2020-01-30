@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/notifications_manager_linux.h"
 
+#include "platform/linux/specific_linux.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "facades.h"
@@ -157,8 +158,7 @@ NotificationData::NotificationData(
 
 	_hints["category"] = qsl("im.received");
 
-	_hints["desktop-entry"] =
-		qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME));
+	_hints["desktop-entry"] = GetLauncherBasename();
 
 	_notificationInterface->connection().connect(
 		kService.utf16(),

@@ -116,8 +116,7 @@ bool GenerateDesktopFile(const QString &targetPath, const QString &args) {
 	DEBUG_LOG(("App Info: placing .desktop file to %1").arg(targetPath));
 	if (!QDir(targetPath).exists()) QDir().mkpath(targetPath);
 
-	const auto targetFile = targetPath
-		+ qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME) ".desktop");
+	const auto targetFile = targetPath + GetLauncherFilename();
 
 	QString fileText;
 
@@ -182,6 +181,11 @@ bool InSandbox() {
 	return Sandbox;
 }
 
+bool InSnap() {
+	static const auto Snap = qEnvironmentVariableIsSet("SNAP");
+	return Snap;
+}
+
 QString CurrentExecutablePath(int argc, char *argv[]) {
 	constexpr auto kMaxPath = 1024;
 	char result[kMaxPath] = { 0 };
@@ -200,17 +204,15 @@ QString CurrentExecutablePath(int argc, char *argv[]) {
 }
 
 QString SingleInstanceLocalServerName(const QString &hash) {
-	const auto isSnap = !qgetenv("SNAP").isEmpty();
-
 	const auto runtimeDir = QStandardPaths::writableLocation(
 		QStandardPaths::RuntimeLocation);
 
 	if (InSandbox()) {
 		return runtimeDir
 			+ qsl("/app/")
-			+ QString::fromUtf8(qgetenv("FLATPAK_ID"))
+			+ QString::fromLatin1(qgetenv("FLATPAK_ID"))
 			+ '/' + hash;
-	} else if (QFileInfo::exists(runtimeDir) && isSnap) {
+	} else if (QFileInfo::exists(runtimeDir) && InSnap()) {
 		return runtimeDir + '/' + hash;
 	} else if (QFileInfo::exists(runtimeDir)) {
 		return runtimeDir + '/' + hash + '-' + cGUIDStr();
@@ -218,6 +220,35 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 		return QStandardPaths::writableLocation(QStandardPaths::TempLocation)
 			+ '/' + hash + '-' + cGUIDStr();
 	}
+}
+
+QString GetLauncherBasename() {
+	static const auto LauncherBasename = [&] {
+		QString launcherBasename;
+
+		if (InSnap()) {
+			launcherBasename = qsl("%1_%2")
+				.arg(QString::fromLatin1(qgetenv("SNAP_NAME")))
+				.arg(qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME)));
+
+			LOG(("SNAP Environment detected, "
+				"launcher filename is %1.desktop")
+					.arg(launcherBasename));
+		} else {
+			launcherBasename =
+				qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME));
+		}
+
+		return launcherBasename;
+	}();
+
+	return LauncherBasename;
+}
+
+QString GetLauncherFilename() {
+	static const auto LauncherFilename = GetLauncherBasename()
+		+ qsl(".desktop");
+	return LauncherFilename;
 }
 
 } // namespace Platform
@@ -379,8 +410,8 @@ void RegisterCustomScheme() {
 		+ EscapeShell(QFile::encodeName(applicationsPath)));
 
 	RunShellCommand("xdg-mime default "
-		MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME)
-		".desktop x-scheme-handler/tg");
+		+ GetLauncherFilename().toLatin1()
+		+ " x-scheme-handler/tg");
 #endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 }
 
@@ -459,9 +490,7 @@ void psAutoStart(bool start, bool silent) {
 		if (start) {
 			GenerateDesktopFile(autostart, qsl("-autostart"));
 		} else {
-			QFile::remove(autostart
-				+ qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME)
-					".desktop"));
+			QFile::remove(autostart + GetLauncherFilename());
 		}
 	}
 }
