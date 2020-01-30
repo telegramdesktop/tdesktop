@@ -241,6 +241,18 @@ public:
 		return _variables.spellcheckerEnabled.changes();
 	}
 
+	void setDictionariesEnabled(std::vector<int> dictionaries) {
+		_variables.dictionariesEnabled = std::move(dictionaries);
+	}
+
+	std::vector<int> dictionariesEnabled() const {
+		return _variables.dictionariesEnabled.current();
+	}
+
+	rpl::producer<std::vector<int>> dictionariesEnabledChanges() const {
+		return _variables.dictionariesEnabled.changes();
+	}
+
 	[[nodiscard]] float64 videoPlaybackSpeed() const {
 		return _variables.videoPlaybackSpeed.current();
 	}
@@ -298,6 +310,7 @@ private:
 		std::vector<std::pair<DocumentId, crl::time>> mediaLastPlaybackPosition;
 		rpl::variable<float64> videoPlaybackSpeed = 1.;
 		QByteArray videoPipGeometry;
+		rpl::variable<std::vector<int>> dictionariesEnabled;
 
 		static constexpr auto kDefaultSupportChatsLimitSlice
 			= 7 * 24 * 60 * 60;
