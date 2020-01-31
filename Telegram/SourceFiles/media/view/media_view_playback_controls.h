@@ -75,6 +75,7 @@ private:
 
 	void updatePlaybackSpeed(float64 speed);
 	void updateVolumeToggleIcon();
+	void updateDownloadProgressPosition();
 
 	void updatePlayPauseResumeState(const Player::TrackState &state);
 	void updateTimeTexts(const Player::TrackState &state);
@@ -98,8 +99,7 @@ private:
 	std::unique_ptr<PlaybackProgress> _receivedTillProgress;
 	object_ptr<Ui::IconButton> _volumeToggle;
 	object_ptr<Ui::MediaSlider> _volumeController;
-	object_ptr<Ui::MediaSlider> _speedController;
-	object_ptr<Ui::LabelSimple> _speedLabel;
+	object_ptr<Ui::IconButton> _menuToggle;
 	object_ptr<Ui::IconButton> _fullScreenToggle;
 	object_ptr<Ui::IconButton> _pictureInPicture;
 	object_ptr<Ui::LabelSimple> _playedAlready;

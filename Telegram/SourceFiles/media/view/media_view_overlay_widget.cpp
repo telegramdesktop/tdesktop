@@ -2104,6 +2104,8 @@ bool OverlayWidget::initStreaming(bool continueStreaming) {
 		|| (!_streamed->instance.player().active()
 			&& !_streamed->instance.player().finished())) {
 		startStreamingPlayer();
+	} else {
+		updatePlaybackState();
 	}
 	return true;
 }

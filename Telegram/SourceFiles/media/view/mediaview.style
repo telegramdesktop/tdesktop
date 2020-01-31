@@ -20,61 +20,85 @@ mediaviewPlayback: MediaSlider {
 	activeFgDisabled: mediaviewPlaybackActive;
 	inactiveFgDisabled: mediaviewPlaybackInactive;
 	receivedTillFg: mediaviewPlaybackInactiveOver;
-	seekSize: size(11px, 11px);
+	seekSize: size(12px, 12px);
+	duration: mediaviewOverDuration;
+}
+mediaviewPlaybackTop: 52px;
+
+mediaviewControlsButton: IconButton {
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: mediaviewPlaybackIconRipple;
+	}
+	rippleAreaPosition: point(0px, 0px);
 	duration: mediaviewOverDuration;
 }
 
-mediaviewControllerSize: size(480px, 100px);
+mediaviewControllerSize: size(481px, 75px);
 mediaviewPlayProgressLabel: LabelSimple(defaultLabelSimple) {
 	font: semiboldFont;
 	textFg: mediaviewPlaybackProgressFg;
 }
-mediaviewPlayProgressTop: 11px;
-mediaviewPlayButton: IconButton {
-	width: 25px;
-	height: 24px;
+mediaviewPlayProgressSkip: 8px;
+mediaviewPlayProgressLeft: 8px;
+mediaviewPlayButtonTop: 5px;
+mediaviewPlayButton: IconButton(mediaviewControlsButton) {
+	width: 42px;
+	height: 42px;
+	rippleAreaSize: 42px;
 
-	icon: icon {{ "media_play", mediaviewPlaybackIconFg, point(3px, 0px) }};
-	iconOver: icon {{ "media_play", mediaviewPlaybackIconFgOver, point(3px, 0px) }};
-	iconPosition: point(3px, 1px);
-
-	duration: mediaviewOverDuration;
+	icon: icon {{ "player_play", mediaviewPlaybackIconFg }};
+	iconOver: icon {{ "player_play", mediaviewPlaybackIconFgOver }};
+	iconPosition: point(9px, 9px);
 }
-mediaviewPauseIcon: icon {{ "media_pause", mediaviewPlaybackIconFg, point(1px, 1px) }};
-mediaviewPauseIconOver: icon {{ "media_pause", mediaviewPlaybackIconFgOver, point(1px, 1px) }};
-mediaviewPlayPauseLeft: 17px;
-mediaviewFullScreenLeft: 17px;
-mediaviewVolumeLeft: 7px;
+mediaviewPauseIcon: icon {{ "player_pause", mediaviewPlaybackIconFg }};
+mediaviewPauseIconOver: icon {{ "player_pause", mediaviewPlaybackIconFgOver }};
 
-mediaviewFullScreenButton: IconButton(mediaviewPlayButton) {
-	icon: icon {{ "media_fullscreen_to", mediaviewPlaybackIconFg, point(0px, 0px) }};
-	iconOver: icon {{ "media_fullscreen_to", mediaviewPlaybackIconFgOver, point(0px, 0px) }};
-	iconPosition: point(0px, 1px);
+mediaviewButtonsTop: 7px;
+
+mediaviewMenuToggleSkip: 4px;
+mediaviewMenuToggle: IconButton(mediaviewControlsButton) {
+	width: 34px;
+	height: 34px;
+	rippleAreaSize: 34px;
+	icon: icon {{ "player_more", mediaviewPlaybackIconFg }};
+	iconOver: icon {{ "player_more", mediaviewPlaybackIconFgOver }};
+	iconPosition: point(5px, 5px);
 }
-mediaviewFullScreenOutIcon: icon {{ "media_fullscreen_from", mediaviewPlaybackIconFg, point(0px, 0px) }};
-mediaviewFullScreenOutIconOver: icon {{ "media_fullscreen_from", mediaviewPlaybackIconFgOver, point(0px, 0px) }};
 
-mediaviewPlaybackTop: 28px;
+mediaviewPipButtonSkip: 5px;
+mediaviewPipButton: IconButton(mediaviewMenuToggle) {
+	icon: icon {{ "player_pip", mediaviewPlaybackIconFg }};
+	iconOver: icon {{ "player_pip", mediaviewPlaybackIconFgOver }};
+}
 
-mediaviewVolumeWidth: 60px;
-mediaviewControllerRadius: roundRadiusLarge;
+mediaviewFullScreenButtonSkip: 8px;
+mediaviewFullScreenButton: IconButton(mediaviewMenuToggle) {
+	icon: icon {{ "player_fullscreen", mediaviewPlaybackIconFg }};
+	iconOver: icon {{ "player_fullscreen", mediaviewPlaybackIconFgOver }};
+}
+mediaviewFullScreenOutIcon: icon {{ "player_minimize", mediaviewPlaybackIconFg }};
+mediaviewFullScreenOutIconOver: icon {{ "player_minimize", mediaviewPlaybackIconFgOver }};
 
-mediaviewVolumeIcon0: icon {{ "player_volume0", mediaviewPlaybackIconFg }};
-mediaviewVolumeIcon0Over: icon {{ "player_volume0", mediaviewPlaybackIconFgOver }};
-mediaviewVolumeIcon1: icon {{ "player_volume1", mediaviewPlaybackIconFg }};
-mediaviewVolumeIcon1Over: icon {{ "player_volume1", mediaviewPlaybackIconFgOver }};
-mediaviewVolumeIcon2: icon {{ "player_volume2", mediaviewPlaybackIconFg }};
-mediaviewVolumeIcon2Over: icon {{ "player_volume2", mediaviewPlaybackIconFgOver }};
-mediaviewVolumeIcon3: icon {{ "player_volume3", mediaviewPlaybackIconFg }};
-mediaviewVolumeIcon3Over: icon {{ "player_volume3", mediaviewPlaybackIconFgOver }};
-mediaviewVolumeToggle: IconButton {
-	width: 31px;
-	height: 29px;
+mediaviewVolumeWidth: 75px;
+mediaviewControllerRadius: 9px;
 
+mediaviewVolumeIcon0: icon {{ "player_volume_off", mediaviewPlaybackIconFg }};
+mediaviewVolumeIcon0Over: icon {{ "player_volume_off", mediaviewPlaybackIconFgOver }};
+mediaviewVolumeIcon1: icon {{ "player_volume_small", mediaviewPlaybackIconFg }};
+mediaviewVolumeIcon1Over: icon {{ "player_volume_small", mediaviewPlaybackIconFgOver }};
+mediaviewVolumeIcon2: icon {{ "player_volume_on", mediaviewPlaybackIconFg }};
+mediaviewVolumeIcon2Over: icon {{ "player_volume_on", mediaviewPlaybackIconFgOver }};
+mediaviewVolumeTop: 10px;
+mediaviewVolumeToggleSkip: 11px;
+mediaviewVolumeToggle: IconButton(mediaviewControlsButton) {
+	width: 30px;
+	height: 30px;
+	rippleAreaSize: 30px;
 	icon: mediaviewVolumeIcon0;
 	iconOver: mediaviewVolumeIcon0Over;
-	iconPosition: point(8px, 8px);
+	iconPosition: point(3px, 3px);
 }
+mediaviewVolumeSkip: 4px;
 
 mediaviewLeft: icon {{ "mediaview_next-flip_horizontal", mediaviewControlFg }};
 mediaviewRight: icon {{ "mediaview_next", mediaviewControlFg }};
@@ -230,3 +254,15 @@ pipMinimalSize: 100px;
 pipBorderSkip: 20px;
 pipBorderSnapArea: 16px;
 pipResizeArea: 10px;
+pipControlSkip: 6px;
+pipPlaybackWidth: 2px;
+pipPlaybackSkip: 4px;
+pipPlayBottom: 16px;
+pipPlayIcon: icon {{ "player_pip_play", mediaviewPipControlsFg }};
+pipPlayIconOver: icon {{ "player_pip_play", mediaviewPipControlsFgOver }};
+pipPauseIcon: icon {{ "player_pip_pause", mediaviewPipControlsFg }};
+pipPauseIconOver: icon {{ "player_pip_pause", mediaviewPipControlsFgOver }};
+pipCloseIcon: icon {{ "player_pip_close", mediaviewPlaybackIconFg }};
+pipCloseIconOver: icon {{ "player_pip_close", mediaviewPlaybackIconFgOver }};
+pipEnlargeIcon: icon {{ "player_pip_enlarge", mediaviewPlaybackIconFg }};
+pipEnlargeIconOver: icon {{ "player_pip_enlarge", mediaviewPlaybackIconFgOver }};

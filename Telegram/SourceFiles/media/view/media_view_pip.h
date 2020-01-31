@@ -53,6 +53,8 @@ public:
 	void setAspectRatio(QSize ratio);
 	[[nodiscard]] Position countPosition() const;
 	void setPosition(Position position);
+	[[nodiscard]] QRect inner() const;
+	[[nodiscard]] bool dragging() const;
 
 	[[nodiscard]] rpl::producer<> saveGeometryRequests() const;
 
@@ -113,6 +115,19 @@ public:
 		FnMut<void()> destroy);
 
 private:
+	enum class OverState {
+		None,
+		Close,
+		Enlarge,
+		Playback,
+		Other,
+	};
+	struct Button {
+		QRect area;
+		QRect icon;
+		OverState state = OverState::None;
+		Ui::Animations::Simple active;
+	};
 	using FrameRequest = Streaming::FrameRequest;
 
 	void setupPanel();
@@ -132,16 +147,30 @@ private:
 	[[nodiscard]] QImage videoFrame(const FrameRequest &request) const;
 	[[nodiscard]] QImage videoFrameForDirectPaint(
 		const FrameRequest &request) const;
+	[[nodiscard]] OverState computeState(QPoint position) const;
+	void setOverState(OverState state);
+
+	void handleMouseMove(QPoint position);
+	void handleMousePress(Qt::MouseButton button);
+	void handleMouseRelease(Qt::MouseButton button);
+	void handleLeave();
+	void handleClose();
+
+	void paintControls(QPainter &p);
 
 	const not_null<Delegate*> _delegate;
 	Streaming::Instance _instance;
 	PipPanel _panel;
 	QSize _size;
 
-	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _playPauseResume;
-	base::unique_qptr< Ui::FadeWrap<Ui::IconButton>> _pictureInPicture;
-	base::unique_qptr< Ui::FadeWrap<Ui::IconButton>> _close;
 	bool _showPause = false;
+	OverState _over = OverState::None;
+	std::optional<OverState> _pressed;
+	Button _close;
+	Button _enlarge;
+	Button _playback;
+	Button _play;
+	Ui::Animations::Simple _controlsShown;
 
 	FnMut<void()> _closeAndContinue;
 	FnMut<void()> _destroy;

@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "styles/style_window.h"
 #include "styles/style_mediaview.h"
-#include "styles/style_layers.h" // st::boxTitleClose
 #include "styles/style_calls.h" // st::callShadow
 
 #include <QtGui/QWindow>
@@ -292,6 +291,14 @@ void PipPanel::setPosition(Position position) {
 	setPositionDefault();
 }
 
+QRect PipPanel::inner() const {
+	return rect().marginsRemoved(_padding);
+}
+
+bool PipPanel::dragging() const {
+	return _dragState.has_value();
+}
+
 rpl::producer<> PipPanel::saveGeometryRequests() const {
 	return _saveGeometryRequests.events();
 }
@@ -433,7 +440,7 @@ void PipPanel::paintEvent(QPaintEvent *e) {
 	}
 
 	auto request = FrameRequest();
-	const auto inner = rect().marginsRemoved(_padding);
+	const auto inner = this->inner();
 	request.resize = request.outer = inner.size() * style::DevicePixelRatio();
 	request.corners = RectPart(0)
 		| ((_attached & (RectPart::Left | RectPart::Top))
@@ -453,7 +460,6 @@ void PipPanel::paintEvent(QPaintEvent *e) {
 		const auto sides = RectPart::AllSides & ~_attached;
 		Ui::Shadow::paint(p, inner, width(), st::callShadow);
 	}
-	p.translate(_padding.left(), _padding.top());
 	_paint(p, request);
 }
 
@@ -515,7 +521,7 @@ void PipPanel::updateOverState(QPoint point) {
 		setCursor([&] {
 			switch (_overState) {
 			case RectPart::Center:
-				return style::cur_default;
+				return style::cur_pointer;
 			case RectPart::TopLeft:
 			case RectPart::BottomRight:
 				return style::cur_sizefdiag;
@@ -655,6 +661,11 @@ void PipPanel::moveAnimated(QPoint to) {
 }
 
 void PipPanel::updateDecorations() {
+	const auto guard = gsl::finally([&] {
+		if (!_dragState) {
+			_saveGeometryRequests.fire({});
+		}
+	});
 	const auto position = countPosition();
 	const auto center = position.geometry.center();
 	const auto use = Ui::Platform::TranslucentWindowsSupported(center);
@@ -665,7 +676,7 @@ void PipPanel::updateDecorations() {
 		(position.attached & RectPart::Right) ? 0 : full.right(),
 		(position.attached & RectPart::Bottom) ? 0 : full.bottom());
 	_snapped = position.snapped;
-	if (_padding == padding || _attached == position.attached) {
+	if (_padding == padding && _attached == position.attached) {
 		return;
 	}
 	const auto newGeometry = position.geometry.marginsAdded(padding);
@@ -675,9 +686,6 @@ void PipPanel::updateDecorations() {
 	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 	setGeometry(newGeometry);
 	update();
-	if (!_dragState) {
-		_saveGeometryRequests.fire({});
-	}
 }
 
 Pip::Pip(
@@ -690,18 +698,6 @@ Pip::Pip(
 , _panel(
 	_delegate->pipParentWidget(),
 	[=](QPainter &p, const FrameRequest &request) { paint(p, request); })
-, _playPauseResume(
-	std::in_place,
-	&_panel,
-	object_ptr<Ui::IconButton>(&_panel, st::mediaviewPlayButton))
-, _pictureInPicture(
-	std::in_place,
-	&_panel,
-	object_ptr<Ui::IconButton>(&_panel, st::mediaviewFullScreenButton))
-, _close(
-	std::in_place,
-	&_panel,
-	object_ptr<Ui::IconButton>(&_panel, st::boxTitleClose))
 , _closeAndContinue(std::move(closeAndContinue))
 , _destroy(std::move(destroy)) {
 	setupPanel();
@@ -725,39 +721,131 @@ void Pip::setupPanel() {
 	}, _panel.lifetime());
 
 	_panel.events(
-	) | rpl::filter([=](not_null<QEvent*> e) {
-		return e->type() == QEvent::Close;
-	}) | rpl::start_with_next([=] {
-		crl::on_main(&_panel, [=] {
-			_destroy();
-		});
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		switch (e->type()) {
+		case QEvent::Close: handleClose(); break;
+		case QEvent::Leave: handleLeave(); break;
+		case QEvent::MouseMove:
+			handleMouseMove(static_cast<QMouseEvent*>(e.get())->pos());
+			break;
+		case QEvent::MouseButtonPress:
+			handleMousePress(static_cast<QMouseEvent*>(e.get())->button());
+			break;
+		case QEvent::MouseButtonRelease:
+			handleMouseRelease(static_cast<QMouseEvent*>(e.get())->button());
+			break;
+		}
 	}, _panel.lifetime());
 }
 
-void Pip::setupButtons() {
-	_panel.sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		_close->moveToLeft(0, 0, size.width());
-		const auto skip = st::mediaviewFullScreenLeft;
-		const auto sum = _playPauseResume->width() + skip + _pictureInPicture->width();
-		const auto left = (size.width() - sum) / 2;
-		const auto top = size.height() - _playPauseResume->height() - skip;
-		_playPauseResume->moveToLeft(left, top);
-		_pictureInPicture->moveToRight(left, top);
-	}, _panel.lifetime());
+void Pip::handleClose() {
+	crl::on_main(&_panel, [=] {
+		_destroy();
+	});
+}
 
-	_close->entity()->addClickHandler([=] {
-		_panel.close();
-	});
-	_pictureInPicture->entity()->addClickHandler([=] {
-		_closeAndContinue();
-	});
-	_playPauseResume->entity()->addClickHandler([=] {
-		playbackPauseResume();
-	});
-	_close->show(anim::type::instant);
-	_pictureInPicture->show(anim::type::instant);
-	_playPauseResume->show(anim::type::instant);
+void Pip::handleLeave() {
+	setOverState(OverState::None);
+}
+
+void Pip::handleMouseMove(QPoint position) {
+	setOverState(computeState(position));
+}
+
+void Pip::setOverState(OverState state) {
+	if (_over == state) {
+		return;
+	}
+	const auto was = _over;
+	_over = state;
+	const auto nowShown = (_over != OverState::None);
+	if ((was != OverState::None) != nowShown) {
+		_controlsShown.start(
+			[=] { _panel.update(); },
+			nowShown ? 0. : 1.,
+			nowShown ? 1. : 0.,
+			st::fadeWrapDuration,
+			anim::linear);
+	}
+	const auto check = [&](Button &button) {
+		const auto now = (_over == button.state);
+		if ((was == button.state) != now) {
+			button.active.start(
+				[=, &button] { _panel.update(button.icon); },
+				now ? 0. : 1.,
+				now ? 1. : 0.,
+				st::fadeWrapDuration,
+				anim::linear);
+		}
+	};
+	check(_close);
+	check(_enlarge);
+	check(_play);
+	_panel.update();
+}
+
+void Pip::handleMousePress(Qt::MouseButton button) {
+	if (button != Qt::LeftButton) {
+		return;
+	}
+	_pressed = _over;
+}
+
+void Pip::handleMouseRelease(Qt::MouseButton button) {
+	const auto pressed = base::take(_pressed);
+	if (button != Qt::LeftButton
+		|| _panel.dragging()
+		|| !pressed
+		|| *pressed != _over) {
+		return;
+	}
+
+	switch (_over) {
+	case OverState::Close: _panel.close(); break;
+	case OverState::Enlarge: _closeAndContinue(); break;
+	case OverState::Other: playbackPauseResume(); break;
+	}
+}
+
+void Pip::setupButtons() {
+	_close.state = OverState::Close;
+	_enlarge.state = OverState::Enlarge;
+	_playback.state = OverState::Playback;
+	_play.state = OverState::Other;
+	_panel.sizeValue(
+	) | rpl::map([=] {
+		return _panel.inner();
+	}) | rpl::start_with_next([=](QRect rect) {
+		const auto skip = st::pipControlSkip;
+		_close.area = QRect(
+			rect.x(),
+			rect.y(),
+			st::pipCloseIcon.width() + 2 * skip,
+			st::pipCloseIcon.height() + 2 * skip);
+		_close.icon = _close.area.marginsRemoved({ skip, skip, skip, skip });
+		_enlarge.area = _enlarge.icon = QRect(
+			rect.x() + rect.width() - 2 * skip - st::pipEnlargeIcon.width(),
+			rect.y(),
+			st::pipEnlargeIcon.width() + 2 * skip,
+			st::pipEnlargeIcon.height() + 2 * skip);
+		_enlarge.icon = _enlarge.area.marginsRemoved(
+			{ skip, skip, skip, skip });
+		_play.icon = QRect(
+			rect.x() + (rect.width() - st::pipPlayIcon.width()) / 2,
+			(rect.y()
+				+ rect.height()
+				- st::pipPlayBottom
+				- st::pipPlayIcon.height()),
+			st::pipPlayIcon.width(),
+			st::pipPlayIcon.height());
+		const auto playbackHeight = 2 * st::pipPlaybackSkip
+			+ st::pipPlaybackWidth;
+		_playback.area = QRect(
+			rect.x(),
+			rect.y() + rect.height() - playbackHeight,
+			rect.width(),
+			playbackHeight);
+	}, _panel.lifetime());
 }
 
 void Pip::saveGeometry() {
@@ -768,9 +856,7 @@ void Pip::updatePlayPauseResumeState(const Player::TrackState &state) {
 	auto showPause = Player::ShowPauseIcon(state.state);
 	if (showPause != _showPause) {
 		_showPause = showPause;
-		_playPauseResume->entity()->setIconOverride(
-			_showPause ? &st::mediaviewPauseIcon : nullptr,
-			_showPause ? &st::mediaviewPauseIconOver : nullptr);
+		_panel.update();
 	}
 }
 
@@ -788,10 +874,47 @@ void Pip::setupStreaming() {
 
 void Pip::paint(QPainter &p, FrameRequest request) {
 	const auto image = videoFrameForDirectPaint(request);
-	p.drawImage(QRect{ QPoint(), request.outer / style::DevicePixelRatio() }, image);
+	p.drawImage(
+		QRect{
+			_panel.inner().topLeft(),
+			request.outer / style::DevicePixelRatio() },
+		image);
 	if (_instance.player().ready()) {
 		_instance.markFrameShown();
 	}
+	paintControls(p);
+}
+
+void Pip::paintControls(QPainter &p) {
+	const auto shown = _controlsShown.value(
+		(_over != OverState::None) ? 1. : 0.);
+	if (!shown) {
+		return;
+	}
+	p.setOpacity(shown);
+
+	const auto outer = _panel.width();
+	const auto drawOne = [&](
+			const Button &button,
+			const style::icon &icon,
+			const style::icon &iconOver) {
+		const auto over = button.active.value(
+			(_over == button.state) ? 1. : 0.);
+		if (over < 1.) {
+			icon.paint(p, button.icon.x(), button.icon.y(), outer);
+		}
+		if (over > 0.) {
+			p.setOpacity(over * shown);
+			iconOver.paint(p, button.icon.x(), button.icon.y(), outer);
+			p.setOpacity(shown);
+		}
+	};
+	drawOne(
+		_play,
+		_showPause ? st::pipPauseIcon : st::pipPlayIcon,
+		_showPause ? st::pipPauseIconOver : st::pipPlayIconOver);
+	drawOne(_close, st::pipCloseIcon, st::pipCloseIconOver);
+	drawOne(_enlarge, st::pipEnlargeIcon, st::pipEnlargeIconOver);
 }
 
 void Pip::handleStreamingUpdate(Streaming::Update &&update) {
@@ -904,6 +1027,20 @@ QImage Pip::videoFrameForDirectPaint(const FrameRequest &request) const {
 #endif // USE_OPENGL_OVERLAY_WIDGET
 
 	return result;
+}
+
+Pip::OverState Pip::computeState(QPoint position) const {
+	if (!_panel.inner().contains(position)) {
+		return OverState::None;
+	} else if (_close.area.contains(position)) {
+		return OverState::Close;
+	} else if (_enlarge.area.contains(position)) {
+		return OverState::Enlarge;
+	} else if (_playback.area.contains(position)) {
+		return OverState::Playback;
+	} else {
+		return OverState::Other;
+	}
 }
 
 void Pip::waitingAnimationCallback() {
