@@ -83,7 +83,7 @@ bool RunShellCommand(const QByteArray &command) {
 }
 
 void FallbackFontConfig() {
-#ifndef DESKTOP_APP_USE_PACKAGED
+#ifdef TDESKTOP_USE_FONT_CONFIG_FALLBACK
 	const auto custom = cWorkingDir() + "tdata/fc-custom-1.conf";
 	const auto finish = gsl::finally([&] {
 		if (QFile(custom).exists()) {
@@ -118,7 +118,7 @@ void FallbackFontConfig() {
 	}
 
 	QFile(":/fc/fc-custom.conf").copy(custom);
-#endif // !DESKTOP_APP_USE_PACKAGED
+#endif // TDESKTOP_USE_FONT_CONFIG_FALLBACK
 }
 
 bool GenerateDesktopFile(const QString &targetPath, const QString &args) {
