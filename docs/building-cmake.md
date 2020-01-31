@@ -262,6 +262,7 @@ Go to ***BuildPath*** and run
     -system-freetype \
     -fontconfig \
     -no-opengl \
+    -no-glib \
     -no-gtk \
     -static \
     -openssl-linked \
