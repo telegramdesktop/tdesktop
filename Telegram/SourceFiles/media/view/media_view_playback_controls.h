@@ -9,12 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "base/object_ptr.h"
+#include "base/unique_qptr.h"
+#include "styles/style_widgets.h"
 
 namespace Ui {
 class LabelSimple;
 class FadeAnimation;
 class IconButton;
 class MediaSlider;
+class PopupMenu;
 } // namespace Ui
 
 namespace Media {
@@ -80,6 +83,8 @@ private:
 	void updatePlayPauseResumeState(const Player::TrackState &state);
 	void updateTimeTexts(const Player::TrackState &state);
 	void refreshTimeTexts();
+	void validateSpeedMenuStyle();
+	void showMenu();
 
 	not_null<Delegate*> _delegate;
 
@@ -106,6 +111,8 @@ private:
 	object_ptr<Ui::LabelSimple> _toPlayLeft;
 	object_ptr<Ui::LabelSimple> _downloadProgress = { nullptr };
 
+	style::PopupMenu _speedMenuStyle;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 	std::unique_ptr<Ui::FadeAnimation> _fadeAnimation;
 
 };

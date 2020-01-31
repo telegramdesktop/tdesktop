@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/effects/fade_animation.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/popup_menu.h"
 #include "lang/lang_keys.h"
 #include "layout.h"
 #include "app.h"
@@ -36,6 +37,7 @@ PlaybackControls::PlaybackControls(
 , _pictureInPicture(this, st::mediaviewPipButton)
 , _playedAlready(this, st::mediaviewPlayProgressLabel)
 , _toPlayLeft(this, st::mediaviewPlayProgressLabel)
+, _speedMenuStyle(st::mediaviewControlsPopupMenu)
 , _fadeAnimation(std::make_unique<Ui::FadeAnimation>(this)) {
 	_fadeAnimation->show();
 	_fadeAnimation->setFinishedCallback([=] {
@@ -47,6 +49,9 @@ PlaybackControls::PlaybackControls(
 
 	_pictureInPicture->addClickHandler([=] {
 		_delegate->playbackControlsToPictureInPicture();
+	});
+	_menuToggle->addClickHandler([=] {
+		showMenu();
 	});
 
 	_volumeController->setValue(_delegate->playbackControlsCurrentVolume());
@@ -168,6 +173,61 @@ void PlaybackControls::fadeFinished() {
 void PlaybackControls::fadeUpdated(float64 opacity) {
 	_playbackSlider->setFadeOpacity(opacity);
 	_volumeController->setFadeOpacity(opacity);
+}
+
+void PlaybackControls::validateSpeedMenuStyle() {
+	auto &st = _speedMenuStyle.menu;
+	const auto &check = st::mediaviewMenuCheck;
+	const auto normal = tr::lng_mediaview_playback_speed_normal(tr::now);
+	const auto itemHeight = st.itemPadding.top()
+		+ st.itemStyle.font->height
+		+ st.itemPadding.bottom();
+	const auto itemWidth = st.itemPadding.left()
+		+ st.itemStyle.font->width(normal)
+		+ st.itemPadding.right();
+	if (itemWidth + st.itemPadding.right() + check.width() > st.widthMin) {
+		st.widthMin = itemWidth + st.itemPadding.right() + check.width();
+	}
+	const auto realWidth = std::clamp(itemWidth, st.widthMin, st.widthMax);
+	st.itemIconPosition = QPoint(
+		realWidth - st.itemPadding.right() - check.width(),
+		(itemHeight - check.height()) / 2);
+}
+
+void PlaybackControls::showMenu() {
+	if (_menu) {
+		_menu = nullptr;
+		return;
+	}
+
+	validateSpeedMenuStyle();
+
+	auto submenu = std::make_unique<Ui::PopupMenu>(
+		this,
+		_speedMenuStyle);
+	const auto addSpeed = [&](float64 speed, QString text = QString()) {
+		if (text.isEmpty()) {
+			text = QString::number(speed);
+		}
+		const auto checked = (speed == _delegate->playbackControlsCurrentSpeed());
+		const auto action = submenu->addAction(
+			text,
+			[=] { updatePlaybackSpeed(speed); },
+			checked ? &st::mediaviewMenuCheck : nullptr);
+	};
+	addSpeed(0.5);
+	addSpeed(0.75);
+	addSpeed(1., tr::lng_mediaview_playback_speed_normal(tr::now));
+	addSpeed(1.25);
+	addSpeed(1.5);
+	addSpeed(1.75);
+	addSpeed(2.);
+	_menu.emplace(this, st::mediaviewControlsPopupMenu);
+	_menu->addAction(
+		tr::lng_mediaview_playback_speed(tr::now),
+		std::move(submenu));
+	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::BottomLeft);
+	_menu->popup(mapToGlobal(_menuToggle->geometry().topLeft()));
 }
 
 void PlaybackControls::updatePlaybackSpeed(float64 speed) {
