@@ -25,8 +25,10 @@ bool InSnap();
 
 bool IsXDGDesktopPortalPresent();
 
+QString ProcessNameByPID(const QString &pid);
 QString CurrentExecutablePath(int argc, char *argv[]);
 
+QString AppRuntimeDirectory();
 QString SingleInstanceLocalServerName(const QString &hash);
 
 QString GetLauncherBasename();

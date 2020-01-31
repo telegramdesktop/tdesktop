@@ -44,7 +44,7 @@ namespace {
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
 
-bool XDGDesktopPortalIsPresent = false;
+bool XDGDesktopPortalPresent = false;
 
 #ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
 void SandboxAutostart(bool autostart) {
@@ -196,13 +196,13 @@ bool InSnap() {
 }
 
 bool IsXDGDesktopPortalPresent() {
-	return XDGDesktopPortalIsPresent;
-};
+	return XDGDesktopPortalPresent;
+}
 
-QString CurrentExecutablePath(int argc, char *argv[]) {
+QString ProcessNameByPID(const QString &pid) {
 	constexpr auto kMaxPath = 1024;
 	char result[kMaxPath] = { 0 };
-	auto count = readlink("/proc/self/exe", result, kMaxPath);
+	auto count = readlink("/proc/" + pid.toLatin1() + "/exe", result, kMaxPath);
 	if (count > 0) {
 		auto filename = QFile::decodeName(result);
 		auto deletedPostfix = qstr(" (deleted)");
@@ -212,26 +212,53 @@ QString CurrentExecutablePath(int argc, char *argv[]) {
 		return filename;
 	}
 
+	return QString();
+}
+
+QString CurrentExecutablePath(int argc, char *argv[]) {
+	const auto processName = ProcessNameByPID(qsl("self"));
+
 	// Fallback to the first command line argument.
-	return argc ? QFile::decodeName(argv[0]) : QString();
+	return !processName.isEmpty()
+		? processName
+		: argc
+			? QFile::decodeName(argv[0])
+			: QString();
+}
+
+QString AppRuntimeDirectory() {
+	static const auto RuntimeDirectory = [&] {
+		auto runtimeDir = QStandardPaths::writableLocation(
+			QStandardPaths::RuntimeLocation);
+
+		if (InSandbox()) {
+			runtimeDir += qsl("/app/")
+				+ QString::fromLatin1(qgetenv("FLATPAK_ID"));
+		}
+
+		if (!QFileInfo::exists(runtimeDir)) { // non-systemd distros
+			runtimeDir = QDir::tempPath();
+		}
+
+		if (runtimeDir.isEmpty()) {
+			runtimeDir = qsl("/tmp/");
+		}
+
+		if (!runtimeDir.endsWith('/')) {
+			runtimeDir += '/';
+		}
+
+		return runtimeDir;
+	}();
+
+	return RuntimeDirectory;
 }
 
 QString SingleInstanceLocalServerName(const QString &hash) {
-	const auto runtimeDir = QStandardPaths::writableLocation(
-		QStandardPaths::RuntimeLocation);
-
-	if (InSandbox()) {
-		return runtimeDir
-			+ qsl("/app/")
-			+ QString::fromLatin1(qgetenv("FLATPAK_ID"))
-			+ '/' + hash;
-	} else if (QFileInfo::exists(runtimeDir) && InSnap()) {
-		return runtimeDir + '/' + hash;
-	} else if (QFileInfo::exists(runtimeDir)) {
-		return runtimeDir + '/' + hash + '-' + cGUIDStr();
-	} else { // non-systemd distros
-		return QStandardPaths::writableLocation(QStandardPaths::TempLocation)
-			+ '/' + hash + '-' + cGUIDStr();
+	if (InSandbox() || InSnap()) {
+		return AppRuntimeDirectory() + hash;
+	} else {
+		return AppRuntimeDirectory() + hash + '-' + cGUIDStr();
 	}
 }
 
@@ -381,12 +408,12 @@ void start() {
 
 #if !defined(TDESKTOP_DISABLE_DBUS_INTEGRATION) && defined(TDESKTOP_FORCE_GTK_FILE_DIALOG)
 	LOG(("Checking for XDG Desktop Portal..."));
-	XDGDesktopPortalIsPresent = QDBusInterface(
+	XDGDesktopPortalPresent = QDBusInterface(
 		"org.freedesktop.portal.Desktop",
 		"/org/freedesktop/portal/desktop").isValid();
 
 	// this can give us a chance to use a proper file dialog for current session
-	if(XDGDesktopPortalIsPresent) {
+	if(XDGDesktopPortalPresent) {
 		LOG(("XDG Desktop Portal is present!"));
 		qputenv("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
 	} else {
@@ -467,6 +494,8 @@ bool OpenSystemSettings(SystemSettingsType type) {
 			add("kcmshell4 phonon");
 		} else if (DesktopEnvironment::IsGnome()) {
 			add("gnome-control-center sound");
+		} else if (DesktopEnvironment::IsMATE()) {
+			add("mate-volume-control");
 		}
 		add("pavucontrol-qt");
 		add("pavucontrol");

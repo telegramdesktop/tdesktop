@@ -144,14 +144,10 @@ void MainWindow::firstShow() {
 
 	if (Platform::IsLinux()) {
 		trayIconMenu->addAction(tr::lng_open_from_tray(tr::now), this, SLOT(showFromTray()));
-		trayIconMenu->addAction(tr::lng_minimize_to_tray(tr::now), this, SLOT(minimizeToTray()));
-		trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()));
-		trayIconMenu->addAction(tr::lng_quit_from_tray(tr::now), this, SLOT(quitFromTray()));
-	} else {
-		trayIconMenu->addAction(tr::lng_minimize_to_tray(tr::now), this, SLOT(minimizeToTray()));
-		trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()));
-		trayIconMenu->addAction(tr::lng_quit_from_tray(tr::now), this, SLOT(quitFromTray()));
 	}
+	trayIconMenu->addAction(tr::lng_minimize_to_tray(tr::now), this, SLOT(minimizeToTray()));
+	trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()));
+	trayIconMenu->addAction(tr::lng_quit_from_tray(tr::now), this, SLOT(quitFromTray()));
 	Global::RefWorkMode().setForced(Global::WorkMode().value(), true);
 
 	psFirstShow();
@@ -564,7 +560,7 @@ void MainWindow::updateTrayMenu(bool force) {
 	auto actions = iconMenu->actions();
 	if (Platform::IsLinux()) {
 		auto minimizeAction = actions.at(1);
-		minimizeAction->setDisabled(!isVisible());
+		minimizeAction->setEnabled(isVisible());
 	} else {
 		updateIsActive(0);
 		auto active = isActive();
@@ -587,12 +583,6 @@ void MainWindow::updateTrayMenu(bool force) {
 		? tr::lng_disable_notifications_from_tray(tr::now)
 		: tr::lng_enable_notifications_from_tray(tr::now);
 	notificationAction->setText(notificationActionText);
-
-#ifndef Q_OS_WIN
-	if (trayIcon && trayIcon->contextMenu() != iconMenu) {
-		trayIcon->setContextMenu(iconMenu);
-	}
-#endif // !Q_OS_WIN
 
 	psTrayMenuUpdated();
 }

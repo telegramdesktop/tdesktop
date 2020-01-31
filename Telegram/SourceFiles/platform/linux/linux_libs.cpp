@@ -126,16 +126,6 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	DEBUG_LOG(("Checked gtk with gtk_init_check!"));
 	return true;
 }
-
-bool setupAppIndicator(QLibrary &lib_indicator) {
-	if (!load(lib_indicator, "app_indicator_new", app_indicator_new)) return false;
-	if (!load(lib_indicator, "app_indicator_set_status", app_indicator_set_status)) return false;
-	if (!load(lib_indicator, "app_indicator_set_menu", app_indicator_set_menu)) return false;
-	if (!load(lib_indicator, "app_indicator_set_icon_full", app_indicator_set_icon_full)) return false;
-
-	DEBUG_LOG(("Library appindicator functions loaded!"));
-	return true;
-}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace
@@ -197,10 +187,6 @@ f_g_type_check_instance_cast g_type_check_instance_cast = nullptr;
 f_g_type_check_instance_is_a g_type_check_instance_is_a = nullptr;
 f_g_signal_connect_data g_signal_connect_data = nullptr;
 f_g_signal_handler_disconnect g_signal_handler_disconnect = nullptr;
-f_app_indicator_new app_indicator_new = nullptr;
-f_app_indicator_set_status app_indicator_set_status = nullptr;
-f_app_indicator_set_menu app_indicator_set_menu = nullptr;
-f_app_indicator_set_icon_full app_indicator_set_icon_full = nullptr;
 f_gdk_init_check gdk_init_check = nullptr;
 f_gdk_pixbuf_new_from_data gdk_pixbuf_new_from_data = nullptr;
 f_gdk_pixbuf_new_from_file gdk_pixbuf_new_from_file = nullptr;
@@ -233,33 +219,14 @@ void start() {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 
 	bool gtkLoaded = false;
-	bool indicatorLoaded = false;
 	bool isWayland = QGuiApplication::platformName().startsWith(qsl("wayland"), Qt::CaseInsensitive);
-	QLibrary lib_gtk, lib_indicator;
-	if (loadLibrary(lib_indicator, "ayatana-appindicator3", 1) || loadLibrary(lib_indicator, "appindicator3", 1)) {
-		if (loadLibrary(lib_gtk, "gtk-3", 0)) {
-			gtkLoaded = setupGtkBase(lib_gtk);
-			indicatorLoaded = setupAppIndicator(lib_indicator);
-		}
-	}
-	if ((!gtkLoaded || !indicatorLoaded) && !isWayland) {
-		if (loadLibrary(lib_indicator, "ayatana-appindicator", 1) || loadLibrary(lib_indicator, "appindicator", 1)) {
-			if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
-				gtkLoaded = indicatorLoaded = false;
-				gtkLoaded = setupGtkBase(lib_gtk);
-				indicatorLoaded = setupAppIndicator(lib_indicator);
-			}
-		}
-	}
+	QLibrary lib_gtk;
 
-	// If no appindicator, try at least load gtk.
-	if (!gtkLoaded && !indicatorLoaded) {
-		if (loadLibrary(lib_gtk, "gtk-3", 0)) {
-			gtkLoaded = setupGtkBase(lib_gtk);
-		}
-		if (!gtkLoaded && !isWayland && loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
-			gtkLoaded = setupGtkBase(lib_gtk);
-		}
+	if (loadLibrary(lib_gtk, "gtk-3", 0)) {
+		gtkLoaded = setupGtkBase(lib_gtk);
+	}
+	if (!gtkLoaded && !isWayland && loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
+		gtkLoaded = setupGtkBase(lib_gtk);
 	}
 
 	if (gtkLoaded) {
@@ -287,7 +254,7 @@ void start() {
 		load(lib_gtk, "gtk_button_set_label", gtk_button_set_label);
 		load(lib_gtk, "gtk_button_get_type", gtk_button_get_type);
 	} else {
-		LOG(("Could not load gtk-x11-2.0!"));
+		LOG(("Could not load gtk-3 or gtk-x11-2.0!"));
 	}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }

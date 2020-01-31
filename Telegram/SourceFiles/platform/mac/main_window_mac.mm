@@ -548,6 +548,9 @@ void MainWindow::psShowTrayMenu() {
 }
 
 void MainWindow::psTrayMenuUpdated() {
+	if (trayIcon && trayIconMenu && trayIcon->contextMenu() != trayIconMenu) {
+		trayIcon->setContextMenu(trayIconMenu);
+	}
 }
 
 void MainWindow::psSetupTrayIcon() {

@@ -14,7 +14,7 @@ You will need GCC 8 installed. To install them and all the required dependencies
 
     sudo apt-get install software-properties-common -y && \
     sudo apt-get install git libexif-dev liblzma-dev libz-dev libssl-dev \
-    libappindicator-dev libicu-dev libdee-dev libdrm-dev dh-autoreconf \
+    libgtk2.0-dev libice-dev libsm-dev libicu-dev libdrm-dev dh-autoreconf \
     autoconf automake build-essential libass-dev libfreetype6-dev \
     libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev \
     libvorbis-dev libenchant-dev libxcb1-dev libxcb-image0-dev libxcb-shm0-dev \

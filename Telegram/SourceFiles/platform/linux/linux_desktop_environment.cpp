@@ -9,10 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/linux/specific_linux.h"
 
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-#include <QDBusInterface>
-#endif
-
 namespace Platform {
 namespace DesktopEnvironment {
 namespace {
@@ -44,18 +40,15 @@ Type Compute() {
 				return Type::Gnome;
 			}
 			return Type::Unity;
-		} else if (list.contains("pantheon")) {
-			return Type::Pantheon;
 		} else if (list.contains("gnome")) {
-			if (list.contains("ubuntu"))
-				return Type::Ubuntu;
-
 			return Type::Gnome;
 		} else if (list.contains("kde")) {
 			if (kdeSession == qstr("5")) {
 				return Type::KDE5;
 			}
 			return Type::KDE4;
+		} else if (list.contains("mate")) {
+			return Type::MATE;
 		}
 	}
 
@@ -70,6 +63,8 @@ Type Compute() {
 				return Type::KDE4;
 			}
 			return Type::KDE3;
+		} else if (desktopSession == qstr("mate")) {
+			return Type::MATE;
 		}
 	}
 
@@ -96,9 +91,8 @@ Type ComputeAndLog() {
 		case Type::KDE3: return "KDE3";
 		case Type::KDE4: return "KDE4";
 		case Type::KDE5: return "KDE5";
-		case Type::Ubuntu: return "Ubuntu";
 		case Type::Unity: return "Unity";
-		case Type::Pantheon: return "Pantheon";
+		case Type::MATE: return "MATE";
 		}
 		return QString::number(static_cast<int>(result));
 	};
@@ -112,21 +106,6 @@ Type ComputeAndLog() {
 Type Get() {
 	static const auto result = ComputeAndLog();
 	return result;
-}
-
-bool TryQtTrayIcon() {
-	return !IsPantheon();
-}
-
-bool PreferAppIndicatorTrayIcon() {
-	return (InSandbox() && !IsKDE())
-		|| IsUnity()
-		|| IsUbuntu()
-#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
-		|| (IsGnome() && QDBusInterface("org.kde.StatusNotifierWatcher", "/").isValid());
-#else
-		|| IsGnome();
-#endif
 }
 
 } // namespace DesktopEnvironment

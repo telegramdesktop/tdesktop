@@ -77,6 +77,14 @@ if (DESKTOP_APP_USE_PACKAGED)
     )
 endif()
 
+if (LINUX AND NOT TDESKTOP_DISABLE_DBUS_INTEGRATION)
+    target_link_libraries(Telegram
+    PRIVATE
+        desktop-app::external_statusnotifieritem
+        desktop-app::external_dbusmenu_qt
+    )
+endif()
+
 target_link_libraries(Telegram
 PRIVATE
     tdesktop::lib_mtproto
@@ -1058,28 +1066,6 @@ elseif (LINUX)
         if (DESKTOP_APP_USE_PACKAGED)
             find_library(X11_LIBRARY X11)
             target_link_libraries(Telegram PRIVATE ${X11_LIBRARY})
-        endif()
-
-        set(appindicator_packages
-            ayatana-appindicator3-0.1
-            ayatana-appindicator-0.1
-            appindicator3-0.1
-            appindicator-0.1
-        )
-        set(appindicator_found 0)
-        foreach (package ${appindicator_packages})
-            pkg_check_modules(APPIND_${package} ${package})
-            if (APPIND_${package}_FOUND)
-                set(appindicator_found 1)
-                target_include_directories(Telegram PRIVATE "${APPIND_${package}_INCLUDE_DIRS}")
-                if (${package} MATCHES "ayatana")
-                    target_compile_definitions(Telegram PRIVATE TDESKTOP_USE_AYATANA_INDICATORS)
-                endif()
-                break()
-            endif()
-        endforeach()
-        if (NOT ${appindicator_found})
-            message(FATAL_ERROR "No libappindicator found by pkg-config.")
         endif()
     endif()
 endif()
