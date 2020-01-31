@@ -52,15 +52,13 @@ parts:
       - g++-8
       - qtbase5-private-dev
       - libmapbox-variant-dev
-      - libmsgsl-dev
-      - libayatana-appindicator3-dev
-      - libgtk-3-dev
       - libasound2-dev
       - libavcodec-dev
       - libavformat-dev
       - libavutil-dev
       - libswscale-dev
       - libswresample-dev
+      - libdbusmenu-qt5-dev
       - liblz4-dev
       - liblzma-dev
       - libminizip-dev
@@ -71,13 +69,13 @@ parts:
       - zlib1g-dev
     stage-packages:
       - qt5-image-formats-plugins
-      - libayatana-appindicator3-1
       - libasound2
       - libavcodec57
       - libavformat57
       - libavutil55
       - libswscale4
       - libswresample2
+      - libdbusmenu-qt5-2
       - liblz4-1
       - liblzma5
       - libminizip1
@@ -116,6 +114,7 @@ parts:
       - cmake
       - desktop-qt5
       - enchant
+      - gsl
       - range-v3
       - xxhash
 
@@ -204,6 +203,15 @@ parts:
     configflags:
       - --enable-relocatable
     prime: [-./bin/*]
+
+  gsl:
+    source: https://github.com/microsoft/GSL.git
+    source-depth: 1
+    source-tag: v2.1.0
+    plugin: cmake
+    configflags:
+      - -DGSL_TEST=OFF
+    prime: [-./*]
 
   range-v3:
     source: https://github.com/ericniebler/range-v3.git

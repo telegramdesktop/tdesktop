@@ -9,7 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_main_window.h"
 
-#include <QtCore/QTimer>
+#include "ui/widgets/popup_menu.h"
+
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+#include "statusnotifieritem.h"
+#include <QtCore/QTemporaryFile>
+#endif
 
 namespace Platform {
 
@@ -21,7 +26,12 @@ public:
 
 	void psFirstShow();
 
-	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
+	virtual QImage iconWithCounter(
+		int size,
+		int count,
+		style::color bg,
+		style::color fg,
+		bool smallIcon) = 0;
 
 	static void LibsLoaded();
 
@@ -29,9 +39,6 @@ public:
 
 public slots:
 	void psShowTrayMenu();
-
-	void psStatusIconCheck();
-	void psUpdateIndicator();
 
 protected:
 	void unreadCounterChangedHook() override;
@@ -46,17 +53,26 @@ protected:
 	void psTrayMenuUpdated();
 	void psSetupTrayIcon();
 
-	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
+	virtual void placeSmallCounter(
+		QImage &img,
+		int size,
+		int count,
+		style::color bg,
+		const QPoint &shift,
+		style::color color) = 0;
 
 private:
+	Ui::PopupMenu *_trayIconMenuXEmbed = nullptr;
+
 	void updateIconCounters();
-	void psCreateTrayIcon();
 
-	QTimer _psCheckStatusIconTimer;
-	int _psCheckStatusIconLeft = 100;
+#ifndef TDESKTOP_DISABLE_DBUS_INTEGRATION
+	StatusNotifierItem *_sniTrayIcon = nullptr;
+	std::unique_ptr<QTemporaryFile> _trayIconFile = nullptr;
 
-	QTimer _psUpdateIndicatorTimer;
-	crl::time _psLastIndicatorUpdate = 0;
+	void setSNITrayIcon(const QIcon &icon, const QPixmap &iconPixmap);
+	void attachToSNITrayIcon();
+#endif // !TDESKTOP_DISABLE_DBUS_INTEGRATION
 
 };
 

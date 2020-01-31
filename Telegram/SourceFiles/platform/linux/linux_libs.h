@@ -13,11 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 extern "C" {
 #undef signals
-#ifdef TDESKTOP_USE_AYATANA_INDICATORS
-#include <libayatana-appindicator/app-indicator.h>
-#else
-#include <libappindicator/app-indicator.h>
-#endif
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 #define signals public
@@ -277,18 +272,6 @@ inline gulong g_signal_connect_swapped_helper(gpointer instance, const gchar *de
 
 typedef void (*f_g_signal_handler_disconnect)(gpointer instance, gulong handler_id);
 extern f_g_signal_handler_disconnect g_signal_handler_disconnect;
-
-typedef AppIndicator* (*f_app_indicator_new)(const gchar *id, const gchar *icon_name, AppIndicatorCategory category);
-extern f_app_indicator_new app_indicator_new;
-
-typedef void (*f_app_indicator_set_status)(AppIndicator *self, AppIndicatorStatus status);
-extern f_app_indicator_set_status app_indicator_set_status;
-
-typedef void (*f_app_indicator_set_menu)(AppIndicator *self, GtkMenu *menu);
-extern f_app_indicator_set_menu app_indicator_set_menu;
-
-typedef void (*f_app_indicator_set_icon_full)(AppIndicator *self, const gchar *icon_name, const gchar *icon_desc);
-extern f_app_indicator_set_icon_full app_indicator_set_icon_full;
 
 typedef gboolean (*f_gdk_init_check)(gint *argc, gchar ***argv);
 extern f_gdk_init_check gdk_init_check;
