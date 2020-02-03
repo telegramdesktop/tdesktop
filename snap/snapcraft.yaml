@@ -23,6 +23,7 @@ apps:
       - pulseaudio
       - removable-media
       - unity7
+      - x11
 
 plugs:
   # Support for common GTK themes
