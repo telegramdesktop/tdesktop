@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "data/data_document.h"
 #include "core/application.h"
+#include "base/platform/base_platform_info.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/fade_wrap.h"
@@ -32,6 +33,10 @@ namespace {
 
 constexpr auto kPipLoaderPriority = 2;
 constexpr auto kSaveGeometryTimeout = crl::time(1000);
+
+[[nodiscard]] bool IsWindowControlsOnLeft() {
+	return Platform::IsMac();
+}
 
 [[nodiscard]] QRect ScreenFromPosition(QPoint point) {
 	const auto screen = QGuiApplication::screenAt(point);
@@ -837,12 +842,22 @@ void Pip::setupButtons() {
 			rect.y(),
 			st::pipCloseIcon.width() + 2 * skip,
 			st::pipCloseIcon.height() + 2 * skip);
-		_close.icon = _close.area.marginsRemoved({ skip, skip, skip, skip });
-		_enlarge.area = _enlarge.icon = QRect(
-			rect.x() + rect.width() - 2 * skip - st::pipEnlargeIcon.width(),
+		_enlarge.area = QRect(
+			_close.area.x() + _close.area.width(),
 			rect.y(),
 			st::pipEnlargeIcon.width() + 2 * skip,
 			st::pipEnlargeIcon.height() + 2 * skip);
+		if (!IsWindowControlsOnLeft()) {
+			_close.area.moveLeft(rect.x()
+				+ rect.width()
+				- (_close.area.x() - rect.x())
+				- _close.area.width());
+			_enlarge.area.moveLeft(rect.x()
+				+ rect.width()
+				- (_enlarge.area.x() - rect.x())
+				- _enlarge.area.width());
+		}
+		_close.icon = _close.area.marginsRemoved({ skip, skip, skip, skip });
 		_enlarge.icon = _enlarge.area.marginsRemoved(
 			{ skip, skip, skip, skip });
 		_play.icon = QRect(
