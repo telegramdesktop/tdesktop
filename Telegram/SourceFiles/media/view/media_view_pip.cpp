@@ -913,7 +913,7 @@ void Pip::paint(QPainter &p, FrameRequest request) {
 	if (_instance.player().ready()) {
 		_instance.markFrameShown();
 	}
-	paintRadialLoadingContent(p, inner);
+	paintRadialLoading(p);
 	paintControls(p);
 }
 
@@ -1077,15 +1077,31 @@ QImage Pip::videoFrameForDirectPaint(const FrameRequest &request) const {
 	return result;
 }
 
-void Pip::paintRadialLoadingContent(QPainter &p, QRect outer) const {
+void Pip::paintRadialLoading(QPainter &p) const {
+	const auto inner = countRadialRect();
+#ifdef USE_OPENGL_OVERLAY_WIDGET
+	{
+		if (_radialCache.size() != inner.size() * cIntRetinaFactor()) {
+			_radialCache = QImage(
+				inner.size() * cIntRetinaFactor(),
+				QImage::Format_ARGB32_Premultiplied);
+			_radialCache.setDevicePixelRatio(cRetinaFactor());
+		}
+		_radialCache.fill(Qt::transparent);
+
+		Painter q(&_radialCache);
+		paintRadialLoadingContent(q, inner.translated(-inner.topLeft()));
+	}
+	p.drawImage(inner.topLeft(), _radialCache);
+#else // USE_OPENGL_OVERLAY_WIDGET
+	paintRadialLoadingContent(p, inner);
+#endif // USE_OPENGL_OVERLAY_WIDGET
+}
+
+void Pip::paintRadialLoadingContent(QPainter &p, const QRect &inner) const {
 	if (!_instance.waitingShown()) {
 		return;
 	}
-	const auto inner = QRect(
-		outer.x() + (outer.width() - st::radialSize.width()) / 2,
-		outer.y() + (outer.height() - st::radialSize.height()) / 2,
-		st::radialSize.width(),
-		st::radialSize.height());
 	const auto arc = inner.marginsRemoved(QMargins(
 		st::radialLine,
 		st::radialLine,
@@ -1109,6 +1125,16 @@ void Pip::paintRadialLoadingContent(QPainter &p, QRect outer) const {
 		st::radialLine);
 }
 
+QRect Pip::countRadialRect() const {
+	const auto outer = _panel.inner();
+	return {
+		outer.x() + (outer.width() - st::radialSize.width()) / 2,
+		outer.y() + (outer.height() - st::radialSize.height()) / 2,
+		st::radialSize.width(),
+		st::radialSize.height()
+	};
+}
+
 Pip::OverState Pip::computeState(QPoint position) const {
 	if (!_panel.inner().contains(position)) {
 		return OverState::None;
@@ -1124,6 +1150,7 @@ Pip::OverState Pip::computeState(QPoint position) const {
 }
 
 void Pip::waitingAnimationCallback() {
+	_panel.update(countRadialRect());
 }
 
 } // namespace View

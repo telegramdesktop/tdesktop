@@ -160,7 +160,9 @@ private:
 	void handleClose();
 
 	void paintControls(QPainter &p);
-	void paintRadialLoadingContent(QPainter &p, QRect inner) const;
+	void paintRadialLoading(QPainter &p) const;
+	void paintRadialLoadingContent(QPainter &p, const QRect &inner) const;
+	[[nodiscard]] QRect countRadialRect() const;
 
 	const not_null<Delegate*> _delegate;
 	Streaming::Instance _instance;
@@ -183,6 +185,7 @@ private:
 
 #ifdef USE_OPENGL_OVERLAY_WIDGET
 	mutable QImage _frameForDirectPaint;
+	mutable QImage _radialCache;
 #endif // USE_OPENGL_OVERLAY_WIDGET
 
 	mutable QImage _preparedCoverStorage;
