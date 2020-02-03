@@ -58,6 +58,7 @@ public:
 	void setPosition(Position position);
 	[[nodiscard]] QRect inner() const;
 	[[nodiscard]] RectParts attached() const;
+	void setDragDisabled(bool disabled);
 	[[nodiscard]] bool dragging() const;
 
 	[[nodiscard]] rpl::producer<> saveGeometryRequests() const;
@@ -87,6 +88,7 @@ private:
 	QSize _ratio;
 
 	bool _useTransparency = true;
+	bool _dragDisabled = false;
 	style::margins _padding;
 
 	RectPart _overState = RectPart();
@@ -163,10 +165,14 @@ private:
 		const FrameRequest &request) const;
 	[[nodiscard]] OverState computeState(QPoint position) const;
 	void setOverState(OverState state);
+	void setPressedState(std::optional<OverState> state);
+	[[nodiscard]] OverState activeState() const;
+	[[nodiscard]] float64 activeValue(const Button &button) const;
+	void updateActiveState(OverState was);
 
 	void handleMouseMove(QPoint position);
-	void handleMousePress(Qt::MouseButton button);
-	void handleMouseRelease(Qt::MouseButton button);
+	void handleMousePress(QPoint position, Qt::MouseButton button);
+	void handleMouseRelease(QPoint position, Qt::MouseButton button);
 	void handleDoubleClick(Qt::MouseButton button);
 	void handleLeave();
 	void handleClose();
@@ -179,6 +185,10 @@ private:
 	void paintRadialLoadingContent(QPainter &p, const QRect &inner) const;
 	[[nodiscard]] QRect countRadialRect() const;
 
+	void seekUpdate(QPoint position);
+	void seekProgress(float64 value);
+	void seekFinish(float64 value);
+
 	const not_null<Delegate*> _delegate;
 	not_null<DocumentData*> _document;
 	FullMsgId _contextId;
@@ -188,6 +198,10 @@ private:
 	std::unique_ptr<PlaybackProgress> _playbackProgress;
 
 	bool _showPause = false;
+	bool _startPaused = false;
+	bool _pausedBySeek = false;
+	crl::time _seekPositionMs = -1;
+	crl::time _lastDurationMs = 0;
 	OverState _over = OverState::None;
 	std::optional<OverState> _pressed;
 	std::optional<OverState> _lastHandledPress;

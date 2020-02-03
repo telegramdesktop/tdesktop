@@ -288,6 +288,7 @@ pipBorderSnapArea: 16px;
 pipResizeArea: 10px;
 pipControlSkip: 6px;
 pipPlaybackWidth: 2px;
+pipPlaybackWide: 4px;
 pipPlaybackSkip: 4px;
 pipPlayIcon: icon {{ "player_pip_play", mediaviewPipControlsFg }};
 pipPlayIconOver: icon {{ "player_pip_play", mediaviewPipControlsFgOver }};

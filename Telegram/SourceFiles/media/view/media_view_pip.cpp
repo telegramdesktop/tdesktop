@@ -306,6 +306,13 @@ RectParts PipPanel::attached() const {
 	return _attached;
 }
 
+void PipPanel::setDragDisabled(bool disabled) {
+	_dragDisabled = disabled;
+	if (_dragState) {
+		_dragState = std::nullopt;
+	}
+}
+
 bool PipPanel::dragging() const {
 	return _dragState.has_value();
 }
@@ -559,7 +566,8 @@ void PipPanel::mouseMoveEvent(QMouseEvent *e) {
 	const auto point = e->globalPos();
 	const auto distance = QApplication::startDragDistance();
 	if (!_dragState
-		&& (point - _pressPoint).manhattanLength() > distance) {
+		&& (point - _pressPoint).manhattanLength() > distance
+		&& !_dragDisabled) {
 		_dragState = _pressState;
 		updateDecorations();
 		_dragStartGeometry = geometry().marginsRemoved(_padding);
@@ -744,20 +752,26 @@ void Pip::setupPanel() {
 
 	_panel.events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		const auto mousePosition = [&] {
+			return static_cast<QMouseEvent*>(e.get())->pos();
+		};
+		const auto mouseButton = [&] {
+			return static_cast<QMouseEvent*>(e.get())->button();
+		};
 		switch (e->type()) {
 		case QEvent::Close: handleClose(); break;
 		case QEvent::Leave: handleLeave(); break;
 		case QEvent::MouseMove:
-			handleMouseMove(static_cast<QMouseEvent*>(e.get())->pos());
+			handleMouseMove(mousePosition());
 			break;
 		case QEvent::MouseButtonPress:
-			handleMousePress(static_cast<QMouseEvent*>(e.get())->button());
+			handleMousePress(mousePosition(), mouseButton());
 			break;
 		case QEvent::MouseButtonRelease:
-			handleMouseRelease(static_cast<QMouseEvent*>(e.get())->button());
+			handleMouseRelease(mousePosition(), mouseButton());
 			break;
 		case QEvent::MouseButtonDblClick:
-			handleDoubleClick(static_cast<QMouseEvent*>(e.get())->button());
+			handleDoubleClick(mouseButton());
 			break;
 		}
 	}, _panel.lifetime());
@@ -775,6 +789,7 @@ void Pip::handleLeave() {
 
 void Pip::handleMouseMove(QPoint position) {
 	setOverState(computeState(position));
+	seekUpdate(position);
 }
 
 void Pip::setOverState(OverState state) {
@@ -792,8 +807,32 @@ void Pip::setOverState(OverState state) {
 			st::fadeWrapDuration,
 			anim::linear);
 	}
+	if (!_pressed) {
+		updateActiveState(was);
+	}
+	_panel.update();
+}
+
+void Pip::setPressedState(std::optional<OverState> state) {
+	if (_pressed == state) {
+		return;
+	}
+	const auto was = activeState();
+	_pressed = state;
+	updateActiveState(was);
+}
+
+Pip::OverState Pip::activeState() const {
+	return _pressed.value_or(_over);
+}
+
+float64 Pip::activeValue(const Button &button) const {
+	return button.active.value((activeState() == button.state) ? 1. : 0.);
+}
+
+void Pip::updateActiveState(OverState was) {
 	const auto check = [&](Button &button) {
-		const auto now = (_over == button.state);
+		const auto now = (activeState() == button.state);
 		if ((was == button.state) != now) {
 			button.active.start(
 				[=, &button] { _panel.update(button.icon); },
@@ -806,22 +845,31 @@ void Pip::setOverState(OverState state) {
 	check(_close);
 	check(_enlarge);
 	check(_play);
-	_panel.update();
+	check(_playback);
 }
 
-void Pip::handleMousePress(Qt::MouseButton button) {
+void Pip::handleMousePress(QPoint position, Qt::MouseButton button) {
 	if (button != Qt::LeftButton) {
 		return;
 	}
 	_pressed = _over;
+	if (_over == OverState::Playback) {
+		_panel.setDragDisabled(true);
+	}
+	seekUpdate(position);
 }
 
-void Pip::handleMouseRelease(Qt::MouseButton button) {
+void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
+	if (button != Qt::LeftButton) {
+		return;
+	}
+	seekUpdate(position);
 	const auto pressed = base::take(_pressed);
-	if (button != Qt::LeftButton
-		|| _panel.dragging()
-		|| !pressed
-		|| *pressed != _over) {
+	if (pressed && *pressed == OverState::Playback) {
+		_panel.setDragDisabled(false);
+		seekFinish(_playbackProgress->value());
+		return;
+	} else if (_panel.dragging() || !pressed || *pressed != _over) {
 		_lastHandledPress = std::nullopt;
 		return;
 	}
@@ -842,6 +890,51 @@ void Pip::handleDoubleClick(Qt::MouseButton button) {
 	}
 	playbackPauseResume(); // Un-click the first click.
 	_closeAndContinue();
+}
+
+void Pip::seekUpdate(QPoint position) {
+	if (!_pressed || *_pressed != OverState::Playback) {
+		return;
+	}
+	const auto unbound = (position.x() - _playback.icon.x())
+		/ float64(_playback.icon.width());
+	const auto progress = std::clamp(unbound, 0., 1.);
+	seekProgress(progress);
+}
+
+void Pip::seekProgress(float64 value) {
+	if (!_lastDurationMs) {
+		return;
+	}
+
+	_playbackProgress->setValue(value, false);
+
+	const auto positionMs = std::clamp(
+		static_cast<crl::time>(value * _lastDurationMs),
+		crl::time(0),
+		_lastDurationMs);
+	if (_seekPositionMs != positionMs) {
+		_seekPositionMs = positionMs;
+		if (!_instance.player().paused()
+			&& !_instance.player().finished()) {
+			_pausedBySeek = true;
+			playbackPauseResume();
+		}
+	}
+}
+
+void Pip::seekFinish(float64 value) {
+	if (!_lastDurationMs) {
+		return;
+	}
+
+	const auto positionMs = std::clamp(
+		static_cast<crl::time>(value * _lastDurationMs),
+		crl::time(0),
+		_lastDurationMs);
+	_seekPositionMs = -1;
+	_startPaused = !_pausedBySeek && !_instance.player().finished();
+	restartAtSeekPosition(positionMs);
 }
 
 void Pip::setupButtons() {
@@ -883,7 +976,7 @@ void Pip::setupButtons() {
 			st::pipPlayIcon.width(),
 			st::pipPlayIcon.height());
 		const auto playbackSkip = st::pipPlaybackSkip;
-		const auto playbackHeight = 2 * playbackSkip + st::pipPlaybackWidth;
+		const auto playbackHeight = 2 * playbackSkip + st::pipPlaybackWide;
 		_playback.area = QRect(
 			rect.x(),
 			rect.y() + rect.height() - playbackHeight,
@@ -975,8 +1068,7 @@ void Pip::paintButtons(QPainter &p) const {
 			const Button &button,
 			const style::icon &icon,
 			const style::icon &iconOver) {
-		const auto over = button.active.value(
-			(_over == button.state) ? 1. : 0.);
+		const auto over = activeValue(button);
 		if (over < 1.) {
 			icon.paint(p, button.icon.x(), button.icon.y(), outer);
 		}
@@ -996,11 +1088,15 @@ void Pip::paintButtons(QPainter &p) const {
 
 void Pip::paintPlayback(QPainter &p) const {
 	const auto radius = _playback.icon.height() / 2;
+	const auto shown = activeValue(_playback);
 	const auto progress = _playbackProgress->value();
-	const auto left = _playback.icon.x();
-	const auto top = _playback.icon.y();
 	const auto width = _playback.icon.width();
-	const auto height = _playback.icon.height();
+	const auto height = anim::interpolate(
+		st::pipPlaybackWidth,
+		_playback.icon.height(),
+		activeValue(_playback));
+	const auto left = _playback.icon.x();
+	const auto top = _playback.icon.y() + _playback.icon.height() - height;
 	const auto done = int(std::round(width * progress));
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
@@ -1055,9 +1151,23 @@ void Pip::handleStreamingUpdate(Streaming::Update &&update) {
 void Pip::updatePlaybackState() {
 	const auto state = _instance.player().prepareLegacyState();
 	updatePlayPauseResumeState(state);
-	if (state.position != kTimeUnknown && state.length != kTimeUnknown) {
-		_playbackProgress->updateState(state);
+	if (state.position == kTimeUnknown
+		|| state.length == kTimeUnknown
+		|| _pausedBySeek) {
+		return;
 	}
+	_playbackProgress->updateState(state);
+
+	qint64 position = 0, length = state.length;
+	if (Player::IsStoppedAtEnd(state.state)) {
+		position = state.length;
+	} else if (!Player::IsStoppedOrStopping(state.state)) {
+		position = state.position;
+	} else {
+		position = 0;
+	}
+	const auto playFrequency = state.frequency;
+	_lastDurationMs = (state.length * crl::time(1000)) / playFrequency;
 }
 
 void Pip::handleStreamingError(Streaming::Error &&error) {
@@ -1069,6 +1179,7 @@ void Pip::playbackPauseResume() {
 		_panel.close();
 	} else if (_instance.player().finished()
 		|| !_instance.player().active()) {
+		_startPaused = false;
 		restartAtSeekPosition(0);
 	} else if (_instance.player().paused()) {
 		_instance.resume();
@@ -1088,6 +1199,10 @@ void Pip::restartAtSeekPosition(crl::time position) {
 	options.audioId = _instance.player().prepareLegacyState().id;
 	options.speed = _delegate->pipPlaybackSpeed();
 	_instance.play(options);
+	if (_startPaused) {
+		_instance.pause();
+	}
+	_pausedBySeek = false;
 	updatePlaybackState();
 }
 
