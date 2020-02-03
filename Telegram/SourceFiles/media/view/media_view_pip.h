@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/streaming/media_streaming_instance.h"
 #include "ui/effects/animations.h"
+#include "ui/round_rect.h"
 #include "ui/rp_widget.h"
 
 #include <QtCore/QPointer>
@@ -54,6 +55,7 @@ public:
 	[[nodiscard]] Position countPosition() const;
 	void setPosition(Position position);
 	[[nodiscard]] QRect inner() const;
+	[[nodiscard]] RectParts attached() const;
 	[[nodiscard]] bool dragging() const;
 
 	[[nodiscard]] rpl::producer<> saveGeometryRequests() const;
@@ -158,6 +160,7 @@ private:
 	void handleClose();
 
 	void paintControls(QPainter &p);
+	void paintRadialLoadingContent(QPainter &p, QRect inner) const;
 
 	const not_null<Delegate*> _delegate;
 	Streaming::Instance _instance;
@@ -173,6 +176,7 @@ private:
 	Button _playback;
 	Button _play;
 	Ui::Animations::Simple _controlsShown;
+	Ui::RoundRect _roundRect;
 
 	FnMut<void()> _closeAndContinue;
 	FnMut<void()> _destroy;

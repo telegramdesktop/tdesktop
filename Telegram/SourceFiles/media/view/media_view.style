@@ -289,7 +289,6 @@ pipResizeArea: 10px;
 pipControlSkip: 6px;
 pipPlaybackWidth: 2px;
 pipPlaybackSkip: 4px;
-pipPlayBottom: 16px;
 pipPlayIcon: icon {{ "player_pip_play", mediaviewPipControlsFg }};
 pipPlayIconOver: icon {{ "player_pip_play", mediaviewPipControlsFgOver }};
 pipPauseIcon: icon {{ "player_pip_pause", mediaviewPipControlsFg }};

@@ -300,6 +300,10 @@ QRect PipPanel::inner() const {
 	return rect().marginsRemoved(_padding);
 }
 
+RectParts PipPanel::attached() const {
+	return _attached;
+}
+
 bool PipPanel::dragging() const {
 	return _dragState.has_value();
 }
@@ -703,6 +707,7 @@ Pip::Pip(
 , _panel(
 	_delegate->pipParentWidget(),
 	[=](QPainter &p, const FrameRequest &request) { paint(p, request); })
+, _roundRect(ImageRoundRadius::Large, st::radialBg)
 , _closeAndContinue(std::move(closeAndContinue))
 , _destroy(std::move(destroy)) {
 	setupPanel();
@@ -862,10 +867,7 @@ void Pip::setupButtons() {
 			{ skip, skip, skip, skip });
 		_play.icon = QRect(
 			rect.x() + (rect.width() - st::pipPlayIcon.width()) / 2,
-			(rect.y()
-				+ rect.height()
-				- st::pipPlayBottom
-				- st::pipPlayIcon.height()),
+			rect.y() + (rect.height() - st::pipPlayIcon.height()) / 2,
 			st::pipPlayIcon.width(),
 			st::pipPlayIcon.height());
 		const auto playbackHeight = 2 * st::pipPlaybackSkip
@@ -904,14 +906,14 @@ void Pip::setupStreaming() {
 
 void Pip::paint(QPainter &p, FrameRequest request) {
 	const auto image = videoFrameForDirectPaint(request);
+	const auto inner = _panel.inner();
 	p.drawImage(
-		QRect{
-			_panel.inner().topLeft(),
-			request.outer / style::DevicePixelRatio() },
+		QRect{ inner.topLeft(), request.outer / style::DevicePixelRatio() },
 		image);
 	if (_instance.player().ready()) {
 		_instance.markFrameShown();
 	}
+	paintRadialLoadingContent(p, inner);
 	paintControls(p);
 }
 
@@ -922,6 +924,22 @@ void Pip::paintControls(QPainter &p) {
 		return;
 	}
 	p.setOpacity(shown);
+
+	using Part = RectPart;
+	const auto sides = _panel.attached();
+	const auto rounded = RectPart(0)
+		| ((sides & (Part::Top | Part::Left)) ? Part(0) : Part::TopLeft)
+		| ((sides & (Part::Top | Part::Right)) ? Part(0) : Part::TopRight)
+		| ((sides & (Part::Bottom | Part::Right))
+			? Part(0)
+			: Part::BottomRight)
+		| ((sides & (Part::Bottom | Part::Left))
+			? Part(0)
+			: Part::BottomLeft);
+	_roundRect.paintSomeRounded(
+		p,
+		_panel.inner(),
+		rounded | Part::NoTopBottom | Part::Top | Part::Bottom);
 
 	const auto outer = _panel.width();
 	const auto drawOne = [&](
@@ -1057,6 +1075,38 @@ QImage Pip::videoFrameForDirectPaint(const FrameRequest &request) const {
 #endif // USE_OPENGL_OVERLAY_WIDGET
 
 	return result;
+}
+
+void Pip::paintRadialLoadingContent(QPainter &p, QRect outer) const {
+	if (!_instance.waitingShown()) {
+		return;
+	}
+	const auto inner = QRect(
+		outer.x() + (outer.width() - st::radialSize.width()) / 2,
+		outer.y() + (outer.height() - st::radialSize.height()) / 2,
+		st::radialSize.width(),
+		st::radialSize.height());
+	const auto arc = inner.marginsRemoved(QMargins(
+		st::radialLine,
+		st::radialLine,
+		st::radialLine,
+		st::radialLine));
+	p.setOpacity(_instance.waitingOpacity());
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::radialBg);
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(inner);
+	}
+	p.setOpacity(1.);
+	Ui::InfiniteRadialAnimation::Draw(
+		p,
+		_instance.waitingState(),
+		arc.topLeft(),
+		arc.size(),
+		_panel.width(),
+		st::radialFg,
+		st::radialLine);
 }
 
 Pip::OverState Pip::computeState(QPoint position) const {
