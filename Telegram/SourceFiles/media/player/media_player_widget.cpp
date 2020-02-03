@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "media/player/media_player_volume_controller.h"
 #include "styles/style_media_player.h"
-#include "styles/style_mediaview.h"
+#include "styles/style_media_view.h"
 #include "history/history_item.h"
 #include "storage/localstorage.h"
 #include "layout.h"

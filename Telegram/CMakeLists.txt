@@ -43,7 +43,7 @@ set(style_files
     history/history.style
     info/info.style
     intro/intro.style
-    media/view/mediaview.style
+    media/view/media_view.style
     media/player/media_player.style
     overview/overview.style
     passport/passport.style

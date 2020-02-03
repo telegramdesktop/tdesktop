@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "layout.h"
 #include "app.h"
-#include "styles/style_mediaview.h"
+#include "styles/style_media_view.h"
 
 namespace Media {
 namespace View {

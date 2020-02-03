@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "app.h"
 #include "styles/style_boxes.h"
-#include "styles/style_mediaview.h"
+#include "styles/style_media_view.h"
 
 class EditColorBox::Picker : public TWidget {
 public:

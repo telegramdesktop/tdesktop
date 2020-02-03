@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "main/main_session.h"
 #include "app.h"
-#include "styles/style_mediaview.h"
+#include "styles/style_media_view.h"
 
 namespace Media {
 namespace View {

@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/image/image_prepare.h"
 #include "styles/style_window.h"
-#include "styles/style_mediaview.h"
+#include "styles/style_media_view.h"
 #include "platform/platform_main_window.h"
 #include "facades.h"
 

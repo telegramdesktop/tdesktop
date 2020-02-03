@@ -53,7 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "facades.h"
 #include "app.h"
-#include "styles/style_mediaview.h"
+#include "styles/style_media_view.h"
 #include "styles/style_history.h"
 
 #include <QtWidgets/QApplication>

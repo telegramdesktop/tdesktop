@@ -43,7 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "styles/style_boxes.h"
 #include "styles/style_overview.h"
-#include "styles/style_mediaview.h"
+#include "styles/style_media_view.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_history.h"
 #include "styles/style_layers.h"

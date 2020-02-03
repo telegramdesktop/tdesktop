@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
-#include "styles/style_mediaview.h"
+#include "styles/style_media_view.h"
 #include "styles/style_history.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_info.h"
