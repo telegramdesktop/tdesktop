@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_document.h"
 #include "media/streaming/media_streaming_utility.h"
+#include "media/view/media_view_playback_progress.h"
 #include "media/audio/media_audio.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
@@ -712,6 +713,7 @@ Pip::Pip(
 , _panel(
 	_delegate->pipParentWidget(),
 	[=](QPainter &p, const FrameRequest &request) { paint(p, request); })
+, _playbackProgress(std::make_unique<PlaybackProgress>())
 , _roundRect(ImageRoundRadius::Large, st::radialBg)
 , _closeAndContinue(std::move(closeAndContinue))
 , _destroy(std::move(destroy)) {
@@ -719,6 +721,8 @@ Pip::Pip(
 	setupButtons();
 	setupStreaming();
 }
+
+Pip::~Pip() = default;
 
 void Pip::setupPanel() {
 	const auto size = style::ConvertScale(_instance.info().video.size);
@@ -878,14 +882,22 @@ void Pip::setupButtons() {
 			rect.y() + (rect.height() - st::pipPlayIcon.height()) / 2,
 			st::pipPlayIcon.width(),
 			st::pipPlayIcon.height());
-		const auto playbackHeight = 2 * st::pipPlaybackSkip
-			+ st::pipPlaybackWidth;
+		const auto playbackSkip = st::pipPlaybackSkip;
+		const auto playbackHeight = 2 * playbackSkip + st::pipPlaybackWidth;
 		_playback.area = QRect(
 			rect.x(),
 			rect.y() + rect.height() - playbackHeight,
 			rect.width(),
 			playbackHeight);
+		_playback.icon = _playback.area.marginsRemoved(
+			{ playbackSkip, playbackSkip, playbackSkip, playbackSkip });
 	}, _panel.lifetime());
+
+	_playbackProgress->setValueChangedCallback([=](
+			float64 value,
+			float64 receivedTill) {
+		_panel.update(_playback.area);
+	});
 }
 
 void Pip::saveGeometry() {
@@ -926,14 +938,19 @@ void Pip::paint(QPainter &p, FrameRequest request) {
 	paintControls(p);
 }
 
-void Pip::paintControls(QPainter &p) {
+void Pip::paintControls(QPainter &p) const {
 	const auto shown = _controlsShown.value(
 		(_over != OverState::None) ? 1. : 0.);
 	if (!shown) {
 		return;
 	}
 	p.setOpacity(shown);
+	paintFade(p);
+	paintButtons(p);
+	paintPlayback(p);
+}
 
+void Pip::paintFade(QPainter &p) const {
 	using Part = RectPart;
 	const auto sides = _panel.attached();
 	const auto rounded = RectPart(0)
@@ -949,7 +966,10 @@ void Pip::paintControls(QPainter &p) {
 		p,
 		_panel.inner(),
 		rounded | Part::NoTopBottom | Part::Top | Part::Bottom);
+}
 
+void Pip::paintButtons(QPainter &p) const {
+	const auto opacity = p.opacity();
 	const auto outer = _panel.width();
 	const auto drawOne = [&](
 			const Button &button,
@@ -961,9 +981,9 @@ void Pip::paintControls(QPainter &p) {
 			icon.paint(p, button.icon.x(), button.icon.y(), outer);
 		}
 		if (over > 0.) {
-			p.setOpacity(over * shown);
+			p.setOpacity(over * opacity);
 			iconOver.paint(p, button.icon.x(), button.icon.y(), outer);
-			p.setOpacity(shown);
+			p.setOpacity(opacity);
 		}
 	};
 	drawOne(
@@ -972,6 +992,42 @@ void Pip::paintControls(QPainter &p) {
 		_showPause ? st::pipPauseIconOver : st::pipPlayIconOver);
 	drawOne(_close, st::pipCloseIcon, st::pipCloseIconOver);
 	drawOne(_enlarge, st::pipEnlargeIcon, st::pipEnlargeIconOver);
+}
+
+void Pip::paintPlayback(QPainter &p) const {
+	const auto radius = _playback.icon.height() / 2;
+	const auto progress = _playbackProgress->value();
+	const auto left = _playback.icon.x();
+	const auto top = _playback.icon.y();
+	const auto width = _playback.icon.width();
+	const auto height = _playback.icon.height();
+	const auto done = int(std::round(width * progress));
+	PainterHighQualityEnabler hq(p);
+	p.setPen(Qt::NoPen);
+	if (done > 0) {
+		p.setBrush(st::mediaviewPipPlaybackActive);
+		p.setClipRect(left, top, done, height);
+		p.drawRoundedRect(
+			left,
+			top,
+			std::min(done + radius, width),
+			height,
+			radius,
+			radius);
+	}
+	if (done < width) {
+		const auto from = std::max(left + done - radius, left);
+		p.setBrush(st::mediaviewPipPlaybackInactive);
+		p.setClipRect(left + done, top, width - done, height);
+		p.drawRoundedRect(
+			from,
+			top,
+			left + width - from,
+			height,
+			radius,
+			radius);
+	}
+	p.setClipping(false);
 }
 
 void Pip::handleStreamingUpdate(Streaming::Update &&update) {
@@ -998,9 +1054,10 @@ void Pip::handleStreamingUpdate(Streaming::Update &&update) {
 
 void Pip::updatePlaybackState() {
 	const auto state = _instance.player().prepareLegacyState();
-	//if (state.position != kTimeUnknown && state.length != kTimeUnknown) {
-		updatePlayPauseResumeState(state);
-	//}
+	updatePlayPauseResumeState(state);
+	if (state.position != kTimeUnknown && state.length != kTimeUnknown) {
+		_playbackProgress->updateState(state);
+	}
 }
 
 void Pip::handleStreamingError(Streaming::Error &&error) {

@@ -27,6 +27,8 @@ struct TrackState;
 
 namespace View {
 
+class PlaybackProgress;
+
 #if defined Q_OS_MAC && !defined OS_MAC_OLD
 #define USE_OPENGL_OVERLAY_WIDGET
 #endif // Q_OS_MAC && !OS_MAC_OLD
@@ -117,6 +119,7 @@ public:
 		std::shared_ptr<Streaming::Document> shared,
 		FnMut<void()> closeAndContinue,
 		FnMut<void()> destroy);
+	~Pip();
 
 private:
 	enum class OverState {
@@ -168,7 +171,10 @@ private:
 	void handleLeave();
 	void handleClose();
 
-	void paintControls(QPainter &p);
+	void paintControls(QPainter &p) const;
+	void paintFade(QPainter &p) const;
+	void paintButtons(QPainter &p) const;
+	void paintPlayback(QPainter &p) const;
 	void paintRadialLoading(QPainter &p) const;
 	void paintRadialLoadingContent(QPainter &p, const QRect &inner) const;
 	[[nodiscard]] QRect countRadialRect() const;
@@ -179,6 +185,7 @@ private:
 	Streaming::Instance _instance;
 	PipPanel _panel;
 	QSize _size;
+	std::unique_ptr<PlaybackProgress> _playbackProgress;
 
 	bool _showPause = false;
 	OverState _over = OverState::None;

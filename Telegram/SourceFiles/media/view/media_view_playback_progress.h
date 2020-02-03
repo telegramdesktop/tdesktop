@@ -27,7 +27,7 @@ public:
 		_inLoadingStateChanged = std::move(callback);
 	}
 	void setValue(float64 value, bool animated);
-	float64 value() const;
+	[[nodiscard]] float64 value() const;
 
 	void updateState(
 		const Player::TrackState &state,
