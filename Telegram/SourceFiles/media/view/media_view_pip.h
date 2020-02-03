@@ -153,6 +153,7 @@ private:
 	void handleMouseMove(QPoint position);
 	void handleMousePress(Qt::MouseButton button);
 	void handleMouseRelease(Qt::MouseButton button);
+	void handleDoubleClick(Qt::MouseButton button);
 	void handleLeave();
 	void handleClose();
 
@@ -166,6 +167,7 @@ private:
 	bool _showPause = false;
 	OverState _over = OverState::None;
 	std::optional<OverState> _pressed;
+	std::optional<OverState> _lastHandledPress;
 	Button _close;
 	Button _enlarge;
 	Button _playback;

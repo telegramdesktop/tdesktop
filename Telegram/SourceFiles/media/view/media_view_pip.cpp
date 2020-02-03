@@ -734,6 +734,9 @@ void Pip::setupPanel() {
 		case QEvent::MouseButtonRelease:
 			handleMouseRelease(static_cast<QMouseEvent*>(e.get())->button());
 			break;
+		case QEvent::MouseButtonDblClick:
+			handleDoubleClick(static_cast<QMouseEvent*>(e.get())->button());
+			break;
 		}
 	}, _panel.lifetime());
 }
@@ -797,14 +800,26 @@ void Pip::handleMouseRelease(Qt::MouseButton button) {
 		|| _panel.dragging()
 		|| !pressed
 		|| *pressed != _over) {
+		_lastHandledPress = std::nullopt;
 		return;
 	}
 
+	_lastHandledPress = _over;
 	switch (_over) {
 	case OverState::Close: _panel.close(); break;
 	case OverState::Enlarge: _closeAndContinue(); break;
 	case OverState::Other: playbackPauseResume(); break;
 	}
+}
+
+void Pip::handleDoubleClick(Qt::MouseButton button) {
+	if (_over != OverState::Other
+		|| !_lastHandledPress
+		|| *_lastHandledPress != _over) {
+		return;
+	}
+	playbackPauseResume(); // Un-click the first click.
+	_closeAndContinue();
 }
 
 void Pip::setupButtons() {
