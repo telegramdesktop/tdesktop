@@ -39,7 +39,7 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kMaxGifForwardedBarLines = 4;
-constexpr auto kUseNonBlurredThreshold = 160;
+constexpr auto kUseNonBlurredThreshold = 240;
 
 int gifMaxStatusWidth(DocumentData *document) {
 	auto result = st::normalFont->width(formatDownloadText(document->size, document->size));
@@ -406,7 +406,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 			const auto normal = _data->thumbnail();
 			if (normal && normal->loaded()) {
 				if (normal->width() >= kUseNonBlurredThreshold
-					&& normal->height() >= kUseNonBlurredThreshold) {
+					|| normal->height() >= kUseNonBlurredThreshold) {
 					p.drawPixmap(rthumb.topLeft(), normal->pixSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
 				} else {
 					p.drawPixmap(rthumb.topLeft(), normal->pixBlurredSingle(_realParent->fullId(), _thumbw, _thumbh, usew, painth, roundRadius, roundCorners));
@@ -1116,8 +1116,8 @@ void Gif::validateGroupedCache(
 		: _data->thumbnailInline();
 	const auto blur = !useGood
 		&& (!useThumb
-			|| (thumb->width() < kUseNonBlurredThreshold)
-			|| (thumb->height() < kUseNonBlurredThreshold));
+			|| (thumb->width() < kUseNonBlurredThreshold
+				&& thumb->height() < kUseNonBlurredThreshold));
 	if (good && !useGood) {
 		good->load({});
 	}
