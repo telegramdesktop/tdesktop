@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/shadow.h"
 #include "window/window_controller.h"
+#include "layout.h" // formatDurationText
 #include "styles/style_window.h"
 #include "styles/style_media_view.h"
 #include "styles/style_calls.h" // st::callShadow
@@ -35,6 +36,7 @@ namespace {
 
 constexpr auto kPipLoaderPriority = 2;
 constexpr auto kSaveGeometryTimeout = crl::time(1000);
+constexpr auto kMsInSecond = 1000;
 
 [[nodiscard]] bool IsWindowControlsOnLeft() {
 	return Platform::IsMac();
@@ -920,6 +922,7 @@ void Pip::seekProgress(float64 value) {
 			_pausedBySeek = true;
 			playbackPauseResume();
 		}
+		updatePlaybackTexts(_seekPositionMs, _lastDurationMs, kMsInSecond);
 	}
 }
 
@@ -1041,6 +1044,7 @@ void Pip::paintControls(QPainter &p) const {
 	paintFade(p);
 	paintButtons(p);
 	paintPlayback(p);
+	paintPlaybackTexts(p);
 }
 
 void Pip::paintFade(QPainter &p) const {
@@ -1126,6 +1130,21 @@ void Pip::paintPlayback(QPainter &p) const {
 	p.setClipping(false);
 }
 
+void Pip::paintPlaybackTexts(QPainter &p) const {
+	const auto left = _playback.area.x() + st::pipPlaybackTextSkip;
+	const auto right = _playback.area.x()
+		+ _playback.area.width()
+		- st::pipPlaybackTextSkip;
+	const auto top = _playback.icon.y()
+		- st::pipPlaybackFont->height
+		+ st::pipPlaybackFont->ascent;
+
+	p.setFont(st::pipPlaybackFont);
+	p.setPen(st::mediaviewPipControlsFgOver);
+	p.drawText(left, top, _timeAlready);
+	p.drawText(right - _timeLeftWidth, top, _timeLeft);
+}
+
 void Pip::handleStreamingUpdate(Streaming::Update &&update) {
 	using namespace Streaming;
 
@@ -1168,6 +1187,32 @@ void Pip::updatePlaybackState() {
 	}
 	const auto playFrequency = state.frequency;
 	_lastDurationMs = (state.length * crl::time(1000)) / playFrequency;
+
+	if (_seekPositionMs < 0) {
+		updatePlaybackTexts(position, state.length, playFrequency);
+	}
+}
+
+void Pip::updatePlaybackTexts(
+		int64 position,
+		int64 length,
+		int64 frequency) {
+	const auto playAlready = position / frequency;
+	const auto playLeft = (length / frequency) - playAlready;
+	const auto already = formatDurationText(playAlready);
+	const auto minus = QChar(8722);
+	const auto left = minus + formatDurationText(playLeft);
+	if (_timeAlready == already && _timeLeft == left) {
+		return;
+	}
+	_timeAlready = already;
+	_timeLeft = left;
+	_timeLeftWidth = st::pipPlaybackFont->width(_timeLeft);
+	_panel.update(QRect(
+		_playback.area.x(),
+		_playback.icon.y() - st::pipPlaybackFont->height,
+		_playback.area.width(),
+		st::pipPlaybackFont->height));
 }
 
 void Pip::handleStreamingError(Streaming::Error &&error) {

@@ -169,6 +169,7 @@ private:
 	[[nodiscard]] OverState activeState() const;
 	[[nodiscard]] float64 activeValue(const Button &button) const;
 	void updateActiveState(OverState was);
+	void updatePlaybackTexts(int64 position, int64 length, int64 frequency);
 
 	void handleMouseMove(QPoint position);
 	void handleMousePress(QPoint position, Qt::MouseButton button);
@@ -181,6 +182,7 @@ private:
 	void paintFade(QPainter &p) const;
 	void paintButtons(QPainter &p) const;
 	void paintPlayback(QPainter &p) const;
+	void paintPlaybackTexts(QPainter &p) const;
 	void paintRadialLoading(QPainter &p) const;
 	void paintRadialLoadingContent(QPainter &p, const QRect &inner) const;
 	[[nodiscard]] QRect countRadialRect() const;
@@ -200,6 +202,8 @@ private:
 	bool _showPause = false;
 	bool _startPaused = false;
 	bool _pausedBySeek = false;
+	QString _timeAlready, _timeLeft;
+	int _timeLeftWidth = 0;
 	crl::time _seekPositionMs = -1;
 	crl::time _lastDurationMs = 0;
 	OverState _over = OverState::None;

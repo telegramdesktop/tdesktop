@@ -282,7 +282,7 @@ themePreviewButtonsSkip: 20px;
 themePreviewDialogsWidth: 312px;
 
 pipDefaultSize: 320px;
-pipMinimalSize: 100px;
+pipMinimalSize: 120px;
 pipBorderSkip: 20px;
 pipBorderSnapArea: 16px;
 pipResizeArea: 10px;
@@ -290,6 +290,8 @@ pipControlSkip: 6px;
 pipPlaybackWidth: 2px;
 pipPlaybackWide: 4px;
 pipPlaybackSkip: 4px;
+pipPlaybackTextSkip: 6px;
+pipPlaybackFont: font(11px);
 pipPlayIcon: icon {{ "player_pip_play", mediaviewPipControlsFg }};
 pipPlayIconOver: icon {{ "player_pip_play", mediaviewPipControlsFgOver }};
 pipPauseIcon: icon {{ "player_pip_pause", mediaviewPipControlsFg }};
